@@ -1,6 +1,6 @@
 # P0 native capture progress
 
-Status: the native coordinator, async acquisition path, Wayland portal adapter, and global-target handshake are implemented and compile/unit-tested. A real X11 acquisition probe passed on KDE/X11, but this is not feature-completion evidence: pure-Wayland, mixed-DPI hardware, Windows/macOS, and packaged runtime gates remain open.
+Status: the native coordinator, async acquisition path, Wayland portal adapter, and global-target handshake are implemented and compile/unit-tested. End-to-end KDE/X11 capture and Windows shortcut plus Chat-composer capture now pass. This is not feature-completion evidence: pure-Wayland, mixed-DPI hardware, macOS, and signed-package gates remain open.
 
 ## Baseline and drift
 
@@ -159,7 +159,7 @@ The repository-wide `cargo fmt --check` is not currently a usable gate: upstream
 
 ## Assembled application integration
 
-The production Tauri builder now owns one `ScreenCaptureRuntime`, installs the native clipboard adapter, conditionally installs the ordinary shortcut plugin only outside pure Wayland, retains the Wayland portal shortcut guard, prewarms the fixed hidden overlay, registers the capture commands, and routes close/destroy events through synchronous capture cleanup. The macOS dock menu excludes the capture utility window.
+The production Tauri builder now owns one `ScreenCaptureRuntime`, installs the native clipboard adapter, conditionally installs the ordinary shortcut plugin only outside pure Wayland, retains the Wayland portal shortcut guard, prewarms a fixed hidden overlay on Linux/macOS, creates ephemeral overlays on demand on Windows, registers the capture commands, and routes close/destroy events through synchronous capture cleanup. The macOS dock menu excludes the capture utility window.
 
 Capture reservation is now separated from acquisition. Native code freezes the session/generation first, schedules readiness and lifetime watchdogs, performs the short compositor-unmap settle asynchronously, and runs the slow backend without holding the runtime mutex. Cancellation, timeout, and window lifecycle hooks therefore remain able to clear the session while capture is pending; a late frame is discarded against its exact ticket.
 
@@ -173,12 +173,12 @@ The global shortcut has an explicit target handshake rather than guessing a chat
 An adversarial integration pass found and corrected two launch/lifecycle issues before landing:
 
 - An ordinary global-shortcut collision originally propagated out of Tauri setup and could prevent Plain Desktop from launching. Registration failure now leaves the composer button available and emits a warning without claiming success.
-- A delayed `screen_capture_init` call ran from every full-app utility window, including the media-preview webview, and produced an unauthorized-caller warning. Native startup now performs the single prewarm; the redundant browser command was removed.
+- A delayed `screen_capture_init` call ran from every full-app utility window, including the media-preview webview, and produced an unauthorized-caller warning. Native startup now performs the single Linux/macOS prewarm; Windows creates an ephemeral overlay on demand, and the redundant browser command was removed.
 - Exact session/generation watchdogs now bound overlay readiness to 10 seconds and the complete ephemeral capture lifetime to 15 minutes. Stale timers and readiness timers that race a healthy active overlay are no-ops.
 - The runtime snapshots each origin window's visibility, minimized, and focus state before hiding it, then restores that exact state on every terminal edge. A transient restoration failure keeps only bounded metadata, retries after 50/200/500 ms, and never retains screenshot pixels or wedges the process-wide coordinator.
-- Native page-load hooks distinguish the overlay's first load from a reload/navigation. A later load start restores the origin and clears sensitive buffers before the old JavaScript heap can strand a session; the retained fixed-window generation can then rearm after the new page loads.
+- Native page-load hooks distinguish the overlay's first load from a reload/navigation. A later load start restores the origin and clears sensitive buffers before the old JavaScript heap can strand a session; retained Linux/macOS overlays can rearm after navigation, while Windows retires its ephemeral generation.
 
-A complete Tauri dev application compiled and launched on the KDE/X11 host with the fixed hidden overlay and no capture initialization warning. The desktop was locked when interactive overlay testing began, so the session was stopped without bypassing the lock; this is build/startup evidence, not a claim of completed end-to-end UI proof.
+A complete Tauri dev application compiled and launched on the KDE/X11 host with its fixed hidden overlay and no capture initialization warning. The desktop was locked when interactive overlay testing began, so the session was stopped without bypassing the lock; this is build/startup evidence, not a claim of completed end-to-end UI proof.
 
 An `x86_64-apple-darwin` Rust standard library was installed and a locked cross-target check was attempted. The Linux host cannot complete that check because it has no Apple SDK/cross-linker: the transitive Objective-C helper reaches the host `cc`, which rejects Apple's `-arch` and macOS flags before Plain's code is compiled. Disabling `cc` produces the same dependency build-script boundary. This is recorded as a host-toolchain limitation, not as macOS proof; the macOS CI runner remains required.
 
@@ -209,7 +209,8 @@ The implementation is intentionally not marked complete. The compositor settle d
 The following P0 gates also remain open until appropriate hosts/CI or packaged builds are available:
 
 - KDE and GNOME Wayland portal/shortcut/runtime proof.
-- Windows and macOS runtime capture, permission, coordinate, shortcut, and signed-package proof.
+- Windows Messages-composer/send/copy/save and mixed-DPI proof; macOS runtime
+  capture, permission, coordinate, shortcut, and signed-package proof.
 - Real mixed-DPI monitor matching on Linux, Windows, and macOS hardware; current native-ID and coordinate tests are synthetic.
 - Packaged native clipboard ownership/persistence and save-dialog behavior.
 - Successful cross-platform GitHub check/release runs and smoke-tested produced packages.
@@ -270,6 +271,86 @@ corepack yarn test
   692 passed; 52 skipped; only the same 3 allowlisted baseline failures
 ```
 
+## Windows debugger-confirmed correction (2026-09-05)
+
+Early Windows runs exposed real packaging, renderer-lifecycle, and command-order
+hazards. Those experiments were useful for narrowing the failure, but their
+parked-renderer polling, native WebView2 messaging/shared buffers, forced
+navigation, separate data directories, split window/child-WebView construction,
+and fixed destruction delays were tested and rejected. They are not part of the
+final implementation.
+
+CDB captured the decisive failure: a synchronous Tauri command was constructing
+a media-preview WebView while WRY held its process-wide `WebContext` store
+mutex and pumped Windows messages. The capture callback then tried to construct
+another WebView and re-entered that non-reentrant mutex. This explains the
+apparently frozen or failed capture launch. Windows capture permission was not
+the cause.
+
+The final correction is deliberately small and uses normal Tauri primitives:
+
+- Every dynamic WebView creation path shares one Windows serialization gate.
+- Media-preview and ordinary-window invoke commands are asynchronous and move
+  their blocking window construction into `spawn_blocking`.
+- Windows capture overlays are ephemeral, generation-bound ordinary
+  `WebviewWindow` instances. Each starts as a mapped opaque, click-through
+  one-pixel bootstrap anchor and expands only after its frozen frame is decoded.
+  Windows no longer prewarms an indefinitely parked capture renderer.
+- Frame delivery uses targeted Tauri events on every platform. The callback
+  queues work with `setTimeout(0)`, performs one pending-frame recovery after
+  readiness, and deduplicates a bounded set of session identifiers.
+- A frontend bootstrap failure retires that generation, defers its WebView
+  destruction until after the reporting invoke returns, and releases the
+  retirement gate even if the platform refuses destruction. Generation-bound
+  labels let the next explicit capture recover without reusing the failed
+  document or remaining permanently `Busy`.
+- The final tree contains no custom capture URI, shared-buffer bridge, native
+  WebView polling, renderer-residency hack, or direct WebView2 dependencies.
+
+Final automated validation after the Windows correction:
+
+```text
+cargo +1.96.0 test --locked --manifest-path src-tauri/Cargo.toml --lib -j 2
+  268 passed
+
+corepack yarn vitest run \
+  tests/lib/screen-capture tests/views/screen-capture \
+  tests/views/chat/chat-input-capture.test.ts \
+  tests/views/messages/message-chat-capture.test.ts \
+  tests/build-support/app-mode.test.ts \
+  tests/build-support/windows-capture-ephemeral-overlay.test.ts \
+  tests/build-support/windows-webview-creation-serialization.test.ts
+  172 passed
+
+corepack yarn typecheck
+cargo +1.96.0 check --locked --manifest-path src-tauri/Cargo.toml -j 2
+corepack yarn build:tauri:frontend
+Windows cargo build --locked --features tauri/custom-protocol -j 2
+  passed
+
+corepack yarn test
+  708 passed; 52 skipped; the same 3 allowlisted baseline failures
+```
+
+On the Windows VM, the final `Alt+A` path created a fresh serialized overlay,
+completed native acquisition and raw-frame reading, positioned the overlay at
+1600x1200, and received a successful presentation acknowledgment. A QEMU
+framebuffer capture independently confirmed that the WebView painted the frozen
+desktop. A subsequent manual Chat-composer run created a new generation, hid
+the origin, accepted a region selection and confirmation, published the chat
+event, and acknowledged destruction of the ephemeral overlay without a failure
+toast. A separate
+startup-race run deliberately overlapped media-preview and capture WebView
+creation and also completed, directly exercising the corrected serialization
+boundary. Messages-composer delivery, mixed-DPI/negative-origin hardware,
+packaged clipboard/save behavior, and a long idle soak remain explicit
+follow-up runtime gates.
+
 ## Xenocept provenance
 
-Xenocept source was audited at private commit `35efe0e` with the repository owner's explicit permission. P0 adapts its backend/coordinator separation and evidence about platform failure modes. No Xenocept source file was copied in this phase. Its older dependency pins (`xcap` 0.8.3, shortcut plugin 2.3.1, `ashpd` 0.11.1), canvas editor, AeorDB, plugin system, HTTP/eval transport, radial UI, and persisted screenshot history are intentionally excluded.
+Xenocept source was audited at private commit `35efe0e` with the repository
+owner's explicit permission. This implementation adapts its backend/coordinator
+separation and evidence about platform failure modes. No Xenocept source file
+was copied. Its older dependency pins, canvas editor, AeorDB integration, plugin
+system, HTTP/eval transport, radial UI, and persisted screenshot history remain
+intentionally excluded.

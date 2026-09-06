@@ -8,6 +8,7 @@ import Components from 'unplugin-vue-components/vite'
 import svgLoader from 'vite-svg-loader'
 import vueJsx from '@vitejs/plugin-vue-jsx'
 import { playwright } from '@vitest/browser-playwright'
+import { isTauriBuildMode } from './build-support/app-mode'
 
 const INVALID_CHAR_REGEX = /[_\x00-\x1F\x7F<>*#"{}|^[\]`;?:&=+$,]/g
 const DRIVE_LETTER_REGEX = /^[a-z]:/i
@@ -24,6 +25,7 @@ function sanitizeFileName(name: string): string {
 export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, process.cwd(), '')
   const apiHost = env.VITE_APP_API_HOST || ''
+  const isTauriMode = isTauriBuildMode(mode, process.env.VITE_APP_MODE)
 
   return {
   css: {
@@ -134,7 +136,7 @@ export default defineConfig(({ mode }) => {
     __VUE_I18N_FULL_INSTALL__: true,
     __VUE_I18N_LEGACY_API__: false,
     __INTLIFY_PROD_DEVTOOLS__: false,
-    __IS_TAURI__: JSON.stringify(process.env.VITE_APP_MODE === 'tauri'),
+    __IS_TAURI__: JSON.stringify(isTauriMode),
   },
   resolve: {
     alias: {
@@ -179,7 +181,7 @@ export default defineConfig(({ mode }) => {
           },
         },
         define: {
-          __IS_TAURI__: JSON.stringify(process.env.VITE_APP_MODE === 'tauri'),
+          __IS_TAURI__: JSON.stringify(isTauriMode),
         },
         test: {
           name: 'unit',
@@ -208,7 +210,7 @@ export default defineConfig(({ mode }) => {
           },
         },
         define: {
-          __IS_TAURI__: JSON.stringify(process.env.VITE_APP_MODE === 'tauri'),
+          __IS_TAURI__: JSON.stringify(isTauriMode),
         },
         test: {
           name: 'cws',
@@ -227,7 +229,7 @@ export default defineConfig(({ mode }) => {
           },
         },
         define: {
-          __IS_TAURI__: JSON.stringify(process.env.VITE_APP_MODE === 'tauri'),
+          __IS_TAURI__: JSON.stringify(isTauriMode),
         },
         test: {
           name: 'integration',

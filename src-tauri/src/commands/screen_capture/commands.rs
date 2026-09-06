@@ -15,8 +15,8 @@ use super::export::{SaveCaptureOutcome, TauriCaptureExportPort, stable_png_filen
 use super::ipc::{raw_response, require_raw_body};
 use super::platform::XcapBackend;
 use super::runtime::{
-    CapturePublishOutcome, CaptureStartResponse, CaptureTicket, CaptureTimeoutKind,
-    OVERLAY_WINDOW_LABEL, OverlayInit, ScreenCaptureRuntime, acquire_and_publish_once,
+    CapturePublishOutcome, CaptureStartResponse, CaptureTicket, CaptureTimeoutKind, OverlayInit,
+    ScreenCaptureRuntime, acquire_and_publish_once, is_overlay_window_label,
     is_regular_window_label,
 };
 use super::window::TauriCaptureWindowPort;
@@ -27,6 +27,7 @@ pub const RESULT_WIDTH_HEADER: &str = "x-plain-capture-width";
 pub const RESULT_HEIGHT_HEADER: &str = "x-plain-capture-height";
 const MAX_CLIENT_ERROR_DETAIL_CHARS: usize = 1024;
 const CAPTURE_READINESS_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(10);
+const CAPTURE_PRESENTATION_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(30);
 const CAPTURE_LIFETIME_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(15 * 60);
 // `WebviewWindow::hide` acknowledges the unmap request, not completion of the
 // desktop compositor's fade-out. 100 ms still captured a partially faded
@@ -80,12 +81,58 @@ pub fn screen_capture_report_client_error(
 }
 
 #[tauri::command]
+pub fn screen_capture_report_bootstrap_error(
+    window: WebviewWindow,
+    runtime: State<'_, ScreenCaptureRuntime>,
+    overlay_generation: u64,
+    detail: String,
+) -> Result<OverlayInit, CaptureError> {
+    runtime.authorize_overlay_identity(window.label(), overlay_generation)?;
+    log::error!(
+        "screen capture overlay bootstrap failed generation={}: {}",
+        overlay_generation,
+        bounded_client_error_detail(&detail)
+    );
+    let windows = TauriCaptureWindowPort::new(window.app_handle().clone());
+    let init = runtime.overlay_bootstrap_failed(window.label(), overlay_generation, &windows)?;
+    let app = window.app_handle().clone();
+    let label = window.label().to_string();
+    // A failed bootstrap document can never become ready. Retire it only
+    // after this invoke has returned so the next trigger allocates a fresh
+    // generation instead of waiting on the permanently failed WebView.
+    tauri::async_runtime::spawn(async move {
+        tokio::task::yield_now().await;
+        if let Some(window) = app.get_webview_window(&label)
+            && let Err(error) = window.destroy()
+        {
+            log::warn!("destroy failed capture bootstrap overlay failed: {error}");
+        }
+        // Do not let a platform destroy failure strand capture in Busy forever.
+        // Overlay labels are generation-qualified, so a later trigger can safely
+        // create a replacement even if this failed bootstrap window survived.
+        if let Err(error) = app
+            .state::<ScreenCaptureRuntime>()
+            .finish_overlay_retirement(&label)
+        {
+            log::warn!("capture bootstrap overlay retirement cleanup failed: {error}");
+        }
+    });
+    Ok(init)
+}
+
+#[tauri::command]
 pub fn screen_capture_register_target(
     window: WebviewWindow,
     runtime: State<'_, ScreenCaptureRuntime>,
     target_token: String,
 ) -> Result<(), CaptureError> {
-    runtime.register_eligible_target(window.label(), &target_token)
+    let result = runtime.register_eligible_target(window.label(), &target_token);
+    log::info!(
+        "screen capture target registration caller={} success={}",
+        window.label(),
+        result.is_ok()
+    );
+    result
 }
 
 #[tauri::command]
@@ -104,24 +151,57 @@ pub async fn screen_capture_start(
     target_window_label: String,
     target_token: String,
 ) -> Result<CaptureStartResponse, CaptureError> {
-    let app = window.app_handle().clone();
-    let windows = TauriCaptureWindowPort::new(app.clone());
-    let reservation = runtime.reserve_composer_capture(
-        window.label(),
-        new_capture_session_id(),
-        CaptureTarget {
-            window_label: target_window_label,
-            target_token,
-        },
-        &windows,
-    )?;
-    let mut response = reservation.response;
-    schedule_capture_timeouts(app.clone(), &response);
-    if let Some(ticket) = reservation.ticket {
-        finish_reserved_capture(app, &runtime, ticket).await?;
-        response.phase = runtime.active_phase()?;
+    let caller_window_label = window.label().to_string();
+    log::info!("screen capture start entered caller={caller_window_label}");
+    let result: Result<CaptureStartResponse, CaptureError> = async {
+        let app = window.app_handle().clone();
+        let reservation_app = app.clone();
+        let reservation_caller = caller_window_label.clone();
+        let reservation = tauri::async_runtime::spawn_blocking(move || {
+            let runtime = reservation_app.state::<ScreenCaptureRuntime>();
+            let windows = TauriCaptureWindowPort::new(reservation_app.clone());
+            runtime.reserve_composer_capture(
+                &reservation_caller,
+                new_capture_session_id(),
+                CaptureTarget {
+                    window_label: target_window_label,
+                    target_token,
+                },
+                &windows,
+            )
+        })
+        .await
+        .map_err(|error| {
+            CaptureError::new(
+                CaptureErrorCode::OverlayFailed,
+                format!("capture reservation worker failed: {error}"),
+            )
+        })??;
+        let mut response = reservation.response;
+        schedule_capture_timeouts(app.clone(), &response);
+        if let Some(ticket) = reservation.ticket {
+            finish_reserved_capture(app, &runtime, ticket).await?;
+            response.phase = runtime.active_phase()?;
+        }
+        Ok(response)
     }
-    Ok(response)
+    .await;
+    if let Err(error) = &result {
+        log::error!(
+            "screen capture start failed caller={} code={:?} detail={}",
+            caller_window_label,
+            error.code,
+            error.detail
+        );
+    } else if let Ok(response) = &result {
+        log::info!(
+            "screen capture start completed caller={} generation={} phase={:?}",
+            caller_window_label,
+            response.overlay_generation,
+            response.phase
+        );
+    }
+    result
 }
 
 #[tauri::command]
@@ -131,20 +211,46 @@ pub async fn screen_capture_ready(
     overlay_generation: u64,
     protocol_version: u32,
 ) -> Result<NativeCapturePhase, CaptureError> {
-    let app = window.app_handle().clone();
-    let windows = TauriCaptureWindowPort::new(app.clone());
-    let (phase, ticket) = runtime.mark_overlay_ready(
-        window.label(),
-        overlay_generation,
-        protocol_version,
-        &windows,
-    )?;
-    if let Some(ticket) = ticket {
-        finish_reserved_capture(app, &runtime, ticket).await?;
-        runtime.active_phase()
-    } else {
-        Ok(phase)
+    let caller_window_label = window.label().to_string();
+    log::info!(
+        "screen capture overlay ready entered caller={} generation={}",
+        caller_window_label,
+        overlay_generation
+    );
+    let result: Result<NativeCapturePhase, CaptureError> = async {
+        let app = window.app_handle().clone();
+        let windows = TauriCaptureWindowPort::new(app.clone());
+        let (phase, ticket) = runtime.mark_overlay_ready(
+            &caller_window_label,
+            overlay_generation,
+            protocol_version,
+            &windows,
+        )?;
+        if let Some(ticket) = ticket {
+            finish_reserved_capture(app, &runtime, ticket).await?;
+            runtime.active_phase()
+        } else {
+            Ok(phase)
+        }
     }
+    .await;
+    if let Err(error) = &result {
+        log::error!(
+            "screen capture overlay ready failed caller={} generation={} code={:?} detail={}",
+            caller_window_label,
+            overlay_generation,
+            error.code,
+            error.detail
+        );
+    } else if let Ok(phase) = &result {
+        log::info!(
+            "screen capture overlay ready completed caller={} generation={} phase={:?}",
+            caller_window_label,
+            overlay_generation,
+            phase
+        );
+    }
+    result
 }
 
 #[tauri::command]
@@ -154,9 +260,44 @@ pub fn screen_capture_take_frame(
     session_id: String,
     overlay_generation: u64,
 ) -> Result<Response, CaptureError> {
-    runtime
+    log::info!(
+        "screen capture overlay taking frame caller={} generation={}",
+        window.label(),
+        overlay_generation
+    );
+    let result = runtime
         .take_frame(window.label(), &session_id, overlay_generation)
-        .map(raw_response)
+        .map(raw_response);
+    log::info!(
+        "screen capture overlay frame read success={}",
+        result.is_ok()
+    );
+    result
+}
+
+#[tauri::command]
+pub fn screen_capture_pending_frame(
+    window: WebviewWindow,
+    runtime: State<'_, ScreenCaptureRuntime>,
+    overlay_generation: u64,
+) -> Result<Option<super::runtime::FrameAvailablePayload>, CaptureError> {
+    #[cfg(target_os = "windows")]
+    log::info!(
+        "screen capture pending-frame command entered caller={} generation={}",
+        window.label(),
+        overlay_generation
+    );
+    let windows = TauriCaptureWindowPort::new(window.app_handle().clone());
+    let result = runtime.pending_frame(window.label(), overlay_generation, &windows);
+    #[cfg(target_os = "windows")]
+    log::info!(
+        "screen capture pending-frame command completed caller={} generation={} success={} frame={}",
+        window.label(),
+        overlay_generation,
+        result.is_ok(),
+        matches!(result, Ok(Some(_)))
+    );
+    result
 }
 
 #[tauri::command]
@@ -167,7 +308,12 @@ pub fn screen_capture_frame_presented(
     overlay_generation: u64,
 ) -> Result<(), CaptureError> {
     let windows = TauriCaptureWindowPort::new(window.app_handle().clone());
-    runtime.frame_presented(window.label(), &session_id, overlay_generation, &windows)
+    let result = runtime.frame_presented(window.label(), &session_id, overlay_generation, &windows);
+    log::info!(
+        "screen capture overlay presentation acknowledgment success={}",
+        result.is_ok()
+    );
+    result
 }
 
 #[tauri::command]
@@ -176,14 +322,9 @@ pub fn screen_capture_submit_result(
     runtime: State<'_, ScreenCaptureRuntime>,
     request: Request<'_>,
 ) -> Result<CaptureResultDescriptor, CaptureError> {
-    if window.label() != OVERLAY_WINDOW_LABEL {
-        return Err(CaptureError::new(
-            CaptureErrorCode::UnauthorizedCaller,
-            "only the dedicated capture overlay may submit result pixels",
-        ));
-    }
     let session_id = required_header(&request, RESULT_SESSION_HEADER)?.to_string();
     let overlay_generation = parsed_header::<u64>(&request, RESULT_GENERATION_HEADER)?;
+    runtime.authorize_overlay_identity(window.label(), overlay_generation)?;
     let width = parsed_header::<u32>(&request, RESULT_WIDTH_HEADER)?;
     let height = parsed_header::<u32>(&request, RESULT_HEIGHT_HEADER)?;
     let bytes = require_raw_body(request.body())?;
@@ -358,14 +499,20 @@ pub fn screen_capture_fail(
     detail: String,
 ) -> Result<(), CaptureError> {
     let windows = TauriCaptureWindowPort::new(window.app_handle().clone());
-    runtime.fail_from_overlay(
+    let result = runtime.fail_from_overlay(
         window.label(),
         &session_id,
         overlay_generation,
         &code,
         &detail,
         &windows,
-    )
+    );
+    log::warn!(
+        "screen capture overlay reported failure code={} accepted={}",
+        code,
+        result.is_ok()
+    );
+    result
 }
 
 #[tauri::command]
@@ -390,11 +537,11 @@ pub fn screen_capture_unavailable(
 }
 
 /// Hook for the application's global `WindowEvent::Destroyed` branch. Related
-/// origin/target destruction terminates the session. For the overlay, the delay
-/// only covers rebuilding the fixed-label webview; session buffer cleanup and
+/// origin/target destruction terminates the session. For a retained overlay,
+/// the delay covers rebuilding its replacement; session buffer cleanup and
 /// origin restoration run synchronously before this function returns.
 pub fn on_window_destroyed(app: &AppHandle, label: &str) {
-    if label != OVERLAY_WINDOW_LABEL {
+    if !is_overlay_window_label(label) {
         let runtime = app.state::<ScreenCaptureRuntime>();
         let windows = TauriCaptureWindowPort::new(app.clone());
         if let Err(error) = runtime.prepare_window_close(label, &windows) {
@@ -404,8 +551,14 @@ pub fn on_window_destroyed(app: &AppHandle, label: &str) {
     }
     let runtime = app.state::<ScreenCaptureRuntime>();
     let windows = TauriCaptureWindowPort::new(app.clone());
-    if let Err(error) = runtime.overlay_destroyed(&windows) {
-        log::warn!("screen capture overlay destruction cleanup failed: {error}");
+    let rebuild = match runtime.overlay_destroyed(label, &windows) {
+        Ok(rebuild) => rebuild,
+        Err(error) => {
+            log::warn!("screen capture overlay destruction cleanup failed: {error}");
+            return;
+        }
+    };
+    if !rebuild {
         return;
     }
 
@@ -441,7 +594,13 @@ pub(crate) async fn finish_reserved_capture<R: Runtime>(
 ) -> Result<CapturePublishOutcome, CaptureError> {
     let windows = TauriCaptureWindowPort::new(app.clone());
     let session_id = ticket.session_id().to_string();
-    acquire_and_publish_once(
+    let timeout_response = CaptureStartResponse {
+        session_id: session_id.clone(),
+        overlay_generation: ticket.overlay_generation(),
+        phase: NativeCapturePhase::Capturing,
+    };
+    let timeout_app = app.clone();
+    let outcome = acquire_and_publish_once(
         runtime,
         ticket,
         &windows,
@@ -449,7 +608,16 @@ pub(crate) async fn finish_reserved_capture<R: Runtime>(
         CAPTURE_BACKEND_TIMEOUT,
         move || acquire_native_frame(app, session_id),
     )
-    .await
+    .await?;
+    if outcome == CapturePublishOutcome::Published {
+        schedule_capture_timeout(
+            timeout_app,
+            &timeout_response,
+            CaptureTimeoutKind::Presentation,
+            CAPTURE_PRESENTATION_TIMEOUT,
+        );
+    }
+    Ok(outcome)
 }
 
 async fn acquire_native_frame<R: Runtime>(
@@ -534,7 +702,7 @@ fn schedule_capture_timeout<R: Runtime>(
     });
 }
 
-fn new_capture_result_id() -> String {
+pub(crate) fn new_capture_result_id() -> String {
     new_random_id("result")
 }
 
@@ -584,16 +752,24 @@ where
 #[cfg(test)]
 mod tests {
     use super::{
-        MAX_CLIENT_ERROR_DETAIL_CHARS, bounded_client_error_detail,
-        new_capture_delivery_lease_id, new_capture_result_id, new_capture_session_id,
+        MAX_CLIENT_ERROR_DETAIL_CHARS, bounded_client_error_detail, new_capture_delivery_lease_id,
+        new_capture_result_id, new_capture_session_id,
     };
 
     #[test]
     fn client_error_detail_is_bounded_and_cannot_forge_log_lines() {
-        assert_eq!(bounded_client_error_detail("failure\nforged\tline"), "failure forged line");
-        assert_eq!(bounded_client_error_detail("\n\t"), "screen capture client reported an unspecified failure");
         assert_eq!(
-            bounded_client_error_detail(&"x".repeat(MAX_CLIENT_ERROR_DETAIL_CHARS + 1)).chars().count(),
+            bounded_client_error_detail("failure\nforged\tline"),
+            "failure forged line"
+        );
+        assert_eq!(
+            bounded_client_error_detail("\n\t"),
+            "screen capture client reported an unspecified failure"
+        );
+        assert_eq!(
+            bounded_client_error_detail(&"x".repeat(MAX_CLIENT_ERROR_DETAIL_CHARS + 1))
+                .chars()
+                .count(),
             MAX_CLIENT_ERROR_DETAIL_CHARS
         );
     }

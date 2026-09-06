@@ -62,6 +62,7 @@ pub fn register_ordinary_capture_shortcut<R: Runtime>(
     app.global_shortcut()
         .on_shortcut(current_capture_accelerator(), |app, _, event| {
             if event.state == ShortcutState::Pressed {
+                log::info!("global screen capture shortcut pressed");
                 trigger_global_capture(app);
             }
         })
@@ -87,22 +88,48 @@ fn current_capture_accelerator() -> &'static str {
 fn trigger_global_capture<R: Runtime>(app: &AppHandle<R>) {
     let app = app.clone();
     tauri::async_runtime::spawn(async move {
+        let reservation_app = app.clone();
+        let reservation = tauri::async_runtime::spawn_blocking(move || {
+            let runtime = reservation_app.state::<ScreenCaptureRuntime>();
+            let windows = TauriCaptureWindowPort::new(reservation_app.clone());
+            let origin = focused_regular_window_label(&reservation_app)
+                .map(|window_label| CaptureOrigin { window_label });
+            runtime.reserve_global_with_registered_target_capture(
+                new_capture_session_id(),
+                origin,
+                &windows,
+            )
+        })
+        .await;
+        let reservation = match reservation {
+            Ok(reservation) => reservation,
+            Err(error) => {
+                log::warn!("global screen capture reservation worker failed: {error}");
+                return;
+            }
+        };
         let runtime = app.state::<ScreenCaptureRuntime>();
-        let windows = TauriCaptureWindowPort::new(app.clone());
-        let origin =
-            focused_regular_window_label(&app).map(|window_label| CaptureOrigin { window_label });
-        match runtime.reserve_global_with_registered_target_capture(
-            new_capture_session_id(),
-            origin,
-            &windows,
-        ) {
+        match reservation {
             Ok(reservation) => {
+                log::info!(
+                    "global screen capture reserved generation={} phase={:?} immediate_capture={}",
+                    reservation.response.overlay_generation,
+                    reservation.response.phase,
+                    reservation.ticket.is_some()
+                );
                 schedule_capture_timeouts(app.clone(), &reservation.response);
-                if let Some(ticket) = reservation.ticket
-                    && let Err(error) = finish_reserved_capture(app.clone(), &runtime, ticket).await
-                    && error.code != CaptureErrorCode::Busy
-                {
-                    log::warn!("global screen capture trigger failed: {error}");
+                if let Some(ticket) = reservation.ticket {
+                    match finish_reserved_capture(app.clone(), &runtime, ticket).await {
+                        Ok(outcome) => {
+                            log::info!(
+                                "global screen capture acquisition completed outcome={outcome:?}"
+                            )
+                        }
+                        Err(error) if error.code != CaptureErrorCode::Busy => {
+                            log::warn!("global screen capture trigger failed: {error}");
+                        }
+                        Err(_) => {}
+                    }
                 }
             }
             Err(error) if error.code != CaptureErrorCode::Busy => {
@@ -298,7 +325,7 @@ mod tests {
     fn global_capture_hides_only_the_focused_regular_plain_window() {
         assert_eq!(
             select_global_capture_origin([
-                ("screen-capture-overlay", true),
+                ("screen-capture-overlay-7", true),
                 ("window-background", false),
                 ("main", true),
             ]),
@@ -313,7 +340,7 @@ mod tests {
     #[test]
     fn global_capture_keeps_external_apps_visible_when_plain_is_not_focused() {
         assert_eq!(
-            select_global_capture_origin([("main", false), ("screen-capture-overlay", false)]),
+            select_global_capture_origin([("main", false), ("screen-capture-overlay-7", false)]),
             None
         );
     }

@@ -7,8 +7,6 @@ use objc2::{msg_send, sel, ClassType};
 use objc2_app_kit::{NSApplication, NSMenu, NSMenuItem};
 use objc2_foundation::{MainThreadMarker, NSString};
 
-use super::screen_capture::runtime::OVERLAY_WINDOW_LABEL;
-
 static APP_HANDLE: OnceLock<tauri::AppHandle> = OnceLock::new();
 
 /// Maps window label → display title ("Local" | device name).
@@ -91,7 +89,7 @@ fn register_action_class() -> &'static objc2::runtime::AnyClass {
                 let mut labels: Vec<String> = handle
                     .webview_windows()
                     .keys()
-                    .filter(|label| label.as_str() != OVERLAY_WINDOW_LABEL)
+                    .filter(|label| !super::screen_capture::runtime::is_overlay_window_label(label))
                     .cloned()
                     .collect();
                 labels.sort(); // "window-{timestamp}" — ascending = creation order

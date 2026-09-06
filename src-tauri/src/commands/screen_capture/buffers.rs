@@ -62,6 +62,22 @@ impl SessionBuffers {
         Ok((descriptor, frame.into_bytes()))
     }
 
+    pub fn frame_descriptor(
+        &self,
+        session_id: &str,
+    ) -> Result<CapturedFrameDescriptor, CaptureError> {
+        self.require_session(session_id)?;
+        self.frame
+            .as_ref()
+            .map(|frame| frame.descriptor().clone())
+            .ok_or_else(|| {
+                CaptureError::new(
+                    CaptureErrorCode::InvalidFrame,
+                    "capture frame is unavailable",
+                )
+            })
+    }
+
     pub fn store_result(
         &mut self,
         descriptor: CaptureResultDescriptor,

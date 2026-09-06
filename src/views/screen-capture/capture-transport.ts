@@ -52,7 +52,10 @@ export interface CaptureEvent<T> {
 }
 
 export type CaptureUnlisten = () => void
-export type CaptureListen = (event: string, handler: (event: CaptureEvent<CaptureFrameAvailable>) => void | Promise<void>) => Promise<CaptureUnlisten>
+export type CaptureListen = <T = CaptureFrameAvailable>(
+  event: string,
+  handler: (event: CaptureEvent<T>) => void | Promise<void>
+) => Promise<CaptureUnlisten>
 export interface CaptureInvokeOptions {
   headers: Record<string, string>
 }
@@ -67,6 +70,7 @@ export interface CaptureTransportDependencies {
 }
 
 export interface CaptureTransport {
+  recoverPendingFrame(): Promise<void>
   dispose(): void
 }
 
@@ -78,6 +82,11 @@ export function parseOverlayGeneration(search: string): number {
   const value = Number(new URLSearchParams(search).get('overlayGeneration'))
   requirePositiveInteger(value, 'overlay generation')
   return value
+}
+
+export function captureOverlayWindowLabel(overlayGeneration: number): string {
+  requirePositiveInteger(overlayGeneration, 'overlay generation')
+  return `screen-capture-overlay-${overlayGeneration}`
 }
 
 export function frameBytesToImageData(descriptor: CaptureFrameDescriptor, buffer: ArrayBuffer): ImageData {
@@ -115,7 +124,18 @@ export async function createCaptureTransport(deps: CaptureTransportDependencies)
   requirePositiveInteger(deps.overlayGeneration, 'overlay generation')
   let disposed = false
   let processingSessionId: string | null = null
+  let pendingFramePull: Promise<void> | null = null
+  const handledSessionIds = new Set<string>()
+  const handledSessionOrder: string[] = []
+  const rememberHandledSession = (sessionId: string): void => {
+    handledSessionIds.add(sessionId)
+    handledSessionOrder.push(sessionId)
+    if (handledSessionOrder.length > 16) {
+      handledSessionIds.delete(handledSessionOrder.shift()!)
+    }
+  }
   const reportFailure = async (sessionId: string, code: string, detail: string): Promise<void> => {
+    if (disposed) return
     try {
       await deps.invoke('screen_capture_fail', {
         sessionId,
@@ -129,14 +149,19 @@ export async function createCaptureTransport(deps: CaptureTransportDependencies)
     }
   }
 
-  const unlisten = await deps.listen(FRAME_AVAILABLE_EVENT, async ({ payload }) => {
+  const processFrame = async (payload: CaptureFrameAvailable): Promise<void> => {
     if (disposed) return
+    // A fresh Windows overlay can observe the same publication through both
+    // the event listener and the post-readiness pending-frame pull. Claim the
+    // session before the first await so either ordering consumes it once.
+    if (handledSessionIds.has(payload.sessionId)) return
     if (processingSessionId) {
       await reportFailure(payload.sessionId, 'overlay_busy', 'the capture overlay is already presenting another frame')
       return
     }
 
     processingSessionId = payload.sessionId
+    rememberHandledSession(payload.sessionId)
     try {
       if (payload.overlayGeneration !== deps.overlayGeneration) {
         await reportFailure(payload.sessionId, 'stale_overlay_generation', 'capture frame belongs to another overlay generation')
@@ -162,21 +187,72 @@ export async function createCaptureTransport(deps: CaptureTransportDependencies)
     } finally {
       processingSessionId = null
     }
-  })
+  }
+
+  const recoverPendingFrame = async (): Promise<void> => {
+    if (disposed) return
+    if (pendingFramePull) return pendingFramePull
+    pendingFramePull = (async () => {
+      const pending = await deps.invoke('screen_capture_pending_frame', {
+        overlayGeneration: deps.overlayGeneration,
+      })
+      if (pending) await processFrame(pending as CaptureFrameAvailable)
+    })()
+    try {
+      await pendingFramePull
+    } finally {
+      pendingFramePull = null
+    }
+  }
+
+  let unlisten: CaptureUnlisten = () => undefined
+  const scheduledFrames: Array<{
+    payload: CaptureFrameAvailable
+    resolve(): void
+  }> = []
+  let frameTask: ReturnType<typeof globalThis.setTimeout> | null = null
+  const armFrameTask = (): void => {
+    if (frameTask !== null || !scheduledFrames.length) return
+    frameTask = globalThis.setTimeout(() => {
+      frameTask = null
+      const next = scheduledFrames.shift()
+      if (next) void processFrame(next.payload).then(next.resolve)
+      armFrameTask()
+    }, 0)
+  }
+  const scheduleFrame = (payload: CaptureFrameAvailable): Promise<void> => {
+    if (disposed) return Promise.resolve()
+    return new Promise((resolve) => {
+      scheduledFrames.push({ payload, resolve })
+      armFrameTask()
+    })
+  }
+  // WebView2 cannot service renderer-to-host IPC re-entrantly from its native
+  // event callback. Queue frame retrieval onto the next browser task after the
+  // host event has returned. This is harmless on the other platforms.
+  unlisten = await deps.listen(FRAME_AVAILABLE_EVENT, ({ payload }) => scheduleFrame(payload))
 
   try {
     await deps.invoke('screen_capture_ready', {
       overlayGeneration: deps.overlayGeneration,
       protocolVersion: CAPTURE_PROTOCOL_VERSION,
     })
+    // The native capture may complete while the readiness response is still
+    // crossing the webview boundary. Replay metadata without consuming bytes;
+    // the session claim above deduplicates it against the queued event.
+    await recoverPendingFrame()
   } catch (error) {
     unlisten()
     throw error
   }
 
   return {
+    recoverPendingFrame,
     dispose() {
       disposed = true
+      if (frameTask !== null) globalThis.clearTimeout(frameTask)
+      frameTask = null
+      for (const scheduled of scheduledFrames.splice(0)) scheduled.resolve()
       unlisten()
     },
   }

@@ -6,8 +6,8 @@
   "build": {
     "frontendDist": "../dist",
     "devUrl": "http://localhost:4000",
-    "beforeDevCommand": "yarn dev",
-    "beforeBuildCommand": "yarn build"
+    "beforeDevCommand": "yarn dev:tauri:frontend",
+    "beforeBuildCommand": "yarn build:tauri:frontend"
   },
   "app": {
     "withGlobalTauri": false,

@@ -3,6 +3,8 @@ use tauri::{AppHandle, Manager, WebviewUrl, WebviewWindowBuilder};
 
 use plain_rs::query::url_encode;
 
+use super::webview_creation;
+
 const WARM_LABEL: &str = "media-preview-warm";
 const WARM_WARMUP_PATH: &str = "/media-preview?__warm__=1";
 
@@ -41,7 +43,7 @@ fn build_warm(app: &AppHandle) -> tauri::Result<String> {
         .visible(false);
     #[cfg(target_os = "macos")]
     let win = win.title_bar_style(tauri::TitleBarStyle::Overlay);
-    let win = win.build()?;
+    let win = webview_creation::serialized(|| win.build())?;
     crate::commands::window::cascade_from_focused(app, &win);
     log::info!("media_preview: built warm window");
     Ok(WARM_LABEL.to_string())
@@ -120,7 +122,7 @@ pub fn activate(app: &AppHandle, source: serde_json::Value) -> String {
         .min_inner_size(900.0, 600.0);
     #[cfg(target_os = "macos")]
     let win = win.title_bar_style(tauri::TitleBarStyle::Overlay);
-    match win.build()
+    match webview_creation::serialized(|| win.build())
     {
         Ok(win) => {
             crate::commands::window::cascade_from_focused(app, &win);
@@ -186,11 +188,19 @@ async fn tokio_sleep(ms: u64) {
 }
 
 #[tauri::command]
-pub fn media_preview_init(app: AppHandle) {
-    init(&app);
+pub async fn media_preview_init(app: AppHandle) {
+    if let Err(error) = tauri::async_runtime::spawn_blocking(move || init(&app)).await {
+        log::warn!("media_preview init worker failed: {error}");
+    }
 }
 
 #[tauri::command]
-pub fn media_preview_activate(app: AppHandle, source: serde_json::Value) -> String {
-    activate(&app, source)
+pub async fn media_preview_activate(app: AppHandle, source: serde_json::Value) -> String {
+    match tauri::async_runtime::spawn_blocking(move || activate(&app, source)).await {
+        Ok(label) => label,
+        Err(error) => {
+            log::error!("media_preview activation worker failed: {error}");
+            String::new()
+        }
+    }
 }

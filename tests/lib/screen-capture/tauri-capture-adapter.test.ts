@@ -120,7 +120,7 @@ describe('capture client diagnostics', () => {
     expect(isRegularCaptureWindowLabel('window-chat')).toBe(true)
     expect(isRegularCaptureWindowLabel('window-')).toBe(false)
     expect(isRegularCaptureWindowLabel('media-preview-warm')).toBe(false)
-    expect(isRegularCaptureWindowLabel('screen-capture-overlay')).toBe(false)
+    expect(isRegularCaptureWindowLabel('screen-capture-overlay-7')).toBe(false)
   })
 
   it('retains the bounded nested cause that identifies a failed delivery stage', () => {

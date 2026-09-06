@@ -12,18 +12,16 @@ pub fn run() {
     let builder = tauri::Builder::default();
     #[cfg(any(target_os = "windows", target_os = "linux"))]
     let builder = builder.plugin(tauri_plugin_single_instance::init(|app, _args, _cwd| {
-        if let Some(win) = app.get_webview_window("main") {
-            let _ = win.show();
-            let _ = win.unminimize();
-            let _ = win.set_focus();
-            return;
-        }
-        for win in app.webview_windows().values() {
-            if win.is_visible().unwrap_or(false) {
-                let _ = win.unminimize();
-                let _ = win.set_focus();
-                break;
-            }
+        let windows = app.webview_windows();
+        let candidate = select_reopen_window_label(
+            windows
+                .iter()
+                .map(|(label, window)| (label.as_str(), window.is_visible().ok())),
+        );
+        if let Some(window) = candidate.and_then(|label| windows.get(&label)) {
+            let _ = window.show();
+            let _ = window.unminimize();
+            let _ = window.set_focus();
         }
     }));
     let builder =
@@ -101,6 +99,7 @@ pub fn run() {
                 log::warn!("screen capture shortcut registration failed: {error}");
             }
 
+            #[cfg(not(target_os = "windows"))]
             {
                 let runtime = app
                     .handle()
@@ -108,8 +107,15 @@ pub fn run() {
                 let windows = commands::screen_capture::window::TauriCaptureWindowPort::new(
                     app.handle().clone(),
                 );
-                if let Err(error) = runtime.ensure_overlay_native(&windows) {
-                    log::warn!("screen capture overlay prewarm failed: {error}");
+                log::info!("screen capture overlay prewarm started");
+                match runtime.ensure_overlay_native(&windows) {
+                    Ok(init) => log::info!(
+                        "screen capture overlay prewarm completed generation={}",
+                        init.overlay_generation
+                    ),
+                    Err(error) => {
+                        log::warn!("screen capture overlay prewarm failed: {error}");
+                    }
                 }
             }
 
@@ -211,12 +217,40 @@ pub fn run() {
             let app = webview.app_handle().clone();
             let runtime = app.state::<commands::screen_capture::runtime::ScreenCaptureRuntime>();
             let windows = commands::screen_capture::window::TauriCaptureWindowPort::new(app.clone());
+            let overlay_generation =
+                commands::screen_capture::runtime::is_overlay_window_label(webview.label())
+                    .then(|| {
+                        payload.url().query_pairs().find_map(|(key, value)| {
+                            (key == "overlayGeneration")
+                                .then(|| value.parse::<u64>().ok())
+                                .flatten()
+                        })
+                    })
+                    .flatten();
             let result = match payload.event() {
                 tauri::webview::PageLoadEvent::Started => {
-                    runtime.window_page_load_started(webview.label(), &windows)
+                    if commands::screen_capture::runtime::is_overlay_window_label(webview.label()) {
+                        log::info!(
+                            "screen capture overlay page load started generation={overlay_generation:?}"
+                        );
+                    }
+                    runtime.window_page_load_started(
+                        webview.label(),
+                        overlay_generation,
+                        &windows,
+                    )
                 }
                 tauri::webview::PageLoadEvent::Finished => {
-                    runtime.overlay_page_load_finished(webview.label(), &windows)
+                    if commands::screen_capture::runtime::is_overlay_window_label(webview.label()) {
+                        log::info!(
+                            "screen capture overlay page load finished generation={overlay_generation:?}"
+                        );
+                    }
+                    runtime.overlay_page_load_finished(
+                        webview.label(),
+                        overlay_generation,
+                        &windows,
+                    )
                 }
             };
             if let Err(error) = result {
@@ -264,13 +298,17 @@ pub fn run() {
                 #[cfg(any(target_os = "windows", target_os = "linux"))]
                 {
                     let destroyed_label = window.label();
-                    let app = window.app_handle();
-                    let remaining = app
-                        .webview_windows()
-                        .into_iter()
-                        .filter(|(label, _)| label != destroyed_label);
-                    if !any_window_visible(remaining.map(|(_, w)| w.is_visible().ok())) {
-                        app.exit(0);
+                    if should_check_app_exit_after_destroy(destroyed_label) {
+                        let app = window.app_handle();
+                        let remaining = app
+                            .webview_windows()
+                            .into_iter()
+                            .filter(|(label, _)| {
+                                label != destroyed_label && keeps_process_alive(label)
+                            });
+                        if !any_window_visible(remaining.map(|(_, w)| w.is_visible().ok())) {
+                            app.exit(0);
+                        }
                     }
                 }
             }
@@ -305,6 +343,7 @@ pub fn run() {
             commands::screen_capture::commands::screen_capture_unregister_target,
             commands::screen_capture::commands::screen_capture_start,
             commands::screen_capture::commands::screen_capture_ready,
+            commands::screen_capture::commands::screen_capture_pending_frame,
             commands::screen_capture::commands::screen_capture_take_frame,
             commands::screen_capture::commands::screen_capture_frame_presented,
             commands::screen_capture::commands::screen_capture_submit_result,
@@ -316,6 +355,7 @@ pub fn run() {
             commands::screen_capture::commands::screen_capture_copy_result,
             commands::screen_capture::commands::screen_capture_discard_result,
             commands::screen_capture::commands::screen_capture_report_client_error,
+            commands::screen_capture::commands::screen_capture_report_bootstrap_error,
             commands::screen_capture::commands::screen_capture_invalidate_target,
             commands::screen_capture::commands::screen_capture_fail,
             commands::screen_capture::commands::screen_capture_cancel,
@@ -368,6 +408,61 @@ fn handle_run_event(_app: &tauri::AppHandle, _event: tauri::RunEvent) {}
 #[cfg_attr(not(any(target_os = "windows", target_os = "linux")), allow(dead_code))]
 fn any_window_visible(mut visibilities: impl Iterator<Item = Option<bool>>) -> bool {
     visibilities.any(|v| v.unwrap_or(true))
+}
+
+/// Capture sessions intentionally destroy their ephemeral utility webview.
+/// That internal lifecycle event must never be interpreted as the user
+/// closing Plain's final application window. Media-preview windows retain
+/// their existing last-visible-window behavior.
+#[cfg_attr(
+    not(any(target_os = "windows", target_os = "linux", test)),
+    allow(dead_code)
+)]
+fn should_check_app_exit_after_destroy(label: &str) -> bool {
+    !commands::screen_capture::runtime::is_overlay_window_label(label)
+}
+
+/// A Windows capture bootstrap is intentionally mapped as an opaque,
+/// click-through one-pixel anchor so WebView2 can initialize reliably. It is
+/// infrastructure, not user-visible application state, and must not turn a
+/// closed Plain instance into a background zombie.
+#[cfg_attr(
+    not(any(target_os = "windows", target_os = "linux", test)),
+    allow(dead_code)
+)]
+fn keeps_process_alive(label: &str) -> bool {
+    !commands::screen_capture::runtime::is_overlay_window_label(label)
+}
+
+/// Choose the regular application window that a second launch should reveal.
+/// Hidden dynamic windows remain valid recovery targets after a failed capture;
+/// utility and capture-overlay windows must never be surfaced as the main UI.
+#[cfg_attr(
+    not(any(target_os = "windows", target_os = "linux", test)),
+    allow(dead_code)
+)]
+fn select_reopen_window_label<I, S>(windows: I) -> Option<String>
+where
+    I: IntoIterator<Item = (S, Option<bool>)>,
+    S: AsRef<str>,
+{
+    let mut visible_dynamic = None;
+    let mut hidden_dynamic = None;
+    for (label, visibility) in windows {
+        let label = label.as_ref();
+        if !commands::screen_capture::runtime::is_regular_window_label(label) {
+            continue;
+        }
+        if label == "main" {
+            return Some(label.to_string());
+        }
+        if visibility.unwrap_or(true) {
+            visible_dynamic.get_or_insert_with(|| label.to_string());
+        } else {
+            hidden_dynamic.get_or_insert_with(|| label.to_string());
+        }
+    }
+    visible_dynamic.or(hidden_dynamic)
 }
 
 /// Wire-format struct mirroring plain-app's `DPairingResult`
@@ -471,7 +566,22 @@ fn forward_pairing_event_to_ws(
 
 #[cfg(test)]
 mod tests {
-    use super::any_window_visible;
+    use super::{
+        any_window_visible, keeps_process_alive, select_reopen_window_label,
+        should_check_app_exit_after_destroy,
+    };
+
+    #[test]
+    fn relaunch_can_recover_a_hidden_dynamic_application_window() {
+        assert_eq!(
+            select_reopen_window_label([
+                ("screen-capture-overlay-7", Some(false)),
+                ("media-preview-warm", Some(false)),
+                ("window-chat", Some(false)),
+            ]),
+            Some("window-chat".to_string())
+        );
+    }
 
     #[test]
     fn hidden_only_windows_do_not_keep_app_alive() {
@@ -491,5 +601,27 @@ mod tests {
     #[test]
     fn unknown_visibility_counts_as_visible() {
         assert!(any_window_visible([None].into_iter()));
+    }
+
+    #[test]
+    fn capture_overlay_destruction_never_runs_the_application_exit_rule() {
+        assert!(!should_check_app_exit_after_destroy(
+            "screen-capture-overlay-7"
+        ));
+        assert!(should_check_app_exit_after_destroy(
+            "screen-capture-overlay-07"
+        ));
+        assert!(should_check_app_exit_after_destroy("main"));
+        assert!(should_check_app_exit_after_destroy("window-chat"));
+        assert!(should_check_app_exit_after_destroy("media-preview-1"));
+    }
+
+    #[test]
+    fn capture_bootstrap_does_not_keep_a_closed_application_alive() {
+        assert!(!keeps_process_alive("screen-capture-overlay-7"));
+        assert!(keeps_process_alive("screen-capture-overlay-07"));
+        assert!(keeps_process_alive("main"));
+        assert!(keeps_process_alive("window-chat"));
+        assert!(keeps_process_alive("media-preview-1"));
     }
 }

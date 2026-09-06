@@ -1,14 +1,19 @@
 use std::time::Duration;
 
-use tauri::{
-    AppHandle, Emitter, LogicalPosition, LogicalSize, Manager, Runtime, WebviewUrl,
-    WebviewWindowBuilder,
-};
+use tauri::{AppHandle, Emitter, Manager, Runtime, WebviewUrl, WebviewWindowBuilder};
+#[cfg(not(target_os = "windows"))]
+use tauri::{LogicalPosition, LogicalSize};
+#[cfg(target_os = "windows")]
+use tauri::{PhysicalPosition, PhysicalSize};
+
+#[cfg(target_os = "windows")]
+use crate::commands::webview_creation;
 
 use super::contract::{CaptureError, CaptureErrorCode, MonitorGeometry};
+use super::runtime::FRAME_AVAILABLE_EVENT;
 use super::runtime::{
     CaptureWindowPort, CaptureWindowState, DELIVERY_FAILED_EVENT, DeliveryFailedPayload,
-    FRAME_AVAILABLE_EVENT, FrameAvailablePayload, OVERLAY_SESSION_ENDED_EVENT, OverlayConcealment,
+    FrameAvailablePayload, OVERLAY_SESSION_ENDED_EVENT, OverlayConcealment,
     OverlaySessionEndedPayload, OverlayWindowSpec, RESULT_AVAILABLE_EVENT, ResultAvailablePayload,
     SESSION_ENDED_EVENT, SESSION_STARTED_EVENT, ScreenCaptureRuntime, SessionEndedPayload,
     SessionStartedPayload, TARGET_UNAVAILABLE_EVENT, TargetUnavailablePayload,
@@ -34,6 +39,60 @@ impl<R: Runtime> TauriCaptureWindowPort<R> {
             )
         })
     }
+
+    fn overlay_builder<'a>(
+        app: &'a AppHandle<R>,
+        spec: &OverlayWindowSpec,
+    ) -> WebviewWindowBuilder<'a, R, AppHandle<R>> {
+        WebviewWindowBuilder::new(app, &spec.label, WebviewUrl::App(spec.route.clone().into()))
+            .title("")
+            .focused(false)
+            .focusable(false)
+            .decorations(false)
+            .resizable(false)
+            .maximizable(false)
+            .minimizable(false)
+            .closable(false)
+            .always_on_top(true)
+            .skip_taskbar(true)
+            .shadow(false)
+    }
+
+    #[cfg(target_os = "windows")]
+    fn show_overlay_for_bootstrap(window: &tauri::WebviewWindow<R>) -> Result<(), CaptureError> {
+        log::info!("screen capture bootstrapping mapped Windows overlay anchor");
+        window
+            .set_ignore_cursor_events(true)
+            .map_err(|error| overlay_error("make capture bootstrap click-through", error))?;
+        window
+            .show()
+            .map_err(|error| overlay_error("show capture bootstrap anchor", error))?;
+        let webview: &tauri::Webview<R> = window.as_ref();
+        webview
+            .show()
+            .map_err(|error| overlay_error("show capture bootstrap webview", error))
+    }
+
+    #[cfg(target_os = "windows")]
+    fn create_windows_overlay(&self, spec: &OverlayWindowSpec) -> Result<(), CaptureError> {
+        webview_creation::serialized(|| self.create_windows_overlay_serialized(spec))
+    }
+
+    #[cfg(target_os = "windows")]
+    fn create_windows_overlay_serialized(
+        &self,
+        spec: &OverlayWindowSpec,
+    ) -> Result<(), CaptureError> {
+        log::info!("screen capture creating serialized Windows capture overlay");
+        let window = Self::overlay_builder(&self.app, spec)
+            .inner_size(1.0, 1.0)
+            .position(0.0, 0.0)
+            .transparent(false)
+            .visible(true)
+            .build()
+            .map_err(|error| overlay_error("create Windows capture overlay", error))?;
+        Self::show_overlay_for_bootstrap(&window)
+    }
 }
 
 impl<R: Runtime> CaptureWindowPort for TauriCaptureWindowPort<R> {
@@ -48,23 +107,73 @@ impl<R: Runtime> CaptureWindowPort for TauriCaptureWindowPort<R> {
                 "capture overlay must be created hidden",
             ));
         }
-        let url = WebviewUrl::App(spec.route.clone().into());
-        WebviewWindowBuilder::new(&self.app, &spec.label, url)
-            .title("")
-            .inner_size(800.0, 600.0)
-            .visible(false)
-            .focused(false)
-            .decorations(false)
-            .resizable(false)
-            .maximizable(false)
-            .minimizable(false)
-            .closable(false)
-            .always_on_top(true)
-            .skip_taskbar(true)
-            .shadow(false)
-            .build()
-            .map(|_| ())
-            .map_err(|error| overlay_error("create hidden capture overlay", error))
+        log::info!(
+            "screen capture creating hidden overlay label={} route={}",
+            spec.label,
+            spec.route
+        );
+        #[cfg(target_os = "windows")]
+        {
+            self.create_windows_overlay(spec)?;
+        }
+        #[cfg(not(target_os = "windows"))]
+        {
+            Self::overlay_builder(&self.app, spec)
+                .inner_size(800.0, 600.0)
+                .visible(false)
+                .build()
+                .map_err(|error| overlay_error("create hidden capture overlay", error))?;
+        }
+        log::info!("screen capture hidden overlay created label={}", spec.label);
+        Ok(())
+    }
+
+    fn defers_overlay_position_until_presented(&self) -> bool {
+        cfg!(target_os = "windows")
+    }
+
+    fn uses_ephemeral_overlay(&self) -> bool {
+        cfg!(target_os = "windows")
+    }
+
+    fn conceal_overlay_for_capture(&self, label: &str) -> Result<(), CaptureError> {
+        #[cfg(target_os = "windows")]
+        {
+            let window = self.webview(label)?;
+            Self::show_overlay_for_bootstrap(&window)?;
+            log::info!("screen capture waking mapped Windows overlay before acquisition");
+            return Ok(());
+        }
+        #[cfg(not(target_os = "windows"))]
+        {
+            let _ = label;
+            Ok(())
+        }
+    }
+
+    fn wake_overlay_for_frame_delivery(
+        &self,
+        label: &str,
+        monitor: &MonitorGeometry,
+    ) -> Result<(), CaptureError> {
+        #[cfg(target_os = "windows")]
+        {
+            let _window = self.webview(label)?;
+            log::info!(
+                "screen capture waking Windows overlay for frame delivery at ({},{} {}x{})",
+                monitor.physical_origin.x,
+                monitor.physical_origin.y,
+                monitor.physical_size.width,
+                monitor.physical_size.height
+            );
+            let _ = monitor;
+            return Ok(());
+        }
+        #[cfg(not(target_os = "windows"))]
+        {
+            let _ = (label, monitor);
+            Ok(())
+        }
     }
 
     fn capture_window_state(
@@ -92,33 +201,48 @@ impl<R: Runtime> CaptureWindowPort for TauriCaptureWindowPort<R> {
             // Cleanup is idempotent when a window is already gone.
             return Ok(());
         };
+        log::info!("screen capture hiding origin label={label}");
         window
             .hide()
             .map_err(|error| overlay_error("hide capture window", error))
     }
 
     fn conceal_overlay(&self, label: &str) -> Result<OverlayConcealment, CaptureError> {
-        let Some(window) = self.app.get_webview_window(label) else {
+        let Some(_window) = self.app.get_webview_window(label) else {
             return Ok(OverlayConcealment::Hidden);
         };
-        match window.hide() {
-            Ok(()) => Ok(OverlayConcealment::Hidden),
-            Err(error) => {
-                let hide_error = overlay_error("hide capture window", error);
-                let app = self.app.clone();
-                let label = label.to_string();
-                // `destroy()` can synchronously emit `WindowEvent::Destroyed`,
-                // whose hook locks ScreenCaptureRuntime. Always leave this call
-                // stack before destruction so cleanup cannot self-deadlock.
-                tauri::async_runtime::spawn(async move {
-                    tokio::task::yield_now().await;
-                    if let Some(window) = app.get_webview_window(&label)
-                        && let Err(error) = window.destroy()
-                    {
-                        log::warn!("destroy visible capture overlay failed: {error}");
-                    }
-                });
-                Ok(OverlayConcealment::DestructionDeferred(hide_error))
+        #[cfg(target_os = "windows")]
+        {
+            let app = self.app.clone();
+            let label = label.to_string();
+            tauri::async_runtime::spawn(async move {
+                tokio::task::yield_now().await;
+                if let Some(window) = app.get_webview_window(&label)
+                    && let Err(error) = window.destroy()
+                {
+                    log::warn!("destroy retired capture overlay failed: {error}");
+                }
+            });
+            return Ok(OverlayConcealment::RetirementScheduled);
+        }
+        #[cfg(not(target_os = "windows"))]
+        {
+            match _window.hide() {
+                Ok(()) => Ok(OverlayConcealment::Hidden),
+                Err(error) => {
+                    let hide_error = overlay_error("hide capture window", error);
+                    let app = self.app.clone();
+                    let label = label.to_string();
+                    tauri::async_runtime::spawn(async move {
+                        tokio::task::yield_now().await;
+                        if let Some(window) = app.get_webview_window(&label)
+                            && let Err(error) = window.destroy()
+                        {
+                            log::warn!("destroy visible capture overlay failed: {error}");
+                        }
+                    });
+                    Ok(OverlayConcealment::DestructionDeferred(hide_error))
+                }
             }
         }
     }
@@ -176,34 +300,86 @@ impl<R: Runtime> CaptureWindowPort for TauriCaptureWindowPort<R> {
 
     fn position_overlay(&self, label: &str, monitor: &MonitorGeometry) -> Result<(), CaptureError> {
         let window = self.webview(label)?;
+        log::info!(
+            "screen capture positioning overlay physical=({},{} {}x{}) logical=({},{} {}x{}) scale={}",
+            monitor.physical_origin.x,
+            monitor.physical_origin.y,
+            monitor.physical_size.width,
+            monitor.physical_size.height,
+            monitor.logical_origin.x,
+            monitor.logical_origin.y,
+            monitor.logical_size.width,
+            monitor.logical_size.height,
+            monitor.scale_factor
+        );
         #[cfg(target_os = "linux")]
         if super::shortcut::current_linux_shortcut_backend()
             == super::shortcut::LinuxShortcutBackend::WaylandPortalRequired
         {
             return position_wayland_overlay(&window, monitor);
         }
-        window
-            .set_position(LogicalPosition::new(
-                monitor.logical_origin.x,
-                monitor.logical_origin.y,
-            ))
-            .map_err(|error| overlay_error("position capture overlay", error))?;
-        window
-            .set_size(LogicalSize::new(
-                monitor.logical_size.width,
-                monitor.logical_size.height,
-            ))
-            .map_err(|error| overlay_error("size capture overlay", error))
+        #[cfg(target_os = "windows")]
+        {
+            // Tauri monitor snapshots and xcap both report Windows desktop
+            // bounds in physical pixels. Moving a one-pixel bootstrap window
+            // with logical coordinates would use its old monitor's DPI and can
+            // misplace or mis-size the overlay on mixed-DPI/negative displays.
+            window
+                .set_focusable(false)
+                .map_err(|error| overlay_error("disable capture overlay focus", error))?;
+            window
+                .set_position(PhysicalPosition::new(
+                    monitor.physical_origin.x,
+                    monitor.physical_origin.y,
+                ))
+                .map_err(|error| overlay_error("position capture overlay", error))?;
+            window
+                .set_size(PhysicalSize::new(
+                    monitor.physical_size.width,
+                    monitor.physical_size.height,
+                ))
+                .map_err(|error| overlay_error("size capture overlay", error))?;
+            return Ok(());
+        }
+        #[cfg(not(target_os = "windows"))]
+        {
+            window
+                .set_position(LogicalPosition::new(
+                    monitor.logical_origin.x,
+                    monitor.logical_origin.y,
+                ))
+                .map_err(|error| overlay_error("position capture overlay", error))?;
+            window
+                .set_size(LogicalSize::new(
+                    monitor.logical_size.width,
+                    monitor.logical_size.height,
+                ))
+                .map_err(|error| overlay_error("size capture overlay", error))
+        }
     }
 
     fn show_overlay(&self, label: &str) -> Result<(), CaptureError> {
         let window = self.webview(label)?;
+        log::info!("screen capture showing overlay label={label}");
+        window
+            .set_ignore_cursor_events(false)
+            .map_err(|error| overlay_error("make capture overlay interactive", error))?;
+        window
+            .set_focusable(true)
+            .map_err(|error| overlay_error("enable capture overlay focus", error))?;
         window
             .show()
             .map_err(|error| overlay_error("show capture overlay", error))?;
         window
             .unminimize()
             .map_err(|error| overlay_error("unminimize capture overlay", error))?;
+        #[cfg(target_os = "windows")]
+        {
+            let webview: &tauri::Webview<R> = window.as_ref();
+            webview
+                .show()
+                .map_err(|error| overlay_error("show capture overlay webview", error))?;
+        }
         window
             .set_focus()
             .map_err(|error| overlay_error("focus capture overlay", error))
@@ -214,12 +390,6 @@ impl<R: Runtime> CaptureWindowPort for TauriCaptureWindowPort<R> {
         label: &str,
         payload: &FrameAvailablePayload,
     ) -> Result<(), CaptureError> {
-        if !self.window_exists(label) {
-            return Err(CaptureError::new(
-                CaptureErrorCode::OverlayFailed,
-                "capture overlay disappeared before frame publication",
-            ));
-        }
         self.app
             .emit_to(label, FRAME_AVAILABLE_EVENT, payload.clone())
             .map_err(|error| overlay_error("publish capture frame metadata", error))

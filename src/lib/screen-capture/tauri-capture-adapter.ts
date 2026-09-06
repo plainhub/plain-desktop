@@ -1,4 +1,5 @@
 import { CaptureClientError, getCaptureClient, type CaptureClient, type CaptureConsumerRegistration, type CaptureStartResponse } from './capture-client'
+import { listenToCaptureWindow } from './tauri-event-listener'
 
 export interface ChatCaptureDestination {
   readonly chatId: string
@@ -145,7 +146,7 @@ export async function getTauriCaptureClient(onError: (error: CaptureClientError)
     windowLabel,
     invoke,
     listen: async (event, handler) =>
-      listen(event, (incoming) => {
+      listenToCaptureWindow(listen, windowLabel, event, (incoming) => {
         void handler({ payload: incoming.payload })
       }),
     onError: (error) => {

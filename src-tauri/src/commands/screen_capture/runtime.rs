@@ -1,5 +1,5 @@
 use std::future::Future;
-use std::sync::{Arc, Mutex};
+use std::sync::{Arc, Mutex, TryLockError};
 use std::time::Duration;
 
 use serde::Serialize;
@@ -15,7 +15,8 @@ use super::contract::{
 use super::coordinator::{CaptureCallerRole, CaptureCleanup, CaptureCoordinator, TerminalOutcome};
 use super::export::{CaptureExportPort, SaveCaptureOutcome, normalized_png_path};
 
-pub const OVERLAY_WINDOW_LABEL: &str = "screen-capture-overlay";
+pub const OVERLAY_WINDOW_LABEL_PREFIX: &str = "screen-capture-overlay";
+pub const OVERLAY_WINDOW_LABEL: &str = "screen-capture-overlay-1";
 pub const OVERLAY_ROUTE: &str = "/screen-capture";
 pub const FRAME_AVAILABLE_EVENT: &str = "screen-capture://frame-available";
 pub const RESULT_AVAILABLE_EVENT: &str = "screen-capture://result-available";
@@ -26,6 +27,22 @@ pub const OVERLAY_SESSION_ENDED_EVENT: &str = "screen-capture://overlay-session-
 pub const TARGET_UNAVAILABLE_EVENT: &str = "screen-capture://target-unavailable";
 pub const CAPTURE_PROTOCOL_VERSION: u32 = 1;
 pub const MAX_JS_SAFE_INTEGER: u64 = 9_007_199_254_740_991;
+
+pub fn overlay_window_label(overlay_generation: u64) -> String {
+    format!("{OVERLAY_WINDOW_LABEL_PREFIX}-{overlay_generation}")
+}
+
+pub fn is_overlay_window_label(label: &str) -> bool {
+    label
+        .strip_prefix(OVERLAY_WINDOW_LABEL_PREFIX)
+        .and_then(|suffix| suffix.strip_prefix('-'))
+        .and_then(|generation| generation.parse::<u64>().ok())
+        .is_some_and(|generation| {
+            generation > 0
+                && generation <= MAX_JS_SAFE_INTEGER
+                && overlay_window_label(generation) == label
+        })
+}
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct OverlayWindowSpec {
@@ -124,6 +141,10 @@ pub struct CaptureWindowState {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum OverlayConcealment {
     Hidden,
+    /// The platform queued destruction outside the current Tauri command
+    /// stack. Runtime authority must rotate immediately, while a new capture
+    /// remains blocked until the framework confirms destruction.
+    RetirementScheduled,
     /// Hiding failed, so the adapter queued destruction outside the caller's
     /// stack. The error remains observable while retry waits for destruction.
     DestructionDeferred(CaptureError),
@@ -197,6 +218,22 @@ impl FrontendFailureCode {
 pub trait CaptureWindowPort: Send + Sync {
     fn window_exists(&self, label: &str) -> bool;
     fn create_overlay(&self, spec: &OverlayWindowSpec) -> Result<(), CaptureError>;
+    fn defers_overlay_position_until_presented(&self) -> bool {
+        false
+    }
+    fn uses_ephemeral_overlay(&self) -> bool {
+        false
+    }
+    fn conceal_overlay_for_capture(&self, _label: &str) -> Result<(), CaptureError> {
+        Ok(())
+    }
+    fn wake_overlay_for_frame_delivery(
+        &self,
+        _label: &str,
+        _monitor: &MonitorGeometry,
+    ) -> Result<(), CaptureError> {
+        Ok(())
+    }
     fn capture_window_state(&self, label: &str)
     -> Result<Option<CaptureWindowState>, CaptureError>;
     fn hide_window(&self, label: &str) -> Result<(), CaptureError>;
@@ -289,6 +326,15 @@ enum PendingOverlayAction {
     Rebuild,
 }
 
+#[derive(Debug)]
+enum OverlayPreparation {
+    Existing(OverlayInit),
+    Create {
+        init: OverlayInit,
+        spec: OverlayWindowSpec,
+    },
+}
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 struct PendingOriginRestore {
     window_label: String,
@@ -321,8 +367,10 @@ struct RuntimeInner {
     eligible_targets: Vec<CaptureTarget>,
     current_overlay_generation: Option<u64>,
     loaded_overlay_generation: Option<u64>,
+    retiring_overlay_generation: Option<u64>,
     next_overlay_generation: u64,
     hidden_origin: Option<HiddenOrigin>,
+    pending_overlay_monitor: Option<MonitorGeometry>,
     pending_window_actions: Option<PendingWindowActions>,
     active_delivery_lease: Option<DeliveryLease>,
     last_completed_delivery: Option<CompletedDelivery>,
@@ -333,11 +381,14 @@ struct RuntimeInner {
 #[derive(Debug)]
 pub struct ScreenCaptureRuntime {
     inner: Mutex<RuntimeInner>,
+    capture_start: Mutex<()>,
+    overlay_creation: Mutex<()>,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum CaptureTimeoutKind {
     Readiness,
+    Presentation,
     Lifetime,
 }
 
@@ -345,6 +396,10 @@ impl CaptureTimeoutKind {
     fn applies_to(self, phase: NativeCapturePhase) -> bool {
         match self {
             Self::Readiness => phase == NativeCapturePhase::WaitingForOverlay,
+            Self::Presentation => matches!(
+                phase,
+                NativeCapturePhase::FrameAvailable | NativeCapturePhase::AwaitingPresentation
+            ),
             Self::Lifetime => phase != NativeCapturePhase::Restoring,
         }
     }
@@ -358,14 +413,18 @@ impl ScreenCaptureRuntime {
                 eligible_targets: Vec::new(),
                 current_overlay_generation: None,
                 loaded_overlay_generation: None,
+                retiring_overlay_generation: None,
                 next_overlay_generation: 1,
                 hidden_origin: None,
+                pending_overlay_monitor: None,
                 pending_window_actions: None,
                 active_delivery_lease: None,
                 last_completed_delivery: None,
                 invalidated_target: None,
                 active_export: None,
             }),
+            capture_start: Mutex::new(()),
+            overlay_creation: Mutex::new(()),
         })
     }
 
@@ -379,8 +438,7 @@ impl ScreenCaptureRuntime {
                 "only a regular application window may initialize capture",
             ));
         }
-        let mut inner = self.lock()?;
-        inner.ensure_overlay(windows)
+        self.ensure_overlay_native(windows)
     }
 
     pub fn current_overlay_generation(&self) -> Result<Option<u64>, CaptureError> {
@@ -389,6 +447,15 @@ impl ScreenCaptureRuntime {
 
     pub fn active_phase(&self) -> Result<NativeCapturePhase, CaptureError> {
         Ok(self.lock()?.coordinator.phase())
+    }
+
+    pub fn authorize_overlay_identity(
+        &self,
+        caller_window_label: &str,
+        overlay_generation: u64,
+    ) -> Result<(), CaptureError> {
+        self.lock()?
+            .require_current_overlay(caller_window_label, overlay_generation)
     }
 
     pub fn has_sensitive_buffers(&self) -> Result<bool, CaptureError> {
@@ -406,6 +473,25 @@ impl ScreenCaptureRuntime {
         &self,
         windows: &dyn CaptureWindowPort,
     ) -> Result<(), CaptureError> {
+        let needs_overlay = {
+            let inner = self.lock()?;
+            let overlay_exists = inner
+                .current_overlay_generation
+                .is_some_and(|generation| windows.window_exists(&overlay_window_label(generation)));
+            inner
+                .pending_window_actions
+                .as_ref()
+                .is_some_and(|pending| {
+                    matches!(pending.overlay, Some(PendingOverlayAction::Rebuild))
+                        && !overlay_exists
+                        && pending.next_retry > 0
+                })
+        };
+        if needs_overlay {
+            // Creation is performed before retrying the serialized hide/restore
+            // actions so WebView lifecycle callbacks can re-enter capture state.
+            let _ = self.ensure_overlay(windows, true);
+        }
         self.lock()?.retry_pending_window_actions(windows)
     }
 
@@ -450,6 +536,7 @@ impl ScreenCaptureRuntime {
         target: CaptureTarget,
         windows: &dyn CaptureWindowPort,
     ) -> Result<CaptureReservation, CaptureError> {
+        let _start = self.lock_capture_start()?;
         if !is_regular_window_label(caller_window_label) {
             return Err(unauthorized_error(
                 "only a regular application window may start composer capture",
@@ -468,8 +555,19 @@ impl ScreenCaptureRuntime {
             ));
         }
 
+        let overlay_generation = self
+            .prepare_overlay_for_capture(windows)?
+            .overlay_generation;
+        let overlay_label = overlay_window_label(overlay_generation);
+        if !windows.window_exists(caller_window_label)
+            || !windows.window_exists(&target.window_label)
+        {
+            return Err(CaptureError::new(
+                CaptureErrorCode::TargetUnavailable,
+                "capture origin or delivery target closed while preparing the overlay",
+            ));
+        }
         let mut inner = self.lock()?;
-        let overlay_generation = inner.ensure_overlay(windows)?.overlay_generation;
         let request = CaptureRequest {
             session_id: session_id.clone(),
             trigger: CaptureTriggerKind::Composer,
@@ -486,7 +584,7 @@ impl ScreenCaptureRuntime {
             Ok(state) => state,
             Err(error) => {
                 if error.code == CaptureErrorCode::Busy {
-                    let _ = windows.focus_window(OVERLAY_WINDOW_LABEL);
+                    let _ = windows.focus_window(&overlay_label);
                 }
                 return Err(error);
             }
@@ -516,6 +614,7 @@ impl ScreenCaptureRuntime {
         windows: &dyn CaptureWindowPort,
         backend: &dyn ScreenCaptureBackend,
     ) -> Result<CaptureStartResponse, CaptureError> {
+        let _start = self.lock_capture_start()?;
         if !is_regular_window_label(caller_window_label) {
             return Err(unauthorized_error(
                 "only a regular application window may start composer capture",
@@ -533,8 +632,19 @@ impl ScreenCaptureRuntime {
                 "capture delivery target window is unavailable",
             ));
         }
+        let overlay_generation = self
+            .prepare_overlay_for_capture(windows)?
+            .overlay_generation;
+        let overlay_label = overlay_window_label(overlay_generation);
+        if !windows.window_exists(caller_window_label)
+            || !windows.window_exists(&target.window_label)
+        {
+            return Err(CaptureError::new(
+                CaptureErrorCode::TargetUnavailable,
+                "capture origin or delivery target closed while preparing the overlay",
+            ));
+        }
         let mut inner = self.lock()?;
-        let overlay_generation = inner.ensure_overlay(windows)?.overlay_generation;
         let request = CaptureRequest {
             session_id: session_id.clone(),
             trigger: CaptureTriggerKind::Composer,
@@ -553,7 +663,7 @@ impl ScreenCaptureRuntime {
                 if error.code == CaptureErrorCode::Busy {
                     // A repeat shortcut/click must signal the existing capture without
                     // replacing its frozen origin, target, or native buffers.
-                    let _ = windows.focus_window(OVERLAY_WINDOW_LABEL);
+                    let _ = windows.focus_window(&overlay_label);
                 }
                 return Err(error);
             }
@@ -612,6 +722,7 @@ impl ScreenCaptureRuntime {
         target: Option<CaptureTarget>,
         windows: &dyn CaptureWindowPort,
     ) -> Result<CaptureReservation, CaptureError> {
+        let _start = self.lock_capture_start()?;
         if target.as_ref().is_some_and(|candidate| {
             !is_regular_window_label(&candidate.window_label)
                 || !windows.window_exists(&candidate.window_label)
@@ -621,8 +732,19 @@ impl ScreenCaptureRuntime {
                 "capture delivery target window is unavailable",
             ));
         }
-        self.lock()?
-            .reserve_global(session_id, origin, target, windows)
+        let overlay_generation = self
+            .prepare_overlay_for_capture(windows)?
+            .overlay_generation;
+        let session_started_target = target.clone();
+        let reservation =
+            self.lock()?
+                .reserve_global(session_id, origin, target, overlay_generation, windows)?;
+        self.publish_global_session_started(
+            &reservation,
+            session_started_target.as_ref(),
+            windows,
+        )?;
+        Ok(reservation)
     }
 
     /// Trusted native shortcut entry point. Target pruning, selection, session
@@ -634,23 +756,68 @@ impl ScreenCaptureRuntime {
         origin: Option<CaptureOrigin>,
         windows: &dyn CaptureWindowPort,
     ) -> Result<CaptureReservation, CaptureError> {
-        let mut inner = self.lock()?;
-        inner.eligible_targets.retain(|target| {
-            is_regular_window_label(&target.window_label)
-                && windows.window_exists(&target.window_label)
-        });
-        let target = origin
-            .as_ref()
-            .and_then(|origin| {
-                inner
-                    .eligible_targets
-                    .iter()
-                    .rev()
-                    .find(|target| target.window_label == origin.window_label)
-            })
-            .or_else(|| inner.eligible_targets.last())
-            .cloned();
-        inner.reserve_global(session_id, origin, target, windows)
+        let _start = self.lock_capture_start()?;
+        let overlay_generation = self
+            .prepare_overlay_for_capture(windows)?
+            .overlay_generation;
+        let (reservation, session_started_target) = {
+            let mut inner = self.lock()?;
+            inner.eligible_targets.retain(|target| {
+                is_regular_window_label(&target.window_label)
+                    && windows.window_exists(&target.window_label)
+            });
+            let target = origin
+                .as_ref()
+                .and_then(|origin| {
+                    inner
+                        .eligible_targets
+                        .iter()
+                        .rev()
+                        .find(|target| target.window_label == origin.window_label)
+                })
+                .or_else(|| inner.eligible_targets.last())
+                .cloned();
+            let reservation = inner.reserve_global(
+                session_id,
+                origin,
+                target.clone(),
+                overlay_generation,
+                windows,
+            )?;
+            (reservation, target)
+        };
+        self.publish_global_session_started(
+            &reservation,
+            session_started_target.as_ref(),
+            windows,
+        )?;
+        Ok(reservation)
+    }
+
+    fn publish_global_session_started(
+        &self,
+        reservation: &CaptureReservation,
+        target: Option<&CaptureTarget>,
+        windows: &dyn CaptureWindowPort,
+    ) -> Result<(), CaptureError> {
+        let Some(target) = target else {
+            return Ok(());
+        };
+        let payload = SessionStartedPayload {
+            session_id: reservation.response.session_id.clone(),
+            target_token: target.target_token.clone(),
+        };
+        if let Err(error) = windows.emit_session_started(&target.window_label, &payload) {
+            let mut inner = self.lock()?;
+            if inner.coordinator.active_state().is_some_and(|state| {
+                state.session_id == reservation.response.session_id
+                    && state.overlay_generation == reservation.response.overlay_generation
+            }) {
+                inner.abort_session(&reservation.response.session_id, error.clone(), windows)?;
+            }
+            return Err(error);
+        }
+        Ok(())
     }
 
     #[cfg(test)]
@@ -662,6 +829,7 @@ impl ScreenCaptureRuntime {
         windows: &dyn CaptureWindowPort,
         backend: &dyn ScreenCaptureBackend,
     ) -> Result<CaptureStartResponse, CaptureError> {
+        let _start = self.lock_capture_start()?;
         if target.as_ref().is_some_and(|candidate| {
             !is_regular_window_label(&candidate.window_label)
                 || !windows.window_exists(&candidate.window_label)
@@ -671,8 +839,17 @@ impl ScreenCaptureRuntime {
                 "capture delivery target window is unavailable",
             ));
         }
-        self.lock()?
-            .start_global(session_id, origin, target, windows, backend)
+        let overlay_generation = self
+            .prepare_overlay_for_capture(windows)?
+            .overlay_generation;
+        self.lock()?.start_global(
+            session_id,
+            origin,
+            target,
+            overlay_generation,
+            windows,
+            backend,
+        )
     }
 
     /// Trusted native shortcut entry point. Target pruning, selection, and
@@ -686,6 +863,10 @@ impl ScreenCaptureRuntime {
         windows: &dyn CaptureWindowPort,
         backend: &dyn ScreenCaptureBackend,
     ) -> Result<CaptureStartResponse, CaptureError> {
+        let _start = self.lock_capture_start()?;
+        let overlay_generation = self
+            .prepare_overlay_for_capture(windows)?
+            .overlay_generation;
         let mut inner = self.lock()?;
         inner.eligible_targets.retain(|target| {
             is_regular_window_label(&target.window_label)
@@ -702,7 +883,14 @@ impl ScreenCaptureRuntime {
             })
             .or_else(|| inner.eligible_targets.last())
             .cloned();
-        inner.start_global(session_id, origin, target, windows, backend)
+        inner.start_global(
+            session_id,
+            origin,
+            target,
+            overlay_generation,
+            windows,
+            backend,
+        )
     }
 
     pub fn mark_overlay_ready(
@@ -796,11 +984,20 @@ impl ScreenCaptureRuntime {
             }
         };
         let descriptor = frame.descriptor().clone();
+        let overlay_label = overlay_window_label(ticket.overlay_generation);
         if let Err(error) = inner.coordinator.store_frame(&ticket.session_id, frame) {
             inner.abort_session(&ticket.session_id, error.clone(), windows)?;
             return Err(error);
         }
-        if let Err(error) = windows.position_overlay(OVERLAY_WINDOW_LABEL, &descriptor.monitor) {
+        if windows.defers_overlay_position_until_presented() {
+            inner.pending_overlay_monitor = Some(descriptor.monitor.clone());
+        } else if let Err(error) = windows.position_overlay(&overlay_label, &descriptor.monitor) {
+            inner.abort_session(&ticket.session_id, error.clone(), windows)?;
+            return Err(error);
+        }
+        if let Err(error) =
+            windows.wake_overlay_for_frame_delivery(&overlay_label, &descriptor.monitor)
+        {
             inner.abort_session(&ticket.session_id, error.clone(), windows)?;
             return Err(error);
         }
@@ -813,11 +1010,45 @@ impl ScreenCaptureRuntime {
                     && windows.window_exists(&target.window_label)
             }),
         };
-        if let Err(error) = windows.emit_frame_available(OVERLAY_WINDOW_LABEL, &payload) {
+        if let Err(error) = windows.emit_frame_available(&overlay_label, &payload) {
             inner.abort_session(&ticket.session_id, error.clone(), windows)?;
             return Err(error);
         }
         Ok(CapturePublishOutcome::Published)
+    }
+
+    /// Return pending frame metadata without transferring pixel ownership.
+    /// Only the current overlay generation can discover the native session.
+    pub fn pending_frame(
+        &self,
+        caller_window_label: &str,
+        overlay_generation: u64,
+        windows: &dyn CaptureWindowPort,
+    ) -> Result<Option<FrameAvailablePayload>, CaptureError> {
+        let pending = {
+            let inner = self.lock()?;
+            inner.require_current_overlay(caller_window_label, overlay_generation)?;
+            inner
+                .coordinator
+                .pending_frame(caller_window_label, overlay_generation)?
+        };
+        let Some((state, descriptor)) = pending else {
+            return Ok(None);
+        };
+        // Never consult Tauri's window registry while the capture-state mutex
+        // is held. On WebView2 this command runs on the IPC/UI path; framework
+        // window lookup can re-enter code that needs the runtime and wedge all
+        // subsequent IPC once a pending frame exists.
+        let can_confirm = state.target.as_ref().is_some_and(|target| {
+            is_regular_window_label(&target.window_label)
+                && windows.window_exists(&target.window_label)
+        });
+        Ok(Some(FrameAvailablePayload {
+            session_id: state.session_id,
+            overlay_generation,
+            descriptor,
+            can_confirm,
+        }))
     }
 
     fn capture_ticket_is_active(&self, ticket: &CaptureTicket) -> Result<bool, CaptureError> {
@@ -859,7 +1090,15 @@ impl ScreenCaptureRuntime {
         inner
             .coordinator
             .frame_presented(caller_window_label, session_id, overlay_generation)?;
-        if let Err(error) = windows.show_overlay(OVERLAY_WINDOW_LABEL) {
+        let overlay_label = overlay_window_label(overlay_generation);
+        if let Some(monitor) = inner.pending_overlay_monitor.clone() {
+            if let Err(error) = windows.position_overlay(&overlay_label, &monitor) {
+                inner.abort_session(session_id, error.clone(), windows)?;
+                return Err(error);
+            }
+            inner.pending_overlay_monitor = None;
+        }
+        if let Err(error) = windows.show_overlay(&overlay_label) {
             inner.abort_session(session_id, error.clone(), windows)?;
             return Err(error);
         }
@@ -1018,7 +1257,9 @@ impl ScreenCaptureRuntime {
             session_id: session_id.to_string(),
             overlay_generation,
         };
-        if let Err(error) = windows.emit_delivery_failed(OVERLAY_WINDOW_LABEL, &payload) {
+        if let Err(error) =
+            windows.emit_delivery_failed(&overlay_window_label(overlay_generation), &payload)
+        {
             let cleanup = inner.coordinator.fail(session_id, error.clone())?;
             inner.complete_cleanup(&cleanup, windows)?;
             return Err(error);
@@ -1223,7 +1464,7 @@ impl ScreenCaptureRuntime {
         windows: &dyn CaptureWindowPort,
     ) -> Result<(), CaptureError> {
         let mut inner = self.lock()?;
-        if caller_window_label == OVERLAY_WINDOW_LABEL {
+        if is_overlay_window_label(caller_window_label) {
             let overlay_generation = overlay_generation.ok_or_else(|| {
                 CaptureError::new(
                     CaptureErrorCode::InvalidSession,
@@ -1258,15 +1499,55 @@ impl ScreenCaptureRuntime {
         Ok(OverlayInit { overlay_generation })
     }
 
+    /// A document that failed during bootstrap cannot rearm itself. Clear any
+    /// active session, retire this exact generation without an eager rebuild,
+    /// and let the next explicit capture create a fresh overlay.
+    pub fn overlay_bootstrap_failed(
+        &self,
+        caller_window_label: &str,
+        overlay_generation: u64,
+        windows: &dyn CaptureWindowPort,
+    ) -> Result<OverlayInit, CaptureError> {
+        let mut inner = self.lock()?;
+        inner.require_current_overlay(caller_window_label, overlay_generation)?;
+        if let Some(cleanup) = inner
+            .coordinator
+            .note_overlay_unavailable(caller_window_label, overlay_generation)?
+        {
+            inner.complete_cleanup(&cleanup, windows)?;
+        }
+        inner.current_overlay_generation = None;
+        inner.loaded_overlay_generation = None;
+        inner.retiring_overlay_generation = Some(overlay_generation);
+        Ok(OverlayInit { overlay_generation })
+    }
+
+    /// Release the short retirement gate after native code has attempted to
+    /// destroy a bootstrap-failed overlay. Generation-qualified labels make a
+    /// later replacement safe even if the platform refused that destruction:
+    /// the failed WebView can neither impersonate nor receive work for the new
+    /// generation.
+    pub fn finish_overlay_retirement(&self, window_label: &str) -> Result<(), CaptureError> {
+        let mut inner = self.lock()?;
+        if inner
+            .retiring_overlay_generation
+            .is_some_and(|generation| window_label == overlay_window_label(generation))
+        {
+            inner.retiring_overlay_generation = None;
+        }
+        Ok(())
+    }
+
     /// Native page-load backstop for reload/navigation. The first load of a
     /// newly created overlay is expected; a later load start invalidates the
     /// old JavaScript heap before it can strand its one-shot frame or result.
     pub fn window_page_load_started(
         &self,
         caller_window_label: &str,
+        page_overlay_generation: Option<u64>,
         windows: &dyn CaptureWindowPort,
     ) -> Result<(), CaptureError> {
-        if caller_window_label != OVERLAY_WINDOW_LABEL {
+        if !is_overlay_window_label(caller_window_label) {
             return if is_regular_window_label(caller_window_label) {
                 self.prepare_window_close(caller_window_label, windows)
             } else {
@@ -1277,13 +1558,20 @@ impl ScreenCaptureRuntime {
         let Some(overlay_generation) = inner.current_overlay_generation else {
             return Ok(());
         };
+        if caller_window_label != overlay_window_label(overlay_generation) {
+            return Ok(());
+        }
+        if page_overlay_generation.is_some() && page_overlay_generation != Some(overlay_generation)
+        {
+            return Ok(());
+        }
         if inner.loaded_overlay_generation != Some(overlay_generation) {
             return Ok(());
         }
         inner.loaded_overlay_generation = None;
         if let Some(cleanup) = inner
             .coordinator
-            .note_overlay_unavailable(OVERLAY_WINDOW_LABEL, overlay_generation)?
+            .note_overlay_unavailable(caller_window_label, overlay_generation)?
         {
             inner.complete_cleanup(&cleanup, windows)?;
         }
@@ -1293,16 +1581,23 @@ impl ScreenCaptureRuntime {
     pub fn overlay_page_load_finished(
         &self,
         caller_window_label: &str,
+        page_overlay_generation: Option<u64>,
         windows: &dyn CaptureWindowPort,
     ) -> Result<(), CaptureError> {
-        if caller_window_label != OVERLAY_WINDOW_LABEL {
+        if !is_overlay_window_label(caller_window_label) {
             return Ok(());
         }
         let mut inner = self.lock()?;
         let Some(overlay_generation) = inner.current_overlay_generation else {
             return Ok(());
         };
-        if windows.window_exists(OVERLAY_WINDOW_LABEL) {
+        if caller_window_label != overlay_window_label(overlay_generation) {
+            return Ok(());
+        }
+        if page_overlay_generation != Some(overlay_generation) {
+            return Ok(());
+        }
+        if windows.window_exists(caller_window_label) {
             inner.loaded_overlay_generation = Some(overlay_generation);
         }
         Ok(())
@@ -1320,11 +1615,12 @@ impl ScreenCaptureRuntime {
         inner
             .eligible_targets
             .retain(|target| target.window_label != window_label);
-        if window_label == OVERLAY_WINDOW_LABEL {
+        if is_overlay_window_label(window_label) {
             if let Some(overlay_generation) = inner.current_overlay_generation
+                && window_label == overlay_window_label(overlay_generation)
                 && let Some(cleanup) = inner
                     .coordinator
-                    .note_overlay_unavailable(OVERLAY_WINDOW_LABEL, overlay_generation)?
+                    .note_overlay_unavailable(window_label, overlay_generation)?
             {
                 inner.complete_cleanup(&cleanup, windows)?;
             }
@@ -1371,32 +1667,98 @@ impl ScreenCaptureRuntime {
 
     /// Native lifecycle hook used when Tauri reports that the overlay has
     /// already been destroyed. It clears pixels and restores the origin but
-    /// leaves fixed-label recreation to a later event-loop tick.
-    pub fn overlay_destroyed(&self, windows: &dyn CaptureWindowPort) -> Result<(), CaptureError> {
+    /// leaves overlay recreation to a later event-loop tick.
+    pub fn overlay_destroyed(
+        &self,
+        window_label: &str,
+        windows: &dyn CaptureWindowPort,
+    ) -> Result<bool, CaptureError> {
         let mut inner = self.lock()?;
-        if windows.window_exists(OVERLAY_WINDOW_LABEL) {
+        if inner
+            .retiring_overlay_generation
+            .is_some_and(|generation| window_label == overlay_window_label(generation))
+        {
+            log::info!("screen capture overlay destruction acknowledged label={window_label}");
+            inner.retiring_overlay_generation = None;
+            return Ok(false);
+        }
+        let Some(overlay_generation) = inner.current_overlay_generation else {
+            return Ok(false);
+        };
+        let overlay_label = overlay_window_label(overlay_generation);
+        if window_label != overlay_label || windows.window_exists(&overlay_label) {
             // A replacement may already exist by the time the old window's
             // Destroyed event is delivered.
-            return Ok(());
+            return Ok(false);
         }
-        if let Some(overlay_generation) = inner.current_overlay_generation {
-            if let Some(cleanup) = inner
-                .coordinator
-                .note_overlay_unavailable(OVERLAY_WINDOW_LABEL, overlay_generation)?
-            {
-                inner.complete_cleanup(&cleanup, windows)?;
-            }
-            inner.current_overlay_generation = None;
-            inner.loaded_overlay_generation = None;
+        if let Some(cleanup) = inner
+            .coordinator
+            .note_overlay_unavailable(&overlay_label, overlay_generation)?
+        {
+            inner.complete_cleanup(&cleanup, windows)?;
         }
-        Ok(())
+        inner.current_overlay_generation = None;
+        inner.loaded_overlay_generation = None;
+        Ok(!windows.uses_ephemeral_overlay())
     }
 
     pub fn ensure_overlay_native(
         &self,
         windows: &dyn CaptureWindowPort,
     ) -> Result<OverlayInit, CaptureError> {
-        self.lock()?.ensure_overlay(windows)
+        self.ensure_overlay(windows, false)
+    }
+
+    fn prepare_overlay_for_capture(
+        &self,
+        windows: &dyn CaptureWindowPort,
+    ) -> Result<OverlayInit, CaptureError> {
+        self.ensure_overlay_native(windows)
+    }
+
+    fn ensure_overlay(
+        &self,
+        windows: &dyn CaptureWindowPort,
+        allow_pending_cleanup: bool,
+    ) -> Result<OverlayInit, CaptureError> {
+        // Webview creation can synchronously run Tauri page-load callbacks on
+        // Windows. Those callbacks re-enter this runtime, so the mutable state
+        // lock must never cross `create_overlay`. A second, narrow gate keeps
+        // concurrent triggers from allocating two overlay generations.
+        let _creation = self.overlay_creation.lock().map_err(|_| {
+            CaptureError::new(
+                CaptureErrorCode::OverlayFailed,
+                "capture overlay creation gate is unavailable",
+            )
+        })?;
+        let (init, spec) = match self
+            .lock()?
+            .prepare_overlay(windows, allow_pending_cleanup)?
+        {
+            OverlayPreparation::Existing(init) => return Ok(init),
+            OverlayPreparation::Create { init, spec } => (init, spec),
+        };
+
+        match windows.create_overlay(&spec) {
+            Ok(()) => Ok(init),
+            Err(error) if windows.window_exists(&spec.label) => {
+                // Some platform adapters can report a late initialization error
+                // after registering the window. Keep the tracked generation so
+                // its lifecycle callback can either ready or invalidate it.
+                log::warn!(
+                    "screen capture overlay creation reported an error after the window appeared: {error}"
+                );
+                Ok(init)
+            }
+            Err(error) => {
+                let mut inner = self.lock()?;
+                if inner.current_overlay_generation == Some(init.overlay_generation) {
+                    inner.current_overlay_generation = None;
+                    inner.loaded_overlay_generation = None;
+                }
+                Err(error)
+            }
+        }
     }
 
     fn lock(&self) -> Result<std::sync::MutexGuard<'_, RuntimeInner>, CaptureError> {
@@ -1406,6 +1768,20 @@ impl ScreenCaptureRuntime {
                 "capture runtime state is unavailable",
             )
         })
+    }
+
+    fn lock_capture_start(&self) -> Result<std::sync::MutexGuard<'_, ()>, CaptureError> {
+        match self.capture_start.try_lock() {
+            Ok(guard) => Ok(guard),
+            Err(TryLockError::WouldBlock) => Err(CaptureError::new(
+                CaptureErrorCode::Busy,
+                "another capture start is already in progress",
+            )),
+            Err(TryLockError::Poisoned(_)) => Err(CaptureError::new(
+                CaptureErrorCode::CaptureFailed,
+                "capture start gate is unavailable",
+            )),
+        }
     }
 }
 
@@ -1468,9 +1844,9 @@ impl RuntimeInner {
         session_id: String,
         origin: Option<CaptureOrigin>,
         target: Option<CaptureTarget>,
+        overlay_generation: u64,
         windows: &dyn CaptureWindowPort,
     ) -> Result<CaptureReservation, CaptureError> {
-        let overlay_generation = self.ensure_overlay(windows)?.overlay_generation;
         let request = CaptureRequest {
             session_id: session_id.clone(),
             trigger: CaptureTriggerKind::Global,
@@ -1481,22 +1857,12 @@ impl RuntimeInner {
             Ok(state) => state,
             Err(error) => {
                 if error.code == CaptureErrorCode::Busy {
-                    let _ = windows.focus_window(OVERLAY_WINDOW_LABEL);
+                    let _ = windows.focus_window(&overlay_window_label(overlay_generation));
                 }
                 return Err(error);
             }
         };
         self.invalidated_target = None;
-        if let Some(target) = state.target.as_ref() {
-            let payload = SessionStartedPayload {
-                session_id: session_id.clone(),
-                target_token: target.target_token.clone(),
-            };
-            if let Err(error) = windows.emit_session_started(&target.window_label, &payload) {
-                self.abort_session(&session_id, error.clone(), windows)?;
-                return Err(error);
-            }
-        }
         let ticket = if state.phase == NativeCapturePhase::HidingOrigin {
             Some(self.begin_capture_ticket(&session_id, windows)?)
         } else {
@@ -1533,6 +1899,11 @@ impl RuntimeInner {
         // origin before a racing hide completes, leaving the window hidden.
         // This critical section contains no settle sleep, portal interaction,
         // monitor capture, retry loop, or other backend work.
+        let overlay_label = overlay_window_label(state.overlay_generation);
+        if let Err(error) = windows.conceal_overlay_for_capture(&overlay_label) {
+            self.abort_session(session_id, error.clone(), windows)?;
+            return Err(error);
+        }
         if let Some(origin) = state.origin.as_ref()
             && let Err(error) = self.hide_origin(session_id, &origin.window_label, windows)
         {
@@ -1555,10 +1926,10 @@ impl RuntimeInner {
         session_id: String,
         origin: Option<CaptureOrigin>,
         target: Option<CaptureTarget>,
+        overlay_generation: u64,
         windows: &dyn CaptureWindowPort,
         backend: &dyn ScreenCaptureBackend,
     ) -> Result<CaptureStartResponse, CaptureError> {
-        let overlay_generation = self.ensure_overlay(windows)?.overlay_generation;
         let request = CaptureRequest {
             session_id: session_id.clone(),
             trigger: CaptureTriggerKind::Global,
@@ -1569,7 +1940,7 @@ impl RuntimeInner {
             Ok(state) => state,
             Err(error) => {
                 if error.code == CaptureErrorCode::Busy {
-                    let _ = windows.focus_window(OVERLAY_WINDOW_LABEL);
+                    let _ = windows.focus_window(&overlay_window_label(overlay_generation));
                 }
                 return Err(error);
             }
@@ -1671,7 +2042,7 @@ impl RuntimeInner {
             && invalidated.target_token == target_token
         {
             let event = windows.emit_target_unavailable(
-                OVERLAY_WINDOW_LABEL,
+                &overlay_window_label(invalidated.overlay_generation),
                 &TargetUnavailablePayload {
                     session_id: invalidated.session_id.clone(),
                     overlay_generation: invalidated.overlay_generation,
@@ -1705,7 +2076,7 @@ impl RuntimeInner {
             overlay_generation: state.overlay_generation,
         });
         let event = windows.emit_target_unavailable(
-            OVERLAY_WINDOW_LABEL,
+            &overlay_window_label(state.overlay_generation),
             &TargetUnavailablePayload {
                 session_id: session_id.to_string(),
                 overlay_generation: state.overlay_generation,
@@ -1756,48 +2127,55 @@ impl RuntimeInner {
             })
     }
 
-    fn ensure_overlay(
+    fn prepare_overlay(
         &mut self,
         windows: &dyn CaptureWindowPort,
-    ) -> Result<OverlayInit, CaptureError> {
-        if self.pending_window_actions.is_some() {
+        allow_pending_cleanup: bool,
+    ) -> Result<OverlayPreparation, CaptureError> {
+        if self.pending_window_actions.is_some() && !allow_pending_cleanup {
             return Err(CaptureError::new(
                 CaptureErrorCode::Busy,
                 "capture window cleanup is still pending",
             ));
         }
+        if self.retiring_overlay_generation.is_some() {
+            return Err(CaptureError::new(
+                CaptureErrorCode::Busy,
+                "capture overlay destruction is still pending",
+            ));
+        }
         if let Some(overlay_generation) = self.current_overlay_generation {
-            if windows.window_exists(OVERLAY_WINDOW_LABEL) {
-                return Ok(OverlayInit { overlay_generation });
+            let overlay_label = overlay_window_label(overlay_generation);
+            if windows.window_exists(&overlay_label) {
+                return Ok(OverlayPreparation::Existing(OverlayInit {
+                    overlay_generation,
+                }));
             }
             if let Some(cleanup) = self
                 .coordinator
-                .note_overlay_unavailable(OVERLAY_WINDOW_LABEL, overlay_generation)?
+                .note_overlay_unavailable(&overlay_label, overlay_generation)?
             {
                 self.complete_cleanup(&cleanup, windows)?;
             }
             self.current_overlay_generation = None;
             self.loaded_overlay_generation = None;
-        } else if windows.window_exists(OVERLAY_WINDOW_LABEL) {
-            // Never adopt or synchronously destroy an overlay whose generation was
-            // not allocated by this runtime. Destruction can re-enter the global
-            // window-event hook; the native owner must dispose the orphan first.
-            return Err(CaptureError::new(
-                CaptureErrorCode::OverlayFailed,
-                "an untracked capture overlay already owns the fixed window label",
-            ));
         }
 
         let overlay_generation = self.allocate_generation()?;
+        let overlay_label = overlay_window_label(overlay_generation);
+        self.coordinator
+            .replace_overlay_window_label(overlay_label.clone())?;
         let spec = OverlayWindowSpec {
-            label: OVERLAY_WINDOW_LABEL.to_string(),
+            label: overlay_label,
             route: format!("{OVERLAY_ROUTE}?overlayGeneration={overlay_generation}"),
             visible: false,
         };
-        windows.create_overlay(&spec)?;
         self.current_overlay_generation = Some(overlay_generation);
         self.loaded_overlay_generation = None;
-        Ok(OverlayInit { overlay_generation })
+        Ok(OverlayPreparation::Create {
+            init: OverlayInit { overlay_generation },
+            spec,
+        })
     }
 
     fn allocate_generation(&mut self) -> Result<u64, CaptureError> {
@@ -1817,13 +2195,13 @@ impl RuntimeInner {
         caller_window_label: &str,
         overlay_generation: u64,
     ) -> Result<(), CaptureError> {
-        if caller_window_label != OVERLAY_WINDOW_LABEL {
+        if overlay_generation == 0 || self.current_overlay_generation != Some(overlay_generation) {
+            return Err(stale_generation_error());
+        }
+        if caller_window_label != overlay_window_label(overlay_generation) {
             return Err(unauthorized_error(
                 "only the dedicated capture overlay may call this operation",
             ));
-        }
-        if overlay_generation == 0 || self.current_overlay_generation != Some(overlay_generation) {
-            return Err(stale_generation_error());
         }
         Ok(())
     }
@@ -1871,6 +2249,11 @@ impl RuntimeInner {
             ));
         }
 
+        let overlay_label = overlay_window_label(state.overlay_generation);
+        if let Err(error) = windows.conceal_overlay_for_capture(&overlay_label) {
+            self.abort_session(session_id, error.clone(), windows)?;
+            return Err(error);
+        }
         if let Some(origin) = state.origin.as_ref()
             && let Err(error) = self.hide_origin(session_id, &origin.window_label, windows)
         {
@@ -1894,7 +2277,15 @@ impl RuntimeInner {
             self.abort_session(session_id, error.clone(), windows)?;
             return Err(error);
         }
-        if let Err(error) = windows.position_overlay(OVERLAY_WINDOW_LABEL, &descriptor.monitor) {
+        if windows.defers_overlay_position_until_presented() {
+            self.pending_overlay_monitor = Some(descriptor.monitor.clone());
+        } else if let Err(error) = windows.position_overlay(&overlay_label, &descriptor.monitor) {
+            self.abort_session(session_id, error.clone(), windows)?;
+            return Err(error);
+        }
+        if let Err(error) =
+            windows.wake_overlay_for_frame_delivery(&overlay_label, &descriptor.monitor)
+        {
             self.abort_session(session_id, error.clone(), windows)?;
             return Err(error);
         }
@@ -1907,7 +2298,7 @@ impl RuntimeInner {
                     && windows.window_exists(&target.window_label)
             }),
         };
-        if let Err(error) = windows.emit_frame_available(OVERLAY_WINDOW_LABEL, &payload) {
+        if let Err(error) = windows.emit_frame_available(&overlay_label, &payload) {
             self.abort_session(session_id, error.clone(), windows)?;
             return Err(error);
         }
@@ -1953,28 +2344,23 @@ impl RuntimeInner {
         windows: &dyn CaptureWindowPort,
     ) -> Result<(), CaptureError> {
         let mut first_error = None;
+        let overlay_generation = self.current_overlay_generation;
+        let overlay_label = overlay_generation.map(overlay_window_label);
         if let Some(action) = pending.overlay {
             match action {
                 PendingOverlayAction::Hide => {
-                    if !windows.window_exists(OVERLAY_WINDOW_LABEL) {
-                        self.current_overlay_generation = None;
-                        self.loaded_overlay_generation = None;
-                        if pending.next_retry == 0 {
-                            // Framework destruction owns its existing delayed
-                            // rebuild hook; terminal cleanup only rotates state.
-                            pending.overlay = None;
-                        } else {
-                            match self.ensure_overlay(windows) {
-                                Ok(_) => pending.overlay = None,
-                                Err(error) => {
-                                    pending.overlay = Some(PendingOverlayAction::Rebuild);
-                                    first_error = Some(error);
-                                }
-                            }
-                        }
-                    } else {
-                        match windows.conceal_overlay(OVERLAY_WINDOW_LABEL) {
+                    if let Some(overlay_label) = overlay_label
+                        .as_deref()
+                        .filter(|label| windows.window_exists(label))
+                    {
+                        match windows.conceal_overlay(overlay_label) {
                             Ok(OverlayConcealment::Hidden) => pending.overlay = None,
+                            Ok(OverlayConcealment::RetirementScheduled) => {
+                                self.current_overlay_generation = None;
+                                self.loaded_overlay_generation = None;
+                                self.retiring_overlay_generation = overlay_generation;
+                                pending.overlay = None;
+                            }
                             Ok(OverlayConcealment::DestructionDeferred(error)) => {
                                 pending.overlay = Some(PendingOverlayAction::Hide);
                                 first_error = Some(error);
@@ -1984,12 +2370,42 @@ impl RuntimeInner {
                                 first_error = Some(error);
                             }
                         }
+                    } else {
+                        if let (Some(overlay_generation), Some(overlay_label)) =
+                            (overlay_generation, overlay_label.as_deref())
+                        {
+                            let _ = self
+                                .coordinator
+                                .note_overlay_unavailable(overlay_label, overlay_generation)?;
+                        }
+                        self.current_overlay_generation = None;
+                        self.loaded_overlay_generation = None;
+                        if pending.next_retry == 0 {
+                            // Framework destruction owns its existing delayed
+                            // rebuild hook; terminal cleanup only rotates state.
+                            pending.overlay = None;
+                        } else {
+                            pending.overlay = Some(PendingOverlayAction::Rebuild);
+                            first_error = Some(CaptureError::new(
+                                CaptureErrorCode::OverlayFailed,
+                                "capture overlay rebuild is pending",
+                            ));
+                        }
                     }
                 }
-                PendingOverlayAction::Rebuild => match self.ensure_overlay(windows) {
-                    Ok(_) => pending.overlay = None,
-                    Err(error) => first_error = Some(error),
-                },
+                PendingOverlayAction::Rebuild => {
+                    if overlay_label
+                        .as_deref()
+                        .is_some_and(|label| windows.window_exists(label))
+                    {
+                        pending.overlay = None;
+                    } else {
+                        first_error = Some(CaptureError::new(
+                            CaptureErrorCode::OverlayFailed,
+                            "capture overlay rebuild is pending",
+                        ));
+                    }
+                }
             }
         }
         if let Some(origin) = pending.origin.as_ref() {
@@ -2116,6 +2532,14 @@ impl RuntimeInner {
         // even when a platform window action fails. Only the small action record
         // above may survive for a bounded retry.
         self.coordinator.finish_restoration(&cleanup.session_id)?;
+        if self.retiring_overlay_generation == Some(cleanup.overlay_generation) {
+            let overlay_label = overlay_window_label(cleanup.overlay_generation);
+            let follow_up_cleanup = self
+                .coordinator
+                .note_overlay_unavailable(&overlay_label, cleanup.overlay_generation)?;
+            debug_assert!(follow_up_cleanup.is_none());
+        }
+        self.pending_overlay_monitor = None;
         self.active_delivery_lease = None;
         self.invalidated_target = None;
         self.active_export = None;
@@ -2136,9 +2560,10 @@ impl RuntimeInner {
                 },
             );
         }
-        if windows.window_exists(OVERLAY_WINDOW_LABEL) {
+        let overlay_label = overlay_window_label(cleanup.overlay_generation);
+        if windows.window_exists(&overlay_label) {
             let _ = windows.emit_overlay_session_ended(
-                OVERLAY_WINDOW_LABEL,
+                &overlay_label,
                 &OverlaySessionEndedPayload {
                     session_id: cleanup.session_id.clone(),
                     overlay_generation: cleanup.overlay_generation,
@@ -2226,6 +2651,7 @@ mod tests {
         OVERLAY_ROUTE, OVERLAY_WINDOW_LABEL, OverlayConcealment, OverlaySessionEndedPayload,
         OverlayWindowSpec, ResultAvailablePayload, ScreenCaptureRuntime, SessionEndedPayload,
         SessionStartedPayload, TargetUnavailablePayload, acquire_and_publish_once,
+        is_overlay_window_label, overlay_window_label,
     };
     use crate::commands::screen_capture::backend::{
         NativeFrame, ScreenCaptureBackend, capture_frame_at_cursor,
@@ -2245,6 +2671,7 @@ mod tests {
         Restore(String),
         Focus(String),
         Position(String, PhysicalRect),
+        WakeForFrame(String),
         Show(String),
         Emit(String, FrameAvailablePayload),
         EmitResult(String, ResultAvailablePayload),
@@ -2255,11 +2682,32 @@ mod tests {
         EmitOverlayEnded(String, OverlaySessionEndedPayload),
     }
 
+    #[test]
+    fn overlay_window_labels_are_canonical_generation_identities() {
+        assert_eq!(overlay_window_label(7), "screen-capture-overlay-7");
+        assert!(is_overlay_window_label("screen-capture-overlay-7"));
+        for invalid in [
+            "screen-capture-overlay",
+            "screen-capture-overlay-0",
+            "screen-capture-overlay-07",
+            "screen-capture-overlay--1",
+            "screen-capture-overlay-9007199254740992",
+            "screen-capture-overlay-7-extra",
+        ] {
+            assert!(!is_overlay_window_label(invalid), "accepted {invalid}");
+        }
+    }
+
     #[derive(Default)]
     struct FakeWindows {
         windows: Mutex<HashSet<String>>,
         window_states: Mutex<HashMap<String, CaptureWindowState>>,
         operations: Mutex<Vec<WindowOperation>>,
+        defer_position_until_presented: Mutex<bool>,
+        ephemeral_overlay: Mutex<bool>,
+        reentrant_runtime: Mutex<Option<Arc<ScreenCaptureRuntime>>>,
+        reentrant_runtime_on_window_lookup: Mutex<Option<Arc<ScreenCaptureRuntime>>>,
+        reentrant_runtime_on_session_started: Mutex<Option<Arc<ScreenCaptureRuntime>>>,
         restore_requests: Mutex<Vec<(String, CaptureWindowState)>>,
         hide_failures: Mutex<HashMap<String, usize>>,
         restore_failures: Mutex<HashMap<String, usize>>,
@@ -2287,6 +2735,11 @@ mod tests {
                         .collect(),
                 ),
                 operations: Mutex::new(Vec::new()),
+                defer_position_until_presented: Mutex::new(false),
+                ephemeral_overlay: Mutex::new(false),
+                reentrant_runtime: Mutex::new(None),
+                reentrant_runtime_on_window_lookup: Mutex::new(None),
+                reentrant_runtime_on_session_started: Mutex::new(None),
                 restore_requests: Mutex::new(Vec::new()),
                 hide_failures: Mutex::new(HashMap::new()),
                 restore_failures: Mutex::new(HashMap::new()),
@@ -2301,6 +2754,41 @@ mod tests {
 
         fn clear_operations(&self) {
             self.operations.lock().expect("operations lock").clear();
+        }
+
+        fn defer_overlay_position_until_presented(&self) {
+            *self
+                .defer_position_until_presented
+                .lock()
+                .expect("deferred position policy lock") = true;
+        }
+
+        fn use_ephemeral_overlay(&self) {
+            *self
+                .ephemeral_overlay
+                .lock()
+                .expect("ephemeral overlay policy lock") = true;
+        }
+
+        fn reenter_runtime_during_next_window_lookup(&self, runtime: Arc<ScreenCaptureRuntime>) {
+            *self
+                .reentrant_runtime_on_window_lookup
+                .lock()
+                .expect("window lookup reentrant runtime lock") = Some(runtime);
+        }
+
+        fn reenter_runtime_during_session_started(&self, runtime: Arc<ScreenCaptureRuntime>) {
+            *self
+                .reentrant_runtime_on_session_started
+                .lock()
+                .expect("session-started reentrant runtime lock") = Some(runtime);
+        }
+
+        fn reenter_runtime_during_overlay_creation(&self, runtime: Arc<ScreenCaptureRuntime>) {
+            *self
+                .reentrant_runtime
+                .lock()
+                .expect("reentrant runtime lock") = Some(runtime);
         }
 
         fn remove_window_without_callback(&self, label: &str) {
@@ -2397,6 +2885,21 @@ mod tests {
 
     impl CaptureWindowPort for FakeWindows {
         fn window_exists(&self, label: &str) -> bool {
+            if let Some(runtime) = self
+                .reentrant_runtime_on_window_lookup
+                .lock()
+                .expect("window lookup reentrant runtime lock")
+                .take()
+            {
+                let (sender, receiver) = mpsc::channel();
+                std::thread::spawn(move || {
+                    let result = runtime.current_overlay_generation();
+                    let _ = sender.send(result);
+                });
+                if receiver.recv_timeout(Duration::from_millis(250)).is_err() {
+                    return false;
+                }
+            }
             self.windows.lock().expect("windows lock").contains(label)
         }
 
@@ -2424,6 +2927,56 @@ mod tests {
                 .lock()
                 .expect("operations lock")
                 .push(WindowOperation::Create(spec.clone()));
+            if let Some(runtime) = self
+                .reentrant_runtime
+                .lock()
+                .expect("reentrant runtime lock")
+                .clone()
+            {
+                let (sender, receiver) = mpsc::channel();
+                std::thread::spawn(move || {
+                    let result = runtime.current_overlay_generation();
+                    let _ = sender.send(result);
+                });
+                receiver
+                    .recv_timeout(Duration::from_millis(250))
+                    .map_err(|_| {
+                        CaptureError::new(
+                            CaptureErrorCode::OverlayFailed,
+                            "capture runtime remained locked during overlay creation",
+                        )
+                    })??;
+            }
+            Ok(())
+        }
+
+        fn defers_overlay_position_until_presented(&self) -> bool {
+            *self
+                .defer_position_until_presented
+                .lock()
+                .expect("deferred position policy lock")
+        }
+
+        fn uses_ephemeral_overlay(&self) -> bool {
+            *self
+                .ephemeral_overlay
+                .lock()
+                .expect("ephemeral overlay policy lock")
+        }
+
+        fn conceal_overlay_for_capture(&self, _label: &str) -> Result<(), CaptureError> {
+            Ok(())
+        }
+
+        fn wake_overlay_for_frame_delivery(
+            &self,
+            label: &str,
+            _monitor: &MonitorGeometry,
+        ) -> Result<(), CaptureError> {
+            self.operations
+                .lock()
+                .expect("operations lock")
+                .push(WindowOperation::WakeForFrame(label.to_string()));
             Ok(())
         }
 
@@ -2458,6 +3011,13 @@ mod tests {
         }
 
         fn conceal_overlay(&self, label: &str) -> Result<OverlayConcealment, CaptureError> {
+            if self.uses_ephemeral_overlay() {
+                self.deferred_destroys
+                    .lock()
+                    .expect("deferred destroys")
+                    .push(label.to_string());
+                return Ok(OverlayConcealment::RetirementScheduled);
+            }
             match self.hide_window(label) {
                 Ok(()) => Ok(OverlayConcealment::Hidden),
                 Err(error) => {
@@ -2587,6 +3147,26 @@ mod tests {
             label: &str,
             payload: &SessionStartedPayload,
         ) -> Result<(), CaptureError> {
+            if let Some(runtime) = self
+                .reentrant_runtime_on_session_started
+                .lock()
+                .expect("session-started reentrant runtime lock")
+                .clone()
+            {
+                let (sender, receiver) = mpsc::channel();
+                std::thread::spawn(move || {
+                    let result = runtime.current_overlay_generation();
+                    let _ = sender.send(result);
+                });
+                receiver
+                    .recv_timeout(Duration::from_millis(250))
+                    .map_err(|_| {
+                        CaptureError::new(
+                            CaptureErrorCode::OverlayFailed,
+                            "capture runtime remained locked during session-started publication",
+                        )
+                    })??;
+            }
             self.operations
                 .lock()
                 .expect("operations lock")
@@ -3042,6 +3622,109 @@ mod tests {
     }
 
     #[test]
+    fn overlay_creation_allows_page_load_reentry_into_runtime_state() {
+        let runtime = Arc::new(ScreenCaptureRuntime::new().expect("runtime"));
+        let windows = FakeWindows::with_windows(&["main"]);
+        windows.reenter_runtime_during_overlay_creation(runtime.clone());
+
+        let init = runtime
+            .init_overlay("main", &windows)
+            .expect("overlay creation must not hold capture state across the window adapter");
+
+        assert_eq!(
+            runtime.current_overlay_generation().unwrap(),
+            Some(init.overlay_generation)
+        );
+    }
+
+    #[test]
+    fn capture_creates_a_missing_windows_overlay_only_once() {
+        let runtime = ScreenCaptureRuntime::new().expect("runtime");
+        let windows = FakeWindows::with_windows(&["main", "window-target"]);
+
+        let reservation = runtime
+            .reserve_composer_capture(
+                "main",
+                "session-new-overlay".to_string(),
+                target("window-target"),
+                &windows,
+            )
+            .expect("reserve capture behind new overlay readiness");
+
+        assert_eq!(reservation.response.overlay_generation, 1);
+        assert_eq!(
+            reservation.response.phase,
+            NativeCapturePhase::WaitingForOverlay
+        );
+        assert!(reservation.ticket.is_none());
+        assert!(matches!(
+            windows.operations().as_slice(),
+            [WindowOperation::Create(OverlayWindowSpec {
+                label,
+                route,
+                visible: false,
+            })] if label == OVERLAY_WINDOW_LABEL
+                && route == &format!("{OVERLAY_ROUTE}?overlayGeneration=1")
+        ));
+        assert_eq!(windows.window_state("main").unwrap().visible, true);
+    }
+
+    #[test]
+    fn terminal_cleanup_retires_an_ephemeral_overlay_before_the_next_capture() {
+        let runtime = ScreenCaptureRuntime::new().expect("runtime");
+        let windows = FakeWindows::with_windows(&["main", "window-target"]);
+        let generation = active_composer(&runtime, &windows, "session-ephemeral-overlay");
+        windows.use_ephemeral_overlay();
+        windows.clear_operations();
+
+        runtime
+            .cancel_from_window(
+                OVERLAY_WINDOW_LABEL,
+                "session-ephemeral-overlay",
+                Some(generation),
+                &windows,
+            )
+            .expect("terminal cleanup schedules overlay retirement");
+
+        assert_eq!(runtime.active_phase().unwrap(), NativeCapturePhase::Idle);
+        assert!(!runtime.has_sensitive_buffers().unwrap());
+        assert_eq!(runtime.current_overlay_generation().unwrap(), None);
+        assert!(windows.window_exists(OVERLAY_WINDOW_LABEL));
+
+        let error = runtime
+            .reserve_composer_capture(
+                "main",
+                "session-before-retirement-ack".into(),
+                target("window-target"),
+                &windows,
+            )
+            .expect_err("a new capture must not race deferred overlay destruction");
+        assert_eq!(error.code, CaptureErrorCode::Busy);
+
+        windows.run_deferred_destructions();
+        assert!(
+            !runtime
+                .overlay_destroyed(OVERLAY_WINDOW_LABEL, &windows)
+                .expect("terminal retirement callback does not prewarm a replacement")
+        );
+
+        let reservation = runtime
+            .reserve_composer_capture(
+                "main",
+                "session-after-retirement-ack".into(),
+                target("window-target"),
+                &windows,
+            )
+            .expect("the next capture creates a fresh overlay");
+        assert_eq!(reservation.response.overlay_generation, generation + 1);
+        assert_eq!(
+            reservation.response.phase,
+            NativeCapturePhase::WaitingForOverlay
+        );
+        assert!(reservation.ticket.is_none());
+    }
+
+    #[test]
     fn readiness_timeout_clears_a_waiting_session_without_hiding_its_origin() {
         let runtime = ScreenCaptureRuntime::new().expect("runtime");
         let windows = FakeWindows::with_windows(&["main", "window-target"]);
@@ -3092,6 +3775,47 @@ mod tests {
     }
 
     #[test]
+    fn presentation_timeout_restores_the_origin_and_clears_an_unclaimed_frame() {
+        let runtime = ScreenCaptureRuntime::new().expect("runtime");
+        let windows = FakeWindows::with_windows(&["main", "window-target"]);
+        let backend = FakeBackend::one_frame();
+        let generation = init_ready(&runtime, &windows, &backend);
+        runtime
+            .start_composer(
+                "main",
+                "session-presentation-timeout".to_string(),
+                target("window-target"),
+                &windows,
+                &backend,
+            )
+            .expect("publish a frame");
+        assert_eq!(
+            runtime.active_phase().unwrap(),
+            NativeCapturePhase::FrameAvailable
+        );
+        windows.clear_operations();
+
+        assert!(
+            runtime
+                .expire_session(
+                    "session-presentation-timeout",
+                    generation,
+                    CaptureTimeoutKind::Presentation,
+                    &windows,
+                )
+                .expect("expire unclaimed frame")
+        );
+
+        assert_eq!(runtime.active_phase().unwrap(), NativeCapturePhase::Idle);
+        assert!(!runtime.has_sensitive_buffers().unwrap());
+        assert!(
+            windows
+                .operations()
+                .contains(&WindowOperation::Restore("main".into()))
+        );
+    }
+
+    #[test]
     fn stale_and_phase_specific_timeouts_cannot_terminate_the_wrong_capture() {
         let runtime = ScreenCaptureRuntime::new().expect("runtime");
         let windows = FakeWindows::with_windows(&["main", "window-target"]);
@@ -3108,6 +3832,16 @@ mod tests {
                     "session-live",
                     generation + 1,
                     CaptureTimeoutKind::Lifetime,
+                    &windows
+                )
+                .unwrap()
+        );
+        assert!(
+            !runtime
+                .expire_session(
+                    "session-live",
+                    generation,
+                    CaptureTimeoutKind::Presentation,
                     &windows
                 )
                 .unwrap()
@@ -3208,9 +3942,22 @@ mod tests {
 
         let operations = windows.operations();
         assert_eq!(operations[0], WindowOperation::Hide("main".into()));
-        assert!(matches!(operations[1], WindowOperation::Position(_, _)));
-        let WindowOperation::Emit(label, payload) = &operations[2] else {
-            panic!("frame metadata must be emitted after positioning");
+        let position_index = operations
+            .iter()
+            .position(|operation| matches!(operation, WindowOperation::Position(_, _)))
+            .expect("position overlay");
+        let wake_index = operations
+            .iter()
+            .position(|operation| matches!(operation, WindowOperation::WakeForFrame(_)))
+            .expect("wake overlay for frame delivery");
+        let publish_index = operations
+            .iter()
+            .position(|operation| matches!(operation, WindowOperation::Emit(_, _)))
+            .expect("publish frame metadata");
+        assert!(position_index < wake_index);
+        assert!(wake_index < publish_index);
+        let WindowOperation::Emit(label, payload) = &operations[publish_index] else {
+            unreachable!();
         };
         assert_eq!(label, OVERLAY_WINDOW_LABEL);
         assert_eq!(payload.session_id, "session-1");
@@ -3617,6 +4364,149 @@ mod tests {
     }
 
     #[test]
+    fn pending_frame_replays_metadata_without_consuming_pixels() {
+        let runtime = ScreenCaptureRuntime::new().expect("runtime");
+        let windows = FakeWindows::with_windows(&["main", "window-target"]);
+        let backend = FakeBackend::one_frame();
+        let generation = init_ready(&runtime, &windows, &backend);
+        runtime
+            .start_composer(
+                "main",
+                "session-1".to_string(),
+                target("window-target"),
+                &windows,
+                &backend,
+            )
+            .expect("start capture");
+        let pending = runtime
+            .pending_frame(OVERLAY_WINDOW_LABEL, generation, &windows)
+            .expect("query pending frame")
+            .expect("pending frame");
+        assert_eq!(pending.session_id, "session-1");
+        assert_eq!(pending.descriptor.session_id, "session-1");
+        assert!(windows.operations().iter().any(
+            |operation| matches!(operation, WindowOperation::Emit(_, payload) if payload.session_id == "session-1")
+        ));
+        assert!(runtime.has_sensitive_buffers().expect("buffer state"));
+        runtime
+            .take_frame(OVERLAY_WINDOW_LABEL, "session-1", generation)
+            .expect("consume frame after metadata replay");
+        assert!(
+            runtime
+                .pending_frame(OVERLAY_WINDOW_LABEL, generation, &windows)
+                .expect("query consumed frame")
+                .is_none()
+        );
+        runtime
+            .frame_presented(OVERLAY_WINDOW_LABEL, "session-1", generation, &windows)
+            .expect("acknowledge presentation");
+    }
+
+    #[test]
+    fn pending_frame_releases_runtime_before_checking_target_window_availability() {
+        let runtime = Arc::new(ScreenCaptureRuntime::new().expect("runtime"));
+        let windows = FakeWindows::with_windows(&["main", "window-target"]);
+        windows.defer_overlay_position_until_presented();
+        let backend = FakeBackend::one_frame();
+        let generation = init_ready(&runtime, &windows, &backend);
+        runtime
+            .start_composer(
+                "main",
+                "session-pending-window-lookup".to_string(),
+                target("window-target"),
+                &windows,
+                &backend,
+            )
+            .expect("capture frame");
+        windows.reenter_runtime_during_next_window_lookup(runtime.clone());
+
+        let pending = runtime
+            .pending_frame(OVERLAY_WINDOW_LABEL, generation, &windows)
+            .expect("query pending frame")
+            .expect("pending frame");
+
+        assert!(pending.can_confirm);
+    }
+
+    #[test]
+    fn global_session_started_publication_does_not_hold_the_runtime_lock() {
+        let runtime = Arc::new(ScreenCaptureRuntime::new().expect("runtime"));
+        let windows = FakeWindows::with_windows(&["main"]);
+        let backend = FakeBackend::one_frame();
+        init_ready(&runtime, &windows, &backend);
+        runtime
+            .register_eligible_target("main", "target-secret")
+            .expect("register target");
+        windows.reenter_runtime_during_session_started(runtime.clone());
+
+        let reservation = runtime
+            .reserve_global_with_registered_target_capture(
+                "session-global-event".to_string(),
+                None,
+                &windows,
+            )
+            .expect("session-started publication must not reenter under the runtime lock");
+
+        assert!(reservation.ticket.is_some());
+        assert!(windows.operations().iter().any(|operation| {
+            matches!(operation, WindowOperation::EmitStarted(label, payload) if label == "main" && payload.session_id == "session-global-event")
+        }));
+    }
+
+    #[test]
+    fn deferred_overlay_position_occurs_only_after_the_frame_is_presented() {
+        let runtime = ScreenCaptureRuntime::new().expect("runtime");
+        let windows = FakeWindows::with_windows(&["main", "window-target"]);
+        windows.defer_overlay_position_until_presented();
+        let backend = FakeBackend::one_frame();
+        let generation = init_ready(&runtime, &windows, &backend);
+        windows.clear_operations();
+
+        runtime
+            .start_composer(
+                "main",
+                "session-deferred-position".to_string(),
+                target("window-target"),
+                &windows,
+                &backend,
+            )
+            .expect("capture while overlay remains offscreen");
+        assert!(
+            !windows
+                .operations()
+                .iter()
+                .any(|operation| matches!(operation, WindowOperation::Position(_, _)))
+        );
+
+        runtime
+            .take_frame(
+                OVERLAY_WINDOW_LABEL,
+                "session-deferred-position",
+                generation,
+            )
+            .expect("take captured frame");
+        runtime
+            .frame_presented(
+                OVERLAY_WINDOW_LABEL,
+                "session-deferred-position",
+                generation,
+                &windows,
+            )
+            .expect("present captured frame");
+
+        let operations = windows.operations();
+        let position = operations
+            .iter()
+            .position(|operation| matches!(operation, WindowOperation::Position(_, _)))
+            .expect("position overlay");
+        let show = operations
+            .iter()
+            .position(|operation| matches!(operation, WindowOperation::Show(_)))
+            .expect("show overlay");
+        assert!(position < show);
+    }
+
+    #[test]
     fn page_unavailable_restores_and_clears_without_destroying_its_in_flight_webview() {
         let runtime = ScreenCaptureRuntime::new().expect("runtime");
         let windows = FakeWindows::with_windows(&["main", "window-target"]);
@@ -3676,17 +4566,71 @@ mod tests {
     }
 
     #[test]
+    fn bootstrap_failure_retires_the_generation_until_framework_destruction() {
+        let runtime = ScreenCaptureRuntime::new().expect("runtime");
+        let windows = FakeWindows::with_windows(&["main"]);
+        let generation = runtime
+            .init_overlay("main", &windows)
+            .expect("initialize overlay")
+            .overlay_generation;
+
+        runtime
+            .overlay_bootstrap_failed(OVERLAY_WINDOW_LABEL, generation, &windows)
+            .expect("retire failed bootstrap");
+        assert_eq!(runtime.current_overlay_generation().unwrap(), None);
+        assert_eq!(
+            runtime.ensure_overlay_native(&windows)
+                .expect_err("destruction must finish before replacement")
+                .code,
+            CaptureErrorCode::Busy
+        );
+
+        windows.destroy_window_as_framework(OVERLAY_WINDOW_LABEL);
+        assert!(!runtime
+            .overlay_destroyed(OVERLAY_WINDOW_LABEL, &windows)
+            .expect("acknowledge retired overlay"));
+        let replacement = runtime
+            .ensure_overlay_native(&windows)
+            .expect("create fresh overlay after destruction");
+        assert_eq!(replacement.overlay_generation, generation + 1);
+        assert!(windows.window_exists(&overlay_window_label(generation + 1)));
+    }
+
+    #[test]
+    fn bootstrap_retirement_can_finish_when_platform_destruction_fails() {
+        let runtime = ScreenCaptureRuntime::new().expect("runtime");
+        let windows = FakeWindows::with_windows(&["main"]);
+        let generation = runtime
+            .init_overlay("main", &windows)
+            .expect("initialize overlay")
+            .overlay_generation;
+
+        runtime
+            .overlay_bootstrap_failed(OVERLAY_WINDOW_LABEL, generation, &windows)
+            .expect("retire failed bootstrap");
+        runtime
+            .finish_overlay_retirement(OVERLAY_WINDOW_LABEL)
+            .expect("finish native retirement attempt");
+
+        let replacement = runtime
+            .ensure_overlay_native(&windows)
+            .expect("create replacement despite stale failed platform window");
+        assert_eq!(replacement.overlay_generation, generation + 1);
+        assert!(windows.window_exists(&overlay_window_label(generation + 1)));
+    }
+
+    #[test]
     fn native_page_load_hook_cleans_an_active_session_before_overlay_reload() {
         let runtime = ScreenCaptureRuntime::new().expect("runtime");
         let windows = FakeWindows::with_windows(&["main", "window-target"]);
         let generation = active_composer(&runtime, &windows, "session-reload");
         runtime
-            .overlay_page_load_finished(OVERLAY_WINDOW_LABEL, &windows)
+            .overlay_page_load_finished(OVERLAY_WINDOW_LABEL, Some(generation), &windows)
             .expect("record initial page load");
         windows.clear_operations();
 
         runtime
-            .window_page_load_started(OVERLAY_WINDOW_LABEL, &windows)
+            .window_page_load_started(OVERLAY_WINDOW_LABEL, Some(generation), &windows)
             .expect("reload starts native cleanup");
 
         assert_eq!(runtime.active_phase().unwrap(), NativeCapturePhase::Idle);
@@ -3695,6 +4639,29 @@ mod tests {
             runtime.current_overlay_generation().unwrap(),
             Some(generation)
         );
+        assert!(
+            windows
+                .operations()
+                .contains(&WindowOperation::Restore("main".into()))
+        );
+    }
+
+    #[test]
+    fn queryless_navigation_cleans_the_current_loaded_overlay_session() {
+        let runtime = ScreenCaptureRuntime::new().expect("runtime");
+        let windows = FakeWindows::with_windows(&["main", "window-target"]);
+        let generation = active_composer(&runtime, &windows, "session-queryless-navigation");
+        runtime
+            .overlay_page_load_finished(OVERLAY_WINDOW_LABEL, Some(generation), &windows)
+            .expect("record initial page load");
+        windows.clear_operations();
+
+        runtime
+            .window_page_load_started(OVERLAY_WINDOW_LABEL, None, &windows)
+            .expect("queryless navigation invalidates the current JavaScript heap");
+
+        assert_eq!(runtime.active_phase().unwrap(), NativeCapturePhase::Idle);
+        assert!(!runtime.has_sensitive_buffers().unwrap());
         assert!(
             windows
                 .operations()
@@ -3720,7 +4687,7 @@ mod tests {
             .expect("reserve before initial page finishes");
 
         runtime
-            .window_page_load_started(OVERLAY_WINDOW_LABEL, &windows)
+            .window_page_load_started(OVERLAY_WINDOW_LABEL, Some(generation), &windows)
             .expect("first load is not a reload");
 
         assert_eq!(
@@ -3754,7 +4721,7 @@ mod tests {
         windows.clear_operations();
 
         runtime
-            .window_page_load_started("window-target", &windows)
+            .window_page_load_started("window-target", None, &windows)
             .expect("target reload cleanup");
 
         let inner = runtime.lock().expect("runtime lock");
@@ -3783,7 +4750,7 @@ mod tests {
         windows.clear_operations();
 
         runtime
-            .window_page_load_started("main", &windows)
+            .window_page_load_started("main", None, &windows)
             .expect("origin reload cleanup");
 
         assert_eq!(runtime.active_phase().unwrap(), NativeCapturePhase::Idle);
@@ -3814,7 +4781,7 @@ mod tests {
         windows.remove_window_without_callback(OVERLAY_WINDOW_LABEL);
 
         runtime
-            .overlay_destroyed(&windows)
+            .overlay_destroyed(OVERLAY_WINDOW_LABEL, &windows)
             .expect("destroyed hook restores synchronously");
         assert_eq!(
             runtime.active_phase().expect("phase"),
@@ -3856,7 +4823,10 @@ mod tests {
         let WindowOperation::Create(spec) = &operations[create] else {
             unreachable!();
         };
-        assert_eq!(spec.label, OVERLAY_WINDOW_LABEL);
+        assert_eq!(
+            spec.label,
+            overlay_window_label(replacement.overlay_generation)
+        );
         assert!(!spec.visible);
         assert_eq!(
             spec.route,
@@ -3864,6 +4834,37 @@ mod tests {
                 "{OVERLAY_ROUTE}?overlayGeneration={}",
                 replacement.overlay_generation
             )
+        );
+    }
+
+    #[test]
+    fn unexpected_ephemeral_overlay_destruction_stays_lazy() {
+        let runtime = ScreenCaptureRuntime::new().expect("runtime");
+        let windows = FakeWindows::with_windows(&["main", "window-target"]);
+        let backend = FakeBackend::one_frame();
+        let generation = init_ready(&runtime, &windows, &backend);
+        windows.use_ephemeral_overlay();
+        windows.remove_window_without_callback(OVERLAY_WINDOW_LABEL);
+
+        assert!(
+            !runtime
+                .overlay_destroyed(OVERLAY_WINDOW_LABEL, &windows)
+                .expect("ephemeral destruction must not request automatic prewarming")
+        );
+        assert_eq!(runtime.current_overlay_generation().unwrap(), None);
+
+        let reservation = runtime
+            .reserve_composer_capture(
+                "main",
+                "session-after-unexpected-destruction".into(),
+                target("window-target"),
+                &windows,
+            )
+            .expect("the next trigger creates the replacement lazily");
+        assert_eq!(reservation.response.overlay_generation, generation + 1);
+        assert_eq!(
+            reservation.response.phase,
+            NativeCapturePhase::WaitingForOverlay
         );
     }
 
@@ -3889,7 +4890,7 @@ mod tests {
             .expect("close hook cleanup");
         windows.destroy_window_as_framework(OVERLAY_WINDOW_LABEL);
         runtime
-            .overlay_destroyed(&windows)
+            .overlay_destroyed(OVERLAY_WINDOW_LABEL, &windows)
             .expect("destroyed hook rotates generation");
         let replacement = runtime
             .ensure_overlay_native(&windows)
@@ -4793,8 +5794,17 @@ mod tests {
         assert!(!windows.window_exists(OVERLAY_WINDOW_LABEL));
         runtime
             .retry_pending_window_actions(&windows)
+            .expect_err("first retry safely promotes the missing overlay to rebuild");
+        runtime
+            .retry_pending_window_actions(&windows)
             .expect("rebuild hidden overlay");
-        assert!(windows.window_exists(OVERLAY_WINDOW_LABEL));
+        let replacement_label = overlay_window_label(generation + 1);
+        assert!(windows.window_exists(&replacement_label));
+        assert!(
+            !windows
+                .operations()
+                .contains(&WindowOperation::Hide(replacement_label))
+        );
         assert!(!runtime.has_pending_window_actions().unwrap());
         assert_eq!(
             runtime.current_overlay_generation().unwrap(),

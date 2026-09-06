@@ -131,6 +131,27 @@ impl CaptureCoordinator {
             .unwrap_or(NativeCapturePhase::Idle)
     }
 
+    pub fn replace_overlay_window_label(
+        &mut self,
+        overlay_window_label: impl Into<String>,
+    ) -> Result<(), CaptureError> {
+        let overlay_window_label = overlay_window_label.into();
+        if overlay_window_label.trim().is_empty() {
+            return Err(CaptureError::new(
+                CaptureErrorCode::OverlayFailed,
+                "capture overlay requires a window label",
+            ));
+        }
+        if self.active.is_some() || self.ready_overlay_generation.is_some() {
+            return Err(CaptureError::new(
+                CaptureErrorCode::Busy,
+                "capture overlay identity cannot change while it is active",
+            ));
+        }
+        self.overlay_window_label = overlay_window_label;
+        Ok(())
+    }
+
     pub fn active_session_id(&self) -> Option<&str> {
         self.session_guard.active_session_id()
     }
@@ -347,6 +368,33 @@ impl CaptureCoordinator {
         let frame = active.buffers.take_frame(session_id)?;
         active.phase = NativeCapturePhase::AwaitingPresentation;
         Ok(frame)
+    }
+
+    /// Returns metadata for a frame that remains owned by native memory. This
+    /// lets a freshly initialized overlay recover publication without consuming
+    /// the one-shot pixel buffer or trusting session identifiers from JS.
+    pub fn pending_frame(
+        &self,
+        caller_window_label: &str,
+        overlay_generation: u64,
+    ) -> Result<Option<(CaptureState, CapturedFrameDescriptor)>, CaptureError> {
+        self.require_overlay_label(caller_window_label)?;
+        validate_generation(overlay_generation)?;
+        let Some(active) = self.active.as_ref() else {
+            return Ok(None);
+        };
+        if active.overlay_generation != overlay_generation {
+            return Err(stale_generation_error());
+        }
+        if active.phase != NativeCapturePhase::FrameAvailable {
+            return Ok(None);
+        }
+        Ok(Some((
+            active.state(),
+            active
+                .buffers
+                .frame_descriptor(&active.request.session_id)?,
+        )))
     }
 
     pub fn frame_presented(
@@ -859,6 +907,39 @@ mod tests {
         coordinator
             .frame_presented(OVERLAY, session_id, GENERATION)
             .expect("present frame");
+    }
+
+    #[test]
+    fn overlay_identity_can_rotate_only_while_idle_and_unready() {
+        let mut coordinator = CaptureCoordinator::new(OVERLAY).expect("coordinator");
+        assert_eq!(
+            coordinator
+                .replace_overlay_window_label(" ")
+                .expect_err("blank overlay label")
+                .code,
+            CaptureErrorCode::OverlayFailed
+        );
+
+        coordinator
+            .replace_overlay_window_label("screen-capture-overlay-8")
+            .expect("idle overlay identity rotates");
+        assert_eq!(
+            coordinator
+                .note_overlay_ready(OVERLAY, GENERATION)
+                .expect_err("retired label is unauthorized")
+                .code,
+            CaptureErrorCode::UnauthorizedCaller
+        );
+        coordinator
+            .note_overlay_ready("screen-capture-overlay-8", GENERATION + 1)
+            .expect("replacement overlay becomes ready");
+        assert_eq!(
+            coordinator
+                .replace_overlay_window_label("screen-capture-overlay-9")
+                .expect_err("ready overlay identity cannot rotate")
+                .code,
+            CaptureErrorCode::Busy
+        );
     }
 
     #[test]
