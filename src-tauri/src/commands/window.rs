@@ -237,9 +237,13 @@ pub fn new_window(app: &AppHandle) {
 
 /// Open a new app window at the given path (e.g. "/messages").
 /// If a window at that exact path is already open it receives focus instead.
+/// Must stay async: sync commands run on the main thread, where
+/// WebviewWindowBuilder::build() deadlocks on Windows (WebView2).
 #[tauri::command]
-pub fn open_window(app: AppHandle, path: String) {
-    create_window(&app, path);
+pub async fn open_window(app: AppHandle, path: String) {
+    tauri::async_runtime::spawn_blocking(move || create_window(&app, path))
+        .await
+        .ok();
 }
 
 /// Update the display name shown for this window in the macOS dock right-click menu.
