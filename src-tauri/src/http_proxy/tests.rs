@@ -93,3 +93,79 @@ fn extract_pt_valueless_param_kept_verbatim() {
     assert_eq!(p, "/fs?flag");
     assert_eq!(pt, "x");
 }
+
+#[tokio::test]
+async fn handle_strips_origin_but_forwards_custom_headers() {
+    use tokio::io::{AsyncReadExt, AsyncWriteExt};
+    use tokio::net::{TcpListener, TcpStream};
+
+    // Mock upstream: read one full request (headers + content-length body),
+    // then echo the received request head back as the response body so the
+    // test can inspect exactly what the proxy forwarded.
+    let upstream = TcpListener::bind("127.0.0.1:0").await.unwrap();
+    let upstream_addr = upstream.local_addr().unwrap();
+    let echo = tokio::spawn(async move {
+        let (mut sock, _) = upstream.accept().await.unwrap();
+        let mut buf = Vec::new();
+        let mut chunk = [0u8; 1024];
+        loop {
+            let head_end = buf.windows(4).position(|w| w == b"\r\n\r\n");
+            if let Some(head_end) = head_end {
+                let head = String::from_utf8_lossy(&buf[..head_end]).to_string();
+                let content_length = head
+                    .lines()
+                    .find_map(|l| {
+                        let (k, v) = l.split_once(':')?;
+                        (k.trim().eq_ignore_ascii_case("content-length"))
+                            .then(|| v.trim().parse::<usize>().ok())?
+                    })
+                    .unwrap_or(0);
+                if buf.len() >= head_end + 4 + content_length {
+                    break;
+                }
+            }
+            let n = sock.read(&mut chunk).await.unwrap();
+            if n == 0 {
+                break;
+            }
+            buf.extend_from_slice(&chunk[..n]);
+        }
+        let head_end = buf.windows(4).position(|w| w == b"\r\n\r\n").unwrap();
+        let head = &buf[..head_end];
+        let resp = format!(
+            "HTTP/1.1 200 OK\r\ncontent-length: {}\r\nconnection: close\r\n\r\n",
+            head.len()
+        );
+        sock.write_all(resp.as_bytes()).await.unwrap();
+        sock.write_all(head).await.unwrap();
+        sock.shutdown().await.unwrap();
+    });
+
+    // Client-side socket feeding handle() directly.
+    let relay = TcpListener::bind("127.0.0.1:0").await.unwrap();
+    let relay_addr = relay.local_addr().unwrap();
+    let mut client = TcpStream::connect(relay_addr).await.unwrap();
+    let (server_side, _) = relay.accept().await.unwrap();
+
+    let client_http = reqwest::Client::new();
+    tokio::spawn(async move {
+        super::handle(server_side, client_http).await;
+    });
+
+    let pt = format!("http%3A%2F%2F{}", upstream_addr);
+    let request = format!(
+        "POST /upload?_pt={pt} HTTP/1.1\r\nhost: {relay_addr}\r\norigin: http://tauri.localhost\r\nc-id: client-1\r\ncontent-type: text/plain\r\ncontent-length: 2\r\nconnection: close\r\n\r\nhi"
+    );
+    client.write_all(request.as_bytes()).await.unwrap();
+    client.shutdown().await.unwrap();
+
+    let mut response = Vec::new();
+    client.read_to_end(&mut response).await.unwrap();
+    let echoed_head = String::from_utf8_lossy(&response);
+    assert!(echoed_head.contains("c-id: client-1"), "custom header must be forwarded");
+    assert!(
+        !echoed_head.to_lowercase().contains("\r\norigin:"),
+        "origin header must be stripped before forwarding, got: {echoed_head}"
+    );
+    echo.await.unwrap();
+}
