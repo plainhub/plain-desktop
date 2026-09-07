@@ -10,6 +10,7 @@ import {
   type CaptureTargetUnavailable,
 } from './capture-overlay-session'
 import { captureMessagesForLanguages, type CaptureMessages } from './capture-localization'
+import { getCaptureOverlayWorkArea } from './capture-work-area'
 import type { CaptureFrameAvailable, CaptureInvoke, CaptureListen } from './capture-transport'
 import { captureOverlayWindowLabel, createCaptureTransport, parseOverlayGeneration } from './capture-transport'
 import { CAPTURE_OVERLAY_SESSION_ENDED_EVENT } from '@/lib/screen-capture/capture-events'
@@ -31,6 +32,7 @@ function mountOverlay(root: HTMLElement, image: ImageData, options: CaptureOverl
         h(ScreenCaptureOverlay, {
           ref: overlay,
           frame: frame.value,
+          visibleArea: options.visibleArea,
           canConfirm: canConfirm.value,
           messages,
           onExport: options.onExport,
@@ -132,7 +134,10 @@ export async function bootstrapScreenCapture(): Promise<void> {
       overlayGeneration,
       invoke: captureInvoke,
       listen: captureListen,
-      present: (image, frame) => overlaySession.present(image, frame),
+      present: async (image, frame) => {
+        const visibleArea = await getCaptureOverlayWorkArea(captureInvoke, overlayGeneration)
+        await overlaySession.present(image, frame, visibleArea)
+      },
     })
   } catch (error) {
     dispose()

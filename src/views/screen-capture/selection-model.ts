@@ -122,12 +122,51 @@ function controlledInterval(moving: number, anchor: number, preferredSide: 'befo
   return { start, end }
 }
 
-export function placeCaptureToolbar(selection: SelectionRect, toolbar: FrameBounds, viewport: FrameBounds, gap = 8): FramePoint {
-  const centeredX = selection.x + selection.width / 2 - toolbar.width / 2
-  const x = clamp(centeredX, 0, Math.max(0, viewport.width - toolbar.width))
+export function captureToolbarWorkArea(viewport: FrameBounds, viewportScreenOrigin: FramePoint, availableScreenArea: SelectionRect): SelectionRect {
+  const values = [viewport.width, viewport.height, viewportScreenOrigin.x, viewportScreenOrigin.y, availableScreenArea.x, availableScreenArea.y, availableScreenArea.width, availableScreenArea.height]
+  const fallback = { x: 0, y: 0, width: viewport.width, height: viewport.height }
+  if (values.some((value) => !Number.isFinite(value)) || viewport.width <= 0 || viewport.height <= 0 || availableScreenArea.width <= 0 || availableScreenArea.height <= 0) {
+    return fallback
+  }
+
+  const left = Math.max(viewportScreenOrigin.x, availableScreenArea.x)
+  const top = Math.max(viewportScreenOrigin.y, availableScreenArea.y)
+  const right = Math.min(viewportScreenOrigin.x + viewport.width, availableScreenArea.x + availableScreenArea.width)
+  const bottom = Math.min(viewportScreenOrigin.y + viewport.height, availableScreenArea.y + availableScreenArea.height)
+  if (right <= left || bottom <= top) return fallback
+  return {
+    x: left - viewportScreenOrigin.x,
+    y: top - viewportScreenOrigin.y,
+    width: right - left,
+    height: bottom - top,
+  }
+}
+
+export function placeCaptureToolbar(
+  selection: SelectionRect,
+  toolbar: FrameBounds,
+  viewport: FrameBounds,
+  gap = 8,
+  visibleArea: SelectionRect = { x: 0, y: 0, width: viewport.width, height: viewport.height }
+): FramePoint {
+  const area = captureToolbarWorkArea(viewport, { x: 0, y: 0 }, visibleArea)
+  const areaRight = area.x + area.width
+  const areaBottom = area.y + area.height
+  const maxX = Math.max(area.x, areaRight - toolbar.width)
+  const maxY = Math.max(area.y, areaBottom - toolbar.height)
+  const centeredX = clamp(selection.x + selection.width / 2 - toolbar.width / 2, area.x, maxX)
+  const centeredY = clamp(selection.y + selection.height / 2 - toolbar.height / 2, area.y, maxY)
   const below = selection.y + selection.height + gap
-  const y = below + toolbar.height <= viewport.height ? below : clamp(selection.y - gap - toolbar.height, 0, Math.max(0, viewport.height - toolbar.height))
-  return { x, y }
+  const above = selection.y - gap - toolbar.height
+  const right = selection.x + selection.width + gap
+  const left = selection.x - gap - toolbar.width
+
+  if (below >= area.y && below + toolbar.height <= areaBottom) return { x: centeredX, y: below }
+  if (above >= area.y && above + toolbar.height <= areaBottom) return { x: centeredX, y: above }
+  if (right >= area.x && right + toolbar.width <= areaRight) return { x: right, y: centeredY }
+  if (left >= area.x && left + toolbar.width <= areaRight) return { x: left, y: centeredY }
+
+  return { x: centeredX, y: clamp(below, area.y, maxY) }
 }
 
 export class CaptureSelection {

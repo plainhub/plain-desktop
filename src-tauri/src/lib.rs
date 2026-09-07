@@ -346,6 +346,7 @@ pub fn run() {
             commands::screen_capture::commands::screen_capture_pending_frame,
             commands::screen_capture::commands::screen_capture_take_frame,
             commands::screen_capture::commands::screen_capture_frame_presented,
+            commands::screen_capture::commands::screen_capture_overlay_work_area,
             commands::screen_capture::commands::screen_capture_submit_result,
             commands::screen_capture::commands::screen_capture_send_result,
             commands::screen_capture::commands::screen_capture_take_result,

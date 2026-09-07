@@ -99,7 +99,7 @@ import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch, type CSSPro
 import { useAnnotationSession } from '@/views/image-editor/composables/useAnnotationSession'
 import { cssPointToFrame, frameRectToCss, selectionToExportRect, type CssViewportRect } from './capture-geometry'
 import { defaultCaptureMessages, formatCaptureMessage, type CaptureMessages } from './capture-localization'
-import { CaptureSelection, handleCenters, placeCaptureToolbar, type FrameBounds, type FramePoint, type SelectionHandle, type SelectionRect } from './selection-model'
+import { CaptureSelection, captureToolbarWorkArea, handleCenters, placeCaptureToolbar, type FrameBounds, type FramePoint, type SelectionHandle, type SelectionRect } from './selection-model'
 import ScreenCaptureToolbar, { type CaptureAnnotationTool, type CaptureExportAction } from './ScreenCaptureToolbar.vue'
 
 interface Props {
@@ -108,11 +108,18 @@ interface Props {
   onCancel: () => Promise<void> | void
   canConfirm?: boolean
   messages?: CaptureMessages
+  visibleArea?: SelectionRect | null
+}
+
+type DesktopScreen = Screen & {
+  availLeft?: number
+  availTop?: number
 }
 
 const props = withDefaults(defineProps<Props>(), {
   canConfirm: true,
   messages: () => defaultCaptureMessages,
+  visibleArea: null,
 })
 const emit = defineEmits<{ frameInstalled: [] }>()
 
@@ -245,7 +252,17 @@ function updateToolbarPosition() {
     width: toolbarRect && toolbarRect.width > 0 ? toolbarRect.width : Math.min(620, viewport.width),
     height: toolbarRect && toolbarRect.height > 0 ? toolbarRect.height : 56,
   }
-  toolbarPoint.value = placeCaptureToolbar(rect, toolbar, { width: viewport.width, height: viewport.height })
+  const viewportScreenOrigin = { x: window.screenX + viewport.left, y: window.screenY + viewport.top }
+  const desktopScreen = window.screen as DesktopScreen
+  const visibleArea =
+    props.visibleArea ??
+    captureToolbarWorkArea({ width: viewport.width, height: viewport.height }, viewportScreenOrigin, {
+      x: desktopScreen.availLeft ?? viewportScreenOrigin.x,
+      y: desktopScreen.availTop ?? viewportScreenOrigin.y,
+      width: desktopScreen.availWidth,
+      height: desktopScreen.availHeight,
+    })
+  toolbarPoint.value = placeCaptureToolbar(rect, toolbar, { width: viewport.width, height: viewport.height }, 8, visibleArea)
 }
 
 function capturePointer(target: HTMLElement, pointerId: number) {

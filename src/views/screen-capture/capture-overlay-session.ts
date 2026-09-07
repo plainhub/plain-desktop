@@ -2,6 +2,7 @@ import type { CaptureExportPayload } from './ScreenCaptureOverlay.vue'
 import type { CaptureExportAction } from './ScreenCaptureToolbar.vue'
 import { createCaptureExportController, type CaptureExportControllerInvoke } from './capture-export-controller'
 import type { CaptureFrameAvailable } from './capture-transport'
+import type { SelectionRect } from './selection-model'
 
 export interface CaptureTargetUnavailable {
   sessionId: string
@@ -21,6 +22,7 @@ export interface CaptureDeliveryFailed {
 
 export interface CaptureOverlayMountOptions {
   canConfirm: boolean
+  visibleArea: SelectionRect | null
   onExport(action: CaptureExportAction, payload: CaptureExportPayload): Promise<void>
   onCancel(): Promise<void>
 }
@@ -37,7 +39,7 @@ export interface CaptureOverlaySessionDependencies {
 }
 
 export interface CaptureOverlaySession {
-  present(image: ImageData, frame: CaptureFrameAvailable): Promise<void>
+  present(image: ImageData, frame: CaptureFrameAvailable, visibleArea?: SelectionRect | null): Promise<void>
   targetUnavailable(payload: CaptureTargetUnavailable): void
   deliveryFailed(payload: CaptureDeliveryFailed): void
   sessionEnded(payload: CaptureOverlaySessionEnded): void
@@ -99,7 +101,7 @@ export function createCaptureOverlaySession(deps: CaptureOverlaySessionDependenc
     }
   }
 
-  async function present(image: ImageData, frame: CaptureFrameAvailable): Promise<void> {
+  async function present(image: ImageData, frame: CaptureFrameAvailable, visibleArea: SelectionRect | null = null): Promise<void> {
     if (disposed) throw new Error('capture overlay session is disposed')
     if (frame.overlayGeneration !== deps.overlayGeneration || frame.descriptor.sessionId !== frame.sessionId) {
       throw new Error('capture frame session metadata is invalid')
@@ -113,6 +115,7 @@ export function createCaptureOverlaySession(deps: CaptureOverlaySessionDependenc
     const pending = { current: null as PendingDelivery | null }
     const mount = deps.mount(image, {
       canConfirm: frame.canConfirm && unavailableSessionId !== frame.sessionId,
+      visibleArea,
       onExport: async (action, payload) => {
         if (action !== 'confirm') return exportController.export(action, payload)
         if (pending.current) throw new Error('capture delivery is already pending')

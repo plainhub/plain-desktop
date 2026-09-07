@@ -82,6 +82,15 @@ describe('CaptureOverlaySession', () => {
     expect(requestAnimationFrameSpy).not.toHaveBeenCalled()
   })
 
+  it('forwards the native work area to the capture overlay', async () => {
+    const test = harness()
+    const visibleArea = { x: 0, y: 34, width: 1710, height: 997 }
+
+    await test.session.present(new ImageData(2, 2), frame(), visibleArea)
+
+    expect(test.mounts[0]!.options.visibleArea).toEqual(visibleArea)
+  })
+
   it('disables confirm for a matching target-invalidated event and ignores stale metadata', async () => {
     const test = harness()
     await test.session.present(new ImageData(2, 2), frame())

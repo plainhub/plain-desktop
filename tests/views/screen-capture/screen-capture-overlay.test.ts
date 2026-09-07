@@ -60,16 +60,22 @@ async function pointer(element: Element, type: string, x: number, y: number, poi
   await nextTick()
 }
 
-async function mountOverlay(onExport = vi.fn(async () => {}), onCancel = vi.fn(async () => {}), frame = createFrame()) {
+async function mountOverlay(
+  onExport = vi.fn(async () => {}),
+  onCancel = vi.fn(async () => {}),
+  frame = createFrame(),
+  viewport = rect(),
+  visibleArea?: { x: number; y: number; width: number; height: number }
+) {
   const wrapper = mount(ScreenCaptureOverlay, {
     attachTo: document.body,
-    props: { frame, onExport, onCancel },
+    props: { frame, onExport, onCancel, visibleArea },
   })
   mounted.push(wrapper)
   await nextTick()
   const stage = wrapper.get('[data-testid="capture-stage"]')
-  Object.defineProperty(stage.element, 'getBoundingClientRect', { value: () => rect() })
-  for (const canvas of wrapper.findAll('canvas')) Object.defineProperty(canvas.element, 'getBoundingClientRect', { value: () => rect() })
+  Object.defineProperty(stage.element, 'getBoundingClientRect', { value: () => viewport })
+  for (const canvas of wrapper.findAll('canvas')) Object.defineProperty(canvas.element, 'getBoundingClientRect', { value: () => viewport })
   await nextTick()
   return { wrapper, stage, onExport, onCancel, frame }
 }
@@ -103,6 +109,31 @@ describe('ScreenCaptureToolbar', () => {
 })
 
 describe('ScreenCaptureOverlay', () => {
+  it('prefers the native work area when WebKit reports the Dock as usable', async () => {
+    vi.spyOn(window, 'screenX', 'get').mockReturnValue(0)
+    vi.spyOn(window, 'screenY', 'get').mockReturnValue(0)
+    vi.spyOn(window.screen, 'availLeft', 'get').mockReturnValue(0)
+    vi.spyOn(window.screen, 'availTop', 'get').mockReturnValue(0)
+    vi.spyOn(window.screen, 'availWidth', 'get').mockReturnValue(1000)
+    vi.spyOn(window.screen, 'availHeight', 'get').mockReturnValue(800)
+    vi.spyOn(HTMLElement.prototype, 'getBoundingClientRect').mockImplementation(function () {
+      return this.classList.contains('screen-capture-overlay__toolbar') ? rect(620, 56) : rect(1000, 800)
+    })
+
+    const { wrapper, stage } = await mountOverlay(
+      vi.fn(async () => {}),
+      vi.fn(async () => {}),
+      createFrame(1000, 800),
+      rect(1000, 800),
+      { x: 0, y: 24, width: 1000, height: 676 }
+    )
+    await createSelection(stage, { x: 100, y: 500 }, { x: 800, y: 680 })
+    await nextTick()
+
+    expect(wrapper.get('.screen-capture-overlay__toolbar').attributes('style')).toContain('left: 140px')
+    expect(wrapper.get('.screen-capture-overlay__toolbar').attributes('style')).toContain('top: 436px')
+  })
+
   it('releases the decoded frame prop after installing pixels into the owned source canvas', async () => {
     const { wrapper } = await mountOverlay()
 

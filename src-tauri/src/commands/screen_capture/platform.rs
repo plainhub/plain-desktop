@@ -3,8 +3,8 @@ use xcap::Monitor as XcapMonitor;
 
 use super::backend::{NativeFrame, ScreenCaptureBackend};
 use super::contract::{
-    CaptureError, CaptureErrorCode, LogicalPoint, LogicalSize, MonitorGeometry, PhysicalPoint,
-    PhysicalRect, PhysicalSize, select_monitor_at,
+    CaptureError, CaptureErrorCode, CssPoint, CssRect, CssSize, LogicalPoint, LogicalSize,
+    MonitorGeometry, PhysicalPoint, PhysicalRect, PhysicalSize, select_monitor_at,
 };
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -54,6 +54,72 @@ pub fn select_logical_monitor(monitors: &[MonitorGeometry], x: f64, y: f64) -> O
         let right = monitor.logical_origin.x + monitor.logical_size.width;
         let bottom = monitor.logical_origin.y + monitor.logical_size.height;
         x >= monitor.logical_origin.x && x < right && y >= monitor.logical_origin.y && y < bottom
+    })
+}
+
+/// Convert AppKit's bottom-left screen coordinates into overlay-local,
+/// top-left CSS coordinates. `NSScreen::visibleFrame` is authoritative for the
+/// menu bar and Dock; WebKit's `screen.avail*` values are not on every macOS
+/// release/webview combination.
+pub fn bottom_left_visible_frame_to_top_left_area(
+    frame_origin: LogicalPoint,
+    frame_size: LogicalSize,
+    visible_origin: LogicalPoint,
+    visible_size: LogicalSize,
+) -> Result<CssRect, CaptureError> {
+    let values = [
+        frame_origin.x,
+        frame_origin.y,
+        frame_size.width,
+        frame_size.height,
+        visible_origin.x,
+        visible_origin.y,
+        visible_size.width,
+        visible_size.height,
+    ];
+    if values.iter().any(|value| !value.is_finite())
+        || frame_size.width <= 0.0
+        || frame_size.height <= 0.0
+        || visible_size.width <= 0.0
+        || visible_size.height <= 0.0
+    {
+        return Err(CaptureError::new(
+            CaptureErrorCode::InvalidMonitor,
+            "AppKit returned invalid screen work-area geometry",
+        ));
+    }
+
+    let left = visible_origin.x - frame_origin.x;
+    let bottom = visible_origin.y - frame_origin.y;
+    let right = left + visible_size.width;
+    let top_from_bottom = bottom + visible_size.height;
+    const TOLERANCE: f64 = 0.01;
+    if left < -TOLERANCE
+        || bottom < -TOLERANCE
+        || right > frame_size.width + TOLERANCE
+        || top_from_bottom > frame_size.height + TOLERANCE
+    {
+        return Err(CaptureError::new(
+            CaptureErrorCode::InvalidMonitor,
+            "AppKit screen work area falls outside its display frame",
+        ));
+    }
+
+    let x = left.clamp(0.0, frame_size.width);
+    let y = (frame_size.height - top_from_bottom).clamp(0.0, frame_size.height);
+    let clamped_right = right.clamp(0.0, frame_size.width);
+    let clamped_bottom = (frame_size.height - bottom).clamp(0.0, frame_size.height);
+    let width = clamped_right - x;
+    let height = clamped_bottom - y;
+    if width <= 0.0 || height <= 0.0 {
+        return Err(CaptureError::new(
+            CaptureErrorCode::InvalidMonitor,
+            "AppKit returned an empty screen work area",
+        ));
+    }
+    Ok(CssRect {
+        origin: CssPoint { x, y },
+        size: CssSize { width, height },
     })
 }
 

@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import {
   CaptureSelection,
+  captureToolbarWorkArea,
   findSelectionHandle,
   handleCenters,
   placeCaptureToolbar,
@@ -164,5 +165,24 @@ describe('capture toolbar placement', () => {
   it('prefers below, flips above, and clamps to the viewport', () => {
     expect(placeCaptureToolbar({ x: 20, y: 10, width: 40, height: 20 }, { width: 50, height: 12 }, bounds, 6)).toEqual({ x: 15, y: 36 })
     expect(placeCaptureToolbar({ x: 80, y: 65, width: 15, height: 12 }, { width: 50, height: 12 }, bounds, 6)).toEqual({ x: 50, y: 47 })
+  })
+
+  it('uses the visible screen work area and flips above a Dock-obscured bottom edge', () => {
+    const viewport = { width: 1000, height: 800 }
+    const workArea = captureToolbarWorkArea(viewport, { x: 0, y: 0 }, { x: 0, y: 24, width: 1000, height: 676 })
+
+    expect(workArea).toEqual({ x: 0, y: 24, width: 1000, height: 676 })
+    expect(placeCaptureToolbar({ x: 100, y: 500, width: 700, height: 180 }, { width: 620, height: 56 }, viewport, 8, workArea)).toEqual({ x: 140, y: 436 })
+  })
+
+  it('tries a horizontal side when neither vertical side is visible', () => {
+    expect(placeCaptureToolbar({ x: 10, y: 0, width: 40, height: 100 }, { width: 50, height: 20 }, { width: 200, height: 100 }, 8, { x: 0, y: 0, width: 200, height: 100 })).toEqual({ x: 58, y: 40 })
+  })
+
+  it('intersects offset multi-monitor work areas and keeps the fallback fully visible', () => {
+    const workArea = captureToolbarWorkArea({ width: 100, height: 80 }, { x: -1000, y: 40 }, { x: -990, y: 45, width: 80, height: 60 })
+
+    expect(workArea).toEqual({ x: 10, y: 5, width: 80, height: 60 })
+    expect(placeCaptureToolbar({ x: 0, y: 0, width: 100, height: 80 }, { width: 60, height: 12 }, bounds, 8, workArea)).toEqual({ x: 20, y: 53 })
   })
 })

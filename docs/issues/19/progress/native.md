@@ -348,17 +348,17 @@ follow-up runtime gates.
 
 ## macOS Apple-Silicon/Retina runtime evidence (2026-09-07)
 
-The fork commit `b59d6ec1f385831c1fac946d07989ba786c62ad6` was checked,
-tested, packaged, ad-hoc signed, and exercised on `wyatt-mac`: macOS 26.5.2,
-Apple M5/arm64, Xcode 26.6, and Rust 1.96.0. The source worktree was clean at
-that commit before and after the disposable runtime harness was removed.
+The fork commit `b59d6ec1f385831c1fac946d07989ba786c62ad6` and the
+subsequent toolbar work-area correction were checked, tested, packaged,
+ad-hoc signed, and exercised on `wyatt-mac`: macOS 26.5.2, Apple M5/arm64,
+Xcode 26.6, and Rust 1.96.0.
 
 ```text
 cargo +1.96.0 check --locked --manifest-path src-tauri/Cargo.toml -j 2
   passed
 
 cargo +1.96.0 test --locked --manifest-path src-tauri/Cargo.toml --lib -j 2
-  253 passed; 0 failed
+  256 passed; 0 failed
 
 cargo +1.96.0 build --locked --features tauri/custom-protocol -j 2
   passed
@@ -372,6 +372,22 @@ codesign --force --deep --sign - \
   --identifier com.ismartcoding.plain.desktop PlainApp.app
 codesign --verify --deep --strict PlainApp.app
   passed
+
+corepack yarn vitest run \
+  tests/lib/screen-capture tests/views/screen-capture \
+  tests/views/chat/chat-input-capture.test.ts \
+  tests/views/messages/message-chat-capture.test.ts \
+  tests/build-support/app-mode.test.ts \
+  tests/build-support/windows-capture-ephemeral-overlay.test.ts \
+  tests/build-support/windows-webview-creation-serialization.test.ts
+  179 passed; 0 failed
+
+corepack yarn test
+  719 passed; 52 skipped; the same 3 allowlisted baseline failures
+
+Linux cargo +1.96.0 test --locked --manifest-path \
+  src-tauri/Cargo.toml --lib -j 2
+  271 passed; 0 failed
 ```
 
 The first test incorrectly started the executable inside the bundle directly.
@@ -389,16 +405,43 @@ prewarmed, the 3420x2214 Retina display was captured and mapped to a
 1710x1107 logical overlay at scale 2, the raw frame read succeeded, and overlay
 presentation was acknowledged. A subsequent user-initiated composer capture
 repeated acquisition and presentation; the user selected and confirmed a
-region and reported that the workflow worked. The disposable automatic-trigger
-harness was then removed, the tracked macOS schema restored, and a clean bundle
-was rebuilt and launched from the exact fork commit.
+region and reported that the workflow worked. The user also proved that the
+documented Option+Command+A global shortcut dispatches correctly.
+
+The first interactive build waited 100 ms after hiding Plain before acquiring
+pixels. That was long enough for AppKit to hide the window logically, but a
+faint outline from its close animation remained in the captured frame. Matching
+the Linux compositor allowance at 250 ms removed the outline; the user reported
+that the final timing works correctly.
+
+The initial toolbar correction used WebKit's `screen.avail*` geometry. It kept
+the toolbar away from physical display edges, but this macOS WebKit build
+reported the Dock-covered area as available. An AppKit probe measured the
+1710x1107 logical display as a bottom-left `NSScreen.visibleFrame` of
+`x=0, y=76, width=1710, height=997`, which converts to overlay-local top-left
+`x=0, y=34, width=1710, height=997`: 34 points reserved for the menu bar and 76
+for the Dock. The final implementation retrieves that authoritative visible
+frame from the positioned overlay's `NSWindow.screen` on AppKit's main thread
+through a generation-authenticated Tauri command. It converts the coordinates,
+tries toolbar placement below, above, right, and left of the selection, and
+finally clamps inside the visible work area. Other platforms, a missing screen,
+or any rejected/malformed query safely fall back to browser geometry.
+
+The final ad-hoc-signed bundle was launched through LaunchServices. The user
+manually verified that the toolbar avoids both screen edges and the macOS Dock
+and that all controls remain clickable, reporting that the result works great.
+The disposable automatic-trigger harness was removed and generated schema files
+were restored after the runtime checks.
 
 This proves Apple-Silicon/Retina permission denial, manual grant, required
 restart, native acquisition, frame delivery, overlay presentation, selection,
-and confirmation in an ad-hoc-signed debug bundle. It does not claim Intel,
-non-Retina, mixed-display, clipboard/save persistence, actual shortcut-key
-dispatch, App Store sandbox, Developer-ID signing/notarization, or release
-artifact proof.
+confirmation, global-shortcut dispatch, compositor-hide timing, and Dock-aware
+toolbar placement in an ad-hoc-signed debug bundle. Re-signing an ad-hoc test
+build changes its code-directory hash, so macOS treats each rebuild as a new TCC
+subject and requires a reset/regrant; a stable release-signed application does
+not change signing identity on every local rebuild. This evidence does not claim
+Intel, non-Retina, mixed-display, clipboard/save persistence, App Store sandbox,
+Developer-ID signing/notarization, or release artifact proof.
 
 ## Xenocept provenance
 

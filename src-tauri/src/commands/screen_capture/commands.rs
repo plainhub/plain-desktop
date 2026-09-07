@@ -8,7 +8,7 @@ use tauri::{
 
 use super::backend::capture_frame_at_cursor_exclusive;
 use super::contract::{
-    CaptureError, CaptureErrorCode, CaptureResultDescriptor, CaptureTarget, CapturedFrame,
+    CaptureError, CaptureErrorCode, CaptureResultDescriptor, CaptureTarget, CapturedFrame, CssRect,
     MAX_PNG_RESULT_BYTES, NativeCapturePhase,
 };
 use super::export::{SaveCaptureOutcome, TauriCaptureExportPort, stable_png_filename};
@@ -31,10 +31,11 @@ const CAPTURE_PRESENTATION_TIMEOUT: std::time::Duration = std::time::Duration::f
 const CAPTURE_LIFETIME_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(15 * 60);
 // `WebviewWindow::hide` acknowledges the unmap request, not completion of the
 // desktop compositor's fade-out. 100 ms still captured a partially faded
-// origin under X11/KWin; allow the animation to finish before reading pixels.
-#[cfg(target_os = "linux")]
+// origin under X11/KWin and a phantom outline under macOS; allow the animation
+// to finish before reading pixels.
+#[cfg(any(target_os = "linux", target_os = "macos"))]
 const COMPOSITOR_UNMAP_SETTLE: Duration = Duration::from_millis(250);
-#[cfg(not(target_os = "linux"))]
+#[cfg(not(any(target_os = "linux", target_os = "macos")))]
 const COMPOSITOR_UNMAP_SETTLE: Duration = Duration::from_millis(100);
 const CAPTURE_BACKEND_TIMEOUT: Duration = Duration::from_secs(135);
 #[cfg(target_os = "linux")]
@@ -314,6 +315,83 @@ pub fn screen_capture_frame_presented(
         result.is_ok()
     );
     result
+}
+
+#[cfg(target_os = "macos")]
+async fn macos_overlay_work_area(window: &WebviewWindow) -> Result<Option<CssRect>, CaptureError> {
+    use objc2_app_kit::NSWindow;
+
+    let (sender, receiver) = tokio::sync::oneshot::channel();
+    let main_window = window.clone();
+    window
+        .run_on_main_thread(move || {
+            let result = (|| {
+                let pointer = main_window.ns_window().map_err(|error| {
+                    CaptureError::new(
+                        CaptureErrorCode::OverlayFailed,
+                        format!("read capture overlay native window: {error}"),
+                    )
+                })?;
+                // SAFETY: Tauri owns this NSWindow for the lifetime of
+                // `main_window`, and this closure is running on AppKit's main
+                // thread as required by NSWindow/NSScreen.
+                let native_window = unsafe { &*pointer.cast::<NSWindow>() };
+                let Some(screen) = native_window.screen() else {
+                    return Ok(None);
+                };
+                let frame = screen.frame();
+                let visible = screen.visibleFrame();
+                super::platform::bottom_left_visible_frame_to_top_left_area(
+                    super::contract::LogicalPoint {
+                        x: frame.origin.x,
+                        y: frame.origin.y,
+                    },
+                    super::contract::LogicalSize {
+                        width: frame.size.width,
+                        height: frame.size.height,
+                    },
+                    super::contract::LogicalPoint {
+                        x: visible.origin.x,
+                        y: visible.origin.y,
+                    },
+                    super::contract::LogicalSize {
+                        width: visible.size.width,
+                        height: visible.size.height,
+                    },
+                )
+                .map(Some)
+            })();
+            let _ = sender.send(result);
+        })
+        .map_err(|error| {
+            CaptureError::new(
+                CaptureErrorCode::OverlayFailed,
+                format!("schedule capture work-area query: {error}"),
+            )
+        })?;
+    receiver.await.map_err(|_| {
+        CaptureError::new(
+            CaptureErrorCode::OverlayFailed,
+            "capture work-area query ended without a result",
+        )
+    })?
+}
+
+#[tauri::command]
+pub async fn screen_capture_overlay_work_area(
+    window: WebviewWindow,
+    runtime: State<'_, ScreenCaptureRuntime>,
+    overlay_generation: u64,
+) -> Result<Option<CssRect>, CaptureError> {
+    runtime.authorize_overlay_identity(window.label(), overlay_generation)?;
+    #[cfg(target_os = "macos")]
+    {
+        macos_overlay_work_area(&window).await
+    }
+    #[cfg(not(target_os = "macos"))]
+    {
+        Ok(None)
+    }
 }
 
 #[tauri::command]

@@ -759,8 +759,9 @@ mod platform_tests {
         PhysicalRect, PhysicalSize,
     };
     use super::platform::{
-        GeometryConvention, find_matching_candidate, permission_check_result,
-        select_logical_monitor, wayland_cursor_is_unavailable, xcap_bounds_to_physical,
+        GeometryConvention, bottom_left_visible_frame_to_top_left_area, find_matching_candidate,
+        permission_check_result, select_logical_monitor, wayland_cursor_is_unavailable,
+        xcap_bounds_to_physical,
     };
 
     #[test]
@@ -790,6 +791,77 @@ mod platform_tests {
                     height: 1440,
                 },
             }
+        );
+    }
+
+    #[test]
+    fn macos_visible_frame_reserves_the_menu_bar_and_dock() {
+        assert_eq!(
+            bottom_left_visible_frame_to_top_left_area(
+                LogicalPoint { x: 0.0, y: 0.0 },
+                LogicalSize {
+                    width: 1710.0,
+                    height: 1107.0,
+                },
+                LogicalPoint { x: 0.0, y: 76.0 },
+                LogicalSize {
+                    width: 1710.0,
+                    height: 997.0,
+                },
+            )
+            .expect("valid AppKit visible frame"),
+            super::contract::CssRect {
+                origin: super::contract::CssPoint { x: 0.0, y: 34.0 },
+                size: super::contract::CssSize {
+                    width: 1710.0,
+                    height: 997.0,
+                },
+            }
+        );
+    }
+
+    #[test]
+    fn macos_visible_frame_handles_a_left_side_dock() {
+        assert_eq!(
+            bottom_left_visible_frame_to_top_left_area(
+                LogicalPoint { x: -1000.0, y: 40.0 },
+                LogicalSize {
+                    width: 1000.0,
+                    height: 800.0,
+                },
+                LogicalPoint { x: -920.0, y: 70.0 },
+                LogicalSize {
+                    width: 920.0,
+                    height: 750.0,
+                },
+            )
+            .expect("valid offset AppKit visible frame"),
+            super::contract::CssRect {
+                origin: super::contract::CssPoint { x: 80.0, y: 20.0 },
+                size: super::contract::CssSize {
+                    width: 920.0,
+                    height: 750.0,
+                },
+            }
+        );
+    }
+
+    #[test]
+    fn macos_visible_frame_rejects_geometry_outside_the_display() {
+        assert!(
+            bottom_left_visible_frame_to_top_left_area(
+                LogicalPoint { x: 0.0, y: 0.0 },
+                LogicalSize {
+                    width: 100.0,
+                    height: 80.0,
+                },
+                LogicalPoint { x: -1.0, y: 0.0 },
+                LogicalSize {
+                    width: 100.0,
+                    height: 80.0,
+                },
+            )
+            .is_err()
         );
     }
 
