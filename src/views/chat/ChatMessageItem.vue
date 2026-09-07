@@ -3,7 +3,12 @@
   <div v-if="showDate" class="chat-date">{{ formatDate(data.createdAt) }}</div>
   <div ref="itemRef" class="chat-item" :class="{ self: isSelf }" @contextmenu="onContextMenu">
     <div class="chat-title">
-      <span class="name">{{ senderName }}</span>
+      <v-dropdown v-model="rawOpen">
+        <template #trigger>
+          <span class="name">{{ senderName }}</span>
+        </template>
+        <pre class="view-raw">{{ data }}</pre>
+      </v-dropdown>
       <time v-tooltip="formatDateTimeFull(data.createdAt)" class="time">{{ formatTime(data.createdAt) }}</time>
       <span v-if="showSending" class="sending">{{ sendingStatus }}</span>
       <span
@@ -81,6 +86,7 @@ const props = defineProps<{
 
 const emit = defineEmits<{ delete: [id: string]; forward: [item: IChatItem]; retry: [id: string, statusData?: string]; 'download-action': [id: string, action: 'pause' | 'resume' | 'retry'] }>()
 const statusMenuOpen = ref(false)
+const rawOpen = ref(false)
 const { t } = useI18n()
 const { buildMediaMenuItems } = useRevealFile()
 
