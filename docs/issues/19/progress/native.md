@@ -1,6 +1,6 @@
 # P0 native capture progress
 
-Status: the native coordinator, async acquisition path, Wayland portal adapter, and global-target handshake are implemented and compile/unit-tested. End-to-end KDE/X11 capture and Windows shortcut plus Chat-composer capture now pass. This is not feature-completion evidence: pure-Wayland, mixed-DPI hardware, macOS, and signed-package gates remain open.
+Status: the native coordinator, async acquisition path, Wayland portal adapter, and global-target handshake are implemented and compile/unit-tested. End-to-end KDE/X11 capture, Windows shortcut plus Chat-composer capture, and macOS Apple-Silicon/Retina capture now pass. This is not feature-completion evidence: pure-Wayland, mixed-DPI hardware, macOS Intel/non-Retina, and release-signed package gates remain open.
 
 ## Baseline and drift
 
@@ -209,8 +209,8 @@ The implementation is intentionally not marked complete. The compositor settle d
 The following P0 gates also remain open until appropriate hosts/CI or packaged builds are available:
 
 - KDE and GNOME Wayland portal/shortcut/runtime proof.
-- Windows Messages-composer/send/copy/save and mixed-DPI proof; macOS runtime
-  capture, permission, coordinate, shortcut, and signed-package proof.
+- Windows Messages-composer/send/copy/save and mixed-DPI proof; macOS Intel,
+  non-Retina, global-shortcut, copy/save, and release-signed-package proof.
 - Real mixed-DPI monitor matching on Linux, Windows, and macOS hardware; current native-ID and coordinate tests are synthetic.
 - Packaged native clipboard ownership/persistence and save-dialog behavior.
 - Successful cross-platform GitHub check/release runs and smoke-tested produced packages.
@@ -345,6 +345,60 @@ creation and also completed, directly exercising the corrected serialization
 boundary. Messages-composer delivery, mixed-DPI/negative-origin hardware,
 packaged clipboard/save behavior, and a long idle soak remain explicit
 follow-up runtime gates.
+
+## macOS Apple-Silicon/Retina runtime evidence (2026-09-07)
+
+The fork commit `b59d6ec1f385831c1fac946d07989ba786c62ad6` was checked,
+tested, packaged, ad-hoc signed, and exercised on `wyatt-mac`: macOS 26.5.2,
+Apple M5/arm64, Xcode 26.6, and Rust 1.96.0. The source worktree was clean at
+that commit before and after the disposable runtime harness was removed.
+
+```text
+cargo +1.96.0 check --locked --manifest-path src-tauri/Cargo.toml -j 2
+  passed
+
+cargo +1.96.0 test --locked --manifest-path src-tauri/Cargo.toml --lib -j 2
+  253 passed; 0 failed
+
+cargo +1.96.0 build --locked --features tauri/custom-protocol -j 2
+  passed
+
+DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer \
+  RUSTUP_TOOLCHAIN=1.96.0 cargo tauri build --debug --bundles app \
+  --config '{"build":{"beforeBuildCommand":""}}'
+  passed; produced PlainApp.app
+
+codesign --force --deep --sign - \
+  --identifier com.ismartcoding.plain.desktop PlainApp.app
+codesign --verify --deep --strict PlainApp.app
+  passed
+```
+
+The first test incorrectly started the executable inside the bundle directly.
+CoreGraphics denied capture, but that launch did not register the bundle with
+LaunchServices, so PlainApp was absent from Privacy & Security. Relaunching the
+same signed bundle through `open` registered its path and bundle identifier.
+The next capture produced a `kTCCServiceScreenCapture` record; macOS 26 logged
+that the service does not allow an in-app prompt and exposed PlainApp for
+manual enablement instead. The separate “find nearby devices” dialog was the
+local-network permission used by Plain device discovery, not screen recording.
+
+After the user enabled Screen Recording and macOS terminated the application,
+the bundle was relaunched through LaunchServices. The fixed hidden overlay
+prewarmed, the 3420x2214 Retina display was captured and mapped to a
+1710x1107 logical overlay at scale 2, the raw frame read succeeded, and overlay
+presentation was acknowledged. A subsequent user-initiated composer capture
+repeated acquisition and presentation; the user selected and confirmed a
+region and reported that the workflow worked. The disposable automatic-trigger
+harness was then removed, the tracked macOS schema restored, and a clean bundle
+was rebuilt and launched from the exact fork commit.
+
+This proves Apple-Silicon/Retina permission denial, manual grant, required
+restart, native acquisition, frame delivery, overlay presentation, selection,
+and confirmation in an ad-hoc-signed debug bundle. It does not claim Intel,
+non-Retina, mixed-display, clipboard/save persistence, actual shortcut-key
+dispatch, App Store sandbox, Developer-ID signing/notarization, or release
+artifact proof.
 
 ## Xenocept provenance
 
