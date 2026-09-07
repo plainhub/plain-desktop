@@ -13,7 +13,7 @@ import { tokenToKey } from '@/lib/api/file'
 import { getRemoteClientId } from '@/lib/device/client-id'
 import { getCurrentAuthToken } from '@/lib/device/current'
 import { isLocalMode } from '@/lib/device/local-mode'
-import { TauriWebSocket } from '@/lib/api/tauri-ws'
+import { openSocket } from '@/lib/api/http'
 import { get as prefsGet, set as prefsSet } from '@/lib/prefs'
 
 const EventType: { [key: number]: string } = {
@@ -101,9 +101,7 @@ export function useAppSocket() {
     try {
       const key = tokenToKey(token)
       const wsUrl = `${getWebSocketBaseUrl()}/?cid=${clientId}`
-      ws = (__IS_TAURI__
-        ? new TauriWebSocket(wsUrl, isLocalMode() ? '' : getRemoteClientId())
-        : new WebSocket(wsUrl)) as unknown as WebSocket
+      ws = openSocket(wsUrl, localMode ? '' : getRemoteClientId())
       ws.onopen = async () => {
         emitter.emit('app_socket_connection_changed', true)
         retryTime = 1000

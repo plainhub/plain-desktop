@@ -3,7 +3,7 @@ import { chachaEncrypt, chachaDecrypt, arrayBufferToBitArray, bitArrayToUint8Arr
 import { tokenToKey } from './file'
 import { wrapWithReplayProtection } from './time-sync'
 import { getCurrentAuthToken, clearCurrentSession } from '../device/current'
-import { tauriFetch } from './tauri-fetch'
+import { httpRequest } from './http'
 import { isLocalMode } from '../device/local-mode'
 
 const TIMEOUT = 30000
@@ -42,36 +42,37 @@ export async function gqlFetch<T = any>(
   }
 }
 
-async function doGqlFetch<T = any>(query: string, variables?: Record<string, any>): Promise<GqlResult<T>> {
-  const url = `${getApiBaseUrl()}/graphql`
-  const token = isLocalMode() ? getLocalToken() : getCurrentAuthToken()
+/** POSTs one XChaCha20-encrypted GraphQL request to `url` under `token` —
+ *  the shared wire protocol for the current server (gqlFetch) and for login
+ *  peers reached directly (gqlFetchPeer). */
+export async function encryptedGqlPost<T = any>(
+  url: string,
+  token: string,
+  query: string,
+  variables?: Record<string, any>,
+): Promise<GqlResult<T>> {
   const key = tokenToKey(token)
-
   const json = JSON.stringify({ query, variables })
   // Opt-in via DevTools (`__PLAIN_LOG__ = true`); the flag check runs before
   // any string building so the disabled path is one property read.
   if (window.__PLAIN_LOG__) console.info(`[request] ${json}`)
 
   const startTime = performance.now()
-  const payload = wrapWithReplayProtection(json)
-  const body = bitArrayToUint8Array(chachaEncrypt(key, payload))
+  const body = bitArrayToUint8Array(chachaEncrypt(key, wrapWithReplayProtection(json)))
   const encryptTime = performance.now()
 
   const controller = new AbortController()
   const timer = setTimeout(() => controller.abort(), TIMEOUT)
 
   try {
-    const response = (__IS_TAURI__ && url.startsWith('https://'))
-      ? await tauriFetch(url, { method: 'POST', headers: { ...getApiHeaders() } as Record<string, string>, body })
-      : await fetch(url, { method: 'POST', headers: { ...getApiHeaders() }, body: body as BodyInit, signal: controller.signal })
+    const response = await httpRequest(url, {
+      method: 'POST',
+      headers: getApiHeaders(),
+      body,
+      signal: controller.signal,
+    })
 
     if (response.status === 401) {
-      // In local mode there is no device session — never clear state or reload;
-      // that would create an infinite reload loop.
-      if (!__IS_TAURI__) {
-        clearCurrentSession()
-        window.location.reload()
-      }
       throw new GqlError('unauthorized', 401)
     } else if (response.status === 403) {
       throw new GqlError('desktop_access_disabled', 403)
@@ -94,6 +95,22 @@ async function doGqlFetch<T = any>(query: string, variables?: Record<string, any
     throw new GqlError(e.message || 'network_error')
   } finally {
     clearTimeout(timer)
+  }
+}
+
+async function doGqlFetch<T = any>(query: string, variables?: Record<string, any>): Promise<GqlResult<T>> {
+  const url = `${getApiBaseUrl()}/graphql`
+  const token = isLocalMode() ? getLocalToken() : getCurrentAuthToken()
+  try {
+    return await encryptedGqlPost<T>(url, token, query, variables)
+  } catch (e) {
+    // Web-mode 401: drop the stored session and hard-reload. Tauri is
+    // excluded — local mode has no device session, so a reload would loop.
+    if (e instanceof GqlError && e.status === 401 && !__IS_TAURI__) {
+      clearCurrentSession()
+      window.location.reload()
+    }
+    throw e
   }
 }
 

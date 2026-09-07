@@ -4,12 +4,12 @@ import { deviceBaseUrl } from '@/lib/api/api'
 import { chachaEncrypt, chachaDecrypt, bitArrayToUint8Array } from '@/lib/api/crypto'
 import { tokenToKey } from '@/lib/api/file'
 import { parseWebSocketData } from '@/lib/api/sjcl-arraybuffer'
-import { TauriWebSocket } from '@/lib/api/tauri-ws'
+import { openSocket } from '@/lib/api/http'
 import { loginPeers, peerHost, findLoginPeer, type LoginPeer } from '@/lib/device/login-peers'
 import { get as prefsGet } from '@/lib/prefs'
 
 interface PeerSocket {
-  ws: TauriWebSocket
+  ws: WebSocket
   retryTime: number
   timer?: ReturnType<typeof setTimeout>
 }
@@ -18,7 +18,7 @@ const sockets = new Map<string, PeerSocket>()
 let started = false
 
 function connectPeer(peer: LoginPeer) {
-  const state: PeerSocket = { ws: undefined as unknown as TauriWebSocket, retryTime: 1000 }
+  const state: PeerSocket = { ws: undefined as unknown as WebSocket, retryTime: 1000 }
   sockets.set(peer.id, state)
 
   const key = tokenToKey(peer.token)
@@ -26,8 +26,8 @@ function connectPeer(peer: LoginPeer) {
   const url = `${scheme}://${peerHost(peer)}/?cid=${prefsGet('client_id', '')}`
 
   const dial = () => {
-    const ws = new TauriWebSocket(url, peer.id) as unknown as WebSocket
-    state.ws = ws as unknown as TauriWebSocket
+    const ws = openSocket(url, peer.id)
+    state.ws = ws
     ws.onopen = () => {
       state.retryTime = 1000
       ws.send(bitArrayToUint8Array(chachaEncrypt(key, new Date().getTime().toString())))

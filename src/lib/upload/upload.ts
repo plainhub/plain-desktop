@@ -1,7 +1,7 @@
 import type { IUploadItem } from '@/stores/temp'
 import emitter from '@/plugins/eventbus'
 import { arrayBufferToHex } from '../strutil'
-import { getApiBaseUrl, getLocalToken, getUploadBaseUrl } from '../api/api'
+import { getApiBaseUrl, getLocalToken, proxyUrlFor } from '../api/api'
 import { chachaEncrypt, bitArrayToUint8Array } from '../api/crypto'
 import { tokenToKey } from '../api/file'
 import { uploadedChunksGQL } from '../api/query'
@@ -34,12 +34,14 @@ function releaseChunkSlot() {
   activeChunkUploads = Math.max(0, activeChunkUploads - 1)
 }
 
+// Uploads go through XHR (progress events), so the self-signed-cert
+// workaround is the `_pt`-tagged local proxy URL, not tauriFetch.
 export function getUploadUrl() {
-  return `${getUploadBaseUrl()}/upload`
+  return proxyUrlFor(getApiBaseUrl(), '/upload')
 }
 
 export function getUploadChunkUrl() {
-  return `${getUploadBaseUrl()}/upload_chunk`
+  return proxyUrlFor(getApiBaseUrl(), '/upload_chunk')
 }
 
 interface IUploadChunk {
@@ -250,10 +252,6 @@ async function uploadDirect(upload: IUploadItem, replace: boolean, key: Uint8Arr
 
       try {
         xhr.open('POST', getUploadUrl(), true)
-        if (__IS_TAURI__) {
-          const apiBaseUrl = getApiBaseUrl()
-          if (apiBaseUrl.startsWith('https://')) xhr.setRequestHeader('x-proxy-target', apiBaseUrl)
-        }
         xhr.setRequestHeader('c-id', prefsGet('client_id', ''))
         upload.xhr = xhr
         xhr.send(data)
@@ -615,7 +613,6 @@ async function uploadChunk(upload: IUploadItem, chunkData: IUploadChunk & { star
 
     try {
       xhr.open('POST', getUploadChunkUrl(), true)
-      if (__IS_TAURI__) xhr.setRequestHeader('x-proxy-target', getApiBaseUrl())
       xhr.setRequestHeader('c-id', prefsGet('client_id', ''))
       // Track this XHR in the set BEFORE sending, so pause can abort it
       if (!upload.xhrs) upload.xhrs = new Set()

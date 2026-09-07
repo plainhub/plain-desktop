@@ -4,7 +4,7 @@ import { getApiBaseUrl, getApiHeaders } from './api'
 import { chachaEncrypt, bitArrayToUint8Array } from './crypto'
 import type { InitResponse } from './crypto'
 import { tokenToKey } from './file'
-import { tauriFetch } from './tauri-fetch'
+import { httpRequest } from './http'
 
 export interface InitResult {
   status: number
@@ -23,9 +23,7 @@ export async function requestInit(): Promise<InitResult> {
     body = bitArrayToUint8Array(chachaEncrypt(key, randomUUID()))
   }
   const initUrl = `${getApiBaseUrl()}/init`
-  const r = (__IS_TAURI__ && initUrl.startsWith('https://'))
-    ? await tauriFetch(initUrl, { method: 'POST', headers, body })
-    : await fetch(initUrl, { method: 'POST', headers, body: body as BodyInit })
+  const r = await httpRequest(initUrl, { method: 'POST', headers, body })
   if (r.status === 403) return { status: r.status }
   const bodyText = await r.text()
   return { status: r.status, data: bodyText ? (JSON.parse(bodyText) as InitResponse) : undefined }

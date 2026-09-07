@@ -10,6 +10,8 @@ export interface PendingLoginDevice {
   deviceType: DeviceType
 }
 
+// ─── Runtime context state ────────────────────────────────────────────────────
+
 // Temporary target device set during the login flow (before the session is committed to the store).
 // Allows api.ts to route requests to the target device before clientId is known.
 let _pendingLoginDevice: PendingLoginDevice | null = null
@@ -36,16 +38,21 @@ let _localServerHttpsPort = 0
 export function setLocalServerHttpsPort(port: number): void { _localServerHttpsPort = port }
 export function getLocalServerHttpsPort(): number { return _localServerHttpsPort }
 
-/** In Tauri + HTTPS mode, builds a local proxy URL with the device target
- *  encoded as `_pt` query param — for browser-initiated requests (img/video src)
- *  that cannot set custom headers. Non-HTTPS devices get a direct URL. */
+// ─── URL builders ─────────────────────────────────────────────────────────────
+
+function isSecurePort(host: string): boolean {
+  const m = host.match(/:(\d+)$/)
+  return m ? m[1].endsWith('43') : false
+}
+
 /** Base URL for a device host (`ip:port`) — phones serve TLS on *43 ports. */
 export function deviceBaseUrl(host: string): string {
   return applyScheme(isSecurePort(host) ? 'https' : 'http', host)
 }
 
 /** Routes a browser-initiated path through the local HTTP reverse proxy when
- *  the target base is a self-signed HTTPS device (Tauri only). */
+ *  the target base is a self-signed HTTPS device (Tauri only); the proxy
+ *  learns the target from the `_pt` query param. */
 export function proxyUrlFor(base: string, path: string): string {
   if (__IS_TAURI__ && base.startsWith('https://')) {
     const sep = path.includes('?') ? '&' : '?'
@@ -58,15 +65,6 @@ export function getProxyUrl(path: string): string {
   return proxyUrlFor(getApiBaseUrl(), path)
 }
 
-/** Base URL for file uploads.
- *  Tauri + HTTPS device: routes through the local HTTP proxy (self-signed cert workaround).
- *  All other cases: direct URL — caller is responsible for only invoking this for https. */
-export function getUploadBaseUrl(): string {
-  const base = getApiBaseUrl()
-  if (__IS_TAURI__ && base.startsWith('https://')) return `http://127.0.0.1:${_httpProxyPort}`
-  return base
-}
-
 export function getApiHost() {
   if (__IS_TAURI__) {
     const h = _pendingLoginDevice?.host || getCurrentDeviceHost()
@@ -74,6 +72,38 @@ export function getApiHost() {
   }
   return import.meta.env.VITE_APP_API_HOST || window.location.host
 }
+
+export function getApiBaseUrl() {
+  if (__IS_TAURI__ && _localServerPort && !(_pendingLoginDevice || getCurrentDeviceHost())) {
+    return `http://localhost:${_localServerPort}`
+  }
+  if (__IS_TAURI__ && (_pendingLoginDevice || getCurrentDeviceHost())) {
+    return deviceBaseUrl(getApiHost())
+  }
+  return applyScheme(window.location.protocol.replace(':', ''), getApiHost())
+}
+
+export function getWebSocketBaseUrl() {
+  if (__IS_TAURI__ && _localServerPort && !(_pendingLoginDevice || getCurrentDeviceHost())) {
+    return `ws://localhost:${_localServerPort}`
+  }
+  if (__IS_TAURI__ && (_pendingLoginDevice || getCurrentDeviceHost())) {
+    const p = isSecurePort(getApiHost()) ? 'wss' : 'ws'
+    return `${p}://${getApiHost()}`
+  }
+  const p = window.location.protocol === 'http:' ? 'ws' : 'wss'
+  return `${p}://${getApiHost()}`
+}
+
+export function getPhoneIp(): string {
+  try {
+    return new URL(`http://${getApiHost()}`).hostname
+  } catch {
+    return getApiHost().split(':')[0]
+  }
+}
+
+// ─── Request headers ──────────────────────────────────────────────────────────
 
 // Client self-identification for the `c-platform` header, mirroring
 // plain-app's RequestHeaders (android/ios there). This describes the
@@ -94,39 +124,4 @@ export function getApiHeaders() {
   }
   if (__APP_VERSION__) headers['c-version'] = __APP_VERSION__
   return headers
-}
-
-function isSecurePort(host: string): boolean {
-  const m = host.match(/:(\d+)$/)
-  return m ? m[1].endsWith('43') : false
-}
-
-export function getWebSocketBaseUrl() {
-  if (__IS_TAURI__ && _localServerPort && !(_pendingLoginDevice || getCurrentDeviceHost())) {
-    return `ws://localhost:${_localServerPort}`
-  }
-  if (__IS_TAURI__ && (_pendingLoginDevice || getCurrentDeviceHost())) {
-    const p = isSecurePort(getApiHost()) ? 'wss' : 'ws'
-    return `${p}://${getApiHost()}`
-  }
-  const p = window.location.protocol === 'http:' ? 'ws' : 'wss'
-  return `${p}://${getApiHost()}`
-}
-
-export function getApiBaseUrl() {
-  if (__IS_TAURI__ && _localServerPort && !(_pendingLoginDevice || getCurrentDeviceHost())) {
-    return `http://localhost:${_localServerPort}`
-  }
-  if (__IS_TAURI__ && (_pendingLoginDevice || getCurrentDeviceHost())) {
-    return deviceBaseUrl(getApiHost())
-  }
-  return applyScheme(window.location.protocol.replace(':', ''), getApiHost())
-}
-
-export function getPhoneIp(): string {
-  try {
-    return new URL(`http://${getApiHost()}`).hostname
-  } catch {
-    return getApiHost().split(':')[0]
-  }
 }

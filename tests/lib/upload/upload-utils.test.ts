@@ -6,10 +6,13 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
  */
 
 // Mock the modules that upload.ts depends on before importing
+const { proxyUrlForMock } = vi.hoisted(() => ({
+  proxyUrlForMock: vi.fn((base: string, path: string) => `${base}${path}`),
+}))
 vi.mock('@/plugins/eventbus', () => ({ default: { emit: vi.fn() } }))
 vi.mock('@/lib/api/api', () => ({
   getApiBaseUrl: () => 'http://localhost:3000',
-  getUploadBaseUrl: () => 'http://localhost:3000',
+  proxyUrlFor: proxyUrlForMock,
   getLocalToken: () => '',
   getApiHeaders: () => ({ 'Content-Type': 'multipart/form-data' }),
 }))
@@ -34,14 +37,21 @@ vi.mock('@/lib/api/gql-client', () => ({
 import { generateFileId, getMD5Hash, getUploadUrl, getUploadChunkUrl } from '@/lib/upload/upload'
 
 describe('getUploadUrl', () => {
-  it('returns correct upload URL', () => {
+  // Upload URLs must go through proxyUrlFor: in Tauri remote mode that is
+  // what embeds the `_pt` proxy target — a bare base+path URL left the
+  // local HTTP proxy without a target and it answered 400.
+  it('builds the URL through proxyUrlFor so the proxy target rides along', () => {
+    proxyUrlForMock.mockClear()
     expect(getUploadUrl()).toBe('http://localhost:3000/upload')
+    expect(proxyUrlForMock).toHaveBeenCalledWith('http://localhost:3000', '/upload')
   })
 })
 
 describe('getUploadChunkUrl', () => {
-  it('returns correct chunk upload URL', () => {
+  it('builds the chunk URL through proxyUrlFor', () => {
+    proxyUrlForMock.mockClear()
     expect(getUploadChunkUrl()).toBe('http://localhost:3000/upload_chunk')
+    expect(proxyUrlForMock).toHaveBeenCalledWith('http://localhost:3000', '/upload_chunk')
   })
 })
 
