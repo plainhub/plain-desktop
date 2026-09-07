@@ -1,4 +1,6 @@
 export default {
+  video_transcode_tip: 'Este navegador no puede decodificar HEVC (H.265): el vídeo se reproduce desde una transmisión H.264 convertida; la calidad puede ser menor y la primera carga más lenta.',
+  video_transcode_help: 'Cómo reproducir con la calidad original →',
   audio_player: 'Reproductor de audio',
   music: 'Música',
   videos: 'Vídeos',

@@ -9,7 +9,13 @@
       <v-icon-button v-if="!isTauri" v-tooltip="$t('back')" class="close-btn" @click="$emit('close')">
         <i-material-symbols:arrow-back-rounded />
       </v-icon-button>
-      <span v-if="!isTauri" class="file-name">{{ current.name }}</span>
+      <div class="name-block">
+        <span v-if="!isTauri" class="file-name">{{ current.name }}</span>
+        <span v-if="transcoded && isVideo(current.name)" class="codec-tip">
+          {{ $t('video_transcode_tip') }}
+          <a :href="hevcHelpUrl" target="_blank" rel="noopener" class="codec-tip-link">{{ $t('video_transcode_help') }}</a>
+        </span>
+      </div>
     </div>
 
     <div class="actions">
@@ -57,7 +63,8 @@
 </template>
 
 <script setup lang="ts">
-import { isImage } from '@/lib/file'
+import { isImage, isVideo } from '@/lib/file'
+import { HEVC_HELP_URL as hevcHelpUrl } from '@/lib/video-codec'
 import type { ISource } from './types'
 
 const isTauri = __IS_TAURI__
@@ -66,6 +73,7 @@ defineProps<{
   current: ISource | undefined
   popup?: boolean
   readOnly?: boolean
+  transcoded?: boolean
   imageQuality: 'fast' | 'original'
 }>()
 
@@ -109,11 +117,38 @@ defineEmits<{
       flex-shrink: 0;
     }
 
+    .name-block {
+      min-width: 0;
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+    }
+
     .file-name {
       overflow: hidden;
       text-overflow: ellipsis;
       white-space: nowrap;
       font-size: 14px;
+    }
+
+    .codec-tip {
+      font-size: 12px;
+      line-height: 1.35;
+      color: var(--md-sys-color-on-surface-variant);
+      overflow: hidden;
+      display: -webkit-box;
+      -webkit-line-clamp: 2;
+      -webkit-box-orient: vertical;
+    }
+
+    .codec-tip-link {
+      color: var(--md-sys-color-primary);
+      text-decoration: none;
+      white-space: nowrap;
+
+      &:hover {
+        text-decoration: underline;
+      }
     }
   }
 

@@ -1,4 +1,6 @@
 export default {
+  video_transcode_tip: 'このブラウザは HEVC (H.265) をデコードできないため、H.264 に変換したストリームで再生しています。画質が低下し、最初の読み込みに時間がかかる場合があります。',
+  video_transcode_help: '元の画質で再生する方法 →',
   audio_player: 'オーディオプレーヤー',
   music: '音楽',
   videos: 'ビデオ',

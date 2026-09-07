@@ -3,6 +3,7 @@ import { on, off, isArray } from '@/components/lightbox/utils/index'
 import { useImage, useMouse, useTouch } from '@/components/lightbox/utils/hooks'
 import type { ISource, IImgWrapperState, IndexChangeActions } from '@/components/lightbox/types'
 import { isVideo, isImage, isAudio, isSvg, isHeic } from '@/lib/file'
+import { browserSupportsHevc, ensurePlayableVideoUrl } from '@/lib/video-codec'
 import { getFileUrlByPath } from '@/lib/api/file'
 import { useTempStore } from '@/stores/temp'
 import { storeToRefs } from 'pinia'
@@ -270,6 +271,10 @@ export function useLightboxNavigation(
       }
       img.src = url
     } else if (isVideo(source.name)) {
+      // On browsers without HEVC support, neighbour preloads are useless:
+      // undecodable HEVC would only warm an audio-only path, and preloading
+      // the transcoded URL would trigger expensive server transcodes.
+      if (!browserSupportsHevc()) return
       if (preloadedUrls.has(source.src)) return
       preloadedUrls.add(source.src)
       const videoEl = document.createElement('video')
@@ -328,6 +333,15 @@ export function useLightboxNavigation(
     const s = tempStore.lightbox.sources[newIndex]
     if (!s.src) {
       s.src = getFileUrlByPath(tempStore.urlTokenKey, s.path)
+    }
+
+    // Resolve the playback URL before mounting the <video>: on browsers
+    // without an HEVC decoder, HEVC sources switch to the server-transcoded
+    // H.264 stream here (one cached probe round-trip, tens of ms).
+    if (isVideo(s.name) && s.src && !s.playbackUrl) {
+      const { url, transcoded } = await ensurePlayableVideoUrl(s.src)
+      s.playbackUrl = url
+      s.transcoded = transcoded
     }
 
     // If the target image was already preloaded and fully decoded, keep it visible

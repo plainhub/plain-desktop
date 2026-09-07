@@ -1,4 +1,6 @@
 export default {
+  video_transcode_tip: 'Your browser can\'t decode HEVC (H.265), so this video plays from a converted H.264 stream — quality may be lower and the first load may take longer.',
+  video_transcode_help: 'How to play the original quality →',
   audio_player: 'Audio player',
   music: 'Music',
   videos: 'Videos',

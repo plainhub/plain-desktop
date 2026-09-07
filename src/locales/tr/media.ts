@@ -1,4 +1,6 @@
 export default {
+  video_transcode_tip: 'Bu tarayıcı HEVC (H.265) çözemediği için video dönüştürülmüş bir H.264 akışından oynatılıyor — kalite düşük olabilir ve ilk yükleme uzun sürebilir.',
+  video_transcode_help: 'Orijinal kalitede oynatmayı etkinleştir →',
   audio_player: 'Müzik ç',
   music: 'Müzik',
   videos: 'Videolar',
