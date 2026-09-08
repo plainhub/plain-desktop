@@ -40,13 +40,31 @@ pub async fn save_chat_file_as(app: AppHandle, uri: String, name: Option<String>
         .dialog()
         .file()
         .set_file_name(&default_name)
-        .blocking_pick_file();
+        .blocking_save_file();
     let Some(target) = target else { return Ok(()) };
     let dest = target.into_path().map_err(|e| e.to_string())?;
     if dest == src {
         return Ok(());
     }
     std::fs::copy(&src, &dest).map_err(|e| e.to_string())?;
+    Ok(())
+}
+
+/// Save in-memory text content to a user-chosen destination via the native
+/// save dialog (WKWebView cannot download blobs, so the webview hands the
+/// already-fetched content over instead).
+#[tauri::command]
+pub async fn save_text_file_as(app: AppHandle, name: String, contents: String) -> Result<(), String> {
+    let default_name = name.trim();
+    let default_name = if default_name.is_empty() { "file.txt" } else { default_name };
+    let target = app
+        .dialog()
+        .file()
+        .set_file_name(default_name)
+        .blocking_save_file();
+    let Some(target) = target else { return Ok(()) };
+    let dest = target.into_path().map_err(|e| e.to_string())?;
+    std::fs::write(&dest, contents).map_err(|e| e.to_string())?;
     Ok(())
 }
 

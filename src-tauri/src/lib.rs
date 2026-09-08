@@ -216,6 +216,7 @@ pub fn run() {
             commands::media_preview_pool::media_preview_activate,
             commands::reveal::reveal_chat_file,
             commands::reveal::save_chat_file_as,
+            commands::reveal::save_text_file_as,
             commands::reveal::copy_chat_file_to_clipboard,
             http_proxy::http_proxy_port,
             local::server::local_server_port,

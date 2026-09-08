@@ -8,7 +8,9 @@ import { useTempStore } from '@/stores/temp'
 import { useMainStore } from '@/stores/main'
 import { openUrl } from '@/lib/browser'
 import { openWindow } from '@/lib/api/tauri-window'
+import { isLocalMode } from '@/lib/device/local-mode'
 import { useOpenMedia } from '@/hooks/open-media'
+import { useRevealFile } from './reveal-file'
 
 export function useChatFiles(props: { data: any; downloadInfo: any; peer: { ip: string; port: number } | null }) {
   const tempStore = useTempStore()
@@ -20,6 +22,7 @@ export function useChatFiles(props: { data: any; downloadInfo: any; peer: { ip: 
   const iconErrors = ref<string[]>([])
 
   const { open: openMedia } = useOpenMedia()
+  const { revealFile } = useRevealFile()
 
   const items = computed<ISource[]>(() => {
     const files = props.data?._content?.value?.items ?? []
@@ -96,6 +99,12 @@ export function useChatFiles(props: { data: any; downloadInfo: any; peer: { ip: 
       }
       openMedia(index, viewable)
     } else {
+      // Unopenable files (zip, apk, …): in local mode the file is on this
+      // machine — reveal it instead of downloading it again.
+      if (__IS_TAURI__ && isLocalMode() && item.path && !item.path.startsWith('fsid:')) {
+        revealFile(item.path)
+        return
+      }
       openUrl(item.src)
     }
   }

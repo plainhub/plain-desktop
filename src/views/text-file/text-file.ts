@@ -1,6 +1,7 @@
 import { ref, computed, watch, onMounted, onBeforeUnmount } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
+import { invoke } from '@tauri-apps/api/core'
 import { useTempStore } from '@/stores/temp'
 import { storeToRefs } from 'pinia'
 import { useMarkdown } from '@/hooks/markdown'
@@ -10,7 +11,10 @@ import { gqlFetch } from '@/lib/api/gql-client'
 import { appGQL } from '@/lib/api/query'
 import { tokenToKey } from '@/lib/api/file'
 import { chachaDecrypt } from '@/lib/api/crypto'
+import { isLocalMode } from '@/lib/device/local-mode'
 import { getCurrentAuthToken } from '@/lib/device/current'
+
+const isTauri = __IS_TAURI__
 
 export function useTextFile() {
   const { t } = useI18n()
@@ -76,6 +80,9 @@ export function useTextFile() {
     return ''
   })
   const canEdit = computed(() => isLoggedIn.value && !!decryptedPath.value)
+  const showInFinder = computed(() =>
+    isTauri && isLocalMode() && !!decryptedPath.value && !decryptedPath.value.startsWith('fsid:')
+  )
 
   // Mutation
   const { mutate: writeTextFile, loading: saving, onDone: onWriteDone, onError: onWriteError } = initMutation({
@@ -84,7 +91,10 @@ export function useTextFile() {
 
   // Helpers
   async function ensureUrlTokenKey() {
-    if (urlTokenKey.value || !isLoggedIn.value) return
+    // No login gate here: in Tauri local mode `getCurrentAuthToken()` is empty
+    // (no bound remote device), yet the local server still serves app.urlToken —
+    // without it the file id can never be decrypted back to a path.
+    if (urlTokenKey.value) return
     try {
       const r = await gqlFetch(appGQL)
       const newToken = r?.data?.app?.urlToken
@@ -166,8 +176,18 @@ export function useTextFile() {
   const toggleViewMode = () => { showRawText.value = !showRawText.value }
   const toggleTextWrap = () => { textWrap.value = !textWrap.value }
 
+  const revealInFinder = () => {
+    invoke('reveal_chat_file', { uri: decryptedPath.value }).catch((err) => console.error('reveal_chat_file failed', err))
+  }
+
   const downloadFile = () => {
     if (!content.value || !fileName.value) return
+    // WKWebView ignores <a download>, so hand the already-fetched content to
+    // the native save dialog instead of creating a blob link.
+    if (isTauri) {
+      invoke('save_text_file_as', { name: fileName.value, contents: content.value }).catch((err) => console.error('save_text_file_as failed', err))
+      return
+    }
     const blob = new Blob([content.value], { type: 'text/plain;charset=utf-8' })
     const url = window.URL.createObjectURL(blob)
     const link = document.createElement('a')
@@ -215,8 +235,8 @@ export function useTextFile() {
     loading, error, content, draft, fileName, fileSize, lastModified,
     jsonData, renderedMarkdown, showRawText, textWrap, saving,
     isJsonFile, isMarkdownFile, canToggleView, language,
-    isEditing, dirty, displayTitle, statusText, canEdit, showSavedPulse,
+    isEditing, dirty, displayTitle, statusText, canEdit, showSavedPulse, showInFinder,
     retry, openEditor, openViewer, toggleViewMode, toggleTextWrap,
-    downloadFile, save, isLoggedIn,
+    downloadFile, revealInFinder, save, isLoggedIn,
   }
 }

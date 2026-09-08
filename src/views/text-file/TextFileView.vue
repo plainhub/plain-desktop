@@ -21,10 +21,16 @@
       </div>
 
       <div class="actions">
-        <v-outlined-button v-if="!isEditing" class="action-btn" @click="downloadFile">
-          <i-lucide-download />
-          {{ $t('download') }}
-        </v-outlined-button>
+        <template v-if="!isEditing">
+          <v-outlined-button v-if="showInFinder" class="action-btn" @click="revealInFinder">
+            <i-lucide-folder-open />
+            {{ $t('show_in_finder') }}
+          </v-outlined-button>
+          <v-outlined-button v-else class="action-btn" @click="downloadFile">
+            <i-lucide-download />
+            {{ $t('download') }}
+          </v-outlined-button>
+        </template>
 
         <template v-if="isEditing">
           <v-outlined-button class="action-btn" :loading="saving" :disabled="saving || !dirty" @click="save">
@@ -102,9 +108,9 @@ const {
   loading, error, content, draft, fileName, fileSize, lastModified,
   jsonData, renderedMarkdown, showRawText, textWrap, saving,
   isJsonFile, isMarkdownFile, canToggleView, language,
-  isEditing, dirty, displayTitle, statusText, canEdit, showSavedPulse,
+  isEditing, dirty, displayTitle, statusText, canEdit, showSavedPulse, showInFinder,
   retry, openEditor, openViewer, toggleViewMode, toggleTextWrap,
-  downloadFile, save, isLoggedIn,
+  downloadFile, revealInFinder, save, isLoggedIn,
 } = useTextFile()
 </script>
 

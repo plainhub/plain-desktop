@@ -176,6 +176,7 @@ declare module 'vue' {
     ILucideDownload: typeof import('~icons/lucide/download')['default']
     ILucideEye: typeof import('~icons/lucide/eye')['default']
     ILucideEyeOff: typeof import('~icons/lucide/eye-off')['default']
+    ILucideFolderOpen: typeof import('~icons/lucide/folder-open')['default']
     ILucideGripVertical: typeof import('~icons/lucide/grip-vertical')['default']
     ILucideImage: typeof import('~icons/lucide/image')['default']
     ILucidePalette: typeof import('~icons/lucide/palette')['default']
