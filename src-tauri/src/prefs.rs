@@ -57,11 +57,16 @@ pub fn ensure_identity(handle: &AppHandle) -> AppIdentity {
 }
 
 /// Return the persistent local-server URL token, generating it on first run.
+/// A token that is base64 of 32 zero bytes can only come from a build where
+/// the RNG silently failed (plain-rs gen_random pre-fix on Windows) —
+/// regenerate it instead of serving it forever.
 pub fn get_url_token(handle: &AppHandle) -> String {
     let store = handle.store(STORE_FILE).expect("prefs store");
+    let zero_token = base64_encode(&[0u8; 32]);
     store
         .get("url_token")
         .and_then(|v| v.as_str().map(String::from))
+        .filter(|t| t != &zero_token)
         .unwrap_or_else(|| {
             let token = gen_token();
             store.set("url_token", token.as_str());
