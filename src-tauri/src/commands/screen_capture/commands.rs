@@ -377,6 +377,42 @@ async fn macos_overlay_work_area(window: &WebviewWindow) -> Result<Option<CssRec
     })?
 }
 
+#[cfg(any(target_os = "windows", target_os = "linux"))]
+fn native_overlay_work_area(window: &WebviewWindow) -> Result<Option<CssRect>, CaptureError> {
+    let Some(monitor) = window.current_monitor().map_err(|error| {
+        CaptureError::new(
+            CaptureErrorCode::OverlayFailed,
+            format!("read capture overlay monitor: {error}"),
+        )
+    })?
+    else {
+        return Ok(None);
+    };
+    let frame_origin = monitor.position();
+    let frame_size = monitor.size();
+    let work_area = monitor.work_area();
+    super::platform::top_left_physical_work_area_to_local_css(
+        super::contract::PhysicalPoint {
+            x: frame_origin.x,
+            y: frame_origin.y,
+        },
+        super::contract::PhysicalSize {
+            width: frame_size.width,
+            height: frame_size.height,
+        },
+        super::contract::PhysicalPoint {
+            x: work_area.position.x,
+            y: work_area.position.y,
+        },
+        super::contract::PhysicalSize {
+            width: work_area.size.width,
+            height: work_area.size.height,
+        },
+        monitor.scale_factor(),
+    )
+    .map(Some)
+}
+
 #[tauri::command]
 pub async fn screen_capture_overlay_work_area(
     window: WebviewWindow,
@@ -388,7 +424,11 @@ pub async fn screen_capture_overlay_work_area(
     {
         macos_overlay_work_area(&window).await
     }
-    #[cfg(not(target_os = "macos"))]
+    #[cfg(any(target_os = "windows", target_os = "linux"))]
+    {
+        native_overlay_work_area(&window)
+    }
+    #[cfg(not(any(target_os = "macos", target_os = "windows", target_os = "linux")))]
     {
         Ok(None)
     }

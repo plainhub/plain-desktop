@@ -760,7 +760,8 @@ mod platform_tests {
     };
     use super::platform::{
         GeometryConvention, bottom_left_visible_frame_to_top_left_area, find_matching_candidate,
-        permission_check_result, select_logical_monitor, wayland_cursor_is_unavailable,
+        permission_check_result, select_logical_monitor,
+        top_left_physical_work_area_to_local_css, wayland_cursor_is_unavailable,
         xcap_bounds_to_physical,
     };
 
@@ -860,6 +861,89 @@ mod platform_tests {
                     width: 100.0,
                     height: 80.0,
                 },
+            )
+            .is_err()
+        );
+    }
+
+    #[test]
+    fn windows_work_area_converts_physical_taskbar_insets_to_css_pixels() {
+        assert_eq!(
+            top_left_physical_work_area_to_local_css(
+                PhysicalPoint { x: -1920, y: 0 },
+                PhysicalSize {
+                    width: 1920,
+                    height: 1080,
+                },
+                PhysicalPoint { x: -1872, y: 0 },
+                PhysicalSize {
+                    width: 1872,
+                    height: 1032,
+                },
+                1.5,
+            )
+            .expect("valid Win32 monitor work area"),
+            super::contract::CssRect {
+                origin: super::contract::CssPoint { x: 32.0, y: 0.0 },
+                size: super::contract::CssSize {
+                    width: 1248.0,
+                    height: 688.0,
+                },
+            }
+        );
+    }
+
+    #[test]
+    fn linux_work_area_converts_gdk_panel_insets_to_css_pixels() {
+        assert_eq!(
+            top_left_physical_work_area_to_local_css(
+                PhysicalPoint { x: 2560, y: -1440 },
+                PhysicalSize {
+                    width: 2560,
+                    height: 1440,
+                },
+                PhysicalPoint { x: 2560, y: -1392 },
+                PhysicalSize {
+                    width: 2560,
+                    height: 1392,
+                },
+                2.0,
+            )
+            .expect("valid GDK monitor work area"),
+            super::contract::CssRect {
+                origin: super::contract::CssPoint { x: 0.0, y: 24.0 },
+                size: super::contract::CssSize {
+                    width: 1280.0,
+                    height: 696.0,
+                },
+            }
+        );
+    }
+
+    #[test]
+    fn physical_work_area_rejects_invalid_scale_and_outside_geometry() {
+        let frame_origin = PhysicalPoint { x: 0, y: 0 };
+        let frame_size = PhysicalSize {
+            width: 1920,
+            height: 1080,
+        };
+        assert!(
+            top_left_physical_work_area_to_local_css(
+                frame_origin,
+                frame_size,
+                frame_origin,
+                frame_size,
+                0.0,
+            )
+            .is_err()
+        );
+        assert!(
+            top_left_physical_work_area_to_local_css(
+                frame_origin,
+                frame_size,
+                PhysicalPoint { x: -1, y: 0 },
+                frame_size,
+                1.0,
             )
             .is_err()
         );

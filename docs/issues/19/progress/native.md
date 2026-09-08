@@ -424,8 +424,8 @@ for the Dock. The final implementation retrieves that authoritative visible
 frame from the positioned overlay's `NSWindow.screen` on AppKit's main thread
 through a generation-authenticated Tauri command. It converts the coordinates,
 tries toolbar placement below, above, right, and left of the selection, and
-finally clamps inside the visible work area. Other platforms, a missing screen,
-or any rejected/malformed query safely fall back to browser geometry.
+finally clamps inside the visible work area. A missing screen or any
+rejected/malformed query safely falls back to browser geometry.
 
 The final ad-hoc-signed bundle was launched through LaunchServices. The user
 manually verified that the toolbar avoids both screen edges and the macOS Dock
@@ -442,6 +442,69 @@ subject and requires a reset/regrant; a stable release-signed application does
 not change signing identity on every local rebuild. This evidence does not claim
 Intel, non-Retina, mixed-display, clipboard/save persistence, App Store sandbox,
 Developer-ID signing/notarization, or release artifact proof.
+
+## Windows and Linux native work-area parity (2026-09-07)
+
+The generation-authenticated overlay work-area command now uses native monitor
+work areas on every desktop target. Windows and Linux use the positioned
+overlay's current Tauri monitor. Tauri obtains that rectangle from Win32
+`GetMonitorInfoW(...).rcWork` on Windows and GDK's monitor work area on Linux.
+The command validates that the native work rectangle is non-empty and contained
+by its monitor, then divides physical offsets and dimensions by the monitor's
+scale factor to produce overlay-local CSS coordinates. macOS retains the
+direct, main-thread AppKit query proved above. The frontend contract and safe
+browser fallback are unchanged.
+
+Failing-first conversion tests initially failed because
+`top_left_physical_work_area_to_local_css` did not exist. The completed tests
+cover a negative-origin, 150%-scale Windows monitor with left and bottom native
+insets; a 200%-scale Linux monitor with a top panel; and rejection of invalid
+scale or a work area outside its display. The complete platform suites then
+passed from the same source:
+
+```text
+Linux cargo +1.96.0 test --locked --manifest-path \
+  src-tauri/Cargo.toml --lib -j 2
+  274 passed; 0 failed
+
+Windows cargo +1.96.0 test --locked --manifest-path \
+  src-tauri/Cargo.toml --lib -j 2
+  259 passed; 0 failed
+
+macOS cargo +1.96.0 test --locked --manifest-path \
+  src-tauri/Cargo.toml --lib -j 2
+  259 passed; 0 failed
+
+focused capture/frontend tests
+  179 passed; 0 failed
+
+full frontend suite
+  718 passed; 52 skipped; 4 failed outside capture
+
+isolated cross-window contention rerun
+  5 passed; 0 failed
+```
+
+The full frontend failures did not grow beyond the recorded baseline: the
+three stable local-mode/client-ID failures remained, while
+`publishes only the declared syncKeys` failed only in the concurrent full run
+and passed in isolation as required by the plan. This landing unit changes no
+frontend source.
+
+The Linux release binary was built and exercised under KDE Plasma/X11 with two
+2560x1440 displays. KDE advertised a 5120x1396 work area, reserving the bottom
+44 pixels for its panel. A selection ending at desktop `y=1380` placed the
+complete toolbar above the selection and panel. Escape dismissed the overlay
+and left Plain running.
+
+The Windows release binary was built and exercised in the interactive Windows
+11 VM. The selected monitor reported 1600x1200 bounds and a 1600x1152 working
+area, reserving 48 pixels for the taskbar. A 1200x245 selection ending
+immediately above that taskbar placed the complete toolbar above the selection
+and kept every control visible. Escape restored the Plain window normally.
+Temporary full-desktop proof images and input harnesses were deleted after
+inspection because they contained private screen content; no runtime artifact
+was added to the repository.
 
 ## Xenocept provenance
 

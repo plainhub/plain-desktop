@@ -57,6 +57,56 @@ pub fn select_logical_monitor(monitors: &[MonitorGeometry], x: f64, y: f64) -> O
     })
 }
 
+/// Convert a native top-left physical monitor work area into overlay-local CSS
+/// coordinates. Tauri sources this rectangle from Win32 `GetMonitorInfoW` on
+/// Windows and GDK's monitor work area on Linux.
+pub fn top_left_physical_work_area_to_local_css(
+    frame_origin: PhysicalPoint,
+    frame_size: PhysicalSize,
+    work_origin: PhysicalPoint,
+    work_size: PhysicalSize,
+    scale_factor: f64,
+) -> Result<CssRect, CaptureError> {
+    if !scale_factor.is_finite()
+        || scale_factor <= 0.0
+        || frame_size.width == 0
+        || frame_size.height == 0
+        || work_size.width == 0
+        || work_size.height == 0
+    {
+        return Err(CaptureError::new(
+            CaptureErrorCode::InvalidMonitor,
+            "the native monitor work area is invalid",
+        ));
+    }
+
+    let left = i64::from(work_origin.x) - i64::from(frame_origin.x);
+    let top = i64::from(work_origin.y) - i64::from(frame_origin.y);
+    let right = left + i64::from(work_size.width);
+    let bottom = top + i64::from(work_size.height);
+    if left < 0
+        || top < 0
+        || right > i64::from(frame_size.width)
+        || bottom > i64::from(frame_size.height)
+    {
+        return Err(CaptureError::new(
+            CaptureErrorCode::InvalidMonitor,
+            "the native monitor work area falls outside its display frame",
+        ));
+    }
+
+    Ok(CssRect {
+        origin: CssPoint {
+            x: left as f64 / scale_factor,
+            y: top as f64 / scale_factor,
+        },
+        size: CssSize {
+            width: f64::from(work_size.width) / scale_factor,
+            height: f64::from(work_size.height) / scale_factor,
+        },
+    })
+}
+
 /// Convert AppKit's bottom-left screen coordinates into overlay-local,
 /// top-left CSS coordinates. `NSScreen::visibleFrame` is authoritative for the
 /// menu bar and Dock; WebKit's `screen.avail*` values are not on every macOS
