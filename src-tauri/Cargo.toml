@@ -1,6 +1,6 @@
 [package]
 name = "PlainApp"
-version = "0.1.9"
+version = "0.1.10"
 description = "PlainApp Desktop"
 authors = ["iSmartCoding"]
 edition = "2024"
