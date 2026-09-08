@@ -82,6 +82,7 @@
             @retry="retry"
             @open-settings="openLanPermissionSettings"
           />
+          <MdnsFirewallFix :device-count="newDevices.length" @fixed="retry" />
           <div v-if="newDevices.length === 0" class="nearby-empty">
             <p>{{ $t('same_network_hint') }}</p>
           </div>
@@ -146,8 +147,9 @@
 import { computed, nextTick, onMounted, onUnmounted, ref } from 'vue'
 import { popModal } from './modal/methods'
 import DeviceDiscoveryStatus from './DeviceDiscoveryStatus.vue'
+import MdnsFirewallFix from './MdnsFirewallFix.vue'
 import LoginForm from '@/views/login/LoginForm.vue'
-import { useDeviceDiscovery, type DiscoveredDevice } from '@/hooks/use-device-discovery'
+import { useDeviceDiscovery, DiscoveryStatus, type DiscoveredDevice } from '@/hooks/use-device-discovery'
 import { loginPeers, clearLoginPeer, peerHost, type LoginPeer } from '@/lib/device/login-peers'
 import { sortByName } from '@/lib/array'
 import { clearPendingLoginDevice, setPendingLoginDevice, type PendingLoginDevice } from '@/lib/api/api'

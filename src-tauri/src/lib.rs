@@ -327,6 +327,8 @@ pub fn run() {
             commands::discover::mdns_stop_browse,
             commands::discover::mdns_get_hostname,
             commands::discover::mdns_set_hostname,
+            commands::discover::mdns_firewall_status,
+            commands::discover::fix_mdns_firewall,
             commands::http_client::http_request,
             commands::ws_proxy::ws_start_proxy,
             commands::notification::send_macos_notification,
@@ -334,6 +336,7 @@ pub fn run() {
             #[cfg(target_os = "macos")]
             commands::macos_menu::set_menu_locale,
             commands::window::open_window,
+            commands::window::open_about_window,
             commands::window::set_window_device_name,
             commands::media_preview_pool::media_preview_init,
             commands::media_preview_pool::media_preview_activate,

@@ -354,6 +354,7 @@ declare module 'vue' {
     MarkdownEditor: typeof import('./src/components/MarkdownEditor.vue')['default']
     MarkdownPreviewView: typeof import('./src/views/markdown-preview/MarkdownPreviewView.vue')['default']
     MdnsDebugModal: typeof import('./src/views/device-info/MdnsDebugModal.vue')['default']
+    MdnsFirewallFix: typeof import('./src/components/MdnsFirewallFix.vue')['default']
     MdnsHostnameDialog: typeof import('./src/views/device-info/MdnsHostnameDialog.vue')['default']
     MediaGridItem: typeof import('./src/components/media/MediaGridItem.vue')['default']
     MediaKeyboardShortcuts: typeof import('./src/components/MediaKeyboardShortcuts.vue')['default']

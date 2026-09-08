@@ -8,10 +8,15 @@
  */
 
 const MAC_RE = /Mac|iPhone|iPad|iPod/
+const WINDOWS_RE = /Windows NT/
 const MOBILE_RE = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i
 
 export function isMacPlatform(): boolean {
   return typeof navigator !== 'undefined' && MAC_RE.test(navigator.userAgent)
+}
+
+export function isWindowsPlatform(): boolean {
+  return typeof navigator !== 'undefined' && WINDOWS_RE.test(navigator.userAgent)
 }
 
 export function isMobilePlatform(): boolean {

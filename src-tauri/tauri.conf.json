@@ -41,6 +41,11 @@
     "macOS": {
       "entitlements": "./entitlements.plist",
       "infoPlist": "./Info.plist"
+    },
+    "windows": {
+      "nsis": {
+        "installerHooks": "./installer-hooks.nsh"
+      }
     }
   },
   "plugins": {}

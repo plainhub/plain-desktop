@@ -4,9 +4,12 @@
 mod nearby_discover_manager;
 #[path = "PeerStatusManager.rs"]
 mod peer_status_manager;
+#[path = "firewall.rs"]
+pub(crate) mod mdns_firewall;
 
 pub use nearby_discover_manager::NearbyDiscoverManager;
 pub use peer_status_manager::PeerStatusManager;
+pub use mdns_firewall::MdnsFirewallStatus;
 use crate::local::enums::DeviceType;
 use crate::local::graphql::schema::types::Peer;
 pub(crate) use plain_rs::mdns::host_responder::get_best_ip as discover_get_best_ip;
@@ -160,4 +163,24 @@ pub async fn mdns_set_hostname(
     tauri::async_runtime::spawn_blocking(move || mgr.set_mdns_hostname(&handle, &hostname))
         .await
         .map_err(|e| e.to_string())
+}
+
+// ── Windows Firewall repair (LAN/mDNS discovery) ─────────────────────────────
+
+/// Read-only firewall state for the current exe. No admin token required.
+#[tauri::command]
+pub async fn mdns_firewall_status() -> Result<MdnsFirewallStatus, String> {
+    tauri::async_runtime::spawn_blocking(mdns_firewall::probe_status)
+        .await
+        .map_err(|e| e.to_string())?
+}
+
+/// Adds the inbound Allow rule via a UAC-elevated PowerShell script.
+/// Returns Ok as soon as the elevated child is spawned — the frontend polls
+/// `mdns_firewall_status` until the rule shows up.
+#[tauri::command]
+pub async fn fix_mdns_firewall() -> Result<(), String> {
+    tauri::async_runtime::spawn_blocking(mdns_firewall::apply_fix)
+        .await
+        .map_err(|e| e.to_string())?
 }

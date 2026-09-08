@@ -7,6 +7,7 @@
     <template #content>
       <div v-if="discoveredDevices.length === 0" class="nearby-empty">
         <p>{{ $t('same_network_hint') }}</p>
+        <MdnsFirewallFix :device-count="discoveredDevices.length" @fixed="retry" />
       </div>
 
       <ul v-else class="card list-items">
@@ -59,7 +60,8 @@ v-else class="btn-sm" :loading="deviceStates.get(d.id) === DeviceState.PAIRING"
 <script setup lang="ts">
 import { onBeforeUnmount, onMounted, ref } from 'vue'
 import { popModal } from '@/components/modal'
-import { useDeviceDiscovery, type DiscoveredDevice } from '@/hooks/use-device-discovery'
+import MdnsFirewallFix from '@/components/MdnsFirewallFix.vue'
+import { useDeviceDiscovery, DiscoveryStatus, type DiscoveredDevice } from '@/hooks/use-device-discovery'
 import { useDevicePairing, DeviceState } from '@/hooks/use-device-pairing'
 import { unpairPeerGQL, initMutation } from '@/lib/api/mutation'
 import { useChatStore } from '@/stores/chat'
@@ -67,6 +69,8 @@ import { PeerStatus } from '@/lib/status'
 
 const {
   devices: discoveredDevices,
+  status,
+  retry,
   start,
   stop,
 } = useDeviceDiscovery()

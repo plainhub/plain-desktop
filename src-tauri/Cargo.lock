@@ -3910,7 +3910,6 @@ checksum = "19f132c84eca552bf34cab8ec81f1c1dcc229b811638f9d283dceabe58c5569e"
 [[package]]
 name = "plain-rs"
 version = "0.1.0"
-source = "git+https://github.com/plainhub/plain-rs#781804c388e2abb9a11ddb23b12c43a9a0f554a4"
 dependencies = [
  "bytes",
  "chacha20poly1305",

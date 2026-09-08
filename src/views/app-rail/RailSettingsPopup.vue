@@ -108,6 +108,11 @@
         <span>{{ $t(feat.titleKey) }}</span>
       </router-link>
     </template>
+
+    <div v-if="showAbout" class="dropdown-item" @click="openAbout">
+      <i-lucide:info class="feature-icon" />
+      <span>{{ $t('menu.about') }}</span>
+    </div>
   </v-dropdown>
 </template>
 
@@ -124,6 +129,8 @@ import { pushModal, openModal } from '@/components/modal'
 import { AppChannelType } from '@/lib/status'
 import { getAvailableFeatures, type Feature } from './features'
 import { isLocalMode } from '@/lib/device/local-mode'
+import { isMacPlatform } from '@/lib/platform'
+import { openAboutWindow } from '@/lib/api/tauri-window'
 import { clearCurrentSession } from '@/lib/device/current'
 import { clear as prefsClear } from '@/lib/prefs'
 import { useLocaleSwitch } from '@/composables/useLocaleSwitch'
@@ -144,6 +151,7 @@ const currentSession = computed(() => findLoginPeer(getRemoteClientId()))
 const router = useRouter()
 const open = ref(false)
 const isTauri = __IS_TAURI__
+const showAbout = isTauri && !isMacPlatform()
 
 const { locale, availableLocales, handleLocaleSwitch } = useLocaleSwitch()
 
@@ -244,6 +252,11 @@ function openExcludedDirs() {
 function openDeviceSwitcher() {
   open.value = false
   pushModal(DeviceSwitcherModal)
+}
+
+function openAbout() {
+  open.value = false
+  void openAboutWindow()
 }
 
 function editDeviceName() {

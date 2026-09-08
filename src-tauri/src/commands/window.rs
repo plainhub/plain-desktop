@@ -204,15 +204,18 @@ pub fn create_window(app: &AppHandle, path: String) {
 
 /// Open the About window at "/about". Existing window is focused instead.
 /// The view runs the update check automatically on mount.
-#[cfg(target_os = "macos")]
 pub fn open_about(app: &AppHandle) {
     let label = "about";
     if let Some(win) = app.get_webview_window(label) {
         let _ = win.set_focus();
         return;
     }
+    #[cfg(target_os = "macos")]
+    let title = super::macos_menu::about_title(app);
+    #[cfg(not(target_os = "macos"))]
+    let title = "About PlainApp".to_string();
     let win = tauri::WebviewWindowBuilder::new(app, label, tauri::WebviewUrl::App("/about".into()))
-        .title(super::macos_menu::about_title(app))
+        .title(title)
         .inner_size(400.0, 560.0)
         .resizable(false)
         .center();
@@ -221,6 +224,17 @@ pub fn open_about(app: &AppHandle) {
     if let Err(e) = win.build() {
         log::error!("open_about failed: {e}");
     }
+}
+
+/// Open the About window from the in-app rail menu (Windows/Linux —
+/// macOS reaches it via the app menu). Reuses open_about.
+/// Must stay async: sync commands run on the main thread, where
+/// WebviewWindowBuilder::build() deadlocks on Windows (WebView2).
+#[tauri::command]
+pub async fn open_about_window(app: AppHandle) {
+    tauri::async_runtime::spawn_blocking(move || open_about(&app))
+        .await
+        .ok();
 }
 
 /// Always creates a new window at "/" without checking for an existing one.
