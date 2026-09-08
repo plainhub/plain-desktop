@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { bytesToHex, arrayBufferToHex, addLinksToURLs } from '@/lib/strutil'
+import { bytesToHex, arrayBufferToHex, addLinksToURLs, getMarkdownTitle } from '@/lib/strutil'
 
 describe('bytesToHex', () => {
   it('encodes empty array', () => {
@@ -60,5 +60,24 @@ describe('addLinksToURLs', () => {
   it('converts line breaks to <br />', () => {
     const out = addLinksToURLs('line1\nline2')
     expect(out).toBe('line1<br />line2')
+  })
+})
+
+describe('getMarkdownTitle', () => {
+  it('uses the first h1 line as the title', () => {
+    expect(getMarkdownTitle('intro\n\n# 发布计划\n\nbody')).toBe('发布计划')
+  })
+
+  it('ignores deeper headings and falls back to content', () => {
+    expect(getMarkdownTitle('## 待办事项\n\nbody text')).toBe('## 待办事项\n\nbody text'.replace(/\n/g, '').trim().substring(0, 50))
+  })
+
+  it('replaces images with a placeholder in the derived title', () => {
+    const title = getMarkdownTitle('![shot](app://note-images/a.png) rest')
+    expect(title).toBe('🖼 rest')
+  })
+
+  it('returns empty string for empty content', () => {
+    expect(getMarkdownTitle('')).toBe('')
   })
 })

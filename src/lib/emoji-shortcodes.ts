@@ -1,4 +1,4 @@
-import shortcodeData from 'emojibase-data/en/shortcodes/iamcal.json'
+import shortcodeData from './data/emoji-shortcodes-iamcal.json'
 
 export interface EmojiSuggestion {
   emoji: string

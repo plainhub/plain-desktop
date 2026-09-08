@@ -10,6 +10,7 @@ import { initMutation, setTempValueGQL, addFavoriteFolderGQL, deleteFilesGQL } f
 import emitter from '@/plugins/eventbus'
 import toast from '@/components/toaster'
 import { arrayRemove } from '@/lib/array'
+import { copyTextToClipboard } from '@/lib/clipboard'
 
 interface UseFilesActionsOptions {
   items: Ref<IFile[]>
@@ -117,22 +118,9 @@ export function useFilesActions(opts: UseFilesActionsOptions) {
   const copyItem = (item: IFile) => { copy([item.id]) }
   const pasteItem = (item: IFile) => { paste(item.path) }
 
-  const copyLinkItem = (item: IFile) => {
+  const copyLinkItem = async (item: IFile) => {
     const url = getFileUrlByPath(urlTokenKey.value, item.path)
-    if (navigator.clipboard?.writeText) {
-      navigator.clipboard.writeText(url).then(() => toast(t('link_copied'))).catch(() => fallbackCopy(url))
-    } else {
-      fallbackCopy(url)
-    }
-  }
-  function fallbackCopy(text: string) {
-    const ta = document.createElement('textarea')
-    ta.value = text
-    ta.style.cssText = 'position:fixed;left:-999999px;top:-999999px'
-    document.body.appendChild(ta)
-    ta.focus(); ta.select()
-    const ok = document.execCommand('copy')
-    document.body.removeChild(ta)
+    const ok = await copyTextToClipboard(url)
     toast(ok ? t('link_copied') : t('copy_failed'), ok ? undefined : 'error')
   }
 

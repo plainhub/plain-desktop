@@ -151,6 +151,7 @@ import { useDeviceDiscovery, type DiscoveredDevice } from '@/hooks/use-device-di
 import { loginPeers, clearLoginPeer, peerHost, type LoginPeer } from '@/lib/device/login-peers'
 import { sortByName } from '@/lib/array'
 import { clearPendingLoginDevice, setPendingLoginDevice, type PendingLoginDevice } from '@/lib/api/api'
+import { requestInit } from '@/lib/api/init'
 import { DeviceType } from '@/lib/status'
 import { isLocalMode } from '@/lib/device/local-mode'
 import { getDesktopClientId, getRemoteClientId, setRemoteClientId, clearRemoteClientId } from '@/lib/device/client-id'
@@ -228,7 +229,7 @@ async function startLoginStep(device: PendingLoginDevice) {
   setPendingLoginDevice(device)
   isLoginStep.value = true
   await nextTick()
-  await loginFormRef.value?.init({ autoSubmitWhenNoPassword: true })
+  await loginFormRef.value?.init(await requestInit(), { autoSubmitWhenNoPassword: true })
 }
 
 function cancelLoginStep() {

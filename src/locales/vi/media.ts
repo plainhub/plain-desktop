@@ -1,4 +1,6 @@
 export default {
+  video_transcode_tip: 'Trình duyệt này không thể giải mã HEVC (H.265) nên video đang được phát từ luồng H.264 đã chuyển đổi — chất lượng có thể giảm và lần tải đầu có thể chậm hơn.',
+  video_transcode_help: 'Cách phát với chất lượng gốc →',
   audio_player: 'Trình phát âm thanh',
   music: 'Âm nhạc',
   videos: 'Video',

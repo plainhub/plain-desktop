@@ -10,13 +10,13 @@
   <div class="top-app-bar">
     <div class="title">{{ pageTitle }}</div>
   </div>
-  <div ref="scrollContainer" class="chat-view-body">
+  <div ref="scrollContainer" class="chat-view-body" @scroll="onBodyScroll">
     <div v-if="loading && chatItems.length === 0" class="loading-state">
       <v-circular-progress indeterminate class="sm" />
     </div>
     <template v-else>
       <ChatMessageItem
-        v-for="(chatItem, index) of chatItems"
+        v-for="(chatItem, index) of visibleItems"
         :key="chatItem.id"
         :data="chatItem"
         :show-date="dateVisible(chatItem, index)"
@@ -37,7 +37,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onActivated, onDeactivated, onUnmounted, watch } from 'vue'
+import { ref, computed, nextTick, watch, onActivated, onDeactivated, onUnmounted } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { formatDate } from '@/lib/format'
 import ChatInput from './ChatInput.vue'
@@ -150,9 +150,29 @@ async function handleCaptureRequest() {
   }
 }
 
+// Render window: mount only the most recent slice of the conversation and
+// extend it when the user scrolls to the top. Long conversations would
+// otherwise mount hundreds of heavy message components at once.
+const INITIAL_VISIBLE = 60
+const VISIBLE_BATCH = 60
+const visibleCount = ref(INITIAL_VISIBLE)
+const visibleItems = computed(() =>
+  chatItems.value.length > visibleCount.value ? chatItems.value.slice(-visibleCount.value) : chatItems.value,
+)
+
+function onBodyScroll() {
+  const div = scrollContainer.value
+  if (!div) return
+  if (visibleCount.value < chatItems.value.length && div.scrollTop < 80) {
+    const prevHeight = div.scrollHeight
+    visibleCount.value += VISIBLE_BATCH
+    nextTick(() => { if (div) div.scrollTop += div.scrollHeight - prevHeight })
+  }
+}
+
 function dateVisible(item: IChatItem, index: number): boolean {
   if (index === 0) return true
-  const prev = chatItems.value[index - 1]
+  const prev = visibleItems.value[index - 1]
   return prev != null && formatDate(prev.createdAt) !== formatDate(item.createdAt)
 }
 
@@ -189,6 +209,9 @@ watch([chatId, channelId, notAllowChat], () => {
   if (__IS_TAURI__ && isActive.value && !notAllowChat.value) {
     void activateCaptureTarget(captureActivation)
   }
+})
+watch(chatId, () => {
+  visibleCount.value = INITIAL_VISIBLE
 })
 onUnmounted(() => {
   captureDisposed = true

@@ -159,6 +159,15 @@ export const chatItemsGQL = `
   ${chatItemFragment}
 `
 
+export const chatItemGQL = `
+  query ($id: String!) {
+    chatItem(id: $id) {
+      ...ChatItemFragment
+    }
+  }
+  ${chatItemFragment}
+`
+
 export const peersGQL = `
   query {
     peers {

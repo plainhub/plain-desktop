@@ -59,7 +59,7 @@ export function useFilesRecent() {
     handle: async (data: any, error: string) => {
       if (error) toast(t(error), 'error')
       else {
-        const files = data.recentFiles.map((item: any) => enrichFile(item, urlTokenKey.value))
+        const files = data.recentFiles.map((item: any) => enrichFile(item))
         items.value = files
         total.value = files.length
       }

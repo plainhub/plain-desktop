@@ -15,6 +15,7 @@ export default {
   this_device: 'This device',
   chat_input_hint: 'What is in your mind?',
   forward_message: 'Forward message',
+  copy_text: 'Copy text',
   delete_message: 'Delete message',
   chat_info: 'Chat info',
   clear_messages: 'Clear messages',

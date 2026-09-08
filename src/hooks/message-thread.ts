@@ -8,7 +8,7 @@ import { useTags } from '@/hooks/tags'
 import { useContactName } from '@/hooks/contacts'
 import { DataType } from '@/lib/data'
 import emitter from '@/plugins/eventbus'
-import { createPendingMms } from '@/lib/message-helpers'
+import { createPendingMms, sortByDate } from '@/lib/message-helpers'
 import { createSmsNotificationRefresh } from '@/hooks/sms-notification-refresh'
 import {
   addPendingMms,
@@ -51,8 +51,7 @@ export function useMessageThread(
 
   const participantAddresses = computed(() => {
     if (conversation?.value) return getConversationAddresses(conversation.value)
-    const address = [...items.value]
-      .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
+    const address = sortByDate(items.value, true)
       .find((item) => item.address)?.address
     return address ? [address] : []
   })
@@ -61,11 +60,12 @@ export function useMessageThread(
   const contactAddress = computed(() => participantAddresses.value.join(', '))
 
   const sortedItems = computed(() => {
-    const base = [...items.value].sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())
+    const base = sortByDate(items.value)
+    const baseIds = new Set(base.map((item) => item.id))
     const pending = visiblePendingSms(pendingSmsItems.value, threadId.value)
-      .filter((operation) => !base.some((item) => item.id === operation.id))
+      .filter((operation) => !baseIds.has(operation.id))
     pending.push(...pendingMmsItems.value.filter((item) =>
-      item.threadId === threadId.value && !base.some((confirmed) => confirmed.id === item.id),
+      item.threadId === threadId.value && !baseIds.has(item.id),
     ))
     return pending.length ? [...base, ...pending] : base
   })

@@ -43,6 +43,7 @@
 import { ref, onMounted } from 'vue'
 import { invoke } from '@tauri-apps/api/core'
 import { openUrl } from '@/lib/browser'
+import { copyTextToClipboard } from '@/lib/clipboard'
 
 interface UpdateCheck {
   currentVersion: string
@@ -53,7 +54,7 @@ interface UpdateCheck {
   publishedAt: string
 }
 
-const version = ref('')
+const version = __APP_VERSION__
 const status = ref<'loading' | 'success' | 'error' | ''>('')
 const result = ref<UpdateCheck | null>(null)
 const error = ref('')
@@ -64,7 +65,7 @@ const hasUpdate = () => result.value?.hasUpdate ?? false
 
 function buildInfo() {
   debugInfo.value = [
-    `App version: ${version.value}`,
+    `App version: ${version}`,
     `Platform: ${navigator.platform}`,
     `Language: ${navigator.language}`,
     `WebView: ${navigator.userAgent}`,
@@ -72,13 +73,9 @@ function buildInfo() {
 }
 
 async function copyInfo() {
-  try {
-    await navigator.clipboard.writeText(debugInfo.value)
-    copied.value = true
-    setTimeout(() => (copied.value = false), 1500)
-  } catch {
-    copied.value = false
-  }
+  const ok = await copyTextToClipboard(debugInfo.value)
+  copied.value = ok
+  setTimeout(() => (copied.value = false), 1500)
 }
 
 const statusClass = () => {
@@ -103,13 +100,7 @@ function goToRelease() {
   if (result.value?.releaseUrl) openUrl(result.value.releaseUrl)
 }
 
-onMounted(async () => {
-  try {
-    const info = await invoke<{ version: string; name: string }>('get_app_info', {})
-    version.value = info.version
-  } catch {
-    version.value = '0.1.0'
-  }
+onMounted(() => {
   buildInfo()
   runCheck()
 })

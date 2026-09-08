@@ -14,7 +14,7 @@
     <div class="image" @click.stop="clickItem(item)">
       <FileThumb
         :is-dir="item.isDir"
-        :thumb-url="item.fileId ? getFileUrl(item.fileId, '&w=50&h=50') : ''"
+        :thumb-url="thumbUrl"
         :extension="item.extension"
         :thumb-error="imageErrorIds.includes(item.id)"
         :ext-error="extensionImageErrorIds.includes(item.id)"
@@ -66,7 +66,7 @@
       <div class="image" @click.stop="clickItem(item)">
         <FileThumb
           :is-dir="item.isDir"
-          :thumb-url="item.fileId ? getFileUrl(item.fileId, '&w=50&h=50') : ''"
+          :thumb-url="thumbUrl"
           :extension="item.extension"
           :thumb-error="imageErrorIds.includes(item.id)"
           :ext-error="extensionImageErrorIds.includes(item.id)"
@@ -110,10 +110,11 @@
 </template>
 
 <script setup lang="ts">
-import type { IFile } from '@/lib/file'
-import { ref } from 'vue'
+import { fileThumbUrl, type IFile } from '@/lib/file'
+import { computed, ref } from 'vue'
+import { storeToRefs } from 'pinia'
+import { useTempStore } from '@/stores/temp'
 import { formatFileSize, formatDateTime, formatTimeAgo } from '@/lib/format'
-import { getFileUrl } from '@/lib/api/file'
 
 interface Props {
   item: IFile
@@ -134,7 +135,10 @@ interface Props {
   clickItem: (item: IFile) => void
 }
 
-defineProps<Props>()
+const props = defineProps<Props>()
+
+const { urlTokenKey } = storeToRefs(useTempStore())
+const thumbUrl = computed(() => fileThumbUrl(urlTokenKey.value, props.item))
 const infoOpen = ref(false)
 const infoOpenPhone = ref(false)
 </script>

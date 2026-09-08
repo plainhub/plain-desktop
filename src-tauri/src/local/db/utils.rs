@@ -55,14 +55,26 @@ fn unix_secs_to_iso8601(secs: u64) -> String {
 }
 
 // ---------------------------------------------------------------------------
-// ID generation (8 random bytes from /dev/urandom, hex-encoded)
+// ID generation (8 random bytes from the OS CSPRNG, hex-encoded)
 // ---------------------------------------------------------------------------
 
 pub fn short_id() -> String {
-    use std::io::Read;
+    use rand::RngCore;
     let mut buf = [0u8; 8];
-    if let Ok(mut f) = std::fs::File::open("/dev/urandom") {
-        let _ = f.read_exact(&mut buf);
-    }
+    rand::rngs::OsRng.fill_bytes(&mut buf);
     buf.iter().map(|b| format!("{b:02x}")).collect()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn short_id_is_16_hex_and_unique() {
+        let a = short_id();
+        let b = short_id();
+        assert_eq!(a.len(), 16);
+        assert!(a.chars().all(|c| c.is_ascii_hexdigit()));
+        assert_ne!(a, b);
+    }
 }

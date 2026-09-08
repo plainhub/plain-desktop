@@ -10,6 +10,7 @@ export default {
   this_device: '本裝置',
   chat_input_hint: '你在想什麼？',
   forward_message: '轉發訊息',
+  copy_text: '複製文字',
   delete_message: '刪除訊息',
   chat_info: '聊天資訊',
   clear_messages: '清空訊息',

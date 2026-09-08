@@ -15,7 +15,7 @@
     <div class="image" @click="viewItem($event, item)">
       <FileThumb
         :is-dir="item.isDir"
-        :thumb-url="item.fileId ? getFileUrl(item.fileId, '&w=50&h=50') : ''"
+        :thumb-url="thumbUrl"
         :extension="item.extension"
         :thumb-error="imageErrorIds.includes(item.id)"
         :ext-error="extensionImageErrorIds.includes(item.id)"
@@ -68,7 +68,7 @@
       <div class="image" @click="viewItem($event, item)">
         <FileThumb
           :is-dir="item.isDir"
-          :thumb-url="item.fileId ? getFileUrl(item.fileId, '&w=50&h=50') : ''"
+          :thumb-url="thumbUrl"
           :extension="item.extension"
           :thumb-error="imageErrorIds.includes(item.id)"
           :ext-error="extensionImageErrorIds.includes(item.id)"
@@ -112,14 +112,16 @@
 </template>
 
 <script setup lang="ts">
-import type { IFile } from '@/lib/file'
+import { fileThumbUrl, type IFile } from '@/lib/file'
+import { computed } from 'vue'
+import { storeToRefs } from 'pinia'
+import { useTempStore } from '@/stores/temp'
 
 // Extend IFile to include children property for directories
 interface IFileWithChildren extends IFile {
   children?: number
 }
 import { formatFileSize, formatDateTime, formatTimeAgo } from '@/lib/format'
-import { getFileUrl } from '@/lib/api/file'
 import OnlinePreviewIcon from '@/components/OnlinePreviewIcon.vue'
 
 interface Props {
@@ -143,7 +145,10 @@ interface Props {
   clickItem: (item: IFile) => void
 }
 
-defineProps<Props>()
+const props = defineProps<Props>()
+
+const { urlTokenKey } = storeToRefs(useTempStore())
+const thumbUrl = computed(() => fileThumbUrl(urlTokenKey.value, props.item))
 
 const emit = defineEmits<{
   downloadDir: [path: string]

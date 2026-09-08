@@ -202,8 +202,40 @@ pre {
     background-color: var(--md-sys-color-surface-variant);
   }
 
+  &.disabled {
+    opacity: 0.38;
+    cursor: not-allowed;
+
+    &:hover {
+      background-color: transparent;
+    }
+  }
+
   &.selected {
     background-color: var(--md-sys-color-surface-container-high);
     color: var(--md-sys-color-primary);
+  }
+
+  .dropdown-item-icon {
+    width: 16px;
+    height: 16px;
+    flex-shrink: 0;
+  }
+
+  &.danger {
+    color: var(--md-sys-color-error);
+
+    .dropdown-item-icon {
+      color: var(--md-sys-color-error);
+    }
+  }
+}
+
+.context-menu {
+  .dropdown-item.divided {
+    border-top: 1px solid var(--md-sys-color-outline-variant);
+    border-radius: 0 0 6px 6px;
+    margin-top: 4px;
+    padding-top: 8px;
   }
 }

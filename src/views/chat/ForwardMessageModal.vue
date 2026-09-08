@@ -21,7 +21,7 @@
     </template>
     <template #actions>
       <v-outlined-button @click="close">{{ $t('cancel') }}</v-outlined-button>
-      <v-filled-button :loading="sending" :disabled="selected.length === 0" @click="doForward">{{ $t('send') }}</v-filled-button>
+      <v-filled-button :disabled="selected.length === 0" @click="doForward">{{ $t('send') }}</v-filled-button>
     </template>
   </v-modal>
 </template>
@@ -31,10 +31,9 @@ import { ref, computed } from 'vue'
 import type { PropType } from 'vue'
 import { popModal } from '@/components/modal'
 import { initMutation, sendChatItemGQL } from '@/lib/api/mutation'
-import { gqlFetch } from '@/lib/api/gql-client'
-import { chatItemsGQL } from '@/lib/api/query'
 import { useChatStore } from '@/stores/chat'
 import { messageNeedsDownload } from './hooks/chat-upload'
+import { fetchLatestChatContent } from './hooks/forward-content'
 import type { IChatItem } from '@/lib/interfaces'
 
 const props = defineProps({
@@ -48,7 +47,7 @@ const selected = ref<string[]>([])
 const channelTargets = computed(() => chatStore.joinedChannels.filter((c) => `channel:${c.id}` !== props.excludeChatId))
 const peerTargets = computed(() => chatStore.pairedPeers.filter((p) => `peer:${p.id}` !== props.excludeChatId))
 
-const { mutate, loading: sending } = initMutation({
+const { mutate } = initMutation({
   document: sendChatItemGQL,
 })
 
@@ -56,29 +55,19 @@ function toggle(id: string) {
   selected.value = selected.value.includes(id) ? selected.value.filter((s) => s !== id) : [...selected.value, id]
 }
 
-// The prop is a snapshot from open time; peer downloads rewrite stored
-// content (fsid: → fid:) asynchronously, so re-read when it still shows fsid:.
-async function fetchLatestContent(): Promise<string | null> {
-  if (!props.excludeChatId) return null
-  try {
-    const r = await gqlFetch(chatItemsGQL, { id: props.excludeChatId })
-    return r.data?.chatItems?.find((i: any) => i.id === props.message.id)?.content ?? null
-  } catch {
-    return null
-  }
-}
+let submitting = false
 
 async function doForward() {
-  if (!selected.value.length || sending.value) return
+  if (!selected.value.length || submitting) return
+  submitting = true
+  popModal()
   let content = props.message.content
   if (messageNeedsDownload(props.message)) {
-    content = (await fetchLatestContent()) ?? content
+    content = (await fetchLatestChatContent(props.message.id, props.excludeChatId)) ?? content
   }
   for (const toId of selected.value) {
-    const r = await mutate({ toId, content })
-    if (!r) return
+    mutate({ toId, content })
   }
-  popModal()
 }
 
 function close() {

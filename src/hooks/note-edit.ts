@@ -15,6 +15,7 @@ import { storeToRefs } from 'pinia'
 import emitter from '@/plugins/eventbus'
 import { upload as uploadFile } from '@/lib/upload/upload'
 import { shortUUID } from '@/lib/strutil'
+import { getMarkdownTitle } from '@/lib/strutil'
 import type { IUploadItem } from '@/stores/temp'
 
 const dataType = 'NOTE'
@@ -45,6 +46,7 @@ export function useNoteEdit() {
   const { mutate: save, onDone: saveDone } = initMutation({ document: saveNoteGQL })
   saveDone((r: any) => {
     note.value = r.data.saveNote
+    emitter.emit('notes_actioned', { action: 'save', note: r.data.saveNote })
     if (!id.value && note.value?.id) {
       id.value = note.value.id
       replacePathNoReload(mainStore, `/notes/${id.value}`)
@@ -53,25 +55,23 @@ export function useNoteEdit() {
 
   const saveContent = debounce(() => {
     notSaved.value = false
-    save({ id: id.value, input: { content: content.value, title: title.value || content.value.substring(0, 250) } })
+    save({ id: id.value, input: { content: content.value, title: getMarkdownTitle(content.value) } })
   }, 500)
 
-  const saveTitle = debounce(() => {
-    notSaved.value = false
-    save({ id: id.value, input: { content: content.value, title: title.value || content.value.substring(0, 250) } })
-  }, 500)
-
-  const watchContent = () => {
-    watch(content, async (value: string) => {
-      notSaved.value = true
-      markdown.value = await render(value)
-      saveContent()
-    })
-    watch(title, () => {
-      notSaved.value = true
-      saveTitle()
-    })
-  }
+  // Registered once here (component scope, auto-stopped on unmount).
+  // It used to be re-registered after every fetch completion, accumulating
+  // one watcher per tags refresh; suppressContentWatch keeps the load
+  // assignment from being treated as a user edit.
+  let suppressContentWatch = false
+  watch(content, async (value: string) => {
+    if (suppressContentWatch) {
+      suppressContentWatch = false
+      return
+    }
+    notSaved.value = true
+    markdown.value = await render(value)
+    saveContent()
+  })
 
   const tags = ref<ITag[]>()
   const { refetch: refetchTags } = initQuery({
@@ -87,11 +87,12 @@ export function useNoteEdit() {
     handle: async (data: { note: INote }, error: string) => {
       if (error) toast(t(error), 'error')
       else {
+        if (content.value !== data.note.content) suppressContentWatch = true
         note.value = data.note
         title.value = data.note.title
         content.value = data.note.content
         markdown.value = await render(content.value)
-        watchContent()
+        suppressContentWatch = false
       }
     },
     document: noteGQL,
@@ -101,7 +102,7 @@ export function useNoteEdit() {
 
   function getTime() {
     const time = note?.value?.updatedAt
-    return time ? `(${t('updated_at')}: ${formatDateTime(time)})` : ''
+    return time ? `${t('updated_at')}: ${formatDateTime(time)}` : ''
   }
 
   const print = () => window.print()
@@ -110,24 +111,22 @@ export function useNoteEdit() {
     uploadingImage.value = true
     const insertedPaths: string[] = []
     try {
-      const appDir = app.value.appDir
-      const noteImgDir = `${appDir}/note-images`
       for (const file of files) {
         const ext = file.name.split('.').pop() || 'png'
         const fileName = `${shortUUID()}.${ext}`
         const item: IUploadItem = {
           id: shortUUID(),
-          dir: noteImgDir,
+          dir: '',
           fileName,
           file,
           status: 'pending',
           uploadedSize: 0,
           error: '',
-          isAppFile: false,
+          isAppFile: true,
         }
         const result = (await uploadFile(item, false)) as { fileName?: string; error?: string } | undefined
-        if (result && result.fileName) {
-          insertedPaths.push(`![image](app://note-images/${result.fileName})`)
+        if (item.fileHash && !result?.error) {
+          insertedPaths.push(`![image](fid:${item.fileHash})`)
         }
       }
     } finally {
@@ -154,7 +153,6 @@ export function useNoteEdit() {
     id.value = route.params.id as string
     if (id.value === 'create') id.value = ''
     if (id.value) fetch()
-    else watchContent()
     emitter.on('item_tags_updated', itemTagsUpdatedHandler)
     emitter.on('items_tags_updated', itemsTagsUpdatedHandler)
     emitter.on('refetch_tags', refetchTagsHandler)

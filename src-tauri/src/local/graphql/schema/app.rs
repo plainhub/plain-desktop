@@ -118,7 +118,9 @@ pub struct AppMutation;
 impl AppMutation {
     async fn update_device_name(&self, ctx: &Context<'_>, name: String) -> bool {
         let c = ctx.data_unchecked::<Arc<AppCtx>>();
-        *c.device_name.write().unwrap() = name.clone();
+        // Updates the shared name AND republishes the mDNS service (goodbye
+        // for the old instance) so peers see the new name right away.
+        c.discover_manager.apply_device_rename(&name);
         crate::prefs::set_device_name(&c.handle, &name);
         let _ = c.event_tx.send(WsEvent {
             event_type: WS_DEVICE_NAME_UPDATED,

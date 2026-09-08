@@ -1,11 +1,9 @@
 import { ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import router from '@/plugins/router'
-import { sha512, chachaEncrypt, bitArrayToUint8Array } from '@/lib/api/crypto'
-import type { InitResponse } from '@/lib/api/crypto'
-import { getApiBaseUrl, getApiHeaders, getPendingLoginDevice, clearPendingLoginDevice } from '@/lib/api/api'
-import { randomUUID } from '@/lib/strutil'
-import { tokenToKey } from '@/lib/api/file'
+import { sha512 } from '@/lib/api/crypto'
+import { getApiBaseUrl, getPendingLoginDevice, clearPendingLoginDevice } from '@/lib/api/api'
+import type { InitResult } from '@/lib/api/init'
 import { getCurrentAuthToken } from '@/lib/device/current'
 import { findLoginPeer, saveLoginPeer, peerHost } from '@/lib/device/login-peers'
 import { DeviceType } from '@/lib/status'
@@ -47,35 +45,23 @@ export function useLogin(options: UseLoginOptions = {}) {
     }
   }
 
-  async function initRequest() {
-    const token = getCurrentAuthToken()
-    const headers = getApiHeaders() as Record<string, string>
-    let body: Uint8Array | undefined
-    if (token) {
-      const uuid = randomUUID()
-      const key = tokenToKey(token)
-      body = bitArrayToUint8Array(chachaEncrypt(key, uuid))
-    }
-    const initUrl = `${getApiBaseUrl()}/init`
-    const r = (__IS_TAURI__ && initUrl.startsWith('https://'))
-      ? await tauriFetch(initUrl, { method: 'POST', headers, body })
-      : await fetch(initUrl, { method: 'POST', headers, body: body as BodyInit })
-    if (r.status === 403) {
-      showError.value = true; webAccessDisabled.value = true; error.value = 'desktop_access_disabled'; return
+  /** Absorbs an /init result that the VIEW fetched — the request and the
+   *  needsSetup routing live in LoginView, never here. Returns true when
+   *  the stored token was accepted and the login already completed. */
+  function applyInitResult(result: InitResult): boolean {
+    if (result.status === 403) {
+      showError.value = true; webAccessDisabled.value = true; error.value = 'desktop_access_disabled'; return false
     }
     webAccessDisabled.value = false
-    const bodyText = await r.text()
-    let initData: InitResponse | undefined
-    if (bodyText) {
-      initData = JSON.parse(bodyText) as InitResponse
-      if (initData.signaturePublicKey) {
-        lastInitSignaturePublicKey = initData.signaturePublicKey
-      }
+    const initData = result.data
+    if (initData?.signaturePublicKey) {
+      lastInitSignaturePublicKey = initData.signaturePublicKey
     }
     // The server only omits the `password` field when it accepted the token we
     // presented, so a 200 with no password means we are already authenticated.
-    if (r.status === 200 && token && !initData?.password) {
-      await finishLoginSuccess(); return
+    if (result.status === 200 && initData && !initData.password && getCurrentAuthToken()) {
+      void finishLoginSuccess()
+      return true
     }
     if (initData?.password) {
       password.value = initData.password
@@ -83,6 +69,7 @@ export function useLogin(options: UseLoginOptions = {}) {
     } else {
       showPasswordInput.value = true
     }
+    return false
   }
 
   async function onSubmit() {
@@ -144,6 +131,6 @@ export function useLogin(options: UseLoginOptions = {}) {
 
   return {
     showError, webAccessDisabled, showConfirm, error, showPasswordInput,
-    password, passwordError, isSubmitting, onSubmit, cancel, t, initRequest,
+    password, passwordError, isSubmitting, onSubmit, cancel, t, applyInitResult,
   }
 }

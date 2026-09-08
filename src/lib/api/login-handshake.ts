@@ -1,7 +1,7 @@
 import { chachaEncrypt, chachaDecrypt, bitArrayToUint8Array, bitArrayToBase64, generateECDHKeyPair, computeECDHSharedKey, verifyEd25519Signature } from '@/lib/api/crypto'
 import { getWebSocketBaseUrl } from '@/lib/api/api'
 import { getAccurateAgent } from '@/lib/agent/agent'
-import { TauriWebSocket } from '@/lib/api/tauri-ws'
+import { openSocket } from '@/lib/api/http'
 import { getSyncedTimestamp } from '@/lib/api/time-sync'
 
 /** Window (ms) within which a login response timestamp is considered fresh. */
@@ -70,7 +70,7 @@ export function performLoginHandshake(params: LoginHandshakeParams): Promise<Log
 
   return new Promise<LoginHandshakeResult>((resolve, reject) => {
     const wsUrl = `${getWebSocketBaseUrl()}?cid=${clientId}&auth=1`
-    const ws = ((__IS_TAURI__ && wsUrl.startsWith('wss://')) ? new TauriWebSocket(wsUrl) : new WebSocket(wsUrl)) as unknown as WebSocket
+    const ws = openSocket(wsUrl)
 
     ws.onopen = async () => {
       const ua = await getAccurateAgent()

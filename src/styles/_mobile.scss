@@ -8,20 +8,12 @@
   .media-grid, .top-app-bar {
     padding-inline: 12px !important;
   }
-  .feed-item {
+  .sidebar2-item {
     margin-inline: 12px !important;
   }
 }
 
 @media (max-width: 768px) {
-  .layout {
-    grid-template-areas:
-      'head head'
-      'page-content page-content';
-    grid-template-columns: 1fr;
-    grid-template-rows: auto 1fr;
-  }
-
   // Page content should take full width on mobile
   .page-content {
     display: flex !important;
@@ -139,6 +131,19 @@
         background: var(--md-sys-color-surface-container);
         overflow-y: auto !important;
         padding: 0px !important;
+      }
+    }
+  }
+
+  // Make note editor fullscreen on mobile
+  .main-note-entry {
+    .note-edit-page {
+      @include mobile-full-screen;
+
+      & {
+        height: 100dvh !important;
+        background: var(--md-sys-color-surface);
+        overflow-y: auto !important;
       }
     }
   }

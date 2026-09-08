@@ -2,7 +2,7 @@ import { computed, onActivated, onDeactivated, reactive, ref, watch } from 'vue'
 import toast from '@/components/toaster'
 import { feedsTagsGQL, initLazyQuery } from '@/lib/api/query'
 import { useRoute } from 'vue-router'
-import router, { replacePath } from '@/plugins/router'
+import { replacePath } from '@/plugins/router'
 import { useMainStore } from '@/stores/main'
 import { useTempStore } from '@/stores/temp'
 import { useI18n } from 'vue-i18n'
@@ -15,7 +15,6 @@ import { DataType } from '@/lib/data'
 import { useList } from '@/hooks/feed-entries'
 import { useSearch } from '@/hooks/search'
 import { useKeyEvents } from '@/hooks/key-events'
-import { useLeftSidebarResize } from '@/hooks/sidebar'
 
 export function useFeedEntriesData(onDelete: () => void) {
   const mainStore = useMainStore()
@@ -69,14 +68,6 @@ export function useFeedEntriesData(onDelete: () => void) {
     variables: { type: dataType },
   })
 
-  const isDetail = computed(() => router.currentRoute.value.path !== '/feeds')
-
-  const { resizeWidth } = useLeftSidebarResize(
-    300,
-    () => mainStore.sidebar2Width,
-    (width: number) => { mainStore.sidebar2Width = width },
-  )
-
   const itemsTagsUpdatedHandler = (event: IItemsTagsUpdatedEvent) => {
     if (event.type === dataType) { fetch() }
   }
@@ -98,6 +89,7 @@ export function useFeedEntriesData(onDelete: () => void) {
   const feedsFetchedHandler = (data: any) => {
     feedsSyncing.value = false
     fetch()
+    fetchFeedsTags()
     if (data.error) {
       toast(data.error, 'error')
     } else {
@@ -133,7 +125,7 @@ export function useFeedEntriesData(onDelete: () => void) {
 
   return {
     items, filter, page, limit, q, tags, feeds, feedsMap, feedsSyncing,
-    listLoading, loadMore, noMore, fetch, dataType, route, isDetail, resizeWidth,
+    listLoading, loadMore, noMore, fetch, dataType, route,
     ...selectable,
   }
 }

@@ -4,21 +4,8 @@
     <template v-if="mirroring">
       <!-- Local WebKit < 26 has no AudioDecoder, so the phone-side audio
            permission is irrelevant — hide the phone audio indicators too. -->
-      <template v-if="audioSupported">
-      <div v-if="!hasFeature(FEATURE.MIRROR_AUDIO, osVersion)" class="warning-indicator">
-        <v-dropdown v-model="warnOpen1">
-          <template #trigger>
-            <button class="btn-icon warning-icon"><i-material-symbols:warning-outline /></button>
-          </template>
-          <div class="warning-dropdown">
-            <div class="warning-content">
-              <i-material-symbols:error-outline-rounded />
-              <div class="warning-text">{{ $t('mirror_audio_not_supported') }}</div>
-            </div>
-          </div>
-        </v-dropdown>
-      </div>
-      <div v-else-if="!permissions.includes('RECORD_AUDIO')" class="warning-indicator">
+      <template v-if="audioSupported && !hasFeature(FEATURE.MIRROR_AUDIO, osVersion)">
+      <div v-if="!permissions.includes('RECORD_AUDIO')" class="warning-indicator">
         <v-dropdown v-model="warnOpen2">
           <template #trigger>
             <button class="btn-icon warning-icon"><i-material-symbols:warning-outline /></button>

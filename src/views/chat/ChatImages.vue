@@ -1,6 +1,6 @@
 <template>
   <div class="image-container">
-    <div v-for="(item, i) in sources" :key="i" class="media-item" @click="canView ? view(i) : undefined" @contextmenu="onContextMenu($event, item.path, item.name)">
+    <div v-for="(item, i) in sources" :key="i" class="media-item" data-ctx="media" :data-path="item.path" :data-name="item.name" @click="canView ? view(i) : undefined">
       <img v-if="getPreview(item)" class="image-thumb" :src="getPreview(item)" loading="lazy" onerror="this.src='/broken-image.png'" />
       <span class="duration">{{ isVideo(item.name) && item.duration > 0 ? formatSeconds(item.duration) : formatFileSize(item.size) }}</span>
       <ChatDownloadOverlay :download-info="downloadInfo" :ring-size="48" border-radius="6px" @action="onDownloadAction" />
@@ -17,7 +17,6 @@ import { formatSeconds, formatFileSize } from '@/lib/format'
 import { useTempStore } from '@/stores/temp'
 import { useOpenMedia } from '@/hooks/open-media'
 import ChatDownloadOverlay from './ChatDownloadOverlay.vue'
-import { useRevealFile } from './hooks/reveal-file'
 
 const tempStore = useTempStore()
 const props = defineProps({
@@ -97,7 +96,5 @@ const sources = computed(() => {
 
 const { open: openMedia } = useOpenMedia(sources)
 function view(index: number) { openMedia(index) }
-
-const { onContextMenu } = useRevealFile()
 </script>
 

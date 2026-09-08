@@ -1,3 +1,5 @@
+import type { Component } from 'vue'
+
 export const MenuConstOptions = {
   defaultMinWidth: 100,
   defaultMaxWidth: 600,
@@ -18,7 +20,7 @@ export interface MenuOptions {
 }
 export interface MenuItem {
   label?: string
-  icon?: string
+  icon?: Component
   disabled?: boolean
   divided?: boolean
   customClass?: string

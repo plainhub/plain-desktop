@@ -1,32 +1,28 @@
 <!-- eslint-disable vue/no-v-html -->
 <template>
-  <div class="chat-item">
-    <div v-if="showDate" class="date">{{ formatDate(data.createdAt) }}</div>
-    <v-dropdown v-model="open">
-      <template #trigger>
-        <div class="chat-title">
+  <div v-if="showDate" class="chat-date">{{ formatDate(data.createdAt) }}</div>
+  <div ref="itemRef" class="chat-item" :class="{ self: isSelf }" @contextmenu="onContextMenu">
+    <div class="chat-title">
+      <v-dropdown v-model="rawOpen">
+        <template #trigger>
           <span class="name">{{ senderName }}</span>
-          <time v-tooltip="formatDateTimeFull(data.createdAt)" class="time">{{ formatTime(data.createdAt) }}</time>
-          <span v-if="showSending" class="sending">{{ sendingStatus }}</span>
-          <span
-            v-else-if="data.fromId === 'me' && (data.status === ChatStatus.FAILED || data.status === ChatStatus.PARTIAL)"
-            :id="errorAnchorId"
-            class="send-error"
-            @click.prevent.stop="showErrorMenu"
-          >
-            <i-lucide:rotate-ccw class="send-error-icon" />
-            {{ deliveryLabel }}
-          </span>
-          <i-material-symbols:expand-more-rounded class="bi bi-more" />
-        </div>
-      </template>
-      <div v-if="!data.id.startsWith('new_')" class="dropdown-item" @click="emit('forward', data); open = false">
-        {{ $t('forward_message') }}
-      </div>
-      <div class="dropdown-item" :class="{ disabled: deleteLoading }" @click="emit('delete', data.id); open = false">
-        {{ $t('delete_message') }}
-      </div>
-    </v-dropdown>
+        </template>
+        <pre class="view-raw">{{ data }}</pre>
+      </v-dropdown>
+      <time v-tooltip="formatDateTimeFull(data.createdAt)" class="time">{{ formatTime(data.createdAt) }}</time>
+      <span v-if="showSending" class="sending">{{ sendingStatus }}</span>
+      <span
+        v-else-if="data.fromId === 'me' && (data.status === ChatStatus.FAILED || data.status === ChatStatus.PARTIAL)"
+        :id="errorAnchorId"
+        class="btn-icon send-error"
+        @click.prevent.stop="showErrorMenu"
+      >
+        <i-material-symbols:warning-rounded />
+      </span>
+      <button class="btn-icon more-btn" type="button" @click.stop="openMoreMenu">
+        <i-material-symbols:more-horiz aria-hidden="true" />
+      </button>
+    </div>
     <v-dropdown-menu v-model="statusMenuOpen" :anchor="errorAnchorId">
       <div class="status-header">
         <i-material-symbols:error-outline-rounded class="status-header-icon" />
@@ -64,6 +60,14 @@ import { ref, computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { formatTime, formatDateTimeFull, formatDate } from '@/lib/format'
 import { addLinksToURLs } from '@/lib/strutil'
+import { selectedTextWithin } from '@/lib/dom'
+import { copyTextToClipboard } from '@/lib/clipboard'
+import ILucideCopy from '~icons/lucide/copy'
+import ILucideForward from '~icons/lucide/forward'
+import ILucideTrash2 from '~icons/lucide/trash-2'
+import { contextmenu } from '@/components/contextmenu'
+import type { MenuItem } from '@/components/contextmenu/ContextMenuDefine'
+import { useRevealFile } from './hooks/reveal-file'
 import ChatImages from './ChatImages.vue'
 import ChatLinkPreviews from './ChatLinkPreviews.vue'
 import ChatFiles from './ChatFiles.vue'
@@ -81,10 +85,19 @@ const props = defineProps<{
 }>()
 
 const emit = defineEmits<{ delete: [id: string]; forward: [item: IChatItem]; retry: [id: string, statusData?: string]; 'download-action': [id: string, action: 'pause' | 'resume' | 'retry'] }>()
-const open = ref(false)
 const statusMenuOpen = ref(false)
+const rawOpen = ref(false)
 const { t } = useI18n()
+const { buildMediaMenuItems } = useRevealFile()
 
+const itemRef = ref<HTMLElement | null>(null)
+let copySelection = ''
+
+function captureCopySelection() {
+  copySelection = selectedTextWithin(itemRef.value)
+}
+
+const isSelf = computed(() => props.data.fromId === 'me')
 const errorAnchorId = computed(() => `msg-error-${props.data.id}`)
 
 const showSending = computed(() => {
@@ -92,6 +105,52 @@ const showSending = computed(() => {
   if (props.data.status === ChatStatus.PENDING) return true
   return props.data.id.startsWith('new_') && props.data.status !== ChatStatus.FAILED
 })
+
+const isText = computed(() => props.data._content.type === MessageType.TEXT)
+
+function copyText() {
+  const text = copySelection || (props.data._content.value.text ?? '')
+  if (text) copyTextToClipboard(text)
+}
+
+function deleteEntry(divided: boolean): MenuItem {
+  return {
+    label: String(t('delete_message')),
+    icon: ILucideTrash2,
+    customClass: 'danger',
+    divided,
+    disabled: props.deleteLoading || showSending.value,
+    onClick: () => emit('delete', props.data.id),
+  }
+}
+
+const menuItems = computed<MenuItem[]>(() => {
+  const items: MenuItem[] = []
+  if (isText.value) {
+    items.push({ label: String(t('copy_text')), icon: ILucideCopy, onClick: copyText })
+  }
+  if (!props.data.id.startsWith('new_')) {
+    items.push({ label: String(t('forward_message')), icon: ILucideForward, onClick: () => emit('forward', props.data) })
+  }
+  items.push(deleteEntry(items.length > 0))
+  return items
+})
+
+function onContextMenu(e: MouseEvent) {
+  if (e.defaultPrevented) return
+  e.preventDefault()
+  captureCopySelection()
+  const el = (e.target as HTMLElement).closest('[data-ctx="media"]')
+  const mediaItems = el ? buildMediaMenuItems(el.getAttribute('data-path') ?? '', el.getAttribute('data-name') ?? '') : []
+  const items = mediaItems.length > 0 ? [...mediaItems, deleteEntry(true)] : [...menuItems.value]
+  contextmenu({ x: e.clientX, y: e.clientY, items })
+}
+
+function openMoreMenu(e: MouseEvent) {
+  captureCopySelection()
+  const r = (e.currentTarget as HTMLElement).getBoundingClientRect()
+  contextmenu({ x: r.right, y: r.bottom + 4, items: menuItems.value })
+}
 
 interface DeliveryResult {
   peerId: string
@@ -121,19 +180,6 @@ function doRetry() {
   statusMenuOpen.value = false
   emit('retry', props.data.id, props.data.statusData)
 }
-
-const deliveryLabel = computed(() => {
-  if (props.data.channelId && props.data.statusData) {
-    try {
-      const sd = JSON.parse(props.data.statusData) as { results?: Array<{ error?: string | null }> }
-      if (sd.results?.length) {
-        const delivered = sd.results.filter((r) => !r.error).length
-        return `${delivered}/${sd.results.length}`
-      }
-    } catch { /* */ }
-  }
-  return t('delivery_failed')
-})
 
 const componentMap: Record<string, any> = { [MessageType.IMAGES]: ChatImages, [MessageType.FILES]: ChatFiles, linkPreviews: ChatLinkPreviews }
 function getComponent(type: string) { return componentMap[type] }

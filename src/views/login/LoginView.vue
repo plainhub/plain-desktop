@@ -4,13 +4,15 @@
   </header>
   <h1>PlainApp</h1>
   <div class="login-block">
-    <LoginForm ref="loginFormRef" />
+    <LoginForm ref="loginFormRef" @needs-setup="goToSetup" />
   </div>
 </template>
 <script setup lang="ts">
 import { nextTick, onMounted, ref } from 'vue'
+import router from '@/plugins/router'
 import LoginForm from './LoginForm.vue'
 import { setPendingLoginDevice } from '@/lib/api/api'
+import { requestInit } from '@/lib/api/init'
 import { DeviceType } from '@/lib/status'
 
 const loginFormRef = ref<InstanceType<typeof LoginForm> | null>(null)
@@ -24,12 +26,22 @@ onMounted(() => {
   initializeLoginForm().catch(() => {})
 })
 
+function goToSetup() {
+  router.push({ path: '/setup', query: router.currentRoute.value.query })
+}
+
+// The view owns the /init call and the flow triage: an uninitialized
+// server goes to the setup page, everything else lands in the login form.
 async function initializeLoginForm() {
   await nextTick()
   if (!loginFormRef.value) {
     throw new Error('login_form_not_ready')
   }
-  await loginFormRef.value.init()
+  const result = await requestInit()
+  if (result.data?.needsSetup) {
+    goToSetup(); return
+  }
+  await loginFormRef.value.init(result)
 }
 </script>
 

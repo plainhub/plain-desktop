@@ -10,6 +10,7 @@ export default {
   this_device: 'Dieses Gerät',
   chat_input_hint: 'Was denkst du gerade?',
   forward_message: 'Nachricht weiterleiten',
+  copy_text: 'Text kopieren',
   delete_message: 'Nachricht löschen',
   chat_info: 'Chat-Info',
   clear_messages: 'Nachrichten löschen',

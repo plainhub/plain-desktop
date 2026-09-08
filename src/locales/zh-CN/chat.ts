@@ -12,6 +12,7 @@ export default {
   this_device: '本设备',
   chat_input_hint: '您想说什么？',
   forward_message: '转发消息',
+  copy_text: '复制文字',
   delete_message: '删除消息',
   chat_info: '聊天信息',
   clear_messages: '清空消息',

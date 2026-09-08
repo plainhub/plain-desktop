@@ -3,6 +3,7 @@ import type { EditorLayer } from '@/views/image-editor/utils/types'
 import { isEditorTextLayer, isEditorImageLayer } from '@/views/image-editor/utils/types'
 import type { ImageEditorDoc } from './useImageEditorDoc'
 import { shortUUID } from '@/lib/strutil'
+import { copyTextToClipboard } from '@/lib/clipboard'
 
 interface KeyboardCallbacks {
   removeLayer: (idx: number) => void
@@ -49,7 +50,7 @@ export function useImageEditorKeyboard(
         clipboardImageSrc = doc.getImageSrc(layer.id) ?? null
       }
       if (isEditorTextLayer(layer)) {
-        navigator.clipboard.writeText(layer.text).catch(() => {})
+        copyTextToClipboard(layer.text)
       }
     }
   }

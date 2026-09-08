@@ -7,6 +7,8 @@ mod utils;
 use std::sync::Arc;
 use tauri::Manager;
 
+const _: &[u8] = include_bytes!("../icons/icon.icns");
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     let builder = tauri::Builder::default();
@@ -328,7 +330,6 @@ pub fn run() {
             commands::http_client::http_request,
             commands::ws_proxy::ws_start_proxy,
             commands::notification::send_macos_notification,
-            commands::updater::get_app_info,
             commands::updater::check_for_updates,
             #[cfg(target_os = "macos")]
             commands::macos_menu::set_menu_locale,
@@ -338,6 +339,7 @@ pub fn run() {
             commands::media_preview_pool::media_preview_activate,
             commands::reveal::reveal_chat_file,
             commands::reveal::save_chat_file_as,
+            commands::reveal::save_text_file_as,
             commands::reveal::copy_chat_file_to_clipboard,
             commands::screen_capture::commands::screen_capture_register_target,
             commands::screen_capture::commands::screen_capture_unregister_target,

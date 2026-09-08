@@ -10,7 +10,7 @@ checksum = "fe438c63458706e03479442743baae6c88256498e6431708f6dfc520a26515d3"
 
 [[package]]
 name = "PlainApp"
-version = "0.1.5"
+version = "0.1.10"
 dependencies = [
  "ashpd",
  "async-graphql",
@@ -26,7 +26,6 @@ dependencies = [
  "pipewire",
  "plain-rs",
  "rand 0.8.6",
- "rcgen",
  "regex",
  "reqwest 0.12.28",
  "rusqlite",
@@ -3686,7 +3685,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "7d8fae84b431384b68627d0f9b3b1245fcf9f46f6c0e3dc902e9dce64edd1967"
 dependencies = [
  "libc",
- "windows-sys 0.61.2",
+ "windows-sys 0.45.0",
 ]
 
 [[package]]
@@ -3911,17 +3910,22 @@ checksum = "19f132c84eca552bf34cab8ec81f1c1dcc229b811638f9d283dceabe58c5569e"
 [[package]]
 name = "plain-rs"
 version = "0.1.0"
-source = "git+https://github.com/plainhub/plain-rs#77e7e4c8c60d418d8557efa1403c90c262e8c9e0"
+source = "git+https://github.com/plainhub/plain-rs#781804c388e2abb9a11ddb23b12c43a9a0f554a4"
 dependencies = [
+ "bytes",
  "chacha20poly1305",
  "ed25519-dalek",
+ "futures-core",
  "if-addrs",
+ "libc",
  "log",
  "p256",
  "rand 0.8.6",
+ "rcgen",
  "serde",
  "sha2",
  "socket2 0.5.10",
+ "tokio",
  "uuid",
 ]
 
@@ -5764,7 +5768,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "32497e9a4c7b38532efcdebeef879707aa9f794296a4f0244f6f69e9bc8574bd"
 dependencies = [
  "fastrand",
- "getrandom 0.4.2",
+ "getrandom 0.3.4",
  "once_cell",
  "rustix 1.1.4",
  "windows-sys 0.61.2",

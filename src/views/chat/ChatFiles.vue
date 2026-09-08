@@ -1,7 +1,7 @@
 <template>
   <div class="file-container">
     <div v-for="(item, i) in items" :key="i" class="file-item-wrapper">
-      <div class="file-item" @click="clickItem(item)" @contextmenu="onContextMenu($event, item.path, item.name)">
+      <div class="file-item" data-ctx="media" :data-path="item.path" :data-name="item.name" @click="clickItem(item)">
         <div class="file-content">
           <div class="file-name" :class="{ playing: activeAudioSrc === item.src }">{{ item.name }}</div>
           <div class="file-info">
@@ -10,7 +10,7 @@
           <div v-if="item.summary" class="file-summary">{{ item.summary }}</div>
         </div>
         <div class="thumb-wrap">
-          <img v-if="getThumb(item)" :src="getThumb(item)" class="file-thumbnail" :class="{ 'file-icon': !isImage(item.name) && !isVideo(item.name) }" @error="onIconError(item.name)" />
+          <img v-if="getThumb(item)" :src="getThumb(item)" class="file-thumbnail" :class="{ 'file-icon': !isImage(item.name) && !isVideo(item.name) }" loading="lazy" decoding="async" @error="onIconError(item.name)" />
           <ChatDownloadOverlay :download-info="downloadInfo" :ring-size="40" border-radius="8px" @action="onDownloadAction" />
         </div>
       </div>
@@ -25,7 +25,6 @@ import { formatSeconds, formatFileSize } from '@/lib/format'
 import ChatAudioPlayer from './ChatAudioPlayer.vue'
 import ChatDownloadOverlay from './ChatDownloadOverlay.vue'
 import { useChatFiles } from './hooks/chat-files'
-import { useRevealFile } from './hooks/reveal-file'
 
 const props = defineProps({
   data: { type: Object, default: () => ({}) },
@@ -39,7 +38,6 @@ function onDownloadAction(action: 'pause' | 'resume' | 'retry') {
 }
 
 const { items, activeAudioSrc, getThumb, onIconError, clickItem } = useChatFiles(props)
-const { onContextMenu } = useRevealFile()
 </script>
 
 <style lang="scss" scoped>

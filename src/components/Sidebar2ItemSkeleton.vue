@@ -1,5 +1,5 @@
 <template>
-  <section v-if="!isPhone" class="feed-item selectable-card-skeleton">
+  <section v-if="!isPhone" class="sidebar2-item selectable-card-skeleton">
     <div class="title">
       <div class="skeleton-checkbox checkbox"></div>
       <div class="skeleton-text text lg" style="width: 50%"></div>
@@ -10,7 +10,7 @@
         <div class="skeleton-text" style="width: 30%"></div>
       </div>
     </div>
-    <div class="image">
+    <div v-if="image" class="image">
       <div class="skeleton-image lg"></div>
     </div>
   </section>
@@ -21,7 +21,8 @@
 interface Props {
   index: number
   isPhone: boolean
+  image?: boolean
 }
 
-defineProps<Props>()
+withDefaults(defineProps<Props>(), { image: true })
 </script>

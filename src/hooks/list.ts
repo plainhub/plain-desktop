@@ -80,6 +80,32 @@ export const useSelectable = (items: Ref<IData[]>) => {
     selectedIds.value = items.value.map((it) => it.id)
   }
 
+  const groupSelectionState = (groupItems: IData[]) => {
+    const count = groupItems.reduce((acc, it) => acc + (selectedIds.value.includes(it.id) ? 1 : 0), 0)
+    return {
+      checked: groupItems.length > 0 && count === groupItems.length,
+      indeterminate: count > 0 && count < groupItems.length,
+    }
+  }
+
+  const setGroupChecked = (groupItems: IData[], checked: boolean) => {
+    if (checked) {
+      for (const it of groupItems) {
+        if (!selectedIds.value.includes(it.id)) {
+          selectedIds.value.push(it.id)
+        }
+      }
+    } else {
+      const ids = new Set(groupItems.map((it) => it.id))
+      selectedIds.value = selectedIds.value.filter((id) => !ids.has(id))
+    }
+    updateAllCheckState(checked)
+  }
+
+  const toggleGroupChecked = (event: Event, groupItems: IData[]) => {
+    setGroupChecked(groupItems, (event.target as HTMLInputElement).checked)
+  }
+
   return {
     realAllChecked,
     allChecked,
@@ -93,6 +119,9 @@ export const useSelectable = (items: Ref<IData[]>) => {
       }
     },
     selectAll,
+    groupSelectionState,
+    setGroupChecked,
+    toggleGroupChecked,
     allCheckedAlertVisible: computed<boolean>(() => {
       return allChecked.value && !realAllChecked.value && selectedIds.value.length < total.value
     }),

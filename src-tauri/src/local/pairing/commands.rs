@@ -67,8 +67,15 @@ pub fn get_device_identity(
     })
 }
 
-/// Update the local device's display name.
+/// Update the local device's display name. Updates the shared name state and
+/// republishes the mDNS service so peers drop the old instance and see the
+/// new name right away.
 #[tauri::command]
-pub fn set_device_name(name: String, app: tauri::AppHandle) {
+pub fn set_device_name(
+    name: String,
+    app: tauri::AppHandle,
+    state: tauri::State<'_, crate::commands::discover::NearbyDiscoverManager>,
+) {
     crate::prefs::set_device_name(&app, &name);
+    state.apply_device_rename(&name);
 }

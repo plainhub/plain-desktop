@@ -26,7 +26,7 @@ export const useCreateDir = (urlTokenKey: Ref<Uint8Array | null>, items: Ref<IFi
         const d = r?.data?.createDir
         if (d) {
           arrayRemove(items.value, (it: IFile) => it.path === d.path)
-          items.value.unshift(enrichFile(d, urlTokenKey.value))
+          items.value.unshift(enrichFile(d))
         }
       })
       return m

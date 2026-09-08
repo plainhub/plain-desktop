@@ -10,6 +10,7 @@ export default {
   this_device: 'Thiết bị này',
   chat_input_hint: 'Bạn đang nghĩ gì?',
   forward_message: 'Chuyển tiếp tin nhắn',
+  copy_text: 'Sao chép văn bản',
   delete_message: 'Xóa tin nhắn',
   chat_info: 'Thông tin chat',
   clear_messages: 'Xóa tin nhắn',

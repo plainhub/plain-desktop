@@ -29,14 +29,15 @@
         v-for="(item, i) in items"
         :key="i"
         class="dropdown-item"
-        :class="{ disabled: item.disabled }"
+        :class="[{ disabled: item.disabled, divided: item.divided }, item.customClass]"
         @mouseenter="showChildItem($event, item)"
         @mouseleave="hideChildItem()"
         @focus="showChildItem($event, item)"
         @blur="hideChildItem()"
         @click="onMouseClick(item)"
       >
-        {{ item.label }}
+        <component :is="item.icon" v-if="item.icon" class="dropdown-item-icon" />
+        <span>{{ item.label }}</span>
       </div>
     </div>
     <ContextSubMenu
@@ -229,7 +230,7 @@ onBeforeUnmount(() => {
 .context-menu {
   display: inline-block;
   overflow: visible;
-  position: absolute;
+  position: fixed;
   background-color: var(--md-sys-color-surface-container);
   border-radius: 8px;
   box-shadow: rgba(0, 0, 0, 0.2) 0px 2px 6px;

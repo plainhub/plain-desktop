@@ -61,7 +61,7 @@ export default {
   tablet: 'ট্যাবলেট',
   computer: 'কম্পিউটার',
   tv: 'টিভি ও প্রজেক্টর',
-  battery_left: 'ব্যাটারি {শতাংশ}%',
+  battery_left: 'ব্যাটারি {percentage}%',
   paired_devices: 'জোড়া করা ডিভাইস',
   unpaired_devices: 'জোড়া না করা ডিভাইস',
   platform_info: 'প্ল্যাটফর্ম তথ্য',

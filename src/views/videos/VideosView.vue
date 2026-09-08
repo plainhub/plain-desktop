@@ -34,7 +34,16 @@
         <div class="media-grid"><section v-for="i in limit" :key="i" class="skeleton-image media-item"></section></div>
       </template>
       <div v-for="group in groupedItems" :key="group.date" class="image-group">
-        <div class="group-date-label">{{ group.dateLabel }}</div>
+        <div class="group-date-label">
+          <span class="group-date-text" @click="toggleGroupByText(group)">{{ group.dateLabel }}</span>
+          <v-checkbox
+            v-if="checked"
+            touch-target="wrapper"
+            :checked="groupCheckboxState(group).checked"
+            :indeterminate="groupCheckboxState(group).indeterminate"
+            @change="toggleGroup($event, group)"
+          />
+        </div>
         <div class="media-grid" :class="{ 'select-mode': checked }">
           <MediaGridItem
 v-for="{ item, idx } in group.entries" :key="item.id" :item="item" :checked="checked"
@@ -100,7 +109,7 @@ import { getSortItems, getVideoGroupByItems, isVideo } from '@/lib/file'
 import { hasFeature } from '@/lib/feature'
 import { storeToRefs } from 'pinia'
 import { useMainStore } from '@/stores/main'
-import { useGroupedScroll } from '@/hooks/grouped-scroll'
+import { useGroupedScroll, type MediaGroup } from '@/hooks/grouped-scroll'
 import { useMediaPage } from '@/hooks/media-page'
 import { useMediaPageActions } from '@/hooks/media-page-actions'
 import MediaPageActions from '@/components/media/MediaPageActions.vue'
@@ -129,7 +138,7 @@ const {
   fileInput, dirFileInput, uploadChanged, dirUploadChanged, dropping, fileDragEnter, fileDragLeave,
   tags, bucketsMap, deleteItems, deleteItem, confirmingDelete, deleteCount, deleteLoading, doDeleteItems, cancelDeleteItems, viewBucket,
   selectedIds, allChecked, realAllChecked, selectRealAll, allCheckedAlertVisible,
-  clearSelection, toggleAllChecked, toggleSelect, total, checked, shiftEffectingIds, handleItemClick, shouldSelect,
+  clearSelection, toggleAllChecked, toggleSelect, total, checked, shiftEffectingIds, handleItemClick, shouldSelect, groupSelectionState, setGroupChecked, toggleGroupChecked,
   downloadItems, downloadFile, trashLoading, trash, restoreLoading, restore,
   gotoPage, onChangePageSize, getQuery, sort, handleMouseOverMode,
   uploadFilesClick, uploadDirClick, dropFiles2,
@@ -142,6 +151,11 @@ const { noMore, sentinel, isGroupMode, scrollMode, groupedItems, setupSentinelOb
 })
 
 const effectiveIsGroupMode = computed(() => isGroupMode.value && !filter.text)
+
+const groupItems = (group: MediaGroup<IVideoItem>) => group.entries.map((e) => e.item)
+const groupCheckboxState = (group: MediaGroup<IVideoItem>) => groupSelectionState(groupItems(group))
+const toggleGroup = (event: Event, group: MediaGroup<IVideoItem>) => toggleGroupChecked(event, groupItems(group))
+const toggleGroupByText = (group: MediaGroup<IVideoItem>) => setGroupChecked(groupItems(group), !groupCheckboxState(group).checked)
 
 watch(() => mainStore.videosGroupBy, () => { page.value = 1; noMore.value = false; items.value = []; fetch() })
 watch(() => mainStore.videosScrollPaging, () => { page.value = 1; items.value = []; fetch() })

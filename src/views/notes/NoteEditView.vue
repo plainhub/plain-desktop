@@ -59,6 +59,17 @@ async function onPasteImages(files: File[]) {
 }
 </script>
 
+<style lang="scss">
+.page-content .main-note-entry {
+  flex-direction: row;
+
+  .note-edit-page {
+    flex: 1;
+    width: 0;
+    min-width: 0;
+  }
+}
+</style>
 <style lang="scss" scoped>
 .title-input {
   flex: 1;

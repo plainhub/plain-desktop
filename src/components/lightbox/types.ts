@@ -32,6 +32,8 @@ export interface IStatus {
 
 export interface ISource {
   src: string
+  playbackUrl?: string // URL the <video> actually loads (may append tr=1 for HEVC fallback)
+  transcoded?: boolean // playbackUrl is a server-side H.264 transcode of an HEVC source
   viewOriginImage?: boolean
   path: string // file path
   name: string

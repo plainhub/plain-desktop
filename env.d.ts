@@ -1,5 +1,6 @@
 /// <reference types="vite/client" />
 declare const __IS_TAURI__: boolean
+declare const __APP_VERSION__: string
 declare module '~icons/*' {
   import type { FunctionalComponent, SVGAttributes } from 'vue'
   const component: FunctionalComponent<SVGAttributes>
@@ -30,4 +31,9 @@ interface Navigator {
     readonly platform: string
     getHighEntropyValues(hints: string[]): Promise<Record<string, any>>
   }
+}
+
+interface Window {
+  /** DevTools toggle: `__PLAIN_LOG__ = true` enables transport logging. */
+  __PLAIN_LOG__?: boolean
 }

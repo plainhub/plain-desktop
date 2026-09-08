@@ -50,7 +50,7 @@ export interface CaptureLocaleModule {
 
 export const CAPTURE_LOCALE_CODES = ['bn', 'de', 'en-US', 'es', 'fr', 'hi', 'it', 'ja', 'ko', 'nl', 'pt', 'ru', 'ta', 'tr', 'vi', 'zh-CN', 'zh-TW'] as const
 
-const localeModules = import.meta.glob<CaptureLocaleModule>('@/locales/*/screen-capture.ts', {
+const localeModules = import.meta.glob<CaptureLocaleModule>('../../locales/*/screen-capture.ts', {
   eager: true,
   import: 'default',
 })

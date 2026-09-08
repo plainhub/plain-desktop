@@ -1,4 +1,6 @@
 export default {
+  video_transcode_tip: 'Ce navigateur ne peut pas décoder le HEVC (H.265) : la vidéo est lue depuis un flux H.264 converti — la qualité peut être réduite et le premier chargement plus lent.',
+  video_transcode_help: 'Comment lire en qualité d\'origine →',
   audio_player: 'Lecteur audio',
   music: 'Musique',
   videos: 'Vidéos',

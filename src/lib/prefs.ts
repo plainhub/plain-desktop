@@ -31,7 +31,7 @@ export function get<T>(key: string, fallback: T): T {
   const raw = localStorage.getItem(key)
   if (raw === null) return fallback
   if (typeof fallback === 'string') return raw as unknown as T
-  try { return JSON.parse(raw) as T } catch { return fallback }
+  try { return JSON.parse(raw) as T } catch { return raw as unknown as T }
 }
 
 export function set(key: string, value: unknown): void {

@@ -16,7 +16,6 @@
     display: flex;
     align-items: flex-start;
     gap: 12px;
-    margin-bottom: 16px;
 
     svg {
       width: 20px;
@@ -35,6 +34,7 @@
   .warning-actions {
     display: flex;
     justify-content: flex-end;
+    margin-top: 16px;
   }
 
   @media (max-width: 480px) {

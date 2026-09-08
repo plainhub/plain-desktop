@@ -10,6 +10,7 @@ export default {
   this_device: '이 기기',
   chat_input_hint: '무엇이 마음에 드시나요?',
   forward_message: '메시지 전달',
+  copy_text: '텍스트 복사',
   delete_message: '메시지 삭제',
   chat_info: '체팅 정보',
   clear_messages: '메시지 지우기',

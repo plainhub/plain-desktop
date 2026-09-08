@@ -11,7 +11,7 @@
 //! instead of UDP (see `local::pairing`).
 
 use super::peer_status_manager::PeerStatusManager;
-use crate::local::db::{ChatDb, now_iso};
+use crate::local::db::{ChatDb, DPeer, now_iso};
 use crate::local::enums::DeviceType;
 use crate::local::graphql::schema::types::Peer;
 use crate::local::graphql::{
@@ -166,6 +166,38 @@ impl NearbyDiscoverManager {
         host_responder::start(&hostname, service);
     }
 
+    /// Republishes the local service after the advertised data changed (device
+    /// renamed, port changed) so peers pick it up without waiting for the next
+    /// re-announce. No-op while no service is published (web service off).
+    /// Mirrors plain-app's `MdnsDiscoverManager.updateAdvertisedService`.
+    pub fn update_advertised_service(&self) {
+        let port = self.https_port.load(Ordering::SeqCst);
+        if port == 0 {
+            return;
+        }
+        let service = plain_rs::mdns::service_info::build_service_info(
+            &self.device_name.read().unwrap().clone(),
+            &self.mdns_hostname(),
+            port,
+            &self.identity.client_id,
+            LOCAL_DEVICE_TYPE_WIRE,
+            &self.app_version,
+            std::env::consts::OS,
+            host_responder::local_ipv4_strs(),
+        );
+        host_responder::update_service(service);
+    }
+
+    /// Applies a device rename: updates the shared name and republishes the
+    /// mDNS service so peers drop the old instance (goodbye) and see the new
+    /// name right away. The rename entry points (GraphQL `updateDeviceName`
+    /// and the `set_device_name` command) share this path. Persistence is the
+    /// caller's business (`prefs::set_device_name`).
+    pub fn apply_device_rename(&self, name: &str) {
+        *self.device_name.write().unwrap() = name.to_string();
+        self.update_advertised_service();
+    }
+
     /// Ensures the shared mDNS responder socket is up so the browser can
     /// send queries and the responder can answer PTR/SRV/TXT/A queries.
     /// Service registration itself happens with the HTTPS server lifecycle.
@@ -174,6 +206,8 @@ impl NearbyDiscoverManager {
     /// paired peer's IP change is picked up without any page scanning.
     pub fn start(&self) {
         host_responder::ensure_started(&self.mdns_hostname());
+        self.browser
+            .seed_known_addrs(&peer_seed_addrs(&self.db.get_peers()));
         self.browser.install_listener();
     }
 
@@ -449,6 +483,18 @@ fn same_snapshot(a: &DiscoveredDevice, b: &DiscoveredDevice) -> bool {
         && a.status == b.status
 }
 
+/// Addresses of paired / logged-in peers — the requery seeds for the mDNS
+/// browser's directed unicast path. Networks that silently drop multicast
+/// (VPN / AP isolation) stay discoverable this way; peers without an address
+/// contribute nothing.
+fn peer_seed_addrs(peers: &[DPeer]) -> Vec<String> {
+    peers
+        .iter()
+        .filter(|p| (p.is_paired() || !p.token.is_empty()) && !p.ip.is_empty())
+        .flat_map(|p| p.ip.split(',').map(str::trim).map(str::to_string))
+        .collect()
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -480,6 +526,33 @@ mod tests {
         b.ips = a.ips.clone();
         b.status = "PAIRED".to_string();
         assert!(!same_snapshot(&a, &b), "status change must re-emit");
+    }
+
+    fn seed_peer(id: &str, ip: &str, paired: bool, token: &str) -> DPeer {
+        let mut peer = DPeer::new(id, id, ip, 8443, DeviceType::Phone);
+        if paired {
+            peer.status = crate::local::enums::PeerStatus::Paired;
+        }
+        peer.token = token.to_string();
+        peer
+    }
+
+    #[test]
+    fn peer_seed_addrs_takes_addresses_of_paired_or_logged_in_peers() {
+        let peers = vec![
+            seed_peer("p1", "192.168.1.10", true, ""),
+            seed_peer("p2", "192.168.1.11, 192.168.2.11", false, "tok"),
+            seed_peer("p3", "192.168.1.12", false, ""),
+            seed_peer("p4", "", true, ""),
+        ];
+        assert_eq!(
+            peer_seed_addrs(&peers),
+            vec![
+                "192.168.1.10".to_string(),
+                "192.168.1.11".to_string(),
+                "192.168.2.11".to_string()
+            ]
+        );
     }
 }
 

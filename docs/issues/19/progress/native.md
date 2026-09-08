@@ -506,6 +506,61 @@ Temporary full-desktop proof images and input harnesses were deleted after
 inspection because they contained private screen content; no runtime artifact
 was added to the repository.
 
+## Upstream `main` integration (2026-09-08)
+
+Upstream `main` through `a26dd7e3e438184b15bc7eb3f367202f2ad5bea2`
+(release `v0.1.10`) was merged by hand. The six textual conflicts preserved
+both sides of the intended behavior: the capture-only bootstrap remains
+isolated from full-app services; chat capture targeting coexists with upstream
+message windowing; and every dynamic WebView creation path remains serialized
+without reverting upstream's asynchronous commands. The reproducible
+`plain-rs` lock entry now points at upstream's intended full revision
+`781804c388e2abb9a11ddb23b12c43a9a0f554a4` rather than relying on the ignored
+local path patch that produced upstream's source-less lock entry.
+
+The merge exposed three frontend-tooling integration defects, all corrected
+before landing:
+
+- the capture locale glob now uses a relative path accepted by upstream's new
+  build-time vue-i18n compiler;
+- each Vitest project receives its own copy of the shared compile-time defines,
+  so CWS module resets cannot lose `__IS_TAURI__`;
+- Vite is pinned to 8.1.0 (Rolldown 1.1.5 after lock deduplication), the first
+  stable Vite line containing Rolldown's fix for its unbound wrapped-ESM
+  `init_*` regression. The two lazily discovered Tauri plugins are explicitly
+  pre-optimized so a fresh CI cache does not reload and discard browser tests.
+
+Post-merge Linux evidence from a fresh frontend dependency-optimizer cache:
+
+```text
+corepack yarn install --immutable
+corepack yarn typecheck
+corepack yarn build
+corepack yarn build:tauri:frontend
+  passed
+
+CI-equivalent focused browser gate
+  201 passed; 0 failed
+
+VITE_APP_MODE=tauri composer gate
+  4 passed; 0 failed
+
+cargo +1.96.0 test --locked --manifest-path \
+  src-tauri/Cargo.toml --lib -j 2
+  267 passed; 0 failed
+
+corepack yarn test
+  813 passed; 52 skipped; the same 3 allowlisted baseline failures
+
+isolated cross-window project rerun
+  5 passed; 0 failed
+```
+
+The mechanical architecture searches and `git diff --check` also pass. The
+Windows/macOS compile matrix remains a post-push CI gate for this merge; the
+last pre-merge commits retain the interactive platform evidence recorded
+above.
+
 ## Xenocept provenance
 
 Xenocept source was audited at private commit `35efe0e` with the repository

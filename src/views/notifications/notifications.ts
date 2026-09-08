@@ -34,12 +34,10 @@ export function useNotifications() {
   // Reply state
   const replyingId = ref<string | null>(null)
   const replyingActionIndex = ref<number>(0)
-  const replyText = ref('')
 
-  function startReply(id: string, actionIndex: number) { replyingId.value = id; replyingActionIndex.value = actionIndex; replyText.value = '' }
-  function cancelReply() { replyingId.value = null; replyText.value = '' }
-  function sendReply(id: string) {
-    const text = replyText.value.trim()
+  function startReply(id: string, actionIndex: number) { replyingId.value = id; replyingActionIndex.value = actionIndex }
+  function cancelReply() { replyingId.value = null }
+  function sendReply(id: string, text: string) {
     if (!text) return
     replyNotification({ id, actionIndex: replyingActionIndex.value, text })
   }
@@ -83,7 +81,7 @@ export function useNotifications() {
   return {
     store, app, notificationVolume, notifications, loading,
     hasNotificationWarning, notificationWarningMessage, notificationWarningAction,
-    replyingId, replyText, replySending,
+    replyingId, replySending,
     startReply, cancelReply, sendReply, deleteItem, clearAll,
   }
 }

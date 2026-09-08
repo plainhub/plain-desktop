@@ -37,3 +37,11 @@ export function createPendingMms(
     tags: [],
   }
 }
+
+/** Sort items by date without re-parsing date strings inside the comparator. */
+export function sortByDate<T extends { date: string }>(items: readonly T[], descending = false): T[] {
+  return items
+    .map((item) => ({ item, ts: Date.parse(item.date) }))
+    .sort((a, b) => (descending ? b.ts - a.ts : a.ts - b.ts))
+    .map((entry) => entry.item)
+}

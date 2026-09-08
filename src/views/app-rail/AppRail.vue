@@ -179,4 +179,31 @@ onBeforeUnmount(() => {
   flex-shrink: 0;
   height: 8px;
 }
+
+@media (max-width: 768px) {
+  .app-rail {
+    flex-direction: row;
+    width: auto;
+    min-width: 0;
+    padding: 4px 8px calc(4px + env(safe-area-inset-bottom));
+  }
+
+  .rail-brand,
+  .rail-spacer {
+    display: none;
+  }
+
+  .rail-items {
+    flex-direction: row;
+    overflow-x: auto;
+    overflow-y: hidden;
+  }
+
+  .rail-item {
+    flex: 1 1 0;
+    min-width: 56px;
+    height: 56px;
+    margin: 0;
+  }
+}
 </style>

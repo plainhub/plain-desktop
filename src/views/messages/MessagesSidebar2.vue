@@ -1,17 +1,21 @@
 <template>
-  <aside class="sidebar2" :class="{ 'sidebar2-full': !route.params.threadId }" :style="{ width: route.params.threadId ? mainStore.sidebar2Width + 'px' : undefined }">
-    <div v-if="!isArchived" class="top-app-bar">
-      <v-checkbox touch-target="wrapper" :checked="allChecked" :indeterminate="!allChecked && checked" @change="toggleAllChecked" />
-      <div class="title">
-        <span v-if="selectedIds.length">{{ $t('x_selected', { count: selectedIds.length.toLocaleString() }) }}</span>
-        <span v-else>{{ $t('page_title.conversations') }} ({{ total.toLocaleString() }})</span>
-        <template v-if="checked">
-          <v-icon-button v-tooltip="$t('archive_conversation')" @click.stop="archiveConversations(selectedIds)">
-            <i-material-symbols:archive-outline-rounded />
-          </v-icon-button>
-        </template>
-      </div>
-      <div class="actions">
+  <Sidebar2 :detail="!!route.params.threadId">
+    <ListTopBar
+      v-if="!isArchived"
+      :title="$t('page_title.conversations')"
+      :total="total"
+      :selected-ids="selectedIds"
+      :checked="checked"
+      :all-checked="allChecked"
+      :real-all-checked="realAllChecked"
+      :toggle-all-checked="toggleAllChecked"
+    >
+      <template #bulk>
+        <v-icon-button v-tooltip="$t('archive_conversation')" @click.stop="archiveConversations(selectedIds)">
+          <i-material-symbols:archive-outline-rounded />
+        </v-icon-button>
+      </template>
+      <template #actions>
         <v-dropdown v-model="sortMenuVisible">
           <template #trigger>
             <v-icon-button v-tooltip="$t('sort')">
@@ -34,20 +38,24 @@
         <v-icon-button v-tooltip="$t('send_sms')" @click.stop="openSendSms()">
           <i-material-symbols:sms-outline-rounded />
         </v-icon-button>
-      </div>
-    </div>
-    <div v-else class="top-app-bar">
-      <v-checkbox touch-target="wrapper" :checked="allChecked" :indeterminate="!allChecked && checked" @change="toggleAllChecked" />
-      <div class="title">
-        <span v-if="selectedIds.length">{{ $t('x_selected', { count: selectedIds.length.toLocaleString() }) }}</span>
-        <span v-else>{{ $t('archived') }} ({{ total.toLocaleString() }})</span>
-        <template v-if="checked">
-          <v-icon-button v-tooltip="$t('unarchive')" @click.stop="unarchiveConversations(selectedIds)">
-            <i-material-symbols:unarchive-outline-rounded />
-          </v-icon-button>
-        </template>
-      </div>
-    </div>
+      </template>
+    </ListTopBar>
+    <ListTopBar
+      v-else
+      :title="$t('archived')"
+      :total="total"
+      :selected-ids="selectedIds"
+      :checked="checked"
+      :all-checked="allChecked"
+      :real-all-checked="realAllChecked"
+      :toggle-all-checked="toggleAllChecked"
+    >
+      <template #bulk>
+        <v-icon-button v-tooltip="$t('unarchive')" @click.stop="unarchiveConversations(selectedIds)">
+          <i-material-symbols:unarchive-outline-rounded />
+        </v-icon-button>
+      </template>
+    </ListTopBar>
 
     <conversation-skeleton-list v-if="loading && conversations.length === 0" />
 
@@ -81,8 +89,7 @@
     <template v-if="!loading && conversations.length === 0">
       <NoDataPlaceholder :loading="loading" :permissions="app.permissions" permission="READ_SMS" />
     </template>
-    <div class="sidebar-drag-indicator" @mousedown="resizeWidth"></div>
-  </aside>
+  </Sidebar2>
 </template>
 
 <script setup lang="ts">
@@ -95,31 +102,15 @@ import ConversationSkeletonList from './ConversationSkeletonList.vue'
 const {
   mainStore, app, route, isArchived,
   sortMenuVisible, noMore, conversations, sortedConversations, loading,
-  getConversationDisplayName, resizeWidth,
+  getConversationDisplayName,
   loadMore, openConversation, openSendSms, openExport,
   archiveConversations, unarchiveConversations,
-  total, selectedIds, allChecked, checked, shouldSelect, shiftEffectingIds,
+  total, selectedIds, allChecked, realAllChecked, checked, shouldSelect, shiftEffectingIds,
   toggleAllChecked, toggleSelect, handleItemClick, handleMouseOver,
 } = useMessagesSidebar()
 </script>
 
 <style scoped lang="scss">
-.sidebar2 {
-  position: relative;
-  display: flex;
-  flex-direction: column;
-  height: calc(100vh - var(--pl-top-app-bar-height));
-
-  &.sidebar2-full {
-    flex: 1;
-  }
-}
-
-.scroller .item-link {
-  text-decoration: none;
-  display: block;
-}
-
 :deep(.conversation-item) {
   margin: 0 16px 8px 16px;
   display: grid;

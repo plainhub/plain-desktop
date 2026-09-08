@@ -187,6 +187,8 @@ async fn tokio_sleep(ms: u64) {
     .ok();
 }
 
+/// Must stay async: sync commands run on the main thread, where webview
+/// eval/show/build calls deadlock on Windows (WebView2).
 #[tauri::command]
 pub async fn media_preview_init(app: AppHandle) {
     if let Err(error) = tauri::async_runtime::spawn_blocking(move || init(&app)).await {
@@ -195,12 +197,11 @@ pub async fn media_preview_init(app: AppHandle) {
 }
 
 #[tauri::command]
-pub async fn media_preview_activate(app: AppHandle, source: serde_json::Value) -> String {
-    match tauri::async_runtime::spawn_blocking(move || activate(&app, source)).await {
-        Ok(label) => label,
-        Err(error) => {
-            log::error!("media_preview activation worker failed: {error}");
-            String::new()
-        }
-    }
+pub async fn media_preview_activate(
+    app: AppHandle,
+    source: serde_json::Value,
+) -> Result<String, String> {
+    tauri::async_runtime::spawn_blocking(move || activate(&app, source))
+        .await
+        .map_err(|e| e.to_string())
 }

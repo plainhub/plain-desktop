@@ -171,17 +171,7 @@ impl FileUploadMutation {
                 }
                 target.clone()
             } else if target.exists() {
-                let stem = target
-                    .file_stem()
-                    .and_then(|s| s.to_str())
-                    .unwrap_or("file")
-                    .to_string();
-                let ext = target
-                    .extension()
-                    .and_then(|s| s.to_str())
-                    .unwrap_or("")
-                    .to_string();
-                unique_sibling(&target, &stem, &ext)
+                plain_rs::utils::unique_path::unique_sibling(&target)
             } else {
                 target.clone()
             };
@@ -231,19 +221,4 @@ fn merge_chunks_to(
     }
     out_f.flush().map_err(|e| respond(format!("merge flush: {e}")))?;
     Ok(())
-}
-
-fn unique_sibling(target: &std::path::Path, stem: &str, ext: &str) -> PathBuf {
-    let parent = target.parent().unwrap_or_else(|| std::path::Path::new(""));
-    for n in 1..10000 {
-        let candidate = if ext.is_empty() {
-            parent.join(format!("{stem}_{n}"))
-        } else {
-            parent.join(format!("{stem}_{n}.{ext}"))
-        };
-        if !candidate.exists() {
-            return candidate;
-        }
-    }
-    target.to_path_buf()
 }

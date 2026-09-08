@@ -22,6 +22,7 @@ import { loginPeers, peerHost } from '@/lib/device/login-peers'
 import { getRemoteClientId } from '@/lib/device/client-id'
 import { isLocalMode } from '@/lib/device/local-mode'
 import { useChatStore } from '@/stores/chat'
+import { startLocalPeerData } from '@/lib/peer/local-peer-data'
 import { useDeviceDiscovery } from './hooks/use-device-discovery'
 import { useTempStore } from '@/stores/temp'
 import { storeToRefs } from 'pinia'
@@ -36,6 +37,10 @@ useDeviceDiscovery()
 // after the user navigates to the chat page. Without this, invites
 // arriving while the user is on another page would be dropped silently.
 useChatStore()
+// Resident local-mode peer data (notification aggregation today, clipboard
+// later): per-peer fetch + WS for the whole app lifetime, independent of
+// whether a panel is open.
+if (isLocalMode()) startLocalPeerData()
 const { app } = storeToRefs(useTempStore())
 
 function onKeydown(e: KeyboardEvent) {

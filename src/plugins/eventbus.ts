@@ -59,6 +59,7 @@ type Events = {
   nearby_discovery_started: undefined
   nearby_discovery_stopped: { reason?: string } | undefined
   image_editor_update: ArrayBuffer
+  peer_ws_event: { peerId: string, type: number, data: any }
 }
 
 type Handler<T = any> = (event: T) => void

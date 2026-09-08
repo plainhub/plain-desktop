@@ -11,7 +11,7 @@
       <v-checkbox v-else class="checkbox" touch-target="wrapper" :checked="selectedIds.includes(item.id)" @click.stop="toggleSelect($event, item, index)" />
       <span class="number"><field-id :id="index + 1" :raw="item" /></span>
     </div>
-    <img v-if="item.thumbnailId" class="image" :src="getFileUrl(item.thumbnailId)" width="50" />
+    <img v-if="item.thumbnailId" class="image" :src="getFileUrl(item.thumbnailId)" width="50" loading="lazy" decoding="async" />
     <i-material-symbols:contact-page-outline-rounded v-else class="image" />
     <div class="title">{{ fullName(item) }}</div>
     <div class="subtitle">
@@ -62,7 +62,7 @@
     @checkbox-click="(event: MouseEvent) => toggleSelect(event, item, index)"
   >
     <template #image>
-      <img v-if="item.thumbnailId" class="image" :src="getFileUrl(item.thumbnailId)" width="50" />
+      <img v-if="item.thumbnailId" class="image" :src="getFileUrl(item.thumbnailId)" width="50" loading="lazy" decoding="async" />
       <i-material-symbols:contact-page-outline-rounded v-else class="image" />
     </template>
     

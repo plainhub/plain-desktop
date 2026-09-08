@@ -10,6 +10,7 @@ export default {
   this_device: 'এই ডিভাইস',
   chat_input_hint: 'আপনার মনে কি আছে?',
   forward_message: 'মেসেজ ফরওয়ার্ড করুন',
+  copy_text: 'টেক্সট কপি করুন',
   delete_message: 'মেসেজ মুছুন',
   chat_info: 'চ্যাট তথ্য',
   clear_messages: 'বার্তা মুছুন',

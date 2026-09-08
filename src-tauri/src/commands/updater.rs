@@ -17,7 +17,11 @@ pub struct UpdateCheck {
 #[tauri::command]
 pub async fn check_for_updates(app: tauri::AppHandle) -> Result<UpdateCheck, String> {
     let current = app.package_info().version.to_string();
-    let client = reqwest::Client::new();
+    let client = reqwest::Client::builder()
+        .timeout(std::time::Duration::from_secs(15))
+        .connect_timeout(std::time::Duration::from_secs(10))
+        .build()
+        .map_err(|e| e.to_string())?;
     let resp = client
         .get(RELEASES_URL)
         .header(reqwest::header::USER_AGENT, "PlainApp")
@@ -48,14 +52,6 @@ pub async fn check_for_updates(app: tauri::AppHandle) -> Result<UpdateCheck, Str
             .unwrap_or(GITHUB_REPO)
             .to_string(),
         published_at: json.get("published_at").and_then(|v| v.as_str()).unwrap_or("").to_string(),
-    })
-}
-
-#[tauri::command]
-pub fn get_app_info(app: tauri::AppHandle) -> serde_json::Value {
-    serde_json::json!({
-        "version": app.package_info().version.to_string(),
-        "name": env!("CARGO_PKG_NAME"),
     })
 }
 

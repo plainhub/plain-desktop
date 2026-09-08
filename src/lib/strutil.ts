@@ -138,10 +138,13 @@ export function encodeHTML(html: string) {
   })
 }
 
-export function getSummary(description: string): string {
-  // Define regex to match Markdown image syntax and HTML img tags
+export function getMarkdownTitle(content: string): string {
   const regex = /!\[.*?\]\(.*?\)|!\[.*?\]\[.*?\]|<img.*?>/gi
-
-  // Replace the matched patterns with an image emoji and trim leading whitespace
-  return description.replace(regex, '🖼').replace('\n', '').replace(/^\s*/, '')
+  for (const raw of content.split(/\r?\n/)) {
+    const line = raw.trim()
+    if (line.startsWith('# ')) {
+      return line.substring(2).trim().replace(regex, '🖼')
+    }
+  }
+  return content.replace(regex, '🖼').replace(/\n/g, '').replace(/^\s*/, '').trim().substring(0, 50)
 }

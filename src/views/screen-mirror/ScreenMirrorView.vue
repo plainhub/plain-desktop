@@ -27,6 +27,7 @@
         :is-fullscreen="isFullscreen"
         :muted="muted"
         :audio-supported="audioSupported"
+        :os-version="app.osVersion"
         @stop-service="stopService"
         @set-quality-mode="setQualityMode"
         @take-screenshot="takeScreenshot"

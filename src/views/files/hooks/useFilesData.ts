@@ -2,7 +2,6 @@ import { computed, reactive, ref, type Ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { storeToRefs } from 'pinia'
 import { useMainStore } from '@/stores/main'
-import { useTempStore } from '@/stores/temp'
 import { type IFile, enrichFile } from '@/lib/file'
 import { useSearch } from '@/hooks/files'
 import { filesGQL, initLazyQuery } from '@/lib/api/query'
@@ -14,9 +13,7 @@ import toast from '@/components/toaster'
 export function useFilesData() {
   const { t } = useI18n()
   const mainStore = useMainStore()
-  const tempStore = useTempStore()
   const { fileSortBy } = storeToRefs(mainStore)
-  const { urlTokenKey } = storeToRefs(tempStore)
   const route = useRoute()
   const { parseQ, buildQ } = useSearch()
 
@@ -59,7 +56,7 @@ export function useFilesData() {
         const dirs = mainStore.excludedDirs
         const list: IFile[] = []
         for (const item of data.files) {
-          const f = enrichFile(item, urlTokenKey.value)
+          const f = enrichFile(item)
           if (dirs.length && dirs.some((d) => f.path.startsWith(d))) continue
           list.push(f)
         }

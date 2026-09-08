@@ -1,4 +1,4 @@
-import { ref, watch, onUnmounted, type ComputedRef, type Ref } from 'vue'
+import { ref, shallowRef, watch, onUnmounted, type ComputedRef, type Ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { initQuery, chatItemsGQL } from '@/lib/api/query'
 import { sendChatItemGQL, deleteChatItemGQL, retryChatItemGQL, initMutation } from '@/lib/api/mutation'
@@ -13,7 +13,10 @@ import { normalizeChatItem } from './chat-events'
 export function useChatMessages(chatId: ComputedRef<string>, channelId: ComputedRef<string>) {
   const { t } = useI18n()
   const scrollContainer = ref<HTMLDivElement>()
-  const chatItems = ref<IChatItem[]>([])
+  // shallowRef: items are treated as immutable — every mutation replaces the
+  // array (or the item object) so a full-conversation list never pays deep
+  // reactivity proxy cost.
+  const chatItems = shallowRef<IChatItem[]>([])
   const { cancel: cancelTask } = useTasks()
   const deleteId = ref('')
   let initialized = false
@@ -77,7 +80,7 @@ export function useChatMessages(chatId: ComputedRef<string>, channelId: Computed
     }
     const item = chatItems.value.find((i) => i.id === tempId)
     if (item) {
-      item.status = ChatStatus.FAILED
+      chatItems.value = chatItems.value.map((i) => i.id === tempId ? { ...i, status: ChatStatus.FAILED } : i)
       toast(t('send_failed'), 'error')
     }
   }
@@ -103,7 +106,7 @@ export function useChatMessages(chatId: ComputedRef<string>, channelId: Computed
   async function retryMessage(id: string) {
     const item = chatItems.value.find((i) => i.id === id)
     if (!item) return
-    item.status = ChatStatus.PENDING
+    chatItems.value = chatItems.value.map((i) => i.id === id ? { ...i, status: ChatStatus.PENDING } : i)
     if (id.startsWith('new_')) {
       // Network error: item was never saved on server → resend as new message
       await doSend(id, chatId.value, item.content)
@@ -114,7 +117,7 @@ export function useChatMessages(chatId: ComputedRef<string>, channelId: Computed
         const updated = normalizeChatItem(r.data.retryChatItem)
         chatItems.value = chatItems.value.map((i) => i.id === id ? { ...i, ...updated } : i)
       } else {
-        item.status = ChatStatus.FAILED
+        chatItems.value = chatItems.value.map((i) => i.id === id ? { ...i, status: ChatStatus.FAILED } : i)
       }
     }
   }

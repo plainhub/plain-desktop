@@ -1,8 +1,7 @@
 // TLS certificate management for the local HTTPS server.
-// Uses rcgen to generate a self-signed EC P-256 certificate and persists it to disk.
-// On startup, if cert.pem / key.pem are missing they are auto-generated.
+// Certificate generation/persistence is shared: `plain_rs::tls`. This file
+// only wires the generated PEM into a tokio-rustls acceptor.
 
-use rcgen::{generate_simple_self_signed, CertifiedKey};
 use rustls_pemfile::{certs, private_key};
 use std::io::BufReader;
 use std::path::Path;
@@ -19,35 +18,8 @@ const KEY_FILE: &str = "local_server_key.pem";
 pub fn ensure_cert(dir: &Path) -> std::io::Result<(Vec<u8>, Vec<u8>)> {
     let cert_path = dir.join(CERT_FILE);
     let key_path = dir.join(KEY_FILE);
-
-    if cert_path.exists() && key_path.exists() {
-        let cert_pem = std::fs::read(&cert_path)?;
-        let key_pem = std::fs::read(&key_path)?;
-        log::info!(
-            "local_tls: loaded existing cert from {}",
-            cert_path.display()
-        );
-        return Ok((cert_pem, key_pem));
-    }
-
-    log::info!(
-        "local_tls: generating new self-signed certificate in {}",
-        dir.display()
-    );
-    std::fs::create_dir_all(dir)?;
-
     let subject_alt_names = vec!["localhost".to_string(), "127.0.0.1".to_string()];
-    let CertifiedKey { cert, key_pair } = generate_simple_self_signed(subject_alt_names)
-        .map_err(std::io::Error::other)?;
-
-    let cert_pem = cert.pem().into_bytes();
-    let key_pem = key_pair.serialize_pem().into_bytes();
-
-    std::fs::write(&cert_path, &cert_pem)?;
-    std::fs::write(&key_path, &key_pem)?;
-    log::info!("local_tls: certificate written to {}", dir.display());
-
-    Ok((cert_pem, key_pem))
+    plain_rs::tls::ensure_self_signed_pem(&cert_path, &key_path, &subject_alt_names)
 }
 
 /// Build a `TlsAcceptor` from PEM-encoded cert + key bytes.

@@ -11,6 +11,7 @@
       <ux-overlays />
       <ux-data-display />
       <ux-css-utilities />
+      <ux-markdown-editor />
     </main>
   </div>
 </template>
@@ -22,6 +23,7 @@ import UxFeedback from './UxFeedback.vue'
 import UxOverlays from './UxOverlays.vue'
 import UxDataDisplay from './UxDataDisplay.vue'
 import UxCssUtilities from './UxCssUtilities.vue'
+import UxMarkdownEditor from './UxMarkdownEditor.vue'
 </script>
 
 <style lang="scss" scoped>

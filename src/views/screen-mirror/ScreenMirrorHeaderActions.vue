@@ -7,7 +7,20 @@
           <i-material-symbols:play-arrow-rounded v-if="paused" />
           <i-material-symbols:pause-rounded v-else />
         </v-icon-button>
-        <v-icon-button v-if="audioSupported" v-tooltip="muted ? $t('unmute') : $t('mute')" @click="$emit('toggleMute')">
+        <v-dropdown v-if="!audioAvailable" v-model="audioMenuVisible">
+          <template #trigger>
+            <button class="btn-icon" disabled>
+              <i-material-symbols:volume-off-rounded />
+            </button>
+          </template>
+          <div class="warning-dropdown">
+            <div class="warning-content">
+              <i-material-symbols:error-outline-rounded />
+              <div class="warning-text">{{ $t('mirror_audio_not_supported') }}</div>
+            </div>
+          </div>
+        </v-dropdown>
+        <v-icon-button v-else v-tooltip="muted ? $t('unmute') : $t('mute')" @click="$emit('toggleMute')">
           <i-material-symbols:volume-off-rounded v-if="muted" />
           <i-material-symbols:volume-up-rounded v-else />
         </v-icon-button>
@@ -70,12 +83,14 @@
 </template>
 
 <script setup lang="ts">
-import { ref } from 'vue'
+import { computed, ref } from 'vue'
 import { openModal } from '@/components/modal'
 import KeyboardShortcutsModal from '@/components/KeyboardShortcutsModal.vue'
 import { AppChannelType } from '@/lib/status'
+import { FEATURE } from '@/lib/data'
+import { hasFeature } from '@/lib/feature'
 
-defineProps<{
+const props = defineProps<{
   mirroring: boolean
   idle: boolean
   showLoading: boolean
@@ -90,7 +105,11 @@ defineProps<{
   isFullscreen: boolean
   muted: boolean
   audioSupported: boolean
+  osVersion: number
 }>()
+
+const audioAvailable = computed(() => props.audioSupported && hasFeature(FEATURE.MIRROR_AUDIO, props.osVersion))
+const audioMenuVisible = ref(false)
 
 const emit = defineEmits<{
   (e: 'stopService'): void
@@ -130,6 +149,10 @@ const mirrorShortcuts = [
 .action-group {
   display: flex; align-items: center; gap: 4px; padding-inline-end: 8px;
   border-inline-end: 1px solid color-mix(in srgb, var(--md-sys-color-on-surface) 12%, transparent);
+}
+.btn-icon:disabled {
+  pointer-events: none;
+  opacity: 0.38;
 }
 .btn-recording {
   display: inline-flex; align-items: center; gap: 6px; padding: 4px 10px;

@@ -10,6 +10,7 @@ export default {
   this_device: 'இந்தச் சாதனம்',
   chat_input_hint: 'உங்கள் உள்ளம் என்ன?',
   forward_message: 'செய்தியை முன்னோக்கி அனுப்பு',
+  copy_text: 'உரையை நகலெடு',
   delete_message: 'செய்தி நீக்கு',
   chat_info: 'சாட் தகவல்',
   clear_messages: 'செய்திகளை அழி',

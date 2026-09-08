@@ -10,6 +10,7 @@ export default {
   this_device: 'このデバイス',
   chat_input_hint: '何を考えていますか？',
   forward_message: 'メッセージを転送',
+  copy_text: 'テキストをコピー',
   delete_message: 'メッセージを削除',
   chat_info: 'チャット情報',
   clear_messages: 'メッセージを削除',

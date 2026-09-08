@@ -170,8 +170,14 @@ async fn handle(stream: TcpStream, http: reqwest::Client) {
         let mut builder = http.request(req_method, &url);
         for (k, v) in &req_headers {
             match k.as_str() {
-                // Strip hop-by-hop and proxy-internal headers.
-                "host" | "connection" | "transfer-encoding" | "x-proxy-target" => continue,
+                // Strip hop-by-hop and proxy-internal headers. `origin` must
+                // go too: the device's CORS gate 403s cross-origin browser
+                // requests (release builds only allow any host when the user
+                // opts in), while Rust-client requests without Origin pass —
+                // the proxy is the device's trusted agent, not a web page.
+                "host" | "connection" | "transfer-encoding" | "x-proxy-target" | "origin" => {
+                    continue
+                }
                 _ => {
                     if let (Ok(name), Ok(val)) = (
                         reqwest::header::HeaderName::from_bytes(k.as_bytes()),

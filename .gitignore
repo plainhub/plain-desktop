@@ -35,7 +35,7 @@ scripts/i18n-translated.json
 .opencode/tmp/
 # Vitest Browser Mode artifacts
 .vitest-attachments/
-tests/lib/**/__screenshots__/
+tests/**/__screenshots__/
 .harness/
 # Local plain-rs path patch (sibling checkout); committed builds use the git dep
 .cargo/config.toml
@@ -46,3 +46,4 @@ DONE.md
 TODO.md
 .workbuddy
 .trae
+.ai

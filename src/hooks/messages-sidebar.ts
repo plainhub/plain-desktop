@@ -5,7 +5,6 @@ import { useMainStore } from '@/stores/main'
 import { useTempStore } from '@/stores/temp'
 import { useSmsStore } from '@/stores/sms'
 import type { IMessageConversation } from '@/lib/interfaces'
-import { useLeftSidebarResize } from '@/hooks/sidebar'
 import { storeToRefs } from 'pinia'
 import { openModal } from '@/components/modal'
 import SendSmsModal from '@/views/messages/SendSmsModal.vue'
@@ -51,12 +50,6 @@ export function useMessagesSidebar() {
         return list.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
     }
   })
-
-  const { resizeWidth } = useLeftSidebarResize(
-    300,
-    () => mainStore.sidebar2Width,
-    (width: number) => { mainStore.sidebar2Width = width },
-  )
 
   const selectable = useSelectable(sortedConversations as unknown as Ref<IData[]>)
 
@@ -137,7 +130,7 @@ export function useMessagesSidebar() {
   return {
     mainStore, app, route, isArchived,
     sortMenuVisible, noMore, conversations, sortedConversations, loading,
-    getConversationDisplayName, resizeWidth,
+    getConversationDisplayName,
     loadMore, openConversation, openSendSms, openExport,
     archiveConversations, unarchiveConversations,
     ...selectable,

@@ -3,7 +3,7 @@ export default {
   release_to_send_files: 'கைவிட்டு கோப்பு அனுப்பு',
   storage: 'சேமிப்பு',
   files: 'கோப்புகள்',
-  storage_free_total: '{இலவச} இலவசமாக உள்ளது {மொத்தம்}',
+  storage_free_total: '{free} இலவசமாக உள்ளது {total}',
   current_path: 'தற்போதைய பாதை',
   select_folder: 'கோப்பகம் தேர்ந்தெடு',
   create_folder: 'கோப்பகம் உருவாக்கு',

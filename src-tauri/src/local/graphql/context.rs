@@ -1,6 +1,6 @@
 //! Shared types, WebSocket event infrastructure, and resolver context.
 
-use plain_rs::{base64_decode, xchacha_encrypt};
+use plain_rs::base64_decode;
 use crate::commands::discover::{NearbyDiscoverManager, PeerStatusManager};
 use crate::local::chat_cacher::ChatCacher;
 use crate::local::db::ChatDb;
@@ -102,12 +102,9 @@ pub fn load_key_cache(
 }
 
 /// Encode a WsEvent for wire: [4-byte i32 BE event_type][xchacha encrypted payload].
+/// Framing comes from the shared plain_rs::ws_frame codec.
 pub fn encode_ws_event(ev: &WsEvent, token: &str) -> Option<Vec<u8>> {
-    let encrypted = xchacha_encrypt(token, ev.payload.as_bytes())?;
-    let mut msg = Vec::with_capacity(4 + encrypted.len());
-    msg.extend_from_slice(&ev.event_type.to_be_bytes());
-    msg.extend_from_slice(&encrypted);
-    Some(msg)
+    plain_rs::ws_frame::encode_with_token(ev.event_type, ev.payload.as_bytes(), token)
 }
 
 /// Serialize all joined channels into the wire format the web client's

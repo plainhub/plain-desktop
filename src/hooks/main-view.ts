@@ -10,6 +10,7 @@ import type { IApp, IMediaItemsActionedEvent } from '@/lib/interfaces'
 import { useRightSidebarResize } from '@/hooks/sidebar'
 import { getMainStateKey } from '@/lib/device/current'
 import { get as prefsGet, set as prefsSet } from '@/lib/prefs'
+import { debounce } from '@/lib/array'
 import { updateLoginPeerName } from '@/lib/device/login-peers'
 import { getRemoteClientId } from '@/lib/device/client-id'
 import { isLocalMode } from '@/lib/device/local-mode'
@@ -53,7 +54,6 @@ export function useMainView() {
   }
 
   function toggleQuick(name: string) {
-    if (localMode && name === 'notification') return
     store.quick = store.quick === name ? '' : name
   }
 
@@ -130,8 +130,14 @@ export function useMainView() {
     store.$state = { ...store.$state, ...localState }
   }
 
-  watch(store.$state, (state) => {
+  // High-frequency mutations (e.g. chatTexts keystrokes) must not serialize
+  // the whole store and hit the prefs backend on every change — coalesce them.
+  const persistState = debounce((state: typeof store.$state) => {
     prefsSet(getMainStateKey(), state)
+  }, 500)
+
+  watch(store.$state, (state) => {
+    persistState(state)
     currentPath.value = router.currentRoute.value.fullPath
   }, { deep: true })
 

@@ -35,6 +35,7 @@
 </template>
 
 <script setup lang="ts">
+import type { InitResult } from '@/lib/api/init'
 import { useLogin } from './login'
 
 type InitOptions = {
@@ -54,15 +55,15 @@ const emit = defineEmits<{
 
 const {
   showError, webAccessDisabled, showConfirm, error, showPasswordInput,
-  password, passwordError, isSubmitting, onSubmit, cancel, t, initRequest,
+  password, passwordError, isSubmitting, onSubmit, cancel, t, applyInitResult,
 } = useLogin({
   redirectOnSuccess: props.redirectOnSuccess,
   onSuccess: async () => emit('success'),
 })
 
-async function init(options: InitOptions = {}) {
-  await initRequest()
-  if (options.autoSubmitWhenNoPassword && !showPasswordInput.value) {
+async function init(result: InitResult, options: InitOptions = {}) {
+  const authenticated = applyInitResult(result)
+  if (!authenticated && options.autoSubmitWhenNoPassword && !showPasswordInput.value) {
     await onSubmit()
   }
 }

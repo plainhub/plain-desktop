@@ -1,5 +1,6 @@
 /// <reference types="vitest" />
 import { defineConfig, loadEnv } from 'vite'
+import { readFileSync } from 'fs'
 import vue from '@vitejs/plugin-vue'
 import path from 'path'
 import Icons from 'unplugin-icons/vite'
@@ -7,6 +8,7 @@ import IconsResolver from 'unplugin-icons/resolver'
 import Components from 'unplugin-vue-components/vite'
 import svgLoader from 'vite-svg-loader'
 import vueJsx from '@vitejs/plugin-vue-jsx'
+import VueI18nPlugin from '@intlify/unplugin-vue-i18n/vite'
 import { playwright } from '@vitest/browser-playwright'
 import { isTauriBuildMode } from './build-support/app-mode'
 
@@ -26,6 +28,22 @@ export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, process.cwd(), '')
   const apiHost = env.VITE_APP_API_HOST || ''
   const isTauriMode = isTauriBuildMode(mode, process.env.VITE_APP_MODE)
+  const isTauri = JSON.stringify(isTauriMode)
+  const appVersion = (JSON.parse(readFileSync(new URL('./src-tauri/tauri.conf.json', import.meta.url), 'utf-8')) as { version: string }).version
+
+  const sharedDefine = {
+    'process.env': {},
+    __VUE_I18N_FULL_INSTALL__: true,
+    __VUE_I18N_LEGACY_API__: false,
+    __INTLIFY_PROD_DEVTOOLS__: false,
+    __IS_TAURI__: isTauri,
+    __APP_VERSION__: JSON.stringify(appVersion),
+  }
+
+  const testDefine = {
+    __IS_TAURI__: isTauri,
+    __APP_VERSION__: JSON.stringify(appVersion),
+  }
 
   return {
   css: {
@@ -130,14 +148,19 @@ export default defineConfig(({ mode }) => {
       dirs: ['src/components', 'src/views'],
     }),
     Icons(),
+    // Pre-compile locale messages at build time so the production bundle can
+    // use the runtime-only vue-i18n build (drops @intlify/message-compiler
+    // from the entry chunk). `timeago.ts` stays raw — lib/timeago reads it
+    // as plain strings; `index.ts` composes the feature modules at runtime
+    // and needs no compilation itself. Test projects don't inherit this
+    // plugin, so vitest keeps runtime compilation.
+    VueI18nPlugin({
+      include: [path.resolve(__dirname, './src/locales/**/*.ts')],
+      exclude: ['**/timeago.ts', '**/locales/**/index.ts'],
+      runtimeOnly: true,
+    }),
   ],
-  define: {
-    'process.env': {},
-    __VUE_I18N_FULL_INSTALL__: true,
-    __VUE_I18N_LEGACY_API__: false,
-    __INTLIFY_PROD_DEVTOOLS__: false,
-    __IS_TAURI__: JSON.stringify(isTauriMode),
-  },
+  define: sharedDefine,
   resolve: {
     alias: {
       '@': path.resolve(__dirname, 'src'),
@@ -180,8 +203,10 @@ export default defineConfig(({ mode }) => {
             '@': path.resolve(__dirname, 'src'),
           },
         },
-        define: {
-          __IS_TAURI__: JSON.stringify(isTauriMode),
+        define: { ...testDefine },
+        optimizeDeps: {
+          include: ['@tauri-apps/plugin-dialog', '@tauri-apps/plugin-fs'],
+          exclude: ['vue-i18n'],
         },
         test: {
           name: 'unit',
@@ -209,9 +234,7 @@ export default defineConfig(({ mode }) => {
             '@': path.resolve(__dirname, 'src'),
           },
         },
-        define: {
-          __IS_TAURI__: JSON.stringify(isTauriMode),
-        },
+        define: { ...testDefine },
         test: {
           name: 'cws',
           include: ['tests/lib/cross-window-store.test.ts'],
@@ -228,9 +251,7 @@ export default defineConfig(({ mode }) => {
             '@': path.resolve(__dirname, 'src'),
           },
         },
-        define: {
-          __IS_TAURI__: JSON.stringify(isTauriMode),
-        },
+        define: { ...testDefine },
         test: {
           name: 'integration',
           include: ['tests/integration/**/*.test.ts'],

@@ -1,4 +1,4 @@
-import { getFileId, getFileName, getFileExtension } from './api/file'
+import { getFileId, getFileName, getFileExtension, getFileUrl } from './api/file'
 import type { IData } from './interfaces'
 
 const photoExtensions = ['.jpg', '.png', '.jpeg', '.bmp', '.webp', '.heic', '.heif', '.apng', '.avif', '.gif', '.tiff', '.tif', '.svg']
@@ -184,17 +184,27 @@ export function getDirFromPath(path: string) {
   return index === -1 ? '' : path.substring(0, index)
 }
 
-export function enrichFile(item: IFile, urlTokenKey: Uint8Array | null) {
+export function enrichFile(item: IFile) {
   const name = getFileName(item.path.replace(/\/+$/, ''))
   const extension = item.isDir ? '' : getFileExtension(name)
-  const hasFileId = !item.isDir && (isImage(name) || isVideo(name))
   return {
     ...item,
     id: item.path,
     name,
-    fileId: hasFileId ? getFileId(urlTokenKey, item.path) : '',
+    fileId: '',
     extension,
   }
+}
+
+/**
+ * Compute a file's thumbnail URL on demand. enrichFile deliberately leaves
+ * fileId empty so listing a large directory does not run thousands of ChaCha
+ * encryptions up front — only the rows actually rendered pay the cost
+ * (getFileId caches per path in window.fileIdMap).
+ */
+export function fileThumbUrl(urlTokenKey: Uint8Array | null, item: Pick<IFile, 'path' | 'name' | 'isDir'>): string {
+  if (item.isDir || !(isImage(item.name) || isVideo(item.name))) return ''
+  return getFileUrl(getFileId(urlTokenKey, item.path), '&w=50&h=50')
 }
 
 export const ZIP_SEPARATOR = '!zip!/'

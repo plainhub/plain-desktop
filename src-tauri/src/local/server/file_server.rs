@@ -8,7 +8,7 @@ use super::uri::{parse_decrypted_id, resolve_uri};
 use plain_rs::xchacha_decrypt;
 use plain_rs::base64_decode;
 use plain_rs::mime::mime_from_ext;
-use plain_rs::query::{parse_query, url_encode};
+use plain_rs::query::parse_query;
 
 /// Serve a file via the local server's `/fs` endpoint.
 ///
@@ -121,21 +121,21 @@ pub(super) async fn serve_file<W: AsyncWrite + Unpin>(
     };
     let mime = mime_from_ext(&display_name);
     let is_download = params.get("dl").map(|s| s.as_str()) == Some("1");
-    let encoded_name = url_encode(&display_name);
     let disposition_kind = if is_download { "attachment" } else { "inline" };
-    let disposition = format!(
-        "{disposition_kind}; filename=\"{encoded_name}\"; filename*=utf-8''{encoded_name}"
-    );
+    let disposition =
+        plain_rs::utils::http::content_disposition(disposition_kind, &display_name);
 
     // 8. HTTP `Range` header (RFC 7233). Browsers use this for media
     //    seeking; plain-app gets it implicitly via Ktor's `respondFile`,
     //    the local server has to handle it explicitly. Only single-range
     //    requests are honored; multi-range falls through to a full 200.
     if !range_header.is_empty()
-        && let Some((start, end)) = parse_range_header(range_header, file_size) {
-            serve_partial(wr, &resolved, start, end, file_size, mime, &disposition).await;
-            return;
-        }
+        && let Some((start, end)) =
+            plain_rs::utils::http::parse_range_header(range_header, file_size)
+    {
+        serve_partial(wr, &resolved, start, end, file_size, mime, &disposition).await;
+        return;
+    }
 
     // 9. Full response (200) with `accept-ranges: bytes` so clients know
     //    they can issue `Range` requests on subsequent calls.
@@ -250,101 +250,15 @@ async fn stream_file<W: AsyncWrite + Unpin>(
     let _ = wr.flush().await;
 }
 
-/// Parse an HTTP `Range: bytes=…` header for a single byte range.
-/// Returns `(start, end_inclusive)` or `None` if the header is
-/// absent, unsupported, or out of bounds.
-///
-/// Supported forms (RFC 7233 §2.1):
-///   * `bytes=0-499`   → first 500 bytes
-///   * `bytes=500-`    → from byte 500 to end
-///   * `bytes=-500`    → last 500 bytes
-///
-/// Multi-range requests (`bytes=0-10,20-30`) are not supported — the
-/// first range is served and the rest ignored, which keeps downloads
-/// working without the multipart/byteranges dance.
-fn parse_range_header(range: &str, file_size: u64) -> Option<(u64, u64)> {
-    let spec = range.strip_prefix("bytes=")?;
-    let spec = spec.split(',').next()?.trim();
-    let (start_s, end_s) = spec.split_once('-')?;
-    let start_s = start_s.trim();
-    let end_s = end_s.trim();
-    if file_size == 0 {
-        return None;
-    }
-    let (start, end) = match (start_s.is_empty(), end_s.is_empty()) {
-        (false, false) => {
-            let start: u64 = start_s.parse().ok()?;
-            let end: u64 = end_s.parse().ok()?;
-            if start > end || start >= file_size {
-                return None;
-            }
-            (start, end.min(file_size - 1))
-        }
-        (false, true) => {
-            let start: u64 = start_s.parse().ok()?;
-            if start >= file_size {
-                return None;
-            }
-            (start, file_size - 1)
-        }
-        (true, false) => {
-            let n: u64 = end_s.parse().ok()?;
-            if n == 0 {
-                return None;
-            }
-            let start = file_size.saturating_sub(n);
-            (start, file_size - 1)
-        }
-        (true, true) => return None,
-    };
-    Some((start, end))
-}
 
 #[cfg(test)]
 mod tests {
     use super::*;
 
-    #[test]
-    fn parse_range_start_end() {
-        assert_eq!(parse_range_header("bytes=0-499", 1000), Some((0, 499)));
-        assert_eq!(parse_range_header("bytes=100-199", 1000), Some((100, 199)));
-    }
 
-    #[test]
-    fn parse_range_open_end() {
-        assert_eq!(parse_range_header("bytes=500-", 1000), Some((500, 999)));
-    }
 
-    #[test]
-    fn parse_range_suffix() {
-        assert_eq!(parse_range_header("bytes=-500", 1000), Some((500, 999)));
-        assert_eq!(parse_range_header("bytes=-2000", 1000), Some((0, 999)));
-    }
 
-    #[test]
-    fn parse_range_clamps_end_to_file_size() {
-        assert_eq!(parse_range_header("bytes=900-2000", 1000), Some((900, 999)));
-    }
 
-    #[test]
-    fn parse_range_rejects_out_of_bounds_start() {
-        assert_eq!(parse_range_header("bytes=1000-", 1000), None);
-        assert_eq!(parse_range_header("bytes=2000-3000", 1000), None);
-    }
 
-    #[test]
-    fn parse_range_rejects_invalid_input() {
-        assert_eq!(parse_range_header("", 1000), None);
-        assert_eq!(parse_range_header("items=0-10", 1000), None);
-        assert_eq!(parse_range_header("bytes=abc-def", 1000), None);
-        assert_eq!(parse_range_header("bytes=-", 1000), None);
-        assert_eq!(parse_range_header("bytes=-0", 1000), None);
-        assert_eq!(parse_range_header("bytes=5-2", 1000), None);
-        assert_eq!(parse_range_header("bytes=0-10", 0), None);
-    }
 
-    #[test]
-    fn parse_range_multi_range_serves_first() {
-        assert_eq!(parse_range_header("bytes=0-10,20-30", 1000), Some((0, 10)));
-    }
 }

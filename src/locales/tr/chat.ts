@@ -10,6 +10,7 @@ export default {
   this_device: 'Bu cihaz',
   chat_input_hint: 'Aklınızda ne var?',
   forward_message: 'Mesajı ilet',
+  copy_text: 'Metni kopyala',
   delete_message: 'Mesajı sil',
   chat_info: 'Sohbet Bilgisi',
   clear_messages: 'Mesajları Temizle',

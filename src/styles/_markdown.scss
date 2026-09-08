@@ -3,6 +3,15 @@
 // Used by: Notes, Feeds, TextFile, MarkdownPreviewView
 
 .md-container {
+  // Code token colors — emitted as .md-tok-* spans by lib/md-code-highlight.ts,
+  // consumed by both this preview sheet and the CM editor's HighlightStyle
+  --md-code-comment: #6e7781;
+  --md-code-string: #0a3069;
+  --md-code-keyword: #cf222e;
+  --md-code-function: #8250df;
+  --md-code-constant: #0550ae;
+  --md-code-type: #116329;
+
   padding-bottom: 32px;
   font-size: 16px;
   line-height: 1.75;
@@ -209,7 +218,6 @@
       background: transparent;
       border: 0;
       font-size: 100%;
-      color: inherit;
       white-space: pre;
     }
   }
@@ -475,31 +483,12 @@
   }
 
   // Syntax highlighting tokens - Light mode
-  .pl-c { color: #6e7781; }
-  .pl-c1, .pl-s .pl-v { color: #0550ae; }
-  .pl-e, .pl-en { color: #8250df; }
-  .pl-smi, .pl-s .pl-s1 { color: #24292f; }
-  .pl-ent { color: #116329; }
-  .pl-k { color: #cf222e; }
-  .pl-s, .pl-pds, .pl-s .pl-pse .pl-s1, .pl-sr,
-  .pl-sr .pl-cce, .pl-sr .pl-sre, .pl-sr .pl-sra { color: #0a3069; }
-  .pl-v, .pl-smw { color: #953800; }
-  .pl-bu { color: #82071e; }
-  .pl-ii { color: #f6f8fa; background-color: #82071e; }
-  .pl-c2 { color: #f6f8fa; background-color: #cf222e; }
-  .pl-sr .pl-cce { font-weight: bold; color: #116329; }
-  .pl-ml { color: #3b2300; }
-  .pl-mh, .pl-mh .pl-en, .pl-ms { font-weight: bold; color: #0550ae; }
-  .pl-mi { font-style: italic; color: #24292f; }
-  .pl-mb { font-weight: bold; color: #24292f; }
-  .pl-md { color: #82071e; background-color: #ffebe9; }
-  .pl-mi1 { color: #116329; background-color: #dafbe1; }
-  .pl-mc { color: #953800; background-color: #ffd8b5; }
-  .pl-mi2 { color: #eaeef2; background-color: #0550ae; }
-  .pl-mdr { font-weight: bold; color: #8250df; }
-  .pl-ba { color: #57606a; }
-  .pl-sg { color: #8c959f; }
-  .pl-corl { text-decoration: underline; color: #0a3069; }
+  .md-tok-comment, .md-tok-meta { color: var(--md-code-comment); }
+  .md-tok-string { color: var(--md-code-string); }
+  .md-tok-keyword { color: var(--md-code-keyword); }
+  .md-tok-function { color: var(--md-code-function); }
+  .md-tok-constant { color: var(--md-code-constant); }
+  .md-tok-type { color: var(--md-code-type); }
 }
 
 // ===== Dark Mode =====
@@ -538,29 +527,144 @@
     }
 
     // Syntax highlighting tokens - Dark mode
-    .pl-c { color: #8b949e; }
-    .pl-c1, .pl-s .pl-v { color: #79c0ff; }
-    .pl-e, .pl-en { color: #d2a8ff; }
-    .pl-smi, .pl-s .pl-s1 { color: #c9d1d9; }
-    .pl-ent { color: #7ee787; }
-    .pl-k { color: #ff7b72; }
-    .pl-s, .pl-pds, .pl-s .pl-pse .pl-s1, .pl-sr,
-    .pl-sr .pl-cce, .pl-sr .pl-sre, .pl-sr .pl-sra { color: #a5d6ff; }
-    .pl-v, .pl-smw { color: #ffa657; }
-    .pl-bu { color: #f85149; }
-    .pl-ii { color: #f0f6fc; background-color: #8e1519; }
-    .pl-c2 { color: #f0f6fc; background-color: #b62324; }
-    .pl-sr .pl-cce { font-weight: bold; color: #7ee787; }
-    .pl-mh, .pl-mh .pl-en, .pl-ms { color: #1f6feb; }
-    .pl-mi { color: #c9d1d9; }
-    .pl-mb { font-weight: bold; color: #c9d1d9; }
-    .pl-md { color: #ffdcd7; background-color: #67060c; }
-    .pl-mi1 { color: #aff5b4; background-color: #033a16; }
-    .pl-mc { color: #ffdfb6; background-color: #5a1e02; }
-    .pl-mi2 { color: #c9d1d9; background-color: #1158c7; }
-    .pl-mdr { color: #d2a8ff; }
-    .pl-ba { color: #8b949e; }
-    .pl-sg { color: #484f58; }
-    .pl-corl { color: #a5d6ff; }
+    --md-code-comment: #8b949e;
+    --md-code-string: #a5d6ff;
+    --md-code-keyword: #ff7b72;
+    --md-code-function: #d2a8ff;
+    --md-code-constant: #79c0ff;
+    --md-code-type: #7ee787;
+  }
+}
+
+// ===== Live Preview (editor widgets) =====
+// The CodeMirror editor renders the same markdown elements via cm-md-* widgets.
+// These selectors share the theme rules above so edit view and view mode stay
+// visually identical. Structural rules (collapse lines, flex rows) live in the
+// component; only visual tokens live here.
+
+.md-container {
+  // Editor code block shares the pre theme
+  .cm-md-codeblock-line {
+    font-family: ui-monospace, SFMono-Regular, SF Mono, Menlo, Consolas, Liberation Mono, monospace;
+    font-size: 14px;
+    line-height: 1.5;
+    background: #f6f8fa;
+    padding: 0 16px;
+  }
+
+  .cm-md-codeblock-first-code {
+    padding-top: 10px;
+  }
+
+  .cm-md-codeblock-last {
+    padding-bottom: 16px;
+    border-radius: 0 0 8px 8px;
+  }
+
+  .cm-md-codeblock-head-line {
+    background: #f6f8fa;
+    border-radius: 8px 8px 0 0;
+    padding: 6px 8px 4px 16px;
+  }
+
+  .cm-md-codeblock-lang {
+    font-family: ui-monospace, SFMono-Regular, SF Mono, Menlo, Consolas, Liberation Mono, monospace;
+    font-size: 11px;
+    letter-spacing: 0.4px;
+    color: var(--md-sys-color-on-surface-variant);
+  }
+
+  .cm-md-codeblock-copy {
+    color: var(--md-sys-color-on-surface-variant);
+
+    &:hover {
+      background: color-mix(in srgb, var(--md-sys-color-on-surface) 6%, transparent);
+      color: var(--md-sys-color-on-surface);
+    }
+  }
+
+  // Editor inline code shares the code theme
+  .cm-md-code-inline {
+    font-family: ui-monospace, SFMono-Regular, SF Mono, Menlo, Consolas, Liberation Mono, monospace;
+    font-size: 0.9em;
+    padding: 2px 5px;
+    border-radius: 4px;
+    background: color-mix(in srgb, var(--md-sys-color-on-surface) 6%, transparent);
+  }
+
+  // Editor headings share preview heading scale
+  .cm-md-h1 { font-size: 32px; font-weight: 700; }
+  .cm-md-h2 { font-size: 24px; font-weight: 650; }
+  .cm-md-h3 { font-size: 20px; font-weight: 600; }
+  .cm-md-h4 { font-size: 17px; font-weight: 600; }
+  .cm-md-h5, .cm-md-h6 { font-size: 14px; font-weight: 600; color: var(--md-sys-color-on-surface-variant); }
+  .cm-md-h1, .cm-md-h2, .cm-md-h3, .cm-md-h4, .cm-md-h5, .cm-md-h6 { text-decoration: none; }
+
+  // Editor lists share preview list indentation
+  .cm-md-list-line { position: relative; }
+  @for $d from 1 through 4 {
+    .cm-md-ul-d#{$d}, .cm-md-task-d#{$d}, .cm-md-ol-d#{$d} { padding-left: 1.5em * $d; }
+  }
+  [class*='cm-md-ul-d']::before {
+    content: '\2022';
+    position: absolute;
+    left: 0.55em;
+    color: var(--md-sys-color-on-surface);
+  }
+
+  // Editor blockquote shares the quote theme
+  .cm-md-quote-line {
+    border-left: 3px solid var(--md-sys-color-primary);
+    background: color-mix(in srgb, var(--md-sys-color-on-surface) 3%, transparent);
+    color: var(--md-sys-color-on-surface-variant);
+    padding-left: 16px;
+    padding-right: 16px;
+  }
+
+  .cm-md-quote-first { border-radius: 4px 4px 0 0; padding-top: 12px; }
+  .cm-md-quote-last { border-radius: 0 0 4px 4px; padding-bottom: 12px; }
+
+  // Editor horizontal rule shares the hr theme
+  .cm-md-hr-line { padding: 24px 0; }
+  .cm-md-hr {
+    display: block;
+    border-top: 1px solid var(--md-sys-color-outline-variant);
+  }
+
+  // Editor table shares the table theme
+  .cm-md-table-line { padding: 0 0 16px; }
+  .cm-md-table table {
+    border-spacing: 0;
+    border-collapse: collapse;
+    width: max-content;
+    max-width: 100%;
+    border-radius: 8px;
+
+    th {
+      font-weight: 600;
+      background: color-mix(in srgb, var(--md-sys-color-on-surface) 3%, transparent);
+    }
+
+    th,
+    td {
+      padding: 8px 13px;
+      border: 1px solid var(--md-sys-color-outline-variant);
+    }
+  }
+
+  // Editor rendered image shares the img theme
+  .cm-md-img img {
+    max-width: 100%;
+    border-radius: 8px;
+  }
+}
+
+:root.dark {
+  .md-container {
+    .cm-md-codeblock-line,
+    .cm-md-codeblock-head-line,
+    .cm-md-codeblock-head {
+      background: #0d1117;
+    }
   }
 }

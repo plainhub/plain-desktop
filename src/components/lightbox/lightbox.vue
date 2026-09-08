@@ -6,6 +6,7 @@
           :current="current"
           :popup="popup"
           :read-only="readOnly"
+          :transcoded="current?.transcoded"
           :image-quality="imageViewQuality"
           @close="closeDialog"
           @zoom-in="zoomIn"
@@ -32,7 +33,7 @@
             {{ $t('load_failed', { name: current?.name }) }}
           </div>
           <div v-if="current && isVideo(current.name)" v-show="!status.loading && !status.loadError" class="v-video-wrapper" @click.self="onBackdropClick">
-            <video ref="video" controls autoplay="true" :src="current.src" @error="onError" @canplay="onLoad" @playing="onPlaying" @pause="onPause" @volumechange="onVolumeChange" />
+            <video ref="video" controls autoplay="true" :src="current.playbackUrl || current.src" @error="onError" @canplay="onLoad" @playing="onPlaying" @pause="onPause" @volumechange="onVolumeChange" />
           </div>
           <div v-else-if="current && isAudio(current.name)" v-show="!status.loading && !status.loadError" class="v-audio-wrapper" @click.self="onBackdropClick">
             <div style="padding: 50px">

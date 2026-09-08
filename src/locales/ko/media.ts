@@ -1,4 +1,6 @@
 export default {
+  video_transcode_tip: '이 브라우저는 HEVC (H.265)를 디코딩할 수 없어 H.264로 변환된 스트림으로 재생합니다. 화질이 저하될 수 있으며 첫 로딩이 오래 걸릴 수 있습니다.',
+  video_transcode_help: '원본 화질로 재생하는 방법 →',
   audio_player: '오디오 플레이어',
   music: '음악',
   videos: '비디오',

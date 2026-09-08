@@ -358,10 +358,11 @@ export interface IMediaItemsActionedEvent {
   query: string
   id?: string
 }
-// deleted, trashed, restored
+// deleted, trashed, restored, saved
 export interface INotesActionedEvent {
   action: string
   id?: string
+  note?: INote
 }
 
 export interface IFileDeletedEvent {

@@ -76,7 +76,7 @@ class ChatCacher {
     const { peerIds, channelIds } = this.collectIds()
     const chatId = mapChatId(item, peerIds, channelIds)
     if (!chatId) return
-    this.latestChatMap.value = { ...this.latestChatMap.value, [chatId]: item }
+    this.latestChatMap.value[chatId] = item
   }
 
   updateLatestIfPresent(item: IChatItem): boolean {
@@ -84,7 +84,7 @@ class ChatCacher {
     const chatId = mapChatId(item, peerIds, channelIds)
     if (!chatId) return false
     if (this.latestChatMap.value[chatId]?.id !== item.id) return false
-    this.latestChatMap.value = { ...this.latestChatMap.value, [chatId]: item }
+    this.latestChatMap.value[chatId] = item
     return true
   }
 

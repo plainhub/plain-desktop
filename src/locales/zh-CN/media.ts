@@ -1,4 +1,6 @@
 export default {
+  video_transcode_tip: '当前浏览器不支持 HEVC (H.265) 解码，正在通过转码后的 H.264 流播放，画质可能下降，首次加载较慢。',
+  video_transcode_help: '如何开启原画质播放 →',
   audio_player: '音频播放器',
   music: '音乐',
   videos: '视频',

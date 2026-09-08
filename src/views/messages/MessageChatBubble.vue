@@ -16,7 +16,7 @@
         <div v-if="item.body" v-html="addLinksToURLs(item.body)"></div>
         <div v-if="item.attachments?.length" class="chat-attachments">
           <template v-for="(att, idx) in item.attachments" :key="`${item.id}-att-${idx}`">
-            <img v-if="att.contentType.startsWith('image/')" class="chat-attachment-image" :src="resolveUrl(att.path)" :alt="att.name || 'mms-image'" />
+            <img v-if="att.contentType.startsWith('image/')" class="chat-attachment-image" :src="resolveUrl(att.path)" :alt="att.name || 'mms-image'" loading="lazy" decoding="async" />
             <video v-else-if="att.contentType.startsWith('video/')" class="chat-attachment-video" :src="resolveUrl(att.path)" controls preload="metadata" />
             <audio v-else-if="att.contentType.startsWith('audio/')" class="chat-attachment-audio" :src="resolveUrl(att.path)" controls preload="metadata" />
             <a v-else class="chat-attachment-link" :href="resolveUrl(att.path)" target="_blank" rel="noopener noreferrer">
