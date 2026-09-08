@@ -1,15 +1,17 @@
 import type { IUploadItem } from '@/stores/temp'
 import emitter from '@/plugins/eventbus'
-import { arrayBufferToHex } from '../strutil'
+import { sha256 } from '@noble/hashes/sha2.js'
+import { bytesToHex } from '@noble/hashes/utils.js'
 import { getApiBaseUrl, getLocalToken, proxyUrlFor } from '../api/api'
 import { chachaEncrypt, bitArrayToUint8Array } from '../api/crypto'
 import { tokenToKey } from '../api/file'
 import { uploadedChunksGQL } from '../api/query'
-import { mergeChunksGQL, deleteChunksGQL } from '../api/mutation'
+import { mergeChunksGQL, mergeChunksLegacyGQL, deleteChunksGQL } from '../api/mutation'
 import { gqlFetch } from '../api/gql-client'
 import { getCurrentAuthToken } from '../device/current'
 import { get as prefsGet } from '../prefs'
 import { isLocalMode } from '../device/local-mode'
+import { useTempStore } from '@/stores/temp'
 
 const CHUNK_SIZE = 10 * 1024 * 1024 // 10MB — fewer chunks, lower HTTP overhead; per-chunk retry cost acceptable on weak networks
 const PARALLEL_CHUNKS = 3 // Upload 3 chunks in parallel per file
@@ -95,62 +97,54 @@ function initializeUpload(upload: IUploadItem) {
   upload.lastUpdateTime = Date.now()
 }
 
-// Last-ditch non-cryptographic hash used when `crypto.subtle` is
-// unavailable. Mixes byte length with the first 16 bytes of the body
-// and pads to 32 hex chars — enough to disambiguate uploads, not for
-// security. Shared by both fallback branches of `getMD5Hash`.
-function fallbackHash(data: ArrayBuffer): string {
-  const view = new Uint8Array(data)
-  let hash = data.byteLength.toString(16)
-  for (let i = 0; i < Math.min(16, view.length); i++) {
-    hash += view[i].toString(16).padStart(2, '0')
-  }
-  return hash.padEnd(32, '0').substring(0, 32)
-}
-
-export async function getMD5Hash(data: ArrayBuffer) {
-  if (!crypto || !crypto.subtle) {
-    return fallbackHash(data)
-  }
-
-  try {
-    // Since Web Crypto API doesn't support MD5, we'll use SHA-256 as fallback
-    const hashBuffer = await crypto.subtle.digest('SHA-256', data)
-    return arrayBufferToHex(hashBuffer).substring(0, 32) // Use first 32 chars as MD5-like hash
-  } catch (error) {
-    console.warn('Crypto API failed, using fallback hash:', error)
-    return fallbackHash(data)
-  }
-}
-
+// SHA-256 via @noble/hashes is pure JS, so the id is identical on insecure
+// origins (plain HTTP over LAN) where crypto.subtle is undefined. The id only
+// needs to be unique per file, not secret — 32 hex chars give 128 bits.
 export async function generateFileId(file: File) {
+  const meta = new TextEncoder().encode(`${file.name}:${file.size}:${file.lastModified}`)
+  const sample = new Uint8Array(await file.slice(0, Math.min(2 * 1024 * 1024, file.size)).arrayBuffer())
+  const input = new Uint8Array(meta.length + sample.length)
+  input.set(meta, 0)
+  input.set(sample, meta.length)
+  return bytesToHex(sha256(input)).substring(0, 32)
+}
+
+// Uploads sharing a fileId share one server-side chunk directory, and the
+// first merge deletes that directory. Never let two of them run at once.
+const lastRunByFileId = new Map<string, Promise<unknown>>()
+
+async function runExclusively<T>(fileId: string, action: () => Promise<T>): Promise<T> {
+  const previous = lastRunByFileId.get(fileId)
+  const run = (previous ? previous.catch(() => {}) : Promise.resolve()).then(action)
+  lastRunByFileId.set(fileId, run)
   try {
-    const name = file.name
-    const size = file.size
-    const lastModified = file.lastModified
-
-    // Read first 2MB of file content
-    const chunkSize = 2 * 1024 * 1024 // 2MB
-    const chunk = file.slice(0, Math.min(chunkSize, file.size))
-    const chunkBuffer = await chunk.arrayBuffer()
-
-    // Create string to hash
-    const dataToHash = `${name}${size}${lastModified}`
-    const textBuffer = new TextEncoder().encode(dataToHash)
-
-    // Combine text and file content
-    const combined = new Uint8Array(textBuffer.length + chunkBuffer.byteLength)
-    combined.set(new Uint8Array(textBuffer), 0)
-    combined.set(new Uint8Array(chunkBuffer), textBuffer.length)
-
-    return await getMD5Hash(combined.buffer)
-  } catch (error) {
-    console.warn('Failed to generate file ID, using fallback:', error)
-    // Fallback: use file metadata only
-    const fallbackData = `${file.name}${file.size}${file.lastModified}`
-    const textBuffer = new TextEncoder().encode(fallbackData)
-    return await getMD5Hash(textBuffer.buffer as ArrayBuffer)
+    return await run
+  } finally {
+    if (lastRunByFileId.get(fileId) === run) lastRunByFileId.delete(fileId)
   }
+}
+
+// mergeChunks gained a totalSize argument in app 3.3.22. Older servers reject
+// the whole mutation over the unknown argument, so the desktop client must
+// keep sending the legacy shape until the connected app is new enough.
+const MERGE_TOTAL_SIZE_MIN_APP_VERSION = '3.3.22'
+
+function versionAtLeast(actual: string | undefined, minimum: string): boolean {
+  if (!actual) return false
+  const a = actual.split('.').map(Number)
+  const b = minimum.split('.').map(Number)
+  for (let i = 0; i < Math.max(a.length, b.length); i++) {
+    const x = a[i] || 0
+    const y = b[i] || 0
+    if (x !== y) return x > y
+  }
+  return true
+}
+
+function supportsMergeTotalSize(): boolean {
+  // The web portal is served by the app itself, so its server always matches
+  // this bundle; only the standalone desktop client can face an older app.
+  return isLocalMode() || versionAtLeast(useTempStore().app.appVersion, MERGE_TOTAL_SIZE_MIN_APP_VERSION)
 }
 
 export async function upload(upload: IUploadItem, replace: boolean) {
@@ -268,12 +262,17 @@ async function uploadDirect(upload: IUploadItem, replace: boolean, key: Uint8Arr
 }
 
 async function uploadWithChunks(upload: IUploadItem, replace: boolean, key: Uint8Array) {
-  try {
-    // Generate file ID
-    if (!upload.fileId) {
-      upload.fileId = await generateFileId(upload.file)
-    }
+  // Generate file ID
+  if (!upload.fileId) {
+    upload.fileId = await generateFileId(upload.file)
+  }
+  const fileId = upload.fileId
 
+  return runExclusively(fileId, () => uploadChunkedFile(upload, fileId, replace, key))
+}
+
+async function uploadChunkedFile(upload: IUploadItem, fileId: string, replace: boolean, key: Uint8Array) {
+  try {
     if (upload.status === 'paused') {
       return { error: 'Upload paused' }
     }
@@ -282,7 +281,7 @@ async function uploadWithChunks(upload: IUploadItem, replace: boolean, key: Uint
     const totalChunks = Math.ceil(upload.file.size / CHUNK_SIZE)
 
     // Query uploaded chunks with sizes for verification
-    const verifiedChunks = await getUploadedChunks(upload.fileId, upload.file.size, totalChunks)
+    const verifiedChunks = await getUploadedChunks(fileId, upload.file.size, totalChunks)
     if (upload.status === 'paused') {
       return { error: 'Upload paused' }
     }
@@ -394,12 +393,14 @@ async function uploadWithChunks(upload: IUploadItem, replace: boolean, key: Uint
     const baseName = upload.file.name.split('/').pop() || upload.file.name
     const filePath = upload.dir.endsWith('/') ? upload.dir + baseName : upload.dir + '/' + baseName
 
-    const result = await gqlFetch(mergeChunksGQL, {
-      fileId: upload.fileId,
+    const supportsTotalSize = supportsMergeTotalSize()
+    const result = await gqlFetch(supportsTotalSize ? mergeChunksGQL : mergeChunksLegacyGQL, {
+      fileId,
       totalChunks,
       path: filePath,
       replace: replace,
       isAppFile: upload.isAppFile ?? false,
+      ...(supportsTotalSize ? { totalSize: upload.file.size } : {}),
     })
 
     if (result?.data?.mergeChunks) {

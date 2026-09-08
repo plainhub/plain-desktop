@@ -608,6 +608,14 @@ export const saveFeedEntriesToNotesGQL = `
 `
 
 export const mergeChunksGQL = `
+  mutation mergeChunks($fileId: String!, $totalChunks: Int!, $path: String!, $replace: Boolean!, $isAppFile: Boolean!, $totalSize: Long!) {
+    mergeChunks(fileId: $fileId, totalChunks: $totalChunks, path: $path, replace: $replace, isAppFile: $isAppFile, totalSize: $totalSize)
+  }
+`
+
+// mergeChunks without totalSize for apps older than 3.3.22 — their schema
+// rejects the whole mutation over the unknown argument.
+export const mergeChunksLegacyGQL = `
   mutation mergeChunks($fileId: String!, $totalChunks: Int!, $path: String!, $replace: Boolean!, $isAppFile: Boolean!) {
     mergeChunks(fileId: $fileId, totalChunks: $totalChunks, path: $path, replace: $replace, isAppFile: $isAppFile)
   }
