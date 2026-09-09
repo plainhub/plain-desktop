@@ -130,6 +130,7 @@ export default {
   type: 'Tipo',
   no_permission: 'Sem permissão. Por favor, vá para APP > "Configurações de acesso" para habilitar as permissões e atualize a página.',
   notification_listener_permission_denied: "O acesso às notificações não está ativado neste dispositivo.",
+  screen_capture_permission_denied: "É necessária a permissão de gravação de tela. Permita o PlainApp em Ajustes do Sistema > Privacidade e Segurança > Gravação de Tela e tente novamente.",
   check_phone: 'Por favor, verifique o seu telefone.',
   open_access_settings: 'Abrir Configurações de acesso',
   no_data: 'Sem dados.',

@@ -4,6 +4,7 @@ import {
   CAPTURE_SESSION_ENDED_EVENT,
   CAPTURE_SESSION_STARTED_EVENT,
   CaptureClientError,
+  capturePermissionDenied,
   createCaptureClient,
   type CaptureClientDependencies,
   type CaptureEvent,
@@ -941,5 +942,33 @@ describe('CaptureClient result delivery', () => {
 
     await vi.waitFor(() => expect(invalidationAttempts).toBe(2))
     expect(test.errors.some((error) => error.code === 'target_invalidation_failed')).toBe(false)
+  })
+})
+
+describe('capturePermissionDenied', () => {
+  it('detects the native permission rejection wrapped by a failed composer start', () => {
+    const native = { code: 'permission_denied', detail: 'screen capture permission is required' }
+    const wrapped = new CaptureClientError('invalid_start', 'could not start screen capture', native)
+
+    expect(capturePermissionDenied(wrapped)).toBe(true)
+    expect(capturePermissionDenied(native)).toBe(true)
+  })
+
+  it('follows the error cause chain but stops at the depth guard', () => {
+    const deepest = { code: 'permission_denied', detail: 'denied' }
+    const chain = new Error('a', { cause: new Error('b', { cause: new Error('c', { cause: deepest }) }) })
+    expect(capturePermissionDenied(chain)).toBe(true)
+
+    const longChain = new Error('a', {
+      cause: new Error('b', { cause: new Error('c', { cause: new Error('d', { cause: deepest }) }) }),
+    })
+    expect(capturePermissionDenied(longChain)).toBe(false)
+  })
+
+  it('rejects other native codes and non-permission failures', () => {
+    expect(capturePermissionDenied(new CaptureClientError('invalid_start', 'could not start screen capture'))).toBe(false)
+    expect(capturePermissionDenied({ code: 'capture_failed', detail: 'backend error' })).toBe(false)
+    expect(capturePermissionDenied(undefined)).toBe(false)
+    expect(capturePermissionDenied(null)).toBe(false)
   })
 })

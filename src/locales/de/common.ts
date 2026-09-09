@@ -132,6 +132,7 @@ export default {
   time: 'Zeit',
   no_permission: 'Keine Berechtigung. Bitte gehen Sie zu APP > "Zugriffseinstellungen", um die Berechtigungen zu aktivieren, und aktualisieren Sie die Seite.',
   notification_listener_permission_denied: "Der Benachrichtigungszugriff ist auf diesem Gerät nicht aktiviert.",
+  screen_capture_permission_denied: "Die Berechtigung zur Bildschirmaufnahme ist erforderlich. Erlauben Sie PlainApp unter Systemeinstellungen > Datenschutz & Sicherheit > Bildschirmaufnahme und versuchen Sie es erneut.",
   check_phone: 'Bitte überprüfen Sie Ihr Telefon.',
   open_access_settings: 'Zugriffseinstellungen öffnen',
   no_data: 'Keine Daten.',

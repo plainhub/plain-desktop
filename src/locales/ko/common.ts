@@ -132,6 +132,7 @@ export default {
   time: '시간',
   no_permission: '권한 없음. APP > "액세스 설정"으로 이동하여 권한을 활성화하고 페이지를 새로 고칩니다.',
   notification_listener_permission_denied: "이 기기에서 알림 접근 권한이 사용 설정되지 않았습니다.",
+  screen_capture_permission_denied: "화면 기록 권한이 필요합니다. 시스템 설정 > 개인정보 보호 및 보안 > 화면 기록에서 PlainApp을 허용한 후 다시 시도하세요.",
   check_phone: '휴대폰을 확인해 주세요.',
   open_access_settings: '액세스 설정 열기',
   no_data: '데이터 없음.',

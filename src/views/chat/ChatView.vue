@@ -52,6 +52,7 @@ import { useChatUpload } from './hooks/chat-upload'
 import type { IChatItem } from '@/lib/interfaces'
 import { ChannelStatus, PeerStatus } from '@/lib/status'
 import toast from '@/components/toaster'
+import { capturePermissionDenied } from '@/lib/screen-capture/capture-client'
 import type { ChatCaptureTarget } from '@/lib/screen-capture/tauri-capture-adapter'
 
 const { t } = useI18n()
@@ -105,6 +106,10 @@ function showCaptureRequestError(context: string, error: unknown) {
   void import('@/lib/screen-capture/tauri-capture-adapter')
     .then((adapter) => adapter.reportTauriCaptureError(context, error))
     .catch(() => console.error(context, error))
+  if (capturePermissionDenied(error)) {
+    toast(t('screen_capture_permission_denied'), 'error')
+    return
+  }
   showCaptureError()
 }
 

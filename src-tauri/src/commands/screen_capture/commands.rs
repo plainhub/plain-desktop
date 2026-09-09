@@ -156,6 +156,14 @@ pub async fn screen_capture_start(
     log::info!("screen capture start entered caller={caller_window_label}");
     let result: Result<CaptureStartResponse, CaptureError> = async {
         let app = window.app_handle().clone();
+        tauri::async_runtime::spawn_blocking(super::platform::ensure_capture_permission)
+            .await
+            .map_err(|error| {
+                CaptureError::new(
+                    CaptureErrorCode::OverlayFailed,
+                    format!("capture permission preflight worker failed: {error}"),
+                )
+            })??;
         let reservation_app = app.clone();
         let reservation_caller = caller_window_label.clone();
         let reservation = tauri::async_runtime::spawn_blocking(move || {

@@ -132,6 +132,7 @@ export default {
   time: 'Hora',
   no_permission: 'Sin permiso. Por favor, ve a APP > "Configuración de acceso" para habilitar los permisos y actualiza la página.',
   notification_listener_permission_denied: "El acceso a las notificaciones no está activado en este dispositivo.",
+  screen_capture_permission_denied: "Se necesita el permiso de grabación de pantalla. Permita PlainApp en Ajustes del sistema > Privacidad y seguridad > Grabación de pantalla e inténtelo de nuevo.",
   check_phone: 'Por favor, comprueba tu teléfono.',
   open_access_settings: 'Abrir Configuración de acceso',
   no_data: 'No hay datos.',
