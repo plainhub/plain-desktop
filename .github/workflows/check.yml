@@ -108,11 +108,11 @@ jobs:
             libpipewire-0.3-dev libwayland-dev libegl-dev libgbm-dev
 
       - name: Run cargo check
-        run: cargo check --locked --manifest-path src-tauri/Cargo.toml
+        run: cargo check --manifest-path src-tauri/Cargo.toml
 
       - name: Run screen capture Rust tests
-        run: 'cargo test --locked --manifest-path src-tauri/Cargo.toml --lib commands::screen_capture::'
+        run: 'cargo test --manifest-path src-tauri/Cargo.toml --lib commands::screen_capture::'
 
       - name: Run full Rust test suite
         if: matrix.platform == 'linux'
-        run: cargo test --locked --manifest-path src-tauri/Cargo.toml --lib
+        run: cargo test --manifest-path src-tauri/Cargo.toml --lib
