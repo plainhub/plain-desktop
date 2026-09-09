@@ -43,6 +43,7 @@ declare module 'vue' {
     CallSkeletonItem: typeof import('./src/views/calls/CallSkeletonItem.vue')['default']
     CallsSidebar: typeof import('./src/views/calls/CallsSidebar.vue')['default']
     CallsView: typeof import('./src/views/calls/CallsView.vue')['default']
+    CapturePermissionModal: typeof import('./src/views/screen-capture/CapturePermissionModal.vue')['default']
     ChannelInfoModal: typeof import('./src/views/chat/ChannelInfoModal.vue')['default']
     ChannelInviteModal: typeof import('./src/views/chat/ChannelInviteModal.vue')['default']
     ChannelMemberListItem: typeof import('./src/views/chat/components/ChannelMemberListItem.vue')['default']

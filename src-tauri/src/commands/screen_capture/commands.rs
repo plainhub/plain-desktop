@@ -42,6 +42,9 @@ const CAPTURE_BACKEND_TIMEOUT: Duration = Duration::from_secs(135);
 const PORTAL_INTERACTION_TIMEOUT: Duration = Duration::from_secs(120);
 #[cfg(target_os = "linux")]
 const PORTAL_FRAME_TIMEOUT: Duration = Duration::from_secs(10);
+#[cfg(target_os = "macos")]
+const MACOS_SCREEN_CAPTURE_SETTINGS_URL: &str =
+    "x-apple.systempreferences:com.apple.preference.security?Privacy_ScreenCapture";
 
 fn bounded_client_error_detail(detail: &str) -> String {
     let sanitized: String = detail
@@ -60,6 +63,42 @@ fn bounded_client_error_detail(detail: &str) -> String {
     } else {
         sanitized
     }
+}
+
+fn authorize_permission_settings_caller(window_label: &str) -> Result<(), CaptureError> {
+    if !is_regular_window_label(window_label) {
+        return Err(CaptureError::new(
+            CaptureErrorCode::UnauthorizedCaller,
+            "only a regular application window may open screen capture settings",
+        ));
+    }
+    Ok(())
+}
+
+#[tauri::command]
+pub fn screen_capture_open_permission_settings(
+    window: WebviewWindow,
+) -> Result<(), CaptureError> {
+    authorize_permission_settings_caller(window.label())?;
+    #[cfg(target_os = "macos")]
+    {
+        use tauri_plugin_opener::OpenerExt;
+
+        return window
+            .opener()
+            .open_url(MACOS_SCREEN_CAPTURE_SETTINGS_URL, None::<&str>)
+            .map_err(|error| {
+                CaptureError::new(
+                    CaptureErrorCode::CaptureFailed,
+                    format!("could not open macOS screen capture settings: {error}"),
+                )
+            });
+    }
+    #[cfg(not(target_os = "macos"))]
+    Err(CaptureError::new(
+        CaptureErrorCode::CaptureFailed,
+        "screen capture permission settings are available only on macOS",
+    ))
 }
 
 #[tauri::command]
@@ -880,8 +919,9 @@ where
 #[cfg(test)]
 mod tests {
     use super::{
-        MAX_CLIENT_ERROR_DETAIL_CHARS, bounded_client_error_detail, new_capture_delivery_lease_id,
-        new_capture_result_id, new_capture_session_id,
+        MAX_CLIENT_ERROR_DETAIL_CHARS, authorize_permission_settings_caller,
+        bounded_client_error_detail, new_capture_delivery_lease_id, new_capture_result_id,
+        new_capture_session_id,
     };
 
     #[test]
@@ -900,6 +940,15 @@ mod tests {
                 .count(),
             MAX_CLIENT_ERROR_DETAIL_CHARS
         );
+    }
+
+    #[test]
+    fn permission_settings_rejects_utility_window_callers() {
+        assert!(authorize_permission_settings_caller("main").is_ok());
+        assert!(authorize_permission_settings_caller("window-chat").is_ok());
+        let error = authorize_permission_settings_caller("screen-capture-overlay-7")
+            .expect_err("capture overlays cannot open system settings");
+        assert_eq!(error.code, super::CaptureErrorCode::UnauthorizedCaller);
     }
 
     #[test]

@@ -90,6 +90,8 @@ pub struct SessionEndedPayload {
     pub session_id: String,
     pub target_token: String,
     pub outcome: SessionEndOutcome,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub error_code: Option<CaptureErrorCode>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
@@ -2466,18 +2468,28 @@ impl RuntimeInner {
         cleanup: &CaptureCleanup,
         windows: &dyn CaptureWindowPort,
     ) -> Result<(), CaptureError> {
-        let outcome = match &cleanup.outcome {
-            TerminalOutcome::Completed => SessionEndOutcome::Completed,
-            TerminalOutcome::Cancelled => SessionEndOutcome::Cancelled,
-            TerminalOutcome::Failed(_) => SessionEndOutcome::Failed,
+        let (outcome, error_code) = match &cleanup.outcome {
+            TerminalOutcome::Completed => (SessionEndOutcome::Completed, None),
+            TerminalOutcome::Cancelled => (SessionEndOutcome::Cancelled, None),
+            TerminalOutcome::Failed(error) => (SessionEndOutcome::Failed, Some(error.code)),
         };
-        self.complete_cleanup_with_outcome(cleanup, outcome, windows)
+        self.complete_cleanup_with_terminal(cleanup, outcome, error_code, windows)
     }
 
     fn complete_cleanup_with_outcome(
         &mut self,
         cleanup: &CaptureCleanup,
         outcome: SessionEndOutcome,
+        windows: &dyn CaptureWindowPort,
+    ) -> Result<(), CaptureError> {
+        self.complete_cleanup_with_terminal(cleanup, outcome, None, windows)
+    }
+
+    fn complete_cleanup_with_terminal(
+        &mut self,
+        cleanup: &CaptureCleanup,
+        outcome: SessionEndOutcome,
+        error_code: Option<CaptureErrorCode>,
         windows: &dyn CaptureWindowPort,
     ) -> Result<(), CaptureError> {
         let origin = self
@@ -2524,6 +2536,7 @@ impl RuntimeInner {
                     session_id: cleanup.session_id.clone(),
                     target_token: target_token.to_string(),
                     outcome,
+                    error_code,
                 },
             );
         }
@@ -4318,6 +4331,7 @@ mod tests {
                         session_id: "session-1".into(),
                         target_token: "target-secret".into(),
                         outcome: super::SessionEndOutcome::Failed,
+                        error_code: Some(CaptureErrorCode::CaptureFailed),
                     },
                 ),
                 WindowOperation::EmitOverlayEnded(
@@ -4770,6 +4784,7 @@ mod tests {
                         session_id: "session-1".into(),
                         target_token: "target-secret".into(),
                         outcome: super::SessionEndOutcome::Failed,
+                        error_code: Some(CaptureErrorCode::OverlayFailed),
                     },
                 ),
             ]

@@ -36,11 +36,50 @@ export interface CaptureResultAvailable {
 }
 
 export type CaptureSessionOutcome = 'cancelled' | 'saved' | 'copied' | 'failed' | 'completed'
+export type CaptureNativeErrorCode =
+  | 'busy'
+  | 'permission_denied'
+  | 'no_monitor'
+  | 'monitor_selection_unavailable'
+  | 'invalid_monitor'
+  | 'capture_failed'
+  | 'invalid_frame'
+  | 'frame_too_large'
+  | 'overlay_failed'
+  | 'invalid_session'
+  | 'invalid_phase'
+  | 'unauthorized_caller'
+  | 'target_unavailable'
+  | 'encode_failed'
+  | 'clipboard_failed'
+  | 'save_failed'
+  | 'timed_out'
+
+const NATIVE_ERROR_CODES = new Set<CaptureNativeErrorCode>([
+  'busy',
+  'permission_denied',
+  'no_monitor',
+  'monitor_selection_unavailable',
+  'invalid_monitor',
+  'capture_failed',
+  'invalid_frame',
+  'frame_too_large',
+  'overlay_failed',
+  'invalid_session',
+  'invalid_phase',
+  'unauthorized_caller',
+  'target_unavailable',
+  'encode_failed',
+  'clipboard_failed',
+  'save_failed',
+  'timed_out',
+])
 
 export interface CaptureSessionEnded {
   sessionId: string
   targetToken: string
   outcome: CaptureSessionOutcome
+  errorCode?: CaptureNativeErrorCode
 }
 
 export interface CaptureSessionStarted {
@@ -70,6 +109,7 @@ export type CaptureClientErrorCode =
   | 'invalid_result'
   | 'invalid_start'
   | 'lease_release_failed'
+  | 'permission_denied'
   | 'target_registration_failed'
   | 'target_invalidation_failed'
   | 'target_unregistration_failed'
@@ -243,10 +283,17 @@ function validateSessionEnded(value: unknown): CaptureSessionEnded {
   if (!['cancelled', 'saved', 'copied', 'failed', 'completed'].includes(value.outcome as string)) {
     throw new CaptureClientError('invalid_result', 'capture terminal outcome is invalid')
   }
+  if (value.errorCode !== undefined && (typeof value.errorCode !== 'string' || !NATIVE_ERROR_CODES.has(value.errorCode as CaptureNativeErrorCode))) {
+    throw new CaptureClientError('invalid_result', 'capture terminal error code is invalid')
+  }
+  if (value.outcome !== 'failed' && value.errorCode !== undefined) {
+    throw new CaptureClientError('invalid_result', 'only a failed capture may include an error code')
+  }
   return {
     sessionId: value.sessionId,
     targetToken: value.targetToken,
     outcome: value.outcome as CaptureSessionOutcome,
+    ...(value.errorCode === undefined ? {} : { errorCode: value.errorCode as CaptureNativeErrorCode }),
   }
 }
 
@@ -273,6 +320,14 @@ function validatePngBytes(value: unknown, descriptor: CaptureResultDescriptor): 
 
 function asClientError(error: unknown, code: CaptureClientErrorCode, message: string): CaptureClientError {
   return error instanceof CaptureClientError ? error : new CaptureClientError(code, message, error)
+}
+
+function asStartClientError(error: unknown): CaptureClientError {
+  if (error instanceof CaptureClientError) return error
+  if (isRecord(error) && error.code === 'permission_denied') {
+    return new CaptureClientError('permission_denied', 'screen capture permission is required', error)
+  }
+  return new CaptureClientError('invalid_start', 'could not start screen capture', error)
 }
 
 class CaptureClientImpl implements CaptureClient {
@@ -383,7 +438,7 @@ class CaptureClientImpl implements CaptureClient {
       this.startingTarget = null
       this.queuedResults = []
       this.queuedTerminals = []
-      throw asClientError(error, 'invalid_start', 'could not start screen capture')
+      throw asStartClientError(error)
     }
   }
 
@@ -620,6 +675,9 @@ class CaptureClientImpl implements CaptureClient {
     }
     this.session = null
     this.pendingAcknowledgment = null
+    if (terminal.outcome === 'failed' && terminal.errorCode === 'permission_denied') {
+      this.report(new CaptureClientError('permission_denied', 'screen capture permission is required', terminal))
+    }
   }
 
   private async dispatchResult(result: CaptureResultAvailable): Promise<void> {

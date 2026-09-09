@@ -52,7 +52,6 @@ import { useChatUpload } from './hooks/chat-upload'
 import type { IChatItem } from '@/lib/interfaces'
 import { ChannelStatus, PeerStatus } from '@/lib/status'
 import toast from '@/components/toaster'
-import { capturePermissionDenied } from '@/lib/screen-capture/capture-client'
 import type { ChatCaptureTarget } from '@/lib/screen-capture/tauri-capture-adapter'
 
 const { t } = useI18n()
@@ -98,19 +97,17 @@ function currentCaptureDestination() {
   return { chatId: chatId.value, channelId: channelId.value, appDir }
 }
 
-function showCaptureError() {
-  toast(t('failed'), 'error')
+function showCaptureError(error: unknown) {
+  void import('@/views/screen-capture/capture-error-presentation')
+    .then((presentation) => presentation.presentCaptureError(error, t))
+    .catch(() => toast(t('failed'), 'error'))
 }
 
 function showCaptureRequestError(context: string, error: unknown) {
   void import('@/lib/screen-capture/tauri-capture-adapter')
     .then((adapter) => adapter.reportTauriCaptureError(context, error))
     .catch(() => console.error(context, error))
-  if (capturePermissionDenied(error)) {
-    toast(t('screen_capture_permission_denied'), 'error')
-    return
-  }
-  showCaptureError()
+  showCaptureError(error)
 }
 
 async function loadCaptureTarget(): Promise<ChatCaptureTarget> {
@@ -118,7 +115,7 @@ async function loadCaptureTarget(): Promise<ChatCaptureTarget> {
   if (!captureTargetPromise) {
     captureTargetPromise = import('@/lib/screen-capture/tauri-capture-adapter')
       .then(async (adapter) => {
-        const client = await adapter.getTauriCaptureClient(() => showCaptureError())
+        const client = await adapter.getTauriCaptureClient((error) => showCaptureError(error))
         const target = adapter.createChatCaptureTarget(client, (file, destination) => doUploadImages([file], destination))
         captureTarget = target
         if (captureDisposed) target.dispose()

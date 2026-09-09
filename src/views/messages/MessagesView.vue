@@ -68,7 +68,6 @@ import emitter from '@/plugins/eventbus'
 import type { IMmsSendResultEvent, ISmsSendResultEvent } from '@/lib/interfaces'
 import { resolveConversationSendAddress } from '@/lib/sms-conversation-sync'
 import toast from '@/components/toaster'
-import { capturePermissionDenied } from '@/lib/screen-capture/capture-client'
 import type { ChatCaptureDestination, ChatCaptureTarget } from '@/lib/screen-capture/tauri-capture-adapter'
 import { sendCapturedMms, snapshotMessageCaptureDestination } from './message-capture'
 import { initLazyQuery, smsConversationsGQL, smsConversationsWithAddressesGQL, type QueryResponseContext } from '@/lib/api/query'
@@ -190,19 +189,17 @@ function currentCaptureDestination(): ChatCaptureDestination {
   })
 }
 
-function showCaptureError() {
-  toast(t('failed'), 'error')
+function showCaptureError(error: unknown) {
+  void import('@/views/screen-capture/capture-error-presentation')
+    .then((presentation) => presentation.presentCaptureError(error, t))
+    .catch(() => toast(t('failed'), 'error'))
 }
 
 function showCaptureRequestError(context: string, error: unknown) {
   void import('@/lib/screen-capture/tauri-capture-adapter')
     .then((adapter) => adapter.reportTauriCaptureError(context, error))
     .catch(() => console.error(context, error))
-  if (capturePermissionDenied(error)) {
-    toast(t('screen_capture_permission_denied'), 'error')
-    return
-  }
-  showCaptureError()
+  showCaptureError(error)
 }
 
 async function consumeCapturedMms(file: File, destination: ChatCaptureDestination): Promise<void> {
@@ -219,7 +216,7 @@ async function loadCaptureTarget(): Promise<ChatCaptureTarget> {
   if (!captureTargetPromise) {
     captureTargetPromise = import('@/lib/screen-capture/tauri-capture-adapter')
       .then(async (adapter) => {
-        const client = await adapter.getTauriCaptureClient(() => showCaptureError())
+        const client = await adapter.getTauriCaptureClient((error) => showCaptureError(error))
         const target = adapter.createChatCaptureTarget(client, consumeCapturedMms)
         captureTarget = target
         if (captureDisposed) target.dispose()
