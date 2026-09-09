@@ -1,10 +1,11 @@
 # Issue #19: WeChat-like screen capture and annotation
 
-- Status: implementation complete; pull request preparation in progress
+- Status: implementation complete; pull request #20 open
 - Target repository: `plainhub/plain-desktop` only
 - Feature branch: `feat/issue-19-screen-capture`
 - Upstream baseline: `52531249b6c31983fb6c5c89a001eabfaf5bbf8b` (2026-09-02)
 Issue: <https://github.com/plainhub/plain-desktop/issues/19>
+Pull request: <https://github.com/plainhub/plain-desktop/pull/20>
 
 ## Target
 

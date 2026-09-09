@@ -7,7 +7,7 @@
 - Feature baseline: `52531249b6c31983fb6c5c89a001eabfaf5bbf8b`
 - Current upstream integrated: `a26dd7e3e438184b15bc7eb3f367202f2ad5bea2` (`v0.1.10`)
 - Feature branch: `th317erd:feat/issue-19-screen-capture`
-- Pull request: pending
+- Pull request: <https://github.com/plainhub/plain-desktop/pull/20>
 
 ## Priority and scope
 
