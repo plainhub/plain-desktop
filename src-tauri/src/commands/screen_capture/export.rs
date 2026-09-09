@@ -22,6 +22,7 @@ pub trait CaptureExportPort {
     fn copy_png(&self, width: u32, height: u32, png: &[u8]) -> Result<(), CaptureError>;
 }
 
+#[cfg(test)]
 pub fn save_capture_png(
     exports: &dyn CaptureExportPort,
     suggested_filename: &str,

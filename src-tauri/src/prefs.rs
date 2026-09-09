@@ -272,6 +272,16 @@ pub fn dlna_senders_contain_ip(entries: &[String], ip: &str) -> bool {
     entries.iter().any(|e| decode_sender_entry(e).0 == ip)
 }
 
+fn default_device_name() -> String {
+    std::process::Command::new("hostname")
+        .output()
+        .ok()
+        .and_then(|o| String::from_utf8(o.stdout).ok())
+        .map(|s| s.trim().trim_end_matches(".local").to_string())
+        .filter(|s| !s.is_empty())
+        .unwrap_or_else(|| "PlainApp Desktop".to_string())
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -286,14 +296,4 @@ mod tests {
                 .all(|c| MDNS_HOSTNAME_CHARS.contains(&(c as u8))));
         }
     }
-}
-
-fn default_device_name() -> String {
-    std::process::Command::new("hostname")
-        .output()
-        .ok()
-        .and_then(|o| String::from_utf8(o.stdout).ok())
-        .map(|s| s.trim().trim_end_matches(".local").to_string())
-        .filter(|s| !s.is_empty())
-        .unwrap_or_else(|| "PlainApp Desktop".to_string())
 }

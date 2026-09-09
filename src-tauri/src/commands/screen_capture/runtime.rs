@@ -9,8 +9,8 @@ use super::backend::ScreenCaptureBackend;
 use super::buffers::validate_result_payload;
 use super::contract::{
     CaptureError, CaptureErrorCode, CaptureOrigin, CaptureRequest, CaptureResultDescriptor,
-    CaptureTarget, CaptureTriggerKind, CapturedFrame, CapturedFrameDescriptor, MonitorGeometry,
-    NativeCapturePhase,
+    CaptureResultSubmission, CaptureTarget, CaptureTriggerKind, CapturedFrame,
+    CapturedFrameDescriptor, MonitorGeometry, NativeCapturePhase,
 };
 use super::coordinator::{CaptureCallerRole, CaptureCleanup, CaptureCoordinator, TerminalOutcome};
 use super::export::{CaptureExportPort, SaveCaptureOutcome, normalized_png_path};
@@ -144,6 +144,7 @@ pub enum OverlayConcealment {
     /// The platform queued destruction outside the current Tauri command
     /// stack. Runtime authority must rotate immediately, while a new capture
     /// remains blocked until the framework confirms destruction.
+    #[cfg_attr(not(target_os = "windows"), allow(dead_code))]
     RetirementScheduled,
     /// Hiding failed, so the adapter queued destruction outside the caller's
     /// stack. The error remains observable while retry waits for destruction.
@@ -428,6 +429,7 @@ impl ScreenCaptureRuntime {
         })
     }
 
+    #[cfg(test)]
     pub fn init_overlay(
         &self,
         caller_window_label: &str,
@@ -441,6 +443,7 @@ impl ScreenCaptureRuntime {
         self.ensure_overlay_native(windows)
     }
 
+    #[cfg(test)]
     pub fn current_overlay_generation(&self) -> Result<Option<u64>, CaptureError> {
         Ok(self.lock()?.current_overlay_generation)
     }
@@ -458,10 +461,12 @@ impl ScreenCaptureRuntime {
             .require_current_overlay(caller_window_label, overlay_generation)
     }
 
+    #[cfg(test)]
     pub fn has_sensitive_buffers(&self) -> Result<bool, CaptureError> {
         Ok(self.lock()?.coordinator.has_sensitive_buffers())
     }
 
+    #[cfg(test)]
     pub fn has_pending_window_actions(&self) -> Result<bool, CaptureError> {
         Ok(self.lock()?.pending_window_actions.is_some())
     }
@@ -711,40 +716,6 @@ impl ScreenCaptureRuntime {
             target.window_label != caller_window_label || target.target_token != target_token
         });
         Ok(())
-    }
-
-    /// Native shortcut entry point. It is intentionally not a webview command:
-    /// callers must derive any target from trusted application state.
-    pub fn reserve_global_capture(
-        &self,
-        session_id: String,
-        origin: Option<CaptureOrigin>,
-        target: Option<CaptureTarget>,
-        windows: &dyn CaptureWindowPort,
-    ) -> Result<CaptureReservation, CaptureError> {
-        let _start = self.lock_capture_start()?;
-        if target.as_ref().is_some_and(|candidate| {
-            !is_regular_window_label(&candidate.window_label)
-                || !windows.window_exists(&candidate.window_label)
-        }) {
-            return Err(CaptureError::new(
-                CaptureErrorCode::TargetUnavailable,
-                "capture delivery target window is unavailable",
-            ));
-        }
-        let overlay_generation = self
-            .prepare_overlay_for_capture(windows)?
-            .overlay_generation;
-        let session_started_target = target.clone();
-        let reservation =
-            self.lock()?
-                .reserve_global(session_id, origin, target, overlay_generation, windows)?;
-        self.publish_global_session_started(
-            &reservation,
-            session_started_target.as_ref(),
-            windows,
-        )?;
-        Ok(reservation)
     }
 
     /// Trusted native shortcut entry point. Target pruning, selection, session
@@ -1110,25 +1081,21 @@ impl ScreenCaptureRuntime {
         caller_window_label: &str,
         session_id: &str,
         overlay_generation: u64,
-        result_id: String,
-        filename: String,
-        width: u32,
-        height: u32,
-        bytes: Vec<u8>,
+        submission: CaptureResultSubmission,
     ) -> Result<CaptureResultDescriptor, CaptureError> {
         let descriptor = CaptureResultDescriptor {
             session_id: session_id.to_string(),
-            result_id,
-            width,
-            height,
-            filename,
+            result_id: submission.result_id,
+            width: submission.width,
+            height: submission.height,
+            filename: submission.filename,
             mime_type: "image/png".to_string(),
-            byte_len: bytes.len(),
+            byte_len: submission.bytes.len(),
         };
         // PNG decoding can be expensive for the maximum accepted frame. Keep
         // cancellation, window teardown, and watchdogs responsive while it
         // runs, then revalidate session authority before committing the bytes.
-        validate_result_payload(&descriptor, &bytes)?;
+        validate_result_payload(&descriptor, &submission.bytes)?;
         let mut inner = self.lock()?;
         inner.require_overlay_session(caller_window_label, session_id, overlay_generation)?;
         inner.coordinator.store_prevalidated_result(
@@ -1136,7 +1103,7 @@ impl ScreenCaptureRuntime {
             session_id,
             overlay_generation,
             descriptor.clone(),
-            bytes,
+            submission.bytes,
         )?;
         Ok(descriptor)
     }
@@ -2657,9 +2624,9 @@ mod tests {
         NativeFrame, ScreenCaptureBackend, capture_frame_at_cursor,
     };
     use crate::commands::screen_capture::contract::{
-        CaptureError, CaptureErrorCode, CaptureOrigin, CaptureTarget, CapturedFrame, LogicalPoint,
-        LogicalSize, MonitorGeometry, NativeCapturePhase, PhysicalPoint, PhysicalRect,
-        PhysicalSize,
+        CaptureError, CaptureErrorCode, CaptureOrigin, CaptureResultSubmission, CaptureTarget,
+        CapturedFrame, LogicalPoint, LogicalSize, MonitorGeometry, NativeCapturePhase,
+        PhysicalPoint, PhysicalRect, PhysicalSize,
     };
     use crate::commands::screen_capture::export::{CaptureExportPort, SaveCaptureOutcome};
 
@@ -3411,11 +3378,13 @@ mod tests {
                 OVERLAY_WINDOW_LABEL,
                 session_id,
                 generation,
-                format!("result-{session_id}"),
-                "Plain-capture-1.png".to_string(),
-                2,
-                2,
-                bytes.clone(),
+                CaptureResultSubmission {
+                    result_id: format!("result-{session_id}"),
+                    filename: "Plain-capture-1.png".to_string(),
+                    width: 2,
+                    height: 2,
+                    bytes: bytes.clone(),
+                },
             )
             .expect("store PNG result");
         (generation, descriptor.result_id, bytes)
@@ -3666,7 +3635,7 @@ mod tests {
             })] if label == OVERLAY_WINDOW_LABEL
                 && route == &format!("{OVERLAY_ROUTE}?overlayGeneration=1")
         ));
-        assert_eq!(windows.window_state("main").unwrap().visible, true);
+        assert!(windows.window_state("main").unwrap().visible);
     }
 
     #[test]
@@ -5492,11 +5461,13 @@ mod tests {
                 OVERLAY_WINDOW_LABEL,
                 "session-replace",
                 generation,
-                "result-new".into(),
-                "Plain-capture-2.png".into(),
-                2,
-                2,
-                png(2, 2),
+                CaptureResultSubmission {
+                    result_id: "result-new".into(),
+                    filename: "Plain-capture-2.png".into(),
+                    width: 2,
+                    height: 2,
+                    bytes: png(2, 2),
+                },
             )
             .expect("replacement render");
         assert_eq!(replacement.result_id, "result-new");
@@ -5714,7 +5685,7 @@ mod tests {
             .retry_pending_window_actions(&windows)
             .expect("third restore attempt succeeds");
         assert!(!runtime.has_pending_window_actions().unwrap());
-        assert_eq!(windows.window_state("main").unwrap().visible, true);
+        assert!(windows.window_state("main").unwrap().visible);
     }
 
     #[test]

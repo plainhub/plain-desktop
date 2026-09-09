@@ -78,6 +78,7 @@ impl SessionBuffers {
             })
     }
 
+    #[cfg(test)]
     pub fn store_result(
         &mut self,
         descriptor: CaptureResultDescriptor,
@@ -249,10 +250,12 @@ impl SessionBuffers {
         Ok(result)
     }
 
+    #[cfg(test)]
     pub fn has_frame(&self) -> bool {
         self.frame.is_some()
     }
 
+    #[cfg(test)]
     pub fn has_result(&self) -> bool {
         self.result.is_some()
     }

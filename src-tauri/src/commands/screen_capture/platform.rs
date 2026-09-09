@@ -4,15 +4,17 @@ use xcap::Monitor as XcapMonitor;
 use super::backend::{NativeFrame, ScreenCaptureBackend};
 use super::contract::{
     CaptureError, CaptureErrorCode, CssPoint, CssRect, CssSize, LogicalPoint, LogicalSize,
-    MonitorGeometry, PhysicalPoint, PhysicalRect, PhysicalSize, select_monitor_at,
+    MonitorGeometry, PhysicalPoint, PhysicalRect, PhysicalSize,
 };
 
+#[cfg_attr(target_os = "macos", allow(dead_code))]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum GeometryConvention {
     Physical,
     Logical,
 }
 
+#[cfg_attr(target_os = "macos", allow(dead_code))]
 pub fn xcap_bounds_to_physical(
     x: i32,
     y: i32,
@@ -49,6 +51,7 @@ pub fn xcap_bounds_to_physical(
     })
 }
 
+#[cfg(test)]
 pub fn select_logical_monitor(monitors: &[MonitorGeometry], x: f64, y: f64) -> Option<usize> {
     monitors.iter().position(|monitor| {
         let right = monitor.logical_origin.x + monitor.logical_size.width;
@@ -60,6 +63,7 @@ pub fn select_logical_monitor(monitors: &[MonitorGeometry], x: f64, y: f64) -> O
 /// Convert a native top-left physical monitor work area into overlay-local CSS
 /// coordinates. Tauri sources this rectangle from Win32 `GetMonitorInfoW` on
 /// Windows and GDK's monitor work area on Linux.
+#[cfg_attr(target_os = "macos", allow(dead_code))]
 pub fn top_left_physical_work_area_to_local_css(
     frame_origin: PhysicalPoint,
     frame_size: PhysicalSize,
@@ -281,6 +285,7 @@ fn find_matching_native_candidate<T>(
     })
 }
 
+#[cfg_attr(not(target_os = "linux"), allow(dead_code))]
 pub fn wayland_cursor_is_unavailable(
     session_type: Option<&str>,
     wayland_display_present: bool,
@@ -324,7 +329,7 @@ fn checked_rounded_u32(value: f64) -> Result<u32, CaptureError> {
     Ok(rounded as u32)
 }
 
-#[cfg(any(target_os = "linux", target_os = "macos"))]
+#[cfg(target_os = "linux")]
 const XCAP_GEOMETRY_CONVENTION: GeometryConvention = GeometryConvention::Logical;
 
 #[cfg(not(any(target_os = "linux", target_os = "macos")))]
@@ -645,7 +650,7 @@ fn physical_monitor_index_at_cursor<R: Runtime>(
         x: checked_rounded_i32(position.x)?,
         y: checked_rounded_i32(position.y)?,
     };
-    select_monitor_at(monitors, point)
+    super::contract::select_monitor_at(monitors, point)
         .and_then(|selected| {
             monitors
                 .iter()
@@ -659,6 +664,7 @@ fn physical_monitor_index_at_cursor<R: Runtime>(
         })
 }
 
+#[cfg(not(target_os = "macos"))]
 fn xcap_monitor_bounds(monitor: &XcapMonitor) -> Result<PhysicalRect, CaptureError> {
     let x = monitor
         .x()
@@ -680,6 +686,7 @@ fn xcap_monitor_bounds(monitor: &XcapMonitor) -> Result<PhysicalRect, CaptureErr
     xcap_bounds_to_physical(x, y, width, height, scale_factor, XCAP_GEOMETRY_CONVENTION)
 }
 
+#[cfg_attr(target_os = "macos", allow(dead_code))]
 fn physical_rects_match(left: PhysicalRect, right: PhysicalRect) -> bool {
     const ROUNDING_TOLERANCE: u64 = 4;
     i64::from(left.origin.x).abs_diff(i64::from(right.origin.x)) <= ROUNDING_TOLERANCE
@@ -688,6 +695,7 @@ fn physical_rects_match(left: PhysicalRect, right: PhysicalRect) -> bool {
         && u64::from(left.size.height).abs_diff(u64::from(right.size.height)) <= ROUNDING_TOLERANCE
 }
 
+#[cfg_attr(target_os = "macos", allow(dead_code))]
 pub fn find_matching_candidate<T>(
     candidates: impl IntoIterator<Item = Result<(PhysicalRect, T), CaptureError>>,
     selected: PhysicalRect,
@@ -748,7 +756,7 @@ mod platform_tests {
             macos_monitor_geometry(42, 0.0, 0.0, 100.0, 100.0, 2.0).expect("valid geometry");
 
         assert_eq!(
-            select_monitor_by_native_id(&[monitor.clone()], 7)
+            select_monitor_by_native_id(std::slice::from_ref(&monitor), 7)
                 .expect_err("missing display")
                 .code,
             CaptureErrorCode::NoMonitor

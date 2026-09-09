@@ -443,7 +443,9 @@ fn now_ms() -> u64 {
 mod tests {
     use super::*;
 
-    fn build_multipart(parts: &[(&str, Option<&str>, Option<&str>, &[u8])]) -> (Vec<u8>, Vec<u8>) {
+    type MultipartPart<'a> = (&'a str, Option<&'a str>, Option<&'a str>, &'a [u8]);
+
+    fn build_multipart(parts: &[MultipartPart<'_>]) -> (Vec<u8>, Vec<u8>) {
         let boundary: Vec<u8> = b"----TestBoundary123".to_vec();
         let mut body = Vec::new();
         for (i, (name, filename, ctype, data)) in parts.iter().enumerate() {

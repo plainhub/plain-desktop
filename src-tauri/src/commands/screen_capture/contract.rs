@@ -19,30 +19,10 @@ pub struct PhysicalSize {
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
+#[cfg_attr(target_os = "macos", allow(dead_code))]
 pub struct PhysicalRect {
     pub origin: PhysicalPoint,
     pub size: PhysicalSize,
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub struct FramePoint {
-    pub x: u32,
-    pub y: u32,
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub struct FrameSize {
-    pub width: u32,
-    pub height: u32,
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub struct FrameRect {
-    pub origin: FramePoint,
-    pub size: FrameSize,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
@@ -116,6 +96,7 @@ impl MonitorGeometry {
         Ok(())
     }
 
+    #[cfg_attr(target_os = "macos", allow(dead_code))]
     fn contains(&self, point: PhysicalPoint) -> bool {
         let left = i64::from(self.physical_origin.x);
         let top = i64::from(self.physical_origin.y);
@@ -127,6 +108,7 @@ impl MonitorGeometry {
     }
 }
 
+#[cfg_attr(target_os = "macos", allow(dead_code))]
 pub fn select_monitor_at(
     monitors: &[MonitorGeometry],
     point: PhysicalPoint,
@@ -248,6 +230,7 @@ impl CapturedFrame {
         &self.descriptor
     }
 
+    #[cfg(test)]
     pub fn bytes(&self) -> &[u8] {
         &self.bytes
     }
@@ -349,6 +332,16 @@ pub struct CaptureResultDescriptor {
     pub filename: String,
     pub mime_type: String,
     pub byte_len: usize,
+}
+
+/// Raw PNG payload plus its freshly generated metadata, submitted by the
+/// overlay command layer for validation and storage.
+pub struct CaptureResultSubmission {
+    pub result_id: String,
+    pub filename: String,
+    pub width: u32,
+    pub height: u32,
+    pub bytes: Vec<u8>,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]

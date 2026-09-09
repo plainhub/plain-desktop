@@ -10,7 +10,6 @@ use serde::Serialize;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum CaptureCallerRole {
-    Origin,
     Target,
     Overlay,
 }
@@ -160,6 +159,7 @@ impl CaptureCoordinator {
         self.active.as_ref().map(ActiveCaptureSession::state)
     }
 
+    #[cfg(test)]
     pub fn has_sensitive_buffers(&self) -> bool {
         self.active
             .as_ref()
@@ -319,11 +319,6 @@ impl CaptureCoordinator {
         let active = self.require_session(session_id)?;
         let authorized = match role {
             CaptureCallerRole::Overlay => caller_window_label == self.overlay_window_label,
-            CaptureCallerRole::Origin => active
-                .request
-                .origin
-                .as_ref()
-                .is_some_and(|origin| origin.window_label == caller_window_label),
             CaptureCallerRole::Target => active
                 .request
                 .target
@@ -412,6 +407,7 @@ impl CaptureCoordinator {
     /// Stores a validated raw PNG. The command layer must construct the
     /// descriptor with a fresh native-generated result ID rather than trusting
     /// a result ID supplied by the overlay.
+    #[cfg(test)]
     pub fn store_result(
         &mut self,
         caller_window_label: &str,
@@ -469,21 +465,6 @@ impl CaptureCoordinator {
             .inspect_result(session_id, result_id, |descriptor, _| {
                 Ok((target, descriptor.clone()))
             })
-    }
-
-    pub fn inspect_result<T>(
-        &self,
-        caller_window_label: &str,
-        session_id: &str,
-        overlay_generation: u64,
-        result_id: &str,
-        inspect: impl FnOnce(&CaptureResultDescriptor, &[u8]) -> Result<T, CaptureError>,
-    ) -> Result<T, CaptureError> {
-        self.require_overlay_session(caller_window_label, session_id, overlay_generation)?;
-        self.require_phase(session_id, NativeCapturePhase::ResultAvailable)?;
-        self.require_session(session_id)?
-            .buffers
-            .inspect_result(session_id, result_id, inspect)
     }
 
     pub fn snapshot_result(

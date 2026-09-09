@@ -9,9 +9,11 @@ use super::window::TauriCaptureWindowPort;
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum CaptureShortcutPlatform {
     MacOs,
+    #[cfg_attr(target_os = "macos", allow(dead_code))]
     OtherDesktop,
 }
 
+#[cfg_attr(not(target_os = "linux"), allow(dead_code))]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum LinuxShortcutBackend {
     OrdinaryPlugin,
@@ -28,6 +30,7 @@ pub fn capture_shortcut_accelerator(platform: CaptureShortcutPlatform) -> &'stat
 /// The ordinary Tauri plugin constructs an X11 global-hotkey manager during
 /// plugin setup. Never attach it to a native Wayland process: use the portal
 /// adapter instead so an unavailable X display cannot abort application setup.
+#[cfg_attr(not(target_os = "linux"), allow(dead_code))]
 pub fn linux_shortcut_backend(
     session_type: Option<&str>,
     wayland_display_present: bool,

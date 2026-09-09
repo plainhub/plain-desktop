@@ -249,16 +249,3 @@ async fn stream_file<W: AsyncWrite + Unpin>(
     }
     let _ = wr.flush().await;
 }
-
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-
-
-
-
-
-
-}

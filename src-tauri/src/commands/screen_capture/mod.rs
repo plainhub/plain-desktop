@@ -29,9 +29,8 @@ pub(crate) fn png_fixture(width: u32, height: u32) -> Vec<u8> {
 mod contract_tests {
     use super::contract::{
         CaptureErrorCode, CaptureOrigin, CaptureRequest, CaptureTarget, CaptureTriggerKind,
-        CapturedFrame, CssPoint, FramePoint, FrameRect, FrameSize, LogicalPoint, LogicalSize,
-        MAX_RAW_FRAME_BYTES, MonitorGeometry, NativeCapturePhase, PhysicalPoint, PhysicalRect,
-        PhysicalSize, select_monitor_at,
+        CapturedFrame, LogicalPoint, LogicalSize, MAX_RAW_FRAME_BYTES, MonitorGeometry,
+        NativeCapturePhase, PhysicalPoint, PhysicalSize, select_monitor_at,
     };
 
     fn monitor(
@@ -166,29 +165,6 @@ mod contract_tests {
             .validate()
             .expect_err("non-finite scale is invalid");
         assert_eq!(scale.code, CaptureErrorCode::InvalidMonitor);
-    }
-
-    #[test]
-    fn coordinate_contracts_keep_global_frame_and_css_spaces_distinct() {
-        let desktop = PhysicalRect {
-            origin: PhysicalPoint { x: -1920, y: 0 },
-            size: PhysicalSize {
-                width: 1920,
-                height: 1080,
-            },
-        };
-        let selection = FrameRect {
-            origin: FramePoint { x: 120, y: 80 },
-            size: FrameSize {
-                width: 800,
-                height: 600,
-            },
-        };
-        let pointer = CssPoint { x: 60.0, y: 40.0 };
-
-        assert_eq!(desktop.origin.x, -1920);
-        assert_eq!(selection.origin.x, 120);
-        assert_eq!(pointer.x, 60.0);
     }
 
     #[test]

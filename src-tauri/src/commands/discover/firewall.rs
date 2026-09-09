@@ -11,6 +11,7 @@
 //! it launches a temp .ps1 through `Start-Process -Verb RunAs` (UAC prompt).
 
 use serde::{Deserialize, Serialize};
+#[cfg(windows)]
 use std::io::Write;
 
 /// Firewall rule name used by both the repair command and the NSIS hooks.
@@ -134,7 +135,7 @@ fn run_powershell_hidden(args: &[&str]) -> Result<std::process::Output, String> 
 pub fn probe_status() -> Result<MdnsFirewallStatus, String> {
     #[cfg(not(windows))]
     {
-        return Ok(MdnsFirewallStatus::unsupported());
+        Ok(MdnsFirewallStatus::unsupported())
     }
     #[cfg(windows)]
     {
@@ -165,7 +166,7 @@ pub fn probe_status() -> Result<MdnsFirewallStatus, String> {
 pub fn apply_fix() -> Result<(), String> {
     #[cfg(not(windows))]
     {
-        return Err("unsupported platform".to_string());
+        Err("unsupported platform".to_string())
     }
     #[cfg(windows)]
     {

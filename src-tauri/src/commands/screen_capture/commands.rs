@@ -8,8 +8,8 @@ use tauri::{
 
 use super::backend::capture_frame_at_cursor_exclusive;
 use super::contract::{
-    CaptureError, CaptureErrorCode, CaptureResultDescriptor, CaptureTarget, CapturedFrame, CssRect,
-    MAX_PNG_RESULT_BYTES, NativeCapturePhase,
+    CaptureError, CaptureErrorCode, CaptureResultDescriptor, CaptureResultSubmission,
+    CaptureTarget, CapturedFrame, CssRect, MAX_PNG_RESULT_BYTES, NativeCapturePhase,
 };
 use super::export::{SaveCaptureOutcome, TauriCaptureExportPort, stable_png_filename};
 use super::ipc::{raw_response, require_raw_body};
@@ -462,11 +462,13 @@ pub fn screen_capture_submit_result(
         window.label(),
         &session_id,
         overlay_generation,
-        new_capture_result_id(),
-        stable_png_filename(now),
-        width,
-        height,
-        bytes.to_vec(),
+        CaptureResultSubmission {
+            result_id: new_capture_result_id(),
+            filename: stable_png_filename(now),
+            width,
+            height,
+            bytes: bytes.to_vec(),
+        },
     )
 }
 
