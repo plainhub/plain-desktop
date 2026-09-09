@@ -1,26 +1,26 @@
 import type { Ref } from 'vue'
-import type { EditorLayer, EditorTool } from '../utils/types'
+import type { EditorLayer, EditorRasterSource, EditorTool } from '../utils/types'
 import type { ImageEditorDoc } from './useImageEditorDoc'
 import { resetLayerCounter } from './useImageEditorLayers'
 
 export interface EditorImageContext {
   doc: ImageEditorDoc
-  sourceImg: Ref<HTMLImageElement | null>
+  sourceImg: Ref<EditorRasterSource | null>
   selectedLayerId: Ref<string | null>
   activeTool: Ref<EditorTool>
   previewLayer: Ref<EditorLayer | null>
   editorActive: Ref<boolean>
   pushUndo: () => void
   requestRender: () => void
-  scheduleSave: () => void
   clearHistory: () => void
-  clearProject: () => void
+  persistSourceImage?: (value: string | null) => void
+  onReset?: () => void
 }
 
 export function useEditorImage(ctx: EditorImageContext) {
   const {
     doc, sourceImg, selectedLayerId, activeTool, previewLayer, editorActive,
-    pushUndo, requestRender, scheduleSave, clearHistory, clearProject,
+    pushUndo, requestRender, clearHistory, persistSourceImage, onReset,
   } = ctx
 
   function loadImage(file: File) {
@@ -39,12 +39,13 @@ export function useEditorImage(ctx: EditorImageContext) {
         editorActive.value = true
         requestRender()
         resolve()
-        const reader = new FileReader()
-        reader.onload = () => {
-          doc.setSourceImage(reader.result as string)
-          scheduleSave()
+        if (persistSourceImage) {
+          const reader = new FileReader()
+          reader.onload = () => {
+            persistSourceImage(reader.result as string)
+          }
+          reader.readAsDataURL(file)
         }
-        reader.readAsDataURL(file)
       }
       img.onerror = () => {
         URL.revokeObjectURL(blobUrl)
@@ -60,18 +61,21 @@ export function useEditorImage(ctx: EditorImageContext) {
       img.onload = () => {
         pushUndo()
         sourceImg.value = img
-        let dataUrl: string = url
-        try {
-          const tmp = document.createElement('canvas')
-          tmp.width = img.naturalWidth
-          tmp.height = img.naturalHeight
-          tmp.getContext('2d')!.drawImage(img, 0, 0)
-          dataUrl = tmp.toDataURL('image/png')
-        } catch {
-          // Canvas tainted (cross-origin without CORS) — fall back to URL
+        let serializedSource: string | undefined
+        if (persistSourceImage) {
+          serializedSource = url
+          try {
+            const tmp = document.createElement('canvas')
+            tmp.width = img.naturalWidth
+            tmp.height = img.naturalHeight
+            tmp.getContext('2d')!.drawImage(img, 0, 0)
+            serializedSource = tmp.toDataURL('image/png')
+          } catch {
+            // Canvas tainted (cross-origin without CORS) — fall back to URL
+          }
         }
         doc.ydoc.transact(() => {
-          doc.setSourceImage(dataUrl)
+          if (serializedSource) persistSourceImage?.(serializedSource)
           doc.setCanvasSize(img.naturalWidth, img.naturalHeight)
           doc.setImgOffset(0, 0)
           doc.clearLayers()
@@ -89,7 +93,7 @@ export function useEditorImage(ctx: EditorImageContext) {
   function startBlank() {
     pushUndo()
     doc.ydoc.transact(() => {
-      doc.setSourceImage(null)
+      persistSourceImage?.(null)
       doc.setCanvasSize(1920, 1080)
       doc.setImgOffset(0, 0)
       doc.setBgColor('#ffffff')
@@ -102,7 +106,7 @@ export function useEditorImage(ctx: EditorImageContext) {
 
   function reset() {
     doc.ydoc.transact(() => {
-      doc.setSourceImage(null)
+      persistSourceImage?.(null)
       doc.setCanvasSize(1920, 1080)
       doc.setImgOffset(0, 0)
       doc.setBgColor('transparent')
@@ -112,7 +116,7 @@ export function useEditorImage(ctx: EditorImageContext) {
     activeTool.value = 'select'
     previewLayer.value = null; selectedLayerId.value = null; resetLayerCounter()
     editorActive.value = false
-    clearProject()
+    onReset?.()
   }
 
   function setBgColor(color: string) {
@@ -120,12 +124,13 @@ export function useEditorImage(ctx: EditorImageContext) {
     doc.setBgColor(color)
   }
 
-  function setSourceImg(img: HTMLImageElement | null) {
+  function setSourceImg(img: EditorRasterSource | null) {
     if (img) {
       sourceImg.value = img
-      doc.setSourceImage(img.src)
+      persistSourceImage?.('src' in img ? img.src : img.toDataURL('image/png'))
     } else {
-      doc.setSourceImage(null)
+      sourceImg.value = null
+      persistSourceImage?.(null)
     }
   }
 

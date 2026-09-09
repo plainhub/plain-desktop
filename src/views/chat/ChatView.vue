@@ -33,18 +33,11 @@
     </template>
   </div>
   <div v-if="notAllowChat" class="chat-notice">{{ noticeText }}</div>
-  <ChatInput
-    v-else
-    v-model="chatText"
-    :create-loading="sendLoading"
-    @send-message="handleSend"
-    @send-files="doUploadFiles"
-    @send-images="doUploadImages"
-  />
+  <ChatInput v-else v-model="chatText" :create-loading="sendLoading" @send-message="handleSend" @send-files="doUploadFiles" @send-images="doUploadImages" @request-capture="handleCaptureRequest" />
 </template>
 
 <script setup lang="ts">
-import { ref, computed, nextTick, watch, onActivated, onDeactivated } from 'vue'
+import { ref, computed, nextTick, watch, onActivated, onDeactivated, onUnmounted } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { formatDate } from '@/lib/format'
 import ChatInput from './ChatInput.vue'
@@ -58,6 +51,8 @@ import { useChatMessages } from './hooks/chat-messages'
 import { useChatUpload } from './hooks/chat-upload'
 import type { IChatItem } from '@/lib/interfaces'
 import { ChannelStatus, PeerStatus } from '@/lib/status'
+import toast from '@/components/toaster'
+import type { ChatCaptureTarget } from '@/lib/screen-capture/tauri-capture-adapter'
 
 const { t } = useI18n()
 const store = useMainStore()
@@ -83,18 +78,77 @@ const noticeText = computed(() => {
 
 const chatText = computed({
   get: () => store.chatTexts[chatId.value] ?? '',
-  set: (v: string) => { store.chatTexts[chatId.value] = v },
+  set: (v: string) => {
+    store.chatTexts[chatId.value] = v
+  },
 })
 
-const {
-  chatItems, loading, sendLoading, deleteLoading,
-  scrollContainer, scrollBottom,
-  send, retryMessage, deleteMessage, refetch,
-} = useChatMessages(chatId, channelId)
+const { chatItems, loading, sendLoading, deleteLoading, scrollContainer, scrollBottom, send, retryMessage, deleteMessage, refetch } = useChatMessages(chatId, channelId)
 
 const { doUploadFiles, doUploadImages, sendLongMessageAsFile, sendingText, downloadProgress, handleDownloadAction } = useChatUpload(chatId, channelId, appDir, scrollBottom, chatText, chatItems)
 
 const isActive = ref(false)
+let captureTarget: ChatCaptureTarget | null = null
+let captureTargetPromise: Promise<ChatCaptureTarget> | null = null
+let captureActivation = 0
+let captureDisposed = false
+
+function currentCaptureDestination() {
+  return { chatId: chatId.value, channelId: channelId.value, appDir }
+}
+
+function showCaptureError() {
+  toast(t('failed'), 'error')
+}
+
+function showCaptureRequestError(context: string, error: unknown) {
+  void import('@/lib/screen-capture/tauri-capture-adapter')
+    .then((adapter) => adapter.reportTauriCaptureError(context, error))
+    .catch(() => console.error(context, error))
+  showCaptureError()
+}
+
+async function loadCaptureTarget(): Promise<ChatCaptureTarget> {
+  if (!__IS_TAURI__) throw new Error('screen capture is available only in the desktop app')
+  if (!captureTargetPromise) {
+    captureTargetPromise = import('@/lib/screen-capture/tauri-capture-adapter')
+      .then(async (adapter) => {
+        const client = await adapter.getTauriCaptureClient(() => showCaptureError())
+        const target = adapter.createChatCaptureTarget(client, (file, destination) => doUploadImages([file], destination))
+        captureTarget = target
+        if (captureDisposed) target.dispose()
+        return target
+      })
+      .catch((error) => {
+        // A transient listener/import failure must be retryable without
+        // reloading the whole chat webview.
+        captureTargetPromise = null
+        throw error
+      })
+  }
+  return captureTargetPromise
+}
+
+async function activateCaptureTarget(activation: number) {
+  try {
+    const target = await loadCaptureTarget()
+    if (captureDisposed || !isActive.value || notAllowChat.value || activation !== captureActivation) return
+    target.activate(currentCaptureDestination())
+  } catch (error) {
+    if (!captureDisposed && isActive.value && !notAllowChat.value && activation === captureActivation) showCaptureRequestError('chat capture target activation failed', error)
+  }
+}
+
+async function handleCaptureRequest() {
+  const activation = captureActivation
+  try {
+    const target = await loadCaptureTarget()
+    if (captureDisposed || !isActive.value || notAllowChat.value || activation !== captureActivation) return
+    await target.start(currentCaptureDestination())
+  } catch (error) {
+    if (!captureDisposed && isActive.value && !notAllowChat.value && activation === captureActivation) showCaptureRequestError('chat capture request failed', error)
+  }
+}
 
 // Render window: mount only the most recent slice of the conversation and
 // extend it when the user scrolls to the top. Long conversations would
@@ -139,9 +193,32 @@ function handleForward(item: IChatItem) {
   openModal(ForwardMessageModal, { message: item, excludeChatId: chatId.value })
 }
 
-onActivated(() => { isActive.value = true })
-onDeactivated(() => { isActive.value = false })
-watch(chatId, () => { visibleCount.value = INITIAL_VISIBLE })
+onActivated(() => {
+  isActive.value = true
+  captureActivation += 1
+  if (__IS_TAURI__ && !notAllowChat.value) void activateCaptureTarget(captureActivation)
+})
+onDeactivated(() => {
+  isActive.value = false
+  captureActivation += 1
+  captureTarget?.deactivate()
+})
+watch([chatId, channelId, notAllowChat], () => {
+  captureActivation += 1
+  captureTarget?.deactivate()
+  if (__IS_TAURI__ && isActive.value && !notAllowChat.value) {
+    void activateCaptureTarget(captureActivation)
+  }
+})
+watch(chatId, () => {
+  visibleCount.value = INITIAL_VISIBLE
+})
+onUnmounted(() => {
+  captureDisposed = true
+  captureActivation += 1
+  captureTarget?.dispose()
+  void captureTargetPromise?.then((target) => target.dispose()).catch(() => {})
+})
 </script>
 
 <style lang="scss">

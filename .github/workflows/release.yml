@@ -27,17 +27,17 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
       - name: Set version name
         id: meta
         shell: bash
         run: |
           VERSION=$(node -p "require('./src-tauri/tauri.conf.json').version")
           echo "version_name=$VERSION" >> $GITHUB_OUTPUT
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: 22
 
       - name: Enable Corepack
         shell: bash
@@ -57,8 +57,12 @@ jobs:
         shell: bash
         run: yarn install --immutable
 
+      - name: Typecheck frontend
+        shell: bash
+        run: yarn typecheck
+
       - name: Setup Rust
-        uses: dtolnay/rust-toolchain@stable
+        uses: dtolnay/rust-toolchain@1.96.0
 
       - name: Select Xcode with macOS 15 SDK
         if: matrix.platform == 'macos'
@@ -94,7 +98,30 @@ jobs:
         if: matrix.platform == 'linux'
         run: |
           sudo apt-get update
-          sudo apt-get install -y libwebkit2gtk-4.1-dev libayatana-appindicator3-dev librsvg2-dev patchelf
+          sudo apt-get install -y \
+            libwebkit2gtk-4.1-dev libayatana-appindicator3-dev librsvg2-dev patchelf \
+            pkg-config libclang-dev libxcb1-dev libxrandr-dev libdbus-1-dev \
+            libpipewire-0.3-dev libwayland-dev libegl-dev libgbm-dev
+
+      - name: Run screen capture Rust tests
+        run: cargo test --locked --manifest-path src-tauri/Cargo.toml --lib commands::screen_capture::
+
+      - name: Install Chromium for release capture tests
+        if: matrix.platform == 'linux'
+        run: yarn playwright install --with-deps chromium
+
+      - name: Run release capture tests
+        if: matrix.platform == 'linux'
+        run: >-
+          yarn test
+          --project=unit
+          tests/lib/screen-capture
+          tests/lib/upload/upload-queue.test.ts
+          tests/views/screen-capture
+          tests/views/chat/chat-input-capture.test.ts
+          tests/views/chat/chat-upload-destination.test.ts
+          tests/views/chat/chat-tasks.test.ts
+          tests/views/image-editor/annotation-session.test.ts
 
       - name: Validate macOS signing secrets
         if: matrix.platform == 'macos'
@@ -494,4 +521,4 @@ jobs:
             Verify with [slsa-verifier](https://github.com/slsa-framework/slsa-verifier).
           draft: true
           prerelease: false
-          artifacts: "PlainApp-*,${{ needs.provenance.outputs.provenance-name }}"
+          artifacts: 'PlainApp-*,${{ needs.provenance.outputs.provenance-name }}'

@@ -30,6 +30,11 @@ tauri-plugin-notification = "2.3.3"
 tauri-plugin-log = "2"
 tauri-plugin-dialog = "2"
 tauri-plugin-fs = "2"
+# Screen capture is native-only. Exact pins keep the platform graph reproducible
+# while the feature is validated across the release matrix.
+xcap = { version = "=0.9.8", default-features = false }
+tauri-plugin-global-shortcut = "=2.3.2"
+tauri-plugin-clipboard-manager = "=2.3.3"
 # Shared Rust primitives (crypto + utils + mdns).
 
 plain_rs = { git = "https://github.com/plainhub/plain-rs", package = "plain-rs" }
@@ -57,10 +62,18 @@ socket2 = { version = "0.5", features = ["all"] }
 
 [target.'cfg(target_os = "macos")'.dependencies]
 objc2 = "0.6"
-objc2-app-kit = { version = "0.3", features = ["NSApplication", "NSMenu", "NSMenuItem", "NSPasteboard"] }
+objc2-app-kit = { version = "0.3", features = ["NSApplication", "NSMenu", "NSMenuItem", "NSPasteboard", "NSScreen", "NSWindow"] }
 objc2-foundation = { version = "0.3", features = ["NSString", "NSURL"] }
+objc2-core-graphics = "0.3"
 
 # Official single-instance guard: a second launch focuses the running app
 # instead of spawning another process that walks the local-server port range.
 [target.'cfg(any(target_os = "windows", target_os = "linux"))'.dependencies]
 tauri-plugin-single-instance = "2"
+
+# Tauri's shortcut plugin uses X11 on Linux. Wayland registration is handled
+# through the desktop portal and kept behind the capture platform adapter.
+[target.'cfg(target_os = "linux")'.dependencies]
+ashpd = { version = "=0.13.13", default-features = false, features = ["global_shortcuts", "screencast", "tokio"] }
+gtk = "0.18.2"
+pipewire = "=0.10.1"

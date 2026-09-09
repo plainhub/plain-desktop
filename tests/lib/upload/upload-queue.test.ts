@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest'
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import type { IUploadItem } from '@/stores/temp'
 
 // Mock eventbus
@@ -10,9 +10,12 @@ vi.mock('@/lib/upload/upload', () => ({
   upload: (...args: any[]) => mockUpload(...args),
 }))
 
-import { addUploadTask, pauseUpload, resumeUpload, retryUpload, removeUpload, getQueueStatus } from '@/lib/upload/upload-queue'
+import { addUploadTask, addUploadTaskAndWait, pauseUpload, resumeUpload, retryUpload, removeUpload, getUploadQueueStatus } from '@/lib/upload/upload-queue'
+
+const createdIds = new Set<string>()
 
 function createUploadItem(id: string, overrides: Partial<IUploadItem> = {}): IUploadItem {
+  createdIds.add(id)
   return {
     id,
     dir: '/downloads',
@@ -29,9 +32,12 @@ describe('UploadQueue', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     // Default mock: upload resolves successfully after a delay
-    mockUpload.mockImplementation(
-      () => new Promise((resolve) => setTimeout(() => resolve({ fileName: 'ok' }), 50))
-    )
+    mockUpload.mockImplementation(() => new Promise((resolve) => setTimeout(() => resolve({ fileName: 'ok' }), 50)))
+  })
+
+  afterEach(() => {
+    for (const id of createdIds) removeUpload(id)
+    createdIds.clear()
   })
 
   describe('addUploadTask', () => {
@@ -50,14 +56,49 @@ describe('UploadQueue', () => {
       // Status should be 'uploading' or 'done'
       expect(['uploading', 'done']).toContain(item.status)
     })
+
+    it('awaits successful completion and evicts the completed task', async () => {
+      mockUpload.mockImplementation(async (upload: IUploadItem) => {
+        upload.status = 'done'
+        upload.fileHash = 'hash-success'
+        return { fileName: 'hash-success' }
+      })
+      const item = createUploadItem('await-success')
+
+      await expect(addUploadTaskAndWait(item, false)).resolves.toBeUndefined()
+
+      expect(item.status).toBe('done')
+      expect(getUploadQueueStatus()).toEqual({ pending: 0, running: 0, paused: 0, total: 0 })
+    })
+
+    it('rejects failed awaited tasks and evicts their retained File', async () => {
+      mockUpload.mockResolvedValue({ error: 'network unavailable' })
+      const item = createUploadItem('await-failure')
+
+      await expect(addUploadTaskAndWait(item, false)).rejects.toThrow('network unavailable')
+
+      expect(item.status).toBe('error')
+      expect(getUploadQueueStatus()).toEqual({ pending: 0, running: 0, paused: 0, total: 0 })
+    })
+
+    it('does not retain completed File objects across 100 sequential awaited tasks', async () => {
+      mockUpload.mockImplementation(async (upload: IUploadItem) => {
+        upload.status = 'done'
+        upload.fileHash = `hash-${upload.id}`
+        return { fileName: upload.fileHash }
+      })
+
+      for (let index = 0; index < 100; index += 1) {
+        await addUploadTaskAndWait(createUploadItem(`retention-${index}`), false)
+        expect(getUploadQueueStatus().total).toBe(0)
+      }
+    })
   })
 
   describe('pauseUpload', () => {
     it('pauses a running task and aborts XHRs', async () => {
       // Simulate a long upload
-      mockUpload.mockImplementation(
-        () => new Promise((resolve) => setTimeout(() => resolve({ fileName: 'ok' }), 5000))
-      )
+      mockUpload.mockImplementation(() => new Promise((resolve) => setTimeout(() => resolve({ fileName: 'ok' }), 5000)))
 
       const item = createUploadItem('pause-1')
       const abortFn = vi.fn()
@@ -80,9 +121,7 @@ describe('UploadQueue', () => {
 
     it('pauses a pending task without aborting XHR', () => {
       // Fill up the queue so this task stays pending
-      mockUpload.mockImplementation(
-        () => new Promise((resolve) => setTimeout(() => resolve({ fileName: 'ok' }), 5000))
-      )
+      mockUpload.mockImplementation(() => new Promise((resolve) => setTimeout(() => resolve({ fileName: 'ok' }), 5000)))
       // Add 3 tasks to fill the running slots
       for (let i = 0; i < 3; i++) {
         addUploadTask(createUploadItem(`fill-${i}`), false)
@@ -112,7 +151,11 @@ describe('UploadQueue', () => {
 
       // Simulate the abort-all pattern from removeTask
       for (const xhr of xhrs) {
-        try { xhr.abort() } catch (_) { /* ignore */ }
+        try {
+          xhr.abort()
+        } catch (_) {
+          /* ignore */
+        }
       }
       xhrs.clear()
 

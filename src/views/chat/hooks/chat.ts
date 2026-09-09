@@ -1,10 +1,9 @@
 // use upload queue instead of calling upload directly
-import { addUploadTask } from '@/lib/upload/upload-queue'
+import { addUploadTaskAndWait, removeUpload } from '@/lib/upload/upload-queue'
 import { deleteChatItemsGQL, sendChatItemGQL, initMutation } from '@/lib/api/mutation'
 import type { IChatItem } from '@/lib/interfaces'
 import type { IUploadItem } from '@/stores/temp'
 import { gqlFetch } from '@/lib/api/gql-client'
-import emitter from '@/plugins/eventbus'
 
 interface IChatTask {
   uploads: IUploadItem[]
@@ -13,85 +12,66 @@ interface IChatTask {
   onSent?: (sentItem: any) => void
 }
 
+// All task consumers within one webview must address the same registry. Chat
+// message deletion and sidebar clearing call useTasks() independently from the
+// upload hook, but still need to cancel the transaction that owns the File.
+const activeTasks: Map<string, IChatTask> = new Map()
+
 export const useTasks = () => {
-  // Active tasks keyed by message id
-  const activeTasks: Map<string, IChatTask> = new Map()
-  const finalized: Set<string> = new Set()
-  let subscribed = false
-
-  const tryFinalize = async (task: IChatTask) => {
-    if (finalized.has(task.item.id)) return
-    const allDone = task.uploads.every((u) => u.status === 'done' || u.status === 'error')
-    if (!allDone) return
-
-    finalized.add(task.item.id)
+  const cancelTask = (task: IChatTask) => {
+    for (const upload of task.uploads) removeUpload(upload.id)
     activeTasks.delete(task.item.id)
-
-    const c = task.item._content
-    const items: any[] = []
-    c.value.items.forEach((it: any, index: number) => {
-      const fileName = task.uploads[index].file.name
-      items.push({
-        uri: 'fid:' + (task.uploads[index].fileHash || fileName),
-        size: it.size,
-        duration: it.duration,
-        width: it.width,
-        height: it.height,
-        summary: it.summary,
-        fileName: fileName,
-      })
-    })
-
-    const res = await gqlFetch(sendChatItemGQL, { toId: task.toId, content: JSON.stringify({ type: c.type, value: { items } }) })
-    if (res?.data?.sendChatItem) {
-      const rawItems: any[] = Array.isArray(res.data.sendChatItem) ? res.data.sendChatItem : [res.data.sendChatItem]
-      if (rawItems.length) task.onSent?.(rawItems[0])
-    }
-  }
-
-  const ensureSubscribed = () => {
-    if (subscribed) return
-    // finalize on success event
-    emitter.on('upload_task_done', (u: IUploadItem) => {
-      for (const task of activeTasks.values()) {
-        if (task.uploads.some((it) => it.id === u.id)) {
-          tryFinalize(task)
-          break
-        }
-      }
-    })
-    // also react to progress/error to avoid waiting forever
-    emitter.on('upload_progress', (u: IUploadItem) => {
-      for (const task of activeTasks.values()) {
-        if (task.uploads.some((it) => it.id === u.id)) {
-          tryFinalize(task)
-          break
-        }
-      }
-    })
-    subscribed = true
   }
 
   return {
     async enqueue(item: IChatItem, uploads: IUploadItem[], toId: string, onSent?: (sentItem: any) => void) {
-      ensureSubscribed()
       const task: IChatTask = { item, uploads, toId, onSent }
       activeTasks.set(item.id, task)
-      // start all uploads immediately; concurrency is controlled by upload-queue (maxConcurrent)
-      uploads.forEach((u) => addUploadTask(u, false))
-      // in case some finished synchronously, try finalize now
-      await tryFinalize(task)
+      try {
+        // The returned promise is the capture delivery boundary: do not let the
+        // native PNG be acknowledged until every upload and sendChatItem finish.
+        await Promise.all(uploads.map((upload) => addUploadTaskAndWait(upload, false)))
+
+        const c = item._content
+        const items = c.value.items.map((metadata: any, index: number) => {
+          const upload = uploads[index]
+          if (!upload?.fileHash) throw new Error(`Upload completed without a file hash: ${upload?.file.name ?? index}`)
+          return {
+            uri: 'fid:' + upload.fileHash,
+            size: metadata.size,
+            duration: metadata.duration,
+            width: metadata.width,
+            height: metadata.height,
+            summary: metadata.summary,
+            fileName: upload.file.name,
+          }
+        })
+
+        const res = await gqlFetch(sendChatItemGQL, { toId, content: JSON.stringify({ type: c.type, value: { items } }) })
+        const sent = res?.data?.sendChatItem
+        const rawItems: any[] = Array.isArray(sent) ? sent : sent ? [sent] : []
+        if (!rawItems.length) throw new Error('sendChatItem returned no message')
+        try {
+          onSent?.(rawItems[0])
+        } catch (error) {
+          // The server transaction already succeeded. A local rendering error
+          // must not release and redeliver the same native capture.
+          console.error('Failed to display the sent upload message', error)
+        }
+      } catch (error) {
+        cancelTask(task)
+        throw error
+      } finally {
+        activeTasks.delete(item.id)
+      }
     },
     cancel(messageId: string) {
-      finalized.add(messageId)
-      activeTasks.delete(messageId)
+      const task = activeTasks.get(messageId)
+      if (task) cancelTask(task)
     },
     cancelByChatId(chatId: string) {
-      for (const [id, task] of activeTasks) {
-        if (task.toId === chatId) {
-          finalized.add(id)
-          activeTasks.delete(id)
-        }
+      for (const task of activeTasks.values()) {
+        if (task.toId === chatId) cancelTask(task)
       }
     },
   }

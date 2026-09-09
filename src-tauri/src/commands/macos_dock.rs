@@ -86,7 +86,12 @@ fn register_action_class() -> &'static objc2::runtime::AnyClass {
             if let Some(handle) = APP_HANDLE.get() {
                 let titles = window_titles().read().ok().map(|m| m.clone()).unwrap_or_default();
 
-                let mut labels: Vec<String> = handle.webview_windows().keys().cloned().collect();
+                let mut labels: Vec<String> = handle
+                    .webview_windows()
+                    .keys()
+                    .filter(|label| !super::screen_capture::runtime::is_overlay_window_label(label))
+                    .cloned()
+                    .collect();
                 labels.sort(); // "window-{timestamp}" — ascending = creation order
 
                 for label in &labels {

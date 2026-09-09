@@ -1,11 +1,11 @@
 import { ref, type Ref } from 'vue'
-import type { EditorLayer, CanvasSize } from '@/views/image-editor/utils/types'
+import type { EditorLayer, CanvasSize, EditorRasterSource } from '@/views/image-editor/utils/types'
 import { renderEditorCanvas } from '@/views/image-editor/utils/renderer'
 import type { ImageEditorDoc } from './useImageEditorDoc'
 
 export function useEditorCrop(
   canvasSize: Ref<CanvasSize>,
-  sourceImg: Ref<HTMLImageElement | null>,
+  sourceImg: Ref<EditorRasterSource | null>,
   imgOffset: { x: number; y: number },
   layers: EditorLayer[],
   bgColor: Ref<string>,
@@ -15,7 +15,8 @@ export function useEditorCrop(
   pushUndo: () => void,
   activeTool: Ref<string>,
   requestRender: () => void,
-  scheduleSave: () => void,
+  persistSourceImage?: (value: string | null) => void,
+  enabled = true,
 ) {
   const isCropping = ref(false)
   const cropRect = ref<{ x: number; y: number; w: number; h: number } | null>(null)
@@ -67,7 +68,7 @@ export function useEditorCrop(
   }
 
   function cropPointerDown(pos: { x: number; y: number }, isDrawing: Ref<boolean>, drawStart: Ref<{ x: number; y: number } | null>): boolean {
-    if (activeTool.value !== 'crop') return false
+    if (!enabled || activeTool.value !== 'crop') return false
     const { width: cw, height: ch } = canvasSize.value
     if (cropRect.value && cropRect.value.w > 2 && cropRect.value.h > 2) {
       if (pos.x < 0 || pos.x > cw || pos.y < 0 || pos.y > ch) {
@@ -90,6 +91,7 @@ export function useEditorCrop(
   }
 
   function cropPointerMove(pos: { x: number; y: number }, isDrawing: Ref<boolean>, drawStart: Ref<{ x: number; y: number } | null>): boolean {
+    if (!enabled) return false
     if (activeTool.value === 'crop' && cropRect.value && !isDrawing.value) {
       return false
     }
@@ -133,13 +135,13 @@ export function useEditorCrop(
   }
 
   function cropPointerUp(): boolean {
-    if (activeTool.value !== 'crop' && !cropDragMode.value) return false
+    if (!enabled || (activeTool.value !== 'crop' && !cropDragMode.value)) return false
     cropDragMode.value = null; cropDragStart.value = null
     return false
   }
 
   function getCropCursor(pos: { x: number; y: number }): string | null {
-    if (activeTool.value !== 'crop' || !cropRect.value) return null
+    if (!enabled || activeTool.value !== 'crop' || !cropRect.value) return null
     const mode = hitTestCropHandle(pos.x, pos.y)
     if (mode === 'move') return 'default'
     if (mode === 'nw' || mode === 'se') return 'nwse-resize'
@@ -150,7 +152,7 @@ export function useEditorCrop(
   }
 
   function applyCrop() {
-    if (!cropRect.value) return
+    if (!enabled || !cropRect.value) return
     const r = cropRect.value
     if (r.w < 2 || r.h < 2) { cancelCrop(); return }
     const rw = Math.round(r.w), rh = Math.round(r.h)
@@ -165,13 +167,13 @@ export function useEditorCrop(
       pushUndo()
       sourceImg.value = img
       doc.ydoc.transact(() => {
-        doc.setSourceImage(dataUrl)
+        persistSourceImage?.(dataUrl)
         doc.setCanvasSize(rw, rh)
         doc.setImgOffset(0, 0)
         doc.clearLayers()
       })
       isCropping.value = false; cropRect.value = null; activeTool.value = 'select'
-      requestRender(); scheduleSave()
+      requestRender()
     }
     img.src = dataUrl
   }
@@ -182,11 +184,11 @@ export function useEditorCrop(
   }
 
   function drawCropIfActive(ctx: CanvasRenderingContext2D) {
-    if (isCropping.value && cropRect.value && cropRect.value.w > 1 && cropRect.value.h > 1) drawCropOverlay(ctx, cropRect.value)
+    if (enabled && isCropping.value && cropRect.value && cropRect.value.w > 1 && cropRect.value.h > 1) drawCropOverlay(ctx, cropRect.value)
   }
 
   function onDoubleClickCrop(pos: { x: number; y: number }): boolean {
-    if (!isCropping.value || !cropRect.value) return false
+    if (!enabled || !isCropping.value || !cropRect.value) return false
     const r = cropRect.value
     if (r.w > 2 && r.h > 2 && pos.x >= r.x && pos.x <= r.x + r.w && pos.y >= r.y && pos.y <= r.y + r.h) {
       applyCrop()

@@ -129,6 +129,16 @@ export interface CanvasSize {
   height: number
 }
 
+/** Raster sources accepted by the in-memory editor without serialization. */
+export type EditorRasterSource = HTMLImageElement | HTMLCanvasElement
+
+export function getEditorRasterSize(source: EditorRasterSource): CanvasSize {
+  if ('naturalWidth' in source) {
+    return { width: source.naturalWidth, height: source.naturalHeight }
+  }
+  return { width: source.width, height: source.height }
+}
+
 export interface SizePreset {
   label: string
   w: number

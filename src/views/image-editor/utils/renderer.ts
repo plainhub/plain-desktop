@@ -1,7 +1,7 @@
 import type {
-  EditorLayer, MosaicLayer, CanvasSize,
+  EditorLayer, MosaicLayer, CanvasSize, EditorRasterSource,
 } from '@/views/image-editor/utils/types'
-import { getEditorLayerBounds } from '@/views/image-editor/utils/types'
+import { getEditorLayerBounds, getEditorRasterSize } from '@/views/image-editor/utils/types'
 import { drawSelectionBorder, drawHoverBorder } from '@/views/image-editor/utils/selection-border'
 import { drawLayer } from '@/views/image-editor/utils/editor-draw-layers'
 
@@ -59,7 +59,7 @@ export function drawCheckerboard(ctx: CanvasRenderingContext2D, cw: number, ch: 
 
 export function renderEditorCanvas(
   ctx: CanvasRenderingContext2D,
-  img: HTMLImageElement | null,
+  img: EditorRasterSource | null,
   imgOffset: { x: number; y: number },
   layers: EditorLayer[],
   size: CanvasSize,
@@ -68,9 +68,10 @@ export function renderEditorCanvas(
   layerImages?: Map<string, HTMLImageElement>,
   hideLayerId?: string | null,
   imgAlpha?: number,
+  showTransparencyGrid = true,
 ) {
   const { width: cw, height: ch } = size
-  drawCheckerboard(ctx, cw, ch)
+  if (showTransparencyGrid) drawCheckerboard(ctx, cw, ch)
   if (bgColor !== 'transparent') {
     if (bgColor.startsWith('gradient:') || bgColor.startsWith('linear-gradient') || bgColor.startsWith('radial-gradient')) {
       ctx.fillStyle = parseGradient(ctx, bgColor, cw, ch)
@@ -80,9 +81,10 @@ export function renderEditorCanvas(
     ctx.fillRect(0, 0, cw, ch)
   }
   if (img) {
+    const sourceSize = getEditorRasterSize(img)
     const alpha = imgAlpha != null ? imgAlpha / 100 : 1
     if (alpha < 1) ctx.globalAlpha = alpha
-    ctx.drawImage(img, imgOffset.x, imgOffset.y, img.naturalWidth, img.naturalHeight)
+    ctx.drawImage(img, imgOffset.x, imgOffset.y, sourceSize.width, sourceSize.height)
     if (alpha < 1) ctx.globalAlpha = 1
   }
   const allLayers = previewLayer ? [...layers, previewLayer] : layers

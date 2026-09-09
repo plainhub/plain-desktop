@@ -1,6 +1,6 @@
 <!-- eslint-disable vue/no-v-html -->
 <template>
-  <div class="chat-input">
+  <div class="chat-input" :class="{ 'capture-enabled': isTauri }">
     <div class="textarea-wrapper" @dragenter="fileDragEnter" @dragover="fileDragOver" @dragleave="fileDragLeave" @drop="dropFiles">
       <div v-show="displayDragMask" class="drag-mask">{{ $t('release_to_send_files') }}</div>
       <EmojiTextField
@@ -23,6 +23,9 @@
             </v-icon-button>
             <v-icon-button @click="sendFiles">
               <i-material-symbols:folder-outline-rounded />
+            </v-icon-button>
+            <v-icon-button v-if="isTauri" v-tooltip="$t('screenshot')" data-testid="screen-capture-button" @click="$emit('request-capture')">
+              <i-material-symbols:content-cut-rounded />
             </v-icon-button>
           </div>
         </template>
@@ -53,12 +56,14 @@ interface Emits {
   (e: 'send-message', message: string): void
   (e: 'send-files', files: File[]): void
   (e: 'send-images', files: File[]): void
+  (e: 'request-capture'): void
 }
 
 const props = defineProps<Props>()
 const emit = defineEmits<Emits>()
 
 const { t } = useI18n()
+const isTauri = __IS_TAURI__
 const fileInput = ref<HTMLInputElement>()
 const imageInput = ref<HTMLInputElement>()
 const displayDragMask = ref(false)
@@ -115,14 +120,29 @@ function sendImages() {
 }
 
 const IMAGE_MIME: Record<string, string> = {
-  jpg: 'image/jpeg', jpeg: 'image/jpeg', png: 'image/png', gif: 'image/gif',
-  webp: 'image/webp', bmp: 'image/bmp', heic: 'image/heic', heif: 'image/heif',
-  avif: 'image/avif', apng: 'image/apng', tiff: 'image/tiff', tif: 'image/tiff', svg: 'image/svg+xml',
+  jpg: 'image/jpeg',
+  jpeg: 'image/jpeg',
+  png: 'image/png',
+  gif: 'image/gif',
+  webp: 'image/webp',
+  bmp: 'image/bmp',
+  heic: 'image/heic',
+  heif: 'image/heif',
+  avif: 'image/avif',
+  apng: 'image/apng',
+  tiff: 'image/tiff',
+  tif: 'image/tiff',
+  svg: 'image/svg+xml',
 }
 const VIDEO_MIME: Record<string, string> = {
-  mp4: 'video/mp4', mov: 'video/quicktime', m4v: 'video/x-m4v',
-  webm: 'video/webm', mkv: 'video/x-matroska', avi: 'video/x-msvideo',
-  '3gp': 'video/3gpp', '3gpp': 'video/3gpp',
+  mp4: 'video/mp4',
+  mov: 'video/quicktime',
+  m4v: 'video/x-m4v',
+  webm: 'video/webm',
+  mkv: 'video/x-matroska',
+  avi: 'video/x-msvideo',
+  '3gp': 'video/3gpp',
+  '3gpp': 'video/3gpp',
 }
 function mimeFromName(name: string): string {
   const ext = name.toLowerCase().split('.').pop() || ''
@@ -134,13 +154,12 @@ async function pickImagesViaTauri() {
   const { readFile } = await import('@tauri-apps/plugin-fs')
   const selected = await open({
     multiple: true,
-    filters: [{
-      name: 'Media',
-      extensions: [
-        'jpg', 'jpeg', 'png', 'gif', 'webp', 'bmp', 'heic', 'heif', 'avif', 'apng', 'tiff', 'tif', 'svg',
-        'mp4', 'mov', 'm4v', 'webm', 'mkv', 'avi', '3gp', '3gpp',
-      ],
-    }],
+    filters: [
+      {
+        name: 'Media',
+        extensions: ['jpg', 'jpeg', 'png', 'gif', 'webp', 'bmp', 'heic', 'heif', 'avif', 'apng', 'tiff', 'tif', 'svg', 'mp4', 'mov', 'm4v', 'webm', 'mkv', 'avi', '3gp', '3gpp'],
+      },
+    ],
   })
   if (!selected) return
   const paths = (Array.isArray(selected) ? selected : [selected]) as string[]
@@ -196,11 +215,7 @@ function sendFilesByKind(files: File[]) {
   const images: File[] = []
   const others: File[] = []
   for (const file of files) {
-    const isMedia =
-      file.type.startsWith('image') ||
-      file.type.startsWith('video') ||
-      isImage(file.name) ||
-      isVideo(file.name)
+    const isMedia = file.type.startsWith('image') || file.type.startsWith('video') || isImage(file.name) || isVideo(file.name)
     if (isMedia) {
       images.push(file)
     } else {

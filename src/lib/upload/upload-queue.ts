@@ -11,22 +11,53 @@ export interface IUploadTask {
   aborted?: boolean
 }
 
+interface ManagedUploadTask extends IUploadTask {
+  completion: Promise<void>
+  resolveCompletion: () => void
+  rejectCompletion: (error: Error) => void
+  completionSettled: boolean
+  evictOnFailure: boolean
+}
+
 class UploadQueue {
-  private queue: IUploadTask[] = []
-  private running: Map<string, IUploadTask> = new Map()
+  private queue: ManagedUploadTask[] = []
+  private running: Map<string, ManagedUploadTask> = new Map()
   private readonly maxConcurrent = 3
 
   addTask(upload: IUploadItem, replace: boolean): string {
-    const task: IUploadTask = {
+    return this.enqueueTask(upload, replace, false).id
+  }
+
+  addTaskAndWait(upload: IUploadItem, replace: boolean): Promise<void> {
+    return this.enqueueTask(upload, replace, true).completion
+  }
+
+  private enqueueTask(upload: IUploadItem, replace: boolean, evictOnFailure: boolean): ManagedUploadTask {
+    let resolveCompletion!: () => void
+    let rejectCompletion!: (error: Error) => void
+    const completion = new Promise<void>((resolve, reject) => {
+      resolveCompletion = resolve
+      rejectCompletion = reject
+    })
+    // Regular upload callers intentionally use the queue's status/retry API
+    // instead of awaiting completion. Keep their failures handled while still
+    // returning the original promise to transactional callers such as chat.
+    void completion.catch(() => undefined)
+    const task: ManagedUploadTask = {
       id: upload.id,
       upload,
       replace,
       status: 'pending',
+      completion,
+      resolveCompletion,
+      rejectCompletion,
+      completionSettled: false,
+      evictOnFailure,
     }
 
     this.queue.push(task)
     this.processQueue()
-    return task.id
+    return task
   }
 
   pauseTask(taskId: string): boolean {
@@ -116,7 +147,11 @@ class UploadQueue {
       // Abort all active XHRs
       if (task.upload.xhrs && task.upload.xhrs.size > 0) {
         for (const xhr of task.upload.xhrs) {
-          try { xhr.abort() } catch (_) { /* ignore */ }
+          try {
+            xhr.abort()
+          } catch (_) {
+            /* ignore */
+          }
         }
         task.upload.xhrs.clear()
       } else {
@@ -127,6 +162,7 @@ class UploadQueue {
 
     this.queue = this.queue.filter((t) => t.id !== taskId)
     task.upload.status = 'canceled'
+    this.rejectTask(task, new Error('Upload canceled'))
     this.processQueue()
     return true
   }
@@ -140,7 +176,7 @@ class UploadQueue {
     }
   }
 
-  private findTask(taskId: string): IUploadTask | undefined {
+  private findTask(taskId: string): ManagedUploadTask | undefined {
     return this.queue.find((t) => t.id === taskId) || this.running.get(taskId)
   }
 
@@ -154,14 +190,14 @@ class UploadQueue {
     }
   }
 
-  private async executeTask(task: IUploadTask): Promise<void> {
+  private async executeTask(task: ManagedUploadTask): Promise<void> {
     task.status = 'running'
     task.upload.status = 'uploading'
     task.aborted = false
     this.running.set(task.id, task)
 
     try {
-      const result = await upload(task.upload, task.replace) as { error?: string } | undefined
+      const result = (await upload(task.upload, task.replace)) as { error?: string } | undefined
 
       // Check if task was aborted during upload
       if (task.aborted) {
@@ -174,13 +210,13 @@ class UploadQueue {
       if (result?.error) {
         task.status = 'failed'
         task.upload.status = 'error'
+        task.upload.error ||= result.error
       } else if (task.upload.status === 'error') {
         // uploadWithChunks set error status internally but returned undefined
         task.status = 'failed'
       } else {
         task.status = 'completed'
         task.upload.status = 'done'
-        emitter.emit('upload_task_done', task.upload)
       }
     } catch (error: any) {
       // Check if task was aborted during upload
@@ -193,7 +229,38 @@ class UploadQueue {
       task.upload.error = error.message || 'Upload failed'
     } finally {
       this.running.delete(task.id)
+      if (task.status === 'completed') {
+        this.queue = this.queue.filter((candidate) => candidate !== task)
+        this.resolveTask(task)
+        this.emitSafely('upload_task_done', task.upload)
+      } else if (task.status === 'failed') {
+        this.rejectTask(task, new Error(task.upload.error || 'Upload failed'))
+        if (task.evictOnFailure) this.queue = this.queue.filter((candidate) => candidate !== task)
+        this.emitSafely('upload_progress', task.upload)
+      }
       this.processQueue()
+    }
+  }
+
+  private resolveTask(task: ManagedUploadTask): void {
+    if (task.completionSettled) return
+    task.completionSettled = true
+    task.resolveCompletion()
+  }
+
+  private rejectTask(task: ManagedUploadTask, error: Error): void {
+    if (task.completionSettled) return
+    task.completionSettled = true
+    task.rejectCompletion(error)
+  }
+
+  private emitSafely(event: 'upload_task_done' | 'upload_progress', upload: IUploadItem): void {
+    try {
+      emitter.emit(event, upload)
+    } catch (error) {
+      // Queue ownership is already settled. UI observers cannot turn a stored
+      // upload result into a failed or permanently retained transaction.
+      console.error(`Upload queue observer failed for ${event}`, error)
     }
   }
 }
@@ -202,6 +269,11 @@ const uploadQueue = new UploadQueue()
 
 export function addUploadTask(upload: IUploadItem, replace: boolean): string {
   return uploadQueue.addTask(upload, replace)
+}
+
+/** Queue one upload and settle only when its terminal result is known. */
+export function addUploadTaskAndWait(upload: IUploadItem, replace: boolean): Promise<void> {
+  return uploadQueue.addTaskAndWait(upload, replace)
 }
 
 export function pauseUpload(taskId: string): boolean {

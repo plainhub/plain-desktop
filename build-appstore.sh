@@ -40,7 +40,7 @@ OUT_DIR="$(pwd)/target/appstore"
 mkdir -p "$OUT_DIR"
 
 for triple in $ARCHS; do
-  VITE_APP_MODE=tauri yarn tauri build --target "$triple" --config "$CONFIG_JSON"
+  VITE_APP_MODE=tauri yarn tauri build --target "$triple" --config "$CONFIG_JSON" -- --locked
 
   APP="src-tauri/target/$triple/release/bundle/macos/PlainApp.app"
   [ -d "$APP" ] || { echo "::error::missing bundle: $APP"; exit 1; }

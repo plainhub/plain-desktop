@@ -11,6 +11,7 @@ export class RenderScheduler {
   private mainRender: RenderFn = () => {}
   private overlayRender: RenderFn = () => {}
   private readonly flushBound: () => void
+  private flushWaiters: Array<() => void> = []
 
   constructor() {
     this.flushBound = this.flush.bind(this)
@@ -37,13 +38,28 @@ export class RenderScheduler {
   requestMain(): void { this.requestRender({ main: true, overlay: true }) }
   requestOverlay(): void { this.requestRender({ main: false, overlay: true }) }
 
+  requestMainAndWait(): Promise<void> {
+    return new Promise(resolve => {
+      this.flushWaiters.push(resolve)
+      this.requestMain()
+    })
+  }
+
+  private resolveFlushWaiters(): void {
+    for (const resolve of this.flushWaiters.splice(0)) resolve()
+  }
+
   private flush(): void {
     const scope = this.pending
     this.pending = null
     this.rafId = 0
     if (!scope) return
-    if (scope.main) this.mainRender()
-    if (scope.overlay) this.overlayRender()
+    try {
+      if (scope.main) this.mainRender()
+      if (scope.overlay) this.overlayRender()
+    } finally {
+      this.resolveFlushWaiters()
+    }
   }
 
   dispose(): void {
@@ -52,5 +68,6 @@ export class RenderScheduler {
     this.pending = null
     this.mainRender = () => {}
     this.overlayRender = () => {}
+    this.resolveFlushWaiters()
   }
 }

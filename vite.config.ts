@@ -10,6 +10,7 @@ import svgLoader from 'vite-svg-loader'
 import vueJsx from '@vitejs/plugin-vue-jsx'
 import VueI18nPlugin from '@intlify/unplugin-vue-i18n/vite'
 import { playwright } from '@vitest/browser-playwright'
+import { isTauriBuildMode } from './build-support/app-mode'
 
 const INVALID_CHAR_REGEX = /[_\x00-\x1F\x7F<>*#"{}|^[\]`;?:&=+$,]/g
 const DRIVE_LETTER_REGEX = /^[a-z]:/i
@@ -26,7 +27,8 @@ function sanitizeFileName(name: string): string {
 export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, process.cwd(), '')
   const apiHost = env.VITE_APP_API_HOST || ''
-  const isTauri = JSON.stringify(process.env.VITE_APP_MODE === 'tauri')
+  const isTauriMode = isTauriBuildMode(mode, process.env.VITE_APP_MODE)
+  const isTauri = JSON.stringify(isTauriMode)
   const appVersion = (JSON.parse(readFileSync(new URL('./src-tauri/tauri.conf.json', import.meta.url), 'utf-8')) as { version: string }).version
 
   const sharedDefine = {
@@ -201,8 +203,9 @@ export default defineConfig(({ mode }) => {
             '@': path.resolve(__dirname, 'src'),
           },
         },
-        define: testDefine,
+        define: { ...testDefine },
         optimizeDeps: {
+          include: ['@tauri-apps/plugin-dialog', '@tauri-apps/plugin-fs'],
           exclude: ['vue-i18n'],
         },
         test: {
@@ -231,7 +234,7 @@ export default defineConfig(({ mode }) => {
             '@': path.resolve(__dirname, 'src'),
           },
         },
-        define: testDefine,
+        define: { ...testDefine },
         test: {
           name: 'cws',
           include: ['tests/lib/cross-window-store.test.ts'],
@@ -248,7 +251,7 @@ export default defineConfig(({ mode }) => {
             '@': path.resolve(__dirname, 'src'),
           },
         },
-        define: testDefine,
+        define: { ...testDefine },
         test: {
           name: 'integration',
           include: ['tests/integration/**/*.test.ts'],

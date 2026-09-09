@@ -21,9 +21,9 @@ export function useImageEditorLayers(
   doc: ImageEditorDoc,
   pushUndo: () => void,
 ) {
-  function createRichTextLayer(x: number, y: number, text = 'Text'): EditorTextLayer {
+  function createRichTextLayer(x: number, y: number, text = 'Text', name = nextLayerName('Text')): EditorTextLayer {
     return {
-      id: shortUUID(), type: 'text', visible: true, name: nextLayerName('Text'),
+      id: shortUUID(), type: 'text', visible: true, name,
       x, y, text,
       fontSize: activeFontSize.value, color: activeColor.value,
       fontFamily: 'Inter, sans-serif', fontWeight: 'bold', fontStyle: 'normal',

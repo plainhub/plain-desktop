@@ -248,7 +248,7 @@ async function handleDeleteProject() {
 
 const bgMode = ref<'color' | 'image'>(sourceImg.value ? 'image' : 'color')
 const bgImageAlpha = imgAlpha
-const bgPhotoSrc = computed(() => sourceImg.value?.src ?? null)
+const bgPhotoSrc = computed(() => sourceImg.value instanceof HTMLImageElement ? sourceImg.value.src : null)
 const bgOffset = ref<{ x: number; y: number }>({ x: 0.5, y: 0.5 })
 
 watch(sourceImg, (img) => {

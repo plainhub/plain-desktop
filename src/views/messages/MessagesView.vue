@@ -29,19 +29,27 @@
       :has-large-non-image-file="send.hasLargeNonImageFile.value"
       :warn-size="send.MMS_WARN_SIZE"
       :send-disabled="send.sendDisabled.value || !sendAddress"
+      :capture-disabled="send.sendDisabled.value || !captureEligible"
       :sims="send.sims.value"
       :selected-sim-id="send.selectedSimId.value"
       @send="onSend"
       @open-file-picker="send.openFilePicker"
       @file-selected="send.onFileSelected"
       @remove-file="send.removePendingFile"
-      @update:selected-sim-id="(v) => { send.selectedSimId.value = v; mainStore.selectedSimSubscriptionId = v }"
+      @request-capture="handleCaptureRequest"
+      @update:selected-sim-id="
+        (v) => {
+          send.selectedSimId.value = v
+          mainStore.selectedSimSubscriptionId = v
+        }
+      "
     />
   </div>
 </template>
 
 <script setup lang="ts">
-import { computed, onActivated, onDeactivated, ref, watch } from 'vue'
+import { computed, onActivated, onDeactivated, onUnmounted, ref, watch } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { useRoute } from 'vue-router'
 import { replacePath } from '@/plugins/router'
 import { useMainStore } from '@/stores/main'
@@ -59,22 +67,16 @@ import { useSmsStore } from '@/stores/sms'
 import emitter from '@/plugins/eventbus'
 import type { IMmsSendResultEvent, ISmsSendResultEvent } from '@/lib/interfaces'
 import { resolveConversationSendAddress } from '@/lib/sms-conversation-sync'
-import {
-  initLazyQuery,
-  smsConversationsGQL,
-  smsConversationsWithAddressesGQL,
-  type QueryResponseContext,
-} from '@/lib/api/query'
+import toast from '@/components/toaster'
+import type { ChatCaptureDestination, ChatCaptureTarget } from '@/lib/screen-capture/tauri-capture-adapter'
+import { sendCapturedMms, snapshotMessageCaptureDestination } from './message-capture'
+import { initLazyQuery, smsConversationsGQL, smsConversationsWithAddressesGQL, type QueryResponseContext } from '@/lib/api/query'
 import { buildQuery } from '@/lib/search'
 import type { IMessageConversation } from '@/lib/interfaces'
-import {
-  subscribeMmsSendResults,
-  subscribeSmsSendResults,
-  takeMmsSendResult,
-  takeSmsSendResult,
-} from '@/lib/sms-result-ledger'
+import { subscribeMmsSendResults, subscribeSmsSendResults, takeMmsSendResult, takeSmsSendResult } from '@/lib/sms-result-ledger'
 
 const mainStore = useMainStore()
+const { t } = useI18n()
 const { app, urlTokenKey } = storeToRefs(useTempStore())
 const route = useRoute()
 const smsStore = useSmsStore()
@@ -94,7 +96,7 @@ const sendAddress = computed(() => {
   return resolveConversationSendAddress(
     selectedConversation.value,
     thread.items.value.map((item) => item.address),
-    participantFieldsSupported.value === false,
+    participantFieldsSupported.value === false
   )
 })
 
@@ -105,11 +107,7 @@ function isParticipantSchemaError(error: string): boolean {
   return value.includes('addresses') && (value.includes('field') || value.includes('validation'))
 }
 
-function handleConversationLookup(
-  data: { smsConversations: IMessageConversation[] },
-  error: string,
-  context?: QueryResponseContext,
-) {
+function handleConversationLookup(data: { smsConversations: IMessageConversation[] }, error: string, context?: QueryResponseContext) {
   const meta = context?.meta as ConversationLookupMeta | undefined
   if (!meta || meta.threadId !== threadId.value) return
   if (error) {
@@ -143,15 +141,18 @@ function loadConversationMetadata(tid: string) {
   if (current && (current.addresses !== undefined || participantFieldsSupported.value === false)) return
   const enhanced = participantFieldsSupported.value !== false
   const request = enhanced ? enhancedConversationLookup : legacyConversationLookup
-  void request.fetch({
-    offset: 0,
-    limit: 1,
-    query: buildQuery([{ name: 'thread_id', op: '', value: tid }]),
-  }, {
-    force: true,
-    latest: true,
-    meta: { threadId: tid, enhanced } satisfies ConversationLookupMeta,
-  })
+  void request.fetch(
+    {
+      offset: 0,
+      limit: 1,
+      query: buildQuery([{ name: 'thread_id', op: '', value: tid }]),
+    },
+    {
+      force: true,
+      latest: true,
+      meta: { threadId: tid, enhanced } satisfies ConversationLookupMeta,
+    }
+  )
 }
 
 const send = useMessageSend(
@@ -164,13 +165,89 @@ const send = useMessageSend(
       thread.startPendingSmsDeadline(clientId)
       thread.refetchWithRetry(clientId)
     },
-    onSmsFailed: (clientId) => { thread.failPending(clientId) },
+    onSmsFailed: (clientId) => {
+      thread.failPending(clientId)
+    },
     onMmsSent: (id, body, address, attachments) => {
       thread.setPendingMms(id, body, address, attachments)
       thread.fetch()
     },
-  },
+  }
 )
+
+const captureEligible = computed(() => Boolean(threadId.value && sendAddress.value && app.value.appDir))
+let captureTarget: ChatCaptureTarget | null = null
+let captureTargetPromise: Promise<ChatCaptureTarget> | null = null
+let captureActivation = 0
+let captureDisposed = false
+
+function currentCaptureDestination(): ChatCaptureDestination {
+  return snapshotMessageCaptureDestination({
+    chatId: sendAddress.value,
+    channelId: threadId.value,
+    appDir: app.value.appDir,
+  })
+}
+
+function showCaptureError() {
+  toast(t('failed'), 'error')
+}
+
+function showCaptureRequestError(context: string, error: unknown) {
+  void import('@/lib/screen-capture/tauri-capture-adapter')
+    .then((adapter) => adapter.reportTauriCaptureError(context, error))
+    .catch(() => console.error(context, error))
+  showCaptureError()
+}
+
+async function consumeCapturedMms(file: File, destination: ChatCaptureDestination): Promise<void> {
+  return sendCapturedMms(file, destination, {
+    currentDestination: currentCaptureDestination,
+    messageBody: send.messageBody,
+    pendingFiles: send.pendingFiles,
+    sendMessage: send.sendMessage,
+  })
+}
+
+async function loadCaptureTarget(): Promise<ChatCaptureTarget> {
+  if (!__IS_TAURI__) throw new Error('screen capture is available only in the desktop app')
+  if (!captureTargetPromise) {
+    captureTargetPromise = import('@/lib/screen-capture/tauri-capture-adapter')
+      .then(async (adapter) => {
+        const client = await adapter.getTauriCaptureClient(() => showCaptureError())
+        const target = adapter.createChatCaptureTarget(client, consumeCapturedMms)
+        captureTarget = target
+        if (captureDisposed) target.dispose()
+        return target
+      })
+      .catch((error) => {
+        captureTargetPromise = null
+        throw error
+      })
+  }
+  return captureTargetPromise
+}
+
+async function activateCaptureTarget(activation: number) {
+  try {
+    const target = await loadCaptureTarget()
+    if (captureDisposed || !isActive.value || !captureEligible.value || activation !== captureActivation) return
+    target.activate(currentCaptureDestination())
+  } catch (error) {
+    if (!captureDisposed && isActive.value && captureEligible.value && activation === captureActivation) showCaptureRequestError('SMS capture target activation failed', error)
+  }
+}
+
+async function handleCaptureRequest() {
+  const activation = captureActivation
+  try {
+    const target = await loadCaptureTarget()
+    if (captureDisposed || !isActive.value || !captureEligible.value || send.sendDisabled.value || activation !== captureActivation) return
+    await target.start(currentCaptureDestination())
+  } catch (error) {
+    if (!captureDisposed && isActive.value && captureEligible.value && activation === captureActivation) showCaptureRequestError('SMS capture request failed', error)
+  }
+}
 
 thread.setTerminalHandlers({
   onSmsFailure: (failed) => send.restoreDraft(failed.body),
@@ -208,8 +285,17 @@ function applyRouteQuery(force = false) {
   drainQueuedResults()
 }
 
-watch(() => route.fullPath, () => {
-  if (isActive.value) applyRouteQuery(true)
+watch(
+  () => route.fullPath,
+  () => {
+    if (isActive.value) applyRouteQuery(true)
+  }
+)
+
+watch([threadId, sendAddress, () => app.value.appDir], () => {
+  captureActivation += 1
+  captureTarget?.deactivate()
+  if (__IS_TAURI__ && isActive.value && captureEligible.value) void activateCaptureTarget(captureActivation)
 })
 
 let unsubscribeSmsResults: (() => void) | undefined
@@ -222,6 +308,8 @@ onActivated(() => {
   thread.subscribe(true)
   emitter.on('mms_sent', onMmsSent)
   applyRouteQuery(true)
+  captureActivation += 1
+  if (__IS_TAURI__ && captureEligible.value) void activateCaptureTarget(captureActivation)
 })
 
 onDeactivated(() => {
@@ -232,6 +320,15 @@ onDeactivated(() => {
   unsubscribeMmsResults?.()
   unsubscribeSmsResults = undefined
   unsubscribeMmsResults = undefined
+  captureActivation += 1
+  captureTarget?.deactivate()
+})
+
+onUnmounted(() => {
+  captureDisposed = true
+  captureActivation += 1
+  captureTarget?.dispose()
+  void captureTargetPromise?.then((target) => target.dispose()).catch(() => {})
 })
 
 function onSmsSendResult(result: ISmsSendResultEvent): boolean {

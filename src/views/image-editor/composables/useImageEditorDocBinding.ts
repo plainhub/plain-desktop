@@ -1,6 +1,6 @@
 import { ref, reactive, shallowRef, type Ref, type Reactive } from 'vue'
 import * as Y from 'yjs'
-import type { EditorLayer, CanvasSize } from '../utils/types'
+import type { EditorLayer, CanvasSize, EditorRasterSource } from '../utils/types'
 import type { ImageEditorDoc } from './useImageEditorDoc'
 
 export interface ImageEditorDocBinding {
@@ -8,7 +8,7 @@ export interface ImageEditorDocBinding {
   bgColor: Ref<string>
   imgOffset: Reactive<{ x: number; y: number }>
   imgAlpha: Ref<number>
-  sourceImg: Ref<HTMLImageElement | null>
+  sourceImg: Ref<EditorRasterSource | null>
   layers: Reactive<EditorLayer[]>
   layerImages: Map<string, HTMLImageElement>
   layerImageVersions: Map<string, number>
@@ -21,7 +21,7 @@ export function useImageEditorDocBinding(doc: ImageEditorDoc): ImageEditorDocBin
   const bgColor = ref(doc.getBgColor())
   const imgOffset = reactive(doc.getImgOffset())
   const imgAlpha = ref(doc.getImgAlpha())
-  const sourceImg = shallowRef<HTMLImageElement | null>(null)
+  const sourceImg = shallowRef<EditorRasterSource | null>(null)
   const layers = reactive<EditorLayer[]>([]) as Reactive<EditorLayer[]>
   const layerImages = new Map<string, HTMLImageElement>()
   const layerImageVersions = new Map<string, number>()

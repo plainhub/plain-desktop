@@ -17,7 +17,7 @@ export function useEditorTransform(
   layers: EditorLayer[],
   selectedLayerId: Ref<string | null>,
   doc: ImageEditorDoc,
-  pushUndo: () => void,
+  beginGesture: () => void,
 ) {
   const isRotating = ref(false)
   const isScaling = ref(false)
@@ -70,14 +70,14 @@ export function useEditorTransform(
     const { cx, cy } = getSelectionLayout(sel)
 
     if (handle === 'rotate') {
-      pushUndo()
+      beginGesture()
       isRotating.value = true
       const rot = ('rotation' in sel) ? (sel as any).rotation ?? 0 : 0
       rotateStartAngle = Math.atan2(pos.y - cy, pos.x - cx) - (rot * Math.PI) / 180
       return true
     }
     if (handle.startsWith('scale-')) {
-      pushUndo()
+      beginGesture()
       isScaling.value = true
       scaleStartCx = cx; scaleStartCy = cy
       scaleStartDist = Math.hypot(pos.x - cx, pos.y - cy)
@@ -89,7 +89,7 @@ export function useEditorTransform(
       return true
     }
     if (handle === 'edge-left' || handle === 'edge-right') {
-      pushUndo()
+      beginGesture()
       isWidthDragging.value = true
       widthDragSide = handle === 'edge-left' ? 'left' : 'right'
       widthDragStartX = pos.x

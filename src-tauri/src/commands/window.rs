@@ -1,6 +1,9 @@
 use std::sync::atomic::{AtomicU32, Ordering};
+#[cfg(target_os = "macos")]
 use std::sync::{Mutex, OnceLock};
 use tauri::{AppHandle, Manager, PhysicalPosition};
+
+use super::webview_creation;
 
 /// Diagonal offset (physical pixels) between a freshly opened window and
 /// the focused window it cascades from, so the new window stays near its
@@ -43,7 +46,9 @@ pub fn remember_main_window_frame(app: &AppHandle, label: &str) {
     if win.url().map(|u| u.path() != "/").unwrap_or(true) {
         return;
     }
-    let (Ok(pos), Ok(size), Ok(scale)) = (win.outer_position(), win.inner_size(), win.scale_factor()) else {
+    let (Ok(pos), Ok(size), Ok(scale)) =
+        (win.outer_position(), win.inner_size(), win.scale_factor())
+    else {
         return;
     };
     let pos = pos.to_logical::<f64>(scale);
@@ -105,7 +110,9 @@ pub fn cascade_from_focused(app: &AppHandle, win: &tauri::WebviewWindow) {
     else {
         return;
     };
-    let Ok(origin) = focused.outer_position() else { return };
+    let Ok(origin) = focused.outer_position() else {
+        return;
+    };
     let step = CASCADE_STEP.fetch_add(1, Ordering::Relaxed);
     let new_pos = cascaded_position(origin, step);
     if let Err(e) = win.set_position(new_pos) {
@@ -128,7 +135,10 @@ mod tests {
     #[test]
     fn first_open_offsets_diagonally_from_origin() {
         let origin = PhysicalPosition::new(100, 200);
-        assert_eq!(cascaded_position(origin, 0), PhysicalPosition::new(132, 232));
+        assert_eq!(
+            cascaded_position(origin, 0),
+            PhysicalPosition::new(132, 232)
+        );
     }
 
     #[test]
@@ -143,7 +153,10 @@ mod tests {
         let origin = PhysicalPosition::new(50, 60);
         let last = cascaded_position(origin, WINDOW_CASCADE_STEPS - 1);
         assert_eq!(last, PhysicalPosition::new(50 + 32 * 6, 60 + 32 * 6));
-        assert_eq!(cascaded_position(origin, WINDOW_CASCADE_STEPS), cascaded_position(origin, 0));
+        assert_eq!(
+            cascaded_position(origin, WINDOW_CASCADE_STEPS),
+            cascaded_position(origin, 0)
+        );
     }
 
     #[test]
@@ -183,8 +196,7 @@ pub fn create_window(app: &AppHandle, path: String) {
         .disable_drag_drop_handler();
     #[cfg(target_os = "macos")]
     let win = win.title_bar_style(tauri::TitleBarStyle::Overlay);
-    match win.build()
-    {
+    match webview_creation::serialized(|| win.build()) {
         Ok(win) => cascade_from_focused(app, &win),
         Err(e) => log::error!("open_window failed: {e}"),
     }
@@ -229,8 +241,7 @@ pub fn new_window(app: &AppHandle) {
         .disable_drag_drop_handler();
     #[cfg(target_os = "macos")]
     let win = win.title_bar_style(tauri::TitleBarStyle::Overlay);
-    if let Err(e) = win.build()
-    {
+    if let Err(e) = win.build() {
         log::error!("new_window failed: {e}");
     }
 }
@@ -241,9 +252,11 @@ pub fn new_window(app: &AppHandle) {
 /// WebviewWindowBuilder::build() deadlocks on Windows (WebView2).
 #[tauri::command]
 pub async fn open_window(app: AppHandle, path: String) {
-    tauri::async_runtime::spawn_blocking(move || create_window(&app, path))
-        .await
-        .ok();
+    if let Err(error) =
+        tauri::async_runtime::spawn_blocking(move || create_window(&app, path)).await
+    {
+        log::error!("open_window worker failed: {error}");
+    }
 }
 
 /// Update the display name shown for this window in the macOS dock right-click menu.

@@ -1,0 +1,10 @@
+{
+  "$schema": "https://schema.tauri.app/config/2",
+  "identifier": "screen-capture-overlay",
+  "description": "Allows the isolated screen-capture overlay to receive native capture lifecycle events.",
+  "windows": ["screen-capture-overlay-*"],
+  "permissions": [
+    "core:event:allow-listen",
+    "core:event:allow-unlisten"
+  ]
+}

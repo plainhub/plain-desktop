@@ -1,5 +1,5 @@
 <template>
-  <div class="chat-input sms-chat-input">
+  <div class="chat-input sms-chat-input" :class="{ 'capture-enabled': isTauri }">
     <div v-if="pendingFiles.length" class="chat-attachment-preview">
       <div v-for="(file, idx) in pendingFiles" :key="idx" class="chat-attachment-preview-item">
         <img v-if="file.type.startsWith('image/')" :src="filePreviewUrl(file)" class="chat-preview-thumb" />
@@ -35,13 +35,11 @@
             <v-icon-button v-tooltip="$t('attachments')" @click="$emit('openFilePicker')">
               <i-material-symbols:attach-file-rounded />
             </v-icon-button>
-            <SimSelector
-              v-if="sims.length > 1"
-              :model-value="selectedSimId"
-              :sims="sims"
-              @update:model-value="$emit('update:selectedSimId', $event)"
-            />
-            </div>
+            <v-icon-button v-if="isTauri" v-tooltip="$t('screenshot')" data-testid="sms-screen-capture-button" :disabled="captureDisabled" @click="$emit('requestCapture')">
+              <i-material-symbols:content-cut-rounded />
+            </v-icon-button>
+            <SimSelector v-if="sims.length > 1" :model-value="selectedSimId" :sims="sims" @update:model-value="$emit('update:selectedSimId', $event)" />
+          </div>
         </template>
         <template #trailing-icon>
           <v-icon-button class="btn-send" :disabled="sendDisabled" @click="$emit('send')">
@@ -66,6 +64,7 @@ const props = defineProps<{
   hasLargeNonImageFile: boolean
   warnSize: number
   sendDisabled: boolean
+  captureDisabled: boolean
   sims: ISim[]
   selectedSimId: number
 }>()
@@ -77,8 +76,10 @@ const emit = defineEmits<{
   openFilePicker: []
   fileSelected: [event: Event]
   removeFile: [index: number]
+  requestCapture: []
 }>()
 
+const isTauri = __IS_TAURI__
 const fileInputRef = defineModel<HTMLInputElement | undefined>('fileInputRef')
 
 function onEnterKey(e: KeyboardEvent) {

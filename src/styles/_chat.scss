@@ -246,6 +246,19 @@
   }
 }
 
+// The desktop composer has three leading actions. Keep them on one row so
+// the capture action cannot fall below the fixed textarea viewport; reserve
+// matching input space so the first line never renders underneath the tools.
+.chat-input.capture-enabled {
+  .leading-icons {
+    flex-direction: row;
+  }
+
+  .v-text-field:has(.leading-icon) .field-input {
+    padding-left: 128px;
+  }
+}
+
 .sms-chat-input {
   .hidden-file-input {
     display: none;

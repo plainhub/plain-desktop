@@ -1,15 +1,15 @@
 import { Application, Container, Graphics, Sprite, Texture, TilingSprite } from 'pixi.js'
 import type {
   EditorLayer, CanvasSize, ArrowLayer, RectLayer, EllipseLayer, HighlightLayer,
-  FreehandLayer, EditorTextLayer, EditorImageLayer, StickerLayer, MosaicLayer,
+  FreehandLayer, EditorTextLayer, EditorImageLayer, StickerLayer, MosaicLayer, EditorRasterSource,
 } from '../utils/types'
-import { getEditorLayerBounds } from '../utils/types'
+import { getEditorLayerBounds, getEditorRasterSize } from '../utils/types'
 import { drawLayer, wrapText } from '../utils/editor-draw-layers'
 
 export interface PixiRenderState {
   canvasSize: CanvasSize
   bgColor: string
-  sourceImg: HTMLImageElement | null
+  sourceImg: EditorRasterSource | null
   imgOffset: { x: number; y: number }
   imgAlpha: number
   layers: EditorLayer[]
@@ -155,8 +155,8 @@ function layerContentHash(l: EditorLayer, state: PixiRenderState): string {
       return `image|${l.x},${l.y},${l.w},${l.h}|${l.opacity}|${l.rotation}|${img?.src ?? ''}`
     }
     case 'mosaic': {
-      const src = state.sourceImg
-      return `mosaic|${Math.round(l.x)},${Math.round(l.y)},${Math.round(l.w)},${Math.round(l.h)}|${l.blockSize}|${state.imgOffset.x},${state.imgOffset.y}|${src?.naturalWidth ?? 0},${src?.naturalHeight ?? 0}`
+      const sourceSize = state.sourceImg ? getEditorRasterSize(state.sourceImg) : { width: 0, height: 0 }
+      return `mosaic|${Math.round(l.x)},${Math.round(l.y)},${Math.round(l.w)},${Math.round(l.h)}|${l.blockSize}|${state.imgOffset.x},${state.imgOffset.y}|${sourceSize.width},${sourceSize.height}`
     }
     default:
       return Math.random().toString(36)
@@ -185,15 +185,17 @@ export class PixiEditorRenderer {
   private bgGradientTexture: Texture | null = null
   private lastBgGradientKey: string | null = null
   private bgImageTexture: Texture | null = null
-  private lastBgImgSrc: string | null = null
+  private lastBgImageSource: EditorRasterSource | null = null
+  private lifecycleGeneration = 0
 
   get isReady(): boolean { return this.ready }
 
   async init(canvas: HTMLCanvasElement): Promise<void> {
     if (this.ready) this.destroy()
 
-    this.app = new Application()
-    await this.app.init({
+    const generation = ++this.lifecycleGeneration
+    const app = new Application()
+    await app.init({
       canvas,
       background: 0xffffff,
       antialias: true,
@@ -203,10 +205,15 @@ export class PixiEditorRenderer {
       height: canvas.clientHeight || 1080,
       preference: 'webgl',
     })
+    if (generation !== this.lifecycleGeneration) {
+      app.destroy(true)
+      return
+    }
+    this.app = app
 
     this.worldContainer = new Container()
     this.layerContainer = new Container()
-    this.app.stage.addChild(this.worldContainer)
+    app.stage.addChild(this.worldContainer)
 
     this.checkerTexture = makeCheckerboardTexture()
     this.checkerboard = new TilingSprite({
@@ -261,6 +268,12 @@ export class PixiEditorRenderer {
     this.lastCanvasH = ch
   }
 
+  paint(): boolean {
+    if (!this.ready || !this.app) return false
+    this.app.render()
+    return true
+  }
+
   private syncCheckerboard(cw: number, ch: number): void {
     if (!this.checkerboard) return
     if (this.checkerboard.width !== cw || this.checkerboard.height !== ch) {
@@ -301,18 +314,17 @@ export class PixiEditorRenderer {
     }
 
     if (this.bgImage) {
-      const imgSrc = sourceImg?.src ?? null
-      if (imgSrc && sourceImg) {
-        if (this.lastBgImgSrc !== imgSrc) {
+      if (sourceImg) {
+        if (this.lastBgImageSource !== sourceImg) {
           this.bgImageTexture?.destroy(true)
           this.bgImageTexture = Texture.from(sourceImg)
           this.bgImage.texture = this.bgImageTexture
-          this.lastBgImgSrc = imgSrc
+          this.lastBgImageSource = sourceImg
         }
         this.bgImage.position.set(imgOffset.x, imgOffset.y)
         this.bgImage.alpha = imgAlpha / 100
       }
-      this.bgImage.visible = !!imgSrc
+      this.bgImage.visible = !!sourceImg
     }
   }
 
@@ -508,12 +520,14 @@ export class PixiEditorRenderer {
 
   private drawMosaicLayer(node: Container, l: MosaicLayer): void {
     const src = this.state?.sourceImg
-    if (!src || !src.naturalWidth) return
+    if (!src) return
+    const sourceSize = getEditorRasterSize(src)
+    if (!sourceSize.width) return
 
     const imgOffset = this.state?.imgOffset ?? { x: 0, y: 0 }
     const rx = Math.round(l.x), ry = Math.round(l.y)
     const rw = Math.round(l.w), rh = Math.round(l.h)
-    const hash = JSON.stringify({ x: rx, y: ry, w: rw, h: rh, bs: l.blockSize, ox: imgOffset.x, oy: imgOffset.y, sw: src.naturalWidth, sh: src.naturalHeight })
+    const hash = JSON.stringify({ x: rx, y: ry, w: rw, h: rh, bs: l.blockSize, ox: imgOffset.x, oy: imgOffset.y, sw: sourceSize.width, sh: sourceSize.height })
     const cached = this.mosaicTextureCache.get(l.id)
     if (cached && cached.hash === hash) {
       const sprite = new Sprite(cached.texture)
@@ -566,6 +580,7 @@ export class PixiEditorRenderer {
   }
 
   destroy(): void {
+    this.lifecycleGeneration++
     for (const [id, node] of this.layerNodes) {
       this.destroyLayerNode(node, id)
     }
@@ -578,7 +593,7 @@ export class PixiEditorRenderer {
     this.bgImageTexture?.destroy(true)
     this.bgImageTexture = null
     this.lastBgGradientKey = null
-    this.lastBgImgSrc = null
+    this.lastBgImageSource = null
     this.lastBgColor = null
     this.lastCanvasW = 0
     this.lastCanvasH = 0

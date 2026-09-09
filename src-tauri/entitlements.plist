@@ -8,10 +8,10 @@
     <key>com.apple.security.app-sandbox</key>
     <true/>
 
-    <!-- Read access to files/folders the user picks via NSOpenPanel or
-         <input type=file>. Required for image/media pick + upload
-         (plugin-dialog open + plugin-fs readFile). -->
-    <key>com.apple.security.files.user-selected.read-only</key>
+    <!-- Read/write access to files/folders the user picks via NSOpenPanel,
+         NSSavePanel, or <input type=file>. Capture export writes the PNG
+         selected through the native save dialog. -->
+    <key>com.apple.security.files.user-selected.read-write</key>
     <true/>
 
     <!-- Outgoing TCP/UDP network connections (plain sockets, LAN traffic). -->
@@ -27,8 +27,7 @@
     <key>com.apple.developer.networking.multicast</key>
     <true/>
 
-    <!-- Optional, add only if the feature grows: user-selected.read-write
-         (writable user-picked files) and bookmarks.app-scope (persist access
-         across launches). -->
+    <!-- Optional, add only if the feature grows: bookmarks.app-scope
+         (persist access across launches). -->
 </dict>
 </plist>
