@@ -590,7 +590,7 @@ fn select_xcap_capture_monitor(
 }
 
 #[cfg(target_os = "macos")]
-fn ensure_capture_permission() -> Result<(), CaptureError> {
+pub(crate) fn ensure_capture_permission() -> Result<(), CaptureError> {
     use objc2_core_graphics::{CGPreflightScreenCaptureAccess, CGRequestScreenCaptureAccess};
 
     if CGPreflightScreenCaptureAccess() {
@@ -601,7 +601,7 @@ fn ensure_capture_permission() -> Result<(), CaptureError> {
 }
 
 #[cfg(not(target_os = "macos"))]
-fn ensure_capture_permission() -> Result<(), CaptureError> {
+pub(crate) fn ensure_capture_permission() -> Result<(), CaptureError> {
     Ok(())
 }
 

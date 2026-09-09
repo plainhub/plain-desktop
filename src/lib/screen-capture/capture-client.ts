@@ -202,6 +202,15 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null
 }
 
+const NATIVE_PERMISSION_DENIED_CODE = 'permission_denied'
+
+/** True when the native capture start rejected because the OS screen-capture permission is missing. */
+export function capturePermissionDenied(error: unknown, depth = 0): boolean {
+  if (depth >= 4) return false
+  if (isRecord(error) && error.code === NATIVE_PERMISSION_DENIED_CODE) return true
+  return error instanceof Error && error.cause !== undefined && capturePermissionDenied(error.cause, depth + 1)
+}
+
 function requireIdentifier(value: unknown, field: string): asserts value is string {
   if (typeof value !== 'string' || value.length === 0 || value.length > 256 || value.trim() !== value) {
     throw new CaptureClientError('invalid_result', `capture ${field} is invalid`)

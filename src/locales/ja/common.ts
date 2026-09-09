@@ -132,6 +132,7 @@ export default {
   time: '時間',
   no_permission: '権限がありません。APP > 「アクセス設定」で権限を有効にしてページをリフレッシュしてください。',
   notification_listener_permission_denied: "このデバイスで通知アクセスが有効になっていません。",
+  screen_capture_permission_denied: "画面収録の権限が必要です。「システム設定 > プライバシーとセキュリティ > 画面収録」で PlainApp を許可してから、もう一度お試しください。",
   check_phone: 'スマートフォンをご確認ください。',
   open_access_settings: 'アクセス設定を開く',
   no_data: 'データがありません。',

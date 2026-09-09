@@ -37,10 +37,11 @@ afterEach(() => {
 })
 
 describe('screen capture permission presentation', () => {
-  it('recognizes only the typed capture permission error', () => {
+  it('recognizes typed, native, and wrapped permission errors', () => {
     expect(isScreenCapturePermissionDenied(new CaptureClientError('permission_denied', 'required'))).toBe(true)
     expect(isScreenCapturePermissionDenied(new CaptureClientError('invalid_start', 'failed'))).toBe(false)
-    expect(isScreenCapturePermissionDenied({ code: 'permission_denied' })).toBe(false)
+    expect(isScreenCapturePermissionDenied({ code: 'permission_denied' })).toBe(true)
+    expect(isScreenCapturePermissionDenied(new Error('start failed', { cause: { code: 'permission_denied' } }))).toBe(true)
   })
 
   it('opens one guide for concurrent macOS permission failures', async () => {

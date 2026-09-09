@@ -5,7 +5,7 @@
 - Issue: <https://github.com/plainhub/plain-desktop/issues/19>
 - Repository: <https://github.com/plainhub/plain-desktop>
 - Feature baseline: `52531249b6c31983fb6c5c89a001eabfaf5bbf8b`
-- Current upstream integrated: `d0f1574d015300c1359b233055753a145e52ed85` (`v0.1.11`)
+- Current upstream integrated: `edde93be7853beff4255a489a338ae54064a9b9a` (`v0.1.11`)
 - Original feature branch: `th317erd:feat/issue-19-screen-capture`
 - Merged feature pull request: <https://github.com/plainhub/plain-desktop/pull/20>
 - Permission follow-up branch: `th317erd:fix/issue-19-macos-permission-guide`
@@ -239,7 +239,12 @@ Pull request #21 preserves the code through direct and global-shortcut capture
 paths and presents the recovery guide described above.
 
 The follow-up was replayed onto upstream `main` at `d0f1574d` rather than merged
-back from the squash-merged feature branch. Validation from that tree produced:
+back from the squash-merged feature branch. The maintainer then added
+`edde93be`, which performs the direct composer permission preflight before any
+window state changes and adds localized denial text. Pull request #21 retains
+that useful behavior, adds the guided settings/restart workflow, and covers the
+global-shortcut terminal path that has no rejected JavaScript invocation to
+inspect. Validation after merging `edde93be` produced:
 
 ```text
 focused permission/capture/composer frontend tests

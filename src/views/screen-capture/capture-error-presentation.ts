@@ -1,14 +1,14 @@
 import type { ComposerTranslation } from 'vue-i18n'
 import { getCurrentModal, openModal } from '@/components/modal'
 import toast from '@/components/toaster'
-import { CaptureClientError } from '@/lib/screen-capture/capture-client'
+import { capturePermissionDenied } from '@/lib/screen-capture/capture-client'
 import { isMacPlatform } from '@/lib/platform'
 import CapturePermissionModal from './CapturePermissionModal.vue'
 
 let permissionModalOpening: Promise<unknown> | null = null
 
 export function isScreenCapturePermissionDenied(error: unknown): boolean {
-  return error instanceof CaptureClientError && error.code === 'permission_denied'
+  return capturePermissionDenied(error)
 }
 
 export async function presentCaptureError(error: unknown, t: ComposerTranslation): Promise<void> {
