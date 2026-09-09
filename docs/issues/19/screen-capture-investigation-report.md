@@ -5,9 +5,11 @@
 - Issue: <https://github.com/plainhub/plain-desktop/issues/19>
 - Repository: <https://github.com/plainhub/plain-desktop>
 - Feature baseline: `52531249b6c31983fb6c5c89a001eabfaf5bbf8b`
-- Current upstream integrated: `a26dd7e3e438184b15bc7eb3f367202f2ad5bea2` (`v0.1.10`)
-- Feature branch: `th317erd:feat/issue-19-screen-capture`
-- Pull request: <https://github.com/plainhub/plain-desktop/pull/20>
+- Current upstream integrated: `d0f1574d015300c1359b233055753a145e52ed85` (`v0.1.11`)
+- Original feature branch: `th317erd:feat/issue-19-screen-capture`
+- Merged feature pull request: <https://github.com/plainhub/plain-desktop/pull/20>
+- Permission follow-up branch: `th317erd:fix/issue-19-macos-permission-guide`
+- Permission follow-up pull request: <https://github.com/plainhub/plain-desktop/pull/21>
 
 ## Priority and scope
 
@@ -227,6 +229,45 @@ The full frontend failure count did not grow. The three stable failures are the
 pre-existing web/local-mode expectations recorded in the implementation plan.
 Mechanical architecture searches and `git diff --check` pass.
 
+### Post-merge macOS permission follow-up
+
+Maintainer testing after pull request #20 was merged reproduced a denied capture
+under the exact `yarn dev:tauri` workflow on macOS 26. The native log retained
+the useful `PermissionDenied` code and `permission_prompt_returned=false`, but
+the frontend erased that code before presenting the generic `Failed` toast.
+Pull request #21 preserves the code through direct and global-shortcut capture
+paths and presents the recovery guide described above.
+
+The follow-up was replayed onto upstream `main` at `d0f1574d` rather than merged
+back from the squash-merged feature branch. Validation from that tree produced:
+
+```text
+focused permission/capture/composer frontend tests
+  70 passed; 0 failed
+
+corepack yarn typecheck
+corepack yarn build:tauri:frontend
+  passed
+
+cargo +1.96.0 test --locked --manifest-path src-tauri/Cargo.toml --lib -j 2
+  271 passed; 0 failed
+```
+
+The upstream Windows-firewall commit had accidentally removed the source line
+for the Git-based `plain-rs` package from `Cargo.lock`, causing every existing
+`--locked` CI command to fail before compilation. The follow-up regenerates only
+that one source line and proves the repaired lockfile with the command above.
+
+A clean Apple Silicon/macOS checkout passed the 70 focused frontend tests, all
+253 platform-eligible Rust library tests, typecheck, Tauri frontend build, and
+macOS-only Rust compilation. The exact `yarn dev:tauri` command then compiled
+and launched `target/debug/PlainApp`. Inspection confirmed that Tauri embedded
+the configured Info.plist and that the process used the expected ad-hoc
+development identity. Xcode 26.6's SDK does not define an
+`NSScreenCaptureUsageDescription` property-list key, so an invented privacy key
+was not added; denied-state recovery remains an application guide to Apple's
+Screen & System Audio Recording pane followed by a PlainApp restart.
+
 ### Interactive platform proof
 
 - KDE Plasma/X11, two 2560x1440 monitors: scissors and `Alt+A`, selection,
@@ -245,8 +286,9 @@ Mechanical architecture searches and `git diff --check` pass.
 
 ## Remaining limitations
 
-- The post-merge Windows/macOS compile matrix and clean Linux frontend run must
-  pass in GitHub CI after the pull request opens.
+- The post-merge permission follow-up must pass the Windows/macOS/Linux GitHub
+  Actions matrix and be retested by the maintainer in the original denied TCC
+  state.
 - KDE/GNOME pure-Wayland chooser, PipeWire negotiation, and portal shortcut
   behavior have contract tests but still need interactive packaged proof.
 - Real mixed-DPI/negative-origin multi-monitor hardware remains covered by
