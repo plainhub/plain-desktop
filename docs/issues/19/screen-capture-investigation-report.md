@@ -79,6 +79,10 @@ Interactive testing exposed and corrected several failures before submission:
   or blank.
 - macOS permission discovery failed when the executable was launched outside
   LaunchServices, and the hide delay left a faint animated window outline.
+- Maintainer testing with `yarn dev:tauri` on macOS 26 correctly reached the
+  native `PermissionDenied` path, but Plain discarded that typed result and
+  reduced it to an unactionable `Failed` toast. The same error was absent from
+  the target-window terminal event used by global-shortcut captures.
 - Toolbar placement based only on browser geometry could put controls behind
   the macOS Dock, Windows taskbar, or Linux panel.
 - Upstream's new i18n compiler rejected the capture locale glob's alias form.
@@ -134,6 +138,20 @@ Interactive testing exposed and corrected several failures before submission:
   confirm explains why it is unavailable.
 - Failed upload/export attempts preserve the capture and draft for retry.
 
+### macOS permission recovery
+
+- Preserves the native `permission_denied` machine code through both rejected
+  composer starts and failed global-shortcut terminal events.
+- Replaces the generic toast for that macOS failure with an animated Plain
+  modal that explains the exact Privacy & Security pane, the PlainApp toggle,
+  and the required application restart.
+- Adds an **Open System Settings** action for the Screen & System Audio
+  Recording pane. The native command accepts no URL from the webview, uses one
+  hard-coded macOS settings URL, and rejects capture-overlay or other utility
+  window callers.
+- Keeps every unrelated failure and every non-macOS permission failure on the
+  existing generic error path.
+
 ### Upstream integration and CI reproducibility
 
 Upstream `main` through `a26dd7e3` was merged without rewriting branch history.
@@ -158,6 +176,9 @@ The added frontend suites prove:
 - clipped PNG output, localization, native work-area placement, and toolbar
   fallbacks;
 - Windows ephemeral overlay and global WebView-creation serialization rules.
+- typed permission propagation for direct and shortcut starts, single-instance
+  permission-guide presentation, non-macOS fallback behavior, and the exact
+  native settings command invoked by the guide.
 
 The Rust suites prove:
 
@@ -169,6 +190,8 @@ The Rust suites prove:
 - lifecycle races, late results, target loss, timeouts, restoration, overlay
   retirement/rebuild, and shortcut platform selection;
 - native work-area conversion for Windows, Linux, and macOS.
+- failed terminal metadata carries only the bounded native error code, while
+  the hard-coded settings command rejects non-application webviews.
 
 ## Validation
 

@@ -38,6 +38,8 @@ describe('SMS composer capture trigger', () => {
     expect(inputSource).not.toContain('screen-capture/tauri-capture-adapter')
     expect(viewSource).not.toMatch(/import\s+[^\n]+from ['"]@tauri-apps/)
     expect(viewSource).toContain("import('@/lib/screen-capture/tauri-capture-adapter')")
+    expect(viewSource).toContain("import('@/views/screen-capture/capture-error-presentation')")
+    expect(viewSource).toContain('getTauriCaptureClient((error) => showCaptureError(error))')
     expect(viewSource).toContain('createChatCaptureTarget')
     expect(viewSource).toContain('captureTarget?.deactivate()')
     expect(viewSource).toContain('captureTarget?.dispose()')

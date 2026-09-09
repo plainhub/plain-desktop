@@ -102,6 +102,26 @@ async function startedHarness(consumer = vi.fn(async (_file: File) => undefined)
 }
 
 describe('CaptureClient target ownership', () => {
+  it('preserves a typed native permission denial from a composer start', async () => {
+    const nativeError = {
+      code: 'permission_denied',
+      detail: 'screen capture permission is required (permission_prompt_returned=false)',
+    }
+    const test = harness({
+      invoke: vi.fn(async (command: string) => {
+        if (command === 'screen_capture_start') throw nativeError
+        return undefined
+      }),
+    })
+    test.client.registerConsumer(async () => undefined).activate()
+
+    await expect(test.client.startComposerCapture()).rejects.toMatchObject({
+      code: 'permission_denied',
+      cause: nativeError,
+    })
+    expect(test.client.activeCapture()).toBeNull()
+  })
+
   it('does not subscribe the target client to overlay terminal payloads', async () => {
     const test = harness()
     const registration = test.client.registerConsumer(async () => undefined)
@@ -504,6 +524,25 @@ describe('CaptureClient target ownership', () => {
 
     expect(test.invoke.mock.calls.filter(([command]) => command === 'screen_capture_invalidate_target')).toHaveLength(1)
     expect(test.client.activeCapture()).toBeNull()
+  })
+
+  it('reports a typed permission denial from a global-shortcut terminal event', async () => {
+    const test = await startedHarness()
+
+    await test.onEnded()({
+      payload: {
+        sessionId: 'session-1',
+        targetToken: 'target-1',
+        outcome: 'failed',
+        errorCode: 'permission_denied',
+      },
+    })
+
+    expect(test.client.activeCapture()).toBeNull()
+    expect(test.errors.at(-1)).toMatchObject({
+      code: 'permission_denied',
+      message: 'screen capture permission is required',
+    })
   })
 
   it.each([

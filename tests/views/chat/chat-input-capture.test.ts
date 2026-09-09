@@ -31,6 +31,8 @@ describe('ChatInput screen capture action', () => {
   it('keeps the web graph free of eager Tauri loading and wires view lifecycle ownership', () => {
     expect(chatViewSource).not.toMatch(/import\s+[^\n]+from ['"]@tauri-apps/)
     expect(chatViewSource).toContain("import('@/lib/screen-capture/tauri-capture-adapter')")
+    expect(chatViewSource).toContain("import('@/views/screen-capture/capture-error-presentation')")
+    expect(chatViewSource).toContain('getTauriCaptureClient((error) => showCaptureError(error))')
     expect(chatViewSource).toContain('target.activate(currentCaptureDestination())')
     expect(chatViewSource).toContain('!notAllowChat.value')
     expect(chatViewSource).toContain('watch([chatId, channelId, notAllowChat]')
