@@ -259,7 +259,7 @@ for the Git-based `plain-rs` package from `Cargo.lock`, causing every existing
 that one source line and proves the repaired lockfile with the command above.
 
 A clean Apple Silicon/macOS checkout passed the 70 focused frontend tests, all
-253 platform-eligible Rust library tests, typecheck, Tauri frontend build, and
+256 platform-eligible Rust library tests, typecheck, Tauri frontend build, and
 macOS-only Rust compilation. The exact `yarn dev:tauri` command then compiled
 and launched `target/debug/PlainApp`. Inspection confirmed that Tauri embedded
 the configured Info.plist and that the process used the expected ad-hoc
