@@ -4,7 +4,7 @@
   </header>
   <h1>PlainApp</h1>
   <div class="login-block">
-    <LoginForm ref="loginFormRef" @needs-setup="goToSetup" />
+    <LoginForm ref="loginFormRef" />
   </div>
 </template>
 <script setup lang="ts">
@@ -59,12 +59,13 @@ h1 {
 }
 
 .login-block {
-  width: 320px;
-  margin: 0 auto;
+  box-sizing: border-box;
+  width: calc(100% - 32px);
+  max-width: 400px;
+  margin-inline: auto;
   --outlined-field-bg: var(--md-sys-color-surface-variant);
   background-color: var(--md-sys-color-surface-variant);
   border-radius: var(--pl-shape-xl);
-  padding-block: var(--pl-spacing-xl);
   padding: 40px;
 }
 </style>
