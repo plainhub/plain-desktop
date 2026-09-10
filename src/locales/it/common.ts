@@ -188,6 +188,7 @@ export default {
   restore: 'Ripristina',
   trash: 'Cestino',
   move_to_trash: 'Sposta nel cestino',
+  move_to_folder: 'Sposta nella cartella',
   work: 'Lavoro',
   expand_all: 'Espandi tutto',
   collapse_all: 'Comprimi tutto',

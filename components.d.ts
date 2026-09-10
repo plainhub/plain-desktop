@@ -242,6 +242,7 @@ declare module 'vue' {
     'IMaterialSymbols:downloadRounded': typeof import('~icons/material-symbols/download-rounded')['default']
     'IMaterialSymbols:draftOutlineRounded': typeof import('~icons/material-symbols/draft-outline-rounded')['default']
     'IMaterialSymbols:dragIndicator': typeof import('~icons/material-symbols/drag-indicator')['default']
+    'IMaterialSymbols:driveFileMoveOutlineRounded': typeof import('~icons/material-symbols/drive-file-move-outline-rounded')['default']
     'IMaterialSymbols:edit': typeof import('~icons/material-symbols/edit')['default']
     'IMaterialSymbols:editOutlineRounded': typeof import('~icons/material-symbols/edit-outline-rounded')['default']
     'IMaterialSymbols:editRounded': typeof import('~icons/material-symbols/edit-rounded')['default']

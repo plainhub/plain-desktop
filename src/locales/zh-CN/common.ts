@@ -221,6 +221,7 @@ export default {
   not_in_trash: '不在回收站',
   trash: '回收站',
   move_to_trash: '移到回收站',
+  move_to_folder: '移动到文件夹',
   work: '工作',
   expand_all: '展开全部',
   collapse_all: '合并全部',

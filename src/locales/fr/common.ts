@@ -188,6 +188,7 @@ export default {
   restore: 'Restaurer',
   trash: 'Corbeille',
   move_to_trash: 'Déplacer vers la corbeille',
+  move_to_folder: 'Déplacer vers le dossier',
   work: 'Travail',
   expand_all: 'Tout développer',
   collapse_all: 'Tout réduire',

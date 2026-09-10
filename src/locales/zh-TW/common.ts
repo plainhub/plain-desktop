@@ -188,6 +188,7 @@ export default {
   restore: '還原',
   trash: '資源回收筒',
   move_to_trash: '移至資源回收筒',
+  move_to_folder: '移動到資料夾',
   work: '工作',
   expand_all: '展開全部',
   collapse_all: '收合全部',

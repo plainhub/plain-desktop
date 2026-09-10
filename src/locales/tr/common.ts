@@ -187,6 +187,7 @@ export default {
   restore: 'Geri yükle',
   trash: 'Çöp',
   move_to_trash: 'Çöpe taşı',
+  move_to_folder: 'Klasöre taşı',
   work: 'İş',
   expand_all: 'Hepsini genişlet',
   collapse_all: 'Hepsini daralt',
