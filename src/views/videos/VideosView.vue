@@ -18,6 +18,11 @@
     <template #tag-action>
       <BulkTagDropdown :type="dataType" :tags="tags" :items="items" :selected-ids="selectedIds" :real-all-checked="realAllChecked" :q="q" />
     </template>
+    <template #extra-actions>
+      <v-icon-button v-if="!filter.trash" v-tooltip="$t('move_to_folder')" :loading="moveLoading" @click.stop="onMoveClick(dataType, selectedIds, realAllChecked, getQuery())">
+        <i-material-symbols:drive-file-move-outline-rounded />
+      </v-icon-button>
+    </template>
     <template #actions>
       <MediaPageActions v-bind="actionsProps" placement="top" />
     </template>
@@ -112,6 +117,7 @@ import { useMainStore } from '@/stores/main'
 import { useGroupedScroll, type MediaGroup } from '@/hooks/grouped-scroll'
 import { useMediaPage } from '@/hooks/media-page'
 import { useMediaPageActions } from '@/hooks/media-page-actions'
+import { useMoveToFolder } from '@/hooks/media'
 import MediaPageActions from '@/components/media/MediaPageActions.vue'
 import MediaGridItem from '@/components/media/MediaGridItem.vue'
 import MediaToolbar from '@/components/media/MediaToolbar.vue'
@@ -191,6 +197,8 @@ const sources = computed<ISource[]>(() => items.value.map((it: IVideoItem) => ({
 })) as ISource[])
 const { open: openMedia } = useOpenMedia(sources)
 function view(index: number) { openMedia(index) }
+
+const { moveLoading, onMoveClick } = useMoveToFolder('move-videos-picker')
 
 const actionsProps = useMediaPageActions({
   filterTrash: computed(() => !!filter.trash),

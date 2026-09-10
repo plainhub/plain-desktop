@@ -22,6 +22,9 @@
       <v-icon-button v-tooltip="$t('add_to_playlist')" @click.stop="addItemsToPlaylist($event, selectedIds, realAllChecked, q)">
         <i-material-symbols:playlist-add />
       </v-icon-button>
+      <v-icon-button v-if="!filter.trash" v-tooltip="$t('move_to_folder')" :loading="moveLoading" @click.stop="onMoveClick(dataType, selectedIds, realAllChecked, getQuery())">
+        <i-material-symbols:drive-file-move-outline-rounded />
+      </v-icon-button>
     </template>
     <template #actions>
       <MediaPageActions v-bind="actionsProps" placement="top" />
@@ -69,6 +72,7 @@ import { useTempStore } from '@/stores/temp'
 import { useAddToPlaylist, useAudioPlayer } from './hooks/useAudiosHooks'
 import { useMediaPage } from '@/hooks/media-page'
 import { useMediaPageActions } from '@/hooks/media-page-actions'
+import { useMoveToFolder } from '@/hooks/media'
 import MediaPageActions from '@/components/media/MediaPageActions.vue'
 import MediaToolbar from '@/components/media/MediaToolbar.vue'
 import NoDataPlaceholder from '@/components/NoDataPlaceholder.vue'
@@ -141,6 +145,7 @@ const effectiveQ = computed(() => {
   return [q.value, ...dirParts].filter(Boolean).join(' ')
 })
 const { play, playPath, loading: playLoading, pause } = useAudioPlayer()
+const { moveLoading, onMoveClick } = useMoveToFolder('move-audios-picker')
 const { addItemsToPlaylist, addToPlaylist, removeFromPlaylist, isInPlaylist } = useAddToPlaylist(items, clearSelection)
 const onImageError = (id: string) => { imageErrorIds.value.push(id) }
 

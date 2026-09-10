@@ -1,5 +1,7 @@
 import { useI18n } from 'vue-i18n'
 import toast from '@/components/toaster'
+import { promptModal } from '@/components/modal'
+import DirectoryPickerModal from '@/components/DirectoryPickerModal.vue'
 import { deleteMediaItemsGQL, initMutation, moveMediaItemsGQL } from '@/lib/api/mutation'
 import emitter from '@/plugins/eventbus'
 import type { DataType } from '@/lib/data'
@@ -96,6 +98,22 @@ export const useMoveItems = () => {
       doMove({ type: moveType.value, query: moveQuery.value, destDir })
     },
   }
+}
+
+export const useMoveToFolder = (modalId: string) => {
+  const { t } = useI18n()
+  const { moveLoading, moveItems, doMoveItems } = useMoveItems()
+  const onMoveClick = async (type: string, ids: string[], realAllChecked: boolean, query: string) => {
+    const q = moveItems(type, ids, realAllChecked, query)
+    if (q === undefined) return
+    const destDir = await promptModal<string>(DirectoryPickerModal, {
+      title: t('move_to_folder'),
+      modalId,
+    })
+    if (typeof destDir !== 'string' || !destDir.trim()) return
+    doMoveItems(destDir.trim())
+  }
+  return { moveLoading, onMoveClick }
 }
 
 
