@@ -144,6 +144,7 @@ declare module 'vue' {
     'ILucide:hardDrive': typeof import('~icons/lucide/hard-drive')['default']
     'ILucide:hash': typeof import('~icons/lucide/hash')['default']
     'ILucide:history': typeof import('~icons/lucide/history')['default']
+    'ILucide:home': typeof import('~icons/lucide/home')['default']
     'ILucide:image': typeof import('~icons/lucide/image')['default']
     'ILucide:info': typeof import('~icons/lucide/info')['default']
     'ILucide:keyboard': typeof import('~icons/lucide/keyboard')['default']

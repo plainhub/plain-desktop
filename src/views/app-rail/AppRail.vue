@@ -6,6 +6,17 @@
 
     <div class="rail-items">
       <router-link
+        v-if="!localMode"
+        v-tooltip="$t('page_title.home')"
+        to="/"
+        class="rail-item rail-home"
+        :class="{ active: isHomeActive() }"
+        :aria-label="$t('page_title.home')"
+      >
+        <i-lucide:home />
+        <div class="rail-label">{{ $t('page_title.home') }}</div>
+      </router-link>
+      <router-link
         v-for="feat in railFeatures"
         :key="feat.id"
         v-tooltip="$t(feat.titleKey)"
@@ -60,6 +71,10 @@ function isActive(feat: Feature) {
   } catch {
     return false
   }
+}
+
+function isHomeActive() {
+  return router.currentRoute.value.path === '/'
 }
 
 function lastRoute(defaultPath: string, group: string) {
@@ -169,6 +184,10 @@ onBeforeUnmount(() => {
   text-align: center;
 }
 
+.rail-item.rail-home {
+  display: none;
+}
+
 .rail-item:hover,
 .rail-item.active {
   background: color-mix(in srgb, var(--md-sys-color-primary) 12%, transparent);
@@ -197,6 +216,10 @@ onBeforeUnmount(() => {
     flex-direction: row;
     overflow-x: auto;
     overflow-y: hidden;
+  }
+
+  .rail-item.rail-home {
+    display: flex;
   }
 
   .rail-item {
