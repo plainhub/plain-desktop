@@ -34,7 +34,7 @@
                 <div class="key">{{ $t('error') }}</div>
                 <div class="value">
                   {{ dlnaStartError }}
-                  <v-icon-button v-tooltip="$t('retry')" class="btn-sm" :loading="dlnaRetrying" @click="toggleDlna">
+                  <v-icon-button v-tooltip="$t('retry')" :loading="dlnaRetrying" @click="toggleDlna">
                     <i-material-symbols:refresh-rounded />
                   </v-icon-button>
                 </div>
@@ -57,7 +57,7 @@
               <div class="key">{{ $t('http_port') }}</div>
               <div class="value">
                 {{ httpPort }}
-                <v-icon-button class="btn-sm" @click="openPortDialog('http')">
+                <v-icon-button @click="openPortDialog('http')">
                   <i-material-symbols:edit-rounded />
                 </v-icon-button>
               </div>
@@ -66,7 +66,7 @@
               <div class="key">{{ $t('https_port') }}</div>
               <div class="value">
                 {{ httpsPort }}
-                <v-icon-button class="btn-sm" @click="openPortDialog('https')">
+                <v-icon-button @click="openPortDialog('https')">
                   <i-material-symbols:edit-rounded />
                 </v-icon-button>
               </div>
@@ -75,10 +75,10 @@
               <div class="key">{{ $t('mdns_hostname') }}</div>
               <div class="value">
                 {{ mdnsHostname }}
-                <v-icon-button class="btn-sm" @click="openMdnsDialog">
+                <v-icon-button @click="openMdnsDialog">
                   <i-material-symbols:edit-rounded />
                 </v-icon-button>
-                <v-icon-button v-tooltip="$t('mdns_debug')" class="btn-sm" @click="openMdnsDebug">
+                <v-icon-button v-tooltip="$t('mdns_debug')" @click="openMdnsDebug">
                   <i-material-symbols:bug-report-rounded />
                 </v-icon-button>
               </div>

@@ -2,13 +2,13 @@
   <div class="danger-action">
     <template v-if="!confirming">
       <span>{{ label }}</span>
-      <v-outlined-button class="btn-sm danger" @click="confirming = true">{{ $t('delete') }}</v-outlined-button>
+      <v-outlined-button class="danger" @click="confirming = true">{{ $t('delete') }}</v-outlined-button>
     </template>
     <template v-else>
       <span class="danger-action-confirm-text">{{ confirmText }}</span>
       <div class="danger-action-confirm-buttons">
-        <v-outlined-button class="btn-sm" @click="confirming = false">{{ $t('cancel') }}</v-outlined-button>
-        <v-outlined-button class="btn-sm danger" :loading="loading" @click="$emit('confirm')">{{ $t('confirm') }}</v-outlined-button>
+        <v-outlined-button @click="confirming = false">{{ $t('cancel') }}</v-outlined-button>
+        <v-outlined-button class="danger" :loading="loading" @click="$emit('confirm')">{{ $t('confirm') }}</v-outlined-button>
       </div>
     </template>
   </div>

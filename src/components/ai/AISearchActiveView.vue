@@ -30,7 +30,7 @@
       </div>
       <div v-else class="surface-card active-data-row">
         <span>{{ $t('ai.indexed_count', { count: status.indexedImages }) }}</span>
-        <v-outlined-button class="btn-sm" :loading="startIndexLoading" @click="startIndex(true)">{{ $t('ai.rescan') }}</v-outlined-button>
+        <v-outlined-button :loading="startIndexLoading" @click="startIndex(true)">{{ $t('ai.rescan') }}</v-outlined-button>
       </div>
       <danger-action
         class="active-danger-card"

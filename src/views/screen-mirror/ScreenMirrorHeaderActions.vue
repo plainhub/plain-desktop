@@ -78,7 +78,7 @@
         <i-material-symbols:stop-rounded />
       </v-icon-button>
     </template>
-    <v-outlined-button v-else-if="!relaunchAppLoading && !idle" class="btn-sm" @click="$emit('relaunchApp')">{{ $t('relaunch_app') }}</v-outlined-button>
+    <v-outlined-button v-else-if="!relaunchAppLoading && !idle" @click="$emit('relaunchApp')">{{ $t('relaunch_app') }}</v-outlined-button>
   </div>
 </template>
 

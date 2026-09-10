@@ -2,7 +2,7 @@
   <div class="actions">
     <template v-if="item.isUninstalling">
       <v-circular-progress v-tooltip="$t('uninstalling')" indeterminate class="sm" />
-      &nbsp;<v-outlined-button class="btn-sm" @click.stop="cancelUninstall">{{ $t('cancel') }}</v-outlined-button>
+      &nbsp;<v-outlined-button @click.stop="cancelUninstall">{{ $t('cancel') }}</v-outlined-button>
     </template>
     <template v-else>
       <v-icon-button v-tooltip="$t('uninstall')" class="sm" @click.stop="uninstall">

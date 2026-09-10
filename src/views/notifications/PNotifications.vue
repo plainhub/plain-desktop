@@ -21,7 +21,7 @@
                 </div>
               </div>
               <div v-if="notificationWarningAction" class="warning-actions">
-                <v-filled-button class="btn-sm" @click="notificationWarningAction.action()">
+                <v-filled-button @click="notificationWarningAction.action()">
                   {{ $t(notificationWarningAction.text) }}
                 </v-filled-button>
               </div>

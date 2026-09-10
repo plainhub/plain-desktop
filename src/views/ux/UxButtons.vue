@@ -8,8 +8,7 @@
       <v-filled-button :loading="true">Loading</v-filled-button>
     </ux-code-block>
 
-    <ux-code-block code="<v-filled-button class=&quot;btn-sm&quot;>Small</v-filled-button>&#10;<v-filled-button class=&quot;btn-lg&quot;>Large</v-filled-button>">
-      <v-filled-button class="btn-sm">Small</v-filled-button>
+    <ux-code-block code="<v-filled-button>Default</v-filled-button>&#10;<v-filled-button class=&quot;btn-lg&quot;>Large</v-filled-button>">
       <v-filled-button>Default</v-filled-button>
       <v-filled-button class="btn-lg">Large</v-filled-button>
     </ux-code-block>
@@ -20,9 +19,8 @@
       <v-outlined-button :loading="true">Loading</v-outlined-button>
     </ux-code-block>
 
-    <ux-code-block code="<v-outlined-button class=&quot;danger&quot;>Danger</v-outlined-button>&#10;<v-outlined-button class=&quot;btn-sm danger&quot;>Small Danger</v-outlined-button>">
+    <ux-code-block code="<v-outlined-button class=&quot;danger&quot;>Danger</v-outlined-button>">
       <v-outlined-button class="danger">Danger</v-outlined-button>
-      <v-outlined-button class="btn-sm danger">Small Danger</v-outlined-button>
     </ux-code-block>
 
     <ux-code-block code="<v-icon-button>&#10;  <i-material-symbols:settings-rounded />&#10;</v-icon-button>">

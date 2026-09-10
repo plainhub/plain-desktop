@@ -22,7 +22,7 @@
     <h3>Vue Transitions: fade / width / height</h3>
     <ux-code-block code="<transition name=&quot;fade&quot;>&#10;  <div v-if=&quot;show&quot;>Fades in/out</div>&#10;</transition>&#10;&#10;<transition name=&quot;width&quot;>&#10;  <div v-if=&quot;show&quot;>Width transition</div>&#10;</transition>&#10;&#10;<transition name=&quot;height&quot;>&#10;  <div v-if=&quot;show&quot;>Height transition</div>&#10;</transition>">
       <div style="display: flex; flex-direction: column; gap: 8px; width: 100%">
-        <v-outlined-button class="btn-sm" @click="showTransition = !showTransition">
+        <v-outlined-button @click="showTransition = !showTransition">
           Toggle ({{ showTransition ? 'visible' : 'hidden' }})
         </v-outlined-button>
         <div style="display: flex; gap: 16px; align-items: flex-start;">

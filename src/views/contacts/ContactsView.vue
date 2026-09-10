@@ -13,7 +13,7 @@
       </template>
     </div>
     <div class="actions">
-      <v-outlined-button class="btn-sm" @click="create">
+      <v-outlined-button @click="create">
         {{ $t('create') }}
       </v-outlined-button>
     </div>

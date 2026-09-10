@@ -18,9 +18,10 @@ defineProps({
   align-items: center;
   justify-content: center;
   gap: 8px;
+  box-sizing: border-box;
   border: none;
-  border-radius: 20px;
-  padding: 10px 24px;
+  border-radius: 16px;
+  padding: 4px 16px;
   background-color: var(--md-sys-color-primary, #6750A4);
   color: var(--md-sys-color-on-primary, #FFFFFF);
   font-family: inherit;
@@ -30,7 +31,7 @@ defineProps({
   text-decoration: none;
   cursor: pointer;
   transition: box-shadow 0.2s;
-  height: 40px;
+  height: 32px;
   min-width: 64px;
   position: relative;
   overflow: hidden;

@@ -9,8 +9,8 @@
       </template>
     </div>
     <div class="inline-delete-confirm-actions">
-      <v-outlined-button class="btn-sm" @click.stop="$emit('cancel')">{{ $t('cancel') }}</v-outlined-button>
-      <v-filled-button class="btn-sm danger" :loading="loading" @click.stop="$emit('confirm')">{{ $t('confirm') }}</v-filled-button>
+      <v-outlined-button @click.stop="$emit('cancel')">{{ $t('cancel') }}</v-outlined-button>
+      <v-filled-button class="danger" :loading="loading" @click.stop="$emit('confirm')">{{ $t('confirm') }}</v-filled-button>
     </div>
   </div>
 </template>

@@ -16,7 +16,6 @@
       <v-outlined-button
         v-for="(label, idx) in item.replyActions"
         :key="idx"
-        class="btn-sm"
         @click.stop="$emit('reply', idx)"
       >
         {{ label }}
@@ -25,9 +24,8 @@
     <div v-if="replying" class="reply-box">
       <EmojiTextField v-model="replyText" type="textarea" :rows="2" :placeholder="$t('type_a_reply')" />
       <div class="reply-box-actions">
-        <v-outlined-button class="btn-sm" @click.stop="$emit('cancel-reply')">{{ $t('cancel') }}</v-outlined-button>
+        <v-outlined-button @click.stop="$emit('cancel-reply')">{{ $t('cancel') }}</v-outlined-button>
         <v-filled-button
-          class="btn-sm"
           :loading="sending"
           :disabled="!replyText.trim()"
           @click.stop="$emit('send', replyText.trim())"

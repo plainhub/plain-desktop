@@ -16,7 +16,7 @@
               <div class="warning-text">{{ $t('mirror_audio_no_permission') }}</div>
             </div>
             <div class="warning-actions">
-              <v-filled-button class="btn-sm" :loading="audioRequesting" @click="$emit('requestAudioPermission')">
+              <v-filled-button :loading="audioRequesting" @click="$emit('requestAudioPermission')">
                 {{ $t('grant_permission') }}
               </v-filled-button>
             </div>

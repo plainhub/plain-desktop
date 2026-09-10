@@ -10,14 +10,13 @@
     </p>
     <div v-if="state !== 'fixed'" class="status-actions">
       <v-filled-button
-        class="sm"
         :loading="state === 'fixing'"
         :disabled="state === 'fixing'"
         @click="onFix"
       >
         {{ $t('device_discovery.firewall_fix') }}
       </v-filled-button>
-      <v-outlined-button class="sm" @click="manualOpen = !manualOpen">
+      <v-outlined-button @click="manualOpen = !manualOpen">
         {{ $t('device_discovery.firewall_manual') }}
       </v-outlined-button>
     </div>

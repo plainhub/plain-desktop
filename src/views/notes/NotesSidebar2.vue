@@ -28,7 +28,7 @@
         </template>
       </template>
       <template #actions>
-        <v-outlined-button v-if="!filter.trash" class="btn-sm" @click.prevent="create">{{ $t('create') }}</v-outlined-button>
+        <v-outlined-button v-if="!filter.trash" @click.prevent="create">{{ $t('create') }}</v-outlined-button>
       </template>
     </ListTopBar>
     <div v-if="loading && items.length === 0" class="scroller">

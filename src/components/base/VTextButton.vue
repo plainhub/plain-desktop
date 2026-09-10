@@ -18,6 +18,8 @@ defineProps({
   display: inline-flex;
   align-items: center;
   justify-content: center;
+  box-sizing: border-box;
+  height: 32px;
   gap: 4px;
   border: none;
   padding: 4px 8px;

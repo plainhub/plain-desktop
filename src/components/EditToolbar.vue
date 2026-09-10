@@ -6,7 +6,7 @@
       </li>
     </ul>
     <div class="actions">
-      <v-filled-button :loading="loading" class="btn-sm" @click="save">
+      <v-filled-button :loading="loading" @click="save">
         {{ $t('save') }}
       </v-filled-button>
     </div>

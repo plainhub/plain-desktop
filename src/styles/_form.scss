@@ -61,20 +61,17 @@
     border-radius: 50%;
     color: currentColor;
 
-    @include btn-icon-size(40px, 24px);
-
-    &.sm {
-        @include btn-icon-size(32px, 20px);
-    }
+    @include btn-icon-size(32px, 20px);
 }
 .v-outlined-button {
   display: inline-flex;
   align-items: center;
   justify-content: center;
   gap: 8px;
+  box-sizing: border-box;
   border: 1px solid var(--md-sys-color-outline);
-  border-radius: 20px;
-  padding: 8px 16px;
+  border-radius: 16px;
+  padding: 4px 16px;
   background-color: transparent;
   color: var(--md-sys-color-on-surface);
   font-family: inherit;
@@ -84,7 +81,7 @@
   text-decoration: none;
   cursor: pointer;
   transition: box-shadow 0.2s;
-  height: 40px;
+  height: 32px;
   min-width: 64px;
   position: relative;
   overflow: hidden;

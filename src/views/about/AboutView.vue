@@ -30,7 +30,7 @@
     <div class="about-debug surface-card">
       <div class="debug-head">
         <span>{{ $t('debug_info') }}</span>
-        <v-filled-button class="btn-sm" :class="{ copied }" @click="copyInfo">
+        <v-filled-button :class="{ copied }" @click="copyInfo">
           {{ copied ? $t('debug_copied') : $t('debug_copy') }}
         </v-filled-button>
       </div>

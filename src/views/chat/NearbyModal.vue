@@ -32,17 +32,17 @@ v-if="d.discoveryMethods.includes('LAN')" v-tooltip="$t('discovered_via_lan')"
           </template>
           <template #end>
             <v-outlined-button
-v-if="d.status === 'PAIRING'" class="btn-sm danger"
+v-if="d.status === 'PAIRING'" class="danger"
               :loading="deviceStates.get(d.id) === DeviceState.CANCELING" @click.stop="cancel(d)">
               {{ $t('cancel') }}
             </v-outlined-button>
             <v-outlined-button
-v-else-if="d.status === 'UNPAIRING' || d.status === PeerStatus.PAIRED" class="btn-sm danger"
+v-else-if="d.status === 'UNPAIRING' || d.status === PeerStatus.PAIRED" class="danger"
               :loading="deviceStates.get(d.id) === DeviceState.UNPAIRING" @click.stop="unpair(d)">
               {{ $t('unpair') }}
             </v-outlined-button>
             <v-outlined-button
-v-else class="btn-sm" :loading="deviceStates.get(d.id) === DeviceState.PAIRING"
+v-else :loading="deviceStates.get(d.id) === DeviceState.PAIRING"
               @click.stop="startPair(d)">
               {{ $t('pair') }}
             </v-outlined-button>
@@ -57,7 +57,7 @@ v-else class="btn-sm" :loading="deviceStates.get(d.id) === DeviceState.PAIRING"
       />
     </template>
     <template #actions>
-      <v-outlined-button class="btn-sm" @click="handleClose">{{ $t('close') }}</v-outlined-button>
+      <v-outlined-button @click="handleClose">{{ $t('close') }}</v-outlined-button>
     </template>
   </v-modal>
 </template>

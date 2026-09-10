@@ -10,9 +10,9 @@
       <ul class="card list-items">
         <ChannelMemberListItem v-for="member in enrichedMembers" :key="member.id" :member="member">
           <template v-if="isOwner && !member.isSelf && member.id !== channel.owner" #end>
-            <v-outlined-button v-if="member.status === MemberStatus.PENDING" class="btn-sm" :loading="pendingIds.has(member.id)" :disabled="pendingIds.has(member.id)" @click.stop="cancelInvite(member.id)">{{ $t('cancel') }}</v-outlined-button>
+            <v-outlined-button v-if="member.status === MemberStatus.PENDING" :loading="pendingIds.has(member.id)" :disabled="pendingIds.has(member.id)" @click.stop="cancelInvite(member.id)">{{ $t('cancel') }}</v-outlined-button>
             <v-outlined-button
-v-else v-tooltip="$t('remove_member')" class="btn-sm" 
+v-else v-tooltip="$t('remove_member')" 
             :loading="pendingIds.has(member.id)" :disabled="pendingIds.has(member.id)" 
             @click.stop="removeMember(member.id)" >{{ $t('remove') }}</v-outlined-button>
           </template>
@@ -25,7 +25,7 @@ v-else v-tooltip="$t('remove_member')" class="btn-sm"
           <ChannelMemberListItem
 v-for="peer in availablePeers" :key="peer.id" :member="{ id: peer.id, name: peer.name, ip: peer.ip, deviceType: peer.deviceType, isSelf: false, isOwner: false, status: peer.status }">
             <template #end>
-              <v-outlined-button class="btn-sm" :loading="pendingIds.has(peer.id)" :disabled="pendingIds.has(peer.id)" @click.stop="addMember(peer.id)">{{ $t('invite') }}</v-outlined-button>
+              <v-outlined-button :loading="pendingIds.has(peer.id)" :disabled="pendingIds.has(peer.id)" @click.stop="addMember(peer.id)">{{ $t('invite') }}</v-outlined-button>
             </template>
           </ChannelMemberListItem>
         </ul>

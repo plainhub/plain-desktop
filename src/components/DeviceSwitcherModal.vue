@@ -114,7 +114,6 @@
               </template>
               <template #end>
                 <v-outlined-button
-                  class="btn-sm"
                   :disabled="d.status === 'PAIRING'"
                   @click.stop="startLogin(d)"
                 >
@@ -135,7 +134,7 @@
       </div>
     </template>
     <template #actions>
-      <v-outlined-button class="btn-sm" @click="close">{{ $t('close') }}</v-outlined-button>
+      <v-outlined-button @click="close">{{ $t('close') }}</v-outlined-button>
     </template>
   </v-modal>
 </template>

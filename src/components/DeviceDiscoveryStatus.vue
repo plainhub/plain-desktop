@@ -7,10 +7,10 @@
     <p class="status-title">{{ $t('device_discovery.lan_permission_denied_title') }}</p>
     <p class="status-body">{{ $t('device_discovery.lan_permission_denied_hint') }}</p>
     <div class="status-actions">
-      <v-outlined-button class="sm" @click="$emit('open-settings')">
+      <v-outlined-button @click="$emit('open-settings')">
         {{ $t('device_discovery.open_system_settings') }}
       </v-outlined-button>
-      <v-filled-button class="sm" @click="$emit('retry')">
+      <v-filled-button @click="$emit('retry')">
         {{ $t('retry') }}
       </v-filled-button>
     </div>
@@ -19,7 +19,7 @@
     <p class="status-title">{{ $t('device_discovery.search_failed_title') }}</p>
     <p class="status-body">{{ $t('device_discovery.search_failed_hint') }}</p>
     <div class="status-actions">
-      <v-filled-button class="sm" @click="$emit('retry')">
+      <v-filled-button @click="$emit('retry')">
         {{ $t('retry') }}
       </v-filled-button>
     </div>
