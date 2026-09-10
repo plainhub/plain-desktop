@@ -41,7 +41,7 @@ export default {
     firewall_manual_intro: 'Bu komutları yönetici PowerShell\'de çalıştırın, sonra yeniden tarayın:',
     firewall_fixed: 'Güvenlik duvarı kuralı eklendi. Yeniden aranıyor…',
     firewall_fix_failed: 'Kural otomatik olarak eklenemedi — aşağıdaki manuel adımları kullanın.',
-    no_devices_tip: 'Cihaz bulunamadı mı? Bağlantı ipuçları',
+    qr_pair_tips_toggle: 'Bağlanamıyor musunuz? Bağlantı ipuçlarını görüntüleyin',
     tip_same_network: 'Bilgisayarın ve telefonun aynı Wi-Fi ağında olduğunu doğrulayın.',
     tip_app_open: 'Tarama sırasında telefonda PlainApp\'ı açık tutun.',
     tip_antivirus: 'Üçüncü taraf antivirüs güvenlik duvarları (360, Huorong, Avast vb.) de keşfi engelleyebilir — PlainApp\'a orada da izin verin.',

@@ -41,7 +41,7 @@ export default {
     firewall_manual_intro: 'Exécutez ces commandes dans un PowerShell administrateur, puis relancez la recherche :',
     firewall_fixed: 'Règle de pare-feu ajoutée. Nouvelle recherche…',
     firewall_fix_failed: 'Impossible d\'ajouter la règle automatiquement — utilisez les étapes manuelles ci-dessous.',
-    no_devices_tip: 'Aucun appareil trouvé ? Conseils de connexion',
+    qr_pair_tips_toggle: 'La connexion échoue ? Voir les conseils de connexion',
     tip_same_network: 'Vérifiez que l\'ordinateur et le téléphone sont sur le même réseau Wi-Fi.',
     tip_app_open: 'Gardez PlainApp ouvert sur le téléphone pendant la recherche.',
     tip_antivirus: 'Les pare-feu d\'antivirus tiers (360, Huorong, Avast, etc.) peuvent aussi bloquer la détection — autorisez-y PlainApp également.',

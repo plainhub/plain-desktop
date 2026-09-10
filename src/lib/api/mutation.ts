@@ -613,14 +613,6 @@ export const mergeChunksGQL = `
   }
 `
 
-// mergeChunks without totalSize for apps older than 3.3.22 — their schema
-// rejects the whole mutation over the unknown argument.
-export const mergeChunksLegacyGQL = `
-  mutation mergeChunks($fileId: String!, $totalChunks: Int!, $path: String!, $replace: Boolean!, $isAppFile: Boolean!) {
-    mergeChunks(fileId: $fileId, totalChunks: $totalChunks, path: $path, replace: $replace, isAppFile: $isAppFile)
-  }
-`
-
 export const deleteChunksGQL = `
   mutation deleteChunks($fileId: String!) {
     deleteChunks(fileId: $fileId)

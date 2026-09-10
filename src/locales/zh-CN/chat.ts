@@ -56,7 +56,6 @@ export default {
   devices: '设备',
   scanning: '扫描中…',
   no_devices_found: '未发现附近设备。',
-  same_network_hint: '请确保此设备和要配对的设备连接到同一个 Wi-Fi 网络。',
   pair_request_from: '来自 {name} 的配对请求',
   paired_devices: '已配对设备',
   unpaired_devices: '未配对设备',

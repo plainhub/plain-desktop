@@ -41,7 +41,7 @@ export default {
     firewall_manual_intro: 'Führen Sie diese Befehle in einer PowerShell als Administrator aus und scannen Sie dann erneut:',
     firewall_fixed: 'Firewallregel hinzugefügt. Neue Suche läuft…',
     firewall_fix_failed: 'Regel konnte nicht automatisch hinzugefügt werden — nutzen Sie die manuellen Schritte unten.',
-    no_devices_tip: 'Keine Geräte gefunden? Verbindungstips',
+    qr_pair_tips_toggle: 'Keine Verbindung? Verbindungstipps anzeigen',
     tip_same_network: 'Stellen Sie sicher, dass Computer und Telefon im selben Wi-Fi-Netzwerk sind.',
     tip_app_open: 'Halten Sie PlainApp auf dem Telefon während des Suchens geöffnet.',
     tip_antivirus: 'Auch Firewalls von Drittanbieter-Antivirensoftware (360, Huorong, Avast usw.) können die Erkennung blockieren — erlauben Sie PlainApp dort ebenfalls.',

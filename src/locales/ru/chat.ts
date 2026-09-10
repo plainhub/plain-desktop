@@ -50,7 +50,6 @@ export default {
   delivery_status: 'Статус доставки',
   delivery_status_summary: '{delivered} / {total} доставлено',
   delivery_failed: 'Ошибка',
-  same_network_hint: 'Убедитесь, что это устройство и устройство, с которым вы хотите выполнить сопряжение, подключены к одной сети Wi-Fi.',
   pair_request: 'Запрос на сопряжение',
   pairing_request_message: 'Хотите сопрячь с устройством "{name}"?',
   pairing_request_hint: 'После сопряжения вы сможете обмениваться сообщениями между обоими устройствами.',

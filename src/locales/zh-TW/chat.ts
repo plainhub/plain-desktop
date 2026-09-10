@@ -50,7 +50,6 @@ export default {
   delivery_status: '傳送狀態',
   delivery_status_summary: '{delivered} / {total} 已送達',
   delivery_failed: '錯誤',
-  same_network_hint: '請確保此裝置和要配對的裝置連線到同一個 Wi-Fi 網路。',
   pair_request: '配對請求',
   pairing_request_message: '是否要與設備"{name}"配對？',
   pairing_request_hint: '配對後，你們可以互發訊息。',

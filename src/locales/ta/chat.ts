@@ -50,7 +50,6 @@ export default {
   delivery_status: 'வழங்கல் நிலை',
   delivery_status_summary: '{delivered} / {total} வழங்கப்பட்டது',
   delivery_failed: 'பிழை',
-  same_network_hint: 'இந்தச் சாதனமும் நீங்கள் இணைக்க விரும்பும் சாதனமும் ஒரே Wi-Fi நெட்வொர்க்கில் இருப்பதை உறுதிசெய்யவும்.',
   pair_request: 'இணைப்பு கோரிக்கை',
   pairing_request_message: '"{name}" சாதனத்துடன் இணைக்க விரும்புகிறீர்களா?',
   pairing_request_hint: 'இணைத்த பிறகு, இரு சாதனங்களுக்கும் இடையே செய்திகளைப் பரிமாறிக்கொள்ளலாம்.',

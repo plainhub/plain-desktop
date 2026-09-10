@@ -41,7 +41,7 @@ export default {
     firewall_manual_intro: 'Voer deze commando\'s uit in een PowerShell als administrator en scan opnieuw:',
     firewall_fixed: 'Firewallregel toegevoegd. Opnieuw zoeken…',
     firewall_fix_failed: 'Regel kon niet automatisch worden toegevoegd — gebruik de handmatige stappen hieronder.',
-    no_devices_tip: 'Geen apparaten gevonden? Verbindingstips',
+    qr_pair_tips_toggle: 'Geen verbinding? Verbindingstips bekijken',
     tip_same_network: 'Controleer of de computer en de telefoon op hetzelfde Wi-Fi-netwerk zitten.',
     tip_app_open: 'Houd PlainApp op de telefoon open tijdens het scannen.',
     tip_antivirus: 'Ook firewalls van externe antivirussoftware (360, Huorong, Avast enz.) kunnen detectie blokkeren — sta PlainApp daar ook toe.',

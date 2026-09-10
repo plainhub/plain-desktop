@@ -50,7 +50,6 @@ export default {
   delivery_status: 'Status de entrega',
   delivery_status_summary: '{delivered} / {total} entregues',
   delivery_failed: 'Erro',
-  same_network_hint: 'Certifique-se de que este dispositivo e o que você deseja emparelhar estejam na mesma rede Wi-Fi.',
   pair_request: 'Pedido de emparelhamento',
   pairing_request_message: 'Você quer emparelhar com o dispositivo "{name}"?',
   pairing_request_hint: 'Após o emparelhamento, você pode trocar mensagens entre ambos os dispositivos.',

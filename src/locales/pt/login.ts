@@ -41,7 +41,7 @@ export default {
     firewall_manual_intro: 'Execute estes comandos em um PowerShell de administrador e escaneie novamente:',
     firewall_fixed: 'Regra de firewall adicionada. Pesquisando novamente…',
     firewall_fix_failed: 'Não foi possível adicionar a regra automaticamente — use os passos manuais abaixo.',
-    no_devices_tip: 'Nenhum dispositivo encontrado? Dicas de conexão',
+    qr_pair_tips_toggle: 'Não consegue conectar? Ver dicas de conexão',
     tip_same_network: 'Verifique se o computador e o telefone estão na mesma rede Wi-Fi.',
     tip_app_open: 'Mantenha o PlainApp aberto no telefone durante a varredura.',
     tip_antivirus: 'Firewalls de antivírus de terceiros (360, Huorong, Avast etc.) também podem bloquear a detecção — permita o PlainApp neles também.',

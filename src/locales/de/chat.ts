@@ -49,7 +49,6 @@ export default {
   delivery_status: 'Lieferstatus',
   delivery_status_summary: '{delivered} / {total} zugestellt',
   delivery_failed: 'Fehler',
-  same_network_hint: 'Vergewissern Sie sich, dass dieses Gerät und das zu koppelnde Gerät mit demselben Wi-Fi-Netzwerk verbunden sind.',
   pair_request: 'Kopplungsanfrage',
   pairing_request_message: 'Möchten Sie mit dem Gerät "{name}" koppeln?',
   pairing_request_hint: 'Nach dem Koppeln können Sie Nachrichten zwischen beiden Geräten austauschen.',

@@ -50,7 +50,6 @@ export default {
   delivery_status: 'Statut de livraison',
   delivery_status_summary: '{delivered} / {total} livré(s)',
   delivery_failed: 'Erreur',
-  same_network_hint: 'Assurez-vous que cet appareil et celui que vous souhaitez associer sont sur le même réseau Wi-Fi.',
   pair_request: 'Demande d\'appairage',
   pairing_request_message: 'Voulez-vous vous coupler avec l\'appareil "{name}" ?',
   pairing_request_hint: 'Après l\'association, vous pouvez échanger des messages entre les deux appareils.',

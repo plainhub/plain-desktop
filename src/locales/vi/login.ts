@@ -41,7 +41,7 @@ export default {
     firewall_manual_intro: 'Chạy các lệnh sau trong PowerShell quản trị viên rồi quét lại:',
     firewall_fixed: 'Đã thêm quy tắc tường lửa. Đang tìm kiếm lại…',
     firewall_fix_failed: 'Không thể tự động thêm quy tắc — dùng các bước thủ công bên dưới.',
-    no_devices_tip: 'Không tìm thấy thiết bị? Mẹo kết nối',
+    qr_pair_tips_toggle: 'Không kết nối được? Xem mẹo kết nối',
     tip_same_network: 'Đảm bảo máy tính và điện thoại cùng một mạng Wi-Fi.',
     tip_app_open: 'Giữ PlainApp mở trên điện thoại trong khi quét.',
     tip_antivirus: 'Tường lửa của phần mềm diệt virus bên thứ ba (360, Huorong, Avast…) cũng có thể chặn việc tìm thiết bị — hãy cho phép PlainApp ở đó.',

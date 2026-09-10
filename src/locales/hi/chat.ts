@@ -50,7 +50,6 @@ export default {
   delivery_status: 'डिलीवरी स्थिति',
   delivery_status_summary: '{delivered} / {total} डिलीवर हुए',
   delivery_failed: 'त्रुटि',
-  same_network_hint: 'सुनिश्चित करें कि यह डिवाइस और जिस डिवाइस से आप पेयर करना चाहते हैं वे एक ही Wi-Fi नेटवर्क पर हैं।',
   pair_request: 'पेयरिंग अनुरोध',
   pairing_request_message: 'क्या आप डिवाइस "{name}" के साथ जोड़ना चाहते हैं?',
   pairing_request_hint: 'पेयरिंग के बाद, आप दोनों डिवाइस के बीच संदेश भेज सकते हैं।',

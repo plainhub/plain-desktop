@@ -41,7 +41,7 @@ export default {
     firewall_manual_intro: 'Run these commands in an administrator PowerShell, then rescan:',
     firewall_fixed: 'Firewall rule added. Searching again…',
     firewall_fix_failed: 'Could not add the rule automatically — use the manual steps below.',
-    no_devices_tip: 'No devices found? Connection tips',
+    qr_pair_tips_toggle: 'Can\'t connect? View connection tips',
     tip_same_network: 'Make sure this computer and the phone are on the same Wi-Fi network.',
     tip_app_open: 'Keep PlainApp open on the phone while scanning.',
     tip_antivirus: 'Third-party antivirus firewalls (360, Huorong, Avast, etc.) can also block discovery — allow PlainApp there as well.',

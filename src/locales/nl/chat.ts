@@ -49,7 +49,6 @@ export default {
   delivery_status: 'Bezorgstatus',
   delivery_status_summary: '{delivered} / {total} bezorgd',
   delivery_failed: 'Fout',
-  same_network_hint: 'Zorg ervoor dat dit apparaat en het apparaat dat u wilt koppelen op hetzelfde Wi-Fi-netwerk zijn aangesloten.',
   pair_request: 'Koppelingsverzoek',
   pairing_request_message: 'Wilt u koppelen met apparaat "{name}"?',
   pairing_request_hint: 'Na het koppelen kunt u berichten uitwisselen tussen beide apparaten.',

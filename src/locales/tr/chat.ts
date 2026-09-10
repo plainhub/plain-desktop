@@ -50,7 +50,6 @@ export default {
   delivery_status: 'Teslimat durumu',
   delivery_status_summary: '{delivered} / {total} teslim edildi',
   delivery_failed: 'Hata',
-  same_network_hint: 'Bu cihazın ve eşleştirmek istediğiniz cihazın aynı Wi-Fi ağında olduğundan emin olun.',
   pair_request: 'Eşleştirme isteği',
   pairing_request_message: '"{name}" cihazı ile eşleştirmek istiyor musunuz?',
   pairing_request_hint: 'Eşleştirmeden sonra, her iki cihaz arasında mesaj alışverişi yapabilirsiniz.',

@@ -41,7 +41,7 @@ export default {
     firewall_manual_intro: '管理者権限の PowerShell で以下のコマンドを実行してから、再スキャンしてください：',
     firewall_fixed: 'ファイアウォール規則を追加しました。再検索しています…',
     firewall_fix_failed: '自動追加に失敗しました。下の手動手順をお試しください。',
-    no_devices_tip: 'デバイスが見つからない場合は接続のヒント',
+    qr_pair_tips_toggle: '接続できない場合は接続のヒントを確認',
     tip_same_network: 'PC とスマホが同じ Wi-Fi ネットワークに接続していることを確認してください。',
     tip_app_open: 'スキャン中はスマホで PlainApp を開いたままにしてください。',
     tip_antivirus: 'サードパーティ製セキュリティソフトのファイアウォール（360、火絨、Avast など）も検出をブロックすることがあります。PlainApp を許可してください。',

@@ -6,12 +6,11 @@ import { getApiBaseUrl, getLocalToken, proxyUrlFor } from '../api/api'
 import { chachaEncrypt, bitArrayToUint8Array } from '../api/crypto'
 import { tokenToKey } from '../api/file'
 import { uploadedChunksGQL } from '../api/query'
-import { mergeChunksGQL, mergeChunksLegacyGQL, deleteChunksGQL } from '../api/mutation'
+import { mergeChunksGQL, deleteChunksGQL } from '../api/mutation'
 import { gqlFetch } from '../api/gql-client'
 import { getCurrentAuthToken } from '../device/current'
 import { get as prefsGet } from '../prefs'
 import { isLocalMode } from '../device/local-mode'
-import { useTempStore } from '@/stores/temp'
 
 const CHUNK_SIZE = 10 * 1024 * 1024 // 10MB — fewer chunks, lower HTTP overhead; per-chunk retry cost acceptable on weak networks
 const PARALLEL_CHUNKS = 3 // Upload 3 chunks in parallel per file
@@ -124,28 +123,11 @@ async function runExclusively<T>(fileId: string, action: () => Promise<T>): Prom
   }
 }
 
-// mergeChunks gained a totalSize argument in app 3.3.22. Older servers reject
-// the whole mutation over the unknown argument, so the desktop client must
-// keep sending the legacy shape until the connected app is new enough.
-const MERGE_TOTAL_SIZE_MIN_APP_VERSION = '3.3.22'
-
-function versionAtLeast(actual: string | undefined, minimum: string): boolean {
-  if (!actual) return false
-  const a = actual.split('.').map(Number)
-  const b = minimum.split('.').map(Number)
-  for (let i = 0; i < Math.max(a.length, b.length); i++) {
-    const x = a[i] || 0
-    const y = b[i] || 0
-    if (x !== y) return x > y
-  }
-  return true
-}
-
-function supportsMergeTotalSize(): boolean {
-  // The web portal is served by the app itself, so its server always matches
-  // this bundle; only the standalone desktop client can face an older app.
-  return isLocalMode() || versionAtLeast(useTempStore().app.appVersion, MERGE_TOTAL_SIZE_MIN_APP_VERSION)
-}
+// mergeChunks gained a totalSize argument in app 3.3.22. Servers before that
+// rejected the whole mutation over the unknown argument, but version-gating on
+// the app query is unreliable (deployed servers reported the version code as a
+// number, not the version name), so the client always sends totalSize and
+// expects a paired app release.
 
 export async function upload(upload: IUploadItem, replace: boolean) {
   // In local mode the local server is the only client, so it has no
@@ -393,14 +375,13 @@ async function uploadChunkedFile(upload: IUploadItem, fileId: string, replace: b
     const baseName = upload.file.name.split('/').pop() || upload.file.name
     const filePath = upload.dir.endsWith('/') ? upload.dir + baseName : upload.dir + '/' + baseName
 
-    const supportsTotalSize = supportsMergeTotalSize()
-    const result = await gqlFetch(supportsTotalSize ? mergeChunksGQL : mergeChunksLegacyGQL, {
+    const result = await gqlFetch(mergeChunksGQL, {
       fileId,
       totalChunks,
       path: filePath,
       replace: replace,
       isAppFile: upload.isAppFile ?? false,
-      ...(supportsTotalSize ? { totalSize: upload.file.size } : {}),
+      totalSize: upload.file.size,
     })
 
     if (result?.data?.mergeChunks) {

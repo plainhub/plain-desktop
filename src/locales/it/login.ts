@@ -41,7 +41,7 @@ export default {
     firewall_manual_intro: 'Esegui questi comandi in un PowerShell amministratore, poi ripeti la scansione:',
     firewall_fixed: 'Regola firewall aggiunta. Nuova ricerca in corso…',
     firewall_fix_failed: 'Impossibile aggiungere la regola automaticamente — usa i passaggi manuali seguenti.',
-    no_devices_tip: 'Nessun dispositivo trovato? Suggerimenti di connessione',
+    qr_pair_tips_toggle: 'Non riesci a connetterti? Visualizza i suggerimenti di connessione',
     tip_same_network: 'Verifica che computer e telefono siano sulla stessa rete Wi-Fi.',
     tip_app_open: 'Tieni PlainApp aperto sul telefono durante la scansione.',
     tip_antivirus: 'Anche i firewall degli antivirus di terze parti (360, Huorong, Avast, ecc.) possono bloccare il rilevamento — consenti PlainApp anche lì.',

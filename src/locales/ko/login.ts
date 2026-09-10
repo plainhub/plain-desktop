@@ -41,7 +41,7 @@ export default {
     firewall_manual_intro: '관리자 PowerShell에서 아래 명령을 실행한 다음 다시 스캔하세요:',
     firewall_fixed: '방화벽 규칙이 추가되었습니다. 다시 검색하는 중…',
     firewall_fix_failed: '자동 추가에 실패했어요. 아래 수동 단계를 사용하세요.',
-    no_devices_tip: '기기를 찾을 수 없나요? 연결 팁 보기',
+    qr_pair_tips_toggle: '연결할 수 없나요? 연결 팁 보기',
     tip_same_network: '컴퓨터와 휴대폰이 같은 Wi-Fi 네트워크에 연결되어 있는지 확인하세요.',
     tip_app_open: '스캔하는 동안 휴대폰에서 PlainApp를 열어 두세요.',
     tip_antivirus: '서드파티 백신 방화벽(360, 후룽, Avast 등)도 검색을 차단할 수 있어요. PlainApp를 허용해 주세요.',

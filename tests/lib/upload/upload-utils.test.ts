@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 
 /**
- * Tests for upload utility functions: generateFileId, createChunk, getMD5Hash.
+ * Tests for upload utility functions: generateFileId, createChunk.
  * We import the public helpers and test their behaviour in isolation.
  */
 
@@ -34,7 +34,7 @@ vi.mock('@/lib/api/gql-client', () => ({
   gqlFetch: vi.fn(),
 }))
 
-import { generateFileId, getMD5Hash, getUploadUrl, getUploadChunkUrl } from '@/lib/upload/upload'
+import { generateFileId, getUploadUrl, getUploadChunkUrl } from '@/lib/upload/upload'
 
 describe('getUploadUrl', () => {
   // Upload URLs must go through proxyUrlFor: in Tauri remote mode that is
@@ -52,37 +52,6 @@ describe('getUploadChunkUrl', () => {
     proxyUrlForMock.mockClear()
     expect(getUploadChunkUrl()).toBe('http://localhost:3000/upload_chunk')
     expect(proxyUrlForMock).toHaveBeenCalledWith('http://localhost:3000', '/upload_chunk')
-  })
-})
-
-describe('getMD5Hash', () => {
-  it('returns a 32-char hex string', async () => {
-    const data = new TextEncoder().encode('hello world').buffer as ArrayBuffer
-    const hash = await getMD5Hash(data)
-    expect(hash).toHaveLength(32)
-    expect(hash).toMatch(/^[0-9a-f]{32}$/)
-  })
-
-  it('returns consistent hash for same input', async () => {
-    const data = new TextEncoder().encode('test data').buffer as ArrayBuffer
-    const hash1 = await getMD5Hash(data)
-    const hash2 = await getMD5Hash(data)
-    expect(hash1).toBe(hash2)
-  })
-
-  it('returns different hashes for different inputs', async () => {
-    const data1 = new TextEncoder().encode('input A').buffer as ArrayBuffer
-    const data2 = new TextEncoder().encode('input B').buffer as ArrayBuffer
-    const hash1 = await getMD5Hash(data1)
-    const hash2 = await getMD5Hash(data2)
-    expect(hash1).not.toBe(hash2)
-  })
-
-  it('handles empty input', async () => {
-    const data = new ArrayBuffer(0)
-    const hash = await getMD5Hash(data)
-    expect(hash).toHaveLength(32)
-    expect(hash).toMatch(/^[0-9a-f]{32}$/)
   })
 })
 

@@ -58,7 +58,6 @@ export default {
   devices: 'Devices',
   scanning: 'Scanning…',
   no_devices_found: 'No nearby devices found.',
-  same_network_hint: 'Make sure this device and the one you want to pair are on the same Wi-Fi network.',
   pair_request_from: 'Pairing request from {name}',
   paired_devices: 'Paired Devices',
   unpaired_devices: 'Unpaired Devices',

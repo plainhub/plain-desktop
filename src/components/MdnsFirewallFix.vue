@@ -29,21 +29,10 @@
       </button>
     </div>
   </div>
-  <div v-else-if="softVisible" class="soft-hint">
-    <button class="soft-toggle" type="button" @click="softOpen = !softOpen">
-      {{ $t('device_discovery.no_devices_tip') }}
-    </button>
-    <ul v-if="softOpen" class="soft-list">
-      <li>{{ $t('device_discovery.tip_same_network') }}</li>
-      <li>{{ $t('device_discovery.tip_app_open') }}</li>
-      <li>{{ $t('device_discovery.tip_antivirus') }}</li>
-      <li>{{ $t('device_discovery.tip_ap_isolation') }}</li>
-    </ul>
-  </div>
 </template>
 
 <script setup lang="ts">
-import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
+import { computed, onMounted, ref, watch } from 'vue'
 import { useMdnsFirewall } from '@/hooks/use-mdns-firewall'
 
 const props = defineProps<{
@@ -57,44 +46,11 @@ const emit = defineEmits<{
 const { state, exePath, probe, fix } = useMdnsFirewall()
 
 const manualOpen = ref(false)
-const softOpen = ref(false)
 const copied = ref(false)
-const softArmed = ref(false)
-let armTimer: ReturnType<typeof setTimeout> | null = null
 
 const cardVisible = computed(
   () => state.value !== 'idle' && state.value !== 'ok' && props.deviceCount === 0,
 )
-
-const softVisible = computed(
-  () =>
-    softArmed.value &&
-    props.deviceCount === 0 &&
-    // the blocked/fixing card already carries guidance; tips would be noise
-    (state.value === 'idle' || state.value === 'ok'),
-)
-
-// Fallback net: zero devices for 20s shows the connection tips no matter what
-// the underlying cause is — still scanning, scan already OK (found devices may
-// all be filtered out), probe failed silently, third-party firewall, anything.
-function syncArmTimer() {
-  if (props.deviceCount === 0) {
-    if (armTimer === null && !softArmed.value) {
-      armTimer = setTimeout(() => {
-        softArmed.value = true
-        armTimer = null
-      }, 20_000)
-    }
-  } else {
-    if (armTimer !== null) {
-      clearTimeout(armTimer)
-      armTimer = null
-    }
-    softArmed.value = false
-  }
-}
-
-watch(() => props.deviceCount, syncArmTimer, { immediate: true })
 
 watch(state, (s) => {
   if (s === 'fixed') emit('fixed')
@@ -126,13 +82,6 @@ async function onFix() {
 
 onMounted(() => {
   void probe()
-})
-
-onBeforeUnmount(() => {
-  if (armTimer !== null) {
-    clearTimeout(armTimer)
-    armTimer = null
-  }
 })
 </script>
 
@@ -196,32 +145,5 @@ onBeforeUnmount(() => {
   &:hover {
     background: color-mix(in srgb, var(--md-sys-color-primary) 10%, transparent);
   }
-}
-
-.soft-hint {
-  margin-top: 10px;
-  text-align: center;
-}
-
-.soft-toggle {
-  padding: 0;
-  border: none;
-  background: transparent;
-  color: var(--md-sys-color-primary);
-  font-size: 0.8rem;
-  cursor: pointer;
-
-  &:hover {
-    text-decoration: underline;
-  }
-}
-
-.soft-list {
-  margin: 8px 0 0;
-  padding-inline-start: 20px;
-  text-align: start;
-  font-size: 0.78rem;
-  line-height: 1.6;
-  color: var(--md-sys-color-on-surface-variant);
 }
 </style>

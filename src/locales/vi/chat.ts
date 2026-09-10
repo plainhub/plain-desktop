@@ -50,7 +50,6 @@ export default {
   delivery_status: 'Trạng thái gửi',
   delivery_status_summary: '{delivered} / {total} đã gửi',
   delivery_failed: 'Lỗi',
-  same_network_hint: 'Đảm bảo thiết bị này và thiết bị bạn muốn ghép nối đang ở trên cùng một mạng Wi-Fi.',
   pair_request: 'Yêu cầu ghép nối',
   pairing_request_message: 'Bạn có muốn ghép nối với thiết bị "{name}"?',
   pairing_request_hint: 'Sau khi ghép đôi, bạn có thể trao đổi tin nhắn giữa hai thiết bị.',

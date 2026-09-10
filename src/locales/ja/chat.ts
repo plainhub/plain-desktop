@@ -49,7 +49,6 @@ export default {
   delivery_status: '配信状態',
   delivery_status_summary: '{delivered} / {total} 件配信済み',
   delivery_failed: 'エラー',
-  same_network_hint: 'このデバイスとペアリングしたいデバイスが同じWi-Fiネットワーク上にあることを確認してください。',
   pair_request: 'ペアリング要求',
   pairing_request_message: 'デバイス "{name}" とペアリングしますか？',
   pairing_request_hint: 'ペア設定後、両デバイス間でメッセージを送受信できます。',

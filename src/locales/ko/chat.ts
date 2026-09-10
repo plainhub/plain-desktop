@@ -50,7 +50,6 @@ export default {
   delivery_status: '전송 상태',
   delivery_status_summary: '{delivered} / {total} 전달됨',
   delivery_failed: '오류',
-  same_network_hint: '이 기기와 페어링하려는 기기가 동일한 Wi-Fi 네트워크에 연결되어 있는지 확인하세요.',
   pair_request: '페어링 요청',
   pairing_request_message: '장치 "{name}"와 페어링하시겠습니까?',
   pairing_request_hint: '페어링 후 두 기기 간에 메시지를 주고받을 수 있습니다.',

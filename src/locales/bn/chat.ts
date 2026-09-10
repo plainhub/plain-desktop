@@ -49,7 +49,6 @@ export default {
   delivery_status: 'ডেলিভারি স্ট্যাটাস',
   delivery_status_summary: '{delivered} / {total} ডেলিভার হয়েছে',
   delivery_failed: 'ত্রুটি',
-  same_network_hint: 'নিশ্চিত করুন যে এই ডিভাইস এবং আপনি যেটির সাথে পেয়ার করতে চান সেটি একই Wi-Fi নেটওয়ার্কে রয়েছে।',
   pair_request: 'পেয়ারিং অনুরোধ',
   pairing_request_message: 'আপনি কি ডিভাইস "{name}" এর সাথে জোড়া লাগাতে চান?',
   pairing_request_hint: 'পেয়ারিং করার পর, আপনি উভয় ডিভাইসের মধ্যে বার্তা বিনিময় করতে পারবেন।',

@@ -6,7 +6,6 @@
     </template>
     <template #content>
       <div v-if="discoveredDevices.length === 0" class="nearby-empty">
-        <p>{{ $t('same_network_hint') }}</p>
         <MdnsFirewallFix :device-count="discoveredDevices.length" @fixed="retry" />
       </div>
 
@@ -51,7 +50,11 @@ v-else class="btn-sm" :loading="deviceStates.get(d.id) === DeviceState.PAIRING"
         </VListItem>
       </ul>
 
-      <QrPairPanel v-model:open="qrOpen" collapsible @paired="onQrPaired" />
+      <QrPairPanel
+        v-model:open="qrOpen"
+        collapsible
+        @paired="onQrPaired"
+      />
     </template>
     <template #actions>
       <v-outlined-button class="btn-sm" @click="handleClose">{{ $t('close') }}</v-outlined-button>
@@ -85,6 +88,7 @@ const {
 } = useDevicePairing()
 
 const infoOpen = ref<Record<string, boolean>>({})
+// empty state is the reason this modal exists — show the fix without an extra click
 const qrOpen = ref(false)
 
 const chatStore = useChatStore()

@@ -13,7 +13,6 @@
         :aria-expanded="open"
         @click="$emit('update:open', false)"
       >
-        <i-material-symbols:qr-code-2-rounded class="qr-head-icon" />
         <span>{{ $t('device_discovery.qr_pair_title') }}</span>
         <div class="grow"></div>
         <i-material-symbols:keyboard-arrow-up-rounded />
@@ -49,12 +48,27 @@
             : $t('device_discovery.qr_pair_success')
         }}</span>
       </p>
+      <div class="tips-divider"></div>
+      <div class="tips-toggle" role="button" :aria-expanded="tipsOpen" @click="tipsOpen = !tipsOpen">
+        <i-material-symbols:info-rounded class="tips-toggle-icon" />
+        <span>{{ $t('device_discovery.qr_pair_tips_toggle') }}</span>
+        <div class="grow"></div>
+        <i-material-symbols:keyboard-arrow-down-rounded
+          :class="['tips-chev', { 'tips-chev--open': tipsOpen }]"
+        />
+      </div>
+      <ul v-if="tipsOpen" class="tips-list">
+        <li>{{ $t('device_discovery.tip_same_network') }}</li>
+        <li>{{ $t('device_discovery.tip_app_open') }}</li>
+        <li>{{ $t('device_discovery.tip_antivirus') }}</li>
+        <li>{{ $t('device_discovery.tip_ap_isolation') }}</li>
+      </ul>
     </section>
   </div>
 </template>
 
 <script setup lang="ts">
-import { onBeforeUnmount, onMounted, ref } from 'vue'
+import { onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import emitter from '@/plugins/eventbus'
 import {
   loadQrPairingCode,
@@ -64,7 +78,7 @@ import {
 } from '@/lib/device/qr-pairing'
 import type { PairingRequest, PairingResult } from '@/lib/pairing-types'
 
-defineProps({
+const props = defineProps({
   open: { type: Boolean, default: false },
   collapsible: { type: Boolean, default: false },
   autoLogin: { type: Boolean, default: false },
@@ -81,6 +95,14 @@ const emit = defineEmits<{
 const code = ref<QrPairingCode | null>(null)
 const phase = ref<'idle' | 'waiting' | 'success'>('idle')
 const paired = ref<QrPairedDevice | null>(null)
+const tipsOpen = ref(false)
+
+watch(
+  () => props.open,
+  (open) => {
+    if (!open) tipsOpen.value = false
+  },
+)
 
 async function reload() {
   code.value = await loadQrPairingCode()
@@ -132,38 +154,40 @@ onBeforeUnmount(() => {
   flex-direction: column;
   gap: 16px;
   padding: 16px;
-  border: 1px solid var(--md-sys-color-outline-variant);
   border-radius: 12px;
   background: var(--md-sys-color-surface-container-low);
 }
 
-.qr-head {
+.qr-head,
+.tips-toggle {
   display: flex;
   align-items: center;
   gap: 8px;
   font-weight: 500;
-
-  .qr-head-icon {
-    width: 18px;
-    height: 18px;
-    color: var(--md-sys-color-primary);
-  }
 
   .grow {
     flex: 1;
   }
 }
 
-.qr-head--toggle {
-  width: 100%;
-  cursor: pointer;
+.qr-head--toggle,
+.tips-toggle {
   padding: 4px 8px;
-  margin: -4px -8px;
+  margin: -4px 0px;
   border-radius: 8px;
+  text-align: start;
+  cursor: pointer;
 
   &:hover {
     background: color-mix(in srgb, var(--md-sys-color-on-surface) 4%, transparent);
+    color: var(--md-sys-color-on-surface);
   }
+}
+
+.qr-head-icon {
+  width: 18px;
+  height: 18px;
+  color: var(--md-sys-color-primary);
 }
 
 .qr-main {
@@ -207,27 +231,37 @@ onBeforeUnmount(() => {
   }
 }
 
-.qr-steps {
+.qr-steps,
+.tips-list {
   display: flex;
   flex-direction: column;
-  gap: 12px;
   margin: 0;
   padding: 0 0 0 4px;
   list-style: none;
+
+  li {
+    display: flex;
+    align-items: flex-start;
+
+    &::before {
+      flex-shrink: 0;
+    }
+  }
+}
+
+.qr-steps {
+  gap: 12px;
   counter-reset: qr-step;
   min-width: 0;
 
   li {
-    display: flex;
     gap: 12px;
-    align-items: flex-start;
     font-size: 0.85rem;
     line-height: 1.4;
     counter-increment: qr-step;
 
     &::before {
       content: counter(qr-step);
-      flex-shrink: 0;
       width: 20px;
       height: 20px;
       border-radius: 999px;
@@ -251,14 +285,54 @@ onBeforeUnmount(() => {
   border-radius: 8px;
   font-size: 0.85rem;
 
-  &.qr-state--wait {
+  &--wait {
     background: var(--md-sys-color-tertiary-container);
     color: var(--md-sys-color-on-tertiary-container);
   }
 
-  &.qr-state--ok {
+  &--ok {
     background: var(--md-sys-color-secondary-container);
     color: var(--md-sys-color-on-secondary-container);
+  }
+}
+
+.tips-divider {
+  height: 1px;
+  background: var(--md-sys-color-outline-variant);
+}
+
+.tips-toggle {
+  color: var(--md-sys-color-on-surface-variant);
+  font-size: 0.8rem;
+
+  .tips-toggle-icon,
+  .tips-chev {
+    width: 16px;
+    height: 16px;
+  }
+
+  .tips-chev {
+    transition: transform 0.15s;
+
+    &.tips-chev--open {
+      transform: rotate(180deg);
+    }
+  }
+}
+
+.tips-list {
+  gap: 8px;
+  font-size: 0.78rem;
+  line-height: 1.6;
+  color: var(--md-sys-color-on-surface-variant);
+
+  li {
+    gap: 8px;
+
+    &::before {
+      content: '✓';
+      color: var(--md-sys-color-outline);
+    }
   }
 }
 </style>

@@ -41,7 +41,7 @@ export default {
     firewall_manual_intro: '在管理员 PowerShell 中运行以下命令，然后重新扫描：',
     firewall_fixed: '防火墙规则已添加，正在重新搜索…',
     firewall_fix_failed: '自动添加规则失败，请使用下方手动步骤。',
-    no_devices_tip: '找不到设备？查看连接建议',
+    qr_pair_tips_toggle: '连接不了？查看连接建议',
     tip_same_network: '确认电脑和手机连接同一个 Wi-Fi 网络。',
     tip_app_open: '扫描时保持手机上的 PlainApp 处于打开状态。',
     tip_antivirus: '第三方杀毒软件防火墙（360、火绒、Avast 等）也可能拦截发现，请在其中放行 PlainApp。',

@@ -83,10 +83,7 @@
             @open-settings="openLanPermissionSettings"
           />
           <MdnsFirewallFix :device-count="newDevices.length" @fixed="retry" />
-          <div v-if="newDevices.length === 0" class="nearby-empty">
-            <p>{{ $t('same_network_hint') }}</p>
-          </div>
-          <ul v-else class="card list-items">
+          <ul v-if="newDevices.length" class="card list-items">
             <VListItem v-for="d in newDevices" :key="d.id" :subtitle="d.ips.join(', ')">
               <template #title>
                 <span>{{ d.name }}</span>
@@ -126,8 +123,6 @@
               </template>
             </VListItem>
           </ul>
-
-          <QrPairPanel v-model:open="qrOpen" collapsible auto-login @paired="onQrPaired" />
         </section>
       </div>
       <div v-else class="login-panel">
@@ -150,7 +145,6 @@ import { computed, nextTick, onMounted, onUnmounted, ref } from 'vue'
 import { popModal } from './modal/methods'
 import DeviceDiscoveryStatus from './DeviceDiscoveryStatus.vue'
 import MdnsFirewallFix from './MdnsFirewallFix.vue'
-import QrPairPanel from './QrPairPanel.vue'
 import LoginForm from '@/views/login/LoginForm.vue'
 import { useDeviceDiscovery, DiscoveryStatus, type DiscoveredDevice } from '@/hooks/use-device-discovery'
 import { loginPeers, clearLoginPeer, peerHost, type LoginPeer } from '@/lib/device/login-peers'
@@ -159,7 +153,6 @@ import { clearPendingLoginDevice, setPendingLoginDevice, type PendingLoginDevice
 import { requestInit } from '@/lib/api/init'
 import { DeviceType } from '@/lib/status'
 import { isLocalMode } from '@/lib/device/local-mode'
-import type { QrPairedDevice } from '@/lib/device/qr-pairing'
 import { getDesktopClientId, getRemoteClientId, setRemoteClientId, clearRemoteClientId } from '@/lib/device/client-id'
 import { loadSelfDevice, type SelfDevice } from '@/lib/device/self-device'
 import { remove as prefsRemove } from '@/lib/prefs'
@@ -174,7 +167,6 @@ const pendingLoginDevice = ref<PendingLoginDevice | null>(null)
 const loginFormRef = ref<InstanceType<typeof LoginForm> | null>(null)
 const selfDevice = ref<SelfDevice | null>(null)
 const infoOpen = ref<Record<string, boolean>>({})
-const qrOpen = ref(false)
 
 const desktopClientId = getDesktopClientId()
 const newDevices = computed(() =>
@@ -191,7 +183,9 @@ onMounted(() => {
   start()
   void loadSelf()
 })
-onUnmounted(() => stop())
+onUnmounted(() => {
+  stop()
+})
 
 async function loadSelf() {
   selfDevice.value = await loadSelfDevice()
@@ -229,12 +223,6 @@ function startLogin(d: DiscoveredDevice) {
   if (!host) return
   clearRemoteClientId()
   void startLoginStep({ name: d.name, host, deviceType: d.deviceType as DeviceType })
-}
-
-function onQrPaired(d: QrPairedDevice) {
-  if (!d.host) return
-  clearRemoteClientId()
-  void startLoginStep({ name: d.name, host: d.host, deviceType: d.deviceType as DeviceType })
 }
 
 async function startLoginStep(device: PendingLoginDevice) {
@@ -309,12 +297,6 @@ function switchToLocal() {
     background: color-mix(in srgb, var(--md-sys-color-error) 14%, transparent);
     color: var(--md-sys-color-error);
   }
-}
-
-.nearby-empty {
-  padding-inline: 16px;
-  text-align: center;
-  color: var(--md-sys-color-on-surface-variant);
 }
 
 .discovery-icon {

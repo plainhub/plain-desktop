@@ -50,7 +50,6 @@ export default {
   delivery_status: 'Stato consegna',
   delivery_status_summary: '{delivered} / {total} consegnati',
   delivery_failed: 'Errore',
-  same_network_hint: 'Assicurati che questo dispositivo e quello che vuoi associare siano sulla stessa rete Wi-Fi.',
   pair_request: 'Richiesta di associazione',
   pairing_request_message: 'Vuoi accoppiarti con il dispositivo "{name}"?',
   pairing_request_hint: 'Dopo l\'associazione, puoi scambiare messaggi tra entrambi i dispositivi.',
