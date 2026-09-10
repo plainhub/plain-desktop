@@ -6,8 +6,9 @@ import { getApiBaseUrl, getLocalToken, proxyUrlFor } from '../api/api'
 import { chachaEncrypt, bitArrayToUint8Array } from '../api/crypto'
 import { tokenToKey } from '../api/file'
 import { uploadedChunksGQL } from '../api/query'
-import { mergeChunksGQL, deleteChunksGQL } from '../api/mutation'
+import { deleteChunksGQL } from '../api/mutation'
 import { gqlFetch } from '../api/gql-client'
+import { requestMerge } from './merge-async'
 import { getCurrentAuthToken } from '../device/current'
 import { get as prefsGet } from '../prefs'
 import { isLocalMode } from '../device/local-mode'
@@ -128,14 +129,6 @@ async function runExclusively<T>(fileId: string, action: () => Promise<T>): Prom
 // the app query is unreliable (deployed servers reported the version code as a
 // number, not the version name), so the client always sends totalSize and
 // expects a paired app release.
-
-// Merging rewrites the whole file server-side (chunk reads + full copy, plus
-// MediaStore scan on phones), which blows past the 30s default GraphQL
-// timeout for multi-GB files. Budget 60s + 1s per 2MB (~2MB/s worst case),
-// capped at 10 minutes.
-function mergeRequestTimeout(totalSize: number): number {
-  return Math.min(600_000, 60_000 + Math.ceil(totalSize / (2 * 1024 * 1024)) * 1000)
-}
 
 export async function upload(upload: IUploadItem, replace: boolean) {
   // In local mode the local server is the only client, so it has no
@@ -378,47 +371,51 @@ async function uploadChunkedFile(upload: IUploadItem, fileId: string, replace: b
       return
     }
 
-    // All chunks uploaded — merge on server
+    // All chunks uploaded — merge on the server. The async mutation returns
+    // immediately; the result arrives via WS event (or the mergeStatus
+    // fallback), so no HTTP timeout can kill a long merge.
     upload.status = 'saving'
     const baseName = upload.file.name.split('/').pop() || upload.file.name
     const filePath = upload.dir.endsWith('/') ? upload.dir + baseName : upload.dir + '/' + baseName
 
-    const result = await gqlFetch(
-      mergeChunksGQL,
-      {
-        fileId,
-        totalChunks,
-        path: filePath,
-        replace: replace,
-        isAppFile: upload.isAppFile ?? false,
-        totalSize: upload.file.size,
-      },
-      { timeout: mergeRequestTimeout(upload.file.size) },
-    )
+    const outcome = await requestMerge(upload, {
+      fileId,
+      totalChunks,
+      path: filePath,
+      replace: replace,
+      isAppFile: upload.isAppFile ?? false,
+      totalSize: upload.file.size,
+    })
 
-    if (result?.data?.mergeChunks) {
-      const returned = result.data.mergeChunks as string
-      // Server returns "path_or_hash:size" — verify merged size matches original
-      const colonIdx = returned.lastIndexOf(':')
-      const serverValue = colonIdx > 0 ? returned.substring(0, colonIdx) : returned
-      const serverSize = colonIdx > 0 ? parseInt(returned.substring(colonIdx + 1), 10) : 0
+    if (upload.status === 'paused' || upload.status === 'canceled') {
+      return { error: 'Upload paused' }
+    }
 
-      if (serverSize > 0 && serverSize !== upload.file.size) {
-        upload.status = 'error'
-        upload.error = `Server merged size ${serverSize} != expected ${upload.file.size}`
-        return
-      }
+    if (outcome.error) {
+      upload.status = 'error'
+      upload.error = outcome.error
+      return
+    }
 
-      if (upload.isAppFile) {
-        upload.fileHash = serverValue
-      } else {
-        upload.fileName = serverValue
-      }
-      upload.status = 'done'
-    } else {
+    if (!outcome.value) {
       upload.status = 'error'
       upload.error = 'Failed to merge chunks'
+      return
     }
+
+    // Server returns "path_or_hash:size" — verify merged size matches original
+    if ((outcome.size ?? 0) > 0 && outcome.size !== upload.file.size) {
+      upload.status = 'error'
+      upload.error = `Server merged size ${outcome.size} != expected ${upload.file.size}`
+      return
+    }
+
+    if (upload.isAppFile) {
+      upload.fileHash = outcome.value
+    } else {
+      upload.fileName = outcome.value
+    }
+    upload.status = 'done'
   } catch (error: any) {
     if (error.name === 'AbortError' || upload.status === 'paused') {
       return { error: 'Upload paused' }

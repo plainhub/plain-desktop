@@ -471,3 +471,11 @@ export interface IBreadcrumbItem {
   path: string
   name: string
 }
+
+export interface IUploadMergeResultEvent {
+  fileId: string
+  ok: boolean
+  value?: string
+  mergedSize?: number
+  error?: string
+}

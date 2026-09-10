@@ -2,9 +2,15 @@ import { ref, type Ref } from 'vue'
 import { type IUploadItem } from '@/stores/temp'
 import { shortUUID } from '@/lib/strutil'
 
+// shortUUID costs ~30µs per call (randomUUID + per-digit base58 rewrite) —
+// 17k directory selections blocked the main thread for half a second just
+// generating ids. Upload item ids only need to be unique within this window
+// session, so a monotonic counter is enough.
+let uploadItemSeq = 0
+
 function createUploadItem(file: File, dir: string, batchId: string, baseDir?: string, relativePath?: string): IUploadItem {
   return {
-    id: shortUUID(),
+    id: `upload-${(uploadItemSeq += 1)}`,
     batchId,
     createdAt: new Date().toISOString(),
     dir: dir,

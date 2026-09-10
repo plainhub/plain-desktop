@@ -1,4 +1,4 @@
-import type { IItemTagsUpdatedEvent, IItemsTagsUpdatedEvent, IFileDeletedEvent, IFileRenamedEvent, IMediaItemsActionedEvent, INotesActionedEvent, ISmsChangedEvent, ISmsSendResultEvent, IMmsSendResultEvent } from '@/lib/interfaces'
+import type { IItemTagsUpdatedEvent, IItemsTagsUpdatedEvent, IFileDeletedEvent, IFileRenamedEvent, IMediaItemsActionedEvent, INotesActionedEvent, ISmsChangedEvent, ISmsSendResultEvent, IMmsSendResultEvent, IUploadMergeResultEvent } from '@/lib/interfaces'
 import type { PairingRequest, PairingResult } from '@/lib/pairing-types'
 import type { IUploadItem } from '@/stores/temp'
 import type { ScreenMirrorVideoCodec } from '@/views/screen-mirror/screen-mirror-pipeline'
@@ -6,6 +6,7 @@ import type { ScreenMirrorVideoCodec } from '@/views/screen-mirror/screen-mirror
 type Events = {
   upload_task_done: IUploadItem
   upload_progress: IUploadItem
+  upload_merge_result: IUploadMergeResultEvent
   refetch_app: undefined
   play_audio: undefined
   do_play_audio: undefined

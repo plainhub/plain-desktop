@@ -622,6 +622,12 @@ export const mergeChunksGQL = `
   }
 `
 
+export const mergeChunksAsyncGQL = `
+  mutation mergeChunksAsync($fileId: String!, $totalChunks: Int!, $path: String!, $replace: Boolean!, $isAppFile: Boolean!, $totalSize: Long!) {
+    mergeChunksAsync(fileId: $fileId, totalChunks: $totalChunks, path: $path, replace: $replace, isAppFile: $isAppFile, totalSize: $totalSize)
+  }
+`
+
 export const deleteChunksGQL = `
   mutation deleteChunks($fileId: String!) {
     deleteChunks(fileId: $fileId)

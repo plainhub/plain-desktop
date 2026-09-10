@@ -795,6 +795,12 @@ export const uploadedChunksGQL = `
   }
 `
 
+export const mergeStatusGQL = `
+  query mergeStatus($fileId: String!) {
+    mergeStatus(fileId: $fileId)
+  }
+`
+
 export const pomodoroSettingsGQL = `
   query {
     pomodoroSettings {

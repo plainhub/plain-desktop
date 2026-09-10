@@ -25,9 +25,11 @@ vi.mock('@/lib/api/file', () => ({
 }))
 vi.mock('@/lib/api/query', () => ({
   uploadedChunksGQL: 'query uploadedChunks($fileId: String!) { uploadedChunks(fileId: $fileId) }',
+  mergeStatusGQL: 'query mergeStatus($fileId: String!) { mergeStatus(fileId: $fileId) }',
 }))
 vi.mock('@/lib/api/mutation', () => ({
   mergeChunksGQL: 'mutation mergeChunks { mergeChunks }',
+  mergeChunksAsyncGQL: 'mutation mergeChunksAsync { mergeChunksAsync }',
   deleteChunksGQL: 'mutation deleteChunks($fileId: String!) { deleteChunks(fileId: $fileId) }',
 }))
 vi.mock('@/lib/api/gql-client', () => ({
