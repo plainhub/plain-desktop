@@ -29,11 +29,30 @@ interface ManagedUploadTask extends IUploadTask {
   evictOnFailure: boolean
 }
 
+// Close/refresh prompt for in-flight uploads. Armed on first enqueue so
+// sessions that never upload pay nothing; the browser renders its own dialog
+// text, and returnValue must be set or Chromium ignores preventDefault.
+let unloadGuardArmed = false
+
+function armUnloadGuard(queue: UploadQueue): void {
+  if (unloadGuardArmed) return
+  unloadGuardArmed = true
+  window.addEventListener('beforeunload', (event) => {
+    if (!queue.hasActiveUploads()) return
+    event.preventDefault()
+    event.returnValue = ''
+  })
+}
+
 class UploadQueue {
   private queue: ManagedUploadTask[] = []
   private running: Map<string, ManagedUploadTask> = new Map()
   private readonly maxConcurrent = 3
   private failureStreak = 0
+
+  hasActiveUploads(): boolean {
+    return this.running.size > 0 || this.queue.some((t) => t.status === 'pending')
+  }
 
   addTask(upload: IUploadItem, replace: boolean): string {
     return this.enqueueTask(upload, replace, false).id
@@ -67,6 +86,7 @@ class UploadQueue {
     }
 
     this.queue.push(task)
+    armUnloadGuard(uploadQueue)
     this.processQueue()
     return task
   }

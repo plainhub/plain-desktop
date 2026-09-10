@@ -322,4 +322,50 @@ describe('UploadQueue', () => {
       expect(item.uploadSpeed).toBe(0)
     })
   })
+
+  describe('unload guard', () => {
+    function fireBeforeUnload(): boolean {
+      const event = new Event('beforeunload', { cancelable: true })
+      window.dispatchEvent(event)
+      return event.defaultPrevented
+    }
+
+    it('prompts while a task is running and stops after removal', async () => {
+      mockUpload.mockImplementation(() => new Promise(() => undefined))
+      const item = createUploadItem('guard-running')
+      addUploadTask(item, false)
+      await new Promise((r) => setTimeout(r, 20))
+
+      expect(fireBeforeUnload()).toBe(true)
+
+      removeUpload('guard-running')
+      expect(fireBeforeUnload()).toBe(false)
+    })
+
+    it('prompts while tasks are pending in the queue', () => {
+      mockUpload.mockImplementation(() => new Promise((resolve) => setTimeout(() => resolve({ fileName: 'ok' }), 5000)))
+      for (let i = 0; i < 4; i++) addUploadTask(createUploadItem(`guard-pending-${i}`), false)
+
+      expect(getUploadQueueStatus().pending).toBeGreaterThan(0)
+      expect(fireBeforeUnload()).toBe(true)
+    })
+
+    it('does not prompt once every task settles', async () => {
+      mockUpload.mockResolvedValue({ fileName: 'ok' })
+      addUploadTask(createUploadItem('guard-done'), false)
+      await new Promise((r) => setTimeout(r, 100))
+
+      expect(fireBeforeUnload()).toBe(false)
+    })
+
+    it('does not prompt for a paused-only queue', async () => {
+      mockUpload.mockImplementation(() => new Promise(() => undefined))
+      const item = createUploadItem('guard-paused')
+      addUploadTask(item, false)
+      await new Promise((r) => setTimeout(r, 20))
+      pauseUploadsByBatch(item.batchId || item.id)
+
+      expect(fireBeforeUnload()).toBe(false)
+    })
+  })
 })
