@@ -1,0 +1,54 @@
+import { describe, expect, it } from 'vitest'
+import { encodeQr, qrCodeSvg } from '@/lib/qr'
+
+// Golden values captured from uqr 0.1.3 (the upstream this encoder was
+// vendored from) for the exact pairing payload shape we ship.
+const SAMPLE =
+  'plainapp://pair?v=1&id=epq4h39gdlop&name=MacBook%20Pro&ips=192.168.123.22,198.19.0.33&port=8443'
+
+function matrixRows(text: string) {
+  return encodeQr(text).modules.map((row) => row.map((b) => (b ? '1' : '0')).join(''))
+}
+
+describe('encodeQr', () => {
+  it('matches the upstream uqr matrix bit-for-bit', () => {
+    const { size, modules } = encodeQr(SAMPLE)
+    expect(size).toBe(41)
+    expect(matrixRows(SAMPLE)).toEqual(['11111110001011001111011110100011001111111', '10000010011110010100010010110110001000001', '10111010111101000110011110001011001011101', '10111010110111001001110011001100001011101', '10111010100010010011011101100101001011101', '10000010101101010000010010011110001000001', '11111110101010101010101010101010101111111', '00000000111111110001011110111010000000000', '10111110011010110100000001110110101111100', '11111000000010011001100111101011001010001', '11110010001010101010101000111100010100010', '10110100111101110010111000110010001011011', '10100010100101010001101110111100110000101', '01001100110000101100010000000111111110111', '00001010000001110100100110010100101100010', '11001001101100110010010100111011111110001', '10000011100001000110100101010111100001101', '01100000101100110001000110100001011111011', '11110110000001010010101011010000100110100', '01100000100000010000000100110010010001010', '10111111100110101011111110000111100100100', '10100000101110000001010000001101111010001', '11110110110110111010101001011100101100000', '01111001111011001010110110011001100010001', '11010011100111110100101001000111110100101', '11100000101001111001000111101111101111111', '01100010001010111010001010110100000010010', '10110001000101000010111100110010011011000', '11110111010010100100001001111100000000111', '10101100000101111000100010000011101110011', '10010111001110100011011001010010010111100', '10100101100111010001110010010000000000011', '10111111101101111111100011001110111111110', '00000000100000000101011111100101100010101', '11111110010111101100110001110001101011010', '10000010101000010110011111001000100011000', '10111010110010101000010010110110111111110', '10111010101011110111001101001101000001100', '10111010111011000000110001111100001110100', '10000010000010111011011010110000101110010', '11111110111111110111001001111101010011100'])
+    // Finder patterns: dark corners, light separators
+    expect(modules[0][0]).toBe(true)
+    expect(modules[0][size - 1]).toBe(true)
+    expect(modules[size - 1][0]).toBe(true)
+    expect(modules[0][7]).toBe(false)
+    // Timing column alternates outside the finder area
+    expect(modules[9][6]).toBe(false)
+    expect(modules[10][6]).toBe(true)
+  })
+
+  it('is deterministic', () => {
+    expect(matrixRows(SAMPLE)).toEqual(matrixRows(SAMPLE))
+    expect(matrixRows('plainapp://pair?v=1&id=x&port=1')).toEqual(
+      matrixRows('plainapp://pair?v=1&id=x&port=1'),
+    )
+  })
+
+  it('sizes grow with payload across versions', () => {
+    const small = encodeQr('plainapp://pair?v=1&id=x&port=1')
+    expect(small.size).toBeLessThan(encodeQr(SAMPLE).size)
+  })
+
+  it('rejects data beyond the version-40 byte capacity', () => {
+    expect(() => encodeQr('x'.repeat(6000))).toThrow('QR data too long')
+  })
+})
+
+describe('qrCodeSvg', () => {
+  it('renders a viewBox svg with quiet zone and module runs', () => {
+    const svg = qrCodeSvg(SAMPLE, { border: 2, darkColor: '#101010', lightColor: '#ffffff' })
+    expect(svg.startsWith('<svg xmlns="http://www.w3.org/2000/svg"')).toBe(true)
+    expect(svg).toContain('viewBox="0 0 45 45"')
+    expect(svg).toContain('fill="#ffffff"')
+    expect(svg).toContain('fill="#101010"')
+    expect(svg).not.toContain(SAMPLE)
+  })
+})

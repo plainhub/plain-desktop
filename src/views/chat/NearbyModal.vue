@@ -50,9 +50,11 @@ v-else class="btn-sm" :loading="deviceStates.get(d.id) === DeviceState.PAIRING"
           </template>
         </VListItem>
       </ul>
+
+      <QrPairPanel v-model:open="qrOpen" collapsible @paired="onQrPaired" />
     </template>
     <template #actions>
-      <v-outlined-button @click="handleClose">{{ $t('close') }}</v-outlined-button>
+      <v-outlined-button class="btn-sm" @click="handleClose">{{ $t('close') }}</v-outlined-button>
     </template>
   </v-modal>
 </template>
@@ -61,9 +63,11 @@ v-else class="btn-sm" :loading="deviceStates.get(d.id) === DeviceState.PAIRING"
 import { onBeforeUnmount, onMounted, ref } from 'vue'
 import { popModal } from '@/components/modal'
 import MdnsFirewallFix from '@/components/MdnsFirewallFix.vue'
-import { useDeviceDiscovery, DiscoveryStatus, type DiscoveredDevice } from '@/hooks/use-device-discovery'
+import QrPairPanel from '@/components/QrPairPanel.vue'
+import { useDeviceDiscovery, DiscoveryStatus, upsertDiscoveredDevice, type DiscoveredDevice } from '@/hooks/use-device-discovery'
 import { useDevicePairing, DeviceState } from '@/hooks/use-device-pairing'
 import { unpairPeerGQL, initMutation } from '@/lib/api/mutation'
+import type { QrPairedDevice } from '@/lib/device/qr-pairing'
 import { useChatStore } from '@/stores/chat'
 import { PeerStatus } from '@/lib/status'
 
@@ -81,8 +85,25 @@ const {
 } = useDevicePairing()
 
 const infoOpen = ref<Record<string, boolean>>({})
+const qrOpen = ref(false)
 
 const chatStore = useChatStore()
+
+function onQrPaired(d: QrPairedDevice) {
+  upsertDiscoveredDevice({
+    id: d.id,
+    name: d.name,
+    ips: d.ip ? [d.ip] : [],
+    port: d.port,
+    deviceType: d.deviceType,
+    version: '',
+    platform: '',
+    lastSeen: new Date().toISOString(),
+    status: PeerStatus.PAIRED,
+    discoveryMethods: ['QR'],
+  })
+  void chatStore.fetchPeers()
+}
 
 
 async function startPair(d: DiscoveredDevice) {
@@ -142,6 +163,10 @@ onBeforeUnmount(() => {
   padding-inline: 16px;
   text-align: center;
   color: var(--md-sys-color-on-surface-variant);
+}
+
+.qr-pair {
+  margin-top: 16px;
 }
 
 .discovery-icon {

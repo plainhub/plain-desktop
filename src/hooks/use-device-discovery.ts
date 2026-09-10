@@ -69,15 +69,7 @@ function ensureListener() {
   listenerInitialized = true
 
   emitter.on('nearby_device_found', (device: DiscoveredDevice) => {
-    const existing = devices.value.findIndex((d) => d.id === device.id)
-    if (existing >= 0) {
-      const next = devices.value.slice()
-      next[existing] = { ...next[existing], ...device }
-      devices.value = next
-    } else {
-      devices.value = [...devices.value, device]
-    }
-    status.value = DiscoveryStatus.OK
+    upsertDiscoveredDevice(device)
   })
 
   emitter.on('nearby_discovery_started', () => {
@@ -120,6 +112,20 @@ function ensureListener() {
 
 const { mutate: startMutate } = initMutation({ document: startDiscoveryGQL }, false)
 const { mutate: stopMutate } = initMutation({ document: stopDiscoveryGQL }, false)
+
+/** Insert or refresh a device in the discovery list. Also used by the
+ * QR-pairing fallback, whose paired devices never passed through mDNS. */
+export function upsertDiscoveredDevice(device: DiscoveredDevice) {
+  const existing = devices.value.findIndex((d) => d.id === device.id)
+  if (existing >= 0) {
+    const next = devices.value.slice()
+    next[existing] = { ...next[existing], ...device }
+    devices.value = next
+  } else {
+    devices.value = [...devices.value, device]
+  }
+  status.value = DiscoveryStatus.OK
+}
 
 export function useDeviceDiscovery() {
   ensureListener()

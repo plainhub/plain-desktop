@@ -126,6 +126,8 @@
               </template>
             </VListItem>
           </ul>
+
+          <QrPairPanel v-model:open="qrOpen" collapsible auto-login @paired="onQrPaired" />
         </section>
       </div>
       <div v-else class="login-panel">
@@ -138,7 +140,7 @@
       </div>
     </template>
     <template #actions>
-      <v-outlined-button @click="close">{{ $t('close') }}</v-outlined-button>
+      <v-outlined-button class="btn-sm" @click="close">{{ $t('close') }}</v-outlined-button>
     </template>
   </v-modal>
 </template>
@@ -148,6 +150,7 @@ import { computed, nextTick, onMounted, onUnmounted, ref } from 'vue'
 import { popModal } from './modal/methods'
 import DeviceDiscoveryStatus from './DeviceDiscoveryStatus.vue'
 import MdnsFirewallFix from './MdnsFirewallFix.vue'
+import QrPairPanel from './QrPairPanel.vue'
 import LoginForm from '@/views/login/LoginForm.vue'
 import { useDeviceDiscovery, DiscoveryStatus, type DiscoveredDevice } from '@/hooks/use-device-discovery'
 import { loginPeers, clearLoginPeer, peerHost, type LoginPeer } from '@/lib/device/login-peers'
@@ -156,6 +159,7 @@ import { clearPendingLoginDevice, setPendingLoginDevice, type PendingLoginDevice
 import { requestInit } from '@/lib/api/init'
 import { DeviceType } from '@/lib/status'
 import { isLocalMode } from '@/lib/device/local-mode'
+import type { QrPairedDevice } from '@/lib/device/qr-pairing'
 import { getDesktopClientId, getRemoteClientId, setRemoteClientId, clearRemoteClientId } from '@/lib/device/client-id'
 import { loadSelfDevice, type SelfDevice } from '@/lib/device/self-device'
 import { remove as prefsRemove } from '@/lib/prefs'
@@ -170,6 +174,7 @@ const pendingLoginDevice = ref<PendingLoginDevice | null>(null)
 const loginFormRef = ref<InstanceType<typeof LoginForm> | null>(null)
 const selfDevice = ref<SelfDevice | null>(null)
 const infoOpen = ref<Record<string, boolean>>({})
+const qrOpen = ref(false)
 
 const desktopClientId = getDesktopClientId()
 const newDevices = computed(() =>
@@ -224,6 +229,12 @@ function startLogin(d: DiscoveredDevice) {
   if (!host) return
   clearRemoteClientId()
   void startLoginStep({ name: d.name, host, deviceType: d.deviceType as DeviceType })
+}
+
+function onQrPaired(d: QrPairedDevice) {
+  if (!d.host) return
+  clearRemoteClientId()
+  void startLoginStep({ name: d.name, host: d.host, deviceType: d.deviceType as DeviceType })
 }
 
 async function startLoginStep(device: PendingLoginDevice) {
