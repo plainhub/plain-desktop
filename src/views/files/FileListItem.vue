@@ -2,7 +2,7 @@
   <section
     v-if="!isPhone"
     class="file-item selectable-card"
-    :class="{ selected: selectedIds.includes(item.id), selecting: shiftEffectingIds.includes(item.id) }"
+    :class="{ selected: selectedIds.includes(item.id), selecting: shiftEffectingIds.includes(item.id), deleting, collapsing }"
     @click.stop="handleItemClick($event, item, index, () => clickItem(item))"
     @mouseenter.stop="handleMouseOver($event, index)"
   >
@@ -11,9 +11,11 @@
       <v-checkbox v-else class="checkbox" touch-target="wrapper" :checked="selectedIds.includes(item.id)" @click.stop="toggleSelect($event, item, index)" />
       <span class="number"><field-id :id="index + 1" :raw="item" /></span>
     </div>
-    
+
     <div class="image" @click="viewItem($event, item)">
+      <v-circular-progress v-if="deleting" indeterminate :size="24" class="delete-spinner" />
       <FileThumb
+        v-else
         :is-dir="item.isDir"
         :thumb-url="thumbUrl"
         :extension="item.extension"
@@ -57,6 +59,7 @@
   <!-- Phone Layout -->
   <ListItemPhone
     v-else
+    :class="{ deleting, collapsing }"
     :is-selected="selectedIds.includes(item.id)"
     :is-selecting="shiftEffectingIds.includes(item.id)"
     :checkbox-checked="shiftEffectingIds.includes(item.id) ? shouldSelect : selectedIds.includes(item.id)"
@@ -66,7 +69,9 @@
   >
     <template #image>
       <div class="image" @click="viewItem($event, item)">
+        <v-circular-progress v-if="deleting" indeterminate :size="24" class="delete-spinner" />
         <FileThumb
+          v-else
           :is-dir="item.isDir"
           :thumb-url="thumbUrl"
           :extension="item.extension"
@@ -135,6 +140,8 @@ interface Props {
   extensionImageErrorIds: string[]
   canPaste: boolean
   inZip?: boolean
+  deleting?: boolean
+  collapsing?: boolean
   // Functions passed from parent
   handleItemClick: (event: MouseEvent, item: IFile, index: number, callback: () => void) => void
   handleMouseOver: (event: MouseEvent, index: number) => void
@@ -215,7 +222,39 @@ function addToFavorites(item: IFile) {
 </script>
 
 <style scoped lang="scss">
+.file-item.deleting,
+.list-item-phone.deleting {
+  opacity: 0.45;
+  pointer-events: none;
+}
+
+.file-item.collapsing,
+.list-item-phone.collapsing {
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.2s ease;
+}
+
+.file-item .image,
+.list-item-phone .image {
+  position: relative;
+}
+
+.delete-spinner {
+  position: absolute;
+  inset: 0;
+  margin: auto;
+  opacity: 0;
+  animation: delete-spinner-in 0.01s linear 0.2s forwards;
+}
+
+@keyframes delete-spinner-in {
+  to {
+    opacity: 1;
+  }
+}
+
 .list-item-phone {
   margin-block-end: 8px;
 }
-</style> 
+</style>

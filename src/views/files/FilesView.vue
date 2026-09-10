@@ -2,7 +2,8 @@
   <div class="top-app-bar">
     <v-checkbox touch-target="wrapper" :checked="allChecked" :indeterminate="!allChecked && checked" @change="toggleAllChecked" />
     <div class="title">
-      <span v-if="selectedIds.length">{{ $t('x_selected', { count: realAllChecked ? total.toLocaleString() : selectedIds.length.toLocaleString() }) }}</span>
+      <span v-if="bulkDeleting">{{ $t('deleting') }}</span>
+      <span v-else-if="selectedIds.length">{{ $t('x_selected', { count: realAllChecked ? total.toLocaleString() : selectedIds.length.toLocaleString() }) }}</span>
       <div v-else ref="breadcrumbEl" class="breadcrumb">
         <template v-for="(item, index) in breadcrumbPaths" :key="item.path">
           <template v-if="index === 0">
@@ -19,7 +20,7 @@
       <template v-if="checked">
         <v-icon-button v-if="!inZip" v-tooltip="$t('copy')" @click.stop="copyItems"><i-material-symbols:content-copy-outline-rounded /></v-icon-button>
         <v-icon-button v-if="!inZip" v-tooltip="$t('cut')" @click.stop="cutItems"><i-material-symbols:content-cut-rounded /></v-icon-button>
-        <bulk-delete-button v-if="!inZip" :confirming="confirmingDelete" :count="deleteCount" :loading="deleteLoading" @click="deleteItems" @confirm="doDeleteItems" @cancel="cancelDeleteItems" />
+        <bulk-delete-button v-if="!inZip" :confirming="confirmingDelete" :count="deleteCount" :loading="bulkDeleting" @click="deleteItems" @confirm="doDeleteItems" @cancel="cancelDeleteItems" />
         <v-icon-button v-tooltip="$t('download')" :loading="downloadLoading" @click.stop="downloadItems"><i-material-symbols:download-rounded /></v-icon-button>
       </template>
     </div>
@@ -47,6 +48,7 @@
           :extension-image-error-ids="extensionImageErrorIds" :can-paste="canPaste()" :in-zip="inZip" :handle-item-click="handleItemClick"
           :handle-mouse-over="handleMouseOver" :toggle-select="toggleSelect" :on-image-error="onImageError"
           :on-extension-image-error="onExtensionImageError" :view-item="viewItem" :click-item="clickItem"
+          :deleting="deletingIds.includes(item.id)" :collapsing="collapsingIds.includes(item.id)"
           @download-dir="downloadDir" @download-file="downloadFile" @upload-files="uploadFilesClick"
           @upload-dir="uploadDirClick" @delete-item="deleteItem" @duplicate-item="duplicateItem" @cut-item="cutItem"
           @copy-item="copyItem" @paste-item="pasteItem" @copy-link="copyLinkItem" @rename-item="renameItemClick"
@@ -137,7 +139,8 @@ const { navigateToDir, toggleShowHidden, clickItem, viewItem } = useFilesNavigat
 // --- Actions ---
 const {
   downloadLoading, downloadItems, deleteItems, deleteItem,
-  confirmingDelete, deleteCount, deleteLoading, doDeleteItems, cancelDeleteItems,
+  confirmingDelete, deleteCount, doDeleteItems, cancelDeleteItems,
+  deletingIds, collapsingIds, bulkDeleting,
   copyItems, cutItems, pasteDir,
   duplicateItem, cutItem, copyItem, pasteItem, copyLinkItem, renameItemClick, createDir,
   addToFavoritesClick, onDeleted,

@@ -7,6 +7,7 @@ import EditValueModal from '@/components/EditValueModal.vue'
 import { shortUUID } from '@/lib/strutil'
 import { getFileUrlByPath } from '@/lib/api/file'
 import { initMutation, setTempValueGQL, addFavoriteFolderGQL, deleteFilesGQL } from '@/lib/api/mutation'
+import { useFilesDelete } from './useFilesDelete'
 import emitter from '@/plugins/eventbus'
 import toast from '@/components/toaster'
 import { arrayRemove } from '@/lib/array'
@@ -85,30 +86,30 @@ export function useFilesActions(opts: UseFilesActionsOptions) {
     })
   }
 
-  const { mutate: deleteFilesMutate, loading: deleteLoading, onDone: onDeleteFilesDone } = initMutation({ document: deleteFilesGQL })
+  const { mutate: deleteFilesMutate, loading: deleteLoading } = initMutation({ document: deleteFilesGQL }, false)
+  const { deletingIds, collapsingIds, bulkDeleting, isDeleting, startDelete } = useFilesDelete({ t, mutate: deleteFilesMutate, onDeleted })
   const pendingDeleteFiles = ref<IFile[]>([])
   const confirmingDelete = ref(false)
   const deleteCount = ref(0)
 
-  onDeleteFilesDone(() => {
-    onDeleted(pendingDeleteFiles.value)
-    pendingDeleteFiles.value = []
-    confirmingDelete.value = false
-  })
-
   const deleteItems = () => {
-    const selected = items.value.filter((it) => selectedIds.value.includes(it.id))
+    const selected = items.value.filter((it) => selectedIds.value.includes(it.id) && !isDeleting(it.id))
     if (selected.length === 0) { toast(t('select_first'), 'error'); return }
     pendingDeleteFiles.value = selected
     deleteCount.value = selected.length
     confirmingDelete.value = true
   }
-  const doDeleteItems = () => { deleteFilesMutate({ paths: pendingDeleteFiles.value.map((it) => it.path) }) }
+  const doDeleteItems = () => {
+    const files = pendingDeleteFiles.value
+    pendingDeleteFiles.value = []
+    confirmingDelete.value = false
+    startDelete(files, { bulk: true })
+  }
   const cancelDeleteItems = () => { confirmingDelete.value = false; pendingDeleteFiles.value = [] }
 
   const deleteItem = (item: IFile) => {
-    pendingDeleteFiles.value = [item]
-    deleteFilesMutate({ paths: [item.path] })
+    if (isDeleting(item.id)) return
+    startDelete([item])
   }
   const copyItems = () => { copy(selectedIds.value); clearSelection() }
   const cutItems = () => { cut(selectedIds.value); clearSelection() }
@@ -150,6 +151,7 @@ export function useFilesActions(opts: UseFilesActionsOptions) {
   return {
     downloadLoading, downloadItems, deleteItems, deleteItem,
     confirmingDelete, deleteCount, deleteLoading, doDeleteItems, cancelDeleteItems,
+    deletingIds, collapsingIds, bulkDeleting, isDeleting,
     copyItems, cutItems, pasteDir, duplicateItem, cutItem, copyItem, pasteItem,
     copyLinkItem, renameItemClick, createDir, addToFavoritesClick, onDeleted,
   }
