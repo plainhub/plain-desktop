@@ -8,11 +8,6 @@
       <v-filled-button :loading="true">Loading</v-filled-button>
     </ux-code-block>
 
-    <ux-code-block code="<v-filled-button>Default</v-filled-button>&#10;<v-filled-button class=&quot;btn-lg&quot;>Large</v-filled-button>">
-      <v-filled-button>Default</v-filled-button>
-      <v-filled-button class="btn-lg">Large</v-filled-button>
-    </ux-code-block>
-
     <ux-code-block code="<v-outlined-button>Secondary</v-outlined-button>">
       <v-outlined-button>Secondary</v-outlined-button>
       <v-outlined-button disabled>Disabled</v-outlined-button>
