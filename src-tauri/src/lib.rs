@@ -360,6 +360,7 @@ pub fn run() {
             commands::screen_capture::commands::screen_capture_save_result,
             commands::screen_capture::commands::screen_capture_copy_result,
             commands::screen_capture::commands::screen_capture_discard_result,
+            commands::screen_capture::commands::screen_capture_request_permission,
             commands::screen_capture::commands::screen_capture_open_permission_settings,
             commands::screen_capture::commands::screen_capture_report_client_error,
             commands::screen_capture::commands::screen_capture_report_bootstrap_error,

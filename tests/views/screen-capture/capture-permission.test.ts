@@ -2,7 +2,7 @@ import { flushPromises, mount } from '@vue/test-utils'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { h } from 'vue'
 import { CaptureClientError } from '@/lib/screen-capture/capture-client'
-import { openScreenCapturePermissionSettings } from '@/lib/screen-capture/capture-permission'
+import { openScreenCapturePermissionSettings, requestScreenCapturePermission } from '@/lib/screen-capture/capture-permission'
 import CapturePermissionModal from '@/views/screen-capture/CapturePermissionModal.vue'
 import { isScreenCapturePermissionDenied, presentCaptureError } from '@/views/screen-capture/capture-error-presentation'
 
@@ -66,15 +66,21 @@ describe('screen capture permission presentation', () => {
 })
 
 describe('CapturePermissionModal', () => {
-  it('opens the hard-coded native settings command', async () => {
+  it('requests native permission only after the guide action is clicked', async () => {
     const invoke = vi.fn(async () => undefined)
+    await requestScreenCapturePermission(invoke)
+    expect(invoke).toHaveBeenCalledOnce()
+    expect(invoke).toHaveBeenCalledWith('screen_capture_request_permission')
+
+    invoke.mockClear()
     await openScreenCapturePermissionSettings(invoke)
     expect(invoke).toHaveBeenCalledOnce()
     expect(invoke).toHaveBeenCalledWith('screen_capture_open_permission_settings')
 
+    const requestPermission = vi.fn(async () => false)
     const openPermissionSettings = vi.fn(async () => undefined)
     const wrapper = mount(CapturePermissionModal, {
-      props: { openPermissionSettings },
+      props: { requestPermission, openPermissionSettings },
       global: {
         mocks: { $t: (key: string) => key },
         stubs: {
@@ -101,9 +107,55 @@ describe('CapturePermissionModal', () => {
     })
     wrappers.push(wrapper)
 
-    await wrapper.get('[data-testid="open-screen-capture-settings"]').trigger('click')
+    expect(requestPermission).not.toHaveBeenCalled()
+    expect(openPermissionSettings).not.toHaveBeenCalled()
+
+    await wrapper.get('[data-testid="grant-screen-capture-permission"]').trigger('click')
+    await flushPromises()
+
+    expect(requestPermission).toHaveBeenCalledOnce()
+    expect(openPermissionSettings).not.toHaveBeenCalled()
+
+    await wrapper.get('[data-testid="grant-screen-capture-permission"]').trigger('click')
     await flushPromises()
 
     expect(openPermissionSettings).toHaveBeenCalledOnce()
+  })
+
+  it('closes the guide when macOS grants the request', async () => {
+    const requestPermission = vi.fn(async () => true)
+    const wrapper = mount(CapturePermissionModal, {
+      props: { requestPermission },
+      global: {
+        mocks: { $t: (key: string) => key },
+        stubs: {
+          VModal: {
+            setup(_props: unknown, { slots }: any) {
+              return () => h('div', [slots.headline?.(), slots.content?.(), slots.actions?.()])
+            },
+          },
+          VOutlinedButton: {
+            emits: ['click'],
+            setup(_props: unknown, { emit, slots }: any) {
+              return () => h('button', { onClick: () => emit('click') }, slots.default?.())
+            },
+          },
+          VFilledButton: {
+            inheritAttrs: false,
+            emits: ['click'],
+            setup(_props: unknown, { attrs, emit, slots }: any) {
+              return () => h('button', { ...attrs, onClick: () => emit('click') }, slots.default?.())
+            },
+          },
+        },
+      },
+    })
+    wrappers.push(wrapper)
+
+    await wrapper.get('[data-testid="grant-screen-capture-permission"]').trigger('click')
+    await flushPromises()
+
+    expect(requestPermission).toHaveBeenCalledOnce()
+    expect(mocks.popModal).toHaveBeenCalledOnce()
   })
 })

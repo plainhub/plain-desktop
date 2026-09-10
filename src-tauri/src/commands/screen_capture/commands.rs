@@ -65,21 +65,44 @@ fn bounded_client_error_detail(detail: &str) -> String {
     }
 }
 
-fn authorize_permission_settings_caller(window_label: &str) -> Result<(), CaptureError> {
+fn authorize_permission_command_caller(window_label: &str) -> Result<(), CaptureError> {
     if !is_regular_window_label(window_label) {
         return Err(CaptureError::new(
             CaptureErrorCode::UnauthorizedCaller,
-            "only a regular application window may open screen capture settings",
+            "only a regular application window may manage screen capture permission",
         ));
     }
     Ok(())
 }
 
 #[tauri::command]
+pub async fn screen_capture_request_permission(
+    window: WebviewWindow,
+) -> Result<bool, CaptureError> {
+    authorize_permission_command_caller(window.label())?;
+    #[cfg(target_os = "macos")]
+    {
+        return tauri::async_runtime::spawn_blocking(super::platform::request_capture_permission)
+            .await
+            .map_err(|error| {
+                CaptureError::new(
+                    CaptureErrorCode::CaptureFailed,
+                    format!("screen capture permission request worker failed: {error}"),
+                )
+            });
+    }
+    #[cfg(not(target_os = "macos"))]
+    Err(CaptureError::new(
+        CaptureErrorCode::CaptureFailed,
+        "screen capture permission requests are available only on macOS",
+    ))
+}
+
+#[tauri::command]
 pub fn screen_capture_open_permission_settings(
     window: WebviewWindow,
 ) -> Result<(), CaptureError> {
-    authorize_permission_settings_caller(window.label())?;
+    authorize_permission_command_caller(window.label())?;
     #[cfg(target_os = "macos")]
     {
         use tauri_plugin_opener::OpenerExt;
@@ -195,7 +218,7 @@ pub async fn screen_capture_start(
     log::info!("screen capture start entered caller={caller_window_label}");
     let result: Result<CaptureStartResponse, CaptureError> = async {
         let app = window.app_handle().clone();
-        tauri::async_runtime::spawn_blocking(super::platform::ensure_capture_permission)
+        tauri::async_runtime::spawn_blocking(super::platform::preflight_capture_permission)
             .await
             .map_err(|error| {
                 CaptureError::new(
@@ -919,7 +942,7 @@ where
 #[cfg(test)]
 mod tests {
     use super::{
-        MAX_CLIENT_ERROR_DETAIL_CHARS, authorize_permission_settings_caller,
+        MAX_CLIENT_ERROR_DETAIL_CHARS, authorize_permission_command_caller,
         bounded_client_error_detail, new_capture_delivery_lease_id, new_capture_result_id,
         new_capture_session_id,
     };
@@ -943,11 +966,11 @@ mod tests {
     }
 
     #[test]
-    fn permission_settings_rejects_utility_window_callers() {
-        assert!(authorize_permission_settings_caller("main").is_ok());
-        assert!(authorize_permission_settings_caller("window-chat").is_ok());
-        let error = authorize_permission_settings_caller("screen-capture-overlay-7")
-            .expect_err("capture overlays cannot open system settings");
+    fn permission_commands_reject_utility_window_callers() {
+        assert!(authorize_permission_command_caller("main").is_ok());
+        assert!(authorize_permission_command_caller("window-chat").is_ok());
+        let error = authorize_permission_command_caller("screen-capture-overlay-7")
+            .expect_err("capture overlays cannot manage screen capture permission");
         assert_eq!(error.code, super::CaptureErrorCode::UnauthorizedCaller);
     }
 

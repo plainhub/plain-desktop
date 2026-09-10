@@ -736,7 +736,7 @@ mod platform_tests {
     };
     use super::platform::{
         GeometryConvention, bottom_left_visible_frame_to_top_left_area, find_matching_candidate,
-        permission_check_result, select_logical_monitor,
+        permission_preflight_result, select_logical_monitor,
         top_left_physical_work_area_to_local_css, wayland_cursor_is_unavailable,
         xcap_bounds_to_physical,
     };
@@ -978,10 +978,10 @@ mod platform_tests {
 
     #[test]
     fn permission_denial_has_a_stable_machine_code() {
-        permission_check_result(true, false).expect("preflight grant");
+        permission_preflight_result(true).expect("preflight grant");
         assert_eq!(
-            permission_check_result(false, true)
-                .expect_err("denied prompt")
+            permission_preflight_result(false)
+                .expect_err("denied preflight")
                 .code,
             CaptureErrorCode::PermissionDenied
         );
