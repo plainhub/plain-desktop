@@ -187,6 +187,7 @@ export default {
   restore: 'Khôi phục',
   trash: 'Thùng rác',
   move_to_trash: 'Di chuyển vào thùng rác',
+  move_to_folder: 'Di chuyển vào thư mục',
   work: 'Công việc',
   expand_all: 'Mở rộng tất cả',
   collapse_all: 'Thu gọn tất cả',

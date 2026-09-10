@@ -187,6 +187,7 @@ export default {
   restore: 'रिस्टोर',
   trash: 'ट्रैश',
   move_to_trash: 'मूव टू ट्रैश',
+  move_to_folder: 'फ़ोल्डर में ले जाएँ',
   work: 'वर्क',
   expand_all: 'एक्सपैंड ऑल',
   collapse_all: 'कोलॅप्स ऑल',

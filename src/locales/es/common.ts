@@ -187,6 +187,7 @@ export default {
   restore: 'Restaurar',
   trash: 'Papelera',
   move_to_trash: 'Mover a la papelera',
+  move_to_folder: 'Mover a la carpeta',
   work: 'Trabajo',
   expand_all: 'Expandir todo',
   collapse_all: 'Contraer todo',

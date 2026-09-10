@@ -187,6 +187,7 @@ export default {
   restore: 'Herstellen',
   trash: 'Prullenbak',
   move_to_trash: 'Naar prullenbak verplaatsen',
+  move_to_folder: 'Naar map verplaatsen',
   work: 'Werk',
   expand_all: 'Alles uitvouwen',
   collapse_all: 'Alles samenvouwen',
