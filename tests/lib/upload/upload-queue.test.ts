@@ -10,7 +10,7 @@ vi.mock('@/lib/upload/upload', () => ({
   upload: (...args: any[]) => mockUpload(...args),
 }))
 
-import { addUploadTask, addUploadTaskAndWait, pauseUpload, resumeUpload, retryUpload, removeUpload, getUploadQueueStatus, pauseUploadsByBatch, resumeUploadsByBatch, retryUploadsByBatch, removeUploadsByBatch } from '@/lib/upload/upload-queue'
+import { addUploadTask, addUploadTaskAndWait, removeUpload, getUploadQueueStatus, pauseUploadsByBatch, resumeUploadsByBatch, retryUploadsByBatch, removeUploadsByBatch } from '@/lib/upload/upload-queue'
 
 const createdIds = new Set<string>()
 
@@ -95,51 +95,6 @@ describe('UploadQueue', () => {
     })
   })
 
-  describe('pauseUpload', () => {
-    it('pauses a running task and aborts XHRs', async () => {
-      // Simulate a long upload
-      mockUpload.mockImplementation(() => new Promise((resolve) => setTimeout(() => resolve({ fileName: 'ok' }), 5000)))
-
-      const item = createUploadItem('pause-1')
-      const abortFn = vi.fn()
-      // Simulate multiple active XHRs (parallel chunks)
-      item.xhrs = new Set()
-      const xhr1 = { abort: abortFn } as unknown as XMLHttpRequest
-      const xhr2 = { abort: abortFn } as unknown as XMLHttpRequest
-      item.xhrs.add(xhr1)
-      item.xhrs.add(xhr2)
-
-      addUploadTask(item, false)
-      await new Promise((r) => setTimeout(r, 20))
-
-      const result = pauseUpload('pause-1')
-      expect(result).toBe(true)
-      expect(item.status).toBe('paused')
-      // Both XHRs should have been aborted
-      expect(abortFn).toHaveBeenCalledTimes(2)
-    })
-
-    it('pauses a pending task without aborting XHR', () => {
-      // Fill up the queue so this task stays pending
-      mockUpload.mockImplementation(() => new Promise((resolve) => setTimeout(() => resolve({ fileName: 'ok' }), 5000)))
-      // Add 3 tasks to fill the running slots
-      for (let i = 0; i < 3; i++) {
-        addUploadTask(createUploadItem(`fill-${i}`), false)
-      }
-      // This one should be pending
-      const item = createUploadItem('pause-pending')
-      addUploadTask(item, false)
-
-      const result = pauseUpload('pause-pending')
-      expect(result).toBe(true)
-      expect(item.status).toBe('paused')
-    })
-
-    it('returns false for non-existent task', () => {
-      expect(pauseUpload('non-existent')).toBe(false)
-    })
-  })
-
   describe('removeUpload', () => {
     it('aborts all XHRs in xhrs Set when removing a running task', () => {
       // Test the pattern directly: xhrs Set should be iterated and all aborted
@@ -161,32 +116,6 @@ describe('UploadQueue', () => {
 
       expect(abortFn).toHaveBeenCalledTimes(3)
       expect(xhrs.size).toBe(0)
-    })
-  })
-
-  describe('retryUpload', () => {
-    it('resets upload state on retry', () => {
-      // Test the retry state reset pattern directly
-      const item = createUploadItem('retry-pattern')
-      item.status = 'error'
-      item.error = 'network error'
-      item.uploadedSize = 50000
-      item.uploadSpeed = 100
-      item.lastUploadedSize = 50000
-      item.lastUpdateTime = Date.now()
-
-      // Simulate retryTask reset logic
-      item.status = 'uploading'
-      item.error = ''
-      item.uploadedSize = 0
-      item.uploadSpeed = 0
-      item.lastUploadedSize = 0
-      item.lastUpdateTime = undefined
-
-      expect(item.status).toBe('uploading')
-      expect(item.error).toBe('')
-      expect(item.uploadedSize).toBe(0)
-      expect(item.uploadSpeed).toBe(0)
     })
   })
 

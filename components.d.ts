@@ -426,7 +426,6 @@ declare module 'vue' {
     SkeletonItemPhone: typeof import('./src/components/base/SkeletonItemPhone.vue')['default']
     TagFilter: typeof import('./src/components/TagFilter.vue')['default']
     TagRelationsDropdown: typeof import('./src/components/TagRelationsDropdown.vue')['default']
-    TaskItem: typeof import('./src/views/uploads/TaskItem.vue')['default']
     TauriTabBar: typeof import('./src/components/TauriTabBar.vue')['default']
     TextFileView: typeof import('./src/views/text-file/TextFileView.vue')['default']
     TextLayerEditor: typeof import('./src/views/image-editor/components/TextLayerEditor.vue')['default']

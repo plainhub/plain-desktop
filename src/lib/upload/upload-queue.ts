@@ -60,58 +60,6 @@ class UploadQueue {
     return task
   }
 
-  pauseTask(taskId: string): boolean {
-    const task = this.findTask(taskId)
-    if (!task) {
-      console.warn(`pauseTask: Task ${taskId} not found`)
-      return false
-    }
-
-    if (task.status === 'running') {
-      task.status = 'paused'
-      task.upload.status = 'paused'
-      task.upload.uploadSpeed = 0
-      task.aborted = true
-      this.abortTaskXhrs(task)
-      this.running.delete(taskId)
-      this.processQueue()
-    } else if (task.status === 'pending') {
-      task.status = 'paused'
-      task.upload.status = 'paused'
-    } else {
-      console.warn(`pauseTask: Task ${taskId} cannot be paused, current status: ${task.status}`)
-      return false
-    }
-    return true
-  }
-
-  resumeTask(taskId: string): boolean {
-    const task = this.findTask(taskId)
-    if (!task || task.status !== 'paused') return false
-
-    task.status = 'pending'
-    task.upload.status = 'uploading'
-    task.aborted = false
-    this.processQueue()
-    return true
-  }
-
-  retryTask(taskId: string): boolean {
-    const task = this.findTask(taskId)
-    if (!task || task.status !== 'failed') return false
-
-    task.status = 'pending'
-    task.upload.status = 'uploading'
-    task.upload.error = ''
-    task.upload.uploadedSize = 0
-    task.upload.uploadSpeed = 0
-    task.upload.lastUploadedSize = 0
-    task.upload.lastUpdateTime = undefined
-    task.aborted = false
-    this.processQueue()
-    return true
-  }
-
   removeTask(taskId: string): boolean {
     const task = this.findTask(taskId)
     if (!task) return false
@@ -345,18 +293,6 @@ export function addUploadTask(upload: IUploadItem, replace: boolean): string {
 /** Queue one upload and settle only when its terminal result is known. */
 export function addUploadTaskAndWait(upload: IUploadItem, replace: boolean): Promise<void> {
   return uploadQueue.addTaskAndWait(upload, replace)
-}
-
-export function pauseUpload(taskId: string): boolean {
-  return uploadQueue.pauseTask(taskId)
-}
-
-export function resumeUpload(taskId: string): boolean {
-  return uploadQueue.resumeTask(taskId)
-}
-
-export function retryUpload(taskId: string): boolean {
-  return uploadQueue.retryTask(taskId)
 }
 
 export function removeUpload(taskId: string): boolean {
