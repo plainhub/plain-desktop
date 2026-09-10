@@ -10,7 +10,7 @@ vi.mock('@/lib/upload/upload', () => ({
   upload: (...args: any[]) => mockUpload(...args),
 }))
 
-import { addUploadTask, addUploadTaskAndWait, pauseUpload, resumeUpload, retryUpload, removeUpload, getUploadQueueStatus } from '@/lib/upload/upload-queue'
+import { addUploadTask, addUploadTaskAndWait, pauseUpload, resumeUpload, retryUpload, removeUpload, getUploadQueueStatus, pauseUploadsByBatch, resumeUploadsByBatch, retryUploadsByBatch, removeUploadsByBatch } from '@/lib/upload/upload-queue'
 
 const createdIds = new Set<string>()
 
@@ -186,6 +186,100 @@ describe('UploadQueue', () => {
       expect(item.status).toBe('uploading')
       expect(item.error).toBe('')
       expect(item.uploadedSize).toBe(0)
+      expect(item.uploadSpeed).toBe(0)
+    })
+  })
+
+  describe('batch operations', () => {
+    function createBatchItem(id: string, batchId: string, overrides: Partial<IUploadItem> = {}): IUploadItem {
+      return createUploadItem(id, { batchId, ...overrides })
+    }
+
+    it('pauses every task of a batch, aborts running XHRs and zeroes speeds', async () => {
+      mockUpload.mockImplementation(() => new Promise((resolve) => setTimeout(() => resolve({ fileName: 'ok' }), 5000)))
+
+      const running = createBatchItem('batch-run', 'b1', { uploadSpeed: 42 })
+      const abortFn = vi.fn()
+      running.xhrs = new Set([{ abort: abortFn } as unknown as XMLHttpRequest])
+      addUploadTask(running, false)
+      for (let i = 0; i < 3; i++) addUploadTask(createBatchItem(`fill-${i}`, 'other'), false)
+      const pending = createBatchItem('batch-pending', 'b1')
+      addUploadTask(pending, false)
+      await new Promise((r) => setTimeout(r, 20))
+
+      const affected = pauseUploadsByBatch('b1')
+
+      expect(affected.map((it) => it.id).sort()).toEqual(['batch-pending', 'batch-run'])
+      expect(running.status).toBe('paused')
+      expect(pending.status).toBe('paused')
+      expect(running.uploadSpeed).toBe(0)
+      expect(abortFn).toHaveBeenCalledTimes(1)
+    })
+
+    it('leaves other batches untouched when pausing by batch', () => {
+      mockUpload.mockImplementation(() => new Promise((resolve) => setTimeout(() => resolve({ fileName: 'ok' }), 5000)))
+      for (let i = 0; i < 3; i++) addUploadTask(createBatchItem(`keep-${i}`, 'other'), false)
+      const pending = createBatchItem('batch-only', 'b2')
+      addUploadTask(pending, false)
+
+      pauseUploadsByBatch('b2')
+
+      expect(pending.status).toBe('paused')
+    })
+
+    it('resumes a paused batch', () => {
+      const paused = createBatchItem('resume-1', 'b3')
+      addUploadTask(paused, false)
+      pauseUploadsByBatch('b3')
+      expect(paused.status).toBe('paused')
+
+      resumeUploadsByBatch('b3')
+
+      expect(paused.status).toBe('uploading')
+    })
+
+    it('retries failed tasks of a batch and resets their counters', async () => {
+      mockUpload.mockResolvedValue({ error: 'boom' })
+      const failed = createBatchItem('retry-1', 'b4')
+      addUploadTask(failed, false)
+      await new Promise((r) => setTimeout(r, 20))
+      expect(failed.status).toBe('error')
+
+      retryUploadsByBatch('b4')
+
+      expect(failed.status).toBe('uploading')
+      expect(failed.uploadedSize).toBe(0)
+      expect(failed.error).toBe('')
+    })
+
+    it('removes every task of a batch in one pass', async () => {
+      mockUpload.mockImplementation(() => new Promise((resolve) => setTimeout(() => resolve({ fileName: 'ok' }), 5000)))
+      const running = createBatchItem('rm-run', 'b5')
+      running.xhrs = new Set()
+      addUploadTask(running, false)
+      for (let i = 0; i < 5; i++) addUploadTask(createBatchItem(`rm-${i}`, 'b5'), false)
+      const keeper = createBatchItem('rm-keep', 'other')
+      addUploadTask(keeper, false)
+      await new Promise((r) => setTimeout(r, 20))
+
+      removeUploadsByBatch('b5')
+
+      expect(running.status).toBe('canceled')
+      expect(getUploadQueueStatus().total).toBe(1)
+      expect(keeper.status).not.toBe('canceled')
+    })
+
+    it('zeroes per-item speed when a task completes', async () => {
+      mockUpload.mockImplementation(async (upload: IUploadItem) => {
+        upload.uploadSpeed = 12345
+        upload.status = 'done'
+        return { fileName: 'ok' }
+      })
+      const item = createBatchItem('speed-zero', 'b6')
+
+      await addUploadTaskAndWait(item, false)
+
+      expect(item.status).toBe('done')
       expect(item.uploadSpeed).toBe(0)
     })
   })

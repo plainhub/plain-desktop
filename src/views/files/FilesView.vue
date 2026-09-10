@@ -153,7 +153,7 @@ const { keyDown: pageKeyDown, keyUp: pageKeyUp } = useFilesKeyEvents(selectAll, 
 // --- Events & lifecycle ---
 useFilesEvents({
   isActive, fileSortBy, routeFullPath: () => route.fullPath, applyRouteQuery, fetch, refetchMounts,
-  refreshing, sorting, onDeleted, pageKeyDown, pageKeyUp,
+  refreshing, sorting, onDeleted, pageKeyDown, pageKeyUp, parentDir: () => filter.parent,
 })
 
 // --- Toolbar helpers ---

@@ -30,10 +30,12 @@ describe('local-mode', () => {
   it('isLocalModeAllowed() is false in web builds even when no device is bound', async () => {
     const lm = await loadLocalMode()
     const wc = await loadClientId()
-    // Sanity: the underlying state really is "local mode" — no bound device,
-    // no session token. The whole point of this test is that the helper
-    // refuses to act on that in a web build.
-    expect(wc.isLocalMode()).toBe(true)
+    // Sanity: the underlying state really is "nothing bound" — and because
+    // this compiles as a web build, isLocalMode() itself must report false.
+    // The whole point of this test is that the helper refuses to act on the
+    // "no bound device" state in a web build.
+    expect(wc.getRemoteClientId()).toBe('')
+    expect(wc.isLocalMode()).toBe(false)
     expect(lm.isLocalModeAllowed()).toBe(false)
   })
 

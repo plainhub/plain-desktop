@@ -28,7 +28,7 @@
  * (same origin within the app process). No platform branching in this file.
  */
 import { defineStore, type Store, type _GettersTree, type _ActionsTree } from 'pinia'
-import { toRaw } from 'vue'
+import { toRaw, watch } from 'vue'
 import { getActiveClientId, getWindowId } from '@/lib/device/client-id'
 
 const CHANNEL_PREFIX = 'plain-web:store:'
@@ -126,7 +126,7 @@ function installSync<S extends object>(
       // off BroadcastChannel as a plain object, so cast through unknown.
       ;(store as any).$patch(patch)
     } finally {
-      // Microtask defer so any $subscribe triggered by $patch sees the flag
+      // Microtask defer so any watcher triggered by $patch sees the flag
       // synchronously, then we clear it before the next event-loop turn.
       queueMicrotask(() => {
         ;(store as any).__cw_replaying = false
@@ -134,26 +134,35 @@ function installSync<S extends object>(
     }
   })
 
-  store.$subscribe(
-    (_mutation, state) => {
-      if ((store as any).__cw_replaying) return
-      const raw: Record<string, unknown> = {}
-      for (const k of syncKeys) raw[k as string] = toRaw((state as any)[k])
-      // BroadcastChannel.postMessage runs structured-clone, which rejects
-      // Vue reactive proxies. `syncKeys` is documented to be plain JSON
-      // data, so a JSON round-trip is the safe way to detach the patch
-      // from the reactive graph. (toRaw on its own isn't enough for
-      // nested objects inside `counter`.)
-      const patch = JSON.parse(JSON.stringify(raw))
-      const msg: SyncMessage = {
-        windowId: getWindowId(),
-        clientId: getActiveClientId(),
-        patch,
-      }
-      channel.bc.postMessage(msg)
-    },
-    { detached: true },
-  )
+  const publish = () => {
+    if ((store as any).__cw_replaying) return
+    const raw: Record<string, unknown> = {}
+    for (const k of syncKeys) raw[k as string] = toRaw((store as any).$state[k])
+    // BroadcastChannel.postMessage runs structured-clone, which rejects
+    // Vue reactive proxies. `syncKeys` is documented to be plain JSON
+    // data, so a JSON round-trip is the safe way to detach the patch
+    // from the reactive graph. (toRaw on its own isn't enough for
+    // nested objects inside `counter`.)
+    const patch = JSON.parse(JSON.stringify(raw))
+    const msg: SyncMessage = {
+      windowId: getWindowId(),
+      clientId: getActiveClientId(),
+      patch,
+    }
+    channel.bc.postMessage(msg)
+  }
+
+  // Watch only the declared sync keys. Pinia's $subscribe is a deep watcher
+  // over the ENTIRE state tree — with tens of thousands of upload items in
+  // the temp store, every mutation tick re-traversed the whole graph (~100ms
+  // per tick at 17k items) and froze the UI solid during directory uploads.
+  // Object keys get a deep watch (they are small: counter, etc.); primitive
+  // keys only need the default shallow observation.
+  for (const k of syncKeys) {
+    const value = (store as any).$state[k]
+    const deep = typeof value === 'object' && value !== null
+    watch(() => (store as any).$state[k], publish, { deep })
+  }
 }
 
 /**

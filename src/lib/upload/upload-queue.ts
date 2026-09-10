@@ -67,43 +67,17 @@ class UploadQueue {
       return false
     }
 
-    console.log(`pauseTask: Attempting to pause task ${taskId}, current status: ${task.status}`)
-
     if (task.status === 'running') {
       task.status = 'paused'
       task.upload.status = 'paused'
+      task.upload.uploadSpeed = 0
       task.aborted = true
-
-      // Abort ALL active XHRs (parallel chunk uploads)
-      if (task.upload.xhrs && task.upload.xhrs.size > 0) {
-        console.log(`pauseTask: Aborting ${task.upload.xhrs.size} active xhr(s) for task ${taskId}`)
-        for (const xhr of task.upload.xhrs) {
-          try {
-            xhr.abort()
-          } catch (error) {
-            console.warn(`pauseTask: Error aborting xhr for task ${taskId}:`, error)
-          }
-        }
-        task.upload.xhrs.clear()
-      } else if (task.upload.xhr) {
-        // Fallback for direct (non-chunked) uploads
-        console.log(`pauseTask: Aborting xhr for task ${taskId}`)
-        try {
-          task.upload.xhr.abort()
-        } catch (error) {
-          console.warn(`pauseTask: Error aborting xhr for task ${taskId}:`, error)
-        }
-      } else {
-        console.warn(`pauseTask: No xhr found for running task ${taskId}`)
-      }
-
+      this.abortTaskXhrs(task)
       this.running.delete(taskId)
       this.processQueue()
-      console.log(`pauseTask: Task ${taskId} paused successfully`)
     } else if (task.status === 'pending') {
       task.status = 'paused'
       task.upload.status = 'paused'
-      console.log(`pauseTask: Pending task ${taskId} paused successfully`)
     } else {
       console.warn(`pauseTask: Task ${taskId} cannot be paused, current status: ${task.status}`)
       return false
@@ -144,19 +118,7 @@ class UploadQueue {
 
     if (task.status === 'running') {
       task.aborted = true
-      // Abort all active XHRs
-      if (task.upload.xhrs && task.upload.xhrs.size > 0) {
-        for (const xhr of task.upload.xhrs) {
-          try {
-            xhr.abort()
-          } catch (_) {
-            /* ignore */
-          }
-        }
-        task.upload.xhrs.clear()
-      } else {
-        task.upload.xhr?.abort()
-      }
+      this.abortTaskXhrs(task)
       this.running.delete(taskId)
     }
 
@@ -165,6 +127,76 @@ class UploadQueue {
     this.rejectTask(task, new Error('Upload canceled'))
     this.processQueue()
     return true
+  }
+
+  // Batch-level operations. A directory upload enqueues tens of thousands of
+  // tasks sharing one batchId; driving these through the per-task API is
+  // O(n²) (queue scan per task) and froze the UI on pause/remove.
+  pauseTasksByBatch(batchId: string): IUploadItem[] {
+    const affected: IUploadItem[] = []
+    for (const task of this.tasksByBatch(batchId)) {
+      if (task.status === 'running') {
+        task.status = 'paused'
+        task.upload.status = 'paused'
+        task.upload.uploadSpeed = 0
+        task.aborted = true
+        this.abortTaskXhrs(task)
+        this.running.delete(task.id)
+        affected.push(task.upload)
+      } else if (task.status === 'pending') {
+        task.status = 'paused'
+        task.upload.status = 'paused'
+        affected.push(task.upload)
+      }
+    }
+    if (affected.length > 0) this.processQueue()
+    return affected
+  }
+
+  resumeTasksByBatch(batchId: string): void {
+    let resumed = false
+    for (const task of this.tasksByBatch(batchId)) {
+      if (task.status !== 'paused') continue
+      task.status = 'pending'
+      task.upload.status = 'uploading'
+      task.aborted = false
+      resumed = true
+    }
+    if (resumed) this.processQueue()
+  }
+
+  retryTasksByBatch(batchId: string): void {
+    let retried = false
+    for (const task of this.tasksByBatch(batchId)) {
+      if (task.status !== 'failed') continue
+      task.status = 'pending'
+      task.upload.status = 'uploading'
+      task.upload.error = ''
+      task.upload.uploadedSize = 0
+      task.upload.uploadSpeed = 0
+      task.upload.lastUploadedSize = 0
+      task.upload.lastUpdateTime = undefined
+      task.aborted = false
+      retried = true
+    }
+    if (retried) this.processQueue()
+  }
+
+  removeTasksByBatch(batchId: string): void {
+    const removed = new Set<ManagedUploadTask>()
+    for (const task of this.tasksByBatch(batchId)) {
+      if (task.status === 'running') {
+        task.aborted = true
+        this.abortTaskXhrs(task)
+        this.running.delete(task.id)
+      }
+      task.upload.status = 'canceled'
+      this.rejectTask(task, new Error('Upload canceled'))
+      removed.add(task)
+    }
+    if (removed.size === 0) return
+    this.queue = this.queue.filter((t) => !removed.has(t))
+    this.processQueue()
   }
 
   getQueueStatus() {
@@ -176,8 +208,43 @@ class UploadQueue {
     }
   }
 
+  private keyOfTask(task: ManagedUploadTask): string {
+    return task.upload.batchId || task.upload.id
+  }
+
+  private tasksByBatch(batchId: string): ManagedUploadTask[] {
+    const out: ManagedUploadTask[] = []
+    for (const task of this.queue) {
+      if (this.keyOfTask(task) === batchId) out.push(task)
+    }
+    for (const task of this.running.values()) {
+      if (this.keyOfTask(task) === batchId) out.push(task)
+    }
+    return out
+  }
+
+  private abortTaskXhrs(task: ManagedUploadTask): void {
+    if (task.upload.xhrs) {
+      for (const xhr of task.upload.xhrs) {
+        try {
+          xhr.abort()
+        } catch {
+          /* ignore */
+        }
+      }
+      task.upload.xhrs.clear()
+    }
+    if (task.upload.xhr) {
+      try {
+        task.upload.xhr.abort()
+      } catch {
+        /* ignore */
+      }
+    }
+  }
+
   private findTask(taskId: string): ManagedUploadTask | undefined {
-    return this.queue.find((t) => t.id === taskId) || this.running.get(taskId)
+    return this.running.get(taskId) || this.queue.find((t) => t.id === taskId)
   }
 
   private processQueue(): void {
@@ -230,10 +297,14 @@ class UploadQueue {
     } finally {
       this.running.delete(task.id)
       if (task.status === 'completed') {
+        // Per-item speeds are point samples; leaving them set after completion
+        // made batch-level throughput sum the whole upload history.
+        task.upload.uploadSpeed = 0
         this.queue = this.queue.filter((candidate) => candidate !== task)
         this.resolveTask(task)
         this.emitSafely('upload_task_done', task.upload)
       } else if (task.status === 'failed') {
+        task.upload.uploadSpeed = 0
         this.rejectTask(task, new Error(task.upload.error || 'Upload failed'))
         if (task.evictOnFailure) this.queue = this.queue.filter((candidate) => candidate !== task)
         this.emitSafely('upload_progress', task.upload)
@@ -290,6 +361,22 @@ export function retryUpload(taskId: string): boolean {
 
 export function removeUpload(taskId: string): boolean {
   return uploadQueue.removeTask(taskId)
+}
+
+export function pauseUploadsByBatch(batchId: string): IUploadItem[] {
+  return uploadQueue.pauseTasksByBatch(batchId)
+}
+
+export function resumeUploadsByBatch(batchId: string): void {
+  uploadQueue.resumeTasksByBatch(batchId)
+}
+
+export function retryUploadsByBatch(batchId: string): void {
+  uploadQueue.retryTasksByBatch(batchId)
+}
+
+export function removeUploadsByBatch(batchId: string): void {
+  uploadQueue.removeTasksByBatch(batchId)
 }
 
 export function getUploadQueueStatus() {

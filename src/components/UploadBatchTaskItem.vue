@@ -1,22 +1,22 @@
 <template>
-  <div class="item task-item" :class="`item-${batchStatus}`">
+  <div class="item task-item" :class="`item-${stats.status}`">
     <div class="title">{{ title }}</div>
     <div class="subtitle">
-      <span class="status" :class="`status-${batchStatus}`">
-        {{ $t(`upload_status.${batchStatus}`) }}
+      <span class="status" :class="`status-${stats.status}`">
+        {{ $t(`upload_status.${stats.status}`) }}
       </span>
-      <span class="size">{{ formatFileSize(totalBytes) }}</span>
+      <span class="size">{{ formatFileSize(stats.totalBytes) }}</span>
       <span class="count">{{ uploads.length }} {{ $t('files') }}</span>
 
       <div class="icon task-actions">
-        <v-icon-button v-if="canPause" v-tooltip="$t('pause')" class="pause-btn" @click="pauseBatch">
+        <v-icon-button v-if="stats.canPause" v-tooltip="$t('pause')" class="pause-btn" @click="pauseBatch">
           <i-material-symbols:pause-rounded />
         </v-icon-button>
-        <v-icon-button v-if="isPausing" v-tooltip="$t('pausing')" :loading="true" class="pausing-btn" />
-        <v-icon-button v-if="canResume" v-tooltip="$t('resume')" class="resume-btn" @click="resumeBatch">
+        <v-icon-button v-if="stats.isPausing" v-tooltip="$t('pausing')" :loading="true" class="pausing-btn" />
+        <v-icon-button v-if="stats.canResume" v-tooltip="$t('resume')" class="resume-btn" @click="resumeBatch">
           <i-material-symbols:play-arrow-rounded />
         </v-icon-button>
-        <v-icon-button v-if="canRetry" v-tooltip="$t('retry')" class="retry-btn" @click="retryBatch">
+        <v-icon-button v-if="stats.canRetry" v-tooltip="$t('retry')" class="retry-btn" @click="retryBatch">
           <i-material-symbols:refresh-rounded />
         </v-icon-button>
         <v-icon-button v-tooltip="$t('remove')" class="remove-btn" @click="removeBatch">
@@ -25,33 +25,31 @@
       </div>
     </div>
 
-    <div v-if="showProgress || errorCount > 0" class="body">
+    <div v-if="showProgress || stats.errorCount > 0" class="body">
       <div v-if="showProgress" class="progress-info">
         <div class="progress-text">
-          {{ formatFileSize(uploadedBytes) }} / {{ formatFileSize(totalBytes) }} ({{ formatFileSize(totalSpeed) }}/s)
+          {{ formatFileSize(stats.uploadedBytes) }} / {{ formatFileSize(stats.totalBytes) }} ({{ formatFileSize(liveSpeed) }}/s)
         </div>
         <div class="progress-track">
           <div class="progress-fill" :style="{ width: progressPercent + '%' }"></div>
         </div>
       </div>
 
-      <div v-if="errorCount > 0" class="error-message">
-        <span v-if="errorCount === 1">{{ firstError }}</span>
-        <span v-else>{{ firstError }} (+{{ errorCount - 1 }})</span>
+      <div v-if="stats.errorCount > 0" class="error-message">
+        <span v-if="stats.errorCount === 1">{{ stats.firstError }}</span>
+        <span v-else>{{ stats.firstError }} (+{{ stats.errorCount - 1 }})</span>
       </div>
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
 import { formatFileSize } from '@/lib/format'
 import { useTempStore, type IUploadItem } from '@/stores/temp'
 import { useI18n } from 'vue-i18n'
-import {
-  canPauseItem, canResumeItem, canRetryItem, isPausingItem,
-  pauseItem, resumeItem, retryItem, removeItem,
-} from '@/hooks/upload-task'
+import { computeBatchStats, keyOf } from '@/lib/upload/batch'
+import { pauseUploadsByBatch, resumeUploadsByBatch, retryUploadsByBatch, removeUploadsByBatch } from '@/lib/upload/upload-queue'
 
 const props = defineProps<{
   batchId: string
@@ -62,55 +60,53 @@ const tempStore = useTempStore()
 const { t } = useI18n()
 
 const title = computed(() => `${t('upload')} (${props.uploads.length} ${t('files')})`)
-const totalBytes = computed(() => props.uploads.reduce((acc, it) => acc + (it.file?.size || 0), 0))
-const uploadedBytes = computed(() => props.uploads.reduce((acc, it) => acc + (it.uploadedSize || 0), 0))
-const totalSpeed = computed(() => props.uploads.reduce((acc, it) => acc + (it.uploadSpeed || 0), 0))
-const errorCount = computed(() => props.uploads.filter((it) => it.status === 'error').length)
-const firstError = computed(() => props.uploads.find((it) => it.status === 'error')?.error || '')
+const stats = computed(() => computeBatchStats(props.uploads))
+const showProgress = computed(() => ['uploading', 'pending', 'saving'].includes(stats.value.status) && stats.value.uploadedBytes > 0)
+const progressPercent = computed(() => (stats.value.totalBytes <= 0 ? 0 : Math.round((stats.value.uploadedBytes / stats.value.totalBytes) * 100)))
 
-const batchStatus = computed(() => {
-  const statuses = props.uploads.map((u) => u.status)
-  if (statuses.includes('error')) return 'error'
-  if (statuses.includes('uploading')) return 'uploading'
-  if (statuses.includes('saving')) return 'saving'
-  if (statuses.includes('pending')) return 'pending'
-  if (statuses.every((s) => s === 'paused')) return 'paused'
-  if (statuses.length > 0 && statuses.every((s) => s === 'done' || s === 'canceled')) return 'done'
-  return 'created'
+// Per-item speeds only sample after 500ms of transfer, so files that finish
+// faster never report one — summing them showed 0 B/s on fast networks.
+// Measure the batch's real throughput instead: diff uploadedBytes per second.
+const liveSpeed = ref(0)
+let speedSample: { at: number; bytes: number } | undefined
+let speedTimer: ReturnType<typeof setInterval> | undefined
+
+onMounted(() => {
+  speedTimer = setInterval(() => {
+    const bytes = stats.value.uploadedBytes
+    const at = Date.now()
+    if (speedSample) {
+      const dt = (at - speedSample.at) / 1000
+      if (dt > 0) liveSpeed.value = Math.max(0, Math.round((bytes - speedSample.bytes) / dt))
+    }
+    speedSample = { at, bytes }
+  }, 1000)
 })
 
-const showProgress = computed(() => ['uploading', 'pending', 'saving'].includes(String(batchStatus.value)) && uploadedBytes.value > 0)
-const progressPercent = computed(() => (totalBytes.value <= 0 ? 0 : Math.round((uploadedBytes.value / totalBytes.value) * 100)))
-const canPause = computed(() => props.uploads.some((it) => canPauseItem(it)))
-const canResume = computed(() => props.uploads.some((it) => canResumeItem(it)))
-const canRetry = computed(() => props.uploads.some((it) => canRetryItem(it)))
-const isPausing = computed(() => props.uploads.some((it) => isPausingItem(it)))
+onBeforeUnmount(() => {
+  if (speedTimer) clearInterval(speedTimer)
+})
 
-async function pauseBatch() {
-  for (const item of props.uploads) {
-    if (canPauseItem(item)) await pauseItem(item)
+function pauseBatch() {
+  for (const item of pauseUploadsByBatch(props.batchId)) {
+    item.pausing = true
+    setTimeout(() => {
+      item.pausing = false
+    }, 1000)
   }
 }
 
 function resumeBatch() {
-  for (const item of props.uploads) {
-    if (canResumeItem(item)) resumeItem(item)
-  }
+  resumeUploadsByBatch(props.batchId)
 }
 
 function retryBatch() {
-  for (const item of props.uploads) {
-    if (canRetryItem(item)) retryItem(item)
-  }
+  retryUploadsByBatch(props.batchId)
 }
 
 function removeBatch() {
-  for (const item of props.uploads) removeItem(item)
-  for (let i = tempStore.uploads.length - 1; i >= 0; i--) {
-    if ((tempStore.uploads[i].batchId || tempStore.uploads[i].id) === props.batchId) {
-      tempStore.uploads.splice(i, 1)
-    }
-  }
+  removeUploadsByBatch(props.batchId)
+  tempStore.uploads = tempStore.uploads.filter((it) => keyOf(it) !== props.batchId)
 }
 </script>
 

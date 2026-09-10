@@ -29,7 +29,9 @@ describe('client-id', () => {
     localStorage.setItem('client_id', 'desktop-abc')
     const wc = await loadClientId()
     expect(wc.getActiveClientId()).toBe('desktop-abc')
-    expect(wc.isLocalMode()).toBe(true)
+    // Web build: local mode is desktop-app-only (__IS_TAURI__ is false here).
+    expect(wc.getRemoteClientId()).toBe('')
+    expect(wc.isLocalMode()).toBe(false)
   })
 
   it('getActiveClientId returns the bound device id when one is set', async () => {
@@ -41,14 +43,15 @@ describe('client-id', () => {
     expect(wc.isLocalMode()).toBe(false)
   })
 
-  it('clearRemoteClientId drops the window back to local mode', async () => {
+  it('clearRemoteClientId drops the window back to the desktop clientId', async () => {
     localStorage.setItem('client_id', 'desktop-abc')
     const wc = await loadClientId()
     wc.setRemoteClientId('device-xyz')
     wc.clearRemoteClientId()
     expect(wc.getRemoteClientId()).toBe('')
     expect(wc.getActiveClientId()).toBe('desktop-abc')
-    expect(wc.isLocalMode()).toBe(true)
+    // Web build: local mode is desktop-app-only (__IS_TAURI__ is false here).
+    expect(wc.isLocalMode()).toBe(false)
   })
 
   it('setRemoteClientId("") is equivalent to clear', async () => {

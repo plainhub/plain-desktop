@@ -72,6 +72,30 @@ describe('cross-window-store', () => {
     expect(received).toEqual([{ a: 1 }])
   })
 
+  it('does not publish when only non-syncKeys mutate', async () => {
+    // Regression: the publisher must watch only the declared syncKeys. A
+    // whole-state deep watcher re-traverses the entire store on every
+    // mutation tick — with tens of thousands of upload items in the temp
+    // store that froze the UI solid during directory uploads.
+    const { cws } = await loadAsWindow('device-1', 'win-A')
+    const useStore = cws.defineCrossWindowStore<'kv-quiet', { a: number; b: number; items: number[] }>(
+      'kv-quiet',
+      { state: () => ({ a: 0, b: 0, items: [] as number[] }) },
+      { syncKeys: ['a'] },
+    )
+    const pubStore = useStore()
+
+    const received: Array<unknown> = []
+    const peer = await loadAsWindow('device-1', 'win-B')
+    peer.cws.subscribeForTest('kv-quiet', (patch) => received.push(patch))
+
+    pubStore.$patch({ b: 42 })
+    pubStore.items.push(1, 2, 3)
+    await new Promise((r) => setTimeout(r, 0))
+
+    expect(received).toEqual([])
+  })
+
   it('filters out messages from a different clientId', async () => {
     const publisher = await loadAsWindow('device-1', 'win-A')
     const subscriber = await loadAsWindow('device-2', 'win-B')

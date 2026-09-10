@@ -3,61 +3,8 @@ import { computed, ref, watch } from 'vue'
 import { useMainStore } from '@/stores/main'
 import { useI18n } from 'vue-i18n'
 import { addUploadTask } from '@/lib/upload/upload-queue'
-import { compareLocale, sortByName } from '@/lib/array'
-
-type Upload = ReturnType<typeof useTempStore>['uploads'][number]
-type TaskListItem = { id: string; kind: 'upload_batch'; batchId: string; uploads: Upload[] }
-
-const completedStates = new Set(['done', 'error', 'canceled'])
-const keyOf = (it: Upload) => it.batchId || it.id
-
-function groupByBatch(uploads: Upload[]): Map<string, Upload[]> {
-  const map = new Map<string, Upload[]>()
-  for (const it of uploads) {
-    const k = keyOf(it)
-    const list = map.get(k)
-    if (list) list.push(it)
-    else map.set(k, [it])
-  }
-  return map
-}
-
-function batchStatus(items: Upload[]): string {
-  const statuses = items.map((u) => u.status)
-  if (statuses.includes('error')) return 'error'
-  if (statuses.includes('uploading')) return 'uploading'
-  if (statuses.includes('saving')) return 'saving'
-  if (statuses.includes('pending')) return 'pending'
-  if (statuses.every((s) => s === 'paused')) return 'paused'
-  if (statuses.length > 0 && statuses.every((s) => s === 'done' || s === 'canceled')) return 'done'
-  return 'created'
-}
-
-const batchCreatedAt = (items: Upload[]) => {
-  let min = ''
-  for (const it of items) {
-    const v = it.createdAt ?? ''
-    if (!min || v < min) min = v
-  }
-  return min
-}
-
-function inProgressTasks(uploads: Upload[]): TaskListItem[] {
-  const sortKeys = new Map([['uploading', 0], ['saving', 1], ['pending', 2], ['paused', 3], ['created', 4]])
-  return Array.from(groupByBatch(uploads).entries())
-    .filter(([_, items]) => items.some((it) => !completedStates.has(it.status)))
-    .sort((a, b) => {
-      const sa = sortKeys.get(batchStatus(a[1])) ?? 5, sb = sortKeys.get(batchStatus(b[1])) ?? 5
-      return sa !== sb ? sa - sb : compareLocale(batchCreatedAt(a[1]), batchCreatedAt(b[1]))
-    })
-    .map(([batchId, uploads]) => ({ id: batchId, kind: 'upload_batch' as const, batchId, uploads }))
-}
-
-function completedTasksList(uploads: Upload[]): TaskListItem[] {
-  return Array.from(groupByBatch(uploads).entries())
-    .filter(([_, items]) => items.length > 0 && items.every((it) => completedStates.has(it.status)))
-    .map(([batchId, uploads]) => ({ id: batchId, kind: 'upload_batch' as const, batchId, uploads }))
-}
+import { sortByName } from '@/lib/array'
+import { batchCreatedAt, keyOf, partitionBatches, type TaskListItem } from '@/lib/upload/batch'
 
 export function useUploadList() {
   const tempStore = useTempStore()
@@ -72,25 +19,37 @@ export function useUploadList() {
     if (listItemsRef.value) listItemsRef.value.scrollTop = 0
   }
 
-  const visibleTasks = computed<TaskListItem[]>(() =>
-    filterType.value === 'in_progress' ? inProgressTasks(tempStore.uploads) : completedTasksList(tempStore.uploads)
-  )
-
-  const completedCount = computed(() => completedTasksList(tempStore.uploads).length)
-  const totalCount = computed(() => inProgressTasks(tempStore.uploads).length + completedCount.value)
+  const tasks = computed(() => partitionBatches(tempStore.uploads))
+  const visibleTasks = computed<TaskListItem[]>(() => (filterType.value === 'in_progress' ? tasks.value.inProgress : tasks.value.completed))
+  const completedCount = computed(() => tasks.value.completed.length)
+  const totalCount = computed(() => tasks.value.inProgress.length + tasks.value.completed.length)
 
   function getLabel(type: string) {
     return t(type) + (type === 'completed' ? ` (${completedCount.value})` : ` (${totalCount.value - completedCount.value})`)
   }
 
-  watch(() => tempStore.uploads, (newUploads) => {
-    const created = newUploads.filter((item) => item.status === 'created')
-    if (created.length === 0) return
-    const batches = new Map<string, typeof newUploads>()
-    for (const it of created) { const k = keyOf(it); const list = batches.get(k); if (list) list.push(it); else batches.set(k, [it]) }
-    const ordered = sortByName(Array.from(batches.entries()), (e) => batchCreatedAt(e[1]))
-    for (const [_, newItems] of ordered) { for (const item of newItems) { if (item.status !== 'created') continue; addUploadTask(item, true); item.status = 'pending' } }
-  })
+  watch(
+    () => tempStore.uploads,
+    (newUploads) => {
+      const created = newUploads.filter((item) => item.status === 'created')
+      if (created.length === 0) return
+      const batches = new Map<string, typeof newUploads>()
+      for (const it of created) {
+        const k = keyOf(it)
+        const list = batches.get(k)
+        if (list) list.push(it)
+        else batches.set(k, [it])
+      }
+      const ordered = sortByName(Array.from(batches.entries()), (e) => batchCreatedAt(e[1]))
+      for (const [_, newItems] of ordered) {
+        for (const item of newItems) {
+          if (item.status !== 'created') continue
+          addUploadTask(item, true)
+          item.status = 'pending'
+        }
+      }
+    },
+  )
 
   return { store, filterType, types, listItemsRef, visibleTasks, chooseFilterType, getLabel }
 }

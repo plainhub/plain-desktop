@@ -20,6 +20,7 @@ import { type DataType, FEATURE } from '@/lib/data'
 import { getDirFromPath } from '@/lib/file'
 import { generateDownloadFileName } from '@/lib/format'
 import { hasFeature } from '@/lib/feature'
+import { createUploadRefreshScheduler } from '@/lib/upload/refresh-scheduler'
 
 export interface MediaPageOptions {
   dataType: DataType
@@ -158,14 +159,16 @@ export function useMediaPage(options: MediaPageOptions) {
     doFetch()
   }
   const refetchTagsHandler = (type: string) => { if (type === dataType) fetchBucketsTags() }
+  const uploadRefresh = createUploadRefreshScheduler(() => {
+    doFetch()
+    emitter.emit('media_items_actioned', { type: dataType, action: 'upload', query: '' })
+  })
   const uploadTaskDoneHandler = (r: IUploadItem) => {
-    if (r.status === 'done' && fileFilter(r.fileName)) {
-      const shouldRefresh = !filter.bucketId || buckets.value.some((b) =>
-        b.id === filter.bucketId && b.topItems.some((ti) => r.dir.startsWith(getDirFromPath(ti)))
-      )
-      if (shouldRefresh) setTimeout(() => doFetch(), 1000)
-      emitter.emit('media_items_actioned', { type: dataType, action: 'upload', query: '' })
-    }
+    if (r.status !== 'done' || !fileFilter(r.fileName)) return
+    const shouldRefresh = !filter.bucketId || buckets.value.some((b) =>
+      b.id === filter.bucketId && b.topItems.some((ti) => r.dir.startsWith(getDirFromPath(ti)))
+    )
+    if (shouldRefresh) uploadRefresh.schedule()
   }
 
   function applyRouteQuery() {
@@ -193,6 +196,7 @@ export function useMediaPage(options: MediaPageOptions) {
   })
   onDeactivated(() => {
     isActive.value = false
+    uploadRefresh.dispose()
     emitter.off('item_tags_updated', itemTagsUpdatedHandler)
     emitter.off('items_tags_updated', itemsTagsUpdatedHandler)
     emitter.off('media_items_actioned', mediaItemsActionedHandler)
