@@ -183,7 +183,7 @@ fn macos_monitor_id(display_id: u32) -> String {
     format!("{MACOS_NATIVE_DISPLAY_PREFIX}{display_id}")
 }
 
-fn parse_macos_monitor_id(value: &str) -> Option<u32> {
+pub(super) fn parse_macos_monitor_id(value: &str) -> Option<u32> {
     let raw = value.strip_prefix(MACOS_NATIVE_DISPLAY_PREFIX)?;
     let display_id = raw.parse::<u32>().ok()?;
     (display_id != 0 && macos_monitor_id(display_id) == value).then_some(display_id)
@@ -294,15 +294,13 @@ pub fn wayland_cursor_is_unavailable(
         || wayland_display_present
 }
 
-pub fn permission_check_result(granted: bool, request_returned: bool) -> Result<(), CaptureError> {
+pub fn permission_preflight_result(granted: bool) -> Result<(), CaptureError> {
     if granted {
         Ok(())
     } else {
         Err(CaptureError::new(
             CaptureErrorCode::PermissionDenied,
-            format!(
-                "screen capture permission is required (permission_prompt_returned={request_returned})"
-            ),
+            "screen capture permission is required",
         ))
     }
 }
@@ -398,7 +396,7 @@ impl<R: Runtime> ScreenCaptureBackend for XcapBackend<R> {
     }
 
     fn capture_monitor(&self, monitor: &MonitorGeometry) -> Result<NativeFrame, CaptureError> {
-        ensure_capture_permission()?;
+        preflight_capture_permission()?;
         let candidates =
             XcapMonitor::all().map_err(|error| capture_error("enumerate xcap monitors", error))?;
         let xcap_monitor = select_xcap_capture_monitor(candidates, monitor)?;
@@ -589,20 +587,26 @@ fn select_xcap_capture_monitor(
     )
 }
 
+/// Check capture access without displaying a system prompt. Keep the request
+/// API separate so Plain's guidance is always presented first.
 #[cfg(target_os = "macos")]
-pub(crate) fn ensure_capture_permission() -> Result<(), CaptureError> {
-    use objc2_core_graphics::{CGPreflightScreenCaptureAccess, CGRequestScreenCaptureAccess};
+pub(crate) fn preflight_capture_permission() -> Result<(), CaptureError> {
+    use objc2_core_graphics::CGPreflightScreenCaptureAccess;
 
-    if CGPreflightScreenCaptureAccess() {
-        return Ok(());
-    }
-    let request_returned = CGRequestScreenCaptureAccess();
-    permission_check_result(CGPreflightScreenCaptureAccess(), request_returned)
+    permission_preflight_result(CGPreflightScreenCaptureAccess())
 }
 
 #[cfg(not(target_os = "macos"))]
-pub(crate) fn ensure_capture_permission() -> Result<(), CaptureError> {
+pub(crate) fn preflight_capture_permission() -> Result<(), CaptureError> {
     Ok(())
+}
+
+/// Request capture access only from the explicit action in Plain's guidance.
+#[cfg(target_os = "macos")]
+pub(crate) fn request_capture_permission() -> bool {
+    use objc2_core_graphics::{CGPreflightScreenCaptureAccess, CGRequestScreenCaptureAccess};
+
+    CGPreflightScreenCaptureAccess() || CGRequestScreenCaptureAccess()
 }
 
 #[cfg(target_os = "macos")]

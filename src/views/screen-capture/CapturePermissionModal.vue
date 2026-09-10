@@ -20,8 +20,12 @@
       <v-outlined-button @click="close">
         {{ $t('cancel') }}
       </v-outlined-button>
-      <v-filled-button data-testid="open-screen-capture-settings" :disabled="openingSettings" @click="openSettings">
-        {{ $t('notification_open_settings') }}
+      <v-filled-button
+        data-testid="grant-screen-capture-permission"
+        :disabled="permissionActionPending"
+        @click="performPermissionAction"
+      >
+        {{ permissionRequestAttempted ? $t('notification_open_settings') : $t('grant_permission') }}
       </v-filled-button>
     </template>
   </v-modal>
@@ -32,29 +36,55 @@ import { ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { popModal } from '@/components/modal'
 import toast from '@/components/toaster'
-import { openScreenCapturePermissionSettings } from '@/lib/screen-capture/capture-permission'
+import {
+  openScreenCapturePermissionSettings,
+  requestScreenCapturePermission,
+} from '@/lib/screen-capture/capture-permission'
 import { reportTauriCaptureError } from '@/lib/screen-capture/tauri-capture-adapter'
 
 const props = defineProps<{
+  requestPermission?: () => Promise<boolean>
   openPermissionSettings?: () => Promise<void>
 }>()
 const { t } = useI18n()
-const openingSettings = ref(false)
+const permissionActionPending = ref(false)
+const permissionRequestAttempted = ref(false)
 
 function close() {
   void popModal()
 }
 
-async function openSettings() {
-  if (openingSettings.value) return
-  openingSettings.value = true
+async function performPermissionAction() {
+  if (permissionActionPending.value) return
+  permissionActionPending.value = true
+  const openingSettings = permissionRequestAttempted.value
   try {
-    await (props.openPermissionSettings ?? openScreenCapturePermissionSettings)()
+    if (openingSettings) {
+      await (props.openPermissionSettings ?? openScreenCapturePermissionSettings)()
+      return
+    }
+    const granted = await (props.requestPermission ?? requestScreenCapturePermission)()
+    if (granted) {
+      close()
+      return
+    }
+    permissionRequestAttempted.value = true
   } catch (error) {
-    void reportTauriCaptureError('opening macOS screen capture settings failed', error)
-    toast(t('screen_capture_permission_settings_failed'), 'error')
+    if (!openingSettings) permissionRequestAttempted.value = true
+    const action = openingSettings
+      ? 'opening macOS screen capture settings'
+      : 'requesting macOS screen capture permission'
+    void reportTauriCaptureError(`${action} failed`, error)
+    toast(
+      t(
+        openingSettings
+          ? 'screen_capture_permission_settings_failed'
+          : 'screen_capture_permission_request_failed',
+      ),
+      'error',
+    )
   } finally {
-    openingSettings.value = false
+    permissionActionPending.value = false
   }
 }
 </script>

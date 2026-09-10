@@ -1,7 +1,7 @@
 use std::time::Duration;
 
 use tauri::{AppHandle, Emitter, Manager, Runtime, WebviewUrl, WebviewWindowBuilder};
-#[cfg(not(target_os = "windows"))]
+#[cfg(not(any(target_os = "windows", target_os = "macos")))]
 use tauri::{LogicalPosition, LogicalSize};
 #[cfg(target_os = "windows")]
 use tauri::{PhysicalPosition, PhysicalSize};
@@ -301,7 +301,8 @@ impl<R: Runtime> CaptureWindowPort for TauriCaptureWindowPort<R> {
     fn position_overlay(&self, label: &str, monitor: &MonitorGeometry) -> Result<(), CaptureError> {
         let window = self.webview(label)?;
         log::info!(
-            "screen capture positioning overlay physical=({},{} {}x{}) logical=({},{} {}x{}) scale={}",
+            "screen capture positioning overlay monitor={} physical=({},{} {}x{}) logical=({},{} {}x{}) scale={}",
+            monitor.id,
             monitor.physical_origin.x,
             monitor.physical_origin.y,
             monitor.physical_size.width,
@@ -341,7 +342,11 @@ impl<R: Runtime> CaptureWindowPort for TauriCaptureWindowPort<R> {
                 .map_err(|error| overlay_error("size capture overlay", error))?;
             return Ok(());
         }
-        #[cfg(not(target_os = "windows"))]
+        #[cfg(target_os = "macos")]
+        {
+            return position_macos_overlay(&window, monitor);
+        }
+        #[cfg(not(any(target_os = "windows", target_os = "macos")))]
         {
             window
                 .set_position(LogicalPosition::new(
@@ -511,6 +516,162 @@ fn overlay_error(stage: &str, error: impl std::fmt::Display) -> CaptureError {
     CaptureError::new(CaptureErrorCode::OverlayFailed, format!("{stage}: {error}"))
 }
 
+#[cfg(any(target_os = "macos", test))]
+fn select_macos_screen_index(
+    display_ids: &[u32],
+    selected_display_id: u32,
+) -> Result<usize, CaptureError> {
+    if selected_display_id == 0 {
+        return Err(CaptureError::new(
+            CaptureErrorCode::InvalidMonitor,
+            "the selected macOS display id is invalid",
+        ));
+    }
+    let mut matches = display_ids
+        .iter()
+        .enumerate()
+        .filter(|(_, display_id)| **display_id == selected_display_id)
+        .map(|(index, _)| index);
+    let selected = matches.next().ok_or_else(|| {
+        CaptureError::new(
+            CaptureErrorCode::NoMonitor,
+            "the selected macOS screen disappeared before overlay placement",
+        )
+    })?;
+    if matches.next().is_some() {
+        return Err(CaptureError::new(
+            CaptureErrorCode::InvalidMonitor,
+            "AppKit returned duplicate native display ids",
+        ));
+    }
+    Ok(selected)
+}
+
+#[cfg(target_os = "macos")]
+fn macos_screen_display_id(screen: &objc2_app_kit::NSScreen) -> Result<u32, CaptureError> {
+    use objc2_foundation::{NSNumber, NSString};
+
+    let value = screen
+        .deviceDescription()
+        .objectForKey(&NSString::from_str("NSScreenNumber"))
+        .ok_or_else(|| {
+            CaptureError::new(
+                CaptureErrorCode::InvalidMonitor,
+                "AppKit screen has no native display id",
+            )
+        })?;
+    let number = value.downcast::<NSNumber>().map_err(|_| {
+        CaptureError::new(
+            CaptureErrorCode::InvalidMonitor,
+            "AppKit screen returned an invalid native display id",
+        )
+    })?;
+    let display_id = number.unsignedIntValue();
+    if display_id == 0 {
+        return Err(CaptureError::new(
+            CaptureErrorCode::InvalidMonitor,
+            "AppKit screen returned a zero native display id",
+        ));
+    }
+    Ok(display_id)
+}
+
+#[cfg(target_os = "macos")]
+fn position_macos_overlay_on_main<R: Runtime>(
+    window: &tauri::WebviewWindow<R>,
+    selected_display_id: u32,
+) -> Result<(), CaptureError> {
+    use objc2::MainThreadMarker;
+    use objc2_app_kit::{NSScreen, NSWindow};
+
+    let marker = MainThreadMarker::new().ok_or_else(|| {
+        CaptureError::new(
+            CaptureErrorCode::OverlayFailed,
+            "macOS capture overlay placement did not run on the AppKit thread",
+        )
+    })?;
+    let screens = NSScreen::screens(marker);
+    let mut candidates = Vec::with_capacity(screens.len());
+    for screen in screens {
+        candidates.push((macos_screen_display_id(&screen)?, screen.frame()));
+    }
+    let display_ids: Vec<u32> = candidates
+        .iter()
+        .map(|(display_id, _)| *display_id)
+        .collect();
+    log::info!(
+        "screen capture macOS overlay native display selection requested={} active={:?}",
+        selected_display_id,
+        display_ids
+    );
+    let selected_index = select_macos_screen_index(&display_ids, selected_display_id)?;
+    let selected_frame = candidates[selected_index].1;
+    let pointer = window
+        .ns_window()
+        .map_err(|error| overlay_error("access macOS capture overlay", error))?;
+    // SAFETY: Tauri owns this NSWindow for the lifetime of `window`, and this
+    // function is restricted to AppKit's main thread.
+    let native_window = unsafe { &*pointer.cast::<NSWindow>() };
+    native_window.setFrame_display(selected_frame, true);
+    native_window.setIgnoresMouseEvents(false);
+    native_window.setAcceptsMouseMovedEvents(true);
+
+    let actual_display_id = native_window
+        .screen()
+        .as_deref()
+        .map(macos_screen_display_id)
+        .transpose()?
+        .ok_or_else(|| {
+            CaptureError::new(
+                CaptureErrorCode::InvalidMonitor,
+                "macOS capture overlay has no screen after placement",
+            )
+        })?;
+    if actual_display_id != selected_display_id {
+        return Err(CaptureError::new(
+            CaptureErrorCode::InvalidMonitor,
+            "macOS capture overlay was placed on the wrong display",
+        ));
+    }
+    log::info!(
+        "screen capture macOS overlay placed on native display={actual_display_id}"
+    );
+    Ok(())
+}
+
+#[cfg(target_os = "macos")]
+fn position_macos_overlay<R: Runtime>(
+    window: &tauri::WebviewWindow<R>,
+    monitor: &MonitorGeometry,
+) -> Result<(), CaptureError> {
+    use objc2::MainThreadMarker;
+
+    let selected_display_id =
+        super::platform::parse_macos_monitor_id(&monitor.id).ok_or_else(|| {
+            CaptureError::new(
+                CaptureErrorCode::InvalidMonitor,
+                "selected macOS monitor has no native display id",
+            )
+        })?;
+    if MainThreadMarker::new().is_some() {
+        return position_macos_overlay_on_main(window, selected_display_id);
+    }
+
+    let (sender, receiver) = std::sync::mpsc::sync_channel(1);
+    let main_window = window.clone();
+    window
+        .run_on_main_thread(move || {
+            let _ = sender.send(position_macos_overlay_on_main(
+                &main_window,
+                selected_display_id,
+            ));
+        })
+        .map_err(|error| overlay_error("schedule macOS capture overlay placement", error))?;
+    receiver
+        .recv_timeout(Duration::from_secs(3))
+        .map_err(|error| overlay_error("wait for macOS capture overlay placement", error))?
+}
+
 #[cfg(target_os = "linux")]
 fn wayland_monitor_index(monitor_id: &str) -> Result<i32, CaptureError> {
     let index = monitor_id
@@ -587,5 +748,23 @@ mod tests {
                 CaptureErrorCode::InvalidMonitor
             );
         }
+    }
+}
+
+#[cfg(test)]
+mod macos_screen_tests {
+    use super::*;
+
+    #[test]
+    fn macos_overlay_selects_the_exact_native_display_without_coordinate_matching() {
+        assert_eq!(select_macos_screen_index(&[41, 7], 7).unwrap(), 1);
+        assert_eq!(
+            select_macos_screen_index(&[41], 7).unwrap_err().code,
+            CaptureErrorCode::NoMonitor
+        );
+        assert_eq!(
+            select_macos_screen_index(&[41, 7, 7], 7).unwrap_err().code,
+            CaptureErrorCode::InvalidMonitor
+        );
     }
 }
