@@ -17,17 +17,26 @@ function item(id: string, status: string, overrides: Partial<IUploadItem> = {}):
 }
 
 describe('computeBatchStats', () => {
-  it('prefers error over every other status', () => {
-    const stats = computeBatchStats([item('1', 'uploading'), item('2', 'error', { error: 'boom' }), item('3', 'done')])
-    expect(stats.status).toBe('error')
+  it('keeps uploading status while other files failed, collecting the failed items', () => {
+    const failed = item('2', 'error', { error: 'boom' })
+    const stats = computeBatchStats([item('1', 'uploading'), failed, item('3', 'done')])
+    expect(stats.status).toBe('uploading')
     expect(stats.errorCount).toBe(1)
     expect(stats.firstError).toBe('boom')
+    expect(stats.failedItems).toEqual([failed])
+  })
+
+  it('labels a batch error once nothing is active anymore', () => {
+    const stats = computeBatchStats([item('1', 'done'), item('2', 'error', { error: 'boom' })])
+    expect(stats.status).toBe('error')
+    expect(stats.errorCount).toBe(1)
   })
 
   it('follows uploading > saving > pending precedence', () => {
     expect(computeBatchStats([item('1', 'pending'), item('2', 'saving')]).status).toBe('saving')
     expect(computeBatchStats([item('1', 'pending'), item('2', 'uploading')]).status).toBe('uploading')
     expect(computeBatchStats([item('1', 'pending')]).status).toBe('pending')
+    expect(computeBatchStats([item('1', 'pending'), item('2', 'error', { error: 'x' })]).status).toBe('pending')
   })
 
   it('reports paused only when every item is paused', () => {

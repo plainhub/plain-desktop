@@ -33,6 +33,7 @@ export interface IBatchStats {
   uploadedBytes: number
   errorCount: number
   firstError: string
+  failedItems: IUploadItem[]
   canPause: boolean
   canResume: boolean
   canRetry: boolean
@@ -50,6 +51,7 @@ export function computeBatchStats(uploads: IUploadItem[]): IBatchStats {
   let uploadedBytes = 0
   let errorCount = 0
   let firstError = ''
+  const failedItems: IUploadItem[] = []
   let count = 0
   let uploading = 0
   let saving = 0
@@ -78,6 +80,7 @@ export function computeBatchStats(uploads: IUploadItem[]): IBatchStats {
       if (!it.pausing) canResume = true
     } else if (s === 'error') {
       errorCount++
+      failedItems.push(it)
       if (!firstError) firstError = it.error || ''
       canRetry = true
     } else if (s === 'done' || s === 'canceled') {
@@ -85,14 +88,17 @@ export function computeBatchStats(uploads: IUploadItem[]): IBatchStats {
     }
     if (it.pausing) isPausing = true
   }
+  // Active states outrank 'error': a batch with thousands of files keeps
+  // uploading (and keeps its progress bar) while a few files have failed.
+  // 'error' only labels the batch once nothing is moving anymore.
   let status = 'created'
-  if (errorCount > 0) status = 'error'
-  else if (uploading > 0) status = 'uploading'
+  if (uploading > 0) status = 'uploading'
   else if (saving > 0) status = 'saving'
   else if (pending > 0) status = 'pending'
+  else if (errorCount > 0) status = 'error'
   else if (count > 0 && paused === count) status = 'paused'
   else if (count > 0 && doneOrCanceled === count) status = 'done'
-  return { status, totalBytes, uploadedBytes, errorCount, firstError, canPause, canResume, canRetry, isPausing }
+  return { status, totalBytes, uploadedBytes, errorCount, firstError, failedItems, canPause, canResume, canRetry, isPausing }
 }
 
 const sortKeys = new Map([

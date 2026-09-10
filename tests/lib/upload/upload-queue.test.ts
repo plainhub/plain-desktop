@@ -10,7 +10,8 @@ vi.mock('@/lib/upload/upload', () => ({
   upload: (...args: any[]) => mockUpload(...args),
 }))
 
-import { addUploadTask, addUploadTaskAndWait, removeUpload, getUploadQueueStatus, pauseUploadsByBatch, resumeUploadsByBatch, retryUploadsByBatch, removeUploadsByBatch } from '@/lib/upload/upload-queue'
+import { addUploadTask, addUploadTaskAndWait, removeUpload, getUploadQueueStatus, pauseUploadsByBatch, resumeUploadsByBatch, retryUploadsByBatch, retryUploadTask, removeUploadsByBatch, resetUploadFailureStreakForTests } from '@/lib/upload/upload-queue'
+import emitter from '@/plugins/eventbus'
 
 const createdIds = new Set<string>()
 
@@ -31,6 +32,7 @@ function createUploadItem(id: string, overrides: Partial<IUploadItem> = {}): IUp
 describe('UploadQueue', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    resetUploadFailureStreakForTests()
     // Default mock: upload resolves successfully after a delay
     mockUpload.mockImplementation(() => new Promise((resolve) => setTimeout(() => resolve({ fileName: 'ok' }), 50)))
   })
@@ -116,6 +118,114 @@ describe('UploadQueue', () => {
 
       expect(abortFn).toHaveBeenCalledTimes(3)
       expect(xhrs.size).toBe(0)
+    })
+  })
+
+  describe('automatic retry', () => {
+    it('retries a transient failure with backoff and completes', async () => {
+      vi.useFakeTimers()
+      try {
+        mockUpload
+          .mockImplementationOnce(async (upload: IUploadItem) => {
+            upload.status = 'error'
+            return { error: 'connection_timeout' }
+          })
+          .mockImplementationOnce(async (upload: IUploadItem) => {
+            upload.status = 'done'
+            return { fileName: 'ok' }
+          })
+        const item = createUploadItem('auto-retry')
+
+        const completion = addUploadTaskAndWait(item, false)
+        await vi.advanceTimersByTimeAsync(2500)
+
+        await expect(completion).resolves.toBeUndefined()
+        expect(mockUpload).toHaveBeenCalledTimes(2)
+        expect(item.status).toBe('done')
+      } finally {
+        vi.useRealTimers()
+      }
+    })
+
+    it('fails without retrying on non-transient errors', async () => {
+      mockUpload.mockImplementation(async (upload: IUploadItem) => {
+        upload.status = 'error'
+        return { error: 'File name is invalid' }
+      })
+      const item = createUploadItem('no-retry')
+
+      await expect(addUploadTaskAndWait(item, false)).rejects.toThrow('File name is invalid')
+      expect(mockUpload).toHaveBeenCalledTimes(1)
+    })
+
+    it('stops retrying after the attempt budget and reports the error', async () => {
+      vi.useFakeTimers()
+      try {
+        mockUpload.mockImplementation(async (upload: IUploadItem) => {
+          upload.status = 'error'
+          return { error: 'Network error' }
+        })
+        const item = createUploadItem('retry-budget')
+
+        const completion = addUploadTaskAndWait(item, false)
+        const assertion = expect(completion).rejects.toThrow('Network error')
+        await vi.advanceTimersByTimeAsync(30_000)
+        await assertion
+        expect(mockUpload).toHaveBeenCalledTimes(3)
+        expect(item.status).toBe('error')
+      } finally {
+        vi.useRealTimers()
+      }
+    })
+
+    it('auto-pauses the queue after 5 consecutive transient failures', async () => {
+      vi.useFakeTimers()
+      try {
+        mockUpload.mockImplementation(async (upload: IUploadItem) => {
+          upload.status = 'error'
+          return { error: 'Network error' }
+        })
+        const items = Array.from({ length: 8 }, (_, i) => createUploadItem(`breaker-${i}`))
+        for (const item of items) addUploadTask(item, false)
+
+        await vi.advanceTimersByTimeAsync(120_000)
+
+        const failed = items.filter((it) => it.status === 'error').length
+        const paused = items.filter((it) => it.status === 'paused').length
+        expect(failed).toBeGreaterThanOrEqual(5)
+        expect(failed + paused).toBe(items.length)
+        expect(paused).toBeGreaterThan(0)
+        expect(emitter.emit).toHaveBeenCalledWith('toast', 'upload_auto_paused')
+      } finally {
+        vi.useRealTimers()
+      }
+    })
+  })
+
+  describe('retryUploadTask', () => {
+    it('retries one failed task without touching its batch siblings', async () => {
+      mockUpload.mockImplementation(async (upload: IUploadItem) => {
+        upload.status = 'error'
+        return { error: 'File name is invalid' }
+      })
+      const item = createUploadItem('single-retry')
+      addUploadTask(item, false)
+      await new Promise((r) => setTimeout(r, 20))
+      expect(item.status).toBe('error')
+      expect(mockUpload).toHaveBeenCalledTimes(1)
+
+      expect(retryUploadTask(item.id)).toBe(true)
+      await new Promise((r) => setTimeout(r, 20))
+      expect(mockUpload).toHaveBeenCalledTimes(2)
+
+      mockUpload.mockImplementation(async (upload: IUploadItem) => {
+        upload.status = 'done'
+        return { fileName: 'ok' }
+      })
+      expect(retryUploadTask(item.id)).toBe(true)
+      await new Promise((r) => setTimeout(r, 20))
+      expect(item.status).toBe('done')
+      expect(retryUploadTask(item.id)).toBe(false)
     })
   })
 

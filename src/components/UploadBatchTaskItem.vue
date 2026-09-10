@@ -35,21 +35,26 @@
         </div>
       </div>
 
-      <div v-if="stats.errorCount > 0" class="error-message">
-        <span v-if="stats.errorCount === 1">{{ stats.firstError }}</span>
-        <span v-else>{{ stats.firstError }} (+{{ stats.errorCount - 1 }})</span>
-      </div>
+      <button v-if="stats.errorCount > 0" class="error-message" :aria-expanded="failedExpanded" @click="failedExpanded = !failedExpanded">
+        <span v-if="stats.errorCount === 1">{{ firstErrorText }}</span>
+        <span v-else>{{ firstErrorText }} (+{{ stats.errorCount - 1 }})</span>
+        <i-material-symbols:expand-more-rounded class="expand-icon" :class="{ 'expand-icon--open': failedExpanded }" />
+      </button>
+
+      <UploadFailedList v-if="failedExpanded && stats.failedItems.length > 0" :items="stats.failedItems" @retry="retryItem" />
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
-import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
+import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { formatFileSize } from '@/lib/format'
 import { useTempStore, type IUploadItem } from '@/stores/temp'
 import { useI18n } from 'vue-i18n'
 import { computeBatchStats, keyOf } from '@/lib/upload/batch'
-import { pauseUploadsByBatch, resumeUploadsByBatch, retryUploadsByBatch, removeUploadsByBatch } from '@/lib/upload/upload-queue'
+import { uploadErrorText } from '@/lib/upload/errors'
+import { pauseUploadsByBatch, resumeUploadsByBatch, retryUploadsByBatch, retryUploadTask, removeUploadsByBatch } from '@/lib/upload/upload-queue'
+import UploadFailedList from './UploadFailedList.vue'
 
 const props = defineProps<{
   batchId: string
@@ -61,8 +66,21 @@ const { t } = useI18n()
 
 const title = computed(() => `${t('upload')} (${props.uploads.length} ${t('files')})`)
 const stats = computed(() => computeBatchStats(props.uploads))
+const firstErrorText = computed(() => uploadErrorText(t, stats.value.firstError))
 const showProgress = computed(() => ['uploading', 'pending', 'saving'].includes(stats.value.status) && stats.value.uploadedBytes > 0)
 const progressPercent = computed(() => (stats.value.totalBytes <= 0 ? 0 : Math.round((stats.value.uploadedBytes / stats.value.totalBytes) * 100)))
+
+const failedExpanded = ref(false)
+watch(
+  () => stats.value.errorCount,
+  (count) => {
+    if (count === 0) failedExpanded.value = false
+  },
+)
+
+function retryItem(item: IUploadItem) {
+  retryUploadTask(item.id)
+}
 
 // Per-item speeds only sample after 500ms of transfer, so files that finish
 // faster never report one — summing them showed 0 B/s on fast networks.
@@ -112,4 +130,33 @@ function removeBatch() {
 
 <style scoped lang="scss">
 @use '@/styles/task-item.scss' as *;
+
+.error-message {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  width: 100%;
+  border: none;
+  text-align: start;
+  cursor: pointer;
+  font: inherit;
+
+  span {
+    flex: 1;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .expand-icon {
+    flex-shrink: 0;
+    font-size: 16px;
+    transition: transform 0.2s ease;
+  }
+
+  .expand-icon--open {
+    transform: rotate(180deg);
+  }
+}
 </style>

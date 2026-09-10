@@ -20,6 +20,7 @@ const pendingRequests = new Map<string, Promise<GqlResult<any>>>()
 export interface GqlFetchOptions {
   dedupe?: boolean
   fresh?: boolean
+  timeout?: number
 }
 
 export async function gqlFetch<T = any>(
@@ -33,7 +34,7 @@ export async function gqlFetch<T = any>(
     if (pending) return pending as Promise<GqlResult<T>>
   }
 
-  const promise = doGqlFetch<T>(query, variables)
+  const promise = doGqlFetch<T>(query, variables, options.timeout)
   if (options.dedupe !== false) pendingRequests.set(dedupeKey, promise)
   try {
     return await promise
@@ -50,6 +51,7 @@ export async function encryptedGqlPost<T = any>(
   token: string,
   query: string,
   variables?: Record<string, any>,
+  timeout: number = TIMEOUT,
 ): Promise<GqlResult<T>> {
   const key = tokenToKey(token)
   const json = JSON.stringify({ query, variables })
@@ -62,7 +64,7 @@ export async function encryptedGqlPost<T = any>(
   const encryptTime = performance.now()
 
   const controller = new AbortController()
-  const timer = setTimeout(() => controller.abort(), TIMEOUT)
+  const timer = setTimeout(() => controller.abort(), timeout)
 
   try {
     const response = await httpRequest(url, {
@@ -98,11 +100,11 @@ export async function encryptedGqlPost<T = any>(
   }
 }
 
-async function doGqlFetch<T = any>(query: string, variables?: Record<string, any>): Promise<GqlResult<T>> {
+async function doGqlFetch<T = any>(query: string, variables?: Record<string, any>, timeout: number = TIMEOUT): Promise<GqlResult<T>> {
   const url = `${getApiBaseUrl()}/graphql`
   const token = isLocalMode() ? getLocalToken() : getCurrentAuthToken()
   try {
-    return await encryptedGqlPost<T>(url, token, query, variables)
+    return await encryptedGqlPost<T>(url, token, query, variables, timeout)
   } catch (e) {
     // Web-mode 401: drop the stored session and hard-reload. Tauri is
     // excluded — local mode has no device session, so a reload would loop.

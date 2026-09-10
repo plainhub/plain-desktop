@@ -435,6 +435,7 @@ declare module 'vue' {
     TouchPhone: typeof import('./src/components/base/TouchPhone.vue')['default']
     UIModeToggleButton: typeof import('./src/components/UIModeToggleButton.vue')['default']
     UploadBatchTaskItem: typeof import('./src/components/UploadBatchTaskItem.vue')['default']
+    UploadFailedList: typeof import('./src/components/UploadFailedList.vue')['default']
     UploadList: typeof import('./src/views/uploads/UploadList.vue')['default']
     UxButtons: typeof import('./src/views/ux/UxButtons.vue')['default']
     UxCodeBlock: typeof import('./src/views/ux/UxCodeBlock.vue')['default']

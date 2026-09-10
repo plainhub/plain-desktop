@@ -129,6 +129,14 @@ async function runExclusively<T>(fileId: string, action: () => Promise<T>): Prom
 // number, not the version name), so the client always sends totalSize and
 // expects a paired app release.
 
+// Merging rewrites the whole file server-side (chunk reads + full copy, plus
+// MediaStore scan on phones), which blows past the 30s default GraphQL
+// timeout for multi-GB files. Budget 60s + 1s per 2MB (~2MB/s worst case),
+// capped at 10 minutes.
+function mergeRequestTimeout(totalSize: number): number {
+  return Math.min(600_000, 60_000 + Math.ceil(totalSize / (2 * 1024 * 1024)) * 1000)
+}
+
 export async function upload(upload: IUploadItem, replace: boolean) {
   // In local mode the local server is the only client, so it has no
   // per-session token — the upload `info` part is encrypted with the
@@ -375,14 +383,18 @@ async function uploadChunkedFile(upload: IUploadItem, fileId: string, replace: b
     const baseName = upload.file.name.split('/').pop() || upload.file.name
     const filePath = upload.dir.endsWith('/') ? upload.dir + baseName : upload.dir + '/' + baseName
 
-    const result = await gqlFetch(mergeChunksGQL, {
-      fileId,
-      totalChunks,
-      path: filePath,
-      replace: replace,
-      isAppFile: upload.isAppFile ?? false,
-      totalSize: upload.file.size,
-    })
+    const result = await gqlFetch(
+      mergeChunksGQL,
+      {
+        fileId,
+        totalChunks,
+        path: filePath,
+        replace: replace,
+        isAppFile: upload.isAppFile ?? false,
+        totalSize: upload.file.size,
+      },
+      { timeout: mergeRequestTimeout(upload.file.size) },
+    )
 
     if (result?.data?.mergeChunks) {
       const returned = result.data.mergeChunks as string
@@ -419,7 +431,9 @@ async function uploadChunkedFile(upload: IUploadItem, fileId: string, replace: b
 // Get list of uploaded chunks, verified by size
 async function getUploadedChunks(fileId: string, fileSize: number, totalChunks: number): Promise<number[]> {
   try {
-    const result = await gqlFetch(uploadedChunksGQL, { fileId })
+    // A false timeout here degrades to re-uploading every chunk, so give the
+    // query a much wider budget than the 30s default.
+    const result = await gqlFetch(uploadedChunksGQL, { fileId }, { timeout: 120_000 })
     const raw: string[] = result.data?.uploadedChunks ? [...result.data.uploadedChunks] : []
     if (raw.length === 0) return []
 

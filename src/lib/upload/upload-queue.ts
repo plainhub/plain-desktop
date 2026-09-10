@@ -1,5 +1,6 @@
 import type { IUploadItem } from '@/stores/temp'
 import { upload } from './upload'
+import { isTransientUploadError } from './errors'
 import emitter from '@/plugins/eventbus'
 
 // Upload queue management interfaces and types
@@ -10,6 +11,15 @@ export interface IUploadTask {
   status: 'pending' | 'running' | 'paused' | 'completed' | 'failed'
   aborted?: boolean
 }
+
+// A task with a transient error (network hiccup, merge timeout) gets retried
+// in place with backoff before it is declared failed.
+const MAX_TASK_ATTEMPTS = 3
+const RETRY_BACKOFF_MS = [2000, 8000]
+// When this many tasks fail in a row with transient errors, the connection
+// itself is presumed dead: pause everything so a 10k-file queue doesn't burn
+// through every file failing instantly. The user resumes after fixing it.
+const AUTO_PAUSE_FAILURE_STREAK = 5
 
 interface ManagedUploadTask extends IUploadTask {
   completion: Promise<void>
@@ -23,6 +33,7 @@ class UploadQueue {
   private queue: ManagedUploadTask[] = []
   private running: Map<string, ManagedUploadTask> = new Map()
   private readonly maxConcurrent = 3
+  private failureStreak = 0
 
   addTask(upload: IUploadItem, replace: boolean): string {
     return this.enqueueTask(upload, replace, false).id
@@ -117,17 +128,29 @@ class UploadQueue {
     let retried = false
     for (const task of this.tasksByBatch(batchId)) {
       if (task.status !== 'failed') continue
-      task.status = 'pending'
-      task.upload.status = 'uploading'
-      task.upload.error = ''
-      task.upload.uploadedSize = 0
-      task.upload.uploadSpeed = 0
-      task.upload.lastUploadedSize = 0
-      task.upload.lastUpdateTime = undefined
-      task.aborted = false
+      this.resetTaskForRetry(task)
       retried = true
     }
     if (retried) this.processQueue()
+  }
+
+  retryTask(taskId: string): boolean {
+    const task = this.findTask(taskId)
+    if (!task || task.status !== 'failed') return false
+    this.resetTaskForRetry(task)
+    this.processQueue()
+    return true
+  }
+
+  private resetTaskForRetry(task: ManagedUploadTask): void {
+    task.status = 'pending'
+    task.upload.status = 'uploading'
+    task.upload.error = ''
+    task.upload.uploadedSize = 0
+    task.upload.uploadSpeed = 0
+    task.upload.lastUploadedSize = 0
+    task.upload.lastUpdateTime = undefined
+    task.aborted = false
   }
 
   removeTasksByBatch(batchId: string): void {
@@ -212,16 +235,32 @@ class UploadQueue {
     this.running.set(task.id, task)
 
     try {
-      const result = (await upload(task.upload, task.replace)) as { error?: string } | undefined
+      let result: { error?: string } | undefined
 
-      // Check if task was aborted during upload
-      if (task.aborted) {
-        return
+      for (let attempt = 0; ; attempt++) {
+        result = (await upload(task.upload, task.replace)) as { error?: string } | undefined
+
+        // Check if task was aborted during upload
+        if (task.aborted) {
+          return
+        }
+
+        // Respect the status already set by upload() / uploadWithChunks().
+        // upload() may return { error } for some paths OR set upload.status
+        // directly for others (returning undefined). Check both.
+        const failed = !!result?.error || task.upload.status === 'error'
+        if (!failed) break
+
+        const errorText = result?.error || task.upload.error || 'Upload failed'
+        task.upload.error ||= errorText
+        if (attempt >= MAX_TASK_ATTEMPTS - 1 || !isTransientUploadError(errorText)) break
+
+        if (!(await this.waitUnlessAborted(task, RETRY_BACKOFF_MS[Math.min(attempt, RETRY_BACKOFF_MS.length - 1)]))) {
+          return
+        }
+        task.upload.status = 'uploading'
       }
 
-      // Respect the status already set by upload() / uploadWithChunks().
-      // upload() may return { error } for some paths OR set upload.status
-      // directly for others (returning undefined). Check both.
       if (result?.error) {
         task.status = 'failed'
         task.upload.status = 'error'
@@ -245,6 +284,7 @@ class UploadQueue {
     } finally {
       this.running.delete(task.id)
       if (task.status === 'completed') {
+        this.failureStreak = 0
         // Per-item speeds are point samples; leaving them set after completion
         // made batch-level throughput sum the whole upload history.
         task.upload.uploadSpeed = 0
@@ -253,12 +293,57 @@ class UploadQueue {
         this.emitSafely('upload_task_done', task.upload)
       } else if (task.status === 'failed') {
         task.upload.uploadSpeed = 0
+        if (isTransientUploadError(task.upload.error) && ++this.failureStreak >= AUTO_PAUSE_FAILURE_STREAK) {
+          this.failureStreak = 0
+          this.pauseAllUploads()
+          emitter.emit('toast', 'upload_auto_paused')
+        }
         this.rejectTask(task, new Error(task.upload.error || 'Upload failed'))
         if (task.evictOnFailure) this.queue = this.queue.filter((candidate) => candidate !== task)
         this.emitSafely('upload_progress', task.upload)
       }
       this.processQueue()
     }
+  }
+
+  // Backoff sleep that bails out when the task is paused or removed while
+  // waiting, so a paused queue stops immediately instead of after the delay.
+  // Timer-only (no Date.now) so fake-timer tests can drive it deterministically.
+  private waitUnlessAborted(task: ManagedUploadTask, delayMs: number): Promise<boolean> {
+    return new Promise<boolean>((resolve) => {
+      const finish = (result: boolean) => {
+        clearInterval(interval)
+        clearTimeout(timeout)
+        resolve(result)
+      }
+      const interval = setInterval(() => {
+        if (task.aborted) finish(false)
+      }, 100)
+      const timeout = setTimeout(() => finish(!task.aborted), delayMs)
+      if (task.aborted) finish(false)
+    })
+  }
+
+  private pauseAllUploads(): void {
+    const all = [...this.running.values(), ...this.queue]
+    for (const task of all) {
+      if (task.status === 'running') {
+        task.status = 'paused'
+        task.upload.status = 'paused'
+        task.upload.uploadSpeed = 0
+        task.aborted = true
+        this.abortTaskXhrs(task)
+        this.running.delete(task.id)
+      } else if (task.status === 'pending') {
+        task.status = 'paused'
+        task.upload.status = 'paused'
+      }
+    }
+    this.processQueue()
+  }
+
+  resetFailureStreak(): void {
+    this.failureStreak = 0
   }
 
   private resolveTask(task: ManagedUploadTask): void {
@@ -311,10 +396,19 @@ export function retryUploadsByBatch(batchId: string): void {
   uploadQueue.retryTasksByBatch(batchId)
 }
 
+export function retryUploadTask(taskId: string): boolean {
+  return uploadQueue.retryTask(taskId)
+}
+
 export function removeUploadsByBatch(batchId: string): void {
   uploadQueue.removeTasksByBatch(batchId)
 }
 
 export function getUploadQueueStatus() {
   return uploadQueue.getQueueStatus()
+}
+
+// The failure streak is queue-lifetime state; tests need it reset between cases.
+export function resetUploadFailureStreakForTests(): void {
+  uploadQueue.resetFailureStreak()
 }
