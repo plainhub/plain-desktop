@@ -12,6 +12,8 @@
 - Permission follow-up pull request: <https://github.com/plainhub/plain-desktop/pull/21>
 - Post-merge permission/multi-monitor branch:
   `th317erd:fix/issue-19-macos-permission-and-multimonitor`
+- Post-merge permission/multi-monitor pull request:
+  <https://github.com/plainhub/plain-desktop/pull/23>
 
 ## Priority and scope
 
