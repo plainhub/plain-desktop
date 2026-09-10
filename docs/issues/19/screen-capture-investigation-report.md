@@ -5,11 +5,13 @@
 - Issue: <https://github.com/plainhub/plain-desktop/issues/19>
 - Repository: <https://github.com/plainhub/plain-desktop>
 - Feature baseline: `52531249b6c31983fb6c5c89a001eabfaf5bbf8b`
-- Current upstream integrated: `edde93be7853beff4255a489a338ae54064a9b9a` (`v0.1.11`)
+- Current upstream integrated: `0bf9aad251051c48c741d09d996cc3b02de49380`
 - Original feature branch: `th317erd:feat/issue-19-screen-capture`
 - Merged feature pull request: <https://github.com/plainhub/plain-desktop/pull/20>
 - Permission follow-up branch: `th317erd:fix/issue-19-macos-permission-guide`
 - Permission follow-up pull request: <https://github.com/plainhub/plain-desktop/pull/21>
+- Post-merge permission/multi-monitor branch:
+  `th317erd:fix/issue-19-macos-permission-and-multimonitor`
 
 ## Priority and scope
 
@@ -289,11 +291,93 @@ Screen & System Audio Recording pane followed by a PlainApp restart.
   Dock/menu-bar avoidance passed. The complete pre-merge macOS Rust suite passed
   with 259 tests.
 
+### Post-merge macOS permission ordering and multi-monitor follow-up
+
+After pull requests #20 and #21 were merged, maintainer testing on macOS 26
+found two additional failures on current upstream:
+
+1. Plain called `CGRequestScreenCaptureAccess` from the initial capture command.
+   macOS therefore displayed its system prompt before the rejected command
+   reached the frontend and opened Plain's guidance modal.
+2. On a two-monitor Mac, the crosshair appeared but mouse dragging did not
+   create a selection. The selected monitor was already identified by its
+   stable `CGDirectDisplayID`, but the overlay was moved and resized through
+   two separate Tauri logical-coordinate operations. That path depends on the
+   window's old monitor scale and asynchronous AppKit updates, and is known to
+   fail when moving a window between macOS displays.
+
+The permission API is now split into two capabilities. Capture start and the
+xcap backend perform only
+[`CGPreflightScreenCaptureAccess`](https://developer.apple.com/documentation/coregraphics/cgpreflightscreencaptureaccess%28%29?language=objc),
+which cannot show the system prompt. A denied preflight opens Plain's existing
+guidance modal. Only an explicit click on **Grant permission** invokes the new,
+regular-window-only command that calls
+[`CGRequestScreenCaptureAccess`](https://developer.apple.com/documentation/coregraphics/cgrequestscreencaptureaccess%28%29?changes=_6).
+If macOS still reports the permission as denied, that button changes to **Open
+System Settings** for the manual recovery path.
+
+The macOS overlay no longer uses Tauri's logical position/size conversion.
+Immediately before presentation it refreshes `NSScreen.screens`, maps every
+screen's documented [`NSScreenNumber`](https://developer.apple.com/documentation/appkit/nsscreen/devicedescription?language=_1)
+to `CGDirectDisplayID`, selects the exact
+captured display, and atomically applies that screen's native AppKit frame with
+`NSWindow.setFrame(_:display:)` on the main thread. It explicitly restores
+mouse-event handling and verifies that `NSWindow.screen` resolves to the same
+display ID before showing the overlay. Missing, duplicate, or mismatched IDs
+fail closed with typed errors and diagnostic display-ID logs.
+
+This avoids the failure modes documented in Tauri's macOS multi-monitor
+[window-position issue #7139](https://github.com/tauri-apps/tauri/issues/7139)
+and mixed-scaling [issue #14825](https://github.com/tauri-apps/tauri/issues/14825).
+
+`SCContentSharingPicker` was considered but not adopted. It is an appropriate
+system UI for choosing a display, window, or application to share; issue #19
+requires an immediate custom rectangular selection and annotation overlay.
+Using the picker would change that interaction and would not repair the custom
+overlay window's cross-display placement or hit testing.
+
+Validation on the follow-up branch produced:
+
+```text
+corepack yarn typecheck
+corepack yarn build:tauri:frontend
+targeted ESLint
+  passed
+
+CI-equivalent focused browser gate
+  222 passed; 0 failed
+
+Linux focused screen-capture Rust suite (--locked)
+  129 passed; 0 failed
+
+Linux full Rust library suite (--locked)
+  276 passed; 0 failed
+
+Apple Silicon/macOS 26 clean cargo check (--locked)
+  passed
+
+Apple Silicon/macOS 26 focused screen-capture Rust suite (--locked)
+  114 passed; 0 failed
+```
+
+Current upstream again omitted the Git source identity for `plain-rs` from
+`Cargo.lock` while retaining the Git dependency in `Cargo.toml`. The branch
+restores that one generated `source` line so clean `--locked` validation works;
+no dependency version was changed.
+
+The local Mac currently exposes one built-in display, so the exact two-monitor
+interaction reported by the maintainer cannot honestly be claimed as
+physically reproduced here. The maintainer's current-upstream reproduction is
+the behavioral baseline. The native-ID selector is covered with missing and
+duplicate-display cases, and the full macOS-only implementation compiles and
+passes its screen-capture suite on Apple Silicon; final physical dual-monitor
+confirmation remains with the maintainer or another two-display Mac.
+
 ## Remaining limitations
 
-- The post-merge permission follow-up must pass the Windows/macOS/Linux GitHub
-  Actions matrix and be retested by the maintainer in the original denied TCC
-  state.
+- The latest post-merge permission-ordering and native multi-monitor placement
+  follow-up still requires maintainer confirmation in both the original denied
+  TCC state and the reported physical two-monitor arrangement.
 - KDE/GNOME pure-Wayland chooser, PipeWire negotiation, and portal shortcut
   behavior have contract tests but still need interactive packaged proof.
 - Real mixed-DPI/negative-origin multi-monitor hardware remains covered by
