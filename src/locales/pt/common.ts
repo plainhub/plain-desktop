@@ -186,6 +186,7 @@ export default {
   restore: 'Restaurar',
   trash: 'Lixo',
   move_to_trash: 'Mover para o lixo',
+  move_to_folder: 'Mover para a pasta',
   work: 'Trabalho',
   expand_all: 'Expandir tudo',
   collapse_all: 'Recolher tudo',

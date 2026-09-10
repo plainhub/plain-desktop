@@ -18,6 +18,11 @@
     <template #tag-action>
       <BulkTagDropdown :type="dataType" :tags="tags" :items="items" :selected-ids="selectedIds" :real-all-checked="realAllChecked" :q="q" />
     </template>
+    <template #extra-actions>
+      <v-icon-button v-if="!filter.trash" v-tooltip="$t('move_to_folder')" :loading="moveLoading" @click.stop="onMoveClick">
+        <i-material-symbols:drive-file-move-outline-rounded />
+      </v-icon-button>
+    </template>
     <template #actions>
       <ImageSearchButton />
       <MediaPageActions v-bind="actionsProps" placement="top" />
@@ -113,6 +118,10 @@ import MediaToolbar from '@/components/media/MediaToolbar.vue'
 import ImageSearchButton from '@/components/ai/ImageSearchButton.vue'
 import NoDataPlaceholder from '@/components/NoDataPlaceholder.vue'
 import { useOpenMedia } from '@/hooks/open-media'
+import { useMoveItems } from '@/hooks/media'
+import { promptModal } from '@/components/modal'
+import DirectoryPickerModal from '@/components/DirectoryPickerModal.vue'
+import { useI18n } from 'vue-i18n'
 
 const { imageSortBy, imagesCardView, imagesGroupBy, imagesScrollPaging } = storeToRefs(useMainStore())
 const items = ref<IImageItem[]>([])
@@ -179,6 +188,19 @@ const { loading, fetch } = initLazyQuery({
   document: imagesGQL,
   variables: () => ({ offset: (page.value - 1) * limit.value, limit: limit.value, query: effectiveQ.value, sortBy: effectiveIsGroupMode.value ? 'TAKEN_AT_DESC' : imageSortBy.value }),
 })
+
+const { moveLoading, moveItems, doMoveItems } = useMoveItems()
+const { t } = useI18n()
+async function onMoveClick() {
+  const q = moveItems(dataType, selectedIds.value, realAllChecked.value, getQuery())
+  if (q === undefined) return
+  const destDir = await promptModal<string>(DirectoryPickerModal, {
+    title: t('move_to_folder'),
+    modalId: 'move-images-picker',
+  })
+  if (typeof destDir !== 'string' || !destDir.trim()) return
+  doMoveItems(destDir.trim())
+}
 
 const sources = computed<ISource[]>(() => items.value.map((it: IImageItem) => ({
   src: getFileUrl(it.fileId), name: getFileName(it.path), duration: 0, size: it.size, path: it.path, type: dataType, data: it,

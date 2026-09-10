@@ -229,6 +229,7 @@ export default {
   not_in_trash: 'Not in trash',
   trash: 'Trash',
   move_to_trash: 'Move to trash',
+  move_to_folder: 'Move to folder',
   work: 'Work',
   expand_all: 'Expand all',
   collapse_all: 'Collapse all',

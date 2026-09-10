@@ -187,6 +187,7 @@ export default {
   restore: 'மீட்டமை',
   trash: 'குப்பை',
   move_to_trash: 'குப்பைக்கு நகர்த்து',
+  move_to_folder: 'கோப்புறைக்கு நகர்த்து',
   work: 'வேலை',
   expand_all: 'அனைத்தையும் விரிக்க',
   collapse_all: 'அனைத்தையும் மூடு',

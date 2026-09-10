@@ -191,6 +191,7 @@ export default {
   restore: 'পুনরুদ্ধার',
   trash: 'ট্র্যাশ',
   move_to_trash: 'ট্র্যাশে সরান',
+  move_to_folder: 'ফোল্ডারে সরান',
   work: 'কাজ',
   expand_all: 'সব বিস্তার করুন',
   collapse_all: 'সব সংকুচিত করুন',

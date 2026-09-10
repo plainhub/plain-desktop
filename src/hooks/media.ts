@@ -1,6 +1,6 @@
 import { useI18n } from 'vue-i18n'
 import toast from '@/components/toaster'
-import { deleteMediaItemsGQL, initMutation } from '@/lib/api/mutation'
+import { deleteMediaItemsGQL, initMutation, moveMediaItemsGQL } from '@/lib/api/mutation'
 import emitter from '@/plugins/eventbus'
 import type { DataType } from '@/lib/data'
 import { encodeBase64 } from '@/lib/strutil'
@@ -60,6 +60,40 @@ export const useDeleteItems = () => {
         emitter.emit('media_items_actioned', { type, action: 'delete', id: item.id, query: `ids:${item.id}` })
       }
       doDeleteItem({ type, query: `ids:${item.id}` })
+    },
+  }
+}
+
+
+export const useMoveItems = () => {
+  const { t } = useI18n()
+  const moveType = ref('')
+  const moveQuery = ref('')
+
+  const { mutate: doMove, loading: moveLoading, onDone: onMoveDone } = initMutation({ document: moveMediaItemsGQL })
+  onMoveDone(() => {
+    const type = moveType.value
+    const q = moveQuery.value
+    emitter.emit('media_items_actioned', { type, action: 'move', query: q })
+  })
+
+  return {
+    moveLoading,
+    moveItems: (type: string, ids: string[], realAllChecked: boolean, query: string) => {
+      let q = query
+      if (!realAllChecked) {
+        if (ids.length === 0) {
+          toast(t('select_first'), 'error')
+          return
+        }
+        q = `ids:${ids.join(',')}`
+      }
+      moveType.value = type
+      moveQuery.value = q
+      return q
+    },
+    doMoveItems: (destDir: string) => {
+      doMove({ type: moveType.value, query: moveQuery.value, destDir })
     },
   }
 }
