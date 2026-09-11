@@ -188,6 +188,8 @@ export default {
   trash: 'Çöp',
   move_to_trash: 'Çöpe taşı',
   move_to_folder: 'Klasöre taşı',
+  moved_to_folder: '{folder} klasörüne taşındı',
+  undo: 'Geri al',
   work: 'İş',
   expand_all: 'Hepsini genişlet',
   collapse_all: 'Hepsini daralt',

@@ -189,6 +189,8 @@ export default {
   trash: '資源回收筒',
   move_to_trash: '移至資源回收筒',
   move_to_folder: '移動到資料夾',
+  moved_to_folder: '已移動到「{folder}」',
+  undo: '復原',
   work: '工作',
   expand_all: '展開全部',
   collapse_all: '收合全部',

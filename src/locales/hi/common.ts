@@ -188,6 +188,8 @@ export default {
   trash: 'ट्रैश',
   move_to_trash: 'मूव टू ट्रैश',
   move_to_folder: 'फ़ोल्डर में ले जाएँ',
+  moved_to_folder: '{folder} में ले जाया गया',
+  undo: 'पूर्ववत करें',
   work: 'वर्क',
   expand_all: 'एक्सपैंड ऑल',
   collapse_all: 'कोलॅप्स ऑल',

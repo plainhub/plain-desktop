@@ -188,6 +188,8 @@ export default {
   trash: '휴지통',
   move_to_trash: '휴지통으로 이동',
   move_to_folder: '폴더로 이동',
+  moved_to_folder: '{folder}(으)로 이동했습니다',
+  undo: '실행 취소',
   work: '작업',
   expand_all: '모두 펼치기',
   collapse_all: '모두 축소하기',

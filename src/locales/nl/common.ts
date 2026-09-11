@@ -188,6 +188,8 @@ export default {
   trash: 'Prullenbak',
   move_to_trash: 'Naar prullenbak verplaatsen',
   move_to_folder: 'Naar map verplaatsen',
+  moved_to_folder: 'Verplaatst naar {folder}',
+  undo: 'Ongedaan maken',
   work: 'Werk',
   expand_all: 'Alles uitvouwen',
   collapse_all: 'Alles samenvouwen',

@@ -189,6 +189,8 @@ export default {
   trash: 'Cestino',
   move_to_trash: 'Sposta nel cestino',
   move_to_folder: 'Sposta nella cartella',
+  moved_to_folder: 'Spostato in {folder}',
+  undo: 'Annulla',
   work: 'Lavoro',
   expand_all: 'Espandi tutto',
   collapse_all: 'Comprimi tutto',

@@ -188,6 +188,8 @@ export default {
   trash: 'Корзина',
   move_to_trash: 'Переместить в корзину',
   move_to_folder: 'Переместить в папку',
+  moved_to_folder: 'Перемещено в {folder}',
+  undo: 'Отменить',
   work: 'Работа',
   expand_all: 'Развернуть все',
   collapse_all: 'Свернуть все',

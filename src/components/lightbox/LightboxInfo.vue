@@ -22,6 +22,12 @@
         :file-info="fileInfo" 
         :app-dir="appDir" 
       />
+
+      <LightboxMoveToFolders
+        v-if="showMoveToFolders"
+        :current="current"
+        @moved="onMoved"
+      />
       
       <LightboxFileTags 
         :current="current" 
@@ -39,6 +45,7 @@ import { DataType } from '@/lib/data'
 import { useMediaTrash, useFileTrashState } from '@/hooks/media-trash'
 import type { ITag } from '@/lib/interfaces'
 import type { ISource } from './types'
+import LightboxMoveToFolders from './LightboxMoveToFolders.vue'
 
 const props = defineProps({
   current: {
@@ -80,6 +87,13 @@ const emit = defineEmits(['rename-file', 'delete-file', 'refetch-info'])
 const { isTrashed, canTrash } = useFileTrashState(() => props.current, () => props.osVersion)
 const { trash } = useMediaTrash()
 const inZip = computed(() => isZipPath(props.current?.path ?? ''))
+const showMoveToFolders = computed(
+  () => !props.readOnly && !inZip.value && props.current?.type === DataType.IMAGE && !isTrashed.value,
+)
+
+function onMoved() {
+  emit('refetch-info')
+}
 
 function handleKeyDown(event: KeyboardEvent) {
   if (props.readOnly || inZip.value) return

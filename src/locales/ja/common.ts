@@ -188,6 +188,8 @@ export default {
   trash: 'ゴミ箱',
   move_to_trash: 'ゴミ箱に移動',
   move_to_folder: 'フォルダに移動',
+  moved_to_folder: '{folder} に移動しました',
+  undo: '元に戻す',
   work: '作業',
   expand_all: 'すべて展開',
   collapse_all: 'すべて折りたたむ',

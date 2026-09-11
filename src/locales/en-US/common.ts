@@ -231,6 +231,8 @@ export default {
   trash: 'Trash',
   move_to_trash: 'Move to trash',
   move_to_folder: 'Move to folder',
+  moved_to_folder: 'Moved to {folder}',
+  undo: 'Undo',
   work: 'Work',
   expand_all: 'Expand all',
   collapse_all: 'Collapse all',

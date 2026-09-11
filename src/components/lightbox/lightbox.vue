@@ -90,6 +90,12 @@
           :file-info="fileInfo" 
           :app-dir="app.appDir" 
         />
+
+        <LightboxMoveToFolders
+          v-if="showMoveToFolders"
+          :current="current"
+          @moved="handleActionSuccess('move')"
+        />
         
         <!-- File Tags Section -->
         <LightboxFileTags 
@@ -129,6 +135,8 @@ import {
   useLightboxMouseTouch,
   getImageDisplayUrl,
 } from '@/hooks/lightbox'
+import LightboxMoveToFolders from './LightboxMoveToFolders.vue'
+import { DataType } from '@/lib/data'
 
 const props = defineProps({
   loop: { type: Boolean, default: true },
@@ -157,6 +165,10 @@ const { closeDialog, changeIndex, onNext, onPrev } =
   useLightboxNavigation(tempStore, imgIndex, current, imgWrapperState, status, tagsMap, loadTags, loadInfo, toRef(props, 'loop'), emit as (event: string, ...args: any[]) => void, imageViewQuality)
 
 const readOnly = computed(() => tempStore.lightbox.readOnly)
+
+const showMoveToFolders = computed(
+  () => !readOnly.value && current.value?.type === DataType.IMAGE && current.value?.path?.includes('.trashed-') !== true,
+)
 
 const { downloadFile, deleteFile, renameFile, handleActionSuccess } =
   useLightboxFileActions(current, fileInfo, tagsMap, urlTokenKey, refetchInfo, isPhone, lightboxInfoVisible)

@@ -188,6 +188,8 @@ export default {
   trash: 'Thùng rác',
   move_to_trash: 'Di chuyển vào thùng rác',
   move_to_folder: 'Di chuyển vào thư mục',
+  moved_to_folder: 'Đã chuyển đến {folder}',
+  undo: 'Hoàn tác',
   work: 'Công việc',
   expand_all: 'Mở rộng tất cả',
   collapse_all: 'Thu gọn tất cả',

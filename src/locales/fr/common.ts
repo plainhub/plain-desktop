@@ -189,6 +189,8 @@ export default {
   trash: 'Corbeille',
   move_to_trash: 'Déplacer vers la corbeille',
   move_to_folder: 'Déplacer vers le dossier',
+  moved_to_folder: 'Déplacé vers {folder}',
+  undo: 'Annuler',
   work: 'Travail',
   expand_all: 'Tout développer',
   collapse_all: 'Tout réduire',

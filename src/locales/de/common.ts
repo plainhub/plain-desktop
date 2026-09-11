@@ -188,6 +188,8 @@ export default {
   trash: 'Papierkorb',
   move_to_trash: 'In den Papierkorb verschieben',
   move_to_folder: 'In Ordner verschieben',
+  moved_to_folder: 'Nach {folder} verschoben',
+  undo: 'Rückgängig',
   work: 'Arbeit',
   expand_all: 'Alle erweitern',
   collapse_all: 'Alle minimieren',
