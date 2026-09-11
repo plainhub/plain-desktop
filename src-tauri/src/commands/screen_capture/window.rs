@@ -583,6 +583,7 @@ fn position_macos_overlay_on_main<R: Runtime>(
 ) -> Result<(), CaptureError> {
     use objc2::MainThreadMarker;
     use objc2_app_kit::{NSScreen, NSWindow};
+    use objc2_foundation::{NSPoint, NSSize};
 
     let marker = MainThreadMarker::new().ok_or_else(|| {
         CaptureError::new(
@@ -612,7 +613,18 @@ fn position_macos_overlay_on_main<R: Runtime>(
     // SAFETY: Tauri owns this NSWindow for the lifetime of `window`, and this
     // function is restricted to AppKit's main thread.
     let native_window = unsafe { &*pointer.cast::<NSWindow>() };
-    native_window.setFrame_display(selected_frame, true);
+    // A single atomic `setFrame:` on a window that was never presented leaves
+    // the WKWebView compositor detached on macOS 26: the window shows up
+    // on-screen with the right frame but the overlay webview renders nothing.
+    // The top-left/content-size pair keeps the compositor attached.
+    native_window.setFrameTopLeftPoint(NSPoint::new(
+        selected_frame.origin.x,
+        selected_frame.origin.y + selected_frame.size.height,
+    ));
+    native_window.setContentSize(NSSize::new(
+        selected_frame.size.width,
+        selected_frame.size.height,
+    ));
     native_window.setIgnoresMouseEvents(false);
     native_window.setAcceptsMouseMovedEvents(true);
 
@@ -634,7 +646,11 @@ fn position_macos_overlay_on_main<R: Runtime>(
         ));
     }
     log::info!(
-        "screen capture macOS overlay placed on native display={actual_display_id}"
+        "screen capture macOS overlay placed on native display={actual_display_id} frame=({},{} {}x{})",
+        selected_frame.origin.x,
+        selected_frame.origin.y,
+        selected_frame.size.width,
+        selected_frame.size.height,
     );
     Ok(())
 }
