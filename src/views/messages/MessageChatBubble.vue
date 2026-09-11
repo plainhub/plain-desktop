@@ -12,6 +12,14 @@
         :item="{ key: item.id, title: '', size: 0 }"
         :selected="item.tags ?? []"
       />
+      <v-icon-button
+        v-if="!isDraftOrPending"
+        v-tooltip="$t('trash_message')"
+        class="chat-trash-btn"
+        @click.stop="emit('trash', item)"
+      >
+        <i-material-symbols:delete-outline-rounded />
+      </v-icon-button>
       <div class="chat-bubble">
         <div v-if="item.body" v-html="addLinksToURLs(item.body)"></div>
         <div v-if="item.attachments?.length" class="chat-attachments">
@@ -50,6 +58,10 @@ const props = defineProps<{
   tags: ITag[]
   type: string
   urlTokenKey: Uint8Array | null
+}>()
+
+const emit = defineEmits<{
+  trash: [item: IMessage]
 }>()
 
 const isSent = computed(() => props.item.type === 2 || props.item.type === 4)
@@ -101,7 +113,8 @@ function resolveUrl(path: string): string {
     }
   }
 
-  &:hover .chat-tag-btn {
+  &:hover .chat-tag-btn,
+  &:hover .chat-trash-btn {
     opacity: 1;
   }
 

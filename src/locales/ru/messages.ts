@@ -37,6 +37,11 @@ export default {
   type_a_reply: 'Введите ответ...',
   sms_notification_warning: 'Чтобы получать новые SMS в режиме реального времени, перейдите в PlainApp на своём телефоне → «Web-настройки» → включите разрешение «Управление уведомлениями».',
   archive_conversation: 'Архивировать разговор',
+  trash_message: 'Удалить сообщение',
+  review_mode: 'Режим проверки',
+  review_remaining: 'Осталось: {count}, удалено: {trashed}',
+  review_hints: 'D/X: Удалить · K/→: Оставить · Z: Отменить',
+  review_all_done: 'Все проверены',
   archived: 'Архив',
   unarchive: 'Разархивировать',
 }

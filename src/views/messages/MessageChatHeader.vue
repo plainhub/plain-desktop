@@ -21,6 +21,9 @@
       <v-icon-button v-tooltip="$t('export_sms')" @click.stop="$emit('export')">
         <i-material-symbols:download-rounded />
       </v-icon-button>
+      <v-icon-button v-tooltip="$t('review_mode')" @click.stop="$emit('review')">
+        <i-material-symbols:reviews-outline-rounded />
+      </v-icon-button>
       <v-icon-button v-tooltip="$t('archive_conversation')" @click.stop="$emit('archive')">
         <i-material-symbols:archive-outline-rounded />
       </v-icon-button>
@@ -44,6 +47,7 @@ defineEmits<{
   export: []
   archive: []
   call: []
+  review: []
 }>()
 
 const warnOpen = ref(false)

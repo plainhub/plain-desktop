@@ -33,6 +33,11 @@ export default {
   body: 'Corpo',
   sms_notification_warning: 'Per ricevere nuovi SMS in tempo reale, vai su PlainApp sul tuo telefono → "Impostazioni Web" → abilita l\'autorizzazione "Gestisci notifiche".',
   archive_conversation: 'Archivia conversazione',
+  trash_message: 'Elimina messaggio',
+  review_mode: 'Modalità revisione',
+  review_remaining: '{count} rimanenti, {trashed} eliminati',
+  review_hints: 'D/X: Elimina · K/→: Mantieni · Z: Annulla',
+  review_all_done: 'Tutto rivisto',
   archived: 'Archiviato',
   unarchive: 'Rimuovi dall\'archivio',
 }

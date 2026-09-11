@@ -11,7 +11,7 @@
         <div v-if="showDateSeparator(index)" class="chat-date-separator">
           <span>{{ formatDateLabel(item.date) }}</span>
         </div>
-        <MessageChatBubble :item="item" :tags="tags" :type="type" :url-token-key="urlTokenKey" />
+        <MessageChatBubble :item="item" :tags="tags" :type="type" :url-token-key="urlTokenKey" @trash="(item: IMessage) => $emit('trash', item)" />
       </div>
     </template>
     <NoDataPlaceholder v-if="!detailLoading && items.length === 0" :loading="loading" :permissions="permissions" permission="READ_SMS" />
@@ -38,6 +38,7 @@ const props = defineProps<{
 
 defineEmits<{
   scroll: []
+  trash: [item: IMessage]
 }>()
 
 const scrollRef = defineModel<HTMLElement | undefined>('scrollRef')

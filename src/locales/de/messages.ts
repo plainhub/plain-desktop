@@ -33,6 +33,11 @@ export default {
   body: 'Körper',
   sms_notification_warning: 'Um neue SMS in Echtzeit zu erhalten, gehen Sie auf Ihrem Telefon zur PlainApp → „Web-Einstellungen“ → aktivieren Sie die Berechtigung „Benachrichtigungen verwalten“.',
   archive_conversation: 'Gespräch archivieren',
+  trash_message: 'Nachricht löschen',
+  review_mode: 'Überprüfungsmodus',
+  review_remaining: '{count} übrig, {trashed} gelöscht',
+  review_hints: 'D/X: Löschen · K/→: Behalten · Z: Rückgängig',
+  review_all_done: 'Alle überprüft',
   archived: 'Archiviert',
   unarchive: 'Archivierung aufheben',
 }

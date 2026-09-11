@@ -33,6 +33,11 @@ export default {
   body: 'உடல்',
   sms_notification_warning: 'நிகழ்நேரத்தில் புதிய SMS பெற, உங்கள் ྃபோனில் உள்ள PlainApp க்குச் செல்லவும் → "இணைய அமைப்புகள்" → "அறிவிப்புகளை நிர்வகி" அனுமதியை இயக்கவும்.',
   archive_conversation: 'உரையாடலை காப்பகப்படுத்து',
+  trash_message: 'செய்தியை நீக்கு',
+  review_mode: 'மதிப்பாய்வு பயன்முறை',
+  review_remaining: '{count} மீதமுள்ளவை, {trashed} நீக்கப்பட்டவை',
+  review_hints: 'D/X: நீக்கு · K/→: வைக்கவும் · Z: செயல்தவிர்',
+  review_all_done: 'அனைத்தும் மதிப்பாய்வு செய்யப்பட்டது',
   archived: 'காப்பகம்',
   unarchive: 'காப்பகத்திலிருந்து நீக்கு',
 }

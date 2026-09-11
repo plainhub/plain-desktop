@@ -306,6 +306,18 @@ export const moveMediaItemsGQL = `
   }
 `
 
+export const trashSmsGQL = `
+  mutation trashSms($query: String!) {
+    trashSms(query: $query)
+  }
+`
+
+export const restoreSmsGQL = `
+  mutation restoreSms($query: String!) {
+    restoreSms(query: $query)
+  }
+`
+
 export const removeFromTagsGQL = `
   mutation removeFromTags($type: DataType!, $tagIds: [ID!]!, $query: String!) {
     removeFromTags(type: $type, tagIds: $tagIds, query: $query)

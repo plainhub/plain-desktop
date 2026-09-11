@@ -33,6 +33,11 @@ export default {
   type_a_reply: '输入回复...',
   sms_notification_warning: '如需实时接收新短信，请在手机上打开 PlainApp → "网页设置" → 开启"管理通知"权限。',
   archive_conversation: '归档对话',
+  trash_message: '删除短信',
+  review_mode: '整理模式',
+  review_remaining: '剩余 {count} 条，已删除 {trashed} 条',
+  review_hints: 'D/X：删除 · K/→：保留 · Z：撤销',
+  review_all_done: '已全部整理',
   archived: '已归档',
   unarchive: '取消归档',
 }
