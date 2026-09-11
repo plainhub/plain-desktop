@@ -23,6 +23,9 @@
       <template v-if="$slots['trailing-icon']" #trailing-icon>
         <slot name="trailing-icon" />
       </template>
+      <template v-if="$slots.footer" #footer>
+        <slot name="footer" />
+      </template>
     </v-text-field>
     <div
       v-if="activeShortcode && suggestions.length"

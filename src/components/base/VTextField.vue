@@ -48,6 +48,9 @@
           <slot name="trailing-icon"></slot>
         </div>
       </div>
+      <div v-if="$slots.footer" class="field-footer">
+        <slot name="footer"></slot>
+      </div>
       <div class="field-outline"></div>
     </div>
     <div v-if="error && errorText" class="error-text">{{ errorText }}</div>
@@ -205,6 +208,11 @@ defineExpose({
     z-index: 2;
     transform-origin: left center;
     line-height: 1;
+  }
+
+  .field-footer {
+    display: flex;
+    align-items: center;
   }
 
   .field-outline {

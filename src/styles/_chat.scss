@@ -244,6 +244,26 @@
     z-index: 10;
     pointer-events: none;
   }
+
+  .input-toolbar {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 4px 8px 8px;
+
+    .toolbar-actions {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+    }
+
+    .btn-icon {
+      width: 32px;
+      height: 32px;
+      border-radius: 8px;
+    }
+  }
 }
 
 // The desktop composer has three leading actions. Keep them on one row so

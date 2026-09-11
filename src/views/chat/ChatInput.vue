@@ -1,6 +1,6 @@
 <!-- eslint-disable vue/no-v-html -->
 <template>
-  <div class="chat-input" :class="{ 'capture-enabled': isTauri }">
+  <div class="chat-input">
     <div class="textarea-wrapper" @dragenter="fileDragEnter" @dragover="fileDragOver" @dragleave="fileDragLeave" @drop="dropFiles">
       <div v-show="displayDragMask" class="drag-mask">{{ $t('release_to_send_files') }}</div>
       <EmojiTextField
@@ -16,23 +16,23 @@
         @compositionstart="onCompositionStart"
         @compositionend="onCompositionEnd"
       >
-        <template #leading-icon>
-          <div class="leading-icons">
-            <v-icon-button @click="sendImages">
-              <i-material-symbols:image-outline-rounded />
-            </v-icon-button>
-            <v-icon-button @click="sendFiles">
-              <i-material-symbols:folder-outline-rounded />
-            </v-icon-button>
-            <v-icon-button v-if="isTauri" v-tooltip="$t('screenshot')" data-testid="screen-capture-button" @click="$emit('request-capture')">
-              <i-material-symbols:content-cut-rounded />
+        <template #footer>
+          <div class="input-toolbar">
+            <div class="toolbar-actions">
+              <v-icon-button @click="sendImages">
+                <i-material-symbols:image-outline-rounded />
+              </v-icon-button>
+              <v-icon-button @click="sendFiles">
+                <i-material-symbols:folder-outline-rounded />
+              </v-icon-button>
+              <v-icon-button v-if="isTauri" v-tooltip="$t('screenshot')" data-testid="screen-capture-button" @click="$emit('request-capture')">
+                <i-material-symbols:content-cut-rounded />
+              </v-icon-button>
+            </div>
+            <v-icon-button class="toolbar-send" :disabled="createLoading" @click="handleSend">
+              <i-material-symbols:send-outline-rounded />
             </v-icon-button>
           </div>
-        </template>
-        <template #trailing-icon>
-          <v-icon-button class="btn-send" :disabled="createLoading" @click="handleSend">
-            <i-material-symbols:send-outline-rounded />
-          </v-icon-button>
         </template>
       </EmojiTextField>
     </div>

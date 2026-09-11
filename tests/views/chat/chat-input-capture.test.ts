@@ -22,10 +22,16 @@ describe('ChatInput screen capture action', () => {
     expect(chatInputSource.indexOf('@click="sendFiles"')).toBeLessThan(chatInputSource.indexOf('@click="$emit(\'request-capture\')"'))
   })
 
-  it('lays out all three Tauri composer actions without clipping the capture button', () => {
-    expect(chatInputSource).toContain("'capture-enabled': isTauri")
-    expect(chatStylesSource).toMatch(/\.chat-input\.capture-enabled[\s\S]*?\.leading-icons\s*\{[\s\S]*?flex-direction:\s*row/)
-    expect(chatStylesSource).toMatch(/\.chat-input\.capture-enabled[\s\S]*?\.field-input\s*\{[\s\S]*?padding-left:\s*128px/)
+  it('moves the composer actions onto a footer toolbar inside the field outline', () => {
+    expect(chatInputSource).not.toContain("'capture-enabled': isTauri")
+    const footerIndex = chatInputSource.indexOf('<template #footer>')
+    expect(footerIndex).toBeGreaterThan(-1)
+    expect(chatInputSource.indexOf('class="input-toolbar"')).toBeGreaterThan(footerIndex)
+    expect(chatStylesSource).toMatch(/\.input-toolbar\s*\{[\s\S]*?flex:\s*1/)
+    expect(chatStylesSource).toMatch(/\.input-toolbar\s*\{[\s\S]*?justify-content:\s*space-between/)
+    expect(chatStylesSource).toMatch(/\.toolbar-actions\s*\{[\s\S]*?gap:\s*4px/)
+    expect(chatStylesSource).toMatch(/\.input-toolbar\s*\{[\s\S]*?\.btn-icon\s*\{[\s\S]*?width:\s*32px/)
+    expect(chatStylesSource).toMatch(/\.input-toolbar\s*\{[\s\S]*?\.btn-icon\s*\{[\s\S]*?border-radius:\s*8px/)
   })
 
   it('keeps the web graph free of eager Tauri loading and wires view lifecycle ownership', () => {
@@ -53,7 +59,7 @@ describe('ChatInput screen capture action', () => {
         stubs: {
           EmojiTextField: {
             setup(_props: unknown, { slots }: any) {
-              return () => h('div', [slots['leading-icon']?.(), slots['trailing-icon']?.()])
+              return () => h('div', [slots['leading-icon']?.(), slots['trailing-icon']?.(), slots.footer?.()])
             },
           },
           VIconButton: {
