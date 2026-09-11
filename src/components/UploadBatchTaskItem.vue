@@ -6,7 +6,7 @@
         {{ $t(`upload_status.${stats.status}`) }}
       </span>
       <span class="size">{{ formatFileSize(stats.totalBytes) }}</span>
-      <span class="count">{{ uploads.length }} {{ $t('files') }}</span>
+      <span class="count">{{ fileCount }} {{ $t('files') }}</span>
 
       <div class="icon task-actions">
         <v-icon-button v-if="stats.canPause" v-tooltip="$t('pause')" class="pause-btn" @click="pauseBatch">
@@ -51,21 +51,46 @@ import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { formatFileSize } from '@/lib/format'
 import { useTempStore, type IUploadItem } from '@/stores/temp'
 import { useI18n } from 'vue-i18n'
-import { computeBatchStats, keyOf } from '@/lib/upload/batch'
+import { batchStatsFromProgress } from '@/lib/upload/batch'
+import { keyOf, removeUploadBatch, setUploadPausing, uploadBatches, type BatchProgress } from '@/lib/upload/batch-progress'
 import { uploadErrorText } from '@/lib/upload/errors'
 import { pauseUploadsByBatch, resumeUploadsByBatch, retryUploadsByBatch, retryUploadTask, removeUploadsByBatch } from '@/lib/upload/upload-queue'
 import UploadFailedList from './UploadFailedList.vue'
 
 const props = defineProps<{
   batchId: string
-  uploads: IUploadItem[]
 }>()
 
 const tempStore = useTempStore()
 const { t } = useI18n()
 
-const title = computed(() => `${t('upload')} (${props.uploads.length} ${t('files')})`)
-const stats = computed(() => computeBatchStats(props.uploads))
+// Shown for one tick if the batch aggregate is dropped (removal) while the
+// card is still rendered.
+const emptyProgress: BatchProgress = {
+  createdAt: '',
+  totalFiles: 0,
+  totalBytes: 0,
+  uploadedBytes: 0,
+  created: 0,
+  pending: 0,
+  uploading: 0,
+  saving: 0,
+  paused: 0,
+  error: 0,
+  done: 0,
+  canceled: 0,
+  pausingCreated: 0,
+  pausingPending: 0,
+  pausingUploading: 0,
+  pausingSaving: 0,
+  pausingPaused: 0,
+  failedItems: [],
+}
+
+const agg = computed(() => uploadBatches.get(props.batchId))
+const stats = computed(() => batchStatsFromProgress(agg.value ?? emptyProgress))
+const fileCount = computed(() => agg.value?.totalFiles ?? 0)
+const title = computed(() => `${t('upload')} (${fileCount.value} ${t('files')})`)
 const firstErrorText = computed(() => uploadErrorText(t, stats.value.firstError))
 const showProgress = computed(() => ['uploading', 'pending', 'saving'].includes(stats.value.status) && stats.value.uploadedBytes > 0)
 const progressPercent = computed(() => (stats.value.totalBytes <= 0 ? 0 : Math.round((stats.value.uploadedBytes / stats.value.totalBytes) * 100)))
@@ -107,9 +132,9 @@ onBeforeUnmount(() => {
 
 function pauseBatch() {
   for (const item of pauseUploadsByBatch(props.batchId)) {
-    item.pausing = true
+    setUploadPausing(item, true)
     setTimeout(() => {
-      item.pausing = false
+      setUploadPausing(item, false)
     }, 1000)
   }
 }
@@ -125,6 +150,7 @@ function retryBatch() {
 function removeBatch() {
   removeUploadsByBatch(props.batchId)
   tempStore.uploads = tempStore.uploads.filter((it) => keyOf(it) !== props.batchId)
+  removeUploadBatch(props.batchId)
 }
 </script>
 

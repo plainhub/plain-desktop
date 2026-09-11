@@ -17,7 +17,7 @@
       </div>
       <VirtualList ref="listItemsRef" class="list-items" :data-key="'id'" :data-sources="visibleTasks" :estimate-size="80">
         <template #item="{ item }">
-          <UploadBatchTaskItem :key="item.id" :batch-id="item.batchId" :uploads="item.uploads" />
+          <UploadBatchTaskItem :key="item.id" :batch-id="item.batchId" />
         </template>
       </VirtualList>
 

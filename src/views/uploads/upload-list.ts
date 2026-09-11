@@ -5,6 +5,7 @@ import { useI18n } from 'vue-i18n'
 import { addUploadTask } from '@/lib/upload/upload-queue'
 import { sortByName } from '@/lib/array'
 import { batchCreatedAt, keyOf, partitionBatches, type TaskListItem } from '@/lib/upload/batch'
+import { registerUploadItems, setUploadStatus, uploadBatches } from '@/lib/upload/batch-progress'
 
 export function useUploadList() {
   const tempStore = useTempStore()
@@ -19,7 +20,7 @@ export function useUploadList() {
     if (listItemsRef.value) listItemsRef.value.scrollTop = 0
   }
 
-  const tasks = computed(() => partitionBatches(tempStore.uploads))
+  const tasks = computed(() => partitionBatches(uploadBatches))
   const visibleTasks = computed<TaskListItem[]>(() => (filterType.value === 'in_progress' ? tasks.value.inProgress : tasks.value.completed))
   const completedCount = computed(() => tasks.value.completed.length)
   const totalCount = computed(() => tasks.value.inProgress.length + tasks.value.completed.length)
@@ -33,6 +34,9 @@ export function useUploadList() {
     (newUploads) => {
       const created = newUploads.filter((item) => item.status === 'created')
       if (created.length === 0) return
+      // Aggregates must exist before the enqueue flips statuses, so the
+      // counters observe every transition.
+      registerUploadItems(created)
       const batches = new Map<string, typeof newUploads>()
       for (const it of created) {
         const k = keyOf(it)
@@ -45,7 +49,7 @@ export function useUploadList() {
         for (const item of newItems) {
           if (item.status !== 'created') continue
           addUploadTask(item, true)
-          item.status = 'pending'
+          setUploadStatus(item, 'pending')
         }
       }
     },

@@ -9,6 +9,7 @@ import { uploadedChunksGQL } from '../api/query'
 import { deleteChunksGQL } from '../api/mutation'
 import { gqlFetch } from '../api/gql-client'
 import { requestMerge } from './merge-async'
+import { setUploadStatus, setUploadUploadedSize } from './batch-progress'
 import { getCurrentAuthToken } from '../device/current'
 import { get as prefsGet } from '../prefs'
 import { isLocalMode } from '../device/local-mode'
@@ -63,7 +64,7 @@ function updateUploadProgress(upload: IUploadItem, newSize: number, forceUpdate:
   const shouldUpdateSize = forceUpdate || !upload.lastUpdateTime || shouldUpdateSpeed
 
   if (shouldUpdateSize) {
-    upload.uploadedSize = newSize
+    setUploadUploadedSize(upload, newSize)
   }
 
   if (!upload.lastUpdateTime) {
@@ -184,8 +185,8 @@ async function uploadDirect(upload: IUploadItem, replace: boolean, key: Uint8Arr
       xhr.upload.addEventListener(
         'load',
         () => {
-          upload.uploadedSize = upload.file.size
-          upload.status = 'saving'
+          setUploadUploadedSize(upload, upload.file.size)
+          setUploadStatus(upload, 'saving')
         },
         false
       )
@@ -199,14 +200,14 @@ async function uploadDirect(upload: IUploadItem, replace: boolean, key: Uint8Arr
             } else {
               upload.fileName = xhr.responseText
             }
-            upload.status = 'done'
+            setUploadStatus(upload, 'done')
             resolve({ fileName: xhr.responseText })
             emitter.emit('upload_progress', upload)
           } else if (xhr.status === 0) {
             resolve({ error: 'Upload aborted' })
             emitter.emit('upload_progress', upload)
           } else {
-            upload.status = 'error'
+            setUploadStatus(upload, 'error')
             upload.error = xhr.responseText
             resolve({ error: xhr.responseText })
             emitter.emit('upload_progress', upload)
@@ -215,7 +216,7 @@ async function uploadDirect(upload: IUploadItem, replace: boolean, key: Uint8Arr
       }
 
       xhr.onerror = () => {
-        upload.status = 'error'
+        setUploadStatus(upload, 'error')
         upload.error = 'Network error'
         resolve({ error: 'Network error' })
         emitter.emit('upload_progress', upload)
@@ -233,13 +234,13 @@ async function uploadDirect(upload: IUploadItem, replace: boolean, key: Uint8Arr
         upload.xhr = xhr
         xhr.send(data)
       } catch (ex: any) {
-        upload.status = 'error'
+        setUploadStatus(upload, 'error')
         upload.error = ex.message
         resolve({ error: ex.message })
       }
     })
   } catch (error: any) {
-    upload.status = 'error'
+    setUploadStatus(upload, 'error')
     upload.error = error.message || 'Upload failed'
   }
 }
@@ -366,7 +367,7 @@ async function uploadChunkedFile(upload: IUploadItem, fileId: string, replace: b
     }
 
     if (errors.length > 0) {
-      upload.status = 'error'
+      setUploadStatus(upload, 'error')
       upload.error = `Failed to upload: ${errors.join(', ')}`
       return
     }
@@ -374,7 +375,7 @@ async function uploadChunkedFile(upload: IUploadItem, fileId: string, replace: b
     // All chunks uploaded — merge on the server. The async mutation returns
     // immediately; the result arrives via WS event (or the mergeStatus
     // fallback), so no HTTP timeout can kill a long merge.
-    upload.status = 'saving'
+    setUploadStatus(upload, 'saving')
     const baseName = upload.file.name.split('/').pop() || upload.file.name
     const filePath = upload.dir.endsWith('/') ? upload.dir + baseName : upload.dir + '/' + baseName
 
@@ -392,20 +393,20 @@ async function uploadChunkedFile(upload: IUploadItem, fileId: string, replace: b
     }
 
     if (outcome.error) {
-      upload.status = 'error'
+      setUploadStatus(upload, 'error')
       upload.error = outcome.error
       return
     }
 
     if (!outcome.value) {
-      upload.status = 'error'
+      setUploadStatus(upload, 'error')
       upload.error = 'Failed to merge chunks'
       return
     }
 
     // Server returns "path_or_hash:size" — verify merged size matches original
     if ((outcome.size ?? 0) > 0 && outcome.size !== upload.file.size) {
-      upload.status = 'error'
+      setUploadStatus(upload, 'error')
       upload.error = `Server merged size ${outcome.size} != expected ${upload.file.size}`
       return
     }
@@ -415,12 +416,12 @@ async function uploadChunkedFile(upload: IUploadItem, fileId: string, replace: b
     } else {
       upload.fileName = outcome.value
     }
-    upload.status = 'done'
+    setUploadStatus(upload, 'done')
   } catch (error: any) {
     if (error.name === 'AbortError' || upload.status === 'paused') {
       return { error: 'Upload paused' }
     }
-    upload.status = 'error'
+    setUploadStatus(upload, 'error')
     upload.error = error.message || 'Upload failed'
   }
 }

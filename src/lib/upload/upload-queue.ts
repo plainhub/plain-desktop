@@ -1,6 +1,7 @@
 import type { IUploadItem } from '@/stores/temp'
 import { upload } from './upload'
 import { isTransientUploadError } from './errors'
+import { resetUploadProgress, setUploadStatus } from './batch-progress'
 import emitter from '@/plugins/eventbus'
 
 // Upload queue management interfaces and types
@@ -102,7 +103,7 @@ class UploadQueue {
     }
 
     this.queue = this.queue.filter((t) => t.id !== taskId)
-    task.upload.status = 'canceled'
+    setUploadStatus(task.upload, 'canceled')
     this.rejectTask(task, new Error('Upload canceled'))
     this.processQueue()
     return true
@@ -116,7 +117,7 @@ class UploadQueue {
     for (const task of this.tasksByBatch(batchId)) {
       if (task.status === 'running') {
         task.status = 'paused'
-        task.upload.status = 'paused'
+        setUploadStatus(task.upload, 'paused')
         task.upload.uploadSpeed = 0
         task.aborted = true
         this.abortTaskXhrs(task)
@@ -124,7 +125,7 @@ class UploadQueue {
         affected.push(task.upload)
       } else if (task.status === 'pending') {
         task.status = 'paused'
-        task.upload.status = 'paused'
+        setUploadStatus(task.upload, 'paused')
         affected.push(task.upload)
       }
     }
@@ -137,7 +138,7 @@ class UploadQueue {
     for (const task of this.tasksByBatch(batchId)) {
       if (task.status !== 'paused') continue
       task.status = 'pending'
-      task.upload.status = 'uploading'
+      setUploadStatus(task.upload, 'uploading')
       task.aborted = false
       resumed = true
     }
@@ -164,12 +165,9 @@ class UploadQueue {
 
   private resetTaskForRetry(task: ManagedUploadTask): void {
     task.status = 'pending'
-    task.upload.status = 'uploading'
+    setUploadStatus(task.upload, 'uploading')
     task.upload.error = ''
-    task.upload.uploadedSize = 0
-    task.upload.uploadSpeed = 0
-    task.upload.lastUploadedSize = 0
-    task.upload.lastUpdateTime = undefined
+    resetUploadProgress(task.upload)
     task.aborted = false
   }
 
@@ -181,7 +179,7 @@ class UploadQueue {
         this.abortTaskXhrs(task)
         this.running.delete(task.id)
       }
-      task.upload.status = 'canceled'
+      setUploadStatus(task.upload, 'canceled')
       this.rejectTask(task, new Error('Upload canceled'))
       removed.add(task)
     }
@@ -250,7 +248,7 @@ class UploadQueue {
 
   private async executeTask(task: ManagedUploadTask): Promise<void> {
     task.status = 'running'
-    task.upload.status = 'uploading'
+    setUploadStatus(task.upload, 'uploading')
     task.aborted = false
     this.running.set(task.id, task)
 
@@ -278,19 +276,19 @@ class UploadQueue {
         if (!(await this.waitUnlessAborted(task, RETRY_BACKOFF_MS[Math.min(attempt, RETRY_BACKOFF_MS.length - 1)]))) {
           return
         }
-        task.upload.status = 'uploading'
+        setUploadStatus(task.upload, 'uploading')
       }
 
       if (result?.error) {
         task.status = 'failed'
-        task.upload.status = 'error'
+        setUploadStatus(task.upload, 'error')
         task.upload.error ||= result.error
       } else if (task.upload.status === 'error') {
         // uploadWithChunks set error status internally but returned undefined
         task.status = 'failed'
       } else {
         task.status = 'completed'
-        task.upload.status = 'done'
+        setUploadStatus(task.upload, 'done')
       }
     } catch (error: any) {
       // Check if task was aborted during upload
@@ -299,7 +297,7 @@ class UploadQueue {
       }
 
       task.status = 'failed'
-      task.upload.status = 'error'
+      setUploadStatus(task.upload, 'error')
       task.upload.error = error.message || 'Upload failed'
     } finally {
       this.running.delete(task.id)
@@ -349,14 +347,14 @@ class UploadQueue {
     for (const task of all) {
       if (task.status === 'running') {
         task.status = 'paused'
-        task.upload.status = 'paused'
+        setUploadStatus(task.upload, 'paused')
         task.upload.uploadSpeed = 0
         task.aborted = true
         this.abortTaskXhrs(task)
         this.running.delete(task.id)
       } else if (task.status === 'pending') {
         task.status = 'paused'
-        task.upload.status = 'paused'
+        setUploadStatus(task.upload, 'paused')
       }
     }
     this.processQueue()

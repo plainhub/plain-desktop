@@ -1,22 +1,8 @@
 import type { IUploadItem } from '@/stores/temp'
 import { compareLocale } from '@/lib/array'
+import type { BatchProgress } from './batch-progress'
 
-export type TaskListItem = { id: string; kind: 'upload_batch'; batchId: string; uploads: IUploadItem[] }
-
-const completedStates = new Set(['done', 'error', 'canceled'])
-
-export const keyOf = (it: IUploadItem) => it.batchId || it.id
-
-export function groupByBatch(uploads: IUploadItem[]): Map<string, IUploadItem[]> {
-  const map = new Map<string, IUploadItem[]>()
-  for (const it of uploads) {
-    const k = keyOf(it)
-    const list = map.get(k)
-    if (list) list.push(it)
-    else map.set(k, [it])
-  }
-  return map
-}
+export { keyOf } from './batch-progress'
 
 export const batchCreatedAt = (items: IUploadItem[]) => {
   let min = ''
@@ -26,6 +12,8 @@ export const batchCreatedAt = (items: IUploadItem[]) => {
   }
   return min
 }
+
+export type TaskListItem = { id: string; kind: 'upload_batch'; batchId: string }
 
 export interface IBatchStats {
   status: string
@@ -40,65 +28,31 @@ export interface IBatchStats {
   isPausing: boolean
 }
 
-// Single pass over the batch. With directory uploads reaching tens of
-// thousands of files, one O(n) pass per invalidation (instead of one per
-// aggregate) is the difference between a usable panel and a frozen UI.
-// Throughput is NOT aggregated here: per-item speeds only sample after 500ms
-// of transfer, so short-lived files never report one. The batch card measures
-// real throughput by diffing uploadedBytes over time instead.
-export function computeBatchStats(uploads: IUploadItem[]): IBatchStats {
-  let totalBytes = 0
-  let uploadedBytes = 0
-  let errorCount = 0
-  let firstError = ''
-  const failedItems: IUploadItem[] = []
-  let count = 0
-  let uploading = 0
-  let saving = 0
-  let pending = 0
-  let paused = 0
-  let doneOrCanceled = 0
-  let canPause = false
-  let canResume = false
-  let canRetry = false
-  let isPausing = false
-  for (const it of uploads) {
-    count++
-    totalBytes += it.file?.size || 0
-    uploadedBytes += it.uploadedSize || 0
-    const s = it.status
-    if (s === 'uploading') {
-      uploading++
-      if (!it.pausing) canPause = true
-    } else if (s === 'saving') {
-      saving++
-    } else if (s === 'pending') {
-      pending++
-      if (!it.pausing) canPause = true
-    } else if (s === 'paused') {
-      paused++
-      if (!it.pausing) canResume = true
-    } else if (s === 'error') {
-      errorCount++
-      failedItems.push(it)
-      if (!firstError) firstError = it.error || ''
-      canRetry = true
-    } else if (s === 'done' || s === 'canceled') {
-      doneOrCanceled++
-    }
-    if (it.pausing) isPausing = true
-  }
-  // Active states outrank 'error': a batch with thousands of files keeps
-  // uploading (and keeps its progress bar) while a few files have failed.
-  // 'error' only labels the batch once nothing is moving anymore.
+// O(1) derivation from the incremental aggregate maintained by
+// batch-progress.ts. Same status precedence as the pre-aggregate
+// computeBatchStats: active states outrank 'error' so a huge batch keeps
+// uploading (and keeps its progress bar) while a few files failed.
+export function batchStatsFromProgress(agg: BatchProgress): IBatchStats {
   let status = 'created'
-  if (uploading > 0) status = 'uploading'
-  else if (saving > 0) status = 'saving'
-  else if (pending > 0) status = 'pending'
-  else if (errorCount > 0) status = 'error'
-  else if (count > 0 && paused === count) status = 'paused'
-  else if (count > 0 && doneOrCanceled === count) status = 'done'
-  return { status, totalBytes, uploadedBytes, errorCount, firstError, failedItems, canPause, canResume, canRetry, isPausing }
+  if (agg.uploading > 0) status = 'uploading'
+  else if (agg.saving > 0) status = 'saving'
+  else if (agg.pending > 0) status = 'pending'
+  else if (agg.error > 0) status = 'error'
+  else if (agg.totalFiles > 0 && agg.paused === agg.totalFiles) status = 'paused'
+  else if (agg.totalFiles > 0 && agg.done + agg.canceled === agg.totalFiles) status = 'done'
+  return {
+    status,
+    totalBytes: agg.totalBytes,
+    uploadedBytes: agg.uploadedBytes,
+    errorCount: agg.error,
+    firstError: agg.failedItems[0]?.error || '',
+    failedItems: agg.failedItems,
+    canPause: agg.uploading + agg.pending - agg.pausingUploading - agg.pausingPending > 0,
+    canResume: agg.paused - agg.pausingPaused > 0,
+    canRetry: agg.error > 0,
+    isPausing:
+      agg.pausingCreated + agg.pausingPending + agg.pausingUploading + agg.pausingSaving + agg.pausingPaused > 0,
+  }
 }
 
 const sortKeys = new Map([
@@ -109,22 +63,18 @@ const sortKeys = new Map([
   ['created', 4],
 ])
 
-export function partitionBatches(uploads: IUploadItem[]): { inProgress: TaskListItem[]; completed: TaskListItem[] } {
+export function partitionBatches(batches: Map<string, BatchProgress>): { inProgress: TaskListItem[]; completed: TaskListItem[] } {
   const inProgress: { entry: TaskListItem; key: number; createdAt: string }[] = []
   const completed: TaskListItem[] = []
-  for (const [batchId, items] of groupByBatch(uploads)) {
-    const entry: TaskListItem = { id: batchId, kind: 'upload_batch', batchId, uploads: items }
-    let active = false
-    for (const it of items) {
-      if (!completedStates.has(it.status)) {
-        active = true
-        break
-      }
-    }
+  for (const [batchId, agg] of batches) {
+    const entry: TaskListItem = { id: batchId, kind: 'upload_batch', batchId }
+    const active = agg.created + agg.pending + agg.uploading + agg.saving + agg.paused > 0
     if (active) {
-      // Sort keys are computed once per batch, not inside the comparator —
-      // the old code re-derived batch status on every comparison.
-      inProgress.push({ entry, key: sortKeys.get(computeBatchStats(items).status) ?? 5, createdAt: batchCreatedAt(items) })
+      inProgress.push({
+        entry,
+        key: sortKeys.get(batchStatsFromProgress(agg).status) ?? 5,
+        createdAt: agg.createdAt,
+      })
     } else {
       completed.push(entry)
     }

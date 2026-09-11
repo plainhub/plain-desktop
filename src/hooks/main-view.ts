@@ -14,6 +14,7 @@ import { debounce } from '@/lib/array'
 import { updateLoginPeerName } from '@/lib/device/login-peers'
 import { getRemoteClientId } from '@/lib/device/client-id'
 import { isLocalMode } from '@/lib/device/local-mode'
+import { hasActiveUploadBatches } from '@/lib/upload/batch-progress'
 import { openModal } from '@/components/modal'
 import type { PairingRequest } from '@/lib/pairing-types'
 import PairingRequestModal from '@/views/chat/PairingRequestModal.vue'
@@ -37,9 +38,7 @@ export function useMainView() {
 
   const hasTasks = computed(() => tempStore.uploads.length > 0)
 
-  const hasActiveUploads = computed(() => {
-    return tempStore.uploads.some((u) => ['uploading', 'saving', 'pending'].includes(u.status))
-  })
+  const hasActiveUploads = computed(() => hasActiveUploadBatches())
 
   const hasLeftSidebar = computed(() => {
     const route = router.currentRoute.value
