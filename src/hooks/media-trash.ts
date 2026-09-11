@@ -1,18 +1,12 @@
 import { initMutation, trashMediaItemsGQL, restoreMediaItemsGQL } from '@/lib/api/mutation'
 import { DataType, FEATURE } from '@/lib/data'
 import emitter from '@/plugins/eventbus'
-import { useI18n } from 'vue-i18n'
-import { toastWithAction } from '@/components/toaster'
 
 import { reactive, computed, ref, type Ref } from 'vue'
 import { hasFeature } from '@/lib/feature'
 import type { ISource } from '@/components/lightbox/types'
 
 export const useMediaTrash = () => {
-  const { t } = useI18n()
-  const { mutate: doRestore } = initMutation({
-    document: restoreMediaItemsGQL,
-  })
   const { mutate, onDone: onTrashed } = initMutation({
     document: trashMediaItemsGQL,
   })
@@ -24,7 +18,6 @@ export const useMediaTrash = () => {
     loading.delete(query)
     emitter.emit('refetch_tags', type)
     emitter.emit('media_items_actioned', { type, action: 'trash', query })
-    toastWithAction(t('move_to_trash'), t('undo'), () => doRestore({ type, query }))
   })
 
   return {

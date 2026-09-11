@@ -50,6 +50,7 @@ import { getFileName } from '@/lib/api/file'
 import { isZipPath } from '@/lib/file'
 import { DataType } from '@/lib/data'
 import { useMediaRestore, useMediaTrash, useFileTrashState } from '@/hooks/media-trash'
+import { useOrganizeUndo } from '@/hooks/organize-undo'
 import emitter from '@/plugins/eventbus'
 import type { IMediaItemsActionedEvent } from '@/lib/interfaces'
 import type { ISource } from './types'
@@ -93,9 +94,11 @@ function handleDownload() {
 }
 
 const { trash, trashLoading } = useMediaTrash()
+const { record } = useOrganizeUndo()
 function trashMediaItem() {
   if (!props.current?.data?.id || !props.current.type) return
   trash(props.current.type as DataType, `ids:${props.current.data.id}`)
+  record({ kind: 'trash', type: props.current.type as DataType, query: `ids:${props.current.data.id}` })
 }
 
 const { restore, restoreLoading } = useMediaRestore()

@@ -28,14 +28,14 @@ import { computed, onMounted, onUnmounted, ref } from 'vue'
 import { initQuery, mediaBucketsGQL } from '@/lib/api/query'
 import type { IBucket, IMediaItemsActionedEvent } from '@/lib/interfaces'
 import { useI18n } from 'vue-i18n'
-import toast, { toastWithAction } from '@/components/toaster'
+import toast from '@/components/toaster'
 import emitter from '@/plugins/eventbus'
 import { getDirFromPath, isZipPath } from '@/lib/file'
 import { getFileId, getFileUrl } from '@/lib/api/file'
 import { useTempStore } from '@/stores/temp'
 import { storeToRefs } from 'pinia'
 import { useMoveItems } from '@/hooks/media'
-import { moveMediaItemsGQL, initMutation } from '@/lib/api/mutation'
+import { useOrganizeUndo } from '@/hooks/organize-undo'
 import { DataType } from '@/lib/data'
 import { sortByName } from '@/lib/array'
 import LightboxFileInfoItem from './LightboxFileInfoItem.vue'
@@ -101,21 +101,11 @@ function onPick(bucket: IBucket) {
   const q = moveItems(source.type, [source.data.id], false, `ids:${source.data.id}`)
   if (q === undefined) return
   doMoveItems(destDir)
-  toastWithAction(
-    t('moved_to_folder', { folder: bucket.name }),
-    t('undo'),
-    () => undoMove(source.type as DataType, q, currentDir.value),
-  )
+  record({ kind: 'move', type: source.type as DataType, query: q, origDir: currentDir.value })
 }
 
 const { moveLoading, moveItems, doMoveItems } = useMoveItems()
-
-// moveMediaItems has no undo on the backend, so "undo" re-moves by ids back to the original dir.
-function undoMove(type: DataType, query: string, origDir: string) {
-  if (!origDir) return
-  const { mutate } = initMutation({ document: moveMediaItemsGQL })
-  mutate({ type, query, destDir: origDir })
-}
+const { record } = useOrganizeUndo()
 
 const { refetch } = initQuery({
   handle: (data: { mediaBuckets: IBucket[] }, error: string) => {

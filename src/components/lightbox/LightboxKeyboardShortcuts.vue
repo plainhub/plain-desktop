@@ -8,6 +8,7 @@ const shortcuts = [
   { keys: ['Space'], description: 'play_pause_video' },
   { keys: ['Delete'], description: 'delete_file' },
   { keys: ['modifier', '+', 'Backspace'], description: 'delete_file' },
+  { keys: ['modifier', '+', 'Z'], description: 'undo' },
   { keys: ['Esc'], description: 'close_preview' }
 ]
 </script>
