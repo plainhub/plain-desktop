@@ -19,6 +19,14 @@
     </div>
 
     <div class="actions">
+      <v-icon-button
+        v-if="organizeCount > 0"
+        v-tooltip="$t('undo_organize_tip', { count: organizeCount })"
+        class="undo-btn"
+        @click="$emit('undo-last')"
+      >
+        <i-material-symbols:undo-rounded />
+      </v-icon-button>
       <template v-if="!popup && isTauri">
         <v-icon-button v-tooltip="$t('back')" class="close-btn" @click="$emit('close')">
           <i-material-symbols:arrow-back-rounded />
@@ -69,14 +77,19 @@ import type { ISource } from './types'
 
 const isTauri = __IS_TAURI__
 
-defineProps<{
-  current: ISource | undefined
-  popup?: boolean
-  readOnly?: boolean
-  transcoded?: boolean
-  imageQuality: 'fast' | 'original'
-}>()
-
+withDefaults(
+  defineProps<{
+    current: ISource | undefined
+    popup?: boolean
+    readOnly?: boolean
+    transcoded?: boolean
+    imageQuality: 'fast' | 'original'
+    organizeCount?: number
+  }>(),
+  {
+    organizeCount: 0,
+  },
+)
 defineEmits<{
   close: []
   'zoom-in': []
@@ -87,6 +100,7 @@ defineEmits<{
   'toggle-info': []
   'open-in-window': []
   'edit-image': []
+  'undo-last': []
   'update:image-quality': [value: 'fast' | 'original']
 }>()
 </script>

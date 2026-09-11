@@ -8,7 +8,8 @@
           :read-only="readOnly"
           :transcoded="current?.transcoded"
           :image-quality="imageViewQuality"
-          @close="closeDialog"
+          :organize-count="organizeCount"
+          @close="onCloseDialog"
           @zoom-in="zoomIn"
           @zoom-out="zoomOut"
           @resize="resize"
@@ -17,6 +18,7 @@
           @toggle-info="lightboxInfoVisible = !lightboxInfoVisible"
           @open-in-window="onOpenInWindow"
           @edit-image="onEditImage"
+          @undo-last="onUndoLast"
           @update:image-quality="imageViewQuality = $event"
         />
         <section class="content" @click.self="onBackdropClick">
@@ -90,6 +92,12 @@
           :file-info="fileInfo" 
           :app-dir="app.appDir" 
         />
+
+        <LightboxMoveToFolders
+          v-if="showMoveToFolders"
+          :current="current"
+          @moved="handleActionSuccess('move')"
+        />
         
         <!-- File Tags Section -->
         <LightboxFileTags 
@@ -115,7 +123,7 @@
   </Teleport>
 </template>
 <script setup lang="ts">
-import { computed, inject, toRef } from 'vue'
+import { computed, inject, toRef, onMounted, onUnmounted } from 'vue'
 import { preventDefault } from './utils/index'
 import { isVideo, isImage, isAudio, isSvg } from '@/lib/file'
 import { openMediaInWindow } from '@/lib/api/tauri-window'
@@ -129,6 +137,11 @@ import {
   useLightboxMouseTouch,
   getImageDisplayUrl,
 } from '@/hooks/lightbox'
+import LightboxMoveToFolders from './LightboxMoveToFolders.vue'
+import OrganizeConfirmModal from './OrganizeConfirmModal.vue'
+import { useOrganizeUndo } from '@/hooks/organize-undo'
+import { promptModal } from '@/components/modal'
+import { DataType } from '@/lib/data'
 
 const props = defineProps({
   loop: { type: Boolean, default: true },
@@ -158,6 +171,37 @@ const { closeDialog, changeIndex, onNext, onPrev } =
 
 const readOnly = computed(() => tempStore.lightbox.readOnly)
 
+const showMoveToFolders = computed(
+  () => !readOnly.value && current.value?.type === DataType.IMAGE && current.value?.path?.includes('.trashed-') !== true,
+)
+
+const { count: organizeCount, undoLast, undoAll, clear: clearOrganizeUndo } = useOrganizeUndo()
+
+function onUndoLast() {
+  undoLast()
+}
+
+function onUndoKeydown(event: KeyboardEvent) {
+  if (!tempStore.lightbox.visible) return
+  if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'z') {
+    event.preventDefault()
+    onUndoLast()
+  }
+}
+onMounted(() => window.addEventListener('keydown', onUndoKeydown))
+onUnmounted(() => window.removeEventListener('keydown', onUndoKeydown))
+
+async function onCloseDialog() {
+  if (organizeCount.value > 0) {
+    const undo = await promptModal<boolean>(OrganizeConfirmModal, { count: organizeCount.value })
+    if (undo) {
+      undoAll()
+    }
+  }
+  clearOrganizeUndo()
+  closeDialog()
+}
+
 const { downloadFile, deleteFile, renameFile, handleActionSuccess } =
   useLightboxFileActions(current, fileInfo, tagsMap, urlTokenKey, refetchInfo, isPhone, lightboxInfoVisible)
 
@@ -173,7 +217,7 @@ const { onLoad, onError, onPlaying, onPause, onVolumeChange } =
 
 function onBackdropClick() {
   if (props.popup) return
-  closeDialog()
+  onCloseDialog()
 }
 
 async function onOpenInWindow() {
