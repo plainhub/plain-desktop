@@ -34,6 +34,10 @@ export default {
   sms_notification_warning: '新しい SMS をリアルタイムで受信するには、携帯電話で PlainApp → 「Web設定」に移動し、「通知の管理」権限を有効にします。',
   archive_conversation: '会話をアーカイブ',
   trash_message: 'メッセージを削除',
+  review_mode: 'レビューモード',
+  review_remaining: '残り {count} 件、{trashed} 件削除',
+  review_hints: 'D/X: 削除 · K/→: 保持 · Z: 元に戻す',
+  review_all_done: 'すべて確認済み',
   archived: 'アーカイブ',
   unarchive: 'アーカイブ解除',
 }

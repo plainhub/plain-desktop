@@ -34,6 +34,10 @@ export default {
   sms_notification_warning: '若要即時接收新短訊，請在手機上開啟PlainApp→「Web 設定」→啟用「管理通知」權限。',
   archive_conversation: '封存對話',
   trash_message: '刪除簡訊',
+  review_mode: '整理模式',
+  review_remaining: '剩餘 {count} 條，已刪除 {trashed} 條',
+  review_hints: 'D/X：刪除 · K/→：保留 · Z：復原',
+  review_all_done: '已全部整理',
   archived: '已封存',
   unarchive: '取消封存',
 }

@@ -34,6 +34,10 @@ export default {
   sms_notification_warning: 'Để nhận SMS mới trong thời gian thực, hãy truy cập PlainApp trên điện thoại của bạn → "Cài đặt Web" → bật quyền "Quản lý thông báo".',
   archive_conversation: 'Lưu trữ cuộc trò chuyện',
   trash_message: 'Xóa tin nhắn',
+  review_mode: 'Chế độ xem xét',
+  review_remaining: 'Còn {count}, đã xóa {trashed}',
+  review_hints: 'D/X: Xóa · K/→: Giữ · Z: Hoàn tác',
+  review_all_done: 'Đã xem xét tất cả',
   archived: 'Đã lưu trữ',
   unarchive: 'Bỏ lưu trữ',
 }

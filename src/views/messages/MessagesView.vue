@@ -8,6 +8,7 @@
       @export="openExport"
       @call="send.callContact"
       @archive="archiveConversation"
+      @review="openReview"
     />
     <MessageChatList
       v-model:scroll-ref="chatScrollRef"
@@ -56,8 +57,9 @@ import { replacePath } from '@/plugins/router'
 import { useMainStore } from '@/stores/main'
 import { useTempStore } from '@/stores/temp'
 import { storeToRefs } from 'pinia'
-import { openModal } from '@/components/modal'
+import { openModal, promptModal } from '@/components/modal'
 import ExportSmsModal from '@/views/messages/ExportSmsModal.vue'
+import SmsReviewModal from '@/views/messages/SmsReviewModal.vue'
 import { DataType } from '@/lib/data'
 import { useMessageThread } from '@/hooks/message-thread'
 import { useSmsTrash } from '@/hooks/sms-trash'
@@ -280,6 +282,13 @@ function openExport() {
     contactName: thread.contactName.value,
     urlTokenKey: urlTokenKey.value,
   })
+}
+
+async function openReview() {
+  const items = [...thread.sortedItems.value].filter((i) => !i.id.startsWith('pending_'))
+  if (!items.length) return
+  const changed = await promptModal<boolean>(SmsReviewModal, { items })
+  if (changed) thread.applyThread(threadId.value, true)
 }
 
 function backToList() {

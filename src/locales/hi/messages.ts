@@ -34,6 +34,10 @@ export default {
   sms_notification_warning: 'वास्तविक समय में नया एसएमएस प्राप्त करने के लिए, अपने फोन पर PlainApp पर जाएं → "वेब सेटिंग्स" → "नोटिफिकेशन प्रबंधित करें" अनुमति सक्षम करें।',
   archive_conversation: 'बातचीत संग्रहीत करें',
   trash_message: 'संदेश हटाएं',
+  review_mode: 'समीक्षा मोड',
+  review_remaining: '{count} शेष, {trashed} हटाए गए',
+  review_hints: 'D/X: हटाएं · K/→: रखें · Z: पूर्ववत',
+  review_all_done: 'सभी समीक्षित',
   archived: 'संग्रहीत',
   unarchive: 'संग्रह से निकालें',
 }

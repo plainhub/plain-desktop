@@ -34,6 +34,10 @@ export default {
   sms_notification_warning: '새 SMS를 실시간으로 받으려면 휴대폰에서 PlainApp → "Web 설정" → "알림 관리" 권한을 활성화하세요.',
   archive_conversation: '대화 보관',
   trash_message: '메시지 삭제',
+  review_mode: '검토 모드',
+  review_remaining: '{count}개 남음, {trashed}개 삭제됨',
+  review_hints: 'D/X: 삭제 · K/→: 유지 · Z: 실행 취소',
+  review_all_done: '모두 검토 완료',
   archived: '보관됨',
   unarchive: '보관 취소',
 }
