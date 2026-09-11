@@ -33,6 +33,7 @@ export default {
   body: 'Vücut',
   sms_notification_warning: 'Yeni SMS\'i gerçek zamanlı olarak almak için telefonunuzdaki PlainApp\'e gidin → "Web Ayarları" → "Bildirimleri Yönet" iznini etkinleştirin.',
   archive_conversation: 'Konuşmayı arşivle',
+  trash_message: 'Mesajı çöpe at',
   archived: 'Arşivlendi',
   unarchive: 'Arşivden çıkar',
 }

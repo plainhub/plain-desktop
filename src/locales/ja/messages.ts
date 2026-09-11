@@ -33,6 +33,7 @@ export default {
   body: '体',
   sms_notification_warning: '新しい SMS をリアルタイムで受信するには、携帯電話で PlainApp → 「Web設定」に移動し、「通知の管理」権限を有効にします。',
   archive_conversation: '会話をアーカイブ',
+  trash_message: 'メッセージを削除',
   archived: 'アーカイブ',
   unarchive: 'アーカイブ解除',
 }

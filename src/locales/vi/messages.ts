@@ -33,6 +33,7 @@ export default {
   body: 'Thân hình',
   sms_notification_warning: 'Để nhận SMS mới trong thời gian thực, hãy truy cập PlainApp trên điện thoại của bạn → "Cài đặt Web" → bật quyền "Quản lý thông báo".',
   archive_conversation: 'Lưu trữ cuộc trò chuyện',
+  trash_message: 'Xóa tin nhắn',
   archived: 'Đã lưu trữ',
   unarchive: 'Bỏ lưu trữ',
 }

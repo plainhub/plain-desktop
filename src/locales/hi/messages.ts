@@ -33,6 +33,7 @@ export default {
   body: 'शरीर',
   sms_notification_warning: 'वास्तविक समय में नया एसएमएस प्राप्त करने के लिए, अपने फोन पर PlainApp पर जाएं → "वेब सेटिंग्स" → "नोटिफिकेशन प्रबंधित करें" अनुमति सक्षम करें।',
   archive_conversation: 'बातचीत संग्रहीत करें',
+  trash_message: 'संदेश हटाएं',
   archived: 'संग्रहीत',
   unarchive: 'संग्रह से निकालें',
 }

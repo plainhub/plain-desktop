@@ -33,6 +33,7 @@ export default {
   body: '몸',
   sms_notification_warning: '새 SMS를 실시간으로 받으려면 휴대폰에서 PlainApp → "Web 설정" → "알림 관리" 권한을 활성화하세요.',
   archive_conversation: '대화 보관',
+  trash_message: '메시지 삭제',
   archived: '보관됨',
   unarchive: '보관 취소',
 }

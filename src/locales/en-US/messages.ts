@@ -33,6 +33,7 @@ export default {
   sms_address: 'Address',
   sms_notification_warning: 'To receive new SMS in real time, go to the PlainApp on your phone → "Web Settings" → enable "Manage Notifications" permission.',
   archive_conversation: 'Archive Conversation',
+  trash_message: 'Trash Message',
   archived: 'Archived',
   unarchive: 'Unarchive',
 }

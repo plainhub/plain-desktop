@@ -33,6 +33,7 @@ export default {
   type_a_reply: '輸入回覆...',
   sms_notification_warning: '若要即時接收新短訊，請在手機上開啟PlainApp→「Web 設定」→啟用「管理通知」權限。',
   archive_conversation: '封存對話',
+  trash_message: '刪除簡訊',
   archived: '已封存',
   unarchive: '取消封存',
 }

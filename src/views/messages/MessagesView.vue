@@ -20,6 +20,7 @@
       :tags="thread.tags.value"
       :type="DataType.SMS"
       @scroll="thread.onScroll"
+      @trash="trashMessage"
     />
     <MessageChatInput
       v-model="send.messageBody.value"
@@ -59,6 +60,7 @@ import { openModal } from '@/components/modal'
 import ExportSmsModal from '@/views/messages/ExportSmsModal.vue'
 import { DataType } from '@/lib/data'
 import { useMessageThread } from '@/hooks/message-thread'
+import { useSmsTrash } from '@/hooks/sms-trash'
 import { useMessageSend } from '@/hooks/message-send'
 import MessageChatHeader from '@/views/messages/MessageChatHeader.vue'
 import MessageChatList from '@/views/messages/MessageChatList.vue'
@@ -72,7 +74,7 @@ import type { ChatCaptureDestination, ChatCaptureTarget } from '@/lib/screen-cap
 import { sendCapturedMms, snapshotMessageCaptureDestination } from './message-capture'
 import { initLazyQuery, smsConversationsGQL, smsConversationsWithAddressesGQL, type QueryResponseContext } from '@/lib/api/query'
 import { buildQuery } from '@/lib/search'
-import type { IMessageConversation } from '@/lib/interfaces'
+import type { IMessage, IMessageConversation } from '@/lib/interfaces'
 import { subscribeMmsSendResults, subscribeSmsSendResults, takeMmsSendResult, takeSmsSendResult } from '@/lib/sms-result-ledger'
 
 const mainStore = useMainStore()
@@ -262,6 +264,14 @@ async function onSend() {
 
 async function archiveConversation() {
   if (await smsStore.archiveConversations([threadId.value])) backToList()
+}
+
+const smsTrash = useSmsTrash()
+
+function trashMessage(item: IMessage) {
+  smsTrash.trash(buildQuery([{ name: 'ids', op: '', value: item.id }]))
+  // optimistic removal; list refetches via media_items_actioned subscriber
+  thread.items.value = thread.items.value.filter((i) => i.id !== item.id)
 }
 
 function openExport() {
