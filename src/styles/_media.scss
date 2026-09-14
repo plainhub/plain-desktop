@@ -62,20 +62,6 @@
       left: 0;
       top: 0;
       z-index: 1;
-      color: var(--md-sys-color-primary);
-      /* Add white background to the svg icon */
-      &::before {
-        content: '';
-        position: absolute;
-        width: 20px;
-        height: 20px;
-        top: 50%;
-        left: 50%;
-        transform: translate(-50%, -50%);
-        border-radius: 50%;
-        background: var(--md-sys-color-surface);
-        z-index: -1;
-      }
     }
     &.selected {
       padding: 16px;
@@ -90,11 +76,6 @@
       background: rgba(79, 95, 158, 0.4);
       border-radius: 8px;
       z-index: 1;
-    }
-    &.selecting {
-      .btn-checkbox {
-        color: var(--md-sys-color-primary);
-      }
     }
   }
 

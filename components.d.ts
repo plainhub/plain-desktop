@@ -460,6 +460,7 @@ declare module 'vue' {
     UxOverlays: typeof import('./src/views/ux/UxOverlays.vue')['default']
     UxView: typeof import('./src/views/ux/UxView.vue')['default']
     VCheckbox: typeof import('./src/components/base/VCheckbox.vue')['default']
+    VCheckCircle: typeof import('./src/components/base/VCheckCircle.vue')['default']
     VChipSet: typeof import('./src/components/base/VChipSet.vue')['default']
     VCircularProgress: typeof import('./src/components/base/VCircularProgress.vue')['default']
     VDropdown: typeof import('./src/components/base/VDropdown.vue')['default']

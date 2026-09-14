@@ -7,12 +7,7 @@
   >
     <slot name="thumbnail" />
     <v-icon-button class="btn-checkbox" @click.stop="$emit('toggle-select', $event)">
-      <template v-if="shiftEffectingIds.includes(item.id)">
-        <i-material-symbols:check-circle-rounded v-if="shouldSelect" />
-        <i-material-symbols:check-circle-outline-rounded v-else />
-      </template>
-      <i-material-symbols:check-circle-rounded v-else-if="selectedIds.includes(item.id)" />
-      <i-material-symbols:check-circle-outline-rounded v-else />
+      <v-check-circle :checked="isChecked" />
     </v-icon-button>
     <v-icon-button v-if="checked" v-tooltip="$t('open')" class="btn-zoom sm" @click.stop="$emit('view')">
       <i-material-symbols:zoom-in-rounded />
@@ -25,10 +20,11 @@
 </template>
 
 <script setup lang="ts">
+import { computed } from 'vue'
 import type { DataType } from '@/lib/data'
 import type { ITag } from '@/lib/interfaces'
 
-defineProps<{
+const props = defineProps<{
   item: { id: string; tags: ITag[] }
   checked: boolean
   selectedIds: string[]
@@ -36,6 +32,10 @@ defineProps<{
   shouldSelect: boolean
   dataType: DataType
 }>()
+
+const isChecked = computed(() =>
+  props.shiftEffectingIds.includes(props.item.id) ? props.shouldSelect : props.selectedIds.includes(props.item.id)
+)
 
 defineEmits<{
   (e: 'item-click', event: MouseEvent): void

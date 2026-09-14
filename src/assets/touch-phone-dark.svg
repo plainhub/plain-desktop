@@ -51,16 +51,16 @@
 
   <rect x="180" y="98" width="40" height="10" rx="5" fill="#5A6272" opacity="0.9" />
 
-  <circle class="ripple" cx="200" cy="260" r="25" fill="#4F97FF" />
+  <circle class="ripple" cx="200" cy="260" r="25" fill="#b8c4ff" />
   <rect x="160" y="135" width="80" height="6" rx="3" fill="#687080" opacity="0.5" />
   <rect x="160" y="150" width="50" height="6" rx="3" fill="#687080" opacity="0.3" />
   <g class="btn-unit">
-    <rect x="155" y="235" width="90" height="50" rx="25" fill="#4F97FF" />
-    <path class="check-icon" d="M188 260 l8 8 l14 -14" stroke="#FFFFFF" stroke-width="4" fill="none" stroke-linecap="round" stroke-linejoin="round" />
+    <rect x="155" y="235" width="90" height="50" rx="25" fill="#b8c4ff" />
+    <path class="check-icon" d="M188 260 l8 8 l14 -14" stroke="#1f2e61" stroke-width="4" fill="none" stroke-linecap="round" stroke-linejoin="round" />
   </g>
 
   <g class="touch-point">
-    <circle cx="200" cy="260" r="24" fill="#4F97FF" opacity="0.45" />
+    <circle cx="200" cy="260" r="24" fill="#b8c4ff" opacity="0.45" />
     <circle cx="200" cy="260" r="12" fill="#FFFFFF" opacity="0.35" />
   </g>
 </svg>

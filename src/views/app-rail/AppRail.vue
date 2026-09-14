@@ -1,15 +1,11 @@
 <template>
   <nav class="app-rail">
-    <router-link v-if="!localMode" to="/" class="rail-brand" aria-label="PlainApp home">
-      <span class="brand-logo" aria-hidden="true"></span>
-    </router-link>
-
     <div class="rail-items">
       <router-link
         v-if="!localMode"
         v-tooltip="$t('page_title.home')"
         to="/"
-        class="rail-item rail-home"
+        class="rail-item"
         :class="{ active: isHomeActive() }"
         :aria-label="$t('page_title.home')"
       >
@@ -111,36 +107,6 @@ onBeforeUnmount(() => {
   padding: 8px 0;
 }
 
-.rail-brand {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  border-radius: 12px;
-  width: 40px;
-  height: 40px;
-  margin: 4px 0 10px;
-  color: var(--md-sys-color-on-surface-variant);
-  flex-shrink: 0;
-  background: none;
-  border: none;
-  padding: 0;
-  cursor: pointer;
-}
-
-.rail-brand:hover {
-  background: color-mix(in srgb, var(--md-sys-color-primary) 10%, transparent);
-}
-
-.app-rail .brand-logo {
-  width: 40px;
-  height: 40px;
-  display: block;
-  background-image: url('/logo.svg');
-  background-repeat: no-repeat;
-  background-position: center;
-  background-size: contain;
-}
-
 .rail-items {
   display: flex;
   flex-direction: column;
@@ -157,8 +123,8 @@ onBeforeUnmount(() => {
 }
 
 .rail-item {
-  width: 56px;
-  height: 72px;
+  width: 48px;
+  height: 64px;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -184,10 +150,6 @@ onBeforeUnmount(() => {
   text-align: center;
 }
 
-.rail-item.rail-home {
-  display: none;
-}
-
 .rail-item:hover,
 .rail-item.active {
   background: color-mix(in srgb, var(--md-sys-color-primary) 12%, transparent);
@@ -207,7 +169,6 @@ onBeforeUnmount(() => {
     padding: 4px 8px calc(4px + env(safe-area-inset-bottom));
   }
 
-  .rail-brand,
   .rail-spacer {
     display: none;
   }
@@ -216,10 +177,6 @@ onBeforeUnmount(() => {
     flex-direction: row;
     overflow-x: auto;
     overflow-y: hidden;
-  }
-
-  .rail-item.rail-home {
-    display: flex;
   }
 
   .rail-item {
