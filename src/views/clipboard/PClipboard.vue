@@ -24,6 +24,7 @@
         v-else
         :loading="loading"
         :placeholder-key="clipboardSync ? '' : 'clipboard_sync_disabled'"
+        feature="CLIPBOARD_SYNC"
       />
       <v-pagination
         v-if="total > limit"

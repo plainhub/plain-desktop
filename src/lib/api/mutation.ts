@@ -474,8 +474,8 @@ export const openAccessibilitySettingsGQL = `
 `
 
 export const openWebSettingsGQL = `
-  mutation openWebSettings {
-    openWebSettings
+  mutation openWebSettings($feature: AccessFeatureType) {
+    openWebSettings(feature: $feature)
   }
 `
 

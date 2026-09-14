@@ -176,5 +176,5 @@ export async function replyPeerNotification(peerId: string, id: string, actionIn
 export async function openPeerNotificationSettings(peerId: string) {
   const peer = findLoginPeer(peerId)
   if (!peer) return
-  await gqlFetchPeer(peer, openWebSettingsGQL).catch(() => {})
+  await gqlFetchPeer(peer, openWebSettingsGQL, { feature: 'NOTIFICATIONS' }).catch(() => {})
 }
