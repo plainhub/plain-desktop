@@ -25,14 +25,14 @@
           >
             {{ $t('allow') }}
           </v-filled-button>
-          <v-filled-button
+          <v-outlined-button
             class="btn-block danger"
             :loading="denyBusy"
             :disabled="busy"
             @click="deny"
           >
             {{ $t('deny') }}
-          </v-filled-button>
+          </v-outlined-button>
         </div>
       </div>
     </template>

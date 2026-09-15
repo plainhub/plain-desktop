@@ -50,29 +50,35 @@
           />
         </div>
         <div class="media-grid" :class="{ 'select-mode': checked }">
+          <!-- eslint-disable vue/valid-v-memo -->
           <MediaGridItem
-v-for="{ item, idx } in group.entries" :key="item.id" :item="item" :checked="checked"
-            :selected-ids="selectedIds" :shift-effecting-ids="shiftEffectingIds" :should-select="shouldSelect" :data-type="dataType"
+            v-for="{ item, idx } in group.entries" :key="item.id"
+            v-memo="[checked, selectedIdSet.has(item.id), shiftEffectingIdSet.has(item.id), shiftEffectingIdSet.has(item.id) && shouldSelect, item, imageErrorIdSet.has(item.id), idx]"
+            :item="item" :checked="checked"
+            :selected="selectedIdSet.has(item.id)" :shift-selected="shiftEffectingIdSet.has(item.id)" :should-select="shouldSelect" :data-type="dataType"
             @item-click="handleItemClick($event, item, idx, view)" @item-mouse-enter="handleMouseOverMode($event, idx)"
             @toggle-select="toggleSelect($event, item, idx)" @view="view(idx)">
             <template #thumbnail>
-              <img v-if="imageErrorIds.includes(item.id)" :src="`/ficons/${getFileExtension(item.path)}.svg`" class="image svg" />
+              <img v-if="imageErrorIdSet.has(item.id)" :src="`/ficons/${getFileExtension(item.path)}.svg`" class="image svg" />
               <img v-else class="image image-thumb" :src="getFileUrl(item.fileId, '&w=512&h=512')" loading="lazy" @error="onImageError(item.id)" />
             </template>
             <template #info-right>{{ formatSeconds(item.duration) }}</template>
           </MediaGridItem>
+          <!-- eslint-enable vue/valid-v-memo -->
         </div>
       </div>
     </template>
 
     <div v-else-if="!mainStore.videosCardView" class="media-grid" :class="{ 'select-mode': checked }">
       <MediaGridItem
-v-for="(item, i) in items" :key="item.id" :item="item" :checked="checked"
-        :selected-ids="selectedIds" :shift-effecting-ids="shiftEffectingIds" :should-select="shouldSelect" :data-type="dataType"
+        v-for="(item, i) in items" :key="item.id"
+        v-memo="[checked, selectedIdSet.has(item.id), shiftEffectingIdSet.has(item.id), shiftEffectingIdSet.has(item.id) && shouldSelect, item, imageErrorIdSet.has(item.id), videoSortBy, i]"
+        :item="item" :checked="checked"
+        :selected="selectedIdSet.has(item.id)" :shift-selected="shiftEffectingIdSet.has(item.id)" :should-select="shouldSelect" :data-type="dataType"
         @item-click="handleItemClick($event, item, i, view)" @item-mouse-enter="handleMouseOverMode($event, i)"
         @toggle-select="toggleSelect($event, item, i)" @view="view(i)">
         <template #thumbnail>
-          <img v-if="imageErrorIds.includes(item.id)" :src="`/ficons/${getFileExtension(item.path)}.svg`" class="image svg" />
+          <img v-if="imageErrorIdSet.has(item.id)" :src="`/ficons/${getFileExtension(item.path)}.svg`" class="image svg" />
           <img v-else class="image image-thumb" :src="getFileUrl(item.fileId, '&w=512&h=512')" loading="lazy" @error="onImageError(item.id)" />
         </template>
         <template #info-right>{{ ['SIZE_ASC', 'SIZE_DESC'].includes(videoSortBy) ? formatFileSize(item.size) : formatSeconds(item.duration) }}</template>
@@ -129,6 +135,7 @@ const items = ref<IVideoItem[]>([])
 const sortItems = getSortItems()
 const groupByItems = getVideoGroupByItems()
 const imageErrorIds = ref<string[]>([])
+const imageErrorIdSet = computed(() => new Set(imageErrorIds.value))
 
 const mp = useMediaPage({
   dataType: DataType.VIDEO, routePath: 'videos',
@@ -145,6 +152,7 @@ const {
   tags, bucketsMap, deleteItems, deleteItem, confirmingDelete, deleteCount, deleteLoading, doDeleteItems, cancelDeleteItems, viewBucket,
   selectedIds, allChecked, realAllChecked, selectRealAll, allCheckedAlertVisible,
   clearSelection, toggleAllChecked, toggleSelect, total, checked, shiftEffectingIds, handleItemClick, shouldSelect, groupSelectionState, setGroupChecked, toggleGroupChecked,
+  selectedIdSet, shiftEffectingIdSet,
   downloadItems, downloadFile, trashLoading, trash, restoreLoading, restore,
   gotoPage, onChangePageSize, getQuery, sort, handleMouseOverMode,
   uploadFilesClick, uploadDirClick, dropFiles2,

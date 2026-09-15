@@ -1,7 +1,7 @@
 <template>
   <section
     class="media-item"
-    :class="{ selected: selectedIds.includes(item.id), selecting: shiftEffectingIds.includes(item.id) }"
+    :class="{ selected, selecting: shiftSelected }"
     @click.stop="$emit('item-click', $event)"
     @mouseenter.stop="$emit('item-mouse-enter', $event)"
   >
@@ -27,15 +27,13 @@ import type { ITag } from '@/lib/interfaces'
 const props = defineProps<{
   item: { id: string; tags: ITag[] }
   checked: boolean
-  selectedIds: string[]
-  shiftEffectingIds: string[]
+  selected: boolean
+  shiftSelected: boolean
   shouldSelect: boolean
   dataType: DataType
 }>()
 
-const isChecked = computed(() =>
-  props.shiftEffectingIds.includes(props.item.id) ? props.shouldSelect : props.selectedIds.includes(props.item.id)
-)
+const isChecked = computed(() => (props.shiftSelected ? props.shouldSelect : props.selected))
 
 defineEmits<{
   (e: 'item-click', event: MouseEvent): void

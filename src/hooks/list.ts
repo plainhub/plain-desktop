@@ -9,14 +9,16 @@ export const useSelectable = (items: Ref<IData[]>) => {
   const realAllChecked = ref(false)
   const total = ref(0)
   const selectedIds = ref<string[]>([])
+  const selectedIdSet = computed(() => new Set(selectedIds.value))
   // shift select
   const lastCheckedIndex = ref<number | null>(null)
   const shiftEffectingIds = ref<string[]>([])
+  const shiftEffectingIdSet = computed(() => new Set(shiftEffectingIds.value))
   const shouldSelect = ref(false)
 
   const updateAllCheckState = (checked: boolean) => {
     if (checked) {
-      allChecked.value = items.value.every((it) => selectedIds.value.includes(it.id))
+      allChecked.value = items.value.every((it) => selectedIdSet.value.has(it.id))
     } else {
       allChecked.value = false
       realAllChecked.value = false
@@ -46,13 +48,13 @@ export const useSelectable = (items: Ref<IData[]>) => {
       : getShiftEffectingIds(index)
     if (ids.length > 0) {
       if (shouldSelect.value) {
-        for (const id of ids) {
-          if (!selectedIds.value.includes(id)) {
-            selectedIds.value.push(id)
-          }
+        const additions = ids.filter((id) => !selectedIdSet.value.has(id))
+        if (additions.length > 0) {
+          selectedIds.value = [...selectedIds.value, ...additions]
         }
       } else {
-        selectedIds.value = selectedIds.value.filter((it) => !ids.includes(it))
+        const removals = new Set(ids)
+        selectedIds.value = selectedIds.value.filter((it) => !removals.has(it))
       }
     } else {
       checkItem(!selectedIds.value.includes(item.id), item, index)
@@ -81,7 +83,7 @@ export const useSelectable = (items: Ref<IData[]>) => {
   }
 
   const groupSelectionState = (groupItems: IData[]) => {
-    const count = groupItems.reduce((acc, it) => acc + (selectedIds.value.includes(it.id) ? 1 : 0), 0)
+    const count = groupItems.reduce((acc, it) => acc + (selectedIdSet.value.has(it.id) ? 1 : 0), 0)
     return {
       checked: groupItems.length > 0 && count === groupItems.length,
       indeterminate: count > 0 && count < groupItems.length,
@@ -137,6 +139,7 @@ export const useSelectable = (items: Ref<IData[]>) => {
       shiftEffectingIds.value = []
     },
     selectedIds,
+    selectedIdSet,
     total,
     checked: computed<boolean>(() => {
       return selectedIds.value.length > 0
@@ -144,6 +147,7 @@ export const useSelectable = (items: Ref<IData[]>) => {
     // shift select
     shouldSelect,
     shiftEffectingIds,
+    shiftEffectingIdSet,
     toggleSelect: (event: MouseEvent, item: IData, index: number) => {
       if (event.shiftKey) {
         toggleShiftSelection(item, index)
