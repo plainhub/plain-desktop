@@ -26,6 +26,7 @@ export enum MessageType {
   TEXT = 'TEXT',
   IMAGES = 'IMAGES',
   FILES = 'FILES',
+  SHARE = 'SHARE',
 }
 
 export enum DeviceType {

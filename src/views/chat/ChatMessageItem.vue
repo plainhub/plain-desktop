@@ -71,6 +71,7 @@ import { useRevealFile } from './hooks/reveal-file'
 import ChatImages from './ChatImages.vue'
 import ChatLinkPreviews from './ChatLinkPreviews.vue'
 import ChatFiles from './ChatFiles.vue'
+import ChatShare from './ChatShare.vue'
 import type { IChatItem, IPeer } from '@/lib/interfaces'
 import { ChatStatus, MessageType } from '@/lib/status'
 
@@ -181,6 +182,6 @@ function doRetry() {
   emit('retry', props.data.id, props.data.statusData)
 }
 
-const componentMap: Record<string, any> = { [MessageType.IMAGES]: ChatImages, [MessageType.FILES]: ChatFiles, linkPreviews: ChatLinkPreviews }
+const componentMap: Record<string, any> = { [MessageType.IMAGES]: ChatImages, [MessageType.FILES]: ChatFiles, [MessageType.SHARE]: ChatShare, linkPreviews: ChatLinkPreviews }
 function getComponent(type: string) { return componentMap[type] }
 </script>

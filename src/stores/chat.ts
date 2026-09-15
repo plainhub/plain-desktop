@@ -80,6 +80,9 @@ export const useChatStore = defineStore('chat', () => {
       const count = content?.value?.items?.length ?? 0
       return count > 1 ? `${count} ${t('files')}` : t('file')
     }
+    if (content?.type === MessageType.SHARE) {
+      return t('shared_folder')
+    }
     return t('message')
   }
 
