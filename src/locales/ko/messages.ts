@@ -37,6 +37,8 @@ export default {
   review_mode: '검토 모드',
   review_remaining: '{count}개 남음, {trashed}개 삭제됨',
   review_hints: 'D/X: 삭제 · K/→: 유지 · Z: 실행 취소',
+  permanent_delete: '영구 삭제',
+  permanent_delete_hint: '영구 삭제된 메시지는 앱에서 복원할 수 없습니다. 삭제 전 30일간 앱 저장소에 보관됩니다.',
   review_all_done: '모두 검토 완료',
   archived: '보관됨',
   unarchive: '보관 취소',

@@ -37,6 +37,8 @@ export default {
   review_mode: '整理模式',
   review_remaining: '剩餘 {count} 條，已刪除 {trashed} 條',
   review_hints: 'D/X：刪除 · K/→：保留 · Z：復原',
+  permanent_delete: '永久刪除',
+  permanent_delete_hint: '永久刪除的簡訊無法從應用程式復原。刪除前會在應用程式儲存空間中封存 30 天。',
   review_all_done: '已全部整理',
   archived: '已封存',
   unarchive: '取消封存',

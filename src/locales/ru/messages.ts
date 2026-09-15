@@ -41,6 +41,8 @@ export default {
   review_mode: 'Режим проверки',
   review_remaining: 'Осталось: {count}, удалено: {trashed}',
   review_hints: 'D/X: Удалить · K/→: Оставить · Z: Отменить',
+  permanent_delete: 'Удалить навсегда',
+  permanent_delete_hint: 'Безвозвратно удалённые сообщения нельзя восстановить из приложения. Перед удалением они архивируются в хранилище приложения на 30 дней.',
   review_all_done: 'Все проверены',
   archived: 'Архив',
   unarchive: 'Разархивировать',

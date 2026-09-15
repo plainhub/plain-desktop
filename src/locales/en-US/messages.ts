@@ -37,6 +37,8 @@ export default {
   review_mode: 'Review Mode',
   review_remaining: '{count} remaining, {trashed} trashed',
   review_hints: 'D/X: Trash · K/→: Keep · Z: Undo',
+  permanent_delete: 'Permanently delete',
+  permanent_delete_hint: 'Permanently deleted messages cannot be restored from the app. They are archived in app storage for 30 days before deletion.',
   review_all_done: 'All reviewed',
   archived: 'Archived',
   unarchive: 'Unarchive',

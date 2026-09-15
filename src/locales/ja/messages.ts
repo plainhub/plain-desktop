@@ -37,6 +37,8 @@ export default {
   review_mode: 'レビューモード',
   review_remaining: '残り {count} 件、{trashed} 件削除',
   review_hints: 'D/X: 削除 · K/→: 保持 · Z: 元に戻す',
+  permanent_delete: '完全に削除',
+  permanent_delete_hint: '完全に削除されたメッセージはアプリから復元できません。削除前に 30 日間アプリストレージにアーカイブされます。',
   review_all_done: 'すべて確認済み',
   archived: 'アーカイブ',
   unarchive: 'アーカイブ解除',

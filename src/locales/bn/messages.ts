@@ -37,6 +37,8 @@ export default {
   review_mode: 'রিভিউ মোড',
   review_remaining: '{count} বাকি, {trashed} মুছে ফেলা হয়েছে',
   review_hints: 'D/X: মুছুন · K/→: রাখুন · Z: আনডু',
+  permanent_delete: 'স্থায়ীভাবে মুছুন',
+  permanent_delete_hint: 'স্থায়ীভাবে মুছে ফেলা বার্তা অ্যাপ থেকে পুনরুদ্ধার করা যাবে না। মুছে ফেলার আগে সেগুলি ৩০ দিনের জন্য অ্যাপ স্টোরেজে সংরক্ষিত হয়।',
   review_all_done: 'সব দেখা হয়ে গেছে',
   archived: 'সংরক্ষিত',
   unarchive: 'সংরক্ষণ বাতিল করুন',

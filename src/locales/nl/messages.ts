@@ -37,6 +37,8 @@ export default {
   review_mode: 'Controlemodus',
   review_remaining: '{count} resterend, {trashed} verwijderd',
   review_hints: 'D/X: Verwijderen · K/→: Houden · Z: Ongedaan maken',
+  permanent_delete: 'Definitief verwijderen',
+  permanent_delete_hint: 'Definitief verwijderde berichten kunnen niet vanuit de app worden hersteld. Vóór het verwijderen worden ze 30 dagen in de app-opslag gearchiveerd.',
   review_all_done: 'Alles gecontroleerd',
   archived: 'Gearchiveerd',
   unarchive: 'Archivering ongedaan maken',

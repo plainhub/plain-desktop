@@ -37,6 +37,8 @@ export default {
   review_mode: 'Modo de revisión',
   review_remaining: '{count} restantes, {trashed} eliminados',
   review_hints: 'D/X: Eliminar · K/→: Conservar · Z: Deshacer',
+  permanent_delete: 'Eliminar permanentemente',
+  permanent_delete_hint: 'Los mensajes eliminados permanentemente no se pueden restaurar desde la aplicación. Antes de eliminarlos, se archivan en el almacenamiento de la aplicación durante 30 días.',
   review_all_done: 'Todo revisado',
   archived: 'Archivado',
   unarchive: 'Desarchivar',

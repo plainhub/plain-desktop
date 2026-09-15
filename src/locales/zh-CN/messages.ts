@@ -37,6 +37,8 @@ export default {
   review_mode: '整理模式',
   review_remaining: '剩余 {count} 条，已删除 {trashed} 条',
   review_hints: 'D/X：删除 · K/→：保留 · Z：撤销',
+  permanent_delete: '永久删除',
+  permanent_delete_hint: '永久删除的短信无法从应用恢复。删除前会在应用存储中归档 30 天。',
   review_all_done: '已全部整理',
   archived: '已归档',
   unarchive: '取消归档',

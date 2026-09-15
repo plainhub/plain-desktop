@@ -37,6 +37,8 @@ export default {
   review_mode: 'Chế độ xem xét',
   review_remaining: 'Còn {count}, đã xóa {trashed}',
   review_hints: 'D/X: Xóa · K/→: Giữ · Z: Hoàn tác',
+  permanent_delete: 'Xóa vĩnh viễn',
+  permanent_delete_hint: 'Tin nhắn đã xóa vĩnh viễn không thể khôi phục từ ứng dụng. Trước khi xóa, chúng được lưu trữ trong bộ nhớ ứng dụng trong 30 ngày.',
   review_all_done: 'Đã xem xét tất cả',
   archived: 'Đã lưu trữ',
   unarchive: 'Bỏ lưu trữ',

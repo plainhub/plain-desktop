@@ -37,6 +37,8 @@ export default {
   review_mode: 'Überprüfungsmodus',
   review_remaining: '{count} übrig, {trashed} gelöscht',
   review_hints: 'D/X: Löschen · K/→: Behalten · Z: Rückgängig',
+  permanent_delete: 'Endgültig löschen',
+  permanent_delete_hint: 'Endgültig gelöschte Nachrichten können nicht aus der App wiederhergestellt werden. Vor dem Löschen werden sie 30 Tage im App-Speicher archiviert.',
   review_all_done: 'Alle überprüft',
   archived: 'Archiviert',
   unarchive: 'Archivierung aufheben',

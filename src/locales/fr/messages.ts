@@ -37,6 +37,8 @@ export default {
   review_mode: 'Mode de révision',
   review_remaining: '{count} restants, {trashed} supprimés',
   review_hints: 'D/X : Supprimer · K/→ : Garder · Z : Annuler',
+  permanent_delete: 'Supprimer définitivement',
+  permanent_delete_hint: 'Les messages supprimés définitivement ne peuvent pas être restaurés depuis l’app. Avant la suppression, ils sont archivés 30 jours dans le stockage de l’app.',
   review_all_done: 'Tout est révisé',
   archived: 'Archivé',
   unarchive: 'Désarchiver',

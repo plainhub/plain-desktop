@@ -377,6 +377,12 @@ export const imageSearchStatusGQL = `
   }
 `
 
+export const smsDeleteAvailableGQL = `
+  query {
+    smsDeleteAvailable
+  }
+`
+
 export const videosGQL = `
   query videos($offset: Int!, $limit: Int!, $query: String!, $sortBy: FileSortBy!) {
     videos(offset: $offset, limit: $limit, query: $query, sortBy: $sortBy) {

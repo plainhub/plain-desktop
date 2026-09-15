@@ -318,6 +318,12 @@ export const restoreSmsGQL = `
   }
 `
 
+export const deleteSmsGQL = `
+  mutation deleteSms($query: String!) {
+    deleteSms(query: $query)
+  }
+`
+
 export const removeFromTagsGQL = `
   mutation removeFromTags($type: DataType!, $tagIds: [ID!]!, $query: String!) {
     removeFromTags(type: $type, tagIds: $tagIds, query: $query)

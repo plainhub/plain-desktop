@@ -37,6 +37,8 @@ export default {
   review_mode: 'İnceleme Modu',
   review_remaining: '{count} kaldı, {trashed} çöpe atıldı',
   review_hints: 'D/X: Çöpe at · K/→: Tut · Z: Geri al',
+  permanent_delete: 'Kalıcı olarak sil',
+  permanent_delete_hint: 'Kalıcı olarak silinen mesajlar uygulamadan geri getirilemez. Silmeden önce 30 gün boyunca uygulama deposunda arşivlenir.',
   review_all_done: 'Tümü incelendi',
   archived: 'Arşivlendi',
   unarchive: 'Arşivden çıkar',

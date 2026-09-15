@@ -37,6 +37,8 @@ export default {
   review_mode: 'समीक्षा मोड',
   review_remaining: '{count} शेष, {trashed} हटाए गए',
   review_hints: 'D/X: हटाएं · K/→: रखें · Z: पूर्ववत',
+  permanent_delete: 'स्थायी रूप से हटाएं',
+  permanent_delete_hint: 'स्थायी रूप से हटाए गए संदेश ऐप से पुनर्प्राप्त नहीं किए जा सकते। हटाने से पहले वे 30 दिनों के लिए ऐप स्टोरेज में संग्रहित होते हैं।',
   review_all_done: 'सभी समीक्षित',
   archived: 'संग्रहीत',
   unarchive: 'संग्रह से निकालें',

@@ -37,6 +37,8 @@ export default {
   review_mode: 'Modo de revisão',
   review_remaining: '{count} restantes, {trashed} excluídas',
   review_hints: 'D/X: Excluir · K/→: Manter · Z: Desfazer',
+  permanent_delete: 'Excluir permanentemente',
+  permanent_delete_hint: 'Mensagens excluídas permanentemente não podem ser restauradas pelo aplicativo. Antes da exclusão, elas são arquivadas no armazenamento do aplicativo por 30 dias.',
   review_all_done: 'Tudo revisado',
   archived: 'Arquivado',
   unarchive: 'Desarquivar',

@@ -37,6 +37,8 @@ export default {
   review_mode: 'Modalità revisione',
   review_remaining: '{count} rimanenti, {trashed} eliminati',
   review_hints: 'D/X: Elimina · K/→: Mantieni · Z: Annulla',
+  permanent_delete: 'Elimina definitivamente',
+  permanent_delete_hint: 'I messaggi eliminati definitivamente non possono essere ripristinati dall’app. Prima dell’eliminazione vengono archiviati nell’archiviazione dell’app per 30 giorni.',
   review_all_done: 'Tutto rivisto',
   archived: 'Archiviato',
   unarchive: 'Rimuovi dall\'archivio',
