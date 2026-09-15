@@ -1,25 +1,14 @@
 <template>
   <LightboxFileInfoItem v-if="sortedBuckets.length" :label="$t('move_to_folder')">
     <ul class="folder-grid">
-      <li
-        v-for="bucket in visibleBuckets"
-        :key="bucket.id"
-        class="folder-item"
-        :class="{ current: isCurrentBucket(bucket) }"
-        @click="onPick(bucket)"
-      >
-        <span class="thumb" :class="thumbClass(bucket)">
-          <template v-if="bucketThumbs(bucket).length">
-            <img v-for="(p, i) in bucketThumbs(bucket)" :key="i" class="thumb-img" :src="thumbUrl(p)" loading="lazy" alt="" onerror="this.style.display='none'" />
-          </template>
-          <i-material-symbols:folder-rounded v-else />
-        </span>
+      <li v-for="bucket in visibleBuckets" :key="bucket.id" class="folder-item" @click="onPick(bucket)">
+        <BucketThumb :items="bucket.topItems" />
         <span class="name">{{ bucket.name }}</span>
       </li>
     </ul>
-    <button v-if="sortedBuckets.length > foldCount" class="toggle-more" @click.stop="showAll = !showAll">
+    <a v-if="sortedBuckets.length > foldCount" href="#" class="show-more" @click.prevent="showAll = !showAll">
       {{ showAll ? $t('show_less') : $t('show_more') }}
-    </button>
+    </a>
   </LightboxFileInfoItem>
 </template>
 
@@ -31,13 +20,11 @@ import { useI18n } from 'vue-i18n'
 import toast from '@/components/toaster'
 import emitter from '@/plugins/eventbus'
 import { getDirFromPath, isZipPath } from '@/lib/file'
-import { getFileId, getFileUrl } from '@/lib/api/file'
-import { useTempStore } from '@/stores/temp'
-import { storeToRefs } from 'pinia'
 import { useMoveItems } from '@/hooks/media'
 import { useOrganizeUndo } from '@/hooks/organize-undo'
 import { DataType } from '@/lib/data'
 import { sortByName } from '@/lib/array'
+import BucketThumb from '@/components/BucketThumb.vue'
 import LightboxFileInfoItem from './LightboxFileInfoItem.vue'
 import type { ISource } from './types'
 
@@ -51,8 +38,6 @@ const props = defineProps({
 const emit = defineEmits(['moved'])
 
 const { t } = useI18n()
-const tempStore = useTempStore()
-const { urlTokenKey } = storeToRefs(tempStore)
 
 const mediaBuckets = ref<IBucket[]>([])
 const showAll = ref(false)
@@ -79,18 +64,6 @@ const sortedBuckets = computed(() =>
 const visibleBuckets = computed(() =>
   showAll.value ? sortedBuckets.value : sortedBuckets.value.slice(0, foldCount),
 )
-
-function bucketThumbs(item: IBucket): string[] {
-  return item.topItems?.slice(0, 4) ?? []
-}
-
-function thumbUrl(path: string): string {
-  return getFileUrl(getFileId(urlTokenKey.value, path), '&w=128&h=128')
-}
-
-function thumbClass(item: IBucket) {
-  return `count-${bucketThumbs(item).length}`
-}
 
 function onPick(bucket: IBucket) {
   const source = props.current
@@ -145,7 +118,7 @@ onUnmounted(() => {
   margin: 0;
   padding: 0;
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
+  grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 8px;
 }
 
@@ -154,73 +127,31 @@ onUnmounted(() => {
   flex-direction: column;
   align-items: center;
   gap: 4px;
-  cursor: pointer;
-  padding: 6px 4px;
+  padding: 4px;
   border-radius: 8px;
+  cursor: pointer;
 
   &:hover {
     background: color-mix(in srgb, var(--md-sys-color-primary) 10%, transparent);
   }
-
-  .thumb {
-    width: 44px;
-    height: 44px;
-    display: grid;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 2px;
-    border-radius: 10px;
-    overflow: hidden;
-    background: color-mix(in srgb, var(--md-sys-color-primary) 12%, transparent);
-
-    &.count-1 {
-      grid-template-columns: minmax(0, 1fr);
-    }
-
-    &.count-0 {
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-      font-size: 22px;
-      color: var(--md-sys-color-on-surface-variant);
-    }
-
-    .thumb-img {
-      width: 100%;
-      height: 100%;
-      min-width: 0;
-      min-height: 0;
-      display: block;
-      object-fit: cover;
-    }
-  }
-
-  .name {
-    max-width: 100%;
-    font-size: 0.75rem;
-    color: var(--md-sys-color-on-surface-variant);
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-  }
-
-  &.current {
-    opacity: 0.5;
-    cursor: default;
-
-    &:hover {
-      background: none;
-    }
-  }
 }
 
-.toggle-more {
+.name {
+  max-width: 100%;
+  font-size: 0.75rem;
+  color: var(--md-sys-color-on-surface-variant);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.show-more {
+  display: inline-block;
   margin-top: 8px;
-  border: none;
-  background: none;
+  font-size: 0.75rem;
+  font-weight: 600;
   color: var(--md-sys-color-primary);
-  cursor: pointer;
-  padding: 4px 0;
-  font-size: 0.85rem;
+  text-decoration: none;
 
   &:hover {
     text-decoration: underline;
