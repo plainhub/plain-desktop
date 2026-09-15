@@ -53,6 +53,7 @@ const EventType: { [key: number]: string } = {
   36: 'sms_send_result',
   37: 'mms_send_result',
   38: 'upload_merge_result',
+  40: 'permissions_updated',
 }
 
 // Screen mirror binary frames (H.264 NAL / Opus) and image editor Yjs updates
