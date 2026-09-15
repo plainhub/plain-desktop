@@ -100,7 +100,7 @@ onBeforeUnmount(() => {
 <style lang="scss" scoped>
 .app-rail {
   grid-area: rail;
-  width: 80px;
+  width: 72px;
   display: flex;
   flex-direction: column;
   align-items: center;
