@@ -3,7 +3,7 @@ import { onActivated, onDeactivated, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { storeToRefs } from 'pinia'
 import { type IFile, enrichFile } from '@/lib/file'
-import { getFileUrlByPath } from '@/lib/api/file'
+import { getFileUrlByPath, getFileId } from '@/lib/api/file'
 import { useDownload, useView } from '@/hooks/files'
 import { openModal } from '@/components/modal'
 import DownloadMethodModal from '@/components/DownloadMethodModal.vue'
@@ -21,6 +21,7 @@ import { createUploadRefreshScheduler } from '@/lib/upload/refresh-scheduler'
 import { getIsPhone } from '@/hooks/device'
 import { useOpenMedia } from '@/hooks/open-media'
 import { useFileOpen } from '@/hooks/file-open'
+import { openUrl } from '@/lib/browser'
 
 export function useFilesRecent() {
   const { t } = useI18n()
@@ -51,6 +52,10 @@ export function useFilesRecent() {
 
   const { openFile } = useFileOpen<IFile>({
     items,
+    openTextFile: (item) => {
+      const fileId = getFileId(urlTokenKey.value, item.path)
+      openUrl(`/text-file?id=${encodeURIComponent(fileId)}`)
+    },
     openBrowserFile: (item) => window.open(getFileUrlByPath(urlTokenKey.value, item.path), '_blank'),
     viewMedia: view,
     download: (item) => downloadFile(item.path),

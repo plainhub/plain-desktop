@@ -24,6 +24,7 @@
     </div>
     <div class="title">
       {{ item.name }}
+      <OnlinePreviewIcon :name="item.name" :is-dir="item.isDir" />
     </div>
     <div class="subtitle">
       <span>{{ formatFileSize(item.size) }}</span>
@@ -76,7 +77,7 @@
       </div>
     </template>
     
-    <template #title>{{ item.name }}</template>
+    <template #title>{{ item.name }} <OnlinePreviewIcon :name="item.name" :is-dir="item.isDir" /></template>
     
     <template #subtitle>
       <span>{{ formatFileSize(item.size) }}</span>
@@ -115,6 +116,7 @@ import { computed, ref } from 'vue'
 import { storeToRefs } from 'pinia'
 import { useTempStore } from '@/stores/temp'
 import { formatFileSize, formatDateTime, formatTimeAgo } from '@/lib/format'
+import OnlinePreviewIcon from '@/components/OnlinePreviewIcon.vue'
 
 interface Props {
   item: IFile
