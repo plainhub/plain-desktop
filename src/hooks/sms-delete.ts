@@ -1,33 +1,18 @@
-import { ref } from 'vue'
+import { computed } from 'vue'
+import { storeToRefs } from 'pinia'
+import { useTempStore } from '@/stores/temp'
 import { initMutation, deleteSmsGQL } from '@/lib/api/mutation'
-import { initLazyQuery, smsDeleteAvailableGQL } from '@/lib/api/query'
 import emitter from '@/plugins/eventbus'
-
-const available = ref<boolean | null>(null)
-let probe: ReturnType<typeof initLazyQuery<{ smsDeleteAvailable: boolean }>> | null = null
 
 /**
  * Whether real (system-provider) SMS deletion is possible right now:
- * Shizuku installed, running and granted. Probed lazily once per session;
- * `null` means the probe has not completed yet.
+ * the phone reports the ADB (Shizuku) permission in its `app` query.
  */
 export const useSmsDeleteAvailable = () => {
-  if (!probe) {
-    probe = initLazyQuery<{ smsDeleteAvailable: boolean }>({
-      handle: (data, error) => {
-        if (!error) available.value = data?.smsDeleteAvailable === true
-        else available.value = false
-      },
-      document: smsDeleteAvailableGQL,
-    })
-  }
+  const { app } = storeToRefs(useTempStore())
+  const available = computed(() => app.value?.permissions?.includes('ADB') === true)
 
-  return {
-    available,
-    probe() {
-      void probe!.fetch(undefined, { force: true, latest: true })
-    },
-  }
+  return { available }
 }
 
 export const useSmsDelete = () => {

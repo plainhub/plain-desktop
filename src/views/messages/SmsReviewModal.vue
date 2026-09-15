@@ -44,7 +44,7 @@ const emit = defineEmits<{
 const smsTrash = useSmsTrash()
 const smsRestore = useSmsRestore()
 const smsDelete = useSmsDelete()
-const { available: deleteAvailable, probe: probeDeleteAvailable } = useSmsDeleteAvailable()
+const { available: deleteAvailable } = useSmsDeleteAvailable()
 
 const remaining = ref([...props.items])
 const trashedStack = ref<IMessage[]>([])
@@ -111,10 +111,7 @@ function onKeydown(e: KeyboardEvent) {
   // Escape is handled by v-modal's close → finish()
 }
 
-onMounted(() => {
-  window.addEventListener('keydown', onKeydown)
-  if (deleteAvailable.value === null) probeDeleteAvailable()
-})
+onMounted(() => window.addEventListener('keydown', onKeydown))
 onUnmounted(() => window.removeEventListener('keydown', onKeydown))
 </script>
 
