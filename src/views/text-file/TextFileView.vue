@@ -83,7 +83,7 @@
       </section>
 
       <section v-else class="viewer">
-        <div class="viewer-card">
+        <div class="viewer-card" :class="{ 'viewer-card--json': isJsonFile && jsonData }">
           <pre
             v-if="showRawText || (!isJsonFile && !isMarkdownFile) || (isJsonFile && !jsonData)"
             class="view-raw text-view"
@@ -232,6 +232,11 @@ const {
   border-radius: 12px;
   padding: 24px;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+.viewer-card--json {
+  height: 100%;
+  box-sizing: border-box;
 }
 
 .text-view {
