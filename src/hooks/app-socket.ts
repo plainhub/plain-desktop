@@ -10,7 +10,6 @@ import { chachaDecrypt, chachaEncrypt, bitArrayToUint8Array } from '@/lib/api/cr
 import { parseWebSocketData } from '@/lib/api/sjcl-arraybuffer'
 import { applyDarkClass, changeColor, changeColorMode, getCurrentMode, getLastSavedAutoColorMode, isModeDark } from '@/lib/theme'
 import { tokenToKey } from '@/lib/api/file'
-import { useTempStore } from '@/stores/temp'
 import { getRemoteClientId } from '@/lib/device/client-id'
 import { getCurrentAuthToken } from '@/lib/device/current'
 import { isLocalMode } from '@/lib/device/local-mode'
@@ -55,16 +54,12 @@ const EventType: { [key: number]: string } = {
   37: 'mms_send_result',
   38: 'upload_merge_result',
   40: 'permissions_updated',
-}
-
-// plain-nas reuses the low event-type numbers for its own pushes
-// (src/ws_hub.rs): 4/6/7/8 collide with the phone events above, so the
-// active map is picked per message based on the connected device type.
-const NasEventType: { [key: number]: string } = {
-  4: 'media_scan_progress',
-  6: 'file_task_progress',
-  7: 'dlna_renderer_found',
-  8: 'dlna_discovery_done',
+  // plain-nas pushes (src/ws_hub.rs) start at 41 so they never collide
+  // with the phone events above.
+  41: 'media_scan_progress',
+  42: 'file_task_progress',
+  43: 'dlna_renderer_found',
+  44: 'dlna_discovery_done',
 }
 
 // Screen mirror binary frames (H.264 NAL / Opus) and image editor Yjs updates
@@ -79,7 +74,6 @@ export function useAppSocket() {
   const { t } = useI18n()
   document.title = 'PlainApp'
 
-  const tempStore = useTempStore()
   const wsStatus = ref('')
   const tapPhoneMessage = ref('')
   let retryConnectTimeout: ReturnType<typeof setTimeout> | undefined
@@ -128,7 +122,7 @@ export function useAppSocket() {
       ws.onmessage = async (event: MessageEvent) => {
         const buffer = await event.data.arrayBuffer()
         const r = parseWebSocketData(buffer)
-        const type = (tempStore.isNas ? NasEventType : EventType)[r.type]
+        const type = EventType[r.type]
         try {
           if (RAW_BINARY_EVENTS.has(r.type)) {
             // Zero-copy: pass the Uint8Array view directly. The view shares
