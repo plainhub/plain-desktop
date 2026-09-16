@@ -8,23 +8,13 @@
     @clear="$emit('clear')"
   >
     <template #actions>
-      <v-dropdown v-model="settingsOpen" strategy="below">
-        <template #trigger>
-          <button v-tooltip="$t('settings')" class="btn-icon gear-btn">
-            <i-material-symbols:settings-outline-rounded />
-          </button>
-        </template>
-        <div
-          v-for="opt in directionOptions"
-          :key="opt.value"
-          class="dropdown-item"
-          :class="{ selected: direction === opt.value }"
-          @click="pickDirection(opt.value)"
-        >
-          <span>{{ $t(opt.labelKey) }}</span>
-          <i-material-symbols:check-rounded v-if="direction === opt.value" class="dropdown-item-icon" />
-        </div>
-      </v-dropdown>
+      <v-chip-select
+        :model-value="direction"
+        :options="directionOptions"
+        :icon="IconSettings"
+        :aria-label="$t('settings')"
+        @update:model-value="pickDirection"
+      />
     </template>
 
     <div v-if="group.items.length" class="grp-items">
@@ -40,8 +30,7 @@
       :loading="group.loading"
       :online="group.online"
       :peer-id="group.peerId"
-      :placeholder-key="placeholderKey"
-      :show-settings-link="placeholderKey === 'clipboard_sync_disabled'"
+      :placeholder-key="group.clipboardSync === false ? 'no_permission' : ''"
       feature="CLIPBOARD"
     />
     <v-pagination
@@ -55,10 +44,14 @@
 </template>
 
 <script setup lang="ts">
-import { computed, ref } from 'vue'
+import { computed } from 'vue'
+import { useI18n } from 'vue-i18n'
+import IconSettings from '~icons/material-symbols/settings-outline-rounded'
 import PeerGroupShell from '@/components/PeerGroupShell.vue'
 import ClipboardItem from '@/components/ClipboardItem.vue'
 import NoDataPlaceholder from '@/components/NoDataPlaceholder.vue'
+import VChipSelect from '@/components/base/VChipSelect.vue'
+import type { VSelectOption } from '@/components/base/VSelect.vue'
 import {
   peerClipboardDirection,
   setPeerClipboardDirection,
@@ -75,44 +68,25 @@ defineEmits<{
   clear: []
 }>()
 
+const { t } = useI18n()
+
 const { limit, deleteItem, fetchPage } = useLocalClipboardActions()
 
-const settingsOpen = ref(false)
-
-const directionOptions: Array<{ value: ClipboardDirection; labelKey: string }> = [
-  { value: 'off', labelKey: 'clipboard_direction_off' },
-  { value: 'push', labelKey: 'clipboard_direction_push' },
-  { value: 'pull', labelKey: 'clipboard_direction_pull' },
-  { value: 'both', labelKey: 'clipboard_direction_both' },
-]
+const directionOptions = computed<VSelectOption[]>(() => [
+  { value: 'off', label: t('clipboard_direction_off') },
+  { value: 'push', label: t('clipboard_direction_push') },
+  { value: 'pull', label: t('clipboard_direction_pull') },
+  { value: 'both', label: t('clipboard_direction_both') },
+])
 
 const direction = computed(() => peerClipboardDirection(props.group.peerId))
 
-const placeholderKey = computed(() => {
-  // Offline dominates: an unreachable device must not advertise feature states.
-  if (!props.group.online) return ''
-  if (direction.value === 'off' || direction.value === 'push') return 'clipboard_sync_direction_off'
-  if (props.group.clipboardSync === false) return 'clipboard_sync_disabled'
-  return ''
-})
-
-function pickDirection(value: ClipboardDirection) {
-  settingsOpen.value = false
-  setPeerClipboardDirection(props.group.peerId, value)
+function pickDirection(value: string | number) {
+  setPeerClipboardDirection(props.group.peerId, value as ClipboardDirection)
 }
 </script>
 
 <style lang="scss" scoped>
-.gear-btn {
-  width: 32px;
-  height: 32px;
-
-  svg {
-    width: 16px;
-    height: 16px;
-  }
-}
-
 .grp-items {
   display: contents;
 }
