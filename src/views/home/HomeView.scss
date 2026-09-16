@@ -70,47 +70,10 @@
   }
 }
 
-.clipboard-card {
-  grid-column: span 2;
-  min-height: 144px;
-
-  .card-content {
-    text-align: left;
-
-    .card-title {
-      font-size: 1rem;
-      font-weight: 500;
-      margin: 0 0 16px 0;
-      text-transform: none;
-      color: var(--md-sys-color-on-surface);
-    }
-
-    .phone-input-row {
-      display: flex;
-      gap: 12px;
-      align-items: flex-start;
-
-      .phone-input {
-        flex: 1;
-        min-width: 0;
-      }
-
-      .call-btn {
-        margin-top: 8px;
-        min-width: 80px;
-      }
-    }
-  }
-}
-
 @media (max-width: 768px) {
   .grids {
     grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
     gap: 12px;
     padding: 12px;
-  }
-
-  .clipboard-card {
-    grid-column: span 2;
   }
 }

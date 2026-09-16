@@ -5,6 +5,7 @@
       <span class="g-name nowrap">{{ name }}</span>
       <span v-tooltip="$t(online ? 'online' : 'offline')" class="dot" :class="online ? 'on' : 'off'"></span>
       <span class="g-count">{{ count }}</span>
+      <slot name="actions"></slot>
       <button
         v-if="clearable"
         v-tooltip="$t('clear_list')"

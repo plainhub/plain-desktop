@@ -1,7 +1,7 @@
-import { ref, type Ref } from 'vue'
+import { onUnmounted, ref, type Ref } from 'vue'
 import { copyFileGQL, createDirGQL, initMutation, moveFileGQL, renameFileGQL } from '@/lib/api/mutation'
 import { enrichFile, isAudio, isImage, isVideo, type IFile } from '@/lib/file'
-import { initQuery, mountsGQL } from '@/lib/api/query'
+import { initQuery, favoriteFoldersGQL, mountsGQL } from '@/lib/api/query'
 import { useI18n } from 'vue-i18n'
 import toast from '@/components/toaster'
 import { download, encryptUrlParams, getFileId, getFileName, getFileUrl } from '@/lib/api/file'
@@ -10,7 +10,8 @@ import { encodeBase64 } from '@/lib/strutil'
 import { buildQuery, parseQuery, type IFilterField } from '@/lib/search'
 import { arrayRemove } from '@/lib/array'
 import { getApiBaseUrl } from '@/lib/api/api'
-import type { IApp, IFileFilter, IStorageMount } from '@/lib/interfaces'
+import type { IApp, IFileFilter, IFavoriteFolder, IStorageMount } from '@/lib/interfaces'
+import emitter from '@/plugins/eventbus'
 
 export const useCreateDir = (urlTokenKey: Ref<Uint8Array | null>, items: Ref<IFile[]>) => {
   const createPath = ref('')
@@ -64,6 +65,26 @@ export const useMounts = () => {
   })
 
   return { mounts, refetch }
+}
+
+export const useFavoriteFolders = () => {
+  const favoriteFolders = ref<IFavoriteFolder[]>([])
+  const { refetch } = initQuery({
+    handle: (data: { favoriteFolders: IFavoriteFolder[] }, error: string) => {
+      if (!error) {
+        favoriteFolders.value = data?.favoriteFolders ?? []
+      }
+    },
+    document: favoriteFoldersGQL,
+  })
+
+  const refetchHandler = () => {
+    refetch()
+  }
+  emitter.on('refetch_favorite_folders', refetchHandler)
+  onUnmounted(() => emitter.off('refetch_favorite_folders', refetchHandler))
+
+  return { favoriteFolders, refetch }
 }
 
 export const useDownload = (urlTokenKey: Ref<Uint8Array | null>) => {

@@ -20,6 +20,7 @@ import toast from '@/components/toaster'
 import emitter from '@/plugins/eventbus'
 import { gqlFetch } from '@/lib/api/gql-client'
 import { clipboardGQL } from '@/lib/api/query'
+import { setClipGQL } from '@/lib/api/mutation'
 import { useTempStore } from '@/stores/temp'
 import { useClipboardData } from '@/views/clipboard/clipboard'
 
@@ -28,7 +29,7 @@ const mockGqlFetch = vi.mocked(gqlFetch)
 const flush = () => new Promise((r) => setTimeout(r, 0))
 
 const setAppSync = (enabled: boolean) => {
-  useTempStore().app = { clipboardSync: enabled } as any
+  useTempStore().app = { permissions: enabled ? ['CLIPBOARD'] : [] } as any
 }
 
 beforeEach(() => {
@@ -91,5 +92,44 @@ describe('useClipboardData', () => {
     useClipboardData()
     await flush()
     expect(toast).toHaveBeenCalledWith('connection_timeout', 'error')
+  })
+
+  it('sendToPhone rejects empty text without calling the mutation', async () => {
+    setAppSync(true)
+    const api = useClipboardData()
+    await flush()
+    mockGqlFetch.mockClear()
+    api.sendToPhone()
+    await flush()
+    expect(api.clipTextError.value).toBe(true)
+    expect(mockGqlFetch).not.toHaveBeenCalled()
+  })
+
+  it('sendToPhone posts setClipGQL with the typed text', async () => {
+    setAppSync(true)
+    mockGqlFetch.mockResolvedValue({ data: { setClip: true } })
+    const api = useClipboardData()
+    await flush()
+    mockGqlFetch.mockClear()
+    api.clipText.value = 'hello'
+    api.sendToPhone()
+    await flush()
+    expect(mockGqlFetch).toHaveBeenCalledWith(setClipGQL, { text: 'hello' }, { dedupe: false })
+  })
+
+  it('sendToPhone clears the input on success only', async () => {
+    setAppSync(true)
+    mockGqlFetch.mockResolvedValue({ data: null, errors: [{ message: 'network_error' }] })
+    const api = useClipboardData()
+    await flush()
+    api.clipText.value = 'hello'
+    api.sendToPhone()
+    await flush()
+    expect(api.clipText.value).toBe('hello')
+
+    mockGqlFetch.mockResolvedValue({ data: { setClip: true } })
+    api.sendToPhone()
+    await flush()
+    expect(api.clipText.value).toBe('')
   })
 })

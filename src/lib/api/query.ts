@@ -13,6 +13,7 @@ import {
   audioFragment,
   fileFragment,
   appFragment,
+  playlistAudioFragment,
   tagFragment,
   noteFragment,
   feedFragment,
@@ -434,6 +435,16 @@ export const mountsGQL = `
   }
 `
 
+export const favoriteFoldersGQL = `
+  query {
+    favoriteFolders {
+      rootPath
+      fullPath
+      alias
+    }
+  }
+`
+
 export const appGQL = `
   query {
     app {
@@ -441,6 +452,18 @@ export const appGQL = `
     }
   }
   ${appFragment}
+`
+
+export const audioPlaylistGQL = `
+  query audioPlaylist($offset: Int!, $limit: Int!) {
+    audioPlaylist(offset: $offset, limit: $limit) {
+      total
+      items {
+        ...PlaylistAudioFragment
+      }
+    }
+  }
+  ${playlistAudioFragment}
 `
 
 export const tagsGQL = `

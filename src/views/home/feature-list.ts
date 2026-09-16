@@ -12,7 +12,6 @@ export const DEFAULT_HOME_FEATURES = [
   'contacts',
   'screen_mirror',
   'image_editor',
-  'clipboard',
   'call_phone',
 ]
 

@@ -4,7 +4,7 @@ import emitter from '@/plugins/eventbus'
 import type { INotification } from '@/lib/interfaces'
 import { DeviceType } from '@/lib/status'
 import { notificationFragment } from '@/lib/api/fragments'
-import { cancelNotificationsGQL, replyNotificationGQL, openWebSettingsGQL } from '@/lib/api/mutation'
+import { cancelNotificationsGQL, replyNotificationGQL } from '@/lib/api/mutation'
 import { gqlFetchPeer } from '@/lib/api/peer-client'
 import { deviceBaseUrl, proxyUrlFor } from '@/lib/api/api'
 import { chachaEncrypt, bitArrayToBase64 } from '@/lib/api/crypto'
@@ -179,10 +179,4 @@ export async function replyPeerNotification(peerId: string, id: string, actionIn
   } catch {
     return false
   }
-}
-
-export async function openPeerNotificationSettings(peerId: string) {
-  const peer = findLoginPeer(peerId)
-  if (!peer) return
-  await gqlFetchPeer(peer, openWebSettingsGQL, { feature: 'NOTIFICATIONS' }).catch(() => {})
 }

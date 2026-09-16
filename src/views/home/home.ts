@@ -3,7 +3,7 @@ import { useI18n } from 'vue-i18n'
 import { useTempStore } from '@/stores/temp'
 import { storeToRefs } from 'pinia'
 import { useMainStore } from '@/stores/main'
-import { callGQL, setClipGQL, initMutation } from '@/lib/api/mutation'
+import { callGQL, initMutation } from '@/lib/api/mutation'
 import { homeStatsGQL, simsGQL, initQuery } from '@/lib/api/query'
 import toast from '@/components/toaster'
 import type { IHomeStats, IStorageMount, IContact, ISim } from '@/lib/interfaces'
@@ -92,22 +92,3 @@ export function usePhoneAction() {
   }
 }
 
-export function useClipboardAction() {
-  const clipText = ref('')
-  const clipTextError = ref(false)
-
-  const { mutate: mutateSetClip, loading: setClipLoading } = initMutation({ document: setClipGQL })
-
-  function pasteClipboardText() {
-    navigator.clipboard.readText().then((text) => { clipText.value = text })
-  }
-
-  function sendClipboard() {
-    if (!clipText.value) { clipTextError.value = true; return }
-    mutateSetClip({ text: clipText.value })
-  }
-
-  watch(clipText, () => { clipTextError.value = false })
-
-  return { clipText, clipTextError, setClipLoading, pasteClipboardText, sendClipboard }
-}

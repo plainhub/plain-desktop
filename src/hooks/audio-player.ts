@@ -4,16 +4,19 @@ import { storeToRefs } from 'pinia'
 import type { IPlaylistAudio } from '@/lib/interfaces'
 import { getFileUrlByPath } from '@/lib/api/file'
 import { initMutation, playAudioGQL, updateAudioPlayModeGQL, deletePlaylistAudioGQL, clearAudioPlaylistGQL, reorderPlaylistAudiosGQL } from '@/lib/api/mutation'
-import { sample, arrayRemove } from '@/lib/array'
+import { sample } from '@/lib/array'
+import { useAudioPlaylistStore } from '@/hooks/audio-playlist-store'
 import emitter from '@/plugins/eventbus'
 
 export function useAudioPlaylist(audioRef: Ref<HTMLAudioElement | undefined>) {
   const { app, urlTokenKey, audioPlaying } = storeToRefs(useTempStore())
+  const store = useAudioPlaylistStore()
 
-  const audios = computed<IPlaylistAudio[]>(() => app.value?.audios ?? [])
+  // A view of the phone playback queue; mutations go through GraphQL, then refetch.
+  const audios = computed<IPlaylistAudio[]>(() => store.items.value)
   const playlistAudios = computed<IPlaylistAudio[]>({
     get: () => audios.value,
-    set: (value) => { app.value = { ...app.value, audios: value } },
+    set: (value) => { store.items.value = value },
   })
 
   const current = ref<IPlaylistAudio | undefined>()
@@ -79,7 +82,8 @@ export function useAudioPlaylist(audioRef: Ref<HTMLAudioElement | undefined>) {
 
   // Clear handler
   const clearDone = () => {
-    app.value = { ...app.value, audioCurrent: '', audios: [] }
+    app.value = { ...app.value, audioCurrent: '' }
+    store.reset()
   }
 
   function _play() { audioRef.value?.play() }
@@ -88,7 +92,7 @@ export function useAudioPlaylist(audioRef: Ref<HTMLAudioElement | undefined>) {
 
   // Navigation
   function playRandom() {
-    const c = sample(app.value.audios)
+    const c = sample(audios.value)
     if (!c) return
     play({ path: c.path })
     app.value = { ...app.value, audioCurrent: c.path }
@@ -140,9 +144,7 @@ export function useAudioPlaylist(audioRef: Ref<HTMLAudioElement | undefined>) {
 
   function deleteItem(item: IPlaylistAudio) {
     deleteAudio({ path: item.path })
-    const items = [...app.value.audios]
-    arrayRemove(items, (it) => it.path === item.path)
-    app.value = { ...app.value, audios: items }
+    store.removeLocal(item.path)
   }
 
   function onReorder() {
@@ -166,6 +168,7 @@ export function useAudioPlaylist(audioRef: Ref<HTMLAudioElement | undefined>) {
   const pauseAudio = () => audioRef.value?.pause()
 
   onMounted(() => {
+    store.ensureLoaded()
     setupMediaSessionActions()
     emitter.on('do_play_audio', doPlayAudio)
     emitter.on('pause_audio', pauseAudio)

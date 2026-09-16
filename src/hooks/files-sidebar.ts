@@ -1,7 +1,5 @@
 import router, { replacePath } from '@/plugins/router'
 import { useMainStore } from '@/stores/main'
-import { storeToRefs } from 'pinia'
-import { useTempStore } from '@/stores/temp'
 import { computed, reactive, ref, watch } from 'vue'
 import { buildQuery } from '@/lib/search'
 import type { IFileFilter, IFavoriteFolder, IStorageMount } from '@/lib/interfaces'
@@ -11,7 +9,7 @@ import { useI18n } from 'vue-i18n'
 import { initMutation, removeFavoriteFolderGQL, setFavoriteFolderAliasGQL } from '@/lib/api/mutation'
 import toast from '@/components/toaster'
 import emitter from '@/plugins/eventbus'
-import { useMounts } from '@/hooks/files'
+import { useMounts, useFavoriteFolders } from '@/hooks/files'
 import { sortMounts, buildUsbIndexMap, mountTitle as getMountTitle, storageUsedPercent, storageCountText } from '@/lib/storage'
 import { openModal } from '@/components/modal'
 import EditValueModal from '@/components/EditValueModal.vue'
@@ -30,9 +28,9 @@ export interface LinkItem {
 
 export function useFilesSidebar() {
   const mainStore = useMainStore()
-  const { app } = storeToRefs(useTempStore())
   const { t } = useI18n()
   const { mounts } = useMounts()
+  const { favoriteFolders } = useFavoriteFolders()
   const { parseQ } = useSearch()
 
   const filter = reactive<IFileFilter>({ showHidden: false, type: '', rootPath: '', text: '', parent: '' })
@@ -45,12 +43,12 @@ export function useFilesSidebar() {
   const { mutate: removeFavoriteFolderMutation, onDone: onRemoveDone } = initMutation({
     document: removeFavoriteFolderGQL,
   })
-  onRemoveDone(() => emitter.emit('refetch_app'))
+  onRemoveDone(() => emitter.emit('refetch_favorite_folders'))
 
   const { mutate: setAliasMutation, onDone: onAliasDone } = initMutation({
     document: setFavoriteFolderAliasGQL,
   })
-  onAliasDone(() => emitter.emit('refetch_app'))
+  onAliasDone(() => emitter.emit('refetch_favorite_folders'))
 
   function showFavoriteMenu(item: LinkItem) {
     selectedFavorite.value = item
@@ -68,11 +66,11 @@ export function useFilesSidebar() {
   function openSetFavoriteAlias() {
     const item = selectedFavorite.value
     if (!item) return
-    const current = app.value.favoriteFolders?.find((f) => f.fullPath === item.fullPath)
+    const current = favoriteFolders.value.find((f) => f.fullPath === item.fullPath)
     const currentAlias = (current?.alias || '').trim()
     const mutationFactory = () => {
       const m = initMutation({ document: setFavoriteFolderAliasGQL })
-      m.onDone(() => emitter.emit('refetch_app'))
+      m.onDone(() => emitter.emit('refetch_favorite_folders'))
       return m
     }
     openModal(EditValueModal, {
@@ -100,7 +98,7 @@ export function useFilesSidebar() {
     const findLongestMatch = (currentPath: string): string => {
       const allPaths = [
         ...mounts.value.map((m) => m.mountPoint).filter(Boolean),
-        ...(app.value.favoriteFolders?.map((f) => f.fullPath) || []),
+        ...favoriteFolders.value.map((f) => f.fullPath),
       ]
       let longestMatch = ''
       allPaths.forEach((path) => { if (currentPath.startsWith(path) && path.length > longestMatch.length) longestMatch = path })
@@ -126,7 +124,7 @@ export function useFilesSidebar() {
       })
     })
 
-    app.value.favoriteFolders?.forEach((folder: IFavoriteFolder) => {
+    favoriteFolders.value.forEach((folder: IFavoriteFolder) => {
       result.push({
         rootPath: folder.rootPath, fullPath: folder.fullPath,
         type: mounts.value.find((m) => m.mountPoint === folder.rootPath)?.driveType ?? '',
