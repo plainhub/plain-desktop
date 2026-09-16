@@ -44,7 +44,9 @@ function resolveVars(variables: any): Record<string, any> | undefined {
 
 export interface InitQueryParams<TResult> {
   handle: (data: TResult, error: string, context?: QueryResponseContext) => void
-  document: string
+  /** Static SDL, or a getter re-evaluated on change (e.g. feature-dependent
+   *  queries that must wait for the device type to be known). */
+  document: string | (() => string)
   variables?: any
   options?: any
 }
@@ -69,7 +71,8 @@ export function initQuery<TResult = any>(params: InitQueryParams<TResult>) {
     loading.value = true
     try {
       const v = vars ?? resolveVars(params.variables)
-      const r = await gqlFetch<TResult>(params.document, v)
+      const document = typeof params.document === 'function' ? params.document() : params.document
+      const r = await gqlFetch<TResult>(document, v)
       if (r.errors?.length) {
         params.handle(r.data, r.errors[0].message)
       } else {
@@ -85,20 +88,26 @@ export function initQuery<TResult = any>(params: InitQueryParams<TResult>) {
 
   execute()
 
+  // Guard watcher so deactivated keep-alive instances don't fire queries
+  // when the shared reactive route changes.
+  // nextTick defers execution until after KeepAlive lifecycle hooks complete.
+  let active = true
+  const inst = getCurrentInstance()
+  if (inst) {
+    onDeactivated(() => { active = false })
+    onActivated(() => { active = true })
+  }
   if (typeof params.variables === 'function') {
-    // Guard watcher so deactivated keep-alive instances don't fire queries
-    // when the shared reactive route changes.
-    // nextTick defers execution until after KeepAlive lifecycle hooks complete.
-    let active = true
-    const inst = getCurrentInstance()
-    if (inst) {
-      onDeactivated(() => { active = false })
-      onActivated(() => { active = true })
-    }
     watch(params.variables, async () => {
       await nextTick()
       if (active) execute()
     }, { deep: true })
+  }
+  if (typeof params.document === 'function') {
+    watch(params.document, async () => {
+      await nextTick()
+      if (active) execute()
+    })
   }
 
   return { loading, result, refetch: execute }
@@ -122,9 +131,10 @@ export function initLazyQuery<TResult = any>(params: InitQueryParams<TResult>) {
     else activeRegularRequests++
     loading.value = true
     try {
+      const document = typeof params.document === 'function' ? params.document() : params.document
       const r = options.force
-        ? await gqlFetch<TResult>(params.document, v, { fresh: true })
-        : await gqlFetch<TResult>(params.document, v)
+        ? await gqlFetch<TResult>(document, v, { fresh: true })
+        : await gqlFetch<TResult>(document, v)
       if (options.latest && latestRequestId !== latestSequence) return
       if (r.errors?.length) {
         params.handle(r.data, r.errors[0].message, context)
@@ -310,18 +320,41 @@ export const contactsGQL = `
   ${contactFragment}
 `
 
-export const homeStatsGQL = `
+/** Count fields keyed by the home card count key. Servers differ: plain-nas
+ *  only implements audio/image/video counts, the phone has the rest. */
+export type HomeStatKey =
+  | 'audios'
+  | 'images'
+  | 'videos'
+  | 'docs'
+  | 'packages'
+  | 'notes'
+  | 'feedEntries'
+  | 'messages'
+  | 'calls'
+  | 'contacts'
+
+const HOME_STATS_COUNT_FIELDS: Record<HomeStatKey, string> = {
+  audios: 'audioCount(query: $mediaQuery)',
+  images: 'imageCount(query: $mediaQuery)',
+  videos: 'videoCount(query: $mediaQuery)',
+  docs: 'docCount(query: "")',
+  packages: 'packageCount(query: "")',
+  notes: 'noteCount(query: "")',
+  feedEntries: 'feedEntryCount(query: "")',
+  messages: 'smsCount(query: "")',
+  calls: 'callCount(query: "")',
+  contacts: 'contactCount(query: "")',
+}
+
+/** Build the home stats query requesting only `countKeys` (plus mounts).
+ *  Without keys this is a mounts-only probe, useful before the device type
+ *  is known. */
+export function homeStatsGQL(countKeys: readonly HomeStatKey[] = []): string {
+  const fields = countKeys.map((key) => HOME_STATS_COUNT_FIELDS[key]).join('\n    ')
+  return `
   query homeStats($mediaQuery: String!) {
-    smsCount(query: "")
-    contactCount(query: "")
-    callCount(query: "")
-    imageCount(query: $mediaQuery)
-    audioCount(query: $mediaQuery)
-    videoCount(query: $mediaQuery)
-    packageCount(query: "")
-    noteCount(query: "")
-    docCount(query: "")
-    feedEntryCount(query: "")
+    ${fields}
     mounts {
       id
       path
@@ -332,6 +365,7 @@ export const homeStatsGQL = `
     }
   }
 `
+}
 
 export const contactSourcesGQL = `
   query {

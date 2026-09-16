@@ -52,7 +52,10 @@ export function getAvailableFeatures(isNas: boolean, debug: boolean = false): Fe
   return features.filter((f) => NAS_FEATURE_IDS.has(f.id))
 }
 
-/** A NAS always keeps chat on the rail, regardless of saved customization. */
-export function withNasChatRetention(ids: string[]): string[] {
-  return ids.includes('chat') ? ids : [...ids, 'chat']
+/** A NAS always keeps chat on the rail, regardless of saved customization
+ *  or the NAS feature whitelist — apply after availability filtering. */
+export function withNasChatRetention(features: Feature[], isNas: boolean): Feature[] {
+  if (!isNas || features.some((f) => f.id === 'chat')) return features
+  const chat = ALL_FEATURES.find((f) => f.id === 'chat')
+  return chat ? [...features, chat] : features
 }

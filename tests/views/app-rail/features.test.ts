@@ -33,8 +33,14 @@ describe('getAvailableFeatures', () => {
   })
 
   it('force-retains chat on the NAS rail even when customization dropped it', () => {
-    expect(withNasChatRetention(['files', 'audios'])).toEqual(['files', 'audios', 'chat'])
-    expect(withNasChatRetention(['files', 'chat'])).toEqual(['files', 'chat'])
+    const available = getAvailableFeatures(true)
+    const customized = available.filter((f) => ['files', 'audios'].includes(f.id))
+    const retained = withNasChatRetention(customized, true)
+    expect(retained.map((f) => f.id)).toEqual(['files', 'audios', 'chat'])
+    // already present: no duplicate
+    expect(withNasChatRetention(available, true).filter((f) => f.id === 'chat')).toHaveLength(1)
+    // non-NAS rails are untouched
+    expect(withNasChatRetention(available, false)).toEqual(available)
     // chat itself is filtered from NAS feature cards — it is rail-only.
     expect(NAS_FEATURE_IDS.has('chat')).toBe(false)
   })

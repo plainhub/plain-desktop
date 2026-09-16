@@ -54,10 +54,10 @@ const availableFeatures = computed(() => getAvailableFeatures(isNas.value, app.v
 
 const railFeatures = computed<Feature[]>(() => {
   const base = localMode ? store.railFeatures.filter(isLocalFeatureId) : store.railFeatures
-  const ids = isNas.value ? withNasChatRetention(base) : base
-  return ids
+  const features = base
     .map((id) => ALL_FEATURES.find((f) => f.id === id))
     .filter((f): f is Feature => !!f && availableFeatures.value.some((a) => a.id === f.id))
+  return withNasChatRetention(features, isNas.value)
 })
 
 function isActive(feat: Feature) {
