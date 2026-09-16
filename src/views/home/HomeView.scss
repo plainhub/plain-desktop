@@ -67,53 +67,6 @@
       color: var(--md-sys-color-on-surface-variant);
       margin-top: 4px;
     }
-
-    .scan-panel {
-      width: 100%;
-      max-width: 320px;
-      margin-top: 10px;
-
-      .scan-row {
-        display: flex;
-        justify-content: center;
-        align-items: center;
-        gap: 8px;
-        margin-bottom: 6px;
-      }
-
-      .muted {
-        margin-top: 8px;
-        color: var(--md-sys-color-on-surface-variant);
-        font-size: 0.875rem;
-      }
-
-      .progress {
-        position: relative;
-        height: 6px;
-        background: rgba(0, 0, 0, 0.08);
-        border-radius: 999px;
-        overflow: hidden;
-
-        .bar {
-          position: absolute;
-          left: 0;
-          top: 0;
-          bottom: 0;
-          width: 0;
-          background: var(--md-sys-color-primary);
-          border-radius: 999px;
-          transition: width 0.25s ease;
-        }
-      }
-
-      .action-row {
-        display: flex;
-        justify-content: center;
-        gap: 8px;
-        margin-top: 10px;
-        flex-wrap: wrap;
-      }
-    }
   }
 }
 

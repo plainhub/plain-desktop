@@ -428,6 +428,7 @@ declare module 'vue' {
     RouterLink: typeof import('vue-router')['RouterLink']
     RouterView: typeof import('vue-router')['RouterView']
     SaveFormatButton: typeof import('./src/views/image-editor/components/SaveFormatButton.vue')['default']
+    ScanPanel: typeof import('./src/views/home/ScanPanel.vue')['default']
     ScreenCaptureOverlay: typeof import('./src/views/screen-capture/ScreenCaptureOverlay.vue')['default']
     ScreenCaptureToolbar: typeof import('./src/views/screen-capture/ScreenCaptureToolbar.vue')['default']
     ScreenMirrorContent: typeof import('./src/views/screen-mirror/ScreenMirrorContent.vue')['default']

@@ -9,31 +9,7 @@
           {{ $t('storage_free_total', { free: formatFileSize(counter.free), total: formatFileSize(counter.total) }) }}
         </div>
 
-        <div v-if="isNas && item.showStorageInfo" class="scan-panel">
-          <template v-if="scanActive">
-            <div class="scan-row">
-              <span v-if="stateLabel">{{ stateLabel }}</span>
-              <span v-if="percent > 0" class="muted">{{ percent }}%</span>
-            </div>
-            <div class="progress">
-              <div class="bar" :style="{ width: percent + '%' }"></div>
-            </div>
-            <div v-if="!counting" class="muted">
-              {{ scanProgress.indexed.toLocaleString() }} / {{ scanProgress.total.toLocaleString() }}
-              <span v-if="scanProgress.pending > 0"> · {{ $t('pending') }} {{ scanProgress.pending.toLocaleString() }}</span>
-            </div>
-          </template>
-
-          <div class="action-row">
-            <v-filled-button v-if="showPause" @click.stop.prevent="pauseScan">{{ $t('pause') }}</v-filled-button>
-            <v-filled-button v-if="showResume" @click.stop.prevent="resumeScan">{{ $t('resume') }}</v-filled-button>
-            <v-outlined-button v-if="showStop" @click.stop.prevent="stopScan">{{ $t('stop') }}</v-outlined-button>
-            <v-outlined-button
-              v-if="showRebuild || rebuildIndexLoading" :loading="rebuildIndexLoading"
-              @click.stop.prevent="rebuildIndex"
-            >{{ $t('rebuild_index') }}</v-outlined-button>
-          </div>
-        </div>
+        <ScanPanel v-if="isNas && item.showStorageInfo" />
       </FeatureCard>
 
       <CallPhoneCard v-else />
@@ -49,19 +25,15 @@ import { storeToRefs } from 'pinia'
 import { buildQuery } from '@/lib/search'
 import { encodeBase64 } from '@/lib/strutil'
 import { DriveType } from '@/lib/status'
-import { useHomeData, useScanAction } from './home'
+import { useHomeData } from './home'
 import { useHomeFeatureCards } from './useHomeFeatureCards'
 import CallPhoneCard from './CallPhoneCard.vue'
 import FeatureCard from './FeatureCard.vue'
+import ScanPanel from './ScanPanel.vue'
 
 const { app, counter, isNas } = storeToRefs(useTempStore())
 
 const { mounts } = useHomeData()
-const {
-  scanProgress, scanActive, percent, stateLabel, counting,
-  showPause, showResume, showStop, showRebuild, rebuildIndexLoading,
-  pauseScan, resumeScan, stopScan, rebuildIndex,
-} = useScanAction()
 
 const filesPath = computed(() => {
   const internalRoot = mounts.value.find((m) => m.driveType === DriveType.INTERNAL_STORAGE)?.mountPoint || app.value.internalStoragePath
