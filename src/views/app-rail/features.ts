@@ -42,20 +42,11 @@ export const ALL_FEATURES: Feature[] = [
 
 export const DEFAULT_RAIL_FEATURES = ['files', 'audios', 'images', 'videos', 'chat']
 
-/** Features a NAS exposes: media + files. Chat is NOT filtered by this set —
- *  it is force-retained on the rail via `withNasChatRetention`. */
-export const NAS_FEATURE_IDS = new Set(['files', 'audios', 'images', 'videos', 'docs'])
+/** Features a NAS exposes: media, files and chat. */
+export const NAS_FEATURE_IDS = new Set(['files', 'audios', 'images', 'videos', 'chat', 'docs'])
 
 export function getAvailableFeatures(isNas: boolean, debug: boolean = false): Feature[] {
   const features = ALL_FEATURES.filter((f) => !(f.requireDebug && !debug))
   if (!isNas) return features
   return features.filter((f) => NAS_FEATURE_IDS.has(f.id))
-}
-
-/** A NAS always keeps chat on the rail, regardless of saved customization
- *  or the NAS feature whitelist — apply after availability filtering. */
-export function withNasChatRetention(features: Feature[], isNas: boolean): Feature[] {
-  if (!isNas || features.some((f) => f.id === 'chat')) return features
-  const chat = ALL_FEATURES.find((f) => f.id === 'chat')
-  return chat ? [...features, chat] : features
 }

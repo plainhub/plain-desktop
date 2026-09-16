@@ -38,7 +38,7 @@ import { useRouter } from 'vue-router'
 import { useMainStore } from '@/stores/main'
 import { useTempStore } from '@/stores/temp'
 import { storeToRefs } from 'pinia'
-import { ALL_FEATURES, getAvailableFeatures, withNasChatRetention, type Feature } from './features'
+import { ALL_FEATURES, getAvailableFeatures, type Feature } from './features'
 import { isLocalFeatureId, isLocalMode } from '@/lib/device/local-mode'
 import RailSettingsPopup from './RailSettingsPopup.vue'
 const isTauri = __IS_TAURI__
@@ -57,7 +57,7 @@ const railFeatures = computed<Feature[]>(() => {
   const features = base
     .map((id) => ALL_FEATURES.find((f) => f.id === id))
     .filter((f): f is Feature => !!f && availableFeatures.value.some((a) => a.id === f.id))
-  return withNasChatRetention(features, isNas.value)
+  return features
 })
 
 function isActive(feat: Feature) {
