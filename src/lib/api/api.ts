@@ -80,7 +80,11 @@ export function getApiBaseUrl() {
   if (__IS_TAURI__ && (_pendingLoginDevice || getCurrentDeviceHost())) {
     return deviceBaseUrl(getApiHost())
   }
-  return applyScheme(window.location.protocol.replace(':', ''), getApiHost())
+  // Web dev usually serves the app over plain http (localhost) while the
+  // device API listens on a TLS *43 port — follow the API port, not the page.
+  const scheme =
+    window.location.protocol === 'https:' || isSecurePort(getApiHost()) ? 'https' : 'http'
+  return applyScheme(scheme, getApiHost())
 }
 
 export function getWebSocketBaseUrl() {
@@ -91,8 +95,9 @@ export function getWebSocketBaseUrl() {
     const p = isSecurePort(getApiHost()) ? 'wss' : 'ws'
     return `${p}://${getApiHost()}`
   }
-  const p = window.location.protocol === 'http:' ? 'ws' : 'wss'
-  return `${p}://${getApiHost()}`
+  const secure = window.location.protocol === 'https:' || isSecurePort(getApiHost())
+  // plain-nas serves its WebSocket endpoint under /ws.
+  return `${secure ? 'wss' : 'ws'}://${getApiHost()}/ws`
 }
 
 export function getPhoneIp(): string {

@@ -126,7 +126,6 @@ import { findLoginPeer, updateLoginPeerName } from '@/lib/device/login-peers'
 import { getRemoteClientId } from '@/lib/device/client-id'
 import { storeToRefs } from 'pinia'
 import { pushModal, openModal } from '@/components/modal'
-import { AppChannelType } from '@/lib/status'
 import { getAvailableFeatures, type Feature } from './features'
 import { isLocalMode } from '@/lib/device/local-mode'
 import { isMacPlatform } from '@/lib/platform'
@@ -145,7 +144,7 @@ import { initMutation, updateDeviceNameGQL } from '@/lib/api/mutation'
 const localMode = isLocalMode()
 const { t } = useI18n()
 
-const { app } = storeToRefs(useTempStore())
+const { app, isNas } = storeToRefs(useTempStore())
 const store = useMainStore()
 const currentSession = computed(() => findLoginPeer(getRemoteClientId()))
 const router = useRouter()
@@ -235,7 +234,7 @@ onUnmounted(() => {
 })
 
 const popupFeatures = computed<Feature[]>(() => {
-  const available = getAvailableFeatures(app.value?.channel ?? AppChannelType.GITHUB, app.value?.debug ?? false)
+  const available = getAvailableFeatures(isNas.value, app.value?.debug ?? false)
   return available.filter((f) => !store.railFeatures.includes(f.id))
 })
 

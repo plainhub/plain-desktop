@@ -13,7 +13,6 @@ import IMaterialSymbolsCallLogOutlineRounded from '~icons/material-symbols/call-
 import ILucideContactRound from '~icons/lucide/contact-round'
 import IMaterialSymbolsScreenRecordRounded from '~icons/material-symbols/screen-record-rounded'
 import ILucidePalette from '~icons/lucide/palette'
-import { AppChannelType } from '@/lib/status'
 
 export interface Feature {
   id: string
@@ -21,7 +20,6 @@ export interface Feature {
   defaultPath: string
   icon: Component
   titleKey: string
-  requireNonGoogle?: boolean
   requireDebug?: boolean
 }
 
@@ -32,11 +30,11 @@ export const ALL_FEATURES: Feature[] = [
   { id: 'videos', group: 'videos', defaultPath: '/videos', icon: ILucideVideo, titleKey: 'page_title.videos' },
   { id: 'chat', group: 'chat', defaultPath: '/chat', icon: ILucideMessageCircle, titleKey: 'page_title.chat' },
   { id: 'docs', group: 'docs', defaultPath: '/docs', icon: ILucideFileText, titleKey: 'page_title.docs' },
-  { id: 'apps', group: 'apps', defaultPath: '/apps', icon: ILucideLayoutGrid, titleKey: 'page_title.apps', requireNonGoogle: true },
+  { id: 'apps', group: 'apps', defaultPath: '/apps', icon: ILucideLayoutGrid, titleKey: 'page_title.apps' },
   { id: 'notes', group: 'notes', defaultPath: '/notes', icon: ILucideNotebookPen, titleKey: 'page_title.notes' },
   { id: 'feeds', group: 'feeds', defaultPath: '/feeds', icon: ILucideRss, titleKey: 'page_title.feeds' },
-  { id: 'messages', group: 'messages', defaultPath: '/messages', icon: ILucideMessageSquareText, titleKey: 'page_title.messages', requireNonGoogle: true },
-  { id: 'calls', group: 'calls', defaultPath: '/calls', icon: IMaterialSymbolsCallLogOutlineRounded, titleKey: 'page_title.calls', requireNonGoogle: true },
+  { id: 'messages', group: 'messages', defaultPath: '/messages', icon: ILucideMessageSquareText, titleKey: 'page_title.messages' },
+  { id: 'calls', group: 'calls', defaultPath: '/calls', icon: IMaterialSymbolsCallLogOutlineRounded, titleKey: 'page_title.calls' },
   { id: 'contacts', group: 'contacts', defaultPath: '/contacts', icon: ILucideContactRound, titleKey: 'page_title.contacts' },
   { id: 'screen_mirror', group: 'screen_mirror', defaultPath: '/screen-mirror', icon: IMaterialSymbolsScreenRecordRounded, titleKey: 'page_title.screen_mirror' },
   { id: 'image_editor', group: 'image_editor', defaultPath: '/image-editor', icon: ILucidePalette, titleKey: 'page_title.image_editor', requireDebug: true },
@@ -44,7 +42,17 @@ export const ALL_FEATURES: Feature[] = [
 
 export const DEFAULT_RAIL_FEATURES = ['files', 'audios', 'images', 'videos', 'chat']
 
-export function getAvailableFeatures(channel: AppChannelType, debug: boolean = false): Feature[] {
-  return ALL_FEATURES.filter((f) => !(f.requireNonGoogle && channel === AppChannelType.GOOGLE))
-    .filter((f) => !(f.requireDebug && !debug))
+/** Features a NAS exposes: media + files. Chat is NOT filtered by this set —
+ *  it is force-retained on the rail via `withNasChatRetention`. */
+export const NAS_FEATURE_IDS = new Set(['files', 'audios', 'images', 'videos', 'docs'])
+
+export function getAvailableFeatures(isNas: boolean, debug: boolean = false): Feature[] {
+  const features = ALL_FEATURES.filter((f) => !(f.requireDebug && !debug))
+  if (!isNas) return features
+  return features.filter((f) => NAS_FEATURE_IDS.has(f.id))
+}
+
+/** A NAS always keeps chat on the rail, regardless of saved customization. */
+export function withNasChatRetention(ids: string[]): string[] {
+  return ids.includes('chat') ? ids : [...ids, 'chat']
 }

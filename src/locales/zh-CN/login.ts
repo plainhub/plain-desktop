@@ -9,6 +9,8 @@ export default {
     rejected: '登录请求被拒绝。',
     invalid_password: '密码错误。',
     too_many_login_attempts: '登录尝试次数过多，请在 1 分钟后重试。',
+    signature_verification_failed: '登录签名校验失败，请重试。',
+    unauthorized: '密码错误。',
   },
   device_discovery: {
     qr_pair_title: '用手机扫码直连',

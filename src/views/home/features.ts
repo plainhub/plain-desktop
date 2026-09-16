@@ -1,8 +1,7 @@
 import type { Component } from 'vue'
 import ILucideClipboard from '~icons/lucide/clipboard'
 import ILucidePhoneCall from '~icons/lucide/phone-call'
-import { ALL_FEATURES, type Feature } from '@/views/app-rail/features'
-import { AppChannelType } from '@/lib/status'
+import { ALL_FEATURES, NAS_FEATURE_IDS, type Feature } from '@/views/app-rail/features'
 import { isLocalFeatureId, isLocalMode } from '@/lib/device/local-mode'
 import { DEFAULT_HOME_FEATURES, normalizeHomeFeatures } from './feature-list'
 
@@ -54,12 +53,15 @@ const HOME_PANEL_FEATURES: HomePanelFeature[] = [
   { id: 'call_phone', icon: ILucidePhoneCall, titleKey: 'call_phone', sectionType: 'call_phone' },
 ]
 
-export function getAvailableHomeFeatures(channel: AppChannelType, debug: boolean = false): HomeSectionFeature[] {
+/** Home card order and set for a NAS: media + files only, no phone panels. */
+export const NAS_HOME_FEATURES = ['audios', 'images', 'videos', 'docs', 'files']
+
+export function getAvailableHomeFeatures(isNas: boolean, debug: boolean = false): HomeSectionFeature[] {
   const routeFeatures = ALL_FEATURES
     .filter((feature) => HOME_FEATURE_IDS.has(feature.id))
     .filter((feature) => !isLocalMode() || isLocalFeatureId(feature.id))
-    .filter((feature) => !(feature.requireNonGoogle && channel === AppChannelType.GOOGLE))
     .filter((feature) => !(feature.requireDebug && !debug))
+    .filter((feature) => !isNas || NAS_FEATURE_IDS.has(feature.id))
     .map((feature) => ({
       ...feature,
       sectionType: 'feature' as const,
@@ -68,10 +70,11 @@ export function getAvailableHomeFeatures(channel: AppChannelType, debug: boolean
 
   const featureMap = new Map<string, HomeSectionFeature>([
     ...routeFeatures.map((feature) => [feature.id, feature] as const),
-    ...(isLocalMode() ? [] : HOME_PANEL_FEATURES.map((feature) => [feature.id, feature] as const)),
+    ...(isNas || isLocalMode() ? [] : HOME_PANEL_FEATURES.map((feature) => [feature.id, feature] as const)),
   ])
 
-  return DEFAULT_HOME_FEATURES
+  const defaults = isNas ? NAS_HOME_FEATURES : DEFAULT_HOME_FEATURES
+  return defaults
     .map((id) => featureMap.get(id))
     .filter((feature): feature is HomeSectionFeature => !!feature)
 }

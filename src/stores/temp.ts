@@ -3,6 +3,7 @@ import type { IFile } from '@/lib/file'
 import type { IDocExtGroup } from '@/lib/interfaces'
 import { defineCrossWindowStore } from '@/lib/cross-window-store'
 import type { IApp } from '@/lib/interfaces'
+import { DeviceType } from '@/lib/status'
 
 export interface IUploadItem {
   id: string
@@ -71,7 +72,10 @@ export type TempState = {
   feedsSyncing: boolean
 }
 
-export const useTempStore = defineCrossWindowStore<'temp', TempState>('temp', {
+export const useTempStore = defineCrossWindowStore<'temp', TempState, { isNas: (state: TempState) => boolean }>('temp', {
+  getters: {
+    isNas: (state: TempState) => state.app.deviceType === DeviceType.NAS,
+  },
   state: () =>
     ({
       app: { clientId: '' } as IApp,

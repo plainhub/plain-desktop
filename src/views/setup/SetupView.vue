@@ -12,36 +12,53 @@
         </div>
       </div>
       <div class="setup-hint">{{ $t('setup.hint') }}</div>
+      <div v-if="deviceHost" class="setup-device">
+        <i-material-symbols:dns-outline />
+        <span>{{ deviceHost }}</span>
+      </div>
       <v-text-field
+        ref="passwordFieldRef"
         v-model="password"
         :label="$t('setup.new_password')"
-        type="password"
+        :type="showPassword ? 'text' : 'password'"
+        class="form-control"
+        :error="!!passwordError"
+        autocomplete="new-password"
+        @keydown.enter="onSubmit"
+      >
+        <template #trailing-icon>
+          <button
+            type="button"
+            class="btn-icon"
+            :aria-label="$t(showPassword ? 'setup.hide_password' : 'setup.show_password')"
+            @click="showPassword = !showPassword"
+          >
+            <i-material-symbols:visibility-outline v-if="showPassword" />
+            <i-material-symbols:visibility-off-outline v-else />
+          </button>
+        </template>
+      </v-text-field>
+      <v-text-field
+        v-model="confirmPassword"
+        :label="$t('setup.confirm_password')"
+        :type="showPassword ? 'text' : 'password'"
         class="form-control"
         :error="!!passwordError"
         autocomplete="new-password"
         :error-text="passwordError ? $t(passwordError) : ''"
         @keydown.enter="onSubmit"
       />
-      <v-text-field
-        v-model="confirmPassword"
-        :label="$t('setup.confirm_password')"
-        type="password"
-        class="form-control"
-        :error="!!passwordError"
-        autocomplete="new-password"
-        @keydown.enter="onSubmit"
-      />
-      <v-filled-button :disabled="isSubmitting" :loading="isSubmitting">
+      <v-filled-button class="submit-button" :disabled="isSubmitting" :loading="isSubmitting">
         {{ $t(isSubmitting ? 'setup.setting_password' : 'setup.set_password') }}
       </v-filled-button>
     </form>
   </div>
 </template>
 <script setup lang="ts">
-import { onMounted, ref } from 'vue'
+import { nextTick, onMounted, ref, watch } from 'vue'
 import router from '@/plugins/router'
 import { sha512 } from '@/lib/api/crypto'
-import { setPendingLoginDevice, getPendingLoginDevice, clearPendingLoginDevice } from '@/lib/api/api'
+import { setPendingLoginDevice, getPendingLoginDevice, clearPendingLoginDevice, getApiHost, getApiBaseUrl } from '@/lib/api/api'
 import { requestInit } from '@/lib/api/init'
 import { findLoginPeer, saveLoginPeer } from '@/lib/device/login-peers'
 import { getRemoteClientId, setRemoteClientId } from '@/lib/device/client-id'
@@ -55,7 +72,17 @@ const password = ref('')
 const confirmPassword = ref('')
 const passwordError = ref('')
 const isSubmitting = ref(false)
+const showPassword = ref(false)
+const needsSetup = ref(true)
+const deviceHost = ref('')
+const passwordFieldRef = ref<{ focus(): void } | null>(null)
 let lastInitSignaturePublicKey = ''
+
+// The mismatch / required hints describe the pair — clear them as soon as
+// either field is edited so the form never argues with what is on screen.
+watch([password, confirmPassword], () => {
+  if (passwordError.value) passwordError.value = ''
+})
 
 onMounted(() => {
   setPendingLoginDevice({
@@ -63,7 +90,9 @@ onMounted(() => {
     host: window.location.host,
     deviceType: DeviceType.OTHER,
   })
+  deviceHost.value = getApiHost()
   initRequest().catch(() => {})
+  nextTick(() => passwordFieldRef.value?.focus())
 })
 
 // An already-initialized server has nothing to do on this page.
@@ -76,6 +105,7 @@ async function initRequest() {
     lastInitSignaturePublicKey = result.data.signaturePublicKey
   }
   if (!result.data.needsSetup) {
+    needsSetup.value = false
     goToLogin()
   }
 }
@@ -96,6 +126,23 @@ async function onSubmit() {
 
   const hash = sha512(password.value)
   const myClientId = prefsGet('client_id', '')
+
+  // An uninitialized NAS stores the password via the documented REST call;
+  // the handshake afterwards proves it and derives the session token.
+  if (needsSetup.value) {
+    const setupResp = await fetch(`${getApiBaseUrl()}/auth/setup`, {
+      method: 'POST',
+      headers: { 'c-id': myClientId },
+      body: JSON.stringify({ password: hash }),
+    })
+    if (!setupResp.ok && setupResp.status !== 409) {
+      showError.value = true
+      error.value = 'setup.failed'
+      isSubmitting.value = false
+      return
+    }
+    needsSetup.value = false
+  }
 
   try {
     const { clientId, token, signaturePublicKey } = await performLoginHandshake({
@@ -152,8 +199,34 @@ h1 {
 }
 
 .setup-hint {
-  margin-block-end: 16px;
+  margin-block-end: 12px;
   font-size: 0.875rem;
   color: var(--md-sys-color-on-surface-variant);
+}
+
+.setup-device {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-block-end: 20px;
+  padding: 4px 10px;
+  border-radius: 12px;
+  background: var(--md-sys-color-surface-container-high, rgba(73, 69, 79, 0.08));
+  font-size: 0.8125rem;
+  color: var(--md-sys-color-on-surface-variant);
+
+  svg {
+    width: 16px;
+    height: 16px;
+  }
+}
+
+.form-control {
+  margin-bottom: 16px;
+}
+
+.submit-button {
+  width: 100%;
+  margin-top: 8px;
 }
 </style>

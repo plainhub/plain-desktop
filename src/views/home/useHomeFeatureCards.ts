@@ -2,7 +2,6 @@ import { computed, type Component, type ComputedRef } from 'vue'
 import { storeToRefs } from 'pinia'
 import { useMainStore } from '@/stores/main'
 import { useTempStore } from '@/stores/temp'
-import { AppChannelType } from '@/lib/status'
 import {
   DEFAULT_HOME_FEATURES,
   getAvailableHomeFeatures,
@@ -22,9 +21,9 @@ export interface HomeFeatureCard {
 
 export function useHomeFeatureCards(filesPath: ComputedRef<string>) {
   const mainStore = useMainStore()
-  const { app, counter } = storeToRefs(useTempStore())
+  const { app, counter, isNas } = storeToRefs(useTempStore())
 
-  const availableFeatures = computed(() => getAvailableHomeFeatures(app.value?.channel ?? AppChannelType.GITHUB, app.value?.debug ?? false))
+  const availableFeatures = computed(() => getAvailableHomeFeatures(isNas.value, app.value?.debug ?? false))
 
   const homeFeatureCards = computed<HomeFeatureCard[]>(() => {
     const availableMap = new Map(availableFeatures.value.map((feature) => [feature.id, feature]))

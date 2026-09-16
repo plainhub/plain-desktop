@@ -35,6 +35,7 @@ const props = defineProps({
 })
 
 const deviceTypeMap: Record<DeviceType, string> = {
+  [DeviceType.NAS]: 'nas',
   [DeviceType.PHONE]: 'phone',
   [DeviceType.TABLET]: 'tablet',
   [DeviceType.COMPUTER]: 'computer',

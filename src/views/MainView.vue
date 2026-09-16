@@ -54,41 +54,18 @@ v-if="hasLeftSidebar && appReady" class="sidebar-backdrop"
       </div>
       <div v-if="appReady" class="quick-actions">
         <v-icon-button
-v-if="!localMode && (hasTasks || store.quick === 'upload')"
-          v-tooltip="$t('header_actions.uploads')" class="q-action" toggle
-          :class="{ selected: store.quick === 'upload' && !hasActiveUploads, uploading: hasActiveUploads }"
-          @click="toggleQuick('upload')">
-          <span class="upload-action-icon">
-            <i-material-symbols:format-list-numbered-rounded />
+          v-for="action in quickActions"
+          :key="action.id"
+          v-tooltip="$t(action.tooltipKey)"
+          class="q-action"
+          toggle
+          :class="{ selected: store.quick === action.id, uploading: action.id === 'upload' && hasActiveUploads }"
+          @click="toggleQuick(action.id)"
+        >
+          <span v-if="action.id === 'upload'" class="upload-action-icon">
+            <component :is="action.icon" />
           </span>
-        </v-icon-button>
-        <v-icon-button
-v-if="app.channel !== AppChannelType.GOOGLE" v-tooltip="$t('header_actions.notifications')"
-          class="q-action" toggle :class="{ selected: store.quick === 'notification' }"
-          @click="toggleQuick('notification')">
-          <i-material-symbols:notifications-outline-rounded />
-        </v-icon-button>
-        <v-icon-button
-v-tooltip="$t('header_actions.clipboard')" class="q-action" toggle
-          :class="{ selected: store.quick === 'clipboard' }" @click="toggleQuick('clipboard')">
-          <i-material-symbols:content-paste />
-        </v-icon-button>
-        <template v-if="!localMode">
-          <v-icon-button
-id="quick-audio" v-tooltip="$t('playlist')" class="q-action" toggle
-            :class="{ selected: store.quick === 'audio' }" @click="toggleQuick('audio')">
-            <i-material-symbols:queue-music-rounded />
-          </v-icon-button>
-          <v-icon-button
-v-tooltip="$t('pomodoro_timer')" class="q-action" toggle
-            :class="{ selected: store.quick === 'pomodoro' }" @click="toggleQuick('pomodoro')">
-            <i-material-symbols:timer-outline />
-          </v-icon-button>
-        </template>
-        <v-icon-button
-v-tooltip="$t('bookmarks')" class="q-action" toggle
-          :class="{ selected: store.quick === 'bookmark' }" @click="toggleQuick('bookmark')">
-          <i-lucide:bookmark />
+          <component :is="action.icon" v-else />
         </v-icon-button>
         <div v-show="store.quick" class="drag-indicator" @mousedown="resizeWidth">
           <i-material-symbols:drag-indicator />
@@ -100,11 +77,6 @@ v-if="appReady" v-show="store.quick" class="quick-content"
           :style="{ width: store.quickContentWidth + 'px' }">
           <upload-list v-show="store.quick === 'upload'" />
           <audio-player v-show="store.quick === 'audio'" />
-          <p-notifications v-if="!localMode" v-show="store.quick === 'notification'" />
-          <local-notifications v-if="localMode" v-show="store.quick === 'notification'" />
-          <p-clipboard v-if="!localMode" v-show="store.quick === 'clipboard'" />
-          <local-clipboard v-if="localMode" v-show="store.quick === 'clipboard'" />
-          <pomodoro-timer v-show="store.quick === 'pomodoro'" />
           <bookmark-list v-show="store.quick === 'bookmark'" />
         </div>
       </transition>
@@ -114,13 +86,13 @@ v-if="appReady" v-show="store.quick" class="quick-content"
 </template>
 
 <script setup lang="ts">
-import { inject } from 'vue'
+import { computed, inject } from 'vue'
+import type { Component } from 'vue'
 import HeaderSearch from '@/components/HeaderSearch.vue'
 import BookmarkList from '@/views/bookmarks/BookmarkList.vue'
-import LocalNotifications from '@/views/notifications/LocalNotifications.vue'
-import PClipboard from '@/views/clipboard/PClipboard.vue'
-import LocalClipboard from '@/views/clipboard/LocalClipboard.vue'
-import { AppChannelType } from '@/lib/status'
+import IMaterialSymbolsFormatListNumbered from '~icons/material-symbols/format-list-numbered-rounded'
+import IMaterialSymbolsQueueMusicRounded from '~icons/material-symbols/queue-music-rounded'
+import ILucideBookmark from '~icons/lucide/bookmark'
 import { useMainView } from '@/hooks/main-view'
 
 const isTablet = inject('isTablet')
@@ -131,6 +103,22 @@ const {
   hasTasks, hasActiveUploads, hasLeftSidebar, showHeaderSearch, localMode,
   toggleSidebar, toggleQuick, getSidebar2CacheKey, resizeWidth,
 } = useMainView()
+
+interface QuickAction {
+  id: string
+  tooltipKey: string
+  icon: Component
+  visible: boolean
+}
+
+// NAS quick actions: upload list, music player, bookmarks.
+const quickActions = computed<QuickAction[]>(() =>
+  [
+    { id: 'upload', tooltipKey: 'header_actions.uploads', icon: IMaterialSymbolsFormatListNumbered, visible: !localMode && (hasTasks.value || store.quick === 'upload') },
+    { id: 'audio', tooltipKey: 'playlist', icon: IMaterialSymbolsQueueMusicRounded, visible: !localMode },
+    { id: 'bookmark', tooltipKey: 'bookmarks', icon: ILucideBookmark, visible: true },
+  ].filter((action) => action.visible),
+)
 </script>
 
 <style lang="scss" scoped>

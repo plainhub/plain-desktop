@@ -101,7 +101,7 @@ export function useAppSocket() {
 
     try {
       const key = tokenToKey(token)
-      const wsUrl = `${getWebSocketBaseUrl()}/?cid=${clientId}`
+      const wsUrl = `${getWebSocketBaseUrl()}?cid=${clientId}`
       ws = openSocket(wsUrl, localMode ? '' : getRemoteClientId())
       ws.onopen = async () => {
         emitter.emit('app_socket_connection_changed', true)

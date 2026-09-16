@@ -38,8 +38,7 @@ import { useRouter } from 'vue-router'
 import { useMainStore } from '@/stores/main'
 import { useTempStore } from '@/stores/temp'
 import { storeToRefs } from 'pinia'
-import { AppChannelType } from '@/lib/status'
-import { ALL_FEATURES, getAvailableFeatures, type Feature } from './features'
+import { ALL_FEATURES, getAvailableFeatures, withNasChatRetention, type Feature } from './features'
 import { isLocalFeatureId, isLocalMode } from '@/lib/device/local-mode'
 import RailSettingsPopup from './RailSettingsPopup.vue'
 const isTauri = __IS_TAURI__
@@ -50,10 +49,12 @@ const router = useRouter()
 const tempStore = useTempStore()
 const { app } = storeToRefs(tempStore)
 
-const availableFeatures = computed(() => getAvailableFeatures(app.value?.channel ?? AppChannelType.GITHUB, app.value?.debug ?? false))
+const { isNas } = storeToRefs(tempStore)
+const availableFeatures = computed(() => getAvailableFeatures(isNas.value, app.value?.debug ?? false))
 
 const railFeatures = computed<Feature[]>(() => {
-  const ids = localMode ? store.railFeatures.filter(isLocalFeatureId) : store.railFeatures
+  const base = localMode ? store.railFeatures.filter(isLocalFeatureId) : store.railFeatures
+  const ids = isNas.value ? withNasChatRetention(base) : base
   return ids
     .map((id) => ALL_FEATURES.find((f) => f.id === id))
     .filter((f): f is Feature => !!f && availableFeatures.value.some((a) => a.id === f.id))

@@ -9,6 +9,8 @@ export default {
     rejected: 'Login request is rejected.',
     invalid_password: 'Wrong password.',
     too_many_login_attempts: 'Too many login attempts. Please try again in 1 minute.',
+    signature_verification_failed: 'Login signature verification failed. Please try again.',
+    unauthorized: 'Incorrect password.',
   },
   device_discovery: {
     qr_pair_title: 'Scan with your phone to connect',

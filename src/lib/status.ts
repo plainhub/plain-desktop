@@ -29,6 +29,7 @@ export enum MessageType {
 }
 
 export enum DeviceType {
+  NAS = 'NAS',
   PHONE = 'PHONE',
   TABLET = 'TABLET',
   COMPUTER = 'COMPUTER',
