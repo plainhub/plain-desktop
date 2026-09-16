@@ -81,6 +81,7 @@ export function useCallsData() {
     if (event.type === dataType) { fetch() }
   }
   const refetchTagsHandler = (type: string) => { if (type === dataType) fetchTags() }
+  const permissionsUpdatedHandler = () => fetch()
 
   function applyRouteQuery() {
     const nextPage = parseInt(route.query.page?.toString() ?? '1')
@@ -99,6 +100,7 @@ export function useCallsData() {
     emitter.on('item_tags_updated', itemTagsUpdatedHandler)
     emitter.on('items_tags_updated', itemsTagsUpdatedHandler)
     emitter.on('refetch_tags', refetchTagsHandler)
+    emitter.on('permissions_updated', permissionsUpdatedHandler)
     window.addEventListener('keydown', pageKeyDown)
     window.addEventListener('keyup', pageKeyUp)
   })
@@ -108,6 +110,7 @@ export function useCallsData() {
     emitter.off('item_tags_updated', itemTagsUpdatedHandler)
     emitter.off('items_tags_updated', itemsTagsUpdatedHandler)
     emitter.off('refetch_tags', refetchTagsHandler)
+    emitter.off('permissions_updated', permissionsUpdatedHandler)
     window.removeEventListener('keydown', pageKeyDown)
     window.removeEventListener('keyup', pageKeyUp)
   })

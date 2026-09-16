@@ -32,22 +32,17 @@ export function useTextFile() {
   const fileName = ref('')
   const fileSize = ref(0)
   const lastModified = ref('')
-  const jsonData = ref<any>(null)
   const renderedMarkdown = ref('')
-  const showRawText = ref(false)
-  const textWrap = ref(true)
   const showSavedPulse = ref(false)
   let savedPulseTimer: number | null = null
 
   const { render } = useMarkdown(app, urlTokenKey)
 
   // Computed
-  const isJsonFile = computed(() => fileName.value.toLowerCase().endsWith('.json'))
   const isMarkdownFile = computed(() => {
     const name = fileName.value.toLowerCase()
     return name.endsWith('.md') || name.endsWith('.markdown')
   })
-  const canToggleView = computed(() => isJsonFile.value || isMarkdownFile.value)
 
   const extension = computed(() => {
     const name = (fileName.value || '').toLowerCase()
@@ -120,13 +115,10 @@ export function useTextFile() {
   const applyTextContent = async (textContent: string, resetViewMode: boolean) => {
     content.value = textContent
     draft.value = textContent
-    jsonData.value = null
     renderedMarkdown.value = ''
-    if (resetViewMode) showRawText.value = false
+    void resetViewMode
 
-    if (isJsonFile.value) {
-      try { jsonData.value = JSON.parse(textContent) } catch { /* invalid json */ }
-    } else if (isMarkdownFile.value) {
+    if (isMarkdownFile.value) {
       try { renderedMarkdown.value = await render(textContent) } catch { /* fallback to raw */ }
     }
   }
@@ -173,8 +165,6 @@ export function useTextFile() {
   const retry = () => fetchTextContent()
   const openEditor = () => { if (canEdit.value) router.push({ name: 'text-edit', query: { id: fileId.value } }) }
   const openViewer = () => { router.push({ name: 'text-file', query: { id: fileId.value } }) }
-  const toggleViewMode = () => { showRawText.value = !showRawText.value }
-  const toggleTextWrap = () => { textWrap.value = !textWrap.value }
 
   const revealInFinder = () => {
     invoke('reveal_chat_file', { uri: decryptedPath.value }).catch((err) => console.error('reveal_chat_file failed', err))
@@ -233,10 +223,10 @@ export function useTextFile() {
 
   return {
     loading, error, content, draft, fileName, fileSize, lastModified,
-    jsonData, renderedMarkdown, showRawText, textWrap, saving,
-    isJsonFile, isMarkdownFile, canToggleView, language,
+    renderedMarkdown, saving,
+    isMarkdownFile, language,
     isEditing, dirty, displayTitle, statusText, canEdit, showSavedPulse, showInFinder,
-    retry, openEditor, openViewer, toggleViewMode, toggleTextWrap,
+    retry, openEditor, openViewer,
     downloadFile, revealInFinder, save, isLoggedIn,
   }
 }

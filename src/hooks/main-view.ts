@@ -109,6 +109,7 @@ export function useMainView() {
 
   onMounted(() => {
     emitter.on('refetch_app', refetchAppHandler)
+    emitter.on('permissions_updated', refetchAppHandler)
     emitter.on('play_audio', playAudioHandler)
     emitter.on('media_items_actioned', mediaItemsActionedHandler)
     emitter.on('device_name_updated', deviceNameUpdatedHandler)
@@ -117,6 +118,7 @@ export function useMainView() {
 
   onUnmounted(() => {
     emitter.off('refetch_app', refetchAppHandler)
+    emitter.off('permissions_updated', refetchAppHandler)
     emitter.off('play_audio', playAudioHandler)
     emitter.off('media_items_actioned', mediaItemsActionedHandler)
     emitter.off('device_name_updated', deviceNameUpdatedHandler)

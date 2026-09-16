@@ -5,7 +5,7 @@
 <script setup lang="ts">
 import { ref, onMounted, onUnmounted, watch, shallowRef } from 'vue'
 import { EditorView, keymap, lineNumbers } from '@codemirror/view'
-import { EditorState, type Extension } from '@codemirror/state'
+import { EditorState, Compartment, type Extension } from '@codemirror/state'
 import { defaultKeymap, indentWithTab, history, historyKeymap } from '@codemirror/commands'
 import { bracketMatching, indentOnInput, syntaxHighlighting, defaultHighlightStyle, LanguageDescription } from '@codemirror/language'
 import { closeBrackets, closeBracketsKeymap } from '@codemirror/autocomplete'
@@ -17,6 +17,8 @@ import emitter from '@/plugins/eventbus'
 const props = defineProps<{
   modelValue: string
   language?: string
+  readOnly?: boolean
+  wrapText?: boolean
 }>()
 
 const emit = defineEmits<{
@@ -25,6 +27,7 @@ const emit = defineEmits<{
 
 const container = ref<HTMLElement>()
 const view = shallowRef<EditorView>()
+const wrapCompartment = new Compartment()
 
 let isDark = document.documentElement.classList.contains('dark')
 
@@ -47,18 +50,21 @@ function getExtensions(langExt?: Extension): Extension[] {
   const exts: Extension[] = [
     lineNumbers(),
     history(),
-    indentOnInput(),
     bracketMatching(),
-    closeBrackets(),
     highlightSelectionMatches(),
     syntaxHighlighting(defaultHighlightStyle),
-    keymap.of([...defaultKeymap, ...historyKeymap, ...closeBracketsKeymap, ...searchKeymap, indentWithTab]),
-    EditorView.lineWrapping,
+    keymap.of([...defaultKeymap, ...historyKeymap, ...(props.readOnly ? [] : closeBracketsKeymap), ...searchKeymap, indentWithTab]),
+    wrapCompartment.of(props.wrapText === false ? [] : EditorView.lineWrapping),
     EditorView.updateListener.of((update) => {
       if (update.docChanged) emit('update:modelValue', update.state.doc.toString())
     }),
     baseTheme,
   ]
+  if (!props.readOnly) {
+    exts.push(indentOnInput(), closeBrackets())
+  } else {
+    exts.push(EditorState.readOnly.of(true), EditorView.editable.of(false))
+  }
   if (langExt) exts.push(langExt)
   exts.push(isDark ? oneDark : lightTheme)
   return exts
@@ -115,6 +121,13 @@ watch(
     const v = view.value
     if (!v || v.state.doc.toString() === val) return
     v.dispatch({ changes: { from: 0, to: v.state.doc.length, insert: val } })
+  },
+)
+
+watch(
+  () => props.wrapText,
+  (val) => {
+    view.value?.dispatch({ effects: wrapCompartment.reconfigure(val === false ? [] : EditorView.lineWrapping) })
   },
 )
 </script>

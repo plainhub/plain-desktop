@@ -18,8 +18,8 @@ export function useClipboardData() {
   const limit = computed(() => mainStore.pageSize)
   const items = ref<IClipboard[]>([])
   const total = ref(0)
-  /** Phone-side master switch — served by the resident app query, never a dedicated request. */
-  const clipboardSync = computed(() => app.value?.clipboardSync ?? false)
+  /** Phone-side master switch — the CLIPBOARD API permission served by the resident app query. */
+  const clipboardSync = computed(() => app.value?.permissions?.includes('CLIPBOARD') ?? false)
 
   const { loading, fetch } = initLazyQuery({
     handle: (data: { clipboard: IClipboard[]; clipboardCount: number }, error: string) => {

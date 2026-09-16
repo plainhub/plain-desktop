@@ -53,6 +53,7 @@ const EventType: { [key: number]: string } = {
   36: 'sms_send_result',
   37: 'mms_send_result',
   38: 'upload_merge_result',
+  40: 'permissions_updated',
 }
 
 // Screen mirror binary frames (H.264 NAL / Opus) and image editor Yjs updates
@@ -175,6 +176,11 @@ export function useAppSocket() {
     emitter.on('toast', (r: string) => toast(t(r), 'error'))
     emitter.on('tap_phone', (r: string) => {
       tapPhoneMessage.value = r
+    })
+    // A permission change on the phone resolves whatever "check phone" flow
+    // the banner was pointing at (grant permission / toggle access switch).
+    emitter.on('permissions_updated', () => {
+      tapPhoneMessage.value = ''
     })
     window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => {
       if (getCurrentMode() !== 'auto') return

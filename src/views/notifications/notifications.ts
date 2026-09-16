@@ -76,6 +76,8 @@ export function useNotifications() {
     })
 
     emitter.on('notification_refreshed', async () => refetch())
+
+    emitter.on('permissions_updated', async () => refetch())
   })
 
   return {

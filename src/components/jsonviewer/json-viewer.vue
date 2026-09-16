@@ -1,188 +1,411 @@
 <template>
-  <div class="jv-container" :class="themeClass">
-    <div class="jv-code">
-      <json-box :value="value" :expand-depth="expandDepth" />
-    </div>
+  <div ref="scrollRef" class="json-tree" @scroll="onScroll">
+    <template v-if="hasData">
+      <div class="json-tree-spacer" :style="{ height: `${totalHeight}px` }">
+        <div class="json-tree-window" :style="{ top: `${startOffset}px` }">
+          <div
+            v-for="row in visibleRows"
+            :key="row.rowKey"
+            class="tree-row"
+            :class="{ 'tree-row--open': row.kind === 'open' }"
+            :style="{ height: `${ROW_HEIGHT}px` }"
+            @click="row.kind === 'open' && togglePath(row.path, row.depth)"
+          >
+            <span class="jv-indent" :style="{ width: `${row.depth * 20}px` }" />
+            <span v-if="row.kind === 'open'" class="jv-arrow" :class="{ open: !row.isCollapsed }">
+              <svg viewBox="0 0 12 12"><path d="M4 2l4 4-4 4z" /></svg>
+            </span>
+            <span v-else class="jv-arrow" />
+
+            <template v-if="row.kind === 'open'">
+              <template v-if="xml">
+                <span v-if="row.key" class="jv-key-xml" :class="{ 'jv-match': row.match }">&lt;{{ row.key }}&gt;</span>
+                <span v-else-if="xmlRoot" class="jv-key-xml">&lt;{{ xmlRoot }}&gt;</span>
+                <template v-if="row.isCollapsed">
+                  <span class="jv-muted">… {{ row.childCount }}</span>
+                  <span v-if="row.key || xmlRoot" class="jv-key-xml">&lt;/{{ row.key || xmlRoot }}&gt;</span>
+                  <span v-if="row.trailingComma" class="jv-punct">,</span>
+                  <span class="jv-hint">
+                    {{ $t('json_n_items', { n: row.childCount }) }}
+                  </span>
+                </template>
+              </template>
+              <template v-else>
+                <span v-if="row.showKey" class="jv-key" :class="{ 'jv-match': row.match }">"{{ row.key }}"</span>
+                <span v-if="row.showKey" class="jv-punct">:&nbsp;</span>
+                <span class="jv-punct">{{ row.isArray ? '[' : '{' }}</span>
+                <template v-if="row.isCollapsed">
+                  <span class="jv-muted">… {{ row.childCount }}</span>
+                  <span class="jv-punct">{{ row.isArray ? ']' : '}' }}</span>
+                  <span v-if="row.trailingComma" class="jv-punct">,</span>
+                  <span class="jv-hint">
+                    {{ row.isArray ? $t('json_n_items', { n: row.childCount }) : $t('json_n_keys', { n: row.childCount }) }}
+                  </span>
+                </template>
+              </template>
+            </template>
+
+            <template v-else-if="row.kind === 'close'">
+              <span v-if="xml && (row.key || xmlRoot)" class="jv-key-xml">&lt;/{{ row.key || xmlRoot }}&gt;</span>
+              <template v-else-if="!xml">
+                <span class="jv-punct">{{ row.isArray ? ']' : '}' }}</span>
+                <span v-if="row.trailingComma" class="jv-punct">,</span>
+              </template>
+            </template>
+
+            <template v-else>
+              <template v-if="xml && row.key.startsWith('@')">
+                <span class="jv-key-xml jv-attr" :class="{ 'jv-match': row.match }">{{ row.key }}</span>
+                <span class="jv-punct">=</span>
+                <span class="jv-value jv-string">"{{ row.value }}"</span>
+              </template>
+              <template v-else>
+                <span v-if="row.showKey" class="jv-key" :class="{ 'jv-match': row.match }">"{{ row.key }}"</span>
+                <span v-if="row.showKey" class="jv-punct">:&nbsp;</span>
+                <span class="jv-value" :class="valueClass(row.value)">{{ displayValue(row.value) }}</span>
+                <span v-if="row.trailingComma" class="jv-punct">,</span>
+                <span v-if="!xml && timestampFor(row)" class="jv-ts" :title="String(timestampFor(row)!.original)">
+                  <i-lucide-clock />
+                  {{ timestampFor(row)!.formatted }}
+                </span>
+              </template>
+              <button
+                class="jv-copy"
+                type="button"
+                :title="row.path"
+                :aria-label="$t('copy_path')"
+                @click.stop="copyPath(row.path)"
+              >
+                {{ copiedPath === row.path ? '✓' : row.path }}
+              </button>
+            </template>
+          </div>
+        </div>
+      </div>
+    </template>
+    <div v-else class="json-tree-empty">{{ $t('no_data') }}</div>
   </div>
 </template>
 
-<script lang="ts" setup>
-import { onMounted, onUnmounted, ref } from 'vue'
-import emitter from '@/plugins/eventbus'
+<script setup lang="ts">
+import { computed, onMounted, onUnmounted, reactive, ref, shallowRef, watch } from 'vue'
+import { buildRows, isNodeCollapsed, type TreeRow } from './rows'
+import { detectTimestamp, type TimestampInfo } from './timestamp'
 
-defineProps({
-  value: {
-    type: [Object, Array, String, Number, Boolean, Function],
-    required: true,
+const props = withDefaults(
+  defineProps<{
+    value: unknown
+    expandDepth?: number
+    xml?: boolean
+    xmlRoot?: string
+    filterPaths?: Set<string> | null
+  }>(),
+  { expandDepth: 1, xml: false, xmlRoot: '', filterPaths: null },
+)
+
+const ROW_HEIGHT = 24
+const BUFFER = 5
+
+const scrollRef = ref<HTMLDivElement>()
+const scrollTop = ref(0)
+const containerHeight = ref(0)
+const copiedPath = ref('')
+let copyTimer: ReturnType<typeof setTimeout> | undefined
+let resizeObserver: ResizeObserver | undefined
+let scrollFrame = 0
+
+const expandedPaths = reactive(new Set<string>())
+const collapsedPaths = reactive(new Set<string>())
+
+const rows = shallowRef<TreeRow[]>([])
+
+const hasData = computed(() => props.value !== null && props.value !== undefined)
+
+const totalHeight = computed(() => rows.value.length * ROW_HEIGHT)
+const startIndex = computed(() => Math.max(0, Math.floor(scrollTop.value / ROW_HEIGHT) - BUFFER))
+const endIndex = computed(() =>
+  Math.min(rows.value.length, startIndex.value + Math.ceil(containerHeight.value / ROW_HEIGHT) + BUFFER * 2),
+)
+const startOffset = computed(() => startIndex.value * ROW_HEIGHT)
+const visibleRows = computed(() => rows.value.slice(startIndex.value, endIndex.value))
+
+function rebuild() {
+  rows.value = buildRows(props.value, {
+    expanded: expandedPaths,
+    collapsed: collapsedPaths,
+    expandDepth: props.expandDepth,
+    filterPaths: props.filterPaths ?? undefined,
+  })
+}
+
+watch(
+  () => [props.value, props.expandDepth, props.filterPaths, props.xml] as const,
+  () => {
+    expandedPaths.clear()
+    collapsedPaths.clear()
+    rebuild()
   },
-  expandDepth: {
-    type: Number,
-    default: 1,
-  },
-})
+  { immediate: true },
+)
 
-const themeClass = ref('light')
+function togglePath(path: string, depth: number) {
+  const state = {
+    expanded: expandedPaths,
+    collapsed: collapsedPaths,
+    expandDepth: props.expandDepth,
+    filterPaths: props.filterPaths ?? undefined,
+  }
+  if (isNodeCollapsed(path, depth, state)) {
+    expandedPaths.add(path)
+    collapsedPaths.delete(path)
+  } else {
+    collapsedPaths.add(path)
+    expandedPaths.delete(path)
+  }
+  rebuild()
+}
 
-const colorModeChangedHandler = () => {
-  themeClass.value = document.documentElement.classList[0] === 'dark' ? 'dark' : 'light'
+function onScroll() {
+  cancelAnimationFrame(scrollFrame)
+  scrollFrame = requestAnimationFrame(() => {
+    if (scrollRef.value) scrollTop.value = scrollRef.value.scrollTop
+  })
 }
 
 onMounted(() => {
-  emitter.on('color_mode_changed', colorModeChangedHandler)
+  const el = scrollRef.value
+  if (!el) return
+  containerHeight.value = el.clientHeight
+  if (typeof ResizeObserver === 'undefined') return
+  resizeObserver = new ResizeObserver(entries => {
+    containerHeight.value = entries[0]?.contentRect.height ?? 0
+  })
+  resizeObserver.observe(el)
 })
 
 onUnmounted(() => {
-  emitter.off('color_mode_changed', colorModeChangedHandler)
+  resizeObserver?.disconnect()
+  cancelAnimationFrame(scrollFrame)
+  clearTimeout(copyTimer)
 })
+
+function displayValue(value: unknown): string {
+  if (value === null) return 'null'
+  if (value === undefined) return 'undefined'
+  if (typeof value === 'string') return `"${value}"`
+  return String(value)
+}
+
+function valueClass(value: unknown): string {
+  if (value === null || value === undefined) return 'jv-null'
+  if (typeof value === 'string') return 'jv-string'
+  if (typeof value === 'number') return 'jv-number'
+  if (typeof value === 'boolean') return 'jv-boolean'
+  return ''
+}
+
+function timestampFor(row: TreeRow): TimestampInfo | null {
+  if (row.kind !== 'value') return null
+  return detectTimestamp(row.value)
+}
+
+async function copyPath(path: string) {
+  try {
+    await navigator.clipboard.writeText(path)
+    copiedPath.value = path
+  } catch {
+    copiedPath.value = ''
+    return
+  }
+  clearTimeout(copyTimer)
+  copyTimer = setTimeout(() => {
+    copiedPath.value = ''
+  }, 1500)
+}
 </script>
 
-<style lang="scss">
-.jv-container {
-  position: relative;
+<style lang="scss" scoped>
+.json-tree {
+  --jv-key: #7e22ce;
+  --jv-string: #15803d;
+  --jv-number: #2563eb;
+  --jv-boolean: #d97706;
+  --jv-ts-fg: #b45309;
+  --jv-ts-bg: #fef3c7;
+
   height: 100%;
   overflow: auto;
+  color: var(--md-sys-color-on-surface);
+  font-family: ui-monospace, SFMono-Regular, SF Mono, Menlo, Consolas, Liberation Mono, monospace;
+  font-size: 0.875rem;
+  line-height: 1.5;
+  user-select: text;
+
+  :root.dark & {
+    --jv-key: #c084fc;
+    --jv-string: #4ade80;
+    --jv-number: #60a5fa;
+    --jv-boolean: #fbbf24;
+    --jv-ts-fg: #fcd34d;
+    --jv-ts-bg: rgba(146, 64, 14, 0.32);
+  }
+}
+
+.json-tree-spacer {
+  position: relative;
+}
+
+.json-tree-window {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+}
+
+.tree-row {
+  display: flex;
+  align-items: center;
+  padding: 0 4px;
+  margin: 0 -4px;
+  border-radius: 4px;
   white-space: nowrap;
 
-  .jv-ellipsis {
-    font-size: 0.8em;
-    padding: 2px 4px;
-    margin: 0 4px;
-    border-radius: 3px;
-    cursor: pointer;
-    user-select: none;
-  }
+  &:hover {
+    background: color-mix(in srgb, var(--md-sys-color-primary) 8%, transparent);
 
-  .jv-key {
-    margin-right: 4px;
-  }
-
-  .jv-code {
-    overflow: hidden;
-  }
-
-  .jv-item.jv-string {
-    word-break: break-word;
-    white-space: normal;
-  }
-
-  .jv-toggle {
-    cursor: pointer;
-    width: 0;
-    height: 0;
-    border-width: 5px 0 5px 9px;
-    border-color: transparent transparent transparent var(--md-sys-color-outline);
-    border-style: solid;
-    margin-right: 4px;
-    display: inline-block;
-
-    &.open {
-      transform: rotate(90deg);
+    .jv-hint,
+    .jv-ts,
+    .jv-copy {
+      opacity: 1;
     }
   }
 }
 
-.jv-container.light {
-  color: #525252;
+.tree-row--open {
+  cursor: pointer;
+}
 
-  .jv-ellipsis {
-    color: #999;
-    background-color: #eee;
+.jv-indent {
+  display: inline-block;
+  flex-shrink: 0;
+}
+
+.jv-arrow {
+  width: 16px;
+  height: 20px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  color: var(--md-sys-color-outline);
+
+  svg {
+    width: 12px;
+    height: 12px;
+    fill: currentColor;
+    transition: transform 0.15s;
   }
 
-  .jv-key {
-    color: #111111;
+  &.open svg {
+    transform: rotate(90deg);
   }
 }
 
-.jv-container.dark {
-  color: #fff;
+.jv-key {
+  color: var(--jv-key);
+}
 
-  .jv-ellipsis {
-    color: #f8f8f8;
-    background-color: #2c3e50;
-  }
+.jv-key-xml {
+  color: var(--jv-number);
 
-  .jv-key {
-    color: #fff;
-  }
-
-  /**dark */
-  .jv-item.jv-array {
-    color: #111111;
-  }
-
-  .jv-item.jv-array {
-    color: #fff;
-  }
-
-  .jv-item.jv-boolean {
-    color: #fc1e70;
-  }
-
-  .jv-item.jv-function {
-    color: #067bca;
-  }
-
-  .jv-item.jv-number {
-    color: #fc1e70;
-  }
-
-  .jv-item.jv-object {
-    color: #fff;
-  }
-
-  .jv-item.jv-undefined {
-    color: #e08331;
-  }
-
-  .jv-item.jv-string {
-    color: #42b983;
-
-    .jv-link {
-      color: #0366d6;
-    }
-  }
-
-  .jv-code .jv-toggle:hover:before {
-    background: #eee;
+  &.jv-attr {
+    color: var(--jv-key);
   }
 }
 
-.jv-container.light {
-  .jv-item.jv-array {
-    color: #111111;
+.jv-match {
+  background: var(--jv-ts-bg);
+  border-radius: 3px;
+}
+
+.jv-punct {
+  color: var(--md-sys-color-on-surface-variant);
+}
+
+.jv-muted {
+  color: var(--md-sys-color-outline);
+  margin: 0 4px;
+}
+
+.jv-hint {
+  margin-left: 8px;
+  font-size: 0.75rem;
+  color: var(--md-sys-color-outline);
+  opacity: 0;
+  transition: opacity 0.15s;
+}
+
+.jv-value {
+  &.jv-string {
+    color: var(--jv-string);
   }
 
-  .jv-item.jv-boolean {
-    color: #fc1e70;
+  &.jv-number {
+    color: var(--jv-number);
   }
 
-  .jv-item.jv-function {
-    color: #067bca;
+  &.jv-boolean {
+    color: var(--jv-boolean);
+    font-weight: 500;
   }
 
-  .jv-item.jv-number {
-    color: #fc1e70;
+  &.jv-null {
+    color: var(--md-sys-color-outline);
+    font-style: italic;
   }
+}
 
-  .jv-item.jv-object {
-    color: #111111;
+.jv-ts {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  margin-left: 8px;
+  padding: 0 4px;
+  border-radius: 4px;
+  font-size: 0.75rem;
+  color: var(--jv-ts-fg);
+  background: var(--jv-ts-bg);
+  opacity: 0.8;
+  transition: opacity 0.15s;
+
+  svg {
+    width: 12px;
+    height: 12px;
   }
+}
 
-  .jv-item.jv-undefined {
-    color: #e08331;
+.jv-copy {
+  margin-left: auto;
+  flex-shrink: 0;
+  padding: 0 0 0 8px;
+  border: none;
+  background: none;
+  font: inherit;
+  font-size: 0.75rem;
+  color: var(--md-sys-color-outline);
+  opacity: 0;
+  cursor: pointer;
+  transition: opacity 0.15s, color 0.15s;
+
+  &:hover {
+    color: var(--md-sys-color-primary);
   }
+}
 
-  .jv-item.jv-string {
-    color: #42b983;
-
-    .jv-link {
-      color: #0366d6;
-    }
-  }
-
-  .jv-code .jv-toggle:hover:before {
-    background: #eee;
-  }
+.json-tree-empty {
+  padding: 32px 16px;
+  text-align: center;
+  color: var(--md-sys-color-on-surface-variant);
+  font-style: italic;
 }
 </style>

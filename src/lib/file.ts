@@ -17,9 +17,14 @@ export interface IFile extends IData {
   size: number
 }
 
+// Keep in sync with String.isTextFile() in plain-app shared-lib (same whitelist).
 export function isTextFile(name: string) {
   const v = name.toLowerCase()
-  return ['.txt', '.md', '.markdown', '.json', '.xml', '.css', '.js', '.ts', '.html', '.yml', '.yaml', '.ini', '.conf', '.log'].some((it) => v.endsWith(it))
+  return [
+    '.txt', '.md', '.markdown', '.xml', '.html', '.json', '.csv', '.log', '.yaml', '.yml',
+    '.ovpn', '.opml', '.cfg', '.conf', '.ini', '.rtf', '.tex', '.sh', '.bat', '.properties', '.plist',
+    '.asp', '.aspx', '.php', '.js', '.css', '.java', '.py', '.rb', '.rs', '.swift', '.kt', '.go', '.sql', '.ts',
+  ].some((it) => v.endsWith(it))
 }
 
 export function isAppFile(path: string) {

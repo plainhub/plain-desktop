@@ -127,9 +127,17 @@ export function startLocalPeerData() {
   const { notificationVolume } = storeToRefs(useMainStore())
 
   emitter.on('peer_ws_event', ({ peerId, type, data }) => {
-    if (!NOTIFICATION_EVENTS.has(type)) return
+    if (!NOTIFICATION_EVENTS.has(type) && type !== 40) return
     const group = groupOf(peerId)
     if (!group || !findLoginPeer(peerId)) return
+    // 40 = PERMISSIONS_UPDATED — peer's `app.permissions` (e.g.
+    // NOTIFICATION_LISTENER) may have changed; re-pull notifications+app.
+    if (type === 40) {
+      fetchPeerNotifications(peerId, true)
+      // The peer acted, so any "check phone" banner is obsolete.
+      emitter.emit('tap_phone', '')
+      return
+    }
     const decorated = decorate(group, data)
     if (type === 7) {
       group.items = upsertNotification(group.items, decorated)

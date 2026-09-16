@@ -159,6 +159,7 @@ export function useMediaPage(options: MediaPageOptions) {
     doFetch()
   }
   const refetchTagsHandler = (type: string) => { if (type === dataType) fetchBucketsTags() }
+  const permissionsUpdatedHandler = () => doFetch()
   const uploadRefresh = createUploadRefreshScheduler(() => {
     doFetch()
     emitter.emit('media_items_actioned', { type: dataType, action: 'upload', query: '' })
@@ -190,6 +191,7 @@ export function useMediaPage(options: MediaPageOptions) {
     emitter.on('media_items_actioned', mediaItemsActionedHandler)
     emitter.on('upload_task_done', uploadTaskDoneHandler)
     emitter.on('refetch_tags', refetchTagsHandler)
+    emitter.on('permissions_updated', permissionsUpdatedHandler)
     window.addEventListener('keydown', pageKeyDown)
     window.addEventListener('keyup', pageKeyUp)
     if (options.getScrollMode()) options.setupScroll?.()
@@ -202,6 +204,7 @@ export function useMediaPage(options: MediaPageOptions) {
     emitter.off('media_items_actioned', mediaItemsActionedHandler)
     emitter.off('upload_task_done', uploadTaskDoneHandler)
     emitter.off('refetch_tags', refetchTagsHandler)
+    emitter.off('permissions_updated', permissionsUpdatedHandler)
     window.removeEventListener('keydown', pageKeyDown)
     window.removeEventListener('keyup', pageKeyUp)
     options.teardownScroll?.()

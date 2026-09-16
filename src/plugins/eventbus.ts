@@ -8,6 +8,7 @@ type Events = {
   upload_progress: IUploadItem
   upload_merge_result: IUploadMergeResultEvent
   refetch_app: undefined
+  permissions_updated: undefined
   play_audio: undefined
   do_play_audio: undefined
   pause_audio: undefined
