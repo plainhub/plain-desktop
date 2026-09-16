@@ -304,6 +304,7 @@ export default {
   pending: '待处理',
   rebuild_index: '重建索引',
   building_file_index: '正在构建文件索引…',
+  counting_files: '正在统计文件…',
   test: '测试',
   increase_font_size: '增大字体',
   decrease_font_size: '减小字体',

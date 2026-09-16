@@ -140,8 +140,12 @@ export function useScanAction() {
     return Math.min(100, Math.max(0, Math.round((indexed / total) * 100)))
   })
 
+  // Backend walks the whole tree to count files before indexing starts
+  // (total still 0) — show a dedicated label instead of a stuck 0%.
+  const counting = computed(() => scanProgress.value.state === 'running' && scanProgress.value.total === 0)
+
   const stateLabel = computed(() => {
-    if (scanProgress.value.state === 'running') return t('building_file_index')
+    if (scanProgress.value.state === 'running') return counting.value ? t('counting_files') : t('building_file_index')
     if (scanProgress.value.state === 'paused') return t('paused')
     if (scanProgress.value.state === 'stopped') return t('stopped')
     return ''
@@ -163,7 +167,7 @@ export function useScanAction() {
   async function rebuildIndex() { await rebuildIndexMutation({ root: '/' }) }
 
   return {
-    scanProgress, scanActive, percent, stateLabel,
+    scanProgress, scanActive, percent, stateLabel, counting,
     showPause, showResume, showStop, showRebuild, rebuildIndexLoading,
     pauseScan, resumeScan, stopScan, rebuildIndex,
   }

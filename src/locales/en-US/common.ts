@@ -319,6 +319,7 @@ export default {
   pending: 'pending',
   rebuild_index: 'Rebuild Index',
   building_file_index: 'Building file index…',
+  counting_files: 'Counting files…',
   test: 'Test',
   increase_font_size: 'Increase font size',
   decrease_font_size: 'Decrease font size',

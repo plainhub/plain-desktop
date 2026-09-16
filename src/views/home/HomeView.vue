@@ -18,7 +18,7 @@
             <div class="progress">
               <div class="bar" :style="{ width: percent + '%' }"></div>
             </div>
-            <div class="muted">
+            <div v-if="!counting" class="muted">
               {{ scanProgress.indexed.toLocaleString() }} / {{ scanProgress.total.toLocaleString() }}
               <span v-if="scanProgress.pending > 0"> · {{ $t('pending') }} {{ scanProgress.pending.toLocaleString() }}</span>
             </div>
@@ -77,7 +77,7 @@ const { app, counter, isNas } = storeToRefs(useTempStore())
 const { mounts } = useHomeData()
 const { clipText, clipTextError, setClipLoading, pasteClipboardText, sendClipboard } = useClipboardAction()
 const {
-  scanProgress, scanActive, percent, stateLabel,
+  scanProgress, scanActive, percent, stateLabel, counting,
   showPause, showResume, showStop, showRebuild, rebuildIndexLoading,
   pauseScan, resumeScan, stopScan, rebuildIndex,
 } = useScanAction()
