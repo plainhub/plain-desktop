@@ -11,6 +11,7 @@ import type { IPackageItem, IPackage, IPackageStatus } from '@/lib/interfaces'
 import { decodeBase64 } from '@/lib/strutil'
 import { useSelectable } from '@/hooks/list'
 import { useKeyEvents } from '@/hooks/key-events'
+import emitter from '@/plugins/eventbus'
 import { getFileUrlByPath } from '@/lib/api/file'
 
 export function useAppsData() {
@@ -81,6 +82,10 @@ export function useAppsData() {
   }
 
   watch(() => route.fullPath, () => { applyRouteQuery() })
+
+  const permissionsUpdatedHandler = () => { if (isActive.value) fetch() }
+  onActivated(() => emitter.on('permissions_updated', permissionsUpdatedHandler))
+  onDeactivated(() => emitter.off('permissions_updated', permissionsUpdatedHandler))
 
   return {
     items, page, limit, q, loading, fetch, sorting, isActive,

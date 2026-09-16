@@ -44,6 +44,7 @@ export function useFilesEvents(opts: UseFilesEventsOptions) {
 
   const fileDeletedHandler = (event: IFileDeletedEvent) => { onDeleted([event.item]) }
   const fileRenamedHandler = (_: IFileRenamedEvent) => { fetch() }
+  const permissionsUpdatedHandler = () => { fetch() }
 
   watch(routeFullPath, () => {
     if (!isActive.value) return
@@ -63,6 +64,7 @@ export function useFilesEvents(opts: UseFilesEventsOptions) {
     emitter.on('upload_task_done', uploadTaskDoneHandler)
     emitter.on('file_deleted', fileDeletedHandler)
     emitter.on('file_renamed', fileRenamedHandler)
+    emitter.on('permissions_updated', permissionsUpdatedHandler)
     window.addEventListener('keydown', pageKeyDown)
     window.addEventListener('keyup', pageKeyUp)
   })
@@ -73,6 +75,7 @@ export function useFilesEvents(opts: UseFilesEventsOptions) {
     emitter.off('upload_task_done', uploadTaskDoneHandler)
     emitter.off('file_deleted', fileDeletedHandler)
     emitter.off('file_renamed', fileRenamedHandler)
+    emitter.off('permissions_updated', permissionsUpdatedHandler)
     window.removeEventListener('keydown', pageKeyDown)
     window.removeEventListener('keyup', pageKeyUp)
   })

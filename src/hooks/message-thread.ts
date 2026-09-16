@@ -279,6 +279,7 @@ export function useMessageThread(
 
   const onItemsTagsUpdated = (event: IItemsTagsUpdatedEvent) => { if (event.type === DataType.SMS) void fetch(true) }
   const onItemTagsUpdated = (event: IItemTagsUpdatedEvent) => { if (event.type === DataType.SMS) void fetch(true) }
+  const onPermissionsUpdated = () => void fetch(true)
   const stateRefresh = createSmsNotificationRefresh(() => void fetch(true), () => loadContacts(true))
 
   function subscribe(force = false) {
@@ -287,6 +288,7 @@ export function useMessageThread(
     emitter.on('item_tags_updated', onItemTagsUpdated)
     emitter.on('items_tags_updated', onItemsTagsUpdated)
     emitter.on('mms_sent', onMmsSent)
+    emitter.on('permissions_updated', onPermissionsUpdated)
     stateRefresh.subscribe()
   }
 
@@ -294,6 +296,7 @@ export function useMessageThread(
     emitter.off('item_tags_updated', onItemTagsUpdated)
     emitter.off('items_tags_updated', onItemsTagsUpdated)
     emitter.off('mms_sent', onMmsSent)
+    emitter.off('permissions_updated', onPermissionsUpdated)
     stateRefresh.unsubscribe()
     cancelRetries()
   }

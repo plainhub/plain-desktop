@@ -107,6 +107,7 @@ export function useMessagesSidebar() {
     if (smsSentTimer) clearTimeout(smsSentTimer)
     smsSentTimer = setTimeout(() => { smsSentTimer = undefined; applyRouteQuery(true) }, 1500)
   }
+  const permissionsUpdatedHandler = () => applyRouteQuery(true)
   const notificationRefresh = createSmsNotificationRefresh(() => applyRouteQuery(true), () => loadContacts(true))
 
   watch(() => route.query.q, () => { if (isActive.value && !isArchived.value) applyRouteQuery(true) })
@@ -116,12 +117,14 @@ export function useMessagesSidebar() {
     loadContacts(true)
     applyRouteQuery(true)
     emitter.on('sms_sent' as any, smsSentHandler)
+    emitter.on('permissions_updated', permissionsUpdatedHandler)
     notificationRefresh.subscribe()
   })
 
   onDeactivated(() => {
     isActive.value = false
     emitter.off('sms_sent' as any, smsSentHandler)
+    emitter.off('permissions_updated', permissionsUpdatedHandler)
     notificationRefresh.unsubscribe()
     if (smsSentTimer) clearTimeout(smsSentTimer)
     smsSentTimer = undefined
