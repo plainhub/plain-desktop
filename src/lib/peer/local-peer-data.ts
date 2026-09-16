@@ -134,6 +134,8 @@ export function startLocalPeerData() {
     // NOTIFICATION_LISTENER) may have changed; re-pull notifications+app.
     if (type === 40) {
       fetchPeerNotifications(peerId, true)
+      // The peer acted, so any "check phone" banner is obsolete.
+      emitter.emit('tap_phone', '')
       return
     }
     const decorated = decorate(group, data)
