@@ -6,7 +6,7 @@ import { storeToRefs } from 'pinia'
 import { initQuery, appGQL } from '@/lib/api/query'
 import emitter from '@/plugins/eventbus'
 import { tokenToKey } from '@/lib/api/file'
-import type { IApp, IMediaItemsActionedEvent } from '@/lib/interfaces'
+import type { IApp, IMediaItemsActionedEvent, IScanProgress } from '@/lib/interfaces'
 import { useRightSidebarResize } from '@/hooks/sidebar'
 import { getMainStateKey } from '@/lib/device/current'
 import { get as prefsGet, set as prefsSet } from '@/lib/prefs'
@@ -103,6 +103,13 @@ export function useMainView() {
     }
   }
 
+  // plain-nas pushes the media-scan progress on the WS every second while a
+  // scan runs; patch the app state in place so the home index card updates.
+  const mediaScanProgressHandler = (p: IScanProgress) => {
+    if (!p || !app.value) return
+    app.value = { ...app.value, scanProgress: { indexed: p.indexed, pending: p.pending, total: p.total, state: p.state } }
+  }
+
   const pairingRequestHandler = (request: PairingRequest) => {
     openModal(PairingRequestModal, { request })
   }
@@ -114,6 +121,7 @@ export function useMainView() {
     emitter.on('media_items_actioned', mediaItemsActionedHandler)
     emitter.on('device_name_updated', deviceNameUpdatedHandler)
     emitter.on('pairing_request_received', pairingRequestHandler)
+    emitter.on('media_scan_progress', mediaScanProgressHandler)
   })
 
   onUnmounted(() => {
@@ -123,6 +131,7 @@ export function useMainView() {
     emitter.off('media_items_actioned', mediaItemsActionedHandler)
     emitter.off('device_name_updated', deviceNameUpdatedHandler)
     emitter.off('pairing_request_received', pairingRequestHandler)
+    emitter.off('media_scan_progress', mediaScanProgressHandler)
   })
 
   // Restore persisted state from prefs

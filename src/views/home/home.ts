@@ -1,9 +1,9 @@
-import { ref, watch } from 'vue'
+import { ref, computed, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useTempStore } from '@/stores/temp'
 import { storeToRefs } from 'pinia'
 import { useMainStore } from '@/stores/main'
-import { callGQL, setClipGQL, initMutation } from '@/lib/api/mutation'
+import { callGQL, setClipGQL, initMutation, pauseMediaScanGQL, resumeMediaScanGQL, stopMediaScanGQL, rebuildMediaIndexGQL } from '@/lib/api/mutation'
 import { homeStatsGQL, simsGQL, initQuery, type HomeStatKey } from '@/lib/api/query'
 import toast from '@/components/toaster'
 import type { IHomeStats, IStorageMount, IContact, ISim } from '@/lib/interfaces'
@@ -122,4 +122,49 @@ export function useClipboardAction() {
   watch(clipText, () => { clipTextError.value = false })
 
   return { clipText, clipTextError, setClipLoading, pasteClipboardText, sendClipboard }
+}
+
+// Media-index scan panel on the home files card (plain-nas only): live
+// progress from the `media_scan_progress` WS push, plus the
+// pause/resume/stop/rebuild controls.
+export function useScanAction() {
+  const { t } = useI18n()
+  const { app } = storeToRefs(useTempStore())
+
+  const scanProgress = computed(() => app.value?.scanProgress ?? { indexed: 0, pending: 0, total: 0, state: 'idle' })
+  const scanActive = computed(() => ['running', 'paused'].includes(scanProgress.value.state))
+
+  const percent = computed(() => {
+    const { indexed, total } = scanProgress.value
+    if (!total) return 0
+    return Math.min(100, Math.max(0, Math.round((indexed / total) * 100)))
+  })
+
+  const stateLabel = computed(() => {
+    if (scanProgress.value.state === 'running') return t('building_file_index')
+    if (scanProgress.value.state === 'paused') return t('paused')
+    if (scanProgress.value.state === 'stopped') return t('stopped')
+    return ''
+  })
+
+  const showPause = computed(() => scanProgress.value.state === 'running')
+  const showResume = computed(() => scanProgress.value.state === 'paused')
+  const showStop = computed(() => scanActive.value)
+  const showRebuild = computed(() => ['idle', 'stopped'].includes(scanProgress.value.state))
+
+  const { mutate: pauseScanMutation } = initMutation({ document: pauseMediaScanGQL })
+  const { mutate: resumeScanMutation } = initMutation({ document: resumeMediaScanGQL })
+  const { mutate: stopScanMutation } = initMutation({ document: stopMediaScanGQL })
+  const { mutate: rebuildIndexMutation, loading: rebuildIndexLoading } = initMutation({ document: rebuildMediaIndexGQL })
+
+  async function pauseScan() { await pauseScanMutation() }
+  async function resumeScan() { await resumeScanMutation() }
+  async function stopScan() { await stopScanMutation() }
+  async function rebuildIndex() { await rebuildIndexMutation({ root: '/' }) }
+
+  return {
+    scanProgress, scanActive, percent, stateLabel,
+    showPause, showResume, showStop, showRebuild, rebuildIndexLoading,
+    pauseScan, resumeScan, stopScan, rebuildIndex,
+  }
 }

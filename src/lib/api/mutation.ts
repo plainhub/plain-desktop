@@ -877,3 +877,19 @@ export const retryDownloadGQL = `
     retryDownload(messageId: $messageId, peerId: $peerId)
   }
 `
+
+export const pauseMediaScanGQL = `
+  mutation pauseMediaScan { pauseMediaScan }
+`
+
+export const resumeMediaScanGQL = `
+  mutation resumeMediaScan { resumeMediaScan }
+`
+
+export const stopMediaScanGQL = `
+  mutation stopMediaScan { stopMediaScan }
+`
+
+export const rebuildMediaIndexGQL = `
+  mutation rebuildMediaIndex($root: String!) { rebuildMediaIndex(root: $root) }
+`

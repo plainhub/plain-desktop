@@ -78,7 +78,10 @@ export const useTempStore = defineCrossWindowStore<'temp', TempState, { isNas: (
   },
   state: () =>
     ({
-      app: { clientId: '' } as IApp,
+      app: {
+        clientId: '',
+        scanProgress: { indexed: 0, pending: 0, total: 0, state: 'idle' },
+      } as IApp,
       urlTokenKey: null,
       uploads: [],
       selectedFiles: [],

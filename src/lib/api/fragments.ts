@@ -53,6 +53,12 @@ export const appFragment = `
       fullPath
       alias
     }
+    scanProgress {
+      indexed
+      pending
+      total
+      state
+    }
   }
   ${playlistAudioFragment}
 `

@@ -10,6 +10,7 @@ import { chachaDecrypt, chachaEncrypt, bitArrayToUint8Array } from '@/lib/api/cr
 import { parseWebSocketData } from '@/lib/api/sjcl-arraybuffer'
 import { applyDarkClass, changeColor, changeColorMode, getCurrentMode, getLastSavedAutoColorMode, isModeDark } from '@/lib/theme'
 import { tokenToKey } from '@/lib/api/file'
+import { useTempStore } from '@/stores/temp'
 import { getRemoteClientId } from '@/lib/device/client-id'
 import { getCurrentAuthToken } from '@/lib/device/current'
 import { isLocalMode } from '@/lib/device/local-mode'
@@ -56,6 +57,16 @@ const EventType: { [key: number]: string } = {
   40: 'permissions_updated',
 }
 
+// plain-nas reuses the low event-type numbers for its own pushes
+// (src/ws_hub.rs): 4/6/7/8 collide with the phone events above, so the
+// active map is picked per message based on the connected device type.
+const NasEventType: { [key: number]: string } = {
+  4: 'media_scan_progress',
+  6: 'file_task_progress',
+  7: 'dlna_renderer_found',
+  8: 'dlna_discovery_done',
+}
+
 // Screen mirror binary frames (H.264 NAL / Opus) and image editor Yjs updates
 // are sent raw — skip ChaCha20 decryption so the bytes are consumed directly.
 const RAW_BINARY_EVENTS = new Set([
@@ -68,6 +79,7 @@ export function useAppSocket() {
   const { t } = useI18n()
   document.title = 'PlainApp'
 
+  const tempStore = useTempStore()
   const wsStatus = ref('')
   const tapPhoneMessage = ref('')
   let retryConnectTimeout: ReturnType<typeof setTimeout> | undefined
@@ -116,7 +128,7 @@ export function useAppSocket() {
       ws.onmessage = async (event: MessageEvent) => {
         const buffer = await event.data.arrayBuffer()
         const r = parseWebSocketData(buffer)
-        const type = EventType[r.type]
+        const type = (tempStore.isNas ? NasEventType : EventType)[r.type]
         try {
           if (RAW_BINARY_EVENTS.has(r.type)) {
             // Zero-copy: pass the Uint8Array view directly. The view shares

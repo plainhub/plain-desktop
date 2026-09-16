@@ -1,4 +1,4 @@
-import type { IItemTagsUpdatedEvent, IItemsTagsUpdatedEvent, IFileDeletedEvent, IFileRenamedEvent, IMediaItemsActionedEvent, INotesActionedEvent, ISmsChangedEvent, ISmsSendResultEvent, IMmsSendResultEvent, IUploadMergeResultEvent } from '@/lib/interfaces'
+import type { IItemTagsUpdatedEvent, IItemsTagsUpdatedEvent, IFileDeletedEvent, IFileRenamedEvent, IMediaItemsActionedEvent, INotesActionedEvent, ISmsChangedEvent, ISmsSendResultEvent, IMmsSendResultEvent, IUploadMergeResultEvent, IScanProgress } from '@/lib/interfaces'
 import type { PairingRequest, PairingResult } from '@/lib/pairing-types'
 import type { IUploadItem } from '@/stores/temp'
 import type { ScreenMirrorVideoCodec } from '@/views/screen-mirror/screen-mirror-pipeline'
@@ -62,6 +62,10 @@ type Events = {
   nearby_discovery_stopped: { reason?: string } | undefined
   image_editor_update: ArrayBuffer
   peer_ws_event: { peerId: string, type: number, data: any }
+  media_scan_progress: IScanProgress
+  file_task_progress: any
+  dlna_renderer_found: any
+  dlna_discovery_done: any
 }
 
 type Handler<T = any> = (event: T) => void

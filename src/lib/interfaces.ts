@@ -450,6 +450,13 @@ export interface IImageSearchStatus {
   indexedImages: number
 }
 
+export interface IScanProgress {
+  indexed: number
+  pending: number
+  total: number
+  state: string
+}
+
 export interface IApp {
   clientId: string
   usbConnected: boolean
@@ -474,6 +481,7 @@ export interface IApp {
   developerMode: boolean
   debug: boolean
   favoriteFolders: IFavoriteFolder[]
+  scanProgress: IScanProgress
 }
 
 export interface IBreadcrumbItem {
