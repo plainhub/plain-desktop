@@ -7,10 +7,11 @@ import {
 } from '@/components/jsonviewer/rows'
 import { detectTimestamp } from '@/components/jsonviewer/timestamp'
 
-const state = (expandDepth = 1, expanded: string[] = [], collapsed: string[] = []) => ({
+const state = (expandDepth = 1, expanded: string[] = [], collapsed: string[] = [], filterPaths?: Set<string>) => ({
   expanded: new Set(expanded),
   collapsed: new Set(collapsed),
   expandDepth,
+  filterPaths,
 })
 
 describe('json path building', () => {
@@ -79,6 +80,32 @@ describe('buildRows', () => {
     expect(isNodeCollapsed('$.y', 0, s)).toBe(true)
     expect(isNodeCollapsed('$.z', 1, s)).toBe(false)
     expect(isNodeCollapsed('$.z', 2, s)).toBe(true)
+  })
+
+  it('filterPaths prunes unmatched branches and expands the rest', () => {
+    const data = { keep: { deep: { hit: 1, other: 2 } }, drop: { x: 1 } }
+    const rows = buildRows(data, state(1, [], [], new Set(['$.keep.deep.hit'])))
+    const paths = rows.map(r => r.path)
+    expect(paths).toContain('$.keep')
+    expect(paths).toContain('$.keep.deep')
+    expect(paths).toContain('$.keep.deep.hit')
+    expect(paths).not.toContain('$.keep.deep.other')
+    expect(paths).not.toContain('$.drop')
+    expect(rows.find(r => r.path === '$.keep.deep.hit')).toMatchObject({ kind: 'value', match: true })
+    expect(rows.find(r => r.path === '$.keep')).toMatchObject({ kind: 'open', isCollapsed: false })
+  })
+
+  it('empty filter set yields no rows', () => {
+    const rows = buildRows({ a: 1 }, state(2, [], [], new Set()))
+    expect(rows).toHaveLength(0)
+  })
+
+  it('descendants of a matched object are kept', () => {
+    const data = { apps: [{ name: 'a', inner: { v: 1 } }, { name: 'b' }] }
+    const rows = buildRows(data, state(2, [], [], new Set(['$.apps[0]'])))
+    const paths = rows.map(r => r.path)
+    expect(paths).toContain('$.apps[0].inner.v')
+    expect(paths).not.toContain('$.apps[1]')
   })
 })
 

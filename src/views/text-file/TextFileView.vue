@@ -1,16 +1,23 @@
 <!-- eslint-disable vue/no-v-html -->
 <template>
-  <div class="page">
+  <div class="page" :class="{ fullscreen: isFullscreen }">
     <header
       class="topbar"
       :class="{ 'topbar--tauri': isTauri }"
       :data-tauri-drag-region="isTauri ? 'deep' : null"
     >
-      <div class="title-wrap">
-        <div class="title">{{ displayTitle }}</div>
-        <div class="meta">
-          <span v-if="fileSize">{{ formatFileSize(fileSize) }}</span>
-          <span v-if="lastModified" v-tooltip="formatDateTime(lastModified)">{{ formatTimeAgo(lastModified) }}</span>
+      <div class="file-chip">
+        <div class="file-icon">
+          <i-lucide-file-text />
+        </div>
+        <div class="title-wrap">
+          <div class="title-line">
+            <div class="title">{{ displayTitle }}</div>
+            <span class="type-badge" :class="{ plain: kind === 'txt' || kind === 'doc' }">{{ kindLabel }}</span>
+          </div>
+          <div class="meta">
+            <span v-if="lastModified" v-tooltip="formatDateTime(lastModified)">{{ formatTimeAgo(lastModified) }}</span>
+          </div>
         </div>
       </div>
 
@@ -21,17 +28,6 @@
       </div>
 
       <div class="actions">
-        <template v-if="!isEditing">
-          <v-outlined-button v-if="showInFinder" class="action-btn" @click="revealInFinder">
-            <i-lucide-folder-open />
-            {{ $t('show_in_finder') }}
-          </v-outlined-button>
-          <v-outlined-button v-else class="action-btn" @click="downloadFile">
-            <i-lucide-download />
-            {{ $t('download') }}
-          </v-outlined-button>
-        </template>
-
         <template v-if="isEditing">
           <v-outlined-button class="action-btn" :loading="saving" :disabled="saving || !dirty" @click="save">
             {{ $t('save') }}
@@ -41,82 +37,243 @@
           </v-outlined-button>
         </template>
         <template v-else>
-          <v-outlined-button v-if="canToggleView" class="action-btn" @click="toggleViewMode">
-            <i-lucide-eye v-if="showRawText" />
-            <i-lucide-code v-else />
-            {{ showRawText ? $t('formatted_view') : $t('raw_text') }}
-          </v-outlined-button>
-
           <v-outlined-button
-            v-if="showRawText || (!isJsonFile && !isMarkdownFile)"
+            v-if="showInFinder"
+            v-tooltip="$t('show_in_finder')"
             class="action-btn"
-            @click="toggleTextWrap"
+            :aria-label="$t('show_in_finder')"
+            @click="revealInFinder"
           >
-            <i-lucide-wrap-text />
-            {{ textWrap ? $t('unwrap') : $t('wrap') }}
+            <i-lucide-folder-open />
           </v-outlined-button>
-
-          <v-outlined-button v-if="canEdit" class="action-btn" @click="openEditor">
+          <v-outlined-button
+            v-else
+            v-tooltip="$t('download')"
+            class="action-btn"
+            :aria-label="$t('download')"
+            @click="downloadFile"
+          >
+            <i-lucide-download />
+          </v-outlined-button>
+          <v-outlined-button
+            v-if="canEdit"
+            v-tooltip="$t('edit')"
+            class="action-btn"
+            :aria-label="$t('edit')"
+            @click="openEditor"
+          >
             <i-lucide-pencil />
-            {{ $t('edit') }}
           </v-outlined-button>
+          <header-actions :logged-in="isLoggedIn" />
         </template>
-
-        <header-actions :logged-in="isLoggedIn" />
       </div>
     </header>
 
-    <main class="main">
-      <section v-if="loading" class="state">
-        <v-circular-progress indeterminate />
-        <span class="state-text">{{ $t('loading') }}</span>
-      </section>
-
-      <section v-else-if="error" class="state error">
-        <i-material-symbols:error-outline-rounded class="state-icon" />
-        <span class="state-text">{{ error }}</span>
-        <v-outlined-button @click="retry">{{ $t('retry') }}</v-outlined-button>
-      </section>
-
-      <section v-else-if="isEditing" class="editor">
-        <CodeEditor v-model="draft" :language="language" />
-      </section>
-
-      <section v-else class="viewer">
-        <div class="viewer-card" :class="{ 'viewer-card--json': isJsonFile && jsonData }">
-          <pre
-            v-if="showRawText || (!isJsonFile && !isMarkdownFile) || (isJsonFile && !jsonData)"
-            class="view-raw text-view"
-            :class="{ 'text-wrap': textWrap }"
-          >{{ content }}</pre>
-          <json-viewer v-else-if="isJsonFile" :value="jsonData" :expand-depth="2" />
-          <div v-else-if="isMarkdownFile" class="md-container" v-html="renderedMarkdown"></div>
-        </div>
-      </section>
+    <main v-if="isEditing" class="editor">
+      <CodeEditor v-model="draft" :language="language" />
     </main>
+
+    <template v-else>
+      <ViewerToolbar
+        v-if="!loading && !error"
+        :kind="kind"
+        :structured="structured"
+        :mode="mode"
+        :depth="depth"
+        :path-open="pathOpen"
+        :wrap="wrap"
+        :indent-size="indentSize"
+        :big="big"
+        :can-transform="canTransform"
+        :fullscreen="isFullscreen"
+        @update:mode="mode = $event"
+        @update:depth="depth = $event"
+        @update:path-open="pathOpen = $event"
+        @update:wrap="wrap = $event"
+        @update:indent-size="indentSize = $event as 2 | 4"
+        @toggle-fullscreen="isFullscreen = !isFullscreen"
+        @format="format"
+        @minify="minify"
+      />
+
+      <JsonPathBar
+        v-if="kind === 'json' && pathOpen && !loading && !error"
+        :expression="expression"
+        :match-count="matchCount"
+        :suggestions="suggestions"
+        @update:expression="expression = $event"
+        @close="pathOpen = false"
+      />
+
+      <main class="viewer-area">
+        <section v-if="loading" class="state">
+          <v-circular-progress indeterminate />
+          <span class="state-text">{{ $t('loading') }}</span>
+        </section>
+
+        <section v-else-if="error" class="state error">
+          <i-material-symbols:error-outline-rounded class="state-icon" />
+          <span class="state-text">{{ error }}</span>
+          <v-outlined-button @click="retry">{{ $t('retry') }}</v-outlined-button>
+        </section>
+
+        <SplitPanels
+          v-else-if="structured || kind === 'md'"
+          :ratio="ratio"
+          :folded="effectiveFolded"
+          @update:ratio="ratio = $event"
+        >
+          <template #source>
+            <ViewerPanel :title="$t('viewer_source')" :meta="sourceMeta">
+              <template #actions>
+                <button class="mini-btn" :aria-label="$t('copy')" @click="copySource">
+                  <i-lucide-copy />
+                </button>
+              </template>
+              <CodeEditor :model-value="viewText" :language="cmLanguage" read-only :wrap-text="wrap" />
+            </ViewerPanel>
+          </template>
+          <template #tree>
+            <ViewerPanel v-if="kind === 'md'" :title="$t('preview')" meta="Markdown">
+              <template #icon><i-lucide-eye /></template>
+              <div class="md-container" v-html="renderedMarkdown"></div>
+            </ViewerPanel>
+            <ViewerPanel v-else :title="$t('viewer_tree')">
+              <template #icon><i-lucide-list-tree /></template>
+              <template #actions>
+                <template v-if="!jsonInvalid">
+                  <button class="mini-btn" :aria-label="$t('all')" @click="depth = 999">
+                    <i-lucide-chevrons-down-up />
+                  </button>
+                  <button class="mini-btn" :aria-label="$t('depth')" @click="depth = 1">
+                    <i-lucide-chevrons-up-down />
+                  </button>
+                </template>
+              </template>
+              <div v-if="jsonInvalid" class="panel-placeholder">
+                <i-lucide-triangle-alert />
+                <span>{{ $t('invalid_json_tree_hint') }}</span>
+              </div>
+              <json-viewer
+                v-else
+                :value="treeValue"
+                :expand-depth="depth"
+                :xml="kind === 'xml'"
+                :xml-root="xmlRoot"
+                :filter-paths="matchPaths"
+              />
+            </ViewerPanel>
+          </template>
+        </SplitPanels>
+
+        <ViewerPanel v-else-if="kind === 'txt'" :title="$t('viewer_source')" :meta="$t('plain_text')" class="solo-panel">
+          <template #icon><i-lucide-code /></template>
+          <template #actions>
+            <button class="mini-btn" :aria-label="$t('copy')" @click="copySource">
+              <i-lucide-copy />
+            </button>
+          </template>
+          <CodeEditor :model-value="viewText" read-only :wrap-text="wrap" />
+        </ViewerPanel>
+
+        <ViewerPanel v-else-if="kind === 'doc'" :title="$t('doc_preview_title')" class="solo-panel">
+          <template #icon><i-lucide-file-text /></template>
+          <div class="panel-placeholder tall">
+            <i-lucide-file-text />
+            <span class="placeholder-title">{{ $t('doc_preview_title') }}</span>
+            <span class="placeholder-hint">{{ $t('doc_preview_hint') }}</span>
+            <v-outlined-button class="placeholder-btn" @click="downloadFile">
+              <i-lucide-download />
+              {{ $t('download') }}
+            </v-outlined-button>
+          </div>
+        </ViewerPanel>
+      </main>
+
+      <StatusBar
+        v-if="!loading && !error"
+        :kind="kind"
+        :json-invalid="jsonInvalid"
+        :error-pos="errorPos"
+        :fixable="fixable"
+        :lines="lines"
+        :size-text="sizeText"
+        @fix="fix"
+      />
+    </template>
   </div>
 </template>
 
 <script setup lang="ts">
+import { computed, ref } from 'vue'
 import { formatDateTime, formatFileSize, formatTimeAgo } from '@/lib/format'
+import CodeEditor from '@/components/CodeEditor.vue'
 import JsonViewer from '@/components/jsonviewer/json-viewer.vue'
 import { useTextFile } from './text-file'
+import { useViewer } from './useViewer'
+import { kindBadge } from './file-kind'
+import ViewerToolbar from './ViewerToolbar.vue'
+import JsonPathBar from './JsonPathBar.vue'
+import ViewerPanel from './ViewerPanel.vue'
+import SplitPanels from './SplitPanels.vue'
+import StatusBar from './StatusBar.vue'
 
 const isTauri = __IS_TAURI__
 
+const isFullscreen = ref(false)
+
 const {
-  loading, error, content, draft, fileName, fileSize, lastModified,
-  jsonData, renderedMarkdown, showRawText, textWrap, saving,
-  isJsonFile, isMarkdownFile, canToggleView, language,
-  isEditing, dirty, displayTitle, statusText, canEdit, showSavedPulse, showInFinder,
-  retry, openEditor, openViewer, toggleViewMode, toggleTextWrap,
+  loading, error, content, draft, fileName, lastModified,
+  renderedMarkdown, saving,
+  language,
+  isEditing, dirty, displayTitle, statusText, canEdit, showInFinder,
+  retry, openEditor, openViewer,
   downloadFile, revealInFinder, save, isLoggedIn,
 } = useTextFile()
+
+const viewer = useViewer({ fileName, content })
+const {
+  kind, structured, big, sizeBytes,
+  jsonInvalid, errorPos, fixable, xmlTree,
+  mode, depth, pathOpen, expression, wrap, indentSize, folded, ratio,
+  viewText, suggestions, matchPaths, matchCount, canTransform, lines,
+  cmLanguage,
+  format, minify, fix,
+} = viewer
+
+const kindLabel = computed(() => kindBadge(kind.value))
+
+const effectiveFolded = computed(() => {
+  if (mode.value === 'source') return 'tree'
+  if (mode.value === 'tree') return 'source'
+  return folded.value
+})
+
+const treeValue = computed(() => (kind.value === 'xml' ? xmlTree.value?.value : viewer.jsonValue.value))
+const xmlRoot = computed(() => (kind.value === 'xml' ? xmlTree.value?.rootTag ?? '' : ''))
+
+const sourceMeta = computed(() => {
+  switch (kind.value) {
+    case 'json': return 'JSON'
+    case 'xml': return 'XML'
+    case 'md': return 'Markdown'
+    default: return ''
+  }
+})
+
+const sizeText = computed(() => formatFileSize(sizeBytes.value))
+
+async function copySource() {
+  try {
+    await navigator.clipboard.writeText(viewText.value)
+  } catch { /* clipboard unavailable */ }
+}
 </script>
 
 <style scoped>
 .page {
   height: 100vh;
+  height: 100dvh;
   display: flex;
   flex-direction: column;
   background: var(--md-sys-color-surface);
@@ -125,11 +282,16 @@ const {
 .topbar {
   display: flex;
   align-items: center;
-  justify-content: space-between;
   gap: 12px;
-  padding: 12px 16px;
+  min-height: 56px;
+  padding: 8px 16px;
   border-bottom: 1px solid var(--md-sys-color-outline-variant);
   background: var(--md-sys-color-surface);
+  flex-shrink: 0;
+}
+
+.page.fullscreen .topbar {
+  display: none;
 }
 
 .topbar--tauri {
@@ -141,13 +303,40 @@ const {
   -webkit-app-region: no-drag;
 }
 
-.title-wrap {
+.file-chip {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
   flex: 1;
+}
+
+.file-icon {
+  width: 36px;
+  height: 36px;
+  border-radius: 8px;
+  background: var(--md-sys-color-primary-container);
+  color: var(--md-sys-color-on-primary-container);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  font-size: 20px;
+}
+
+.title-wrap {
+  min-width: 0;
+}
+
+.title-line {
+  display: flex;
+  align-items: center;
+  gap: 8px;
   min-width: 0;
 }
 
 .title {
-  font-size: 0.95rem;
+  font-size: 0.9375rem;
   font-weight: 600;
   color: var(--md-sys-color-on-surface);
   overflow: hidden;
@@ -155,20 +344,29 @@ const {
   white-space: nowrap;
 }
 
+.type-badge {
+  font-size: 0.6875rem;
+  font-weight: 700;
+  letter-spacing: 0.4px;
+  padding: 1px 8px;
+  border-radius: 999px;
+  background: var(--md-sys-color-primary-container);
+  color: var(--md-sys-color-on-primary-container);
+  flex-shrink: 0;
+
+  &.plain {
+    background: var(--md-sys-color-surface-container-high);
+    color: var(--md-sys-color-on-surface-variant);
+  }
+}
+
 .meta {
   display: flex;
   gap: 8px;
   margin-top: 2px;
   color: var(--md-sys-color-on-surface-variant);
-  font-size: 0.8rem;
-  flex-wrap: wrap;
+  font-size: 0.75rem;
   min-height: 1em;
-}
-
-.meta span:not(:last-child)::after {
-  content: '•';
-  margin-left: 8px;
-  color: var(--md-sys-color-outline);
 }
 
 .actions {
@@ -205,51 +403,24 @@ const {
   line-height: 1;
 }
 
-.main {
-  flex: 1;
-  min-height: 0;
-  display: flex;
-}
-
 .editor {
   flex: 1;
   min-width: 0;
   min-height: 0;
 }
 
-.viewer {
+.viewer-area {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  padding: 8px;
+  gap: 8px;
+  overflow: hidden;
+}
+
+.solo-panel {
   flex: 1;
   min-width: 0;
-  overflow: auto;
-  padding: 20px;
-  background: var(--md-sys-color-surface);
-}
-
-.viewer-card {
-  max-width: 1200px;
-  margin: 0 auto;
-  background: var(--md-sys-color-surface-container-lowest);
-  border-radius: 12px;
-  padding: 24px;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
-}
-
-.viewer-card--json {
-  height: 100%;
-  box-sizing: border-box;
-}
-
-.text-view {
-  color: var(--md-sys-color-on-surface);
-  white-space: pre;
-  word-wrap: normal;
-  margin: 0;
-  overflow-x: auto;
-}
-
-.text-view.text-wrap {
-  white-space: pre-wrap;
-  word-wrap: break-word;
 }
 
 .state {
@@ -258,7 +429,7 @@ const {
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 14px;
+  gap: 12px;
   text-align: center;
 }
 
@@ -277,15 +448,78 @@ const {
   max-width: 460px;
 }
 
+.mini-btn {
+  border: none;
+  background: transparent;
+  color: var(--md-sys-color-on-surface-variant);
+  width: 24px;
+  height: 24px;
+  border-radius: 6px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  font-size: 14px;
+  padding: 0;
+
+  &:hover {
+    background: var(--md-sys-color-surface-container-high);
+    color: var(--md-sys-color-on-surface);
+  }
+}
+
+.panel-placeholder {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  color: var(--md-sys-color-outline);
+  font-size: 0.8125rem;
+  padding: 16px;
+  text-align: center;
+
+  > svg {
+    width: 40px;
+    height: 40px;
+    opacity: 0.6;
+  }
+
+  .placeholder-title {
+    font-weight: 600;
+    color: var(--md-sys-color-on-surface-variant);
+  }
+
+  .placeholder-hint {
+    font-size: 0.75rem;
+  }
+
+  .placeholder-btn {
+    margin-top: 8px;
+  }
+
+  &.tall {
+    height: 100%;
+  }
+}
+
+.viewer-area :deep(.CodeMirror),
+.viewer-area :deep(.cm-editor) {
+  height: 100%;
+}
+
 @media (max-width: 768px) {
   .topbar {
-    padding: 10px 12px;
+    padding: 8px 12px;
   }
-  .viewer {
-    padding: 16px;
+
+  .meta {
+    display: none;
   }
-  .viewer-card {
-    padding: 16px;
+
+  .viewer-area {
+    padding: 4px;
   }
 }
 </style>

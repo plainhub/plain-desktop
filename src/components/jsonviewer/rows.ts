@@ -10,6 +10,7 @@ export interface TreeRowOpen {
   isCollapsed: boolean
   trailingComma: boolean
   value: unknown
+  match: boolean
 }
 
 export interface TreeRowClose {
@@ -17,6 +18,7 @@ export interface TreeRowClose {
   rowKey: string
   path: string
   depth: number
+  key: string
   isArray: boolean
   trailingComma: boolean
 }
@@ -30,6 +32,7 @@ export interface TreeRowValue {
   showKey: boolean
   value: unknown
   trailingComma: boolean
+  match: boolean
 }
 
 export type TreeRow = TreeRowOpen | TreeRowClose | TreeRowValue
@@ -38,6 +41,7 @@ export interface CollapseState {
   expanded: Set<string>
   collapsed: Set<string>
   expandDepth: number
+  filterPaths?: Set<string>
 }
 
 export function needsBracketNotation(key: string): boolean {
@@ -49,6 +53,7 @@ export function buildJsonPath(parentPath: string, key: string): string {
 }
 
 export function isNodeCollapsed(path: string, depth: number, state: CollapseState): boolean {
+  if (state.filterPaths && state.filterPaths.size) return false
   if (state.expanded.has(path)) return false
   if (state.collapsed.has(path)) return true
   return depth >= state.expandDepth
@@ -60,7 +65,14 @@ export function buildRows(value: unknown, state: CollapseState): TreeRow[] {
   return rows
 }
 
-function build(
+function isPathKeptByFilter(path: string, filter: Set<string>): boolean {
+  if (filter.has(path)) return true
+  for (const match of filter) {
+    if (match.length > path.length && (match.startsWith(`${path}.`) || match.startsWith(`${path}[`))) return true
+    if (path.length > match.length && (path.startsWith(`${match}.`) || path.startsWith(`${match}[`))) return true
+  }
+  return false
+}function build(
   value: unknown,
   path: string,
   depth: number,
@@ -70,10 +82,14 @@ function build(
   rows: TreeRow[],
   state: CollapseState,
 ) {
+  const filter = state.filterPaths
+  const kept = !filter || isPathKeptByFilter(path, filter)
+  if (!kept) return
+  const match = !!filter && filter.has(path)
   const isArray = Array.isArray(value)
   const isObject = value !== null && typeof value === 'object' && !isArray
   if (!isArray && !isObject) {
-    rows.push({ kind: 'value', rowKey: path, path, depth, key, showKey, value, trailingComma })
+    rows.push({ kind: 'value', rowKey: path, path, depth, key, showKey, value, trailingComma, match })
     return
   }
   const collapsed = isNodeCollapsed(path, depth, state)
@@ -90,6 +106,7 @@ function build(
     isCollapsed: collapsed,
     trailingComma: collapsed ? trailingComma : false,
     value,
+    match,
   })
   if (collapsed) return
   if (isArray) {
@@ -105,5 +122,5 @@ function build(
       build(record[k], buildJsonPath(path, k), depth + 1, k, true, i < keys.length - 1, rows, state)
     }
   }
-  rows.push({ kind: 'close', rowKey: `${path}:c`, path, depth, isArray, trailingComma })
+  rows.push({ kind: 'close', rowKey: `${path}:c`, path, depth, key, isArray, trailingComma })
 }

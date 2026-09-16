@@ -18,33 +18,57 @@
             <span v-else class="jv-arrow" />
 
             <template v-if="row.kind === 'open'">
-              <span v-if="row.showKey" class="jv-key">"{{ row.key }}"</span>
-              <span v-if="row.showKey" class="jv-punct">:&nbsp;</span>
-              <span class="jv-punct">{{ row.isArray ? '[' : '{' }}</span>
-              <template v-if="row.isCollapsed">
-                <span class="jv-muted">… {{ row.childCount }}</span>
-                <span class="jv-punct">{{ row.isArray ? ']' : '}' }}</span>
-                <span v-if="row.trailingComma" class="jv-punct">,</span>
-                <span class="jv-hint">
-                  {{ row.isArray ? $t('json_n_items', { n: row.childCount }) : $t('json_n_keys', { n: row.childCount }) }}
-                </span>
+              <template v-if="xml">
+                <span v-if="row.key" class="jv-key-xml" :class="{ 'jv-match': row.match }">&lt;{{ row.key }}&gt;</span>
+                <span v-else-if="xmlRoot" class="jv-key-xml">&lt;{{ xmlRoot }}&gt;</span>
+                <template v-if="row.isCollapsed">
+                  <span class="jv-muted">… {{ row.childCount }}</span>
+                  <span v-if="row.key || xmlRoot" class="jv-key-xml">&lt;/{{ row.key || xmlRoot }}&gt;</span>
+                  <span v-if="row.trailingComma" class="jv-punct">,</span>
+                  <span class="jv-hint">
+                    {{ $t('json_n_items', { n: row.childCount }) }}
+                  </span>
+                </template>
+              </template>
+              <template v-else>
+                <span v-if="row.showKey" class="jv-key" :class="{ 'jv-match': row.match }">"{{ row.key }}"</span>
+                <span v-if="row.showKey" class="jv-punct">:&nbsp;</span>
+                <span class="jv-punct">{{ row.isArray ? '[' : '{' }}</span>
+                <template v-if="row.isCollapsed">
+                  <span class="jv-muted">… {{ row.childCount }}</span>
+                  <span class="jv-punct">{{ row.isArray ? ']' : '}' }}</span>
+                  <span v-if="row.trailingComma" class="jv-punct">,</span>
+                  <span class="jv-hint">
+                    {{ row.isArray ? $t('json_n_items', { n: row.childCount }) : $t('json_n_keys', { n: row.childCount }) }}
+                  </span>
+                </template>
               </template>
             </template>
 
             <template v-else-if="row.kind === 'close'">
-              <span class="jv-punct">{{ row.isArray ? ']' : '}' }}</span>
-              <span v-if="row.trailingComma" class="jv-punct">,</span>
+              <span v-if="xml && (row.key || xmlRoot)" class="jv-key-xml">&lt;/{{ row.key || xmlRoot }}&gt;</span>
+              <template v-else-if="!xml">
+                <span class="jv-punct">{{ row.isArray ? ']' : '}' }}</span>
+                <span v-if="row.trailingComma" class="jv-punct">,</span>
+              </template>
             </template>
 
             <template v-else>
-              <span v-if="row.showKey" class="jv-key">"{{ row.key }}"</span>
-              <span v-if="row.showKey" class="jv-punct">:&nbsp;</span>
-              <span class="jv-value" :class="valueClass(row.value)">{{ displayValue(row.value) }}</span>
-              <span v-if="row.trailingComma" class="jv-punct">,</span>
-              <span v-if="timestampFor(row)" class="jv-ts" :title="String(timestampFor(row)!.original)">
-                <i-lucide-clock />
-                {{ timestampFor(row)!.formatted }}
-              </span>
+              <template v-if="xml && row.key.startsWith('@')">
+                <span class="jv-key-xml jv-attr" :class="{ 'jv-match': row.match }">{{ row.key }}</span>
+                <span class="jv-punct">=</span>
+                <span class="jv-value jv-string">"{{ row.value }}"</span>
+              </template>
+              <template v-else>
+                <span v-if="row.showKey" class="jv-key" :class="{ 'jv-match': row.match }">"{{ row.key }}"</span>
+                <span v-if="row.showKey" class="jv-punct">:&nbsp;</span>
+                <span class="jv-value" :class="valueClass(row.value)">{{ displayValue(row.value) }}</span>
+                <span v-if="row.trailingComma" class="jv-punct">,</span>
+                <span v-if="!xml && timestampFor(row)" class="jv-ts" :title="String(timestampFor(row)!.original)">
+                  <i-lucide-clock />
+                  {{ timestampFor(row)!.formatted }}
+                </span>
+              </template>
               <button
                 class="jv-copy"
                 type="button"
@@ -72,8 +96,11 @@ const props = withDefaults(
   defineProps<{
     value: unknown
     expandDepth?: number
+    xml?: boolean
+    xmlRoot?: string
+    filterPaths?: Set<string> | null
   }>(),
-  { expandDepth: 1 },
+  { expandDepth: 1, xml: false, xmlRoot: '', filterPaths: null },
 )
 
 const ROW_HEIGHT = 24
@@ -107,11 +134,12 @@ function rebuild() {
     expanded: expandedPaths,
     collapsed: collapsedPaths,
     expandDepth: props.expandDepth,
+    filterPaths: props.filterPaths ?? undefined,
   })
 }
 
 watch(
-  () => [props.value, props.expandDepth] as const,
+  () => [props.value, props.expandDepth, props.filterPaths, props.xml] as const,
   () => {
     expandedPaths.clear()
     collapsedPaths.clear()
@@ -121,7 +149,12 @@ watch(
 )
 
 function togglePath(path: string, depth: number) {
-  const state = { expanded: expandedPaths, collapsed: collapsedPaths, expandDepth: props.expandDepth }
+  const state = {
+    expanded: expandedPaths,
+    collapsed: collapsedPaths,
+    expandDepth: props.expandDepth,
+    filterPaths: props.filterPaths ?? undefined,
+  }
   if (isNodeCollapsed(path, depth, state)) {
     expandedPaths.add(path)
     collapsedPaths.delete(path)
@@ -280,6 +313,19 @@ async function copyPath(path: string) {
 
 .jv-key {
   color: var(--jv-key);
+}
+
+.jv-key-xml {
+  color: var(--jv-number);
+
+  &.jv-attr {
+    color: var(--jv-key);
+  }
+}
+
+.jv-match {
+  background: var(--jv-ts-bg);
+  border-radius: 3px;
 }
 
 .jv-punct {

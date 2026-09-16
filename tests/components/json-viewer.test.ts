@@ -54,4 +54,40 @@ describe('JsonViewer', () => {
     expect(wrapper.text()).not.toContain('"a"')
     expect(wrapper.text()).toContain('"b"')
   })
+
+  it('renders xml tags and attribute rows in xml mode', () => {
+    const wrapper = mount(JsonViewer, {
+      props: {
+        value: { '@id': 'a1', item: { '@name': 'x' } },
+        expandDepth: 2,
+        xml: true,
+        xmlRoot: 'root',
+      },
+      global: { mocks: { $t: (key: string) => key } },
+    })
+    const text = wrapper.text()
+    expect(text).toContain('<root>')
+    expect(text).toContain('</root>')
+    expect(text).toContain('<item>')
+    expect(text).toContain('</item>')
+    expect(text).toContain('@id')
+    expect(text).toContain('"a1"')
+    expect(text).toContain('"x"')
+    expect(text).not.toContain('"item"')
+  })
+
+  it('keeps only matched paths when filterPaths is set', () => {
+    const wrapper = mountViewer({ keep: { hit: 1 }, drop: { x: 2 } }, 1)
+    expect(wrapper.text()).toContain('"drop"')
+    const filtered = mount(JsonViewer, {
+      props: {
+        value: { keep: { hit: 1 }, drop: { x: 2 } },
+        expandDepth: 1,
+        filterPaths: new Set(['$.keep.hit']),
+      },
+      global: { mocks: { $t: (key: string) => key } },
+    })
+    expect(filtered.text()).toContain('"hit"')
+    expect(filtered.text()).not.toContain('"drop"')
+  })
 })
