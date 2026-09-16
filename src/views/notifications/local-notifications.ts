@@ -1,10 +1,7 @@
 import { computed, ref } from 'vue'
-import { useI18n } from 'vue-i18n'
-import tapPhone from '@/plugins/tapphone'
 import {
   peerNotificationGroups,
   dropPeerNotifications,
-  openPeerNotificationSettings,
   replyPeerNotification,
 } from '@/lib/peer/local-peer-data'
 
@@ -13,8 +10,6 @@ export type { PeerNotificationGroup } from '@/lib/peer/local-peer-data'
 /** UI binding over the resident local-peer data layer: transient reply state
  *  and offline-aware action policies live here, data lives in lib/peer. */
 export function useLocalNotifications() {
-  const { t } = useI18n()
-
   const groups = peerNotificationGroups
   const total = computed(() => groups.value.reduce((n, g) => n + g.items.length, 0))
 
@@ -53,15 +48,10 @@ export function useLocalNotifications() {
     }
   }
 
-  async function openSettings(peerId: string) {
-    await openPeerNotificationSettings(peerId)
-    tapPhone(t('check_phone'))
-  }
-
   return {
     groups, total,
     replyingId, replySending,
     startReply, cancelReply, sendReply,
-    deleteItem, clearGroup, clearAll, openSettings,
+    deleteItem, clearGroup, clearAll,
   }
 }

@@ -7,6 +7,7 @@ import type { IAudio } from '@/lib/interfaces'
 import { transferEffect } from '@/lib/effect'
 import { useTempStore } from '@/stores/temp'
 import { storeToRefs } from 'pinia'
+import { useAudioPlaylistStore } from '@/hooks/audio-playlist-store'
 
 export const useAddToPlaylist = (items: Ref<IAudio[]>, clearSelection: () => void) => {
   const { mutate, loading, onDone } = initMutation({
@@ -21,20 +22,20 @@ export const useAddToPlaylist = (items: Ref<IAudio[]>, clearSelection: () => voi
     document: deletePlaylistAudioGQL,
   })
 
-  const { app } = storeToRefs(useTempStore())
   const { t } = useI18n()
+  const playlistStore = useAudioPlaylistStore()
 
   onDone(() => {
-    emitter.emit('refetch_app')
+    playlistStore.refetch()
     clearSelection()
   })
 
   removeDone(() => {
-    emitter.emit('refetch_app')
+    playlistStore.refetch()
   })
 
   const playlistAudios = computed(() => {
-    return app.value?.audios ?? []
+    return playlistStore.items.value
   })
 
   const isInPlaylist = (item: IAudio) => {

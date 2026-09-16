@@ -22,7 +22,6 @@
           :key="g.peerId"
           :group="g"
           @clear="clearGroup(g.peerId)"
-          @open-settings="openSettings(g.peerId)"
         >
           <div v-if="g.items.length" class="grp-items">
             <notification-item
@@ -38,12 +37,7 @@
               @delete="deleteItem(g.peerId, item.id)"
             />
           </div>
-          <div
-            v-else-if="!(g.loaded && g.online && !g.permissions.includes('NOTIFICATION_LISTENER'))"
-            class="g-empty"
-          >
-            {{ $t(g.loading ? 'loading' : g.online ? 'no_data' : 'offline') }}
-          </div>
+          <NoDataPlaceholder v-else :loading="g.loading" :online="g.online" :peer-id="g.peerId" :permissions="g.permissions" permission="NOTIFICATION_LISTENER" />
       </notification-group>
       <NoDataPlaceholder v-if="!groups.length" :loading="groups.some((g) => g.loading)" />
     </div>
@@ -68,7 +62,7 @@ const {
   groups, total,
   replyingId, replySending,
   startReply, cancelReply, sendReply,
-  deleteItem, clearGroup, clearAll, openSettings,
+  deleteItem, clearGroup, clearAll,
 } = useLocalNotifications()
 </script>
 
@@ -84,12 +78,5 @@ const {
 
 .grp-items {
   display: contents;
-}
-
-.g-empty {
-  padding: 12px;
-  text-align: center;
-  font-size: 0.8rem;
-  color: var(--md-sys-color-on-surface-variant);
 }
 </style>

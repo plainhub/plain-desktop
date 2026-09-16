@@ -1,5 +1,4 @@
 import type { Component } from 'vue'
-import ILucideClipboard from '~icons/lucide/clipboard'
 import ILucidePhoneCall from '~icons/lucide/phone-call'
 import { ALL_FEATURES, NAS_FEATURE_IDS, type Feature } from '@/views/app-rail/features'
 import { isLocalFeatureId, isLocalMode } from '@/lib/device/local-mode'
@@ -28,12 +27,12 @@ export interface HomePanelFeature {
   id: string
   icon: Component
   titleKey: string
-  sectionType: 'clipboard' | 'call_phone'
+  sectionType: 'call_phone'
 }
 
 export type HomeSectionFeature = HomeFeature | HomePanelFeature
 
-const HOME_FEATURE_IDS = new Set(DEFAULT_HOME_FEATURES.filter((id) => id !== 'clipboard' && id !== 'call_phone'))
+const HOME_FEATURE_IDS = new Set(DEFAULT_HOME_FEATURES.filter((id) => id !== 'call_phone'))
 
 const HOME_FEATURE_COUNT_KEYS: Partial<Record<string, HomeFeatureCountKey>> = {
   audios: 'audios',
@@ -49,7 +48,6 @@ const HOME_FEATURE_COUNT_KEYS: Partial<Record<string, HomeFeatureCountKey>> = {
 }
 
 const HOME_PANEL_FEATURES: HomePanelFeature[] = [
-  { id: 'clipboard', icon: ILucideClipboard, titleKey: 'send_to_phone_clipboard', sectionType: 'clipboard' },
   { id: 'call_phone', icon: ILucidePhoneCall, titleKey: 'call_phone', sectionType: 'call_phone' },
 ]
 

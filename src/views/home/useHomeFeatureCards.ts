@@ -13,7 +13,7 @@ export interface HomeFeatureCard {
   id: string
   icon: Component
   titleKey: string
-  sectionType: 'feature' | 'clipboard' | 'call_phone'
+  sectionType: 'feature' | 'call_phone'
   to: string
   count?: number
   showStorageInfo: boolean

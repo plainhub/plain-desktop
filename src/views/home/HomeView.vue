@@ -36,24 +36,6 @@
         </div>
       </FeatureCard>
 
-      <div v-else-if="item.sectionType === 'clipboard'" class="card clipboard-card">
-        <div class="card-content">
-          <h5 class="card-title">{{ $t('send_to_phone_clipboard') }}</h5>
-          <div class="phone-input-row">
-            <v-text-field v-model="clipText" :label="$t('clipboard_text')" class="phone-input" :error="clipTextError" :error-text="$t('valid.required')" @keyup.enter="sendClipboard">
-              <template #trailing-icon>
-                <v-icon-button @click.prevent="pasteClipboardText">
-                  <i-material-symbols:content-paste-rounded />
-                </v-icon-button>
-              </template>
-            </v-text-field>
-            <v-filled-button class="call-btn" :loading="setClipLoading" @click.prevent="sendClipboard">
-              {{ $t('send') }}
-            </v-filled-button>
-          </div>
-        </div>
-      </div>
-
       <CallPhoneCard v-else />
     </template>
   </div>
@@ -67,7 +49,7 @@ import { storeToRefs } from 'pinia'
 import { buildQuery } from '@/lib/search'
 import { encodeBase64 } from '@/lib/strutil'
 import { DriveType } from '@/lib/status'
-import { useHomeData, useClipboardAction, useScanAction } from './home'
+import { useHomeData, useScanAction } from './home'
 import { useHomeFeatureCards } from './useHomeFeatureCards'
 import CallPhoneCard from './CallPhoneCard.vue'
 import FeatureCard from './FeatureCard.vue'
@@ -75,7 +57,6 @@ import FeatureCard from './FeatureCard.vue'
 const { app, counter, isNas } = storeToRefs(useTempStore())
 
 const { mounts } = useHomeData()
-const { clipText, clipTextError, setClipLoading, pasteClipboardText, sendClipboard } = useClipboardAction()
 const {
   scanProgress, scanActive, percent, stateLabel, counting,
   showPause, showResume, showStop, showRebuild, rebuildIndexLoading,

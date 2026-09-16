@@ -54,7 +54,7 @@ export function useFilesActions(opts: UseFilesActionsOptions) {
   const { mutate: addFavoriteFolderMutation, onDone: addFavDone } = initMutation({
     document: addFavoriteFolderGQL,
   })
-  addFavDone(() => emitter.emit('refetch_app'))
+  addFavDone(() => emitter.emit('refetch_favorite_folders'))
 
   const onDeleted = (files: IFile[]) => {
     files.forEach((f) => { arrayRemove(items.value, (it: IFile) => it.id === f.id) })

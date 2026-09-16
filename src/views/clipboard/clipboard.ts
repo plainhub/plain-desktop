@@ -1,11 +1,11 @@
-import { computed, ref } from 'vue'
+import { computed, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { storeToRefs } from 'pinia'
 import emitter from '@/plugins/eventbus'
 import { useMainStore } from '@/stores/main'
 import { useTempStore } from '@/stores/temp'
 import { initLazyQuery, clipboardGQL } from '@/lib/api/query'
-import { initMutation, cancelClipboardGQL } from '@/lib/api/mutation'
+import { initMutation, cancelClipboardGQL, setClipGQL } from '@/lib/api/mutation'
 import type { IClipboard } from '@/lib/interfaces'
 import toast from '@/components/toaster'
 
@@ -75,8 +75,26 @@ export function useClipboardData() {
     cancelClipboard({ ids: [item.id] })
   }
 
+  const clipText = ref('')
+  const clipTextError = ref(false)
+
+  const { mutate: mutateSetClip, loading: setClipLoading, onDone: onSetClipDone } = initMutation({ document: setClipGQL })
+  onSetClipDone(() => { clipText.value = '' })
+
+  function pasteClipboardText() {
+    navigator.clipboard.readText().then((text) => { clipText.value = text })
+  }
+
+  function sendToPhone() {
+    if (!clipText.value) { clipTextError.value = true; return }
+    mutateSetClip({ text: clipText.value })
+  }
+
+  watch(clipText, () => { clipTextError.value = false })
+
   return {
     app, items, total, page, limit, loading, clipboardSync,
     load, open, gotoPage, onChangePageSize, deleteItem,
+    clipText, clipTextError, setClipLoading, pasteClipboardText, sendToPhone,
   }
 }

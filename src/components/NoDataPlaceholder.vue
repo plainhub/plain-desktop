@@ -1,7 +1,7 @@
 <template>
   <div class="no-data-placeholder">
     <span>{{ $t(dataKey) }}</span>
-    <a v-if="showSettingsLink" href="#" class="open-settings-link" @click.prevent="openSettings">{{ $t('open_access_settings') }}</a>
+    <v-text-button v-if="showSettingsLink" :loading="mutating" @click="openSettings">{{ $t('open_access_settings') }}</v-text-button>
   </div>
 </template>
 
@@ -10,6 +10,8 @@ import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { noDataKey } from '@/lib/list'
 import { openWebSettingsGQL, initMutation } from '@/lib/api/mutation'
+import { gqlFetchPeer } from '@/lib/api/peer-client'
+import { findLoginPeer } from '@/lib/device/login-peers'
 import tapPhone from '@/plugins/tapphone'
 
 /** Android permission name → phone-side Access Settings option to highlight. */
@@ -24,23 +26,48 @@ const FEATURE_BY_PERMISSION: Record<string, string> = {
   NOTIFICATION_LISTENER: 'NOTIFICATIONS',
 }
 
-const props = defineProps<{
-  loading: boolean
-  permissions?: string[]
-  permission?: string
-  placeholderKey?: string
-  feature?: string
-}>()
+// withDefaults is required: an absent Boolean prop resolves to false under
+// Vue's boolean casting, which wrongly flipped offline/settings-link states.
+const props = withDefaults(
+  defineProps<{
+    loading: boolean
+    permissions?: string[]
+    permission?: string
+    placeholderKey?: string
+    feature?: string
+    /** Device reachability — an offline device shows 离线 instead of feature states. */
+    online?: boolean
+    /** Local mode: open the settings page directly on this peer instead of via the desktop server. */
+    peerId?: string
+    /** Force the settings link on/off; defaults to showing it for placeholder/no_permission states. */
+    showSettingsLink?: boolean
+  }>(),
+  {
+    permissions: undefined,
+    permission: undefined,
+    placeholderKey: undefined,
+    feature: undefined,
+    peerId: undefined,
+    online: true,
+    showSettingsLink: undefined,
+  },
+)
 
 const { t } = useI18n()
-const dataKey = computed(() => props.placeholderKey || noDataKey(props.loading, props.permissions ?? [], props.permission ?? ''))
-const showSettingsLink = computed(() => dataKey.value === 'no_permission' || !!props.placeholderKey)
+const dataKey = computed(() => props.placeholderKey || noDataKey(props.loading, props.permissions ?? [], props.permission ?? '', props.online))
+const showSettingsLink = computed(() => props.showSettingsLink ?? (dataKey.value === 'no_permission' || !!props.placeholderKey))
 const accessFeature = computed(() => props.feature ?? (props.permission ? FEATURE_BY_PERMISSION[props.permission] : undefined))
 
-const { mutate } = initMutation({ document: openWebSettingsGQL })
+const { mutate, loading: mutating } = initMutation({ document: openWebSettingsGQL })
 
 function openSettings() {
-  mutate(accessFeature.value ? { feature: accessFeature.value } : undefined)
+  const variables = accessFeature.value ? { feature: accessFeature.value } : undefined
+  if (props.peerId) {
+    const peer = findLoginPeer(props.peerId)
+    if (peer) void gqlFetchPeer(peer, openWebSettingsGQL, variables).catch(() => {})
+  } else {
+    void mutate(variables)
+  }
   tapPhone(t('check_phone'))
 }
 </script>
@@ -53,16 +80,5 @@ function openSettings() {
   gap: 8px;
   text-align: center;
   padding: 40px;
-}
-
-.open-settings-link {
-  color: var(--md-sys-color-primary);
-  font-size: 0.875rem;
-  text-decoration: underline;
-  cursor: pointer;
-
-  &:hover {
-    opacity: 0.8;
-  }
 }
 </style>

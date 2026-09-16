@@ -8,9 +8,8 @@ describe('getAvailableHomeFeatures', () => {
     expect(features.every((f) => f.sectionType === 'feature')).toBe(true)
   })
 
-  it('omits phone panels (clipboard / call phone) on NAS', () => {
+  it('omits the call phone panel on NAS', () => {
     const ids = getAvailableHomeFeatures(true).map((f) => f.id)
-    expect(ids).not.toContain('clipboard')
     expect(ids).not.toContain('call_phone')
   })
 
@@ -28,7 +27,7 @@ describe('getAvailableHomeFeatures', () => {
     expect(ids).toContain('apps')
     expect(ids).toContain('notes')
     expect(ids).toContain('feeds')
-    expect(ids).toContain('clipboard')
+    expect(ids).not.toContain('clipboard')
     expect(ids).toContain('call_phone')
     expect(ids[0]).toBe('audios')
   })

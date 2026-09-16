@@ -3,7 +3,7 @@ import { useI18n } from 'vue-i18n'
 import { useTempStore } from '@/stores/temp'
 import { storeToRefs } from 'pinia'
 import { useMainStore } from '@/stores/main'
-import { callGQL, setClipGQL, initMutation, pauseMediaScanGQL, resumeMediaScanGQL, stopMediaScanGQL, rebuildMediaIndexGQL } from '@/lib/api/mutation'
+import { callGQL, initMutation, pauseMediaScanGQL, resumeMediaScanGQL, stopMediaScanGQL, rebuildMediaIndexGQL } from '@/lib/api/mutation'
 import { homeStatsGQL, simsGQL, initQuery, type HomeStatKey } from '@/lib/api/query'
 import toast from '@/components/toaster'
 import type { IHomeStats, IStorageMount, IContact, ISim } from '@/lib/interfaces'
@@ -104,34 +104,12 @@ export function usePhoneAction() {
   }
 }
 
-export function useClipboardAction() {
-  const clipText = ref('')
-  const clipTextError = ref(false)
-
-  const { mutate: mutateSetClip, loading: setClipLoading } = initMutation({ document: setClipGQL })
-
-  function pasteClipboardText() {
-    navigator.clipboard.readText().then((text) => { clipText.value = text })
-  }
-
-  function sendClipboard() {
-    if (!clipText.value) { clipTextError.value = true; return }
-    mutateSetClip({ text: clipText.value })
-  }
-
-  watch(clipText, () => { clipTextError.value = false })
-
-  return { clipText, clipTextError, setClipLoading, pasteClipboardText, sendClipboard }
-}
-
 // Media-index scan panel on the home files card (plain-nas only): live
 // progress from the `media_scan_progress` WS push, plus the
 // pause/resume/stop/rebuild controls.
 export function useScanAction() {
   const { t } = useI18n()
-  const { app } = storeToRefs(useTempStore())
-
-  const scanProgress = computed(() => app.value?.scanProgress ?? { indexed: 0, pending: 0, total: 0, state: 'idle' })
+  const { mediaScanProgress: scanProgress } = storeToRefs(useTempStore())
   const scanActive = computed(() => ['running', 'paused'].includes(scanProgress.value.state))
 
   const percent = computed(() => {

@@ -25,7 +25,6 @@ export const playlistAudioFragment = `
 export const appFragment = `
   fragment AppFragment on App {
     clientId
-    usbConnected
     urlToken
     httpPort
     httpsPort
@@ -37,9 +36,6 @@ export const appFragment = `
     osVersion
     channel
     permissions
-    audios {
-      ...PlaylistAudioFragment
-    }
     audioCurrent
     audioMode
     sdcardPath
@@ -48,19 +44,7 @@ export const appFragment = `
     downloadsDir
     developerMode
     debug
-    favoriteFolders {
-      rootPath
-      fullPath
-      alias
-    }
-    scanProgress {
-      indexed
-      pending
-      total
-      state
-    }
   }
-  ${playlistAudioFragment}
 `
 
 export const chatItemFragment = `

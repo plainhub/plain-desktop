@@ -8,9 +8,32 @@ import { cancelClipboardGQL } from '@/lib/api/mutation'
 import { gqlFetchPeer } from '@/lib/api/peer-client'
 import { findLoginPeer, loginPeers } from '@/lib/device/login-peers'
 import { isLocalMode } from '@/lib/device/local-mode'
+import { get as prefsGet, set as prefsSet } from '@/lib/prefs'
 import { useMainStore } from '@/stores/main'
 
 const CLIPBOARD_EVENT_TYPE = 39
+
+const DIRECTIONS_PREF_KEY = 'clipboard_directions'
+
+/** Per-peer sync direction — desktop is the single source of truth, the phone
+ *  only has its own master switch. Default 'pull' preserves the shipped
+ *  receive-only behavior. */
+export type ClipboardDirection = 'off' | 'push' | 'pull' | 'both'
+
+function readDirections(): Record<string, ClipboardDirection> {
+  return prefsGet<Record<string, ClipboardDirection>>(DIRECTIONS_PREF_KEY, {})
+}
+
+export const clipboardDirections = ref<Record<string, ClipboardDirection>>(readDirections())
+
+export function peerClipboardDirection(peerId: string): ClipboardDirection {
+  return clipboardDirections.value[peerId] ?? 'pull'
+}
+
+function receiveEnabled(peerId: string) {
+  const direction = peerClipboardDirection(peerId)
+  return direction === 'pull' || direction === 'both'
+}
 
 const PEER_CLIPBOARD_GQL = `
   query clipboard($offset: Int!, $limit: Int!, $query: String!) {
@@ -57,6 +80,14 @@ async function fetchPeerClipboard(peerId: string, silent = false) {
   const peer = findLoginPeer(peerId)
   const group = groupOf(peerId)
   if (!peer || !group) return
+  if (!receiveEnabled(peerId)) {
+    group.items = []
+    group.total = 0
+    group.clipboardSync = null
+    group.loading = false
+    group.loaded = true
+    return
+  }
   if (group.clipboardSync === false) return
   if (!silent && !group.loaded) group.loading = true
   try {
@@ -109,8 +140,21 @@ export function handlePeerClipboardEvent(peerId: string, type: number) {
   if (type !== CLIPBOARD_EVENT_TYPE) return
   const group = groupOf(peerId)
   if (!group || !findLoginPeer(peerId)) return
+  if (!receiveEnabled(peerId)) return
   if (group.clipboardSync === false) group.clipboardSync = null
   fetchPeerClipboard(peerId, true)
+}
+
+export function setPeerClipboardDirection(peerId: string, direction: ClipboardDirection) {
+  clipboardDirections.value = { ...clipboardDirections.value, [peerId]: direction }
+  prefsSet(DIRECTIONS_PREF_KEY, clipboardDirections.value)
+  const group = groupOf(peerId)
+  if (!group) return
+  group.page = 1
+  // User attention is on this device right now — re-arm the phone-switch probe
+  // the same way event 39 does, then let the receive guard fetch or clear.
+  group.clipboardSync = null
+  fetchPeerClipboard(peerId)
 }
 
 /** Idempotent bootstrap — call once from the app root in local mode. */
@@ -120,6 +164,7 @@ export function startLocalClipboardData() {
 
   emitter.on('peer_ws_event', ({ peerId, type }) => handlePeerClipboardEvent(peerId, type))
 
+  clipboardDirections.value = readDirections()
   syncGroups()
   watch(loginPeers, syncGroups)
 }

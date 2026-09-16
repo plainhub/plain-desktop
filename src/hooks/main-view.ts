@@ -104,10 +104,10 @@ export function useMainView() {
   }
 
   // plain-nas pushes the media-scan progress on the WS every second while a
-  // scan runs; patch the app state in place so the home index card updates.
+  // scan runs; keep it in the temp store so the home index card updates.
   const mediaScanProgressHandler = (p: IScanProgress) => {
-    if (!p || !app.value) return
-    app.value = { ...app.value, scanProgress: { indexed: p.indexed, pending: p.pending, total: p.total, state: p.state } }
+    if (!p) return
+    tempStore.mediaScanProgress = { indexed: p.indexed, pending: p.pending, total: p.total, state: p.state }
   }
 
   const pairingRequestHandler = (request: PairingRequest) => {

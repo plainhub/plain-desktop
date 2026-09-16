@@ -459,7 +459,6 @@ export interface IScanProgress {
 
 export interface IApp {
   clientId: string
-  usbConnected: boolean
   urlToken: string
   httpPort: number
   httpsPort: number
@@ -471,7 +470,6 @@ export interface IApp {
   osVersion: number
   channel: AppChannelType
   permissions: string[]
-  audios: IPlaylistAudio[]
   audioCurrent: string
   audioMode: string
   sdcardPath: string
@@ -480,8 +478,6 @@ export interface IApp {
   downloadsDir: string
   developerMode: boolean
   debug: boolean
-  favoriteFolders: IFavoriteFolder[]
-  scanProgress: IScanProgress
 }
 
 export interface IBreadcrumbItem {
