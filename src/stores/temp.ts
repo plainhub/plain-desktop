@@ -1,6 +1,6 @@
 import type { ISource } from '@/components/lightbox/types'
 import type { IFile } from '@/lib/file'
-import type { IDocExtGroup, IScanProgress } from '@/lib/interfaces'
+import type { IDocExtGroup } from '@/lib/interfaces'
 import { defineCrossWindowStore } from '@/lib/cross-window-store'
 import type { IApp } from '@/lib/interfaces'
 import { DeviceType } from '@/lib/status'
@@ -63,7 +63,6 @@ export interface IDataCounter {
 // data will be lost when page refreshed, or the data use different way to store data
 export type TempState = {
   app: IApp // store the appFragment result
-  mediaScanProgress: IScanProgress // pushed on the WS while a media scan runs
   urlTokenKey: Uint8Array | null
   uploads: IUploadItem[]
   selectedFiles: IFile[]
@@ -82,7 +81,6 @@ export const useTempStore = defineCrossWindowStore<'temp', TempState, { isNas: (
       app: {
         clientId: '',
       } as IApp,
-      mediaScanProgress: { indexed: 0, pending: 0, total: 0, state: 'idle' },
       urlTokenKey: null,
       uploads: [],
       selectedFiles: [],

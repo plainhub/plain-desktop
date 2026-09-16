@@ -412,6 +412,17 @@ export const imageSearchStatusGQL = `
   }
 `
 
+export const scanProgressGQL = `
+  query {
+    scanProgress {
+      indexed
+      pending
+      total
+      state
+    }
+  }
+`
+
 export const videosGQL = `
   query videos($offset: Int!, $limit: Int!, $query: String!, $sortBy: FileSortBy!) {
     videos(offset: $offset, limit: $limit, query: $query, sortBy: $sortBy) {

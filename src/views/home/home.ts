@@ -1,12 +1,13 @@
-import { ref, computed, watch } from 'vue'
+import { ref, computed, watch, onUnmounted } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useTempStore } from '@/stores/temp'
 import { storeToRefs } from 'pinia'
 import { useMainStore } from '@/stores/main'
 import { callGQL, initMutation, pauseMediaScanGQL, resumeMediaScanGQL, stopMediaScanGQL, rebuildMediaIndexGQL } from '@/lib/api/mutation'
-import { homeStatsGQL, simsGQL, initQuery, type HomeStatKey } from '@/lib/api/query'
+import { homeStatsGQL, simsGQL, initQuery, scanProgressGQL, type HomeStatKey } from '@/lib/api/query'
 import toast from '@/components/toaster'
-import type { IHomeStats, IStorageMount, IContact, ISim } from '@/lib/interfaces'
+import emitter from '@/plugins/eventbus'
+import type { IHomeStats, IStorageMount, IContact, ISim, IScanProgress } from '@/lib/interfaces'
 import { useContactPicker } from '@/hooks/contact-picker'
 
 // Counts a NAS implements; the phone serves the full set.
@@ -104,12 +105,27 @@ export function usePhoneAction() {
   }
 }
 
-// Media-index scan panel on the home files card (plain-nas only): live
-// progress from the `media_scan_progress` WS push, plus the
-// pause/resume/stop/rebuild controls.
+// Media-index scan panel on the home files card (plain-nas only): the
+// `scanProgress` query seeds the initial state and the `media_scan_progress`
+// WS push keeps it live; plus the pause/resume/stop/rebuild controls.
 export function useScanAction() {
   const { t } = useI18n()
-  const { mediaScanProgress: scanProgress } = storeToRefs(useTempStore())
+  const scanProgress = ref<IScanProgress>({ indexed: 0, pending: 0, total: 0, state: 'idle' })
+
+  initQuery({
+    handle: (data: { scanProgress: IScanProgress }, error: string) => {
+      if (!error && data) scanProgress.value = { ...data.scanProgress }
+    },
+    document: scanProgressGQL,
+    variables: null,
+  })
+
+  const onScanProgress = (p: IScanProgress) => {
+    if (p) scanProgress.value = { indexed: p.indexed, pending: p.pending, total: p.total, state: p.state }
+  }
+  emitter.on('media_scan_progress', onScanProgress)
+  onUnmounted(() => emitter.off('media_scan_progress', onScanProgress))
+
   const scanActive = computed(() => ['running', 'paused'].includes(scanProgress.value.state))
 
   const percent = computed(() => {
