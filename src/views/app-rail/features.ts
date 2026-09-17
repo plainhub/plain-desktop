@@ -1,4 +1,5 @@
 import type { Component } from 'vue'
+import { AppChannelType, DeviceType } from '@/lib/status'
 import ILucideFolder from '~icons/lucide/folder'
 import ILucideMusic from '~icons/lucide/music'
 import ILucideImage from '~icons/lucide/image'
@@ -20,7 +21,6 @@ export interface Feature {
   defaultPath: string
   icon: Component
   titleKey: string
-  requireDebug?: boolean
 }
 
 export const ALL_FEATURES: Feature[] = [
@@ -37,7 +37,7 @@ export const ALL_FEATURES: Feature[] = [
   { id: 'calls', group: 'calls', defaultPath: '/calls', icon: IMaterialSymbolsCallLogOutlineRounded, titleKey: 'page_title.calls' },
   { id: 'contacts', group: 'contacts', defaultPath: '/contacts', icon: ILucideContactRound, titleKey: 'page_title.contacts' },
   { id: 'screen_mirror', group: 'screen_mirror', defaultPath: '/screen-mirror', icon: IMaterialSymbolsScreenRecordRounded, titleKey: 'page_title.screen_mirror' },
-  { id: 'image_editor', group: 'image_editor', defaultPath: '/image-editor', icon: ILucidePalette, titleKey: 'page_title.image_editor', requireDebug: true },
+  { id: 'image_editor', group: 'image_editor', defaultPath: '/image-editor', icon: ILucidePalette, titleKey: 'page_title.image_editor' },
 ]
 
 export const DEFAULT_RAIL_FEATURES = ['files', 'audios', 'images', 'videos', 'chat']
@@ -45,8 +45,15 @@ export const DEFAULT_RAIL_FEATURES = ['files', 'audios', 'images', 'videos', 'ch
 /** Features a NAS exposes: media, files and chat. */
 export const NAS_FEATURE_IDS = new Set(['files', 'audios', 'images', 'videos', 'chat', 'docs'])
 
-export function getAvailableFeatures(isNas: boolean, debug: boolean = false): Feature[] {
-  const features = ALL_FEATURES.filter((f) => !(f.requireDebug && !debug))
-  if (!isNas) return features
-  return features.filter((f) => NAS_FEATURE_IDS.has(f.id))
+/** Features hidden on the Google Play channel (store policy). */
+export const GOOGLE_EXCLUDED_FEATURE_IDS = new Set(['apps', 'messages', 'calls'])
+
+/** Features hidden unless debug is enabled. */
+export const DEBUG_EXCLUDED_FEATURE_IDS = new Set(['image_editor'])
+
+export function getAvailableFeatures(deviceType?: DeviceType, channel?: AppChannelType, debug?: boolean): Feature[] {
+  return ALL_FEATURES
+    .filter((f) => !(channel === AppChannelType.GOOGLE && GOOGLE_EXCLUDED_FEATURE_IDS.has(f.id)))
+    .filter((f) => (debug ?? false) || !DEBUG_EXCLUDED_FEATURE_IDS.has(f.id))
+    .filter((f) => deviceType !== DeviceType.NAS || NAS_FEATURE_IDS.has(f.id))
 }

@@ -1,6 +1,7 @@
 import type { Component } from 'vue'
 import ILucidePhoneCall from '~icons/lucide/phone-call'
-import { ALL_FEATURES, NAS_FEATURE_IDS, type Feature } from '@/views/app-rail/features'
+import { ALL_FEATURES, DEBUG_EXCLUDED_FEATURE_IDS, GOOGLE_EXCLUDED_FEATURE_IDS, NAS_FEATURE_IDS, type Feature } from '@/views/app-rail/features'
+import { AppChannelType, DeviceType } from '@/lib/status'
 import { isLocalFeatureId, isLocalMode } from '@/lib/device/local-mode'
 import { DEFAULT_HOME_FEATURES, normalizeHomeFeatures } from './feature-list'
 
@@ -54,11 +55,13 @@ const HOME_PANEL_FEATURES: HomePanelFeature[] = [
 /** Home card order and set for a NAS: media + files only, no phone panels. */
 export const NAS_HOME_FEATURES = ['audios', 'images', 'videos', 'docs', 'files']
 
-export function getAvailableHomeFeatures(isNas: boolean, debug: boolean = false): HomeSectionFeature[] {
+export function getAvailableHomeFeatures(deviceType?: DeviceType, channel?: AppChannelType, debug?: boolean): HomeSectionFeature[] {
+  const isNas = deviceType === DeviceType.NAS
   const routeFeatures = ALL_FEATURES
     .filter((feature) => HOME_FEATURE_IDS.has(feature.id))
     .filter((feature) => !isLocalMode() || isLocalFeatureId(feature.id))
-    .filter((feature) => !(feature.requireDebug && !debug))
+    .filter((feature) => !(channel === AppChannelType.GOOGLE && GOOGLE_EXCLUDED_FEATURE_IDS.has(feature.id)))
+    .filter((feature) => (debug ?? false) || !DEBUG_EXCLUDED_FEATURE_IDS.has(feature.id))
     .filter((feature) => !isNas || NAS_FEATURE_IDS.has(feature.id))
     .map((feature) => ({
       ...feature,

@@ -42,9 +42,8 @@ const store = useMainStore()
 const { app } = storeToRefs(useTempStore())
 const activeTab = ref<UITab>('sidebar')
 
-const { isNas } = storeToRefs(useTempStore())
-const sidebarFeatures = computed(() => getAvailableFeatures(isNas.value, app.value?.debug ?? false))
-const homeFeatures = computed(() => getAvailableHomeFeatures(isNas.value, app.value?.debug ?? false))
+const sidebarFeatures = computed(() => getAvailableFeatures(app.value?.deviceType, app.value?.channel, app.value?.debug))
+const homeFeatures = computed(() => getAvailableHomeFeatures(app.value?.deviceType, app.value?.channel, app.value?.debug))
 
 const sidebarEnabledIds = ref(
   store.railFeatures.filter((id: string) => sidebarFeatures.value.some((feature) => feature.id === id))

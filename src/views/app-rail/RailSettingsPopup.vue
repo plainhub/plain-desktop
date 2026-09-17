@@ -144,7 +144,7 @@ import { initMutation, updateDeviceNameGQL } from '@/lib/api/mutation'
 const localMode = isLocalMode()
 const { t } = useI18n()
 
-const { app, isNas } = storeToRefs(useTempStore())
+const { app } = storeToRefs(useTempStore())
 const store = useMainStore()
 const currentSession = computed(() => findLoginPeer(getRemoteClientId()))
 const router = useRouter()
@@ -234,7 +234,7 @@ onUnmounted(() => {
 })
 
 const popupFeatures = computed<Feature[]>(() => {
-  const available = getAvailableFeatures(isNas.value, app.value?.debug ?? false)
+  const available = getAvailableFeatures(app.value?.deviceType, app.value?.channel, app.value?.debug)
   return available.filter((f) => !store.railFeatures.includes(f.id))
 })
 
