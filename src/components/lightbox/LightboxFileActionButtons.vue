@@ -60,10 +60,6 @@ const props = defineProps({
     type: Object as () => ISource | undefined,
     required: true,
   },
-  osVersion: {
-    type: Number,
-    default: 0,
-  },
   readOnly: {
     type: Boolean,
     default: false,
@@ -84,7 +80,7 @@ function onConfirmDelete() {
   confirming.value = false
 }
 
-const { isTrashed, canTrash } = useFileTrashState(() => props.current, () => props.osVersion)
+const { isTrashed, canTrash } = useFileTrashState(() => props.current)
 
 function handleDownload() {
   if (props.current?.path) {

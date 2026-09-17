@@ -15,7 +15,7 @@
           </template>
         </SidebarListItem>
         <SidebarListItem
-          v-if="hasFeature(FEATURE.MEDIA_TRASH, app.osVersion)"
+          v-if="hasMediaTrash(app)"
           :title="$t('trash')"
           :active="trash"
           @click="viewTrash"
@@ -41,8 +41,7 @@
 <script setup lang="ts">
 import type { PropType } from 'vue'
 import { DataType } from '@/lib/data'
-import { hasFeature } from '@/lib/feature'
-import { FEATURE } from '@/lib/data'
+import { hasMediaTrash } from '@/lib/feature'
 import { useMediaSidebar } from '@/hooks/media-sidebar'
 
 const props = defineProps({

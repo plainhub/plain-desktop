@@ -16,7 +16,7 @@
     </template>
     <template v-else>
       <v-icon-button
-        v-if="hasFeature(FEATURE.MEDIA_TRASH, app.osVersion)"
+        v-if="hasMediaTrash(app)"
         v-tooltip="$t('move_to_trash')"
         class="sm"
         :loading="trashLoading(`ids:${item.id}`)"
@@ -77,8 +77,8 @@
 <script setup lang="ts">
 import { ref } from 'vue'
 import type { IDoc, IFilter, IApp, ITag } from '@/lib/interfaces'
-import { DataType, FEATURE } from '@/lib/data'
-import { hasFeature } from '@/lib/feature'
+import { DataType } from '@/lib/data'
+import { hasMediaTrash } from '@/lib/feature'
 import { formatFileSize, formatDateTimeFull } from '@/lib/format'
 
 const props = defineProps<{

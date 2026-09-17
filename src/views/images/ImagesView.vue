@@ -4,7 +4,7 @@
     :selected-count="selectedIds.length"
     :all-checked="allChecked" :checked="checked" :real-all-checked="realAllChecked" :total="total"
     :filter-trash="!!filter.trash"
-    :can-trash="hasFeature(FEATURE.MEDIA_TRASH, app.osVersion)"
+    :can-trash="hasMediaTrash(app)"
     :restore-query-loading="restoreLoading(getQuery())" :trash-query-loading="trashLoading(getQuery())"
     :limit="limit" :all-checked-alert-visible="allCheckedAlertVisible"
     :show-secondary="isPhone && !checked"
@@ -19,7 +19,7 @@
       <BulkTagDropdown :type="dataType" :tags="tags" :items="items" :selected-ids="selectedIds" :real-all-checked="realAllChecked" :q="q" />
     </template>
     <template #extra-actions>
-      <v-icon-button v-if="!filter.trash" v-tooltip="$t('move_to_folder')" :loading="moveLoading" @click.stop="onMoveClick(dataType, selectedIds, realAllChecked, getQuery())">
+      <v-icon-button v-if="!filter.trash && !isNas" v-tooltip="$t('move_to_folder')" :loading="moveLoading" @click.stop="onMoveClick(dataType, selectedIds, realAllChecked, getQuery())">
         <i-material-symbols:drive-file-move-outline-rounded />
       </v-icon-button>
     </template>
@@ -109,11 +109,12 @@ import { getFileId, getFileUrl, getFileName } from '@/lib/api/file'
 import { formatFileSize } from '@/lib/format'
 import type { IImage, IImageItem } from '@/lib/interfaces'
 import type { ISource } from '@/components/lightbox/types'
-import { DataType, FEATURE } from '@/lib/data'
+import { DataType } from '@/lib/data'
 import { getImageSortItems, getImageGroupByItems, isImage } from '@/lib/file'
-import { hasFeature } from '@/lib/feature'
+import { hasMediaTrash } from '@/lib/feature'
 import { storeToRefs } from 'pinia'
 import { useMainStore } from '@/stores/main'
+import { useTempStore } from '@/stores/temp'
 import { useGroupedScroll, type MediaGroup } from '@/hooks/grouped-scroll'
 import { useMediaPage } from '@/hooks/media-page'
 import { useMediaPageActions } from '@/hooks/media-page-actions'
@@ -127,6 +128,7 @@ import { useOpenMedia } from '@/hooks/open-media'
 import { useMoveToFolder } from '@/hooks/media'
 
 const { imageSortBy, imagesCardView, imagesGroupBy, imagesScrollPaging } = storeToRefs(useMainStore())
+const { isNas } = storeToRefs(useTempStore())
 const items = ref<IImageItem[]>([])
 const sortItems = getImageSortItems()
 const groupByItems = getImageGroupByItems()

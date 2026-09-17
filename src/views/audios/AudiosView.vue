@@ -4,7 +4,7 @@
     :selected-count="selectedIds.length"
     :all-checked="allChecked" :checked="checked" :real-all-checked="realAllChecked" :total="total"
     :filter-trash="!!filter.trash"
-    :can-trash="hasFeature(FEATURE.MEDIA_TRASH, app.osVersion)"
+    :can-trash="hasMediaTrash(app)"
     :restore-query-loading="restoreLoading(getQuery())" :trash-query-loading="trashLoading(getQuery())"
     :limit="limit" :all-checked-alert-visible="allCheckedAlertVisible"
     :show-secondary="false"
@@ -22,7 +22,7 @@
       <v-icon-button v-tooltip="$t('add_to_playlist')" @click.stop="addItemsToPlaylist($event, selectedIds, realAllChecked, q)">
         <i-material-symbols:playlist-add />
       </v-icon-button>
-      <v-icon-button v-if="!filter.trash" v-tooltip="$t('move_to_folder')" :loading="moveLoading" @click.stop="onMoveClick(dataType, selectedIds, realAllChecked, getQuery())">
+      <v-icon-button v-if="!filter.trash && !isNas" v-tooltip="$t('move_to_folder')" :loading="moveLoading" @click.stop="onMoveClick(dataType, selectedIds, realAllChecked, getQuery())">
         <i-material-symbols:drive-file-move-outline-rounded />
       </v-icon-button>
     </template>
@@ -62,9 +62,9 @@ import { computed, ref, watch } from 'vue'
 import toast from '@/components/toaster'
 import { audiosGQL, initLazyQuery } from '@/lib/api/query'
 import type { IAudio, IAudioItem } from '@/lib/interfaces'
-import { DataType, FEATURE } from '@/lib/data'
+import { DataType } from '@/lib/data'
 import { getSortItems, isAudio } from '@/lib/file'
-import { hasFeature } from '@/lib/feature'
+import { hasMediaTrash } from '@/lib/feature'
 import { getFileId } from '@/lib/api/file'
 import { storeToRefs } from 'pinia'
 import { useMainStore } from '@/stores/main'
@@ -82,7 +82,7 @@ import AudioSkeletonItem from './AudioSkeletonItem.vue'
 const mainStoreLocal = useMainStore()
 const tempStoreLocal = useTempStore()
 const { audioSortBy, audiosScrollPaging } = storeToRefs(mainStoreLocal)
-const { audioPlaying } = storeToRefs(tempStoreLocal)
+const { audioPlaying, isNas } = storeToRefs(tempStoreLocal)
 const items = ref<IAudioItem[]>([])
 const sortItems = getSortItems()
 const imageErrorIds = ref<string[]>([])

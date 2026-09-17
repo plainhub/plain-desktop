@@ -1,9 +1,11 @@
 import { initMutation, trashMediaItemsGQL, restoreMediaItemsGQL } from '@/lib/api/mutation'
-import { DataType, FEATURE } from '@/lib/data'
+import { DataType } from '@/lib/data'
 import emitter from '@/plugins/eventbus'
 
-import { reactive, computed, ref, type Ref } from 'vue'
-import { hasFeature } from '@/lib/feature'
+import { reactive, computed, type Ref } from 'vue'
+import { hasMediaTrash } from '@/lib/feature'
+import { storeToRefs } from 'pinia'
+import { useTempStore } from '@/stores/temp'
 import type { ISource } from '@/components/lightbox/types'
 
 export const useMediaTrash = () => {
@@ -56,30 +58,20 @@ export const useMediaRestore = () => {
   }
 }
 
-export function useFileTrashState(
-  current: (() => ISource | undefined) | Ref<ISource | undefined>, 
-  osVersion: (() => number) | Ref<number> | number
-) {
+export function useFileTrashState(current: (() => ISource | undefined) | Ref<ISource | undefined>) {
+  const { app } = storeToRefs(useTempStore())
   const isTrashed = computed(() => {
     const currentValue = typeof current === 'function' ? current() : current.value
-    return currentValue?.path?.includes('.trashed-') === true
+    const path = currentValue?.path ?? ''
+    // Phones trash via MediaStore (files renamed with a `.trashed-` prefix);
+    // a NAS moves files into its `.nas-trash` tree. Either marker means trash.
+    return path.includes('.trashed-') || path.includes('/.nas-trash/')
   })
 
   const canTrash = computed(() => {
     const currentValue = typeof current === 'function' ? current() : current.value
     const mediaTypes = [DataType.VIDEO, DataType.AUDIO, DataType.IMAGE]
-    const type = currentValue?.type
-    
-    let version: number
-    if (typeof osVersion === 'number') {
-      version = osVersion
-    } else if (typeof osVersion === 'function') {
-      version = osVersion()
-    } else {
-      version = osVersion.value
-    }
-    
-    return type && mediaTypes.includes(type as DataType) && hasFeature(FEATURE.MEDIA_TRASH, version)
+    return !!currentValue?.type && mediaTypes.includes(currentValue.type as DataType) && hasMediaTrash(app.value)
   })
 
   return {

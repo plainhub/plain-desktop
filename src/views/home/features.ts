@@ -52,8 +52,9 @@ const HOME_PANEL_FEATURES: HomePanelFeature[] = [
   { id: 'call_phone', icon: ILucidePhoneCall, titleKey: 'call_phone', sectionType: 'call_phone' },
 ]
 
-/** Home card order and set for a NAS: media + files only, no phone panels. */
-export const NAS_HOME_FEATURES = ['audios', 'images', 'videos', 'docs', 'files']
+/** Home card order and set for a NAS: media + files only, no phone panels
+ *  (docs joins once the NAS backend implements the docs queries). */
+export const NAS_HOME_FEATURES = ['audios', 'images', 'videos', 'files']
 
 export function getAvailableHomeFeatures(deviceType?: DeviceType, channel?: AppChannelType, debug?: boolean): HomeSectionFeature[] {
   const isNas = deviceType === DeviceType.NAS

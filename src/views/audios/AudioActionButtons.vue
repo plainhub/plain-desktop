@@ -14,7 +14,7 @@
       </template>
       <template v-else>
         <v-icon-button
-          v-if="hasFeature(FEATURE.MEDIA_TRASH, app.osVersion)"
+          v-if="hasMediaTrash(app)"
           v-tooltip="$t('move_to_trash')"
           class="sm"
           :loading="trashLoading(`ids:${item.id}`)"
@@ -54,9 +54,9 @@
 <script setup lang="ts">
 import { ref } from 'vue'
 import type { IAudio, IFilter, ITag } from '@/lib/interfaces'
-import { DataType, FEATURE } from '@/lib/data'
+import { DataType } from '@/lib/data'
 import { getFileName } from '@/lib/api/file'
-import { hasFeature } from '@/lib/feature'
+import { hasMediaTrash } from '@/lib/feature'
 import { useI18n } from 'vue-i18n'
 
 const { t: $t } = useI18n()

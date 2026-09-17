@@ -1,5 +1,6 @@
 import { FEATURE } from '@/lib/data'
 import { isQPlus, isRPlus } from '@/lib/sdk-version'
+import { DeviceType } from '@/lib/status'
 
 export const hasFeature = (feature: FEATURE, osVersion: number) => {
   if (feature === FEATURE.MEDIA_TRASH) {
@@ -10,3 +11,8 @@ export const hasFeature = (feature: FEATURE, osVersion: number) => {
 
   return false
 }
+
+/** Media trash needs Android R+ on a phone (scoped storage). A NAS backend
+ *  implements trash at the filesystem level, so it is always available. */
+export const hasMediaTrash = (app: { deviceType: DeviceType; osVersion: number }) =>
+  app.deviceType === DeviceType.NAS || isRPlus(app.osVersion)

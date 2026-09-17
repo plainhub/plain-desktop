@@ -74,8 +74,7 @@
           :file-info="fileInfo" 
           :url-token-key="urlTokenKey ? urlTokenKey.toString() : ''" 
           :app-dir="app.appDir" 
-          :tags-map="tagsMap" 
-          :os-version="app.osVersion"
+          :tags-map="tagsMap"
           :read-only="readOnly"
           :download-file="downloadFile"
           @rename-file="renameFile"
@@ -108,9 +107,8 @@
         
         <!-- Action Buttons in Footer -->
         <template #footer>
-          <LightboxFileActionButtons 
-            :current="current" 
-            :os-version="app.osVersion"
+          <LightboxFileActionButtons
+            :current="current"
             :read-only="readOnly"
             :download-file="downloadFile"
             @rename-file="renameFile"

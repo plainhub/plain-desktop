@@ -42,8 +42,9 @@ export const ALL_FEATURES: Feature[] = [
 
 export const DEFAULT_RAIL_FEATURES = ['files', 'audios', 'images', 'videos', 'chat']
 
-/** Features a NAS exposes: media, files and chat. */
-export const NAS_FEATURE_IDS = new Set(['files', 'audios', 'images', 'videos', 'chat', 'docs'])
+/** Features a NAS exposes: media, files and chat. Docs is excluded until the
+ *  NAS backend implements the `docs`/`docCount` queries. */
+export const NAS_FEATURE_IDS = new Set(['files', 'audios', 'images', 'videos', 'chat'])
 
 /** Features hidden on the Google Play channel (store policy). */
 export const GOOGLE_EXCLUDED_FEATURE_IDS = new Set(['apps', 'messages', 'calls'])

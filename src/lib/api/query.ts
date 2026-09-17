@@ -49,6 +49,9 @@ export interface InitQueryParams<TResult> {
    *  queries that must wait for the device type to be known). */
   document: string | (() => string)
   variables?: any
+  /** When provided and returns false the query is never sent (e.g. phone-only
+   *  features on a NAS). Re-checked reactively: fired once it turns true. */
+  enabled?: () => boolean
   options?: any
 }
 
@@ -69,6 +72,7 @@ export function initQuery<TResult = any>(params: InitQueryParams<TResult>) {
   const result = ref<TResult>()
 
   async function execute(vars?: Record<string, any>) {
+    if (params.enabled && !params.enabled()) return
     loading.value = true
     try {
       const v = vars ?? resolveVars(params.variables)
@@ -108,6 +112,12 @@ export function initQuery<TResult = any>(params: InitQueryParams<TResult>) {
     watch(params.document, async () => {
       await nextTick()
       if (active) execute()
+    })
+  }
+  if (params.enabled) {
+    watch(params.enabled, async (now, was) => {
+      await nextTick()
+      if (active && now && !was) execute()
     })
   }
 

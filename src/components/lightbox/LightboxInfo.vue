@@ -6,9 +6,8 @@
         <lightbox-keyboard-shortcuts class="info-keyboard-shortcuts" />
       </div>
       <div class="info-actions">
-        <LightboxFileActionButtons 
-          :current="current" 
-          :os-version="osVersion"
+        <LightboxFileActionButtons
+          :current="current"
           :read-only="readOnly"
           :download-file="downloadFile"
           @rename-file="$emit('rename-file')"
@@ -69,10 +68,6 @@ const props = defineProps({
     type: Object as () => Map<string, ITag[]>,
     required: true,
   },
-  osVersion: {
-    type: Number,
-    default: 0,
-  },
   readOnly: {
     type: Boolean,
     default: false,
@@ -85,7 +80,7 @@ const props = defineProps({
 
 const emit = defineEmits(['rename-file', 'delete-file', 'refetch-info'])
 
-const { isTrashed, canTrash } = useFileTrashState(() => props.current, () => props.osVersion)
+const { isTrashed, canTrash } = useFileTrashState(() => props.current)
 const { trash } = useMediaTrash()
 const { record } = useOrganizeUndo()
 const inZip = computed(() => isZipPath(props.current?.path ?? ''))

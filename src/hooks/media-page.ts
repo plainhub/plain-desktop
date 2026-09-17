@@ -16,10 +16,10 @@ import { useMediaRestore, useMediaTrash } from '@/hooks/media-trash'
 import { useKeyEvents } from '@/hooks/key-events'
 import { replacePath } from '@/plugins/router'
 import emitter from '@/plugins/eventbus'
-import { type DataType, FEATURE } from '@/lib/data'
+import { type DataType } from '@/lib/data'
 import { getDirFromPath } from '@/lib/file'
 import { generateDownloadFileName } from '@/lib/format'
-import { hasFeature } from '@/lib/feature'
+import { hasMediaTrash } from '@/lib/feature'
 import { createUploadRefreshScheduler } from '@/lib/upload/refresh-scheduler'
 
 export interface MediaPageOptions {
@@ -104,7 +104,7 @@ export function useMediaPage(options: MediaPageOptions) {
 
   const getQuery = () => sel.realAllChecked.value ? q.value : `ids:${sel.selectedIds.value.join(',')}`
   const trashInEditMode = () => {
-    hasFeature(FEATURE.MEDIA_TRASH, app.value.osVersion)
+    hasMediaTrash(app.value)
       ? trash(dataType, getQuery())
       : deleteItems(dataType, sel.selectedIds.value, sel.realAllChecked.value, sel.total.value, q.value)
   }

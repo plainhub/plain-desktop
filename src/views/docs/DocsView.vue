@@ -4,7 +4,7 @@
     :selected-count="selectedIds.length"
     :all-checked="allChecked" :checked="checked" :real-all-checked="realAllChecked" :total="total"
     :filter-trash="!!filter.trash"
-    :can-trash="hasFeature(FEATURE.MEDIA_TRASH, app.osVersion)"
+    :can-trash="hasMediaTrash(app)"
     :restore-query-loading="restoreLoading(getQuery())" :trash-query-loading="trashLoading(getQuery())"
     :limit="limit" :all-checked-alert-visible="allCheckedAlertVisible"
     :show-secondary="false"
@@ -77,9 +77,9 @@ import toast from '@/components/toaster'
 import { docsGQL, initLazyQuery } from '@/lib/api/query'
 import { deleteMediaItemsGQL, initMutation } from '@/lib/api/mutation'
 import type { IDoc } from '@/lib/interfaces'
-import { DataType, FEATURE } from '@/lib/data'
+import { DataType } from '@/lib/data'
 import { getSortItems, isDoc } from '@/lib/file'
-import { hasFeature } from '@/lib/feature'
+import { hasMediaTrash } from '@/lib/feature'
 import { storeToRefs } from 'pinia'
 import { useMainStore } from '@/stores/main'
 import { useMediaPage } from '@/hooks/media-page'
