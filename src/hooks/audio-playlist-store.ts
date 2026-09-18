@@ -24,13 +24,13 @@ interface IAudioPlaylistPage {
   items: IPlaylistAudio[]
 }
 
-async function fetchPage(offset: number) {
+async function fetchPage(offset: number): Promise<boolean> {
   const seq = ++fetchSeq
   audioPlaylistLoading.value = true
   try {
     const r = await gqlFetch<{ audioPlaylist: IAudioPlaylistPage }>(audioPlaylistGQL, { offset, limit: PAGE_SIZE })
-    if (seq !== fetchSeq) return // superseded by a newer fetch
-    if (r.errors?.length || !r.data?.audioPlaylist) return
+    if (seq !== fetchSeq) return false // superseded by a newer fetch
+    if (r.errors?.length || !r.data?.audioPlaylist) return false
     const page = r.data.audioPlaylist
     audioPlaylistTotal.value = page.total
     if (offset === 0) {
@@ -41,6 +41,10 @@ async function fetchPage(offset: number) {
       const known = new Set(audioPlaylistItems.value.map((it) => it.path))
       audioPlaylistItems.value = [...audioPlaylistItems.value, ...page.items.filter((it) => !known.has(it.path))]
     }
+    return true
+  } catch {
+    // Network failures leave the mirror as-is; a later refetch re-syncs.
+    return false
   } finally {
     if (seq === fetchSeq) audioPlaylistLoading.value = false
   }
@@ -48,8 +52,7 @@ async function fetchPage(offset: number) {
 
 export function useAudioPlaylistStore() {
   async function fetchInitial() {
-    initialFetched = true
-    await fetchPage(0)
+    initialFetched = await fetchPage(0)
   }
 
   /** Load once per session; safe to call on every mount. */
@@ -90,4 +93,12 @@ export function useAudioPlaylistStore() {
     removeLocal,
     reset,
   }
+}
+
+export function resetAudioPlaylistForTests() {
+  audioPlaylistItems.value = []
+  audioPlaylistTotal.value = 0
+  audioPlaylistLoading.value = false
+  fetchSeq = 0
+  initialFetched = false
 }

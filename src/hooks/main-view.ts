@@ -15,6 +15,7 @@ import { updateLoginPeerName } from '@/lib/device/login-peers'
 import { getRemoteClientId } from '@/lib/device/client-id'
 import { isLocalMode } from '@/lib/device/local-mode'
 import { hasActiveUploadBatches } from '@/lib/upload/batch-progress'
+import { useAudioPlaylistStore } from '@/hooks/audio-playlist-store'
 import { openModal } from '@/components/modal'
 import type { PairingRequest } from '@/lib/pairing-types'
 import PairingRequestModal from '@/views/chat/PairingRequestModal.vue'
@@ -27,9 +28,9 @@ export function useMainView() {
 
   const appReady = ref(false)
   const errorMessage = ref('')
-  let playAudio = false
 
   const localMode = isLocalMode()
+  const audioPlaylist = useAudioPlaylistStore()
 
   const hiddenHeaderSearchRoutes = new Set(['/files/recent', '/screen-mirror'])
   const hiddenHeaderSearchPatterns = [/^\/chat(?:\/|$)/, /^\/developer(?:\/|$)/, /^\/image-editor(?:\/|$)/]
@@ -75,7 +76,6 @@ export function useMainView() {
         if (data.app.deviceName) {
           void updateLoginPeerName(getRemoteClientId(), data.app.deviceName)
         }
-        if (playAudio) { playAudio = false; emitter.emit('do_play_audio') }
       }
       appReady.value = true
     },
@@ -92,9 +92,10 @@ export function useMainView() {
   watch(() => router.currentRoute.value.fullPath, (v: string) => { currentPath.value = v })
 
   const refetchAppHandler = () => refetchApp()
-  const playAudioHandler = () => { playAudio = true; refetchApp() }
   const mediaItemsActionedHandler = (event: IMediaItemsActionedEvent) => {
-    if (event.type === 'AUDIO') refetchApp()
+    // The phone prunes deleted/trashed audios out of its playback queue, so
+    // audio actions refresh the queue mirror (audioCurrent is unaffected).
+    if (event.type === 'AUDIO') void audioPlaylist.refetch()
   }
   const deviceNameUpdatedHandler = (name: string) => {
     if (app.value) app.value.deviceName = name
@@ -110,7 +111,6 @@ export function useMainView() {
   onMounted(() => {
     emitter.on('refetch_app', refetchAppHandler)
     emitter.on('permissions_updated', refetchAppHandler)
-    emitter.on('play_audio', playAudioHandler)
     emitter.on('media_items_actioned', mediaItemsActionedHandler)
     emitter.on('device_name_updated', deviceNameUpdatedHandler)
     emitter.on('pairing_request_received', pairingRequestHandler)
@@ -119,7 +119,6 @@ export function useMainView() {
   onUnmounted(() => {
     emitter.off('refetch_app', refetchAppHandler)
     emitter.off('permissions_updated', refetchAppHandler)
-    emitter.off('play_audio', playAudioHandler)
     emitter.off('media_items_actioned', mediaItemsActionedHandler)
     emitter.off('device_name_updated', deviceNameUpdatedHandler)
     emitter.off('pairing_request_received', pairingRequestHandler)

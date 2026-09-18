@@ -137,14 +137,6 @@ pub struct BatteryInfo {
 }
 
 #[derive(SimpleObject)]
-pub struct PlaylistAudio {
-    pub title: String,
-    pub artist: String,
-    pub path: String,
-    pub duration: i32,
-}
-
-#[derive(SimpleObject)]
 pub struct FavoriteFolder {
     pub root_path: String,
     pub full_path: String,
@@ -172,7 +164,6 @@ pub struct App {
     pub os_version: String,
     pub channel: AppChannelType,
     pub permissions: Vec<String>,
-    pub audios: Vec<PlaylistAudio>,
     pub audio_current: String,
     pub audio_mode: String,
     pub sdcard_path: String,
@@ -180,8 +171,6 @@ pub struct App {
     pub internal_storage_path: String,
     pub downloads_dir: String,
     pub developer_mode: bool,
-    pub clipboard_sync: bool,
-    pub favorite_folders: Vec<FavoriteFolder>,
     pub debug: bool,
 }
 
