@@ -11,8 +11,8 @@ function mountHeader(infoVisible: boolean) {
     setup() {
       return () => h(LightboxHeader, {
         current: { name: 'a.jpg', path: '/a.jpg', src: '' },
-        imageQuality: 'fast',
         infoVisible,
+        onDownload: () => events.push('download'),
         onToggleInfo: () => events.push('toggle-info'),
       })
     },
@@ -53,5 +53,19 @@ describe('LightboxHeader info toggle', () => {
 
     expect(m.root.querySelector('.info-btn i-lucide\\:panel-right-open')).not.toBeNull()
     expect(m.root.querySelector('.info-btn i-lucide\\:panel-right-close')).toBeNull()
+  })
+})
+
+describe('LightboxHeader download button', () => {
+  it('offers a download action in the toolbar and emits download', async () => {
+    const m = mountHeader(true)
+    mounted.push(m)
+
+    const icon = m.root.querySelector('.actions i-material-symbols\\:download-rounded')
+    expect(icon).not.toBeNull()
+
+    const button = icon?.closest('v-icon-button') as HTMLElement
+    button.dispatchEvent(new MouseEvent('click', { bubbles: true }))
+    expect(m.events).toEqual(['download'])
   })
 })

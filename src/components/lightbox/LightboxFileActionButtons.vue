@@ -35,10 +35,6 @@
           </v-outlined-button>
         </template>
       </template>
-      <v-outlined-button class="download-btn" @click.stop="handleDownload">
-        <i-material-symbols:download-rounded />
-        {{ $t('download') }}
-      </v-outlined-button>
     </template>
     <inline-delete-confirm v-else :name="current?.name ?? current?.data?.title ?? ''" @confirm="onConfirmDelete" @cancel="confirming = false" />
   </div>
@@ -46,7 +42,6 @@
 
 <script setup lang="ts">
 import { computed, onMounted, onUnmounted, ref } from 'vue'
-import { getFileName } from '@/lib/api/file'
 import { isZipPath } from '@/lib/file'
 import { DataType } from '@/lib/data'
 import { useMediaRestore, useMediaTrash, useFileTrashState } from '@/hooks/media-trash'
@@ -68,10 +63,6 @@ const props = defineProps({
     type: Boolean,
     default: false,
   },
-  downloadFile: {
-    type: Function,
-    required: true,
-  },
 })
 
 const emit = defineEmits(['rename-file', 'delete-file', 'action-success'])
@@ -85,13 +76,6 @@ function onConfirmDelete() {
 }
 
 const { isTrashed, canTrash } = useFileTrashState(() => props.current, () => props.osVersion)
-
-function handleDownload() {
-  if (props.current?.path) {
-    const fileName = (props.current.name ? props.current.name : getFileName(props.current.path)).replace(' ', '-')
-    props.downloadFile(props.current.path, fileName)
-  }
-}
 
 const { trash, trashLoading } = useMediaTrash()
 const { record } = useOrganizeUndo()
@@ -130,13 +114,5 @@ onUnmounted(() => {
   grid-template-columns: repeat(2, 1fr);
   grid-template-rows: auto auto;
   gap: 8px;
-}
-
-.download-btn {
-  grid-column: 1 / span 2;
-
-  &:first-child {
-    grid-column: 1 / span 2;
-  }
 }
 </style> 

@@ -2,15 +2,18 @@
   <section class="info">
     <div class="info-header">
       <div class="info-title">
-        <span>{{ $t('info') }}</span>
+        <LightboxQualityDropdown
+          v-if="isImage(current?.name ?? '')"
+          :model-value="imageQuality"
+          @update:model-value="$emit('update:image-quality', $event)"
+        />
         <lightbox-keyboard-shortcuts class="info-keyboard-shortcuts" />
       </div>
       <div class="info-actions">
-        <LightboxFileActionButtons 
-          :current="current" 
+        <LightboxFileActionButtons
+          :current="current"
           :os-version="osVersion"
           :read-only="readOnly"
-          :download-file="downloadFile"
           @rename-file="$emit('rename-file')"
           @delete-file="$emit('delete-file')"
         />
@@ -40,7 +43,7 @@
 
 <script setup lang="ts">
 import { computed, onMounted, onUnmounted } from 'vue'
-import { isZipPath } from '@/lib/file'
+import { isImage, isZipPath } from '@/lib/file'
 import { DataType } from '@/lib/data'
 import { useMediaTrash, useFileTrashState } from '@/hooks/media-trash'
 import { useOrganizeUndo } from '@/hooks/organize-undo'
@@ -77,13 +80,13 @@ const props = defineProps({
     type: Boolean,
     default: false,
   },
-  downloadFile: {
-    type: Function,
+  imageQuality: {
+    type: String as () => 'fast' | 'original',
     required: true,
   },
 })
 
-const emit = defineEmits(['rename-file', 'delete-file', 'refetch-info'])
+const emit = defineEmits(['rename-file', 'delete-file', 'refetch-info', 'update:image-quality'])
 
 const { isTrashed, canTrash } = useFileTrashState(() => props.current, () => props.osVersion)
 const { trash } = useMediaTrash()

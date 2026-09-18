@@ -1,21 +1,17 @@
 <template>
-  <v-dropdown v-model="menuVisible">
-    <template #trigger>
-      <button v-tooltip="$t('image_quality')" type="button" class="btn-icon quality-trigger" @click.stop="menuVisible = !menuVisible">
-        {{ modelValue === 'original' ? $t('image_quality_original') : $t('image_quality_fast') }}
-      </button>
-    </template>
-    <div class="dropdown-item" @click="select('fast')">
-      {{ $t('image_quality_fast') }}<i-material-symbols:check-rounded v-if="modelValue === 'fast'" />
-    </div>
-    <div class="dropdown-item" @click="select('original')">
-      {{ $t('image_quality_original') }}<i-material-symbols:check-rounded v-if="modelValue === 'original'" />
-    </div>
-  </v-dropdown>
+  <v-chip-select
+    :model-value="modelValue"
+    :options="options"
+    :aria-label="$t('image_quality')"
+    @update:model-value="onPick"
+  />
 </template>
 
 <script setup lang="ts">
-import { ref } from 'vue'
+import { computed } from 'vue'
+import { useI18n } from 'vue-i18n'
+import VChipSelect from '@/components/base/VChipSelect.vue'
+import type { VSelectOption } from '@/components/base/VSelect.vue'
 
 defineProps<{
   modelValue: 'fast' | 'original'
@@ -25,24 +21,14 @@ const emit = defineEmits<{
   'update:modelValue': [value: 'fast' | 'original']
 }>()
 
-const menuVisible = ref(false)
+const { t } = useI18n()
 
-function select(value: 'fast' | 'original') {
-  emit('update:modelValue', value)
-  menuVisible.value = false
+const options = computed<VSelectOption[]>(() => [
+  { value: 'fast', label: t('image_quality_fast') },
+  { value: 'original', label: t('image_quality_original') },
+])
+
+function onPick(value: string | number) {
+  if (value === 'fast' || value === 'original') emit('update:modelValue', value)
 }
 </script>
-
-<style scoped lang="scss">
-.quality-trigger {
-  width: auto;
-  flex: 0 0 auto;
-  height: 40px;
-  padding: 0 12px;
-  border-radius: 20px;
-  font-family: inherit;
-  font-size: 0.8125rem;
-  font-weight: 500;
-  white-space: nowrap;
-}
-</style>

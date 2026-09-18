@@ -35,9 +35,10 @@
           <i-material-symbols:open-in-new-rounded />
         </v-icon-button>
       </template>
+      <v-icon-button v-tooltip="$t('download')" @click="$emit('download')">
+        <i-material-symbols:download-rounded />
+      </v-icon-button>
       <template v-if="isImage(current.name)">
-        <LightboxQualityDropdown :model-value="imageQuality" @update:model-value="$emit('update:image-quality', $event)" />
-
         <v-icon-button v-if="!readOnly" v-tooltip="$t('edit_image')" @click="$emit('edit-image')">
           <i-material-symbols:edit-rounded />
         </v-icon-button>
@@ -84,7 +85,6 @@ withDefaults(
     popup?: boolean
     readOnly?: boolean
     transcoded?: boolean
-    imageQuality: 'fast' | 'original'
     organizeCount?: number
     infoVisible?: boolean
   }>(),
@@ -95,6 +95,7 @@ withDefaults(
 )
 defineEmits<{
   close: []
+  download: []
   'zoom-in': []
   'zoom-out': []
   resize: []
@@ -104,7 +105,6 @@ defineEmits<{
   'open-in-window': []
   'edit-image': []
   'undo-last': []
-  'update:image-quality': [value: 'fast' | 'original']
 }>()
 </script>
 
