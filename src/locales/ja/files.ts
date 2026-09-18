@@ -13,7 +13,6 @@ export default {
   change_save_location: '保存先を変更',
   upload: 'アップロード',
   download: 'ダウンロード',
-  choose_download_method: 'ダウンロード方法を選択',
   download_individually: '個別にダウンロード',
   download_as_zip: 'ZIPとしてダウンロード',
   show_hidden: '非表示を表示',

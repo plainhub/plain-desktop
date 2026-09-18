@@ -13,7 +13,6 @@ export default {
   change_save_location: 'Изменить место сохранения',
   upload: 'Загрузить',
   download: 'Скачать',
-  choose_download_method: 'Выберите способ загрузки',
   download_individually: 'Скачать по одному',
   download_as_zip: 'Скачать как ZIP',
   show_hidden: 'Показать скрытые',

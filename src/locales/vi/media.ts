@@ -19,5 +19,7 @@ export default {
   playlist: 'Danh sách phát',
   remove_from_playlist: 'Xóa khỏi danh sách phát',
   play_pause_video: 'Phát/Tạm dừng video',
+  show_info: 'Hiện thông tin',
+  hide_info: 'Ẩn thông tin',
   pausing: 'Đang tạm dừng...',
 }

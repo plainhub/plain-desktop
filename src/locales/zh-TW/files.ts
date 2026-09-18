@@ -13,7 +13,6 @@ export default {
   change_save_location: '變更儲存位置',
   upload: '上傳',
   download: '下載',
-  choose_download_method: '選擇下載方式',
   download_individually: '逐個下載',
   download_as_zip: '打包下載',
   show_hidden: '顯示隱藏',

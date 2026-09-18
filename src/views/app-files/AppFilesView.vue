@@ -4,9 +4,7 @@
     <div class="title">
       <span v-if="checked">{{ $t('x_selected', { count: realAllChecked ? total.toLocaleString() : selectedIds.length.toLocaleString() }) }}</span>
       <span v-else>{{ $t('app_files') }} ({{ total }})</span>
-      <v-icon-button v-if="checked" v-tooltip="$t('download')" @click.stop="downloadSelected">
-        <i-material-symbols:download-rounded />
-      </v-icon-button>
+      <bulk-download-button v-if="checked" :single="realAllChecked || selectedIds.length === 1" @download="downloadSelected" @download-each="downloadSelectedEach" @download-zip="downloadItemsZip(realAllChecked, selectedIds, '')" />
     </div>
     <v-icon-button v-if="!checked" v-tooltip="$t('refresh')" @click="refresh">
       <i-material-symbols:refresh-rounded />
@@ -79,6 +77,15 @@ function downloadSelected() {
     }
   }
   downloadItemsZip(realAllChecked.value, selectedIds.value, '')
+}
+
+async function downloadSelectedEach() {
+  const selected = items.value.filter((it: IAppFile) => selectedIds.value.includes(it.id))
+  for (const item of selected) {
+    downloadFile(`fid:${getAppFileFid(item)}`, item.fileName)
+    await new Promise((resolve) => setTimeout(resolve, 250))
+  }
+  clearSelection()
 }
 
 const sentinel = ref<HTMLElement | null>(null)

@@ -49,6 +49,15 @@ export function useAppsActions(opts: UseAppsActionsOptions) {
     downloadItemsZip(realAllChecked, ids, query)
   }
 
+  async function downloadItemsEach(ids: string[]) {
+    const selected = items.value.filter((it) => ids.includes(it.id))
+    for (const item of selected) {
+      downloadApp(item)
+      await new Promise((resolve) => setTimeout(resolve, 250))
+    }
+    clearSelection()
+  }
+
   const { mutate: installPackageMutate } = initMutation({ document: installPackageGQL })
   const { mutate: uninstallMutate } = initMutation({ document: uninstallPackageGQL })
 
@@ -150,6 +159,6 @@ export function useAppsActions(opts: UseAppsActionsOptions) {
 
   return {
     fileInput, uploadChanged, dropping, fileDragEnter, fileDragLeave,
-    downloadItems, install, uninstall, cancelUninstall, downloadApp, dropApkFiles,
+    downloadItems, downloadItemsEach, install, uninstall, cancelUninstall, downloadApp, dropApkFiles,
   }
 }

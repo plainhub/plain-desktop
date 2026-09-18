@@ -21,7 +21,7 @@
         <v-icon-button v-if="!inZip" v-tooltip="$t('copy')" @click.stop="copyItems"><i-material-symbols:content-copy-outline-rounded /></v-icon-button>
         <v-icon-button v-if="!inZip" v-tooltip="$t('cut')" @click.stop="cutItems"><i-material-symbols:content-cut-rounded /></v-icon-button>
         <bulk-delete-button v-if="!inZip" :confirming="confirmingDelete" :count="deleteCount" :loading="bulkDeleting" @click="deleteItems" @confirm="doDeleteItems" @cancel="cancelDeleteItems" />
-        <v-icon-button v-tooltip="$t('download')" :loading="downloadLoading" @click.stop="downloadItems"><i-material-symbols:download-rounded /></v-icon-button>
+        <bulk-download-button :single="selectedIds.length === 1" :loading="downloadLoading" @download="downloadSelectedItem" @download-each="downloadEachItems" @download-zip="downloadZipItems" />
       </template>
     </div>
     <div v-if="!isPhone && !checked" class="actions">
@@ -138,7 +138,7 @@ const { navigateToDir, toggleShowHidden, clickItem, viewItem } = useFilesNavigat
 
 // --- Actions ---
 const {
-  downloadLoading, downloadItems, deleteItems, deleteItem,
+  downloadLoading, downloadSelectedItem, downloadEachItems, downloadZipItems, deleteItems, deleteItem,
   confirmingDelete, deleteCount, doDeleteItems, cancelDeleteItems,
   deletingIds, collapsingIds, bulkDeleting,
   copyItems, cutItems, pasteDir,

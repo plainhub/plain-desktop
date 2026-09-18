@@ -80,6 +80,15 @@ export function useMediaPage(options: MediaPageOptions) {
     downloadItemsZip(realAllChecked, ids, query)
   }
 
+  async function downloadItemsEach(ids: string[]) {
+    const selected = items.value.filter((it: any) => ids.includes(it.id))
+    for (const item of selected) {
+      downloadFile(item.path)
+      await new Promise((resolve) => setTimeout(resolve, 250))
+    }
+    sel.clearSelection()
+  }
+
   const { trashLoading, trash } = useMediaTrash()
   const { restoreLoading, restore } = useMediaRestore()
 
@@ -215,7 +224,7 @@ export function useMediaPage(options: MediaPageOptions) {
     filter, page, q, sorting, limit, dataType,
     ...upload,
     tags, buckets, bucketsMap, deleteItems, deleteItem, confirmingDelete, deleteCount, deleteLoading, doDeleteItems, cancelDeleteItems, viewBucket,
-    ...sel, downloadItems, downloadFile,
+    ...sel, downloadItems, downloadItemsEach, downloadFile,
     trashLoading, trash, restoreLoading, restore,
     gotoPage, onChangePageSize, getQuery, sort, handleMouseOverMode,
   }

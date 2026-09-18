@@ -21,4 +21,6 @@ export default {
   playlist: 'Playlist',
   remove_from_playlist: 'Remove from playlist',
   play_pause_video: 'Play/Pause video',
+  show_info: 'Show info',
+  hide_info: 'Hide info',
 }

@@ -13,7 +13,6 @@ export default {
   change_save_location: 'সংরক্ষণ স্থান পরিবর্তন করুন',
   upload: 'আপলোড করুন',
   download: 'ডাউনলোড করুন',
-  choose_download_method: 'ডাউনলোড পদ্ধতি নির্বাচন করুন',
   download_individually: 'আলাদাভাবে ডাউনলোড করুন',
   download_as_zip: 'ZIP হিসেবে ডাউনলোড করুন',
   show_hidden: 'গোপন দেখান',

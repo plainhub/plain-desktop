@@ -13,7 +13,6 @@ export default {
   change_save_location: 'சேமிக்கும் இடத்தை மாற்று',
   upload: 'பதிவேற்று',
   download: 'பதிவிறக்கம்',
-  choose_download_method: 'பதிவிறக்க முறையைத் தேர்ந்தெடுக்கவும்',
   download_individually: 'ஒன்றன்பின்னொரு பதிவிறக்குக',
   download_as_zip: 'ZIP ஆக பதிவிறக்குக',
   show_hidden: 'மறைக்கப்பட்டதைக் காட்டு',

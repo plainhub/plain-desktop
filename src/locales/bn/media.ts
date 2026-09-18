@@ -19,5 +19,7 @@ export default {
   playlist: 'প্লেলিস্ট',
   remove_from_playlist: 'প্লেলিস্ট থেকে সরান',
   play_pause_video: 'ভিডিও প্লে/বিরতি',
+  show_info: 'তথ্য দেখান',
+  hide_info: 'তথ্য লুকান',
   pausing: 'বিরতি হচ্ছে...',
 }

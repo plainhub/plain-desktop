@@ -9,6 +9,7 @@
           :transcoded="current?.transcoded"
           :image-quality="imageViewQuality"
           :organize-count="organizeCount"
+          :info-visible="lightboxInfoVisible"
           @close="onCloseDialog"
           @zoom-in="zoomIn"
           @zoom-out="zoomOut"

@@ -19,5 +19,7 @@ export default {
   playlist: '재생 목록',
   remove_from_playlist: '재생 목록에서 제거',
   play_pause_video: '비디오 재생/일시 정지',
+  show_info: '정보 표시',
+  hide_info: '정보 숨기기',
   pausing: '일시 정지 중...',
 }

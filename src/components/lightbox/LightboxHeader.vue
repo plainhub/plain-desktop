@@ -64,8 +64,9 @@
       </template>
     </div>
 
-    <v-icon-button v-tooltip="$t('info')" class="info-btn" @click="$emit('toggle-info')">
-      <i-material-symbols:info-outline-rounded />
+    <v-icon-button v-tooltip="infoVisible ? $t('hide_info') : $t('show_info')" class="info-btn" @click="$emit('toggle-info')">
+      <i-lucide:panel-right-close v-if="infoVisible" />
+      <i-lucide:panel-right-open v-else />
     </v-icon-button>
   </header>
 </template>
@@ -85,9 +86,11 @@ withDefaults(
     transcoded?: boolean
     imageQuality: 'fast' | 'original'
     organizeCount?: number
+    infoVisible?: boolean
   }>(),
   {
     organizeCount: 0,
+    infoVisible: false,
   },
 )
 defineEmits<{

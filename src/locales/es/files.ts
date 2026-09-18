@@ -13,7 +13,6 @@ export default {
   change_save_location: 'Cambiar ubicación de guardado',
   upload: 'Cargar',
   download: 'Descargar',
-  choose_download_method: 'Elegir método de descarga',
   download_individually: 'Descargar individualmente',
   download_as_zip: 'Descargar como ZIP',
   show_hidden: 'Mostrar ocultos',

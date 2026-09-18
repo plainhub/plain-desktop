@@ -8,7 +8,7 @@
         <template v-if="filterTrash">
           <bulk-delete-button :confirming="confirmingDelete" :count="deleteCount" :loading="deleteLoading" @click="$emit('delete')" @confirm="$emit('confirm')" @cancel="$emit('cancel')" />
           <v-icon-button v-tooltip="$t('restore')" :loading="restoreQueryLoading" @click.stop="$emit('restore')"><i-material-symbols:restore-from-trash-outline-rounded /></v-icon-button>
-          <v-icon-button v-tooltip="$t('download')" @click.stop="$emit('download')"><i-material-symbols:download-rounded /></v-icon-button>
+          <bulk-download-button :single="realAllChecked || selectedCount === 1" @download="$emit('download')" @download-each="$emit('download-each')" @download-zip="$emit('download-zip')" />
         </template>
         <template v-else>
             <v-icon-button v-if="canTrash" v-tooltip="$t('move_to_trash')" :loading="trashQueryLoading" @click.stop="$emit('trash')"><i-material-symbols:delete-outline-rounded /></v-icon-button>
@@ -16,7 +16,7 @@
             <slot name="tag-action">
               <v-icon-button v-tooltip="$t('add_to_tags')" @click.stop="$emit('addToTags')"><i-material-symbols:label-outline-rounded /></v-icon-button>
             </slot>
-          <v-icon-button v-tooltip="$t('download')" @click.stop="$emit('download')"><i-material-symbols:download-rounded /></v-icon-button>
+          <bulk-download-button :single="realAllChecked || selectedCount === 1" @download="$emit('download')" @download-each="$emit('download-each')" @download-zip="$emit('download-zip')" />
           <slot name="extra-actions" />
         </template>
       </template>
@@ -61,6 +61,8 @@ defineEmits<{
   delete: []
   restore: []
   download: []
+  'download-each': []
+  'download-zip': []
   trash: []
   addToTags: []
   selectRealAll: []

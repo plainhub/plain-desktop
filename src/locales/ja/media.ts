@@ -19,5 +19,7 @@ export default {
   playlist: 'プレイリスト',
   remove_from_playlist: 'プレイリストから削除',
   play_pause_video: 'ビデオを再生/一時停止',
+  show_info: '情報を表示',
+  hide_info: '情報を非表示',
   pausing: '一時停止しています…',
 }

@@ -13,7 +13,6 @@ export default {
   change_save_location: 'Thay đổi vị trí lưu',
   upload: 'Tải lên',
   download: 'Tải xuống',
-  choose_download_method: 'Chọn phương thức tải xuống',
   download_individually: 'Tải xuống từng tệp',
   download_as_zip: 'Tải xuống dạng ZIP',
   show_hidden: 'Hiển thị ẩn',

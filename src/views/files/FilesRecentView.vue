@@ -4,9 +4,7 @@
     <span v-if="selectedIds.length">{{ $t('x_selected', { count: realAllChecked ? total.toLocaleString() : selectedIds.length.toLocaleString() }) }}</span>
     <span v-else>{{ $t('recent_files') }} ({{ total.toLocaleString() }})</span>
     <template v-if="checked">
-      <v-icon-button v-tooltip="$t('download')" @click.stop="downloadItems">
-        <i-material-symbols:download-rounded />
-      </v-icon-button>
+      <bulk-download-button :single="selectedIds.length === 1" @download="downloadSelectedItem" @download-each="downloadEachItems" @download-zip="downloadZipItems" />
     </template>
   </div>
   <div v-if="loading && items.length === 0" class="scroller main-list">
@@ -47,6 +45,6 @@ const {
   selectedIds, allChecked, realAllChecked, checked, total,
   shiftEffectingIds, shouldSelect, imageErrorIds, extensionImageErrorIds,
   toggleAllChecked, toggleSelect, handleItemClick, handleMouseOver,
-  onImageError, onExtensionImageError, downloadFile, clickItem, downloadItems,
+  onImageError, onExtensionImageError, downloadFile, clickItem, downloadSelectedItem, downloadEachItems, downloadZipItems,
 } = useFilesRecent()
 </script>

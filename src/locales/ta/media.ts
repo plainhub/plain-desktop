@@ -19,5 +19,7 @@ export default {
   playlist: 'பிளேலிஸ்டு',
   remove_from_playlist: 'பிளேலிஸ்டுக்கு இல்லை செய்ய',
   play_pause_video: 'வீடியோவை இயக்கு/இடைநிறுத்து',
+  show_info: 'தகவலைக் காட்டு',
+  hide_info: 'தகவலை மறை',
   pausing: 'இடைநிறுத்துகிறது...',
 }

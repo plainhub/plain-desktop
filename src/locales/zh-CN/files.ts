@@ -13,7 +13,6 @@ export default {
   change_save_location: '更改保存位置',
   upload: '上传',
   download: '下载',
-  choose_download_method: '选择下载方式',
   download_individually: '逐个下载',
   download_as_zip: '打包下载',
   show_hidden: '显示隐藏项',

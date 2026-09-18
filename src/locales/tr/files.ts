@@ -13,7 +13,6 @@ export default {
   change_save_location: 'Kayıt konumunu değiştir',
   upload: 'Yükle',
   download: 'İndir',
-  choose_download_method: 'İndirme yöntemini seçin',
   download_individually: 'Tek tek indir',
   download_as_zip: 'ZIP olarak indir',
   show_hidden: 'Gizli öğeleri göster',

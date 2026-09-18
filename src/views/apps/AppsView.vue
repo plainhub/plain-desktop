@@ -5,9 +5,7 @@
       <span v-if="selectedIds.length">{{ $t('x_selected', { count: realAllChecked ? total.toLocaleString() : selectedIds.length.toLocaleString() }) }}</span>
       <span v-else>{{ $t('page_title.apps') }} ({{ total.toLocaleString() }})</span>
       <template v-if="checked">
-        <v-icon-button v-tooltip="$t('download')" @click.stop="downloadItems(realAllChecked, selectedIds, q)">
-          <i-material-symbols:download-rounded />
-        </v-icon-button>
+        <bulk-download-button :single="realAllChecked || selectedIds.length === 1" @download="downloadItems(realAllChecked, selectedIds, q)" @download-each="downloadItemsEach(selectedIds)" @download-zip="downloadItems(realAllChecked, selectedIds, q)" />
       </template>
     </div>
 
@@ -83,7 +81,7 @@ const {
 
 const {
   fileInput, uploadChanged, dropping, fileDragEnter, fileDragLeave,
-  downloadItems, install, uninstall, cancelUninstall, downloadApp, dropApkFiles,
+  downloadItems, downloadItemsEach, install, uninstall, cancelUninstall, downloadApp, dropApkFiles,
 } = useAppsActions({ items, isActive, fetch, applyRouteQuery, clearSelection, pageKeyDown, pageKeyUp })
 </script>
 <style scoped lang="scss">
