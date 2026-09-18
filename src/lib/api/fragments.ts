@@ -176,9 +176,10 @@ export const callFragment = `
     photoId
     type
     geo {
-      isp
-      city
-      province
+      country
+      numberType
+      carrier
+      description
     }
     tags {
       ...TagSubFragment

@@ -126,9 +126,10 @@ export interface IContact extends IData {
 }
 
 export interface ICallGeo {
-  isp: string
-  city: string
-  province: string
+  country: string
+  numberType: string
+  carrier: string
+  description: string
 }
 
 export interface ICall extends IData {

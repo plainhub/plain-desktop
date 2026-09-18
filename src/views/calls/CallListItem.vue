@@ -107,7 +107,7 @@ interface Props {
 
 defineProps<Props>()
 
-const { t } = useI18n()
+const { t, locale } = useI18n()
 
 const emit = defineEmits<{
   deleteItem: [item: ICall]
@@ -128,14 +128,20 @@ function getGeoText(geo: ICallGeo | null | undefined) {
   }
 
   const texts = []
-  if (geo.isp) {
-    texts.push(t('phone_isp_type.' + geo.isp))
+  if (geo.numberType && geo.numberType !== 'MOBILE') {
+    texts.push(t('phone_number_type.' + geo.numberType))
   }
-
-  if (geo.city === geo.province) {
-    texts.push(geo.city)
-  } else {
-    texts.push(`${geo.province}${geo.city}`)
+  if (geo.carrier) {
+    texts.push(geo.carrier)
+  }
+  if (geo.description) {
+    texts.push(geo.description)
+  }
+  if (geo.country) {
+    const countryName = new Intl.DisplayNames([locale.value], { type: 'region' }).of(geo.country)
+    if (countryName && countryName !== geo.country) {
+      texts.push(countryName)
+    }
   }
 
   return texts.join(', ')

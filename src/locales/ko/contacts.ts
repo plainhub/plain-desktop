@@ -88,13 +88,5 @@ export default {
   suffix: '접미사',
   phone_geo: 'GEO',
   avatar: '아바타',
-  phone_isp_type: {
-    1: '중국 모바일',
-    2: '중국 유니콤',
-    3: '중국 텔레콤',
-    4: '중국 유니콤 가상',
-    5: '중국 텔레콤 가상',
-    6: '중국 모바일 가상',
-  },
   make_a_phone_call: '전화 걸기',
 }

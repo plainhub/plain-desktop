@@ -88,13 +88,5 @@ export default {
   suffix: '接尾辞',
   phone_geo: 'GEO',
   avatar: 'アバター',
-  phone_isp_type: {
-    1: '中国モバイル',
-    2: '中国ユニコム',
-    3: '中国テレコム',
-    4: '中国ユニコム仮想',
-    5: '中国テレコム仮想',
-    6: '中国モバイル仮想',
-  },
   make_a_phone_call: '電話をかける',
 }
