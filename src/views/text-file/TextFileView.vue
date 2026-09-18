@@ -126,9 +126,7 @@
           <template #source>
             <ViewerPanel :title="$t('viewer_source')" :meta="sourceMeta">
               <template #actions>
-                <button class="mini-btn" :aria-label="$t('copy')" @click="copySource">
-                  <i-lucide-copy />
-                </button>
+                <v-copy-button class="mini-btn" :text="viewText" />
               </template>
               <CodeEditor :model-value="viewText" :language="cmLanguage" read-only :wrap-text="wrap" />
             </ViewerPanel>
@@ -169,9 +167,7 @@
         <ViewerPanel v-else-if="kind === 'txt'" :title="$t('viewer_source')" :meta="$t('plain_text')" class="solo-panel">
           <template #icon><i-lucide-code /></template>
           <template #actions>
-            <button class="mini-btn" :aria-label="$t('copy')" @click="copySource">
-              <i-lucide-copy />
-            </button>
+            <v-copy-button class="mini-btn" :text="viewText" />
           </template>
           <CodeEditor :model-value="viewText" read-only :wrap-text="wrap" />
         </ViewerPanel>
@@ -262,12 +258,6 @@ const sourceMeta = computed(() => {
 })
 
 const sizeText = computed(() => formatFileSize(sizeBytes.value))
-
-async function copySource() {
-  try {
-    await navigator.clipboard.writeText(viewText.value)
-  } catch { /* clipboard unavailable */ }
-}
 </script>
 
 <style scoped>
