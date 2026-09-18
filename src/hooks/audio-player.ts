@@ -1,4 +1,4 @@
-import { computed, onMounted, onUnmounted, ref, watch, type Ref } from 'vue'
+import { computed, nextTick, onMounted, onUnmounted, ref, watch, type Ref } from 'vue'
 import { useTempStore } from '@/stores/temp'
 import { storeToRefs } from 'pinia'
 import type { IPlaylistAudio } from '@/lib/interfaces'
@@ -7,6 +7,25 @@ import { initMutation, playAudioGQL, updateAudioPlayModeGQL, deletePlaylistAudio
 import { sample } from '@/lib/array'
 import { useAudioPlaylistStore } from '@/hooks/audio-playlist-store'
 import emitter from '@/plugins/eventbus'
+
+/**
+ * `playAudio` against the phone: the returned track is the server truth for
+ * `app.audioCurrent`, and the mutation re-enqueues the track server-side, so
+ * every play is followed by a queue-mirror refetch. `onApplied` runs once the
+ * local state is synced (play the element, notify other components, …).
+ */
+export function usePlayAudio(onApplied: () => void) {
+  const { app } = storeToRefs(useTempStore())
+  const store = useAudioPlaylistStore()
+  const { mutate: play, loading, onDone } = initMutation({ document: playAudioGQL })
+  onDone((r: any) => {
+    const path = r?.data?.playAudio?.path
+    if (path) app.value = { ...app.value, audioCurrent: path }
+    void store.refetch()
+    onApplied()
+  })
+  return { play, loading }
+}
 
 export function useAudioPlaylist(audioRef: Ref<HTMLAudioElement | undefined>) {
   const { app, urlTokenKey, audioPlaying } = storeToRefs(useTempStore())
@@ -74,42 +93,35 @@ export function useAudioPlaylist(audioRef: Ref<HTMLAudioElement | undefined>) {
   watch(audios, setCurrent)
 
   // Mutations
-  const { mutate: play, onDone: playDone } = initMutation({ document: playAudioGQL })
-  const { mutate: clear, loading: clearLoading } = initMutation({ document: clearAudioPlaylistGQL })
+  const { play } = usePlayAudio(() => { void nextTick(() => _play()) })
+  const { mutate: clear, loading: clearLoading, onDone: onClearDone } = initMutation({ document: clearAudioPlaylistGQL })
   const { mutate: updatePlayMode } = initMutation({ document: updateAudioPlayModeGQL })
   const { mutate: reorderPlaylistAudios } = initMutation({ document: reorderPlaylistAudiosGQL })
   const { mutate: deleteAudio } = initMutation({ document: deletePlaylistAudioGQL })
 
-  // Clear handler
-  const clearDone = () => {
+  onClearDone(() => {
     app.value = { ...app.value, audioCurrent: '' }
     store.reset()
-  }
+  })
 
   function _play() { audioRef.value?.play() }
-
-  playDone(() => _play())
 
   // Navigation
   function playRandom() {
     const c = sample(audios.value)
-    if (!c) return
-    play({ path: c.path })
-    app.value = { ...app.value, audioCurrent: c.path }
+    if (c) play({ path: c.path })
   }
 
   function _playPrev() {
     const index = audios.value.findIndex((it) => it.path === current.value?.path)
     const c = index <= 0 ? audios.value[audios.value.length - 1] : audios.value[index - 1]
-    play({ path: c.path })
-    app.value = { ...app.value, audioCurrent: c.path }
+    if (c) play({ path: c.path })
   }
 
   function _playNext() {
     const index = audios.value.findIndex((it) => it.path === current.value?.path)
     const c = index + 1 >= audios.value.length ? audios.value[0] : audios.value[index + 1]
-    play({ path: c.path })
-    app.value = { ...app.value, audioCurrent: c.path }
+    if (c) play({ path: c.path })
   }
 
   function playPrev() {
@@ -139,7 +151,6 @@ export function useAudioPlaylist(audioRef: Ref<HTMLAudioElement | undefined>) {
 
   function playItem(item: IPlaylistAudio) {
     play({ path: item.path })
-    app.value = { ...app.value, audioCurrent: item.path }
   }
 
   function deleteItem(item: IPlaylistAudio) {
@@ -152,8 +163,7 @@ export function useAudioPlaylist(audioRef: Ref<HTMLAudioElement | undefined>) {
   }
 
   function clearPlaylist() {
-    clear()
-    clearDone()
+    void clear()
   }
 
   const onPlay = () => {
@@ -164,7 +174,7 @@ export function useAudioPlaylist(audioRef: Ref<HTMLAudioElement | undefined>) {
     audioPlaying.value = false
     updateMediaSessionPlaybackState()
   }
-  const doPlayAudio = () => setTimeout(_play, 500)
+  const doPlayAudio = () => { void nextTick(() => _play()) }
   const pauseAudio = () => audioRef.value?.pause()
 
   onMounted(() => {

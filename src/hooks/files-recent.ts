@@ -5,8 +5,6 @@ import { storeToRefs } from 'pinia'
 import { type IFile, enrichFile } from '@/lib/file'
 import { getFileUrlByPath, getFileId } from '@/lib/api/file'
 import { useDownload, useView } from '@/hooks/files'
-import { openModal } from '@/components/modal'
-import DownloadMethodModal from '@/components/DownloadMethodModal.vue'
 import { useTempStore, type IUploadItem } from '@/stores/temp'
 import { shortUUID } from '@/lib/strutil'
 import { initMutation, setTempValueGQL } from '@/lib/api/mutation'
@@ -73,22 +71,33 @@ export function useFilesRecent() {
     document: recentFilesGQL,
   })
 
-  const downloadItems = () => {
+  const getSelectedItems = () => {
     const selected = items.value.filter((it) => selectedIds.value.includes(it.id))
-    if (selected.length === 0) { toast(t('select_first'), 'error'); return }
-    if (selected.length === 1 && !selected[0].isDir) { downloadFile(selected[0].path); clearSelection(); return }
-    openModal(DownloadMethodModal, {
-      onEach: async () => {
-        for (const it of selected) {
-          if (it.isDir) downloadDir(it.path); else downloadFile(it.path)
-          await new Promise((resolve) => setTimeout(resolve, 250))
-        }
-        clearSelection()
-      },
-      onZip: () => {
-        setTempValue({ key: shortUUID(), value: JSON.stringify(selectedIds.value.map((it: string) => ({ path: it }))) })
-      },
-    })
+    if (selected.length === 0) { toast(t('select_first'), 'error'); return null }
+    return selected
+  }
+
+  const downloadSelectedItem = () => {
+    const selected = getSelectedItems()
+    if (!selected || selected.length !== 1) return
+    const item = selected[0]
+    item.isDir ? downloadDir(item.path) : downloadFile(item.path)
+    clearSelection()
+  }
+
+  const downloadEachItems = async () => {
+    const selected = getSelectedItems()
+    if (!selected) return
+    for (const it of selected) {
+      if (it.isDir) downloadDir(it.path); else downloadFile(it.path)
+      await new Promise((resolve) => setTimeout(resolve, 250))
+    }
+    clearSelection()
+  }
+
+  const downloadZipItems = () => {
+    if (!getSelectedItems()) return
+    setTempValue({ key: shortUUID(), value: JSON.stringify(selectedIds.value.map((it: string) => ({ path: it }))) })
   }
 
   const uploadRefresh = createUploadRefreshScheduler(() => fetch())
@@ -122,6 +131,6 @@ export function useFilesRecent() {
     selectedIds, allChecked, realAllChecked, checked, total,
     shiftEffectingIds, shouldSelect, imageErrorIds, extensionImageErrorIds,
     toggleAllChecked, toggleSelect, handleItemClick, handleMouseOver,
-    onImageError, onExtensionImageError, downloadFile, clickItem: openFile, downloadItems,
+    onImageError, onExtensionImageError, downloadFile, clickItem: openFile, downloadSelectedItem, downloadEachItems, downloadZipItems,
   }
 }

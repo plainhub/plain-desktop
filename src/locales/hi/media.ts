@@ -19,5 +19,7 @@ export default {
   playlist: 'प्लेलिस्ट',
   remove_from_playlist: 'प्लेलिस्ट से हटाएं',
   play_pause_video: 'वीडियो बजाएं/रोकें',
+  show_info: 'जानकारी दिखाएँ',
+  hide_info: 'जानकारी छिपाएँ',
   pausing: 'रोक रहा है...',
 }

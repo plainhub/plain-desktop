@@ -19,5 +19,7 @@ export default {
   playlist: 'Afspeellijst',
   remove_from_playlist: 'Verwijderen van afspeellijst',
   play_pause_video: 'Video afspelen/pauzeren',
+  show_info: 'Info tonen',
+  hide_info: 'Info verbergen',
   pausing: 'Pauzeren…',
 }

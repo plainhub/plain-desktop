@@ -19,5 +19,7 @@ export default {
   playlist: 'Wiedergabeliste',
   remove_from_playlist: 'Aus Wiedergabeliste entfernen',
   play_pause_video: 'Video abspielen/pausieren',
+  show_info: 'Infos anzeigen',
+  hide_info: 'Infos ausblenden',
   pausing: 'Wird pausiert…',
 }

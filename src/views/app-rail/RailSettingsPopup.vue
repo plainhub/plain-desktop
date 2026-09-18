@@ -71,6 +71,15 @@
       </teleport>
     </div>
 
+    <template v-if="isTauri">
+      <div class="popup-divider"></div>
+
+      <div class="dropdown-item" @click="changeDownloadDir">
+        <i-material-symbols:folder-open-outline-rounded class="feature-icon" />
+        <span>{{ $t('choose_download_dir') }}</span>
+      </div>
+    </template>
+
     <template v-if="!localMode">
       <div v-if="!isTauri" class="dropdown-item" @click="logout">
         <i-material-symbols:logout-rounded class="feature-icon" />
@@ -246,6 +255,12 @@ function openCustomizeUI() {
 function openExcludedDirs() {
   open.value = false
   pushModal(ExcludedDirsModal)
+}
+
+async function changeDownloadDir() {
+  open.value = false
+  const { chooseDownloadDir } = await import('@/lib/download-dir')
+  await chooseDownloadDir()
 }
 
 function openDeviceSwitcher() {

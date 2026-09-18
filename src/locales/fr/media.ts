@@ -19,5 +19,7 @@ export default {
   playlist: 'Liste de lecture',
   remove_from_playlist: 'Supprimer de la liste de lecture',
   play_pause_video: 'Lire/Pause la vidéo',
+  show_info: 'Afficher les infos',
+  hide_info: 'Masquer les infos',
   pausing: 'Mise en pause…',
 }

@@ -45,7 +45,7 @@
       <NoDataPlaceholder
         v-if="!items.length"
         :loading="loading"
-        :placeholder-key="clipboardSync ? '' : 'clipboard_sync_disabled'"
+        :placeholder-key="clipboardSync ? '' : 'no_permission'"
         feature="CLIPBOARD"
       />
       <v-pagination

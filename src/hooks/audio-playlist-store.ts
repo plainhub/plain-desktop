@@ -1,12 +1,12 @@
 import { ref } from 'vue'
 import { gqlFetch } from '@/lib/api/gql-client'
-import { audioPlaylistGQL } from '@/lib/api/query'
+import { audioQueueGQL } from '@/lib/api/query'
 import type { IPlaylistAudio } from '@/lib/interfaces'
 
 const PAGE_SIZE = 200
 
 /**
- * Reactive view of the phone playback queue (`audioPlaylist` query).
+ * Reactive view of the phone playback queue (`audioQueue` query).
  *
  * The queue is server-side state (a playback source plus manual items), so
  * this store only mirrors a window of it: mutate via GraphQL mutations, then
@@ -19,19 +19,19 @@ export const audioPlaylistLoading = ref(false)
 let fetchSeq = 0
 let initialFetched = false
 
-interface IAudioPlaylistPage {
+interface IAudioQueuePage {
   total: number
   items: IPlaylistAudio[]
 }
 
-async function fetchPage(offset: number) {
+async function fetchPage(offset: number): Promise<boolean> {
   const seq = ++fetchSeq
   audioPlaylistLoading.value = true
   try {
-    const r = await gqlFetch<{ audioPlaylist: IAudioPlaylistPage }>(audioPlaylistGQL, { offset, limit: PAGE_SIZE })
-    if (seq !== fetchSeq) return // superseded by a newer fetch
-    if (r.errors?.length || !r.data?.audioPlaylist) return
-    const page = r.data.audioPlaylist
+    const r = await gqlFetch<IAudioQueuePage>(audioQueueGQL, { offset, limit: PAGE_SIZE })
+    if (seq !== fetchSeq) return false // superseded by a newer fetch
+    if (r.errors?.length || !r.data?.items) return false
+    const page = r.data
     audioPlaylistTotal.value = page.total
     if (offset === 0) {
       audioPlaylistItems.value = page.items
@@ -41,6 +41,10 @@ async function fetchPage(offset: number) {
       const known = new Set(audioPlaylistItems.value.map((it) => it.path))
       audioPlaylistItems.value = [...audioPlaylistItems.value, ...page.items.filter((it) => !known.has(it.path))]
     }
+    return true
+  } catch {
+    // Network failures leave the mirror as-is; a later refetch re-syncs.
+    return false
   } finally {
     if (seq === fetchSeq) audioPlaylistLoading.value = false
   }
@@ -48,8 +52,7 @@ async function fetchPage(offset: number) {
 
 export function useAudioPlaylistStore() {
   async function fetchInitial() {
-    initialFetched = true
-    await fetchPage(0)
+    initialFetched = await fetchPage(0)
   }
 
   /** Load once per session; safe to call on every mount. */
@@ -90,4 +93,12 @@ export function useAudioPlaylistStore() {
     removeLocal,
     reset,
   }
+}
+
+export function resetAudioPlaylistForTests() {
+  audioPlaylistItems.value = []
+  audioPlaylistTotal.value = 0
+  audioPlaylistLoading.value = false
+  fetchSeq = 0
+  initialFetched = false
 }

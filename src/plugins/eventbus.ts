@@ -10,7 +10,6 @@ type Events = {
   refetch_app: undefined
   refetch_favorite_folders: undefined
   permissions_updated: undefined
-  play_audio: undefined
   do_play_audio: undefined
   pause_audio: undefined
   item_tags_updated: IItemTagsUpdatedEvent

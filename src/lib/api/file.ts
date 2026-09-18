@@ -3,6 +3,8 @@ import { buildUrl } from '../url'
 import { getPeerIp } from '../device/login-peers'
 import { getApiBaseUrl, getProxyUrl } from './api'
 import { chachaEncrypt, bitArrayToBase64 } from './crypto'
+import toast, { toastWithAction } from '@/components/toaster'
+import { downloadToDir, getDownloadDir, revealInFolder } from '@/lib/download-dir'
 
 declare global {
   interface Window {
@@ -40,11 +42,12 @@ export function download(url: string, name: string) {
   _recentDownloads.add(url)
   setTimeout(() => _recentDownloads.delete(url), 1000)
 
-  // In Tauri, WKWebView ignores <a download> for remote URLs (http/https).
-  // Open via the system browser which handles downloads natively.
-  // Blob URLs (local recorded media) still work with <a download>.
+  // In Tauri, WKWebView ignores <a download> for remote URLs (http/https):
+  // fetch the bytes and write them into the saved download folder (chosen
+  // via a native dialog on first use). Blob URLs (local recorded media)
+  // still work with <a download>.
   if (__IS_TAURI__ && !url.startsWith('blob:')) {
-    void import('../browser').then(({ openUrl }) => openUrl(url))
+    void saveToFile(url, name)
     return
   }
 
@@ -62,6 +65,36 @@ export function download(url: string, name: string) {
     document.body.removeChild(link)
   } else {
     window.open(url)
+  }
+}
+
+let _toastTimer: ReturnType<typeof setTimeout> | undefined
+let _lastDownloadedPath = ''
+
+// Bursts of downloads (e.g. "download individually") share one toast that
+// fires after the last completion and reveals the most recent file.
+function notifyDownloaded(path: string) {
+  _lastDownloadedPath = path
+  clearTimeout(_toastTimer)
+  _toastTimer = setTimeout(() => {
+    void (async () => {
+      const { i18n } = await import('@/plugins/i18n')
+      const { t } = i18n.global
+      toastWithAction(t('downloaded_to', { dir: getDownloadDir() }), t('show_in_folder'), () => {
+        void revealInFolder(_lastDownloadedPath)
+      })
+    })()
+  }, 600)
+}
+
+async function saveToFile(url: string, name: string) {
+  try {
+    const path = await downloadToDir(url, name)
+    if (path) notifyDownloaded(path)
+  } catch (error) {
+    console.error(error)
+    const { i18n } = await import('@/plugins/i18n')
+    toast(i18n.global.t('download_failed'), 'error')
   }
 }
 

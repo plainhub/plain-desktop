@@ -7,9 +7,10 @@
           :popup="popup"
           :read-only="readOnly"
           :transcoded="current?.transcoded"
-          :image-quality="imageViewQuality"
           :organize-count="organizeCount"
+          :info-visible="lightboxInfoVisible"
           @close="onCloseDialog"
+          @download="onDownload"
           @zoom-in="zoomIn"
           @zoom-out="zoomOut"
           @resize="resize"
@@ -19,7 +20,6 @@
           @open-in-window="onOpenInWindow"
           @edit-image="onEditImage"
           @undo-last="onUndoLast"
-          @update:image-quality="imageViewQuality = $event"
         />
         <section class="content" @click.self="onBackdropClick">
           <div v-if="tempStore.lightbox.sources.length > 1 && (loop || imgIndex > 0)" class="btn-prev" @click="onPrev">
@@ -68,15 +68,16 @@
         </section>
         
         <!-- Desktop info panel -->
-        <LightboxInfo 
-          v-if="lightboxInfoVisible && !isPhone && !isTablet" 
-          :current="current" 
-          :file-info="fileInfo" 
-          :url-token-key="urlTokenKey ? urlTokenKey.toString() : ''" 
-          :app-dir="app.appDir" 
+        <LightboxInfo
+          v-if="lightboxInfoVisible && !isPhone && !isTablet"
+          :current="current"
+          :file-info="fileInfo"
+          :url-token-key="urlTokenKey ? urlTokenKey.toString() : ''"
+          :app-dir="app.appDir"
           :tags-map="tagsMap"
           :read-only="readOnly"
-          :download-file="downloadFile"
+          :image-quality="imageViewQuality"
+          @update:image-quality="imageViewQuality = $event"
           @rename-file="renameFile"
           @delete-file="deleteFile"
           @refetch-info="refetchInfo"
@@ -85,11 +86,18 @@
       
       <!-- Mobile info bottom sheet -->
       <BottomSheet v-if="isPhone || isTablet" v-model="lightboxInfoVisible" :title="$t('info')" show-footer>
+        <LightboxQualityDropdown
+          v-if="current && isImage(current.name)"
+          :model-value="imageViewQuality"
+          class="sheet-quality"
+          @update:model-value="imageViewQuality = $event"
+        />
+
         <!-- File Details Section -->
-        <LightboxFileDetails 
-          :current="current" 
-          :file-info="fileInfo" 
-          :app-dir="app.appDir" 
+        <LightboxFileDetails
+          :current="current"
+          :file-info="fileInfo"
+          :app-dir="app.appDir"
         />
 
         <LightboxMoveToFolders
@@ -110,7 +118,6 @@
           <LightboxFileActionButtons
             :current="current"
             :read-only="readOnly"
-            :download-file="downloadFile"
             @rename-file="renameFile"
             @delete-file="deleteFile"
             @action-success="handleActionSuccess"
@@ -124,6 +131,7 @@
 import { computed, inject, toRef, onMounted, onUnmounted } from 'vue'
 import { preventDefault } from './utils/index'
 import { isVideo, isImage, isAudio, isSvg } from '@/lib/file'
+import { getFileName } from '@/lib/api/file'
 import { openMediaInWindow } from '@/lib/api/tauri-window'
 import {
   useLightboxState,
@@ -203,6 +211,13 @@ async function onCloseDialog() {
 const { downloadFile, deleteFile, renameFile, handleActionSuccess } =
   useLightboxFileActions(current, fileInfo, tagsMap, urlTokenKey, refetchInfo, isPhone, lightboxInfoVisible)
 
+function onDownload() {
+  const s = current.value
+  if (!s?.path) return
+  const fileName = (s.name ? s.name : getFileName(s.path)).replace(' ', '-')
+  downloadFile(s.path, fileName)
+}
+
 // HEIC always needs server-side conversion, so it must keep the resize query even in "original" mode.
 const imgSrc = computed(() => {
   const s = current.value
@@ -281,6 +296,11 @@ const { onMouseDown, onMouseMove, onMouseUp, onTouchStart, onTouchMove, onTouchE
   padding-block: 0;
   max-height: 70vh;
   overflow-y: auto;
+}
+
+.sheet-quality {
+  display: block;
+  margin: 8px 0 16px;
 }
 
 .lightbox :deep(.bottom-sheet-footer) {

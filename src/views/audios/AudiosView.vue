@@ -12,6 +12,7 @@
     @toggle-all-checked="toggleAllChecked" @delete="deleteItems(dataType, selectedIds, realAllChecked, total, q)"
     @confirm="doDeleteItems" @cancel="cancelDeleteItems"
     @restore="restore(dataType, getQuery())" @download="downloadItems(realAllChecked, selectedIds, q)"
+    @download-each="downloadItemsEach(selectedIds)" @download-zip="downloadItems(realAllChecked, selectedIds, q)"
     @trash="trash(dataType, getQuery())"
     @select-real-all="selectRealAll" @clear-selection="clearSelection"
   >
@@ -131,7 +132,7 @@ const {
   bucketsMap, deleteItems, deleteItem, confirmingDelete, deleteCount, deleteLoading, doDeleteItems, cancelDeleteItems, viewBucket, tags,
   selectedIds, allChecked, realAllChecked, selectRealAll, allCheckedAlertVisible,
   clearSelection, toggleAllChecked, toggleSelect, total, checked, shiftEffectingIds, handleItemClick, shouldSelect,
-  downloadItems, downloadFile, trashLoading, trash, restoreLoading, restore,
+  downloadItems, downloadItemsEach, downloadFile, trashLoading, trash, restoreLoading, restore,
   gotoPage, onChangePageSize, getQuery, sort, handleMouseOverMode,
   uploadFilesClick, uploadDirClick, dropFiles2,
   uploadDir, uploadDirEditable, editUploadDir,

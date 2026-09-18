@@ -2,7 +2,6 @@ import { ref, type Ref, type ComputedRef } from 'vue'
 import type { IFile } from '@/lib/file'
 import type { IFileFilter } from '@/lib/interfaces'
 import { openModal } from '@/components/modal'
-import DownloadMethodModal from '@/components/DownloadMethodModal.vue'
 import EditValueModal from '@/components/EditValueModal.vue'
 import { shortUUID } from '@/lib/strutil'
 import { getFileUrlByPath } from '@/lib/api/file'
@@ -63,27 +62,33 @@ export function useFilesActions(opts: UseFilesActionsOptions) {
     refetchMounts()
   }
 
-  const downloadItems = () => {
+  const getSelectedItems = () => {
     const selected = items.value.filter((it) => selectedIds.value.includes(it.id))
-    if (selected.length === 0) { toast(t('select_first'), 'error'); return }
-    if (selected.length === 1) {
-      const item = selected[0]
-      item.isDir ? downloadDir(item.path) : downloadFile(item.path)
-      clearSelection()
-      return
+    if (selected.length === 0) { toast(t('select_first'), 'error'); return null }
+    return selected
+  }
+
+  const downloadSelectedItem = () => {
+    const selected = getSelectedItems()
+    if (!selected || selected.length !== 1) return
+    const item = selected[0]
+    item.isDir ? downloadDir(item.path) : downloadFile(item.path)
+    clearSelection()
+  }
+
+  const downloadEachItems = async () => {
+    const selected = getSelectedItems()
+    if (!selected) return
+    for (const it of selected) {
+      it.isDir ? downloadDir(it.path) : downloadFile(it.path)
+      await new Promise((resolve) => setTimeout(resolve, 250))
     }
-    openModal(DownloadMethodModal, {
-      onEach: async () => {
-        for (const it of selected) {
-          it.isDir ? downloadDir(it.path) : downloadFile(it.path)
-          await new Promise((resolve) => setTimeout(resolve, 250))
-        }
-        clearSelection()
-      },
-      onZip: () => {
-        setTempValue({ key: shortUUID(), value: JSON.stringify(selectedIds.value.map((p) => ({ path: p }))) })
-      },
-    })
+    clearSelection()
+  }
+
+  const downloadZipItems = () => {
+    if (!getSelectedItems()) return
+    setTempValue({ key: shortUUID(), value: JSON.stringify(selectedIds.value.map((p) => ({ path: p }))) })
   }
 
   const { mutate: deleteFilesMutate, loading: deleteLoading } = initMutation({ document: deleteFilesGQL }, false)
@@ -149,7 +154,7 @@ export function useFilesActions(opts: UseFilesActionsOptions) {
   }
 
   return {
-    downloadLoading, downloadItems, deleteItems, deleteItem,
+    downloadLoading, downloadSelectedItem, downloadEachItems, downloadZipItems, deleteItems, deleteItem,
     confirmingDelete, deleteCount, deleteLoading, doDeleteItems, cancelDeleteItems,
     deletingIds, collapsingIds, bulkDeleting, isDeleting,
     copyItems, cutItems, pasteDir, duplicateItem, cutItem, copyItem, pasteItem,

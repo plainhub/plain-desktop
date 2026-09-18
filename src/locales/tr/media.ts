@@ -19,5 +19,7 @@ export default {
   playlist: 'Çalma listesi',
   remove_from_playlist: 'Oynatma listesinden kaldır',
   play_pause_video: 'Video oynat/duraklat',
+  show_info: 'Bilgileri göster',
+  hide_info: 'Bilgileri gizle',
   pausing: 'Duraklatılıyor...',
 }

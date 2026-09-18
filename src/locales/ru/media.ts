@@ -19,5 +19,7 @@ export default {
   playlist: 'Плейлист',
   remove_from_playlist: 'Убрать из плейлиста',
   play_pause_video: 'Воспроизвести/Пауза видео',
+  show_info: 'Показать информацию',
+  hide_info: 'Скрыть информацию',
   pausing: 'Пауза...',
 }

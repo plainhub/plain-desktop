@@ -20,4 +20,6 @@ export default {
   playlist: '播放清單',
   remove_from_playlist: '從播放清單中移除',
   play_pause_video: '播放/暫停視頻',
+  show_info: '顯示資訊',
+  hide_info: '隱藏資訊',
 }

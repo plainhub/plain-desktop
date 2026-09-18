@@ -15,6 +15,15 @@
     {
       "identifier": "fs:allow-read-file",
       "allow": [{ "path": "**" }]
-    }
+    },
+    {
+      "identifier": "fs:allow-write-file",
+      "allow": [{ "path": "**" }]
+    },
+    {
+      "identifier": "fs:allow-exists",
+      "allow": [{ "path": "**" }]
+    },
+    "opener:allow-reveal-item-in-dir"
   ]
 }

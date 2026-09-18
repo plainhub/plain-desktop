@@ -10,6 +10,13 @@
           <span class="picker-current__label">{{ $t('current_path') }}:</span>
           <span class="mono picker-current__value">{{ currentDir || '-' }}</span>
         </div>
+        <div v-if="recentDirs.length" class="recents">
+          <div class="recents-label">{{ $t('recent_folders') }}</div>
+          <div v-for="d in recentDirs" :key="d" class="recent-item" :title="d" @click="chooseRecent(d)">
+            <i-material-symbols:folder-outline-rounded />
+            <span class="mono recent-path">{{ d }}</span>
+          </div>
+        </div>
         <DirectoryBrowser
           :volumes="volumes"
           :loading-mounts="loadingMounts"
@@ -50,6 +57,7 @@ const props = defineProps({
   title: { type: String, default: '' },
   description: { type: String, default: '' },
   initialPath: { type: String, default: '' },
+  recentDirs: { type: Array as () => string[], default: () => [] },
 })
 
 const emit = defineEmits<{
@@ -59,6 +67,7 @@ const emit = defineEmits<{
 const { volumes, loadingMounts, rootPath, currentDir, canGoUp, listing, dirItems, selectRoot, enterDir, goUp, dirName } = useDirectoryPicker(props.initialPath)
 
 function chooseCurrent() { emit(Modal.EVENT_PROMPT, currentDir.value) }
+function chooseRecent(dir: string) { emit(Modal.EVENT_PROMPT, dir) }
 function cancel() { popModal() }
 </script>
 
@@ -80,5 +89,43 @@ function cancel() { popModal() }
   text-overflow: ellipsis;
   white-space: nowrap;
   max-width: 100%;
+}
+
+.recents {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.recents-label {
+  font-size: 12px;
+  color: var(--md-sys-color-on-surface-variant);
+}
+
+.recent-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  border-radius: 8px;
+  cursor: pointer;
+
+  &:hover {
+    background: var(--md-sys-color-surface-variant);
+  }
+
+  svg {
+    width: 20px;
+    height: 20px;
+    flex-shrink: 0;
+    color: var(--md-sys-color-on-surface-variant);
+  }
+}
+
+.recent-path {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 13px;
 }
 </style>

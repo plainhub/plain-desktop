@@ -1,13 +1,12 @@
-import { initMutation, addPlaylistAudiosGQL, playAudioGQL, deletePlaylistAudioGQL } from '@/lib/api/mutation'
+import { initMutation, addPlaylistAudiosGQL, deletePlaylistAudioGQL } from '@/lib/api/mutation'
 import emitter from '@/plugins/eventbus'
 import { ref, type Ref, computed } from 'vue'
 import toast from '@/components/toaster'
 import { useI18n } from 'vue-i18n'
 import type { IAudio } from '@/lib/interfaces'
 import { transferEffect } from '@/lib/effect'
-import { useTempStore } from '@/stores/temp'
-import { storeToRefs } from 'pinia'
 import { useAudioPlaylistStore } from '@/hooks/audio-playlist-store'
+import { usePlayAudio } from '@/hooks/audio-player'
 
 export const useAddToPlaylist = (items: Ref<IAudio[]>, clearSelection: () => void) => {
   const { mutate, loading, onDone } = initMutation({
@@ -89,12 +88,8 @@ export const useAddToPlaylist = (items: Ref<IAudio[]>, clearSelection: () => voi
 export const useAudioPlayer = () => {
   const playPath = ref('')
 
-  const { mutate, loading, onDone } = initMutation({
-    document: playAudioGQL,
-  })
-
-  onDone(() => {
-    emitter.emit('play_audio')
+  const { play: mutate, loading } = usePlayAudio(() => {
+    emitter.emit('do_play_audio')
   })
 
   return {
