@@ -11,7 +11,7 @@ vi.mock('@/lib/api/gql-client', () => {
 
 vi.mock('@/lib/api/query', async (importOriginal) => ({
   ...(await importOriginal<typeof import('@/lib/api/query')>()),
-  audioPlaylistGQL: 'audioPlaylist-query',
+  audioQueueGQL: 'audioQueue-query',
 }))
 
 import { useAudioPlaylist, usePlayAudio } from '@/hooks/audio-player'
@@ -28,7 +28,7 @@ function mockGql(playlist: IPlaylistAudio[]) {
   gqlFetchMock.mockImplementation(async (doc: string) => {
     if (doc.includes('mutation playAudio')) return { data: { playAudio: audio('/played.mp3') } }
     if (doc.includes('mutation clearAudioPlaylist')) return { data: { clearAudioPlaylist: true } }
-    return { data: { audioPlaylist: { items: playlist, total: playlist.length } } }
+    return { data: { items: playlist, total: playlist.length } }
   })
 }
 
@@ -52,7 +52,7 @@ describe('usePlayAudio', () => {
 
     expect(useTempStore().app.audioCurrent).toBe('/played.mp3')
     expect(gqlFetchMock).toHaveBeenCalledTimes(2)
-    expect(gqlFetchMock.mock.calls[1][0]).toBe('audioPlaylist-query')
+    expect(gqlFetchMock.mock.calls[1][0]).toBe('audioQueue-query')
     expect(audioPlaylistItems.value.map((it) => it.path)).toEqual(['/played.mp3'])
     expect(applied).toHaveBeenCalledTimes(1)
   })
@@ -60,7 +60,7 @@ describe('usePlayAudio', () => {
   it('keeps audioCurrent unchanged when the mutation fails', async () => {
     gqlFetchMock.mockImplementation(async (doc: string) => {
       if (doc.includes('mutation playAudio')) return { errors: [{ message: 'no permission' }] }
-      return { data: { audioPlaylist: { items: [], total: 0 } } }
+      return { data: { items: [], total: 0 } }
     })
     const applied = vi.fn()
 
@@ -99,7 +99,7 @@ describe('useAudioPlaylist', () => {
         queue = [audio('/played.mp3')]
         return { data: { playAudio: audio('/played.mp3') } }
       }
-      return { data: { audioPlaylist: { items: queue, total: queue.length } } }
+      return { data: { items: queue, total: queue.length } }
     })
     const { hook, audioEl } = mountPanel()
     await flushPromises()
@@ -133,7 +133,7 @@ describe('useAudioPlaylist', () => {
 
     gqlFetchMock.mockImplementation(async (doc: string) => {
       if (doc.includes('mutation clearAudioPlaylist')) return { errors: [{ message: 'failed' }] }
-      return { data: { audioPlaylist: { items: [audio('/a.mp3')], total: 1 } } }
+      return { data: { items: [audio('/a.mp3')], total: 1 } }
     })
     hook.clearPlaylist()
     await flushPromises()

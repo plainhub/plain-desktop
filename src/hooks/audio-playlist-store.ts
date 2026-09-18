@@ -1,12 +1,12 @@
 import { ref } from 'vue'
 import { gqlFetch } from '@/lib/api/gql-client'
-import { audioPlaylistGQL } from '@/lib/api/query'
+import { audioQueueGQL } from '@/lib/api/query'
 import type { IPlaylistAudio } from '@/lib/interfaces'
 
 const PAGE_SIZE = 200
 
 /**
- * Reactive view of the phone playback queue (`audioPlaylist` query).
+ * Reactive view of the phone playback queue (`audioQueue` query).
  *
  * The queue is server-side state (a playback source plus manual items), so
  * this store only mirrors a window of it: mutate via GraphQL mutations, then
@@ -19,7 +19,7 @@ export const audioPlaylistLoading = ref(false)
 let fetchSeq = 0
 let initialFetched = false
 
-interface IAudioPlaylistPage {
+interface IAudioQueuePage {
   total: number
   items: IPlaylistAudio[]
 }
@@ -28,10 +28,10 @@ async function fetchPage(offset: number): Promise<boolean> {
   const seq = ++fetchSeq
   audioPlaylistLoading.value = true
   try {
-    const r = await gqlFetch<{ audioPlaylist: IAudioPlaylistPage }>(audioPlaylistGQL, { offset, limit: PAGE_SIZE })
+    const r = await gqlFetch<IAudioQueuePage>(audioQueueGQL, { offset, limit: PAGE_SIZE })
     if (seq !== fetchSeq) return false // superseded by a newer fetch
-    if (r.errors?.length || !r.data?.audioPlaylist) return false
-    const page = r.data.audioPlaylist
+    if (r.errors?.length || !r.data?.items) return false
+    const page = r.data
     audioPlaylistTotal.value = page.total
     if (offset === 0) {
       audioPlaylistItems.value = page.items

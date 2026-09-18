@@ -18,7 +18,7 @@ vi.mock('@/lib/api/gql-client', () => {
 
 vi.mock('@/lib/api/query', async (importOriginal) => ({
   ...(await importOriginal<typeof import('@/lib/api/query')>()),
-  audioPlaylistGQL: 'audioPlaylist-query',
+  audioQueueGQL: 'audioQueue-query',
 }))
 
 import { useMainView } from '@/hooks/main-view'
@@ -30,7 +30,7 @@ beforeEach(() => {
   resetAudioPlaylistForTests()
   gqlFetchMock.mockReset()
   gqlFetchMock.mockImplementation(async (doc: string) => {
-    if (doc.includes('audioPlaylist-query')) return { data: { audioPlaylist: { items: [], total: 0 } } }
+    if (doc.includes('audioQueue-query')) return { data: { items: [], total: 0 } }
     return { data: { app: { clientId: 'c1', deviceName: '', urlToken: '' } } }
   })
 })
@@ -54,7 +54,7 @@ describe('useMainView media_items_actioned', () => {
     await flushPromises()
 
     expect(gqlFetchMock.mock.calls.length).toBe(callsBefore + 1)
-    expect(gqlFetchMock.mock.calls.at(-1)![0]).toBe('audioPlaylist-query')
+    expect(gqlFetchMock.mock.calls.at(-1)![0]).toBe('audioQueue-query')
   })
 
   it('does not touch the audio playlist for other media types', async () => {

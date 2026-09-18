@@ -58,7 +58,7 @@ fn stub_response(request: &Value) -> Option<Value> {
         "images" => json!({ "images": [],  "imageCount": 0 }),
         "videos" => json!({ "videos": [],  "videoCount": 0 }),
         "audios" => json!({ "items": [],   "total": 0 }),
-        "audioPlaylist" => json!({ "audioPlaylist": { "items": [], "total": 0 } }),
+        "audioQueue" => json!({ "items": [], "total": 0 }),
         "docs" => json!({ "items": [],   "total": 0 }),
         "files" => json!({ "files": [] }),
         "recentFiles" => json!({ "recentFiles": [] }),

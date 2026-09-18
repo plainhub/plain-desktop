@@ -454,14 +454,12 @@ export const appGQL = `
   ${appFragment}
 `
 
-export const audioPlaylistGQL = `
-  query audioPlaylist($offset: Int!, $limit: Int!) {
-    audioPlaylist(offset: $offset, limit: $limit) {
-      total
-      items {
-        ...PlaylistAudioFragment
-      }
+export const audioQueueGQL = `
+  query audioQueue($offset: Int!, $limit: Int!) {
+    items: audioQueueItems(offset: $offset, limit: $limit) {
+      ...PlaylistAudioFragment
     }
+    total: audioQueueItemCount
   }
   ${playlistAudioFragment}
 `

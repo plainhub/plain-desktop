@@ -9,13 +9,13 @@ vi.mock('@/lib/api/gql-client', () => {
 
 vi.mock('@/lib/api/query', async (importOriginal) => ({
   ...(await importOriginal<typeof import('@/lib/api/query')>()),
-  audioPlaylistGQL: 'audioPlaylist-query',
+  audioQueueGQL: 'audioQueue-query',
 }))
 
 import { resetAudioPlaylistForTests, useAudioPlaylistStore } from '@/hooks/audio-playlist-store'
 
 function playlistResult(items: Array<{ path: string }>, total = items.length) {
-  return { data: { audioPlaylist: { items, total } } }
+  return { data: { items, total } }
 }
 
 beforeEach(() => {
