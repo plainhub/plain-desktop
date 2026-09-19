@@ -67,6 +67,16 @@ jobs:
           tests/views/chat/chat-tasks.test.ts
           tests/views/image-editor/annotation-session.test.ts
 
+      - name: Run SMS synchronization regressions
+        run: >-
+          yarn test
+          --project=unit
+          tests/hooks/message-thread.test.ts
+          tests/lib/sms-notification-refresh.test.ts
+          tests/stores/sms.test.ts
+          tests/lib/sms-state-sync.test.ts
+          tests/lib/message-helpers.test.ts
+
       - name: Run Tauri capture component test
         run: >-
           VITE_APP_MODE=tauri yarn test

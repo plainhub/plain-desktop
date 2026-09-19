@@ -9,6 +9,7 @@ Status: partial local milestone, not completion. See docs/issues/371/sms-sync-in
 | Refresh recovery | Starvation, resume, serialization, cleanup and safety-read regressions |
 | History window | Thread and sidebar requested-window tests failed before fixes, pass after |
 | Full frontend tests | 1,142 pass; 51 skipped, including unconfigured live integration |
+| CI regression protection | Workflow now runs the five SMS regression files; exact CI command passes all 52 tests locally |
 | Typecheck/build | Both pass |
 | Live API/provider sample | 16 recent SMS IDs match, 8 incoming / 8 outgoing |
 | New frontend + old APK | Fails compatibility: new schema fields absent in 3.3.25 |
