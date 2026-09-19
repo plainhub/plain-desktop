@@ -15,7 +15,7 @@ Status: partial local milestone, not completion. See docs/issues/371/sms-sync-in
 | New frontend + old APK | Fails compatibility: new schema fields absent in 3.3.25 |
 | Android host tests/build | 25 SMS contracts passed; assembleDebug passed in 3m21s |
 | Emulator acceptance | Incoming/open-thread, missed-event (60.2s), new conversation, offline recovery, outgoing sent/readback and failed-send draft restoration passed |
-| Physical-phone acceptance | Debug installed alongside release; setup awaits unlock |
+| Physical-phone acceptance | Android 17: one authorized send retained, both owner replies appeared without reload after debug task removal; USB-powered, not a Doze soak |
 | #369 implementation | Task-removal and wake-lock repairs verified; Android full suite 1,075 pass / 1 skip; explicit Stop and background SMS verified on emulator |
 | Push / PR | Ready for scoped review; do not auto-close unconfirmed permanent-missing-SMS report |
 

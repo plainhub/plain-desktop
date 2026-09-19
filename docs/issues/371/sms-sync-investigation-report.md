@@ -55,7 +55,7 @@ Query.audioQueueItems are absent in that release. The SMS query itself returned
 99 rows for a sampled recent thread, but the new frontend could not render a usable
 thread in that mixed-version setup. The phone's installed release and its settings
 have not been replaced. A matching debug APK was installed alongside the release;
-physical-phone setup awaits unlocking the device.
+the physical-phone follow-up is described below.
 
 A matching 3.4.0 debug backend was subsequently built and installed in a disposable
 Android 12 emulator. The production frontend, served through a loopback-only test
@@ -73,6 +73,27 @@ proxy, logged in using the real pairing flow. Emulator-only SMS injection verifi
 The emulator tests do not prove carrier sending, RCS visibility, MMS attachments,
 or every OEM's background restrictions. A test-harness cleanup call was unsupported
 after the three assertions passed; it did not invalidate those observations.
+
+## Physical-phone follow-up
+
+On the owner's Pixel 9 Pro / Android 17, installed the patched 3.4.0 debug app
+alongside the unchanged release. Granted the debug app SMS read/send and phone-state
+permissions, verified the read/send feature switches, and paired an isolated
+Chromium session through a loopback proxy and USB forwarding.
+
+Sent exactly one authorized test SMS to the owner's designated business number.
+Android recorded a sent provider row; the browser retained the message with no
+Sending indicator. The owner sent two replies. Both reached the Android provider
+and appeared in the already-open browser thread without reload, while the debug
+app's activity tasks had been removed from Recents. The foreground service remained
+running. The displayed sequence was sent, received, received with increasing
+timestamps. No private message contents or phone numbers are included in this report.
+
+The test phone was USB-connected/powered. A separate HTTP reachability check over
+the LAN also passed, but this is not proof of sustained Wi-Fi operation during Doze.
+Two older test-number SMS rows were visible to the shell provider query but absent
+from both release and debug APIs; that discrepancy remains unexplained and should
+not be attributed to this frontend change or declared fixed.
 
 ## Verification at the first local milestone
 

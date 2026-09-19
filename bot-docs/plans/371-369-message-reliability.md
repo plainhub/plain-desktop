@@ -62,7 +62,9 @@ authorized test number. Do not retry carrier sends automatically.
   Task-removal shutdown reproduced before and repaired after; explicit Stop still
   releases the service/lock. Six wake-lock regressions and the manifest contract
   pass; full Android host suite is 1,075 passed / one skipped.
-- Physical-phone release remains untouched; alongside debug setup awaits unlock.
+- Physical-phone release remains untouched; alongside debug now verified with one
+  authorized send and two owner replies, all visible without reload after debug
+  task removal. USB-powered testing does not establish Doze/Wi-Fi sleep behavior.
   Publish scoped improvements with issue references, not claims that every symptom
   or all Android background restrictions are resolved.
 
