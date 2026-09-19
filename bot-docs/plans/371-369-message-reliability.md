@@ -37,9 +37,11 @@ authorized test number. Do not retry carrier sends automatically.
 3. For #369, reproduce service/wake-lock lifecycle defects with Android host tests.
    Implement narrowly; verify explicit Stop remains terminal and background recovery
    does not leak locks, spin, or spawn duplicate server instances.
-4. Run desktop typecheck, complete tests and production build, each bounded to 120s.
-   Run Android host tests and `./gradlew :app:assembleDebug` with bounded invocations
-   (incremental continuation if build exceeds a command bound). Exercise actual browser
+4. Run desktop typecheck, complete tests and production build, defaulting to 120s.
+   Choose timeouts based on expected work, not a fixed cap: start Android host tests
+   and `./gradlew :app:assembleDebug` with a 10-minute bound and monitor progress.
+   The owner's clarified rule prevents indefinite hangs, not legitimate long builds.
+   Exercise actual browser
    and device after the fixes: sends/readback, missed update recovery, foreground to
    background, network loss/reconnect, and explicit Stop.
 5. Review exact diff and upstream drift, commit coherent verified milestones, push
@@ -53,6 +55,16 @@ authorized test number. Do not retry carrier sends automatically.
   enabled. Service was foreground specialUse during initial inspection.
 - Not yet proven: live cause of missing incoming rows, MMS disappearance, all
   background disconnects. These remain investigation gates, not completion claims.
+- Matching Android 3.4.0 debug built; real emulator/browser verification passes
+  incoming/open-thread updates, missed-event recovery (60.2s), new conversations,
+  network restoration and SMS sent/readback. Radio-off failure restores the draft.
+- Android #369 changes live in isolated branch `fix-369-background-stability`.
+  Task-removal shutdown reproduced before and repaired after; explicit Stop still
+  releases the service/lock. Six wake-lock regressions and the manifest contract
+  pass; full Android host suite is 1,075 passed / one skipped.
+- Physical-phone release remains untouched; alongside debug setup awaits unlock.
+  Publish scoped improvements with issue references, not claims that every symptom
+  or all Android background restrictions are resolved.
 
 ## Completion
 

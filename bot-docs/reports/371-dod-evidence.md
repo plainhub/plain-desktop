@@ -12,12 +12,14 @@ Status: partial local milestone, not completion. See docs/issues/371/sms-sync-in
 | Typecheck/build | Both pass |
 | Live API/provider sample | 16 recent SMS IDs match, 8 incoming / 8 outgoing |
 | New frontend + old APK | Fails compatibility: new schema fields absent in 3.3.25 |
-| Android host tests/build | Pending: compile exceeds standing 120-second command limit |
-| Installed-device acceptance | Pending matching Android build |
-| #369 implementation | Pending; inspected service stop-on-task-removal and wake-lock paths |
-| Push / PR | Not yet; end-to-end gate outstanding |
+| Android host tests/build | 25 SMS contracts passed; assembleDebug passed in 3m21s |
+| Emulator acceptance | Incoming/open-thread, missed-event (60.2s), new conversation, offline recovery, outgoing sent/readback and failed-send draft restoration passed |
+| Physical-phone acceptance | Debug installed alongside release; setup awaits unlock |
+| #369 implementation | Task-removal and wake-lock repairs verified; Android full suite 1,075 pass / 1 skip; explicit Stop and background SMS verified on emulator |
+| Push / PR | Ready for scoped review; do not auto-close unconfirmed permanent-missing-SMS report |
 
-The real-device sample is metadata-only and read-only. No SMS was sent, no APK
-removed or installed, and the original browser tab was not reloaded or navigated.
+The real-device sample is metadata-only and read-only. No carrier SMS was sent;
+a debug APK was installed alongside the unchanged release. The original browser
+tab was not reloaded or navigated.
 The production frontend attempt ran in separate headless Chromium, not the user's
 visible browser. No unkillable-service or complete-sync-repair claim is justified.

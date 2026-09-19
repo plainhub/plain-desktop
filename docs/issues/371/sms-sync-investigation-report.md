@@ -53,9 +53,26 @@ Testing the new production frontend against the installed 3.3.25 backend exposed
 upstream schema incompatibilities: App.features, Query.deviceStatus and
 Query.audioQueueItems are absent in that release. The SMS query itself returned
 99 rows for a sampled recent thread, but the new frontend could not render a usable
-thread in that mixed-version setup. No end-to-end success is claimed. A matching
-current-upstream Android build is required; the phone's installed release and its
-settings have not been replaced.
+thread in that mixed-version setup. The phone's installed release and its settings
+have not been replaced. A matching debug APK was installed alongside the release;
+physical-phone setup awaits unlocking the device.
+
+A matching 3.4.0 debug backend was subsequently built and installed in a disposable
+Android 12 emulator. The production frontend, served through a loopback-only test
+proxy, logged in using the real pairing flow. Emulator-only SMS injection verified:
+
+- An incoming SMS appears in an already-open thread without reloading.
+- Suppressing server-to-browser WebSocket frames causes a missed event; the actual
+  message is recovered by the safety read after 60.2 seconds, without reloading.
+- A new sender/conversation is discovered without WebSocket updates or reloading.
+- Going offline and back online recovers a message received during the interruption.
+- An emulator-only outgoing SMS resolves to a sent provider row and remains visible.
+  With the emulator radio disabled, the failed send restores the draft instead of
+  leaving a Sending bubble. Neither test is a real carrier-delivery test.
+
+The emulator tests do not prove carrier sending, RCS visibility, MMS attachments,
+or every OEM's background restrictions. A test-harness cleanup call was unsupported
+after the three assertions passed; it did not invalidate those observations.
 
 ## Verification at the first local milestone
 
@@ -64,10 +81,13 @@ settings have not been replaced.
 - `corepack yarn typecheck`: passed.
 - `corepack yarn build`: passed.
 - `git diff --check`: passed.
-- All commands bounded to 120 seconds. Android dependency/code generation completed,
-  but `:shared:compileAndroidMain` repeatedly hit that command limit. Requested a
-  temporary longer allowance; Android host tests/APK/device validation remain pending.
+- Android `:shared:testAndroidHostTest --tests '*SmsSyncContractTest'`: 25 passed.
+- Android `:app:assembleDebug`: passed in 3m21s with a 10-minute command bound.
+- Matching x86_64 Github debug build and real emulator/browser checks above passed.
+- Timeouts are now estimated per command; 120 seconds is a default, not a hard cap.
 
 Assignment was requested from the owner after GitHub denied self-assignment.
-No final issue-resolution claim or PR yet. #369 remains the next implementation
-phase; its service task-removal and wake-lock paths have been inspected, not fixed.
+This is a scoped fix, not a final resolution claim for every #371 symptom. The
+author's report of permanently absent incoming messages remains unconfirmed.
+The related #369 Android change reproduces and repairs task-removal shutdown and
+wake-lock reacquisition defects; its report is in the Android repository.
