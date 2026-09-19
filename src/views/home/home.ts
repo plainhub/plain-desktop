@@ -7,11 +7,21 @@ import { callGQL, initMutation, pauseMediaScanGQL, resumeMediaScanGQL, stopMedia
 import { homeStatsGQL, simsGQL, initQuery, scanProgressGQL, type HomeStatKey } from '@/lib/api/query'
 import toast from '@/components/toaster'
 import emitter from '@/plugins/eventbus'
+import { DeviceFeature } from '@/lib/data'
 import type { IHomeStats, IStorageMount, IContact, ISim, IScanProgress } from '@/lib/interfaces'
 import { useContactPicker } from '@/hooks/contact-picker'
 
-// Counts a NAS implements; the phone serves the full set.
-const NAS_HOME_STAT_KEYS: HomeStatKey[] = ['audios', 'images', 'videos', 'docs']
+// Stat keys whose domain needs a declared capability; the rest are media
+// counts every server serves.
+const STAT_CAPABILITY: Partial<Record<HomeStatKey, string>> = {
+  packages: DeviceFeature.PACKAGES,
+  notes: DeviceFeature.NOTES,
+  feedEntries: DeviceFeature.FEEDS,
+  messages: DeviceFeature.SMS,
+  calls: DeviceFeature.CALLS,
+  contacts: DeviceFeature.CONTACTS,
+}
+const ALL_HOME_STAT_KEYS: HomeStatKey[] = ['audios', 'images', 'videos', 'docs', 'packages', 'notes', 'feedEntries', 'messages', 'calls', 'contacts']
 
 export function useHomeData() {
   const { t } = useI18n()
@@ -45,11 +55,15 @@ export function useHomeData() {
       }
     },
     document: () => {
-      const deviceType = appState.value?.deviceType
-      const keys: HomeStatKey[] | null = deviceType === 'NAS'
-        ? NAS_HOME_STAT_KEYS
-        : deviceType ? ['audios', 'images', 'videos', 'docs', 'packages', 'notes', 'feedEntries', 'messages', 'calls', 'contacts'] : null
-      return homeStatsGQL(keys ?? [])
+      const features = appState.value?.features
+      // mounts-only probe until the app query resolves the feature list
+      const keys = features
+        ? ALL_HOME_STAT_KEYS.filter((k) => {
+            const capability = STAT_CAPABILITY[k]
+            return !capability || features.includes(capability)
+          })
+        : []
+      return homeStatsGQL(keys)
     },
     variables: () => {
       const parts = excludedDirs.value.map((d) => (d.includes(' ') ? `excluded_dir:"${d}"` : `excluded_dir:${d}`))

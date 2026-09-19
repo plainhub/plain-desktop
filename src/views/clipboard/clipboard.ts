@@ -5,7 +5,7 @@ import emitter from '@/plugins/eventbus'
 import { useMainStore } from '@/stores/main'
 import { useTempStore } from '@/stores/temp'
 import { initLazyQuery, clipboardGQL } from '@/lib/api/query'
-import { initMutation, cancelClipboardGQL, setClipGQL } from '@/lib/api/mutation'
+import { initMutation, deleteClipboardGQL, setClipboardGQL } from '@/lib/api/mutation'
 import type { IClipboard } from '@/lib/interfaces'
 import toast from '@/components/toaster'
 
@@ -67,18 +67,18 @@ export function useClipboardData() {
     fetch()
   }
 
-  const { mutate: cancelClipboard } = initMutation({ document: cancelClipboardGQL })
+  const { mutate: deleteClipboard } = initMutation({ document: deleteClipboardGQL })
 
   const deleteItem = (item: IClipboard) => {
     items.value = items.value.filter((it) => it.id !== item.id)
     total.value--
-    cancelClipboard({ ids: [item.id] })
+    deleteClipboard({ ids: [item.id] })
   }
 
   const clipText = ref('')
   const clipTextError = ref(false)
 
-  const { mutate: mutateSetClip, loading: setClipLoading, onDone: onSetClipDone } = initMutation({ document: setClipGQL })
+  const { mutate: mutateSetClipboard, loading: setClipLoading, onDone: onSetClipDone } = initMutation({ document: setClipboardGQL })
   onSetClipDone(() => { clipText.value = '' })
 
   function pasteClipboardText() {
@@ -87,7 +87,7 @@ export function useClipboardData() {
 
   function sendToPhone() {
     if (!clipText.value) { clipTextError.value = true; return }
-    mutateSetClip({ text: clipText.value })
+    mutateSetClipboard({ text: clipText.value })
   }
 
   watch(clipText, () => { clipTextError.value = false })

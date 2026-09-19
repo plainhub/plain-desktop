@@ -1,10 +1,12 @@
 import { mount } from '@vue/test-utils'
 import { describe, expect, it } from 'vitest'
 import { createMemoryHistory, createRouter } from 'vue-router'
-import { createPinia } from 'pinia'
+import { createPinia, setActivePinia } from 'pinia'
 import { defineComponent, h } from 'vue'
 import AppRail from '@/views/app-rail/AppRail.vue'
 import { useMainStore } from '@/stores/main'
+import { useTempStore } from '@/stores/temp'
+import { DeviceFeature } from '@/lib/data'
 
 const RailSettingsPopupStub = defineComponent({
   name: 'RailSettingsPopup',
@@ -24,6 +26,9 @@ function makeRouter() {
 function mountRail() {
   const router = makeRouter()
   const pinia = createPinia()
+  setActivePinia(pinia)
+  const tempStore = useTempStore()
+  tempStore.app = { ...tempStore.app, features: Object.values(DeviceFeature) }
   const wrapper = mount(AppRail, {
     global: {
       plugins: [router, pinia],

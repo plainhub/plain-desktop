@@ -4,7 +4,7 @@ import emitter from '@/plugins/eventbus'
 import type { IClipboard } from '@/lib/interfaces'
 import { DeviceType } from '@/lib/status'
 import { clipboardFragment } from '@/lib/api/fragments'
-import { cancelClipboardGQL } from '@/lib/api/mutation'
+import { deleteClipboardGQL } from '@/lib/api/mutation'
 import { gqlFetchPeer } from '@/lib/api/peer-client'
 import { findLoginPeer, loginPeers } from '@/lib/device/login-peers'
 import { isLocalMode } from '@/lib/device/local-mode'
@@ -207,5 +207,5 @@ export function dropPeerClipboard(peerId: string, ids: string[]) {
   group.items = group.items.filter((it) => !idSet.has(it.id))
   group.total = Math.max(0, group.total - ids.length)
   const peer = findLoginPeer(peerId)
-  if (peer) void gqlFetchPeer(peer, cancelClipboardGQL, { ids }).catch(() => {})
+  if (peer) void gqlFetchPeer(peer, deleteClipboardGQL, { ids }).catch(() => {})
 }

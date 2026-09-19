@@ -35,11 +35,14 @@ vi.mock('@/lib/api/query', async (importOriginal) => {
 
 import { useHomeData } from '@/views/home/home'
 import { useTempStore } from '@/stores/temp'
-import { DeviceType } from '@/lib/status'
+import { DeviceFeature } from '@/lib/data'
 
-function setDeviceType(deviceType: DeviceType) {
+const PHONE_FEATURES = Object.values(DeviceFeature)
+const NAS_FEATURES = ['MEDIA_TRASH', 'DOC_PREVIEW', 'MEDIA_SCAN']
+
+function setFeatures(features: string[]) {
   const tempStore = useTempStore()
-  tempStore.app = { ...tempStore.app, deviceType }
+  tempStore.app = { ...tempStore.app, features }
 }
 
 beforeEach(() => {
@@ -49,7 +52,7 @@ beforeEach(() => {
 
 describe('useHomeData homeStats document', () => {
   it('requests docCount for a NAS alongside the media counts', () => {
-    setDeviceType(DeviceType.NAS)
+    setFeatures(NAS_FEATURES)
     useHomeData()
     const query = harness.initQueryCalls.at(-1)!.document()
     expect(query).toContain('docCount(query: "")')
@@ -61,7 +64,7 @@ describe('useHomeData homeStats document', () => {
   })
 
   it('keeps the phone set unchanged with docs present', () => {
-    setDeviceType(DeviceType.PHONE)
+    setFeatures(PHONE_FEATURES)
     useHomeData()
     const query = harness.initQueryCalls.at(-1)!.document()
     expect(query).toContain('docCount(query: "")')
@@ -69,7 +72,7 @@ describe('useHomeData homeStats document', () => {
     expect(query).toContain('contactCount')
   })
 
-  it('stays a mounts-only probe before the device type is known', () => {
+  it('stays a mounts-only probe before the feature list is known', () => {
     useHomeData()
     const query = harness.initQueryCalls.at(-1)!.document()
     expect(query).not.toContain('Count(')

@@ -3,7 +3,7 @@ import { useTempStore } from '@/stores/temp'
 import { storeToRefs } from 'pinia'
 import { useMainStore } from '@/stores/main'
 import { initQuery, notificationsGQL } from '@/lib/api/query'
-import { initMutation, cancelNotificationsGQL, replyNotificationGQL } from '@/lib/api/mutation'
+import { initMutation, deleteNotificationsGQL, replyNotificationGQL } from '@/lib/api/mutation'
 import type { INotification } from '@/lib/interfaces'
 import { getFileUrlByPath } from '@/lib/api/file'
 import emitter from '@/plugins/eventbus'
@@ -28,7 +28,7 @@ export function useNotifications() {
     document: notificationsGQL,
   })
 
-  const { mutate: cancelNotifications } = initMutation({ document: cancelNotificationsGQL })
+  const { mutate: deleteNotifications } = initMutation({ document: deleteNotificationsGQL })
   const { mutate: replyNotification, loading: replySending, onDone: onReplyDone, onError: onReplyError } = initMutation({ document: replyNotificationGQL })
 
   // Reply state
@@ -45,11 +45,11 @@ export function useNotifications() {
   onReplyDone(() => cancelReply())
   onReplyError(() => cancelReply())
 
-  const deleteItem = (item: INotification) => cancelNotifications({ ids: [item.id] })
+  const deleteItem = (item: INotification) => deleteNotifications({ ids: [item.id] })
   const clearAll = () => {
     const ids = notifications.value.map((it) => it.id)
     notifications.value = []
-    cancelNotifications({ ids })
+    deleteNotifications({ ids })
   }
 
   // Desktop notification + sound helper

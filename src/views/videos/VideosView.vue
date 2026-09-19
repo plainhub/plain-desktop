@@ -20,7 +20,7 @@
       <BulkTagDropdown :type="dataType" :tags="tags" :items="items" :selected-ids="selectedIds" :real-all-checked="realAllChecked" :q="q" />
     </template>
     <template #extra-actions>
-      <v-icon-button v-if="!filter.trash && !isNas" v-tooltip="$t('move_to_folder')" :loading="moveLoading" @click.stop="onMoveClick(dataType, selectedIds, realAllChecked, getQuery())">
+      <v-icon-button v-if="!filter.trash" v-tooltip="$t('move_to_folder')" :loading="moveLoading" @click.stop="onMoveClick(dataType, selectedIds, realAllChecked, getQuery())">
         <i-material-symbols:drive-file-move-outline-rounded />
       </v-icon-button>
     </template>
@@ -116,12 +116,11 @@ import { videosGQL, initLazyQuery } from '@/lib/api/query'
 import { getFileId, getFileUrl, getFileExtension, getFileName } from '@/lib/api/file'
 import type { IVideo, IVideoItem } from '@/lib/interfaces'
 import type { ISource } from '@/components/lightbox/types'
-import { DataType } from '@/lib/data'
+import { DataType, DeviceFeature } from '@/lib/data'
 import { getSortItems, getVideoGroupByItems, isVideo } from '@/lib/file'
-import { hasMediaTrash } from '@/lib/feature'
+import { hasFeature, hasMediaTrash } from '@/lib/feature'
 import { storeToRefs } from 'pinia'
 import { useMainStore } from '@/stores/main'
-import { useTempStore } from '@/stores/temp'
 import { useGroupedScroll, type MediaGroup } from '@/hooks/grouped-scroll'
 import { useMediaPage } from '@/hooks/media-page'
 import { useMediaPageActions } from '@/hooks/media-page-actions'
@@ -133,7 +132,6 @@ import NoDataPlaceholder from '@/components/NoDataPlaceholder.vue'
 import { useOpenMedia } from '@/hooks/open-media'
 
 const { videoSortBy, videosCardView, videosGroupBy, videosScrollPaging } = storeToRefs(useMainStore())
-const { isNas } = storeToRefs(useTempStore())
 const items = ref<IVideoItem[]>([])
 const sortItems = getSortItems()
 const groupByItems = getVideoGroupByItems()

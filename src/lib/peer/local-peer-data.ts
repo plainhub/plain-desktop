@@ -4,7 +4,7 @@ import emitter from '@/plugins/eventbus'
 import type { INotification } from '@/lib/interfaces'
 import { DeviceType } from '@/lib/status'
 import { notificationFragment } from '@/lib/api/fragments'
-import { cancelNotificationsGQL, replyNotificationGQL } from '@/lib/api/mutation'
+import { deleteNotificationsGQL, replyNotificationGQL } from '@/lib/api/mutation'
 import { gqlFetchPeer } from '@/lib/api/peer-client'
 import { deviceBaseUrl, proxyUrlFor } from '@/lib/api/api'
 import { chachaEncrypt, bitArrayToBase64 } from '@/lib/api/crypto'
@@ -167,7 +167,7 @@ export function dropPeerNotifications(peerId: string, ids: string[]) {
   const idSet = new Set(ids)
   group.items = group.items.filter((it) => !idSet.has(it.id))
   const peer = findLoginPeer(peerId)
-  if (peer) void gqlFetchPeer(peer, cancelNotificationsGQL, { ids }).catch(() => {})
+  if (peer) void gqlFetchPeer(peer, deleteNotificationsGQL, { ids }).catch(() => {})
 }
 
 export async function replyPeerNotification(peerId: string, id: string, actionIndex: number, text: string): Promise<boolean> {

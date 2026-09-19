@@ -29,7 +29,7 @@ vi.mock('@/lib/api/query', () => ({
 }))
 vi.mock('@/lib/api/mutation', () => ({
   mergeChunksGQL: 'mutation mergeChunks { mergeChunks }',
-  mergeChunksAsyncGQL: 'mutation mergeChunksAsync { mergeChunksAsync }',
+  mergeAppFileChunksGQL: 'mutation mergeAppFileChunks { mergeAppFileChunks }',
   deleteChunksGQL: 'mutation deleteChunks($fileId: String!) { deleteChunks(fileId: $fileId) }',
 }))
 vi.mock('@/lib/api/gql-client', () => ({

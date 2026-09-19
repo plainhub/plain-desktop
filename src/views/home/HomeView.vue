@@ -9,7 +9,7 @@
           {{ $t('storage_free_total', { free: formatFileSize(counter.free), total: formatFileSize(counter.total) }) }}
         </div>
 
-        <ScanPanel v-if="isNas && item.showStorageInfo" />
+        <ScanPanel v-if="hasFeature(DeviceFeature.MEDIA_SCAN, app.features) && item.showStorageInfo" />
       </FeatureCard>
 
       <CallPhoneCard v-else />
@@ -30,8 +30,10 @@ import { useHomeFeatureCards } from './useHomeFeatureCards'
 import CallPhoneCard from './CallPhoneCard.vue'
 import FeatureCard from './FeatureCard.vue'
 import ScanPanel from './ScanPanel.vue'
+import { DeviceFeature } from '@/lib/data'
+import { hasFeature } from '@/lib/feature'
 
-const { counter, isNas } = storeToRefs(useTempStore())
+const { app, counter } = storeToRefs(useTempStore())
 
 const { mounts } = useHomeData()
 

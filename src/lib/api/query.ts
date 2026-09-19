@@ -534,7 +534,7 @@ export const tagsGQL = `
 `
 
 export const mediaBucketsGQL = `
-  query mediaBuckets($type: DataType!) {
+  query mediaBuckets($type: MediaDataType!) {
     mediaBuckets(type: $type) {
       id
       name
@@ -892,7 +892,12 @@ export const uploadedChunksGQL = `
 
 export const mergeStatusGQL = `
   query mergeStatus($fileId: String!) {
-    mergeStatus(fileId: $fileId)
+    mergeStatus(fileId: $fileId) {
+      status
+      value
+      mergedSize
+      error
+    }
   }
 `
 

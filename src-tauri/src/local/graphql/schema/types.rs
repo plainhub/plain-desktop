@@ -135,12 +135,23 @@ pub struct AudioPlayback {
 pub enum DeviceFeature {
     MediaTrash,
     MirrorAudio,
+    DocPreview,
+    ImageSearch,
+    MediaScan,
+    Sms,
+    Calls,
+    CallPhone,
+    Contacts,
+    Packages,
+    Notes,
+    Feeds,
+    ScreenMirror,
+    ImageEditor,
 }
 
 #[derive(SimpleObject)]
 pub struct App {
     pub client_id: String,
-    pub usb_connected: bool,
     pub url_token: String,
     pub http_port: i32,
     pub https_port: i32,
@@ -247,23 +258,23 @@ pub struct Tag {
 #[derive(Union)]
 #[allow(clippy::enum_variant_names)]
 pub enum ChatItemData {
-    MessageImages(MessageImages),
-    MessageFiles(MessageFiles),
-    MessageText(MessageText),
+    ChatImages(ChatImages),
+    ChatFiles(ChatFiles),
+    ChatText(ChatText),
 }
 
 #[derive(SimpleObject)]
-pub struct MessageImages {
+pub struct ChatImages {
     pub ids: Vec<String>,
 }
 
 #[derive(SimpleObject)]
-pub struct MessageFiles {
+pub struct ChatFiles {
     pub ids: Vec<String>,
 }
 
 #[derive(SimpleObject)]
-pub struct MessageText {
+pub struct ChatText {
     pub ids: Vec<String>,
 }
 
@@ -326,7 +337,7 @@ pub(crate) fn chat_item_data_from_content(content: &str, token: &str) -> Option<
                     Some(make_file_id_json(uri, name, token))
                 })
                 .collect();
-            Some(ChatItemData::MessageImages(MessageImages { ids }))
+            Some(ChatItemData::ChatImages(ChatImages { ids }))
         }
         "FILES" => {
             let ids = value
@@ -339,12 +350,12 @@ pub(crate) fn chat_item_data_from_content(content: &str, token: &str) -> Option<
                     Some(make_file_id_json(uri, name, token))
                 })
                 .collect();
-            Some(ChatItemData::MessageFiles(MessageFiles { ids }))
+            Some(ChatItemData::ChatFiles(ChatFiles { ids }))
         }
         "TEXT" => {
             // For text messages, the encryption input is the bare
             // `imageLocalPath` (not wrapped in JSON) — matches plain-app
-            // `ChatItem.getContentData()`'s `MessageText` branch.
+            // `ChatItem.getContentData()`'s `ChatText` branch.
             let ids = value
                 .get("linkPreviews")?
                 .as_array()?
@@ -353,7 +364,7 @@ pub(crate) fn chat_item_data_from_content(content: &str, token: &str) -> Option<
                 .filter(|s| !s.is_empty())
                 .map(|p| make_file_id(p, token))
                 .collect();
-            Some(ChatItemData::MessageText(MessageText { ids }))
+            Some(ChatItemData::ChatText(ChatText { ids }))
         }
         _ => None,
     }
@@ -622,8 +633,8 @@ mod tests {
 
         let data = chat_item_data_from_content(&content, &token_b64).expect("should parse content");
         let ids = match data {
-            ChatItemData::MessageImages(m) => m.ids,
-            _ => panic!("expected MessageImages"),
+            ChatItemData::ChatImages(m) => m.ids,
+            _ => panic!("expected ChatImages"),
         };
         assert_eq!(ids.len(), 2);
 
