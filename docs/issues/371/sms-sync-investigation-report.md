@@ -95,6 +95,25 @@ Two older test-number SMS rows were visible to the shell provider query but abse
 from both release and debug APIs; that discrepancy remains unexplained and should
 not be attributed to this frontend change or declared fixed.
 
+### Five additional physical-phone rounds
+
+Five further authorized outgoing SMS messages each received one labeled reply.
+All five sent bubbles remained visible, with no pending Sending status. No repeat
+sends or browser reloads occurred during these rounds.
+
+- Normal background operation: outgoing and incoming messages appeared.
+- Intended hidden-tab round: both messages appeared, but Chromium continued
+  reporting visible after tab switching and minimizing. Hidden-tab behavior is
+  therefore **unverified**, not a passed fault-injection test.
+- Browser offline during receipt: the reply appeared after reconnection without
+  reload (about 1.9 seconds after the provider observation/reconnection).
+- Deliberately suppressed live WebSocket updates: four frames were dropped; the
+  reply appeared through recovery about 52.6 seconds after provider observation.
+- Phone screen off: the incoming reply appeared without reloading the browser.
+
+This remains a short, USB-powered test, not a battery/Doze soak. The hidden-tab
+harness limitation and historical missing-row discrepancy remain open.
+
 ## Verification at the first local milestone
 
 - `corepack yarn test`: 1,142 passed, 51 skipped across 127 files. Live integration
