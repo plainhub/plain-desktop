@@ -29,13 +29,13 @@ describe('getApiBaseUrl', () => {
 })
 
 describe('getWebSocketBaseUrl', () => {
-  it('routes the event socket to /ws with wss on a *43 TLS port', () => {
+  it('keeps the socket at `/` with wss on a *43 TLS port', () => {
     vi.stubEnv('VITE_APP_API_HOST', 'smartbox:8443')
-    expect(getWebSocketBaseUrl()).toBe('wss://smartbox:8443/ws')
+    expect(getWebSocketBaseUrl()).toBe('wss://smartbox:8443')
   })
 
-  it('routes the event socket to /ws with ws on a plain port', () => {
+  it('keeps the socket at `/` with ws on a plain port', () => {
     vi.stubEnv('VITE_APP_API_HOST', '192.168.123.20:8080')
-    expect(getWebSocketBaseUrl()).toBe('ws://192.168.123.20:8080/ws')
+    expect(getWebSocketBaseUrl()).toBe('ws://192.168.123.20:8080')
   })
 })

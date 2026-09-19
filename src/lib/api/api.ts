@@ -96,8 +96,8 @@ export function getWebSocketBaseUrl() {
     return `${p}://${getApiHost()}`
   }
   const secure = window.location.protocol === 'https:' || isSecurePort(getApiHost())
-  // plain-nas serves its WebSocket endpoint under /ws.
-  return `${secure ? 'wss' : 'ws'}://${getApiHost()}/ws`
+  // All backends serve the WebSocket endpoint at `/` (plain-app contract).
+  return `${secure ? 'wss' : 'ws'}://${getApiHost()}`
 }
 
 export function getPhoneIp(): string {
