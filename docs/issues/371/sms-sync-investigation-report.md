@@ -114,6 +114,32 @@ sends or browser reloads occurred during these rounds.
 This remains a short, USB-powered test, not a battery/Doze soak. The hidden-tab
 harness limitation and historical missing-row discrepancy remain open.
 
+### Repeat with explicit background-state checks
+
+The owner subsequently reported that PlainApp had been foregrounded during the
+earlier run. Those exchanges must not be treated as continuous-background proof.
+Repeated five round trips with Android resumed-activity checks before sending,
+before replying, and after recovery. No check showed either PlainApp installation
+foregrounded; Firefox was the observed foreground activity while the screen was
+awake. The patched debug HTTP service remained a foreground service, independently
+of its activity being backgrounded.
+
+The owner paired the business phone with Google Messages for web. Each of five
+unique outgoing test messages was observed in that phone's conversation before
+exactly one reply was sent through its composer. Android provider readback and the
+PlainApp browser confirmed every reply. Final counts were five sent and five
+received bubbles, retained without pending Sending indicators or browser reloads.
+Displayed minute timestamps were nondecreasing.
+
+Two ordinary background exchanges passed. A page-scoped browser network outage
+recovered after reconnecting (about 2.5 seconds after provider observation).
+Suppressing three live-update frames recovered the reply after about 44.8 seconds.
+For the final successful exchange, the phone received a sleep command before the
+business-phone reply and a wake command only during cleanup; actual display power
+state during receipt was not separately sampled. No hidden-tab claim is made.
+Both browser sessions stayed connected to their respective phones; the tested
+PlainApp connection remained USB-forwarded and the Pixel remained USB-powered.
+
 ## Verification at the first local milestone
 
 - `corepack yarn test`: 1,142 passed, 51 skipped across 127 files. Live integration
