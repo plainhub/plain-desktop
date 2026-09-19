@@ -15,7 +15,7 @@ vi.mock('@/lib/api/query', async (importOriginal) => ({
 }))
 
 import { useAudioPlaylist, usePlayAudio } from '@/hooks/audio-player'
-import { audioPlaylistItems, resetAudioPlaylistForTests } from '@/hooks/audio-playlist-store'
+import { audioPlayback, audioPlaylistItems, resetAudioPlaylistForTests } from '@/hooks/audio-playlist-store'
 import { useTempStore } from '@/stores/temp'
 import emitter from '@/plugins/eventbus'
 import type { IPlaylistAudio } from '@/lib/interfaces'
@@ -50,7 +50,7 @@ describe('usePlayAudio', () => {
     await play({ path: '/played.mp3' })
     await flushPromises()
 
-    expect(useTempStore().app.audioCurrent).toBe('/played.mp3')
+    expect(audioPlayback.value.currentPath).toBe('/played.mp3')
     expect(gqlFetchMock).toHaveBeenCalledTimes(2)
     expect(gqlFetchMock.mock.calls[1][0]).toBe('audioQueue-query')
     expect(audioPlaylistItems.value.map((it) => it.path)).toEqual(['/played.mp3'])
@@ -68,7 +68,7 @@ describe('usePlayAudio', () => {
     await play({ path: '/played.mp3' })
     await flushPromises()
 
-    expect(useTempStore().app.audioCurrent).toBeUndefined()
+    expect(audioPlayback.value.currentPath).toBe('')
     expect(applied).not.toHaveBeenCalled()
   })
 })
@@ -108,7 +108,7 @@ describe('useAudioPlaylist', () => {
     hook.playItem(audio('/a.mp3'))
     await flushPromises()
 
-    expect(useTempStore().app.audioCurrent).toBe('/played.mp3')
+    expect(audioPlayback.value.currentPath).toBe('/played.mp3')
     expect(audioPlaylistItems.value.map((it) => it.path)).toEqual(['/played.mp3'])
     expect(audioEl.play).toHaveBeenCalledTimes(1)
   })
@@ -143,6 +143,6 @@ describe('useAudioPlaylist', () => {
     hook.clearPlaylist()
     await flushPromises()
     expect(audioPlaylistItems.value).toEqual([])
-    expect(useTempStore().app.audioCurrent).toBe('')
+    expect(audioPlayback.value.currentPath).toBe('')
   })
 })

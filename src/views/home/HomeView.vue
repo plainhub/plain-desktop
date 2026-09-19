@@ -31,12 +31,12 @@ import CallPhoneCard from './CallPhoneCard.vue'
 import FeatureCard from './FeatureCard.vue'
 import ScanPanel from './ScanPanel.vue'
 
-const { app, counter, isNas } = storeToRefs(useTempStore())
+const { counter, isNas } = storeToRefs(useTempStore())
 
 const { mounts } = useHomeData()
 
 const filesPath = computed(() => {
-  const internalRoot = mounts.value.find((m) => m.driveType === DriveType.INTERNAL_STORAGE)?.mountPoint || app.value.internalStoragePath
+  const internalRoot = mounts.value.find((m) => m.driveType === DriveType.INTERNAL_STORAGE)?.mountPoint || ''
   const q = buildQuery([
     { name: 'parent', op: '', value: internalRoot },
     { name: 'type', op: '', value: 'INTERNAL_STORAGE' },

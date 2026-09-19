@@ -234,27 +234,3 @@ export function joinZipPath(zipFilePath: string, internalPath: string) {
   return `${zipFilePath}${ZIP_SEPARATOR}${internalPath}`
 }
 
-/**
- * Determine storage type based on root path
- * @param rootPath - The root path to analyze
- * @param appPaths - Object containing various app storage paths
- * @returns Storage type string
- */
-export function getStorageTypeByRootPath(
-  rootPath: string,
-  appPaths: {
-    internalStoragePath: string
-    appDir: string
-    sdcardPath?: string
-    usbDiskPaths: string[]
-  }
-): string {
-  if (rootPath === appPaths.appDir) {
-    return 'APP'
-  } else if (rootPath === appPaths.sdcardPath) {
-    return 'SDCARD'
-  } else if (appPaths.usbDiskPaths.includes(rootPath)) {
-    return 'USB_STORAGE'
-  }
-  return 'INTERNAL_STORAGE'
-}

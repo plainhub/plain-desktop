@@ -53,18 +53,25 @@ export const useRename = (fetch: () => void) => {
   }
 }
 
-export const useMounts = () => {
-  const mounts = ref<IStorageMount[]>([])
-  const { refetch } = initQuery({
-    handle: (data: { mounts: IStorageMount[] }, error: string) => {
-      if (!error) {
-        mounts.value = data?.mounts ?? []
-      }
-    },
-    document: mountsGQL,
-  })
+// Module singleton: every surface (files view, sidebar, media upload
+// defaults) shares one `mounts` query and one reactive list.
+const storageMounts = ref<IStorageMount[]>([])
+let mountsRefetch: (() => void) | undefined
 
-  return { mounts, refetch }
+export const useMounts = () => {
+  if (!mountsRefetch) {
+    const { refetch } = initQuery({
+      handle: (data: { mounts: IStorageMount[] }, error: string) => {
+        if (!error) {
+          storageMounts.value = data?.mounts ?? []
+        }
+      },
+      document: mountsGQL,
+    })
+    mountsRefetch = refetch
+  }
+
+  return { mounts: storageMounts, refetch: mountsRefetch }
 }
 
 export const useFavoriteFolders = () => {

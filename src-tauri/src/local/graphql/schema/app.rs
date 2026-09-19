@@ -3,7 +3,7 @@ use serde_json::json;
 use std::sync::Arc;
 
 use super::super::context::{AppCtx, WS_DEVICE_NAME_UPDATED, WsEvent};
-use super::types::{App, DeviceInfo, DevicePlatform, DeviceStatus, Sim, Temperature};
+use super::types::{App, AudioPlayback, DeviceInfo, DevicePlatform, DeviceStatus, Sim, Temperature};
 use crate::local::enums::{AppChannelType, DeviceType};
 
 #[cfg(test)]
@@ -37,11 +37,6 @@ impl AppQuery {
             features: vec![],
             channel: AppChannelType::Github,
             permissions: vec![],
-            audio_current: String::new(),
-            audio_mode: String::new(),
-            sdcard_path: String::new(),
-            usb_disk_paths: vec![],
-            internal_storage_path: String::new(),
             downloads_dir: String::new(),
             developer_mode: false,
             debug: cfg!(debug_assertions),
@@ -95,6 +90,14 @@ impl AppQuery {
 
     async fn sims(&self) -> Vec<Sim> {
         vec![]
+    }
+
+    /// Inert player state — the desktop backend has no audio engine.
+    async fn audio_playback(&self) -> AudioPlayback {
+        AudioPlayback {
+            mode: "REPEAT".to_string(),
+            current_path: String::new(),
+        }
     }
 
     async fn device_status(&self, ctx: &Context<'_>) -> DeviceStatus {
@@ -315,7 +318,7 @@ mod win_power {
     }
 
     #[link(name = "kernel32")]
-    extern "system" {
+    unsafe extern "system" {
         fn GetSystemPowerStatus(status: *mut SystemPowerStatus) -> i32;
     }
 

@@ -16,12 +16,20 @@ export const audioPlaylistItems = ref<IPlaylistAudio[]>([])
 export const audioPlaylistTotal = ref(0)
 export const audioPlaylistLoading = ref(false)
 
+/**
+ * Player state mirrored from the `audioPlayback` root field of the queue
+ * query: play mode + current track path. Mutations update it optimistically,
+ * the next refetch re-syncs with the server.
+ */
+export const audioPlayback = ref<{ mode: string, currentPath: string }>({ mode: 'REPEAT', currentPath: '' })
+
 let fetchSeq = 0
 let initialFetched = false
 
 interface IAudioQueuePage {
   total: number
   items: IPlaylistAudio[]
+  playback?: { mode: string, currentPath: string }
 }
 
 async function fetchPage(offset: number): Promise<boolean> {
@@ -32,6 +40,7 @@ async function fetchPage(offset: number): Promise<boolean> {
     if (seq !== fetchSeq) return false // superseded by a newer fetch
     if (r.errors?.length || !r.data?.items) return false
     const page = r.data
+    if (page.playback) audioPlayback.value = page.playback
     audioPlaylistTotal.value = page.total
     if (offset === 0) {
       audioPlaylistItems.value = page.items
@@ -79,6 +88,7 @@ export function useAudioPlaylistStore() {
   function reset() {
     audioPlaylistItems.value = []
     audioPlaylistTotal.value = 0
+    audioPlayback.value = { mode: 'REPEAT', currentPath: '' }
     initialFetched = false
   }
 
@@ -99,6 +109,7 @@ export function resetAudioPlaylistForTests() {
   audioPlaylistItems.value = []
   audioPlaylistTotal.value = 0
   audioPlaylistLoading.value = false
+  audioPlayback.value = { mode: 'REPEAT', currentPath: '' }
   fetchSeq = 0
   initialFetched = false
 }

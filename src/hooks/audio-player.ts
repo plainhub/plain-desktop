@@ -5,22 +5,21 @@ import type { IPlaylistAudio } from '@/lib/interfaces'
 import { getFileUrlByPath } from '@/lib/api/file'
 import { initMutation, playAudioGQL, updateAudioPlayModeGQL, deletePlaylistAudioGQL, clearAudioPlaylistGQL, reorderPlaylistAudiosGQL } from '@/lib/api/mutation'
 import { sample } from '@/lib/array'
-import { useAudioPlaylistStore } from '@/hooks/audio-playlist-store'
+import { audioPlayback, useAudioPlaylistStore } from '@/hooks/audio-playlist-store'
 import emitter from '@/plugins/eventbus'
 
 /**
  * `playAudio` against the phone: the returned track is the server truth for
- * `app.audioCurrent`, and the mutation re-enqueues the track server-side, so
+ * `playback.currentPath`, and the mutation re-enqueues the track server-side, so
  * every play is followed by a queue-mirror refetch. `onApplied` runs once the
  * local state is synced (play the element, notify other components, …).
  */
 export function usePlayAudio(onApplied: () => void) {
-  const { app } = storeToRefs(useTempStore())
   const store = useAudioPlaylistStore()
   const { mutate: play, loading, onDone } = initMutation({ document: playAudioGQL })
   onDone((r: any) => {
     const path = r?.data?.playAudio?.path
-    if (path) app.value = { ...app.value, audioCurrent: path }
+    if (path) audioPlayback.value = { ...audioPlayback.value, currentPath: path }
     void store.refetch()
     onApplied()
   })
@@ -83,13 +82,13 @@ export function useAudioPlaylist(audioRef: Ref<HTMLAudioElement | undefined>) {
   }
 
   async function setCurrent() {
-    const { audioCurrent: c } = app.value
+    const c = audioPlayback.value.currentPath
     src.value = getFileUrlByPath(urlTokenKey.value, c)
     current.value = audios.value.find((it) => it.path == c)
     updateMediaSessionMetadata()
   }
   setCurrent()
-  watch(() => app.value.audioCurrent, setCurrent)
+  watch(() => audioPlayback.value.currentPath, setCurrent)
   watch(audios, setCurrent)
 
   // Mutations
@@ -100,7 +99,7 @@ export function useAudioPlaylist(audioRef: Ref<HTMLAudioElement | undefined>) {
   const { mutate: deleteAudio } = initMutation({ document: deletePlaylistAudioGQL })
 
   onClearDone(() => {
-    app.value = { ...app.value, audioCurrent: '' }
+    audioPlayback.value = { ...audioPlayback.value, currentPath: '' }
     store.reset()
   })
 
@@ -126,17 +125,17 @@ export function useAudioPlaylist(audioRef: Ref<HTMLAudioElement | undefined>) {
 
   function playPrev() {
     if (!audios.value.length) return
-    app.value.audioMode === 'SHUFFLE' ? playRandom() : _playPrev()
+    audioPlayback.value.mode === 'SHUFFLE' ? playRandom() : _playPrev()
   }
 
   function playNext() {
     if (!audios.value.length) return
-    app.value.audioMode === 'SHUFFLE' ? playRandom() : _playNext()
+    audioPlayback.value.mode === 'SHUFFLE' ? playRandom() : _playNext()
   }
 
   function onEnded() {
     if (!audios.value.length) return
-    const mode = app.value.audioMode
+    const mode = audioPlayback.value.mode
     if (mode === 'REPEAT') _playNext()
     else if (mode === 'REPEAT_ONE') audioRef.value?.play()
     else playRandom()
@@ -144,9 +143,9 @@ export function useAudioPlaylist(audioRef: Ref<HTMLAudioElement | undefined>) {
 
   function changeMode() {
     const modeOrder = { REPEAT: 'REPEAT_ONE', REPEAT_ONE: 'SHUFFLE', SHUFFLE: 'REPEAT' } as const
-    const mode = modeOrder[app.value.audioMode as keyof typeof modeOrder] || 'REPEAT'
+    const mode = modeOrder[audioPlayback.value.mode as keyof typeof modeOrder] || 'REPEAT'
     updatePlayMode({ mode })
-    app.value = { ...app.value, audioMode: mode }
+    audioPlayback.value = { ...audioPlayback.value, mode }
   }
 
   function playItem(item: IPlaylistAudio) {
@@ -196,6 +195,7 @@ export function useAudioPlaylist(audioRef: Ref<HTMLAudioElement | undefined>) {
 
   return {
     app,
+    playback: audioPlayback,
     audios,
     playlistAudios,
     current,

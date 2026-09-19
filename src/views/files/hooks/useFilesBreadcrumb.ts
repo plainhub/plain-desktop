@@ -2,12 +2,11 @@ import { computed, type Ref } from 'vue'
 import { formatFileSize } from '@/lib/format'
 import { getFileName } from '@/lib/api/file'
 import { isZipPath, getZipFilePath, getZipInternalPath, ZIP_SEPARATOR } from '@/lib/file'
-import type { IFileFilter, IBreadcrumbItem, IStorageMount, IApp } from '@/lib/interfaces'
+import type { IFileFilter, IBreadcrumbItem, IStorageMount } from '@/lib/interfaces'
 
 export function useFilesBreadcrumb(
   filter: IFileFilter,
   rootDir: Ref<string>,
-  app: Ref<IApp>,
   mounts: Ref<IStorageMount[]>,
   t: (key: string, args?: any) => string,
 ) {
@@ -15,7 +14,8 @@ export function useFilesBreadcrumb(
     if (filter.type === 'SDCARD') return t('sdcard')
     if (filter.type === 'APP') return t('app_data')
     if (filter.type === 'USB_STORAGE') {
-      const usbIndex = app.value.usbDiskPaths.indexOf(filter.rootPath)
+      const usbRoots = mounts.value.filter((m: IStorageMount) => m.driveType === 'USB_STORAGE').map((m: IStorageMount) => m.mountPoint)
+      const usbIndex = usbRoots.indexOf(filter.rootPath)
       return `${t('usb_storage')} ${usbIndex !== -1 ? usbIndex + 1 : 1}`
     }
     return t('internal_storage')

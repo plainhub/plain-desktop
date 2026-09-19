@@ -469,11 +469,6 @@ export interface IApp {
   features: string[]
   channel: AppChannelType
   permissions: string[]
-  audioCurrent: string
-  audioMode: string
-  sdcardPath: string
-  usbDiskPaths: string[]
-  internalStoragePath: string
   downloadsDir: string
   developerMode: boolean
   debug: boolean

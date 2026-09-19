@@ -516,6 +516,10 @@ export const audioQueueGQL = `
       ...PlaylistAudioFragment
     }
     total: audioQueueItemCount
+    playback: audioPlayback {
+      mode
+      currentPath
+    }
   }
   ${playlistAudioFragment}
 `

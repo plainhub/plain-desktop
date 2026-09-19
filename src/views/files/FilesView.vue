@@ -123,7 +123,7 @@ const onImageError = (id: string) => { imageErrorIds.value.push(id) }
 const onExtensionImageError = (id: string) => { extensionImageErrorIds.value.push(id) }
 
 // --- Breadcrumb ---
-const { breadcrumbPaths, getPageStats } = useFilesBreadcrumb(filter, rootDir, app, mounts, t)
+const { breadcrumbPaths, getPageStats } = useFilesBreadcrumb(filter, rootDir, mounts, t)
 const breadcrumbEl = ref<HTMLElement | null>(null)
 watch(breadcrumbPaths, () => {
   nextTick(() => {

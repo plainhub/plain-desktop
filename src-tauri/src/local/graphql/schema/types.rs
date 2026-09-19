@@ -118,6 +118,15 @@ pub struct KeyValuePair {
     pub value: String,
 }
 
+/// Audio player state (plain-app `AudioPlayback`). The desktop backend has
+/// no playback engine, so the resolver serves inert defaults.
+#[derive(SimpleObject)]
+#[graphql(name = "AudioPlayback")]
+pub struct AudioPlayback {
+    pub mode: String,
+    pub current_path: String,
+}
+
 /// Optional capabilities the server declares about itself; the web client
 /// gates UI on these instead of sniffing OS versions. Mirrors plain-app
 /// `DeviceFeature`.
@@ -141,11 +150,6 @@ pub struct App {
     pub features: Vec<DeviceFeature>,
     pub channel: AppChannelType,
     pub permissions: Vec<String>,
-    pub audio_current: String,
-    pub audio_mode: String,
-    pub sdcard_path: String,
-    pub usb_disk_paths: Vec<String>,
-    pub internal_storage_path: String,
     pub downloads_dir: String,
     pub developer_mode: bool,
     pub debug: bool,

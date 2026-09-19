@@ -13,8 +13,8 @@
           <i-material-symbols:skip-previous-outline-rounded />
         </button>
         <button class="btn-icon mode" @click.stop="changeMode">
-          <i-material-symbols:shuffle-outline-rounded v-if="app?.audioMode === 'SHUFFLE'" />
-          <i-material-symbols:repeat-rounded v-else-if="app?.audioMode === 'REPEAT'" />
+          <i-material-symbols:shuffle-outline-rounded v-if="playback?.mode === 'SHUFFLE'" />
+          <i-material-symbols:repeat-rounded v-else-if="playback?.mode === 'REPEAT'" />
           <i-material-symbols:repeat-one-rounded v-else />
         </button>
         <button class="btn-icon" @click.stop="playNext">
@@ -62,7 +62,7 @@ const store = useMainStore()
 const audioRef = ref<HTMLAudioElement>()
 
 const {
-  app,
+  playback,
   audios,
   playlistAudios,
   current,

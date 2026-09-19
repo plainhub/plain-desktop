@@ -34,11 +34,6 @@ export const appFragment = `
     features
     channel
     permissions
-    audioCurrent
-    audioMode
-    sdcardPath
-    usbDiskPaths
-    internalStoragePath
     downloadsDir
     developerMode
     debug

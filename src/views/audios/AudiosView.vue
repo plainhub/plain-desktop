@@ -72,6 +72,7 @@ import { useMainStore } from '@/stores/main'
 import { useTempStore } from '@/stores/temp'
 import { useAddToPlaylist, useAudioPlayer } from './hooks/useAudiosHooks'
 import { useMediaPage } from '@/hooks/media-page'
+import { audioPlayback } from '@/hooks/audio-playlist-store'
 import { useMediaPageActions } from '@/hooks/media-page-actions'
 import { useMoveToFolder } from '@/hooks/media'
 import MediaPageActions from '@/components/media/MediaPageActions.vue'
@@ -138,7 +139,7 @@ const {
   uploadDir, uploadDirEditable, editUploadDir,
 } = mp
 
-const isAudioPlaying = (item: IAudioItem) => audioPlaying.value && app.value?.audioCurrent === item.path
+const isAudioPlaying = (item: IAudioItem) => audioPlaying.value && audioPlayback.value.currentPath === item.path
 const effectiveQ = computed(() => {
   const dirs = mainStoreLocal.excludedDirs
   if (!dirs.length) return q.value

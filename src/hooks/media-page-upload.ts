@@ -8,6 +8,7 @@ import { type DataType } from '@/lib/data'
 import { useDragDropUpload, useFileUpload } from '@/hooks/upload'
 import { createBucketUploadTarget, getDefaultUploadDir } from '@/hooks/media-upload'
 import { pickUploadDir } from '@/lib/upload/pick-upload-dir'
+import { useMounts } from '@/hooks/files'
 
 export interface MediaPageUploadOptions {
   dataType: DataType
@@ -21,7 +22,7 @@ export interface MediaPageUploadOptions {
 export function useMediaPageUpload(options: MediaPageUploadOptions) {
   const mainStore = useMainStore()
   const tempStore = useTempStore()
-  const { app, uploads } = storeToRefs(tempStore)
+  const { uploads } = storeToRefs(tempStore)
   const { t } = useI18n()
 
   const { input: fileInput, upload: uploadFiles, uploadChanged } = useFileUpload(uploads)
@@ -37,10 +38,12 @@ export function useMediaPageUpload(options: MediaPageUploadOptions) {
   }
   const uploadTarget = createBucketUploadTarget({ filter: options.filter, buckets: options.buckets, picker })
 
+  const { mounts } = useMounts()
   const uploadDir = computed(() => {
     const bucketDir = uploadTarget.getSelectedBucketDir()
     if (bucketDir) return bucketDir
-    return mainStore.uploadDirs[options.uploadStorageKey] || getDefaultUploadDir(options.dataType, app.value.internalStoragePath ?? '')
+    const internalPath = mounts.value.find((m) => m.driveType === 'INTERNAL_STORAGE')?.path ?? ''
+    return mainStore.uploadDirs[options.uploadStorageKey] || getDefaultUploadDir(options.dataType, internalPath)
   })
   const uploadDirEditable = computed(() => !uploadTarget.getSelectedBucketDir())
 
