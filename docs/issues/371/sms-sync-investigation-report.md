@@ -152,6 +152,20 @@ PlainApp connection remained USB-forwarded and the Pixel remained USB-powered.
 - Matching x86_64 Github debug build and real emulator/browser checks above passed.
 - Timeouts are now estimated per command; 120 seconds is a default, not a hard cap.
 
+## CI follow-up after upstream integration
+
+Merged upstream `6c3ef54e` into the PR branch. Its capability migration introduced
+`DeviceFeature` callers while `hasFeature` still accepted the older `FEATURE`
+enum; the three CI TypeScript errors reproduced locally on the merged tree.
+Completed the migration in the helper and remaining screen-mirror callers and
+removed the duplicate enum, without casts or broader string acceptance. Added
+coverage for image-search/media-scan availability and missing feature lists.
+
+The final combined revision passes frontend typechecking, the full suite (1,142
+passed, 51 skipped), web and Tauri frontend builds, and the Tauri capture component
+test. This CI follow-up does not change SMS behavior or prove device compatibility
+with the newly integrated upstream API-contract changes.
+
 Assignment was requested from the owner after GitHub denied self-assignment.
 This is a scoped fix, not a final resolution claim for every #371 symptom. The
 author's report of permanently absent incoming messages remains unconfirmed.
