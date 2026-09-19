@@ -16,7 +16,7 @@ export function useDeviceInfo() {
   const systemInfos = ref<InfoItem[]>([])
   const hardwareInfos = ref<InfoItem[]>([])
   const platformInfos = ref<InfoItem[]>([])
-  const batteryInfos = ref<InfoItem[]>([])
+  const statusInfos = ref<InfoItem[]>([])
 
   const { loading, refetch } = initQuery({
     handle: (data: any, error: string) => {
@@ -39,12 +39,12 @@ export function useDeviceInfo() {
         { label: 'os_name', value: d.osName },
         { label: 'os_version', value: d.osVersion },
         { label: 'kernel', value: d.kernelVersion },
-        { label: 'uptime', value: formatSeconds(d.uptime / 1000) },
       ].filter((it) => it.value)
 
       const disp = d.display
       hardwareInfos.value = [
         { label: 'cpu_arch', value: d.cpuArch },
+        { label: 'cpu_model', value: d.cpuModel },
         { label: 'total_memory', value: d.totalMemory ? formatMemory(d.totalMemory) : '' },
         { label: 'total_storage', value: d.totalStorage ? formatMemory(d.totalStorage) : '' },
         { label: 'screen_resolution', value: disp ? `${disp.width} × ${disp.height}` : '' },
@@ -68,37 +68,27 @@ export function useDeviceInfo() {
           { label: 'build_fingerprint', value: a.fingerprint },
           { label: 'build_time', value: a.buildTime, isTime: true },
         ].filter((it) => it.value)
-      } else if (d.desktop) {
-        const dt = d.desktop
-        platformInfos.value = [
-          { label: 'hostname', value: dt.hostname },
-          { label: 'cpu_model', value: dt.cpuModel },
-          { label: 'gpu_model', value: dt.gpuModel },
-          { label: 'desktop_environment', value: dt.desktopEnvironment },
-          { label: 'window_manager', value: dt.windowManager },
-        ].filter((it) => it.value)
       } else {
         platformInfos.value = []
       }
 
-      const battery = data.battery
-      if (battery) {
-        batteryInfos.value = [
-          { label: 'health', value: t(`battery_health.${battery.health}`) },
-          { label: 'remaining', value: `${battery.level}%` },
-          { label: 'status', value: t(`battery_status.${battery.status}`) },
-          { label: 'power_source', value: t(`battery_plugged.${battery.plugged}`) },
-          { label: 'technology', value: battery.technology },
-          { label: 'temperature', value: `${battery.temperature} ℃` },
-          { label: 'voltage', value: `${battery.voltage} mV` },
-          { label: 'capacity', value: battery.capacity + ' mAh' },
-        ]
+      const st = data.deviceStatus
+      if (st) {
+        statusInfos.value = [
+          { label: 'battery_level', value: st.batteryLevel != null ? `${st.batteryLevel}%` : '' },
+          { label: 'charging', value: st.charging != null ? (st.charging ? t('yes') : t('no')) : '' },
+          { label: 'temperatures', value: st.temperatures?.length ? st.temperatures.map((z: any) => `${z.label}: ${z.celsius} ℃`) : '' },
+          { label: 'cpu_usage', value: st.cpuUsage != null ? `${st.cpuUsage.toFixed(1)}%` : '' },
+          { label: 'memory_available', value: st.memoryAvailable != null ? formatMemory(st.memoryAvailable) : '' },
+          { label: 'storage_available', value: st.storageAvailable != null ? formatMemory(st.storageAvailable) : '' },
+          { label: 'uptime', value: st.uptimeSec != null ? formatSeconds(st.uptimeSec) : '' },
+        ].filter((it) => it.value)
       } else {
-        batteryInfos.value = []
+        statusInfos.value = []
       }
     },
     document: deviceInfoGQL,
   })
 
-  return { basicInfos, systemInfos, hardwareInfos, platformInfos, batteryInfos, loading, refetch }
+  return { basicInfos, systemInfos, hardwareInfos, platformInfos, statusInfos, loading, refetch }
 }

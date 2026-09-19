@@ -31,7 +31,6 @@ export const appFragment = `
     appDir
     deviceName
     deviceType
-    battery
     appVersion
     osVersion
     channel
@@ -176,9 +175,10 @@ export const callFragment = `
     photoId
     type
     geo {
-      isp
-      city
-      province
+      country
+      numberType
+      carrier
+      description
     }
     tags {
       ...TagSubFragment
@@ -376,8 +376,8 @@ export const deviceInfoFragment = `
     appVersion
     appBuildNumber
     language
-    uptime
     cpuArch
+    cpuModel
     totalMemory
     totalStorage
     display {
@@ -395,23 +395,27 @@ export const deviceInfoFragment = `
       radioVersion
       board
       buildBrand
-      buildHost
-      buildUser
       buildNumber
-      product
       device
       javaVmVersion
       glEsVersion
-      serial
       buildTime
     }
-    desktop {
-      hostname
-      cpuModel
-      gpuModel
-      desktopEnvironment
-      windowManager
+  }
+`
+
+export const deviceStatusFragment = `
+  fragment DeviceStatusFragment on DeviceStatus {
+    uptimeSec
+    batteryLevel
+    charging
+    temperatures {
+      label
+      celsius
     }
+    cpuUsage
+    memoryAvailable
+    storageAvailable
   }
 `
 

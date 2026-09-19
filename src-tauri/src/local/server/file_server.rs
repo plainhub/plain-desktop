@@ -8,6 +8,7 @@ use super::uri::{parse_decrypted_id, resolve_uri};
 use plain_rs::base64_decode;
 use plain_rs::mime::mime_from_ext;
 use plain_rs::query::parse_query;
+use plain_rs::utils::http::RangeParse;
 use plain_rs::xchacha_decrypt;
 
 /// Serve a file via the local server's `/fs` endpoint.
@@ -128,12 +129,19 @@ pub(super) async fn serve_file<W: AsyncWrite + Unpin>(
     //    seeking; plain-app gets it implicitly via Ktor's `respondFile`,
     //    the local server has to handle it explicitly. Only single-range
     //    requests are honored; multi-range falls through to a full 200.
-    if !range_header.is_empty()
-        && let Some((start, end)) =
-            plain_rs::utils::http::parse_range_header(range_header, file_size)
-    {
-        serve_partial(wr, &resolved, start, end, file_size, mime, &disposition).await;
-        return;
+    //    A syntactically valid but unsatisfiable range answers 416 with
+    //    `content-range: bytes */<size>` (RFC 7233 §4.4), the same shape
+    //    Ktor serves.
+    match plain_rs::utils::http::parse_range_header(range_header, file_size) {
+        RangeParse::Partial(start, end) => {
+            serve_partial(wr, &resolved, start, end, file_size, mime, &disposition).await;
+            return;
+        }
+        RangeParse::Unsatisfiable => {
+            serve_unsatisfiable_range(wr, file_size).await;
+            return;
+        }
+        RangeParse::Full => {}
     }
 
     // 9. Full response (200) with `accept-ranges: bytes` so clients know
@@ -214,6 +222,26 @@ async fn serve_partial<W: AsyncWrite + Unpin>(
     stream_file(wr, path, start, length).await;
 }
 
+/// Serve a `416 Range Not Satisfiable` response (RFC 7233 §4.4) for a
+/// `Range` request no part of the representation can satisfy. The body
+/// is empty and `content-range` advertises the actual size so the client
+/// can recompute a valid range.
+async fn serve_unsatisfiable_range<W: AsyncWrite + Unpin>(wr: &mut W, file_size: u64) {
+    let head = format!(
+        "HTTP/1.1 416 Range Not Satisfiable\r\n\
+         content-length: 0\r\n\
+         content-range: bytes */{file_size}\r\n\
+         accept-ranges: bytes\r\n\
+         access-control-expose-headers: content-disposition, accept-ranges, content-range\r\n\
+         access-control-allow-origin: *\r\n\
+         access-control-allow-methods: GET, POST, PUT, DELETE, OPTIONS\r\n\
+         access-control-allow-headers: *\r\n\
+         connection: close\r\n\
+         \r\n"
+    );
+    let _ = wr.write_all(head.as_bytes()).await;
+}
+
 /// Stream `length` bytes from `path` starting at `offset`, in 64 KB
 /// chunks. The header must already have been written by the caller.
 /// Errors after the header is sent are silently dropped — the
@@ -247,4 +275,42 @@ async fn stream_file<W: AsyncWrite + Unpin>(
         remaining -= n;
     }
     let _ = wr.flush().await;
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn temp_path(name: &str) -> std::path::PathBuf {
+        std::env::temp_dir().join(format!("plain-file-server-test-{name}"))
+    }
+
+    #[tokio::test]
+    async fn unsatisfiable_range_responds_416_with_content_range() {
+        let path = temp_path("416");
+        tokio::fs::write(&path, b"0123456789").await.unwrap();
+        let mut out = Vec::new();
+        serve_unsatisfiable_range(&mut out, 10).await;
+        let head = String::from_utf8(out).unwrap();
+        assert!(head.starts_with("HTTP/1.1 416 Range Not Satisfiable\r\n"));
+        assert!(head.contains("content-length: 0\r\n"));
+        assert!(head.contains("content-range: bytes */10\r\n"));
+        assert!(head.contains("accept-ranges: bytes\r\n"));
+        assert!(head.ends_with("\r\n\r\n"));
+        let _ = tokio::fs::remove_file(&path).await;
+    }
+
+    #[tokio::test]
+    async fn partial_range_serves_206_with_requested_bytes() {
+        let path = temp_path("206");
+        tokio::fs::write(&path, b"0123456789").await.unwrap();
+        let mut out = Vec::new();
+        serve_partial(&mut out, &path, 2, 4, 10, "video/mp4", "inline").await;
+        let raw = String::from_utf8(out).unwrap();
+        assert!(raw.starts_with("HTTP/1.1 206 Partial Content\r\n"));
+        assert!(raw.contains("content-length: 3\r\n"));
+        assert!(raw.contains("content-range: bytes 2-4/10\r\n"));
+        assert!(raw.ends_with("234"));
+        let _ = tokio::fs::remove_file(&path).await;
+    }
 }

@@ -126,9 +126,10 @@ export interface IContact extends IData {
 }
 
 export interface ICallGeo {
-  isp: string
-  city: string
-  province: string
+  country: string
+  numberType: string
+  carrier: string
+  description: string
 }
 
 export interface ICall extends IData {
@@ -465,7 +466,6 @@ export interface IApp {
   appDir: string
   deviceName: string
   deviceType: DeviceType
-  battery: number
   appVersion: string
   osVersion: number
   channel: AppChannelType

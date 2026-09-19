@@ -88,13 +88,5 @@ export default {
   suffix: 'Sonek',
   phone_geo: 'GEO',
   avatar: 'Avatar',
-  phone_isp_type: {
-    1: 'China Mobile',
-    2: 'China Unicom',
-    3: 'China Telecom',
-    4: 'China Uicom Sanal',
-    5: 'China Telecom Sanal',
-    6: 'China Mobile Sanal',
-  },
   make_a_phone_call: 'Telefonla ara',
 }

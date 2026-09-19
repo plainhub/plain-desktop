@@ -88,13 +88,5 @@ export default {
   suffix: 'Hậu tố',
   phone_geo: 'VỊ TRÍ ĐIỆN THOẠI',
   avatar: 'Ảnh đại diện',
-  phone_isp_type: {
-    1: 'Di động Trung Quốc',
-    2: 'Unicom Trung Quốc',
-    3: 'Viễn thông Trung Quốc',
-    4: 'Di động ảo Trung Quốc',
-    5: 'Viễn thông ảo Trung Quốc',
-    6: 'Di động ảo Trung Quốc',
-  },
   make_a_phone_call: 'Thực hiện cuộc gọi điện thoại',
 }

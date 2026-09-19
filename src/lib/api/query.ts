@@ -23,6 +23,7 @@ import {
   notificationFragment,
   clipboardFragment,
   deviceInfoFragment,
+  deviceStatusFragment,
   bookmarkFragment,
   bookmarkGroupFragment,
   docFragment,
@@ -832,24 +833,27 @@ export const deviceInfoGQL = `
     deviceInfo {
       ...DeviceInfoFragment
     }
+    deviceStatus {
+      ...DeviceStatusFragment
+    }
     sims {
       id
       label
       number
       subscriptionId
     }
-    battery {
-      level
-      voltage
-      health
-      plugged
-      temperature
-      status
-      technology
-      capacity
-    }
   }
   ${deviceInfoFragment}
+  ${deviceStatusFragment}
+`
+
+export const deviceStatusGQL = `
+  query {
+    deviceStatus {
+      batteryLevel
+      charging
+    }
+  }
 `
 
 export const appLogsGQL = `

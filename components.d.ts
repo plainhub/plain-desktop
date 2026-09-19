@@ -481,6 +481,7 @@ declare module 'vue' {
     VChipSelect: typeof import('./src/components/base/VChipSelect.vue')['default']
     VChipSet: typeof import('./src/components/base/VChipSet.vue')['default']
     VCircularProgress: typeof import('./src/components/base/VCircularProgress.vue')['default']
+    VCopyButton: typeof import('./src/components/base/VCopyButton.vue')['default']
     VDropdown: typeof import('./src/components/base/VDropdown.vue')['default']
     VDropdownMenu: typeof import('./src/components/base/VDropdownMenu.vue')['default']
     VFilledButton: typeof import('./src/components/base/VFilledButton.vue')['default']

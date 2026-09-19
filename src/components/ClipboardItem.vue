@@ -4,10 +4,11 @@
       <div class="row1">
         <span v-if="hasName" class="name">{{ item.label || item.source }}</span>
         <time v-tooltip="formatDateTimeFull(item.createdAt)" class="nowrap" :class="{ 'time-solo': !hasName }">{{ formatTimeAgo(createdAt) }}</time>
-        <button v-tooltip="$t('copy')" class="btn-icon copy" :class="{ copied }" @click.stop="copy">
-          <i-material-symbols:check-rounded v-if="copied" class="copied-ico" />
-          <i-material-symbols:content-copy-outline-rounded v-else />
-        </button>
+        <v-copy-button v-tooltip="$t('copy')" class="btn-icon copy" :text="item.text">
+          <template #icon>
+            <i-material-symbols:content-copy-outline-rounded />
+          </template>
+        </v-copy-button>
         <button v-tooltip="$t('delete')" class="btn-icon del" @click.stop="$emit('delete', item)">
           <i-material-symbols:close-rounded />
         </button>
@@ -23,7 +24,6 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue'
 import { formatDateTimeFull, formatTimeAgo } from '@/lib/format'
-import { copyTextToClipboard } from '@/lib/clipboard'
 import type { IClipboard } from '@/lib/interfaces'
 
 const props = defineProps<{ item: IClipboard }>()
@@ -34,9 +34,7 @@ defineEmits<{
 
 const LONG_TEXT_CHARS = 250
 
-const copied = ref(false)
 const expanded = ref(false)
-let copiedTimer: ReturnType<typeof setTimeout> | undefined
 
 const hasName = computed(() => !!(props.item.label || props.item.source))
 const isLong = computed(() => (props.item.text?.length ?? 0) > LONG_TEXT_CHARS)
@@ -45,14 +43,6 @@ const createdAt = computed(() => {
   const v = props.item.createdAt
   return /^\d+$/.test(v ?? '') ? new Date(Number(v)).toISOString() : v
 })
-
-async function copy() {
-  const ok = await copyTextToClipboard(props.item.text)
-  if (!ok) return
-  copied.value = true
-  clearTimeout(copiedTimer)
-  copiedTimer = setTimeout(() => (copied.value = false), 1500)
-}
 </script>
 
 <style lang="scss" scoped>
@@ -113,26 +103,21 @@ async function copy() {
     flex: 0 0 28px;
     opacity: 0;
     pointer-events: none;
-
-    svg {
-      width: 16px;
-      height: 16px;
-    }
   }
 
   .copy {
-    color: inherit;
+    font-size: 16px;
     transition: color 0.15s ease;
 
     &.copied {
       opacity: 1;
       pointer-events: auto;
-      color: var(--md-sys-color-primary);
-
-      .copied-ico {
-        animation: clip-copied-pop 0.3s ease;
-      }
     }
+  }
+
+  .del svg {
+    width: 16px;
+    height: 16px;
   }
 
   &:hover .copy,
@@ -177,20 +162,6 @@ async function copy() {
       opacity: 1;
       pointer-events: auto;
     }
-  }
-}
-
-@keyframes clip-copied-pop {
-  0% {
-    transform: scale(0.4);
-    opacity: 0;
-  }
-  60% {
-    transform: scale(1.25);
-  }
-  100% {
-    transform: scale(1);
-    opacity: 1;
   }
 }
 </style>

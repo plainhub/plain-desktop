@@ -88,13 +88,5 @@ export default {
   suffix: 'Suffisso',
   phone_geo: 'GEO',
   avatar: 'Playlist',
-  phone_isp_type: {
-    1: 'Cina Mobile',
-    2: 'Cina Unicom',
-    3: 'Cina Telecom',
-    4: 'Cina Uicom Virtuale',
-    5: 'Cina Telecom Virtuale',
-    6: 'Cina Mobile Virtuale',
-  },
   make_a_phone_call: 'Fai una chiamata',
 }
