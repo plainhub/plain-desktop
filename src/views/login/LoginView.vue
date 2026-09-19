@@ -1,15 +1,12 @@
 <template>
-  <header class="header">
-    <header-actions :logged-in="false" />
-  </header>
-  <h1>PlainApp</h1>
-  <div class="login-block">
+  <AuthShell>
     <LoginForm ref="loginFormRef" />
-  </div>
+  </AuthShell>
 </template>
 <script setup lang="ts">
 import { nextTick, onMounted, ref } from 'vue'
 import router from '@/plugins/router'
+import AuthShell from '@/components/AuthShell.vue'
 import LoginForm from './LoginForm.vue'
 import { setPendingLoginDevice } from '@/lib/api/api'
 import { requestInit } from '@/lib/api/init'
@@ -44,28 +41,3 @@ async function initializeLoginForm() {
   await loginFormRef.value.init(result)
 }
 </script>
-
-
-<style lang="scss" scoped>
-.header {
-  display: flex;
-  justify-content: end;
-  margin-top: 6px;
-}
-
-h1 {
-  margin-top: 100px;
-  text-align: center;
-}
-
-.login-block {
-  box-sizing: border-box;
-  width: calc(100% - 32px);
-  max-width: 400px;
-  margin-inline: auto;
-  --outlined-field-bg: var(--md-sys-color-surface-variant);
-  background-color: var(--md-sys-color-surface-variant);
-  border-radius: var(--pl-shape-xl);
-  padding: 40px;
-}
-</style>
