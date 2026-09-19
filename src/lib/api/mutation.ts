@@ -271,7 +271,7 @@ export const reorderPlaylistAudiosGQL = `
 `
 
 export const deleteMediaItemsGQL = `
-  mutation deleteMediaItems($type: DataType!, $query: String!) {
+  mutation deleteMediaItems($type: MediaDataType!, $query: String!) {
     deleteMediaItems(type: $type, query: $query) {
       type
       query
@@ -280,7 +280,7 @@ export const deleteMediaItemsGQL = `
 `
 
 export const trashMediaItemsGQL = `
-  mutation trashMediaItems($type: DataType!, $query: String!) {
+  mutation trashMediaItems($type: MediaDataType!, $query: String!) {
     trashMediaItems(type: $type, query: $query) {
       type
       query
@@ -289,7 +289,7 @@ export const trashMediaItemsGQL = `
 `
 
 export const restoreMediaItemsGQL = `
-  mutation restoreMediaItems($type: DataType!, $query: String!) {
+  mutation restoreMediaItems($type: MediaDataType!, $query: String!) {
     restoreMediaItems(type: $type, query: $query) {
       type
       query
@@ -298,7 +298,7 @@ export const restoreMediaItemsGQL = `
 `
 
 export const moveMediaItemsGQL = `
-  mutation moveMediaItems($type: DataType!, $query: String!, $destDir: String!) {
+  mutation moveMediaItems($type: MediaDataType!, $query: String!, $destDir: String!) {
     moveMediaItems(type: $type, query: $query, destDir: $destDir) {
       type
       query
@@ -525,9 +525,9 @@ export const callGQL = `
   }
 `
 
-export const setClipGQL = `
-  mutation setClip($text: String!) {
-    setClip(text: $text)
+export const setClipboardGQL = `
+  mutation setClipboard($text: String!) {
+    setClipboard(text: $text)
   }
 `
 
@@ -610,9 +610,9 @@ export const setTempValueGQL = `
   }
 `
 
-export const cancelNotificationsGQL = `
-  mutation cancelNotifications($ids: [ID!]!) {
-    cancelNotifications(ids: $ids)
+export const deleteNotificationsGQL = `
+  mutation deleteNotifications($ids: [ID!]!) {
+    deleteNotifications(ids: $ids)
   }
 `
 
@@ -622,9 +622,9 @@ export const replyNotificationGQL = `
   }
 `
 
-export const cancelClipboardGQL = `
-  mutation cancelClipboard($ids: [ID!]!) {
-    cancelClipboard(ids: $ids)
+export const deleteClipboardGQL = `
+  mutation deleteClipboard($ids: [ID!]!) {
+    deleteClipboard(ids: $ids)
   }
 `
 
@@ -641,14 +641,24 @@ export const saveFeedEntriesToNotesGQL = `
 `
 
 export const mergeChunksGQL = `
-  mutation mergeChunks($fileId: String!, $totalChunks: Int!, $path: String!, $replace: Boolean!, $isAppFile: Boolean!, $totalSize: Long!) {
-    mergeChunks(fileId: $fileId, totalChunks: $totalChunks, path: $path, replace: $replace, isAppFile: $isAppFile, totalSize: $totalSize)
+  mutation mergeChunks($fileId: String!, $totalChunks: Int!, $path: String!, $replace: Boolean!, $totalSize: Long!) {
+    mergeChunks(fileId: $fileId, totalChunks: $totalChunks, path: $path, replace: $replace, totalSize: $totalSize) {
+      status
+      value
+      mergedSize
+      error
+    }
   }
 `
 
-export const mergeChunksAsyncGQL = `
-  mutation mergeChunksAsync($fileId: String!, $totalChunks: Int!, $path: String!, $replace: Boolean!, $isAppFile: Boolean!, $totalSize: Long!) {
-    mergeChunksAsync(fileId: $fileId, totalChunks: $totalChunks, path: $path, replace: $replace, isAppFile: $isAppFile, totalSize: $totalSize)
+export const mergeAppFileChunksGQL = `
+  mutation mergeAppFileChunks($fileId: String!, $totalChunks: Int!, $fileName: String!, $totalSize: Long!) {
+    mergeAppFileChunks(fileId: $fileId, totalChunks: $totalChunks, fileName: $fileName, totalSize: $totalSize) {
+      status
+      value
+      mergedSize
+      error
+    }
   }
 `
 

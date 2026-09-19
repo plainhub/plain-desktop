@@ -38,14 +38,14 @@ pub(crate) fn chat_to_json(c: &DChat, token: &str) -> Value {
     let data = chat_item_data_from_content(&c.content, token)
         .as_ref()
         .map(|d| match d {
-            super::graphql::schema::types::ChatItemData::MessageImages(m) => {
-                json!({ "__typename": "MessageImages", "ids": &m.ids })
+            super::graphql::schema::types::ChatItemData::ChatImages(m) => {
+                json!({ "__typename": "ChatImages", "ids": &m.ids })
             }
-            super::graphql::schema::types::ChatItemData::MessageFiles(m) => {
-                json!({ "__typename": "MessageFiles", "ids": &m.ids })
+            super::graphql::schema::types::ChatItemData::ChatFiles(m) => {
+                json!({ "__typename": "ChatFiles", "ids": &m.ids })
             }
-            super::graphql::schema::types::ChatItemData::MessageText(m) => {
-                json!({ "__typename": "MessageText", "ids": &m.ids })
+            super::graphql::schema::types::ChatItemData::ChatText(m) => {
+                json!({ "__typename": "ChatText", "ids": &m.ids })
             }
         });
     json!({

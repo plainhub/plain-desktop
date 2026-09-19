@@ -1,7 +1,8 @@
 import type { Component } from 'vue'
 import ILucidePhoneCall from '~icons/lucide/phone-call'
-import { ALL_FEATURES, DEBUG_EXCLUDED_FEATURE_IDS, GOOGLE_EXCLUDED_FEATURE_IDS, NAS_FEATURE_IDS, type Feature } from '@/views/app-rail/features'
-import { AppChannelType, DeviceType } from '@/lib/status'
+import { ALL_FEATURES, DEBUG_EXCLUDED_FEATURE_IDS, GOOGLE_EXCLUDED_FEATURE_IDS, type Feature } from '@/views/app-rail/features'
+import { AppChannelType } from '@/lib/status'
+import { DeviceFeature } from '@/lib/data'
 import { isLocalFeatureId, isLocalMode } from '@/lib/device/local-mode'
 import { DEFAULT_HOME_FEATURES, normalizeHomeFeatures } from './feature-list'
 
@@ -52,30 +53,29 @@ const HOME_PANEL_FEATURES: HomePanelFeature[] = [
   { id: 'call_phone', icon: ILucidePhoneCall, titleKey: 'call_phone', sectionType: 'call_phone' },
 ]
 
-/** Home card order and set for a NAS: media, docs and files, no phone panels. */
-export const NAS_HOME_FEATURES = ['audios', 'images', 'videos', 'docs', 'files']
-
-export function getAvailableHomeFeatures(deviceType?: DeviceType, channel?: AppChannelType, debug?: boolean): HomeSectionFeature[] {
-  const isNas = deviceType === DeviceType.NAS
+/** Availability mirrors the rail: capability-gated features need the
+ *  server to declare them in `app.features`. */
+export function getAvailableHomeFeatures(features?: string[], channel?: AppChannelType, debug?: boolean): HomeSectionFeature[] {
   const routeFeatures = ALL_FEATURES
     .filter((feature) => HOME_FEATURE_IDS.has(feature.id))
     .filter((feature) => !isLocalMode() || isLocalFeatureId(feature.id))
     .filter((feature) => !(channel === AppChannelType.GOOGLE && GOOGLE_EXCLUDED_FEATURE_IDS.has(feature.id)))
     .filter((feature) => (debug ?? false) || !DEBUG_EXCLUDED_FEATURE_IDS.has(feature.id))
-    .filter((feature) => !isNas || NAS_FEATURE_IDS.has(feature.id))
+    .filter((feature) => !feature.capability || !!features?.includes(feature.capability))
     .map((feature) => ({
       ...feature,
       sectionType: 'feature' as const,
       countKey: HOME_FEATURE_COUNT_KEYS[feature.id],
     }))
 
+  const hasCallPhone = !!features?.includes(DeviceFeature.CALL_PHONE)
   const featureMap = new Map<string, HomeSectionFeature>([
     ...routeFeatures.map((feature) => [feature.id, feature] as const),
-    ...(isNas || isLocalMode() ? [] : HOME_PANEL_FEATURES.map((feature) => [feature.id, feature] as const)),
+    ...(hasCallPhone && !isLocalMode() ? HOME_PANEL_FEATURES.map((feature) => [feature.id, feature] as const) : []),
   ])
 
-  const defaults = isNas ? NAS_HOME_FEATURES : DEFAULT_HOME_FEATURES
-  return defaults
+  // Unsupported ids simply drop out of the map.
+  return DEFAULT_HOME_FEATURES
     .map((id) => featureMap.get(id))
     .filter((feature): feature is HomeSectionFeature => !!feature)
 }

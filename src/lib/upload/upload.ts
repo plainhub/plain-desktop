@@ -379,14 +379,9 @@ async function uploadChunkedFile(upload: IUploadItem, fileId: string, replace: b
     const baseName = upload.file.name.split('/').pop() || upload.file.name
     const filePath = upload.dir.endsWith('/') ? upload.dir + baseName : upload.dir + '/' + baseName
 
-    const outcome = await requestMerge(upload, {
-      fileId,
-      totalChunks,
-      path: filePath,
-      replace: replace,
-      isAppFile: upload.isAppFile ?? false,
-      totalSize: upload.file.size,
-    })
+    const outcome = await requestMerge(upload, upload.isAppFile
+      ? { fileId, totalChunks, fileName: baseName, totalSize: upload.file.size }
+      : { fileId, totalChunks, path: filePath, replace, totalSize: upload.file.size })
 
     if (upload.status === 'paused' || upload.status === 'canceled') {
       return { error: 'Upload paused' }

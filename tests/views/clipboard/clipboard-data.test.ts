@@ -20,7 +20,7 @@ import toast from '@/components/toaster'
 import emitter from '@/plugins/eventbus'
 import { gqlFetch } from '@/lib/api/gql-client'
 import { clipboardGQL } from '@/lib/api/query'
-import { setClipGQL } from '@/lib/api/mutation'
+import { setClipboardGQL } from '@/lib/api/mutation'
 import { useTempStore } from '@/stores/temp'
 import { useClipboardData } from '@/views/clipboard/clipboard'
 
@@ -105,16 +105,16 @@ describe('useClipboardData', () => {
     expect(mockGqlFetch).not.toHaveBeenCalled()
   })
 
-  it('sendToPhone posts setClipGQL with the typed text', async () => {
+  it('sendToPhone posts setClipboardGQL with the typed text', async () => {
     setAppSync(true)
-    mockGqlFetch.mockResolvedValue({ data: { setClip: true } })
+    mockGqlFetch.mockResolvedValue({ data: { setClipboard: true } })
     const api = useClipboardData()
     await flush()
     mockGqlFetch.mockClear()
     api.clipText.value = 'hello'
     api.sendToPhone()
     await flush()
-    expect(mockGqlFetch).toHaveBeenCalledWith(setClipGQL, { text: 'hello' }, { dedupe: false })
+    expect(mockGqlFetch).toHaveBeenCalledWith(setClipboardGQL, { text: 'hello' }, { dedupe: false })
   })
 
   it('sendToPhone clears the input on success only', async () => {
@@ -127,7 +127,7 @@ describe('useClipboardData', () => {
     await flush()
     expect(api.clipText.value).toBe('hello')
 
-    mockGqlFetch.mockResolvedValue({ data: { setClip: true } })
+    mockGqlFetch.mockResolvedValue({ data: { setClipboard: true } })
     api.sendToPhone()
     await flush()
     expect(api.clipText.value).toBe('')

@@ -207,6 +207,7 @@ pub enum DeviceType {
     Tablet,
     Computer,
     Tv,
+    Nas,
     Other,
     Unknown,
 }
@@ -218,6 +219,7 @@ impl DeviceType {
             Self::Tablet => "TABLET",
             Self::Computer => "COMPUTER",
             Self::Tv => "TV",
+            Self::Nas => "NAS",
             Self::Other => "OTHER",
             Self::Unknown => "UNKNOWN",
         }

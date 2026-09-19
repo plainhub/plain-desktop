@@ -3,7 +3,7 @@ use serde_json::json;
 use std::sync::Arc;
 
 use super::super::context::{AppCtx, WS_DEVICE_NAME_UPDATED, WsEvent};
-use super::types::{App, AudioPlayback, DeviceInfo, DevicePlatform, DeviceStatus, Sim, Temperature};
+use super::types::{App, AudioPlayback, DeviceFeature, DeviceInfo, DevicePlatform, DeviceStatus, Sim, Temperature};
 use crate::local::enums::{AppChannelType, DeviceType};
 
 #[cfg(test)]
@@ -19,7 +19,6 @@ impl AppQuery {
         let c = ctx.data_unchecked::<Arc<AppCtx>>();
         App {
             client_id: c.identity.client_id.clone(),
-            usb_connected: false,
             url_token: c.token.clone(),
             http_port: c.port.load(std::sync::atomic::Ordering::Relaxed) as i32,
             https_port: c.https_port.load(std::sync::atomic::Ordering::Relaxed) as i32,
@@ -32,9 +31,9 @@ impl AppQuery {
             app_dir: c.data_dir.join("files").to_string_lossy().into_owned(),
             device_name: c.device_name.read().unwrap().clone(),
             device_type: DeviceType::Computer,
-            // The desktop backend implements neither media trash nor screen
-            // mirror audio; clients hide that UI from an empty list.
-            features: vec![],
+            // The desktop local-mode surface: image editor and the shared
+            // web document viewer (chat/files/media are base features).
+            features: vec![DeviceFeature::DocPreview, DeviceFeature::ImageEditor],
             channel: AppChannelType::Github,
             permissions: vec![],
             downloads_dir: String::new(),

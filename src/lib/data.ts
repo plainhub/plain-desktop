@@ -13,6 +13,23 @@ export enum DataType {
 }
 
 // String values match the server's DeviceFeature GraphQL enum items.
+export enum DeviceFeature {
+  MEDIA_TRASH = 'MEDIA_TRASH',
+  MIRROR_AUDIO = 'MIRROR_AUDIO',
+  DOC_PREVIEW = 'DOC_PREVIEW',
+  IMAGE_SEARCH = 'IMAGE_SEARCH',
+  MEDIA_SCAN = 'MEDIA_SCAN',
+  SMS = 'SMS',
+  CALLS = 'CALLS',
+  CALL_PHONE = 'CALL_PHONE',
+  CONTACTS = 'CONTACTS',
+  PACKAGES = 'PACKAGES',
+  NOTES = 'NOTES',
+  FEEDS = 'FEEDS',
+  SCREEN_MIRROR = 'SCREEN_MIRROR',
+  IMAGE_EDITOR = 'IMAGE_EDITOR',
+}
+
 export enum FEATURE {
   MEDIA_TRASH = 'MEDIA_TRASH',
   MIRROR_AUDIO = 'MIRROR_AUDIO',

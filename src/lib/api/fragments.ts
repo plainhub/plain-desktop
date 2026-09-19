@@ -51,13 +51,13 @@ export const chatItemFragment = `
     status
     statusData
     data {
-      ... on MessageImages {
+      ... on ChatImages {
         ids
       }
-      ... on MessageFiles {
+      ... on ChatFiles {
         ids
       }
-      ... on MessageText {
+      ... on ChatText {
         ids
       }
     }

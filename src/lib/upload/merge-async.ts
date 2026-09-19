@@ -1,19 +1,17 @@
-// Async chunk-merge client: `mergeChunksAsync` returns immediately and the
-// result arrives as WS event `upload_merge_result` (type 38); `mergeStatus`
-// is the polling fallback when the event is lost. Servers without the async
-// mutation (old phones) are detected once per session and served through the
-// legacy sync `mergeChunks` with a size-based timeout.
+// Async chunk-merge client: `mergeChunks` returns immediately with a
+// MergeTask and the result arrives as WS event `upload_merge_result`
+// (type 38); `mergeStatus` is the polling fallback when the event is lost.
 
 import type { IUploadItem } from '@/stores/temp'
 import emitter from '@/plugins/eventbus'
-import { gqlFetch, type GqlResult } from '../api/gql-client'
-import { mergeChunksGQL, mergeChunksAsyncGQL } from '../api/mutation'
+import { gqlFetch } from '../api/gql-client'
+import { mergeChunksGQL, mergeAppFileChunksGQL } from '../api/mutation'
 import { mergeStatusGQL } from '../api/query'
 
 // Merging rewrites the whole file server-side (chunk reads + full copy, plus
 // MediaStore scan on phones), which blows past the 30s default GraphQL
-// timeout for multi-GB files. Budget 60s + 1s per 2MB (~2MB/s worst case),
-// capped at 10 minutes.
+// timeout for multi-GB files — but the mutation itself returns immediately,
+// so the only timeouts left are the short status polls.
 export function mergeRequestTimeout(totalSize: number): number {
   return Math.min(600_000, 60_000 + Math.ceil(totalSize / (2 * 1024 * 1024)) * 1000)
 }
@@ -27,82 +25,33 @@ export interface IMergeOutcome {
   error?: string
 }
 
-export type MergeState =
-  | { state: 'started' | 'merging' | 'none' }
-  | { state: 'done'; value: string; size: number }
-  | { state: 'failed'; error: string }
-
-export function parseMergeState(raw: string): MergeState {
-  if (raw === 'started' || raw === 'merging' || raw === 'none') return { state: raw }
-  if (raw.startsWith('done:')) {
-    const rest = raw.slice(5)
-    const colon = rest.lastIndexOf(':')
-    if (colon > 0) {
-      return { state: 'done', value: rest.slice(0, colon), size: parseInt(rest.slice(colon + 1), 10) || 0 }
-    }
-    return { state: 'done', value: rest, size: 0 }
-  }
-  if (raw.startsWith('failed:')) {
-    return { state: 'failed', error: raw.slice(7) }
-  }
-  return { state: 'none' }
+interface IMergeTask {
+  status?: 'NONE' | 'STARTED' | 'MERGING' | 'DONE' | 'FAILED' | null
+  value?: string | null
+  mergedSize?: number | null
+  error?: string | null
 }
 
-// null = not probed yet; false = legacy server, skip the async mutation.
-let asyncMergeSupported: boolean | null = null
-
-export function resetAsyncMergeCapabilityForTests(): void {
-  asyncMergeSupported = null
-}
-
-function hasUnknownFieldError(result: GqlResult, field: string): boolean {
-  return (result.errors ?? []).some((e) => {
-    const message = e.message || ''
-    return message.includes(field) && /unknown field|Cannot query field/i.test(message)
-  })
+function taskOutcome(task: IMergeTask | null | undefined): IMergeOutcome | 'pending' {
+  if (!task || task.status === 'NONE' || task.status === 'STARTED' || task.status === 'MERGING') return 'pending'
+  if (task.status === 'DONE') return { value: String(task.value ?? ''), size: Number(task.mergedSize) || 0 }
+  return { error: task.error || 'Failed to merge chunks' }
 }
 
 /** Merge `upload`'s chunks on the server; resolves only when the final
  *  value token ("fileName" or fidSuffix) and merged size are known. */
 export async function requestMerge(upload: IUploadItem, args: Record<string, unknown>): Promise<IMergeOutcome> {
-  if (asyncMergeSupported !== false) {
-    try {
-      const result = await gqlFetch(mergeChunksAsyncGQL, args, { timeout: 30_000 })
-      if (hasUnknownFieldError(result, 'mergeChunksAsync')) {
-        asyncMergeSupported = false
-      } else {
-        const parsed = parseMergeState(String(result.data?.mergeChunksAsync ?? ''))
-        if (parsed.state === 'started' || parsed.state === 'merging') {
-          asyncMergeSupported = true
-          return await waitForMergeResult(upload, args.fileId as string)
-        }
-        if (parsed.state === 'done') {
-          asyncMergeSupported = true
-          return { value: parsed.value, size: parsed.size }
-        }
-        if (parsed.state === 'failed') {
-          asyncMergeSupported = true
-          return { error: parsed.error || 'Failed to merge chunks' }
-        }
-        // "none"/empty — unexpected reply, fall through to the sync mutation
-      }
-    } catch (e: any) {
-      return { error: e.message || 'connection_timeout' }
-    }
-  }
-
+  // App-store uploads go through the dedicated mergeAppFileChunks mutation.
+  const doc = upload.isAppFile ? mergeAppFileChunksGQL : mergeChunksGQL
+  const field = upload.isAppFile ? 'mergeAppFileChunks' : 'mergeChunks'
   try {
-    const result = await gqlFetch(mergeChunksGQL, args, { timeout: mergeRequestTimeout(upload.file.size) })
+    const result = await gqlFetch(doc, args, { timeout: 30_000 })
     if (result.errors?.length) {
       return { error: result.errors[0].message || 'Failed to merge chunks' }
     }
-    const returned = result.data?.mergeChunks
-    if (typeof returned !== 'string' || !returned) {
-      return { error: 'Failed to merge chunks' }
-    }
-    const colonIdx = returned.lastIndexOf(':')
-    if (colonIdx <= 0) return { value: returned, size: 0 }
-    return { value: returned.substring(0, colonIdx), size: parseInt(returned.substring(colonIdx + 1), 10) || 0 }
+    const outcome = taskOutcome(result.data?.[field] as IMergeTask)
+    if (outcome !== 'pending') return outcome
+    return await waitForMergeResult(upload, args.fileId as string)
   } catch (e: any) {
     return { error: e.message || 'connection_timeout' }
   }
@@ -147,15 +96,9 @@ function waitForMergeResult(upload: IUploadItem, fileId: string): Promise<IMerge
       watchdog = setTimeout(async () => {
         try {
           const result = await gqlFetch(mergeStatusGQL, { fileId }, { timeout: STATUS_QUERY_TIMEOUT_MS })
-          const parsed = parseMergeState(String(result.data?.mergeStatus ?? ''))
-          if (parsed.state === 'done') {
-            return finish({ value: parsed.value, size: parsed.size })
-          }
-          if (parsed.state === 'failed') {
-            return finish({ error: parsed.error || 'Failed to merge chunks' })
-          }
-          if (parsed.state === 'none') {
-            return finish({ error: 'Failed to merge chunks' })
+          const outcome = taskOutcome(result.data?.mergeStatus as IMergeTask)
+          if (outcome !== 'pending') {
+            return finish(outcome)
           }
         } catch {
           // status query itself failed — try again on the next tick

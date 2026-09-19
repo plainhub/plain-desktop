@@ -1,61 +1,62 @@
 import { describe, it, expect } from 'vitest'
 import { getAvailableHomeFeatures } from '@/views/home/features'
-import { AppChannelType, DeviceType } from '@/lib/status'
+import { AppChannelType } from '@/lib/status'
+import { DeviceFeature } from '@/lib/data'
+
+const PHONE_FEATURES = Object.values(DeviceFeature)
+const NAS_FEATURES = ['MEDIA_TRASH', 'DOC_PREVIEW', 'MEDIA_SCAN']
 
 describe('getAvailableHomeFeatures', () => {
-  it('defaults to the full non-NAS home set when called without arguments', () => {
+  it('shows only always-on cards until the feature list resolves', () => {
     const ids = getAvailableHomeFeatures().map((f) => f.id)
-    expect(ids).toContain('apps')
-    expect(ids).toContain('call_phone')
+    expect(ids).toContain('audios')
+    expect(ids).not.toContain('apps')
+    expect(ids).not.toContain('call_phone')
     expect(ids).not.toContain('image_editor')
   })
 
-  it('returns exactly the five NAS cards in order for a NAS device', () => {
-    const features = getAvailableHomeFeatures(DeviceType.NAS, AppChannelType.GITHUB)
-    expect(features.map((f) => f.id)).toEqual(['audios', 'images', 'videos', 'docs', 'files'])
-    expect(features.every((f) => f.sectionType === 'feature')).toBe(true)
+  it('returns media/docs/files cards for a NAS declaration', () => {
+    const ids = getAvailableHomeFeatures(NAS_FEATURES, AppChannelType.GITHUB).map((f) => f.id)
+    expect(ids).toContain('audios')
+    expect(ids).toContain('images')
+    expect(ids).toContain('videos')
+    expect(ids).toContain('docs')
+    expect(ids).toContain('files')
+    expect(ids).not.toContain('apps')
+    expect(ids).not.toContain('notes')
   })
 
-  it('omits the call phone panel on NAS', () => {
-    const ids = getAvailableHomeFeatures(DeviceType.NAS, AppChannelType.GITHUB).map((f) => f.id)
-    expect(ids).not.toContain('call_phone')
+  it('omits the call phone panel without the CALL_PHONE capability', () => {
+    expect(getAvailableHomeFeatures(NAS_FEATURES, AppChannelType.GITHUB).map((f) => f.id)).not.toContain('call_phone')
+    expect(getAvailableHomeFeatures(PHONE_FEATURES, AppChannelType.GITHUB).map((f) => f.id)).toContain('call_phone')
   })
 
-  it('maps count keys for the NAS cards and leaves files without one', () => {
-    const byId = new Map(getAvailableHomeFeatures(DeviceType.NAS, AppChannelType.GITHUB).map((f) => [f.id, f]))
+  it('maps count keys for the media cards and leaves files without one', () => {
+    const byId = new Map(getAvailableHomeFeatures(NAS_FEATURES, AppChannelType.GITHUB).map((f) => [f.id, f]))
     expect(byId.get('audios')?.countKey).toBe('audios')
-    expect(byId.get('images')?.countKey).toBe('images')
-    expect(byId.get('videos')?.countKey).toBe('videos')
     expect(byId.get('docs')?.countKey).toBe('docs')
     expect(byId.get('files')?.countKey).toBeUndefined()
   })
 
-  it('returns the full home set with phone panels for a non-NAS device', () => {
-    const ids = getAvailableHomeFeatures(DeviceType.PHONE, AppChannelType.GITHUB).map((f) => f.id)
+  it('returns the full home set for a phone declaration', () => {
+    const ids = getAvailableHomeFeatures(PHONE_FEATURES, AppChannelType.GITHUB).map((f) => f.id)
     expect(ids).toContain('apps')
     expect(ids).toContain('notes')
     expect(ids).toContain('feeds')
-    expect(ids).not.toContain('clipboard')
     expect(ids).toContain('call_phone')
     expect(ids[0]).toBe('audios')
   })
 
-  it('hides apps, messages and calls on the Google channel (non-NAS)', () => {
-    const github = getAvailableHomeFeatures(DeviceType.PHONE, AppChannelType.GITHUB).map((f) => f.id)
-    const google = getAvailableHomeFeatures(DeviceType.PHONE, AppChannelType.GOOGLE).map((f) => f.id)
-    expect(github).toContain('apps')
-    expect(github).toContain('messages')
-    expect(github).toContain('calls')
+  it('hides apps, messages and calls on the Google channel', () => {
+    const google = getAvailableHomeFeatures(PHONE_FEATURES, AppChannelType.GOOGLE).map((f) => f.id)
     expect(google).not.toContain('apps')
     expect(google).not.toContain('messages')
     expect(google).not.toContain('calls')
     expect(google).toContain('call_phone')
   })
 
-  it('hides debug-only features unless debug is enabled (non-NAS)', () => {
-    const withoutDebug = getAvailableHomeFeatures(DeviceType.PHONE, AppChannelType.GITHUB, false).map((f) => f.id)
-    const withDebug = getAvailableHomeFeatures(DeviceType.PHONE, AppChannelType.GITHUB, true).map((f) => f.id)
-    expect(withoutDebug).not.toContain('image_editor')
-    expect(withDebug).toContain('image_editor')
+  it('hides debug-only features unless debug is enabled', () => {
+    expect(getAvailableHomeFeatures(PHONE_FEATURES, AppChannelType.GITHUB, false).map((f) => f.id)).not.toContain('image_editor')
+    expect(getAvailableHomeFeatures(PHONE_FEATURES, AppChannelType.GITHUB, true).map((f) => f.id)).toContain('image_editor')
   })
 })
