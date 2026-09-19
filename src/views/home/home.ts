@@ -11,7 +11,7 @@ import type { IHomeStats, IStorageMount, IContact, ISim, IScanProgress } from '@
 import { useContactPicker } from '@/hooks/contact-picker'
 
 // Counts a NAS implements; the phone serves the full set.
-const NAS_HOME_STAT_KEYS: HomeStatKey[] = ['audios', 'images', 'videos']
+const NAS_HOME_STAT_KEYS: HomeStatKey[] = ['audios', 'images', 'videos', 'docs']
 
 export function useHomeData() {
   const { t } = useI18n()
