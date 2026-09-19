@@ -459,7 +459,6 @@ export interface IApp {
   appDir: string
   deviceName: string
   deviceType: DeviceType
-  battery: number
   appVersion: string
   osVersion: number
   channel: AppChannelType

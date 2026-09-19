@@ -27,13 +27,13 @@
           <i-lucide:arrow-left-right />
         </button>
       </div>
-      <div v-if="!localMode && app?.battery != null" class="actions">
+      <div v-if="!localMode && batteryLevel != null" class="actions">
         <svg class="popup-battery-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
           <rect x="1" y="6.5" width="18" height="11" rx="2" ry="2" />
           <line x1="23" y1="10" x2="23" y2="14" />
-          <rect x="2.5" y="8" :width="14 * (app.battery / 100)" height="8" rx="1" fill="currentColor" stroke="none" />
+          <rect x="2.5" y="8" :width="14 * (batteryLevel / 100)" height="8" rx="1" fill="currentColor" stroke="none" />
         </svg>
-        <span class="popup-battery-pct">{{ app.battery }}%</span>
+        <span class="popup-battery-pct">{{ batteryLevel }}%</span>
       </div>
     </div>
 
@@ -126,7 +126,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, nextTick, onUnmounted } from 'vue'
+import { ref, computed, nextTick, onUnmounted, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { useTempStore } from '@/stores/temp'
@@ -150,6 +150,7 @@ import ExcludedDirsModal from './ExcludedDirsModal.vue'
 import DeviceSwitcherModal from '@/components/DeviceSwitcherModal.vue'
 import EditValueModal from '@/components/EditValueModal.vue'
 import { initMutation, updateDeviceNameGQL } from '@/lib/api/mutation'
+import { initQuery, deviceStatusGQL } from '@/lib/api/query'
 
 const localMode = isLocalMode()
 const { t } = useI18n()
@@ -163,6 +164,19 @@ const isTauri = __IS_TAURI__
 const showAbout = isTauri && !isMacPlatform()
 
 const { locale, availableLocales, handleLocaleSwitch } = useLocaleSwitch()
+
+// Battery badge comes from the lightweight deviceStatus query (null = no
+// battery, e.g. desktops/NAS — then the badge is hidden). App.battery no
+// longer exists; status lives in DeviceStatus only.
+const batteryLevel = ref<number | null>(null)
+const { refetch: refetchDeviceStatus } = initQuery({
+  handle: (data: any, error: string) => {
+    if (error) return
+    batteryLevel.value = data?.deviceStatus?.batteryLevel ?? null
+  },
+  document: deviceStatusGQL,
+})
+watch(open, (v) => { if (v) void refetchDeviceStatus() })
 
 const languageOpen = ref(false)
 const languageTriggerRef = ref<HTMLElement | null>(null)

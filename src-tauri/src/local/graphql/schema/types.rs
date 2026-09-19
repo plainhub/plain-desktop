@@ -21,8 +21,8 @@ pub enum DevicePlatform {
 }
 
 #[derive(SimpleObject)]
-#[graphql(name = "AndroidDeviceInfo")]
-pub struct AndroidDeviceInfo {
+#[graphql(name = "AndroidExtras")]
+pub struct AndroidExtras {
     pub sdk_version: i32,
     pub version_code_name: String,
     pub security_patch: String,
@@ -32,25 +32,11 @@ pub struct AndroidDeviceInfo {
     pub radio_version: String,
     pub board: String,
     pub build_brand: String,
-    pub build_host: String,
-    pub build_user: String,
     pub build_number: String,
-    pub product: String,
     pub device: String,
     pub java_vm_version: String,
     pub gl_es_version: String,
-    pub serial: String,
     pub build_time: String,
-}
-
-#[derive(SimpleObject)]
-#[graphql(name = "DesktopDeviceInfo")]
-pub struct DesktopDeviceInfo {
-    pub hostname: String,
-    pub cpu_model: String,
-    pub gpu_model: String,
-    pub desktop_environment: String,
-    pub window_manager: String,
 }
 
 #[derive(SimpleObject)]
@@ -74,13 +60,37 @@ pub struct DeviceInfo {
     pub app_version: String,
     pub app_build_number: String,
     pub language: String,
-    pub uptime: i64,
     pub cpu_arch: String,
+    pub cpu_model: Option<String>,
     pub total_memory: i64,
     pub total_storage: i64,
     pub display: Option<DisplayInfo>,
-    pub android: Option<AndroidDeviceInfo>,
-    pub desktop: Option<DesktopDeviceInfo>,
+    pub android: Option<AndroidExtras>,
+}
+
+#[derive(SimpleObject)]
+#[graphql(name = "Temperature")]
+pub struct Temperature {
+    pub label: String,
+    pub celsius: f64,
+}
+
+#[derive(SimpleObject, Default)]
+#[graphql(name = "DeviceStatus")]
+pub struct DeviceStatus {
+    pub uptime_sec: i64,
+    /// 0-100; None when the device has no battery or the level is unknown.
+    pub battery_level: Option<i32>,
+    /// True only while actively charging; full-while-plugged is false.
+    pub charging: bool,
+    /// Empty when the platform exposes no temperature sources.
+    pub temperatures: Vec<Temperature>,
+    /// 0-100 percent, diffed from two CPU counter samples.
+    pub cpu_usage: f64,
+    /// OS-level available memory; None when the platform does not expose it.
+    pub memory_available: Option<i64>,
+    /// Available bytes on the primary data volume.
+    pub storage_available: i64,
 }
 
 #[derive(SimpleObject)]
@@ -92,49 +102,8 @@ pub struct Sim {
     pub subscription_id: i32,
 }
 
-#[derive(Enum, Copy, Clone, Eq, PartialEq)]
-#[graphql(name = "BatteryHealth")]
-pub enum BatteryHealth {
-    Unknown,
-    Good,
-    Overheat,
-    Dead,
-    OverVoltage,
-    UnspecifiedFailure,
-    Cold,
-}
-
-#[derive(Enum, Copy, Clone, Eq, PartialEq)]
-#[graphql(name = "BatteryStatus")]
-pub enum BatteryStatus {
-    Unknown,
-    Charging,
-    Discharging,
-    NotCharging,
-    Full,
-}
-
-#[derive(Enum, Copy, Clone, Eq, PartialEq)]
-#[graphql(name = "BatteryPlugged")]
-pub enum BatteryPlugged {
-    Unplugged,
-    Ac,
-    Usb,
-    Wireless,
-}
-
-#[derive(SimpleObject)]
-#[graphql(name = "Battery")]
-pub struct BatteryInfo {
-    pub level: i32,
-    pub voltage: i32,
-    pub health: BatteryHealth,
-    pub plugged: BatteryPlugged,
-    pub temperature: f64,
-    pub status: BatteryStatus,
-    pub technology: String,
-    pub capacity: i32,
-}
+// BatteryHealth / BatteryStatus / BatteryPlugged / Battery were removed:
+// dynamic battery state now lives in DeviceStatus (batteryLevel + charging).
 
 #[derive(SimpleObject)]
 pub struct FavoriteFolder {
@@ -159,7 +128,6 @@ pub struct App {
     pub app_dir: String,
     pub device_name: String,
     pub device_type: DeviceType,
-    pub battery: String,
     pub app_version: String,
     pub os_version: String,
     pub channel: AppChannelType,

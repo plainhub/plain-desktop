@@ -150,13 +150,18 @@
           </div>
         </section>
       </div>
-      <div v-if="batteryInfos.length">
+      <div v-if="statusInfos.length">
         <section class="card">
-          <h5 class="card-title">{{ $t('battery') }}</h5>
+          <h5 class="card-title">{{ $t('device_status') }}</h5>
           <div class="card-body">
-            <div v-for="(item, index) in batteryInfos" :key="index" class="key-value">
+            <div v-for="(item, index) in statusInfos" :key="index" class="key-value">
               <div class="key">{{ $t(item.label) }}</div>
-              <div class="value">{{ item.value }}</div>
+              <div class="value">
+                <template v-if="Array.isArray(item.value)">
+                  <div v-for="(it, i) in item.value" :key="i">{{ it }}</div>
+                </template>
+                <template v-else>{{ item.value }}</template>
+              </div>
             </div>
           </div>
         </section>
@@ -183,7 +188,7 @@ onActivated(() => { isActive.value = true })
 onDeactivated(() => { isActive.value = false })
 const localMode = isLocalMode()
 
-const { basicInfos, systemInfos, hardwareInfos, platformInfos, batteryInfos, loading, refetch } = useDeviceInfo()
+const { basicInfos, systemInfos, hardwareInfos, platformInfos, statusInfos, loading, refetch } = useDeviceInfo()
 
 const {
   httpPort, httpsPort, httpAddresses, httpsAddresses,

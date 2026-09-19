@@ -52,8 +52,8 @@ regex = "1"
 rand = "0.8"
 # Typed GraphQL schema with derive macros for clean resolver code.
 async-graphql = { version = "7", default-features = false }
-# Cross-platform system information (OS version, uptime, CPU brand).
-sysinfo = { version = "0.32", default-features = false, features = ["system"] }
+# Cross-platform system information (OS version, uptime, CPU brand, volumes).
+sysinfo = { version = "0.32", default-features = false, features = ["system", "disk"] }
 # UDP socket options (SO_REUSEADDR for multicast receiver).
 socket2 = { version = "0.5", features = ["all"] }
 # PNG encode/decode for capture results and fixtures. Previously reached

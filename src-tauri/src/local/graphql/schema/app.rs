@@ -3,10 +3,12 @@ use serde_json::json;
 use std::sync::Arc;
 
 use super::super::context::{AppCtx, WS_DEVICE_NAME_UPDATED, WsEvent};
-use super::types::{App, BatteryInfo, DesktopDeviceInfo, DeviceInfo, DevicePlatform, Sim};
-#[cfg(target_os = "macos")]
-use super::types::{BatteryHealth, BatteryPlugged, BatteryStatus};
+use super::types::{App, DeviceInfo, DevicePlatform, DeviceStatus, Sim, Temperature};
 use crate::local::enums::{AppChannelType, DeviceType};
+
+#[cfg(test)]
+#[path = "../../../../tests/unit/local/graphql/schema/app.rs"]
+mod tests;
 
 #[derive(Default)]
 pub struct AppQuery;
@@ -30,7 +32,6 @@ impl AppQuery {
             app_dir: c.data_dir.join("files").to_string_lossy().into_owned(),
             device_name: c.device_name.read().unwrap().clone(),
             device_type: DeviceType::Computer,
-            battery: String::new(),
             app_version: String::new(),
             os_version: String::new(),
             channel: AppChannelType::Github,
@@ -52,23 +53,23 @@ impl AppQuery {
         let c = ctx.data_unchecked::<Arc<AppCtx>>();
         let device_name = c.device_name.read().unwrap().clone();
 
-        let sys = System::new_all();
+        let mut sys = System::new();
+        sys.refresh_memory();
+        sys.refresh_cpu_all();
         let cpu_model = sys
             .cpus()
             .first()
-            .map(|cpu| cpu.brand().to_string())
-            .unwrap_or_default();
+            .map(|cpu| cpu.brand().trim().to_string())
+            .filter(|s| !s.is_empty());
         let total_memory = sys.total_memory() as i64;
+        let (total_storage, _) = volume_for(&c.data_dir);
 
-        let hostname = System::host_name().unwrap_or_default();
         let os_name = System::name().unwrap_or_default();
         let os_version = System::long_os_version().unwrap_or_default();
         let kernel_version = System::kernel_version().unwrap_or_default();
-        let uptime_ms = (System::uptime() * 1000) as i64;
 
         let model = hw_model();
         let manufacturer = manufacturer();
-
         let language = system_language();
 
         DeviceInfo {
@@ -82,19 +83,12 @@ impl AppQuery {
             app_version: c.handle.package_info().version.to_string(),
             app_build_number: String::new(),
             language,
-            uptime: uptime_ms,
             cpu_arch: consts::ARCH.to_string(),
+            cpu_model,
             total_memory,
-            total_storage: 0,
+            total_storage: total_storage as i64,
             display: None,
             android: None,
-            desktop: Some(DesktopDeviceInfo {
-                hostname,
-                cpu_model,
-                gpu_model: String::new(),
-                desktop_environment: desktop_environment(),
-                window_manager: String::new(),
-            }),
         }
     }
 
@@ -102,8 +96,12 @@ impl AppQuery {
         vec![]
     }
 
-    async fn battery(&self) -> Option<BatteryInfo> {
-        battery_info()
+    async fn device_status(&self, ctx: &Context<'_>) -> DeviceStatus {
+        let c = ctx.data_unchecked::<Arc<AppCtx>>();
+        let data_dir = c.data_dir.clone();
+        tokio::task::spawn_blocking(move || collect_device_status(&data_dir))
+            .await
+            .unwrap_or_default()
     }
 }
 
@@ -143,12 +141,6 @@ fn current_platform() -> DevicePlatform {
     }
     #[allow(unreachable_code)]
     DevicePlatform::Linux
-}
-
-fn desktop_environment() -> String {
-    std::env::var("XDG_CURRENT_DESKTOP")
-        .or_else(|_| std::env::var("DESKTOP_SESSION"))
-        .unwrap_or_default()
 }
 
 fn run_cmd(cmd: &str, args: &[&str]) -> Option<String> {
@@ -198,13 +190,6 @@ fn manufacturer() -> String {
     String::new()
 }
 
-fn battery_info() -> Option<BatteryInfo> {
-    #[cfg(target_os = "macos")]
-    return macos_battery();
-    #[allow(unreachable_code)]
-    None
-}
-
 fn system_language() -> String {
     #[cfg(target_os = "macos")]
     if let Some(locale) = run_cmd("defaults", &["read", "-g", "AppleLocale"]) {
@@ -222,50 +207,195 @@ fn system_language() -> String {
         .unwrap_or_default()
 }
 
-#[cfg(target_os = "macos")]
-fn macos_battery() -> Option<BatteryInfo> {
-    // pmset -g batt example output:
-    //   Now drawing from 'Battery Power'
-    //    -InternalBattery-0 (id=...)	87%; discharging; 3:28 remaining
-    let out = run_cmd("pmset", &["-g", "batt"])?;
-    // If no InternalBattery line, this is a desktop — no battery.
+// ── DeviceStatus collection ───────────────────────────────────────────────────
+
+fn collect_device_status(data_dir: &std::path::Path) -> DeviceStatus {
+    use sysinfo::System;
+    let mut sys = System::new();
+    sys.refresh_memory();
+    sys.refresh_cpu_all();
+    // sysinfo needs a minimum interval between CPU samples for a meaningful
+    // delta; refreshing twice in a row reports 0%.
+    std::thread::sleep(sysinfo::MINIMUM_CPU_UPDATE_INTERVAL);
+    sys.refresh_cpu_usage();
+
+    let (battery_level, charging) = battery_status();
+    let (_, storage_available) = volume_for(data_dir);
+
+    DeviceStatus {
+        uptime_sec: System::uptime() as i64,
+        battery_level,
+        charging,
+        temperatures: platform_temperatures(),
+        cpu_usage: (sys.global_cpu_usage() as f64).clamp(0.0, 100.0),
+        memory_available: Some(sys.available_memory() as i64),
+        storage_available: storage_available as i64,
+    }
+}
+
+/// (level 0-100, charging) from the platform power API; (None, false) when
+/// the device has no battery (desktops) or the level is unknown.
+fn battery_status() -> (Option<i32>, bool) {
+    #[cfg(target_os = "macos")]
+    {
+        if let Some(out) = run_cmd("pmset", &["-g", "batt"]) {
+            return parse_pmset_battery(&out)
+                .map(|(level, charging)| (Some(level), charging))
+                .unwrap_or((None, false));
+        }
+        return (None, false);
+    }
+    #[cfg(target_os = "windows")]
+    {
+        return win_power::read()
+            .map(|(level, charging)| (Some(level), charging))
+            .unwrap_or((None, false));
+    }
+    #[allow(unreachable_code)]
+    (None, false)
+}
+
+/// Parses `pmset -g batt` output into (level, charging).
+///
+/// ```text
+/// Now drawing from 'AC Power'
+///  -InternalBattery-0 (id=...) 87%; discharging; 3:28 remaining
+/// ```
+///
+/// Charging is true only for an actively charging battery — "charged" and
+/// "finishing charge" (full while plugged in) are false per the contract.
+pub(crate) fn parse_pmset_battery(out: &str) -> Option<(i32, bool)> {
     if !out.contains("InternalBattery") {
         return None;
     }
-
-    let mut level = 100i32;
-    let mut plugged = BatteryPlugged::Ac;
-    let mut status = BatteryStatus::Full;
-
+    let mut level = None;
+    let mut charging = false;
     for line in out.lines() {
-        if line.contains("drawing from") && line.contains("Battery Power") {
-            plugged = BatteryPlugged::Unplugged;
+        if !line.contains("InternalBattery") {
+            continue;
         }
-        if line.contains("InternalBattery") {
-            // Extract percentage: "87%"
-            if let Some(pct_part) = line.split('%').next()
-                && let Some(pct_str) = pct_part.split_whitespace().last()
-            {
-                level = pct_str.parse().unwrap_or(100);
-            }
-            if line.contains("discharging") {
-                status = BatteryStatus::Discharging;
-            } else if line.contains("charging") {
-                status = BatteryStatus::Charging;
-            } else if line.contains("charged") || line.contains("finishing") {
-                status = BatteryStatus::Full;
-            }
+        if let Some(pct_part) = line.split('%').next()
+            && let Some(pct_str) = pct_part.split_whitespace().last()
+            && let Ok(pct) = pct_str.parse::<i32>()
+        {
+            level = Some(pct);
+        }
+        // "discharging" contains the substring "charging" — exclude it.
+        if line.contains("charging") && !line.contains("discharging") {
+            charging = true;
         }
     }
+    level.map(|l| (l, charging))
+}
 
-    Some(BatteryInfo {
-        level,
-        voltage: 0,
-        health: BatteryHealth::Good,
-        plugged,
-        temperature: 0.0,
-        status,
-        technology: "Li-ion".to_string(),
-        capacity: 0,
-    })
+/// Maps SYSTEM_POWER_STATUS fields to (level, charging).
+/// BatteryFlag 128 = no system battery; 8 = charging; 255 = unknown level.
+#[cfg_attr(not(target_os = "windows"), allow(dead_code))]
+pub(crate) fn win_battery_from(battery_flag: u8, battery_life_percent: u8) -> Option<(i32, bool)> {
+    if battery_flag & 128 != 0 || battery_life_percent == 255 || battery_life_percent > 100 {
+        return None;
+    }
+    Some((battery_life_percent as i32, battery_flag & 8 != 0))
+}
+
+/// Raw kernel32 FFI for GetSystemPowerStatus — one call, avoids pulling in a
+/// windows-sys dependency for a single function.
+#[cfg(target_os = "windows")]
+mod win_power {
+    #[repr(C)]
+    #[derive(Default)]
+    struct SystemPowerStatus {
+        ac_line_status: u8,
+        battery_flag: u8,
+        battery_life_percent: u8,
+        reserved1: u8,
+        battery_life_time: u32,
+        battery_full_life_time: u32,
+    }
+
+    #[link(name = "kernel32")]
+    extern "system" {
+        fn GetSystemPowerStatus(status: *mut SystemPowerStatus) -> i32;
+    }
+
+    pub fn read() -> Option<(i32, bool)> {
+        let mut s = SystemPowerStatus::default();
+        // SAFETY: single call passing a valid out-pointer to a Win32 API.
+        if unsafe { GetSystemPowerStatus(&mut s) } == 0 {
+            return None;
+        }
+        super::win_battery_from(s.battery_flag, s.battery_life_percent)
+    }
+}
+
+fn platform_temperatures() -> Vec<Temperature> {
+    #[cfg(target_os = "linux")]
+    return thermal_zones(std::path::Path::new("/sys/class/thermal"));
+    #[allow(unreachable_code)]
+    Vec::new()
+}
+
+/// Reads `<root>/thermal_zone*/` — label from `type`, celsius from `temp`
+/// (millidegrees). Zones with missing/invalid readings are skipped.
+#[cfg_attr(not(target_os = "linux"), allow(dead_code))]
+pub(crate) fn thermal_zones(root: &std::path::Path) -> Vec<Temperature> {
+    let Ok(entries) = std::fs::read_dir(root) else {
+        return Vec::new();
+    };
+    let mut zones: Vec<_> = entries
+        .filter_map(|e| e.ok())
+        .map(|e| e.path())
+        .filter(|p| {
+            p.file_name()
+                .and_then(|n| n.to_str())
+                .is_some_and(|n| n.starts_with("thermal_zone"))
+        })
+        .collect();
+    zones.sort();
+    zones
+        .into_iter()
+        .filter_map(|zone| {
+            let label = std::fs::read_to_string(zone.join("type"))
+                .unwrap_or_default()
+                .trim()
+                .to_string();
+            let milli: f64 = std::fs::read_to_string(zone.join("temp"))
+                .ok()?
+                .trim()
+                .parse()
+                .ok()?;
+            Some(Temperature {
+                label,
+                celsius: milli / 1000.0,
+            })
+        })
+        .collect()
+}
+
+/// The mount point (from the candidate list) that best backs `path`: the
+/// longest ancestor prefix. `/` matches everything, so a more specific mount
+/// always wins.
+pub(crate) fn longest_prefix_mount<'a>(
+    mounts: &[&'a std::path::Path],
+    path: &std::path::Path,
+) -> Option<&'a std::path::Path> {
+    mounts
+        .iter()
+        .copied()
+        .filter(|m| path.starts_with(m))
+        .max_by_key(|m| m.as_os_str().len())
+}
+
+/// (total, available) bytes of the volume backing `path`.
+fn volume_for(path: &std::path::Path) -> (u64, u64) {
+    use sysinfo::Disks;
+    let disks = Disks::new_with_refreshed_list();
+    let mounts: Vec<&std::path::Path> = disks.list().iter().map(|d| d.mount_point()).collect();
+    match longest_prefix_mount(&mounts, path) {
+        Some(mount) => match disks.list().iter().find(|d| d.mount_point() == mount) {
+            Some(d) => (d.total_space(), d.available_space()),
+            None => (0, 0),
+        },
+        None => (0, 0),
+    }
 }
