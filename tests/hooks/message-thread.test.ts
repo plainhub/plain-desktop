@@ -1,9 +1,9 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { ref } from 'vue'
+import { nextTick, ref } from 'vue'
 import { SMS_SEND_RESULT_TIMEOUT_MS } from '@/lib/sms-send-deadline'
 import { isPendingSmsSent } from '@/lib/sms-state-sync'
 
-const harness = vi.hoisted(() => ({ toast: vi.fn(), fetch: vi.fn() }))
+const harness = vi.hoisted(() => ({ toast: vi.fn(), fetch: vi.fn(), handle: undefined as any }))
 
 vi.mock('@/components/toaster', () => ({ default: harness.toast }))
 vi.mock('vue-i18n', () => ({ useI18n: () => ({ t: (key: string) => key }) }))
@@ -11,7 +11,10 @@ vi.mock('@/lib/api/query', async () => {
   const { ref } = await vi.importActual<typeof import('vue')>('vue')
   return {
     smsGQL: 'sms-query',
-    initLazyQuery: () => ({ loading: ref(false), fetch: harness.fetch }),
+    initLazyQuery: (params: any) => {
+      harness.handle = params.handle
+      return { loading: ref(false), fetch: harness.fetch }
+    },
   }
 })
 vi.mock('@/hooks/tags', async () => {
@@ -34,6 +37,40 @@ afterEach(() => {
 })
 
 describe('message thread pending operations', () => {
+  it('retains the loaded history window and reading position on background refresh', async () => {
+    const scroll = { scrollTop: 250, scrollHeight: 2000, clientHeight: 500 } as HTMLElement
+    const thread = useMessageThread(ref('thread-a'), ref(scroll))
+    thread.setPendingSms('hello', '+15551234567', 'request-a')
+    await nextTick()
+    scroll.scrollTop = 250
+    thread.items.value = Array.from({ length: 200 }, (_, i) => ({
+      ...thread.pendingSmsItems.value[0], id: String(i),
+    }))
+    await thread.fetch(true, true)
+    const [variables, options] = harness.fetch.mock.calls[0]
+    expect(variables.limit).toBe(200)
+    harness.handle({ sms: thread.items.value, smsCount: 200 }, '', { variables, meta: options.meta })
+    await nextTick()
+    expect(scroll.scrollTop).toBe(250)
+  })
+
+  it('orders pending SMS and MMS together with provider messages', () => {
+    vi.useFakeTimers()
+    vi.setSystemTime(new Date('2026-09-17T13:58:00Z'))
+    const thread = useMessageThread(ref('thread-a'), ref())
+    thread.setPendingSms('earlier SMS', '+15551234567', 'request-a')
+    vi.setSystemTime(new Date('2026-09-17T13:57:00Z'))
+    thread.setPendingMms('mms-a', 'earlier MMS', '+15551234567', [])
+    thread.items.value = [{
+      ...thread.pendingSmsItems.value[0],
+      id: 'provider-a',
+      date: '2026-09-17T13:59:00Z',
+    }]
+
+    expect(thread.sortedItems.value.map((item) => item.id)).toEqual(['mms-a', 'request-a', 'provider-a'])
+    expect(thread.items.value.map((item) => item.id)).toEqual(['provider-a'])
+  })
+
   it('toasts once when a correlated asynchronous SMS failure is duplicated', () => {
     const thread = useMessageThread(ref('thread-a'), ref())
     const requestId = thread.setPendingSms('hello', '+15551234567', 'request-a')

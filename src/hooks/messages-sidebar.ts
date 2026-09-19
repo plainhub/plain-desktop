@@ -93,13 +93,14 @@ export function useMessagesSidebar() {
   }
 
   function applyRouteQuery(force = false) {
+    let conversationsRequest: Promise<void>
     if (isArchived.value) {
-      smsStore.fetchArchived(force)
+      conversationsRequest = smsStore.fetchArchived(force)
     } else {
       const q = decodeBase64(route.query.q?.toString() ?? '')
-      smsStore.fetchConversations(q, true, force)
+      conversationsRequest = smsStore.fetchConversations(q, true, force)
     }
-    smsStore.fetchCounts(force)
+    return Promise.all([conversationsRequest, smsStore.fetchCounts(force)])
   }
 
   let smsSentTimer: ReturnType<typeof setTimeout> | undefined

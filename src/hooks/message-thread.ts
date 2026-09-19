@@ -26,7 +26,7 @@ import { createKeyedSmsSendDeadlines, SMS_SEND_RESULT_TIMEOUT_MS } from '@/lib/s
 import { takeMmsSendResult, takeSmsSendResult } from '@/lib/sms-result-ledger'
 
 const PAGE_SIZE = 100
-type ThreadRequestMeta = { threadId: string; mode: 'reset' | 'more' }
+type ThreadRequestMeta = { threadId: string; mode: 'reset' | 'more'; preservePosition?: boolean }
 
 export function useMessageThread(
   threadId: Ref<string>,
@@ -67,7 +67,7 @@ export function useMessageThread(
     pending.push(...pendingMmsItems.value.filter((item) =>
       item.threadId === threadId.value && !baseIds.has(item.id),
     ))
-    return pending.length ? [...base, ...pending] : base
+    return pending.length ? sortByDate([...base, ...pending]) : base
   })
 
   function scrollToBottom() {
@@ -95,9 +95,11 @@ export function useMessageThread(
         loadingMore.value = false
         nextTick(() => { if (el) el.scrollTop = el.scrollHeight - prevScrollHeight })
       } else {
+        const el = chatScrollRef.value
+        const followLatest = !meta.preservePosition || !el || el.scrollHeight - el.scrollTop - el.clientHeight < 64
         detailLoading.value = false
         items.value = data.sms
-        noMoreOlder.value = data.sms.length < PAGE_SIZE
+        noMoreOlder.value = data.sms.length < (context?.variables?.limit ?? PAGE_SIZE)
         const previousPendingIds = new Set(pendingSmsItems.value.map((item) => item.id))
         pendingSmsItems.value = reconcilePendingSms(pendingSmsItems.value, data.sms, meta.threadId)
         const remainingPendingIds = new Set(pendingSmsItems.value.map((item) => item.id))
@@ -107,7 +109,7 @@ export function useMessageThread(
             cancelRetry(pendingId)
           }
         }
-        scrollToBottom()
+        if (followLatest) scrollToBottom()
       }
     },
     document: smsGQL,
@@ -119,14 +121,17 @@ export function useMessageThread(
     return { offset, limit: PAGE_SIZE, query: buildQuery(fields) }
   }
 
-  function fetch(force = false) {
+  function fetch(force = false, preservePosition = false) {
     if (!threadId.value) return Promise.resolve()
+    if (preservePosition && loading.value) return Promise.resolve()
     noMoreOlder.value = false
     loadingMore.value = false
-    return rawFetch(variables(0), {
+    const queryVariables = variables(0)
+    if (preservePosition) queryVariables.limit = Math.max(PAGE_SIZE, items.value.length)
+    return rawFetch(queryVariables, {
       force,
       latest: true,
-      meta: { threadId: threadId.value, mode: 'reset' } satisfies ThreadRequestMeta,
+      meta: { threadId: threadId.value, mode: 'reset', preservePosition } satisfies ThreadRequestMeta,
     })
   }
 
@@ -280,7 +285,7 @@ export function useMessageThread(
   const onItemsTagsUpdated = (event: IItemsTagsUpdatedEvent) => { if (event.type === DataType.SMS) void fetch(true) }
   const onItemTagsUpdated = (event: IItemTagsUpdatedEvent) => { if (event.type === DataType.SMS) void fetch(true) }
   const onPermissionsUpdated = () => void fetch(true)
-  const stateRefresh = createSmsNotificationRefresh(() => void fetch(true), () => loadContacts(true))
+  const stateRefresh = createSmsNotificationRefresh(() => fetch(true, true), () => loadContacts(true))
 
   function subscribe(force = false) {
     fetchTags()
