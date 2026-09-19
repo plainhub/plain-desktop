@@ -466,8 +466,7 @@ export interface IApp {
   appDir: string
   deviceName: string
   deviceType: DeviceType
-  appVersion: string
-  osVersion: number
+  features: string[]
   channel: AppChannelType
   permissions: string[]
   audioCurrent: string

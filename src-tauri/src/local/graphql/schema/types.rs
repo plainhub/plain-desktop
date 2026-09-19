@@ -118,6 +118,16 @@ pub struct KeyValuePair {
     pub value: String,
 }
 
+/// Optional capabilities the server declares about itself; the web client
+/// gates UI on these instead of sniffing OS versions. Mirrors plain-app
+/// `DeviceFeature`.
+#[derive(Enum, Copy, Clone, Eq, PartialEq)]
+#[graphql(name = "DeviceFeature", rename_items = "SCREAMING_SNAKE_CASE")]
+pub enum DeviceFeature {
+    MediaTrash,
+    MirrorAudio,
+}
+
 #[derive(SimpleObject)]
 pub struct App {
     pub client_id: String,
@@ -128,8 +138,7 @@ pub struct App {
     pub app_dir: String,
     pub device_name: String,
     pub device_type: DeviceType,
-    pub app_version: String,
-    pub os_version: String,
+    pub features: Vec<DeviceFeature>,
     pub channel: AppChannelType,
     pub permissions: Vec<String>,
     pub audio_current: String,

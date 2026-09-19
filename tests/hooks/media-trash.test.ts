@@ -10,7 +10,6 @@ vi.mock('@/lib/api/mutation', () => ({
 import { useFileTrashState } from '@/hooks/media-trash'
 import { useTempStore } from '@/stores/temp'
 import { DataType } from '@/lib/data'
-import { DeviceType } from '@/lib/status'
 import type { ISource } from '@/components/lightbox/types'
 
 function source(overrides: Partial<ISource> = {}): ISource {
@@ -25,9 +24,9 @@ function source(overrides: Partial<ISource> = {}): ISource {
   }
 }
 
-function setDevice(deviceType: DeviceType, osVersion: number) {
+function setFeatures(features: string[]) {
   const tempStore = useTempStore()
-  tempStore.app = { ...tempStore.app, deviceType, osVersion }
+  tempStore.app = { ...tempStore.app, features }
 }
 
 beforeEach(() => {
@@ -35,43 +34,34 @@ beforeEach(() => {
 })
 
 describe('useFileTrashState canTrash', () => {
-  it('allows trashing on a NAS even though osVersion is not an Android SDK level', () => {
-    setDevice(DeviceType.NAS, 0)
+  it('allows trashing when the server declares MEDIA_TRASH', () => {
+    setFeatures(['MEDIA_TRASH'])
     const { canTrash } = useFileTrashState(() => source())
     expect(canTrash.value).toBe(true)
   })
 
-  it.each([DeviceType.PHONE, DeviceType.TABLET])(
-    'still requires Android R+ on %s (no NAS bypass leaked to phones)',
-    (deviceType) => {
-      setDevice(deviceType, 29)
-      expect(useFileTrashState(() => source()).canTrash.value).toBe(false)
-      setDevice(deviceType, 30)
-      expect(useFileTrashState(() => source()).canTrash.value).toBe(true)
-    },
-  )
+  it('hides trash when MEDIA_TRASH is not declared', () => {
+    setFeatures([])
+    expect(useFileTrashState(() => source()).canTrash.value).toBe(false)
+  })
 
   it('only applies to media types', () => {
-    setDevice(DeviceType.NAS, 0)
+    setFeatures(['MEDIA_TRASH'])
     expect(useFileTrashState(() => source({ type: DataType.DOC })).canTrash.value).toBe(false)
     expect(useFileTrashState(() => source({ type: DataType.VIDEO })).canTrash.value).toBe(true)
     expect(useFileTrashState(() => source({ type: DataType.AUDIO })).canTrash.value).toBe(true)
   })
 
-  it('reacts to device changes', () => {
-    setDevice(DeviceType.PHONE, 29)
+  it('reacts to feature changes', () => {
+    setFeatures([])
     const state = useFileTrashState(() => source())
     expect(state.canTrash.value).toBe(false)
-    setDevice(DeviceType.NAS, 29)
+    setFeatures(['MEDIA_TRASH'])
     expect(state.canTrash.value).toBe(true)
   })
 })
 
 describe('useFileTrashState isTrashed', () => {
-  beforeEach(() => {
-    setDevice(DeviceType.NAS, 0)
-  })
-
   it('detects phone MediaStore trash naming (.trashed- prefix)', () => {
     const { isTrashed } = useFileTrashState(() => source({ path: '/storage/emulated/0/Pictures/.trashed-1234-pic.png' }))
     expect(isTrashed.value).toBe(true)

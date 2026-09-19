@@ -31,8 +31,7 @@ export const appFragment = `
     appDir
     deviceName
     deviceType
-    appVersion
-    osVersion
+    features
     channel
     permissions
     audioCurrent

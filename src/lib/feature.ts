@@ -1,18 +1,11 @@
 import { FEATURE } from '@/lib/data'
-import { isQPlus, isRPlus } from '@/lib/sdk-version'
-import { DeviceType } from '@/lib/status'
 
-export const hasFeature = (feature: FEATURE, osVersion: number) => {
-  if (feature === FEATURE.MEDIA_TRASH) {
-    return isRPlus(osVersion)
-  } else if (feature === FEATURE.MIRROR_AUDIO) {
-    return isQPlus(osVersion)
-  }
+// `features` is undefined until the app query resolves (the temp store boots
+// with a partial app object), so treat that as "nothing declared".
+export const hasFeature = (feature: FEATURE, features: string[] | undefined) =>
+  !!features?.includes(feature)
 
-  return false
-}
-
-/** Media trash needs Android R+ on a phone (scoped storage). A NAS backend
- *  implements trash at the filesystem level, so it is always available. */
-export const hasMediaTrash = (app: { deviceType: DeviceType; osVersion: number }) =>
-  app.deviceType === DeviceType.NAS || isRPlus(app.osVersion)
+/** Trash availability is the server's own declaration (Android R+ phone,
+ *  NAS filesystem trash) — no client-side OS sniffing. */
+export const hasMediaTrash = (app: { features?: string[] } | undefined) =>
+  hasFeature(FEATURE.MEDIA_TRASH, app?.features)

@@ -32,8 +32,9 @@ impl AppQuery {
             app_dir: c.data_dir.join("files").to_string_lossy().into_owned(),
             device_name: c.device_name.read().unwrap().clone(),
             device_type: DeviceType::Computer,
-            app_version: String::new(),
-            os_version: String::new(),
+            // The desktop backend implements neither media trash nor screen
+            // mirror audio; clients hide that UI from an empty list.
+            features: vec![],
             channel: AppChannelType::Github,
             permissions: vec![],
             audio_current: String::new(),

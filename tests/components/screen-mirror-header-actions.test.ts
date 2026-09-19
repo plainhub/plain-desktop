@@ -6,7 +6,7 @@ import VDropdown from '@/components/base/VDropdown.vue'
 import VIconButton from '@/components/base/VIconButton.vue'
 import { AppChannelType } from '@/lib/status'
 
-function mountActions(extra: { audioSupported?: boolean, osVersion?: number } = {}) {
+function mountActions(extra: { audioSupported?: boolean, features?: string[] } = {}) {
   const root = document.createElement('div')
   document.body.append(root)
   const emitted: string[] = []
@@ -27,7 +27,7 @@ function mountActions(extra: { audioSupported?: boolean, osVersion?: number } = 
         isFullscreen: false,
         muted: true,
         audioSupported: extra.audioSupported ?? true,
-        osVersion: extra.osVersion ?? 30,
+        features: extra.features ?? ['MIRROR_AUDIO'],
         onToggleMute: () => emitted.push('toggleMute'),
       })
     },
@@ -53,7 +53,7 @@ afterEach(() => {
 
 describe('ScreenMirrorHeaderActions sound button', () => {
   it('keeps a disabled sound button that opens the Android 10 hint when the phone is below Android 10', async () => {
-    const mounted = mountActions({ osVersion: 9 })
+    const mounted = mountActions({ features: [] })
     mountedApps.push(mounted)
 
     const sound = mounted.root.querySelector('.action-group button.btn-icon[disabled]')

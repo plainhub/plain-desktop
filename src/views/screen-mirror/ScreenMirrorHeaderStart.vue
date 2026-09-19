@@ -4,7 +4,7 @@
     <template v-if="mirroring">
       <!-- Local WebKit < 26 has no AudioDecoder, so the phone-side audio
            permission is irrelevant — hide the phone audio indicators too. -->
-      <template v-if="audioSupported && !hasFeature(FEATURE.MIRROR_AUDIO, osVersion)">
+      <template v-if="audioSupported && !hasFeature(FEATURE.MIRROR_AUDIO, features)">
       <div v-if="!permissions.includes('RECORD_AUDIO')" class="warning-indicator">
         <v-dropdown v-model="warnOpen2">
           <template #trigger>
@@ -37,7 +37,7 @@ defineProps<{
   mirroring: boolean
   audioRequesting: boolean
   audioSupported: boolean
-  osVersion: number
+  features: string[]
   permissions: string[]
 }>()
 

@@ -105,10 +105,10 @@ const props = defineProps<{
   isFullscreen: boolean
   muted: boolean
   audioSupported: boolean
-  osVersion: number
+  features: string[]
 }>()
 
-const audioAvailable = computed(() => props.audioSupported && hasFeature(FEATURE.MIRROR_AUDIO, props.osVersion))
+const audioAvailable = computed(() => props.audioSupported && hasFeature(FEATURE.MIRROR_AUDIO, props.features))
 const audioMenuVisible = ref(false)
 
 const emit = defineEmits<{
