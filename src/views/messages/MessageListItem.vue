@@ -14,7 +14,7 @@
     </div>
     <div class="title">
       {{ getDisplayName(item.address) }}
-      <span v-if="item.type === 5" v-tooltip="$t('message_type.5')" class="failed-icon">&#x26A0;</span>
+      <span v-if="item.type === 'FAILED'" v-tooltip="$t('message_type.FAILED')" class="failed-icon">&#x26A0;</span>
     </div>
     <div class="subtitle" v-html="addLinksToURLs(item.body)"></div>
     <MessageActionButtons
@@ -28,7 +28,7 @@
       @archive="archive"
     />
     <div class="info">
-      <span :class="{ 'text-red': item.type === 5 }">{{ $t(`message_type.${item.type}`) }}</span>
+      <span :class="{ 'text-red': item.type === 'FAILED' }">{{ $t(`message_type.${item.type}`) }}</span>
       <item-tags :tags="item.tags" :type="dataType" :only-links="true" />
     </div>
     <div class="time">
@@ -50,13 +50,13 @@
   >
     <template #title>
       {{ getDisplayName(item.address) }}
-      <span v-if="item.type === 5" v-tooltip="$t('message_type.5')" class="failed-icon">&#x26A0;</span>
+      <span v-if="item.type === 'FAILED'" v-tooltip="$t('message_type.FAILED')" class="failed-icon">&#x26A0;</span>
     </template>
     
     <template #subtitle>
       <div class="subtitle" v-html="addLinksToURLs(item.body)"></div>
       <div class="info">
-        <span :class="{ 'text-red': item.type === 5 }">{{ $t(`message_type.${item.type}`) }}</span>
+        <span :class="{ 'text-red': item.type === 'FAILED' }">{{ $t(`message_type.${item.type}`) }}</span>
         <item-tags :tags="item.tags" :type="dataType" :only-links="true" />
       </div>
       <div class="time">

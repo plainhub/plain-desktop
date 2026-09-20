@@ -35,13 +35,15 @@ export interface IBucket extends IData {
   topItems: string[]
 }
 
+export type SmsType = 'INBOX' | 'SENT' | 'DRAFT' | 'OUTBOX' | 'FAILED' | 'QUEUED' | 'UNKNOWN'
+
 export interface IMessage extends IData {
   id: string
   body: string
   address: string
   serviceCenter: string
   date: string
-  type: number
+  type: SmsType
   threadId: string
   subscriptionId: number
   isMms?: boolean
@@ -83,14 +85,58 @@ export interface IMmsSendResultEvent {
   resultCode?: number
 }
 
-export interface IContactContentItem {
-  label: string
+export type PhoneType =
+  | 'CUSTOM' | 'HOME' | 'MOBILE' | 'WORK' | 'FAX_WORK' | 'FAX_HOME' | 'PAGER'
+  | 'OTHER' | 'CALLBACK' | 'CAR' | 'COMPANY_MAIN' | 'ISDN' | 'MAIN' | 'OTHER_FAX'
+  | 'RADIO' | 'TELEX' | 'TTY_TDD' | 'WORK_MOBILE' | 'WORK_PAGER' | 'ASSISTANT'
+
+export type EmailType = 'CUSTOM' | 'HOME' | 'WORK' | 'OTHER' | 'MOBILE'
+
+export type PostalType = 'CUSTOM' | 'HOME' | 'WORK' | 'OTHER'
+
+export type ContactEventType = 'CUSTOM' | 'ANNIVERSARY' | 'BIRTHDAY' | 'OTHER'
+
+export type WebsiteType = 'CUSTOM' | 'HOMEPAGE' | 'BLOG' | 'FTP' | 'HOME' | 'WORK' | 'OTHER'
+
+export type ImProtocol =
+  | 'CUSTOM' | 'AIM' | 'MSN' | 'YAHOO' | 'SKYPE' | 'QQ' | 'GOOGLE_TALK'
+  | 'ICQ' | 'JABBER' | 'NETMEETING'
+
+export interface IContactPhoneNumber {
   value: string
-  type: number
+  type: PhoneType
+  label: string
+  normalizedNumber: string
 }
 
-export interface IContactPhoneNumber extends IContactContentItem {
-  normalizedNumber: string
+export interface IContactEmail {
+  value: string
+  type: EmailType
+  label: string
+}
+
+export interface IContactAddress {
+  value: string
+  type: PostalType
+  label: string
+}
+
+export interface IContactEvent {
+  value: string
+  type: ContactEventType
+  label: string
+}
+
+export interface IContactWebsite {
+  value: string
+  type: WebsiteType
+  label: string
+}
+
+export interface IContactIm {
+  value: string
+  protocol: ImProtocol
+  customProtocol: string
 }
 
 export interface IContactSource {
@@ -100,7 +146,7 @@ export interface IContactSource {
 
 export interface IPackageStatus {
   id: string
-  exist: boolean
+  exists: boolean
   updatedAt: string
 }
 
@@ -117,11 +163,11 @@ export interface IContact extends IData {
   thumbnailId: string
   starred: boolean
   phoneNumbers: IContactPhoneNumber[]
-  addresses: IContactContentItem[]
-  emails: IContactContentItem[]
-  websites: IContactContentItem[]
-  events: IContactContentItem[]
-  ims: IContactContentItem[]
+  addresses: IContactAddress[]
+  emails: IContactEmail[]
+  websites: IContactWebsite[]
+  events: IContactEvent[]
+  ims: IContactIm[]
   tags: ITag[]
 }
 
@@ -132,15 +178,19 @@ export interface ICallGeo {
   description: string
 }
 
+export type CallType =
+  | 'INCOMING' | 'OUTGOING' | 'MISSED' | 'VOICEMAIL' | 'REJECTED'
+  | 'BLOCKED' | 'ANSWERED_EXTERNALLY' | 'UNKNOWN'
+
 export interface ICall extends IData {
   id: string
   name: string
   number: string
-  duration: number
+  durationSec: number
   accountId: string
   startedAt: string
   photoId: string
-  type: number
+  type: CallType
   geo?: ICallGeo
   tags: ITag[]
 }
@@ -189,7 +239,7 @@ export interface IMedia extends IData {
 export interface IAudio extends IMedia {
   artist: string
   albumFileId: string
-  duration: number
+  durationMs: number
 }
 
 export interface IImage extends IMedia {
@@ -197,7 +247,7 @@ export interface IImage extends IMedia {
 }
 
 export interface IVideo extends IMedia {
-  duration: number
+  durationMs: number
   takenAt?: string
 }
 
@@ -218,13 +268,11 @@ export interface IDocExtGroup {
   count: number
 }
 
-export interface IPlaylistAudio {
+export interface IAudioItem {
   title: string
   artist: string
   path: string
-  fileId: string
-  duration: number
-  size: number
+  durationMs: number
 }
 
 export interface IFilter {
@@ -261,7 +309,8 @@ export interface IChatItem extends IData {
   id: string
   fromId: string
   toId: string
-  channelId: string
+  /** Null for direct messages (channel posts carry the channel id). */
+  channelId: string | null
   createdAt: string
   content: string
   _content: any
@@ -310,7 +359,7 @@ export interface IImageItem extends IImage {
 export interface IVideoItem extends IVideo {
   fileId: string
 }
-export interface IAudioItem extends IAudio {
+export interface IAudioWithFileId extends IAudio {
   fileId: string
 }
 

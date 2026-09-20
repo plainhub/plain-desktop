@@ -13,7 +13,7 @@ import {
   audioFragment,
   fileFragment,
   appFragment,
-  playlistAudioFragment,
+  audioItemFragment,
   tagFragment,
   noteFragment,
   feedFragment,
@@ -260,7 +260,7 @@ export const fileInfoGQL = `
           }
         }
         ... on VideoFileInfo {
-          duration
+          durationMs
           width
           height
           location {
@@ -269,7 +269,7 @@ export const fileInfoGQL = `
           }
         }
         ... on AudioFileInfo {
-          duration
+          durationMs
           location {
             latitude
             longitude
@@ -513,7 +513,7 @@ export const appGQL = `
 export const audioQueueGQL = `
   query audioQueue($offset: Int!, $limit: Int!) {
     items: audioQueueItems(offset: $offset, limit: $limit) {
-      ...PlaylistAudioFragment
+      ...AudioItemFragment
     }
     total: audioQueueItemCount
     playback: audioPlayback {
@@ -521,7 +521,7 @@ export const audioQueueGQL = `
       currentPath
     }
   }
-  ${playlistAudioFragment}
+  ${audioItemFragment}
 `
 
 export const tagsGQL = `
@@ -767,7 +767,7 @@ export const packageStatusesGQL = `
   query packageStatuses($ids: [ID!]!) {
     packageStatuses(ids: $ids) {
       id
-      exist
+      exists
       updatedAt
     }
   }
@@ -923,7 +923,7 @@ export const pomodoroTodayAndSettingsGQL = `
       timeLeft
       totalTime
       isRunning
-      isPause
+      isPaused
       state
     }
     pomodoroSettings {

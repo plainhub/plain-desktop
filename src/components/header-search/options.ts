@@ -71,19 +71,23 @@ export function valueOptionsForGroup(opts: {
   }
 
   if (opts.group === 'messages') {
+    // Values keep Android's numeric SMS type codes (server query tokens);
+    // labels use the SmsType enum locale keys.
     base.type = [
-      { value: '1', label: opts.t('message_type.1') },
-      { value: '2', label: opts.t('message_type.2') },
-      { value: '3', label: opts.t('message_type.3') },
+      { value: '1', label: opts.t('message_type.INBOX') },
+      { value: '2', label: opts.t('message_type.SENT') },
+      { value: '3', label: opts.t('message_type.DRAFT') },
     ]
     base.tag = (opts.messageTags ?? []).map((t) => t.name)
   }
 
   if (opts.group === 'calls') {
+    // Values keep Android's numeric call type codes (server query tokens);
+    // labels use the CallType enum locale keys.
     base.type = [
-      { value: '1', label: opts.t('call_type.1') },
-      { value: '2', label: opts.t('call_type.2') },
-      { value: '3', label: opts.t('call_type.3') },
+      { value: '1', label: opts.t('call_type.INCOMING') },
+      { value: '2', label: opts.t('call_type.OUTGOING') },
+      { value: '3', label: opts.t('call_type.MISSED') },
     ]
     base.duration = [
       { value: '>=60', label: '>= 1m' },

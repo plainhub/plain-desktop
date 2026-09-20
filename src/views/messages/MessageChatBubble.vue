@@ -64,10 +64,10 @@ const emit = defineEmits<{
   trash: [item: IMessage]
 }>()
 
-const isSent = computed(() => props.item.type === 2 || props.item.type === 4)
+const isSent = computed(() => props.item.type === 'SENT' || props.item.type === 'OUTBOX')
 const isPending = computed(() => props.item.id.startsWith('pending_sms') || props.item.id.startsWith('pending_mms'))
 const pendingSmsSent = computed(() => isPendingSmsSent(props.item))
-const isDraftOrPending = computed(() => isPending.value || props.item.type === 3)
+const isDraftOrPending = computed(() => isPending.value || props.item.type === 'DRAFT')
 const pendingFailed = computed(() => {
   if (!props.item.id.startsWith('pending_mms')) return false
   return Date.now() - new Date(props.item.date).getTime() > 5 * 60 * 1000
@@ -75,7 +75,7 @@ const pendingFailed = computed(() => {
 const pendingStatusKey = computed(() => {
   if (pendingFailed.value) return 'mms_cancelled'
   if (pendingSmsSent.value) return 'sent'
-  return isPending.value ? 'sending' : 'message_type.3'
+  return isPending.value ? 'sending' : 'message_type.DRAFT'
 })
 
 function resolveUrl(path: string): string {

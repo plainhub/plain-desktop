@@ -15,7 +15,7 @@ export const formats = [
 ] as const
 
 function isSent(item: IMessage): boolean {
-  return item.type === 2 || item.type === 4
+  return item.type === 'SENT' || item.type === 'OUTBOX'
 }
 
 function escapeCSV(value: string): string {

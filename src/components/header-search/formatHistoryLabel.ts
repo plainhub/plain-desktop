@@ -1,6 +1,20 @@
 import { parseQuery } from '@/lib/search'
 import type { IBucket, IFeed, ITag } from '@/lib/interfaces'
 
+// The stored search tokens keep Android's numeric type codes; map them to the
+// enum-name locale keys (fall back to the raw value for anything unmapped).
+const MESSAGE_TYPE_KEYS: Record<string, string> = {
+  1: 'INBOX',
+  2: 'SENT',
+  3: 'DRAFT',
+}
+
+const CALL_TYPE_KEYS: Record<string, string> = {
+  1: 'INCOMING',
+  2: 'OUTGOING',
+  3: 'MISSED',
+}
+
 export function formatHistoryLabel(opts: {
   decoded: string
   group: string
@@ -42,14 +56,14 @@ export function formatHistoryLabel(opts: {
     }
 
     if (opts.group === 'messages' && f.name === 'type') {
-      const k = `message_type.${f.value}`
+      const k = `message_type.${MESSAGE_TYPE_KEYS[f.value] ?? f.value}`
       const translated = opts.t(k)
       parts.push(`${opts.t('types')}: ${translated === k ? String(f.value ?? '') : translated}`)
       continue
     }
 
     if (opts.group === 'calls' && f.name === 'type') {
-      const k = `call_type.${f.value}`
+      const k = `call_type.${CALL_TYPE_KEYS[f.value] ?? f.value}`
       const translated = opts.t(k)
       parts.push(`${opts.t('types')}: ${translated === k ? String(f.value ?? '') : translated}`)
       continue

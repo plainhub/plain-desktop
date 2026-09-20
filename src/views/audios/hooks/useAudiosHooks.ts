@@ -1,4 +1,4 @@
-import { initMutation, addPlaylistAudiosGQL, deletePlaylistAudioGQL } from '@/lib/api/mutation'
+import { initMutation, addAudiosToQueueGQL, removeAudioFromQueueGQL } from '@/lib/api/mutation'
 import emitter from '@/plugins/eventbus'
 import { ref, type Ref, computed } from 'vue'
 import toast from '@/components/toaster'
@@ -10,7 +10,7 @@ import { usePlayAudio } from '@/hooks/audio-player'
 
 export const useAddToPlaylist = (items: Ref<IAudio[]>, clearSelection: () => void) => {
   const { mutate, loading, onDone } = initMutation({
-    document: addPlaylistAudiosGQL,
+    document: addAudiosToQueueGQL,
   })
 
   const {
@@ -18,7 +18,7 @@ export const useAddToPlaylist = (items: Ref<IAudio[]>, clearSelection: () => voi
     loading: removeLoading,
     onDone: removeDone,
   } = initMutation({
-    document: deletePlaylistAudioGQL,
+    document: removeAudioFromQueueGQL,
   })
 
   const { t } = useI18n()

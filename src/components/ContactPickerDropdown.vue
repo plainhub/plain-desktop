@@ -24,7 +24,7 @@
         >
           <div class="contact-picker-info">
             <span class="contact-picker-name">{{ getContactFullName(contact) }}</span>
-            <span v-if="contact.phoneNumbers.length > 1 && phone.type > 0" class="contact-picker-type">
+            <span v-if="contact.phoneNumbers.length > 1 && phone.type !== 'CUSTOM'" class="contact-picker-type">
               {{ $t(`contact.phone_number_type.${phone.type}`) }}
             </span>
           </div>

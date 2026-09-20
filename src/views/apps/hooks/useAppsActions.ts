@@ -67,15 +67,15 @@ export function useAppsActions(opts: UseAppsActionsOptions) {
         for (const item of data.packageStatuses) {
           const installingPackage = installingPackages.value.find((it) => it.id === item.id)
           if (installingPackage) {
-            const isNewInstalled = installingPackage.isNew && item.exist
-            const isUpgraded = !installingPackage.isNew && item.exist && installingPackage.updatedAt < item.updatedAt
+            const isNewInstalled = installingPackage.isNew && item.exists
+            const isUpgraded = !installingPackage.isNew && item.exists && installingPackage.updatedAt < item.updatedAt
             if (isNewInstalled || isUpgraded) {
               installingPackages.value = installingPackages.value.filter((it) => it.id !== item.id)
               tapPhone('')
               toast(isNewInstalled ? t('app_installation_completed') : t('app_upgrade_completed'))
               fetch()
             }
-          } else if (!item.exist) {
+          } else if (!item.exists) {
             deleteById(items.value as any, item.id)
             tapPhone('')
           }

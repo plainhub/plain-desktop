@@ -11,7 +11,7 @@ function contact(id: string, name: string, number: string): IContact {
   return {
     id, firstName: name, middleName: '', lastName: '', prefix: '', suffix: '',
     updatedAt: '', notes: '', source: '', thumbnailId: '', starred: false,
-    phoneNumbers: [{ label: '', value: number, normalizedNumber: number, type: 0 }],
+    phoneNumbers: [{ label: '', value: number, normalizedNumber: number, type: 'HOME' }],
     addresses: [], emails: [], websites: [], events: [], ims: [], tags: [],
   }
 }

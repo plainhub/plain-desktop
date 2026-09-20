@@ -199,7 +199,7 @@ export function usePomodoro() {
         timeLeft.value = pomodoroToday.timeLeft || 0
         totalTime.value = pomodoroToday.totalTime
         isRunning.value = pomodoroToday.isRunning || false
-        isPaused.value = pomodoroToday.isPause || false
+        isPaused.value = pomodoroToday.isPaused || false
         if (pomodoroToday.state) currentPhase.value = STATE_MAP[pomodoroToday.state] || 'work'
         if (isRunning.value && !isPaused.value && timeLeft.value > 0) startTimerInterval()
       }

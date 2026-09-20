@@ -19,7 +19,7 @@
     <div class="subtitle">
       <span>{{ formatFileSize(item.size) }}</span>
       <span class="duration">
-        {{ formatSeconds(item.duration) }}
+        {{ formatSeconds(item.durationMs) }}
       </span>
       <a @click.stop.prevent="viewBucket(mainStore, item.bucketId)">{{ bucketsMap[item.bucketId]?.name }}</a>
       <item-tags :tags="item.tags" :type="dataType" :only-links="true" />
@@ -76,7 +76,7 @@
     <template #subtitle>
       <div class="subtitle">
         <span>{{ formatFileSize(item.size) }}</span>
-        <span class="duration">{{ formatSeconds(item.duration) }}</span>
+        <span class="duration">{{ formatSeconds(item.durationMs) }}</span>
       </div>
       <div v-if="bucketsMap[item.bucketId] || item.tags.length > 0" class="subtitle">
         <a @click.stop.prevent="viewBucket(mainStore, item.bucketId)">{{ bucketsMap[item.bucketId]?.name }}</a>
@@ -115,13 +115,13 @@
 </template>
 
 <script setup lang="ts">
-import type { IAudioItem, IBucket, IFilter, ITag } from '@/lib/interfaces'
+import type { IAudioWithFileId, IBucket, IFilter, ITag } from '@/lib/interfaces'
 import { DataType } from '@/lib/data'
 import { formatFileSize, formatSeconds, formatDateTime, formatTimeAgo } from '@/lib/format'
 import { getFileUrl, getFileExtension } from '@/lib/api/file'
 
 interface Props {
-  item: IAudioItem
+  item: IAudioWithFileId
   index: number
   selectedIds: string[]
   shiftEffectingIds: string[]
@@ -138,21 +138,21 @@ interface Props {
   mainStore: any
   app: any
   // Functions passed from parent
-  handleItemClick: (event: MouseEvent, item: IAudioItem, index: number, callback: () => void) => void
+  handleItemClick: (event: MouseEvent, item: IAudioWithFileId, index: number, callback: () => void) => void
   handleMouseOver: (event: MouseEvent, index: number) => void
-  toggleSelect: (event: MouseEvent, item: IAudioItem, index: number) => void
+  toggleSelect: (event: MouseEvent, item: IAudioWithFileId, index: number) => void
   onImageError: (id: string) => void
   viewBucket: (store: any, bucketId: string) => void
-  deleteItem: (dataType: DataType, item: IAudioItem) => void
+  deleteItem: (dataType: DataType, item: IAudioWithFileId) => void
   restore: (dataType: DataType, query: string) => void
   downloadFile: (path: string, fileName: string) => void
   trash: (dataType: DataType, query: string) => void
-  handleRemoveFromPlaylist: (event: MouseEvent, item: IAudioItem) => void
-  addToPlaylist: (event: MouseEvent, item: IAudioItem) => void
-  play: (item: IAudioItem) => void
+  handleRemoveFromPlaylist: (event: MouseEvent, item: IAudioWithFileId) => void
+  addToPlaylist: (event: MouseEvent, item: IAudioWithFileId) => void
+  play: (item: IAudioWithFileId) => void
   pause: () => void
-  isAudioPlaying: (item: IAudioItem) => boolean
-  isInPlaylist: (item: IAudioItem) => boolean
+  isAudioPlaying: (item: IAudioWithFileId) => boolean
+  isInPlaylist: (item: IAudioWithFileId) => boolean
   restoreLoading: (query: string) => boolean
   trashLoading: (query: string) => boolean
 }

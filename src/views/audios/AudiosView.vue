@@ -62,7 +62,7 @@ v-for="(item, i) in items" :key="item.id" :item="item" :index="i" :is-phone="isP
 import { computed, ref, watch } from 'vue'
 import toast from '@/components/toaster'
 import { audiosGQL, initLazyQuery } from '@/lib/api/query'
-import type { IAudio, IAudioItem } from '@/lib/interfaces'
+import type { IAudio, IAudioWithFileId } from '@/lib/interfaces'
 import { DataType, DeviceFeature } from '@/lib/data'
 import { getSortItems, isAudio } from '@/lib/file'
 import { hasFeature, hasMediaTrash } from '@/lib/feature'
@@ -85,7 +85,7 @@ const mainStoreLocal = useMainStore()
 const tempStoreLocal = useTempStore()
 const { audioSortBy, audiosScrollPaging } = storeToRefs(mainStoreLocal)
 const { audioPlaying } = storeToRefs(tempStoreLocal)
-const items = ref<IAudioItem[]>([])
+const items = ref<IAudioWithFileId[]>([])
 const sortItems = getSortItems()
 const imageErrorIds = ref<string[]>([])
 const animatingIds = ref<string[]>([])
@@ -139,7 +139,7 @@ const {
   uploadDir, uploadDirEditable, editUploadDir,
 } = mp
 
-const isAudioPlaying = (item: IAudioItem) => audioPlaying.value && audioPlayback.value.currentPath === item.path
+const isAudioPlaying = (item: IAudioWithFileId) => audioPlaying.value && audioPlayback.value.currentPath === item.path
 const effectiveQ = computed(() => {
   const dirs = mainStoreLocal.excludedDirs
   if (!dirs.length) return q.value
@@ -151,11 +151,11 @@ const { moveLoading, onMoveClick } = useMoveToFolder('move-audios-picker')
 const { addItemsToPlaylist, addToPlaylist, removeFromPlaylist, isInPlaylist } = useAddToPlaylist(items, clearSelection)
 const onImageError = (id: string) => { imageErrorIds.value.push(id) }
 
-function handleRemoveFromPlaylist(e: MouseEvent, item: IAudioItem) {
+function handleRemoveFromPlaylist(e: MouseEvent, item: IAudioWithFileId) {
   animatingIds.value.push(item.id)
   setTimeout(() => { removeFromPlaylist(e, item); setTimeout(() => { animatingIds.value = animatingIds.value.filter((id) => id !== item.id) }, 200) }, 150)
 }
-function handleAddToPlaylist(e: MouseEvent, item: IAudioItem) {
+function handleAddToPlaylist(e: MouseEvent, item: IAudioWithFileId) {
   animatingIds.value.push(item.id)
   setTimeout(() => { addToPlaylist(e, item); setTimeout(() => { animatingIds.value = animatingIds.value.filter((id) => id !== item.id) }, 200) }, 150)
 }

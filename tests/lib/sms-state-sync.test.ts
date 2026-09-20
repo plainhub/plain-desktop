@@ -15,7 +15,7 @@ import { mergeConversationPage, resolveConversationSendAddress } from '@/lib/sms
 function message(overrides: Partial<IMessage> = {}): IMessage {
   return {
     id: 'server-1', body: 'hello', address: '+15551234567', serviceCenter: '',
-    date: '2026-08-28T10:00:01.000Z', type: 2, threadId: 'thread-a',
+    date: '2026-08-28T10:00:01.000Z', type: 'SENT', threadId: 'thread-a',
     subscriptionId: 1, tags: [], ...overrides,
   }
 }

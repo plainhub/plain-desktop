@@ -15,19 +15,19 @@
           </template>
         </SidebarListItem>
         <SidebarListItem
-          v-for="t in ['1', '2', '3']"
-          :key="t"
-          :title="$t(`call_type.${t}`)"
-          :active="t === type"
-          @click="openByType(t)"
+          v-for="t in typeTabs"
+          :key="t.value"
+          :title="$t(`call_type.${t.key}`)"
+          :active="t.value === type"
+          @click="openByType(t.value)"
         >
           <template #start>
-            <i-material-symbols:call-received v-if="t === '1'" />
-            <i-material-symbols:call-made v-else-if="t === '2'" />
+            <i-material-symbols:call-received v-if="t.value === '1'" />
+            <i-material-symbols:call-made v-else-if="t.value === '2'" />
             <i-material-symbols:call-missed v-else />
           </template>
-          <template v-if="getTypeCount(t) >= 0" #end>
-            <span class="count">{{ getTypeCount(t).toLocaleString() }}</span>
+          <template v-if="getTypeCount(t.value) >= 0" #end>
+            <span class="count">{{ getTypeCount(t.value).toLocaleString() }}</span>
           </template>
         </SidebarListItem>
       </ul>
@@ -59,6 +59,14 @@ const filter = reactive<IFilter>({
 const type = ref('')
 const selectedTagId = ref('')
 const typesCount = ref<Map<string, number>>(new Map())
+
+// The query token keeps Android's numeric call type codes; `key` is the locale
+// enum name used for display.
+const typeTabs = [
+  { value: '1', key: 'INCOMING' },
+  { value: '2', key: 'OUTGOING' },
+  { value: '3', key: 'MISSED' },
+]
 
 const { fetch } = initLazyQuery({
   handle: (data: { total: number; incoming: number; outgoing: number; missed: number }) => {

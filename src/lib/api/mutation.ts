@@ -7,7 +7,7 @@ import {
   feedFragment,
   fileFragment,
   noteFragment,
-  playlistAudioFragment,
+  audioItemFragment,
   tagFragment,
   bookmarkFragment,
   bookmarkGroupFragment,
@@ -234,10 +234,10 @@ export const moveFileGQL = `
 export const playAudioGQL = `
   mutation playAudio($path: String!) {
     playAudio(path: $path) {
-      ...PlaylistAudioFragment
+      ...AudioItemFragment
     }
   }
-  ${playlistAudioFragment}
+  ${audioItemFragment}
 `
 
 export const updateAudioPlayModeGQL = `
@@ -246,27 +246,27 @@ export const updateAudioPlayModeGQL = `
   }
 `
 
-export const deletePlaylistAudioGQL = `
-  mutation deletePlaylistAudio($path: String!) {
-    deletePlaylistAudio(path: $path)
+export const removeAudioFromQueueGQL = `
+  mutation removeAudioFromQueue($path: String!) {
+    removeAudioFromQueue(path: $path)
   }
 `
 
-export const addPlaylistAudiosGQL = `
-  mutation addPlaylistAudios($query: String!) {
-    addPlaylistAudios(query: $query)
+export const addAudiosToQueueGQL = `
+  mutation addAudiosToQueue($query: String!) {
+    addAudiosToQueue(query: $query)
   }
 `
 
-export const clearAudioPlaylistGQL = `
-  mutation clearAudioPlaylist {
-    clearAudioPlaylist
+export const clearAudioQueueGQL = `
+  mutation clearAudioQueue {
+    clearAudioQueue
   }
 `
 
-export const reorderPlaylistAudiosGQL = `
-  mutation reorderPlaylistAudios($paths: [String!]!) {
-    reorderPlaylistAudios(paths: $paths)
+export const reorderAudioQueueGQL = `
+  mutation reorderAudioQueue($paths: [String!]!) {
+    reorderAudioQueue(paths: $paths)
   }
 `
 
@@ -480,7 +480,7 @@ export const openAccessibilitySettingsGQL = `
 `
 
 export const openWebSettingsGQL = `
-  mutation openWebSettings($feature: AccessFeatureType) {
+  mutation openWebSettings($feature: WebSettingsFeature) {
     openWebSettings(feature: $feature)
   }
 `

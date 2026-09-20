@@ -1,8 +1,8 @@
-import { FEATURE } from '@/lib/data'
+import { FEATURE, DeviceFeature } from '@/lib/data'
 
 // `features` is undefined until the app query resolves (the temp store boots
 // with a partial app object), so treat that as "nothing declared".
-export const hasFeature = (feature: FEATURE, features: string[] | undefined) =>
+export const hasFeature = (feature: DeviceFeature | FEATURE, features: string[] | undefined) =>
   !!features?.includes(feature)
 
 /** Trash availability is the server's own declaration (Android R+ phone,

@@ -1,7 +1,7 @@
 import { ref } from 'vue'
 import { gqlFetch } from '@/lib/api/gql-client'
 import { audioQueueGQL } from '@/lib/api/query'
-import type { IPlaylistAudio } from '@/lib/interfaces'
+import type { IAudioItem } from '@/lib/interfaces'
 
 const PAGE_SIZE = 200
 
@@ -12,7 +12,7 @@ const PAGE_SIZE = 200
  * this store only mirrors a window of it: mutate via GraphQL mutations, then
  * refetch. Module-level singletons — every consumer shares one list.
  */
-export const audioPlaylistItems = ref<IPlaylistAudio[]>([])
+export const audioPlaylistItems = ref<IAudioItem[]>([])
 export const audioPlaylistTotal = ref(0)
 export const audioPlaylistLoading = ref(false)
 
@@ -28,7 +28,7 @@ let initialFetched = false
 
 interface IAudioQueuePage {
   total: number
-  items: IPlaylistAudio[]
+  items: IAudioItem[]
   playback?: { mode: string, currentPath: string }
 }
 

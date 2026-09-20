@@ -60,7 +60,7 @@ export function visiblePendingSms(pending: IMessage[], threadId: string): IMessa
 }
 
 export function reconcilePendingSms(pending: IMessage[], confirmed: IMessage[], threadId: string): IMessage[] {
-  const available = confirmed.filter((item) => item.threadId === threadId && item.type === 2)
+  const available = confirmed.filter((item) => item.threadId === threadId && item.type === 'SENT')
   const matchedIds = new Set<string>()
   const usedConfirmedIds = new Set<string>()
 

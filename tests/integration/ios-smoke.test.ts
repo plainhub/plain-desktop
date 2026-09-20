@@ -175,7 +175,7 @@ describe.skipIf(!iosEndpoint)(`iOS GraphQL smoke — ${skipReason || 'iOS endpoi
     const data = await iosQuery<{ videos: any[] }>(`
       query($offset: Int!, $limit: Int!, $query: String!, $sortBy: FileSortBy!) {
         videos(offset: $offset, limit: $limit, query: $query, sortBy: $sortBy) {
-          id title path duration size
+          id title path durationMs size
         }
       }
     `, { offset: 0, limit: 1, query: '', sortBy: 'DATE_DESC' })
@@ -186,7 +186,7 @@ describe.skipIf(!iosEndpoint)(`iOS GraphQL smoke — ${skipReason || 'iOS endpoi
     const data = await iosQuery<{ audios: any[] }>(`
       query($offset: Int!, $limit: Int!, $query: String!, $sortBy: FileSortBy!) {
         audios(offset: $offset, limit: $limit, query: $query, sortBy: $sortBy) {
-          id title artist duration size
+          id title artist durationMs size
         }
       }
     `, { offset: 0, limit: 1, query: '', sortBy: 'DATE_DESC' })
@@ -208,7 +208,7 @@ describe.skipIf(!iosEndpoint)(`iOS GraphQL smoke — ${skipReason || 'iOS endpoi
     const data = await iosQuery<{ calls: any[] }>(`
       query($offset: Int!, $limit: Int!, $query: String!) {
         calls(offset: $offset, limit: $limit, query: $query) {
-          id number name duration type
+          id number name durationSec type
         }
       }
     `, { offset: 0, limit: 1, query: '' })
@@ -287,7 +287,7 @@ describe.skipIf(!iosEndpoint)(`iOS GraphQL smoke — ${skipReason || 'iOS endpoi
 
   it('pomodoroToday: returns object (completedCount field)', async () => {
     const data = await iosQuery<{ pomodoroToday: any }>(`
-      query { pomodoroToday { date completedCount currentRound timeLeft totalTime isRunning isPause state } }
+      query { pomodoroToday { date completedCount currentRound timeLeft totalTime isRunning isPaused state } }
     `)
     expect(data.pomodoroToday).toBeTruthy()
     expect(typeof data.pomodoroToday.date).toBe('string')

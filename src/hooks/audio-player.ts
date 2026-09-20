@@ -1,9 +1,9 @@
 import { computed, nextTick, onMounted, onUnmounted, ref, watch, type Ref } from 'vue'
 import { useTempStore } from '@/stores/temp'
 import { storeToRefs } from 'pinia'
-import type { IPlaylistAudio } from '@/lib/interfaces'
+import type { IAudioItem } from '@/lib/interfaces'
 import { getFileUrlByPath } from '@/lib/api/file'
-import { initMutation, playAudioGQL, updateAudioPlayModeGQL, deletePlaylistAudioGQL, clearAudioPlaylistGQL, reorderPlaylistAudiosGQL } from '@/lib/api/mutation'
+import { initMutation, playAudioGQL, updateAudioPlayModeGQL, removeAudioFromQueueGQL, clearAudioQueueGQL, reorderAudioQueueGQL } from '@/lib/api/mutation'
 import { sample } from '@/lib/array'
 import { audioPlayback, useAudioPlaylistStore } from '@/hooks/audio-playlist-store'
 import emitter from '@/plugins/eventbus'
@@ -31,13 +31,13 @@ export function useAudioPlaylist(audioRef: Ref<HTMLAudioElement | undefined>) {
   const store = useAudioPlaylistStore()
 
   // A view of the phone playback queue; mutations go through GraphQL, then refetch.
-  const audios = computed<IPlaylistAudio[]>(() => store.items.value)
-  const playlistAudios = computed<IPlaylistAudio[]>({
+  const audios = computed<IAudioItem[]>(() => store.items.value)
+  const playlistAudios = computed<IAudioItem[]>({
     get: () => audios.value,
     set: (value) => { store.items.value = value },
   })
 
-  const current = ref<IPlaylistAudio | undefined>()
+  const current = ref<IAudioItem | undefined>()
   const src = ref('')
 
   function updateMediaSessionPlaybackState() {
@@ -93,10 +93,10 @@ export function useAudioPlaylist(audioRef: Ref<HTMLAudioElement | undefined>) {
 
   // Mutations
   const { play } = usePlayAudio(() => { void nextTick(() => _play()) })
-  const { mutate: clear, loading: clearLoading, onDone: onClearDone } = initMutation({ document: clearAudioPlaylistGQL })
+  const { mutate: clear, loading: clearLoading, onDone: onClearDone } = initMutation({ document: clearAudioQueueGQL })
   const { mutate: updatePlayMode } = initMutation({ document: updateAudioPlayModeGQL })
-  const { mutate: reorderPlaylistAudios } = initMutation({ document: reorderPlaylistAudiosGQL })
-  const { mutate: deleteAudio } = initMutation({ document: deletePlaylistAudioGQL })
+  const { mutate: reorderAudioQueue } = initMutation({ document: reorderAudioQueueGQL })
+  const { mutate: deleteAudio } = initMutation({ document: removeAudioFromQueueGQL })
 
   onClearDone(() => {
     audioPlayback.value = { ...audioPlayback.value, currentPath: '' }
@@ -148,17 +148,17 @@ export function useAudioPlaylist(audioRef: Ref<HTMLAudioElement | undefined>) {
     audioPlayback.value = { ...audioPlayback.value, mode }
   }
 
-  function playItem(item: IPlaylistAudio) {
+  function playItem(item: IAudioItem) {
     play({ path: item.path })
   }
 
-  function deleteItem(item: IPlaylistAudio) {
+  function deleteItem(item: IAudioItem) {
     deleteAudio({ path: item.path })
     store.removeLocal(item.path)
   }
 
   function onReorder() {
-    reorderPlaylistAudios({ paths: playlistAudios.value.map((item) => item.path) })
+    reorderAudioQueue({ paths: playlistAudios.value.map((item) => item.path) })
   }
 
   function clearPlaylist() {

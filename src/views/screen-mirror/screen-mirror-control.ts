@@ -5,7 +5,7 @@ import { sendScreenMirrorControlGQL } from '@/lib/api/mutation'
 export interface TouchPoint {
   x: number
   y: number
-  t: number
+  tMs: number
 }
 
 export interface ScreenMirrorControlEvent {

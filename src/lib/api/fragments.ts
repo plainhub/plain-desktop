@@ -13,12 +13,12 @@ export const tagSubFragment = `
   }
 `
 
-export const playlistAudioFragment = `
-  fragment PlaylistAudioFragment on PlaylistAudio {
+export const audioItemFragment = `
+  fragment AudioItemFragment on AudioItem {
     title
     artist
     path
-    duration
+    durationMs
   }
 `
 
@@ -126,36 +126,41 @@ export const contactFragment = `
     thumbnailId
     starred
     phoneNumbers {
-      label
       value
       type
+      label
       normalizedNumber
     }
     addresses {
-      ...ContentItemFagment
+      value
+      type
+      label
     }
     emails {
-      ...ContentItemFagment
+      value
+      type
+      label
     }
     websites {
-      ...ContentItemFagment
+      value
+      type
+      label
     }
     events {
-      ...ContentItemFagment
+      value
+      type
+      label
     }
     ims {
-      ...ContentItemFagment
+      value
+      protocol
+      customProtocol
     }
     tags {
       ...TagSubFragment
     }
   }
   ${tagSubFragment}
-  fragment ContentItemFagment on ContentItem {
-    label
-    value
-    type
-  }
 `
 
 export const callFragment = `
@@ -163,7 +168,7 @@ export const callFragment = `
     id
     name
     number
-    duration
+    durationSec
     accountId
     startedAt
     photoId
@@ -215,7 +220,7 @@ export const videoFragment = `
     id
     title
     path
-    duration
+    durationMs
     size
     bucketId
     createdAt
@@ -234,7 +239,7 @@ export const audioFragment = `
     title
     artist
     path
-    duration
+    durationMs
     size
     bucketId
     albumFileId
