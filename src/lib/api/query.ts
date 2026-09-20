@@ -615,8 +615,8 @@ export const feedsTagsGQL = `
 `
 
 export const bucketsTagsGQL = `
-  query bucketsTags($type: DataType!) {
-    tags(type: $type) {
+  query bucketsTags($type: MediaDataType!, $tagType: DataType!) {
+    tags(type: $tagType) {
       ...TagFragment
     }
     mediaBuckets(type: $type) {

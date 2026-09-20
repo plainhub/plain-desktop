@@ -156,6 +156,7 @@ export const useBucketsTags = (type: DataType) => {
     document: bucketsTagsGQL,
     variables: {
       type,
+      tagType: type,
     },
   })
 
