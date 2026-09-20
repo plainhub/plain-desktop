@@ -38,7 +38,7 @@ export function useChatMessages(chatId: ComputedRef<string>, channelId: Computed
       }
     },
     document: chatItemsGQL,
-    variables: () => ({ id: chatId.value }),
+    variables: () => ({ target: chatId.value }),
   })
 
   const { mutate: sendMutate, loading: sendLoading, onDone: sendDone } = initMutation({

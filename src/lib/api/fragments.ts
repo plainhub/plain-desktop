@@ -92,7 +92,7 @@ export const smsConversationFragment = `
     id
     address
     snippet
-    date
+    lastMessageAt
     messageCount
     read
   }

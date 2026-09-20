@@ -148,8 +148,8 @@ export function usePomodoro() {
   // WebSocket handlers
   function handlePomodoroAction(data: any) {
     if (!data) return
-    if (data.timeLeft !== undefined) timeLeft.value = data.timeLeft
-    if (data.totalTime !== undefined) totalTime.value = data.totalTime
+    if (data.timeLeftSec !== undefined) timeLeft.value = data.timeLeftSec
+    if (data.totalTimeSec !== undefined) totalTime.value = data.totalTimeSec
     if (data.completedCount !== undefined) completedToday.value = data.completedCount
     if (data.round !== undefined) currentRound.value = data.round
     if (data.state !== undefined) currentPhase.value = STATE_MAP[data.state] || 'work'

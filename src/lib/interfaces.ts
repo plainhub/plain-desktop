@@ -63,7 +63,7 @@ export interface ISmsConversation extends IData {
   /** Participant-aware servers expose every resolved thread address. */
   addresses?: string[]
   snippet: string
-  date: string
+  lastMessageAt: string
   messageCount: number
   read: boolean
 }

@@ -15,7 +15,7 @@
         <span>{{ item.messageCount.toLocaleString() }}</span>
       </div>
       <div class="time">
-        <span v-tooltip="formatDateTime(item.date)">{{ formatTimeAgo(item.date) }}</span>
+        <span v-tooltip="formatDateTime(item.lastMessageAt)">{{ formatTimeAgo(item.lastMessageAt) }}</span>
       </div>
     </section>
     <template v-if="loading && items.length === 0">

@@ -399,9 +399,18 @@ export const setFavoriteFolderAliasGQL = `
   }
 `
 
-export const saveNoteGQL = `
-  mutation saveNote($id: ID!, $input: NoteInput!) {
-    saveNote(id: $id, input: $input) {
+export const createNoteGQL = `
+  mutation createNote($input: NoteInput!) {
+    createNote(input: $input) {
+      ...NoteFragment
+    }
+  }
+  ${noteFragment}
+`
+
+export const updateNoteGQL = `
+  mutation updateNote($id: ID!, $input: NoteInput!) {
+    updateNote(id: $id, input: $input) {
       ...NoteFragment
     }
   }

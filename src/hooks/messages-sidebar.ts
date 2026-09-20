@@ -41,13 +41,13 @@ export function useMessagesSidebar() {
     const list = [...conversations.value]
     switch (mainStore.conversationSortBy) {
       case 'DATE_ASC':
-        return list.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())
+        return list.sort((a, b) => new Date(a.lastMessageAt).getTime() - new Date(b.lastMessageAt).getTime())
       case 'NAME_ASC':
         return sortByName(list, getConversationDisplayName)
       case 'NAME_DESC':
         return sortByName(list, getConversationDisplayName).reverse()
       default:
-        return list.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
+        return list.sort((a, b) => new Date(b.lastMessageAt).getTime() - new Date(a.lastMessageAt).getTime())
     }
   })
 

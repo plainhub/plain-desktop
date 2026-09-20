@@ -72,7 +72,7 @@
               <v-checkbox v-if="shiftEffectingIds.includes(item.id)" class="checkbox" touch-target="wrapper" :checked="shouldSelect" @click.stop="toggleSelect($event, item, index)" />
               <v-checkbox v-else class="checkbox" touch-target="wrapper" :checked="selectedIds.includes(item.id)" @click.stop="toggleSelect($event, item, index)" />
               <div class="text">{{ getConversationDisplayName(item) }}<span class="count">({{ item.messageCount.toLocaleString() }})</span></div>
-              <span v-tooltip="formatDateTime(item.date)" class="time">{{ formatTimeAgo(item.date) }}</span>
+              <span v-tooltip="formatDateTime(item.lastMessageAt)" class="time">{{ formatTimeAgo(item.lastMessageAt) }}</span>
             </div>
             <div class="subtitle">
               <span class="number"><field-id :id="index + 1" :raw="item" /></span>
