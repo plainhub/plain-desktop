@@ -116,12 +116,12 @@ export function useAppsActions(opts: UseAppsActionsOptions) {
         .then((result) => {
           tapPhone(t('confirm_installation_on_phone'))
           if (result?.data?.installPackage) {
-            const { packageName, updatedAt, isNew } = result.data.installPackage
-            if (packageName) {
-              installingPackages.value.push({ id: packageName, updatedAt, isNew })
+            const { id: pkgId, updatedAt, isNew } = result.data.installPackage
+            if (pkgId) {
+              installingPackages.value.push({ id: pkgId, updatedAt, isNew })
               setTimeout(() => {
-                if (installingPackages.value.some((it) => it.id === packageName)) {
-                  installingPackages.value = installingPackages.value.filter((it) => it.id !== packageName)
+                if (installingPackages.value.some((it) => it.id === pkgId)) {
+                  installingPackages.value = installingPackages.value.filter((it) => it.id !== pkgId)
                   tapPhone('')
                 }
               }, 120000)

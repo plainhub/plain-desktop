@@ -89,8 +89,8 @@ export const updateDeviceNameGQL = `
 // --- GraphQL Mutation Definitions ---
 
 export const sendChatItemGQL = `
-  mutation sendChatItem($toId: String!, $content: String!) {
-    sendChatItem(toId: $toId, content: $content) {
+  mutation sendChatItem($target: String!, $content: String!) {
+    sendChatItem(target: $target, content: $content) {
       ...ChatItemFragment
     }
   }
@@ -601,7 +601,7 @@ export const uninstallPackageGQL = `
 export const installPackageGQL = `
   mutation installPackage($path: String!) {
     installPackage(path: $path) {
-      packageName
+      id
       updatedAt
       isNew
     }

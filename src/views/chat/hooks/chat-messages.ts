@@ -69,7 +69,7 @@ export function useChatMessages(chatId: ComputedRef<string>, channelId: Computed
 
   async function doSend(tempId: string, toId: string, content: string) {
     for (let attempt = 1; attempt <= MAX_SEND_ATTEMPTS; attempt++) {
-      const r = await sendMutate({ toId, content })
+      const r = await sendMutate({ target: toId, content })
       if (r != null) {
         chatItems.value = chatItems.value.filter((i) => i.id !== tempId)
         return
