@@ -892,13 +892,13 @@ export const dataStorePathGQL = `
 `
 
 export const uploadedChunksGQL = `
-  query uploadedChunks($fileId: ID!) {
+  query uploadedChunks($fileId: String!) {
     uploadedChunks(fileId: $fileId)
   }
 `
 
 export const mergeStatusGQL = `
-  query mergeStatus($fileId: ID!) {
+  query mergeStatus($fileId: String!) {
     mergeStatus(fileId: $fileId) {
       status
       value

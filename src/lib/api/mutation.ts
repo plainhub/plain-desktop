@@ -670,7 +670,7 @@ export const saveFeedEntriesToNotesGQL = `
 `
 
 export const mergeChunksGQL = `
-  mutation mergeChunks($fileId: ID!, $totalChunks: Int!, $path: String!, $replace: Boolean!, $totalSize: Long!) {
+  mutation mergeChunks($fileId: String!, $totalChunks: Int!, $path: String!, $replace: Boolean!, $totalSize: Long!) {
     mergeChunks(fileId: $fileId, totalChunks: $totalChunks, path: $path, replace: $replace, totalSize: $totalSize) {
       status
       value
@@ -681,7 +681,7 @@ export const mergeChunksGQL = `
 `
 
 export const mergeAppFileChunksGQL = `
-  mutation mergeAppFileChunks($fileId: ID!, $totalChunks: Int!, $fileName: String!, $totalSize: Long!) {
+  mutation mergeAppFileChunks($fileId: String!, $totalChunks: Int!, $fileName: String!, $totalSize: Long!) {
     mergeAppFileChunks(fileId: $fileId, totalChunks: $totalChunks, fileName: $fileName, totalSize: $totalSize) {
       status
       value
@@ -692,7 +692,7 @@ export const mergeAppFileChunksGQL = `
 `
 
 export const deleteChunksGQL = `
-  mutation deleteChunks($fileId: ID!) {
+  mutation deleteChunks($fileId: String!) {
     deleteChunks(fileId: $fileId)
   }
 `
