@@ -25,11 +25,11 @@
 </template>
 
 <script setup lang="ts">
-import type { IMessageConversation } from '@/lib/interfaces'
+import type { ISmsConversation } from '@/lib/interfaces'
 import { formatDateTime, formatTimeAgo } from '@/lib/format'
 
 interface Props {
-  items: IMessageConversation[]
+  items: ISmsConversation[]
   isPhone: boolean
   loading: boolean
 }

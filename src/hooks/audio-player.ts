@@ -83,7 +83,7 @@ export function useAudioPlaylist(audioRef: Ref<HTMLAudioElement | undefined>) {
 
   async function setCurrent() {
     const c = audioPlayback.value.currentPath
-    src.value = getFileUrlByPath(urlTokenKey.value, c)
+    src.value = c ? getFileUrlByPath(urlTokenKey.value, c) : ''
     current.value = audios.value.find((it) => it.path == c)
     updateMediaSessionMetadata()
   }
@@ -99,7 +99,7 @@ export function useAudioPlaylist(audioRef: Ref<HTMLAudioElement | undefined>) {
   const { mutate: deleteAudio } = initMutation({ document: removeAudioFromQueueGQL })
 
   onClearDone(() => {
-    audioPlayback.value = { ...audioPlayback.value, currentPath: '' }
+    audioPlayback.value = { ...audioPlayback.value, currentPath: null, isPlaying: false, positionMs: 0 }
     store.reset()
   })
 

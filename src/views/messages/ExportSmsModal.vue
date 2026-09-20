@@ -35,12 +35,12 @@
 
 <script setup lang="ts">
 import type { PropType } from 'vue'
-import type { IMessage } from '@/lib/interfaces'
+import type { ISms } from '@/lib/interfaces'
 import { popModal } from '@/components/modal'
 import { formats, useExportSms } from '@/hooks/export-sms'
 
 const props = defineProps({
-  items: { type: Array as PropType<IMessage[]>, default: () => [] },
+  items: { type: Array as PropType<ISms[]>, default: () => [] },
   query: { type: String as PropType<string | null>, default: null },
   contactName: { type: String, default: '' },
   urlTokenKey: { type: Object as PropType<Uint8Array | null>, default: null },

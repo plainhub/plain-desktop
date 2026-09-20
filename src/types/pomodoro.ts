@@ -1,9 +1,8 @@
 export interface PomodoroSettings {
-  workDuration: number
-  shortBreakDuration: number
-  longBreakDuration: number
+  workDurationMin: number
+  shortBreakDurationMin: number
+  longBreakDurationMin: number
   pomodorosBeforeLongBreak: number
   showNotification: boolean
   playSoundOnComplete: boolean
 }
-

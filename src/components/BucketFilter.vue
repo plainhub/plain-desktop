@@ -10,7 +10,7 @@
     <li
       v-for="item in sortedBuckets" :key="item.id" :class="{ active: selected && item.id === selected }"
       @click.prevent="view(mainStore, item.id)">
-      <BucketThumb v-if="showThumb" :items="item.topItems" />
+      <BucketThumb v-if="showThumb" :items="item.topItemPaths" />
       <span class="title">{{ item.name }}</span><span class="count">{{ item.itemCount.toLocaleString() }}</span>
     </li>
   </ul>

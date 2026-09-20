@@ -32,12 +32,12 @@ export interface IBucket extends IData {
   id: string
   name: string
   itemCount: number
-  topItems: string[]
+  topItemPaths: string[]
 }
 
 export type SmsType = 'INBOX' | 'SENT' | 'DRAFT' | 'OUTBOX' | 'FAILED' | 'QUEUED' | 'UNKNOWN'
 
-export interface IMessage extends IData {
+export interface ISms extends IData {
   id: string
   body: string
   address: string
@@ -47,17 +47,17 @@ export interface IMessage extends IData {
   threadId: string
   subscriptionId: number
   isMms?: boolean
-  attachments?: IMessageAttachment[]
+  attachments?: ISmsAttachment[]
   tags: ITag[]
 }
 
-export interface IMessageAttachment {
+export interface ISmsAttachment {
   path: string
   contentType: string
   name: string
 }
 
-export interface IMessageConversation extends IData {
+export interface ISmsConversation extends IData {
   id: string
   address: string
   /** Participant-aware servers expose every resolved thread address. */
@@ -348,7 +348,7 @@ export interface IChatChannel {
   updatedAt: string
 }
 
-export interface IFeedCount {
+export interface IFeedEntryCount {
   id: string
   count: number
 }
@@ -376,7 +376,7 @@ export interface INotification extends IData {
   isClearable: boolean
   appId: string
   appName: string
-  time: string
+  postedAt: string
   silent: boolean
   title: string
   body: string

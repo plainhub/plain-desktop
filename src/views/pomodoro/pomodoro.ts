@@ -26,9 +26,9 @@ export function usePomodoro() {
 
   // State
   const settings = ref<PomodoroSettings>({
-    workDuration: 25,
-    shortBreakDuration: 5,
-    longBreakDuration: 15,
+    workDurationMin: 25,
+    shortBreakDurationMin: 5,
+    longBreakDurationMin: 15,
     pomodorosBeforeLongBreak: 4,
     showNotification: true,
     playSoundOnComplete: true,
@@ -47,9 +47,9 @@ export function usePomodoro() {
   function initTimer(phase: 'work' | 'shortBreak' | 'longBreak') {
     currentPhase.value = phase
     const durations = {
-      work: settings.value.workDuration,
-      shortBreak: settings.value.shortBreakDuration,
-      longBreak: settings.value.longBreakDuration,
+      work: settings.value.workDurationMin,
+      shortBreak: settings.value.shortBreakDurationMin,
+      longBreak: settings.value.longBreakDurationMin,
     }
     timeLeft.value = durations[phase] * 60
     totalTime.value = durations[phase] * 60
@@ -82,7 +82,7 @@ export function usePomodoro() {
   function startTimer() {
     if (timeLeft.value === 0) initTimer('work')
     setTimerState(true, false)
-    startPomodoroMutation({ timeLeft: timeLeft.value }).catch((e) => console.error('Failed to start pomodoro:', e))
+    startPomodoroMutation({ timeLeftSec: timeLeft.value }).catch((e) => console.error('Failed to start pomodoro:', e))
     startTimerInterval()
   }
 
@@ -111,7 +111,7 @@ export function usePomodoro() {
     const elapsedTime = Math.round((angle / (2 * Math.PI)) * totalTime.value)
     timeLeft.value = Math.max(0, totalTime.value - elapsedTime)
     setTimerState(true, false)
-    startPomodoroMutation({ timeLeft: timeLeft.value }).catch((e) => console.error('Failed to update pomodoro progress:', e))
+    startPomodoroMutation({ timeLeftSec: timeLeft.value }).catch((e) => console.error('Failed to update pomodoro progress:', e))
     startTimerInterval()
   }
 
@@ -193,11 +193,11 @@ export function usePomodoro() {
       const { pomodoroSettings, pomodoroToday } = data
       if (pomodoroSettings) settings.value = pomodoroSettings
 
-      if (pomodoroToday && pomodoroToday.totalTime > 0) {
+      if (pomodoroToday && pomodoroToday.totalTimeSec > 0) {
         completedToday.value = pomodoroToday.completedCount || 0
         currentRound.value = pomodoroToday.currentRound || 1
-        timeLeft.value = pomodoroToday.timeLeft || 0
-        totalTime.value = pomodoroToday.totalTime
+        timeLeft.value = pomodoroToday.timeLeftSec || 0
+        totalTime.value = pomodoroToday.totalTimeSec
         isRunning.value = pomodoroToday.isRunning || false
         isPaused.value = pomodoroToday.isPaused || false
         if (pomodoroToday.state) currentPhase.value = STATE_MAP[pomodoroToday.state] || 'work'

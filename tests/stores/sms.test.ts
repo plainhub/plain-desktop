@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { createPinia, setActivePinia } from 'pinia'
-import type { IMessageConversation } from '@/lib/interfaces'
+import type { ISmsConversation } from '@/lib/interfaces'
 
 const harness = vi.hoisted(() => ({
   queries: [] as Array<{ params: any; fetch: ReturnType<typeof vi.fn> }>,
@@ -39,7 +39,7 @@ vi.mock('@/lib/api/mutation', () => ({
 
 import { useSmsStore } from '@/stores/sms'
 
-function conversation(id: string): IMessageConversation {
+function conversation(id: string): ISmsConversation {
   return {
     id, address: `+1${id.padStart(10, '0')}`, addresses: [`+1${id.padStart(10, '0')}`],
     snippet: id, date: '2026-08-28T10:00:00Z', messageCount: 1, read: true,
@@ -54,7 +54,7 @@ function archivedQuery() {
   return harness.queries.find((entry) => entry.params.document === 'archived-enhanced')!
 }
 
-function resolveRequest(callIndex: number, items: IMessageConversation[], count = items.length) {
+function resolveRequest(callIndex: number, items: ISmsConversation[], count = items.length) {
   const query = normalQuery()
   const call = query.fetch.mock.calls[callIndex]
   query.params.handle(
@@ -64,7 +64,7 @@ function resolveRequest(callIndex: number, items: IMessageConversation[], count 
   )
 }
 
-function resolveArchivedRequest(callIndex: number, items: IMessageConversation[]) {
+function resolveArchivedRequest(callIndex: number, items: ISmsConversation[]) {
   const query = archivedQuery()
   const call = query.fetch.mock.calls[callIndex]
   query.params.handle(
@@ -118,7 +118,7 @@ describe('SMS conversation store synchronization', () => {
     store.fetchConversations('legacy')
     const enhanced = normalQuery()
     const call = enhanced.fetch.mock.calls[0]
-    enhanced.params.handle(undefined, 'Cannot query field "addresses" on type "MessageConversation"', {
+    enhanced.params.handle(undefined, 'Cannot query field "addresses" on type "SmsConversation"', {
       variables: call[0], requestId: 1, meta: call[1].meta,
     })
 

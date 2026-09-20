@@ -28,11 +28,11 @@
 </template>
 
 <script setup lang="ts">
-import type { IMessage, ITag } from '@/lib/interfaces'
+import type { ISms, ITag } from '@/lib/interfaces'
 import { DataType } from '@/lib/data'
 
 interface Props {
-  items: IMessage[]
+  items: ISms[]
   tags: ITag[]
   loading: boolean
   checked: boolean
@@ -43,29 +43,29 @@ interface Props {
   dataType: DataType
   callLoading?: boolean
   callId?: string
-  handleItemClick: (event: MouseEvent, item: IMessage, index: number, callback: () => void) => void
+  handleItemClick: (event: MouseEvent, item: ISms, index: number, callback: () => void) => void
   handleMouseOver: (event: MouseEvent, index: number) => void
-  toggleSelect: (event: MouseEvent, item: IMessage, index: number) => void
+  toggleSelect: (event: MouseEvent, item: ISms, index: number) => void
 }
 
 const props = defineProps<Props>()
 
 const emit = defineEmits<{
-  sendSms: [item: IMessage]
-  call: [item: IMessage]
-  viewItem: [item: IMessage]
-  archive: [item: IMessage]
+  sendSms: [item: ISms]
+  call: [item: ISms]
+  viewItem: [item: ISms]
+  archive: [item: ISms]
 }>()
 
-function sendSms(item: IMessage) {
+function sendSms(item: ISms) {
   emit('sendSms', item)
 }
 
-function call(item: IMessage) {
+function call(item: ISms) {
   emit('call', item)
 }
 
-function archive(item: IMessage) {
+function archive(item: ISms) {
   emit('archive', item)
 }
 

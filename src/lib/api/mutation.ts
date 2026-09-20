@@ -105,7 +105,9 @@ export const deleteChatItemGQL = `
 
 export const deleteChatItemsGQL = `
   mutation deleteChatItems($query: String!) {
-    deleteChatItems(query: $query)
+    deleteChatItems(query: $query) {
+      affectedCount
+    }
   }
 `
 
@@ -273,8 +275,7 @@ export const reorderAudioQueueGQL = `
 export const deleteMediaItemsGQL = `
   mutation deleteMediaItems($type: MediaDataType!, $query: String!) {
     deleteMediaItems(type: $type, query: $query) {
-      type
-      query
+      affectedCount
     }
   }
 `
@@ -282,8 +283,7 @@ export const deleteMediaItemsGQL = `
 export const trashMediaItemsGQL = `
   mutation trashMediaItems($type: MediaDataType!, $query: String!) {
     trashMediaItems(type: $type, query: $query) {
-      type
-      query
+      affectedCount
     }
   }
 `
@@ -291,8 +291,7 @@ export const trashMediaItemsGQL = `
 export const restoreMediaItemsGQL = `
   mutation restoreMediaItems($type: MediaDataType!, $query: String!) {
     restoreMediaItems(type: $type, query: $query) {
-      type
-      query
+      affectedCount
     }
   }
 `
@@ -300,27 +299,32 @@ export const restoreMediaItemsGQL = `
 export const moveMediaItemsGQL = `
   mutation moveMediaItems($type: MediaDataType!, $query: String!, $destDir: String!) {
     moveMediaItems(type: $type, query: $query, destDir: $destDir) {
-      type
-      query
+      affectedCount
     }
   }
 `
 
 export const trashSmsGQL = `
   mutation trashSms($query: String!) {
-    trashSms(query: $query)
+    trashSms(query: $query) {
+      affectedCount
+    }
   }
 `
 
 export const restoreSmsGQL = `
   mutation restoreSms($query: String!) {
-    restoreSms(query: $query)
+    restoreSms(query: $query) {
+      affectedCount
+    }
   }
 `
 
 export const deleteSmsGQL = `
   mutation deleteSms($query: String!) {
-    deleteSms(query: $query)
+    deleteSms(query: $query) {
+      affectedCount
+    }
   }
 `
 
@@ -406,37 +410,49 @@ export const saveNoteGQL = `
 
 export const deleteNotesGQL = `
   mutation deleteNotes($query: String!) {
-    deleteNotes(query: $query)
+    deleteNotes(query: $query) {
+      affectedCount
+    }
   }
 `
 
 export const trashNotesGQL = `
   mutation trashNotes($query: String!) {
-    trashNotes(query: $query)
+    trashNotes(query: $query) {
+      affectedCount
+    }
   }
 `
 
 export const restoreNotesGQL = `
   mutation restoreNotes($query: String!) {
-    restoreNotes(query: $query)
+    restoreNotes(query: $query) {
+      affectedCount
+    }
   }
 `
 
 export const deleteFeedEntriesGQL = `
   mutation deleteFeedEntries($query: String!) {
-    deleteFeedEntries(query: $query)
+    deleteFeedEntries(query: $query) {
+      affectedCount
+    }
   }
 `
 
 export const deleteCallsGQL = `
   mutation deleteCalls($query: String!) {
-    deleteCalls(query: $query)
+    deleteCalls(query: $query) {
+      affectedCount
+    }
   }
 `
 
 export const deleteContactsGQL = `
   mutation deleteContacts($query: String!) {
-    deleteContacts(query: $query)
+    deleteContacts(query: $query) {
+      affectedCount
+    }
   }
 `
 
@@ -544,8 +560,8 @@ export const sendSmsWithRequestIdGQL = `
 `
 
 export const archiveConversationGQL = `
-  mutation archiveConversation($id: String!, $date: Long!) {
-    archiveConversation(id: $id, date: $date)
+  mutation archiveConversation($id: String!) {
+    archiveConversation(id: $id)
   }
 `
 
@@ -556,7 +572,7 @@ export const unarchiveConversationGQL = `
 `
 
 export const sendMmsGQL = `
-  mutation sendMms($number: String!, $body: String!, $attachmentPaths: [String!]!, $threadId: String!) {
+  mutation sendMms($number: String!, $body: String!, $attachmentPaths: [String!]!, $threadId: ID!) {
     sendMms(number: $number, body: $body, attachmentPaths: $attachmentPaths, threadId: $threadId)
   }
 `
@@ -612,7 +628,9 @@ export const setTempValueGQL = `
 
 export const deleteNotificationsGQL = `
   mutation deleteNotifications($ids: [ID!]!) {
-    deleteNotifications(ids: $ids)
+    deleteNotifications(ids: $ids) {
+      affectedCount
+    }
   }
 `
 
@@ -624,7 +642,9 @@ export const replyNotificationGQL = `
 
 export const deleteClipboardGQL = `
   mutation deleteClipboard($ids: [ID!]!) {
-    deleteClipboard(ids: $ids)
+    deleteClipboard(ids: $ids) {
+      affectedCount
+    }
   }
 `
 
@@ -641,7 +661,7 @@ export const saveFeedEntriesToNotesGQL = `
 `
 
 export const mergeChunksGQL = `
-  mutation mergeChunks($fileId: String!, $totalChunks: Int!, $path: String!, $replace: Boolean!, $totalSize: Long!) {
+  mutation mergeChunks($fileId: ID!, $totalChunks: Int!, $path: String!, $replace: Boolean!, $totalSize: Long!) {
     mergeChunks(fileId: $fileId, totalChunks: $totalChunks, path: $path, replace: $replace, totalSize: $totalSize) {
       status
       value
@@ -652,7 +672,7 @@ export const mergeChunksGQL = `
 `
 
 export const mergeAppFileChunksGQL = `
-  mutation mergeAppFileChunks($fileId: String!, $totalChunks: Int!, $fileName: String!, $totalSize: Long!) {
+  mutation mergeAppFileChunks($fileId: ID!, $totalChunks: Int!, $fileName: String!, $totalSize: Long!) {
     mergeAppFileChunks(fileId: $fileId, totalChunks: $totalChunks, fileName: $fileName, totalSize: $totalSize) {
       status
       value
@@ -663,14 +683,14 @@ export const mergeAppFileChunksGQL = `
 `
 
 export const deleteChunksGQL = `
-  mutation deleteChunks($fileId: String!) {
+  mutation deleteChunks($fileId: ID!) {
     deleteChunks(fileId: $fileId)
   }
 `
 
 export const startPomodoroGQL = `
-  mutation startPomodoro($timeLeft: Int!) {
-    startPomodoro(timeLeft: $timeLeft)
+  mutation startPomodoro($timeLeftSec: Int!) {
+    startPomodoro(timeLeftSec: $timeLeftSec)
   }
 `
 
@@ -693,7 +713,7 @@ export const sendScreenMirrorControlGQL = `
 `
 
 export const addBookmarksGQL = `
-  mutation addBookmarks($urls: [String!]!, $groupId: String!) {
+  mutation addBookmarks($urls: [String!]!, $groupId: ID!) {
     addBookmarks(urls: $urls, groupId: $groupId) {
       ...BookmarkFragment
     }
@@ -712,7 +732,9 @@ export const updateBookmarkGQL = `
 
 export const deleteBookmarksGQL = `
   mutation deleteBookmarks($ids: [ID!]!) {
-    deleteBookmarks(ids: $ids)
+    deleteBookmarks(ids: $ids) {
+      affectedCount
+    }
   }
 `
 
@@ -748,7 +770,9 @@ export const deleteBookmarkGroupGQL = `
 
 export const deleteFilesGQL = `
   mutation deleteFiles($paths: [String!]!) {
-    deleteFiles(paths: $paths)
+    deleteFiles(paths: $paths) {
+      affectedCount
+    }
   }
 `
 

@@ -1,6 +1,6 @@
 import router, { replacePath } from '@/plugins/router'
 import { useMainStore } from '@/stores/main'
-import type { IDropdownItem, IFeed, IFeedCount, IFilter } from '@/lib/interfaces'
+import type { IDropdownItem, IFeed, IFeedEntryCount, IFilter } from '@/lib/interfaces'
 import { onMounted, onUnmounted, reactive, ref, watch } from 'vue'
 import AddFeedModal from '@/components/AddFeedModal.vue'
 import { deleteFeedGQL, exportFeedsGQL, importFeedsGQL, initMutation } from '@/lib/api/mutation'
@@ -40,11 +40,11 @@ export function useFeedsSidebar() {
   })
 
   const { fetch } = initLazyQuery({
-    handle: (data: { total: number; today: number; feedsCount: IFeedCount[] }) => {
+    handle: (data: { total: number; today: number; feedEntryCounts: IFeedEntryCount[] }) => {
       if (data) {
         counter.value.feedEntries = data.total
         counter.value.feedEntriesToday = data.today
-        data.feedsCount.forEach((item: IFeedCount) => feedsCount.value.set(item.id, item.count))
+        data.feedEntryCounts.forEach((item: IFeedEntryCount) => feedsCount.value.set(item.id, item.count))
       }
     },
     document: feedEntryCountGQL,

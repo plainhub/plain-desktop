@@ -1,6 +1,6 @@
-import type { IMessage } from '@/lib/interfaces'
+import type { ISms } from '@/lib/interfaces'
 
-export function createPendingSms(body: string, address: string, threadId: string): IMessage {
+export function createPendingSms(body: string, address: string, threadId: string): ISms {
   return {
     id: 'pending_sms_' + Date.now(),
     body,
@@ -21,8 +21,8 @@ export function createPendingMms(
   body: string,
   address: string,
   threadId: string,
-  attachments: IMessage['attachments'],
-): IMessage {
+  attachments: ISms['attachments'],
+): ISms {
   return {
     id,
     body,

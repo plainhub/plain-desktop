@@ -176,7 +176,7 @@ export function useMediaPage(options: MediaPageOptions) {
   const uploadTaskDoneHandler = (r: IUploadItem) => {
     if (r.status !== 'done' || !fileFilter(r.fileName)) return
     const shouldRefresh = !filter.bucketId || buckets.value.some((b) =>
-      b.id === filter.bucketId && b.topItems.some((ti) => r.dir.startsWith(getDirFromPath(ti)))
+      b.id === filter.bucketId && b.topItemPaths.some((ti) => r.dir.startsWith(getDirFromPath(ti)))
     )
     if (shouldRefresh) uploadRefresh.schedule()
   }

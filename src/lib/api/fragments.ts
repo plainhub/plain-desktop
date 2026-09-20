@@ -58,14 +58,14 @@ export const chatItemFragment = `
         ids
       }
       ... on ChatText {
-        ids
+        linkPreviewImageIds
       }
     }
   }
 `
 
-export const messageFragment = `
-  fragment MessageFragment on Message {
+export const smsFragment = `
+  fragment SmsFragment on Sms {
     id
     body
     address
@@ -87,8 +87,8 @@ export const messageFragment = `
   ${tagSubFragment}
 `
 
-export const messageConversationFragment = `
-  fragment MessageConversationFragment on MessageConversation {
+export const smsConversationFragment = `
+  fragment SmsConversationFragment on SmsConversation {
     id
     address
     snippet
@@ -100,8 +100,8 @@ export const messageConversationFragment = `
 
 // This stays separate from the legacy fragment: GraphQL rejects unknown
 // fields on older PlainApp servers, so callers can retry without `addresses`.
-export const messageConversationWithAddressesFragment = `
-  fragment MessageConversationWithAddressesFragment on MessageConversation {
+export const smsConversationWithAddressesFragment = `
+  fragment SmsConversationWithAddressesFragment on SmsConversation {
     id
     address
     addresses
@@ -343,7 +343,7 @@ export const notificationFragment = `
     isClearable
     appId
     appName
-    time
+    postedAt
     silent
     title
     body
@@ -440,6 +440,7 @@ export const bookmarkGroupFragment = `
     name
     collapsed
     sortOrder
+    itemCount
     createdAt
     updatedAt
   }

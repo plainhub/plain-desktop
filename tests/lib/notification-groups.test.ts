@@ -9,7 +9,7 @@ function notif(id: string, title = 't'): INotification {
     isClearable: true,
     appId: 'app',
     appName: 'App',
-    time: '2026-09-06 10:00:00',
+    postedAt: '2026-09-06 10:00:00',
     silent: false,
     title,
     body: 'b',

@@ -5,7 +5,7 @@ import {
   getConversationAddresses,
   resolveContactName,
 } from '@/lib/contact/name-resolution'
-import type { IContact, IMessageConversation } from '@/lib/interfaces'
+import type { IContact, ISmsConversation } from '@/lib/interfaces'
 
 function contact(id: string, name: string, number: string): IContact {
   return {
@@ -31,7 +31,7 @@ describe('contact name resolution', () => {
   it('prefers additive participant addresses and falls back to the legacy address', () => {
     const base = { id: 't', snippet: '', date: '', messageCount: 0, read: true }
     expect(getConversationAddresses({ ...base, address: '+100', addresses: ['+200', '+300'] })).toEqual(['+200', '+300'])
-    expect(getConversationAddresses({ ...base, address: '+100' } as IMessageConversation)).toEqual(['+100'])
+    expect(getConversationAddresses({ ...base, address: '+100' } as ISmsConversation)).toEqual(['+100'])
     expect(getConversationAddresses({
       ...base,
       address: '+12025550100',

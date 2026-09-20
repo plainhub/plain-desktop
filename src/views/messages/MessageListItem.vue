@@ -82,7 +82,7 @@
 </template>
 
 <script setup lang="ts">
-import type { IMessage, ITag } from '@/lib/interfaces'
+import type { ISms, ITag } from '@/lib/interfaces'
 import { DataType } from '@/lib/data'
 import { formatDateTime, formatTimeAgo } from '@/lib/format'
 import { addLinksToURLs } from '@/lib/strutil'
@@ -92,7 +92,7 @@ import { useContactName } from '@/hooks/contacts'
 const { getDisplayName } = useContactName()
 
 interface Props {
-  item: IMessage
+  item: ISms
   index: number
   selectedIds: string[]
   shiftEffectingIds: string[]
@@ -103,33 +103,33 @@ interface Props {
   callLoading?: boolean
   callId?: string
   // Functions passed from parent
-  handleItemClick: (event: MouseEvent, item: IMessage, index: number, callback: () => void) => void
+  handleItemClick: (event: MouseEvent, item: ISms, index: number, callback: () => void) => void
   handleMouseOver: (event: MouseEvent, index: number) => void
-  toggleSelect: (event: MouseEvent, item: IMessage, index: number) => void
-  onView?: (index: number, item: IMessage) => void
+  toggleSelect: (event: MouseEvent, item: ISms, index: number) => void
+  onView?: (index: number, item: ISms) => void
 }
 
 const props = defineProps<Props>()
 
 const emit = defineEmits<{
-  sendSms: [item: IMessage]
-  call: [item: IMessage]
-  archive: [item: IMessage]
+  sendSms: [item: ISms]
+  call: [item: ISms]
+  archive: [item: ISms]
 }>()
 
-function call(item: IMessage) {
+function call(item: ISms) {
   emit('call', item)
 }
 
-function sendSms(item: IMessage) {
+function sendSms(item: ISms) {
   emit('sendSms', item)
 }
 
-function archive(item: IMessage) {
+function archive(item: ISms) {
   emit('archive', item)
 }
 
-function handleView(index: number, item: IMessage) {
+function handleView(index: number, item: ISms) {
   props.onView?.(index, item)
 }
 </script>

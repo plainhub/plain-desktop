@@ -1,6 +1,6 @@
 import { ref, onUnmounted } from 'vue'
 import { useI18n } from 'vue-i18n'
-import type { IMessage } from '@/lib/interfaces'
+import type { ISms } from '@/lib/interfaces'
 import { popModal } from '@/components/modal'
 import { download, getFileUrlByPath } from '@/lib/api/file'
 import { formatDateTime } from '@/lib/format'
@@ -14,7 +14,7 @@ export const formats = [
   { value: 'csv', labelKey: 'export_format_csv' },
 ] as const
 
-function isSent(item: IMessage): boolean {
+function isSent(item: ISms): boolean {
   return item.type === 'SENT' || item.type === 'OUTBOX'
 }
 
@@ -23,7 +23,7 @@ function escapeCSV(value: string): string {
 }
 
 export function useExportSms(props: {
-  items: IMessage[]
+  items: ISms[]
   query: string | null
   contactName: string
   urlTokenKey: Uint8Array | null
@@ -37,7 +37,7 @@ export function useExportSms(props: {
 
   onUnmounted(() => { abortController?.abort() })
 
-  function getDirection(item: IMessage): string {
+  function getDirection(item: ISms): string {
     return isSent(item) ? t('sent') : t('received')
   }
 
@@ -50,14 +50,14 @@ export function useExportSms(props: {
     )
   }
 
-  async function loadMessages(): Promise<IMessage[]> {
+  async function loadMessages(): Promise<ISms[]> {
     if (props.items.length > 0) return props.items
     progressText.value = t('export_loading_messages')
-    const result = await gqlFetch<{ sms: IMessage[] }>(smsGQL, { offset: 0, limit: 100000, query: props.query ?? '' })
+    const result = await gqlFetch<{ sms: ISms[] }>(smsGQL, { offset: 0, limit: 100000, query: props.query ?? '' })
     return result?.data?.sms ?? []
   }
 
-  function buildMessageContent(zip: any, sorted: IMessage[], format: string) {
+  function buildMessageContent(zip: any, sorted: ISms[], format: string) {
     if (format === 'json') {
       const data = sorted.map((msg) => ({
         id: msg.id, date: msg.date, address: msg.address, type: msg.type,
@@ -93,7 +93,7 @@ export function useExportSms(props: {
     }
   }
 
-  async function fetchAttachments(zip: any, sorted: IMessage[]) {
+  async function fetchAttachments(zip: any, sorted: ISms[]) {
     const attachmentsFolder = zip.folder('attachments')!
     const totalAtt = sorted.reduce((s, m) => s + (m.attachments?.length ?? 0), 0)
     let fetchedAtt = 0

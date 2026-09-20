@@ -68,7 +68,7 @@ describe('usePlayAudio', () => {
     await play({ path: '/played.mp3' })
     await flushPromises()
 
-    expect(audioPlayback.value.currentPath).toBe('')
+    expect(audioPlayback.value.currentPath).toBeNull()
     expect(applied).not.toHaveBeenCalled()
   })
 })
@@ -143,6 +143,6 @@ describe('useAudioPlaylist', () => {
     hook.clearPlaylist()
     await flushPromises()
     expect(audioPlaylistItems.value).toEqual([])
-    expect(audioPlayback.value.currentPath).toBe('')
+    expect(audioPlayback.value.currentPath).toBeNull()
   })
 })

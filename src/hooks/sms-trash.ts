@@ -6,13 +6,17 @@ export const useSmsTrash = () => {
     document: trashSmsGQL,
   })
 
-  onTrashed((r: any) => {
-    const { query } = r.data.trashSms
+  const pending: string[] = []
+
+  onTrashed(() => {
+    const query = pending.shift()
+    if (query === undefined) return
     emitter.emit('media_items_actioned', { type: 'SMS', action: 'trash', query })
   })
 
   return {
     trash(query: string) {
+      pending.push(query)
       mutate({ query })
     },
   }
@@ -23,13 +27,17 @@ export const useSmsRestore = () => {
     document: restoreSmsGQL,
   })
 
-  onRestored((r: any) => {
-    const { query } = r.data.restoreSms
+  const pending: string[] = []
+
+  onRestored(() => {
+    const query = pending.shift()
+    if (query === undefined) return
     emitter.emit('media_items_actioned', { type: 'SMS', action: 'restore', query })
   })
 
   return {
     restore(query: string) {
+      pending.push(query)
       mutate({ query })
     },
   }

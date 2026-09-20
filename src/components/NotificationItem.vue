@@ -9,7 +9,7 @@
     <div class="ntf-main">
       <div class="row1">
         <span class="name">{{ item.appName }}</span>
-        <time v-tooltip="formatDateTimeFull(item.time)" class="nowrap">{{ formatTimeAgo(item.time) }}</time>
+        <time v-tooltip="formatDateTimeFull(item.postedAt)" class="nowrap">{{ formatTimeAgo(item.postedAt) }}</time>
         <button v-if="deletable" v-tooltip="$t('delete')" class="btn-icon del" @click.stop="$emit('delete')">
           <i-material-symbols:close-rounded />
         </button>

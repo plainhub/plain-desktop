@@ -47,21 +47,21 @@
 
 <script setup lang="ts">
 import { computed } from 'vue'
-import type { IMessage, ITag } from '@/lib/interfaces'
+import type { ISms, ITag } from '@/lib/interfaces'
 import { formatDateTime, formatTime } from '@/lib/format'
 import { addLinksToURLs } from '@/lib/strutil'
 import { getFileUrlByPath } from '@/lib/api/file'
 import { isPendingSmsSent } from '@/lib/sms-state-sync'
 
 const props = defineProps<{
-  item: IMessage
+  item: ISms
   tags: ITag[]
   type: string
   urlTokenKey: Uint8Array | null
 }>()
 
 const emit = defineEmits<{
-  trash: [item: IMessage]
+  trash: [item: ISms]
 }>()
 
 const isSent = computed(() => props.item.type === 'SENT' || props.item.type === 'OUTBOX')

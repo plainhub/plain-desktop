@@ -14,12 +14,14 @@ export const useMediaTrash = () => {
   })
 
   const loading = reactive(new Map())
+  const pending: Array<{ type: DataType; query: string }> = []
 
-  onTrashed((r: any) => {
-    const { type, query } = r.data.trashMediaItems
-    loading.delete(query)
-    emitter.emit('refetch_tags', type)
-    emitter.emit('media_items_actioned', { type, action: 'trash', query })
+  onTrashed(() => {
+    const entry = pending.shift()
+    if (!entry) return
+    loading.delete(entry.query)
+    emitter.emit('refetch_tags', entry.type)
+    emitter.emit('media_items_actioned', { type: entry.type, action: 'trash', query: entry.query })
   })
 
   return {
@@ -27,6 +29,7 @@ export const useMediaTrash = () => {
       return loading.get(query) ?? false
     },
     trash(type: DataType, query: string) {
+      pending.push({ type, query })
       loading.set(query, true)
       mutate({ query, type })
     },
@@ -39,12 +42,14 @@ export const useMediaRestore = () => {
   })
 
   const loading = reactive(new Map())
+  const pending: Array<{ type: DataType; query: string }> = []
 
-  onRestored((r: any) => {
-    const { type, query } = r.data.restoreMediaItems
-    loading.delete(query)
-    emitter.emit('refetch_tags', type)
-    emitter.emit('media_items_actioned', { type, action: 'restore', query })
+  onRestored(() => {
+    const entry = pending.shift()
+    if (!entry) return
+    loading.delete(entry.query)
+    emitter.emit('refetch_tags', entry.type)
+    emitter.emit('media_items_actioned', { type: entry.type, action: 'restore', query: entry.query })
   })
 
   return {
@@ -52,6 +57,7 @@ export const useMediaRestore = () => {
       return loading.get(query) ?? false
     },
     restore(type: DataType, query: string) {
+      pending.push({ type, query })
       loading.set(query, true)
       mutate({ query, type })
     },
