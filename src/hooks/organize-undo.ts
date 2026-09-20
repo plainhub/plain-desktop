@@ -26,6 +26,8 @@ export function useOrganizeUndo() {
   const count = computed(() => stack.value.length)
 
   function record(action: OrganizeAction) {
+    // A blank query would target everything once replayed — never stack it.
+    if (!action.query.trim()) return
     stack.value.push(action)
   }
 

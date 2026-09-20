@@ -8,6 +8,7 @@ import type { DataType } from '@/lib/data'
 import { encodeBase64 } from '@/lib/strutil'
 import type { MainState } from '@/stores/main'
 import { buildQuery } from '@/lib/search'
+import { selectAllQuery } from '@/hooks/list'
 import { replacePath } from '@/plugins/router'
 import type { IAudio, IBucket, IImageItem, ITag, IVideoItem } from '@/lib/interfaces'
 import { ref } from 'vue'
@@ -44,6 +45,8 @@ export const useDeleteItems = () => {
           return
         }
         q = `ids:${ids.join(',')}`
+      } else {
+        q = selectAllQuery(query)
       }
       deleteCount.value = realAllChecked ? total : ids.length
       deleteQuery.value = q
@@ -89,6 +92,8 @@ export const useMoveItems = () => {
           return
         }
         q = `ids:${ids.join(',')}`
+      } else {
+        q = selectAllQuery(query)
       }
       moveType.value = type
       moveQuery.value = q
