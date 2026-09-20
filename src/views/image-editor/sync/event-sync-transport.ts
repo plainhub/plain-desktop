@@ -75,10 +75,10 @@ export class EventSyncTransport implements SyncTransport {
     const b64 = arrayBufferToBase64(merged.buffer)
     try {
       await gqlFetch(
-        `mutation BroadcastImageEditorUpdate($pid: String!, $update: String!) {
-          broadcastImageEditorUpdate(pid: $pid, update: $update)
+        `mutation BroadcastImageEditorUpdate($id: ID!, $update: String!) {
+          broadcastImageEditorUpdate(id: $id, update: $update)
         }`,
-        { pid, update: b64 },
+        { id: pid, update: b64 },
       )
     } catch (e) {
       console.warn('[ImageEditor] Failed to broadcast update', e)

@@ -60,7 +60,7 @@ export function useExportSms(props: {
   function buildMessageContent(zip: any, sorted: ISms[], format: string) {
     if (format === 'json') {
       const data = sorted.map((msg) => ({
-        id: msg.id, date: msg.date, address: msg.address, type: msg.type,
+        id: msg.id, sentAt: msg.sentAt, address: msg.address, type: msg.type,
         direction: getDirection(msg), body: msg.body ?? '',
         serviceCenter: msg.serviceCenter ?? '', subscriptionId: msg.subscriptionId,
         isMms: msg.isMms ?? false,
@@ -75,7 +75,7 @@ export function useExportSms(props: {
       const lines: string[] = []
       for (const msg of sorted) {
         const dir = isSent(msg) ? '→' : '←'
-        lines.push(`[${formatDateTime(msg.date)}] ${dir} ${msg.address}`)
+        lines.push(`[${formatDateTime(msg.sentAt)}] ${dir} ${msg.address}`)
         if (msg.body) lines.push(msg.body)
         for (const att of msg.attachments ?? []) {
           lines.push(`[attachment: attachments/${msg.id}/${att.name || att.path.split('/').pop() || 'file'}]`)
@@ -87,7 +87,7 @@ export function useExportSms(props: {
       const header = [escapeCSV(t('date')), escapeCSV(t('direction')), escapeCSV(t('address')), escapeCSV(t('body')), escapeCSV(t('attachments'))].join(',')
       const rows = sorted.map((msg) => {
         const attNames = (msg.attachments ?? []).map((a) => a.name || a.contentType).join('; ')
-        return [escapeCSV(formatDateTime(msg.date)), escapeCSV(getDirection(msg)), escapeCSV(msg.address ?? ''), escapeCSV(msg.body ?? ''), escapeCSV(attNames)].join(',')
+        return [escapeCSV(formatDateTime(msg.sentAt)), escapeCSV(getDirection(msg)), escapeCSV(msg.address ?? ''), escapeCSV(msg.body ?? ''), escapeCSV(attNames)].join(',')
       })
       zip.file('messages.csv', '\uFEFF' + header + '\n' + rows.join('\n'))
     }
@@ -122,7 +122,7 @@ export function useExportSms(props: {
     exporting.value = true
     try {
       const raw = await loadMessages()
-      const sorted = [...raw].sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())
+      const sorted = [...raw].sort((a, b) => new Date(a.sentAt).getTime() - new Date(b.sentAt).getTime())
       const JSZip = (await import('jszip')).default
       const zip = new JSZip()
       progressText.value = t('export_preparing_data')

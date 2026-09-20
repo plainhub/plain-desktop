@@ -37,7 +37,7 @@
     <div v-if="item.tags?.length" class="chat-bubble-tags">
       <span v-for="tag in item.tags" :key="tag.id" class="chat-tag-chip">{{ tag.name }}</span>
     </div>
-    <span v-tooltip="formatDateTime(item.date)" class="chat-time">{{ formatTime(item.date) }}</span>
+    <span v-tooltip="formatDateTime(item.sentAt)" class="chat-time">{{ formatTime(item.sentAt) }}</span>
     <span v-if="isDraftOrPending" class="chat-pending-status" :class="{ failed: pendingFailed }">
       <i-material-symbols:error-outline-rounded v-if="pendingFailed" class="pending-error-icon" />
       {{ $t(pendingStatusKey) }}
@@ -70,7 +70,7 @@ const pendingSmsSent = computed(() => isPendingSmsSent(props.item))
 const isDraftOrPending = computed(() => isPending.value || props.item.type === 'DRAFT')
 const pendingFailed = computed(() => {
   if (!props.item.id.startsWith('pending_mms')) return false
-  return Date.now() - new Date(props.item.date).getTime() > 5 * 60 * 1000
+  return Date.now() - new Date(props.item.sentAt).getTime() > 5 * 60 * 1000
 })
 const pendingStatusKey = computed(() => {
   if (pendingFailed.value) return 'mms_cancelled'

@@ -6,7 +6,7 @@
     <template #content>
       <div v-if="current" class="review-card">
         <div class="review-meta">
-          {{ current.address }} · {{ formatDateTime(current.date) }}
+          {{ current.address }} · {{ formatDateTime(current.sentAt) }}
         </div>
         <div class="review-body">{{ current.body }}</div>
         <div class="review-count">

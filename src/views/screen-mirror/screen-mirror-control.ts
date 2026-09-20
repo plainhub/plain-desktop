@@ -14,7 +14,7 @@ export interface ScreenMirrorControlEvent {
   y?: number
   endX?: number
   endY?: number
-  duration?: number
+  durationMs?: number
   deltaX?: number
   deltaY?: number
   key?: string
@@ -223,7 +223,7 @@ export function useScreenMirrorControl(
             action: 'LONG_PRESS',
             x: gesture.downX,
             y: gesture.downY,
-            duration: 520,
+            durationMs: 520,
           })
           if (touchDot) touchDot.classList.add('touch-indicator--long-press')
         }

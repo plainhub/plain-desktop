@@ -42,7 +42,7 @@ export interface ISms extends IData {
   body: string
   address: string
   serviceCenter: string
-  date: string
+  sentAt: string
   type: SmsType
   threadId: string
   subscriptionId: number
@@ -465,7 +465,7 @@ export interface IStorageMount {
   remote: boolean
   alias: string
   driveType: DriveType
-  diskID: string
+  diskId: string
 }
 
 export interface IHomeStats {

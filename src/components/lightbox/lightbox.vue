@@ -75,6 +75,7 @@
           :url-token-key="urlTokenKey ? urlTokenKey.toString() : ''"
           :app-dir="app.appDir"
           :tags-map="tagsMap"
+          :item-tags="itemTags"
           :read-only="readOnly"
           :image-quality="imageViewQuality"
           @update:image-quality="imageViewQuality = $event"
@@ -109,8 +110,8 @@
         <!-- File Tags Section -->
         <LightboxFileTags 
           :current="current" 
-          :file-info="fileInfo"
           :tags-map="tagsMap"
+          :item-tags="itemTags"
         />
         
         <!-- Action Buttons in Footer -->
@@ -166,14 +167,14 @@ const {
   imgWrapperState, status, imgWrapperStyle,
 } = useLightboxState(isPhone)
 
-const { loadInfo, refetchInfo, updateViewOriginImageState, tagsMap, loadTags } =
+const { loadInfo, refetchInfo, updateViewOriginImageState, tagsMap, loadTags, itemTags, loadItemTags } =
   useLightboxQueries(current, fileInfo, imgState)
 
 const { zoomIn, zoomOut, rotateLeft, rotateRight, resize, onDblclick, onWheel } =
   useLightboxTransform(imgWrapperState, imgState, status)
 
 const { closeDialog, changeIndex, onNext, onPrev } =
-  useLightboxNavigation(tempStore, imgIndex, current, imgWrapperState, status, tagsMap, loadTags, loadInfo, toRef(props, 'loop'), emit as (event: string, ...args: any[]) => void, imageViewQuality)
+  useLightboxNavigation(tempStore, imgIndex, current, imgWrapperState, status, tagsMap, loadTags, loadInfo, loadItemTags, toRef(props, 'loop'), emit as (event: string, ...args: any[]) => void, imageViewQuality)
 
 const readOnly = computed(() => tempStore.lightbox.readOnly)
 

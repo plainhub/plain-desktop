@@ -32,8 +32,8 @@
       <item-tags :tags="item.tags" :type="dataType" :only-links="true" />
     </div>
     <div class="time">
-      <span v-tooltip="formatDateTime(item.date)">
-        {{ formatTimeAgo(item.date) }}
+      <span v-tooltip="formatDateTime(item.sentAt)">
+        {{ formatTimeAgo(item.sentAt) }}
       </span>
     </div>
   </section>
@@ -60,8 +60,8 @@
         <item-tags :tags="item.tags" :type="dataType" :only-links="true" />
       </div>
       <div class="time">
-        <span v-tooltip="formatDateTime(item.date)">
-          {{ formatTimeAgo(item.date) }}
+        <span v-tooltip="formatDateTime(item.sentAt)">
+          {{ formatTimeAgo(item.sentAt) }}
         </span>
       </div>
     </template>

@@ -230,6 +230,15 @@ export const appFilesGQL = `
   }
 `
 
+export const tagRelationsGQL = `
+  query ($type: DataType!, $keys: [String!]!) {
+    tagRelations(type: $type, keys: $keys) {
+      tagId
+      key
+    }
+  }
+`
+
 export const chatChannelsGQL = `
   query {
     chatChannels {
@@ -240,15 +249,12 @@ export const chatChannelsGQL = `
 `
 
 export const fileInfoGQL = `
-  query ($id: ID!, $path: String!, $fileName: String!) {
-    fileInfo(id: $id, path: $path, fileName: $fileName) {
+  query ($path: String!, $fileName: String) {
+    fileInfo(path: $path, fileName: $fileName) {
       ... on FileInfo {
         path
         updatedAt
         size
-        tags {
-          ...TagSubFragment
-        }
       }
       data {
         ... on ImageFileInfo {
@@ -278,7 +284,6 @@ export const fileInfoGQL = `
       }
     }
   }
-  ${tagSubFragment}
 `
 
 export const smsGQL = `
@@ -486,7 +491,7 @@ export const mountsGQL = `
       remote
       alias
       driveType
-      diskID
+      diskId
     }
   }
 `

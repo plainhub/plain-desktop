@@ -48,7 +48,7 @@ export function addPendingSms(
     {
       ...createPendingSms(body, address, threadId),
       id: requestId,
-      date: createdAt.toISOString(),
+      sentAt: createdAt.toISOString(),
       baselineIds: [...baselineIds],
       sendState: 'sending',
     } as PendingSms,
@@ -65,11 +65,11 @@ export function reconcilePendingSms(pending: ISms[], confirmed: ISms[], threadId
   const usedConfirmedIds = new Set<string>()
 
   for (const operation of pending.filter((item) => item.threadId === threadId)) {
-    const operationTime = new Date(operation.date).getTime()
+    const operationTime = new Date(operation.sentAt).getTime()
     const baselineIds = new Set((operation as PendingSms).baselineIds ?? [])
     const match = available.find((item) => {
       if (usedConfirmedIds.has(item.id) || baselineIds.has(item.id)) return false
-      const itemTime = new Date(item.date).getTime()
+      const itemTime = new Date(item.sentAt).getTime()
       return item.body === operation.body
         && addressesMatch(item.address, operation.address)
         && Math.abs(itemTime - operationTime) <= MATCH_WINDOW_MS

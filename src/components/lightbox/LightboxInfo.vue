@@ -33,8 +33,8 @@
       
       <LightboxFileTags 
         :current="current" 
-        :file-info="fileInfo"
         :tags-map="tagsMap"
+        :item-tags="itemTags"
       />
     </div>
   </section>
@@ -70,6 +70,10 @@ const props = defineProps({
   tagsMap: {
     type: Object as () => Map<string, ITag[]>,
     required: true,
+  },
+  itemTags: {
+    type: Array as () => { tagId: string; key: string }[],
+    default: () => [],
   },
   readOnly: {
     type: Boolean,

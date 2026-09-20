@@ -6,7 +6,7 @@ export function createPendingSms(body: string, address: string, threadId: string
     body,
     address,
     serviceCenter: '',
-    date: new Date().toISOString(),
+    sentAt: new Date().toISOString(),
     type: 'SENT',
     threadId,
     subscriptionId: -1,
@@ -28,7 +28,7 @@ export function createPendingMms(
     body,
     address,
     serviceCenter: '',
-    date: new Date().toISOString(),
+    sentAt: new Date().toISOString(),
     type: 'DRAFT',
     threadId,
     subscriptionId: -1,
@@ -39,9 +39,9 @@ export function createPendingMms(
 }
 
 /** Sort items by date without re-parsing date strings inside the comparator. */
-export function sortByDate<T extends { date: string }>(items: readonly T[], descending = false): T[] {
+export function sortByDate<T extends { sentAt: string }>(items: readonly T[], descending = false): T[] {
   return items
-    .map((item) => ({ item, ts: Date.parse(item.date) }))
+    .map((item) => ({ item, ts: Date.parse(item.sentAt) }))
     .sort((a, b) => (descending ? b.ts - a.ts : a.ts - b.ts))
     .map((entry) => entry.item)
 }

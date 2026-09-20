@@ -70,7 +70,7 @@ export const smsFragment = `
     body
     address
     serviceCenter
-    date
+    sentAt
     type
     threadId
     subscriptionId

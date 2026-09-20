@@ -9,7 +9,7 @@
     <template v-if="!detailLoading">
       <div v-for="(item, index) in items" :key="item.id" class="chat-message-wrapper">
         <div v-if="showDateSeparator(index)" class="chat-date-separator">
-          <span>{{ formatDateLabel(item.date) }}</span>
+          <span>{{ formatDateLabel(item.sentAt) }}</span>
         </div>
         <MessageChatBubble :item="item" :tags="tags" :type="type" :url-token-key="urlTokenKey" @trash="(item: ISms) => $emit('trash', item)" />
       </div>
@@ -47,8 +47,8 @@ const { t } = useI18n()
 
 function showDateSeparator(index: number): boolean {
   if (index === 0) return true
-  const current = new Date(props.items[index].date).toDateString()
-  const prev = new Date(props.items[index - 1].date).toDateString()
+  const current = new Date(props.items[index].sentAt).toDateString()
+  const prev = new Date(props.items[index - 1].sentAt).toDateString()
   return current !== prev
 }
 
