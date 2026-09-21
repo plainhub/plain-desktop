@@ -20,6 +20,7 @@ export type BookmarkGroup = {
   name: string
   collapsed: boolean
   sortOrder: number
+  itemCount: number
   createdAt: string
   updatedAt: string
 }

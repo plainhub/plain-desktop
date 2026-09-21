@@ -10,7 +10,7 @@ import {
   type QueryResponseContext,
 } from '@/lib/api/query'
 import { initMutation, archiveConversationGQL, unarchiveConversationGQL } from '@/lib/api/mutation'
-import type { IMessageConversation } from '@/lib/interfaces'
+import type { ISmsConversation } from '@/lib/interfaces'
 import emitter from '@/plugins/eventbus'
 import { useTempStore } from '@/stores/temp'
 import { deleteCachedByPrefix, getCached, setCached } from '@/lib/api/cache'
@@ -19,7 +19,7 @@ import { mergeConversationPage } from '@/lib/sms-conversation-sync'
 const LIMIT = 50
 
 type SmsCountsCache = { total: number; inbox: number; sent: number; drafts: number }
-type ConversationsCache = { conversations: IMessageConversation[]; count: number }
+type ConversationsCache = { conversations: ISmsConversation[]; count: number }
 type RequestMode = 'reset' | 'more' | 'archived'
 type RequestMeta = { generation: number; mode: RequestMode; query: string; enhanced: boolean }
 type ViewMode = 'normal' | 'archived'
@@ -37,7 +37,7 @@ function isParticipantSchemaError(error: string): boolean {
 }
 
 export const useSmsStore = defineStore('sms', () => {
-  const conversations = ref<IMessageConversation[]>([])
+  const conversations = ref<ISmsConversation[]>([])
   const conversationCount = ref(0)
   const typesCount = ref<Map<string, number>>(new Map())
   const q = ref('')
@@ -48,7 +48,7 @@ export const useSmsStore = defineStore('sms', () => {
   const participantFieldsSupported = ref<boolean | undefined>()
   const archiveTombstones = new Map<string, ArchiveTombstone>()
 
-  function filterTombstones(items: IMessageConversation[], mode: ViewMode) {
+  function filterTombstones(items: ISmsConversation[], mode: ViewMode) {
     return items.filter((item) => archiveTombstones.get(item.id)?.mode !== mode)
   }
 
@@ -59,7 +59,7 @@ export const useSmsStore = defineStore('sms', () => {
   }
 
   function handleNormal(
-    data: { smsConversations: IMessageConversation[]; smsConversationCount: number },
+    data: { smsConversations: ISmsConversation[]; smsConversationCount: number },
     error: string,
     context?: QueryResponseContext,
   ) {
@@ -109,7 +109,7 @@ export const useSmsStore = defineStore('sms', () => {
   }
 
   function handleArchived(
-    data: { archivedConversations: IMessageConversation[] },
+    data: { archivedConversations: ISmsConversation[] },
     error: string,
     context?: QueryResponseContext,
   ) {
@@ -134,7 +134,7 @@ export const useSmsStore = defineStore('sms', () => {
     conversations.value = items
     conversationCount.value = items.length
     noMore.value = true
-    setCached<IMessageConversation[]>('sms:archived', items)
+    setCached<ISmsConversation[]>('sms:archived', items)
     releaseConfirmedTombstones('archived')
   }
 
@@ -142,9 +142,9 @@ export const useSmsStore = defineStore('sms', () => {
   const legacyArchivedQuery = initLazyQuery({ handle: handleArchived, document: archivedConversationsGQL })
 
   const countsQuery = initLazyQuery({
-    handle: (data: { smsAllCounts: SmsCountsCache }) => {
-      if (data?.smsAllCounts) {
-        const counts = data.smsAllCounts
+    handle: (data: { smsBoxCounts: SmsCountsCache }) => {
+      if (data?.smsBoxCounts) {
+        const counts = data.smsBoxCounts
         useTempStore().counter.messages = counts.total
         typesCount.value = new Map([['1', counts.inbox], ['2', counts.sent], ['3', counts.drafts]])
         setCached<SmsCountsCache>('sms:counts', counts)
@@ -197,7 +197,7 @@ export const useSmsStore = defineStore('sms', () => {
     generation++
     currentMode = 'archived'
     if (!force) {
-      const cached = getCached<IMessageConversation[]>('sms:archived')
+      const cached = getCached<ISmsConversation[]>('sms:archived')
       if (cached) {
         conversations.value = filterTombstones(cached, 'archived')
         conversationCount.value = cached.length
@@ -251,9 +251,8 @@ export const useSmsStore = defineStore('sms', () => {
     deleteCachedByPrefix('sms:conversations:')
     deleteCachedByPrefix('sms:archived')
 
-    const date = Date.now()
     const results = await Promise.all(ids.map(async (id) => {
-      const result = await mutateArchive({ id, date })
+      const result = await mutateArchive({ id })
       const original = originals.find(({ item }) => item.id === id)
       const tombstone = archiveTombstones.get(id)
       if (result != null) {

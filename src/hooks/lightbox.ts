@@ -8,7 +8,7 @@ import { getFileUrlByPath } from '@/lib/api/file'
 import { useTempStore } from '@/stores/temp'
 import { storeToRefs } from 'pinia'
 import { useMainStore } from '@/stores/main'
-import { fileInfoGQL, initLazyQuery, tagsGQL } from '@/lib/api/query'
+import { fileInfoGQL, initLazyQuery, tagRelationsGQL, tagsGQL } from '@/lib/api/query'
 import { openModal } from '@/components/modal'
 import { useI18n } from 'vue-i18n'
 import type { IItemTagsUpdatedEvent, IFileDeletedEvent, IFileRenamedEvent, ITag, IMediaItemsActionedEvent } from '@/lib/interfaces'
@@ -116,9 +116,24 @@ export function useLightboxQueries(
     },
     document: fileInfoGQL,
     variables: () => ({
-      id: current.value?.data?.id ?? '',
       path: current.value?.path ?? '',
       fileName: current.value?.name,
+    }),
+  })
+
+  // The file's own applied tags — lazy-loaded via tagRelations and joined
+  // against tagsMap, instead of being shipped inside fileInfo.
+  const itemTags = ref<{ tagId: string; key: string }[]>([])
+  const { fetch: loadItemTags } = initLazyQuery({
+    handle: (data: any, error: string) => {
+      if (!error && data) {
+        itemTags.value = data.tagRelations ?? []
+      }
+    },
+    document: tagRelationsGQL,
+    variables: () => ({
+      type: current.value?.type ?? '',
+      keys: [current.value?.data?.id ?? ''],
     }),
   })
 
@@ -135,7 +150,7 @@ export function useLightboxQueries(
     }),
   })
 
-  return { loadInfo, refetchInfo: loadInfo, updateViewOriginImageState, tagsMap, loadTags }
+  return { loadInfo, refetchInfo: () => { loadInfo(); loadItemTags() }, updateViewOriginImageState, tagsMap, loadTags, itemTags, loadItemTags }
 }
 
 export function useLightboxTransform(
@@ -207,6 +222,7 @@ export function useLightboxNavigation(
   tagsMap: Map<string, ITag[]>,
   loadTags: () => void,
   loadInfo: () => void,
+  loadItemTags: () => void,
   loop: Ref<boolean>,
   emit: (event: string, ...args: any[]) => void,
   imageViewQuality: Ref<'fast' | 'original'>,
@@ -358,7 +374,10 @@ export function useLightboxNavigation(
       if (type && !tagsMap.has(type)) loadTags()
       // Read-only guest lightboxes (shared links) have no authenticated
       // session; firing fileInfo would 401 and reload the whole page.
-      if (!tempStore.lightbox.readOnly) loadInfo()
+      if (!tempStore.lightbox.readOnly) {
+        loadInfo()
+        loadItemTags()
+      }
     }, 0)
 
     preloadAdjacentImages(newIndex)

@@ -94,7 +94,7 @@ describe.skipIf(!iosEndpoint)(`iOS GraphQL smoke — ${skipReason || 'iOS endpoi
   it('chatItems(local): returns array of ChatItem', async () => {
     const data = await iosQuery<{ chatItems: any[] }>(`
       query($id: String!) {
-        chatItems(id: $id) { ...ChatItemFragment }
+        chatItems(id: $id, offset: 0, limit: 200) { ...ChatItemFragment }
       }
       ${chatItemFragment}
     `, { id: 'local' })
@@ -104,7 +104,7 @@ describe.skipIf(!iosEndpoint)(`iOS GraphQL smoke — ${skipReason || 'iOS endpoi
   it('chatItems(peer:nonexistent): returns empty array, no errors', async () => {
     const data = await iosQuery<{ chatItems: any[] }>(`
       query($id: String!) {
-        chatItems(id: $id) { ...ChatItemFragment }
+        chatItems(id: $id, offset: 0, limit: 200) { ...ChatItemFragment }
       }
       ${chatItemFragment}
     `, { id: 'peer:__nonexistent_peer_id__' })
@@ -175,7 +175,7 @@ describe.skipIf(!iosEndpoint)(`iOS GraphQL smoke — ${skipReason || 'iOS endpoi
     const data = await iosQuery<{ videos: any[] }>(`
       query($offset: Int!, $limit: Int!, $query: String!, $sortBy: FileSortBy!) {
         videos(offset: $offset, limit: $limit, query: $query, sortBy: $sortBy) {
-          id title path duration size
+          id title path durationMs size
         }
       }
     `, { offset: 0, limit: 1, query: '', sortBy: 'DATE_DESC' })
@@ -186,7 +186,7 @@ describe.skipIf(!iosEndpoint)(`iOS GraphQL smoke — ${skipReason || 'iOS endpoi
     const data = await iosQuery<{ audios: any[] }>(`
       query($offset: Int!, $limit: Int!, $query: String!, $sortBy: FileSortBy!) {
         audios(offset: $offset, limit: $limit, query: $query, sortBy: $sortBy) {
-          id title artist duration size
+          id title artist durationMs size
         }
       }
     `, { offset: 0, limit: 1, query: '', sortBy: 'DATE_DESC' })
@@ -208,7 +208,7 @@ describe.skipIf(!iosEndpoint)(`iOS GraphQL smoke — ${skipReason || 'iOS endpoi
     const data = await iosQuery<{ calls: any[] }>(`
       query($offset: Int!, $limit: Int!, $query: String!) {
         calls(offset: $offset, limit: $limit, query: $query) {
-          id number name duration type
+          id number name durationSec type
         }
       }
     `, { offset: 0, limit: 1, query: '' })
@@ -267,7 +267,7 @@ describe.skipIf(!iosEndpoint)(`iOS GraphQL smoke — ${skipReason || 'iOS endpoi
     // iOS does not support NOTIFICATION_LISTENER — the resolver throws
     // no_permission. This is expected platform behavior, not a schema bug.
     const res = await gqlFetch<{ notifications: any[] }>(iosEndpoint!, `
-      query { notifications { id title body appId appName time } }
+      query { notifications(offset: 0, limit: 200) { id title body appId appName time } }
     `)
     if (res.errors) {
       expect(res.errors.some(e => e.message.includes('no_permission'))).toBe(true)
@@ -287,7 +287,7 @@ describe.skipIf(!iosEndpoint)(`iOS GraphQL smoke — ${skipReason || 'iOS endpoi
 
   it('pomodoroToday: returns object (completedCount field)', async () => {
     const data = await iosQuery<{ pomodoroToday: any }>(`
-      query { pomodoroToday { date completedCount currentRound timeLeft totalTime isRunning isPause state } }
+      query { pomodoroToday { date completedCount currentRound timeLeftSec totalTimeSec isRunning isPaused state } }
     `)
     expect(data.pomodoroToday).toBeTruthy()
     expect(typeof data.pomodoroToday.date).toBe('string')
@@ -296,7 +296,7 @@ describe.skipIf(!iosEndpoint)(`iOS GraphQL smoke — ${skipReason || 'iOS endpoi
 
   it('pomodoroSettings: returns object', async () => {
     const data = await iosQuery<{ pomodoroSettings: any }>(`
-      query { pomodoroSettings { workDuration } }
+      query { pomodoroSettings { workDurationMin } }
     `)
     expect(data.pomodoroSettings).toBeTruthy()
   })

@@ -6,7 +6,7 @@ import { initLazyQuery, initQuery, noteGQL, tagsGQL } from '@/lib/api/query'
 import type { IItemTagsUpdatedEvent, IItemsTagsUpdatedEvent, INote, ITag } from '@/lib/interfaces'
 import { formatDateTime } from '@/lib/format'
 import { useMarkdown } from '@/hooks/markdown'
-import { initMutation, saveNoteGQL } from '@/lib/api/mutation'
+import { createNoteGQL, initMutation, updateNoteGQL } from '@/lib/api/mutation'
 import { debounce } from '@/lib/array'
 import router, { replacePath, replacePathNoReload } from '@/plugins/router'
 import { useMainStore } from '@/stores/main'
@@ -43,10 +43,10 @@ export function useNoteEdit() {
 
   const { render } = useMarkdown(app, urlTokenKey)
 
-  const { mutate: save, onDone: saveDone } = initMutation({ document: saveNoteGQL })
+  const { mutate: save, onDone: saveDone } = initMutation({ document: id.value ? updateNoteGQL : createNoteGQL })
   saveDone((r: any) => {
-    note.value = r.data.saveNote
-    emitter.emit('notes_actioned', { action: 'save', note: r.data.saveNote })
+    note.value = r.data.updateNote ?? r.data.createNote
+    emitter.emit('notes_actioned', { action: 'save', note: note.value })
     if (!id.value && note.value?.id) {
       id.value = note.value.id
       replacePathNoReload(mainStore, `/notes/${id.value}`)
@@ -55,7 +55,7 @@ export function useNoteEdit() {
 
   const saveContent = debounce(() => {
     notSaved.value = false
-    save({ id: id.value, input: { content: content.value, title: getMarkdownTitle(content.value) } })
+    save({ ...(id.value ? { id: id.value } : {}), input: { content: content.value, title: getMarkdownTitle(content.value) } })
   }, 500)
 
   // Registered once here (component scope, auto-stopped on unmount).

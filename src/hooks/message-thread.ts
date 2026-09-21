@@ -3,7 +3,7 @@ import toast from '@/components/toaster'
 import { initLazyQuery, smsGQL, type QueryResponseContext } from '@/lib/api/query'
 import { useI18n } from 'vue-i18n'
 import { buildQuery } from '@/lib/search'
-import type { IItemTagsUpdatedEvent, IItemsTagsUpdatedEvent, IMessage, IMessageConversation, IMmsSendResultEvent, ISmsSendResultEvent } from '@/lib/interfaces'
+import type { IItemTagsUpdatedEvent, IItemsTagsUpdatedEvent, ISms, ISmsConversation, IMmsSendResultEvent, ISmsSendResultEvent } from '@/lib/interfaces'
 import { useTags } from '@/hooks/tags'
 import { useContactName } from '@/hooks/contacts'
 import { DataType } from '@/lib/data'
@@ -32,21 +32,21 @@ export function useMessageThread(
   threadId: Ref<string>,
   chatScrollRef: Ref<HTMLElement | undefined>,
   isArchived?: Ref<boolean>,
-  conversation?: Ref<IMessageConversation | undefined>,
+  conversation?: Ref<ISmsConversation | undefined>,
 ) {
   const { t } = useI18n()
   const { loadContacts, getDisplayName } = useContactName()
   const { tags, fetch: fetchTags } = useTags(DataType.SMS)
 
-  const items = ref<IMessage[]>([])
+  const items = ref<ISms[]>([])
   const detailLoading = ref(false)
   const noMoreOlder = ref(false)
   const loadingMore = ref(false)
-  const pendingMmsItems = ref<IMessage[]>([])
-  const pendingSmsItems = ref<IMessage[]>([])
+  const pendingMmsItems = ref<ISms[]>([])
+  const pendingSmsItems = ref<ISms[]>([])
   const retryTimers = new Map<string, Set<ReturnType<typeof setTimeout>>>()
   const pendingMmsTimers = new Map<string, ReturnType<typeof setTimeout>>()
-  let onTerminalSmsFailure: ((failed: IMessage) => void) | undefined
+  let onTerminalSmsFailure: ((failed: ISms) => void) | undefined
   let onTerminalMmsResult: ((pendingId: string, success: boolean) => void) | undefined
 
   const participantAddresses = computed(() => {
@@ -75,7 +75,7 @@ export function useMessageThread(
   }
 
   const { loading, fetch: rawFetch } = initLazyQuery({
-    handle: (data: { sms: IMessage[]; smsCount: number }, error: string, context?: QueryResponseContext) => {
+    handle: (data: { sms: ISms[]; smsCount: number }, error: string, context?: QueryResponseContext) => {
       const meta = context?.meta as ThreadRequestMeta | undefined
       if (!meta || meta.threadId !== threadId.value) return
       if (error) {
@@ -196,7 +196,7 @@ export function useMessageThread(
     }
   }
 
-  function handleSmsSendResult(result: ISmsSendResultEvent): { handled: boolean; failed?: IMessage } {
+  function handleSmsSendResult(result: ISmsSendResultEvent): { handled: boolean; failed?: ISms } {
     const outcome = settlePendingSmsResult(pendingSmsItems.value, result)
     if (!outcome.handled || !result.requestId) return { handled: false }
     if (!outcome.transitioned) return { handled: true }
@@ -211,7 +211,7 @@ export function useMessageThread(
     return { handled: true, failed: outcome.failed }
   }
 
-  function failPending(requestId: string): IMessage | undefined {
+  function failPending(requestId: string): ISms | undefined {
     const failed = failPendingSms(pendingSmsItems.value, requestId)
     pendingSmsItems.value = failed.pending
     smsDeadlines.settle(requestId)
@@ -219,7 +219,7 @@ export function useMessageThread(
     return failed.failed
   }
 
-  function setPendingMms(id: string, body: string, address: string, attachments: IMessage['attachments']) {
+  function setPendingMms(id: string, body: string, address: string, attachments: ISms['attachments']) {
     pendingMmsItems.value = addPendingMms(
       pendingMmsItems.value,
       createPendingMms(id, body, address, threadId.value, attachments),
@@ -245,7 +245,7 @@ export function useMessageThread(
     pendingMmsTimers.delete(pendingId)
   }
 
-  function handleMmsSendResult(result: IMmsSendResultEvent): { handled: boolean; failed?: IMessage } {
+  function handleMmsSendResult(result: IMmsSendResultEvent): { handled: boolean; failed?: ISms } {
     const settled = settlePendingMms(pendingMmsItems.value, result.pendingId)
     if (!settled.settled) return { handled: false }
     pendingMmsItems.value = settled.pending
@@ -266,7 +266,7 @@ export function useMessageThread(
   })
 
   function setTerminalHandlers(handlers: {
-    onSmsFailure: (failed: IMessage) => void
+    onSmsFailure: (failed: ISms) => void
     onMmsResult: (pendingId: string, success: boolean) => void
   }) {
     onTerminalSmsFailure = handlers.onSmsFailure

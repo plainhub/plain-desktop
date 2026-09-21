@@ -1,6 +1,6 @@
 import { ref, onUnmounted } from 'vue'
 import { useI18n } from 'vue-i18n'
-import type { IMessage } from '@/lib/interfaces'
+import type { ISms } from '@/lib/interfaces'
 import { popModal } from '@/components/modal'
 import { download, getFileUrlByPath } from '@/lib/api/file'
 import { formatDateTime } from '@/lib/format'
@@ -14,8 +14,8 @@ export const formats = [
   { value: 'csv', labelKey: 'export_format_csv' },
 ] as const
 
-function isSent(item: IMessage): boolean {
-  return item.type === 2 || item.type === 4
+function isSent(item: ISms): boolean {
+  return item.type === 'SENT' || item.type === 'OUTBOX'
 }
 
 function escapeCSV(value: string): string {
@@ -23,7 +23,7 @@ function escapeCSV(value: string): string {
 }
 
 export function useExportSms(props: {
-  items: IMessage[]
+  items: ISms[]
   query: string | null
   contactName: string
   urlTokenKey: Uint8Array | null
@@ -37,7 +37,7 @@ export function useExportSms(props: {
 
   onUnmounted(() => { abortController?.abort() })
 
-  function getDirection(item: IMessage): string {
+  function getDirection(item: ISms): string {
     return isSent(item) ? t('sent') : t('received')
   }
 
@@ -50,17 +50,17 @@ export function useExportSms(props: {
     )
   }
 
-  async function loadMessages(): Promise<IMessage[]> {
+  async function loadMessages(): Promise<ISms[]> {
     if (props.items.length > 0) return props.items
     progressText.value = t('export_loading_messages')
-    const result = await gqlFetch<{ sms: IMessage[] }>(smsGQL, { offset: 0, limit: 100000, query: props.query ?? '' })
+    const result = await gqlFetch<{ sms: ISms[] }>(smsGQL, { offset: 0, limit: 100000, query: props.query ?? '' })
     return result?.data?.sms ?? []
   }
 
-  function buildMessageContent(zip: any, sorted: IMessage[], format: string) {
+  function buildMessageContent(zip: any, sorted: ISms[], format: string) {
     if (format === 'json') {
       const data = sorted.map((msg) => ({
-        id: msg.id, date: msg.date, address: msg.address, type: msg.type,
+        id: msg.id, sentAt: msg.sentAt, address: msg.address, type: msg.type,
         direction: getDirection(msg), body: msg.body ?? '',
         serviceCenter: msg.serviceCenter ?? '', subscriptionId: msg.subscriptionId,
         isMms: msg.isMms ?? false,
@@ -75,7 +75,7 @@ export function useExportSms(props: {
       const lines: string[] = []
       for (const msg of sorted) {
         const dir = isSent(msg) ? '→' : '←'
-        lines.push(`[${formatDateTime(msg.date)}] ${dir} ${msg.address}`)
+        lines.push(`[${formatDateTime(msg.sentAt)}] ${dir} ${msg.address}`)
         if (msg.body) lines.push(msg.body)
         for (const att of msg.attachments ?? []) {
           lines.push(`[attachment: attachments/${msg.id}/${att.name || att.path.split('/').pop() || 'file'}]`)
@@ -87,13 +87,13 @@ export function useExportSms(props: {
       const header = [escapeCSV(t('date')), escapeCSV(t('direction')), escapeCSV(t('address')), escapeCSV(t('body')), escapeCSV(t('attachments'))].join(',')
       const rows = sorted.map((msg) => {
         const attNames = (msg.attachments ?? []).map((a) => a.name || a.contentType).join('; ')
-        return [escapeCSV(formatDateTime(msg.date)), escapeCSV(getDirection(msg)), escapeCSV(msg.address ?? ''), escapeCSV(msg.body ?? ''), escapeCSV(attNames)].join(',')
+        return [escapeCSV(formatDateTime(msg.sentAt)), escapeCSV(getDirection(msg)), escapeCSV(msg.address ?? ''), escapeCSV(msg.body ?? ''), escapeCSV(attNames)].join(',')
       })
       zip.file('messages.csv', '\uFEFF' + header + '\n' + rows.join('\n'))
     }
   }
 
-  async function fetchAttachments(zip: any, sorted: IMessage[]) {
+  async function fetchAttachments(zip: any, sorted: ISms[]) {
     const attachmentsFolder = zip.folder('attachments')!
     const totalAtt = sorted.reduce((s, m) => s + (m.attachments?.length ?? 0), 0)
     let fetchedAtt = 0
@@ -122,7 +122,7 @@ export function useExportSms(props: {
     exporting.value = true
     try {
       const raw = await loadMessages()
-      const sorted = [...raw].sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())
+      const sorted = [...raw].sort((a, b) => new Date(a.sentAt).getTime() - new Date(b.sentAt).getTime())
       const JSZip = (await import('jszip')).default
       const zip = new JSZip()
       progressText.value = t('export_preparing_data')

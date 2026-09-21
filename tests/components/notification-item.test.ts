@@ -32,7 +32,7 @@ function makeItem(overrides: Partial<INotification> = {}): INotification {
     isClearable: true,
     appId: 'com.example.app',
     appName: 'Example',
-    time: new Date().toISOString(),
+    postedAt: new Date().toISOString(),
     silent: false,
     title: 'Backup done',
     body: 'All files synced',

@@ -33,7 +33,7 @@
       </label>
       <div v-for="(item, index) in editItem.phoneNumbers" :key="index" class="form-row">
         <v-select 
-          v-model.number="item.type" 
+          v-model="item.type" 
           class="flex-2" 
           :options="createTypeOptions(types.phoneNumberTypes, 'phone_number_type', item)"
           @change="onTypeChanged(item)"
@@ -51,7 +51,7 @@
       </label>
       <div v-for="(item, index) in editItem.emails" :key="index" class="form-row">
         <v-select 
-          v-model.number="item.type" 
+          v-model="item.type" 
           class="flex-2" 
           :options="createTypeOptions(types.emailTypes, 'email_type', item)"
           @change="onTypeChanged(item)"
@@ -69,7 +69,7 @@
       </label>
       <div v-for="(item, index) in editItem.addresses" :key="index" class="form-row">
         <v-select 
-          v-model.number="item.type" 
+          v-model="item.type" 
           class="flex-2" 
           :options="createTypeOptions(types.addressTypes, 'address_type', item)"
           @change="onTypeChanged(item)"
@@ -87,7 +87,7 @@
       </label>
       <div v-for="(item, index) in editItem.websites" :key="index" class="form-row">
         <v-select 
-          v-model.number="item.type" 
+          v-model="item.type" 
           class="flex-2" 
           :options="createTypeOptions(types.websiteTypes, 'website_type', item)"
           @change="onTypeChanged(item)"
@@ -105,9 +105,9 @@
       </label>
       <div v-for="(item, index) in editItem.ims" :key="index" class="form-row">
         <v-select 
-          v-model.number="item.type" 
+          v-model="item.protocol" 
           class="flex-2" 
-          :options="createTypeOptions(types.imTypes, 'im_type', item)"
+          :options="createTypeOptions(types.imProtocols, 'im_protocol', item)"
           @change="onTypeChanged(item)"
         />
         <v-text-field v-model="item.value" :placeholder="$t('im')" class="flex-3" />
@@ -123,19 +123,19 @@
           <template #trigger>
             <v-outlined-button>{{ $t('add_field') }}</v-outlined-button>
           </template>
-          <div class="dropdown-item" @click="() => addField(editItem.phoneNumbers)">
+          <div class="dropdown-item" @click="() => addField(editItem.phoneNumbers, () => ({ type: 'MOBILE', value: '', label: '' }))">
             {{ $t('phone_number') }}
           </div>
-          <div class="dropdown-item" @click="() => addField(editItem.emails)">
+          <div class="dropdown-item" @click="() => addField(editItem.emails, () => ({ type: 'HOME', value: '', label: '' }))">
             {{ $t('email') }}
           </div>
-          <div class="dropdown-item" @click="() => addField(editItem.addresses)">
+          <div class="dropdown-item" @click="() => addField(editItem.addresses, () => ({ type: 'HOME', value: '', label: '' }))">
             {{ $t('address') }}
           </div>
-          <div class="dropdown-item" @click="() => addField(editItem.websites)">
+          <div class="dropdown-item" @click="() => addField(editItem.websites, () => ({ type: 'HOMEPAGE', value: '', label: '' }))">
             {{ $t('website') }}
           </div>
-          <div class="dropdown-item" @click="() => addField(editItem.ims)">
+          <div class="dropdown-item" @click="() => addField(editItem.ims, () => ({ protocol: 'CUSTOM', value: '', customProtocol: '' }))">
             {{ $t('im') }}
           </div>
         </v-dropdown>

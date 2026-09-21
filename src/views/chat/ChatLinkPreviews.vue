@@ -43,7 +43,7 @@ const props = defineProps({
 const linkPreviews = computed(() => {
   const data = props.data
   const previews = data?._content?.value?.linkPreviews ?? []
-  const ids = data?.data?.ids ?? []
+  const ids = data?.data?.linkPreviewImageIds ?? []
     return previews.map((preview: any, index: number) => {
     const fileId = ids[index] || ''
     return {

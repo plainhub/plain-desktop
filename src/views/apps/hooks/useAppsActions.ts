@@ -67,15 +67,15 @@ export function useAppsActions(opts: UseAppsActionsOptions) {
         for (const item of data.packageStatuses) {
           const installingPackage = installingPackages.value.find((it) => it.id === item.id)
           if (installingPackage) {
-            const isNewInstalled = installingPackage.isNew && item.exist
-            const isUpgraded = !installingPackage.isNew && item.exist && installingPackage.updatedAt < item.updatedAt
+            const isNewInstalled = installingPackage.isNew && item.exists
+            const isUpgraded = !installingPackage.isNew && item.exists && installingPackage.updatedAt < item.updatedAt
             if (isNewInstalled || isUpgraded) {
               installingPackages.value = installingPackages.value.filter((it) => it.id !== item.id)
               tapPhone('')
               toast(isNewInstalled ? t('app_installation_completed') : t('app_upgrade_completed'))
               fetch()
             }
-          } else if (!item.exist) {
+          } else if (!item.exists) {
             deleteById(items.value as any, item.id)
             tapPhone('')
           }
@@ -116,12 +116,12 @@ export function useAppsActions(opts: UseAppsActionsOptions) {
         .then((result) => {
           tapPhone(t('confirm_installation_on_phone'))
           if (result?.data?.installPackage) {
-            const { packageName, updatedAt, isNew } = result.data.installPackage
-            if (packageName) {
-              installingPackages.value.push({ id: packageName, updatedAt, isNew })
+            const { id: pkgId, updatedAt, isNew } = result.data.installPackage
+            if (pkgId) {
+              installingPackages.value.push({ id: pkgId, updatedAt, isNew })
               setTimeout(() => {
-                if (installingPackages.value.some((it) => it.id === packageName)) {
-                  installingPackages.value = installingPackages.value.filter((it) => it.id !== packageName)
+                if (installingPackages.value.some((it) => it.id === pkgId)) {
+                  installingPackages.value = installingPackages.value.filter((it) => it.id !== pkgId)
                   tapPhone('')
                 }
               }, 120000)

@@ -9,7 +9,7 @@ export async function fetchLatestChatContent(messageId: string, conversationId: 
     const single = await gqlFetch(chatItemGQL, { id: messageId })
     const fresh = single.data?.chatItem?.content
     if (typeof fresh === 'string') return fresh
-    const list = await gqlFetch(chatItemsGQL, { id: conversationId })
+    const list = await gqlFetch(chatItemsGQL, { target: conversationId })
     return list.data?.chatItems?.find((i: any) => i.id === messageId)?.content ?? null
   } catch {
     return null

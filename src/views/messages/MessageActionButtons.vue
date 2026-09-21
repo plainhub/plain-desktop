@@ -14,11 +14,11 @@
 </template>
 
 <script setup lang="ts">
-import type { IMessage, ITag } from '@/lib/interfaces'
+import type { ISms, ITag } from '@/lib/interfaces'
 import { DataType } from '@/lib/data'
 
 interface Props {
-  item: IMessage
+  item: ISms
   tags: ITag[]
   dataType: DataType
   callLoading?: boolean
@@ -28,9 +28,9 @@ interface Props {
 const props = defineProps<Props>()
 
 const emit = defineEmits<{
-  sendSms: [item: IMessage]
-  call: [item: IMessage]
-  archive: [item: IMessage]
+  sendSms: [item: ISms]
+  call: [item: ISms]
+  archive: [item: ISms]
 }>()
 
 function call() {

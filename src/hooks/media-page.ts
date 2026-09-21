@@ -8,7 +8,7 @@ import type { IUploadItem } from '@/stores/temp'
 import { decodeBase64 } from '@/lib/strutil'
 import { noDataKey } from '@/lib/list'
 import { useSearch } from '@/hooks/search'
-import { useSelectable } from '@/hooks/list'
+import { useSelectable, selectAllQuery } from '@/hooks/list'
 import { useBuckets, useBucketsTags, useDeleteItems } from '@/hooks/media'
 import { useDownload, useDownloadItems } from '@/hooks/files'
 import { useMediaPageUpload } from '@/hooks/media-page-upload'
@@ -111,7 +111,9 @@ export function useMediaPage(options: MediaPageOptions) {
     replacePath(mainStore, qStr ? `/${routePath}?page=1&q=${qStr}` : `/${routePath}?page=1`)
   }
 
-  const getQuery = () => sel.realAllChecked.value ? q.value : `ids:${sel.selectedIds.value.join(',')}`
+  const getQuery = () => sel.realAllChecked.value
+    ? selectAllQuery(q.value)
+    : `ids:${sel.selectedIds.value.join(',')}`
   const trashInEditMode = () => {
     hasMediaTrash(app.value)
       ? trash(dataType, getQuery())
@@ -176,7 +178,7 @@ export function useMediaPage(options: MediaPageOptions) {
   const uploadTaskDoneHandler = (r: IUploadItem) => {
     if (r.status !== 'done' || !fileFilter(r.fileName)) return
     const shouldRefresh = !filter.bucketId || buckets.value.some((b) =>
-      b.id === filter.bucketId && b.topItems.some((ti) => r.dir.startsWith(getDirFromPath(ti)))
+      b.id === filter.bucketId && b.topItemPaths.some((ti) => r.dir.startsWith(getDirFromPath(ti)))
     )
     if (shouldRefresh) uploadRefresh.schedule()
   }

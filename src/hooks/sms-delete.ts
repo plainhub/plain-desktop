@@ -20,13 +20,17 @@ export const useSmsDelete = () => {
     document: deleteSmsGQL,
   })
 
-  onDeleted((r: any) => {
-    const { query } = r.data.deleteSms
+  const pending: string[] = []
+
+  onDeleted(() => {
+    const query = pending.shift()
+    if (query === undefined) return
     emitter.emit('media_items_actioned', { type: 'SMS', action: 'delete', query })
   })
 
   return {
     delete(query: string) {
+      pending.push(query)
       mutate({ query })
     },
     onError: onError,

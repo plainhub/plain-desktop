@@ -2,7 +2,7 @@ import { ref } from 'vue'
 import { initLazyQuery } from '@/lib/api/query'
 import { contactFragment } from '@/lib/api/fragments'
 import type { IContact } from '@/lib/interfaces'
-import type { IMessageConversation } from '@/lib/interfaces'
+import type { ISmsConversation } from '@/lib/interfaces'
 import {
   buildContactNameIndex,
   getAddressDisplayLabels,
@@ -61,7 +61,7 @@ export function useContactName() {
     return labels.join(', ') || '-'
   }
 
-  function getConversationDisplayName(conversation: IMessageConversation): string {
+  function getConversationDisplayName(conversation: ISmsConversation): string {
     return getDisplayName(getConversationAddresses(conversation))
   }
 

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import type { IMessage, IMessageConversation } from '@/lib/interfaces'
+import type { ISms, ISmsConversation } from '@/lib/interfaces'
 import {
   addPendingMms,
   addPendingSms,
@@ -12,10 +12,10 @@ import {
 } from '@/lib/sms-state-sync'
 import { mergeConversationPage, resolveConversationSendAddress } from '@/lib/sms-conversation-sync'
 
-function message(overrides: Partial<IMessage> = {}): IMessage {
+function message(overrides: Partial<ISms> = {}): ISms {
   return {
     id: 'server-1', body: 'hello', address: '+15551234567', serviceCenter: '',
-    date: '2026-08-28T10:00:01.000Z', type: 2, threadId: 'thread-a',
+    date: '2026-08-28T10:00:01.000Z', type: 'SENT', threadId: 'thread-a',
     subscriptionId: 1, tags: [], ...overrides,
   }
 }
@@ -137,7 +137,7 @@ describe('pending MMS state', () => {
   })
 })
 
-function conversation(id: string): IMessageConversation {
+function conversation(id: string): ISmsConversation {
   return { id, address: id, addresses: [id], snippet: id, date: '2026-08-28T10:00:00Z', messageCount: 1, read: true }
 }
 

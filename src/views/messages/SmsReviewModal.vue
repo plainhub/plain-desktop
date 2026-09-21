@@ -6,7 +6,7 @@
     <template #content>
       <div v-if="current" class="review-card">
         <div class="review-meta">
-          {{ current.address }} · {{ formatDateTime(current.date) }}
+          {{ current.address }} · {{ formatDateTime(current.sentAt) }}
         </div>
         <div class="review-body">{{ current.body }}</div>
         <div class="review-count">
@@ -31,10 +31,10 @@ import OrganizeConfirmModal from '@/components/lightbox/OrganizeConfirmModal.vue
 import { useSmsTrash, useSmsRestore } from '@/hooks/sms-trash'
 import { useSmsDeleteAvailable, useSmsDelete } from '@/hooks/sms-delete'
 import { formatDateTime } from '@/lib/format'
-import type { IMessage } from '@/lib/interfaces'
+import type { ISms } from '@/lib/interfaces'
 
 const props = defineProps<{
-  items: IMessage[]
+  items: ISms[]
 }>()
 
 const emit = defineEmits<{
@@ -47,8 +47,8 @@ const smsDelete = useSmsDelete()
 const { available: deleteAvailable } = useSmsDeleteAvailable()
 
 const remaining = ref([...props.items])
-const trashedStack = ref<IMessage[]>([])
-const deletedStack = ref<IMessage[]>([])
+const trashedStack = ref<ISms[]>([])
+const deletedStack = ref<ISms[]>([])
 const permanent = ref(false)
 const finished = ref(false)
 

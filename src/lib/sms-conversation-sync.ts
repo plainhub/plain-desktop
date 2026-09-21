@@ -1,11 +1,11 @@
-import type { IMessageConversation } from '@/lib/interfaces'
+import type { ISmsConversation } from '@/lib/interfaces'
 import { getConversationAddresses } from '@/lib/contact/name-resolution'
 import { addressesMatch } from '@/lib/sms-state-sync'
 
 export function mergeConversationPage(
-  existing: IMessageConversation[],
-  incoming: IMessageConversation[],
-): IMessageConversation[] {
+  existing: ISmsConversation[],
+  incoming: ISmsConversation[],
+): ISmsConversation[] {
   const result = [...existing]
   const indexById = new Map(result.map((item, index) => [item.id, index]))
   for (const item of incoming) {
@@ -28,7 +28,7 @@ function unanimousObservedAddress(addresses: string[]): string {
 }
 
 export function resolveConversationSendAddress(
-  conversation: IMessageConversation | undefined,
+  conversation: ISmsConversation | undefined,
   observedRowAddresses: string[],
   legacySchema = false,
 ): string {

@@ -18,16 +18,16 @@ import { useAudioPlaylist, usePlayAudio } from '@/hooks/audio-player'
 import { audioPlayback, audioPlaylistItems, resetAudioPlaylistForTests } from '@/hooks/audio-playlist-store'
 import { useTempStore } from '@/stores/temp'
 import emitter from '@/plugins/eventbus'
-import type { IPlaylistAudio } from '@/lib/interfaces'
+import type { IAudioItem } from '@/lib/interfaces'
 
-function audio(path: string): IPlaylistAudio {
-  return { title: path, artist: '', path, duration: 0 }
+function audio(path: string): IAudioItem {
+  return { title: path, artist: '', path, durationMs: 0 }
 }
 
-function mockGql(playlist: IPlaylistAudio[]) {
+function mockGql(playlist: IAudioItem[]) {
   gqlFetchMock.mockImplementation(async (doc: string) => {
     if (doc.includes('mutation playAudio')) return { data: { playAudio: audio('/played.mp3') } }
-    if (doc.includes('mutation clearAudioPlaylist')) return { data: { clearAudioPlaylist: true } }
+    if (doc.includes('mutation clearAudioQueue')) return { data: { clearAudioQueue: true } }
     return { data: { items: playlist, total: playlist.length } }
   })
 }
@@ -68,7 +68,7 @@ describe('usePlayAudio', () => {
     await play({ path: '/played.mp3' })
     await flushPromises()
 
-    expect(audioPlayback.value.currentPath).toBe('')
+    expect(audioPlayback.value.currentPath).toBeNull()
     expect(applied).not.toHaveBeenCalled()
   })
 })
@@ -125,14 +125,14 @@ describe('useAudioPlaylist', () => {
     expect(audioEl.play).toHaveBeenCalledTimes(1)
   })
 
-  it('resets the mirror only after clearAudioPlaylist succeeds', async () => {
+  it('resets the mirror only after clearAudioQueue succeeds', async () => {
     mockGql([audio('/a.mp3')])
     const { hook } = mountPanel()
     await flushPromises()
     expect(audioPlaylistItems.value).toHaveLength(1)
 
     gqlFetchMock.mockImplementation(async (doc: string) => {
-      if (doc.includes('mutation clearAudioPlaylist')) return { errors: [{ message: 'failed' }] }
+      if (doc.includes('mutation clearAudioQueue')) return { errors: [{ message: 'failed' }] }
       return { data: { items: [audio('/a.mp3')], total: 1 } }
     })
     hook.clearPlaylist()
@@ -143,6 +143,6 @@ describe('useAudioPlaylist', () => {
     hook.clearPlaylist()
     await flushPromises()
     expect(audioPlaylistItems.value).toEqual([])
-    expect(audioPlayback.value.currentPath).toBe('')
+    expect(audioPlayback.value.currentPath).toBeNull()
   })
 })

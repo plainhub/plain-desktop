@@ -34,7 +34,7 @@ export function createBucketUploadTarget(options: {
     if (!bucketId) return ''
 
     const bucket = options.buckets.value.find((it) => it.id === bucketId)
-    const top = bucket?.topItems?.[0]
+    const top = bucket?.topItemPaths?.[0]
     if (!top) return ''
     return getDirFromPath(top)
   }

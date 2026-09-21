@@ -16,7 +16,7 @@
       {{ item.name ? item.name + ' ' + item.number : item.number }}
     </div>
     <div class="subtitle">
-      <span>{{ formatSeconds(item.duration) }}</span>
+      <span>{{ formatSeconds(item.durationSec) }}</span>
       <span>{{ $t('call_type.' + item.type) }}</span>
       <item-tags :tags="item.tags" :type="dataType" :only-links="true" />
     </div>
@@ -53,7 +53,7 @@
     
     <template #subtitle>
       <div class="subtitle">
-        <span>{{ formatSeconds(item.duration) }}</span>
+        <span>{{ formatSeconds(item.durationSec) }}</span>
         <span>{{ $t('call_type.' + item.type) }}</span>
         <item-tags :tags="item.tags" :type="dataType" :only-links="true" />
       </div>

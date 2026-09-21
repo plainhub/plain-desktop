@@ -128,7 +128,7 @@ describe.skipIf(!hasBothEndpoints)(`schema alignment (read queries) — ${skipRe
   it('chatItems(peer:nonexistent): both return empty array, no errors', async () => {
     const query = `
       query ($id: String!) {
-        chatItems(id: $id) {
+        chatItems(id: $id, offset: 0, limit: 200) {
           ...ChatItemFragment
         }
       }
@@ -152,7 +152,7 @@ describe.skipIf(!hasBothEndpoints)(`schema alignment (read queries) — ${skipRe
   it('chatItems(local): ChatItem shape incl. data union resolves on both', async () => {
     const query = `
       query ($id: String!) {
-        chatItems(id: $id) {
+        chatItems(id: $id, offset: 0, limit: 200) {
           ...ChatItemFragment
         }
       }

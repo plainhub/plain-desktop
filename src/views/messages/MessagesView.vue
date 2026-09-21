@@ -76,7 +76,7 @@ import type { ChatCaptureDestination, ChatCaptureTarget } from '@/lib/screen-cap
 import { sendCapturedMms, snapshotMessageCaptureDestination } from './message-capture'
 import { initLazyQuery, smsConversationsGQL, smsConversationsWithAddressesGQL, type QueryResponseContext } from '@/lib/api/query'
 import { buildQuery } from '@/lib/search'
-import type { IMessage, IMessageConversation } from '@/lib/interfaces'
+import type { ISms, ISmsConversation } from '@/lib/interfaces'
 import { subscribeMmsSendResults, subscribeSmsSendResults, takeMmsSendResult, takeSmsSendResult } from '@/lib/sms-result-ledger'
 
 const mainStore = useMainStore()
@@ -89,7 +89,7 @@ const threadId = ref('')
 const chatScrollRef = ref<HTMLElement>()
 const isArchived = computed(() => route.path.startsWith('/messages/archived'))
 
-const directConversation = ref<IMessageConversation>()
+const directConversation = ref<ISmsConversation>()
 const selectedConversation = computed(() => {
   if (directConversation.value?.id === threadId.value) return directConversation.value
   return conversations.value.find((item) => item.id === threadId.value)
@@ -111,7 +111,7 @@ function isParticipantSchemaError(error: string): boolean {
   return value.includes('addresses') && (value.includes('field') || value.includes('validation'))
 }
 
-function handleConversationLookup(data: { smsConversations: IMessageConversation[] }, error: string, context?: QueryResponseContext) {
+function handleConversationLookup(data: { smsConversations: ISmsConversation[] }, error: string, context?: QueryResponseContext) {
   const meta = context?.meta as ConversationLookupMeta | undefined
   if (!meta || meta.threadId !== threadId.value) return
   if (error) {
@@ -270,7 +270,7 @@ async function archiveConversation() {
 
 const smsTrash = useSmsTrash()
 
-function trashMessage(item: IMessage) {
+function trashMessage(item: ISms) {
   smsTrash.trash(buildQuery([{ name: 'ids', op: '', value: item.id }]))
   // optimistic removal; list refetches via media_items_actioned subscriber
   thread.items.value = thread.items.value.filter((i) => i.id !== item.id)

@@ -14,7 +14,7 @@
     </div>
     <div class="title">
       {{ getDisplayName(item.address) }}
-      <span v-if="item.type === 5" v-tooltip="$t('message_type.5')" class="failed-icon">&#x26A0;</span>
+      <span v-if="item.type === 'FAILED'" v-tooltip="$t('message_type.FAILED')" class="failed-icon">&#x26A0;</span>
     </div>
     <div class="subtitle" v-html="addLinksToURLs(item.body)"></div>
     <MessageActionButtons
@@ -28,12 +28,12 @@
       @archive="archive"
     />
     <div class="info">
-      <span :class="{ 'text-red': item.type === 5 }">{{ $t(`message_type.${item.type}`) }}</span>
+      <span :class="{ 'text-red': item.type === 'FAILED' }">{{ $t(`message_type.${item.type}`) }}</span>
       <item-tags :tags="item.tags" :type="dataType" :only-links="true" />
     </div>
     <div class="time">
-      <span v-tooltip="formatDateTime(item.date)">
-        {{ formatTimeAgo(item.date) }}
+      <span v-tooltip="formatDateTime(item.sentAt)">
+        {{ formatTimeAgo(item.sentAt) }}
       </span>
     </div>
   </section>
@@ -50,18 +50,18 @@
   >
     <template #title>
       {{ getDisplayName(item.address) }}
-      <span v-if="item.type === 5" v-tooltip="$t('message_type.5')" class="failed-icon">&#x26A0;</span>
+      <span v-if="item.type === 'FAILED'" v-tooltip="$t('message_type.FAILED')" class="failed-icon">&#x26A0;</span>
     </template>
     
     <template #subtitle>
       <div class="subtitle" v-html="addLinksToURLs(item.body)"></div>
       <div class="info">
-        <span :class="{ 'text-red': item.type === 5 }">{{ $t(`message_type.${item.type}`) }}</span>
+        <span :class="{ 'text-red': item.type === 'FAILED' }">{{ $t(`message_type.${item.type}`) }}</span>
         <item-tags :tags="item.tags" :type="dataType" :only-links="true" />
       </div>
       <div class="time">
-        <span v-tooltip="formatDateTime(item.date)">
-          {{ formatTimeAgo(item.date) }}
+        <span v-tooltip="formatDateTime(item.sentAt)">
+          {{ formatTimeAgo(item.sentAt) }}
         </span>
       </div>
     </template>
@@ -82,7 +82,7 @@
 </template>
 
 <script setup lang="ts">
-import type { IMessage, ITag } from '@/lib/interfaces'
+import type { ISms, ITag } from '@/lib/interfaces'
 import { DataType } from '@/lib/data'
 import { formatDateTime, formatTimeAgo } from '@/lib/format'
 import { addLinksToURLs } from '@/lib/strutil'
@@ -92,7 +92,7 @@ import { useContactName } from '@/hooks/contacts'
 const { getDisplayName } = useContactName()
 
 interface Props {
-  item: IMessage
+  item: ISms
   index: number
   selectedIds: string[]
   shiftEffectingIds: string[]
@@ -103,33 +103,33 @@ interface Props {
   callLoading?: boolean
   callId?: string
   // Functions passed from parent
-  handleItemClick: (event: MouseEvent, item: IMessage, index: number, callback: () => void) => void
+  handleItemClick: (event: MouseEvent, item: ISms, index: number, callback: () => void) => void
   handleMouseOver: (event: MouseEvent, index: number) => void
-  toggleSelect: (event: MouseEvent, item: IMessage, index: number) => void
-  onView?: (index: number, item: IMessage) => void
+  toggleSelect: (event: MouseEvent, item: ISms, index: number) => void
+  onView?: (index: number, item: ISms) => void
 }
 
 const props = defineProps<Props>()
 
 const emit = defineEmits<{
-  sendSms: [item: IMessage]
-  call: [item: IMessage]
-  archive: [item: IMessage]
+  sendSms: [item: ISms]
+  call: [item: ISms]
+  archive: [item: ISms]
 }>()
 
-function call(item: IMessage) {
+function call(item: ISms) {
   emit('call', item)
 }
 
-function sendSms(item: IMessage) {
+function sendSms(item: ISms) {
   emit('sendSms', item)
 }
 
-function archive(item: IMessage) {
+function archive(item: ISms) {
   emit('archive', item)
 }
 
-function handleView(index: number, item: IMessage) {
+function handleView(index: number, item: ISms) {
   props.onView?.(index, item)
 }
 </script>

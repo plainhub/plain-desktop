@@ -37,7 +37,7 @@
     <div v-if="item.tags?.length" class="chat-bubble-tags">
       <span v-for="tag in item.tags" :key="tag.id" class="chat-tag-chip">{{ tag.name }}</span>
     </div>
-    <span v-tooltip="formatDateTime(item.date)" class="chat-time">{{ formatTime(item.date) }}</span>
+    <span v-tooltip="formatDateTime(item.sentAt)" class="chat-time">{{ formatTime(item.sentAt) }}</span>
     <span v-if="isDraftOrPending" class="chat-pending-status" :class="{ failed: pendingFailed }">
       <i-material-symbols:error-outline-rounded v-if="pendingFailed" class="pending-error-icon" />
       {{ $t(pendingStatusKey) }}
@@ -47,35 +47,35 @@
 
 <script setup lang="ts">
 import { computed } from 'vue'
-import type { IMessage, ITag } from '@/lib/interfaces'
+import type { ISms, ITag } from '@/lib/interfaces'
 import { formatDateTime, formatTime } from '@/lib/format'
 import { addLinksToURLs } from '@/lib/strutil'
 import { getFileUrlByPath } from '@/lib/api/file'
 import { isPendingSmsSent } from '@/lib/sms-state-sync'
 
 const props = defineProps<{
-  item: IMessage
+  item: ISms
   tags: ITag[]
   type: string
   urlTokenKey: Uint8Array | null
 }>()
 
 const emit = defineEmits<{
-  trash: [item: IMessage]
+  trash: [item: ISms]
 }>()
 
-const isSent = computed(() => props.item.type === 2 || props.item.type === 4)
+const isSent = computed(() => props.item.type === 'SENT' || props.item.type === 'OUTBOX')
 const isPending = computed(() => props.item.id.startsWith('pending_sms') || props.item.id.startsWith('pending_mms'))
 const pendingSmsSent = computed(() => isPendingSmsSent(props.item))
-const isDraftOrPending = computed(() => isPending.value || props.item.type === 3)
+const isDraftOrPending = computed(() => isPending.value || props.item.type === 'DRAFT')
 const pendingFailed = computed(() => {
   if (!props.item.id.startsWith('pending_mms')) return false
-  return Date.now() - new Date(props.item.date).getTime() > 5 * 60 * 1000
+  return Date.now() - new Date(props.item.sentAt).getTime() > 5 * 60 * 1000
 })
 const pendingStatusKey = computed(() => {
   if (pendingFailed.value) return 'mms_cancelled'
   if (pendingSmsSent.value) return 'sent'
-  return isPending.value ? 'sending' : 'message_type.3'
+  return isPending.value ? 'sending' : 'message_type.DRAFT'
 })
 
 function resolveUrl(path: string): string {

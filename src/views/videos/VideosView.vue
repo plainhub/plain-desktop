@@ -63,7 +63,7 @@
               <img v-if="imageErrorIdSet.has(item.id)" :src="`/ficons/${getFileExtension(item.path)}.svg`" class="image svg" />
               <img v-else class="image image-thumb" :src="getFileUrl(item.fileId, '&w=512&h=512')" loading="lazy" @error="onImageError(item.id)" />
             </template>
-            <template #info-right>{{ formatSeconds(item.duration) }}</template>
+            <template #info-right>{{ formatSeconds(item.durationMs) }}</template>
           </MediaGridItem>
           <!-- eslint-enable vue/valid-v-memo -->
         </div>
@@ -82,7 +82,7 @@
           <img v-if="imageErrorIdSet.has(item.id)" :src="`/ficons/${getFileExtension(item.path)}.svg`" class="image svg" />
           <img v-else class="image image-thumb" :src="getFileUrl(item.fileId, '&w=512&h=512')" loading="lazy" @error="onImageError(item.id)" />
         </template>
-        <template #info-right>{{ ['SIZE_ASC', 'SIZE_DESC'].includes(videoSortBy) ? formatFileSize(item.size) : formatSeconds(item.duration) }}</template>
+        <template #info-right>{{ ['SIZE_ASC', 'SIZE_DESC'].includes(videoSortBy) ? formatFileSize(item.size) : formatSeconds(item.durationMs) }}</template>
       </MediaGridItem>
       <template v-if="loading && items.length === 0"><section v-for="i in limit" :key="i" class="skeleton-image media-item"></section></template>
     </div>
@@ -202,7 +202,7 @@ const { loading, fetch } = initLazyQuery({
 })
 
 const sources = computed<ISource[]>(() => items.value.map((it: IVideoItem) => ({
-  src: getFileUrl(it.fileId), name: getFileName(it.path), duration: it.duration, size: it.size, path: it.path, data: it, type: dataType,
+  src: getFileUrl(it.fileId), name: getFileName(it.path), duration: it.durationMs, size: it.size, path: it.path, data: it, type: dataType,
 })) as ISource[])
 const { open: openMedia } = useOpenMedia(sources)
 function view(index: number) { openMedia(index) }

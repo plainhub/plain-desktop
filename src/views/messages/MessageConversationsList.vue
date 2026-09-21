@@ -15,7 +15,7 @@
         <span>{{ item.messageCount.toLocaleString() }}</span>
       </div>
       <div class="time">
-        <span v-tooltip="formatDateTime(item.date)">{{ formatTimeAgo(item.date) }}</span>
+        <span v-tooltip="formatDateTime(item.lastMessageAt)">{{ formatTimeAgo(item.lastMessageAt) }}</span>
       </div>
     </section>
     <template v-if="loading && items.length === 0">
@@ -25,11 +25,11 @@
 </template>
 
 <script setup lang="ts">
-import type { IMessageConversation } from '@/lib/interfaces'
+import type { ISmsConversation } from '@/lib/interfaces'
 import { formatDateTime, formatTimeAgo } from '@/lib/format'
 
 interface Props {
-  items: IMessageConversation[]
+  items: ISmsConversation[]
   isPhone: boolean
   loading: boolean
 }

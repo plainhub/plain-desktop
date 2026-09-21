@@ -6,10 +6,10 @@
         :type="current.type"
         :tags="tagsForType"
         :item="{ key: current.data?.id ?? '', title: current.data?.title ?? '', size: current.data?.size ?? 0 }"
-        :selected="fileInfo?.tags ?? []"
+        :selected="selectedTags"
       />
     </template>
-    <item-tags :tags="fileInfo?.tags" />
+    <item-tags :tags="selectedTags" />
   </LightboxFileInfoItem>
 </template>
 
@@ -23,9 +23,9 @@ const props = defineProps({
     type: Object as () => ISource | undefined,
     required: true,
   },
-  fileInfo: {
-    type: Object,
-    default: null,
+  itemTags: {
+    type: Array as () => { tagId: string; key: string }[],
+    default: () => [],
   },
   tagsMap: {
     type: Object as () => Map<string, ITag[]>,
@@ -39,6 +39,11 @@ const isTrashed = computed(() => {
 
 const tagsForType = computed(() => {
   return props.tagsMap.get(props.current?.type ?? '') ?? []
+})
+
+const selectedTags = computed(() => {
+  const ids = new Set(props.itemTags.map((r) => r.tagId))
+  return tagsForType.value.filter((t) => ids.has(t.id))
 })
 </script>
 

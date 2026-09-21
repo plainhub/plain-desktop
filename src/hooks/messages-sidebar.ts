@@ -4,7 +4,7 @@ import { replacePath } from '@/plugins/router'
 import { useMainStore } from '@/stores/main'
 import { useTempStore } from '@/stores/temp'
 import { useSmsStore } from '@/stores/sms'
-import type { IMessageConversation } from '@/lib/interfaces'
+import type { ISmsConversation } from '@/lib/interfaces'
 import { storeToRefs } from 'pinia'
 import { openModal } from '@/components/modal'
 import SendSmsModal from '@/views/messages/SendSmsModal.vue'
@@ -41,13 +41,13 @@ export function useMessagesSidebar() {
     const list = [...conversations.value]
     switch (mainStore.conversationSortBy) {
       case 'DATE_ASC':
-        return list.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())
+        return list.sort((a, b) => new Date(a.lastMessageAt).getTime() - new Date(b.lastMessageAt).getTime())
       case 'NAME_ASC':
         return sortByName(list, getConversationDisplayName)
       case 'NAME_DESC':
         return sortByName(list, getConversationDisplayName).reverse()
       default:
-        return list.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
+        return list.sort((a, b) => new Date(b.lastMessageAt).getTime() - new Date(a.lastMessageAt).getTime())
     }
   })
 
@@ -64,7 +64,7 @@ export function useMessagesSidebar() {
     smsStore.fetchMoreConversations()
   }
 
-  function openConversation(item: IMessageConversation) {
+  function openConversation(item: ISmsConversation) {
     if (isArchived.value) {
       replacePath(mainStore, `/messages/archived/${item.id}`)
       return

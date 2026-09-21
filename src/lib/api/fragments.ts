@@ -13,12 +13,12 @@ export const tagSubFragment = `
   }
 `
 
-export const playlistAudioFragment = `
-  fragment PlaylistAudioFragment on PlaylistAudio {
+export const audioItemFragment = `
+  fragment AudioItemFragment on AudioItem {
     title
     artist
     path
-    duration
+    durationMs
   }
 `
 
@@ -58,19 +58,19 @@ export const chatItemFragment = `
         ids
       }
       ... on ChatText {
-        ids
+        linkPreviewImageIds
       }
     }
   }
 `
 
-export const messageFragment = `
-  fragment MessageFragment on Message {
+export const smsFragment = `
+  fragment SmsFragment on Sms {
     id
     body
     address
     serviceCenter
-    date
+    sentAt
     type
     threadId
     subscriptionId
@@ -87,12 +87,12 @@ export const messageFragment = `
   ${tagSubFragment}
 `
 
-export const messageConversationFragment = `
-  fragment MessageConversationFragment on MessageConversation {
+export const smsConversationFragment = `
+  fragment SmsConversationFragment on SmsConversation {
     id
     address
     snippet
-    date
+    lastMessageAt
     messageCount
     read
   }
@@ -100,8 +100,8 @@ export const messageConversationFragment = `
 
 // This stays separate from the legacy fragment: GraphQL rejects unknown
 // fields on older PlainApp servers, so callers can retry without `addresses`.
-export const messageConversationWithAddressesFragment = `
-  fragment MessageConversationWithAddressesFragment on MessageConversation {
+export const smsConversationWithAddressesFragment = `
+  fragment SmsConversationWithAddressesFragment on SmsConversation {
     id
     address
     addresses
@@ -126,36 +126,41 @@ export const contactFragment = `
     thumbnailId
     starred
     phoneNumbers {
-      label
       value
       type
+      label
       normalizedNumber
     }
     addresses {
-      ...ContentItemFagment
+      value
+      type
+      label
     }
     emails {
-      ...ContentItemFagment
+      value
+      type
+      label
     }
     websites {
-      ...ContentItemFagment
+      value
+      type
+      label
     }
     events {
-      ...ContentItemFagment
+      value
+      type
+      label
     }
     ims {
-      ...ContentItemFagment
+      value
+      protocol
+      customProtocol
     }
     tags {
       ...TagSubFragment
     }
   }
   ${tagSubFragment}
-  fragment ContentItemFagment on ContentItem {
-    label
-    value
-    type
-  }
 `
 
 export const callFragment = `
@@ -163,7 +168,7 @@ export const callFragment = `
     id
     name
     number
-    duration
+    durationSec
     accountId
     startedAt
     photoId
@@ -215,7 +220,7 @@ export const videoFragment = `
     id
     title
     path
-    duration
+    durationMs
     size
     bucketId
     createdAt
@@ -234,7 +239,7 @@ export const audioFragment = `
     title
     artist
     path
-    duration
+    durationMs
     size
     bucketId
     albumFileId
@@ -338,7 +343,7 @@ export const notificationFragment = `
     isClearable
     appId
     appName
-    time
+    postedAt
     silent
     title
     body
@@ -435,6 +440,7 @@ export const bookmarkGroupFragment = `
     name
     collapsed
     sortOrder
+    itemCount
     createdAt
     updatedAt
   }

@@ -5,7 +5,7 @@ import { sendScreenMirrorControlGQL } from '@/lib/api/mutation'
 export interface TouchPoint {
   x: number
   y: number
-  t: number
+  tMs: number
 }
 
 export interface ScreenMirrorControlEvent {
@@ -14,7 +14,7 @@ export interface ScreenMirrorControlEvent {
   y?: number
   endX?: number
   endY?: number
-  duration?: number
+  durationMs?: number
   deltaX?: number
   deltaY?: number
   key?: string
@@ -223,7 +223,7 @@ export function useScreenMirrorControl(
             action: 'LONG_PRESS',
             x: gesture.downX,
             y: gesture.downY,
-            duration: 520,
+            durationMs: 520,
           })
           if (touchDot) touchDot.classList.add('touch-indicator--long-press')
         }

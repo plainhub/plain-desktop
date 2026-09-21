@@ -1,4 +1,4 @@
-import type { IContact, IMessageConversation } from '@/lib/interfaces'
+import type { IContact, ISmsConversation } from '@/lib/interfaces'
 import { getContactFullName } from '@/lib/contact/format'
 
 export interface ContactNameIndex {
@@ -71,7 +71,7 @@ export function getAddressDisplayLabels(index: ContactNameIndex, addresses: stri
   return entries.map(({ address, label }) => counts.get(label)! > 1 ? `${label} (${address})` : label)
 }
 
-export function getConversationAddresses(conversation: IMessageConversation): string[] {
+export function getConversationAddresses(conversation: ISmsConversation): string[] {
   const addresses = conversation.addresses?.map((item) => item.trim()).filter(Boolean) ?? []
   const unique = new Map<string, string>()
   for (const address of addresses.length ? addresses : [conversation.address].filter(Boolean)) {

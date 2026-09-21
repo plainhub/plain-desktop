@@ -1,7 +1,7 @@
 import { ref } from 'vue'
 import { gqlFetch } from '@/lib/api/gql-client'
 import { audioQueueGQL } from '@/lib/api/query'
-import type { IPlaylistAudio } from '@/lib/interfaces'
+import type { IAudioItem } from '@/lib/interfaces'
 
 const PAGE_SIZE = 200
 
@@ -12,24 +12,35 @@ const PAGE_SIZE = 200
  * this store only mirrors a window of it: mutate via GraphQL mutations, then
  * refetch. Module-level singletons — every consumer shares one list.
  */
-export const audioPlaylistItems = ref<IPlaylistAudio[]>([])
+export const audioPlaylistItems = ref<IAudioItem[]>([])
 export const audioPlaylistTotal = ref(0)
 export const audioPlaylistLoading = ref(false)
+
+export interface IAudioPlayback {
+  mode: string
+  currentPath: string | null
+  isPlaying: boolean
+  positionMs: number
+}
+
+function idleAudioPlayback(): IAudioPlayback {
+  return { mode: 'REPEAT', currentPath: null, isPlaying: false, positionMs: 0 }
+}
 
 /**
  * Player state mirrored from the `audioPlayback` root field of the queue
  * query: play mode + current track path. Mutations update it optimistically,
  * the next refetch re-syncs with the server.
  */
-export const audioPlayback = ref<{ mode: string, currentPath: string }>({ mode: 'REPEAT', currentPath: '' })
+export const audioPlayback = ref<IAudioPlayback>(idleAudioPlayback())
 
 let fetchSeq = 0
 let initialFetched = false
 
 interface IAudioQueuePage {
   total: number
-  items: IPlaylistAudio[]
-  playback?: { mode: string, currentPath: string }
+  items: IAudioItem[]
+  playback?: IAudioPlayback
 }
 
 async function fetchPage(offset: number): Promise<boolean> {
@@ -88,7 +99,7 @@ export function useAudioPlaylistStore() {
   function reset() {
     audioPlaylistItems.value = []
     audioPlaylistTotal.value = 0
-    audioPlayback.value = { mode: 'REPEAT', currentPath: '' }
+    audioPlayback.value = idleAudioPlayback()
     initialFetched = false
   }
 
@@ -109,7 +120,7 @@ export function resetAudioPlaylistForTests() {
   audioPlaylistItems.value = []
   audioPlaylistTotal.value = 0
   audioPlaylistLoading.value = false
-  audioPlayback.value = { mode: 'REPEAT', currentPath: '' }
+  audioPlayback.value = idleAudioPlayback()
   fetchSeq = 0
   initialFetched = false
 }

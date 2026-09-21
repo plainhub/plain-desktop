@@ -129,7 +129,7 @@ describe.skipIf(!hasBothEndpoints)(`boundary (error cases) — ${skipReason || '
   it('chatItems(""): both handle empty id gracefully (empty array or consistent error)', async () => {
     const query = `
       query($id: String!) {
-        chatItems(id: $id) { id }
+        chatItems(id: $id, offset: 0, limit: 200) { id }
       }
     `
     const { rust, android } = await gqlFetchBoth<{ chatItems: any[] }>(query, { id: '' })

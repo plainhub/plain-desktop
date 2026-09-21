@@ -3,9 +3,9 @@ import { gqlFetch, GqlError } from './gql-client'
 import {
   chatItemFragment,
   chatChannelFragment,
-  messageFragment,
-  messageConversationFragment,
-  messageConversationWithAddressesFragment,
+  smsFragment,
+  smsConversationFragment,
+  smsConversationWithAddressesFragment,
   contactFragment,
   callFragment,
   imageFragment,
@@ -13,7 +13,7 @@ import {
   audioFragment,
   fileFragment,
   appFragment,
-  playlistAudioFragment,
+  audioItemFragment,
   tagFragment,
   noteFragment,
   feedFragment,
@@ -174,8 +174,8 @@ export function initLazyQuery<TResult = any>(params: InitQueryParams<TResult>) {
 // --- GraphQL Query Definitions ---
 
 export const chatItemsGQL = `
-  query ($id: String!) {
-    chatItems(id: $id) {
+  query ($target: String!) {
+    chatItems(target: $target, offset: 0, limit: 200, query: "") {
       ...ChatItemFragment
     }
   }
@@ -218,7 +218,7 @@ export const latestChatItemsGQL = `
 
 export const appFilesGQL = `
   query appFiles($offset: Int!, $limit: Int!) {
-    appFiles(offset: $offset, limit: $limit) {
+    appFiles(offset: $offset, limit: $limit, query: "") {
       id
       size
       mimeType
@@ -227,6 +227,15 @@ export const appFilesGQL = `
       updatedAt
     }
     appFileCount
+  }
+`
+
+export const tagRelationsGQL = `
+  query ($type: DataType!, $keys: [String!]!) {
+    tagRelations(type: $type, keys: $keys) {
+      tagId
+      key
+    }
   }
 `
 
@@ -240,15 +249,12 @@ export const chatChannelsGQL = `
 `
 
 export const fileInfoGQL = `
-  query ($id: ID!, $path: String!, $fileName: String!) {
-    fileInfo(id: $id, path: $path, fileName: $fileName) {
+  query ($path: String!, $fileName: String) {
+    fileInfo(path: $path, fileName: $fileName) {
       ... on FileInfo {
         path
         updatedAt
         size
-        tags {
-          ...TagSubFragment
-        }
       }
       data {
         ... on ImageFileInfo {
@@ -260,7 +266,7 @@ export const fileInfoGQL = `
           }
         }
         ... on VideoFileInfo {
-          duration
+          durationMs
           width
           height
           location {
@@ -269,7 +275,7 @@ export const fileInfoGQL = `
           }
         }
         ... on AudioFileInfo {
-          duration
+          durationMs
           location {
             latitude
             longitude
@@ -278,17 +284,16 @@ export const fileInfoGQL = `
       }
     }
   }
-  ${tagSubFragment}
 `
 
 export const smsGQL = `
   query sms($offset: Int!, $limit: Int!, $query: String!) {
     sms(offset: $offset, limit: $limit, query: $query) {
-      ...MessageFragment
+      ...SmsFragment
     }
     smsCount(query: $query)
   }
-  ${messageFragment}
+  ${smsFragment}
 `
 
 export const simsGQL = `
@@ -305,21 +310,21 @@ export const simsGQL = `
 export const smsConversationsGQL = `
   query smsConversations($offset: Int!, $limit: Int!, $query: String!) {
     smsConversations(offset: $offset, limit: $limit, query: $query) {
-      ...MessageConversationFragment
+      ...SmsConversationFragment
     }
     smsConversationCount(query: $query)
   }
-  ${messageConversationFragment}
+  ${smsConversationFragment}
 `
 
 export const smsConversationsWithAddressesGQL = `
   query smsConversations($offset: Int!, $limit: Int!, $query: String!) {
     smsConversations(offset: $offset, limit: $limit, query: $query) {
-      ...MessageConversationWithAddressesFragment
+      ...SmsConversationWithAddressesFragment
     }
     smsConversationCount(query: $query)
   }
-  ${messageConversationWithAddressesFragment}
+  ${smsConversationWithAddressesFragment}
 `
 
 export const contactsGQL = `
@@ -486,7 +491,7 @@ export const mountsGQL = `
       remote
       alias
       driveType
-      diskID
+      diskId
     }
   }
 `
@@ -512,16 +517,18 @@ export const appGQL = `
 
 export const audioQueueGQL = `
   query audioQueue($offset: Int!, $limit: Int!) {
-    items: audioQueueItems(offset: $offset, limit: $limit) {
-      ...PlaylistAudioFragment
+    items: audioQueueItems(offset: $offset, limit: $limit, query: "") {
+      ...AudioItemFragment
     }
     total: audioQueueItemCount
     playback: audioPlayback {
       mode
       currentPath
+      isPlaying
+      positionMs
     }
   }
-  ${playlistAudioFragment}
+  ${audioItemFragment}
 `
 
 export const tagsGQL = `
@@ -539,7 +546,7 @@ export const mediaBucketsGQL = `
       id
       name
       itemCount
-      topItems
+      topItemPaths
     }
   }
 `
@@ -615,15 +622,15 @@ export const feedsTagsGQL = `
 `
 
 export const bucketsTagsGQL = `
-  query bucketsTags($type: DataType!) {
-    tags(type: $type) {
+  query bucketsTags($type: MediaDataType!, $tagType: DataType!) {
+    tags(type: $tagType) {
       ...TagFragment
     }
     mediaBuckets(type: $type) {
       id
       name
       itemCount
-      topItems
+      topItemPaths
     }
   }
   ${tagFragment}
@@ -695,7 +702,7 @@ export const feedEntryCountGQL = `
   query {
     total: feedEntryCount(query: "")
     today: feedEntryCount(query: "today:true")
-    feedsCount {
+    feedEntryCounts {
       id
       count
     }
@@ -719,7 +726,7 @@ export const callCountGQL = `
 
 export const smsCountGQL = `
   query {
-    smsAllCounts {
+    smsBoxCounts {
       total
       inbox
       sent
@@ -730,20 +737,20 @@ export const smsCountGQL = `
 
 export const archivedConversationsGQL = `
   query {
-    archivedConversations {
-      ...MessageConversationFragment
+    archivedConversations(offset: 0, limit: 200, query: "") {
+      ...SmsConversationFragment
     }
   }
-  ${messageConversationFragment}
+  ${smsConversationFragment}
 `
 
 export const archivedConversationsWithAddressesGQL = `
   query {
-    archivedConversations {
-      ...MessageConversationWithAddressesFragment
+    archivedConversations(offset: 0, limit: 200, query: "") {
+      ...SmsConversationWithAddressesFragment
     }
   }
-  ${messageConversationWithAddressesFragment}
+  ${smsConversationWithAddressesFragment}
 `
 
 export const noteCountGQL = `
@@ -767,7 +774,7 @@ export const packageStatusesGQL = `
   query packageStatuses($ids: [ID!]!) {
     packageStatuses(ids: $ids) {
       id
-      exist
+      exists
       updatedAt
     }
   }
@@ -815,7 +822,7 @@ export const requestScreenMirrorKeyFrameGQL = `
 
 export const notificationsGQL = `
   query {
-    notifications {
+    notifications(offset: 0, limit: 200, query: "") {
       ...NotificationFragment
     }
   }
@@ -862,7 +869,7 @@ export const deviceStatusGQL = `
 
 export const appLogsGQL = `
   query AppLogs($offset: Int!, $limit: Int!) {
-    appLogs(offset: $offset, limit: $limit)
+    appLogs(offset: $offset, limit: $limit, query: "")
   }
 `
 
@@ -904,9 +911,9 @@ export const mergeStatusGQL = `
 export const pomodoroSettingsGQL = `
   query {
     pomodoroSettings {
-      workDuration
-      shortBreakDuration
-      longBreakDuration
+      workDurationMin
+      shortBreakDurationMin
+      longBreakDurationMin
       pomodorosBeforeLongBreak
       showNotification
       playSoundOnComplete
@@ -920,16 +927,16 @@ export const pomodoroTodayAndSettingsGQL = `
       date
       completedCount
       currentRound
-      timeLeft
-      totalTime
+      timeLeftSec
+      totalTimeSec
       isRunning
-      isPause
+      isPaused
       state
     }
     pomodoroSettings {
-      workDuration
-      shortBreakDuration
-      longBreakDuration
+      workDurationMin
+      shortBreakDurationMin
+      longBreakDurationMin
       pomodorosBeforeLongBreak
       showNotification
       playSoundOnComplete

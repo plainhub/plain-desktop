@@ -193,6 +193,13 @@ export const useSelectable = (items: Ref<IData[]>) => {
   }
 }
 
+/**
+ * Query sent for a "select all" bulk action. An empty filter would be rejected by the
+ * server's empty-query bulk guard, so whole-table intent falls back to the explicit
+ * `all:true` sentinel.
+ */
+export const selectAllQuery = (query: string) => query.trim() || 'all:true'
+
 export const useDelete = (gql: string, done: () => void) => {
   const { t } = useI18n()
   const confirmingDelete = ref(false)
@@ -218,6 +225,8 @@ export const useDelete = (gql: string, done: () => void) => {
           return
         }
         q = `ids:${selectedIds.join(',')}`
+      } else {
+        q = selectAllQuery(query)
       }
       deleteCount.value = realAllChecked ? total : selectedIds.length
       deleteQuery.value = q

@@ -9,9 +9,9 @@
     <template v-if="!detailLoading">
       <div v-for="(item, index) in items" :key="item.id" class="chat-message-wrapper">
         <div v-if="showDateSeparator(index)" class="chat-date-separator">
-          <span>{{ formatDateLabel(item.date) }}</span>
+          <span>{{ formatDateLabel(item.sentAt) }}</span>
         </div>
-        <MessageChatBubble :item="item" :tags="tags" :type="type" :url-token-key="urlTokenKey" @trash="(item: IMessage) => $emit('trash', item)" />
+        <MessageChatBubble :item="item" :tags="tags" :type="type" :url-token-key="urlTokenKey" @trash="(item: ISms) => $emit('trash', item)" />
       </div>
     </template>
     <NoDataPlaceholder v-if="!detailLoading && items.length === 0" :loading="loading" :permissions="permissions" permission="READ_SMS" />
@@ -20,13 +20,13 @@
 
 <script setup lang="ts">
 import { useI18n } from 'vue-i18n'
-import type { IMessage, ITag } from '@/lib/interfaces'
+import type { ISms, ITag } from '@/lib/interfaces'
 import { formatDateTime } from '@/lib/format'
 import NoDataPlaceholder from '@/components/NoDataPlaceholder.vue'
 import MessageChatBubble from './MessageChatBubble.vue'
 
 const props = defineProps<{
-  items: IMessage[]
+  items: ISms[]
   detailLoading: boolean
   loading: boolean
   loadingMore: boolean
@@ -38,7 +38,7 @@ const props = defineProps<{
 
 defineEmits<{
   scroll: []
-  trash: [item: IMessage]
+  trash: [item: ISms]
 }>()
 
 const scrollRef = defineModel<HTMLElement | undefined>('scrollRef')
@@ -47,8 +47,8 @@ const { t } = useI18n()
 
 function showDateSeparator(index: number): boolean {
   if (index === 0) return true
-  const current = new Date(props.items[index].date).toDateString()
-  const prev = new Date(props.items[index - 1].date).toDateString()
+  const current = new Date(props.items[index].sentAt).toDateString()
+  const prev = new Date(props.items[index - 1].sentAt).toDateString()
   return current !== prev
 }
 

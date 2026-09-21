@@ -21,7 +21,7 @@
     <div class="info">
       <ul class="list-unstyled">
         <li v-for="(it, phoneIndex) in item.phoneNumbers" :key="phoneIndex" class="phone-number">
-          {{ it.type > 0 ? $t(`contact.phone_number_type.${it.type}`) : it.label }}
+          {{ typeLabel(it.type, it.label, 'phone_number_type') }}
           {{ it.normalizedNumber || it.value }}
           <v-icon-button v-tooltip="$t('send_sms')" @click.stop="sendSms(item.id, it.normalizedNumber || it.value, phoneIndex)">
             <i-material-symbols:sms-outline-rounded />
@@ -30,11 +30,11 @@
             <i-material-symbols:call-outline-rounded />
           </v-icon-button>
         </li>
-        <li v-for="it in item.emails" :key="it.type + it.value">{{ it.type > 0 ? $t(`contact.email_type.${it.type}`) : it.label }} {{ it.value }}</li>
-        <li v-for="it in item.addresses" :key="it.type + it.value">{{ it.type > 0 ? $t(`contact.address_type.${it.type}`) : it.label }} {{ it.value }}</li>
-        <li v-for="it in item.websites" :key="it.type + it.value">{{ it.type > 0 ? $t(`contact.website_type.${it.type}`) : it.label }} {{ it.value }}</li>
-        <li v-for="it in item.ims" :key="it.type + it.value">{{ it.type > 0 ? $t(`contact.im_type.${it.type}`) : it.label }} {{ it.value }}</li>
-        <li v-for="it in item.events" :key="it.type + it.value">{{ it.type > 0 ? $t(`contact.event_type.${it.type}`) : it.label }} {{ it.value }}</li>
+        <li v-for="it in item.emails" :key="it.type + it.value">{{ typeLabel(it.type, it.label, 'email_type') }} {{ it.value }}</li>
+        <li v-for="it in item.addresses" :key="it.type + it.value">{{ typeLabel(it.type, it.label, 'address_type') }} {{ it.value }}</li>
+        <li v-for="it in item.websites" :key="it.type + it.value">{{ typeLabel(it.type, it.label, 'website_type') }} {{ it.value }}</li>
+        <li v-for="it in item.ims" :key="it.protocol + it.value">{{ it.protocol === 'CUSTOM' ? (it.customProtocol || $t('custom')) : $t(`contact.im_protocol.${it.protocol}`) }} {{ it.value }}</li>
+        <li v-for="it in item.events" :key="it.type + it.value">{{ typeLabel(it.type, it.label, 'event_type') }} {{ it.value }}</li>
       </ul>
     </div>
     <ContactActionButtons
@@ -76,7 +76,7 @@
       <div class="info">
         <ul class="list-unstyled">
           <li v-for="(it, phoneIndex) in item.phoneNumbers" :key="phoneIndex" class="phone-number">
-            {{ it.type > 0 ? $t(`contact.phone_number_type.${it.type}`) : it.label }}
+            {{ typeLabel(it.type, it.label, 'phone_number_type') }}
             {{ it.normalizedNumber || it.value }}
             <v-icon-button v-tooltip="$t('send_sms')" @click.stop="sendSms(item.id, it.normalizedNumber || it.value, phoneIndex)">
               <i-material-symbols:sms-outline-rounded />
@@ -85,11 +85,11 @@
               <i-material-symbols:call-outline-rounded />
             </v-icon-button>
           </li>
-          <li v-for="it in item.emails" :key="it.type + it.value">{{ it.type > 0 ? $t(`contact.email_type.${it.type}`) : it.label }} {{ it.value }}</li>
-          <li v-for="it in item.addresses" :key="it.type + it.value">{{ it.type > 0 ? $t(`contact.address_type.${it.type}`) : it.label }} {{ it.value }}</li>
-          <li v-for="it in item.websites" :key="it.type + it.value">{{ it.type > 0 ? $t(`contact.website_type.${it.type}`) : it.label }} {{ it.value }}</li>
-          <li v-for="it in item.ims" :key="it.type + it.value">{{ it.type > 0 ? $t(`contact.im_type.${it.type}`) : it.label }} {{ it.value }}</li>
-          <li v-for="it in item.events" :key="it.type + it.value">{{ it.type > 0 ? $t(`contact.event_type.${it.type}`) : it.label }} {{ it.value }}</li>
+          <li v-for="it in item.emails" :key="it.type + it.value">{{ typeLabel(it.type, it.label, 'email_type') }} {{ it.value }}</li>
+          <li v-for="it in item.addresses" :key="it.type + it.value">{{ typeLabel(it.type, it.label, 'address_type') }} {{ it.value }}</li>
+          <li v-for="it in item.websites" :key="it.type + it.value">{{ typeLabel(it.type, it.label, 'website_type') }} {{ it.value }}</li>
+          <li v-for="it in item.ims" :key="it.protocol + it.value">{{ it.protocol === 'CUSTOM' ? (it.customProtocol || $t('custom')) : $t(`contact.im_protocol.${it.protocol}`) }} {{ it.value }}</li>
+          <li v-for="it in item.events" :key="it.type + it.value">{{ typeLabel(it.type, it.label, 'event_type') }} {{ it.value }}</li>
         </ul>
       </div>
       <div class="time">
@@ -118,6 +118,7 @@ import { formatDateTime, formatTimeAgo } from '@/lib/format'
 import { getFileUrl } from '@/lib/api/file'
 import { getContactFullName } from '@/lib/contact/format'
 import ContactActionButtons from './ContactActionButtons.vue'
+import { useI18n } from 'vue-i18n'
 
 interface Props {
   item: IContact
@@ -138,6 +139,8 @@ interface Props {
 }
 
 defineProps<Props>()
+
+const { t: $t } = useI18n()
 
 const emit = defineEmits<{
   deleteItem: [item: IContact]
@@ -164,6 +167,10 @@ function sendSms(id: string, number: string, index: number) {
 
 function fullName(item: IContact) {
   return getContactFullName(item)
+}
+
+function typeLabel(type: string, label: string, key: string) {
+  return type === 'CUSTOM' ? (label || $t('custom')) : $t(`contact.${key}.${type}`)
 }
 </script>
 

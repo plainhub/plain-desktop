@@ -18,7 +18,7 @@
     <div class="title">{{ getFileName(item.path) }}</div>
     <div class="subtitle">
       <span>{{ formatFileSize(item.size) }}</span>
-      <span>{{ formatSeconds(item.duration) }}</span>
+      <span>{{ formatSeconds(item.durationMs) }}</span>
       <a @click.stop.prevent="viewBucket(mainStore, item.bucketId)">{{ bucketsMap[item.bucketId]?.name }}</a>
       <item-tags :tags="item.tags" :type="dataType" :only-links="true" />
     </div>
@@ -65,7 +65,7 @@
     <template #subtitle>
       <div class="subtitle">
         <span>{{ formatFileSize(item.size) }}</span>
-        <span>{{ formatSeconds(item.duration) }}</span>
+        <span>{{ formatSeconds(item.durationMs) }}</span>
         <a @click.stop.prevent="viewBucket(mainStore, item.bucketId)">{{ bucketsMap[item.bucketId]?.name }}</a>
         <item-tags :tags="item.tags" :type="dataType" :only-links="true" />
       </div>

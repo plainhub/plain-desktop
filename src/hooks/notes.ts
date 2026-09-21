@@ -11,8 +11,8 @@ export const useNotesTrash = (clearSelection: () => void, fetch: () => void) => 
 
   const loading = reactive(new Map())
 
-  onTrashed((r: any) => {
-    loading.delete(r.data.trashNotes)
+  onTrashed(() => {
+    loading.clear()
     clearSelection()
     fetch()
     emitter.emit('refetch_tags', DataType.NOTE)
@@ -37,8 +37,8 @@ export const useNotesRestore = (clearSelection: () => void, fetch: () => void) =
 
   const loading = reactive(new Map())
 
-  onRestored((r: any) => {
-    loading.delete(r.data.restoreNotes)
+  onRestored(() => {
+    loading.clear()
     clearSelection()
     fetch()
     emitter.emit('refetch_tags', DataType.NOTE)
