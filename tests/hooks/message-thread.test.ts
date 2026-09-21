@@ -64,7 +64,7 @@ describe('message thread pending operations', () => {
     thread.items.value = [{
       ...thread.pendingSmsItems.value[0],
       id: 'provider-a',
-      date: '2026-09-17T13:59:00Z',
+      sentAt: '2026-09-17T13:59:00Z',
     }]
 
     expect(thread.sortedItems.value.map((item) => item.id)).toEqual(['mms-a', 'request-a', 'provider-a'])
