@@ -118,6 +118,34 @@ pub struct KeyValuePair {
     pub value: String,
 }
 
+/// Bulk-operation outcome (plain-app contract): how many entities the
+/// mutation actually affected.
+#[derive(SimpleObject, Clone, Debug)]
+pub struct ActionResult {
+    pub affected_count: i32,
+}
+
+/// Chunked-upload merge job state (plain-app `MergeTaskStatus`).
+#[derive(Enum, Copy, Clone, Eq, PartialEq, Debug)]
+#[graphql(rename_items = "SCREAMING_SNAKE_CASE")]
+pub enum MergeTaskStatus {
+    None,
+    Started,
+    Merging,
+    Done,
+    Failed,
+}
+
+/// Chunked-upload merge job (plain-app `MergeTask`): `value` is the merged
+/// result's base name once `DONE`; `merged_size` its size in bytes.
+#[derive(SimpleObject, Clone, Debug)]
+pub struct MergeTask {
+    pub status: MergeTaskStatus,
+    pub value: Option<String>,
+    pub merged_size: Option<i64>,
+    pub error: Option<String>,
+}
+
 /// Audio player state (plain-app `AudioPlayback`). The desktop backend has
 /// no playback engine, so the resolver serves inert defaults.
 #[derive(SimpleObject)]
@@ -125,14 +153,16 @@ pub struct KeyValuePair {
 pub struct AudioPlayback {
     pub mode: String,
     pub current_path: String,
+    pub is_playing: bool,
+    pub position_ms: i64,
 }
 
 /// Optional capabilities the server declares about itself; the web client
 /// gates UI on these instead of sniffing OS versions. Mirrors plain-app
-/// `DeviceFeature`.
+/// `Capability`.
 #[derive(Enum, Copy, Clone, Eq, PartialEq)]
-#[graphql(name = "DeviceFeature", rename_items = "SCREAMING_SNAKE_CASE")]
-pub enum DeviceFeature {
+#[graphql(rename_items = "SCREAMING_SNAKE_CASE")]
+pub enum Capability {
     MediaTrash,
     MirrorAudio,
     DocPreview,
@@ -147,6 +177,8 @@ pub enum DeviceFeature {
     Feeds,
     ScreenMirror,
     ImageEditor,
+    LanShare,
+    DiskManager,
 }
 
 #[derive(SimpleObject)]
@@ -158,8 +190,8 @@ pub struct App {
     pub app_dir: String,
     pub device_name: String,
     pub device_type: DeviceType,
-    pub features: Vec<DeviceFeature>,
-    pub channel: AppChannelType,
+    pub capabilities: Vec<Capability>,
+    pub build_channel: AppChannelType,
     pub permissions: Vec<String>,
     pub downloads_dir: String,
     pub developer_mode: bool,
@@ -180,7 +212,6 @@ pub struct Mount {
     pub remote: bool,
     pub alias: String,
     pub drive_type: DriveType,
-    #[graphql(name = "diskID")]
     pub disk_id: String,
 }
 
@@ -211,17 +242,17 @@ pub struct ImageFileInfo {
 pub struct VideoFileInfo {
     pub width: i32,
     pub height: i32,
-    /// Seconds. `0` in local mode — the desktop local server has no
+    /// Milliseconds. `0` in local mode — the desktop local server has no
     /// `MediaMetadataRetriever` equivalent. Main-window traffic still goes
     /// through the device server and returns real durations.
-    pub duration: i64,
+    pub duration_ms: i64,
     pub location: Option<Location>,
 }
 
 #[derive(SimpleObject)]
 pub struct AudioFileInfo {
-    /// Seconds. `0` in local mode (see `VideoFileInfo::duration`).
-    pub duration: i64,
+    /// Milliseconds. `0` in local mode (see `VideoFileInfo::duration_ms`).
+    pub duration_ms: i64,
     pub location: Option<Location>,
 }
 
@@ -275,7 +306,7 @@ pub struct ChatFiles {
 
 #[derive(SimpleObject)]
 pub struct ChatText {
-    pub ids: Vec<String>,
+    pub link_preview_image_ids: Vec<String>,
 }
 
 #[derive(SimpleObject)]
@@ -364,7 +395,7 @@ pub(crate) fn chat_item_data_from_content(content: &str, token: &str) -> Option<
                 .filter(|s| !s.is_empty())
                 .map(|p| make_file_id(p, token))
                 .collect();
-            Some(ChatItemData::ChatText(ChatText { ids }))
+            Some(ChatItemData::ChatText(ChatText { link_preview_image_ids: ids }))
         }
         _ => None,
     }
@@ -509,17 +540,19 @@ pub struct BookmarkGroup {
     pub name: String,
     pub collapsed: bool,
     pub sort_order: i32,
+    pub item_count: i32,
     pub created_at: String,
     pub updated_at: String,
 }
 
-impl From<DBookmarkGroup> for BookmarkGroup {
-    fn from(g: DBookmarkGroup) -> Self {
+impl BookmarkGroup {
+    pub fn from_group(g: DBookmarkGroup, item_count: i32) -> Self {
         Self {
             id: g.id,
             name: g.name,
             collapsed: g.collapsed,
             sort_order: g.sort_order,
+            item_count,
             created_at: g.created_at,
             updated_at: g.updated_at,
         }

@@ -1,6 +1,6 @@
 import { ref } from 'vue'
 import { initMutation, startDiscoveryGQL, stopDiscoveryGQL } from '@/lib/api/mutation'
-import { gqlFetch } from '@/lib/api/gql-client'
+import { gqlFetchOp } from '@/lib/api/gql-client'
 import { isDiscoveringGQL } from '@/lib/api/query'
 import emitter from '@/plugins/eventbus'
 import type { PairingResult } from '@/lib/pairing-types'
@@ -43,7 +43,7 @@ let pollTimer: ReturnType<typeof setInterval> | null = null
 async function checkAndEnsureDiscovering() {
   if (activeCount === 0) return
   try {
-    const r = await gqlFetch<{ isDiscovering: boolean }>(isDiscoveringGQL)
+    const r = await gqlFetchOp('isDiscoveringGQL', isDiscoveringGQL, undefined)
     if (!r.errors && r.data?.isDiscovering !== true) {
       await startMutate()
     }

@@ -234,6 +234,7 @@ export default defineConfig(({ mode }) => {
           include: ['tests/**/*.test.ts'],
           exclude: [
             'tests/lib/cross-window-store.test.ts',
+            'tests/lib/api/graphql/**',
             'tests/integration/**/*.test.ts',
           ],
           browser: {
@@ -265,6 +266,21 @@ export default defineConfig(({ mode }) => {
           setupFiles: ['./tests/setup.cws.ts'],
           pool: 'threads',
           poolOptions: { threads: { singleThread: true } },
+        },
+      },
+      {
+        plugins: [vue(), Icons()],
+        resolve: {
+          alias: {
+            '@': path.resolve(__dirname, 'src'),
+          },
+        },
+        test: {
+          name: 'graphql',
+          include: ['tests/lib/api/graphql/**/*.test.ts'],
+          environment: 'node',
+          globals: true,
+          setupFiles: ['./tests/lib/api/graphql/setup.ts'],
         },
       },
       {

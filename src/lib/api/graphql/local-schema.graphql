@@ -1,0 +1,703 @@
+"""
+Bulk-operation outcome (plain-app contract): how many entities the
+mutation actually affected.
+"""
+type ActionResult {
+	affectedCount: Int!
+}
+
+type AndroidExtras {
+	sdkVersion: Int!
+	versionCodeName: String!
+	securityPatch: String!
+	bootloader: String!
+	fingerprint: String!
+	hardware: String!
+	radioVersion: String!
+	board: String!
+	buildBrand: String!
+	buildNumber: String!
+	device: String!
+	javaVmVersion: String!
+	glEsVersion: String!
+	buildTime: String!
+}
+
+type App {
+	clientId: String!
+	urlToken: String!
+	httpPort: Int!
+	httpsPort: Int!
+	appDir: String!
+	deviceName: String!
+	deviceType: DeviceType!
+	capabilities: [Capability!]!
+	buildChannel: AppChannelType!
+	permissions: [String!]!
+	downloadsDir: String!
+	developerMode: Boolean!
+	debug: Boolean!
+}
+
+enum AppChannelType {
+	GITHUB
+	GOOGLE
+	FDROID
+}
+
+type AppFile {
+	id: String!
+	size: Int!
+	mimeType: String!
+	realPath: String!
+	fileName: String!
+	createdAt: String!
+	updatedAt: String!
+}
+
+type AudioFileInfo {
+	"""
+	Milliseconds. `0` in local mode (see `VideoFileInfo::duration_ms`).
+	"""
+	durationMs: Int!
+	location: Location
+}
+
+"""
+Audio player state (plain-app `AudioPlayback`). The desktop backend has
+no playback engine, so the resolver serves inert defaults.
+"""
+type AudioPlayback {
+	mode: String!
+	currentPath: String!
+	isPlaying: Boolean!
+	positionMs: Int!
+}
+
+type Bookmark {
+	id: String!
+	url: String!
+	title: String!
+	faviconPath: String!
+	groupId: String!
+	pinned: Boolean!
+	clickCount: Int!
+	lastClickedAt: String
+	sortOrder: Int!
+	createdAt: String!
+	updatedAt: String!
+}
+
+type BookmarkGroup {
+	id: String!
+	name: String!
+	collapsed: Boolean!
+	sortOrder: Int!
+	itemCount: Int!
+	createdAt: String!
+	updatedAt: String!
+}
+
+input BookmarkInput {
+	url: String!
+	title: String!
+	groupId: String!
+	pinned: Boolean!
+	sortOrder: Int!
+}
+
+"""
+Optional capabilities the server declares about itself; the web client
+gates UI on these instead of sniffing OS versions. Mirrors plain-app
+`Capability`.
+"""
+enum Capability {
+	MEDIA_TRASH
+	MIRROR_AUDIO
+	DOC_PREVIEW
+	IMAGE_SEARCH
+	MEDIA_SCAN
+	SMS
+	CALLS
+	CALL_PHONE
+	CONTACTS
+	PACKAGES
+	NOTES
+	FEEDS
+	SCREEN_MIRROR
+	IMAGE_EDITOR
+	LAN_SHARE
+	DISK_MANAGER
+}
+
+enum ChannelStatus {
+	JOINED
+	LEFT
+	KICKED
+}
+
+type ChatChannel {
+	id: String!
+	name: String!
+	owner: String!
+	members: [ChatChannelMember!]!
+	version: Int!
+	status: ChannelStatus!
+	createdAt: String!
+	updatedAt: String!
+}
+
+type ChatChannelMember {
+	id: String!
+	status: MemberStatus!
+}
+
+type ChatFiles {
+	ids: [String!]!
+}
+
+type ChatImages {
+	ids: [String!]!
+}
+
+type ChatItem {
+	id: String!
+	fromId: String!
+	toId: String!
+	channelId: String!
+	createdAt: String!
+	updatedAt: String!
+	content: String!
+	status: ChatStatus!
+	statusData: String!
+	data: ChatItemData
+}
+
+"""
+Union for `ChatItem.data` — always `None` in local mode but schema must match the fragment.
+"""
+union ChatItemData = ChatImages | ChatFiles | ChatText
+
+enum ChatStatus {
+	SENT
+	FAILED
+	PARTIAL
+	PENDING
+}
+
+type ChatText {
+	linkPreviewImageIds: [String!]!
+}
+
+type DbTableInfo {
+	idKey: String!
+}
+
+type DeviceInfo {
+	name: String!
+	platform: DevicePlatform!
+	manufacturer: String!
+	model: String!
+	osName: String!
+	osVersion: String!
+	kernelVersion: String!
+	appVersion: String!
+	appBuildNumber: String!
+	language: String!
+	cpuArch: String!
+	cpuModel: String
+	totalMemory: Int!
+	totalStorage: Int!
+	display: DisplayInfo
+	android: AndroidExtras
+}
+
+enum DevicePlatform {
+	ANDROID
+	IOS
+	MACOS
+	WINDOWS
+	LINUX
+}
+
+type DeviceStatus {
+	uptimeSec: Int!
+	"""
+	0-100; None when the device has no battery or the level is unknown.
+	"""
+	batteryLevel: Int
+	"""
+	True only while actively charging; full-while-plugged is false.
+	"""
+	charging: Boolean!
+	"""
+	Empty when the platform exposes no temperature sources.
+	"""
+	temperatures: [Temperature!]!
+	"""
+	0-100 percent, diffed from two CPU counter samples.
+	"""
+	cpuUsage: Float!
+	"""
+	OS-level available memory; None when the platform does not expose it.
+	"""
+	memoryAvailable: Int
+	"""
+	Available bytes on the primary data volume.
+	"""
+	storageAvailable: Int!
+}
+
+enum DeviceType {
+	PHONE
+	TABLET
+	COMPUTER
+	TV
+	NAS
+	OTHER
+	UNKNOWN
+}
+
+type DisplayInfo {
+	width: Int!
+	height: Int!
+	density: String!
+}
+
+enum DriveType {
+	INTERNAL_STORAGE
+	SDCARD
+	USB_STORAGE
+	APP
+}
+
+type FavoriteFolder {
+	rootPath: String!
+	fullPath: String!
+	alias: String!
+}
+
+"""
+`fileInfo` query result. `data` is `None` for non-media files; `tags` is
+empty in local mode (plain-web doesn't yet persist tag relations).
+"""
+type FileInfo {
+	path: String!
+	updatedAt: String!
+	size: Int!
+	tags: [Tag!]!
+	data: MediaFileInfo
+}
+
+type ImageFileInfo {
+	width: Int!
+	height: Int!
+	location: Location
+}
+
+type KeyValuePair {
+	key: String!
+	value: String!
+}
+
+"""
+EXIF / video GPS coordinate pair. Mirrors plain-app `Location`.
+"""
+type Location {
+	latitude: Float!
+	longitude: Float!
+}
+
+"""
+Polymorphic media-metadata payload — clients select via `... on XFileInfo`.
+"""
+union MediaFileInfo = ImageFileInfo | VideoFileInfo | AudioFileInfo
+
+enum MemberStatus {
+	JOINED
+	PENDING
+}
+
+"""
+Chunked-upload merge job (plain-app `MergeTask`): `value` is the merged
+result's base name once `DONE`; `merged_size` its size in bytes.
+"""
+type MergeTask {
+	status: MergeTaskStatus!
+	value: String
+	mergedSize: Int
+	error: String
+}
+
+"""
+Chunked-upload merge job state (plain-app `MergeTaskStatus`).
+"""
+enum MergeTaskStatus {
+	NONE
+	STARTED
+	MERGING
+	DONE
+	FAILED
+}
+
+"""
+All fields from both `homeStatsGQL` and the full `mountsGQL` query.
+"""
+type Mount {
+	id: String!
+	name: String!
+	path: String!
+	mountPoint: String!
+	fsType: String!
+	totalBytes: Int!
+	usedBytes: Int!
+	freeBytes: Int!
+	remote: Boolean!
+	alias: String!
+	driveType: DriveType!
+	diskId: String!
+}
+
+type MutationRoot {
+	updateDeviceName(name: String!): Boolean!
+	addBookmarks(urls: [String!]!, groupId: String!): [Bookmark!]!
+	updateBookmark(id: ID!, input: BookmarkInput!): Bookmark
+	deleteBookmarks(ids: [ID!]!): ActionResult!
+	recordBookmarkClick(id: ID!): Boolean!
+	createBookmarkGroup(name: String!): BookmarkGroup!
+	updateBookmarkGroup(id: ID!, name: String!, collapsed: Boolean!, sortOrder: Int!): BookmarkGroup
+	deleteBookmarkGroup(id: ID!): Boolean!
+	"""
+	Send a chat item. Routes by `to_id` prefix:
+	* `peer:<id>`      — peer-to-peer
+	* `channel:<id>`   — channel
+	* anything else    — local note
+	
+	Delivery is fire-and-forget; returns the initially-inserted `ChatItem`
+	(status `pending` for remote targets).
+	"""
+	sendChatItem(target: String!, content: String!): [ChatItem!]!
+	"""
+	Delete a chat item, broadcasting `WS_MESSAGE_DELETED`.
+	"""
+	deleteChatItem(id: String!): Boolean!
+	"""
+	Bulk-delete chats by query (`ids:`, `channel:`, `peer:`).
+	"""
+	deleteChatItems(query: String!): ActionResult!
+	"""
+	Retry a failed chat item.
+	"""
+	retryChatItem(id: String!): ChatItem
+	createChatChannel(name: String!): ChatChannel!
+	updateChatChannel(id: String!, name: String!): ChatChannel!
+	deleteChatChannel(id: String!): Boolean!
+	leaveChatChannel(id: String!): Boolean!
+	addChatChannelMember(id: String!, peerId: String!): ChatChannel!
+	removeChatChannelMember(id: String!, peerId: String!): ChatChannel!
+	acceptChatChannelInvite(id: String!): Boolean!
+	declineChatChannelInvite(id: String!): Boolean!
+	"""
+	Web-only convenience mutation that branches to
+	`acceptChatChannelInvite` or `declineChatChannelInvite` based
+	on the `accept` flag. The plain-app Android schema doesn't
+	expose this — the web client added it so the
+	`ChannelInviteModal` can use a single GraphQL document for
+	both buttons. Returns the `accept` flag verbatim so the
+	modal's `onDone` handler can read the chosen action back from
+	the mutation result.
+	"""
+	respondChannelInvite(id: String!, accept: Boolean!): Boolean!
+	channelSystemMessage(type: String!, payload: String!): Boolean!
+	"""
+	Mirrors plain-app `PeerManager.deletePeer(peerId)`:
+	1. Delete all 1:1 chats with the peer (`ChatDbHelper.deleteAllChatsAsync`).
+	2. If the peer is still a member of any local channel, demote it
+	to `status="CHANNEL"` with an empty shared key — the row
+	must remain so channel routing can still resolve it.
+	3. Otherwise delete the peer row outright.
+	4. Refresh the peer key cache so future deliveries skip the
+	demoted / deleted peer.
+	
+	Returns `false` if the peer id is unknown, `true` otherwise.
+	The frontend's `PeerManager.deletePeer` re-fetches the peers /
+	latest-chats lists on success; no WS event is required.
+	"""
+	deletePeer(id: String!): Boolean!
+	"""
+	Mirrors plain-app `PeerManager.markUnpaired(peerId)` (invoked
+	indirectly via `NearbyViewModel.unpairDevice`): flips the peer's
+	status to "UNPAIRED" and bumps `updated_at`, leaving the shared
+	key intact so a future re-pair can reuse the stored credentials.
+	
+	Returns `false` if the peer id is unknown, `true` otherwise.
+	"""
+	unpairPeer(id: String!): Boolean!
+	clearAppLogs: Boolean!
+	deleteDataStoreEntry(key: String!): Boolean!
+	createDbTableRow(table: String!, row: String!): Boolean!
+	deleteDbTableRows(table: String!, ids: [String!]!): Boolean!
+	"""
+	Recursively remove the staging directory for `file_id`.
+	Idempotent — returns `true` whether the directory existed or not.
+	"""
+	deleteChunks(fileId: String!): Boolean!
+	"""
+	Start merging the staged chunks into a regular file at `path` in the
+	background. Completion is signalled with WS event 38
+	(`upload_merge_result`); `mergeStatus` is the polling fallback for
+	lost events. Chunks are kept on failure so a retry reuses them.
+	"""
+	mergeChunks(fileId: String!, totalChunks: Int!, path: String!, replace: Boolean!, totalSize: Int!): MergeTask!
+	"""
+	Start merging the staged chunks and import the result into the
+	content-addressable app-file store (dedup). The returned `value` is
+	the fidSuffix (`"{hash}.{ext}"`) the client uses to build a `fid:` URI.
+	"""
+	mergeAppFileChunks(fileId: String!, totalChunks: Int!, fileName: String!, totalSize: Int!): MergeTask!
+	"""
+	Mirrors plain-app's `startDiscovery` mutation: kicks off the
+	background scan loop that pushes discovered devices over the
+	local server WS as `WS_NEARBY_DEVICE_FOUND`. Returns `true` if
+	the loop was started, `false` if it was already running.
+	"""
+	startDiscovery: Boolean!
+	"""
+	Mirrors plain-app's `stopDiscovery` mutation: tears down the
+	background scan loop started by `startDiscovery`. Returns
+	`true` if a loop was cancelled, `false` if none was active.
+	"""
+	stopDiscovery: Boolean!
+	"""
+	Initiate pairing with a discovered device. POSTs a PAIR_REQUEST to the
+	target's `POST /nearby` endpoint. Completion (success / fail / timeout /
+	cancel) is reported via `WS_PAIRING_*` push events.
+	"""
+	pairDevice(input: PairingDeviceInput!): Boolean!
+	"""
+	Cancel an in-progress pairing we initiated. The remote peer receives
+	a PAIR_CANCEL via `POST /nearby`; completion is reported via
+	`WS_PAIRING_CANCELLED`.
+	"""
+	cancelPairing(deviceId: String!): Boolean!
+	"""
+	Respond to an incoming PAIR_REQUEST that the user accepted or
+	rejected. Accepting stores the peer and POSTs a PAIR_RESPONSE
+	back to the requester at `input.from_ip`.
+	"""
+	respondToPairing(input: PairingRequestInput!, accepted: Boolean!): Boolean!
+	"""
+	Start downloading all `fsid:` files in the given message from the
+	given peer. Returns `false` if a download is already in flight for
+	that message. Progress is reported via `WS_DOWNLOAD_PROGRESS`.
+	"""
+	downloadPeerFile(messageId: String!, peerId: String!): Boolean!
+	"""
+	Pause an in-flight download. Returns `false` if no active task
+	exists for the message.
+	"""
+	pauseDownload(messageId: String!): Boolean!
+	"""
+	Resume a paused download. The peer id is required because the
+	manager does not cache it between pause/resume cycles.
+	"""
+	resumeDownload(messageId: String!, peerId: String!): Boolean!
+	"""
+	Retry a failed download.
+	"""
+	retryDownload(messageId: String!, peerId: String!): Boolean!
+}
+
+"""
+Initiate pairing with a discovered LAN device. Mirrors plain-app's
+`PairingDeviceInput` (see `app/.../web/models/Pairing.kt`).
+"""
+input PairingDeviceInput {
+	id: String!
+	name: String!
+	ips: [String!]! = []
+	port: Int!
+	"""
+	Serialized as a string by plain-app's `DeviceType` enum.
+	Accepted as a free-form string here — the outgoing protocol only
+	echoes it back to the responder for display, not for routing.
+	"""
+	deviceType: String!
+	version: String!
+	platform: String!
+	"""
+	ISO-8601 string. We don't currently use it for the protocol, but
+	accept it so the browser can pass the full discovered device.
+	"""
+	lastSeen: String!
+	"""
+	Discovery methods that located this device (mirrors plain-app's
+	`PairingDeviceInput.discoveryMethods`). Accepted as free-form
+	strings — values are `"LAN"` and `"BLE"`. The Tauri desktop
+	build only discovers over LAN, so this field is currently
+	accepted for schema parity and otherwise unused.
+	"""
+	discoveryMethods: [String!]! = []
+}
+
+"""
+Incoming-pairing request payload. Mirrors plain-app's
+`PairingRequestInput` (see `app/.../web/models/Pairing.kt`).
+"""
+input PairingRequestInput {
+	fromId: String!
+	fromName: String!
+	port: Int!
+	deviceType: String!
+	ecdhPublicKey: String!
+	signaturePublicKey: String!
+	timestamp: Int!
+	ips: [String!]! = []
+	"""
+	Signature on the original PAIR_REQUEST — required for the responder
+	to verify the requester. Empty string is rejected by the signature
+	check; the browser always forwards the full request object.
+	"""
+	signature: String! = ""
+	"""
+	Stamped on the receiver side; carried in the input so the
+	responder knows which IP to POST the response back to.
+	"""
+	fromIp: String! = ""
+	"""
+	Whether the requester's device supports Wi-Fi Aware (mirrors
+	plain-app's `PairingRequestInput.awareSupported`). Forwarded to
+	the protocol layer; the Tauri desktop build always sends `false`.
+	"""
+	awareSupported: Boolean! = false
+}
+
+type Peer {
+	id: String!
+	name: String!
+	ip: String!
+	status: PeerStatus!
+	online: Boolean!
+	port: Int!
+	deviceType: DeviceType!
+	createdAt: String!
+	updatedAt: String!
+}
+
+enum PeerStatus {
+	PAIRED
+	UNPAIRED
+	CHANNEL
+}
+
+type QueryRoot {
+	app: App!
+	deviceInfo: DeviceInfo!
+	sims: [Sim!]!
+	"""
+	Inert player state — the desktop backend has no audio engine.
+	"""
+	audioPlayback: AudioPlayback!
+	deviceStatus: DeviceStatus!
+	bookmarks: [Bookmark!]!
+	bookmarkGroups: [BookmarkGroup!]!
+	chatItems(target: String!, offset: Int!, limit: Int!, query: String!): [ChatItem!]!
+	chatItem(id: String!): ChatItem
+	chatChannels: [ChatChannel!]!
+	peers: [Peer!]!
+	latestChatItems: [ChatItem!]!
+	appFiles(offset: Int!, limit: Int!, query: String!): [AppFile!]!
+	appFileCount: Int!
+	appLogs(offset: Int!, limit: Int!, query: String!): [String!]!
+	appLogPath: String!
+	dataStorePath: String!
+	dataStoreEntries: [KeyValuePair!]!
+	dbPath: String!
+	dbTables: [String!]!
+	dbTableRowCount(table: String!): Int!
+	dbTableRows(table: String!, offset: Int!, limit: Int!): [String!]!
+	dbTableInfo(table: String!): DbTableInfo
+	"""
+	List the chunk indices the server already has on disk for `file_id`,
+	in the format `"<index>:<size>"` (matches what the web client
+	expects — see `lib/upload/upload.ts::getUploadedChunks`).
+	"""
+	uploadedChunks(fileId: String!): [String!]!
+	"""
+	Current state of the merge job for `file_id`. Polled by the web
+	client when WS event 38 was missed.
+	"""
+	mergeStatus(fileId: String!): MergeTask!
+	"""
+	Mirrors `plain-app` `query("fileInfo") { id path fileName }` —
+	`id` and `fileName` are accepted for schema parity but only `path`
+	is used to locate the file.
+	"""
+	fileInfo(id: String!, path: String!, fileName: String!): FileInfo!
+	tags(type: String!): [Tag!]!
+	"""
+	Mirrors plain-app's `isDiscovering` query: returns `true`
+	while the background scan loop is running.
+	"""
+	isDiscovering: Boolean!
+	smsCount(query: String): Int!
+	contactCount(query: String): Int!
+	callCount(query: String): Int!
+	imageCount(query: String): Int!
+	audioCount(query: String): Int!
+	videoCount(query: String): Int!
+	packageCount(query: String): Int!
+	noteCount(query: String): Int!
+	docCount(query: String): Int!
+	feedEntryCount(query: String): Int!
+	mounts: [Mount!]!
+	favoriteFolders: [FavoriteFolder!]!
+}
+
+type Sim {
+	id: String!
+	label: String!
+	number: String!
+	subscriptionId: Int!
+}
+
+"""
+Mirrors plain-app `web/models/Tag.kt`. The local server returns an
+empty list — the `tags` query exists purely to satisfy schema
+resolution for the popup lightbox.
+"""
+type Tag {
+	id: String!
+	name: String!
+	count: Int!
+}
+
+type Temperature {
+	label: String!
+	celsius: Float!
+}
+
+type VideoFileInfo {
+	width: Int!
+	height: Int!
+	"""
+	Milliseconds. `0` in local mode — the desktop local server has no
+	`MediaMetadataRetriever` equivalent. Main-window traffic still goes
+	through the device server and returns real durations.
+	"""
+	durationMs: Int!
+	location: Location
+}
+
+"""
+Directs the executor to include this field or fragment only when the `if` argument is true.
+"""
+directive @include(if: Boolean!) on FIELD | FRAGMENT_SPREAD | INLINE_FRAGMENT
+"""
+Directs the executor to skip this field or fragment when the `if` argument is true.
+"""
+directive @skip(if: Boolean!) on FIELD | FRAGMENT_SPREAD | INLINE_FRAGMENT
+schema {
+	query: QueryRoot
+	mutation: MutationRoot
+}

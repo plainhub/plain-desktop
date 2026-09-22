@@ -13,7 +13,9 @@
     "build:tauri": "tauri build",
     "build:tauri:frontend": "vite build --mode tauri",
     "preview": "vite preview --port 5050",
-    "typecheck": "vue-tsc --noEmit",
+    "graphql:check": "vitest run --project=graphql",
+    "graphql:codegen": "vitest run --project=graphql",
+    "typecheck": "vue-tsc --noEmit && yarn graphql:check",
     "test": "vitest run",
     "test:watch": "vitest",
     "test:integration": "vitest run --project=integration"

@@ -137,12 +137,12 @@ fn classify_and_load(path: &Path) -> Option<MediaFileInfo> {
         Some(MediaFileInfo::Video(VideoFileInfo {
             width: 0,
             height: 0,
-            duration: 0,
+            duration_ms: 0,
             location: None,
         }))
     } else if is_audio_ext(&ext) {
         Some(MediaFileInfo::Audio(AudioFileInfo {
-            duration: 0,
+            duration_ms: 0,
             location: None,
         }))
     } else {

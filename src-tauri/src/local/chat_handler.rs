@@ -45,7 +45,7 @@ pub(crate) fn chat_to_json(c: &DChat, token: &str) -> Value {
                 json!({ "__typename": "ChatFiles", "ids": &m.ids })
             }
             super::graphql::schema::types::ChatItemData::ChatText(m) => {
-                json!({ "__typename": "ChatText", "ids": &m.ids })
+                json!({ "__typename": "ChatText", "linkPreviewImageIds": &m.link_preview_image_ids })
             }
         });
     json!({
@@ -123,10 +123,10 @@ pub(crate) fn delete_chat_item(app: &Arc<AppCtx>, id: String) -> bool {
 /// Bulk-delete chats by query (see `resolve_chat_ids`). Emits a single
 /// `WS_MESSAGE_DELETED` event whose payload is the `ids=...` string the
 /// web's `message_deleted` handler expects.
-pub(crate) fn delete_chat_items(app: &Arc<AppCtx>, query: String) -> bool {
+pub(crate) fn delete_chat_items(app: &Arc<AppCtx>, query: String) -> i32 {
     let ids = resolve_chat_ids(&app.db, &query);
     if ids.is_empty() {
-        return false;
+        return 0;
     }
     app.db.delete_chats_by_ids(&ids);
     let payload = format!("ids={}", ids.join(","));
@@ -134,7 +134,7 @@ pub(crate) fn delete_chat_items(app: &Arc<AppCtx>, query: String) -> bool {
         event_type: WS_MESSAGE_DELETED,
         payload,
     });
-    true
+    ids.len() as i32
 }
 
 /// Retry a failed chat item: set status to `PENDING`, emit

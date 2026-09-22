@@ -827,25 +827,33 @@ export const updateContactGQL = `
 
 export const deleteContactGQL = `
   mutation DeleteContact($query: String!) {
-    deleteContacts(query: $query)
+    deleteContacts(query: $query) {
+      affectedCount
+    }
   }
 `
 
 export const deleteCallGQL = `
   mutation DeleteCall($query: String!) {
-    deleteCalls(query: $query)
+    deleteCalls(query: $query) {
+      affectedCount
+    }
   }
 `
 
 export const deleteNoteGQL = `
   mutation DeleteNote($query: String!) {
-    deleteNotes(query: $query)
+    deleteNotes(query: $query) {
+      affectedCount
+    }
   }
 `
 
 export const deleteFeedEntryGQL = `
   mutation deleteFeedEntry($query: String!) {
-    deleteFeedEntries(query: $query)
+    deleteFeedEntries(query: $query) {
+      affectedCount
+    }
   }
 `
 

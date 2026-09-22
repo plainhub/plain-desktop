@@ -9,9 +9,9 @@ pub struct LogsQuery;
 
 #[Object]
 impl LogsQuery {
-    async fn app_logs(&self, ctx: &Context<'_>, offset: i32, limit: i32) -> Vec<String> {
+    async fn app_logs(&self, ctx: &Context<'_>, offset: i32, limit: i32, query: String) -> Vec<String> {
         let c = ctx.data_unchecked::<Arc<AppCtx>>();
-        read_log_lines(&c.log_dir.join("plain.log"), offset, limit)
+        read_log_lines(&c.log_dir.join("plain.log"), &query, offset, limit)
     }
 
     async fn app_log_path(&self, ctx: &Context<'_>) -> String {

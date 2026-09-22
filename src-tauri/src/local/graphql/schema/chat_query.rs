@@ -67,9 +67,16 @@ fn resolve_display_name(
 
 #[Object]
 impl ChatQuery {
-    async fn chat_items(&self, ctx: &Context<'_>, id: String) -> Vec<ChatItem> {
+    async fn chat_items(
+        &self,
+        ctx: &Context<'_>,
+        target: String,
+        offset: i32,
+        limit: i32,
+        query: String,
+    ) -> Vec<ChatItem> {
         let c = ctx.data_unchecked::<Arc<AppCtx>>();
-        c.db.get_chats(&id)
+        c.db.get_chats_page(&target, &query, offset, limit)
             .into_iter()
             .map(|chat| ChatItem::with_data(chat, &c.token))
             .collect()
@@ -108,16 +115,24 @@ impl ChatQuery {
             .collect()
     }
 
-    async fn app_files(&self, ctx: &Context<'_>, offset: i32, limit: i32) -> Vec<AppFile> {
+    async fn app_files(
+        &self,
+        ctx: &Context<'_>,
+        offset: i32,
+        limit: i32,
+        query: String,
+    ) -> Vec<AppFile> {
         let c = ctx.data_unchecked::<Arc<AppCtx>>();
         let files = c.db.get_app_file_page(limit, offset);
         let name_map = build_app_file_name_map(&c.db.get_all_chats());
+        let text = query.trim();
         files
             .into_iter()
             .map(|f| {
                 let display = resolve_display_name(&f, &name_map);
                 AppFile::from_dappfile(f, display)
             })
+            .filter(|f| text.is_empty() || f.file_name.contains(text))
             .collect()
     }
 

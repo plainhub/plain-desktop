@@ -170,9 +170,9 @@ impl ChatDb {
         );
     }
 
-    pub fn delete_bookmarks(&self, ids: &[String]) -> bool {
+    pub fn delete_bookmarks(&self, ids: &[String]) -> i32 {
         if ids.is_empty() {
-            return true;
+            return 0;
         }
         let conn = self.0.lock().unwrap();
         let placeholders = (1..=ids.len())
@@ -181,7 +181,7 @@ impl ChatDb {
             .join(", ");
         let sql = format!("DELETE FROM bookmarks WHERE id IN ({placeholders})");
         conn.execute(&sql, rusqlite::params_from_iter(ids.iter()))
-            .is_ok()
+            .unwrap_or(0) as i32
     }
 
     pub fn get_bookmark_groups(&self) -> Vec<DBookmarkGroup> {

@@ -1,0 +1,849 @@
+# Extension schema: the API surface served by plain-app (phone) and
+# plain-nas that the desktop local backend does not define (yet).
+#
+# The homegrown codegen validates frontend GraphQL documents against
+# local-schema.graphql ⊕ this file. Sources of truth, in order:
+# plain-app `shared/src/commonMain` Kotlin models/resolvers,
+# plain-nas `src/gql`, and the frontend's own `lib/interfaces.ts`.
+#
+# Migration rule: when the desktop backend implements a type or field
+# declared here, DELETE it from this file — the merge step fails on any
+# overlap, forcing the removal. Root field args mirror what the frontend
+# documents actually declare (variable nullability included).
+
+scalar Long
+
+type Mount {
+  label: String
+  partitionNum: Int
+  uuid: String
+}
+
+enum DataType {
+  AUDIO
+  VIDEO
+  IMAGE
+  PACKAGE
+  CALL
+  CONTACT
+  SMS
+  NOTE
+  BOOK
+  FEED_ENTRY
+  DOC
+}
+
+enum MediaDataType {
+  AUDIO
+  VIDEO
+  IMAGE
+  DOC
+}
+
+enum FileSortBy {
+  DATE_ASC
+  DATE_DESC
+  SIZE_ASC
+  SIZE_DESC
+  NAME_ASC
+  NAME_DESC
+  TAKEN_AT_DESC
+}
+
+enum MediaPlayMode {
+  REPEAT
+  REPEAT_ONE
+  SHUFFLE
+}
+
+enum SmsType {
+  INBOX
+  SENT
+  DRAFT
+  OUTBOX
+  FAILED
+  QUEUED
+  UNKNOWN
+}
+
+enum PhoneType {
+  CUSTOM
+  HOME
+  MOBILE
+  WORK
+  FAX_WORK
+  FAX_HOME
+  PAGER
+  OTHER
+  CALLBACK
+  CAR
+  COMPANY_MAIN
+  ISDN
+  MAIN
+  OTHER_FAX
+  RADIO
+  TELEX
+  TTY_TDD
+  WORK_MOBILE
+  WORK_PAGER
+  ASSISTANT
+}
+
+enum EmailType {
+  CUSTOM
+  HOME
+  WORK
+  OTHER
+  MOBILE
+}
+
+enum PostalType {
+  CUSTOM
+  HOME
+  WORK
+  OTHER
+}
+
+enum ContactEventType {
+  CUSTOM
+  ANNIVERSARY
+  BIRTHDAY
+  OTHER
+}
+
+enum WebsiteType {
+  CUSTOM
+  HOMEPAGE
+  BLOG
+  FTP
+  HOME
+  WORK
+  OTHER
+}
+
+enum ImProtocol {
+  CUSTOM
+  AIM
+  MSN
+  YAHOO
+  SKYPE
+  QQ
+  GOOGLE_TALK
+  ICQ
+  JABBER
+  NETMEETING
+}
+
+enum CallType {
+  INCOMING
+  OUTGOING
+  MISSED
+  VOICEMAIL
+  REJECTED
+  BLOCKED
+  ANSWERED_EXTERNALLY
+  UNKNOWN
+}
+
+enum PackageType {
+  SYSTEM
+  USER
+}
+
+enum SambaShareAuth {
+  GUEST
+  PASSWORD
+}
+
+enum ScanState {
+  IDLE
+  RUNNING
+  PAUSED
+  STOPPED
+}
+
+enum ScreenMirrorMode {
+  HD
+  SMOOTH
+}
+
+enum ScreenMirrorControlAction {
+  TAP
+  LONG_PRESS
+  SWIPE
+  SCROLL
+  BACK
+  HOME
+  RECENTS
+  LOCK_SCREEN
+  KEY
+  TOUCH
+}
+
+enum WebSettingsFeature {
+  FILES
+  CONTACTS
+  SMS
+  CALL_LOGS
+  CALL_PHONE
+  PHONE_NUMBER
+  APPS
+  NOTIFICATIONS
+  CLIPBOARD
+}
+
+type Sms {
+  id: ID!
+  body: String!
+  address: String!
+  serviceCenter: String!
+  sentAt: String!
+  type: SmsType!
+  threadId: String!
+  subscriptionId: Int!
+  isMms: Boolean
+  attachments: [SmsAttachment!]!
+  tags: [Tag!]!
+}
+
+type SmsAttachment {
+  path: String!
+  contentType: String!
+  name: String!
+}
+
+type SmsConversation {
+  id: ID!
+  address: String!
+  addresses: [String!]!
+  snippet: String!
+  lastMessageAt: String!
+  messageCount: Int!
+  read: Boolean!
+}
+
+type SmsCounts {
+  total: Int!
+  inbox: Int!
+  sent: Int!
+  drafts: Int!
+}
+
+type Contact {
+  id: ID!
+  suffix: String!
+  prefix: String!
+  firstName: String!
+  middleName: String!
+  lastName: String!
+  updatedAt: String!
+  notes: String!
+  source: String!
+  thumbnailId: String!
+  starred: Boolean!
+  phoneNumbers: [ContactPhoneNumber!]!
+  addresses: [ContactAddress!]!
+  emails: [ContactEmail!]!
+  websites: [ContactWebsite!]!
+  events: [ContactEvent!]!
+  ims: [ContactIm!]!
+  tags: [Tag!]!
+}
+
+type ContactPhoneNumber {
+  value: String!
+  type: PhoneType!
+  label: String!
+  normalizedNumber: String!
+}
+
+type ContactAddress {
+  value: String!
+  type: PostalType!
+  label: String!
+}
+
+type ContactEmail {
+  value: String!
+  type: EmailType!
+  label: String!
+}
+
+type ContactWebsite {
+  value: String!
+  type: WebsiteType!
+  label: String!
+}
+
+type ContactEvent {
+  value: String!
+  type: ContactEventType!
+  label: String!
+}
+
+type ContactIm {
+  value: String!
+  protocol: ImProtocol!
+  customProtocol: String!
+}
+
+type ContactSource {
+  name: String!
+  type: Int!
+}
+
+type Call {
+  id: ID!
+  name: String!
+  number: String!
+  durationSec: Int!
+  accountId: String!
+  startedAt: String!
+  photoId: String!
+  type: CallType!
+  geo: CallGeo
+  tags: [Tag!]!
+}
+
+type CallGeo {
+  country: String!
+  numberType: String!
+  carrier: String!
+  description: String!
+}
+
+type Clipboard {
+  id: ID!
+  text: String!
+  source: String!
+  label: String!
+  sensitive: Boolean!
+  createdAt: String!
+}
+
+type Note {
+  id: ID!
+  title: String!
+  content: String!
+  deletedAt: String!
+  createdAt: String!
+  updatedAt: String!
+  tags: [Tag!]!
+}
+
+type Feed {
+  id: ID!
+  name: String!
+  url: String!
+  fetchContent: Boolean!
+  createdAt: String!
+  updatedAt: String!
+}
+
+type FeedEntry {
+  id: ID!
+  title: String!
+  url: String!
+  image: String!
+  author: String!
+  description: String!
+  content: String!
+  feedId: ID!
+  rawId: String!
+  publishedAt: String!
+  createdAt: String!
+  updatedAt: String!
+  tags: [Tag!]!
+  feed: Feed
+}
+
+type FeedEntryCount {
+  id: ID!
+  count: Int!
+}
+
+type Image {
+  id: ID!
+  title: String!
+  path: String!
+  size: Long!
+  bucketId: ID!
+  takenAt: String
+  createdAt: String!
+  updatedAt: String!
+  tags: [Tag!]!
+}
+
+type Video {
+  id: ID!
+  title: String!
+  path: String!
+  durationMs: Long!
+  size: Long!
+  bucketId: ID!
+  createdAt: String!
+  updatedAt: String!
+  takenAt: String
+  tags: [Tag!]!
+}
+
+type Audio {
+  id: ID!
+  title: String!
+  artist: String!
+  path: String!
+  durationMs: Long!
+  size: Long!
+  bucketId: ID!
+  albumFileId: ID!
+  createdAt: String!
+  updatedAt: String!
+  tags: [Tag!]!
+}
+
+type AudioItem {
+  title: String!
+  artist: String!
+  path: String!
+  durationMs: Long!
+}
+
+type Doc {
+  id: ID!
+  title: String!
+  path: String!
+  extension: String!
+  size: Long!
+  bucketId: ID!
+  createdAt: String!
+  updatedAt: String!
+  tags: [Tag!]!
+}
+
+type DocExtGroup {
+  ext: String!
+  count: Int!
+}
+
+type MediaBucket {
+  id: ID!
+  name: String!
+  itemCount: Int!
+  topItemPaths: [String!]!
+}
+
+type Package {
+  id: ID!
+  name: String!
+  type: PackageType!
+  version: String!
+  path: String!
+  size: Long!
+  certs: [PackageCert!]!
+  installedAt: String!
+  updatedAt: String!
+}
+
+type PackageCert {
+  issuer: String!
+  subject: String!
+  serialNumber: String!
+  validFrom: String!
+  validTo: String!
+}
+
+type PackageStatus {
+  id: ID!
+  exists: Boolean!
+  updatedAt: String!
+}
+
+type PackageInstallPending {
+  id: ID!
+  updatedAt: String
+  isNew: Boolean!
+}
+
+type Notification {
+  id: ID!
+  onlyOnce: Boolean!
+  isClearable: Boolean!
+  appId: String!
+  appName: String!
+  postedAt: String!
+  silent: Boolean!
+  title: String!
+  body: String!
+  actions: [String!]!
+  replyActions: [String!]!
+}
+
+type File {
+  path: String!
+  isDir: Boolean!
+  createdAt: String!
+  updatedAt: String!
+  size: Long!
+  children: Int!
+  mediaId: ID!
+}
+
+type StorageDisk {
+  id: ID!
+  name: String!
+  path: String!
+  sizeBytes: Long!
+  removable: Boolean!
+  model: String
+}
+
+type SambaShare {
+  name: String!
+  sharePath: String!
+  auth: SambaShareAuth!
+  readOnly: Boolean!
+}
+
+type SambaSettings {
+  enabled: Boolean!
+  username: String!
+  hasPassword: Boolean!
+  shares: [SambaShare!]!
+  serviceName: String!
+  serviceActive: Boolean!
+  serviceEnabled: Boolean!
+}
+
+type ScanProgress {
+  indexed: Int!
+  pending: Int!
+  total: Int!
+  state: ScanState!
+}
+
+type PomodoroSettings {
+  workDurationMin: Int!
+  shortBreakDurationMin: Int!
+  longBreakDurationMin: Int!
+  pomodorosBeforeLongBreak: Int!
+  showNotification: Boolean!
+  playSoundOnComplete: Boolean!
+}
+
+type PomodoroToday {
+  date: String!
+  completedCount: Int!
+  currentRound: Int!
+  timeLeftSec: Int!
+  totalTimeSec: Int!
+  isRunning: Boolean!
+  isPaused: Boolean!
+  state: String!
+}
+
+type ScreenMirrorQuality {
+  mode: ScreenMirrorMode!
+  resolution: Int!
+}
+
+type ScreenMirrorVideoCodec {
+  annexB: String!
+  keyFrame: String
+}
+
+type ImageEditorProject {
+  id: ID!
+  stateB64: String!
+  thumbnail: String
+  canvasWidth: Int!
+  canvasHeight: Int!
+  layerCount: Int!
+  updatedAt: String!
+}
+
+type ImageSearchStatus {
+  status: String!
+  downloadProgress: Float!
+  errorMessage: String!
+  modelSize: Long!
+  modelDir: String!
+  isIndexing: Boolean!
+  totalImages: Int!
+  indexedImages: Int!
+}
+
+type SharedInfo {
+  name: String!
+  readOnly: Boolean!
+  requiresPassword: Boolean!
+  expiresAt: String
+  urlToken: String!
+  entries: [SharedEntry!]!
+}
+
+type SharedEntry {
+  name: String!
+  virtualPath: String!
+  isDir: Boolean!
+  size: Long!
+  mimeType: String!
+  hasThumb: Boolean!
+}
+
+type TagRelation {
+  tagId: ID!
+  key: String!
+}
+
+input ContactPhoneInput {
+  value: String!
+  type: PhoneType!
+  label: String!
+}
+
+input ContactEmailInput {
+  value: String!
+  type: EmailType!
+  label: String!
+}
+
+input ContactAddressInput {
+  value: String!
+  type: PostalType!
+  label: String!
+}
+
+input ContactEventInput {
+  value: String!
+  type: ContactEventType!
+  label: String!
+}
+
+input ContactWebsiteInput {
+  value: String!
+  type: WebsiteType!
+  label: String!
+}
+
+input ContactImInput {
+  value: String!
+  protocol: ImProtocol!
+  customProtocol: String!
+}
+
+input OrganizationInput {
+  company: String!
+  title: String!
+}
+
+input ContactInput {
+  prefix: String!
+  firstName: String!
+  middleName: String!
+  lastName: String!
+  suffix: String!
+  nickname: String!
+  phoneNumbers: [ContactPhoneInput!]!
+  emails: [ContactEmailInput!]!
+  addresses: [ContactAddressInput!]!
+  events: [ContactEventInput!]!
+  source: String!
+  starred: Boolean!
+  notes: String!
+  groupIds: [ID!]!
+  organization: OrganizationInput
+  websites: [ContactWebsiteInput!]!
+  ims: [ContactImInput!]!
+}
+
+input NoteInput {
+  title: String!
+  content: String!
+}
+
+input TagRelationStub {
+  key: String!
+  title: String!
+  size: Long!
+}
+
+input ScreenMirrorControlInput {
+  action: ScreenMirrorControlAction!
+  x: Float
+  y: Float
+  endX: Float
+  endY: Float
+  durationMs: Long
+  deltaX: Float
+  deltaY: Float
+  key: String
+  pathPoints: [TouchPointInput!]!
+  pointerId: Int
+  pressure: Float
+}
+
+input TouchPointInput {
+  x: Float!
+  y: Float!
+  tMs: Int!
+}
+
+input ImageEditorProjectInput {
+  stateB64: String!
+  thumbnail: String
+  canvasWidth: Int!
+  canvasHeight: Int!
+  layerCount: Int!
+}
+
+input SambaShareInput {
+  name: String!
+  sharePath: String!
+  auth: SambaShareAuth!
+  readOnly: Boolean!
+}
+
+input SambaSettingsInput {
+  enabled: Boolean!
+  shares: [SambaShareInput!]!
+}
+
+schema {
+  query: ExtensionQuery
+  mutation: ExtensionMutation
+}
+
+type ExtensionQuery {
+  sms(offset: Int!, limit: Int!, query: String!): [Sms!]!
+  smsConversations(offset: Int!, limit: Int!, query: String!): [SmsConversation!]!
+  smsConversationCount(query: String!): Int!
+  archivedConversations(offset: Int!, limit: Int!, query: String!): [SmsConversation!]!
+  smsBoxCounts: SmsCounts!
+  contacts(offset: Int!, limit: Int!, query: String!): [Contact!]!
+  contactSources: [ContactSource!]!
+  calls(offset: Int!, limit: Int!, query: String!): [Call!]!
+  images(offset: Int!, limit: Int!, query: String!, sortBy: FileSortBy!): [Image!]!
+  videos(offset: Int!, limit: Int!, query: String!, sortBy: FileSortBy!): [Video!]!
+  audios(offset: Int!, limit: Int!, query: String!, sortBy: FileSortBy!): [Audio!]!
+  docs(offset: Int!, limit: Int!, query: String!, sortBy: FileSortBy!): [Doc!]!
+  docExtGroups: [DocExtGroup!]!
+  files(root: String!, offset: Int!, limit: Int!, query: String!, sortBy: FileSortBy!): [File!]!
+  recentFiles: [File!]!
+  notes(offset: Int!, limit: Int!, query: String!): [Note!]!
+  note(id: ID!): Note
+  feeds: [Feed!]!
+  feedEntries(offset: Int!, limit: Int!, query: String!): [FeedEntry!]!
+  feedEntry(id: ID!): FeedEntry
+  feedEntryCounts: [FeedEntryCount!]!
+  packages(offset: Int!, limit: Int!, query: String!, sortBy: FileSortBy!): [Package!]!
+  packageStatuses(ids: [ID!]!): [PackageStatus!]!
+  notifications(offset: Int!, limit: Int!, query: String!): [Notification!]!
+  clipboard(offset: Int!, limit: Int!, query: String!): [Clipboard!]!
+  clipboardCount(query: String!): Int!
+  mediaBuckets(type: MediaDataType!): [MediaBucket!]!
+  tagRelations(type: DataType!, keys: [String!]!): [TagRelation!]!
+  audioQueueItems(offset: Int!, limit: Int!, query: String!): [AudioItem!]!
+  audioQueueItemCount: Int!
+  disks: [StorageDisk!]!
+  sambaSettings: SambaSettings!
+  scanProgress: ScanProgress!
+  imageSearchStatus: ImageSearchStatus!
+  screenMirrorState: Boolean!
+  screenMirrorControlEnabled: Boolean!
+  screenMirrorQuality: ScreenMirrorQuality!
+  screenMirrorVideoCodec: ScreenMirrorVideoCodec!
+  pomodoroSettings: PomodoroSettings!
+  pomodoroToday: PomodoroToday!
+  imageEditorProjects: [ImageEditorProject!]!
+  imageEditorProject(id: ID!): ImageEditorProject
+  sharedInfo(virtualPath: String): SharedInfo!
+}
+
+type ExtensionMutation {
+  sendSms(number: String!, body: String!, subscriptionId: Int, requestId: String): Boolean!
+  sendMms(number: String!, body: String!, attachmentPaths: [String!]!, threadId: String): Boolean!
+  call(number: String!, showDialer: Boolean): Boolean!
+  createContact(input: ContactInput!): Contact!
+  updateContact(id: ID!, input: ContactInput!): Contact!
+  deleteContacts(query: String!): ActionResult!
+  deleteCalls(query: String!): ActionResult!
+  deleteSms(query: String!): ActionResult!
+  trashSms(query: String!): ActionResult!
+  restoreSms(query: String!): ActionResult!
+  archiveConversation(id: ID!): Boolean!
+  unarchiveConversation(id: ID!): Boolean!
+  createNote(input: NoteInput!): Note!
+  updateNote(id: ID!, input: NoteInput!): Note!
+  deleteNotes(query: String!): ActionResult!
+  trashNotes(query: String!): ActionResult!
+  restoreNotes(query: String!): ActionResult!
+  exportNotes(query: String!): Boolean!
+  saveFeedEntriesToNotes(query: String!): Boolean!
+  createFeed(url: String!, fetchContent: Boolean!): Feed!
+  updateFeed(id: ID!, name: String, fetchContent: Boolean): Feed!
+  deleteFeed(id: ID!): Boolean!
+  syncFeeds(id: ID!): Boolean!
+  syncFeedContent(id: ID!): FeedEntry!
+  importFeeds(content: String!): Boolean!
+  exportFeeds: Boolean!
+  deleteFeedEntries(query: String!): ActionResult!
+  createDir(path: String!): File!
+  deleteFiles(paths: [String!]!): ActionResult!
+  renameFile(path: String!, name: String!): Boolean!
+  copyFile(src: String!, dst: String!, overwrite: Boolean): Boolean!
+  moveFile(src: String!, dst: String!, overwrite: Boolean): Boolean!
+  writeTextFile(path: String!, content: String!, overwrite: Boolean): File!
+  createTag(type: DataType!, name: String!): Tag!
+  updateTag(id: ID!, name: String!): Tag!
+  deleteTag(id: ID!): Boolean!
+  addToTags(type: DataType!, tagIds: [ID!]!, query: String!): Boolean!
+  removeFromTags(type: DataType!, tagIds: [ID!]!, query: String!): Boolean!
+  updateTagRelations(type: DataType!, item: TagRelationStub!, addTagIds: [ID!]!, removeTagIds: [ID!]!): Boolean!
+  playAudio(path: String!): AudioItem!
+  addAudiosToQueue(query: String!): Boolean!
+  removeAudioFromQueue(path: String!): Boolean!
+  reorderAudioQueue(paths: [String!]!): Boolean!
+  clearAudioQueue: Boolean!
+  updateAudioPlayMode(mode: MediaPlayMode!): Boolean!
+  deleteMediaItems(type: MediaDataType!, query: String!): ActionResult!
+  trashMediaItems(type: MediaDataType!, query: String!): ActionResult!
+  restoreMediaItems(type: MediaDataType!, query: String!): ActionResult!
+  moveMediaItems(type: MediaDataType!, query: String!, destDir: String!): ActionResult!
+  setClipboard(text: String!): Boolean!
+  deleteClipboard(ids: [ID!]!): ActionResult!
+  deleteNotifications(ids: [ID!]!): ActionResult!
+  replyNotification(id: ID!, actionIndex: Int!, text: String): Boolean!
+  installPackage(path: String!): PackageInstallPending!
+  uninstallPackages(ids: [ID!]!): Boolean!
+  openAccessibilitySettings: Boolean!
+  openWebSettings(feature: WebSettingsFeature!): Boolean!
+  relaunchApp: Boolean!
+  setTempValue(key: String!, value: String!): KeyValuePair!
+  startScreenMirror(audio: Boolean!): Boolean!
+  stopScreenMirror: Boolean!
+  updateScreenMirrorQuality(mode: ScreenMirrorMode!): Boolean!
+  sendScreenMirrorControl(input: ScreenMirrorControlInput!): Boolean!
+  requestScreenMirrorAudio: Boolean!
+  requestScreenMirrorKeyFrame: Boolean!
+  startPomodoro(timeLeftSec: Int): Boolean!
+  pausePomodoro: Boolean!
+  stopPomodoro: Boolean!
+  startImageIndex(force: Boolean): Boolean!
+  cancelImageIndex: Boolean!
+  enableImageSearch: Boolean!
+  disableImageSearch: Boolean!
+  cancelImageModelDownload: Boolean!
+  pauseMediaScan: Boolean!
+  resumeMediaScan: Boolean!
+  stopMediaScan: Boolean!
+  rebuildMediaIndex(root: String!): Boolean!
+  broadcastImageEditorUpdate(id: ID!, update: String!): Boolean!
+  saveImageEditorProject(id: ID!, input: ImageEditorProjectInput!): ImageEditorProject!
+  deleteImageEditorProject(id: ID!): Boolean!
+  formatDisk(path: String!): Boolean!
+  setSambaSettings(input: SambaSettingsInput!): Boolean!
+  setSambaUserPassword(password: String!): Boolean!
+  addFavoriteFolder(rootPath: String!, fullPath: String!): FavoriteFolder!
+  removeFavoriteFolder(fullPath: String!): FavoriteFolder!
+  setFavoriteFolderAlias(fullPath: String!, alias: String!): FavoriteFolder!
+}

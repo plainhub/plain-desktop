@@ -5,7 +5,7 @@ use std::sync::Arc;
 use crate::local::db::{DBookmark, DBookmarkGroup, now_iso};
 
 use super::super::context::{AppCtx, WS_BOOKMARK_UPDATED, WsEvent};
-use super::types::{Bookmark, BookmarkGroup, BookmarkInput};
+use super::types::{ActionResult, Bookmark, BookmarkGroup, BookmarkInput};
 
 fn bookmark_to_json(b: &DBookmark) -> serde_json::Value {
     json!({
@@ -49,9 +49,20 @@ impl BookmarkQuery {
 
     async fn bookmark_groups(&self, ctx: &Context<'_>) -> Vec<BookmarkGroup> {
         let c = ctx.data_unchecked::<Arc<AppCtx>>();
+        let counts = c
+            .db
+            .get_bookmarks()
+            .into_iter()
+            .fold(std::collections::HashMap::new(), |mut acc, b| {
+                *acc.entry(b.group_id).or_insert(0i32) += 1;
+                acc
+            });
         c.db.get_bookmark_groups()
             .into_iter()
-            .map(BookmarkGroup::from)
+            .map(|g| {
+                let count = counts.get(&g.id).copied().unwrap_or(0);
+                BookmarkGroup::from_group(g, count)
+            })
             .collect()
     }
 }
@@ -100,10 +111,12 @@ impl BookmarkMutation {
         Some(Bookmark::from(bookmark))
     }
 
-    async fn delete_bookmarks(&self, ctx: &Context<'_>, ids: Vec<ID>) -> bool {
+    async fn delete_bookmarks(&self, ctx: &Context<'_>, ids: Vec<ID>) -> ActionResult {
         let c = ctx.data_unchecked::<Arc<AppCtx>>();
         let ids = ids.into_iter().map(|id| id.to_string()).collect::<Vec<_>>();
-        c.db.delete_bookmarks(&ids)
+        ActionResult {
+            affected_count: c.db.delete_bookmarks(&ids),
+        }
     }
 
     async fn record_bookmark_click(&self, ctx: &Context<'_>, id: ID) -> bool {
@@ -123,7 +136,7 @@ impl BookmarkMutation {
         let c = ctx.data_unchecked::<Arc<AppCtx>>();
         let group = DBookmarkGroup::new(name.trim());
         c.db.insert_bookmark_group(&group);
-        BookmarkGroup::from(group)
+        BookmarkGroup::from_group(group, 0)
     }
 
     async fn update_bookmark_group(
@@ -141,7 +154,8 @@ impl BookmarkMutation {
         group.sort_order = sort_order;
         group.updated_at = now_iso();
         c.db.update_bookmark_group(&group);
-        Some(BookmarkGroup::from(group))
+        let item_count = c.db.get_bookmarks_by_group_id(&group.id).len() as i32;
+        Some(BookmarkGroup::from_group(group, item_count))
     }
 
     async fn delete_bookmark_group(&self, ctx: &Context<'_>, id: ID) -> bool {

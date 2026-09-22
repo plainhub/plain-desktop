@@ -8,11 +8,13 @@
 //!   it already has).
 //! - `deleteChunks(fileId)` — clear the staging directory; called when
 //!   all server chunks are stale (size mismatch).
-//! - `mergeChunks(fileId, totalChunks, path, replace, isAppFile)` —
-//!   assemble a final file from the staged chunks synchronously.
-//! - `mergeChunksAsync(...)` — same merge launched in the background;
-//!   returns immediately (`started`/`merging`/`done:…`), completion is
-//!   WS event 38, `mergeStatus(fileId)` is the polling fallback.
+//! - `mergeChunks(fileId, totalChunks, path, replace, totalSize)` — merge
+//!   the staged chunks into a regular file at `path`, in the background.
+//! - `mergeAppFileChunks(fileId, totalChunks, fileName, totalSize)` — same
+//!   merge, but imports the result into the content-addressable app-file
+//!   store (dedup) and returns the `fid:` suffix as `value`.
+//! - `mergeStatus(fileId)` — current `MergeTask` state; polling fallback
+//!   for a lost WS event 38.
 
 use async_graphql::{Context, Error as GqlError, Object, Result as GqlResult};
 use std::collections::HashMap;
@@ -21,6 +23,8 @@ use std::sync::{Arc, Mutex, OnceLock};
 
 use crate::local::app_file_store;
 use crate::local::graphql::context::{AppCtx, WS_UPLOAD_MERGE_RESULT, WsEvent};
+
+use super::types::{MergeTask, MergeTaskStatus};
 
 #[derive(Default)]
 pub struct FileUploadQuery;
@@ -69,11 +73,10 @@ impl FileUploadQuery {
         out.into_iter().map(|(i, s)| format!("{i}:{s}")).collect()
     }
 
-    /// Current state of an async merge job: `none` (unknown/evicted),
-    /// `merging`, `done:{value}:{size}` or `failed:{error}`. Polled by the
-    /// web client when WS event 38 was missed.
-    async fn merge_status(&self, _ctx: &Context<'_>, file_id: String) -> String {
-        merge_state_string(merge_jobs().lock().unwrap().get(&file_id))
+    /// Current state of the merge job for `file_id`. Polled by the web
+    /// client when WS event 38 was missed.
+    async fn merge_status(&self, _ctx: &Context<'_>, file_id: String) -> MergeTask {
+        task_from_state(merge_jobs().lock().unwrap().get(&file_id))
     }
 }
 
@@ -90,18 +93,11 @@ impl FileUploadMutation {
         true
     }
 
-    /// Assemble the chunked upload into a final file.
-    ///
-    /// - When `isAppFile` is `true`, the file is imported into the
-    ///   content-addressable store (dedup) and the returned fidSuffix
-    ///   (`"{hash}.{ext}"`) is what the client uses to build a `fid:` URI.
-    /// - When `false`, the merged file is written to `path` (or a
-    ///   non-conflicting sibling when `replace = false`); the return
-    ///   value is the on-disk base name.
-    ///
-    /// Return format: `"{fidSuffix|fileName}:{mergedSize}"` — matches
-    /// plain-app `mergeChunks` so the web client's response parser keeps
-    /// working.
+    /// Start merging the staged chunks into a regular file at `path` in the
+    /// background. Completion is signalled with WS event 38
+    /// (`upload_merge_result`); `mergeStatus` is the polling fallback for
+    /// lost events. Chunks are kept on failure so a retry reuses them.
+    #[allow(clippy::too_many_arguments)] // wire-mandated: mirrors plain-app mergeChunks
     async fn merge_chunks(
         &self,
         ctx: &Context<'_>,
@@ -109,81 +105,98 @@ impl FileUploadMutation {
         total_chunks: i32,
         path: String,
         replace: bool,
-        is_app_file: bool,
-    ) -> GqlResult<String> {
-        let c = ctx.data_unchecked::<Arc<AppCtx>>().clone();
-        let (value, size) = perform_merge(&c, &file_id, total_chunks, &path, replace, is_app_file)?;
-        Ok(format!("{value}:{size}"))
+        total_size: i64,
+    ) -> GqlResult<MergeTask> {
+        start_merge(ctx, file_id, total_chunks, MergeKind::File { path, replace }, total_size)
     }
 
-    /// Start merging in the background and return immediately.
-    ///
-    /// Returns one of:
-    /// - `"started"` — this call launched the merge job
-    /// - `"merging"` — a merge for `file_id` is already in flight
-    /// - `"done:{value}:{size}"` — a previous merge already finished
-    ///
-    /// Completion is signalled with WS event 38 (`upload_merge_result`);
-    /// `mergeStatus` is the polling fallback for lost events. Chunks are
-    /// kept on failure so a retry reuses them.
-    #[allow(clippy::too_many_arguments)] // wire-mandated: mirrors the sync mutation's argument set
-    async fn merge_chunks_async(
+    /// Start merging the staged chunks and import the result into the
+    /// content-addressable app-file store (dedup). The returned `value` is
+    /// the fidSuffix (`"{hash}.{ext}"`) the client uses to build a `fid:` URI.
+    #[allow(clippy::too_many_arguments)] // wire-mandated: mirrors plain-app mergeAppFileChunks
+    async fn merge_app_file_chunks(
         &self,
         ctx: &Context<'_>,
         file_id: String,
         total_chunks: i32,
-        path: String,
-        replace: bool,
-        is_app_file: bool,
+        file_name: String,
         total_size: i64,
-    ) -> GqlResult<String> {
-        let c = ctx.data_unchecked::<Arc<AppCtx>>().clone();
-        {
-            let mut jobs = merge_jobs().lock().unwrap();
-            if let Some(MergeJobState::Done { value, size }) = jobs.get(&file_id) {
-                return Ok(format!("done:{value}:{size}"));
-            }
-            if matches!(jobs.get(&file_id), Some(MergeJobState::Merging)) {
-                return Ok("merging".to_string());
-            }
-            if !chunk_dir(&c, &file_id).exists() {
-                return Err(respond(format!("No chunks found for {file_id}")));
-            }
-            jobs.insert(file_id.clone(), MergeJobState::Merging);
-        }
-        let _ = total_size; // the merged size is verified against the chunks on disk
-
-        let event_tx = c.event_tx.clone();
-        tokio::task::spawn_blocking(move || {
-            let result = perform_merge(&c, &file_id, total_chunks, &path, replace, is_app_file);
-            let payload = match &result {
-                Ok((value, size)) => serde_json::json!({
-                    "fileId": file_id, "ok": true, "value": value, "mergedSize": size,
-                }),
-                Err(e) => serde_json::json!({
-                    "fileId": file_id, "ok": false, "error": e.message,
-                }),
-            };
-            let mut jobs = merge_jobs().lock().unwrap();
-            if jobs.len() > MERGE_JOBS_CAP {
-                jobs.retain(|_, state| matches!(state, MergeJobState::Merging));
-            }
-            match result {
-                Ok((value, size)) => {
-                    jobs.insert(file_id.clone(), MergeJobState::Done { value, size });
-                }
-                Err(e) => {
-                    jobs.insert(file_id.clone(), MergeJobState::Failed { error: e.message });
-                }
-            }
-            drop(jobs);
-            let _ = event_tx.send(WsEvent {
-                event_type: WS_UPLOAD_MERGE_RESULT,
-                payload: payload.to_string(),
-            });
-        });
-        Ok("started".to_string())
+    ) -> GqlResult<MergeTask> {
+        start_merge(ctx, file_id, total_chunks, MergeKind::AppFile { file_name }, total_size)
     }
+}
+
+enum MergeKind {
+    File { path: String, replace: bool },
+    AppFile { file_name: String },
+}
+
+/// Claim the merge job for `file_id` and launch it on the blocking pool.
+/// Returns the immediate `MergeTask` — the final result arrives via WS
+/// event 38 / `mergeStatus`.
+fn start_merge(
+    ctx: &Context<'_>,
+    file_id: String,
+    total_chunks: i32,
+    kind: MergeKind,
+    total_size: i64,
+) -> GqlResult<MergeTask> {
+    let c = ctx.data_unchecked::<Arc<AppCtx>>().clone();
+    {
+        let mut jobs = merge_jobs().lock().unwrap();
+        if let Some(task) = done_task(jobs.get(&file_id)) {
+            return Ok(task);
+        }
+        if matches!(jobs.get(&file_id), Some(MergeJobState::Merging)) {
+            return Ok(MergeTask {
+                status: MergeTaskStatus::Merging,
+                value: None,
+                merged_size: None,
+                error: None,
+            });
+        }
+        if !chunk_dir(&c, &file_id).exists() {
+            return Err(respond(format!("No chunks found for {file_id}")));
+        }
+        jobs.insert(file_id.clone(), MergeJobState::Merging);
+    }
+    let _ = total_size; // the merged size is verified against the chunks on disk
+
+    let event_tx = c.event_tx.clone();
+    tokio::task::spawn_blocking(move || {
+        let result = perform_merge(&c, &file_id, total_chunks, &kind);
+        let payload = match &result {
+            Ok((value, size)) => serde_json::json!({
+                "fileId": file_id, "ok": true, "value": value, "mergedSize": size,
+            }),
+            Err(e) => serde_json::json!({
+                "fileId": file_id, "ok": false, "error": e.message,
+            }),
+        };
+        let mut jobs = merge_jobs().lock().unwrap();
+        if jobs.len() > MERGE_JOBS_CAP {
+            jobs.retain(|_, state| matches!(state, MergeJobState::Merging));
+        }
+        match result {
+            Ok((value, size)) => {
+                jobs.insert(file_id.clone(), MergeJobState::Done { value, size });
+            }
+            Err(e) => {
+                jobs.insert(file_id.clone(), MergeJobState::Failed { error: e.message });
+            }
+        }
+        drop(jobs);
+        let _ = event_tx.send(WsEvent {
+            event_type: WS_UPLOAD_MERGE_RESULT,
+            payload: payload.to_string(),
+        });
+    });
+    Ok(MergeTask {
+        status: MergeTaskStatus::Started,
+        value: None,
+        merged_size: None,
+        error: None,
+    })
 }
 
 fn merge_chunks_to(
@@ -216,15 +229,13 @@ fn merge_chunks_to(
     Ok(())
 }
 
-/// The merge body shared by the sync and async mutations. Returns the final
-/// value token (`fidSuffix` or on-disk base name) plus the merged size.
+/// The merge body shared by both mutations. Returns the final value token
+/// (fidSuffix or on-disk base name) plus the merged size.
 fn perform_merge(
     c: &AppCtx,
     file_id: &str,
     total_chunks: i32,
-    path: &str,
-    replace: bool,
-    is_app_file: bool,
+    kind: &MergeKind,
 ) -> GqlResult<(String, u64)> {
     let dir = chunk_dir(c, file_id);
     if !dir.exists() {
@@ -259,58 +270,53 @@ fn perform_merge(
         )));
     }
 
-    if is_app_file {
-        // Import into the content-addressable store. The merged temp
-        // file is the source; `import_file` moves (copies) it into the
-        // canonical location and inserts/updates the `app_files` row.
-        // The temp file is left for the caller to clean up; we delete
-        // it eagerly here to mirror plain-app behaviour (which uses
-        // `deleteSrc = true` and renames within `importFile`). The
-        // original file name rides in `path` — its extension decides
-        // the on-disk extension (the multipart chunk parts carry no
-        // usable MIME for less-common types).
-        let file_name = std::path::Path::new(path)
-            .file_name()
-            .and_then(|s| s.to_str())
-            .unwrap_or("")
-            .to_string();
-        let result = app_file_store::import_file(&c.db, &c.data_dir, &temp_merge, &file_name, "")
-            .map_err(|e| respond(format!("import failed: {e}")))?;
-        let _ = std::fs::remove_dir_all(&dir);
-        let _ = std::fs::remove_file(&temp_merge);
-        Ok((result.fid_suffix, merged_size))
-    } else {
-        let target = PathBuf::from(path);
-        if let Some(parent) = target.parent() {
-            let _ = std::fs::create_dir_all(parent);
-        }
-
-        let final_path = if replace {
-            if target.exists() {
-                let _ = std::fs::remove_file(&target);
-            }
-            target.clone()
-        } else if target.exists() {
-            plain_rs::utils::unique_path::unique_sibling(&target)
-        } else {
-            target.clone()
-        };
-
-        // Atomic rename; fall back to copy on cross-device / permission issues.
-        if std::fs::rename(&temp_merge, &final_path).is_err() {
-            std::fs::copy(&temp_merge, &final_path)
-                .map_err(|e| respond(format!("save merged file: {e}")))?;
+    match kind {
+        // Import into the content-addressable store. `import_file` moves
+        // (copies) the merged temp file into the canonical location and
+        // inserts/updates the `app_files` row. The original file name
+        // rides in `file_name` — its extension decides the on-disk
+        // extension (the multipart chunk parts carry no usable MIME for
+        // less-common types).
+        MergeKind::AppFile { file_name } => {
+            let result = app_file_store::import_file(&c.db, &c.data_dir, &temp_merge, file_name, "")
+                .map_err(|e| respond(format!("import failed: {e}")))?;
+            let _ = std::fs::remove_dir_all(&dir);
             let _ = std::fs::remove_file(&temp_merge);
+            Ok((result.fid_suffix, merged_size))
         }
+        MergeKind::File { path, replace } => {
+            let target = PathBuf::from(path);
+            if let Some(parent) = target.parent() {
+                let _ = std::fs::create_dir_all(parent);
+            }
 
-        let _ = std::fs::remove_dir_all(&dir);
+            let final_path = if *replace {
+                if target.exists() {
+                    let _ = std::fs::remove_file(&target);
+                }
+                target.clone()
+            } else if target.exists() {
+                plain_rs::utils::unique_path::unique_sibling(&target)
+            } else {
+                target.clone()
+            };
 
-        let final_name = final_path
-            .file_name()
-            .and_then(|s| s.to_str())
-            .unwrap_or("")
-            .to_string();
-        Ok((final_name, merged_size))
+            // Atomic rename; fall back to copy on cross-device / permission issues.
+            if std::fs::rename(&temp_merge, &final_path).is_err() {
+                std::fs::copy(&temp_merge, &final_path)
+                    .map_err(|e| respond(format!("save merged file: {e}")))?;
+                let _ = std::fs::remove_file(&temp_merge);
+            }
+
+            let _ = std::fs::remove_dir_all(&dir);
+
+            let final_name = final_path
+                .file_name()
+                .and_then(|s| s.to_str())
+                .unwrap_or("")
+                .to_string();
+            Ok((final_name, merged_size))
+        }
     }
 }
 
@@ -327,89 +333,47 @@ fn merge_jobs() -> &'static Mutex<HashMap<String, MergeJobState>> {
     JOBS.get_or_init(|| Mutex::new(HashMap::new()))
 }
 
-fn merge_state_string(state: Option<&MergeJobState>) -> String {
+fn done_task(state: Option<&MergeJobState>) -> Option<MergeTask> {
     match state {
-        None => "none".to_string(),
-        Some(MergeJobState::Merging) => "merging".to_string(),
-        Some(MergeJobState::Done { value, size }) => format!("done:{value}:{size}"),
-        Some(MergeJobState::Failed { error }) => format!("failed:{error}"),
+        Some(MergeJobState::Done { value, size }) => Some(MergeTask {
+            status: MergeTaskStatus::Done,
+            value: Some(value.clone()),
+            merged_size: Some(*size as i64),
+            error: None,
+        }),
+        _ => None,
+    }
+}
+
+fn task_from_state(state: Option<&MergeJobState>) -> MergeTask {
+    match state {
+        None => MergeTask {
+            status: MergeTaskStatus::None,
+            value: None,
+            merged_size: None,
+            error: None,
+        },
+        Some(MergeJobState::Merging) => MergeTask {
+            status: MergeTaskStatus::Merging,
+            value: None,
+            merged_size: None,
+            error: None,
+        },
+        Some(MergeJobState::Done { value, size }) => MergeTask {
+            status: MergeTaskStatus::Done,
+            value: Some(value.clone()),
+            merged_size: Some(*size as i64),
+            error: None,
+        },
+        Some(MergeJobState::Failed { error }) => MergeTask {
+            status: MergeTaskStatus::Failed,
+            value: None,
+            merged_size: None,
+            error: Some(error.clone()),
+        },
     }
 }
 
 #[cfg(test)]
-mod tests {
-    use super::*;
-
-    fn temp_dir(tag: &str) -> PathBuf {
-        let dir =
-            std::env::temp_dir().join(format!("plain_merge_test_{tag}_{}", std::process::id()));
-        let _ = std::fs::remove_dir_all(&dir);
-        std::fs::create_dir_all(&dir).unwrap();
-        dir
-    }
-
-    #[test]
-    fn merge_chunks_to_concatenates_in_order() {
-        let dir = temp_dir("concat");
-        std::fs::write(dir.join("chunk_0"), b"hello ").unwrap();
-        std::fs::write(dir.join("chunk_1"), b"world").unwrap();
-        let out = dir.join("merged.bin");
-        merge_chunks_to(&dir, 2, &out).unwrap();
-        assert_eq!(std::fs::read(&out).unwrap(), b"hello world");
-        let _ = std::fs::remove_dir_all(&dir);
-    }
-
-    #[test]
-    fn merge_chunks_to_reports_missing_chunk() {
-        let dir = temp_dir("missing");
-        std::fs::write(dir.join("chunk_0"), b"hello").unwrap();
-        let out = dir.join("merged.bin");
-        let err = merge_chunks_to(&dir, 2, &out).unwrap_err();
-        assert!(err.message.contains("chunk 1"));
-        let _ = std::fs::remove_dir_all(&dir);
-    }
-
-    #[test]
-    fn merge_state_string_covers_all_states() {
-        assert_eq!(merge_state_string(None), "none");
-        assert_eq!(merge_state_string(Some(&MergeJobState::Merging)), "merging");
-        assert_eq!(
-            merge_state_string(Some(&MergeJobState::Done {
-                value: "a.jpg".to_string(),
-                size: 42
-            })),
-            "done:a.jpg:42"
-        );
-        assert_eq!(
-            merge_state_string(Some(&MergeJobState::Failed {
-                error: "boom".to_string()
-            })),
-            "failed:boom"
-        );
-    }
-
-    #[test]
-    fn merge_jobs_prune_keeps_in_flight_merges() {
-        let jobs = merge_jobs();
-        let mut guard = jobs.lock().unwrap();
-        guard.clear();
-        guard.insert("merging-1".to_string(), MergeJobState::Merging);
-        for i in 0..MERGE_JOBS_CAP {
-            guard.insert(
-                format!("done-{i}"),
-                MergeJobState::Done {
-                    value: "v".to_string(),
-                    size: 1,
-                },
-            );
-        }
-        assert!(guard.len() > MERGE_JOBS_CAP);
-        guard.retain(|_, state| matches!(state, MergeJobState::Merging));
-        assert_eq!(guard.len(), 1);
-        assert!(matches!(
-            guard.get("merging-1"),
-            Some(MergeJobState::Merging)
-        ));
-        guard.clear();
-    }
-}
+#[path = "../../../../tests/unit/local/graphql/schema/file_upload.rs"]
+mod tests;

@@ -3,7 +3,7 @@ use serde_json::json;
 use std::sync::Arc;
 
 use super::super::context::{AppCtx, WS_DEVICE_NAME_UPDATED, WsEvent};
-use super::types::{App, AudioPlayback, DeviceFeature, DeviceInfo, DevicePlatform, DeviceStatus, Sim, Temperature};
+use super::types::{App, AudioPlayback, Capability, DeviceInfo, DevicePlatform, DeviceStatus, Sim, Temperature};
 use crate::local::enums::{AppChannelType, DeviceType};
 
 #[cfg(test)]
@@ -33,8 +33,8 @@ impl AppQuery {
             device_type: DeviceType::Computer,
             // The desktop local-mode surface: image editor and the shared
             // web document viewer (chat/files/media are base features).
-            features: vec![DeviceFeature::DocPreview, DeviceFeature::ImageEditor],
-            channel: AppChannelType::Github,
+            capabilities: vec![Capability::DocPreview, Capability::ImageEditor],
+            build_channel: AppChannelType::Github,
             permissions: vec![],
             downloads_dir: String::new(),
             developer_mode: false,
@@ -96,6 +96,8 @@ impl AppQuery {
         AudioPlayback {
             mode: "REPEAT".to_string(),
             current_path: String::new(),
+            is_playing: false,
+            position_ms: 0,
         }
     }
 

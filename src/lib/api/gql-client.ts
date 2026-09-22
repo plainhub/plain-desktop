@@ -5,6 +5,7 @@ import { wrapWithReplayProtection } from './time-sync'
 import { getCurrentAuthToken, clearCurrentSession } from '../device/current'
 import { httpRequest } from './http'
 import { isLocalMode } from '../device/local-mode'
+import type { GqlOperationName, GqlResultType, GqlVariablesType } from './graphql/operations'
 
 const TIMEOUT = 30000
 
@@ -41,6 +42,21 @@ export async function gqlFetch<T = any>(
   } finally {
     if (pendingRequests.get(dedupeKey) === promise) pendingRequests.delete(dedupeKey)
   }
+}
+
+/** Typed `gqlFetch` over the codegen'd operation table: pass the document
+ *  const's exported name (the key in `GqlOperations`) next to the document
+ *  itself, and the result/variables shapes come from the SDL-derived types.
+ *  The name must match the document — the graphql contract test validates
+ *  every document under its key, so a mismatch pair is a review-visible
+ *  mistake, not a silent one. */
+export async function gqlFetchOp<Name extends GqlOperationName>(
+  name: Name,
+  query: string,
+  variables: GqlVariablesType<Name>,
+  options?: GqlFetchOptions,
+): Promise<GqlResult<GqlResultType<Name>>> {
+  return gqlFetch<GqlResultType<Name>>(query, variables as Record<string, any> | undefined, options)
 }
 
 /** POSTs one XChaCha20-encrypted GraphQL request to `url` under `token` —

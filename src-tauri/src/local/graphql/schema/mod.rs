@@ -19,6 +19,10 @@ mod tag;
 pub mod types;
 mod util;
 
+#[cfg(test)]
+#[path = "../../../../tests/unit/local/graphql/schema/sdl.rs"]
+mod sdl_tests;
+
 use async_graphql::{EmptySubscription, MergedObject, Schema};
 
 use app::{AppMutation, AppQuery};

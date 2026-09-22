@@ -8,7 +8,7 @@ use async_graphql::{Context, Object};
 use std::sync::Arc;
 
 use super::super::context::AppCtx;
-use super::types::ChatItem;
+use super::types::{ActionResult, ChatItem};
 use crate::local::chat_handler;
 
 #[derive(Default)]
@@ -26,10 +26,10 @@ impl ChatMessageMutation {
     async fn send_chat_item(
         &self,
         ctx: &Context<'_>,
-        to_id: String,
+        target: String,
         content: String,
     ) -> Vec<ChatItem> {
-        chat_handler::send_chat_item(ctx.data_unchecked::<Arc<AppCtx>>(), to_id, content)
+        chat_handler::send_chat_item(ctx.data_unchecked::<Arc<AppCtx>>(), target, content)
     }
 
     /// Delete a chat item, broadcasting `WS_MESSAGE_DELETED`.
@@ -38,8 +38,10 @@ impl ChatMessageMutation {
     }
 
     /// Bulk-delete chats by query (`ids:`, `channel:`, `peer:`).
-    async fn delete_chat_items(&self, ctx: &Context<'_>, query: String) -> bool {
-        chat_handler::delete_chat_items(ctx.data_unchecked::<Arc<AppCtx>>(), query)
+    async fn delete_chat_items(&self, ctx: &Context<'_>, query: String) -> ActionResult {
+        ActionResult {
+            affected_count: chat_handler::delete_chat_items(ctx.data_unchecked::<Arc<AppCtx>>(), query),
+        }
     }
 
     /// Retry a failed chat item.

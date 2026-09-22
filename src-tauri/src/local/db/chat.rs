@@ -35,26 +35,28 @@ impl DChat {
 }
 
 impl ChatDb {
-    pub fn get_chats(&self, id: &str) -> Vec<DChat> {
+    /// Target-scoped chat page (plain-app `chatItems` contract): `target`
+    /// is `channel:<id>` or a bare/`peer:`-prefixed peer id, `text` is a
+    /// substring filter on `content`, results oldest-first.
+    pub fn get_chats_page(&self, id: &str, text: &str, offset: i32, limit: i32) -> Vec<DChat> {
         let conn = self.0.lock().unwrap();
-        let (sql, p1, p2): (&str, &str, &str) = if let Some(cid) = id.strip_prefix("channel:") {
-            (
-                "SELECT id,from_id,to_id,channel_id,content,status,status_data,created_at,updated_at \
-                 FROM chats WHERE channel_id=? ORDER BY created_at ASC",
-                cid,
-                "",
-            )
+        let text = text.trim();
+        let (base_sql, p1): (&str, &str) = if let Some(cid) = id.strip_prefix("channel:") {
+            ("WHERE channel_id=?1", cid)
         } else {
             let pid = id.strip_prefix("peer:").unwrap_or(id);
-            (
-                "SELECT id,from_id,to_id,channel_id,content,status,status_data,created_at,updated_at \
-                 FROM chats WHERE channel_id='' AND (to_id=? OR from_id=?) ORDER BY created_at ASC",
-                pid,
-                pid,
-            )
+            ("WHERE channel_id='' AND (to_id=?1 OR from_id=?1)", pid)
         };
+        let text_clause = if text.is_empty() {
+            String::new()
+        } else {
+            format!(" AND content LIKE '%{}%'", text.replace('\'', "''"))
+        };        let sql = format!(
+            "SELECT id,from_id,to_id,channel_id,content,status,status_data,created_at,updated_at \
+             FROM chats {base_sql}{text_clause} ORDER BY created_at DESC LIMIT ?2 OFFSET ?3"
+        );
 
-        let mut stmt = match conn.prepare(sql) {
+        let mut stmt = match conn.prepare(&sql) {
             Ok(s) => s,
             Err(_) => return vec![],
         };
@@ -73,15 +75,13 @@ impl ChatDb {
             })
         };
 
-        let rows = if p2.is_empty() {
-            stmt.query_map(params![p1], row_to_chat)
-        } else {
-            stmt.query_map(params![p1, p2], row_to_chat)
-        };
-
-        rows.ok()
+        let rows = stmt.query_map(params![p1, limit, offset], row_to_chat);
+        let mut chats: Vec<DChat> = rows
+            .ok()
             .map(|iter| iter.filter_map(|r| r.ok()).collect())
-            .unwrap_or_default()
+            .unwrap_or_default();
+        chats.reverse();
+        chats
     }
 
     pub fn insert_chat(&self, chat: &DChat) {
