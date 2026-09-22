@@ -98,7 +98,7 @@
         <span>{{ $t('exclude_directories') }}</span>
       </div>
 
-      <router-link v-if="isNasDevice" to="/settings/lan-share" class="dropdown-item" @click="open = false">
+      <router-link v-if="hasLanShare" to="/settings/lan-share" class="dropdown-item" @click="open = false">
         <i-lucide:hard-drive class="feature-icon" />
         <span>{{ $t('lan_share') }}</span>
       </router-link>
@@ -142,7 +142,8 @@ import { storeToRefs } from 'pinia'
 import { pushModal, openModal } from '@/components/modal'
 import { getAvailableFeatures, type Feature } from './features'
 import { isLocalMode } from '@/lib/device/local-mode'
-import { DeviceType } from '@/lib/status'
+import { DeviceFeature } from '@/lib/data'
+import { hasFeature } from '@/lib/feature'
 import { isMacPlatform } from '@/lib/platform'
 import { openAboutWindow } from '@/lib/api/tauri-window'
 import { clearCurrentSession } from '@/lib/device/current'
@@ -267,9 +268,10 @@ const popupFeatures = computed<Feature[]>(() => {
   return available.filter((f) => !store.railFeatures.includes(f.id))
 })
 
-// LAN share (samba) settings are served only by the NAS backend; the entry
-// keys on the server-declared device type, like app.features capabilities.
-const isNasDevice = computed(() => app.value?.deviceType === DeviceType.NAS)
+// LAN share settings exist only when the server declares the LAN_SHARE
+// capability (a loaded samba unit) — the entry keys on app.features,
+// never on the device type.
+const hasLanShare = computed(() => hasFeature(DeviceFeature.LAN_SHARE, app.value?.features))
 
 function openCustomizeUI() {
   open.value = false

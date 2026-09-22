@@ -66,5 +66,9 @@ defineProps<{
   min-height: 0;
   display: flex;
   flex-direction: column;
+  // The shell owns scrolling for contents that don't self-scroll (the
+  // markdown preview div); self-scrolling children (CodeMirror, the
+  // virtualized json tree) are height:100% and never overflow it.
+  overflow: auto;
 }
 </style>
