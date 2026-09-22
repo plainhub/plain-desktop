@@ -32,7 +32,7 @@ export const appFragment = `
     deviceName
     deviceType
     capabilities
-    channel
+    buildChannel
     permissions
     downloadsDir
     developerMode

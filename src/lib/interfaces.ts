@@ -536,7 +536,7 @@ export interface IApp {
   deviceName: string
   deviceType: DeviceType
   capabilities: string[]
-  channel: AppChannelType
+  buildChannel: AppChannelType
   permissions: string[]
   downloadsDir: string
   developerMode: boolean

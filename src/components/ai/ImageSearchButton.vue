@@ -1,5 +1,5 @@
 <template>
-  <v-icon-button v-if="hasFeature(Capability.IMAGE_SEARCH, app.capabilities) && app.channel !== AppChannelType.FDROID" v-tooltip="$t('ai.image_search')" @click="modalOpen = true">
+  <v-icon-button v-if="hasFeature(Capability.IMAGE_SEARCH, app.capabilities) && app.buildChannel !== AppChannelType.FDROID" v-tooltip="$t('ai.image_search')" @click="modalOpen = true">
     <i-lucide:brain />
     <span v-if="status?.status === ImageSearchStatusType.READY" class="ai-dot" />
   </v-icon-button>

@@ -23,7 +23,7 @@ export function useHomeFeatureCards(filesPath: ComputedRef<string>) {
   const mainStore = useMainStore()
   const { app, counter } = storeToRefs(useTempStore())
 
-  const availableFeatures = computed(() => getAvailableHomeFeatures(app.value?.capabilities, app.value?.channel, app.value?.debug))
+  const availableFeatures = computed(() => getAvailableHomeFeatures(app.value?.capabilities, app.value?.buildChannel, app.value?.debug))
 
   const homeFeatureCards = computed<HomeFeatureCard[]>(() => {
     const availableMap = new Map(availableFeatures.value.map((feature) => [feature.id, feature]))

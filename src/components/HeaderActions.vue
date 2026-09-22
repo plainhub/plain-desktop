@@ -14,7 +14,7 @@
           <i-material-symbols:format-list-numbered-rounded />
           {{ t('header_actions.uploads') }}
         </div>
-        <div v-if="app.channel !== AppChannelType.GOOGLE" class="dropdown-item" :class="{ selected: store.quick === 'notification' }" @click="toggleQuick('notification')">
+        <div v-if="app.buildChannel !== AppChannelType.GOOGLE" class="dropdown-item" :class="{ selected: store.quick === 'notification' }" @click="toggleQuick('notification')">
           <i-material-symbols:notifications-outline-rounded />
           {{ t('header_actions.notifications') }}
         </div>
