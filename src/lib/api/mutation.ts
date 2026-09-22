@@ -936,3 +936,21 @@ export const stopMediaScanGQL = `
 export const rebuildMediaIndexGQL = `
   mutation rebuildMediaIndex($root: String!) { rebuildMediaIndex(root: $root) }
 `
+
+export const formatDiskGQL = `
+  mutation formatDisk($path: String!) {
+    formatDisk(path: $path)
+  }
+`
+
+export const setSambaSettingsGQL = `
+  mutation setSambaSettings($input: SambaSettingsInput!) {
+    setSambaSettings(input: $input)
+  }
+`
+
+export const setSambaUserPasswordGQL = `
+  mutation setSambaUserPassword($password: String!) {
+    setSambaUserPassword(password: $password)
+  }
+`

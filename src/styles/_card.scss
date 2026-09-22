@@ -29,3 +29,23 @@
   border: 1px solid var(--md-sys-color-outline);
   background-color: transparent;
 }
+/* Old-web parity: nested editable entry inside a settings card
+ * (LAN share editor rows). */
+.inner-card {
+  padding: 12px;
+  border-radius: 12px;
+  border: 1px solid var(--md-sys-color-outline-variant);
+  background: var(--md-sys-color-surface);
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+
+  .card-head {
+    display: flex;
+    justify-content: space-between;
+
+    .actions {
+      margin-left: auto;
+    }
+  }
+}

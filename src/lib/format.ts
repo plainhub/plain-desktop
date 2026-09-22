@@ -90,6 +90,32 @@ export function formatFileSize(bytes: number, si = true, dp = 1) {
   return bytes.toFixed(effectiveDp) + ' ' + units[u]
 }
 
+/** Formats used/total bytes with the same unit for clarity, e.g.
+ *  "24.4 GB / 62.2 GB" (old-web parity for volume cards). */
+export function formatUsedTotalBytes(usedBytes: number, totalBytes: number, si = true) {
+  if (totalBytes <= 0) return ''
+
+  const thresh = si ? 1000 : 1024
+  if (Math.abs(totalBytes) < thresh) {
+    return `${usedBytes} B / ${totalBytes} B`
+  }
+
+  // Pick a unit based on the total, then reuse it for the used figure.
+  let u = -1
+  let scaledTotal = totalBytes
+  do {
+    scaledTotal /= thresh
+    ++u
+  } while (Math.abs(scaledTotal) >= thresh && u < 7)
+
+  const dp = Math.abs(scaledTotal) >= 100 ? 0 : 1
+  const unit = (si
+    ? ['B', 'kB', 'MB', 'GB', 'TB', 'PB', 'EB', 'ZB', 'YB']
+    : ['B', 'KiB', 'MiB', 'GiB', 'TiB', 'PiB', 'EiB', 'ZiB', 'YiB'])[u]
+  const factor = thresh ** (u + 1)
+  return `${(usedBytes / factor).toFixed(dp)} ${unit} / ${(totalBytes / factor).toFixed(dp)} ${unit}`
+}
+
 export function generateDownloadFileName(prefix: string) {
   const now = new Date()
   const year = now.getFullYear()

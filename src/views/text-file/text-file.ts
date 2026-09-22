@@ -16,6 +16,11 @@ import { getCurrentAuthToken } from '@/lib/device/current'
 
 const isTauri = __IS_TAURI__
 
+export function fileNameFromDecryptedPath(path: string): string {
+  if (!path || /^(fid:|app:\/\/|https?:\/\/|\{)/.test(path)) return ''
+  return path.split(/[\\/]/).filter(Boolean).pop() ?? ''
+}
+
 export function useTextFile() {
   const { t } = useI18n()
   const route = useRoute()
@@ -208,9 +213,15 @@ export function useTextFile() {
   // Lifecycle
   watch(() => fileId.value, async (id) => {
     decryptedPath.value = ''
+    fileName.value = ''
     if (!id) return
     await ensureUrlTokenKey()
     decryptedPath.value = tryDecryptPathFromID(id)
+    // Derive the name from the decrypted path itself: the server's
+    // content-disposition header is invisible to cross-origin fetches
+    // unless the server lists it in access-control-expose-headers, and
+    // older server builds don't.
+    fileName.value = fileNameFromDecryptedPath(decryptedPath.value)
     fetchTextContent()
   }, { immediate: true })
 

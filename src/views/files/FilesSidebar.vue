@@ -17,6 +17,9 @@
 
       <div class="section-title">
         {{ $t('volumes') }}
+        <v-icon-button v-if="isNasDevice" v-tooltip="$t('disk_manager')" class="sm" @click.stop="openDiskManager">
+          <i-material-symbols:settings-outline-rounded />
+        </v-icon-button>
       </div>
       <div class="volumes">
         <VolumeCard
@@ -59,8 +62,23 @@
 </template>
 
 <script setup lang="ts">
+import { computed } from 'vue'
+import { storeToRefs } from 'pinia'
+import { useTempStore } from '@/stores/temp'
+import { DeviceType } from '@/lib/status'
 import VolumeCard from '@/components/storage/VolumeCard.vue'
+import DiskManagerModal from '@/components/storage/DiskManagerModal.vue'
+import { openModal } from '@/components/modal'
 import { useFilesSidebar } from '@/hooks/files-sidebar'
+
+const { app } = storeToRefs(useTempStore())
+// Disk formatting is a NAS-backend API (disks/formatDisk); phone backends
+// don't serve it, so the entry only shows for NAS devices.
+const isNasDevice = computed(() => app.value?.deviceType === DeviceType.NAS)
+
+function openDiskManager() {
+  openModal(DiskManagerModal)
+}
 
 const {
   quickLinks, volumeLinks, favoriteLinks,
