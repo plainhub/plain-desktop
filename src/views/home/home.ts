@@ -124,7 +124,7 @@ export function usePhoneAction() {
 // WS push keeps it live; plus the pause/resume/stop/rebuild controls.
 export function useScanAction() {
   const { t } = useI18n()
-  const scanProgress = ref<IScanProgress>({ indexed: 0, pending: 0, total: 0, state: 'idle' })
+  const scanProgress = ref<IScanProgress>({ indexed: 0, pending: 0, total: 0, state: 'IDLE' })
 
   initQuery({
     handle: (data: { scanProgress: IScanProgress }, error: string) => {
@@ -140,7 +140,7 @@ export function useScanAction() {
   emitter.on('media_scan_progress', onScanProgress)
   onUnmounted(() => emitter.off('media_scan_progress', onScanProgress))
 
-  const scanActive = computed(() => ['running', 'paused'].includes(scanProgress.value.state))
+  const scanActive = computed(() => ['RUNNING', 'PAUSED'].includes(scanProgress.value.state))
 
   const percent = computed(() => {
     const { indexed, total } = scanProgress.value
@@ -150,19 +150,19 @@ export function useScanAction() {
 
   // Backend walks the whole tree to count files before indexing starts
   // (total still 0) — show a dedicated label instead of a stuck 0%.
-  const counting = computed(() => scanProgress.value.state === 'running' && scanProgress.value.total === 0)
+  const counting = computed(() => scanProgress.value.state === 'RUNNING' && scanProgress.value.total === 0)
 
   const stateLabel = computed(() => {
-    if (scanProgress.value.state === 'running') return counting.value ? t('counting_files') : t('building_file_index')
-    if (scanProgress.value.state === 'paused') return t('paused')
-    if (scanProgress.value.state === 'stopped') return t('stopped')
+    if (scanProgress.value.state === 'RUNNING') return counting.value ? t('counting_files') : t('building_file_index')
+    if (scanProgress.value.state === 'PAUSED') return t('paused')
+    if (scanProgress.value.state === 'STOPPED') return t('stopped')
     return ''
   })
 
-  const showPause = computed(() => scanProgress.value.state === 'running')
-  const showResume = computed(() => scanProgress.value.state === 'paused')
+  const showPause = computed(() => scanProgress.value.state === 'RUNNING')
+  const showResume = computed(() => scanProgress.value.state === 'PAUSED')
   const showStop = computed(() => scanActive.value)
-  const showRebuild = computed(() => ['idle', 'stopped'].includes(scanProgress.value.state))
+  const showRebuild = computed(() => ['IDLE', 'STOPPED'].includes(scanProgress.value.state))
 
   const { mutate: pauseScanMutation } = initMutation({ document: pauseMediaScanGQL })
   const { mutate: resumeScanMutation } = initMutation({ document: resumeMediaScanGQL })
