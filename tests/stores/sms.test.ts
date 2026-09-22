@@ -83,6 +83,20 @@ describe('SMS conversation store synchronization', () => {
     setActivePinia(createPinia())
   })
 
+  it('retains the loaded conversation window on a forced same-filter refresh', () => {
+    const store = useSmsStore()
+    const first = Array.from({ length: 50 }, (_, index) => conversation(String(index)))
+    const second = Array.from({ length: 25 }, (_, index) => conversation(String(index + 50)))
+    store.fetchConversations('')
+    resolveRequest(0, first, 75)
+    store.fetchMoreConversations()
+    resolveRequest(1, second, 75)
+    store.fetchConversations('', true, true)
+    expect(normalQuery().fetch.mock.calls[2][0].limit).toBe(75)
+    store.fetchConversations('other', true, true)
+    expect(normalQuery().fetch.mock.calls[3][0].limit).toBe(50)
+  })
+
   it('retries the same offset after a failed load-more and deduplicates shifted rows', () => {
     const store = useSmsStore()
     const firstPage = Array.from({ length: 50 }, (_, index) => conversation(String(index)))

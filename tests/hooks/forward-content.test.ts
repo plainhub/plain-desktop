@@ -27,7 +27,7 @@ describe('fetchLatestChatContent', () => {
 
     await expect(fetchLatestChatContent('m1', 'peer:p1')).resolves.toBe('fresh')
     expect(gqlFetchMock).toHaveBeenCalledTimes(2)
-    expect(gqlFetchMock.mock.calls[1][1]).toEqual({ id: 'peer:p1' })
+    expect(gqlFetchMock.mock.calls[1][1]).toEqual({ target: 'peer:p1' })
   })
 
   it('returns null when the message is absent from the conversation result', async () => {

@@ -15,7 +15,7 @@ import { mergeConversationPage, resolveConversationSendAddress } from '@/lib/sms
 function message(overrides: Partial<ISms> = {}): ISms {
   return {
     id: 'server-1', body: 'hello', address: '+15551234567', serviceCenter: '',
-    date: '2026-08-28T10:00:01.000Z', type: 'SENT', threadId: 'thread-a',
+    sentAt: '2026-08-28T10:00:01.000Z', type: 'SENT', threadId: 'thread-a',
     subscriptionId: 1, tags: [], ...overrides,
   }
 }
@@ -107,7 +107,7 @@ describe('pending SMS state', () => {
     expect(isPendingSmsSent(success.pending[0])).toBe(true)
     expect(reconcilePendingSms(
       success.pending,
-      [message({ body: 'first', date: '2026-08-28T10:00:01.000Z' })],
+      [message({ body: 'first', sentAt: '2026-08-28T10:00:01.000Z' })],
       'thread-a',
     )).toEqual([])
   })
@@ -138,7 +138,7 @@ describe('pending MMS state', () => {
 })
 
 function conversation(id: string): ISmsConversation {
-  return { id, address: id, addresses: [id], snippet: id, date: '2026-08-28T10:00:00Z', messageCount: 1, read: true }
+  return { id, address: id, addresses: [id], snippet: id, lastMessageAt: '2026-08-28T10:00:00Z', messageCount: 1, read: true }
 }
 
 describe('conversation page merging', () => {

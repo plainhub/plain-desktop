@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest'
 import { sortByDate } from '@/lib/message-helpers'
 
-const msg = (id: string, date: string) => ({ id, date })
+const msg = (id: string, sentAt: string) => ({ id, sentAt })
 
 describe('sortByDate', () => {
   it('sorts ascending by date', () => {

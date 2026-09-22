@@ -79,7 +79,7 @@ export const useSmsStore = defineStore('sms', () => {
 
     const incoming = data.smsConversations.map((item) => ({ ...item }))
     const items = filterTombstones(incoming, 'normal')
-    noMore.value = incoming.length < LIMIT
+    noMore.value = incoming.length < (context?.variables?.limit ?? LIMIT)
     if (meta.mode === 'reset') {
       conversations.value = items
       setCached<ConversationsCache>(`sms:conversations:${meta.query}`, {
@@ -156,16 +156,19 @@ export const useSmsStore = defineStore('sms', () => {
   const { mutate: mutateArchive } = initMutation({ document: archiveConversationGQL })
   const { mutate: mutateUnarchive } = initMutation({ document: unarchiveConversationGQL })
 
-  function runNormalRequest(mode: 'reset' | 'more', query: string, offset: number, force: boolean) {
+  function runNormalRequest(mode: 'reset' | 'more', query: string, offset: number, force: boolean, limit = LIMIT) {
     const enhanced = participantFieldsSupported.value !== false
     const request = enhanced ? enhancedNormalQuery : legacyNormalQuery
     return request.fetch(
-      { offset, limit: LIMIT, query },
+      { offset, limit, query },
       { force, latest: true, meta: { generation, mode, query, enhanced } satisfies RequestMeta },
     )
   }
 
   function fetchConversations(query = '', reset = true, force = false) {
+    const limit = reset && force && currentMode === 'normal' && query === q.value
+      ? Math.max(LIMIT, conversations.value.length)
+      : LIMIT
     if (reset) {
       generation++
       currentMode = 'normal'
@@ -182,7 +185,7 @@ export const useSmsStore = defineStore('sms', () => {
         }
       }
     }
-    return runNormalRequest(reset ? 'reset' : 'more', query, reset ? 0 : conversations.value.length, force)
+    return runNormalRequest(reset ? 'reset' : 'more', query, reset ? 0 : conversations.value.length, force, limit)
   }
 
   function fetchMoreConversations() {

@@ -29,8 +29,3 @@ export enum DeviceFeature {
   SCREEN_MIRROR = 'SCREEN_MIRROR',
   IMAGE_EDITOR = 'IMAGE_EDITOR',
 }
-
-export enum FEATURE {
-  MEDIA_TRASH = 'MEDIA_TRASH',
-  MIRROR_AUDIO = 'MIRROR_AUDIO',
-}

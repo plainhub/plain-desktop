@@ -106,7 +106,7 @@ export const smsConversationWithAddressesFragment = `
     address
     addresses
     snippet
-    date
+    lastMessageAt
     messageCount
     read
   }

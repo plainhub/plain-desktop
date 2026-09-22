@@ -96,6 +96,11 @@ export default defineConfig(({ mode }) => {
     // dynamic import can never produce a chunk split — that is a
     // deliberate trade-off, not a bug.
     rolldownOptions: {
+      output: {
+        // Android Java-resource packaging excludes underscore-prefixed names.
+        // Name every chunk safely before imports and hashes are generated.
+        chunkFileNames: 'assets/chunk-[name]-[hash].js',
+      },
       checks: {
         pluginTimings: false,
         ineffectiveDynamicImport: false,
