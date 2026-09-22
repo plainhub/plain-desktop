@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { flushPromises, mount } from '@vue/test-utils'
 import { defineComponent } from 'vue'
 import { createI18n } from 'vue-i18n'
+import { createPinia, setActivePinia } from 'pinia'
 
 const gqlFetchMock = vi.fn()
 vi.mock('@/lib/api/gql-client', () => {
@@ -10,9 +11,11 @@ vi.mock('@/lib/api/gql-client', () => {
 })
 
 import { useDeviceInfo } from '@/views/device-info/device-info'
-import { deviceInfoGQL, deviceStatusGQL } from '@/lib/api/query'
+import { deviceInfoGQL, deviceStatusGQL, simsGQL } from '@/lib/api/query'
 import { appFragment, deviceInfoFragment, deviceStatusFragment } from '@/lib/api/fragments'
 import { formatSeconds, formatFileSize } from '@/lib/format'
+import { useTempStore } from '@/stores/temp'
+import { DeviceFeature } from '@/lib/data'
 
 const i18n = createI18n({
   legacy: false,
@@ -50,11 +53,20 @@ function deviceStatusPayload(statusOverrides: Record<string, any> = {}, infoOver
       storageAvailable: 40 * 1024 * 1024 * 1024,
       ...statusOverrides,
     },
-    sims: [],
+  }
+}
+
+function simsPayload() {
+  return {
+    sims: [
+      { id: '1', label: 'SIM 1', number: '+8613800138000', subscriptionId: 0 },
+      { id: '2', label: '', number: '+8613900139000', subscriptionId: 1 },
+    ],
   }
 }
 
 beforeEach(() => {
+  setActivePinia(createPinia())
   gqlFetchMock.mockReset()
   gqlFetchMock.mockResolvedValue({ data: deviceStatusPayload() })
 })
@@ -71,6 +83,13 @@ describe('device info GraphQL documents', () => {
     expect(deviceInfoGQL).not.toContain('buildUser')
     expect(deviceInfoGQL).not.toContain('serial')
     expect(deviceInfoGQL).not.toContain('product')
+  })
+
+  it('deviceInfoGQL carries no sims field — sims moved to the gated simsGQL', () => {
+    expect(deviceInfoGQL).not.toContain('sims')
+    expect(deviceInfoGQL).not.toContain('subscriptionId')
+    expect(simsGQL).toContain('sims {')
+    expect(simsGQL).toContain('subscriptionId')
   })
 
   it('deviceInfoFragment carries top-level cpuModel and the trimmed field set', () => {
@@ -99,6 +118,61 @@ describe('device info GraphQL documents', () => {
 
   it('appFragment no longer selects App.battery', () => {
     expect(appFragment).not.toMatch(/^\s+battery$/m)
+  })
+})
+
+describe('useDeviceInfo sims gating', () => {
+  it('never requests sims before app.features are known', async () => {
+    mountHook()
+    await flushPromises()
+    expect(gqlFetchMock).toHaveBeenCalledTimes(1)
+    expect(gqlFetchMock.mock.calls[0][0]).toBe(deviceInfoGQL)
+  })
+
+  it('never requests sims when features omit SMS', async () => {
+    const tempStore = useTempStore()
+    tempStore.app = { ...tempStore.app, features: ['DOC_PREVIEW', 'MEDIA_TRASH'] }
+    mountHook()
+    await flushPromises()
+    expect(gqlFetchMock).toHaveBeenCalledTimes(1)
+    expect(gqlFetchMock.mock.calls[0][0]).toBe(deviceInfoGQL)
+  })
+
+  it('requests sims exactly once and appends phone_number when features declare SMS', async () => {
+    const tempStore = useTempStore()
+    tempStore.app = { ...tempStore.app, features: ['DOC_PREVIEW', DeviceFeature.SMS] }
+    gqlFetchMock.mockImplementation((document: string) =>
+      Promise.resolve(document === simsGQL
+        ? { data: simsPayload() }
+        : { data: deviceStatusPayload() }))
+    const hook = mountHook()
+    await flushPromises()
+    expect(gqlFetchMock.mock.calls.map((c) => c[0])).toEqual([deviceInfoGQL, simsGQL])
+    const phone = hook.basicInfos.value.find((it) => it.label === 'phone_number')
+    expect(phone?.value).toEqual(['SIM 1 +8613800138000', '+8613900139000'])
+  })
+
+  it('sends sims late when features arrive after mount (temp store boot)', async () => {
+    const tempStore = useTempStore()
+    gqlFetchMock.mockImplementation((document: string) =>
+      Promise.resolve(document === simsGQL
+        ? { data: simsPayload() }
+        : { data: deviceStatusPayload() }))
+    const hook = mountHook()
+    await flushPromises()
+    expect(gqlFetchMock).toHaveBeenCalledTimes(1)
+    tempStore.app = { ...tempStore.app, features: [DeviceFeature.SMS] }
+    await flushPromises()
+    expect(gqlFetchMock.mock.calls.map((c) => c[0])).toEqual([deviceInfoGQL, simsGQL])
+    expect(hook.basicInfos.value.some((it) => it.label === 'phone_number')).toBe(true)
+  })
+
+  it('keeps basicInfos free of phone_number when the gated sims query stays disabled', async () => {
+    const tempStore = useTempStore()
+    tempStore.app = { ...tempStore.app, features: ['DOC_PREVIEW'] }
+    const hook = mountHook()
+    await flushPromises()
+    expect(hook.basicInfos.value.map((it) => it.label)).not.toContain('phone_number')
   })
 })
 

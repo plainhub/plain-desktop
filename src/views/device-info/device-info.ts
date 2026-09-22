@@ -1,8 +1,13 @@
 import toast from '@/components/toaster'
-import { initQuery, deviceInfoGQL } from '@/lib/api/query'
+import { initQuery, deviceInfoGQL, simsGQL } from '@/lib/api/query'
 import { ref } from 'vue'
 import { useI18n } from 'vue-i18n'
+import { storeToRefs } from 'pinia'
 import { formatSeconds, formatFileSize } from '@/lib/format'
+import { DeviceFeature } from '@/lib/data'
+import { hasFeature } from '@/lib/feature'
+import { useTempStore } from '@/stores/temp'
+import type { ISim } from '@/lib/interfaces'
 
 interface InfoItem { label: string; value: any; isTime?: boolean }
 
@@ -12,13 +17,25 @@ function formatMemory(bytes: number): string {
 
 export function useDeviceInfo() {
   const { t } = useI18n()
+  const { app } = storeToRefs(useTempStore())
   const basicInfos = ref<InfoItem[]>([])
   const systemInfos = ref<InfoItem[]>([])
   const hardwareInfos = ref<InfoItem[]>([])
   const platformInfos = ref<InfoItem[]>([])
   const statusInfos = ref<InfoItem[]>([])
+  const sims = ref<ISim[]>([])
 
-  const { loading, refetch } = initQuery({
+  function appendPhoneNumber() {
+    basicInfos.value = basicInfos.value.filter((it) => it.label !== 'phone_number')
+    if (sims.value.length > 0) {
+      basicInfos.value.push({
+        label: 'phone_number',
+        value: sims.value.map((s) => (s.label ? s.label + ' ' : '') + s.number),
+      })
+    }
+  }
+
+  const { loading, refetch: refetchInfo } = initQuery({
     handle: (data: any, error: string) => {
       if (error) { toast(t(error), 'error'); return }
       const d = data.deviceInfo
@@ -31,9 +48,7 @@ export function useDeviceInfo() {
         { label: 'language', value: d.language },
         { label: 'app_version', value: d.appVersion ? (d.appBuildNumber ? `${d.appVersion} (${d.appBuildNumber})` : d.appVersion) : '' },
       ].filter((it) => it.value)
-      if (data.sims && data.sims.length > 0) {
-        basicInfos.value.push({ label: 'phone_number', value: data.sims.map((s: any) => (s.label ? s.label + ' ' : '') + s.number) })
-      }
+      appendPhoneNumber()
 
       systemInfos.value = [
         { label: 'os_name', value: d.osName },
@@ -89,6 +104,20 @@ export function useDeviceInfo() {
     },
     document: deviceInfoGQL,
   })
+
+  const { refetch: refetchSims } = initQuery({
+    handle: (data: any, error: string) => {
+      if (error) return
+      sims.value = data?.sims ?? []
+      appendPhoneNumber()
+    },
+    document: simsGQL,
+    enabled: () => hasFeature(DeviceFeature.SMS, app.value?.features),
+  })
+
+  async function refetch() {
+    await Promise.all([refetchInfo(), refetchSims()])
+  }
 
   return { basicInfos, systemInfos, hardwareInfos, platformInfos, statusInfos, loading, refetch }
 }

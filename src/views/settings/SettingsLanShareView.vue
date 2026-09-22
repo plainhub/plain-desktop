@@ -93,7 +93,7 @@ v-model="s.sharePath" class="form-control" :label="t('samba_share_path')"
       </div>
     </section>
 
-    <section class="card border-card">
+    <section class="card border-card" style="margin-top: 16px;">
       <h5 class="card-title">{{ t('samba_user_password') }}
         <v-filled-button value="set-password" :loading="passwordSaving" @click="setPassword">{{ t('save') }}</v-filled-button>
       </h5>

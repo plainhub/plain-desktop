@@ -904,12 +904,6 @@ export const deviceInfoGQL = `
     deviceStatus {
       ...DeviceStatusFragment
     }
-    sims {
-      id
-      label
-      number
-      subscriptionId
-    }
   }
   ${deviceInfoFragment}
   ${deviceStatusFragment}
