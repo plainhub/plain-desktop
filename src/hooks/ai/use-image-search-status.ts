@@ -3,7 +3,7 @@ import { useI18n } from 'vue-i18n'
 import { storeToRefs } from 'pinia'
 import emitter from '@/plugins/eventbus'
 import { imageSearchStatusGQL, initQuery } from '@/lib/api/query'
-import { DeviceFeature } from '@/lib/data'
+import { Capability } from '@/lib/data'
 import { hasFeature } from '@/lib/feature'
 import toast from '@/components/toaster'
 import { useTempStore } from '@/stores/temp'
@@ -23,7 +23,7 @@ export function useImageSearchStatus() {
     variables: null,
     // AI image search is phone-only; on a NAS (or before the device type is
     // known) the query is never sent — the entry is hidden anyway.
-    enabled: () => hasFeature(DeviceFeature.IMAGE_SEARCH, app.value?.features),
+    enabled: () => hasFeature(Capability.IMAGE_SEARCH, app.value?.capabilities),
   })
 
   function onStatusUpdated(data: IImageSearchStatus) {

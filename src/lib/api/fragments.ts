@@ -31,7 +31,7 @@ export const appFragment = `
     appDir
     deviceName
     deviceType
-    features
+    capabilities
     channel
     permissions
     downloadsDir

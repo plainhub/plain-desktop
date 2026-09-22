@@ -65,7 +65,7 @@
 import { computed } from 'vue'
 import { storeToRefs } from 'pinia'
 import { useTempStore } from '@/stores/temp'
-import { DeviceFeature } from '@/lib/data'
+import { Capability } from '@/lib/data'
 import { hasFeature } from '@/lib/feature'
 import VolumeCard from '@/components/storage/VolumeCard.vue'
 import DiskManagerModal from '@/components/storage/DiskManagerModal.vue'
@@ -74,8 +74,8 @@ import { useFilesSidebar } from '@/hooks/files-sidebar'
 
 const { app } = storeToRefs(useTempStore())
 // Disk formatting is served only by backends that declare the DISK_MANAGER
-// capability — the entry keys on app.features, never on the device type.
-const hasDiskManager = computed(() => hasFeature(DeviceFeature.DISK_MANAGER, app.value?.features))
+// capability — the entry keys on app.capabilities, never on the device type.
+const hasDiskManager = computed(() => hasFeature(Capability.DISK_MANAGER, app.value?.capabilities))
 
 function openDiskManager() {
   openModal(DiskManagerModal)

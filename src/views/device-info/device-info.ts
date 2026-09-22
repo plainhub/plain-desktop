@@ -4,7 +4,7 @@ import { ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { storeToRefs } from 'pinia'
 import { formatSeconds, formatFileSize } from '@/lib/format'
-import { DeviceFeature } from '@/lib/data'
+import { Capability } from '@/lib/data'
 import { hasFeature } from '@/lib/feature'
 import { useTempStore } from '@/stores/temp'
 import type { ISim } from '@/lib/interfaces'
@@ -112,7 +112,7 @@ export function useDeviceInfo() {
       appendPhoneNumber()
     },
     document: simsGQL,
-    enabled: () => hasFeature(DeviceFeature.SMS, app.value?.features),
+    enabled: () => hasFeature(Capability.SMS, app.value?.capabilities),
   })
 
   async function refetch() {

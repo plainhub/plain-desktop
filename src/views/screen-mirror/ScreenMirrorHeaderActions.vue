@@ -87,7 +87,7 @@ import { computed, ref } from 'vue'
 import { openModal } from '@/components/modal'
 import KeyboardShortcutsModal from '@/components/KeyboardShortcutsModal.vue'
 import { AppChannelType } from '@/lib/status'
-import { DeviceFeature } from '@/lib/data'
+import { Capability } from '@/lib/data'
 import { hasFeature } from '@/lib/feature'
 
 const props = defineProps<{
@@ -108,7 +108,7 @@ const props = defineProps<{
   features: string[]
 }>()
 
-const audioAvailable = computed(() => props.audioSupported && hasFeature(DeviceFeature.MIRROR_AUDIO, props.features))
+const audioAvailable = computed(() => props.audioSupported && hasFeature(Capability.MIRROR_AUDIO, props.features))
 const audioMenuVisible = ref(false)
 
 const emit = defineEmits<{

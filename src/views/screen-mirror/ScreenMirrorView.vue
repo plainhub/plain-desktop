@@ -5,7 +5,7 @@
         :mirroring="mirroring"
         :audio-requesting="audioRequesting"
         :audio-supported="audioSupported"
-        :features="app.features"
+        :features="app.capabilities"
         :permissions="app.permissions"
         @request-audio-permission="requestAudioPermission"
       />
@@ -27,7 +27,7 @@
         :is-fullscreen="isFullscreen"
         :muted="muted"
         :audio-supported="audioSupported"
-        :features="app.features"
+        :features="app.capabilities"
         @stop-service="stopService"
         @set-quality-mode="setQualityMode"
         @take-screenshot="takeScreenshot"

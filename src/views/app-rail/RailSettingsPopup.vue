@@ -142,7 +142,7 @@ import { storeToRefs } from 'pinia'
 import { pushModal, openModal } from '@/components/modal'
 import { getAvailableFeatures, type Feature } from './features'
 import { isLocalMode } from '@/lib/device/local-mode'
-import { DeviceFeature } from '@/lib/data'
+import { Capability } from '@/lib/data'
 import { hasFeature } from '@/lib/feature'
 import { isMacPlatform } from '@/lib/platform'
 import { openAboutWindow } from '@/lib/api/tauri-window'
@@ -264,14 +264,14 @@ onUnmounted(() => {
 })
 
 const popupFeatures = computed<Feature[]>(() => {
-  const available = getAvailableFeatures(app.value?.features, app.value?.channel, app.value?.debug)
+  const available = getAvailableFeatures(app.value?.capabilities, app.value?.channel, app.value?.debug)
   return available.filter((f) => !store.railFeatures.includes(f.id))
 })
 
 // LAN share settings exist only when the server declares the LAN_SHARE
-// capability (a loaded samba unit) — the entry keys on app.features,
+// capability (a loaded samba unit) — the entry keys on app.capabilities,
 // never on the device type.
-const hasLanShare = computed(() => hasFeature(DeviceFeature.LAN_SHARE, app.value?.features))
+const hasLanShare = computed(() => hasFeature(Capability.LAN_SHARE, app.value?.capabilities))
 
 function openCustomizeUI() {
   open.value = false

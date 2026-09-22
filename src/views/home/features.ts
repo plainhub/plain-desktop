@@ -2,7 +2,7 @@ import type { Component } from 'vue'
 import ILucidePhoneCall from '~icons/lucide/phone-call'
 import { ALL_FEATURES, DEBUG_EXCLUDED_FEATURE_IDS, GOOGLE_EXCLUDED_FEATURE_IDS, type Feature } from '@/views/app-rail/features'
 import { AppChannelType } from '@/lib/status'
-import { DeviceFeature } from '@/lib/data'
+import { Capability } from '@/lib/data'
 import { isLocalFeatureId, isLocalMode } from '@/lib/device/local-mode'
 import { DEFAULT_HOME_FEATURES, normalizeHomeFeatures } from './feature-list'
 
@@ -54,7 +54,7 @@ const HOME_PANEL_FEATURES: HomePanelFeature[] = [
 ]
 
 /** Availability mirrors the rail: capability-gated features need the
- *  server to declare them in `app.features`. */
+ *  server to declare them in `app.capabilities`. */
 export function getAvailableHomeFeatures(features?: string[], channel?: AppChannelType, debug?: boolean): HomeSectionFeature[] {
   const routeFeatures = ALL_FEATURES
     .filter((feature) => HOME_FEATURE_IDS.has(feature.id))
@@ -68,7 +68,7 @@ export function getAvailableHomeFeatures(features?: string[], channel?: AppChann
       countKey: HOME_FEATURE_COUNT_KEYS[feature.id],
     }))
 
-  const hasCallPhone = !!features?.includes(DeviceFeature.CALL_PHONE)
+  const hasCallPhone = !!features?.includes(Capability.CALL_PHONE)
   const featureMap = new Map<string, HomeSectionFeature>([
     ...routeFeatures.map((feature) => [feature.id, feature] as const),
     ...(hasCallPhone && !isLocalMode() ? HOME_PANEL_FEATURES.map((feature) => [feature.id, feature] as const) : []),

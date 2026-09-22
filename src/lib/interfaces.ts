@@ -535,7 +535,7 @@ export interface IApp {
   appDir: string
   deviceName: string
   deviceType: DeviceType
-  features: string[]
+  capabilities: string[]
   channel: AppChannelType
   permissions: string[]
   downloadsDir: string

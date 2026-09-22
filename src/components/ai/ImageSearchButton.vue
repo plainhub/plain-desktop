@@ -1,5 +1,5 @@
 <template>
-  <v-icon-button v-if="hasFeature(DeviceFeature.IMAGE_SEARCH, app.features) && app.channel !== AppChannelType.FDROID" v-tooltip="$t('ai.image_search')" @click="modalOpen = true">
+  <v-icon-button v-if="hasFeature(Capability.IMAGE_SEARCH, app.capabilities) && app.channel !== AppChannelType.FDROID" v-tooltip="$t('ai.image_search')" @click="modalOpen = true">
     <i-lucide:brain />
     <span v-if="status?.status === ImageSearchStatusType.READY" class="ai-dot" />
   </v-icon-button>
@@ -11,7 +11,7 @@ import { ref } from 'vue'
 import { storeToRefs } from 'pinia'
 import { useImageSearchStatus } from '@/hooks/ai/use-image-search-status'
 import { ImageSearchStatusType, AppChannelType } from '@/lib/status'
-import { DeviceFeature } from '@/lib/data'
+import { Capability } from '@/lib/data'
 import { hasFeature } from '@/lib/feature'
 import AIImageSearchModal from './AIImageSearchModal.vue'
 import { useTempStore } from '@/stores/temp'
