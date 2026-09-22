@@ -11,6 +11,8 @@ import vueJsx from '@vitejs/plugin-vue-jsx'
 import VueI18nPlugin from '@intlify/unplugin-vue-i18n/vite'
 import { playwright } from '@vitest/browser-playwright'
 import { isTauriBuildMode } from './build-support/app-mode'
+import { crossOriginIsolationHeaders, isPotentiallyTrustworthyHost } from './build-support/cross-origin-isolation'
+import type { Plugin } from 'vite'
 
 const INVALID_CHAR_REGEX = /[_\x00-\x1F\x7F<>*#"{}|^[\]`;?:&=+$,]/g
 const DRIVE_LETTER_REGEX = /^[a-z]:/i
@@ -21,6 +23,22 @@ function sanitizeFileName(name: string): string {
   // A `:` is only allowed as part of a windows drive letter (ex: C:\foo)
   // Otherwise, avoid them because they can refer to NTFS alternate data streams.
   return driveLetter + name.substring(driveLetter.length).replace(INVALID_CHAR_REGEX, '')
+}
+
+function crossOriginIsolation(): Plugin {
+  return {
+    name: 'cross-origin-isolation-headers',
+    configureServer(server) {
+      server.middlewares.use((req, res, next) => {
+        if (isPotentiallyTrustworthyHost(req.headers.host)) {
+          for (const [name, value] of Object.entries(crossOriginIsolationHeaders)) {
+            res.setHeader(name, value)
+          }
+        }
+        next()
+      })
+    },
+  }
 }
 
 // https://vitejs.dev/config/
@@ -57,15 +75,6 @@ export default defineConfig(({ mode }) => {
   server: {
     host: '0.0.0.0',
     port: isTauriMode ? 4000 : 3000,
-    // WebCodecs requires cross-origin isolation for the hardware-accelerated
-    // VideoDecoder/AudioDecoder paths — without these headers `crossOriginIsolated`
-    // is false, `decode()` throws `Decoder error` even though `isConfigSupported`
-    // reports supported. `credentialless` is preferred over `require-corp` because
-    // it does not block cross-origin subresources (avatars, fonts, etc.).
-    headers: {
-      'Cross-Origin-Opener-Policy': 'same-origin',
-      'Cross-Origin-Embedder-Policy': 'credentialless',
-    },
     // Dev-only proxy: forwards /fs and /proxyfs to the device server so that
     // fetch() and WebGL textures are same-origin (no CORS / canvas tainting).
     // In production the app is served from the device itself (same-origin).
@@ -139,6 +148,7 @@ export default defineConfig(({ mode }) => {
   },
   oxc: { legalComments: 'none' },
   plugins: [
+    crossOriginIsolation(),
     vue({
       template: {
         compilerOptions: {
