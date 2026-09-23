@@ -43,6 +43,7 @@
           :in-zip="inZip"
           @download-dir="downloadDir"
           @download-file="downloadFile"
+          @save-as="saveAs"
           @upload-files="uploadFiles"
           @upload-dir="uploadDir"
           @delete-item="deleteItem"
@@ -101,6 +102,7 @@
         :in-zip="inZip"
         @download-dir="downloadDir"
         @download-file="downloadFile"
+        @save-as="saveAs"
         @upload-files="uploadFiles"
         @upload-dir="uploadDir"
         @delete-item="deleteItem"
@@ -160,6 +162,7 @@ const thumbUrl = computed(() => fileThumbUrl(urlTokenKey.value, props.item))
 const emit = defineEmits<{
   downloadDir: [path: string]
   downloadFile: [path: string]
+  saveAs: [item: IFile]
   uploadFiles: [path: string]
   uploadDir: [path: string]
   deleteItem: [item: IFile]
@@ -178,6 +181,10 @@ function downloadDir(path: string) {
 
 function downloadFile(path: string) {
   emit('downloadFile', path)
+}
+
+function saveAs(item: IFile) {
+  emit('saveAs', item)
 }
 
 function uploadFiles(path: string) {

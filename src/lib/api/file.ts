@@ -4,7 +4,7 @@ import { getPeerIp } from '../device/login-peers'
 import { getApiBaseUrl, getProxyUrl } from './api'
 import { chachaEncrypt, bitArrayToBase64 } from './crypto'
 import toast, { toastWithAction } from '@/components/toaster'
-import { downloadToDir, getDownloadDir, revealInFolder } from '@/lib/download-dir'
+import { downloadToDir, downloadAs as downloadAsTo, revealInFolder } from '@/lib/download-dir'
 
 declare global {
   interface Window {
@@ -43,9 +43,8 @@ export function download(url: string, name: string) {
   setTimeout(() => _recentDownloads.delete(url), 1000)
 
   // In Tauri, WKWebView ignores <a download> for remote URLs (http/https):
-  // fetch the bytes and write them into the saved download folder (chosen
-  // via a native dialog on first use). Blob URLs (local recorded media)
-  // still work with <a download>.
+  // fetch the bytes and save them into the system Downloads folder.
+  // Blob URLs (local recorded media) still work with <a download>.
   if (__IS_TAURI__ && !url.startsWith('blob:')) {
     void saveToFile(url, name)
     return
@@ -80,22 +79,43 @@ function notifyDownloaded(path: string) {
     void (async () => {
       const { i18n } = await import('@/plugins/i18n')
       const { t } = i18n.global
-      toastWithAction(t('downloaded_to', { dir: getDownloadDir() }), t('show_in_folder'), () => {
+      const dir = _lastDownloadedPath.slice(0, _lastDownloadedPath.lastIndexOf('/'))
+      toastWithAction(t('downloaded_to', { dir }), t('show_in_folder'), () => {
         void revealInFolder(_lastDownloadedPath)
       })
     })()
   }, 600)
 }
 
+async function handleSaveError(error: unknown) {
+  console.error(error)
+  const { i18n } = await import('@/plugins/i18n')
+  toast(i18n.global.t('download_failed'), 'error')
+}
+
 async function saveToFile(url: string, name: string) {
   try {
-    const path = await downloadToDir(url, name)
-    if (path) notifyDownloaded(path)
+    notifyDownloaded(await downloadToDir(url, name))
   } catch (error) {
-    console.error(error)
-    const { i18n } = await import('@/plugins/i18n')
-    toast(i18n.global.t('download_failed'), 'error')
+    await handleSaveError(error)
   }
+}
+
+// Desktop "Save As…": native save dialog (defaults to Downloads/name),
+// web falls back to the browser's own download.
+export function downloadAs(url: string, name: string) {
+  if (!__IS_TAURI__ || url.startsWith('blob:')) {
+    download(url, name)
+    return
+  }
+  void (async () => {
+    try {
+      const path = await downloadAsTo(url, name)
+      if (path) notifyDownloaded(path)
+    } catch (error) {
+      await handleSaveError(error)
+    }
+  })()
 }
 
 export function downloadFromString(content: string, mimeType: string, fileName: string) {

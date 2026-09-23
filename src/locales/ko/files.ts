@@ -15,7 +15,6 @@ export default {
   download: '다운로드',
   download_individually: '개별 다운로드',
   download_as_zip: 'ZIP으로 다운로드',
-  choose_download_dir: '다운로드 폴더 선택',
   downloaded_to: '{dir}에 다운로드됨',
   show_in_folder: '폴더에서 보기',
   download_failed: '다운로드 실패',

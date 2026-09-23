@@ -15,7 +15,6 @@ export default {
   download: 'ダウンロード',
   download_individually: '個別にダウンロード',
   download_as_zip: 'ZIPとしてダウンロード',
-  choose_download_dir: 'ダウンロード先フォルダを選択',
   downloaded_to: '{dir} にダウンロードしました',
   show_in_folder: 'フォルダーで表示',
   download_failed: 'ダウンロードに失敗しました',

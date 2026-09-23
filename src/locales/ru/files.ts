@@ -15,7 +15,6 @@ export default {
   download: 'Скачать',
   download_individually: 'Скачать по одному',
   download_as_zip: 'Скачать как ZIP',
-  choose_download_dir: 'Выбрать папку загрузки',
   downloaded_to: 'Загружено в {dir}',
   show_in_folder: 'Показать в папке',
   download_failed: 'Ошибка загрузки',

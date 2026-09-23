@@ -15,7 +15,6 @@ export default {
   download: 'Descargar',
   download_individually: 'Descargar individualmente',
   download_as_zip: 'Descargar como ZIP',
-  choose_download_dir: 'Elegir carpeta de descarga',
   downloaded_to: 'Descargado en {dir}',
   show_in_folder: 'Mostrar en carpeta',
   download_failed: 'Error al descargar',

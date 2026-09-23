@@ -349,6 +349,7 @@ declare module 'vue' {
     'IMaterialSymbols:uploadRounded': typeof import('~icons/material-symbols/upload-rounded')['default']
     'IMaterialSymbols:visibilityOffOutline': typeof import('~icons/material-symbols/visibility-off-outline')['default']
     'IMaterialSymbols:visibilityOutline': typeof import('~icons/material-symbols/visibility-outline')['default']
+    'IMaterialSymbols:volumeDownRounded': typeof import('~icons/material-symbols/volume-down-rounded')['default']
     'IMaterialSymbols:volumeOffRounded': typeof import('~icons/material-symbols/volume-off-rounded')['default']
     'IMaterialSymbols:volumeUpRounded': typeof import('~icons/material-symbols/volume-up-rounded')['default']
     'IMaterialSymbols:warningOutline': typeof import('~icons/material-symbols/warning-outline')['default']

@@ -15,7 +15,6 @@ export default {
   download: 'डाउनलोड',
   download_individually: 'अलग-अलग डाउनलोड करें',
   download_as_zip: 'ZIP के रूप में डाउनलोड करें',
-  choose_download_dir: 'डाउनलोड फ़ोल्डर चुनें',
   downloaded_to: '{dir} में डाउनलोड हुआ',
   show_in_folder: 'फ़ोल्डर में दिखाएँ',
   download_failed: 'डाउनलोड विफल',

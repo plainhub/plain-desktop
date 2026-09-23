@@ -15,7 +15,6 @@ export default {
   download: 'Télécharger',
   download_individually: 'Télécharger individuellement',
   download_as_zip: 'Télécharger en ZIP',
-  choose_download_dir: 'Choisir le dossier de téléchargement',
   downloaded_to: 'Téléchargé dans {dir}',
   show_in_folder: 'Afficher dans le dossier',
   download_failed: 'Échec du téléchargement',

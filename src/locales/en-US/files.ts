@@ -15,7 +15,6 @@ export default {
   download: 'Download',
   download_individually: 'Download individually',
   download_as_zip: 'Download as ZIP',
-  choose_download_dir: 'Choose download folder',
   downloaded_to: 'Downloaded to {dir}',
   show_in_folder: 'Show in folder',
   download_failed: 'Download failed',

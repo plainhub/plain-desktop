@@ -15,7 +15,6 @@ export default {
   download: 'பதிவிறக்கம்',
   download_individually: 'ஒன்றன்பின்னொரு பதிவிறக்குக',
   download_as_zip: 'ZIP ஆக பதிவிறக்குக',
-  choose_download_dir: 'பதிவிறக்க கோப்புறையைத் தேர்ந்தெடுக்கவும்',
   downloaded_to: '{dir}-இல் பதிவிறக்கப்பட்டது',
   show_in_folder: 'கோப்புறையில் காட்டு',
   download_failed: 'பதிவிறக்கம் தோல்வியடைந்தது',

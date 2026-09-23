@@ -15,7 +15,6 @@ export default {
   download: 'Tải xuống',
   download_individually: 'Tải xuống từng tệp',
   download_as_zip: 'Tải xuống dạng ZIP',
-  choose_download_dir: 'Chọn thư mục tải xuống',
   downloaded_to: 'Đã tải xuống vào {dir}',
   show_in_folder: 'Hiện trong thư mục',
   download_failed: 'Tải xuống thất bại',

@@ -15,7 +15,6 @@ export default {
   download: 'Downloaden',
   download_individually: 'Individueel downloaden',
   download_as_zip: 'Als ZIP downloaden',
-  choose_download_dir: 'Downloadmap kiezen',
   downloaded_to: 'Gedownload naar {dir}',
   show_in_folder: 'In map tonen',
   download_failed: 'Downloaden mislukt',

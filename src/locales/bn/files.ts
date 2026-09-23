@@ -15,7 +15,6 @@ export default {
   download: 'ডাউনলোড করুন',
   download_individually: 'আলাদাভাবে ডাউনলোড করুন',
   download_as_zip: 'ZIP হিসেবে ডাউনলোড করুন',
-  choose_download_dir: 'ডাউনলোড ফোল্ডার নির্বাচন করুন',
   downloaded_to: '{dir}-এ ডাউনলোড হয়েছে',
   show_in_folder: 'ফোল্ডারে দেখান',
   download_failed: 'ডাউনলোড ব্যর্থ',

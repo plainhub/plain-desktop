@@ -49,7 +49,7 @@
           :handle-mouse-over="handleMouseOver" :toggle-select="toggleSelect" :on-image-error="onImageError"
           :on-extension-image-error="onExtensionImageError" :view-item="viewItem" :click-item="clickItem"
           :deleting="deletingIds.includes(item.id)" :collapsing="collapsingIds.includes(item.id)"
-          @download-dir="downloadDir" @download-file="downloadFile" @upload-files="uploadFilesClick"
+          @download-dir="downloadDir" @download-file="downloadFile" @save-as="downloadFileAs" @upload-files="uploadFilesClick"
           @upload-dir="uploadDirClick" @delete-item="deleteItem" @duplicate-item="duplicateItem" @cut-item="cutItem"
           @copy-item="copyItem" @paste-item="pasteItem" @copy-link="copyLinkItem" @rename-item="renameItemClick"
           @add-to-favorites="addToFavoritesClick" />
@@ -106,7 +106,7 @@ const { dropping, fileDragEnter, fileDragLeave, dropFiles } = useDragDropUpload(
 const { createPath, createVariables, createMutation } = useCreateDir(urlTokenKey, items)
 const { renameItem, renameDone, renameMutation, renameVariables } = useRename(() => { fetch() })
 const { mounts, refetch: refetchMounts } = useMounts()
-const { downloadFile, downloadDir, downloadFiles } = useDownload(urlTokenKey)
+const { downloadFile, downloadFileAs, downloadDir, downloadFiles } = useDownload(urlTokenKey)
 const { open: openMedia } = useOpenMedia()
 const { view } = useView(sources, (s: ISource[], index: number) => {
   const target = s[index]

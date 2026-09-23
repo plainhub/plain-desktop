@@ -65,6 +65,9 @@
       <div v-if="item.isDir && canPaste" class="dropdown-item" @click.stop="pasteItem(item); actionsMenuVisible = false">
         {{ $t('paste') }}
       </div>
+      <div v-if="!item.isDir && isTauri" class="dropdown-item" @click.stop="saveAs(item); actionsMenuVisible = false">
+        {{ $t('save_as') }}
+      </div>
       <div v-if="!item.isDir" class="dropdown-item" @click.stop="copyLink(item); actionsMenuVisible = false">
         {{ $t('copy_link') }}
       </div>
@@ -90,9 +93,12 @@ interface Props {
 
 const props = defineProps<Props>()
 
+const isTauri = __IS_TAURI__
+
 const emit = defineEmits<{
   downloadDir: [path: string]
   downloadFile: [path: string]
+  saveAs: [item: IFile]
   uploadFiles: [path: string]
   uploadDir: [path: string]
   deleteItem: [item: IFile]
@@ -117,6 +123,10 @@ function downloadDir(path: string) {
 
 function downloadFile(path: string) {
   emit('downloadFile', path)
+}
+
+function saveAs(item: IFile) {
+  emit('saveAs', item)
 }
 
 function uploadFiles(path: string) {

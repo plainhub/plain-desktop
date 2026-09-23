@@ -1,25 +1,4 @@
-import { get as prefsGet, set as prefsSet } from '@/lib/prefs'
 import { getProxyUrl } from '@/lib/api/api'
-
-const DOWNLOAD_DIR_KEY = 'download_dir'
-
-export function getDownloadDir(): string {
-  return prefsGet<string>(DOWNLOAD_DIR_KEY, '') || ''
-}
-
-export function setDownloadDir(dir: string): void {
-  prefsSet(DOWNLOAD_DIR_KEY, dir)
-}
-
-export async function chooseDownloadDir(): Promise<string | null> {
-  const { open } = await import('@tauri-apps/plugin-dialog')
-  const current = getDownloadDir()
-  const selected = await open({ directory: true, multiple: false, defaultPath: current || undefined })
-  const dir = (Array.isArray(selected) ? selected[0] : selected) || ''
-  if (!dir) return null
-  setDownloadDir(dir)
-  return dir
-}
 
 export function joinPath(dir: string, name: string): string {
   return dir.replace(/[\\/]+$/, '') + '/' + name
@@ -37,14 +16,8 @@ export async function uniqueDownloadPath(dir: string, name: string, exists: (pat
   }
 }
 
-export async function downloadToDir(url: string, name: string): Promise<string | null> {
-  let dir = getDownloadDir()
-  if (!dir) {
-    dir = (await chooseDownloadDir()) || ''
-    if (!dir) return null
-  }
-  const { exists, writeFile } = await import('@tauri-apps/plugin-fs')
-  const path = await uniqueDownloadPath(dir, name, exists)
+async function writeDownload(url: string, path: string): Promise<string> {
+  const { writeFile } = await import('@tauri-apps/plugin-fs')
   const { pathname, search } = new URL(url)
   const res = await fetch(getProxyUrl(pathname + search))
   if (!res.ok) throw new Error(`download failed: HTTP ${res.status}`)
@@ -54,6 +27,20 @@ export async function downloadToDir(url: string, name: string): Promise<string |
     await writeFile(path, new Uint8Array(await res.arrayBuffer()))
   }
   return path
+}
+
+export async function downloadToDir(url: string, name: string): Promise<string> {
+  const { downloadDir } = await import('@tauri-apps/api/path')
+  const { exists } = await import('@tauri-apps/plugin-fs')
+  return writeDownload(url, await uniqueDownloadPath(await downloadDir(), name, exists))
+}
+
+export async function downloadAs(url: string, name: string): Promise<string | null> {
+  const { save } = await import('@tauri-apps/plugin-dialog')
+  const { downloadDir } = await import('@tauri-apps/api/path')
+  const path = await save({ defaultPath: joinPath(await downloadDir(), name) })
+  if (!path) return null
+  return writeDownload(url, path)
 }
 
 export async function revealInFolder(path: string): Promise<void> {

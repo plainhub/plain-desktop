@@ -15,7 +15,6 @@ export default {
   download: 'İndir',
   download_individually: 'Tek tek indir',
   download_as_zip: 'ZIP olarak indir',
-  choose_download_dir: 'İndirme klasörünü seç',
   downloaded_to: '{dir} klasörüne indirildi',
   show_in_folder: 'Klasörde göster',
   download_failed: 'İndirme başarısız',

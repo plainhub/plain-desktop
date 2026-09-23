@@ -14,10 +14,6 @@
           <i-material-symbols:format-list-numbered-rounded />
           {{ t('header_actions.uploads') }}
         </div>
-        <div v-if="app.buildChannel !== AppChannelType.GOOGLE" class="dropdown-item" :class="{ selected: store.quick === 'notification' }" @click="toggleQuick('notification')">
-          <i-material-symbols:notifications-outline-rounded />
-          {{ t('header_actions.notifications') }}
-        </div>
         <div class="dropdown-item" :class="{ selected: store.quick === 'audio' }" @click="toggleQuick('audio')">
           <i-material-symbols:queue-music-rounded />
           {{ t('playlist') }}
@@ -73,7 +69,6 @@ import { useI18n } from 'vue-i18n'
 import { useMainStore } from '@/stores/main'
 import { useTempStore } from '@/stores/temp'
 import { storeToRefs } from 'pinia'
-import { AppChannelType } from '@/lib/status'
 import { clear as prefsClear } from '@/lib/prefs'
 import { useLocaleSwitch } from '@/composables/useLocaleSwitch'
 

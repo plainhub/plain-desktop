@@ -15,7 +15,6 @@ export default {
   download: '下載',
   download_individually: '逐個下載',
   download_as_zip: '打包下載',
-  choose_download_dir: '選擇下載資料夾',
   downloaded_to: '已下載到 {dir}',
   show_in_folder: '在資料夾中顯示',
   download_failed: '下載失敗',

@@ -15,7 +15,6 @@ export default {
   download: '下载',
   download_individually: '逐个下载',
   download_as_zip: '打包下载',
-  choose_download_dir: '选择下载目录',
   downloaded_to: '已下载到 {dir}',
   show_in_folder: '在文件夹中显示',
   download_failed: '下载失败',

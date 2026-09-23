@@ -77,6 +77,7 @@ v-if="appReady" v-show="store.quick" class="quick-content"
           :style="{ width: store.quickContentWidth + 'px' }">
           <upload-list v-show="store.quick === 'upload'" />
           <audio-player v-show="store.quick === 'audio'" />
+          <p-notifications v-if="hasNotifications" v-show="store.quick === 'notification'" />
           <bookmark-list v-show="store.quick === 'bookmark'" />
         </div>
       </transition>
@@ -90,9 +91,13 @@ import { computed, inject } from 'vue'
 import type { Component } from 'vue'
 import HeaderSearch from '@/components/HeaderSearch.vue'
 import BookmarkList from '@/views/bookmarks/BookmarkList.vue'
+import PNotifications from '@/views/notifications/PNotifications.vue'
 import IMaterialSymbolsFormatListNumbered from '~icons/material-symbols/format-list-numbered-rounded'
 import IMaterialSymbolsQueueMusicRounded from '~icons/material-symbols/queue-music-rounded'
+import IMaterialSymbolsNotificationsOutlineRounded from '~icons/material-symbols/notifications-outline-rounded'
 import ILucideBookmark from '~icons/lucide/bookmark'
+import { Capability } from '@/lib/data'
+import { hasFeature } from '@/lib/feature'
 import { useMainView } from '@/hooks/main-view'
 
 const isTablet = inject('isTablet')
@@ -111,10 +116,14 @@ interface QuickAction {
   visible: boolean
 }
 
-// NAS quick actions: upload list, music player, bookmarks.
+// Quick actions; notification list mirrors the phone's, gated on the
+// server-declared NOTIFICATIONS capability (NAS doesn't declare it).
+const hasNotifications = computed(() => hasFeature(Capability.NOTIFICATIONS, app.value?.capabilities))
+
 const quickActions = computed<QuickAction[]>(() =>
   [
     { id: 'upload', tooltipKey: 'header_actions.uploads', icon: IMaterialSymbolsFormatListNumbered, visible: !localMode && (hasTasks.value || store.quick === 'upload') },
+    { id: 'notification', tooltipKey: 'header_actions.notifications', icon: IMaterialSymbolsNotificationsOutlineRounded, visible: hasNotifications.value },
     { id: 'audio', tooltipKey: 'playlist', icon: IMaterialSymbolsQueueMusicRounded, visible: !localMode },
     { id: 'bookmark', tooltipKey: 'bookmarks', icon: ILucideBookmark, visible: true },
   ].filter((action) => action.visible),
