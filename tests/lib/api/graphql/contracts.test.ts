@@ -57,7 +57,7 @@ const ENUM_EXTRA_ALLOWLIST: Record<BackendName, Record<string, string[]>> = {
     DeviceType: ['UNKNOWN'],
   },
   'plain-nas': {
-    Capability: ['NOTIFICATIONS'],
+    Capability: ['NOTIFICATIONS', 'CLIPBOARD', 'POMODORO'],
     DeviceType: ['UNKNOWN'],
   },
 }

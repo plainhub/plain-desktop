@@ -177,6 +177,7 @@ pub enum Capability {
     Feeds,
     ScreenMirror,
     ImageEditor,
+    Notifications,
     LanShare,
     DiskManager,
 }

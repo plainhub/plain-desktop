@@ -33,7 +33,10 @@ impl AppQuery {
             device_type: DeviceType::Computer,
             // The desktop local-mode surface: image editor and the shared
             // web document viewer (chat/files/media are base features).
-            capabilities: vec![Capability::DocPreview, Capability::ImageEditor],
+            // Notifications: the resident peer layer aggregates every logged-in
+            // phone's notification list (local_peer_data), so this server
+            // genuinely provides it in local mode.
+            capabilities: vec![Capability::DocPreview, Capability::ImageEditor, Capability::Notifications],
             build_channel: AppChannelType::Github,
             permissions: vec![],
             downloads_dir: String::new(),
