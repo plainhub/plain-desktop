@@ -28,7 +28,7 @@ use async_graphql::{Context, Object, Result as GqlResult};
 
 use crate::local::graphql::context::AppCtx;
 use crate::local::graphql::schema::types::{
-    AudioFileInfo, FileInfo, ImageFileInfo, Location, MediaFileInfo, Tag, VideoFileInfo,
+    AudioFileInfo, FileInfo, ImageFileInfo, Location, MediaFileInfo, VideoFileInfo,
 };
 use crate::local::server::uri::resolve_uri;
 
@@ -37,17 +37,16 @@ pub struct FileInfoQuery;
 
 #[Object]
 impl FileInfoQuery {
-    /// Mirrors `plain-app` `query("fileInfo") { id path fileName }` —
-    /// `id` and `fileName` are accepted for schema parity but only `path`
-    /// is used to locate the file.
+    /// Mirrors the plain-app contract `fileInfo(path, fileName)` — `path`
+    /// locates the file; `fileName` is an optional display hint that selects
+    /// the media-info probe on the phone and is unused here.
     async fn file_info(
         &self,
         ctx: &Context<'_>,
-        id: String,
         path: String,
-        file_name: String,
+        file_name: Option<String>,
     ) -> GqlResult<FileInfo> {
-        let _ = (id, file_name);
+        let _ = file_name;
         let c = ctx.data_unchecked::<std::sync::Arc<AppCtx>>();
 
         let real = resolve_uri(&path, &c.data_dir);
@@ -58,7 +57,6 @@ impl FileInfoQuery {
             path,
             updated_at,
             size,
-            tags: Vec::<Tag>::new(),
             data,
         })
     }

@@ -148,6 +148,32 @@ impl ChatDb {
         .unwrap_or_default()
     }
 
+    pub fn get_all_app_files(&self) -> Vec<DAppFile> {
+        let conn = self.0.lock().unwrap();
+        let mut stmt = match conn.prepare(
+            "SELECT id,size,mime_type,real_path,ref_count,weak_hash,created_at,updated_at \
+             FROM app_files ORDER BY created_at DESC",
+        ) {
+            Ok(s) => s,
+            Err(_) => return vec![],
+        };
+        stmt.query_map(params![], |row| {
+            Ok(DAppFile {
+                id: row.get(0)?,
+                size: row.get(1)?,
+                mime_type: row.get(2)?,
+                real_path: row.get(3)?,
+                ref_count: row.get(4)?,
+                weak_hash: row.get(5)?,
+                created_at: row.get(6)?,
+                updated_at: row.get(7)?,
+            })
+        })
+        .ok()
+        .map(|iter| iter.filter_map(|r| r.ok()).collect())
+        .unwrap_or_default()
+    }
+
     pub fn count_app_files(&self) -> i32 {
         let conn = self.0.lock().unwrap();
         conn.query_row("SELECT COUNT(*) FROM app_files", params![], |r| {

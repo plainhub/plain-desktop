@@ -7,6 +7,7 @@
 
 use async_graphql::Object;
 
+use crate::local::enums::DataType;
 use crate::local::graphql::schema::types::Tag;
 
 #[derive(Default)]
@@ -14,7 +15,7 @@ pub struct TagQuery;
 
 #[Object]
 impl TagQuery {
-    async fn tags(&self, _type: String) -> Vec<Tag> {
+    async fn tags(&self, _type: DataType) -> Vec<Tag> {
         Vec::new()
     }
 }

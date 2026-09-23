@@ -19,7 +19,7 @@ export interface Fragment_AppFragment {
   deviceType: 'PHONE' | 'TABLET' | 'COMPUTER' | 'TV' | 'NAS' | 'OTHER' | 'UNKNOWN'
   capabilities: Array<'MEDIA_TRASH' | 'MIRROR_AUDIO' | 'DOC_PREVIEW' | 'IMAGE_SEARCH' | 'MEDIA_SCAN' | 'SMS' | 'CALLS' | 'CALL_PHONE' | 'CONTACTS' | 'PACKAGES' | 'NOTES' | 'FEEDS' | 'SCREEN_MIRROR' | 'IMAGE_EDITOR' | 'LAN_SHARE' | 'DISK_MANAGER'>
   buildChannel: 'GITHUB' | 'GOOGLE' | 'FDROID'
-  permissions: Array<string>
+  permissions: Array<'WRITE_EXTERNAL_STORAGE' | 'READ_SMS' | 'SEND_SMS' | 'READ_CONTACTS' | 'WRITE_CONTACTS' | 'READ_CALL_LOG' | 'WRITE_CALL_LOG' | 'CALL_PHONE' | 'POST_NOTIFICATIONS' | 'NEARBY_WIFI_DEVICES' | 'ACCESS_FINE_LOCATION' | 'CAMERA' | 'SYSTEM_ALERT_WINDOW' | 'RECORD_AUDIO' | 'READ_MEDIA_IMAGES' | 'READ_MEDIA_VIDEOS' | 'READ_MEDIA_AUDIO' | 'NOTIFICATION_LISTENER' | 'READ_PHONE_STATE' | 'READ_PHONE_NUMBERS' | 'SCHEDULE_EXACT_ALARM' | 'QUERY_ALL_PACKAGES' | 'ADB' | 'CLIPBOARD'>
   downloadsDir: string
   developerMode: boolean
   debug: boolean
@@ -108,7 +108,7 @@ export interface Fragment_ChatItemFragment {
   id: string
   fromId: string
   toId: string
-  channelId: string
+  channelId?: string
   createdAt: string
   content: string
   status: 'SENT' | 'FAILED' | 'PARTIAL' | 'PENDING'
@@ -195,7 +195,7 @@ export interface Fragment_DeviceInfoFragment {
   display?: {
     width: number
     height: number
-    density: string
+    density: number
   }
   android?: {
     sdkVersion: number
@@ -268,11 +268,11 @@ export interface Fragment_FeedFragment {
 export interface Fragment_FileFragment {
   path: string
   isDir: boolean
-  createdAt: string
+  createdAt?: string
   updatedAt: string
   size: number
   children: number
-  mediaId: string
+  mediaId?: string
 }
 
 export interface Fragment_ImageFragment {
@@ -291,7 +291,7 @@ export interface Fragment_NoteFragment {
   id: string
   title: string
   content: string
-  deletedAt: string
+  deletedAt?: string
   createdAt: string
   updatedAt: string
   tags: Array<Fragment_TagSubFragment>
@@ -357,7 +357,7 @@ export interface Fragment_SmsFragment {
   type: 'INBOX' | 'SENT' | 'DRAFT' | 'OUTBOX' | 'FAILED' | 'QUEUED' | 'UNKNOWN'
   threadId: string
   subscriptionId: number
-  isMms?: boolean
+  isMms: boolean
   attachments: Array<{
     path: string
     contentType: string
@@ -462,7 +462,7 @@ export interface GqlOperations {
   }
   retryChatItemGQL: {
     result: {
-      retryChatItem?: Fragment_ChatItemFragment
+      retryChatItem: Fragment_ChatItemFragment
     }
     variables: {
       id: string
@@ -733,7 +733,7 @@ export interface GqlOperations {
       removeFromTags: boolean
     }
     variables: {
-      type: 'AUDIO' | 'VIDEO' | 'IMAGE' | 'PACKAGE' | 'CALL' | 'CONTACT' | 'SMS' | 'NOTE' | 'BOOK' | 'FEED_ENTRY' | 'DOC'
+      type: 'DEFAULT' | 'AUDIO' | 'VIDEO' | 'IMAGE' | 'SMS' | 'CONTACT' | 'NOTE' | 'FEED_ENTRY' | 'CALL' | 'PACKAGE' | 'FILE' | 'APP_FILE' | 'DOC'
       tagIds: Array<string>
       query: string
     }
@@ -743,7 +743,7 @@ export interface GqlOperations {
       addToTags: boolean
     }
     variables: {
-      type: 'AUDIO' | 'VIDEO' | 'IMAGE' | 'PACKAGE' | 'CALL' | 'CONTACT' | 'SMS' | 'NOTE' | 'BOOK' | 'FEED_ENTRY' | 'DOC'
+      type: 'DEFAULT' | 'AUDIO' | 'VIDEO' | 'IMAGE' | 'SMS' | 'CONTACT' | 'NOTE' | 'FEED_ENTRY' | 'CALL' | 'PACKAGE' | 'FILE' | 'APP_FILE' | 'DOC'
       tagIds: Array<string>
       query: string
     }
@@ -753,7 +753,7 @@ export interface GqlOperations {
       updateTagRelations: boolean
     }
     variables: {
-      type: 'AUDIO' | 'VIDEO' | 'IMAGE' | 'PACKAGE' | 'CALL' | 'CONTACT' | 'SMS' | 'NOTE' | 'BOOK' | 'FEED_ENTRY' | 'DOC'
+      type: 'DEFAULT' | 'AUDIO' | 'VIDEO' | 'IMAGE' | 'SMS' | 'CONTACT' | 'NOTE' | 'FEED_ENTRY' | 'CALL' | 'PACKAGE' | 'FILE' | 'APP_FILE' | 'DOC'
       item: unknown
       addTagIds: Array<string>
       removeTagIds: Array<string>
@@ -764,7 +764,7 @@ export interface GqlOperations {
       createTag: Fragment_TagFragment
     }
     variables: {
-      type: 'AUDIO' | 'VIDEO' | 'IMAGE' | 'PACKAGE' | 'CALL' | 'CONTACT' | 'SMS' | 'NOTE' | 'BOOK' | 'FEED_ENTRY' | 'DOC'
+      type: 'DEFAULT' | 'AUDIO' | 'VIDEO' | 'IMAGE' | 'SMS' | 'CONTACT' | 'NOTE' | 'FEED_ENTRY' | 'CALL' | 'PACKAGE' | 'FILE' | 'APP_FILE' | 'DOC'
       name: string
     }
   }
@@ -787,10 +787,10 @@ export interface GqlOperations {
   }
   addFavoriteFolderGQL: {
     result: {
-      addFavoriteFolder: {
+      addFavoriteFolder: Array<{
         rootPath: string
         fullPath: string
-      }
+      }>
     }
     variables: {
       rootPath: string
@@ -799,11 +799,11 @@ export interface GqlOperations {
   }
   removeFavoriteFolderGQL: {
     result: {
-      removeFavoriteFolder: {
+      removeFavoriteFolder: Array<{
         rootPath: string
         fullPath: string
-        alias: string
-      }
+        alias?: string
+      }>
     }
     variables: {
       fullPath: string
@@ -811,11 +811,11 @@ export interface GqlOperations {
   }
   setFavoriteFolderAliasGQL: {
     result: {
-      setFavoriteFolderAlias: {
+      setFavoriteFolderAlias: Array<{
         rootPath: string
         fullPath: string
-        alias: string
-      }
+        alias?: string
+      }>
     }
     variables: {
       fullPath: string
@@ -918,13 +918,13 @@ export interface GqlOperations {
   }
   exportFeedsGQL: {
     result: {
-      exportFeeds: boolean
+      exportFeeds: string
     }
     variables: undefined
   }
   exportNotesGQL: {
     result: {
-      exportNotes: boolean
+      exportNotes: string
     }
     variables: {
       query: string
@@ -1042,7 +1042,7 @@ export interface GqlOperations {
   }
   sendMmsGQL: {
     result: {
-      sendMms: boolean
+      sendMms: string
     }
     variables: {
       number: string
@@ -1151,7 +1151,7 @@ export interface GqlOperations {
   }
   saveFeedEntriesToNotesGQL: {
     result: {
-      saveFeedEntriesToNotes: boolean
+      saveFeedEntriesToNotes: Array<string>
     }
     variables: {
       query: string
@@ -1237,7 +1237,7 @@ export interface GqlOperations {
   }
   updateBookmarkGQL: {
     result: {
-      updateBookmark?: Fragment_BookmarkFragment
+      updateBookmark: Fragment_BookmarkFragment
     }
     variables: {
       id: string
@@ -1272,7 +1272,7 @@ export interface GqlOperations {
   }
   updateBookmarkGroupGQL: {
     result: {
-      updateBookmarkGroup?: Fragment_BookmarkGroupFragment
+      updateBookmarkGroup: Fragment_BookmarkGroupFragment
     }
     variables: {
       id: string
@@ -1599,7 +1599,7 @@ export interface GqlOperations {
       }>
     }
     variables: {
-      type: 'AUDIO' | 'VIDEO' | 'IMAGE' | 'PACKAGE' | 'CALL' | 'CONTACT' | 'SMS' | 'NOTE' | 'BOOK' | 'FEED_ENTRY' | 'DOC'
+      type: 'DEFAULT' | 'AUDIO' | 'VIDEO' | 'IMAGE' | 'SMS' | 'CONTACT' | 'NOTE' | 'FEED_ENTRY' | 'CALL' | 'PACKAGE' | 'FILE' | 'APP_FILE' | 'DOC'
       keys: Array<string>
     }
   }
@@ -1703,7 +1703,7 @@ export interface GqlOperations {
     result: {
       contactSources: Array<{
         name: string
-        type: number
+        type: string
       }>
     }
     variables: undefined
@@ -1734,7 +1734,7 @@ export interface GqlOperations {
   imageSearchStatusGQL: {
     result: {
       imageSearchStatus: {
-        status: string
+        status: 'UNAVAILABLE' | 'DOWNLOADING' | 'LOADING' | 'READY' | 'ERROR'
         downloadProgress: number
         errorMessage: string
         modelSize: number
@@ -1877,7 +1877,7 @@ export interface GqlOperations {
       favoriteFolders: Array<{
         rootPath: string
         fullPath: string
-        alias: string
+        alias?: string
       }>
     }
     variables: undefined
@@ -1893,8 +1893,8 @@ export interface GqlOperations {
       items: Array<Fragment_AudioItemFragment>
       total: number
       playback: {
-        mode: string
-        currentPath: string
+        mode: 'REPEAT' | 'REPEAT_ONE' | 'SHUFFLE'
+        currentPath?: string
         isPlaying: boolean
         positionMs: number
       }
@@ -1909,7 +1909,7 @@ export interface GqlOperations {
       tags: Array<Fragment_TagFragment>
     }
     variables: {
-      type: 'AUDIO' | 'VIDEO' | 'IMAGE' | 'PACKAGE' | 'CALL' | 'CONTACT' | 'SMS' | 'NOTE' | 'BOOK' | 'FEED_ENTRY' | 'DOC'
+      type: 'DEFAULT' | 'AUDIO' | 'VIDEO' | 'IMAGE' | 'SMS' | 'CONTACT' | 'NOTE' | 'FEED_ENTRY' | 'CALL' | 'PACKAGE' | 'FILE' | 'APP_FILE' | 'DOC'
     }
   }
   mediaBucketsGQL: {
@@ -1930,7 +1930,7 @@ export interface GqlOperations {
       notes: Array<{
         id: string
         title: string
-        deletedAt: string
+        deletedAt?: string
         createdAt: string
         updatedAt: string
         tags: Array<Fragment_TagSubFragment>
@@ -1986,7 +1986,7 @@ export interface GqlOperations {
       feeds: Array<Fragment_FeedFragment>
     }
     variables: {
-      type: 'AUDIO' | 'VIDEO' | 'IMAGE' | 'PACKAGE' | 'CALL' | 'CONTACT' | 'SMS' | 'NOTE' | 'BOOK' | 'FEED_ENTRY' | 'DOC'
+      type: 'DEFAULT' | 'AUDIO' | 'VIDEO' | 'IMAGE' | 'SMS' | 'CONTACT' | 'NOTE' | 'FEED_ENTRY' | 'CALL' | 'PACKAGE' | 'FILE' | 'APP_FILE' | 'DOC'
     }
   }
   bucketsTagsGQL: {
@@ -2001,7 +2001,7 @@ export interface GqlOperations {
     }
     variables: {
       type: 'AUDIO' | 'VIDEO' | 'IMAGE' | 'DOC'
-      tagType: 'AUDIO' | 'VIDEO' | 'IMAGE' | 'PACKAGE' | 'CALL' | 'CONTACT' | 'SMS' | 'NOTE' | 'BOOK' | 'FEED_ENTRY' | 'DOC'
+      tagType: 'DEFAULT' | 'AUDIO' | 'VIDEO' | 'IMAGE' | 'SMS' | 'CONTACT' | 'NOTE' | 'FEED_ENTRY' | 'CALL' | 'PACKAGE' | 'FILE' | 'APP_FILE' | 'DOC'
     }
   }
   feedEntryGQL: {
@@ -2146,7 +2146,7 @@ export interface GqlOperations {
       packageStatuses: Array<{
         id: string
         exists: boolean
-        updatedAt: string
+        updatedAt?: string
       }>
     }
     variables: {
@@ -2166,7 +2166,7 @@ export interface GqlOperations {
   }
   screenMirrorVideoCodecGQL: {
     result: {
-      screenMirrorVideoCodec: {
+      screenMirrorVideoCodec?: {
         annexB: string
         keyFrame?: string
       }
@@ -2297,7 +2297,7 @@ export interface GqlOperations {
         totalTimeSec: number
         isRunning: boolean
         isPaused: boolean
-        state: string
+        state: 'WORK' | 'SHORT_BREAK' | 'LONG_BREAK'
       }
       pomodoroSettings: {
         workDurationMin: number
@@ -2345,7 +2345,7 @@ export interface GqlOperations {
   }
   dbTableInfoGQL: {
     result: {
-      dbTableInfo?: {
+      dbTableInfo: {
         idKey: string
       }
     }
@@ -2381,7 +2381,7 @@ export interface GqlOperations {
     result: {
       notifications: Array<Fragment_NotificationFragment>
       app: {
-        permissions: Array<string>
+        permissions: Array<'WRITE_EXTERNAL_STORAGE' | 'READ_SMS' | 'SEND_SMS' | 'READ_CONTACTS' | 'WRITE_CONTACTS' | 'READ_CALL_LOG' | 'WRITE_CALL_LOG' | 'CALL_PHONE' | 'POST_NOTIFICATIONS' | 'NEARBY_WIFI_DEVICES' | 'ACCESS_FINE_LOCATION' | 'CAMERA' | 'SYSTEM_ALERT_WINDOW' | 'RECORD_AUDIO' | 'READ_MEDIA_IMAGES' | 'READ_MEDIA_VIDEOS' | 'READ_MEDIA_AUDIO' | 'NOTIFICATION_LISTENER' | 'READ_PHONE_STATE' | 'READ_PHONE_NUMBERS' | 'SCHEDULE_EXACT_ALARM' | 'QUERY_ALL_PACKAGES' | 'ADB' | 'CLIPBOARD'>
         urlToken: string
       }
     }

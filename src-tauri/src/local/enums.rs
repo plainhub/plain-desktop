@@ -631,3 +631,71 @@ impl FromSql for DownloadStatus {
         Self::from_str(s).map_err(|_| FromSqlError::InvalidType)
     }
 }
+
+// ── DataType ───────────────────────────────────────────────────────────────
+
+/// Taggable data domains, mirroring the plain-app `DataType` wire enum.
+/// GraphQL-arg only — the local server has no tag tables yet; it exists so
+/// enum-typed variables in `tags(type: $type)` documents validate.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Enum)]
+#[graphql(name = "DataType", rename_items = "SCREAMING_SNAKE_CASE")]
+pub enum DataType {
+    Default,
+    Audio,
+    Video,
+    Image,
+    Sms,
+    Contact,
+    Note,
+    FeedEntry,
+    Call,
+    Package,
+    File,
+    AppFile,
+    Doc,
+}
+
+// ── MediaPlayMode ──────────────────────────────────────────────────────────
+
+/// Audio playback repeat mode, mirroring the plain-app `MediaPlayMode` enum.
+#[derive(Debug, Clone, Copy, Eq, PartialEq, Enum)]
+#[graphql(name = "MediaPlayMode", rename_items = "SCREAMING_SNAKE_CASE")]
+pub enum MediaPlayMode {
+    Repeat,
+    RepeatOne,
+    Shuffle,
+}
+
+// ── Permission ─────────────────────────────────────────────────────────────
+
+/// Client-side access rights, mirroring the plain-app `Permission` enum.
+/// The desktop local server grants none — phone features require a paired
+/// phone backend.
+#[derive(Debug, Clone, Copy, Eq, PartialEq, Enum)]
+#[graphql(name = "Permission", rename_items = "SCREAMING_SNAKE_CASE")]
+pub enum Permission {
+    WriteExternalStorage,
+    ReadSms,
+    SendSms,
+    ReadContacts,
+    WriteContacts,
+    ReadCallLog,
+    WriteCallLog,
+    CallPhone,
+    PostNotifications,
+    NearbyWifiDevices,
+    AccessFineLocation,
+    Camera,
+    SystemAlertWindow,
+    RecordAudio,
+    ReadMediaImages,
+    ReadMediaVideos,
+    ReadMediaAudio,
+    NotificationListener,
+    ReadPhoneState,
+    ReadPhoneNumbers,
+    ScheduleExactAlarm,
+    QueryAllPackages,
+    Adb,
+    Clipboard,
+}

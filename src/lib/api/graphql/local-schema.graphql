@@ -33,7 +33,7 @@ type App {
 	deviceType: DeviceType!
 	capabilities: [Capability!]!
 	buildChannel: AppChannelType!
-	permissions: [String!]!
+	permissions: [Permission!]!
 	downloadsDir: String!
 	developerMode: Boolean!
 	debug: Boolean!
@@ -68,8 +68,8 @@ Audio player state (plain-app `AudioPlayback`). The desktop backend has
 no playback engine, so the resolver serves inert defaults.
 """
 type AudioPlayback {
-	mode: String!
-	currentPath: String!
+	mode: MediaPlayMode!
+	currentPath: String
 	isPlaying: Boolean!
 	positionMs: Int!
 }
@@ -164,7 +164,7 @@ type ChatItem {
 	id: String!
 	fromId: String!
 	toId: String!
-	channelId: String!
+	channelId: String
 	createdAt: String!
 	updatedAt: String!
 	content: String!
@@ -187,6 +187,27 @@ enum ChatStatus {
 
 type ChatText {
 	linkPreviewImageIds: [String!]!
+}
+
+"""
+Taggable data domains, mirroring the plain-app `DataType` wire enum.
+GraphQL-arg only — the local server has no tag tables yet; it exists so
+enum-typed variables in `tags(type: $type)` documents validate.
+"""
+enum DataType {
+	DEFAULT
+	AUDIO
+	VIDEO
+	IMAGE
+	SMS
+	CONTACT
+	NOTE
+	FEED_ENTRY
+	CALL
+	PACKAGE
+	FILE
+	APP_FILE
+	DOC
 }
 
 type DbTableInfo {
@@ -261,7 +282,7 @@ enum DeviceType {
 type DisplayInfo {
 	width: Int!
 	height: Int!
-	density: String!
+	density: Float!
 }
 
 enum DriveType {
@@ -274,18 +295,16 @@ enum DriveType {
 type FavoriteFolder {
 	rootPath: String!
 	fullPath: String!
-	alias: String!
+	alias: String
 }
 
 """
-`fileInfo` query result. `data` is `None` for non-media files; `tags` is
-empty in local mode (plain-web doesn't yet persist tag relations).
+`fileInfo` query result. `data` is `None` for non-media files.
 """
 type FileInfo {
 	path: String!
 	updatedAt: String!
 	size: Int!
-	tags: [Tag!]!
 	data: MediaFileInfo
 }
 
@@ -312,6 +331,15 @@ type Location {
 Polymorphic media-metadata payload — clients select via `... on XFileInfo`.
 """
 union MediaFileInfo = ImageFileInfo | VideoFileInfo | AudioFileInfo
+
+"""
+Audio playback repeat mode, mirroring the plain-app `MediaPlayMode` enum.
+"""
+enum MediaPlayMode {
+	REPEAT
+	REPEAT_ONE
+	SHUFFLE
+}
 
 enum MemberStatus {
 	JOINED
@@ -361,11 +389,11 @@ type Mount {
 type MutationRoot {
 	updateDeviceName(name: String!): Boolean!
 	addBookmarks(urls: [String!]!, groupId: String!): [Bookmark!]!
-	updateBookmark(id: ID!, input: BookmarkInput!): Bookmark
+	updateBookmark(id: ID!, input: BookmarkInput!): Bookmark!
 	deleteBookmarks(ids: [ID!]!): ActionResult!
 	recordBookmarkClick(id: ID!): Boolean!
 	createBookmarkGroup(name: String!): BookmarkGroup!
-	updateBookmarkGroup(id: ID!, name: String!, collapsed: Boolean!, sortOrder: Int!): BookmarkGroup
+	updateBookmarkGroup(id: ID!, name: String!, collapsed: Boolean!, sortOrder: Int!): BookmarkGroup!
 	deleteBookmarkGroup(id: ID!): Boolean!
 	"""
 	Send a chat item. Routes by `to_id` prefix:
@@ -388,7 +416,7 @@ type MutationRoot {
 	"""
 	Retry a failed chat item.
 	"""
-	retryChatItem(id: String!): ChatItem
+	retryChatItem(id: String!): ChatItem!
 	createChatChannel(name: String!): ChatChannel!
 	updateChatChannel(id: String!, name: String!): ChatChannel!
 	deleteChatChannel(id: String!): Boolean!
@@ -590,6 +618,38 @@ enum PeerStatus {
 	CHANNEL
 }
 
+"""
+Client-side access rights, mirroring the plain-app `Permission` enum.
+The desktop local server grants none — phone features require a paired
+phone backend.
+"""
+enum Permission {
+	WRITE_EXTERNAL_STORAGE
+	READ_SMS
+	SEND_SMS
+	READ_CONTACTS
+	WRITE_CONTACTS
+	READ_CALL_LOG
+	WRITE_CALL_LOG
+	CALL_PHONE
+	POST_NOTIFICATIONS
+	NEARBY_WIFI_DEVICES
+	ACCESS_FINE_LOCATION
+	CAMERA
+	SYSTEM_ALERT_WINDOW
+	RECORD_AUDIO
+	READ_MEDIA_IMAGES
+	READ_MEDIA_VIDEOS
+	READ_MEDIA_AUDIO
+	NOTIFICATION_LISTENER
+	READ_PHONE_STATE
+	READ_PHONE_NUMBERS
+	SCHEDULE_EXACT_ALARM
+	QUERY_ALL_PACKAGES
+	ADB
+	CLIPBOARD
+}
+
 type QueryRoot {
 	app: App!
 	deviceInfo: DeviceInfo!
@@ -607,7 +667,7 @@ type QueryRoot {
 	peers: [Peer!]!
 	latestChatItems: [ChatItem!]!
 	appFiles(offset: Int!, limit: Int!, query: String!): [AppFile!]!
-	appFileCount: Int!
+	appFileCount(query: String!): Int!
 	appLogs(offset: Int!, limit: Int!, query: String!): [String!]!
 	appLogPath: String!
 	dataStorePath: String!
@@ -616,7 +676,7 @@ type QueryRoot {
 	dbTables: [String!]!
 	dbTableRowCount(table: String!): Int!
 	dbTableRows(table: String!, offset: Int!, limit: Int!): [String!]!
-	dbTableInfo(table: String!): DbTableInfo
+	dbTableInfo(table: String!): DbTableInfo!
 	"""
 	List the chunk indices the server already has on disk for `file_id`,
 	in the format `"<index>:<size>"` (matches what the web client
@@ -629,27 +689,27 @@ type QueryRoot {
 	"""
 	mergeStatus(fileId: String!): MergeTask!
 	"""
-	Mirrors `plain-app` `query("fileInfo") { id path fileName }` —
-	`id` and `fileName` are accepted for schema parity but only `path`
-	is used to locate the file.
+	Mirrors the plain-app contract `fileInfo(path, fileName)` — `path`
+	locates the file; `fileName` is an optional display hint that selects
+	the media-info probe on the phone and is unused here.
 	"""
-	fileInfo(id: String!, path: String!, fileName: String!): FileInfo!
-	tags(type: String!): [Tag!]!
+	fileInfo(path: String!, fileName: String): FileInfo!
+	tags(type: DataType!): [Tag!]!
 	"""
 	Mirrors plain-app's `isDiscovering` query: returns `true`
 	while the background scan loop is running.
 	"""
 	isDiscovering: Boolean!
-	smsCount(query: String): Int!
-	contactCount(query: String): Int!
-	callCount(query: String): Int!
-	imageCount(query: String): Int!
-	audioCount(query: String): Int!
-	videoCount(query: String): Int!
-	packageCount(query: String): Int!
-	noteCount(query: String): Int!
-	docCount(query: String): Int!
-	feedEntryCount(query: String): Int!
+	smsCount(query: String!): Int!
+	contactCount(query: String!): Int!
+	callCount(query: String!): Int!
+	imageCount(query: String!): Int!
+	audioCount(query: String!): Int!
+	videoCount(query: String!): Int!
+	packageCount(query: String!): Int!
+	noteCount(query: String!): Int!
+	docCount(query: String!): Int!
+	feedEntryCount(query: String!): Int!
 	mounts: [Mount!]!
 	favoriteFolders: [FavoriteFolder!]!
 }

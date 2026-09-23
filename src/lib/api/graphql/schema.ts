@@ -85,8 +85,15 @@ interface ValidateCtx {
   schema: SchemaIR
   fragments: Map<string, FragmentDef>
   declaredVars: Set<string>
+  varTypes: Map<string, import('./parser').TypeRef>
   errors: ValidationError[]
   validatedFragments: Set<string>
+}
+
+function* op_variables(doc: DocumentIR): Generator<[string, import('./parser').TypeRef]> {
+  for (const op of doc.operations) {
+    for (const v of op.variables) yield [v.name, v.type]
+  }
 }
 
 export function validateDocument(doc: DocumentIR, schema: SchemaIR, docKey: string): ValidationError[] {
@@ -95,6 +102,7 @@ export function validateDocument(doc: DocumentIR, schema: SchemaIR, docKey: stri
     schema,
     fragments: new Map(doc.fragments.map((f) => [f.name, f])),
     declaredVars: new Set(),
+    varTypes: new Map(op_variables(doc)),
     errors,
     validatedFragments: new Set(),
   }
@@ -150,6 +158,7 @@ function validateSelections(selections: Selection[], parent: TypeDef, path: stri
       }
       const fieldArgs = new Set(field.args.map((a) => a.name))
       for (const arg of sel.args) {
+        const srvArg = field.args.find((a) => a.name === arg.name)
         if (!fieldArgs.has(arg.name)) {
           ctx.errors.push({ path: fieldPath, message: `unknown argument '${arg.name}' on field '${parent.name}.${sel.name}'` })
         }
@@ -159,6 +168,24 @@ function validateSelections(selections: Selection[], parent: TypeDef, path: stri
           if (!ctx.declaredVars.has(v)) {
             ctx.errors.push({ path: fieldPath, message: `variable '$${v}' is used but not declared` })
           }
+          if (srvArg && srvArg.type.nonNull && !srvArg.hasDefault) {
+            const vt = ctx.varTypes.get(v)
+            if (vt && !vt.nonNull) {
+              ctx.errors.push({
+                path: fieldPath,
+                message: `variable '$${v}' is nullable but argument '${arg.name}' of '${parent.name}.${sel.name}' requires a non-null value`,
+              })
+            }
+          }
+        }
+      }
+      for (const arg of field.args) {
+        if (fieldArgs.has(arg.name)) continue
+        if (arg.type.nonNull && !arg.hasDefault) {
+          ctx.errors.push({
+            path: fieldPath,
+            message: `required argument '${arg.name}' on field '${parent.name}.${sel.name}' is not provided`,
+          })
         }
       }
       const fieldTypeName = typeName(field.type)

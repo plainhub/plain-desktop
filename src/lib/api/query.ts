@@ -226,7 +226,7 @@ export const appFilesGQL = `
       createdAt
       updatedAt
     }
-    appFileCount
+    appFileCount(query: "")
   }
 `
 

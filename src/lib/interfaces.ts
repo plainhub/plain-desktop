@@ -141,7 +141,7 @@ export interface IContactIm {
 
 export interface IContactSource {
   name: string
-  type: number
+  type: string
 }
 
 export interface IPackageStatus {

@@ -44,7 +44,7 @@ pub struct AndroidExtras {
 pub struct DisplayInfo {
     pub width: i32,
     pub height: i32,
-    pub density: String,
+    pub density: f64,
 }
 
 #[derive(SimpleObject)]
@@ -109,7 +109,7 @@ pub struct Sim {
 pub struct FavoriteFolder {
     pub root_path: String,
     pub full_path: String,
-    pub alias: String,
+    pub alias: Option<String>,
 }
 
 #[derive(SimpleObject)]
@@ -151,8 +151,8 @@ pub struct MergeTask {
 #[derive(SimpleObject)]
 #[graphql(name = "AudioPlayback")]
 pub struct AudioPlayback {
-    pub mode: String,
-    pub current_path: String,
+    pub mode: crate::local::enums::MediaPlayMode,
+    pub current_path: Option<String>,
     pub is_playing: bool,
     pub position_ms: i64,
 }
@@ -192,7 +192,7 @@ pub struct App {
     pub device_type: DeviceType,
     pub capabilities: Vec<Capability>,
     pub build_channel: AppChannelType,
-    pub permissions: Vec<String>,
+    pub permissions: Vec<crate::local::enums::Permission>,
     pub downloads_dir: String,
     pub developer_mode: bool,
     pub debug: bool,
@@ -264,14 +264,12 @@ pub enum MediaFileInfo {
     Audio(AudioFileInfo),
 }
 
-/// `fileInfo` query result. `data` is `None` for non-media files; `tags` is
-/// empty in local mode (plain-web doesn't yet persist tag relations).
+/// `fileInfo` query result. `data` is `None` for non-media files.
 #[derive(SimpleObject)]
 pub struct FileInfo {
     pub path: String,
     pub updated_at: String,
     pub size: i64,
-    pub tags: Vec<Tag>,
     pub data: Option<MediaFileInfo>,
 }
 
@@ -314,7 +312,7 @@ pub struct ChatItem {
     pub id: String,
     pub from_id: String,
     pub to_id: String,
-    pub channel_id: String,
+    pub channel_id: Option<String>,
     pub created_at: String,
     pub updated_at: String,
     pub content: String,
@@ -329,7 +327,7 @@ impl From<DChat> for ChatItem {
             id: c.id,
             from_id: c.from_id,
             to_id: c.to_id,
-            channel_id: c.channel_id,
+            channel_id: if c.channel_id.is_empty() { None } else { Some(c.channel_id) },
             created_at: c.created_at,
             updated_at: c.updated_at,
             content: c.content,

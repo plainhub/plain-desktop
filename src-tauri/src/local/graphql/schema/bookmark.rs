@@ -97,9 +97,12 @@ impl BookmarkMutation {
         ctx: &Context<'_>,
         id: ID,
         input: BookmarkInput,
-    ) -> Option<Bookmark> {
+    ) -> Result<Bookmark, async_graphql::Error> {
         let c = ctx.data_unchecked::<Arc<AppCtx>>();
-        let mut bookmark = c.db.get_bookmark_by_id(id.as_str())?;
+        let mut bookmark = c
+            .db
+            .get_bookmark_by_id(id.as_str())
+            .ok_or_else(|| async_graphql::Error::new("bookmark not found"))?;
         bookmark.url = input.url;
         bookmark.title = input.title;
         bookmark.group_id = input.group_id;
@@ -108,7 +111,7 @@ impl BookmarkMutation {
         bookmark.updated_at = now_iso();
         c.db.update_bookmark(&bookmark);
         emit_bookmark_updated(c, &[bookmark.clone()]);
-        Some(Bookmark::from(bookmark))
+        Ok(Bookmark::from(bookmark))
     }
 
     async fn delete_bookmarks(&self, ctx: &Context<'_>, ids: Vec<ID>) -> ActionResult {
@@ -146,16 +149,19 @@ impl BookmarkMutation {
         name: String,
         collapsed: bool,
         sort_order: i32,
-    ) -> Option<BookmarkGroup> {
+    ) -> Result<BookmarkGroup, async_graphql::Error> {
         let c = ctx.data_unchecked::<Arc<AppCtx>>();
-        let mut group = c.db.get_bookmark_group_by_id(id.as_str())?;
+        let mut group = c
+            .db
+            .get_bookmark_group_by_id(id.as_str())
+            .ok_or_else(|| async_graphql::Error::new("bookmark group not found"))?;
         group.name = name;
         group.collapsed = collapsed;
         group.sort_order = sort_order;
         group.updated_at = now_iso();
         c.db.update_bookmark_group(&group);
         let item_count = c.db.get_bookmarks_by_group_id(&group.id).len() as i32;
-        Some(BookmarkGroup::from_group(group, item_count))
+        Ok(BookmarkGroup::from_group(group, item_count))
     }
 
     async fn delete_bookmark_group(&self, ctx: &Context<'_>, id: ID) -> bool {

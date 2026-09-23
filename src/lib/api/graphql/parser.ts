@@ -130,6 +130,7 @@ export type TypeRef =
 export interface ArgDef {
   name: string
   type: TypeRef
+  hasDefault: boolean
 }
 
 export interface FieldDef {
@@ -374,12 +375,14 @@ export class Parser {
       const name = this.expectName().value
       this.expectPunct(':')
       const type = this.parseTypeRef()
+      let hasDefault = false
       if (this.isPunct('=')) {
         this.take()
         this.parseValue()
+        hasDefault = true
       }
       this.skipDirectives()
-      args.push({ name, type })
+      args.push({ name, type, hasDefault })
     }
     return args
   }

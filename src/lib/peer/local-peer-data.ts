@@ -19,7 +19,7 @@ import { useMainStore } from '@/stores/main'
 
 const PEER_NOTIFICATIONS_GQL = `
   query {
-    notifications {
+    notifications(offset: 0, limit: 200, query: "") {
       ...NotificationFragment
     }
     app {

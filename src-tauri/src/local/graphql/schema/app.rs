@@ -94,8 +94,8 @@ impl AppQuery {
     /// Inert player state — the desktop backend has no audio engine.
     async fn audio_playback(&self) -> AudioPlayback {
         AudioPlayback {
-            mode: "REPEAT".to_string(),
-            current_path: String::new(),
+            mode: crate::local::enums::MediaPlayMode::Repeat,
+            current_path: None,
             is_playing: false,
             position_ms: 0,
         }

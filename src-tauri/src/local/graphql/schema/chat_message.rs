@@ -45,7 +45,8 @@ impl ChatMessageMutation {
     }
 
     /// Retry a failed chat item.
-    async fn retry_chat_item(&self, ctx: &Context<'_>, id: String) -> Option<ChatItem> {
+    async fn retry_chat_item(&self, ctx: &Context<'_>, id: String) -> Result<ChatItem, async_graphql::Error> {
         chat_handler::retry_chat_item(ctx.data_unchecked::<Arc<AppCtx>>(), id)
+            .ok_or_else(|| async_graphql::Error::new("chat item not found"))
     }
 }

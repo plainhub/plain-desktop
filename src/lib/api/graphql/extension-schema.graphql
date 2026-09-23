@@ -28,7 +28,6 @@ enum DataType {
   CONTACT
   SMS
   NOTE
-  BOOK
   FEED_ENTRY
   DOC
 }
@@ -104,11 +103,25 @@ enum PostalType {
   OTHER
 }
 
-enum ContactEventType {
+enum EventType {
   CUSTOM
   ANNIVERSARY
   BIRTHDAY
   OTHER
+}
+
+enum PomodoroState {
+  WORK
+  SHORT_BREAK
+  LONG_BREAK
+}
+
+enum ImageSearchStatusType {
+  UNAVAILABLE
+  DOWNLOADING
+  LOADING
+  READY
+  ERROR
 }
 
 enum WebsiteType {
@@ -178,6 +191,9 @@ enum ScreenMirrorControlAction {
   LOCK_SCREEN
   KEY
   TOUCH
+  TOUCH_DOWN
+  TOUCH_MOVE
+  TOUCH_UP
 }
 
 enum WebSettingsFeature {
@@ -201,7 +217,7 @@ type Sms {
   type: SmsType!
   threadId: String!
   subscriptionId: Int!
-  isMms: Boolean
+  isMms: Boolean!
   attachments: [SmsAttachment!]!
   tags: [Tag!]!
 }
@@ -277,7 +293,7 @@ type ContactWebsite {
 
 type ContactEvent {
   value: String!
-  type: ContactEventType!
+  type: EventType!
   label: String!
 }
 
@@ -289,7 +305,7 @@ type ContactIm {
 
 type ContactSource {
   name: String!
-  type: Int!
+  type: String!
 }
 
 type Call {
@@ -301,11 +317,11 @@ type Call {
   startedAt: String!
   photoId: String!
   type: CallType!
-  geo: CallGeo
+  geo: PhoneGeo
   tags: [Tag!]!
 }
 
-type CallGeo {
+type PhoneGeo {
   country: String!
   numberType: String!
   carrier: String!
@@ -325,7 +341,7 @@ type Note {
   id: ID!
   title: String!
   content: String!
-  deletedAt: String!
+  deletedAt: String
   createdAt: String!
   updatedAt: String!
   tags: [Tag!]!
@@ -395,7 +411,7 @@ type Audio {
   durationMs: Long!
   size: Long!
   bucketId: ID!
-  albumFileId: ID!
+  albumFileId: String!
   createdAt: String!
   updatedAt: String!
   tags: [Tag!]!
@@ -439,12 +455,12 @@ type Package {
   version: String!
   path: String!
   size: Long!
-  certs: [PackageCert!]!
+  certs: [Certificate!]!
   installedAt: String!
   updatedAt: String!
 }
 
-type PackageCert {
+type Certificate {
   issuer: String!
   subject: String!
   serialNumber: String!
@@ -455,7 +471,7 @@ type PackageCert {
 type PackageStatus {
   id: ID!
   exists: Boolean!
-  updatedAt: String!
+  updatedAt: String
 }
 
 type PackageInstallPending {
@@ -481,11 +497,11 @@ type Notification {
 type File {
   path: String!
   isDir: Boolean!
-  createdAt: String!
+  createdAt: String
   updatedAt: String!
   size: Long!
   children: Int!
-  mediaId: ID!
+  mediaId: ID
 }
 
 type StorageDisk {
@@ -538,7 +554,7 @@ type PomodoroToday {
   totalTimeSec: Int!
   isRunning: Boolean!
   isPaused: Boolean!
-  state: String!
+  state: PomodoroState!
 }
 
 type ScreenMirrorQuality {
@@ -549,6 +565,15 @@ type ScreenMirrorQuality {
 type ScreenMirrorVideoCodec {
   annexB: String!
   keyFrame: String
+}
+
+type ImageEditorProjectSummary {
+  id: ID!
+  thumbnail: String
+  canvasWidth: Int!
+  canvasHeight: Int!
+  layerCount: Int!
+  updatedAt: String!
 }
 
 type ImageEditorProject {
@@ -562,8 +587,8 @@ type ImageEditorProject {
 }
 
 type ImageSearchStatus {
-  status: String!
-  downloadProgress: Float!
+  status: ImageSearchStatusType!
+  downloadProgress: Int!
   errorMessage: String!
   modelSize: Long!
   modelDir: String!
@@ -615,7 +640,7 @@ input ContactAddressInput {
 
 input ContactEventInput {
   value: String!
-  type: ContactEventType!
+  type: EventType!
   label: String!
 }
 
@@ -677,7 +702,7 @@ input ScreenMirrorControlInput {
   deltaX: Float
   deltaY: Float
   key: String
-  pathPoints: [TouchPointInput!]!
+  pathPoints: [TouchPointInput!]
   pointerId: Int
   pressure: Float
 }
@@ -751,18 +776,18 @@ type ExtensionQuery {
   screenMirrorState: Boolean!
   screenMirrorControlEnabled: Boolean!
   screenMirrorQuality: ScreenMirrorQuality!
-  screenMirrorVideoCodec: ScreenMirrorVideoCodec!
+  screenMirrorVideoCodec: ScreenMirrorVideoCodec
   pomodoroSettings: PomodoroSettings!
   pomodoroToday: PomodoroToday!
-  imageEditorProjects: [ImageEditorProject!]!
+  imageEditorProjects: [ImageEditorProjectSummary!]!
   imageEditorProject(id: ID!): ImageEditorProject
   sharedInfo(virtualPath: String): SharedInfo!
 }
 
 type ExtensionMutation {
-  sendSms(number: String!, body: String!, subscriptionId: Int, requestId: String): Boolean!
-  sendMms(number: String!, body: String!, attachmentPaths: [String!]!, threadId: String): Boolean!
-  call(number: String!, showDialer: Boolean): Boolean!
+  sendSms(number: String!, body: String!, subscriptionId: Int!, requestId: String): Boolean!
+  sendMms(number: String!, body: String!, attachmentPaths: [String!]!, threadId: ID!): String!
+  call(number: String!, showDialer: Boolean!): Boolean!
   createContact(input: ContactInput!): Contact!
   updateContact(id: ID!, input: ContactInput!): Contact!
   deleteContacts(query: String!): ActionResult!
@@ -777,22 +802,22 @@ type ExtensionMutation {
   deleteNotes(query: String!): ActionResult!
   trashNotes(query: String!): ActionResult!
   restoreNotes(query: String!): ActionResult!
-  exportNotes(query: String!): Boolean!
-  saveFeedEntriesToNotes(query: String!): Boolean!
+  exportNotes(query: String!): String!
+  saveFeedEntriesToNotes(query: String!): [ID!]!
   createFeed(url: String!, fetchContent: Boolean!): Feed!
-  updateFeed(id: ID!, name: String, fetchContent: Boolean): Feed!
+  updateFeed(id: ID!, name: String!, fetchContent: Boolean!): Feed!
   deleteFeed(id: ID!): Boolean!
-  syncFeeds(id: ID!): Boolean!
+  syncFeeds(id: ID): Boolean!
   syncFeedContent(id: ID!): FeedEntry!
   importFeeds(content: String!): Boolean!
-  exportFeeds: Boolean!
+  exportFeeds: String!
   deleteFeedEntries(query: String!): ActionResult!
   createDir(path: String!): File!
   deleteFiles(paths: [String!]!): ActionResult!
   renameFile(path: String!, name: String!): Boolean!
-  copyFile(src: String!, dst: String!, overwrite: Boolean): Boolean!
-  moveFile(src: String!, dst: String!, overwrite: Boolean): Boolean!
-  writeTextFile(path: String!, content: String!, overwrite: Boolean): File!
+  copyFile(src: String!, dst: String!, overwrite: Boolean!): Boolean!
+  moveFile(src: String!, dst: String!, overwrite: Boolean!): Boolean!
+  writeTextFile(path: String!, content: String!, overwrite: Boolean!): File!
   createTag(type: DataType!, name: String!): Tag!
   updateTag(id: ID!, name: String!): Tag!
   deleteTag(id: ID!): Boolean!
@@ -812,11 +837,11 @@ type ExtensionMutation {
   setClipboard(text: String!): Boolean!
   deleteClipboard(ids: [ID!]!): ActionResult!
   deleteNotifications(ids: [ID!]!): ActionResult!
-  replyNotification(id: ID!, actionIndex: Int!, text: String): Boolean!
+  replyNotification(id: ID!, actionIndex: Int!, text: String!): Boolean!
   installPackage(path: String!): PackageInstallPending!
   uninstallPackages(ids: [ID!]!): Boolean!
   openAccessibilitySettings: Boolean!
-  openWebSettings(feature: WebSettingsFeature!): Boolean!
+  openWebSettings(feature: WebSettingsFeature): Boolean!
   relaunchApp: Boolean!
   setTempValue(key: String!, value: String!): KeyValuePair!
   startScreenMirror(audio: Boolean!): Boolean!
@@ -825,7 +850,7 @@ type ExtensionMutation {
   sendScreenMirrorControl(input: ScreenMirrorControlInput!): Boolean!
   requestScreenMirrorAudio: Boolean!
   requestScreenMirrorKeyFrame: Boolean!
-  startPomodoro(timeLeftSec: Int): Boolean!
+  startPomodoro(timeLeftSec: Int!): Boolean!
   pausePomodoro: Boolean!
   stopPomodoro: Boolean!
   startImageIndex(force: Boolean): Boolean!
@@ -843,7 +868,7 @@ type ExtensionMutation {
   formatDisk(path: String!): Boolean!
   setSambaSettings(input: SambaSettingsInput!): Boolean!
   setSambaUserPassword(password: String!): Boolean!
-  addFavoriteFolder(rootPath: String!, fullPath: String!): FavoriteFolder!
-  removeFavoriteFolder(fullPath: String!): FavoriteFolder!
-  setFavoriteFolderAlias(fullPath: String!, alias: String!): FavoriteFolder!
+  addFavoriteFolder(rootPath: String!, fullPath: String!): [FavoriteFolder!]!
+  removeFavoriteFolder(fullPath: String!): [FavoriteFolder!]!
+  setFavoriteFolderAlias(fullPath: String!, alias: String!): [FavoriteFolder!]!
 }

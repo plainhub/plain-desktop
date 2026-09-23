@@ -95,12 +95,12 @@ impl DbQuery {
         })
     }
 
-    async fn db_table_info(&self, ctx: &Context<'_>, table: String) -> Option<DbTableInfo> {
+    async fn db_table_info(&self, ctx: &Context<'_>, table: String) -> Result<DbTableInfo, async_graphql::Error> {
         if !is_safe_identifier(&table) {
-            return None;
+            return Err(async_graphql::Error::new("invalid table name"));
         }
         let c = ctx.data_unchecked::<Arc<AppCtx>>();
-        Some(DbTableInfo {
+        Ok(DbTableInfo {
             id_key: c.db.primary_key_column(&table),
         })
     }

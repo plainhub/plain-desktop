@@ -1,0 +1,1589 @@
+"""
+Bulk-operation outcome (plain-app contract): how many entities the
+mutation actually affected.
+"""
+type ActionResult {
+	affectedCount: Int!
+}
+
+type AndroidExtras {
+	sdkVersion: Int!
+	versionCodeName: String!
+	securityPatch: String!
+	bootloader: String!
+	fingerprint: String!
+	hardware: String!
+	radioVersion: String!
+	board: String!
+	buildBrand: String!
+	buildNumber: String!
+	device: String!
+	javaVmVersion: String!
+	glEsVersion: String!
+	buildTime: Instant!
+}
+
+type App {
+	"""
+	Stable per-server identifier (auth peer identity for web clients).
+	"""
+	clientId: String!
+	urlToken: String!
+	httpPort: Int!
+	httpsPort: Int!
+	"""
+	The server's app dir — for a NAS this is the data dir holding the
+	fjall store, `prefs.json` and the on-disk log.
+	"""
+	appDir: String!
+	deviceName: String!
+	deviceType: DeviceType!
+	"""
+	Optional capabilities this server declares; clients gate UI on
+	these instead of sniffing OS versions (plain-app `Capability`).
+	"""
+	capabilities: [Capability!]!
+	"""
+	Distribution channel of this build (GitHub) — renamed from
+	`channel` to avoid colliding with chat channels (2026-09-23).
+	"""
+	buildChannel: AppChannelType!
+	"""
+	Permissions the web client's permission-gated UI keys on (plain-app
+	contract). A NAS always has full access to its own storage, so it
+	declares `WRITE_EXTERNAL_STORAGE` (what the media/files pages gate
+	on); phone-only permissions have no NAS data source and stay
+	unreported.
+	"""
+	permissions: [Permission!]!
+	downloadsDir: String!
+	developerMode: Boolean!
+	debug: Boolean!
+}
+
+"""
+Distribution channel of the server build (plain-app contract); the NAS
+ships from GitHub releases.
+"""
+enum AppChannelType {
+	GITHUB
+	GOOGLE
+	FDROID
+}
+
+type AppUpdate {
+	currentVersion: String!
+	latestVersion: String
+	hasUpdate: Boolean!
+	url: String
+}
+
+type Audio {
+	id: ID!
+	title: String!
+	artist: String!
+	path: String!
+	durationMs: Long!
+	size: Long!
+	bucketId: ID!
+	albumFileId: String!
+	createdAt: Instant!
+	updatedAt: Instant!
+	"""
+	plain-app serves the per-track favorite flag; the NAS has no
+	per-media favorites (folders only), so this is always false.
+	"""
+	isFavorite: Boolean!
+	"""
+	Tags resolve lazily — only when the selection asks for the field,
+	mirroring plain-app's DataLoader `dataProperty`.
+	"""
+	tags: [Tag!]!
+}
+
+type AudioFileInfo {
+	durationMs: Long!
+	location: Location
+}
+
+type AudioItem {
+	title: String!
+	artist: String!
+	path: String!
+	durationMs: Long!
+}
+
+"""
+Recently played track (plain-app `AudioPlayHistory`).
+"""
+type AudioPlayHistory {
+	path: String!
+	title: String!
+	artist: String!
+	durationMs: Long!
+	playCount: Long!
+	playedAt: Instant!
+}
+
+"""
+Audio player state (plain-app `AudioPlayback`) — play mode preference
+plus the current queue track. `currentPath` is null when idle. The NAS
+server is the queue state machine; audio renders on the client, so
+there is no server-side transport to report — `isPlaying`/`positionMs`
+serve idle values (API_SPEC §9, unimplementable semantics = empty).
+"""
+type AudioPlayback {
+	currentPath: String
+	mode: MediaPlayMode!
+	isPlaying: Boolean!
+	positionMs: Long!
+}
+
+"""
+A user playlist (plain-app `AudioPlaylist`); `itemCount` is live.
+"""
+type AudioPlaylist {
+	id: ID!
+	name: String!
+	itemCount: Int!
+	createdAt: Instant!
+	updatedAt: Instant!
+}
+
+type AuditEvent {
+	id: ID!
+	type: AuditEventType!
+	message: String!
+	clientId: String!
+	createdAt: Instant!
+}
+
+"""
+Audit-log event kinds served by the `auditEvents` query. The KV event
+log stores snake_case kind strings; this enum is the GraphQL surface.
+Rows with an unknown kind (written by an older build) are skipped by
+the resolver — stale derived data is never migrated (2026-09-21 rule).
+"""
+enum AuditEventType {
+	LOGIN
+	LOGIN_FAILED
+	LOGOUT
+	REVOKE
+	"""
+	OS hostname change (`setHostname`).
+	"""
+	SET_HOSTNAME
+	"""
+	Display-name preference change (`updateDeviceName`).
+	"""
+	UPDATE_DEVICE_NAME
+	MOUNT
+	MOUNT_FAILED
+	UNMOUNT
+	FORMAT_DISK
+	FORMAT_DISK_FAILED
+}
+
+"""
+Bookmark link. Mirrors the plain-app `Bookmark` model; `lastClickedAt`
+is null until the first click is recorded.
+"""
+type Bookmark {
+	id: ID!
+	url: String!
+	title: String!
+	faviconPath: String!
+	groupId: ID!
+	pinned: Boolean!
+	clickCount: Int!
+	lastClickedAt: Instant
+	sortOrder: Int!
+	createdAt: Instant!
+	updatedAt: Instant!
+}
+
+"""
+A bookmark group; `itemCount` is the live count of bookmarks in the
+group (0 when none).
+"""
+type BookmarkGroup {
+	id: ID!
+	name: String!
+	collapsed: Boolean!
+	sortOrder: Int!
+	itemCount: Int!
+	createdAt: Instant!
+	updatedAt: Instant!
+}
+
+input BookmarkInput {
+	url: String!
+	title: String!
+	groupId: ID!
+	pinned: Boolean!
+	sortOrder: Int!
+}
+
+"""
+Optional capabilities this server declares about itself (plain-app
+`Capability` plus NAS extensions). MEDIA_TRASH is always declared:
+a NAS implements media trash at the filesystem level (`.nas-trash`
+tree). MEDIA_SCAN is always declared too — the scan/index engine
+(start/pause/resume/stop + rebuild) is built in. DOC_PREVIEW is
+declared when a LibreOffice binary is on PATH. LAN_SHARE is declared
+when a samba systemd unit is loaded (`smbd`/`samba`/`smb`). DISK_MANAGER
+is declared when `lsblk` is on PATH — the disk manager lists and
+formats block devices through it.
+"""
+enum Capability {
+	MEDIA_TRASH
+	MIRROR_AUDIO
+	DOC_PREVIEW
+	IMAGE_SEARCH
+	MEDIA_SCAN
+	SMS
+	CALLS
+	CALL_PHONE
+	CONTACTS
+	PACKAGES
+	NOTES
+	FEEDS
+	SCREEN_MIRROR
+	IMAGE_EDITOR
+	LAN_SHARE
+	DISK_MANAGER
+}
+
+enum ChannelMemberStatus {
+	JOINED
+	PENDING
+}
+
+type ChatChannel {
+	id: ID!
+	name: String!
+	owner: ID!
+	members: [ChatChannelMember!]!
+	version: Long!
+	status: ChatChannelStatus!
+	createdAt: Instant!
+	updatedAt: Instant!
+}
+
+type ChatChannelMember {
+	id: ID!
+	status: ChannelMemberStatus!
+}
+
+enum ChatChannelStatus {
+	JOINED
+	LEFT
+	KICKED
+}
+
+"""
+Shared files payload. fileId list stays String (not the ID scalar) — matches plain-app.
+"""
+type ChatFiles {
+	ids: [String!]!
+}
+
+"""
+Shared images payload. fileId list stays String (not the ID scalar) — matches plain-app.
+"""
+type ChatImages {
+	ids: [String!]!
+}
+
+type ChatItem {
+	id: ID!
+	fromId: ID!
+	toId: ID!
+	"""
+	Null for direct (peer-to-peer) messages — plain-app parity.
+	"""
+	channelId: ID
+	content: String!
+	createdAt: Instant!
+	updatedAt: Instant!
+	status: ChatStatus!
+	statusData: String!
+	data: ChatItemContent
+}
+
+union ChatItemContent = ChatFiles | ChatImages | ChatText
+
+enum ChatStatus {
+	SENT
+	PARTIAL
+	FAILED
+	PENDING
+}
+
+type ChatText {
+	linkPreviewImageIds: [String!]!
+}
+
+enum DataType {
+	DEFAULT
+	AUDIO
+	VIDEO
+	IMAGE
+	SMS
+	CONTACT
+	NOTE
+	FEED_ENTRY
+	CALL
+	PACKAGE
+	FILE
+	APP_FILE
+	DOC
+}
+
+"""
+`dbTableInfo` item (plain-app `DbTableInfo`).
+"""
+type DbTableInfo {
+	"""
+	Row identity field; every NAS table identifies rows by `key`.
+	"""
+	idKey: String!
+}
+
+type DeviceInfo {
+	"""
+	Device display name (stored override, falling back to hostname —
+	same precedence as `App.deviceName`).
+	"""
+	name: String!
+	platform: DevicePlatform!
+	manufacturer: String!
+	model: String!
+	osName: String!
+	osVersion: String!
+	kernelVersion: String!
+	appVersion: String!
+	appBuildNumber: String!
+	language: String!
+	cpuArch: String!
+	"""
+	Null when the platform does not expose a CPU model string.
+	"""
+	cpuModel: String
+	totalMemory: Long!
+	totalStorage: Long!
+	display: DisplayInfo
+	"""
+	Only set by phone targets; a NAS reports null.
+	"""
+	android: AndroidExtras
+}
+
+enum DevicePlatform {
+	ANDROID
+	IOS
+	MACOS
+	WINDOWS
+	LINUX
+}
+
+"""
+`deviceStatus` query item (plain-app `DeviceStatus`) — dynamic runtime
+state, polled separately from the static `DeviceInfo`.
+"""
+type DeviceStatus {
+	uptimeSec: Long!
+	"""
+	0-100; null when the device has no battery or the level is unknown.
+	"""
+	batteryLevel: Int
+	"""
+	True only while actively charging; a NAS has no battery — false.
+	"""
+	charging: Boolean!
+	"""
+	Empty when the platform exposes no temperature sources.
+	"""
+	temperatures: [Temperature!]!
+	"""
+	0-100 percent, diffed from two /proc/stat samples.
+	"""
+	cpuUsage: Float!
+	memoryAvailable: Long
+	"""
+	Available bytes on the root (primary data) volume.
+	"""
+	storageAvailable: Long!
+}
+
+"""
+Device form factor (plain-app contract); a NAS reports NAS.
+"""
+enum DeviceType {
+	COMPUTER
+	PHONE
+	TABLET
+	TV
+	NAS
+	OTHER
+}
+
+"""
+Screen geometry. `density` is the scale factor, e.g. 2.625
+(1.0 = mdpi) — Float on the phone contract.
+"""
+type DisplayInfo {
+	width: Int!
+	height: Int!
+	density: Float!
+}
+
+type DlnaRenderer {
+	udn: String!
+	name: String!
+	manufacturer: String
+	modelName: String
+	location: String!
+}
+
+type Doc {
+	id: ID!
+	title: String!
+	path: String!
+	"""
+	Lowercased filename extension (plain-app `getFilenameExtension`).
+	"""
+	extension: String!
+	size: Long!
+	bucketId: ID!
+	createdAt: Instant!
+	updatedAt: Instant!
+	tags: [Tag!]!
+}
+
+"""
+One extension group of the docs sidebar (plain-app `DocExtGroup`).
+"""
+type DocExtGroup {
+	ext: String!
+	count: Int!
+}
+
+"""
+Storage bus kind of a mount (plain-app contract). `/proc/mounts` does not
+distinguish them, so NAS mounts default to INTERNAL_STORAGE.
+"""
+enum DriveType {
+	INTERNAL_STORAGE
+	SDCARD
+	USB_STORAGE
+	APP
+}
+
+type FavoriteFolder {
+	rootPath: String!
+	relativePath: String!
+	"""
+	Joined `rootPath/relativePath`, as the web client reads it.
+	"""
+	fullPath: String!
+	alias: String
+}
+
+type File {
+	name: String!
+	path: String!
+	createdAt: Instant
+	updatedAt: Instant!
+	size: Long!
+	isDir: Boolean!
+	"""
+	Direct-children count for dirs, 0 for files (plain-app contract
+	name; the legacy Go-dialect `childCount` alias was dropped).
+	"""
+	children: Int!
+	"""
+	Android MediaStore id elsewhere; a NAS has no media store so null.
+	"""
+	mediaId: ID
+}
+
+type FileInfo {
+	path: String!
+	updatedAt: Instant!
+	size: Long!
+	data: MediaFileInfo
+}
+
+enum FileSortBy {
+	DATE_ASC
+	DATE_DESC
+	SIZE_ASC
+	SIZE_DESC
+	NAME_ASC
+	NAME_DESC
+	TAKEN_AT_DESC
+}
+
+type FileTask {
+	id: ID!
+	type: FileTaskType!
+	title: String!
+	status: FileTaskStatus!
+	error: String!
+	totalBytes: Long!
+	doneBytes: Long!
+	totalItems: Int!
+	doneItems: Int!
+	createdAt: Instant!
+	updatedAt: Instant!
+}
+
+input FileTaskOpInput {
+	src: String!
+	dst: String!
+	overwrite: Boolean!
+}
+
+enum FileTaskStatus {
+	QUEUED
+	RUNNING
+	DONE
+	ERROR
+}
+
+enum FileTaskType {
+	COPY
+	MOVE
+}
+
+type Image {
+	id: ID!
+	title: String!
+	path: String!
+	size: Long!
+	bucketId: ID!
+	"""
+	Capture time; no EXIF extraction yet, so it mirrors the file mtime.
+	"""
+	takenAt: Instant
+	createdAt: Instant!
+	updatedAt: Instant!
+	"""
+	No per-media favorites on NAS — always false (plain-app parity).
+	"""
+	isFavorite: Boolean!
+	tags: [Tag!]!
+}
+
+type ImageFileInfo {
+	width: Int!
+	height: Int!
+	location: Location
+}
+
+"""
+AI image-search capability status. The NAS has no CLIP model runtime, so
+this always reports `UNAVAILABLE`; the field exists so clients probing the
+phone-style AI search surface get a well-formed answer instead of a
+GraphQL error.
+"""
+type ImageSearchStatus {
+	status: ImageSearchStatusType!
+	downloadProgress: Int!
+	errorMessage: String!
+	modelSize: Long!
+	modelDir: String!
+	isIndexing: Boolean!
+	totalImages: Int!
+	indexedImages: Int!
+}
+
+enum ImageSearchStatusType {
+	UNAVAILABLE
+	DOWNLOADING
+	LOADING
+	READY
+	ERROR
+}
+
+scalar Instant
+
+"""
+`dataStoreEntries` item (plain-app `KeyValuePair`).
+"""
+type KeyValuePair {
+	key: String!
+	value: String!
+}
+
+"""
+Geographic coordinates (plain-app `Location`); both components non-null.
+"""
+type Location {
+	latitude: Float!
+	longitude: Float!
+}
+
+scalar Long
+
+type MediaBucket {
+	id: ID!
+	name: String!
+	itemCount: Int!
+	topItemPaths: [String!]!
+}
+
+"""
+Media-library item kinds accepted by media item actions and buckets
+(plain-app `MediaDataType`).
+"""
+enum MediaDataType {
+	AUDIO
+	VIDEO
+	IMAGE
+	DOC
+}
+
+union MediaFileInfo = AudioFileInfo | ImageFileInfo | VideoFileInfo
+
+enum MediaPlayMode {
+	REPEAT
+	REPEAT_ONE
+	SHUFFLE
+}
+
+"""
+Chunked-upload merge job state; the completion signal is the
+upload_merge_result WS event, `mergeStatus` is the polling fallback.
+"""
+type MergeTask {
+	status: MergeTaskStatus!
+	"""
+	Merged file name token ("name:size" split) when DONE.
+	"""
+	value: String
+	mergedSize: Long
+	error: String
+}
+
+enum MergeTaskStatus {
+	NONE
+	STARTED
+	MERGING
+	DONE
+	FAILED
+}
+
+type MutationRoot {
+	"""
+	Set the OS hostname. Mirrors Go `setDeviceNameModel`:
+	`hostnamectl set-hostname` + `systemctl restart avahi-daemon`.
+	(Named `setHostname` to disambiguate it from the plain-app
+	`updateDeviceName`, which only changes the display-name preference.)
+	"""
+	setHostname(name: String!): Boolean!
+	"""
+	Update the device display name. Mirrors plain-app `updateDeviceName`:
+	stores a display-name preference served back via `App.deviceName` —
+	the OS hostname is left alone (that is `setHostname`, which needs
+	root). An empty name clears the override, falling back to the hostname.
+	"""
+	updateDeviceName(name: String!): Boolean!
+	"""
+	Truncate the current log file (plain-app `clearAppLogs`).
+	"""
+	clearAppLogs: Boolean!
+	"""
+	Delete one preference entry (plain-app `deleteDataStoreEntry` /
+	plain-desktop `deleteDataStoreEntry` — removes the key when present).
+	"""
+	deleteDataStoreEntry(key: String!): Boolean!
+	"""
+	Delete table rows by full key (plain-app `deleteDbTableRows`).
+	Rows of a NAS table are KV entries; `ids` are full keys and must
+	belong to `table`.
+	"""
+	deleteDbTableRows(table: String!, ids: [String!]!): Boolean!
+	"""
+	Logout the current session. Mirrors Go `logout` which calls
+	`db.RevokeSession(clientID)` and writes a `logout` audit event.
+	"""
+	logout: Boolean!
+	"""
+	Revoke a session by client id. Mirrors Go `revokeSession`.
+	"""
+	revokeSession(clientId: String!): Boolean!
+	"""
+	Create a directory. Mirrors Go `createDirModel` which returns the
+	freshly created `*model.File`. The path is sandboxed via
+	`fsx::safe_join` against the configured base directory.
+	"""
+	createDir(path: String!): File!
+	"""
+	Write a text file. Mirrors Go `writeTextFileModel` (2 MiB cap,
+	overwrite-or-error on existing). Returns the resulting `File!`.
+	"""
+	writeTextFile(path: String!, content: String!, overwrite: Boolean!): File!
+	"""
+	Rename a file or directory in place: `path` is the current full path, `name` the new base name. Errors (missing target, name clash) surface as GraphQL errors.
+	"""
+	renameFile(path: String!, name: String!): Boolean!
+	"""
+	Synchronous single-file copy (path-addressed). `overwrite: false` fails when `dst` exists; for batches or large trees use `createCopyTask`.
+	"""
+	copyFile(src: String!, dst: String!, overwrite: Boolean!): Boolean!
+	"""
+	Synchronous single-file move (path-addressed). `overwrite: false` fails when `dst` exists; for batches or large trees use `createMoveTask`.
+	"""
+	moveFile(src: String!, dst: String!, overwrite: Boolean!): Boolean!
+	"""
+	Delete files by path (phone contract): returns how many were
+	actually removed — per-path best-effort, hard failures are logged
+	and skipped instead of failing the whole batch.
+	"""
+	deleteFiles(paths: [String!]!): ActionResult!
+	"""
+	Move each path to its disk-local `.nas-trash`. Batch destructive
+	op → `ActionResult` per API_SPEC §6 (`affectedCount` = how many
+	paths were actually trashed).
+	"""
+	trashFiles(paths: [String!]!): ActionResult!
+	"""
+	Restore one or more trashed entries by physical trash path or id.
+	Batch restore → `ActionResult` per API_SPEC §6.
+	"""
+	restoreFiles(paths: [String!]!): ActionResult!
+	"""
+	Permanently delete one trashed entry. Path may be a physical trash
+	path or a trash id. Single idempotent delete → `Boolean!` (§6).
+	"""
+	deleteTrashItem(path: String!): Boolean!
+	"""
+	Create a tag for the given data type and return it. Only the media types (AUDIO/VIDEO/IMAGE/DOC) have NAS data; other `DataType` values create an unused tag (phone-parity signature).
+	"""
+	createTag(type: DataType!, name: String!): Tag!
+	"""
+	Rename a tag and return the updated entity.
+	"""
+	updateTag(id: ID!, name: String!): Tag!
+	"""
+	Delete a tag together with its relations. Single idempotent delete → `Boolean!` (§6).
+	"""
+	deleteTag(id: ID!): Boolean!
+	"""
+	Add a media key to multiple tags. Mirrors plain-app `addToTags`: the
+	`query` is the shared search DSL (`ids:a,b,c` for checkbox selections,
+	otherwise the page query) which is resolved to the matching media ids
+	— one relation per id, keyed by the id (the GraphQL media `id`).
+	"""
+	addToTags(type: DataType!, tagIds: [ID!]!, query: String!): Boolean!
+	"""
+	Per-item tag relation edit. Adds and/or removes tag associations.
+	"""
+	updateTagRelations(type: DataType!, item: TagRelationStub!, addTagIds: [ID!]!, removeTagIds: [ID!]!): Boolean!
+	"""
+	Remove the media keys matching `query` from the given tags — the inverse of `addToTags`. Membership op → `Boolean!` (§6).
+	"""
+	removeFromTags(type: DataType!, tagIds: [ID!]!, query: String!): Boolean!
+	"""
+	Enqueue a copy task. Returns the FileTask immediately with status=QUEUED;
+	the worker continues in the background and emits progress via the WS
+	event `file:task:progress`.
+	"""
+	createCopyTask(ops: [FileTaskOpInput!]!): FileTask!
+	"""
+	Enqueue a move task. Returns the FileTask immediately with status=QUEUED; progress arrives via the WS event `file:task:progress`.
+	"""
+	createMoveTask(ops: [FileTaskOpInput!]!): FileTask!
+	"""
+	Register a favorite folder and return the whole list (plain-app contract shape).
+	"""
+	addFavoriteFolder(rootPath: String!, fullPath: String!): [FavoriteFolder!]!
+	"""
+	Remove the favorite folder identified by `fullPath` and return the whole list.
+	"""
+	removeFavoriteFolder(fullPath: String!): [FavoriteFolder!]!
+	"""
+	Set the favorite folder's display alias and return the whole list.
+	"""
+	setFavoriteFolderAlias(fullPath: String!, alias: String!): [FavoriteFolder!]!
+	"""
+	Add up to 1000 tracks matching `query` to the manual queue.
+	"""
+	addAudiosToQueue(query: String!): Boolean!
+	"""
+	Drag & drop reorder of the manual queue; unknown paths keep their
+	order at the end.
+	"""
+	reorderAudioQueue(paths: [String!]!): Boolean!
+	"""
+	Play the given track: mark it current, enqueue it in the manual
+	queue when missing, and record the play (on the phone the native
+	player records when playback actually starts; the NAS server is the
+	playback state machine, so it records here).
+	"""
+	playAudio(path: String!): AudioItem!
+	"""
+	Persist the playback mode preference (REPEAT/REPEAT_ONE/SHUFFLE).
+	"""
+	updateAudioPlayMode(mode: MediaPlayMode!): Boolean!
+	"""
+	Reset the source, the manual queue and the current track.
+	"""
+	clearAudioQueue: Boolean!
+	"""
+	Remove a track from the manual queue.
+	"""
+	removeAudioFromQueue(path: String!): Boolean!
+	"""
+	Create an empty user playlist and return it.
+	"""
+	createAudioPlaylist(name: String!): AudioPlaylist!
+	"""
+	Renaming a missing playlist is a silent no-op (phone parity).
+	"""
+	renameAudioPlaylist(id: ID!, name: String!): Boolean!
+	"""
+	Delete a playlist; its items go with it. Single idempotent delete → `Boolean!` (§6).
+	"""
+	deleteAudioPlaylist(id: ID!): Boolean!
+	"""
+	Add tracks (by path) to a playlist; duplicates are ignored.
+	"""
+	addAudioPlaylistItems(id: ID!, paths: [String!]!): Boolean!
+	"""
+	Remove one track (by path) from a playlist.
+	"""
+	removeAudioPlaylistItem(id: ID!, path: String!): Boolean!
+	"""
+	Play a user playlist: make it the playback source and resolve the
+	track to start with (random one when shuffling).
+	"""
+	playAudioPlaylist(id: ID!, path: String, shuffle: Boolean!): AudioItem
+	"""
+	Queue the whole audio library and start playback (first track, or
+	shuffled order when `shuffle` is set). Returns the item that starts
+	playing, null when the library is empty.
+	"""
+	playAllAudios(shuffle: Boolean!): AudioItem
+	"""
+	Create one bookmark per URL in the given group (blank URLs are skipped) and return the created entities.
+	"""
+	addBookmarks(urls: [String!]!, groupId: ID!): [Bookmark!]!
+	"""
+	Update a bookmark's url/title/group/pin/order and return the updated entity.
+	"""
+	updateBookmark(id: ID!, input: BookmarkInput!): Bookmark!
+	"""
+	Delete the given bookmarks; `affectedCount` = how many were removed (§6).
+	"""
+	deleteBookmarks(ids: [ID!]!): ActionResult!
+	"""
+	Record a click: bumps `clickCount` and sets `lastClickedAt`.
+	"""
+	recordBookmarkClick(id: ID!): Boolean!
+	"""
+	Create a bookmark group and return it.
+	"""
+	createBookmarkGroup(name: String!): BookmarkGroup!
+	"""
+	Update a bookmark group's name/collapsed/sortOrder and return the updated entity.
+	"""
+	updateBookmarkGroup(id: ID!, name: String!, collapsed: Boolean!, sortOrder: Int!): BookmarkGroup!
+	"""
+	Delete a bookmark group; its bookmarks are kept and become ungrouped (`groupId` cleared).
+	"""
+	deleteBookmarkGroup(id: ID!): Boolean!
+	"""
+	Chat backend is not wired on the NAS yet — always fails with `chat_is_not_available_on_nas` (plain-app signature parity).
+	"""
+	createChatChannel(name: String!): ChatChannel!
+	"""
+	Chat backend is not wired on the NAS yet — always fails with `chat_is_not_available_on_nas` (plain-app signature parity).
+	"""
+	updateChatChannel(id: ID!, name: String!): ChatChannel!
+	"""
+	Chat backend is not wired on the NAS yet — always fails with `chat_is_not_available_on_nas` (plain-app signature parity).
+	"""
+	deleteChatChannel(id: ID!): Boolean!
+	"""
+	Chat backend is not wired on the NAS yet — always fails with `chat_is_not_available_on_nas` (plain-app signature parity).
+	"""
+	leaveChatChannel(id: ID!): Boolean!
+	"""
+	Chat backend is not wired on the NAS yet — always fails with `chat_is_not_available_on_nas` (plain-app signature parity).
+	"""
+	addChatChannelMember(id: ID!, peerId: ID!): ChatChannel!
+	"""
+	Chat backend is not wired on the NAS yet — always fails with `chat_is_not_available_on_nas` (plain-app signature parity).
+	"""
+	removeChatChannelMember(id: ID!, peerId: ID!): ChatChannel!
+	"""
+	Chat backend is not wired on the NAS yet — always fails with `chat_is_not_available_on_nas` (plain-app signature parity).
+	"""
+	acceptChatChannelInvite(id: ID!): Boolean!
+	"""
+	Chat backend is not wired on the NAS yet — always fails with `chat_is_not_available_on_nas` (plain-app signature parity).
+	"""
+	declineChatChannelInvite(id: ID!): Boolean!
+	"""
+	Chat backend is not wired on the NAS yet — always fails with `chat_is_not_available_on_nas` (plain-app signature parity).
+	"""
+	sendChatItem(target: String!, content: String!): [ChatItem!]!
+	"""
+	Chat backend is not wired on the NAS yet — always fails with `chat_is_not_available_on_nas` (plain-app signature parity). The §5 blank-query exemption applies to this domain: empty selection = no-op, never an error.
+	"""
+	deleteChatItem(id: ID!): Boolean!
+	"""
+	Chat backend is not wired on the NAS yet — always fails with `chat_is_not_available_on_nas` (plain-app signature parity). The §5 blank-query exemption applies to this domain: empty selection = no-op, never an error.
+	"""
+	deleteChatItems(query: String!): ActionResult!
+	"""
+	Chat backend is not wired on the NAS yet — always fails with `chat_is_not_available_on_nas` (plain-app signature parity).
+	"""
+	retryChatItem(id: ID!): ChatItem!
+	"""
+	Start a background merge (plain-app contract): the mutation returns
+	immediately with STARTED (or DONE/MERGING for idempotent re-calls);
+	completion is observable via `mergeStatus` polling.
+	"""
+	mergeChunks(fileId: String!, totalChunks: Int!, path: String!, replace: Boolean!, totalSize: Long!): MergeTask!
+	"""
+	Start a media scan rooted at `root`. Mirrors Go `StartMediaScan`
+	which fires `go media.ScanAndSync(root)` and returns immediately.
+	Unlike the previous Rust port, we do NOT try to resume a paused
+	scan here — Go's StartMediaScan always starts a fresh scan. If
+	the user wants to resume, they call `resumeMediaScan`.
+	"""
+	startMediaScan(root: String!): Boolean!
+	"""
+	Pause the running media scan; publishes a progress event immediately so the UI flips to `PAUSED` without waiting for the next ticker tick.
+	"""
+	pauseMediaScan: Boolean!
+	"""
+	Resume a paused media scan; publishes a progress event immediately.
+	"""
+	resumeMediaScan: Boolean!
+	"""
+	Stop the media scan and publish a final `STOPPED` progress event (without `root`). A later `startMediaScan` begins a fresh scan.
+	"""
+	stopMediaScan: Boolean!
+	"""
+	Rebuild the media index from scratch. Mirrors Go `rebuildMediaIndex`
+	in `internal/graph/media_scan_api.go`:
+	
+	1. `media.StopScan()` — set the stop flag so the running scan loop
+	exits at its next yield.
+	2. `media.ResetAllMediaData()` — wipe every media index row.
+	3. `media.ResumeScan()` — clear the stop flag.
+	4. Synchronously publish the initial `{state:"running", root:...}`
+	event so the UI can show the spinner **before** we go off-thread
+	to do the heavy reset + walk. (Go does this in the same call
+	stack as the GraphQL resolver; the WS hub handler then receives
+	the event via the in-process eventbus.)
+	5. `go media.ScanAndSync(root)` — fire the actual walk+index on a
+	background tokio task. The resolver returns `true` immediately.
+	
+	The reset and the walk are moved off the API thread so a large
+	library does not block other GraphQL calls; this is a deliberate
+	divergence from the Go side, where `ResetAllMediaData` runs on the
+	resolver goroutine. Functionally equivalent.
+	"""
+	rebuildMediaIndex(root: String!): Boolean!
+	"""
+	Wipe the whole disk at `path` and create a single GPT + ext4 partition (label `plainnas`): unmounts first (automount inhibited for the duration), then `wipefs`/`sfdisk`/`mkfs.ext4`, then re-coordinates the automount slot. Synchronous — returns after formatting finished; failures raise and are audited (`FORMAT_DISK_FAILED`).
+	"""
+	formatDisk(path: String!): Boolean!
+	"""
+	Persist a user-defined alias for a storage volume. Mirrors Go
+	`SetMountAlias` (which delegates to `db.SetVolumeAlias`).
+	"""
+	setMountAlias(id: ID!, alias: String!): Boolean!
+	"""
+	Persist the list of source directories the media scanner should
+	index. Mirrors Go `setMediaSourceDirsModel`.
+	"""
+	setMediaSourceDirs(dirs: [String!]!): Boolean!
+	"""
+	Persist a short-lived key/value pair for transient UI state —
+	plain-app `setTempValue` (its `TempHelper` is in-memory; ours is
+	too, consumed by `/zip?tmp=<key>`).
+	"""
+	setTempValue(key: String!, value: String!): KeyValuePair!
+	"""
+	Mirrors Go `setSambaSettings`: validate against the previous
+	settings (password shares require a provisioned password), persist,
+	then apply to the system (smb.conf + service).
+	"""
+	setSambaSettings(input: SambaSettingsInput!): Boolean!
+	"""
+	Mirrors Go `setSambaUserPassword`: provision the samba password,
+	persist `hasPassword`, and re-apply when samba is enabled.
+	"""
+	setSambaUserPassword(password: String!): Boolean!
+	"""
+	Move the media items matching `query` into their disks' `.nas-trash`; `affectedCount` = items trashed. Blank query is rejected (`bulk_query_required`, §5).
+	"""
+	trashMediaItems(type: MediaDataType!, query: String!): ActionResult!
+	"""
+	Restore trashed media items matching `query` (implies `trash:true`); `affectedCount` = items restored. Blank query is rejected (`bulk_query_required`, §5).
+	"""
+	restoreMediaItems(type: MediaDataType!, query: String!): ActionResult!
+	"""
+	Permanently delete media items matching `query` (physical delete + index row removal); `affectedCount` = items deleted. Blank query is rejected (`bulk_query_required`, §5).
+	"""
+	deleteMediaItems(type: MediaDataType!, query: String!): ActionResult!
+	"""
+	Move the selected media files into `destDir` (plain-app
+	`moveMediaItems`): filesystem move + index/db rewrite of the new path.
+	"""
+	moveMediaItems(type: MediaDataType!, query: String!, destDir: String!): ActionResult!
+	"""
+	Push `url` to the DLNA renderer with the given UDN (SOAP AVTransport, 3s timeout). `type` selects the DIDL media class; DOC is rejected.
+	"""
+	dlnaCast(rendererUdn: String!, url: String!, title: String!, mime: String!, type: MediaDataType!): Boolean!
+}
+
+"""
+Kind of a filesystem path. `pathKind` serves null when the path does
+not exist, so the enum itself is a closed FILE/DIR set.
+"""
+enum PathKind {
+	FILE
+	DIR
+}
+
+"""
+Android runtime permissions that gate web API access (plain-app
+contract, full member list). `App.permissions` lists the ones currently
+enabled AND granted; a NAS always declares WRITE_EXTERNAL_STORAGE —
+its own storage is always accessible.
+"""
+enum Permission {
+	WRITE_EXTERNAL_STORAGE
+	READ_SMS
+	SEND_SMS
+	READ_CONTACTS
+	WRITE_CONTACTS
+	READ_CALL_LOG
+	WRITE_CALL_LOG
+	CALL_PHONE
+	POST_NOTIFICATIONS
+	NEARBY_WIFI_DEVICES
+	ACCESS_FINE_LOCATION
+	CAMERA
+	SYSTEM_ALERT_WINDOW
+	RECORD_AUDIO
+	READ_MEDIA_IMAGES
+	READ_MEDIA_VIDEOS
+	READ_MEDIA_AUDIO
+	NOTIFICATION_LISTENER
+	READ_PHONE_STATE
+	READ_PHONE_NUMBERS
+	SCHEDULE_EXACT_ALARM
+	QUERY_ALL_PACKAGES
+	ADB
+	CLIPBOARD
+}
+
+type QueryRoot {
+	"""
+	Top-level `app` info used by the web client on startup.
+	"""
+	app: App!
+	"""
+	Chunked-upload merge job state (plain-app `mergeStatus` polling).
+	"""
+	mergeStatus(fileId: String!): MergeTask!
+	"""
+	Player state (plain-app `AudioPlayback`): play mode preference and
+	the current queue track path (null = idle). The NAS has no
+	server-side transport — audio renders on the client — so
+	isPlaying/positionMs serve idle values (API_SPEC §9).
+	"""
+	audioPlayback: AudioPlayback!
+	"""
+	Chat channels — schema parity; the NAS has no peer-mesh chat backend
+	yet, so lists are empty.
+	"""
+	chatChannels: [ChatChannel!]!
+	"""
+	Chat items of a channel — schema parity (always empty on NAS).
+	Paginated latest-first like plain-app; returns oldest-to-newest.
+	`query` is the shared DSL; only its `text:` field applies (unused
+	by the empty result, kept for the plain-app signature).
+	"""
+	chatItems(target: String!, offset: Int!, limit: Int!, query: String!): [ChatItem!]!
+	"""
+	Latest items across channels — schema parity (always empty on NAS).
+	"""
+	latestChatItems: [ChatItem!]!
+	"""
+	Current media-index scan progress; same payload as the
+	`media:scan:progress` WS push, for initial render and polling.
+	"""
+	scanProgress: ScanProgress!
+	"""
+	AI image search is a phone-app capability (on-device CLIP); the NAS
+	answers with a well-formed `UNAVAILABLE` so probing clients render
+	their "not available" path instead of a GraphQL error.
+	"""
+	imageSearchStatus: ImageSearchStatus!
+	"""
+	All bookmarks, phone-DAO order (pinned first, then sort order).
+	"""
+	bookmarks: [Bookmark!]!
+	"""
+	All bookmark groups, phone-DAO order (sort order, then creation).
+	`itemCount` is live — one prefix scan for the whole list.
+	"""
+	bookmarkGroups: [BookmarkGroup!]!
+	"""
+	The active playback queue (manual items + context), paginated —
+	plain-app `AudioQueueManager.queuePage`, never materialized whole.
+	`query` is the shared DSL; its `text:` field filters the page
+	(case-insensitive substring over title/artist/path).
+	"""
+	audioQueueItems(offset: Int!, limit: Int!, query: String!): [AudioItem!]!
+	"""
+	Total tracks in the active playback queue (superseded source copies
+	excluded).
+	"""
+	audioQueueItemCount: Int!
+	"""
+	Lyrics embedded in the audio file (ID3v2 USLT, Vorbis comments,
+	MP4 ©lyr); empty string when none.
+	"""
+	audioLyrics(path: String!): String!
+	"""
+	All user playlists, most recently updated first.
+	"""
+	audioPlaylists: [AudioPlaylist!]!
+	"""
+	One playlist's tracks, position order, paginated. `query` is the
+	shared DSL; its `text:` field filters the page (case-insensitive
+	substring over title/artist/path).
+	"""
+	audioPlaylistItems(id: ID!, offset: Int!, limit: Int!, query: String!): [AudioItem!]!
+	"""
+	Track count of one playlist.
+	"""
+	audioPlaylistItemCount(id: ID!): Int!
+	"""
+	Recently played tracks, newest first (the home "最近" section).
+	`query` is the shared DSL; its `text:` field filters the page
+	(case-insensitive substring over title/artist/path).
+	"""
+	audioPlayHistory(offset: Int!, limit: Int!, query: String!): [AudioPlayHistory!]!
+	"""
+	System/device metadata, plain-app `DeviceInfo` contract. Phone-only
+	sub-objects (`android`, `display`) are null; static identity/spec —
+	dynamic state lives in `deviceStatus`.
+	"""
+	deviceInfo: DeviceInfo!
+	"""
+	Dynamic device runtime state (plain-app `DeviceStatus`). CPU usage
+	is diffed from two /proc/stat samples taken 200ms apart, so this
+	resolver deliberately runs on the blocking pool.
+	"""
+	deviceStatus: DeviceStatus!
+	"""
+	Absolute path of the on-disk row store (the fjall directory).
+	"""
+	dbPath: String!
+	"""
+	Absolute path of the preferences file — plain-app DataStore /
+	plain-desktop `prefs.json` equivalent.
+	"""
+	dataStorePath: String!
+	"""
+	Every preference entry, key sorted (plain-app DataStore
+	preferences / plain-desktop `prefs.json` map).
+	"""
+	dataStoreEntries: [KeyValuePair!]!
+	"""
+	Absolute path of the current log file.
+	"""
+	appLogPath: String!
+	"""
+	Log lines, newest first (plain-app `AppLogHelper` semantics);
+	the DSL `text:` field of `query` is a case-insensitive substring
+	over the line, applied before offset/limit.
+	"""
+	appLogs(offset: Int!, limit: Int!, query: String!): [String!]!
+	"""
+	Tables (key namespaces) of the KV store, UI order.
+	"""
+	dbTables: [String!]!
+	"""
+	Entry count of one table.
+	"""
+	dbTableRowCount(table: String!): Long!
+	"""
+	One key-ordered page of a table's rows, as JSON strings
+	`{"key": …, "value": …}`.
+	"""
+	dbTableRows(table: String!, offset: Int!, limit: Int!): [String!]!
+	"""
+	Row identity field of a table (`key` on a NAS).
+	"""
+	dbTableInfo(table: String!): DbTableInfo!
+	"""
+	List of mounted volumes + unmounted partitions (Go `ListMounts`).
+	"""
+	mounts: [StorageMount!]!
+	"""
+	List of block devices.
+	"""
+	disks: [StorageDisk!]!
+	"""
+	Active sessions.
+	"""
+	sessions: [Session!]!
+	"""
+	Audit events, newest first. The DSL `text:` field of `query` is a
+	case-insensitive substring over `type` + `message`, applied before
+	offset/limit. (Named `auditEvents` — "event" alone collides with
+	the WS push events and the scan/chat events.)
+	"""
+	auditEvents(offset: Int!, limit: Int!, query: String!): [AuditEvent!]!
+	"""
+	Count of entries in a directory (non-recursive). Mirrors plain-app
+	`filesCount(root, query)`: `root` scopes the count (empty/`/` = whole
+	tree). When `trash:true` is in the query, returns the global trash count.
+	"""
+	filesCount(root: String!, query: String!): Int!
+	"""
+	Recent files (most-recent first). Mirrors Go `recentFiles()` which
+	loads up to 500 paths and filters to those that still exist on disk.
+	"""
+	recentFiles: [File!]!
+	"""
+	File listing. Mirrors plain-app `files(root, offset, limit, query, sortBy)`
+	(Kotlin `FileSystemHelper.search`): the effective directory is
+	`parent` from the query DSL, falling back to the `root` argument,
+	then to the legacy Go-dialect `root_path` DSL field; `relative_path`
+	(legacy) is joined underneath. `text` → recursive tantivy search,
+	`trash:true` → NAS trash listing.
+	"""
+	files(root: String!, offset: Int!, limit: Int!, query: String!, sortBy: FileSortBy!): [File!]!
+	"""
+	Total number of trashed items.
+	"""
+	trashCount: Int!
+	"""
+	Paginated trash listing. The DSL `text:` field of `query` filters
+	the entries (blank = no filter); pass `DATE_DESC` for the usual
+	newest-first view — the argument is required, there is no server
+	default (API_SPEC §3).
+	"""
+	trashItems(offset: Int!, limit: Int!, query: String!, sortBy: TrashSortBy!): [TrashItem!]!
+	"""
+	Look up tag relations for entity keys (media ids / entity keys),
+	filtered to the given data type. Mirrors plain-app `tagRelations`;
+	backs the client-side lazy tag join (round-7 contract).
+	"""
+	tagRelations(type: DataType!, keys: [String!]!): [TagRelation!]!
+	"""
+	List tags for the given data type.
+	"""
+	tags(type: DataType!): [Tag!]!
+	"""
+	List async file tasks for the current client.
+	"""
+	fileTasks: [FileTask!]!
+	"""
+	List all favorite folders.
+	"""
+	favoriteFolders: [FavoriteFolder!]!
+	"""
+	Audio list (paginated, backed by the tantivy media search index).
+	"""
+	audios(offset: Int!, limit: Int!, query: String!, sortBy: FileSortBy!): [Audio!]!
+	"""
+	Audio count (tantivy counting collector).
+	"""
+	audioCount(query: String!): Int!
+	"""
+	List uploaded chunk indices for a given fileID, as strings
+	(plain-app `uploadedChunks(fileId: String!): [String!]!`).
+	"""
+	uploadedChunks(fileId: String!): [String!]!
+	"""
+	App update check. Sync (ureq, 5s timeout), cached 10 min in-process.
+	Wrapped in `spawn_blocking` so it doesn't tie up the async runtime.
+	"""
+	appUpdate: AppUpdate!
+	"""
+	Current LAN-share (samba) settings: enabled flag, provisioned username/password state, shares and the backing systemd unit's status.
+	"""
+	sambaSettings: SambaSettings!
+	"""
+	DLNA renderers discovered on the LAN via SSDP (refreshed on every `dlnaRenderers` fetch).
+	"""
+	dlnaRenderers: [DlnaRenderer!]!
+	"""
+	The source directories the media scanner indexes.
+	"""
+	mediaSourceDirs: [String!]!
+	"""
+	Whether the path exists. Blank and '.' paths are `false`; stat
+	errors (e.g. permission denied) count as "not there" — this query
+	is a total predicate and never raises.
+	"""
+	pathExists(path: String!): Boolean!
+	"""
+	Kind of the path: `FILE` or `DIR`; null when the path does not
+	exist (same total-predicate semantics as `pathExists`).
+	"""
+	pathKind(path: String!): PathKind
+	"""
+	Detailed info for a single media file used by the lightbox UI.
+	`path` is the canonical lookup key (round-7 contract: `id` addressing
+	removed; file tags lazy-load via `tagRelations` on the client).
+	"""
+	fileInfo(path: String!, fileName: String, includeDirSize: Boolean): FileInfo!
+	"""
+	Image list (paginated, backed by the tantivy media search index).
+	"""
+	images(offset: Int!, limit: Int!, query: String!, sortBy: FileSortBy!): [Image!]!
+	"""
+	Image count (tantivy counting collector).
+	"""
+	imageCount(query: String!): Int!
+	"""
+	Video list (paginated, backed by the tantivy media search index).
+	"""
+	videos(offset: Int!, limit: Int!, query: String!, sortBy: FileSortBy!): [Video!]!
+	"""
+	Video count (tantivy counting collector).
+	"""
+	videoCount(query: String!): Int!
+	"""
+	Document list (paginated, backed by the tantivy media search index).
+	Docs need no metadata hydration, so this maps index rows directly.
+	"""
+	docs(offset: Int!, limit: Int!, query: String!, sortBy: FileSortBy!): [Doc!]!
+	"""
+	Document count (tantivy counting collector).
+	"""
+	docCount(query: String!): Int!
+	"""
+	Per-extension group counts for the docs sidebar (no query filter,
+	plain-app semantics — includes trashed, matching `docCount("")`).
+	"""
+	docExtGroups: [DocExtGroup!]!
+	"""
+	`mediaBuckets(type)` mirrors Go `listMediaBuckets`: group media files
+	by their containing directory. Backed by the KV bucket counters the
+	scan pipeline maintains inside its write batches; cover items are one
+	per-bucket tantivy query, run on a blocking thread so a large bucket
+	count never stalls the async runtime.
+	"""
+	mediaBuckets(type: MediaDataType!): [MediaBucket!]!
+}
+
+type SambaSettings {
+	enabled: Boolean!
+	username: String!
+	hasPassword: Boolean!
+	shares: [SambaShare!]!
+	serviceName: String!
+	serviceActive: Boolean!
+	serviceEnabled: Boolean!
+}
+
+input SambaSettingsInput {
+	enabled: Boolean!
+	shares: [SambaShareInput!]!
+}
+
+type SambaShare {
+	name: String!
+	sharePath: String!
+	auth: SambaShareAuth!
+	readOnly: Boolean!
+}
+
+enum SambaShareAuth {
+	GUEST
+	PASSWORD
+}
+
+input SambaShareInput {
+	name: String!
+	sharePath: String!
+	auth: SambaShareAuth!
+	readOnly: Boolean!
+}
+
+type ScanProgress {
+	indexed: Int!
+	pending: Int!
+	total: Int!
+	state: ScanState!
+}
+
+"""
+Media-index scan lifecycle, shared by `scanProgress.state` and the
+`media:scan:progress` WS payload (same values on both wires).
+"""
+enum ScanState {
+	IDLE
+	RUNNING
+	PAUSED
+	STOPPED
+}
+
+type Session {
+	clientId: String!
+	clientName: String!
+	lastActive: Instant!
+	createdAt: Instant!
+	updatedAt: Instant!
+}
+
+type StorageDisk {
+	id: ID!
+	name: String!
+	path: String!
+	sizeBytes: Long!
+	removable: Boolean!
+	model: String
+}
+
+type StorageMount {
+	id: ID!
+	name: String!
+	path: String!
+	partitionNum: Int
+	label: String
+	uuid: String
+	mountPoint: String!
+	fsType: String!
+	totalBytes: Long!
+	usedBytes: Long!
+	freeBytes: Long!
+	alias: String!
+	remote: Boolean!
+	driveType: DriveType!
+	"""
+	Stable identifier for the underlying disk (OS disk uuid, foreign
+	identifier — kept `String` per API_SPEC §8, empty when unknown).
+	"""
+	diskId: String!
+}
+
+type Tag {
+	id: ID!
+	name: String!
+	"""
+	Numeric tag kind — the ordinal of the tag's `DataType`
+	(DEFAULT=0, AUDIO=1, VIDEO=2, IMAGE=3, …). The NAS only has data
+	for the media kinds; the Int is frozen phone contract (API_SPEC
+	§9), the mapping lives in docs/api/tags.md.
+	"""
+	type: Int!
+	count: Int!
+}
+
+"""
+One (tag, item-key) relation (plain-app contract). `key` is the media id
+/ entity key the tag is attached to.
+"""
+type TagRelation {
+	tagId: ID!
+	key: String!
+}
+
+input TagRelationStub {
+	key: String!
+	title: String!
+	size: Long!
+}
+
+"""
+`deviceStatus.temperatures` item (plain-app `Temperature`).
+"""
+type Temperature {
+	label: String!
+	celsius: Float!
+}
+
+type TrashItem {
+	id: ID!
+	type: TrashItemType!
+	originalPath: String!
+	disk: String!
+	trashRelPath: String!
+	deletedAt: Instant!
+	uid: Int!
+	gid: Int!
+	mode: Int!
+	"""
+	Byte size of the trashed entry (files only; null for dirs).
+	"""
+	sizeBytes: Long
+	entryCount: Int
+	displayName: String!
+	trashedPath: String!
+}
+
+"""
+Kind of a trashed entry (stored kind string `"file"` | `"dir"`).
+"""
+enum TrashItemType {
+	FILE
+	DIR
+}
+
+enum TrashSortBy {
+	DATE_ASC
+	DATE_DESC
+	SIZE_ASC
+	SIZE_DESC
+	NAME_ASC
+	NAME_DESC
+}
+
+type Video {
+	id: ID!
+	title: String!
+	path: String!
+	durationMs: Long!
+	size: Long!
+	bucketId: ID!
+	"""
+	Capture time; container metadata extraction lands later, so it
+	mirrors the file mtime for now.
+	"""
+	takenAt: Instant
+	createdAt: Instant!
+	updatedAt: Instant!
+	"""
+	No per-media favorites on NAS — always false (plain-app parity).
+	"""
+	isFavorite: Boolean!
+	tags: [Tag!]!
+}
+
+type VideoFileInfo {
+	width: Int!
+	height: Int!
+	durationMs: Long!
+	location: Location
+}
+
+"""
+Directs the executor to include this field or fragment only when the `if` argument is true.
+"""
+directive @include(if: Boolean!) on FIELD | FRAGMENT_SPREAD | INLINE_FRAGMENT
+"""
+Directs the executor to skip this field or fragment when the `if` argument is true.
+"""
+directive @skip(if: Boolean!) on FIELD | FRAGMENT_SPREAD | INLINE_FRAGMENT
+schema {
+	query: QueryRoot
+	mutation: MutationRoot
+}
