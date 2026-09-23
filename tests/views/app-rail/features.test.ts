@@ -1,10 +1,10 @@
 import { describe, it, expect } from 'vitest'
 import { ALL_FEATURES, DEBUG_EXCLUDED_FEATURE_IDS, GOOGLE_EXCLUDED_FEATURE_IDS, getAvailableFeatures } from '@/views/app-rail/features'
 import { AppChannelType } from '@/lib/status'
-import { DeviceFeature } from '@/lib/data'
+import { Capability } from '@/lib/data'
 
 // A phone declares every capability; a NAS declares only media trash/scan.
-const PHONE_FEATURES = Object.values(DeviceFeature)
+const PHONE_FEATURES = Object.values(Capability)
 const NAS_FEATURES = ['MEDIA_TRASH', 'DOC_PREVIEW', 'MEDIA_SCAN']
 
 describe('getAvailableFeatures', () => {

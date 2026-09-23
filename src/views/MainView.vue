@@ -78,6 +78,8 @@ v-if="appReady" v-show="store.quick" class="quick-content"
           <upload-list v-show="store.quick === 'upload'" />
           <audio-player v-show="store.quick === 'audio'" />
           <p-notifications v-if="hasNotifications" v-show="store.quick === 'notification'" />
+          <p-clipboard v-if="!localMode" v-show="store.quick === 'clipboard'" />
+          <local-clipboard v-if="localMode" v-show="store.quick === 'clipboard'" />
           <bookmark-list v-show="store.quick === 'bookmark'" />
         </div>
       </transition>
@@ -92,9 +94,12 @@ import type { Component } from 'vue'
 import HeaderSearch from '@/components/HeaderSearch.vue'
 import BookmarkList from '@/views/bookmarks/BookmarkList.vue'
 import PNotifications from '@/views/notifications/PNotifications.vue'
+import PClipboard from '@/views/clipboard/PClipboard.vue'
+import LocalClipboard from '@/views/clipboard/LocalClipboard.vue'
 import IMaterialSymbolsFormatListNumbered from '~icons/material-symbols/format-list-numbered-rounded'
 import IMaterialSymbolsQueueMusicRounded from '~icons/material-symbols/queue-music-rounded'
 import IMaterialSymbolsNotificationsOutlineRounded from '~icons/material-symbols/notifications-outline-rounded'
+import IMaterialSymbolsContentPaste from '~icons/material-symbols/content-paste'
 import ILucideBookmark from '~icons/lucide/bookmark'
 import { Capability } from '@/lib/data'
 import { hasFeature } from '@/lib/feature'
@@ -124,6 +129,7 @@ const quickActions = computed<QuickAction[]>(() =>
   [
     { id: 'upload', tooltipKey: 'header_actions.uploads', icon: IMaterialSymbolsFormatListNumbered, visible: !localMode && (hasTasks.value || store.quick === 'upload') },
     { id: 'notification', tooltipKey: 'header_actions.notifications', icon: IMaterialSymbolsNotificationsOutlineRounded, visible: hasNotifications.value },
+    { id: 'clipboard', tooltipKey: 'header_actions.clipboard', icon: IMaterialSymbolsContentPaste, visible: true },
     { id: 'audio', tooltipKey: 'playlist', icon: IMaterialSymbolsQueueMusicRounded, visible: !localMode },
     { id: 'bookmark', tooltipKey: 'bookmarks', icon: ILucideBookmark, visible: true },
   ].filter((action) => action.visible),
