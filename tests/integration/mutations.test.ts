@@ -57,12 +57,12 @@ describe.skipIf(!hasBothEndpoints)(`mutations (round-trip) — ${skipReason || '
   // frontend expects, the UI breaks. Both servers must return:
   //   - non-empty id
   //   - name matching the input
-  //   - owner set to the local client id
+  //   - ownerId set to the local client id
   //   - members containing at least the owner (or empty —
   //     behaviorally the channel exists)
   //   - status (typically "active" or empty)
   //   - version = 1
-  it('createChatChannel: both return ChatChannel with id, name, owner, members, version=1', async () => {
+  it('createChatChannel: both return ChatChannel with id, name, ownerId, members, version=1', async () => {
     const mutation = `
       mutation($name: String!) {
         createChatChannel(name: $name) {
@@ -87,8 +87,8 @@ describe.skipIf(!hasBothEndpoints)(`mutations (round-trip) — ${skipReason || '
     expect(aCh.id).toBeTruthy()
     expect(rCh.name).toBe(rustName)
     expect(aCh.name).toBe(androidName)
-    expect(typeof rCh.owner).toBe('string')
-    expect(typeof aCh.owner).toBe('string')
+    expect(typeof rCh.ownerId).toBe('string')
+    expect(typeof aCh.ownerId).toBe('string')
     expect(Array.isArray(rCh.members)).toBe(true)
     expect(Array.isArray(aCh.members)).toBe(true)
     expect(rCh.version).toBe(1)

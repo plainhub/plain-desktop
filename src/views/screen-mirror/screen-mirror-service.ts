@@ -3,7 +3,7 @@ import { useI18n } from 'vue-i18n'
 import toast from '@/components/toaster'
 import tapPhone from '@/plugins/tapphone'
 import emitter from '@/plugins/eventbus'
-import { initLazyQuery, screenMirrorControlEnabledGQL, screenMirrorStateGQL } from '@/lib/api/query'
+import { initLazyQuery, screenMirrorControlEnabledGQL, isScreenMirroringGQL } from '@/lib/api/query'
 import {
   initMutation, relaunchAppGQL, startScreenMirrorGQL, stopScreenMirrorGQL,
   updateScreenMirrorQualityGQL, requestScreenMirrorAudioGQL,
@@ -47,14 +47,14 @@ export function useScreenMirrorService() {
       }
       if (data?.screenMirrorQuality?.mode) qualityMode.value = data.screenMirrorQuality.mode
       accessibilityEnabled = data?.screenMirrorControlEnabled === true
-      if (data?.screenMirrorState) {
+      if (data?.isScreenMirroring) {
         if (state.value === 'idle' || state.value === 'failed') { state.value = 'connecting'; retryCount = 0; connectFn() }
       } else {
         if (state.value === 'connecting' || state.value === 'streaming') cleanupFn()
         state.value = 'idle'
       }
     },
-    document: screenMirrorStateGQL,
+    document: isScreenMirroringGQL,
     variables: () => ({}),
     options: { fetchPolicy: 'no-cache' },
   })

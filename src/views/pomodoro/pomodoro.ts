@@ -82,7 +82,7 @@ export function usePomodoro() {
   function startTimer() {
     if (timeLeft.value === 0) initTimer('work')
     setTimerState(true, false)
-    startPomodoroMutation({ timeLeftSec: timeLeft.value }).catch((e) => console.error('Failed to start pomodoro:', e))
+    startPomodoroMutation({ durationSec: timeLeft.value }).catch((e) => console.error('Failed to start pomodoro:', e))
     startTimerInterval()
   }
 
@@ -111,7 +111,7 @@ export function usePomodoro() {
     const elapsedTime = Math.round((angle / (2 * Math.PI)) * totalTime.value)
     timeLeft.value = Math.max(0, totalTime.value - elapsedTime)
     setTimerState(true, false)
-    startPomodoroMutation({ timeLeftSec: timeLeft.value }).catch((e) => console.error('Failed to update pomodoro progress:', e))
+    startPomodoroMutation({ durationSec: timeLeft.value }).catch((e) => console.error('Failed to update pomodoro progress:', e))
     startTimerInterval()
   }
 

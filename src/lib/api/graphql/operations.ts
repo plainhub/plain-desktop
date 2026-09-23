@@ -91,7 +91,7 @@ export interface Fragment_CallFragment {
 export interface Fragment_ChatChannelFragment {
   id: string
   name: string
-  owner: string
+  ownerId: string
   members: Array<Fragment_ChatChannelMemberFragment>
   version: number
   status: 'JOINED' | 'LEFT' | 'KICKED'
@@ -100,7 +100,7 @@ export interface Fragment_ChatChannelFragment {
 }
 
 export interface Fragment_ChatChannelMemberFragment {
-  id: string
+  peerId: string
   status: 'JOINED' | 'PENDING'
 }
 
@@ -271,7 +271,7 @@ export interface Fragment_FileFragment {
   createdAt?: string
   updatedAt: string
   size: number
-  children: number
+  childCount: number
   mediaId?: string
 }
 
@@ -976,9 +976,9 @@ export interface GqlOperations {
       id: string
     }
   }
-  syncFeedContentGQL: {
+  syncFeedEntryContentGQL: {
     result: {
-      syncFeedContent: {
+      syncFeedEntryContent: {
         feed?: Fragment_FeedFragment
       } & Fragment_FeedEntryFragment
     }
@@ -1024,17 +1024,17 @@ export interface GqlOperations {
       requestId: string
     }
   }
-  archiveConversationGQL: {
+  archiveSmsConversationGQL: {
     result: {
-      archiveConversation: boolean
+      archiveSmsConversation: boolean
     }
     variables: {
       id: string
     }
   }
-  unarchiveConversationGQL: {
+  unarchiveSmsConversationGQL: {
     result: {
-      unarchiveConversation: boolean
+      unarchiveSmsConversation: boolean
     }
     variables: {
       id: string
@@ -1203,7 +1203,7 @@ export interface GqlOperations {
       startPomodoro: boolean
     }
     variables: {
-      timeLeftSec: number
+      durationSec: number
     }
   }
   stopPomodoroGQL: {
@@ -2153,9 +2153,9 @@ export interface GqlOperations {
       ids: Array<string>
     }
   }
-  screenMirrorStateGQL: {
+  isScreenMirroringGQL: {
     result: {
-      screenMirrorState: boolean
+      isScreenMirroring: boolean
       screenMirrorControlEnabled: boolean
       screenMirrorQuality: {
         mode: 'HD' | 'SMOOTH'

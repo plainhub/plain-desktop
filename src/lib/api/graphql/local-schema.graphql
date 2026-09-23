@@ -142,7 +142,7 @@ enum ChannelStatus {
 type ChatChannel {
 	id: String!
 	name: String!
-	owner: String!
+	ownerId: String!
 	members: [ChatChannelMember!]!
 	version: Int!
 	status: ChannelStatus!
@@ -151,7 +151,7 @@ type ChatChannel {
 }
 
 type ChatChannelMember {
-	id: String!
+	peerId: String!
 	status: MemberStatus!
 }
 

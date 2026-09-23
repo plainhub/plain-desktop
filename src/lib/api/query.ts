@@ -837,9 +837,9 @@ export const packageStatusesGQL = `
   }
 `
 
-export const screenMirrorStateGQL = `
+export const isScreenMirroringGQL = `
   query {
-    screenMirrorState
+    isScreenMirroring
     screenMirrorControlEnabled
     screenMirrorQuality {
       mode

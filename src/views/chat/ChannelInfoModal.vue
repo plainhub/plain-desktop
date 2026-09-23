@@ -8,13 +8,13 @@
 
       <div class="section-title">{{ $t('channel_members') }} ({{ channel.members.length }})</div>
       <ul class="card list-items">
-        <ChannelMemberListItem v-for="member in enrichedMembers" :key="member.id" :member="member">
-          <template v-if="isOwner && !member.isSelf && member.id !== channel.owner" #end>
-            <v-outlined-button v-if="member.status === MemberStatus.PENDING" :loading="pendingIds.has(member.id)" :disabled="pendingIds.has(member.id)" @click.stop="cancelInvite(member.id)">{{ $t('cancel') }}</v-outlined-button>
+        <ChannelMemberListItem v-for="member in enrichedMembers" :key="member.peerId" :member="member">
+          <template v-if="isOwner && !member.isSelf && member.peerId !== channel.ownerId" #end>
+            <v-outlined-button v-if="member.status === MemberStatus.PENDING" :loading="pendingIds.has(member.peerId)" :disabled="pendingIds.has(member.peerId)" @click.stop="cancelInvite(member.peerId)">{{ $t('cancel') }}</v-outlined-button>
             <v-outlined-button
 v-else v-tooltip="$t('remove_member')" 
-            :loading="pendingIds.has(member.id)" :disabled="pendingIds.has(member.id)" 
-            @click.stop="removeMember(member.id)" >{{ $t('remove') }}</v-outlined-button>
+            :loading="pendingIds.has(member.peerId)" :disabled="pendingIds.has(member.peerId)" 
+            @click.stop="removeMember(member.peerId)" >{{ $t('remove') }}</v-outlined-button>
           </template>
         </ChannelMemberListItem>
       </ul>
@@ -58,21 +58,21 @@ const channel = ref({ ...props.channel })
 const { app } = useTempStore()
 const selfId = app.clientId
 const deviceName = computed(() => app.deviceName || selfId.substring(0, 8))
-const isOwner = computed(() => channel.value.owner === selfId)
-const memberIds = computed(() => new Set(channel.value.members.map((m) => m.id)))
+const isOwner = computed(() => channel.value.ownerId === selfId)
+const memberIds = computed(() => new Set(channel.value.members.map((m) => m.peerId)))
 const availablePeers = computed(() => props.peers.filter((p) => p.status === PeerStatus.PAIRED && !memberIds.value.has(p.id)))
 
 const enrichedMembers = computed<IChannelMemberListItem[]>(() =>
   channel.value.members.map((m) => {
-    const peer = props.peers.find((p) => p.id === m.id)
-    const isSelf = m.id === selfId
-    const isOwner = m.id === channel.value.owner || (isSelf && channel.value.owner === selfId)
+    const peer = props.peers.find((p) => p.id === m.peerId)
+    const isSelf = m.peerId === selfId
+    const isOwner = m.peerId === channel.value.ownerId || (isSelf && channel.value.ownerId === selfId)
     return {
-      id: m.id,
+      id: m.peerId,
       status: m.status,
       isSelf,
       isOwner,
-      name: isSelf ? deviceName.value : peer?.name ?? m.id.substring(0, 8),
+      name: isSelf ? deviceName.value : peer?.name ?? m.peerId.substring(0, 8),
       ip: isSelf ? undefined : peer?.ip,
       deviceType: isSelf ? app.deviceType : peer?.deviceType,
     }

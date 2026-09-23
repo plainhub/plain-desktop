@@ -531,9 +531,9 @@ export const syncFeedsGQL = `
   }
 `
 
-export const syncFeedContentGQL = `
-  mutation syncFeedContent($id: ID!) {
-    syncFeedContent(id: $id) {
+export const syncFeedEntryContentGQL = `
+  mutation syncFeedEntryContent($id: ID!) {
+    syncFeedEntryContent(id: $id) {
       ...FeedEntryFragment
       feed {
         ...FeedFragment
@@ -568,15 +568,15 @@ export const sendSmsWithRequestIdGQL = `
   }
 `
 
-export const archiveConversationGQL = `
-  mutation archiveConversation($id: String!) {
-    archiveConversation(id: $id)
+export const archiveSmsConversationGQL = `
+  mutation archiveSmsConversation($id: String!) {
+    archiveSmsConversation(id: $id)
   }
 `
 
-export const unarchiveConversationGQL = `
-  mutation unarchiveConversation($id: String!) {
-    unarchiveConversation(id: $id)
+export const unarchiveSmsConversationGQL = `
+  mutation unarchiveSmsConversation($id: String!) {
+    unarchiveSmsConversation(id: $id)
   }
 `
 
@@ -698,8 +698,8 @@ export const deleteChunksGQL = `
 `
 
 export const startPomodoroGQL = `
-  mutation startPomodoro($timeLeftSec: Int!) {
-    startPomodoro(timeLeftSec: $timeLeftSec)
+  mutation startPomodoro($durationSec: Int!) {
+    startPomodoro(durationSec: $durationSec)
   }
 `
 

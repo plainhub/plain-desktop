@@ -500,7 +500,7 @@ type File {
   createdAt: String
   updatedAt: String!
   size: Long!
-  children: Int!
+  childCount: Int!
   mediaId: ID
 }
 
@@ -773,7 +773,7 @@ type ExtensionQuery {
   sambaSettings: SambaSettings!
   scanProgress: ScanProgress!
   imageSearchStatus: ImageSearchStatus!
-  screenMirrorState: Boolean!
+  isScreenMirroring: Boolean!
   screenMirrorControlEnabled: Boolean!
   screenMirrorQuality: ScreenMirrorQuality!
   screenMirrorVideoCodec: ScreenMirrorVideoCodec
@@ -795,8 +795,8 @@ type ExtensionMutation {
   deleteSms(query: String!): ActionResult!
   trashSms(query: String!): ActionResult!
   restoreSms(query: String!): ActionResult!
-  archiveConversation(id: ID!): Boolean!
-  unarchiveConversation(id: ID!): Boolean!
+  archiveSmsConversation(id: ID!): Boolean!
+  unarchiveSmsConversation(id: ID!): Boolean!
   createNote(input: NoteInput!): Note!
   updateNote(id: ID!, input: NoteInput!): Note!
   deleteNotes(query: String!): ActionResult!
@@ -808,7 +808,7 @@ type ExtensionMutation {
   updateFeed(id: ID!, name: String!, fetchContent: Boolean!): Feed!
   deleteFeed(id: ID!): Boolean!
   syncFeeds(id: ID): Boolean!
-  syncFeedContent(id: ID!): FeedEntry!
+  syncFeedEntryContent(id: ID!): FeedEntry!
   importFeeds(content: String!): Boolean!
   exportFeeds: String!
   deleteFeedEntries(query: String!): ActionResult!
@@ -850,7 +850,7 @@ type ExtensionMutation {
   sendScreenMirrorControl(input: ScreenMirrorControlInput!): Boolean!
   requestScreenMirrorAudio: Boolean!
   requestScreenMirrorKeyFrame: Boolean!
-  startPomodoro(timeLeftSec: Int!): Boolean!
+  startPomodoro(durationSec: Int!): Boolean!
   pausePomodoro: Boolean!
   stopPomodoro: Boolean!
   startImageIndex(force: Boolean): Boolean!

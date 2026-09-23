@@ -9,7 +9,7 @@ import {
   smsCountGQL,
   type QueryResponseContext,
 } from '@/lib/api/query'
-import { initMutation, archiveConversationGQL, unarchiveConversationGQL } from '@/lib/api/mutation'
+import { initMutation, archiveSmsConversationGQL, unarchiveSmsConversationGQL } from '@/lib/api/mutation'
 import type { ISmsConversation } from '@/lib/interfaces'
 import emitter from '@/plugins/eventbus'
 import { useTempStore } from '@/stores/temp'
@@ -153,8 +153,8 @@ export const useSmsStore = defineStore('sms', () => {
     document: smsCountGQL,
   })
 
-  const { mutate: mutateArchive } = initMutation({ document: archiveConversationGQL })
-  const { mutate: mutateUnarchive } = initMutation({ document: unarchiveConversationGQL })
+  const { mutate: mutateArchive } = initMutation({ document: archiveSmsConversationGQL })
+  const { mutate: mutateUnarchive } = initMutation({ document: unarchiveSmsConversationGQL })
 
   function runNormalRequest(mode: 'reset' | 'more', query: string, offset: number, force: boolean, limit = LIMIT) {
     const enhanced = participantFieldsSupported.value !== false

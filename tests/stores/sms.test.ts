@@ -26,8 +26,8 @@ vi.mock('@/lib/api/query', async () => {
 })
 
 vi.mock('@/lib/api/mutation', () => ({
-  archiveConversationGQL: 'archive',
-  unarchiveConversationGQL: 'unarchive',
+  archiveSmsConversationGQL: 'archive',
+  unarchiveSmsConversationGQL: 'unarchive',
   initMutation: ({ document }: { document: string }) => ({
     mutate: vi.fn(async () => {
       if (document === 'archive' && harness.archiveDeferred) return harness.archiveDeferred

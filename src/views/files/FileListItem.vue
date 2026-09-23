@@ -32,7 +32,7 @@
     </div>
     
     <div class="subtitle">
-      <span v-if="item.isDir">{{ $t('x_items', item.children || 0) }}</span>
+      <span v-if="item.isDir">{{ $t('x_items', item.childCount || 0) }}</span>
       <span v-else>{{ formatFileSize(item.size) }}</span>
       <span v-tooltip="formatDateTime(item.updatedAt)">{{ formatTimeAgo(item.updatedAt) }}</span>
     </div>
@@ -90,7 +90,7 @@
     </template>
     
     <template #subtitle>
-      <span v-if="item.isDir">{{ $t('x_items', item.children || 0) }}</span>
+      <span v-if="item.isDir">{{ $t('x_items', item.childCount || 0) }}</span>
       <span v-else>{{ formatFileSize(item.size) }}</span>
       <span v-tooltip="formatDateTime(item.updatedAt)">{{ formatTimeAgo(item.updatedAt) }}</span>
     </template>
@@ -124,9 +124,9 @@ import { computed } from 'vue'
 import { storeToRefs } from 'pinia'
 import { useTempStore } from '@/stores/temp'
 
-// Extend IFile to include children property for directories
+// Extend IFile to include childCount property for directories
 interface IFileWithChildren extends IFile {
-  children?: number
+  childCount?: number
 }
 import { formatFileSize, formatDateTime, formatTimeAgo } from '@/lib/format'
 import OnlinePreviewIcon from '@/components/OnlinePreviewIcon.vue'

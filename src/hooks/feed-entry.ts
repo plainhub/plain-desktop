@@ -6,7 +6,7 @@ import { feedEntryGQL, initLazyQuery, initQuery, tagsGQL } from '@/lib/api/query
 import type { IFeedEntryDetail, IItemTagsUpdatedEvent, IItemsTagsUpdatedEvent, ITag } from '@/lib/interfaces'
 import { useSafeMarkdown } from '@/hooks/markdown'
 import emitter from '@/plugins/eventbus'
-import { initMutation, saveFeedEntriesToNotesGQL, syncFeedContentGQL } from '@/lib/api/mutation'
+import { initMutation, saveFeedEntriesToNotesGQL, syncFeedEntryContentGQL } from '@/lib/api/mutation'
 import { storeToRefs } from 'pinia'
 import { useTempStore } from '@/stores/temp'
 import { useMainStore } from '@/stores/main'
@@ -58,13 +58,13 @@ export function useFeedEntry() {
     variables: { type: dataType },
   })
 
-  const { mutate: syncFeedContent, loading: syncContentLoading, onDone: syncContentDone } = initMutation({ document: syncFeedContentGQL })
+  const { mutate: syncFeedEntryContent, loading: syncContentLoading, onDone: syncContentDone } = initMutation({ document: syncFeedEntryContentGQL })
   syncContentDone(async (r: any) => {
-    entry.value = r.data.syncFeedContent
+    entry.value = r.data.syncFeedEntryContent
     markdown.value = await render(r.data.syncFeedContent.content || r.data.syncFeedContent.description)
   })
 
-  const syncContent = () => syncFeedContent({ id: id.value })
+  const syncContent = () => syncFeedEntryContent({ id: id.value })
   const print = () => window.print()
 
   const itemTagsHandler = (event: IItemTagsUpdatedEvent | IItemsTagsUpdatedEvent) => { if (event.type === dataType) fetch() }

@@ -193,7 +193,7 @@ export const fileFragment = `
     createdAt
     updatedAt
     size
-    children
+    childCount
     mediaId
   }
 `
@@ -448,7 +448,7 @@ export const bookmarkGroupFragment = `
 
 export const chatChannelMemberFragment = `
   fragment ChatChannelMemberFragment on ChatChannelMember {
-    id
+    peerId
     status
   }
 `
@@ -457,7 +457,7 @@ export const chatChannelFragment = `
   fragment ChatChannelFragment on ChatChannel {
     id
     name
-    owner
+    ownerId
     members {
       ...ChatChannelMemberFragment
     }

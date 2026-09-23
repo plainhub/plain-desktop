@@ -262,7 +262,7 @@ enum ChannelMemberStatus {
 type ChatChannel {
 	id: ID!
 	name: String!
-	owner: ID!
+	ownerId: ID!
 	members: [ChatChannelMember!]!
 	version: Long!
 	status: ChatChannelStatus!
@@ -271,7 +271,7 @@ type ChatChannel {
 }
 
 type ChatChannelMember {
-	id: ID!
+	peerId: ID!
 	status: ChannelMemberStatus!
 }
 
@@ -498,10 +498,9 @@ type File {
 	size: Long!
 	isDir: Boolean!
 	"""
-	Direct-children count for dirs, 0 for files (plain-app contract
-	name; the legacy Go-dialect `childCount` alias was dropped).
+	Direct-children count for dirs, 0 for files (plain-app contract name).
 	"""
-	children: Int!
+	childCount: Int!
 	"""
 	Android MediaStore id elsewhere; a NAS has no media store so null.
 	"""
@@ -841,9 +840,10 @@ type MutationRoot {
 	"""
 	createAudioPlaylist(name: String!): AudioPlaylist!
 	"""
-	Renaming a missing playlist is a silent no-op (phone parity).
+	Update a playlist's name; returns the updated playlist. A missing id is
+	an error, not a silent no-op (phone parity).
 	"""
-	renameAudioPlaylist(id: ID!, name: String!): Boolean!
+	updateAudioPlaylist(id: ID!, name: String!): AudioPlaylist!
 	"""
 	Delete a playlist; its items go with it. Single idempotent delete → `Boolean!` (§6).
 	"""
@@ -1250,10 +1250,10 @@ type QueryRoot {
 	auditEvents(offset: Int!, limit: Int!, query: String!): [AuditEvent!]!
 	"""
 	Count of entries in a directory (non-recursive). Mirrors plain-app
-	`filesCount(root, query)`: `root` scopes the count (empty/`/` = whole
+	`fileCount(root, query)`: `root` scopes the count (empty/`/` = whole
 	tree). When `trash:true` is in the query, returns the global trash count.
 	"""
-	filesCount(root: String!, query: String!): Int!
+	fileCount(root: String!, query: String!): Int!
 	"""
 	Recent files (most-recent first). Mirrors Go `recentFiles()` which
 	loads up to 500 paths and filters to those that still exist on disk.

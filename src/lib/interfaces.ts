@@ -333,14 +333,14 @@ export interface IPeer {
 }
 
 export interface IChatChannelMember {
-  id: string
+  peerId: string
   status: MemberStatus
 }
 
 export interface IChatChannel {
   id: string
   name: string
-  owner: string
+  ownerId: string
   members: IChatChannelMember[]
   version: number
   status: ChannelStatus

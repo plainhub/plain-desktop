@@ -104,7 +104,7 @@ const clearLoading = ref(false)
 const confirmingLeave = ref(false)
 const leaveLoading = ref(false)
 const { cancelByChatId } = useTasks()
-const isOwner = computed(() => !!app.value?.clientId && props.channel.owner === app.value.clientId)
+const isOwner = computed(() => !!app.value?.clientId && props.channel.ownerId === app.value.clientId)
 
 watch(menuVisible, (v) => {
   if (!v) {
