@@ -20,7 +20,7 @@ const props = defineProps({
     type: String,
     default: '',
   },
-  duration: {
+  durationMs: {
     type: [Number, Boolean],
     default: 3000,
   },
@@ -40,7 +40,7 @@ const props = defineProps({
 
 const isActive = ref(true)
 
-const timer = props.duration !== false ? new Timer(close, props.duration as number) : null
+const timer = props.durationMs !== false ? new Timer(close, props.durationMs as number) : null
 
 function click() {
   props.onClick.apply(null, arguments)

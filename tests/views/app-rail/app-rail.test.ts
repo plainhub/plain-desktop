@@ -6,7 +6,7 @@ import { defineComponent, h } from 'vue'
 import AppRail from '@/views/app-rail/AppRail.vue'
 import { useMainStore } from '@/stores/main'
 import { useTempStore } from '@/stores/temp'
-import { DeviceFeature } from '@/lib/data'
+import { Capability } from '@/lib/data'
 
 const RailSettingsPopupStub = defineComponent({
   name: 'RailSettingsPopup',
@@ -28,7 +28,7 @@ function mountRail() {
   const pinia = createPinia()
   setActivePinia(pinia)
   const tempStore = useTempStore()
-  tempStore.app = { ...tempStore.app, features: Object.values(DeviceFeature) }
+  tempStore.app = { ...tempStore.app, capabilities: Object.values(Capability) }
   const wrapper = mount(AppRail, {
     global: {
       plugins: [router, pinia],

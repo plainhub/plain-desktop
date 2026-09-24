@@ -1,4 +1,4 @@
-export function transferEffect(source: any, target: any, duration = 500) {
+export function transferEffect(source: any, target: any, durationMs = 500) {
   const clone = source.cloneNode(true)
 
   const sourceRect = source.getBoundingClientRect()
@@ -19,7 +19,7 @@ export function transferEffect(source: any, target: any, duration = 500) {
     }
 
     const elapsed = currentTime - startTime
-    const progress = Math.min(elapsed / duration, 1)
+    const progress = Math.min(elapsed / durationMs, 1)
 
     clone.style.top = sourceRect.top + (targetRect.top - sourceRect.top) * progress + 'px'
     clone.style.left = sourceRect.left + (targetRect.left - sourceRect.left) * progress + 'px'

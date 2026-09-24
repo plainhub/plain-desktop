@@ -204,7 +204,7 @@ const { loading, fetch } = initLazyQuery({
 })
 
 const sources = computed<ISource[]>(() => items.value.map((it: IVideoItem) => ({
-  src: getFileUrl(it.fileId), name: getFileName(it.path), duration: it.durationMs, size: it.size, path: it.path, data: it, type: dataType,
+  src: getFileUrl(it.fileId), name: getFileName(it.path), durationMs: it.durationMs, size: it.size, path: it.path, data: it, type: dataType,
 })) as ISource[])
 const { open: openMedia } = useOpenMedia(sources)
 function view(index: number) { openMedia(index) }

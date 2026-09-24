@@ -21,7 +21,7 @@ export function zoomImage(link: string) {
     path: link.replace(/^app:\/\//, ''),
     name: decodeURIComponent(link.split('/').pop() ?? 'image'),
     size: 0,
-    duration: 0,
+    durationMs: 0,
     type: DataType.IMAGE,
   }], true)
 }

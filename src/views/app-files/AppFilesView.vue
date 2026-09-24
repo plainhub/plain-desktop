@@ -131,7 +131,7 @@ function viewMedia(item: IAppFile) {
   const sources = items.value
     .filter((it) => canView(it.fileName))
     .map((it) => ({
-      path: `fid:${getAppFileFid(it)}`, src: getAppFileUrl(it), name: it.fileName, size: it.size, duration: 0,
+      path: `fid:${getAppFileFid(it)}`, src: getAppFileUrl(it), name: it.fileName, size: it.size, durationMs: 0,
     })) as ISource[]
   const targetPath = `fid:${getAppFileFid(item)}`
   const index = sources.findIndex((s) => s.path === targetPath)

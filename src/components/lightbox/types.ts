@@ -38,7 +38,7 @@ export interface ISource {
   path: string // file path
   name: string
   size: number
-  duration: number
+  durationMs: number
   type?: DataType
   fileId?: string
   extension?: string

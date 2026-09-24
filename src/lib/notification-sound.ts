@@ -18,7 +18,7 @@ export function playNotificationSound(volume = 1): void {
     ]
 
     const attackTime = 0.008 // 8 ms — near-instant, like a struck bell
-    const duration = 1.1
+    const durationSec = 1.1
 
     partials.forEach(({ freq, gain, decay }) => {
       const osc = ctx.createOscillator()
@@ -36,11 +36,11 @@ export function playNotificationSound(volume = 1): void {
       env.connect(master)
 
       osc.start(ctx.currentTime)
-      osc.stop(ctx.currentTime + duration)
+      osc.stop(ctx.currentTime + durationSec)
     })
 
     // Close the context shortly after all oscillators have finished
-    setTimeout(() => ctx.close(), (duration + 0.1) * 1000)
+    setTimeout(() => ctx.close(), (durationSec + 0.1) * 1000)
   } catch {
     // AudioContext unavailable (e.g. secure-context restriction)
   }

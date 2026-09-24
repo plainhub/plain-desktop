@@ -35,14 +35,14 @@ vi.mock('@/lib/api/query', async (importOriginal) => {
 
 import { useHomeData } from '@/views/home/home'
 import { useTempStore } from '@/stores/temp'
-import { DeviceFeature } from '@/lib/data'
+import { Capability } from '@/lib/data'
 
-const PHONE_FEATURES = Object.values(DeviceFeature)
+const PHONE_FEATURES = Object.values(Capability)
 const NAS_FEATURES = ['MEDIA_TRASH', 'DOC_PREVIEW', 'MEDIA_SCAN']
 
 function setFeatures(features: string[]) {
   const tempStore = useTempStore()
-  tempStore.app = { ...tempStore.app, features }
+  tempStore.app = { ...tempStore.app, capabilities: features }
 }
 
 beforeEach(() => {

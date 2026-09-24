@@ -1,9 +1,9 @@
 import { describe, it, expect } from 'vitest'
 import { getAvailableHomeFeatures } from '@/views/home/features'
 import { AppChannelType } from '@/lib/status'
-import { DeviceFeature } from '@/lib/data'
+import { Capability } from '@/lib/data'
 
-const PHONE_FEATURES = Object.values(DeviceFeature)
+const PHONE_FEATURES = Object.values(Capability)
 const NAS_FEATURES = ['MEDIA_TRASH', 'DOC_PREVIEW', 'MEDIA_SCAN']
 
 describe('getAvailableHomeFeatures', () => {

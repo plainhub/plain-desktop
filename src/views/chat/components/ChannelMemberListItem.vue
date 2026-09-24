@@ -24,7 +24,7 @@ import { ref } from 'vue'
 import { MemberStatus } from '@/lib/status'
 
 export interface IChannelMemberListItem {
-  id: string
+  peerId: string
   name: string
   ip?: string
   deviceType?: string

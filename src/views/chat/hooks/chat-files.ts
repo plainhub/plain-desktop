@@ -12,6 +12,11 @@ import { isLocalMode } from '@/lib/device/local-mode'
 import { useOpenMedia } from '@/hooks/open-media'
 import { useRevealFile } from './reveal-file'
 
+/** Chat message file duration in seconds; `duration` is the legacy wire key. */
+export function chatFileDurationSec(f: { durationSec?: number; duration?: number }): number {
+  return f.durationSec ?? f.duration ?? 0
+}
+
 export function useChatFiles(props: { data: any; downloadInfo: any; peer: { ip: string; port: number } | null }) {
   const tempStore = useTempStore()
   const mainStore = useMainStore()
@@ -40,7 +45,7 @@ export function useChatFiles(props: { data: any; downloadInfo: any; peer: { ip: 
       return {
         path: f.uri, src,
         viewOriginImage: notId(id) || isGif,
-        name: getFileName(f.fileName ?? f.uri), duration: f.duration, size: f.size,
+        name: getFileName(f.fileName ?? f.uri), durationMs: chatFileDurationSec(f) * 1000, size: f.size,
         fileId: id, thumbnail: f.thumbnail, extension: getFileExtension(f.uri),
         summary: f.summary || undefined, isFromChat: true,
       }

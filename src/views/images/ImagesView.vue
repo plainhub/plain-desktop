@@ -197,7 +197,7 @@ const { loading, fetch } = initLazyQuery({
 const { moveLoading, onMoveClick } = useMoveToFolder('move-images-picker')
 
 const sources = computed<ISource[]>(() => items.value.map((it: IImageItem) => ({
-  src: getFileUrl(it.fileId), name: getFileName(it.path), duration: 0, size: it.size, path: it.path, type: dataType, data: it,
+  src: getFileUrl(it.fileId), name: getFileName(it.path), durationMs: 0, size: it.size, path: it.path, type: dataType, data: it,
 })) as ISource[])
 const { open: openMedia } = useOpenMedia(sources)
 function view(index: number) { openMedia(index) }

@@ -15,7 +15,7 @@ import { deviceInfoGQL, deviceStatusGQL, simsGQL } from '@/lib/api/query'
 import { appFragment, deviceInfoFragment, deviceStatusFragment } from '@/lib/api/fragments'
 import { formatSeconds, formatFileSize } from '@/lib/format'
 import { useTempStore } from '@/stores/temp'
-import { DeviceFeature } from '@/lib/data'
+import { Capability } from '@/lib/data'
 
 const i18n = createI18n({
   legacy: false,
@@ -131,7 +131,7 @@ describe('useDeviceInfo sims gating', () => {
 
   it('never requests sims when features omit SMS', async () => {
     const tempStore = useTempStore()
-    tempStore.app = { ...tempStore.app, features: ['DOC_PREVIEW', 'MEDIA_TRASH'] }
+    tempStore.app = { ...tempStore.app, capabilities: ['DOC_PREVIEW', 'MEDIA_TRASH'] }
     mountHook()
     await flushPromises()
     expect(gqlFetchMock).toHaveBeenCalledTimes(1)
@@ -140,7 +140,7 @@ describe('useDeviceInfo sims gating', () => {
 
   it('requests sims exactly once and appends phone_number when features declare SMS', async () => {
     const tempStore = useTempStore()
-    tempStore.app = { ...tempStore.app, features: ['DOC_PREVIEW', DeviceFeature.SMS] }
+    tempStore.app = { ...tempStore.app, capabilities: ['DOC_PREVIEW', Capability.SMS] }
     gqlFetchMock.mockImplementation((document: string) =>
       Promise.resolve(document === simsGQL
         ? { data: simsPayload() }
@@ -161,7 +161,7 @@ describe('useDeviceInfo sims gating', () => {
     const hook = mountHook()
     await flushPromises()
     expect(gqlFetchMock).toHaveBeenCalledTimes(1)
-    tempStore.app = { ...tempStore.app, features: [DeviceFeature.SMS] }
+    tempStore.app = { ...tempStore.app, capabilities: [Capability.SMS] }
     await flushPromises()
     expect(gqlFetchMock.mock.calls.map((c) => c[0])).toEqual([deviceInfoGQL, simsGQL])
     expect(hook.basicInfos.value.some((it) => it.label === 'phone_number')).toBe(true)
@@ -169,7 +169,7 @@ describe('useDeviceInfo sims gating', () => {
 
   it('keeps basicInfos free of phone_number when the gated sims query stays disabled', async () => {
     const tempStore = useTempStore()
-    tempStore.app = { ...tempStore.app, features: ['DOC_PREVIEW'] }
+    tempStore.app = { ...tempStore.app, capabilities: ['DOC_PREVIEW'] }
     const hook = mountHook()
     await flushPromises()
     expect(hook.basicInfos.value.map((it) => it.label)).not.toContain('phone_number')

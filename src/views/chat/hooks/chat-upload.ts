@@ -88,14 +88,14 @@ export function useChatUpload(chatId: ComputedRef<string>, channelId: ComputedRe
         dir: frozenDestination.appDir,
         uri: upload.fileName || upload.file.name,
         size: upload.file.size,
-        duration: 0,
+        durationSec: 0,
         width: 0,
         height: 0,
         summary: options.summary,
       }
       if (upload.file.type.startsWith('video') || isVideo(upload.file.name)) {
         const v = await getVideoData(upload.file)
-        itemProps.duration = v.duration
+        itemProps.durationSec = v.durationSec
         itemProps.thumbnail = v.thumbnail
         itemProps.width = v.width
         itemProps.height = v.height

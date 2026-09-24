@@ -39,7 +39,7 @@ export const useTasks = () => {
           return {
             uri: 'fid:' + upload.fileHash,
             size: metadata.size,
-            duration: metadata.duration,
+            durationSec: metadata.durationSec,
             width: metadata.width,
             height: metadata.height,
             summary: metadata.summary,

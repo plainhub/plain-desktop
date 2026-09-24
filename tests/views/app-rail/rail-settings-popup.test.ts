@@ -66,19 +66,19 @@ const lanShareEntry = 'a[href="/settings/lan-share"]'
 
 describe('RailSettingsPopup LAN share entry', () => {
   it('shows the entry when app.features declares LAN_SHARE, regardless of device type', () => {
-    const wrapper = mountPopup({ deviceType: DeviceType.PHONE, features: ['LAN_SHARE'] })
+    const wrapper = mountPopup({ deviceType: DeviceType.PHONE, capabilities: ['LAN_SHARE'] })
     const entry = wrapper.find(lanShareEntry)
     expect(entry.exists()).toBe(true)
     expect(entry.text()).toContain('lan_share')
   })
 
   it('hides the entry for a NAS that does not declare LAN_SHARE', () => {
-    const wrapper = mountPopup({ deviceType: DeviceType.NAS, features: ['MEDIA_TRASH', 'MEDIA_SCAN'] })
+    const wrapper = mountPopup({ deviceType: DeviceType.NAS, capabilities: ['MEDIA_TRASH', 'MEDIA_SCAN'] })
     expect(wrapper.find(lanShareEntry).exists()).toBe(false)
   })
 
   it('keeps the entry hidden until the app query resolves features', () => {
-    const wrapper = mountPopup({ deviceType: DeviceType.NAS, features: undefined as unknown as string[] })
+    const wrapper = mountPopup({ deviceType: DeviceType.NAS, capabilities: undefined as unknown as string[] })
     expect(wrapper.find(lanShareEntry).exists()).toBe(false)
   })
 })

@@ -23,7 +23,7 @@ v-else v-tooltip="$t('remove_member')"
         <div class="section-title">{{ $t('add_member') }}</div>
         <ul class="card list-items">
           <ChannelMemberListItem
-v-for="peer in availablePeers" :key="peer.id" :member="{ id: peer.id, name: peer.name, ip: peer.ip, deviceType: peer.deviceType, isSelf: false, isOwner: false, status: peer.status }">
+v-for="peer in availablePeers" :key="peer.id" :member="{ peerId: peer.id, name: peer.name, ip: peer.ip, deviceType: peer.deviceType, isSelf: false, isOwner: false, status: peer.status }">
             <template #end>
               <v-outlined-button :loading="pendingIds.has(peer.id)" :disabled="pendingIds.has(peer.id)" @click.stop="addMember(peer.id)">{{ $t('invite') }}</v-outlined-button>
             </template>
@@ -68,7 +68,7 @@ const enrichedMembers = computed<IChannelMemberListItem[]>(() =>
     const isSelf = m.peerId === selfId
     const isOwner = m.peerId === channel.value.ownerId || (isSelf && channel.value.ownerId === selfId)
     return {
-      id: m.peerId,
+      peerId: m.peerId,
       status: m.status,
       isSelf,
       isOwner,

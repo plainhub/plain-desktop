@@ -140,7 +140,7 @@ export const useView = (sources: Ref<ISource[]>, ivView: (sources: ISource[], i:
           src: it.fileId ? getFileUrl(it.fileId) : '',
           name: getFileName(it.path),
           size: it.size,
-          duration: 0,
+          durationMs: 0,
           data: f,
         }))
       const index = sources.value.findIndex((it: ISource) => it.path === f.path)

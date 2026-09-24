@@ -5,7 +5,7 @@
         <div class="file-content">
           <div class="file-name" :class="{ playing: activeAudioSrc === item.src }">{{ item.name }}</div>
           <div class="file-info">
-            {{ formatFileSize(item.size) }}{{ item.duration > 0 ? ' / ' + formatSeconds(item.duration) : '' }}
+            {{ formatFileSize(item.size) }}{{ item.durationMs > 0 ? ' / ' + formatDurationMs(item.durationMs) : '' }}
           </div>
           <div v-if="item.summary" class="file-summary">{{ item.summary }}</div>
         </div>
@@ -21,10 +21,10 @@
 
 <script setup lang="ts">
 import { isVideo, isImage } from '@/lib/file'
-import { formatSeconds, formatFileSize } from '@/lib/format'
+import { formatDurationMs, formatFileSize } from '@/lib/format'
 import ChatAudioPlayer from './ChatAudioPlayer.vue'
 import ChatDownloadOverlay from './ChatDownloadOverlay.vue'
-import { useChatFiles } from './hooks/chat-files'
+import { useChatFiles, chatFileDurationSec } from './hooks/chat-files'
 
 const props = defineProps({
   data: { type: Object, default: () => ({}) },

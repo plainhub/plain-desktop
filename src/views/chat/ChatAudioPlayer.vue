@@ -14,7 +14,7 @@
         />
         <div class="times">
           <span class="time">{{ formatSeconds(Math.floor(progress)) }}</span>
-          <span class="time">{{ formatSeconds(Math.floor(duration)) }}</span>
+          <span class="time">{{ formatSeconds(Math.floor(durationSec)) }}</span>
         </div>
       </div>
       <button class="play-btn" @click="toggle">
@@ -32,16 +32,16 @@ import { formatSeconds } from '@/lib/format'
 const props = defineProps<{ src: string }>()
 
 const progress = ref(0)
-const duration = ref(0)
+const durationSec = ref(0)
 const playing = ref(false)
-const ratio = computed(() => duration.value > 0 ? progress.value / duration.value : 0)
+const ratio = computed(() => durationSec.value > 0 ? progress.value / durationSec.value : 0)
 
 let el: HTMLAudioElement | null = null
 let dragging = false
 
 onMounted(() => {
   el = new Audio(props.src)
-  el.addEventListener('loadedmetadata', () => { duration.value = el!.duration })
+  el.addEventListener('loadedmetadata', () => { durationSec.value = el!.duration })
   el.addEventListener('timeupdate', () => { if (!dragging) progress.value = el!.currentTime })
   el.addEventListener('ended', () => { playing.value = false; progress.value = 0 })
   el.play()
@@ -61,11 +61,11 @@ function toggle() {
 
 function onInput(e: Event) {
   dragging = true
-  progress.value = parseFloat((e.target as HTMLInputElement).value) * duration.value
+  progress.value = parseFloat((e.target as HTMLInputElement).value) * durationSec.value
 }
 
 function onChange(e: Event) {
-  if (el) el.currentTime = parseFloat((e.target as HTMLInputElement).value) * duration.value
+  if (el) el.currentTime = parseFloat((e.target as HTMLInputElement).value) * durationSec.value
   dragging = false
 }
 </script>

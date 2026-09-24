@@ -2,7 +2,7 @@
   <div class="image-container">
     <div v-for="(item, i) in sources" :key="i" class="media-item" data-ctx="media" :data-path="item.path" :data-name="item.name" @click="canView ? view(i) : undefined">
       <img v-if="getPreview(item)" class="image-thumb" :src="getPreview(item)" loading="lazy" onerror="this.src='/broken-image.png'" />
-      <span class="duration">{{ isVideo(item.name) && item.duration > 0 ? formatSeconds(item.duration) : formatFileSize(item.size) }}</span>
+      <span class="duration">{{ isVideo(item.name) && item.durationMs > 0 ? formatDurationMs(item.durationMs) : formatFileSize(item.size) }}</span>
       <ChatDownloadOverlay :download-info="downloadInfo" :ring-size="48" border-radius="6px" @action="onDownloadAction" />
     </div>
   </div>
@@ -13,9 +13,10 @@ import { getFileName, getFileUrl, notId, getPeerProxyUrl } from '@/lib/api/file'
 import { isVideo } from '@/lib/file'
 import { computed } from 'vue'
 import type { ISource } from '@/components/lightbox/types'
-import { formatSeconds, formatFileSize } from '@/lib/format'
+import { formatDurationMs, formatFileSize } from '@/lib/format'
 import { useTempStore } from '@/stores/temp'
 import { useOpenMedia } from '@/hooks/open-media'
+import { chatFileDurationSec } from './hooks/chat-files'
 import ChatDownloadOverlay from './ChatDownloadOverlay.vue'
 
 const tempStore = useTempStore()
@@ -84,7 +85,7 @@ const sources = computed(() => {
       src,
       viewOriginImage: notId(id) || isGif,
       name: file.fileName || getFileName(file.uri),
-      duration: file.duration,
+      durationMs: chatFileDurationSec(file) * 1000,
       size: file.size,
       thumbnail: file.thumbnail,
       isFromChat: true,

@@ -15,7 +15,7 @@
     <LightboxFileInfoItem 
       v-if="current && (isAudio(current?.name || '') || isVideo(current?.name || ''))" 
       :label="$t('duration')"
-      :value="formatDurationMs(fileInfo?.data?.durationMs ?? current?.duration)"
+      :value="formatDurationMs(fileInfo?.data?.durationMs ?? current?.durationMs)"
     />
     
     <LightboxFileInfoItem 

@@ -10,7 +10,7 @@ export const toastWithAction = (message: string, actionLabel: string, onAction: 
     h(Toaster, {
       message,
       type,
-      duration: 5000,
+      durationMs: 5000,
       actionLabel,
       onAction,
     }),

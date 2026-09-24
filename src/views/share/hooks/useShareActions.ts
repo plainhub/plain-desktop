@@ -39,7 +39,7 @@ export function useShareActions(
   }
 
   function toSource(entry: SharedFile): ISource {
-    return { src: fileUrl(entry), path: entry.virtualPath, name: entry.name, size: entry.size, duration: 0 }
+    return { src: fileUrl(entry), path: entry.virtualPath, name: entry.name, size: entry.size, durationMs: 0 }
   }
 
   function downloadEntry(entry: SharedFile) {

@@ -58,18 +58,18 @@ const diskManagerButton = '.section-title button'
 
 describe('FilesSidebar disk manager button', () => {
   it('shows the button when app.features declares DISK_MANAGER, regardless of device type', () => {
-    const wrapper = mountSidebar({ deviceType: DeviceType.PHONE, features: ['DISK_MANAGER'] })
+    const wrapper = mountSidebar({ deviceType: DeviceType.PHONE, capabilities: ['DISK_MANAGER'] })
     const button = wrapper.find(diskManagerButton)
     expect(button.exists()).toBe(true)
   })
 
   it('hides the button for a NAS that does not declare DISK_MANAGER', () => {
-    const wrapper = mountSidebar({ deviceType: DeviceType.NAS, features: ['MEDIA_TRASH', 'MEDIA_SCAN'] })
+    const wrapper = mountSidebar({ deviceType: DeviceType.NAS, capabilities: ['MEDIA_TRASH', 'MEDIA_SCAN'] })
     expect(wrapper.find(diskManagerButton).exists()).toBe(false)
   })
 
   it('keeps the button hidden until the app query resolves features', () => {
-    const wrapper = mountSidebar({ deviceType: DeviceType.NAS, features: undefined as unknown as string[] })
+    const wrapper = mountSidebar({ deviceType: DeviceType.NAS, capabilities: undefined as unknown as string[] })
     expect(wrapper.find(diskManagerButton).exists()).toBe(false)
   })
 })
