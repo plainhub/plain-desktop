@@ -95,7 +95,7 @@ export function useChatUpload(chatId: ComputedRef<string>, channelId: ComputedRe
       }
       if (upload.file.type.startsWith('video') || isVideo(upload.file.name)) {
         const v = await getVideoData(upload.file)
-        itemProps.durationSec = v.durationSec
+        itemProps.durationSec = Math.round(v.durationMs / 1000) // chat message wire stores seconds
         itemProps.thumbnail = v.thumbnail
         itemProps.width = v.width
         itemProps.height = v.height

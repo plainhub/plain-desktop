@@ -120,7 +120,7 @@ export function formatGroupDateLabel(dateKey: string): string {
   }).format(new Date(dateKey + 'T12:00:00'))
 }
 
-export async function getVideoData(videoFile: File): Promise<{ src: string; durationSec: number; thumbnail: string; width: number; height: number }> {
+export async function getVideoData(videoFile: File): Promise<{ src: string; durationMs: number; thumbnail: string; width: number; height: number }> {
   return new Promise((resolve) => {
     const video = document.createElement('video')
     const canvas = document.createElement('canvas')
@@ -153,14 +153,14 @@ export async function getVideoData(videoFile: File): Promise<{ src: string; dura
 
       resolve({
         src,
-        durationSec: Math.round(video.duration),
+        durationMs: Math.round(video.duration * 1000),
         thumbnail,
         width: video.videoWidth,
         height: video.videoHeight,
       })
     }
     video.onerror = () => {
-      resolve({ src, durationSec: 0, thumbnail: '', width: 0, height: 0 })
+      resolve({ src, durationMs: 0, thumbnail: '', width: 0, height: 0 })
     }
   })
 }

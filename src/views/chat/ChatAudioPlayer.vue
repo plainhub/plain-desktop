@@ -13,8 +13,8 @@
           @change="onChange"
         />
         <div class="times">
-          <span class="time">{{ formatSeconds(Math.floor(progress)) }}</span>
-          <span class="time">{{ formatSeconds(Math.floor(durationSec)) }}</span>
+          <span class="time">{{ formatDurationMs(Math.floor(progressMs)) }}</span>
+          <span class="time">{{ formatDurationMs(Math.floor(durationMs)) }}</span>
         </div>
       </div>
       <button class="play-btn" @click="toggle">
@@ -27,23 +27,23 @@
 
 <script setup lang="ts">
 import { ref, computed, onMounted, onUnmounted } from 'vue'
-import { formatSeconds } from '@/lib/format'
+import { formatDurationMs } from '@/lib/format'
 
 const props = defineProps<{ src: string }>()
 
-const progress = ref(0)
-const durationSec = ref(0)
+const progressMs = ref(0)
+const durationMs = ref(0)
 const playing = ref(false)
-const ratio = computed(() => durationSec.value > 0 ? progress.value / durationSec.value : 0)
+const ratio = computed(() => durationMs.value > 0 ? progressMs.value / durationMs.value : 0)
 
 let el: HTMLAudioElement | null = null
 let dragging = false
 
 onMounted(() => {
   el = new Audio(props.src)
-  el.addEventListener('loadedmetadata', () => { durationSec.value = el!.duration })
-  el.addEventListener('timeupdate', () => { if (!dragging) progress.value = el!.currentTime })
-  el.addEventListener('ended', () => { playing.value = false; progress.value = 0 })
+  el.addEventListener('loadedmetadata', () => { durationMs.value = el!.duration * 1000 })
+  el.addEventListener('timeupdate', () => { if (!dragging) progressMs.value = el!.currentTime * 1000 })
+  el.addEventListener('ended', () => { playing.value = false; progressMs.value = 0 })
   el.play()
   playing.value = true
 })
@@ -61,11 +61,11 @@ function toggle() {
 
 function onInput(e: Event) {
   dragging = true
-  progress.value = parseFloat((e.target as HTMLInputElement).value) * durationSec.value
+  progressMs.value = parseFloat((e.target as HTMLInputElement).value) * durationMs.value
 }
 
 function onChange(e: Event) {
-  if (el) el.currentTime = parseFloat((e.target as HTMLInputElement).value) * durationSec.value
+  if (el) el.currentTime = parseFloat((e.target as HTMLInputElement).value) * durationMs.value / 1000
   dragging = false
 }
 </script>

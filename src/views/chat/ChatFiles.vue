@@ -24,7 +24,7 @@ import { isVideo, isImage } from '@/lib/file'
 import { formatDurationMs, formatFileSize } from '@/lib/format'
 import ChatAudioPlayer from './ChatAudioPlayer.vue'
 import ChatDownloadOverlay from './ChatDownloadOverlay.vue'
-import { useChatFiles, chatFileDurationSec } from './hooks/chat-files'
+import { useChatFiles } from './hooks/chat-files'
 
 const props = defineProps({
   data: { type: Object, default: () => ({}) },

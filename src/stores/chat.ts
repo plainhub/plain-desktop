@@ -1,4 +1,4 @@
-import { chatFileDurationSec } from '@/views/chat/hooks/chat-files'
+import { chatFileDurationMs } from '@/views/chat/chat-file-duration'
 import { defineStore } from 'pinia'
 import { computed } from 'vue'
 import type { IPeer, IChatChannel, IChatItem } from '@/lib/interfaces'
@@ -65,7 +65,7 @@ export const useChatStore = defineStore('chat', () => {
     }
     if (content?.type === MessageType.IMAGES) {
       const items = content?.value?.items ?? []
-      const videoCount = items.filter((it: any) => chatFileDurationSec(it) > 0).length
+      const videoCount = items.filter((it: any) => chatFileDurationMs(it) > 0).length
       const imageCount = items.length - videoCount
       if (imageCount > 0 && videoCount > 0) {
         const imgPart = imageCount > 1 ? `${imageCount} ${t('images')}` : t('image')

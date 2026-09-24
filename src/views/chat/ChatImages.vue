@@ -16,7 +16,7 @@ import type { ISource } from '@/components/lightbox/types'
 import { formatDurationMs, formatFileSize } from '@/lib/format'
 import { useTempStore } from '@/stores/temp'
 import { useOpenMedia } from '@/hooks/open-media'
-import { chatFileDurationSec } from './hooks/chat-files'
+import { chatFileDurationMs } from './chat-file-duration'
 import ChatDownloadOverlay from './ChatDownloadOverlay.vue'
 
 const tempStore = useTempStore()
@@ -85,7 +85,7 @@ const sources = computed(() => {
       src,
       viewOriginImage: notId(id) || isGif,
       name: file.fileName || getFileName(file.uri),
-      durationMs: chatFileDurationSec(file) * 1000,
+      durationMs: chatFileDurationMs(file),
       size: file.size,
       thumbnail: file.thumbnail,
       isFromChat: true,
