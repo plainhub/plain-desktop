@@ -56,6 +56,11 @@ export function formatTime(str: string) {
   return new Intl.DateTimeFormat(getLocale(), { hour12: false, timeStyle: 'short' }).format(new Date(str))
 }
 
+/** Millisecond variant of [formatSeconds] — for GraphQL `durationMs` fields. */
+export function formatDurationMs(ms: number) {
+  return formatSeconds(ms / 1000)
+}
+
 export function formatSeconds(seconds: number) {
   const hours = Math.floor(seconds / 3600)
   const minutes = Math.floor((seconds % 3600) / 60)

@@ -10,7 +10,7 @@ use plain_rs::short_uuid::short_uuid;
 pub struct DChannel {
     pub id: String,
     pub name: String,
-    pub owner: String,
+    pub owner_id: String,
     pub members: String,
     pub key: String,
     pub version: i64,
@@ -25,7 +25,7 @@ impl DChannel {
         Self {
             id: short_uuid(),
             name: name.to_string(),
-            owner: owner.to_string(),
+            owner_id: owner.to_string(),
             members: "[]".to_string(),
             key: String::new(),
             version: 1,
@@ -39,7 +39,7 @@ impl DChannel {
         decode_members(&self.members)
             .into_iter()
             .filter(|m| m.is_joined())
-            .map(|m| m.id)
+            .map(|m| m.peer_id)
             .collect()
     }
 
@@ -70,8 +70,8 @@ impl DChannel {
         }
         // Owner is preferred (plain-app resolves "me" sentinel → my_id;
         // in Rust the owner is stored as the real peer id).
-        if online_ids.contains(&self.owner) {
-            return Some(self.owner.clone());
+        if online_ids.contains(&self.owner_id) {
+            return Some(self.owner_id.clone());
         }
         // Fallback: smallest id among ALL online joined members.
         // Mirrors `onlineJoined.minByOrNull { it.id }?.id` — includes self.
@@ -83,7 +83,7 @@ impl ChatDb {
     pub fn get_channels(&self, status: ChannelStatus) -> Vec<DChannel> {
         let conn = self.0.lock().unwrap();
         let mut stmt = match conn.prepare(
-            "SELECT id,name,owner,members,key,version,status,created_at,updated_at \
+            "SELECT id,name,owner_id,members,key,version,status,created_at,updated_at \
              FROM chat_channels WHERE status=? ORDER BY name ASC",
         ) {
             Ok(s) => s,
@@ -93,7 +93,7 @@ impl ChatDb {
             Ok(DChannel {
                 id: row.get(0)?,
                 name: row.get(1)?,
-                owner: row.get(2)?,
+                owner_id: row.get(2)?,
                 members: row.get(3)?,
                 key: row.get(4)?,
                 version: row.get::<_, i64>(5)?,
@@ -112,7 +112,7 @@ impl ChatDb {
     pub fn get_all_channels(&self) -> Vec<DChannel> {
         let conn = self.0.lock().unwrap();
         let mut stmt = match conn.prepare(
-            "SELECT id,name,owner,members,key,version,status,created_at,updated_at \
+            "SELECT id,name,owner_id,members,key,version,status,created_at,updated_at \
              FROM chat_channels ORDER BY name ASC",
         ) {
             Ok(s) => s,
@@ -122,7 +122,7 @@ impl ChatDb {
             Ok(DChannel {
                 id: row.get(0)?,
                 name: row.get(1)?,
-                owner: row.get(2)?,
+                owner_id: row.get(2)?,
                 members: row.get(3)?,
                 key: row.get(4)?,
                 version: row.get::<_, i64>(5)?,
@@ -139,7 +139,7 @@ impl ChatDb {
     pub fn get_channels_with_key(&self) -> Vec<DChannel> {
         let conn = self.0.lock().unwrap();
         let mut stmt = match conn.prepare(
-            "SELECT id,name,owner,members,key,version,status,created_at,updated_at \
+            "SELECT id,name,owner_id,members,key,version,status,created_at,updated_at \
              FROM chat_channels WHERE key != ''",
         ) {
             Ok(s) => s,
@@ -149,7 +149,7 @@ impl ChatDb {
             Ok(DChannel {
                 id: row.get(0)?,
                 name: row.get(1)?,
-                owner: row.get(2)?,
+                owner_id: row.get(2)?,
                 members: row.get(3)?,
                 key: row.get(4)?,
                 version: row.get::<_, i64>(5)?,
@@ -166,14 +166,14 @@ impl ChatDb {
     pub fn get_channel_by_id(&self, id: &str) -> Option<DChannel> {
         let conn = self.0.lock().unwrap();
         conn.query_row(
-            "SELECT id,name,owner,members,key,version,status,created_at,updated_at \
+            "SELECT id,name,owner_id,members,key,version,status,created_at,updated_at \
              FROM chat_channels WHERE id=?",
             params![id],
             |row| {
                 Ok(DChannel {
                     id: row.get(0)?,
                     name: row.get(1)?,
-                    owner: row.get(2)?,
+                    owner_id: row.get(2)?,
                     members: row.get(3)?,
                     key: row.get(4)?,
                     version: row.get::<_, i64>(5)?,
@@ -189,10 +189,10 @@ impl ChatDb {
     pub fn insert_channel(&self, channel: &DChannel) {
         let conn = self.0.lock().unwrap();
         let _ = conn.execute(
-            "INSERT INTO chat_channels (id,name,owner,members,key,version,status,created_at,updated_at) \
+            "INSERT INTO chat_channels (id,name,owner_id,members,key,version,status,created_at,updated_at) \
              VALUES (?1,?2,?3,?4,?5,?6,?7,?8,?9)",
             params![
-                channel.id, channel.name, channel.owner, channel.members,
+                channel.id, channel.name, channel.owner_id, channel.members,
                 channel.key, channel.version, channel.status,
                 channel.created_at, channel.updated_at
             ],
@@ -202,9 +202,9 @@ impl ChatDb {
     pub fn update_channel(&self, channel: &DChannel) {
         let conn = self.0.lock().unwrap();
         let _ = conn.execute(
-            "UPDATE chat_channels SET name=?1,owner=?2,members=?3,key=?4,version=?5,status=?6,updated_at=?7 WHERE id=?8",
+            "UPDATE chat_channels SET name=?1,owner_id=?2,members=?3,key=?4,version=?5,status=?6,updated_at=?7 WHERE id=?8",
             params![
-                channel.name, channel.owner, channel.members, channel.key,
+                channel.name, channel.owner_id, channel.members, channel.key,
                 channel.version, channel.status, channel.updated_at, channel.id
             ],
         );
@@ -214,14 +214,14 @@ impl ChatDb {
     pub fn upsert_channel(&self, channel: &DChannel) {
         let conn = self.0.lock().unwrap();
         let _ = conn.execute(
-            "INSERT INTO chat_channels (id,name,owner,members,key,version,status,created_at,updated_at) \
+            "INSERT INTO chat_channels (id,name,owner_id,members,key,version,status,created_at,updated_at) \
              VALUES (?1,?2,?3,?4,?5,?6,?7,?8,?9) \
              ON CONFLICT(id) DO UPDATE SET \
-               name=excluded.name, owner=excluded.owner, members=excluded.members, \
+               name=excluded.name, owner_id=excluded.owner_id, members=excluded.members, \
                key=excluded.key, version=excluded.version, status=excluded.status, \
                updated_at=excluded.updated_at",
             params![
-                channel.id, channel.name, channel.owner, channel.members,
+                channel.id, channel.name, channel.owner_id, channel.members,
                 channel.key, channel.version, channel.status,
                 channel.created_at, channel.updated_at
             ],
@@ -247,7 +247,7 @@ impl ChatDb {
             let members_json: String = row.get(0).unwrap_or_default();
             if decode_members(&members_json)
                 .iter()
-                .any(|m| m.id == peer_id)
+                .any(|m| m.peer_id == peer_id)
             {
                 return true;
             }

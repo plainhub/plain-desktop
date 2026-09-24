@@ -82,7 +82,7 @@ impl ChatDb {
             CREATE TABLE IF NOT EXISTS chat_channels (
                 id         TEXT PRIMARY KEY,
                 name       TEXT NOT NULL DEFAULT '',
-                owner      TEXT NOT NULL DEFAULT 'me',
+                owner_id   TEXT NOT NULL DEFAULT 'me',
                 members    TEXT NOT NULL DEFAULT '[]',
                 key        TEXT NOT NULL DEFAULT '',
                 version    INTEGER NOT NULL DEFAULT 1,
@@ -146,6 +146,40 @@ impl ChatDb {
     fn run_migrations(conn: &Connection) -> rusqlite::Result<()> {
         Self::ensure_column(conn, "chat_channels", "key", "TEXT NOT NULL DEFAULT ''")?;
         Self::ensure_column(conn, "peers", "token", "TEXT NOT NULL DEFAULT ''")?;
+        Self::rename_column(conn, "chat_channels", "owner", "owner_id")?;
+        Ok(())
+    }
+
+    /// Rename a column in place; no-op when the old name is already gone.
+    /// `chat_channels.owner` → `owner_id` (2026-09-24 naming cleanup). The
+    /// members JSON key rewrite (`"id":` → `"peerId":`) rides along — legacy
+    /// `"id"` keys stay decodable via the serde alias.
+    fn rename_column(
+        conn: &Connection,
+        table: &str,
+        from: &str,
+        to: &str,
+    ) -> rusqlite::Result<()> {
+        let mut stmt = conn.prepare(&format!("PRAGMA table_info({table})"))?;
+        let mut has_from = false;
+        let mut has_to = false;
+        stmt.query_map([], |row| row.get::<_, String>(1))?
+            .filter_map(|r| r.ok())
+            .for_each(|name| {
+                if name == from {
+                    has_from = true;
+                }
+                if name == to {
+                    has_to = true;
+                }
+            });
+        if has_from && !has_to {
+            conn.execute(&format!("ALTER TABLE {table} RENAME COLUMN {from} TO {to}"), [])?;
+            conn.execute(
+                "UPDATE chat_channels SET members = REPLACE(members, '\"id\":', '\"peerId\":') WHERE members LIKE '%\"id\"%'",
+                [],
+            )?;
+        }
         Ok(())
     }
 

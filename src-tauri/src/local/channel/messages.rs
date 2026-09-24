@@ -33,7 +33,10 @@ pub fn channel_message_payload(
 /// metadata (name, publicKey, IP, port) lives in the `peers` table.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct ChannelMember {
-    pub id: String,
+    /// Wire/storage key is `peerId` since the 2026-09-24 naming cleanup; the
+    /// legacy `id` key stays decodable via the serde alias (older app versions).
+    #[serde(rename = "peerId", alias = "id")]
+    pub peer_id: String,
     #[serde(default)]
     pub status: MemberStatus,
 }
@@ -41,14 +44,14 @@ pub struct ChannelMember {
 impl ChannelMember {
     pub fn new(id: impl Into<String>) -> Self {
         Self {
-            id: id.into(),
+            peer_id: id.into(),
             status: MemberStatus::Joined,
         }
     }
 
     pub fn pending(id: impl Into<String>) -> Self {
         Self {
-            id: id.into(),
+            peer_id: id.into(),
             status: MemberStatus::Pending,
         }
     }
@@ -191,13 +194,13 @@ pub fn decode_members(raw: &str) -> Vec<ChannelMember> {
 
 /// Does the members list already contain `peer_id`?
 pub fn has_member(members: &[ChannelMember], peer_id: &str) -> bool {
-    members.iter().any(|m| m.id == peer_id)
+    members.iter().any(|m| m.peer_id == peer_id)
 }
 
 /// Find a member entry by peer id.
 #[allow(dead_code)]
 pub fn find_member<'a>(members: &'a [ChannelMember], peer_id: &str) -> Option<&'a ChannelMember> {
-    members.iter().find(|m| m.id == peer_id)
+    members.iter().find(|m| m.peer_id == peer_id)
 }
 
 #[cfg(test)]
@@ -331,18 +334,24 @@ mod tests {
     }
 
     /// `encode_members`/`decode_members` preserve the exact storage
-    /// format (`[{"id","status"}]` with `JOINED`/`PENDING`).
+    /// format (`[{"peerId","status"}]` with `JOINED`/`PENDING`); legacy
+    /// `"id"` keys (pre-rename rows/messages) still decode via the alias.
     #[test]
     fn members_encode_decode_roundtrip() {
         let roster = vec![ChannelMember::new("a"), ChannelMember::pending("b")];
         let json = encode_members(&roster);
         assert_eq!(
             json,
-            r#"[{"id":"a","status":"JOINED"},{"id":"b","status":"PENDING"}]"#
+            r#"[{"peerId":"a","status":"JOINED"},{"peerId":"b","status":"PENDING"}]"#
         );
         assert_eq!(decode_members(&json), roster);
+        // Legacy storage/wire keys written by pre-rename app versions.
+        assert_eq!(
+            decode_members(r#"[{"id":"a","status":"JOINED"},{"id":"b","status":"PENDING"}]"#),
+            roster
+        );
         assert!(has_member(&roster, "a"));
         assert!(!has_member(&roster, "c"));
-        assert_eq!(find_member(&roster, "b").map(|m| m.id.as_str()), Some("b"));
+        assert_eq!(find_member(&roster, "b").map(|m| m.peer_id.as_str()), Some("b"));
     }
 }

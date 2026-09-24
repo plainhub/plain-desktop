@@ -57,7 +57,7 @@ impl ChatChannelMutation {
         ch.version += 1;
         ch.updated_at = now_iso();
         c.db.update_channel(&ch);
-        if ch.owner == c.identity.client_id {
+        if ch.owner_id == c.identity.client_id {
             let kp_bytes = base64_decode(&c.identity.ed25519_keypair);
             let channel_key = base64_decode(&ch.key);
             crate::local::channel::sender::broadcast_update(
@@ -78,7 +78,7 @@ impl ChatChannelMutation {
     async fn delete_chat_channel(&self, ctx: &Context<'_>, id: String) -> bool {
         let c = ctx.data_unchecked::<Arc<AppCtx>>().clone();
         if let Some(mut ch) = c.db.get_channel_by_id(&id) {
-            if ch.owner == c.identity.client_id {
+            if ch.owner_id == c.identity.client_id {
                 let kp_bytes = base64_decode(&c.identity.ed25519_keypair);
                 let channel_key = base64_decode(&ch.key);
                 crate::local::channel::sender::broadcast_kick(
@@ -105,8 +105,8 @@ impl ChatChannelMutation {
     async fn leave_chat_channel(&self, ctx: &Context<'_>, id: String) -> bool {
         let c = ctx.data_unchecked::<Arc<AppCtx>>().clone();
         if let Some(mut ch) = c.db.get_channel_by_id(&id) {
-            if ch.owner != c.identity.client_id {
-                if let Some(owner_peer) = c.db.get_peer_by_id(&ch.owner) {
+            if ch.owner_id != c.identity.client_id {
+                if let Some(owner_peer) = c.db.get_peer_by_id(&ch.owner_id) {
                     let kp_bytes = base64_decode(&c.identity.ed25519_keypair);
                     let channel_key = base64_decode(&ch.key);
                     let _ = crate::local::channel::sender::send_leave(
@@ -121,7 +121,7 @@ impl ChatChannelMutation {
                 }
                 let new_members: Vec<ChannelMember> = decode_members(&ch.members)
                     .into_iter()
-                    .filter(|m| m.id != c.identity.client_id)
+                    .filter(|m| m.peer_id != c.identity.client_id)
                     .collect();
                 ch.members = encode_members(&new_members);
                 ch.status = ChannelStatus::Left;
@@ -144,7 +144,7 @@ impl ChatChannelMutation {
         let mut ch =
             c.db.get_channel_by_id(&id)
                 .ok_or_else(|| gql_err("Channel not found"))?;
-        if ch.owner != c.identity.client_id {
+        if ch.owner_id != c.identity.client_id {
             return Err(gql_err("Only owner can add members"));
         }
         let mut new_members = decode_members(&ch.members);
@@ -186,7 +186,7 @@ impl ChatChannelMutation {
         let mut ch =
             c.db.get_channel_by_id(&id)
                 .ok_or_else(|| gql_err("Channel not found"))?;
-        if ch.owner != c.identity.client_id {
+        if ch.owner_id != c.identity.client_id {
             return Err(gql_err("Only owner can remove members"));
         }
         let members = decode_members(&ch.members);
@@ -194,7 +194,7 @@ impl ChatChannelMutation {
             return Err(gql_err("Not a member"));
         }
         let new_members: Vec<ChannelMember> =
-            members.into_iter().filter(|m| m.id != peer_id).collect();
+            members.into_iter().filter(|m| m.peer_id != peer_id).collect();
         ch.members = encode_members(&new_members);
         ch.version += 1;
         ch.updated_at = now_iso();
@@ -234,7 +234,7 @@ impl ChatChannelMutation {
             c.db.get_channel_by_id(&id)
                 .ok_or_else(|| gql_err("Channel not found"))?;
         let owner_peer =
-            c.db.get_peer_by_id(&ch.owner)
+            c.db.get_peer_by_id(&ch.owner_id)
                 .ok_or_else(|| gql_err("Owner peer not found"))?;
         let kp_bytes = base64_decode(&c.identity.ed25519_keypair);
         let channel_key = base64_decode(&ch.key);
@@ -258,7 +258,7 @@ impl ChatChannelMutation {
         let Some(ch) = c.db.get_channel_by_id(&id) else {
             return true;
         };
-        if let Some(owner_peer) = c.db.get_peer_by_id(&ch.owner) {
+        if let Some(owner_peer) = c.db.get_peer_by_id(&ch.owner_id) {
             let kp_bytes = base64_decode(&c.identity.ed25519_keypair);
             let channel_key = base64_decode(&ch.key);
             let _ = crate::local::channel::sender::send_invite_decline(

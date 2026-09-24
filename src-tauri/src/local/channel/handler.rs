@@ -220,7 +220,7 @@ fn handle_invite(
 
     if let Some(mut ch) = existing {
         ch.name = channel_name.clone();
-        ch.owner = from_id.to_string();
+        ch.owner_id = from_id.to_string();
         ch.members = encode_members(&msg.members);
         if !msg.key.is_empty() {
             ch.key = msg.key.clone();
@@ -234,7 +234,7 @@ fn handle_invite(
         let ch = DChannel {
             id: channel_id.clone(),
             name: channel_name.clone(),
-            owner: from_id.to_string(),
+            owner_id: from_id.to_string(),
             members: encode_members(&msg.members),
             key: msg.key,
             version: msg.version,
@@ -302,7 +302,7 @@ fn handle_invite_accept(
         return false;
     };
     // Only the owner should process accept responses.
-    if ch.owner != client_id {
+    if ch.owner_id != client_id {
         log::warn!("[channel] invite_accept received but we are not the owner of {channel_id}");
         return false;
     }
@@ -340,7 +340,7 @@ fn handle_invite_accept(
 
     // pending → joined (or append as joined if member not found).
     let mut members = decode_members(&ch.members);
-    if let Some(idx) = members.iter().position(|m| m.id == from_id) {
+    if let Some(idx) = members.iter().position(|m| m.peer_id == from_id) {
         if members[idx].is_pending() {
             members[idx].status = MemberStatus::Joined;
         }
@@ -400,14 +400,14 @@ fn handle_invite_decline(db: &ChatDb, client_id: &str, from_id: &str, payload: &
     let Some(mut ch) = db.get_channel_by_id(channel_id) else {
         return false;
     };
-    if ch.owner != client_id {
+    if ch.owner_id != client_id {
         return false;
     }
     let members = decode_members(&ch.members);
     if !has_member(&members, from_id) {
         return false;
     }
-    let members: Vec<_> = members.into_iter().filter(|m| m.id != from_id).collect();
+    let members: Vec<_> = members.into_iter().filter(|m| m.peer_id != from_id).collect();
     ch.members = encode_members(&members);
     ch.version += 1;
     ch.updated_at = now_iso();
@@ -432,10 +432,10 @@ fn handle_update(db: &ChatDb, _client_id: &str, from_id: &str, payload: &str) ->
         return false;
     };
     // Only the owner may broadcast updates.
-    if ch.owner != from_id {
+    if ch.owner_id != from_id {
         log::warn!(
             "[channel] update from non-owner {from_id} (owner={}) — rejected",
-            ch.owner
+            ch.owner_id
         );
         return false;
     }
@@ -444,12 +444,12 @@ fn handle_update(db: &ChatDb, _client_id: &str, from_id: &str, payload: &str) ->
     // Look up the owner's publicKey from the local peers table (we
     // already know the owner since we have the channel). Mirrors
     // plain-app `handleUpdate`.
-    let owner_pub_key = match db.get_peer_by_id(&ch.owner) {
+    let owner_pub_key = match db.get_peer_by_id(&ch.owner_id) {
         Some(p) => p.public_key,
         None => {
             log::warn!(
                 "[channel] update: owner peer {} not found locally — rejected",
-                ch.owner
+                ch.owner_id
             );
             return false;
         }
@@ -513,10 +513,10 @@ fn handle_kick(db: &ChatDb, client_id: &str, from_id: &str, payload: &str) -> bo
     let Some(mut ch) = db.get_channel_by_id(channel_id) else {
         return false;
     };
-    if ch.owner != from_id {
+    if ch.owner_id != from_id {
         log::warn!(
             "[channel] kick from non-owner {from_id} (owner={}) — rejected",
-            ch.owner
+            ch.owner_id
         );
         return false;
     }
@@ -524,12 +524,12 @@ fn handle_kick(db: &ChatDb, client_id: &str, from_id: &str, payload: &str) -> bo
 
     // Look up the owner's publicKey from the local peers table. Mirrors
     // plain-app `handleKick`.
-    let owner_pub_key = match db.get_peer_by_id(&ch.owner) {
+    let owner_pub_key = match db.get_peer_by_id(&ch.owner_id) {
         Some(p) => p.public_key,
         None => {
             log::warn!(
                 "[channel] kick: owner peer {} not found locally — rejected",
-                ch.owner
+                ch.owner_id
             );
             return false;
         }
@@ -548,7 +548,7 @@ fn handle_kick(db: &ChatDb, client_id: &str, from_id: &str, payload: &str) -> bo
     ch.status = ChannelStatus::Kicked;
     let members: Vec<_> = decode_members(&ch.members)
         .into_iter()
-        .filter(|m| m.id != client_id)
+        .filter(|m| m.peer_id != client_id)
         .collect();
     ch.members = encode_members(&members);
     ch.updated_at = now_iso();
@@ -581,13 +581,13 @@ fn handle_leave(
     let Some(mut ch) = db.get_channel_by_id(channel_id) else {
         return false;
     };
-    if ch.owner != client_id {
+    if ch.owner_id != client_id {
         log::warn!("[channel] leave received but we are not the owner of {channel_id}");
         return false;
     }
     let members: Vec<_> = decode_members(&ch.members)
         .into_iter()
-        .filter(|m| m.id != from_id)
+        .filter(|m| m.peer_id != from_id)
         .collect();
     ch.members = encode_members(&members);
     ch.version += 1;

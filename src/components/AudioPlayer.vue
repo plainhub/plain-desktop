@@ -38,7 +38,7 @@
             <div class="item-number">{{ index + 1 }}</div>
             <div class="content">
               <div class="title">{{ item.title }}</div>
-              <div class="subtitle">{{ item.artist }} {{ formatSeconds(item.durationMs) }}</div>
+              <div class="subtitle">{{ item.artist }} {{ formatDurationMs(item.durationMs) }}</div>
             </div>
             <button v-tooltip="$t('remove_from_playlist')" class="btn-icon icon" @click.stop="deleteItem(item)">
               <i-material-symbols:playlist-remove class="playlist-remove-icon" />
@@ -51,7 +51,7 @@
 
 <script setup lang="ts">
 import { ref } from 'vue'
-import { formatSeconds } from '@/lib/format'
+import { formatDurationMs, formatSeconds } from '@/lib/format'
 import type { IAudioItem } from '@/lib/interfaces'
 import { useMainStore } from '@/stores/main'
 import { fixUserSelect } from '@/hooks/text-selection'

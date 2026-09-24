@@ -15,7 +15,7 @@
     <LightboxFileInfoItem 
       v-if="current && (isAudio(current?.name || '') || isVideo(current?.name || ''))" 
       :label="$t('duration')"
-      :value="formatSeconds(fileInfo?.data?.durationMs ?? current?.duration)"
+      :value="formatDurationMs(fileInfo?.data?.durationMs ?? current?.duration)"
     />
     
     <LightboxFileInfoItem 
@@ -28,7 +28,7 @@
 </template>
 
 <script setup lang="ts">
-import { formatFileSize, formatSeconds, formatDateTime, formatDateTimeFull } from '@/lib/format'
+import { formatFileSize, formatDurationMs, formatSeconds, formatDateTime, formatDateTimeFull } from '@/lib/format'
 import { isVideo, isImage, isAudio } from '@/lib/file'
 import { getFinalPath } from '@/lib/api/file'
 import type { ISource } from './types'

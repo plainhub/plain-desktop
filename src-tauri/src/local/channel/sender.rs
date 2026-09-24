@@ -343,10 +343,10 @@ fn build_member_peers(
         port: 0,
     }];
     for m in decode_members(&channel.members) {
-        if m.id == client_id {
+        if m.peer_id == client_id {
             continue; // already added above
         }
-        if let Some(p) = db.get_peer_by_id(&m.id) {
+        if let Some(p) = db.get_peer_by_id(&m.peer_id) {
             peers.push(MemberPeerInfo {
                 id: p.id,
                 name: p.name,
@@ -364,7 +364,7 @@ fn build_member_peers(
 fn member_ids_excluding(channel: &DChannel, exclude_id: &str) -> Vec<String> {
     decode_members(&channel.members)
         .into_iter()
-        .filter_map(|m| if m.id == exclude_id { None } else { Some(m.id) })
+        .filter_map(|m| if m.peer_id == exclude_id { None } else { Some(m.peer_id) })
         .collect()
 }
 

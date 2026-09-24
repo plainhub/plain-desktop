@@ -19,7 +19,7 @@
     <div class="subtitle">
       <span>{{ formatFileSize(item.size) }}</span>
       <span class="duration">
-        {{ formatSeconds(item.durationMs) }}
+        {{ formatDurationMs(item.durationMs) }}
       </span>
       <a @click.stop.prevent="viewBucket(mainStore, item.bucketId)">{{ bucketsMap[item.bucketId]?.name }}</a>
       <item-tags :tags="item.tags" :type="dataType" :only-links="true" />
@@ -76,7 +76,7 @@
     <template #subtitle>
       <div class="subtitle">
         <span>{{ formatFileSize(item.size) }}</span>
-        <span class="duration">{{ formatSeconds(item.durationMs) }}</span>
+        <span class="duration">{{ formatDurationMs(item.durationMs) }}</span>
       </div>
       <div v-if="bucketsMap[item.bucketId] || item.tags.length > 0" class="subtitle">
         <a @click.stop.prevent="viewBucket(mainStore, item.bucketId)">{{ bucketsMap[item.bucketId]?.name }}</a>
@@ -117,7 +117,7 @@
 <script setup lang="ts">
 import type { IAudioWithFileId, IBucket, IFilter, ITag } from '@/lib/interfaces'
 import { DataType } from '@/lib/data'
-import { formatFileSize, formatSeconds, formatDateTime, formatTimeAgo } from '@/lib/format'
+import { formatFileSize, formatDurationMs, formatSeconds, formatDateTime, formatTimeAgo } from '@/lib/format'
 import { getFileUrl, getFileExtension } from '@/lib/api/file'
 
 interface Props {

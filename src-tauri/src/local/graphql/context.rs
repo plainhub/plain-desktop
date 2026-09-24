@@ -121,7 +121,7 @@ pub fn channels_updated_payload(db: &ChatDb) -> String {
                     .into_iter()
                     .map(|m| {
                         serde_json::json!({
-                            "id": m.id,
+                            "peerId": m.peer_id,
                             "status": m.status.to_string(),
                         })
                     })
@@ -129,7 +129,7 @@ pub fn channels_updated_payload(db: &ChatDb) -> String {
             serde_json::json!({
                 "id": ch.id,
                 "name": ch.name,
-                "owner": ch.owner,
+                "ownerId": ch.owner_id,
                 "members": members,
                 "version": ch.version,
                 "status": ch.status.to_string(),

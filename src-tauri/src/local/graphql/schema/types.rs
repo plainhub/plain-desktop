@@ -178,6 +178,8 @@ pub enum Capability {
     ScreenMirror,
     ImageEditor,
     Notifications,
+    Clipboard,
+    Pomodoro,
     LanShare,
     DiskManager,
 }
@@ -421,7 +423,7 @@ pub(crate) fn make_file_id(path: &str, token: &str) -> String {
 
 #[derive(SimpleObject, Clone)]
 pub struct ChatChannelMember {
-    pub id: String,
+    pub peer_id: String,
     pub status: MemberStatus,
 }
 
@@ -429,7 +431,7 @@ pub struct ChatChannelMember {
 pub struct ChatChannel {
     pub id: String,
     pub name: String,
-    pub owner: String,
+    pub owner_id: String,
     pub members: Vec<ChatChannelMember>,
     pub version: i64,
     pub status: ChannelStatus,
@@ -442,14 +444,14 @@ impl From<DChannel> for ChatChannel {
         let members = crate::local::channel::messages::decode_members(&ch.members)
             .into_iter()
             .map(|m| ChatChannelMember {
-                id: m.id,
+                peer_id: m.peer_id,
                 status: m.status,
             })
             .collect();
         Self {
             id: ch.id,
             name: ch.name,
-            owner: ch.owner,
+            owner_id: ch.owner_id,
             members,
             version: ch.version,
             status: ch.status,
