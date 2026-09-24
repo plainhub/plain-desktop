@@ -75,7 +75,7 @@ fn build_query(source: &serde_json::Value) -> String {
     push_str("path", &mut params);
     push_str("name", &mut params);
     push_num("size", &mut params);
-    push_num("duration", &mut params);
+    push_num("durationMs", &mut params);
     push_str("fileId", &mut params);
     push_str("ext", &mut params);
     push_str("thumbnail", &mut params);
@@ -203,4 +203,29 @@ pub async fn media_preview_activate(
     tauri::async_runtime::spawn_blocking(move || activate(&app, source))
         .await
         .map_err(|e| e.to_string())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::build_query;
+    use serde_json::json;
+
+    // The TS side serializes ISource, whose duration field is `durationMs`
+    // (milliseconds). A key mismatch here silently drops the param — that
+    // happened once when ISource was renamed.
+    #[test]
+    fn build_query_passes_duration_ms_through() {
+        let source = json!({"src": "/fs/x", "durationMs": 30000, "size": 9});
+        let q = build_query(&source);
+        assert!(q.contains("durationMs=30000"), "query: {q}");
+        assert!(!q.contains("duration="), "query: {q}");
+    }
+
+    #[test]
+    fn build_query_omits_zero_and_missing_duration() {
+        let q = build_query(&json!({"src": "/fs/x", "durationMs": 0}));
+        assert!(!q.contains("durationMs"), "query: {q}");
+        let q = build_query(&json!({"src": "/fs/x"}));
+        assert!(!q.contains("durationMs"), "query: {q}");
+    }
 }

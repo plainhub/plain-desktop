@@ -26,7 +26,7 @@ function parseSource(): ISource | null {
     path,
     name,
     size: num('size'),
-    durationMs: num('duration') * 1000, // legacy param carried seconds; no current sender
+    durationMs: num('durationMs'),
     fileId: params.get('fileId') ?? undefined,
     extension: params.get('ext') ?? undefined,
     thumbnail: params.get('thumbnail') ?? undefined,
