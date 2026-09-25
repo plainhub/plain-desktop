@@ -58,6 +58,7 @@ type Events = {
   pairing_canceled: PairingResult
   pairing_started: PairingResult
   nearby_device_found: any
+  nearby_device_unreachable: { id: string }
   nearby_discovery_started: undefined
   nearby_discovery_stopped: { reason?: string } | undefined
   image_editor_update: ArrayBuffer

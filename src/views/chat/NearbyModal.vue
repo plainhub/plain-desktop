@@ -1,8 +1,8 @@
 <template>
   <v-modal width="480px" @close="handleClose">
     <template #headline>
-      <v-circular-progress indeterminate class="sm" aria-label="scanning" />
-      <span>{{ $t('device_discovery.searching') }}</span>
+      <v-circular-progress v-if="status === DiscoveryStatus.SEARCHING && discoveredDevices.length === 0" indeterminate class="sm" aria-label="scanning" />
+      <span>{{ discoveredDevices.length > 0 ? $t('nearby_devices') : $t('device_discovery.searching') }}</span>
     </template>
     <template #content>
       <div v-if="discoveredDevices.length === 0" class="nearby-empty">

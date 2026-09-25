@@ -104,6 +104,14 @@ impl DbQuery {
             id_key: c.db.primary_key_column(&table),
         })
     }
+
+    async fn db_table_columns(&self, ctx: &Context<'_>, table: String) -> Vec<String> {
+        if !is_safe_identifier(&table) {
+            return vec![];
+        }
+        let c = ctx.data_unchecked::<Arc<AppCtx>>();
+        c.db.table_columns(&table)
+    }
 }
 
 #[derive(Default)]

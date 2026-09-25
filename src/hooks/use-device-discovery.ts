@@ -72,6 +72,14 @@ function ensureListener() {
     upsertDiscoveredDevice(device)
   })
 
+  emitter.on('nearby_device_unreachable', ({ id }) => {
+    devices.value = devices.value.filter((device) => device.id !== id)
+  })
+
+  emitter.on('app_socket_connection_changed', (connected) => {
+    if (connected && activeCount > 0) void startMutate()
+  })
+
   emitter.on('nearby_discovery_started', () => {
     status.value = DiscoveryStatus.SEARCHING
   })

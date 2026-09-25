@@ -42,6 +42,7 @@ pub const WS_PAIRING_STARTED: i32 = 26;
 /// Emitted for each LAN device that replied to a discover broadcast.
 /// Payload is a single `DiscoveredDevice` JSON object.
 pub const WS_NEARBY_DEVICE_FOUND: i32 = 27;
+pub const WS_NEARBY_DEVICE_UNREACHABLE: i32 = 46;
 pub const WS_CHANNEL_INVITE_RECEIVED: i32 = 28;
 /// Mirrors plain-app's `StartNearbyDiscoveryEvent` — fired when the
 /// `startDiscovery` mutation kicks off the background scan loop.

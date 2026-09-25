@@ -1030,6 +1030,12 @@ export const dbTableInfoGQL = `
   }
 `
 
+export const dbTableColumnsGQL = `
+  query DbTableColumns($table: String!) {
+    dbTableColumns(table: $table)
+  }
+`
+
 export const bookmarksGQL = `
   query {
     bookmarks {

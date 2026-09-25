@@ -39,6 +39,8 @@ use utils::{local_ipv4_strs, now_ms, prefer_sender_ip, timestamp_ok};
 const PAIR_REQUEST_PREFIX: &str = "PAIR_REQUEST:";
 const PAIR_RESPONSE_PREFIX: &str = "PAIR_RESPONSE:";
 const PAIR_CANCEL_PREFIX: &str = "PAIR_CANCEL:";
+const DISCOVER_MESSAGE: &str = "DISCOVER:";
+const DISCOVER_REPLY_MESSAGE: &str = "DISCOVER_REPLY:";
 const LOCAL_DEVICE_TYPE_WIRE: &str = "COMPUTER";
 /// Pairing is interactive; a stale/unreachable peer must fail fast.
 const REQUEST_TIMEOUT_MS: u64 = 5_000;
@@ -115,7 +117,9 @@ impl PairingManager {
     /// `POST /nearby` entry — mirrors plain-app `NearbyRoutes`. Returns
     /// `false` when the body carries no known message-type prefix.
     pub fn handle_nearby_post(&self, body: &str, remote_ip: &str) -> bool {
-        if let Some(payload) = body.strip_prefix(PAIR_REQUEST_PREFIX) {
+        if body.starts_with(DISCOVER_MESSAGE) || body.starts_with(DISCOVER_REPLY_MESSAGE) {
+            true
+        } else if let Some(payload) = body.strip_prefix(PAIR_REQUEST_PREFIX) {
             match serde_json::from_str::<PairingRequest>(payload) {
                 Ok(req) => self.on_pair_request(req, remote_ip),
                 Err(e) => log::debug!("local_pairing: bad PAIR_REQUEST: {e}"),
@@ -541,6 +545,19 @@ impl PairingManager {
 
 // ── LAN HTTPS transport ───────────────────────────────────────────────────────
 
+pub(crate) async fn nearby_discovery_ping_succeeds(target_ip: &str, target_port: u16) -> bool {
+    let url = crate::utils::build_url("https", target_ip, target_port, "/nearby");
+    nearby_client()
+        .post(&url)
+        .timeout(Duration::from_millis(2_500))
+        .header("Content-Type", "application/json")
+        .body(DISCOVER_MESSAGE)
+        .send()
+        .await
+        .map(|response| response.status().is_success())
+        .unwrap_or(false)
+}
+
 /// Unsafe (self-signed-cert-trusting) HTTPS client for peer `POST /nearby`
 /// calls — mirrors plain-app `NearbyHttpClient`.
 fn nearby_client() -> &'static reqwest::Client {
@@ -576,5 +593,34 @@ async fn post_nearby(body: &str, target_ip: &str, target_port: u16) -> bool {
             log::error!("NearbyHttpClient: failed {e}");
             false
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn nearby_liveness_messages_are_accepted() {
+        let path = std::env::temp_dir().join(format!(
+            "plainapp-pairing-discover-{}-{}.db",
+            std::process::id(),
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap()
+                .as_nanos(),
+        ));
+        let db = Arc::new(ChatDb::open(&path).unwrap());
+        let identity = Arc::new(AppIdentity {
+            client_id: "self".into(),
+            device_name: "Desktop".into(),
+            ed25519_keypair: String::new(),
+        });
+        let manager = PairingManager::new(db, identity);
+        assert!(manager.handle_nearby_post("DISCOVER:", "127.0.0.1"));
+        assert!(manager.handle_nearby_post("DISCOVER_REPLY:{}", "127.0.0.1"));
+        assert!(!manager.handle_nearby_post("UNKNOWN:", "127.0.0.1"));
+        drop(manager);
+        let _ = std::fs::remove_file(path);
     }
 }

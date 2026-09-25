@@ -1230,6 +1230,10 @@ type QueryRoot {
 	"""
 	dbTableInfo(table: String!): DbTableInfo!
 	"""
+	Column names of a table's rows (fixed `key`/`value` KV shape).
+	"""
+	dbTableColumns(table: String!): [String!]!
+	"""
 	List of mounted volumes + unmounted partitions (Go `ListMounts`).
 	"""
 	mounts: [StorageMount!]!

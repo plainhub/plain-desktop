@@ -2353,6 +2353,14 @@ export interface GqlOperations {
       table: string
     }
   }
+  dbTableColumnsGQL: {
+    result: {
+      dbTableColumns: Array<string>
+    }
+    variables: {
+      table: string
+    }
+  }
   bookmarksGQL: {
     result: {
       bookmarks: Array<Fragment_BookmarkFragment>

@@ -60,6 +60,7 @@ const EventType: { [key: number]: string } = {
   42: 'file_task_progress',
   43: 'dlna_renderer_found',
   44: 'dlna_discovery_done',
+  46: 'nearby_device_unreachable',
 }
 
 // Screen mirror binary frames (H.264 NAL / Opus) and image editor Yjs updates

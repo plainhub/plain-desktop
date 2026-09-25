@@ -10,6 +10,7 @@ mod app_file;
 mod bookmark;
 mod channel;
 mod chat;
+mod nearby_device;
 mod peer;
 mod utils;
 
@@ -17,8 +18,9 @@ pub use app_file::DAppFile;
 pub use bookmark::{DBookmark, DBookmarkGroup};
 pub use channel::DChannel;
 pub use chat::DChat;
+pub use nearby_device::DNearbyDeviceCache;
 pub use peer::DPeer;
-pub use utils::now_iso;
+pub use utils::{iso_from_unix_millis, now_iso, now_millis};
 
 // ---------------------------------------------------------------------------
 // ChatDb — SQLite wrapper
@@ -103,6 +105,17 @@ impl ChatDb {
                 created_at  TEXT NOT NULL DEFAULT '',
                 updated_at  TEXT NOT NULL DEFAULT ''
             );
+            CREATE TABLE IF NOT EXISTS nearby_device_cache (
+                id          TEXT PRIMARY KEY,
+                name        TEXT NOT NULL DEFAULT '',
+                ips         TEXT NOT NULL DEFAULT '',
+                port        INTEGER NOT NULL DEFAULT 0,
+                device_type TEXT NOT NULL DEFAULT '',
+                version     TEXT NOT NULL DEFAULT '',
+                platform    TEXT NOT NULL DEFAULT '',
+                last_seen   INTEGER NOT NULL DEFAULT 0
+            );
+            CREATE INDEX IF NOT EXISTS idx_nearby_device_cache_last_seen ON nearby_device_cache(last_seen DESC);
             CREATE TABLE IF NOT EXISTS app_files (
                 id          TEXT PRIMARY KEY,
                 size        INTEGER NOT NULL DEFAULT 0,
@@ -203,6 +216,21 @@ impl ChatDb {
         Ok(())
     }
 
+    /// Return all column names of `table` in declaration order, or an
+    /// empty vec when the table is missing.
+    /// Used by debug GraphQL resolvers (db_table_info).
+    pub fn table_columns(&self, table: &str) -> Vec<String> {
+        self.with_conn(|conn| {
+            let mut stmt = match conn.prepare(&format!("PRAGMA table_info(`{table}`)")) {
+                Ok(s) => s,
+                Err(_) => return vec![],
+            };
+            stmt.query_map([], |row| row.get::<_, String>(1))
+                .map(|rows| rows.flatten().collect())
+                .unwrap_or_default()
+        })
+    }
+
     /// Return the primary key column name for `table`, or `"id"` as a
     /// fallback when the table is missing or has no declared primary key.
     /// Used by debug GraphQL resolvers (db_table_info, delete_db_table_rows).
@@ -300,5 +328,28 @@ mod tests {
         let db = ChatDb::open(&db_path).expect("open db");
 
         assert_eq!(db.primary_key_column("does_not_exist"), "id");
+    }
+
+    #[test]
+    fn table_columns_returns_declared_order() {
+        let db_path = unique_tmp_dir("table-columns").join("local_chat.db");
+        let db = ChatDb::open(&db_path).expect("open db");
+
+        db.with_conn(|conn| {
+            conn.execute_batch(
+                "CREATE TABLE column_sample (id TEXT PRIMARY KEY, peer_id TEXT NOT NULL, updated_at INTEGER);",
+            )
+            .expect("create column_sample");
+        });
+
+        assert_eq!(
+            db.table_columns("column_sample"),
+            vec![
+                "id".to_string(),
+                "peer_id".to_string(),
+                "updated_at".to_string()
+            ]
+        );
+        assert!(db.table_columns("does_not_exist").is_empty());
     }
 }

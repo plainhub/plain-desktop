@@ -34,10 +34,10 @@
     </div>
 
     <div class="scroll-content">
-      <div v-if="rowsLoading && rows.length === 0" class="state-wrap">
+      <div v-if="(rowsLoading || columnsLoading) && columns.length === 0" class="state-wrap">
         <v-circular-progress indeterminate />
       </div>
-      <template v-else-if="rows.length > 0">
+      <template v-else-if="columns.length > 0">
         <dev-data-table
           :columns="columns"
           :rows="rows"
@@ -47,6 +47,10 @@
           @delete="deleteRow"
         />
         <v-pagination v-if="totalCount > PAGE_SIZE" :page="currentPage" :go="gotoPage" :total="totalCount" :limit="PAGE_SIZE" :page-size="PAGE_SIZE" />
+        <div v-if="rows.length === 0" class="state-wrap">
+          <i-lucide:database class="state-icon" />
+          <span class="state-text">{{ $t('no_data') }}</span>
+        </div>
       </template>
       <div v-else class="state-wrap">
         <i-lucide:database class="state-icon" />
@@ -64,7 +68,7 @@
 import { ref, computed, watch, onActivated, onDeactivated } from 'vue'
 import { storeToRefs } from 'pinia'
 import { useTempStore } from '@/stores/temp'
-import { initQuery, initLazyQuery, dbTablesGQL, dbTableRowCountGQL, dbTableRowsGQL, dbTableInfoGQL, dbPathGQL } from '@/lib/api/query'
+import { initQuery, initLazyQuery, dbTablesGQL, dbTableRowCountGQL, dbTableRowsGQL, dbTableInfoGQL, dbTableColumnsGQL, dbPathGQL } from '@/lib/api/query'
 import { initMutation, deleteDbTableRowsGQL } from '@/lib/api/mutation'
 import DevDataTable from './DevDataTable.vue'
 
@@ -83,6 +87,7 @@ const totalCount = ref(0)
 const offset = ref(0)
 const deletingId = ref('')
 const idKey = ref('id')
+const infoColumns = ref<string[]>([])
 const dbPath = ref('')
 const pathOpen = ref(false)
 
@@ -93,7 +98,13 @@ initQuery({
   document: dbPathGQL,
 })
 
-const columns = computed(() => (rows.value.length > 0 ? Object.keys(rows.value[0]) : []))
+const columns = computed(() =>
+  infoColumns.value.length > 0
+    ? infoColumns.value
+    : rows.value.length > 0
+      ? Object.keys(rows.value[0])
+      : [],
+)
 const currentPage = computed(() => Math.floor(offset.value / PAGE_SIZE) + 1)
 
 const { loading: tablesLoading, refetch: refetchTables } = initQuery({
@@ -133,10 +144,18 @@ const { fetch: fetchTableInfo } = initLazyQuery({
   document: dbTableInfoGQL,
 })
 
+const { loading: columnsLoading, fetch: fetchColumns } = initLazyQuery({
+  handle(data: { dbTableColumns: string[] }, error: string) {
+    if (!error) infoColumns.value = data?.dbTableColumns ?? []
+  },
+  document: dbTableColumnsGQL,
+})
+
 function loadTable(table: string) {
   if (!table) return
   fetchTableInfo({ table })
   fetchCount({ table })
+  fetchColumns({ table })
   fetchRows({ table, offset: offset.value, limit: PAGE_SIZE })
 }
 
@@ -150,6 +169,7 @@ function selectTable(table: string) {
   activeTable.value = table
   offset.value = 0
   rows.value = []
+  infoColumns.value = []
 }
 
 watch(activeTable, (t) => {

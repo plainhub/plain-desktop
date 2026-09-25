@@ -11,11 +11,14 @@
 //! instead of UDP (see `local::pairing`).
 
 use super::peer_status_manager::PeerStatusManager;
-use crate::local::db::{ChatDb, DPeer, now_iso};
+use crate::local::db::{
+    ChatDb, DNearbyDeviceCache, DPeer, iso_from_unix_millis, now_iso, now_millis,
+};
 use crate::local::enums::DeviceType;
 use crate::local::graphql::schema::types::Peer;
 use crate::local::graphql::{
-    WS_NEARBY_DEVICE_FOUND, WS_NEARBY_DISCOVERY_STARTED, WS_NEARBY_DISCOVERY_STOPPED, WsEvent,
+    WS_NEARBY_DEVICE_FOUND, WS_NEARBY_DEVICE_UNREACHABLE, WS_NEARBY_DISCOVERY_STARTED,
+    WS_NEARBY_DISCOVERY_STOPPED, WsEvent,
 };
 use crate::local::pairing::PairingManager;
 use crate::prefs::AppIdentity;
@@ -26,8 +29,9 @@ use std::collections::HashMap;
 use std::str::FromStr;
 use std::sync::{
     Arc, Mutex, RwLock,
-    atomic::{AtomicU16, Ordering},
+    atomic::{AtomicU16, AtomicU64, Ordering},
 };
+use std::time::Duration;
 use tokio::sync::broadcast;
 
 const LOCAL_DEVICE_TYPE_WIRE: &str = "COMPUTER";
@@ -75,6 +79,8 @@ pub struct NearbyDiscoverManager {
     app_handle: Arc<RwLock<Option<tauri::AppHandle>>>,
     browser: MdnsServiceBrowser,
     seen_in_session: Arc<Mutex<HashMap<String, DiscoveredDevice>>>,
+    nearby_update_lock: Arc<Mutex<()>>,
+    verification_run_id: Arc<AtomicU64>,
     found_tx: std::sync::mpsc::Sender<FoundDevice>,
     app_version: String,
 }
@@ -108,6 +114,8 @@ impl NearbyDiscoverManager {
                 |_| {},
             ),
             seen_in_session: Arc::new(Mutex::new(HashMap::new())),
+            nearby_update_lock: Arc::new(Mutex::new(())),
+            verification_run_id: Arc::new(AtomicU64::new(0)),
             found_tx,
             app_version,
         };
@@ -248,13 +256,122 @@ impl NearbyDiscoverManager {
     pub fn start_discovery(&self) -> bool {
         let already_running = self.browser.is_running();
         self.start();
+        let _nearby_update = self.nearby_update_lock.lock().unwrap();
         {
             let mut seen = self.seen_in_session.lock().unwrap();
             seen.clear();
         }
         self.emit_event(WS_NEARBY_DISCOVERY_STARTED, "{}");
+        self.send_cached_nearby_devices();
+        drop(_nearby_update);
         self.browser.start();
+        if !already_running {
+            self.start_old_record_checks();
+        }
         !already_running
+    }
+
+    fn send_cached_nearby_devices(&self) {
+        match self.db.get_cached_nearby_devices() {
+            Ok(devices) => {
+                for device in devices {
+                    let discovered = self.discovered_device_from_cached_record(&device);
+                    self.emit_event(
+                        WS_NEARBY_DEVICE_FOUND,
+                        &serde_json::to_string(&discovered).unwrap_or_default(),
+                    );
+                }
+            }
+            Err(e) => log::error!("failed to read saved nearby devices: {e}"),
+        }
+    }
+
+    fn discovered_device_from_cached_record(
+        &self,
+        device: &DNearbyDeviceCache,
+    ) -> DiscoveredDevice {
+        DiscoveredDevice {
+            id: device.id.clone(),
+            name: device.name.clone(),
+            ips: device.ips.clone(),
+            port: device.port,
+            device_type: device.device_type.clone(),
+            version: device.version.clone(),
+            platform: device.platform.clone(),
+            last_seen: iso_from_unix_millis(device.last_seen),
+            status: self.get_device_status(&device.id),
+            discovery_methods: vec!["LAN".to_string()],
+        }
+    }
+
+    fn start_old_record_checks(&self) {
+        let run_id = self.verification_run_id.fetch_add(1, Ordering::SeqCst) + 1;
+        let manager = self.clone();
+        tauri::async_runtime::spawn(async move {
+            manager.verify_old_nearby_records().await;
+            while manager.browser.is_running()
+                && manager.verification_run_id.load(Ordering::SeqCst) == run_id
+            {
+                tokio::time::sleep(Duration::from_secs(20)).await;
+                if manager.browser.is_running()
+                    && manager.verification_run_id.load(Ordering::SeqCst) == run_id
+                {
+                    manager.verify_old_nearby_records().await;
+                }
+            }
+        });
+    }
+
+    async fn verify_old_nearby_records(&self) {
+        let Ok(devices) = self.db.get_cached_nearby_devices() else {
+            log::error!("failed to read saved nearby devices before verification");
+            return;
+        };
+        let cutoff = now_millis() - 60_000;
+        let old_records = devices.into_iter().filter(|d| d.last_seen < cutoff);
+        let results = futures_util::future::join_all(old_records.map(|device| async move {
+            let discovery_ping_succeeded = if device.ips.is_empty() {
+                false
+            } else {
+                let ip = host_responder::get_best_ip(&device.ips);
+                crate::local::pairing::nearby_discovery_ping_succeeds(&ip, device.port).await
+            };
+            (device, discovery_ping_succeeded)
+        }))
+        .await;
+        for (device, discovery_ping_succeeded) in results {
+            let _nearby_update = self.nearby_update_lock.lock().unwrap();
+            if discovery_ping_succeeded {
+                if let Err(e) = self.db.refresh_cached_nearby_device_if_last_seen_matches(
+                    &device.id,
+                    device.last_seen,
+                    now_millis(),
+                ) {
+                    log::error!(
+                        "failed to refresh nearby device record id={} err={e}",
+                        device.id
+                    );
+                }
+            } else {
+                match self
+                    .db
+                    .delete_cached_nearby_device_if_last_seen_matches(&device.id, device.last_seen)
+                {
+                    Ok(true) => {
+                        self.seen_in_session.lock().unwrap().remove(&device.id);
+                        self.emit_event(
+                            WS_NEARBY_DEVICE_UNREACHABLE,
+                            &serde_json::json!({"id": device.id}).to_string(),
+                        );
+                    }
+                    Ok(false) => {}
+                    Err(e) => log::error!(
+                        "failed to delete nearby device record id={} err={e}",
+                        device.id
+                    ),
+                }
+            }
+        }
     }
 
     /// Mirrors plain-app's `stopDiscovery` mutation.
@@ -263,6 +380,7 @@ impl NearbyDiscoverManager {
             return false;
         }
         self.browser.stop();
+        self.verification_run_id.fetch_add(1, Ordering::SeqCst);
         {
             let mut seen = self.seen_in_session.lock().unwrap();
             seen.clear();
@@ -378,6 +496,23 @@ impl NearbyDiscoverManager {
         // the nearby scan loop is off.
         self.update_known_peer(&device);
         self.peer_status.set_online(&device.id, true);
+        let _nearby_update = self.nearby_update_lock.lock().unwrap();
+        let cached = DNearbyDeviceCache {
+            id: device.id.clone(),
+            name: device.name.clone(),
+            ips: device.ips.clone(),
+            port: device.port,
+            device_type: device.device_type.clone(),
+            version: device.version.clone(),
+            platform: device.platform.clone(),
+            last_seen: now_millis(),
+        };
+        if let Err(e) = self.db.save_cached_nearby_device(&cached) {
+            log::error!(
+                "failed to save nearby device record id={} err={e}",
+                cached.id
+            );
+        }
         let mut ips = device.ips.clone();
         ips.sort();
         let discovered = DiscoveredDevice {
@@ -567,5 +702,64 @@ mod tests {
                 "192.168.2.11".to_string()
             ]
         );
+    }
+
+    #[tokio::test]
+    async fn cached_records_are_sent_then_deleted_when_discovery_ping_cannot_succeed() {
+        let path = std::env::temp_dir().join(format!(
+            "plainapp-nearby-replay-{}-{}.db",
+            std::process::id(),
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap()
+                .as_nanos(),
+        ));
+        let db = Arc::new(ChatDb::open(&path).unwrap());
+        let identity = Arc::new(AppIdentity {
+            client_id: "self".into(),
+            device_name: "Desktop".into(),
+            ed25519_keypair: String::new(),
+        });
+        let manager = NearbyDiscoverManager::new(
+            db.clone(),
+            identity.clone(),
+            Arc::new(RwLock::new("Desktop".into())),
+            Arc::new(RwLock::new("desktop.local".into())),
+            PairingManager::new(db.clone(), identity.clone()),
+            PeerStatusManager::new(db.clone(), identity),
+            8443,
+            "1.0".into(),
+        );
+        let (tx, mut rx) = broadcast::channel(8);
+        manager.set_event_tx(tx);
+        db.save_cached_nearby_device(&DNearbyDeviceCache {
+            id: "phone-1".into(),
+            name: "Pixel".into(),
+            ips: vec![],
+            port: 8443,
+            device_type: "PHONE".into(),
+            version: "1.0".into(),
+            platform: "android".into(),
+            last_seen: now_millis() - 61_000,
+        })
+        .unwrap();
+
+        manager.send_cached_nearby_devices();
+        let found = rx.try_recv().unwrap();
+        assert_eq!(found.event_type, WS_NEARBY_DEVICE_FOUND);
+        assert_eq!(
+            serde_json::from_str::<serde_json::Value>(&found.payload).unwrap()["id"],
+            "phone-1"
+        );
+
+        manager.verify_old_nearby_records().await;
+        let unreachable_event = rx.try_recv().unwrap();
+        assert_eq!(unreachable_event.event_type, WS_NEARBY_DEVICE_UNREACHABLE);
+        assert_eq!(
+            serde_json::from_str::<serde_json::Value>(&unreachable_event.payload).unwrap()["id"],
+            "phone-1"
+        );
+        assert!(db.get_cached_nearby_devices().unwrap().is_empty());
+        let _ = std::fs::remove_file(path);
     }
 }

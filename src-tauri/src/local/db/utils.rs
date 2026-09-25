@@ -10,6 +10,17 @@ pub fn now_iso() -> String {
     unix_secs_to_iso8601(secs)
 }
 
+pub fn now_millis() -> i64 {
+    std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .unwrap_or_default()
+        .as_millis() as i64
+}
+
+pub fn iso_from_unix_millis(millis: i64) -> String {
+    unix_secs_to_iso8601(millis.max(0) as u64 / 1000)
+}
+
 fn is_leap(y: u64) -> bool {
     y.is_multiple_of(4) && (!y.is_multiple_of(100) || y.is_multiple_of(400))
 }
