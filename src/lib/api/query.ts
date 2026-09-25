@@ -21,7 +21,7 @@ import {
   packageFragment,
   tagSubFragment,
   notificationFragment,
-  clipboardFragment,
+  clipboardItemFragment,
   deviceInfoFragment,
   deviceStatusFragment,
   bookmarkFragment,
@@ -792,18 +792,18 @@ export const smsCountGQL = `
   }
 `
 
-export const archivedConversationsGQL = `
+export const archivedSmsConversationsGQL = `
   query {
-    archivedConversations(offset: 0, limit: 200, query: "") {
+    archivedSmsConversations(offset: 0, limit: 200, query: "") {
       ...SmsConversationFragment
     }
   }
   ${smsConversationFragment}
 `
 
-export const archivedConversationsWithAddressesGQL = `
+export const archivedSmsConversationsWithAddressesGQL = `
   query {
-    archivedConversations(offset: 0, limit: 200, query: "") {
+    archivedSmsConversations(offset: 0, limit: 200, query: "") {
       ...SmsConversationWithAddressesFragment
     }
   }
@@ -886,14 +886,14 @@ export const notificationsGQL = `
   ${notificationFragment}
 `
 
-export const clipboardGQL = `
-  query clipboard($offset: Int!, $limit: Int!, $query: String!) {
-    clipboard(offset: $offset, limit: $limit, query: $query) {
-      ...ClipboardFragment
+export const clipboardItemsGQL = `
+  query clipboardItems($offset: Int!, $limit: Int!, $query: String!) {
+    clipboardItems(offset: $offset, limit: $limit, query: $query) {
+      ...ClipboardItemFragment
     }
-    clipboardCount(query: $query)
+    clipboardItemCount(query: $query)
   }
-  ${clipboardFragment}
+  ${clipboardItemFragment}
 `
 
 export const deviceInfoGQL = `

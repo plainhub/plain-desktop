@@ -328,7 +328,7 @@ type PhoneGeo {
   description: String!
 }
 
-type Clipboard {
+type ClipboardItem {
   id: ID!
   text: String!
   source: String!
@@ -742,7 +742,7 @@ type ExtensionQuery {
   sms(offset: Int!, limit: Int!, query: String!): [Sms!]!
   smsConversations(offset: Int!, limit: Int!, query: String!): [SmsConversation!]!
   smsConversationCount(query: String!): Int!
-  archivedConversations(offset: Int!, limit: Int!, query: String!): [SmsConversation!]!
+  archivedSmsConversations(offset: Int!, limit: Int!, query: String!): [SmsConversation!]!
   smsBoxCounts: SmsCounts!
   contacts(offset: Int!, limit: Int!, query: String!): [Contact!]!
   contactSources: [ContactSource!]!
@@ -763,8 +763,8 @@ type ExtensionQuery {
   packages(offset: Int!, limit: Int!, query: String!, sortBy: FileSortBy!): [Package!]!
   packageStatuses(ids: [ID!]!): [PackageStatus!]!
   notifications(offset: Int!, limit: Int!, query: String!): [Notification!]!
-  clipboard(offset: Int!, limit: Int!, query: String!): [Clipboard!]!
-  clipboardCount(query: String!): Int!
+  clipboardItems(offset: Int!, limit: Int!, query: String!): [ClipboardItem!]!
+  clipboardItemCount(query: String!): Int!
   mediaBuckets(type: MediaDataType!): [MediaBucket!]!
   tagRelations(type: DataType!, keys: [String!]!): [TagRelation!]!
   audioQueueItems(offset: Int!, limit: Int!, query: String!): [AudioItem!]!
@@ -835,7 +835,7 @@ type ExtensionMutation {
   restoreMediaItems(type: MediaDataType!, query: String!): ActionResult!
   moveMediaItems(type: MediaDataType!, query: String!, destDir: String!): ActionResult!
   setClipboard(text: String!): Boolean!
-  deleteClipboard(ids: [ID!]!): ActionResult!
+  deleteClipboardItems(query: String!): ActionResult!
   deleteNotifications(ids: [ID!]!): ActionResult!
   replyNotification(id: ID!, actionIndex: Int!, text: String!): Boolean!
   installPackage(path: String!): PackageInstallPending!

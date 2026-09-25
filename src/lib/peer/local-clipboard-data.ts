@@ -1,10 +1,10 @@
 import { ref, watch } from 'vue'
 import { storeToRefs } from 'pinia'
 import emitter from '@/plugins/eventbus'
-import type { IClipboard } from '@/lib/interfaces'
+import type { IClipboardItem } from '@/lib/interfaces'
 import { DeviceType } from '@/lib/status'
-import { clipboardFragment } from '@/lib/api/fragments'
-import { deleteClipboardGQL } from '@/lib/api/mutation'
+import { clipboardItemFragment } from '@/lib/api/fragments'
+import { deleteClipboardItemsGQL } from '@/lib/api/mutation'
 import { gqlFetchPeer } from '@/lib/api/peer-client'
 import { findLoginPeer, loginPeers } from '@/lib/device/login-peers'
 import { isLocalMode } from '@/lib/device/local-mode'
@@ -39,13 +39,13 @@ function receiveEnabled(peerId: string) {
 }
 
 const PEER_CLIPBOARD_GQL = `
-  query clipboard($offset: Int!, $limit: Int!, $query: String!) {
-    clipboard(offset: $offset, limit: $limit, query: $query) {
-      ...ClipboardFragment
+  query clipboardItems($offset: Int!, $limit: Int!, $query: String!) {
+    clipboardItems(offset: $offset, limit: $limit, query: $query) {
+      ...ClipboardItemFragment
     }
-    clipboardCount(query: $query)
+    clipboardItemCount(query: $query)
   }
-  ${clipboardFragment}
+  ${clipboardItemFragment}
 `
 
 export interface PeerClipboardGroup {
@@ -62,7 +62,7 @@ export interface PeerClipboardGroup {
   clipboardSync: boolean | null
   page: number
   total: number
-  items: IClipboard[]
+  items: IClipboardItem[]
 }
 
 /** Resident aggregation state — lives for the whole app session in local mode,
@@ -86,7 +86,7 @@ async function fetchPeerClipboard(peerId: string, silent = false) {
   if (group.clipboardSync === false) return
   if (!silent && !group.loaded) group.loading = true
   try {
-    const res = await gqlFetchPeer<{ clipboard: IClipboard[]; clipboardCount: number }>(
+    const res = await gqlFetchPeer<{ clipboardItems: IClipboardItem[]; clipboardItemCount: number }>(
       peer,
       PEER_CLIPBOARD_GQL,
       { offset: (group.page - 1) * limit(), limit: limit(), query: '' },
@@ -95,8 +95,8 @@ async function fetchPeerClipboard(peerId: string, silent = false) {
       if (res.errors[0].message === 'clipboard_sync_disabled') group.clipboardSync = false
     } else {
       group.clipboardSync = true
-      group.items = res.data?.clipboard ?? []
-      group.total = res.data?.clipboardCount ?? 0
+      group.items = res.data?.clipboardItems ?? []
+      group.total = res.data?.clipboardItemCount ?? 0
       if (group.page === 1) applyPeerClipboard(group)
     }
     group.online = true
@@ -207,5 +207,5 @@ export function dropPeerClipboard(peerId: string, ids: string[]) {
   group.items = group.items.filter((it) => !idSet.has(it.id))
   group.total = Math.max(0, group.total - ids.length)
   const peer = findLoginPeer(peerId)
-  if (peer) void gqlFetchPeer(peer, deleteClipboardGQL, { ids }).catch(() => {})
+  if (peer) void gqlFetchPeer(peer, deleteClipboardItemsGQL, { query: `ids:${ids.join(',')}` }).catch(() => {})
 }

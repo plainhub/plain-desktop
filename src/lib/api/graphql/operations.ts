@@ -122,7 +122,7 @@ export interface Fragment_ChatItemFragment {
   }
 }
 
-export interface Fragment_ClipboardFragment {
+export interface Fragment_ClipboardItemFragment {
   id: string
   text: string
   source: string
@@ -1131,14 +1131,14 @@ export interface GqlOperations {
       text: string
     }
   }
-  deleteClipboardGQL: {
+  deleteClipboardItemsGQL: {
     result: {
-      deleteClipboard: {
+      deleteClipboardItems: {
         affectedCount: number
       }
     }
     variables: {
-      ids: Array<string>
+      query: string
     }
   }
   updateScreenMirrorQualityGQL: {
@@ -2110,15 +2110,15 @@ export interface GqlOperations {
     }
     variables: undefined
   }
-  archivedConversationsGQL: {
+  archivedSmsConversationsGQL: {
     result: {
-      archivedConversations: Array<Fragment_SmsConversationFragment>
+      archivedSmsConversations: Array<Fragment_SmsConversationFragment>
     }
     variables: undefined
   }
-  archivedConversationsWithAddressesGQL: {
+  archivedSmsConversationsWithAddressesGQL: {
     result: {
-      archivedConversations: Array<Fragment_SmsConversationWithAddressesFragment>
+      archivedSmsConversations: Array<Fragment_SmsConversationWithAddressesFragment>
     }
     variables: undefined
   }
@@ -2199,10 +2199,10 @@ export interface GqlOperations {
     }
     variables: undefined
   }
-  clipboardGQL: {
+  clipboardItemsGQL: {
     result: {
-      clipboard: Array<Fragment_ClipboardFragment>
-      clipboardCount: number
+      clipboardItems: Array<Fragment_ClipboardItemFragment>
+      clipboardItemCount: number
     }
     variables: {
       offset: number
@@ -2368,8 +2368,8 @@ export interface GqlOperations {
   }
   PEER_CLIPBOARD_GQL: {
     result: {
-      clipboard: Array<Fragment_ClipboardFragment>
-      clipboardCount: number
+      clipboardItems: Array<Fragment_ClipboardItemFragment>
+      clipboardItemCount: number
     }
     variables: {
       offset: number

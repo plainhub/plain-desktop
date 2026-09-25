@@ -352,8 +352,8 @@ export const notificationFragment = `
   }
 `
 
-export const clipboardFragment = `
-  fragment ClipboardFragment on Clipboard {
+export const clipboardItemFragment = `
+  fragment ClipboardItemFragment on ClipboardItem {
     id
     text
     source

@@ -4,9 +4,9 @@ import { storeToRefs } from 'pinia'
 import emitter from '@/plugins/eventbus'
 import { useMainStore } from '@/stores/main'
 import { useTempStore } from '@/stores/temp'
-import { initLazyQuery, clipboardGQL } from '@/lib/api/query'
-import { initMutation, deleteClipboardGQL, setClipboardGQL } from '@/lib/api/mutation'
-import type { IClipboard } from '@/lib/interfaces'
+import { initLazyQuery, clipboardItemsGQL } from '@/lib/api/query'
+import { initMutation, deleteClipboardItemsGQL, setClipboardGQL } from '@/lib/api/mutation'
+import type { IClipboardItem } from '@/lib/interfaces'
 import toast from '@/components/toaster'
 
 export function useClipboardData() {
@@ -16,23 +16,23 @@ export function useClipboardData() {
 
   const page = ref(1)
   const limit = computed(() => mainStore.pageSize)
-  const items = ref<IClipboard[]>([])
+  const items = ref<IClipboardItem[]>([])
   const total = ref(0)
   /** Phone-side master switch — the CLIPBOARD API permission served by the resident app query. */
   const clipboardSync = computed(() => app.value?.permissions?.includes('CLIPBOARD') ?? false)
 
   const { loading, fetch } = initLazyQuery({
-    handle: (data: { clipboard: IClipboard[]; clipboardCount: number }, error: string) => {
+    handle: (data: { clipboardItems: IClipboardItem[]; clipboardItemCount: number }, error: string) => {
       if (error === 'clipboard_sync_disabled') {
         // Switch turned off after load; the app query state reflects it, stay quiet.
       } else if (error) {
         toast(t(error), 'error')
       } else if (data) {
-        items.value = data.clipboard
-        total.value = data.clipboardCount
+        items.value = data.clipboardItems
+        total.value = data.clipboardItemCount
       }
     },
-    document: clipboardGQL,
+    document: clipboardItemsGQL,
     variables: () => ({
       offset: (page.value - 1) * limit.value,
       limit: limit.value,
@@ -67,12 +67,12 @@ export function useClipboardData() {
     fetch()
   }
 
-  const { mutate: deleteClipboard } = initMutation({ document: deleteClipboardGQL })
+  const { mutate: deleteClipboardItems } = initMutation({ document: deleteClipboardItemsGQL })
 
-  const deleteItem = (item: IClipboard) => {
+  const deleteItem = (item: IClipboardItem) => {
     items.value = items.value.filter((it) => it.id !== item.id)
     total.value--
-    deleteClipboard({ ids: [item.id] })
+    deleteClipboardItems({ query: `ids:${item.id}` })
   }
 
   const clipText = ref('')

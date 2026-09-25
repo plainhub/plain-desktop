@@ -649,9 +649,9 @@ export const replyNotificationGQL = `
   }
 `
 
-export const deleteClipboardGQL = `
-  mutation deleteClipboard($ids: [ID!]!) {
-    deleteClipboard(ids: $ids) {
+export const deleteClipboardItemsGQL = `
+  mutation deleteClipboardItems($query: String!) {
+    deleteClipboardItems(query: $query) {
       affectedCount
     }
   }

@@ -14,8 +14,8 @@ vi.mock('@/lib/api/query', async () => {
   return {
     smsConversationsGQL: 'normal-legacy',
     smsConversationsWithAddressesGQL: 'normal-enhanced',
-    archivedConversationsGQL: 'archived-legacy',
-    archivedConversationsWithAddressesGQL: 'archived-enhanced',
+    archivedSmsConversationsGQL: 'archived-legacy',
+    archivedSmsConversationsWithAddressesGQL: 'archived-enhanced',
     smsCountGQL: 'counts',
     initLazyQuery: (params: any) => {
       const fetch = vi.fn()
@@ -68,7 +68,7 @@ function resolveArchivedRequest(callIndex: number, items: ISmsConversation[]) {
   const query = archivedQuery()
   const call = query.fetch.mock.calls[callIndex]
   query.params.handle(
-    { archivedConversations: items },
+    { archivedSmsConversations: items },
     '',
     { variables: call[0], requestId: callIndex + 1, meta: call[1].meta },
   )

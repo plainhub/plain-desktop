@@ -4,8 +4,8 @@ import {
   initLazyQuery,
   smsConversationsGQL,
   smsConversationsWithAddressesGQL,
-  archivedConversationsGQL,
-  archivedConversationsWithAddressesGQL,
+  archivedSmsConversationsGQL,
+  archivedSmsConversationsWithAddressesGQL,
   smsCountGQL,
   type QueryResponseContext,
 } from '@/lib/api/query'
@@ -109,7 +109,7 @@ export const useSmsStore = defineStore('sms', () => {
   }
 
   function handleArchived(
-    data: { archivedConversations: ISmsConversation[] },
+    data: { archivedSmsConversations: ISmsConversation[] },
     error: string,
     context?: QueryResponseContext,
   ) {
@@ -130,7 +130,7 @@ export const useSmsStore = defineStore('sms', () => {
     }
     if (!data) return
     if (meta.enhanced) participantFieldsSupported.value = true
-    const items = filterTombstones(data.archivedConversations.map((item) => ({ ...item })), 'archived')
+    const items = filterTombstones(data.archivedSmsConversations.map((item) => ({ ...item })), 'archived')
     conversations.value = items
     conversationCount.value = items.length
     noMore.value = true
@@ -138,8 +138,8 @@ export const useSmsStore = defineStore('sms', () => {
     releaseConfirmedTombstones('archived')
   }
 
-  const enhancedArchivedQuery = initLazyQuery({ handle: handleArchived, document: archivedConversationsWithAddressesGQL })
-  const legacyArchivedQuery = initLazyQuery({ handle: handleArchived, document: archivedConversationsGQL })
+  const enhancedArchivedQuery = initLazyQuery({ handle: handleArchived, document: archivedSmsConversationsWithAddressesGQL })
+  const legacyArchivedQuery = initLazyQuery({ handle: handleArchived, document: archivedSmsConversationsGQL })
 
   const countsQuery = initLazyQuery({
     handle: (data: { smsBoxCounts: SmsCountsCache }) => {

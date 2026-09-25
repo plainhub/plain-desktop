@@ -24,12 +24,12 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue'
 import { formatDateTimeFull, formatTimeAgo } from '@/lib/format'
-import type { IClipboard } from '@/lib/interfaces'
+import type { IClipboardItem } from '@/lib/interfaces'
 
-const props = defineProps<{ item: IClipboard }>()
+const props = defineProps<{ item: IClipboardItem }>()
 
 defineEmits<{
-  delete: [item: IClipboard]
+  delete: [item: IClipboardItem]
 }>()
 
 const LONG_TEXT_CHARS = 250

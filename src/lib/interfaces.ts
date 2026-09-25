@@ -385,7 +385,7 @@ export interface INotification extends IData {
   replyActions: string[]
 }
 
-export interface IClipboard extends IData {
+export interface IClipboardItem extends IData {
   id: string
   text: string
   source: string

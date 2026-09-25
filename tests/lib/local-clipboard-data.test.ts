@@ -66,7 +66,7 @@ describe('local clipboard data sync gating', () => {
   })
 
   it('marks the group enabled on a successful list fetch', async () => {
-    mockGqlFetchPeer.mockImplementation(listReply({ data: { clipboard: [{ id: 'c1' }], clipboardCount: 1 } }))
+    mockGqlFetchPeer.mockImplementation(listReply({ data: { clipboardItems: [{ id: 'c1' }], clipboardItemCount: 1 } }))
     addGroup()
     await gotoPeerClipboardPage('p1', 1)
     await flush()
@@ -84,14 +84,14 @@ describe('local clipboard data sync gating', () => {
     expect(peerClipboardGroups.value[0].online).toBe(false)
     expect(peerClipboardGroups.value[0].clipboardSync).toBe(null)
 
-    mockGqlFetchPeer.mockImplementation(listReply({ data: { clipboard: [], clipboardCount: 0 } }))
+    mockGqlFetchPeer.mockImplementation(listReply({ data: { clipboardItems: [], clipboardItemCount: 0 } }))
     await gotoPeerClipboardPage('p1', 1)
     await flush()
     expect(peerClipboardGroups.value[0].clipboardSync).toBe(true)
   })
 
   it('event 39 re-arms a disabled peer and reloads once the switch is on', async () => {
-    mockGqlFetchPeer.mockImplementation(listReply({ data: { clipboard: [{ id: 'c2' }], clipboardCount: 1 } }))
+    mockGqlFetchPeer.mockImplementation(listReply({ data: { clipboardItems: [{ id: 'c2' }], clipboardItemCount: 1 } }))
     addGroup({ clipboardSync: false })
     handlePeerClipboardEvent('p1', 39)
     await flush()
@@ -127,7 +127,7 @@ describe('local clipboard sync direction', () => {
   })
 
   it('direction never affects the history list — off still fetches and shows entries', async () => {
-    mockGqlFetchPeer.mockImplementation(listReply({ data: { clipboard: [{ id: 'c1', text: 'x' }], clipboardCount: 1 } }))
+    mockGqlFetchPeer.mockImplementation(listReply({ data: { clipboardItems: [{ id: 'c1', text: 'x' }], clipboardItemCount: 1 } }))
     addGroup()
     setPeerClipboardDirection('p1', 'off')
     await flush()
@@ -137,7 +137,7 @@ describe('local clipboard sync direction', () => {
   })
 
   it('first sight only seeds the baseline without touching the system clipboard', async () => {
-    mockGqlFetchPeer.mockImplementation(listReply({ data: { clipboard: [{ id: 'c1', text: 'old' }], clipboardCount: 1 } }))
+    mockGqlFetchPeer.mockImplementation(listReply({ data: { clipboardItems: [{ id: 'c1', text: 'old' }], clipboardItemCount: 1 } }))
     addGroup()
     await gotoPeerClipboardPage('p1', 1)
     await flush()
@@ -145,31 +145,31 @@ describe('local clipboard sync direction', () => {
   })
 
   it('applies a newer entry into the system clipboard on event 39 when receiving', async () => {
-    mockGqlFetchPeer.mockImplementation(listReply({ data: { clipboard: [{ id: 'c1', text: 'old' }], clipboardCount: 1 } }))
+    mockGqlFetchPeer.mockImplementation(listReply({ data: { clipboardItems: [{ id: 'c1', text: 'old' }], clipboardItemCount: 1 } }))
     addGroup()
     await gotoPeerClipboardPage('p1', 1)
     await flush()
     expect(writeText).not.toHaveBeenCalled()
 
-    mockGqlFetchPeer.mockImplementation(listReply({ data: { clipboard: [{ id: 'c2', text: 'fresh' }, { id: 'c1', text: 'old' }], clipboardCount: 2 } }))
+    mockGqlFetchPeer.mockImplementation(listReply({ data: { clipboardItems: [{ id: 'c2', text: 'fresh' }, { id: 'c1', text: 'old' }], clipboardItemCount: 2 } }))
     handlePeerClipboardEvent('p1', 39)
     await flush()
     expect(writeText).toHaveBeenCalledExactlyOnceWith('fresh')
   })
 
   it('never auto-applies sensitive entries', async () => {
-    mockGqlFetchPeer.mockImplementation(listReply({ data: { clipboard: [{ id: 'c1', text: 'old' }], clipboardCount: 1 } }))
+    mockGqlFetchPeer.mockImplementation(listReply({ data: { clipboardItems: [{ id: 'c1', text: 'old' }], clipboardItemCount: 1 } }))
     addGroup()
     await gotoPeerClipboardPage('p1', 1)
     await flush()
-    mockGqlFetchPeer.mockImplementation(listReply({ data: { clipboard: [{ id: 'c2', text: 'secret', sensitive: true }], clipboardCount: 2 } }))
+    mockGqlFetchPeer.mockImplementation(listReply({ data: { clipboardItems: [{ id: 'c2', text: 'secret', sensitive: true }], clipboardItemCount: 2 } }))
     handlePeerClipboardEvent('p1', 39)
     await flush()
     expect(writeText).not.toHaveBeenCalled()
   })
 
   it('push direction still loads history but never writes the system clipboard', async () => {
-    mockGqlFetchPeer.mockImplementation(listReply({ data: { clipboard: [{ id: 'c9', text: 'new' }], clipboardCount: 1 } }))
+    mockGqlFetchPeer.mockImplementation(listReply({ data: { clipboardItems: [{ id: 'c9', text: 'new' }], clipboardItemCount: 1 } }))
     addGroup()
     setPeerClipboardDirection('p1', 'push')
     await flush()
@@ -181,7 +181,7 @@ describe('local clipboard sync direction', () => {
 
   it('changing direction re-probes a phone-disabled group', async () => {
     addGroup({ clipboardSync: false })
-    mockGqlFetchPeer.mockImplementation(listReply({ data: { clipboard: [{ id: 'c5', text: 'x' }], clipboardCount: 1 } }))
+    mockGqlFetchPeer.mockImplementation(listReply({ data: { clipboardItems: [{ id: 'c5', text: 'x' }], clipboardItemCount: 1 } }))
     setPeerClipboardDirection('p1', 'both')
     await flush()
     expect(mockGqlFetchPeer).toHaveBeenCalledOnce()

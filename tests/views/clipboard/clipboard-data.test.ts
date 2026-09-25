@@ -19,7 +19,7 @@ vi.mock('@/lib/api/gql-client', () => ({
 import toast from '@/components/toaster'
 import emitter from '@/plugins/eventbus'
 import { gqlFetch } from '@/lib/api/gql-client'
-import { clipboardGQL } from '@/lib/api/query'
+import { clipboardItemsGQL } from '@/lib/api/query'
 import { setClipboardGQL } from '@/lib/api/mutation'
 import { useTempStore } from '@/stores/temp'
 import { useClipboardData } from '@/views/clipboard/clipboard'
@@ -49,18 +49,18 @@ describe('useClipboardData', () => {
 
   it('loads the clipboard history at setup when sync is on', async () => {
     setAppSync(true)
-    mockGqlFetch.mockResolvedValue({ data: { clipboard: [{ id: 'c1', text: 'hi' }], clipboardCount: 1 } })
+    mockGqlFetch.mockResolvedValue({ data: { clipboardItems: [{ id: 'c1', text: 'hi' }], clipboardItemCount: 1 } })
     const api = useClipboardData()
     await flush()
     expect(mockGqlFetch).toHaveBeenCalledOnce()
-    expect(mockGqlFetch.mock.calls[0][0]).toBe(clipboardGQL)
+    expect(mockGqlFetch.mock.calls[0][0]).toBe(clipboardItemsGQL)
     expect(api.items.value).toHaveLength(1)
     expect(api.total.value).toBe(1)
   })
 
   it('open() re-fetches when enabled', async () => {
     setAppSync(true)
-    mockGqlFetch.mockResolvedValue({ data: { clipboard: [], clipboardCount: 0 } })
+    mockGqlFetch.mockResolvedValue({ data: { clipboardItems: [], clipboardItemCount: 0 } })
     const api = useClipboardData()
     await flush()
     mockGqlFetch.mockClear()
