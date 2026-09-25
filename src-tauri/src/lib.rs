@@ -330,6 +330,7 @@ pub fn run() {
             commands::discover::list_login_peers,
             commands::discover::update_peer_name,
             commands::discover::mdns_snapshot,
+            commands::discover::mdns_activity,
             commands::discover::mdns_browse,
             commands::discover::mdns_start_browse,
             commands::discover::mdns_stop_browse,

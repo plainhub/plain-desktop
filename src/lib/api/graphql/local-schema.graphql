@@ -213,6 +213,23 @@ enum DataType {
 	DOC
 }
 
+enum DbColumnType {
+	TEXT
+	INTEGER
+	REAL
+	BLOB
+	NUMERIC
+	UNKNOWN
+}
+
+type DbTableColumn {
+	name: String!
+	dataType: DbColumnType!
+	notNull: Boolean!
+	defaultValue: String
+	primaryKey: Boolean!
+}
+
 type DbTableInfo {
 	idKey: String!
 }
@@ -680,7 +697,7 @@ type QueryRoot {
 	dbTableRowCount(table: String!): Int!
 	dbTableRows(table: String!, offset: Int!, limit: Int!): [String!]!
 	dbTableInfo(table: String!): DbTableInfo!
-	dbTableColumns(table: String!): [String!]!
+	dbTableColumns(table: String!): [DbTableColumn!]!
 	"""
 	List the chunk indices the server already has on disk for `file_id`,
 	in the format `"<index>:<size>"` (matches what the web client

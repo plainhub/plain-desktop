@@ -1,5 +1,7 @@
 #![allow(non_snake_case)]
 
+#[cfg(target_os = "macos")]
+mod macos_dns_sd;
 #[path = "firewall.rs"]
 pub(crate) mod mdns_firewall;
 #[path = "NearbyDiscoverManager.rs"]
@@ -14,6 +16,14 @@ pub use nearby_discover_manager::NearbyDiscoverManager;
 pub use peer_status_manager::PeerStatusManager;
 pub(crate) use plain_rs::mdns::host_responder::get_best_ip as discover_get_best_ip;
 pub(crate) use plain_rs::mdns::host_responder::local_ipv4_strs as discover_local_ipv4_strs;
+
+#[derive(Clone, serde::Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct MdnsActivity {
+    pub time: u64,
+    pub event: String,
+    pub detail: String,
+}
 
 // ── Remote-device login sessions (peers.token) ───────────────────────────────
 
@@ -97,6 +107,16 @@ pub async fn mdns_snapshot(
 ) -> Result<Vec<plain_rs::mdns::service_browser::MdnsServiceSnapshot>, String> {
     let mgr = state.inner().clone();
     tauri::async_runtime::spawn_blocking(move || mgr.mdns_snapshot())
+        .await
+        .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+pub async fn mdns_activity(
+    state: tauri::State<'_, NearbyDiscoverManager>,
+) -> Result<Vec<MdnsActivity>, String> {
+    let mgr = state.inner().clone();
+    tauri::async_runtime::spawn_blocking(move || mgr.mdns_activity())
         .await
         .map_err(|e| e.to_string())
 }

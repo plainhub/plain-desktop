@@ -13,7 +13,14 @@ export interface MdnsServiceSnapshot {
   port: number
   txtRecords: string[]
   ips: string[]
+  ipv6: string[]
   complete: boolean
+}
+
+export interface MdnsActivity {
+  time: number
+  event: string
+  detail: string
 }
 
 // Mirrors plain-app's MdnsDebugPage: while the page is visible it keeps
@@ -23,9 +30,12 @@ export function useMdns() {
   const { t } = useI18n()
   const hostname = ref('')
   const snapshots = ref<MdnsServiceSnapshot[]>([])
+  const activity = ref<MdnsActivity[]>([])
+  const paused = ref(false)
   const saving = ref(false)
   const hostnameInvalid = ref(false)
   let startedByPage = false
+  let browsing = false
   let timer: ReturnType<typeof setInterval> | undefined
 
   async function loadHostname() {
@@ -57,7 +67,12 @@ export function useMdns() {
 
   async function refreshSnapshot() {
     try {
-      snapshots.value = await invoke<MdnsServiceSnapshot[]>('mdns_snapshot')
+      const [devices, events] = await Promise.all([
+        invoke<MdnsServiceSnapshot[]>('mdns_snapshot'),
+        invoke<MdnsActivity[]>('mdns_activity'),
+      ])
+      snapshots.value = devices
+      activity.value = events
     } catch (e) {
       console.error('mdns_snapshot failed', e)
     }
@@ -65,12 +80,28 @@ export function useMdns() {
 
   async function startBrowsing() {
     if (!__IS_TAURI__) return
-    startedByPage = await invoke<boolean>('mdns_start_browse')
-    await refreshSnapshot()
-    timer = setInterval(refreshSnapshot, 2000)
+    browsing = true
+    try {
+      const started = await invoke<boolean>('mdns_start_browse')
+      if (!browsing) {
+        if (started) await invoke('mdns_stop_browse')
+        return
+      }
+      startedByPage = started
+      await refreshSnapshot()
+      if (browsing) {
+        timer = setInterval(() => {
+          if (!paused.value) refreshSnapshot()
+        }, 2000)
+      }
+    } catch (e) {
+      browsing = false
+      console.error('mdns_start_browse failed', e)
+    }
   }
 
   function stopBrowsing() {
+    browsing = false
     if (timer) {
       clearInterval(timer)
       timer = undefined
@@ -82,7 +113,7 @@ export function useMdns() {
   }
 
   return {
-    hostname, snapshots,
+    hostname, snapshots, activity, paused,
     loadHostname, saveHostname, refreshSnapshot, startBrowsing, stopBrowsing,
   }
 }

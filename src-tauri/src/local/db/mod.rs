@@ -216,18 +216,27 @@ impl ChatDb {
         Ok(())
     }
 
-    /// Return all column names of `table` in declaration order, or an
-    /// empty vec when the table is missing.
-    /// Used by debug GraphQL resolvers (db_table_info).
-    pub fn table_columns(&self, table: &str) -> Vec<String> {
+    /// Return the columns of `table` in declaration order, or an empty
+    /// vec when the table is missing.
+    /// Used by debug GraphQL resolvers (db_table_columns).
+    pub fn table_columns(&self, table: &str) -> Vec<TableColumnMeta> {
         self.with_conn(|conn| {
             let mut stmt = match conn.prepare(&format!("PRAGMA table_info(`{table}`)")) {
                 Ok(s) => s,
                 Err(_) => return vec![],
             };
-            stmt.query_map([], |row| row.get::<_, String>(1))
-                .map(|rows| rows.flatten().collect())
-                .unwrap_or_default()
+            stmt.query_map([], |row| {
+                let default_value: Option<rusqlite::types::Value> = row.get(4)?;
+                Ok(TableColumnMeta {
+                    name: row.get(1)?,
+                    data_type: row.get(2)?,
+                    not_null: row.get::<_, i64>(3)? != 0,
+                    default_value: default_value.map(value_to_string),
+                    primary_key: row.get::<_, i64>(5)? > 0,
+                })
+            })
+            .map(|rows| rows.flatten().collect())
+            .unwrap_or_default()
         })
     }
 
@@ -250,6 +259,26 @@ impl ChatDb {
             .and_then(|rows| rows.flatten().find(|(_, pk)| *pk > 0).map(|(name, _)| name))
             .unwrap_or_else(|| FALLBACK.to_string())
         })
+    }
+}
+
+/// One column of a table, as reported by `PRAGMA table_info` — the row
+/// shape behind the debug `dbTableColumns` GraphQL field.
+pub struct TableColumnMeta {
+    pub name: String,
+    pub data_type: String,
+    pub not_null: bool,
+    pub default_value: Option<String>,
+    pub primary_key: bool,
+}
+
+fn value_to_string(value: rusqlite::types::Value) -> String {
+    match value {
+        rusqlite::types::Value::Integer(n) => n.to_string(),
+        rusqlite::types::Value::Real(f) => f.to_string(),
+        rusqlite::types::Value::Text(s) => s,
+        rusqlite::types::Value::Blob(b) => plain_rs::hex::bytes_to_hex(&b),
+        rusqlite::types::Value::Null => String::new(),
     }
 }
 
@@ -337,19 +366,26 @@ mod tests {
 
         db.with_conn(|conn| {
             conn.execute_batch(
-                "CREATE TABLE column_sample (id TEXT PRIMARY KEY, peer_id TEXT NOT NULL, updated_at INTEGER);",
+                "CREATE TABLE column_sample (id TEXT PRIMARY KEY, peer_id TEXT NOT NULL, updated_at INTEGER DEFAULT 0, note TEXT);",
             )
             .expect("create column_sample");
         });
 
+        let cols = db.table_columns("column_sample");
+        let names: Vec<&str> = cols.iter().map(|c| c.name.as_str()).collect();
+        assert_eq!(names, vec!["id", "peer_id", "updated_at", "note"]);
+        let by_name = |n: &str| cols.iter().find(|c| c.name == n).expect("column");
         assert_eq!(
-            db.table_columns("column_sample"),
-            vec![
-                "id".to_string(),
-                "peer_id".to_string(),
-                "updated_at".to_string()
-            ]
+            (by_name("id").primary_key, by_name("id").not_null),
+            (true, false)
         );
+        assert_eq!(by_name("id").data_type, "TEXT");
+        assert_eq!(by_name("peer_id").data_type, "TEXT");
+        assert!(by_name("peer_id").not_null);
+        assert!(!by_name("peer_id").primary_key);
+        assert_eq!(by_name("updated_at").data_type, "INTEGER");
+        assert_eq!(by_name("updated_at").default_value.as_deref(), Some("0"));
+        assert_eq!(by_name("note").default_value, None);
         assert!(db.table_columns("does_not_exist").is_empty());
     }
 }

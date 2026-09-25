@@ -2,6 +2,13 @@
   <v-modal width="520px" @close="close">
     <template #headline>{{ $t('mdns_debug') }}</template>
     <template #content>
+      <div class="mdns-activity-heading">{{ $t('mdns_activity') }}</div>
+      <div v-if="!activity.length" class="mdns-empty">{{ $t('mdns_no_activity') }}</div>
+      <div v-for="(entry, index) in activity" :key="`${entry.time}-${index}`" class="mdns-activity">
+        <div class="mdns-activity-title">{{ new Date(entry.time).toLocaleTimeString() }} · {{ $t(`mdns_${entry.event}`) }}</div>
+        <div class="mdns-activity-detail">{{ entry.detail }}</div>
+      </div>
+      <div class="mdns-activity-heading">{{ $t('mdns_service_type') }}</div>
       <div v-if="!snapshots.length" class="mdns-empty">{{ $t('mdns_no_devices') }}</div>
       <div v-for="s in snapshots" :key="s.instanceFqdn" class="mdns-device">
         <div class="mdns-fqdn" :class="{ incomplete: !s.complete }">{{ s.instanceFqdn }}</div>
@@ -23,7 +30,7 @@
         </div>
         <div class="key-value">
           <div class="key">{{ $t('mdns_ips') }}</div>
-          <div class="value">{{ s.ips.join(', ') || $t('not_available') }}</div>
+          <div class="value">{{ [...s.ips, ...s.ipv6].join(', ') || $t('not_available') }}</div>
         </div>
         <div class="key-value">
           <div class="key">{{ $t('mdns_txt') }}</div>
@@ -32,6 +39,7 @@
       </div>
     </template>
     <template #actions>
+      <v-outlined-button @click="paused = !paused">{{ $t(paused ? 'resume' : 'pause') }}</v-outlined-button>
       <v-outlined-button @click="refresh">{{ $t('refresh') }}</v-outlined-button>
       <v-filled-button @click="close">{{ $t('close') }}</v-filled-button>
     </template>
@@ -46,7 +54,7 @@ import { useMdns } from './use-mdns'
 // The modal owns its browsing lifecycle (mirrors plain-app's MdnsDebugPage):
 // while open it keeps periodic discovery running and refreshes the snapshot
 // every two seconds; it stops discovery on close only when it started it.
-const { snapshots, refreshSnapshot, startBrowsing, stopBrowsing } = useMdns()
+const { snapshots, activity, paused, refreshSnapshot, startBrowsing, stopBrowsing } = useMdns()
 
 function refresh() {
   refreshSnapshot()
@@ -70,6 +78,25 @@ onBeforeUnmount(() => {
   color: var(--md-sys-color-on-surface-variant, #666);
   padding: 24px 0;
   text-align: center;
+}
+
+.mdns-activity-heading {
+  font-weight: 600;
+  margin: 16px 0 8px;
+}
+
+.mdns-activity {
+  border-bottom: 1px solid var(--md-sys-color-outline-variant, #ccc);
+  padding: 8px 0;
+}
+
+.mdns-activity-title {
+  font-weight: 600;
+}
+
+.mdns-activity-detail {
+  color: var(--md-sys-color-on-surface-variant, #666);
+  overflow-wrap: anywhere;
 }
 
 .mdns-device {

@@ -10,6 +10,9 @@
 //! Pairing is handled over HTTPS via the `POST /nearby` REST endpoint
 //! instead of UDP (see `local::pairing`).
 
+use super::MdnsActivity;
+#[cfg(target_os = "macos")]
+use super::macos_dns_sd::MacDnsSdBrowser;
 use super::peer_status_manager::PeerStatusManager;
 use crate::local::db::{
     ChatDb, DNearbyDeviceCache, DPeer, iso_from_unix_millis, now_iso, now_millis,
@@ -78,6 +81,8 @@ pub struct NearbyDiscoverManager {
     event_tx: Arc<RwLock<Option<broadcast::Sender<WsEvent>>>>,
     app_handle: Arc<RwLock<Option<tauri::AppHandle>>>,
     browser: MdnsServiceBrowser,
+    #[cfg(target_os = "macos")]
+    system_browser: MacDnsSdBrowser,
     seen_in_session: Arc<Mutex<HashMap<String, DiscoveredDevice>>>,
     nearby_update_lock: Arc<Mutex<()>>,
     verification_run_id: Arc<AtomicU64>,
@@ -113,6 +118,13 @@ impl NearbyDiscoverManager {
                 Arc::new(RwLock::new(String::new())),
                 |_| {},
             ),
+            #[cfg(target_os = "macos")]
+            system_browser: MacDnsSdBrowser::new({
+                let sender = found_tx.clone();
+                move |device| {
+                    let _ = sender.send(device);
+                }
+            }),
             seen_in_session: Arc::new(Mutex::new(HashMap::new())),
             nearby_update_lock: Arc::new(Mutex::new(())),
             verification_run_id: Arc::new(AtomicU64::new(0)),
@@ -214,6 +226,8 @@ impl NearbyDiscoverManager {
     /// paired peer's IP change is picked up without any page scanning.
     pub fn start(&self) {
         host_responder::ensure_started(&self.mdns_hostname());
+        #[cfg(target_os = "macos")]
+        self.system_browser.start();
         self.browser
             .seed_known_addrs(&peer_seed_addrs(&self.db.get_peers()));
         self.browser.install_listener();
@@ -240,7 +254,49 @@ impl NearbyDiscoverManager {
     /// Read-only snapshot of every known `_plainapp._tcp.local` instance —
     /// mirrors plain-app's `MdnsServiceBrowser.snapshot` (`MdnsDebugPage`).
     pub fn mdns_snapshot(&self) -> Vec<MdnsServiceSnapshot> {
-        self.browser.snapshot()
+        let snapshots = self.browser.snapshot();
+        #[cfg(target_os = "macos")]
+        {
+            let mut by_name: HashMap<String, MdnsServiceSnapshot> = snapshots
+                .into_iter()
+                .map(|snapshot| {
+                    (
+                        format!(
+                            "{}|{}",
+                            snapshot.service_type.to_lowercase(),
+                            snapshot.instance_name.to_lowercase()
+                        ),
+                        snapshot,
+                    )
+                })
+                .collect();
+            for snapshot in self.system_browser.snapshot() {
+                let key = format!(
+                    "{}|{}",
+                    snapshot.service_type.to_lowercase(),
+                    snapshot.instance_name.to_lowercase()
+                );
+                if snapshot.complete || !by_name.get(&key).is_some_and(|old| old.complete) {
+                    by_name.insert(key, snapshot);
+                }
+            }
+            let mut merged: Vec<_> = by_name.into_values().collect();
+            merged.sort_by(|a, b| a.instance_fqdn.cmp(&b.instance_fqdn));
+            merged
+        }
+        #[cfg(not(target_os = "macos"))]
+        snapshots
+    }
+
+    pub fn mdns_activity(&self) -> Vec<MdnsActivity> {
+        #[cfg(target_os = "macos")]
+        {
+            self.system_browser.activity()
+        }
+        #[cfg(not(target_os = "macos"))]
+        {
+            Vec::new()
+        }
     }
 
     /// Mirrors plain-app's `startDiscovery` mutation: runs the mDNS browser
@@ -491,6 +547,9 @@ impl NearbyDiscoverManager {
 
     /// Worker-thread half of [`Self::on_device_found`].
     fn process_discovered_device(&self, device: FoundDevice) {
+        if device.id == self.identity.client_id {
+            return;
+        }
         // Resident-listener path: always refresh a paired peer's address so a
         // changed IP is picked up by the next reconnect attempt even while
         // the nearby scan loop is off.

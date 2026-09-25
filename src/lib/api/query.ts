@@ -1032,7 +1032,13 @@ export const dbTableInfoGQL = `
 
 export const dbTableColumnsGQL = `
   query DbTableColumns($table: String!) {
-    dbTableColumns(table: $table)
+    dbTableColumns(table: $table) {
+      name
+      dataType
+      notNull
+      defaultValue
+      primaryKey
+    }
   }
 `
 

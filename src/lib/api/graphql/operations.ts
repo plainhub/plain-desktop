@@ -2355,7 +2355,13 @@ export interface GqlOperations {
   }
   dbTableColumnsGQL: {
     result: {
-      dbTableColumns: Array<string>
+      dbTableColumns: Array<{
+        name: string
+        dataType: 'TEXT' | 'INTEGER' | 'REAL' | 'BLOB' | 'NUMERIC' | 'UNKNOWN'
+        notNull: boolean
+        defaultValue?: string
+        primaryKey: boolean
+      }>
     }
     variables: {
       table: string

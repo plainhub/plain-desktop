@@ -145,8 +145,8 @@ const { fetch: fetchTableInfo } = initLazyQuery({
 })
 
 const { loading: columnsLoading, fetch: fetchColumns } = initLazyQuery({
-  handle(data: { dbTableColumns: string[] }, error: string) {
-    if (!error) infoColumns.value = data?.dbTableColumns ?? []
+  handle(data: { dbTableColumns: { name: string }[] }, error: string) {
+    if (!error) infoColumns.value = (data?.dbTableColumns ?? []).map((c) => c.name)
   },
   document: dbTableColumnsGQL,
 })

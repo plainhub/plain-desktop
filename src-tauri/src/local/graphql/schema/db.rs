@@ -1,4 +1,4 @@
-use async_graphql::{Context, Object, SimpleObject};
+use async_graphql::{Context, Enum, Object, SimpleObject};
 use std::sync::Arc;
 
 use super::super::context::AppCtx;
@@ -8,6 +8,37 @@ use plain_rs::hex::bytes_to_hex;
 #[derive(SimpleObject, Default)]
 pub struct DbTableInfo {
     pub id_key: String,
+}
+
+#[derive(Enum, Copy, Clone, Eq, PartialEq, Default)]
+pub enum DbColumnType {
+    Text,
+    Integer,
+    Real,
+    Blob,
+    Numeric,
+    #[default]
+    Unknown,
+}
+
+fn column_type(declared: &str) -> DbColumnType {
+    match declared.to_ascii_uppercase().as_str() {
+        "TEXT" => DbColumnType::Text,
+        "INTEGER" => DbColumnType::Integer,
+        "REAL" => DbColumnType::Real,
+        "BLOB" => DbColumnType::Blob,
+        "NUMERIC" => DbColumnType::Numeric,
+        _ => DbColumnType::Unknown,
+    }
+}
+
+#[derive(SimpleObject, Default)]
+pub struct DbTableColumn {
+    pub name: String,
+    pub data_type: DbColumnType,
+    pub not_null: bool,
+    pub default_value: Option<String>,
+    pub primary_key: bool,
 }
 
 #[derive(Default)]
@@ -105,12 +136,22 @@ impl DbQuery {
         })
     }
 
-    async fn db_table_columns(&self, ctx: &Context<'_>, table: String) -> Vec<String> {
+    async fn db_table_columns(&self, ctx: &Context<'_>, table: String) -> Vec<DbTableColumn> {
         if !is_safe_identifier(&table) {
             return vec![];
         }
         let c = ctx.data_unchecked::<Arc<AppCtx>>();
-        c.db.table_columns(&table)
+        c.db
+            .table_columns(&table)
+            .into_iter()
+            .map(|col| DbTableColumn {
+                name: col.name,
+                data_type: column_type(&col.data_type),
+                not_null: col.not_null,
+                default_value: col.default_value,
+                primary_key: col.primary_key,
+            })
+            .collect()
     }
 }
 

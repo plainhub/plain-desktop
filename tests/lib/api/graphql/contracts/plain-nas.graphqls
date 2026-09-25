@@ -341,6 +341,33 @@ enum DataType {
 }
 
 """
+Declared column type for `dbTableColumns.dataType`; UNKNOWN covers
+undeclared columns and declared types outside SQLite's standard set
+(plain-app `DbColumnType`).
+"""
+enum DbColumnType {
+	TEXT
+	INTEGER
+	REAL
+	BLOB
+	NUMERIC
+	UNKNOWN
+}
+
+"""
+`dbTableColumns` item (plain-app `DbTableColumn`). The KV store has no
+declared types or defaults, so `dataType` is always UNKNOWN and
+`defaultValue` always null here.
+"""
+type DbTableColumn {
+	name: String!
+	dataType: DbColumnType!
+	notNull: Boolean!
+	defaultValue: String
+	primaryKey: Boolean!
+}
+
+"""
 `dbTableInfo` item (plain-app `DbTableInfo`).
 """
 type DbTableInfo {
@@ -1230,9 +1257,9 @@ type QueryRoot {
 	"""
 	dbTableInfo(table: String!): DbTableInfo!
 	"""
-	Column names of a table's rows (fixed `key`/`value` KV shape).
+	Column metadata of a table's rows (fixed `key`/`value` KV shape).
 	"""
-	dbTableColumns(table: String!): [String!]!
+	dbTableColumns(table: String!): [DbTableColumn!]!
 	"""
 	List of mounted volumes + unmounted partitions (Go `ListMounts`).
 	"""
