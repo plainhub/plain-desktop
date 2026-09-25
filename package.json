@@ -15,10 +15,11 @@
     "preview": "vite preview --port 5050",
     "graphql:check": "vitest run --project=graphql",
     "graphql:codegen": "vitest run --project=graphql",
-    "typecheck": "vue-tsc --noEmit && yarn graphql:check",
+    "typecheck": "vue-tsc --noEmit && yarn graphql:check && yarn docs:check",
     "test": "vitest run",
     "test:watch": "vitest",
-    "test:integration": "vitest run --project=integration"
+    "test:integration": "vitest run --project=integration",
+    "docs:check": "vitest run --project=docs"
   },
   "dependencies": {
     "@codemirror/autocomplete": "^6.20.1",
