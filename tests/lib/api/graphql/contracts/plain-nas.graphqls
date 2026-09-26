@@ -71,6 +71,19 @@ enum AppChannelType {
 	FDROID
 }
 
+type AppFile {
+	"""
+	Content-addressable fileId (the fid suffix, `{sha256}[.{ext}]`).
+	"""
+	id: String!
+	size: Long!
+	mimeType: String!
+	realPath: String!
+	fileName: String!
+	createdAt: Instant!
+	updatedAt: Instant!
+}
+
 type AppUpdate {
 	currentVersion: String!
 	latestVersion: String
@@ -453,6 +466,12 @@ enum DeviceType {
 	TV
 	NAS
 	OTHER
+}
+
+enum DiscoveryMethod {
+	LAN
+	BLE
+	QR
 }
 
 """
@@ -922,54 +941,65 @@ type MutationRoot {
 	Delete a bookmark group; its bookmarks are kept and become ungrouped (`groupId` cleared).
 	"""
 	deleteBookmarkGroup(id: ID!): Boolean!
-	"""
-	Chat backend is not wired on the NAS yet — always fails with `chat_is_not_available_on_nas` (plain-app signature parity).
-	"""
 	createChatChannel(name: String!): ChatChannel!
-	"""
-	Chat backend is not wired on the NAS yet — always fails with `chat_is_not_available_on_nas` (plain-app signature parity).
-	"""
 	updateChatChannel(id: ID!, name: String!): ChatChannel!
-	"""
-	Chat backend is not wired on the NAS yet — always fails with `chat_is_not_available_on_nas` (plain-app signature parity).
-	"""
 	deleteChatChannel(id: ID!): Boolean!
-	"""
-	Chat backend is not wired on the NAS yet — always fails with `chat_is_not_available_on_nas` (plain-app signature parity).
-	"""
 	leaveChatChannel(id: ID!): Boolean!
-	"""
-	Chat backend is not wired on the NAS yet — always fails with `chat_is_not_available_on_nas` (plain-app signature parity).
-	"""
 	addChatChannelMember(id: ID!, peerId: ID!): ChatChannel!
-	"""
-	Chat backend is not wired on the NAS yet — always fails with `chat_is_not_available_on_nas` (plain-app signature parity).
-	"""
 	removeChatChannelMember(id: ID!, peerId: ID!): ChatChannel!
-	"""
-	Chat backend is not wired on the NAS yet — always fails with `chat_is_not_available_on_nas` (plain-app signature parity).
-	"""
 	acceptChatChannelInvite(id: ID!): Boolean!
-	"""
-	Chat backend is not wired on the NAS yet — always fails with `chat_is_not_available_on_nas` (plain-app signature parity).
-	"""
 	declineChatChannelInvite(id: ID!): Boolean!
 	"""
-	Chat backend is not wired on the NAS yet — always fails with `chat_is_not_available_on_nas` (plain-app signature parity).
+	Web-only convenience (plain-app Android doesn't expose it): branch
+	to accept/decline on the `accept` flag, returned verbatim.
+	"""
+	respondChannelInvite(id: ID!, accept: Boolean!): Boolean!
+	"""
+	Debug-only stub (plain-desktop parity): the peer protocol invokes
+	`channelSystemMessage` via `/peer_graphql`, never the main schema —
+	exposing a real implementation here would double-process payloads.
+	"""
+	channelSystemMessage(type: String!, payload: String!): Boolean!
+	"""
+	Send a chat message. `target` is a bare/`peer:` peer id or
+	`channel:<id>`; `content` is the message envelope JSON.
 	"""
 	sendChatItem(target: String!, content: String!): [ChatItem!]!
-	"""
-	Chat backend is not wired on the NAS yet — always fails with `chat_is_not_available_on_nas` (plain-app signature parity). The §5 blank-query exemption applies to this domain: empty selection = no-op, never an error.
-	"""
 	deleteChatItem(id: ID!): Boolean!
 	"""
-	Chat backend is not wired on the NAS yet — always fails with `chat_is_not_available_on_nas` (plain-app signature parity). The §5 blank-query exemption applies to this domain: empty selection = no-op, never an error.
+	Bulk delete by query DSL (`ids:` / `channel:` / `peer:`) — blank
+	query is a no-op returning `affectedCount: 0` (§5 exemption).
 	"""
 	deleteChatItems(query: String!): ActionResult!
-	"""
-	Chat backend is not wired on the NAS yet — always fails with `chat_is_not_available_on_nas` (plain-app signature parity).
-	"""
 	retryChatItem(id: ID!): ChatItem!
+	"""
+	Delete a peer: 1:1 chats removed; a peer still inside a channel is
+	demoted to CHANNEL status instead of being dropped.
+	"""
+	deletePeer(id: ID!): Boolean!
+	"""
+	Mark a peer UNPAIRED (shared key kept for a future re-pair).
+	"""
+	unpairPeer(id: ID!): Boolean!
+	"""
+	Initiate pairing with a discovered LAN device — sends a signed
+	PAIR_REQUEST to the target's `POST /nearby` endpoint.
+	"""
+	pairDevice(input: PairingDeviceInput!): Boolean!
+	"""
+	Cancel an in-progress pairing initiated by this device.
+	"""
+	cancelPairing(deviceId: ID!): Boolean!
+	"""
+	Respond to an incoming pairing request — accept or reject.
+	"""
+	respondToPairing(input: PairingRequestInput!, accepted: Boolean!): Boolean!
+	"""
+	Same merge, but the result is imported into the content-addressed
+	app-file store (dedup); the returned `value` is the fid suffix
+	(`"{hash}.{ext}"`) the client builds `fid:` URIs from.
+	"""
+	mergeAppFileChunks(fileId: String!, totalChunks: Int!, fileName: String!, totalSize: Long!): MergeTask!
 	"""
 	Start a background merge (plain-app contract): the mutation returns
 	immediately with STARTED (or DONE/MERGING for idempotent re-calls);
@@ -1073,12 +1103,63 @@ type MutationRoot {
 }
 
 """
+Initiate-pairing input (plain-app contract) — one discovered LAN device.
+"""
+input PairingDeviceInput {
+	id: ID!
+	name: String!
+	ips: [String!]!
+	port: Int!
+	deviceType: DeviceType!
+	version: String!
+	platform: String!
+	lastSeen: Instant!
+	discoveryMethods: [DiscoveryMethod!]!
+}
+
+"""
+Incoming-pairing-request input (plain-app contract) — the wire
+`PairingRequest` the responder received on `POST /nearby`.
+"""
+input PairingRequestInput {
+	fromId: ID!
+	fromName: String!
+	port: Int!
+	deviceType: DeviceType!
+	ecdhPublicKey: String!
+	signaturePublicKey: String!
+	timestamp: Long!
+	ips: [String!]!
+	signature: String!
+	fromIp: String!
+	awareSupported: Boolean!
+}
+
+"""
 Kind of a filesystem path. `pathKind` serves null when the path does
 not exist, so the enum itself is a closed FILE/DIR set.
 """
 enum PathKind {
 	FILE
 	DIR
+}
+
+type Peer {
+	id: ID!
+	name: String!
+	ip: String!
+	status: PeerStatus!
+	port: Int!
+	deviceType: DeviceType!
+	createdAt: Instant!
+	updatedAt: Instant!
+	online: Boolean!
+}
+
+enum PeerStatus {
+	PAIRED
+	UNPAIRED
+	CHANNEL
 }
 
 """
@@ -1131,21 +1212,34 @@ type QueryRoot {
 	"""
 	audioPlayback: AudioPlayback!
 	"""
-	Chat channels — schema parity; the NAS has no peer-mesh chat backend
-	yet, so lists are empty.
+	Chat channels the device has not left (plain-app `chatChannels`).
 	"""
 	chatChannels: [ChatChannel!]!
 	"""
-	Chat items of a channel — schema parity (always empty on NAS).
-	Paginated latest-first like plain-app; returns oldest-to-newest.
-	`query` is the shared DSL; only its `text:` field applies (unused
-	by the empty result, kept for the plain-app signature).
+	Chat items of one conversation. Paginated latest-first like
+	plain-app; returns oldest-to-newest. `target` is a bare/`peer:`
+	peer id or a `channel:<id>` prefixed channel id; `query` is the
+	shared DSL of which only the `text:` field applies.
 	"""
 	chatItems(target: String!, offset: Int!, limit: Int!, query: String!): [ChatItem!]!
 	"""
-	Latest items across channels — schema parity (always empty on NAS).
+	Latest items across conversations (one per channel/peer/local).
 	"""
 	latestChatItems: [ChatItem!]!
+	"""
+	Paired / known LAN peers. `online` reflects live reachability
+	(mDNS presence); unknown peers report `false`.
+	"""
+	peers: [Peer!]!
+	"""
+	Chat attachment store page (newest first), filtered by display
+	name substring.
+	"""
+	appFiles(offset: Int!, limit: Int!, query: String!): [AppFile!]!
+	"""
+	Chat attachment count, same filter as `appFiles`.
+	"""
+	appFileCount(query: String!): Int!
 	"""
 	Current media-index scan progress; same payload as the
 	`media:scan:progress` WS push, for initial render and polling.

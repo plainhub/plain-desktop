@@ -4,7 +4,7 @@
 //! the desktop:
 //! * `chat.db` — the plain-app-schema SQLite store (chats / channels /
 //!   peers / nearby cache / app files) opened by the caller (it also
-//!   carries the desktop-local bookmark tables, see `local::db`).
+//!   carries bookmarks through the shared core).
 //! * identity — the Tauri `AppIdentity` (`client_id` + Ed25519 keypair)
 //!   wrapped in the shared runtime-renamable `ChatIdentity`.
 //! * `ReqwestTransport` — the LAN HTTPS peer transport (peers serve

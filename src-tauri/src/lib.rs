@@ -143,7 +143,6 @@ pub fn run() {
                 Ok(d) => Arc::new(d),
                 Err(e) => panic!("local_db open failed: {e}"),
             };
-            local::db::ensure_bookmark_tables(&db);
             // Ensure persistent device identity once at startup.
             let handle = app.handle().clone();
             let identity = Arc::new(crate::prefs::ensure_identity(&handle));
