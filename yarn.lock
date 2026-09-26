@@ -2211,15 +2211,6 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@tauri-apps/plugin-store@npm:^2.4.3":
-  version: 2.4.3
-  resolution: "@tauri-apps/plugin-store@npm:2.4.3"
-  dependencies:
-    "@tauri-apps/api": "npm:^2.11.0"
-  checksum: 10/e2e672932f0f8fd9ec21dee6e705f2872bd05eb07bbb07ff4376fc3cdc89d2862cc1def15abc85a72eb212bbb17d00d01120e2c497f39e383f713e06bd9c7363
-  languageName: node
-  linkType: hard
-
 "@tybys/wasm-util@npm:^0.10.3":
   version: 0.10.3
   resolution: "@tybys/wasm-util@npm:0.10.3"
@@ -5381,7 +5372,6 @@ __metadata:
     "@tauri-apps/plugin-fs": "npm:^2"
     "@tauri-apps/plugin-notification": "npm:^2.3.3"
     "@tauri-apps/plugin-opener": "npm:^2.5.4"
-    "@tauri-apps/plugin-store": "npm:^2.4.3"
     "@types/node": "npm:^22.15.29"
     "@typescript-eslint/eslint-plugin": "npm:^8.33.0"
     "@typescript-eslint/parser": "npm:^8.33.0"

@@ -1,7 +1,7 @@
 //! Local HTTP+HTTPS+WebSocket server for offline/local mode.
 //!
-//! - HTTP — plain requests and WebSocket upgrades.
-//! - HTTPS — encrypted requests and WSS upgrades.
+//! - HTTP — `axum::serve` over the shared plain-rs router.
+//! - HTTPS — `axum_server::from_tcp_rustls` (rustls) over the same router.
 //!
 //! Each listener binds the user-configured port stored in `prefs` (default
 //! 8080 / 8443, matching plain-app's `HttpPortPreference` / `HttpsPortPreference`).
@@ -11,29 +11,26 @@
 //! keep running. The bound port is recorded in `LocalServerState` so downstream
 //! consumers (pairing, discovery, GraphQL) see the actual value.
 //!
-//! Per-connection dispatch lives in [`plain_conn`] (HTTP/WS) and
-//! [`tls_conn`] (HTTPS/WSS); the listener loops here only accept and spawn.
+//! The axum router itself lives in plain-rs (`local_api::server::build_router`);
+//! this file only owns the host lifecycle: listener binding, TLS config,
+//! and rebind-on-port-change.
 
 use super::chat::ChatState;
 use super::db::ChatDb;
 use super::graphql::{AppCtx, LocalSchema, WsEvent, build_schema};
 use super::peer_graphql::{PeerSchema, build_schema as build_peer_schema};
-use super::tls::{build_acceptor, ensure_cert};
 use crate::commands::discover::{NearbyDiscoverManager, PeerStatusManager};
 use crate::prefs::AppIdentity;
 use crate::shell::DesktopShell;
+use axum_server::tls_rustls::RustlsConfig;
+use plain_rs::local_api::server::ServerState;
+pub use plain_rs::local_api::server::uri;
 use std::net::TcpListener as StdTcpListener;
 use std::path::PathBuf;
 use std::sync::atomic::{AtomicU16, Ordering};
 use std::sync::{Arc, Mutex, RwLock};
 use tauri::{AppHandle, Manager};
 use tokio::sync::broadcast;
-use tokio_rustls::TlsAcceptor;
-
-#[allow(unused_imports)]
-pub use plain_rs::local_api::server::{
-    file_server, http_handler, plain_conn, proxy_file, response, tls_conn, upload, uri, ws_handler,
-};
 
 struct ServerHandle {
     http_task: tauri::async_runtime::JoinHandle<()>,
@@ -48,9 +45,9 @@ pub struct LocalServerState {
     schema: Arc<LocalSchema>,
     peer_schema: Arc<PeerSchema>,
     ctx: Arc<AppCtx>,
-    acceptor: Option<Arc<TlsAcceptor>>,
-    data_dir: PathBuf,
-    handle: AppHandle,
+    /// Shared preferences — user-configured ports live here; rebind reads them.
+    prefs: Arc<crate::prefs::Prefs>,
+    rustls: Option<RustlsConfig>,
     server: Mutex<ServerHandle>,
 }
 
@@ -62,6 +59,7 @@ impl LocalServerState {
         db: Arc<ChatDb>,
         library: Arc<crate::local::db::LibraryDb>,
         handle: AppHandle,
+        prefs: Arc<crate::prefs::Prefs>,
         identity: Arc<AppIdentity>,
         device_name: Arc<RwLock<String>>,
         chat: Arc<ChatState>,
@@ -72,7 +70,7 @@ impl LocalServerState {
         let port = Arc::new(AtomicU16::new(0));
         let https_port = Arc::new(AtomicU16::new(0));
 
-        let token = crate::prefs::get_url_token(&handle);
+        let token = crate::prefs::ensure_url_token(&prefs);
 
         let (event_tx, _) = broadcast::channel::<WsEvent>(1024);
 
@@ -91,6 +89,7 @@ impl LocalServerState {
         let ctx = Arc::new(AppCtx {
             db: db.clone(),
             library,
+            prefs: prefs.clone(),
             identity: identity.clone(),
             peer_status: peer_status.clone(),
             discover_manager: discover_manager.clone(),
@@ -106,14 +105,16 @@ impl LocalServerState {
             shell: Arc::new(DesktopShell(handle.clone())),
         });
 
-        let acceptor: Option<Arc<TlsAcceptor>> = match ensure_cert(&app_data_dir) {
-            Ok((cert_pem, key_pem)) => match build_acceptor(&cert_pem, &key_pem) {
-                Ok(a) => Some(Arc::new(a)),
-                Err(e) => {
-                    log::error!("local_server: failed to build TLS acceptor: {e}");
-                    None
+        let rustls = match super::tls::ensure_cert(&app_data_dir) {
+            Ok((cert_pem, key_pem)) => {
+                match tauri::async_runtime::block_on(RustlsConfig::from_pem(cert_pem, key_pem)) {
+                    Ok(cfg) => Some(cfg),
+                    Err(e) => {
+                        log::error!("local_server: failed to build rustls config: {e}");
+                        None
+                    }
                 }
-            },
+            }
             Err(e) => {
                 log::error!("local_server: failed to ensure cert: {e}");
                 None
@@ -128,9 +129,8 @@ impl LocalServerState {
             schema,
             peer_schema,
             ctx,
-            acceptor,
-            data_dir: app_data_dir,
-            handle: handle.clone(),
+            prefs,
+            rustls,
             server: Mutex::new(ServerHandle {
                 http_task: tauri::async_runtime::spawn(async {}),
                 https_task: None,
@@ -143,8 +143,8 @@ impl LocalServerState {
     fn rebind(&self) -> Result<(), String> {
         let old_http = self.port.load(Ordering::Relaxed);
         let old_https = self.https_port.load(Ordering::Relaxed);
-        let http_port = crate::prefs::get_http_port(&self.handle);
-        let https_port = crate::prefs::get_https_port(&self.handle);
+        let http_port = crate::prefs::get_http_port(&self.prefs);
+        let https_port = crate::prefs::get_https_port(&self.prefs);
 
         {
             let mut server = self.server.lock().unwrap();
@@ -159,7 +159,7 @@ impl LocalServerState {
             Ok(l) => l,
             Err(e) => {
                 if old_http != 0 {
-                    crate::prefs::set_http_port(&self.handle, old_http);
+                    crate::prefs::set_http_port(&self.prefs, old_http);
                 }
                 return Err(format!("HTTP port {http_port} bind failed: {e}"));
             }
@@ -177,10 +177,10 @@ impl LocalServerState {
             Err(e) => {
                 drop(http_listener);
                 if old_http != 0 {
-                    crate::prefs::set_http_port(&self.handle, old_http);
+                    crate::prefs::set_http_port(&self.prefs, old_http);
                 }
                 if old_https != 0 {
-                    crate::prefs::set_https_port(&self.handle, old_https);
+                    crate::prefs::set_https_port(&self.prefs, old_https);
                 }
                 return Err(format!("HTTPS port {https_port} bind failed: {e}"));
             }
@@ -193,56 +193,26 @@ impl LocalServerState {
         self.port.store(new_port, Ordering::Relaxed);
         self.https_port.store(new_https_port, Ordering::Relaxed);
 
-        let token_arc = Arc::new(self.token.clone());
-        let http_task = {
-            let schema = self.schema.clone();
-            let peer_schema = self.peer_schema.clone();
-            let ctx = self.ctx.clone();
-            let event_tx = self.event_tx.clone();
-            let data_dir = self.data_dir.clone();
-            tauri::async_runtime::spawn(async move {
-                let listener =
-                    tokio::net::TcpListener::from_std(http_listener).expect("http listener");
-                loop {
-                    let Ok((stream, _)) = listener.accept().await else {
-                        continue;
-                    };
-                    let _ = stream.set_nodelay(true);
-                    tokio::spawn(plain_conn::serve(
-                        stream,
-                        schema.clone(),
-                        peer_schema.clone(),
-                        ctx.clone(),
-                        token_arc.clone(),
-                        event_tx.subscribe(),
-                        data_dir.clone(),
-                    ));
-                }
-            })
-        };
+        let http_app = self
+            .build_router()
+            .into_make_service_with_connect_info::<std::net::SocketAddr>();
+        let http_task = tauri::async_runtime::spawn(async move {
+            let listener = tokio::net::TcpListener::from_std(http_listener).expect("http listener");
+            if let Err(e) = axum::serve(listener, http_app).await {
+                log::error!("local_server: http serve error: {e}");
+            }
+        });
 
-        let https_task = self.acceptor.as_ref().map(|acc| {
-            let schema = self.schema.clone();
-            let peer_schema = self.peer_schema.clone();
-            let ctx = self.ctx.clone();
-            let data_dir = self.data_dir.clone();
-            let acc = acc.clone();
+        let https_task = self.rustls.clone().map(|cfg| {
+            let https_app = self
+                .build_router()
+                .into_make_service_with_connect_info::<std::net::SocketAddr>();
             tauri::async_runtime::spawn(async move {
-                let listener =
-                    tokio::net::TcpListener::from_std(https_listener).expect("https listener");
-                loop {
-                    let Ok((stream, _)) = listener.accept().await else {
-                        continue;
-                    };
-                    let _ = stream.set_nodelay(true);
-                    tokio::spawn(tls_conn::serve(
-                        stream,
-                        acc.clone(),
-                        schema.clone(),
-                        peer_schema.clone(),
-                        ctx.clone(),
-                        data_dir.clone(),
-                    ));
+                if let Err(e) = axum_server::from_tcp_rustls(https_listener, cfg)
+                    .serve(https_app)
+                    .await
+                {
+                    log::error!("local_server: https serve error: {e}");
                 }
             })
         });
@@ -256,6 +226,15 @@ impl LocalServerState {
         // driven by the HTTP service lifecycle.
         self.ctx.discover_manager.set_https_port(new_https_port);
         Ok(())
+    }
+
+    /// The shared axum router from plain-rs — served once per listener.
+    fn build_router(&self) -> axum::Router {
+        plain_rs::local_api::server::build_router(ServerState {
+            schema: self.schema.clone(),
+            peer_schema: self.peer_schema.clone(),
+            ctx: self.ctx.clone(),
+        })
     }
 
     pub fn restart(&self) -> Result<(), String> {
@@ -297,14 +276,22 @@ pub async fn local_ipv4_strs() -> Result<Vec<String>, String> {
 
 #[tauri::command]
 pub async fn set_http_port(handle: tauri::AppHandle, port: u16) -> Result<(), String> {
-    tauri::async_runtime::spawn_blocking(move || crate::prefs::set_http_port(&handle, port))
+    let prefs = handle
+        .state::<std::sync::Arc<crate::prefs::Prefs>>()
+        .inner()
+        .clone();
+    tauri::async_runtime::spawn_blocking(move || crate::prefs::set_http_port(&prefs, port))
         .await
         .map_err(|e| e.to_string())
 }
 
 #[tauri::command]
 pub async fn set_https_port(handle: tauri::AppHandle, port: u16) -> Result<(), String> {
-    tauri::async_runtime::spawn_blocking(move || crate::prefs::set_https_port(&handle, port))
+    let prefs = handle
+        .state::<std::sync::Arc<crate::prefs::Prefs>>()
+        .inner()
+        .clone();
+    tauri::async_runtime::spawn_blocking(move || crate::prefs::set_https_port(&prefs, port))
         .await
         .map_err(|e| e.to_string())
 }

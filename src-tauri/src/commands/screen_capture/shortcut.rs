@@ -74,7 +74,8 @@ fn default_capture_accelerator() -> &'static str {
 /// Resolve the accelerator to register: the persisted user choice when it
 /// parses, otherwise the platform default.
 fn configured_capture_accelerator<R: Runtime>(app: &AppHandle<R>) -> String {
-    crate::prefs::get_capture_shortcut(app)
+    let prefs = app.state::<std::sync::Arc<crate::prefs::Prefs>>();
+    crate::prefs::get_capture_shortcut(&prefs)
         .filter(|value| value.parse::<Shortcut>().is_ok())
         .unwrap_or_else(|| default_capture_accelerator().to_string())
 }
@@ -107,7 +108,8 @@ pub(crate) fn apply_shortcut_change<R: Runtime>(
 ) -> CaptureShortcutStatus {
     #[cfg(target_os = "linux")]
     if current_linux_shortcut_backend() == LinuxShortcutBackend::WaylandPortalRequired {
-        crate::prefs::set_capture_shortcut(app, accelerator.as_deref());
+        let prefs = app.state::<std::sync::Arc<crate::prefs::Prefs>>();
+        crate::prefs::set_capture_shortcut(&prefs, accelerator.as_deref());
         let status = CaptureShortcutStatus {
             registered: false,
             accelerator: accelerator.unwrap_or_else(|| default_capture_accelerator().to_string()),
@@ -136,7 +138,8 @@ pub(crate) fn apply_shortcut_change<R: Runtime>(
         let _ = app.global_shortcut().unregister(current);
     }
 
-    crate::prefs::set_capture_shortcut(app, choice.as_deref());
+    let prefs = app.state::<std::sync::Arc<crate::prefs::Prefs>>();
+    crate::prefs::set_capture_shortcut(&prefs, choice.as_deref());
     let wanted = configured_capture_accelerator(app);
 
     let status = match register_ordinary_capture_shortcut(app) {

@@ -50,10 +50,10 @@ pub fn cancel_pair_device(device_id: String, state: tauri::State<'_, ChatState>)
 #[tauri::command]
 pub fn get_device_identity(
     state: tauri::State<'_, ChatState>,
-    app: tauri::AppHandle,
+    prefs: tauri::State<'_, std::sync::Arc<crate::prefs::Prefs>>,
 ) -> serde_json::Value {
     let identity = &state.pairing.identity;
-    let saved_name = crate::prefs::get_device_name(&app);
+    let saved_name = crate::prefs::get_device_name(&prefs);
     let device_name = if saved_name.is_empty() {
         identity.device_name()
     } else {
@@ -78,11 +78,11 @@ pub fn get_device_identity(
 #[tauri::command]
 pub fn set_device_name(
     name: String,
-    app: tauri::AppHandle,
+    prefs: tauri::State<'_, std::sync::Arc<crate::prefs::Prefs>>,
     state: tauri::State<'_, ChatState>,
     discover: tauri::State<'_, crate::commands::discover::NearbyDiscoverManager>,
 ) {
-    crate::prefs::set_device_name(&app, &name);
+    crate::prefs::set_device_name(&prefs, &name);
     state.identity.set_device_name(&name);
     discover.apply_device_rename(&name);
 }

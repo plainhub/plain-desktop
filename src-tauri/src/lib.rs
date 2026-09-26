@@ -35,7 +35,6 @@ pub fn run() {
             builder
         };
     let app = builder
-        .plugin(tauri_plugin_store::Builder::default().build())
         .plugin(
             tauri_plugin_log::Builder::default()
                 .level(if cfg!(debug_assertions) {
@@ -61,6 +60,21 @@ pub fn run() {
         .manage(commands::media_preview_pool::MediaPreviewState::default())
         .manage(commands::screen_capture::runtime::ScreenCaptureRuntime::default())
         .setup(|app| {
+            // The unified preferences store — created before anything
+            // reads a preference (shortcut registration below reads
+            // `capture_shortcut`). One Arc per process, shared with the
+            // local API server; `<app_data_dir>/prefs.json` (the file
+            // tauri-plugin-store used to write, loaded as-is).
+            let data_dir = app
+                .path()
+                .app_data_dir()
+                .unwrap_or_else(|_| std::path::PathBuf::from("."));
+            let prefs = Arc::new(
+                plain_rs::prefs::Prefs::load(&plain_rs::prefs::default_path(&data_dir))
+                    .expect("prefs.json load"),
+            );
+            app.handle().manage(prefs.clone());
+
             #[cfg(target_os = "macos")]
             commands::macos_menu::setup(app)?;
 
@@ -131,10 +145,6 @@ pub fn run() {
             }
 
             app.handle().manage(http_proxy::HttpProxyState::start());
-            let data_dir = app
-                .path()
-                .app_data_dir()
-                .unwrap_or_else(|_| std::path::PathBuf::from("."));
             let log_dir = app
                 .path()
                 .app_log_dir()
@@ -151,18 +161,17 @@ pub fn run() {
                 Err(e) => panic!("local_library open failed: {e}"),
             };
             // Ensure persistent device identity once at startup.
-            let handle = app.handle().clone();
-            let identity = Arc::new(crate::prefs::ensure_identity(&handle));
+            let identity = Arc::new(crate::prefs::ensure_identity(&prefs));
             let device_name = Arc::new(std::sync::RwLock::new(identity.device_name.clone()));
             let mdns_hostname = Arc::new(std::sync::RwLock::new(
-                crate::prefs::ensure_mdns_hostname(&handle),
+                crate::prefs::ensure_mdns_hostname(&prefs),
             ));
             let peer_status = commands::discover::PeerStatusManager::new(db.clone(), identity.clone());
             let chat_state = Arc::new(local::chat::ChatState::new(
                 &db,
                 &identity,
                 device_name.read().unwrap().clone(),
-                crate::prefs::get_url_token(&handle),
+                crate::prefs::ensure_url_token(&prefs),
                 data_dir.clone(),
             ));
             app.handle().manage(chat_state.clone());
@@ -184,7 +193,8 @@ pub fn run() {
                 log_dir,
                 db.clone(),
                 library,
-                handle,
+                app.handle().clone(),
+                prefs.clone(),
                 identity.clone(),
                 device_name.clone(),
                 chat_state.clone(),
@@ -194,7 +204,7 @@ pub fn run() {
             );
             app.handle().manage(dlna_engine.clone());
             // Start the DLNA renderer at startup when the toggle is on.
-            if crate::prefs::get_dlna_enabled(app.handle()) {
+            if plain_rs::prefs::dlna::enabled(&prefs) {
                 let engine = dlna_engine.clone();
                 let port = local_server_state.port();
                 tauri::async_runtime::spawn(async move {
@@ -314,6 +324,10 @@ pub fn run() {
             }
         })
         .invoke_handler(tauri::generate_handler![
+            commands::prefs::prefs_get_all,
+            commands::prefs::prefs_set,
+            commands::prefs::prefs_remove,
+            commands::prefs::prefs_clear,
             commands::discover::login_peer,
             commands::discover::peer_address,
             commands::discover::logout_peer,

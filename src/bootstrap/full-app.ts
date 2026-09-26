@@ -31,7 +31,7 @@ export async function bootstrapFullApp(): Promise<void> {
   if (__IS_TAURI__) {
     document.documentElement.classList.add('tauri')
     preventUnhandledFileDrop()
-    // Load all prefs from plugin-store into memory FIRST so synchronous
+    // Load all prefs from the Rust-side prefs engine into memory FIRST so synchronous
     // readers (i18n, stores) see the persisted values without hitting localStorage.
     await preloadPrefs()
     // Ensure client_id exists in prefs for Tauri mode.

@@ -167,7 +167,7 @@ pub async fn mdns_get_hostname(
 /// `MdnsAndPortEditDialog`: non-blank with a `.local` suffix.
 #[tauri::command]
 pub async fn mdns_set_hostname(
-    handle: tauri::AppHandle,
+    prefs: tauri::State<'_, std::sync::Arc<crate::prefs::Prefs>>,
     state: tauri::State<'_, NearbyDiscoverManager>,
     hostname: String,
 ) -> Result<(), String> {
@@ -176,11 +176,10 @@ pub async fn mdns_set_hostname(
         return Err("mdns hostname must end with .local".to_string());
     }
     let mgr = state.inner().clone();
-    tauri::async_runtime::spawn_blocking(move || {
-        mgr.set_mdns_hostname(&crate::shell::DesktopShell(handle), &hostname)
-    })
-    .await
-    .map_err(|e| e.to_string())
+    let prefs = prefs.inner().clone();
+    tauri::async_runtime::spawn_blocking(move || mgr.set_mdns_hostname(&prefs, &hostname))
+        .await
+        .map_err(|e| e.to_string())
 }
 
 // ── Windows Firewall repair (LAN/mDNS discovery) ─────────────────────────────

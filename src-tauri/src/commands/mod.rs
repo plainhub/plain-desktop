@@ -7,6 +7,7 @@ pub mod macos_dock;
 pub mod macos_menu;
 pub mod media_preview_pool;
 pub mod notification;
+pub mod prefs;
 pub mod reveal;
 pub mod screen_capture;
 pub mod updater;

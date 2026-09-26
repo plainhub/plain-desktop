@@ -9,7 +9,6 @@
     "core:window:allow-toggle-maximize",
     "core:window:allow-start-dragging",
     "core:window:allow-set-fullscreen",
-    "store:default",
     "dialog:default",
     "fs:default",
     {

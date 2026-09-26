@@ -2,7 +2,6 @@ use serde::Serialize;
 
 use crate::local::dlna::receiver_engine::DlnaEngine;
 use crate::local::dlna::types::{DlnaMediaType, DlnaPlaybackState, PendingCastRequest};
-use crate::prefs;
 
 #[derive(Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -31,12 +30,12 @@ pub struct DlnaSenders {
 
 #[tauri::command]
 pub async fn dlna_state(
-    handle: tauri::AppHandle,
+    prefs: tauri::State<'_, std::sync::Arc<crate::prefs::Prefs>>,
     engine: tauri::State<'_, DlnaEngine>,
 ) -> Result<DlnaStateSnapshot, String> {
     let s = engine.state.read().await;
     Ok(DlnaStateSnapshot {
-        enabled: prefs::get_dlna_enabled(&handle),
+        enabled: crate::prefs::dlna::enabled(&prefs),
         is_running: s.is_running,
         is_retrying: s.is_retrying,
         port: s.port,
@@ -56,12 +55,12 @@ pub async fn dlna_state(
 /// Mirrors plain-app's `DlnaReceiverSection` toggle handler.
 #[tauri::command]
 pub async fn dlna_set_enabled(
-    handle: tauri::AppHandle,
+    prefs: tauri::State<'_, std::sync::Arc<crate::prefs::Prefs>>,
     engine: tauri::State<'_, DlnaEngine>,
     server: tauri::State<'_, crate::local::server::LocalServerState>,
     enabled: bool,
 ) -> Result<(), String> {
-    prefs::set_dlna_enabled(&handle, enabled);
+    crate::prefs::dlna::set_enabled(&prefs, enabled);
     if enabled {
         engine.start(server.port()).await;
     } else {
@@ -72,39 +71,37 @@ pub async fn dlna_set_enabled(
 
 #[tauri::command]
 pub async fn dlna_accept_cast(
-    handle: tauri::AppHandle,
+    prefs: tauri::State<'_, std::sync::Arc<crate::prefs::Prefs>>,
     engine: tauri::State<'_, DlnaEngine>,
     remember: bool,
 ) -> Result<(), String> {
-    engine
-        .accept_cast(remember, &crate::shell::DesktopShell(handle))
-        .await;
+    engine.accept_cast(remember, &prefs).await;
     Ok(())
 }
 
 #[tauri::command]
 pub async fn dlna_reject_cast(
-    handle: tauri::AppHandle,
+    prefs: tauri::State<'_, std::sync::Arc<crate::prefs::Prefs>>,
     engine: tauri::State<'_, DlnaEngine>,
     remember: bool,
 ) -> Result<(), String> {
-    engine
-        .reject_cast(remember, &crate::shell::DesktopShell(handle))
-        .await;
+    engine.reject_cast(remember, &prefs).await;
     Ok(())
 }
 
 #[tauri::command]
-pub fn dlna_senders(handle: tauri::AppHandle) -> Result<DlnaSenders, String> {
+pub fn dlna_senders(
+    prefs: tauri::State<'_, std::sync::Arc<crate::prefs::Prefs>>,
+) -> Result<DlnaSenders, String> {
     Ok(DlnaSenders {
-        allowed: prefs::get_dlna_allowed_senders(&handle),
-        denied: prefs::get_dlna_denied_senders(&handle),
+        allowed: crate::prefs::dlna::senders(&prefs, "dlna_allowed_senders"),
+        denied: crate::prefs::dlna::senders(&prefs, "dlna_denied_senders"),
     })
 }
 
 #[tauri::command]
 pub fn dlna_remove_sender(
-    handle: tauri::AppHandle,
+    prefs: tauri::State<'_, std::sync::Arc<crate::prefs::Prefs>>,
     kind: String,
     ip: String,
 ) -> Result<(), String> {
@@ -113,6 +110,6 @@ pub fn dlna_remove_sender(
     } else {
         "dlna_denied_senders"
     };
-    prefs::remove_dlna_sender(&handle, key, &ip);
+    crate::prefs::dlna::remove_sender(&prefs, key, &ip);
     Ok(())
 }
