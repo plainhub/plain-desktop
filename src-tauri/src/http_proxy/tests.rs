@@ -1,9 +1,32 @@
-use super::utils::extract_proxy_params;
+use super::utils::{extract_proxy_params, sha1, ws_accept_key};
 use super::PeerResolver;
 use std::sync::Arc;
 
 fn no_peers() -> PeerResolver {
     Arc::new(|_id: &str| None)
+}
+
+fn hex(bytes: &[u8]) -> String {
+    bytes.iter().map(|b| format!("{b:02x}")).collect()
+}
+
+#[test]
+fn sha1_rfc3174_vectors() {
+    assert_eq!(hex(&sha1(b"abc")), "a9993e364706816aba3e25717850c26c9cd0d89d");
+    assert_eq!(
+        hex(&sha1(b"abcdbcdecdefdefgefghfghighijhijkijkljklmklmnlmnomnopnopq")),
+        "84983e441c3bd26ebaae4aa1f95129e5e54670f1"
+    );
+    assert_eq!(hex(&sha1(b"")), "da39a3ee5e6b4b0d3255bfef95601890afd80709");
+}
+
+#[test]
+fn ws_accept_key_rfc6455_vector() {
+    // RFC 6455 §1.3 sample handshake.
+    assert_eq!(
+        ws_accept_key("dGhlIHNhbXBsZSBub25jZQ=="),
+        "s3pPLMBiTxaQ9kYGzzhZRbK+xOo="
+    );
 }
 
 #[test]
@@ -302,7 +325,7 @@ async fn websocket_upgrade_relays_handshake_and_frames() {
 }
 
 #[tokio::test]
-async fn websocket_upgrade_refused_by_device_forwards_status() {
+async fn websocket_upgrade_refused_by_device_closes_cleanly() {
     use tokio::io::{AsyncReadExt, AsyncWriteExt};
     use tokio::net::{TcpListener, TcpStream};
 
@@ -343,9 +366,84 @@ async fn websocket_upgrade_refused_by_device_forwards_status() {
     );
     client.write_all(request.as_bytes()).await.unwrap();
 
+    // The refusal surfaces as a completed handshake + close frame 1011 —
+    // the browser sees a clean close (no console error), the app sees
+    // onclose and applies its retry backoff.
     let mut response = Vec::new();
     client.read_to_end(&mut response).await.unwrap();
     let text = String::from_utf8_lossy(&response).to_string();
-    assert!(text.starts_with("HTTP/1.1 401 "), "got: {text}");
+    assert!(text.starts_with("HTTP/1.1 101 "), "got: {text}");
+    assert!(
+        text.contains("sec-websocket-accept: s3pPLMBiTxaQ9kYGzzhZRbK+xOo="),
+        "accept must match the client key; got: {text}"
+    );
+    let tail = &response[response.len() - 4..];
+    assert_eq!(tail, &[0x88, 0x02, 0x03, 0xEF], "close frame 1011 expected");
     device.abort();
+}
+
+#[tokio::test]
+async fn websocket_upgrade_unreachable_target_closes_cleanly() {
+    use tokio::io::{AsyncReadExt, AsyncWriteExt};
+    use tokio::net::{TcpListener, TcpStream};
+
+    let relay = TcpListener::bind("127.0.0.1:0").await.unwrap();
+    let relay_addr = relay.local_addr().unwrap();
+    let mut client = TcpStream::connect(relay_addr).await.unwrap();
+    let (server_side, _) = relay.accept().await.unwrap();
+
+    let client_http = reqwest::Client::new();
+    tokio::spawn(async move {
+        super::handle(server_side, client_http, no_peers()).await;
+    });
+
+    // 127.0.0.1:1 refuses connections — the upstream dial fails.
+    let request = format!(
+        "GET /?_pt=ws%3A%2F%2F127.0.0.1%3A1 HTTP/1.1\r\nhost: {relay_addr}\r\nupgrade: websocket\r\nconnection: Upgrade\r\nsec-websocket-key: dGhlIHNhbXBsZSBub25jZQ==\r\nsec-websocket-version: 13\r\n\r\n"
+    );
+    client.write_all(request.as_bytes()).await.unwrap();
+
+    let mut response = Vec::new();
+    client.read_to_end(&mut response).await.unwrap();
+    let text = String::from_utf8_lossy(&response).to_string();
+    assert!(text.starts_with("HTTP/1.1 101 "), "got: {text}");
+    assert!(
+        text.contains("sec-websocket-accept: s3pPLMBiTxaQ9kYGzzhZRbK+xOo="),
+        "got: {text}"
+    );
+    let tail = &response[response.len() - 4..];
+    assert_eq!(tail, &[0x88, 0x02, 0x03, 0xEF], "close frame 1011 expected");
+}
+
+#[tokio::test]
+async fn upstream_failure_returns_502_with_cors_headers() {
+    use tokio::io::{AsyncReadExt, AsyncWriteExt};
+    use tokio::net::{TcpListener, TcpStream};
+
+    let relay = TcpListener::bind("127.0.0.1:0").await.unwrap();
+    let relay_addr = relay.local_addr().unwrap();
+    let mut client = TcpStream::connect(relay_addr).await.unwrap();
+    let (server_side, _) = relay.accept().await.unwrap();
+
+    let client_http = reqwest::Client::new();
+    tokio::spawn(async move {
+        super::handle(server_side, client_http, no_peers()).await;
+    });
+
+    // Unreachable upstream: the 502 must carry CORS headers so the browser
+    // reports the real status instead of a misleading origin violation.
+    let request = format!(
+        "POST /graphql?_pt=http%3A%2F%2F127.0.0.1%3A1 HTTP/1.1\r\nhost: {relay_addr}\r\ncontent-length: 2\r\nconnection: close\r\n\r\nhi"
+    );
+    client.write_all(request.as_bytes()).await.unwrap();
+
+    let mut response = Vec::new();
+    client.read_to_end(&mut response).await.unwrap();
+    let text = String::from_utf8_lossy(&response).to_string();
+    assert!(text.starts_with("HTTP/1.1 502 "), "got: {text}");
+    assert!(
+        text.to_lowercase()
+            .contains("access-control-allow-origin: *"),
+        "CORS must be present on errors; got: {text}"
+    );
 }

@@ -93,6 +93,10 @@ export async function guestFetch<T = any>(
   const controller = new AbortController()
   const timer = setTimeout(() => controller.abort(), TIMEOUT)
   try {
+    if (window.__PLAIN_LOG__) {
+      console.info(`[gql] → sharedInfo @${new URL(url).host}${variables ? ` ${JSON.stringify(variables)}` : ''}`)
+    }
+    const startTime = performance.now()
     const response = await httpRequest(url, {
       method: 'POST',
       headers: { 'Content-Type': 'multipart/form-data', 'c-id': sharedId },
@@ -107,9 +111,16 @@ export async function guestFetch<T = any>(
       throw new Error('bad_request')
     }
     const arrayBuffer = await response.arrayBuffer()
+    const apiEndTime = performance.now()
     const text = chachaDecrypt(key, arrayBufferToBitArray(arrayBuffer))
+    if (window.__PLAIN_LOG__) {
+      console.info(`[gql] ← sharedInfo (${Math.round(apiEndTime - startTime)}ms) ${text}`)
+    }
     return JSON.parse(text)
   } catch (e: any) {
+    if (window.__PLAIN_LOG__) {
+      console.warn(`[gql] ✗ sharedInfo ${e.message || e.name}`)
+    }
     if (e.name === 'AbortError') throw new Error('connection_timeout')
     throw e
   } finally {

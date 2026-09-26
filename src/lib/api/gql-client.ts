@@ -9,6 +9,18 @@ import type { GqlOperationName, GqlResultType, GqlVariablesType } from './graphq
 
 const TIMEOUT = 30000
 
+/** Operation label for the [gql] log lines: the operation's own name when it
+ *  has one (`query foo(` / `mutation bar(`), otherwise its first top-level
+ *  field (`query { app { … } }` → `app`). */
+function operationName(query: string): string {
+  const named = query.match(/\b(?:query|mutation|subscription)\s+([A-Za-z_][\w]*)/)
+  if (named) return named[1]
+  const kw = query.match(/\b(?:query|mutation|subscription)/)
+  const body = kw ? query.slice(kw.index!) : query
+  const field = body.match(/\{\s*(?:\.\.\.\s*)?([A-Za-z_][\w]*)/)
+  return field ? field[1] : '(anonymous)'
+}
+
 export interface GqlResult<T = any> {
   data: T
   errors?: Array<{ message: string; path?: string[] }>
@@ -71,9 +83,19 @@ export async function encryptedGqlPost<T = any>(
 ): Promise<GqlResult<T>> {
   const key = tokenToKey(token)
   const json = JSON.stringify({ query, variables })
+  const op = operationName(query)
+  const host = (() => {
+    try {
+      return new URL(url).host
+    } catch {
+      return url
+    }
+  })()
   // Enabled automatically in dev mode (see main.ts); the flag check runs before
   // any string building so the disabled path is one property read.
-  if (window.__PLAIN_LOG__) console.info(`[request] ${json}`)
+  if (window.__PLAIN_LOG__) {
+    console.info(`[gql] → ${op} @${host} ${json}`)
+  }
 
   const startTime = performance.now()
   const body = bitArrayToUint8Array(chachaEncrypt(key, wrapWithReplayProtection(json)))
@@ -102,12 +124,16 @@ export async function encryptedGqlPost<T = any>(
     const decryptEndTime = performance.now()
 
     if (window.__PLAIN_LOG__) {
-      console.info(`[response] ${text}`)
-      console.info(`[time] encrypt: ${encryptTime - startTime}ms, api: ${apiEndTime - encryptTime}ms, decrypt: ${decryptEndTime - apiEndTime}ms`)
+      console.info(
+        `[gql] ← ${op} (${Math.round(apiEndTime - encryptTime)}ms·enc ${Math.round(encryptTime - startTime)}ms·dec ${Math.round(decryptEndTime - apiEndTime)}ms) ${text}`,
+      )
     }
 
     return JSON.parse(text)
   } catch (e: any) {
+    if (window.__PLAIN_LOG__) {
+      console.warn(`[gql] ✗ ${op} @${host} ${e instanceof GqlError ? `${e.message} (${e.status ?? 'network'})` : e.name || e.message}`)
+    }
     if (e instanceof GqlError) throw e
     if (e.name === 'AbortError') throw new GqlError('connection_timeout')
     throw new GqlError(e.message || 'network_error')

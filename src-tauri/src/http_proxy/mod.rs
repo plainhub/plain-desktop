@@ -37,7 +37,7 @@ mod tests;
 mod utils;
 
 use plain_rs::http::CORS;
-use utils::extract_proxy_params;
+use utils::{extract_proxy_params, ws_accept_key};
 
 // ─── Public state ─────────────────────────────────────────────────────────────
 
@@ -162,7 +162,11 @@ async fn handle(stream: TcpStream, http: reqwest::Client, peers: PeerResolver) {
         };
         if target_base.is_empty() {
             let _ = wr
-                .write_all(b"HTTP/1.1 400 Bad Request\r\nconnection: close\r\n\r\n")
+                .write_all(b"HTTP/1.1 400 Bad Request\r\n")
+                .await;
+            let _ = wr.write_all(CORS).await;
+            let _ = wr
+                .write_all(b"content-length: 0\r\nconnection: close\r\n\r\n")
                 .await;
             return;
         }
@@ -231,9 +235,14 @@ async fn handle(stream: TcpStream, http: reqwest::Client, peers: PeerResolver) {
 
         let mut resp = match builder.send().await {
             Ok(r) => r,
-            Err(_) => {
+            Err(e) => {
+                eprintln!("[http_proxy] upstream {url} failed: {e}");
                 let _ = wr
-                    .write_all(b"HTTP/1.1 502 Bad Gateway\r\nconnection: close\r\n\r\n")
+                    .write_all(b"HTTP/1.1 502 Bad Gateway\r\n")
+                    .await;
+                let _ = wr.write_all(CORS).await;
+                let _ = wr
+                    .write_all(b"content-length: 0\r\nconnection: close\r\n\r\n")
                     .await;
                 return;
             }
@@ -408,54 +417,32 @@ async fn relay_websocket(
         }
     }
     if !have_key {
+        let _ = tcp.write_all(b"HTTP/1.1 400 Bad Request\r\n").await;
+        let _ = tcp.write_all(CORS).await;
         let _ = tcp
-            .write_all(b"HTTP/1.1 400 Bad Request\r\nconnection: close\r\n\r\n")
+            .write_all(b"content-length: 0\r\nconnection: close\r\n\r\n")
             .await;
         return;
     }
+    let client_key = req_headers
+        .iter()
+        .find(|(k, _)| k == "sec-websocket-key")
+        .map(|(_, v)| v.clone())
+        .unwrap_or_default();
 
-    let mut resp = match builder.send().await {
+    let resp = match builder.send().await {
         Ok(r) => r,
         Err(_) => {
-            let _ = tcp
-                .write_all(b"HTTP/1.1 502 Bad Gateway\r\nconnection: close\r\n\r\n")
-                .await;
+            synthetic_ws_closed(&mut tcp, &client_key).await;
             return;
         }
     };
 
-    // The device refused the upgrade — relay the refusal as a plain response.
+    // The device refused the upgrade — report it in-band, not as a failed
+    // browser handshake (a 502 here floods the console with errors the
+    // app already handles through onclose + retry backoff).
     if resp.status().as_u16() != 101 {
-        let status = resp.status();
-        let mut head: Vec<u8> = Vec::with_capacity(256);
-        head.extend_from_slice(
-            format!(
-                "HTTP/1.1 {} {}\r\n",
-                status.as_u16(),
-                status.canonical_reason().unwrap_or("")
-            )
-            .as_bytes(),
-        );
-        head.extend_from_slice(b"connection: close\r\n");
-        for (k, v) in resp.headers() {
-            if matches!(
-                k.as_str(),
-                "connection" | "transfer-encoding" | "content-length" | "keep-alive"
-            ) {
-                continue;
-            }
-            if let Ok(vs) = v.to_str() {
-                head.extend_from_slice(format!("{}: {}\r\n", k.as_str(), vs).as_bytes());
-            }
-        }
-        head.extend_from_slice(b"\r\n");
-        if tcp.write_all(&head).await.is_ok() {
-            while let Ok(Some(data)) = resp.chunk().await {
-                if tcp.write_all(&data).await.is_err() {
-                    break;
-                }
-            }
-        }
+        synthetic_ws_closed(&mut tcp, &client_key).await;
         return;
     }
 
@@ -463,9 +450,7 @@ async fn relay_websocket(
     let mut upgraded = match resp.upgrade().await {
         Ok(u) => u,
         Err(_) => {
-            let _ = tcp
-                .write_all(b"HTTP/1.1 502 Bad Gateway\r\nconnection: close\r\n\r\n")
-                .await;
+            synthetic_ws_closed(&mut tcp, &client_key).await;
             return;
         }
     };
@@ -493,6 +478,23 @@ async fn relay_websocket(
 
     // Dumb pipe from here on — frames, pings and close flow opaquely.
     let _ = tokio::io::copy_bidirectional(&mut tcp, &mut upgraded).await;
+}
+
+/// Complete the client's handshake ourselves, then close with code 1011
+/// (internal error). The upstream never answered; answering the webview
+/// with a failed HTTP handshake instead would make the browser log an
+/// error line per retry — the app already learns of the failure through
+/// `onclose` and its own backoff.
+async fn synthetic_ws_closed(tcp: &mut tokio::net::TcpStream, client_key: &str) {
+    let head = format!(
+        "HTTP/1.1 101 Switching Protocols\r\nupgrade: websocket\r\nconnection: Upgrade\r\nsec-websocket-accept: {}\r\n\r\n",
+        ws_accept_key(client_key)
+    );
+    if tcp.write_all(head.as_bytes()).await.is_err() {
+        return;
+    }
+    // Unmasked server close frame: FIN+opcode 0x8, length 2, code 1011.
+    let _ = tcp.write_all(&[0x88, 0x02, 0x03, 0xEF]).await;
 }
 
 /// Swap everything between the scheme and the first `/` for `host`.

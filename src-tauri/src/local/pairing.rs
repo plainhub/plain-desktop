@@ -1,5 +1,7 @@
 //! Tauri commands driving the shared pairing manager (see `local::chat`).
 
+use std::sync::Arc;
+
 use plain_rs::chat::pairing::protocol::PairingRequest;
 
 use super::chat::ChatState;
@@ -11,7 +13,7 @@ pub fn pair_device(
     device_name: String,
     device_ip: String,
     device_port: u16,
-    state: tauri::State<'_, ChatState>,
+    state: tauri::State<'_, Arc<ChatState>>,
     server_state: tauri::State<'_, super::server::LocalServerState>,
 ) {
     state.pairing.start_pairing(
@@ -30,7 +32,7 @@ pub fn respond_pair_device(
     request_json: String,
     sender_ip: String,
     accepted: bool,
-    state: tauri::State<'_, ChatState>,
+    state: tauri::State<'_, Arc<ChatState>>,
     server_state: tauri::State<'_, super::server::LocalServerState>,
 ) -> Result<(), String> {
     let req: PairingRequest = serde_json::from_str(&request_json).map_err(|e| e.to_string())?;
@@ -42,14 +44,14 @@ pub fn respond_pair_device(
 
 /// Cancel an in-progress pairing initiated by us.
 #[tauri::command]
-pub fn cancel_pair_device(device_id: String, state: tauri::State<'_, ChatState>) {
+pub fn cancel_pair_device(device_id: String, state: tauri::State<'_, Arc<ChatState>>) {
     state.pairing.cancel_pairing(&device_id);
 }
 
 /// Return the local device's identity (client_id, device_name, public key).
 #[tauri::command]
 pub fn get_device_identity(
-    state: tauri::State<'_, ChatState>,
+    state: tauri::State<'_, Arc<ChatState>>,
     prefs: tauri::State<'_, std::sync::Arc<crate::prefs::Prefs>>,
 ) -> serde_json::Value {
     let identity = &state.pairing.identity;
@@ -79,7 +81,7 @@ pub fn get_device_identity(
 pub fn set_device_name(
     name: String,
     prefs: tauri::State<'_, std::sync::Arc<crate::prefs::Prefs>>,
-    state: tauri::State<'_, ChatState>,
+    state: tauri::State<'_, Arc<ChatState>>,
     discover: tauri::State<'_, crate::commands::discover::NearbyDiscoverManager>,
 ) {
     crate::prefs::set_device_name(&prefs, &name);

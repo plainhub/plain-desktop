@@ -51,6 +51,20 @@ status 前缀协议）、`invoke('ws_start_proxy')` 每连接一个临时 TCP �
 `invoke('peer_address')` 前端地址重解析、`TauriWebSocket`/`tauriFetch`
 两个 webview 侧替身类。
 
+## 错误路径与控制台噪音（2026-09-26）
+
+- **HTTP 错误响应带 CORS**：代理的 400/502 都注入 `access-control-allow-*`，浏览器如实
+  报「502 Bad Gateway」而不是误导性的「Origin is not allowed by Access-Control-Allow-Origin」。
+  设备不可达时每分钟每个 peer 的轮询失败仍会在 console 显示一行真实状态——那是诚实信号。
+- **WS 上游失败合成 101 + close(1011)**：拨号失败/设备拒绝 upgrade 时，代理用客户端的
+  key 算出合法 `sec-websocket-accept` 完成握手（SHA-1 手写在 `http_proxy/utils.rs`，
+  RFC 6455 向量锁死），随后发送 close 帧 1011。浏览器视为干净关闭——不刷握手错误；
+  App 通过既有 `onclose` + 退避重连感知失败。
+- **GraphQL 调用日志**（dev）：`gql-client.ts` 每条调用打印
+  `[gql] → opName @host {query,variables}`（加密前全文）/ `[gql] ← opName (耗时·enc·dec) 响应全文`
+  / 失败时 `[gql] ✗ opName 原因`（warn）。guest 分享页同款。开关
+  `window.__PLAIN_LOG__`，`import.meta.env.DEV` 自动开启（main.ts）。
+
 ## Why This Is Fastest
 
 - **连接复用**：代理对 keep-alive 安全的响应（有 content-length、无
