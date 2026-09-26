@@ -180,22 +180,6 @@ enum ScreenMirrorMode {
   SMOOTH
 }
 
-enum ScreenMirrorControlAction {
-  TAP
-  LONG_PRESS
-  SWIPE
-  SCROLL
-  BACK
-  HOME
-  RECENTS
-  LOCK_SCREEN
-  KEY
-  TOUCH
-  TOUCH_DOWN
-  TOUCH_MOVE
-  TOUCH_UP
-}
-
 enum WebSettingsFeature {
   FILES
   CONTACTS
@@ -674,27 +658,6 @@ input NoteInput {
   content: String!
 }
 
-input ScreenMirrorControlInput {
-  action: ScreenMirrorControlAction!
-  x: Float
-  y: Float
-  endX: Float
-  endY: Float
-  durationMs: Long
-  deltaX: Float
-  deltaY: Float
-  key: String
-  pathPoints: [TouchPointInput!]
-  pointerId: Int
-  pressure: Float
-}
-
-input TouchPointInput {
-  x: Float!
-  y: Float!
-  tMs: Int!
-}
-
 input ImageEditorProjectInput {
   stateB64: String!
   thumbnail: String
@@ -814,7 +777,6 @@ type ExtensionMutation {
   startScreenMirror(audio: Boolean!): Boolean!
   stopScreenMirror: Boolean!
   updateScreenMirrorQuality(mode: ScreenMirrorMode!): Boolean!
-  sendScreenMirrorControl(input: ScreenMirrorControlInput!): Boolean!
   requestScreenMirrorAudio: Boolean!
   requestScreenMirrorKeyFrame: Boolean!
   startPomodoro(durationSec: Int!): Boolean!

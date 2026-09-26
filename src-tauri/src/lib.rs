@@ -218,7 +218,11 @@ pub fn run() {
             )));
             discover_mgr.start();
             peer_status.set_discover_manager(discover_mgr.clone());
-            peer_status.start();
+            // setup runs on the main thread, outside the tokio runtime —
+            // start() reaches tokio::spawn via open_socket for connectable peers.
+            tauri::async_runtime::block_on(async {
+                peer_status.start();
+            });
             app.handle().manage(discover_mgr);
             app.handle().manage(local_server_state);
             Ok(())

@@ -1218,14 +1218,6 @@ export interface GqlOperations {
     }
     variables: undefined
   }
-  sendScreenMirrorControlGQL: {
-    result: {
-      sendScreenMirrorControl: boolean
-    }
-    variables: {
-      input: unknown
-    }
-  }
   addBookmarksGQL: {
     result: {
       addBookmarks: Array<Fragment_BookmarkFragment>

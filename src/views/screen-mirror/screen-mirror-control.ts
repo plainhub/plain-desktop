@@ -4,11 +4,11 @@
 // coalesced sample at digitizer rate, a tap is a natural short down+up, a
 // long-press is a natural hold (server-side keep-alive). Touch samples ride
 // one compact binary WS frame; cold-path actions (BACK/HOME/SCROLL/…) go as
-// encrypted JSON on the same socket with a GraphQL fallback.
+// encrypted JSON on the same socket. The WS is the only control channel —
+// when it is down, control frames are dropped (the server resets touch
+// streams on disconnect).
 import { onUnmounted, watch, type Ref } from 'vue'
 import emitter from '@/plugins/eventbus'
-import { gqlFetch } from '@/lib/api/gql-client'
-import { sendScreenMirrorControlGQL } from '@/lib/api/mutation'
 import { sendAppWsBytes, sendAppWsJson } from '@/hooks/app-socket'
 import { PinchSynthesizer } from './pinch-synthesizer'
 import {
@@ -397,10 +397,11 @@ export function useScreenMirrorControl(
   let overlayEl: HTMLElement | null = null
 
   const sendControl = (event: ScreenMirrorControlEvent) => {
-    if (sendAppWsJson(event)) return
-    gqlFetch(sendScreenMirrorControlGQL, { input: event }).catch((err) => {
-      console.error('Screen mirror control error:', event.action, err)
-    })
+    // Upstream JSON frames ride the typed envelope (API_SPEC §12.3):
+    // {"type":"screenMirrorControl","input":{…}}. WS is the only control
+    // channel (the GraphQL mutation was removed); drops are silent because
+    // the server resets touch streams on disconnect.
+    sendAppWsJson({ type: 'screenMirrorControl', input: event })
   }
 
   const sendSamples = (samples: TouchSample[]) => {

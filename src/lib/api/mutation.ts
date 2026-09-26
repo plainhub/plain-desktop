@@ -715,12 +715,6 @@ export const pausePomodoroGQL = `
   }
 `
 
-export const sendScreenMirrorControlGQL = `
-  mutation sendScreenMirrorControl($input: ScreenMirrorControlInput!) {
-    sendScreenMirrorControl(input: $input)
-  }
-`
-
 export const addBookmarksGQL = `
   mutation addBookmarks($urls: [String!]!, $groupId: ID!) {
     addBookmarks(urls: $urls, groupId: $groupId) {

@@ -4,8 +4,6 @@ vi.mock('@/hooks/app-socket', () => ({
   sendAppWsBytes: vi.fn(() => true),
   sendAppWsJson: vi.fn(() => true),
 }))
-vi.mock('@/lib/api/gql-client', () => ({ gqlFetch: vi.fn() }))
-vi.mock('@/lib/api/mutation', () => ({ sendScreenMirrorControlGQL: 'mutation-mock' }))
 
 import { ScreenMirrorControl, type ScreenMirrorControlEvent } from '@/views/screen-mirror/screen-mirror-control'
 import { TOUCH_ACTION_DOWN, TOUCH_ACTION_MOVE, TOUCH_ACTION_UP, type TouchSample } from '@/views/screen-mirror/touch-frame'

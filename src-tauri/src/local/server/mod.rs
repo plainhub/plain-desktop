@@ -75,13 +75,17 @@ impl LocalServerState {
         let (event_tx, _) = broadcast::channel::<WsEvent>(1024);
 
         // Fan chat + pairing broadcast events out to the local-server WS
-        // bus and the Tauri `pairing-event`.
-        chat.spawn_event_bridges(event_tx.clone(), {
-            let handle = handle.clone();
-            move |ev: &plain_rs::chat::pairing::PairingEvent| {
-                use tauri::Emitter;
-                let _ = handle.emit("pairing-event", ev.clone());
-            }
+        // bus and the Tauri `pairing-event`. start() runs in Tauri setup on
+        // the main thread, outside the tokio runtime, so enter the runtime
+        // context — spawn_event_bridges calls tokio::spawn internally.
+        tauri::async_runtime::block_on(async {
+            chat.spawn_event_bridges(event_tx.clone(), {
+                let handle = handle.clone();
+                move |ev: &plain_rs::chat::pairing::PairingEvent| {
+                    use tauri::Emitter;
+                    let _ = handle.emit("pairing-event", ev.clone());
+                }
+            });
         });
 
         let schema = Arc::new(build_schema());
