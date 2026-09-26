@@ -64,6 +64,7 @@ export default {
   pairing_chat_only_hint: '互傳訊息和檔案',
   pairing_full_control: '完全控制',
   pairing_full_control_hint: '登入管理裝置，並互傳訊息與檔案',
+  login_device_hint: '登入裝置 · 完全控制',
   pairing_start: '繼續',
   allow: '允許',
   deny: '拒絕',

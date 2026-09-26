@@ -63,6 +63,7 @@ export default {
   pairing_chat_only_hint: 'Nachrichten und Dateien austauschen',
   pairing_full_control: 'Vollzugriff',
   pairing_full_control_hint: 'Dieses Gerät verwalten und Nachrichten und Dateien austauschen',
+  login_device_hint: 'Angemeldetes Gerät · Voller Zugriff',
   pairing_start: 'Weiter',
   allow: 'Erlauben',
   deny: 'Verweigern',

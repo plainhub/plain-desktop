@@ -64,6 +64,7 @@ export default {
   pairing_chat_only_hint: 'Обмен сообщениями и файлами',
   pairing_full_control: 'Полный доступ',
   pairing_full_control_hint: 'Управление устройством и обмен сообщениями и файлами',
+  login_device_hint: 'Вошедшее устройство · полный доступ',
   pairing_start: 'Продолжить',
   allow: 'Разрешить',
   deny: 'Отклонить',

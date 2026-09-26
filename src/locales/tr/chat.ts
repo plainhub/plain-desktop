@@ -64,6 +64,7 @@ export default {
   pairing_chat_only_hint: 'Mesaj ve dosya alışverişi yapın',
   pairing_full_control: 'Tam kontrol',
   pairing_full_control_hint: 'Bu cihazı yönetin, mesaj ve dosya alışverişi yapın',
+  login_device_hint: 'Oturum açılmış cihaz · tam kontrol',
   pairing_start: 'Devam et',
   allow: 'İzin ver',
   deny: 'Reddet',

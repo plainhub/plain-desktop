@@ -85,6 +85,7 @@ export default {
   pairing_chat_only_hint: 'Exchange messages and files',
   pairing_full_control: 'Full control',
   pairing_full_control_hint: 'Manage this device and exchange messages and files',
+  login_device_hint: 'Logged-in device · full control',
   pairing_start: 'Continue',
   pairing_connecting: 'Sending pair request…',
   pairing_waiting: 'Waiting for response…',

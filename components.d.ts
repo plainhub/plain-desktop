@@ -297,6 +297,7 @@ declare module 'vue' {
     'IMaterialSymbols:keyboardDoubleArrowDownRounded': typeof import('~icons/material-symbols/keyboard-double-arrow-down-rounded')['default']
     'IMaterialSymbols:keyboardDoubleArrowUpRounded': typeof import('~icons/material-symbols/keyboard-double-arrow-up-rounded')['default']
     'IMaterialSymbols:keyboardOutlineRounded': typeof import('~icons/material-symbols/keyboard-outline-rounded')['default']
+    'IMaterialSymbols:keyRounded': typeof import('~icons/material-symbols/key-rounded')['default']
     'IMaterialSymbols:labelOutlineRounded': typeof import('~icons/material-symbols/label-outline-rounded')['default']
     'IMaterialSymbols:leftPanelCloseOutlineRounded': typeof import('~icons/material-symbols/left-panel-close-outline-rounded')['default']
     'IMaterialSymbols:leftPanelOpenOutlineRounded': typeof import('~icons/material-symbols/left-panel-open-outline-rounded')['default']

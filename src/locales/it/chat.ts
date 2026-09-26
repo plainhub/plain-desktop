@@ -64,6 +64,7 @@ export default {
   pairing_chat_only_hint: 'Scambia messaggi e file',
   pairing_full_control: 'Controllo completo',
   pairing_full_control_hint: 'Gestisci questo dispositivo e scambia messaggi e file',
+  login_device_hint: 'Dispositivo connesso · controllo completo',
   pairing_start: 'Continua',
   allow: 'Consenti',
   deny: 'Nega',

@@ -8,6 +8,9 @@
           </template>
           <pre class="view-raw">{{ peer }}</pre>
         </v-dropdown>
+        <span v-if="isLoginPeer" v-tooltip="$t('login_device_hint')" class="login-badge">
+          <i-material-symbols:key-rounded />
+        </span>
         <span v-if="online" class="dot online-dot" />
       </span>
     </template>
@@ -51,6 +54,7 @@ import { storeToRefs } from 'pinia'
 import { useMainStore } from '@/stores/main'
 import { useChatStore } from '@/stores/chat'
 import { useTempStore } from '@/stores/temp'
+import { findLoginPeer } from '@/lib/device/login-peers'
 import { replacePath } from '@/plugins/router'
 import { deletePeerGQL, initMutation } from '@/lib/api/mutation'
 import { clearChatMessages, useTasks } from '../hooks/chat'
@@ -83,6 +87,8 @@ const currentChatId = computed(() => {
 })
 
 const anchorId = computed(() => `peer-list-${props.peer.id}`)
+
+const isLoginPeer = computed(() => !!findLoginPeer(props.peer.id))
 
 const infoOpen = ref(false)
 const menuVisible = ref(false)
@@ -157,5 +163,25 @@ async function doClear() {
   position: absolute;
   right: -1px;
   bottom: -1px;
+}
+
+.login-badge {
+  position: absolute;
+  top: -4px;
+  right: -4px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: var(--md-sys-color-primary);
+  color: var(--md-sys-color-on-primary);
+  box-shadow: 0 0 0 2px var(--md-sys-color-surface);
+
+  svg {
+    width: 8px;
+    height: 8px;
+  }
 }
 </style>

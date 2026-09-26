@@ -83,6 +83,7 @@ export default {
   pairing_chat_only_hint: '互发消息和文件',
   pairing_full_control: '完全控制',
   pairing_full_control_hint: '登录管理设备，并互发消息与文件',
+  login_device_hint: '登录设备 · 完全控制',
   pairing_start: '继续',
   pending: '待确认',
   unpair: '解除配对',

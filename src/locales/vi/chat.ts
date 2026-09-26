@@ -64,6 +64,7 @@ export default {
   pairing_chat_only_hint: 'Trao đổi tin nhắn và tệp',
   pairing_full_control: 'Toàn quyền điều khiển',
   pairing_full_control_hint: 'Quản lý thiết bị này và trao đổi tin nhắn, tệp',
+  login_device_hint: 'Thiết bị đã đăng nhập · toàn quyền kiểm soát',
   pairing_start: 'Tiếp tục',
   allow: 'Cho phép',
   deny: 'Từ chối',

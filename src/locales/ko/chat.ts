@@ -64,6 +64,7 @@ export default {
   pairing_chat_only_hint: '메시지와 파일 주고받기',
   pairing_full_control: '전체 제어',
   pairing_full_control_hint: '이 기기를 관리하고 메시지와 파일 주고받기',
+  login_device_hint: '로그인된 기기 · 전체 제어',
   pairing_start: '계속',
   allow: '허용',
   deny: '거부',

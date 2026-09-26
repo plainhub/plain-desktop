@@ -64,6 +64,7 @@ export default {
   pairing_chat_only_hint: 'संदेश और फ़ाइलें भेजें',
   pairing_full_control: 'पूर्ण नियंत्रण',
   pairing_full_control_hint: 'इस डिवाइस को प्रबंधित करें और संदेश व फ़ाइलें भेजें',
+  login_device_hint: 'लॉगिन किया डिवाइस · पूर्ण नियंत्रण',
   pairing_start: 'जारी रखें',
   allow: 'अनुमति दें',
   deny: 'अस्वीकार करें',

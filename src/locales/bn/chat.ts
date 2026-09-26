@@ -63,6 +63,7 @@ export default {
   pairing_chat_only_hint: 'বার্তা ও ফাইল আদান-প্রদান করুন',
   pairing_full_control: 'সম্পূর্ণ নিয়ন্ত্রণ',
   pairing_full_control_hint: 'ডিভাইস পরিচালনা করুন এবং বার্তা ও ফাইল আদান-প্রদান করুন',
+  login_device_hint: 'লগইন করা ডিভাইস · সম্পূর্ণ নিয়ন্ত্রণ',
   pairing_start: 'চালিয়ে যান',
   allow: 'অনুমতি দিন',
   deny: 'অস্বীকার করুন',

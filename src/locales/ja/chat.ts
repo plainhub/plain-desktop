@@ -63,6 +63,7 @@ export default {
   pairing_chat_only_hint: 'メッセージとファイルを送受信',
   pairing_full_control: 'フルアクセス',
   pairing_full_control_hint: 'このデバイスを管理し、メッセージとファイルを送受信',
+  login_device_hint: 'ログイン済みデバイス · フルコントロール',
   pairing_start: '続行',
   allow: '許可',
   deny: '拒否',

@@ -63,6 +63,7 @@ export default {
   pairing_chat_only_hint: 'Berichten en bestanden uitwisselen',
   pairing_full_control: 'Volledige toegang',
   pairing_full_control_hint: 'Dit apparaat beheren en berichten en bestanden uitwisselen',
+  login_device_hint: 'Ingelogd apparaat · volledige controle',
   pairing_start: 'Doorgaan',
   allow: 'Toestaan',
   deny: 'Weigeren',

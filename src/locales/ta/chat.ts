@@ -64,6 +64,7 @@ export default {
   pairing_chat_only_hint: 'செய்திகளையும் கோப்புகளையும் பரிமாறவும்',
   pairing_full_control: 'முழுக் கட்டுப்பாடு',
   pairing_full_control_hint: 'இந்தச் சாதனத்தை நிர்வகித்து செய்திகளையும் கோப்புகளையும் பரிமாறவும்',
+  login_device_hint: 'உள்நுழைந்த சாதனம் · முழு கட்டுப்பாடு',
   pairing_start: 'தொடரவும்',
   allow: 'அனுமதி',
   deny: 'மறு',
