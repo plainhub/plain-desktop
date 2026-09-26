@@ -6,7 +6,7 @@ import emitter from '@/plugins/eventbus'
 import toast from '@/components/toaster'
 import { getWebSocketBaseUrl, getLocalToken } from '@/lib/api/api'
 import { preloadLoginPeers } from '@/lib/device/login-peers'
-import { chachaDecrypt, chachaEncrypt, bitArrayToUint8Array } from '@/lib/api/crypto'
+import { chachaDecrypt, chachaEncrypt, chachaEncryptBytes, bitArrayToUint8Array } from '@/lib/api/crypto'
 import { parseWebSocketData } from '@/lib/api/sjcl-arraybuffer'
 import { applyDarkClass, changeColor, changeColorMode, getCurrentMode, getLastSavedAutoColorMode, isModeDark } from '@/lib/theme'
 import { tokenToKey } from '@/lib/api/file'
@@ -71,6 +71,38 @@ const RAW_BINARY_EVENTS = new Set([
   34, // IMAGE_EDITOR_UPDATE
 ])
 
+// Upstream control channel on the live app socket. Post-registration frames
+// are ChaCha20-encrypted with the same key as the registration frame; the
+// phone branches on the decrypted payload's first byte (0x54 = binary touch
+// frame, otherwise JSON control input). See shared WebSocketRoutes.kt.
+let controlSocket: WebSocket | null = null
+let controlKey: Uint8Array | null = null
+
+function bindControlChannel(ws: WebSocket, key: Uint8Array) {
+  controlSocket = ws
+  controlKey = key
+}
+
+function unbindControlChannel(ws: WebSocket) {
+  if (controlSocket === ws) {
+    controlSocket = null
+    controlKey = null
+  }
+}
+
+/** Send one encrypted binary frame upstream; false when the socket is down. */
+export function sendAppWsBytes(plain: Uint8Array): boolean {
+  const key = controlKey
+  if (!controlSocket || !key) return false
+  controlSocket.send(chachaEncryptBytes(key, plain))
+  return true
+}
+
+/** Send one encrypted JSON payload upstream; false when the socket is down. */
+export function sendAppWsJson(payload: unknown): boolean {
+  return sendAppWsBytes(new TextEncoder().encode(JSON.stringify(payload)))
+}
+
 export function useAppSocket() {
   const { t } = useI18n()
   document.title = 'PlainApp'
@@ -115,6 +147,8 @@ export function useAppSocket() {
         emitter.emit('app_socket_connection_changed', true)
         retryTime = 1000
         ws.send(bitArrayToUint8Array(chachaEncrypt(key, new Date().getTime().toString())))
+        // Control frames may only follow the registration frame
+        bindControlChannel(ws, key)
         if (clearStatusTimer) clearTimeout(clearStatusTimer)
         clearStatusTimer = setTimeout(() => {
           wsStatus.value = ''
@@ -149,6 +183,7 @@ export function useAppSocket() {
           clearTimeout(clearStatusTimer)
           clearStatusTimer = undefined
         }
+        unbindControlChannel(ws)
         wsStatus.value = 'closed'
         triggerMdnsBrowse()
         retryConnect()

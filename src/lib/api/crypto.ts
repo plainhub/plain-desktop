@@ -16,12 +16,16 @@ export function hashToKey(hash: string): Uint8Array {
 }
 
 export function chachaEncrypt(key: Uint8Array, plaintext: string): Uint8Array {
+  return chachaEncryptBytes(key, new TextEncoder().encode(plaintext))
+}
+
+/** Binary variant of chachaEncrypt for binary upstream frames (touch samples). */
+export function chachaEncryptBytes(key: Uint8Array, plaintext: Uint8Array): Uint8Array {
   const nonce = randomBytes(24)
   const key32 = new Uint8Array(32)
   key32.set(key.slice(0, 32))
-  const plaintextBytes = new TextEncoder().encode(plaintext)
   const cipher = xchacha20poly1305(key32, nonce)
-  const ciphertext = cipher.encrypt(plaintextBytes)
+  const ciphertext = cipher.encrypt(plaintext)
   const result = new Uint8Array(nonce.length + ciphertext.length)
   result.set(nonce, 0)
   result.set(ciphertext, nonce.length)

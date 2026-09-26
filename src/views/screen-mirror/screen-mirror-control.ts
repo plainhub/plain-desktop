@@ -1,6 +1,31 @@
-import { ref, onUnmounted, type Ref } from 'vue'
+// Screen mirror gesture control, ported from plain-cast's low-latency design
+// (docs/touch-low-latency-design.md): pointerdown injects the contact
+// immediately (no tap/drag classification delay), pointermove emits every
+// coalesced sample at digitizer rate, a tap is a natural short down+up, a
+// long-press is a natural hold (server-side keep-alive). Touch samples ride
+// one compact binary WS frame; cold-path actions (BACK/HOME/SCROLL/…) go as
+// encrypted JSON on the same socket with a GraphQL fallback.
+import { onUnmounted, watch, type Ref } from 'vue'
+import emitter from '@/plugins/eventbus'
 import { gqlFetch } from '@/lib/api/gql-client'
 import { sendScreenMirrorControlGQL } from '@/lib/api/mutation'
+import { sendAppWsBytes, sendAppWsJson } from '@/hooks/app-socket'
+import { PinchSynthesizer } from './pinch-synthesizer'
+import {
+  createTouchIndicator,
+  hideIndicator,
+  positionIndicator,
+  showIndicator,
+} from './touch-indicator'
+import {
+  TOUCH_ACTION_CANCEL,
+  TOUCH_ACTION_DOWN,
+  TOUCH_ACTION_MOVE,
+  TOUCH_ACTION_UP,
+  encodeTouchFrame,
+  type TouchSample,
+} from './touch-frame'
+import { ViewRects } from './view-rects'
 
 export interface TouchPoint {
   x: number
@@ -38,332 +63,313 @@ export type ScreenMirrorControlAction =
   | 'TOUCH_MOVE'
   | 'TOUCH_UP'
 
-function normalizeCoords(
-  clientX: number,
-  clientY: number,
-  overlayEl: HTMLElement,
-  canvasEl: HTMLCanvasElement
-): { x: number; y: number } | null {
-  const overlayRect = overlayEl.getBoundingClientRect()
-  const videoWidth = canvasEl.width
-  const videoHeight = canvasEl.height
-  if (!videoWidth || !videoHeight) return null
-
-  const containerW = overlayRect.width
-  const containerH = overlayRect.height
-  if (!containerW || !containerH) return null
-  const containerAspect = containerW / containerH
-  const videoAspect = videoWidth / videoHeight
-
-  let renderW: number, renderH: number, offsetX: number, offsetY: number
-
-  if (videoAspect > containerAspect) {
-    renderW = containerW
-    renderH = containerW / videoAspect
-    offsetX = 0
-    offsetY = (containerH - renderH) / 2
-  } else {
-    renderH = containerH
-    renderW = containerH * videoAspect
-    offsetX = (containerW - renderW) / 2
-    offsetY = 0
-  }
-
-  const localX = clientX - overlayRect.left - offsetX
-  const localY = clientY - overlayRect.top - offsetY
-
-  if (localX < 0 || localX > renderW || localY < 0 || localY > renderH) {
-    return null
-  }
-
-  return {
-    x: Math.max(0, Math.min(1, localX / renderW)),
-    y: Math.max(0, Math.min(1, localY / renderH)),
-  }
-}
-
-const SAMPLE_INTERVAL = 10
 const TAP_MOVE_THRESHOLD_NORM = 0.01
 const TAP_MAX_MS = 300
-const LONG_PRESS_MS = 450
 
-interface ActiveGesture {
+interface ActivePointer {
   pointerId: number
   downX: number
   downY: number
   downTime: number
-  lastNormX: number
-  lastNormY: number
-  lastSampleTime: number
-  longPressTimer: ReturnType<typeof setTimeout> | null
-  longPressFired: boolean
-  streamStarted: boolean
+  /** timeStamp (DOMHighRes) of the last emitted sample. */
+  lastSampleTs: number
+  /** Last known normalized coordinates (for recovering a lost pointerup). */
+  lastX: number
+  lastY: number
+  movedBeyondTap: boolean
+  dot: HTMLDivElement
 }
 
-function createTouchIndicator(container: HTMLElement): HTMLElement {
-  const dot = document.createElement('div')
-  dot.className = 'touch-indicator'
-  container.appendChild(dot)
-  return dot
-}
+/**
+ * Gesture surface owner: real DOM pointers → a touch sample stream (tap
+ * detection, dead-pointer recovery), plus wheel → JSON control events.
+ * Keyboard stays on the overlay (Escape/Backspace/Home below). Coordinate
+ * mapping and caching are delegated to ViewRects, Ctrl+wheel pinch to
+ * PinchSynthesizer, feedback dots to touch-indicator.
+ */
+class ScreenMirrorControl {
+  private canvas: HTMLCanvasElement
+  private overlay: HTMLElement
+  private sendControlFn: (event: ScreenMirrorControlEvent) => void
+  private sendSamplesFn: (samples: TouchSample[]) => void
+  private enabled = false
+  private pointers = new Map<number, ActivePointer>()
+  /** Render-rect cache (refresh at gesture start, hot-path reads). */
+  private rects = new ViewRects()
+  /** Synthesized two-finger pinch; mutually exclusive with the real pointer
+   *  stream (collapsed before DOWN, see onPointerDown). */
+  private pinch: PinchSynthesizer
 
-function positionIndicator(dot: HTMLElement, x: number, y: number) {
-  dot.style.left = `${x}px`
-  dot.style.top = `${y}px`
-}
+  private boundPointerDown: (e: PointerEvent) => void
+  private boundPointerMove: (e: PointerEvent) => void
+  private boundPointerUp: (e: PointerEvent) => void
+  private boundPointerCancel: (e: PointerEvent) => void
+  private boundLostPointercapture: (e: PointerEvent) => void
+  private boundWheel: (e: WheelEvent) => void
+  private boundContextMenu: (e: MouseEvent) => void
+  private boundInvalidateRect: () => void
 
-function showIndicator(dot: HTMLElement, x: number, y: number) {
-  positionIndicator(dot, x, y)
-  dot.classList.remove('touch-indicator--fade-out')
-  dot.classList.add('touch-indicator--active')
-}
+  /** Mouse navigation: right button = BACK, middle button = HOME. */
+  middleClickHome = true
 
-function hideIndicator(dot: HTMLElement, isTap: boolean) {
-  if (isTap) {
-    dot.classList.add('touch-indicator--ripple')
+  constructor(
+    canvas: HTMLCanvasElement,
+    overlay: HTMLElement,
+    sendControl: (event: ScreenMirrorControlEvent) => void,
+    sendSamples: (samples: TouchSample[]) => void,
+  ) {
+    this.canvas = canvas
+    this.overlay = overlay
+    this.sendControlFn = sendControl
+    this.sendSamplesFn = sendSamples
+    this.pinch = new PinchSynthesizer(overlay, sendSamples)
+    this.boundPointerDown = (e) => this.onPointerDown(e)
+    this.boundPointerMove = (e) => this.onPointerMove(e)
+    this.boundPointerUp = (e) => this.onPointerUp(e)
+    this.boundPointerCancel = (e) => this.onPointerCancel(e)
+    this.boundLostPointercapture = (e) => this.onLostPointercapture(e)
+    this.boundWheel = (e) => this.onWheel(e)
+    this.boundContextMenu = (e) => e.preventDefault()
+    this.boundInvalidateRect = () => this.rects.invalidate()
   }
-  dot.classList.remove('touch-indicator--active')
-  dot.classList.add('touch-indicator--fade-out')
-  dot.addEventListener('transitionend', () => {
-    dot.classList.remove('touch-indicator--fade-out', 'touch-indicator--ripple', 'touch-indicator--dragging', 'touch-indicator--long-press')
-  }, { once: true })
-}
 
-export function useScreenMirrorControl(
-  canvasRef: Ref<HTMLCanvasElement | undefined>,
-  enabled: Ref<boolean>
-) {
-  const overlayRef = ref<HTMLDivElement>()
-  let gesture: ActiveGesture | null = null
-  let touchDot: HTMLElement | null = null
-
-  let chain: Promise<unknown> = Promise.resolve()
-  let moveInFlight = false
-  let pendingMove: { x: number; y: number; pointerId: number } | null = null
-
-  const send = (event: ScreenMirrorControlEvent) => {
-    chain = chain.then(() =>
-      gqlFetch(sendScreenMirrorControlGQL, { input: event }).catch((err) => {
-        console.error('Screen mirror control error:', event.action, err)
-      })
-    )
+  setEnabled(on: boolean) {
+    if (this.enabled === on) return
+    this.enabled = on
+    // Mid-gesture shutdown: finish with CANCEL. A started gesture must have a
+    // terminal event, otherwise the server's pointer table keeps a dead
+    // pointer and every later tap on that screen becomes a malformed
+    // multi-pointer event.
+    if (!on) {
+      this.pinch.end(true)
+      this.cancelActivePointers()
+    }
   }
 
-  const sendMove = (x: number, y: number, pointerId: number) => {
-    if (moveInFlight) {
-      pendingMove = { x, y, pointerId }
+  /** Cancel all in-flight gestures (control disabled / surface destroyed). */
+  private cancelActivePointers() {
+    for (const p of [...this.pointers.values()]) {
+      this.sendSamplesFn([
+        { action: TOUCH_ACTION_CANCEL, pointerId: p.pointerId, x: p.lastX, y: p.lastY, dtMs: 0 },
+      ])
+      this.removePointer(p, false)
+    }
+  }
+
+  /**
+   * Mount: touch styles and all listeners in one go.
+   * touchAction='none' is required for multi-pointer: the browser must not
+   * steal the second finger for page pinch-zoom — pinches belong to the phone.
+   */
+  setupListeners() {
+    this.overlay.style.touchAction = 'none'
+    this.overlay.style.userSelect = 'none'
+    this.overlay.addEventListener('pointerdown', this.boundPointerDown)
+    this.overlay.addEventListener('pointermove', this.boundPointerMove)
+    this.overlay.addEventListener('pointerup', this.boundPointerUp)
+    this.overlay.addEventListener('pointercancel', this.boundPointerCancel)
+    this.overlay.addEventListener('lostpointercapture', this.boundLostPointercapture)
+    this.overlay.addEventListener('wheel', this.boundWheel, { passive: false })
+    this.overlay.addEventListener('contextmenu', this.boundContextMenu)
+    window.addEventListener('resize', this.boundInvalidateRect)
+    window.visualViewport?.addEventListener('resize', this.boundInvalidateRect)
+    window.visualViewport?.addEventListener('scroll', this.boundInvalidateRect)
+  }
+
+  removeListeners() {
+    this.overlay.removeEventListener('pointerdown', this.boundPointerDown)
+    this.overlay.removeEventListener('pointermove', this.boundPointerMove)
+    this.overlay.removeEventListener('pointerup', this.boundPointerUp)
+    this.overlay.removeEventListener('pointercancel', this.boundPointerCancel)
+    this.overlay.removeEventListener('lostpointercapture', this.boundLostPointercapture)
+    this.overlay.removeEventListener('wheel', this.boundWheel)
+    this.overlay.removeEventListener('contextmenu', this.boundContextMenu)
+    window.removeEventListener('resize', this.boundInvalidateRect)
+    window.visualViewport?.removeEventListener('resize', this.boundInvalidateRect)
+    window.visualViewport?.removeEventListener('scroll', this.boundInvalidateRect)
+  }
+
+  private send(event: ScreenMirrorControlEvent) {
+    this.sendControlFn(event)
+  }
+
+  /** dt since the previous sample of this pointer stream (0 for the first). */
+  private sampleDt(p: ActivePointer, timeStamp: number): number {
+    const dt = timeStamp - p.lastSampleTs
+    p.lastSampleTs = timeStamp
+    return dt > 0 ? dt : 0
+  }
+
+  private removePointer(p: ActivePointer, isTap: boolean) {
+    this.pointers.delete(p.pointerId)
+    hideIndicator(p.dot, isTap, true)
+  }
+
+  /** Release a pointer whose pointerup was lost — otherwise the phone keeps
+   *  holding the finger down and a quick tap turns into a long-press there. */
+  private releaseStalePointer(p: ActivePointer) {
+    this.sendSamplesFn([
+      { action: TOUCH_ACTION_UP, pointerId: p.pointerId, x: p.lastX, y: p.lastY, dtMs: 0 },
+    ])
+    this.removePointer(p, false)
+  }
+
+  private onPointerDown(e: PointerEvent) {
+    if (!this.enabled) return
+    // Mouse navigation buttons: right = BACK, middle = HOME. contextmenu is
+    // suppressed globally on the overlay.
+    if (e.button === 2) {
+      e.preventDefault()
+      this.send({ action: 'BACK' })
       return
     }
-    moveInFlight = true
-    const dispatch = (cx: number, cy: number, cp: number) => {
-      chain = chain
-        .then(() =>
-          gqlFetch(sendScreenMirrorControlGQL, {
-            input: { action: 'TOUCH_MOVE', x: cx, y: cy, pointerId: cp, pressure: 1 },
-          }).catch((err) => {
-            console.error('TOUCH_MOVE error:', err)
-          })
-        )
-        .then(() => {
-          const next = pendingMove
-          pendingMove = null
-          if (next) {
-            dispatch(next.x, next.y, next.pointerId)
-          } else {
-            moveInFlight = false
-          }
-        })
+    if (e.button === 1 && this.middleClickHome) {
+      e.preventDefault()
+      this.send({ action: 'HOME' })
+      return
     }
-    dispatch(x, y, pointerId)
-  }
-
-  const flushStream = () => {
-    pendingMove = null
-    moveInFlight = false
-    chain = Promise.resolve()
-  }
-
-  const localPos = (clientX: number, clientY: number): { lx: number; ly: number } | null => {
-    const el = overlayRef.value
-    if (!el) return null
-    const rect = el.getBoundingClientRect()
-    return { lx: clientX - rect.left, ly: clientY - rect.top }
-  }
-
-  const onPointerDown = (e: PointerEvent) => {
-    if (!enabled.value) return
-    const canvas = canvasRef.value
-    const overlay = overlayRef.value
-    if (!canvas || !overlay) return
-
-    const coords = normalizeCoords(e.clientX, e.clientY, overlay, canvas)
+    // Gesture start unconditionally refreshes the rect cache (the layout can
+    // move without any resize/scroll event, see ViewRects)
+    this.rects.refresh(this.canvas, this.overlay)
+    const coords = this.rects.normalized(e.clientX, e.clientY, this.canvas)
     if (!coords) return
-
     e.preventDefault()
+    // Collapse the virtual pinch before a real finger lands, so the two
+    // never merge into a three-finger gesture
+    if (this.pinch.active) this.pinch.end(false)
     const target = e.target as HTMLElement
     target.setPointerCapture(e.pointerId)
     target.style.touchAction = 'none'
     target.style.userSelect = 'none'
-
-    flushStream()
-
-    const now = performance.now()
-    gesture = {
+    // Same pointerId still tracked → its pointerup was lost; release it first
+    const stale = this.pointers.get(e.pointerId)
+    if (stale) this.releaseStalePointer(stale)
+    const p: ActivePointer = {
       pointerId: e.pointerId,
       downX: coords.x,
       downY: coords.y,
-      downTime: now,
-      lastNormX: coords.x,
-      lastNormY: coords.y,
-      lastSampleTime: now,
-      longPressTimer: setTimeout(() => {
-        if (gesture && !gesture.streamStarted) {
-          gesture.longPressFired = true
-          send({
-            action: 'LONG_PRESS',
-            x: gesture.downX,
-            y: gesture.downY,
-            durationMs: 520,
-          })
-          if (touchDot) touchDot.classList.add('touch-indicator--long-press')
+      downTime: performance.now(),
+      lastSampleTs: e.timeStamp,
+      lastX: coords.x,
+      lastY: coords.y,
+      movedBeyondTap: false,
+      dot: createTouchIndicator(this.overlay),
+    }
+    this.pointers.set(e.pointerId, p)
+    // Contact is injected immediately — no tap/drag classification delay
+    this.sendSamplesFn([
+      { action: TOUCH_ACTION_DOWN, pointerId: e.pointerId, x: coords.x, y: coords.y, dtMs: 0 },
+    ])
+    const pos = this.rects.local(e.clientX, e.clientY)
+    if (pos) showIndicator(p.dot, pos.lx, pos.ly)
+  }
+
+  private onPointerMove(e: PointerEvent) {
+    const p = this.pointers.get(e.pointerId)
+    if (!p || !this.enabled) return
+    // Emit every raw sample (up to the digitizer rate), not just the latest.
+    // getCoalescedEvents is missing on some WebKit builds — fall back to [e]
+    const coalesced =
+      typeof e.getCoalescedEvents === 'function' ? e.getCoalescedEvents() : []
+    const events = coalesced.length > 0 ? coalesced : [e]
+    const samples: TouchSample[] = []
+    for (const ev of events) {
+      const coords = this.rects.normalized(ev.clientX, ev.clientY, this.canvas)
+      if (!coords) continue
+      p.lastX = coords.x
+      p.lastY = coords.y
+      samples.push({
+        action: TOUCH_ACTION_MOVE,
+        pointerId: p.pointerId,
+        x: coords.x,
+        y: coords.y,
+        dtMs: this.sampleDt(p, ev.timeStamp),
+      })
+      if (!p.movedBeyondTap) {
+        const dx = coords.x - p.downX
+        const dy = coords.y - p.downY
+        if (Math.sqrt(dx * dx + dy * dy) > TAP_MOVE_THRESHOLD_NORM) {
+          p.movedBeyondTap = true
+          p.dot.classList.add('touch-indicator--dragging')
         }
-      }, LONG_PRESS_MS),
-      longPressFired: false,
-      streamStarted: false,
+      }
     }
-
-    const pos = localPos(e.clientX, e.clientY)
-    if (pos && touchDot) {
-      showIndicator(touchDot, pos.lx, pos.ly)
-    }
+    if (samples.length > 0) this.sendSamplesFn(samples)
+    const pos = this.rects.local(e.clientX, e.clientY)
+    if (pos) positionIndicator(p.dot, pos.lx, pos.ly)
   }
 
-  const onPointerMove = (e: PointerEvent) => {
-    if (!gesture || !enabled.value || e.pointerId !== gesture.pointerId) return
-    const canvas = canvasRef.value
-    const overlay = overlayRef.value
-    if (!canvas || !overlay) return
+  private onPointerUp(e: PointerEvent) {
+    const p = this.pointers.get(e.pointerId)
+    // UP is not gated on enabled (same for cancel/lostpointercapture below):
+    // enabled only blocks new DOWN gestures. If the UP of an already-sent
+    // DOWN is swallowed, the server keeps a dead pointer and touch on the
+    // screen dies from then on.
+    if (!p) return
+    const coords = this.rects.normalized(e.clientX, e.clientY, this.canvas)
+    const end = coords ?? { x: p.lastX, y: p.lastY }
+    // A tap is a natural short down+up on the phone — nothing to classify
+    this.sendSamplesFn([
+      {
+        action: TOUCH_ACTION_UP,
+        pointerId: p.pointerId,
+        x: end.x,
+        y: end.y,
+        dtMs: this.sampleDt(p, e.timeStamp),
+      },
+    ])
+    const elapsed = performance.now() - p.downTime
+    const dx = end.x - p.downX
+    const dy = end.y - p.downY
+    const isTap =
+      !p.movedBeyondTap && elapsed < TAP_MAX_MS &&
+      Math.sqrt(dx * dx + dy * dy) < TAP_MOVE_THRESHOLD_NORM
+    p.dot.classList.remove('touch-indicator--dragging', 'touch-indicator--long-press')
+    this.removePointer(p, isTap)
+  }
 
-    const now = performance.now()
-    if (now - gesture.lastSampleTime < SAMPLE_INTERVAL) return
+  private onPointerCancel(e: PointerEvent) {
+    const p = this.pointers.get(e.pointerId)
+    if (!p) return
+    const coords = this.rects.normalized(e.clientX, e.clientY, this.canvas)
+    const end = coords ?? { x: p.lastX, y: p.lastY }
+    this.sendSamplesFn([
+      {
+        action: TOUCH_ACTION_CANCEL,
+        pointerId: p.pointerId,
+        x: end.x,
+        y: end.y,
+        dtMs: this.sampleDt(p, e.timeStamp),
+      },
+    ])
+    p.dot.classList.remove('touch-indicator--dragging', 'touch-indicator--long-press')
+    this.removePointer(p, false)
+  }
 
-    const coords = normalizeCoords(e.clientX, e.clientY, overlay, canvas)
+  /** Capture release without a preceding pointerup → the up was lost;
+   *  synthesize it so the phone-side touch ends immediately. */
+  private onLostPointercapture(e: PointerEvent) {
+    const p = this.pointers.get(e.pointerId)
+    if (!p) return
+    this.releaseStalePointer(p)
+  }
+
+  private onWheel(e: WheelEvent) {
+    if (!this.enabled) return
+    // Same as onPointerDown: refresh unconditionally before scrolling, to
+    // avoid coordinate drift from layout moves
+    const fresh = this.rects.refresh(this.canvas, this.overlay)
+    const coords = this.rects.normalized(e.clientX, e.clientY, this.canvas)
     if (!coords) return
-
-    gesture.lastSampleTime = now
-
-    const dx = coords.x - gesture.downX
-    const dy = coords.y - gesture.downY
-    const distFromDown = Math.sqrt(dx * dx + dy * dy)
-
-    if (!gesture.streamStarted && distFromDown > TAP_MOVE_THRESHOLD_NORM) {
-      gesture.streamStarted = true
-      if (gesture.longPressTimer) {
-        clearTimeout(gesture.longPressTimer)
-        gesture.longPressTimer = null
-      }
-      send({
-        action: 'TOUCH_DOWN',
-        x: gesture.downX,
-        y: gesture.downY,
-        pointerId: gesture.pointerId,
-        pressure: 1,
-      })
-      if (touchDot) touchDot.classList.add('touch-indicator--dragging')
-    }
-
-    if (gesture.streamStarted) {
-      gesture.lastNormX = coords.x
-      gesture.lastNormY = coords.y
-      sendMove(coords.x, coords.y, gesture.pointerId)
-    }
-
-    const pos = localPos(e.clientX, e.clientY)
-    if (pos && touchDot) {
-      positionIndicator(touchDot, pos.lx, pos.ly)
-    }
-  }
-
-  const finalizeGesture = (e: PointerEvent | null, isCancel: boolean) => {
-    if (!gesture) return
-    const g = gesture
-    if (g.longPressTimer) {
-      clearTimeout(g.longPressTimer)
-      g.longPressTimer = null
-    }
-
-    const canvas = canvasRef.value
-    const overlay = overlayRef.value
-    let finalX = g.lastNormX
-    let finalY = g.lastNormY
-
-    if (!isCancel && canvas && overlay && e) {
-      const coords = normalizeCoords(e.clientX, e.clientY, overlay, canvas)
-      if (coords) {
-        finalX = coords.x
-        finalY = coords.y
-      }
-    }
-
-    let isTap = false
-    if (!isCancel && !g.streamStarted && !g.longPressFired) {
-      const now = performance.now()
-      const dx = finalX - g.downX
-      const dy = finalY - g.downY
-      const dist = Math.sqrt(dx * dx + dy * dy)
-      const elapsed = now - g.downTime
-      if (dist < TAP_MOVE_THRESHOLD_NORM && elapsed < TAP_MAX_MS) {
-        isTap = true
-      }
-    }
-
-    if (g.streamStarted) {
-      pendingMove = null
-      send({
-        action: 'TOUCH_UP',
-        x: finalX,
-        y: finalY,
-        pointerId: g.pointerId,
-        pressure: 0,
-      })
-    } else if (isTap) {
-      send({
-        action: 'TAP',
-        x: g.downX,
-        y: g.downY,
-      })
-    }
-
-    if (touchDot) {
-      touchDot.classList.remove('touch-indicator--dragging', 'touch-indicator--long-press')
-      hideIndicator(touchDot, isTap)
-    }
-
-    gesture = null
-  }
-
-  const onPointerUp = (e: PointerEvent) => {
-    if (!gesture || !enabled.value) return
-    finalizeGesture(e, false)
-  }
-
-  const onPointerCancel = () => {
-    if (!gesture) return
-    finalizeGesture(null, true)
-  }
-
-  const onWheel = (e: WheelEvent) => {
-    if (!enabled.value) return
-    const canvas = canvasRef.value
-    const overlay = overlayRef.value
-    if (!canvas || !overlay) return
-
-    const coords = normalizeCoords(e.clientX, e.clientY, overlay, canvas)
-    if (!coords) return
-
     e.preventDefault()
-
-    send({
+    if (e.ctrlKey) {
+      // Trackpad pinch / Ctrl+wheel: browsers report both as wheel+ctrlKey;
+      // convert to a two-finger pinch on the phone (spread = zoom in,
+      // close = zoom out); a plain wheel keeps its pan semantics.
+      this.pinch.onWheel(coords.x, coords.y, e.deltaY, e.deltaMode, fresh)
+      return
+    }
+    this.send({
       action: 'SCROLL',
       x: coords.x,
       y: coords.y,
@@ -372,6 +378,58 @@ export function useScreenMirrorControl(
     })
   }
 
+  destroy() {
+    this.removeListeners()
+    // In-flight gestures get a final CANCEL: after destruction the listeners
+    // are gone, no real pointerup will be processed anymore. When the WS is
+    // already dead the sends drop silently; the server's disconnect reset is
+    // the backstop.
+    this.pinch.end(true)
+    this.cancelActivePointers()
+  }
+}
+
+export function useScreenMirrorControl(
+  canvasRef: Ref<HTMLCanvasElement | undefined>,
+  enabled: Ref<boolean>,
+) {
+  let control: ScreenMirrorControl | null = null
+  let overlayEl: HTMLElement | null = null
+
+  const sendControl = (event: ScreenMirrorControlEvent) => {
+    if (sendAppWsJson(event)) return
+    gqlFetch(sendScreenMirrorControlGQL, { input: event }).catch((err) => {
+      console.error('Screen mirror control error:', event.action, err)
+    })
+  }
+
+  const sendSamples = (samples: TouchSample[]) => {
+    sendAppWsBytes(encodeTouchFrame(samples))
+  }
+
+  const destroyControl = () => {
+    overlayEl?.removeEventListener('keydown', onKeyDown)
+    control?.destroy()
+    control = null
+  }
+
+  const attachOverlay = (el: HTMLDivElement | undefined) => {
+    destroyControl()
+    overlayEl = el ?? null
+  }
+
+  const setupListeners = () => {
+    const canvas = canvasRef.value
+    if (!canvas || !overlayEl) return
+    destroyControl()
+    overlayEl.addEventListener('keydown', onKeyDown)
+    control = new ScreenMirrorControl(canvas, overlayEl, sendControl, sendSamples)
+    control.setEnabled(enabled.value)
+    control.setupListeners()
+  }
+
+  const removeListeners = () => destroyControl()
+
   const onKeyDown = (e: KeyboardEvent) => {
     if (!enabled.value) return
 
@@ -379,10 +437,10 @@ export function useScreenMirrorControl(
     switch (e.key) {
       case 'Escape':
       case 'Backspace':
-        send({ action: 'BACK' })
+        sendControl({ action: 'BACK' })
         break
       case 'Home':
-        send({ action: 'HOME' })
+        sendControl({ action: 'HOME' })
         break
       default:
         handled = false
@@ -394,71 +452,29 @@ export function useScreenMirrorControl(
     }
   }
 
-  const attachOverlay = (el: HTMLDivElement | undefined) => {
-    if (touchDot && touchDot.parentElement) {
-      touchDot.parentElement.removeChild(touchDot)
-      touchDot = null
-    }
-    overlayRef.value = el
-    if (el) {
-      el.style.touchAction = 'none'
-      el.style.userSelect = 'none'
-      touchDot = createTouchIndicator(el)
+  const onConnectionChanged = (up: boolean) => {
+    // A dropped app socket kills the sample transport mid-gesture: cancel
+    // locally (the phone resets its injector on disconnect); re-arm on the
+    // next successful dial.
+    if (up) {
+      control?.setEnabled(enabled.value)
+    } else {
+      control?.setEnabled(false)
     }
   }
 
-  const setupListeners = () => {
-    const el = overlayRef.value
-    if (!el) return
-
-    el.addEventListener('pointerdown', onPointerDown)
-    el.addEventListener('pointermove', onPointerMove)
-    el.addEventListener('pointerup', onPointerUp)
-    el.addEventListener('pointercancel', onPointerCancel)
-    el.addEventListener('wheel', onWheel, { passive: false })
-    el.addEventListener('keydown', onKeyDown)
-  }
-
-  const removeListeners = () => {
-    const el = overlayRef.value
-    if (!el) return
-
-    el.removeEventListener('pointerdown', onPointerDown)
-    el.removeEventListener('pointermove', onPointerMove)
-    el.removeEventListener('pointerup', onPointerUp)
-    el.removeEventListener('pointercancel', onPointerCancel)
-    el.removeEventListener('wheel', onWheel)
-    el.removeEventListener('keydown', onKeyDown)
-  }
+  watch(enabled, (v) => control?.setEnabled(v))
+  emitter.on('app_socket_connection_changed', onConnectionChanged)
 
   onUnmounted(() => {
-    if (gesture) {
-      const g = gesture
-      if (g.longPressTimer) clearTimeout(g.longPressTimer)
-      if (g.streamStarted) {
-        pendingMove = null
-        send({
-          action: 'TOUCH_UP',
-          x: g.lastNormX,
-          y: g.lastNormY,
-          pointerId: g.pointerId,
-          pressure: 0,
-        })
-      }
-      gesture = null
-    }
-    removeListeners()
-    if (touchDot && touchDot.parentElement) {
-      touchDot.parentElement.removeChild(touchDot)
-      touchDot = null
-    }
+    emitter.off('app_socket_connection_changed', onConnectionChanged)
+    destroyControl()
   })
 
   return {
-    overlayRef,
     attachOverlay,
     setupListeners,
     removeListeners,
-    sendControl: send,
+    sendControl,
   }
 }
