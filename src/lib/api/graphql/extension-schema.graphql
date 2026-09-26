@@ -417,13 +417,6 @@ type Audio {
   tags: [Tag!]!
 }
 
-type AudioItem {
-  title: String!
-  artist: String!
-  path: String!
-  durationMs: Long!
-}
-
 type Doc {
   id: ID!
   title: String!
@@ -615,11 +608,6 @@ type SharedEntry {
   hasThumb: Boolean!
 }
 
-type TagRelation {
-  tagId: ID!
-  key: String!
-}
-
 input ContactPhoneInput {
   value: String!
   type: PhoneType!
@@ -684,12 +672,6 @@ input ContactInput {
 input NoteInput {
   title: String!
   content: String!
-}
-
-input TagRelationStub {
-  key: String!
-  title: String!
-  size: Long!
 }
 
 input ScreenMirrorControlInput {
@@ -766,9 +748,6 @@ type ExtensionQuery {
   clipboardItems(offset: Int!, limit: Int!, query: String!): [ClipboardItem!]!
   clipboardItemCount(query: String!): Int!
   mediaBuckets(type: MediaDataType!): [MediaBucket!]!
-  tagRelations(type: DataType!, keys: [String!]!): [TagRelation!]!
-  audioQueueItems(offset: Int!, limit: Int!, query: String!): [AudioItem!]!
-  audioQueueItemCount: Int!
   disks: [StorageDisk!]!
   sambaSettings: SambaSettings!
   scanProgress: ScanProgress!
@@ -818,18 +797,6 @@ type ExtensionMutation {
   copyFile(src: String!, dst: String!, overwrite: Boolean!): Boolean!
   moveFile(src: String!, dst: String!, overwrite: Boolean!): Boolean!
   writeTextFile(path: String!, content: String!, overwrite: Boolean!): File!
-  createTag(type: DataType!, name: String!): Tag!
-  updateTag(id: ID!, name: String!): Tag!
-  deleteTag(id: ID!): Boolean!
-  addToTags(type: DataType!, tagIds: [ID!]!, query: String!): Boolean!
-  removeFromTags(type: DataType!, tagIds: [ID!]!, query: String!): Boolean!
-  updateTagRelations(type: DataType!, item: TagRelationStub!, addTagIds: [ID!]!, removeTagIds: [ID!]!): Boolean!
-  playAudio(path: String!): AudioItem!
-  addAudiosToQueue(query: String!): Boolean!
-  removeAudioFromQueue(path: String!): Boolean!
-  reorderAudioQueue(paths: [String!]!): Boolean!
-  clearAudioQueue: Boolean!
-  updateAudioPlayMode(mode: MediaPlayMode!): Boolean!
   deleteMediaItems(type: MediaDataType!, query: String!): ActionResult!
   trashMediaItems(type: MediaDataType!, query: String!): ActionResult!
   restoreMediaItems(type: MediaDataType!, query: String!): ActionResult!
@@ -868,7 +835,4 @@ type ExtensionMutation {
   formatDisk(path: String!): Boolean!
   setSambaSettings(input: SambaSettingsInput!): Boolean!
   setSambaUserPassword(password: String!): Boolean!
-  addFavoriteFolder(rootPath: String!, fullPath: String!): [FavoriteFolder!]!
-  removeFavoriteFolder(fullPath: String!): [FavoriteFolder!]!
-  setFavoriteFolderAlias(fullPath: String!, alias: String!): [FavoriteFolder!]!
 }

@@ -64,6 +64,7 @@ impl LocalServerState {
         app_data_dir: PathBuf,
         log_dir: PathBuf,
         db: Arc<ChatDb>,
+        library: Arc<crate::local::db::LibraryDb>,
         handle: AppHandle,
         identity: Arc<AppIdentity>,
         device_name: Arc<RwLock<String>>,
@@ -87,6 +88,7 @@ impl LocalServerState {
         let peer_schema: Arc<PeerSchema> = Arc::new(build_peer_schema());
         let ctx = Arc::new(AppCtx {
             db: db.clone(),
+            library,
             identity: identity.clone(),
             peer_status: peer_status.clone(),
             discover_manager: discover_manager.clone(),

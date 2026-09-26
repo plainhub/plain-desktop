@@ -1,4 +1,6 @@
-//! Local persistence exposed by the shared `plain_rs::chat` core.
+//! Local persistence exposed by the shared plain-rs cores: `chat`
+//! (messages/channels/peers/bookmarks) and `library` (audio
+//! queue/playlists/history, tags, favorite folders).
 
 pub use plain_rs::chat::db::bookmark::{
     DBookmark, DBookmarkGroup, delete_bookmark_group, delete_bookmarks, get_bookmark_by_id,
@@ -9,3 +11,6 @@ pub use plain_rs::chat::db::{
     ChatDb, DAppFile, DChannel, DChat, DNearbyDeviceCache, DPeer, iso_from_unix_millis, now_iso,
     now_millis,
 };
+
+pub use plain_rs::library::db::LibraryDb;
+pub use plain_rs::library::tags as tag_store;

@@ -143,6 +143,12 @@ pub fn run() {
                 Ok(d) => Arc::new(d),
                 Err(e) => panic!("local_db open failed: {e}"),
             };
+            // User library (audio queue/playlists/history, tags, favorite
+            // folders) — same plain-rs core the NAS server uses.
+            let library = match local::db::LibraryDb::open(&data_dir.join("local_library.db")) {
+                Ok(d) => Arc::new(d),
+                Err(e) => panic!("local_library open failed: {e}"),
+            };
             // Ensure persistent device identity once at startup.
             let handle = app.handle().clone();
             let identity = Arc::new(crate::prefs::ensure_identity(&handle));
@@ -176,6 +182,7 @@ pub fn run() {
                 data_dir,
                 log_dir,
                 db.clone(),
+                library,
                 handle,
                 identity.clone(),
                 device_name.clone(),

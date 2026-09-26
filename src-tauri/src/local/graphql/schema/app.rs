@@ -3,9 +3,7 @@ use serde_json::json;
 use std::sync::Arc;
 
 use super::super::context::{AppCtx, WS_DEVICE_NAME_UPDATED, WsEvent};
-use super::types::{
-    App, AudioPlayback, Capability, DeviceInfo, DevicePlatform, DeviceStatus, Sim, Temperature,
-};
+use super::types::{App, Capability, DeviceInfo, DevicePlatform, DeviceStatus, Sim, Temperature};
 use crate::local::enums::{AppChannelType, DeviceType};
 
 #[cfg(test)]
@@ -98,16 +96,6 @@ impl AppQuery {
 
     async fn sims(&self) -> Vec<Sim> {
         vec![]
-    }
-
-    /// Inert player state — the desktop backend has no audio engine.
-    async fn audio_playback(&self) -> AudioPlayback {
-        AudioPlayback {
-            mode: crate::local::enums::MediaPlayMode::Repeat,
-            current_path: None,
-            is_playing: false,
-            position_ms: 0,
-        }
     }
 
     async fn device_status(&self, ctx: &Context<'_>) -> DeviceStatus {

@@ -146,8 +146,42 @@ pub struct MergeTask {
     pub error: Option<String>,
 }
 
+/// One track of the playback queue / a playlist (plain-app `AudioItem`).
+/// Stored durations are seconds; the wire field is milliseconds.
+#[derive(SimpleObject, Clone, Debug)]
+pub struct AudioItem {
+    pub title: String,
+    pub artist: String,
+    pub path: String,
+    #[graphql(name = "durationMs")]
+    pub duration_ms: i64,
+}
+
+/// A user playlist (plain-app `AudioPlaylist`); `itemCount` is live.
+#[derive(SimpleObject, Clone, Debug)]
+pub struct AudioPlaylist {
+    pub id: String,
+    pub name: String,
+    pub item_count: i32,
+    pub created_at: String,
+    pub updated_at: String,
+}
+
+/// Recently played track (plain-app `AudioPlayHistory`).
+#[derive(SimpleObject, Clone, Debug)]
+pub struct AudioPlayHistory {
+    pub path: String,
+    pub title: String,
+    pub artist: String,
+    #[graphql(name = "durationMs")]
+    pub duration_ms: i64,
+    pub play_count: i64,
+    pub played_at: String,
+}
+
 /// Audio player state (plain-app `AudioPlayback`). The desktop backend has
-/// no playback engine, so the resolver serves inert defaults.
+/// no playback engine — the queue is the shared state machine, the client
+/// renders audio.
 #[derive(SimpleObject)]
 #[graphql(name = "AudioPlayback")]
 pub struct AudioPlayback {
@@ -276,14 +310,30 @@ pub struct FileInfo {
     pub data: Option<MediaFileInfo>,
 }
 
-/// Mirrors plain-app `web/models/Tag.kt`. The local server returns an
-/// empty list — the `tags` query exists purely to satisfy schema
-/// resolution for the popup lightbox.
+/// Mirrors plain-app `web/models/Tag.kt`. Backed by the shared plain-rs
+/// library core (local_library.db), same behavior as the NAS server.
 #[derive(SimpleObject, Clone)]
 pub struct Tag {
     pub id: String,
     pub name: String,
     pub count: i32,
+}
+
+/// Input of `updateTagRelations` — the item being tagged (plain-app
+/// `TagRelationStub`).
+#[derive(InputObject, Clone, Debug)]
+pub struct TagRelationStub {
+    pub key: String,
+    pub title: String,
+    pub size: i64,
+}
+
+/// One (tag, item-key) relation (plain-app contract).
+#[derive(SimpleObject, Clone, Debug)]
+pub struct TagRelation {
+    #[graphql(name = "tagId")]
+    pub tag_id: String,
+    pub key: String,
 }
 
 /// Union for `ChatItem.data` — always `None` in local mode but schema must match the fragment.

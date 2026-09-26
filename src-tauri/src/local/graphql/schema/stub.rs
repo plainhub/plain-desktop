@@ -1,6 +1,6 @@
 use async_graphql::Object;
 
-use super::types::{FavoriteFolder, Mount};
+use super::types::Mount;
 
 #[derive(Default)]
 pub struct StubQuery;
@@ -38,9 +38,6 @@ impl StubQuery {
         0
     }
     async fn mounts(&self) -> Vec<Mount> {
-        vec![]
-    }
-    async fn favorite_folders(&self) -> Vec<FavoriteFolder> {
         vec![]
     }
 }

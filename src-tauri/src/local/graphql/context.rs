@@ -63,6 +63,9 @@ pub fn encode_ws_event(ev: &WsEvent, token: &str) -> Option<Vec<u8>> {
 /// Passed per-request via `Request::data(Arc<AppCtx>)`.
 pub struct AppCtx {
     pub db: Arc<ChatDb>,
+    /// User library (audio queue/playlists/history, tags, favorite
+    /// folders) — plain-rs `library` core over local_library.db.
+    pub library: Arc<crate::local::db::LibraryDb>,
     pub identity: Arc<AppIdentity>,
     pub peer_status: PeerStatusManager,
     pub discover_manager: NearbyDiscoverManager,
