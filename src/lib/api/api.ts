@@ -50,15 +50,57 @@ export function deviceBaseUrl(host: string): string {
   return applyScheme(isSecurePort(host) ? 'https' : 'http', host)
 }
 
+/** Assemble a loopback proxy URL from a request path and target base. */
+function proxyPath(port: number, path: string, pt: string): string {
+  const sep = path.includes('?') ? '&' : '?'
+  return `http://127.0.0.1:${port}${path}${sep}_pt=${encodeURIComponent(pt)}`
+}
+
 /** Routes a browser-initiated path through the local HTTP reverse proxy when
  *  the target base is a self-signed HTTPS device (Tauri only); the proxy
  *  learns the target from the `_pt` query param. */
 export function proxyUrlFor(base: string, path: string): string {
   if (__IS_TAURI__ && base.startsWith('https://')) {
-    const sep = path.includes('?') ? '&' : '?'
-    return `http://127.0.0.1:${_httpProxyPort}${path}${sep}_pt=${encodeURIComponent(base)}`
+    return proxyPath(_httpProxyPort, path, base)
   }
   return `${base}${path}`
+}
+
+/** Pure URL rewrite for `httpRequest`: an https device URL becomes a plain
+ *  loopback URL the webview fetch can dial (self-signed certs are the
+ *  proxy's problem, not the webview's). */
+export function buildProxyHttpUrl(port: number, url: string): string {
+  const slash = url.indexOf('/', 8)
+  return slash === -1
+    ? proxyPath(port, '/', url)
+    : proxyPath(port, url.slice(slash), url.slice(0, slash))
+}
+
+/** `httpRequest`'s transport gate: only Tauri builds need the rewrite. */
+export function proxyHttpUrl(url: string): string {
+  return __IS_TAURI__ && url.startsWith('https://') ? buildProxyHttpUrl(_httpProxyPort, url) : url
+}
+
+/** Pure URL rewrite for `openSocket`: a device ws(s):// URL becomes a
+ *  loopback ws:// URL; the `_cid` names a paired peer whose current
+ *  `ip:port` the proxy re-resolves from the peers table right before
+ *  dialing. Loopback targets (the desktop's own local server) stay
+ *  direct — no proxy hop for local-mode sockets. */
+export function buildProxyWsUrl(port: number, url: string, clientId = ''): string {
+  const u = new URL(url)
+  if (u.hostname === 'localhost' || u.hostname === '127.0.0.1' || u.hostname === '[::1]') {
+    return url
+  }
+  const scheme = u.protocol === 'wss:' ? 'wss' : 'ws'
+  const cid = clientId ? `&_cid=${encodeURIComponent(clientId)}` : ''
+  const sep = u.search ? '&' : '?'
+  const pathname = u.pathname || '/'
+  return `ws://127.0.0.1:${port}${pathname}${u.search}${sep}_pt=${encodeURIComponent(`${scheme}://${u.host}`)}${cid}`
+}
+
+/** `openSocket`'s transport gate: only Tauri builds need the rewrite. */
+export function proxyWsUrlFor(url: string, clientId = ''): string {
+  return __IS_TAURI__ ? buildProxyWsUrl(_httpProxyPort, url, clientId) : url
 }
 
 export function getProxyUrl(path: string): string {

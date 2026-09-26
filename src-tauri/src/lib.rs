@@ -56,7 +56,6 @@ pub fn run() {
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_fs::init())
         .plugin(tauri_plugin_clipboard_manager::init())
-        .manage(commands::HttpClient::new())
         .manage(commands::media_preview_pool::MediaPreviewState::default())
         .manage(commands::screen_capture::runtime::ScreenCaptureRuntime::default())
         .setup(|app| {
@@ -144,7 +143,6 @@ pub fn run() {
                 commands::screen_capture::selftest::schedule_trigger(app.handle().clone());
             }
 
-            app.handle().manage(http_proxy::HttpProxyState::start());
             let log_dir = app
                 .path()
                 .app_log_dir()
@@ -188,6 +186,16 @@ pub fn run() {
                 app_version,
             );
             chat_state.attach_discovery(discover_mgr.clone());
+            // The webview's only network transport: a loopback HTTP/WS
+            // reverse proxy that accepts the devices' self-signed certs.
+            // Its WS dial path re-resolves `_cid`-named peers through the
+            // discover manager's mDNS-fresh peers table.
+            let peer_resolver: http_proxy::PeerResolver = {
+                let mgr = discover_mgr.clone();
+                Arc::new(move |id: &str| mgr.peer_address(id))
+            };
+            app.handle()
+                .manage(http_proxy::HttpProxyState::start(peer_resolver));
             let local_server_state = local::server::LocalServerState::start(
                 data_dir,
                 log_dir,
@@ -333,7 +341,6 @@ pub fn run() {
             commands::prefs::prefs_remove,
             commands::prefs::prefs_clear,
             commands::discover::login_peer,
-            commands::discover::peer_address,
             commands::discover::logout_peer,
             commands::discover::list_login_peers,
             commands::discover::update_peer_name,
@@ -346,8 +353,6 @@ pub fn run() {
             commands::discover::mdns_set_hostname,
             commands::discover::mdns_firewall_status,
             commands::discover::fix_mdns_firewall,
-            commands::http_client::http_request,
-            commands::ws_proxy::ws_start_proxy,
             commands::notification::send_macos_notification,
             commands::updater::check_for_updates,
             #[cfg(target_os = "macos")]

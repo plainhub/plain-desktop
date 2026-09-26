@@ -121,8 +121,8 @@ export function useAppSocket() {
   /**
    * App WS dropped after a successful dial — likely the device changed IPs.
    * Ask the local mDNS responder for a one-shot browse: the resident listener
-   * refreshes the peer's ip:port in the peers table, and TauriWebSocket's
-   * _resolveUrl reads that fresh host on the next connect().
+   * refreshes the peer's ip:port in the peers table, and the proxy's `_cid`
+   * resolution reads that fresh host on the next connect().
    */
   const triggerMdnsBrowse = () => {
     if (!__IS_TAURI__) return

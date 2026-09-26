@@ -1,7 +1,6 @@
-import { tauriFetch, type TauriFetchResponse } from './tauri-fetch'
-import { TauriWebSocket } from './tauri-ws'
+import { proxyHttpUrl, proxyWsUrlFor } from './api'
 
-export type HttpResponse = TauriFetchResponse
+export type HttpResponse = Response
 
 export interface HttpRequestOptions {
   method?: string
@@ -10,15 +9,13 @@ export interface HttpRequestOptions {
   signal?: AbortSignal
 }
 
-/** Single transport choice for HTTP: on Tauri, https URLs go through the
- *  Rust reqwest client because the webview rejects the devices' self-signed
- *  certificates; everything else uses the native fetch. */
+/** Single transport choice for HTTP: the native fetch. In Tauri builds
+ *  https device URLs are rewritten through the local reverse proxy because
+ *  the webview rejects the devices' self-signed certificates; everything
+ *  else is dialed directly (the desktop's own local server is plain HTTP
+ *  on localhost). */
 export async function httpRequest(url: string, options: HttpRequestOptions = {}): Promise<HttpResponse> {
-  if (__IS_TAURI__ && url.startsWith('https://')) {
-    const request = tauriFetch(url, options)
-    return options.signal ? raceAbort(request, options.signal) : request
-  }
-  return fetch(url, {
+  return fetch(proxyHttpUrl(url), {
     method: options.method,
     headers: options.headers,
     body: options.body as BodyInit | undefined,
@@ -26,30 +23,11 @@ export async function httpRequest(url: string, options: HttpRequestOptions = {})
   })
 }
 
-/** Single transport choice for sockets: on Tauri every socket is relayed by
- *  Rust (self-signed certificates accepted; a non-empty `clientId` re-resolves
- *  the peer's current ip:port from the peers table right before dialing). */
+/** Single transport choice for sockets: the native WebSocket. In Tauri
+ *  builds device sockets are rewritten to the local reverse proxy, which
+ *  relays frames and re-resolves a `clientId` peer's current `ip:port`
+ *  from the peers table right before dialing; loopback sockets (the
+ *  desktop's own local server) connect directly. */
 export function openSocket(url: string, clientId = ''): WebSocket {
-  if (__IS_TAURI__) return new TauriWebSocket(url, clientId) as unknown as WebSocket
-  return new WebSocket(url)
-}
-
-/** tauriFetch's invoke() cannot be aborted — race the signal so caller
- *  timeouts still fire; the abandoned request simply completes unseen. */
-function raceAbort<T>(request: Promise<T>, signal: AbortSignal): Promise<T> {
-  return new Promise<T>((resolve, reject) => {
-    const onAbort = () => reject(new DOMException('Aborted', 'AbortError'))
-    if (signal.aborted) return onAbort()
-    signal.addEventListener('abort', onAbort, { once: true })
-    request.then(
-      (value) => {
-        signal.removeEventListener('abort', onAbort)
-        resolve(value)
-      },
-      (error) => {
-        signal.removeEventListener('abort', onAbort)
-        reject(error)
-      },
-    )
-  })
+  return new WebSocket(proxyWsUrlFor(url, clientId))
 }

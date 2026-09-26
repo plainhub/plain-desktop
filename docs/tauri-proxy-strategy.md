@@ -1,149 +1,78 @@
 # Tauri Proxy Strategy (Performance & Stability)
 
-This document explains whether the current proxy architecture is the best choice for performance and stability in Tauri mode, and how port conflicts are handled.
-
-## `http_client` vs `http_proxy` — 两者的区别
-
-### `commands/http_client.rs` — Tauri IPC 主动请求
-
-| 项目 | 说明 |
-|---|---|
-| **入口** | JS 代码主动调用 `invoke('http_request', …)` |
-| **用途** | GraphQL、REST API 等程序性网络请求 |
-| **传输** | Tauri IPC → Rust → device HTTPS → IPC 返回 JS |
-| **响应体** | 全量缓冲后再返回给 JS |
-| **超时** | 30 秒 |
-| **CORS** | 不需要（IPC 不走浏览器安全模型） |
-| **实现文件** | `src-tauri/src/commands/http_client.rs` |
-
-### `http_proxy/mod.rs` — 本地 HTTP 代理服务器
-
-| 项目 | 说明 |
-|---|---|
-| **入口** | 浏览器原生资源加载（`<img>`、`<video>`、`<audio>`、XHR 上传） |
-| **用途** | 缩略图、视频/音频流、文件上传进度 |
-| **传输** | 浏览器 HTTP → 本地回环 TCP `127.0.0.1:N` → Rust → device HTTPS |
-| **响应体** | 逐 chunk 流式转发，**从不整体缓冲** |
-| **超时** | 无（视频播放是长连接） |
-| **CORS** | 自动注入 `access-control-allow-*` 头 |
-| **实现文件** | `src-tauri/src/http_proxy/mod.rs` |
-
-### 为什么 `http_client` 不能替代 `http_proxy`
-
-1. **浏览器标签无法使用 IPC** — `<img src="…">` / `<video src="…">` 只认 URL，不会调用 `invoke()`。
-2. **视频流无法缓冲** — 一段 500 MB 的视频如果等到全部缓冲后才播放，体验不可接受；`http_proxy` 的 chunk 流式转发让播放可以立即开始。
-3. **Range 请求** — `<video>` 会发送 `Range: bytes=N-M` 做 seek；`http_proxy` 原样转发该头，`http_client` 无此机制。
-4. **并发缩略图** — 浏览器原生并行发起多个 `<img>` 请求，`http_proxy` 的连接池（20 idle/host）复用 TLS session；通过 IPC 串行处理则显著更慢。
-5. **上传进度** — XHR `progress` 事件依赖真实 HTTP 连接，IPC 无法触发浏览器原生进度回调。
-
-**结论：两者互补，不可互换。** JS 代码主动发起的 API 调用走 `http_client`；浏览器标签/上传走 `http_proxy`。
-
-### 能否全部走 `http_proxy`，性能差距多大？
-
-技术上可行（JS 改用 `fetch('http://127.0.0.1:N/...')` 并附 `x-proxy-target` 头），但**没有实际意义**。
-
-逐步骤延迟对比（每次请求）：
-
-| 步骤 | `http_client` IPC | `http_proxy` 本地 TCP |
-|---|---|---|
-| JS → Rust | IPC 共享内存，~0.01 ms | TCP connect + HTTP 行解析，~0.2–0.5 ms |
-| Rust → device | reqwest 连接池（两者相同） | reqwest 连接池（两者相同） |
-| Device → Rust | 相同 | 相同 |
-| Rust → JS | IPC 返回 | HTTP 响应序列化 + TCP write |
-
-**最关键的限制：`connection: close`**
-
-`http_proxy` 每个响应都发送 `connection: close`，浏览器不能复用 loopback TCP 连接。10 次 GraphQL 调用 = 10 次 TCP connect to `127.0.0.1`。`http_client` 则是 10 次 IPC，零 TCP 开销。
-
-实际感知：设备 LAN RTT 通常 5–50 ms，本地多出 ~0.3 ms 约占 1–5%，**单次请求人眼察觉不到**。但实时聊天、密集轮询等场景下 TCP churn 会持续累积 CPU 和内存压力。
-
-切换还需要额外成本：修改所有 JS 调用方从 `invoke` 改为 `fetch`、处理 2-byte status prefix 协议差异、修复 `connection: close` 问题。换来的只是路径统一，无性能收益。
-
-**保持现有分工是最优解。**
-
----
-
-## Design Principle
-
-**Proxy classes have single responsibility — they always proxy, unconditionally.**
-The decision of whether to use a proxy is made at the call site, not inside the proxy.
+桌面 webview 的唯一网络传输：常驻本地反向代理 `src-tauri/src/http_proxy/`。
+webview 里只有普通的 `fetch` 和 `new WebSocket`，与 Web 构建完全同构；
+区别只是 Tauri 构建里 API 地址被重写到电脑上的回环地址。
 
 ```
-// Call site pattern — scheme check lives here:
-(__IS_TAURI__ && url.startsWith('https://')) ? tauriFetch(url, opts) : fetch(url, opts)
-(__IS_TAURI__ && wsUrl.startsWith('wss://')) ? new TauriWebSocket(wsUrl) : new WebSocket(wsUrl)
+webview ──plain HTTP/WS──► 127.0.0.1:N（http_proxy）──TLS（自签证书可接受）──► 设备
+webview ──────────plain HTTP/WS 直连─────────► localhost:PORT（桌面本地服务，本地模式）
 ```
 
-`tauriFetch` and `TauriWebSocket` do not inspect the URL scheme.
-`getUploadBaseUrl` always returns the proxy address in Tauri mode; callers
-(`getUploadUrl` / `getUploadChunkUrl`) decide whether to use it based on `getApiBaseUrl()`.
+## 目标（2026-09-26 用户指令）
+
+- 干掉 `ipc://` 上的 HTTP / WebSocket 调用（`http_request`、`ws_start_proxy`
+  两条 Tauri 命令已删除，`commands/http_client.rs`、`commands/ws_proxy.rs`
+  文件已删除）。
+- Tauri App 跟 Web 一样是正常 HTTP/WebSocket 调用，API 地址来自电脑；
+  web 代码里不再有「换传输实现」的 `__IS_TAURI__` 分支，只剩 URL 选择。
+- API 结构与形状跟 plain-app 一致（`/graphql`、`/upload`、`/upload_chunk`、
+  `/fs`、`/peer_graphql`、WS 事件面均复刻 plain-app 契约）。
+
+## 传输选择（`src/lib/api/http.ts` + `src/lib/api/api.ts`）
+
+| 调用 | Web 构建 | Tauri 本地模式 | Tauri 远程设备 |
+|---|---|---|---|
+| `httpRequest(url)` | `fetch(url)` | `fetch(url)`（http://localhost:PORT 直连） | `fetch(proxyHttpUrl(url))` → `http://127.0.0.1:N<path>?_pt=<https设备base>` |
+| `openSocket(url, cid)` | `new WebSocket(url)` | `new WebSocket(url)`（ws://localhost:PORT 直连） | `new WebSocket(buildProxyWsUrl(...))` → `ws://127.0.0.1:N<path>?<原查询>&_pt=<ws(s)设备base>&_cid=<peer id>` |
+| `<img>/<video>/XHR 上传 | 直连设备 URL | 直连 | `proxyUrlFor(base, path)`（`_pt` 重写，同上） |
+
+规则集中在 `api.ts`：`proxyHttpUrl`（https→代理）、`proxyWsUrlFor`（非回环
+ws/wss→代理，回环直连）、`proxyUrlFor`（浏览器发起的 URL）。纯函数
+`buildProxyHttpUrl` / `buildProxyWsUrl` 不含平台判断，由
+`tests/lib/api/api.test.ts` 锁死。
+
+## 代理的 WebSocket 中继
+
+`http_proxy/mod.rs::relay_websocket`：
+
+1. 收到 `GET + upgrade: websocket`，从 `_pt` 取目标 base、`_cid` 取 peer id。
+2. `_cid` 非空时经 `PeerResolver`（`NearbyDiscoverManager::peer_address`，
+   mDNS 保活的 peers 表）把目标 authority 换成 peer 当前 `ip:port`——
+   设备换 IP 后重连自动走新地址。
+3. `wss→https`、`ws→http` 后用共享 reqwest client 发起 upgrade 请求；
+   客户端的 `sec-websocket-key` 原样转发，设备的 `101` 头原样回给 webview
+   （accept 校验端到端成立）。
+4. 之后 `copy_bidirectional` 字节级对拷——不解析帧，ping/close/扩展全部
+   端到端透传。非 101 的拒绝按普通响应转发。
+
+被删除的旧机制（不再存在）：`invoke('http_request')` IPC fetch（2 字节
+status 前缀协议）、`invoke('ws_start_proxy')` 每连接一个临时 TCP 中继、
+`invoke('peer_address')` 前端地址重解析、`TauriWebSocket`/`tauriFetch`
+两个 webview 侧替身类。
 
 ## Why This Is Fastest
 
-### GraphQL / small API (`tauriFetch`)
-
-- Payloads are usually small JSON.
-- IPC overhead is tiny for small messages.
-- Shared `reqwest::Client` reuses TCP/TLS sessions; no repeated full handshake cost.
-- A local HTTP parser/proxy layer would not improve this path and can be slower.
-
-Conclusion: keep GraphQL and general small API calls on `tauriFetch`.
-
-### WebSocket (local WS proxy)
-
-- Old IPC-event WS bridge incurred per-frame serialization and scheduling overhead.
-- New model keeps frame transport on normal loopback TCP WebSocket after initial setup.
-- Binary/event throughput and latency are better and steadier under sustained traffic.
-
-Conclusion: local WS proxy is the correct high-performance path.
-
-### Upload (local HTTP proxy)
-
-- Upload requires streaming semantics and browser `XMLHttpRequest` progress events.
-- IPC request mode is not suitable for progress-driven large uploads.
-- Local HTTP proxy keeps normal XHR flow while bypassing self-signed TLS limitations in WKWebView.
-
-Conclusion: upload must use local HTTP proxy for both functionality and stable throughput.
+- **连接复用**：代理对 keep-alive 安全的响应（有 content-length、无
+  content-encoding）复用回环 TCP，且共享 reqwest client 复用设备 TLS
+  session——视频 seek 的高 RTT 场景无重复握手。
+- **流式转发**：响应逐 chunk 转发从不整体缓冲（视频/下载）；WS 是字节级
+  对拷，无帧解析开销（1080p60 镜像流 ~6MB/s 直接走 TCP）。
+- **无 IPC 序列化**：所有数据面走 TCP，`ipc://` 上只剩窗口/偏好/采集等
+  shell 命令。
 
 ## Stability Notes
 
-### Connection reuse
-
-- All forwarded HTTPS requests use a shared `reqwest::Client`.
-- This enables connection pooling and TLS session reuse.
-
-### Failure isolation
-
-- WS proxy is per-connection: each WebSocket session gets its own local listener/task.
-- HTTP proxy is long-lived and accepts many concurrent requests.
-
-### Self-signed certificates
-
-- Rust side handles device TLS with `danger_accept_invalid_certs(true)`.
-- WebView never talks directly to device TLS endpoints for WS/upload critical paths.
-
-## Port Conflict Risk
-
-Current implementation binds local listeners with `127.0.0.1:0` (ephemeral port).
-
-- OS chooses a free port at bind time.
-- This avoids hardcoded-port collisions.
-- Conflict probability is extremely low.
-
-Practical behavior:
-
-- HTTP proxy: binds once at startup and keeps the socket open.
-- WS proxy: binds per session, returns that live bound port immediately to JS.
-
-Because the socket is already bound before the port is exposed, another process cannot steal that exact port in between.
-
-## Operational Guidance
-
-- Do not force fixed localhost ports for proxy services.
-- Keep `ws_start_proxy` and `http_proxy_port` dynamic.
-- Keep upload traffic on local HTTP proxy in Tauri mode.
-- Keep GraphQL/small API on `tauriFetch` unless profiling proves a regression.
+- 自签证书：reqwest `danger_accept_invalid_certs(true)`，webview 永远不直接
+  碰设备 TLS。
+- 代理剥离 `origin` 头并注入 `access-control-allow-*`（preflight OPTIONS
+  本地应答，`allow-headers: *`）——fetch/XHR/WebSocket 都能过。
+- WS 中继按连接隔离：每条 WS 独立 spawn，任一断开不影响其他。
+- 端口：启动时 `127.0.0.1:0` 拿临时端口，经 `http_proxy_port` 命令一次性
+  告知前端（shell 级 bootstrap，非数据通道）。
 
 ## Scope
 
-These conclusions apply to Tauri desktop mode in this repository and the current architecture.
+适用于本仓库 Tauri 桌面模式的全部数据面传输。剩余 `__IS_TAURI__` 判断仅属
+两类：`api.ts` 的 URL 选择（7 处）与桌面 shell（标题栏/菜单/窗口/采集/
+prefs），web 代码不再按平台切换传输实现。

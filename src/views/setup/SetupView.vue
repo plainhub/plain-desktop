@@ -60,6 +60,7 @@ import { requestInit } from '@/lib/api/init'
 import { findLoginPeer, saveLoginPeer } from '@/lib/device/login-peers'
 import { getRemoteClientId, setRemoteClientId } from '@/lib/device/client-id'
 import { performLoginHandshake } from '@/lib/api/login-handshake'
+import { httpRequest } from '@/lib/api/http'
 import { get as prefsGet } from '@/lib/prefs'
 import { DeviceType } from '@/lib/status'
 
@@ -127,10 +128,10 @@ async function onSubmit() {
   // An uninitialized NAS stores the password via the documented REST call;
   // the handshake afterwards proves it and derives the session token.
   if (needsSetup.value) {
-    const setupResp = await fetch(`${getApiBaseUrl()}/auth/setup`, {
+    const setupResp = await httpRequest(`${getApiBaseUrl()}/auth/setup`, {
       method: 'POST',
-      headers: { 'c-id': myClientId },
-      body: JSON.stringify({ password: hash }),
+      headers: { 'c-id': myClientId, 'Content-Type': 'text/plain;charset=UTF-8' },
+      body: new TextEncoder().encode(JSON.stringify({ password: hash })),
     })
     if (!setupResp.ok && setupResp.status !== 409) {
       showError.value = true

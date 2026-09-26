@@ -1,4 +1,5 @@
 import { getApiBaseUrl, getProxyUrl } from './api'
+import { httpRequest } from './http'
 import {
   chachaEncrypt,
   chachaDecrypt,
@@ -92,10 +93,10 @@ export async function guestFetch<T = any>(
   const controller = new AbortController()
   const timer = setTimeout(() => controller.abort(), TIMEOUT)
   try {
-    const response = await fetch(url, {
+    const response = await httpRequest(url, {
       method: 'POST',
       headers: { 'Content-Type': 'multipart/form-data', 'c-id': sharedId },
-      body: body as BodyInit,
+      body,
       signal: controller.signal,
     })
     if (response.status === 401) {

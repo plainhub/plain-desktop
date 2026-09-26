@@ -79,20 +79,6 @@ pub async fn update_peer_name(
         .map_err(|e| e.to_string())
 }
 
-/// Current `ip:port` of a paired peer from the peers table, kept fresh by
-/// the resident mDNS listener. Used by the frontend to heal a stale login
-/// session host without a multicast round-trip.
-#[tauri::command]
-pub async fn peer_address(
-    state: tauri::State<'_, NearbyDiscoverManager>,
-    id: String,
-) -> Result<Option<String>, String> {
-    let mgr = state.inner().clone();
-    tauri::async_runtime::spawn_blocking(move || mgr.peer_address(&id))
-        .await
-        .map_err(|e| e.to_string())
-}
-
 // ── mDNS debug surface — mirrors plain-app's MdnsDebugPage + WebAddressBar ───
 
 /// Read-only snapshot of every currently-known `_plainapp._tcp.local`

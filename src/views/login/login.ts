@@ -8,7 +8,7 @@ import { getCurrentAuthToken } from '@/lib/device/current'
 import { findLoginPeer, saveLoginPeer, peerHost } from '@/lib/device/login-peers'
 import { DeviceType } from '@/lib/status'
 import { getRemoteClientId, setRemoteClientId } from '@/lib/device/client-id'
-import { tauriFetch } from '@/lib/api/tauri-fetch'
+import { httpRequest } from '@/lib/api/http'
 import { performLoginHandshake } from '@/lib/api/login-handshake'
 import type { LoginHandshakeParams } from '@/lib/api/login-handshake'
 import { deriveLoginChatKey } from '@/lib/device/login-chat-key'
@@ -128,9 +128,7 @@ export function useLogin(options: UseLoginOptions = {}) {
       const reason = typeof e === 'string' ? e : ''
       if (!reason) {
         const hcUrl = `${getApiBaseUrl()}/health`
-        const hcResp = (__IS_TAURI__ && hcUrl.startsWith('https://'))
-          ? await tauriFetch(hcUrl)
-          : await fetch(hcUrl)
+        const hcResp = await httpRequest(hcUrl)
         if (hcResp.status === 200) { error.value = 'failed_connect_ws'; return }
       }
       error.value = `login.${reason ? reason : 'failed'}`

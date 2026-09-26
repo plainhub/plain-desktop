@@ -23,7 +23,6 @@ dependencies = [
  "image",
  "libc",
  "log",
- "native-tls",
  "objc2",
  "objc2-app-kit",
  "objc2-core-graphics",
@@ -49,7 +48,6 @@ dependencies = [
  "tauri-plugin-opener",
  "tauri-plugin-single-instance",
  "tokio",
- "tokio-tungstenite",
  "windows 0.61.3",
  "x11rb",
 ]
