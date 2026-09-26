@@ -282,7 +282,7 @@ impl<R: Runtime> CaptureWindowPort for TauriCaptureWindowPort<R> {
                     log::warn!("destroy retired capture overlay failed: {error}");
                 }
             });
-            return Ok(OverlayConcealment::RetirementScheduled);
+            Ok(OverlayConcealment::RetirementScheduled)
         }
         #[cfg(not(any(target_os = "windows", target_os = "macos")))]
         {

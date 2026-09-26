@@ -82,14 +82,14 @@ pub async fn screen_capture_request_permission(
     authorize_permission_command_caller(window.label())?;
     #[cfg(target_os = "macos")]
     {
-        return tauri::async_runtime::spawn_blocking(crate::capture::request_capture_permission)
+        tauri::async_runtime::spawn_blocking(crate::capture::request_capture_permission)
             .await
             .map_err(|error| {
                 CaptureError::new(
                     CaptureErrorCode::CaptureFailed,
                     format!("screen capture permission request worker failed: {error}"),
                 )
-            });
+            })
     }
     #[cfg(not(target_os = "macos"))]
     Err(CaptureError::new(
@@ -105,7 +105,7 @@ pub fn screen_capture_open_permission_settings(window: WebviewWindow) -> Result<
     {
         use tauri_plugin_opener::OpenerExt;
 
-        return window
+        window
             .opener()
             .open_url(MACOS_SCREEN_CAPTURE_SETTINGS_URL, None::<&str>)
             .map_err(|error| {
@@ -113,7 +113,7 @@ pub fn screen_capture_open_permission_settings(window: WebviewWindow) -> Result<
                     CaptureErrorCode::CaptureFailed,
                     format!("could not open macOS screen capture settings: {error}"),
                 )
-            });
+            })
     }
     #[cfg(not(target_os = "macos"))]
     Err(CaptureError::new(
