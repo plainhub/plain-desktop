@@ -1,11 +1,25 @@
 <template>
   <v-modal width="480px" @close="handleClose">
     <template #headline>
-      <v-circular-progress v-if="status === DiscoveryStatus.SEARCHING && discoveredDevices.length === 0" indeterminate class="sm" aria-label="scanning" />
-      <span>{{ discoveredDevices.length > 0 ? $t('nearby_devices') : $t('device_discovery.searching') }}</span>
+      <template v-if="step === 'discover'">
+        <v-circular-progress v-if="status === DiscoveryStatus.SEARCHING && discoveredDevices.length === 0" indeterminate class="sm" aria-label="scanning" />
+        <span>{{ discoveredDevices.length > 0 ? $t('nearby_devices') : $t('device_discovery.searching') }}</span>
+      </template>
+      <template v-else>
+        <v-icon-button :aria-label="$t('back')" @click="backToDevices"><i-material-symbols:arrow-back-rounded /></v-icon-button>
+        <span>{{ step === 'mode' ? $t('pairing_with', { name: selectedDevice?.name }) : $t('log_in') + ' ' + selectedDevice?.name }}</span>
+      </template>
     </template>
     <template #content>
-      <div v-if="discoveredDevices.length === 0" class="nearby-empty">
+      <NearbyPairOptions v-if="step === 'mode'" @cancel="backToDevices" @confirm="confirmPair" />
+      <DiscoveredDeviceLogin
+        v-else-if="step === 'login' && loginDevice"
+        :device="loginDevice"
+        pair-chat
+        @success="onLoginSuccess"
+        @cancel="backToDevices"
+      />
+      <div v-else-if="discoveredDevices.length === 0" class="nearby-empty">
         <MdnsFirewallFix :device-count="discoveredDevices.length" @fixed="retry" />
       </div>
 
@@ -43,7 +57,7 @@ v-else-if="d.status === 'UNPAIRING' || d.status === PeerStatus.PAIRED" class="da
             </v-outlined-button>
             <v-outlined-button
 v-else :loading="deviceStates.get(d.id) === DeviceState.PAIRING"
-              @click.stop="startPair(d)">
+              @click.stop="selectDevice(d)">
               {{ $t('pair') }}
             </v-outlined-button>
           </template>
@@ -51,12 +65,13 @@ v-else :loading="deviceStates.get(d.id) === DeviceState.PAIRING"
       </ul>
 
       <QrPairPanel
+        v-if="step === 'discover'"
         v-model:open="qrOpen"
         collapsible
         @paired="onQrPaired"
       />
     </template>
-    <template #actions>
+    <template v-if="step === 'discover'" #actions>
       <v-outlined-button @click="handleClose">{{ $t('close') }}</v-outlined-button>
     </template>
   </v-modal>
@@ -67,10 +82,14 @@ import { onBeforeUnmount, onMounted, ref } from 'vue'
 import { popModal } from '@/components/modal'
 import MdnsFirewallFix from '@/components/MdnsFirewallFix.vue'
 import QrPairPanel from '@/components/QrPairPanel.vue'
+import NearbyPairOptions from './NearbyPairOptions.vue'
+import DiscoveredDeviceLogin from '@/views/login/DiscoveredDeviceLogin.vue'
 import { useDeviceDiscovery, DiscoveryStatus, upsertDiscoveredDevice, type DiscoveredDevice } from '@/hooks/use-device-discovery'
 import { useDevicePairing, DeviceState } from '@/hooks/use-device-pairing'
 import { unpairPeerGQL, initMutation } from '@/lib/api/mutation'
 import type { QrPairedDevice } from '@/lib/device/qr-pairing'
+import type { PendingLoginDevice } from '@/lib/api/api'
+import { DeviceType } from '@/lib/status'
 import { useChatStore } from '@/stores/chat'
 import { PeerStatus } from '@/lib/status'
 
@@ -90,6 +109,9 @@ const {
 const infoOpen = ref<Record<string, boolean>>({})
 // empty state is the reason this modal exists — show the fix without an extra click
 const qrOpen = ref(false)
+const step = ref<'discover' | 'mode' | 'login'>('discover')
+const selectedDevice = ref<DiscoveredDevice | null>(null)
+const loginDevice = ref<PendingLoginDevice | null>(null)
 
 const chatStore = useChatStore()
 
@@ -110,9 +132,38 @@ function onQrPaired(d: QrPairedDevice) {
 }
 
 
+function selectDevice(device: DiscoveredDevice) {
+  selectedDevice.value = device
+  step.value = 'mode'
+}
+
+function backToDevices() {
+  step.value = 'discover'
+  selectedDevice.value = null
+  loginDevice.value = null
+}
+
+async function confirmPair(mode: 'chat' | 'control') {
+  const device = selectedDevice.value
+  if (!device) return
+  if (mode === 'control') {
+    const host = device.ips[0] ? `${device.ips[0]}:${device.port}` : ''
+    if (!host) return
+    loginDevice.value = {
+      name: device.name,
+      host,
+      deviceType: device.deviceType as DeviceType,
+    }
+    step.value = 'login'
+    return
+  }
+  backToDevices()
+  await startPair(device)
+}
+
 async function startPair(d: DiscoveredDevice) {
   deviceStates.set(d.id, DeviceState.PAIRING)
-  await pairDevice({
+  const sent = await pairDevice({
     id: d.id,
     name: d.name,
     ips: d.ips,
@@ -123,8 +174,14 @@ async function startPair(d: DiscoveredDevice) {
     lastSeen: d.lastSeen,
     discoveryMethods: d.discoveryMethods,
   })
-  d.status = 'PAIRING'
+  if (sent) d.status = 'PAIRING'
   deviceStates.delete(d.id)
+}
+
+function onLoginSuccess() {
+  stop()
+  popModal()
+  window.location.href = '/'
 }
 
 async function cancel(d: DiscoveredDevice) {
@@ -148,6 +205,10 @@ async function unpair(d: DiscoveredDevice) {
 }
 
 function handleClose() {
+  if (step.value !== 'discover') {
+    backToDevices()
+    return
+  }
   stop()
   popModal()
 }

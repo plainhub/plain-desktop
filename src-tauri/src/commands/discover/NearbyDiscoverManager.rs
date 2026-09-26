@@ -10,18 +10,18 @@
 //! Pairing is handled over HTTPS via the `POST /nearby` REST endpoint
 //! instead of UDP (see `local::pairing`).
 
-use super::MdnsActivity;
 #[cfg(target_os = "macos")]
 use super::macos_dns_sd::MacDnsSdBrowser;
 use super::peer_status_manager::PeerStatusManager;
+use super::MdnsActivity;
 use crate::local::db::{
-    ChatDb, DNearbyDeviceCache, DPeer, iso_from_unix_millis, now_iso, now_millis,
+    iso_from_unix_millis, now_iso, now_millis, ChatDb, DNearbyDeviceCache, DPeer,
 };
 use crate::local::enums::DeviceType;
 use crate::local::graphql::schema::types::Peer;
 use crate::local::graphql::{
-    WS_NEARBY_DEVICE_FOUND, WS_NEARBY_DEVICE_UNREACHABLE, WS_NEARBY_DISCOVERY_STARTED,
-    WS_NEARBY_DISCOVERY_STOPPED, WsEvent,
+    WsEvent, WS_NEARBY_DEVICE_FOUND, WS_NEARBY_DEVICE_UNREACHABLE, WS_NEARBY_DISCOVERY_STARTED,
+    WS_NEARBY_DISCOVERY_STOPPED,
 };
 use crate::local::pairing::PairingManager;
 use crate::prefs::AppIdentity;
@@ -31,8 +31,8 @@ use serde::Serialize;
 use std::collections::HashMap;
 use std::str::FromStr;
 use std::sync::{
-    Arc, Mutex, RwLock,
     atomic::{AtomicU16, AtomicU64, Ordering},
+    Arc, Mutex, RwLock,
 };
 use std::time::Duration;
 use tokio::sync::broadcast;
@@ -494,7 +494,8 @@ impl NearbyDiscoverManager {
         device_type: DeviceType,
         token: &str,
         signature_public_key: &str,
-    ) {
+        chat_key: &str,
+    ) -> Result<(), String> {
         let (ip, port) = split_host(host);
         self.db.login_peer(
             id,
@@ -504,7 +505,8 @@ impl NearbyDiscoverManager {
             device_type,
             token,
             signature_public_key,
-        );
+            chat_key,
+        )
     }
 
     pub fn logout_peer(&self, id: &str) {

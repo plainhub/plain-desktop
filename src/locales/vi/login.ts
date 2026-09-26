@@ -4,6 +4,7 @@ export default {
   logging_in: 'Đang đăng nhập',
   connect: 'Kết nối',
   login: {
+    chat_pairing_unavailable: 'Cập nhật PlainApp trên điện thoại để ghép nối trò chuyện và toàn quyền điều khiển cùng lúc.',
     to_continue: 'Chạm vào nút Chấp nhận trên điện thoại của bạn để tiếp tục.',
     failed: 'Đăng nhập thất bại, vui lòng đảm bảo điện thoại của bạn không ở chế độ ngủ.',
     rejected: 'Yêu cầu đăng nhập bị từ chối.',

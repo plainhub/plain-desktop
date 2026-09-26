@@ -27,8 +27,7 @@ pub struct MdnsActivity {
 
 // ── Remote-device login sessions (peers.token) ───────────────────────────────
 
-/// Records a successful login: creates the peer as UNPAIRED (or refreshes the
-/// existing row) with the session token.
+/// Records a successful login with its session token and optional chat key.
 #[tauri::command]
 pub async fn login_peer(
     state: tauri::State<'_, NearbyDiscoverManager>,
@@ -38,13 +37,22 @@ pub async fn login_peer(
     deviceType: DeviceType,
     token: String,
     signaturePublicKey: String,
+    chatKey: Option<String>,
 ) -> Result<(), String> {
     let mgr = state.inner().clone();
     tauri::async_runtime::spawn_blocking(move || {
-        mgr.login_peer(&id, &name, &host, deviceType, &token, &signaturePublicKey);
+        mgr.login_peer(
+            &id,
+            &name,
+            &host,
+            deviceType,
+            &token,
+            &signaturePublicKey,
+            chatKey.as_deref().unwrap_or(""),
+        )
     })
     .await
-    .map_err(|e| e.to_string())
+    .map_err(|e| e.to_string())?
 }
 
 /// Clears the login token of a peer (logout / forget device).

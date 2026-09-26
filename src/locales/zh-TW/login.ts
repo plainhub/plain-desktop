@@ -8,6 +8,7 @@ export default {
     failed: '登入失敗，請確保手機未處於睡眠模式。',
     rejected: '登入請求被拒絕。',
     invalid_password: '密碼錯誤。',
+    chat_pairing_unavailable: '請更新手機上的 PlainApp，再同時配對聊天與完全控制。',
     too_many_login_attempts: '登入嘗試次數過多，請在 1 分鐘後再試。',
   },
   device_discovery: {

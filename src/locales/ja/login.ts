@@ -4,6 +4,7 @@ export default {
   logging_in: 'ログイン中',
   connect: '接続',
   login: {
+    chat_pairing_unavailable: 'チャットとフルアクセスを一度にペアリングするには、スマホの PlainApp を更新してください。',
     to_continue: '続行するには、電話の[受け入れ]ボタンをタップしてください。',
     failed: 'ログインに失敗しました。電話がスリープモードになっていないか確認してください。',
     rejected: 'ログイン要求が拒否されました。',

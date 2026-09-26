@@ -14,6 +14,7 @@ export interface SaveLoginPeerInput {
   deviceType: DeviceType
   token: string
   signaturePublicKey: string
+  chatKey?: string
 }
 
 /** First IP from a comma-separated address list. */
@@ -48,7 +49,7 @@ export function findLoginPeer(clientId: string): LoginPeer | undefined {
 }
 
 /** Records a successful login: creates/refreshes the peer row with the
- *  token (status stays UNPAIRED unless already paired). Web mode stores the
+ *  token and optional chat key. Web mode stores the
  *  token in localStorage instead. */
 export async function saveLoginPeer(input: SaveLoginPeerInput): Promise<void> {
   if (!__IS_TAURI__) {
@@ -62,6 +63,7 @@ export async function saveLoginPeer(input: SaveLoginPeerInput): Promise<void> {
     deviceType: input.deviceType,
     token: input.token,
     signaturePublicKey: input.signaturePublicKey,
+    chatKey: input.chatKey,
   })
   await preloadLoginPeers()
 }

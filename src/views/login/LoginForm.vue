@@ -35,8 +35,10 @@
 </template>
 
 <script setup lang="ts">
+import { onBeforeUnmount } from 'vue'
 import type { InitResult } from '@/lib/api/init'
 import { useLogin } from './login'
+import type { LoginHandshakeParams } from '@/lib/api/login-handshake'
 
 type InitOptions = {
   autoSubmitWhenNoPassword?: boolean
@@ -44,8 +46,10 @@ type InitOptions = {
 
 const props = withDefaults(defineProps<{
   redirectOnSuccess?: boolean
+  peer?: LoginHandshakeParams['peer']
 }>(), {
   redirectOnSuccess: true,
+  peer: undefined,
 })
 
 const emit = defineEmits<{
@@ -59,6 +63,7 @@ const {
 } = useLogin({
   redirectOnSuccess: props.redirectOnSuccess,
   onSuccess: async () => emit('success'),
+  peer: () => props.peer,
 })
 
 async function init(result: InitResult, options: InitOptions = {}) {
@@ -72,6 +77,8 @@ function onCancel() {
   cancel()
   emit('cancel')
 }
+
+onBeforeUnmount(cancel)
 
 defineExpose({ init })
 </script>

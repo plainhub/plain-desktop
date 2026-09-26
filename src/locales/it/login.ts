@@ -4,6 +4,7 @@ export default {
   logging_in: 'Accesso in corso',
   connect: 'Connetti',
   login: {
+    chat_pairing_unavailable: 'Aggiorna PlainApp sul telefono per associare chat e controllo completo insieme.',
     to_continue: 'Tocca il pulsante Accetta sul tuo telefono per continuare.',
     failed: 'Accesso fallito, assicurati che il tuo telefono non sia in modalità sleep.',
     rejected: 'Richiesta di accesso rifiutata.',

@@ -9,6 +9,7 @@
         <p class="pairing-message">
           {{ $t('pairing_request_message', { name: request.fromName }) }}
         </p>
+        <p class="pairing-access">{{ $t('pairing_chat_only') }}</p>
         <p class="pairing-hint">
           {{ $t('pairing_request_hint') }}
         </p>
@@ -134,6 +135,14 @@ async function deny() {
   font-size: 1rem;
   line-height: 1.4;
   color: var(--md-sys-color-on-surface);
+}
+
+.pairing-access {
+  margin: 0;
+  padding: 4px 12px;
+  border-radius: 999px;
+  background: var(--md-sys-color-secondary-container);
+  color: var(--md-sys-color-on-secondary-container);
 }
 
 .pairing-hint {

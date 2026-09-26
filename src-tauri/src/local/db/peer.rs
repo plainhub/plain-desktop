@@ -1,7 +1,7 @@
 use rusqlite::params;
 
-use super::ChatDb;
 use super::utils::now_iso;
+use super::ChatDb;
 use crate::local::enums::{DeviceType, PeerStatus};
 
 /// Matches plain-app `DPeer` entity.
@@ -171,8 +171,9 @@ impl ChatDb {
     }
 
     /// Records a login session for a remote device. Creates the peer as
-    /// UNPAIRED when missing; keeps pairing state (status/key) of existing
-    /// rows and only refreshes login-relevant fields. Empty
+    /// UNPAIRED when missing without a chat key; otherwise writes PAIRED
+    /// and the chat key. A login without a chat key keeps existing pairing
+    /// state. Empty
     /// `name`/`device_type` keep the stored values; a non-empty
     /// `signature_public_key` (TOFU login key) replaces the stored one.
     #[allow(clippy::too_many_arguments)]
@@ -185,25 +186,26 @@ impl ChatDb {
         device_type: DeviceType,
         token: &str,
         signature_public_key: &str,
-    ) {
+        chat_key: &str,
+    ) -> Result<(), String> {
         let now = now_iso();
         let conn = self.0.lock().unwrap();
         let result = conn.execute(
             "INSERT INTO peers (id,name,ip,key,public_key,status,port,device_type,token,created_at,updated_at)
-             VALUES (?1,?2,?3,'',?7,'UNPAIRED',?4,?5,?6,?8,?8)
+             VALUES (?1,?2,?3,?9,?7,CASE WHEN ?9<>'' THEN 'PAIRED' ELSE 'UNPAIRED' END,?4,?5,?6,?8,?8)
              ON CONFLICT(id) DO UPDATE SET
                token=excluded.token, ip=excluded.ip, port=excluded.port,
                name=CASE WHEN excluded.name<>'' THEN excluded.name ELSE peers.name END,
                device_type=CASE WHEN excluded.device_type<>'' THEN excluded.device_type ELSE peers.device_type END,
                public_key=CASE WHEN excluded.public_key<>'' THEN excluded.public_key ELSE peers.public_key END,
+               key=CASE WHEN excluded.key<>'' THEN excluded.key ELSE peers.key END,
+               status=CASE WHEN excluded.key<>'' THEN 'PAIRED' ELSE peers.status END,
                updated_at=excluded.updated_at",
-            params![id, name, ip, port as i64, device_type, token, signature_public_key, now],
+            params![id, name, ip, port as i64, device_type, token, signature_public_key, now, chat_key],
         );
-        if let Err(e) = result {
-            log::error!("login_peer failed id={} err={e}", id);
-        } else {
-            log::info!("login_peer ok id={} name={} host={}:{}", id, name, ip, port);
-        }
+        result.map_err(|e| e.to_string())?;
+        log::info!("login_peer ok id={} name={} host={}:{}", id, name, ip, port);
+        Ok(())
     }
 
     pub fn logout_peer(&self, id: &str) {
@@ -329,7 +331,9 @@ mod tests {
             DeviceType::Phone,
             "tok1",
             "sig1",
-        );
+            "",
+        )
+        .expect("login peer");
 
         let peer = db.get_peer_by_id("p1").expect("login creates peer");
         assert_eq!(peer.status, PeerStatus::Unpaired);
@@ -338,6 +342,29 @@ mod tests {
         assert_eq!(peer.ip, "192.168.1.10");
         assert_eq!(peer.port, 8443);
         assert_eq!(db.get_login_peers().len(), 1);
+    }
+
+    #[test]
+    fn login_peer_with_chat_key_creates_paired_peer_with_token() {
+        let db =
+            ChatDb::open(&unique_tmp_dir("login-chat").join("local_chat.db")).expect("open db");
+        db.login_peer(
+            "p1",
+            "Pixel 9",
+            "192.168.1.10",
+            8443,
+            DeviceType::Phone,
+            "token",
+            "phone-signature-key",
+            "chat-key",
+        )
+        .expect("login and pair peer");
+
+        let peer = db.get_peer_by_id("p1").expect("paired peer");
+        assert_eq!(peer.status, PeerStatus::Paired);
+        assert_eq!(peer.key, "chat-key");
+        assert_eq!(peer.token, "token");
+        assert_eq!(peer.public_key, "phone-signature-key");
     }
 
     #[test]
@@ -354,7 +381,9 @@ mod tests {
             DeviceType::Phone,
             "tok2",
             "",
-        );
+            "",
+        )
+        .expect("refresh login peer");
 
         let peer = db.get_peer_by_id("p1").expect("peer still exists");
         assert_eq!(peer.status, PeerStatus::Paired);
@@ -374,7 +403,9 @@ mod tests {
             DeviceType::Phone,
             "tok1",
             "sig1",
-        );
+            "",
+        )
+        .expect("login peer");
         assert_eq!(db.get_login_peers().len(), 1);
 
         db.logout_peer("p1");
@@ -397,7 +428,9 @@ mod tests {
             DeviceType::Phone,
             "tok1",
             "sig1",
-        );
+            "",
+        )
+        .expect("login peer");
 
         db.update_peer_name("p1", "new-name");
 

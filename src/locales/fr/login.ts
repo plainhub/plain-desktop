@@ -4,6 +4,7 @@ export default {
   logging_in: 'Connexion en cours',
   connect: 'Connecter',
   login: {
+    chat_pairing_unavailable: 'Mettez à jour PlainApp sur votre téléphone pour associer la discussion et le contrôle total en une seule fois.',
     to_continue: 'Appuyez sur le bouton Accepter sur votre téléphone pour continuer.',
     failed: 'Échec de la connexion, assurez-vous que votre téléphone n\'est pas en mode veille.',
     rejected: 'La demande de connexion a été rejetée.',

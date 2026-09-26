@@ -51,7 +51,7 @@ export interface PairingDeviceInput {
 
 export function useDevicePairing() {
   async function pairDevice(device: PairingDeviceInput) {
-    pairDeviceMutate({ input: device })
+    return (await pairDeviceMutate({ input: device })) != null
   }
 
   async function cancelPairing(deviceId: string) {

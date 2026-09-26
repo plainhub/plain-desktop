@@ -11,6 +11,7 @@ export default {
     too_many_login_attempts: 'Too many login attempts. Please try again in 1 minute.',
     signature_verification_failed: 'Login signature verification failed. Please try again.',
     unauthorized: 'Incorrect password.',
+    chat_pairing_unavailable: 'Update PlainApp on your phone to pair chats and full control together.',
   },
   device_discovery: {
     qr_pair_title: 'Scan with your phone to connect',

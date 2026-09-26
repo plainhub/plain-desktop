@@ -4,6 +4,7 @@ export default {
   logging_in: 'Entrando',
   connect: 'Conectar',
   login: {
+    chat_pairing_unavailable: 'Atualize o PlainApp no seu telefone para parear o chat e o controle total de uma só vez.',
     to_continue: 'Toque no botão Aceitar em seu telefone para continuar.',
     failed: 'Falha no login, certifique-se de que seu telefone não está em modo de suspensão.',
     rejected: 'Solicitação de login foi rejeitada.',

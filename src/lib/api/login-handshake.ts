@@ -3,6 +3,7 @@ import { getWebSocketBaseUrl } from '@/lib/api/api'
 import { getAccurateAgent } from '@/lib/agent/agent'
 import { openSocket } from '@/lib/api/http'
 import { getSyncedTimestamp } from '@/lib/api/time-sync'
+import type { DeviceType } from '@/lib/status'
 
 /** Window (ms) within which a login response timestamp is considered fresh. */
 const SIGNATURE_FRESHNESS_MS = 5 * 60 * 1000
@@ -17,6 +18,14 @@ export interface LoginHandshakeParams {
   initSignaturePublicKey?: string
   /** Called when the server asks for 2FA confirmation (PENDING). */
   onPending?: () => void
+  signal?: AbortSignal
+  peer?: {
+    deviceName: string
+    port: number
+    deviceType: DeviceType
+    ips: string[]
+    signaturePublicKey: string
+  }
 }
 
 export interface LoginHandshakeResult {
@@ -25,10 +34,11 @@ export interface LoginHandshakeResult {
   token: string
   /** The server public key that actually passed verification (trusted). */
   signaturePublicKey: string
+  chatPaired: boolean
 }
 
-function buildSignatureData(r: { clientId: string; status: string; ecdhPublicKey: string; timestamp: number }): string {
-  return `${r.clientId}|${r.status}|${r.ecdhPublicKey}|${r.timestamp}`
+function buildSignatureData(r: { clientId: string; status: string; ecdhPublicKey: string; timestamp: number; chatPaired?: boolean }): string {
+  return `${r.clientId}|${r.status}|${r.ecdhPublicKey}|${r.timestamp}${r.chatPaired ? '|true' : ''}`
 }
 
 /**
@@ -36,7 +46,7 @@ function buildSignatureData(r: { clientId: string; status: string; ecdhPublicKey
  * rotation), fall back to the `/init` key. Only reject when both fail.
  */
 function verifyLoginSignature(
-  r: { clientId: string; status: string; ecdhPublicKey: string; timestamp: number; signature: string },
+  r: { clientId: string; status: string; ecdhPublicKey: string; timestamp: number; signature: string; chatPaired?: boolean },
   storedKey: string | undefined,
   initKey: string | undefined,
 ): { verified: boolean; usedKey?: string } {
@@ -62,6 +72,7 @@ function isFresh(timestamp: number): boolean {
  */
 export function performLoginHandshake(params: LoginHandshakeParams): Promise<LoginHandshakeResult> {
   const { passwordHash, clientId, onPending } = params
+  if (params.signal?.aborted) return Promise.reject('cancelled')
   const key = new Uint8Array(passwordHash.slice(0, 32).split('').map((c) => c.charCodeAt(0)))
 
   // Generate client ECDH key pair for token exchange
@@ -71,9 +82,22 @@ export function performLoginHandshake(params: LoginHandshakeParams): Promise<Log
   return new Promise<LoginHandshakeResult>((resolve, reject) => {
     const wsUrl = `${getWebSocketBaseUrl()}?cid=${clientId}&auth=1`
     const ws = openSocket(wsUrl)
+    let timeoutId: number | undefined
+    const abort = () => {
+      cleanup()
+      ws.close(3001, 'cancelled')
+      reject('cancelled')
+    }
+    params.signal?.addEventListener('abort', abort, { once: true })
+
+    const cleanup = () => {
+      params.signal?.removeEventListener('abort', abort)
+      window.clearTimeout(timeoutId)
+    }
 
     ws.onopen = async () => {
       const ua = await getAccurateAgent()
+      if (params.signal?.aborted) return
       const browserName = __IS_TAURI__ ? 'PlainApp' : ua.browser.name
       const browserVersion = __IS_TAURI__ ? '' : ua.browser.version
       const enc = chachaEncrypt(key, JSON.stringify({
@@ -84,11 +108,13 @@ export function performLoginHandshake(params: LoginHandshakeParams): Promise<Log
         osVersion: ua.os.version,
         isMobile: ua.isMobile,
         ecdhPublicKey: clientPubBase64,
+        ...(params.peer ? { peer: params.peer } : {}),
       }))
       ws.send(bitArrayToUint8Array(enc) as unknown as ArrayBuffer)
     }
 
     ws.onmessage = async (event: MessageEvent) => {
+      if (params.signal?.aborted) return
       const d = chachaDecrypt(key, new Uint8Array(await event.data.arrayBuffer()))
       const r = JSON.parse(d)
       if (r.status === 'PENDING') {
@@ -114,14 +140,16 @@ export function performLoginHandshake(params: LoginHandshakeParams): Promise<Log
       const serverPubBytes = Uint8Array.from(atob(r.ecdhPublicKey), (c) => c.charCodeAt(0))
       const token = computeECDHSharedKey(clientKeyPair.secretKey, serverPubBytes)
       ws.close()
-      resolve({ clientId: r.clientId, token, signaturePublicKey: usedKey })
+      cleanup()
+      resolve({ clientId: r.clientId, token, signaturePublicKey: usedKey, chatPaired: r.chatPaired === true })
     }
 
     ws.onclose = (event: CloseEvent) => {
+      cleanup()
       if (event.reason === 'OK') return
       reject(event.reason || 'failed')
     }
 
-    window.setTimeout(() => { if (ws.readyState !== 1) ws.close(3001, 'timeout') }, 5000)
+    timeoutId = window.setTimeout(() => { if (ws.readyState !== 1) ws.close(3001, 'timeout') }, 5000)
   })
 }

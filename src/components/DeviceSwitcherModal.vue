@@ -1,12 +1,12 @@
 <template>
   <v-modal width="480px" @close="close">
     <template #headline>
-      <button v-if="isLoginStep" class="login-back" :aria-label="$t('back')" @click="cancelLoginStep">
+      <v-icon-button v-if="isLoginStep" :aria-label="$t('back')" @click="cancelLoginStep">
         <i-material-symbols:arrow-back-rounded />
-      </button>
+      </v-icon-button>
       <span>{{
         isLoginStep
-          ? $t('log_in') + ' ' + pendingLoginDevice?.name
+          ? $t('log_in') + ' ' + loginDevice?.name
           : $t('manage_devices')
       }}</span>
     </template>
@@ -124,10 +124,9 @@
           </ul>
         </section>
       </div>
-      <div v-else class="login-panel">
-        <LoginForm
-          ref="loginFormRef"
-          :redirect-on-success="false"
+      <div v-else-if="loginDevice" class="login-panel">
+        <DiscoveredDeviceLogin
+          :device="loginDevice"
           @success="handleLoginSuccess"
           @cancel="cancelLoginStep"
         />
@@ -140,16 +139,15 @@
 </template>
 
 <script setup lang="ts">
-import { computed, nextTick, onMounted, onUnmounted, ref } from 'vue'
+import { computed, onMounted, onUnmounted, ref } from 'vue'
 import { popModal } from './modal/methods'
 import DeviceDiscoveryStatus from './DeviceDiscoveryStatus.vue'
 import MdnsFirewallFix from './MdnsFirewallFix.vue'
-import LoginForm from '@/views/login/LoginForm.vue'
+import DiscoveredDeviceLogin from '@/views/login/DiscoveredDeviceLogin.vue'
 import { useDeviceDiscovery, DiscoveryStatus, type DiscoveredDevice } from '@/hooks/use-device-discovery'
 import { loginPeers, clearLoginPeer, peerHost, type LoginPeer } from '@/lib/device/login-peers'
 import { sortByName } from '@/lib/array'
-import { clearPendingLoginDevice, setPendingLoginDevice, type PendingLoginDevice } from '@/lib/api/api'
-import { requestInit } from '@/lib/api/init'
+import type { PendingLoginDevice } from '@/lib/api/api'
 import { DeviceType } from '@/lib/status'
 import { isLocalMode } from '@/lib/device/local-mode'
 import { getDesktopClientId, getRemoteClientId, setRemoteClientId, clearRemoteClientId } from '@/lib/device/client-id'
@@ -161,9 +159,8 @@ const { devices, status, start, stop, retry, openLanPermissionSettings } = useDe
 const sessions = computed(() => sortByName(loginPeers.value, (p) => p.name))
 const currentClientId = computed(() => getRemoteClientId())
 const localMode = computed(() => isLocalMode())
-const isLoginStep = ref(false)
-const pendingLoginDevice = ref<PendingLoginDevice | null>(null)
-const loginFormRef = ref<InstanceType<typeof LoginForm> | null>(null)
+const loginDevice = ref<PendingLoginDevice | null>(null)
+const isLoginStep = computed(() => loginDevice.value !== null)
 const selfDevice = ref<SelfDevice | null>(null)
 const infoOpen = ref<Record<string, boolean>>({})
 
@@ -191,9 +188,6 @@ async function loadSelf() {
 }
 
 function close() {
-  if (isLoginStep.value) {
-    clearPendingLoginDevice()
-  }
   popModal()
 }
 
@@ -220,22 +214,11 @@ function remove(s: LoginPeer) {
 function startLogin(d: DiscoveredDevice) {
   const host = d.ips[0] ? `${d.ips[0]}:${d.port}` : ''
   if (!host) return
-  clearRemoteClientId()
-  void startLoginStep({ name: d.name, host, deviceType: d.deviceType as DeviceType })
-}
-
-async function startLoginStep(device: PendingLoginDevice) {
-  pendingLoginDevice.value = device
-  setPendingLoginDevice(device)
-  isLoginStep.value = true
-  await nextTick()
-  await loginFormRef.value?.init(await requestInit(), { autoSubmitWhenNoPassword: true })
+  loginDevice.value = { name: d.name, host, deviceType: d.deviceType as DeviceType }
 }
 
 function cancelLoginStep() {
-  clearPendingLoginDevice()
-  isLoginStep.value = false
-  pendingLoginDevice.value = null
+  loginDevice.value = null
 }
 
 function handleLoginSuccess() {
@@ -312,29 +295,6 @@ function switchToLocal() {
   flex-direction: column;
   align-items: center;
   min-height: 290px;
-}
-
-.login-back {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 32px;
-  height: 32px;
-  border: none;
-  border-radius: 999px;
-  background: transparent;
-  color: var(--md-sys-color-on-surface-variant);
-  cursor: pointer;
-
-  svg {
-    width: 20px;
-    height: 20px;
-  }
-
-  &:hover {
-    background: color-mix(in srgb, var(--md-sys-color-on-surface) 8%, transparent);
-    color: var(--md-sys-color-on-surface);
-  }
 }
 
 .login-panel :deep(form),

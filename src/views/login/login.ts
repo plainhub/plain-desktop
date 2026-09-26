@@ -10,11 +10,14 @@ import { DeviceType } from '@/lib/status'
 import { getRemoteClientId, setRemoteClientId } from '@/lib/device/client-id'
 import { tauriFetch } from '@/lib/api/tauri-fetch'
 import { performLoginHandshake } from '@/lib/api/login-handshake'
+import type { LoginHandshakeParams } from '@/lib/api/login-handshake'
+import { deriveLoginChatKey } from '@/lib/device/login-chat-key'
 import { get as prefsGet } from '@/lib/prefs'
 
 type UseLoginOptions = {
   redirectOnSuccess?: boolean
   onSuccess?: () => void | Promise<void>
+  peer?: () => LoginHandshakeParams['peer']
 }
 
 function getSafeRedirect(redirect: unknown): string {
@@ -35,6 +38,7 @@ export function useLogin(options: UseLoginOptions = {}) {
   const isSubmitting = ref(false)
   const redirectOnSuccess = options.redirectOnSuccess !== false
   let lastInitSignaturePublicKey = ''
+  let pendingLoginController: AbortController | null = null
 
   async function finishLoginSuccess() {
     if (options.onSuccess) {
@@ -77,19 +81,27 @@ export function useLogin(options: UseLoginOptions = {}) {
     passwordError.value = ''
     if (isSubmitting.value) return
     isSubmitting.value = true
+    const controller = new AbortController()
+    pendingLoginController = controller
     showError.value = false; error.value = ''
 
     const hash = sha512(password.value)
     const myClientId = prefsGet('client_id', '')
 
     try {
-      const { clientId, token, signaturePublicKey } = await performLoginHandshake({
+      const pairingPeer = options.peer?.()
+      const { clientId, token, signaturePublicKey, chatPaired } = await performLoginHandshake({
         passwordHash: hash,
         clientId: myClientId,
         storedSignaturePublicKey: findLoginPeer(getRemoteClientId())?.publicKey,
         initSignaturePublicKey: lastInitSignaturePublicKey,
         onPending: () => { showConfirm.value = true },
+        signal: controller.signal,
+        peer: pairingPeer,
       })
+
+      if (controller.signal.aborted) return
+      if (pairingPeer && !chatPaired) throw 'chat_pairing_unavailable'
 
       const current = findLoginPeer(getRemoteClientId())
       const pendingLoginDevice = getPendingLoginDevice()
@@ -104,12 +116,14 @@ export function useLogin(options: UseLoginOptions = {}) {
           token,
           signaturePublicKey,
           deviceType,
+          chatKey: chatPaired ? deriveLoginChatKey(token) : undefined,
         })
         setRemoteClientId(clientId)
         clearPendingLoginDevice()
       }
       void finishLoginSuccess()
     } catch (e) {
+      if (controller.signal.aborted) return
       showError.value = true; showConfirm.value = false
       const reason = typeof e === 'string' ? e : ''
       if (!reason) {
@@ -121,11 +135,13 @@ export function useLogin(options: UseLoginOptions = {}) {
       }
       error.value = `login.${reason ? reason : 'failed'}`
     } finally {
+      if (pendingLoginController === controller) pendingLoginController = null
       isSubmitting.value = false
     }
   }
 
   function cancel() {
+    pendingLoginController?.abort()
     showConfirm.value = false; showError.value = false; isSubmitting.value = false
   }
 
