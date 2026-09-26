@@ -87,7 +87,7 @@ interface ActivePointer {
  * mapping and caching are delegated to ViewRects, Ctrl+wheel pinch to
  * PinchSynthesizer, feedback dots to touch-indicator.
  */
-class ScreenMirrorControl {
+export class ScreenMirrorControl {
   private canvas: HTMLCanvasElement
   private overlay: HTMLElement
   private sendControlFn: (event: ScreenMirrorControlEvent) => void
