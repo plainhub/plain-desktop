@@ -1,7 +1,7 @@
 import { computed, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { storeToRefs } from 'pinia'
-import { getFileName, getFileUrl, notId, getFileExtension, getPeerProxyUrl, getFileId } from '@/lib/api/file'
+import { getFileName, getFileUrl, getFileExtension, getPeerProxyUrl, getFileId } from '@/lib/api/file'
 import type { ISource } from '@/components/lightbox/types'
 import { isVideo, isImage, isAudio, isTextFile, canOpenInBrowser, isAppFile } from '@/lib/file'
 import { useTempStore } from '@/stores/temp'
@@ -25,11 +25,16 @@ export function useChatFiles(props: { data: any; downloadInfo: any; peer: { ip: 
   const { open: openMedia } = useOpenMedia()
   const { revealFile } = useRevealFile()
 
+  // Chat file ids are client-derived: encrypt `JSON.stringify({path, name})`
+  // with the urlToken — the same payload the server's /fs decrypts.
+  function chatFileId(f: { uri: string; fileName?: string }) {
+    return getFileId(urlTokenKey.value, JSON.stringify({ path: f.uri, name: f.fileName ?? '' }))
+  }
+
   const items = computed<ISource[]>(() => {
     const files = props.data?._content?.value?.items ?? []
     const peer = props.peer
-    return (props.data?.data?.ids ?? []).map((id: string, i: number) => {
-      const f = files[i]
+    return files.map((f: any) => {
       const uri = f.uri
       const peerFileId = typeof uri === 'string' && uri.startsWith('fsid:') ? uri.slice(4) : ''
       const isGif = typeof uri === 'string' && uri.endsWith('.gif')
@@ -37,12 +42,12 @@ export function useChatFiles(props: { data: any; downloadInfo: any; peer: { ip: 
       // resize/conversion query baked in (see ChatImages.vue for details).
       const src = peer && peerFileId
         ? getPeerProxyUrl(tempStore.urlTokenKey, peer, peerFileId, isGif ? '' : '&w=1024&h=1024&cc=false')
-        : getFileUrl(id)
+        : getFileUrl(chatFileId(f))
       return {
         path: f.uri, src,
-        viewOriginImage: notId(id) || isGif,
+        viewOriginImage: isGif,
         name: getFileName(f.fileName ?? f.uri), durationMs: chatFileDurationMs(f), size: f.size,
-        fileId: id, thumbnail: f.thumbnail, extension: getFileExtension(f.uri),
+        fileId: chatFileId(f), thumbnail: f.thumbnail, extension: getFileExtension(f.uri),
         summary: f.summary || undefined, isFromChat: true,
       }
     })

@@ -9,7 +9,7 @@
 </template>
 
 <script setup lang="ts">
-import { getFileName, getFileUrl, notId, getPeerProxyUrl } from '@/lib/api/file'
+import { getFileName, getFileUrl, getPeerProxyUrl, getFileId } from '@/lib/api/file'
 import { isVideo } from '@/lib/file'
 import { computed } from 'vue'
 import type { ISource } from '@/components/lightbox/types'
@@ -62,13 +62,18 @@ function getPreview(source: ISource) {
   return `${source.src}&w=512&h=512`
 }
 
+// Chat file ids are client-derived: encrypt `JSON.stringify({path, name})`
+// with the urlToken — the same payload the server's /fs decrypts.
+function chatFileId(file: { uri: string; fileName?: string }) {
+  return getFileId(tempStore.urlTokenKey, JSON.stringify({ path: file.uri, name: file.fileName ?? '' }))
+}
+
 const sources = computed(() => {
   const data = props.data
   const files = data?._content?.value?.items ?? []
   const peer = props.peer
   const items: ISource[] = []
-  data?.data?.ids?.forEach((id: string, index: number) => {
-    const file = files[index]
+  files.forEach((file: any) => {
     const uri = file.uri
     const peerFileId = typeof uri === 'string' && uri.startsWith('fsid:') ? uri.slice(4) : ''
     const isGif = typeof uri === 'string' && uri.endsWith('.gif')
@@ -79,11 +84,11 @@ const sources = computed(() => {
     // GIFs keep the original (no resize) to preserve animation.
     const src = peer && peerFileId
       ? getPeerProxyUrl(tempStore.urlTokenKey, peer, peerFileId, isGif ? '' : '&w=1024&h=1024&cc=false')
-      : getFileUrl(id)
+      : getFileUrl(chatFileId(file))
     items.push({
       path: file.uri,
       src,
-      viewOriginImage: notId(id) || isGif,
+      viewOriginImage: isGif,
       name: file.fileName || getFileName(file.uri),
       durationMs: chatFileDurationMs(file),
       size: file.size,

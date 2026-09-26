@@ -294,20 +294,6 @@ enum ChatChannelStatus {
 	KICKED
 }
 
-"""
-Shared files payload. fileId list stays String (not the ID scalar) — matches plain-app.
-"""
-type ChatFiles {
-	ids: [String!]!
-}
-
-"""
-Shared images payload. fileId list stays String (not the ID scalar) — matches plain-app.
-"""
-type ChatImages {
-	ids: [String!]!
-}
-
 type ChatItem {
 	id: ID!
 	fromId: ID!
@@ -321,20 +307,13 @@ type ChatItem {
 	updatedAt: Instant!
 	status: ChatStatus!
 	statusData: String!
-	data: ChatItemContent
 }
-
-union ChatItemContent = ChatFiles | ChatImages | ChatText
 
 enum ChatStatus {
 	SENT
 	PARTIAL
 	FAILED
 	PENDING
-}
-
-type ChatText {
-	linkPreviewImageIds: [String!]!
 }
 
 enum DataType {
@@ -368,9 +347,8 @@ enum DbColumnType {
 }
 
 """
-`dbTableColumns` item (plain-app `DbTableColumn`). The KV store has no
-declared types or defaults, so `dataType` is always UNKNOWN and
-`defaultValue` always null here.
+`dbTableColumns` item (plain-app `DbTableColumn`), straight from
+`PRAGMA table_info`.
 """
 type DbTableColumn {
 	name: String!
@@ -385,7 +363,8 @@ type DbTableColumn {
 """
 type DbTableInfo {
 	"""
-	Row identity field; every NAS table identifies rows by `key`.
+	Row identity field — the table's declared primary key column
+	(first column of a composite key).
 	"""
 	idKey: String!
 }
@@ -745,9 +724,9 @@ type MutationRoot {
 	"""
 	deleteDataStoreEntry(key: String!): Boolean!
 	"""
-	Delete table rows by full key (plain-app `deleteDbTableRows`).
-	Rows of a NAS table are KV entries; `ids` are full keys and must
-	belong to `table`.
+	Delete rows of one table by their primary key values (plain-app
+	`deleteDbTableRows`; on a composite-key table every row sharing
+	the first key column's value goes).
 	"""
 	deleteDbTableRows(table: String!, ids: [String!]!): Boolean!
 	"""
@@ -1310,7 +1289,9 @@ type QueryRoot {
 	"""
 	deviceStatus: DeviceStatus!
 	"""
-	Absolute path of the on-disk row store (the fjall directory).
+	Paths of the two SQLite stores behind the database page
+	(`chat.db` + `library.db`), comma-joined — plain-app/desktop serve
+	one db file, NAS has two.
 	"""
 	dbPath: String!
 	"""
@@ -1334,7 +1315,8 @@ type QueryRoot {
 	"""
 	appLogs(offset: Int!, limit: Int!, query: String!): [String!]!
 	"""
-	Tables (key namespaces) of the KV store, UI order.
+	Tables of the two SQLite stores (`chat.<table>` / `library.<table>`),
+	sorted.
 	"""
 	dbTables: [String!]!
 	"""
@@ -1342,16 +1324,17 @@ type QueryRoot {
 	"""
 	dbTableRowCount(table: String!): Long!
 	"""
-	One key-ordered page of a table's rows, as JSON strings
-	`{"key": …, "value": …}`.
+	One page of a table's rows (`SELECT *`), each a JSON string
+	(numbers stay numbers, blobs render as hex).
 	"""
 	dbTableRows(table: String!, offset: Int!, limit: Int!): [String!]!
 	"""
-	Row identity field of a table (`key` on a NAS).
+	Row identity field of a table (its declared primary key column;
+	composite keys use the first key column).
 	"""
 	dbTableInfo(table: String!): DbTableInfo!
 	"""
-	Column metadata of a table's rows (fixed `key`/`value` KV shape).
+	Column metadata of a table (`PRAGMA table_info`).
 	"""
 	dbTableColumns(table: String!): [DbTableColumn!]!
 	"""

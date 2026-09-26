@@ -190,14 +190,6 @@ type ChatChannelMember {
 	status: MemberStatus!
 }
 
-type ChatFiles {
-	ids: [String!]!
-}
-
-type ChatImages {
-	ids: [String!]!
-}
-
 type ChatItem {
 	id: String!
 	fromId: String!
@@ -208,23 +200,13 @@ type ChatItem {
 	content: String!
 	status: ChatStatus!
 	statusData: String!
-	data: ChatItemData
 }
-
-"""
-Union for `ChatItem.data` — always `None` in local mode but schema must match the fragment.
-"""
-union ChatItemData = ChatImages | ChatFiles | ChatText
 
 enum ChatStatus {
 	SENT
 	FAILED
 	PARTIAL
 	PENDING
-}
-
-type ChatText {
-	linkPreviewImageIds: [String!]!
 }
 
 """

@@ -33,19 +33,23 @@
 
 <script setup lang="ts">
 import { computed } from 'vue'
-import { getFileUrl } from '@/lib/api/file'
+import { getFileId, getFileUrl } from '@/lib/api/file'
 import { openUrl } from '@/lib/browser'
+import { useTempStore } from '@/stores/temp'
 
 const props = defineProps({
   data: { type: Object, required: true },
 })
 
+const tempStore = useTempStore()
+
 const linkPreviews = computed(() => {
   const data = props.data
   const previews = data?._content?.value?.linkPreviews ?? []
-  const ids = data?.data?.linkPreviewImageIds ?? []
-    return previews.map((preview: any, index: number) => {
-    const fileId = ids[index] || ''
+  return previews.map((preview: any) => {
+    // Link-preview image ids are client-derived: encrypt the bare
+    // imageLocalPath with the urlToken (no JSON wrapping — /fs parity).
+    const fileId = preview.imageLocalPath ? getFileId(tempStore.urlTokenKey, preview.imageLocalPath) : ''
     return {
       ...preview,
       _fileId: fileId

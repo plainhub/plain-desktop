@@ -21,7 +21,6 @@ function makeItem(value: Record<string, any>) {
     content: JSON.stringify({ type: MessageType.SHARE, value }),
     _content: { type: MessageType.SHARE, value },
     __typename: 'ChatItem',
-    data: { ids: [] },
   }
 }
 

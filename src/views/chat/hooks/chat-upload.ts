@@ -121,6 +121,12 @@ export function useChatUpload(chatId: ComputedRef<string>, channelId: ComputedRe
       throw error
     }
 
+    // Optimistic local preview: images have no generated thumbnail, so point
+    // one at the blob URL (rendered before the /fs id resolves server-side;
+    // never sent — the wire content is rebuilt from upload hashes).
+    valueItems.forEach((item: any, index: number) => {
+      if (!item.thumbnail) item.thumbnail = objectUrls[index]
+    })
     const _content = { type: contentType, value: { items: valueItems } }
     const item: IChatItem = {
       id: 'new_' + shortUUID(),
@@ -131,7 +137,6 @@ export function useChatUpload(chatId: ComputedRef<string>, channelId: ComputedRe
       content: JSON.stringify(_content),
       _content,
       __typename: 'ChatItem',
-      data: { ids: objectUrls },
     }
 
     messageObjectUrls.set(item.id, objectUrls)

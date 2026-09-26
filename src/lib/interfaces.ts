@@ -315,7 +315,6 @@ export interface IChatItem extends IData {
   content: string
   _content: any
   __typename: string
-  data: any
   status?: ChatStatus
   statusData?: string
 }

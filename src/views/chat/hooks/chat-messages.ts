@@ -94,7 +94,6 @@ export function useChatMessages(chatId: ComputedRef<string>, channelId: Computed
       content: JSON.stringify({ type: MessageType.TEXT, value: { text: chatText.value } }),
       _content: { type: MessageType.TEXT, value: { text: chatText.value } },
       __typename: 'ChatItem',
-      data: { ids: [] },
       status: ChatStatus.PENDING,
     }
     chatItems.value = [...chatItems.value, tempItem]

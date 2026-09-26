@@ -113,13 +113,6 @@ export interface Fragment_ChatItemFragment {
   content: string
   status: 'SENT' | 'FAILED' | 'PARTIAL' | 'PENDING'
   statusData: string
-  data?: {
-    ids: Array<string>
-  } | {
-    ids: Array<string>
-  } | {
-    linkPreviewImageIds: Array<string>
-  }
 }
 
 export interface Fragment_ClipboardItemFragment {

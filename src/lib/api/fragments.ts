@@ -50,17 +50,6 @@ export const chatItemFragment = `
     content
     status
     statusData
-    data {
-      ... on ChatImages {
-        ids
-      }
-      ... on ChatFiles {
-        ids
-      }
-      ... on ChatText {
-        linkPreviewImageIds
-      }
-    }
   }
 `
 
