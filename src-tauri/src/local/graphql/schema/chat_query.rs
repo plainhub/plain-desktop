@@ -1,69 +1,13 @@
 use async_graphql::{Context, Object};
-use serde_json::Value;
-use std::collections::HashMap;
 use std::sync::Arc;
 
 use super::super::context::AppCtx;
 use super::types::{AppFile, ChatChannel, ChatItem, Peer};
-use plain_rs::mime::mime_extension;
+use plain_rs::chat::app_file_store::{display_name, file_name_map};
+use plain_rs::chat::enums::ChannelStatus;
 
 #[derive(Default)]
 pub struct ChatQuery;
-
-fn build_app_file_name_map(chats: &[crate::local::db::DChat]) -> HashMap<String, String> {
-    let mut map = HashMap::new();
-    let mut sorted: Vec<&crate::local::db::DChat> = chats.iter().collect();
-    sorted.sort_by(|a, b| b.created_at.cmp(&a.created_at));
-    for chat in sorted {
-        let Ok(v) = serde_json::from_str::<Value>(&chat.content) else {
-            continue;
-        };
-        let Some(items) = v
-            .get("value")
-            .and_then(|vv| vv.get("items"))
-            .and_then(|i| i.as_array())
-        else {
-            continue;
-        };
-        for item in items {
-            let (Some(uri), Some(name)) = (
-                item.get("uri").and_then(|u| u.as_str()),
-                item.get("fileName").and_then(|n| n.as_str()),
-            ) else {
-                continue;
-            };
-            if !uri.starts_with("fid:") || name.is_empty() {
-                continue;
-            }
-            let hash = uri.strip_prefix("fid:").unwrap_or(uri);
-            let key = hash.split('.').next().unwrap_or(hash);
-            map.entry(key.to_string())
-                .or_insert_with(|| name.to_string());
-        }
-    }
-    map
-}
-
-fn resolve_display_name(
-    file: &crate::local::db::DAppFile,
-    name_map: &HashMap<String, String>,
-) -> String {
-    let from_chat = name_map
-        .get(&file.id)
-        .cloned()
-        .unwrap_or_default()
-        .trim()
-        .to_string();
-    if !from_chat.is_empty() {
-        return from_chat;
-    }
-    let ext = mime_extension(&file.mime_type);
-    if ext == "bin" {
-        "file".to_string()
-    } else {
-        format!("file.{ext}")
-    }
-}
 
 #[Object]
 impl ChatQuery {
@@ -90,7 +34,7 @@ impl ChatQuery {
 
     async fn chat_channels(&self, ctx: &Context<'_>) -> Vec<ChatChannel> {
         let c = ctx.data_unchecked::<Arc<AppCtx>>();
-        c.db.get_channels(crate::local::enums::ChannelStatus::Joined)
+        c.db.get_channels(ChannelStatus::Joined)
             .into_iter()
             .map(ChatChannel::from)
             .collect()
@@ -124,12 +68,12 @@ impl ChatQuery {
     ) -> Vec<AppFile> {
         let c = ctx.data_unchecked::<Arc<AppCtx>>();
         let files = c.db.get_app_file_page(limit, offset);
-        let name_map = build_app_file_name_map(&c.db.get_all_chats());
+        let name_map = file_name_map(&c.db.get_all_chats());
         let text = query.trim();
         files
             .into_iter()
             .map(|f| {
-                let display = resolve_display_name(&f, &name_map);
+                let display = display_name(&f, &name_map);
                 AppFile::from_dappfile(f, display)
             })
             .filter(|f| text.is_empty() || f.file_name.contains(text))
@@ -142,12 +86,11 @@ impl ChatQuery {
         if text.is_empty() {
             return c.db.count_app_files();
         }
-        let name_map = build_app_file_name_map(&c.db.get_all_chats());
-        c.db
-            .get_all_app_files()
+        let name_map = file_name_map(&c.db.get_all_chats());
+        c.db.get_all_app_files()
             .into_iter()
             .filter(|f| {
-                let display = resolve_display_name(f, &name_map);
+                let display = display_name(f, &name_map);
                 display.contains(text)
             })
             .count() as i32

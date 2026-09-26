@@ -84,6 +84,9 @@ fn merge_jobs_prune_keeps_in_flight_merges() {
     assert!(guard.len() > MERGE_JOBS_CAP);
     guard.retain(|_, state| matches!(state, MergeJobState::Merging));
     assert_eq!(guard.len(), 1);
-    assert!(matches!(guard.get("merging-1"), Some(MergeJobState::Merging)));
+    assert!(matches!(
+        guard.get("merging-1"),
+        Some(MergeJobState::Merging)
+    ));
     guard.clear();
 }

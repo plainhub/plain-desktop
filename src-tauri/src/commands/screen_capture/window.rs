@@ -27,9 +27,7 @@ pub struct TauriCaptureWindowPort<R: Runtime> {
 }
 
 #[cfg(target_os = "macos")]
-pub(crate) fn overlay_native_window_ids<R: tauri::Runtime>(
-    app: &tauri::AppHandle<R>,
-) -> Vec<u64> {
+pub(crate) fn overlay_native_window_ids<R: tauri::Runtime>(app: &tauri::AppHandle<R>) -> Vec<u64> {
     use objc2_app_kit::NSWindow;
 
     app.webview_windows()
@@ -44,9 +42,7 @@ pub(crate) fn overlay_native_window_ids<R: tauri::Runtime>(
 }
 
 #[cfg(not(target_os = "macos"))]
-pub(crate) fn overlay_native_window_ids<R: tauri::Runtime>(
-    _app: &tauri::AppHandle<R>,
-) -> Vec<u64> {
+pub(crate) fn overlay_native_window_ids<R: tauri::Runtime>(_app: &tauri::AppHandle<R>) -> Vec<u64> {
     Vec::new()
 }
 

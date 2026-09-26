@@ -1,7 +1,4 @@
-pub mod app_file_store;
-pub mod channel;
-pub mod chat_cacher;
-pub mod chat_handler;
+pub mod chat;
 pub mod db;
 pub mod dlna;
 pub mod download;

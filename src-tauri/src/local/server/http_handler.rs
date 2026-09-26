@@ -259,7 +259,7 @@ pub(super) async fn handle<R, W>(
                 return;
             }
             let text = String::from_utf8_lossy(&body).to_string();
-            let known = ctx.pairing_manager.handle_nearby_post(&text, remote_ip);
+            let known = ctx.chat.pairing.handle_nearby_post(&text, remote_ip);
             if known {
                 respond(&mut wr, 200, "OK", b"1", "text/plain").await;
             } else {

@@ -15,7 +15,7 @@ use async_graphql::{Context, InputObject, Object, Result as GqlResult};
 use std::sync::Arc;
 
 use super::super::context::AppCtx;
-use crate::local::pairing::protocol::PairingRequest;
+use plain_rs::chat::pairing::protocol::PairingRequest;
 
 /// Initiate pairing with a discovered LAN device. Mirrors plain-app's
 /// `PairingDeviceInput` (see `app/.../web/models/Pairing.kt`).
@@ -93,7 +93,7 @@ impl PairingMutation {
         // rejected by the network layer, surfacing as a `PAIRING_FAILED`
         // event.
         let target_ip = crate::commands::discover::discover_get_best_ip(&input.ips);
-        c.pairing_manager.start_pairing(
+        c.chat.pairing.start_pairing(
             &input.id,
             &input.name,
             &target_ip,
@@ -108,7 +108,7 @@ impl PairingMutation {
     /// `WS_PAIRING_CANCELLED`.
     async fn cancel_pairing(&self, ctx: &Context<'_>, device_id: String) -> GqlResult<bool> {
         let c = ctx.data_unchecked::<Arc<AppCtx>>();
-        c.pairing_manager.cancel_pairing(&device_id);
+        c.chat.pairing.cancel_pairing(&device_id);
         Ok(true)
     }
 
@@ -136,7 +136,7 @@ impl PairingMutation {
             aware_supported: input.aware_supported,
             from_ip: input.from_ip,
         };
-        c.pairing_manager.respond_to_pairing(
+        c.chat.pairing.respond_to_pairing(
             req,
             &sender_ip,
             accepted,

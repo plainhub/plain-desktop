@@ -126,7 +126,11 @@ impl DbQuery {
         })
     }
 
-    async fn db_table_info(&self, ctx: &Context<'_>, table: String) -> Result<DbTableInfo, async_graphql::Error> {
+    async fn db_table_info(
+        &self,
+        ctx: &Context<'_>,
+        table: String,
+    ) -> Result<DbTableInfo, async_graphql::Error> {
         if !is_safe_identifier(&table) {
             return Err(async_graphql::Error::new("invalid table name"));
         }
@@ -141,8 +145,7 @@ impl DbQuery {
             return vec![];
         }
         let c = ctx.data_unchecked::<Arc<AppCtx>>();
-        c.db
-            .table_columns(&table)
+        c.db.table_columns(&table)
             .into_iter()
             .map(|col| DbTableColumn {
                 name: col.name,

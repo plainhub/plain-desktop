@@ -3,7 +3,7 @@
 //! Defines a minimal, type-safe surface (a stub Query + the two mutations
 //! the peer protocol actually uses) and builds it once at server start.
 //! Per-request state is carried in `PeerCtx` (see `context.rs`); the
-//! actual mutation bodies live in [`crate::local::chat_handler`] (the same
+//! actual mutation bodies live on the shared chat service (the same
 //! chat service layer the local GraphQL mutations use) — the resolvers here
 //! are thin and only forward the authenticated arguments.
 //!
@@ -13,7 +13,6 @@
 use async_graphql::{Context, EmptySubscription, Object, Schema};
 
 use super::context::PeerCtx;
-use crate::local::chat_handler;
 use crate::local::enums::ChannelSystemMessageType;
 use crate::local::graphql::schema::types::ChatItem;
 
@@ -37,7 +36,13 @@ impl PeerMutation {
     /// Wire format: `mutation CreateChatItem($content: String!) { createChatItem(content: $content) { ... } }`
     async fn create_chat_item(&self, ctx: &Context<'_>, content: String) -> ChatItem {
         let c = ctx.data_unchecked::<PeerCtx>();
-        chat_handler::receive_peer_chat(&c.app, &c.peer.id, &c.channel_id, &content)
+        ChatItem::with_data(
+            c.app
+                .chat
+                .service
+                .receive_peer_chat(&c.peer.id, &c.channel_id, &content),
+            &c.app.token,
+        )
     }
 
     /// Receive a channel system message from an authenticated peer.
@@ -50,19 +55,10 @@ impl PeerMutation {
         payload: String,
     ) -> bool {
         let c = ctx.data_unchecked::<PeerCtx>();
-        let kp_bytes = plain_rs::base64_decode(&c.app.identity.ed25519_keypair);
-        chat_handler::receive_peer_channel_system_message(
-            &c.app.db,
-            &c.client_id,
-            &c.app.identity.device_name,
-            &c.peer.id,
-            r#type,
-            &payload,
-            &c.app.event_tx,
-            &c.app.peer_key_cache,
-            &c.app.channel_key_cache,
-            &kp_bytes,
-        )
+        c.app
+            .chat
+            .service
+            .receive_peer_channel_system_message(&c.peer.id, r#type.into(), &payload)
     }
 
     /// Ask the peer to start its Wi-Fi Aware service (mirrors plain-app's

@@ -309,7 +309,8 @@ mod backend_tests {
             .expect_err("the cursor is outside the stale snapshot");
         assert_eq!(first.code, CaptureErrorCode::NoMonitor);
 
-        let second = capture_frame_at_cursor(&backend, "second", &[]).expect("fresh snapshot captures");
+        let second =
+            capture_frame_at_cursor(&backend, "second", &[]).expect("fresh snapshot captures");
         assert_eq!(second.descriptor().monitor.id, "current");
     }
 

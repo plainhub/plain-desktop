@@ -17,8 +17,7 @@ fn sdl_snapshot_matches_committed_artifact() {
     let committed = std::fs::read_to_string(sdl_path())
         .unwrap_or_else(|e| panic!("committed SDL artifact missing: {e}"));
     assert_eq!(
-        sdl,
-        committed,
+        sdl, committed,
         "schema drifted from src/lib/api/graphql/local-schema.graphql — \
          regenerate with: cargo test --manifest-path src-tauri/Cargo.toml export_sdl -- --ignored"
     );

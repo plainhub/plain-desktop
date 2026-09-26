@@ -330,11 +330,15 @@ impl From<DChat> for ChatItem {
             id: c.id,
             from_id: c.from_id,
             to_id: c.to_id,
-            channel_id: if c.channel_id.is_empty() { None } else { Some(c.channel_id) },
+            channel_id: if c.channel_id.is_empty() {
+                None
+            } else {
+                Some(c.channel_id)
+            },
             created_at: c.created_at,
             updated_at: c.updated_at,
             content: c.content,
-            status: c.status,
+            status: c.status.into(),
             status_data: c.status_data,
             data: None,
         }
@@ -396,7 +400,9 @@ pub(crate) fn chat_item_data_from_content(content: &str, token: &str) -> Option<
                 .filter(|s| !s.is_empty())
                 .map(|p| make_file_id(p, token))
                 .collect();
-            Some(ChatItemData::ChatText(ChatText { link_preview_image_ids: ids }))
+            Some(ChatItemData::ChatText(ChatText {
+                link_preview_image_ids: ids,
+            }))
         }
         _ => None,
     }
@@ -441,11 +447,11 @@ pub struct ChatChannel {
 
 impl From<DChannel> for ChatChannel {
     fn from(ch: DChannel) -> Self {
-        let members = crate::local::channel::messages::decode_members(&ch.members)
+        let members = plain_rs::chat::channel::messages::decode_members(&ch.members)
             .into_iter()
             .map(|m| ChatChannelMember {
                 peer_id: m.peer_id,
-                status: m.status,
+                status: m.status.into(),
             })
             .collect();
         Self {
@@ -454,7 +460,7 @@ impl From<DChannel> for ChatChannel {
             owner_id: ch.owner_id,
             members,
             version: ch.version,
-            status: ch.status,
+            status: ch.status.into(),
             created_at: ch.created_at,
             updated_at: ch.updated_at,
         }
@@ -488,10 +494,10 @@ impl Peer {
             id: p.id,
             name: p.name,
             ip: p.ip,
-            status: p.status,
+            status: p.status.into(),
             online,
             port: p.port as i32,
-            device_type: p.device_type,
+            device_type: p.device_type.into(),
             token: p.token,
             public_key: p.public_key,
             created_at: p.created_at,

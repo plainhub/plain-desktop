@@ -21,8 +21,8 @@ use serde_json::{Value, json};
 
 use plain_rs::utils::image_dimensions;
 
-use crate::local::app_file_store::import_bytes;
 use crate::local::db::ChatDb;
+use plain_rs::chat::app_file_store::import_bytes;
 
 /// Maximum HTML response body we will parse.
 const MAX_RESPONSE_SIZE: usize = 10 * 1024 * 1024; // 10MB

@@ -1,7 +1,11 @@
+//! Desktop-local bookmark store, kept in the same `local_chat.db` file as
+//! the shared chat tables. Free functions over the shared [`ChatDb`]
+//! handle (the tables are created by [`super::ensure_bookmark_tables`]).
+
+use plain_rs::chat::db::ChatDb;
 use rusqlite::params;
 
-use super::ChatDb;
-use super::utils::{now_iso, short_id};
+use super::{now_iso, short_id};
 
 #[derive(Clone, Debug)]
 pub struct DBookmark {
@@ -88,13 +92,13 @@ fn row_to_bookmark_group(row: &rusqlite::Row<'_>) -> rusqlite::Result<DBookmarkG
     })
 }
 
-impl ChatDb {
-    pub fn get_bookmarks(&self) -> Vec<DBookmark> {
-        let conn = self.0.lock().unwrap();
-        let mut stmt = match conn.prepare(
-            "SELECT id,url,title,favicon_path,group_id,pinned,click_count,last_clicked_at,sort_order,created_at,updated_at \
-             FROM bookmarks ORDER BY sort_order ASC, created_at ASC",
-        ) {
+const BOOKMARK_COLUMNS: &str = "id,url,title,favicon_path,group_id,pinned,click_count,last_clicked_at,sort_order,created_at,updated_at";
+
+pub fn get_bookmarks(db: &ChatDb) -> Vec<DBookmark> {
+    db.with_conn(|conn| {
+        let mut stmt = match conn.prepare(&format!(
+            "SELECT {BOOKMARK_COLUMNS} FROM bookmarks ORDER BY sort_order ASC, created_at ASC"
+        )) {
             Ok(s) => s,
             Err(_) => return vec![],
         };
@@ -102,25 +106,25 @@ impl ChatDb {
             .ok()
             .map(|iter| iter.filter_map(|r| r.ok()).collect())
             .unwrap_or_default()
-    }
+    })
+}
 
-    pub fn get_bookmark_by_id(&self, id: &str) -> Option<DBookmark> {
-        let conn = self.0.lock().unwrap();
+pub fn get_bookmark_by_id(db: &ChatDb, id: &str) -> Option<DBookmark> {
+    db.with_conn(|conn| {
         conn.query_row(
-            "SELECT id,url,title,favicon_path,group_id,pinned,click_count,last_clicked_at,sort_order,created_at,updated_at \
-             FROM bookmarks WHERE id=?",
+            &format!("SELECT {BOOKMARK_COLUMNS} FROM bookmarks WHERE id=?"),
             params![id],
             row_to_bookmark,
         )
         .ok()
-    }
+    })
+}
 
-    pub fn get_bookmarks_by_group_id(&self, group_id: &str) -> Vec<DBookmark> {
-        let conn = self.0.lock().unwrap();
-        let mut stmt = match conn.prepare(
-            "SELECT id,url,title,favicon_path,group_id,pinned,click_count,last_clicked_at,sort_order,created_at,updated_at \
-             FROM bookmarks WHERE group_id=? ORDER BY sort_order ASC, created_at ASC",
-        ) {
+pub fn get_bookmarks_by_group_id(db: &ChatDb, group_id: &str) -> Vec<DBookmark> {
+    db.with_conn(|conn| {
+        let mut stmt = match conn.prepare(&format!(
+            "SELECT {BOOKMARK_COLUMNS} FROM bookmarks WHERE group_id=? ORDER BY sort_order ASC, created_at ASC"
+        )) {
             Ok(s) => s,
             Err(_) => return vec![],
         };
@@ -128,10 +132,11 @@ impl ChatDb {
             .ok()
             .map(|iter| iter.filter_map(|r| r.ok()).collect())
             .unwrap_or_default()
-    }
+    })
+}
 
-    pub fn insert_bookmark(&self, bookmark: &DBookmark) {
-        let conn = self.0.lock().unwrap();
+pub fn insert_bookmark(db: &ChatDb, bookmark: &DBookmark) {
+    db.with_conn(|conn| {
         let _ = conn.execute(
             "INSERT INTO bookmarks (id,url,title,favicon_path,group_id,pinned,click_count,last_clicked_at,sort_order,created_at,updated_at) \
              VALUES (?1,?2,?3,?4,?5,?6,?7,?8,?9,?10,?11)",
@@ -149,10 +154,11 @@ impl ChatDb {
                 bookmark.updated_at
             ],
         );
-    }
+    })
+}
 
-    pub fn update_bookmark(&self, bookmark: &DBookmark) {
-        let conn = self.0.lock().unwrap();
+pub fn update_bookmark(db: &ChatDb, bookmark: &DBookmark) {
+    db.with_conn(|conn| {
         let _ = conn.execute(
             "UPDATE bookmarks SET url=?1,title=?2,favicon_path=?3,group_id=?4,pinned=?5,click_count=?6,last_clicked_at=?7,sort_order=?8,updated_at=?9 WHERE id=?10",
             params![
@@ -168,13 +174,14 @@ impl ChatDb {
                 bookmark.id
             ],
         );
-    }
+    })
+}
 
-    pub fn delete_bookmarks(&self, ids: &[String]) -> i32 {
-        if ids.is_empty() {
-            return 0;
-        }
-        let conn = self.0.lock().unwrap();
+pub fn delete_bookmarks(db: &ChatDb, ids: &[String]) -> i32 {
+    if ids.is_empty() {
+        return 0;
+    }
+    db.with_conn(|conn| {
         let placeholders = (1..=ids.len())
             .map(|i| format!("?{i}"))
             .collect::<Vec<_>>()
@@ -182,10 +189,11 @@ impl ChatDb {
         let sql = format!("DELETE FROM bookmarks WHERE id IN ({placeholders})");
         conn.execute(&sql, rusqlite::params_from_iter(ids.iter()))
             .unwrap_or(0) as i32
-    }
+    })
+}
 
-    pub fn get_bookmark_groups(&self) -> Vec<DBookmarkGroup> {
-        let conn = self.0.lock().unwrap();
+pub fn get_bookmark_groups(db: &ChatDb) -> Vec<DBookmarkGroup> {
+    db.with_conn(|conn| {
         let mut stmt = match conn.prepare(
             "SELECT id,name,collapsed,sort_order,created_at,updated_at FROM bookmark_groups ORDER BY sort_order ASC, name ASC",
         ) {
@@ -196,20 +204,22 @@ impl ChatDb {
             .ok()
             .map(|iter| iter.filter_map(|r| r.ok()).collect())
             .unwrap_or_default()
-    }
+    })
+}
 
-    pub fn get_bookmark_group_by_id(&self, id: &str) -> Option<DBookmarkGroup> {
-        let conn = self.0.lock().unwrap();
+pub fn get_bookmark_group_by_id(db: &ChatDb, id: &str) -> Option<DBookmarkGroup> {
+    db.with_conn(|conn| {
         conn.query_row(
             "SELECT id,name,collapsed,sort_order,created_at,updated_at FROM bookmark_groups WHERE id=?",
             params![id],
             row_to_bookmark_group,
         )
         .ok()
-    }
+    })
+}
 
-    pub fn insert_bookmark_group(&self, group: &DBookmarkGroup) {
-        let conn = self.0.lock().unwrap();
+pub fn insert_bookmark_group(db: &ChatDb, group: &DBookmarkGroup) {
+    db.with_conn(|conn| {
         let _ = conn.execute(
             "INSERT INTO bookmark_groups (id,name,collapsed,sort_order,created_at,updated_at) VALUES (?1,?2,?3,?4,?5,?6)",
             params![
@@ -221,10 +231,11 @@ impl ChatDb {
                 group.updated_at
             ],
         );
-    }
+    })
+}
 
-    pub fn update_bookmark_group(&self, group: &DBookmarkGroup) {
-        let conn = self.0.lock().unwrap();
+pub fn update_bookmark_group(db: &ChatDb, group: &DBookmarkGroup) {
+    db.with_conn(|conn| {
         let _ = conn.execute(
             "UPDATE bookmark_groups SET name=?1,collapsed=?2,sort_order=?3,updated_at=?4 WHERE id=?5",
             params![
@@ -235,15 +246,16 @@ impl ChatDb {
                 group.id
             ],
         );
-    }
+    })
+}
 
-    pub fn delete_bookmark_group(&self, id: &str) {
-        let now = now_iso();
-        let conn = self.0.lock().unwrap();
+pub fn delete_bookmark_group(db: &ChatDb, id: &str) {
+    let now = now_iso();
+    db.with_conn(|conn| {
         let _ = conn.execute("DELETE FROM bookmark_groups WHERE id=?", params![id]);
         let _ = conn.execute(
             "UPDATE bookmarks SET group_id='', updated_at=?1 WHERE group_id=?2",
             params![now, id],
         );
-    }
+    })
 }

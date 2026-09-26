@@ -3,7 +3,9 @@ use serde_json::json;
 use std::sync::Arc;
 
 use super::super::context::{AppCtx, WS_DEVICE_NAME_UPDATED, WsEvent};
-use super::types::{App, AudioPlayback, Capability, DeviceInfo, DevicePlatform, DeviceStatus, Sim, Temperature};
+use super::types::{
+    App, AudioPlayback, Capability, DeviceInfo, DevicePlatform, DeviceStatus, Sim, Temperature,
+};
 use crate::local::enums::{AppChannelType, DeviceType};
 
 #[cfg(test)]
@@ -36,7 +38,11 @@ impl AppQuery {
             // Notifications: the resident peer layer aggregates every logged-in
             // phone's notification list (local_peer_data), so this server
             // genuinely provides it in local mode.
-            capabilities: vec![Capability::DocPreview, Capability::ImageEditor, Capability::Notifications],
+            capabilities: vec![
+                Capability::DocPreview,
+                Capability::ImageEditor,
+                Capability::Notifications,
+            ],
             build_channel: AppChannelType::Github,
             permissions: vec![],
             downloads_dir: String::new(),
@@ -122,7 +128,10 @@ impl AppMutation {
         let c = ctx.data_unchecked::<Arc<AppCtx>>();
         // Updates the shared name AND republishes the mDNS service (goodbye
         // for the old instance) so peers see the new name right away.
+        // The chat identity is shared with the pairing manager, so channel /
+        // pairing wire traffic picks the rename up too.
         c.discover_manager.apply_device_rename(&name);
+        c.chat.identity.set_device_name(&name);
         crate::prefs::set_device_name(&c.handle, &name);
         let _ = c.event_tx.send(WsEvent {
             event_type: WS_DEVICE_NAME_UPDATED,

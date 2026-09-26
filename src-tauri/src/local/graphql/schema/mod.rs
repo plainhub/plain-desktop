@@ -23,7 +23,6 @@ mod util;
 #[path = "../../../../tests/unit/local/graphql/schema/sdl.rs"]
 mod sdl_tests;
 
-
 use async_graphql::{EmptySubscription, MergedObject, Schema};
 
 use app::{AppMutation, AppQuery};

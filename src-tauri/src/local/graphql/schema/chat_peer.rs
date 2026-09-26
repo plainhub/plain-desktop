@@ -9,8 +9,7 @@
 use async_graphql::{Context, Object};
 use std::sync::Arc;
 
-use super::super::context::{AppCtx, WS_PEER_STATUS_UPDATED, WsEvent, refresh_peer_key_cache};
-use crate::local::enums::PeerStatus;
+use super::super::context::AppCtx;
 
 #[derive(Default)]
 pub struct ChatPeerMutation;
@@ -30,27 +29,10 @@ impl ChatPeerMutation {
     /// The frontend's `PeerManager.deletePeer` re-fetches the peers /
     /// latest-chats lists on success; no WS event is required.
     async fn delete_peer(&self, ctx: &Context<'_>, id: String) -> bool {
-        let c = ctx.data_unchecked::<Arc<AppCtx>>();
-        let Some(_peer) = c.db.get_peer_by_id(&id) else {
-            return false;
-        };
-
-        c.db.delete_chats_by_peer(&id);
-
-        if c.db.any_channel_has_member(&id) {
-            c.db.update_peer_status_and_key(&id, PeerStatus::Channel, "");
-        } else {
-            c.db.delete_peer(&id);
-        }
-
-        refresh_peer_key_cache(&c.db, &c.peer_key_cache);
-
-        let _ = c.event_tx.send(WsEvent {
-            event_type: WS_PEER_STATUS_UPDATED,
-            payload: serde_json::json!({ "id": id, "online": false }).to_string(),
-        });
-
-        true
+        ctx.data_unchecked::<Arc<AppCtx>>()
+            .chat
+            .service
+            .delete_peer(&id)
     }
 
     /// Mirrors plain-app `PeerManager.markUnpaired(peerId)` (invoked
@@ -60,19 +42,9 @@ impl ChatPeerMutation {
     ///
     /// Returns `false` if the peer id is unknown, `true` otherwise.
     async fn unpair_peer(&self, ctx: &Context<'_>, id: String) -> bool {
-        let c = ctx.data_unchecked::<Arc<AppCtx>>();
-        let Some(_peer) = c.db.get_peer_by_id(&id) else {
-            return false;
-        };
-
-        c.db.update_peer_status(&id, PeerStatus::Unpaired);
-        refresh_peer_key_cache(&c.db, &c.peer_key_cache);
-
-        let _ = c.event_tx.send(WsEvent {
-            event_type: WS_PEER_STATUS_UPDATED,
-            payload: serde_json::json!({ "id": id, "online": false }).to_string(),
-        });
-
-        true
+        ctx.data_unchecked::<Arc<AppCtx>>()
+            .chat
+            .service
+            .unpair_peer(&id)
     }
 }

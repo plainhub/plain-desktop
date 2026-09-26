@@ -29,6 +29,7 @@ pub struct MdnsActivity {
 
 /// Records a successful login with its session token and optional chat key.
 #[tauri::command]
+#[allow(clippy::too_many_arguments)]
 pub async fn login_peer(
     state: tauri::State<'_, NearbyDiscoverManager>,
     id: String,
@@ -45,7 +46,7 @@ pub async fn login_peer(
             &id,
             &name,
             &host,
-            deviceType,
+            deviceType.into(),
             &token,
             &signaturePublicKey,
             chatKey.as_deref().unwrap_or(""),

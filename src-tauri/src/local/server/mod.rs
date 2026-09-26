@@ -14,12 +14,9 @@
 //! Per-connection dispatch lives in [`plain_conn`] (HTTP/WS) and
 //! [`tls_conn`] (HTTPS/WSS); the listener loops here only accept and spawn.
 
-use super::chat_cacher::ChatCacher;
+use super::chat::ChatState;
 use super::db::ChatDb;
-use super::graphql::{
-    AppCtx, LocalSchema, WsEvent, build_schema, load_key_cache, new_channel_key_cache,
-    new_peer_key_cache, refresh_peer_key_cache,
-};
+use super::graphql::{AppCtx, LocalSchema, WsEvent, build_schema};
 use super::peer_graphql::{PeerSchema, build_schema as build_peer_schema};
 use super::tls::{build_acceptor, ensure_cert};
 use crate::commands::discover::{NearbyDiscoverManager, PeerStatusManager};
@@ -70,15 +67,11 @@ impl LocalServerState {
         handle: AppHandle,
         identity: Arc<AppIdentity>,
         device_name: Arc<RwLock<String>>,
+        chat: Arc<ChatState>,
         peer_status: PeerStatusManager,
         discover_manager: NearbyDiscoverManager,
-        pairing_manager: crate::local::pairing::PairingManager,
         dlna_engine: Arc<crate::local::dlna::receiver_engine::DlnaEngine>,
     ) -> Self {
-        let peer_key_cache = new_peer_key_cache();
-        let channel_key_cache = new_channel_key_cache();
-        load_key_cache(&db, &peer_key_cache, &channel_key_cache);
-        let _ = refresh_peer_key_cache;
         let port = Arc::new(AtomicU16::new(0));
         let https_port = Arc::new(AtomicU16::new(0));
 
@@ -86,8 +79,9 @@ impl LocalServerState {
 
         let (event_tx, _) = broadcast::channel::<WsEvent>(1024);
 
-        let chat_cacher = Arc::new(ChatCacher::new());
-        chat_cacher.load(&db);
+        // Fan chat + pairing broadcast events out to the local-server WS
+        // bus and the Tauri `pairing-event`.
+        chat.spawn_event_bridges(event_tx.clone(), handle.clone());
 
         let schema = Arc::new(build_schema());
         let peer_schema: Arc<PeerSchema> = Arc::new(build_peer_schema());
@@ -96,10 +90,7 @@ impl LocalServerState {
             identity: identity.clone(),
             peer_status: peer_status.clone(),
             discover_manager: discover_manager.clone(),
-            pairing_manager: pairing_manager.clone(),
-            peer_key_cache: peer_key_cache.clone(),
-            channel_key_cache: channel_key_cache.clone(),
-            chat_cacher: chat_cacher.clone(),
+            chat: chat.clone(),
             dlna_engine: dlna_engine.clone(),
             event_tx: event_tx.clone(),
             token: token.clone(),

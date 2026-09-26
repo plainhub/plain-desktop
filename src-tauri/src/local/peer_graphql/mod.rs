@@ -9,11 +9,10 @@
 //!   context  — per-request `PeerCtx` injected into the schema
 //!   schema   — async-graphql `PeerSchema` with the two peer mutations
 //!
-//! The mutation bodies live in `crate::local::chat_handler` (the same
+//! The mutation bodies live on the shared chat service (the same
 //! chat service layer the local GraphQL mutations use); the `schema`
 //! resolvers are thin and only forward the authenticated arguments.
 
-mod auth;
 mod context;
 mod schema;
 
@@ -22,9 +21,9 @@ use tokio::io::AsyncWrite;
 
 use crate::local::graphql::context::AppCtx;
 use crate::local::server::response::respond;
+use plain_rs::chat::peer_auth;
 use plain_rs::xchacha_encrypt_raw;
 
-pub use auth::authenticate;
 pub use context::PeerCtx;
 pub use schema::{PeerSchema, build_schema};
 
@@ -48,12 +47,12 @@ pub async fn handle<W>(
     log::info!("[/peer_graphql] request from c-id={header_client_id}");
 
     // ── 1. Authenticate ──────────────────────────────────────────────────
-    let authed = match authenticate(
+    let authed = match peer_auth::authenticate(
         &ctx.db,
         header_client_id,
         header_channel_id,
         body,
-        &ctx.channel_key_cache,
+        &ctx.chat.service.channel_key_cache,
     ) {
         Ok(a) => a,
         Err(e) => {
@@ -83,7 +82,6 @@ pub async fn handle<W>(
     let peer_ctx = PeerCtx {
         peer: authed.peer,
         channel_id: header_channel_id.to_string(),
-        client_id: ctx.identity.client_id.clone(),
         app: ctx.clone(),
     };
     let response = peer_schema

@@ -21,9 +21,6 @@ pub struct PeerCtx {
     /// channel; ignored by `channelSystemMessage` (the channel id there
     /// is part of the encrypted payload).
     pub channel_id: String,
-    /// Local device's own client id, used by `channelSystemMessage` to
-    /// identify the receiver for ownership checks.
-    pub client_id: String,
     /// Shared application context (db handle, event bus, etc.).
     pub app: Arc<AppCtx>,
 }

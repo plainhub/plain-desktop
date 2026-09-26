@@ -55,5 +55,7 @@ pub fn capture_frame_at_cursor_exclusive(
     session_id: &str,
     exclude_window_ids: &[u64],
 ) -> Result<CapturedFrame, CaptureError> {
-    with_native_acquisition_lease(|| capture_frame_at_cursor(backend, session_id, exclude_window_ids))
+    with_native_acquisition_lease(|| {
+        capture_frame_at_cursor(backend, session_id, exclude_window_ids)
+    })
 }

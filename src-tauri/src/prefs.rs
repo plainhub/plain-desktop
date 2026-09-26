@@ -166,7 +166,6 @@ pub fn ensure_mdns_hostname(handle: &AppHandle) -> String {
     hostname
 }
 
-
 /// User-configured global capture accelerator; empty string means "platform
 /// default". The value is re-validated against the shortcut parser before use.
 pub fn get_capture_shortcut<R: tauri::Runtime>(handle: &AppHandle<R>) -> Option<String> {

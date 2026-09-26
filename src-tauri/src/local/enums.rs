@@ -1,215 +1,148 @@
+//! GraphQL-facing enums. The chat-domain enums mirror the wire enums in
+//! `plain_rs::chat::enums` (which own the SQLite/wire representation);
+//! the `From` impls below convert what the shared store returns into
+//! these GraphQL types. The remaining enums are desktop-only surfaces.
+
 use std::fmt;
 use std::str::FromStr;
 
 use async_graphql::Enum;
-use rusqlite::types::{FromSql, FromSqlError, FromSqlResult, ToSql, ToSqlOutput, Value, ValueRef};
 
-// ── PeerStatus ────────────────────────────────────────────────────────────
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize, Enum)]
-#[graphql(name = "PeerStatus", rename_items = "SCREAMING_SNAKE_CASE")]
-#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
-pub enum PeerStatus {
-    Paired,
-    Unpaired,
-    Channel,
-}
-
-impl fmt::Display for PeerStatus {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match self {
-            Self::Paired => f.write_str("PAIRED"),
-            Self::Unpaired => f.write_str("UNPAIRED"),
-            Self::Channel => f.write_str("CHANNEL"),
+macro_rules! wire_enum {
+    ($(#[$meta:meta])* $name:ident { $($variant:ident => $wire:expr),+ $(,)? }) => {
+        $(#[$meta])*
+        #[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize, Enum)]
+        #[graphql(rename_items = "SCREAMING_SNAKE_CASE")]
+        #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
+        pub enum $name {
+            $($variant,)+
         }
-    }
-}
 
-impl FromStr for PeerStatus {
-    type Err = String;
-    fn from_str(s: &str) -> Result<Self, Self::Err> {
-        match s {
-            "PAIRED" => Ok(Self::Paired),
-            "UNPAIRED" => Ok(Self::Unpaired),
-            "CHANNEL" => Ok(Self::Channel),
-            _ => Err(format!("Unknown PeerStatus: {s}")),
+        impl fmt::Display for $name {
+            fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+                match self {
+                    $(Self::$variant => f.write_str($wire),)+
+                }
+            }
         }
-    }
-}
 
-impl ToSql for PeerStatus {
-    fn to_sql(&self) -> rusqlite::Result<ToSqlOutput<'_>> {
-        Ok(ToSqlOutput::Owned(Value::Text(self.to_string())))
-    }
-}
-
-impl FromSql for PeerStatus {
-    fn column_result(value: ValueRef<'_>) -> FromSqlResult<Self> {
-        let s = value.as_str()?;
-        Self::from_str(s).map_err(|_| FromSqlError::InvalidType)
-    }
-}
-
-// ── ChatStatus ─────────────────────────────────────────────────────────────
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize, Enum)]
-#[graphql(name = "ChatStatus", rename_items = "SCREAMING_SNAKE_CASE")]
-#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
-pub enum ChatStatus {
-    Sent,
-    Failed,
-    Partial,
-    Pending,
-}
-
-impl fmt::Display for ChatStatus {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match self {
-            Self::Sent => f.write_str("SENT"),
-            Self::Failed => f.write_str("FAILED"),
-            Self::Partial => f.write_str("PARTIAL"),
-            Self::Pending => f.write_str("PENDING"),
+        impl FromStr for $name {
+            type Err = String;
+            fn from_str(s: &str) -> Result<Self, Self::Err> {
+                match s {
+                    $($wire => Ok(Self::$variant),)+
+                    _ => Err(format!("Unknown {}: {s}", stringify!($name))),
+                }
+            }
         }
-    }
-}
 
-impl FromStr for ChatStatus {
-    type Err = String;
-    fn from_str(s: &str) -> Result<Self, Self::Err> {
-        match s {
-            "SENT" => Ok(Self::Sent),
-            "FAILED" => Ok(Self::Failed),
-            "PARTIAL" => Ok(Self::Partial),
-            "PENDING" => Ok(Self::Pending),
-            _ => Err(format!("Unknown ChatStatus: {s}")),
+        impl From<plain_rs::chat::enums::$name> for $name {
+            fn from(v: plain_rs::chat::enums::$name) -> Self {
+                match v {
+                    $(plain_rs::chat::enums::$name::$variant => Self::$variant,)+
+                }
+            }
         }
-    }
-}
 
-impl ToSql for ChatStatus {
-    fn to_sql(&self) -> rusqlite::Result<ToSqlOutput<'_>> {
-        Ok(ToSqlOutput::Owned(Value::Text(self.to_string())))
-    }
-}
-
-impl FromSql for ChatStatus {
-    fn column_result(value: ValueRef<'_>) -> FromSqlResult<Self> {
-        let s = value.as_str()?;
-        Self::from_str(s).map_err(|_| FromSqlError::InvalidType)
-    }
-}
-
-// ── ChannelStatus ──────────────────────────────────────────────────────────
-
-#[derive(
-    Debug, Clone, Copy, PartialEq, Eq, Default, serde::Serialize, serde::Deserialize, Enum,
-)]
-#[graphql(name = "ChannelStatus", rename_items = "SCREAMING_SNAKE_CASE")]
-#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
-pub enum ChannelStatus {
-    #[default]
-    Joined,
-    Left,
-    Kicked,
-}
-
-impl fmt::Display for ChannelStatus {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match self {
-            Self::Joined => f.write_str("JOINED"),
-            Self::Left => f.write_str("LEFT"),
-            Self::Kicked => f.write_str("KICKED"),
+        impl From<$name> for plain_rs::chat::enums::$name {
+            fn from(v: $name) -> Self {
+                match v {
+                    $($name::$variant => plain_rs::chat::enums::$name::$variant,)+
+                }
+            }
         }
+    };
+}
+
+// Pairing state of a stored peer.
+wire_enum! {
+    PeerStatus {
+        Paired => "PAIRED",
+        Unpaired => "UNPAIRED",
+        Channel => "CHANNEL",
     }
 }
 
-impl FromStr for ChannelStatus {
-    type Err = String;
-    fn from_str(s: &str) -> Result<Self, Self::Err> {
-        match s {
-            "JOINED" => Ok(Self::Joined),
-            "LEFT" => Ok(Self::Left),
-            "KICKED" => Ok(Self::Kicked),
-            _ => Err(format!("Unknown ChannelStatus: {s}")),
-        }
+// Delivery state of a chat item.
+wire_enum! {
+    ChatStatus {
+        Sent => "SENT",
+        Failed => "FAILED",
+        Partial => "PARTIAL",
+        Pending => "PENDING",
     }
 }
 
-impl ToSql for ChannelStatus {
-    fn to_sql(&self) -> rusqlite::Result<ToSqlOutput<'_>> {
-        Ok(ToSqlOutput::Owned(Value::Text(self.to_string())))
+// Membership state of the local device in a channel.
+wire_enum! {
+    ChannelStatus {
+        Joined => "JOINED",
+        Left => "LEFT",
+        Kicked => "KICKED",
     }
 }
 
-impl FromSql for ChannelStatus {
-    fn column_result(value: ValueRef<'_>) -> FromSqlResult<Self> {
-        let s = value.as_str()?;
-        Self::from_str(s).map_err(|_| FromSqlError::InvalidType)
+// Membership state of a channel member.
+wire_enum! {
+    MemberStatus {
+        Joined => "JOINED",
+        Pending => "PENDING",
     }
 }
 
-// ── MemberStatus ───────────────────────────────────────────────────────────
-
-#[derive(
-    Debug, Clone, Copy, PartialEq, Eq, Default, serde::Serialize, serde::Deserialize, Enum,
-)]
-#[graphql(name = "MemberStatus", rename_items = "SCREAMING_SNAKE_CASE")]
-#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
-pub enum MemberStatus {
-    #[default]
-    Joined,
-    Pending,
-}
-
-impl fmt::Display for MemberStatus {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match self {
-            Self::Joined => f.write_str("JOINED"),
-            Self::Pending => f.write_str("PENDING"),
-        }
+// Device class advertised on the wire.
+wire_enum! {
+    DeviceType {
+        Phone => "PHONE",
+        Tablet => "TABLET",
+        Computer => "COMPUTER",
+        Tv => "TV",
+        Nas => "NAS",
+        Other => "OTHER",
+        Unknown => "UNKNOWN",
     }
 }
 
-impl FromStr for MemberStatus {
-    type Err = String;
-    fn from_str(s: &str) -> Result<Self, Self::Err> {
-        match s {
-            "JOINED" => Ok(Self::Joined),
-            "PENDING" => Ok(Self::Pending),
-            _ => Err(format!("Unknown MemberStatus: {s}")),
-        }
+// Channel system-message wire types.
+wire_enum! {
+    ChannelSystemMessageType {
+        Invite => "INVITE",
+        InviteAccept => "INVITE_ACCEPT",
+        InviteDecline => "INVITE_DECLINE",
+        Update => "UPDATE",
+        Kick => "KICK",
+        Leave => "LEAVE",
     }
 }
 
-impl ToSql for MemberStatus {
-    fn to_sql(&self) -> rusqlite::Result<ToSqlOutput<'_>> {
-        Ok(ToSqlOutput::Owned(Value::Text(self.to_string())))
+// Channel system-message actions.
+wire_enum! {
+    ChannelSystemMessageAction {
+        Invite => "INVITE",
+        Update => "UPDATE",
+        Kick => "KICK",
     }
 }
 
-impl FromSql for MemberStatus {
-    fn column_result(value: ValueRef<'_>) -> FromSqlResult<Self> {
-        let s = value.as_str()?;
-        Self::from_str(s).map_err(|_| FromSqlError::InvalidType)
+#[allow(clippy::derivable_impls)]
+impl Default for ChannelStatus {
+    fn default() -> Self {
+        Self::Joined
     }
 }
 
-// ── DeviceType ─────────────────────────────────────────────────────────────
+#[allow(clippy::derivable_impls)]
+impl Default for MemberStatus {
+    fn default() -> Self {
+        Self::Joined
+    }
+}
 
-#[derive(
-    Debug, Clone, Copy, PartialEq, Eq, Default, serde::Serialize, serde::Deserialize, Enum,
-)]
-#[graphql(name = "DeviceType", rename_items = "SCREAMING_SNAKE_CASE")]
-#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
-pub enum DeviceType {
-    #[default]
-    Phone,
-    Tablet,
-    Computer,
-    Tv,
-    Nas,
-    Other,
-    Unknown,
+#[allow(clippy::derivable_impls)]
+impl Default for DeviceType {
+    fn default() -> Self {
+        Self::Phone
+    }
 }
 
 impl DeviceType {
@@ -226,57 +159,6 @@ impl DeviceType {
     }
 }
 
-impl fmt::Display for DeviceType {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.write_str(self.as_str())
-    }
-}
-
-impl FromStr for DeviceType {
-    type Err = String;
-    fn from_str(s: &str) -> Result<Self, Self::Err> {
-        match s {
-            "PHONE" => Ok(Self::Phone),
-            "TABLET" => Ok(Self::Tablet),
-            "COMPUTER" => Ok(Self::Computer),
-            "TV" => Ok(Self::Tv),
-            "OTHER" => Ok(Self::Other),
-            "UNKNOWN" => Ok(Self::Unknown),
-            _ => Err(format!("Unknown DeviceType: {s}")),
-        }
-    }
-}
-
-impl ToSql for DeviceType {
-    fn to_sql(&self) -> rusqlite::Result<ToSqlOutput<'_>> {
-        Ok(ToSqlOutput::Owned(Value::Text(self.to_string())))
-    }
-}
-
-impl FromSql for DeviceType {
-    fn column_result(value: ValueRef<'_>) -> FromSqlResult<Self> {
-        let s = value.as_str()?;
-        Self::from_str(s).map_err(|_| FromSqlError::InvalidType)
-    }
-}
-
-// ── ChannelSystemMessageType ──────────────────────────────────────────────
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize, Enum)]
-#[graphql(
-    name = "ChannelSystemMessageType",
-    rename_items = "SCREAMING_SNAKE_CASE"
-)]
-#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
-pub enum ChannelSystemMessageType {
-    Invite,
-    InviteAccept,
-    InviteDecline,
-    Update,
-    Kick,
-    Leave,
-}
-
 impl ChannelSystemMessageType {
     pub fn as_str(&self) -> &'static str {
         match self {
@@ -290,78 +172,12 @@ impl ChannelSystemMessageType {
     }
 }
 
-impl fmt::Display for ChannelSystemMessageType {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.write_str(self.as_str())
-    }
-}
-
-impl FromStr for ChannelSystemMessageType {
-    type Err = String;
-    fn from_str(s: &str) -> Result<Self, Self::Err> {
-        match s {
-            "INVITE" => Ok(Self::Invite),
-            "INVITE_ACCEPT" => Ok(Self::InviteAccept),
-            "INVITE_DECLINE" => Ok(Self::InviteDecline),
-            "UPDATE" => Ok(Self::Update),
-            "KICK" => Ok(Self::Kick),
-            "LEAVE" => Ok(Self::Leave),
-            _ => Err(format!("Unknown ChannelSystemMessageType: {s}")),
-        }
-    }
-}
-
-impl ToSql for ChannelSystemMessageType {
-    fn to_sql(&self) -> rusqlite::Result<ToSqlOutput<'_>> {
-        Ok(ToSqlOutput::Owned(Value::Text(self.to_string())))
-    }
-}
-
-impl FromSql for ChannelSystemMessageType {
-    fn column_result(value: ValueRef<'_>) -> FromSqlResult<Self> {
-        let s = value.as_str()?;
-        Self::from_str(s).map_err(|_| FromSqlError::InvalidType)
-    }
-}
-
-// ── ChannelSystemMessageAction ────────────────────────────────────────────
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize, Enum)]
-#[graphql(
-    name = "ChannelSystemMessageAction",
-    rename_items = "SCREAMING_SNAKE_CASE"
-)]
-#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
-pub enum ChannelSystemMessageAction {
-    Invite,
-    Update,
-    Kick,
-}
-
 impl ChannelSystemMessageAction {
     pub fn as_str(&self) -> &'static str {
         match self {
             Self::Invite => "INVITE",
             Self::Update => "UPDATE",
             Self::Kick => "KICK",
-        }
-    }
-}
-
-impl fmt::Display for ChannelSystemMessageAction {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.write_str(self.as_str())
-    }
-}
-
-impl FromStr for ChannelSystemMessageAction {
-    type Err = String;
-    fn from_str(s: &str) -> Result<Self, Self::Err> {
-        match s {
-            "INVITE" => Ok(Self::Invite),
-            "UPDATE" => Ok(Self::Update),
-            "KICK" => Ok(Self::Kick),
-            _ => Err(format!("Unknown ChannelSystemMessageAction: {s}")),
         }
     }
 }
@@ -408,19 +224,6 @@ impl FromStr for DriveType {
     }
 }
 
-impl ToSql for DriveType {
-    fn to_sql(&self) -> rusqlite::Result<ToSqlOutput<'_>> {
-        Ok(ToSqlOutput::Owned(Value::Text(self.to_string())))
-    }
-}
-
-impl FromSql for DriveType {
-    fn column_result(value: ValueRef<'_>) -> FromSqlResult<Self> {
-        let s = value.as_str()?;
-        Self::from_str(s).map_err(|_| FromSqlError::InvalidType)
-    }
-}
-
 // ── AppChannelType ────────────────────────────────────────────────────────
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize, Enum)]
@@ -460,19 +263,6 @@ impl FromStr for AppChannelType {
     }
 }
 
-impl ToSql for AppChannelType {
-    fn to_sql(&self) -> rusqlite::Result<ToSqlOutput<'_>> {
-        Ok(ToSqlOutput::Owned(Value::Text(self.to_string())))
-    }
-}
-
-impl FromSql for AppChannelType {
-    fn column_result(value: ValueRef<'_>) -> FromSqlResult<Self> {
-        let s = value.as_str()?;
-        Self::from_str(s).map_err(|_| FromSqlError::InvalidType)
-    }
-}
-
 // ── SessionType ───────────────────────────────────────────────────────────
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize, Enum)]
@@ -509,19 +299,6 @@ impl FromStr for SessionType {
     }
 }
 
-impl ToSql for SessionType {
-    fn to_sql(&self) -> rusqlite::Result<ToSqlOutput<'_>> {
-        Ok(ToSqlOutput::Owned(Value::Text(self.to_string())))
-    }
-}
-
-impl FromSql for SessionType {
-    fn column_result(value: ValueRef<'_>) -> FromSqlResult<Self> {
-        let s = value.as_str()?;
-        Self::from_str(s).map_err(|_| FromSqlError::InvalidType)
-    }
-}
-
 // ── PackageType ────────────────────────────────────────────────────────────
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize, Enum)]
@@ -555,19 +332,6 @@ impl FromStr for PackageType {
             "USER" => Ok(Self::User),
             _ => Err(format!("Unknown PackageType: {s}")),
         }
-    }
-}
-
-impl ToSql for PackageType {
-    fn to_sql(&self) -> rusqlite::Result<ToSqlOutput<'_>> {
-        Ok(ToSqlOutput::Owned(Value::Text(self.to_string())))
-    }
-}
-
-impl FromSql for PackageType {
-    fn column_result(value: ValueRef<'_>) -> FromSqlResult<Self> {
-        let s = value.as_str()?;
-        Self::from_str(s).map_err(|_| FromSqlError::InvalidType)
     }
 }
 
@@ -616,19 +380,6 @@ impl FromStr for DownloadStatus {
             "CANCELED" => Ok(Self::Canceled),
             _ => Err(format!("Unknown DownloadStatus: {s}")),
         }
-    }
-}
-
-impl ToSql for DownloadStatus {
-    fn to_sql(&self) -> rusqlite::Result<ToSqlOutput<'_>> {
-        Ok(ToSqlOutput::Owned(Value::Text(self.to_string())))
-    }
-}
-
-impl FromSql for DownloadStatus {
-    fn column_result(value: ValueRef<'_>) -> FromSqlResult<Self> {
-        let s = value.as_str()?;
-        Self::from_str(s).map_err(|_| FromSqlError::InvalidType)
     }
 }
 

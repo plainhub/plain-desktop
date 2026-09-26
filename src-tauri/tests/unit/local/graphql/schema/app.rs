@@ -7,7 +7,11 @@ use std::path::{Path, PathBuf};
 use super::*;
 
 fn temp_fixture_dir(name: &str) -> PathBuf {
-    let dir = std::env::temp_dir().join(format!("plain-desktop-devstatus-{}-{}", name, std::process::id()));
+    let dir = std::env::temp_dir().join(format!(
+        "plain-desktop-devstatus-{}-{}",
+        name,
+        std::process::id()
+    ));
     let _ = std::fs::remove_dir_all(&dir);
     std::fs::create_dir_all(&dir).unwrap();
     dir
@@ -15,7 +19,8 @@ fn temp_fixture_dir(name: &str) -> PathBuf {
 
 #[test]
 fn pmset_parse_charging() {
-    let out = "Now drawing from 'AC Power'\n -InternalBattery-0 (id=123)	64%; charging; 2:11 remaining\n";
+    let out =
+        "Now drawing from 'AC Power'\n -InternalBattery-0 (id=123)	64%; charging; 2:11 remaining\n";
     assert_eq!(parse_pmset_battery(out), Some((64, true)));
 }
 
@@ -28,7 +33,8 @@ fn pmset_parse_discharging_is_not_charging() {
 
 #[test]
 fn pmset_parse_full_while_plugged_is_not_charging() {
-    let out = "Now drawing from 'AC Power'\n -InternalBattery-0 (id=123)	100%; charged; 0:00 remaining\n";
+    let out =
+        "Now drawing from 'AC Power'\n -InternalBattery-0 (id=123)	100%; charged; 0:00 remaining\n";
     assert_eq!(parse_pmset_battery(out), Some((100, false)));
     let out = "Now drawing from 'AC Power'\n -InternalBattery-0 (id=123)	99%; finishing charge\n";
     assert_eq!(parse_pmset_battery(out), Some((99, false)));
@@ -56,7 +62,10 @@ fn win_battery_maps_flags() {
 #[test]
 fn thermal_zones_read_type_and_millidegrees() {
     let root = temp_fixture_dir("thermal");
-    for (zone, label, milli) in [("zone1", "cpu-thermal", "45000"), ("zone2", "gpu-thermal", "38500")] {
+    for (zone, label, milli) in [
+        ("zone1", "cpu-thermal", "45000"),
+        ("zone2", "gpu-thermal", "38500"),
+    ] {
         let dir = root.join(format!("thermal_{}", zone));
         std::fs::create_dir_all(&dir).unwrap();
         std::fs::write(dir.join("type"), label).unwrap();
@@ -99,8 +108,14 @@ fn longest_prefix_mount_prefers_most_specific() {
         longest_prefix_mount(&mounts, Path::new("/Volumes/Data/x")),
         Some(Path::new("/Volumes/Data"))
     );
-    assert_eq!(longest_prefix_mount(&mounts, Path::new("/etc/hosts")), Some(Path::new("/")));
-    assert_eq!(longest_prefix_mount(&mounts, Path::new("/other/absent")), Some(Path::new("/")));
+    assert_eq!(
+        longest_prefix_mount(&mounts, Path::new("/etc/hosts")),
+        Some(Path::new("/"))
+    );
+    assert_eq!(
+        longest_prefix_mount(&mounts, Path::new("/other/absent")),
+        Some(Path::new("/"))
+    );
 }
 
 #[test]

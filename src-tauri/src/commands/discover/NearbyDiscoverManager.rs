@@ -10,20 +10,19 @@
 //! Pairing is handled over HTTPS via the `POST /nearby` REST endpoint
 //! instead of UDP (see `local::pairing`).
 
+use super::MdnsActivity;
 #[cfg(target_os = "macos")]
 use super::macos_dns_sd::MacDnsSdBrowser;
 use super::peer_status_manager::PeerStatusManager;
-use super::MdnsActivity;
+use crate::local::chat::ChatState;
 use crate::local::db::{
-    iso_from_unix_millis, now_iso, now_millis, ChatDb, DNearbyDeviceCache, DPeer,
+    ChatDb, DNearbyDeviceCache, DPeer, iso_from_unix_millis, now_iso, now_millis,
 };
-use crate::local::enums::DeviceType;
 use crate::local::graphql::schema::types::Peer;
 use crate::local::graphql::{
-    WsEvent, WS_NEARBY_DEVICE_FOUND, WS_NEARBY_DEVICE_UNREACHABLE, WS_NEARBY_DISCOVERY_STARTED,
-    WS_NEARBY_DISCOVERY_STOPPED,
+    WS_NEARBY_DEVICE_FOUND, WS_NEARBY_DEVICE_UNREACHABLE, WS_NEARBY_DISCOVERY_STARTED,
+    WS_NEARBY_DISCOVERY_STOPPED, WsEvent,
 };
-use crate::local::pairing::PairingManager;
 use crate::prefs::AppIdentity;
 use plain_rs::mdns::host_responder;
 use plain_rs::mdns::service_browser::{FoundDevice, MdnsServiceBrowser, MdnsServiceSnapshot};
@@ -31,8 +30,8 @@ use serde::Serialize;
 use std::collections::HashMap;
 use std::str::FromStr;
 use std::sync::{
-    atomic::{AtomicU16, AtomicU64, Ordering},
     Arc, Mutex, RwLock,
+    atomic::{AtomicU16, AtomicU64, Ordering},
 };
 use std::time::Duration;
 use tokio::sync::broadcast;
@@ -75,7 +74,7 @@ pub struct NearbyDiscoverManager {
     identity: Arc<AppIdentity>,
     device_name: Arc<RwLock<String>>,
     mdns_hostname: Arc<RwLock<String>>,
-    pairing: PairingManager,
+    chat: Arc<ChatState>,
     peer_status: PeerStatusManager,
     https_port: Arc<AtomicU16>,
     event_tx: Arc<RwLock<Option<broadcast::Sender<WsEvent>>>>,
@@ -97,7 +96,7 @@ impl NearbyDiscoverManager {
         identity: Arc<AppIdentity>,
         device_name: Arc<RwLock<String>>,
         mdns_hostname: Arc<RwLock<String>>,
-        pairing: PairingManager,
+        chat: Arc<ChatState>,
         peer_status: PeerStatusManager,
         https_port: u16,
         app_version: String,
@@ -108,7 +107,7 @@ impl NearbyDiscoverManager {
             identity,
             device_name,
             mdns_hostname,
-            pairing,
+            chat,
             peer_status,
             https_port: Arc::new(AtomicU16::new(https_port)),
             event_tx: Arc::new(RwLock::new(None)),
@@ -390,7 +389,7 @@ impl NearbyDiscoverManager {
                 false
             } else {
                 let ip = host_responder::get_best_ip(&device.ips);
-                crate::local::pairing::nearby_discovery_ping_succeeds(&ip, device.port).await
+                crate::local::chat::nearby_discovery_ping_succeeds(&ip, device.port).await
             };
             (device, discovery_ping_succeeded)
         }))
@@ -486,12 +485,13 @@ impl NearbyDiscoverManager {
     }
 
     /// Records a successful remote-device login (see `ChatDb::login_peer`).
+    #[allow(clippy::too_many_arguments)]
     pub fn login_peer(
         &self,
         id: &str,
         name: &str,
         host: &str,
-        device_type: DeviceType,
+        device_type: plain_rs::chat::enums::DeviceType,
         token: &str,
         signature_public_key: &str,
         chat_key: &str,
@@ -633,7 +633,8 @@ impl NearbyDiscoverManager {
         // mDNS announcements repeat every few seconds — skip the write when
         // nothing changed so the peers table isn't hammered by upserts.
         let ip = device.ips.join(",");
-        let device_type = DeviceType::from_str(&device.device_type).unwrap_or(DeviceType::Other);
+        let device_type = plain_rs::chat::enums::DeviceType::from_str(&device.device_type)
+            .unwrap_or(plain_rs::chat::enums::DeviceType::Other);
         if peer.name == device.name
             && peer.ip == ip
             && peer.port == device.port
@@ -670,7 +671,7 @@ impl NearbyDiscoverManager {
     /// PAIRING if a pairing session is in flight, else PAIRED if the peer
     /// exists in the DB with Paired status, else UNPAIRED.
     fn get_device_status(&self, device_id: &str) -> String {
-        if self.pairing.is_pairing(device_id) {
+        if self.chat.pairing.is_pairing(device_id) {
             return "PAIRING".to_string();
         }
         match self.db.get_peer_by_id(device_id) {
@@ -739,9 +740,9 @@ mod tests {
     }
 
     fn seed_peer(id: &str, ip: &str, paired: bool, token: &str) -> DPeer {
-        let mut peer = DPeer::new(id, id, ip, 8443, DeviceType::Phone);
+        let mut peer = DPeer::new(id, id, ip, 8443, plain_rs::chat::enums::DeviceType::Phone);
         if paired {
-            peer.status = crate::local::enums::PeerStatus::Paired;
+            peer.status = plain_rs::chat::enums::PeerStatus::Paired;
         }
         peer.token = token.to_string();
         peer
@@ -781,12 +782,19 @@ mod tests {
             device_name: "Desktop".into(),
             ed25519_keypair: String::new(),
         });
+        let chat = Arc::new(crate::local::chat::ChatState::new(
+            &db,
+            &identity,
+            "Desktop".into(),
+            String::new(),
+            std::env::temp_dir(),
+        ));
         let manager = NearbyDiscoverManager::new(
             db.clone(),
             identity.clone(),
             Arc::new(RwLock::new("Desktop".into())),
             Arc::new(RwLock::new("desktop.local".into())),
-            PairingManager::new(db.clone(), identity.clone()),
+            chat,
             PeerStatusManager::new(db.clone(), identity),
             8443,
             "1.0".into(),

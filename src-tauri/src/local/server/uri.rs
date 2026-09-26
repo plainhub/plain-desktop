@@ -1,6 +1,6 @@
 use std::path::{Path, PathBuf};
 
-use super::super::app_file_store;
+use plain_rs::chat::app_file_store;
 
 /// Parse the plaintext payload of an `/fs` `id` param. Returns
 /// `(path, json_name)`. The path may be a `fid:` URI, an `app://`

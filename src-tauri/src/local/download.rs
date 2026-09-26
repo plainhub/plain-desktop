@@ -20,9 +20,9 @@ use tokio::io::AsyncWriteExt;
 use tokio::sync::Mutex;
 use tokio::task::JoinHandle;
 
-use crate::local::app_file_store::import_file;
 use crate::local::enums::DownloadStatus;
 use crate::local::graphql::context::{AppCtx, WS_DOWNLOAD_PROGRESS, WS_MESSAGE_UPDATED, WsEvent};
+use plain_rs::chat::app_file_store::import_file;
 
 /// Download task state. Mirrors plain-app `DownloadStatus`.
 #[derive(Clone, Debug)]
@@ -320,7 +320,7 @@ async fn execute_download(
             return;
         }
     };
-    let updated_payload = serde_json::json!([crate::local::chat_handler::chat_to_json(
+    let updated_payload = serde_json::json!([plain_rs::chat::service::chat_to_json(
         &updated_chat,
         &ctx.token
     )])

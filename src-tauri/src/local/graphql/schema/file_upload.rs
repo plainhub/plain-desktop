@@ -21,8 +21,8 @@ use std::collections::HashMap;
 use std::path::PathBuf;
 use std::sync::{Arc, Mutex, OnceLock};
 
-use crate::local::app_file_store;
 use crate::local::graphql::context::{AppCtx, WS_UPLOAD_MERGE_RESULT, WsEvent};
+use plain_rs::chat::app_file_store;
 
 use super::types::{MergeTask, MergeTaskStatus};
 
@@ -107,7 +107,13 @@ impl FileUploadMutation {
         replace: bool,
         total_size: i64,
     ) -> GqlResult<MergeTask> {
-        start_merge(ctx, file_id, total_chunks, MergeKind::File { path, replace }, total_size)
+        start_merge(
+            ctx,
+            file_id,
+            total_chunks,
+            MergeKind::File { path, replace },
+            total_size,
+        )
     }
 
     /// Start merging the staged chunks and import the result into the
@@ -122,7 +128,13 @@ impl FileUploadMutation {
         file_name: String,
         total_size: i64,
     ) -> GqlResult<MergeTask> {
-        start_merge(ctx, file_id, total_chunks, MergeKind::AppFile { file_name }, total_size)
+        start_merge(
+            ctx,
+            file_id,
+            total_chunks,
+            MergeKind::AppFile { file_name },
+            total_size,
+        )
     }
 }
 
@@ -278,8 +290,9 @@ fn perform_merge(
         // extension (the multipart chunk parts carry no usable MIME for
         // less-common types).
         MergeKind::AppFile { file_name } => {
-            let result = app_file_store::import_file(&c.db, &c.data_dir, &temp_merge, file_name, "")
-                .map_err(|e| respond(format!("import failed: {e}")))?;
+            let result =
+                app_file_store::import_file(&c.db, &c.data_dir, &temp_merge, file_name, "")
+                    .map_err(|e| respond(format!("import failed: {e}")))?;
             let _ = std::fs::remove_dir_all(&dir);
             let _ = std::fs::remove_file(&temp_merge);
             Ok((result.fid_suffix, merged_size))

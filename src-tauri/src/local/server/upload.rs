@@ -25,8 +25,8 @@ use std::sync::Arc;
 use tokio::io::{AsyncRead, AsyncReadExt, AsyncWrite};
 
 use super::response::respond;
-use crate::local::app_file_store;
 use crate::local::graphql::context::AppCtx;
+use plain_rs::chat::app_file_store;
 
 const MAX_BODY_BYTES: usize = 16 * 1024 * 1024; // 16 MB safety cap; the client
 // should never send more
