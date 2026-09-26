@@ -1,16 +1,5 @@
 use std::io::{BufRead, BufReader};
 
-/// Validate that a string is a safe SQL identifier (table/column name).
-pub fn is_safe_identifier(s: &str) -> bool {
-    let mut chars = s.chars();
-    match chars.next() {
-        Some(first) if first.is_ascii_alphabetic() || first == '_' => {
-            chars.all(|c| c.is_ascii_alphanumeric() || c == '_')
-        }
-        _ => false,
-    }
-}
-
 /// Read `limit` lines from `path` starting at `offset`, keeping only lines
 /// containing `text` (empty `text` keeps everything).
 pub fn read_log_lines(path: &std::path::Path, text: &str, offset: i32, limit: i32) -> Vec<String> {
