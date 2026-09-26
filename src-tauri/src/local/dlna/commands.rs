@@ -76,7 +76,9 @@ pub async fn dlna_accept_cast(
     engine: tauri::State<'_, DlnaEngine>,
     remember: bool,
 ) -> Result<(), String> {
-    engine.accept_cast(remember, &handle).await;
+    engine
+        .accept_cast(remember, &crate::shell::DesktopShell(handle))
+        .await;
     Ok(())
 }
 
@@ -86,7 +88,9 @@ pub async fn dlna_reject_cast(
     engine: tauri::State<'_, DlnaEngine>,
     remember: bool,
 ) -> Result<(), String> {
-    engine.reject_cast(remember, &handle).await;
+    engine
+        .reject_cast(remember, &crate::shell::DesktopShell(handle))
+        .await;
     Ok(())
 }
 

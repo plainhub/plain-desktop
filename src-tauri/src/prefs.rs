@@ -4,16 +4,9 @@ use tauri_plugin_store::StoreExt;
 use plain_rs::short_uuid;
 use plain_rs::{base64_encode, ed25519_generate, gen_token};
 
-pub const STORE_FILE: &str = "prefs.json";
+pub use plain_rs::local_api::AppIdentity;
 
-/// Persistent device identity loaded from the preferences store.
-#[derive(Clone, Debug)]
-pub struct AppIdentity {
-    pub client_id: String,
-    pub device_name: String,
-    /// Base64-encoded Ed25519 keypair bytes (64 bytes: private || public).
-    pub ed25519_keypair: String,
-}
+pub const STORE_FILE: &str = "prefs.json";
 
 /// Load (or generate on first run) the device identity from the preferences store.
 pub fn ensure_identity(handle: &AppHandle) -> AppIdentity {
@@ -291,9 +284,6 @@ pub fn remove_dlna_sender(handle: &AppHandle, key: &str, ip: &str) {
 }
 
 /// Mirrors plain-app's `containsIp`.
-pub fn dlna_senders_contain_ip(entries: &[String], ip: &str) -> bool {
-    entries.iter().any(|e| decode_sender_entry(e).0 == ip)
-}
 
 fn default_device_name() -> String {
     std::process::Command::new("hostname")

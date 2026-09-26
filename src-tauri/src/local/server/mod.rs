@@ -21,6 +21,7 @@ use super::peer_graphql::{PeerSchema, build_schema as build_peer_schema};
 use super::tls::{build_acceptor, ensure_cert};
 use crate::commands::discover::{NearbyDiscoverManager, PeerStatusManager};
 use crate::prefs::AppIdentity;
+use crate::shell::DesktopShell;
 use std::net::TcpListener as StdTcpListener;
 use std::path::PathBuf;
 use std::sync::atomic::{AtomicU16, Ordering};
@@ -29,15 +30,10 @@ use tauri::{AppHandle, Manager};
 use tokio::sync::broadcast;
 use tokio_rustls::TlsAcceptor;
 
-mod file_server;
-mod http_handler;
-mod plain_conn;
-mod proxy_file;
-pub(super) mod response;
-mod tls_conn;
-mod upload;
-pub(crate) mod uri;
-mod ws_handler;
+#[allow(unused_imports)]
+pub use plain_rs::local_api::server::{
+    file_server, http_handler, plain_conn, proxy_file, response, tls_conn, upload, uri, ws_handler,
+};
 
 struct ServerHandle {
     http_task: tauri::async_runtime::JoinHandle<()>,
@@ -82,7 +78,13 @@ impl LocalServerState {
 
         // Fan chat + pairing broadcast events out to the local-server WS
         // bus and the Tauri `pairing-event`.
-        chat.spawn_event_bridges(event_tx.clone(), handle.clone());
+        chat.spawn_event_bridges(event_tx.clone(), {
+            let handle = handle.clone();
+            move |ev: &plain_rs::chat::pairing::PairingEvent| {
+                use tauri::Emitter;
+                let _ = handle.emit("pairing-event", ev.clone());
+            }
+        });
 
         let schema = Arc::new(build_schema());
         let peer_schema: Arc<PeerSchema> = Arc::new(build_peer_schema());
@@ -101,7 +103,7 @@ impl LocalServerState {
             data_dir: app_data_dir.clone(),
             log_dir,
             device_name,
-            handle: handle.clone(),
+            shell: Arc::new(DesktopShell(handle.clone())),
         });
 
         let acceptor: Option<Arc<TlsAcceptor>> = match ensure_cert(&app_data_dir) {

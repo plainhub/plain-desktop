@@ -1,29 +1,16 @@
 #![allow(non_snake_case)]
 
-#[cfg(target_os = "macos")]
-mod macos_dns_sd;
-#[path = "firewall.rs"]
-pub(crate) mod mdns_firewall;
-#[path = "NearbyDiscoverManager.rs"]
-mod nearby_discover_manager;
-#[path = "PeerStatusManager.rs"]
-mod peer_status_manager;
-
 use crate::local::enums::DeviceType;
 use crate::local::graphql::schema::types::Peer;
-pub use mdns_firewall::MdnsFirewallStatus;
-pub use nearby_discover_manager::NearbyDiscoverManager;
-pub use peer_status_manager::PeerStatusManager;
-pub(crate) use plain_rs::mdns::host_responder::get_best_ip as discover_get_best_ip;
-pub(crate) use plain_rs::mdns::host_responder::local_ipv4_strs as discover_local_ipv4_strs;
-
-#[derive(Clone, serde::Serialize)]
-#[serde(rename_all = "camelCase")]
-pub struct MdnsActivity {
-    pub time: u64,
-    pub event: String,
-    pub detail: String,
-}
+#[allow(unused_imports)]
+pub use plain_rs::local_api::discover::{
+    MdnsActivity, MdnsFirewallStatus, NearbyDiscoverManager, PeerStatusManager, firewall,
+    macos_dns_sd,
+};
+#[allow(unused_imports)]
+pub(crate) use plain_rs::mdns::host_responder::{
+    get_best_ip as discover_get_best_ip, local_ipv4_strs as discover_local_ipv4_strs,
+};
 
 // ── Remote-device login sessions (peers.token) ───────────────────────────────
 
@@ -189,9 +176,11 @@ pub async fn mdns_set_hostname(
         return Err("mdns hostname must end with .local".to_string());
     }
     let mgr = state.inner().clone();
-    tauri::async_runtime::spawn_blocking(move || mgr.set_mdns_hostname(&handle, &hostname))
-        .await
-        .map_err(|e| e.to_string())
+    tauri::async_runtime::spawn_blocking(move || {
+        mgr.set_mdns_hostname(&crate::shell::DesktopShell(handle), &hostname)
+    })
+    .await
+    .map_err(|e| e.to_string())
 }
 
 // ── Windows Firewall repair (LAN/mDNS discovery) ─────────────────────────────
@@ -199,7 +188,7 @@ pub async fn mdns_set_hostname(
 /// Read-only firewall state for the current exe. No admin token required.
 #[tauri::command]
 pub async fn mdns_firewall_status() -> Result<MdnsFirewallStatus, String> {
-    tauri::async_runtime::spawn_blocking(mdns_firewall::probe_status)
+    tauri::async_runtime::spawn_blocking(firewall::probe_status)
         .await
         .map_err(|e| e.to_string())?
 }
@@ -209,7 +198,7 @@ pub async fn mdns_firewall_status() -> Result<MdnsFirewallStatus, String> {
 /// `mdns_firewall_status` until the rule shows up.
 #[tauri::command]
 pub async fn fix_mdns_firewall() -> Result<(), String> {
-    tauri::async_runtime::spawn_blocking(mdns_firewall::apply_fix)
+    tauri::async_runtime::spawn_blocking(firewall::apply_fix)
         .await
         .map_err(|e| e.to_string())?
 }

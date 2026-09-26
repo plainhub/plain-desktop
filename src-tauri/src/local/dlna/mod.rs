@@ -1,18 +1,10 @@
-pub mod commands;
-pub mod http_router;
-pub mod receiver_engine;
-pub mod renderer_state;
-pub mod soap_handler;
-pub mod ssdp_messages;
-pub mod types;
-pub mod xml_templates;
+//! DLNA MediaRenderer receiver — engine/protocol in plain-rs
+//! (`local_api::dlna`); the `commands` module is the Tauri bridge.
 
-/// True when `method` + `path` targets a DLNA MediaRenderer receiver endpoint.
-/// Mirrors plain-app's `isDlnaReceiverPath` in `HttpRouteRegistry.kt`.
-pub fn is_receiver_path(method: &str, path: &str) -> bool {
-    let clean = path.split('?').next().unwrap_or(path);
-    if method == "GET" && clean == "/description.xml" {
-        return true;
-    }
-    clean.starts_with("/AVTransport/") || clean.starts_with("/RenderingControl/")
-}
+pub mod commands;
+
+#[allow(unused_imports)]
+pub use plain_rs::local_api::dlna::{
+    http_router, is_receiver_path, receiver_engine, renderer_state, senders_contain_ip,
+    soap_handler, ssdp_messages, types, xml_templates,
+};
