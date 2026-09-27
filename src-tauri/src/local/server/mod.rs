@@ -88,9 +88,22 @@ impl LocalServerState {
             });
         });
 
+        // Media stack (feature `media`): fjall store + scan engine +
+        // thumbnails under the app data dir, so the web UI can browse the
+        // machine's local files through the same GraphQL surface the NAS
+        // serves. Thumbnail cache lives in `<data>/cache`.
+        let media = Arc::new(
+            plain_rs::media::service::MediaService::init(
+                &app_data_dir,
+                &app_data_dir.join("cache"),
+            )
+            .expect("open media store under app data dir"),
+        );
+
         let schema = Arc::new(build_schema());
         let peer_schema: Arc<PeerSchema> = Arc::new(build_peer_schema());
         let ctx = Arc::new(AppCtx {
+            media,
             db: db.clone(),
             library,
             prefs: prefs.clone(),
