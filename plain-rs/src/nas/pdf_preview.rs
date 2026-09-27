@@ -101,7 +101,7 @@ fn pdf_preview_key(path: &str, mod_unix: i64, size: i64) -> String {
     h.update(path.as_bytes());
     h.update(b"|");
     h.update(format!("{mod_unix}|{size}").as_bytes());
-    hex::encode(h.finalize())
+    crate::utils::hex::bytes_to_hex(&h.finalize())
 }
 
 fn pdf_preview_cache_dir(data_dir: &Path) -> PathBuf {

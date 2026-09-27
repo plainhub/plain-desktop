@@ -95,7 +95,7 @@ impl WsHub {
         key: [u8; crypto::KEY_LEN],
         sink: futures::stream::SplitSink<axum::extract::ws::WebSocket, Message>,
     ) {
-        crate::log::info!(
+        log::info!(
             "[ws_hub] register cid={} - subscribing to all 4 channels",
             cid
         );
@@ -227,7 +227,7 @@ impl WsHub {
     }
 
     pub fn unregister(&self, cid: &str) {
-        crate::log::info!("[ws_hub] unregister cid={}", cid);
+        log::info!("[ws_hub] unregister cid={}", cid);
         let mut g = self.inner.lock().expect("ws_hub lock poisoned");
         if let Some(h) = g.conns.remove(cid) {
             // Best-effort: ask the writer task to terminate by closing the

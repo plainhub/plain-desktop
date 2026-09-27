@@ -140,7 +140,7 @@ pub fn build_m_search(st: &str) -> String {
 /// outgoing interface for multicast and helps on multi-homed hosts.
 pub fn local_ipv4_addrs() -> std::collections::HashMap<Ipv4Addr, Option<Ipv4Addr>> {
     let mut out = std::collections::HashMap::new();
-    for iface in plain_rs::utils::ifaddr::list() {
+    for iface in crate::utils::ifaddr::list() {
         let ip = iface.ip;
         let bcast = iface
             .netmask
@@ -210,7 +210,7 @@ fn send_msearch_packets(
     for st in search_targets {
         let q = build_m_search(st);
         if dlna_debug_payload_enabled() {
-            crate::log::debug!(st = %st, "ssdp: tx\n{}", truncate_for_log(&q, 1024));
+            log::debug!("ssdp: tx st={st}\n{}", truncate_for_log(&q, 1024));
         }
         for i in 0..M_SEARCH_REPEAT {
             let _ = socket.send_to(q.as_bytes(), mcast);
@@ -221,7 +221,7 @@ fn send_msearch_packets(
                 let _ = socket.send_to(q.as_bytes(), *ed);
             }
             if dlna_debug_enabled() {
-                crate::log::info!(st = %st, attempt = i+1, mcast = %mcast, "ssdp: send");
+                log::info!("ssdp: send st={st} attempt={} mcast={mcast}", i + 1);
             }
             if i + 1 < M_SEARCH_REPEAT {
                 std::thread::sleep(M_SEARCH_GAP);
@@ -286,7 +286,10 @@ fn read_responses(socket: &UdpSocket, deadline: std::time::Instant) -> Vec<UpnpD
                 }
                 let remote_ip = sa.ip().to_string();
                 if dlna_debug_enabled() {
-                    crate::log::info!(from = %remote_ip, location = %loc, usn = %h.get("usn").cloned().unwrap_or_default(), "ssdp: rx");
+                    log::info!(
+                        "ssdp: rx from={remote_ip} location={loc} usn={}",
+                        h.get("usn").cloned().unwrap_or_default()
+                    );
                 }
                 out.push(UpnpDiscovered {
                     location: loc,
@@ -318,7 +321,7 @@ pub fn ssdp_search(search_targets: &[String]) -> Vec<UpnpDiscovered> {
     let deadline = std::time::Instant::now() + SSDP_HARD_DEADLINE;
 
     if dlna_debug_enabled() {
-        crate::log::info!(targets = ?search_targets, extras = ?extras, "ssdp: starting search");
+        log::info!("ssdp: starting search targets={search_targets:?} extras={extras:?}");
     }
 
     let mut combined: Vec<UpnpDiscovered> = Vec::new();
@@ -334,7 +337,7 @@ pub fn ssdp_search(search_targets: &[String]) -> Vec<UpnpDiscovered> {
         let socket = match UdpSocket::bind(bind_addr) {
             Ok(s) => s,
             Err(e) => {
-                crate::log::info!(ip = %bind_ip, err = %e, "ssdp: bind failed");
+                log::info!("ssdp: bind failed ip={bind_ip} err={e}");
                 continue;
             }
         };
@@ -362,7 +365,7 @@ pub fn ssdp_search(search_targets: &[String]) -> Vec<UpnpDiscovered> {
     }
 
     if dlna_debug_enabled() {
-        crate::log::info!(count = combined.len(), "ssdp: search complete");
+        log::info!("ssdp: search complete count={}", combined.len());
     }
     combined
 }
@@ -417,5 +420,5 @@ pub fn parse_udn_from_usn(usn: &str) -> String {
 }
 
 #[cfg(test)]
-#[path = "../../tests/unit/dlna/ssdp.rs"]
+#[path = "../../../tests/unit/nas/dlna/ssdp.rs"]
 mod tests;

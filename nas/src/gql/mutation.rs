@@ -1358,7 +1358,7 @@ fn resolve_queue_tracks(
                 .collect()
         }
         Err(e) => {
-            crate::log::error!("[audio-queue] resolve tracks failed for {query:?}: {e}");
+            log::error!("[audio-queue] resolve tracks failed for {query:?}: {e}");
             Vec::new()
         }
     }

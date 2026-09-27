@@ -6,32 +6,35 @@ use clap::{Parser, Subcommand};
 #[macro_use]
 mod macros;
 mod api;
-mod app_update;
-mod automount;
-mod blockdev;
 mod chat;
 mod chunked_upload;
 mod cmd;
-mod consts;
 mod crypto;
-mod device_info;
-mod devtools_sqlite;
-mod dlna;
-mod format_disk;
 pub mod gql;
 mod library;
-mod log;
-mod mounts;
-#[allow(dead_code)]
-mod pdf_preview;
 mod prefs;
 mod read_password;
-mod samba;
-mod storage_disks;
-mod temp_store;
 mod version;
 mod ws_hub;
-mod xml_sax;
+
+// NAS system/domain modules — now hosted by plain-rs (`plain_rs::nas`,
+// enabled via its `nas` feature), re-exported under the historical
+// module paths so call sites stay stable.
+pub use plain_rs::nas::app_update;
+pub use plain_rs::nas::automount;
+pub use plain_rs::nas::blockdev;
+pub use plain_rs::nas::consts;
+pub use plain_rs::nas::device_info;
+pub use plain_rs::nas::devtools_sqlite;
+pub use plain_rs::nas::dlna;
+pub use plain_rs::nas::format_disk;
+pub use plain_rs::nas::log;
+pub use plain_rs::nas::mounts;
+pub use plain_rs::nas::pdf_preview;
+pub use plain_rs::nas::samba;
+pub use plain_rs::nas::storage_disks;
+pub use plain_rs::nas::temp_store;
+pub use plain_rs::nas::xml_sax;
 
 // Media/file stack — now hosted by plain-rs (`plain_rs::media`), wired
 // through under the historical module paths so call sites stay stable.
@@ -97,6 +100,11 @@ fn main() -> Result<()> {
     // so the runtime can pick it up.
     let _ = rustls::crypto::ring::default_provider().install_default();
 
+    plain_rs::nas::version::set(
+        crate::version::VERSION,
+        crate::version::COMMIT,
+        crate::version::BUILD_TIME,
+    );
     crate::log::init("info");
 
     let cli = Cli::parse();

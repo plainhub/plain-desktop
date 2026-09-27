@@ -96,7 +96,7 @@ impl PeerMutation {
     /// peers don't hit validation errors.
     async fn start_aware(&self, ctx: &Context<'_>) -> bool {
         let c = ctx.data_unchecked::<PeerCtx>();
-        crate::log::warn!(
+        log::warn!(
             "[peer_graphql] startAware requested by {} — Wi-Fi Aware not supported on NAS",
             c.peer.id
         );

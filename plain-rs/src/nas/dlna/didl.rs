@@ -54,5 +54,5 @@ xmlns:dlna="urn:schemas-dlna-org:metadata-1-0/">\
 }
 
 #[cfg(test)]
-#[path = "../../tests/unit/dlna/didl.rs"]
+#[path = "../../../tests/unit/nas/dlna/didl.rs"]
 mod tests;

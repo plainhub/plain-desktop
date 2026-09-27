@@ -555,5 +555,5 @@ fn which(prog: &str) -> bool {
 }
 
 #[cfg(test)]
-#[path = "../tests/unit/samba.rs"]
+#[path = "../../tests/unit/nas/samba.rs"]
 mod tests;

@@ -28,8 +28,8 @@ use std::sync::LazyLock as Lazy;
 
 use super::desc;
 use super::types::{DiscoveredDevice, Renderer};
-use crate::consts;
-use crate::eventbus;
+use crate::media::eventbus;
+use crate::nas::consts;
 
 /// Total length of one discovery window. Matches Go's `60s` outer cap.
 const DISCOVERY_WINDOW: Duration = Duration::from_secs(60);
@@ -202,5 +202,5 @@ pub fn put_cache(d: DiscoveredDevice) {
 }
 
 #[cfg(test)]
-#[path = "../../tests/unit/dlna/discovery.rs"]
+#[path = "../../../tests/unit/nas/dlna/discovery.rs"]
 mod tests;

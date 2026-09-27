@@ -4,9 +4,9 @@ use super::*;
 use std::sync::atomic::{AtomicUsize, Ordering};
 
 /// Performance contract: a disabled level must not pay ANY formatting
-/// cost. The log macros gate on `enabled(level)` before rendering, so
-/// field/format expressions never evaluate when the level is off —
-/// observable here by a side-effecting field expression that must stay
+/// cost. The log macros gate on the facade max level before rendering,
+/// so field/format expressions never evaluate when the level is off —
+/// observable here by a side-effecting format argument that must stay
 /// unevaluated at a disabled level (locked: `cargo test disabled_level`).
 #[test]
 fn disabled_level_skips_formatting_entirely() {
@@ -14,27 +14,24 @@ fn disabled_level_skips_formatting_entirely() {
     let saved = level();
 
     set_level(Level::Error);
-    crate::log::debug!(
-        evals = {
+    log::debug!(
+        "debug must not format while Error-level is active evals={}",
+        {
             FMT_EVALS.fetch_add(1, Ordering::SeqCst);
             1
-        },
-        "debug must not format while Error-level is active"
+        }
     );
     assert_eq!(
         FMT_EVALS.load(Ordering::SeqCst),
         0,
-        "debug! at a disabled level must not evaluate field expressions"
+        "debug! at a disabled level must not evaluate format arguments"
     );
 
     set_level(Level::Debug);
-    crate::log::debug!(
-        evals = {
-            FMT_EVALS.fetch_add(1, Ordering::SeqCst);
-            1
-        },
-        "debug formats while enabled"
-    );
+    log::debug!("debug formats while enabled evals={}", {
+        FMT_EVALS.fetch_add(1, Ordering::SeqCst);
+        1
+    });
     assert_eq!(FMT_EVALS.load(Ordering::SeqCst), 1);
 
     set_level(saved);
@@ -103,14 +100,15 @@ fn write_lines(path: &std::path::Path, lines: &[&str]) {
 #[test]
 fn file_sink_writes_enabled_levels_only() {
     let _seq = SINK_SEQ.lock().unwrap();
+    init("info");
     let path = tmp_log("sink");
     set_file(&path);
     let saved = level();
     set_level(Level::Info);
 
-    crate::log::info!("sinkmarker-info {}", 2);
-    crate::log::debug!("sinkmarker-debug must not land");
-    crate::log::warn!("sinkmarker-warn");
+    log::info!("sinkmarker-info {}", 2);
+    log::debug!("sinkmarker-debug must not land");
+    log::warn!("sinkmarker-warn");
 
     set_level(saved);
     *SINK.lock().unwrap() = None;
@@ -190,14 +188,15 @@ fn read_lines_newest_first_matches_plain_app_semantics() {
 #[test]
 fn clear_file_truncates_and_sink_recovers() {
     let _seq = SINK_SEQ.lock().unwrap();
+    init("info");
     let path = tmp_log("clear");
     write_lines(&path, &["old-1", "old-2"]);
     set_file(&path);
     let saved = level();
     set_level(Level::Info);
-    crate::log::info!("clearmarker-kept");
+    log::info!("clearmarker-kept");
     clear_file(&path);
-    crate::log::info!("clearmarker-after-clear");
+    log::info!("clearmarker-after-clear");
     set_level(saved);
     *SINK.lock().unwrap() = None;
 
@@ -226,6 +225,7 @@ fn clear_file_truncates_and_sink_recovers() {
 #[test]
 fn set_file_creates_missing_parent_dirs() {
     let _seq = SINK_SEQ.lock().unwrap();
+    init("info");
     let nanos = std::time::SystemTime::now()
         .duration_since(std::time::UNIX_EPOCH)
         .unwrap()
@@ -236,7 +236,7 @@ fn set_file_creates_missing_parent_dirs() {
     set_file(&path);
     let saved = level();
     set_level(Level::Info);
-    crate::log::info!("mkdir-marker");
+    log::info!("mkdir-marker");
     set_level(saved);
     *SINK.lock().unwrap() = None;
 

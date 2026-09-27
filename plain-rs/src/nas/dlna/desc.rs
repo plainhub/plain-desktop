@@ -13,7 +13,7 @@
 
 use std::time::Duration;
 
-use crate::xml_sax::{Event, Reader};
+use crate::nas::xml_sax::{Event, Reader};
 
 use super::ssdp::ssdp_search;
 use super::types::{DiscoveredDevice, UpnpService};
@@ -47,16 +47,14 @@ pub fn fetch_and_parse_device(location: &str) -> Result<DiscoveredDevice, String
         return Err(format!("read body: {e}"));
     }
     if dlna_debug_enabled() {
-        crate::log::info!(
-            location,
-            status,
-            bytes = body.len(),
-            dur_ms = started.elapsed().as_millis() as u64,
-            "desc: ok"
+        log::info!(
+            "desc: ok location={location} status={status} bytes={} dur_ms={}",
+            body.len(),
+            started.elapsed().as_millis() as u64
         );
         if dlna_debug_payload_enabled() {
             let s = String::from_utf8_lossy(&body);
-            crate::log::debug!("desc: body\n{}", truncate_for_log(&s, 4096));
+            log::debug!("desc: body\n{}", truncate_for_log(&s, 4096));
         }
     }
     let mut dev = parse_device_desc(&body);
@@ -148,7 +146,7 @@ pub fn discover_upnp_devices<F: FnMut(&DiscoveredDevice)>(
 ) -> Vec<DiscoveredDevice> {
     let responses = ssdp_search(search_targets);
     if dlna_debug_enabled() {
-        crate::log::info!(count = responses.len(), "ssdp: got unique responses");
+        log::info!("ssdp: got unique responses count={}", responses.len());
     }
     let mut by_location: std::collections::HashMap<String, DiscoveredDevice> =
         std::collections::HashMap::new();
@@ -161,12 +159,12 @@ pub fn discover_upnp_devices<F: FnMut(&DiscoveredDevice)>(
             continue;
         }
         if dlna_debug_enabled() {
-            crate::log::info!(location = %loc, usn = %r.usn, "desc: fetching");
+            log::info!("desc: fetching location={loc} usn={}", r.usn);
         }
         let mut d = match fetch_and_parse_device(&loc) {
             Ok(d) => d,
             Err(e) => {
-                crate::log::info!(location = %loc, err = %e, "desc: fetch failed");
+                log::info!("desc: fetch failed location={loc} err={e}");
                 continue;
             }
         };
@@ -192,14 +190,14 @@ pub fn find_upnp_device_by_udn(udn: &str) -> Result<DiscoveredDevice, String> {
     if udn.is_empty() {
         return Err("udn is empty".to_string());
     }
-    if let Some(d) = crate::dlna::discovery::get_cached_by_udn(udn) {
+    if let Some(d) = crate::nas::dlna::discovery::get_cached_by_udn(udn) {
         return Ok(d);
     }
     let devs = discover_upnp_devices::<fn(&DiscoveredDevice)>(&["ssdp:all".to_string()], None);
     for d in devs {
         if d.udn == udn {
             // Populate the cache for next time.
-            crate::dlna::discovery::put_cache(d.clone());
+            crate::nas::dlna::discovery::put_cache(d.clone());
             return Ok(d);
         }
     }
@@ -207,5 +205,5 @@ pub fn find_upnp_device_by_udn(udn: &str) -> Result<DiscoveredDevice, String> {
 }
 
 #[cfg(test)]
-#[path = "../../tests/unit/dlna/desc.rs"]
+#[path = "../../../tests/unit/nas/dlna/desc.rs"]
 mod tests;

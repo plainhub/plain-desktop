@@ -20,7 +20,7 @@
 //! This is a destructive operation; it requires root. The `cmd run` flow
 //! already enforces root, so no extra check here.
 
-use crate::blockdev::{LsblkDevice, run_lsblk};
+use crate::nas::blockdev::{LsblkDevice, run_lsblk};
 use anyhow::{Result, anyhow};
 use std::io::Write;
 use std::path::Path;
@@ -187,7 +187,7 @@ pub fn format_disk_single_partition<F: FnMut(&str)>(
 
     // Prevent the automount reconciler from racing with this formatting
     // operation (it can remount a filesystem right after we unmount it).
-    let release_auto_mount = crate::automount::inhibit();
+    let release_auto_mount = crate::nas::automount::inhibit();
 
     // Tool availability
     for t in ["wipefs", "sfdisk", "mkfs.ext4", "umount"] {
@@ -280,11 +280,11 @@ pub fn format_disk_single_partition<F: FnMut(&str)>(
     // filesystem gets mounted into a stable /mnt/usbX slot (bounded like
     // Go's 20s context).
     drop(release_auto_mount);
-    crate::automount::ensure_mounted_with_timeout(prefs, Duration::from_secs(20));
+    crate::nas::automount::ensure_mounted_with_timeout(prefs, Duration::from_secs(20));
 
     Ok(())
 }
 
 #[cfg(test)]
-#[path = "../tests/unit/format_disk.rs"]
+#[path = "../../tests/unit/nas/format_disk.rs"]
 mod tests;

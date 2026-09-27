@@ -93,5 +93,5 @@ impl DiscoveredDevice {
 }
 
 #[cfg(test)]
-#[path = "../../tests/unit/dlna/types.rs"]
+#[path = "../../../tests/unit/nas/dlna/types.rs"]
 mod tests;

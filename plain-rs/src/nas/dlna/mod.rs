@@ -62,11 +62,13 @@ pub fn cast(
 
     // Rewrite the URL so the TV can reach it on our HTTP port.
     let media_url_owned = media_alias::safe_media_url_with_prefs(media_url, mime, Some(prefs));
-    if plain_rs::utils::http_url::parse_http_url(&media_url_owned).is_none() {
+    if crate::utils::http_url::parse_http_url(&media_url_owned).is_none() {
         return Err("invalid url".to_string());
     }
     if util::dlna_debug_enabled() {
-        crate::log::info!(udn, url = %media_url_owned, mime, ?media_type, title, "[DLNA] cast");
+        log::info!(
+            "[DLNA] cast udn={udn} url={media_url_owned} mime={mime} media_type={media_type:?} title={title}"
+        );
     }
 
     let meta = didl::didl_lite_metadata(&media_url_owned, title, mime, media_type);
@@ -122,5 +124,5 @@ pub fn cached_renderers() -> Vec<Renderer> {
 }
 
 #[cfg(test)]
-#[path = "../../tests/unit/dlna/mod.rs"]
+#[path = "../../../tests/unit/nas/dlna/mod.rs"]
 mod tests;

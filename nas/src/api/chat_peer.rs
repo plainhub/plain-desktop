@@ -27,7 +27,7 @@ pub async fn nearby_handler(
     if known {
         (StatusCode::OK, "1").into_response()
     } else {
-        crate::log::error!(
+        log::error!(
             "NearbyRoutes: unknown message type, body={}",
             &text.chars().take(50).collect::<String>()
         );
@@ -55,7 +55,7 @@ pub async fn peer_graphql_handler(
         .get("c-cid")
         .and_then(|v| v.to_str().ok())
         .unwrap_or_default();
-    crate::log::info!("[/peer_graphql] request from c-id={header_client_id}");
+    log::info!("[/peer_graphql] request from c-id={header_client_id}");
 
     // ── 1. Authenticate (key selection, decrypt, timestamp, signature) ──
     let authed = match plain_rs::chat::peer_auth::authenticate(
@@ -67,7 +67,7 @@ pub async fn peer_graphql_handler(
     ) {
         Ok(a) => a,
         Err(e) => {
-            crate::log::warn!("[/peer_graphql] auth failed: {}", e.reason());
+            log::warn!("[/peer_graphql] auth failed: {}", e.reason());
             return (
                 StatusCode::UNAUTHORIZED,
                 [(axum::http::header::CONTENT_TYPE, "text/plain")],

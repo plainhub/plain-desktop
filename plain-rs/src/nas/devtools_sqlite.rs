@@ -13,10 +13,10 @@
 //! plain-desktop's debug DB page; this module only routes a UI table name
 //! to the right store.
 
+use crate::chat::db::ChatDb;
+use crate::library::db::LibraryDb;
+use crate::sqlite_browse::{self as browse, TableColumnMeta, rusqlite::Connection};
 use anyhow::{Result, bail};
-use plain_rs::chat::db::ChatDb;
-use plain_rs::library::db::LibraryDb;
-use plain_rs::sqlite_browse::{self as browse, TableColumnMeta, rusqlite::Connection};
 
 /// Which of the two SQLite stores a UI table belongs to.
 enum DbRef<'a> {
@@ -121,5 +121,5 @@ pub fn delete_table_rows(
 }
 
 #[cfg(test)]
-#[path = "../tests/unit/devtools_sqlite.rs"]
+#[path = "../../tests/unit/nas/devtools_sqlite.rs"]
 mod tests;

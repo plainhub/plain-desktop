@@ -169,3 +169,19 @@ fn corrupt_file_fails_loudly() {
     std::fs::write(dir.join("prefs.json"), "{not json").unwrap();
     assert!(Prefs::load(&dir.join("prefs.json")).is_err());
 }
+
+#[test]
+fn global_accessor_contract() {
+    let (_dir, prefs) = tmp_prefs("global");
+    let prefs = std::sync::Arc::new(prefs);
+    prefs.set("device_name", "global-box").unwrap();
+    set_global(prefs);
+    assert_eq!(
+        get_default()
+            .get::<String>("device_name")
+            .unwrap()
+            .as_deref(),
+        Some("global-box")
+    );
+    assert!(try_get_default().is_some());
+}

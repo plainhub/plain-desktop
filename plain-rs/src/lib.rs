@@ -7,6 +7,8 @@ pub mod crypto;
 pub mod library;
 #[cfg(feature = "api")]
 pub mod api;
+#[cfg(feature = "nas")]
+pub mod nas;
 #[cfg(feature = "media")]
 pub mod media;
 pub mod mdns;

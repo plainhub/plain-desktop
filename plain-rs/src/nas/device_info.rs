@@ -21,7 +21,7 @@ use std::path::{Path, PathBuf};
 use std::time::Duration;
 
 #[cfg(test)]
-#[path = "../tests/unit/device_info.rs"]
+#[path = "../../tests/unit/nas/device_info.rs"]
 mod tests;
 
 #[derive(Debug, Serialize, Default)]
@@ -58,7 +58,7 @@ pub struct NicInfo {
 }
 
 pub async fn collect() -> Result<DeviceInfo> {
-    let hostname = plain_rs::utils::hostname::get();
+    let hostname = crate::utils::hostname::get();
     let mem = read_meminfo();
     let load = read_loadavg();
     let cpu = read_cpuinfo();
@@ -78,8 +78,8 @@ pub async fn collect() -> Result<DeviceInfo> {
         hostname,
         os: read_os_release(),
         kernel_version: read_kernel_version(),
-        app_version: env!("CARGO_PKG_VERSION").to_string(),
-        app_full_version: crate::version::full_version(),
+        app_version: crate::nas::version::version().to_string(),
+        app_full_version: crate::nas::version::full_version(),
         arch: std::env::consts::ARCH.to_string(),
         uptime,
         boot_time,

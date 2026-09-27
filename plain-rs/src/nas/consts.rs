@@ -19,8 +19,8 @@ impl AppPaths {
     /// initialized rooted the index there, and the owning test's `TempDir`
     /// cleanup then deleted the index directory out from under every later
     /// test (empty search results / IO errors).
-    #[cfg(test)]
-    pub(crate) fn pin_test_data_dir() -> PathBuf {
+    #[doc(hidden)]
+    pub fn pin_test_data_dir() -> PathBuf {
         static PINNED: std::sync::OnceLock<PathBuf> = std::sync::OnceLock::new();
         PINNED
             .get_or_init(|| {

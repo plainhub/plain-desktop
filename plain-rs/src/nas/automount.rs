@@ -10,7 +10,7 @@
 //! `udevadm monitor --udev --subsystem-match=block --property` and
 //! debounces bursts into a single reconciliation, exactly like the Go side.
 
-use crate::blockdev::{flatten_devices, run_lsblk};
+use crate::nas::blockdev::{flatten_devices, run_lsblk};
 use crate::prefs::Prefs;
 use anyhow::{Result, anyhow};
 use serde::{Deserialize, Serialize};
@@ -149,7 +149,7 @@ pub fn next_free_slot(used: &HashSet<usize>) -> usize {
 
 #[cfg_attr(not(target_os = "linux"), allow(dead_code))]
 fn is_mountpoint(path: &str) -> bool {
-    crate::mountinfo::read_mountinfo()
+    crate::media::mountinfo::read_mountinfo()
         .map(|es| es.iter().any(|e| e.mount_point == path))
         .unwrap_or(false)
 }
@@ -270,8 +270,8 @@ pub fn plan_mounts(filesystems: &[BlockFs], persisted: &SlotMap) -> (Vec<Planned
 
 #[cfg_attr(not(target_os = "linux"), allow(dead_code))]
 fn emit_event(kind: &str, message: &str) {
-    if let Some(db) = crate::db::try_get_default() {
-        let _ = crate::db::EventLog::new(db).add(kind, message, "");
+    if let Some(db) = crate::media::kv::try_get_default() {
+        let _ = crate::media::kv::EventLog::new(db).add(kind, message, "");
     }
 }
 
@@ -305,26 +305,26 @@ pub fn ensure_mounted_usb_volumes(prefs: &Prefs) -> Result<()> {
             };
             let target = format!("{PLAINNAS_MOUNT_ROOT}/{USB_PREFIX}{}", pm.slot);
             if let Err(e) = std::fs::create_dir_all(&target) {
-                crate::log::error!("mount: mkdir {target} failed: {e}");
+                log::error!("mount: mkdir {target} failed: {e}");
                 emit_event("mount_failed", &format!("mkdir {target}: {e}"));
                 continue;
             }
             // Always clear /mnt/usbX before mounting: Linux can keep older
             // layers from a hot-unplugged device.
             if let Err(e) = unmount_all_at(&target) {
-                crate::log::error!("mount: cleanup {target} failed: {e}");
+                log::error!("mount: cleanup {target} failed: {e}");
                 emit_event("mount_failed", &format!("cleanup {target}: {e}"));
                 continue;
             }
             if let Err(e) = mount_by_uuid(&fs.fsuuid, &target) {
-                crate::log::error!("mount: UUID {} -> {target} failed: {e}", fs.fsuuid);
+                log::error!("mount: UUID {} -> {target} failed: {e}", fs.fsuuid);
                 emit_event(
                     "mount_failed",
                     &format!("UUID {} -> {target}: {e}", fs.fsuuid),
                 );
                 continue;
             }
-            crate::log::info!("mounted UUID {} at {target}", fs.fsuuid);
+            log::info!("mounted UUID {} at {target}", fs.fsuuid);
             emit_event("mount", &format!("mounted UUID {} at {target}", fs.fsuuid));
         }
 
@@ -370,7 +370,7 @@ fn should_trigger_hotplug(props: &HashMap<String, String>) -> bool {
 /// process exits. Go `RunAutoMountWatcher` (700ms debounce).
 pub fn run_automount_watcher() {
     if which("udevadm").is_none() {
-        crate::log::error!("storage hotplug: udevadm not found");
+        log::error!("storage hotplug: udevadm not found");
         return;
     }
 
@@ -412,7 +412,7 @@ pub fn run_automount_watcher() {
     {
         Ok(c) => c,
         Err(e) => {
-            crate::log::error!("storage hotplug: start udevadm failed: {e}");
+            log::error!("storage hotplug: start udevadm failed: {e}");
             return;
         }
     };
@@ -450,5 +450,5 @@ fn which(prog: &str) -> Option<()> {
 }
 
 #[cfg(test)]
-#[path = "../tests/unit/automount.rs"]
+#[path = "../../tests/unit/nas/automount.rs"]
 mod tests;

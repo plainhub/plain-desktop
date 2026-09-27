@@ -47,9 +47,12 @@ xmlns:s=\"http://schemas.xmlsoap.org/soap/envelope/\">\
     );
 
     if dlna_debug_enabled() {
-        crate::log::info!(action, endpoint, bytes = envelope.len(), "soap: tx");
+        log::info!(
+            "soap: tx action={action} endpoint={endpoint} bytes={}",
+            envelope.len()
+        );
         if dlna_debug_payload_enabled() {
-            crate::log::debug!(
+            log::debug!(
                 "soap: txBody action={action}\n{}",
                 truncate_for_log(&envelope, 4096)
             );
@@ -91,7 +94,7 @@ pub fn resolve_service_endpoint(location: &str, control_url: &str) -> Result<Str
     // `loc` is only used to validate `location`; if it's not a parseable
     // URL we bail out. The actual base for the relative resolve is
     // `location.trim()` itself.
-    if plain_rs::utils::http_url::parse_http_url(location.trim()).is_none() {
+    if crate::utils::http_url::parse_http_url(location.trim()).is_none() {
         return Err("parse location".to_string());
     }
     let control = control_url.trim();
@@ -99,14 +102,14 @@ pub fn resolve_service_endpoint(location: &str, control_url: &str) -> Result<Str
         return Err("empty controlURL".to_string());
     }
     // Absolute control URL? Use as-is. Relative? Resolve against `location`.
-    if plain_rs::utils::http_url::parse_http_url(control).is_some() {
+    if crate::utils::http_url::parse_http_url(control).is_some() {
         return Ok(control.to_string());
     }
-    let resolved = plain_rs::utils::http_url::join(location.trim(), control)
+    let resolved = crate::utils::http_url::join(location.trim(), control)
         .ok_or_else(|| "resolve reference".to_string())?;
     // We have to re-parse the result to check it has a host — but we
     // just built it from a base that did, so this is paranoia.
-    if plain_rs::utils::http_url::parse_http_url(&resolved)
+    if crate::utils::http_url::parse_http_url(&resolved)
         .map(|u| u.host.is_empty())
         .unwrap_or(true)
     {
@@ -116,5 +119,5 @@ pub fn resolve_service_endpoint(location: &str, control_url: &str) -> Result<Str
 }
 
 #[cfg(test)]
-#[path = "../../tests/unit/dlna/soap.rs"]
+#[path = "../../../tests/unit/nas/dlna/soap.rs"]
 mod tests;

@@ -64,7 +64,7 @@ pub async fn graphql_handler(
         None => return bad_request("Decryption failed"),
     };
     if let Err(e) = SessionStore::new(&state.db).touch_last_active(&session) {
-        crate::log::debug!("touch_last_active failed: {e}");
+        log::debug!("touch_last_active failed: {e}");
     }
     run_graphql(state, decrypted, client_id, Some(key)).await
 }
@@ -113,7 +113,7 @@ fn strip_replay_wrapper(body: &[u8]) -> String {
         .map(|d| d.as_millis() as u64)
         .unwrap_or(0);
     if ts.abs_diff(now) > 600_000 {
-        crate::log::warn!("[graphql] stale request timestamp ({ts} vs {now})");
+        log::warn!("[graphql] stale request timestamp ({ts} vs {now})");
     }
     json.to_string()
 }

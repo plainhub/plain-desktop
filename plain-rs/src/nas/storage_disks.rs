@@ -3,7 +3,7 @@
 //! hidden, stable `disk:`/`diskbyid:` IDs, sysfs fallbacks for model and
 //! removable flags.
 
-use crate::blockdev::{
+use crate::nas::blockdev::{
     LsblkDevice, disk_id_from_name, is_device_removable, is_user_visible_disk_name, parse_boolish,
     read_sys_block_model, run_lsblk,
 };
@@ -73,5 +73,5 @@ fn to_storage_disk(d: &LsblkDevice) -> StorageDisk {
 }
 
 #[cfg(test)]
-#[path = "../tests/unit/storage_disks.rs"]
+#[path = "../../tests/unit/nas/storage_disks.rs"]
 mod tests;

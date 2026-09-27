@@ -7,7 +7,7 @@
 //! `disk_id` and tells volumes from partitions by `path` (partitions carry
 //! a block-device path, volumes don't).
 
-use crate::blockdev::{
+use crate::nas::blockdev::{
     LsblkDevice, base_block_device_name, disk_id_from_name, is_user_visible_disk_name,
     resolve_underlying_single_base_disk, run_lsblk,
 };
@@ -183,7 +183,7 @@ fn list_mounted_volumes(prefs: &Prefs) -> Vec<Mount> {
         return volumes;
     };
 
-    let alias_map = crate::db::storage::get_map(prefs);
+    let alias_map = crate::media::kv::storage::get_map(prefs);
     let dev_meta = build_volume_dev_meta_map();
 
     let mut seen_src = std::collections::HashSet::new();
@@ -427,7 +427,7 @@ fn statfs_usage(path: &str) -> Option<(i64, i64, i64)> {
 
 /// Total/available bytes via `df -B1` — kept for `deviceInfo.totalStorage`
 /// (root fs = "device storage") and as the non-Linux statfs fallback.
-pub(crate) fn df_usage(path: &str) -> (i64, i64) {
+pub fn df_usage(path: &str) -> (i64, i64) {
     let Ok(out) = std::process::Command::new("df")
         .args(["-B1", "--output=size,avail", path])
         .output()
@@ -451,5 +451,5 @@ pub(crate) fn df_usage(path: &str) -> (i64, i64) {
 }
 
 #[cfg(test)]
-#[path = "../tests/unit/mounts.rs"]
+#[path = "../../tests/unit/nas/mounts.rs"]
 mod tests;

@@ -105,7 +105,7 @@ pub fn safe_media_url_with_prefs(
     mime: &str,
     prefs: Option<&crate::prefs::Prefs>,
 ) -> String {
-    let parsed = match plain_rs::utils::http_url::parse_http_url(input_url) {
+    let parsed = match crate::utils::http_url::parse_http_url(input_url) {
         Some(u) => u,
         None => return input_url.to_string(),
     };
@@ -127,7 +127,7 @@ pub fn safe_media_url_with_prefs(
     // unchanged so the caller still gets a usable URL (the TV will get
     // a 404 but the API call doesn't fail).
     let path = match prefs {
-        Some(p) => match crate::fsx::path_from_file_id(id, p) {
+        Some(p) => match crate::media::fsx::path_from_file_id(id, p) {
             Ok(p) => p,
             Err(_) => return input_url.to_string(),
         },
@@ -185,5 +185,5 @@ fn is_safe_ext(e: &str) -> bool {
 }
 
 #[cfg(test)]
-#[path = "../../tests/unit/dlna/media_alias.rs"]
+#[path = "../../../tests/unit/nas/dlna/media_alias.rs"]
 mod tests;

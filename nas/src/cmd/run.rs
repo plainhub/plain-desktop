@@ -78,7 +78,7 @@ pub async fn run(paths: &AppPaths) -> Result<()> {
         let p = prefs.clone();
         std::mem::drop(tokio::task::spawn_blocking(move || {
             if let Err(e) = crate::automount::ensure_mounted_usb_volumes(&p) {
-                crate::log::error!("storage mount ensure failed: {e}");
+                log::error!("storage mount ensure failed: {e}");
             }
             crate::automount::run_automount_watcher();
         }));
@@ -144,7 +144,7 @@ pub async fn run(paths: &AppPaths) -> Result<()> {
             let cfg = match axum_server::tls_rustls::RustlsConfig::from_pem_file(cert, key).await {
                 Ok(c) => c,
                 Err(e) => {
-                    crate::log::error!("tls config: {e}");
+                    log::error!("tls config: {e}");
                     return;
                 }
             };
@@ -155,12 +155,12 @@ pub async fn run(paths: &AppPaths) -> Result<()> {
                 d.set_https_port(https_port);
             }
             let addr = std::net::SocketAddr::from(([0, 0, 0, 0], https_port));
-            crate::log::info!("HTTPS server starting on :{https_port}");
+            log::info!("HTTPS server starting on :{https_port}");
             if let Err(e) = axum_server::bind_rustls(addr, cfg)
                 .serve(app.into_make_service_with_connect_info::<std::net::SocketAddr>())
                 .await
             {
-                crate::log::error!("https server error: {e}");
+                log::error!("https server error: {e}");
             }
         }));
     }
@@ -172,13 +172,13 @@ pub async fn run(paths: &AppPaths) -> Result<()> {
             let listener = match tokio::net::TcpListener::bind(("0.0.0.0", http_port)).await {
                 Ok(l) => l,
                 Err(e) => {
-                    crate::log::error!("http bind failed: {e}");
+                    log::error!("http bind failed: {e}");
                     return;
                 }
             };
-            crate::log::info!("HTTP server starting on :{http_port}");
+            log::info!("HTTP server starting on :{http_port}");
             if let Err(e) = axum::serve(listener, app).await {
-                crate::log::error!("http server error: {e}");
+                log::error!("http server error: {e}");
             }
         }));
     }
@@ -186,8 +186,8 @@ pub async fn run(paths: &AppPaths) -> Result<()> {
     let mut sigterm = signal(SignalKind::terminate())?;
     let mut sigint = signal(SignalKind::interrupt())?;
     tokio::select! {
-        _ = sigterm.recv() => crate::log::info!("SIGTERM received, shutting down"),
-        _ = sigint.recv()  => crate::log::info!("SIGINT received, shutting down"),
+        _ = sigterm.recv() => log::info!("SIGTERM received, shutting down"),
+        _ = sigint.recv()  => log::info!("SIGINT received, shutting down"),
     }
     for h in handles {
         h.abort();

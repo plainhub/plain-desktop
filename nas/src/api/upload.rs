@@ -134,7 +134,7 @@ pub async fn upload_handler(
                 };
                 match decrypt_info::<UploadInfo>(&key, &bytes) {
                     Ok(i) => {
-                        crate::log::debug!("[/upload] info dir={:?} replace={}", i.dir, i.replace);
+                        log::debug!("[/upload] info dir={:?} replace={}", i.dir, i.replace);
                         info = Some(i);
                     }
                     Err(r) => return r,
@@ -158,7 +158,7 @@ pub async fn upload_handler(
                 let dest_path = std::path::PathBuf::from(
                     dest_path.components().collect::<std::path::PathBuf>(),
                 );
-                crate::log::debug!(
+                log::debug!(
                     "[/upload] incoming file={:?} dest={:?}",
                     file_name,
                     dest_path
@@ -167,7 +167,7 @@ pub async fn upload_handler(
                 // Handle conflict: replace or make unique path
                 let (dest_path, file_name) = if dest_path.exists() && !dest_path.is_dir() {
                     if upload_info.replace {
-                        crate::log::debug!("[/upload] replacing existing file: {:?}", dest_path);
+                        log::debug!("[/upload] replacing existing file: {:?}", dest_path);
                         let _ = tokio::fs::remove_file(&dest_path).await;
                         (dest_path, file_name)
                     } else {
@@ -177,7 +177,7 @@ pub async fn upload_handler(
                             .and_then(|n| n.to_str())
                             .unwrap_or("file")
                             .to_string();
-                        crate::log::debug!(
+                        log::debug!(
                             "[/upload] target exists, using unique path: {:?}",
                             unique
                         );
@@ -226,7 +226,7 @@ pub async fn upload_handler(
         return (StatusCode::BAD_REQUEST, "no file uploaded").into_response();
     }
 
-    crate::log::info!(
+    log::info!(
         "[/upload] saved file={:?} path={:?}",
         saved_filename,
         last_dest_path
@@ -237,7 +237,7 @@ pub async fn upload_handler(
     let path_clone = last_dest_path.clone();
     tokio::spawn(async move {
         if let Err(e) = crate::media_scan::scan_file(&db, &path_clone) {
-            crate::log::error!("[/upload] index file error for {:?}: {}", path_clone, e);
+            log::error!("[/upload] index file error for {:?}: {}", path_clone, e);
         }
     });
 
@@ -274,7 +274,7 @@ pub async fn upload_chunk_handler(
                 };
                 match decrypt_info::<UploadChunkInfo>(&key, &bytes) {
                     Ok(i) => {
-                        crate::log::debug!(
+                        log::debug!(
                             "[/upload_chunk] info fileId={:?} index={:?}",
                             i.file_id(),
                             i.index
@@ -330,7 +330,7 @@ pub async fn upload_chunk_handler(
     }
 
     if chunk_saved {
-        crate::log::info!("[/upload_chunk] saved {:?}", chunk_path_saved);
+        log::info!("[/upload_chunk] saved {:?}", chunk_path_saved);
         let index = info.as_ref().and_then(|i| i.index).unwrap_or(0);
         (StatusCode::CREATED, format!("chunk_{index}")).into_response()
     } else {

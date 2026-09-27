@@ -33,7 +33,7 @@ rand = "0.8"
 hex = "0.4"
 base64 = "0.22"
 
-plain_rs = { path = "../plain-rs", package = "plain-rs", features = ["chat", "library", "prefs", "sqlite_browse", "media", "media_gql"] }
+plain_rs = { path = "../plain-rs", package = "plain-rs", features = ["chat", "library", "prefs", "sqlite_browse", "media", "media_gql", "nas"] }
 
 # Platform FFI (already a transitive of nix/tokio/ring — listing explicitly
 # so we can call libc::tcgetattr / setsockopt / etc. without forcing
@@ -82,7 +82,8 @@ parking_lot = "0.12"
 # ported to plain-rs), a 30-line wrapper around libc::gethostname(2).
 nix = { version = "0.28", features = ["mount", "fs", "user"] }
 tempfile = "3"
-dashmap = "5"
+# `dashmap` was removed with the system-module move to plain-rs: nothing
+# in this crate referenced it directly.
 ureq = { version = "2", default-features = false, features = ["tls"] }
 # `quick-xml` was removed in step 11. Replaced with the in-tree
 # `crate::xml_sax` module (see src/xml_sax.rs) — a 200-line SAX-style

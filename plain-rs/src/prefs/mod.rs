@@ -22,7 +22,32 @@ use serde::{Serialize, de::DeserializeOwned};
 use serde_json::{Map, Value};
 use std::fmt;
 use std::path::{Path, PathBuf};
-use std::sync::RwLock;
+use std::sync::{Arc, OnceLock, RwLock};
+
+static GLOBAL: OnceLock<Arc<Prefs>> = OnceLock::new();
+
+/// Install the process-wide preferences (called once by the host shell
+/// right after loading). Panics if called twice.
+pub fn set_global(prefs: Arc<Prefs>) {
+    if GLOBAL.set(prefs).is_err() {
+        panic!("prefs::set_global called twice");
+    }
+}
+
+/// Returns the process-wide preferences. Panics if `set_global` was not
+/// called yet — same contract as `media::kv::get_default`.
+pub fn get_default() -> &'static Prefs {
+    GLOBAL
+        .get()
+        .expect("prefs::set_global must be called before get_default")
+        .as_ref()
+}
+
+/// Non-panicking variant for background paths that may run before (or
+/// without) the global being installed — e.g. the automount watcher.
+pub fn try_get_default() -> Option<Arc<Prefs>> {
+    GLOBAL.get().cloned()
+}
 
 /// Prefs failures carry the file path so a hand-edit mistake or disk
 /// error is loud and actionable. Implements `std::error::Error`, so

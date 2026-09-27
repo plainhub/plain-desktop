@@ -232,5 +232,5 @@ fn find_subslice(haystack: &[u8], needle: &[u8]) -> Option<usize> {
 }
 
 #[cfg(test)]
-#[path = "../tests/unit/xml_sax.rs"]
+#[path = "../../tests/unit/nas/xml_sax.rs"]
 mod tests;

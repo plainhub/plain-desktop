@@ -1,37 +1,28 @@
-//! Tiny logging shim — replaces `tracing` + `tracing-subscriber`.
+//! File + stderr logger behind the standard `log` facade.
 //!
 //! Why not `tracing`?
 //! ------------------
-//! The `tracing` ecosystem is the de-facto Rust standard, but the
-//! 35+ call sites in this codebase only ever use the lowest-level
-//! surface: `info!` / `debug!` / `warn!` / `error!` / `trace!` with
-//! an optional `key = %expr, key = ?expr,` field prefix. No spans, no
-//! `#[instrument]`, no `event!`, no `tracing-subscriber` registries.
+//! The `tracing` ecosystem is the de-facto Rust standard, but the call
+//! sites in this codebase only ever use the lowest-level surface:
+//! `info!` / `debug!` / `warn!` / `error!` / `trace!` through the
+//! `log` crate macros.
 //!
 //! `tracing` + `tracing-subscriber` together pull in:
 //!   * `tracing-core`, `tracing-log`, `tracing-attributes`
 //!   * `tracing-subscriber` -> `matchers`, `regex-automata`, `regex-syntax`,
 //!     `aho-corasick`, `nu-ansi-term`, `sharded-slab`, `thread_local`,
 //!     `lazy_static`
-//!   * the `log` crate (transitive, just for re-exports)
 //!
 //! That's ~13 crates and ~5 seconds of compile time for what is
 //! effectively `eprintln!("[LEVEL] {message}")` plus a level filter.
 //!
 //! This module:
-//!   1. Exposes `init()` and `panic_err()` with the same signatures the
-//!      old `tracing-subscriber`-based shim had.
-//!   2. Re-exports `info!`, `debug!`, `warn!`, `error!`, `trace!` as
-//!      local `macro_rules!` macros so call-sites that used
-//!      `tracing::info!` can be rewritten to `log::info!` with no
-//!      behaviour change.
-//!
-//! Supported call shapes (the actual call-sites use only these):
-//!   * `info!("msg {var}")`                   — Display, like `format!`
-//!   * `info!("static msg")`                  — static string
-//!   * `info!(key = %expr, ..., "msg {var}")` — fields then format string
-//!   * `info!(key = ?expr, ..., "msg {var}")` — fields then format string
-//!   * `info!(bare_field, ..., "msg")`        — bare fields (Display)
+//!   1. Exposes `init(level)` — installs a [`log::Log`] implementation
+//!      (stderr mirror + optional on-disk sink) via `log::set_boxed_logger`
+//!      and sets both the facade's max level and the internal filter, so
+//!      disabled-level `log::` call sites skip formatting entirely.
+//!   2. Keeps the on-disk log sink (`<data_dir>/logs/latest.log`) behind
+//!      the developer UI (`appLogPath` / `appLogs` / `clearAppLogs`).
 //!
 //! What we deliberately don't support:
 //!   * spans, `event!`, `#[instrument]` (no call-sites use them).
@@ -73,19 +64,30 @@ impl Level {
             _ => Level::Info,
         }
     }
+    fn to_filter(self) -> log::LevelFilter {
+        match self {
+            Level::Trace => log::LevelFilter::Trace,
+            Level::Debug => log::LevelFilter::Debug,
+            Level::Info => log::LevelFilter::Info,
+            Level::Warn => log::LevelFilter::Warn,
+            Level::Error => log::LevelFilter::Error,
+        }
+    }
 }
 
 static LEVEL: AtomicUsize = AtomicUsize::new(2 /* Level::Info */);
 
-/// Initialise the global level from a string. `RUST_LOG` overrides the
-/// explicit `level` argument.
+/// Initialise the logger and the global level from a string. `RUST_LOG`
+/// overrides the explicit `level` argument. Installing the logger a
+/// second time (tests) keeps the first installation.
 pub fn init(level: &str) {
-    install_facade();
-    if let Ok(env) = std::env::var("RUST_LOG") {
-        LEVEL.store(Level::parse(&env) as usize, Ordering::Relaxed);
-    } else {
-        LEVEL.store(Level::parse(level) as usize, Ordering::Relaxed);
-    }
+    let level = match std::env::var("RUST_LOG") {
+        Ok(env) => Level::parse(&env),
+        Err(_) => Level::parse(level),
+    };
+    let _ = log::set_logger(&NAS_LOGGER);
+    log::set_max_level(level.to_filter());
+    LEVEL.store(level as usize, Ordering::Relaxed);
 }
 
 #[inline]
@@ -109,14 +111,16 @@ pub fn level() -> Level {
     }
 }
 
-/// Set the level at runtime (config reload, tests).
+/// Set the level at runtime (config reload, tests). Mirrors it into the
+/// facade's max level so `log::` call sites below the threshold skip
+/// formatting their arguments entirely.
 #[cfg_attr(not(test), allow(dead_code))]
 pub fn set_level(level: Level) {
+    log::set_max_level(level.to_filter());
     LEVEL.store(level as usize, Ordering::Relaxed);
 }
 
-#[doc(hidden)]
-pub fn write_log(level: Level, body: &str) {
+fn write_log(level: Level, body: &str) {
     if !enabled(level) {
         return;
     }
@@ -308,220 +312,43 @@ pub fn read_lines_newest_first(
     collected.into_iter().skip(offset).take(limit).collect()
 }
 
-#[doc(hidden)]
-pub fn emit(level: Level, body: String) {
-    write_log(level, &body);
-}
-
 // ---------------------------------------------------------------------------
-// The five user-facing macros. They accept the `tracing`-style call
-// shapes used in this codebase and forward to `log::emit` with a fully
-// rendered `String`.
-//
-// Field rendering is inlined into the call site at compile time: each
-// `key = %expr` becomes `format!("key={} ", expr)`, each `bare_field`
-// becomes `format!("bare_field={} ", bare_field)`, etc. We then call
-// `format!` on the trailing message.
+// The `log` facade bridge — every call site (NAS modules and plain-rs
+// media code alike) logs through the standard `log::` macros and lands
+// here: level-filtered, mirrored to stderr, appended to the on-disk sink
+// when enabled.
 // ---------------------------------------------------------------------------
 
-#[macro_export]
-macro_rules! __log_trace {
-    (target: $target:expr, $($rest:tt)+) => {{
-        if $crate::log::enabled($crate::log::Level::Trace) {{
-            let mut body = format!("[target={}] ", $target);
-            $crate::__log_render!(@acc body $($rest)+);
-            $crate::log::emit($crate::log::Level::Trace, body);
-        }}
-    }};
-    ($($rest:tt)+) => {{
-        if $crate::log::enabled($crate::log::Level::Trace) {{
-            let mut body = String::new();
-            $crate::__log_render!(@acc body $($rest)+);
-            $crate::log::emit($crate::log::Level::Trace, body);
-        }}
-    }};
-}
+struct NasLogger;
 
-#[macro_export]
-macro_rules! __log_debug {
-    (target: $target:expr, $($rest:tt)+) => {{
-        if $crate::log::enabled($crate::log::Level::Debug) {{
-            let mut body = format!("[target={}] ", $target);
-            $crate::__log_render!(@acc body $($rest)+);
-            $crate::log::emit($crate::log::Level::Debug, body);
-        }}
-    }};
-    ($($rest:tt)+) => {{
-        if $crate::log::enabled($crate::log::Level::Debug) {{
-            let mut body = String::new();
-            $crate::__log_render!(@acc body $($rest)+);
-            $crate::log::emit($crate::log::Level::Debug, body);
-        }}
-    }};
-}
+static NAS_LOGGER: NasLogger = NasLogger;
 
-#[macro_export]
-macro_rules! __log_info {
-    (target: $target:expr, $($rest:tt)+) => {{
-        if $crate::log::enabled($crate::log::Level::Info) {{
-            let mut body = format!("[target={}] ", $target);
-            $crate::__log_render!(@acc body $($rest)+);
-            $crate::log::emit($crate::log::Level::Info, body);
-        }}
-    }};
-    ($($rest:tt)+) => {{
-        if $crate::log::enabled($crate::log::Level::Info) {{
-            let mut body = String::new();
-            $crate::__log_render!(@acc body $($rest)+);
-            $crate::log::emit($crate::log::Level::Info, body);
-        }}
-    }};
-}
-
-#[macro_export]
-macro_rules! __log_warn {
-    (target: $target:expr, $($rest:tt)+) => {{
-        if $crate::log::enabled($crate::log::Level::Warn) {{
-            let mut body = format!("[target={}] ", $target);
-            $crate::__log_render!(@acc body $($rest)+);
-            $crate::log::emit($crate::log::Level::Warn, body);
-        }}
-    }};
-    ($($rest:tt)+) => {{
-        if $crate::log::enabled($crate::log::Level::Warn) {{
-            let mut body = String::new();
-            $crate::__log_render!(@acc body $($rest)+);
-            $crate::log::emit($crate::log::Level::Warn, body);
-        }}
-    }};
-}
-
-#[macro_export]
-macro_rules! __log_error {
-    (target: $target:expr, $($rest:tt)+) => {{
-        if $crate::log::enabled($crate::log::Level::Error) {{
-            let mut body = format!("[target={}] ", $target);
-            $crate::__log_render!(@acc body $($rest)+);
-            $crate::log::emit($crate::log::Level::Error, body);
-        }}
-    }};
-    ($($rest:tt)+) => {{
-        if $crate::log::enabled($crate::log::Level::Error) {{
-            let mut body = String::new();
-            $crate::__log_render!(@acc body $($rest)+);
-            $crate::log::emit($crate::log::Level::Error, body);
-        }}
-    }};
-}
-
-/// Internal helper used by the level macros above. Walks the
-/// `tracing`-style argument list and renders fields + message into
-/// `$acc` (a `String` binding the caller provides).
-#[macro_export]
-#[doc(hidden)]
-macro_rules! __log_render {
-    // bare field + comma + more
-    (@acc $acc:ident $name:ident, $($rest:tt)+) => {{
-        $acc.push_str(&format!("{key}={val} ", key = stringify!($name), val = $name));
-        $crate::__log_render!(@acc $acc $($rest)+);
-    }};
-    // bare field with `?` prefix (Debug) + comma + more
-    (@acc $acc:ident ?$name:ident, $($rest:tt)+) => {{
-        $acc.push_str(&format!("{key}={val:?} ", key = stringify!($name), val = $name));
-        $crate::__log_render!(@acc $acc $($rest)+);
-    }};
-    // key = %expr + comma + more
-    (@acc $acc:ident $key:ident = %$val:expr, $($rest:tt)+) => {{
-        $acc.push_str(&format!("{key}={v} ", key = stringify!($key), v = $val));
-        $crate::__log_render!(@acc $acc $($rest)+);
-    }};
-    // key = ?expr + comma + more
-    (@acc $acc:ident $key:ident = ?$val:expr, $($rest:tt)+) => {{
-        $acc.push_str(&format!("{key}={v:?} ", key = stringify!($key), v = $val));
-        $crate::__log_render!(@acc $acc $($rest)+);
-    }};
-    // key = literal + comma + more
-    (@acc $acc:ident $key:ident = $val:expr, $($rest:tt)+) => {{
-        $acc.push_str(&format!("{key}={v} ", key = stringify!($key), v = $val));
-        $crate::__log_render!(@acc $acc $($rest)+);
-    }};
-    // terminator: format-string + args
-    (@acc $acc:ident $fmt:literal $(, $arg:expr)* $(,)?) => {{
-        $acc.push_str(&format!($fmt $(, $arg)*));
-    }};
-}
-
-// Re-export the macros under aliases so they appear under
-// `crate::log::info!` etc. (and to dodge a name collision with
-// the transitive `log` crate, which also exports `info!`/`warn!`/etc.
-// at crate root). Call-sites that want our shim should reference it as
-// `crate::log::info!(...)`.
-//
-// We intentionally do NOT publish the macro under the unprefixed
-// `info` / `warn` / etc. name in this module because the `log` crate
-// already exports them at crate root and that confuses resolution.
-// Re-export the macros under their original names so call-sites can
-// use `crate::log::info!` / `crate::log::warn!` / etc. The transitive
-// `log` crate also exports `info!`/`warn!`/etc. at crate root, which
-// causes name resolution ambiguity inside this `pub use` expression;
-// we resolve it by using a module-qualified path.
-pub use crate::__log_debug as debug;
-pub use crate::__log_error as error;
-pub use crate::__log_info as info;
-pub use crate::__log_warn as warn;
-
-#[cfg(test)]
-#[path = "../tests/unit/log.rs"]
-mod tests;
-
-// ---------------------------------------------------------------------------
-// `log` crate facade bridge — plain-rs media code logs through the
-// standard `log::` macros; route them into this file logger so NAS logs
-// stay in one place.
-// ---------------------------------------------------------------------------
-
-struct FacadeLogger;
-
-impl log::Log for FacadeLogger {
+impl log::Log for NasLogger {
     fn enabled(&self, metadata: &log::Metadata) -> bool {
-        let level = match metadata.level() {
-            log::Level::Trace => Level::Trace,
-            log::Level::Debug => Level::Debug,
-            log::Level::Info => Level::Info,
-            log::Level::Warn => Level::Warn,
-            log::Level::Error => Level::Error,
-        };
-        enabled(level)
+        enabled(from_facade_level(metadata.level()))
     }
 
     fn log(&self, record: &log::Record) {
-        let level = match record.level() {
-            log::Level::Trace => Level::Trace,
-            log::Level::Debug => Level::Debug,
-            log::Level::Info => Level::Info,
-            log::Level::Warn => Level::Warn,
-            log::Level::Error => Level::Error,
-        };
+        let level = from_facade_level(record.level());
         if !enabled(level) {
             return;
         }
-        let target = record.target();
-        let body = if target.is_empty() {
-            format!("{}", record.args())
-        } else {
-            format!("[{target}] {}", record.args())
-        };
-        write_log(level, &body);
+        write_log(level, &format!("{}", record.args()));
     }
 
     fn flush(&self) {}
 }
 
-static FACADE: FacadeLogger = FacadeLogger;
-
-/// Install the `log` crate facade → file logger bridge. Idempotent —
-/// a second call (tests) is a no-op.
-fn install_facade() {
-    let _ = log::set_logger(&FACADE);
-    log::set_max_level(log::LevelFilter::Trace);
+fn from_facade_level(level: log::Level) -> Level {
+    match level {
+        log::Level::Trace => Level::Trace,
+        log::Level::Debug => Level::Debug,
+        log::Level::Info => Level::Info,
+        log::Level::Warn => Level::Warn,
+        log::Level::Error => Level::Error,
+    }
 }
+
+#[cfg(test)]
+#[path = "../../tests/unit/nas/log.rs"]
+mod tests;

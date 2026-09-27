@@ -149,7 +149,7 @@ async fn auth_handshake(socket: WebSocket, state: AppState, cid: String) {
     // (ASCII bytes), mirroring the REST `/auth` handler.
     let hash = PasswordStore::new(&state.prefs).get().unwrap_or_default();
     if hash.len() < crate::crypto::KEY_LEN {
-        crate::log::warn!("[ws/auth] cid={cid} rejected: server has no password set");
+        log::warn!("[ws/auth] cid={cid} rejected: server has no password set");
         // Uninitialized server — the client must call `/auth/setup` first.
         send_close(&mut tx, CLOSE_TRY_AGAIN_LATER, INVALID_REQUEST_REASON).await;
         return;
@@ -161,14 +161,14 @@ async fn auth_handshake(socket: WebSocket, state: AppState, cid: String) {
     let frame = match rx.next().await {
         Some(Ok(Message::Binary(b))) => b,
         other => {
-            crate::log::warn!("[ws/auth] cid={cid} no binary frame: {other:?}");
+            log::warn!("[ws/auth] cid={cid} no binary frame: {other:?}");
             return;
         }
     };
     let plaintext = match crate::crypto::decrypt(&key, &frame) {
         Some(p) => p,
         None => {
-            crate::log::warn!("[ws/auth] cid={cid} frame decrypt failed (wrong password?)");
+            log::warn!("[ws/auth] cid={cid} frame decrypt failed (wrong password?)");
             // Decryption failure means the password does not match.
             send_close(&mut tx, CLOSE_TRY_AGAIN_LATER, INVALID_PASSWORD_REASON).await;
             return;
@@ -177,13 +177,13 @@ async fn auth_handshake(socket: WebSocket, state: AppState, cid: String) {
     let req: AuthRequest = match serde_json::from_slice(&plaintext) {
         Ok(r) => r,
         Err(e) => {
-            crate::log::warn!("[ws/auth] cid={cid} bad auth request JSON: {e}");
+            log::warn!("[ws/auth] cid={cid} bad auth request JSON: {e}");
             send_close(&mut tx, CLOSE_TRY_AGAIN_LATER, INVALID_PASSWORD_REASON).await;
             return;
         }
     };
     if req.password != hash {
-        crate::log::warn!("[ws/auth] cid={cid} password mismatch");
+        log::warn!("[ws/auth] cid={cid} password mismatch");
         send_close(&mut tx, CLOSE_TRY_AGAIN_LATER, INVALID_PASSWORD_REASON).await;
         return;
     }
@@ -191,7 +191,7 @@ async fn auth_handshake(socket: WebSocket, state: AppState, cid: String) {
     let client_pub = match base64::engine::general_purpose::STANDARD.decode(&req.ecdh_public_key) {
         Ok(v) => v,
         Err(e) => {
-            crate::log::warn!("[ws/auth] cid={cid} bad ecdh public key: {e}");
+            log::warn!("[ws/auth] cid={cid} bad ecdh public key: {e}");
             send_close(&mut tx, CLOSE_TRY_AGAIN_LATER, INVALID_REQUEST_REASON).await;
             return;
         }
@@ -203,7 +203,7 @@ async fn auth_handshake(socket: WebSocket, state: AppState, cid: String) {
     let token = match ecdh.compute_shared_key(&client_pub) {
         Some(t) => t,
         None => {
-            crate::log::warn!("[ws/auth] cid={cid} ecdh shared key failed");
+            log::warn!("[ws/auth] cid={cid} ecdh shared key failed");
             send_close(&mut tx, CLOSE_TRY_AGAIN_LATER, INVALID_REQUEST_REASON).await;
             return;
         }
@@ -235,7 +235,7 @@ async fn auth_handshake(socket: WebSocket, state: AppState, cid: String) {
         },
     };
     if let Err(e) = sessions.upsert(info) {
-        crate::log::error!("[ws] failed to store login session: {e}");
+        log::error!("[ws] failed to store login session: {e}");
         send_close(&mut tx, CLOSE_TRY_AGAIN_LATER, INVALID_REQUEST_REASON).await;
         return;
     }

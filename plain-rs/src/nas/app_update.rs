@@ -53,7 +53,7 @@ pub fn app_update() -> AppUpdate {
         }
     }
 
-    let cur = crate::version::VERSION.to_string();
+    let cur = crate::nas::version::version().to_string();
     let mut res = AppUpdate {
         current_version: normalize_version(&cur),
         latest_version: None,
@@ -141,5 +141,5 @@ pub fn has_newer_version(current: &str, latest: &str) -> bool {
 }
 
 #[cfg(test)]
-#[path = "../tests/unit/app_update.rs"]
+#[path = "../../tests/unit/nas/app_update.rs"]
 mod tests;

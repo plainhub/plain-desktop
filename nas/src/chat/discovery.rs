@@ -103,7 +103,7 @@ impl ChatDiscovery {
                             last_seen: plain_rs::chat::db::now_millis(),
                         };
                         if let Err(e) = worker_db.save_cached_nearby_device(&cached) {
-                            crate::log::error!(
+                            log::error!(
                                 "failed to save nearby device record id={} err={e}",
                                 cached.id
                             );

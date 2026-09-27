@@ -56,5 +56,5 @@ pub fn dlna_debug_payload_enabled() -> bool {
 }
 
 #[cfg(test)]
-#[path = "../../tests/unit/dlna/util.rs"]
+#[path = "../../../tests/unit/nas/dlna/util.rs"]
 mod tests;
