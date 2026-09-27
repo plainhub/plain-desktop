@@ -1,6 +1,6 @@
 # Tauri Proxy Strategy (Performance & Stability)
 
-桌面 webview 的唯一网络传输：常驻本地反向代理 `src-tauri/src/http_proxy/`。
+桌面 webview 的唯一网络传输：常驻本地反向代理 `plain-rs/src/api/http_proxy/`。
 webview 里只有普通的 `fetch` 和 `new WebSocket`，与 Web 构建完全同构；
 区别只是 Tauri 构建里 API 地址被重写到电脑上的回环地址。
 
@@ -34,7 +34,7 @@ ws/wss→代理，回环直连）、`proxyUrlFor`（浏览器发起的 URL）。
 
 ## 代理的 WebSocket 中继
 
-`http_proxy/mod.rs::relay_websocket`：
+`plain-rs/src/api/http_proxy/mod.rs::relay_websocket`：
 
 1. 收到 `GET + upgrade: websocket`，从 `_pt` 取目标 base、`_cid` 取 peer id。
 2. `_cid` 非空时经 `PeerResolver`（`NearbyDiscoverManager::peer_address`，
@@ -44,7 +44,7 @@ ws/wss→代理，回环直连）、`proxyUrlFor`（浏览器发起的 URL）。
    客户端的 `sec-websocket-key` 原样转发，设备的 `101` 头原样回给 webview
    （accept 校验端到端成立）。
 4. 之后 `copy_bidirectional` 字节级对拷——不解析帧，ping/close/扩展全部
-   端到端透传。非 101 的拒绝按普通响应转发。
+   端到端透传。上游连接失败或返回非 101 时，代理合成握手后发送 1011 close 帧。
 
 被删除的旧机制（不再存在）：`invoke('http_request')` IPC fetch（2 字节
 status 前缀协议）、`invoke('ws_start_proxy')` 每连接一个临时 TCP 中继、
@@ -57,7 +57,7 @@ status 前缀协议）、`invoke('ws_start_proxy')` 每连接一个临时 TCP �
   报「502 Bad Gateway」而不是误导性的「Origin is not allowed by Access-Control-Allow-Origin」。
   设备不可达时每分钟每个 peer 的轮询失败仍会在 console 显示一行真实状态——那是诚实信号。
 - **WS 上游失败合成 101 + close(1011)**：拨号失败/设备拒绝 upgrade 时，代理用客户端的
-  key 算出合法 `sec-websocket-accept` 完成握手（SHA-1 手写在 `http_proxy/utils.rs`，
+  key 算出合法 `sec-websocket-accept` 完成握手（SHA-1 手写在 `plain-rs/src/api/http_proxy/utils.rs`，
   RFC 6455 向量锁死），随后发送 close 帧 1011。浏览器视为干净关闭——不刷握手错误；
   App 通过既有 `onclose` + 退避重连感知失败。
 - **GraphQL 调用日志**（dev）：`gql-client.ts` 每条调用打印

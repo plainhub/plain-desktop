@@ -1,7 +1,5 @@
 mod capture;
 mod commands;
-mod http_proxy;
-mod local;
 mod prefs;
 mod shell;
 mod utils;
@@ -148,68 +146,61 @@ pub fn run() {
                 .app_log_dir()
                 .unwrap_or_else(|_| data_dir.join("logs"));
             let db_path = data_dir.join("local_chat.db");
-            let db = match local::db::ChatDb::open(&db_path) {
+            let db = match plain_rs::api::db::ChatDb::open(&db_path) {
                 Ok(d) => Arc::new(d),
                 Err(e) => panic!("local_db open failed: {e}"),
             };
-            // User library (audio queue/playlists/history, tags, favorite
-            // folders) — same plain-rs core the NAS server uses.
-            let library = match local::db::LibraryDb::open(&data_dir.join("local_library.db")) {
-                Ok(d) => Arc::new(d),
-                Err(e) => panic!("local_library open failed: {e}"),
-            };
-            // Ensure persistent device identity once at startup.
             let identity = Arc::new(crate::prefs::ensure_identity(&prefs));
-            let device_name = Arc::new(std::sync::RwLock::new(identity.device_name.clone()));
-            let mdns_hostname = Arc::new(std::sync::RwLock::new(
-                crate::prefs::ensure_mdns_hostname(&prefs),
-            ));
-            let peer_status = commands::discover::PeerStatusManager::new(db.clone(), identity.clone());
-            let chat_state = Arc::new(local::chat::ChatState::new(
+            let chat_state = Arc::new(plain_rs::api::chat::ChatState::new(
                 &db,
                 &identity,
-                device_name.read().unwrap().clone(),
+                identity.device_name.clone(),
                 crate::prefs::ensure_url_token(&prefs),
                 data_dir.clone(),
             ));
             app.handle().manage(chat_state.clone());
-            let dlna_engine = Arc::new(local::dlna::receiver_engine::DlnaEngine::new());
-            let app_version = app.package_info().version.to_string();
-            let discover_mgr = commands::discover::NearbyDiscoverManager::new(
-                db.clone(),
-                identity.clone(),
-                device_name.clone(),
-                mdns_hostname,
+            let (event_tx, _) = tokio::sync::broadcast::channel(1024);
+            tauri::async_runtime::block_on(async {
+                chat_state.spawn_event_bridges(event_tx.clone(), {
+                    let handle = app.handle().clone();
+                    move |event: &plain_rs::chat::pairing::PairingEvent| {
+                        use tauri::Emitter;
+                        let _ = handle.emit("pairing-event", event.clone());
+                    }
+                });
+            });
+            let ctx = plain_rs::api::context::AppCtx::assemble(
+                data_dir.clone(),
+                data_dir.join("cache"),
+                log_dir,
+                data_dir.join("local_library.db"),
+                prefs.clone(),
                 chat_state.clone(),
-                peer_status.clone(),
+                event_tx.clone(),
+                Arc::new(shell::DesktopShell(app.handle().clone())),
                 0,
-                app_version,
-            );
+                0,
+            )
+            .expect("assemble local API context");
+            let peer_status = ctx.peer_status.clone();
+            let discover_mgr = ctx.discover_manager.clone();
+            let dlna_engine = ctx.dlna_engine.clone();
             chat_state.attach_discovery(discover_mgr.clone());
-            // The webview's only network transport: a loopback HTTP/WS
-            // reverse proxy that accepts the devices' self-signed certs.
-            // Its WS dial path re-resolves `_cid`-named peers through the
-            // discover manager's mDNS-fresh peers table.
-            let peer_resolver: http_proxy::PeerResolver = {
+            let peer_resolver: plain_rs::api::http_proxy::PeerResolver = {
                 let mgr = discover_mgr.clone();
                 Arc::new(move |id: &str| mgr.peer_address(id))
             };
-            app.handle()
-                .manage(http_proxy::HttpProxyState::start(peer_resolver));
-            let local_server_state = local::server::LocalServerState::start(
-                data_dir,
-                log_dir,
-                db.clone(),
-                library,
-                app.handle().clone(),
-                prefs.clone(),
-                identity.clone(),
-                device_name.clone(),
-                chat_state.clone(),
-                peer_status.clone(),
-                discover_mgr.clone(),
-                dlna_engine.clone(),
+            let state = plain_rs::api::server::ServerState::desktop(
+                Arc::new(plain_rs::api::schema::build_schema()),
+                Arc::new(plain_rs::api::peer_graphql::build_schema()),
+                ctx,
             );
+            app.handle().manage(tauri::async_runtime::block_on(async {
+                plain_rs::api::http_proxy::HttpProxyState::start(peer_resolver)
+            }));
+            let local_server_state = tauri::async_runtime::block_on(async {
+                plain_rs::api::server::runtime::ServerRuntime::start(state).await
+            });
             app.handle().manage(dlna_engine.clone());
             // Start the DLNA renderer at startup when the toggle is on.
             if plain_rs::prefs::dlna::enabled(&prefs) {
@@ -219,8 +210,8 @@ pub fn run() {
                     engine.start(port).await;
                 });
             }
-            peer_status.set_event_tx(local_server_state.event_tx.clone());
-            discover_mgr.set_event_tx(local_server_state.event_tx.clone());
+            peer_status.set_event_tx(event_tx.clone());
+            discover_mgr.set_event_tx(event_tx);
             discover_mgr.set_shell(std::sync::Arc::new(shell::DesktopShell(
                 app.handle().clone(),
             )));
@@ -392,25 +383,25 @@ pub fn run() {
             commands::screen_capture::commands::screen_capture_fail,
             commands::screen_capture::commands::screen_capture_cancel,
             commands::screen_capture::commands::screen_capture_unavailable,
-            http_proxy::http_proxy_port,
-            local::server::local_server_port,
-            local::server::local_server_https_port,
-            local::server::local_server_token,
-            local::server::local_ipv4_strs,
-            local::server::set_http_port,
-            local::server::set_https_port,
-            local::server::restart_server,
-            local::pairing::pair_device,
-            local::pairing::respond_pair_device,
-            local::pairing::cancel_pair_device,
-            local::pairing::get_device_identity,
-            local::pairing::set_device_name,
-            local::dlna::commands::dlna_state,
-            local::dlna::commands::dlna_set_enabled,
-            local::dlna::commands::dlna_accept_cast,
-            local::dlna::commands::dlna_reject_cast,
-            local::dlna::commands::dlna_senders,
-            local::dlna::commands::dlna_remove_sender,
+            commands::server::http_proxy_port,
+            commands::server::local_server_port,
+            commands::server::local_server_https_port,
+            commands::server::local_server_token,
+            commands::server::local_ipv4_strs,
+            commands::server::set_http_port,
+            commands::server::set_https_port,
+            commands::server::restart_server,
+            commands::pairing::pair_device,
+            commands::pairing::respond_pair_device,
+            commands::pairing::cancel_pair_device,
+            commands::pairing::get_device_identity,
+            commands::pairing::set_device_name,
+            commands::dlna::dlna_state,
+            commands::dlna::dlna_set_enabled,
+            commands::dlna::dlna_accept_cast,
+            commands::dlna::dlna_reject_cast,
+            commands::dlna::dlna_senders,
+            commands::dlna::dlna_remove_sender,
         ])
         .build(tauri::generate_context!())
         .expect("error while building tauri application");

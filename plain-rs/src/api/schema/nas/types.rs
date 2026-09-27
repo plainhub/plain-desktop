@@ -5,9 +5,9 @@
 // Scalars + media/file/tag GraphQL types now live in plain-rs
 // (`media::gql::types`) so the NAS schema and the desktop api schema
 // share one definition set; the shared `DataType` wire enum lives in
-// `plain_rs::enums`.
-pub use plain_rs::enums::DataType;
-pub use plain_rs::media::gql::types::{
+// `crate::enums`.
+pub use crate::enums::DataType;
+pub use crate::media::gql::types::{
     ActionResult, Audio, Doc, DocExtGroup, File, FileSortBy, FileTask, FileTaskOpInput,
     FileTaskStatus, FileTaskType, Image, ImageSearchStatus, ImageSearchStatusType, Instant, Long,
     MediaBucket, MediaDataType, PathKind, ScanProgress, ScanState, Tag, TagRelation,
@@ -175,11 +175,11 @@ pub enum DbColumnType {
     UNKNOWN,
 }
 /// Map a declared SQLite column type onto `DbColumnType` (string parsing
-/// lives in `plain_rs::sqlite_browse::column_type_of`, shared with
+/// lives in `crate::sqlite_browse::column_type_of`, shared with
 /// plain-desktop).
 pub fn column_type_of(declared: &str) -> DbColumnType {
-    use plain_rs::sqlite_browse::SqliteColumnType;
-    match plain_rs::sqlite_browse::column_type_of(declared) {
+    use crate::sqlite_browse::SqliteColumnType;
+    match crate::sqlite_browse::column_type_of(declared) {
         SqliteColumnType::Text => DbColumnType::TEXT,
         SqliteColumnType::Integer => DbColumnType::INTEGER,
         SqliteColumnType::Real => DbColumnType::REAL,
@@ -544,7 +544,7 @@ pub struct MergeTask {
     pub merged_size: Option<Long>,
     pub error: Option<String>,
 }
-// ----- Chat (plain-app contract;backed by the shared plain_rs::chat
+// ----- Chat (plain-app contract;backed by the shared crate::chat
 // stack — SQLite chat.db + LAN pairing) -----
 
 #[derive(Enum, Copy, Clone, Eq, PartialEq, Debug)]
@@ -689,7 +689,7 @@ pub struct PairingRequestInput {
     #[graphql(name = "awareSupported")]
     pub aware_supported: bool,
 }
-// ── Domain → GraphQL mapping (plain_rs::chat rows carry ISO-8601 UTC
+// ── Domain → GraphQL mapping (crate::chat rows carry ISO-8601 UTC
 // strings;the GraphQL layer owns the Instant/ID/scalar conversion) ──
 
 fn iso_to_instant(s: &str) -> Instant {
@@ -699,42 +699,42 @@ fn iso_to_instant(s: &str) -> Instant {
             .unwrap_or_else(|_| chrono::Utc::now()),
     )
 }
-fn map_chat_status(s: plain_rs::chat::enums::ChatStatus) -> ChatStatus {
+fn map_chat_status(s: crate::chat::enums::ChatStatus) -> ChatStatus {
     match s {
-        plain_rs::chat::enums::ChatStatus::Sent => ChatStatus::SENT,
-        plain_rs::chat::enums::ChatStatus::Partial => ChatStatus::PARTIAL,
-        plain_rs::chat::enums::ChatStatus::Failed => ChatStatus::FAILED,
-        plain_rs::chat::enums::ChatStatus::Pending => ChatStatus::PENDING,
+        crate::chat::enums::ChatStatus::Sent => ChatStatus::SENT,
+        crate::chat::enums::ChatStatus::Partial => ChatStatus::PARTIAL,
+        crate::chat::enums::ChatStatus::Failed => ChatStatus::FAILED,
+        crate::chat::enums::ChatStatus::Pending => ChatStatus::PENDING,
     }
 }
-fn map_channel_status(s: plain_rs::chat::enums::ChannelStatus) -> ChatChannelStatus {
+fn map_channel_status(s: crate::chat::enums::ChannelStatus) -> ChatChannelStatus {
     match s {
-        plain_rs::chat::enums::ChannelStatus::Joined => ChatChannelStatus::JOINED,
-        plain_rs::chat::enums::ChannelStatus::Left => ChatChannelStatus::LEFT,
-        plain_rs::chat::enums::ChannelStatus::Kicked => ChatChannelStatus::KICKED,
+        crate::chat::enums::ChannelStatus::Joined => ChatChannelStatus::JOINED,
+        crate::chat::enums::ChannelStatus::Left => ChatChannelStatus::LEFT,
+        crate::chat::enums::ChannelStatus::Kicked => ChatChannelStatus::KICKED,
     }
 }
-fn map_member_status(s: plain_rs::chat::enums::MemberStatus) -> ChannelMemberStatus {
+fn map_member_status(s: crate::chat::enums::MemberStatus) -> ChannelMemberStatus {
     match s {
-        plain_rs::chat::enums::MemberStatus::Joined => ChannelMemberStatus::JOINED,
-        plain_rs::chat::enums::MemberStatus::Pending => ChannelMemberStatus::PENDING,
+        crate::chat::enums::MemberStatus::Joined => ChannelMemberStatus::JOINED,
+        crate::chat::enums::MemberStatus::Pending => ChannelMemberStatus::PENDING,
     }
 }
-fn map_peer_status(s: plain_rs::chat::enums::PeerStatus) -> PeerStatus {
+fn map_peer_status(s: crate::chat::enums::PeerStatus) -> PeerStatus {
     match s {
-        plain_rs::chat::enums::PeerStatus::Paired => PeerStatus::PAIRED,
-        plain_rs::chat::enums::PeerStatus::Unpaired => PeerStatus::UNPAIRED,
-        plain_rs::chat::enums::PeerStatus::Channel => PeerStatus::CHANNEL,
+        crate::chat::enums::PeerStatus::Paired => PeerStatus::PAIRED,
+        crate::chat::enums::PeerStatus::Unpaired => PeerStatus::UNPAIRED,
+        crate::chat::enums::PeerStatus::Channel => PeerStatus::CHANNEL,
     }
 }
-pub(crate) fn map_device_type(t: plain_rs::chat::enums::DeviceType) -> DeviceType {
+pub(crate) fn map_device_type(t: crate::chat::enums::DeviceType) -> DeviceType {
     match t {
-        plain_rs::chat::enums::DeviceType::Computer => DeviceType::COMPUTER,
-        plain_rs::chat::enums::DeviceType::Phone => DeviceType::PHONE,
-        plain_rs::chat::enums::DeviceType::Tablet => DeviceType::TABLET,
-        plain_rs::chat::enums::DeviceType::Tv => DeviceType::TV,
-        plain_rs::chat::enums::DeviceType::Nas => DeviceType::NAS,
-        plain_rs::chat::enums::DeviceType::Other | plain_rs::chat::enums::DeviceType::Unknown => {
+        crate::chat::enums::DeviceType::Computer => DeviceType::COMPUTER,
+        crate::chat::enums::DeviceType::Phone => DeviceType::PHONE,
+        crate::chat::enums::DeviceType::Tablet => DeviceType::TABLET,
+        crate::chat::enums::DeviceType::Tv => DeviceType::TV,
+        crate::chat::enums::DeviceType::Nas => DeviceType::NAS,
+        crate::chat::enums::DeviceType::Other | crate::chat::enums::DeviceType::Unknown => {
             DeviceType::OTHER
         }
     }
@@ -754,7 +754,7 @@ fn device_type_wire_name(t: DeviceType) -> String {
 }
 /// DChat row → GraphQL ChatItem. File ids are not resolved server-side —
 /// clients derive them from `content` with their own urlToken.
-pub(crate) fn chat_item_from_dchat(c: &plain_rs::chat::db::DChat) -> ChatItem {
+pub(crate) fn chat_item_from_dchat(c: &crate::chat::db::DChat) -> ChatItem {
     ChatItem {
         id: ID(c.id.clone()),
         from_id: ID(c.from_id.clone()),
@@ -771,8 +771,8 @@ pub(crate) fn chat_item_from_dchat(c: &plain_rs::chat::db::DChat) -> ChatItem {
         status_data: c.status_data.clone(),
     }
 }
-pub(crate) fn chat_channel_from_dchannel(ch: plain_rs::chat::db::DChannel) -> ChatChannel {
-    let members = plain_rs::chat::channel::messages::decode_members(&ch.members)
+pub(crate) fn chat_channel_from_dchannel(ch: crate::chat::db::DChannel) -> ChatChannel {
+    let members = crate::chat::channel::messages::decode_members(&ch.members)
         .into_iter()
         .map(|m| ChatChannelMember {
             peer_id: ID(m.peer_id),
@@ -790,7 +790,7 @@ pub(crate) fn chat_channel_from_dchannel(ch: plain_rs::chat::db::DChannel) -> Ch
         updated_at: iso_to_instant(&ch.updated_at),
     }
 }
-pub(crate) fn peer_from_dpeer(p: plain_rs::chat::db::DPeer, online: bool) -> Peer {
+pub(crate) fn peer_from_dpeer(p: crate::chat::db::DPeer, online: bool) -> Peer {
     Peer {
         id: ID(p.id),
         name: p.name,
@@ -803,10 +803,7 @@ pub(crate) fn peer_from_dpeer(p: plain_rs::chat::db::DPeer, online: bool) -> Pee
         online,
     }
 }
-pub(crate) fn app_file_from_dappfile(
-    f: &plain_rs::chat::db::DAppFile,
-    file_name: String,
-) -> AppFile {
+pub(crate) fn app_file_from_dappfile(f: &crate::chat::db::DAppFile, file_name: String) -> AppFile {
     AppFile {
         id: f.id.clone(),
         size: Long(f.size),
@@ -821,8 +818,8 @@ pub(crate) fn app_file_from_dappfile(
 /// manager responds to.
 pub(crate) fn pairing_request_from_input(
     input: &PairingRequestInput,
-) -> plain_rs::chat::pairing::protocol::PairingRequest {
-    plain_rs::chat::pairing::protocol::PairingRequest {
+) -> crate::chat::pairing::protocol::PairingRequest {
+    crate::chat::pairing::protocol::PairingRequest {
         from_id: input.from_id.to_string(),
         from_name: input.from_name.clone(),
         port: input.port as u16,
@@ -880,5 +877,5 @@ pub struct FileInfo {
     pub data: Option<MediaFileInfo>,
 }
 #[cfg(test)]
-#[path = "../../tests/unit/gql/types.rs"]
+#[path = "../../../../tests/unit/api/schema/nas/types.rs"]
 mod types_tests;

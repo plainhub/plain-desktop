@@ -4,6 +4,7 @@ use crate::api::AppIdentity;
 use crate::api::chat::ChatState;
 use crate::api::db::ChatDb;
 use crate::api::discover::{NearbyDiscoverManager, PeerStatusManager};
+use std::path::PathBuf;
 use std::sync::Arc;
 use std::sync::atomic::AtomicU16;
 use tokio::sync::broadcast;
@@ -108,6 +109,68 @@ pub struct AppCtx {
     pub media: Arc<crate::media::service::MediaService>,
 }
 
+impl AppCtx {
+    #[allow(clippy::too_many_arguments)]
+    pub fn assemble(
+        data_dir: PathBuf,
+        cache_dir: PathBuf,
+        log_dir: PathBuf,
+        library_path: PathBuf,
+        prefs: Arc<crate::prefs::Prefs>,
+        chat: Arc<ChatState>,
+        event_tx: broadcast::Sender<WsEvent>,
+        shell: Arc<dyn ShellHooks>,
+        port: u16,
+        https_port: u16,
+    ) -> anyhow::Result<Arc<Self>> {
+        let identity = Arc::new(AppIdentity {
+            client_id: chat.identity.client_id.clone(),
+            device_name: chat.identity.device_name(),
+            ed25519_keypair: chat.identity.ed25519_keypair.clone(),
+        });
+        let db = Arc::new(chat.service.db.clone());
+        let library = Arc::new(crate::library::db::LibraryDb::open(&library_path)?);
+        let media = Arc::new(crate::media::service::MediaService::init(
+            &data_dir, &cache_dir,
+        )?);
+        let peer_status = PeerStatusManager::new(db.clone(), identity.clone());
+        let device_name = Arc::new(std::sync::RwLock::new(identity.device_name.clone()));
+        let mdns_hostname = Arc::new(std::sync::RwLock::new(crate::prefs::ensure_mdns_hostname(
+            &prefs,
+        )));
+        let discover_manager = NearbyDiscoverManager::new(
+            db.clone(),
+            identity.clone(),
+            device_name.clone(),
+            mdns_hostname,
+            chat.clone(),
+            peer_status.clone(),
+            https_port,
+            shell.app_version(),
+        );
+        let token = chat.service.token.clone();
+        Ok(Arc::new(Self {
+            db,
+            library,
+            prefs,
+            identity,
+            peer_status,
+            discover_manager,
+            chat,
+            dlna_engine: Arc::new(crate::api::dlna::receiver_engine::DlnaEngine::new()),
+            event_tx,
+            token,
+            port: Arc::new(AtomicU16::new(port)),
+            https_port: Arc::new(AtomicU16::new(https_port)),
+            data_dir,
+            log_dir,
+            device_name,
+            shell,
+            media,
+        }))
+    }
+}
+
 /// Host-shell integration seam: UI-only hooks the local API stack needs
 /// from its host. All persisted state goes through [`AppCtx::prefs`]
 /// instead — the shell no longer proxies preferences.
@@ -117,5 +180,19 @@ pub trait ShellHooks: Send + Sync {
     /// App version reported by deviceInfo (desktop: package_info).
     fn app_version(&self) -> String {
         String::new()
+    }
+}
+
+pub struct LogShell {
+    pub version: String,
+}
+
+impl ShellHooks for LogShell {
+    fn notify(&self, event: &str, payload: String) {
+        log::info!("[shell] {event}: {payload}");
+    }
+
+    fn app_version(&self) -> String {
+        self.version.clone()
     }
 }

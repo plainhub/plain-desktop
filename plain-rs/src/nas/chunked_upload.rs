@@ -177,5 +177,5 @@ pub async fn trigger_media_scan(_path: &Path) {
 }
 
 #[cfg(test)]
-#[path = "../tests/unit/chunked_upload.rs"]
+#[path = "../../tests/unit/nas/chunked_upload.rs"]
 mod tests;

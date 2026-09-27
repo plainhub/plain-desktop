@@ -1,6 +1,6 @@
 //! Peer-to-peer GraphQL endpoint (`POST /peer_graphql`).
 //!
-//! Mirrors the structure of `crate::local::graphql` so the local and
+//! Mirrors the structure of `crate::api::schema` so the local and
 //! peer-facing surfaces stay symmetrical, while keeping the two concerns
 //! physically separated to avoid over-coupling the HTTP layer.
 //!

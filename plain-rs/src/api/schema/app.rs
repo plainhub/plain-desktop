@@ -4,7 +4,7 @@ use std::sync::Arc;
 
 use super::super::context::{AppCtx, WS_DEVICE_NAME_UPDATED, WsEvent};
 use super::types::{App, Capability, DeviceInfo, DevicePlatform, DeviceStatus, Sim, Temperature};
-use crate::api::enums::{AppChannelType, DeviceType};
+use crate::api::enums::AppChannelType;
 
 #[cfg(test)]
 #[path = "../../../tests/unit/api/schema/app.rs"]
@@ -30,7 +30,7 @@ impl AppQuery {
             // (`/fs` route) reads from.
             app_dir: c.data_dir.join("files").to_string_lossy().into_owned(),
             device_name: c.device_name.read().unwrap().clone(),
-            device_type: DeviceType::Computer,
+            device_type: c.chat.service.wire_device_type.into(),
             // The desktop local-mode surface: image editor and the shared
             // web document viewer (chat/files/media are base features).
             // Notifications: the resident peer layer aggregates every logged-in

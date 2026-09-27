@@ -4,7 +4,7 @@ import { describe, expect, it } from 'vitest'
 import { generateDatabaseSql } from '../../scripts/gen-db-schema-sql.mjs'
 
 // Locks docs/DATABASE.sql against its machine-readable source (the SQLite
-// CREATE TABLE/INDEX statements in src-tauri/src/local/db/mod.rs): the
+// CREATE TABLE/INDEX statements in plain-rs/src/chat/db/mod.rs): the
 // committed file must equal the freshly generated output byte for byte.
 // Regenerate with `node scripts/gen-db-schema-sql.mjs --write` and commit
 // the file together with the schema change.

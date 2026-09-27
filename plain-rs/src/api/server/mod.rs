@@ -17,10 +17,9 @@ pub mod cors;
 pub mod events;
 pub mod file_server;
 pub mod handlers;
-#[cfg(feature = "nas")]
-pub mod nas_ctx;
 pub mod proxy_file;
 pub mod request_key;
+pub mod runtime;
 pub mod response;
 pub mod upload;
 pub mod uri;
@@ -173,14 +172,18 @@ http_port = 8080
 ",
         ));
         let (event_tx, _) = tokio::sync::broadcast::channel(64);
-        let ctx = super::nas_ctx::nas_app_ctx(super::nas_ctx::NasCtxInputs {
-            data_dir: data_dir.clone(),
-            cache_dir: data_dir.join("cache"),
-            prefs: prefs.clone(),
-            config: config.clone(),
-            chat: chat.clone(),
+        let ctx = crate::api::context::AppCtx::assemble(
+            data_dir.clone(),
+            data_dir.join("cache"),
+            data_dir.join("logs"),
+            data_dir.join("library.db"),
+            prefs.clone(),
+            chat.clone(),
             event_tx,
-        })
+            Arc::new(crate::api::context::LogShell { version: String::new() }),
+            8080,
+            8443,
+        )
         .expect("nas app ctx");
         std::mem::forget(dir);
         ServerState {

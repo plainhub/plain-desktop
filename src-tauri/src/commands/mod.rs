@@ -1,5 +1,8 @@
 #[path = "discover/mod.rs"]
 pub mod discover;
+pub mod dlna;
+pub mod pairing;
+pub mod server;
 #[cfg(target_os = "macos")]
 pub mod macos_dock;
 #[cfg(target_os = "macos")]

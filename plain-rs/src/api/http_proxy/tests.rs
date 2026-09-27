@@ -1,23 +1,27 @@
-use super::utils::{extract_proxy_params, sha1, ws_accept_key};
 use super::PeerResolver;
+use super::utils::{extract_proxy_params, sha1, ws_accept_key};
 use std::sync::Arc;
 
 fn no_peers() -> PeerResolver {
     Arc::new(|_id: &str| None)
 }
 
-fn hex(bytes: &[u8]) -> String {
-    bytes.iter().map(|b| format!("{b:02x}")).collect()
-}
-
 #[test]
 fn sha1_rfc3174_vectors() {
-    assert_eq!(hex(&sha1(b"abc")), "a9993e364706816aba3e25717850c26c9cd0d89d");
     assert_eq!(
-        hex(&sha1(b"abcdbcdecdefdefgefghfghighijhijkijkljklmklmnlmnomnopnopq")),
+        crate::utils::hex::bytes_to_hex(&sha1(b"abc")),
+        "a9993e364706816aba3e25717850c26c9cd0d89d"
+    );
+    assert_eq!(
+        crate::utils::hex::bytes_to_hex(&sha1(
+            b"abcdbcdecdefdefgefghfghighijhijkijkljklmklmnlmnomnopnopq"
+        )),
         "84983e441c3bd26ebaae4aa1f95129e5e54670f1"
     );
-    assert_eq!(hex(&sha1(b"")), "da39a3ee5e6b4b0d3255bfef95601890afd80709");
+    assert_eq!(
+        crate::utils::hex::bytes_to_hex(&sha1(b"")),
+        "da39a3ee5e6b4b0d3255bfef95601890afd80709"
+    );
 }
 
 #[test]

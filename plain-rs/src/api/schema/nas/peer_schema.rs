@@ -4,14 +4,14 @@
 //! peer protocol actually uses (`createChatItem`,
 //! `channelSystemMessage`, `startAware`). Per-request state is carried
 //! in [`PeerCtx`]; the mutation bodies live in the shared
-//! `plain_rs::chat` service — resolvers here are thin and only forward
+//! `crate::chat` service — resolvers here are thin and only forward
 //! the authenticated arguments.
 
 use async_graphql::{Context, EmptySubscription, Object, Schema};
 use std::sync::Arc;
 
 use super::types::{ChatItem, chat_item_from_dchat};
-use crate::chat::ChatState;
+use crate::api::chat::ChatState;
 
 /// GraphQL input mirror of the wire `ChannelSystemMessageType` — the
 /// plain-rs domain enum deliberately carries no async-graphql derives.
@@ -26,9 +26,9 @@ pub enum PeerChannelSystemMessageType {
     LEAVE,
 }
 
-impl From<PeerChannelSystemMessageType> for plain_rs::chat::enums::ChannelSystemMessageType {
+impl From<PeerChannelSystemMessageType> for crate::chat::enums::ChannelSystemMessageType {
     fn from(t: PeerChannelSystemMessageType) -> Self {
-        use plain_rs::chat::enums::ChannelSystemMessageType as T;
+        use crate::chat::enums::ChannelSystemMessageType as T;
         match t {
             PeerChannelSystemMessageType::INVITE => T::Invite,
             PeerChannelSystemMessageType::INVITE_ACCEPT => T::InviteAccept,
@@ -44,7 +44,7 @@ impl From<PeerChannelSystemMessageType> for plain_rs::chat::enums::ChannelSystem
 pub struct PeerCtx {
     pub state: Arc<ChatState>,
     /// The authenticated sender's peer row.
-    pub peer: plain_rs::chat::db::DPeer,
+    pub peer: crate::chat::db::DPeer,
     /// `c-cid` header — the channel a channel-bound request targets.
     pub channel_id: String,
 }
@@ -69,11 +69,11 @@ impl PeerMutation {
     /// Wire format: `mutation CreateChatItem($content: String!) { createChatItem(content: $content) { ... } }`
     async fn create_chat_item(&self, ctx: &Context<'_>, content: String) -> ChatItem {
         let c = ctx.data_unchecked::<PeerCtx>();
-        chat_item_from_dchat(
-            &c.state
-                .service
-                .receive_peer_chat(&c.peer.id, &c.channel_id, &content),
-        )
+        chat_item_from_dchat(&c.state.service.receive_peer_chat(
+            &c.peer.id,
+            &c.channel_id,
+            &content,
+        ))
     }
 
     /// Receive a channel system message from an authenticated peer.

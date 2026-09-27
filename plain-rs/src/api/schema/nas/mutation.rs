@@ -12,13 +12,13 @@ pub struct NasMutationRoot;
 /// talk `https://ip:port`); falls back to the plain-app default 8443
 /// when the config leaves it blank.
 fn pairing_local_port(ctx: &Context<'_>) -> FieldResult<u16> {
-    let config = ctx.data::<std::sync::Arc<crate::config::Config>>()?;
+    let config = ctx.data::<std::sync::Arc<crate::media::config::Config>>()?;
     let raw = config.get_string("server.https_port");
     Ok(raw.parse::<u16>().unwrap_or(8443))
 }
 
-fn chat_state(ctx: &Context<'_>) -> FieldResult<std::sync::Arc<crate::chat::ChatState>> {
-    ctx.data::<std::sync::Arc<crate::chat::ChatState>>()
+fn chat_state(ctx: &Context<'_>) -> FieldResult<std::sync::Arc<crate::api::chat::ChatState>> {
+    ctx.data::<std::sync::Arc<crate::api::chat::ChatState>>()
         .cloned()
         .map_err(|_| async_graphql::Error::new("chat state unavailable"))
 }
@@ -84,7 +84,7 @@ impl NasMutationRoot {
             return Err(async_graphql::Error::new("device_name_invalid"));
         }
         let cid: String = ctx.data::<String>()?.clone();
-        let db = ctx.data::<std::sync::Arc<crate::db::Db>>()?;
+        let db = ctx.data::<std::sync::Arc<crate::media::kv::Db>>()?;
         let hostnamectl = Command::new("hostnamectl")
             .arg("set-hostname")
             .arg(&sanitized)
@@ -99,7 +99,7 @@ impl NasMutationRoot {
         let _ = Command::new("systemctl")
             .args(["try-restart", "avahi-daemon"])
             .status();
-        let _ = crate::db::EventLog::new(db).add("set_hostname", &sanitized, &cid);
+        let _ = crate::media::kv::EventLog::new(db).add("set_hostname", &sanitized, &cid);
         Ok(true)
     }
 
@@ -110,17 +110,17 @@ impl NasMutationRoot {
     async fn update_device_name(&self, ctx: &Context<'_>, name: String) -> FieldResult<bool> {
         let cid: String = ctx.data::<String>()?.clone();
         let prefs = ctx.data::<std::sync::Arc<crate::prefs::Prefs>>()?;
-        let db = ctx.data::<std::sync::Arc<crate::db::Db>>()?;
+        let db = ctx.data::<std::sync::Arc<crate::media::kv::Db>>()?;
         let name = name.trim();
         prefs.set("device_name", name)?;
-        let _ = crate::db::EventLog::new(db).add("update_device_name", name, &cid);
+        let _ = crate::media::kv::EventLog::new(db).add("update_device_name", name, &cid);
         // A rename changes the advertised mDNS instance name — republish
         // so peers drop the old instance and see the new one immediately
         // (plain-app `updateAdvertisedService` parity). The shared chat
         // identity picks the new name up on its next publish.
         let chat = chat_state(ctx)?;
         let display = if name.is_empty() {
-            plain_rs::hostname::get()
+            crate::hostname::get()
         } else {
             name.to_string()
         };
@@ -136,7 +136,7 @@ impl NasMutationRoot {
     /// Truncate the current log file (plain-app `clearAppLogs`).
     async fn clear_app_logs(&self, ctx: &Context<'_>) -> FieldResult<bool> {
         let data_dir = ctx.data::<std::path::PathBuf>()?;
-        crate::log::clear_file(&crate::log::default_log_file(data_dir));
+        crate::nas::log::clear_file(&crate::nas::log::default_log_file(data_dir));
         Ok(true)
     }
 
@@ -157,9 +157,9 @@ impl NasMutationRoot {
         table: String,
         ids: Vec<String>,
     ) -> FieldResult<bool> {
-        let chat = ctx.data::<std::sync::Arc<crate::chat::ChatState>>()?;
-        let library = ctx.data::<std::sync::Arc<plain_rs::library::db::LibraryDb>>()?;
-        crate::devtools_sqlite::delete_table_rows(&chat.service.db, library, &table, &ids)
+        let chat = ctx.data::<std::sync::Arc<crate::api::chat::ChatState>>()?;
+        let library = ctx.data::<std::sync::Arc<crate::library::db::LibraryDb>>()?;
+        crate::nas::devtools_sqlite::delete_table_rows(&chat.service.db, library, &table, &ids)
             .map_err(|e| async_graphql::Error::new(e.to_string()))?;
         Ok(true)
     }
@@ -168,51 +168,34 @@ impl NasMutationRoot {
     /// `db.RevokeSession(clientID)` and writes a `logout` audit event.
     async fn logout(&self, ctx: &Context<'_>) -> FieldResult<bool> {
         let cid: String = ctx.data::<String>()?.clone();
-        let db = ctx.data::<std::sync::Arc<crate::db::Db>>()?;
-        let name = crate::db::SessionStore::new(db)
+        let db = ctx.data::<std::sync::Arc<crate::media::kv::Db>>()?;
+        let name = crate::media::kv::SessionStore::new(db)
             .get(&cid)
             .map(|s| s.client_name)
             .unwrap_or_default();
-        let _ = crate::db::EventLog::new(db).add("logout", &name, &cid);
-        let _ = crate::db::SessionStore::new(db).delete(&cid);
+        let _ = crate::media::kv::EventLog::new(db).add("logout", &name, &cid);
+        let _ = crate::media::kv::SessionStore::new(db).delete(&cid);
         Ok(true)
     }
 
     /// Revoke a session by client id. Mirrors Go `revokeSession`.
     async fn revoke_session(&self, ctx: &Context<'_>, client_id: String) -> FieldResult<bool> {
         let caller_cid: String = ctx.data::<String>()?.clone();
-        let db = ctx.data::<std::sync::Arc<crate::db::Db>>()?;
+        let db = ctx.data::<std::sync::Arc<crate::media::kv::Db>>()?;
         if client_id.trim().is_empty() {
             return Ok(false);
         }
-        let name = crate::db::SessionStore::new(db)
+        let name = crate::media::kv::SessionStore::new(db)
             .get(&client_id)
             .map(|s| s.client_name)
             .unwrap_or_default();
-        let _ = crate::db::EventLog::new(db).add("revoke", &name, &client_id);
-        let _ = crate::db::SessionStore::new(db).delete(&client_id);
+        let _ = crate::media::kv::EventLog::new(db).add("revoke", &name, &client_id);
+        let _ = crate::media::kv::SessionStore::new(db).delete(&client_id);
         let _ = caller_cid;
         Ok(true)
     }
 
-
-
-
-
-
-
-
-
-
     // ----- Tags -----
-
-
-
-
-
-
-
-
 
     // ----- Favorite folders (phone contract: fullPath addressing, the
     // mutations return the updated list) -----
@@ -224,10 +207,9 @@ impl NasMutationRoot {
         #[graphql(name = "rootPath")] root_path: String,
         #[graphql(name = "fullPath")] full_path: String,
     ) -> FieldResult<Vec<FavoriteFolder>> {
-        let library = ctx.data::<std::sync::Arc<plain_rs::library::db::LibraryDb>>()?;
-        let (root, rel) =
-            plain_rs::library::favorite_folders::split_full_path(&root_path, &full_path);
-        plain_rs::library::favorite_folders::add(library, &root, &rel);
+        let library = ctx.data::<std::sync::Arc<crate::library::db::LibraryDb>>()?;
+        let (root, rel) = crate::library::favorite_folders::split_full_path(&root_path, &full_path);
+        crate::library::favorite_folders::add(library, &root, &rel);
         Ok(favorite_list_gql(library))
     }
 
@@ -237,10 +219,9 @@ impl NasMutationRoot {
         ctx: &Context<'_>,
         #[graphql(name = "fullPath")] full_path: String,
     ) -> FieldResult<Vec<FavoriteFolder>> {
-        let library = ctx.data::<std::sync::Arc<plain_rs::library::db::LibraryDb>>()?;
-        if let Some(f) = plain_rs::library::favorite_folders::find_by_full_path(library, &full_path)
-        {
-            plain_rs::library::favorite_folders::remove(library, &f.root_path, &f.relative_path);
+        let library = ctx.data::<std::sync::Arc<crate::library::db::LibraryDb>>()?;
+        if let Some(f) = crate::library::favorite_folders::find_by_full_path(library, &full_path) {
+            crate::library::favorite_folders::remove(library, &f.root_path, &f.relative_path);
         }
         Ok(favorite_list_gql(library))
     }
@@ -252,10 +233,9 @@ impl NasMutationRoot {
         #[graphql(name = "fullPath")] full_path: String,
         alias: String,
     ) -> FieldResult<Vec<FavoriteFolder>> {
-        let library = ctx.data::<std::sync::Arc<plain_rs::library::db::LibraryDb>>()?;
-        if let Some(f) = plain_rs::library::favorite_folders::find_by_full_path(library, &full_path)
-        {
-            plain_rs::library::favorite_folders::set_alias(
+        let library = ctx.data::<std::sync::Arc<crate::library::db::LibraryDb>>()?;
+        if let Some(f) = crate::library::favorite_folders::find_by_full_path(library, &full_path) {
+            crate::library::favorite_folders::set_alias(
                 library,
                 &f.root_path,
                 &f.relative_path,
@@ -269,13 +249,13 @@ impl NasMutationRoot {
 
     /// Add up to 1000 tracks matching `query` to the manual queue.
     async fn add_audios_to_queue(&self, ctx: &Context<'_>, query: String) -> FieldResult<bool> {
-        let db = ctx.data::<std::sync::Arc<crate::db::Db>>()?.clone();
-        let library = ctx.data::<std::sync::Arc<plain_rs::library::db::LibraryDb>>()?;
+        let db = ctx.data::<std::sync::Arc<crate::media::kv::Db>>()?.clone();
+        let library = ctx.data::<std::sync::Arc<crate::library::db::LibraryDb>>()?;
         let items = {
             let db = db.clone();
             super::run_blocking(move || resolve_queue_tracks(&db, &query, 1000)).await?
         };
-        plain_rs::library::audio_queue::enqueue(library, &items, false);
+        crate::library::audio_queue::enqueue(library, &items, false);
         Ok(true)
     }
 
@@ -286,8 +266,8 @@ impl NasMutationRoot {
         ctx: &Context<'_>,
         paths: Vec<String>,
     ) -> FieldResult<bool> {
-        let library = ctx.data::<std::sync::Arc<plain_rs::library::db::LibraryDb>>()?;
-        plain_rs::library::audio_queue::reorder_queued(library, &paths);
+        let library = ctx.data::<std::sync::Arc<crate::library::db::LibraryDb>>()?;
+        crate::library::audio_queue::reorder_queued(library, &paths);
         Ok(true)
     }
 
@@ -296,14 +276,16 @@ impl NasMutationRoot {
     /// player records when playback actually starts; the NAS server is the
     /// playback state machine, so it records here).
     async fn play_audio(&self, ctx: &Context<'_>, path: String) -> FieldResult<AudioItem> {
-        let db = ctx.data::<std::sync::Arc<crate::db::Db>>()?.clone();
-        let library = ctx.data::<std::sync::Arc<plain_rs::library::db::LibraryDb>>()?;
+        let db = ctx.data::<std::sync::Arc<crate::media::kv::Db>>()?.clone();
+        let library = ctx.data::<std::sync::Arc<crate::library::db::LibraryDb>>()?;
         let pa = {
-            super::run_blocking(move || crate::library::playlist_audio_from_path(&db, &path))
-                .await?
+            super::run_blocking(move || {
+                crate::media::library_tracks::playlist_audio_from_path(&db, &path)
+            })
+            .await?
         };
-        plain_rs::library::audio_queue::enqueue(library, std::slice::from_ref(&pa), false);
-        plain_rs::library::audio_queue::on_playing(
+        crate::library::audio_queue::enqueue(library, std::slice::from_ref(&pa), false);
+        crate::library::audio_queue::on_playing(
             library,
             &pa.path,
             &pa.title,
@@ -324,28 +306,28 @@ impl NasMutationRoot {
         ctx: &Context<'_>,
         mode: MediaPlayMode,
     ) -> FieldResult<bool> {
-        let library = ctx.data::<std::sync::Arc<plain_rs::library::db::LibraryDb>>()?;
+        let library = ctx.data::<std::sync::Arc<crate::library::db::LibraryDb>>()?;
         let mode_str = match mode {
             MediaPlayMode::REPEAT => "REPEAT",
             MediaPlayMode::REPEAT_ONE => "REPEAT_ONE",
             MediaPlayMode::SHUFFLE => "SHUFFLE",
         };
-        plain_rs::library::audio_queue::save_audio_mode(library, mode_str);
+        crate::library::audio_queue::save_audio_mode(library, mode_str);
         Ok(true)
     }
 
     /// Reset the source, the manual queue and the current track.
     async fn clear_audio_queue(&self, ctx: &Context<'_>) -> FieldResult<bool> {
-        let library = ctx.data::<std::sync::Arc<plain_rs::library::db::LibraryDb>>()?;
-        plain_rs::library::audio_queue::save_audio_current(library, "");
-        plain_rs::library::audio_queue::clear_queue(library);
+        let library = ctx.data::<std::sync::Arc<crate::library::db::LibraryDb>>()?;
+        crate::library::audio_queue::save_audio_current(library, "");
+        crate::library::audio_queue::clear_queue(library);
         Ok(true)
     }
 
     /// Remove a track from the manual queue.
     async fn remove_audio_from_queue(&self, ctx: &Context<'_>, path: String) -> FieldResult<bool> {
-        let library = ctx.data::<std::sync::Arc<plain_rs::library::db::LibraryDb>>()?;
-        plain_rs::library::audio_queue::remove_queued(library, &path);
+        let library = ctx.data::<std::sync::Arc<crate::library::db::LibraryDb>>()?;
+        crate::library::audio_queue::remove_queued(library, &path);
         Ok(true)
     }
 
@@ -357,8 +339,8 @@ impl NasMutationRoot {
         ctx: &Context<'_>,
         name: String,
     ) -> FieldResult<AudioPlaylist> {
-        let library = ctx.data::<std::sync::Arc<plain_rs::library::db::LibraryDb>>()?;
-        let pl = plain_rs::library::audio_queue::create_playlist(library, &name);
+        let library = ctx.data::<std::sync::Arc<crate::library::db::LibraryDb>>()?;
+        let pl = crate::library::audio_queue::create_playlist(library, &name);
         Ok(AudioPlaylist {
             id: pl.id.into(),
             name: pl.name,
@@ -376,12 +358,12 @@ impl NasMutationRoot {
         id: async_graphql::ID,
         name: String,
     ) -> FieldResult<AudioPlaylist> {
-        let library = ctx.data::<std::sync::Arc<plain_rs::library::db::LibraryDb>>()?;
-        plain_rs::library::audio_queue::rename_playlist(library, &id, &name);
-        let pl = plain_rs::library::audio_queue::playlist_by_id(library, &id).ok_or_else(|| {
+        let library = ctx.data::<std::sync::Arc<crate::library::db::LibraryDb>>()?;
+        crate::library::audio_queue::rename_playlist(library, &id, &name);
+        let pl = crate::library::audio_queue::playlist_by_id(library, &id).ok_or_else(|| {
             async_graphql::Error::new(format!("Playlist {} not found after update", id.0))
         })?;
-        let count = plain_rs::library::audio_queue::playlist_item_count(library, &id);
+        let count = crate::library::audio_queue::playlist_item_count(library, &id);
         Ok(AudioPlaylist {
             id: pl.id.into(),
             name: pl.name,
@@ -397,8 +379,8 @@ impl NasMutationRoot {
         ctx: &Context<'_>,
         id: async_graphql::ID,
     ) -> FieldResult<bool> {
-        let library = ctx.data::<std::sync::Arc<plain_rs::library::db::LibraryDb>>()?;
-        plain_rs::library::audio_queue::delete_playlist(library, &id);
+        let library = ctx.data::<std::sync::Arc<crate::library::db::LibraryDb>>()?;
+        crate::library::audio_queue::delete_playlist(library, &id);
         Ok(true)
     }
 
@@ -409,18 +391,18 @@ impl NasMutationRoot {
         id: async_graphql::ID,
         paths: Vec<String>,
     ) -> FieldResult<bool> {
-        let db = ctx.data::<std::sync::Arc<crate::db::Db>>()?.clone();
-        let library = ctx.data::<std::sync::Arc<plain_rs::library::db::LibraryDb>>()?;
+        let db = ctx.data::<std::sync::Arc<crate::media::kv::Db>>()?.clone();
+        let library = ctx.data::<std::sync::Arc<crate::library::db::LibraryDb>>()?;
         let items = {
             super::run_blocking(move || {
                 paths
                     .iter()
-                    .map(|p| crate::library::playlist_audio_from_path(&db, p))
+                    .map(|p| crate::media::library_tracks::playlist_audio_from_path(&db, p))
                     .collect::<Vec<_>>()
             })
             .await?
         };
-        plain_rs::library::audio_queue::add_playlist_items(library, &id, &items);
+        crate::library::audio_queue::add_playlist_items(library, &id, &items);
         Ok(true)
     }
 
@@ -431,8 +413,8 @@ impl NasMutationRoot {
         id: async_graphql::ID,
         path: String,
     ) -> FieldResult<bool> {
-        let library = ctx.data::<std::sync::Arc<plain_rs::library::db::LibraryDb>>()?;
-        plain_rs::library::audio_queue::remove_playlist_item(library, &id, &path);
+        let library = ctx.data::<std::sync::Arc<crate::library::db::LibraryDb>>()?;
+        crate::library::audio_queue::remove_playlist_item(library, &id, &path);
         Ok(true)
     }
 
@@ -445,28 +427,20 @@ impl NasMutationRoot {
         path: Option<String>,
         shuffle: bool,
     ) -> FieldResult<Option<AudioItem>> {
-        let db = ctx.data::<std::sync::Arc<crate::db::Db>>()?.clone();
-        let library = ctx.data::<std::sync::Arc<plain_rs::library::db::LibraryDb>>()?;
+        let db = ctx.data::<std::sync::Arc<crate::media::kv::Db>>()?.clone();
+        let library = ctx.data::<std::sync::Arc<crate::library::db::LibraryDb>>()?;
         let library = (**library).clone();
         let id2 = id.to_string();
-        let index = crate::media::search_index::global();
+        let index = crate::media::image_index::global();
         let started = super::run_blocking(move || {
-            let start = plain_rs::library::audio_queue::set_playlist_source(
-                &library,
-                &id2,
-                path.as_deref(),
-            );
+            let start =
+                crate::library::audio_queue::set_playlist_source(&library, &id2, path.as_deref());
             let track = if shuffle {
                 match start {
                     Some(_) => {
-                        let mut tracks = crate::library::NasLibraryTracks::new(db, index);
-                        plain_rs::library::audio_queue::resolve_next(
-                            &library,
-                            &mut tracks,
-                            true,
-                            true,
-                        )
-                        .map_err(|e| anyhow::anyhow!(e.to_string()))?
+                        let mut tracks = crate::nas::library::NasLibraryTracks::new(db, index);
+                        crate::library::audio_queue::resolve_next(&library, &mut tracks, true, true)
+                            .map_err(|e| anyhow::anyhow!(e.to_string()))?
                     }
                     None => None,
                 }
@@ -487,13 +461,13 @@ impl NasMutationRoot {
         ctx: &Context<'_>,
         shuffle: bool,
     ) -> FieldResult<Option<AudioItem>> {
-        let db = ctx.data::<std::sync::Arc<crate::db::Db>>()?.clone();
-        let library = ctx.data::<std::sync::Arc<plain_rs::library::db::LibraryDb>>()?;
+        let db = ctx.data::<std::sync::Arc<crate::media::kv::Db>>()?.clone();
+        let library = ctx.data::<std::sync::Arc<crate::library::db::LibraryDb>>()?;
         let library = (**library).clone();
-        let index = crate::media::search_index::global();
+        let index = crate::media::image_index::global();
         let started = super::run_blocking(move || {
-            let mut tracks = crate::library::NasLibraryTracks::new(db, index);
-            plain_rs::library::audio_queue::set_library_source(&library, &mut tracks, None, shuffle)
+            let mut tracks = crate::nas::library::NasLibraryTracks::new(db, index);
+            crate::library::audio_queue::set_library_source(&library, &mut tracks, None, shuffle)
                 .map_err(|e| anyhow::anyhow!(e.to_string()))
         })
         .await??;
@@ -509,7 +483,7 @@ impl NasMutationRoot {
         urls: Vec<String>,
         #[graphql(name = "groupId")] group_id: async_graphql::ID,
     ) -> FieldResult<Vec<Bookmark>> {
-        let chat = ctx.data::<std::sync::Arc<crate::chat::ChatState>>()?;
+        let chat = ctx.data::<std::sync::Arc<crate::api::chat::ChatState>>()?;
         let db = &chat.service.db;
         // Trim, skip empties; title starts as the URL (plain-app
         // BookmarkHelper semantics).
@@ -517,10 +491,10 @@ impl NasMutationRoot {
             .iter()
             .map(|u| u.trim())
             .filter(|u| !u.is_empty())
-            .map(|u| plain_rs::chat::db::bookmark::DBookmark::new(u, &group_id))
+            .map(|u| crate::chat::db::bookmark::DBookmark::new(u, &group_id))
             .collect();
         for b in &created {
-            plain_rs::chat::db::bookmark::insert_bookmark(db, b);
+            crate::chat::db::bookmark::insert_bookmark(db, b);
         }
         Ok(created.into_iter().map(bookmark_to_gql).collect())
     }
@@ -532,17 +506,17 @@ impl NasMutationRoot {
         id: async_graphql::ID,
         input: BookmarkInput,
     ) -> FieldResult<Bookmark> {
-        let chat = ctx.data::<std::sync::Arc<crate::chat::ChatState>>()?;
+        let chat = ctx.data::<std::sync::Arc<crate::api::chat::ChatState>>()?;
         let db = &chat.service.db;
-        let updated = plain_rs::chat::db::bookmark::get_bookmark_by_id(db, &id)
+        let updated = crate::chat::db::bookmark::get_bookmark_by_id(db, &id)
             .map(|mut b| {
                 b.url = input.url.clone();
                 b.title = input.title.clone();
                 b.group_id = input.group_id.to_string();
                 b.pinned = input.pinned;
                 b.sort_order = input.sort_order;
-                b.updated_at = plain_rs::chat::db::now_iso();
-                plain_rs::chat::db::bookmark::update_bookmark(db, &b);
+                b.updated_at = crate::chat::db::now_iso();
+                crate::chat::db::bookmark::update_bookmark(db, &b);
                 b
             })
             .map(bookmark_to_gql)
@@ -556,10 +530,10 @@ impl NasMutationRoot {
         ctx: &Context<'_>,
         ids: Vec<async_graphql::ID>,
     ) -> FieldResult<ActionResult> {
-        let chat = ctx.data::<std::sync::Arc<crate::chat::ChatState>>()?;
+        let chat = ctx.data::<std::sync::Arc<crate::api::chat::ChatState>>()?;
         let ids: Vec<String> = ids.iter().map(|i| i.to_string()).collect();
         // affectedCount = how many of the requested ids actually existed.
-        let affected = plain_rs::chat::db::bookmark::delete_bookmarks(&chat.service.db, &ids);
+        let affected = crate::chat::db::bookmark::delete_bookmarks(&chat.service.db, &ids);
         Ok(ActionResult {
             affected_count: affected,
         })
@@ -571,15 +545,15 @@ impl NasMutationRoot {
         ctx: &Context<'_>,
         id: async_graphql::ID,
     ) -> FieldResult<bool> {
-        let chat = ctx.data::<std::sync::Arc<crate::chat::ChatState>>()?;
+        let chat = ctx.data::<std::sync::Arc<crate::api::chat::ChatState>>()?;
         let db = &chat.service.db;
         // Unknown ids are a silent no-op (same as phone).
-        if let Some(mut b) = plain_rs::chat::db::bookmark::get_bookmark_by_id(db, &id) {
+        if let Some(mut b) = crate::chat::db::bookmark::get_bookmark_by_id(db, &id) {
             b.click_count += 1;
-            let now = plain_rs::chat::db::now_iso();
+            let now = crate::chat::db::now_iso();
             b.last_clicked_at = Some(now.clone());
             b.updated_at = now;
-            plain_rs::chat::db::bookmark::update_bookmark(db, &b);
+            crate::chat::db::bookmark::update_bookmark(db, &b);
         }
         Ok(true)
     }
@@ -590,9 +564,9 @@ impl NasMutationRoot {
         ctx: &Context<'_>,
         name: String,
     ) -> FieldResult<BookmarkGroup> {
-        let chat = ctx.data::<std::sync::Arc<crate::chat::ChatState>>()?;
-        let g = plain_rs::chat::db::bookmark::DBookmarkGroup::new(&name);
-        plain_rs::chat::db::bookmark::insert_bookmark_group(&chat.service.db, &g);
+        let chat = ctx.data::<std::sync::Arc<crate::api::chat::ChatState>>()?;
+        let g = crate::chat::db::bookmark::DBookmarkGroup::new(&name);
+        crate::chat::db::bookmark::insert_bookmark_group(&chat.service.db, &g);
         // A fresh group has no bookmarks yet — no scan needed.
         Ok(bookmark_group_to_gql(g, 0))
     }
@@ -606,17 +580,17 @@ impl NasMutationRoot {
         collapsed: bool,
         sort_order: i32,
     ) -> FieldResult<BookmarkGroup> {
-        let chat = ctx.data::<std::sync::Arc<crate::chat::ChatState>>()?;
+        let chat = ctx.data::<std::sync::Arc<crate::api::chat::ChatState>>()?;
         let db = &chat.service.db;
         let id_str = id.to_string();
-        let item_count = plain_rs::chat::db::bookmark::get_bookmarks_by_group_id(db, &id_str).len();
-        let updated = plain_rs::chat::db::bookmark::get_bookmark_group_by_id(db, &id_str)
+        let item_count = crate::chat::db::bookmark::get_bookmarks_by_group_id(db, &id_str).len();
+        let updated = crate::chat::db::bookmark::get_bookmark_group_by_id(db, &id_str)
             .map(|mut g| {
                 g.name = name;
                 g.collapsed = collapsed;
                 g.sort_order = sort_order;
-                g.updated_at = plain_rs::chat::db::now_iso();
-                plain_rs::chat::db::bookmark::update_bookmark_group(db, &g);
+                g.updated_at = crate::chat::db::now_iso();
+                crate::chat::db::bookmark::update_bookmark_group(db, &g);
                 g
             })
             .map(|g| bookmark_group_to_gql(g, item_count))
@@ -630,14 +604,14 @@ impl NasMutationRoot {
         ctx: &Context<'_>,
         id: async_graphql::ID,
     ) -> FieldResult<bool> {
-        let chat = ctx.data::<std::sync::Arc<crate::chat::ChatState>>()?;
+        let chat = ctx.data::<std::sync::Arc<crate::api::chat::ChatState>>()?;
         // Member bookmarks move to ungrouped (phone deleteGroup semantics
         // — implemented in the shared core).
-        plain_rs::chat::db::bookmark::delete_bookmark_group(&chat.service.db, &id);
+        crate::chat::db::bookmark::delete_bookmark_group(&chat.service.db, &id);
         Ok(true)
     }
 
-    // ----- Chat (plain-app contract, backed by plain_rs::chat) -----
+    // ----- Chat (plain-app contract, backed by crate::chat) -----
 
     async fn create_chat_channel(
         &self,
@@ -645,7 +619,7 @@ impl NasMutationRoot {
         name: String,
     ) -> FieldResult<ChatChannel> {
         let chat = chat_state(ctx)?;
-        Ok(crate::gql::types::chat_channel_from_dchannel(
+        Ok(crate::api::schema::nas::types::chat_channel_from_dchannel(
             chat.service.create_channel(&name),
         ))
     }
@@ -662,7 +636,9 @@ impl NasMutationRoot {
             .update_channel_name(&id.to_string(), &name)
             .await
             .map_err(async_graphql::Error::new)?;
-        Ok(crate::gql::types::chat_channel_from_dchannel(ch))
+        Ok(crate::api::schema::nas::types::chat_channel_from_dchannel(
+            ch,
+        ))
     }
 
     async fn delete_chat_channel(&self, ctx: &Context<'_>, id: ID) -> FieldResult<bool> {
@@ -687,7 +663,9 @@ impl NasMutationRoot {
             .add_channel_member(&id.to_string(), &peer_id.to_string())
             .await
             .map_err(async_graphql::Error::new)?;
-        Ok(crate::gql::types::chat_channel_from_dchannel(ch))
+        Ok(crate::api::schema::nas::types::chat_channel_from_dchannel(
+            ch,
+        ))
     }
 
     async fn remove_chat_channel_member(
@@ -702,7 +680,9 @@ impl NasMutationRoot {
             .remove_channel_member(&id.to_string(), &peer_id.to_string())
             .await
             .map_err(async_graphql::Error::new)?;
-        Ok(crate::gql::types::chat_channel_from_dchannel(ch))
+        Ok(crate::api::schema::nas::types::chat_channel_from_dchannel(
+            ch,
+        ))
     }
 
     async fn accept_chat_channel_invite(&self, ctx: &Context<'_>, id: ID) -> FieldResult<bool> {
@@ -757,7 +737,7 @@ impl NasMutationRoot {
             .service
             .send_chat_item(target, content)
             .iter()
-            .map(|c| crate::gql::types::chat_item_from_dchat(c))
+            .map(|c| crate::api::schema::nas::types::chat_item_from_dchat(c))
             .collect())
     }
 
@@ -782,7 +762,7 @@ impl NasMutationRoot {
         let chat = chat_state(ctx)?;
         chat.service
             .retry_chat_item(id.to_string())
-            .map(|c| crate::gql::types::chat_item_from_dchat(&c))
+            .map(|c| crate::api::schema::nas::types::chat_item_from_dchat(&c))
             .ok_or_else(|| async_graphql::Error::new("chat item not found"))
     }
 
@@ -839,7 +819,7 @@ impl NasMutationRoot {
     ) -> FieldResult<bool> {
         let chat = chat_state(ctx)?;
         let local_port = pairing_local_port(ctx)?;
-        let request = crate::gql::types::pairing_request_from_input(&input);
+        let request = crate::api::schema::nas::types::pairing_request_from_input(&input);
         chat.pairing
             .respond_to_pairing(request, &input.from_ip, accepted, local_port);
         Ok(true)
@@ -877,7 +857,7 @@ impl NasMutationRoot {
             jobs.insert(file_id.to_string(), MergeJobState::Merging);
         }
         let chat = chat_state(ctx)?;
-        let paths = crate::consts::AppPaths::detect();
+        let paths = crate::nas::consts::AppPaths::detect();
         let data_dir = paths.data_dir.clone();
         let db = chat.service.db.clone();
         let fid = file_id.to_string();
@@ -885,15 +865,20 @@ impl NasMutationRoot {
             // Merge to a temp path OUTSIDE the chunk dir — a successful
             // merge removes the chunk dir, and the temp file must survive
             // until import_file has copied it into the store.
-            let temp = crate::chunked_upload::chunk_dir(&data_dir, &fid)
+            let temp = crate::nas::chunked_upload::chunk_dir(&data_dir, &fid)
                 .parent()
                 .map(|p| p.join(format!(".merge_app_{fid}")))
                 .unwrap_or_else(|| data_dir.join(format!(".merge_app_{fid}")));
             let temp_str = temp.to_string_lossy().to_string();
             let temp_path = temp.clone();
-            let merged =
-                crate::chunked_upload::merge_chunks(&data_dir, &fid, total_chunks, &temp_str, true)
-                    .await;
+            let merged = crate::nas::chunked_upload::merge_chunks(
+                &data_dir,
+                &fid,
+                total_chunks,
+                &temp_str,
+                true,
+            )
+            .await;
             let outcome = match merged {
                 Err(e) => Err(e),
                 Ok((_value, merged_size)) => {
@@ -901,7 +886,7 @@ impl NasMutationRoot {
                     // work: hashing + copy).
                     let import_data_dir = data_dir.clone();
                     let imported = tokio::task::spawn_blocking(move || {
-                        plain_rs::chat::app_file_store::import_file(
+                        crate::chat::app_file_store::import_file(
                             &db,
                             &import_data_dir,
                             &temp_path,
@@ -915,7 +900,7 @@ impl NasMutationRoot {
                     match imported {
                         Ok(res) => {
                             let _ = std::fs::remove_file(
-                                crate::chunked_upload::chunk_dir(&data_dir, &fid)
+                                crate::nas::chunked_upload::chunk_dir(&data_dir, &fid)
                                     .parent()
                                     .map(|p| p.join(format!(".merge_app_{fid}")))
                                     .unwrap_or_else(|| {
@@ -984,13 +969,18 @@ impl NasMutationRoot {
             }
             jobs.insert(file_id.to_string(), MergeJobState::Merging);
         }
-        let paths = crate::consts::AppPaths::detect();
+        let paths = crate::nas::consts::AppPaths::detect();
         let data_dir = paths.data_dir.clone();
         let fid = file_id.to_string();
         tokio::spawn(async move {
-            let outcome =
-                crate::chunked_upload::merge_chunks(&data_dir, &fid, total_chunks, &path, replace)
-                    .await;
+            let outcome = crate::nas::chunked_upload::merge_chunks(
+                &data_dir,
+                &fid,
+                total_chunks,
+                &path,
+                replace,
+            )
+            .await;
             let mut jobs = merge_jobs().lock().unwrap();
             match outcome {
                 Ok((value, merged_size)) => {
@@ -1017,11 +1007,6 @@ impl NasMutationRoot {
 
     // ----- Media scan -----
 
-
-
-
-
-
     // ----- Disk format -----
 
     /// Wipe the whole disk at `path` and create a single GPT + ext4 partition (label `plainnas`): unmounts first (automount inhibited for the duration), then `wipefs`/`sfdisk`/`mkfs.ext4`, then re-coordinates the automount slot. Synchronous — returns after formatting finished; failures raise and are audited (`FORMAT_DISK_FAILED`).
@@ -1029,21 +1014,22 @@ impl NasMutationRoot {
         let cid: String = ctx.data::<String>()?.clone();
         let prefs = ctx.data::<std::sync::Arc<crate::prefs::Prefs>>()?.clone();
         let on_unmount = |mp: &str| {
-            let _ = crate::db::EventLog::new(crate::db::get_default()).add("unmount", mp, &cid);
+            let _ = crate::media::kv::EventLog::new(crate::media::kv::get_default())
+                .add("unmount", mp, &cid);
         };
         // Broadcast the outcome so every connected client (not just the
         // caller) can refresh mounts without polling. msg_type 45.
         let publish_done = |ok: bool, err: Option<String>| {
             // Publish returns () — best-effort broadcast, nothing to handle.
-            crate::eventbus::Bus::new().publish(
-                plain_rs::media::eventbus::EVENT_DISK_FORMAT_DONE,
+            crate::media::eventbus::Bus::new().publish(
+                crate::media::eventbus::EVENT_DISK_FORMAT_DONE,
                 serde_json::json!({ "path": path, "ok": ok, "error": err }),
             );
         };
-        match crate::format_disk::format_disk_single_partition(&prefs, &path, on_unmount) {
+        match crate::nas::format_disk::format_disk_single_partition(&prefs, &path, on_unmount) {
             Ok(()) => {
                 publish_done(true, None);
-                let _ = crate::db::EventLog::new(crate::db::get_default()).add(
+                let _ = crate::media::kv::EventLog::new(crate::media::kv::get_default()).add(
                     "format_disk",
                     &path,
                     &cid,
@@ -1052,7 +1038,7 @@ impl NasMutationRoot {
             }
             Err(e) => {
                 publish_done(false, Some(e.to_string()));
-                let _ = crate::db::EventLog::new(crate::db::get_default()).add(
+                let _ = crate::media::kv::EventLog::new(crate::media::kv::get_default()).add(
                     "format_disk_failed",
                     &format!("{path}: {e}"),
                     &cid,
@@ -1070,12 +1056,11 @@ impl NasMutationRoot {
         let prefs = ctx.data::<std::sync::Arc<crate::prefs::Prefs>>()?;
         // The mount id is the `fsuuid:`/`dev:`/`remote:` composite — the
         // same value space as `StorageMount.id`, carried as ID per §4.
-        crate::db::storage::set_alias(prefs, id.as_str(), &alias)?;
+        crate::media::kv::storage::set_alias(prefs, id.as_str(), &alias)?;
         Ok(true)
     }
 
     // ----- Media source dirs -----
-
 
     // ----- setTempValue -----
 
@@ -1091,7 +1076,7 @@ impl NasMutationRoot {
         if key.trim().is_empty() {
             return Err(async_graphql::Error::new("key is empty"));
         }
-        crate::temp_store::set(&key, &value);
+        crate::nas::temp_store::set(&key, &value);
         Ok(KeyValuePair { key, value })
     }
 
@@ -1106,7 +1091,7 @@ impl NasMutationRoot {
         input: SambaSettingsInput,
     ) -> FieldResult<bool> {
         let prefs = ctx.data::<std::sync::Arc<crate::prefs::Prefs>>()?;
-        let prev = crate::samba::get_samba_settings(prefs);
+        let prev = crate::nas::samba::get_samba_settings(prefs);
 
         let mut requires_password = false;
         let shares = input
@@ -1114,13 +1099,13 @@ impl NasMutationRoot {
             .into_iter()
             .map(|s| {
                 let auth = match s.auth {
-                    SambaShareAuth::GUEST => crate::samba::SambaShareAuth::Guest,
+                    SambaShareAuth::GUEST => crate::nas::samba::SambaShareAuth::Guest,
                     SambaShareAuth::PASSWORD => {
                         requires_password = true;
-                        crate::samba::SambaShareAuth::Password
+                        crate::nas::samba::SambaShareAuth::Password
                     }
                 };
-                crate::samba::SambaShare {
+                crate::nas::samba::SambaShare {
                     name: s.name,
                     share_path: s.share_path,
                     auth,
@@ -1139,11 +1124,11 @@ impl NasMutationRoot {
             return Err(async_graphql::Error::new("password required"));
         }
 
-        crate::samba::set_samba_settings(prefs, &desired)
+        crate::nas::samba::set_samba_settings(prefs, &desired)
             .map_err(|e| async_graphql::Error::new(e.to_string()))?;
         // Apply the normalized stored settings.
-        let desired = crate::samba::get_samba_settings(prefs);
-        crate::samba::apply(prefs, &desired, "")
+        let desired = crate::nas::samba::get_samba_settings(prefs);
+        crate::nas::samba::apply(prefs, &desired, "")
             .map(|_| ())
             .map_err(|e| async_graphql::Error::new(e.to_string()))?;
         Ok(true)
@@ -1160,16 +1145,16 @@ impl NasMutationRoot {
         if password.trim().is_empty() {
             return Err(async_graphql::Error::new("password required"));
         }
-        crate::samba::set_user_password(&password)
+        crate::nas::samba::set_user_password(&password)
             .map_err(|e| async_graphql::Error::new(e.to_string()))?;
 
-        let mut s = crate::samba::get_samba_settings(prefs);
+        let mut s = crate::nas::samba::get_samba_settings(prefs);
         s.has_password = true;
-        crate::samba::set_samba_settings(prefs, &s)
+        crate::nas::samba::set_samba_settings(prefs, &s)
             .map_err(|e| async_graphql::Error::new(e.to_string()))?;
 
         if s.enabled {
-            let _ = crate::samba::apply(prefs, &s, "");
+            let _ = crate::nas::samba::apply(prefs, &s, "");
         }
         Ok(true)
     }
@@ -1179,10 +1164,6 @@ impl NasMutationRoot {
     // These mirror the phone `trashMediaItems` / `restoreMediaItems` /
     // `deleteMediaItems` mutations and return the shared `ActionResult`
     // (affectedCount = matching items actually processed).
-
-
-
-
 
     // ----- DLNA -----
 
@@ -1202,9 +1183,9 @@ impl NasMutationRoot {
         // the media-only enum makes that fallback impossible, so DOC is an
         // explicit error instead of a nonsense cast.
         let mt = match media_type {
-            MediaDataType::AUDIO => crate::dlna::MediaType::Audio,
-            MediaDataType::VIDEO => crate::dlna::MediaType::Video,
-            MediaDataType::IMAGE => crate::dlna::MediaType::Image,
+            MediaDataType::AUDIO => crate::nas::dlna::MediaType::Audio,
+            MediaDataType::VIDEO => crate::nas::dlna::MediaType::Video,
+            MediaDataType::IMAGE => crate::nas::dlna::MediaType::Image,
             MediaDataType::DOC => {
                 return Err(async_graphql::Error::new("dlna_cast_doc_unsupported"));
             }
@@ -1213,7 +1194,7 @@ impl NasMutationRoot {
         // file ids inside `dlna::cast` via `fsx::path_from_file_id`.
         let prefs = ctx.data::<std::sync::Arc<crate::prefs::Prefs>>()?.clone();
         match tokio::task::spawn_blocking(move || {
-            crate::dlna::cast(&renderer_udn, &url, &title, &mime, mt, &prefs)
+            crate::nas::dlna::cast(&renderer_udn, &url, &title, &mime, mt, &prefs)
         })
         .await
         {
@@ -1226,10 +1207,9 @@ impl NasMutationRoot {
 
 // ----- helpers shared by the two roots -----
 
-
-pub fn favorite_to_gql(f: plain_rs::library::favorite_folders::FavoriteFolder) -> FavoriteFolder {
+pub fn favorite_to_gql(f: crate::library::favorite_folders::FavoriteFolder) -> FavoriteFolder {
     FavoriteFolder {
-        full_path: plain_rs::library::favorite_folders::full_path_of(&f),
+        full_path: crate::library::favorite_folders::full_path_of(&f),
         root_path: f.root_path,
         relative_path: f.relative_path,
         alias: f.alias,
@@ -1238,14 +1218,14 @@ pub fn favorite_to_gql(f: plain_rs::library::favorite_folders::FavoriteFolder) -
 
 /// The full favorite list as GraphQL objects (phone contract: the favorite
 /// folder mutations return the updated list, not the touched entry).
-fn favorite_list_gql(library: &plain_rs::library::db::LibraryDb) -> Vec<FavoriteFolder> {
-    plain_rs::library::favorite_folders::list(library)
+fn favorite_list_gql(library: &crate::library::db::LibraryDb) -> Vec<FavoriteFolder> {
+    crate::library::favorite_folders::list(library)
         .into_iter()
         .map(favorite_to_gql)
         .collect()
 }
 
-pub fn bookmark_to_gql(b: plain_rs::chat::db::bookmark::DBookmark) -> Bookmark {
+pub fn bookmark_to_gql(b: crate::chat::db::bookmark::DBookmark) -> Bookmark {
     Bookmark {
         id: b.id.into(),
         url: b.url,
@@ -1271,7 +1251,7 @@ pub(crate) fn instant_of(iso: &str) -> Instant {
 }
 
 pub fn bookmark_group_to_gql(
-    g: plain_rs::chat::db::bookmark::DBookmarkGroup,
+    g: crate::chat::db::bookmark::DBookmarkGroup,
     item_count: usize,
 ) -> BookmarkGroup {
     BookmarkGroup {
@@ -1287,7 +1267,6 @@ pub fn bookmark_group_to_gql(
 
 /// Last path segment, mirroring Kotlin `File.name` ("/" and "" → "").
 
-
 /// Mirrors Go `mediaTypeFromDataType` (`DataType` enum → numeric kind).
 /// Values follow plain-app `DataType.value` exactly.
 
@@ -1296,7 +1275,7 @@ pub fn bookmark_group_to_gql(
 /// The explicit `ids:a,b,c` DSL group from a tag-mutation query (checkbox
 /// selections) → the media keys to tag. `None` when the query has no ids.
 fn parse_ids_query(query: &str) -> Option<Vec<String>> {
-    let fields = crate::search::parse(query);
+    let fields = crate::media::search::parse(query);
     let mut ids = String::new();
     for f in &fields {
         if f.name == "ids" {
@@ -1319,12 +1298,12 @@ fn parse_ids_query(query: &str) -> Option<Vec<String>> {
 /// otherwise the shared search DSL) into queue tracks — mirrors plain-app
 /// `searchMedia(AUDIO, query, limit, 0, sortBy)` feeding `enqueue`.
 fn resolve_queue_tracks(
-    db: &std::sync::Arc<crate::db::Db>,
+    db: &std::sync::Arc<crate::media::kv::Db>,
     query: &str,
     limit: usize,
-) -> Vec<plain_rs::library::audio_queue::AudioTrack> {
+) -> Vec<crate::library::audio_queue::AudioTrack> {
     let to_track = |title: String, name: String, artist: String, path: String, secs: i64| {
-        plain_rs::library::audio_queue::AudioTrack {
+        crate::library::audio_queue::AudioTrack {
             title: if title.is_empty() { name } else { title },
             artist,
             path,
@@ -1334,25 +1313,25 @@ fn resolve_queue_tracks(
     if let Some(ids) = parse_ids_query(query) {
         return ids
             .iter()
-            .filter_map(|id| crate::media_scan::get_by_uuid(db, id).ok().flatten())
+            .filter_map(|id| crate::media::scan::get_by_uuid(db, id).ok().flatten())
             .map(|mut m| {
                 // Enqueue-time hydration: the queue row stores what the
                 // player shows, so fill in anything the index lacks first.
-                crate::media_scan::hydrate_metadata(db, &mut m);
+                crate::media::scan::hydrate_metadata(db, &mut m);
                 to_track(m.title, m.name, m.artist, m.path, m.duration_sec as i64)
             })
             .collect();
     }
-    match crate::media::search_index::global().search(
+    match crate::media::image_index::global().search(
         query,
         Some("audio"),
         None,
-        crate::media::search_index::MediaSort::DateDesc,
+        crate::media::image_index::MediaSort::DateDesc,
         0,
         limit,
     ) {
         Ok(mut rows) => {
-            crate::media_scan::hydrate_search_page(db, &mut rows, true);
+            crate::media::scan::hydrate_search_page(db, &mut rows, true);
             rows.into_iter()
                 .map(|r| to_track(r.title, r.name, r.artist, r.path, r.duration_secs as i64))
                 .collect()
@@ -1404,5 +1383,5 @@ fn sanitize_hostname(input: &str) -> String {
 }
 
 #[cfg(test)]
-#[path = "../../tests/unit/gql/mutation.rs"]
+#[path = "../../../../tests/unit/api/schema/nas/mutation.rs"]
 mod tests;

@@ -22,7 +22,7 @@ fn tree() -> tempfile::TempDir {
 /// stays self-consistent on it).
 fn ensure_global_db() {
     let scratch = tree();
-    let _ = crate::db::open(&scratch.path().join("fjall"));
+    let _ = crate::media::kv::open(&scratch.path().join("fjall"));
 }
 
 #[test]
@@ -39,11 +39,11 @@ fn sanitize_strips_garbage() {
 #[tokio::test]
 async fn update_device_name_serves_display_name_with_hostname_fallback() {
     let dir = tree();
-    let db = std::sync::Arc::new(crate::db::Db::open(dir.path()).expect("temp db opens"));
-    let config = std::sync::Arc::new(crate::config::Config::parse(
+    let db = std::sync::Arc::new(crate::media::kv::Db::open(dir.path()).expect("temp db opens"));
+    let config = std::sync::Arc::new(crate::media::config::Config::parse(
         "[server]\nhttp_port = 8080\nhttps_port = 8443\n",
     ));
-    let schema = crate::gql::build_schema(
+    let schema = crate::api::schema::nas::build_schema(
         db,
         prefs(&dir),
         config,
@@ -58,7 +58,7 @@ async fn update_device_name_serves_display_name_with_hostname_fallback() {
     assert!(resp.errors.is_empty(), "{:?}", resp.errors);
     assert_eq!(
         resp.data.into_json().unwrap(),
-        serde_json::json!({ "app": { "deviceName": plain_rs::utils::hostname::get() } })
+        serde_json::json!({ "app": { "deviceName": crate::utils::hostname::get() } })
     );
 
     // The plain-app mutation stores the display name (trimmed); the OS
@@ -95,11 +95,11 @@ async fn update_device_name_serves_display_name_with_hostname_fallback() {
 async fn add_to_tags_resolves_ids_query_to_per_key_relations() {
     ensure_global_db();
     let dir = tree();
-    let db = std::sync::Arc::new(crate::db::Db::open(dir.path()).unwrap());
-    let config = std::sync::Arc::new(crate::config::Config::parse(
+    let db = std::sync::Arc::new(crate::media::kv::Db::open(dir.path()).unwrap());
+    let config = std::sync::Arc::new(crate::media::config::Config::parse(
         "[server]\nhttp_port = 8080\nhttps_port = 8443\n",
     ));
-    let schema = crate::gql::build_schema(
+    let schema = crate::api::schema::nas::build_schema(
         db,
         prefs(&dir),
         config,
@@ -129,13 +129,13 @@ async fn add_to_tags_resolves_ids_query_to_per_key_relations() {
         serde_json::json!({ "addToTags": true })
     );
 
-    let library = plain_rs::library::db::LibraryDb::open(&dir.path().join("library.db")).unwrap();
-    let mut keys = plain_rs::library::tags::keys_for_tag(&library, &tag_id);
+    let library = crate::library::db::LibraryDb::open(&dir.path().join("library.db")).unwrap();
+    let mut keys = crate::library::tags::keys_for_tag(&library, &tag_id);
     keys.sort();
     assert_eq!(keys, vec!["S1".to_string(), "S2".to_string()]);
     // plain-app semantics: the count reflects relations, one per media id.
     assert_eq!(
-        plain_rs::library::tags::tag_by_id(&library, &tag_id)
+        crate::library::tags::tag_by_id(&library, &tag_id)
             .unwrap()
             .count,
         2
@@ -148,7 +148,7 @@ async fn add_to_tags_resolves_ids_query_to_per_key_relations() {
         )))
         .await;
     assert_eq!(
-        plain_rs::library::tags::keys_for_tag(&library, &tag_id).len(),
+        crate::library::tags::keys_for_tag(&library, &tag_id).len(),
         2
     );
 
@@ -159,7 +159,7 @@ async fn add_to_tags_resolves_ids_query_to_per_key_relations() {
         )))
         .await;
     assert!(resp.errors.is_empty(), "{:?}", resp.errors);
-    let keys = plain_rs::library::tags::keys_for_tag(&library, &tag_id);
+    let keys = crate::library::tags::keys_for_tag(&library, &tag_id);
     assert_eq!(keys, vec!["S2".to_string()]);
 }
 
@@ -173,11 +173,11 @@ async fn add_to_tags_resolves_ids_query_to_per_key_relations() {
 #[tokio::test]
 async fn clear_app_logs_truncates_log_file() {
     let dir = tree();
-    let db = std::sync::Arc::new(crate::db::Db::open(dir.path()).expect("temp db opens"));
-    let config = std::sync::Arc::new(crate::config::Config::parse(
+    let db = std::sync::Arc::new(crate::media::kv::Db::open(dir.path()).expect("temp db opens"));
+    let config = std::sync::Arc::new(crate::media::config::Config::parse(
         "[server]\nhttp_port = 8080\nhttps_port = 8443\n",
     ));
-    let schema = crate::gql::build_schema(
+    let schema = crate::api::schema::nas::build_schema(
         db,
         prefs(&dir),
         config,
@@ -185,7 +185,7 @@ async fn clear_app_logs_truncates_log_file() {
         crate::test_support::chat_state(dir.path()),
     );
 
-    let log_file = crate::log::default_log_file(dir.path());
+    let log_file = crate::nas::log::default_log_file(dir.path());
     std::fs::create_dir_all(log_file.parent().unwrap()).unwrap();
     std::fs::write(&log_file, b"stale line\n").unwrap();
 
@@ -201,14 +201,14 @@ async fn clear_app_logs_truncates_log_file() {
 #[tokio::test]
 async fn delete_data_store_entry_removes_preference() {
     let dir = tree();
-    let db = std::sync::Arc::new(crate::db::Db::open(dir.path()).expect("temp db opens"));
-    let config = std::sync::Arc::new(crate::config::Config::parse(
+    let db = std::sync::Arc::new(crate::media::kv::Db::open(dir.path()).expect("temp db opens"));
+    let config = std::sync::Arc::new(crate::media::config::Config::parse(
         "[server]\nhttp_port = 8080\nhttps_port = 8443\n",
     ));
     let prefs = prefs(&dir);
     prefs.set("device_name", "box").unwrap();
     db.insert(b"tag:row", b"v").unwrap();
-    let schema = crate::gql::build_schema(
+    let schema = crate::api::schema::nas::build_schema(
         db.clone(),
         prefs.clone(),
         config,
@@ -241,11 +241,11 @@ async fn delete_data_store_entry_removes_preference() {
 #[tokio::test]
 async fn delete_db_table_rows_deletes_and_validates() {
     let dir = tree();
-    let db = std::sync::Arc::new(crate::db::Db::open(dir.path()).expect("temp db opens"));
-    let config = std::sync::Arc::new(crate::config::Config::parse(
+    let db = std::sync::Arc::new(crate::media::kv::Db::open(dir.path()).expect("temp db opens"));
+    let config = std::sync::Arc::new(crate::media::config::Config::parse(
         "[server]\nhttp_port = 8080\nhttps_port = 8443\n",
     ));
-    let schema = crate::gql::build_schema(
+    let schema = crate::api::schema::nas::build_schema(
         db.clone(),
         prefs(&dir),
         config,
@@ -254,7 +254,7 @@ async fn delete_db_table_rows_deletes_and_validates() {
     );
 
     // Seed the library store build_schema opened (second handle).
-    let library = plain_rs::library::db::LibraryDb::open(&dir.path().join("library.db")).unwrap();
+    let library = crate::library::db::LibraryDb::open(&dir.path().join("library.db")).unwrap();
     library.with_conn(|conn| {
         conn.execute_batch(
             "INSERT INTO tags(id, type, name) VALUES ('del-one', 1, 'a');
@@ -306,11 +306,11 @@ async fn delete_db_table_rows_deletes_and_validates() {
 #[tokio::test]
 async fn clear_app_logs_creates_missing_log_file() {
     let dir = tree();
-    let db = std::sync::Arc::new(crate::db::Db::open(dir.path()).expect("temp db opens"));
-    let config = std::sync::Arc::new(crate::config::Config::parse(
+    let db = std::sync::Arc::new(crate::media::kv::Db::open(dir.path()).expect("temp db opens"));
+    let config = std::sync::Arc::new(crate::media::config::Config::parse(
         "[server]\nhttp_port = 8080\nhttps_port = 8443\n",
     ));
-    let schema = crate::gql::build_schema(
+    let schema = crate::api::schema::nas::build_schema(
         db,
         prefs(&dir),
         config,
@@ -318,7 +318,7 @@ async fn clear_app_logs_creates_missing_log_file() {
         crate::test_support::chat_state(dir.path()),
     );
 
-    let log_file = crate::log::default_log_file(dir.path());
+    let log_file = crate::nas::log::default_log_file(dir.path());
     // In production `log::set_file` creates the `logs/` dir at startup;
     // mirror that, then exercise the file-missing branch.
     std::fs::create_dir_all(log_file.parent().unwrap()).unwrap();
@@ -340,15 +340,15 @@ async fn clear_app_logs_creates_missing_log_file() {
 #[allow(clippy::await_holding_lock)] // GLOBAL_INDEX_TEST_LOCK serializes index writers on purpose
 async fn audio_queue_and_user_playlists_plain_app_surface() {
     // scan_file/upsert write the process-global search index.
-    let _guard = crate::gql::query::GLOBAL_INDEX_TEST_LOCK
+    let _guard = crate::api::schema::nas::query::GLOBAL_INDEX_TEST_LOCK
         .lock()
         .unwrap_or_else(|p| p.into_inner());
     let dir = tree();
-    let db = std::sync::Arc::new(crate::db::Db::open(dir.path()).expect("temp db opens"));
-    let config = std::sync::Arc::new(crate::config::Config::parse(
+    let db = std::sync::Arc::new(crate::media::kv::Db::open(dir.path()).expect("temp db opens"));
+    let config = std::sync::Arc::new(crate::media::config::Config::parse(
         "[server]\nhttp_port = 8080\nhttps_port = 8443\n",
     ));
-    let schema = crate::gql::build_schema(
+    let schema = crate::api::schema::nas::build_schema(
         db.clone(),
         prefs(&dir),
         config,
@@ -379,7 +379,7 @@ async fn audio_queue_and_user_playlists_plain_app_surface() {
     std::fs::write(&song, &id3).unwrap();
     let song_path = song.to_str().unwrap().to_string();
 
-    async fn q(schema: &crate::gql::AppSchema, doc: &str) -> serde_json::Value {
+    async fn q(schema: &crate::api::schema::nas::AppSchema, doc: &str) -> serde_json::Value {
         let resp = schema.execute(async_graphql::Request::new(doc)).await;
         assert!(resp.errors.is_empty(), "{:?} for {doc}", resp.errors);
         resp.data.into_json().unwrap()
@@ -530,11 +530,11 @@ async fn audio_queue_and_user_playlists_plain_app_surface() {
 
     // addAudiosToQueue with an explicit ids: query enqueues without the
     // search index (media row uuid → track).
-    let mut mf = crate::media_scan::scan_file(&db, song.to_str().unwrap()).unwrap();
+    let mut mf = crate::media::scan::scan_file(&db, song.to_str().unwrap()).unwrap();
     mf.title = "Indexed".to_string();
     mf.artist = "Someone".to_string();
     mf.duration_sec = 42;
-    crate::media_scan::upsert_media_row(&db, &mf).unwrap();
+    crate::media::scan::upsert_media_row(&db, &mf).unwrap();
     q(
         schema_ref,
         &format!(
@@ -586,11 +586,11 @@ async fn audio_queue_and_user_playlists_plain_app_surface() {
 #[tokio::test]
 async fn favorite_folders_use_full_path_and_return_the_list() {
     let dir = tree();
-    let db = std::sync::Arc::new(crate::db::Db::open(dir.path()).expect("temp db opens"));
-    let config = std::sync::Arc::new(crate::config::Config::parse(
+    let db = std::sync::Arc::new(crate::media::kv::Db::open(dir.path()).expect("temp db opens"));
+    let config = std::sync::Arc::new(crate::media::config::Config::parse(
         "[server]\nhttp_port = 8080\nhttps_port = 8443\n",
     ));
-    let schema = crate::gql::build_schema(
+    let schema = crate::api::schema::nas::build_schema(
         db,
         prefs(&dir),
         config,
@@ -642,15 +642,15 @@ async fn favorite_folders_use_full_path_and_return_the_list() {
 #[allow(clippy::await_holding_lock)] // GLOBAL_INDEX_TEST_LOCK serializes index writers on purpose
 async fn delete_files_returns_affected_count() {
     // deleteFiles purges media rows from the process-global search index.
-    let _guard = crate::gql::query::GLOBAL_INDEX_TEST_LOCK
+    let _guard = crate::api::schema::nas::query::GLOBAL_INDEX_TEST_LOCK
         .lock()
         .unwrap_or_else(|p| p.into_inner());
     let dir = tree();
-    let db = std::sync::Arc::new(crate::db::Db::open(dir.path()).expect("temp db opens"));
-    let config = std::sync::Arc::new(crate::config::Config::parse(
+    let db = std::sync::Arc::new(crate::media::kv::Db::open(dir.path()).expect("temp db opens"));
+    let config = std::sync::Arc::new(crate::media::config::Config::parse(
         "[server]\nhttp_port = 8080\nhttps_port = 8443\n",
     ));
-    let schema = crate::gql::build_schema(
+    let schema = crate::api::schema::nas::build_schema(
         db,
         prefs(&dir),
         config,
@@ -690,14 +690,14 @@ async fn merge_chunks_is_a_background_task_with_status_polling() {
     // test end would destroy the shared media index. The resolver reads
     // its data dir via AppPaths::detect(), so the chunks are seeded under
     // the pinned dir too.
-    let data_dir = crate::consts::AppPaths::pin_test_data_dir();
-    let db = std::sync::Arc::new(crate::db::Db::open(dir.path()).unwrap());
-    let config = std::sync::Arc::new(crate::config::Config::parse(
+    let data_dir = crate::nas::consts::AppPaths::pin_test_data_dir();
+    let db = std::sync::Arc::new(crate::media::kv::Db::open(dir.path()).unwrap());
+    let config = std::sync::Arc::new(crate::media::config::Config::parse(
         "[server]\nhttp_port = 8080\nhttps_port = 8443\n",
     ));
     let prefs =
         std::sync::Arc::new(crate::prefs::Prefs::load(&dir.path().join("prefs.json")).unwrap());
-    let schema = crate::gql::build_schema(
+    let schema = crate::api::schema::nas::build_schema(
         db.clone(),
         prefs,
         config,
@@ -706,7 +706,7 @@ async fn merge_chunks_is_a_background_task_with_status_polling() {
     );
 
     // Seed two chunks for file MRG1.
-    let chunks = crate::chunked_upload::chunk_dir(&data_dir, "MRG1");
+    let chunks = crate::nas::chunked_upload::chunk_dir(&data_dir, "MRG1");
     std::fs::create_dir_all(&chunks).unwrap();
     std::fs::write(chunks.join("chunk_0"), b"ab").unwrap();
     std::fs::write(chunks.join("chunk_1"), b"cd").unwrap();
@@ -775,11 +775,11 @@ async fn bookmark_groups_serve_live_item_count() {
     static SEQ: AtomicUsize = AtomicUsize::new(0);
 
     let dir = tree();
-    let db = std::sync::Arc::new(crate::db::Db::open(dir.path()).expect("temp db opens"));
-    let config = std::sync::Arc::new(crate::config::Config::parse(
+    let db = std::sync::Arc::new(crate::media::kv::Db::open(dir.path()).expect("temp db opens"));
+    let config = std::sync::Arc::new(crate::media::config::Config::parse(
         "[server]\nhttp_port = 8080\nhttps_port = 8443\n",
     ));
-    let schema = crate::gql::build_schema(
+    let schema = crate::api::schema::nas::build_schema(
         db,
         prefs(&dir),
         config,
@@ -799,10 +799,10 @@ async fn bookmark_groups_serve_live_item_count() {
     let id = created["id"].as_str().expect("id is a string").to_string();
 
     let urls: Vec<String> = (0..2).map(|i| format!("https://cnt{i}.example")).collect();
-    let chat_db = plain_rs::chat::db::ChatDb::open(&dir.path().join("chat.db")).unwrap();
+    let chat_db = crate::chat::db::ChatDb::open(&dir.path().join("chat.db")).unwrap();
     for u in &urls {
-        let b = plain_rs::chat::db::bookmark::DBookmark::new(u, &id);
-        plain_rs::chat::db::bookmark::insert_bookmark(&chat_db, &b);
+        let b = crate::chat::db::bookmark::DBookmark::new(u, &id);
+        crate::chat::db::bookmark::insert_bookmark(&chat_db, &b);
     }
 
     let resp = schema
@@ -841,11 +841,11 @@ async fn bookmark_groups_serve_live_item_count() {
 #[tokio::test]
 async fn bulk_media_mutations_reject_blank_query() {
     let dir = tree();
-    let db = std::sync::Arc::new(crate::db::Db::open(dir.path()).expect("temp db opens"));
-    let config = std::sync::Arc::new(crate::config::Config::parse(
+    let db = std::sync::Arc::new(crate::media::kv::Db::open(dir.path()).expect("temp db opens"));
+    let config = std::sync::Arc::new(crate::media::config::Config::parse(
         "[server]\nhttp_port = 8080\nhttps_port = 8443\n",
     ));
-    let schema = crate::gql::build_schema(
+    let schema = crate::api::schema::nas::build_schema(
         db,
         prefs(&dir),
         config,
@@ -871,20 +871,20 @@ async fn bulk_media_mutations_reject_blank_query() {
     }
 }
 
-// ----- Chat mutations (plain_rs::chat backed) -----
+// ----- Chat mutations (crate::chat backed) -----
 
 fn chat_schema(
     dir: &tempfile::TempDir,
 ) -> (
-    crate::gql::AppSchema,
-    std::sync::Arc<crate::chat::ChatState>,
+    crate::api::schema::nas::AppSchema,
+    std::sync::Arc<crate::api::chat::ChatState>,
 ) {
-    let db = std::sync::Arc::new(crate::db::Db::open(dir.path()).expect("temp db opens"));
-    let config = std::sync::Arc::new(crate::config::Config::parse(
+    let db = std::sync::Arc::new(crate::media::kv::Db::open(dir.path()).expect("temp db opens"));
+    let config = std::sync::Arc::new(crate::media::config::Config::parse(
         "[server]\nhttp_port = 8080\nhttps_port = 8443\n",
     ));
     let chat = crate::test_support::chat_state(dir.path());
-    let schema = crate::gql::build_schema(
+    let schema = crate::api::schema::nas::build_schema(
         db,
         prefs(&dir),
         config,
@@ -993,8 +993,8 @@ async fn peer_mutations_map_to_service_semantics() {
     assert!(resp.errors.is_empty(), "{:?}", resp.errors);
     assert_eq!(resp.data.into_json().unwrap()["deletePeer"], false);
 
-    use plain_rs::chat::db::DPeer;
-    use plain_rs::chat::enums::{DeviceType, PeerStatus};
+    use crate::chat::db::DPeer;
+    use crate::chat::enums::{DeviceType, PeerStatus};
     chat.service.db.upsert_peer(&DPeer::new(
         "p1",
         "Pixel",
@@ -1051,19 +1051,19 @@ async fn merge_app_file_chunks_imports_into_content_addressed_store() {
         .unwrap();
     // Chunks are seeded under the pinned data dir (the resolver's
     // chunked_upload reads go through AppPaths::detect()).
-    let pin_dir = crate::consts::AppPaths::pin_test_data_dir();
-    let db = std::sync::Arc::new(crate::db::Db::open(dir.path()).unwrap());
-    let config = std::sync::Arc::new(crate::config::Config::parse(
+    let pin_dir = crate::nas::consts::AppPaths::pin_test_data_dir();
+    let db = std::sync::Arc::new(crate::media::kv::Db::open(dir.path()).unwrap());
+    let config = std::sync::Arc::new(crate::media::config::Config::parse(
         "[server]\nhttp_port = 8080\nhttps_port = 8443\n",
     ));
     let prefs =
         std::sync::Arc::new(crate::prefs::Prefs::load(&dir.path().join("prefs.json")).unwrap());
     let chat = crate::test_support::chat_state(dir.path());
     let schema =
-        crate::gql::build_schema(db, prefs, config, dir.path().to_path_buf(), chat.clone());
+        crate::api::schema::nas::build_schema(db, prefs, config, dir.path().to_path_buf(), chat.clone());
 
     let fid_key = format!("MRGAPP{}", std::process::id());
-    let chunks = crate::chunked_upload::chunk_dir(&pin_dir, &fid_key);
+    let chunks = crate::nas::chunked_upload::chunk_dir(&pin_dir, &fid_key);
     std::fs::create_dir_all(&chunks).unwrap();
     std::fs::write(chunks.join("chunk_0"), b"hello ").unwrap();
     std::fs::write(chunks.join("chunk_1"), b"attachment").unwrap();

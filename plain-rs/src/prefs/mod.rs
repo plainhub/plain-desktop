@@ -15,6 +15,7 @@
 
 pub mod dlna;
 pub mod identity;
+pub mod server;
 
 pub use identity::{AppIdentity, ensure_identity, ensure_mdns_hostname, ensure_url_token};
 

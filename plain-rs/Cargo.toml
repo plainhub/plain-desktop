@@ -31,12 +31,8 @@ sqlite_browse = ["dep:rusqlite", "dep:serde_json"]
 # plain-desktop Tauri shells (replaces per-app copies and
 # tauri-plugin-store).
 prefs = ["dep:serde_json"]
-# The desktop app's embedded API stack: async-graphql schema (its own
-# roots merged with the media_gql roots), executor, axum HTTP/WS
-# router, chat wiring, peer status, nearby discovery, DLNA receiver,
-# downloads, link previews. plain-nas does NOT enable this (it builds
-# its own axum router over the shared chat/library cores and merges
-# only the media_gql roots).
+# Shared API stack for the desktop and NAS shells: GraphQL schemas,
+# axum HTTP/WS router, listener lifecycle, proxy, discovery and DLNA.
 api = [
     "media_gql",
     "chat",
@@ -45,6 +41,7 @@ api = [
     "sqlite_browse",
     "dep:async-graphql",
     "dep:axum",
+    "dep:axum-server",
     "dep:native-tls",
     "dep:serde_json",
     "dep:futures-util",
@@ -159,6 +156,7 @@ futures-util = { version = "0.3", default-features = false, features = ["sink", 
 async-graphql = { version = "7", default-features = false, optional = true }
 # Same axum stack plain-nas pins, so both servers share one framework.
 axum = { version = "0.7", default-features = false, features = ["ws", "multipart", "json", "query", "tokio", "http1"], optional = true }
+axum-server = { version = "0.7", features = ["tls-rustls"], optional = true }
 # Client-side TLS for the peer-status WS connector (peer_status_manager);
 # the server side is axum + the host's axum-server rustls listener.
 native-tls = { version = "0.2", optional = true }

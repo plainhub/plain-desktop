@@ -199,5 +199,5 @@ Each file gets a deterministic ID based on `SHA-256(name + size + lastModified +
 | IUploadItem type | `src/stores/temp.ts` |
 | GraphQL queries | `src/lib/api/query.ts` (uploadedChunksGQL) |
 | GraphQL mutations | `src/lib/api/mutation.ts` (mergeChunksGQL) |
-| Backend HTTP endpoints | `src-tauri/src/local/server/upload.rs` (/upload, /upload_chunk) |
-| Backend GraphQL schema | `src-tauri/src/local/graphql/schema/file_upload.rs` |
+| Backend HTTP endpoints | `plain-rs/src/api/server/upload.rs` (/upload, /upload_chunk) |
+| Backend GraphQL schema | `plain-rs/src/api/schema/file_upload.rs` |

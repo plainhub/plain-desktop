@@ -8,7 +8,7 @@
 //! lifecycle.
 //!
 //! Pairing is handled over HTTPS via the `POST /nearby` REST endpoint
-//! instead of UDP (see `local::pairing`).
+//! instead of UDP (see `crate::api::chat`).
 
 use super::MdnsActivity;
 #[cfg(target_os = "macos")]

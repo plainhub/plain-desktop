@@ -36,7 +36,7 @@ use tokio::net::TcpStream;
 mod tests;
 mod utils;
 
-use plain_rs::http::CORS;
+use crate::utils::http::CORS;
 use utils::{extract_proxy_params, ws_accept_key};
 
 // ─── Public state ─────────────────────────────────────────────────────────────
@@ -64,7 +64,7 @@ impl HttpProxyState {
         let port = std_listener.local_addr().expect("http proxy addr").port();
         std_listener.set_nonblocking(true).expect("set_nonblocking");
 
-        tauri::async_runtime::spawn(async move {
+        tokio::spawn(async move {
             let listener =
                 tokio::net::TcpListener::from_std(std_listener).expect("listener from_std");
             loop {
@@ -79,11 +79,6 @@ impl HttpProxyState {
 
         HttpProxyState { port }
     }
-}
-
-#[tauri::command]
-pub fn http_proxy_port(state: tauri::State<'_, HttpProxyState>) -> u16 {
-    state.port
 }
 
 // ─── Per-connection handler ───────────────────────────────────────────────────
@@ -161,9 +156,7 @@ async fn handle(stream: TcpStream, http: reqwest::Client, peers: PeerResolver) {
                 .unwrap_or_default()
         };
         if target_base.is_empty() {
-            let _ = wr
-                .write_all(b"HTTP/1.1 400 Bad Request\r\n")
-                .await;
+            let _ = wr.write_all(b"HTTP/1.1 400 Bad Request\r\n").await;
             let _ = wr.write_all(CORS).await;
             let _ = wr
                 .write_all(b"content-length: 0\r\nconnection: close\r\n\r\n")
@@ -237,9 +230,7 @@ async fn handle(stream: TcpStream, http: reqwest::Client, peers: PeerResolver) {
             Ok(r) => r,
             Err(e) => {
                 eprintln!("[http_proxy] upstream {url} failed: {e}");
-                let _ = wr
-                    .write_all(b"HTTP/1.1 502 Bad Gateway\r\n")
-                    .await;
+                let _ = wr.write_all(b"HTTP/1.1 502 Bad Gateway\r\n").await;
                 let _ = wr.write_all(CORS).await;
                 let _ = wr
                     .write_all(b"content-length: 0\r\nconnection: close\r\n\r\n")
@@ -463,8 +454,10 @@ async fn relay_websocket(
         b"HTTP/1.1 101 Switching Protocols\r\nupgrade: websocket\r\nconnection: Upgrade\r\n",
     );
     for (k, v) in &resp_hdrs {
-        if matches!(k.as_str(), "upgrade" | "connection" | "transfer-encoding" | "content-length")
-        {
+        if matches!(
+            k.as_str(),
+            "upgrade" | "connection" | "transfer-encoding" | "content-length"
+        ) {
             continue;
         }
         if let Ok(vs) = v.to_str() {

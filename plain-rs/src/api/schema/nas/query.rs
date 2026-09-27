@@ -7,9 +7,9 @@ use async_graphql::{Context, FieldResult, Object};
 use std::sync::Arc;
 
 pub struct NasQueryRoot {
-    pub db: Arc<crate::db::Db>,
+    pub db: Arc<crate::media::kv::Db>,
     pub prefs: Arc<crate::prefs::Prefs>,
-    pub config: Arc<crate::config::Config>,
+    pub config: Arc<crate::media::config::Config>,
     /// Data dir (PLAIN_NAS_DATA_DIR or /var/lib/plainnas) — root for the
     /// on-disk log (`appLogPath`), the fjall store (`dbPath`) and the
     /// preferences file (`dataStorePath`).
@@ -24,9 +24,9 @@ pub struct NasQueryRoot {
 
 impl NasQueryRoot {
     pub fn new(
-        db: Arc<crate::db::Db>,
+        db: Arc<crate::media::kv::Db>,
         prefs: Arc<crate::prefs::Prefs>,
-        config: Arc<crate::config::Config>,
+        config: Arc<crate::media::config::Config>,
         data_dir: std::path::PathBuf,
     ) -> Self {
         Self {
@@ -64,25 +64,25 @@ fn declared_capabilities(
 impl NasQueryRoot {
     /// Top-level `app` info used by the web client on startup.
     async fn app(&self, _ctx: &Context<'_>) -> FieldResult<App> {
-        let url_token = crate::db::UrlToken::new(&self.prefs)
+        let url_token = crate::media::kv::UrlToken::new(&self.prefs)
             .ensure()
             .unwrap_or_default();
         let http_port = self.config.get_int("server.http_port") as i32;
         let https_port = self.config.get_int("server.https_port") as i32;
-        let hostname = match crate::device_info::collect().await {
+        let hostname = match crate::nas::device_info::collect().await {
             Ok(info) => info.hostname,
             Err(_) => String::from("plainnas"),
         };
         // plain-app semantics: the stored display name wins; empty falls
         // back to the system name (`.ifEmpty { getDeviceName() }`).
-        let stored_name = crate::db::device_display_name(&self.prefs);
+        let stored_name = crate::media::kv::device_display_name(&self.prefs);
         let device_name = if stored_name.is_empty() {
             hostname
         } else {
             stored_name
         };
         Ok(App {
-            client_id: crate::db::server_client_id(&self.prefs),
+            client_id: crate::media::kv::server_client_id(&self.prefs),
             url_token,
             http_port,
             https_port,
@@ -97,7 +97,7 @@ impl NasQueryRoot {
             // host probes via `declared_capabilities`. A NAS has no
             // screen-mirror audio source.
             capabilities: declared_capabilities(
-                !crate::samba::detect_systemd_service_name().is_empty(),
+                !crate::nas::samba::detect_systemd_service_name().is_empty(),
                 which("lsblk").is_some(),
                 which("libreoffice").is_some() || which("soffice").is_some(),
             ),
@@ -119,8 +119,8 @@ impl NasQueryRoot {
     /// server-side transport — audio renders on the client — so
     /// isPlaying/positionMs serve idle values (API_SPEC §9).
     async fn audio_playback(&self, ctx: &Context<'_>) -> FieldResult<AudioPlayback> {
-        let library = ctx.data::<std::sync::Arc<plain_rs::library::db::LibraryDb>>()?;
-        let current = plain_rs::library::audio_queue::get_audio_current(library);
+        let library = ctx.data::<std::sync::Arc<crate::library::db::LibraryDb>>()?;
+        let current = crate::library::audio_queue::get_audio_current(library);
         Ok(AudioPlayback {
             current_path: (!current.is_empty()).then_some(current),
             mode: media_play_mode_of(library),
@@ -131,13 +131,13 @@ impl NasQueryRoot {
 
     /// Chat channels the device has not left (plain-app `chatChannels`).
     async fn chat_channels(&self, ctx: &Context<'_>) -> FieldResult<Vec<ChatChannel>> {
-        let chat = ctx.data::<std::sync::Arc<crate::chat::ChatState>>()?;
+        let chat = ctx.data::<std::sync::Arc<crate::api::chat::ChatState>>()?;
         Ok(chat
             .service
             .db
-            .get_channels(plain_rs::chat::enums::ChannelStatus::Joined)
+            .get_channels(crate::chat::enums::ChannelStatus::Joined)
             .into_iter()
-            .map(crate::gql::types::chat_channel_from_dchannel)
+            .map(crate::api::schema::nas::types::chat_channel_from_dchannel)
             .collect())
     }
 
@@ -153,33 +153,33 @@ impl NasQueryRoot {
         limit: i32,
         query: String,
     ) -> FieldResult<Vec<ChatItem>> {
-        let chat = ctx.data::<std::sync::Arc<crate::chat::ChatState>>()?;
+        let chat = ctx.data::<std::sync::Arc<crate::api::chat::ChatState>>()?;
         let text = text_of(&query);
         Ok(chat
             .service
             .db
             .get_chats_page(&target, &text, offset, limit)
             .iter()
-            .map(|c| crate::gql::types::chat_item_from_dchat(c))
+            .map(|c| crate::api::schema::nas::types::chat_item_from_dchat(c))
             .collect())
     }
 
     /// Latest items across conversations (one per channel/peer/local).
     async fn latest_chat_items(&self, ctx: &Context<'_>) -> FieldResult<Vec<ChatItem>> {
-        let chat = ctx.data::<std::sync::Arc<crate::chat::ChatState>>()?;
+        let chat = ctx.data::<std::sync::Arc<crate::api::chat::ChatState>>()?;
         Ok(chat
             .service
             .db
             .get_all_latest_chats()
             .iter()
-            .map(|c| crate::gql::types::chat_item_from_dchat(c))
+            .map(|c| crate::api::schema::nas::types::chat_item_from_dchat(c))
             .collect())
     }
 
     /// Paired / known LAN peers. `online` reflects live reachability
     /// (mDNS presence); unknown peers report `false`.
     async fn peers(&self, ctx: &Context<'_>) -> FieldResult<Vec<Peer>> {
-        let chat = ctx.data::<std::sync::Arc<crate::chat::ChatState>>()?;
+        let chat = ctx.data::<std::sync::Arc<crate::api::chat::ChatState>>()?;
         Ok(chat
             .service
             .db
@@ -187,7 +187,7 @@ impl NasQueryRoot {
             .into_iter()
             .map(|p| {
                 let online = chat.discovery.as_ref().is_some_and(|d| d.is_online(&p.id));
-                crate::gql::types::peer_from_dpeer(p, online)
+                crate::api::schema::nas::types::peer_from_dpeer(p, online)
             })
             .collect())
     }
@@ -201,18 +201,17 @@ impl NasQueryRoot {
         limit: i32,
         query: String,
     ) -> FieldResult<Vec<AppFile>> {
-        let chat = ctx.data::<std::sync::Arc<crate::chat::ChatState>>()?;
+        let chat = ctx.data::<std::sync::Arc<crate::api::chat::ChatState>>()?;
         let text = text_of(&query);
-        let name_map =
-            plain_rs::chat::app_file_store::file_name_map(&chat.service.db.get_all_chats());
+        let name_map = crate::chat::app_file_store::file_name_map(&chat.service.db.get_all_chats());
         Ok(chat
             .service
             .db
             .get_app_file_page(limit, offset)
             .iter()
             .map(|f| {
-                let display = plain_rs::chat::app_file_store::display_name(f, &name_map);
-                crate::gql::types::app_file_from_dappfile(f, display)
+                let display = crate::chat::app_file_store::display_name(f, &name_map);
+                crate::api::schema::nas::types::app_file_from_dappfile(f, display)
             })
             .filter(|f| text.is_empty() || f.file_name.contains(&text))
             .collect())
@@ -220,45 +219,40 @@ impl NasQueryRoot {
 
     /// Chat attachment count, same filter as `appFiles`.
     async fn app_file_count(&self, ctx: &Context<'_>, query: String) -> FieldResult<i32> {
-        let chat = ctx.data::<std::sync::Arc<crate::chat::ChatState>>()?;
+        let chat = ctx.data::<std::sync::Arc<crate::api::chat::ChatState>>()?;
         let text = text_of(&query);
         if text.is_empty() {
             return Ok(chat.service.db.count_app_files());
         }
-        let name_map =
-            plain_rs::chat::app_file_store::file_name_map(&chat.service.db.get_all_chats());
+        let name_map = crate::chat::app_file_store::file_name_map(&chat.service.db.get_all_chats());
         Ok(chat
             .service
             .db
             .get_all_app_files()
             .iter()
             .filter(|f| {
-                let display = plain_rs::chat::app_file_store::display_name(f, &name_map);
+                let display = crate::chat::app_file_store::display_name(f, &name_map);
                 display.contains(&text)
             })
             .count() as i32)
     }
 
-
-
     /// All bookmarks, phone-DAO order (pinned first, then sort order).
     async fn bookmarks(&self, ctx: &Context<'_>) -> FieldResult<Vec<Bookmark>> {
-        let chat = ctx.data::<std::sync::Arc<crate::chat::ChatState>>()?;
-        Ok(
-            plain_rs::chat::db::bookmark::get_bookmarks(&chat.service.db)
-                .into_iter()
-                .map(super::mutation::bookmark_to_gql)
-                .collect(),
-        )
+        let chat = ctx.data::<std::sync::Arc<crate::api::chat::ChatState>>()?;
+        Ok(crate::chat::db::bookmark::get_bookmarks(&chat.service.db)
+            .into_iter()
+            .map(super::mutation::bookmark_to_gql)
+            .collect())
     }
 
     /// All bookmark groups, phone-DAO order (sort order, then creation).
     /// `itemCount` is live — one prefix scan for the whole list.
     async fn bookmark_groups(&self, ctx: &Context<'_>) -> FieldResult<Vec<BookmarkGroup>> {
-        let chat = ctx.data::<std::sync::Arc<crate::chat::ChatState>>()?;
+        let chat = ctx.data::<std::sync::Arc<crate::api::chat::ChatState>>()?;
         let db = &chat.service.db;
-        let bookmarks = plain_rs::chat::db::bookmark::get_bookmarks(db);
-        Ok(plain_rs::chat::db::bookmark::get_bookmark_groups(db)
+        let bookmarks = crate::chat::db::bookmark::get_bookmarks(db);
+        Ok(crate::chat::db::bookmark::get_bookmark_groups(db)
             .into_iter()
             .map(|g| {
                 let item_count = bookmarks.iter().filter(|b| b.group_id == g.id).count();
@@ -279,13 +273,13 @@ impl NasQueryRoot {
         query: String,
     ) -> FieldResult<Vec<AudioItem>> {
         let text = text_of(&query);
-        let library = ctx.data::<std::sync::Arc<plain_rs::library::db::LibraryDb>>()?;
+        let library = ctx.data::<std::sync::Arc<crate::library::db::LibraryDb>>()?;
         let library = (**library).clone();
         let db = self.db.clone();
-        let index = crate::media::search_index::global();
+        let index = crate::media::image_index::global();
         let items = super::run_blocking(move || {
-            let mut tracks = crate::library::NasLibraryTracks::new(db, index);
-            plain_rs::library::audio_queue::queue_page(
+            let mut tracks = crate::nas::library::NasLibraryTracks::new(db, index);
+            crate::library::audio_queue::queue_page(
                 &library,
                 &mut tracks,
                 offset as i64,
@@ -301,13 +295,13 @@ impl NasQueryRoot {
     /// Total tracks in the active playback queue (superseded source copies
     /// excluded).
     async fn audio_queue_item_count(&self, ctx: &Context<'_>) -> FieldResult<i32> {
-        let library = ctx.data::<std::sync::Arc<plain_rs::library::db::LibraryDb>>()?;
+        let library = ctx.data::<std::sync::Arc<crate::library::db::LibraryDb>>()?;
         let library = (*library).clone();
         let db = self.db.clone();
-        let index = crate::media::search_index::global();
+        let index = crate::media::image_index::global();
         let n = super::run_blocking(move || {
-            let mut tracks = crate::library::NasLibraryTracks::new(db, index);
-            plain_rs::library::audio_queue::queue_total(&library, &mut tracks)
+            let mut tracks = crate::nas::library::NasLibraryTracks::new(db, index);
+            crate::library::audio_queue::queue_total(&library, &mut tracks)
                 .map_err(|e| async_graphql::Error::new(e.to_string()))
         })
         .await??;
@@ -329,8 +323,8 @@ impl NasQueryRoot {
 
     /// All user playlists, most recently updated first.
     async fn audio_playlists(&self, ctx: &Context<'_>) -> FieldResult<Vec<AudioPlaylist>> {
-        let library = ctx.data::<std::sync::Arc<plain_rs::library::db::LibraryDb>>()?;
-        let rows = plain_rs::library::audio_queue::playlists(library);
+        let library = ctx.data::<std::sync::Arc<crate::library::db::LibraryDb>>()?;
+        let rows = crate::library::audio_queue::playlists(library);
         Ok(rows
             .into_iter()
             .map(|(pl, count)| AudioPlaylist {
@@ -354,8 +348,8 @@ impl NasQueryRoot {
         limit: i32,
         query: String,
     ) -> FieldResult<Vec<AudioItem>> {
-        let library = ctx.data::<std::sync::Arc<plain_rs::library::db::LibraryDb>>()?;
-        let items = plain_rs::library::audio_queue::playlist_items_page(
+        let library = ctx.data::<std::sync::Arc<crate::library::db::LibraryDb>>()?;
+        let items = crate::library::audio_queue::playlist_items_page(
             library,
             &id,
             offset as i64,
@@ -371,9 +365,9 @@ impl NasQueryRoot {
         ctx: &Context<'_>,
         id: async_graphql::ID,
     ) -> FieldResult<i32> {
-        let library = ctx.data::<std::sync::Arc<plain_rs::library::db::LibraryDb>>()?;
+        let library = ctx.data::<std::sync::Arc<crate::library::db::LibraryDb>>()?;
         Ok(
-            plain_rs::library::audio_queue::playlist_item_count(library, &id).min(i32::MAX as usize)
+            crate::library::audio_queue::playlist_item_count(library, &id).min(i32::MAX as usize)
                 as i32,
         )
     }
@@ -388,8 +382,8 @@ impl NasQueryRoot {
         limit: i32,
         query: String,
     ) -> FieldResult<Vec<AudioPlayHistory>> {
-        let library = ctx.data::<std::sync::Arc<plain_rs::library::db::LibraryDb>>()?;
-        let rows = plain_rs::library::audio_queue::history_page(
+        let library = ctx.data::<std::sync::Arc<crate::library::db::LibraryDb>>()?;
+        let rows = crate::library::audio_queue::history_page(
             library,
             offset as i64,
             limit as i64,
@@ -412,22 +406,22 @@ impl NasQueryRoot {
     /// sub-objects (`android`, `display`) are null; static identity/spec —
     /// dynamic state lives in `deviceStatus`.
     async fn device_info(&self) -> FieldResult<DeviceInfo> {
-        let info = crate::device_info::collect().await?;
+        let info = crate::nas::device_info::collect().await?;
         // plain-app `DeviceInfo.name` is the device display name; same
         // precedence as `App.deviceName` (stored override, else hostname).
-        let stored_name = crate::db::device_display_name(&self.prefs);
+        let stored_name = crate::media::kv::device_display_name(&self.prefs);
         let name = if stored_name.is_empty() {
             info.hostname.clone()
         } else {
             stored_name
         };
         // "Device storage" for a NAS = the root filesystem's capacity.
-        let total_storage = crate::mounts::df_usage("/").0;
+        let total_storage = crate::nas::mounts::df_usage("/").0;
         Ok(DeviceInfo {
             name,
             platform: DevicePlatform::LINUX,
             // /sys/class/dmi/id reports the real board (NanoPi R5S, …).
-            manufacturer: crate::device_info::dmi_manufacturer(),
+            manufacturer: crate::nas::device_info::dmi_manufacturer(),
             model: info.model,
             os_name: String::from("Linux"),
             os_version: info.os,
@@ -448,7 +442,7 @@ impl NasQueryRoot {
     /// is diffed from two /proc/stat samples taken 200ms apart, so this
     /// resolver deliberately runs on the blocking pool.
     async fn device_status(&self) -> FieldResult<DeviceStatus> {
-        let status = tokio::task::spawn_blocking(crate::device_info::collect_device_status)
+        let status = tokio::task::spawn_blocking(crate::nas::device_info::collect_device_status)
             .await
             .map_err(|e| format!("device status collection failed: {e}"))??;
         Ok(DeviceStatus {
@@ -467,7 +461,7 @@ impl NasQueryRoot {
                 .collect(),
             cpu_usage: status.cpu_usage,
             memory_available: status.memory_available.map(Long),
-            storage_available: Long(crate::mounts::df_usage("/").1),
+            storage_available: Long(crate::nas::mounts::df_usage("/").1),
         })
     }
 
@@ -505,7 +499,7 @@ impl NasQueryRoot {
 
     /// Absolute path of the current log file.
     async fn app_log_path(&self) -> FieldResult<String> {
-        Ok(crate::log::default_log_file(&self.data_dir)
+        Ok(crate::nas::log::default_log_file(&self.data_dir)
             .to_string_lossy()
             .to_string())
     }
@@ -514,9 +508,9 @@ impl NasQueryRoot {
     /// the DSL `text:` field of `query` is a case-insensitive substring
     /// over the line, applied before offset/limit.
     async fn app_logs(&self, offset: i32, limit: i32, query: String) -> FieldResult<Vec<String>> {
-        let path = crate::log::default_log_file(&self.data_dir);
+        let path = crate::nas::log::default_log_file(&self.data_dir);
         let needle = text_of(&query);
-        Ok(crate::log::read_lines_newest_first(
+        Ok(crate::nas::log::read_lines_newest_first(
             &path,
             (!needle.trim().is_empty()).then_some(needle.as_str()),
             offset.max(0) as usize,
@@ -527,16 +521,19 @@ impl NasQueryRoot {
     /// Tables of the two SQLite stores (`chat.db` + `library.db`) by bare
     /// name, sorted — no store prefix.
     async fn db_tables(&self, ctx: &Context<'_>) -> FieldResult<Vec<String>> {
-        let chat = ctx.data::<std::sync::Arc<crate::chat::ChatState>>()?;
-        let library = ctx.data::<std::sync::Arc<plain_rs::library::db::LibraryDb>>()?;
-        Ok(crate::devtools_sqlite::tables(&chat.service.db, library))
+        let chat = ctx.data::<std::sync::Arc<crate::api::chat::ChatState>>()?;
+        let library = ctx.data::<std::sync::Arc<crate::library::db::LibraryDb>>()?;
+        Ok(crate::nas::devtools_sqlite::tables(
+            &chat.service.db,
+            library,
+        ))
     }
 
     /// Entry count of one table.
     async fn db_table_row_count(&self, ctx: &Context<'_>, table: String) -> FieldResult<Long> {
-        let chat = ctx.data::<std::sync::Arc<crate::chat::ChatState>>()?;
-        let library = ctx.data::<std::sync::Arc<plain_rs::library::db::LibraryDb>>()?;
-        crate::devtools_sqlite::table_row_count(&chat.service.db, library, &table)
+        let chat = ctx.data::<std::sync::Arc<crate::api::chat::ChatState>>()?;
+        let library = ctx.data::<std::sync::Arc<crate::library::db::LibraryDb>>()?;
+        crate::nas::devtools_sqlite::table_row_count(&chat.service.db, library, &table)
             .map(Long)
             .map_err(|e| async_graphql::Error::new(e.to_string()))
     }
@@ -550,9 +547,9 @@ impl NasQueryRoot {
         offset: i32,
         limit: i32,
     ) -> FieldResult<Vec<String>> {
-        let chat = ctx.data::<std::sync::Arc<crate::chat::ChatState>>()?;
-        let library = ctx.data::<std::sync::Arc<plain_rs::library::db::LibraryDb>>()?;
-        crate::devtools_sqlite::table_rows(
+        let chat = ctx.data::<std::sync::Arc<crate::api::chat::ChatState>>()?;
+        let library = ctx.data::<std::sync::Arc<crate::library::db::LibraryDb>>()?;
+        crate::nas::devtools_sqlite::table_rows(
             &chat.service.db,
             library,
             &table,
@@ -565,10 +562,10 @@ impl NasQueryRoot {
     /// Row identity field of a table (its declared primary key column;
     /// composite keys use the first key column).
     async fn db_table_info(&self, ctx: &Context<'_>, table: String) -> FieldResult<DbTableInfo> {
-        let chat = ctx.data::<std::sync::Arc<crate::chat::ChatState>>()?;
-        let library = ctx.data::<std::sync::Arc<plain_rs::library::db::LibraryDb>>()?;
+        let chat = ctx.data::<std::sync::Arc<crate::api::chat::ChatState>>()?;
+        let library = ctx.data::<std::sync::Arc<crate::library::db::LibraryDb>>()?;
         Ok(DbTableInfo {
-            id_key: crate::devtools_sqlite::table_id_key(&chat.service.db, library, &table)
+            id_key: crate::nas::devtools_sqlite::table_id_key(&chat.service.db, library, &table)
                 .map_err(|e| async_graphql::Error::new(e.to_string()))?,
         })
     }
@@ -579,9 +576,9 @@ impl NasQueryRoot {
         ctx: &Context<'_>,
         table: String,
     ) -> FieldResult<Vec<DbTableColumn>> {
-        let chat = ctx.data::<std::sync::Arc<crate::chat::ChatState>>()?;
-        let library = ctx.data::<std::sync::Arc<plain_rs::library::db::LibraryDb>>()?;
-        crate::devtools_sqlite::table_columns(&chat.service.db, library, &table)
+        let chat = ctx.data::<std::sync::Arc<crate::api::chat::ChatState>>()?;
+        let library = ctx.data::<std::sync::Arc<crate::library::db::LibraryDb>>()?;
+        crate::nas::devtools_sqlite::table_columns(&chat.service.db, library, &table)
             .map(|cols| {
                 cols.into_iter()
                     .map(|c| DbTableColumn {
@@ -599,7 +596,7 @@ impl NasQueryRoot {
     /// List of mounted volumes + unmounted partitions (Go `ListMounts`).
     async fn mounts(&self, ctx: &Context<'_>) -> FieldResult<Vec<StorageMount>> {
         let prefs = ctx.data::<std::sync::Arc<crate::prefs::Prefs>>()?;
-        Ok(crate::mounts::list_mounts(prefs)
+        Ok(crate::nas::mounts::list_mounts(prefs)
             .into_iter()
             .map(|m| StorageMount {
                 id: m.id.into(),
@@ -625,7 +622,7 @@ impl NasQueryRoot {
 
     /// List of block devices.
     async fn disks(&self) -> FieldResult<Vec<StorageDisk>> {
-        Ok(crate::storage_disks::list_disks()
+        Ok(crate::nas::storage_disks::list_disks()
             .into_iter()
             .map(|d| StorageDisk {
                 id: d.id.into(),
@@ -640,7 +637,7 @@ impl NasQueryRoot {
 
     /// Active sessions.
     async fn sessions(&self) -> FieldResult<Vec<Session>> {
-        let list = crate::db::SessionStore::new(&self.db).list();
+        let list = crate::media::kv::SessionStore::new(&self.db).list();
         Ok(list
             .into_iter()
             .map(|s| Session {
@@ -664,7 +661,7 @@ impl NasQueryRoot {
         query: String,
     ) -> FieldResult<Vec<AuditEvent>> {
         let needle = text_of(&query);
-        let list = crate::db::EventLog::new(&self.db).list(
+        let list = crate::media::kv::EventLog::new(&self.db).list(
             offset.max(0) as usize,
             limit.max(0) as usize,
             (!needle.trim().is_empty()).then_some(needle.as_str()),
@@ -686,25 +683,15 @@ impl NasQueryRoot {
             .collect())
     }
 
-
-
-
-
-
-
-
-
     /// List all favorite folders.
     async fn favorite_folders(&self, ctx: &Context<'_>) -> FieldResult<Vec<FavoriteFolder>> {
-        let library = ctx.data::<std::sync::Arc<plain_rs::library::db::LibraryDb>>()?;
-        let items = plain_rs::library::favorite_folders::list(library);
+        let library = ctx.data::<std::sync::Arc<crate::library::db::LibraryDb>>()?;
+        let items = crate::library::favorite_folders::list(library);
         Ok(items
             .into_iter()
             .map(super::mutation::favorite_to_gql)
             .collect())
     }
-
-
 
     /// List uploaded chunk indices for a given fileID, as strings
     /// (plain-app `uploadedChunks(fileId: String!): [String!]!`).
@@ -713,15 +700,16 @@ impl NasQueryRoot {
         _ctx: &Context<'_>,
         #[graphql(name = "fileId")] file_id: String,
     ) -> FieldResult<Vec<String>> {
-        let paths = crate::consts::AppPaths::detect();
-        let list = crate::chunked_upload::list_uploaded_chunks(&paths.data_dir, &file_id).await?;
+        let paths = crate::nas::consts::AppPaths::detect();
+        let list =
+            crate::nas::chunked_upload::list_uploaded_chunks(&paths.data_dir, &file_id).await?;
         Ok(list.into_iter().map(|i| i.to_string()).collect())
     }
 
     /// App update check. Sync (ureq, 5s timeout), cached 10 min in-process.
     /// Wrapped in `spawn_blocking` so it doesn't tie up the async runtime.
     async fn app_update(&self, _ctx: &Context<'_>) -> FieldResult<AppUpdate> {
-        let u = tokio::task::spawn_blocking(crate::app_update::app_update)
+        let u = tokio::task::spawn_blocking(crate::nas::app_update::app_update)
             .await
             .map_err(|e| async_graphql::Error::new(format!("join: {e}")))?;
         Ok(AppUpdate {
@@ -737,10 +725,10 @@ impl NasQueryRoot {
     /// Current LAN-share (samba) settings: enabled flag, provisioned username/password state, shares and the backing systemd unit's status.
     async fn samba_settings(&self, ctx: &Context<'_>) -> FieldResult<SambaSettings> {
         let prefs = ctx.data::<std::sync::Arc<crate::prefs::Prefs>>()?;
-        let s = crate::samba::get_samba_settings(prefs);
+        let s = crate::nas::samba::get_samba_settings(prefs);
         // Live unit status (Go `sambaSettings` resolver); persisted
         // service_* fields are only fallbacks for non-systemd hosts.
-        let service = crate::samba::get_service_status();
+        let service = crate::nas::samba::get_service_status();
         let (name, active, enabled) = if service.name.is_empty() {
             (s.service_name.clone(), s.service_active, s.service_enabled)
         } else {
@@ -751,8 +739,8 @@ impl NasQueryRoot {
             .into_iter()
             .map(|sh| {
                 let auth = match sh.auth {
-                    crate::samba::SambaShareAuth::Guest => SambaShareAuth::GUEST,
-                    crate::samba::SambaShareAuth::Password => SambaShareAuth::PASSWORD,
+                    crate::nas::samba::SambaShareAuth::Guest => SambaShareAuth::GUEST,
+                    crate::nas::samba::SambaShareAuth::Password => SambaShareAuth::PASSWORD,
                 };
                 SambaShare {
                     name: sh.name,
@@ -782,9 +770,9 @@ impl NasQueryRoot {
         // result streams back over WS, then return the current cache.
         let cid = ctx.data::<String>().ok().cloned().unwrap_or_default();
         if !cid.is_empty() {
-            crate::dlna::start_renderer_discovery(&cid);
+            crate::nas::dlna::start_renderer_discovery(&cid);
         }
-        let rs = crate::dlna::cached_renderers();
+        let rs = crate::nas::dlna::cached_renderers();
         let out = rs
             .into_iter()
             .map(|r| DlnaRenderer {
@@ -808,10 +796,7 @@ impl NasQueryRoot {
 
     // ----- Media source dirs -----
 
-
     // ----- Path predicates (pathExists / pathKind) -----
-
-
 
     /// Detailed info for a single media file used by the lightbox UI.
     /// `path` is the canonical lookup key (round-7 contract: `id` addressing
@@ -825,7 +810,7 @@ impl NasQueryRoot {
     ) -> FieldResult<FileInfo> {
         let _ = _include_dir_size;
         let p = std::path::Path::new(&path);
-        let entry = crate::fsx::stat(p)
+        let entry = crate::media::fsx::stat(p)
             .await
             .map_err(|e| async_graphql::Error::new(format!("stat: {e}")))?;
 
@@ -833,7 +818,10 @@ impl NasQueryRoot {
         // Every branch reads the file (row hydration for indexed audio/video,
         // header probes otherwise), so the whole computation runs off the
         // async runtime.
-        let db = ctx.data::<std::sync::Arc<crate::db::Db>>().ok().cloned();
+        let db = ctx
+            .data::<std::sync::Arc<crate::media::kv::Db>>()
+            .ok()
+            .cloned();
         let data = {
             let path = path.clone();
             super::run_blocking(move || build_file_info_data(db.as_deref(), &path)).await?
@@ -854,24 +842,15 @@ impl NasQueryRoot {
     // sync with the KV media rows. `query` uses the app search DSL
     // (`trash:true`, `excluded_dir:x`, `size:>10MB`, bare text, …).
 
-
-
-
-
     // ----- Docs (plain-app DocGraphQL parity) -----
     //
     // Doc rows are ordinary media-index rows whose `infer_type` classified
     // them as "doc" (text/* + office extensions via the shared MIME table).
-
-
-
-
 }
-
 
 /// Stored track duration is seconds; the wire contract is `durationMs`
 /// (plain-app), so convert here.
-pub(crate) fn playlist_audio_to_gql(a: plain_rs::library::audio_queue::AudioTrack) -> AudioItem {
+pub(crate) fn playlist_audio_to_gql(a: crate::library::audio_queue::AudioTrack) -> AudioItem {
     AudioItem {
         title: a.title,
         artist: a.artist,
@@ -894,8 +873,8 @@ fn which(name: &str) -> Option<std::path::PathBuf> {
 }
 
 /// Parse the stored play-mode name into the GraphQL enum (REPEAT default).
-fn media_play_mode_of(library: &plain_rs::library::db::LibraryDb) -> MediaPlayMode {
-    match plain_rs::library::audio_queue::get_audio_mode(library).as_str() {
+fn media_play_mode_of(library: &crate::library::db::LibraryDb) -> MediaPlayMode {
+    match crate::library::audio_queue::get_audio_mode(library).as_str() {
         "REPEAT_ONE" => MediaPlayMode::REPEAT_ONE,
         "SHUFFLE" => MediaPlayMode::SHUFFLE,
         _ => MediaPlayMode::REPEAT,
@@ -929,12 +908,11 @@ fn media_play_mode_of(library: &plain_rs::library::db::LibraryDb) -> MediaPlayMo
 #[cfg(test)]
 pub(crate) static GLOBAL_INDEX_TEST_LOCK: std::sync::Mutex<()> = std::sync::Mutex::new(());
 
-
 /// Public seam so `types.rs` ComplexObject resolvers can reach the loader.
 
 /// Numeric tag kind for a `DataType` (0=DEFAULT, 1=AUDIO, 2=VIDEO, 3=IMAGE).
 
-/// Convert a `crate::trash::TrashItem` into the GraphQL `File` type.
+/// Convert a `crate::media::trash::TrashItem` into the GraphQL `File` type.
 /// Mirrors Go `trashItemToModel` in `internal/graph/helpers/files_query_helper.go`:
 ///   * `path` = `<disk>/.nas-trash/<trash_rel_path>` (the physical trashed path)
 ///   * `is_dir` = (kind == "dir")
@@ -942,11 +920,11 @@ pub(crate) static GLOBAL_INDEX_TEST_LOCK: std::sync::Mutex<()> = std::sync::Mute
 ///   * `size` = it.size.unwrap_or(0)
 ///   * `children` = entry_count - 1 when dir and entry_count > 1, else 0
 
-/// The `text:` field of the shared search DSL (`crate::search::parse`),
+/// The `text:` field of the shared search DSL (`crate::media::search::parse`),
 /// used by the paginated list ops that filter on plain-app's server-side
 /// `text:` extraction. Empty string = no filtering.
 fn text_of(query: &str) -> String {
-    crate::search::parse(query)
+    crate::media::search::parse(query)
         .into_iter()
         .find(|f| f.name == "text")
         .map(|f| f.value)
@@ -959,7 +937,6 @@ fn text_of(query: &str) -> String {
 /// i64 scanner counter → GraphQL Int. File counts can never reach 2^31 in
 /// practice; the saturating cast keeps the mapping total.
 
-
 /// Resolve the directory a `files` query lists: `parent` (DSL) overrides
 /// `root` (plain-app argument), which overrides `root_path` (legacy Go DSL
 /// field); `relative_path` (legacy Go DSL) joins underneath. Empty input
@@ -970,14 +947,14 @@ fn text_of(query: &str) -> String {
 /// else falls back to the transient header probe. The extension gate keeps
 /// images and non-media files from paying a pointless KV row read.
 /// Blocking (file I/O) — call via `super::run_blocking`.
-fn build_file_info_data(db: Option<&crate::db::Db>, path: &str) -> Option<MediaFileInfo> {
-    let av = matches!(crate::media_scan::infer_type(path), "audio" | "video");
+fn build_file_info_data(db: Option<&crate::media::kv::Db>, path: &str) -> Option<MediaFileInfo> {
+    let av = matches!(crate::media::scan::infer_type(path), "audio" | "video");
     if av
         && let Some(db) = db
-        && let Some(mut mf) = crate::media_scan::get_by_path(db, path).ok().flatten()
+        && let Some(mut mf) = crate::media::scan::get_by_path(db, path).ok().flatten()
         && matches!(mf.r#type.as_str(), "audio" | "video")
     {
-        crate::media_scan::hydrate_metadata(db, &mut mf);
+        crate::media::scan::hydrate_metadata(db, &mut mf);
         // durationMs is non-null on the wire (plain-app contract); an
         // unprobed duration serves 0.
         let duration_ms = Long((mf.duration_sec * 1000) as i64);
@@ -1064,5 +1041,5 @@ fn probe_image_dimensions(path: &str) -> Option<MediaFileInfo> {
 }
 
 #[cfg(test)]
-#[path = "../../tests/unit/gql/query.rs"]
+#[path = "../../../../tests/unit/api/schema/nas/query.rs"]
 mod tests;

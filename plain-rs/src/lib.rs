@@ -41,7 +41,7 @@ pub(crate) mod test_support {
         data_dir: &std::path::Path,
     ) -> std::sync::Arc<crate::library::db::LibraryDb> {
         std::sync::Arc::new(
-            crate::api::server::nas_ctx::open_library_db(data_dir).expect("open library.db"),
+            crate::library::db::LibraryDb::open(&data_dir.join("library.db")).expect("open library.db"),
         )
     }
 }

@@ -1,7 +1,7 @@
 use serde::Serialize;
 
-use crate::local::dlna::receiver_engine::DlnaEngine;
-use crate::local::dlna::types::{DlnaMediaType, DlnaPlaybackState, PendingCastRequest};
+use plain_rs::api::dlna::receiver_engine::DlnaEngine;
+use plain_rs::api::dlna::types::{DlnaMediaType, DlnaPlaybackState, PendingCastRequest};
 
 #[derive(Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -57,7 +57,7 @@ pub async fn dlna_state(
 pub async fn dlna_set_enabled(
     prefs: tauri::State<'_, std::sync::Arc<crate::prefs::Prefs>>,
     engine: tauri::State<'_, DlnaEngine>,
-    server: tauri::State<'_, crate::local::server::LocalServerState>,
+    server: tauri::State<'_, plain_rs::api::server::runtime::ServerRuntime>,
     enabled: bool,
 ) -> Result<(), String> {
     crate::prefs::dlna::set_enabled(&prefs, enabled);

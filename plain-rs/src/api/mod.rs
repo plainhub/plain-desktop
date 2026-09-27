@@ -1,8 +1,6 @@
-//! The desktop app's embedded local API stack, extracted from
-//! plain-desktop's `src-tauri/local/*`: async-graphql schema + executor,
-//! hand-rolled HTTP/WS/TLS server, chat wiring, peer status, nearby
-//! discovery, DLNA receiver, downloads and link previews. The Tauri
-//! crate consumes this and stays a thin shell (commands + capture).
+//! Shared API stack for the desktop and NAS shells: GraphQL schemas,
+//! HTTP/WS/TLS server, reverse proxy, discovery, DLNA receiver,
+//! downloads and link previews.
 //!
 //! Host integration goes through [`ShellHooks`] — everything the stack
 //! needs from its host (persisted preferences, UI notifications, app
@@ -16,6 +14,7 @@ pub mod dlna;
 pub mod download;
 pub mod enums;
 pub mod executor;
+pub mod http_proxy;
 pub mod link_preview;
 pub mod peer_graphql;
 pub mod schema;

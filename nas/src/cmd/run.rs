@@ -6,9 +6,9 @@ use anyhow::{Context, Result};
 use std::sync::Arc;
 use tokio::signal::unix::{SignalKind, signal};
 
+use plain_rs::api::context::{AppCtx, LogShell};
 use plain_rs::api::server::ServerState;
 use plain_rs::api::server::build_router;
-use plain_rs::api::server::nas_ctx::{NasCtxInputs, nas_app_ctx};
 use plain_rs::api::server::{NasServerState, events::spawn_media_event_bridge};
 
 use crate::config::Config;
@@ -86,14 +86,28 @@ pub async fn run(paths: &AppPaths) -> Result<()> {
 
     // The shared resolver context — one assembly, one fjall handle for
     // the whole process (media rows, sessions, events, trash).
-    let ctx = nas_app_ctx(NasCtxInputs {
-        data_dir: paths.data_dir.clone(),
-        cache_dir: paths.cache_dir.clone(),
-        prefs: prefs.clone(),
-        config: cfg_arc.clone(),
-        chat: chat.clone(),
+    let http_port: u16 = cfg_arc
+        .get_string("server.http_port")
+        .parse()
+        .unwrap_or(8080);
+    let https_port: u16 = cfg_arc
+        .get_string("server.https_port")
+        .parse()
+        .unwrap_or(8443);
+    let ctx = AppCtx::assemble(
+        paths.data_dir.clone(),
+        paths.cache_dir.clone(),
+        paths.data_dir.join("logs"),
+        paths.data_dir.join("library.db"),
+        prefs.clone(),
+        chat.clone(),
         event_tx,
-    })
+        Arc::new(LogShell {
+            version: plain_rs::nas::version::full_version(),
+        }),
+        http_port,
+        https_port,
+    )
     .context("assemble app ctx")?;
     let db = ctx.media.db.clone();
 
@@ -141,15 +155,6 @@ pub async fn run(paths: &AppPaths) -> Result<()> {
             .collect();
         crate::watcher::build_missing_indexes(&heal_data_dir, &heal_db, &roots);
     }));
-
-    let http_port: u16 = cfg_arc
-        .get_string("server.http_port")
-        .parse()
-        .unwrap_or(8080);
-    let https_port: u16 = cfg_arc
-        .get_string("server.https_port")
-        .parse()
-        .unwrap_or(8443);
 
     let mut handles = Vec::new();
 

@@ -4,57 +4,59 @@
 //! `NasPeerSchemaExec`.
 use std::sync::Arc;
 
+use crate::api::context::{AppCtx, LogShell};
+use crate::api::server::ServerState;
+use crate::api::server::{NasServerState, handlers};
+use crate::{
+    base64_encode, ed25519_generate, ed25519_sign, xchacha_decrypt_raw, xchacha_encrypt_raw,
+};
 use axum::body::Bytes;
 use axum::http::{HeaderMap, StatusCode};
-use plain_rs::api::server::ServerState;
-use plain_rs::api::server::nas_ctx::{NasCtxInputs, nas_app_ctx};
-use plain_rs::api::server::{NasServerState, handlers};
-use plain_rs::{base64_encode, ed25519_generate, ed25519_sign, xchacha_decrypt_raw, xchacha_encrypt_raw};
 
-use plain_rs::chat::db::DPeer;
-use plain_rs::chat::enums::{DeviceType, PeerStatus};
-use crate::gql::{NasPeerSchemaExec, NasSchemaExec};
+use crate::chat::db::DPeer;
+use crate::chat::enums::{DeviceType, PeerStatus};
 
 fn nas_router_state() -> ServerState {
     let dir = tempfile::tempdir().expect("temp dir");
     let data_dir = dir.path().to_path_buf();
     let prefs = Arc::new(crate::prefs::Prefs::load(&data_dir.join("prefs.json")).unwrap());
-    let chat = Arc::new(crate::chat::ChatState::nas_init(&data_dir, &prefs).unwrap());
-    let config = Arc::new(crate::config::Config::parse("[server]\nhttp_port = 8080\n"));
+    let chat = Arc::new(crate::api::chat::ChatState::nas_init(&data_dir, &prefs).unwrap());
+    let config = Arc::new(crate::media::config::Config::parse(
+        "[server]\nhttp_port = 8080\n",
+    ));
     let (event_tx, _) = tokio::sync::broadcast::channel(64);
-    let ctx = nas_app_ctx(NasCtxInputs {
-        data_dir: data_dir.clone(),
-        cache_dir: data_dir.join("cache"),
-        prefs: prefs.clone(),
-        config: config.clone(),
-        chat: chat.clone(),
+    let ctx = AppCtx::assemble(
+        data_dir.clone(),
+        data_dir.join("cache"),
+        data_dir.join("logs"),
+        data_dir.join("library.db"),
+        prefs.clone(),
+        chat.clone(),
         event_tx,
-    })
+        Arc::new(LogShell {
+            version: String::new(),
+        }),
+        8080,
+        8443,
+    )
     .unwrap();
     std::mem::forget(dir);
     let db = ctx.media.db.clone();
     ServerState {
-        schema: Arc::new(NasSchemaExec {
-            schema: crate::gql::build_schema(
-                db.clone(),
-                prefs.clone(),
-                config.clone(),
-                data_dir.clone(),
-                chat.clone(),
-            ),
+        schema: Arc::new(crate::api::schema::nas::build_nas_schema(
             db,
             prefs,
-            config: config.clone(),
+            config.clone(),
             data_dir,
             chat,
-            library: ctx.library.clone(),
-        }),
-        peer_schema: Arc::new(plain_rs::api::peer_graphql::build_schema()),
+            ctx.library.clone(),
+        )),
+        peer_schema: Arc::new(crate::api::peer_graphql::build_schema()),
         ctx,
         nas: Some(Arc::new(NasServerState {
             config,
-            cors: plain_rs::api::server::cors::CorsPolicy::default(),
-            peer_schema: Arc::new(NasPeerSchemaExec(crate::gql::peer_schema::build_schema())),
+            cors: crate::api::server::cors::CorsPolicy::default(),
+            peer_schema: Arc::new(crate::api::schema::nas::peer_schema::build_schema()),
         })),
     }
 }
@@ -89,7 +91,7 @@ async fn peer_graphql_create_chat_item_roundtrip_nas_schema() {
         created_at: "2026-01-01T00:00:00Z".into(),
         updated_at: "2026-01-01T00:00:00Z".into(),
     });
-    plain_rs::chat::events::refresh_peer_key_cache(
+    crate::chat::events::refresh_peer_key_cache(
         &state.ctx.chat.service.db,
         &state.ctx.chat.service.peer_key_cache,
     );

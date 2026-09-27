@@ -169,14 +169,14 @@ fn sdl_snapshot_matches_committed_file() {
     let _g = sdl_lock();
     let committed = std::fs::read_to_string(concat!(
         env!("CARGO_MANIFEST_DIR"),
-        "/apitest/schema.graphqls"
+        "/testdata/nas-schema.graphqls"
     ))
-    .expect("apitest/schema.graphqls exists");
+    .expect("testdata/nas-schema.graphqls exists");
     let sdl = test_sdl();
     if committed != sdl {
         panic!(
-            "apitest/schema.graphqls is out of date with the runtime schema. \
-             Run `cargo test print_schema` and commit the regenerated file (see API_SPEC.md §0)."
+            "testdata/nas-schema.graphqls is out of date with the runtime schema. \
+             Run `cargo test -p plain-rs --all-features print_schema -- --ignored` and commit the regenerated file."
         );
     }
 }

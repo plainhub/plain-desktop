@@ -1,10 +1,10 @@
-//! Tauri commands driving the shared pairing manager (see `local::chat`).
+//! Tauri commands driving the shared pairing manager in `plain_rs::api::chat`.
 
 use std::sync::Arc;
 
 use plain_rs::chat::pairing::protocol::PairingRequest;
 
-use super::chat::ChatState;
+use plain_rs::api::chat::ChatState;
 
 /// Initiate pairing with a discovered device.
 #[tauri::command]
@@ -14,7 +14,7 @@ pub fn pair_device(
     device_ip: String,
     device_port: u16,
     state: tauri::State<'_, Arc<ChatState>>,
-    server_state: tauri::State<'_, super::server::LocalServerState>,
+    server_state: tauri::State<'_, plain_rs::api::server::runtime::ServerRuntime>,
 ) {
     state.pairing.start_pairing(
         &device_id,
@@ -33,7 +33,7 @@ pub fn respond_pair_device(
     sender_ip: String,
     accepted: bool,
     state: tauri::State<'_, Arc<ChatState>>,
-    server_state: tauri::State<'_, super::server::LocalServerState>,
+    server_state: tauri::State<'_, plain_rs::api::server::runtime::ServerRuntime>,
 ) -> Result<(), String> {
     let req: PairingRequest = serde_json::from_str(&request_json).map_err(|e| e.to_string())?;
     state

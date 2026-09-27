@@ -10,7 +10,7 @@
 pub use plain_rs::prefs::Prefs;
 
 pub use plain_rs::prefs::dlna;
-pub use plain_rs::prefs::{AppIdentity, ensure_identity, ensure_mdns_hostname, ensure_url_token};
+pub use plain_rs::prefs::{ensure_identity, ensure_url_token};
 
 /// Persist the device display name (plain-app `device_name` key).
 pub fn set_device_name(prefs: &Prefs, name: &str) {
@@ -25,22 +25,8 @@ pub fn get_device_name(prefs: &Prefs) -> String {
 /// User-configured HTTP port (default 8080, set via DeviceInfo card).
 /// Matches plain-app's `HttpPortPreference` — single field is both the
 /// user preference and the bound port; no separate "preferred" slot.
-pub fn get_http_port(prefs: &Prefs) -> u16 {
-    prefs.get_or("http_port", 8080u64) as u16
-}
-
-pub fn set_http_port(prefs: &Prefs, port: u16) {
-    let _ = prefs.set("http_port", port as u64);
-}
 
 /// User-configured HTTPS port (default 8443, set via DeviceInfo card).
-pub fn get_https_port(prefs: &Prefs) -> u16 {
-    prefs.get_or("https_port", 8443u64) as u16
-}
-
-pub fn set_https_port(prefs: &Prefs, port: u16) {
-    let _ = prefs.set("https_port", port as u64);
-}
 
 /// User-configured global capture accelerator; empty string means
 /// "platform default". The value is re-validated against the shortcut

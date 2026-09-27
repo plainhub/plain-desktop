@@ -29,11 +29,11 @@ fn text_of_extracts_dsl_text_field() {
 #[tokio::test]
 async fn app_serves_phone_contract_enums() {
     let dir = tempfile::tempdir().unwrap();
-    let db = std::sync::Arc::new(crate::db::Db::open(dir.path()).unwrap());
-    let config = std::sync::Arc::new(crate::config::Config::parse(
+    let db = std::sync::Arc::new(crate::media::kv::Db::open(dir.path()).unwrap());
+    let config = std::sync::Arc::new(crate::media::config::Config::parse(
         "[server]\nhttp_port = 8080\nhttps_port = 8443\n",
     ));
-    let schema = crate::gql::build_schema(
+    let schema = crate::api::schema::nas::build_schema(
         db,
         prefs(&dir),
         config,
@@ -66,11 +66,11 @@ async fn app_serves_phone_contract_enums() {
 #[tokio::test]
 async fn app_declares_media_scan_capability() {
     let dir = tempfile::tempdir().unwrap();
-    let db = std::sync::Arc::new(crate::db::Db::open(dir.path()).unwrap());
-    let config = std::sync::Arc::new(crate::config::Config::parse(
+    let db = std::sync::Arc::new(crate::media::kv::Db::open(dir.path()).unwrap());
+    let config = std::sync::Arc::new(crate::media::config::Config::parse(
         "[server]\nhttp_port = 8080\nhttps_port = 8443\n",
     ));
-    let schema = crate::gql::build_schema(
+    let schema = crate::api::schema::nas::build_schema(
         db,
         prefs(&dir),
         config,
@@ -150,11 +150,11 @@ async fn file_info_is_path_only_without_tags() {
         .prefix("plainnas-test-")
         .tempdir_in(base)
         .unwrap();
-    let db = std::sync::Arc::new(crate::db::Db::open(dir.path()).unwrap());
-    let config = std::sync::Arc::new(crate::config::Config::parse(
+    let db = std::sync::Arc::new(crate::media::kv::Db::open(dir.path()).unwrap());
+    let config = std::sync::Arc::new(crate::media::config::Config::parse(
         "[server]\nhttp_port = 8080\nhttps_port = 8443\n",
     ));
-    let schema = crate::gql::build_schema(
+    let schema = crate::api::schema::nas::build_schema(
         db,
         prefs(&dir),
         config,
@@ -210,9 +210,9 @@ async fn file_info_is_path_only_without_tags() {
 /// Schema with its own temp store + data dir, in the `$HOME` scratch area
 /// (the media exclusions refuse to index `/tmp` and the app data dir).
 fn developer_schema() -> (
-    crate::gql::AppSchema,
+    crate::api::schema::nas::AppSchema,
     std::path::PathBuf,
-    std::sync::Arc<crate::db::Db>,
+    std::sync::Arc<crate::media::kv::Db>,
     std::sync::Arc<crate::prefs::Prefs>,
     tempfile::TempDir,
 ) {
@@ -222,13 +222,13 @@ fn developer_schema() -> (
         .tempdir_in(base)
         .unwrap();
     let data_dir = dir.path().to_path_buf();
-    let db = std::sync::Arc::new(crate::db::Db::open(dir.path()).unwrap());
+    let db = std::sync::Arc::new(crate::media::kv::Db::open(dir.path()).unwrap());
     let prefs = prefs(&data_dir);
-    let config = std::sync::Arc::new(crate::config::Config::parse(
+    let config = std::sync::Arc::new(crate::media::config::Config::parse(
         "[server]\nhttp_port = 8080\nhttps_port = 8443\n",
     ));
     (
-        crate::gql::build_schema(
+        crate::api::schema::nas::build_schema(
             db.clone(),
             prefs.clone(),
             config,
@@ -255,7 +255,7 @@ async fn developer_db_and_datastore_surface() {
 
     // Row data lives in the two SQLite stores; preferences in prefs.json.
     // build_schema opened <data_dir>/library.db — a second handle seeds it.
-    let library = plain_rs::library::db::LibraryDb::open(&data_dir.join("library.db")).unwrap();
+    let library = crate::library::db::LibraryDb::open(&data_dir.join("library.db")).unwrap();
     library.with_conn(|conn| {
         conn.execute_batch(
             "INSERT INTO tags(id, type, name) VALUES ('devk1', 1, 'value-one');
@@ -415,7 +415,7 @@ async fn developer_db_and_datastore_surface() {
 async fn developer_logs_surface_newest_first() {
     let (schema, data_dir, _db, _prefs, _dir) = developer_schema();
 
-    let log_file = crate::log::default_log_file(&data_dir);
+    let log_file = crate::nas::log::default_log_file(&data_dir);
     std::fs::create_dir_all(log_file.parent().unwrap()).unwrap();
     std::fs::write(&log_file, b"old-line\nmid-line\nnew-line\n").unwrap();
 
@@ -584,11 +584,11 @@ async fn device_info_name_prefers_display_name_override() {
 #[tokio::test]
 async fn audio_playback_serves_nullable_path_and_idle_transport() {
     let dir = tempfile::tempdir().unwrap();
-    let db = std::sync::Arc::new(crate::db::Db::open(dir.path()).unwrap());
-    let config = std::sync::Arc::new(crate::config::Config::parse(
+    let db = std::sync::Arc::new(crate::media::kv::Db::open(dir.path()).unwrap());
+    let config = std::sync::Arc::new(crate::media::config::Config::parse(
         "[server]\nhttp_port = 8080\nhttps_port = 8443\n",
     ));
-    let schema = crate::gql::build_schema(
+    let schema = crate::api::schema::nas::build_schema(
         db.clone(),
         prefs(&dir),
         config,
@@ -611,8 +611,8 @@ async fn audio_playback_serves_nullable_path_and_idle_transport() {
         } })
     );
 
-    let library = plain_rs::library::db::LibraryDb::open(&dir.path().join("library.db")).unwrap();
-    plain_rs::library::audio_queue::save_audio_current(&library, "/music/a.mp3");
+    let library = crate::library::db::LibraryDb::open(&dir.path().join("library.db")).unwrap();
+    crate::library::audio_queue::save_audio_current(&library, "/music/a.mp3");
     let resp = schema
         .execute(async_graphql::Request::new(
             "{ audioPlayback { currentPath isPlaying positionMs } }",
@@ -639,11 +639,11 @@ async fn path_predicates_replace_path_stat() {
         .prefix("plainnas-test-")
         .tempdir_in(base)
         .unwrap();
-    let db = std::sync::Arc::new(crate::db::Db::open(dir.path()).unwrap());
-    let config = std::sync::Arc::new(crate::config::Config::parse(
+    let db = std::sync::Arc::new(crate::media::kv::Db::open(dir.path()).unwrap());
+    let config = std::sync::Arc::new(crate::media::config::Config::parse(
         "[server]\nhttp_port = 8080\nhttps_port = 8443\n",
     ));
-    let schema = crate::gql::build_schema(
+    let schema = crate::api::schema::nas::build_schema(
         db,
         prefs(&dir),
         config,

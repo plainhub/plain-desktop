@@ -1,11 +1,17 @@
-use plain_rs::query::percent_decode;
+use crate::query::percent_decode;
 
 // ─── SHA-1 (RFC 3174) — only for the synthetic WebSocket handshake ────────────
 
 /// SHA-1 is obsolete for security use; it survives here solely because the
 /// RFC 6455 handshake hash requires it. No crate is pulled in for ~55 lines.
 pub(crate) fn sha1(data: &[u8]) -> [u8; 20] {
-    let mut h: [u32; 5] = [0x6745_2301, 0xEFCD_AB89, 0x98BA_DCFE, 0x1032_5476, 0xC3D2_E1F0];
+    let mut h: [u32; 5] = [
+        0x6745_2301,
+        0xEFCD_AB89,
+        0x98BA_DCFE,
+        0x1032_5476,
+        0xC3D2_E1F0,
+    ];
     let bit_len = (data.len() as u64) * 8;
     let mut msg = data.to_vec();
     msg.push(0x80);
@@ -58,7 +64,7 @@ pub(crate) fn sha1(data: &[u8]) -> [u8; 20] {
 pub(crate) fn ws_accept_key(client_key: &str) -> String {
     let mut input = client_key.as_bytes().to_vec();
     input.extend_from_slice(b"258EAFA5-E914-47DA-95CA-C5AB0DC85B11");
-    plain_rs::utils::base64::base64_encode(&sha1(&input))
+    crate::utils::base64::base64_encode(&sha1(&input))
 }
 
 pub(crate) struct ProxyParams {
@@ -91,7 +97,7 @@ pub(crate) fn extract_proxy_params(path: &str) -> ProxyParams {
                 path: path.to_owned(),
                 pt: String::new(),
                 cid: String::new(),
-            }
+            };
         }
     };
     let mut rest: Vec<&str> = Vec::new();

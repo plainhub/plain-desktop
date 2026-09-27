@@ -23,9 +23,9 @@ fn sdl_lock() -> std::sync::MutexGuard<'static, ()> {
 fn test_sdl() -> String {
     let dir = tempfile::tempdir().expect("temp dir");
     let data_dir = dir.path().to_path_buf();
-    let db = std::sync::Arc::new(crate::db::Db::open(dir.path()).expect("temp db opens"));
+    let db = std::sync::Arc::new(crate::media::kv::Db::open(dir.path()).expect("temp db opens"));
     std::mem::forget(dir); // the db handle must outlive the test
-    let config = std::sync::Arc::new(crate::config::Config::parse(
+    let config = std::sync::Arc::new(crate::media::config::Config::parse(
         "[server]\nhttp_port = 8080\nhttps_port = 8443\n",
     ));
     build_schema(
@@ -38,10 +38,11 @@ fn test_sdl() -> String {
     .sdl()
 }
 
-/// Dump the SDL to `apitest/schema.graphqls` so the API surface can be
+/// Dump the SDL to `testdata/nas-schema.graphqls` so the API surface can be
 /// inspected and diffed against plain-app — mirrors plain-app's
 /// `PrintSchemaTest` which writes `shared/apitest/schema.graphqls`.
 #[test]
+#[ignore = "run explicitly when updating the committed NAS schema snapshot"]
 fn print_schema() {
     // Hold the lock for the whole test: the write below must not race the
     // contract tests' snapshot read.
@@ -310,9 +311,8 @@ fn print_schema() {
         assert!(sdl.contains(kept), "DSL `query` must stay on `{kept}`");
     }
 
-    let dir = concat!(env!("CARGO_MANIFEST_DIR"), "/apitest");
-    std::fs::create_dir_all(dir).expect("mkdir apitest");
-    std::fs::write(format!("{dir}/schema.graphqls"), &sdl).expect("write schema.graphqls");
+    let path = concat!(env!("CARGO_MANIFEST_DIR"), "/testdata/nas-schema.graphqls");
+    std::fs::write(path, &sdl).expect("write NAS schema snapshot");
 }
 
 mod contract;
