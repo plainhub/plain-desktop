@@ -29,10 +29,10 @@ fn emit_bookmark_updated(ctx: &AppCtx, items: &[DBookmark]) {
         return;
     }
     let payload = items.iter().map(bookmark_to_json).collect::<Vec<_>>();
-    let _ = ctx.event_tx.send(WsEvent {
-        event_type: WS_BOOKMARK_UPDATED,
-        payload: json!(payload).to_string(),
-    });
+    let _ = ctx.event_tx.send(WsEvent::broadcast(
+        WS_BOOKMARK_UPDATED,
+        json!(payload).to_string(),
+    ));
 }
 
 #[derive(Default)]

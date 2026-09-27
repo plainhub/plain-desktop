@@ -1,13 +1,18 @@
-//! `plain-nas run` - launches the HTTP + WebSocket service.
+//! `plain-nas run` - launches the HTTP + WebSocket service: assemble
+//! state and serve the shared plain-rs router (`api::server::build_router`)
+//! over HTTP + HTTPS listeners.
 
-use crate::api::auth::AppState;
-use crate::api::server::build_router;
-use crate::config::Config;
-use crate::consts::AppPaths;
-use crate::ws_hub::global as global_hub;
 use anyhow::{Context, Result};
 use std::sync::Arc;
 use tokio::signal::unix::{SignalKind, signal};
+
+use plain_rs::api::server::ServerState;
+use plain_rs::api::server::build_router;
+use plain_rs::api::server::nas_ctx::{NasCtxInputs, nas_app_ctx};
+use plain_rs::api::server::{NasServerState, events::spawn_media_event_bridge};
+
+use crate::config::Config;
+use crate::consts::AppPaths;
 
 pub async fn run(paths: &AppPaths) -> Result<()> {
     if !is_root() && std::env::var("PLAIN_NAS_ALLOW_NONROOT").is_err() {
@@ -32,8 +37,6 @@ pub async fn run(paths: &AppPaths) -> Result<()> {
         .map(str::to_string)
         .collect();
     crate::media_scan::set_extra_excluded_roots(extra);
-    // Thumbnail engine budgets ([thumbnails] mem_budget_mb / lru_mb).
-    crate::media::thumb_engine::init_from_config(&cfg);
     plain_rs::tls::ensure_self_signed_pem(
         &paths.tls_cert,
         &paths.tls_key,
@@ -41,10 +44,6 @@ pub async fn run(paths: &AppPaths) -> Result<()> {
     )
     .context("ensure self-signed cert")?;
     let cfg_arc = Arc::new(cfg);
-
-    let db_path = crate::db::default_db_path(&paths.data_dir);
-    let db = crate::db::open(&db_path).context("open fjall")?;
-    let db = Arc::new(db.clone());
 
     // Preferences (`<data_dir>/prefs.json`) — settings, device identity
     // and small app state; the fjall store holds row data only.
@@ -57,20 +56,6 @@ pub async fn run(paths: &AppPaths) -> Result<()> {
     // On-disk log (`<data_dir>/logs/latest.log`) — the surface behind the
     // developer UI's logs page. stderr keeps mirroring every line.
     crate::log::set_file(&crate::log::default_log_file(&paths.data_dir));
-
-    // Background thumbnail prefetcher ([thumbnails] prefetch / prefetch_per_sec).
-    crate::media::thumb_engine::prefetch::init_from_config(&cfg_arc, db.clone(), prefs.clone());
-
-    let _ = crate::db::UrlToken::new(&prefs).ensure();
-
-    // Chat stack (plain-app contract): SQLite chat.db + pairing manager
-    // over the shared plain_rs::chat module.
-    let mut chat =
-        crate::chat::ChatState::nas_init(&paths.data_dir, &prefs).context("init chat")?;
-    chat.start_discovery(&prefs);
-    let chat_discovery = chat.discovery.clone();
-    let chat = Arc::new(chat);
-    spawn_chat_eventbus_bridge(&chat);
 
     // Scan and mount all discovered filesystems into /mnt/usbX based on the
     // persisted FSUUID<->usbX slot map (Go calls EnsureMountedUSBVolumes at
@@ -85,32 +70,72 @@ pub async fn run(paths: &AppPaths) -> Result<()> {
         }));
     }
 
-    let hub = global_hub();
-    let cors_policy = crate::api::cors::CorsPolicy::from_config(&cfg_arc);
-    let schema = crate::gql::build_schema(
-        db.clone(),
-        prefs.clone(),
-        cfg_arc.clone(),
-        paths.data_dir.clone(),
-        chat.clone(),
-    );
+    // Chat stack (plain-app contract): SQLite chat.db + pairing manager
+    // over the shared plain_rs::chat module.
+    let mut chat =
+        crate::chat::ChatState::nas_init(&paths.data_dir, &prefs).context("init chat")?;
+    chat.start_discovery(&prefs);
+    let chat_discovery = chat.discovery.clone();
+    let chat = Arc::new(chat);
 
-    let state = AppState {
+    // The unified WS event channel: chat/pairing bridges (phone-protocol
+    // numbers) + the media/nas push bridge (41-45).
+    let (event_tx, _) = tokio::sync::broadcast::channel::<plain_rs::api::context::WsEvent>(1024);
+    chat.spawn_event_bridges(event_tx.clone(), |_ev| {});
+    spawn_media_event_bridge(event_tx.clone());
+
+    // The shared resolver context — one assembly, one fjall handle for
+    // the whole process (media rows, sessions, events, trash).
+    let ctx = nas_app_ctx(NasCtxInputs {
+        data_dir: paths.data_dir.clone(),
+        cache_dir: paths.cache_dir.clone(),
+        prefs: prefs.clone(),
         config: cfg_arc.clone(),
+        chat: chat.clone(),
+        event_tx,
+    })
+    .context("assemble app ctx")?;
+    let db = ctx.media.db.clone();
+
+    // Thumbnail engine budgets ([thumbnails] mem_budget_mb / lru_mb) and
+    // the background prefetcher ([thumbnails] prefetch / prefetch_per_sec).
+    crate::media::thumb_engine::init_from_config(&cfg_arc);
+    crate::media::thumb_engine::prefetch::init_from_config(&cfg_arc, db.clone(), prefs.clone());
+
+    let cors_policy = plain_rs::api::server::cors::CorsPolicy::from_config(&cfg_arc);
+    let schema = crate::gql::NasSchemaExec {
+        schema: crate::gql::build_schema(
+            db.clone(),
+            prefs.clone(),
+            cfg_arc.clone(),
+            paths.data_dir.clone(),
+            chat.clone(),
+        ),
         db: db.clone(),
         prefs: prefs.clone(),
-        ws_hub: Arc::new(hub.clone()),
-        cors: cors_policy,
-        schema,
-        chat,
-        peer_schema: crate::gql::peer_schema::build_schema(),
+        config: cfg_arc.clone(),
+        data_dir: paths.data_dir.clone(),
+        chat: chat.clone(),
+        library: ctx.library.clone(),
     };
-    let heal_prefs = prefs.clone();
+    let state = ServerState {
+        schema: Arc::new(schema),
+        peer_schema: Arc::new(plain_rs::api::peer_graphql::build_schema()),
+        ctx,
+        nas: Some(Arc::new(NasServerState {
+            config: cfg_arc.clone(),
+            cors: cors_policy,
+            peer_schema: Arc::new(crate::gql::NasPeerSchemaExec(
+                crate::gql::peer_schema::build_schema(),
+            )),
+        })),
+    };
     let app = build_router(state);
 
     // Rebuild derived indexes that are missing or empty (e.g. wiped by a
     // schema migration) from the KV source of truth; background so serving
     // starts immediately.
+    let heal_prefs = prefs.clone();
     let heal_db = db.clone();
     let heal_data_dir = paths.data_dir.clone();
     std::mem::drop(tokio::task::spawn_blocking(move || {
@@ -208,39 +233,6 @@ pub async fn run(paths: &AppPaths) -> Result<()> {
 
 fn is_root() -> bool {
     nix::unistd::Uid::current().is_root()
-}
-
-/// Bridge the chat service + pairing broadcast channels onto the global
-/// event bus (`chat:event`) so ws_hub clients receive the phone-protocol
-/// msg_types. Pairing payloads use the plain-app shapes (raw
-/// `PairingRequest` for 22, `DPairingResult` for 23-26) via the shared
-/// plain-rs payload builder. Replaced by the shared ws event wiring in
-/// phase 2c.
-fn spawn_chat_eventbus_bridge(chat: &Arc<crate::chat::ChatState>) {
-    use crate::consts::EVENT_CHAT;
-    use crate::eventbus::EventBus;
-
-    let mut rx = chat.service.event_tx.subscribe();
-    tokio::spawn(async move {
-        while let Ok(ev) = rx.recv().await {
-            EventBus::global().publish(
-                EVENT_CHAT,
-                serde_json::json!({ "msgType": ev.event_type, "payload": ev.payload }),
-            );
-        }
-    });
-
-    let mut prx = chat.pairing.subscribe();
-    tokio::spawn(async move {
-        while let Ok(ev) = prx.recv().await {
-            if let Some((msg_type, payload)) = crate::chat::pairing_event_ws_payload(&ev) {
-                EventBus::global().publish(
-                    EVENT_CHAT,
-                    serde_json::json!({ "msgType": msg_type, "payload": payload }),
-                );
-            }
-        }
-    });
 }
 
 /// `/mnt/usb<positive int>` with no extra path segments (the automount

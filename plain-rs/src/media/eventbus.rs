@@ -25,6 +25,13 @@ use std::sync::{Arc, LazyLock as Lazy};
 pub const EVENT_MEDIA_SCAN_PROGRESS: &str = "media:scan:progress";
 /// File task (copy/move) progress events.
 pub const EVENT_FILE_TASK_PROGRESS: &str = "file:task:progress";
+/// DLNA renderer discovered on the LAN (published by the NAS sender
+/// discovery loop).
+pub const EVENT_DLNA_RENDERER_FOUND: &str = "dlna:renderer:found";
+/// DLNA discovery sweep finished.
+pub const EVENT_DLNA_DISCOVERY_DONE: &str = "dlna:discovery:done";
+/// Disk format finished (published by the NAS format-disk mutation).
+pub const EVENT_DISK_FORMAT_DONE: &str = "disk:format:done";
 
 type PlainHandler = Arc<dyn Fn(JsonValue) + Send + Sync + 'static>;
 type CidHandler = Arc<dyn Fn(String, JsonValue) + Send + Sync + 'static>;

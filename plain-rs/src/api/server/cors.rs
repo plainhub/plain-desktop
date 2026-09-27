@@ -55,12 +55,12 @@ impl CorsPolicy {
     /// Build a policy from the runtime config. Callers can also push
     /// extra origins at runtime (e.g. via a future `setCORSAllowedOrigins`
     /// admin mutation) by mutating through `add`.
-    pub fn from_config(cfg: &crate::config::Config) -> Self {
+    pub fn from_config(cfg: &crate::media::config::Config) -> Self {
         let mut p = PolicyInner::default();
         p.hostname = std::env::var("HOSTNAME")
             .ok()
             .or_else(|| {
-                let s = plain_rs::utils::hostname::get();
+                let s = crate::utils::hostname::get();
                 if s.is_empty() { None } else { Some(s) }
             })
             .unwrap_or_else(|| "localhost".to_string());
@@ -99,6 +99,13 @@ impl CorsPolicy {
         Self {
             inner: Arc::new(RwLock::new(p)),
         }
+    }
+
+    /// Desktop-host policy: no config allow-list — every request origin
+    /// is mirrored (the local server is reached from the app webview and
+    /// arbitrary browser origins in local mode).
+    pub fn permissive_default() -> Self {
+        Self::default()
     }
 
     pub fn is_wildcard(&self) -> bool {
@@ -188,6 +195,7 @@ pub fn layer(policy: &CorsPolicy) -> CorsLayer {
         .allow_methods(allow_methods)
         .allow_headers(allow_headers)
         .expose_headers([
+            HeaderName::from_static("content-disposition"),
             HeaderName::from_static("content-length"),
             HeaderName::from_static("content-range"),
             HeaderName::from_static("accept-ranges"),
@@ -197,5 +205,5 @@ pub fn layer(policy: &CorsPolicy) -> CorsLayer {
 }
 
 #[cfg(test)]
-#[path = "../../tests/unit/api/cors.rs"]
+#[path = "../../../tests/unit/api/server/cors.rs"]
 mod tests;

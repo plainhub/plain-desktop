@@ -8,7 +8,7 @@
 //! library (audio queue/playlists/history, tags, favorite folders,
 //! chat) lives in SQLite via plain-rs.
 
-pub use plain_rs::prefs::{Prefs, default_path, get_default, set_global};
+pub use plain_rs::prefs::{Prefs, default_path, set_global};
 
 #[cfg(test)]
 #[path = "../tests/unit/prefs.rs"]

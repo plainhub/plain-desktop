@@ -1036,7 +1036,7 @@ impl NasMutationRoot {
         let publish_done = |ok: bool, err: Option<String>| {
             // Publish returns () — best-effort broadcast, nothing to handle.
             crate::eventbus::Bus::new().publish(
-                crate::consts::EVENT_DISK_FORMAT_DONE,
+                plain_rs::media::eventbus::EVENT_DISK_FORMAT_DONE,
                 serde_json::json!({ "path": path, "ok": ok, "error": err }),
             );
         };

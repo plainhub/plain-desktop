@@ -50,12 +50,28 @@ pub const WS_UPLOAD_MERGE_RESULT: i32 = 38;
 pub struct WsEvent {
     pub event_type: i32,
     pub payload: String,
+    /// Delivery target: `Some(cid)` delivers only to the socket whose cid
+    /// matches (per-client media/file-task/DLNA progress); `None`
+    /// broadcasts to every connected socket.
+    pub target_cid: Option<String>,
 }
 
-/// Encode a WsEvent for wire: [4-byte i32 BE event_type][xchacha encrypted payload].
-/// Framing comes from the shared crate::ws_frame codec.
-pub fn encode_ws_event(ev: &WsEvent, token: &str) -> Option<Vec<u8>> {
-    crate::ws_frame::encode_with_token(ev.event_type, ev.payload.as_bytes(), token)
+impl WsEvent {
+    pub fn broadcast(event_type: i32, payload: String) -> Self {
+        Self {
+            event_type,
+            payload,
+            target_cid: None,
+        }
+    }
+
+    pub fn targeted(event_type: i32, payload: String, cid: &str) -> Self {
+        Self {
+            event_type,
+            payload,
+            target_cid: Some(cid.to_string()),
+        }
+    }
 }
 
 /// All server-level dependencies bundled for injection into async-graphql resolvers.

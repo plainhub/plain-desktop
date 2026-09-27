@@ -151,6 +151,14 @@ pub fn open(path: &Path) -> Result<&'static Db> {
     Ok(DB.get_or_init(|| db))
 }
 
+/// Install an already-opened [`Db`] as the process-global default (first
+/// caller wins; later calls return the incumbent). Hosts that open the
+/// store themselves (tests with temp dirs, `MediaService::init`) use
+/// this so `get_default()` callers share their handle.
+pub fn set_default(db: Db) -> &'static Db {
+    DB.get_or_init(move || db)
+}
+
 /// Returns the cached default database. Panics if `open` was not called yet.
 pub fn get_default() -> &'static Db {
     DB.get()

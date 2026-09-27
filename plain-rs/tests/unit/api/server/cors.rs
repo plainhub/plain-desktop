@@ -1,7 +1,6 @@
-//! Unit tests for `src/api/cors.rs` — moved out-of-line; compiled
-//! as the `tests` child module via `#[cfg(test)] #[path]` there.
+//! Unit tests for the CORS policy (moved from plain-nas).
 use super::*;
-use crate::config::Config;
+use crate::media::config::Config;
 
 #[test]
 fn default_policy_accepts_localhost_loopback() {

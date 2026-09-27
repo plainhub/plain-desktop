@@ -261,10 +261,10 @@ impl ChatState {
         let ws_tx = ws_event_tx.clone();
         tokio::spawn(async move {
             while let Ok(ev) = rx.recv().await {
-                let _ = ws_tx.send(WsEvent {
-                    event_type: ev.event_type,
-                    payload: ev.payload,
-                });
+                let _ = ws_tx.send(WsEvent::broadcast(
+        ev.event_type,
+        ev.payload,
+    ));
             }
         });
 
@@ -421,10 +421,7 @@ fn forward_pairing_event_to_ws(
     let Some((event_type, payload)) = pairing_event_ws_payload(ev) else {
         return;
     };
-    let _ = ws_event_tx.send(WsEvent {
-        event_type,
-        payload,
-    });
+    let _ = ws_event_tx.send(WsEvent::broadcast(event_type, payload));
 }
 
 #[cfg(test)]

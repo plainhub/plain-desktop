@@ -10,20 +10,20 @@
 //!   6. Stream the file (HTTP Range supported via the shared `serve_file`).
 //!
 //! The earlier implementation generated thumbnails here — that was wrong:
-//! thumbnail generation lives on `/fs` (see `crate::api::fs`). This
+//! thumbnail generation lives on `/fs` (see `super::file_server`). This
 //! endpoint is purely the DLNA alias resolver.
 
 use axum::body::Body;
 use axum::extract::Path;
 use axum::http::{HeaderMap, StatusCode, header};
 use axum::response::{IntoResponse, Response};
-use futures::stream::Stream;
+use futures_util::stream::Stream;
 use std::pin::Pin;
 use tokio::fs::File;
 use tokio::io::AsyncReadExt;
 use tokio::io::AsyncSeekExt;
 
-use plain_rs::utils::async_read_stream::AsyncReadStream;
+use crate::utils::async_read_stream::AsyncReadStream;
 
 type ByteStream = Pin<Box<dyn Stream<Item = Result<axum::body::Bytes, std::io::Error>> + Send>>;
 
@@ -39,7 +39,7 @@ pub async fn media_handler(Path(name): Path<String>) -> Response {
         _ => name,
     };
 
-    let (path, mime) = match crate::dlna::media_alias::lookup(id) {
+    let (path, mime) = match crate::nas::dlna::media_alias::lookup(id) {
         Some(v) => v,
         None => return StatusCode::NOT_FOUND.into_response(),
     };
@@ -97,7 +97,7 @@ async fn serve_file(
         Err(_) => return (StatusCode::NOT_FOUND, "not found").into_response(),
     };
     let mime_str =
-        mime.unwrap_or_else(|| crate::fsx::guess_mime(std::path::Path::new(path)).to_string());
+        mime.unwrap_or_else(|| crate::media::fsx::guess_mime(std::path::Path::new(path)).to_string());
 
     if use_range {
         let mut f = f;

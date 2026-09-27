@@ -247,11 +247,11 @@ impl LocalServerState {
 
     /// The shared axum router from plain-rs — served once per listener.
     fn build_router(&self) -> axum::Router {
-        plain_rs::api::server::build_router(ServerState {
-            schema: self.schema.clone(),
-            peer_schema: self.peer_schema.clone(),
-            ctx: self.ctx.clone(),
-        })
+        plain_rs::api::server::build_router(ServerState::desktop(
+            self.schema.clone(),
+            self.peer_schema.clone(),
+            self.ctx.clone(),
+        ))
     }
 
     pub fn restart(&self) -> Result<(), String> {

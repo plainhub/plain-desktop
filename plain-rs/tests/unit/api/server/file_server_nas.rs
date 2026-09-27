@@ -1,57 +1,33 @@
-//! Unit tests for `src/api/fs.rs` — moved out-of-line; compiled
-//! as the `tests` child module via `#[cfg(test)] #[path]` there.
-use super::{FsQuery, fs_handler};
-use crate::api::auth::AppState;
-use crate::config::Config;
-use crate::db::Db;
-use axum::extract::{Query, State};
-use axum::http::{HeaderMap, HeaderName, StatusCode, header};
+//! Unit tests for the nas `/fs` behaviors merged into the shared file
+//! server (moved from plain-nas): range handling, recent-file tracking,
+//! codec probe and chat-attachment `fid:` resolution.
+use crate::api::server::test_support::{as_desktop, nas_state_with};
+use crate::api::server::ServerState;
+use crate::media::kv::recent;
+use axum::body::Body;
+use axum::extract::Request;
+use axum::http::{HeaderName, StatusCode, header};
 use axum::response::Response;
 use base64::Engine as _;
-use std::sync::Arc;
 
-/// AppState plus the raw 32-byte url_token key used to mint file ids —
+/// A test state plus the raw 32-byte url_token key used to mint file ids —
 /// exactly the XChaCha20-Poly1305 nonce||ct||tag → base64 shape the web
 /// client produces.
-fn test_state() -> (AppState, Vec<u8>) {
-    let dir = tempfile::tempdir().expect("temp dir");
-    let db = Arc::new(Db::open(dir.path()).expect("temp db opens"));
-    let data_dir = dir.path().to_path_buf();
-    let prefs = Arc::new(crate::prefs::Prefs::load(&data_dir.join("prefs.json")).unwrap());
-    std::mem::forget(dir); // the db handle must outlive the test
+fn test_state() -> (ServerState, Vec<u8>) {
     let key = [7u8; 32];
-    prefs
-        .set(
-            "url_token",
-            &base64::engine::general_purpose::STANDARD.encode(key),
-        )
-        .expect("set url_token");
-    let config = Arc::new(Config::parse("[server]\nhttp_port = 8080\n"));
-    let chat = crate::test_support::chat_state(&data_dir);
-    let schema = crate::gql::build_schema(
-        db.clone(),
-        prefs.clone(),
-        config.clone(),
-        data_dir,
-        chat.clone(),
-    );
-    (
-        AppState {
-            chat,
-            config,
-            db,
-            prefs,
-            ws_hub: Arc::new(crate::ws_hub::WsHub::new()),
-            cors: crate::api::cors::CorsPolicy::from_config(&Config::default()),
-            schema,
-            peer_schema: crate::gql::peer_schema::build_schema(),
-        },
-        key.to_vec(),
-    )
+    let state = nas_state_with(|prefs| {
+        prefs
+            .set(
+                "url_token",
+                &base64::engine::general_purpose::STANDARD.encode(key),
+            )
+            .expect("set url_token");
+    });
+    (as_desktop(&state), key.to_vec())
 }
 
 fn file_id(key: &[u8], path: &str) -> String {
-    let blob = crate::crypto::encrypt(key, path.as_bytes()).expect("encrypt");
+    let blob = crate::xchacha_encrypt_raw(key, path.as_bytes()).expect("encrypt");
     base64::engine::general_purpose::STANDARD.encode(blob)
 }
 
@@ -65,16 +41,20 @@ fn temp_bin(key: &[u8]) -> (tempfile::TempDir, String) {
 }
 
 async fn call_fs(
-    state: &AppState,
-    query: serde_json::Value,
+    state: &ServerState,
+    query: &str,
     headers: &[(&HeaderName, &str)],
 ) -> Response {
-    let q: FsQuery = serde_json::from_value(query).expect("valid FsQuery");
-    let mut hm = HeaderMap::new();
+    let mut builder = Request::get(format!("/fs?{query}"));
     for (name, value) in headers {
-        hm.insert(name.clone(), value.parse().unwrap());
+        builder = builder.header(*name, *value);
     }
-    fs_handler(State(state.clone()), Query(q), hm).await
+    let req = builder.body(Body::empty()).unwrap();
+    crate::api::server::file_server::fs_handler(
+        axum::extract::State(state.clone()),
+        req,
+    )
+    .await
 }
 
 async fn body_bytes(resp: Response) -> Vec<u8> {
@@ -92,12 +72,7 @@ fn range_header(v: &str) -> (&'static HeaderName, &str) {
 async fn fs_range_serves_206_with_content_range() {
     let (state, key) = test_state();
     let (_dir, id) = temp_bin(&key);
-    let resp = call_fs(
-        &state,
-        serde_json::json!({ "id": id }),
-        &[range_header("bytes=2-5")],
-    )
-    .await;
+    let resp = call_fs(&state, &format!("id={id}"), &[range_header("bytes=2-5")]).await;
     assert_eq!(resp.status(), StatusCode::PARTIAL_CONTENT);
     assert_eq!(
         resp.headers().get(header::CONTENT_RANGE).unwrap(),
@@ -113,12 +88,7 @@ async fn fs_range_open_end_and_suffix() {
     let (state, key) = test_state();
     let (_dir, id) = temp_bin(&key);
     for (spec, expected) in [("bytes=7-", b"789".as_ref()), ("bytes=-2", b"89".as_ref())] {
-        let resp = call_fs(
-            &state,
-            serde_json::json!({ "id": id }),
-            &[range_header(spec)],
-        )
-        .await;
+        let resp = call_fs(&state, &format!("id={id}"), &[range_header(spec)]).await;
         assert_eq!(resp.status(), StatusCode::PARTIAL_CONTENT, "{spec}");
         assert_eq!(body_bytes(resp).await, expected, "{spec}");
     }
@@ -132,12 +102,7 @@ async fn fs_unsatisfiable_range_is_416() {
     let (state, key) = test_state();
     let (_dir, id) = temp_bin(&key);
     for spec in ["bytes=100-200", "bytes=10-", "bytes=-0"] {
-        let resp = call_fs(
-            &state,
-            serde_json::json!({ "id": id }),
-            &[range_header(spec)],
-        )
-        .await;
+        let resp = call_fs(&state, &format!("id={id}"), &[range_header(spec)]).await;
         assert_eq!(resp.status(), StatusCode::RANGE_NOT_SATISFIABLE, "{spec}");
         assert_eq!(
             resp.headers().get(header::CONTENT_RANGE).unwrap(),
@@ -153,16 +118,11 @@ async fn fs_malformed_or_absent_range_serves_200_full() {
     let (state, key) = test_state();
     let (_dir, id) = temp_bin(&key);
     for spec in ["bytes=zzz", "items=0-9", "bytes=5-2"] {
-        let resp = call_fs(
-            &state,
-            serde_json::json!({ "id": id }),
-            &[range_header(spec)],
-        )
-        .await;
+        let resp = call_fs(&state, &format!("id={id}"), &[range_header(spec)]).await;
         assert_eq!(resp.status(), StatusCode::OK, "{spec}");
         assert_eq!(body_bytes(resp).await, b"0123456789", "{spec}");
     }
-    let resp = call_fs(&state, serde_json::json!({ "id": id }), &[]).await;
+    let resp = call_fs(&state, &format!("id={id}"), &[]).await;
     assert_eq!(resp.status(), StatusCode::OK);
     assert_eq!(resp.headers().get(header::ACCEPT_RANGES).unwrap(), "bytes");
     assert_eq!(body_bytes(resp).await, b"0123456789");
@@ -179,30 +139,24 @@ async fn fs_recent_tracked_once_per_view_not_per_chunk() {
     // Continuation chunk only: nothing recorded.
     call_fs(
         &state,
-        serde_json::json!({ "id": id }),
+        &format!("id={id}"),
         &[range_header("bytes=4-9")],
     )
     .await;
-    assert!(crate::db::recent::get_recent_files(&state.prefs, 10).is_empty());
+    assert!(recent::get_recent_files(&state.ctx.prefs, 10).is_empty());
 
     // View start (range at byte 0) records once…
     call_fs(
         &state,
-        serde_json::json!({ "id": id }),
+        &format!("id={id}"),
         &[range_header("bytes=0-9")],
     )
     .await;
-    assert_eq!(
-        crate::db::recent::get_recent_files(&state.prefs, 10).len(),
-        1
-    );
+    assert_eq!(recent::get_recent_files(&state.ctx.prefs, 10).len(), 1);
 
     // …and so does a plain full GET (no Range header).
-    call_fs(&state, serde_json::json!({ "id": id }), &[]).await;
-    assert_eq!(
-        crate::db::recent::get_recent_files(&state.prefs, 10).len(),
-        1
-    );
+    call_fs(&state, &format!("id={id}"), &[]).await;
+    assert_eq!(recent::get_recent_files(&state.ctx.prefs, 10).len(), 1);
 }
 
 #[tokio::test]
@@ -210,10 +164,10 @@ async fn fs_probe_reports_codec_json() {
     let (state, key) = test_state();
     let path = concat!(
         env!("CARGO_MANIFEST_DIR"),
-        "/../plain-rs/testdata/video-h264-high.mp4"
+        "/testdata/video-h264-high.mp4"
     );
-    let id = file_id(&key, &path);
-    let resp = call_fs(&state, serde_json::json!({ "id": id, "probe": "1" }), &[]).await;
+    let id = file_id(&key, path);
+    let resp = call_fs(&state, &format!("id={id}&probe=1"), &[]).await;
     assert_eq!(resp.status(), StatusCode::OK);
     assert_eq!(
         resp.headers().get(header::CONTENT_TYPE).unwrap(),
@@ -231,9 +185,9 @@ async fn fs_serves_fid_uris_from_app_file_store() {
     let (state, key) = test_state();
 
     // Import a file into the chat state's app-file store.
-    let imported = plain_rs::chat::app_file_store::import_bytes(
-        &state.chat.service.db,
-        &state.chat.service.data_dir,
+    let imported = crate::chat::app_file_store::import_bytes(
+        &state.ctx.chat.service.db,
+        &state.ctx.chat.service.data_dir,
         b"fid-payload-bytes",
         "text/plain",
     )
@@ -241,10 +195,9 @@ async fn fs_serves_fid_uris_from_app_file_store() {
     assert!(imported.fid_suffix.ends_with(".txt"));
 
     let uri = format!("fid:{}", imported.fid_suffix);
-    let blob = crate::crypto::encrypt(&key, uri.as_bytes()).expect("encrypt");
-    let id = base64::engine::general_purpose::STANDARD.encode(blob);
+    let id = file_id(&key, &uri);
 
-    let resp = call_fs(&state, serde_json::json!({ "id": id }), &[]).await;
+    let resp = call_fs(&state, &format!("id={id}"), &[]).await;
     assert_eq!(resp.status(), axum::http::StatusCode::OK);
     assert_eq!(body_bytes(resp).await, b"fid-payload-bytes");
 }

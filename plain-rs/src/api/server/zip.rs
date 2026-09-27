@@ -28,7 +28,7 @@ use std::path::{Path, PathBuf};
 use zip::CompressionMethod;
 use zip::write::SimpleFileOptions;
 
-use crate::api::auth::AppState;
+use super::ServerState;
 
 #[derive(Deserialize)]
 pub struct IdQuery {
@@ -38,12 +38,12 @@ pub struct IdQuery {
     name: Option<String>,
 }
 
-pub async fn zip_dir_handler(State(state): State<AppState>, Query(q): Query<IdQuery>) -> Response {
+pub async fn zip_dir_handler(State(state): State<ServerState>, Query(q): Query<IdQuery>) -> Response {
     let id = q.id.as_deref().unwrap_or("").trim();
     if id.is_empty() {
         return (StatusCode::BAD_REQUEST, "").into_response();
     }
-    let folder_path = match crate::fsx::path_from_file_id(id, &state.prefs) {
+    let folder_path = match crate::media::fsx::path_from_file_id(id, &state.ctx.prefs) {
         Ok(p) => p,
         Err(_) => return (StatusCode::FORBIDDEN, "").into_response(),
     };
@@ -77,7 +77,7 @@ pub async fn zip_dir_handler(State(state): State<AppState>, Query(q): Query<IdQu
     {
         let mut zw = zip::ZipWriter::new(std::io::Cursor::new(&mut buf));
         let opts = SimpleFileOptions::default().compression_method(CompressionMethod::Deflated);
-        // Walk synchronously — `crate::walk::Walk` uses blocking std::fs
+        // Walk synchronously — `crate::media::walk::Walk` uses blocking std::fs
         // I/O. The handler is already running on axum's blocking-eligible
         // task pool, and typical folders are <10k entries, so we skip the
         // extra `spawn_blocking` hop (it would also require `Send` bounds
@@ -105,10 +105,12 @@ pub async fn zip_dir_handler(State(state): State<AppState>, Query(q): Query<IdQu
 #[derive(Deserialize, Debug)]
 struct ZipFilesRequest {
     #[serde(default)]
+    #[cfg_attr(not(feature = "nas"), allow(dead_code))]
     id: String,
     #[serde(default)]
     r#type: String,
     #[serde(default)]
+    #[allow(dead_code)]
     query: String,
     #[serde(default)]
     name: String,
@@ -122,7 +124,7 @@ struct ZipPathItem {
 }
 
 pub async fn zip_files_handler(
-    State(state): State<AppState>,
+    State(state): State<ServerState>,
     Query(q): Query<IdQuery>,
 ) -> Response {
     let id = q.id.as_deref().unwrap_or("").trim();
@@ -130,7 +132,7 @@ pub async fn zip_files_handler(
         return (StatusCode::BAD_REQUEST, "").into_response();
     }
     // Mirrors Go: zip_files uses 400 (not 403) on decrypt failure.
-    let plain = match crate::fsx::path_from_file_id(id, &state.prefs) {
+    let plain = match crate::media::fsx::path_from_file_id(id, &state.ctx.prefs) {
         Ok(p) => p,
         Err(_) => return (StatusCode::BAD_REQUEST, "").into_response(),
     };
@@ -163,18 +165,23 @@ pub async fn zip_files_handler(
             Vec::new()
         }
         "FILE" => {
-            let tmp_key = req.id.trim();
-            if tmp_key.is_empty() {
-                return (StatusCode::BAD_REQUEST, "").into_response();
+            #[cfg(feature = "nas")]
+            {
+                let tmp_key = req.id.trim();
+                if tmp_key.is_empty() {
+                    return (StatusCode::BAD_REQUEST, "").into_response();
+                }
+                let raw = match crate::nas::temp_store::take(tmp_key) {
+                    Some(v) => v,
+                    None => return (StatusCode::NOT_FOUND, "").into_response(),
+                };
+                match serde_json::from_str::<Vec<ZipPathItem>>(&raw) {
+                    Ok(v) => v,
+                    Err(_) => return (StatusCode::BAD_REQUEST, "").into_response(),
+                }
             }
-            let raw = match crate::temp_store::take(tmp_key) {
-                Some(v) => v,
-                None => return (StatusCode::NOT_FOUND, "").into_response(),
-            };
-            match serde_json::from_str::<Vec<ZipPathItem>>(&raw) {
-                Ok(v) => v,
-                Err(_) => return (StatusCode::BAD_REQUEST, "").into_response(),
-            }
+            #[cfg(not(feature = "nas"))]
+            Vec::new()
         }
         _ => return (StatusCode::BAD_REQUEST, "").into_response(),
     };
@@ -322,7 +329,7 @@ fn zip_folder_to_writer<W: Write + std::io::Seek>(
     let _ = zw.add_directory(format!("{prefix}/"), *opts);
 
     let root = PathBuf::from(folder_path);
-    for entry in crate::walk::Walk::new(&root)
+    for entry in crate::media::walk::Walk::new(&root)
         .into_iter()
         .filter_map(|e| e.ok())
     {

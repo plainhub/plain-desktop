@@ -6,7 +6,7 @@ pub use plain_rs::api::context::{
     WS_NEARBY_DEVICE_FOUND, WS_NEARBY_DEVICE_UNREACHABLE, WS_NEARBY_DISCOVERY_STARTED,
     WS_NEARBY_DISCOVERY_STOPPED, WS_PAIRING_CANCELLED, WS_PAIRING_FAILED,
     WS_PAIRING_REQUEST_RECEIVED, WS_PAIRING_STARTED, WS_PAIRING_SUCCESS, WS_UPLOAD_MERGE_RESULT,
-    WsEvent, encode_ws_event,
+    WsEvent,
 };
 #[allow(unused_imports)]
 pub use plain_rs::api::executor::execute_graphql;

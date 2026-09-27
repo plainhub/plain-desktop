@@ -3,9 +3,6 @@
 use anyhow::Result;
 use clap::{Parser, Subcommand};
 
-#[macro_use]
-mod macros;
-mod api;
 mod chunked_upload;
 mod cmd;
 mod crypto;
@@ -14,7 +11,6 @@ mod library;
 mod prefs;
 mod read_password;
 mod version;
-mod ws_hub;
 
 // Chat stack — one assembly in plain-rs (`plain_rs::api::chat`,
 // NAS flavor via `ChatState::nas_init`), re-exported under the

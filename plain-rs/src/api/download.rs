@@ -85,10 +85,7 @@ fn emit_progress(ctx: &Arc<AppCtx>, state: &DownloadState) {
         "status": state.status,
     }])
     .to_string();
-    let _ = ctx.event_tx.send(WsEvent {
-        event_type: WS_DOWNLOAD_PROGRESS,
-        payload,
-    });
+    let _ = ctx.event_tx.send(WsEvent::broadcast(WS_DOWNLOAD_PROGRESS, payload));
 }
 
 /// Start (or queue) a download for all `fsid:` files in the given message.
@@ -324,10 +321,10 @@ async fn execute_download(
         &updated_chat
     )])
     .to_string();
-    let _ = ctx.event_tx.send(WsEvent {
-        event_type: WS_MESSAGE_UPDATED,
-        payload: updated_payload,
-    });
+    let _ = ctx.event_tx.send(WsEvent::broadcast(
+        WS_MESSAGE_UPDATED,
+        updated_payload,
+    ));
 
     set_completed(&ctx, &state).await;
     cleanup(&message_id).await;

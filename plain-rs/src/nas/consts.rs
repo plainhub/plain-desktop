@@ -69,14 +69,5 @@ pub const ETC_MAIN_CONFIG: &str = "/etc/plainnas/config.toml";
 pub const ETC_TLS_SERVER_PEM: &str = "/etc/plainnas/tls.pem";
 pub const ETC_TLS_SERVER_KEY: &str = "/etc/plainnas/tls.key";
 
-pub const EVENT_MEDIA_SCAN_PROGRESS: &str = "media:scan:progress";
-pub const EVENT_FILE_TASK_PROGRESS: &str = "file:task:progress";
-pub const EVENT_DLNA_RENDERER_FOUND: &str = "dlna:renderer:found";
-pub const EVENT_DLNA_DISCOVERY_DONE: &str = "dlna:discovery:done";
-pub const EVENT_DISK_FORMAT_DONE: &str = "disk:format:done";
-/// Chat + pairing push events. Payload: `{"msgType": <phone-protocol
-/// number>, "payload": <string-or-object>}` — forwarded verbatim to WS
-/// clients by the hub.
-pub const EVENT_CHAT: &str = "chat:event";
 
 pub static DATA_DIR: &str = "/var/lib/plainnas";

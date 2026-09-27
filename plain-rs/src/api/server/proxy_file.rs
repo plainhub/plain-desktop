@@ -21,7 +21,7 @@ use axum::extract::{Request, State};
 use axum::http::HeaderValue;
 use axum::response::Response;
 
-use super::response::{cors_header_pairs, respond};
+use super::response::respond;
 use crate::base64_decode;
 use crate::api::context::AppCtx;
 use crate::api::server::ServerState;
@@ -85,9 +85,6 @@ pub async fn proxy_file(query_str: &str, range_header: &str, ctx: &Arc<AppCtx>) 
         }
         builder = builder.header(k.clone(), v.clone());
     }
-    for (k, v) in cors_header_pairs() {
-        builder = builder.header(k, v);
-    }
     let stream = resp.bytes_stream();
     builder
         .body(Body::from_stream(stream))
@@ -95,7 +92,8 @@ pub async fn proxy_file(query_str: &str, range_header: &str, ctx: &Arc<AppCtx>) 
 }
 
 /// Hop-by-hop and CORS headers stripped from the peer's response — we
-/// re-frame the connection ourselves and inject our own CORS set.
+/// re-frame the connection ourselves; the router CORS layer adds our
+/// own set.
 pub fn is_stripped_header(name: &str) -> bool {
     matches!(
         name,

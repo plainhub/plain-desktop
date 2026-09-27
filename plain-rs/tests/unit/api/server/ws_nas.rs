@@ -1,42 +1,12 @@
-//! Unit tests for `src/api/ws.rs` — moved out-of-line; compiled
-//! as the `tests` child module via `#[cfg(test)] #[path]` there.
-use super::*;
-use crate::api::auth::AppState;
+//! Unit tests for the nas `/` root handler and the login-handshake
+//! crypto chain (moved from plain-nas).
 use crate::api::server::build_router;
-use crate::config::Config;
-use crate::db::Db;
+use crate::api::server::test_support::nas_state;
+use base64::Engine as _;
 use axum::body::Body;
 use axum::http::{Request, StatusCode, header};
 use axum::response::Response;
-use std::sync::Arc;
 use tower::ServiceExt;
-
-fn test_state() -> AppState {
-    let dir = tempfile::tempdir().expect("temp dir");
-    let db = Arc::new(Db::open(dir.path()).expect("temp db opens"));
-    let data_dir = dir.path().to_path_buf();
-    let prefs = Arc::new(crate::prefs::Prefs::load(&data_dir.join("prefs.json")).unwrap());
-    std::mem::forget(dir); // the db handle must outlive the test
-    let config = Arc::new(Config::parse("[server]\nhttp_port = 8080\n"));
-    let chat = crate::test_support::chat_state(&data_dir);
-    let schema = crate::gql::build_schema(
-        db.clone(),
-        prefs.clone(),
-        config.clone(),
-        data_dir,
-        chat.clone(),
-    );
-    AppState {
-        chat,
-        config,
-        db,
-        prefs,
-        ws_hub: Arc::new(crate::ws_hub::WsHub::new()),
-        cors: crate::api::cors::CorsPolicy::from_config(&Config::default()),
-        schema,
-        peer_schema: crate::gql::peer_schema::build_schema(),
-    }
-}
 
 fn ws_upgrade_request(uri: &str) -> Request<Body> {
     Request::get(uri)
@@ -60,7 +30,7 @@ async fn body_text(resp: Response) -> String {
 /// 400 from a missing `cid`.
 #[tokio::test]
 async fn root_serves_index_for_plain_get() {
-    let app = build_router(test_state());
+    let app = build_router(nas_state());
     let resp = app
         .oneshot(Request::get("/").body(Body::empty()).unwrap())
         .await
@@ -78,7 +48,7 @@ async fn root_serves_index_for_plain_get() {
 /// The 101 upgrade path needs hyper's `OnUpgrade` extension, which only a
 /// real server injects — spawn one on an ephemeral loopback port.
 async fn spawn_server() -> std::net::SocketAddr {
-    let app = build_router(test_state());
+    let app = build_router(nas_state());
     let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
     let addr = listener.local_addr().unwrap();
     tokio::spawn(async move {
@@ -134,7 +104,7 @@ async fn root_rejects_upgrade_without_cid() {
 /// the same HTTP 200 a plain-app client would see on an unknown path.
 #[tokio::test]
 async fn legacy_ws_path_is_spa_not_socket() {
-    let app = build_router(test_state());
+    let app = build_router(nas_state());
     let resp = app
         .oneshot(ws_upgrade_request("/ws?cid=test-client"))
         .await
@@ -152,23 +122,23 @@ fn auth_handshake_crypto_chain() {
     let key: [u8; 32] = hash.as_bytes()[..32].try_into().unwrap();
 
     // Client frame: server and client each hold an ECDH session.
-    let server = plain_rs::crypto::EcdhSession::generate();
-    let client = plain_rs::crypto::EcdhSession::generate();
+    let server = crate::crypto::EcdhSession::generate();
+    let client = crate::crypto::EcdhSession::generate();
     let client_pub_b64 = base64::engine::general_purpose::STANDARD.encode(&client.public_key_bytes);
     let req = serde_json::json!({
         "password": hash,
         "ecdhPublicKey": client_pub_b64,
     });
-    let frame = crate::crypto::encrypt(&key, req.to_string().as_bytes()).unwrap();
+    let frame = crate::xchacha_encrypt_raw(&key, req.to_string().as_bytes()).unwrap();
 
     // Server side: decrypt + parse.
-    let plaintext = crate::crypto::decrypt(&key, &frame).expect("decrypts with password key");
-    let req: AuthRequest = serde_json::from_slice(&plaintext).unwrap();
-    assert_eq!(req.password, hash);
+    let plaintext = crate::xchacha_decrypt_raw(&key, &frame).expect("decrypts with password key");
+    let req: serde_json::Value = serde_json::from_slice(&plaintext).unwrap();
+    assert_eq!(req["password"].as_str().unwrap(), hash);
 
     // Both sides derive the same session token.
     let client_pub = base64::engine::general_purpose::STANDARD
-        .decode(&req.ecdh_public_key)
+        .decode(req["ecdhPublicKey"].as_str().unwrap())
         .unwrap();
     let server_pub_b64 = base64::engine::general_purpose::STANDARD.encode(&server.public_key_bytes);
     let client_token = client.compute_shared_key(&server.public_key_bytes).unwrap();
@@ -179,17 +149,17 @@ fn auth_handshake_crypto_chain() {
     );
 
     // Signature over the exact response string, verified with the /init key.
-    let (keypair, public) = plain_rs::crypto::ed25519_generate();
+    let (keypair, public) = crate::ed25519_generate();
     let public_b64 = base64::engine::general_purpose::STANDARD.encode(public);
     let ts: u64 = 1_700_000_000_000;
     let msg = format!("client-1|OK|{server_pub_b64}|{ts}");
-    let sig = plain_rs::crypto::ed25519_sign(&keypair, msg.as_bytes());
-    assert!(plain_rs::crypto::ed25519_verify(
+    let sig = crate::ed25519_sign(&keypair, msg.as_bytes());
+    assert!(crate::ed25519_verify(
         &public_b64,
         msg.as_bytes(),
         &sig
     ));
-    assert!(!plain_rs::crypto::ed25519_verify(
+    assert!(!crate::ed25519_verify(
         &public_b64,
         b"tampered",
         &sig

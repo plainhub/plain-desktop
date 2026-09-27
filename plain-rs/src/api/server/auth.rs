@@ -1,30 +1,22 @@
-//! Auth handlers and shared AppState.
+//! Nas auth handlers: `/auth` (login), `/auth/status`, `/auth/setup`
+//! and the nas branch of `/init` (`needsSetup` triage + signature key).
+//!
+//! Mirrors Go `cmd/services/api/auth.go` / `init.go`, aligned with
+//! plain-app (`SystemRoutes.kt`): `/init` never requires authentication
+//! and never answers 401. The handlers read the password/session/event
+//! stores from the fjall kv and the identity keys from prefs.
 
-use crate::config::Config;
-use crate::crypto;
-use crate::db::{self, EventLog, PasswordStore, SessionInfo, SessionStore};
 use axum::{
     Json,
     body::Bytes,
     extract::State,
-    http::{HeaderMap, StatusCode},
+    http::{HeaderMap, StatusCode, header},
     response::{IntoResponse, Response},
 };
-use base64::Engine;
 use serde::Deserialize;
-use std::sync::Arc;
 
-#[derive(Clone)]
-pub struct AppState {
-    pub config: Arc<Config>,
-    pub db: Arc<crate::db::Db>,
-    pub prefs: Arc<crate::prefs::Prefs>,
-    pub ws_hub: Arc<crate::ws_hub::WsHub>,
-    pub cors: crate::api::cors::CorsPolicy,
-    pub schema: crate::gql::AppSchema,
-    pub chat: Arc<crate::chat::ChatState>,
-    pub peer_schema: crate::gql::peer_schema::PeerSchema,
-}
+use super::ServerState;
+use crate::media::kv::{self, EventLog, PasswordStore, SessionInfo, SessionStore};
 
 fn status_error(status: StatusCode, msg: &str) -> Response {
     let body = serde_json::json!({ "errors": [{ "message": msg }] });
@@ -46,12 +38,15 @@ struct AuthRequest {
     is_mobile: bool,
 }
 
-api_response! {
-    struct AuthResponse { nas_id: String, token: String }
+#[derive(Debug, serde::Serialize)]
+#[serde(rename_all = "camelCase")]
+struct AuthResponse {
+    nas_id: String,
+    token: String,
 }
 
 pub async fn auth_handler(
-    State(state): State<AppState>,
+    State(state): State<ServerState>,
     headers: HeaderMap,
     body: Bytes,
 ) -> Response {
@@ -60,7 +55,7 @@ pub async fn auth_handler(
         .and_then(|v| v.to_str().ok())
         .unwrap_or("")
         .to_string();
-    let store = PasswordStore::new(&state.prefs);
+    let store = PasswordStore::new(&state.ctx.prefs);
     if !store.has() {
         return status_error(StatusCode::CONFLICT, "Password not configured");
     }
@@ -68,15 +63,16 @@ pub async fn auth_handler(
         return status_error(StatusCode::BAD_REQUEST, "Bad request");
     }
     let hash = store.get().unwrap_or_default();
-    let mut key = [0u8; crypto::KEY_LEN];
-    if hash.as_bytes().len() < crypto::KEY_LEN {
+    let mut key = [0u8; 32];
+    if hash.as_bytes().len() < 32 {
         return status_error(StatusCode::INTERNAL_SERVER_ERROR, "Server misconfigured");
     }
-    key.copy_from_slice(&hash.as_bytes()[..crypto::KEY_LEN]);
-    let decrypted = match crypto::decrypt(&key, &body) {
+    key.copy_from_slice(&hash.as_bytes()[..32]);
+    let decrypted = match crate::xchacha_decrypt_raw(&key, &body) {
         Some(b) => b,
         None => {
-            let _ = EventLog::new(&state.db).add("login_failed", "decrypt_failed", &client_id);
+            let _ =
+                EventLog::new(&state.ctx.media.db).add("login_failed", "decrypt_failed", &client_id);
             return status_error(StatusCode::UNAUTHORIZED, "Unauthorized");
         }
     };
@@ -85,11 +81,11 @@ pub async fn auth_handler(
         Err(_) => return status_error(StatusCode::BAD_REQUEST, "Bad request"),
     };
     if hash != req.password {
-        let _ = EventLog::new(&state.db).add("login_failed", "bad_password", &client_id);
+        let _ = EventLog::new(&state.ctx.media.db).add("login_failed", "bad_password", &client_id);
         return status_error(StatusCode::UNAUTHORIZED, "Unauthorized");
     }
     if client_id.is_empty() {
-        let _ = EventLog::new(&state.db).add("login_failed", "missing_client_id", "");
+        let _ = EventLog::new(&state.ctx.media.db).add("login_failed", "missing_client_id", "");
         return status_error(StatusCode::BAD_REQUEST, "Missing client id");
     }
     let mut client_name = String::new();
@@ -111,7 +107,7 @@ pub async fn auth_handler(
             client_name.push_str(" (Mobile)");
         }
     }
-    let sessions = SessionStore::new(&state.db);
+    let sessions = SessionStore::new(&state.ctx.media.db);
     let session = match sessions.get(&client_id) {
         Some(s) => sessions.upsert(SessionInfo {
             client_name: client_name.clone(),
@@ -135,9 +131,13 @@ pub async fn auth_handler(
         Ok(s) => s,
         Err(e) => return status_error(StatusCode::INTERNAL_SERVER_ERROR, &e.to_string()),
     };
-    let _ = EventLog::new(&state.db).add("login", &client_name, &client_id);
+    let _ = EventLog::new(&state.ctx.media.db).add("login", &client_name, &client_id);
 
-    let nas_id = state.config.get_string("nas.id");
+    let nas_id = state
+        .nas
+        .as_ref()
+        .map(|n| n.config.get_string("nas.id"))
+        .unwrap_or_default();
     let resp = AuthResponse {
         nas_id,
         token: session.token,
@@ -146,32 +146,31 @@ pub async fn auth_handler(
         Ok(b) => b,
         Err(_) => return status_error(StatusCode::INTERNAL_SERVER_ERROR, "Encode failed"),
     };
-    let mut resp_key = [0u8; crypto::KEY_LEN];
-    if req.password.as_bytes().len() < crypto::KEY_LEN {
+    let mut resp_key = [0u8; 32];
+    if req.password.as_bytes().len() < 32 {
         return status_error(StatusCode::BAD_REQUEST, "Bad request");
     }
-    resp_key.copy_from_slice(&req.password.as_bytes()[..crypto::KEY_LEN]);
-    let encrypted = match crypto::encrypt(&resp_key, &plaintext) {
-        Ok(b) => b,
-        Err(_) => return status_error(StatusCode::INTERNAL_SERVER_ERROR, "Encryption failed"),
-    };
-    (
-        StatusCode::OK,
-        [(http::header::CONTENT_TYPE, "application/octet-stream")],
-        encrypted,
-    )
-        .into_response()
+    resp_key.copy_from_slice(&req.password.as_bytes()[..32]);
+    match crate::xchacha_encrypt_raw(&resp_key, &plaintext) {
+        Some(encrypted) => (
+            StatusCode::OK,
+            [(header::CONTENT_TYPE, "application/octet-stream")],
+            encrypted,
+        )
+            .into_response(),
+        None => status_error(StatusCode::INTERNAL_SERVER_ERROR, "Encryption failed"),
+    }
 }
 
-api_response! {
-    struct AuthStatusResponse {
-        authenticated: bool,
-        needs_setup: bool,
-    }
+#[derive(Debug, serde::Serialize)]
+#[serde(rename_all = "camelCase")]
+struct AuthStatusResponse {
+    authenticated: bool,
+    needs_setup: bool,
 }
 
 pub async fn auth_status_handler(
-    State(state): State<AppState>,
+    State(state): State<ServerState>,
     headers: HeaderMap,
     body: Bytes,
 ) -> Response {
@@ -182,13 +181,13 @@ pub async fn auth_status_handler(
     if client_id.is_empty() {
         return status_error(StatusCode::BAD_REQUEST, "`c-id` is missing in the headers");
     }
-    let pw = PasswordStore::new(&state.prefs);
+    let pw = PasswordStore::new(&state.ctx.prefs);
     let needs_setup = !pw.has();
     let mut authed = false;
     if !body.is_empty() {
-        if let Some(session) = SessionStore::new(&state.db).get(client_id) {
-            if let Ok(key) = db::token_key(&session.token) {
-                if crypto::decrypt(&key, &body).is_some() {
+        if let Some(session) = SessionStore::new(&state.ctx.media.db).get(client_id) {
+            if let Ok(key) = kv::token_key(&session.token) {
+                if crate::xchacha_decrypt_raw(&key, &body).is_some() {
                     authed = true;
                 }
             }
@@ -204,23 +203,24 @@ pub async fn auth_status_handler(
     (StatusCode::OK, Json(resp)).into_response()
 }
 
-api_response! {
-    struct InitResponse {
-        needs_setup: bool,
-        signature_public_key: String,
-    }
+#[derive(Debug, serde::Serialize)]
+#[serde(rename_all = "camelCase")]
+struct InitResponse {
+    needs_setup: bool,
+    signature_public_key: String,
 }
 
-/// `POST /init` — the only pre-login API. Aligned with plain-app
-/// (`SystemRoutes.kt` `post("/init")`): it never requires authentication and
-/// never answers 401 — an initialized server answers `needsSetup: false` and
-/// the client triages between auto-login (stored token) and the login form.
-/// `needsSetup: true` is the plain-nas extension for first-run setup (plain-app
-/// instead hands out a generated password). `signaturePublicKey` is the
-/// server's stable Ed25519 public key (base64), used by clients for TOFU
-/// verification of signed login responses. Like plain-app, a missing `c-id`
-/// header is a 400.
-pub async fn init_handler(State(state): State<AppState>, headers: HeaderMap) -> Response {
+/// `POST /init` (nas branch) — the only pre-login API. Aligned with
+/// plain-app (`SystemRoutes.kt` `post("/init")`): it never requires
+/// authentication and never answers 401 — an initialized server answers
+/// `needsSetup: false` and the client triages between auto-login
+/// (stored token) and the login form. `needsSetup: true` is the
+/// plain-nas extension for first-run setup (plain-app instead hands out
+/// a generated password). `signaturePublicKey` is the server's stable
+/// Ed25519 public key (base64), used by clients for TOFU verification
+/// of signed login responses. Like plain-app, a missing `c-id` header
+/// is a 400.
+pub async fn init_nas(state: &ServerState, headers: &HeaderMap) -> Response {
     let client_id = headers
         .get("c-id")
         .and_then(|v| v.to_str().ok())
@@ -230,10 +230,10 @@ pub async fn init_handler(State(state): State<AppState>, headers: HeaderMap) -> 
     }
     // A missing key (KV error) degrades to an empty value, which clients
     // treat as "server does not sign" rather than failing the flow.
-    let signature_public_key = db::SignatureKey::new(&state.prefs)
+    let signature_public_key = kv::SignatureKey::new(&state.ctx.prefs)
         .ensure()
         .unwrap_or_default();
-    let needs_setup = !PasswordStore::new(&state.prefs).has();
+    let needs_setup = !PasswordStore::new(&state.ctx.prefs).has();
     (
         StatusCode::OK,
         Json(InitResponse {
@@ -244,12 +244,8 @@ pub async fn init_handler(State(state): State<AppState>, headers: HeaderMap) -> 
         .into_response()
 }
 
-#[cfg(test)]
-#[path = "../../tests/unit/api/auth.rs"]
-mod tests;
-
-pub async fn auth_setup_handler(State(state): State<AppState>, body: Bytes) -> Response {
-    let pw = PasswordStore::new(&state.prefs);
+pub async fn auth_setup_handler(State(state): State<ServerState>, body: Bytes) -> Response {
+    let pw = PasswordStore::new(&state.ctx.prefs);
     if pw.has() {
         return status_error(StatusCode::CONFLICT, "Password already configured");
     }
@@ -276,14 +272,6 @@ pub async fn auth_setup_handler(State(state): State<AppState>, body: Bytes) -> R
     (StatusCode::OK, "").into_response()
 }
 
-pub fn try_decode_token(token: &str) -> Option<[u8; crypto::KEY_LEN]> {
-    let bytes = base64::engine::general_purpose::STANDARD
-        .decode(token)
-        .ok()?;
-    if bytes.len() != crypto::KEY_LEN {
-        return None;
-    }
-    let mut k = [0u8; crypto::KEY_LEN];
-    k.copy_from_slice(&bytes);
-    Some(k)
-}
+#[cfg(test)]
+#[path = "../../../tests/unit/api/server/auth.rs"]
+mod tests;

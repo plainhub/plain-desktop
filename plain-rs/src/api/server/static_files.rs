@@ -36,10 +36,6 @@ const INDEX_HTML: &str = r#"<!doctype html>
 </body>
 </html>"#;
 
-pub async fn health() -> Response {
-    (StatusCode::OK, "ok").into_response()
-}
-
 pub async fn index() -> Response {
     // Prefer the on-disk version (picks up `yarn dev` rebuilds), fall
     // back to the inline placeholder for a fresh, unbuilt checkout.

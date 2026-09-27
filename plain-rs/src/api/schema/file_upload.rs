@@ -198,10 +198,10 @@ fn start_merge(
             }
         }
         drop(jobs);
-        let _ = event_tx.send(WsEvent {
-            event_type: WS_UPLOAD_MERGE_RESULT,
-            payload: payload.to_string(),
-        });
+        let _ = event_tx.send(WsEvent::broadcast(
+        WS_UPLOAD_MERGE_RESULT,
+        payload.to_string(),
+    ));
     });
     Ok(MergeTask {
         status: MergeTaskStatus::Started,

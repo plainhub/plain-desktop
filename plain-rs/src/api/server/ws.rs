@@ -1,40 +1,108 @@
-//! WebSocket handlers for the local server.
+//! WebSocket handlers for the shared router.
 //!
-//! * `/` (any non-`/status` path) — the chat event bus socket: the first
-//!   Binary frame must be XChaCha20-encrypted with the URL token (same
-//!   handshake as `/graphql`), then broadcast events stream until
-//!   disconnect. Mirrors Android's `WebSocket.kt` non-`auth=1` flow.
-//! * `/status` — peer online/offline socket: the first Binary frame is
-//!   ChaCha20-decrypted with the peer shared key and the plaintext must
-//!   carry an Ed25519 signature over `{timestamp}{cid}`.
+//! * The chat event socket (nas `/`, desktop any non-`/status` path):
+//!   cid from `?cid=`; the key is the nas session token or the desktop
+//!   URL token; the first Binary frame must XChaCha20-decrypt with it
+//!   (failure closes with 1013 `invalid_request`, the plain-app
+//!   contract close code). Afterwards broadcast events stream until
+//!   disconnect — `WsEvent`s with a `target_cid` reach only the
+//!   matching socket. Mirrors Android's `WebSocket.kt` non-`auth=1`
+//!   flow plus the nas event channel.
+//! * `/status` (desktop) — peer online/offline socket: the first Binary
+//!   frame is XChaCha20-decrypted with the peer shared key and the
+//!   plaintext must carry an Ed25519 signature over
+//!   `{timestamp}{cid}`.
+//! * `auth=1` (nas `/`) — the login/setup handshake from plain-desktop
+//!   (`login-handshake.ts`): the first frame is a XChaCha20-Poly1305
+//!   blob encrypted with the password-hash key containing the auth
+//!   request plus the client's ECDH public key. We verify the password,
+//!   derive the session token via ECDH P-256, sign the response with
+//!   the server's Ed25519 key and send it back encrypted. Mirrors
+//!   plain-app's signed login protocol.
 
-use axum::extract::ws::{Message, WebSocket};
 use std::sync::Arc;
 use tokio::sync::broadcast;
 
-use crate::api::context::{AppCtx, encode_ws_event};
-use crate::{base64_decode, ed25519_verify, xchacha_decrypt, xchacha_decrypt_raw};
+use axum::extract::ws::Message;
+use axum::extract::ws::WebSocket;
 
-pub async fn chat_socket(socket: WebSocket, path: String, ctx: Arc<AppCtx>) {
+use crate::api::context::AppCtx;
+use crate::api::server::ServerState;
+use crate::{base64_decode, ed25519_verify, xchacha_decrypt_raw};
+
+/// WebSocket close code 1013 ("Try Again Later"). Mirrors Go's
+/// `websocket.CloseTryAgainLater` and plain-app's
+/// `ws.close(WsCloseCode.TRY_AGAIN_LATER, …)`. Sent with the reason
+/// "invalid_request" when the session lookup or the handshake
+/// decryption fails — matching the plain-app contract close codes on
+/// both hosts.
+const CLOSE_TRY_AGAIN_LATER: u16 = 1013;
+const INVALID_REQUEST_REASON: &str = "invalid_request";
+/// Wrong password during the login handshake — mirrors plain-app's
+/// `ws.close(WsCloseCode.TRY_AGAIN_LATER, "invalid_password")`. The
+/// client surfaces the close reason as the i18n key
+/// `login.invalid_password`.
+#[cfg(feature = "nas")]
+const INVALID_PASSWORD_REASON: &str = "invalid_password";
+
+pub async fn chat_socket(socket: WebSocket, path: String, state: ServerState) {
     let cid = query_param(&path, "cid").unwrap_or_default();
     if cid.is_empty() {
         log::debug!("local_server chat_ws: `cid` is missing");
         return;
     }
+    chat_socket_cid(socket, cid, state).await;
+}
+
+/// The chat event socket once the cid is known (the nas `/` handler has
+/// it from the upgrade query, the desktop fallback extracts it from the
+/// raw path).
+pub async fn chat_socket_cid(socket: WebSocket, cid: String, state: ServerState) {
+    // Resolve the connection key per host: the nas session token for
+    // this cid, the desktop URL token.
+    #[cfg(feature = "nas")]
+    let key = if state.nas.is_some() {
+        let session = crate::media::kv::SessionStore::new(&state.ctx.media.db).get(&cid);
+        match session
+            .and_then(|s| crate::media::kv::token_key(&s.token).ok())
+        {
+            Some(k) => k,
+            None => {
+                let mut socket = socket;
+                send_close(&mut socket, CLOSE_TRY_AGAIN_LATER, INVALID_REQUEST_REASON).await;
+                return;
+            }
+        }
+    } else {
+        match token_raw_key(&state.ctx.token) {
+            Some(k) => k,
+            None => {
+                log::warn!("local_server chat_ws: bad token for cid={cid}");
+                return;
+            }
+        }
+    };
+    #[cfg(not(feature = "nas"))]
+    let key = match token_raw_key(&state.ctx.token) {
+        Some(k) => k,
+        None => {
+            log::warn!("local_server chat_ws: bad token for cid={cid}");
+            return;
+        }
+    };
 
     let mut socket = socket;
-    let token = ctx.token.clone();
 
     // Auth handshake: first Binary frame must decrypt successfully with
-    // the URL token.
+    // the connection key.
     loop {
         match socket.recv().await {
             Some(Ok(Message::Binary(bytes))) => {
-                if xchacha_decrypt(&token, &bytes).is_some() {
+                if xchacha_decrypt_raw(&key, &bytes).is_some() {
                     break; // authenticated
                 } else {
                     log::debug!("local_server chat_ws: invalid_request cid={cid}");
-                    let _ = socket.send(Message::Close(None)).await;
+                    send_close(&mut socket, CLOSE_TRY_AGAIN_LATER, INVALID_REQUEST_REASON).await;
                     return;
                 }
             }
@@ -45,32 +113,34 @@ pub async fn chat_socket(socket: WebSocket, path: String, ctx: Arc<AppCtx>) {
     }
 
     log::debug!("local_server chat_ws: session added cid={cid}");
+    let ctx = state.ctx.clone();
     let mut event_rx = ctx.event_tx.subscribe();
     log::info!(
         "local_server chat_ws: subscribed to event_tx for cid={cid} (initial receivers = {})",
         event_rx.len()
     );
 
-    // Forward broadcast events to the client.
+    // Forward broadcast events to the client: broadcast events to every
+    // socket, targeted events only to the owning cid.
     loop {
         tokio::select! {
             event = event_rx.recv() => {
                 match event {
                     Ok(ev) => {
+                        if let Some(target) = ev.target_cid.as_ref() {
+                            if target != &cid {
+                                continue;
+                            }
+                        }
                         log::info!(
                             "local_server chat_ws: forwarding event type={} to cid={cid}",
                             ev.event_type
                         );
-                        if let Some(bytes) = encode_ws_event(&ev, &token) {
-                            log::info!(
-                                "local_server chat_ws: encoded event type={} bytes={} to cid={cid}",
-                                ev.event_type, bytes.len()
-                            );
+                        if let Some(bytes) =
+                            crate::ws_frame::encode(ev.event_type, ev.payload.as_bytes(), &key)
+                        {
                             match socket.send(Message::Binary(bytes)).await {
-                                Ok(_) => log::info!(
-                                    "local_server chat_ws: sent event type={} to cid={cid}",
-                                    ev.event_type
-                                ),
+                                Ok(_) => {}
                                 Err(e) => {
                                     log::warn!(
                                         "local_server chat_ws: send failed type={} cid={cid} err={e}",
@@ -104,6 +174,27 @@ pub async fn chat_socket(socket: WebSocket, path: String, ctx: Arc<AppCtx>) {
     }
 
     log::debug!("local_server chat_ws: session removed cid={cid}");
+}
+
+/// The desktop URL token as a raw 32-byte key.
+fn token_raw_key(token: &str) -> Option<[u8; 32]> {
+    let bytes = base64_decode(token);
+    if bytes.len() != 32 {
+        return None;
+    }
+    let mut key = [0u8; 32];
+    key.copy_from_slice(&bytes);
+    Some(key)
+}
+
+async fn send_close(socket: &mut WebSocket, code: u16, reason: &str) {
+    use axum::extract::ws::CloseFrame;
+    let _ = socket
+        .send(Message::Close(Some(CloseFrame {
+            code,
+            reason: reason.to_owned().into(),
+        })))
+        .await;
 }
 
 pub async fn status_socket(socket: WebSocket, path: String, ctx: Arc<AppCtx>) {
@@ -221,3 +312,280 @@ fn now_ms() -> i64 {
         .unwrap_or_default()
         .as_millis() as i64
 }
+
+/// ── Nas `/` root: WebSocket upgrade + SPA index split, and the
+/// `auth=1` login handshake ─────────────────────────────────────────
+
+#[cfg(feature = "nas")]
+mod login {
+    use super::*;
+
+    use axum::extract::ws::rejection::WebSocketUpgradeRejection;
+    use axum::extract::ws::{CloseFrame, WebSocketUpgrade};
+    use axum::extract::{Query, State};
+    use axum::http::StatusCode;
+    use axum::response::{IntoResponse, Response};
+    use base64::Engine;
+    use futures_util::{SinkExt, StreamExt};
+    use serde::Deserialize;
+
+    #[derive(Deserialize)]
+    pub struct WsParams {
+        #[serde(default)]
+        pub cid: String,
+        #[serde(default)]
+        pub auth: Option<String>,
+    }
+
+    /// `/` handler: WebSocket upgrade requests run the login/event
+    /// channel; every other GET serves the SPA index (a plain browser
+    /// navigation of `/` carries no upgrade headers and no `cid`).
+    pub async fn root_handler(
+        State(state): State<ServerState>,
+        Query(p): Query<WsParams>,
+        ws: Result<WebSocketUpgrade, WebSocketUpgradeRejection>,
+    ) -> Response {
+        let ws = match ws {
+            Ok(ws) => ws,
+            Err(_) => return super::super::static_files::index().await,
+        };
+        if p.cid.trim().is_empty() {
+            return (StatusCode::BAD_REQUEST, "").into_response();
+        }
+        if p.auth.as_deref() == Some("1") {
+            ws.on_upgrade(move |socket| auth_handshake(socket, state, p.cid))
+                .into_response()
+        } else {
+            ws.on_upgrade(move |socket| super::chat_socket_cid(socket, p.cid, state))
+                .into_response()
+        }
+    }
+
+    async fn send_close(
+        tx: &mut futures_util::stream::SplitSink<WebSocket, Message>,
+        code: u16,
+        reason: &str,
+    ) {
+        let _ = tx
+            .send(Message::Close(Some(CloseFrame {
+                code,
+                reason: reason.to_owned().into(),
+            })))
+            .await;
+    }
+
+    /// Decrypted login-handshake request from the client
+    /// (`login-handshake.ts` `ws.onopen`), plus the fields the server
+    /// needs for the ECDH token swap.
+    #[derive(Debug, Deserialize)]
+    struct AuthRequest {
+        #[serde(default)]
+        password: String,
+        #[serde(default)]
+        browser_name: String,
+        #[serde(default)]
+        browser_version: String,
+        #[serde(default)]
+        os_name: String,
+        #[serde(default)]
+        os_version: String,
+        #[serde(default)]
+        is_mobile: bool,
+        #[serde(default, rename = "ecdhPublicKey")]
+        ecdh_public_key: String,
+    }
+
+    /// The `auth=1` login handshake:
+    /// 1. decrypt the first frame with the stored password-hash key
+    /// 2. verify the password
+    /// 3. derive the session token via ECDH P-256 (SHA-256 of the
+    ///    shared secret)
+    /// 4. sign `clientId|status|ecdhPublicKey|timestamp` with the
+    ///    Ed25519 key
+    /// 5. send the encrypted response; the client closes the socket
+    ///    afterwards
+    async fn auth_handshake(socket: WebSocket, state: ServerState, cid: String) {
+        let (mut tx, mut rx) = socket.split();
+
+        // The key the client used is the first half of the stored sha512
+        // hex (ASCII bytes), mirroring the REST `/auth` handler.
+        let hash = crate::media::kv::PasswordStore::new(&state.ctx.prefs)
+            .get()
+            .unwrap_or_default();
+        if hash.len() < 32 {
+            log::warn!("[ws/auth] cid={cid} rejected: server has no password set");
+            // Uninitialized server — the client must call `/auth/setup`
+            // first.
+            send_close(&mut tx, CLOSE_TRY_AGAIN_LATER, INVALID_REQUEST_REASON).await;
+            return;
+        }
+        let key: [u8; 32] = hash.as_bytes()[..32]
+            .try_into()
+            .expect("key length checked above");
+
+        let frame = match rx.next().await {
+            Some(Ok(Message::Binary(b))) => b,
+            other => {
+                log::warn!("[ws/auth] cid={cid} no binary frame: {other:?}");
+                return;
+            }
+        };
+        let plaintext = match xchacha_decrypt_raw(&key, &frame) {
+            Some(p) => p,
+            None => {
+                log::warn!("[ws/auth] cid={cid} frame decrypt failed (wrong password?)");
+                // Decryption failure means the password does not match.
+                send_close(&mut tx, CLOSE_TRY_AGAIN_LATER, INVALID_PASSWORD_REASON).await;
+                return;
+            }
+        };
+        let req: AuthRequest = match serde_json::from_slice(&plaintext) {
+            Ok(r) => r,
+            Err(e) => {
+                log::warn!("[ws/auth] cid={cid} bad auth request JSON: {e}");
+                send_close(&mut tx, CLOSE_TRY_AGAIN_LATER, INVALID_PASSWORD_REASON).await;
+                return;
+            }
+        };
+        if req.password != hash {
+            log::warn!("[ws/auth] cid={cid} password mismatch");
+            send_close(&mut tx, CLOSE_TRY_AGAIN_LATER, INVALID_PASSWORD_REASON).await;
+            return;
+        }
+
+        let client_pub = match base64::engine::general_purpose::STANDARD.decode(&req.ecdh_public_key)
+        {
+            Ok(v) => v,
+            Err(e) => {
+                log::warn!("[ws/auth] cid={cid} bad ecdh public key: {e}");
+                send_close(&mut tx, CLOSE_TRY_AGAIN_LATER, INVALID_REQUEST_REASON).await;
+                return;
+            }
+        };
+        let ecdh = crate::crypto::EcdhSession::generate();
+        let ecdh_public_b64 = base64::engine::general_purpose::STANDARD.encode(&ecdh.public_key_bytes);
+        // Same derivation the client performs; both sides end up with
+        // this 32-byte token, stored base64 in the session for later
+        // request bodies.
+        let token = match ecdh.compute_shared_key(&client_pub) {
+            Some(t) => t,
+            None => {
+                log::warn!("[ws/auth] cid={cid} ecdh shared key failed");
+                send_close(&mut tx, CLOSE_TRY_AGAIN_LATER, INVALID_REQUEST_REASON).await;
+                return;
+            }
+        };
+        let token_b64 = base64::engine::general_purpose::STANDARD.encode(token);
+
+        let sessions = crate::media::kv::SessionStore::new(&state.ctx.media.db);
+        let info = match sessions.get(&cid) {
+            Some(s) => crate::media::kv::SessionInfo {
+                token: token_b64.clone(),
+                ..s
+            },
+            None => crate::media::kv::SessionInfo {
+                client_id: cid.clone(),
+                token: token_b64.clone(),
+                client_name: client_name(
+                    &req.browser_name,
+                    &req.browser_version,
+                    &req.os_name,
+                    &req.os_version,
+                    req.is_mobile,
+                ),
+                browser_name: req.browser_name,
+                browser_version: req.browser_version,
+                os_name: req.os_name,
+                os_version: req.os_version,
+                is_mobile: req.is_mobile,
+                ..Default::default()
+            },
+        };
+        if let Err(e) = sessions.upsert(info) {
+            log::error!("[ws] failed to store login session: {e}");
+            send_close(&mut tx, CLOSE_TRY_AGAIN_LATER, INVALID_REQUEST_REASON).await;
+            return;
+        }
+
+        let timestamp: u64 = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .map(|d| d.as_millis() as u64)
+            .unwrap_or(0);
+        // plain-app sends AuthStatus.COMPLETED and signs
+        // `clientId|status|ecdhPublicKey|timestamp`
+        // (AuthResponse.toSignatureData).
+        let status = "COMPLETED";
+        let resp_client_id = crate::media::kv::server_client_id(&state.ctx.prefs);
+        // The client verifies `clientId|status|ecdhPublicKey|timestamp`
+        // using the exact fields from this response — sign the same
+        // values we send.
+        let signature = crate::crypto::ed25519_sign(
+            &crate::media::kv::SignatureKey::new(&state.ctx.prefs)
+                .ensure_keypair()
+                .unwrap_or([0u8; 64]),
+            format!("{resp_client_id}|{status}|{ecdh_public_b64}|{timestamp}").as_bytes(),
+        );
+        let resp = serde_json::json!({
+            "clientId": resp_client_id,
+            "status": status,
+            "ecdhPublicKey": ecdh_public_b64,
+            "timestamp": timestamp,
+            "signature": signature,
+        });
+        let encrypted =
+            match crate::xchacha_encrypt_raw(&key, resp.to_string().as_bytes()) {
+                Some(v) => v,
+                None => {
+                    send_close(&mut tx, CLOSE_TRY_AGAIN_LATER, INVALID_REQUEST_REASON).await;
+                    return;
+                }
+            };
+        if tx.send(Message::Binary(encrypted)).await.is_err() {
+            return;
+        }
+
+        // The client closes as soon as it derived the token; stay quiet
+        // until it does (never register this socket on the event hub).
+        while let Some(msg) = rx.next().await {
+            if msg.is_err() {
+                break;
+            }
+        }
+    }
+
+    fn client_name(
+        browser_name: &str,
+        browser_version: &str,
+        os_name: &str,
+        os_version: &str,
+        is_mobile: bool,
+    ) -> String {
+        if browser_name.is_empty() {
+            return String::new();
+        }
+        let mut name = browser_name.to_string();
+        if !browser_version.is_empty() {
+            name.push(' ');
+            name.push_str(browser_version);
+        }
+        if !os_name.is_empty() {
+            name.push_str(" / ");
+            name.push_str(os_name);
+            if !os_version.is_empty() {
+                name.push(' ');
+                name.push_str(os_version);
+            }
+        }
+        if is_mobile {
+            name.push_str(" (Mobile)");
+        }
+        name
+    }
+}
+
+#[cfg(feature = "nas")]
+pub use login::root_handler;
+
+#[cfg(all(test, feature = "nas"))]
+#[path = "../../../tests/unit/api/server/ws_nas.rs"]
+mod nas_tests;

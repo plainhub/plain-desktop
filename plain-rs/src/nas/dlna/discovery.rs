@@ -29,7 +29,6 @@ use std::sync::LazyLock as Lazy;
 use super::desc;
 use super::types::{DiscoveredDevice, Renderer};
 use crate::media::eventbus;
-use crate::nas::consts;
 
 /// Total length of one discovery window. Matches Go's `60s` outer cap.
 const DISCOVERY_WINDOW: Duration = Duration::from_secs(60);
@@ -118,7 +117,7 @@ fn run_discovery_task() {
     let payload = super::discovery_done_payload();
     for cid in clients {
         eventbus::EventBus::global().publish_with_cid(
-            consts::EVENT_DLNA_DISCOVERY_DONE,
+            crate::media::eventbus::EVENT_DLNA_DISCOVERY_DONE,
             &cid,
             payload.clone(),
         );
@@ -148,7 +147,7 @@ fn on_device(d: &DiscoveredDevice) {
     let payload = super::renderer_payload(d);
     for cid in clients {
         eventbus::EventBus::global().publish_with_cid(
-            consts::EVENT_DLNA_RENDERER_FOUND,
+            crate::media::eventbus::EVENT_DLNA_RENDERER_FOUND,
             &cid,
             payload.clone(),
         );
@@ -163,7 +162,7 @@ fn flush_cache_to_client(cid: &str) {
         }
         let payload = super::renderer_payload(d);
         eventbus::EventBus::global().publish_with_cid(
-            consts::EVENT_DLNA_RENDERER_FOUND,
+            crate::media::eventbus::EVENT_DLNA_RENDERER_FOUND,
             cid,
             payload,
         );

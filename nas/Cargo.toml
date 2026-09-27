@@ -14,24 +14,15 @@ path = "src/main.rs"
 
 [dependencies]
 # HTTP & Web
-axum = { version = "0.7", features = ["ws", "multipart", "tokio", "http1"] }
-bytes = "1"
-tower = { version = "0.4", features = ["util"] }
+axum = { version = "0.7", features = ["json", "query", "ws", "multipart", "tokio", "http1"] }
 tokio = { version = "1", features = ["full"] }
 axum-server = { version = "0.7", features = ["tls-rustls"] }
-# `tokio-util` was removed in step 9. The only API we used
-# (`tokio_util::io::ReaderStream`) is now provided by
-# `plain_rs::utils::async_read_stream::AsyncReadStream`.
-tower-http = { version = "0.5", features = ["cors", "compression-gzip", "compression-deflate", "trace"] }
 
 # GraphQL
 async-graphql = { version = "7", features = ["chrono"] }
 
 # Crypto — the XChaCha20-Poly1305 (nonce||ct||tag) wrapper and sha512_hex
-# moved to plain-rs; rand/hex/base64 stay direct (used beyond plain-rs surface).
-rand = "0.8"
-hex = "0.4"
-base64 = "0.22"
+# moved to plain-rs with the HTTP layer.
 
 plain_rs = { path = "../plain-rs", package = "plain-rs", features = ["chat", "library", "prefs", "sqlite_browse", "media", "media_gql", "nas"] }
 

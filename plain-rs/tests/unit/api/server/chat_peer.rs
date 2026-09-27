@@ -1,44 +1,15 @@
-//! Unit tests for `src/api/chat_peer.rs` — moved out-of-line; compiled
-//! as the `tests` child module via `#[cfg(test)] #[path]` there.
-
-use super::*;
+//! Unit tests for the merged /nearby + /peer_graphql handlers (moved
+//! from plain-nas; driven through the desktop branch whose peer schema
+//! lives in plain-rs — the nas branch's own schema is exercised by the
+//! nas crate's router test).
+use crate::api::server::test_support::{as_desktop, nas_state};
 use axum::body::Bytes;
 use axum::http::{HeaderMap, StatusCode};
 use std::net::SocketAddr;
-use std::sync::Arc;
 
-use plain_rs::chat::db::DPeer;
-use plain_rs::chat::enums::{DeviceType, PeerStatus};
-use plain_rs::{
-    base64_encode, ed25519_generate, ed25519_sign, xchacha_decrypt_raw, xchacha_encrypt_raw,
-};
-
-fn app_state() -> AppState {
-    let dir = tempfile::tempdir().expect("temp dir");
-    let db = Arc::new(crate::db::Db::open(dir.path()).expect("temp db opens"));
-    let data_dir = dir.path().to_path_buf();
-    let prefs = Arc::new(crate::prefs::Prefs::load(&data_dir.join("prefs.json")).unwrap());
-    std::mem::forget(dir); // handles must outlive the test
-    let config = Arc::new(crate::config::Config::parse("[server]\nhttp_port = 8080\n"));
-    let chat = crate::test_support::chat_state(&data_dir);
-    let schema = crate::gql::build_schema(
-        db.clone(),
-        prefs.clone(),
-        config.clone(),
-        data_dir,
-        chat.clone(),
-    );
-    AppState {
-        config,
-        db,
-        prefs,
-        ws_hub: Arc::new(crate::ws_hub::WsHub::new()),
-        cors: crate::api::cors::CorsPolicy::from_config(&crate::config::Config::default()),
-        schema,
-        chat,
-        peer_schema: crate::gql::peer_schema::build_schema(),
-    }
-}
+use crate::chat::db::DPeer;
+use crate::chat::enums::{DeviceType, PeerStatus};
+use crate::{base64_encode, ed25519_generate, ed25519_sign, xchacha_decrypt_raw, xchacha_encrypt_raw};
 
 fn now_ms() -> i64 {
     std::time::SystemTime::now()
@@ -49,10 +20,10 @@ fn now_ms() -> i64 {
 
 #[tokio::test]
 async fn nearby_dispatches_known_prefixes() {
-    let state = app_state();
+    let state = as_desktop(&nas_state());
     let addr: SocketAddr = "203.0.113.9:50000".parse().unwrap();
 
-    let resp = nearby_handler(
+    let resp = super::nearby(
         axum::extract::State(state.clone()),
         axum::extract::ConnectInfo(addr),
         Bytes::from_static(b"DISCOVER:"),
@@ -60,7 +31,7 @@ async fn nearby_dispatches_known_prefixes() {
     .await;
     assert_eq!(resp.status(), StatusCode::OK);
 
-    let resp = nearby_handler(
+    let resp = super::nearby(
         axum::extract::State(state),
         axum::extract::ConnectInfo(addr),
         Bytes::from_static(b"WHAT:"),
@@ -75,12 +46,12 @@ async fn nearby_dispatches_known_prefixes() {
 /// DB with the peer as sender.
 #[tokio::test]
 async fn peer_graphql_create_chat_item_roundtrip() {
-    let state = app_state();
+    let state = as_desktop(&nas_state());
 
     // Seed a paired peer with a known shared key + Ed25519 identity.
     let (kp, vk) = ed25519_generate();
     let key = [31u8; 32];
-    state.chat.service.db.upsert_peer(&DPeer {
+    state.ctx.chat.service.db.upsert_peer(&DPeer {
         id: "peer-a".into(),
         name: "Phone".into(),
         ip: "203.0.113.9".into(),
@@ -93,9 +64,9 @@ async fn peer_graphql_create_chat_item_roundtrip() {
         created_at: "2026-01-01T00:00:00Z".into(),
         updated_at: "2026-01-01T00:00:00Z".into(),
     });
-    plain_rs::chat::events::refresh_peer_key_cache(
-        &state.chat.service.db,
-        &state.chat.service.peer_key_cache,
+    crate::chat::events::refresh_peer_key_cache(
+        &state.ctx.chat.service.db,
+        &state.ctx.chat.service.peer_key_cache,
     );
 
     // Build the wire body: encrypt(signature|timestamp|graphql_json).
@@ -112,7 +83,7 @@ async fn peer_graphql_create_chat_item_roundtrip() {
     let mut headers = HeaderMap::new();
     headers.insert("c-id", "peer-a".parse().unwrap());
 
-    let resp = peer_graphql_handler(
+    let resp = super::peer_graphql_handler(
         axum::extract::State(state.clone()),
         headers,
         Bytes::from(body),
@@ -135,6 +106,7 @@ async fn peer_graphql_create_chat_item_roundtrip() {
 
     // The message landed in the DB with the peer as sender.
     let row = state
+        .ctx
         .chat
         .service
         .db
@@ -147,10 +119,10 @@ async fn peer_graphql_create_chat_item_roundtrip() {
 /// Unknown peer → 401 with the auth reason.
 #[tokio::test]
 async fn peer_graphql_rejects_unknown_peer() {
-    let state = app_state();
+    let state = as_desktop(&nas_state());
     let mut headers = HeaderMap::new();
     headers.insert("c-id", "ghost".parse().unwrap());
-    let resp = peer_graphql_handler(
+    let resp = super::peer_graphql_handler(
         axum::extract::State(state),
         headers,
         Bytes::from_static(b"whatever"),

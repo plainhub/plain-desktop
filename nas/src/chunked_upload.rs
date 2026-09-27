@@ -29,11 +29,13 @@ pub fn chunk_dir(data_dir: &Path, file_id: &str) -> PathBuf {
 }
 
 /// Path to a single chunk file.
+#[allow(dead_code)]
 pub fn chunk_path(data_dir: &Path, file_id: &str, index: i32) -> PathBuf {
     chunk_dir(data_dir, file_id).join(format!("{}{}", CHUNK_PREFIX, index))
 }
 
 /// Persist a chunk. `index` is validated; `file_id` must be non-empty.
+#[allow(dead_code)]
 pub async fn save_chunk(
     data_dir: &Path,
     file_id: &str,

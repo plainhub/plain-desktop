@@ -8,15 +8,6 @@
 //! GraphQL resolvers here assemble the tracks source with the NAS's fjall
 //! handle + media index.
 
-use std::path::Path;
-
-use plain_rs::library::db::LibraryDb;
-
 pub use plain_rs::media::library_tracks::{
     MediaLibraryTracks as NasLibraryTracks, playlist_audio_from_path,
 };
-
-/// Open (or create) `library.db` under `data_dir`.
-pub fn open(data_dir: &Path) -> anyhow::Result<LibraryDb> {
-    Ok(LibraryDb::open(&data_dir.join("library.db"))?)
-}

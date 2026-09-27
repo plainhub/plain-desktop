@@ -383,10 +383,7 @@ impl PeerStatusManager {
         })
         .to_string();
         if let Some(event_tx) = self.inner.event_tx.read().unwrap().clone() {
-            let _ = event_tx.send(WsEvent {
-                event_type: WS_PEER_STATUS_UPDATED,
-                payload,
-            });
+            let _ = event_tx.send(WsEvent::broadcast(WS_PEER_STATUS_UPDATED, payload));
         }
     }
 }
