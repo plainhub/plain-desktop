@@ -3,7 +3,7 @@
 use crate::local::enums::DeviceType;
 use crate::local::graphql::schema::types::Peer;
 #[allow(unused_imports)]
-pub use plain_rs::local_api::discover::{
+pub use plain_rs::api::discover::{
     MdnsActivity, MdnsFirewallStatus, NearbyDiscoverManager, PeerStatusManager, firewall,
     macos_dns_sd,
 };

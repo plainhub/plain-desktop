@@ -11,7 +11,7 @@
 //! keep running. The bound port is recorded in `LocalServerState` so downstream
 //! consumers (pairing, discovery, GraphQL) see the actual value.
 //!
-//! The axum router itself lives in plain-rs (`local_api::server::build_router`);
+//! The axum router itself lives in plain-rs (`api::server::build_router`);
 //! this file only owns the host lifecycle: listener binding, TLS config,
 //! and rebind-on-port-change.
 
@@ -23,8 +23,8 @@ use crate::commands::discover::{NearbyDiscoverManager, PeerStatusManager};
 use crate::prefs::AppIdentity;
 use crate::shell::DesktopShell;
 use axum_server::tls_rustls::RustlsConfig;
-use plain_rs::local_api::server::ServerState;
-pub use plain_rs::local_api::server::uri;
+use plain_rs::api::server::ServerState;
+pub use plain_rs::api::server::uri;
 use std::net::TcpListener as StdTcpListener;
 use std::path::PathBuf;
 use std::sync::atomic::{AtomicU16, Ordering};
@@ -247,7 +247,7 @@ impl LocalServerState {
 
     /// The shared axum router from plain-rs — served once per listener.
     fn build_router(&self) -> axum::Router {
-        plain_rs::local_api::server::build_router(ServerState {
+        plain_rs::api::server::build_router(ServerState {
             schema: self.schema.clone(),
             peer_schema: self.peer_schema.clone(),
             ctx: self.ctx.clone(),

@@ -1,8 +1,8 @@
-//! Host-shell implementation of `plain_rs::local_api::ShellHooks` — the
+//! Host-shell implementation of `plain_rs::api::ShellHooks` — the
 //! UI-only hooks. All persisted state goes through the shared
 //! `plain_rs::prefs::Prefs`; nothing here touches storage anymore.
 
-use plain_rs::local_api::ShellHooks;
+use plain_rs::api::ShellHooks;
 
 pub struct DesktopShell(pub tauri::AppHandle);
 

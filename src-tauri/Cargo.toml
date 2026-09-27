@@ -37,8 +37,8 @@ tauri-plugin-clipboard-manager = "=2.3.3"
 # (SQLite storage, pairing/channel wire protocol, send/receive service).
 # Path dep for local dev (media-stack port); switch back to the git dep
 # once plain-rs is pushed:
-#   plain_rs = { git = "https://github.com/plainhub/plain-rs", package = "plain-rs", features = ["chat", "library", "local_api", "media", "media_gql"] }
-plain_rs = { path = "../../plain-rs", package = "plain-rs", features = ["chat", "library", "local_api", "media", "media_gql"] }
+#   plain_rs = { git = "https://github.com/plainhub/plain-rs", package = "plain-rs", features = ["api"] }
+plain_rs = { path = "../../plain-rs", package = "plain-rs", features = ["api"] }
 
 # Self-signed TLS certificate generation for local HTTPS server.
 # ring feature enables the required crypto backend (generate_simple_self_signed needs it).
