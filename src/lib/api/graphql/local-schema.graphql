@@ -55,6 +55,39 @@ type AppFile {
 	updatedAt: String!
 }
 
+type AppUpdate {
+	currentVersion: String!
+	latestVersion: String
+	hasUpdate: Boolean!
+	url: String
+}
+
+"""
+Audio (media index).
+"""
+type Audio {
+	id: ID!
+	title: String!
+	artist: String!
+	path: String!
+	durationMs: Long!
+	size: Long!
+	bucketId: ID!
+	albumFileId: String!
+	createdAt: Instant!
+	updatedAt: Instant!
+	"""
+	plain-app serves the per-track favorite flag; the NAS has no
+	per-media favorites (folders only), so this is always false.
+	"""
+	isFavorite: Boolean!
+	"""
+	Tags resolve lazily — only when the selection asks for the field,
+	mirroring plain-app's DataLoader `dataProperty`.
+	"""
+	tags: [Tag!]!
+}
+
 type AudioFileInfo {
 	"""
 	Milliseconds. `0` in local mode (see `VideoFileInfo::duration_ms`).
@@ -107,6 +140,28 @@ type AudioPlaylist {
 	itemCount: Int!
 	createdAt: String!
 	updatedAt: String!
+}
+
+type AuditEvent {
+	id: ID!
+	type: AuditEventType!
+	message: String!
+	clientId: String!
+	createdAt: Instant!
+}
+
+enum AuditEventType {
+	LOGIN
+	LOGIN_FAILED
+	LOGOUT
+	REVOKE
+	SET_HOSTNAME
+	UPDATE_DEVICE_NAME
+	MOUNT
+	MOUNT_FAILED
+	UNMOUNT
+	FORMAT_DISK
+	FORMAT_DISK_FAILED
 }
 
 type Bookmark {
@@ -210,9 +265,10 @@ enum ChatStatus {
 }
 
 """
-Taggable data domains, mirroring the plain-app `DataType` wire enum.
-GraphQL-arg only — the local server has no tag tables yet; it exists so
-enum-typed variables in `tags(type: $type)` documents validate.
+Taggable data domains — the plain-app `DataType` wire enum
+(`shared/src/commonMain/kotlin/com/ismartcoding/plain/enums/DataType.kt`).
+GraphQL-arg and tag-column domain; `kind()` is the ordinal stored in
+the shared library db `type` column.
 """
 enum DataType {
 	DEFAULT
@@ -316,10 +372,47 @@ enum DeviceType {
 	UNKNOWN
 }
 
+enum DiscoveryMethod {
+	LAN
+	BLE
+	QR
+}
+
 type DisplayInfo {
 	width: Int!
 	height: Int!
 	density: Float!
+}
+
+type DlnaRenderer {
+	udn: String!
+	name: String!
+	manufacturer: String
+	modelName: String
+	location: String!
+}
+
+type Doc {
+	id: ID!
+	title: String!
+	path: String!
+	"""
+	Lowercased filename extension (plain-app `getFilenameExtension`).
+	"""
+	extension: String!
+	size: Long!
+	bucketId: ID!
+	createdAt: Instant!
+	updatedAt: Instant!
+	tags: [Tag!]!
+}
+
+"""
+One extension group of the docs sidebar (plain-app `DocExtGroup`).
+"""
+type DocExtGroup {
+	ext: String!
+	count: Int!
 }
 
 enum DriveType {
@@ -335,6 +428,23 @@ type FavoriteFolder {
 	alias: String
 }
 
+type File {
+	name: String!
+	path: String!
+	createdAt: Instant
+	updatedAt: Instant!
+	size: Long!
+	isDir: Boolean!
+	"""
+	Direct-children count for dirs, 0 for files (plain-app contract name).
+	"""
+	childCount: Int!
+	"""
+	Android MediaStore id elsewhere; a NAS has no media store so null.
+	"""
+	mediaId: ID
+}
+
 """
 `fileInfo` query result. `data` is `None` for non-media files.
 """
@@ -345,11 +455,99 @@ type FileInfo {
 	data: MediaFileInfo
 }
 
+enum FileSortBy {
+	DATE_ASC
+	DATE_DESC
+	SIZE_ASC
+	SIZE_DESC
+	NAME_ASC
+	NAME_DESC
+	TAKEN_AT_DESC
+}
+
+type FileTask {
+	id: ID!
+	type: FileTaskType!
+	title: String!
+	status: FileTaskStatus!
+	error: String!
+	totalBytes: Long!
+	doneBytes: Long!
+	totalItems: Int!
+	doneItems: Int!
+	createdAt: Instant!
+	updatedAt: Instant!
+}
+
+input FileTaskOpInput {
+	src: String!
+	dst: String!
+	overwrite: Boolean!
+}
+
+enum FileTaskStatus {
+	QUEUED
+	RUNNING
+	DONE
+	ERROR
+}
+
+enum FileTaskType {
+	COPY
+	MOVE
+}
+
+type Image {
+	id: ID!
+	title: String!
+	path: String!
+	size: Long!
+	bucketId: ID!
+	"""
+	Capture time; no EXIF extraction yet, so it mirrors the file mtime.
+	"""
+	takenAt: Instant
+	createdAt: Instant!
+	updatedAt: Instant!
+	"""
+	No per-media favorites on NAS — always false (plain-app parity).
+	"""
+	isFavorite: Boolean!
+	tags: [Tag!]!
+}
+
 type ImageFileInfo {
 	width: Int!
 	height: Int!
 	location: Location
 }
+
+"""
+AI image-search capability status. No CLIP model runtime ships here,
+so this always reports `UNAVAILABLE`; the field exists so clients
+probing the phone-style AI search surface get a well-formed answer
+instead of a GraphQL error.
+"""
+type ImageSearchStatus {
+	status: ImageSearchStatusType!
+	downloadProgress: Int!
+	errorMessage: String!
+	modelSize: Long!
+	modelDir: String!
+	isIndexing: Boolean!
+	totalImages: Int!
+	indexedImages: Int!
+}
+
+enum ImageSearchStatusType {
+	UNAVAILABLE
+	DOWNLOADING
+	LOADING
+	READY
+	ERROR
+}
+
+scalar Instant
 
 type KeyValuePair {
 	key: String!
@@ -362,6 +560,26 @@ EXIF / video GPS coordinate pair. Mirrors plain-app `Location`.
 type Location {
 	latitude: Float!
 	longitude: Float!
+}
+
+scalar Long
+
+type MediaBucket {
+	id: ID!
+	name: String!
+	itemCount: Int!
+	topItemPaths: [String!]!
+}
+
+"""
+Media-library item kinds accepted by media item actions and buckets
+(plain-app `MediaDataType`).
+"""
+enum MediaDataType {
+	AUDIO
+	VIDEO
+	IMAGE
+	DOC
 }
 
 """
@@ -493,20 +711,20 @@ type MutationRoot {
 	createBookmarkGroup(name: String!): BookmarkGroup!
 	updateBookmarkGroup(id: ID!, name: String!, collapsed: Boolean!, sortOrder: Int!): BookmarkGroup!
 	deleteBookmarkGroup(id: ID!): Boolean!
-	"""
-	Send a chat item. Routes by `to_id` prefix:
-	* `peer:<id>`      — peer-to-peer
-	* `channel:<id>`   — channel
-	* anything else    — local note
-	
-	Delivery is fire-and-forget; returns the initially-inserted `ChatItem`
-	(status `pending` for remote targets).
-	"""
+	setHostname(name: String!): Boolean!
+	logout: Boolean!
+	revokeSession(clientId: String!): Boolean!
+	formatDisk(path: String!): Boolean!
+	setMountAlias(id: ID!, alias: String!): Boolean!
+	setTempValue(key: String!, value: String!): KeyValuePair!
+	setSambaSettings(input: SambaSettingsInput!): Boolean!
+	setSambaUserPassword(password: String!): Boolean!
+	dlnaCast(rendererUdn: String!, url: String!, title: String!, mime: String!, type: MediaDataType!): Boolean!
 	sendChatItem(target: String!, content: String!): [ChatItem!]!
 	"""
 	Delete a chat item, broadcasting `WS_MESSAGE_DELETED`.
 	"""
-	deleteChatItem(id: String!): Boolean!
+	deleteChatItem(id: ID!): Boolean!
 	"""
 	Bulk-delete chats by query (`ids:`, `channel:`, `peer:`).
 	"""
@@ -514,15 +732,15 @@ type MutationRoot {
 	"""
 	Retry a failed chat item.
 	"""
-	retryChatItem(id: String!): ChatItem!
+	retryChatItem(id: ID!): ChatItem!
 	createChatChannel(name: String!): ChatChannel!
-	updateChatChannel(id: String!, name: String!): ChatChannel!
-	deleteChatChannel(id: String!): Boolean!
-	leaveChatChannel(id: String!): Boolean!
-	addChatChannelMember(id: String!, peerId: String!): ChatChannel!
-	removeChatChannelMember(id: String!, peerId: String!): ChatChannel!
-	acceptChatChannelInvite(id: String!): Boolean!
-	declineChatChannelInvite(id: String!): Boolean!
+	updateChatChannel(id: ID!, name: String!): ChatChannel!
+	deleteChatChannel(id: ID!): Boolean!
+	leaveChatChannel(id: ID!): Boolean!
+	addChatChannelMember(id: ID!, peerId: ID!): ChatChannel!
+	removeChatChannelMember(id: ID!, peerId: ID!): ChatChannel!
+	acceptChatChannelInvite(id: ID!): Boolean!
+	declineChatChannelInvite(id: ID!): Boolean!
 	"""
 	Web-only convenience mutation that branches to
 	`acceptChatChannelInvite` or `declineChatChannelInvite` based
@@ -533,7 +751,7 @@ type MutationRoot {
 	modal's `onDone` handler can read the chosen action back from
 	the mutation result.
 	"""
-	respondChannelInvite(id: String!, accept: Boolean!): Boolean!
+	respondChannelInvite(id: ID!, accept: Boolean!): Boolean!
 	channelSystemMessage(type: String!, payload: String!): Boolean!
 	"""
 	Mirrors plain-app `PeerManager.deletePeer(peerId)`:
@@ -549,7 +767,7 @@ type MutationRoot {
 	The frontend's `PeerManager.deletePeer` re-fetches the peers /
 	latest-chats lists on success; no WS event is required.
 	"""
-	deletePeer(id: String!): Boolean!
+	deletePeer(id: ID!): Boolean!
 	"""
 	Mirrors plain-app `PeerManager.markUnpaired(peerId)` (invoked
 	indirectly via `NearbyViewModel.unpairDevice`): flips the peer's
@@ -558,7 +776,7 @@ type MutationRoot {
 	
 	Returns `false` if the peer id is unknown, `true` otherwise.
 	"""
-	unpairPeer(id: String!): Boolean!
+	unpairPeer(id: ID!): Boolean!
 	clearAppLogs: Boolean!
 	deleteDataStoreEntry(key: String!): Boolean!
 	createDbTableRow(table: String!, row: String!): Boolean!
@@ -605,7 +823,7 @@ type MutationRoot {
 	a PAIR_CANCEL via `POST /nearby`; completion is reported via
 	`WS_PAIRING_CANCELLED`.
 	"""
-	cancelPairing(deviceId: String!): Boolean!
+	cancelPairing(deviceId: ID!): Boolean!
 	"""
 	Respond to an incoming PAIR_REQUEST that the user accepted or
 	rejected. Accepting stores the peer and POSTs a PAIR_RESPONSE
@@ -646,32 +864,147 @@ type MutationRoot {
 	"""
 	setFavoriteFolderAlias(fullPath: String!, alias: String!): [FavoriteFolder!]!
 	"""
+	Create a directory. Mirrors Go `createDirModel` which returns the
+	freshly created `*model.File`. The path is sandboxed via
+	`fsx::safe_join` against the configured base directory.
+	"""
+	createDir(path: String!): File!
+	"""
+	Write a text file. Mirrors Go `writeTextFileModel` (2 MiB cap,
+	overwrite-or-error on existing). Returns the resulting `File!`.
+	"""
+	writeTextFile(path: String!, content: String!, overwrite: Boolean!): File!
+	"""
+	Rename a file or directory in place: `path` is the current full path, `name` the new base name. Errors (missing target, name clash) surface as GraphQL errors.
+	"""
+	renameFile(path: String!, name: String!): Boolean!
+	"""
+	Synchronous single-file copy (path-addressed). `overwrite: false` fails when `dst` exists; for batches or large trees use `createCopyTask`.
+	"""
+	copyFile(src: String!, dst: String!, overwrite: Boolean!): Boolean!
+	"""
+	Synchronous single-file move (path-addressed). `overwrite: false` fails when `dst` exists; for batches or large trees use `createMoveTask`.
+	"""
+	moveFile(src: String!, dst: String!, overwrite: Boolean!): Boolean!
+	"""
+	Delete files by path (phone contract): returns how many were
+	actually removed — per-path best-effort, hard failures are logged
+	and skipped instead of failing the whole batch.
+	"""
+	deleteFiles(paths: [String!]!): ActionResult!
+	"""
+	Move each path to its disk-local `.nas-trash`. Batch destructive
+	op → `ActionResult` per API_SPEC §6 (`affectedCount` = how many
+	paths were actually trashed).
+	"""
+	trashFiles(paths: [String!]!): ActionResult!
+	"""
+	Restore one or more trashed entries by physical trash path or id.
+	Batch restore → `ActionResult` per API_SPEC §6.
+	"""
+	restoreFiles(paths: [String!]!): ActionResult!
+	"""
+	Permanently delete one trashed entry. Path may be a physical trash
+	path or a trash id. Single idempotent delete → `Boolean!` (§6).
+	"""
+	deleteTrashItem(path: String!): Boolean!
+	"""
 	Create a tag for the given data type and return it.
 	"""
 	createTag(type: DataType!, name: String!): Tag!
 	"""
-	Rename a tag and return the updated entity (missing ids error —
-	the phone contract returns `Tag!`).
+	Rename a tag and return the updated entity.
 	"""
 	updateTag(id: ID!, name: String!): Tag!
 	"""
-	Delete a tag together with its relations.
+	Delete a tag together with its relations. Single idempotent delete → `Boolean!` (§6).
 	"""
 	deleteTag(id: ID!): Boolean!
 	"""
-	Add the items matching `query` (explicit `ids:` form only in local
-	mode) to multiple tags. No duplicate relations, same as plain-app.
+	Add a media key to multiple tags. Mirrors plain-app `addToTags`: the
+	`query` is the shared search DSL (`ids:a,b,c` for checkbox selections,
+	otherwise the page query) which is resolved to the matching media ids
+	— one relation per id, keyed by the id (the GraphQL media `id`).
 	"""
 	addToTags(type: DataType!, tagIds: [ID!]!, query: String!): Boolean!
 	"""
-	Per-item tag relation edit: adds and/or removes tag associations.
+	Per-item tag relation edit. Adds and/or removes tag associations.
 	"""
 	updateTagRelations(type: DataType!, item: TagRelationStub!, addTagIds: [ID!]!, removeTagIds: [ID!]!): Boolean!
 	"""
-	Remove the items matching `query` from the given tags — the inverse
-	of `addToTags` (`ids:` form only in local mode).
+	Remove the media keys matching `query` from the given tags — the inverse of `addToTags`. Membership op → `Boolean!` (§6).
 	"""
 	removeFromTags(type: DataType!, tagIds: [ID!]!, query: String!): Boolean!
+	"""
+	Enqueue a copy task. Returns the FileTask immediately with status=QUEUED;
+	the worker continues in the background and emits progress via the WS
+	event `file:task:progress`.
+	"""
+	createCopyTask(ops: [FileTaskOpInput!]!): FileTask!
+	"""
+	Enqueue a move task. Returns the FileTask immediately with status=QUEUED; progress arrives via the WS event `file:task:progress`.
+	"""
+	createMoveTask(ops: [FileTaskOpInput!]!): FileTask!
+	"""
+	Unlike the previous Rust port, we do NOT try to resume a paused
+	scan here — Go's StartMediaScan always starts a fresh scan. If
+	the user wants to resume, they call `resumeMediaScan`.
+	"""
+	startMediaScan(root: String!): Boolean!
+	"""
+	Pause the running media scan; publishes a progress event immediately so the UI flips to `PAUSED` without waiting for the next ticker tick.
+	"""
+	pauseMediaScan: Boolean!
+	"""
+	Resume a paused media scan; publishes a progress event immediately.
+	"""
+	resumeMediaScan: Boolean!
+	"""
+	Stop the media scan and publish a final `STOPPED` progress event (without `root`). A later `startMediaScan` begins a fresh scan.
+	"""
+	stopMediaScan: Boolean!
+	"""
+	Rebuild the media index from scratch. Mirrors Go `rebuildMediaIndex`
+	in `internal/graph/media_scan_api.go`:
+	1. `media.StopScan()` — set the stop flag so the running scan loop
+	exits at its next yield.
+	2. `media.ResetAllMediaData()` — wipe every media index row.
+	3. `media.ResumeScan()` — clear the stop flag.
+	4. Synchronously publish the initial `{state:"running", root:...}`
+	event so the UI can show the spinner **before** we go off-thread
+	to do the heavy reset + walk. (Go does this in the same call
+	stack as the GraphQL resolver; the WS hub handler then receives
+	the event via the in-process eventbus.)
+	5. `go media.ScanAndSync(root)` — fire the actual walk+index on a
+	background tokio task. The resolver returns `true` immediately.
+	The reset and the walk are moved off the API thread so a large
+	library does not block other GraphQL calls; this is a deliberate
+	divergence from the Go side, where `ResetAllMediaData` runs on the
+	resolver goroutine. Functionally equivalent.
+	"""
+	rebuildMediaIndex(root: String!): Boolean!
+	"""
+	Persist the list of source directories the media scanner should
+	index.
+	"""
+	setMediaSourceDirs(dirs: [String!]!): Boolean!
+	"""
+	Move the media items matching `query` into their disks' `.nas-trash`; `affectedCount` = items trashed. Blank query is rejected (`bulk_query_required`, §5).
+	"""
+	trashMediaItems(type: MediaDataType!, query: String!): ActionResult!
+	"""
+	Restore trashed media items matching `query` (implies `trash:true`); `affectedCount` = items restored. Blank query is rejected (`bulk_query_required`, §5).
+	"""
+	restoreMediaItems(type: MediaDataType!, query: String!): ActionResult!
+	"""
+	Permanently delete media items matching `query` (physical delete + index row removal); `affectedCount` = items deleted. Blank query is rejected (`bulk_query_required`, §5).
+	"""
+	deleteMediaItems(type: MediaDataType!, query: String!): ActionResult!
+	"""
+	Move the selected media files into `destDir` (plain-app
+	`moveMediaItems`): filesystem move + index/db rewrite of the new path.
+	"""
+	moveMediaItems(type: MediaDataType!, query: String!, destDir: String!): ActionResult!
 }
 
 """
@@ -679,31 +1012,19 @@ Initiate pairing with a discovered LAN device. Mirrors plain-app's
 `PairingDeviceInput` (see `app/.../web/models/Pairing.kt`).
 """
 input PairingDeviceInput {
-	id: String!
+	id: ID!
 	name: String!
-	ips: [String!]! = []
+	ips: [String!]!
 	port: Int!
-	"""
-	Serialized as a string by plain-app's `DeviceType` enum.
-	Accepted as a free-form string here — the outgoing protocol only
-	echoes it back to the responder for display, not for routing.
-	"""
-	deviceType: String!
+	deviceType: DeviceType!
 	version: String!
 	platform: String!
 	"""
 	ISO-8601 string. We don't currently use it for the protocol, but
 	accept it so the browser can pass the full discovered device.
 	"""
-	lastSeen: String!
-	"""
-	Discovery methods that located this device (mirrors plain-app's
-	`PairingDeviceInput.discoveryMethods`). Accepted as free-form
-	strings — values are `"LAN"` and `"BLE"`. The Tauri desktop
-	build only discovers over LAN, so this field is currently
-	accepted for schema parity and otherwise unused.
-	"""
-	discoveryMethods: [String!]! = []
+	lastSeen: Instant!
+	discoveryMethods: [DiscoveryMethod!]!
 }
 
 """
@@ -711,31 +1032,36 @@ Incoming-pairing request payload. Mirrors plain-app's
 `PairingRequestInput` (see `app/.../web/models/Pairing.kt`).
 """
 input PairingRequestInput {
-	fromId: String!
+	fromId: ID!
 	fromName: String!
 	port: Int!
-	deviceType: String!
+	deviceType: DeviceType!
 	ecdhPublicKey: String!
 	signaturePublicKey: String!
-	timestamp: Int!
-	ips: [String!]! = []
+	timestamp: Long!
+	ips: [String!]!
 	"""
 	Signature on the original PAIR_REQUEST — required for the responder
 	to verify the requester. Empty string is rejected by the signature
 	check; the browser always forwards the full request object.
 	"""
-	signature: String! = ""
+	signature: String!
 	"""
 	Stamped on the receiver side; carried in the input so the
 	responder knows which IP to POST the response back to.
 	"""
-	fromIp: String! = ""
+	fromIp: String!
 	"""
 	Whether the requester's device supports Wi-Fi Aware (mirrors
 	plain-app's `PairingRequestInput.awareSupported`). Forwarded to
 	the protocol layer; the Tauri desktop build always sends `false`.
 	"""
-	awareSupported: Boolean! = false
+	awareSupported: Boolean!
+}
+
+enum PathKind {
+	FILE
+	DIR
 }
 
 type Peer {
@@ -826,8 +1152,15 @@ type QueryRoot {
 	audioPlayHistory(offset: Int!, limit: Int!, query: String!): [AudioPlayHistory!]!
 	bookmarks: [Bookmark!]!
 	bookmarkGroups: [BookmarkGroup!]!
+	audioLyrics(path: String!): String
+	disks: [StorageDisk!]!
+	sessions: [Session!]!
+	auditEvents(offset: Int!, limit: Int!, query: String!): [AuditEvent!]!
+	appUpdate: AppUpdate!
+	sambaSettings: SambaSettings!
+	dlnaRenderers: [DlnaRenderer!]!
 	chatItems(target: String!, offset: Int!, limit: Int!, query: String!): [ChatItem!]!
-	chatItem(id: String!): ChatItem
+	chatItem(id: ID!): ChatItem
 	chatChannels: [ChatChannel!]!
 	peers: [Peer!]!
 	latestChatItems: [ChatItem!]!
@@ -865,14 +1198,6 @@ type QueryRoot {
 	"""
 	fileInfo(path: String!, fileName: String): FileInfo!
 	"""
-	List tags for the given data type, live counts.
-	"""
-	tags(type: DataType!): [Tag!]!
-	"""
-	Look up tag relations for entity keys, filtered to the data type.
-	"""
-	tagRelations(type: DataType!, keys: [String!]!): [TagRelation!]!
-	"""
 	Mirrors plain-app's `isDiscovering` query: returns `true`
 	while the background scan loop is running.
 	"""
@@ -880,14 +1205,187 @@ type QueryRoot {
 	smsCount(query: String!): Int!
 	contactCount(query: String!): Int!
 	callCount(query: String!): Int!
-	imageCount(query: String!): Int!
-	audioCount(query: String!): Int!
-	videoCount(query: String!): Int!
 	packageCount(query: String!): Int!
 	noteCount(query: String!): Int!
-	docCount(query: String!): Int!
 	feedEntryCount(query: String!): Int!
 	mounts: [Mount!]!
+	"""
+	Count of entries in a directory (non-recursive). Mirrors plain-app
+	`fileCount(root, query)`: `root` scopes the count (empty/`/` = whole
+	tree). When `trash:true` is in the query, returns the global trash count.
+	"""
+	fileCount(root: String!, query: String!): Int!
+	"""
+	Recent files (most-recent first). Mirrors Go `recentFiles()` which
+	loads up to 500 paths and filters to those that still exist on disk.
+	"""
+	recentFiles: [File!]!
+	"""
+	File listing. Mirrors plain-app `files(root, offset, limit, query, sortBy)`
+	(Kotlin `FileSystemHelper.search`): the effective directory is
+	`parent` from the query DSL, falling back to the `root` argument,
+	then to the legacy Go-dialect `root_path` DSL field; `relative_path`
+	(legacy) is joined underneath. `text` → recursive tantivy search,
+	`trash:true` → trash listing.
+	"""
+	files(root: String!, offset: Int!, limit: Int!, query: String!, sortBy: FileSortBy!): [File!]!
+	"""
+	Total number of trashed items.
+	"""
+	trashCount: Int!
+	"""
+	Paginated trash listing. The DSL `text:` field of `query` filters
+	the entries (blank = no filter); pass `DATE_DESC` for the usual
+	newest-first view — the argument is required, there is no server
+	default (API_SPEC §3).
+	"""
+	trashItems(offset: Int!, limit: Int!, query: String!, sortBy: TrashSortBy!): [TrashItem!]!
+	"""
+	Look up tag relations for entity keys (media ids / entity keys),
+	filtered to the given data type. Mirrors plain-app `tagRelations`;
+	backs the client-side lazy tag join.
+	"""
+	tagRelations(type: DataType!, keys: [String!]!): [TagRelation!]!
+	"""
+	List tags for the given data type.
+	"""
+	tags(type: DataType!): [Tag!]!
+	"""
+	List async file tasks for the current client.
+	"""
+	fileTasks: [FileTask!]!
+	"""
+	Audio list (paginated, backed by the tantivy media search index).
+	"""
+	audios(offset: Int!, limit: Int!, query: String!, sortBy: FileSortBy!): [Audio!]!
+	"""
+	Audio count (tantivy counting collector).
+	"""
+	audioCount(query: String!): Int!
+	"""
+	Current media-index scan progress; same payload as the
+	`media:scan:progress` WS push, for initial render and polling.
+	"""
+	scanProgress: ScanProgress!
+	"""
+	AI image search is a phone-app capability (on-device CLIP); the NAS
+	answers with a well-formed `UNAVAILABLE` so probing clients render
+	their "not available" path instead of a GraphQL error.
+	"""
+	imageSearchStatus: ImageSearchStatus!
+	"""
+	The source directories the media scanner indexes.
+	"""
+	mediaSourceDirs: [String!]!
+	"""
+	Whether the path exists. Blank and '.' paths are `false`; stat
+	errors (e.g. permission denied) count as "not there" — this query
+	is a total predicate and never raises.
+	"""
+	pathExists(path: String!): Boolean!
+	"""
+	Kind of the path: `FILE` or `DIR`; null when the path does not
+	exist (same total-predicate semantics as `pathExists`).
+	"""
+	pathKind(path: String!): PathKind
+	"""
+	Image list (paginated, backed by the tantivy media search index).
+	"""
+	images(offset: Int!, limit: Int!, query: String!, sortBy: FileSortBy!): [Image!]!
+	"""
+	Image count (tantivy counting collector).
+	"""
+	imageCount(query: String!): Int!
+	"""
+	Video list (paginated, backed by the tantivy media search index).
+	"""
+	videos(offset: Int!, limit: Int!, query: String!, sortBy: FileSortBy!): [Video!]!
+	"""
+	Video count (tantivy counting collector).
+	"""
+	videoCount(query: String!): Int!
+	"""
+	Document list (paginated, backed by the tantivy media search index).
+	Docs need no metadata hydration, so this maps index rows directly.
+	"""
+	docs(offset: Int!, limit: Int!, query: String!, sortBy: FileSortBy!): [Doc!]!
+	"""
+	Document count (tantivy counting collector).
+	"""
+	docCount(query: String!): Int!
+	"""
+	Per-extension group counts for the docs sidebar (no query filter,
+	plain-app semantics — includes trashed, matching `docCount("")`).
+	"""
+	docExtGroups: [DocExtGroup!]!
+	"""
+	`mediaBuckets(type)` mirrors Go `listMediaBuckets`: group media files
+	by their containing directory. Backed by the KV bucket counters the scan pipeline
+	maintains inside its write batches; cover items are one per-bucket
+	tantivy query, run on a blocking thread so a large bucket count
+	never stalls the async runtime.
+	"""
+	mediaBuckets(type: MediaDataType!): [MediaBucket!]!
+}
+
+type SambaSettings {
+	enabled: Boolean!
+	username: String!
+	hasPassword: Boolean!
+	shares: [SambaShare!]!
+	serviceName: String!
+	serviceActive: Boolean!
+	serviceEnabled: Boolean!
+}
+
+input SambaSettingsInput {
+	enabled: Boolean!
+	shares: [SambaShareInput!]!
+}
+
+type SambaShare {
+	name: String!
+	sharePath: String!
+	auth: SambaShareAuth!
+	readOnly: Boolean!
+}
+
+enum SambaShareAuth {
+	GUEST
+	PASSWORD
+}
+
+input SambaShareInput {
+	name: String!
+	sharePath: String!
+	auth: SambaShareAuth!
+	readOnly: Boolean!
+}
+
+type ScanProgress {
+	indexed: Int!
+	pending: Int!
+	total: Int!
+	state: ScanState!
+}
+
+"""
+Media-index scan lifecycle, shared by `scanProgress.state` and the
+`media:scan:progress` WS payload (same values on both wires).
+"""
+enum ScanState {
+	IDLE
+	RUNNING
+	PAUSED
+	STOPPED
+}
+
+type Session {
+	clientId: String!
+	clientName: String!
+	lastActive: Instant!
+	createdAt: Instant!
+	updatedAt: Instant!
 }
 
 type Sim {
@@ -897,37 +1395,103 @@ type Sim {
 	subscriptionId: Int!
 }
 
-"""
-Mirrors plain-app `web/models/Tag.kt`. Backed by the shared plain-rs
-library core (local_library.db), same behavior as the NAS server.
-"""
-type Tag {
-	id: String!
+type StorageDisk {
+	id: ID!
 	name: String!
+	path: String!
+	sizeBytes: Long!
+	removable: Boolean!
+	model: String
+}
+
+type Tag {
+	id: ID!
+	name: String!
+	"""
+	Numeric tag kind — the ordinal of the tag's `DataType`
+	(DEFAULT=0, AUDIO=1, VIDEO=2, IMAGE=3, …). The NAS only has data
+	for the media kinds; the Int is frozen phone contract (API_SPEC
+	§9), the mapping lives in docs/api/tags.md.
+	"""
+	type: Int!
 	count: Int!
 }
 
 """
-One (tag, item-key) relation (plain-app contract).
+One (tag, item-key) relation (plain-app contract). `key` is the media id
+/ entity key the tag is attached to.
 """
 type TagRelation {
-	tagId: String!
+	tagId: ID!
 	key: String!
 }
 
-"""
-Input of `updateTagRelations` — the item being tagged (plain-app
-`TagRelationStub`).
-"""
 input TagRelationStub {
 	key: String!
 	title: String!
-	size: Int!
+	size: Long!
 }
 
 type Temperature {
 	label: String!
 	celsius: Float!
+}
+
+type TrashItem {
+	id: ID!
+	type: TrashItemType!
+	originalPath: String!
+	disk: String!
+	trashRelPath: String!
+	deletedAt: Instant!
+	uid: Int!
+	gid: Int!
+	mode: Int!
+	"""
+	Byte size of the trashed entry (files only; null for dirs).
+	"""
+	sizeBytes: Long
+	entryCount: Int
+	displayName: String!
+	trashedPath: String!
+}
+
+"""
+Kind of a trashed entry (stored kind string `"file"` | `"dir"`).
+"""
+enum TrashItemType {
+	FILE
+	DIR
+}
+
+enum TrashSortBy {
+	DATE_ASC
+	DATE_DESC
+	SIZE_ASC
+	SIZE_DESC
+	NAME_ASC
+	NAME_DESC
+}
+
+type Video {
+	id: ID!
+	title: String!
+	path: String!
+	durationMs: Long!
+	size: Long!
+	bucketId: ID!
+	"""
+	Capture time; container metadata extraction lands later, so it
+	mirrors the file mtime for now.
+	"""
+	takenAt: Instant
+	createdAt: Instant!
+	updatedAt: Instant!
+	"""
+	No per-media favorites on NAS — always false (plain-app parity).
+	"""
+	isFavorite: Boolean!
+	tags: [Tag!]!
 }
 
 type VideoFileInfo {

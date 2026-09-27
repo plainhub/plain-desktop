@@ -24,7 +24,6 @@ use std::sync::atomic::{AtomicI32, AtomicI64, AtomicU64, Ordering};
 use std::time::Duration;
 use tokio::sync::{Mutex, Notify};
 
-
 const KEY_PREFIX: &str = "media:uuid:";
 const PATH_INDEX_PREFIX: &str = "media:path:";
 /// Legacy write-only index (`media:type:{kind}:{uuid}`) that no reader ever
@@ -695,7 +694,11 @@ fn persist_metadata_rows(db: &crate::media::kv::Db, rows: &[MediaFile]) -> Resul
 /// Resolve identity, preserve cached metadata from the previous entry and
 /// serialize the row. Does two point reads (`media:fid:` + old `media:uuid:`)
 /// and no writes — safe to call from many threads concurrently.
-fn build_scanned(db: &crate::media::kv::Db, path: &str, meta: &std::fs::Metadata) -> Result<ScannedFile> {
+fn build_scanned(
+    db: &crate::media::kv::Db,
+    path: &str,
+    meta: &std::fs::Metadata,
+) -> Result<ScannedFile> {
     let name = std::path::Path::new(path)
         .file_name()
         .and_then(|n| n.to_str())
@@ -984,10 +987,21 @@ pub fn reset_all(db: &crate::media::kv::Db) -> Result<()> {
 /// "media:scan:progress" channel, every 1 second by a dedicated ticker
 /// task (mirrors the `time.NewTicker(time.Second)` goroutine in
 /// `internal/media/scan.go`).
-pub async fn start_walk_and_scan(db: Arc<crate::media::kv::Db>, root: std::path::PathBuf) -> Result<()> {
+pub async fn start_walk_and_scan(
+    db: Arc<crate::media::kv::Db>,
+    root: std::path::PathBuf,
+) -> Result<()> {
+    start_walk_and_scan_paths(db, vec![root.clone()], root).await
+}
+
+pub async fn start_walk_and_scan_paths(
+    db: Arc<crate::media::kv::Db>,
+    roots: Vec<std::path::PathBuf>,
+    display_root: std::path::PathBuf,
+) -> Result<()> {
     log::info!(
         "[scan] start_walk_and_scan enter root={}",
-        path_to_slash(&root)
+        path_to_slash(&display_root)
     );
     let s = scanner();
     s.abort_running_task().await;
@@ -1006,10 +1020,10 @@ pub async fn start_walk_and_scan(db: Arc<crate::media::kv::Db>, root: std::path:
     // `Scanner` because the stop / pause / state-change events also want
     // to know what root the *last* scan was running (mirrors Go's
     // `getStateString`-style global view).
-    *s.current_root.lock().await = path_to_slash(&root);
+    *s.current_root.lock().await = path_to_slash(&display_root);
     log::info!(
         "[scan] scanner state set: running root={}",
-        path_to_slash(&root)
+        path_to_slash(&display_root)
     );
 
     // Per-second progress ticker. Mirrors `ticker := time.NewTicker(1s)`
@@ -1054,10 +1068,10 @@ pub async fn start_walk_and_scan(db: Arc<crate::media::kv::Db>, root: std::path:
     // `spawn_blocking` parks it on tokio's dedicated blocking thread
     // pool — same scheduling shape as the Go goroutine doing the
     // WalkDir concurrently with the ticker goroutine.
-    let root_for_count = root.clone();
+    let roots_for_count = roots.clone();
     log::info!("[scan] spawning precount on blocking pool");
     let total: i64 = tokio::task::spawn_blocking(move || {
-        let t = count_files(&root_for_count);
+        let t = roots_for_count.iter().map(|root| count_files(root)).sum();
         log::info!("[scan] precount done total={}", t);
         t
     })
@@ -1068,7 +1082,7 @@ pub async fn start_walk_and_scan(db: Arc<crate::media::kv::Db>, root: std::path:
 
     let db2 = db.clone();
     let s2 = s.clone();
-    let root2 = root.clone();
+    let roots2 = roots;
     log::info!("[scan] spawning walk task on blocking pool");
     let handle = tokio::task::spawn(async move {
         // The walk + per-file scan_file both do synchronous IO
@@ -1080,9 +1094,17 @@ pub async fn start_walk_and_scan(db: Arc<crate::media::kv::Db>, root: std::path:
         // preempt it on every syscall.
         let db3 = db2.clone();
         let s3 = s2.clone();
-        let root3 = root2.clone();
-        log::info!("[scan] walk task started root={}", path_to_slash(&root3));
-        let walk_result = tokio::task::spawn_blocking(move || scan_tree(&db3, &root3, &s3)).await;
+        log::info!("[scan] walk task started roots={}", roots2.len());
+        let walk_result = tokio::task::spawn_blocking(move || {
+            roots2.iter().fold((0, 0), |(seen, indexed), root| {
+                if s3.stop_flag.load(Ordering::SeqCst) != 0 {
+                    return (seen, indexed);
+                }
+                let (root_seen, root_indexed) = scan_tree(&db3, root, &s3);
+                (seen + root_seen, indexed + root_indexed)
+            })
+        })
+        .await;
         match walk_result {
             Ok((files_seen, indexed)) => log::info!(
                 "[scan] walk done files_seen={} indexed={}",
@@ -1215,7 +1237,7 @@ fn scan_tree(db: &Arc<crate::media::kv::Db>, root: &Path, s: &Arc<Scanner>) -> (
                             apply_bucket_deltas(db, &bucket_deltas_of(std::slice::from_ref(&row)));
                             let _ = crate::media::image_index::global().index_media_file(&row.m);
                             s.commits.fetch_add(1, Ordering::SeqCst);
-                            s.last_indexed.store(1, Ordering::SeqCst);
+                            s.last_indexed.fetch_add(1, Ordering::SeqCst);
                             (1, 1)
                         }
                         Err(e) => {
@@ -1268,7 +1290,44 @@ fn scan_tree(db: &Arc<crate::media::kv::Db>, root: &Path, s: &Arc<Scanner>) -> (
         files_seen += wb.rows.len() as i64;
     }
     workers_join(workers);
+    if s.stop_flag.load(Ordering::SeqCst) == 0 {
+        if let Err(error) = prune_missing_under_root(db, root, s) {
+            log::error!("[scan] stale media cleanup failed: {error}");
+        }
+    }
     (files_seen, files_seen)
+}
+
+fn prune_missing_under_root(db: &crate::media::kv::Db, root: &Path, s: &Scanner) -> Result<usize> {
+    if !matches!(std::fs::symlink_metadata(root), Ok(meta) if meta.is_dir())
+        || is_media_excluded(&root.to_string_lossy())
+    {
+        return Ok(0);
+    }
+    let root_path = root.to_string_lossy().replace('\\', "/");
+    let path_prefix = format!("{PATH_INDEX_PREFIX}{}/", root_path.trim_end_matches('/'));
+    let mut missing = Vec::new();
+    for entry in db.scan_prefix(&path_prefix) {
+        if s.stop_flag.load(Ordering::SeqCst) != 0 {
+            return Ok(0);
+        }
+        let (key, _) = entry?;
+        let path = String::from_utf8_lossy(&key[PATH_INDEX_PREFIX.len()..]).to_string();
+        if matches!(std::fs::metadata(&path), Err(error) if error.kind() == std::io::ErrorKind::NotFound)
+        {
+            missing.push(path);
+        }
+    }
+    let mut deleted = 0;
+    for path in missing {
+        if s.stop_flag.load(Ordering::SeqCst) != 0 {
+            break;
+        }
+        if delete_by_path(db, &path)? {
+            deleted += 1;
+        }
+    }
+    Ok(deleted)
 }
 
 /// Join scan worker threads, tolerating panics (a panicked worker must not
@@ -1480,7 +1539,8 @@ fn publish_progress(s: &Scanner) {
         state.as_str(),
         payload.get("root").is_some()
     );
-    let _ = crate::media::eventbus::Bus::new().publish(crate::media::eventbus::EVENT_MEDIA_SCAN_PROGRESS, payload);
+    let _ = crate::media::eventbus::Bus::new()
+        .publish(crate::media::eventbus::EVENT_MEDIA_SCAN_PROGRESS, payload);
 }
 
 /// Publish the initial `{indexed:0, pending:0, total:0, state:"RUNNING",
@@ -1511,7 +1571,8 @@ pub fn publish_initial_running(root: &Path) {
         "[scan] publish_initial_running root={}",
         path_to_slash(root)
     );
-    let _ = crate::media::eventbus::Bus::new().publish(crate::media::eventbus::EVENT_MEDIA_SCAN_PROGRESS, payload);
+    let _ = crate::media::eventbus::Bus::new()
+        .publish(crate::media::eventbus::EVENT_MEDIA_SCAN_PROGRESS, payload);
 }
 
 /// Publish a `{... state: "<new state>"}` event in response to a

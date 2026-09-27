@@ -21,6 +21,7 @@ pub mod lyrics;
 pub mod metadata;
 pub mod mountinfo;
 pub mod paths;
+pub mod pdf_preview;
 pub mod scan;
 pub mod search;
 pub mod service;

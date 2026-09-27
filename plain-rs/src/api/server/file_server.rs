@@ -62,26 +62,14 @@ pub async fn fs_handler(State(state): State<ServerState>, req: Request) -> Respo
 /// nas contract answers 403 ("File is expired or does not exist."),
 /// the desktop contract a bare 401.
 #[cfg_attr(not(feature = "nas"), allow(unused_variables))]
-fn forbidden(state: &ServerState) -> Response {
-    #[cfg(feature = "nas")]
-    if state.nas.is_some() {
-        return respond(
-            403,
-            b"File is expired or does not exist.".to_vec(),
-            "text/plain",
-        );
-    }
+fn forbidden(_state: &ServerState) -> Response {
     respond(401, Vec::new(), "text/plain")
 }
 
 /// Host-appropriate 400 body: nas answers empty, the desktop carries a
 /// short reason.
 #[cfg_attr(not(feature = "nas"), allow(unused_variables))]
-fn bad_request(state: &ServerState, desktop_msg: &'static [u8]) -> Response {
-    #[cfg(feature = "nas")]
-    if state.nas.is_some() {
-        return respond(400, Vec::new(), "text/plain");
-    }
+fn bad_request(_state: &ServerState, desktop_msg: &'static [u8]) -> Response {
     respond(400, desktop_msg.to_vec(), "text/plain")
 }
 
@@ -155,15 +143,19 @@ pub async fn serve_file(
     //    stays per-host: the nas contract guesses from the on-disk path
     //    (charset-appended for text/*), the desktop from the display
     //    name (no charset).
-    let preview = params.get("preview").map(String::as_str).unwrap_or("").trim().to_lowercase();
+    let preview = params
+        .get("preview")
+        .map(String::as_str)
+        .unwrap_or("")
+        .trim()
+        .to_lowercase();
     let display_name = resolve_display_name(&params, &json_name, &resolved, &preview);
-    let mime = response_mime(state, &display_name, &resolved);
+    let mime = response_mime(&display_name);
     let is_download = params.get("dl").map(String::as_str) == Some("1");
     let disposition_kind = if is_download { "attachment" } else { "inline" };
     let disposition = crate::utils::http::content_disposition(disposition_kind, &display_name);
 
     // 8. PDF preview mode (nas): LibreOffice-converted copy.
-    #[cfg(feature = "nas")]
     if preview == "pdf" {
         return serve_pdf_preview(&resolved, &metadata, &disposition, ctx).await;
     }
@@ -174,8 +166,15 @@ pub async fn serve_file(
     //    pipeline also cannot decode them.
     #[cfg(feature = "media")]
     if crate::media::fsx::is_animated_image_or_svg(&resolved) {
-        return stream_with_range(&resolved, file_size, &metadata, &mime, &disposition, range_header)
-            .await;
+        return stream_with_range(
+            &resolved,
+            file_size,
+            &metadata,
+            &mime,
+            &disposition,
+            range_header,
+        )
+        .await;
     }
 
     // 10. Thumbnail request (`?w=…&h=…&cc=1`): generate through the
@@ -184,8 +183,14 @@ pub async fn serve_file(
     //     Content (the "no thumbnail available" contract), never 5xx.
     #[cfg(feature = "media")]
     {
-        let w = params.get("w").and_then(|s| s.parse::<i32>().ok()).unwrap_or(0);
-        let h = params.get("h").and_then(|s| s.parse::<i32>().ok()).unwrap_or(0);
+        let w = params
+            .get("w")
+            .and_then(|s| s.parse::<i32>().ok())
+            .unwrap_or(0);
+        let h = params
+            .get("h")
+            .and_then(|s| s.parse::<i32>().ok())
+            .unwrap_or(0);
         let cc = params.get("cc").map(String::as_str) == Some("1");
         if w > 0 || h > 0 || cc {
             let quality = params
@@ -233,7 +238,8 @@ pub async fn serve_file(
             )
         };
         if range_start_zero {
-            let _ = crate::media::kv::recent::add_recent_file(&ctx.prefs, &resolved.to_string_lossy());
+            let _ =
+                crate::media::kv::recent::add_recent_file(&ctx.prefs, &resolved.to_string_lossy());
         }
     }
 
@@ -251,11 +257,7 @@ pub async fn serve_file(
             {
                 Ok(transcoded_path) => {
                     let Ok(transcoded_meta) = tokio::fs::metadata(&transcoded_path).await else {
-                        return respond(
-                            404,
-                            b"transcode not found".to_vec(),
-                            "text/plain",
-                        );
+                        return respond(404, b"transcode not found".to_vec(), "text/plain");
                     };
                     let transcoded_str = transcoded_path.to_string_lossy().to_string();
                     stream_with_range(
@@ -279,18 +281,22 @@ pub async fn serve_file(
     }
 
     // 14. Serve original file with Range support.
-    stream_with_range(&resolved, file_size, &metadata, &mime, &disposition, range_header).await
+    stream_with_range(
+        &resolved,
+        file_size,
+        &metadata,
+        &mime,
+        &disposition,
+        range_header,
+    )
+    .await
 }
 
 /// Per-host MIME resolution (nas: fsx::guess_mime over the resolved
 /// path, text types carry `; charset=utf-8`; desktop: bare
 /// `mime_from_ext` over the display name).
 #[cfg_attr(not(feature = "nas"), allow(unused_variables))]
-fn response_mime(state: &ServerState, display_name: &str, resolved: &Path) -> String {
-    #[cfg(feature = "nas")]
-    if state.nas.is_some() {
-        return crate::media::fsx::guess_mime(resolved);
-    }
+fn response_mime(display_name: &str) -> String {
     mime_from_ext(display_name).to_string()
 }
 
@@ -559,7 +565,6 @@ async fn serve_thumbnail(
 }
 
 /// Serve a PDF preview (generated on demand via LibreOffice, nas host).
-#[cfg(feature = "nas")]
 async fn serve_pdf_preview(
     path: &Path,
     meta: &std::fs::Metadata,
@@ -574,7 +579,7 @@ async fn serve_pdf_preview(
         .unwrap_or(0);
     let size = meta.len() as i64;
 
-    match crate::nas::pdf_preview::get_or_create_pdf_preview(
+    match crate::media::pdf_preview::get_or_create_pdf_preview(
         &ctx.data_dir,
         &path.to_string_lossy(),
         mod_unix,
@@ -595,16 +600,16 @@ async fn serve_pdf_preview(
         }
         Err(e) => {
             // Check if it's a known PreviewError variant.
-            if let Some(pe) = e.downcast_ref::<crate::nas::pdf_preview::PreviewError>() {
+            if let Some(pe) = e.downcast_ref::<crate::media::pdf_preview::PreviewError>() {
                 match pe {
-                    crate::nas::pdf_preview::PreviewError::NotSupported => {
+                    crate::media::pdf_preview::PreviewError::NotSupported => {
                         return respond(
                             400,
                             b"preview not supported for this file".to_vec(),
                             "text/plain",
                         );
                     }
-                    crate::nas::pdf_preview::PreviewError::ToolMissing => {
+                    crate::media::pdf_preview::PreviewError::ToolMissing => {
                         return respond(
                             501,
                             b"LibreOffice is required for DOC/DOCX preview.".to_vec(),
@@ -613,11 +618,7 @@ async fn serve_pdf_preview(
                     }
                 }
             }
-            respond(
-                500,
-                b"failed to generate preview".to_vec(),
-                "text/plain",
-            )
+            respond(500, b"failed to generate preview".to_vec(), "text/plain")
         }
     }
 }

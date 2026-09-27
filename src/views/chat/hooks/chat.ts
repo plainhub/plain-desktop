@@ -47,7 +47,7 @@ export const useTasks = () => {
           }
         })
 
-        const res = await gqlFetch(sendChatItemGQL, { toId, content: JSON.stringify({ type: c.type, value: { items } }) })
+        const res = await gqlFetch(sendChatItemGQL, { target: toId, content: JSON.stringify({ type: c.type, value: { items } }) })
         const sent = res?.data?.sendChatItem
         const rawItems: any[] = Array.isArray(sent) ? sent : sent ? [sent] : []
         if (!rawItems.length) throw new Error('sendChatItem returned no message')

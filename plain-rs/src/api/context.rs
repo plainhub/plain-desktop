@@ -181,6 +181,68 @@ pub trait ShellHooks: Send + Sync {
     fn app_version(&self) -> String {
         String::new()
     }
+    fn capabilities(&self) -> Vec<crate::api::schema::types::Capability> {
+        Vec::new()
+    }
+    fn disks(&self) -> anyhow::Result<Vec<crate::api::schema::capability_types::StorageDisk>> {
+        anyhow::bail!("disk manager unavailable")
+    }
+    fn app_update(&self) -> anyhow::Result<crate::api::schema::capability_types::AppUpdate> {
+        Ok(crate::api::schema::capability_types::AppUpdate {
+            current_version: self.app_version(),
+            latest_version: None,
+            has_update: false,
+            url: None,
+        })
+    }
+    fn samba_settings(
+        &self,
+        _prefs: &crate::prefs::Prefs,
+    ) -> anyhow::Result<crate::api::schema::capability_types::SambaSettings> {
+        anyhow::bail!("LAN share unavailable")
+    }
+    fn set_samba_settings(
+        &self,
+        _prefs: &crate::prefs::Prefs,
+        _input: crate::api::schema::capability_types::SambaSettingsInput,
+    ) -> anyhow::Result<()> {
+        anyhow::bail!("LAN share unavailable")
+    }
+    fn set_samba_user_password(
+        &self,
+        _prefs: &crate::prefs::Prefs,
+        _password: &str,
+    ) -> anyhow::Result<()> {
+        anyhow::bail!("LAN share unavailable")
+    }
+    fn dlna_renderers(
+        &self,
+        _cid: &str,
+    ) -> anyhow::Result<Vec<crate::api::schema::capability_types::DlnaRenderer>> {
+        anyhow::bail!("DLNA sender unavailable")
+    }
+    fn dlna_cast(
+        &self,
+        _renderer_udn: &str,
+        _url: &str,
+        _title: &str,
+        _mime: &str,
+        _media_type: crate::media::gql::types::MediaDataType,
+        _prefs: &crate::prefs::Prefs,
+    ) -> anyhow::Result<()> {
+        anyhow::bail!("DLNA sender unavailable")
+    }
+    fn set_hostname(&self, _name: &str) -> anyhow::Result<()> {
+        anyhow::bail!("hostname change unavailable")
+    }
+    fn format_disk(
+        &self,
+        _prefs: &Arc<crate::prefs::Prefs>,
+        _path: &str,
+        _cid: &str,
+    ) -> anyhow::Result<()> {
+        anyhow::bail!("disk manager unavailable")
+    }
 }
 
 pub struct LogShell {

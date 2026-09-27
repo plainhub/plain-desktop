@@ -3,7 +3,7 @@ import MainView from '@/views/MainView.vue'
 import type { MainState } from '@/stores/main'
 import i18n from '@/plugins/i18n'
 import { getCurrentAuthToken } from '@/lib/device/current'
-import { isLocalMode, isLocalModeAllowed, isLocalRouteGroup } from '@/lib/device/local-mode'
+import { isLocalMode, isLocalModeAllowed } from '@/lib/device/local-mode'
 import { useMainStore } from '@/stores/main'
 import { useTempStore } from '@/stores/temp'
 import { findLoginPeer } from '@/lib/device/login-peers'
@@ -322,10 +322,7 @@ router.beforeEach(async (to, from) => {
   if (scrollTop !== undefined) {
     scrollTops.set(from.fullPath, scrollTop)
   }
-  if (isLocalModeAllowed() && (to.path === '/' || to.meta.group === 'home')) {
-    return { path: '/chat' }
-  }
-  const canAccess = getCurrentAuthToken() || (isLocalModeAllowed() && isLocalRouteGroup(to.meta.group))
+  const canAccess = getCurrentAuthToken() || isLocalModeAllowed()
 
   if (to.meta.requiresAuth && !canAccess) {
     return {

@@ -10,6 +10,7 @@ use std::sync::atomic::{AtomicUsize, Ordering};
 /// unevaluated at a disabled level (locked: `cargo test disabled_level`).
 #[test]
 fn disabled_level_skips_formatting_entirely() {
+    let _seq = SINK_SEQ.lock().unwrap();
     static FMT_EVALS: AtomicUsize = AtomicUsize::new(0);
     let saved = level();
 
@@ -43,6 +44,7 @@ fn disabled_level_skips_formatting_entirely() {
 /// comparison did exactly that at the default `info` level.
 #[test]
 fn enabled_follows_severity_ordering() {
+    let _seq = SINK_SEQ.lock().unwrap();
     let saved = level();
     let all = [
         Level::Trace,

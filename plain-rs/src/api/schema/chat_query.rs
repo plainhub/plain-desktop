@@ -1,4 +1,4 @@
-use async_graphql::{Context, Object};
+use async_graphql::{Context, ID, Object};
 use std::sync::Arc;
 
 use super::super::context::AppCtx;
@@ -26,9 +26,9 @@ impl ChatQuery {
             .collect()
     }
 
-    async fn chat_item(&self, ctx: &Context<'_>, id: String) -> Option<ChatItem> {
+    async fn chat_item(&self, ctx: &Context<'_>, id: ID) -> Option<ChatItem> {
         let c = ctx.data_unchecked::<Arc<AppCtx>>();
-        c.db.get_chat_by_id(&id)
+        c.db.get_chat_by_id(id.as_str())
             .map(|chat| ChatItem::from(chat))
     }
 

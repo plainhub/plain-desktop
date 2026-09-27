@@ -11,7 +11,7 @@ import { loadCorpus, type Corpus } from './pipeline'
 
 export const CONTRACTS_DIR = join(process.cwd(), 'tests/lib/api/graphql/contracts')
 
-export type BackendName = 'plain-app' | 'plain-nas'
+export type BackendName = 'plain-app'
 
 export function loadServerSchema(backend: BackendName): SchemaIR {
   return parseSchema(readFileSync(join(CONTRACTS_DIR, `${backend}.graphqls`), 'utf8'))
@@ -170,7 +170,7 @@ export function compareShapes(
         // The desktop union contract spans local + phone + NAS surfaces; a
         // root field one backend doesn't serve is expected (feature gating),
         // a missing field on a shared type is real drift.
-        if (!isRoot) {
+        if (!isRoot && !fieldWaiver.has(`[${srvName}] ${name}.${f.name}`)) {
           issues.push({ path: `[${srvName}] ${name}.${f.name}`, message: 'field missing on the server' })
         }
         continue

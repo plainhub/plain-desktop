@@ -73,7 +73,7 @@ v-if="hasLeftSidebar && appReady" class="sidebar-backdrop"
       </div>
       <transition name="width">
         <div
-v-if="appReady" v-show="store.quick" class="quick-content"
+          v-if="appReady" v-show="store.quick" class="quick-content"
           :style="{ width: store.quickContentWidth + 'px' }">
           <upload-list v-show="store.quick === 'upload'" />
           <audio-player v-show="store.quick === 'audio'" />
@@ -112,7 +112,7 @@ const {
 // Quick actions; notification list mirrors the phone's, gated on the
 // server-declared NOTIFICATIONS capability (NAS doesn't declare it).
 const quickActions = computed(() =>
-  buildQuickActions({ localMode, hasTasks: hasTasks.value, quick: store.quick, capabilities: app.value?.capabilities }),
+  buildQuickActions({ hasTasks: hasTasks.value, quick: store.quick, capabilities: app.value?.capabilities }),
 )
 
 // A quick action may only render when its panel is mounted below — the

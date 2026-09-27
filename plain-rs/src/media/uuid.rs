@@ -180,8 +180,18 @@ pub fn filesystem_id_for_path(path: &str) -> String {
 /// Read (inode, ctime) from an already-obtained stat, so the scan hot path
 /// pays one stat per file instead of one per subsystem.
 pub fn identity_from_metadata(meta: &std::fs::Metadata) -> (u64, i64) {
-    use std::os::unix::fs::MetadataExt;
-    (meta.ino(), meta.ctime())
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::MetadataExt;
+        (meta.ino(), meta.ctime())
+    }
+    #[cfg(windows)]
+    {
+        use std::os::windows::fs::MetadataExt;
+        let created = meta.creation_time();
+        let unix_seconds = created.saturating_sub(116_444_736_000_000_000) / 10_000_000;
+        (meta.file_index().unwrap_or_default(), unix_seconds as i64)
+    }
 }
 
 /// Derive a stable UUID from (fsuuid, inode, ctime). Same algorithm as
@@ -232,7 +242,12 @@ pub fn fid_key(fsuuid: &str, ino: u64, ctime: i64) -> String {
 
 /// Find an existing UUID by (fsuuid, inode, ctime) via the `media:fid:`
 /// secondary index. Returns `None` if not found.
-pub fn find_uuid_by_fid(db: &crate::media::kv::Db, fsuuid: &str, ino: u64, ctime: i64) -> Option<String> {
+pub fn find_uuid_by_fid(
+    db: &crate::media::kv::Db,
+    fsuuid: &str,
+    ino: u64,
+    ctime: i64,
+) -> Option<String> {
     let key = fid_key(fsuuid, ino, ctime);
     db.get(key.as_bytes())
         .ok()

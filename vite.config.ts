@@ -75,6 +75,7 @@ export default defineConfig(({ mode }) => {
   server: {
     host: '0.0.0.0',
     port: isTauriMode ? 4000 : 3000,
+    strictPort: isTauriMode,
     // Dev-only proxy: forwards /fs and /proxyfs to the device server so that
     // fetch() and WebGL textures are same-origin (no CORS / canvas tainting).
     // In production the app is served from the device itself (same-origin).
@@ -235,6 +236,7 @@ export default defineConfig(({ mode }) => {
           exclude: [
             'tests/lib/cross-window-store.test.ts',
             'tests/lib/api/graphql/**',
+            'tests/docs/**/*.test.ts',
             'tests/integration/**/*.test.ts',
           ],
           browser: {

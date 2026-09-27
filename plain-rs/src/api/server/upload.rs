@@ -30,19 +30,13 @@ use axum::response::{IntoResponse, Response};
 
 use super::request_key::{RequestKey, RequestKeyError, decrypt_body, resolve_request_key};
 use super::response::respond;
-use super::ServerState;
+use super::{AuthPolicy, ServerState};
 
 /// Render a plain-text response with each host's historical
 /// Content-Type spelling (nas: axum's `text/plain; charset=utf-8`,
 /// desktop: bare `text/plain`).
 #[cfg_attr(not(feature = "nas"), allow(unused_variables))]
-fn plain(state: &ServerState, status: u16, body: String) -> Response {
-    #[cfg(feature = "nas")]
-    if state.nas.is_some() {
-        use axum::http::StatusCode;
-        return (StatusCode::from_u16(status).unwrap_or(StatusCode::INTERNAL_SERVER_ERROR), body)
-            .into_response();
-    }
+fn plain(_state: &ServerState, status: u16, body: String) -> Response {
     respond(status, body.into_bytes(), "text/plain")
 }
 
@@ -51,8 +45,7 @@ fn plain(state: &ServerState, status: u16, body: String) -> Response {
 fn upload_key(state: &ServerState, headers: &HeaderMap) -> Result<(RequestKey, String), Response> {
     match resolve_request_key(state, headers, false) {
         Ok((key, cid)) => {
-            #[cfg(feature = "nas")]
-            if state.nas.is_some() {
+            if matches!(state.settings.auth, AuthPolicy::Session { .. }) {
                 return Ok((key, cid));
             }
             // Desktop upload contract (`Upload.kt` against
@@ -94,10 +87,6 @@ async fn read_info<T: for<'de> serde::Deserialize<'de>>(
     let decrypted = match decrypt_body(key, &bytes) {
         Some(b) => b,
         None => {
-            #[cfg(feature = "nas")]
-            if state.nas.is_some() {
-                return Err(plain(state, 401, "decrypt info failed".to_string()));
-            }
             return Err(respond(401, Vec::new(), "text/plain"));
         }
     };
@@ -165,7 +154,12 @@ pub async fn upload_handler(State(state): State<ServerState>, req: Request) -> R
         match name.as_deref() {
             Some("info") => match read_info::<UploadInfo>(&state, &key, &mut field).await {
                 Ok(i) => {
-                    log::debug!("[/upload] info dir={:?} replace={} app={}", i.dir, i.replace, i.is_app_file);
+                    log::debug!(
+                        "[/upload] info dir={:?} replace={} app={}",
+                        i.dir,
+                        i.replace,
+                        i.is_app_file
+                    );
                     info = Some(i);
                 }
                 Err(r) => return r,
@@ -174,11 +168,7 @@ pub async fn upload_handler(State(state): State<ServerState>, req: Request) -> R
                 let upload_info = match &info {
                     Some(i) => i.clone(),
                     None => {
-                        return plain(
-                            &state,
-                            400,
-                            "info part missing before file".to_string(),
-                        );
+                        return plain(&state, 400, "info part missing before file".to_string());
                     }
                 };
 
@@ -187,11 +177,7 @@ pub async fn upload_handler(State(state): State<ServerState>, req: Request) -> R
                 // The nas contract requires an explicit target dir; the
                 // desktop contract also accepts an empty dir (chat flows
                 // default to the app data dir).
-                #[cfg(feature = "nas")]
-                let dir_required = state.nas.is_some();
-                #[cfg(not(feature = "nas"))]
-                let dir_required = false;
-                if (dir_required && upload_info.dir.is_empty()) || file_name.is_empty() {
+                if file_name.is_empty() {
                     return plain(&state, 400, "dir or filename missing".to_string());
                 }
 
@@ -231,7 +217,11 @@ pub async fn upload_handler(State(state): State<ServerState>, req: Request) -> R
                     } else {
                         Path::new(&upload_info.dir).join(&safe_name)
                     };
-                    log::debug!("[/upload] incoming file={:?} dest={:?}", file_name, dest_path);
+                    log::debug!(
+                        "[/upload] incoming file={:?} dest={:?}",
+                        file_name,
+                        dest_path
+                    );
 
                     // Handle conflict: replace or make unique path.
                     let (dest_path, file_name) = if dest_path.exists() && !dest_path.is_dir() {
@@ -246,10 +236,7 @@ pub async fn upload_handler(State(state): State<ServerState>, req: Request) -> R
                                 .and_then(|n| n.to_str())
                                 .unwrap_or("file")
                                 .to_string();
-                            log::debug!(
-                                "[/upload] target exists, using unique path: {:?}",
-                                unique
-                            );
+                            log::debug!("[/upload] target exists, using unique path: {:?}", unique);
                             (unique, name)
                         }
                     } else {
@@ -262,11 +249,16 @@ pub async fn upload_handler(State(state): State<ServerState>, req: Request) -> R
                         }
                     }
 
-                    let written =
-                        match stream_field_to_file(&mut field, &dest_path, upload_info.size).await {
-                            Ok(n) => n,
-                            Err(r) => return r,
-                        };
+                    let written = match stream_field_to_file(
+                        &mut field,
+                        &dest_path,
+                        upload_info.size,
+                    )
+                    .await
+                    {
+                        Ok(n) => n,
+                        Err(r) => return r,
+                    };
                     if upload_info.size > 0 && written != upload_info.size as u64 {
                         let msg = format!(
                             "Size mismatch: expected {}, got {written}",
@@ -457,15 +449,9 @@ async fn stage_stream_to_temp(
 ) -> Result<(PathBuf, u64), Response> {
     let dir = data_dir.join("upload_tmp");
     if let Err(e) = tokio::fs::create_dir_all(&dir).await {
-        return Err(
-            (axum::http::StatusCode::INTERNAL_SERVER_ERROR, e.to_string()).into_response()
-        );
+        return Err((axum::http::StatusCode::INTERNAL_SERVER_ERROR, e.to_string()).into_response());
     }
-    let path = dir.join(format!(
-        "upload_{}_{}.bin",
-        std::process::id(),
-        now_ms()
-    ));
+    let path = dir.join(format!("upload_{}_{}.bin", std::process::id(), now_ms()));
     let written = stream_field_to_file(field, &path, 0).await?;
     Ok((path, written))
 }

@@ -14,7 +14,7 @@
 
 use axum::http::HeaderMap;
 
-use super::ServerState;
+use super::{AuthPolicy, ServerState};
 use crate::base64_decode;
 
 /// The encrypt/decrypt key a request (or socket) is bound to.
@@ -80,8 +80,7 @@ pub fn resolve_request_key(
         .unwrap_or("")
         .to_string();
 
-    #[cfg(feature = "nas")]
-    if let Some(nas) = state.nas.as_ref() {
+    if let AuthPolicy::Session { dev_token, .. } = &state.settings.auth {
         if cid.is_empty() {
             // Dev mode: trust the bearer token from config. In dev mode
             // we use the literal header value `dev` as the client id so
@@ -98,8 +97,7 @@ pub fn resolve_request_key(
                 return Err(RequestKeyError::DevHeaderMissing);
             }
             let token = auth_header.strip_prefix("Bearer ").unwrap_or("");
-            let dev = nas.config.get_string("auth.dev_token");
-            if token.is_empty() || token != dev {
+            if token.is_empty() || token != dev_token {
                 return Err(RequestKeyError::DevTokenInvalid);
             }
             return Ok((RequestKey::DevBearer, "dev".to_string()));
@@ -110,8 +108,8 @@ pub fn resolve_request_key(
             .ok_or(RequestKeyError::SessionNotFound)?;
         // Best-effort activity tracking (graphql used to do this after
         // decrypt; the position is not observable).
-        let _ = crate::media::kv::SessionStore::new(&state.ctx.media.db)
-            .touch_last_active(&session);
+        let _ =
+            crate::media::kv::SessionStore::new(&state.ctx.media.db).touch_last_active(&session);
         let key = crate::media::kv::token_key(&session.token)
             .map_err(|_| RequestKeyError::BadSessionToken)?;
         return Ok((RequestKey::Raw(key), cid));

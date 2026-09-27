@@ -1,36 +1,20 @@
-//! The ONE axum router both hosts (desktop Tauri shell, plain-nas
-//! server) serve: HTTP routes, WebSocket upgrades, and the CORS body
-//! limit layers. The listener loops and TLS stay in the hosts
-//! (`plain-desktop`'s `local/server/mod.rs`, plain-nas's `cmd/run.rs`):
-//! HTTP via `axum::serve`, HTTPS via `axum_server::from_tcp_rustls`,
-//! both with `into_make_service_with_connect_info::<SocketAddr>()` —
-//! handlers need the peer address for `/nearby` logging.
-//!
-//! Host selection is a field on [`ServerState`]: the desktop stores its
-//! `LocalSchema` behind the type-erased [`GraphqlExec`] and leaves
-//! `nas` = `None`; the nas host stores its `NasSchema` the same way plus
-//! its config/CORS and nas peer schema in [`NasServerState`]. The
-//! nas-only routes (auth, static SPA, `/media` alias, `/` WS+SPA split)
-//! mount only when `nas` is `Some`.
-
+pub mod auth;
 pub mod cors;
 pub mod events;
 pub mod file_server;
 pub mod handlers;
+#[cfg(feature = "nas")]
+pub mod media_alias;
 pub mod proxy_file;
 pub mod request_key;
-pub mod runtime;
 pub mod response;
+pub mod runtime;
+#[cfg(feature = "nas")]
+pub mod static_files;
 pub mod upload;
 pub mod uri;
 pub mod ws;
 pub mod zip;
-#[cfg(feature = "nas")]
-pub mod auth;
-#[cfg(feature = "nas")]
-pub mod media_alias;
-#[cfg(feature = "nas")]
-pub mod static_files;
 
 use std::sync::Arc;
 
@@ -40,110 +24,44 @@ use axum::routing::{get, post};
 
 use super::context::AppCtx;
 use super::peer_graphql::PeerSchema;
-use super::schema::LocalSchema;
+use super::schema::ApiSchema;
 
-/// Everything the axum handlers need: the GraphQL schema behind a
-/// type-erased executor, the peer schema, and the resolver context.
-/// Cheap to clone (all `Arc`s).
 #[derive(Clone)]
 pub struct ServerState {
-    /// The host's GraphQL schema, type-erased so the desktop's
-    /// `LocalSchema` and the nas host's `NasSchema` both fit. The
-    /// desktop stores a plain `LocalSchema` here — its
-    /// graphql branch downcasts back through [`GraphqlExec::as_any`].
-    pub schema: Arc<dyn GraphqlExec>,
+    pub schema: Arc<ApiSchema>,
     pub peer_schema: Arc<PeerSchema>,
     pub ctx: Arc<AppCtx>,
-    /// Nas host extras (config, CORS policy, nas peer schema). `None`
-    /// on the desktop — the nas-only routes mount only when this is
-    /// `Some`.
-    #[cfg(feature = "nas")]
-    pub nas: Option<Arc<NasServerState>>,
+    pub settings: Arc<ServerSettings>,
 }
 
-/// Nas-specific state carried next to [`ServerState`].
-#[cfg(feature = "nas")]
-pub struct NasServerState {
-    pub config: Arc<crate::media::config::Config>,
+pub enum AuthPolicy {
+    LocalToken,
+    Session {
+        dev_token: String,
+        device_id: String,
+    },
+}
+
+pub struct ServerSettings {
+    pub auth: AuthPolicy,
     pub cors: cors::CorsPolicy,
-    /// The nas-flavored peer GraphQL schema for `/peer_graphql` — its
-    /// resolvers take the nas `PeerCtx` (chat state + authenticated
-    /// peer + channel id), unlike the desktop `PeerSchema` on
-    /// [`ServerState::peer_schema`].
-    pub peer_schema: Arc<crate::api::schema::nas::peer_schema::PeerSchema>,
-}
-
-/// Type-erased `async_graphql::Schema` executor: one field holds either
-/// host's schema without naming the root types. Resolvers read their
-/// state from the schema's global data plus whatever per-request data
-/// the handler injects into the `Request`.
-pub trait GraphqlExec: Send + Sync + 'static {
-    fn execute(
-        &self,
-        request: async_graphql::Request,
-    ) -> futures_util::future::BoxFuture<'_, async_graphql::Response>;
-
-    /// Downcast seam for the desktop graphql branch, which runs its
-    /// local executor (stub pre-filter + `AppCtx` data injection)
-    /// against the concrete `LocalSchema`.
-    fn as_any(&self) -> &dyn std::any::Any;
-}
-
-impl<Q, M, S> GraphqlExec for async_graphql::Schema<Q, M, S>
-where
-    Q: async_graphql::ObjectType + 'static,
-    M: async_graphql::ObjectType + 'static,
-    S: async_graphql::SubscriptionType + 'static,
-{
-    fn execute(
-        &self,
-        request: async_graphql::Request,
-    ) -> futures_util::future::BoxFuture<'_, async_graphql::Response> {
-        let schema = self.clone();
-        Box::pin(async move { schema.execute(request).await })
-    }
-
-    fn as_any(&self) -> &dyn std::any::Any {
-        self
-    }
+    pub serve_spa: bool,
 }
 
 #[cfg(all(test, feature = "nas"))]
 pub(crate) mod test_support {
-    //! Shared fixture for the nas-flavored `ServerState` tests (auth,
-    //! ws, fs, chat_peer): a real `AppCtx` over temp dirs plus stub
-    //! schema executors.
-
     use super::*;
 
-    struct StubExec;
-
-    impl GraphqlExec for StubExec {
-        fn execute(
-            &self,
-            _request: async_graphql::Request,
-        ) -> futures_util::future::BoxFuture<'_, async_graphql::Response> {
-            Box::pin(async {
-                async_graphql::Response::from_errors(vec![async_graphql::ServerError::new(
-                    "stub schema",
-                    None,
-                )])
-            })
-        }
-
-        fn as_any(&self) -> &dyn std::any::Any {
-            self
-        }
-    }
-
-    /// Re-frame a nas test state as the desktop host (same ctx, no nas
-    /// state) — selects the desktop branches of the host-split
-    /// handlers.
     pub(crate) fn as_desktop(state: &ServerState) -> ServerState {
-        ServerState::desktop(
+        ServerState::new(
             state.schema.clone(),
             state.peer_schema.clone(),
             state.ctx.clone(),
+            ServerSettings {
+                auth: AuthPolicy::LocalToken,
+                cors: cors::CorsPolicy::permissive_default(),
+                serve_spa: false,
+            },
         )
     }
 
@@ -159,13 +77,11 @@ pub(crate) mod test_support {
     pub(crate) fn nas_state_with(seed: impl FnOnce(&crate::prefs::Prefs)) -> ServerState {
         let dir = tempfile::tempdir().expect("temp dir");
         let data_dir = dir.path().to_path_buf();
-        let prefs = Arc::new(
-            crate::prefs::Prefs::load(&data_dir.join("prefs.json")).expect("prefs load"),
-        );
+        let prefs =
+            Arc::new(crate::prefs::Prefs::load(&data_dir.join("prefs.json")).expect("prefs load"));
         seed(&prefs);
-        let chat = Arc::new(
-            crate::api::chat::ChatState::nas_init(&data_dir, &prefs).expect("chat init"),
-        );
+        let chat =
+            Arc::new(crate::api::chat::ChatState::nas_init(&data_dir, &prefs).expect("chat init"));
         let config = Arc::new(crate::media::config::Config::parse(
             "[server]
 http_port = 8080
@@ -180,50 +96,43 @@ http_port = 8080
             prefs.clone(),
             chat.clone(),
             event_tx,
-            Arc::new(crate::api::context::LogShell { version: String::new() }),
+            Arc::new(crate::api::context::LogShell {
+                version: String::new(),
+            }),
             8080,
             8443,
         )
         .expect("nas app ctx");
         std::mem::forget(dir);
-        ServerState {
-            schema: Arc::new(StubExec),
-            peer_schema: Arc::new(crate::api::peer_graphql::build_schema()),
+        ServerState::new(
+            Arc::new(crate::api::schema::build_schema()),
+            Arc::new(crate::api::peer_graphql::build_schema()),
             ctx,
-            nas: Some(Arc::new(NasServerState {
-                config,
+            ServerSettings {
+                auth: AuthPolicy::Session {
+                    dev_token: config.get_string("auth.dev_token"),
+                    device_id: config.get_string("nas.id"),
+                },
                 cors: cors::CorsPolicy::default(),
-                peer_schema: Arc::new(crate::api::schema::nas::peer_schema::build_schema()),
-            })),
-        }
+                serve_spa: true,
+            },
+        )
     }
 }
 
 impl ServerState {
-    /// Desktop construction: no nas state, so the nas-only routes
-    /// (auth/SPA/media alias) stay unmounted. Hosts that build feature
-    /// unions with the nas feature still compile — the `nas` field is
-    /// filled with `None` here under `cfg`.
-    pub fn desktop(
-        schema: Arc<dyn GraphqlExec>,
+    pub fn new(
+        schema: Arc<ApiSchema>,
         peer_schema: Arc<PeerSchema>,
         ctx: Arc<AppCtx>,
+        settings: ServerSettings,
     ) -> Self {
         Self {
             schema,
             peer_schema,
             ctx,
-            #[cfg(feature = "nas")]
-            nas: None,
+            settings: Arc::new(settings),
         }
-    }
-
-    /// The desktop's concrete schema, when this state carries one.
-    pub fn local_schema(&self) -> Option<Arc<LocalSchema>> {
-        self.schema
-            .as_any()
-            .downcast_ref::<LocalSchema>()
-            .map(|s| Arc::new(s.clone()))
     }
 }
 
@@ -248,15 +157,14 @@ pub fn build_router(state: ServerState) -> Router {
         )
         .route(
             "/upload_chunk",
-            post(upload::upload_chunk_handler)
-                .layer(DefaultBodyLimit::max(MAX_UPLOAD_BODY_BYTES)),
+            post(upload::upload_chunk_handler).layer(DefaultBodyLimit::max(MAX_UPLOAD_BODY_BYTES)),
         )
         .route("/zip/dir", get(zip::zip_dir_handler))
         .route("/zip/files", get(zip::zip_files_handler));
 
     #[cfg(feature = "nas")]
     {
-        if let Some(nas) = state.nas.clone() {
+        if state.settings.serve_spa {
             router = router
                 .route("/auth", post(auth::auth_handler))
                 .route("/auth/status", post(auth::auth_status_handler))
@@ -277,7 +185,7 @@ pub fn build_router(state: ServerState) -> Router {
                 .fallback(static_files::spa_fallback)
                 .layer(tower_http::compression::CompressionLayer::new())
                 .layer(tower_http::trace::TraceLayer::new_for_http())
-                .layer(cors::layer(&nas.cors));
+                .layer(cors::layer(&state.settings.cors));
             return router.with_state(state);
         }
     }
@@ -287,6 +195,7 @@ pub fn build_router(state: ServerState) -> Router {
         // DLNA receiver routes (custom GENA methods + GET /description.xml),
         // WebSocket upgrades on any path, and the 404 — same dispatch order
         // the hand-rolled server used.
-        .fallback(handlers::fallback);
+        .fallback(handlers::fallback)
+        .layer(cors::layer(&state.settings.cors));
     router.with_state(state)
 }

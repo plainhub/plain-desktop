@@ -6,7 +6,7 @@
 //! DB / cache state is identical regardless of which client issued
 //! the call.
 
-use async_graphql::{Context, Object};
+use async_graphql::{Context, ID, Object};
 use std::sync::Arc;
 
 use super::super::context::AppCtx;
@@ -28,11 +28,11 @@ impl ChatPeerMutation {
     /// Returns `false` if the peer id is unknown, `true` otherwise.
     /// The frontend's `PeerManager.deletePeer` re-fetches the peers /
     /// latest-chats lists on success; no WS event is required.
-    async fn delete_peer(&self, ctx: &Context<'_>, id: String) -> bool {
+    async fn delete_peer(&self, ctx: &Context<'_>, id: ID) -> bool {
         ctx.data_unchecked::<Arc<AppCtx>>()
             .chat
             .service
-            .delete_peer(&id)
+            .delete_peer(id.as_str())
     }
 
     /// Mirrors plain-app `PeerManager.markUnpaired(peerId)` (invoked
@@ -41,10 +41,10 @@ impl ChatPeerMutation {
     /// key intact so a future re-pair can reuse the stored credentials.
     ///
     /// Returns `false` if the peer id is unknown, `true` otherwise.
-    async fn unpair_peer(&self, ctx: &Context<'_>, id: String) -> bool {
+    async fn unpair_peer(&self, ctx: &Context<'_>, id: ID) -> bool {
         ctx.data_unchecked::<Arc<AppCtx>>()
             .chat
             .service
-            .unpair_peer(&id)
+            .unpair_peer(id.as_str())
     }
 }

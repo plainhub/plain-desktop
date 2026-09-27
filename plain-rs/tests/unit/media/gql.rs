@@ -4,12 +4,12 @@ use std::sync::Arc;
 
 use async_graphql::{EmptySubscription, Schema};
 
+use crate::library::db::LibraryDb;
 use crate::media::gql::{MediaMutationRoot, MediaQueryRoot};
 use crate::media::image_index::MediaSearchIndex;
 use crate::media::kv::Db;
 use crate::media::paths;
 use crate::media::scan::MediaFile;
-use crate::library::db::LibraryDb;
 use crate::prefs::Prefs;
 
 type MediaSchema = Schema<MediaQueryRoot, MediaMutationRoot, EmptySubscription>;
@@ -157,4 +157,26 @@ async fn bulk_media_mutation_rejects_blank_query() {
     assert!(!resp.errors.is_empty(), "blank query must be rejected");
     let msg = format!("{:?}", resp.errors);
     assert!(msg.contains("bulk_query_required"), "{msg}");
+}
+#[test]
+fn default_scan_root_uses_all_configured_media_sources() {
+    let sources = vec![
+        "/Users/alex/Pictures".to_string(),
+        "/Users/alex/Music".to_string(),
+    ];
+    assert_eq!(
+        super::selected_scan_roots("/".to_string(), &sources),
+        vec![
+            std::path::PathBuf::from("/Users/alex/Pictures"),
+            std::path::PathBuf::from("/Users/alex/Music")
+        ]
+    );
+    assert_eq!(
+        super::selected_scan_roots("/tmp/sample".to_string(), &sources),
+        vec![std::path::PathBuf::from("/tmp/sample")]
+    );
+    assert_eq!(
+        super::selected_scan_roots("/".to_string(), &[]),
+        vec![std::path::PathBuf::from("/")]
+    );
 }

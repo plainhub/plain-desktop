@@ -1,14 +1,16 @@
 //! Parsing of `/proc/self/mountinfo` and mountpoint resolution.
 //! Port of `internal/fs/mountinfo.go`.
 
+#[cfg(target_os = "linux")]
 use std::fs;
-use std::path::{Path, PathBuf};
+use std::path::{Component, Path, PathBuf};
 
 #[derive(Debug, Clone)]
 pub struct MountInfoEntry {
     pub mount_point: String,
 }
 
+#[cfg(target_os = "linux")]
 fn decode_mount_escapes(s: &str) -> String {
     // mountinfo encodes space/tab/newline/backslash as octal escapes.
     s.replace("\\040", " ")
@@ -17,6 +19,7 @@ fn decode_mount_escapes(s: &str) -> String {
         .replace("\\134", "\\")
 }
 
+#[cfg(target_os = "linux")]
 pub fn read_mountinfo() -> anyhow::Result<Vec<MountInfoEntry>> {
     let raw = fs::read_to_string("/proc/self/mountinfo")?;
     let mut out = Vec::new();
@@ -52,6 +55,20 @@ pub fn read_mountinfo() -> anyhow::Result<Vec<MountInfoEntry>> {
     Ok(out)
 }
 
+#[cfg(not(target_os = "linux"))]
+pub fn read_mountinfo() -> anyhow::Result<Vec<MountInfoEntry>> {
+    let entries: Vec<_> = sysinfo::Disks::new_with_refreshed_list()
+        .iter()
+        .map(|disk| MountInfoEntry {
+            mount_point: disk.mount_point().to_string_lossy().into_owned(),
+        })
+        .collect();
+    if entries.is_empty() {
+        anyhow::bail!("no mounted volumes");
+    }
+    Ok(entries)
+}
+
 fn find_best_mount_point(entries: &[MountInfoEntry], abs_path: &str) -> Option<String> {
     let mut best: Option<String> = None;
     for e in entries {
@@ -59,13 +76,7 @@ fn find_best_mount_point(entries: &[MountInfoEntry], abs_path: &str) -> Option<S
         if mp.is_empty() {
             continue;
         }
-        let matched = if abs_path == mp {
-            true
-        } else if mp == "/" {
-            Path::new(abs_path).is_absolute()
-        } else {
-            abs_path.starts_with(mp) && abs_path.as_bytes().get(mp.len()) == Some(&b'/')
-        };
+        let matched = Path::new(abs_path).starts_with(Path::new(mp));
         if matched {
             match &best {
                 None => best = Some(mp.to_string()),
@@ -121,20 +132,19 @@ impl CleanPath for PathBuf {
 }
 
 fn path_clean(p: &Path) -> PathBuf {
-    let s = p.to_string_lossy();
     let mut out = PathBuf::new();
-    let leading_slash = s.starts_with('/');
-    for comp in s.split('/').filter(|p| !p.is_empty()) {
+    for comp in p.components() {
         match comp {
-            "." => {}
-            ".." => {
-                out.pop();
+            Component::CurDir => {}
+            Component::ParentDir => {
+                if matches!(out.components().next_back(), Some(Component::Normal(_))) {
+                    out.pop();
+                } else if !p.is_absolute() {
+                    out.push(comp.as_os_str());
+                }
             }
-            other => out.push(other),
+            _ => out.push(comp.as_os_str()),
         }
-    }
-    if leading_slash {
-        out = PathBuf::from("/").join(out);
     }
     out
 }

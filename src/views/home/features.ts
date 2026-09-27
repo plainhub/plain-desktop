@@ -3,7 +3,6 @@ import ILucidePhoneCall from '~icons/lucide/phone-call'
 import { ALL_FEATURES, DEBUG_EXCLUDED_FEATURE_IDS, GOOGLE_EXCLUDED_FEATURE_IDS, type Feature } from '@/views/app-rail/features'
 import { AppChannelType } from '@/lib/status'
 import { Capability } from '@/lib/data'
-import { isLocalFeatureId, isLocalMode } from '@/lib/device/local-mode'
 import { DEFAULT_HOME_FEATURES, normalizeHomeFeatures } from './feature-list'
 
 export { DEFAULT_HOME_FEATURES, normalizeHomeFeatures }
@@ -58,7 +57,6 @@ const HOME_PANEL_FEATURES: HomePanelFeature[] = [
 export function getAvailableHomeFeatures(features?: string[], channel?: AppChannelType, debug?: boolean): HomeSectionFeature[] {
   const routeFeatures = ALL_FEATURES
     .filter((feature) => HOME_FEATURE_IDS.has(feature.id))
-    .filter((feature) => !isLocalMode() || isLocalFeatureId(feature.id))
     .filter((feature) => !(channel === AppChannelType.GOOGLE && GOOGLE_EXCLUDED_FEATURE_IDS.has(feature.id)))
     .filter((feature) => (debug ?? false) || !DEBUG_EXCLUDED_FEATURE_IDS.has(feature.id))
     .filter((feature) => !feature.capability || !!features?.includes(feature.capability))
@@ -71,7 +69,7 @@ export function getAvailableHomeFeatures(features?: string[], channel?: AppChann
   const hasCallPhone = !!features?.includes(Capability.CALL_PHONE)
   const featureMap = new Map<string, HomeSectionFeature>([
     ...routeFeatures.map((feature) => [feature.id, feature] as const),
-    ...(hasCallPhone && !isLocalMode() ? HOME_PANEL_FEATURES.map((feature) => [feature.id, feature] as const) : []),
+    ...(hasCallPhone ? HOME_PANEL_FEATURES.map((feature) => [feature.id, feature] as const) : []),
   ])
 
   // Unsupported ids simply drop out of the map.

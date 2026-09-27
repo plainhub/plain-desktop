@@ -5,6 +5,7 @@ use std::sync::Arc;
 use super::super::context::{AppCtx, WS_DEVICE_NAME_UPDATED, WsEvent};
 use super::types::{App, Capability, DeviceInfo, DevicePlatform, DeviceStatus, Sim, Temperature};
 use crate::api::enums::AppChannelType;
+use crate::api::enums::Permission;
 
 #[cfg(test)]
 #[path = "../../../tests/unit/api/schema/app.rs"]
@@ -31,18 +32,13 @@ impl AppQuery {
             app_dir: c.data_dir.join("files").to_string_lossy().into_owned(),
             device_name: c.device_name.read().unwrap().clone(),
             device_type: c.chat.service.wire_device_type.into(),
-            // The desktop local-mode surface: image editor and the shared
-            // web document viewer (chat/files/media are base features).
-            // Notifications: the resident peer layer aggregates every logged-in
-            // phone's notification list (local_peer_data), so this server
-            // genuinely provides it in local mode.
-            capabilities: vec![
-                Capability::DocPreview,
-                Capability::ImageEditor,
-                Capability::Notifications,
-            ],
+            capabilities: {
+                let mut caps = vec![Capability::MediaTrash, Capability::MediaScan];
+                caps.extend(c.shell.capabilities());
+                caps
+            },
             build_channel: AppChannelType::Github,
-            permissions: vec![],
+            permissions: vec![Permission::WriteExternalStorage],
             downloads_dir: String::new(),
             developer_mode: false,
             debug: cfg!(debug_assertions),
@@ -122,9 +118,9 @@ impl AppMutation {
         c.chat.identity.set_device_name(&name);
         let _ = c.prefs.set("device_name", name.as_str());
         let _ = c.event_tx.send(WsEvent::broadcast(
-        WS_DEVICE_NAME_UPDATED,
-        json!(name).to_string(),
-    ));
+            WS_DEVICE_NAME_UPDATED,
+            json!(name).to_string(),
+        ));
         true
     }
 }

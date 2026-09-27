@@ -5,6 +5,20 @@ use crate::{base64_decode, base64_encode};
 use std::path::PathBuf;
 use std::time::{SystemTime, UNIX_EPOCH};
 
+struct TestTransport;
+
+impl crate::chat::transport::PeerTransport for TestTransport {
+    async fn post<'a>(
+        &'a self,
+        _url: &'a str,
+        _client_id: &'a str,
+        _channel_id: Option<&'a str>,
+        _body: &'a [u8],
+    ) -> Result<Vec<u8>, String> {
+        Err("offline".to_string())
+    }
+}
+
 fn unique_tmp_dir(label: &str) -> PathBuf {
     let nanos = SystemTime::now()
         .duration_since(UNIX_EPOCH)
@@ -18,6 +32,30 @@ fn seed(db: &ChatDb, id: &str, from_id: &str, to_id: &str, channel_id: &str) {
     let mut chat = DChat::new(from_id, to_id, channel_id, "{}");
     chat.id = id.to_string();
     db.insert_chat(&chat);
+}
+
+#[tokio::test]
+async fn send_chat_item_accepts_bare_peer_id_and_local_target() {
+    let dir = unique_tmp_dir("send-target");
+    let db = ChatDb::open(&dir.join("local_chat.db")).expect("open db");
+    let service = ChatService::new(
+        db,
+        String::new(),
+        std::sync::Arc::new(ChatIdentity::new("self", "Self", String::new())),
+        DeviceType::Computer,
+        dir,
+        std::sync::Arc::new(TestTransport),
+        std::sync::Arc::new(NoChatHooks),
+        no_link_previews(),
+    );
+
+    let bare = service.send_chat_item("peer-id".to_string(), "{}".to_string());
+    assert_eq!(bare[0].to_id, "peer-id");
+    assert_eq!(bare[0].status, ChatStatus::Pending);
+
+    let local = service.send_chat_item("peer:local".to_string(), "{}".to_string());
+    assert_eq!(local[0].to_id, "local");
+    assert_eq!(local[0].status, ChatStatus::Sent);
 }
 
 #[test]

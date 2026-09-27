@@ -3,6 +3,8 @@
 mod app;
 mod audio_queue;
 mod bookmark;
+mod capability;
+pub mod capability_types;
 mod chat_channel;
 pub mod chat_message;
 mod chat_peer;
@@ -16,8 +18,6 @@ mod file_query;
 mod file_upload;
 mod logs;
 mod pairing;
-#[cfg(feature = "nas")]
-pub mod nas;
 mod stub;
 pub mod types;
 mod util;
@@ -27,6 +27,7 @@ use async_graphql::{EmptySubscription, MergedObject, Schema};
 use app::{AppMutation, AppQuery};
 use audio_queue::{AudioQueueMutation, AudioQueueQuery};
 use bookmark::{BookmarkMutation, BookmarkQuery};
+use capability::{CapabilityMutation, CapabilityQuery};
 use chat_channel::ChatChannelMutation;
 use chat_message::ChatMessageMutation;
 use chat_peer::ChatPeerMutation;
@@ -47,6 +48,7 @@ pub struct QueryRoot(
     AppQuery,
     AudioQueueQuery,
     BookmarkQuery,
+    CapabilityQuery,
     ChatQuery,
     LogsQuery,
     DataStoreQuery,
@@ -64,6 +66,7 @@ pub struct MutationRoot(
     AppMutation,
     AudioQueueMutation,
     BookmarkMutation,
+    CapabilityMutation,
     ChatMessageMutation,
     ChatChannelMutation,
     ChatPeerMutation,
@@ -78,9 +81,9 @@ pub struct MutationRoot(
     crate::media::gql::MediaMutationRoot,
 );
 
-pub type LocalSchema = Schema<QueryRoot, MutationRoot, EmptySubscription>;
+pub type ApiSchema = Schema<QueryRoot, MutationRoot, EmptySubscription>;
 
-pub fn build_schema() -> LocalSchema {
+pub fn build_schema() -> ApiSchema {
     Schema::build(
         QueryRoot::default(),
         MutationRoot::default(),

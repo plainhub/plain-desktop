@@ -27,7 +27,7 @@
           <i-lucide:arrow-left-right />
         </button>
       </div>
-      <div v-if="!localMode && batteryLevel != null" class="actions">
+      <div v-if="batteryLevel != null" class="actions">
         <svg class="popup-battery-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
           <rect x="1" y="6.5" width="18" height="11" rx="2" ry="2" />
           <line x1="23" y1="10" x2="23" y2="14" />
@@ -71,36 +71,34 @@
       </teleport>
     </div>
 
-    <template v-if="!localMode">
-      <div v-if="!isTauri" class="dropdown-item" @click="logout">
-        <i-material-symbols:logout-rounded class="feature-icon" />
-        <span>{{ $t('header_actions.logout') }}</span>
-      </div>
+    <div v-if="!isTauri" class="dropdown-item" @click="logout">
+      <i-material-symbols:logout-rounded class="feature-icon" />
+      <span>{{ $t('header_actions.logout') }}</span>
+    </div>
 
-      <div class="popup-divider"></div>
+    <div class="popup-divider"></div>
 
-      <div class="dropdown-item" @click="openCustomizeUI">
-        <i-lucide:layout-list class="feature-icon" />
-        <span>{{ $t('customize_ui') }}</span>
-      </div>
+    <div class="dropdown-item" @click="openCustomizeUI">
+      <i-lucide:layout-list class="feature-icon" />
+      <span>{{ $t('customize_ui') }}</span>
+    </div>
 
-      <div class="dropdown-item" @click="openExcludedDirs">
-        <i-lucide:folder-minus class="feature-icon" />
-        <span>{{ $t('exclude_directories') }}</span>
-      </div>
+    <div v-if="hasMediaScan" class="dropdown-item" @click="openExcludedDirs">
+      <i-lucide:folder-minus class="feature-icon" />
+      <span>{{ $t('exclude_directories') }}</span>
+    </div>
 
-      <router-link v-if="hasLanShare" to="/settings/lan-share" class="dropdown-item" @click="open = false">
-        <i-lucide:hard-drive class="feature-icon" />
-        <span>{{ $t('lan_share') }}</span>
-      </router-link>
-    </template>
+    <router-link v-if="hasLanShare" to="/settings/lan-share" class="dropdown-item" @click="open = false">
+      <i-lucide:hard-drive class="feature-icon" />
+      <span>{{ $t('lan_share') }}</span>
+    </router-link>
 
     <router-link to="/developer" class="dropdown-item" @click="open = false">
       <i-lucide:code-2 class="feature-icon" />
       <span>{{ $t('developer.developer_mode') }}</span>
     </router-link>
 
-    <template v-if="!localMode && popupFeatures.length">
+    <template v-if="popupFeatures.length">
       <div class="popup-divider"></div>
       <router-link
         v-for="feat in popupFeatures"
@@ -132,7 +130,6 @@ import { getRemoteClientId } from '@/lib/device/client-id'
 import { storeToRefs } from 'pinia'
 import { pushModal, openModal } from '@/components/modal'
 import { getAvailableFeatures, type Feature } from './features'
-import { isLocalMode } from '@/lib/device/local-mode'
 import { Capability } from '@/lib/data'
 import { hasFeature } from '@/lib/feature'
 import { isMacPlatform } from '@/lib/platform'
@@ -149,7 +146,6 @@ import EditValueModal from '@/components/EditValueModal.vue'
 import { initMutation, updateDeviceNameGQL } from '@/lib/api/mutation'
 import { initQuery, deviceStatusGQL } from '@/lib/api/query'
 
-const localMode = isLocalMode()
 const { t } = useI18n()
 
 const { app } = storeToRefs(useTempStore())
@@ -263,6 +259,7 @@ const popupFeatures = computed<Feature[]>(() => {
 // capability (a loaded samba unit) — the entry keys on app.capabilities,
 // never on the device type.
 const hasLanShare = computed(() => hasFeature(Capability.LAN_SHARE, app.value?.capabilities))
+const hasMediaScan = computed(() => hasFeature(Capability.MEDIA_SCAN, app.value?.capabilities))
 
 function openCustomizeUI() {
   open.value = false

@@ -445,53 +445,64 @@ pub async fn list_dir(dir: &Path, show_hidden: bool) -> Vec<FileEntry> {
 
 /// Count entries in a directory (non-recursive). Mirrors Go `CountDirEntries`.
 pub fn count_dir_entries(dir: &Path, show_hidden: bool) -> std::io::Result<usize> {
-    let fd = open_dir(dir)?;
-    let mut count: usize = 0;
-    let mut buf = vec![0u8; 32 * 1024];
-    loop {
-        let n = read_dirents(fd, &mut buf)?;
-        if n == 0 {
-            break;
-        }
-        let mut pos = 0usize;
-        while pos < n {
-            if pos + 19 > n {
+    #[cfg(not(target_os = "linux"))]
+    {
+        return std::fs::read_dir(dir)?.try_fold(0usize, |count, entry| {
+            let name = entry?.file_name();
+            let visible = show_hidden || !name.to_string_lossy().starts_with('.');
+            Ok(count + usize::from(visible))
+        });
+    }
+    #[cfg(target_os = "linux")]
+    {
+        let fd = open_dir(dir)?;
+        let mut count: usize = 0;
+        let mut buf = vec![0u8; 32 * 1024];
+        loop {
+            let n = read_dirents(fd, &mut buf)?;
+            if n == 0 {
                 break;
             }
-            let reclen = u16::from_ne_bytes([buf[pos + 16], buf[pos + 17]]) as usize;
-            if reclen == 0 || pos + reclen > n {
-                break;
-            }
-            let ino = u64::from_ne_bytes([
-                buf[pos],
-                buf[pos + 1],
-                buf[pos + 2],
-                buf[pos + 3],
-                buf[pos + 4],
-                buf[pos + 5],
-                buf[pos + 6],
-                buf[pos + 7],
-            ]);
-            if ino != 0 {
-                let name_start = pos + 19;
-                let mut name_end = name_start;
-                while name_end < pos + reclen && buf[name_end] != 0 {
-                    name_end += 1;
+            let mut pos = 0usize;
+            while pos < n {
+                if pos + 19 > n {
+                    break;
                 }
-                let name = &buf[name_start..name_end];
-                let is_dot = name == b"." || name == b"..";
-                if !is_dot {
-                    let is_hidden = !show_hidden && name.len() > 1 && name[0] == b'.';
-                    if !is_hidden {
-                        count += 1;
+                let reclen = u16::from_ne_bytes([buf[pos + 16], buf[pos + 17]]) as usize;
+                if reclen == 0 || pos + reclen > n {
+                    break;
+                }
+                let ino = u64::from_ne_bytes([
+                    buf[pos],
+                    buf[pos + 1],
+                    buf[pos + 2],
+                    buf[pos + 3],
+                    buf[pos + 4],
+                    buf[pos + 5],
+                    buf[pos + 6],
+                    buf[pos + 7],
+                ]);
+                if ino != 0 {
+                    let name_start = pos + 19;
+                    let mut name_end = name_start;
+                    while name_end < pos + reclen && buf[name_end] != 0 {
+                        name_end += 1;
+                    }
+                    let name = &buf[name_start..name_end];
+                    let is_dot = name == b"." || name == b"..";
+                    if !is_dot {
+                        let is_hidden = !show_hidden && name.len() > 1 && name[0] == b'.';
+                        if !is_hidden {
+                            count += 1;
+                        }
                     }
                 }
+                pos += reclen;
             }
-            pos += reclen;
         }
+        let _ = nix_close(fd);
+        Ok(count)
     }
-    let _ = nix_close(fd);
-    Ok(count)
 }
 
 /// Mirrors Go `renameFileModel` (`internal/graph/files_dir_rename_api.go`).
@@ -772,63 +783,79 @@ async fn copy_dir_recursive(src: &Path, dst: &Path) -> std::io::Result<()> {
 /// `threshold` (and caps there) once the count exceeds the threshold so
 /// the response stays cheap on huge trees.
 fn count_dir_entries_fast(path: &Path, threshold: i32) -> std::io::Result<i32> {
-    let fd = open_dir(path)?;
-    let mut count: i32 = 0;
-    let mut buf = vec![0u8; 32 * 1024];
-    loop {
-        let n = read_dirents(fd, &mut buf)?;
-        if n == 0 {
-            break;
+    #[cfg(not(target_os = "linux"))]
+    {
+        let mut count = 0;
+        for entry in std::fs::read_dir(path)? {
+            entry?;
+            count += 1;
+            if count >= threshold {
+                break;
+            }
         }
-        let mut pos = 0usize;
-        while pos < n {
-            // Linux dirent layout: d_ino(u64), d_off(i64), d_reclen(u16),
-            // d_type(u8), d_name(...). All little-endian on the platforms
-            // we target. We don't use `d_type` because we only need the
-            // name here.
-            if pos + 19 > n {
+        return Ok(count);
+    }
+    #[cfg(target_os = "linux")]
+    {
+        let fd = open_dir(path)?;
+        let mut count: i32 = 0;
+        let mut buf = vec![0u8; 32 * 1024];
+        loop {
+            let n = read_dirents(fd, &mut buf)?;
+            if n == 0 {
                 break;
             }
-            let reclen = u16::from_ne_bytes([buf[pos + 16], buf[pos + 17]]) as usize;
-            if reclen == 0 || pos + reclen > n {
-                break;
-            }
-            // d_ino: skip entries that are unlinked
-            let ino = u64::from_ne_bytes([
-                buf[pos],
-                buf[pos + 1],
-                buf[pos + 2],
-                buf[pos + 3],
-                buf[pos + 4],
-                buf[pos + 5],
-                buf[pos + 6],
-                buf[pos + 7],
-            ]);
-            if ino != 0 {
-                // d_name starts at pos+19, NUL-terminated
-                let name_start = pos + 19;
-                let mut name_end = name_start;
-                while name_end < pos + reclen && buf[name_end] != 0 {
-                    name_end += 1;
+            let mut pos = 0usize;
+            while pos < n {
+                // Linux dirent layout: d_ino(u64), d_off(i64), d_reclen(u16),
+                // d_type(u8), d_name(...). All little-endian on the platforms
+                // we target. We don't use `d_type` because we only need the
+                // name here.
+                if pos + 19 > n {
+                    break;
                 }
-                let name = &buf[name_start..name_end];
-                let is_dot = name == b"."
-                    || name == b".."
-                    || (name.len() > 1 && name[0] == b'.' && name[1] == b'.' && name[2] == 0);
-                if !is_dot {
-                    count += 1;
-                    if count > threshold {
-                        return Ok(threshold);
+                let reclen = u16::from_ne_bytes([buf[pos + 16], buf[pos + 17]]) as usize;
+                if reclen == 0 || pos + reclen > n {
+                    break;
+                }
+                // d_ino: skip entries that are unlinked
+                let ino = u64::from_ne_bytes([
+                    buf[pos],
+                    buf[pos + 1],
+                    buf[pos + 2],
+                    buf[pos + 3],
+                    buf[pos + 4],
+                    buf[pos + 5],
+                    buf[pos + 6],
+                    buf[pos + 7],
+                ]);
+                if ino != 0 {
+                    // d_name starts at pos+19, NUL-terminated
+                    let name_start = pos + 19;
+                    let mut name_end = name_start;
+                    while name_end < pos + reclen && buf[name_end] != 0 {
+                        name_end += 1;
+                    }
+                    let name = &buf[name_start..name_end];
+                    let is_dot = name == b"."
+                        || name == b".."
+                        || (name.len() > 1 && name[0] == b'.' && name[1] == b'.' && name[2] == 0);
+                    if !is_dot {
+                        count += 1;
+                        if count > threshold {
+                            return Ok(threshold);
+                        }
                     }
                 }
+                pos += reclen;
             }
-            pos += reclen;
         }
+        let _ = nix_close(fd);
+        Ok(count)
     }
-    let _ = nix_close(fd);
-    Ok(count)
 }
 
+#[cfg(target_os = "linux")]
 fn open_dir(path: &Path) -> std::io::Result<i32> {
     // O_RDONLY | O_DIRECTORY on Linux. The constant 0o200000 is
     // O_DIRECTORY on glibc; we set it via libc::O_DIRECTORY.
@@ -842,6 +869,7 @@ fn open_dir(path: &Path) -> std::io::Result<i32> {
     }
 }
 
+#[cfg(target_os = "linux")]
 fn read_dirents(fd: i32, buf: &mut [u8]) -> std::io::Result<usize> {
     // SYS_getdents64 = 217 on x86_64 Linux, 61 on aarch64. We could pull in
     // the `nix` crate for this, but the existing project keeps the surface
@@ -879,6 +907,7 @@ fn read_dirents(fd: i32, buf: &mut [u8]) -> std::io::Result<usize> {
     }
 }
 
+#[cfg(target_os = "linux")]
 fn nix_close(fd: i32) -> std::io::Result<()> {
     let rc = unsafe { libc::close(fd) };
     if rc < 0 {

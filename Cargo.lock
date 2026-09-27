@@ -4973,6 +4973,7 @@ dependencies = [
  "nix",
  "plain-rs",
  "rustls",
+ "serde_json",
  "tokio",
 ]
 

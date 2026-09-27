@@ -38,7 +38,10 @@ pub struct IdQuery {
     name: Option<String>,
 }
 
-pub async fn zip_dir_handler(State(state): State<ServerState>, Query(q): Query<IdQuery>) -> Response {
+pub async fn zip_dir_handler(
+    State(state): State<ServerState>,
+    Query(q): Query<IdQuery>,
+) -> Response {
     let id = q.id.as_deref().unwrap_or("").trim();
     if id.is_empty() {
         return (StatusCode::BAD_REQUEST, "").into_response();
@@ -105,7 +108,6 @@ pub async fn zip_dir_handler(State(state): State<ServerState>, Query(q): Query<I
 #[derive(Deserialize, Debug)]
 struct ZipFilesRequest {
     #[serde(default)]
-    #[cfg_attr(not(feature = "nas"), allow(dead_code))]
     id: String,
     #[serde(default)]
     r#type: String,
@@ -157,31 +159,43 @@ pub async fn zip_files_handler(
     // Resolve the item list based on the request type.
     let mut items: Vec<ZipPathItem> = match type_str.as_str() {
         "AUDIO" | "VIDEO" | "IMAGE" => {
-            // The Rust port does not yet have a media scanner API
-            // equivalent to Go's `helpers.ScanAudios/ScanVideos/ScanImages`.
-            // Until that lands (TODO 8.8), we return an empty item list —
-            // matching the existing `audios` / `videos` / `images` GraphQL
-            // queries which also return empty.
-            Vec::new()
+            let kind = type_str.to_lowercase();
+            let index = crate::media::image_index::global();
+            let count = match index.count(&req.query, Some(&kind), None) {
+                Ok(value) => value,
+                Err(_) => return (StatusCode::BAD_REQUEST, "").into_response(),
+            };
+            match index.search(
+                &req.query,
+                Some(&kind),
+                None,
+                crate::media::image_index::MediaSort::DateDesc,
+                0,
+                count,
+            ) {
+                Ok(rows) => rows
+                    .into_iter()
+                    .map(|row| ZipPathItem {
+                        path: row.path,
+                        name: row.name,
+                    })
+                    .collect(),
+                Err(_) => return (StatusCode::BAD_REQUEST, "").into_response(),
+            }
         }
         "FILE" => {
-            #[cfg(feature = "nas")]
-            {
-                let tmp_key = req.id.trim();
-                if tmp_key.is_empty() {
-                    return (StatusCode::BAD_REQUEST, "").into_response();
-                }
-                let raw = match crate::nas::temp_store::take(tmp_key) {
-                    Some(v) => v,
-                    None => return (StatusCode::NOT_FOUND, "").into_response(),
-                };
-                match serde_json::from_str::<Vec<ZipPathItem>>(&raw) {
-                    Ok(v) => v,
-                    Err(_) => return (StatusCode::BAD_REQUEST, "").into_response(),
-                }
+            let tmp_key = req.id.trim();
+            if tmp_key.is_empty() {
+                return (StatusCode::BAD_REQUEST, "").into_response();
             }
-            #[cfg(not(feature = "nas"))]
-            Vec::new()
+            let raw = match crate::api::temp_store::take(tmp_key) {
+                Some(v) => v,
+                None => return (StatusCode::NOT_FOUND, "").into_response(),
+            };
+            match serde_json::from_str::<Vec<ZipPathItem>>(&raw) {
+                Ok(v) => v,
+                Err(_) => return (StatusCode::BAD_REQUEST, "").into_response(),
+            }
         }
         _ => return (StatusCode::BAD_REQUEST, "").into_response(),
     };

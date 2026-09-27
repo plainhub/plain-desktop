@@ -9,7 +9,6 @@ import { buildQuickActions } from '@/views/main-view-quick-actions'
  *  nothing went red. This file locks the mounts so that cannot recur. */
 
 const ALL_IDS = buildQuickActions({
-  localMode: false,
   hasTasks: false,
   quick: '',
   capabilities: ['NOTIFICATIONS', 'CLIPBOARD', 'POMODORO'],

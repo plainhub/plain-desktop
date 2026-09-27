@@ -19,6 +19,7 @@ pub mod link_preview;
 pub mod peer_graphql;
 pub mod schema;
 pub mod server;
+pub mod temp_store;
 pub mod tls;
 
 pub use context::ShellHooks;

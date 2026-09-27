@@ -41,6 +41,9 @@ pub fn run() {
                     log::LevelFilter::Info
                 })
                 .level_for("tungstenite", log::LevelFilter::Warn)
+                .level_for("tantivy", log::LevelFilter::Warn)
+                .level_for("fjall", log::LevelFilter::Warn)
+                .level_for("lsm_tree", log::LevelFilter::Warn)
                 .targets([
                     tauri_plugin_log::Target::new(tauri_plugin_log::TargetKind::Stdout),
                     tauri_plugin_log::Target::new(tauri_plugin_log::TargetKind::LogDir {
@@ -70,6 +73,26 @@ pub fn run() {
                 plain_rs::prefs::Prefs::load(&plain_rs::prefs::default_path(&data_dir))
                     .expect("prefs.json load"),
             );
+            if matches!(prefs.get::<Vec<String>>("media_source_dirs"), Ok(None)) {
+                let mut roots: Vec<String> = [
+                    app.path().desktop_dir(),
+                    app.path().document_dir(),
+                    app.path().download_dir(),
+                    app.path().audio_dir(),
+                    app.path().picture_dir(),
+                    app.path().video_dir(),
+                ]
+                .into_iter()
+                .flatten()
+                .filter(|path| path.is_dir())
+                .map(|path| path.to_string_lossy().into_owned())
+                .collect();
+                roots.sort();
+                roots.dedup();
+                if let Err(error) = plain_rs::media::kv::media_source::set(&prefs, &roots) {
+                    log::warn!("media source initialization failed: {error}");
+                }
+            }
             app.handle().manage(prefs.clone());
 
             #[cfg(target_os = "macos")]
@@ -169,6 +192,7 @@ pub fn run() {
                     }
                 });
             });
+            plain_rs::api::server::events::spawn_media_event_bridge(event_tx.clone());
             let ctx = plain_rs::api::context::AppCtx::assemble(
                 data_dir.clone(),
                 data_dir.join("cache"),
@@ -182,6 +206,39 @@ pub fn run() {
                 0,
             )
             .expect("assemble local API context");
+            let media_roots: Vec<std::path::PathBuf> = plain_rs::media::kv::media_source::get(&prefs)
+                .into_iter()
+                .map(std::path::PathBuf::from)
+                .filter(|path| path.is_dir())
+                .collect();
+            if !media_roots.is_empty() {
+                if let Ok(watcher) = plain_rs::media::watcher::start_watching(ctx.media.db.clone(), &media_roots) {
+                    app.handle().manage(std::sync::Mutex::new(watcher));
+                }
+                let needs_initial_scan = ctx.media.db.scan_prefix(b"media:uuid:").next().is_none();
+                let media_db = ctx.media.db.clone();
+                let data_dir_for_index = data_dir.clone();
+                tauri::async_runtime::spawn(async move {
+                    let db_for_index = media_db.clone();
+                    let roots_for_index = media_roots.clone();
+                    let _ = tauri::async_runtime::spawn_blocking(move || {
+                        plain_rs::media::watcher::build_missing_indexes(
+                            &data_dir_for_index,
+                            &db_for_index,
+                            &roots_for_index,
+                        );
+                    }).await;
+                    if needs_initial_scan {
+                        if let Err(error) = plain_rs::media::scan::start_walk_and_scan_paths(
+                            media_db,
+                            media_roots,
+                            std::path::PathBuf::from("/"),
+                        ).await {
+                            log::error!("initial media scan failed: {error}");
+                        }
+                    }
+                });
+            }
             let peer_status = ctx.peer_status.clone();
             let discover_mgr = ctx.discover_manager.clone();
             let dlna_engine = ctx.dlna_engine.clone();
@@ -190,10 +247,15 @@ pub fn run() {
                 let mgr = discover_mgr.clone();
                 Arc::new(move |id: &str| mgr.peer_address(id))
             };
-            let state = plain_rs::api::server::ServerState::desktop(
+            let state = plain_rs::api::server::ServerState::new(
                 Arc::new(plain_rs::api::schema::build_schema()),
                 Arc::new(plain_rs::api::peer_graphql::build_schema()),
                 ctx,
+                plain_rs::api::server::ServerSettings {
+                    auth: plain_rs::api::server::AuthPolicy::LocalToken,
+                    cors: plain_rs::api::server::cors::CorsPolicy::permissive_default(),
+                    serve_spa: false,
+                },
             );
             app.handle().manage(tauri::async_runtime::block_on(async {
                 plain_rs::api::http_proxy::HttpProxyState::start(peer_resolver)

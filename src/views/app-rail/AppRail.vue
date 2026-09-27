@@ -2,7 +2,6 @@
   <nav class="app-rail">
     <div class="rail-items">
       <router-link
-        v-if="!localMode"
         v-tooltip="$t('page_title.home')"
         to="/"
         class="rail-item"
@@ -39,10 +38,8 @@ import { useMainStore } from '@/stores/main'
 import { useTempStore } from '@/stores/temp'
 import { storeToRefs } from 'pinia'
 import { ALL_FEATURES, getAvailableFeatures, type Feature } from './features'
-import { isLocalFeatureId, isLocalMode } from '@/lib/device/local-mode'
 import RailSettingsPopup from './RailSettingsPopup.vue'
 const isTauri = __IS_TAURI__
-const localMode = isLocalMode()
 
 const store = useMainStore()
 const router = useRouter()
@@ -52,8 +49,7 @@ const { app } = storeToRefs(tempStore)
 const availableFeatures = computed(() => getAvailableFeatures(app.value?.capabilities, app.value?.buildChannel, app.value?.debug))
 
 const railFeatures = computed<Feature[]>(() => {
-  const base = localMode ? store.railFeatures.filter(isLocalFeatureId) : store.railFeatures
-  const features = base
+  const features = store.railFeatures
     .map((id) => ALL_FEATURES.find((f) => f.id === id))
     .filter((f): f is Feature => !!f && availableFeatures.value.some((a) => a.id === f.id))
   return features

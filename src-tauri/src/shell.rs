@@ -3,6 +3,7 @@
 //! `plain_rs::prefs::Prefs`; nothing here touches storage anymore.
 
 use plain_rs::api::ShellHooks;
+use plain_rs::api::schema::types::Capability;
 
 pub struct DesktopShell(pub tauri::AppHandle);
 
@@ -16,5 +17,13 @@ impl ShellHooks for DesktopShell {
 
     fn app_version(&self) -> String {
         self.0.package_info().version.to_string()
+    }
+
+    fn capabilities(&self) -> Vec<Capability> {
+        vec![
+            Capability::DocPreview,
+            Capability::ImageEditor,
+            Capability::Notifications,
+        ]
     }
 }

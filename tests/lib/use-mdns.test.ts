@@ -3,7 +3,7 @@ import { useMdns } from '@/views/device-info/use-mdns'
 
 const invoke = vi.hoisted(() => vi.fn())
 
-vi.mock('@tauri-apps/api/core', () => ({ invoke }))
+vi.mock('@tauri-apps/api/core', () => ({ invoke, isTauri: () => true }))
 vi.mock('vue-i18n', () => ({ useI18n: () => ({ t: (key: string) => key }) }))
 vi.mock('@/components/toaster', () => ({ default: vi.fn() }))
 

@@ -15,7 +15,7 @@ use axum::{
 };
 use serde::Deserialize;
 
-use super::ServerState;
+use super::{AuthPolicy, ServerState};
 use crate::media::kv::{self, EventLog, PasswordStore, SessionInfo, SessionStore};
 
 fn status_error(status: StatusCode, msg: &str) -> Response {
@@ -71,8 +71,11 @@ pub async fn auth_handler(
     let decrypted = match crate::xchacha_decrypt_raw(&key, &body) {
         Some(b) => b,
         None => {
-            let _ =
-                EventLog::new(&state.ctx.media.db).add("login_failed", "decrypt_failed", &client_id);
+            let _ = EventLog::new(&state.ctx.media.db).add(
+                "login_failed",
+                "decrypt_failed",
+                &client_id,
+            );
             return status_error(StatusCode::UNAUTHORIZED, "Unauthorized");
         }
     };
@@ -133,11 +136,10 @@ pub async fn auth_handler(
     };
     let _ = EventLog::new(&state.ctx.media.db).add("login", &client_name, &client_id);
 
-    let nas_id = state
-        .nas
-        .as_ref()
-        .map(|n| n.config.get_string("nas.id"))
-        .unwrap_or_default();
+    let nas_id = match &state.settings.auth {
+        AuthPolicy::Session { device_id, .. } => device_id.clone(),
+        AuthPolicy::LocalToken => String::new(),
+    };
     let resp = AuthResponse {
         nas_id,
         token: session.token,
@@ -220,7 +222,7 @@ struct InitResponse {
 /// Ed25519 public key (base64), used by clients for TOFU verification
 /// of signed login responses. Like plain-app, a missing `c-id` header
 /// is a 400.
-pub async fn init_nas(state: &ServerState, headers: &HeaderMap) -> Response {
+pub async fn init_session(state: &ServerState, headers: &HeaderMap) -> Response {
     let client_id = headers
         .get("c-id")
         .and_then(|v| v.to_str().ok())
@@ -272,6 +274,6 @@ pub async fn auth_setup_handler(State(state): State<ServerState>, body: Bytes) -
     (StatusCode::OK, "").into_response()
 }
 
-#[cfg(test)]
+#[cfg(all(test, feature = "nas"))]
 #[path = "../../../tests/unit/api/server/auth.rs"]
 mod tests;

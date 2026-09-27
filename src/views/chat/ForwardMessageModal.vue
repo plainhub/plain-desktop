@@ -66,7 +66,7 @@ async function doForward() {
     content = (await fetchLatestChatContent(props.message.id, props.excludeChatId)) ?? content
   }
   for (const toId of selected.value) {
-    mutate({ toId, content })
+    mutate({ target: toId, content })
   }
 }
 

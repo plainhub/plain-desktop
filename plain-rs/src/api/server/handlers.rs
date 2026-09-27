@@ -18,13 +18,12 @@ use serde_json::json;
 use std::collections::HashMap;
 use std::net::SocketAddr;
 
-use super::request_key::{RequestKeyError, resolve_request_key};
+use super::request_key::{RequestKey, RequestKeyError, resolve_request_key};
 use super::response::{APP_ID, respond};
 use super::ws;
 use crate::api::dlna;
 use crate::api::executor::execute_graphql;
-use crate::api::server::ServerState;
-use crate::xchacha_encrypt;
+use crate::api::server::{AuthPolicy, ServerState};
 
 pub async fn health() -> Response {
     respond(200, APP_ID.as_bytes().to_vec(), "text/plain")
@@ -41,15 +40,19 @@ pub async fn health() -> Response {
 ///   `{signaturePublicKey}` (the Ed25519 verifying key — last 32 bytes
 ///   of the 64-byte keypair) so the frontend can proceed with the
 ///   handshake.
-pub async fn init(State(state): State<ServerState>, headers: axum::http::HeaderMap, body: Bytes) -> Response {
-    #[cfg(feature = "nas")]
-    if state.nas.is_some() {
-        return super::auth::init_nas(&state, &headers).await;
+pub async fn init(
+    State(state): State<ServerState>,
+    headers: axum::http::HeaderMap,
+    body: Bytes,
+) -> Response {
+    if matches!(state.settings.auth, AuthPolicy::Session { .. }) {
+        return super::auth::init_session(&state, &headers).await;
     }
     let _ = headers;
     let ctx = &state.ctx;
-    let authenticated =
-        !body.is_empty() && !ctx.token.is_empty() && crate::xchacha_decrypt(&ctx.token, &body).is_some();
+    let authenticated = !body.is_empty()
+        && !ctx.token.is_empty()
+        && crate::xchacha_decrypt(&ctx.token, &body).is_some();
 
     if authenticated {
         // Frontend: `r.status === 200 && token && !bodyText` → finishLoginSuccess()
@@ -66,116 +69,35 @@ pub async fn init(State(state): State<ServerState>, headers: axum::http::HeaderM
     }
 }
 
-/// `POST /graphql` — one handler, two execution paths behind one
-/// request-key resolution and one replay-wrapper strip:
-///
-/// * nas: session key (or config dev bearer) decrypts the body; the
-///   strict `async_graphql::Request` parse feeds the type-erased schema
-///   with the cid injected; the response re-encrypts (dev bearer →
-///   plaintext JSON).
-/// * desktop: URL token decrypts; the body parses as a JSON value
-///   (malformed → `{}` fallback), runs through the local executor's
-///   stub pre-filter, and the response re-encrypts with the token.
 pub async fn graphql(
     State(state): State<ServerState>,
     headers: axum::http::HeaderMap,
     body: Bytes,
 ) -> Response {
-    #[cfg_attr(not(feature = "nas"), allow(unused_variables))]
     let (key, cid) = match resolve_request_key(&state, &headers, true) {
         Ok(v) => v,
-        Err(e) => return nas_key_error(&e),
+        Err(e) => return request_key_error(&e),
     };
-
-    #[cfg(feature = "nas")]
-    if state.nas.is_some() {
-        let decrypted: Bytes = match super::request_key::decrypt_body(&key, &body) {
-            Some(b) => b.into(),
-            // Nas contract: a body the session key cannot decrypt is a
-            // 400 with the JSON error shape (Go parity).
-            None => {
-                return (
-                    StatusCode::BAD_REQUEST,
-                    axum::Json(json!({ "errors": [{ "message": "Decryption failed" }] })),
-                )
-                    .into_response()
-            }
-        };
-        return run_graphql_nas(&state, key, decrypted, cid).await;
-    }
-
-    // Desktop contract: token-decrypt failure is a bare 401.
     let Some(plaintext) = super::request_key::decrypt_body(&key, &body) else {
         return respond(401, Vec::new(), "text/plain");
     };
     let json_bytes = strip_replay_wrapper(&plaintext).into_bytes();
     let request: Value = serde_json::from_slice(&json_bytes).unwrap_or_else(|_| json!({}));
-    let Some(local_schema) = state.local_schema() else {
-        return respond(500, b"no local schema".to_vec(), "text/plain");
-    };
-    let response_json = execute_graphql(&local_schema, request, state.ctx.clone()).await;
+    let response_json =
+        execute_graphql(state.schema.as_ref(), request, state.ctx.clone(), cid).await;
     let response_text = response_json.to_string();
-    match xchacha_encrypt(&state.ctx.token, response_text.as_bytes()) {
-        Some(encrypted) => respond(200, encrypted, "application/octet-stream"),
+    let content_type = if matches!(key, RequestKey::DevBearer) {
+        "application/json"
+    } else {
+        "application/octet-stream"
+    };
+    match super::request_key::encrypt_body(&key, response_text.as_bytes()) {
+        Some(encrypted) => respond(200, encrypted, content_type),
         None => respond(500, Vec::new(), "text/plain"),
     }
 }
 
-/// The nas execution path: strict Request parse → type-erased schema
-/// with the cid as per-request data → encrypt (or plaintext JSON for
-/// the dev bearer) with the request key.
-#[cfg(feature = "nas")]
-async fn run_graphql_nas(
-    state: &ServerState,
-    key: super::request_key::RequestKey,
-    body: Bytes,
-    cid: String,
-) -> Response {
-    // Session-mode clients wrap the GraphQL JSON with replay protection:
-    // "TIMESTAMP|NONCE|JSON" (plain-desktop `wrapWithReplayProtection`).
-    // Dev-mode Bearer requests carry the bare JSON — accept both.
-    let payload = strip_replay_wrapper(&body);
-    let request: async_graphql::Request = match serde_json::from_slice(payload.as_bytes()) {
-        Ok(r) => r,
-        Err(_) => {
-            let resp = async_graphql::Response::from_errors(vec![async_graphql::ServerError::new(
-                "Bad request",
-                None,
-            )]);
-            return wrap_graphql_response(&resp, &key);
-        }
-    };
-    // The nas schema reads the requesting client id as per-request
-    // `String` data (resolvers doing audit logging / DLNA targeting key
-    // on it); resolver-data Arcs live in the schema's global data.
-    let resp = state.schema.execute(request.data(cid)).await;
-    wrap_graphql_response(&resp, &key)
-}
-
-#[cfg(feature = "nas")]
-fn wrap_graphql_response(
-    resp: &async_graphql::Response,
-    key: &super::request_key::RequestKey,
-) -> Response {
-    let bytes = match serde_json::to_vec(&resp) {
-        Ok(b) => b,
-        Err(_) => return nas_server_error("encode failed"),
-    };
-    if let Some(enc) = super::request_key::encrypt_body(key, &bytes) {
-        let content_type = match key {
-            super::request_key::RequestKey::DevBearer => "application/json",
-            _ => "application/octet-stream",
-        };
-        respond(200, enc, content_type)
-    } else {
-        nas_server_error("encrypt failed")
-    }
-}
-
-/// Render a key-resolution failure with the plain-nas JSON error shape
-/// (mirrors Go `requireAuth`'s branches). Only reachable on the nas
-/// host — desktop resolution never fails.
-fn nas_key_error(e: &RequestKeyError) -> Response {
+fn request_key_error(e: &RequestKeyError) -> Response {
     let msg = match e {
         RequestKeyError::MissingCid => "Unauthorized",
         RequestKeyError::SessionNotFound | RequestKeyError::BadSessionToken => "Unauthorized",
@@ -191,15 +113,6 @@ fn nas_key_error(e: &RequestKeyError) -> Response {
         .into_response()
 }
 
-#[cfg(feature = "nas")]
-fn nas_server_error(msg: &str) -> Response {
-    respond(
-        500,
-        json!({ "errors": [{ "message": msg }] }).to_string().into_bytes(),
-        "application/json",
-    )
-}
-
 pub async fn peer_graphql_handler(
     State(state): State<ServerState>,
     headers: axum::http::HeaderMap,
@@ -207,15 +120,6 @@ pub async fn peer_graphql_handler(
 ) -> Response {
     let header_client_id = header_string(&headers, "c-id");
     let header_channel_id = header_string(&headers, "c-cid");
-
-    // Nas branch: the nas-flavored peer schema (resolvers take the nas
-    // `PeerCtx`, auth over the SQLite chat db) is still distinct from
-    // the desktop `PeerSchema` flow; field-level dedup happens in phase
-    // 3b.
-    #[cfg(feature = "nas")]
-    if let Some(nas) = state.nas.as_ref() {
-        return peer_graphql_nas(&state, nas, &header_client_id, &header_channel_id, &body).await;
-    }
 
     super::super::peer_graphql::handle(
         &body,
@@ -225,67 +129,6 @@ pub async fn peer_graphql_handler(
         &state.peer_schema,
     )
     .await
-}
-
-/// Peer GraphQL ingestion, nas flavor: auth chain → nas peer schema →
-/// encrypted response, mirroring plain-app `PeerGraphQLService.handle`.
-#[cfg(feature = "nas")]
-async fn peer_graphql_nas(
-    state: &ServerState,
-    nas: &std::sync::Arc<super::NasServerState>,
-    header_client_id: &str,
-    header_channel_id: &str,
-    body: &[u8],
-) -> Response {
-    log::info!("[/peer_graphql] request from c-id={header_client_id}");
-
-    // ── 1. Authenticate (key selection, decrypt, timestamp, signature) ──
-    let authed = match crate::chat::peer_auth::authenticate(
-        &state.ctx.chat.service.db,
-        header_client_id,
-        header_channel_id,
-        body,
-        &state.ctx.chat.service.channel_key_cache,
-    ) {
-        Ok(a) => a,
-        Err(e) => {
-            log::warn!("[/peer_graphql] auth failed: {}", e.reason());
-            return respond(401, e.reason().as_bytes().to_vec(), "text/plain");
-        }
-    };
-
-    // ── 2. Execute through the typed peer schema ──────────────────────
-    // The plaintext payload is a GraphQL-over-HTTP JSON envelope
-    // `{"query":"...","variables":{...}}`.
-    let request_value: Value = serde_json::from_str(&authed.graphql_json)
-        .unwrap_or_else(|_| json!({ "data": null }));
-    let query_str = request_value
-        .get("query")
-        .and_then(Value::as_str)
-        .unwrap_or_default();
-    let vars: async_graphql::Variables = request_value
-        .get("variables")
-        .and_then(|v| serde_json::from_value(v.clone()).ok())
-        .unwrap_or_default();
-
-    let peer_ctx = crate::api::schema::nas::peer_schema::PeerCtx {
-        state: state.ctx.chat.clone(),
-        peer: authed.peer,
-        channel_id: header_channel_id.to_string(),
-    };
-    let response = nas
-        .peer_schema
-        .execute(async_graphql::Request::new(query_str).variables(vars).data(peer_ctx))
-        .await;
-    let response_json =
-        serde_json::to_value(&response).unwrap_or_else(|_| json!({ "data": null }));
-
-    // ── 3. Encrypt and respond ────────────────────────────────────────
-    let response_text = response_json.to_string();
-    match crate::xchacha_encrypt_raw(&authed.key, response_text.as_bytes()) {
-        Some(encrypted) => respond(200, encrypted, "application/octet-stream"),
-        None => StatusCode::INTERNAL_SERVER_ERROR.into_response(),
-    }
 }
 
 /// `POST /nearby` — LAN transport for pairing messages. The request body
@@ -330,7 +173,9 @@ pub async fn fallback(State(state): State<ServerState>, req: Request) -> Respons
             log::debug!("local_server: new WS connection path={raw_path}");
             if raw_path.starts_with("/status") {
                 return upgrade
-                    .on_upgrade(move |socket| ws::status_socket(socket, raw_path, state.ctx.clone()))
+                    .on_upgrade(move |socket| {
+                        ws::status_socket(socket, raw_path, state.ctx.clone())
+                    })
                     .into_response();
             }
             return upgrade

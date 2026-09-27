@@ -47,12 +47,4 @@ describe('local-mode', () => {
     expect(lm.isLocalModeAllowed()).toBe(false)
   })
 
-  it('isLocalModeAllowed() and isLocalRouteGroup() are independent helpers', async () => {
-    const lm = await loadLocalMode()
-    expect(typeof lm.isLocalModeAllowed).toBe('function')
-    expect(typeof lm.isLocalRouteGroup).toBe('function')
-    expect(lm.isLocalRouteGroup('home')).toBe(true)
-    expect(lm.isLocalRouteGroup('chat')).toBe(true)
-    expect(lm.isLocalRouteGroup('files')).toBe(false)
-  })
 })

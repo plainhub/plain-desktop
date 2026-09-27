@@ -1,5 +1,5 @@
 //! Unit tests for the nas auth handlers (moved from plain-nas).
-use super::init_nas;
+use super::init_session;
 use crate::api::server::test_support::nas_state;
 use crate::media::kv::PasswordStore;
 use axum::http::{HeaderMap, StatusCode};
@@ -11,7 +11,7 @@ fn cid_headers(cid: &str) -> HeaderMap {
 }
 
 async fn init_json(state: &crate::api::server::ServerState, headers: HeaderMap) -> (StatusCode, serde_json::Value) {
-    let resp = init_nas(state, &headers).await;
+    let resp = init_session(state, &headers).await;
     let status = resp.status();
     let body = axum::body::to_bytes(resp.into_body(), 64 * 1024)
         .await
@@ -46,6 +46,6 @@ async fn init_never_401s_and_triages_needs_setup() {
 #[tokio::test]
 async fn init_rejects_missing_client_id() {
     let state = nas_state();
-    let resp = init_nas(&state, &HeaderMap::new()).await;
+    let resp = init_session(&state, &HeaderMap::new()).await;
     assert_eq!(resp.status(), StatusCode::BAD_REQUEST);
 }

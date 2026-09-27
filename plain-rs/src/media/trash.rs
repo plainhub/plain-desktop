@@ -18,11 +18,12 @@
 //! - All rename+metadata operations on a given disk are serialized by an
 //!   `flock` on `${MOUNT}/.nas-trash/.lock`.
 
+use crate::utils::shortid;
 use anyhow::{Context, Result, anyhow, bail};
 use chrono::{DateTime, TimeZone, Utc};
-use crate::utils::shortid;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
+#[cfg(unix)]
 use std::os::unix::fs::{MetadataExt, PermissionsExt};
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
@@ -38,6 +39,16 @@ const NS_BY_DELETED_DF: &str = "trash:by_deleted_at_df:";
 const NS_BY_NAME_DF: &str = "trash:by_name_df:";
 const NS_BY_SIZE_DF: &str = "trash:by_size_df:";
 const REVERSED_MAX: i64 = i64::MAX;
+
+#[cfg(unix)]
+fn owner_mode(meta: &std::fs::Metadata) -> (u32, u32, u32) {
+    (meta.uid(), meta.gid(), meta.mode())
+}
+
+#[cfg(not(unix))]
+fn owner_mode(_meta: &std::fs::Metadata) -> (u32, u32, u32) {
+    (0, 0, 0)
+}
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct TrashItem {
@@ -286,6 +297,7 @@ pub async fn trash_paths(paths: Vec<String>) -> Result<Vec<String>> {
             }
             Err(e) => bail!("rename failed: {e}"),
         }
+        let (uid, gid, mode) = owner_mode(&meta);
         let item = TrashItem {
             id: id.clone(),
             kind: kind.to_string(),
@@ -293,9 +305,9 @@ pub async fn trash_paths(paths: Vec<String>) -> Result<Vec<String>> {
             disk: disk_mount.clone(),
             trash_rel_path: rel,
             deleted_at,
-            uid: meta.uid(),
-            gid: meta.gid(),
-            mode: meta.mode(),
+            uid,
+            gid,
+            mode,
             size: None,
             entry_count: None,
         };
@@ -359,18 +371,8 @@ pub async fn restore_paths(trashed_paths: Vec<String>) -> Result<Vec<String>> {
             bail!("invalid original path");
         }
         // Enforce same-disk restore.
-        let disk_root = item.disk.trim_end_matches('/').to_string();
-        if disk_root == "/" {
-            if !target.is_absolute() {
-                bail!("restore target must be on original disk");
-            }
-        } else {
-            let prefix = format!("{disk_root}/");
-            if target.to_string_lossy() != disk_root
-                && !target.to_string_lossy().starts_with(&prefix)
-            {
-                bail!("restore target must be on original disk");
-            }
+        if !target.starts_with(Path::new(&item.disk)) {
+            bail!("restore target must be on original disk");
         }
         let lock = lock_for_disk(&item.disk);
         let _g = lock.lock().await;
@@ -383,8 +385,12 @@ pub async fn restore_paths(trashed_paths: Vec<String>) -> Result<Vec<String>> {
         }
         std::fs::rename(&trash_path, &final_target).context("rename from trash")?;
         // Best-effort chown/chmod (may be restricted to root).
-        let _ = std::os::unix::fs::chown(&final_target, Some(item.uid), Some(item.gid));
-        let _ = std::fs::set_permissions(&final_target, std::fs::Permissions::from_mode(item.mode));
+        #[cfg(unix)]
+        {
+            let _ = std::os::unix::fs::chown(&final_target, Some(item.uid), Some(item.gid));
+            let _ =
+                std::fs::set_permissions(&final_target, std::fs::Permissions::from_mode(item.mode));
+        }
         if let Err(e) = delete_item_keys(&item) {
             // Roll back the physical restore so metadata stays truth.
             let _ = std::fs::rename(&final_target, &trash_path);

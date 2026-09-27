@@ -18,10 +18,10 @@ axum = { version = "0.7", features = ["json", "query", "ws", "multipart", "tokio
 tokio = { version = "1", features = ["full"] }
 axum-server = { version = "0.7", features = ["tls-rustls"] }
 
-# GraphQL lives in plain-rs (`api::schema::nas` behind its `nas`
-# feature) since the phase-3 schema move.
+# GraphQL lives in the shared plain-rs API schema.
 
 plain_rs = { path = "../plain-rs", package = "plain-rs", features = ["chat", "library", "prefs", "sqlite_browse", "media", "media_gql", "nas"] }
+serde_json = "1"
 
 # Platform FFI (already a transitive of nix/tokio/ring — listing explicitly
 # so we can call libc::tcgetattr / setsockopt / etc. without forcing

@@ -33,6 +33,20 @@ pub use types::{
 
 type FieldResult<T> = async_graphql::Result<T>;
 
+fn selected_scan_roots(root: String, source_dirs: &[String]) -> Vec<std::path::PathBuf> {
+    if root == "/" {
+        let sources: Vec<_> = source_dirs
+            .iter()
+            .filter(|dir| !dir.is_empty())
+            .map(std::path::PathBuf::from)
+            .collect();
+        if !sources.is_empty() {
+            return sources;
+        }
+    }
+    vec![std::path::PathBuf::from(root)]
+}
+
 /// Run blocking work (file probes, fjall batches) off the async runtime.
 /// Metadata hydration parses files — a lofty read can touch a whole MP3 —
 /// and must never occupy a tokio worker thread.
@@ -168,12 +182,8 @@ impl MediaQueryRoot {
                 FileSortBy::SIZE_ASC => trash::SortOrder::SizeAsc,
                 FileSortBy::SIZE_DESC => trash::SortOrder::SizeDesc,
             };
-            let items = trash::list_trash(
-                offset.max(0) as usize,
-                limit.max(1) as usize,
-                &text,
-                order,
-            )?;
+            let items =
+                trash::list_trash(offset.max(0) as usize, limit.max(1) as usize, &text, order)?;
             return Ok(items.into_iter().map(trash_item_to_file).collect());
         }
 
@@ -199,8 +209,15 @@ impl MediaQueryRoot {
 
         // If text filter is set, use search index (tantivy).
         if !text.trim().is_empty() {
-            let paths =
-                crate::media::search::search_index_files(&text, &base, offset, limit, show_hidden, "", 0)?;
+            let paths = crate::media::search::search_index_files(
+                &text,
+                &base,
+                offset,
+                limit,
+                show_hidden,
+                "",
+                0,
+            )?;
             let mut out: Vec<File> = Vec::new();
             for sf in paths {
                 let p = std::path::Path::new(&sf.path);
@@ -377,10 +394,7 @@ impl MediaQueryRoot {
 
     /// List async file tasks for the current client.
     async fn file_tasks(&self, ctx: &Context<'_>) -> FieldResult<Vec<FileTask>> {
-        let cid = ctx
-            .data::<String>()
-            .cloned()
-            .unwrap_or_default();
+        let cid = ctx.data::<String>().cloned().unwrap_or_default();
         let tasks = file_tasks::list_tasks(&cid)?;
         Ok(tasks.into_iter().map(task_to_gql).collect())
     }
@@ -629,7 +643,11 @@ impl MediaQueryRoot {
     /// maintains inside its write batches; cover items are one per-bucket
     /// tantivy query, run on a blocking thread so a large bucket count
     /// never stalls the async runtime.
-    async fn media_buckets(&self, ctx: &Context<'_>, r#type: MediaDataType) -> FieldResult<Vec<MediaBucket>> {
+    async fn media_buckets(
+        &self,
+        ctx: &Context<'_>,
+        r#type: MediaDataType,
+    ) -> FieldResult<Vec<MediaBucket>> {
         let kind = match r#type {
             MediaDataType::AUDIO => "audio".to_string(),
             MediaDataType::VIDEO => "video".to_string(),
@@ -731,20 +749,34 @@ impl MediaMutationRoot {
 
     /// Synchronous single-file copy (path-addressed). `overwrite: false` fails when `dst` exists; for batches or large trees use `createCopyTask`.
     async fn copy_file(&self, src: String, dst: String, overwrite: bool) -> FieldResult<bool> {
-        fsx::copy_path(std::path::Path::new(&src), std::path::Path::new(&dst), overwrite).await?;
+        fsx::copy_path(
+            std::path::Path::new(&src),
+            std::path::Path::new(&dst),
+            overwrite,
+        )
+        .await?;
         Ok(true)
     }
 
     /// Synchronous single-file move (path-addressed). `overwrite: false` fails when `dst` exists; for batches or large trees use `createMoveTask`.
     async fn move_file(&self, src: String, dst: String, overwrite: bool) -> FieldResult<bool> {
-        fsx::move_path(std::path::Path::new(&src), std::path::Path::new(&dst), overwrite).await?;
+        fsx::move_path(
+            std::path::Path::new(&src),
+            std::path::Path::new(&dst),
+            overwrite,
+        )
+        .await?;
         Ok(true)
     }
 
     /// Delete files by path (phone contract): returns how many were
     /// actually removed — per-path best-effort, hard failures are logged
     /// and skipped instead of failing the whole batch.
-    async fn delete_files(&self, ctx: &Context<'_>, paths: Vec<String>) -> FieldResult<ActionResult> {
+    async fn delete_files(
+        &self,
+        ctx: &Context<'_>,
+        paths: Vec<String>,
+    ) -> FieldResult<ActionResult> {
         let db = ctx.data::<Arc<Db>>()?;
         let mut affected = 0i32;
         for raw in paths {
@@ -779,7 +811,11 @@ impl MediaMutationRoot {
     /// Move each path to its disk-local `.nas-trash`. Batch destructive
     /// op → `ActionResult` per API_SPEC §6 (`affectedCount` = how many
     /// paths were actually trashed).
-    async fn trash_files(&self, ctx: &Context<'_>, paths: Vec<String>) -> FieldResult<ActionResult> {
+    async fn trash_files(
+        &self,
+        ctx: &Context<'_>,
+        paths: Vec<String>,
+    ) -> FieldResult<ActionResult> {
         let db = ctx.data::<Arc<Db>>()?;
         // Snapshot the list so we can iterate after `trash_paths` moves them.
         let original: Vec<String> = paths.clone();
@@ -813,7 +849,12 @@ impl MediaMutationRoot {
     }
 
     /// Create a tag for the given data type and return it.
-    async fn create_tag(&self, ctx: &Context<'_>, r#type: DataType, name: String) -> FieldResult<Tag> {
+    async fn create_tag(
+        &self,
+        ctx: &Context<'_>,
+        r#type: DataType,
+        name: String,
+    ) -> FieldResult<Tag> {
         let library = ctx.data::<Arc<LibraryDb>>()?;
         let kind = r#type.kind();
         let t = crate::library::tags::create_tag(library, kind, &name)
@@ -994,7 +1035,12 @@ impl MediaMutationRoot {
     /// the user wants to resume, they call `resumeMediaScan`.
     async fn start_media_scan(&self, ctx: &Context<'_>, root: String) -> FieldResult<bool> {
         let db = ctx.data::<Arc<Db>>()?;
-        scan::start_walk_and_scan(db.clone(), std::path::PathBuf::from(root)).await?;
+        let source_dirs = ctx
+            .data_opt::<Arc<Prefs>>()
+            .map(|prefs| kv::media_source::get(prefs))
+            .unwrap_or_default();
+        let roots = selected_scan_roots(root.clone(), &source_dirs);
+        scan::start_walk_and_scan_paths(db.clone(), roots, std::path::PathBuf::from(root)).await?;
         Ok(true)
     }
 
@@ -1026,7 +1072,6 @@ impl MediaMutationRoot {
 
     /// Rebuild the media index from scratch. Mirrors Go `rebuildMediaIndex`
     /// in `internal/graph/media_scan_api.go`:
-    ///
     /// 1. `media.StopScan()` — set the stop flag so the running scan loop
     ///    exits at its next yield.
     /// 2. `media.ResetAllMediaData()` — wipe every media index row.
@@ -1038,14 +1083,18 @@ impl MediaMutationRoot {
     ///    the event via the in-process eventbus.)
     /// 5. `go media.ScanAndSync(root)` — fire the actual walk+index on a
     ///    background tokio task. The resolver returns `true` immediately.
-    ///
     /// The reset and the walk are moved off the API thread so a large
     /// library does not block other GraphQL calls; this is a deliberate
     /// divergence from the Go side, where `ResetAllMediaData` runs on the
     /// resolver goroutine. Functionally equivalent.
     async fn rebuild_media_index(&self, ctx: &Context<'_>, root: String) -> FieldResult<bool> {
         let db = ctx.data::<Arc<Db>>()?.clone();
-        let root_path = std::path::PathBuf::from(root);
+        let source_dirs = ctx
+            .data_opt::<Arc<Prefs>>()
+            .map(|prefs| kv::media_source::get(prefs))
+            .unwrap_or_default();
+        let root_path = std::path::PathBuf::from(&root);
+        let roots = selected_scan_roots(root, &source_dirs);
 
         let s = scan::scanner();
         // 1) signal any in-flight scan to stop; we don't wait for it here
@@ -1088,7 +1137,9 @@ impl MediaMutationRoot {
             }
             // Even if reset fails we still try to start a fresh scan so
             // the index eventually converges.
-            if let Err(e) = scan::start_walk_and_scan(db_for_reset, root_for_walk).await {
+            if let Err(e) =
+                scan::start_walk_and_scan_paths(db_for_reset, roots, root_for_walk).await
+            {
                 log::error!("rebuild_media_index background scan failed: {e}");
             }
         });
@@ -1097,7 +1148,11 @@ impl MediaMutationRoot {
 
     /// Persist the list of source directories the media scanner should
     /// index.
-    async fn set_media_source_dirs(&self, ctx: &Context<'_>, dirs: Vec<String>) -> FieldResult<bool> {
+    async fn set_media_source_dirs(
+        &self,
+        ctx: &Context<'_>,
+        dirs: Vec<String>,
+    ) -> FieldResult<bool> {
         let prefs = ctx.data::<Arc<Prefs>>()?;
         kv::media_source::set(prefs, &dirs)?;
         Ok(true)
@@ -1643,10 +1698,7 @@ async fn apply_media_items_action(
             // plain-app prunes trashed audios out of the playback queue,
             // playlists and history (`AudioQueueManager.removePaths`).
             if m.r#type == "audio" {
-                crate::library::audio_queue::remove_paths(
-                    library,
-                    std::slice::from_ref(&m.path),
-                );
+                crate::library::audio_queue::remove_paths(library, std::slice::from_ref(&m.path));
             }
             let trashed = trash::trash_paths(vec![m.path.clone()]).await?;
             let mut updated = m.clone();
@@ -1684,10 +1736,7 @@ async fn apply_media_items_action(
         }
         MediaItemsAction::Delete => {
             if m.r#type == "audio" {
-                crate::library::audio_queue::remove_paths(
-                    library,
-                    std::slice::from_ref(&m.path),
-                );
+                crate::library::audio_queue::remove_paths(library, std::slice::from_ref(&m.path));
             }
             if trash::is_trashed_path(&m.path) {
                 trash::delete_trash_by_path(&m.path).await?;

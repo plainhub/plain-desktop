@@ -16,22 +16,10 @@ impl StubQuery {
     async fn call_count(&self, _query: String) -> i32 {
         0
     }
-    async fn image_count(&self, _query: String) -> i32 {
-        0
-    }
-    async fn audio_count(&self, _query: String) -> i32 {
-        0
-    }
-    async fn video_count(&self, _query: String) -> i32 {
-        0
-    }
     async fn package_count(&self, _query: String) -> i32 {
         0
     }
     async fn note_count(&self, _query: String) -> i32 {
-        0
-    }
-    async fn doc_count(&self, _query: String) -> i32 {
         0
     }
     async fn feed_entry_count(&self, _query: String) -> i32 {

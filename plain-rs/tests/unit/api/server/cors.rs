@@ -61,3 +61,39 @@ fn wildcard_mode_accepts_everything() {
     let p = CorsPolicy::from_config(&cfg);
     assert!(p.is_wildcard());
 }
+
+#[cfg(feature = "nas")]
+#[tokio::test]
+async fn desktop_graphql_preflight_allows_vite_origin() {
+    use axum::body::Body;
+    use axum::http::{Method, Request, StatusCode};
+    use tower::ServiceExt;
+
+    let state = crate::api::server::test_support::nas_state();
+    let app =
+        crate::api::server::build_router(crate::api::server::test_support::as_desktop(&state));
+    let response = app
+        .oneshot(
+            Request::builder()
+                .method(Method::OPTIONS)
+                .uri("/graphql")
+                .header("origin", "http://localhost:4000")
+                .header("access-control-request-method", "POST")
+                .header(
+                    "access-control-request-headers",
+                    "c-id,c-platform,c-version",
+                )
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    assert_eq!(response.status(), StatusCode::OK);
+    assert_eq!(
+        response
+            .headers()
+            .get("access-control-allow-origin")
+            .unwrap(),
+        "http://localhost:4000"
+    );
+}

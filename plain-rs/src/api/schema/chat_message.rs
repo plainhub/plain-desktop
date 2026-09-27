@@ -4,7 +4,7 @@
 //! chat service ([`crate::api::chat::ChatState`]). The GraphQL layer
 //! only parses the wire arguments and forwards them.
 
-use async_graphql::{Context, Object};
+use async_graphql::{Context, ID, Object};
 use std::sync::Arc;
 
 use super::super::context::AppCtx;
@@ -15,13 +15,6 @@ pub struct ChatMessageMutation;
 
 #[Object]
 impl ChatMessageMutation {
-    /// Send a chat item. Routes by `to_id` prefix:
-    ///   * `peer:<id>`      — peer-to-peer
-    ///   * `channel:<id>`   — channel
-    ///   * anything else    — local note
-    ///
-    /// Delivery is fire-and-forget; returns the initially-inserted `ChatItem`
-    /// (status `pending` for remote targets).
     async fn send_chat_item(
         &self,
         ctx: &Context<'_>,
@@ -38,11 +31,11 @@ impl ChatMessageMutation {
     }
 
     /// Delete a chat item, broadcasting `WS_MESSAGE_DELETED`.
-    async fn delete_chat_item(&self, ctx: &Context<'_>, id: String) -> bool {
+    async fn delete_chat_item(&self, ctx: &Context<'_>, id: ID) -> bool {
         ctx.data_unchecked::<Arc<AppCtx>>()
             .chat
             .service
-            .delete_chat_item(id)
+            .delete_chat_item(id.to_string())
     }
 
     /// Bulk-delete chats by query (`ids:`, `channel:`, `peer:`).
@@ -60,12 +53,12 @@ impl ChatMessageMutation {
     async fn retry_chat_item(
         &self,
         ctx: &Context<'_>,
-        id: String,
+        id: ID,
     ) -> Result<ChatItem, async_graphql::Error> {
         let c = ctx.data_unchecked::<Arc<AppCtx>>();
         c.chat
             .service
-            .retry_chat_item(id)
+            .retry_chat_item(id.to_string())
             .map(|chat| ChatItem::from(chat))
             .ok_or_else(|| async_graphql::Error::new("chat item not found"))
     }

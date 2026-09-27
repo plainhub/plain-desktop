@@ -162,7 +162,7 @@ export const leaveChatChannelGQL = `
 `
 
 export const addChatChannelMemberGQL = `
-  mutation addChatChannelMember($id: ID!, $peerId: String!) {
+  mutation addChatChannelMember($id: ID!, $peerId: ID!) {
     addChatChannelMember(id: $id, peerId: $peerId) {
       ...ChatChannelFragment
     }
@@ -171,7 +171,7 @@ export const addChatChannelMemberGQL = `
 `
 
 export const removeChatChannelMemberGQL = `
-  mutation removeChatChannelMember($id: ID!, $peerId: String!) {
+  mutation removeChatChannelMember($id: ID!, $peerId: ID!) {
     removeChatChannelMember(id: $id, peerId: $peerId) {
       ...ChatChannelFragment
     }
@@ -888,7 +888,7 @@ export const pairDeviceGQL = `
 `
 
 export const cancelPairingGQL = `
-  mutation cancelPairing($deviceId: String!) {
+  mutation cancelPairing($deviceId: ID!) {
     cancelPairing(deviceId: $deviceId)
   }
 `

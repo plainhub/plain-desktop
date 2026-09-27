@@ -5,7 +5,7 @@
 //! these resolvers parse the wire arguments and map the error strings the
 //! ops layer surfaces.
 
-use async_graphql::{Context, Error as GqlError, Object, Result as GqlResult};
+use async_graphql::{Context, Error as GqlError, ID, Object, Result as GqlResult};
 use std::sync::Arc;
 
 use super::super::context::AppCtx;
@@ -28,44 +28,44 @@ impl ChatChannelMutation {
     async fn update_chat_channel(
         &self,
         ctx: &Context<'_>,
-        id: String,
+        id: ID,
         name: String,
     ) -> GqlResult<ChatChannel> {
         let c = ctx.data_unchecked::<Arc<AppCtx>>();
         c.chat
             .service
-            .update_channel_name(&id, &name)
+            .update_channel_name(id.as_str(), &name)
             .await
             .map(ChatChannel::from)
             .map_err(gql_err)
     }
 
-    async fn delete_chat_channel(&self, ctx: &Context<'_>, id: String) -> bool {
+    async fn delete_chat_channel(&self, ctx: &Context<'_>, id: ID) -> bool {
         ctx.data_unchecked::<Arc<AppCtx>>()
             .chat
             .service
-            .delete_channel(&id)
+            .delete_channel(id.as_str())
             .await
     }
 
-    async fn leave_chat_channel(&self, ctx: &Context<'_>, id: String) -> bool {
+    async fn leave_chat_channel(&self, ctx: &Context<'_>, id: ID) -> bool {
         ctx.data_unchecked::<Arc<AppCtx>>()
             .chat
             .service
-            .leave_channel(&id)
+            .leave_channel(id.as_str())
             .await
     }
 
     async fn add_chat_channel_member(
         &self,
         ctx: &Context<'_>,
-        id: String,
-        peer_id: String,
+        id: ID,
+        peer_id: ID,
     ) -> GqlResult<ChatChannel> {
         let c = ctx.data_unchecked::<Arc<AppCtx>>();
         c.chat
             .service
-            .add_channel_member(&id, &peer_id)
+            .add_channel_member(id.as_str(), peer_id.as_str())
             .await
             .map(ChatChannel::from)
             .map_err(gql_err)
@@ -74,32 +74,32 @@ impl ChatChannelMutation {
     async fn remove_chat_channel_member(
         &self,
         ctx: &Context<'_>,
-        id: String,
-        peer_id: String,
+        id: ID,
+        peer_id: ID,
     ) -> GqlResult<ChatChannel> {
         let c = ctx.data_unchecked::<Arc<AppCtx>>();
         c.chat
             .service
-            .remove_channel_member(&id, &peer_id)
+            .remove_channel_member(id.as_str(), peer_id.as_str())
             .await
             .map(ChatChannel::from)
             .map_err(gql_err)
     }
 
-    async fn accept_chat_channel_invite(&self, ctx: &Context<'_>, id: String) -> GqlResult<bool> {
+    async fn accept_chat_channel_invite(&self, ctx: &Context<'_>, id: ID) -> GqlResult<bool> {
         let c = ctx.data_unchecked::<Arc<AppCtx>>();
         c.chat
             .service
-            .accept_channel_invite(&id)
+            .accept_channel_invite(id.as_str())
             .await
             .map_err(gql_err)
     }
 
-    async fn decline_chat_channel_invite(&self, ctx: &Context<'_>, id: String) -> bool {
+    async fn decline_chat_channel_invite(&self, ctx: &Context<'_>, id: ID) -> bool {
         ctx.data_unchecked::<Arc<AppCtx>>()
             .chat
             .service
-            .decline_channel_invite(&id)
+            .decline_channel_invite(id.as_str())
             .await
     }
 
@@ -111,11 +111,11 @@ impl ChatChannelMutation {
     /// both buttons. Returns the `accept` flag verbatim so the
     /// modal's `onDone` handler can read the chosen action back from
     /// the mutation result.
-    async fn respond_channel_invite(&self, ctx: &Context<'_>, id: String, accept: bool) -> bool {
+    async fn respond_channel_invite(&self, ctx: &Context<'_>, id: ID, accept: bool) -> bool {
         ctx.data_unchecked::<Arc<AppCtx>>()
             .chat
             .service
-            .respond_channel_invite(&id, accept)
+            .respond_channel_invite(id.as_str(), accept)
             .await
     }
 

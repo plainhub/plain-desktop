@@ -172,3 +172,12 @@ fn split_name_ext_basic() {
         ("a.tar".to_string(), ".gz".to_string())
     );
 }
+#[test]
+fn directory_counts_work_on_host_platform() {
+    let dir = tempfile::tempdir().unwrap();
+    std::fs::write(dir.path().join("visible.txt"), b"a").unwrap();
+    std::fs::write(dir.path().join(".hidden.txt"), b"b").unwrap();
+    assert_eq!(count_dir_entries(dir.path(), false).unwrap(), 1);
+    assert_eq!(count_dir_entries(dir.path(), true).unwrap(), 2);
+    assert_eq!(count_dir_entries_fast(dir.path(), 10).unwrap(), 2);
+}

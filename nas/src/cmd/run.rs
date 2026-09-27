@@ -6,13 +6,257 @@ use anyhow::{Context, Result};
 use std::sync::Arc;
 use tokio::signal::unix::{SignalKind, signal};
 
-use plain_rs::api::context::{AppCtx, LogShell};
+use plain_rs::api::context::{AppCtx, ShellHooks};
+use plain_rs::api::schema::capability_types;
+use plain_rs::api::schema::types::Capability;
 use plain_rs::api::server::ServerState;
 use plain_rs::api::server::build_router;
-use plain_rs::api::server::{NasServerState, events::spawn_media_event_bridge};
+use plain_rs::api::server::{AuthPolicy, ServerSettings, events::spawn_media_event_bridge};
 
 use crate::config::Config;
 use crate::consts::AppPaths;
+
+struct NasShell;
+
+impl ShellHooks for NasShell {
+    fn notify(&self, event: &str, payload: String) {
+        log::info!("[shell] {event}: {payload}");
+    }
+
+    fn app_version(&self) -> String {
+        plain_rs::nas::version::full_version()
+    }
+
+    fn capabilities(&self) -> Vec<Capability> {
+        let mut caps = Vec::new();
+        if !plain_rs::nas::samba::detect_systemd_service_name().is_empty() {
+            caps.push(Capability::LanShare);
+        }
+        if command_present("lsblk") {
+            caps.push(Capability::DiskManager);
+        }
+        if command_present("libreoffice") || command_present("soffice") {
+            caps.push(Capability::DocPreview);
+        }
+        caps
+    }
+
+    fn disks(&self) -> Result<Vec<capability_types::StorageDisk>> {
+        Ok(plain_rs::nas::storage_disks::list_disks()
+            .into_iter()
+            .map(|disk| capability_types::StorageDisk {
+                id: disk.id.into(),
+                name: disk.name,
+                path: disk.path,
+                size_bytes: plain_rs::media::gql::types::Long(disk.size_bytes),
+                removable: disk.removable,
+                model: disk.model,
+            })
+            .collect())
+    }
+
+    fn app_update(&self) -> Result<capability_types::AppUpdate> {
+        let update = plain_rs::nas::app_update::app_update();
+        Ok(capability_types::AppUpdate {
+            current_version: update.current_version,
+            latest_version: update.latest_version,
+            has_update: update.has_update,
+            url: update.url,
+        })
+    }
+
+    fn samba_settings(
+        &self,
+        prefs: &plain_rs::prefs::Prefs,
+    ) -> Result<capability_types::SambaSettings> {
+        let settings = plain_rs::nas::samba::get_samba_settings(prefs);
+        let service = plain_rs::nas::samba::get_service_status();
+        let (service_name, service_active, service_enabled) = if service.name.is_empty() {
+            (
+                settings.service_name,
+                settings.service_active,
+                settings.service_enabled,
+            )
+        } else {
+            (service.name, service.active, service.enabled)
+        };
+        Ok(capability_types::SambaSettings {
+            enabled: settings.enabled,
+            username: settings.username,
+            has_password: settings.has_password,
+            shares: settings
+                .shares
+                .into_iter()
+                .map(|share| capability_types::SambaShare {
+                    name: share.name,
+                    share_path: share.share_path,
+                    auth: match share.auth {
+                        plain_rs::nas::samba::SambaShareAuth::Guest => {
+                            capability_types::SambaShareAuth::GUEST
+                        }
+                        plain_rs::nas::samba::SambaShareAuth::Password => {
+                            capability_types::SambaShareAuth::PASSWORD
+                        }
+                    },
+                    read_only: share.read_only,
+                })
+                .collect(),
+            service_name,
+            service_active,
+            service_enabled,
+        })
+    }
+
+    fn set_samba_settings(
+        &self,
+        prefs: &plain_rs::prefs::Prefs,
+        input: capability_types::SambaSettingsInput,
+    ) -> Result<()> {
+        let previous = plain_rs::nas::samba::get_samba_settings(prefs);
+        let mut needs_password = false;
+        let shares = input
+            .shares
+            .into_iter()
+            .map(|share| {
+                let auth = match share.auth {
+                    capability_types::SambaShareAuth::GUEST => {
+                        plain_rs::nas::samba::SambaShareAuth::Guest
+                    }
+                    capability_types::SambaShareAuth::PASSWORD => {
+                        needs_password = true;
+                        plain_rs::nas::samba::SambaShareAuth::Password
+                    }
+                };
+                plain_rs::nas::samba::SambaShare {
+                    name: share.name,
+                    share_path: share.share_path,
+                    auth,
+                    read_only: share.read_only,
+                }
+            })
+            .collect();
+        let mut desired = previous.clone();
+        desired.enabled = input.enabled;
+        desired.shares = shares;
+        anyhow::ensure!(
+            !desired.enabled || !desired.shares.is_empty(),
+            "no shares configured"
+        );
+        anyhow::ensure!(
+            !needs_password || previous.has_password,
+            "password required"
+        );
+        plain_rs::nas::samba::set_samba_settings(prefs, &desired)?;
+        let applied = plain_rs::nas::samba::get_samba_settings(prefs);
+        plain_rs::nas::samba::apply(prefs, &applied, "")?;
+        Ok(())
+    }
+
+    fn set_samba_user_password(
+        &self,
+        prefs: &plain_rs::prefs::Prefs,
+        password: &str,
+    ) -> Result<()> {
+        plain_rs::nas::samba::set_user_password(password).map_err(anyhow::Error::msg)?;
+        let mut settings = plain_rs::nas::samba::get_samba_settings(prefs);
+        settings.has_password = true;
+        plain_rs::nas::samba::set_samba_settings(prefs, &settings)?;
+        if settings.enabled {
+            let _ = plain_rs::nas::samba::apply(prefs, &settings, "");
+        }
+        Ok(())
+    }
+
+    fn dlna_renderers(&self, cid: &str) -> Result<Vec<capability_types::DlnaRenderer>> {
+        if !cid.is_empty() {
+            plain_rs::nas::dlna::start_renderer_discovery(cid);
+        }
+        Ok(plain_rs::nas::dlna::cached_renderers()
+            .into_iter()
+            .map(|renderer| capability_types::DlnaRenderer {
+                udn: renderer.udn,
+                name: renderer.name,
+                manufacturer: (!renderer.manufacturer.is_empty()).then_some(renderer.manufacturer),
+                model_name: (!renderer.model_name.is_empty()).then_some(renderer.model_name),
+                location: renderer.location,
+            })
+            .collect())
+    }
+
+    fn dlna_cast(
+        &self,
+        renderer_udn: &str,
+        url: &str,
+        title: &str,
+        mime: &str,
+        media_type: plain_rs::media::gql::types::MediaDataType,
+        prefs: &plain_rs::prefs::Prefs,
+    ) -> Result<()> {
+        let kind = match media_type {
+            plain_rs::media::gql::types::MediaDataType::AUDIO => {
+                plain_rs::nas::dlna::MediaType::Audio
+            }
+            plain_rs::media::gql::types::MediaDataType::VIDEO => {
+                plain_rs::nas::dlna::MediaType::Video
+            }
+            plain_rs::media::gql::types::MediaDataType::IMAGE => {
+                plain_rs::nas::dlna::MediaType::Image
+            }
+            plain_rs::media::gql::types::MediaDataType::DOC => {
+                anyhow::bail!("dlna_cast_doc_unsupported")
+            }
+        };
+        plain_rs::nas::dlna::cast(renderer_udn, url, title, mime, kind, prefs)
+            .map_err(anyhow::Error::msg)
+    }
+
+    fn set_hostname(&self, name: &str) -> Result<()> {
+        let status = std::process::Command::new("hostnamectl")
+            .arg("set-hostname")
+            .arg(name)
+            .status()?;
+        anyhow::ensure!(status.success(), "device_name_set_hostname_failed");
+        let _ = std::process::Command::new("systemctl")
+            .args(["try-restart", "avahi-daemon"])
+            .status();
+        Ok(())
+    }
+
+    fn format_disk(
+        &self,
+        prefs: &Arc<plain_rs::prefs::Prefs>,
+        path: &str,
+        cid: &str,
+    ) -> Result<()> {
+        let on_unmount = |mount: &str| {
+            let _ = plain_rs::media::kv::EventLog::new(plain_rs::media::kv::get_default())
+                .add("unmount", mount, cid);
+        };
+        let result =
+            plain_rs::nas::format_disk::format_disk_single_partition(prefs, path, on_unmount);
+        plain_rs::media::eventbus::Bus::new().publish(
+            plain_rs::media::eventbus::EVENT_DISK_FORMAT_DONE,
+            serde_json::json!({"path": path, "ok": result.is_ok(), "error": result.as_ref().err().map(ToString::to_string)}),
+        );
+        let _ = plain_rs::media::kv::EventLog::new(plain_rs::media::kv::get_default()).add(
+            if result.is_ok() {
+                "format_disk"
+            } else {
+                "format_disk_failed"
+            },
+            path,
+            cid,
+        );
+        result
+    }
+}
+
+fn command_present(name: &str) -> bool {
+    std::env::var_os("PATH")
+        .into_iter()
+        .flat_map(|path| std::env::split_paths(&path).collect::<Vec<_>>())
+        .any(|path| path.join(name).is_file())
+}
 
 pub async fn run(paths: &AppPaths) -> Result<()> {
     if !is_root() && std::env::var("PLAIN_NAS_ALLOW_NONROOT").is_err() {
@@ -102,9 +346,7 @@ pub async fn run(paths: &AppPaths) -> Result<()> {
         prefs.clone(),
         chat.clone(),
         event_tx,
-        Arc::new(LogShell {
-            version: plain_rs::nas::version::full_version(),
-        }),
+        Arc::new(NasShell),
         http_port,
         https_port,
     )
@@ -117,24 +359,20 @@ pub async fn run(paths: &AppPaths) -> Result<()> {
     plain_rs::media::thumb::prefetch::init_from_config(&cfg_arc, db.clone(), prefs.clone());
 
     let cors_policy = plain_rs::api::server::cors::CorsPolicy::from_config(&cfg_arc);
-    let schema = plain_rs::api::schema::nas::build_nas_schema(
-        db.clone(),
-        prefs.clone(),
-        cfg_arc.clone(),
-        paths.data_dir.clone(),
-        chat.clone(),
-        ctx.library.clone(),
-    );
-    let state = ServerState {
-        schema: Arc::new(schema),
-        peer_schema: Arc::new(plain_rs::api::peer_graphql::build_schema()),
+    let schema = plain_rs::api::schema::build_schema();
+    let state = ServerState::new(
+        Arc::new(schema),
+        Arc::new(plain_rs::api::peer_graphql::build_schema()),
         ctx,
-        nas: Some(Arc::new(NasServerState {
-            config: cfg_arc.clone(),
+        ServerSettings {
+            auth: AuthPolicy::Session {
+                dev_token: cfg_arc.get_string("auth.dev_token"),
+                device_id: cfg_arc.get_string("nas.id"),
+            },
             cors: cors_policy,
-            peer_schema: Arc::new(plain_rs::api::schema::nas::peer_schema::build_schema()),
-        })),
-    };
+            serve_spa: true,
+        },
+    );
     let app = build_router(state);
 
     // Rebuild derived indexes that are missing or empty (e.g. wiped by a

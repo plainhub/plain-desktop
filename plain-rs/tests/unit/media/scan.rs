@@ -211,6 +211,20 @@ fn scan_tree_indexes_nested_tree() {
     }
 }
 
+#[test]
+fn scan_tree_removes_missing_media_under_scanned_root() {
+    let dir = tree();
+    let image = dir.path().join("removed.jpg");
+    std::fs::write(&image, b"image").unwrap();
+    let db = tmp_db();
+    let scanner = Arc::new(Scanner::new());
+    assert_eq!(scan_tree(&db, dir.path(), &scanner).0, 1);
+    assert!(get_by_path(&db, image.to_str().unwrap()).unwrap().is_some());
+    std::fs::remove_file(&image).unwrap();
+    assert_eq!(scan_tree(&db, dir.path(), &scanner).0, 0);
+    assert!(get_by_path(&db, image.to_str().unwrap()).unwrap().is_none());
+}
+
 /// `rebuildMediaIndex` may name a single file; the engine indexes it as
 /// one row instead of treating it as an empty directory.
 #[test]
@@ -300,15 +314,18 @@ fn pause_and_stop_flags_are_independent() {
 }
 
 #[tokio::test]
-async fn start_walk_and_scan_indexes_root() {
+async fn start_walk_and_scan_indexes_multiple_roots() {
     let dir = tree();
-    std::fs::write(dir.path().join("a.mp3"), b"x").unwrap();
-    std::fs::write(dir.path().join("b.png"), b"y").unwrap();
-    std::fs::create_dir(dir.path().join("sub")).unwrap();
-    std::fs::write(dir.path().join("sub/c.mp4"), b"z").unwrap();
+    let first = dir.path().join("first");
+    let second = dir.path().join("second");
+    std::fs::create_dir_all(&first).unwrap();
+    std::fs::create_dir_all(&second).unwrap();
+    std::fs::write(first.join("a.mp3"), b"x").unwrap();
+    std::fs::write(first.join("b.png"), b"y").unwrap();
+    std::fs::write(second.join("c.mp4"), b"z").unwrap();
 
     let db = tmp_db();
-    start_walk_and_scan(db.clone(), dir.path().to_path_buf())
+    start_walk_and_scan_paths(db.clone(), vec![first, second], dir.path().to_path_buf())
         .await
         .unwrap();
     // Wait for the worker to finish (state → idle).

@@ -160,35 +160,32 @@ impl<T: PeerTransport + 'static> ChatService<T> {
     }
 
     /// Send a chat item. Mirrors `ChatSender.send`:
-    ///   * `peer:<id>`    — peer-to-peer (encrypts with the peer shared key)
+    ///   * bare id / `peer:<id>` — peer-to-peer (encrypts with the peer shared key)
     ///   * `channel:<id>` — channel (star topology, leader election)
-    ///   * anything else  — local note
+    ///   * `local` / `peer:local` — local note
     ///
     /// Delivery is spawned fire-and-forget; the final status is published
     /// via `WS_MESSAGE_UPDATED`. Returns the initially-inserted row (status
     /// `PENDING` for remote targets) so the caller can render immediately.
     pub fn send_chat_item(&self, to_id: String, content: String) -> Vec<DChat> {
         let is_channel = to_id.starts_with("channel:");
-        let is_peer = to_id.starts_with("peer:");
-        let peer_id = if is_peer {
-            to_id.strip_prefix("peer:").unwrap_or(&to_id).to_string()
-        } else {
+        let peer_id = if is_channel {
             String::new()
+        } else {
+            to_id.strip_prefix("peer:").unwrap_or(&to_id).to_string()
         };
         let channel_id = if is_channel {
             to_id.strip_prefix("channel:").unwrap_or("").to_string()
         } else {
             String::new()
         };
-        let to = if is_peer {
+        let to = if !is_channel {
             peer_id.clone()
-        } else if is_channel {
-            String::new()
         } else {
-            to_id.clone()
+            String::new()
         };
 
-        let is_remote = (is_peer && !peer_id.is_empty() && peer_id != "local") || is_channel;
+        let is_remote = (!peer_id.is_empty() && peer_id != "local") || is_channel;
         let mut chat = DChat::new("me", &to, &channel_id, &content);
         if is_remote {
             chat.status = ChatStatus::Pending;
@@ -199,10 +196,7 @@ impl<T: PeerTransport + 'static> ChatService<T> {
             self.spawn_delivery(&chat);
         }
 
-        self.emit(
-            WS_MESSAGE_CREATED,
-            json!([chat_to_json(&chat)]).to_string(),
-        );
+        self.emit(WS_MESSAGE_CREATED, json!([chat_to_json(&chat)]).to_string());
 
         self.spawn_link_preview_refresh(&chat.id, &chat.content);
 
@@ -282,10 +276,7 @@ impl<T: PeerTransport + 'static> ChatService<T> {
         let to_id = if channel_id.is_empty() { "me" } else { "" };
         let chat = DChat::new(from_id, to_id, channel_id, content);
         self.db.insert_chat(&chat);
-        self.emit(
-            WS_MESSAGE_CREATED,
-            json!([chat_to_json(&chat)]).to_string(),
-        );
+        self.emit(WS_MESSAGE_CREATED, json!([chat_to_json(&chat)]).to_string());
 
         self.spawn_link_preview_refresh(&chat.id, &chat.content);
         chat

@@ -60,12 +60,12 @@ pub async fn chat_socket(socket: WebSocket, path: String, state: ServerState) {
 pub async fn chat_socket_cid(socket: WebSocket, cid: String, state: ServerState) {
     // Resolve the connection key per host: the nas session token for
     // this cid, the desktop URL token.
-    #[cfg(feature = "nas")]
-    let key = if state.nas.is_some() {
+    let key = if matches!(
+        state.settings.auth,
+        crate::api::server::AuthPolicy::Session { .. }
+    ) {
         let session = crate::media::kv::SessionStore::new(&state.ctx.media.db).get(&cid);
-        match session
-            .and_then(|s| crate::media::kv::token_key(&s.token).ok())
-        {
+        match session.and_then(|s| crate::media::kv::token_key(&s.token).ok()) {
             Some(k) => k,
             None => {
                 let mut socket = socket;
@@ -80,14 +80,6 @@ pub async fn chat_socket_cid(socket: WebSocket, cid: String, state: ServerState)
                 log::warn!("local_server chat_ws: bad token for cid={cid}");
                 return;
             }
-        }
-    };
-    #[cfg(not(feature = "nas"))]
-    let key = match token_raw_key(&state.ctx.token) {
-        Some(k) => k,
-        None => {
-            log::warn!("local_server chat_ws: bad token for cid={cid}");
-            return;
         }
     };
 
@@ -453,17 +445,18 @@ mod login {
             return;
         }
 
-        let client_pub = match base64::engine::general_purpose::STANDARD.decode(&req.ecdh_public_key)
-        {
-            Ok(v) => v,
-            Err(e) => {
-                log::warn!("[ws/auth] cid={cid} bad ecdh public key: {e}");
-                send_close(&mut tx, CLOSE_TRY_AGAIN_LATER, INVALID_REQUEST_REASON).await;
-                return;
-            }
-        };
+        let client_pub =
+            match base64::engine::general_purpose::STANDARD.decode(&req.ecdh_public_key) {
+                Ok(v) => v,
+                Err(e) => {
+                    log::warn!("[ws/auth] cid={cid} bad ecdh public key: {e}");
+                    send_close(&mut tx, CLOSE_TRY_AGAIN_LATER, INVALID_REQUEST_REASON).await;
+                    return;
+                }
+            };
         let ecdh = crate::crypto::EcdhSession::generate();
-        let ecdh_public_b64 = base64::engine::general_purpose::STANDARD.encode(&ecdh.public_key_bytes);
+        let ecdh_public_b64 =
+            base64::engine::general_purpose::STANDARD.encode(&ecdh.public_key_bytes);
         // Same derivation the client performs; both sides end up with
         // this 32-byte token, stored base64 in the session for later
         // request bodies.
@@ -532,14 +525,13 @@ mod login {
             "timestamp": timestamp,
             "signature": signature,
         });
-        let encrypted =
-            match crate::xchacha_encrypt_raw(&key, resp.to_string().as_bytes()) {
-                Some(v) => v,
-                None => {
-                    send_close(&mut tx, CLOSE_TRY_AGAIN_LATER, INVALID_REQUEST_REASON).await;
-                    return;
-                }
-            };
+        let encrypted = match crate::xchacha_encrypt_raw(&key, resp.to_string().as_bytes()) {
+            Some(v) => v,
+            None => {
+                send_close(&mut tx, CLOSE_TRY_AGAIN_LATER, INVALID_REQUEST_REASON).await;
+                return;
+            }
+        };
         if tx.send(Message::Binary(encrypted)).await.is_err() {
             return;
         }

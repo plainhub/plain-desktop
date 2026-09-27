@@ -1,5 +1,5 @@
 import { ref } from 'vue'
-import { invoke } from '@tauri-apps/api/core'
+import { invoke, isTauri } from '@tauri-apps/api/core'
 import toast from '@/components/toaster'
 import { useI18n } from 'vue-i18n'
 
@@ -39,7 +39,7 @@ export function useMdns() {
   let timer: ReturnType<typeof setInterval> | undefined
 
   async function loadHostname() {
-    if (!__IS_TAURI__) return
+    if (!isTauri()) return
     hostname.value = await invoke<string>('mdns_get_hostname')
   }
 
@@ -79,7 +79,7 @@ export function useMdns() {
   }
 
   async function startBrowsing() {
-    if (!__IS_TAURI__) return
+    if (!isTauri()) return
     browsing = true
     try {
       const started = await invoke<boolean>('mdns_start_browse')

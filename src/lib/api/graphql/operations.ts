@@ -34,8 +34,8 @@ export interface Fragment_AudioFragment {
   size: number
   bucketId: string
   albumFileId: string
-  createdAt: string
-  updatedAt: string
+  createdAt: unknown
+  updatedAt: unknown
   tags: Array<Fragment_TagSubFragment>
 }
 
@@ -228,8 +228,8 @@ export interface Fragment_DocFragment {
   extension: string
   size: number
   bucketId: string
-  createdAt: string
-  updatedAt: string
+  createdAt: unknown
+  updatedAt: unknown
   tags: Array<Fragment_TagSubFragment>
 }
 
@@ -261,8 +261,8 @@ export interface Fragment_FeedFragment {
 export interface Fragment_FileFragment {
   path: string
   isDir: boolean
-  createdAt?: string
-  updatedAt: string
+  createdAt?: unknown
+  updatedAt: unknown
   size: number
   childCount: number
   mediaId?: string
@@ -274,9 +274,9 @@ export interface Fragment_ImageFragment {
   path: string
   size: number
   bucketId: string
-  takenAt?: string
-  createdAt: string
-  updatedAt: string
+  takenAt?: unknown
+  createdAt: unknown
+  updatedAt: unknown
   tags: Array<Fragment_TagSubFragment>
 }
 
@@ -377,9 +377,9 @@ export interface Fragment_VideoFragment {
   durationMs: number
   size: number
   bucketId: string
-  createdAt: string
-  updatedAt: string
-  takenAt?: string
+  createdAt: unknown
+  updatedAt: unknown
+  takenAt?: unknown
   tags: Array<Fragment_TagSubFragment>
 }
 

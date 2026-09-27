@@ -10,9 +10,11 @@ import emitter from '@/plugins/eventbus'
 
 /**
  * `playAudio` against the phone: the returned track is the server truth for
- * `playback.currentPath`, and the mutation re-enqueues the track server-side, so
- * every play is followed by a queue-mirror refetch. `onApplied` runs once the
- * local state is synced (play the element, notify other components, …).
+ * `playback.currentPath`. The mutation only marks the current track — it never
+ * mutates the queue, so the queue order is stable across plays. `onApplied`
+ * runs once the local state is synced (play the element, notify other
+ * components, …). Flows that play a track outside the queue must combine
+ * addAudiosToQueue with playAudio in one document.
  */
 export function usePlayAudio(onApplied: () => void) {
   const store = useAudioPlaylistStore()
