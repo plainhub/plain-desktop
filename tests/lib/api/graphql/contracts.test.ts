@@ -11,7 +11,7 @@ import { loadCorpus } from './pipeline'
 
 /**
  * Server contract snapshots (copied from plain-app `shared/apitest/schema.graphqls`
- * and plain-nas `apitest/schema.graphqls`). When either server schema changes,
+ * and plain-rs `testdata/nas-schema.graphqls`). When either server schema changes,
  * re-copy the file and re-run: failures below enumerate every frontend document
  * or schema shape that must migrate.
  *

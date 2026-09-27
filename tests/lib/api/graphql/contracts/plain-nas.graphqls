@@ -62,7 +62,7 @@ type App {
 }
 
 """
-Distribution channel of the server build (plain-app contract); the NAS
+Distribution channel of the server build (plain-app contract);the NAS
 ships from GitHub releases.
 """
 enum AppChannelType {
@@ -91,6 +91,9 @@ type AppUpdate {
 	url: String
 }
 
+"""
+Audio (media index).
+"""
 type Audio {
 	id: ID!
 	title: String!
@@ -141,7 +144,7 @@ type AudioPlayHistory {
 """
 Audio player state (plain-app `AudioPlayback`) — play mode preference
 plus the current queue track. `currentPath` is null when idle. The NAS
-server is the queue state machine; audio renders on the client, so
+server is the queue state machine;audio renders on the client, so
 there is no server-side transport to report — `isPlaying`/`positionMs`
 serve idle values (API_SPEC §9, unimplementable semantics = empty).
 """
@@ -153,7 +156,7 @@ type AudioPlayback {
 }
 
 """
-A user playlist (plain-app `AudioPlaylist`); `itemCount` is live.
+A user playlist (plain-app `AudioPlaylist`);`itemCount` is live.
 """
 type AudioPlaylist {
 	id: ID!
@@ -173,7 +176,7 @@ type AuditEvent {
 
 """
 Audit-log event kinds served by the `auditEvents` query. The KV event
-log stores snake_case kind strings; this enum is the GraphQL surface.
+log stores snake_case kind strings;this enum is the GraphQL surface.
 Rows with an unknown kind (written by an older build) are skipped by
 the resolver — stale derived data is never migrated (2026-09-21 rule).
 """
@@ -198,7 +201,7 @@ enum AuditEventType {
 }
 
 """
-Bookmark link. Mirrors the plain-app `Bookmark` model; `lastClickedAt`
+Bookmark link. Mirrors the plain-app `Bookmark` model;`lastClickedAt`
 is null until the first click is recorded.
 """
 type Bookmark {
@@ -216,7 +219,7 @@ type Bookmark {
 }
 
 """
-A bookmark group; `itemCount` is the live count of bookmarks in the
+A bookmark group;`itemCount` is the live count of bookmarks in the
 group (0 when none).
 """
 type BookmarkGroup {
@@ -316,6 +319,12 @@ enum ChatStatus {
 	PENDING
 }
 
+"""
+Taggable data domains — the plain-app `DataType` wire enum
+(`shared/src/commonMain/kotlin/com/ismartcoding/plain/enums/DataType.kt`).
+GraphQL-arg and tag-column domain; `kind()` is the ordinal stored in
+the shared library db `type` column.
+"""
 enum DataType {
 	DEFAULT
 	AUDIO
@@ -333,7 +342,7 @@ enum DataType {
 }
 
 """
-Declared column type for `dbTableColumns.dataType`; UNKNOWN covers
+Declared column type for `dbTableColumns.dataType`;UNKNOWN covers
 undeclared columns and declared types outside SQLite's standard set
 (plain-app `DbColumnType`).
 """
@@ -436,7 +445,7 @@ type DeviceStatus {
 }
 
 """
-Device form factor (plain-app contract); a NAS reports NAS.
+Device form factor (plain-app contract);a NAS reports NAS.
 """
 enum DeviceType {
 	COMPUTER
@@ -607,10 +616,10 @@ type ImageFileInfo {
 }
 
 """
-AI image-search capability status. The NAS has no CLIP model runtime, so
-this always reports `UNAVAILABLE`; the field exists so clients probing the
-phone-style AI search surface get a well-formed answer instead of a
-GraphQL error.
+AI image-search capability status. No CLIP model runtime ships here,
+so this always reports `UNAVAILABLE`; the field exists so clients
+probing the phone-style AI search surface get a well-formed answer
+instead of a GraphQL error.
 """
 type ImageSearchStatus {
 	status: ImageSearchStatusType!
@@ -642,7 +651,7 @@ type KeyValuePair {
 }
 
 """
-Geographic coordinates (plain-app `Location`); both components non-null.
+Geographic coordinates (plain-app `Location`);both components non-null.
 """
 type Location {
 	latitude: Float!
@@ -678,7 +687,7 @@ enum MediaPlayMode {
 }
 
 """
-Chunked-upload merge job state; the completion signal is the
+Chunked-upload merge job state;the completion signal is the
 upload_merge_result WS event, `mergeStatus` is the polling fallback.
 """
 type MergeTask {
@@ -738,88 +747,6 @@ type MutationRoot {
 	Revoke a session by client id. Mirrors Go `revokeSession`.
 	"""
 	revokeSession(clientId: String!): Boolean!
-	"""
-	Create a directory. Mirrors Go `createDirModel` which returns the
-	freshly created `*model.File`. The path is sandboxed via
-	`fsx::safe_join` against the configured base directory.
-	"""
-	createDir(path: String!): File!
-	"""
-	Write a text file. Mirrors Go `writeTextFileModel` (2 MiB cap,
-	overwrite-or-error on existing). Returns the resulting `File!`.
-	"""
-	writeTextFile(path: String!, content: String!, overwrite: Boolean!): File!
-	"""
-	Rename a file or directory in place: `path` is the current full path, `name` the new base name. Errors (missing target, name clash) surface as GraphQL errors.
-	"""
-	renameFile(path: String!, name: String!): Boolean!
-	"""
-	Synchronous single-file copy (path-addressed). `overwrite: false` fails when `dst` exists; for batches or large trees use `createCopyTask`.
-	"""
-	copyFile(src: String!, dst: String!, overwrite: Boolean!): Boolean!
-	"""
-	Synchronous single-file move (path-addressed). `overwrite: false` fails when `dst` exists; for batches or large trees use `createMoveTask`.
-	"""
-	moveFile(src: String!, dst: String!, overwrite: Boolean!): Boolean!
-	"""
-	Delete files by path (phone contract): returns how many were
-	actually removed — per-path best-effort, hard failures are logged
-	and skipped instead of failing the whole batch.
-	"""
-	deleteFiles(paths: [String!]!): ActionResult!
-	"""
-	Move each path to its disk-local `.nas-trash`. Batch destructive
-	op → `ActionResult` per API_SPEC §6 (`affectedCount` = how many
-	paths were actually trashed).
-	"""
-	trashFiles(paths: [String!]!): ActionResult!
-	"""
-	Restore one or more trashed entries by physical trash path or id.
-	Batch restore → `ActionResult` per API_SPEC §6.
-	"""
-	restoreFiles(paths: [String!]!): ActionResult!
-	"""
-	Permanently delete one trashed entry. Path may be a physical trash
-	path or a trash id. Single idempotent delete → `Boolean!` (§6).
-	"""
-	deleteTrashItem(path: String!): Boolean!
-	"""
-	Create a tag for the given data type and return it. Only the media types (AUDIO/VIDEO/IMAGE/DOC) have NAS data; other `DataType` values create an unused tag (phone-parity signature).
-	"""
-	createTag(type: DataType!, name: String!): Tag!
-	"""
-	Rename a tag and return the updated entity.
-	"""
-	updateTag(id: ID!, name: String!): Tag!
-	"""
-	Delete a tag together with its relations. Single idempotent delete → `Boolean!` (§6).
-	"""
-	deleteTag(id: ID!): Boolean!
-	"""
-	Add a media key to multiple tags. Mirrors plain-app `addToTags`: the
-	`query` is the shared search DSL (`ids:a,b,c` for checkbox selections,
-	otherwise the page query) which is resolved to the matching media ids
-	— one relation per id, keyed by the id (the GraphQL media `id`).
-	"""
-	addToTags(type: DataType!, tagIds: [ID!]!, query: String!): Boolean!
-	"""
-	Per-item tag relation edit. Adds and/or removes tag associations.
-	"""
-	updateTagRelations(type: DataType!, item: TagRelationStub!, addTagIds: [ID!]!, removeTagIds: [ID!]!): Boolean!
-	"""
-	Remove the media keys matching `query` from the given tags — the inverse of `addToTags`. Membership op → `Boolean!` (§6).
-	"""
-	removeFromTags(type: DataType!, tagIds: [ID!]!, query: String!): Boolean!
-	"""
-	Enqueue a copy task. Returns the FileTask immediately with status=QUEUED;
-	the worker continues in the background and emits progress via the WS
-	event `file:task:progress`.
-	"""
-	createCopyTask(ops: [FileTaskOpInput!]!): FileTask!
-	"""
-	Enqueue a move task. Returns the FileTask immediately with status=QUEUED; progress arrives via the WS event `file:task:progress`.
-	"""
-	createMoveTask(ops: [FileTaskOpInput!]!): FileTask!
 	"""
 	Register a favorite folder and return the whole list (plain-app contract shape).
 	"""
@@ -986,8 +913,118 @@ type MutationRoot {
 	"""
 	mergeChunks(fileId: String!, totalChunks: Int!, path: String!, replace: Boolean!, totalSize: Long!): MergeTask!
 	"""
-	Start a media scan rooted at `root`. Mirrors Go `StartMediaScan`
-	which fires `go media.ScanAndSync(root)` and returns immediately.
+	Wipe the whole disk at `path` and create a single GPT + ext4 partition (label `plainnas`): unmounts first (automount inhibited for the duration), then `wipefs`/`sfdisk`/`mkfs.ext4`, then re-coordinates the automount slot. Synchronous — returns after formatting finished; failures raise and are audited (`FORMAT_DISK_FAILED`).
+	"""
+	formatDisk(path: String!): Boolean!
+	"""
+	Persist a user-defined alias for a storage volume. Mirrors Go
+	`SetMountAlias` (which delegates to `db.SetVolumeAlias`).
+	"""
+	setMountAlias(id: ID!, alias: String!): Boolean!
+	"""
+	Persist a short-lived key/value pair for transient UI state —
+	plain-app `setTempValue` (its `TempHelper` is in-memory; ours is
+	too, consumed by `/zip?tmp=<key>`).
+	"""
+	setTempValue(key: String!, value: String!): KeyValuePair!
+	"""
+	Mirrors Go `setSambaSettings`: validate against the previous
+	settings (password shares require a provisioned password), persist,
+	then apply to the system (smb.conf + service).
+	"""
+	setSambaSettings(input: SambaSettingsInput!): Boolean!
+	"""
+	Mirrors Go `setSambaUserPassword`: provision the samba password,
+	persist `hasPassword`, and re-apply when samba is enabled.
+	"""
+	setSambaUserPassword(password: String!): Boolean!
+	"""
+	Push `url` to the DLNA renderer with the given UDN (SOAP AVTransport, 3s timeout). `type` selects the DIDL media class; DOC is rejected.
+	"""
+	dlnaCast(rendererUdn: String!, url: String!, title: String!, mime: String!, type: MediaDataType!): Boolean!
+	"""
+	Create a directory. Mirrors Go `createDirModel` which returns the
+	freshly created `*model.File`. The path is sandboxed via
+	`fsx::safe_join` against the configured base directory.
+	"""
+	createDir(path: String!): File!
+	"""
+	Write a text file. Mirrors Go `writeTextFileModel` (2 MiB cap,
+	overwrite-or-error on existing). Returns the resulting `File!`.
+	"""
+	writeTextFile(path: String!, content: String!, overwrite: Boolean!): File!
+	"""
+	Rename a file or directory in place: `path` is the current full path, `name` the new base name. Errors (missing target, name clash) surface as GraphQL errors.
+	"""
+	renameFile(path: String!, name: String!): Boolean!
+	"""
+	Synchronous single-file copy (path-addressed). `overwrite: false` fails when `dst` exists; for batches or large trees use `createCopyTask`.
+	"""
+	copyFile(src: String!, dst: String!, overwrite: Boolean!): Boolean!
+	"""
+	Synchronous single-file move (path-addressed). `overwrite: false` fails when `dst` exists; for batches or large trees use `createMoveTask`.
+	"""
+	moveFile(src: String!, dst: String!, overwrite: Boolean!): Boolean!
+	"""
+	Delete files by path (phone contract): returns how many were
+	actually removed — per-path best-effort, hard failures are logged
+	and skipped instead of failing the whole batch.
+	"""
+	deleteFiles(paths: [String!]!): ActionResult!
+	"""
+	Move each path to its disk-local `.nas-trash`. Batch destructive
+	op → `ActionResult` per API_SPEC §6 (`affectedCount` = how many
+	paths were actually trashed).
+	"""
+	trashFiles(paths: [String!]!): ActionResult!
+	"""
+	Restore one or more trashed entries by physical trash path or id.
+	Batch restore → `ActionResult` per API_SPEC §6.
+	"""
+	restoreFiles(paths: [String!]!): ActionResult!
+	"""
+	Permanently delete one trashed entry. Path may be a physical trash
+	path or a trash id. Single idempotent delete → `Boolean!` (§6).
+	"""
+	deleteTrashItem(path: String!): Boolean!
+	"""
+	Create a tag for the given data type and return it.
+	"""
+	createTag(type: DataType!, name: String!): Tag!
+	"""
+	Rename a tag and return the updated entity.
+	"""
+	updateTag(id: ID!, name: String!): Tag!
+	"""
+	Delete a tag together with its relations. Single idempotent delete → `Boolean!` (§6).
+	"""
+	deleteTag(id: ID!): Boolean!
+	"""
+	Add a media key to multiple tags. Mirrors plain-app `addToTags`: the
+	`query` is the shared search DSL (`ids:a,b,c` for checkbox selections,
+	otherwise the page query) which is resolved to the matching media ids
+	— one relation per id, keyed by the id (the GraphQL media `id`).
+	"""
+	addToTags(type: DataType!, tagIds: [ID!]!, query: String!): Boolean!
+	"""
+	Per-item tag relation edit. Adds and/or removes tag associations.
+	"""
+	updateTagRelations(type: DataType!, item: TagRelationStub!, addTagIds: [ID!]!, removeTagIds: [ID!]!): Boolean!
+	"""
+	Remove the media keys matching `query` from the given tags — the inverse of `addToTags`. Membership op → `Boolean!` (§6).
+	"""
+	removeFromTags(type: DataType!, tagIds: [ID!]!, query: String!): Boolean!
+	"""
+	Enqueue a copy task. Returns the FileTask immediately with status=QUEUED;
+	the worker continues in the background and emits progress via the WS
+	event `file:task:progress`.
+	"""
+	createCopyTask(ops: [FileTaskOpInput!]!): FileTask!
+	"""
+	Enqueue a move task. Returns the FileTask immediately with status=QUEUED; progress arrives via the WS event `file:task:progress`.
+	"""
+	createMoveTask(ops: [FileTaskOpInput!]!): FileTask!
+	"""
 	Unlike the previous Rust port, we do NOT try to resume a paused
 	scan here — Go's StartMediaScan always starts a fresh scan. If
 	the user wants to resume, they call `resumeMediaScan`.
@@ -1028,36 +1065,10 @@ type MutationRoot {
 	"""
 	rebuildMediaIndex(root: String!): Boolean!
 	"""
-	Wipe the whole disk at `path` and create a single GPT + ext4 partition (label `plainnas`): unmounts first (automount inhibited for the duration), then `wipefs`/`sfdisk`/`mkfs.ext4`, then re-coordinates the automount slot. Synchronous — returns after formatting finished; failures raise and are audited (`FORMAT_DISK_FAILED`).
-	"""
-	formatDisk(path: String!): Boolean!
-	"""
-	Persist a user-defined alias for a storage volume. Mirrors Go
-	`SetMountAlias` (which delegates to `db.SetVolumeAlias`).
-	"""
-	setMountAlias(id: ID!, alias: String!): Boolean!
-	"""
 	Persist the list of source directories the media scanner should
-	index. Mirrors Go `setMediaSourceDirsModel`.
+	index.
 	"""
 	setMediaSourceDirs(dirs: [String!]!): Boolean!
-	"""
-	Persist a short-lived key/value pair for transient UI state —
-	plain-app `setTempValue` (its `TempHelper` is in-memory; ours is
-	too, consumed by `/zip?tmp=<key>`).
-	"""
-	setTempValue(key: String!, value: String!): KeyValuePair!
-	"""
-	Mirrors Go `setSambaSettings`: validate against the previous
-	settings (password shares require a provisioned password), persist,
-	then apply to the system (smb.conf + service).
-	"""
-	setSambaSettings(input: SambaSettingsInput!): Boolean!
-	"""
-	Mirrors Go `setSambaUserPassword`: provision the samba password,
-	persist `hasPassword`, and re-apply when samba is enabled.
-	"""
-	setSambaUserPassword(password: String!): Boolean!
 	"""
 	Move the media items matching `query` into their disks' `.nas-trash`; `affectedCount` = items trashed. Blank query is rejected (`bulk_query_required`, §5).
 	"""
@@ -1075,10 +1086,6 @@ type MutationRoot {
 	`moveMediaItems`): filesystem move + index/db rewrite of the new path.
 	"""
 	moveMediaItems(type: MediaDataType!, query: String!, destDir: String!): ActionResult!
-	"""
-	Push `url` to the DLNA renderer with the given UDN (SOAP AVTransport, 3s timeout). `type` selects the DIDL media class; DOC is rejected.
-	"""
-	dlnaCast(rendererUdn: String!, url: String!, title: String!, mime: String!, type: MediaDataType!): Boolean!
 }
 
 """
@@ -1114,10 +1121,6 @@ input PairingRequestInput {
 	awareSupported: Boolean!
 }
 
-"""
-Kind of a filesystem path. `pathKind` serves null when the path does
-not exist, so the enum itself is a closed FILE/DIR set.
-"""
 enum PathKind {
 	FILE
 	DIR
@@ -1144,7 +1147,7 @@ enum PeerStatus {
 """
 Android runtime permissions that gate web API access (plain-app
 contract, full member list). `App.permissions` lists the ones currently
-enabled AND granted; a NAS always declares WRITE_EXTERNAL_STORAGE —
+enabled AND granted;a NAS always declares WRITE_EXTERNAL_STORAGE —
 its own storage is always accessible.
 """
 enum Permission {
@@ -1174,6 +1177,11 @@ enum Permission {
 	CLIPBOARD
 }
 
+"""
+The NAS-specific Query fields + the shared media/file/tag surface from
+plain-rs. Field sets union, so the SDL stays the same shape as before
+the media roots moved into plain-rs.
+"""
 type QueryRoot {
 	"""
 	Top-level `app` info used by the web client on startup.
@@ -1219,17 +1227,6 @@ type QueryRoot {
 	Chat attachment count, same filter as `appFiles`.
 	"""
 	appFileCount(query: String!): Int!
-	"""
-	Current media-index scan progress; same payload as the
-	`media:scan:progress` WS push, for initial render and polling.
-	"""
-	scanProgress: ScanProgress!
-	"""
-	AI image search is a phone-app capability (on-device CLIP); the NAS
-	answers with a well-formed `UNAVAILABLE` so probing clients render
-	their "not available" path instead of a GraphQL error.
-	"""
-	imageSearchStatus: ImageSearchStatus!
 	"""
 	All bookmarks, phone-DAO order (pinned first, then sort order).
 	"""
@@ -1315,8 +1312,8 @@ type QueryRoot {
 	"""
 	appLogs(offset: Int!, limit: Int!, query: String!): [String!]!
 	"""
-	Tables of the two SQLite stores (`chat.<table>` / `library.<table>`),
-	sorted.
+	Tables of the two SQLite stores (`chat.db` + `library.db`) by bare
+	name, sorted — no store prefix.
 	"""
 	dbTables: [String!]!
 	"""
@@ -1357,62 +1354,9 @@ type QueryRoot {
 	"""
 	auditEvents(offset: Int!, limit: Int!, query: String!): [AuditEvent!]!
 	"""
-	Count of entries in a directory (non-recursive). Mirrors plain-app
-	`fileCount(root, query)`: `root` scopes the count (empty/`/` = whole
-	tree). When `trash:true` is in the query, returns the global trash count.
-	"""
-	fileCount(root: String!, query: String!): Int!
-	"""
-	Recent files (most-recent first). Mirrors Go `recentFiles()` which
-	loads up to 500 paths and filters to those that still exist on disk.
-	"""
-	recentFiles: [File!]!
-	"""
-	File listing. Mirrors plain-app `files(root, offset, limit, query, sortBy)`
-	(Kotlin `FileSystemHelper.search`): the effective directory is
-	`parent` from the query DSL, falling back to the `root` argument,
-	then to the legacy Go-dialect `root_path` DSL field; `relative_path`
-	(legacy) is joined underneath. `text` → recursive tantivy search,
-	`trash:true` → NAS trash listing.
-	"""
-	files(root: String!, offset: Int!, limit: Int!, query: String!, sortBy: FileSortBy!): [File!]!
-	"""
-	Total number of trashed items.
-	"""
-	trashCount: Int!
-	"""
-	Paginated trash listing. The DSL `text:` field of `query` filters
-	the entries (blank = no filter); pass `DATE_DESC` for the usual
-	newest-first view — the argument is required, there is no server
-	default (API_SPEC §3).
-	"""
-	trashItems(offset: Int!, limit: Int!, query: String!, sortBy: TrashSortBy!): [TrashItem!]!
-	"""
-	Look up tag relations for entity keys (media ids / entity keys),
-	filtered to the given data type. Mirrors plain-app `tagRelations`;
-	backs the client-side lazy tag join (round-7 contract).
-	"""
-	tagRelations(type: DataType!, keys: [String!]!): [TagRelation!]!
-	"""
-	List tags for the given data type.
-	"""
-	tags(type: DataType!): [Tag!]!
-	"""
-	List async file tasks for the current client.
-	"""
-	fileTasks: [FileTask!]!
-	"""
 	List all favorite folders.
 	"""
 	favoriteFolders: [FavoriteFolder!]!
-	"""
-	Audio list (paginated, backed by the tantivy media search index).
-	"""
-	audios(offset: Int!, limit: Int!, query: String!, sortBy: FileSortBy!): [Audio!]!
-	"""
-	Audio count (tantivy counting collector).
-	"""
-	audioCount(query: String!): Int!
 	"""
 	List uploaded chunk indices for a given fileID, as strings
 	(plain-app `uploadedChunks(fileId: String!): [String!]!`).
@@ -1432,6 +1376,76 @@ type QueryRoot {
 	"""
 	dlnaRenderers: [DlnaRenderer!]!
 	"""
+	Detailed info for a single media file used by the lightbox UI.
+	`path` is the canonical lookup key (round-7 contract: `id` addressing
+	removed; file tags lazy-load via `tagRelations` on the client).
+	"""
+	fileInfo(path: String!, fileName: String, includeDirSize: Boolean): FileInfo!
+	"""
+	Count of entries in a directory (non-recursive). Mirrors plain-app
+	`fileCount(root, query)`: `root` scopes the count (empty/`/` = whole
+	tree). When `trash:true` is in the query, returns the global trash count.
+	"""
+	fileCount(root: String!, query: String!): Int!
+	"""
+	Recent files (most-recent first). Mirrors Go `recentFiles()` which
+	loads up to 500 paths and filters to those that still exist on disk.
+	"""
+	recentFiles: [File!]!
+	"""
+	File listing. Mirrors plain-app `files(root, offset, limit, query, sortBy)`
+	(Kotlin `FileSystemHelper.search`): the effective directory is
+	`parent` from the query DSL, falling back to the `root` argument,
+	then to the legacy Go-dialect `root_path` DSL field; `relative_path`
+	(legacy) is joined underneath. `text` → recursive tantivy search,
+	`trash:true` → trash listing.
+	"""
+	files(root: String!, offset: Int!, limit: Int!, query: String!, sortBy: FileSortBy!): [File!]!
+	"""
+	Total number of trashed items.
+	"""
+	trashCount: Int!
+	"""
+	Paginated trash listing. The DSL `text:` field of `query` filters
+	the entries (blank = no filter); pass `DATE_DESC` for the usual
+	newest-first view — the argument is required, there is no server
+	default (API_SPEC §3).
+	"""
+	trashItems(offset: Int!, limit: Int!, query: String!, sortBy: TrashSortBy!): [TrashItem!]!
+	"""
+	Look up tag relations for entity keys (media ids / entity keys),
+	filtered to the given data type. Mirrors plain-app `tagRelations`;
+	backs the client-side lazy tag join.
+	"""
+	tagRelations(type: DataType!, keys: [String!]!): [TagRelation!]!
+	"""
+	List tags for the given data type.
+	"""
+	tags(type: DataType!): [Tag!]!
+	"""
+	List async file tasks for the current client.
+	"""
+	fileTasks: [FileTask!]!
+	"""
+	Audio list (paginated, backed by the tantivy media search index).
+	"""
+	audios(offset: Int!, limit: Int!, query: String!, sortBy: FileSortBy!): [Audio!]!
+	"""
+	Audio count (tantivy counting collector).
+	"""
+	audioCount(query: String!): Int!
+	"""
+	Current media-index scan progress; same payload as the
+	`media:scan:progress` WS push, for initial render and polling.
+	"""
+	scanProgress: ScanProgress!
+	"""
+	AI image search is a phone-app capability (on-device CLIP); the NAS
+	answers with a well-formed `UNAVAILABLE` so probing clients render
+	their "not available" path instead of a GraphQL error.
+	"""
+	imageSearchStatus: ImageSearchStatus!
+	"""
 	The source directories the media scanner indexes.
 	"""
 	mediaSourceDirs: [String!]!
@@ -1446,12 +1460,6 @@ type QueryRoot {
 	exist (same total-predicate semantics as `pathExists`).
 	"""
 	pathKind(path: String!): PathKind
-	"""
-	Detailed info for a single media file used by the lightbox UI.
-	`path` is the canonical lookup key (round-7 contract: `id` addressing
-	removed; file tags lazy-load via `tagRelations` on the client).
-	"""
-	fileInfo(path: String!, fileName: String, includeDirSize: Boolean): FileInfo!
 	"""
 	Image list (paginated, backed by the tantivy media search index).
 	"""
@@ -1484,10 +1492,10 @@ type QueryRoot {
 	docExtGroups: [DocExtGroup!]!
 	"""
 	`mediaBuckets(type)` mirrors Go `listMediaBuckets`: group media files
-	by their containing directory. Backed by the KV bucket counters the
-	scan pipeline maintains inside its write batches; cover items are one
-	per-bucket tantivy query, run on a blocking thread so a large bucket
-	count never stalls the async runtime.
+	by their containing directory. Backed by the KV bucket counters the scan pipeline
+	maintains inside its write batches; cover items are one per-bucket
+	tantivy query, run on a blocking thread so a large bucket count
+	never stalls the async runtime.
 	"""
 	mediaBuckets(type: MediaDataType!): [MediaBucket!]!
 }

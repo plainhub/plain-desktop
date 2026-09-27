@@ -16,6 +16,8 @@ mod file_query;
 mod file_upload;
 mod logs;
 mod pairing;
+#[cfg(feature = "nas")]
+pub mod nas;
 mod stub;
 pub mod types;
 mod util;

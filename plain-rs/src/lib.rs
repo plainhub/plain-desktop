@@ -22,3 +22,26 @@ pub mod ws_frame;
 
 pub use crypto::*;
 pub use utils::*;
+
+#[cfg(all(test, feature = "nas"))]
+pub(crate) mod test_support {
+    //! Shared fixture for the nas schema tests: a real nas-flavored
+    //! `ChatState` (chat.db + prefs) over a temp data dir.
+    pub(crate) fn chat_state(
+        data_dir: &std::path::Path,
+    ) -> std::sync::Arc<crate::api::chat::ChatState> {
+        let prefs =
+            crate::prefs::Prefs::load(&crate::prefs::default_path(data_dir)).expect("prefs load");
+        std::sync::Arc::new(
+            crate::api::chat::ChatState::nas_init(data_dir, &prefs).expect("chat init"),
+        )
+    }
+
+    pub(crate) fn library(
+        data_dir: &std::path::Path,
+    ) -> std::sync::Arc<crate::library::db::LibraryDb> {
+        std::sync::Arc::new(
+            crate::api::server::nas_ctx::open_library_db(data_dir).expect("open library.db"),
+        )
+    }
+}

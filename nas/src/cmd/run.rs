@@ -99,25 +99,18 @@ pub async fn run(paths: &AppPaths) -> Result<()> {
 
     // Thumbnail engine budgets ([thumbnails] mem_budget_mb / lru_mb) and
     // the background prefetcher ([thumbnails] prefetch / prefetch_per_sec).
-    crate::media::thumb_engine::init_from_config(&cfg_arc);
-    crate::media::thumb_engine::prefetch::init_from_config(&cfg_arc, db.clone(), prefs.clone());
+    plain_rs::media::thumb::init_from_config(&cfg_arc);
+    plain_rs::media::thumb::prefetch::init_from_config(&cfg_arc, db.clone(), prefs.clone());
 
     let cors_policy = plain_rs::api::server::cors::CorsPolicy::from_config(&cfg_arc);
-    let schema = crate::gql::NasSchemaExec {
-        schema: crate::gql::build_schema(
-            db.clone(),
-            prefs.clone(),
-            cfg_arc.clone(),
-            paths.data_dir.clone(),
-            chat.clone(),
-        ),
-        db: db.clone(),
-        prefs: prefs.clone(),
-        config: cfg_arc.clone(),
-        data_dir: paths.data_dir.clone(),
-        chat: chat.clone(),
-        library: ctx.library.clone(),
-    };
+    let schema = plain_rs::api::schema::nas::build_nas_schema(
+        db.clone(),
+        prefs.clone(),
+        cfg_arc.clone(),
+        paths.data_dir.clone(),
+        chat.clone(),
+        ctx.library.clone(),
+    );
     let state = ServerState {
         schema: Arc::new(schema),
         peer_schema: Arc::new(plain_rs::api::peer_graphql::build_schema()),
@@ -125,9 +118,7 @@ pub async fn run(paths: &AppPaths) -> Result<()> {
         nas: Some(Arc::new(NasServerState {
             config: cfg_arc.clone(),
             cors: cors_policy,
-            peer_schema: Arc::new(crate::gql::NasPeerSchemaExec(
-                crate::gql::peer_schema::build_schema(),
-            )),
+            peer_schema: Arc::new(plain_rs::api::schema::nas::peer_schema::build_schema()),
         })),
     };
     let app = build_router(state);

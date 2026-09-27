@@ -18,11 +18,8 @@ axum = { version = "0.7", features = ["json", "query", "ws", "multipart", "tokio
 tokio = { version = "1", features = ["full"] }
 axum-server = { version = "0.7", features = ["tls-rustls"] }
 
-# GraphQL
-async-graphql = { version = "7", features = ["chrono"] }
-
-# Crypto — the XChaCha20-Poly1305 (nonce||ct||tag) wrapper and sha512_hex
-# moved to plain-rs with the HTTP layer.
+# GraphQL lives in plain-rs (`api::schema::nas` behind its `nas`
+# feature) since the phase-3 schema move.
 
 plain_rs = { path = "../plain-rs", package = "plain-rs", features = ["chat", "library", "prefs", "sqlite_browse", "media", "media_gql", "nas"] }
 
@@ -31,10 +28,6 @@ plain_rs = { path = "../plain-rs", package = "plain-rs", features = ["chat", "li
 # `cargo add` later on. Zero-cost addition: same crate version as already
 # resolved.)
 libc = "0.2"
-
-# Serde
-serde = { version = "1", features = ["derive"] }
-serde_json = "1"
 
 # CLI
 clap = { version = "4", features = ["derive"] }
@@ -50,50 +43,5 @@ rustls = { version = "0.23", features = ["ring", "std"] }
 # log crate facade bridge (plain-rs media code logs via log::)
 log = "0.4"
 
-# Misc
-zip = { version = "2", default-features = false, features = ["deflate"] }
-# `walkdir` was removed in step 5. Replaced with the in-tree
-# `crate::walk` module (see src/walk.rs), a 60-line BFS using std::fs.
-chrono = { version = "0.4", features = ["serde"] }
 anyhow = "1"
-futures = "0.3"
-# `url` was removed in step 12. Replaced with `plain_rs::utils::http_url`
-# (the former in-tree src/http_url.rs, ported to plain-rs), a ~200-line
-# HTTP-URL parser tailored for the small set of URL operations we
-# actually perform.
-http = "1"
-parking_lot = "0.12"
-# `sysinfo` was removed in step 7. Replaced with direct /proc reads in
-# src/device_info.rs — covers everything the old `sysinfo::System` call
-# used, with no platform-abstraction overhead and a much smaller
-# compile-time footprint.
-# `hostname` crate was removed in step 3. Replaced with
-# `plain_rs::utils::hostname` (the former in-tree src/hostname_local.rs,
-# ported to plain-rs), a 30-line wrapper around libc::gethostname(2).
 nix = { version = "0.28", features = ["mount", "fs", "user"] }
-tempfile = "3"
-# `dashmap` was removed with the system-module move to plain-rs: nothing
-# in this crate referenced it directly. `ureq` was removed with the chat
-# stack move to plain-rs: the NAS now uses plain-rs's ReqwestTransport
-# (plain_rs::api::chat), and the remaining ureq users (app update, DLNA)
-# live in plain-rs behind its `nas` feature.
-# `quick-xml` was removed in step 11. Replaced with the in-tree
-# `crate::xml_sax` module (see src/xml_sax.rs) — a 200-line SAX-style
-# parser tailored for the small, fixed-shape UPnP device descriptor we
-# parse in src/dlna/desc.rs. UPnP descriptors are <8 KiB and use a
-# closed element set, so we don't need a general XML library.
-# `if-addrs` was removed in step 10. Replaced with
-# `plain_rs::utils::ifaddr` (the former in-tree src/ifaddr_local.rs,
-# ported to plain-rs), a direct wrapper around libc::getifaddrs(3).
-# `socket2` was removed in step 13 — the only file using it
-# (src/dlna/ssdp.rs) now uses `std::net::UdpSocket` plus a few
-# `libc::setsockopt` calls for SO_BROADCAST / SO_RCVBUF / SO_SNDTIMEO.
-
-# The media stack (fjall, tantivy, thumbnails, media scan) now lives in
-# plain-rs behind its `media` feature — see plain-rs Cargo.toml for the
-# per-crate rationale of the image/video/search dependencies. These two
-# stay direct: fileInfo's image-dimension probe (gql) and the PDF
-# preview cache key (pdf_preview).
-image = { version = "0.25", default-features = false, features = ["jpeg", "png", "webp", "gif"] }
-sha1 = "0.10"
-

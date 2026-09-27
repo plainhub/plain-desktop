@@ -8,10 +8,10 @@
 //!
 //! Host selection is a field on [`ServerState`]: the desktop stores its
 //! `LocalSchema` behind the type-erased [`GraphqlExec`] and leaves
-//! `nas` = `None`; the nas crate (until its GraphQL layer folds in)
-//! stores its own schema shim plus its config/CORS in
-//! [`NasServerState`]. The nas-only routes (auth, static SPA, `/media`
-//! alias, `/` WS+SPA split) mount only when `nas` is `Some`.
+//! `nas` = `None`; the nas host stores its `NasSchema` the same way plus
+//! its config/CORS and nas peer schema in [`NasServerState`]. The
+//! nas-only routes (auth, static SPA, `/media` alias, `/` WS+SPA split)
+//! mount only when `nas` is `Some`.
 
 pub mod cors;
 pub mod events;
@@ -49,15 +49,15 @@ use super::schema::LocalSchema;
 #[derive(Clone)]
 pub struct ServerState {
     /// The host's GraphQL schema, type-erased so the desktop's
-    /// `LocalSchema` and (this phase) the nas crate's own schema both
-    /// fit. The desktop stores a plain `LocalSchema` here — its
+    /// `LocalSchema` and the nas host's `NasSchema` both fit. The
+    /// desktop stores a plain `LocalSchema` here — its
     /// graphql branch downcasts back through [`GraphqlExec::as_any`].
     pub schema: Arc<dyn GraphqlExec>,
     pub peer_schema: Arc<PeerSchema>,
     pub ctx: Arc<AppCtx>,
-    /// Nas host extras (config, CORS policy, this phase's nas-local
-    /// peer schema). `None` on the desktop — the nas-only routes mount
-    /// only when this is `Some`.
+    /// Nas host extras (config, CORS policy, nas peer schema). `None`
+    /// on the desktop — the nas-only routes mount only when this is
+    /// `Some`.
     #[cfg(feature = "nas")]
     pub nas: Option<Arc<NasServerState>>,
 }
@@ -67,32 +67,21 @@ pub struct ServerState {
 pub struct NasServerState {
     pub config: Arc<crate::media::config::Config>,
     pub cors: cors::CorsPolicy,
-    /// This phase's nas-local peer GraphQL schema for `/peer_graphql`
-    /// (dies in phase 3 when the schemas unify).
-    pub peer_schema: Arc<dyn PeerSchemaExec>,
-}
-
-/// Type-erased executor over the nas crate's peer GraphQL schema.
-/// The nas crate implements this for its shim; phase 3 removes it when
-/// `/peer_graphql` serves the plain-rs `PeerSchema` for both hosts.
-#[cfg(feature = "nas")]
-pub trait PeerSchemaExec: Send + Sync + 'static {
-    fn execute(
-        &self,
-        request: async_graphql::Request,
-        peer: crate::chat::db::DPeer,
-        channel_id: &str,
-        chat: Arc<crate::api::chat::ChatState>,
-    ) -> futures_util::future::BoxFuture<'_, async_graphql::Response>;
+    /// The nas-flavored peer GraphQL schema for `/peer_graphql` — its
+    /// resolvers take the nas `PeerCtx` (chat state + authenticated
+    /// peer + channel id), unlike the desktop `PeerSchema` on
+    /// [`ServerState::peer_schema`].
+    pub peer_schema: Arc<crate::api::schema::nas::peer_schema::PeerSchema>,
 }
 
 /// Type-erased `async_graphql::Schema` executor: one field holds either
-/// host's schema without naming the root types.
+/// host's schema without naming the root types. Resolvers read their
+/// state from the schema's global data plus whatever per-request data
+/// the handler injects into the `Request`.
 pub trait GraphqlExec: Send + Sync + 'static {
     fn execute(
         &self,
         request: async_graphql::Request,
-        cid: &str,
     ) -> futures_util::future::BoxFuture<'_, async_graphql::Response>;
 
     /// Downcast seam for the desktop graphql branch, which runs its
@@ -110,7 +99,6 @@ where
     fn execute(
         &self,
         request: async_graphql::Request,
-        _cid: &str,
     ) -> futures_util::future::BoxFuture<'_, async_graphql::Response> {
         let schema = self.clone();
         Box::pin(async move { schema.execute(request).await })
@@ -125,8 +113,7 @@ where
 pub(crate) mod test_support {
     //! Shared fixture for the nas-flavored `ServerState` tests (auth,
     //! ws, fs, chat_peer): a real `AppCtx` over temp dirs plus stub
-    //! schema executors (the nas gql schema lives in the nas crate and
-    //! is exercised by its own tests).
+    //! schema executors.
 
     use super::*;
 
@@ -136,7 +123,6 @@ pub(crate) mod test_support {
         fn execute(
             &self,
             _request: async_graphql::Request,
-            _cid: &str,
         ) -> futures_util::future::BoxFuture<'_, async_graphql::Response> {
             Box::pin(async {
                 async_graphql::Response::from_errors(vec![async_graphql::ServerError::new(
@@ -148,25 +134,6 @@ pub(crate) mod test_support {
 
         fn as_any(&self) -> &dyn std::any::Any {
             self
-        }
-    }
-
-    struct StubPeerExec;
-
-    impl PeerSchemaExec for StubPeerExec {
-        fn execute(
-            &self,
-            _request: async_graphql::Request,
-            _peer: crate::chat::db::DPeer,
-            _channel_id: &str,
-            _chat: Arc<crate::api::chat::ChatState>,
-        ) -> futures_util::future::BoxFuture<'_, async_graphql::Response> {
-            Box::pin(async {
-                async_graphql::Response::from_errors(vec![async_graphql::ServerError::new(
-                    "stub peer schema",
-                    None,
-                )])
-            })
         }
     }
 
@@ -223,7 +190,7 @@ http_port = 8080
             nas: Some(Arc::new(NasServerState {
                 config,
                 cors: cors::CorsPolicy::default(),
-                peer_schema: Arc::new(StubPeerExec),
+                peer_schema: Arc::new(crate::api::schema::nas::peer_schema::build_schema()),
             })),
         }
     }
@@ -248,8 +215,7 @@ impl ServerState {
         }
     }
 
-    /// The desktop's concrete schema, when this state carries one (the
-    /// nas shim stores its own schema type instead).
+    /// The desktop's concrete schema, when this state carries one.
     pub fn local_schema(&self) -> Option<Arc<LocalSchema>> {
         self.schema
             .as_any()

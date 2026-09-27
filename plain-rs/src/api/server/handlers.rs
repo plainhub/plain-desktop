@@ -145,7 +145,10 @@ async fn run_graphql_nas(
             return wrap_graphql_response(&resp, &key);
         }
     };
-    let resp = state.schema.execute(request, &cid).await;
+    // The nas schema reads the requesting client id as per-request
+    // `String` data (resolvers doing audit logging / DLNA targeting key
+    // on it); resolver-data Arcs live in the schema's global data.
+    let resp = state.schema.execute(request.data(cid)).await;
     wrap_graphql_response(&resp, &key)
 }
 
@@ -205,10 +208,10 @@ pub async fn peer_graphql_handler(
     let header_client_id = header_string(&headers, "c-id");
     let header_channel_id = header_string(&headers, "c-cid");
 
-    // Nas branch: this phase the nas crate still owns its peer schema
-    // (its resolvers take the nas `PeerCtx`); run the old
-    // nas chat_peer flow behind the type-erased executor. Phase 3
-    // collapses this into the shared `peer_graphql::handle`.
+    // Nas branch: the nas-flavored peer schema (resolvers take the nas
+    // `PeerCtx`, auth over the SQLite chat db) is still distinct from
+    // the desktop `PeerSchema` flow; field-level dedup happens in phase
+    // 3b.
     #[cfg(feature = "nas")]
     if let Some(nas) = state.nas.as_ref() {
         return peer_graphql_nas(&state, nas, &header_client_id, &header_channel_id, &body).await;
@@ -265,14 +268,14 @@ async fn peer_graphql_nas(
         .and_then(|v| serde_json::from_value(v.clone()).ok())
         .unwrap_or_default();
 
+    let peer_ctx = crate::api::schema::nas::peer_schema::PeerCtx {
+        state: state.ctx.chat.clone(),
+        peer: authed.peer,
+        channel_id: header_channel_id.to_string(),
+    };
     let response = nas
         .peer_schema
-        .execute(
-            async_graphql::Request::new(query_str).variables(vars),
-            authed.peer,
-            header_channel_id,
-            state.ctx.chat.clone(),
-        )
+        .execute(async_graphql::Request::new(query_str).variables(vars).data(peer_ctx))
         .await;
     let response_json =
         serde_json::to_value(&response).unwrap_or_else(|_| json!({ "data": null }));
