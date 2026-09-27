@@ -65,11 +65,12 @@ pub async fn run(paths: &AppPaths) -> Result<()> {
 
     // Chat stack (plain-app contract): SQLite chat.db + pairing manager
     // over the shared plain_rs::chat module.
-    let mut chat = crate::chat::ChatState::init(&paths.data_dir, &prefs).context("init chat")?;
+    let mut chat =
+        crate::chat::ChatState::nas_init(&paths.data_dir, &prefs).context("init chat")?;
     chat.start_discovery(&prefs);
     let chat_discovery = chat.discovery.clone();
     let chat = Arc::new(chat);
-    crate::chat::spawn_event_bridge(&chat);
+    spawn_chat_eventbus_bridge(&chat);
 
     // Scan and mount all discovered filesystems into /mnt/usbX based on the
     // persisted FSUUID<->usbX slot map (Go calls EnsureMountedUSBVolumes at
@@ -102,6 +103,7 @@ pub async fn run(paths: &AppPaths) -> Result<()> {
         cors: cors_policy,
         schema,
         chat,
+        peer_schema: crate::gql::peer_schema::build_schema(),
     };
     let heal_prefs = prefs.clone();
     let app = build_router(state);
@@ -206,6 +208,39 @@ pub async fn run(paths: &AppPaths) -> Result<()> {
 
 fn is_root() -> bool {
     nix::unistd::Uid::current().is_root()
+}
+
+/// Bridge the chat service + pairing broadcast channels onto the global
+/// event bus (`chat:event`) so ws_hub clients receive the phone-protocol
+/// msg_types. Pairing payloads use the plain-app shapes (raw
+/// `PairingRequest` for 22, `DPairingResult` for 23-26) via the shared
+/// plain-rs payload builder. Replaced by the shared ws event wiring in
+/// phase 2c.
+fn spawn_chat_eventbus_bridge(chat: &Arc<crate::chat::ChatState>) {
+    use crate::consts::EVENT_CHAT;
+    use crate::eventbus::EventBus;
+
+    let mut rx = chat.service.event_tx.subscribe();
+    tokio::spawn(async move {
+        while let Ok(ev) = rx.recv().await {
+            EventBus::global().publish(
+                EVENT_CHAT,
+                serde_json::json!({ "msgType": ev.event_type, "payload": ev.payload }),
+            );
+        }
+    });
+
+    let mut prx = chat.pairing.subscribe();
+    tokio::spawn(async move {
+        while let Ok(ev) = prx.recv().await {
+            if let Some((msg_type, payload)) = crate::chat::pairing_event_ws_payload(&ev) {
+                EventBus::global().publish(
+                    EVENT_CHAT,
+                    serde_json::json!({ "msgType": msg_type, "payload": payload }),
+                );
+            }
+        }
+    });
 }
 
 /// `/mnt/usb<positive int>` with no extra path segments (the automount

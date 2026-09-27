@@ -8,6 +8,7 @@
 pub mod app_update;
 pub mod automount;
 pub mod blockdev;
+pub mod chat_discovery;
 pub mod consts;
 pub mod device_info;
 pub mod devtools_sqlite;

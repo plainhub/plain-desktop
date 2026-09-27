@@ -20,7 +20,7 @@ fn app_state() -> AppState {
     let prefs = Arc::new(crate::prefs::Prefs::load(&data_dir.join("prefs.json")).unwrap());
     std::mem::forget(dir); // handles must outlive the test
     let config = Arc::new(crate::config::Config::parse("[server]\nhttp_port = 8080\n"));
-    let chat = crate::chat::test_state(&data_dir);
+    let chat = crate::test_support::chat_state(&data_dir);
     let schema = crate::gql::build_schema(
         db.clone(),
         prefs.clone(),
@@ -36,6 +36,7 @@ fn app_state() -> AppState {
         cors: crate::api::cors::CorsPolicy::from_config(&crate::config::Config::default()),
         schema,
         chat,
+        peer_schema: crate::gql::peer_schema::build_schema(),
     }
 }
 

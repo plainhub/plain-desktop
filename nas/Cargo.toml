@@ -69,8 +69,7 @@ futures = "0.3"
 # `url` was removed in step 12. Replaced with `plain_rs::utils::http_url`
 # (the former in-tree src/http_url.rs, ported to plain-rs), a ~200-line
 # HTTP-URL parser tailored for the small set of URL operations we
-# actually perform. `ureq` still pulls in `url` transitively — we can't
-# avoid that without replacing ureq (step 13).
+# actually perform.
 http = "1"
 parking_lot = "0.12"
 # `sysinfo` was removed in step 7. Replaced with direct /proc reads in
@@ -83,8 +82,10 @@ parking_lot = "0.12"
 nix = { version = "0.28", features = ["mount", "fs", "user"] }
 tempfile = "3"
 # `dashmap` was removed with the system-module move to plain-rs: nothing
-# in this crate referenced it directly.
-ureq = { version = "2", default-features = false, features = ["tls"] }
+# in this crate referenced it directly. `ureq` was removed with the chat
+# stack move to plain-rs: the NAS now uses plain-rs's ReqwestTransport
+# (plain_rs::api::chat), and the remaining ureq users (app update, DLNA)
+# live in plain-rs behind its `nas` feature.
 # `quick-xml` was removed in step 11. Replaced with the in-tree
 # `crate::xml_sax` module (see src/xml_sax.rs) — a 200-line SAX-style
 # parser tailored for the small, fixed-shape UPnP device descriptor we

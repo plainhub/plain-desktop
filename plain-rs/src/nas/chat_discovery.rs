@@ -15,12 +15,12 @@ use std::collections::HashSet;
 use std::sync::atomic::{AtomicU16, Ordering};
 use std::sync::{Arc, Mutex, RwLock};
 
-use plain_rs::mdns::host_responder;
-use plain_rs::mdns::service_browser::{FoundDevice, MdnsServiceBrowser};
-use plain_rs::mdns::service_info::build_service_info;
+use crate::mdns::host_responder;
+use crate::mdns::service_browser::{FoundDevice, MdnsServiceBrowser};
+use crate::mdns::service_info::build_service_info;
 
-use plain_rs::chat::db::ChatDb;
-use plain_rs::chat::service::ChatIdentity;
+use crate::chat::db::ChatDb;
+use crate::chat::service::ChatIdentity;
 
 const LOCAL_DEVICE_TYPE_WIRE: &str = "NAS";
 /// Mirrors plain-app's `MdnsHostnamePreference`: random two-char label
@@ -92,7 +92,7 @@ impl ChatDiscovery {
                         }
                         update_known_peer(&worker_db, &device);
                         worker_online.lock().unwrap().insert(device.id.clone());
-                        let cached = plain_rs::chat::db::DNearbyDeviceCache {
+                        let cached = crate::chat::db::DNearbyDeviceCache {
                             id: device.id.clone(),
                             name: device.name.clone(),
                             ips: device.ips.clone(),
@@ -100,7 +100,7 @@ impl ChatDiscovery {
                             device_type: device.device_type.clone(),
                             version: device.version.clone(),
                             platform: device.platform.clone(),
-                            last_seen: plain_rs::chat::db::now_millis(),
+                            last_seen: crate::chat::db::now_millis(),
                         };
                         if let Err(e) = worker_db.save_cached_nearby_device(&cached) {
                             log::error!(
@@ -161,7 +161,7 @@ impl ChatDiscovery {
                 port,
                 &self.identity.client_id,
                 LOCAL_DEVICE_TYPE_WIRE,
-                crate::version::VERSION,
+                crate::nas::version::version(),
                 std::env::consts::OS,
                 host_responder::local_ipv4_strs(),
             )
@@ -184,7 +184,7 @@ impl ChatDiscovery {
             port,
             &self.identity.client_id,
             LOCAL_DEVICE_TYPE_WIRE,
-            crate::version::VERSION,
+            crate::nas::version::version(),
             std::env::consts::OS,
             host_responder::local_ipv4_strs(),
         );
@@ -219,11 +219,11 @@ fn update_known_peer(db: &ChatDb, device: &FoundDevice) {
     if new_ip != peer.ip || device.port != peer.port {
         peer.ip = new_ip;
         peer.port = device.port;
-        peer.updated_at = plain_rs::chat::db::now_iso();
+        peer.updated_at = crate::chat::db::now_iso();
         db.upsert_peer(&peer);
     }
 }
 
 #[cfg(test)]
-#[path = "../../tests/unit/chat/discovery.rs"]
+#[path = "../../tests/unit/nas/chat_discovery.rs"]
 mod tests;

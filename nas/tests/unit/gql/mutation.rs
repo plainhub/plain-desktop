@@ -48,7 +48,7 @@ async fn update_device_name_serves_display_name_with_hostname_fallback() {
         prefs(&dir),
         config,
         dir.path().to_path_buf(),
-        crate::chat::test_state(dir.path()),
+        crate::test_support::chat_state(dir.path()),
     );
 
     // Fresh DB: no preference yet → system hostname.
@@ -104,7 +104,7 @@ async fn add_to_tags_resolves_ids_query_to_per_key_relations() {
         prefs(&dir),
         config,
         dir.path().to_path_buf(),
-        crate::chat::test_state(dir.path()),
+        crate::test_support::chat_state(dir.path()),
     );
 
     let resp = schema
@@ -182,7 +182,7 @@ async fn clear_app_logs_truncates_log_file() {
         prefs(&dir),
         config,
         dir.path().to_path_buf(),
-        crate::chat::test_state(dir.path()),
+        crate::test_support::chat_state(dir.path()),
     );
 
     let log_file = crate::log::default_log_file(dir.path());
@@ -213,7 +213,7 @@ async fn delete_data_store_entry_removes_preference() {
         prefs.clone(),
         config,
         dir.path().to_path_buf(),
-        crate::chat::test_state(dir.path()),
+        crate::test_support::chat_state(dir.path()),
     );
 
     let resp = schema
@@ -250,7 +250,7 @@ async fn delete_db_table_rows_deletes_and_validates() {
         prefs(&dir),
         config,
         dir.path().to_path_buf(),
-        crate::chat::test_state(dir.path()),
+        crate::test_support::chat_state(dir.path()),
     );
 
     // Seed the library store build_schema opened (second handle).
@@ -315,7 +315,7 @@ async fn clear_app_logs_creates_missing_log_file() {
         prefs(&dir),
         config,
         dir.path().to_path_buf(),
-        crate::chat::test_state(dir.path()),
+        crate::test_support::chat_state(dir.path()),
     );
 
     let log_file = crate::log::default_log_file(dir.path());
@@ -353,7 +353,7 @@ async fn audio_queue_and_user_playlists_plain_app_surface() {
         prefs(&dir),
         config,
         dir.path().to_path_buf(),
-        crate::chat::test_state(dir.path()),
+        crate::test_support::chat_state(dir.path()),
     );
 
     // An ID3-only file: audioLyrics must extract the USLT text, and the
@@ -595,7 +595,7 @@ async fn favorite_folders_use_full_path_and_return_the_list() {
         prefs(&dir),
         config,
         dir.path().to_path_buf(),
-        crate::chat::test_state(dir.path()),
+        crate::test_support::chat_state(dir.path()),
     );
 
     let data = schema
@@ -655,7 +655,7 @@ async fn delete_files_returns_affected_count() {
         prefs(&dir),
         config,
         dir.path().to_path_buf(),
-        crate::chat::test_state(dir.path()),
+        crate::test_support::chat_state(dir.path()),
     );
 
     let a = dir.path().join("a.txt");
@@ -702,7 +702,7 @@ async fn merge_chunks_is_a_background_task_with_status_polling() {
         prefs,
         config,
         dir.path().to_path_buf(),
-        crate::chat::test_state(dir.path()),
+        crate::test_support::chat_state(dir.path()),
     );
 
     // Seed two chunks for file MRG1.
@@ -784,7 +784,7 @@ async fn bookmark_groups_serve_live_item_count() {
         prefs(&dir),
         config,
         dir.path().to_path_buf(),
-        crate::chat::test_state(dir.path()),
+        crate::test_support::chat_state(dir.path()),
     );
     let name = format!("cnt-{}", SEQ.fetch_add(1, Ordering::SeqCst));
 
@@ -850,7 +850,7 @@ async fn bulk_media_mutations_reject_blank_query() {
         prefs(&dir),
         config,
         dir.path().to_path_buf(),
-        crate::chat::test_state(dir.path()),
+        crate::test_support::chat_state(dir.path()),
     );
     for mutation in [
         r#"mutation { deleteMediaItems(type: IMAGE, query: "") { affectedCount } }"#,
@@ -883,7 +883,7 @@ fn chat_schema(
     let config = std::sync::Arc::new(crate::config::Config::parse(
         "[server]\nhttp_port = 8080\nhttps_port = 8443\n",
     ));
-    let chat = crate::chat::test_state(dir.path());
+    let chat = crate::test_support::chat_state(dir.path());
     let schema = crate::gql::build_schema(
         db,
         prefs(&dir),
@@ -1058,7 +1058,7 @@ async fn merge_app_file_chunks_imports_into_content_addressed_store() {
     ));
     let prefs =
         std::sync::Arc::new(crate::prefs::Prefs::load(&dir.path().join("prefs.json")).unwrap());
-    let chat = crate::chat::test_state(dir.path());
+    let chat = crate::test_support::chat_state(dir.path());
     let schema =
         crate::gql::build_schema(db, prefs, config, dir.path().to_path_buf(), chat.clone());
 

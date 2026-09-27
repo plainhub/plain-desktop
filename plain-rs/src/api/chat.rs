@@ -1,18 +1,21 @@
-//! Desktop chat wiring over the shared `crate::chat` stack.
+//! Chat wiring over the shared `crate::chat` stack — the single
+//! assembly both hosts (desktop Tauri shell, plain-nas server) use.
 //!
-//! One place assembles everything the plain-app chat contract needs on
-//! the desktop:
+//! One place assembles everything the plain-app chat contract needs:
 //! * `chat.db` — the plain-app-schema SQLite store (chats / channels /
 //!   peers / nearby cache / app files) opened by the caller (it also
 //!   carries bookmarks through the shared core).
-//! * identity — the Tauri `AppIdentity` (`client_id` + Ed25519 keypair)
-//!   wrapped in the shared runtime-renamable `ChatIdentity`.
+//! * identity — desktop: the Tauri `AppIdentity` (`client_id` +
+//!   Ed25519 keypair); NAS: the fjall-kv prefs identity
+//!   (`server_client_id` + `SignatureKey` + display name).
 //! * `ReqwestTransport` — the LAN HTTPS peer transport (peers serve
 //!   self-signed certs, so verification is off, mirroring plain-app's
 //!   `createUnsafeHttpClient`).
 //! * link previews — the desktop OpenGraph scraper behind the shared
-//!   `LinkPreviewFn` seam.
+//!   `LinkPreviewFn` seam (NAS passes the no-op).
 //!
+//! Hosts pick their flavor through [`ChatOptions`] ([`ChatState::new`]
+//! for the desktop defaults, [`ChatState::nas_init`] for the NAS).
 //! GraphQL resolvers, `/nearby` and `/peer_graphql` handlers reach the
 //! service and pairing manager through [`ChatState`].
 
@@ -143,17 +146,69 @@ pub async fn nearby_discovery_ping_succeeds(target_ip: &str, target_port: u16) -
         .unwrap_or(false)
 }
 
-/// The assembled desktop chat stack — what every chat surface talks to.
+/// The assembled chat stack — what every chat surface talks to. Both
+/// hosts share this exact type; only the [`ChatOptions`] differ.
 pub struct ChatState {
     pub service: ChatService<ReqwestTransport>,
     pub pairing: PairingManager<ReqwestTransport>,
     /// Shared with the service and pairing manager so a runtime rename
     /// (`updateDeviceName`) propagates everywhere at once.
     pub identity: Arc<ChatIdentity>,
-    hooks: Arc<DesktopChatHooks>,
+    /// Concrete desktop hook handle — [`Self::attach_discovery`] fills
+    /// its discovery slot. `None` unless built via [`Self::new`].
+    desktop_hooks: Option<Arc<DesktopChatHooks>>,
+    /// Concrete NAS hook handle — [`Self::start_discovery`] fills its
+    /// discovery slot. `None` unless built via [`Self::nas_init`].
+    #[cfg(feature = "nas")]
+    nas_hooks: Option<Arc<NasChatHooks>>,
+    /// LAN discovery (mDNS advertise + browse). `None` until
+    /// [`Self::start_discovery`] runs — tests keep it off (no sockets).
+    #[cfg(feature = "nas")]
+    pub discovery: Option<Arc<crate::nas::chat_discovery::ChatDiscovery>>,
+}
+
+/// Full-option assembly inputs for [`ChatState`] — every host difference
+/// (device type, wire platform, link previews, hooks) is a field here.
+pub struct ChatOptions {
+    pub db: ChatDb,
+    pub identity: Arc<ChatIdentity>,
+    pub token: String,
+    pub data_dir: PathBuf,
+    pub device_type: DeviceType,
+    pub platform: &'static str,
+    pub link_previews: LinkPreviewFn,
+    pub hooks: Arc<dyn ChatHooks>,
 }
 
 impl ChatState {
+    /// Assemble the stack from explicit options.
+    pub fn with_options(opts: ChatOptions) -> Self {
+        let transport = Arc::new(ReqwestTransport::new());
+        let service = ChatService::new(
+            opts.db.clone(),
+            opts.token,
+            opts.identity.clone(),
+            opts.device_type,
+            opts.data_dir,
+            transport.clone(),
+            opts.hooks,
+            opts.link_previews,
+        );
+        let pairing = PairingManager::new(opts.db, opts.identity.clone(), opts.platform, transport);
+        Self {
+            service,
+            pairing,
+            identity: opts.identity,
+            desktop_hooks: None,
+            #[cfg(feature = "nas")]
+            nas_hooks: None,
+            #[cfg(feature = "nas")]
+            discovery: None,
+        }
+    }
+
+    /// Desktop assembly — `COMPUTER` device type, OpenGraph link
+    /// previews, desktop discovery hooks.
     pub fn new(
         db: &ChatDb,
         identity: &AppIdentity,
@@ -166,32 +221,28 @@ impl ChatState {
             device_name,
             identity.ed25519_keypair.clone(),
         ));
-        let transport = Arc::new(ReqwestTransport::new());
         let hooks = Arc::new(DesktopChatHooks::default());
-        let service = ChatService::new(
-            db.clone(),
-            token,
-            chat_identity.clone(),
-            DeviceType::Computer,
-            data_dir,
-            transport.clone(),
-            hooks.clone(),
-            desktop_link_previews(),
-        );
-        let pairing = PairingManager::new(db.clone(), chat_identity.clone(), "COMPUTER", transport);
-        Self {
-            service,
-            pairing,
+        let mut state = Self::with_options(ChatOptions {
+            db: db.clone(),
             identity: chat_identity,
-            hooks,
-        }
+            token,
+            data_dir,
+            device_type: DeviceType::Computer,
+            platform: "COMPUTER",
+            link_previews: desktop_link_previews(),
+            hooks: hooks.clone(),
+        });
+        state.desktop_hooks = Some(hooks);
+        state
     }
 
     /// Hand the discovery manager to the chat hooks (re-browse on failed
     /// delivery). Called once the manager exists — before that the hook
     /// is a no-op.
     pub fn attach_discovery(&self, discovery: NearbyDiscoverManager) {
-        let _ = self.hooks.discovery.set(discovery);
+        if let Some(hooks) = self.desktop_hooks.as_ref() {
+            let _ = hooks.discovery.set(discovery);
+        }
     }
 
     /// Bridge the ChatService + PairingManager broadcast channels onto the
@@ -227,6 +278,86 @@ impl ChatState {
     }
 }
 
+/// Delivery-failure hook for the NAS: kick an mDNS re-browse so a failed
+/// peer delivery (usually a changed IP/port) refreshes the peer row for
+/// the next attempt. The discovery handle is filled by
+/// [`ChatState::start_discovery`] — before that the hook is a no-op.
+#[cfg(feature = "nas")]
+#[derive(Default)]
+pub struct NasChatHooks {
+    discovery: std::sync::OnceLock<Arc<crate::nas::chat_discovery::ChatDiscovery>>,
+}
+
+#[cfg(feature = "nas")]
+impl ChatHooks for NasChatHooks {
+    fn rebrowse_peers(&self) {
+        if let Some(d) = self.discovery.get() {
+            d.rebrowse();
+        }
+    }
+}
+
+#[cfg(feature = "nas")]
+impl ChatState {
+    /// NAS assembly — open (or create) `chat.db` under `data_dir` and
+    /// build the stack from the NAS's existing identity primitives
+    /// (`client_id`, signature keypair, URL token, display name).
+    pub fn nas_init(data_dir: &std::path::Path, prefs: &crate::prefs::Prefs) -> anyhow::Result<Self> {
+        let db = ChatDb::open(&data_dir.join("chat.db"))?;
+        let token = crate::media::kv::UrlToken::new(prefs).ensure()?;
+        let keypair = crate::media::kv::SignatureKey::new(prefs).ensure_keypair()?;
+        let display_name = {
+            let name = crate::media::kv::device_display_name(prefs);
+            if name.is_empty() {
+                let host = crate::utils::hostname::get();
+                if host.is_empty() {
+                    "NAS".to_string()
+                } else {
+                    host
+                }
+            } else {
+                name
+            }
+        };
+        let identity = Arc::new(ChatIdentity::new(
+            crate::media::kv::server_client_id(prefs),
+            display_name,
+            crate::utils::base64::base64_encode(&keypair),
+        ));
+        let hooks = Arc::new(NasChatHooks::default());
+        let mut state = Self::with_options(ChatOptions {
+            db,
+            identity,
+            token,
+            data_dir: data_dir.to_path_buf(),
+            device_type: DeviceType::Nas,
+            platform: "NAS",
+            link_previews: crate::chat::service::no_link_previews(),
+            hooks: hooks.clone(),
+        });
+        state.nas_hooks = Some(hooks);
+        Ok(state)
+    }
+
+    /// Start LAN discovery (mDNS responder + resident browser). Runtime
+    /// entry point — not called from tests.
+    pub fn start_discovery(
+        &mut self,
+        prefs: &crate::prefs::Prefs,
+    ) -> Arc<crate::nas::chat_discovery::ChatDiscovery> {
+        let d = crate::nas::chat_discovery::ChatDiscovery::start(
+            self.service.db.clone(),
+            self.service.identity.clone(),
+            prefs,
+        );
+        if let Some(hooks) = self.nas_hooks.as_ref() {
+            let _ = hooks.discovery.set(d.clone());
+        }
+        self.discovery = Some(d.clone());
+        d
+    }
+}
+
 /// Wire-format struct mirroring plain-app's `DPairingResult`
 /// (`app/src/main/java/com/ismartcoding/plain/data/DNearbyPair.kt`).
 /// Sent over the WebSocket for `PAIRING_SUCCESS` / `PAIRING_FAILED` /
@@ -241,79 +372,65 @@ struct DPairingResult<'a> {
     error: &'a str,
 }
 
-/// Translate a `PairingEvent` into the appropriate `WsEvent` and push it
-/// to the local GraphQL WebSocket. Mirrors the event-type constants used
-/// by the browser-side `app-socket.ts` (`pairing_request_received`,
-/// `pairing_success`, `pairing_failed`, `pairing_canceled`).
-///
-/// Payload shapes — must match plain-app's NearbyPairManager:
+/// Translate a `PairingEvent` into the WS wire pair (event-type number +
+/// payload JSON string). Payload shapes — must match plain-app's
+/// NearbyPairManager:
 /// - `PAIRING_REQUEST_RECEIVED` → raw `PairingRequest` JSON
 ///   (the browser parses it as a `PairingRequest`)
-/// - `PAIRING_SUCCESS` / `PAIRING_FAILED` / `PAIRING_CANCELED` → `DPairingResult`
-///   JSON: `{ deviceId, deviceName, error }`
+/// - `PAIRING_SUCCESS` / `PAIRING_FAILED` / `PAIRING_CANCELED` /
+///   `PAIRING_STARTED` → `DPairingResult` JSON:
+///   `{ deviceId, deviceName, error }`
+///
+/// Shared by the desktop WS bridge and hosts that re-publish pairing
+/// events on their own buses (plain-nas's eventbus).
+pub fn pairing_event_ws_payload(ev: &PairingEvent) -> Option<(i32, String)> {
+    let result = DPairingResult {
+        device_id: &ev.device_id,
+        device_name: &ev.device_name,
+        error: "",
+    };
+    let (event_type, payload) = match &ev.kind {
+        // plain-app sends the raw PairingRequest for `PAIRING_REQUEST_RECEIVED`.
+        // Re-emit as raw JSON so the browser can parse it directly.
+        PairingEventKind::IncomingRequest {
+            request,
+            sender_ip: _,
+        } => (WS_PAIRING_REQUEST_RECEIVED, serde_json::to_string(request)),
+        PairingEventKind::Started => (WS_PAIRING_STARTED, serde_json::to_string(&result)),
+        PairingEventKind::Success => (WS_PAIRING_SUCCESS, serde_json::to_string(&result)),
+        PairingEventKind::Failed { reason } => (
+            WS_PAIRING_FAILED,
+            serde_json::to_string(&DPairingResult {
+                error: reason,
+                ..result
+            }),
+        ),
+        PairingEventKind::Cancelled => (WS_PAIRING_CANCELLED, serde_json::to_string(&result)),
+    };
+    Some((event_type, payload.ok()?))
+}
+
+/// Push a `PairingEvent` to the local GraphQL WebSocket as the
+/// appropriate `WsEvent`, mirroring the event-type constants used by the
+/// browser-side `app-socket.ts` (`pairing_request_received`,
+/// `pairing_success`, `pairing_failed`, `pairing_canceled`).
 fn forward_pairing_event_to_ws(
     ws_event_tx: &tokio::sync::broadcast::Sender<WsEvent>,
     ev: &PairingEvent,
 ) {
-    let (event_type, payload) = match &ev.kind {
-        PairingEventKind::IncomingRequest {
-            request,
-            sender_ip: _,
-        } => {
-            // plain-app sends the raw PairingRequest for `PAIRING_REQUEST_RECEIVED`.
-            // Re-emit as raw JSON so the browser can parse it directly.
-            match serde_json::to_string(request) {
-                Ok(s) => (WS_PAIRING_REQUEST_RECEIVED, s),
-                Err(_) => return,
-            }
-        }
-        PairingEventKind::Started => {
-            let result = DPairingResult {
-                device_id: &ev.device_id,
-                device_name: &ev.device_name,
-                error: "",
-            };
-            match serde_json::to_string(&result) {
-                Ok(s) => (WS_PAIRING_STARTED, s),
-                Err(_) => return,
-            }
-        }
-        PairingEventKind::Success => {
-            let result = DPairingResult {
-                device_id: &ev.device_id,
-                device_name: &ev.device_name,
-                error: "",
-            };
-            match serde_json::to_string(&result) {
-                Ok(s) => (WS_PAIRING_SUCCESS, s),
-                Err(_) => return,
-            }
-        }
-        PairingEventKind::Failed { reason } => {
-            let result = DPairingResult {
-                device_id: &ev.device_id,
-                device_name: &ev.device_name,
-                error: reason,
-            };
-            match serde_json::to_string(&result) {
-                Ok(s) => (WS_PAIRING_FAILED, s),
-                Err(_) => return,
-            }
-        }
-        PairingEventKind::Cancelled => {
-            let result = DPairingResult {
-                device_id: &ev.device_id,
-                device_name: &ev.device_name,
-                error: "",
-            };
-            match serde_json::to_string(&result) {
-                Ok(s) => (WS_PAIRING_CANCELLED, s),
-                Err(_) => return,
-            }
-        }
+    let Some((event_type, payload)) = pairing_event_ws_payload(ev) else {
+        return;
     };
     let _ = ws_event_tx.send(WsEvent {
         event_type,
         payload,
     });
 }
+
+#[cfg(test)]
+#[path = "../../tests/unit/api/chat.rs"]
+mod tests;
+
+#[cfg(all(test, feature = "nas"))]
+#[path = "../../tests/unit/api/chat_nas.rs"]
+mod nas_tests;

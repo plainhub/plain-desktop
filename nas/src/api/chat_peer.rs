@@ -97,7 +97,6 @@ pub async fn peer_graphql_handler(
         channel_id: header_channel_id.to_string(),
     };
     let response = state
-        .chat
         .peer_schema
         .execute(
             async_graphql::Request::new(query_str)

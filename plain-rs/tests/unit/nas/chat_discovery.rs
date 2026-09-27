@@ -1,12 +1,12 @@
 use super::*;
-use plain_rs::chat::db::{ChatDb, DPeer};
-use plain_rs::chat::enums::{DeviceType, PeerStatus};
+use crate::chat::db::{ChatDb, DPeer};
+use crate::chat::enums::{DeviceType, PeerStatus};
 
 fn unique_tmp_dir(label: &str) -> std::path::PathBuf {
     static SEQ: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
     let seq = SEQ.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
     std::env::temp_dir().join(format!(
-        "plain-nas-chat-disc-{label}-{}-{seq}",
+        "plain-rs-chat-disc-{label}-{}-{seq}",
         std::process::id(),
     ))
 }

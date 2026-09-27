@@ -38,7 +38,7 @@ async fn app_serves_phone_contract_enums() {
         prefs(&dir),
         config,
         dir.path().to_path_buf(),
-        crate::chat::test_state(dir.path()),
+        crate::test_support::chat_state(dir.path()),
     );
 
     let resp = schema
@@ -75,7 +75,7 @@ async fn app_declares_media_scan_capability() {
         prefs(&dir),
         config,
         dir.path().to_path_buf(),
-        crate::chat::test_state(dir.path()),
+        crate::test_support::chat_state(dir.path()),
     );
 
     let resp = schema
@@ -159,7 +159,7 @@ async fn file_info_is_path_only_without_tags() {
         prefs(&dir),
         config,
         dir.path().to_path_buf(),
-        crate::chat::test_state(dir.path()),
+        crate::test_support::chat_state(dir.path()),
     );
 
     let song = dir.path().join("song.mp3");
@@ -233,7 +233,7 @@ fn developer_schema() -> (
             prefs.clone(),
             config,
             data_dir.clone(),
-            crate::chat::test_state(&data_dir),
+            crate::test_support::chat_state(&data_dir),
         ),
         data_dir,
         db,
@@ -593,7 +593,7 @@ async fn audio_playback_serves_nullable_path_and_idle_transport() {
         prefs(&dir),
         config,
         dir.path().to_path_buf(),
-        crate::chat::test_state(dir.path()),
+        crate::test_support::chat_state(dir.path()),
     );
 
     let resp = schema
@@ -648,7 +648,7 @@ async fn path_predicates_replace_path_stat() {
         prefs(&dir),
         config,
         dir.path().to_path_buf(),
-        crate::chat::test_state(dir.path()),
+        crate::test_support::chat_state(dir.path()),
     );
     std::fs::write(dir.path().join("a.txt"), b"x").unwrap();
 

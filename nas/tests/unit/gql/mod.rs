@@ -33,7 +33,7 @@ fn test_sdl() -> String {
         prefs(&data_dir),
         config,
         data_dir.clone(),
-        crate::chat::test_state(&data_dir),
+        crate::test_support::chat_state(&data_dir),
     )
     .sdl()
 }

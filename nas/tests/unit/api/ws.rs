@@ -18,7 +18,7 @@ fn test_state() -> AppState {
     let prefs = Arc::new(crate::prefs::Prefs::load(&data_dir.join("prefs.json")).unwrap());
     std::mem::forget(dir); // the db handle must outlive the test
     let config = Arc::new(Config::parse("[server]\nhttp_port = 8080\n"));
-    let chat = crate::chat::test_state(&data_dir);
+    let chat = crate::test_support::chat_state(&data_dir);
     let schema = crate::gql::build_schema(
         db.clone(),
         prefs.clone(),
@@ -34,6 +34,7 @@ fn test_state() -> AppState {
         ws_hub: Arc::new(crate::ws_hub::WsHub::new()),
         cors: crate::api::cors::CorsPolicy::from_config(&Config::default()),
         schema,
+        peer_schema: crate::gql::peer_schema::build_schema(),
     }
 }
 

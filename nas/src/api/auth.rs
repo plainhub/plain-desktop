@@ -23,6 +23,7 @@ pub struct AppState {
     pub cors: crate::api::cors::CorsPolicy,
     pub schema: crate::gql::AppSchema,
     pub chat: Arc<crate::chat::ChatState>,
+    pub peer_schema: crate::gql::peer_schema::PeerSchema,
 }
 
 fn status_error(status: StatusCode, msg: &str) -> Response {

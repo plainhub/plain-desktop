@@ -6,7 +6,6 @@ use clap::{Parser, Subcommand};
 #[macro_use]
 mod macros;
 mod api;
-mod chat;
 mod chunked_upload;
 mod cmd;
 mod crypto;
@@ -16,6 +15,11 @@ mod prefs;
 mod read_password;
 mod version;
 mod ws_hub;
+
+// Chat stack — one assembly in plain-rs (`plain_rs::api::chat`,
+// NAS flavor via `ChatState::nas_init`), re-exported under the
+// historical module path so call sites stay stable.
+pub use plain_rs::api::chat;
 
 // NAS system/domain modules — now hosted by plain-rs (`plain_rs::nas`,
 // enabled via its `nas` feature), re-exported under the historical
@@ -64,6 +68,14 @@ pub mod media {
 }
 
 use consts::AppPaths;
+
+#[cfg(test)]
+pub(crate) mod test_support {
+    pub(crate) fn chat_state(data_dir: &std::path::Path) -> std::sync::Arc<crate::chat::ChatState> {
+        let prefs = crate::prefs::Prefs::load(&crate::prefs::default_path(data_dir)).unwrap();
+        std::sync::Arc::new(crate::chat::ChatState::nas_init(data_dir, &prefs).unwrap())
+    }
+}
 
 #[derive(Parser, Debug)]
 #[command(
