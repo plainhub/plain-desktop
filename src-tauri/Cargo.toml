@@ -33,12 +33,9 @@ tauri-plugin-dialog = "2"
 tauri-plugin-fs = "2"
 tauri-plugin-global-shortcut = "=2.3.2"
 tauri-plugin-clipboard-manager = "=2.3.3"
-# Shared Rust primitives (crypto + utils + mdns) + the chat domain
-# (SQLite storage, pairing/channel wire protocol, send/receive service).
-# Path dep for local dev (media-stack port); switch back to the git dep
-# once plain-rs is pushed:
-#   plain_rs = { git = "https://github.com/plainhub/plain-rs", package = "plain-rs", features = ["api"] }
-plain_rs = { path = "../../plain-rs", package = "plain-rs", features = ["api"] }
+# Shared Rust core: crypto + utils + chat domain + the api stack
+# (GraphQL schema, axum router, media gql roots).
+plain_rs = { path = "../plain-rs", package = "plain-rs", features = ["api"] }
 
 # Self-signed TLS certificate generation for local HTTPS server.
 # ring feature enables the required crypto backend (generate_simple_self_signed needs it).

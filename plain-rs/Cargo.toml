@@ -1,0 +1,191 @@
+[package]
+name = "plain-rs"
+version = "0.1.0"
+description = "Shared Rust primitives for the Plain* projects: crypto (ECDH P-256, Ed25519, XChaCha20-Poly1305) and utils (base64, hex, mime, query, http, http_url, short_uuid, shortid, hostname, ifaddr, async_read_stream, hash)"
+authors = ["iSmartCoding"]
+edition = "2024"
+rust-version = "1.96"
+
+[lib]
+name = "plain_rs"
+
+[features]
+# Shared chat domain (SQLite storage, pairing/channel wire protocol),
+# extracted from plain-desktop's port of the plain-app chat stack.
+# Desktop and plain-nas both enable this; consumers without chat skip
+# the rusqlite build entirely.
+chat = ["dep:serde_json", "dep:rusqlite", "sqlite_browse", "tokio/sync", "tokio/rt", "tokio/fs", "tokio/time"]
+# Shared user-library domain (SQLite storage): audio playback queue /
+# playlists / play history, tags + tag relations, favorite folders.
+# Ported from plain-nas's fjall implementations so NAS and desktop run
+# identical behavior. Consumers without a library skip it entirely.
+library = ["dep:rusqlite"]
+# SQLite table browsing for developer/debug UIs (the
+# /developer/database page): list tables, count + page rows as JSON,
+# PRAGMA column metadata, delete/insert rows. Shared by plain-nas
+# (chat.db + library.db) and plain-desktop (local db) devtools surfaces.
+sqlite_browse = ["dep:rusqlite", "dep:serde_json"]
+# Unified preferences storage (`<data_dir>/prefs.json`, flat string→JSON
+# map): the single engine + first-run identity/url-token/mDNS-hostname
+# bootstrap + DLNA sender-list helpers shared by plain-nas and the
+# plain-desktop Tauri shells (replaces per-app copies and
+# tauri-plugin-store).
+prefs = ["dep:serde_json"]
+# The desktop app's embedded API stack: async-graphql schema (its own
+# roots merged with the media_gql roots), executor, axum HTTP/WS
+# router, chat wiring, peer status, nearby discovery, DLNA receiver,
+# downloads, link previews. plain-nas does NOT enable this (it builds
+# its own axum router over the shared chat/library cores and merges
+# only the media_gql roots).
+api = [
+    "media_gql",
+    "chat",
+    "library",
+    "prefs",
+    "sqlite_browse",
+    "dep:async-graphql",
+    "dep:axum",
+    "dep:native-tls",
+    "dep:serde_json",
+    "dep:futures-util",
+    "dep:reqwest",
+    "dep:regex",
+    "dep:sysinfo",
+    "dep:tokio-tungstenite",
+    "tokio/net",
+    "tokio/rt",
+    "tokio/sync",
+    "tokio/time",
+    "tokio/fs",
+    "tokio/macros",
+]
+# Media stack ported from plain-nas: fjall KV store, file/media search
+# indexes (tantivy), media scanner, thumbnail engine, metadata/cover/
+# lyrics extraction, file management (fsx/trash/file_tasks), watcher.
+# plain-nas consumes it for its NAS surfaces; plain-desktop enables it
+# (plus media_gql for the GraphQL roots) so the desktop apps can browse
+# local files on macOS / Windows / Linux.
+media = [
+    "prefs",
+    "dep:anyhow",
+    "dep:base64",
+    "dep:chrono",
+    "dep:fjall",
+    "dep:tantivy",
+    "dep:lofty",
+    "dep:image",
+    "dep:fast_image_resize",
+    "dep:jpeg-decoder",
+    "dep:jpeg-encoder",
+    "dep:mp4",
+    "dep:rusty_h264-decoder",
+    "dep:rusty_h264-common",
+    "dep:notify",
+    "dep:tempfile",
+    "dep:sha1",
+    "dep:xxhash-rust",
+    "dep:parking_lot",
+    "dep:serde_json",
+    "tokio/rt",
+    "tokio/process",
+    "tokio/sync",
+    "tokio/time",
+    "tokio/fs",
+    "tokio/macros",
+]
+# The media GraphQL roots (files/images/videos/docs/audios queries,
+# media-scan mutations, file-management mutations) so any async-graphql
+# host — plain-nas's NAS schema or the desktop api schema — can
+# merge them into its own Query/Mutation roots.
+media_gql = ["media", "library", "dep:async-graphql"]
+
+[dependencies]
+chacha20poly1305 = "0.10"
+p256 = { version = "0.13", default-features = false, features = ["ecdh", "pkcs8", "std"] }
+ed25519-dalek = { version = "2", features = ["rand_core"] }
+sha2 = "0.10"
+rand = "0.8"
+uuid = { version = "1", features = ["v4"] }
+log = "0.4"
+if-addrs = "0.13"
+socket2 = { version = "0.5", features = ["all"] }
+serde = { version = "1", features = ["derive"] }
+# Chat domain (feature "chat"): wire-JSON parsing + the plain-app chat
+# SQLite schema (same version plain-desktop pins: 0.32, bundled so no
+# system libsqlite3 is needed on musl/static builds).
+serde_json = { version = "1", optional = true }
+rusqlite = { version = "0.32", features = ["bundled"], optional = true }
+# Media stack (feature "media"), pinned to the versions plain-nas built
+# against — see plain-nas Cargo.toml for the per-crate rationale.
+anyhow = { version = "1", optional = true }
+base64 = { version = "0.22", optional = true }
+chrono = { version = "0.4", features = ["serde"], optional = true }
+fjall = { version = "=3.1.10", optional = true }
+tantivy = { version = "0.22", optional = true }
+lofty = { version = "0.22", optional = true }
+image = { version = "0.25", default-features = false, features = ["jpeg", "png", "webp", "gif"], optional = true }
+fast_image_resize = { version = "5", features = ["rayon"], optional = true }
+jpeg-decoder = { version = "0.3", default-features = true, optional = true }
+jpeg-encoder = { version = "0.7", optional = true }
+mp4 = { version = "0.14", optional = true }
+rusty_h264-decoder = { version = "=0.16.0", default-features = false, features = ["std"], optional = true }
+rusty_h264-common = { version = "=0.16.0", default-features = false, features = ["std"], optional = true }
+notify = { version = "7", optional = true }
+tempfile = { version = "3", optional = true }
+sha1 = { version = "0.10", optional = true }
+xxhash-rust = { version = "0.8", features = ["xxh64"], optional = true }
+parking_lot = { version = "0.12", optional = true }
+# Self-signed TLS cert generation for the local HTTPS servers
+# (plain-desktop local/tls.rs, plain-nas cmd/run.rs). ring backend to
+# match the consumers' rustls stacks.
+rcgen = { version = "0.13", default-features = false, features = ["pem", "ring"] }
+# Platform FFI for hostname(2) / getifaddrs(3) — libc is already a transitive
+# dependency of the ecosystem crates, listing it explicitly for direct use.
+libc = "0.2"
+# AsyncReadStream: AsyncRead -> Stream adapter (bytes is the canonical
+# byte type both axum and tokio re-export).
+bytes = "1"
+futures-core = "0.3"
+# api feature: async/IO plumbing for the embedded local server.
+futures-util = { version = "0.3", default-features = false, features = ["sink", "std"], optional = true }
+async-graphql = { version = "7", default-features = false, optional = true }
+# Same axum stack plain-nas pins, so both servers share one framework.
+axum = { version = "0.7", default-features = false, features = ["ws", "multipart", "tokio", "http1"], optional = true }
+# Client-side TLS for the peer-status WS connector (peer_status_manager);
+# the server side is axum + the host's axum-server rustls listener.
+native-tls = { version = "0.2", optional = true }
+# "stream" enables bytes_stream() for /proxyfs response forwarding.
+reqwest = { version = "0.12", default-features = false, features = ["native-tls", "stream"], optional = true }
+regex = { version = "1", optional = true }
+sysinfo = { version = "0.32", default-features = false, features = ["system", "disk"], optional = true }
+tokio-tungstenite = { version = "0.24", features = ["native-tls"], optional = true }
+# AsyncReadStream needs the AsyncRead trait + ReadBuf (io-util is the
+# minimal feature set that provides them; no runtime/net).
+tokio = { version = "1", default-features = false, features = ["io-util"] }
+
+[dev-dependencies]
+serde_json = "1"
+tokio = { version = "1", features = ["full"] }
+futures = "0.3"
+
+[profile.dev]
+# Light optimization for the in-tree media stack: the thumbnail engine's
+# hot loops (progressive DC decode, box resample) are 5-10x slower at
+# opt-level 0 — dev instances must not look broken.
+opt-level = 1
+
+# Keep third-party deps (image, fast_image_resize, jpeg-*, tantivy, …)
+# at max optimization even in dev builds — all heavy processing lives in
+# these crates, so they need -O3 for acceptable performance.
+[profile.dev.package."*"]
+opt-level = 3
+
+[profile.release]
+opt-level = 3
+lto = "thin"
+codegen-units = 1
+strip = "symbols"
+
+[[example]]
+name = "thumb_bench"
+required-features = ["media"]

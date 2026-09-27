@@ -105,7 +105,7 @@ jobs:
       - name: Cache Rust dependencies
         uses: Swatinem/rust-cache@v2
         with:
-          workspaces: src-tauri -> target
+          workspaces: . -> target
           key: ${{ matrix.platform }}
 
       - name: Install Linux dependencies

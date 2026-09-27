@@ -1,0 +1,106 @@
+[package]
+name = "plainnas"
+version = "0.1.0"
+edition = "2024"
+default-run = "plainnas"
+# Pinned to the current stable Rust (1.96.0, released 2026-05-28). Bump
+# together with `edition` whenever we want to opt into a newer edition's
+# new lints / resolver changes.
+rust-version = "1.96"
+
+[[bin]]
+name = "plainnas"
+path = "src/main.rs"
+
+[dependencies]
+# HTTP & Web
+axum = { version = "0.7", features = ["ws", "multipart", "tokio", "http1"] }
+bytes = "1"
+tower = { version = "0.4", features = ["util"] }
+tokio = { version = "1", features = ["full"] }
+axum-server = { version = "0.7", features = ["tls-rustls"] }
+# `tokio-util` was removed in step 9. The only API we used
+# (`tokio_util::io::ReaderStream`) is now provided by
+# `plain_rs::utils::async_read_stream::AsyncReadStream`.
+tower-http = { version = "0.5", features = ["cors", "compression-gzip", "compression-deflate", "trace"] }
+
+# GraphQL
+async-graphql = { version = "7", features = ["chrono"] }
+
+# Crypto — the XChaCha20-Poly1305 (nonce||ct||tag) wrapper and sha512_hex
+# moved to plain-rs; rand/hex/base64 stay direct (used beyond plain-rs surface).
+rand = "0.8"
+hex = "0.4"
+base64 = "0.22"
+
+plain_rs = { path = "../plain-rs", package = "plain-rs", features = ["chat", "library", "prefs", "sqlite_browse", "media", "media_gql"] }
+
+# Platform FFI (already a transitive of nix/tokio/ring — listing explicitly
+# so we can call libc::tcgetattr / setsockopt / etc. without forcing
+# `cargo add` later on. Zero-cost addition: same crate version as already
+# resolved.)
+libc = "0.2"
+
+# Serde
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+
+# CLI
+clap = { version = "4", features = ["derive"] }
+# `rpassword` was removed in step 2. Password input now uses the in-tree
+# `crate::read_password` module (see src/read_password.rs), which talks to
+# /dev/tty via libc::tcgetattr/tcsetattr — same behaviour, no third-party dep.
+
+# TLS
+# Self-signed cert generation lives in plain-rs (plain_rs::tls); only the
+# rustls server side remains here.
+rustls = { version = "0.23", features = ["ring", "std"] }
+
+# log crate facade bridge (plain-rs media code logs via log::)
+log = "0.4"
+
+# Misc
+zip = { version = "2", default-features = false, features = ["deflate"] }
+# `walkdir` was removed in step 5. Replaced with the in-tree
+# `crate::walk` module (see src/walk.rs), a 60-line BFS using std::fs.
+chrono = { version = "0.4", features = ["serde"] }
+anyhow = "1"
+futures = "0.3"
+# `url` was removed in step 12. Replaced with `plain_rs::utils::http_url`
+# (the former in-tree src/http_url.rs, ported to plain-rs), a ~200-line
+# HTTP-URL parser tailored for the small set of URL operations we
+# actually perform. `ureq` still pulls in `url` transitively — we can't
+# avoid that without replacing ureq (step 13).
+http = "1"
+parking_lot = "0.12"
+# `sysinfo` was removed in step 7. Replaced with direct /proc reads in
+# src/device_info.rs — covers everything the old `sysinfo::System` call
+# used, with no platform-abstraction overhead and a much smaller
+# compile-time footprint.
+# `hostname` crate was removed in step 3. Replaced with
+# `plain_rs::utils::hostname` (the former in-tree src/hostname_local.rs,
+# ported to plain-rs), a 30-line wrapper around libc::gethostname(2).
+nix = { version = "0.28", features = ["mount", "fs", "user"] }
+tempfile = "3"
+dashmap = "5"
+ureq = { version = "2", default-features = false, features = ["tls"] }
+# `quick-xml` was removed in step 11. Replaced with the in-tree
+# `crate::xml_sax` module (see src/xml_sax.rs) — a 200-line SAX-style
+# parser tailored for the small, fixed-shape UPnP device descriptor we
+# parse in src/dlna/desc.rs. UPnP descriptors are <8 KiB and use a
+# closed element set, so we don't need a general XML library.
+# `if-addrs` was removed in step 10. Replaced with
+# `plain_rs::utils::ifaddr` (the former in-tree src/ifaddr_local.rs,
+# ported to plain-rs), a direct wrapper around libc::getifaddrs(3).
+# `socket2` was removed in step 13 — the only file using it
+# (src/dlna/ssdp.rs) now uses `std::net::UdpSocket` plus a few
+# `libc::setsockopt` calls for SO_BROADCAST / SO_RCVBUF / SO_SNDTIMEO.
+
+# The media stack (fjall, tantivy, thumbnails, media scan) now lives in
+# plain-rs behind its `media` feature — see plain-rs Cargo.toml for the
+# per-crate rationale of the image/video/search dependencies. These two
+# stay direct: fileInfo's image-dimension probe (gql) and the PDF
+# preview cache key (pdf_preview).
+image = { version = "0.25", default-features = false, features = ["jpeg", "png", "webp", "gif"] }
+sha1 = "0.10"
+

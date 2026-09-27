@@ -91,7 +91,7 @@ jobs:
       - name: Cache Rust dependencies
         uses: Swatinem/rust-cache@v2
         with:
-          workspaces: src-tauri -> target
+          workspaces: . -> target
           key: ${{ matrix.platform }}
 
       - name: Install Linux dependencies
@@ -169,8 +169,8 @@ jobs:
         run: |
           set -euo pipefail
           shopt -s nullglob
-          files=(src-tauri/target/aarch64-apple-darwin/release/bundle/dmg/*.dmg
-                 src-tauri/target/x86_64-apple-darwin/release/bundle/dmg/*.dmg)
+          files=(target/aarch64-apple-darwin/release/bundle/dmg/*.dmg
+                 target/x86_64-apple-darwin/release/bundle/dmg/*.dmg)
           if [ "${#files[@]}" -eq 0 ]; then
             echo "::error::No macOS DMG artifacts found"
             exit 1
@@ -195,23 +195,23 @@ jobs:
 
           case "${{ matrix.platform }}" in
             macos)
-              files=(src-tauri/target/aarch64-apple-darwin/release/bundle/dmg/*.dmg
-                     src-tauri/target/x86_64-apple-darwin/release/bundle/dmg/*.dmg)
+              files=(target/aarch64-apple-darwin/release/bundle/dmg/*.dmg
+                     target/x86_64-apple-darwin/release/bundle/dmg/*.dmg)
               ;;
             windows)
-              files=(src-tauri/target/release/bundle/msi/*.msi src-tauri/target/release/bundle/nsis/*.exe)
+              files=(target/release/bundle/msi/*.msi target/release/bundle/nsis/*.exe)
               ;;
             linux)
-              files=(src-tauri/target/release/bundle/deb/*.deb src-tauri/target/release/bundle/rpm/*.rpm src-tauri/target/release/bundle/appimage/*.AppImage)
+              files=(target/release/bundle/deb/*.deb target/release/bundle/rpm/*.rpm target/release/bundle/appimage/*.AppImage)
               ;;
           esac
 
           if [ "${#files[@]}" -eq 0 ]; then
             echo "No bundle artifacts found for ${{ matrix.platform }}" >&2
             if [ "${{ matrix.platform }}" = "macos" ]; then
-              find src-tauri/target -path '*/bundle/dmg/*.dmg' -type f 2>/dev/null || true
+              find target -path '*/bundle/dmg/*.dmg' -type f 2>/dev/null || true
             else
-              find src-tauri/target/release/bundle -type f -maxdepth 4 2>/dev/null || true
+              find target/release/bundle -type f -maxdepth 4 2>/dev/null || true
             fi
             exit 1
           fi
@@ -240,8 +240,8 @@ jobs:
         run: |
           set -euo pipefail
           shopt -s nullglob
-          files=(src-tauri/target/aarch64-apple-darwin/release/bundle/dmg/*.dmg
-                 src-tauri/target/x86_64-apple-darwin/release/bundle/dmg/*.dmg)
+          files=(target/aarch64-apple-darwin/release/bundle/dmg/*.dmg
+                 target/x86_64-apple-darwin/release/bundle/dmg/*.dmg)
           if [ "${#files[@]}" -eq 0 ]; then
             echo "::error::No macOS DMG artifacts found"
             exit 1

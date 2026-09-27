@@ -1,27 +1,19 @@
 // Generates `docs/DATABASE.sql` from the machine-readable source of truth:
 // the CREATE TABLE / CREATE INDEX statements in
-// `../plain-rs/src/chat/db/mod.rs` (the shared SQLite schema).
+// `plain-rs/src/chat/db/mod.rs` (the shared SQLite schema).
 //
 // The file is generated, never hand-edited. The freshness test
 // (`tests/docs/db-schema.test.ts`, vitest `docs` project) fails when it goes
 // stale; regenerate with `node scripts/gen-db-schema-sql.mjs --write` and
 // commit the file together with the schema change.
 
-import { existsSync, readFileSync, writeFileSync } from 'node:fs'
-import { dirname, join } from 'node:path'
-import { execFileSync } from 'node:child_process'
+import { readFileSync, writeFileSync } from 'node:fs'
+import { join } from 'node:path'
 
 const ROOT = process.cwd()
 
 function sharedDbSource() {
-  const sibling = join(ROOT, '../plain-rs/src/chat/db/mod.rs')
-  if (existsSync(sibling)) return sibling
-  const metadata = JSON.parse(execFileSync('cargo', [
-    'metadata', '--format-version', '1', '--manifest-path', join(ROOT, 'src-tauri/Cargo.toml'),
-  ], { encoding: 'utf8' }))
-  const core = metadata.packages.find((pkg) => pkg.name === 'plain-rs')
-  if (!core) throw new Error('plain-rs is missing from cargo metadata')
-  return join(dirname(core.manifest_path), 'src/chat/db/mod.rs')
+  return join(ROOT, 'plain-rs/src/chat/db/mod.rs')
 }
 
 export function generateDatabaseSql() {

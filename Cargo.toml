@@ -1,0 +1,22 @@
+[workspace]
+resolver = "3"
+members = ["plain-rs", "nas", "src-tauri"]
+
+# Light optimization for workspace code: the thumbnail engine's hot
+# loops (progressive DC decode, box resample) live in the plain-rs media
+# feature and are 5-10x slower at opt-level 0 — dev instances must not
+# look broken.
+[profile.dev]
+opt-level = 1
+
+# Keep third-party deps (image, fast_image_resize, jpeg-*, tantivy, …) at
+# max optimization even in dev builds — all heavy processing lives in
+# these crates, so they need -O3 for acceptable performance.
+[profile.dev.package."*"]
+opt-level = 3
+
+[profile.release]
+opt-level = 3
+lto = "thin"
+codegen-units = 1
+strip = "symbols"

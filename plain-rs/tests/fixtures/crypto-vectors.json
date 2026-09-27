@@ -1,0 +1,29 @@
+{
+  "ecdh": {
+    "privateKeyA": "5ced3wgsZ8kxv20g5SlA0o9+Z3elCb4k0IIAHmGdyvQ=",
+    "publicKeyA": "BE1g8WPr3KWXvQbXRIKSCQTW5xDpwsScs/J1AX5pWEZ4Ew7ECgR048oHxkXC595NJEWjMUSI/kfRCwWr6zrfaoA=",
+    "privateKeyB": "Raajk7iAkQZ+1fZAM2hwzAUTss1sjWYxofrlkoAGM54=",
+    "publicKeyB": "BOce8EeDRk8jGaU59jzUkuJPuDS1aE2ROL8sZGi8pH96lWpE36zC+dkERgcT8np+e17d2Wf2PrlGLY4JcUXtbkY=",
+    "sharedKey": "tMZ93HgpAEUdsrYiL4plIs0+evGumWFjvNZRSiA1A3s="
+  },
+  "ed25519": {
+    "privateKey": "yJRq4QISnlKQywygx+0TzXC2a7cB7FA7TXRmraRXpew=",
+    "publicKey": "Tn/JztK1im/B0Gr6C1bM2JQNyGikXsoKNRq4T4dwzB0=",
+    "message": "the quick brown fox jumps over the lazy dog",
+    "signature": "ICUOft1UoKwAO95Paf89rduKRrd+j6iO84LXh0PCdzmd16ZC/RLeLdO06ZmutdjGfRsd3kw+mM1ICDIMhp2hBw=="
+  },
+  "xchacha20": {
+    "key": "AwoRGB8mLTQ7QklQV15lbHN6gYiPlp2kq7K5wMfO1dw=",
+    "nonce": "hr57U5QyrGRoCYoMIb66uUqEPgg0UWV0",
+    "plaintext": "hello xchacha20-poly1305 cross-platform test",
+    "ciphertext": "Xieo69qMXyWs7MeNsMGmw2o3qGuOZP40JbqcyW8ZxENEMhBs6KyBnwAFENQxlwYz9daQA8uAhi1e1hOv"
+  },
+  "base64": {
+    "input": [104, 101, 108, 108, 111],
+    "output": "aGVsbG8="
+  },
+  "hex": {
+    "input": [255, 0, 128],
+    "output": "ff0080"
+  }
+}

@@ -17,6 +17,26 @@
 | Package manager | Yarn 4 |
 | Dev server | `yarn dev` → localhost:3000 |
 
+## Repository Layout (Cargo workspace)
+
+```
+plain-desktop/
+├── src/            # Vue 3 frontend (map below) — desktop app and NAS web UI
+├── plain-rs/       # Shared Rust core: crypto, utils, mdns, chat, library,
+│                   #   media (scan/index/thumbnails) + the api feature
+│                   #   (GraphQL schema, executor, axum HTTP/WS router)
+├── nas/            # plainnas shell: headless NAS server (mounts, disks,
+│                   #   DLNA sender, Samba, device status) built on plain-rs
+│                   #   cores; design docs in docs/nas/
+└── src-tauri/      # Tauri 2 desktop shell: commands, screen capture,
+                    #   http_proxy; GraphQL surface re-exports plain-rs api
+```
+
+- One root `Cargo.toml` workspace, one `Cargo.lock`, one `target/`.
+- `plain-rs` is the core; `nas` and `src-tauri` are shells over it.
+- Build/test: `cargo check --workspace`, `cargo test --workspace`
+  (single crate: `cargo test -p plainnas` / `-p PlainApp` / `-p plain-rs --all-features`).
+
 ## Directory Map
 
 ```
@@ -138,3 +158,4 @@ yarn typecheck    # TypeScript check
 - `docs/graphql-client.md` — GraphQL client and transport notes
 - `docs/file-upload.md` — upload flow details
 - `docs/tauri-proxy-strategy.md` — Tauri proxy performance/stability decisions
+- `docs/nas/` — NAS (nas/) design docs: storage, media, DLNA sender, trash, API spec

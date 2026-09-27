@@ -1,0 +1,13 @@
+[nas]
+id = "4b150a2c-dcae-11eb-ba80-0242ac130004"
+name = "PlainNAS"
+
+[server]
+https_port = 8443
+http_port = 8080
+
+[auth]
+dev_token = "" # This is for developer
+
+[log]
+level = "info" # trace, debug, info, warn, error
