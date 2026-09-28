@@ -1,5 +1,18 @@
 use super::*;
 
+#[test]
+fn macos_data_volume_is_not_listed_as_a_second_internal_drive() {
+    #[cfg(target_os = "macos")]
+    {
+        assert!(!should_include_mount("/System/Volumes/Data"));
+        assert!(should_include_mount("/"));
+        assert!(should_include_mount("/Volumes/External"));
+    }
+
+    #[cfg(not(target_os = "macos"))]
+    assert!(should_include_mount("/System/Volumes/Data"));
+}
+
 #[tokio::test]
 async fn mounts_query_returns_system_volumes() {
     let response = crate::api::schema::build_schema()

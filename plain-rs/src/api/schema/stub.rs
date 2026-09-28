@@ -29,6 +29,7 @@ impl StubQuery {
         let disks = sysinfo::Disks::new_with_refreshed_list();
         disks
             .iter()
+            .filter(|disk| should_include_mount(disk.mount_point().to_string_lossy().as_ref()))
             .map(|disk| {
                 let mount_point = disk.mount_point().to_string_lossy().into_owned();
                 let total_bytes = disk.total_space().min(i64::MAX as u64) as i64;
@@ -56,6 +57,15 @@ impl StubQuery {
             })
             .collect()
     }
+}
+
+fn should_include_mount(mount_point: &str) -> bool {
+    #[cfg(target_os = "macos")]
+    if mount_point == "/System/Volumes/Data" {
+        return false;
+    }
+    let _ = mount_point;
+    true
 }
 
 fn is_remote_filesystem(fs_type: &str) -> bool {
