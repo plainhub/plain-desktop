@@ -61,6 +61,69 @@ fn media_exclusions() {
 }
 
 #[test]
+fn platform_system_root_matching_respects_path_boundaries_and_windows_case() {
+    assert!(under_root_case_insensitive(
+        "D:/WINDOWS/System32",
+        "D:/Windows"
+    ));
+    assert!(!under_root_case_insensitive(
+        "D:/WindowsOld/file",
+        "D:/Windows"
+    ));
+    #[cfg(target_os = "windows")]
+    {
+        assert!(is_media_excluded_at(
+            "c:/windows/System32/a.dll",
+            Path::new("Z:/data"),
+            Path::new("Z:/cache"),
+            &[]
+        ));
+        assert!(is_media_excluded_at(
+            "D:/Program Files/App/a.exe",
+            Path::new("Z:/data"),
+            Path::new("Z:/cache"),
+            &[]
+        ));
+    }
+    #[cfg(target_os = "macos")]
+    {
+        assert!(is_media_excluded_at(
+            "/System/Library/CoreServices/a",
+            Path::new("/tmp/data"),
+            Path::new("/tmp/cache"),
+            &[]
+        ));
+        assert!(is_media_excluded_at(
+            "/Applications/SomeApp/Resources/icon.png",
+            Path::new("/tmp/data"),
+            Path::new("/tmp/cache"),
+            &[]
+        ));
+        assert!(!is_media_excluded_at(
+            "/Users/alice/Pictures/a.jpg",
+            Path::new("/tmp/data"),
+            Path::new("/tmp/cache"),
+            &[]
+        ));
+    }
+    #[cfg(target_os = "linux")]
+    {
+        assert!(is_media_excluded_at(
+            "/etc/ssl/certs/a.pem",
+            Path::new("/tmp/data"),
+            Path::new("/tmp/cache"),
+            &[]
+        ));
+        assert!(!is_media_excluded_at(
+            "/home/alice/Pictures/a.jpg",
+            Path::new("/tmp/data"),
+            Path::new("/tmp/cache"),
+            &[]
+        ));
+    }
+}
+
+#[test]
 fn scan_tree_skips_excluded_paths() {
     let dir = tree();
     // /…/Pics is the real library; the rest must be skipped.

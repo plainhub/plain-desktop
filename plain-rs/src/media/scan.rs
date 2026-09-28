@@ -34,15 +34,32 @@ const TYPE_INDEX_PREFIX: &str = "media:type:";
 // Media-library exclusions
 // ---------------------------------------------------------------------------
 
-/// Path prefixes the media scan never descends into: system and program
-/// areas whose icons/assets would swamp the media views (and most of which
-/// are pure noise on a full-disk scan). The files manager lists the live
-/// filesystem directly, so these stay browsable there — they are just not
-/// part of the indexed media library.
+/// System and application roots are platform-specific. User mounted volumes
+/// and home directories remain scannable on each platform.
+#[cfg(target_os = "macos")]
+const EXCLUDED_SYSTEM_ROOTS: &[&str] = &[
+    "/System",
+    "/Library",
+    "/Applications",
+    "/private",
+    "/usr",
+    "/bin",
+    "/sbin",
+    "/var",
+    "/tmp",
+    "/dev",
+    "/cores",
+    "/proc",
+];
+
+#[cfg(target_os = "linux")]
 const EXCLUDED_SYSTEM_ROOTS: &[&str] = &[
     "/proc", "/sys", "/dev", "/run", "/tmp", "/snap", "/usr", "/etc", "/var", "/boot", "/opt",
     "/srv", "/lib", "/lib32", "/lib64", "/bin", "/sbin",
 ];
+
+#[cfg(not(any(target_os = "windows", target_os = "macos", target_os = "linux")))]
+const EXCLUDED_SYSTEM_ROOTS: &[&str] = &[];
 
 /// Directory-name components excluded anywhere in the tree: build outputs
 /// and vendored dependency trees hold program assets, never user media.
@@ -89,8 +106,17 @@ fn is_media_excluded_at(
     {
         return true;
     }
-    for root in EXCLUDED_SYSTEM_ROOTS {
-        if under_root(&p, root) {
+    #[cfg(target_os = "windows")]
+    let system_roots = windows_system_roots();
+    #[cfg(not(target_os = "windows"))]
+    let system_roots = EXCLUDED_SYSTEM_ROOTS
+        .iter()
+        .map(|s| s.to_string())
+        .collect::<Vec<_>>();
+    for root in &system_roots {
+        if under_root(&p, root)
+            || (cfg!(target_os = "windows") && under_root_case_insensitive(&p, root))
+        {
             return true;
         }
     }
@@ -108,10 +134,48 @@ fn is_media_excluded_at(
     false
 }
 
+#[cfg(target_os = "windows")]
+fn windows_system_roots() -> Vec<String> {
+    let mut roots = Vec::new();
+    for key in [
+        "SystemRoot",
+        "ProgramFiles",
+        "ProgramFiles(x86)",
+        "ProgramData",
+    ] {
+        if let Some(path) = std::env::var_os(key) {
+            roots.push(path.to_string_lossy().replace('\\', "/"));
+        }
+    }
+    if let Some(system_root) = std::env::var_os("SystemRoot") {
+        if let Some(drive) = Path::new(&system_root).components().next() {
+            let drive = drive.as_os_str().to_string_lossy();
+            roots.extend(
+                [
+                    "$Recycle.Bin",
+                    "System Volume Information",
+                    "Recovery",
+                    "PerfLogs",
+                ]
+                .into_iter()
+                .map(|name| format!("{drive}/{name}")),
+            );
+        }
+    }
+    roots
+}
+
 /// Component-boundary prefix check: `/usr` covers `/usr/share/x` but not
 /// `/usr2`; the root itself counts too.
 fn under_root(p: &str, root: &str) -> bool {
     p == root || p.starts_with(&format!("{root}/"))
+}
+
+fn under_root_case_insensitive(p: &str, root: &str) -> bool {
+    p.eq_ignore_ascii_case(root)
+        || p.get(..root.len())
+            .is_some_and(|prefix| prefix.eq_ignore_ascii_case(root))
+            && p.as_bytes().get(root.len()) == Some(&b'/')
 }
 
 const STATE_IDLE: i32 = 0;
