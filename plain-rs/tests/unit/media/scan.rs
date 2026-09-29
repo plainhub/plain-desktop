@@ -124,6 +124,56 @@ fn platform_system_root_matching_respects_path_boundaries_and_windows_case() {
 }
 
 #[test]
+fn photos_library_package_is_excluded_from_media_scan_on_macos() {
+    #[cfg(target_os = "macos")]
+    {
+        let data = Path::new("/tmp/data");
+        let cache = Path::new("/tmp/cache");
+        let excluded = |path: &str| is_media_excluded_at(path, data, cache, &[]);
+        assert!(excluded(
+            "/Users/alice/Pictures/Photos Library.photoslibrary"
+        ));
+        assert!(excluded(
+            "/Users/alice/Pictures/Photos Library.photoslibrary/resources/derivatives/cvt/photo.jpeg"
+        ));
+        assert!(excluded(
+            "/Volumes/Backup/ALBUM.PHOTOSLIBRARY/originals/photo.jpeg"
+        ));
+        assert!(!excluded(
+            "/Users/alice/Pictures/Photos Library.photoslibrary-backup/photo.jpeg"
+        ));
+        assert!(!excluded("/Users/alice/Pictures/photo.jpeg"));
+    }
+}
+
+#[test]
+#[cfg(target_os = "macos")]
+fn rescan_removes_previously_indexed_photos_library_items_and_buckets() {
+    let dir = tree();
+    let library = dir.path().join("Photos.photoslibrary");
+    let path = library.join("resources/derivatives/cvt/photo.jpg");
+    std::fs::create_dir_all(path.parent().unwrap()).unwrap();
+    std::fs::write(&path, b"old indexed image").unwrap();
+
+    let db = Arc::new(tmp_db());
+    let p = path.to_string_lossy().to_string();
+    let row = build_scanned(&db, &p, &std::fs::metadata(&path).unwrap()).unwrap();
+    let mut batch = db.batch();
+    stage_scanned(&mut batch, &row);
+    db.apply_batch(batch).unwrap();
+    apply_bucket_deltas(&db, &bucket_deltas_of(std::slice::from_ref(&row)));
+    crate::media::image_index::global()
+        .index_media_file(&row.m)
+        .unwrap();
+    assert_eq!(list_buckets(&db, "image").unwrap().len(), 1);
+
+    scan_tree(&db, dir.path(), &Arc::new(Scanner::new()));
+
+    assert!(get_by_path(&db, &p).unwrap().is_none());
+    assert!(list_buckets(&db, "image").unwrap().is_empty());
+}
+
+#[test]
 fn scan_tree_skips_excluded_paths() {
     let dir = tree();
     // /…/Pics is the real library; the rest must be skipped.

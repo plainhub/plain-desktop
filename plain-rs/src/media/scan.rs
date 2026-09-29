@@ -100,10 +100,11 @@ fn is_media_excluded_at(
                 .iter()
                 .any(|n| comp.eq_ignore_ascii_case(n))
     };
-    if Path::new(&p)
-        .components()
-        .any(|c| c.as_os_str().to_str().is_some_and(is_hidden_or_named))
-    {
+    if Path::new(&p).components().any(|c| {
+        c.as_os_str()
+            .to_str()
+            .is_some_and(|comp| is_hidden_or_named(comp) || is_excluded_package_component(comp))
+    }) {
         return true;
     }
     #[cfg(target_os = "windows")]
@@ -131,6 +132,16 @@ fn is_media_excluded_at(
             return true;
         }
     }
+    false
+}
+
+#[cfg(target_os = "macos")]
+fn is_excluded_package_component(component: &str) -> bool {
+    component.to_ascii_lowercase().ends_with(".photoslibrary")
+}
+
+#[cfg(not(target_os = "macos"))]
+fn is_excluded_package_component(_component: &str) -> bool {
     false
 }
 
@@ -1363,9 +1374,7 @@ fn scan_tree(db: &Arc<crate::media::kv::Db>, root: &Path, s: &Arc<Scanner>) -> (
 }
 
 fn prune_missing_under_root(db: &crate::media::kv::Db, root: &Path, s: &Scanner) -> Result<usize> {
-    if !matches!(std::fs::symlink_metadata(root), Ok(meta) if meta.is_dir())
-        || is_media_excluded(&root.to_string_lossy())
-    {
+    if !matches!(std::fs::symlink_metadata(root), Ok(meta) if meta.is_dir()) {
         return Ok(0);
     }
     let root_path = root.to_string_lossy().replace('\\', "/");
@@ -1377,7 +1386,8 @@ fn prune_missing_under_root(db: &crate::media::kv::Db, root: &Path, s: &Scanner)
         }
         let (key, _) = entry?;
         let path = String::from_utf8_lossy(&key[PATH_INDEX_PREFIX.len()..]).to_string();
-        if matches!(std::fs::metadata(&path), Err(error) if error.kind() == std::io::ErrorKind::NotFound)
+        if is_media_excluded(&path)
+            || matches!(std::fs::metadata(&path), Err(error) if error.kind() == std::io::ErrorKind::NotFound)
         {
             missing.push(path);
         }
