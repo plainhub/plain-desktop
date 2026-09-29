@@ -8,6 +8,7 @@ members = ["plain-rs", "nas", "src-tauri"]
 # look broken.
 [profile.dev]
 opt-level = 1
+incremental = false
 
 # Keep third-party deps (image, fast_image_resize, jpeg-*, tantivy, …) at
 # max optimization even in dev builds — all heavy processing lives in
