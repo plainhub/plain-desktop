@@ -49,6 +49,12 @@ fn media_exclusions() {
         excl("/srv/site/BUILD/style.css"),
         "name match is case-insensitive"
     );
+    assert!(excl(
+        "/Users/alice/Movies/CapCut/User Data/Cache/effect/7408409772950637830/image/blusher.png"
+    ));
+    assert!(excl("/Users/alice/Library/Browser/GPUCache/image.png"));
+    assert!(excl("/Users/alice/Library/Browser/Code Cache/image.png"));
+    assert!(!excl("/Users/alice/Pictures/Cachet/photo.jpg"));
     // Config-provided extra roots.
     assert!(excl("/home/u/old/legacy.png"));
     assert!(
@@ -170,6 +176,34 @@ fn rescan_removes_previously_indexed_photos_library_items_and_buckets() {
     scan_tree(&db, dir.path(), &Arc::new(Scanner::new()));
 
     assert!(get_by_path(&db, &p).unwrap().is_none());
+    assert!(list_buckets(&db, "image").unwrap().is_empty());
+}
+
+#[test]
+fn rescan_removes_previously_indexed_application_cache_images() {
+    let dir = tree();
+    let image = dir
+        .path()
+        .join("Movies/CapCut/User Data/Cache/effect/image/blusher.png");
+    std::fs::create_dir_all(image.parent().unwrap()).unwrap();
+    std::fs::write(&image, b"cached image").unwrap();
+
+    let db = Arc::new(tmp_db());
+    let path = image.to_string_lossy().to_string();
+    assert!(scan_file(&db, &path).is_err());
+    let row = build_scanned(&db, &path, &std::fs::metadata(&image).unwrap()).unwrap();
+    let mut batch = db.batch();
+    stage_scanned(&mut batch, &row);
+    db.apply_batch(batch).unwrap();
+    apply_bucket_deltas(&db, &bucket_deltas_of(std::slice::from_ref(&row)));
+    crate::media::image_index::global()
+        .index_media_file(&row.m)
+        .unwrap();
+    assert_eq!(list_buckets(&db, "image").unwrap().len(), 1);
+
+    scan_tree(&db, dir.path(), &Arc::new(Scanner::new()));
+
+    assert!(get_by_path(&db, &path).unwrap().is_none());
     assert!(list_buckets(&db, "image").unwrap().is_empty());
 }
 

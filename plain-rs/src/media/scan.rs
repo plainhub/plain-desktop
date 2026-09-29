@@ -61,9 +61,19 @@ const EXCLUDED_SYSTEM_ROOTS: &[&str] = &[
 #[cfg(not(any(target_os = "windows", target_os = "macos", target_os = "linux")))]
 const EXCLUDED_SYSTEM_ROOTS: &[&str] = &[];
 
-/// Directory-name components excluded anywhere in the tree: build outputs
-/// and vendored dependency trees hold program assets, never user media.
-const EXCLUDED_DIR_NAMES: &[&str] = &["node_modules", "target", "dist", "build", "vendor"];
+/// Generated and cached content is excluded anywhere in the tree.
+const EXCLUDED_DIR_NAMES: &[&str] = &[
+    "node_modules",
+    "target",
+    "dist",
+    "build",
+    "vendor",
+    "cache",
+    "caches",
+    "gpucache",
+    "code cache",
+    "cachestorage",
+];
 
 /// Extra excluded roots from config (`[media_scan] excluded_dirs`,
 /// comma-separated absolute paths). Set once at startup.
