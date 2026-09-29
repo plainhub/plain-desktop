@@ -1004,6 +1004,15 @@ export const dataStoreEntriesGQL = `
   }
 `
 
+export const prefsGQL = `
+  query {
+    prefs {
+      key
+      value
+    }
+  }
+`
+
 export const dbTablesGQL = `
   query {
     dbTables

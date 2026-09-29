@@ -418,6 +418,18 @@ export interface GqlOperations {
     }
     variables: undefined
   }
+  setPrefGQL: {
+    result: {
+      setPref: {
+        key: string
+        value: string
+      }
+    }
+    variables: {
+      key: string
+      value: string
+    }
+  }
   updateDeviceNameGQL: {
     result: {
       updateDeviceName: boolean
@@ -2298,6 +2310,15 @@ export interface GqlOperations {
   dataStoreEntriesGQL: {
     result: {
       dataStoreEntries: Array<{
+        key: string
+        value: string
+      }>
+    }
+    variables: undefined
+  }
+  prefsGQL: {
+    result: {
+      prefs: Array<{
         key: string
         value: string
       }>

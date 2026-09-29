@@ -80,6 +80,12 @@ export const clearAppLogsGQL = `
   }
 `
 
+export const setPrefGQL = `
+  mutation setPref($key: String!, $value: String!) {
+    setPref(key: $key, value: $value) { key value }
+  }
+`
+
 export const updateDeviceNameGQL = `
   mutation updateDeviceName($name: String!) {
     updateDeviceName(name: $name)

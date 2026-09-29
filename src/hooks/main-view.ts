@@ -19,6 +19,7 @@ import { useAudioPlaylistStore } from '@/hooks/audio-playlist-store'
 import { openModal } from '@/components/modal'
 import type { PairingRequest } from '@/lib/pairing-types'
 import PairingRequestModal from '@/views/chat/PairingRequestModal.vue'
+import { useRemotePrefs } from '@/hooks/remote-prefs'
 
 export function useMainView() {
   const store = useMainStore()
@@ -130,16 +131,26 @@ export function useMainView() {
     store.$state = { ...store.$state, ...localState }
   }
 
+  const remotePrefsEnabled = useRemotePrefs(store, localState)
+
   // High-frequency mutations (e.g. chatTexts keystrokes) must not serialize
   // the whole store and hit the prefs backend on every change — coalesce them.
   const persistState = debounce((state: typeof store.$state) => {
-    prefsSet(getMainStateKey(), state)
+    if (remotePrefsEnabled.value) {
+      const { excludedDirs, railFeatures, homeFeatures, ...localFields } = state
+      prefsSet(getMainStateKey(), localFields)
+    } else {
+      prefsSet(getMainStateKey(), state)
+    }
   }, 500)
 
   watch(store.$state, (state) => {
     persistState(state)
     currentPath.value = router.currentRoute.value.fullPath
   }, { deep: true })
+  watch(remotePrefsEnabled, (enabled) => {
+    if (enabled) persistState(store.$state)
+  })
 
   return {
     store, app, appReady, errorMessage,
