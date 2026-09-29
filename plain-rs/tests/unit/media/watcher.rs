@@ -57,6 +57,36 @@ fn tmp_index() -> crate::media::image_index::MediaSearchIndex {
 }
 
 #[test]
+fn watcher_removes_file_when_parent_gains_nomedia() {
+    let home = std::env::var_os("USERPROFILE")
+        .or_else(|| std::env::var_os("HOME"))
+        .unwrap();
+    let dir = tempfile::Builder::new()
+        .prefix("plain-watcher-")
+        .tempdir_in(home)
+        .unwrap();
+    let photo = dir.path().join("photo.jpg");
+    std::fs::write(&photo, b"photo").unwrap();
+    let path = photo.to_string_lossy().to_string();
+    let db = tmp_db();
+
+    sync_file(&db, &path);
+    assert!(
+        crate::media::scan::get_by_path(&db, &path)
+            .unwrap()
+            .is_some()
+    );
+
+    std::fs::write(dir.path().join(".nomedia"), b"").unwrap();
+    sync_file(&db, &path);
+    assert!(
+        crate::media::scan::get_by_path(&db, &path)
+            .unwrap()
+            .is_none()
+    );
+}
+
+#[test]
 fn heal_rebuilds_empty_index_from_kv_rows() {
     let db = tmp_db();
     put_media_row(&db, &media_file("u1", "/x/a.png", "image"));

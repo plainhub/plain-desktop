@@ -42,6 +42,7 @@ pub fn mime_from_ext(filename: &str) -> &'static str {
         "mkv" => "video/x-matroska",
         "3gp" => "video/3gpp",
         "avi" => "video/x-msvideo",
+        "3gpp" => "video/3gpp",
         "ogv" => "video/ogg",
         "ts" => "video/mp2t",
         // Audio
@@ -52,6 +53,7 @@ pub fn mime_from_ext(filename: &str) -> &'static str {
         "flac" => "audio/flac",
         "opus" => "audio/opus",
         "aac" => "audio/aac",
+        "wma" => "audio/x-ms-wma",
         // Fonts
         "woff" => "font/woff",
         "woff2" => "font/woff2",
@@ -111,6 +113,7 @@ pub fn mime_extension(mime: &str) -> &'static str {
         "audio/flac" => "flac",
         "audio/opus" => "opus",
         "audio/aac" => "aac",
+        "audio/x-ms-wma" => "wma",
         // Documents / data
         "application/pdf" => "pdf",
         "application/msword" => "doc",

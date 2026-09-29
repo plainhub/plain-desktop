@@ -93,10 +93,11 @@ type ActionResult {
 
 ### `docs / docCount / docExtGroups`（文档库，plain-app DocGraphQL 对齐）
 
-文档 = 媒体索引中 `infer_type` 判定为 `doc` 的文件：扩展名经共享 MIME 表
-（plain-rs `mime_from_ext`）映射后属于 `text/*`，或属于 plain-app
-`extraDocumentMimeTypes`（pdf / doc / docx / xlsx / js，另含 json / xml 两个
-结构化文本 MIME）。无扩展名文件不算文档（同手机端 MediaStore 行为）。
+文档 = Android MediaStore 可见性规则过滤后，MIME 属于 `text/*` 或 PlainApp Android
+`DocMediaStoreHelper.extraDocumentMimeTypes` 白名单（pdf / doc / docx / xlsx / js），
+且文件大小大于 0。JSON/XML 不是额外白名单项；仅当 Android MIME 推导结果属于 `text/*`
+时才进入 Docs。未知 MIME 留在 Files。各媒体页的纳入/排除规则见
+[`media-items.md`](../media-items.md#android-mediastore-compatibility-what-each-media-page-shows)。
 
 ```graphql
 { docs(offset: 0, limit: 50, query: "ext:pdf", sortBy: DATE_DESC) { id title extension } }

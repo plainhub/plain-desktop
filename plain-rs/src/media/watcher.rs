@@ -44,7 +44,11 @@ pub struct WatcherHandle {
 /// `default_roots` is the host's policy for which directories the file
 /// search index should cover when it needs building from scratch
 /// (plain-nas: its /mnt/usb* mounts; desktop: the media source dirs).
-pub fn build_missing_indexes(data_dir: &Path, db: &crate::media::kv::Db, default_roots: &[PathBuf]) {
+pub fn build_missing_indexes(
+    data_dir: &Path,
+    db: &crate::media::kv::Db,
+    default_roots: &[PathBuf],
+) {
     if !crate::media::index::FileSearchIndex::exists(data_dir) {
         let roots: Vec<PathBuf> = default_roots.to_vec();
         if !roots.is_empty() {
@@ -111,12 +115,17 @@ fn heal_media_index_at(
 // Internal
 // ---------------------------------------------------------------------------
 
-fn handle_event(db: &crate::media::kv::Db, event: &notify::Event) {
+fn handle_event(db: &Arc<crate::media::kv::Db>, event: &notify::Event) {
     for path in &event.paths {
         let path_str = path.to_string_lossy().to_string();
 
-        // Skip hidden files and .nas-trash.
         let name = path.file_name().and_then(|n| n.to_str()).unwrap_or("");
+        if name == ".nomedia" {
+            if let Some(parent) = path.parent() {
+                schedule_subtree_rescan(db, parent);
+            }
+            continue;
+        }
         if name.starts_with('.') {
             continue;
         }
@@ -124,10 +133,14 @@ fn handle_event(db: &crate::media::kv::Db, event: &notify::Event) {
         match event.kind {
             EventKind::Create(_) => {
                 if path.is_file() {
-                    if let Err(e) = crate::media::scan::scan_file(db, &path_str) {
-                        log::debug!("[watcher] scan_file({path_str}): {e}");
-                    }
+                    sync_file(db, &path_str);
                 }
+            }
+            EventKind::Remove(notify::event::RemoveKind::Folder) => {
+                if let Err(error) = crate::media::scan::delete_by_path(db, &path_str) {
+                    log::error!("[watcher] delete_by_path({path_str}): {error}");
+                }
+                schedule_subtree_rescan(db, path);
             }
             EventKind::Remove(_) => {
                 let _ = crate::media::scan::delete_by_path(db, &path_str);
@@ -136,16 +149,17 @@ fn handle_event(db: &crate::media::kv::Db, event: &notify::Event) {
                 // Rename/move: remove old path, scan new.
                 let _ = crate::media::scan::delete_by_path(db, &path_str);
                 if path.exists() && path.is_file() {
-                    if let Err(e) = crate::media::scan::scan_file(db, &path_str) {
-                        log::debug!("[watcher] scan_file after rename({path_str}): {e}");
-                    }
+                    sync_file(db, &path_str);
+                } else {
+                    schedule_subtree_rescan(db, path);
                 }
+            }
+            EventKind::Modify(notify::event::ModifyKind::Metadata(_)) if path.is_dir() => {
+                schedule_subtree_rescan(db, path);
             }
             EventKind::Modify(_) => {
                 if path.is_file() {
-                    if let Err(e) = crate::media::scan::scan_file(db, &path_str) {
-                        log::debug!("[watcher] scan_file({path_str}): {e}");
-                    }
+                    sync_file(db, &path_str);
                 }
             }
             _ => {}
@@ -153,6 +167,28 @@ fn handle_event(db: &crate::media::kv::Db, event: &notify::Event) {
     }
 }
 
+fn schedule_subtree_rescan(db: &Arc<crate::media::kv::Db>, path: &Path) {
+    let db = db.clone();
+    let root = path.to_path_buf();
+    std::thread::spawn(move || {
+        if let Err(error) = crate::media::scan::rescan_subtree(db, root.clone()) {
+            log::error!(
+                "[watcher] subtree update failed for {}: {error}",
+                root.display()
+            );
+        }
+    });
+}
+
+fn sync_file(db: &crate::media::kv::Db, path: &str) {
+    if crate::media::scan::is_media_excluded(path) {
+        if let Err(error) = crate::media::scan::delete_by_path(db, path) {
+            log::error!("[watcher] excluded file cleanup failed for {path}: {error}");
+        }
+    } else if let Err(error) = crate::media::scan::scan_file(db, path) {
+        log::debug!("[watcher] scan_file({path}): {error}");
+    }
+}
 
 #[cfg(test)]
 #[path = "../../tests/unit/media/watcher.rs"]

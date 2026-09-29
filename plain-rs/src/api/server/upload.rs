@@ -468,6 +468,9 @@ fn now_ms() -> u64 {
 fn spawn_media_index(state: &ServerState, path: String) {
     #[cfg(feature = "media")]
     {
+        if crate::media::scan::is_media_excluded(&path) {
+            return;
+        }
         let db = state.ctx.media.db.clone();
         tokio::spawn(async move {
             match tokio::task::spawn_blocking(move || crate::media::scan::scan_file(&db, &path))

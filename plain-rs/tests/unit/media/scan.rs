@@ -25,7 +25,7 @@ fn media_exclusions() {
     let data = Path::new("/opt/plainnas/data");
     let cache = Path::new("/opt/plainnas/cache");
     let extra = vec!["/home/u/old".to_string()];
-    let excl = |p: &str| is_media_excluded_at(p, data, cache, &extra);
+    let excl = |p: &str| is_media_excluded_name_or_root(p, data, cache, &extra);
 
     // System and virtual roots.
     assert!(excl("/usr/share/icons/a.png"));
@@ -41,19 +41,20 @@ fn media_exclusions() {
     assert!(excl("/DATA/.thumbs/a.jpg"));
     assert!(excl("/home/u/proj/.git/HEAD"));
     assert!(excl("/disk/.nas-trash/old.png"));
-    // Program/build dirs by name component.
     assert!(excl("/home/u/web/node_modules/lib.js"));
-    assert!(excl("/home/u/app/target/debug/x"));
-    assert!(excl("/srv/site/dist/icon.svg"));
-    assert!(
-        excl("/srv/site/BUILD/style.css"),
-        "name match is case-insensitive"
-    );
+    assert!(!excl("/home/u/app/target/debug/x"));
+    assert!(!excl("/srv/site/dist/icon.svg"));
+    assert!(!excl("/srv/site/BUILD/style.css"));
     assert!(excl(
         "/Users/alice/Movies/CapCut/User Data/Cache/effect/7408409772950637830/image/blusher.png"
     ));
-    assert!(excl("/Users/alice/Library/Browser/GPUCache/image.png"));
-    assert!(excl("/Users/alice/Library/Browser/Code Cache/image.png"));
+    assert!(excl(
+        "/Users/alice/Library/Browser/User Data/GPUCache/image.png"
+    ));
+    assert!(excl(
+        "/Users/alice/Library/Browser/User Data/Code Cache/image.png"
+    ));
+    assert!(!excl("/Users/alice/Pictures/Cache/edited.png"));
     assert!(!excl("/Users/alice/Pictures/Cachet/photo.jpg"));
     // Config-provided extra roots.
     assert!(excl("/home/u/old/legacy.png"));
@@ -208,6 +209,60 @@ fn rescan_removes_previously_indexed_application_cache_images() {
 }
 
 #[test]
+fn nomedia_changes_remove_and_restore_subtree_media() {
+    let dir = tree();
+    let folder = dir.path().join("Pictures/Private");
+    std::fs::create_dir_all(&folder).unwrap();
+    let photo = folder.join("photo.jpg");
+    std::fs::write(&photo, b"photo").unwrap();
+    let db = tmp_db();
+    let path = photo.to_string_lossy().to_string();
+
+    rescan_subtree(db.clone(), folder.clone()).unwrap();
+    assert!(get_by_path(&db, &path).unwrap().is_some());
+
+    std::fs::write(folder.join(".nomedia"), b"").unwrap();
+    rescan_subtree(db.clone(), folder.clone()).unwrap();
+    assert!(get_by_path(&db, &path).unwrap().is_none());
+
+    std::fs::remove_file(folder.join(".nomedia")).unwrap();
+    rescan_subtree(db.clone(), folder).unwrap();
+    assert!(get_by_path(&db, &path).unwrap().is_some());
+}
+
+#[test]
+fn precount_stops_before_rebuild_waits_for_old_scan() {
+    let dir = tree();
+    std::fs::write(dir.path().join("photo.jpg"), b"photo").unwrap();
+    let scanner = Scanner::new();
+    scanner.stop();
+    assert_eq!(count_files_with_stop(dir.path(), Some(&scanner)), 0);
+}
+
+#[test]
+fn android_album_art_and_empty_docs_stay_out_of_media_pages() {
+    let dir = tree();
+    let db = tmp_db();
+    for (name, bytes, expected) in [
+        ("folder.jpg", b"image".as_slice(), "other"),
+        ("AlbumArtSmall.jpg", b"image".as_slice(), "other"),
+        ("portrait.jpg", b"image".as_slice(), "image"),
+        ("empty.pdf", b"".as_slice(), "other"),
+        ("report.pdf", b"document".as_slice(), "doc"),
+    ] {
+        let path = dir.path().join(name);
+        std::fs::write(&path, bytes).unwrap();
+        let row = build_scanned(
+            &db,
+            path.to_str().unwrap(),
+            &std::fs::metadata(&path).unwrap(),
+        )
+        .unwrap();
+        assert_eq!(row.m.r#type, expected, "{name}");
+    }
+}
+
+#[test]
 fn scan_tree_skips_excluded_paths() {
     let dir = tree();
     // /…/Pics is the real library; the rest must be skipped.
@@ -241,12 +296,13 @@ fn scan_tree_skips_excluded_paths() {
     assert!(scan_file(&db, nm.to_str().unwrap()).is_err());
 }
 
+#[test]
 fn infer_type_known_extensions() {
     assert_eq!(infer_type("a.mp3"), "audio");
     assert_eq!(infer_type("b.MP3"), "audio");
     assert_eq!(infer_type("c.MOV"), "video");
     assert_eq!(infer_type("d.png"), "image");
-    assert_eq!(infer_type("e.txt"), "other");
+    assert_eq!(infer_type("e.txt"), "doc");
 }
 
 #[test]
@@ -774,7 +830,7 @@ async fn rebuild_publishes_running_then_idle_progress_events() {
     let db2 = db.clone();
     let root2 = root.clone();
     tokio::spawn(async move {
-        scanner().abort_running_task().await;
+        scanner().wait_for_running_task().await;
         let db3 = db2.clone();
         let _ = tokio::task::spawn_blocking(move || reset_all(&db3)).await;
         let _ = start_walk_and_scan(db2, root2).await;
@@ -1186,8 +1242,6 @@ fn infer_type_classifies_documents_off_shared_mime_table() {
         "page.html",
         "index.htm",
         "style.css",
-        "app.json",
-        "conf.xml",
         "script.js",
         "module.mjs",
     ] {
@@ -1203,6 +1257,8 @@ fn infer_type_classifies_documents_off_shared_mime_table() {
     // plain-app has no legacy .xls in extraDocumentMimeTypes — parity keeps
     // it out until the shared table decision changes on the phone side too.
     assert_eq!(infer_type("book.xls"), "other");
+    assert_eq!(infer_type("app.json"), "other");
+    assert_eq!(infer_type("conf.xml"), "other");
 
     // Non-docs stay as they were.
     assert_eq!(infer_type("song.mp3"), "audio");

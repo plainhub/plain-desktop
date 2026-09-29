@@ -127,12 +127,68 @@ Type indexes are maintained inline during upsert operations.
 
 ## 4. Indexing for media items (search + listing)
 
+### Android MediaStore compatibility: what each media page shows
+
+Desktop and NAS do not have Android MediaStore. Their shared scanner must reproduce the category and visibility rules that PlainApp Android users see. The category comes from the MIME type recognized for a file, not from its parent directory. `Pictures`, `Movies`, `Music`, and `Download` are common storage locations, not category filters. A file in Downloads can appear in any matching media page.
+
+### Android directory traversal scope
+
+Android's MediaProvider scans storage volumes it manages (the primary shared-storage volume and available external volumes); it does not define Images/Videos/Audios/Docs as scans limited to `DCIM`, `Pictures`, `Movies`, `Music`, or `Download`. Those are conventional public destinations and receive useful path metadata, but other visible directories on a scanned volume can also contribute media. The app's own Kotlin MediaStore helpers query indexed collections; the platform MediaScanner and volume lifecycle determine traversal scope.
+
+The portable rule is **source scope → directory visibility → file MIME → PlainApp page filter**. The same rule must run on macOS, Windows, Linux, and NAS; only the discovery of the user's source scope and each platform's private directories differs. The outcome must not depend on whether a file is under a folder named `Pictures`, `Downloads`, or `Movies`.
+
+| Host | Default source scope for the intended behavior | Private/system paths outside media scope |
+|---|---|---|
+| macOS | The current user's home directory, including standard and custom visible folders; add OS-resolved user content locations such as iCloud Drive when they live outside the visible home tree. | `~/Library` except a separately resolved user content source, `~/.Trash`, hidden folders, app bundles and photo-library package internals; never scan `/System`, `/Library`, `/Applications`, or the whole startup volume as a default root. |
+| Windows | The current user's profile directory, including Known Folders and custom visible folders, using their resolved locations when redirected outside the profile. | `AppData`, profile/system hidden folders, Windows and Program Files trees, recycle bin and system volume metadata; never scan a whole drive by default. |
+| Linux | The current user's home directory, including XDG user directories and custom visible folders. | Dot-prefixed directories such as `.cache`, `.config`, `.local`, and user application-private locations such as the profile's `snap` data; never scan `/`, `/proc`, `/sys`, `/var`, or `/usr` as default roots. |
+| NAS | Configured user-data shares or media source roots. | Server OS, application data, package, cache, and trash roots. |
+
+User-added source roots can include other local disks, removable media, redirected folders, or network shares. Resolve and deduplicate nested roots so each file is indexed once. A mount or drive is not a source merely because it exists: unlike Android, desktop operating systems do not expose one uniform MediaStore-managed set of shared-storage volumes. This is the explicit cross-platform mapping of Android's managed storage scope.
+
+Within each source root, scan visible directories recursively. Apply these rules consistently on every platform:
+
+- **Do not descend** into a subtree hidden by `.nomedia`; files beneath it must not enter media collections. Dot-prefixed paths are hidden from media categories as well.
+- **Do not descend** into OS-hidden/system directories or application-private data roots, even when their names do not start with a dot. On Android these include `Android/data` and `Android/obb`; on desktop use the corresponding platform locations in the table above. Do not exclude any ordinary folder merely because it is called `data` or `obb`.
+- **Honor native hidden metadata** as well as dot-prefixed names: macOS Finder/Unix hidden flags and Windows hidden or system attributes. An unreadable directory is logged and skipped.
+- **Do not index** Android's internal thumbnail-cache directories such as `.thumbnails` under `Movies`, `Music`, and `Pictures` as user media.
+- **Do not index** a recognized application's generated profile cache within an otherwise visible source. For example, `~/Movies/CapCut/User Data/Cache/effect/.../blusher.png` belongs to an application cache, analogous to Android app-private or `.nomedia` content. Recognize the app-private path structure (`User Data/Cache`, `User Data/Code Cache`, `User Data/GPUCache`, `User Data/CacheStorage`) or an explicitly configured excluded root; do not discard every user folder whose final component is `Cache`.
+- **Scan other visible directories recursively**, including `Downloads` and user-created folders, and classify each file by MIME.
+- **Do not follow symlinks, junctions, or reparse points** during recursive discovery. An explicitly selected target can be scanned as its own source after canonicalization; this prevents cycles and accidental traversal into private or unrelated volumes.
+- Android has well-known volume-root exceptions and OS-version-specific handling for `.nomedia` in public paths. Reproduce the visible result for supported Android behavior without treating the names of public folders as an allowlist or blindly applying Android absolute paths on desktop/NAS.
+
+This directory traversal scope is separate from the later UI query: MediaStore may retain a general Files row while marking the file's media type as none, and PlainApp's Docs query applies its own MIME and size conditions.
+
+Examples for all desktop hosts: `Pictures/trip.jpg` and `Downloads/screenshot.png` enter Images; a visible `Projects/assets/logo.png` also enters Images; `Documents/report.pdf` enters Docs; `Pictures/Cache/edited.png` enters Images if `Cache` is just a user folder; `Pictures/Private/.nomedia` hides media beneath `Private`; `Movies/CapCut/User Data/Cache/effect/blusher.png` stays out of Images; a photo-library package's internal thumbnails stay out of Images. These examples use the same decision order regardless of host OS.
+
+Desktop startup adds the home directory and OS-resolved standard user folders to the configured source roots, canonicalizes them, and removes nested duplicates. On macOS it also adds iCloud Drive when present. A changed source set starts a scan even when the index already has rows. A full `rebuildMediaIndex` applies the current rules to the configured roots; users upgrading from earlier scanning rules should rebuild once.
+
+| PlainApp page | Android source | Include when | Exclude when |
+|---|---|---|---|
+| Images | `MediaStore.Images` (`image/*`) | MediaScanner recognizes an `image/*` MIME and the path is visible. Examples include JPEG, PNG, GIF, WebP, BMP, HEIF/HEIC. | Not `image/*`; hidden path or `.nomedia` subtree; Android-recognized dedicated album-art artwork. Do not limit to camera/DCIM/Pictures: public Downloads images can appear. |
+| Videos | `MediaStore.Video` (`video/*`) | MediaScanner recognizes `video/*` and the path is visible. Examples include MP4, 3GP, WebM, Matroska. | Not `video/*` or hidden by the common visibility rules. Zero duration alone is not a reason to exclude; PlainApp Android has no `DURATION > 0` filter. |
+| Audios | `MediaStore.Audio` (`audio/*`) | MediaScanner recognizes `audio/*` and the path is visible. Examples include MP3, M4A/AAC, WAV, Ogg/Opus, FLAC. | Not `audio/*` or hidden by the common visibility rules. Zero duration alone is not a reason to exclude; PlainApp Android sends zero-duration items to its duration repair flow. |
+| Docs | PlainApp query over `MediaStore.Files` | MIME is `text/*`, or exactly in the extra MIME allowlist below, and size is greater than zero. | Zero-byte files and MIME outside those conditions. Unknown types remain browseable in Files. |
+| Files | `MediaStore.Files` | General file browsing; media classification does not remove the file from Files. | Hidden names by default; PlainApp's explicit `show_hidden` query can include them. |
+
+PlainApp Android's extra Docs MIME allowlist is `application/pdf`, `application/msword`, `application/vnd.openxmlformats-officedocument.wordprocessingml.document`, `application/vnd.openxmlformats-officedocument.spreadsheetml.sheet`, and `application/javascript`. This comes from `DocMediaStoreHelper.extraDocumentMimeTypes`. Do not treat every `application/*`, archive, executable, installer, or unknown MIME as a document. JSON/XML qualify only when Android resolves their MIME to `text/*`; they are not extra allowlist entries.
+
+All four media pages follow the platform scanner visibility contract before MIME classification: dot-prefixed hidden files/directories are not shown; `.nomedia` hides media in that directory tree; Android-protected locations such as `Android/data` and `Android/obb` are not ordinary visible media. Android's image scanner also omits files it recognizes as dedicated album artwork; implement the corresponding filename rule rather than excluding all small images or all images outside camera folders.
+
+Do not exclude arbitrary directories solely because their names are `Cache` or `Caches`: that is not a general Android MediaStore rule. Application-private profile caches and explicitly excluded roots are excluded by their location and purpose. Media exclusions affect media pages, counts, buckets, and media search only; they must not prevent normal file browsing.
+
+The Android platform MediaScanner supplies the hidden-directory, `.nomedia`, and MIME recognition behavior; PlainApp's Kotlin query helpers do not implement those path rules themselves. Relevant sources in the Android app are `ImageMediaStoreHelper.kt`, `VideoMediaStoreHelper.kt`, `AudioMediaStoreHelper.kt`, `DocMediaStoreHelper.kt`, and `FileMediaStoreHelper.kt`.
+
+Shared scanner, watcher updates, upload indexing, and full rebuilds must use the same classification and visibility predicate. If rules change, a rebuild must remove old rows and derived search/bucket data that no longer qualify. A non-empty index does not prove that every configured source directory has been scanned.
+
+References: [Android MediaStore](https://developer.android.com/reference/android/provider/MediaStore), [MediaStore FileColumns](https://developer.android.com/reference/android/provider/MediaStore.Files.FileColumns), [shared media storage](https://developer.android.com/training/data-storage/shared/media), and [AOSP ModernMediaScanner](https://android.googlesource.com/platform/packages/providers/MediaProvider/+/f2abe4aec018f0522b4b1303fb25351db0604eb5/src/com/android/providers/media/scan/ModernMediaScanner.java).
+
 PlainNAS has two primary indexing mechanisms for media items:
 
 1. **Type secondary indexes (inside fjall)**: fast path for empty-query list/count/sort.
 2. **On-disk inverted search index (tantivy)**: used by `MediaSearchIndex::search()` for full-text search over name/path/artist/title.
 
-### 4.0 Scan exclusions (what never enters the media library)
+### Scan exclusions (what never enters the media library)
 
 The media scan (`rebuildMediaIndex`, watcher events, uploads) refuses a set of
 paths via `media_scan::is_media_excluded` — system/program files must not
@@ -140,7 +196,8 @@ swamp the images/videos/audios views:
 
 - **System roots** (never descended from `/`): `/proc /sys /dev /run /tmp /snap /usr /etc /var /boot /opt /srv /lib /lib32 /lib64 /bin /sbin`.
 - **Hidden entries**: any path component starting with `.` (`.git`, `.cache`, the app's own `.nas-trash`, …) — same rule the watcher already applied to events.
-- **Program dir names** anywhere in the tree (case-insensitive): `node_modules target dist build vendor`.
+- **Application dependency tree**: `node_modules`.
+- **Application profile cache**: `User Data/Cache`, `User Data/Caches`, `User Data/GPUCache`, `User Data/Code Cache`, `User Data/CacheStorage` (case-insensitive). A user folder named only `Cache` remains eligible.
 - **The app's own `DATA_DIR` and cache dir** (kills the thumbnail-cache feedback loop).
 - **Config extras**: `[media_scan] excluded_dirs = "/path/one,/path/two"` in `config.toml` (absolute paths, comma-separated), merged at startup.
 

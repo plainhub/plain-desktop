@@ -61,19 +61,9 @@ const EXCLUDED_SYSTEM_ROOTS: &[&str] = &[
 #[cfg(not(any(target_os = "windows", target_os = "macos", target_os = "linux")))]
 const EXCLUDED_SYSTEM_ROOTS: &[&str] = &[];
 
-/// Generated and cached content is excluded anywhere in the tree.
-const EXCLUDED_DIR_NAMES: &[&str] = &[
-    "node_modules",
-    "target",
-    "dist",
-    "build",
-    "vendor",
-    "cache",
-    "caches",
-    "gpucache",
-    "code cache",
-    "cachestorage",
-];
+const EXCLUDED_DIR_NAMES: &[&str] = &["node_modules"];
+
+const PROFILE_CACHE_NAMES: &[&str] = &["cache", "caches", "gpucache", "code cache", "cachestorage"];
 
 /// Extra excluded roots from config (`[media_scan] excluded_dirs`,
 /// comma-separated absolute paths). Set once at startup.
@@ -104,32 +94,74 @@ fn is_media_excluded_at(
     extra_roots: &[String],
 ) -> bool {
     let p = path.replace('\\', "/");
-    let is_hidden_or_named = |comp: &str| {
-        comp.starts_with('.')
-            || EXCLUDED_DIR_NAMES
-                .iter()
-                .any(|n| comp.eq_ignore_ascii_case(n))
-    };
-    if Path::new(&p).components().any(|c| {
-        c.as_os_str()
-            .to_str()
-            .is_some_and(|comp| is_hidden_or_named(comp) || is_excluded_package_component(comp))
-    }) {
+    if is_media_excluded_name_or_root(&p, data_dir, cache_dir, extra_roots) {
         return true;
     }
-    #[cfg(target_os = "windows")]
-    let system_roots = windows_system_roots();
-    #[cfg(not(target_os = "windows"))]
-    let system_roots = EXCLUDED_SYSTEM_ROOTS
-        .iter()
-        .map(|s| s.to_string())
-        .collect::<Vec<_>>();
-    for root in &system_roots {
-        if under_root(&p, root)
-            || (cfg!(target_os = "windows") && under_root_case_insensitive(&p, root))
+    let mut ancestor = Some(Path::new(&p));
+    while let Some(dir) = ancestor {
+        if dir.join(".nomedia").is_file()
+            || (is_native_hidden(dir) && !is_cloud_drive_ancestor(&p, dir))
         {
             return true;
         }
+        ancestor = dir.parent();
+    }
+    false
+}
+
+#[cfg(target_os = "macos")]
+fn is_cloud_drive_ancestor(path: &str, ancestor: &Path) -> bool {
+    let Some(cloud) = cloud_drive_path() else {
+        return false;
+    };
+    Path::new(path).starts_with(cloud) && cloud.starts_with(ancestor)
+}
+
+#[cfg(target_os = "macos")]
+fn cloud_drive_path() -> Option<&'static std::path::PathBuf> {
+    static CLOUD: OnceLock<Option<std::path::PathBuf>> = OnceLock::new();
+    CLOUD
+        .get_or_init(|| {
+            std::env::var_os("HOME")
+                .map(|home| Path::new(&home).join("Library/Mobile Documents/com~apple~CloudDocs"))
+        })
+        .as_ref()
+}
+
+#[cfg(not(target_os = "macos"))]
+fn is_cloud_drive_ancestor(_path: &str, _ancestor: &Path) -> bool {
+    false
+}
+
+fn is_media_excluded_name_or_root(
+    p: &str,
+    data_dir: &Path,
+    cache_dir: &Path,
+    extra_roots: &[String],
+) -> bool {
+    let mut follows_user_data = false;
+    if Path::new(&p).components().any(|c| {
+        c.as_os_str().to_str().is_some_and(|comp| {
+            let profile_cache = follows_user_data
+                && PROFILE_CACHE_NAMES
+                    .iter()
+                    .any(|name| comp.eq_ignore_ascii_case(name));
+            follows_user_data = comp.eq_ignore_ascii_case("User Data");
+            comp.starts_with('.')
+                || EXCLUDED_DIR_NAMES
+                    .iter()
+                    .any(|name| comp.eq_ignore_ascii_case(name))
+                || is_excluded_package_component(comp)
+                || profile_cache
+        })
+    }) {
+        return true;
+    }
+    if is_system_root(p) {
+        return true;
+    }
+    if is_platform_private_root(p) {
+        return true;
     }
     for root in extra_roots {
         if under_root(&p, root.trim_end_matches('/')) {
@@ -146,8 +178,86 @@ fn is_media_excluded_at(
 }
 
 #[cfg(target_os = "macos")]
+fn is_platform_private_root(path: &str) -> bool {
+    static LIBRARY: OnceLock<Option<String>> = OnceLock::new();
+    let library = LIBRARY.get_or_init(|| {
+        std::env::var_os("HOME").map(|home| {
+            Path::new(&home)
+                .join("Library")
+                .to_string_lossy()
+                .to_string()
+        })
+    });
+    library.as_ref().is_some_and(|library| {
+        under_root(path, library)
+            && !cloud_drive_path().is_some_and(|cloud| Path::new(path).starts_with(cloud))
+    })
+}
+
+#[cfg(target_os = "windows")]
+fn is_platform_private_root(path: &str) -> bool {
+    static APP_DATA: OnceLock<Option<String>> = OnceLock::new();
+    let app_data = APP_DATA.get_or_init(|| {
+        std::env::var_os("USERPROFILE").map(|home| {
+            Path::new(&home)
+                .join("AppData")
+                .to_string_lossy()
+                .replace('\\', "/")
+        })
+    });
+    app_data
+        .as_ref()
+        .is_some_and(|app_data| under_root_case_insensitive(path, app_data))
+}
+
+#[cfg(target_os = "linux")]
+fn is_platform_private_root(path: &str) -> bool {
+    static SNAP: OnceLock<Option<String>> = OnceLock::new();
+    let snap = SNAP.get_or_init(|| {
+        std::env::var_os("HOME")
+            .map(|home| Path::new(&home).join("snap").to_string_lossy().to_string())
+    });
+    snap.as_ref().is_some_and(|snap| under_root(path, snap))
+}
+
+#[cfg(not(any(target_os = "windows", target_os = "macos", target_os = "linux")))]
+fn is_platform_private_root(_path: &str) -> bool {
+    false
+}
+
+fn is_media_excluded_for_walk(path: &Path) -> bool {
+    let paths = crate::media::paths::detect();
+    let p = path.to_string_lossy().replace('\\', "/");
+    is_media_excluded_name_or_root(
+        &p,
+        &paths.data_dir,
+        &paths.cache_dir,
+        EXTRA_EXCLUDED_ROOTS.get().map(Vec::as_slice).unwrap_or(&[]),
+    ) || is_native_hidden(path)
+}
+
+#[cfg(target_os = "windows")]
+fn is_native_hidden(path: &Path) -> bool {
+    use std::os::windows::fs::MetadataExt;
+    std::fs::symlink_metadata(path).is_ok_and(|meta| meta.file_attributes() & (0x2 | 0x4) != 0)
+}
+
+#[cfg(target_os = "macos")]
+fn is_native_hidden(path: &Path) -> bool {
+    use std::os::macos::fs::MetadataExt;
+    std::fs::symlink_metadata(path).is_ok_and(|meta| meta.st_flags() & 0x8000 != 0)
+}
+
+#[cfg(not(any(target_os = "windows", target_os = "macos")))]
+fn is_native_hidden(_path: &Path) -> bool {
+    false
+}
+
+#[cfg(target_os = "macos")]
 fn is_excluded_package_component(component: &str) -> bool {
-    component.to_ascii_lowercase().ends_with(".photoslibrary")
+    [".photoslibrary", ".app", ".bundle", ".framework"]
+        .iter()
+        .any(|suffix| component.to_ascii_lowercase().ends_with(suffix))
 }
 
 #[cfg(not(target_os = "macos"))]
@@ -186,12 +296,29 @@ fn windows_system_roots() -> Vec<String> {
     roots
 }
 
+#[cfg(target_os = "windows")]
+fn is_system_root(path: &str) -> bool {
+    static ROOTS: OnceLock<Vec<String>> = OnceLock::new();
+    ROOTS
+        .get_or_init(windows_system_roots)
+        .iter()
+        .any(|root| under_root_case_insensitive(path, root))
+}
+
+#[cfg(not(target_os = "windows"))]
+fn is_system_root(path: &str) -> bool {
+    EXCLUDED_SYSTEM_ROOTS
+        .iter()
+        .any(|root| under_root(path, root))
+}
+
 /// Component-boundary prefix check: `/usr` covers `/usr/share/x` but not
 /// `/usr2`; the root itself counts too.
 fn under_root(p: &str, root: &str) -> bool {
     p == root || p.starts_with(&format!("{root}/"))
 }
 
+#[cfg(any(target_os = "windows", test))]
 fn under_root_case_insensitive(p: &str, root: &str) -> bool {
     p.eq_ignore_ascii_case(root)
         || p.get(..root.len())
@@ -360,9 +487,8 @@ impl Scanner {
         self.pause_flag.load(Ordering::SeqCst) == 1
     }
 
-    pub async fn abort_running_task(&self) {
+    pub async fn wait_for_running_task(&self) {
         if let Some(h) = self.running.lock().await.take() {
-            h.abort();
             let _ = h.await;
         }
     }
@@ -387,45 +513,38 @@ pub fn scanner() -> Arc<Scanner> {
 // ---------------------------------------------------------------------------
 
 pub fn infer_type(name: &str) -> &'static str {
-    let lower = name.to_lowercase();
-    let ext = std::path::Path::new(&lower)
-        .extension()
-        .and_then(|e| e.to_str())
-        .unwrap_or("");
-    match ext {
-        "mp3" | "wav" | "wma" | "ogg" | "m4a" | "opus" | "flac" | "aac" => "audio",
-        "mp4" | "mkv" | "webm" | "avi" | "3gp" | "mov" | "m4v" | "3gpp" => "video",
-        "jpg" | "jpeg" | "png" | "gif" | "webp" | "bmp" | "tif" | "tiff" | "heic" | "heif"
-        | "avif" | "svg" => "image",
-        // Docs are classified off the shared MIME table (plain-rs, same
-        // source plain-app's doc queries use): anything `text/*` plus the
-        // structured-text / office formats from plain-app
-        // `extraDocumentMimeTypes` (pdf / doc / docx / xlsx / js) and the
-        // application/* types the shared table emits for .json/.xml.
-        // Derived, never a second hand-maintained ext list.
-        _ => {
-            let mime = crate::utils::mime::mime_from_ext(name);
-            if mime.starts_with("text/") || DOC_EXTRA_MIMES.contains(&mime) {
-                "doc"
-            } else {
-                "other"
-            }
-        }
+    let mime = crate::utils::mime::mime_from_ext(name);
+    if mime.starts_with("image/") {
+        "image"
+    } else if mime.starts_with("video/") {
+        "video"
+    } else if mime.starts_with("audio/") {
+        "audio"
+    } else if mime.starts_with("text/") || DOC_EXTRA_MIMES.contains(&mime) {
+        "doc"
+    } else {
+        "other"
     }
 }
 
-/// Non-`text/*` MIME types that still classify a file as a document:
-/// plain-app `DocMediaStoreHelper.extraDocumentMimeTypes` plus
-/// `application/json` / `application/xml`.
-const DOC_EXTRA_MIMES: [&str; 7] = [
+const DOC_EXTRA_MIMES: [&str; 5] = [
     "application/pdf",
     "application/msword",
     "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
     "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
     "application/javascript",
-    "application/json",
-    "application/xml",
 ];
+
+fn is_album_art(name: &str) -> bool {
+    let lower = name.to_ascii_lowercase();
+    lower.starts_with("._")
+        || lower == "folder.jpg"
+        || lower == "albumart.jpg"
+        || lower == "albumartsmall.jpg"
+        || lower == "albumartlarge.jpg"
+        || (lower.starts_with("albumart_{")
+            && (lower.ends_with("}_small.jpg") || lower.ends_with("}_large.jpg")))
+}
 
 /// Lowercased extension of `name` ("" when extensionless). The index-side
 /// identity of a document file: powers the `ext:` search filter and the
@@ -448,7 +567,7 @@ pub fn scan_file(db: &crate::media::kv::Db, path: &str) -> Result<MediaFile> {
             "path is excluded from the media index: {path}"
         ));
     }
-    let meta = std::fs::metadata(path)?;
+    let meta = std::fs::symlink_metadata(path)?;
     if !meta.is_file() {
         return Err(anyhow::anyhow!("not a regular file: {path}"));
     }
@@ -789,8 +908,11 @@ fn build_scanned(
         .and_then(|n| n.to_str())
         .unwrap_or("")
         .to_string();
-    let kind = infer_type(&name);
+    let mut kind = infer_type(&name);
     let size = meta.len() as i64;
+    if (kind == "doc" && size == 0) || (kind == "image" && is_album_art(&name)) {
+        kind = "other";
+    }
     let mtime = meta
         .modified()
         .ok()
@@ -1067,8 +1189,8 @@ pub fn reset_all(db: &crate::media::kv::Db) -> Result<()> {
 // Async walker
 // ---------------------------------------------------------------------------
 
-/// Start a background walk+scan of `root`. The previous in-flight task is
-/// aborted. Progress is published via `eventbus::publish_with_cid` on the
+/// Start a background walk+scan of `root`. The previous in-flight scan is
+/// stopped and awaited. Progress is published via `eventbus::publish_with_cid` on the
 /// "media:scan:progress" channel, every 1 second by a dedicated ticker
 /// task (mirrors the `time.NewTicker(time.Second)` goroutine in
 /// `internal/media/scan.go`).
@@ -1089,7 +1211,8 @@ pub async fn start_walk_and_scan_paths(
         path_to_slash(&display_root)
     );
     let s = scanner();
-    s.abort_running_task().await;
+    s.stop();
+    s.wait_for_running_task().await;
     // Reset both flags for a fresh scan, mirroring Go's ScanAndSync
     // which does `stopFlag=0; pauseFlag=0; setStateRunning()` at the
     // top. We can't just call `s.resume()` because resume() no longer
@@ -1154,9 +1277,13 @@ pub async fn start_walk_and_scan_paths(
     // pool — same scheduling shape as the Go goroutine doing the
     // WalkDir concurrently with the ticker goroutine.
     let roots_for_count = roots.clone();
+    let s_for_count = s.clone();
     log::info!("[scan] spawning precount on blocking pool");
     let total: i64 = tokio::task::spawn_blocking(move || {
-        let t = roots_for_count.iter().map(|root| count_files(root)).sum();
+        let t = roots_for_count
+            .iter()
+            .map(|root| count_files_with_stop(root, Some(&s_for_count)))
+            .sum();
         log::info!("[scan] precount done total={}", t);
         t
     })
@@ -1300,6 +1427,9 @@ impl ScanQueue {
 /// (workers sleep) and stop (flush staged rows, exit). Returns
 /// `(files_seen, indexed)`.
 fn scan_tree(db: &Arc<crate::media::kv::Db>, root: &Path, s: &Arc<Scanner>) -> (i64, i64) {
+    if is_media_excluded(&root.to_string_lossy()) {
+        return (0, 0);
+    }
     let threads = scan_worker_threads();
 
     let (tx, rx) = std::sync::mpsc::channel::<WorkerBatch>();
@@ -1383,6 +1513,32 @@ fn scan_tree(db: &Arc<crate::media::kv::Db>, root: &Path, s: &Arc<Scanner>) -> (
     (files_seen, files_seen)
 }
 
+pub fn rescan_subtree(db: Arc<crate::media::kv::Db>, root: std::path::PathBuf) -> Result<()> {
+    static LOCK: std::sync::Mutex<()> = std::sync::Mutex::new(());
+    let _guard = LOCK.lock().unwrap_or_else(|error| error.into_inner());
+    if !root.is_dir() || is_media_excluded(&root.to_string_lossy()) {
+        let prefix = format!(
+            "{PATH_INDEX_PREFIX}{}/",
+            root.to_string_lossy()
+                .replace('\\', "/")
+                .trim_end_matches('/')
+        );
+        let paths: Vec<String> = db
+            .scan_prefix(&prefix)
+            .map(|entry| {
+                let (key, _) = entry?;
+                Ok(String::from_utf8_lossy(&key[PATH_INDEX_PREFIX.len()..]).to_string())
+            })
+            .collect::<Result<_>>()?;
+        for path in paths {
+            delete_by_path(&db, &path)?;
+        }
+        return Ok(());
+    }
+    scan_tree(&db, &root, &Arc::new(Scanner::new()));
+    Ok(())
+}
+
 fn prune_missing_under_root(db: &crate::media::kv::Db, root: &Path, s: &Scanner) -> Result<usize> {
     if !matches!(std::fs::symlink_metadata(root), Ok(meta) if meta.is_dir()) {
         return Ok(0);
@@ -1396,9 +1552,11 @@ fn prune_missing_under_root(db: &crate::media::kv::Db, root: &Path, s: &Scanner)
         }
         let (key, _) = entry?;
         let path = String::from_utf8_lossy(&key[PATH_INDEX_PREFIX.len()..]).to_string();
-        if is_media_excluded(&path)
-            || matches!(std::fs::metadata(&path), Err(error) if error.kind() == std::io::ErrorKind::NotFound)
-        {
+        let missing_or_nonfile = match std::fs::symlink_metadata(&path) {
+            Ok(meta) => !meta.is_file(),
+            Err(error) => error.kind() == std::io::ErrorKind::NotFound,
+        };
+        if is_media_excluded(&path) || missing_or_nonfile {
             missing.push(path);
         }
     }
@@ -1473,9 +1631,14 @@ fn scan_worker(
     'walk: while !s.is_stopping()
         && let Some(dir) = queue.pop()
     {
+        if dir.join(".nomedia").is_file() {
+            queue.dir_done();
+            continue;
+        }
         let entries = match std::fs::read_dir(&dir) {
             Ok(rd) => rd,
-            Err(_) => {
+            Err(error) => {
+                log::warn!("[scan] cannot read {}: {error}", dir.display());
                 queue.dir_done();
                 continue;
             }
@@ -1496,7 +1659,7 @@ fn scan_worker(
                 continue;
             };
             if file_type.is_dir() {
-                if !is_media_excluded(&entry.path().to_string_lossy()) {
+                if !is_media_excluded_for_walk(&entry.path()) {
                     queue.push(entry.path());
                 }
                 continue;
@@ -1510,7 +1673,7 @@ fn scan_worker(
                 continue;
             };
             let path = entry.path().to_string_lossy().to_string();
-            if is_media_excluded(&path) {
+            if is_media_excluded_for_walk(&entry.path()) {
                 continue;
             }
             match build_scanned(&db, &path, &meta) {
@@ -1552,13 +1715,21 @@ fn scan_worker(
     }
 }
 
+#[cfg(test)]
 fn count_files(root: &Path) -> i64 {
+    count_files_with_stop(root, None)
+}
+
+fn count_files_with_stop(root: &Path, scanner: Option<&Scanner>) -> i64 {
     // Precount pass: classification via readdir's d_type (no per-entry stat
     // on filesystems that provide it — ext4 does), iterative so pathological
     // depth cannot overflow the stack.
     let Ok(meta) = std::fs::symlink_metadata(root) else {
         return 0;
     };
+    if is_media_excluded(&root.to_string_lossy()) {
+        return 0;
+    }
     if !meta.is_dir() {
         let p = root.to_string_lossy().to_string();
         return i64::from(meta.is_file() && !is_media_excluded(&p));
@@ -1566,14 +1737,23 @@ fn count_files(root: &Path) -> i64 {
     let mut n: i64 = 0;
     let mut stack = vec![root.to_path_buf()];
     while let Some(dir) = stack.pop() {
+        if scanner.is_some_and(|scanner| scanner.is_stopping()) {
+            break;
+        }
+        if dir.join(".nomedia").is_file() {
+            continue;
+        }
         let Ok(entries) = std::fs::read_dir(&dir) else {
             continue;
         };
         for entry in entries.flatten() {
+            if scanner.is_some_and(|scanner| scanner.is_stopping()) {
+                break;
+            }
             // Same exclusions as the scan walk, so `total` matches what the
             // scan will actually index (otherwise progress never completes).
             let path = entry.path();
-            if is_media_excluded(&path.to_string_lossy()) {
+            if is_media_excluded_for_walk(&path) {
                 continue;
             }
             match entry.file_type() {

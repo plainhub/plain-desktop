@@ -1097,13 +1097,9 @@ impl MediaMutationRoot {
         let roots = selected_scan_roots(root, &source_dirs);
 
         let s = scan::scanner();
-        // 1) signal any in-flight scan to stop; we don't wait for it here
-        //    because the stop flag is checked cooperatively in the loop.
         s.stop();
-        // 3) clear the stop flag so the upcoming scan can run.
+        s.wait_for_running_task().await;
         s.resume();
-        // 4) publish the initial "running" event synchronously so the UI
-        //    sees the scan start before we yield the API task.
         scan::publish_initial_running(&root_path);
 
         // 2 + 5: heavy work goes off-thread. `reset_all` does synchronous
@@ -1114,9 +1110,6 @@ impl MediaMutationRoot {
         let root_for_walk = root_path.clone();
         tokio::spawn(async move {
             log::info!("[scan] rebuild tokio::spawn body entered");
-            // Make sure the previous scan is fully gone before we reset
-            // (so the abort doesn't fight with the delete loop).
-            scan::scanner().abort_running_task().await;
             let db_for_reset2 = db_for_reset.clone();
             let reset_res = tokio::task::spawn_blocking(move || {
                 log::info!("[scan] reset_all blocking body entered");

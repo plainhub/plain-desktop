@@ -73,8 +73,14 @@ pub fn run() {
                 plain_rs::prefs::Prefs::load(&plain_rs::prefs::default_path(&data_dir))
                     .expect("prefs.json load"),
             );
-            if matches!(prefs.get::<Vec<String>>("media_source_dirs"), Ok(None)) {
-                let mut roots: Vec<String> = [
+            let saved_roots = plain_rs::media::kv::media_source::get(&prefs);
+            let mut root_candidates: Vec<std::path::PathBuf> = saved_roots
+                .iter()
+                .map(std::path::PathBuf::from)
+                .collect();
+            root_candidates.extend(
+                [
+                    app.path().home_dir(),
                     app.path().desktop_dir(),
                     app.path().document_dir(),
                     app.path().download_dir(),
@@ -84,11 +90,44 @@ pub fn run() {
                 ]
                 .into_iter()
                 .flatten()
-                .filter(|path| path.is_dir())
+                .filter(|path| path.is_dir()),
+            );
+            #[cfg(target_os = "macos")]
+            if let Ok(home) = app.path().home_dir() {
+                let cloud = home.join("Library/Mobile Documents/com~apple~CloudDocs");
+                if cloud.is_dir() {
+                    root_candidates.push(cloud);
+                }
+            }
+            let mut roots: Vec<std::path::PathBuf> = root_candidates
+                .into_iter()
+                .filter(|path| !path.as_os_str().is_empty())
+                .map(|path| path.canonicalize().unwrap_or(path))
+                .collect();
+            roots.sort_by(|left, right| {
+                left.components()
+                    .count()
+                    .cmp(&right.components().count())
+                    .then_with(|| left.cmp(right))
+            });
+            let mut unique_roots: Vec<std::path::PathBuf> = Vec::new();
+            for root in roots {
+                let separate_cloud_root = cfg!(target_os = "macos")
+                    && root.ends_with(std::path::Path::new(
+                        "Library/Mobile Documents/com~apple~CloudDocs",
+                    ));
+                if separate_cloud_root
+                    || !unique_roots.iter().any(|existing| root.starts_with(existing))
+                {
+                    unique_roots.push(root);
+                }
+            }
+            let roots: Vec<String> = unique_roots
+                .into_iter()
                 .map(|path| path.to_string_lossy().into_owned())
                 .collect();
-                roots.sort();
-                roots.dedup();
+            let media_sources_changed = roots != saved_roots;
+            if media_sources_changed {
                 if let Err(error) = plain_rs::media::kv::media_source::set(&prefs, &roots) {
                     log::warn!("media source initialization failed: {error}");
                 }
@@ -215,7 +254,8 @@ pub fn run() {
                 if let Ok(watcher) = plain_rs::media::watcher::start_watching(ctx.media.db.clone(), &media_roots) {
                     app.handle().manage(std::sync::Mutex::new(watcher));
                 }
-                let needs_initial_scan = ctx.media.db.scan_prefix(b"media:uuid:").next().is_none();
+                let needs_initial_scan = media_sources_changed
+                    || ctx.media.db.scan_prefix(b"media:uuid:").next().is_none();
                 let media_db = ctx.media.db.clone();
                 let data_dir_for_index = data_dir.clone();
                 tauri::async_runtime::spawn(async move {
