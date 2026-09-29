@@ -85,7 +85,7 @@ v-for="v in diskVolumes(disk)" :key="v.id" :data="v"
 <script setup lang="ts">
 import { computed, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
-import { initQuery, disksGQL, nasMountsMetaGQL } from '@/lib/api/query'
+import { initQuery, disksGQL, mountsGQL } from '@/lib/api/query'
 import type { IStorageDisk, IStorageMount } from '@/lib/interfaces'
 import { formatFileSize, formatUsedTotalBytes } from '@/lib/format'
 import VolumeCard from '@/components/storage/VolumeCard.vue'
@@ -114,7 +114,7 @@ const disksQuery = initQuery<{ disks: IStorageDisk[] }>({
 })
 
 const mountsQuery = initQuery<{ mounts: IStorageMount[] }>({
-  document: nasMountsMetaGQL,
+  document: mountsGQL,
   handle: (data, error) => {
     if (error) {
       // Keep disks visible even if volumes fail.

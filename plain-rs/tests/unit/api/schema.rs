@@ -1,20 +1,23 @@
 use super::*;
 use std::path::Path;
 
-fn desktop_sdl_path() -> std::path::PathBuf {
-    Path::new(env!("CARGO_MANIFEST_DIR")).join("../src/lib/api/graphql/local-schema.graphql")
+fn schema_sdl_path() -> std::path::PathBuf {
+    Path::new(env!("CARGO_MANIFEST_DIR")).join("../schema/schema.graphql")
 }
 
 #[test]
-fn desktop_sdl_matches_committed_artifact() {
-    let committed = std::fs::read_to_string(desktop_sdl_path()).expect("desktop SDL artifact");
+fn schema_sdl_matches_committed_artifact() {
+    let committed = std::fs::read_to_string(schema_sdl_path()).expect("schema SDL artifact");
     assert_eq!(build_schema().sdl(), committed);
 }
 
 #[test]
 #[ignore]
-fn export_desktop_sdl() {
-    std::fs::write(desktop_sdl_path(), build_schema().sdl()).expect("write desktop SDL");
+fn export_schema_sdl() {
+    let path = schema_sdl_path();
+    std::fs::create_dir_all(path.parent().expect("schema directory"))
+        .expect("create schema directory");
+    std::fs::write(path, build_schema().sdl()).expect("write desktop SDL");
 }
 
 /// The desktop schema merges its own roots with the media gql roots;

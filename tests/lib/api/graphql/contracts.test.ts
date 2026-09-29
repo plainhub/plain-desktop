@@ -12,7 +12,6 @@ const APP_ABSENT_DOCS = new Set([
   'disksGQL',
   'downloadPeerFileGQL',
   'formatDiskGQL',
-  'nasMountsMetaGQL',
   'pauseDownloadGQL',
   'pauseMediaScanGQL',
   'rebuildMediaIndexGQL',

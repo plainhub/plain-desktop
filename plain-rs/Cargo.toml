@@ -94,9 +94,8 @@ media = [
     "tokio/macros",
 ]
 # The media GraphQL roots (files/images/videos/docs/audios queries,
-# media-scan mutations, file-management mutations) so any async-graphql
-# host — plain-nas's NAS schema or the desktop api schema — can
-# merge them into its own Query/Mutation roots.
+# media-scan mutations, file-management mutations) used by the shared
+# desktop/NAS API schema.
 media_gql = ["media", "library", "dep:async-graphql"]
 # NAS system/domain modules ported from the plainnas crate: mounts,
 # disks, automount, samba, device info, app update, DLNA sender, the

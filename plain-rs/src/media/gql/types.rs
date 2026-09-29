@@ -1,9 +1,7 @@
 //! GraphQL output types of the media surface — the plain-app / plain-nas
 //! contract dialect (UPPER_SNAKE enums, `Long` / `Instant` scalars).
-//! Hosts merge these into their own schemas together with
-//! `MediaQueryRoot` / `MediaMutationRoot`; both plain-nas's NAS schema
-//! and the desktop api schema reuse the definitions so the SDL
-//! stays byte-identical between hosts.
+//! The shared plain-rs API merges these with `MediaQueryRoot` /
+//! `MediaMutationRoot` for desktop and NAS.
 
 use async_graphql::{Enum, ID, InputObject, SimpleObject};
 

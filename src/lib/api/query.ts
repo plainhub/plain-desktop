@@ -509,31 +509,6 @@ export const disksGQL = `
   }
 `
 
-/** NAS-only: adds the partition metadata fields the plain-app contract's
- *  StorageMount lacks (label/partitionNum/uuid) — only the NAS backend
- *  serves them, so this document must not run against a phone. */
-export const nasMountsMetaGQL = `
-  query {
-    mounts {
-      id
-      name
-      alias
-      label
-      mountPoint
-      fsType
-      totalBytes
-      usedBytes
-      freeBytes
-      remote
-      driveType
-      diskId
-      path
-      partitionNum
-      uuid
-    }
-  }
-`
-
 export const sambaSettingsGQL = `
   query {
     sambaSettings {

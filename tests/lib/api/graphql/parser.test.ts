@@ -76,7 +76,7 @@ describe('parseSchema', () => {
   })
 
   it('parses the real local SDL artifact without a fixed type budget', () => {
-    const sdlText = readFileSync(join(process.cwd(), 'src/lib/api/graphql/local-schema.graphql'), 'utf8')
+    const sdlText = readFileSync(join(process.cwd(), 'schema/schema.graphql'), 'utf8')
     const sdl = parseSchema(sdlText)
     expect(sdl.types.size).toBeGreaterThan(30)
     expect(sdl.types.has('QueryRoot')).toBe(true)

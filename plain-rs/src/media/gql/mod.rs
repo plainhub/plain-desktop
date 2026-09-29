@@ -1,8 +1,8 @@
-//! The media GraphQL roots — the file/media browsing surface shared by
-//! plain-nas's NAS schema and the desktop api schema. Query and
+//! The media GraphQL roots — the file/media browsing surface in the
+//! shared plain-rs API schema. Query and
 //! mutation fields mirror the plain-app contract exactly (same names,
 //! arguments and shapes), so a client written against one host works
-//! against the other.
+//! against desktop or NAS.
 //!
 //! Hosts inject the backing services as async-graphql global data:
 //! `Arc<crate::media::kv::Db>` (fjall store), `Arc<crate::prefs::Prefs>`,

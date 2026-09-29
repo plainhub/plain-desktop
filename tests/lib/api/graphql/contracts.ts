@@ -6,7 +6,7 @@ import {
   type TypeDef,
   type TypeRef,
 } from '../../../../src/lib/api/graphql/parser'
-import { mergeSchemas, validateDocument, type ValidationError } from '../../../../src/lib/api/graphql/schema'
+import { validateDocument, type ValidationError } from '../../../../src/lib/api/graphql/schema'
 import { loadCorpus, type Corpus } from './pipeline'
 
 export const CONTRACTS_DIR = join(process.cwd(), 'tests/lib/api/graphql/contracts')
@@ -18,13 +18,7 @@ export function loadServerSchema(backend: BackendName): SchemaIR {
 }
 
 export function loadMergedSchema(): SchemaIR {
-  const local = parseSchema(readFileSync(join(process.cwd(), 'src/lib/api/graphql/local-schema.graphql'), 'utf8'))
-  const extension = parseSchema(readFileSync(join(process.cwd(), 'src/lib/api/graphql/extension-schema.graphql'), 'utf8'))
-  const merged = mergeSchemas(local, extension)
-  if (merged.errors.length > 0) {
-    throw new Error(`schema merge errors:\n${merged.errors.map((e) => `${e.path}: ${e.message}`).join('\n')}`)
-  }
-  return merged.schema
+  return parseSchema(readFileSync(join(process.cwd(), 'schema/schema.graphql'), 'utf8'))
 }
 
 export interface CorpusIssue {

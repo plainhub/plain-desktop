@@ -7,9 +7,10 @@ import { loadCorpus, loadUnionSchema, validateCorpus } from './pipeline'
 const DYNAMIC_BUILDERS = ['homeStatsGQL']
 
 describe('graphql document contract', () => {
-  it('the local and extension schemas merge without overlap', () => {
-    const { mergeErrors } = loadUnionSchema()
-    expect(mergeErrors).toEqual([])
+  it('combines Rust and plain-app surfaces for the cross-platform client', () => {
+    const schema = loadUnionSchema()
+    expect(schema.types.get(schema.queryRoot)?.fields.some((field) => field.name === 'files')).toBe(true)
+    expect(schema.types.get(schema.queryRoot)?.fields.some((field) => field.name === 'contacts')).toBe(true)
   })
 
   it('every scanned template with unresolvable holes is a registered builder', () => {
@@ -20,14 +21,14 @@ describe('graphql document contract', () => {
   })
 
   it('every frontend document validates against the union schema', () => {
-    const { schema } = loadUnionSchema()
+    const schema = loadUnionSchema()
     const corpus = loadCorpus()
     expect(corpus.documents.length).toBeGreaterThan(200)
     expect(validateCorpus(corpus, schema)).toEqual([])
   })
 
   it('catches a document selecting a field the schema does not define', () => {
-    const { schema } = loadUnionSchema()
+    const schema = loadUnionSchema()
     const corpus = loadCorpus()
     const mutated = corpus.parsed.map((doc) =>
       doc.key === 'peersGQL'

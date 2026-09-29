@@ -80,3 +80,7 @@ pub type PeerSchema = Schema<PeerQuery, PeerMutation, EmptySubscription>;
 pub fn build_schema() -> PeerSchema {
     Schema::build(PeerQuery, PeerMutation, EmptySubscription).finish()
 }
+
+#[cfg(test)]
+#[path = "../../../tests/unit/api/peer_graphql_schema.rs"]
+mod tests;
