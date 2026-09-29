@@ -79,6 +79,7 @@ export function useMediaSidebar(type: DataType, gql: string) {
 
   updateActive()
   watch(() => router.currentRoute.value.fullPath, () => updateActive())
+  watch(() => mainStore.excludedDirs, () => fetch(), { deep: true })
 
   function viewTrash() {
     replacePath(mainStore, `/${group.value}?q=${encodeBase64(buildQuery([{ name: 'trash', op: '', value: 'true' }]))}`)

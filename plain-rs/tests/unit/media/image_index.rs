@@ -98,6 +98,48 @@ fn search_filter_and_sort() {
     assert_eq!(trash_q, 0);
 }
 
+#[test]
+fn excluded_absolute_directory_matches_only_its_tree() {
+    let idx = tmp_index();
+    for (path, kind) in [
+        ("/Users/mac/Projects/smartcoding/app/icons/a.png", "image"),
+        ("/Users/mac/Projects/smartcoding/video.mp4", "video"),
+        ("/Users/mac/Projects/smartcoding/music.mp3", "audio"),
+        ("/Users/mac/Projects/smartcoding-other/keep.png", "image"),
+        ("/Users/mac/Pictures/keep.png", "image"),
+        ("/Users/mac/My Projects/inside.png", "image"),
+    ] {
+        idx.add_media_file(&mf(path, kind, 10, 100)).unwrap();
+    }
+    idx.commit().unwrap();
+
+    let query = "excluded_dir:/Users/mac/Projects/smartcoding/";
+    for kind in ["image", "video", "audio"] {
+        let results = idx
+            .search(query, Some(kind), None, MediaSort::DateDesc, 0, 10)
+            .unwrap();
+        assert!(
+            results
+                .iter()
+                .all(|item| !item.path.starts_with("/Users/mac/Projects/smartcoding/"))
+        );
+        assert_eq!(idx.count(query, Some(kind), None).unwrap(), results.len());
+    }
+    assert_eq!(idx.count(query, Some("image"), None).unwrap(), 3);
+    let spaced = idx
+        .search(
+            "excluded_dir:\"/Users/mac/My Projects/\"",
+            Some("image"),
+            None,
+            MediaSort::DateDesc,
+            0,
+            10,
+        )
+        .unwrap();
+    assert_eq!(spaced.len(), 3);
+    assert!(spaced.iter().all(|item| !item.path.contains("My Projects")));
+}
+
 /// An index written by the 2026-09-16 interim layout (all fields incl.
 /// `dir`, but `size`/`modified` without the FAST markers) must be
 /// detected as stale and recreated — otherwise every sorted query fails

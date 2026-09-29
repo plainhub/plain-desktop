@@ -225,7 +225,7 @@ Index directory: `DATA_DIR/searchidx_media/`.
 
 Engine: [tantivy](https://crates.io/crates/tantivy) — a Rust full-text search engine library (Lucene-compatible).
 
-Schema fields: `uuid`, `name`, `path`, `dir` (tokenized components, `excluded_dir:` filter), `parent` (exact parent dir, per-bucket queries), `media_type`, `size`/`modified` (FAST, sortable), `duration`, `artist`, `title`, `is_trash`.
+Schema fields: `uuid`, `name`, `path`, `dir` (tokenized components for directory-name filters), `dir_path` (exact ancestor paths for rail `excluded_dir:` exclusions), `parent` (exact parent dir, per-bucket queries), `media_type`, `size`/`modified` (FAST, sortable), `duration`, `artist`, `title`, `is_trash`.
 
 Build entry point: `src/media/search_index.rs` (`MediaSearchIndex::build_from_db()`).
 

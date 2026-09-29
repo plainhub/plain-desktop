@@ -60,6 +60,7 @@ struct Fields {
     path: Field,
     /// Directory components of the path (tokenized), for `excluded_dir:` filters.
     dir: Field,
+    dir_path: Field,
     /// Exact parent directory (one term per doc), for per-bucket queries.
     parent: Field,
     media_type: Field,
@@ -178,6 +179,12 @@ impl MediaSearchIndex {
         doc.add_text(self.fields.path, &mf.path.replace('\\', "/"));
         for comp in dir_components(&mf.path) {
             doc.add_text(self.fields.dir, comp);
+        }
+        for ancestor in Path::new(&mf.path).ancestors().skip(1) {
+            doc.add_text(
+                self.fields.dir_path,
+                ancestor.to_string_lossy().replace('\\', "/"),
+            );
         }
         // Same string the KV bucket counters key on (raw path, no
         // backslash normalization) so per-bucket queries hit exactly.
@@ -453,11 +460,18 @@ impl MediaSearchIndex {
                     clauses.push((must_occur(&f.op), term_query(term)));
                 }
                 "excluded_dir" => {
-                    // Exclude any document whose directory path contains this
-                    // component (children of the excluded dir inherit it).
-                    let escaped = f.value.replace('"', "");
-                    if let Ok(q) = dir_parser.parse_query(&format!("\"{escaped}\"")) {
-                        clauses.push((Occur::MustNot, Box::new(q)));
+                    let value = f.value.trim_end_matches('/');
+                    if value.contains('/') || value.contains('\\') {
+                        let path = value.replace('\\', "/");
+                        clauses.push((
+                            Occur::MustNot,
+                            term_query(Term::from_field_text(fields.dir_path, &path)),
+                        ));
+                    } else {
+                        let escaped = value.replace('"', "");
+                        if let Ok(q) = dir_parser.parse_query(&format!("\"{escaped}\"")) {
+                            clauses.push((Occur::MustNot, Box::new(q)));
+                        }
                     }
                 }
                 "size" => {
@@ -692,6 +706,7 @@ fn build_schema() -> (Schema, Fields) {
         path: schema_builder.add_text_field("path", TEXT | STORED),
         // dir is only ever matched (excluded_dir), never read back.
         dir: schema_builder.add_text_field("dir", text_opts),
+        dir_path: schema_builder.add_text_field("dir_path", STRING),
         // Exact parent dir as a single term: per-bucket top-N queries.
         parent: schema_builder.add_text_field("parent", STRING),
         media_type: schema_builder.add_text_field("media_type", STRING | STORED),

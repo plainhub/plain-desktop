@@ -193,6 +193,7 @@ const { loading, fetch } = initLazyQuery({
   document: imagesGQL,
   variables: () => ({ offset: (page.value - 1) * limit.value, limit: limit.value, query: effectiveQ.value, sortBy: effectiveIsGroupMode.value ? 'TAKEN_AT_DESC' : imageSortBy.value }),
 })
+watch(() => mainStore.excludedDirs, () => { page.value = 1; noMore.value = false; items.value = []; fetch() }, { deep: true })
 
 const { moveLoading, onMoveClick } = useMoveToFolder('move-images-picker')
 
@@ -221,4 +222,3 @@ const actionsProps = useMediaPageActions({
   },
 })
 </script>
-

@@ -202,6 +202,7 @@ const { loading, fetch } = initLazyQuery({
   document: videosGQL,
   variables: () => ({ offset: (page.value - 1) * limit.value, limit: limit.value, query: effectiveQ.value, sortBy: effectiveIsGroupMode.value ? 'TAKEN_AT_DESC' : videoSortBy.value }),
 })
+watch(() => mainStore.excludedDirs, () => { page.value = 1; noMore.value = false; items.value = []; fetch() }, { deep: true })
 
 const sources = computed<ISource[]>(() => items.value.map((it: IVideoItem) => ({
   src: getFileUrl(it.fileId), name: getFileName(it.path), durationMs: it.durationMs, size: it.size, path: it.path, data: it, type: dataType,
