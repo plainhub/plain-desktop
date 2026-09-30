@@ -3,7 +3,7 @@
 //! `plain_rs::prefs::Prefs`; nothing here touches storage anymore.
 
 use plain_rs::api::ShellHooks;
-use plain_rs::api::schema::types::Capability;
+use plain_rs::httpserver::mainschemas::types::Capability;
 
 pub struct DesktopShell(pub tauri::AppHandle);
 

@@ -1,8 +1,8 @@
 use async_graphql::{Context, Error, Object, Result};
 use std::sync::Arc;
 
-use super::super::context::AppCtx;
 use super::types::KeyValuePair;
+use crate::api::context::AppCtx;
 use crate::prefs::Prefs;
 
 const PREF_PREFIX: &str = "admin.";

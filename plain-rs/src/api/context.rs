@@ -181,14 +181,14 @@ pub trait ShellHooks: Send + Sync {
     fn app_version(&self) -> String {
         String::new()
     }
-    fn capabilities(&self) -> Vec<crate::api::schema::types::Capability> {
+    fn capabilities(&self) -> Vec<crate::httpserver::mainschemas::types::Capability> {
         Vec::new()
     }
-    fn disks(&self) -> anyhow::Result<Vec<crate::api::schema::capability_types::StorageDisk>> {
+    fn disks(&self) -> anyhow::Result<Vec<crate::httpserver::mainschemas::capability_types::StorageDisk>> {
         anyhow::bail!("disk manager unavailable")
     }
-    fn app_update(&self) -> anyhow::Result<crate::api::schema::capability_types::AppUpdate> {
-        Ok(crate::api::schema::capability_types::AppUpdate {
+    fn app_update(&self) -> anyhow::Result<crate::httpserver::mainschemas::capability_types::AppUpdate> {
+        Ok(crate::httpserver::mainschemas::capability_types::AppUpdate {
             current_version: self.app_version(),
             latest_version: None,
             has_update: false,
@@ -198,13 +198,13 @@ pub trait ShellHooks: Send + Sync {
     fn samba_settings(
         &self,
         _prefs: &crate::prefs::Prefs,
-    ) -> anyhow::Result<crate::api::schema::capability_types::SambaSettings> {
+    ) -> anyhow::Result<crate::httpserver::mainschemas::capability_types::SambaSettings> {
         anyhow::bail!("LAN share unavailable")
     }
     fn set_samba_settings(
         &self,
         _prefs: &crate::prefs::Prefs,
-        _input: crate::api::schema::capability_types::SambaSettingsInput,
+        _input: crate::httpserver::mainschemas::capability_types::SambaSettingsInput,
     ) -> anyhow::Result<()> {
         anyhow::bail!("LAN share unavailable")
     }
@@ -218,7 +218,7 @@ pub trait ShellHooks: Send + Sync {
     fn dlna_renderers(
         &self,
         _cid: &str,
-    ) -> anyhow::Result<Vec<crate::api::schema::capability_types::DlnaRenderer>> {
+    ) -> anyhow::Result<Vec<crate::httpserver::mainschemas::capability_types::DlnaRenderer>> {
         anyhow::bail!("DLNA sender unavailable")
     }
     fn dlna_cast(
@@ -227,7 +227,7 @@ pub trait ShellHooks: Send + Sync {
         _url: &str,
         _title: &str,
         _mime: &str,
-        _media_type: crate::media::gql::types::MediaDataType,
+        _media_type: crate::httpserver::mainschemas::media::types::MediaDataType,
         _prefs: &crate::prefs::Prefs,
     ) -> anyhow::Result<()> {
         anyhow::bail!("DLNA sender unavailable")

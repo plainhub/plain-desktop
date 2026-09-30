@@ -6,20 +6,20 @@
 
 use axum::body::Body;
 use axum::body::Bytes;
+use axum::extract::ws::WebSocketUpgrade;
 use axum::extract::ConnectInfo;
 use axum::extract::FromRequestParts;
 use axum::extract::Request;
 use axum::extract::State;
-use axum::extract::ws::WebSocketUpgrade;
 use axum::http::{Method, StatusCode};
 use axum::response::{IntoResponse, Response};
-use serde_json::Value;
 use serde_json::json;
+use serde_json::Value;
 use std::collections::HashMap;
 use std::net::SocketAddr;
 
-use super::request_key::{RequestKey, RequestKeyError, resolve_request_key};
-use super::response::{APP_ID, respond};
+use super::request_key::{resolve_request_key, RequestKey, RequestKeyError};
+use super::response::{respond, APP_ID};
 use super::ws;
 use crate::api::dlna;
 use crate::api::executor::execute_graphql;
@@ -121,7 +121,7 @@ pub async fn peer_graphql_handler(
     let header_client_id = header_string(&headers, "c-id");
     let header_channel_id = header_string(&headers, "c-cid");
 
-    super::super::peer_graphql::handle(
+    crate::httpserver::peerschemas::handle(
         &body,
         &header_client_id,
         &header_channel_id,

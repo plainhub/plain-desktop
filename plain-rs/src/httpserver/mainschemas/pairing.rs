@@ -14,10 +14,10 @@
 use async_graphql::{Context, Enum, ID, InputObject, Object, Result as GqlResult};
 use std::sync::Arc;
 
-use super::super::context::AppCtx;
+use super::media::types::{Instant, Long};
+use crate::api::context::AppCtx;
 use crate::api::enums::DeviceType;
 use crate::chat::pairing::protocol::PairingRequest;
-use crate::media::gql::types::{Instant, Long};
 
 #[derive(Clone, Copy, Eq, PartialEq, Enum)]
 #[graphql(rename_items = "SCREAMING_SNAKE_CASE")]

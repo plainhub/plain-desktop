@@ -21,8 +21,8 @@ use std::collections::HashMap;
 use std::path::PathBuf;
 use std::sync::{Arc, Mutex, OnceLock};
 
-use crate::chat::app_file_store;
 use crate::api::context::{AppCtx, WS_UPLOAD_MERGE_RESULT, WsEvent};
+use crate::chat::app_file_store;
 
 use super::types::{MergeTask, MergeTaskStatus};
 
@@ -199,9 +199,9 @@ fn start_merge(
         }
         drop(jobs);
         let _ = event_tx.send(WsEvent::broadcast(
-        WS_UPLOAD_MERGE_RESULT,
-        payload.to_string(),
-    ));
+            WS_UPLOAD_MERGE_RESULT,
+            payload.to_string(),
+        ));
     });
     Ok(MergeTask {
         status: MergeTaskStatus::Started,

@@ -8,7 +8,7 @@
 use async_graphql::{Context, Object, Result as GqlResult};
 use std::sync::Arc;
 
-use super::super::context::AppCtx;
+use crate::api::context::AppCtx;
 use crate::api::download;
 
 #[derive(Default)]

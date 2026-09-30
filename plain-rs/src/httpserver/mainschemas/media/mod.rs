@@ -1748,5 +1748,5 @@ async fn apply_media_items_action(
 }
 
 #[cfg(test)]
-#[path = "../../../tests/unit/media/gql.rs"]
+#[path = "../../../../tests/unit/media/gql.rs"]
 mod tests;

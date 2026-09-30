@@ -27,7 +27,7 @@ use std::path::Path;
 use async_graphql::{Context, Object, Result as GqlResult};
 
 use crate::api::context::AppCtx;
-use crate::api::schema::types::{
+use crate::httpserver::mainschemas::types::{
     AudioFileInfo, FileInfo, ImageFileInfo, Location, MediaFileInfo, VideoFileInfo,
 };
 use crate::api::server::uri::resolve_uri;

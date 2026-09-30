@@ -7,8 +7,8 @@
 use async_graphql::{Context, ID, Object};
 use std::sync::Arc;
 
-use super::super::context::AppCtx;
 use super::types::{ActionResult, ChatItem};
+use crate::api::context::AppCtx;
 
 #[derive(Default)]
 pub struct ChatMessageMutation;

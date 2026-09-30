@@ -8,7 +8,7 @@ fn hostname_sanitization_is_shared() {
 
 #[test]
 fn one_schema_declares_capability_operations() {
-    let sdl = crate::api::schema::build_schema().sdl();
+    let sdl = crate::httpserver::mainschemas::build_schema().sdl();
     for field in [
         "disks:",
         "sessions:",
@@ -35,7 +35,7 @@ fn one_schema_declares_capability_operations() {
 #[tokio::test]
 async fn unsupported_hardware_uses_the_same_graphql_schema() {
     let state = crate::api::server::test_support::nas_state();
-    let response = crate::api::schema::build_schema()
+    let response = crate::httpserver::mainschemas::build_schema()
         .execute(
             async_graphql::Request::new("{ app { deviceType } disks { id } }")
                 .data(state.ctx.clone()),
@@ -50,7 +50,7 @@ async fn unsupported_hardware_uses_the_same_graphql_schema() {
 #[tokio::test]
 async fn temp_value_mutation_feeds_shared_zip_store() {
     let state = crate::api::server::test_support::nas_state();
-    let response = crate::api::schema::build_schema()
+    let response = crate::httpserver::mainschemas::build_schema()
         .execute(
             async_graphql::Request::new(
                 "mutation { setTempValue(key: \"zip-test-key\", value: \"[]\") { key value } }",

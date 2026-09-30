@@ -1,7 +1,7 @@
 use async_graphql::{Context, Enum, Object, SimpleObject};
 use std::sync::Arc;
 
-use super::super::context::AppCtx;
+use crate::api::context::AppCtx;
 use crate::sqlite_browse::{self, SqliteColumnType};
 
 #[derive(SimpleObject, Default)]

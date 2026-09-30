@@ -1,6 +1,6 @@
 use async_graphql::{Enum, InputObject, SimpleObject, Union};
 
-use crate::api::db::{DAppFile, DBookmark, DBookmarkGroup, DChannel, DChat, DPeer};
+use crate::api::db::{DBookmark, DBookmarkGroup, DChannel, DChat, DPeer};
 use crate::api::enums::{
     AppChannelType, ChannelStatus, ChatStatus, DeviceType, DriveType, MemberStatus, PeerStatus,
 };
@@ -114,7 +114,7 @@ pub struct KeyValuePair {
     pub value: String,
 }
 
-pub use crate::media::gql::types::ActionResult;
+pub use super::media::types::ActionResult;
 
 /// Chunked-upload merge job state (plain-app `MergeTaskStatus`).
 #[derive(Enum, Copy, Clone, Eq, PartialEq, Debug)]
@@ -481,30 +481,4 @@ pub struct BookmarkInput {
     pub group_id: String,
     pub pinned: bool,
     pub sort_order: i32,
-}
-
-#[derive(SimpleObject)]
-#[graphql(name = "AppFile")]
-pub struct AppFile {
-    pub id: String,
-    pub size: i64,
-    pub mime_type: String,
-    pub real_path: String,
-    pub file_name: String,
-    pub created_at: String,
-    pub updated_at: String,
-}
-
-impl AppFile {
-    pub fn from_dappfile(f: DAppFile, file_name: String) -> Self {
-        Self {
-            id: f.id,
-            size: f.size,
-            mime_type: f.mime_type,
-            real_path: f.real_path,
-            file_name,
-            created_at: f.created_at,
-            updated_at: f.updated_at,
-        }
-    }
 }

@@ -11,7 +11,9 @@ use std::sync::Arc;
 use crate::api::context::AppCtx;
 use crate::api::db::LibraryDb;
 use crate::api::enums::MediaPlayMode;
-use crate::api::schema::types::{AudioItem, AudioPlayHistory, AudioPlayback, AudioPlaylist};
+use crate::httpserver::mainschemas::types::{
+    AudioItem, AudioPlayHistory, AudioPlayback, AudioPlaylist,
+};
 
 fn track_to_gql(a: AudioTrack) -> AudioItem {
     AudioItem {
@@ -33,10 +35,10 @@ fn playlist_to_gql((pl, count): (crate::library::db::Playlist, usize)) -> AudioP
 }
 
 #[derive(Default)]
-pub struct AudioQueueQuery;
+pub struct AudioQuery;
 
 #[Object]
-impl AudioQueueQuery {
+impl AudioQuery {
     /// The active playback queue (manual items + context), paginated.
     /// `query` is the shared DSL; its `text:` field filters the page.
     async fn audio_queue_items(
@@ -145,10 +147,10 @@ impl AudioQueueQuery {
 }
 
 #[derive(Default)]
-pub struct AudioQueueMutation;
+pub struct AudioMutation;
 
 #[Object]
-impl AudioQueueMutation {
+impl AudioMutation {
     /// Play the given track: mark it current, enqueue it in the manual
     /// queue when missing, and record the play.
     async fn play_audio(&self, ctx: &Context<'_>, path: String) -> AudioItem {

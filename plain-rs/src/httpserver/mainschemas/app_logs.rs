@@ -1,14 +1,14 @@
 use async_graphql::{Context, Object};
 use std::sync::Arc;
 
-use super::super::context::AppCtx;
 use super::util::read_log_lines;
+use crate::api::context::AppCtx;
 
 #[derive(Default)]
-pub struct LogsQuery;
+pub struct AppLogsQuery;
 
 #[Object]
-impl LogsQuery {
+impl AppLogsQuery {
     async fn app_logs(
         &self,
         ctx: &Context<'_>,
@@ -27,10 +27,10 @@ impl LogsQuery {
 }
 
 #[derive(Default)]
-pub struct LogsMutation;
+pub struct AppLogsMutation;
 
 #[Object]
-impl LogsMutation {
+impl AppLogsMutation {
     async fn clear_app_logs(&self, ctx: &Context<'_>) -> bool {
         let c = ctx.data_unchecked::<Arc<AppCtx>>();
         let log_file = c.log_dir.join("plain.log");

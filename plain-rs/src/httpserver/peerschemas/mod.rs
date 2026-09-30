@@ -1,6 +1,6 @@
 //! Peer-to-peer GraphQL endpoint (`POST /peer_graphql`).
 //!
-//! Mirrors the structure of `crate::api::schema` so the local and
+//! Mirrors the structure of `crate::httpserver::mainschemas` so the local and
 //! peer-facing surfaces stay symmetrical, while keeping the two concerns
 //! physically separated to avoid over-coupling the HTTP layer.
 //!
@@ -20,9 +20,9 @@ use std::sync::Arc;
 
 use axum::response::Response;
 
-use crate::chat::peer_auth;
 use crate::api::context::AppCtx;
 use crate::api::server::response::respond;
+use crate::chat::peer_auth;
 use crate::xchacha_encrypt_raw;
 
 pub use context::PeerCtx;

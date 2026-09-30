@@ -1,7 +1,7 @@
 #![allow(non_snake_case)]
 
 use plain_rs::api::enums::DeviceType;
-use plain_rs::api::schema::types::Peer;
+use plain_rs::httpserver::mainschemas::types::Peer;
 #[allow(unused_imports)]
 pub use plain_rs::api::discover::{
     MdnsActivity, MdnsFirewallStatus, NearbyDiscoverManager, PeerStatusManager, firewall,

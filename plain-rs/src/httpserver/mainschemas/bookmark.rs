@@ -5,8 +5,8 @@ use std::sync::Arc;
 use crate::api::db as bookmark_db;
 use crate::api::db::{DBookmark, DBookmarkGroup, now_iso};
 
-use super::super::context::{AppCtx, WS_BOOKMARK_UPDATED, WsEvent};
 use super::types::{ActionResult, Bookmark, BookmarkGroup, BookmarkInput};
+use crate::api::context::{AppCtx, WS_BOOKMARK_UPDATED, WsEvent};
 
 fn bookmark_to_json(b: &DBookmark) -> serde_json::Value {
     json!({

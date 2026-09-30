@@ -14,7 +14,7 @@ use async_graphql::{Context, EmptySubscription, Object, Schema};
 
 use super::context::PeerCtx;
 use crate::api::enums::ChannelSystemMessageType;
-use crate::api::schema::types::ChatItem;
+use crate::httpserver::mainschemas::types::ChatItem;
 
 #[derive(Default)]
 pub struct PeerQuery;

@@ -1,9 +1,8 @@
-use async_graphql::{Context, ID, Object};
+use async_graphql::{Context, Object, ID};
 use std::sync::Arc;
 
-use super::super::context::AppCtx;
-use super::types::{AppFile, ChatChannel, ChatItem, Peer};
-use crate::chat::app_file_store::{display_name, file_name_map};
+use super::types::{ChatChannel, ChatItem, Peer};
+use crate::api::context::AppCtx;
 use crate::chat::enums::ChannelStatus;
 
 #[derive(Default)]
@@ -57,42 +56,5 @@ impl ChatQuery {
             .into_iter()
             .map(|chat| ChatItem::from(chat))
             .collect()
-    }
-
-    async fn app_files(
-        &self,
-        ctx: &Context<'_>,
-        offset: i32,
-        limit: i32,
-        query: String,
-    ) -> Vec<AppFile> {
-        let c = ctx.data_unchecked::<Arc<AppCtx>>();
-        let files = c.db.get_app_file_page(limit, offset);
-        let name_map = file_name_map(&c.db.get_all_chats());
-        let text = query.trim();
-        files
-            .into_iter()
-            .map(|f| {
-                let display = display_name(&f, &name_map);
-                AppFile::from_dappfile(f, display)
-            })
-            .filter(|f| text.is_empty() || f.file_name.contains(text))
-            .collect()
-    }
-
-    async fn app_file_count(&self, ctx: &Context<'_>, query: String) -> i32 {
-        let c = ctx.data_unchecked::<Arc<AppCtx>>();
-        let text = query.trim();
-        if text.is_empty() {
-            return c.db.count_app_files();
-        }
-        let name_map = file_name_map(&c.db.get_all_chats());
-        c.db.get_all_app_files()
-            .into_iter()
-            .filter(|f| {
-                let display = display_name(f, &name_map);
-                display.contains(text)
-            })
-            .count() as i32
     }
 }

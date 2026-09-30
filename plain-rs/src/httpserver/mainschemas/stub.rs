@@ -7,18 +7,6 @@ pub struct StubQuery;
 
 #[Object]
 impl StubQuery {
-    async fn sms_count(&self, _query: String) -> i32 {
-        0
-    }
-    async fn contact_count(&self, _query: String) -> i32 {
-        0
-    }
-    async fn call_count(&self, _query: String) -> i32 {
-        0
-    }
-    async fn package_count(&self, _query: String) -> i32 {
-        0
-    }
     async fn note_count(&self, _query: String) -> i32 {
         0
     }

@@ -16,14 +16,11 @@ pub mod enums;
 pub mod executor;
 pub mod http_proxy;
 pub mod link_preview;
-pub mod peer_graphql;
-pub mod schema;
 pub mod server;
 pub mod temp_store;
 pub mod tls;
 
 pub use context::ShellHooks;
 
-// Identity lives with the preferences engine (`prefs::identity`); keep
-// the historical `api::` paths working for the host shells.
-pub use crate::prefs::identity::{AppIdentity, default_device_name, generate_identity};
+// Identity lives with the preferences engine (`prefs::identity`).
+pub use crate::prefs::identity::{default_device_name, generate_identity, AppIdentity};

@@ -1,7 +1,9 @@
 //! async-graphql schema: output types, QueryRoot, MutationRoot.
 
 mod app;
-mod audio_queue;
+mod app_file;
+mod app_logs;
+mod audio;
 mod bookmark;
 mod capability;
 pub mod capability_types;
@@ -16,7 +18,7 @@ mod download;
 mod favorite_folder;
 mod file_query;
 mod file_upload;
-mod logs;
+pub mod media;
 mod pairing;
 mod stub;
 pub mod types;
@@ -25,7 +27,9 @@ mod util;
 use async_graphql::{EmptySubscription, MergedObject, Schema};
 
 use app::{AppMutation, AppQuery};
-use audio_queue::{AudioQueueMutation, AudioQueueQuery};
+use app_file::AppFileQuery;
+use app_logs::{AppLogsMutation, AppLogsQuery};
+use audio::{AudioMutation, AudioQuery};
 use bookmark::{BookmarkMutation, BookmarkQuery};
 use capability::{CapabilityMutation, CapabilityQuery};
 use chat_channel::ChatChannelMutation;
@@ -39,18 +43,18 @@ use download::DownloadMutation;
 use favorite_folder::{FavoriteFolderMutation, FavoriteFolderQuery};
 use file_query::FileInfoQuery;
 use file_upload::{FileUploadMutation, FileUploadQuery};
-use logs::{LogsMutation, LogsQuery};
 use pairing::PairingMutation;
 use stub::StubQuery;
 
 #[derive(MergedObject, Default)]
 pub struct QueryRoot(
     AppQuery,
-    AudioQueueQuery,
+    AudioQuery,
     BookmarkQuery,
     CapabilityQuery,
     ChatQuery,
-    LogsQuery,
+    AppFileQuery,
+    AppLogsQuery,
     DataStoreQuery,
     DbQuery,
     FileUploadQuery,
@@ -58,19 +62,19 @@ pub struct QueryRoot(
     FileInfoQuery,
     DiscoverQuery,
     StubQuery,
-    crate::media::gql::MediaQueryRoot,
+    media::MediaQueryRoot,
 );
 
 #[derive(MergedObject, Default)]
 pub struct MutationRoot(
     AppMutation,
-    AudioQueueMutation,
+    AudioMutation,
     BookmarkMutation,
     CapabilityMutation,
     ChatMessageMutation,
     ChatChannelMutation,
     ChatPeerMutation,
-    LogsMutation,
+    AppLogsMutation,
     DataStoreMutation,
     DbMutation,
     FileUploadMutation,
@@ -78,7 +82,7 @@ pub struct MutationRoot(
     PairingMutation,
     DownloadMutation,
     FavoriteFolderMutation,
-    crate::media::gql::MediaMutationRoot,
+    media::MediaMutationRoot,
 );
 
 pub type ApiSchema = Schema<QueryRoot, MutationRoot, EmptySubscription>;

@@ -1205,10 +1205,6 @@ type QueryRoot {
 	while the background scan loop is running.
 	"""
 	isDiscovering: Boolean!
-	smsCount(query: String!): Int!
-	contactCount(query: String!): Int!
-	callCount(query: String!): Int!
-	packageCount(query: String!): Int!
 	noteCount(query: String!): Int!
 	feedEntryCount(query: String!): Int!
 	mounts: [Mount!]!

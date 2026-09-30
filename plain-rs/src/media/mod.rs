@@ -10,8 +10,6 @@ pub mod cover;
 pub mod eventbus;
 pub mod file_tasks;
 pub mod fsx;
-#[cfg(feature = "media_gql")]
-pub mod gql;
 pub mod image_index;
 pub mod index;
 pub mod kv;

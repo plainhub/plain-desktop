@@ -18,13 +18,13 @@ pub mod zip;
 
 use std::sync::Arc;
 
-use axum::Router;
 use axum::extract::DefaultBodyLimit;
 use axum::routing::{get, post};
+use axum::Router;
 
 use super::context::AppCtx;
-use super::peer_graphql::PeerSchema;
-use super::schema::ApiSchema;
+use crate::httpserver::mainschemas::ApiSchema;
+use crate::httpserver::peerschemas::PeerSchema;
 
 #[derive(Clone)]
 pub struct ServerState {
@@ -105,8 +105,8 @@ http_port = 8080
         .expect("nas app ctx");
         std::mem::forget(dir);
         ServerState::new(
-            Arc::new(crate::api::schema::build_schema()),
-            Arc::new(crate::api::peer_graphql::build_schema()),
+            Arc::new(crate::httpserver::mainschemas::build_schema()),
+            Arc::new(crate::httpserver::peerschemas::build_schema()),
             ctx,
             ServerSettings {
                 auth: AuthPolicy::Session {

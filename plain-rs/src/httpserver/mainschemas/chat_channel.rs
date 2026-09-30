@@ -8,8 +8,8 @@
 use async_graphql::{Context, Error as GqlError, ID, Object, Result as GqlResult};
 use std::sync::Arc;
 
-use super::super::context::AppCtx;
 use super::types::ChatChannel;
+use crate::api::context::AppCtx;
 
 #[derive(Default)]
 pub struct ChatChannelMutation;
