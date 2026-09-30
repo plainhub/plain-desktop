@@ -26,11 +26,12 @@ use std::path::Path;
 
 use async_graphql::{Context, Object, Result as GqlResult};
 
+use super::media::types::Long;
 use crate::api::context::AppCtx;
+use crate::api::server::uri::resolve_uri;
 use crate::httpserver::mainschemas::types::{
     AudioFileInfo, FileInfo, ImageFileInfo, Location, MediaFileInfo, VideoFileInfo,
 };
-use crate::api::server::uri::resolve_uri;
 
 #[derive(Default)]
 pub struct FileInfoQuery;
@@ -50,35 +51,40 @@ impl FileInfoQuery {
         let c = ctx.data_unchecked::<std::sync::Arc<AppCtx>>();
 
         let real = resolve_uri(&path, &c.data_dir);
-        let (updated_at, size) = read_file_meta(&real);
+        let (updated_at, size) = read_file_meta(&real)?;
         let data = classify_and_load(&real);
 
         Ok(FileInfo {
             path,
             updated_at,
-            size,
+            size: Long(size),
             data,
         })
     }
 }
 
-fn read_file_meta(path: &Path) -> (String, i64) {
-    let Ok(meta) = std::fs::metadata(path) else {
-        return (String::new(), 0);
-    };
+fn read_file_meta(path: &Path) -> GqlResult<(String, i64)> {
+    let meta = std::fs::metadata(path)
+        .map_err(|e| async_graphql::Error::new(format!("file metadata unavailable: {e}")))?;
     let updated_at = meta
         .modified()
-        .ok()
-        .and_then(|t| t.duration_since(std::time::UNIX_EPOCH).ok())
+        .and_then(|t| {
+            t.duration_since(std::time::UNIX_EPOCH)
+                .map_err(std::io::Error::other)
+        })
         .map(|d| unix_secs_to_iso8601(d.as_secs() as i64))
-        .unwrap_or_default();
-    (updated_at, meta.len() as i64)
+        .map_err(|e| {
+            async_graphql::Error::new(format!("file modification time unavailable: {e}"))
+        })?;
+    let size = i64::try_from(meta.len())
+        .map_err(|e| async_graphql::Error::new(format!("file size exceeds Long range: {e}")))?;
+    Ok((updated_at, size))
 }
 
 /// Format a unix-second timestamp as `YYYY-MM-DDTHH:MM:SSZ` without
 /// pulling in `chrono`. Local mode timestamps are best-effort (UTC).
 fn unix_secs_to_iso8601(secs: i64) -> String {
-    if secs <= 0 {
+    if secs < 0 {
         return String::new();
     }
     let days = secs.div_euclid(86_400);
@@ -135,12 +141,12 @@ fn classify_and_load(path: &Path) -> Option<MediaFileInfo> {
         Some(MediaFileInfo::Video(VideoFileInfo {
             width: 0,
             height: 0,
-            duration_ms: 0,
+            duration_ms: Long(0),
             location: None,
         }))
     } else if is_audio_ext(&ext) {
         Some(MediaFileInfo::Audio(AudioFileInfo {
-            duration_ms: 0,
+            duration_ms: Long(0),
             location: None,
         }))
     } else {

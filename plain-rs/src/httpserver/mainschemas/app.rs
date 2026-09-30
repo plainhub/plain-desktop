@@ -2,6 +2,7 @@ use async_graphql::{Context, Object};
 use serde_json::json;
 use std::sync::Arc;
 
+use super::media::types::Long;
 use super::types::{App, Capability, DeviceInfo, DevicePlatform, DeviceStatus, Sim, Temperature};
 use crate::api::context::{AppCtx, WS_DEVICE_NAME_UPDATED, WsEvent};
 use crate::api::enums::AppChannelType;
@@ -83,8 +84,8 @@ impl AppQuery {
             language,
             cpu_arch: consts::ARCH.to_string(),
             cpu_model,
-            total_memory,
-            total_storage: total_storage as i64,
+            total_memory: Long(total_memory),
+            total_storage: Long(total_storage as i64),
             display: None,
             android: None,
         }
@@ -224,13 +225,13 @@ fn collect_device_status(data_dir: &std::path::Path) -> DeviceStatus {
     let (_, storage_available) = volume_for(data_dir);
 
     DeviceStatus {
-        uptime_sec: System::uptime() as i64,
+        uptime_sec: Long(System::uptime() as i64),
         battery_level,
         charging,
         temperatures: platform_temperatures(),
         cpu_usage: (sys.global_cpu_usage() as f64).clamp(0.0, 100.0),
-        memory_available: Some(sys.available_memory() as i64),
-        storage_available: storage_available as i64,
+        memory_available: Some(Long(sys.available_memory() as i64)),
+        storage_available: Long(storage_available as i64),
     }
 }
 

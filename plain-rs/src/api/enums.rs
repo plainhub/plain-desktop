@@ -10,8 +10,8 @@ use async_graphql::Enum;
 
 macro_rules! wire_enum {
     ($(#[$meta:meta])* $name:ident { $($variant:ident => $wire:expr),+ $(,)? }) => {
-        $(#[$meta])*
         #[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize, Enum)]
+        $(#[$meta])*
         #[graphql(rename_items = "SCREAMING_SNAKE_CASE")]
         #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
         pub enum $name {
@@ -75,6 +75,7 @@ wire_enum! {
 
 // Membership state of the local device in a channel.
 wire_enum! {
+    #[graphql(name = "ChatChannelStatus")]
     ChannelStatus {
         Joined => "JOINED",
         Left => "LEFT",
@@ -84,22 +85,72 @@ wire_enum! {
 
 // Membership state of a channel member.
 wire_enum! {
+    #[graphql(name = "ChannelMemberStatus")]
     MemberStatus {
         Joined => "JOINED",
         Pending => "PENDING",
     }
 }
 
-// Device class advertised on the wire.
-wire_enum! {
-    DeviceType {
-        Phone => "PHONE",
-        Tablet => "TABLET",
-        Computer => "COMPUTER",
-        Tv => "TV",
-        Nas => "NAS",
-        Other => "OTHER",
-        Unknown => "UNKNOWN",
+#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize, Enum)]
+#[graphql(rename_items = "SCREAMING_SNAKE_CASE")]
+#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
+pub enum DeviceType {
+    Phone,
+    Tablet,
+    Computer,
+    Tv,
+    Nas,
+    Other,
+}
+
+impl fmt::Display for DeviceType {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.write_str(self.as_str())
+    }
+}
+
+impl FromStr for DeviceType {
+    type Err = String;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        match s {
+            "PHONE" => Ok(Self::Phone),
+            "TABLET" => Ok(Self::Tablet),
+            "COMPUTER" => Ok(Self::Computer),
+            "TV" => Ok(Self::Tv),
+            "NAS" => Ok(Self::Nas),
+            "OTHER" | "UNKNOWN" => Ok(Self::Other),
+            _ => Err(format!("Unknown DeviceType: {s}")),
+        }
+    }
+}
+
+impl From<crate::chat::enums::DeviceType> for DeviceType {
+    fn from(value: crate::chat::enums::DeviceType) -> Self {
+        match value {
+            crate::chat::enums::DeviceType::Phone => Self::Phone,
+            crate::chat::enums::DeviceType::Tablet => Self::Tablet,
+            crate::chat::enums::DeviceType::Computer => Self::Computer,
+            crate::chat::enums::DeviceType::Tv => Self::Tv,
+            crate::chat::enums::DeviceType::Nas => Self::Nas,
+            crate::chat::enums::DeviceType::Other | crate::chat::enums::DeviceType::Unknown => {
+                Self::Other
+            }
+        }
+    }
+}
+
+impl From<DeviceType> for crate::chat::enums::DeviceType {
+    fn from(value: DeviceType) -> Self {
+        match value {
+            DeviceType::Phone => Self::Phone,
+            DeviceType::Tablet => Self::Tablet,
+            DeviceType::Computer => Self::Computer,
+            DeviceType::Tv => Self::Tv,
+            DeviceType::Nas => Self::Nas,
+            DeviceType::Other => Self::Other,
+        }
     }
 }
 
@@ -154,7 +205,6 @@ impl DeviceType {
             Self::Tv => "TV",
             Self::Nas => "NAS",
             Self::Other => "OTHER",
-            Self::Unknown => "UNKNOWN",
         }
     }
 }

@@ -16,7 +16,7 @@ export interface Fragment_AppFragment {
   httpsPort: number
   appDir: string
   deviceName: string
-  deviceType: 'PHONE' | 'TABLET' | 'COMPUTER' | 'TV' | 'NAS' | 'OTHER' | 'UNKNOWN'
+  deviceType: 'PHONE' | 'TABLET' | 'COMPUTER' | 'TV' | 'NAS' | 'OTHER'
   capabilities: Array<'MEDIA_TRASH' | 'MIRROR_AUDIO' | 'DOC_PREVIEW' | 'IMAGE_SEARCH' | 'MEDIA_SCAN' | 'SMS' | 'CALLS' | 'CALL_PHONE' | 'CONTACTS' | 'PACKAGES' | 'NOTES' | 'FEEDS' | 'SCREEN_MIRROR' | 'IMAGE_EDITOR' | 'NOTIFICATIONS' | 'CLIPBOARD' | 'POMODORO' | 'LAN_SHARE' | 'DISK_MANAGER'>
   buildChannel: 'GITHUB' | 'GOOGLE' | 'FDROID'
   permissions: Array<'WRITE_EXTERNAL_STORAGE' | 'READ_SMS' | 'SEND_SMS' | 'READ_CONTACTS' | 'WRITE_CONTACTS' | 'READ_CALL_LOG' | 'WRITE_CALL_LOG' | 'CALL_PHONE' | 'POST_NOTIFICATIONS' | 'NEARBY_WIFI_DEVICES' | 'ACCESS_FINE_LOCATION' | 'CAMERA' | 'SYSTEM_ALERT_WINDOW' | 'RECORD_AUDIO' | 'READ_MEDIA_IMAGES' | 'READ_MEDIA_VIDEOS' | 'READ_MEDIA_AUDIO' | 'NOTIFICATION_LISTENER' | 'READ_PHONE_STATE' | 'READ_PHONE_NUMBERS' | 'SCHEDULE_EXACT_ALARM' | 'QUERY_ALL_PACKAGES' | 'ADB' | 'CLIPBOARD'>
@@ -34,8 +34,8 @@ export interface Fragment_AudioFragment {
   size: number
   bucketId: string
   albumFileId: string
-  createdAt: unknown
-  updatedAt: unknown
+  createdAt: string
+  updatedAt: string
   tags: Array<Fragment_TagSubFragment>
 }
 
@@ -76,7 +76,7 @@ export interface Fragment_CallFragment {
   number: string
   durationSec: number
   accountId: string
-  startedAt: unknown
+  startedAt: string
   photoId: string
   type: 'INCOMING' | 'OUTGOING' | 'MISSED' | 'VOICEMAIL' | 'REJECTED' | 'BLOCKED' | 'ANSWERED_EXTERNALLY' | 'UNKNOWN'
   geo?: {
@@ -121,7 +121,7 @@ export interface Fragment_ClipboardItemFragment {
   source: string
   label: string
   sensitive: boolean
-  createdAt: unknown
+  createdAt: string
 }
 
 export interface Fragment_ContactFragment {
@@ -131,7 +131,7 @@ export interface Fragment_ContactFragment {
   firstName: string
   middleName: string
   lastName: string
-  updatedAt: unknown
+  updatedAt: string
   notes: string
   source: string
   thumbnailId: string
@@ -228,8 +228,8 @@ export interface Fragment_DocFragment {
   extension: string
   size: number
   bucketId: string
-  createdAt: unknown
-  updatedAt: unknown
+  createdAt: string
+  updatedAt: string
   tags: Array<Fragment_TagSubFragment>
 }
 
@@ -243,9 +243,9 @@ export interface Fragment_FeedEntryFragment {
   content: string
   feedId: string
   rawId: string
-  publishedAt: unknown
-  createdAt: unknown
-  updatedAt: unknown
+  publishedAt: string
+  createdAt: string
+  updatedAt: string
   tags: Array<Fragment_TagSubFragment>
 }
 
@@ -254,15 +254,15 @@ export interface Fragment_FeedFragment {
   name: string
   url: string
   fetchContent: boolean
-  createdAt: unknown
-  updatedAt: unknown
+  createdAt: string
+  updatedAt: string
 }
 
 export interface Fragment_FileFragment {
   path: string
   isDir: boolean
-  createdAt?: unknown
-  updatedAt: unknown
+  createdAt?: string
+  updatedAt: string
   size: number
   childCount: number
   mediaId?: string
@@ -274,9 +274,9 @@ export interface Fragment_ImageFragment {
   path: string
   size: number
   bucketId: string
-  takenAt?: unknown
-  createdAt: unknown
-  updatedAt: unknown
+  takenAt?: string
+  createdAt: string
+  updatedAt: string
   tags: Array<Fragment_TagSubFragment>
 }
 
@@ -284,9 +284,9 @@ export interface Fragment_NoteFragment {
   id: string
   title: string
   content: string
-  deletedAt?: unknown
-  createdAt: unknown
-  updatedAt: unknown
+  deletedAt?: string
+  createdAt: string
+  updatedAt: string
   tags: Array<Fragment_TagSubFragment>
 }
 
@@ -296,7 +296,7 @@ export interface Fragment_NotificationFragment {
   isClearable: boolean
   appId: string
   appName: string
-  postedAt: unknown
+  postedAt: string
   silent: boolean
   title: string
   body: string
@@ -315,18 +315,18 @@ export interface Fragment_PackageFragment {
     issuer: string
     subject: string
     serialNumber: string
-    validFrom: unknown
-    validTo: unknown
+    validFrom: string
+    validTo: string
   }>
-  installedAt: unknown
-  updatedAt: unknown
+  installedAt: string
+  updatedAt: string
 }
 
 export interface Fragment_SmsConversationFragment {
   id: string
   address: string
   snippet: string
-  lastMessageAt: unknown
+  lastMessageAt: string
   messageCount: number
   read: boolean
 }
@@ -336,7 +336,7 @@ export interface Fragment_SmsConversationWithAddressesFragment {
   address: string
   addresses: Array<string>
   snippet: string
-  lastMessageAt: unknown
+  lastMessageAt: string
   messageCount: number
   read: boolean
 }
@@ -346,7 +346,7 @@ export interface Fragment_SmsFragment {
   body: string
   address: string
   serviceCenter: string
-  sentAt: unknown
+  sentAt: string
   type: 'INBOX' | 'SENT' | 'DRAFT' | 'OUTBOX' | 'FAILED' | 'QUEUED' | 'UNKNOWN'
   threadId: string
   subscriptionId: number
@@ -377,9 +377,9 @@ export interface Fragment_VideoFragment {
   durationMs: number
   size: number
   bucketId: string
-  createdAt: unknown
-  updatedAt: unknown
-  takenAt?: unknown
+  createdAt: string
+  updatedAt: string
+  takenAt?: string
   tags: Array<Fragment_TagSubFragment>
 }
 
@@ -1054,7 +1054,7 @@ export interface GqlOperations {
     result: {
       installPackage: {
         id: string
-        updatedAt?: unknown
+        updatedAt?: string
         isNew: boolean
       }
     }
@@ -1536,7 +1536,7 @@ export interface GqlOperations {
         status: 'PAIRED' | 'UNPAIRED' | 'CHANNEL'
         online: boolean
         port: number
-        deviceType: 'PHONE' | 'TABLET' | 'COMPUTER' | 'TV' | 'NAS' | 'OTHER' | 'UNKNOWN'
+        deviceType: 'PHONE' | 'TABLET' | 'COMPUTER' | 'TV' | 'NAS' | 'OTHER'
         createdAt: string
         updatedAt: string
       }>
@@ -1883,9 +1883,9 @@ export interface GqlOperations {
       notes: Array<{
         id: string
         title: string
-        deletedAt?: unknown
-        createdAt: unknown
-        updatedAt: unknown
+        deletedAt?: string
+        createdAt: string
+        updatedAt: string
         tags: Array<Fragment_TagSubFragment>
       }>
       noteCount: number
@@ -1920,9 +1920,9 @@ export interface GqlOperations {
         author: string
         feedId: string
         rawId: string
-        publishedAt: unknown
-        createdAt: unknown
-        updatedAt: unknown
+        publishedAt: string
+        createdAt: string
+        updatedAt: string
         tags: Array<Fragment_TagSubFragment>
       }>
       total: number
@@ -2099,7 +2099,7 @@ export interface GqlOperations {
       packageStatuses: Array<{
         id: string
         exists: boolean
-        updatedAt?: unknown
+        updatedAt?: string
       }>
     }
     variables: {
@@ -2243,7 +2243,7 @@ export interface GqlOperations {
   pomodoroTodayAndSettingsGQL: {
     result: {
       pomodoroToday: {
-        date: unknown
+        date: string
         completedCount: number
         currentRound: number
         timeLeftSec: number
@@ -2371,7 +2371,7 @@ export interface GqlOperations {
         canvasWidth: number
         canvasHeight: number
         layerCount: number
-        updatedAt: unknown
+        updatedAt: string
       }>
     }
     variables: undefined
@@ -2385,7 +2385,7 @@ export interface GqlOperations {
         canvasWidth: number
         canvasHeight: number
         layerCount: number
-        updatedAt: unknown
+        updatedAt: string
       }
     }
     variables: {

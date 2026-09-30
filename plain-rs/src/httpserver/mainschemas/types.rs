@@ -1,4 +1,5 @@
-use async_graphql::{Enum, InputObject, SimpleObject, Union};
+use super::media::types::{Instant, Long};
+use async_graphql::{ComplexObject, Enum, ID, InputObject, SimpleObject, Union};
 
 use crate::api::db::{DBookmark, DBookmarkGroup, DChannel, DChat, DPeer};
 use crate::api::enums::{
@@ -58,8 +59,8 @@ pub struct DeviceInfo {
     pub language: String,
     pub cpu_arch: String,
     pub cpu_model: Option<String>,
-    pub total_memory: i64,
-    pub total_storage: i64,
+    pub total_memory: Long,
+    pub total_storage: Long,
     pub display: Option<DisplayInfo>,
     pub android: Option<AndroidExtras>,
 }
@@ -74,7 +75,7 @@ pub struct Temperature {
 #[derive(SimpleObject, Default)]
 #[graphql(name = "DeviceStatus")]
 pub struct DeviceStatus {
-    pub uptime_sec: i64,
+    pub uptime_sec: Long,
     /// 0-100; None when the device has no battery or the level is unknown.
     pub battery_level: Option<i32>,
     /// True only while actively charging; full-while-plugged is false.
@@ -84,9 +85,9 @@ pub struct DeviceStatus {
     /// 0-100 percent, diffed from two CPU counter samples.
     pub cpu_usage: f64,
     /// OS-level available memory; None when the platform does not expose it.
-    pub memory_available: Option<i64>,
+    pub memory_available: Option<Long>,
     /// Available bytes on the primary data volume.
-    pub storage_available: i64,
+    pub storage_available: Long,
 }
 
 #[derive(SimpleObject)]
@@ -133,7 +134,7 @@ pub enum MergeTaskStatus {
 pub struct MergeTask {
     pub status: MergeTaskStatus,
     pub value: Option<String>,
-    pub merged_size: Option<i64>,
+    pub merged_size: Option<Long>,
     pub error: Option<String>,
 }
 
@@ -145,28 +146,33 @@ pub struct AudioItem {
     pub artist: String,
     pub path: String,
     #[graphql(name = "durationMs")]
-    pub duration_ms: i64,
+    pub duration_ms: Long,
 }
 
 /// A user playlist (plain-app `AudioPlaylist`); `itemCount` is live.
 #[derive(SimpleObject, Clone, Debug)]
+#[graphql(complex)]
 pub struct AudioPlaylist {
-    pub id: String,
+    pub id: ID,
     pub name: String,
     pub item_count: i32,
+    #[graphql(skip)]
     pub created_at: String,
+    #[graphql(skip)]
     pub updated_at: String,
 }
 
 /// Recently played track (plain-app `AudioPlayHistory`).
 #[derive(SimpleObject, Clone, Debug)]
+#[graphql(complex)]
 pub struct AudioPlayHistory {
     pub path: String,
     pub title: String,
     pub artist: String,
     #[graphql(name = "durationMs")]
-    pub duration_ms: i64,
+    pub duration_ms: Long,
     pub play_count: i64,
+    #[graphql(skip)]
     pub played_at: String,
 }
 
@@ -179,7 +185,7 @@ pub struct AudioPlayback {
     pub mode: crate::api::enums::MediaPlayMode,
     pub current_path: Option<String>,
     pub is_playing: bool,
-    pub position_ms: i64,
+    pub position_ms: Long,
 }
 
 /// Optional capabilities the server declares about itself; the web client
@@ -229,14 +235,14 @@ pub struct App {
 /// All fields from both `homeStatsGQL` and the full `mountsGQL` query.
 #[derive(SimpleObject)]
 pub struct Mount {
-    pub id: String,
+    pub id: ID,
     pub name: String,
     pub path: String,
     pub mount_point: String,
     pub fs_type: String,
-    pub total_bytes: i64,
-    pub used_bytes: i64,
-    pub free_bytes: i64,
+    pub total_bytes: Long,
+    pub used_bytes: Long,
+    pub free_bytes: Long,
     pub remote: bool,
     pub alias: String,
     pub drive_type: DriveType,
@@ -273,14 +279,14 @@ pub struct VideoFileInfo {
     /// Milliseconds. `0` in local mode — the desktop local server has no
     /// `MediaMetadataRetriever` equivalent. Main-window traffic still goes
     /// through the device server and returns real durations.
-    pub duration_ms: i64,
+    pub duration_ms: Long,
     pub location: Option<Location>,
 }
 
 #[derive(SimpleObject)]
 pub struct AudioFileInfo {
     /// Milliseconds. `0` in local mode (see `VideoFileInfo::duration_ms`).
-    pub duration_ms: i64,
+    pub duration_ms: Long,
     pub location: Option<Location>,
 }
 
@@ -294,20 +300,25 @@ pub enum MediaFileInfo {
 
 /// `fileInfo` query result. `data` is `None` for non-media files.
 #[derive(SimpleObject)]
+#[graphql(complex)]
 pub struct FileInfo {
     pub path: String,
+    #[graphql(skip)]
     pub updated_at: String,
-    pub size: i64,
+    pub size: Long,
     pub data: Option<MediaFileInfo>,
 }
 
 #[derive(SimpleObject)]
+#[graphql(complex)]
 pub struct ChatItem {
-    pub id: String,
-    pub from_id: String,
-    pub to_id: String,
-    pub channel_id: Option<String>,
+    pub id: ID,
+    pub from_id: ID,
+    pub to_id: ID,
+    pub channel_id: Option<ID>,
+    #[graphql(skip)]
     pub created_at: String,
+    #[graphql(skip)]
     pub updated_at: String,
     pub content: String,
     pub status: ChatStatus,
@@ -317,13 +328,13 @@ pub struct ChatItem {
 impl From<DChat> for ChatItem {
     fn from(c: DChat) -> Self {
         Self {
-            id: c.id,
-            from_id: c.from_id,
-            to_id: c.to_id,
+            id: c.id.into(),
+            from_id: c.from_id.into(),
+            to_id: c.to_id.into(),
             channel_id: if c.channel_id.is_empty() {
                 None
             } else {
-                Some(c.channel_id)
+                Some(c.channel_id.into())
             },
             created_at: c.created_at,
             updated_at: c.updated_at,
@@ -336,19 +347,22 @@ impl From<DChat> for ChatItem {
 
 #[derive(SimpleObject, Clone)]
 pub struct ChatChannelMember {
-    pub peer_id: String,
+    pub peer_id: ID,
     pub status: MemberStatus,
 }
 
 #[derive(SimpleObject)]
+#[graphql(complex)]
 pub struct ChatChannel {
-    pub id: String,
+    pub id: ID,
     pub name: String,
-    pub owner_id: String,
+    pub owner_id: ID,
     pub members: Vec<ChatChannelMember>,
-    pub version: i64,
+    pub version: Long,
     pub status: ChannelStatus,
+    #[graphql(skip)]
     pub created_at: String,
+    #[graphql(skip)]
     pub updated_at: String,
 }
 
@@ -357,16 +371,16 @@ impl From<DChannel> for ChatChannel {
         let members = crate::chat::channel::messages::decode_members(&ch.members)
             .into_iter()
             .map(|m| ChatChannelMember {
-                peer_id: m.peer_id,
+                peer_id: m.peer_id.into(),
                 status: m.status.into(),
             })
             .collect();
         Self {
-            id: ch.id,
+            id: ch.id.into(),
             name: ch.name,
-            owner_id: ch.owner_id,
+            owner_id: ch.owner_id.into(),
             members,
-            version: ch.version,
+            version: Long(ch.version),
             status: ch.status.into(),
             created_at: ch.created_at,
             updated_at: ch.updated_at,
@@ -375,9 +389,10 @@ impl From<DChannel> for ChatChannel {
 }
 
 #[derive(SimpleObject, serde::Serialize)]
+#[graphql(complex)]
 #[serde(rename_all = "camelCase")]
 pub struct Peer {
-    pub id: String,
+    pub id: ID,
     pub name: String,
     pub ip: String,
     pub status: PeerStatus,
@@ -388,7 +403,9 @@ pub struct Peer {
     pub token: String,
     #[graphql(skip)]
     pub public_key: String,
+    #[graphql(skip)]
     pub created_at: String,
+    #[graphql(skip)]
     pub updated_at: String,
 }
 
@@ -398,7 +415,7 @@ impl Peer {
     /// `DPeer.toModel()` which calls `PeerStatusManager.isOnline(id)`.
     pub fn from_dpeer(p: DPeer, online: bool) -> Self {
         Self {
-            id: p.id,
+            id: p.id.into(),
             name: p.name,
             ip: p.ip,
             status: p.status.into(),
@@ -414,29 +431,33 @@ impl Peer {
 }
 
 #[derive(SimpleObject)]
+#[graphql(complex)]
 #[graphql(name = "Bookmark")]
 pub struct Bookmark {
-    pub id: String,
+    pub id: ID,
     pub url: String,
     pub title: String,
     pub favicon_path: String,
-    pub group_id: String,
+    pub group_id: ID,
     pub pinned: bool,
     pub click_count: i32,
+    #[graphql(skip)]
     pub last_clicked_at: Option<String>,
     pub sort_order: i32,
+    #[graphql(skip)]
     pub created_at: String,
+    #[graphql(skip)]
     pub updated_at: String,
 }
 
 impl From<DBookmark> for Bookmark {
     fn from(b: DBookmark) -> Self {
         Self {
-            id: b.id,
+            id: b.id.into(),
             url: b.url,
             title: b.title,
             favicon_path: b.favicon_path,
-            group_id: b.group_id,
+            group_id: b.group_id.into(),
             pinned: b.pinned,
             click_count: b.click_count,
             last_clicked_at: b.last_clicked_at,
@@ -448,21 +469,24 @@ impl From<DBookmark> for Bookmark {
 }
 
 #[derive(SimpleObject)]
+#[graphql(complex)]
 #[graphql(name = "BookmarkGroup")]
 pub struct BookmarkGroup {
-    pub id: String,
+    pub id: ID,
     pub name: String,
     pub collapsed: bool,
     pub sort_order: i32,
     pub item_count: i32,
+    #[graphql(skip)]
     pub created_at: String,
+    #[graphql(skip)]
     pub updated_at: String,
 }
 
 impl BookmarkGroup {
     pub fn from_group(g: DBookmarkGroup, item_count: i32) -> Self {
         Self {
-            id: g.id,
+            id: g.id.into(),
             name: g.name,
             collapsed: g.collapsed,
             sort_order: g.sort_order,
@@ -478,7 +502,50 @@ impl BookmarkGroup {
 pub struct BookmarkInput {
     pub url: String,
     pub title: String,
-    pub group_id: String,
+    pub group_id: ID,
     pub pinned: bool,
     pub sort_order: i32,
+}
+
+pub(crate) fn parse_instant(value: &str) -> async_graphql::Result<Instant> {
+    chrono::DateTime::parse_from_rfc3339(value)
+        .map(|dt| Instant(dt.with_timezone(&chrono::Utc)))
+        .map_err(|e| async_graphql::Error::new(format!("invalid stored timestamp: {e}")))
+}
+
+macro_rules! instant_fields {
+    ($name:ident, $($field:ident),+ $(,)?) => {
+        #[ComplexObject]
+        impl $name {
+            $(async fn $field(&self) -> async_graphql::Result<Instant> {
+                parse_instant(&self.$field)
+            })+
+        }
+    };
+}
+
+instant_fields!(AudioPlaylist, created_at, updated_at);
+instant_fields!(AudioPlayHistory, played_at);
+instant_fields!(FileInfo, updated_at);
+instant_fields!(ChatItem, created_at, updated_at);
+instant_fields!(ChatChannel, created_at, updated_at);
+instant_fields!(Peer, created_at, updated_at);
+instant_fields!(BookmarkGroup, created_at, updated_at);
+
+#[ComplexObject]
+impl Bookmark {
+    async fn created_at(&self) -> async_graphql::Result<Instant> {
+        parse_instant(&self.created_at)
+    }
+
+    async fn updated_at(&self) -> async_graphql::Result<Instant> {
+        parse_instant(&self.updated_at)
+    }
+
+    async fn last_clicked_at(&self) -> async_graphql::Result<Option<Instant>> {
+        self.last_clicked_at
+            .as_deref()
+            .map(parse_instant)
+            .transpose()
+    }
 }

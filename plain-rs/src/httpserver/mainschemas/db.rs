@@ -1,3 +1,4 @@
+use super::media::types::Long;
 use async_graphql::{Context, Enum, Object, SimpleObject};
 use std::sync::Arc;
 
@@ -49,9 +50,9 @@ impl DbQuery {
         c.db.with_conn(sqlite_browse::tables)
     }
 
-    async fn db_table_row_count(&self, ctx: &Context<'_>, table: String) -> i32 {
+    async fn db_table_row_count(&self, ctx: &Context<'_>, table: String) -> Long {
         let c = ctx.data_unchecked::<Arc<AppCtx>>();
-        c.db.with_conn(|conn| sqlite_browse::row_count(conn, &table).unwrap_or(0)) as i32
+        Long(c.db.with_conn(|conn| sqlite_browse::row_count(conn, &table).unwrap_or(0)))
     }
 
     async fn db_table_rows(

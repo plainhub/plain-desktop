@@ -1,27 +1,43 @@
-use async_graphql::{Context, Object, SimpleObject};
+use async_graphql::{ComplexObject, Context, Object, SimpleObject};
 use std::sync::Arc;
 
+use super::media::types::{Instant, Long};
+use super::types::parse_instant;
 use crate::api::context::AppCtx;
 use crate::api::db::DAppFile;
 use crate::chat::app_file_store::{display_name, file_name_map};
 
 #[derive(SimpleObject)]
 #[graphql(name = "AppFile")]
+#[graphql(complex)]
 pub struct AppFile {
     pub id: String,
-    pub size: i64,
+    pub size: Long,
     pub mime_type: String,
     pub real_path: String,
     pub file_name: String,
+    #[graphql(skip)]
     pub created_at: String,
+    #[graphql(skip)]
     pub updated_at: String,
+}
+
+#[ComplexObject]
+impl AppFile {
+    async fn created_at(&self) -> async_graphql::Result<Instant> {
+        parse_instant(&self.created_at)
+    }
+
+    async fn updated_at(&self) -> async_graphql::Result<Instant> {
+        parse_instant(&self.updated_at)
+    }
 }
 
 impl AppFile {
     pub fn from_dappfile(f: DAppFile, file_name: String) -> Self {
         Self {
             id: f.id,
-            size: f.size,
+            size: Long(f.size),
             mime_type: f.mime_type,
             real_path: f.real_path,
             file_name,

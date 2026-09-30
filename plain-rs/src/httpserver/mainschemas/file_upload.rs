@@ -24,6 +24,7 @@ use std::sync::{Arc, Mutex, OnceLock};
 use crate::api::context::{AppCtx, WS_UPLOAD_MERGE_RESULT, WsEvent};
 use crate::chat::app_file_store;
 
+use super::media::types::Long;
 use super::types::{MergeTask, MergeTaskStatus};
 
 #[derive(Default)]
@@ -105,14 +106,14 @@ impl FileUploadMutation {
         total_chunks: i32,
         path: String,
         replace: bool,
-        total_size: i64,
+        total_size: Long,
     ) -> GqlResult<MergeTask> {
         start_merge(
             ctx,
             file_id,
             total_chunks,
             MergeKind::File { path, replace },
-            total_size,
+            total_size.0,
         )
     }
 
@@ -126,14 +127,14 @@ impl FileUploadMutation {
         file_id: String,
         total_chunks: i32,
         file_name: String,
-        total_size: i64,
+        total_size: Long,
     ) -> GqlResult<MergeTask> {
         start_merge(
             ctx,
             file_id,
             total_chunks,
             MergeKind::AppFile { file_name },
-            total_size,
+            total_size.0,
         )
     }
 }
@@ -351,7 +352,7 @@ fn done_task(state: Option<&MergeJobState>) -> Option<MergeTask> {
         Some(MergeJobState::Done { value, size }) => Some(MergeTask {
             status: MergeTaskStatus::Done,
             value: Some(value.clone()),
-            merged_size: Some(*size as i64),
+            merged_size: Some(Long(*size as i64)),
             error: None,
         }),
         _ => None,
@@ -375,7 +376,7 @@ fn task_from_state(state: Option<&MergeJobState>) -> MergeTask {
         Some(MergeJobState::Done { value, size }) => MergeTask {
             status: MergeTaskStatus::Done,
             value: Some(value.clone()),
-            merged_size: Some(*size as i64),
+            merged_size: Some(Long(*size as i64)),
             error: None,
         },
         Some(MergeJobState::Failed { error }) => MergeTask {

@@ -76,7 +76,7 @@ impl BookmarkMutation {
         &self,
         ctx: &Context<'_>,
         urls: Vec<String>,
-        group_id: String,
+        group_id: ID,
     ) -> Vec<Bookmark> {
         let c = ctx.data_unchecked::<Arc<AppCtx>>();
         let created = urls
@@ -84,7 +84,7 @@ impl BookmarkMutation {
             .map(|url| url.trim().to_string())
             .filter(|url| !url.is_empty())
             .map(|url| {
-                let bookmark = DBookmark::new(&url, &group_id);
+                let bookmark = DBookmark::new(&url, group_id.as_str());
                 bookmark_db::insert_bookmark(&c.db, &bookmark);
                 bookmark
             })
@@ -103,7 +103,7 @@ impl BookmarkMutation {
             .ok_or_else(|| async_graphql::Error::new("bookmark not found"))?;
         bookmark.url = input.url;
         bookmark.title = input.title;
-        bookmark.group_id = input.group_id;
+        bookmark.group_id = input.group_id.to_string();
         bookmark.pinned = input.pinned;
         bookmark.sort_order = input.sort_order;
         bookmark.updated_at = now_iso();

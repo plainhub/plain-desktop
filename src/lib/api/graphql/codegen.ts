@@ -155,7 +155,7 @@ function tsTypeWithLeaf(ref: TypeRef, leaf: (name: string) => string): string {
 }
 
 function leafType(name: string, ctx: Ctx): string {
-  if (name === 'String' || name === 'ID') return 'string'
+  if (name === 'String' || name === 'ID' || name === 'Instant') return 'string'
   if (name === 'Int' || name === 'Float' || name === 'Long') return 'number'
   if (name === 'Boolean') return 'boolean'
   const def = ctx.schema.types.get(name)

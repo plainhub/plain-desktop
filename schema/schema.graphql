@@ -47,12 +47,12 @@ enum AppChannelType {
 
 type AppFile {
 	id: String!
-	size: Int!
+	size: Long!
 	mimeType: String!
 	realPath: String!
 	fileName: String!
-	createdAt: String!
-	updatedAt: String!
+	createdAt: Instant!
+	updatedAt: Instant!
 }
 
 type AppUpdate {
@@ -92,7 +92,7 @@ type AudioFileInfo {
 	"""
 	Milliseconds. `0` in local mode (see `VideoFileInfo::duration_ms`).
 	"""
-	durationMs: Int!
+	durationMs: Long!
 	location: Location
 }
 
@@ -104,7 +104,7 @@ type AudioItem {
 	title: String!
 	artist: String!
 	path: String!
-	durationMs: Int!
+	durationMs: Long!
 }
 
 """
@@ -114,9 +114,9 @@ type AudioPlayHistory {
 	path: String!
 	title: String!
 	artist: String!
-	durationMs: Int!
+	durationMs: Long!
 	playCount: Int!
-	playedAt: String!
+	playedAt: Instant!
 }
 
 """
@@ -128,18 +128,18 @@ type AudioPlayback {
 	mode: MediaPlayMode!
 	currentPath: String
 	isPlaying: Boolean!
-	positionMs: Int!
+	positionMs: Long!
 }
 
 """
 A user playlist (plain-app `AudioPlaylist`); `itemCount` is live.
 """
 type AudioPlaylist {
-	id: String!
+	id: ID!
 	name: String!
 	itemCount: Int!
-	createdAt: String!
-	updatedAt: String!
+	createdAt: Instant!
+	updatedAt: Instant!
 }
 
 type AuditEvent {
@@ -165,33 +165,33 @@ enum AuditEventType {
 }
 
 type Bookmark {
-	id: String!
+	id: ID!
 	url: String!
 	title: String!
 	faviconPath: String!
-	groupId: String!
+	groupId: ID!
 	pinned: Boolean!
 	clickCount: Int!
-	lastClickedAt: String
 	sortOrder: Int!
-	createdAt: String!
-	updatedAt: String!
+	createdAt: Instant!
+	updatedAt: Instant!
+	lastClickedAt: Instant
 }
 
 type BookmarkGroup {
-	id: String!
+	id: ID!
 	name: String!
 	collapsed: Boolean!
 	sortOrder: Int!
 	itemCount: Int!
-	createdAt: String!
-	updatedAt: String!
+	createdAt: Instant!
+	updatedAt: Instant!
 }
 
 input BookmarkInput {
 	url: String!
 	title: String!
-	groupId: String!
+	groupId: ID!
 	pinned: Boolean!
 	sortOrder: Int!
 }
@@ -223,38 +223,43 @@ enum Capability {
 	DISK_MANAGER
 }
 
-enum ChannelStatus {
+enum ChannelMemberStatus {
+	JOINED
+	PENDING
+}
+
+type ChatChannel {
+	id: ID!
+	name: String!
+	ownerId: ID!
+	members: [ChatChannelMember!]!
+	version: Long!
+	status: ChatChannelStatus!
+	createdAt: Instant!
+	updatedAt: Instant!
+}
+
+type ChatChannelMember {
+	peerId: ID!
+	status: ChannelMemberStatus!
+}
+
+enum ChatChannelStatus {
 	JOINED
 	LEFT
 	KICKED
 }
 
-type ChatChannel {
-	id: String!
-	name: String!
-	ownerId: String!
-	members: [ChatChannelMember!]!
-	version: Int!
-	status: ChannelStatus!
-	createdAt: String!
-	updatedAt: String!
-}
-
-type ChatChannelMember {
-	peerId: String!
-	status: MemberStatus!
-}
-
 type ChatItem {
-	id: String!
-	fromId: String!
-	toId: String!
-	channelId: String
-	createdAt: String!
-	updatedAt: String!
+	id: ID!
+	fromId: ID!
+	toId: ID!
+	channelId: ID
 	content: String!
 	status: ChatStatus!
 	statusData: String!
+	createdAt: Instant!
+	updatedAt: Instant!
 }
 
 enum ChatStatus {
@@ -320,8 +325,8 @@ type DeviceInfo {
 	language: String!
 	cpuArch: String!
 	cpuModel: String
-	totalMemory: Int!
-	totalStorage: Int!
+	totalMemory: Long!
+	totalStorage: Long!
 	display: DisplayInfo
 	android: AndroidExtras
 }
@@ -335,7 +340,7 @@ enum DevicePlatform {
 }
 
 type DeviceStatus {
-	uptimeSec: Int!
+	uptimeSec: Long!
 	"""
 	0-100; None when the device has no battery or the level is unknown.
 	"""
@@ -355,11 +360,11 @@ type DeviceStatus {
 	"""
 	OS-level available memory; None when the platform does not expose it.
 	"""
-	memoryAvailable: Int
+	memoryAvailable: Long
 	"""
 	Available bytes on the primary data volume.
 	"""
-	storageAvailable: Int!
+	storageAvailable: Long!
 }
 
 enum DeviceType {
@@ -369,7 +374,6 @@ enum DeviceType {
 	TV
 	NAS
 	OTHER
-	UNKNOWN
 }
 
 enum DiscoveryMethod {
@@ -450,9 +454,9 @@ type File {
 """
 type FileInfo {
 	path: String!
-	updatedAt: String!
-	size: Int!
+	size: Long!
 	data: MediaFileInfo
+	updatedAt: Instant!
 }
 
 enum FileSortBy {
@@ -596,11 +600,6 @@ enum MediaPlayMode {
 	SHUFFLE
 }
 
-enum MemberStatus {
-	JOINED
-	PENDING
-}
-
 """
 Chunked-upload merge job (plain-app `MergeTask`): `value` is the merged
 result's base name once `DONE`; `merged_size` its size in bytes.
@@ -608,7 +607,7 @@ result's base name once `DONE`; `merged_size` its size in bytes.
 type MergeTask {
 	status: MergeTaskStatus!
 	value: String
-	mergedSize: Int
+	mergedSize: Long
 	error: String
 }
 
@@ -627,14 +626,14 @@ enum MergeTaskStatus {
 All fields from both `homeStatsGQL` and the full `mountsGQL` query.
 """
 type Mount {
-	id: String!
+	id: ID!
 	name: String!
 	path: String!
 	mountPoint: String!
 	fsType: String!
-	totalBytes: Int!
-	usedBytes: Int!
-	freeBytes: Int!
+	totalBytes: Long!
+	usedBytes: Long!
+	freeBytes: Long!
 	remote: Boolean!
 	alias: String!
 	driveType: DriveType!
@@ -704,7 +703,7 @@ type MutationRoot {
 	returns null.
 	"""
 	playAllAudios(shuffle: Boolean!): AudioItem
-	addBookmarks(urls: [String!]!, groupId: String!): [Bookmark!]!
+	addBookmarks(urls: [String!]!, groupId: ID!): [Bookmark!]!
 	updateBookmark(id: ID!, input: BookmarkInput!): Bookmark!
 	deleteBookmarks(ids: [ID!]!): ActionResult!
 	recordBookmarkClick(id: ID!): Boolean!
@@ -794,13 +793,13 @@ type MutationRoot {
 	(`upload_merge_result`); `mergeStatus` is the polling fallback for
 	lost events. Chunks are kept on failure so a retry reuses them.
 	"""
-	mergeChunks(fileId: String!, totalChunks: Int!, path: String!, replace: Boolean!, totalSize: Int!): MergeTask!
+	mergeChunks(fileId: String!, totalChunks: Int!, path: String!, replace: Boolean!, totalSize: Long!): MergeTask!
 	"""
 	Start merging the staged chunks and import the result into the
 	content-addressable app-file store (dedup). The returned `value` is
 	the fidSuffix (`"{hash}.{ext}"`) the client uses to build a `fid:` URI.
 	"""
-	mergeAppFileChunks(fileId: String!, totalChunks: Int!, fileName: String!, totalSize: Int!): MergeTask!
+	mergeAppFileChunks(fileId: String!, totalChunks: Int!, fileName: String!, totalSize: Long!): MergeTask!
 	"""
 	Mirrors plain-app's `startDiscovery` mutation: kicks off the
 	background scan loop that pushes discovered devices over the
@@ -1067,15 +1066,15 @@ enum PathKind {
 }
 
 type Peer {
-	id: String!
+	id: ID!
 	name: String!
 	ip: String!
 	status: PeerStatus!
 	online: Boolean!
 	port: Int!
 	deviceType: DeviceType!
-	createdAt: String!
-	updatedAt: String!
+	createdAt: Instant!
+	updatedAt: Instant!
 }
 
 enum PeerStatus {
@@ -1175,7 +1174,7 @@ type QueryRoot {
 	dataStoreEntries: [KeyValuePair!]!
 	dbPath: String!
 	dbTables: [String!]!
-	dbTableRowCount(table: String!): Int!
+	dbTableRowCount(table: String!): Long!
 	dbTableRows(table: String!, offset: Int!, limit: Int!): [String!]!
 	dbTableInfo(table: String!): DbTableInfo!
 	dbTableColumns(table: String!): [DbTableColumn!]!
@@ -1501,7 +1500,7 @@ type VideoFileInfo {
 	`MediaMetadataRetriever` equivalent. Main-window traffic still goes
 	through the device server and returns real durations.
 	"""
-	durationMs: Int!
+	durationMs: Long!
 	location: Location
 }
 

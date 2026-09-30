@@ -1,6 +1,8 @@
 use async_graphql::Object;
 
+use super::media::types::Long;
 use super::types::Mount;
+use async_graphql::ID;
 
 #[derive(Default)]
 pub struct StubQuery;
@@ -25,14 +27,14 @@ impl StubQuery {
                 let fs_type = disk.file_system().to_string_lossy().into_owned();
                 let remote = is_remote_filesystem(&fs_type);
                 Mount {
-                    id: mount_point.clone(),
+                    id: ID(mount_point.clone()),
                     name: disk.name().to_string_lossy().into_owned(),
                     path: mount_point.clone(),
                     mount_point: mount_point.clone(),
                     fs_type,
-                    total_bytes,
-                    used_bytes: total_bytes.saturating_sub(free_bytes),
-                    free_bytes,
+                    total_bytes: Long(total_bytes),
+                    used_bytes: Long(total_bytes.saturating_sub(free_bytes)),
+                    free_bytes: Long(free_bytes),
                     remote,
                     alias: String::new(),
                     drive_type: if mount_point.starts_with("/Volumes/") {

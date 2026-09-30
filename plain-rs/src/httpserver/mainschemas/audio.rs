@@ -4,6 +4,7 @@
 //! LIBRARY source resolves to zero tracks (playAllAudios returns null);
 //! the manual queue, playlists and history work in full.
 
+use super::media::types::Long;
 use crate::library::audio_queue::{self, AudioTrack};
 use async_graphql::{Context, ID, Object};
 use std::sync::Arc;
@@ -20,13 +21,13 @@ fn track_to_gql(a: AudioTrack) -> AudioItem {
         title: a.title,
         artist: a.artist,
         path: a.path,
-        duration_ms: a.duration_secs * 1000,
+        duration_ms: Long(a.duration_secs * 1000),
     }
 }
 
 fn playlist_to_gql((pl, count): (crate::library::db::Playlist, usize)) -> AudioPlaylist {
     AudioPlaylist {
-        id: pl.id,
+        id: pl.id.into(),
         name: pl.name,
         item_count: count.min(i32::MAX as usize) as i32,
         created_at: pl.created_at,
@@ -77,7 +78,7 @@ impl AudioQuery {
             current_path: (!current.is_empty()).then_some(current),
             mode: media_play_mode_of(&c.library),
             is_playing: false,
-            position_ms: 0,
+            position_ms: Long(0),
         }
     }
 
@@ -138,7 +139,7 @@ impl AudioQuery {
             path: h.path,
             title: h.title,
             artist: h.artist,
-            duration_ms: h.duration_secs * 1000,
+            duration_ms: Long(h.duration_secs * 1000),
             play_count: h.play_count,
             played_at: h.played_at,
         })
