@@ -20,7 +20,7 @@ type AndroidExtras {
 	device: String!
 	javaVmVersion: String!
 	glEsVersion: String!
-	buildTime: String!
+	buildTime: Instant!
 }
 
 type App {

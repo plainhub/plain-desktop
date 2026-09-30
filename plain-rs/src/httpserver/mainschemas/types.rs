@@ -32,7 +32,7 @@ pub struct AndroidExtras {
     pub device: String,
     pub java_vm_version: String,
     pub gl_es_version: String,
-    pub build_time: String,
+    pub build_time: super::media::types::Instant,
 }
 
 #[derive(SimpleObject)]
