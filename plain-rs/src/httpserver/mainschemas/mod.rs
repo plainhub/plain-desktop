@@ -11,16 +11,18 @@ mod chat_channel;
 pub mod chat_message;
 mod chat_peer;
 mod chat_query;
+mod content_common;
 mod datastore;
 mod db;
 mod discover;
 mod download;
 mod favorite_folder;
+mod feed;
 mod file_query;
 mod file_upload;
 pub mod media;
+mod note;
 mod pairing;
-mod stub;
 pub mod types;
 mod util;
 
@@ -41,10 +43,11 @@ use db::{DbMutation, DbQuery};
 use discover::{DiscoverMutation, DiscoverQuery};
 use download::DownloadMutation;
 use favorite_folder::{FavoriteFolderMutation, FavoriteFolderQuery};
+use feed::{FeedMutation, FeedQuery};
 use file_query::FileInfoQuery;
 use file_upload::{FileUploadMutation, FileUploadQuery};
+use note::{NoteMutation, NoteQuery};
 use pairing::PairingMutation;
-use stub::StubQuery;
 
 #[derive(MergedObject, Default)]
 pub struct QueryRoot(
@@ -61,7 +64,8 @@ pub struct QueryRoot(
     FavoriteFolderQuery,
     FileInfoQuery,
     DiscoverQuery,
-    StubQuery,
+    NoteQuery,
+    FeedQuery,
     media::MediaQueryRoot,
 );
 
@@ -82,6 +86,8 @@ pub struct MutationRoot(
     PairingMutation,
     DownloadMutation,
     FavoriteFolderMutation,
+    NoteMutation,
+    FeedMutation,
     media::MediaMutationRoot,
 );
 

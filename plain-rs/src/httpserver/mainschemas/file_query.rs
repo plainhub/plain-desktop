@@ -24,9 +24,10 @@
 
 use std::path::Path;
 
-use async_graphql::{Context, Object, Result as GqlResult};
+use async_graphql::{Context, ID, Object, Result as GqlResult};
 
 use super::media::types::Long;
+use super::types::Mount;
 use crate::api::context::AppCtx;
 use crate::api::server::uri::resolve_uri;
 use crate::httpserver::mainschemas::types::{
@@ -38,6 +39,39 @@ pub struct FileInfoQuery;
 
 #[Object]
 impl FileInfoQuery {
+    async fn mounts(&self) -> Vec<Mount> {
+        let disks = sysinfo::Disks::new_with_refreshed_list();
+        disks
+            .iter()
+            .filter(|disk| should_include_mount(disk.mount_point().to_string_lossy().as_ref()))
+            .map(|disk| {
+                let mount_point = disk.mount_point().to_string_lossy().into_owned();
+                let total_bytes = disk.total_space().min(i64::MAX as u64) as i64;
+                let free_bytes = disk.available_space().min(i64::MAX as u64) as i64;
+                let fs_type = disk.file_system().to_string_lossy().into_owned();
+                let remote = is_remote_filesystem(&fs_type);
+                Mount {
+                    id: ID(mount_point.clone()),
+                    name: disk.name().to_string_lossy().into_owned(),
+                    path: mount_point.clone(),
+                    mount_point: mount_point.clone(),
+                    fs_type,
+                    total_bytes: Long(total_bytes),
+                    used_bytes: Long(total_bytes.saturating_sub(free_bytes)),
+                    free_bytes: Long(free_bytes),
+                    remote,
+                    alias: String::new(),
+                    drive_type: if mount_point.starts_with("/Volumes/") {
+                        crate::api::enums::DriveType::UsbStorage
+                    } else {
+                        crate::api::enums::DriveType::InternalStorage
+                    },
+                    disk_id: mount_point,
+                }
+            })
+            .collect()
+    }
+
     /// Mirrors the plain-app contract `fileInfo(path, fileName)` — `path`
     /// locates the file; `fileName` is an optional display hint that selects
     /// the media-info probe on the phone and is unused here.
@@ -61,6 +95,22 @@ impl FileInfoQuery {
             data,
         })
     }
+}
+
+fn should_include_mount(mount_point: &str) -> bool {
+    #[cfg(target_os = "macos")]
+    if mount_point == "/System/Volumes/Data" {
+        return false;
+    }
+    let _ = mount_point;
+    true
+}
+
+fn is_remote_filesystem(fs_type: &str) -> bool {
+    let fs_type = fs_type.to_ascii_lowercase();
+    ["nfs", "smb", "cifs", "sshfs", "webdav"]
+        .iter()
+        .any(|kind| fs_type.contains(kind))
 }
 
 fn read_file_meta(path: &Path) -> GqlResult<(String, i64)> {
@@ -205,3 +255,7 @@ mod tests {
         assert!(!is_leap(1900));
     }
 }
+
+#[cfg(test)]
+#[path = "../../../tests/unit/api/schema/mounts.rs"]
+mod mount_tests;

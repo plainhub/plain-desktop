@@ -1,5 +1,5 @@
 //! Audio playback queue, user playlists and play history — the shared
-//! plain-rs `library` core (`local_library.db`), the same behavior the NAS
+//! plain-rs `library` core (`the shared SQLite database`), the same behavior the NAS
 //! server runs. The desktop local server has no media index yet, so the
 //! LIBRARY source resolves to zero tracks (playAllAudios returns null);
 //! the manual queue, playlists and history work in full.

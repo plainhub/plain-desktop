@@ -1,6 +1,4 @@
-//! Local persistence exposed by the shared plain-rs cores: `chat`
-//! (messages/channels/peers/bookmarks) and `library` (audio
-//! queue/playlists/history, tags, favorite folders).
+//! Shared SQLite persistence exposed by the plain-rs domains.
 
 pub use crate::chat::db::bookmark::{
     DBookmark, DBookmarkGroup, delete_bookmark_group, delete_bookmarks, get_bookmark_by_id,

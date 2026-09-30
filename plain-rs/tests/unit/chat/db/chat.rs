@@ -1,5 +1,5 @@
 use super::*;
-use crate::chat::db::tests::unique_tmp_dir;
+use crate::db::chat::tests::unique_tmp_dir;
 
 fn seed_chat(db: &ChatDb, id: &str, from_id: &str, to_id: &str, channel_id: &str) {
     let mut chat = DChat::new(from_id, to_id, channel_id, "{}");

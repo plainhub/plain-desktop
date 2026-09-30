@@ -45,7 +45,7 @@ fn task_from_state_covers_all_states() {
     }));
     assert_eq!(done.status, MergeTaskStatus::Done);
     assert_eq!(done.value.as_deref(), Some("a.jpg"));
-    assert_eq!(done.merged_size, Some(42));
+    assert_eq!(done.merged_size.map(|value| value.0), Some(42));
     let failed = task_from_state(Some(&MergeJobState::Failed {
         error: "boom".to_string(),
     }));
@@ -63,7 +63,7 @@ fn done_task_only_maps_done_state() {
     }))
     .unwrap();
     assert_eq!(task.status, MergeTaskStatus::Done);
-    assert_eq!(task.merged_size, Some(7));
+    assert_eq!(task.merged_size.map(|value| value.0), Some(7));
 }
 
 #[test]

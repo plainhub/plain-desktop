@@ -432,6 +432,37 @@ type FavoriteFolder {
 	alias: String
 }
 
+type Feed {
+	id: ID!
+	name: String!
+	url: String!
+	fetchContent: Boolean!
+	createdAt: Instant!
+	updatedAt: Instant!
+}
+
+type FeedEntry {
+	id: ID!
+	title: String!
+	url: String!
+	image: String!
+	description: String!
+	author: String!
+	content: String!
+	feedId: ID!
+	rawId: String!
+	publishedAt: Instant!
+	createdAt: Instant!
+	updatedAt: Instant!
+	tags: [Tag!]!
+	feed: Feed
+}
+
+type FeedEntryCount {
+	id: ID!
+	count: Int!
+}
+
 type File {
 	name: String!
 	path: String!
@@ -864,6 +895,21 @@ type MutationRoot {
 	Set the favorite folder's display alias and return the whole list.
 	"""
 	setFavoriteFolderAlias(fullPath: String!, alias: String!): [FavoriteFolder!]!
+	createNote(input: NoteInput!): Note!
+	updateNote(id: ID!, input: NoteInput!): Note!
+	saveFeedEntriesToNotes(query: String!): [ID!]!
+	trashNotes(query: String!): ActionResult!
+	restoreNotes(query: String!): ActionResult!
+	deleteNotes(query: String!): ActionResult!
+	exportNotes(query: String!): String!
+	syncFeeds(id: ID): Boolean!
+	updateFeed(id: ID!, name: String!, fetchContent: Boolean!): Feed!
+	createFeed(url: String!, fetchContent: Boolean!): Feed!
+	importFeeds(content: String!): Boolean!
+	exportFeeds: String!
+	deleteFeed(id: ID!): Boolean!
+	syncFeedEntryContent(id: ID!): FeedEntry!
+	deleteFeedEntries(query: String!): ActionResult!
 	"""
 	Create a directory. Mirrors Go `createDirModel` which returns the
 	freshly created `*model.File`. The path is sandboxed via
@@ -1006,6 +1052,21 @@ type MutationRoot {
 	`moveMediaItems`): filesystem move + index/db rewrite of the new path.
 	"""
 	moveMediaItems(type: MediaDataType!, query: String!, destDir: String!): ActionResult!
+}
+
+type Note {
+	id: ID!
+	title: String!
+	content: String!
+	deletedAt: Instant
+	createdAt: Instant!
+	updatedAt: Instant!
+	tags: [Tag!]!
+}
+
+input NoteInput {
+	title: String!
+	content: String!
 }
 
 """
@@ -1193,6 +1254,7 @@ type QueryRoot {
 	List all favorite folders.
 	"""
 	favoriteFolders: [FavoriteFolder!]!
+	mounts: [Mount!]!
 	"""
 	Mirrors the plain-app contract `fileInfo(path, fileName)` — `path`
 	locates the file; `fileName` is an optional display hint that selects
@@ -1205,8 +1267,13 @@ type QueryRoot {
 	"""
 	isDiscovering: Boolean!
 	noteCount(query: String!): Int!
+	note(id: ID!): Note
+	notes(offset: Int!, limit: Int!, query: String!): [Note!]!
+	feeds: [Feed!]!
+	feedEntryCounts: [FeedEntryCount!]!
 	feedEntryCount(query: String!): Int!
-	mounts: [Mount!]!
+	feedEntry(id: ID!): FeedEntry
+	feedEntries(offset: Int!, limit: Int!, query: String!): [FeedEntry!]!
 	"""
 	Count of entries in a directory (non-recursive). Mirrors plain-app
 	`fileCount(root, query)`: `root` scopes the count (empty/`/` = whole

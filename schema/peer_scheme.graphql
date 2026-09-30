@@ -8,15 +8,15 @@ enum ChannelSystemMessageType {
 }
 
 type ChatItem {
-	id: String!
-	fromId: String!
-	toId: String!
-	channelId: String
-	createdAt: String!
-	updatedAt: String!
+	id: ID!
+	fromId: ID!
+	toId: ID!
+	channelId: ID
 	content: String!
 	status: ChatStatus!
 	statusData: String!
+	createdAt: Instant!
+	updatedAt: Instant!
 }
 
 enum ChatStatus {
@@ -25,6 +25,8 @@ enum ChatStatus {
 	PARTIAL
 	PENDING
 }
+
+scalar Instant
 
 type PeerMutation {
 	"""

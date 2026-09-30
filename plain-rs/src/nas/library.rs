@@ -1,5 +1,4 @@
-//! NAS seam over the shared `crate::library` core: opens
-//! `library.db` under the data dir and re-exports the media-library
+//! NAS seam over the shared `crate::library` core: re-exports the media-library
 //! resolution (`MediaLibraryTracks`) that plain-rs implements on top of
 //! the tantivy index + fjall media rows.
 //!

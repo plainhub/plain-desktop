@@ -1,10 +1,16 @@
 #[cfg(any(feature = "api", feature = "media_gql"))]
 pub mod enums;
+#[cfg(any(feature = "chat", feature = "library", feature = "sqlite_browse"))]
+pub mod db;
 #[cfg(feature = "chat")]
 pub mod chat;
 pub mod crypto;
 #[cfg(feature = "library")]
 pub mod library;
+#[cfg(feature = "api")]
+pub mod notes;
+#[cfg(feature = "api")]
+pub mod feeds;
 #[cfg(feature = "api")]
 pub mod api;
 #[cfg(feature = "api")]
@@ -17,7 +23,9 @@ pub mod mdns;
 #[cfg(feature = "prefs")]
 pub mod prefs;
 #[cfg(feature = "sqlite_browse")]
-pub mod sqlite_browse;
+pub mod sqlite_browse {
+    pub use crate::db::browse::*;
+}
 pub mod tls;
 pub mod utils;
 pub mod ws_frame;
@@ -43,7 +51,7 @@ pub(crate) mod test_support {
         data_dir: &std::path::Path,
     ) -> std::sync::Arc<crate::library::db::LibraryDb> {
         std::sync::Arc::new(
-            crate::library::db::LibraryDb::open(&data_dir.join("library.db")).expect("open library.db"),
+            crate::library::db::LibraryDb::open(&data_dir.join("chat.db")).expect("open chat.db"),
         )
     }
 }

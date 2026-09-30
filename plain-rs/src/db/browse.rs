@@ -316,5 +316,5 @@ fn value_to_string(value: rusqlite::types::Value) -> String {
 }
 
 #[cfg(test)]
-#[path = "../tests/unit/sqlite_browse.rs"]
+#[path = "../../tests/unit/sqlite_browse.rs"]
 mod tests;

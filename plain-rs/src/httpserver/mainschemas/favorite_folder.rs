@@ -1,5 +1,5 @@
 //! Favorite folders (file-browser pins) — backed by the shared plain-rs
-//! library core (`local_library.db`), same behavior as the NAS server.
+//! library core (`the shared SQLite database`), same behavior as the NAS server.
 //! The mutations return the whole updated list (phone contract).
 
 use crate::library::favorite_folders;

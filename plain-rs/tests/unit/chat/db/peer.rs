@@ -1,6 +1,6 @@
 use super::*;
-use crate::chat::db::tests::unique_tmp_dir;
 use crate::chat::enums::{DeviceType, PeerStatus};
+use crate::db::chat::tests::unique_tmp_dir;
 
 fn seed_peer(db: &ChatDb, id: &str, status: PeerStatus, key: &str) {
     let mut peer = DPeer::new(id, id, "198.51.100.1", 12345, DeviceType::Phone);

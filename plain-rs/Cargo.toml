@@ -19,11 +19,11 @@ chat = ["dep:serde_json", "dep:rusqlite", "sqlite_browse", "tokio/sync", "tokio/
 # playlists / play history, tags + tag relations, favorite folders.
 # Ported from plain-nas's fjall implementations so NAS and desktop run
 # identical behavior. Consumers without a library skip it entirely.
-library = ["dep:rusqlite"]
+library = ["dep:rusqlite", "dep:chrono"]
 # SQLite table browsing for developer/debug UIs (the
 # /developer/database page): list tables, count + page rows as JSON,
 # PRAGMA column metadata, delete/insert rows. Shared by plain-nas
-# (chat.db + library.db) and plain-desktop (local db) devtools surfaces.
+# and plain-desktop devtools surfaces over the shared SQLite database.
 sqlite_browse = ["dep:rusqlite", "dep:serde_json"]
 # Unified preferences storage (`<data_dir>/prefs.json`, flat string→JSON
 # map): the single engine + first-run identity/url-token/mDNS-hostname
@@ -47,6 +47,9 @@ api = [
     "dep:futures-util",
     "dep:reqwest",
     "dep:regex",
+    "dep:quick-xml",
+    "dep:html2md",
+    "dep:scraper",
     "dep:sysinfo",
     "dep:tokio-tungstenite",
     "dep:zip",
@@ -163,6 +166,9 @@ native-tls = { version = "0.2", optional = true }
 # "stream" enables bytes_stream() for /proxyfs response forwarding.
 reqwest = { version = "0.12", default-features = false, features = ["native-tls", "stream"], optional = true }
 regex = { version = "1", optional = true }
+quick-xml = { version = "0.42", optional = true }
+html2md = { version = "0.2.17", optional = true }
+scraper = { version = "0.27", optional = true }
 sysinfo = { version = "0.32", default-features = false, features = ["system", "disk"], optional = true }
 tokio-tungstenite = { version = "0.24", features = ["native-tls"], optional = true }
 # AsyncReadStream needs the AsyncRead trait + ReadBuf (io-util is the

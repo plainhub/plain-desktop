@@ -1,6 +1,6 @@
 use super::*;
-use crate::chat::db::tests::unique_tmp_dir;
 use crate::chat::enums::ChannelStatus;
+use crate::db::chat::tests::unique_tmp_dir;
 
 fn seed_channel(db: &ChatDb, id: &str, status: ChannelStatus) {
     let mut channel = DChannel::new(id, "me");

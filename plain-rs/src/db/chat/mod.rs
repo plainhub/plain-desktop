@@ -4,8 +4,8 @@
 //! can be shared across async runtimes without additional cloning.
 
 use rusqlite::Connection;
-use std::path::Path;
-use std::sync::{Arc, Mutex};
+
+pub use crate::db::Db as ChatDb;
 
 mod app_file;
 pub mod bookmark;
@@ -26,46 +26,8 @@ pub use utils::{iso_from_unix_millis, now_iso, now_millis, short_id};
 // ChatDb — SQLite wrapper
 // ---------------------------------------------------------------------------
 
-pub struct ChatDb(Arc<Mutex<Connection>>);
-
-impl Clone for ChatDb {
-    fn clone(&self) -> Self {
-        ChatDb(Arc::clone(&self.0))
-    }
-}
-
-impl ChatDb {
-    /// Execute a closure with read/write access to the underlying Connection.
-    /// Used by debug GraphQL resolvers (db_tables, db_table_rows, etc.).
-    pub fn with_conn<F, T>(&self, f: F) -> T
-    where
-        F: FnOnce(&Connection) -> T,
-    {
-        let conn = self.0.lock().unwrap();
-        f(&conn)
-    }
-
-    pub fn open(db_path: &Path) -> rusqlite::Result<Self> {
-        if let Some(parent) = db_path.parent()
-            && !parent.as_os_str().is_empty()
-        {
-            std::fs::create_dir_all(parent).map_err(|e| {
-                rusqlite::Error::SqliteFailure(
-                    rusqlite::ffi::Error {
-                        code: rusqlite::ffi::ErrorCode::CannotOpen,
-                        extended_code: 0,
-                    },
-                    Some(format!(
-                        "failed to create database parent dir {}: {e}",
-                        parent.display()
-                    )),
-                )
-            })?;
-        }
-        let conn = Connection::open(db_path)?;
-        conn.execute_batch(
-            "PRAGMA journal_mode=WAL; PRAGMA synchronous=NORMAL; PRAGMA busy_timeout=5000;",
-        )?;
+impl crate::db::Db {
+    pub(crate) fn init_chat(conn: &Connection) -> rusqlite::Result<()> {
         conn.execute_batch(
             "CREATE TABLE IF NOT EXISTS chats (
                 id          TEXT PRIMARY KEY,
@@ -141,8 +103,8 @@ impl ChatDb {
                 created_at TEXT NOT NULL DEFAULT '', updated_at TEXT NOT NULL DEFAULT ''
             );",
         )?;
-        Self::run_migrations(&conn)?;
-        Ok(ChatDb(Arc::new(Mutex::new(conn))))
+        Self::run_migrations(conn)?;
+        Ok(())
     }
 
     fn run_migrations(conn: &Connection) -> rusqlite::Result<()> {

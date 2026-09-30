@@ -1,6 +1,6 @@
 // Generates `docs/DATABASE.sql` from the machine-readable source of truth:
 // the CREATE TABLE / CREATE INDEX statements in
-// `plain-rs/src/chat/db/mod.rs` (the shared SQLite schema).
+// `plain-rs/src/db/mod.rs + src/db/{chat,library}/mod.rs` (the shared SQLite schema).
 //
 // The file is generated, never hand-edited. The freshness test
 // (`tests/docs/db-schema.test.ts`, vitest `docs` project) fails when it goes
@@ -13,11 +13,11 @@ import { join } from 'node:path'
 const ROOT = process.cwd()
 
 function sharedDbSource() {
-  return join(ROOT, 'plain-rs/src/chat/db/mod.rs')
+  return [join(ROOT, 'plain-rs/src/db/mod.rs'), ...['chat', 'library'].map((name) => join(ROOT, `plain-rs/src/db/${name}/mod.rs`))]
 }
 
 export function generateDatabaseSql() {
-  const src = readFileSync(sharedDbSource(), 'utf8')
+  const src = sharedDbSource().map((path) => readFileSync(path, 'utf8')).join('\n')
   const stmts = [...src.matchAll(/(CREATE (?:TABLE|UNIQUE INDEX|INDEX) IF NOT EXISTS [\s\S]*?);/g)].map((m) =>
     // Dedent: keep the author's multi-line layout, drop the Rust-string indent.
     m[1]
@@ -29,8 +29,8 @@ export function generateDatabaseSql() {
       .trim() + ';',
   )
   const header = [
-    '-- plain-desktop 本地 SQLite DDL（local_chat.db，WAL）',
-    '-- 自动生成，禁止手改。源：plain-rs/src/chat/db/mod.rs',
+    '-- plain-desktop 本地 SQLite DDL（统一 SQLite，WAL）',
+    '-- 自动生成，禁止手改。源：plain-rs/src/db/mod.rs + src/db/{chat,library}/mod.rs',
     '-- 再生：node scripts/gen-db-schema-sql.mjs --write',
     '-- 过期锁：yarn docs:check（vitest docs project）',
     '',

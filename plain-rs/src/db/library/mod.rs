@@ -6,11 +6,12 @@
 //! sharing model as `chat::db::ChatDb`.
 
 use rusqlite::Connection;
-use std::path::Path;
-use std::sync::{Arc, Mutex};
+
+pub use crate::db::Db as LibraryDb;
 
 pub mod audio_queue;
 pub mod favorite_folder;
+pub mod notes_feeds;
 pub mod tag;
 
 pub use audio_queue::{
@@ -19,47 +20,8 @@ pub use audio_queue::{
 pub use favorite_folder::FavoriteFolderRow;
 pub use tag::{TagRelationRow, TagRow};
 
-pub struct LibraryDb(Arc<Mutex<Connection>>);
-
-impl Clone for LibraryDb {
-    fn clone(&self) -> Self {
-        LibraryDb(Arc::clone(&self.0))
-    }
-}
-
-impl LibraryDb {
-    /// Execute a closure with read/write access to the underlying Connection.
-    pub fn with_conn<F, T>(&self, f: F) -> T
-    where
-        F: FnOnce(&Connection) -> T,
-    {
-        let conn = self.0.lock().unwrap();
-        f(&conn)
-    }
-
-    /// Open (or create) the library database at `db_path`, creating the
-    /// parent directory and all tables when missing.
-    pub fn open(db_path: &Path) -> rusqlite::Result<Self> {
-        if let Some(parent) = db_path.parent()
-            && !parent.as_os_str().is_empty()
-        {
-            std::fs::create_dir_all(parent).map_err(|e| {
-                rusqlite::Error::SqliteFailure(
-                    rusqlite::ffi::Error {
-                        code: rusqlite::ffi::ErrorCode::CannotOpen,
-                        extended_code: 0,
-                    },
-                    Some(format!(
-                        "failed to create database parent dir {}: {e}",
-                        parent.display()
-                    )),
-                )
-            })?;
-        }
-        let conn = Connection::open(db_path)?;
-        conn.execute_batch(
-            "PRAGMA journal_mode=WAL; PRAGMA synchronous=NORMAL; PRAGMA busy_timeout=5000;",
-        )?;
+impl crate::db::Db {
+    pub(crate) fn init_library(conn: &Connection) -> rusqlite::Result<()> {
         conn.execute_batch(
             "CREATE TABLE IF NOT EXISTS audio_queue_source (
                 id            INTEGER PRIMARY KEY CHECK (id = 1),
@@ -124,9 +86,26 @@ impl LibraryDb {
             CREATE TABLE IF NOT EXISTS library_prefs (
                 key   TEXT PRIMARY KEY,
                 value TEXT NOT NULL DEFAULT ''
-            );",
+            );
+            CREATE TABLE IF NOT EXISTS notes (
+                id TEXT PRIMARY KEY, title TEXT NOT NULL DEFAULT '', content TEXT NOT NULL DEFAULT '',
+                deleted_at TEXT, created_at TEXT NOT NULL, updated_at TEXT NOT NULL
+            );
+            CREATE TABLE IF NOT EXISTS feeds (
+                id TEXT PRIMARY KEY, name TEXT NOT NULL DEFAULT '', url TEXT NOT NULL UNIQUE,
+                fetch_content INTEGER NOT NULL DEFAULT 0, created_at TEXT NOT NULL, updated_at TEXT NOT NULL
+            );
+            CREATE TABLE IF NOT EXISTS feed_entries (
+                id TEXT PRIMARY KEY, feed_id TEXT NOT NULL, title TEXT NOT NULL DEFAULT '',
+                url TEXT NOT NULL DEFAULT '', image TEXT NOT NULL DEFAULT '', description TEXT NOT NULL DEFAULT '',
+                author TEXT NOT NULL DEFAULT '', content TEXT NOT NULL DEFAULT '', raw_id TEXT NOT NULL DEFAULT '',
+                published_at TEXT NOT NULL, created_at TEXT NOT NULL, updated_at TEXT NOT NULL
+            );
+            CREATE UNIQUE INDEX IF NOT EXISTS idx_feed_entries_raw ON feed_entries(feed_id,raw_id);
+            CREATE INDEX IF NOT EXISTS idx_feed_entries_published ON feed_entries(published_at DESC);
+            CREATE INDEX IF NOT EXISTS idx_notes_updated ON notes(updated_at DESC);",
         )?;
-        Ok(LibraryDb(Arc::new(Mutex::new(conn))))
+        Ok(())
     }
 }
 
