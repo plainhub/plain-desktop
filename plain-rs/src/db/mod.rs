@@ -7,7 +7,9 @@ pub mod browse;
 #[cfg(any(feature = "chat", feature = "library"))]
 mod schema;
 #[cfg(feature = "chat")]
-mod app_file;
+mod managers;
+#[cfg(feature = "chat")]
+mod models;
 #[cfg(feature = "chat")]
 pub mod bookmark;
 #[cfg(feature = "chat")]
@@ -34,7 +36,7 @@ pub mod tag;
 pub mod devtools;
 
 #[cfg(feature = "chat")]
-pub use app_file::DAppFile;
+pub use models::DAppFile;
 #[cfg(feature = "chat")]
 pub use channel::DChannel;
 #[cfg(feature = "chat")]
