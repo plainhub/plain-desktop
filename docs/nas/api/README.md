@@ -74,7 +74,7 @@ curl -s -X POST -H "Authorization: Bearer dev" \
 |------|------|
 | `auth.md` | `/auth`, `/auth/status`, `/auth/setup` 三个 HTTP 端点 + 完整 session 流程 |
 | `app.md` | `app`, `deviceInfo`, `appUpdate` 三个 query + `setDeviceName`, `updateDeviceName`, `setTempValue` 等 mutation |
-| `storage.md` | `mounts`, `disks` query + `formatDisk`, `setMountAlias` mutation + StorageMount / StorageDisk 字段 |
+| `storage.md` | `mounts`, `disks` query + `formatDisk`, `setMountAlias` mutation + StorageMount / Disk 字段 |
 | `files.md` | `files`, `fileInfo`, `pathExists`, `pathKind`, `filesCount`, `recentFiles` query + `createDir`, `writeTextFile`, `renameFile`, `copyFile`, `moveFile`, `deleteFiles` mutation + File 字段 |
 | `trash.md` | `trashedFileCount`, `trashedFiles` query + `trashFiles`, `restoreFiles`, `deleteTrashedFile` mutation + TrashedFile 字段 |
 | `tags.md` | `tags` query + `createTag`, `updateTag`, `deleteTag`, `addToTags`, `updateTagRelations`, `removeFromTags` mutation + Tag / TagRelationStub 字段 |

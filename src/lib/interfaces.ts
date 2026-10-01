@@ -472,7 +472,7 @@ export interface IStorageMount {
   uuid?: string | null
 }
 
-export interface IStorageDisk {
+export interface IDisk {
   id: string
   name: string
   path: string

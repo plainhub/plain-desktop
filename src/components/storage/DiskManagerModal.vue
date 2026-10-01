@@ -86,7 +86,7 @@ v-for="v in diskVolumes(disk)" :key="v.id" :data="v"
 import { computed, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { initQuery, disksGQL, mountsGQL } from '@/lib/api/query'
-import type { IStorageDisk, IStorageMount } from '@/lib/interfaces'
+import type { IDisk, IStorageMount } from '@/lib/interfaces'
 import { formatFileSize, formatUsedTotalBytes } from '@/lib/format'
 import VolumeCard from '@/components/storage/VolumeCard.vue'
 import { getStorageVolumeTitle } from '@/lib/volumes'
@@ -95,12 +95,12 @@ import FormatDiskConfirm from '@/components/storage/FormatDiskConfirm.vue'
 
 const { t, locale } = useI18n()
 
-const disks = ref<IStorageDisk[]>([])
+const disks = ref<IDisk[]>([])
 const mounts = ref<IStorageMount[]>([])
 const errorText = ref('')
 const helpOpenId = ref('')
 
-const disksQuery = initQuery<{ disks: IStorageDisk[] }>({
+const disksQuery = initQuery<{ disks: IDisk[] }>({
   document: disksGQL,
   handle: (data, error) => {
     if (error) {
@@ -109,7 +109,7 @@ const disksQuery = initQuery<{ disks: IStorageDisk[] }>({
       return
     }
     errorText.value = ''
-    disks.value = (data?.disks ?? []) as IStorageDisk[]
+    disks.value = (data?.disks ?? []) as IDisk[]
   },
 })
 
@@ -160,19 +160,19 @@ function volumeCount(v: IStorageMount) {
   return formatUsedTotalBytes(used, total)
 }
 
-function diskVolumes(d: IStorageDisk): IStorageMount[] {
+function diskVolumes(d: IDisk): IStorageMount[] {
   const id = String(d?.id || '').trim()
   if (!id) return []
   return (mounts.value || []).filter((v) => !String(v?.path ?? '').trim() && !v.remote && String(v.diskId || '').trim() === id)
 }
 
-function diskSummaryText(d: IStorageDisk) {
+function diskSummaryText(d: IDisk) {
   const vols = diskVolumes(d)
   if (vols.length) return t('volume_count_x', { n: vols.length })
   return t('no_mounted_volumes')
 }
 
-function unavailableBytes(d: IStorageDisk) {
+function unavailableBytes(d: IDisk) {
   const diskSize = Number(d?.sizeBytes || 0)
   if (!diskSize) return 0
 
@@ -190,12 +190,12 @@ function unavailableBytes(d: IStorageDisk) {
   return gap
 }
 
-function unavailableReasonText(d: IStorageDisk) {
+function unavailableReasonText(d: IDisk) {
   if (diskVolumes(d).length) return t('unavailable_reason_whole_disk')
   return t('unavailable_reason_unset')
 }
 
-function diskTitle(d: IStorageDisk, idx = 0) {
+function diskTitle(d: IDisk, idx = 0) {
   const n = (d.name || '').trim()
   // Prefer model when present; fallback to a friendlier label than raw device name.
   const model = (d.model || '').trim()
@@ -208,7 +208,7 @@ function diskTitle(d: IStorageDisk, idx = 0) {
   return t('disk')
 }
 
-function isSystemDisk(d: IStorageDisk) {
+function isSystemDisk(d: IDisk) {
   if (diskVolumes(d).some((v) => String(v.mountPoint || '').trim() === '/')) return true
 
   const rootVol = (mounts.value || []).find((v) => !String(v?.path ?? '').trim() && String(v.mountPoint || '').trim() === '/')
@@ -217,11 +217,11 @@ function isSystemDisk(d: IStorageDisk) {
   return String(rootVol.diskId || '').trim() === String(d.id || '').trim()
 }
 
-function canFormatDisk(d: IStorageDisk) {
+function canFormatDisk(d: IDisk) {
   return !isSystemDisk(d)
 }
 
-function formatDisk(d: IStorageDisk) {
+function formatDisk(d: IDisk) {
   pushModal(FormatDiskConfirm, {
     path: d.path,
     label: diskTitle(d),

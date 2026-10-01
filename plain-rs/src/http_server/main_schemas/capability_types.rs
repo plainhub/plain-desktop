@@ -2,7 +2,7 @@ use super::types::{Instant, Long};
 use async_graphql::{Enum, ID, InputObject, SimpleObject};
 
 #[derive(SimpleObject, Clone, Debug)]
-pub struct StorageDisk {
+pub struct Disk {
     pub id: ID,
     pub name: String,
     pub path: String,

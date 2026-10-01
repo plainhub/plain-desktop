@@ -10,7 +10,7 @@ use crate::storage::blockdev::{
 use serde::Serialize;
 
 #[derive(Debug, Serialize, Default)]
-pub struct StorageDisk {
+pub struct Disk {
     pub id: String,
     pub name: String,
     pub path: String,
@@ -19,7 +19,7 @@ pub struct StorageDisk {
     pub model: Option<String>,
 }
 
-pub fn list_disks() -> Vec<StorageDisk> {
+pub fn list_disks() -> Vec<Disk> {
     let devs = match run_lsblk(&["NAME", "PATH", "TYPE", "MODEL", "SIZE", "RM"]) {
         Ok(v) => v,
         Err(_) => return vec![],
@@ -30,15 +30,15 @@ pub fn list_disks() -> Vec<StorageDisk> {
 /// Pure mapping from an `lsblk` tree to user-visible whole disks — Go
 /// `ListStorageDisks` minus the subprocess. Only top-level `TYPE=disk`
 /// entries with user-visible names survive.
-pub(crate) fn disks_from_lsblk(devs: &[LsblkDevice]) -> Vec<StorageDisk> {
+pub(crate) fn disks_from_lsblk(devs: &[LsblkDevice]) -> Vec<Disk> {
     devs.iter()
         .filter(|d| d.kind.trim() == "disk")
         .filter(|d| is_user_visible_disk_name(&d.name))
-        .map(to_storage_disk)
+        .map(to_disk)
         .collect()
 }
 
-fn to_storage_disk(d: &LsblkDevice) -> StorageDisk {
+fn to_disk(d: &LsblkDevice) -> Disk {
     let name = d.name.trim().to_string();
     let mut path = d.path.trim().to_string();
     if path.is_empty() && !name.is_empty() {
@@ -62,7 +62,7 @@ fn to_storage_disk(d: &LsblkDevice) -> StorageDisk {
             .map(str::to_string)
     });
 
-    StorageDisk {
+    Disk {
         id: disk_id_from_name(&name),
         name,
         path,

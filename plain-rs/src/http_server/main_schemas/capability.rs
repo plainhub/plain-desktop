@@ -17,7 +17,7 @@ impl CapabilityQuery {
             .map(|value| (!value.is_empty()).then_some(value))
     }
 
-    async fn disks(&self, ctx: &Context<'_>) -> Result<Vec<StorageDisk>> {
+    async fn disks(&self, ctx: &Context<'_>) -> Result<Vec<Disk>> {
         ctx.data_unchecked::<Arc<AppCtx>>()
             .shell
             .disks()

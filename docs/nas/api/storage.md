@@ -55,7 +55,7 @@ curl -s -X POST -H "Authorization: Bearer dev" \
 `/boot`/`/boot/efi`/`/efi`/`/boot/firmware`、bind mount、zram/loop、
 非块非远程来源；LVM2_member 分区、无文件系统的 <32MB 小分区隐藏。
 
-### `disks: [StorageDisk!]!`
+### `disks: [Disk!]!`
 
 底层块设备（整盘，`lsblk` TYPE=disk；隐藏 zram/loop/ram）。
 

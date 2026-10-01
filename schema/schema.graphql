@@ -382,6 +382,15 @@ enum DiscoveryMethod {
 	QR
 }
 
+type Disk {
+	id: ID!
+	name: String!
+	path: String!
+	sizeBytes: Long!
+	removable: Boolean!
+	model: String
+}
+
 type DisplayInfo {
 	width: Int!
 	height: Int!
@@ -1262,7 +1271,7 @@ type QueryRoot {
 	bookmarks: [Bookmark!]!
 	bookmarkGroups: [BookmarkGroup!]!
 	audioLyrics(path: String!): String
-	disks: [StorageDisk!]!
+	disks: [Disk!]!
 	sessions: [Session!]!
 	auditEvents(offset: Int!, limit: Int!, query: String!): [AuditEvent!]!
 	appUpdate: AppUpdate!
@@ -1502,15 +1511,6 @@ type Sim {
 	label: String!
 	number: String!
 	subscriptionId: Int!
-}
-
-type StorageDisk {
-	id: ID!
-	name: String!
-	path: String!
-	sizeBytes: Long!
-	removable: Boolean!
-	model: String
 }
 
 type Tag {

@@ -41,10 +41,10 @@ impl ShellHooks for NasShell {
         caps
     }
 
-    fn disks(&self) -> Result<Vec<capability_types::StorageDisk>> {
+    fn disks(&self) -> Result<Vec<capability_types::Disk>> {
         Ok(plain_rs::storage::storage_disks::list_disks()
             .into_iter()
-            .map(|disk| capability_types::StorageDisk {
+            .map(|disk| capability_types::Disk {
                 id: disk.id.into(),
                 name: disk.name,
                 path: disk.path,

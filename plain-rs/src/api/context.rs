@@ -194,7 +194,7 @@ pub trait ShellHooks: Send + Sync {
     }
     fn disks(
         &self,
-    ) -> anyhow::Result<Vec<crate::http_server::main_schemas::capability_types::StorageDisk>> {
+    ) -> anyhow::Result<Vec<crate::http_server::main_schemas::capability_types::Disk>> {
         anyhow::bail!("disk manager unavailable")
     }
     fn app_update(
