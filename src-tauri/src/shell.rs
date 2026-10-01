@@ -26,4 +26,8 @@ impl ShellHooks for DesktopShell {
             Capability::Notifications,
         ]
     }
+
+    fn relaunch_app(&self) -> bool {
+        self.0.restart()
+    }
 }

@@ -128,8 +128,12 @@ pub async fn chat_socket_cid(socket: WebSocket, cid: String, state: ServerState)
                             "local_server chat_ws: forwarding event type={} to cid={cid}",
                             ev.event_type
                         );
+                        let payload = ev
+                            .binary_payload
+                            .as_deref()
+                            .unwrap_or(ev.payload.as_bytes());
                         if let Some(bytes) =
-                            crate::ws_frame::encode(ev.event_type, ev.payload.as_bytes(), &key)
+                            crate::ws_frame::encode(ev.event_type, payload, &key)
                         {
                             match socket.send(Message::Binary(bytes)).await {
                                 Ok(_) => {}

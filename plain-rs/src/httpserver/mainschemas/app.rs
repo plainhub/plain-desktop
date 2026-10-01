@@ -109,6 +109,10 @@ pub struct AppMutation;
 
 #[Object]
 impl AppMutation {
+    async fn relaunch_app(&self, ctx: &Context<'_>) -> bool {
+        ctx.data_unchecked::<Arc<AppCtx>>().shell.relaunch_app()
+    }
+
     async fn update_device_name(&self, ctx: &Context<'_>, name: String) -> bool {
         let c = ctx.data_unchecked::<Arc<AppCtx>>();
         // Updates the shared name AND republishes the mDNS service (goodbye

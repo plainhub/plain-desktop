@@ -25,6 +25,8 @@ mod db_time;
 #[cfg(feature = "library")]
 pub mod audio_queue;
 #[cfg(feature = "library")]
+pub mod image_editor_project;
+#[cfg(feature = "library")]
 pub mod favorite_folder;
 #[cfg(feature = "library")]
 pub mod notes_feeds;

@@ -551,6 +551,34 @@ type Image {
 	tags: [Tag!]!
 }
 
+type ImageEditorProject {
+	id: ID!
+	stateB64: String!
+	thumbnail: String
+	canvasWidth: Int!
+	canvasHeight: Int!
+	layerCount: Int!
+	createdAt: Instant!
+	updatedAt: Instant!
+}
+
+input ImageEditorProjectInput {
+	stateB64: String!
+	thumbnail: String
+	canvasWidth: Int!
+	canvasHeight: Int!
+	layerCount: Int!
+}
+
+type ImageEditorProjectSummary {
+	id: ID!
+	thumbnail: String
+	canvasWidth: Int!
+	canvasHeight: Int!
+	layerCount: Int!
+	updatedAt: Instant!
+}
+
 type ImageFileInfo {
 	width: Int!
 	height: Int!
@@ -672,6 +700,7 @@ type Mount {
 }
 
 type MutationRoot {
+	relaunchApp: Boolean!
 	updateDeviceName(name: String!): Boolean!
 	"""
 	Play the given track: mark it current, enqueue it in the manual
@@ -895,6 +924,9 @@ type MutationRoot {
 	Set the favorite folder's display alias and return the whole list.
 	"""
 	setFavoriteFolderAlias(fullPath: String!, alias: String!): [FavoriteFolder!]!
+	saveImageEditorProject(id: ID!, input: ImageEditorProjectInput!): ImageEditorProject!
+	deleteImageEditorProject(id: ID!): Boolean!
+	broadcastImageEditorUpdate(id: ID!, update: String!): Boolean!
 	createNote(input: NoteInput!): Note!
 	updateNote(id: ID!, input: NoteInput!): Note!
 	saveFeedEntriesToNotes(query: String!): [ID!]!
@@ -908,11 +940,11 @@ type MutationRoot {
 	importFeeds(content: String!): Boolean!
 	exportFeeds: String!
 	deleteFeed(id: ID!): Boolean!
+	syncFeedEntryContent(id: ID!): FeedEntry!
+	deleteFeedEntries(query: String!): ActionResult!
 	startPomodoro(durationSec: Int!): Boolean!
 	pausePomodoro: Boolean!
 	stopPomodoro: Boolean!
-	syncFeedEntryContent(id: ID!): FeedEntry!
-	deleteFeedEntries(query: String!): ActionResult!
 	"""
 	Create a directory. Mirrors Go `createDirModel` which returns the
 	freshly created `*model.File`. The path is sandboxed via
@@ -1179,6 +1211,34 @@ enum Permission {
 	CLIPBOARD
 }
 
+type PomodoroSettings {
+	workDurationMin: Int!
+	shortBreakDurationMin: Int!
+	longBreakDurationMin: Int!
+	pomodorosBeforeLongBreak: Int!
+	showNotification: Boolean!
+	playSoundOnComplete: Boolean!
+	soundPath: String!
+	originalSoundName: String!
+}
+
+enum PomodoroState {
+	WORK
+	SHORT_BREAK
+	LONG_BREAK
+}
+
+type PomodoroToday {
+	date: Instant!
+	completedCount: Int!
+	currentRound: Int!
+	timeLeftSec: Int!
+	totalTimeSec: Int!
+	isRunning: Boolean!
+	isPaused: Boolean!
+	state: PomodoroState!
+}
+
 type QueryRoot {
 	app: App!
 	deviceInfo: DeviceInfo!
@@ -1257,6 +1317,8 @@ type QueryRoot {
 	List all favorite folders.
 	"""
 	favoriteFolders: [FavoriteFolder!]!
+	imageEditorProjects: [ImageEditorProjectSummary!]!
+	imageEditorProject(id: ID!): ImageEditorProject
 	mounts: [Mount!]!
 	"""
 	Mirrors the plain-app contract `fileInfo(path, fileName)` — `path`
@@ -1396,34 +1458,6 @@ type QueryRoot {
 	never stalls the async runtime.
 	"""
 	mediaBuckets(type: MediaDataType!): [MediaBucket!]!
-}
-
-type PomodoroSettings {
-	workDurationMin: Int!
-	shortBreakDurationMin: Int!
-	longBreakDurationMin: Int!
-	pomodorosBeforeLongBreak: Int!
-	showNotification: Boolean!
-	playSoundOnComplete: Boolean!
-	soundPath: String!
-	originalSoundName: String!
-}
-
-enum PomodoroState {
-	WORK
-	SHORT_BREAK
-	LONG_BREAK
-}
-
-type PomodoroToday {
-	date: Instant!
-	completedCount: Int!
-	currentRound: Int!
-	timeLeftSec: Int!
-	totalTimeSec: Int!
-	isRunning: Boolean!
-	isPaused: Boolean!
-	state: PomodoroState!
 }
 
 type SambaSettings {

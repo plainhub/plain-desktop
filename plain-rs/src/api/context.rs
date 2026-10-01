@@ -47,11 +47,13 @@ pub const WS_NEARBY_DISCOVERY_STOPPED: i32 = 30;
 /// enum occupies 1..=37 (with gaps), so this contract appends at 38.
 pub const WS_UPLOAD_MERGE_RESULT: i32 = 38;
 pub const WS_POMODORO_ACTION: i32 = 11;
+pub const WS_IMAGE_EDITOR_UPDATE: i32 = 34;
 
 #[derive(Clone, Debug)]
 pub struct WsEvent {
     pub event_type: i32,
     pub payload: String,
+    pub binary_payload: Option<Vec<u8>>,
     /// Delivery target: `Some(cid)` delivers only to the socket whose cid
     /// matches (per-client media/file-task/DLNA progress); `None`
     /// broadcasts to every connected socket.
@@ -63,6 +65,7 @@ impl WsEvent {
         Self {
             event_type,
             payload,
+            binary_payload: None,
             target_cid: None,
         }
     }
@@ -71,7 +74,17 @@ impl WsEvent {
         Self {
             event_type,
             payload,
+            binary_payload: None,
             target_cid: Some(cid.to_string()),
+        }
+    }
+
+    pub fn broadcast_binary(event_type: i32, payload: Vec<u8>) -> Self {
+        Self {
+            event_type,
+            payload: String::new(),
+            binary_payload: Some(payload),
+            target_cid: None,
         }
     }
 }
@@ -243,6 +256,9 @@ pub trait ShellHooks: Send + Sync {
         _cid: &str,
     ) -> anyhow::Result<()> {
         anyhow::bail!("disk manager unavailable")
+    }
+    fn relaunch_app(&self) -> bool {
+        false
     }
 }
 

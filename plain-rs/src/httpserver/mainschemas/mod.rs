@@ -20,6 +20,7 @@ mod favorite_folder;
 mod feed;
 mod file_query;
 mod file_upload;
+mod image_editor_project;
 pub mod media;
 mod note;
 mod pairing;
@@ -47,6 +48,7 @@ use favorite_folder::{FavoriteFolderMutation, FavoriteFolderQuery};
 use feed::{FeedMutation, FeedQuery};
 use file_query::FileInfoQuery;
 use file_upload::{FileUploadMutation, FileUploadQuery};
+use image_editor_project::{ImageEditorProjectMutation, ImageEditorProjectQuery};
 use note::{NoteMutation, NoteQuery};
 use pairing::PairingMutation;
 use pomodoro::{PomodoroMutation, PomodoroQuery};
@@ -64,6 +66,7 @@ pub struct QueryRoot(
     DbQuery,
     FileUploadQuery,
     FavoriteFolderQuery,
+    ImageEditorProjectQuery,
     FileInfoQuery,
     DiscoverQuery,
     NoteQuery,
@@ -89,6 +92,7 @@ pub struct MutationRoot(
     PairingMutation,
     DownloadMutation,
     FavoriteFolderMutation,
+    ImageEditorProjectMutation,
     NoteMutation,
     FeedMutation,
     PomodoroMutation,
