@@ -23,6 +23,7 @@ mod file_upload;
 pub mod media;
 mod note;
 mod pairing;
+mod pomodoro;
 pub mod types;
 mod util;
 
@@ -48,6 +49,7 @@ use file_query::FileInfoQuery;
 use file_upload::{FileUploadMutation, FileUploadQuery};
 use note::{NoteMutation, NoteQuery};
 use pairing::PairingMutation;
+use pomodoro::{PomodoroMutation, PomodoroQuery};
 
 #[derive(MergedObject, Default)]
 pub struct QueryRoot(
@@ -66,6 +68,7 @@ pub struct QueryRoot(
     DiscoverQuery,
     NoteQuery,
     FeedQuery,
+    PomodoroQuery,
     media::MediaQueryRoot,
 );
 
@@ -88,6 +91,7 @@ pub struct MutationRoot(
     FavoriteFolderMutation,
     NoteMutation,
     FeedMutation,
+    PomodoroMutation,
     media::MediaMutationRoot,
 );
 

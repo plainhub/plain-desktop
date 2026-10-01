@@ -908,6 +908,9 @@ type MutationRoot {
 	importFeeds(content: String!): Boolean!
 	exportFeeds: String!
 	deleteFeed(id: ID!): Boolean!
+	startPomodoro(durationSec: Int!): Boolean!
+	pausePomodoro: Boolean!
+	stopPomodoro: Boolean!
 	syncFeedEntryContent(id: ID!): FeedEntry!
 	deleteFeedEntries(query: String!): ActionResult!
 	"""
@@ -1274,6 +1277,8 @@ type QueryRoot {
 	feedEntryCount(query: String!): Int!
 	feedEntry(id: ID!): FeedEntry
 	feedEntries(offset: Int!, limit: Int!, query: String!): [FeedEntry!]!
+	pomodoroSettings: PomodoroSettings!
+	pomodoroToday: PomodoroToday!
 	"""
 	Count of entries in a directory (non-recursive). Mirrors plain-app
 	`fileCount(root, query)`: `root` scopes the count (empty/`/` = whole
@@ -1391,6 +1396,34 @@ type QueryRoot {
 	never stalls the async runtime.
 	"""
 	mediaBuckets(type: MediaDataType!): [MediaBucket!]!
+}
+
+type PomodoroSettings {
+	workDurationMin: Int!
+	shortBreakDurationMin: Int!
+	longBreakDurationMin: Int!
+	pomodorosBeforeLongBreak: Int!
+	showNotification: Boolean!
+	playSoundOnComplete: Boolean!
+	soundPath: String!
+	originalSoundName: String!
+}
+
+enum PomodoroState {
+	WORK
+	SHORT_BREAK
+	LONG_BREAK
+}
+
+type PomodoroToday {
+	date: Instant!
+	completedCount: Int!
+	currentRound: Int!
+	timeLeftSec: Int!
+	totalTimeSec: Int!
+	isRunning: Boolean!
+	isPaused: Boolean!
+	state: PomodoroState!
 }
 
 type SambaSettings {

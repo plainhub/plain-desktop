@@ -46,6 +46,7 @@ pub const WS_NEARBY_DISCOVERY_STOPPED: i32 = 30;
 /// JSON object `{fileId, ok, value?, mergedSize?, error?}`. plain-app's event
 /// enum occupies 1..=37 (with gaps), so this contract appends at 38.
 pub const WS_UPLOAD_MERGE_RESULT: i32 = 38;
+pub const WS_POMODORO_ACTION: i32 = 11;
 
 #[derive(Clone, Debug)]
 pub struct WsEvent {
