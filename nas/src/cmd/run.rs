@@ -24,12 +24,12 @@ impl ShellHooks for NasShell {
     }
 
     fn app_version(&self) -> String {
-        plain_rs::nas::version::full_version()
+        plain_rs::system::version::full_version()
     }
 
     fn capabilities(&self) -> Vec<Capability> {
         let mut caps = Vec::new();
-        if !plain_rs::nas::samba::detect_systemd_service_name().is_empty() {
+        if !plain_rs::storage::samba::detect_systemd_service_name().is_empty() {
             caps.push(Capability::LanShare);
         }
         if command_present("lsblk") {
@@ -42,7 +42,7 @@ impl ShellHooks for NasShell {
     }
 
     fn disks(&self) -> Result<Vec<capability_types::StorageDisk>> {
-        Ok(plain_rs::nas::storage_disks::list_disks()
+        Ok(plain_rs::storage::storage_disks::list_disks()
             .into_iter()
             .map(|disk| capability_types::StorageDisk {
                 id: disk.id.into(),
@@ -56,7 +56,7 @@ impl ShellHooks for NasShell {
     }
 
     fn app_update(&self) -> Result<capability_types::AppUpdate> {
-        let update = plain_rs::nas::app_update::app_update();
+        let update = plain_rs::system::app_update::app_update();
         Ok(capability_types::AppUpdate {
             current_version: update.current_version,
             latest_version: update.latest_version,
@@ -69,8 +69,8 @@ impl ShellHooks for NasShell {
         &self,
         prefs: &plain_rs::prefs::Prefs,
     ) -> Result<capability_types::SambaSettings> {
-        let settings = plain_rs::nas::samba::get_samba_settings(prefs);
-        let service = plain_rs::nas::samba::get_service_status();
+        let settings = plain_rs::storage::samba::get_samba_settings(prefs);
+        let service = plain_rs::storage::samba::get_service_status();
         let (service_name, service_active, service_enabled) = if service.name.is_empty() {
             (
                 settings.service_name,
@@ -91,10 +91,10 @@ impl ShellHooks for NasShell {
                     name: share.name,
                     share_path: share.share_path,
                     auth: match share.auth {
-                        plain_rs::nas::samba::SambaShareAuth::Guest => {
+                        plain_rs::storage::samba::SambaShareAuth::Guest => {
                             capability_types::SambaShareAuth::GUEST
                         }
-                        plain_rs::nas::samba::SambaShareAuth::Password => {
+                        plain_rs::storage::samba::SambaShareAuth::Password => {
                             capability_types::SambaShareAuth::PASSWORD
                         }
                     },
@@ -112,7 +112,7 @@ impl ShellHooks for NasShell {
         prefs: &plain_rs::prefs::Prefs,
         input: capability_types::SambaSettingsInput,
     ) -> Result<()> {
-        let previous = plain_rs::nas::samba::get_samba_settings(prefs);
+        let previous = plain_rs::storage::samba::get_samba_settings(prefs);
         let mut needs_password = false;
         let shares = input
             .shares
@@ -120,14 +120,14 @@ impl ShellHooks for NasShell {
             .map(|share| {
                 let auth = match share.auth {
                     capability_types::SambaShareAuth::GUEST => {
-                        plain_rs::nas::samba::SambaShareAuth::Guest
+                        plain_rs::storage::samba::SambaShareAuth::Guest
                     }
                     capability_types::SambaShareAuth::PASSWORD => {
                         needs_password = true;
-                        plain_rs::nas::samba::SambaShareAuth::Password
+                        plain_rs::storage::samba::SambaShareAuth::Password
                     }
                 };
-                plain_rs::nas::samba::SambaShare {
+                plain_rs::storage::samba::SambaShare {
                     name: share.name,
                     share_path: share.share_path,
                     auth,
@@ -146,9 +146,9 @@ impl ShellHooks for NasShell {
             !needs_password || previous.has_password,
             "password required"
         );
-        plain_rs::nas::samba::set_samba_settings(prefs, &desired)?;
-        let applied = plain_rs::nas::samba::get_samba_settings(prefs);
-        plain_rs::nas::samba::apply(prefs, &applied, "")?;
+        plain_rs::storage::samba::set_samba_settings(prefs, &desired)?;
+        let applied = plain_rs::storage::samba::get_samba_settings(prefs);
+        plain_rs::storage::samba::apply(prefs, &applied, "")?;
         Ok(())
     }
 
@@ -157,21 +157,21 @@ impl ShellHooks for NasShell {
         prefs: &plain_rs::prefs::Prefs,
         password: &str,
     ) -> Result<()> {
-        plain_rs::nas::samba::set_user_password(password).map_err(anyhow::Error::msg)?;
-        let mut settings = plain_rs::nas::samba::get_samba_settings(prefs);
+        plain_rs::storage::samba::set_user_password(password).map_err(anyhow::Error::msg)?;
+        let mut settings = plain_rs::storage::samba::get_samba_settings(prefs);
         settings.has_password = true;
-        plain_rs::nas::samba::set_samba_settings(prefs, &settings)?;
+        plain_rs::storage::samba::set_samba_settings(prefs, &settings)?;
         if settings.enabled {
-            let _ = plain_rs::nas::samba::apply(prefs, &settings, "");
+            let _ = plain_rs::storage::samba::apply(prefs, &settings, "");
         }
         Ok(())
     }
 
     fn dlna_renderers(&self, cid: &str) -> Result<Vec<capability_types::DlnaRenderer>> {
         if !cid.is_empty() {
-            plain_rs::nas::dlna::start_renderer_discovery(cid);
+            plain_rs::dlna_sender::start_renderer_discovery(cid);
         }
-        Ok(plain_rs::nas::dlna::cached_renderers()
+        Ok(plain_rs::dlna_sender::cached_renderers()
             .into_iter()
             .map(|renderer| capability_types::DlnaRenderer {
                 udn: renderer.udn,
@@ -194,19 +194,19 @@ impl ShellHooks for NasShell {
     ) -> Result<()> {
         let kind = match media_type {
             plain_rs::httpserver::mainschemas::media::types::MediaDataType::AUDIO => {
-                plain_rs::nas::dlna::MediaType::Audio
+                plain_rs::dlna_sender::MediaType::Audio
             }
             plain_rs::httpserver::mainschemas::media::types::MediaDataType::VIDEO => {
-                plain_rs::nas::dlna::MediaType::Video
+                plain_rs::dlna_sender::MediaType::Video
             }
             plain_rs::httpserver::mainschemas::media::types::MediaDataType::IMAGE => {
-                plain_rs::nas::dlna::MediaType::Image
+                plain_rs::dlna_sender::MediaType::Image
             }
             plain_rs::httpserver::mainschemas::media::types::MediaDataType::DOC => {
                 anyhow::bail!("dlna_cast_doc_unsupported")
             }
         };
-        plain_rs::nas::dlna::cast(renderer_udn, url, title, mime, kind, prefs)
+        plain_rs::dlna_sender::cast(renderer_udn, url, title, mime, kind, prefs)
             .map_err(anyhow::Error::msg)
     }
 
@@ -233,7 +233,7 @@ impl ShellHooks for NasShell {
                 .add("unmount", mount, cid);
         };
         let result =
-            plain_rs::nas::format_disk::format_disk_single_partition(prefs, path, on_unmount);
+            plain_rs::storage::format_disk::format_disk_single_partition(prefs, path, on_unmount);
         plain_rs::media::eventbus::Bus::new().publish(
             plain_rs::media::eventbus::EVENT_DISK_FORMAT_DONE,
             serde_json::json!({"path": path, "ok": result.is_ok(), "error": result.as_ref().err().map(ToString::to_string)}),
@@ -314,7 +314,7 @@ pub async fn run(paths: &AppPaths) -> Result<()> {
         }));
     }
 
-    // Chat stack (plain-app contract): SQLite chat.db + pairing manager
+    // Chat stack (plain-app contract): SQLite plain.db + pairing manager
     // over the shared plain_rs::chat module.
     let mut chat =
         crate::chat::ChatState::nas_init(&paths.data_dir, &prefs).context("init chat")?;
@@ -342,7 +342,6 @@ pub async fn run(paths: &AppPaths) -> Result<()> {
         paths.data_dir.clone(),
         paths.cache_dir.clone(),
         paths.data_dir.join("logs"),
-        paths.data_dir.join("library.db"),
         prefs.clone(),
         chat.clone(),
         event_tx,

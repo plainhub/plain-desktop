@@ -39,10 +39,7 @@ pub struct DbQuery;
 impl DbQuery {
     async fn db_path(&self, ctx: &Context<'_>) -> String {
         let c = ctx.data_unchecked::<Arc<AppCtx>>();
-        c.data_dir
-            .join("local_chat.db")
-            .to_string_lossy()
-            .into_owned()
+        c.db.with_conn(|conn| conn.path().unwrap_or_default().to_string())
     }
 
     async fn db_tables(&self, ctx: &Context<'_>) -> Vec<String> {

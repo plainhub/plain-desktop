@@ -14,15 +14,15 @@ pub(crate) fn unique_tmp_dir(label: &str) -> PathBuf {
 #[test]
 fn open_creates_missing_parent_dirs() {
     let nested = unique_tmp_dir("open-parent").join("a/b/c");
-    let db_path = nested.join("local_chat.db");
+    let db_path = nested.join("plain.db");
 
-    let db = ChatDb::open(&db_path).expect("should create missing parents");
+    let db = Db::open(&db_path).expect("should create missing parents");
 
     assert!(nested.exists(), "nested parent directory should be created");
     assert!(db_path.exists(), "db file should be created");
 
     // Second open on the same path should also succeed (reopen existing DB).
-    let _reopen = ChatDb::open(&db_path).expect("should reopen existing DB");
+    let _reopen = Db::open(&db_path).expect("should reopen existing DB");
 
     // Verify the wrapper actually wraps a live connection.
     db.with_conn(|_| ());
@@ -31,16 +31,16 @@ fn open_creates_missing_parent_dirs() {
 #[test]
 fn open_works_when_db_already_exists() {
     let dir = unique_tmp_dir("open-existing");
-    let db_path = dir.join("local_chat.db");
+    let db_path = dir.join("plain.db");
 
-    let _ = ChatDb::open(&db_path).expect("first open");
-    let _ = ChatDb::open(&db_path).expect("second open");
+    let _ = Db::open(&db_path).expect("first open");
+    let _ = Db::open(&db_path).expect("second open");
 }
 
 #[test]
 fn open_sets_busy_timeout() {
     let dir = unique_tmp_dir("busy-timeout");
-    let db = ChatDb::open(&dir.join("local_chat.db")).expect("open");
+    let db = Db::open(&dir.join("plain.db")).expect("open");
 
     let ms: i64 = db.with_conn(|conn| {
         conn.query_row("PRAGMA busy_timeout", [], |row| row.get(0))
@@ -51,8 +51,8 @@ fn open_sets_busy_timeout() {
 
 #[test]
 fn primary_key_column_returns_named_pk() {
-    let db_path = unique_tmp_dir("pk-named").join("local_chat.db");
-    let db = ChatDb::open(&db_path).expect("open db");
+    let db_path = unique_tmp_dir("pk-named").join("plain.db");
+    let db = Db::open(&db_path).expect("open db");
 
     db.with_conn(|conn| {
         conn.execute_batch(
@@ -67,16 +67,16 @@ fn primary_key_column_returns_named_pk() {
 
 #[test]
 fn primary_key_column_falls_back_for_missing_table() {
-    let db_path = unique_tmp_dir("pk-fallback").join("local_chat.db");
-    let db = ChatDb::open(&db_path).expect("open db");
+    let db_path = unique_tmp_dir("pk-fallback").join("plain.db");
+    let db = Db::open(&db_path).expect("open db");
 
     assert_eq!(db.primary_key_column("does_not_exist"), "id");
 }
 
 #[test]
 fn table_columns_returns_declared_order() {
-    let db_path = unique_tmp_dir("table-columns").join("local_chat.db");
-    let db = ChatDb::open(&db_path).expect("open db");
+    let db_path = unique_tmp_dir("table-columns").join("plain.db");
+    let db = Db::open(&db_path).expect("open db");
 
     db.with_conn(|conn| {
         conn.execute_batch(
@@ -107,8 +107,8 @@ fn table_columns_returns_declared_order() {
 /// design alignment lock.
 #[test]
 fn chat_tables_match_plain_app_schema() {
-    let db_path = unique_tmp_dir("schema").join("local_chat.db");
-    let db = ChatDb::open(&db_path).expect("open db");
+    let db_path = unique_tmp_dir("schema").join("plain.db");
+    let db = Db::open(&db_path).expect("open db");
 
     let expect: &[(&str, &[&str])] = &[
         (

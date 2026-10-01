@@ -4,7 +4,7 @@
 use super::*;
 use crate::library::audio_queue::AudioTrack;
 
-fn test_library() -> LibraryDb {
+fn test_library() -> Db {
     static SEQ: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
     let seq = SEQ.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
     let dir = std::env::temp_dir().join(format!(
@@ -13,7 +13,7 @@ fn test_library() -> LibraryDb {
     ));
     let _ = std::fs::remove_dir_all(&dir);
     std::fs::create_dir_all(&dir).unwrap();
-    LibraryDb::open(&dir.join("library.db")).unwrap()
+    Db::open(&dir.join("plain.db")).unwrap()
 }
 
 #[test]

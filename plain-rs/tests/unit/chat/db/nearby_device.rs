@@ -20,10 +20,10 @@ fn nearby_cache_survives_reopen_and_preserves_newer_sightings() {
         platform: "android".into(),
         last_seen: 100,
     };
-    let db = ChatDb::open(&path).unwrap();
+    let db = Db::open(&path).unwrap();
     db.save_cached_nearby_device(&device).unwrap();
     drop(db);
-    let db = ChatDb::open(&path).unwrap();
+    let db = Db::open(&path).unwrap();
     assert_eq!(
         db.get_cached_nearby_devices().unwrap(),
         vec![device.clone()]

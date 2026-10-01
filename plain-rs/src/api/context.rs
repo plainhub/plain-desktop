@@ -2,7 +2,7 @@
 
 use crate::api::AppIdentity;
 use crate::api::chat::ChatState;
-use crate::api::db::ChatDb;
+use crate::db::Db;
 use crate::api::discover::{NearbyDiscoverManager, PeerStatusManager};
 use std::path::PathBuf;
 use std::sync::Arc;
@@ -78,10 +78,7 @@ impl WsEvent {
 /// All server-level dependencies bundled for injection into async-graphql resolvers.
 /// Passed per-request via `Request::data(Arc<AppCtx>)`.
 pub struct AppCtx {
-    pub db: Arc<ChatDb>,
-    /// User library (audio queue/playlists/history, tags, favorite
-    /// folders) — plain-rs `library` core over the shared SQLite database.
-    pub library: Arc<crate::api::db::LibraryDb>,
+    pub db: Arc<Db>,
     /// The unified preferences store (`<data_dir>/prefs.json`) — the
     /// single in-process writer; resolvers read/write through it.
     pub prefs: Arc<crate::prefs::Prefs>,
@@ -115,7 +112,6 @@ impl AppCtx {
         data_dir: PathBuf,
         cache_dir: PathBuf,
         log_dir: PathBuf,
-        legacy_library_path: PathBuf,
         prefs: Arc<crate::prefs::Prefs>,
         chat: Arc<ChatState>,
         event_tx: broadcast::Sender<WsEvent>,
@@ -129,8 +125,6 @@ impl AppCtx {
             ed25519_keypair: chat.identity.ed25519_keypair.clone(),
         });
         let db = Arc::new(chat.service.db.clone());
-        db.import_legacy_library(&legacy_library_path)?;
-        let library = db.clone();
         let media = Arc::new(crate::media::service::MediaService::init(
             &data_dir, &cache_dir,
         )?);
@@ -152,7 +146,6 @@ impl AppCtx {
         let token = chat.service.token.clone();
         Ok(Arc::new(Self {
             db,
-            library,
             prefs,
             identity,
             peer_status,

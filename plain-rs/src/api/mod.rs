@@ -24,3 +24,6 @@ pub use context::ShellHooks;
 
 // Identity lives with the preferences engine (`prefs::identity`).
 pub use crate::prefs::identity::{default_device_name, generate_identity, AppIdentity};
+
+#[cfg(feature = "system")]
+pub mod chat_discovery;

@@ -14,7 +14,7 @@
 use std::collections::{HashMap, HashSet};
 use std::sync::RwLock;
 
-use crate::chat::db::{ChatDb, DChat};
+use crate::db::{Db, DChat};
 
 pub struct ChatCacher {
     latest_chat_map: RwLock<HashMap<String, DChat>>,
@@ -39,7 +39,7 @@ impl ChatCacher {
     /// 2. Fetch latest chats per conversation via `getAllLatestChats()`.
     /// 3. Map each chat to its conversation ID (channel / peer / "local").
     /// 4. Keep the most recently updated chat per conversation ID.
-    pub fn load(&self, db: &ChatDb) {
+    pub fn load(&self, db: &Db) {
         let peer_ids: HashSet<String> = db.get_peers().iter().map(|p| p.id.clone()).collect();
         let channel_ids: HashSet<String> =
             db.get_all_channels().iter().map(|c| c.id.clone()).collect();

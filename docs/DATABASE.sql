@@ -1,8 +1,7 @@
 -- plain-desktop 本地 SQLite DDL（统一 SQLite，WAL）
--- 自动生成，禁止手改。源：plain-rs/src/db/mod.rs + src/db/{chat,library}/mod.rs
+-- 自动生成，禁止手改。源：plain-rs/src/db/{schema_chat,schema_library}.rs
 -- 再生：node scripts/gen-db-schema-sql.mjs --write
 -- 过期锁：yarn docs:check（vitest docs project）
-CREATE TABLE IF NOT EXISTS db_migrations (key TEXT PRIMARY KEY);
 CREATE TABLE IF NOT EXISTS chats (
 id          TEXT PRIMARY KEY,
 from_id     TEXT NOT NULL DEFAULT '',

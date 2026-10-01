@@ -24,12 +24,12 @@ pub async fn execute_graphql(
         .data(cid)
         .data(ctx.media.db.clone())
         .data(ctx.prefs.clone())
-        .data(ctx.library.clone());
+        .data(ctx.db.clone());
     let response = schema.execute(request).await;
 
     serde_json::to_value(response).unwrap_or_else(|_| json!({ "data": null }))
 }
 
-#[cfg(all(test, feature = "nas"))]
+#[cfg(all(test, feature = "system"))]
 #[path = "../../tests/unit/api/executor.rs"]
 mod tests;

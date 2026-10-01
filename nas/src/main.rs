@@ -14,13 +14,12 @@ mod version;
 // historical module path so call sites stay stable.
 pub use plain_rs::api::chat;
 
-// NAS system/domain modules — now hosted by plain-rs (`plain_rs::nas`,
-// enabled via its `nas` feature), re-exported under the historical
+// Shared system/domain modules hosted by plain-rs, re-exported under the historical
 // module paths so call sites stay stable.
-pub use plain_rs::nas::automount;
-pub use plain_rs::nas::consts;
-pub use plain_rs::nas::log;
-pub use plain_rs::nas::mounts;
+pub use plain_rs::storage::automount;
+pub use plain_rs::system::consts;
+pub use plain_rs::system::log;
+pub use plain_rs::storage::mounts;
 
 // Media/file stack — now hosted by plain-rs (`plain_rs::media`), wired
 // through under the historical module paths so call sites stay stable.
@@ -66,7 +65,7 @@ fn main() -> Result<()> {
     // so the runtime can pick it up.
     let _ = rustls::crypto::ring::default_provider().install_default();
 
-    plain_rs::nas::version::set(
+    plain_rs::system::version::set(
         crate::version::VERSION,
         crate::version::COMMIT,
         crate::version::BUILD_TIME,

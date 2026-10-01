@@ -207,8 +207,8 @@ pub fn run() {
                 .path()
                 .app_log_dir()
                 .unwrap_or_else(|_| data_dir.join("logs"));
-            let db_path = data_dir.join("local_chat.db");
-            let db = match plain_rs::api::db::ChatDb::open(&db_path) {
+            let db_path = data_dir.join("plain.db");
+            let db = match plain_rs::db::Db::open(&db_path) {
                 Ok(d) => Arc::new(d),
                 Err(e) => panic!("local_db open failed: {e}"),
             };
@@ -236,7 +236,6 @@ pub fn run() {
                 data_dir.clone(),
                 data_dir.join("cache"),
                 log_dir,
-                data_dir.join("local_library.db"),
                 prefs.clone(),
                 chat_state.clone(),
                 event_tx.clone(),

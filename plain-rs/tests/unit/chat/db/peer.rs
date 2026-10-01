@@ -1,8 +1,8 @@
 use super::*;
 use crate::chat::enums::{DeviceType, PeerStatus};
-use crate::db::chat::tests::unique_tmp_dir;
+use crate::db::chat_tests::unique_tmp_dir;
 
-fn seed_peer(db: &ChatDb, id: &str, status: PeerStatus, key: &str) {
+fn seed_peer(db: &Db, id: &str, status: PeerStatus, key: &str) {
     let mut peer = DPeer::new(id, id, "198.51.100.1", 12345, DeviceType::Phone);
     peer.status = status;
     peer.key = key.to_string();
@@ -11,7 +11,7 @@ fn seed_peer(db: &ChatDb, id: &str, status: PeerStatus, key: &str) {
 
 #[test]
 fn update_peer_status_flips_status_and_bumps_updated_at() {
-    let db = ChatDb::open(&unique_tmp_dir("status-flip").join("local_chat.db")).expect("open db");
+    let db = Db::open(&unique_tmp_dir("status-flip").join("plain.db")).expect("open db");
     seed_peer(&db, "p1", PeerStatus::Paired, "k");
     let before = db.get_peer_by_id("p1").expect("peer exists");
     assert_eq!(before.status, PeerStatus::Paired);
@@ -26,7 +26,7 @@ fn update_peer_status_flips_status_and_bumps_updated_at() {
 
 #[test]
 fn update_peer_status_and_key_clears_key_for_channel_demotion() {
-    let db = ChatDb::open(&unique_tmp_dir("key-clear").join("local_chat.db")).expect("open db");
+    let db = Db::open(&unique_tmp_dir("key-clear").join("plain.db")).expect("open db");
     seed_peer(&db, "p1", PeerStatus::Paired, "secret-key");
 
     db.update_peer_status_and_key("p1", PeerStatus::Channel, "");
@@ -38,7 +38,7 @@ fn update_peer_status_and_key_clears_key_for_channel_demotion() {
 
 #[test]
 fn delete_peer_removes_row() {
-    let db = ChatDb::open(&unique_tmp_dir("delete").join("local_chat.db")).expect("open db");
+    let db = Db::open(&unique_tmp_dir("delete").join("plain.db")).expect("open db");
     seed_peer(&db, "p1", PeerStatus::Paired, "k");
     assert!(db.get_peer_by_id("p1").is_some());
 
@@ -48,7 +48,7 @@ fn delete_peer_removes_row() {
 
 #[test]
 fn login_peer_creates_unpaired_peer_with_token() {
-    let db = ChatDb::open(&unique_tmp_dir("login-new").join("local_chat.db")).expect("open db");
+    let db = Db::open(&unique_tmp_dir("login-new").join("plain.db")).expect("open db");
 
     db.login_peer(
         "p1",
@@ -73,7 +73,7 @@ fn login_peer_creates_unpaired_peer_with_token() {
 
 #[test]
 fn login_peer_refreshes_existing_row_and_keeps_pairing_state() {
-    let db = ChatDb::open(&unique_tmp_dir("login-paired").join("local_chat.db")).expect("open db");
+    let db = Db::open(&unique_tmp_dir("login-paired").join("plain.db")).expect("open db");
     seed_peer(&db, "p1", PeerStatus::Paired, "chat-key");
 
     db.login_peer(
@@ -97,7 +97,7 @@ fn login_peer_refreshes_existing_row_and_keeps_pairing_state() {
 
 #[test]
 fn login_peer_with_chat_key_creates_paired_peer_with_token() {
-    let db = ChatDb::open(&unique_tmp_dir("login-chat").join("local_chat.db")).expect("open db");
+    let db = Db::open(&unique_tmp_dir("login-chat").join("plain.db")).expect("open db");
     db.login_peer(
         "p1",
         "Pixel 9",
@@ -119,7 +119,7 @@ fn login_peer_with_chat_key_creates_paired_peer_with_token() {
 
 #[test]
 fn logout_peer_clears_token_and_drops_from_login_list() {
-    let db = ChatDb::open(&unique_tmp_dir("logout").join("local_chat.db")).expect("open db");
+    let db = Db::open(&unique_tmp_dir("logout").join("plain.db")).expect("open db");
     db.login_peer(
         "p1",
         "Pixel 9",
@@ -144,7 +144,7 @@ fn logout_peer_clears_token_and_drops_from_login_list() {
 
 #[test]
 fn update_peer_name_renames_only() {
-    let db = ChatDb::open(&unique_tmp_dir("rename").join("local_chat.db")).expect("open db");
+    let db = Db::open(&unique_tmp_dir("rename").join("plain.db")).expect("open db");
     db.login_peer(
         "p1",
         "old",

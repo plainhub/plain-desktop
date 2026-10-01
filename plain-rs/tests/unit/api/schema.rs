@@ -73,3 +73,18 @@ fn desktop_schema_exposes_shared_media_fields() {
         assert!(sdl.contains(field), "missing {field}");
     }
 }
+
+#[cfg(feature = "system")]
+#[tokio::test]
+async fn db_path_reports_the_open_sqlite_file() {
+    let state = crate::api::server::test_support::nas_state();
+    let response = state
+        .schema
+        .execute(async_graphql::Request::new("{ dbPath }").data(state.ctx.clone()))
+        .await;
+    assert!(response.errors.is_empty(), "{:?}", response.errors);
+    let value = response.data.into_json().unwrap();
+    let path = value["dbPath"].as_str().unwrap();
+    assert_eq!(path, state.ctx.db.with_conn(|conn| conn.path().unwrap().to_string()));
+    assert!(path.ends_with("/plain.db"));
+}

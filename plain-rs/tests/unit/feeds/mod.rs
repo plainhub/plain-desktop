@@ -1,8 +1,8 @@
 use super::*;
 
-fn database() -> (tempfile::TempDir, LibraryDb) {
+fn database() -> (tempfile::TempDir, Db) {
     let dir = tempfile::tempdir().unwrap();
-    let db = LibraryDb::open(&dir.path().join("library.db")).unwrap();
+    let db = Db::open(&dir.path().join("plain.db")).unwrap();
     (dir, db)
 }
 

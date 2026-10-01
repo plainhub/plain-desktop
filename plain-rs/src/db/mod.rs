@@ -5,11 +5,54 @@ use std::sync::{Arc, Mutex};
 #[cfg(feature = "sqlite_browse")]
 pub mod browse;
 #[cfg(feature = "chat")]
-pub mod chat;
-#[cfg(feature = "nas")]
-pub mod devtools;
+mod schema_chat;
 #[cfg(feature = "library")]
-pub mod library;
+mod schema_library;
+#[cfg(feature = "chat")]
+mod app_file;
+#[cfg(feature = "chat")]
+pub mod bookmark;
+#[cfg(feature = "chat")]
+mod channel;
+#[cfg(feature = "chat")]
+mod chat;
+#[cfg(feature = "chat")]
+mod nearby_device;
+#[cfg(feature = "chat")]
+mod peer;
+#[cfg(feature = "chat")]
+mod db_time;
+#[cfg(feature = "library")]
+pub mod audio_queue;
+#[cfg(feature = "library")]
+pub mod favorite_folder;
+#[cfg(feature = "library")]
+pub mod notes_feeds;
+#[cfg(feature = "library")]
+pub mod tag;
+#[cfg(feature = "system")]
+pub mod devtools;
+
+#[cfg(feature = "chat")]
+pub use app_file::DAppFile;
+#[cfg(feature = "chat")]
+pub use channel::DChannel;
+#[cfg(feature = "chat")]
+pub use chat::DChat;
+#[cfg(feature = "chat")]
+pub use nearby_device::DNearbyDeviceCache;
+#[cfg(feature = "chat")]
+pub use peer::DPeer;
+#[cfg(feature = "chat")]
+pub use db_time::{iso_from_unix_millis, now_iso, now_millis, short_id};
+#[cfg(feature = "library")]
+pub use audio_queue::{HISTORY_KEEP, PlayHistory, Playlist, PlaylistItem, QueueItem, QueueSource, QueueSourceKind};
+#[cfg(feature = "library")]
+pub use favorite_folder::FavoriteFolderRow;
+#[cfg(feature = "library")]
+pub use tag::{TagRelationRow, TagRow};
+#[cfg(all(feature = "chat", feature = "sqlite_browse"))]
+pub use crate::sqlite_browse::TableColumnMeta;
 
 #[derive(Clone)]
 pub struct Db(Arc<Mutex<Connection>>);
@@ -38,8 +81,6 @@ impl Db {
         Self::init_chat(&conn)?;
         #[cfg(feature = "library")]
         Self::init_library(&conn)?;
-        #[cfg(feature = "library")]
-        conn.execute_batch("CREATE TABLE IF NOT EXISTS db_migrations (key TEXT PRIMARY KEY);")?;
         Ok(Self(Arc::new(Mutex::new(conn))))
     }
 
@@ -52,78 +93,13 @@ impl Db {
     }
 }
 
-#[cfg(feature = "library")]
-impl Db {
-    pub fn import_legacy_library(&self, legacy_path: &Path) -> rusqlite::Result<()> {
-        if !legacy_path.exists() {
-            return Ok(());
-        }
-        if self.with_conn(|conn| conn.path().map(Path::new) == Some(legacy_path)) {
-            return Ok(());
-        }
-        let mut conn = self.0.lock().unwrap();
-        let migrated: bool = conn.query_row(
-            "SELECT EXISTS(SELECT 1 FROM db_migrations WHERE key = 'legacy_library')",
-            [],
-            |row| row.get(0),
-        )?;
-        if migrated {
-            return Ok(());
-        }
-        conn.execute(
-            "ATTACH DATABASE ?1 AS legacy_library",
-            [legacy_path.to_string_lossy().as_ref()],
-        )?;
-        let result = (|| {
-            let transaction = conn.transaction()?;
-            for table in [
-                "audio_queue_source",
-                "audio_queue_items",
-                "audio_playlists",
-                "audio_playlist_items",
-                "audio_play_history",
-                "tags",
-                "tag_relations",
-                "favorite_folders",
-                "library_prefs",
-                "notes",
-                "feeds",
-                "feed_entries",
-            ] {
-                let present: bool = transaction.query_row(
-                    "SELECT EXISTS(SELECT 1 FROM legacy_library.sqlite_master WHERE type = 'table' AND name = ?1)",
-                    [table],
-                    |row| row.get(0),
-                )?;
-                if !present {
-                    continue;
-                }
-                let mut stmt =
-                    transaction.prepare(&format!("PRAGMA legacy_library.table_info({table})"))?;
-                let columns = stmt
-                    .query_map([], |row| row.get::<_, String>(1))?
-                    .collect::<rusqlite::Result<Vec<_>>>()?;
-                if columns.is_empty() {
-                    continue;
-                }
-                let names = columns.join(", ");
-                transaction.execute(
-                    &format!("INSERT OR IGNORE INTO main.{table} ({names}) SELECT {names} FROM legacy_library.{table}"),
-                    [],
-                )?;
-            }
-            transaction.execute(
-                "INSERT INTO db_migrations(key) VALUES ('legacy_library')",
-                [],
-            )?;
-            transaction.commit()
-        })();
-        let detach = conn.execute_batch("DETACH DATABASE legacy_library;");
-        result?;
-        detach
-    }
-}
-
 #[cfg(test)]
 #[path = "../../tests/unit/db/mod.rs"]
 mod tests;
+
+#[cfg(all(test, feature = "library"))]
+#[path = "../../tests/unit/library/db/mod.rs"]
+mod library_tests;
+#[cfg(all(test, feature = "chat"))]
+#[path = "../../tests/unit/chat/db/mod.rs"]
+mod chat_tests;

@@ -39,7 +39,7 @@ pub async fn media_handler(Path(name): Path<String>) -> Response {
         _ => name,
     };
 
-    let (path, mime) = match crate::nas::dlna::media_alias::lookup(id) {
+    let (path, mime) = match crate::dlna_sender::media_alias::lookup(id) {
         Some(v) => v,
         None => return StatusCode::NOT_FOUND.into_response(),
     };

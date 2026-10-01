@@ -1,7 +1,7 @@
 use super::*;
-use crate::db::chat::tests::unique_tmp_dir;
+use crate::db::chat_tests::unique_tmp_dir;
 
-fn seed_chat(db: &ChatDb, id: &str, from_id: &str, to_id: &str, channel_id: &str) {
+fn seed_chat(db: &Db, id: &str, from_id: &str, to_id: &str, channel_id: &str) {
     let mut chat = DChat::new(from_id, to_id, channel_id, "{}");
     chat.id = id.to_string();
     db.insert_chat(&chat);
@@ -9,7 +9,7 @@ fn seed_chat(db: &ChatDb, id: &str, from_id: &str, to_id: &str, channel_id: &str
 
 /// Seed with explicit, distinct timestamps — `created_at` has second
 /// resolution, so same-second inserts tie in the ORDER BY.
-fn seed_chat_at(db: &ChatDb, id: &str, from_id: &str, to_id: &str, channel_id: &str, at: &str) {
+fn seed_chat_at(db: &Db, id: &str, from_id: &str, to_id: &str, channel_id: &str, at: &str) {
     let mut chat = DChat::new(from_id, to_id, channel_id, "{}");
     chat.id = id.to_string();
     chat.created_at = at.to_string();
@@ -19,7 +19,7 @@ fn seed_chat_at(db: &ChatDb, id: &str, from_id: &str, to_id: &str, channel_id: &
 
 #[test]
 fn get_chats_by_peer_returns_both_directions() {
-    let db = ChatDb::open(&unique_tmp_dir("peer-both").join("local_chat.db")).expect("open db");
+    let db = Db::open(&unique_tmp_dir("peer-both").join("plain.db")).expect("open db");
     seed_chat(&db, "a", "me", "peer1", "");
     seed_chat(&db, "b", "peer1", "me", "");
     seed_chat(&db, "c", "me", "peer2", "");
@@ -35,7 +35,7 @@ fn get_chats_by_peer_returns_both_directions() {
 
 #[test]
 fn get_chats_page_resolves_peer_and_channel_targets() {
-    let db = ChatDb::open(&unique_tmp_dir("page-targets").join("local_chat.db")).expect("open db");
+    let db = Db::open(&unique_tmp_dir("page-targets").join("plain.db")).expect("open db");
     seed_chat_at(&db, "a", "me", "peer1", "", "2026-01-01T00:00:01Z");
     seed_chat_at(&db, "b", "peer1", "me", "", "2026-01-01T00:00:02Z");
     seed_chat_at(&db, "c", "me", "peer2", "", "2026-01-01T00:00:03Z");
@@ -69,7 +69,7 @@ fn get_chats_page_resolves_peer_and_channel_targets() {
         .collect();
     assert_eq!(ids, vec!["a".to_string()]);
     // Text filter narrows by content substring.
-    let db2 = ChatDb::open(&unique_tmp_dir("page-text").join("local_chat.db")).expect("open db");
+    let db2 = Db::open(&unique_tmp_dir("page-text").join("plain.db")).expect("open db");
     let mut chat = DChat::new(
         "me",
         "peer1",
@@ -94,7 +94,7 @@ fn get_chats_page_resolves_peer_and_channel_targets() {
 
 #[test]
 fn delete_chats_by_peer_preserves_channel_chats() {
-    let db = ChatDb::open(&unique_tmp_dir("peer-del").join("local_chat.db")).expect("open db");
+    let db = Db::open(&unique_tmp_dir("peer-del").join("plain.db")).expect("open db");
     seed_chat(&db, "a", "me", "peer1", "");
     seed_chat(&db, "b", "peer1", "me", "");
     seed_chat(&db, "c", "me", "peer1", "ch1");
@@ -108,7 +108,7 @@ fn delete_chats_by_peer_preserves_channel_chats() {
 
 #[test]
 fn delete_chats_by_ids_removes_only_listed_ids() {
-    let db = ChatDb::open(&unique_tmp_dir("ids-del").join("local_chat.db")).expect("open db");
+    let db = Db::open(&unique_tmp_dir("ids-del").join("plain.db")).expect("open db");
     seed_chat(&db, "a", "me", "p", "");
     seed_chat(&db, "b", "me", "p", "");
     seed_chat(&db, "c", "me", "p", "");
@@ -122,7 +122,7 @@ fn delete_chats_by_ids_removes_only_listed_ids() {
 
 #[test]
 fn delete_chats_by_ids_noop_for_empty_list() {
-    let db = ChatDb::open(&unique_tmp_dir("ids-empty").join("local_chat.db")).expect("open db");
+    let db = Db::open(&unique_tmp_dir("ids-empty").join("plain.db")).expect("open db");
     seed_chat(&db, "a", "me", "p", "");
     db.delete_chats_by_ids(&[]);
     assert!(db.get_chat_by_id("a").is_some());
@@ -130,7 +130,7 @@ fn delete_chats_by_ids_noop_for_empty_list() {
 
 #[test]
 fn get_chats_by_channel_returns_only_that_channel() {
-    let db = ChatDb::open(&unique_tmp_dir("chan-get").join("local_chat.db")).expect("open db");
+    let db = Db::open(&unique_tmp_dir("chan-get").join("plain.db")).expect("open db");
     seed_chat(&db, "a", "me", "", "ch1");
     seed_chat(&db, "b", "me", "", "ch2");
     seed_chat(&db, "c", "me", "", "ch1");
@@ -145,7 +145,7 @@ fn get_chats_by_channel_returns_only_that_channel() {
 
 #[test]
 fn get_all_latest_chats_returns_local_chat() {
-    let db = ChatDb::open(&unique_tmp_dir("latest-local").join("local_chat.db")).expect("open db");
+    let db = Db::open(&unique_tmp_dir("latest-local").join("plain.db")).expect("open db");
     seed_chat(&db, "a", "me", "local", "");
 
     let latest = db.get_all_latest_chats();
@@ -160,7 +160,7 @@ fn get_all_latest_chats_returns_local_chat() {
 
 #[test]
 fn get_all_latest_chats_returns_peer_and_channel() {
-    let db = ChatDb::open(&unique_tmp_dir("latest-mixed").join("local_chat.db")).expect("open db");
+    let db = Db::open(&unique_tmp_dir("latest-mixed").join("plain.db")).expect("open db");
     seed_chat(&db, "a", "me", "local", "");
     seed_chat(&db, "b", "me", "peer1", "");
     seed_chat(&db, "c", "peer1", "me", "");
@@ -177,7 +177,7 @@ fn get_all_latest_chats_returns_peer_and_channel() {
 
 #[test]
 fn get_all_latest_chats_returns_empty_when_no_chats() {
-    let db = ChatDb::open(&unique_tmp_dir("latest-empty").join("local_chat.db")).expect("open db");
+    let db = Db::open(&unique_tmp_dir("latest-empty").join("plain.db")).expect("open db");
     let latest = db.get_all_latest_chats();
     assert!(latest.is_empty());
 }

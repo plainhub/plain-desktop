@@ -1,15 +1,17 @@
 pub mod auth;
+#[cfg(feature = "system")]
+pub mod chunked_upload;
 pub mod cors;
 pub mod events;
 pub mod file_server;
 pub mod handlers;
-#[cfg(feature = "nas")]
+#[cfg(feature = "system")]
 pub mod media_alias;
 pub mod proxy_file;
 pub mod request_key;
 pub mod response;
 pub mod runtime;
-#[cfg(feature = "nas")]
+#[cfg(feature = "system")]
 pub mod static_files;
 pub mod upload;
 pub mod uri;
@@ -48,7 +50,7 @@ pub struct ServerSettings {
     pub serve_spa: bool,
 }
 
-#[cfg(all(test, feature = "nas"))]
+#[cfg(all(test, feature = "system"))]
 pub(crate) mod test_support {
     use super::*;
 
@@ -92,7 +94,6 @@ http_port = 8080
             data_dir.clone(),
             data_dir.join("cache"),
             data_dir.join("logs"),
-            data_dir.join("library.db"),
             prefs.clone(),
             chat.clone(),
             event_tx,
@@ -162,7 +163,7 @@ pub fn build_router(state: ServerState) -> Router {
         .route("/zip/dir", get(zip::zip_dir_handler))
         .route("/zip/files", get(zip::zip_files_handler));
 
-    #[cfg(feature = "nas")]
+    #[cfg(feature = "system")]
     {
         if state.settings.serve_spa {
             router = router

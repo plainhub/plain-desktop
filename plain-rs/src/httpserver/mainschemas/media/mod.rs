@@ -6,7 +6,7 @@
 //!
 //! Hosts inject the backing services as async-graphql global data:
 //! `Arc<crate::media::kv::Db>` (fjall store), `Arc<crate::prefs::Prefs>`,
-//! `Arc<crate::library::db::LibraryDb>` and the caller's client id as
+//! `Arc<crate::db::Db>` and the caller's client id as
 //! `String` (optional — file tasks key off it, empty for hosts without
 //! sessions).
 
@@ -15,7 +15,7 @@ pub mod types;
 use async_graphql::{Context, ID, Object};
 use std::sync::Arc;
 
-use crate::library::db::LibraryDb;
+use crate::db::Db as SqlDb;
 use crate::media::fsx;
 use crate::media::image_index::{self as media_index, MediaSort};
 use crate::media::kv::{self, Db};
@@ -364,7 +364,7 @@ impl MediaQueryRoot {
         #[graphql(name = "type")] r#type: DataType,
         keys: Vec<String>,
     ) -> FieldResult<Vec<TagRelation>> {
-        let library = ctx.data::<Arc<LibraryDb>>()?;
+        let library = ctx.data::<Arc<SqlDb>>()?;
         let kind = r#type.kind();
         let out = crate::library::tags::relations_for_keys_of_kind(library, &keys, kind)
             .into_iter()
@@ -378,7 +378,7 @@ impl MediaQueryRoot {
 
     /// List tags for the given data type.
     async fn tags(&self, ctx: &Context<'_>, r#type: DataType) -> FieldResult<Vec<Tag>> {
-        let library = ctx.data::<Arc<LibraryDb>>()?;
+        let library = ctx.data::<Arc<SqlDb>>()?;
         let kind = r#type.kind();
         let tags = crate::library::tags::tags_by_type(library, kind);
         Ok(tags
@@ -855,7 +855,7 @@ impl MediaMutationRoot {
         r#type: DataType,
         name: String,
     ) -> FieldResult<Tag> {
-        let library = ctx.data::<Arc<LibraryDb>>()?;
+        let library = ctx.data::<Arc<SqlDb>>()?;
         let kind = r#type.kind();
         let t = crate::library::tags::create_tag(library, kind, &name)
             .map_err(|e| async_graphql::Error::new(e.to_string()))?;
@@ -869,7 +869,7 @@ impl MediaMutationRoot {
 
     /// Rename a tag and return the updated entity.
     async fn update_tag(&self, ctx: &Context<'_>, id: ID, name: String) -> FieldResult<Tag> {
-        let library = ctx.data::<Arc<LibraryDb>>()?;
+        let library = ctx.data::<Arc<SqlDb>>()?;
         let t = crate::library::tags::update_tag(library, &id, &name)
             .map_err(|e| async_graphql::Error::new(e.to_string()))?
             .ok_or_else(|| async_graphql::Error::new(format!("tag not found: {}", &*id)))?;
@@ -883,7 +883,7 @@ impl MediaMutationRoot {
 
     /// Delete a tag together with its relations. Single idempotent delete → `Boolean!` (§6).
     async fn delete_tag(&self, ctx: &Context<'_>, id: ID) -> FieldResult<bool> {
-        let library = ctx.data::<Arc<LibraryDb>>()?;
+        let library = ctx.data::<Arc<SqlDb>>()?;
         crate::library::tags::delete_tag(library, &id);
         Ok(true)
     }
@@ -899,7 +899,7 @@ impl MediaMutationRoot {
         tag_ids: Vec<ID>,
         query: String,
     ) -> FieldResult<bool> {
-        let library = ctx.data::<Arc<LibraryDb>>()?;
+        let library = ctx.data::<Arc<SqlDb>>()?;
         let tag_ids: Vec<String> = tag_ids
             .into_iter()
             .map(|t| t.trim().to_string())
@@ -943,7 +943,7 @@ impl MediaMutationRoot {
         remove_tag_ids: Vec<ID>,
     ) -> FieldResult<bool> {
         let _ = r#type;
-        let library = ctx.data::<Arc<LibraryDb>>()?;
+        let library = ctx.data::<Arc<SqlDb>>()?;
         let mut add: Vec<(String, String)> = Vec::new();
         for tid in &add_tag_ids {
             if tid.is_empty() {
@@ -969,7 +969,7 @@ impl MediaMutationRoot {
         tag_ids: Vec<ID>,
         query: String,
     ) -> FieldResult<bool> {
-        let library = ctx.data::<Arc<LibraryDb>>()?;
+        let library = ctx.data::<Arc<SqlDb>>()?;
         let tag_ids: Vec<String> = tag_ids
             .into_iter()
             .map(|t| t.trim().to_string())
@@ -1197,7 +1197,7 @@ impl MediaMutationRoot {
             )));
         }
         let db = ctx.data::<Arc<Db>>()?.clone();
-        let library = (**ctx.data::<Arc<LibraryDb>>()?).clone();
+        let library = (**ctx.data::<Arc<SqlDb>>()?).clone();
         let (ids, text) = media_bulk_selection(&query)?;
         let uuids: Vec<String> = if !ids.trim().is_empty() {
             ids.split(',')
@@ -1282,7 +1282,7 @@ pub(crate) fn count_tag_load() {
     TAG_LOADS.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
 }
 
-fn tags_by_key(library: &LibraryDb, key: &str, kind: i32) -> Vec<Tag> {
+fn tags_by_key(library: &SqlDb, key: &str, kind: i32) -> Vec<Tag> {
     crate::library::tags::tags_for_key_of_kind(library, key, kind)
         .into_iter()
         .map(|t| Tag {
@@ -1296,7 +1296,7 @@ fn tags_by_key(library: &LibraryDb, key: &str, kind: i32) -> Vec<Tag> {
 
 fn lazy_tags(ctx: &Context<'_>, id: &str, data_type: DataType) -> Vec<Tag> {
     count_tag_load();
-    ctx.data::<Arc<LibraryDb>>()
+    ctx.data::<Arc<SqlDb>>()
         .ok()
         .map(|l| tags_by_key(l, id, data_type.kind()))
         .unwrap_or_default()
@@ -1628,7 +1628,7 @@ async fn run_media_items_action(
     action: MediaItemsAction,
 ) -> FieldResult<ActionResult> {
     let db = ctx.data::<Arc<Db>>()?.clone();
-    let library = (**ctx.data::<Arc<LibraryDb>>()?).clone();
+    let library = (**ctx.data::<Arc<SqlDb>>()?).clone();
     let (ids, text) = media_bulk_selection(query)?;
 
     let type_str = media_type.data_type().media_type_str();
@@ -1679,7 +1679,7 @@ async fn run_media_items_action(
 /// `RestoreUUID` / `DeleteUUIDPermanently`).
 async fn apply_media_items_action(
     db: &Arc<Db>,
-    library: &LibraryDb,
+    library: &SqlDb,
     m: &scan::MediaFile,
     action: MediaItemsAction,
 ) -> anyhow::Result<()> {

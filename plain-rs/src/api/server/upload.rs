@@ -35,7 +35,7 @@ use super::{AuthPolicy, ServerState};
 /// Render a plain-text response with each host's historical
 /// Content-Type spelling (nas: axum's `text/plain; charset=utf-8`,
 /// desktop: bare `text/plain`).
-#[cfg_attr(not(feature = "nas"), allow(unused_variables))]
+#[cfg_attr(not(feature = "system"), allow(unused_variables))]
 fn plain(_state: &ServerState, status: u16, body: String) -> Response {
     respond(status, body.into_bytes(), "text/plain")
 }

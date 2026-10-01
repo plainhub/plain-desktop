@@ -9,7 +9,7 @@ use std::sync::Arc;
 use tokio::sync::broadcast;
 
 use crate::api::context::{AppCtx, WsEvent};
-use crate::api::db::{ChatDb, DPeer};
+use crate::api::db::{Db, DPeer};
 
 /// Everything a peer resolver needs to fulfil a request.
 pub struct PeerCtx {
@@ -27,7 +27,7 @@ pub struct PeerCtx {
 
 impl PeerCtx {
     #[allow(dead_code)]
-    pub fn db(&self) -> &ChatDb {
+    pub fn db(&self) -> &Db {
         &self.app.db
     }
 

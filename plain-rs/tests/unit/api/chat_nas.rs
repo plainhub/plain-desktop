@@ -22,19 +22,23 @@ fn make_state(dir: &std::path::Path) -> Arc<ChatState> {
     Arc::new(ChatState::nas_init(dir, &prefs).unwrap())
 }
 
-/// nas_init creates the plain-app-schema chat.db under the data dir.
+/// nas_init creates the plain-app-schema plain.db under the data dir.
 #[test]
 fn nas_init_creates_chat_db_with_plain_app_schema() {
     let dir = unique_tmp_dir("init");
     let state = make_state(&dir);
 
-    assert!(dir.join("chat.db").exists());
+    assert!(dir.join("plain.db").exists());
     let tables = [
         "chats",
         "chat_channels",
         "peers",
         "nearby_device_cache",
         "app_files",
+        "tags",
+        "audio_queue_items",
+        "notes",
+        "feeds",
     ];
     for t in tables {
         assert!(

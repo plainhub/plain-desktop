@@ -29,5 +29,5 @@ pub fn get(key: &str) -> Option<String> {
 }
 
 #[cfg(test)]
-#[path = "../../tests/unit/nas/temp_store.rs"]
+#[path = "../../tests/unit/api/temp_store.rs"]
 mod tests;

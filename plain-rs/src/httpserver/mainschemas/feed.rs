@@ -6,8 +6,8 @@ use std::sync::Arc;
 use crate::api::context::AppCtx;
 use crate::enums::DataType;
 use crate::feeds;
-use crate::library::db::{
-    LibraryDb,
+use crate::db::{
+    Db,
     notes_feeds::{FeedEntryRow, FeedRow},
 };
 
@@ -47,7 +47,7 @@ impl FeedEntry {
     }
 
     async fn feed(&self, ctx: &Context<'_>) -> GqlResult<Option<Feed>> {
-        let db = ctx.data::<Arc<LibraryDb>>()?;
+        let db = ctx.data::<Arc<Db>>()?;
         feeds::get(db, self.feed_id.as_str())?
             .map(feed_model)
             .transpose()
@@ -94,25 +94,25 @@ pub struct FeedQuery;
 #[Object]
 impl FeedQuery {
     async fn feeds(&self, ctx: &Context<'_>) -> GqlResult<Vec<Feed>> {
-        feeds::list(ctx.data::<Arc<LibraryDb>>()?)?
+        feeds::list(ctx.data::<Arc<Db>>()?)?
             .into_iter()
             .map(feed_model)
             .collect()
     }
 
     async fn feed_entry_counts(&self, ctx: &Context<'_>) -> GqlResult<Vec<FeedEntryCount>> {
-        Ok(feeds::entry_counts(ctx.data::<Arc<LibraryDb>>()?)?
+        Ok(feeds::entry_counts(ctx.data::<Arc<Db>>()?)?
             .into_iter()
             .map(|(id, count)| FeedEntryCount { id: ID(id), count })
             .collect())
     }
 
     async fn feed_entry_count(&self, ctx: &Context<'_>, query: String) -> GqlResult<i32> {
-        Ok(feeds::count(ctx.data::<Arc<LibraryDb>>()?, &query)?)
+        Ok(feeds::count(ctx.data::<Arc<Db>>()?, &query)?)
     }
 
     async fn feed_entry(&self, ctx: &Context<'_>, id: ID) -> GqlResult<Option<FeedEntry>> {
-        feeds::entry_get(ctx.data::<Arc<LibraryDb>>()?, id.as_str())?
+        feeds::entry_get(ctx.data::<Arc<Db>>()?, id.as_str())?
             .map(entry_model)
             .transpose()
     }
@@ -124,7 +124,7 @@ impl FeedQuery {
         limit: i32,
         query: String,
     ) -> GqlResult<Vec<FeedEntry>> {
-        feeds::search(ctx.data::<Arc<LibraryDb>>()?, &query, limit, offset)?
+        feeds::search(ctx.data::<Arc<Db>>()?, &query, limit, offset)?
             .into_iter()
             .map(entry_model)
             .collect()
@@ -137,7 +137,7 @@ pub struct FeedMutation;
 #[Object]
 impl FeedMutation {
     async fn sync_feeds(&self, ctx: &Context<'_>, id: Option<ID>) -> GqlResult<bool> {
-        let db = ctx.data::<Arc<LibraryDb>>()?.clone();
+        let db = ctx.data::<Arc<Db>>()?.clone();
         let events = ctx.data::<Arc<AppCtx>>()?.event_tx.clone();
         feeds::queue_sync(db, events, id.map(|id| id.to_string()));
         Ok(true)
@@ -151,7 +151,7 @@ impl FeedMutation {
         fetch_content: bool,
     ) -> GqlResult<Feed> {
         feed_model(feeds::update(
-            ctx.data::<Arc<LibraryDb>>()?,
+            ctx.data::<Arc<Db>>()?,
             id.as_str(),
             &name,
             fetch_content,
@@ -164,26 +164,26 @@ impl FeedMutation {
         url: String,
         fetch_content: bool,
     ) -> GqlResult<Feed> {
-        let db = ctx.data::<Arc<LibraryDb>>()?.clone();
+        let db = ctx.data::<Arc<Db>>()?.clone();
         let events = ctx.data::<Arc<AppCtx>>()?.event_tx.clone();
         feed_model(feeds::create(db, &url, fetch_content, events).await?)
     }
 
     async fn import_feeds(&self, ctx: &Context<'_>, content: String) -> GqlResult<bool> {
-        feeds::import_opml(ctx.data::<Arc<LibraryDb>>()?, &content)?;
+        feeds::import_opml(ctx.data::<Arc<Db>>()?, &content)?;
         Ok(true)
     }
 
     async fn export_feeds(&self, ctx: &Context<'_>) -> GqlResult<String> {
-        Ok(feeds::export_opml(ctx.data::<Arc<LibraryDb>>()?)?)
+        Ok(feeds::export_opml(ctx.data::<Arc<Db>>()?)?)
     }
 
     async fn delete_feed(&self, ctx: &Context<'_>, id: ID) -> GqlResult<bool> {
-        Ok(feeds::delete(ctx.data::<Arc<LibraryDb>>()?, id.as_str())?)
+        Ok(feeds::delete(ctx.data::<Arc<Db>>()?, id.as_str())?)
     }
 
     async fn sync_feed_entry_content(&self, ctx: &Context<'_>, id: ID) -> GqlResult<FeedEntry> {
-        entry_model(feeds::sync_entry_content(ctx.data::<Arc<LibraryDb>>()?, id.as_str()).await?)
+        entry_model(feeds::sync_entry_content(ctx.data::<Arc<Db>>()?, id.as_str()).await?)
     }
 
     async fn delete_feed_entries(
@@ -192,7 +192,7 @@ impl FeedMutation {
         query: String,
     ) -> GqlResult<ActionResult> {
         Ok(ActionResult {
-            affected_count: feeds::delete_entries(ctx.data::<Arc<LibraryDb>>()?, &query)? as i32,
+            affected_count: feeds::delete_entries(ctx.data::<Arc<Db>>()?, &query)? as i32,
         })
     }
 }

@@ -1,11 +1,11 @@
 use super::*;
-use crate::chat::db::{ChatDb, DPeer};
+use crate::db::{Db, DPeer};
 use crate::chat::enums::{DeviceType, PeerStatus};
 use crate::chat::events::{ChannelKeyCache, new_channel_key_cache};
 use crate::{base64_encode, ed25519_generate, ed25519_sign, xchacha_encrypt_raw};
 use std::time::{SystemTime, UNIX_EPOCH};
 
-fn unique_db() -> (ChatDb, std::path::PathBuf) {
+fn unique_db() -> (Db, std::path::PathBuf) {
     static SEQ: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
     let seq = SEQ.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
     let path = std::env::temp_dir().join(format!(
@@ -16,13 +16,13 @@ fn unique_db() -> (ChatDb, std::path::PathBuf) {
             .unwrap()
             .as_nanos(),
     ));
-    let db = ChatDb::open(&path).unwrap();
+    let db = Db::open(&path).unwrap();
     (db, path)
 }
 
 /// Seed a paired peer with the given shared key and return (peer_id,
 /// key, kp_bytes).
-fn seed_paired_peer(db: &ChatDb) -> (String, [u8; 32], [u8; 64]) {
+fn seed_paired_peer(db: &Db) -> (String, [u8; 32], [u8; 64]) {
     let (kp, vk) = ed25519_generate();
     let key = [77u8; 32];
     let peer = DPeer {

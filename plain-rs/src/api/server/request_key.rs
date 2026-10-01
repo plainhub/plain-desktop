@@ -68,7 +68,7 @@ fn decode_token_key(token: &str) -> Option<[u8; 32]> {
 /// Resolve the per-request key + cid. `allow_dev_bearer` gates the nas
 /// config-token branch (only `/graphql` accepts it; uploads and the
 /// WebSocket require a real session).
-#[cfg_attr(not(feature = "nas"), allow(unused_variables))]
+#[cfg_attr(not(feature = "system"), allow(unused_variables))]
 pub fn resolve_request_key(
     state: &ServerState,
     headers: &HeaderMap,

@@ -64,7 +64,7 @@ fn ext_from_name_prefers_filename_extension() {
 #[test]
 fn import_file_keeps_extension_from_filename() {
     let dir = unique_tmp_dir("import-ext");
-    let db = ChatDb::open(&dir.join("local_chat.db")).unwrap();
+    let db = Db::open(&dir.join("plain.db")).unwrap();
     let src = write_src(&dir, "src.bin", b"sdk.dir=/opt/android/sdk\n");
 
     // Browsers send no Content-Type for `.properties` files.
@@ -93,7 +93,7 @@ fn import_file_keeps_extension_from_filename() {
 #[test]
 fn import_file_falls_back_to_mime_when_name_has_no_ext() {
     let dir = unique_tmp_dir("import-mime-ext");
-    let db = ChatDb::open(&dir.join("local_chat.db")).unwrap();
+    let db = Db::open(&dir.join("plain.db")).unwrap();
     let src = write_src(&dir, "src.bin", b"\x89PNGfakepng");
 
     let result = import_file(&db, &dir, &src, "photo", "image/png").unwrap();
@@ -106,7 +106,7 @@ fn import_file_falls_back_to_mime_when_name_has_no_ext() {
 #[test]
 fn import_bytes_dedupes_on_second_call() {
     let dir = unique_tmp_dir("import-bytes");
-    let db = ChatDb::open(&dir.join("local_chat.db")).unwrap();
+    let db = Db::open(&dir.join("plain.db")).unwrap();
 
     let first = import_bytes(&db, &dir, b"hello attachment", "text/plain").unwrap();
     assert!(!first.reused);
@@ -207,8 +207,8 @@ fn dest_path_joins_data_dir_with_relative() {
     );
 }
 
-fn seed_named_chat(db: &ChatDb, at: &str, uri: &str, name: &str) {
-    let mut chat = crate::chat::db::DChat::new(
+fn seed_named_chat(db: &Db, at: &str, uri: &str, name: &str) {
+    let mut chat = crate::db::DChat::new(
         "me",
         "peer1",
         "",
@@ -227,7 +227,7 @@ fn seed_named_chat(db: &ChatDb, at: &str, uri: &str, name: &str) {
 #[test]
 fn file_name_map_prefers_newest_chat_and_strips_fid_ext() {
     let dir = unique_tmp_dir("name-map");
-    let db = ChatDb::open(&dir.join("local_chat.db")).unwrap();
+    let db = Db::open(&dir.join("plain.db")).unwrap();
     seed_named_chat(&db, "2026-01-01T00:00:01Z", "fid:aa11.jpg", "old.jpg");
     seed_named_chat(&db, "2026-01-02T00:00:01Z", "fid:aa11.jpg", "new.jpg");
     // key is the bare hash — extension stripped.

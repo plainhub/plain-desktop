@@ -62,7 +62,7 @@ fn wildcard_mode_accepts_everything() {
     assert!(p.is_wildcard());
 }
 
-#[cfg(feature = "nas")]
+#[cfg(feature = "system")]
 #[tokio::test]
 async fn desktop_graphql_preflight_allows_vite_origin() {
     use axum::body::Body;

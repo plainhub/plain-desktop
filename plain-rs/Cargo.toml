@@ -100,12 +100,9 @@ media = [
 # media-scan mutations, file-management mutations) used by the shared
 # desktop/NAS API schema.
 media_gql = ["media", "library", "dep:async-graphql"]
-# NAS system/domain modules ported from the plainnas crate: mounts,
-# disks, automount, samba, device info, app update, DLNA sender, the
-# file logger and supporting helpers. The plainnas shell consumes this
-# via re-exports while its own API layer migrates (phase 1 of the
-# nas → plain-rs consolidation).
-nas = ["api", "dep:nix", "dep:ureq", "dep:dashmap", "dep:http"]
+# Shared storage, system services, and DLNA sender capabilities.
+# Shells opt in and decide which operations they expose.
+system = ["api", "dep:nix", "dep:ureq", "dep:dashmap", "dep:http"]
 
 [dependencies]
 chacha20poly1305 = "0.10"

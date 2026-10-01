@@ -4,7 +4,7 @@ use std::sync::Arc;
 
 use async_graphql::{EmptySubscription, Schema};
 
-use crate::library::db::LibraryDb;
+use crate::db::Db as SqlDb;
 use crate::httpserver::mainschemas::media::{MediaMutationRoot, MediaQueryRoot};
 use crate::media::image_index::MediaSearchIndex;
 use crate::media::kv::Db;
@@ -30,7 +30,7 @@ fn test_schema(tag: &str) -> (MediaSchema, std::path::PathBuf) {
     let tmp = tmp_dir(tag);
     let db = Arc::new(Db::open(&tmp.join("fjall")).unwrap());
     let prefs = Arc::new(Prefs::load(&tmp.join("prefs.json")).unwrap());
-    let library = Arc::new(LibraryDb::open(&tmp.join("library.db")).unwrap());
+    let library = Arc::new(SqlDb::open(&tmp.join("plain.db")).unwrap());
     let schema = Schema::build(MediaQueryRoot, MediaMutationRoot, EmptySubscription)
         .data(db)
         .data(prefs)

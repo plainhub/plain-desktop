@@ -7,7 +7,7 @@ use axum::body::Bytes;
 use axum::http::{HeaderMap, StatusCode};
 use std::net::SocketAddr;
 
-use crate::chat::db::DPeer;
+use crate::db::DPeer;
 use crate::chat::enums::{DeviceType, PeerStatus};
 use crate::{base64_encode, ed25519_generate, ed25519_sign, xchacha_decrypt_raw, xchacha_encrypt_raw};
 

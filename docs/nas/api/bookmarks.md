@@ -1,7 +1,7 @@
 # 书签 API
 
 > 端口：HTTP :8080 / HTTPS :8443，`POST /graphql`（Bearer url_token）。
-> 契约对齐 plain-app（手机端）书签面；存储为 SQLite `<data_dir>/chat.db` 的
+> 契约对齐 plain-app（手机端）书签面；存储为 SQLite `<data_dir>/plain.db` 的
 > `bookmarks` / `bookmark_groups` 表（plain-rs `chat::db::bookmark`，与
 > plain-desktop 共用同一套行为代码）。
 

@@ -3,12 +3,12 @@
 //!
 //! Ported 1:1 from plain-nas's fjall implementations (which were ports of
 //! plain-app's Room tables) so NAS and desktop run identical behavior:
-//! both consumers call these functions against a [`db::LibraryDb`]
+//! both consumers call these functions against a [`crate::db::Db`]
 //! SQLite file; only the media-library resolution seam
 //! ([`audio_queue::LibraryTracks`]) is implemented per platform.
 
 pub mod audio_queue;
-pub mod db;
+
 pub mod favorite_folders;
 pub mod tags;
 

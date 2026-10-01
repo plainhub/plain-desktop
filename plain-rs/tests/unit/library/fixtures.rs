@@ -1,4 +1,4 @@
-//! Shared test fixtures for the library modules — a temp [`LibraryDb`]
+//! Shared test fixtures for the library modules — a temp [`Db`]
 //! per test and a deterministic in-memory [`FakeLibrary`] standing in
 //! for a platform media index.
 //!
@@ -9,19 +9,19 @@
 use crate::library::LibraryResult;
 use crate::library::audio_queue::AudioTrack;
 use crate::library::audio_queue::LibraryTracks;
-use crate::library::db::LibraryDb;
+use crate::db::Db;
 use std::sync::atomic::{AtomicUsize, Ordering};
 
 static SEQ: AtomicUsize = AtomicUsize::new(0);
 
 /// Private per-test SQLite file (unique dir per tag + seq + pid): full
 /// isolation from parallel tests and previous runs.
-pub fn test_db(tag: &str) -> LibraryDb {
+pub fn test_db(tag: &str) -> Db {
     let n = SEQ.fetch_add(1, Ordering::SeqCst);
     let p = std::env::temp_dir().join(format!("plain-rs-library-{tag}-{n}-{}", std::process::id()));
     let _ = std::fs::remove_dir_all(&p);
     std::fs::create_dir_all(&p).unwrap();
-    LibraryDb::open(&p.join("library.db")).unwrap()
+    Db::open(&p.join("plain.db")).unwrap()
 }
 
 /// Deterministic library for the LIBRARY-source tests: tracks in the

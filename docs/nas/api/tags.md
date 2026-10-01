@@ -111,7 +111,7 @@ mutation { removeFromTags(
 
 ## 存储
 
-SQLite `<data_dir>/library.db`（plain-rs `library` feature，与 plain-desktop
+SQLite `<data_dir>/plain.db`（plain-rs `library` feature，与 plain-desktop
 共用同一套行为代码）：
 
 ```

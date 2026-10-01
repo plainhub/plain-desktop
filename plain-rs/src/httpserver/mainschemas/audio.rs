@@ -10,7 +10,7 @@ use async_graphql::{Context, ID, Object};
 use std::sync::Arc;
 
 use crate::api::context::AppCtx;
-use crate::api::db::LibraryDb;
+use crate::db::Db;
 use crate::api::enums::MediaPlayMode;
 use crate::httpserver::mainschemas::types::{
     AudioItem, AudioPlayHistory, AudioPlayback, AudioPlaylist,
@@ -25,7 +25,7 @@ fn track_to_gql(a: AudioTrack) -> AudioItem {
     }
 }
 
-fn playlist_to_gql((pl, count): (crate::library::db::Playlist, usize)) -> AudioPlaylist {
+fn playlist_to_gql((pl, count): (crate::db::Playlist, usize)) -> AudioPlaylist {
     AudioPlaylist {
         id: pl.id.into(),
         name: pl.name,
@@ -52,7 +52,7 @@ impl AudioQuery {
         let c = ctx.data_unchecked::<Arc<AppCtx>>();
         let text = text_of(&query);
         let mut lib = audio_queue::NoLibrary;
-        audio_queue::queue_page(&c.library, &mut lib, offset as i64, limit as i64, &text)
+        audio_queue::queue_page(&c.db, &mut lib, offset as i64, limit as i64, &text)
             .unwrap_or_default()
             .into_iter()
             .map(track_to_gql)
@@ -63,7 +63,7 @@ impl AudioQuery {
     async fn audio_queue_item_count(&self, ctx: &Context<'_>) -> i32 {
         let c = ctx.data_unchecked::<Arc<AppCtx>>();
         let mut lib = audio_queue::NoLibrary;
-        audio_queue::queue_total(&c.library, &mut lib)
+        audio_queue::queue_total(&c.db, &mut lib)
             .unwrap_or(0)
             .min(i32::MAX as usize) as i32
     }
@@ -73,10 +73,10 @@ impl AudioQuery {
     /// renders on the client — so isPlaying/positionMs serve idle values.
     async fn audio_playback(&self, ctx: &Context<'_>) -> AudioPlayback {
         let c = ctx.data_unchecked::<Arc<AppCtx>>();
-        let current = audio_queue::get_audio_current(&c.library);
+        let current = audio_queue::get_audio_current(&c.db);
         AudioPlayback {
             current_path: (!current.is_empty()).then_some(current),
-            mode: media_play_mode_of(&c.library),
+            mode: media_play_mode_of(&c.db),
             is_playing: false,
             position_ms: Long(0),
         }
@@ -85,7 +85,7 @@ impl AudioQuery {
     /// All user playlists, most recently updated first.
     async fn audio_playlists(&self, ctx: &Context<'_>) -> Vec<AudioPlaylist> {
         let c = ctx.data_unchecked::<Arc<AppCtx>>();
-        audio_queue::playlists(&c.library)
+        audio_queue::playlists(&c.db)
             .into_iter()
             .map(playlist_to_gql)
             .collect()
@@ -102,7 +102,7 @@ impl AudioQuery {
     ) -> Vec<AudioItem> {
         let c = ctx.data_unchecked::<Arc<AppCtx>>();
         audio_queue::playlist_items_page(
-            &c.library,
+            &c.db,
             id.as_ref(),
             offset as i64,
             limit as i64,
@@ -116,7 +116,7 @@ impl AudioQuery {
     /// Track count of one playlist.
     async fn audio_playlist_item_count(&self, ctx: &Context<'_>, id: ID) -> i32 {
         let c = ctx.data_unchecked::<Arc<AppCtx>>();
-        audio_queue::playlist_item_count(&c.library, id.as_ref()).min(i32::MAX as usize) as i32
+        audio_queue::playlist_item_count(&c.db, id.as_ref()).min(i32::MAX as usize) as i32
     }
 
     /// Recently played tracks, newest first.
@@ -129,7 +129,7 @@ impl AudioQuery {
     ) -> Vec<AudioPlayHistory> {
         let c = ctx.data_unchecked::<Arc<AppCtx>>();
         audio_queue::history_page(
-            &c.library,
+            &c.db,
             offset as i64,
             limit as i64,
             text_of(&query).as_str(),
@@ -157,9 +157,9 @@ impl AudioMutation {
     async fn play_audio(&self, ctx: &Context<'_>, path: String) -> AudioItem {
         let c = ctx.data_unchecked::<Arc<AppCtx>>();
         let track = AudioTrack::from_path_stem(&path);
-        audio_queue::enqueue(&c.library, std::slice::from_ref(&track), false);
+        audio_queue::enqueue(&c.db, std::slice::from_ref(&track), false);
         audio_queue::on_playing(
-            &c.library,
+            &c.db,
             &track.path,
             &track.title,
             &track.artist,
@@ -176,22 +176,22 @@ impl AudioMutation {
             MediaPlayMode::RepeatOne => "REPEAT_ONE",
             MediaPlayMode::Shuffle => "SHUFFLE",
         };
-        audio_queue::save_audio_mode(&c.library, mode_str);
+        audio_queue::save_audio_mode(&c.db, mode_str);
         true
     }
 
     /// Reset the source, the manual queue and the current track.
     async fn clear_audio_queue(&self, ctx: &Context<'_>) -> bool {
         let c = ctx.data_unchecked::<Arc<AppCtx>>();
-        audio_queue::save_audio_current(&c.library, "");
-        audio_queue::clear_queue(&c.library);
+        audio_queue::save_audio_current(&c.db, "");
+        audio_queue::clear_queue(&c.db);
         true
     }
 
     /// Remove a track from the manual queue.
     async fn remove_audio_from_queue(&self, ctx: &Context<'_>, path: String) -> bool {
         let c = ctx.data_unchecked::<Arc<AppCtx>>();
-        audio_queue::remove_queued(&c.library, &path);
+        audio_queue::remove_queued(&c.db, &path);
         true
     }
 
@@ -208,7 +208,7 @@ impl AudioMutation {
     /// order at the end.
     async fn reorder_audio_queue(&self, ctx: &Context<'_>, paths: Vec<String>) -> bool {
         let c = ctx.data_unchecked::<Arc<AppCtx>>();
-        audio_queue::reorder_queued(&c.library, &paths);
+        audio_queue::reorder_queued(&c.db, &paths);
         true
     }
 
@@ -217,7 +217,7 @@ impl AudioMutation {
     /// Create an empty user playlist and return it.
     async fn create_audio_playlist(&self, ctx: &Context<'_>, name: String) -> AudioPlaylist {
         let c = ctx.data_unchecked::<Arc<AppCtx>>();
-        playlist_to_gql((audio_queue::create_playlist(&c.library, &name), 0))
+        playlist_to_gql((audio_queue::create_playlist(&c.db, &name), 0))
     }
 
     /// Update a playlist's name; returns the updated playlist.
@@ -228,17 +228,17 @@ impl AudioMutation {
         name: String,
     ) -> async_graphql::Result<AudioPlaylist> {
         let c = ctx.data_unchecked::<Arc<AppCtx>>();
-        audio_queue::rename_playlist(&c.library, id.as_ref(), &name);
-        let pl = audio_queue::playlist_by_id(&c.library, id.as_ref())
+        audio_queue::rename_playlist(&c.db, id.as_ref(), &name);
+        let pl = audio_queue::playlist_by_id(&c.db, id.as_ref())
             .ok_or_else(|| async_graphql::Error::new(format!("Playlist {} not found", id.0)))?;
-        let count = audio_queue::playlist_item_count(&c.library, id.as_ref());
+        let count = audio_queue::playlist_item_count(&c.db, id.as_ref());
         Ok(playlist_to_gql((pl, count)))
     }
 
     /// Delete a playlist; its items go with it.
     async fn delete_audio_playlist(&self, ctx: &Context<'_>, id: ID) -> bool {
         let c = ctx.data_unchecked::<Arc<AppCtx>>();
-        audio_queue::delete_playlist(&c.library, id.as_ref());
+        audio_queue::delete_playlist(&c.db, id.as_ref());
         true
     }
 
@@ -254,14 +254,14 @@ impl AudioMutation {
             .iter()
             .map(|p| AudioTrack::from_path_stem(p))
             .collect();
-        audio_queue::add_playlist_items(&c.library, id.as_ref(), &items);
+        audio_queue::add_playlist_items(&c.db, id.as_ref(), &items);
         true
     }
 
     /// Remove one track (by path) from a playlist.
     async fn remove_audio_playlist_item(&self, ctx: &Context<'_>, id: ID, path: String) -> bool {
         let c = ctx.data_unchecked::<Arc<AppCtx>>();
-        audio_queue::remove_playlist_item(&c.library, id.as_ref(), &path);
+        audio_queue::remove_playlist_item(&c.db, id.as_ref(), &path);
         true
     }
 
@@ -275,12 +275,12 @@ impl AudioMutation {
         shuffle: bool,
     ) -> Option<AudioItem> {
         let c = ctx.data_unchecked::<Arc<AppCtx>>();
-        let start = audio_queue::set_playlist_source(&c.library, id.as_ref(), path.as_deref());
+        let start = audio_queue::set_playlist_source(&c.db, id.as_ref(), path.as_deref());
         let track = if shuffle {
             match start {
                 Some(_) => {
                     let mut lib = audio_queue::NoLibrary;
-                    audio_queue::resolve_next(&c.library, &mut lib, true, true)
+                    audio_queue::resolve_next(&c.db, &mut lib, true, true)
                         .ok()
                         .flatten()
                 }
@@ -298,7 +298,7 @@ impl AudioMutation {
     async fn play_all_audios(&self, ctx: &Context<'_>, shuffle: bool) -> Option<AudioItem> {
         let c = ctx.data_unchecked::<Arc<AppCtx>>();
         let mut lib = audio_queue::NoLibrary;
-        audio_queue::set_library_source(&c.library, &mut lib, None, shuffle)
+        audio_queue::set_library_source(&c.db, &mut lib, None, shuffle)
             .ok()
             .flatten()
             .map(track_to_gql)
@@ -312,7 +312,7 @@ fn text_of(query: &str) -> String {
 }
 
 /// Parse the stored play-mode name into the GraphQL enum (REPEAT default).
-fn media_play_mode_of(library: &LibraryDb) -> MediaPlayMode {
+fn media_play_mode_of(library: &Db) -> MediaPlayMode {
     match audio_queue::get_audio_mode(library).as_str() {
         "REPEAT_ONE" => MediaPlayMode::RepeatOne,
         "SHUFFLE" => MediaPlayMode::Shuffle,

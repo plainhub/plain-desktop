@@ -21,7 +21,7 @@ use crate::api::context::{
     WS_NEARBY_DISCOVERY_STOPPED, WsEvent,
 };
 use crate::api::db::{
-    ChatDb, DNearbyDeviceCache, DPeer, iso_from_unix_millis, now_iso, now_millis,
+    Db, DNearbyDeviceCache, DPeer, iso_from_unix_millis, now_iso, now_millis,
 };
 use crate::httpserver::mainschemas::types::Peer;
 use crate::mdns::host_responder;
@@ -70,7 +70,7 @@ fn split_host(host: &str) -> (String, u16) {
 
 #[derive(Clone)]
 pub struct NearbyDiscoverManager {
-    db: Arc<ChatDb>,
+    db: Arc<Db>,
     identity: Arc<AppIdentity>,
     device_name: Arc<RwLock<String>>,
     mdns_hostname: Arc<RwLock<String>>,
@@ -92,7 +92,7 @@ pub struct NearbyDiscoverManager {
 impl NearbyDiscoverManager {
     #[allow(clippy::too_many_arguments)]
     pub fn new(
-        db: Arc<ChatDb>,
+        db: Arc<Db>,
         identity: Arc<AppIdentity>,
         device_name: Arc<RwLock<String>>,
         mdns_hostname: Arc<RwLock<String>>,
@@ -484,7 +484,7 @@ impl NearbyDiscoverManager {
         Some(addr)
     }
 
-    /// Records a successful remote-device login (see `ChatDb::login_peer`).
+    /// Records a successful remote-device login (see `Db::login_peer`).
     #[allow(clippy::too_many_arguments)]
     pub fn login_peer(
         &self,
@@ -771,7 +771,7 @@ mod tests {
                 .unwrap()
                 .as_nanos(),
         ));
-        let db = Arc::new(ChatDb::open(&path).unwrap());
+        let db = Arc::new(Db::open(&path).unwrap());
         let identity = Arc::new(AppIdentity {
             client_id: "self".into(),
             device_name: "Desktop".into(),

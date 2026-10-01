@@ -4,7 +4,7 @@ use async_graphql::Request;
 #[tokio::test]
 async fn graphql_feed_entry_joins_and_counts() {
     let dir = tempfile::tempdir().unwrap();
-    let db = Arc::new(LibraryDb::open(&dir.path().join("library.db")).unwrap());
+    let db = Arc::new(Db::open(&dir.path().join("plain.db")).unwrap());
     let at = chrono::Utc::now().to_rfc3339();
     db.feed_save("feed", "News", "https://example.org/rss", false, &at)
         .unwrap();

@@ -1,5 +1,5 @@
 use super::*;
-use crate::chat::db::{ChatDb, DPeer};
+use crate::db::{Db, DPeer};
 use crate::chat::enums::{DeviceType, MemberStatus};
 use crate::ed25519_generate;
 use std::path::PathBuf;
@@ -16,7 +16,7 @@ fn unique_tmp_dir(label: &str) -> PathBuf {
 
 fn build(
     channel: &DChannel,
-    db: &ChatDb,
+    db: &Db,
     client_id: &str,
     name: &str,
     kp: &[u8],
@@ -30,7 +30,7 @@ fn build(
 /// with "no owner memberPeerInfo". Mirrors plain-app `getPeersAsync`.
 #[test]
 fn build_member_peers_includes_owner_when_owner_is_member() {
-    let db = ChatDb::open(&unique_tmp_dir("owner-member").join("local_chat.db")).expect("open db");
+    let db = Db::open(&unique_tmp_dir("owner-member").join("plain.db")).expect("open db");
     let (kp_bytes, _vk_bytes) = ed25519_generate();
     let client_id = "owner-1";
     let device_name = "NAS";
@@ -57,7 +57,7 @@ fn build_member_peers_includes_owner_when_owner_is_member() {
 #[test]
 fn build_member_peers_includes_owner_alongside_members() {
     let db =
-        ChatDb::open(&unique_tmp_dir("owner-plus-member").join("local_chat.db")).expect("open db");
+        Db::open(&unique_tmp_dir("owner-plus-member").join("plain.db")).expect("open db");
     let (kp_bytes, _vk_bytes) = ed25519_generate();
     let client_id = "owner-1";
     let member_id = "member-1";
@@ -89,7 +89,7 @@ fn build_member_peers_includes_owner_alongside_members() {
 /// "no owner memberPeerInfo".
 #[test]
 fn build_member_peers_includes_owner_even_when_not_in_members() {
-    let db = ChatDb::open(&unique_tmp_dir("owner-not-in-members").join("local_chat.db"))
+    let db = Db::open(&unique_tmp_dir("owner-not-in-members").join("plain.db"))
         .expect("open db");
     let (kp_bytes, _vk_bytes) = ed25519_generate();
     let client_id = "owner-1";

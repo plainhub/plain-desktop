@@ -2,8 +2,8 @@ use super::*;
 
 #[test]
 fn bookmark_store_survives_reopen_and_ungroups_on_group_delete() {
-    let path = super::super::tests::unique_tmp_dir("bookmarks").join("local_chat.db");
-    let db = ChatDb::open(&path).unwrap();
+    let path = crate::db::chat_tests::unique_tmp_dir("bookmarks").join("plain.db");
+    let db = Db::open(&path).unwrap();
     let group = DBookmarkGroup::new("Links");
     insert_bookmark_group(&db, &group);
     let bookmark = DBookmark::new("https://example.com", &group.id);
@@ -11,7 +11,7 @@ fn bookmark_store_survives_reopen_and_ungroups_on_group_delete() {
     assert_eq!(get_bookmarks_by_group_id(&db, &group.id).len(), 1);
     drop(db);
 
-    let db = ChatDb::open(&path).unwrap();
+    let db = Db::open(&path).unwrap();
     assert_eq!(get_bookmarks(&db).len(), 1);
     assert_eq!(get_bookmark_groups(&db).len(), 1);
     delete_bookmark_group(&db, &group.id);
@@ -27,7 +27,7 @@ fn bookmark_store_survives_reopen_and_ungroups_on_group_delete() {
 /// order must not drift from the phone contract).
 #[test]
 fn listing_order_pins_first_then_sort_then_created() {
-    let db = ChatDb::open(&super::super::tests::unique_tmp_dir("bm-order").join("local_chat.db"))
+    let db = Db::open(&crate::db::chat_tests::unique_tmp_dir("bm-order").join("plain.db"))
         .unwrap();
     let older = now_iso_minus(3600);
     let mut b1 = DBookmark::new("https://1.example", "");

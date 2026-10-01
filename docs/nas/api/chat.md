@@ -3,7 +3,7 @@
 NAS 上的聊天栈复用 `plain_rs::chat`（与 plain-desktop 同一份实现，源头是 plain-app
 Kotlin 的 `ChatManager` / `ChatSender` / `PairingCore` / `ChannelSystemMessage*` 移植）。
 
-- 存储：`<data_dir>/chat.db`（SQLite，plain-app Room 同款聊天表——`chats`、
+- 存储：`<data_dir>/plain.db`（SQLite，plain-app Room 同款聊天表——`chats`、
   `chat_channels`、`peers`、`nearby_device_cache`、`app_files`；共享 core
   同时建 `bookmarks` / `bookmark_groups`，但 NAS 的 Bookmark API 仍使用 fjall KV）。
 - 身份：服务器 `client_id` + `/init` 公布的 Ed25519 签名密钥对 + 显示名

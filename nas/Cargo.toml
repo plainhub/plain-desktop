@@ -20,7 +20,7 @@ axum-server = { version = "0.7", features = ["tls-rustls"] }
 
 # GraphQL lives in the shared plain-rs API schema.
 
-plain_rs = { path = "../plain-rs", package = "plain-rs", features = ["chat", "library", "prefs", "sqlite_browse", "media", "media_gql", "nas"] }
+plain_rs = { path = "../plain-rs", package = "plain-rs", features = ["chat", "library", "prefs", "sqlite_browse", "media", "media_gql", "system"] }
 serde_json = "1"
 
 # Platform FFI (already a transitive of nix/tokio/ring — listing explicitly

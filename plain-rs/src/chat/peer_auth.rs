@@ -22,7 +22,7 @@ use crate::base64_decode;
 use crate::ed25519_verify;
 use crate::xchacha_decrypt_raw;
 
-use crate::chat::db::{ChatDb, DPeer};
+use crate::db::{Db, DPeer};
 use crate::chat::events::ChannelKeyCache;
 
 /// Maximum allowed clock skew (forward or backward) for a peer request.
@@ -80,7 +80,7 @@ impl AuthError {
 /// `channel_key_cache` carries the local node's known per-channel
 /// keys; `body` is the raw (encrypted) request body.
 pub fn authenticate(
-    db: &ChatDb,
+    db: &Db,
     header_client_id: &str,
     header_channel_id: &str,
     body: &[u8],

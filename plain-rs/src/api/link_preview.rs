@@ -22,7 +22,7 @@ use serde_json::{Value, json};
 use crate::utils::image_dimensions;
 
 use crate::chat::app_file_store::import_bytes;
-use crate::api::db::ChatDb;
+use crate::db::Db;
 
 /// Maximum HTML response body we will parse.
 const MAX_RESPONSE_SIZE: usize = 10 * 1024 * 1024; // 10MB
@@ -166,7 +166,7 @@ fn og_title_or_default(html: &str) -> Option<String> {
 
 /// Fetch one URL and build a link-preview JSON object (same shape as
 /// `plain-app` `DLinkPreview`). Any failure returns `{url, hasError: true}`.
-async fn fetch_link_preview(db: &ChatDb, data_dir: &Path, url: &str) -> Value {
+async fn fetch_link_preview(db: &Db, data_dir: &Path, url: &str) -> Value {
     let Some(client) = http_client() else {
         return error_preview(url);
     };
@@ -292,7 +292,7 @@ fn extract_favicon(html: &str, url: &str) -> Option<String> {
 /// return `(fid:..., width, height)` (empty path on failure). Mirrors
 /// `downloadImageWithSize` + `importImageBytesToFid`.
 async fn download_image_with_size(
-    db: &ChatDb,
+    db: &Db,
     data_dir: &Path,
     image_url: &str,
 ) -> (Option<String>, i32, i32) {
@@ -344,7 +344,7 @@ async fn download_image_with_size(
 /// when there is nothing to change (non-text, no URLs, or no previews
 /// resolved). Existing previews are preserved; only the URLs that are both
 /// new and resolvable are appended.
-pub async fn ensure_link_previews(db: &ChatDb, data_dir: &Path, content: &str) -> Option<String> {
+pub async fn ensure_link_previews(db: &Db, data_dir: &Path, content: &str) -> Option<String> {
     let mut v: Value = serde_json::from_str(content).ok()?;
     let type_uppercase = v.get("type").and_then(|t| t.as_str())?.to_uppercase();
     if type_uppercase != "TEXT" {

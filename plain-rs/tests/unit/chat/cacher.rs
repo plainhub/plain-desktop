@@ -1,5 +1,5 @@
 use super::*;
-use crate::chat::db::{ChatDb, DChannel, DPeer};
+use crate::db::{Db, DChannel, DPeer};
 use crate::chat::enums::{ChannelStatus, DeviceType, PeerStatus};
 use std::path::PathBuf;
 use std::time::{SystemTime, UNIX_EPOCH};
@@ -13,14 +13,14 @@ fn unique_tmp_dir(label: &str) -> PathBuf {
     std::env::temp_dir().join(format!("plain-rs-chat-cacher-{label}-{pid}-{nanos}"))
 }
 
-fn seed_chat(db: &ChatDb, id: &str, from_id: &str, to_id: &str, channel_id: &str) {
+fn seed_chat(db: &Db, id: &str, from_id: &str, to_id: &str, channel_id: &str) {
     let mut chat = DChat::new(from_id, to_id, channel_id, "{}");
     chat.id = id.to_string();
     db.insert_chat(&chat);
 }
 
-fn seed_peer(db: &ChatDb, id: &str) {
-    let now = crate::chat::db::now_iso();
+fn seed_peer(db: &Db, id: &str) {
+    let now = crate::db::now_iso();
     let peer = DPeer {
         id: id.to_string(),
         name: id.to_string(),
@@ -37,7 +37,7 @@ fn seed_peer(db: &ChatDb, id: &str) {
     db.upsert_peer(&peer);
 }
 
-fn seed_channel(db: &ChatDb, id: &str) {
+fn seed_channel(db: &Db, id: &str) {
     let mut ch = DChannel::new(id, "me");
     ch.id = id.to_string();
     ch.status = ChannelStatus::Joined;
@@ -46,7 +46,7 @@ fn seed_channel(db: &ChatDb, id: &str) {
 
 #[test]
 fn load_caches_local_chat() {
-    let db = ChatDb::open(&unique_tmp_dir("local").join("local_chat.db")).expect("open db");
+    let db = Db::open(&unique_tmp_dir("local").join("plain.db")).expect("open db");
     seed_chat(&db, "a", "me", "local", "");
 
     let cacher = ChatCacher::new();
@@ -57,7 +57,7 @@ fn load_caches_local_chat() {
 
 #[test]
 fn load_caches_peer_chat() {
-    let db = ChatDb::open(&unique_tmp_dir("peer").join("local_chat.db")).expect("open db");
+    let db = Db::open(&unique_tmp_dir("peer").join("plain.db")).expect("open db");
     seed_peer(&db, "peer1");
     seed_chat(&db, "a", "me", "peer1", "");
 
@@ -69,7 +69,7 @@ fn load_caches_peer_chat() {
 
 #[test]
 fn load_caches_channel_chat() {
-    let db = ChatDb::open(&unique_tmp_dir("chan").join("local_chat.db")).expect("open db");
+    let db = Db::open(&unique_tmp_dir("chan").join("plain.db")).expect("open db");
     seed_channel(&db, "ch1");
     seed_chat(&db, "a", "me", "", "ch1");
 
@@ -81,7 +81,7 @@ fn load_caches_channel_chat() {
 
 #[test]
 fn load_skips_chats_for_unknown_peer() {
-    let db = ChatDb::open(&unique_tmp_dir("unknown").join("local_chat.db")).expect("open db");
+    let db = Db::open(&unique_tmp_dir("unknown").join("plain.db")).expect("open db");
     seed_chat(&db, "a", "me", "ghost", "");
 
     let cacher = ChatCacher::new();
@@ -92,7 +92,7 @@ fn load_skips_chats_for_unknown_peer() {
 
 #[test]
 fn load_keeps_most_recent_for_same_conversation() {
-    let db = ChatDb::open(&unique_tmp_dir("latest").join("local_chat.db")).expect("open db");
+    let db = Db::open(&unique_tmp_dir("latest").join("plain.db")).expect("open db");
     // now_iso() has seconds resolution, so manually set timestamps
     // to guarantee ordering.
     let mut old = DChat::new("me", "local", "", "{}");

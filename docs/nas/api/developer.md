@@ -4,29 +4,15 @@
 服务 web UI 的四个 developer 子页面：`/developer/logs`、`/developer/datastore`、
 `/developer/database`、`/developer/device-info`（deviceInfo 见 `app.md`）。
 
-三端一致的存储拆分（plain-app：Jetpack DataStore + Room SQLite；plain-desktop：
-`prefs.json` + `local_chat.db` + `local_library.db`；plain-nas：
-**`prefs.json` + fjall（内部）+ `chat.db` + `library.db`**，后两者为 plain-rs 共享
-SQLite，行为与桌面端一致）：
+桌面与 NAS 均使用 `<data_dir>/plain.db` 这一个 SQLite 文件。聊天、资料库、notes 和 feeds 表都在同一个连接中。
+`prefs.json` 保存设备设置；fjall 保存媒体等服务端状态。
 
 - **DataStore 页 = `<data_dir>/prefs.json`**：扁平 string→JSON map，存用户设置、
-  设备身份与小体量应用状态（`device_name`、`client_id`、`url_token`、
-  `signature_key_pair`、`password_hash`、`recent_files`、`samba_settings`
-  等，键名对齐 plain-app 偏好；`favorite_folders` 与 `audio_play_mode` 已迁入
-  `library.db`）。
-  pretty-print 可手改，每次写入原子替换（tmp + rename），同值写入跳过落盘
-  （`src/prefs.rs`）。
-- **Database 页 = 两座 SQLite 用户库**：`chat.db`（chats/chat_channels/peers/
-  nearby_device_cache/app_files/bookmarks/bookmark_groups）与 `library.db`
-  （audio_queue_source/audio_queue_items/audio_playlists/audio_playlist_items/
-  audio_play_history/tags/tag_relations/favorite_folders/library_prefs）。
-  表名带库前缀：`chat.chats`、`library.tags`（分派在 `src/devtools_sqlite.rs`）；
-  列元数据来自 `PRAGMA table_info`，行来自 `SELECT *` 的 JSON 字符串
-  （数字保持数字、BLOB 渲染为 hex），`idKey` = 声明的主键列（复合主键取第一列）。
-  浏览原语（标识符护栏、分页、删行）在 `plain_rs::sqlite_browse`，与
-  plain-desktop 的 debug DB 页共享同一实现。
-  内部 fjall 命名空间（event/media/session）是服务端内部状态，不出现在本页。
-  偏好不出现在表里——各页各管各的，与手机/桌面一致。
+  设备身份与小体量应用状态。写入时原子替换。
+- **Database 页 = 单个 SQLite 文件**：列出该文件的全部用户表，包括 chats、peers、
+  bookmarks、audio_queue、tags、favorite_folders、notes 和 feeds。表名没有库前缀；
+  列元数据来自 `PRAGMA table_info`，行来自 `SELECT *` 的 JSON 字符串。
+  内部 fjall 命名空间不出现在本页。
 - **日志**：`<data_dir>/logs/latest.log`，单文件、行式、新行在尾部；
   行格式 `YYYY-MM-DD HH:MM:SS.mmm LEVEL body`（UTC，详见 `src/log.rs`）。
 
@@ -52,31 +38,26 @@ curl -s -X POST -H "Authorization: Bearer dev" -H "Content-Type: application/jso
 
 ### `dbPath: String!`
 
-两座 SQLite 库的绝对路径，逗号连接（`<data_dir>/chat.db, <data_dir>/library.db`）
-——手机/桌面是单库单路径，NAS 是两座库。
+当前壳打开的唯一 SQLite 文件的绝对路径。
 
 ### `dataStorePath: String!`
 
 偏好文件绝对路径（`<data_dir>/prefs.json`）——与 `dbPath` 是两个真实文件，
-对齐 plain-desktop 的 `prefs.json` / `local_chat.db` 二分。
+对齐 plain-desktop 的 `prefs.json` / `plain.db` 二分。
 
 ### `dbTables: [String!]!`
 
-两座 SQLite 库的全部用户表，按名排序，带库前缀（`chat.*` 块在 `library.*` 前）：
-`chat.app_files, chat.bookmark_groups, chat.bookmarks, chat.chat_channels,
-chat.chats, chat.nearby_device_cache, chat.peers, library.audio_play_history,
-library.audio_playlist_items, library.audio_playlists, library.audio_queue_items,
-library.audio_queue_source, library.favorite_folders, library.library_prefs,
-library.tag_relations, library.tags`。SQLite 内部表（`sqlite_%`）不列出。
+单个 SQLite 文件的全部用户表，按名排序，不带数据库前缀。SQLite 内部表
+（`sqlite_%`）不列出。
 
 ### `dbTableInfo(table: String!): DbTableInfo!`
 
 ```graphql
-{ dbTableInfo(table: "library.tags") { idKey } }   # → {"idKey":"id"}
+{ dbTableInfo(table: "tags") { idKey } }   # → {"idKey":"id"}
 ```
 
-`idKey` = 声明的主键列（复合主键取第一列，如 `library.tag_relations` →
-`tag_id`）。未知/无前缀/不安全的表名报错。
+`idKey` = 声明的主键列（复合主键取第一列，如 `tag_relations` →
+`tag_id`）。未知或不安全的表名报错。
 
 ### `dbTableRowCount(table: String!): Int!`
 

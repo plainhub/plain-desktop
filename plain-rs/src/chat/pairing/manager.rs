@@ -16,7 +16,7 @@
 //! plain-app's `createUnsafeHttpClient`).
 //!
 //! After a successful handshake the peer is written to the `peers` table and
-//! the ChatDb's key-cache is considered stale (callers should re-query
+//! the Db's key-cache is considered stale (callers should re-query
 //! `get_peers`).
 
 use std::collections::HashMap;
@@ -33,7 +33,7 @@ use crate::ed25519_sign;
 use crate::ed25519_verify;
 use crate::utils::http_url::build_url;
 
-use crate::chat::db::{ChatDb, DPeer, now_iso};
+use crate::db::{Db, DPeer, now_iso};
 use crate::chat::enums::{DeviceType, PeerStatus};
 use crate::chat::service::ChatIdentity;
 use crate::chat::transport::PeerTransport;
@@ -65,7 +65,7 @@ struct PairingSession {
 // ── Pairing manager ───────────────────────────────────────────────────────────
 
 pub struct PairingManager<T: PeerTransport> {
-    pub db: ChatDb,
+    pub db: Db,
     pub identity: Arc<ChatIdentity>,
     /// Wire device type this device advertises ("COMPUTER" on desktop,
     /// "NAS" on plain-nas).
@@ -121,7 +121,7 @@ pub enum PairingEventKind {
 
 impl<T: PeerTransport + 'static> PairingManager<T> {
     pub fn new(
-        db: ChatDb,
+        db: Db,
         identity: Arc<ChatIdentity>,
         local_device_type: &'static str,
         transport: Arc<T>,

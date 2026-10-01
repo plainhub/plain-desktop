@@ -6,7 +6,7 @@
 use crate::base64_decode;
 use crate::random_bytes;
 
-use crate::chat::db::{DChannel, now_iso};
+use crate::db::{DChannel, now_iso};
 use crate::chat::enums::ChannelStatus;
 use crate::chat::events::{
     ChatEvent, WS_CHANNELS_UPDATED, channels_updated_payload, load_key_cache,

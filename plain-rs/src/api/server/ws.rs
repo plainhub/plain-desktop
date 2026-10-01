@@ -42,7 +42,7 @@ const INVALID_REQUEST_REASON: &str = "invalid_request";
 /// `ws.close(WsCloseCode.TRY_AGAIN_LATER, "invalid_password")`. The
 /// client surfaces the close reason as the i18n key
 /// `login.invalid_password`.
-#[cfg(feature = "nas")]
+#[cfg(feature = "system")]
 const INVALID_PASSWORD_REASON: &str = "invalid_password";
 
 pub async fn chat_socket(socket: WebSocket, path: String, state: ServerState) {
@@ -308,7 +308,7 @@ fn now_ms() -> i64 {
 /// ── Nas `/` root: WebSocket upgrade + SPA index split, and the
 /// `auth=1` login handshake ─────────────────────────────────────────
 
-#[cfg(feature = "nas")]
+#[cfg(feature = "system")]
 mod login {
     use super::*;
 
@@ -575,9 +575,9 @@ mod login {
     }
 }
 
-#[cfg(feature = "nas")]
+#[cfg(feature = "system")]
 pub use login::root_handler;
 
-#[cfg(all(test, feature = "nas"))]
+#[cfg(all(test, feature = "system"))]
 #[path = "../../../tests/unit/api/server/ws_nas.rs"]
 mod nas_tests;

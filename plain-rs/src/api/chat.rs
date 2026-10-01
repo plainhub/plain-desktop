@@ -2,7 +2,7 @@
 //! assembly both hosts (desktop Tauri shell, plain-nas server) use.
 //!
 //! One place assembles everything the plain-app chat contract needs:
-//! * `chat.db` — the plain-app-schema SQLite store (chats / channels /
+//! * `plain.db` — the plain-app-schema SQLite store (chats / channels /
 //!   peers / nearby cache / app files) opened by the caller (it also
 //!   carries bookmarks through the shared core).
 //! * identity — desktop: the Tauri `AppIdentity` (`client_id` +
@@ -23,7 +23,7 @@ use std::path::PathBuf;
 use std::sync::Arc;
 use std::time::Duration;
 
-use crate::chat::db::ChatDb;
+use crate::db::Db;
 use crate::chat::enums::DeviceType;
 use crate::chat::pairing::{PairingEvent, PairingEventKind, PairingManager};
 use crate::chat::service::{ChatHooks, ChatIdentity, ChatService, LinkPreviewFn};
@@ -159,18 +159,18 @@ pub struct ChatState {
     desktop_hooks: Option<Arc<DesktopChatHooks>>,
     /// Concrete NAS hook handle — [`Self::start_discovery`] fills its
     /// discovery slot. `None` unless built via [`Self::nas_init`].
-    #[cfg(feature = "nas")]
+    #[cfg(feature = "system")]
     nas_hooks: Option<Arc<NasChatHooks>>,
     /// LAN discovery (mDNS advertise + browse). `None` until
     /// [`Self::start_discovery`] runs — tests keep it off (no sockets).
-    #[cfg(feature = "nas")]
-    pub discovery: Option<Arc<crate::nas::chat_discovery::ChatDiscovery>>,
+    #[cfg(feature = "system")]
+    pub discovery: Option<Arc<crate::api::chat_discovery::ChatDiscovery>>,
 }
 
 /// Full-option assembly inputs for [`ChatState`] — every host difference
 /// (device type, wire platform, link previews, hooks) is a field here.
 pub struct ChatOptions {
-    pub db: ChatDb,
+    pub db: Db,
     pub identity: Arc<ChatIdentity>,
     pub token: String,
     pub data_dir: PathBuf,
@@ -200,9 +200,9 @@ impl ChatState {
             pairing,
             identity: opts.identity,
             desktop_hooks: None,
-            #[cfg(feature = "nas")]
+            #[cfg(feature = "system")]
             nas_hooks: None,
-            #[cfg(feature = "nas")]
+            #[cfg(feature = "system")]
             discovery: None,
         }
     }
@@ -210,7 +210,7 @@ impl ChatState {
     /// Desktop assembly — `COMPUTER` device type, OpenGraph link
     /// previews, desktop discovery hooks.
     pub fn new(
-        db: &ChatDb,
+        db: &Db,
         identity: &AppIdentity,
         device_name: String,
         token: String,
@@ -282,13 +282,13 @@ impl ChatState {
 /// peer delivery (usually a changed IP/port) refreshes the peer row for
 /// the next attempt. The discovery handle is filled by
 /// [`ChatState::start_discovery`] — before that the hook is a no-op.
-#[cfg(feature = "nas")]
+#[cfg(feature = "system")]
 #[derive(Default)]
 pub struct NasChatHooks {
-    discovery: std::sync::OnceLock<Arc<crate::nas::chat_discovery::ChatDiscovery>>,
+    discovery: std::sync::OnceLock<Arc<crate::api::chat_discovery::ChatDiscovery>>,
 }
 
-#[cfg(feature = "nas")]
+#[cfg(feature = "system")]
 impl ChatHooks for NasChatHooks {
     fn rebrowse_peers(&self) {
         if let Some(d) = self.discovery.get() {
@@ -297,13 +297,13 @@ impl ChatHooks for NasChatHooks {
     }
 }
 
-#[cfg(feature = "nas")]
+#[cfg(feature = "system")]
 impl ChatState {
-    /// NAS assembly — open (or create) `chat.db` under `data_dir` and
+    /// NAS assembly — open (or create) `plain.db` under `data_dir` and
     /// build the stack from the NAS's existing identity primitives
     /// (`client_id`, signature keypair, URL token, display name).
     pub fn nas_init(data_dir: &std::path::Path, prefs: &crate::prefs::Prefs) -> anyhow::Result<Self> {
-        let db = ChatDb::open(&data_dir.join("chat.db"))?;
+        let db = Db::open(&data_dir.join("plain.db"))?;
         let token = crate::media::kv::UrlToken::new(prefs).ensure()?;
         let keypair = crate::media::kv::SignatureKey::new(prefs).ensure_keypair()?;
         let display_name = {
@@ -344,8 +344,8 @@ impl ChatState {
     pub fn start_discovery(
         &mut self,
         prefs: &crate::prefs::Prefs,
-    ) -> Arc<crate::nas::chat_discovery::ChatDiscovery> {
-        let d = crate::nas::chat_discovery::ChatDiscovery::start(
+    ) -> Arc<crate::api::chat_discovery::ChatDiscovery> {
+        let d = crate::api::chat_discovery::ChatDiscovery::start(
             self.service.db.clone(),
             self.service.identity.clone(),
             prefs,
@@ -428,6 +428,6 @@ fn forward_pairing_event_to_ws(
 #[path = "../../tests/unit/api/chat.rs"]
 mod tests;
 
-#[cfg(all(test, feature = "nas"))]
+#[cfg(all(test, feature = "system"))]
 #[path = "../../tests/unit/api/chat_nas.rs"]
 mod nas_tests;

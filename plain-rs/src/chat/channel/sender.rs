@@ -22,7 +22,7 @@ use std::str::FromStr;
 use crate::base64_encode;
 use crate::ed25519_sign;
 
-use crate::chat::db::{ChatDb, DChannel, DPeer};
+use crate::db::{Db, DChannel, DPeer};
 use crate::chat::enums::{ChannelSystemMessageAction, ChannelSystemMessageType, DeviceType};
 use crate::chat::events::PeerKeyCache;
 use crate::chat::transport::{PeerTransport, deliver_channel_system_message};
@@ -43,7 +43,7 @@ pub async fn send_invite<T: PeerTransport>(
     device_name: &str,
     self_device_type: DeviceType,
     kp_bytes: &[u8],
-    db: &ChatDb,
+    db: &Db,
     key_cache: &PeerKeyCache,
     channel_key: &[u8],
 ) -> bool {
@@ -172,7 +172,7 @@ pub async fn broadcast_update<T: PeerTransport>(
     device_name: &str,
     self_device_type: DeviceType,
     kp_bytes: &[u8],
-    db: &ChatDb,
+    db: &Db,
     key_cache: &PeerKeyCache,
     channel_key: &[u8],
 ) {
@@ -268,7 +268,7 @@ pub async fn broadcast_kick<T: PeerTransport>(
     channel: &DChannel,
     client_id: &str,
     kp_bytes: &[u8],
-    db: &ChatDb,
+    db: &Db,
     key_cache: &PeerKeyCache,
     channel_key: &[u8],
 ) {
@@ -346,7 +346,7 @@ pub async fn send_leave<T: PeerTransport>(
 #[allow(clippy::too_many_arguments)]
 fn build_member_peers(
     channel: &DChannel,
-    db: &ChatDb,
+    db: &Db,
     client_id: &str,
     device_name: &str,
     self_device_type: DeviceType,

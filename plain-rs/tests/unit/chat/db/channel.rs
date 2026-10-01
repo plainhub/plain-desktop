@@ -1,8 +1,8 @@
 use super::*;
 use crate::chat::enums::ChannelStatus;
-use crate::db::chat::tests::unique_tmp_dir;
+use crate::db::chat_tests::unique_tmp_dir;
 
-fn seed_channel(db: &ChatDb, id: &str, status: ChannelStatus) {
+fn seed_channel(db: &Db, id: &str, status: ChannelStatus) {
     let mut channel = DChannel::new(id, "me");
     channel.id = id.to_string();
     channel.status = status;
@@ -11,7 +11,7 @@ fn seed_channel(db: &ChatDb, id: &str, status: ChannelStatus) {
 
 #[test]
 fn get_channels_filters_by_status() {
-    let db = ChatDb::open(&unique_tmp_dir("filter-status").join("local_chat.db")).expect("open db");
+    let db = Db::open(&unique_tmp_dir("filter-status").join("plain.db")).expect("open db");
     seed_channel(&db, "c1", ChannelStatus::Joined);
     seed_channel(&db, "c2", ChannelStatus::Joined);
     seed_channel(&db, "c3", ChannelStatus::Left);
@@ -60,7 +60,7 @@ fn elect_leader_prefers_owner_then_smallest_online() {
 
 #[test]
 fn any_channel_has_member_returns_true_when_member_found() {
-    let db = ChatDb::open(&unique_tmp_dir("has-member").join("local_chat.db")).expect("open db");
+    let db = Db::open(&unique_tmp_dir("has-member").join("plain.db")).expect("open db");
     let mut ch = DChannel::new("ch1", "owner");
     ch.members = r#"[{"id":"peer1","status":"JOINED"}]"#.to_string();
     ch.status = ChannelStatus::Joined;

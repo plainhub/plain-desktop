@@ -26,14 +26,14 @@ fn enqueue_appends_moves_and_never_duplicates() {
         &[audio("/tq1/b.mp3", "B", 2), audio("/tq1/c.mp3", "C", 3)],
         false,
     );
-    let queued = crate::library::db::audio_queue::all_queue_items(&db);
+    let queued = crate::db::audio_queue::all_queue_items(&db);
     assert_eq!(
         queued.iter().map(|q| q.path.as_str()).collect::<Vec<_>>(),
         ["/tq1/a.mp3", "/tq1/b.mp3", "/tq1/c.mp3"]
     );
     // play_next inserts at the front.
     enqueue(&db, &[audio("/tq1/z.mp3", "Z", 9)], true);
-    let queued = crate::library::db::audio_queue::all_queue_items(&db);
+    let queued = crate::db::audio_queue::all_queue_items(&db);
     assert_eq!(queued[0].path, "/tq1/z.mp3");
     // Positions stay dense.
     for (i, q) in queued.iter().enumerate() {
@@ -61,7 +61,7 @@ fn reorder_puts_known_first_and_keeps_unknown_at_end() {
             "/tq2/a.mp3".to_string(),
         ],
     );
-    let queued = crate::library::db::audio_queue::all_queue_items(&db);
+    let queued = crate::db::audio_queue::all_queue_items(&db);
     assert_eq!(
         queued.iter().map(|q| q.path.as_str()).collect::<Vec<_>>(),
         ["/tq2/c.mp3", "/tq2/a.mp3", "/tq2/b.mp3"]
@@ -88,12 +88,12 @@ fn remove_paths_prunes_queue_history_playlist_items_and_current() {
 
     remove_paths(&db, &["/tq3/a.mp3".to_string()]);
 
-    assert!(crate::library::db::audio_queue::queue_item_by_path(&db, "/tq3/a.mp3").is_none());
-    assert!(crate::library::db::audio_queue::history_by_path(&db, "/tq3/a.mp3").is_none());
+    assert!(crate::db::audio_queue::queue_item_by_path(&db, "/tq3/a.mp3").is_none());
+    assert!(crate::db::audio_queue::history_by_path(&db, "/tq3/a.mp3").is_none());
     assert_eq!(playlist_item_count(&db, &pl.id), 1);
     // The current track was removed → cleared.
     assert_eq!(get_audio_current(&db), "");
-    assert!(crate::library::db::audio_queue::queue_item_by_path(&db, "/tq3/b.mp3").is_some());
+    assert!(crate::db::audio_queue::queue_item_by_path(&db, "/tq3/b.mp3").is_some());
 }
 
 // ---------------------------------------------------------------------------
@@ -141,7 +141,7 @@ fn playlist_crud_items_and_counts() {
 
     delete_playlist(&db, &pl.id);
     assert!(playlist_by_id(&db, &pl.id).is_none());
-    assert!(crate::library::db::audio_queue::playlist_items(&db, &pl.id).is_empty());
+    assert!(crate::db::audio_queue::playlist_items(&db, &pl.id).is_empty());
 }
 
 #[test]
@@ -155,7 +155,7 @@ fn deleting_active_playlist_resets_source() {
     delete_playlist(&db, &pl.id);
     assert_eq!(
         source(&db).source,
-        crate::library::db::audio_queue::QueueSourceKind::None
+        crate::db::audio_queue::QueueSourceKind::None
     );
     assert!(active_playlist_id(&db).is_none());
 }
@@ -228,7 +228,7 @@ fn history_upserts_play_count_and_trims_to_keep() {
     let db = test_db("history_trim");
     on_playing(&db, "/tq7/a.mp3", "A", "X", 1);
     on_playing(&db, "/tq7/a.mp3", "A2", "X", 2);
-    let h = crate::library::db::audio_queue::history_by_path(&db, "/tq7/a.mp3").unwrap();
+    let h = crate::db::audio_queue::history_by_path(&db, "/tq7/a.mp3").unwrap();
     assert_eq!(h.play_count, 2);
     assert_eq!(h.title, "A2");
     assert_eq!(h.duration_secs, 2);
@@ -240,14 +240,14 @@ fn history_upserts_play_count_and_trims_to_keep() {
         on_playing(&db, &format!("/tq7/x{i}.mp3"), "T", "X", 1);
     }
     assert_eq!(
-        crate::library::db::audio_queue::all_history(&db).len(),
+        crate::db::audio_queue::all_history(&db).len(),
         HISTORY_KEEP + 2
     );
     // The oldest inserted tracks are gone, the newest survive.
     let page = history_page(&db, 0, 10, "");
     assert!(page[0].path.starts_with("/tq7/x"));
     assert!(
-        crate::library::db::audio_queue::all_history(&db)
+        crate::db::audio_queue::all_history(&db)
             .iter()
             .all(|r| !r.path.ends_with("a.mp3"))
     );
@@ -295,7 +295,7 @@ fn queue_page_orders_head_manual_and_tail() {
         ["/tq8/m1.mp3", "/tq8/p4.mp3"]
     );
     // set_playlist_source recorded the start track in history.
-    assert!(crate::library::db::audio_queue::history_by_path(&db, "/tq8/p3.mp3").is_some());
+    assert!(crate::db::audio_queue::history_by_path(&db, "/tq8/p3.mp3").is_some());
     assert_eq!(get_audio_current(&db), "/tq8/p3.mp3");
 }
 
@@ -497,7 +497,7 @@ fn mode_defaults_to_repeat_and_roundtrips() {
     assert_eq!(get_audio_mode(&db), "REPEAT_ONE");
     // It is a library pref row, persisted in the SQLite file.
     assert_eq!(
-        crate::library::db::audio_queue::get_pref(&db, "audio_play_mode").as_deref(),
+        crate::db::audio_queue::get_pref(&db, "audio_play_mode").as_deref(),
         Some("REPEAT_ONE")
     );
 }
@@ -505,7 +505,7 @@ fn mode_defaults_to_repeat_and_roundtrips() {
 #[test]
 fn current_track_lives_on_the_source_row() {
     let db = test_db("current_row");
-    let src = crate::library::db::audio_queue::QueueSource {
+    let src = crate::db::audio_queue::QueueSource {
         current_path: "/tqE/x.mp3".to_string(),
         ..Default::default()
     };
@@ -522,14 +522,14 @@ fn state_survives_reopen() {
     let dir = std::env::temp_dir().join(format!("plain-rs-library-reopen-{}", std::process::id()));
     let _ = std::fs::remove_dir_all(&dir);
     std::fs::create_dir_all(&dir).unwrap();
-    let path = dir.join("library.db");
+    let path = dir.join("plain.db");
     {
-        let db = crate::library::db::LibraryDb::open(&path).unwrap();
+        let db = crate::db::Db::open(&path).unwrap();
         let pl = create_playlist(&db, "Persist");
         add_playlist_items(&db, &pl.id, &[audio("/p/a.mp3", "A", 1)]);
         on_playing(&db, "/p/a.mp3", "A", "X", 1);
     }
-    let db = crate::library::db::LibraryDb::open(&path).unwrap();
+    let db = crate::db::Db::open(&path).unwrap();
     let listed = playlists(&db);
     assert_eq!(listed.len(), 1);
     assert_eq!(listed[0].1, 1);

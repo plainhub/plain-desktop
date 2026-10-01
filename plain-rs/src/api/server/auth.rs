@@ -274,6 +274,6 @@ pub async fn auth_setup_handler(State(state): State<ServerState>, body: Bytes) -
     (StatusCode::OK, "").into_response()
 }
 
-#[cfg(all(test, feature = "nas"))]
+#[cfg(all(test, feature = "system"))]
 #[path = "../../../tests/unit/api/server/auth.rs"]
 mod tests;

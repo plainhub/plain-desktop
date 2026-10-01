@@ -27,7 +27,7 @@ use std::collections::HashSet;
 
 use serde_json::{Value, json};
 
-use crate::chat::db::{ChatDb, DChannel, DPeer};
+use crate::db::{Db, DChannel, DPeer};
 use crate::chat::enums::ChatStatus;
 use crate::chat::events::ChannelKeyCache;
 use crate::chat::transport::{PeerTransport, deliver_to_peer, peer_graphql_urls};
@@ -80,7 +80,7 @@ pub async fn send<T: PeerTransport>(
     channel: &DChannel,
     client_id: &str,
     content: &str,
-    db: &ChatDb,
+    db: &Db,
     channel_key_cache: &ChannelKeyCache,
     kp_bytes: &[u8],
 ) -> SendResult {
@@ -131,7 +131,7 @@ async fn broadcast_as_leader<T: PeerTransport>(
     channel: &DChannel,
     client_id: &str,
     content: &str,
-    db: &ChatDb,
+    db: &Db,
     channel_key_cache: &ChannelKeyCache,
     kp_bytes: &[u8],
 ) -> Vec<ChannelDeliveryResult> {
@@ -164,7 +164,7 @@ async fn send_to_recipients<T: PeerTransport>(
     channel: &DChannel,
     recipient_ids: &[String],
     content: &str,
-    db: &ChatDb,
+    db: &Db,
     channel_key_cache: &ChannelKeyCache,
     client_id: &str,
     kp_bytes: &[u8],
@@ -212,7 +212,7 @@ async fn send_to_leader<T: PeerTransport>(
     leader_id: &str,
     client_id: &str,
     content: &str,
-    db: &ChatDb,
+    db: &Db,
     channel_key_cache: &ChannelKeyCache,
     kp_bytes: &[u8],
 ) -> SendResult {

@@ -13,7 +13,7 @@ use serde_json::json;
 use crate::base64_decode;
 use crate::ed25519_verify;
 
-use crate::chat::db::{DChannel, DPeer, now_iso};
+use crate::db::{DChannel, DPeer, now_iso};
 use crate::chat::enums::{
     ChannelStatus, ChannelSystemMessageAction, ChannelSystemMessageType, MemberStatus, PeerStatus,
 };

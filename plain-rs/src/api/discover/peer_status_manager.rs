@@ -1,7 +1,7 @@
 use super::nearby_discover_manager::NearbyDiscoverManager;
 use crate::api::AppIdentity;
 use crate::api::context::{WS_PEER_STATUS_UPDATED, WsEvent};
-use crate::api::db::{ChatDb, DPeer};
+use crate::api::db::{Db, DPeer};
 use crate::{base64_decode, chacha20_encrypt, ed25519_sign};
 use futures_util::{SinkExt, StreamExt};
 use std::collections::HashMap;
@@ -28,7 +28,7 @@ struct PeerState {
 }
 
 struct Inner {
-    db: Arc<ChatDb>,
+    db: Arc<Db>,
     identity: Arc<AppIdentity>,
     states: Mutex<HashMap<String, PeerState>>,
     started: AtomicBool,
@@ -42,7 +42,7 @@ pub struct PeerStatusManager {
 }
 
 impl PeerStatusManager {
-    pub fn new(db: Arc<ChatDb>, identity: Arc<AppIdentity>) -> Self {
+    pub fn new(db: Arc<Db>, identity: Arc<AppIdentity>) -> Self {
         Self {
             inner: Arc::new(Inner {
                 db,

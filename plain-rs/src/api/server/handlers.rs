@@ -284,6 +284,6 @@ fn strip_replay_wrapper(body: &[u8]) -> String {
 #[path = "../../../tests/unit/api/server/handlers.rs"]
 mod tests;
 
-#[cfg(all(test, feature = "nas"))]
+#[cfg(all(test, feature = "system"))]
 #[path = "../../../tests/unit/api/server/chat_peer.rs"]
 mod chat_peer_nas_tests;

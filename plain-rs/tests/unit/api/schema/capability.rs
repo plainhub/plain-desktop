@@ -31,7 +31,7 @@ fn one_schema_declares_capability_operations() {
     }
 }
 
-#[cfg(feature = "nas")]
+#[cfg(feature = "system")]
 #[tokio::test]
 async fn unsupported_hardware_uses_the_same_graphql_schema() {
     let state = crate::api::server::test_support::nas_state();
@@ -46,7 +46,7 @@ async fn unsupported_hardware_uses_the_same_graphql_schema() {
     assert_eq!(json["errors"][0]["message"], "disk manager unavailable");
 }
 
-#[cfg(feature = "nas")]
+#[cfg(feature = "system")]
 #[tokio::test]
 async fn temp_value_mutation_feeds_shared_zip_store() {
     let state = crate::api::server::test_support::nas_state();

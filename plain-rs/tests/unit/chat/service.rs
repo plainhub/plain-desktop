@@ -1,5 +1,5 @@
 use super::*;
-use crate::chat::db::{ChatDb, DChat};
+use crate::db::{Db, DChat};
 use crate::xchacha_decrypt;
 use crate::{base64_decode, base64_encode};
 use std::path::PathBuf;
@@ -28,7 +28,7 @@ fn unique_tmp_dir(label: &str) -> PathBuf {
     std::env::temp_dir().join(format!("plain-rs-chat-svc-{label}-{pid}-{nanos}"))
 }
 
-fn seed(db: &ChatDb, id: &str, from_id: &str, to_id: &str, channel_id: &str) {
+fn seed(db: &Db, id: &str, from_id: &str, to_id: &str, channel_id: &str) {
     let mut chat = DChat::new(from_id, to_id, channel_id, "{}");
     chat.id = id.to_string();
     db.insert_chat(&chat);
@@ -37,7 +37,7 @@ fn seed(db: &ChatDb, id: &str, from_id: &str, to_id: &str, channel_id: &str) {
 #[tokio::test]
 async fn send_chat_item_accepts_bare_peer_id_and_local_target() {
     let dir = unique_tmp_dir("send-target");
-    let db = ChatDb::open(&dir.join("local_chat.db")).expect("open db");
+    let db = Db::open(&dir.join("plain.db")).expect("open db");
     let service = ChatService::new(
         db,
         String::new(),
@@ -60,7 +60,7 @@ async fn send_chat_item_accepts_bare_peer_id_and_local_target() {
 
 #[test]
 fn resolve_ids_query_returns_listed_ids() {
-    let db = ChatDb::open(&unique_tmp_dir("ids").join("local_chat.db")).expect("open db");
+    let db = Db::open(&unique_tmp_dir("ids").join("plain.db")).expect("open db");
     seed(&db, "a", "me", "p", "");
     seed(&db, "b", "me", "p", "");
 
@@ -70,14 +70,14 @@ fn resolve_ids_query_returns_listed_ids() {
 
 #[test]
 fn resolve_ids_query_trims_whitespace() {
-    let db = ChatDb::open(&unique_tmp_dir("trim").join("local_chat.db")).expect("open db");
+    let db = Db::open(&unique_tmp_dir("trim").join("plain.db")).expect("open db");
     let ids = resolve_chat_ids(&db, "ids: a , b , ");
     assert_eq!(ids, vec!["a".to_string(), "b".to_string()]);
 }
 
 #[test]
 fn resolve_channel_query_returns_channel_chats() {
-    let db = ChatDb::open(&unique_tmp_dir("chan").join("local_chat.db")).expect("open db");
+    let db = Db::open(&unique_tmp_dir("chan").join("plain.db")).expect("open db");
     seed(&db, "a", "me", "", "ch1");
     seed(&db, "b", "me", "", "ch2");
     seed(&db, "c", "me", "", "ch1");
@@ -89,7 +89,7 @@ fn resolve_channel_query_returns_channel_chats() {
 
 #[test]
 fn resolve_peer_query_returns_both_directions() {
-    let db = ChatDb::open(&unique_tmp_dir("peer").join("local_chat.db")).expect("open db");
+    let db = Db::open(&unique_tmp_dir("peer").join("plain.db")).expect("open db");
     seed(&db, "a", "me", "p1", "");
     seed(&db, "b", "p1", "me", "");
     seed(&db, "c", "me", "p2", "");
@@ -101,7 +101,7 @@ fn resolve_peer_query_returns_both_directions() {
 
 #[test]
 fn resolve_peer_local_query_returns_local_notes() {
-    let db = ChatDb::open(&unique_tmp_dir("local").join("local_chat.db")).expect("open db");
+    let db = Db::open(&unique_tmp_dir("local").join("plain.db")).expect("open db");
     seed(&db, "a", "me", "local", "");
     seed(&db, "b", "me", "p1", "");
 
@@ -111,7 +111,7 @@ fn resolve_peer_local_query_returns_local_notes() {
 
 #[test]
 fn resolve_unknown_query_returns_empty() {
-    let db = ChatDb::open(&unique_tmp_dir("unknown").join("local_chat.db")).expect("open db");
+    let db = Db::open(&unique_tmp_dir("unknown").join("plain.db")).expect("open db");
     seed(&db, "a", "me", "p", "");
 
     assert!(resolve_chat_ids(&db, "unknown:foo").is_empty());

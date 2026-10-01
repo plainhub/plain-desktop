@@ -61,14 +61,14 @@ pub async fn fs_handler(State(state): State<ServerState>, req: Request) -> Respo
 /// Host-appropriate error for an id that fails token decryption: the
 /// nas contract answers 403 ("File is expired or does not exist."),
 /// the desktop contract a bare 401.
-#[cfg_attr(not(feature = "nas"), allow(unused_variables))]
+#[cfg_attr(not(feature = "system"), allow(unused_variables))]
 fn forbidden(_state: &ServerState) -> Response {
     respond(401, Vec::new(), "text/plain")
 }
 
 /// Host-appropriate 400 body: nas answers empty, the desktop carries a
 /// short reason.
-#[cfg_attr(not(feature = "nas"), allow(unused_variables))]
+#[cfg_attr(not(feature = "system"), allow(unused_variables))]
 fn bad_request(_state: &ServerState, desktop_msg: &'static [u8]) -> Response {
     respond(400, desktop_msg.to_vec(), "text/plain")
 }
@@ -295,7 +295,7 @@ pub async fn serve_file(
 /// Per-host MIME resolution (nas: fsx::guess_mime over the resolved
 /// path, text types carry `; charset=utf-8`; desktop: bare
 /// `mime_from_ext` over the display name).
-#[cfg_attr(not(feature = "nas"), allow(unused_variables))]
+#[cfg_attr(not(feature = "system"), allow(unused_variables))]
 fn response_mime(display_name: &str) -> String {
     mime_from_ext(display_name).to_string()
 }
@@ -627,6 +627,6 @@ async fn serve_pdf_preview(
 #[path = "../../../tests/unit/api/server/file_server.rs"]
 mod tests;
 
-#[cfg(all(test, feature = "nas"))]
+#[cfg(all(test, feature = "system"))]
 #[path = "../../../tests/unit/api/server/file_server_nas.rs"]
 mod nas_tests;

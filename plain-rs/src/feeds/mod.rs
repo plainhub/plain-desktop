@@ -1,6 +1,6 @@
 use crate::api::context::WsEvent;
-use crate::library::db::LibraryDb;
-use crate::library::db::notes_feeds::{FeedEntryRow, FeedRow};
+use crate::db::Db;
+use crate::db::notes_feeds::{FeedEntryRow, FeedRow};
 use crate::library::{LibraryError, LibraryResult};
 use crate::utils::http_url::parse_http_url;
 use chrono::{DateTime, Utc};
@@ -257,7 +257,7 @@ async fn fetch_text(url: &str, max_bytes: usize) -> LibraryResult<String> {
 }
 
 pub async fn create(
-    db: Arc<LibraryDb>,
+    db: Arc<Db>,
     url: &str,
     fetch_content: bool,
     events: broadcast::Sender<WsEvent>,
@@ -271,35 +271,35 @@ pub async fn create(
     Ok(feed)
 }
 
-pub fn update(db: &LibraryDb, id: &str, name: &str, fetch_content: bool) -> LibraryResult<FeedRow> {
+pub fn update(db: &Db, id: &str, name: &str, fetch_content: bool) -> LibraryResult<FeedRow> {
     let feed = db
         .feed_get(id)?
         .ok_or_else(|| error(format!("Feed {id} not found")))?;
     Ok(db.feed_save(id, name, &feed.url, fetch_content, &now())?)
 }
 
-pub fn delete(db: &LibraryDb, id: &str) -> LibraryResult<bool> {
+pub fn delete(db: &Db, id: &str) -> LibraryResult<bool> {
     Ok(db.feed_delete(id)?)
 }
 
-pub fn list(db: &LibraryDb) -> LibraryResult<Vec<FeedRow>> {
+pub fn list(db: &Db) -> LibraryResult<Vec<FeedRow>> {
     Ok(db.feeds_list()?)
 }
 
-pub fn get(db: &LibraryDb, id: &str) -> LibraryResult<Option<FeedRow>> {
+pub fn get(db: &Db, id: &str) -> LibraryResult<Option<FeedRow>> {
     Ok(db.feed_get(id)?)
 }
 
-pub fn entry_get(db: &LibraryDb, id: &str) -> LibraryResult<Option<FeedEntryRow>> {
+pub fn entry_get(db: &Db, id: &str) -> LibraryResult<Option<FeedEntryRow>> {
     Ok(db.feed_entry_get(id)?)
 }
 
-pub fn entry_counts(db: &LibraryDb) -> LibraryResult<Vec<(String, i32)>> {
+pub fn entry_counts(db: &Db) -> LibraryResult<Vec<(String, i32)>> {
     Ok(db.feed_entry_counts()?)
 }
 
 pub fn search(
-    db: &LibraryDb,
+    db: &Db,
     query: &str,
     limit: i32,
     offset: i32,
@@ -307,11 +307,11 @@ pub fn search(
     Ok(db.feed_entries_list(query, i64::from(limit.max(0)), i64::from(offset.max(0)))?)
 }
 
-pub fn count(db: &LibraryDb, query: &str) -> LibraryResult<i32> {
+pub fn count(db: &Db, query: &str) -> LibraryResult<i32> {
     Ok(db.feed_entry_count(query)?)
 }
 
-pub fn delete_entries(db: &LibraryDb, query: &str) -> LibraryResult<usize> {
+pub fn delete_entries(db: &Db, query: &str) -> LibraryResult<usize> {
     if query.trim().is_empty() {
         return Err(error(
             "query is required for bulk mutations — pass 'all:true' to explicitly target everything (API_SPEC §5)",
@@ -320,7 +320,7 @@ pub fn delete_entries(db: &LibraryDb, query: &str) -> LibraryResult<usize> {
     Ok(db.feed_entries_delete(query)?)
 }
 
-pub async fn sync_entry_content(db: &LibraryDb, id: &str) -> LibraryResult<FeedEntryRow> {
+pub async fn sync_entry_content(db: &Db, id: &str) -> LibraryResult<FeedEntryRow> {
     let entry = db
         .feed_entry_get(id)?
         .ok_or_else(|| error(format!("Feed entry {id} not found")))?;
@@ -333,7 +333,7 @@ pub async fn sync_entry_content(db: &LibraryDb, id: &str) -> LibraryResult<FeedE
     Ok(db.feed_entry_get(id)?.unwrap_or(entry))
 }
 
-async fn sync_one(db: &LibraryDb, feed: &FeedRow) -> LibraryResult<()> {
+async fn sync_one(db: &Db, feed: &FeedRow) -> LibraryResult<()> {
     let xml = fetch_text(&feed.url, 4 * 1024 * 1024).await?;
     let parsed = parse_feed(&xml)?;
     let rows: Vec<_> = parsed
@@ -352,7 +352,7 @@ async fn sync_one(db: &LibraryDb, feed: &FeedRow) -> LibraryResult<()> {
     Ok(())
 }
 
-pub fn queue_sync(db: Arc<LibraryDb>, events: broadcast::Sender<WsEvent>, id: Option<String>) {
+pub fn queue_sync(db: Arc<Db>, events: broadcast::Sender<WsEvent>, id: Option<String>) {
     tokio::spawn(async move {
         let (feeds, read_error) = match id.as_deref() {
             Some(id) => match db.feed_get(id) {
@@ -389,7 +389,7 @@ pub fn queue_sync(db: Arc<LibraryDb>, events: broadcast::Sender<WsEvent>, id: Op
     });
 }
 
-pub fn import_opml(db: &LibraryDb, content: &str) -> LibraryResult<()> {
+pub fn import_opml(db: &Db, content: &str) -> LibraryResult<()> {
     let mut reader = Reader::from_str(content);
     let mut feeds = Vec::new();
     loop {
@@ -425,7 +425,7 @@ pub fn import_opml(db: &LibraryDb, content: &str) -> LibraryResult<()> {
     Ok(())
 }
 
-pub fn export_opml(db: &LibraryDb) -> LibraryResult<String> {
+pub fn export_opml(db: &Db) -> LibraryResult<String> {
     let mut xml = format!(
         "<?xml version=\"1.0\" encoding=\"UTF-8\"?><opml version=\"2.0\"><head><title>PlainApp</title><dateCreated>{}</dateCreated></head><body>",
         now()

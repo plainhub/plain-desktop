@@ -81,7 +81,7 @@ curl -s -X POST -H "Authorization: Bearer dev" \
 | `media.md` | `audios`, `audioCount`, `images`, `imageCount`, `videos`, `videoCount`, `mediaBuckets`, `recentFilesCount`, `mediaSourceDirs` query + `trashMediaItems`, `restoreMediaItems`, `deleteMediaItems` mutation + Audio/Image/Video/MediaBucket 字段 |
 | `scan.md` | `startMediaScan`, `pauseMediaScan`, `resumeMediaScan`, `stopMediaScan`, `rebuildMediaIndex` mutation + WebSocket `media_scan_progress` 事件 + ScanProgress 字段 |
 | `tasks.md` | `getTasks` query + `createCopyTask`, `createMoveTask` mutation + FileTask 字段 + WebSocket `file_task_progress` 事件 |
-| `chat.md` | 聊天栈（plain-app 契约）：GraphQL 查询/变更、ChatStatus 语义、配对协议、chat.db 存储设计 |
+| `chat.md` | 聊天栈（plain-app 契约）：GraphQL 查询/变更、ChatStatus 语义、配对协议、plain.db 存储设计 |
 | `favorites.md` | `favoriteFolders` query + `addFavoriteFolder`, `removeFavoriteFolder`, `setFavoriteFolderAlias` mutation + FavoriteFolder 字段 |
 | `playlist.md` | plain-app 音频播放面全套：`audioQueueItems`, `audioQueueItemCount`, `audioLyrics`, `audioPlaylists`, `audioPlaylistItems`, `audioPlaylistItemCount`, `audioPlayHistory` query + `playAudio`, `addPlaylistAudios`, `reorderPlaylistAudios`, `deletePlaylistAudio`, `clearAudioPlaylist`, `updateAudioPlayMode`, `createAudioPlaylist`, `renameAudioPlaylist`, `deleteAudioPlaylist`, `addAudioPlaylistItems`, `removeAudioPlaylistItem`, `playAudioPlaylist`, `playAllAudios` mutation + PlaylistAudio/AudioPlaylist/AudioPlayHistory/MediaPlayMode |
 | `chunked-upload.md` | `uploadedChunks` query + `mergeChunks` mutation + `POST /upload`, `POST /upload_chunk` HTTP 端点 |

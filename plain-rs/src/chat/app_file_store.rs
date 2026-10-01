@@ -32,7 +32,7 @@ use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use crate::utils::hex::bytes_to_hex;
 use crate::utils::mime::mime_extension;
 
-use crate::chat::db::{ChatDb, DAppFile, DChat};
+use crate::db::{Db, DAppFile, DChat};
 
 /// Default MIME type when the client did not supply one.
 const DEFAULT_MIME: &str = "application/octet-stream";
@@ -167,7 +167,7 @@ fn weak_hash_file(path: &Path) -> std::io::Result<(String, u64)> {
 /// client-supplied type used as a fallback when the name has no extension;
 /// an empty value falls back to `application/octet-stream`.
 pub fn import_file(
-    db: &ChatDb,
+    db: &Db,
     data_dir: &Path,
     src: &Path,
     file_name: &str,
@@ -225,7 +225,7 @@ pub fn import_file(
     }
     fs::copy(src, &real_path)?;
 
-    let now = crate::chat::db::now_iso();
+    let now = crate::db::now_iso();
     let record = DAppFile {
         id: strong_hash.clone(),
         size: size as i64,
@@ -254,7 +254,7 @@ pub fn import_file(
 
 /// In-memory variant — useful for tests or small synthetic uploads.
 pub fn import_bytes(
-    db: &ChatDb,
+    db: &Db,
     data_dir: &Path,
     data: &[u8],
     mime_type: &str,
@@ -300,7 +300,7 @@ pub fn import_bytes(
     }
     let weak_hash = bytes_to_hex(&weak.finalize());
 
-    let now = crate::chat::db::now_iso();
+    let now = crate::db::now_iso();
     let record = DAppFile {
         id: strong_hash.clone(),
         size: data.len() as i64,

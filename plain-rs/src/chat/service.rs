@@ -23,7 +23,7 @@ use crate::chat::channel::chat_helper::{
 };
 use crate::chat::channel::handler as channel_handler;
 use crate::chat::content::make_file_id;
-use crate::chat::db::{ChatDb, DChat};
+use crate::db::{Db, DChat};
 use crate::chat::enums::{ChannelStatus, ChannelSystemMessageType, ChatStatus, DeviceType};
 use crate::chat::events::{
     ChannelKeyCache, ChatEvent, PeerKeyCache, WS_CHANNELS_UPDATED, WS_MESSAGE_CREATED,
@@ -81,7 +81,7 @@ impl ChatHooks for NoChatHooks {}
 /// link previews filled in (`None` = leave unchanged). plain-desktop
 /// scrapes OpenGraph data; the NAS side starts as a no-op.
 pub type LinkPreviewFn =
-    Arc<dyn Fn(ChatDb, PathBuf, String) -> BoxFuture<'static, Option<String>> + Send + Sync>;
+    Arc<dyn Fn(Db, PathBuf, String) -> BoxFuture<'static, Option<String>> + Send + Sync>;
 
 /// A `LinkPreviewFn` that never rewrites content.
 pub fn no_link_previews() -> LinkPreviewFn {
@@ -91,7 +91,7 @@ pub fn no_link_previews() -> LinkPreviewFn {
 /// All chat-domain state and the entry points of the business logic.
 /// Generic over the app's HTTP transport to peers.
 pub struct ChatService<T: PeerTransport> {
-    pub db: ChatDb,
+    pub db: Db,
     pub cacher: ChatCacher,
     /// Base64 local URL token — the key behind `/fs` file ids.
     pub token: String,
@@ -113,7 +113,7 @@ pub struct ChatService<T: PeerTransport> {
 impl<T: PeerTransport + 'static> ChatService<T> {
     #[allow(clippy::too_many_arguments)]
     pub fn new(
-        db: ChatDb,
+        db: Db,
         token: String,
         identity: std::sync::Arc<ChatIdentity>,
         wire_device_type: DeviceType,
@@ -575,7 +575,7 @@ fn peer_delivery_status_data(peer_id: &str, peer_name: &str, error: &str) -> Str
 ///   * `peer:local`                  — every local-note chat id.
 ///
 /// Returns an empty Vec for an unrecognized / empty query.
-pub fn resolve_chat_ids(db: &ChatDb, query: &str) -> Vec<String> {
+pub fn resolve_chat_ids(db: &Db, query: &str) -> Vec<String> {
     let query = query.trim();
     if query.is_empty() {
         return vec![];

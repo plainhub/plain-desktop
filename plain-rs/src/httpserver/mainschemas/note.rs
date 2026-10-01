@@ -4,7 +4,7 @@ use async_graphql::{ComplexObject, Context, ID, InputObject, Object, SimpleObjec
 use std::sync::Arc;
 
 use crate::enums::DataType;
-use crate::library::db::{LibraryDb, notes_feeds::NoteRow};
+use crate::db::{Db, notes_feeds::NoteRow};
 use crate::notes;
 
 type GqlResult<T> = async_graphql::Result<T>;
@@ -54,11 +54,11 @@ pub struct NoteQuery;
 #[Object]
 impl NoteQuery {
     async fn note_count(&self, ctx: &Context<'_>, query: String) -> GqlResult<i32> {
-        Ok(notes::count(ctx.data::<Arc<LibraryDb>>()?, &query)?)
+        Ok(notes::count(ctx.data::<Arc<Db>>()?, &query)?)
     }
 
     async fn note(&self, ctx: &Context<'_>, id: ID) -> GqlResult<Option<Note>> {
-        notes::get(ctx.data::<Arc<LibraryDb>>()?, id.as_str())?
+        notes::get(ctx.data::<Arc<Db>>()?, id.as_str())?
             .map(to_model)
             .transpose()
     }
@@ -70,7 +70,7 @@ impl NoteQuery {
         limit: i32,
         query: String,
     ) -> GqlResult<Vec<Note>> {
-        notes::search(ctx.data::<Arc<LibraryDb>>()?, &query, limit, offset)?
+        notes::search(ctx.data::<Arc<Db>>()?, &query, limit, offset)?
             .into_iter()
             .map(to_model)
             .collect()
@@ -84,7 +84,7 @@ pub struct NoteMutation;
 impl NoteMutation {
     async fn create_note(&self, ctx: &Context<'_>, input: NoteInput) -> GqlResult<Note> {
         to_model(notes::create(
-            ctx.data::<Arc<LibraryDb>>()?,
+            ctx.data::<Arc<Db>>()?,
             &input.title,
             &input.content,
         )?)
@@ -92,7 +92,7 @@ impl NoteMutation {
 
     async fn update_note(&self, ctx: &Context<'_>, id: ID, input: NoteInput) -> GqlResult<Note> {
         to_model(notes::update(
-            ctx.data::<Arc<LibraryDb>>()?,
+            ctx.data::<Arc<Db>>()?,
             id.as_str(),
             &input.title,
             &input.content,
@@ -105,7 +105,7 @@ impl NoteMutation {
         query: String,
     ) -> GqlResult<Vec<ID>> {
         Ok(
-            notes::save_feed_entries(ctx.data::<Arc<LibraryDb>>()?, &query)?
+            notes::save_feed_entries(ctx.data::<Arc<Db>>()?, &query)?
                 .into_iter()
                 .map(ID)
                 .collect(),
@@ -114,24 +114,24 @@ impl NoteMutation {
 
     async fn trash_notes(&self, ctx: &Context<'_>, query: String) -> GqlResult<ActionResult> {
         Ok(ActionResult {
-            affected_count: notes::trash(ctx.data::<Arc<LibraryDb>>()?, &query)? as i32,
+            affected_count: notes::trash(ctx.data::<Arc<Db>>()?, &query)? as i32,
         })
     }
 
     async fn restore_notes(&self, ctx: &Context<'_>, query: String) -> GqlResult<ActionResult> {
         Ok(ActionResult {
-            affected_count: notes::restore(ctx.data::<Arc<LibraryDb>>()?, &query)? as i32,
+            affected_count: notes::restore(ctx.data::<Arc<Db>>()?, &query)? as i32,
         })
     }
 
     async fn delete_notes(&self, ctx: &Context<'_>, query: String) -> GqlResult<ActionResult> {
         Ok(ActionResult {
-            affected_count: notes::delete(ctx.data::<Arc<LibraryDb>>()?, &query)? as i32,
+            affected_count: notes::delete(ctx.data::<Arc<Db>>()?, &query)? as i32,
         })
     }
 
     async fn export_notes(&self, ctx: &Context<'_>, query: String) -> GqlResult<String> {
-        Ok(notes::export(ctx.data::<Arc<LibraryDb>>()?, &query)?)
+        Ok(notes::export(ctx.data::<Arc<Db>>()?, &query)?)
     }
 }
 

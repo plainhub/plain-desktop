@@ -8,8 +8,8 @@
 //! (`full_path_of`, `split_full_path`) live here so every consumer joins
 //! and splits phone-contract `fullPath` values the same way.
 
-use crate::library::db::LibraryDb;
-use crate::library::db::favorite_folder::FavoriteFolderRow;
+use crate::db::Db;
+use crate::db::favorite_folder::FavoriteFolderRow;
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct FavoriteFolder {
@@ -77,9 +77,9 @@ fn to_slash(p: &str) -> String {
 /// Add (rootPath, relativePath) to the favorites list. If the pair is
 /// already present, the existing entry is returned unchanged. Otherwise
 /// the new entry (with no alias) is appended.
-pub fn add(db: &LibraryDb, root_path: &str, relative_path: &str) -> FavoriteFolder {
+pub fn add(db: &Db, root_path: &str, relative_path: &str) -> FavoriteFolder {
     let (root, rel) = normalize_args(root_path, relative_path);
-    if let Some(existing) = crate::library::db::favorite_folder::folder_by_paths(db, &root, &rel) {
+    if let Some(existing) = crate::db::favorite_folder::folder_by_paths(db, &root, &rel) {
         return FavoriteFolder::from(existing);
     }
     let new_item = FavoriteFolderRow {
@@ -87,16 +87,16 @@ pub fn add(db: &LibraryDb, root_path: &str, relative_path: &str) -> FavoriteFold
         relative_path: to_slash(&rel),
         alias: None,
     };
-    crate::library::db::favorite_folder::insert_folder(db, &new_item);
+    crate::db::favorite_folder::insert_folder(db, &new_item);
     FavoriteFolder::from(new_item)
 }
 
 /// Remove (rootPath, relativePath) from the favorites list. Returns the
 /// removed entry on hit, or a synthetic stub (with the same root/rel, no
 /// alias) on miss — the "never error" behavior of the Go side.
-pub fn remove(db: &LibraryDb, root_path: &str, relative_path: &str) -> FavoriteFolder {
+pub fn remove(db: &Db, root_path: &str, relative_path: &str) -> FavoriteFolder {
     let (root, rel) = normalize_args(root_path, relative_path);
-    let removed = crate::library::db::favorite_folder::remove_folder(db, &root, &rel);
+    let removed = crate::db::favorite_folder::remove_folder(db, &root, &rel);
     match removed {
         Some(row) => FavoriteFolder::from(row),
         None => FavoriteFolder {
@@ -110,17 +110,17 @@ pub fn remove(db: &LibraryDb, root_path: &str, relative_path: &str) -> FavoriteF
 /// Set the alias for (rootPath, relativePath). An empty/whitespace-only
 /// alias clears the field. Returns whether a matching entry exists (the
 /// Go side returns true unconditionally; callers keep that contract).
-pub fn set_alias(db: &LibraryDb, root_path: &str, relative_path: &str, alias: &str) -> bool {
+pub fn set_alias(db: &Db, root_path: &str, relative_path: &str, alias: &str) -> bool {
     let (root, rel) = normalize_args(root_path, relative_path);
     let alias = alias.trim();
     let alias = if alias.is_empty() { None } else { Some(alias) };
-    crate::library::db::favorite_folder::set_folder_alias(db, &root, &rel, alias)
+    crate::db::favorite_folder::set_folder_alias(db, &root, &rel, alias)
 }
 
 /// List all favorites with paths normalized to forward slashes and
 /// aliases trimmed (empty trimmed aliases collapse to None).
-pub fn list(db: &LibraryDb) -> Vec<FavoriteFolder> {
-    crate::library::db::favorite_folder::all_folders(db)
+pub fn list(db: &Db) -> Vec<FavoriteFolder> {
+    crate::db::favorite_folder::all_folders(db)
         .into_iter()
         .map(|mut f| {
             f.root_path = to_slash(&f.root_path);
@@ -163,7 +163,7 @@ pub fn split_full_path(root: &str, full: &str) -> (String, String) {
 
 /// Find the stored favorite whose joined full path equals `full`
 /// (trailing-slash-insensitive).
-pub fn find_by_full_path(db: &LibraryDb, full: &str) -> Option<FavoriteFolder> {
+pub fn find_by_full_path(db: &Db, full: &str) -> Option<FavoriteFolder> {
     let target = full.trim_end_matches('/');
     list(db).into_iter().find(|f| full_path_of(f) == target)
 }

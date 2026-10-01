@@ -12,7 +12,7 @@ use crate::utils::http_url::build_url;
 use crate::xchacha_decrypt_raw;
 use crate::xchacha_encrypt_raw;
 
-use crate::chat::db::DPeer;
+use crate::db::DPeer;
 
 /// The one transport seam of the chat stack: POST an encrypted body to a
 /// peer URL with the `c-id` / `c-cid` headers and return the raw response

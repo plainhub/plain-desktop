@@ -1,5 +1,5 @@
 use super::*;
-use crate::chat::db::ChatDb;
+use crate::db::Db;
 use crate::chat::service::ChatIdentity;
 use crate::chat::transport::PeerTransport;
 use std::sync::Arc;
@@ -27,7 +27,7 @@ fn manager() -> PairingManager<TestTransport> {
             .unwrap()
             .as_nanos(),
     ));
-    let db = ChatDb::open(&path).unwrap();
+    let db = Db::open(&path).unwrap();
     let identity = Arc::new(ChatIdentity::new("self", "NAS", ""));
     PairingManager::new(db, identity, "NAS", Arc::new(TestTransport))
 }

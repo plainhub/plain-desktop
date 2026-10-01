@@ -1,6 +1,6 @@
 use crate::enums::DataType;
-use crate::library::db::LibraryDb;
-use crate::library::db::notes_feeds::NoteRow;
+use crate::db::Db;
+use crate::db::notes_feeds::NoteRow;
 use crate::library::tags;
 use crate::library::{LibraryError, LibraryResult};
 
@@ -8,27 +8,27 @@ fn now() -> String {
     chrono::Utc::now().to_rfc3339_opts(chrono::SecondsFormat::Millis, true)
 }
 
-pub fn create(db: &LibraryDb, title: &str, content: &str) -> LibraryResult<NoteRow> {
+pub fn create(db: &Db, title: &str, content: &str) -> LibraryResult<NoteRow> {
     let id = uuid::Uuid::new_v4().to_string();
     Ok(db.note_save(&id, title, content, &now())?)
 }
 
-pub fn update(db: &LibraryDb, id: &str, title: &str, content: &str) -> LibraryResult<NoteRow> {
+pub fn update(db: &Db, id: &str, title: &str, content: &str) -> LibraryResult<NoteRow> {
     if db.note_get(id)?.is_none() {
         return Err(LibraryError::Other(format!("Note {id} not found")));
     }
     Ok(db.note_save(id, title, content, &now())?)
 }
 
-pub fn search(db: &LibraryDb, query: &str, limit: i32, offset: i32) -> LibraryResult<Vec<NoteRow>> {
+pub fn search(db: &Db, query: &str, limit: i32, offset: i32) -> LibraryResult<Vec<NoteRow>> {
     Ok(db.notes_list(query, i64::from(limit.max(0)), i64::from(offset.max(0)))?)
 }
 
-pub fn count(db: &LibraryDb, query: &str) -> LibraryResult<i32> {
+pub fn count(db: &Db, query: &str) -> LibraryResult<i32> {
     Ok(db.notes_count(query)?)
 }
 
-pub fn get(db: &LibraryDb, id: &str) -> LibraryResult<Option<NoteRow>> {
+pub fn get(db: &Db, id: &str) -> LibraryResult<Option<NoteRow>> {
     Ok(db.note_get(id)?)
 }
 
@@ -39,25 +39,25 @@ fn explicit(query: &str) -> LibraryResult<()> {
     Ok(())
 }
 
-pub fn trash(db: &LibraryDb, query: &str) -> LibraryResult<usize> {
+pub fn trash(db: &Db, query: &str) -> LibraryResult<usize> {
     explicit(query)?;
     let ids = db.note_ids(query, Some(false))?;
     Ok(db.notes_set_deleted(&ids, true, &now())?)
 }
 
-pub fn restore(db: &LibraryDb, query: &str) -> LibraryResult<usize> {
+pub fn restore(db: &Db, query: &str) -> LibraryResult<usize> {
     explicit(query)?;
     let ids = db.note_ids(query, Some(true))?;
     Ok(db.notes_set_deleted(&ids, false, &now())?)
 }
 
-pub fn delete(db: &LibraryDb, query: &str) -> LibraryResult<usize> {
+pub fn delete(db: &Db, query: &str) -> LibraryResult<usize> {
     explicit(query)?;
     let ids = db.note_ids(query, Some(true))?;
     Ok(db.notes_delete(&ids)?)
 }
 
-pub fn save_feed_entries(db: &LibraryDb, query: &str) -> LibraryResult<Vec<String>> {
+pub fn save_feed_entries(db: &Db, query: &str) -> LibraryResult<Vec<String>> {
     explicit(query)?;
     let entries = db.feed_entries_list(query, i64::MAX, 0)?;
     let mut ids = Vec::with_capacity(entries.len());
@@ -77,7 +77,7 @@ pub fn save_feed_entries(db: &LibraryDb, query: &str) -> LibraryResult<Vec<Strin
     Ok(ids)
 }
 
-pub fn export(db: &LibraryDb, query: &str) -> LibraryResult<String> {
+pub fn export(db: &Db, query: &str) -> LibraryResult<String> {
     let notes = db.notes_list(query, i64::MAX, 0)?;
     let values: Vec<_> = notes
         .into_iter()

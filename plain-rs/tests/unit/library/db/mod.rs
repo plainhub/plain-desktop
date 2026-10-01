@@ -1,8 +1,8 @@
-//! Unit tests for `src/library/db/mod.rs` (LibraryDb open + DDL).
+//! Unit tests for `src/library/db/mod.rs` (Db open + DDL).
 
 #[path = "../fixtures.rs"]
 mod fixtures;
-use crate::library::db::LibraryDb;
+use crate::db::Db;
 use fixtures::*;
 
 #[test]
@@ -40,19 +40,19 @@ fn open_creates_every_table_once() {
     ));
     let _ = std::fs::remove_file(&path);
     {
-        let _a = LibraryDb::open(&path).unwrap();
+        let _a = Db::open(&path).unwrap();
     }
-    let _b = LibraryDb::open(&path).unwrap();
+    let _b = Db::open(&path).unwrap();
     let _ = std::fs::remove_file(&path);
 }
 
 #[test]
 fn source_row_defaults_to_none() {
     let db = test_db("source_default");
-    let src = crate::library::db::audio_queue::get_source(&db);
+    let src = crate::db::audio_queue::get_source(&db);
     assert_eq!(
         src.source,
-        crate::library::db::audio_queue::QueueSourceKind::None
+        crate::db::audio_queue::QueueSourceKind::None
     );
     assert_eq!(src.current_path, "");
     assert_eq!(src.current_index, -1);
@@ -61,11 +61,11 @@ fn source_row_defaults_to_none() {
 #[test]
 fn prefs_round_trip() {
     let db = test_db("prefs");
-    assert!(crate::library::db::audio_queue::get_pref(&db, "k").is_none());
-    crate::library::db::audio_queue::set_pref(&db, "k", "v1");
-    crate::library::db::audio_queue::set_pref(&db, "k", "v2");
+    assert!(crate::db::audio_queue::get_pref(&db, "k").is_none());
+    crate::db::audio_queue::set_pref(&db, "k", "v1");
+    crate::db::audio_queue::set_pref(&db, "k", "v2");
     assert_eq!(
-        crate::library::db::audio_queue::get_pref(&db, "k").as_deref(),
+        crate::db::audio_queue::get_pref(&db, "k").as_deref(),
         Some("v2")
     );
 }

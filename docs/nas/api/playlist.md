@@ -96,13 +96,13 @@ v2.2/2.3/2.4、unsync 标志、UTF-16/Latin-1/UTF-8）、Vorbis 注释
 - 媒体 trash/delete（AUDIO 类型）会把相关 path 从手动队列、播放历史、所有用户
   播放列表中剪除，当前曲被删则清空 current（对齐 plain-app
   `AudioQueueManager.removePaths`）。
-- 存储 = SQLite `<data_dir>/library.db`（plain-rs `library` feature，表名对齐
+- 存储 = SQLite `<data_dir>/plain.db`（plain-rs `library` feature，表名对齐
   plain-app Room 表）：`audio_queue_source`（单行状态，id=1）、`audio_queue_items`、
   `audio_playlists`、`audio_playlist_items`、`audio_play_history`、`library_prefs`；
   播放模式是 `library_prefs` 行 `audio_play_mode`，当前曲在 source 行的
   `current_path` 上（同 plain-app `DAudioQueueSource.currentPath`）。行为代码
   （顺序/supersede/分页/裁剪）在 plain-rs，与 plain-desktop 共用；
-  NAS 侧缝 `src/library.rs` 只实现 `LibraryTracks`（tantivy 索引 + 元数据水化）。
+  媒体侧缝 `plain-rs/src/media/library_tracks.rs` 实现 `LibraryTracks`（tantivy 索引 + 元数据水化）。
 
 ## 已知 parity 备注
 

@@ -8,7 +8,7 @@ use std::sync::{Arc, RwLock};
 use crate::base64_decode;
 
 use crate::chat::channel::messages::decode_members;
-use crate::chat::db::ChatDb;
+use crate::db::Db;
 use crate::chat::enums::ChannelStatus;
 
 pub const WS_MESSAGE_CREATED: i32 = 1;
@@ -38,7 +38,7 @@ pub fn new_channel_key_cache() -> ChannelKeyCache {
 }
 
 /// Rebuild peer key cache from the DB. Call after any peers table mutation.
-pub fn refresh_peer_key_cache(db: &ChatDb, cache: &PeerKeyCache) {
+pub fn refresh_peer_key_cache(db: &Db, cache: &PeerKeyCache) {
     let peers = db.get_peers();
     let mut map = cache.write().unwrap();
     map.clear();
@@ -54,7 +54,7 @@ pub fn refresh_peer_key_cache(db: &ChatDb, cache: &PeerKeyCache) {
 
 /// Rebuild both peer and channel key caches from the DB.
 /// Mirrors `ChatCacheManager.loadKeyCacheAsync()` in plain-app.
-pub fn load_key_cache(db: &ChatDb, peer_cache: &PeerKeyCache, channel_cache: &ChannelKeyCache) {
+pub fn load_key_cache(db: &Db, peer_cache: &PeerKeyCache, channel_cache: &ChannelKeyCache) {
     refresh_peer_key_cache(db, peer_cache);
 
     let mut cm = channel_cache.write().unwrap();
@@ -71,7 +71,7 @@ pub fn load_key_cache(db: &ChatDb, peer_cache: &PeerKeyCache, channel_cache: &Ch
 /// `channels_updated` handler expects — a JSON array of channel models
 /// with camelCase fields. Mirrors plain-app's `channelsToJsonModelString`
 /// (`ChannelManager.kt`), which wraps `channels.map { it.toModel() }`.
-pub fn channels_updated_payload(db: &ChatDb) -> String {
+pub fn channels_updated_payload(db: &Db) -> String {
     let channels = db.get_channels(ChannelStatus::Joined);
     let arr: Vec<serde_json::Value> = channels
         .iter()

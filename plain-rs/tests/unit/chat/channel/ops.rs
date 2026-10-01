@@ -1,4 +1,4 @@
-use crate::chat::db::{ChatDb, DPeer};
+use crate::db::{Db, DPeer};
 use crate::chat::enums::{ChannelStatus, DeviceType, MemberStatus};
 use crate::chat::service::{ChatIdentity, ChatService, NoChatHooks, no_link_previews};
 use crate::chat::transport::PeerTransport;
@@ -34,7 +34,7 @@ fn unique_tmp_dir(label: &str) -> PathBuf {
 
 fn service(dir_label: &str) -> ChatService<TestTransport> {
     let dir = unique_tmp_dir(dir_label);
-    let db = ChatDb::open(&dir.join("local_chat.db")).unwrap();
+    let db = Db::open(&dir.join("plain.db")).unwrap();
     let (kp, _vk) = crate::ed25519_generate();
     let identity = ChatIdentity::new("me-nas", "nas-box", crate::base64_encode(&kp));
     ChatService::new(
@@ -105,7 +105,7 @@ async fn add_channel_member_enforces_owner_and_duplicates() {
 async fn decline_channel_invite_removes_channel_and_chats() {
     let svc = service("decline");
     let ch = svc.create_channel("Team");
-    let mut chat = crate::chat::db::DChat::new("me", "", &ch.id, "{}");
+    let mut chat = crate::db::DChat::new("me", "", &ch.id, "{}");
     chat.id = "m1".to_string();
     svc.db.insert_chat(&chat);
 
@@ -129,7 +129,7 @@ async fn delete_peer_demotes_channel_members() {
         8443,
         DeviceType::Phone,
     ));
-    let mut chat = crate::chat::db::DChat::new("me", "peer-x", "", "{}");
+    let mut chat = crate::db::DChat::new("me", "peer-x", "", "{}");
     chat.id = "m1".to_string();
     svc.db.insert_chat(&chat);
 
@@ -154,7 +154,7 @@ async fn delete_peer_demotes_channel_members() {
 async fn leave_channel_as_member_removes_self_and_marks_left() {
     let svc = service("leave");
     // A channel owned by someone else, with us as a member.
-    let mut ch = crate::chat::db::DChannel::new("Team", "owner-1");
+    let mut ch = crate::db::DChannel::new("Team", "owner-1");
     ch.id = "ch-foreign".to_string();
     ch.members =
         r#"[{"peerId":"owner-1","status":"JOINED"},{"peerId":"me-nas","status":"JOINED"}]"#
