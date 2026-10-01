@@ -23,18 +23,18 @@ use std::path::PathBuf;
 use std::sync::Arc;
 use std::time::Duration;
 
-use crate::db::Db;
 use crate::chat::enums::DeviceType;
 use crate::chat::pairing::{PairingEvent, PairingEventKind, PairingManager};
 use crate::chat::service::{ChatHooks, ChatIdentity, ChatService, LinkPreviewFn};
 use crate::chat::transport::PeerTransport;
+use crate::db::Db;
 
 use crate::api::AppIdentity;
 use crate::api::context::{
     WS_PAIRING_CANCELLED, WS_PAIRING_FAILED, WS_PAIRING_REQUEST_RECEIVED, WS_PAIRING_STARTED,
     WS_PAIRING_SUCCESS, WsEvent,
 };
-use crate::api::discover::NearbyDiscoverManager;
+use crate::discover::NearbyDiscoverManager;
 
 /// reqwest-based [`PeerTransport`] — the outbound side of peer chat.
 /// Accepts self-signed peer certificates (the LAN pairing model has no
@@ -164,7 +164,7 @@ pub struct ChatState {
     /// LAN discovery (mDNS advertise + browse). `None` until
     /// [`Self::start_discovery`] runs — tests keep it off (no sockets).
     #[cfg(feature = "system")]
-    pub discovery: Option<Arc<crate::api::chat_discovery::ChatDiscovery>>,
+    pub discovery: Option<Arc<crate::chat_discovery::ChatDiscovery>>,
 }
 
 /// Full-option assembly inputs for [`ChatState`] — every host difference
@@ -261,10 +261,7 @@ impl ChatState {
         let ws_tx = ws_event_tx.clone();
         tokio::spawn(async move {
             while let Ok(ev) = rx.recv().await {
-                let _ = ws_tx.send(WsEvent::broadcast(
-        ev.event_type,
-        ev.payload,
-    ));
+                let _ = ws_tx.send(WsEvent::broadcast(ev.event_type, ev.payload));
             }
         });
 
@@ -285,7 +282,7 @@ impl ChatState {
 #[cfg(feature = "system")]
 #[derive(Default)]
 pub struct NasChatHooks {
-    discovery: std::sync::OnceLock<Arc<crate::api::chat_discovery::ChatDiscovery>>,
+    discovery: std::sync::OnceLock<Arc<crate::chat_discovery::ChatDiscovery>>,
 }
 
 #[cfg(feature = "system")]
@@ -302,7 +299,10 @@ impl ChatState {
     /// NAS assembly — open (or create) `plain.db` under `data_dir` and
     /// build the stack from the NAS's existing identity primitives
     /// (`client_id`, signature keypair, URL token, display name).
-    pub fn nas_init(data_dir: &std::path::Path, prefs: &crate::prefs::Prefs) -> anyhow::Result<Self> {
+    pub fn nas_init(
+        data_dir: &std::path::Path,
+        prefs: &crate::prefs::Prefs,
+    ) -> anyhow::Result<Self> {
         let db = Db::open(&data_dir.join("plain.db"))?;
         let token = crate::media::kv::UrlToken::new(prefs).ensure()?;
         let keypair = crate::media::kv::SignatureKey::new(prefs).ensure_keypair()?;
@@ -344,8 +344,8 @@ impl ChatState {
     pub fn start_discovery(
         &mut self,
         prefs: &crate::prefs::Prefs,
-    ) -> Arc<crate::api::chat_discovery::ChatDiscovery> {
-        let d = crate::api::chat_discovery::ChatDiscovery::start(
+    ) -> Arc<crate::chat_discovery::ChatDiscovery> {
+        let d = crate::chat_discovery::ChatDiscovery::start(
             self.service.db.clone(),
             self.service.identity.clone(),
             prefs,
@@ -425,9 +425,9 @@ fn forward_pairing_event_to_ws(
 }
 
 #[cfg(test)]
-#[path = "../../tests/unit/api/chat.rs"]
+#[path = "../tests/unit/api/chat.rs"]
 mod tests;
 
 #[cfg(all(test, feature = "system"))]
-#[path = "../../tests/unit/api/chat_nas.rs"]
+#[path = "../tests/unit/api/chat_nas.rs"]
 mod nas_tests;

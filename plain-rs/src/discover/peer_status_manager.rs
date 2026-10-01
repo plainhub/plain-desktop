@@ -1,7 +1,7 @@
 use super::nearby_discover_manager::NearbyDiscoverManager;
 use crate::api::AppIdentity;
 use crate::api::context::{WS_PEER_STATUS_UPDATED, WsEvent};
-use crate::api::db::{Db, DPeer};
+use crate::api::db::{DPeer, Db};
 use crate::{base64_decode, chacha20_encrypt, ed25519_sign};
 use futures_util::{SinkExt, StreamExt};
 use std::collections::HashMap;

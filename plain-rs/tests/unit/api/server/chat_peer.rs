@@ -2,14 +2,16 @@
 //! from plain-nas; driven through the desktop branch whose peer schema
 //! lives in plain-rs — the nas branch's own schema is exercised by the
 //! nas crate's router test).
-use crate::api::server::test_support::{as_desktop, nas_state};
+use crate::server::test_support::{as_desktop, nas_state};
 use axum::body::Bytes;
 use axum::http::{HeaderMap, StatusCode};
 use std::net::SocketAddr;
 
-use crate::db::DPeer;
 use crate::chat::enums::{DeviceType, PeerStatus};
-use crate::{base64_encode, ed25519_generate, ed25519_sign, xchacha_decrypt_raw, xchacha_encrypt_raw};
+use crate::db::DPeer;
+use crate::{
+    base64_encode, ed25519_generate, ed25519_sign, xchacha_decrypt_raw, xchacha_encrypt_raw,
+};
 
 fn now_ms() -> i64 {
     std::time::SystemTime::now()

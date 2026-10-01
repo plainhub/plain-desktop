@@ -143,7 +143,7 @@ Vue Component → Composable Hook → gqlFetch() → Local Rust Server (Tauri) /
 - **Queries/Mutations**: Via `initQuery()` / `initMutation()` wrappers in `src/lib/api/`
 - **Core client**: `gqlFetch()` in `src/lib/api/gql-client.ts` — encrypts with XChaCha20-Poly1305, fetches, decrypts
 - **Real-time**: Event-driven updates via mitt event bus (no GraphQL subscriptions)
-- **Transport**: native `fetch`/`WebSocket` everywhere; in Tauri builds device URLs are rewritten through the shared local reverse proxy (`plain-rs/src/api/http_proxy/`, see docs/tauri-proxy-strategy.md)
+- **Transport**: native `fetch`/`WebSocket` everywhere; in Tauri builds device URLs are rewritten through the shared local reverse proxy (`plain-rs/src/http_proxy/`, see docs/tauri-proxy-strategy.md)
 - **State**: Pinia for cross-component state; `ref`/`reactive` for local state
 
 ## Build Commands

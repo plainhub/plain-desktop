@@ -96,8 +96,8 @@ async fn serve_file(
         Ok(f) => f,
         Err(_) => return (StatusCode::NOT_FOUND, "not found").into_response(),
     };
-    let mime_str =
-        mime.unwrap_or_else(|| crate::media::fsx::guess_mime(std::path::Path::new(path)).to_string());
+    let mime_str = mime
+        .unwrap_or_else(|| crate::media::fsx::guess_mime(std::path::Path::new(path)).to_string());
 
     if use_range {
         let mut f = f;

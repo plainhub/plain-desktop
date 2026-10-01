@@ -9,10 +9,10 @@ mod prefs;
 mod read_password;
 mod version;
 
-// Chat stack — one assembly in plain-rs (`plain_rs::api::chat`,
+// Chat stack — one assembly in plain-rs (`plain_rs::chat_service`,
 // NAS flavor via `ChatState::nas_init`), re-exported under the
 // historical module path so call sites stay stable.
-pub use plain_rs::api::chat;
+pub use plain_rs::chat_service;
 
 // Shared system/domain modules hosted by plain-rs, re-exported under the historical
 // module paths so call sites stay stable.

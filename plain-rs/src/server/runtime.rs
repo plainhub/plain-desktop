@@ -18,7 +18,7 @@ pub struct ServerRuntime {
 
 impl ServerRuntime {
     pub async fn start(state: ServerState) -> Self {
-        let rustls = match crate::api::tls::ensure_cert(&state.ctx.data_dir) {
+        let rustls = match crate::server::tls::ensure_cert(&state.ctx.data_dir) {
             Ok((cert_pem, key_pem)) => match RustlsConfig::from_pem(cert_pem, key_pem).await {
                 Ok(config) => Some(config),
                 Err(error) => {

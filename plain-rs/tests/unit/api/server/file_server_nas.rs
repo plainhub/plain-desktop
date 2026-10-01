@@ -1,9 +1,9 @@
 //! Unit tests for the nas `/fs` behaviors merged into the shared file
 //! server (moved from plain-nas): range handling, recent-file tracking,
 //! codec probe and chat-attachment `fid:` resolution.
-use crate::api::server::test_support::{as_desktop, nas_state_with};
-use crate::api::server::ServerState;
 use crate::media::kv::recent;
+use crate::server::ServerState;
+use crate::server::test_support::{as_desktop, nas_state_with};
 use axum::body::Body;
 use axum::extract::Request;
 use axum::http::{HeaderName, StatusCode, header};
@@ -40,21 +40,13 @@ fn temp_bin(key: &[u8]) -> (tempfile::TempDir, String) {
     (dir, file_id(key, &path.to_string_lossy()))
 }
 
-async fn call_fs(
-    state: &ServerState,
-    query: &str,
-    headers: &[(&HeaderName, &str)],
-) -> Response {
+async fn call_fs(state: &ServerState, query: &str, headers: &[(&HeaderName, &str)]) -> Response {
     let mut builder = Request::get(format!("/fs?{query}"));
     for (name, value) in headers {
         builder = builder.header(*name, *value);
     }
     let req = builder.body(Body::empty()).unwrap();
-    crate::api::server::file_server::fs_handler(
-        axum::extract::State(state.clone()),
-        req,
-    )
-    .await
+    crate::server::file_server::fs_handler(axum::extract::State(state.clone()), req).await
 }
 
 async fn body_bytes(resp: Response) -> Vec<u8> {
@@ -137,21 +129,11 @@ async fn fs_recent_tracked_once_per_view_not_per_chunk() {
     let (_dir, id) = temp_bin(&key);
 
     // Continuation chunk only: nothing recorded.
-    call_fs(
-        &state,
-        &format!("id={id}"),
-        &[range_header("bytes=4-9")],
-    )
-    .await;
+    call_fs(&state, &format!("id={id}"), &[range_header("bytes=4-9")]).await;
     assert!(recent::get_recent_files(&state.ctx.prefs, 10).is_empty());
 
     // View start (range at byte 0) records once…
-    call_fs(
-        &state,
-        &format!("id={id}"),
-        &[range_header("bytes=0-9")],
-    )
-    .await;
+    call_fs(&state, &format!("id={id}"), &[range_header("bytes=0-9")]).await;
     assert_eq!(recent::get_recent_files(&state.ctx.prefs, 10).len(), 1);
 
     // …and so does a plain full GET (no Range header).
@@ -162,10 +144,7 @@ async fn fs_recent_tracked_once_per_view_not_per_chunk() {
 #[tokio::test]
 async fn fs_probe_reports_codec_json() {
     let (state, key) = test_state();
-    let path = concat!(
-        env!("CARGO_MANIFEST_DIR"),
-        "/testdata/video-h264-high.mp4"
-    );
+    let path = concat!(env!("CARGO_MANIFEST_DIR"), "/testdata/video-h264-high.mp4");
     let id = file_id(&key, path);
     let resp = call_fs(&state, &format!("id={id}&probe=1"), &[]).await;
     assert_eq!(resp.status(), StatusCode::OK);

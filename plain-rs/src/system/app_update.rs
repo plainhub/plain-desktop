@@ -1,18 +1,8 @@
-//! App-update check. 1:1 port of `internal/graph/app_update_api.go`.
-//!
-//! Polls GitHub's `releases/latest` endpoint for the `ismartcoding/plainnas`
-//! repo, caches the result in-process for 10 minutes, and exposes a
-//! synchronous `app_update` snapshot.
-//!
-//! Network errors, non-200 responses, and JSON decode failures all degrade
-//! gracefully: we return the current version with `hasUpdate=false` and cache
-//! that fallback for the standard TTL.
-
 use parking_lot::Mutex;
 use serde::Deserialize;
 use std::time::{Duration, Instant};
 
-const GITHUB_URL: &str = "https://api.github.com/repos/ismartcoding/plainnas/releases/latest";
+const GITHUB_URL: &str = "https://api.github.com/repos/plainhub/plain-desktop`/releases/latest";
 const CACHE_TTL: Duration = Duration::from_secs(10 * 60);
 const HTTP_TIMEOUT: Duration = Duration::from_secs(5);
 

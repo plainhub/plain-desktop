@@ -1,7 +1,7 @@
 //! Unit tests for the nas auth handlers (moved from plain-nas).
 use super::init_session;
-use crate::api::server::test_support::nas_state;
 use crate::media::kv::PasswordStore;
+use crate::server::test_support::nas_state;
 use axum::http::{HeaderMap, StatusCode};
 
 fn cid_headers(cid: &str) -> HeaderMap {
@@ -10,7 +10,10 @@ fn cid_headers(cid: &str) -> HeaderMap {
     h
 }
 
-async fn init_json(state: &crate::api::server::ServerState, headers: HeaderMap) -> (StatusCode, serde_json::Value) {
+async fn init_json(
+    state: &crate::server::ServerState,
+    headers: HeaderMap,
+) -> (StatusCode, serde_json::Value) {
     let resp = init_session(state, &headers).await;
     let status = resp.status();
     let body = axum::body::to_bytes(resp.into_body(), 64 * 1024)

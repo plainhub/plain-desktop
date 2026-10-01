@@ -1,31 +1,47 @@
-#[cfg(any(feature = "api", feature = "media_gql"))]
-pub mod enums;
-#[cfg(any(feature = "chat", feature = "library", feature = "sqlite_browse"))]
-pub mod db;
+#[cfg(feature = "api")]
+pub mod api;
 #[cfg(feature = "chat")]
 pub mod chat;
-pub mod crypto;
-#[cfg(feature = "library")]
-pub mod library;
+#[cfg(feature = "system")]
+pub mod chat_discovery;
 #[cfg(feature = "api")]
-pub mod notes;
+pub mod chat_service;
+pub mod crypto;
+#[cfg(any(feature = "chat", feature = "library", feature = "sqlite_browse"))]
+pub mod db;
+#[cfg(feature = "api")]
+pub mod discover;
+#[cfg(feature = "api")]
+pub mod dlna_receiver;
+#[cfg(feature = "system")]
+pub mod dlna_sender;
+#[cfg(feature = "api")]
+pub mod download;
+#[cfg(any(feature = "api", feature = "media_gql"))]
+pub mod enums;
 #[cfg(feature = "api")]
 pub mod feeds;
 #[cfg(feature = "api")]
-pub mod api;
+pub mod http_proxy;
 #[cfg(feature = "api")]
 pub mod httpserver;
+#[cfg(feature = "library")]
+pub mod library;
+#[cfg(feature = "api")]
+pub mod link_preview;
+pub mod mdns;
+#[cfg(feature = "media")]
+pub mod media;
+#[cfg(feature = "api")]
+pub mod notes;
+#[cfg(feature = "prefs")]
+pub mod prefs;
+#[cfg(feature = "api")]
+pub mod server;
 #[cfg(feature = "system")]
 pub mod storage;
 #[cfg(feature = "system")]
 pub mod system;
-#[cfg(feature = "system")]
-pub mod dlna_sender;
-#[cfg(feature = "media")]
-pub mod media;
-pub mod mdns;
-#[cfg(feature = "prefs")]
-pub mod prefs;
 #[cfg(feature = "sqlite_browse")]
 pub mod sqlite_browse {
     pub use crate::db::browse::*;

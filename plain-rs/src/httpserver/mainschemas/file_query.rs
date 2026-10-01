@@ -29,10 +29,10 @@ use async_graphql::{Context, ID, Object, Result as GqlResult};
 use super::media::types::Long;
 use super::types::Mount;
 use crate::api::context::AppCtx;
-use crate::api::server::uri::resolve_uri;
 use crate::httpserver::mainschemas::types::{
     AudioFileInfo, FileInfo, ImageFileInfo, Location, MediaFileInfo, VideoFileInfo,
 };
+use crate::server::uri::resolve_uri;
 
 #[derive(Default)]
 pub struct FileInfoQuery;

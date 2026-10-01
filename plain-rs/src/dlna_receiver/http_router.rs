@@ -1,11 +1,11 @@
 use std::sync::Arc;
 use tokio::sync::RwLock;
 
-use crate::api::dlna::receiver_engine;
-use crate::api::dlna::renderer_state::DlnaRendererState;
-use crate::api::dlna::soap_handler;
-use crate::api::dlna::types::{DlnaCommand, DlnaPlaybackState, PendingCastRequest};
-use crate::api::dlna::xml_templates;
+use crate::dlna_receiver::receiver_engine;
+use crate::dlna_receiver::renderer_state::DlnaRendererState;
+use crate::dlna_receiver::soap_handler;
+use crate::dlna_receiver::types::{DlnaCommand, DlnaPlaybackState, PendingCastRequest};
+use crate::dlna_receiver::xml_templates;
 
 pub struct DlnaHttpResponse {
     pub status: u16,

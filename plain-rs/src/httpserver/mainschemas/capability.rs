@@ -164,7 +164,7 @@ impl CapabilityMutation {
         if key.trim().is_empty() {
             return Err(async_graphql::Error::new("key is empty"));
         }
-        crate::api::temp_store::set(&key, &value);
+        crate::server::temp_store::set(&key, &value);
         Ok(KeyValuePair { key, value })
     }
 

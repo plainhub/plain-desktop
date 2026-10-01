@@ -54,9 +54,10 @@ fn pairing_event_ws_payload_matches_phone_protocol() {
     let body: serde_json::Value = serde_json::from_str(&payload).unwrap();
     assert_eq!(body["deviceId"], "dev-1");
 
-    let (msg, payload) =
-        pairing_event_ws_payload(&pairing_event(PairingEventKind::Failed { reason: "x".into() }))
-            .unwrap();
+    let (msg, payload) = pairing_event_ws_payload(&pairing_event(PairingEventKind::Failed {
+        reason: "x".into(),
+    }))
+    .unwrap();
     assert_eq!(msg, 24);
     let body: serde_json::Value = serde_json::from_str(&payload).unwrap();
     assert_eq!(body["error"], "x");

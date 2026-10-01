@@ -57,8 +57,8 @@ async fn cors_layer_adds_allow_origin_to_streaming_responses() {
     use tower::ServiceExt;
 
     let svc = tower::ServiceBuilder::new()
-        .layer(crate::api::server::cors::layer(
-            &crate::api::server::cors::CorsPolicy::permissive_default(),
+        .layer(crate::server::cors::layer(
+            &crate::server::cors::CorsPolicy::permissive_default(),
         ))
         .service(tower::service_fn(|_: axum::extract::Request| async {
             Ok::<_, std::convert::Infallible>(unsatisfiable_range_response(10))
@@ -77,7 +77,11 @@ async fn cors_layer_adds_allow_origin_to_streaming_responses() {
         resp.headers().get("access-control-allow-origin").unwrap(),
         "https://app.example"
     );
-    assert!(resp.headers().get("access-control-allow-credentials").is_some());
+    assert!(
+        resp.headers()
+            .get("access-control-allow-credentials")
+            .is_some()
+    );
 }
 
 async fn collect_body(resp: axum::response::Response) -> Vec<u8> {

@@ -8,21 +8,19 @@
 //! lifecycle.
 //!
 //! Pairing is handled over HTTPS via the `POST /nearby` REST endpoint
-//! instead of UDP (see `crate::api::chat`).
+//! instead of UDP (see `crate::chat_service`).
 
 use super::MdnsActivity;
 #[cfg(target_os = "macos")]
 use super::macos_dns_sd::MacDnsSdBrowser;
 use super::peer_status_manager::PeerStatusManager;
 use crate::api::AppIdentity;
-use crate::api::chat::ChatState;
 use crate::api::context::{
     WS_NEARBY_DEVICE_FOUND, WS_NEARBY_DEVICE_UNREACHABLE, WS_NEARBY_DISCOVERY_STARTED,
     WS_NEARBY_DISCOVERY_STOPPED, WsEvent,
 };
-use crate::api::db::{
-    Db, DNearbyDeviceCache, DPeer, iso_from_unix_millis, now_iso, now_millis,
-};
+use crate::api::db::{DNearbyDeviceCache, DPeer, Db, iso_from_unix_millis, now_iso, now_millis};
+use crate::chat_service::ChatState;
 use crate::httpserver::mainschemas::types::Peer;
 use crate::mdns::host_responder;
 use crate::mdns::service_browser::{FoundDevice, MdnsServiceBrowser, MdnsServiceSnapshot};
@@ -389,7 +387,7 @@ impl NearbyDiscoverManager {
                 false
             } else {
                 let ip = host_responder::get_best_ip(&device.ips);
-                crate::api::chat::nearby_discovery_ping_succeeds(&ip, device.port).await
+                crate::chat_service::nearby_discovery_ping_succeeds(&ip, device.port).await
             };
             (device, discovery_ping_succeeded)
         }))
@@ -777,7 +775,7 @@ mod tests {
             device_name: "Desktop".into(),
             ed25519_keypair: String::new(),
         });
-        let chat = Arc::new(crate::api::chat::ChatState::new(
+        let chat = Arc::new(crate::chat_service::ChatState::new(
             &db,
             &identity,
             "Desktop".into(),

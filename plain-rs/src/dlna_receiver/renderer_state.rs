@@ -1,4 +1,4 @@
-use crate::api::dlna::types::{DlnaMediaType, DlnaPlaybackState, PendingCastRequest};
+use crate::dlna_receiver::types::{DlnaMediaType, DlnaPlaybackState, PendingCastRequest};
 
 #[derive(Clone)]
 pub struct DlnaRendererState {

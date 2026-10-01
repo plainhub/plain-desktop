@@ -19,8 +19,8 @@ use crate::mdns::host_responder;
 use crate::mdns::service_browser::{FoundDevice, MdnsServiceBrowser};
 use crate::mdns::service_info::build_service_info;
 
-use crate::db::Db;
 use crate::chat::service::ChatIdentity;
+use crate::db::Db;
 
 const LOCAL_DEVICE_TYPE_WIRE: &str = "NAS";
 /// Mirrors plain-app's `MdnsHostnamePreference`: random two-char label
@@ -59,11 +59,7 @@ impl ChatDiscovery {
     /// Start the shared mDNS responder socket, install the resident
     /// browser listener and spawn the discovery worker. Publishes the
     /// service once an HTTPS port is known ([`Self::set_https_port`]).
-    pub fn start(
-        db: Db,
-        identity: Arc<ChatIdentity>,
-        prefs: &crate::prefs::Prefs,
-    ) -> Arc<Self> {
+    pub fn start(db: Db, identity: Arc<ChatIdentity>, prefs: &crate::prefs::Prefs) -> Arc<Self> {
         let hostname = Arc::new(RwLock::new(ensure_mdns_hostname(prefs)));
         let online: Arc<Mutex<HashSet<String>>> = Arc::new(Mutex::new(HashSet::new()));
 
@@ -225,5 +221,5 @@ fn update_known_peer(db: &Db, device: &FoundDevice) {
 }
 
 #[cfg(test)]
-#[path = "../../tests/unit/api/chat_discovery.rs"]
+#[path = "../tests/unit/api/chat_discovery.rs"]
 mod tests;

@@ -12,7 +12,7 @@
 //! every event into the broadcast channel; per-connection filtering by
 //! `WsEvent::target_cid` happens in the socket forward loop. Chat and
 //! pairing events are NOT bridged here — they go through
-//! [`crate::api::chat::ChatState::spawn_event_bridges`].
+//! [`crate::chat_service::ChatState::spawn_event_bridges`].
 
 use tokio::sync::broadcast;
 
@@ -92,10 +92,7 @@ pub fn spawn_media_event_bridge(event_tx: broadcast::Sender<WsEvent>) {
         EventBus::global().subscribe(
             eventbus::EVENT_DISK_FORMAT_DONE,
             move |payload: serde_json::Value| {
-                let _ = tx.send(WsEvent::broadcast(
-                    WS_DISK_FORMAT_DONE,
-                    payload.to_string(),
-                ));
+                let _ = tx.send(WsEvent::broadcast(WS_DISK_FORMAT_DONE, payload.to_string()));
             },
         );
     }

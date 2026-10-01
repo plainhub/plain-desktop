@@ -69,9 +69,8 @@ async fn desktop_graphql_preflight_allows_vite_origin() {
     use axum::http::{Method, Request, StatusCode};
     use tower::ServiceExt;
 
-    let state = crate::api::server::test_support::nas_state();
-    let app =
-        crate::api::server::build_router(crate::api::server::test_support::as_desktop(&state));
+    let state = crate::server::test_support::nas_state();
+    let app = crate::server::build_router(crate::server::test_support::as_desktop(&state));
     let response = app
         .oneshot(
             Request::builder()

@@ -7,9 +7,9 @@ use tokio::sync::mpsc;
 use tokio::task::JoinHandle;
 use tokio::time::{Duration, sleep};
 
-use crate::api::dlna::renderer_state::DlnaRendererState;
-use crate::api::dlna::ssdp_messages;
-use crate::api::dlna::types::{DlnaCommand, DlnaPlaybackState, PendingCastRequest};
+use crate::dlna_receiver::renderer_state::DlnaRendererState;
+use crate::dlna_receiver::ssdp_messages;
+use crate::dlna_receiver::types::{DlnaCommand, DlnaPlaybackState, PendingCastRequest};
 use crate::mdns::host_responder::local_ipv4_strs;
 
 const SSDP_ADDR: &str = "239.255.255.250";

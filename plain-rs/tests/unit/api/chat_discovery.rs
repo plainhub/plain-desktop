@@ -1,6 +1,6 @@
 use super::*;
-use crate::db::{Db, DPeer};
 use crate::chat::enums::{DeviceType, PeerStatus};
+use crate::db::{DPeer, Db};
 
 fn unique_tmp_dir(label: &str) -> std::path::PathBuf {
     static SEQ: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);

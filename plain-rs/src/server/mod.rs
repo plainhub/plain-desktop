@@ -13,6 +13,8 @@ pub mod response;
 pub mod runtime;
 #[cfg(feature = "system")]
 pub mod static_files;
+pub mod temp_store;
+pub mod tls;
 pub mod upload;
 pub mod uri;
 pub mod ws;
@@ -20,11 +22,11 @@ pub mod zip;
 
 use std::sync::Arc;
 
+use axum::Router;
 use axum::extract::DefaultBodyLimit;
 use axum::routing::{get, post};
-use axum::Router;
 
-use super::context::AppCtx;
+use crate::api::context::AppCtx;
 use crate::httpserver::mainschemas::ApiSchema;
 use crate::httpserver::peerschemas::PeerSchema;
 
@@ -82,8 +84,9 @@ pub(crate) mod test_support {
         let prefs =
             Arc::new(crate::prefs::Prefs::load(&data_dir.join("prefs.json")).expect("prefs load"));
         seed(&prefs);
-        let chat =
-            Arc::new(crate::api::chat::ChatState::nas_init(&data_dir, &prefs).expect("chat init"));
+        let chat = Arc::new(
+            crate::chat_service::ChatState::nas_init(&data_dir, &prefs).expect("chat init"),
+        );
         let config = Arc::new(crate::media::config::Config::parse(
             "[server]
 http_port = 8080

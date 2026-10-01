@@ -1,4 +1,4 @@
-use crate::api::dlna::types::DlnaMediaType;
+use crate::dlna_receiver::types::DlnaMediaType;
 
 const ENVELOPE_NS: &str = "http://schemas.xmlsoap.org/soap/envelope/";
 const ENCODING_NS: &str = "http://schemas.xmlsoap.org/soap/encoding/";

@@ -6,24 +6,24 @@
 
 use axum::body::Body;
 use axum::body::Bytes;
-use axum::extract::ws::WebSocketUpgrade;
 use axum::extract::ConnectInfo;
 use axum::extract::FromRequestParts;
 use axum::extract::Request;
 use axum::extract::State;
+use axum::extract::ws::WebSocketUpgrade;
 use axum::http::{Method, StatusCode};
 use axum::response::{IntoResponse, Response};
-use serde_json::json;
 use serde_json::Value;
+use serde_json::json;
 use std::collections::HashMap;
 use std::net::SocketAddr;
 
-use super::request_key::{resolve_request_key, RequestKey, RequestKeyError};
-use super::response::{respond, APP_ID};
+use super::request_key::{RequestKey, RequestKeyError, resolve_request_key};
+use super::response::{APP_ID, respond};
 use super::ws;
-use crate::api::dlna;
 use crate::api::executor::execute_graphql;
-use crate::api::server::{AuthPolicy, ServerState};
+use crate::dlna_receiver;
+use crate::server::{AuthPolicy, ServerState};
 
 pub async fn health() -> Response {
     respond(200, APP_ID.as_bytes().to_vec(), "text/plain")
@@ -159,7 +159,7 @@ pub async fn nearby(
 pub async fn fallback(State(state): State<ServerState>, req: Request) -> Response {
     let method = req.method().as_str().to_owned();
     let path = req.uri().path().to_owned();
-    if dlna::is_receiver_path(&method, &path) {
+    if dlna_receiver::is_receiver_path(&method, &path) {
         return dlna_route(&state, req, &method, &path).await;
     }
     if req.method() == Method::GET {
@@ -216,7 +216,7 @@ async fn dlna_route(state: &ServerState, req: Request, method: &str, path: &str)
     let Some(command_tx) = ctx.dlna_engine.command_sender() else {
         return respond(404, Vec::new(), "text/plain");
     };
-    let resp = dlna::http_router::route(
+    let resp = dlna_receiver::http_router::route(
         &ctx.dlna_engine.state,
         method,
         path,
@@ -281,9 +281,9 @@ fn strip_replay_wrapper(body: &[u8]) -> String {
 }
 
 #[cfg(test)]
-#[path = "../../../tests/unit/api/server/handlers.rs"]
+#[path = "../../tests/unit/api/server/handlers.rs"]
 mod tests;
 
 #[cfg(all(test, feature = "system"))]
-#[path = "../../../tests/unit/api/server/chat_peer.rs"]
+#[path = "../../tests/unit/api/server/chat_peer.rs"]
 mod chat_peer_nas_tests;

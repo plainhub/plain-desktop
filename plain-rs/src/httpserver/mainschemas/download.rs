@@ -2,14 +2,14 @@
 //!
 //! Mirrors plain-app's `DownloadQueue.addDownloadTask` /
 //! `pauseDownload` / `resumeDownload` / `retryDownload`. The actual
-//! download runs in a background tokio task (`crate::api::download`);
+//! download runs in a background tokio task (`crate::download`);
 //! progress is streamed back to the web client via `WS_DOWNLOAD_PROGRESS`.
 
 use async_graphql::{Context, Object, Result as GqlResult};
 use std::sync::Arc;
 
 use crate::api::context::AppCtx;
-use crate::api::download;
+use crate::download;
 
 #[derive(Default)]
 pub struct DownloadMutation;

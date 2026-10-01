@@ -20,9 +20,9 @@ use tokio::io::AsyncWriteExt;
 use tokio::sync::Mutex;
 use tokio::task::JoinHandle;
 
-use crate::chat::app_file_store::import_file;
 use crate::api::context::{AppCtx, WS_DOWNLOAD_PROGRESS, WS_MESSAGE_UPDATED, WsEvent};
 use crate::api::enums::DownloadStatus;
+use crate::chat::app_file_store::import_file;
 
 /// Download task state. Mirrors plain-app `DownloadStatus`.
 #[derive(Clone, Debug)]
@@ -85,7 +85,9 @@ fn emit_progress(ctx: &Arc<AppCtx>, state: &DownloadState) {
         "status": state.status,
     }])
     .to_string();
-    let _ = ctx.event_tx.send(WsEvent::broadcast(WS_DOWNLOAD_PROGRESS, payload));
+    let _ = ctx
+        .event_tx
+        .send(WsEvent::broadcast(WS_DOWNLOAD_PROGRESS, payload));
 }
 
 /// Start (or queue) a download for all `fsid:` files in the given message.
@@ -317,14 +319,11 @@ async fn execute_download(
             return;
         }
     };
-    let updated_payload = serde_json::json!([crate::chat::service::chat_to_json(
-        &updated_chat
-    )])
-    .to_string();
-    let _ = ctx.event_tx.send(WsEvent::broadcast(
-        WS_MESSAGE_UPDATED,
-        updated_payload,
-    ));
+    let updated_payload =
+        serde_json::json!([crate::chat::service::chat_to_json(&updated_chat)]).to_string();
+    let _ = ctx
+        .event_tx
+        .send(WsEvent::broadcast(WS_MESSAGE_UPDATED, updated_payload));
 
     set_completed(&ctx, &state).await;
     cleanup(&message_id).await;

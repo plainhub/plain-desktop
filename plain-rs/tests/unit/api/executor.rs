@@ -2,7 +2,7 @@ use super::*;
 
 #[tokio::test]
 async fn named_operation_reaches_shared_schema() {
-    let state = crate::api::server::test_support::nas_state();
+    let state = crate::server::test_support::nas_state();
     let response = execute_graphql(
         &crate::httpserver::mainschemas::build_schema(),
         json!({
@@ -19,7 +19,7 @@ async fn named_operation_reaches_shared_schema() {
 
 #[tokio::test]
 async fn client_id_reaches_mutation_resolvers() {
-    let state = crate::api::server::test_support::nas_state();
+    let state = crate::server::test_support::nas_state();
     let cid = "executor-client".to_string();
     let response = execute_graphql(
         &crate::httpserver::mainschemas::build_schema(),

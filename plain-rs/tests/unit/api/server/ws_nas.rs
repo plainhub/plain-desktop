@@ -1,11 +1,11 @@
 //! Unit tests for the nas `/` root handler and the login-handshake
 //! crypto chain (moved from plain-nas).
-use crate::api::server::build_router;
-use crate::api::server::test_support::nas_state;
-use base64::Engine as _;
+use crate::server::build_router;
+use crate::server::test_support::nas_state;
 use axum::body::Body;
 use axum::http::{Request, StatusCode, header};
 use axum::response::Response;
+use base64::Engine as _;
 use tower::ServiceExt;
 
 fn ws_upgrade_request(uri: &str) -> Request<Body> {
@@ -154,14 +154,6 @@ fn auth_handshake_crypto_chain() {
     let ts: u64 = 1_700_000_000_000;
     let msg = format!("client-1|OK|{server_pub_b64}|{ts}");
     let sig = crate::ed25519_sign(&keypair, msg.as_bytes());
-    assert!(crate::ed25519_verify(
-        &public_b64,
-        msg.as_bytes(),
-        &sig
-    ));
-    assert!(!crate::ed25519_verify(
-        &public_b64,
-        b"tampered",
-        &sig
-    ));
+    assert!(crate::ed25519_verify(&public_b64, msg.as_bytes(), &sig));
+    assert!(!crate::ed25519_verify(&public_b64, b"tampered", &sig));
 }

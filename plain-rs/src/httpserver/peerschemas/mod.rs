@@ -21,8 +21,8 @@ use std::sync::Arc;
 use axum::response::Response;
 
 use crate::api::context::AppCtx;
-use crate::api::server::response::respond;
 use crate::chat::peer_auth;
+use crate::server::response::respond;
 use crate::xchacha_encrypt_raw;
 
 pub use context::PeerCtx;

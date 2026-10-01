@@ -213,7 +213,7 @@ pub fn run() {
                 Err(e) => panic!("local_db open failed: {e}"),
             };
             let identity = Arc::new(crate::prefs::ensure_identity(&prefs));
-            let chat_state = Arc::new(plain_rs::api::chat::ChatState::new(
+            let chat_state = Arc::new(plain_rs::chat_service::ChatState::new(
                 &db,
                 &identity,
                 identity.device_name.clone(),
@@ -231,7 +231,7 @@ pub fn run() {
                     }
                 });
             });
-            plain_rs::api::server::events::spawn_media_event_bridge(event_tx.clone());
+            plain_rs::server::events::spawn_media_event_bridge(event_tx.clone());
             let ctx = plain_rs::api::context::AppCtx::assemble(
                 data_dir.clone(),
                 data_dir.join("cache"),
@@ -282,25 +282,25 @@ pub fn run() {
             let discover_mgr = ctx.discover_manager.clone();
             let dlna_engine = ctx.dlna_engine.clone();
             chat_state.attach_discovery(discover_mgr.clone());
-            let peer_resolver: plain_rs::api::http_proxy::PeerResolver = {
+            let peer_resolver: plain_rs::http_proxy::PeerResolver = {
                 let mgr = discover_mgr.clone();
                 Arc::new(move |id: &str| mgr.peer_address(id))
             };
-            let state = plain_rs::api::server::ServerState::new(
+            let state = plain_rs::server::ServerState::new(
                 Arc::new(plain_rs::httpserver::mainschemas::build_schema()),
                 Arc::new(plain_rs::httpserver::peerschemas::build_schema()),
                 ctx,
-                plain_rs::api::server::ServerSettings {
-                    auth: plain_rs::api::server::AuthPolicy::LocalToken,
-                    cors: plain_rs::api::server::cors::CorsPolicy::permissive_default(),
+                plain_rs::server::ServerSettings {
+                    auth: plain_rs::server::AuthPolicy::LocalToken,
+                    cors: plain_rs::server::cors::CorsPolicy::permissive_default(),
                     serve_spa: false,
                 },
             );
             app.handle().manage(tauri::async_runtime::block_on(async {
-                plain_rs::api::http_proxy::HttpProxyState::start(peer_resolver)
+                plain_rs::http_proxy::HttpProxyState::start(peer_resolver)
             }));
             let local_server_state = tauri::async_runtime::block_on(async {
-                plain_rs::api::server::runtime::ServerRuntime::start(state).await
+                plain_rs::server::runtime::ServerRuntime::start(state).await
             });
             app.handle().manage(dlna_engine.clone());
             // Start the DLNA renderer at startup when the toggle is on.

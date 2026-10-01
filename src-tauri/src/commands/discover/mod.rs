@@ -1,12 +1,12 @@
 #![allow(non_snake_case)]
 
 use plain_rs::api::enums::DeviceType;
-use plain_rs::httpserver::mainschemas::types::Peer;
 #[allow(unused_imports)]
-pub use plain_rs::api::discover::{
+pub use plain_rs::discover::{
     MdnsActivity, MdnsFirewallStatus, NearbyDiscoverManager, PeerStatusManager, firewall,
     macos_dns_sd,
 };
+use plain_rs::httpserver::mainschemas::types::Peer;
 #[allow(unused_imports)]
 pub(crate) use plain_rs::mdns::host_responder::{
     get_best_ip as discover_get_best_ip, local_ipv4_strs as discover_local_ipv4_strs,

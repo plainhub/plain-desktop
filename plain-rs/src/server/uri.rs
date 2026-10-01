@@ -53,5 +53,5 @@ pub fn resolve_uri(uri: &str, data_dir: &Path) -> PathBuf {
 }
 
 #[cfg(test)]
-#[path = "../../../tests/unit/api/server/uri.rs"]
+#[path = "../../tests/unit/api/server/uri.rs"]
 mod tests;

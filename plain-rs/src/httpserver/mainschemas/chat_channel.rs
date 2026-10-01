@@ -1,7 +1,7 @@
 //! `ChatChannelMutation` — thin GraphQL surface for channel mutations.
 //!
 //! The business logic lives on the shared chat service
-//! (`crate::chat::channel::ops`, see [`crate::api::chat::ChatState`]);
+//! (`crate::chat::channel::ops`, see [`crate::chat_service::ChatState`]);
 //! these resolvers parse the wire arguments and map the error strings the
 //! ops layer surfaces.
 

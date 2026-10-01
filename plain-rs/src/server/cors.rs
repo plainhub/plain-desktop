@@ -205,5 +205,5 @@ pub fn layer(policy: &CorsPolicy) -> CorsLayer {
 }
 
 #[cfg(test)]
-#[path = "../../../tests/unit/api/server/cors.rs"]
+#[path = "../../tests/unit/api/server/cors.rs"]
 mod tests;

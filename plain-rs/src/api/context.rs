@@ -1,9 +1,9 @@
 //! Shared types, WebSocket event infrastructure, and resolver context.
 
 use crate::api::AppIdentity;
-use crate::api::chat::ChatState;
+use crate::chat_service::ChatState;
 use crate::db::Db;
-use crate::api::discover::{NearbyDiscoverManager, PeerStatusManager};
+use crate::discover::{NearbyDiscoverManager, PeerStatusManager};
 use std::path::PathBuf;
 use std::sync::Arc;
 use std::sync::atomic::AtomicU16;
@@ -87,7 +87,7 @@ pub struct AppCtx {
     pub discover_manager: NearbyDiscoverManager,
     /// The assembled chat stack (service + pairing manager + key caches).
     pub chat: Arc<ChatState>,
-    pub dlna_engine: Arc<crate::api::dlna::receiver_engine::DlnaEngine>,
+    pub dlna_engine: Arc<crate::dlna_receiver::receiver_engine::DlnaEngine>,
     pub event_tx: broadcast::Sender<WsEvent>,
     pub token: String,
     pub port: Arc<AtomicU16>,
@@ -151,7 +151,7 @@ impl AppCtx {
             peer_status,
             discover_manager,
             chat,
-            dlna_engine: Arc::new(crate::api::dlna::receiver_engine::DlnaEngine::new()),
+            dlna_engine: Arc::new(crate::dlna_receiver::receiver_engine::DlnaEngine::new()),
             event_tx,
             token,
             port: Arc::new(AtomicU16::new(port)),
@@ -178,16 +178,22 @@ pub trait ShellHooks: Send + Sync {
     fn capabilities(&self) -> Vec<crate::httpserver::mainschemas::types::Capability> {
         Vec::new()
     }
-    fn disks(&self) -> anyhow::Result<Vec<crate::httpserver::mainschemas::capability_types::StorageDisk>> {
+    fn disks(
+        &self,
+    ) -> anyhow::Result<Vec<crate::httpserver::mainschemas::capability_types::StorageDisk>> {
         anyhow::bail!("disk manager unavailable")
     }
-    fn app_update(&self) -> anyhow::Result<crate::httpserver::mainschemas::capability_types::AppUpdate> {
-        Ok(crate::httpserver::mainschemas::capability_types::AppUpdate {
-            current_version: self.app_version(),
-            latest_version: None,
-            has_update: false,
-            url: None,
-        })
+    fn app_update(
+        &self,
+    ) -> anyhow::Result<crate::httpserver::mainschemas::capability_types::AppUpdate> {
+        Ok(
+            crate::httpserver::mainschemas::capability_types::AppUpdate {
+                current_version: self.app_version(),
+                latest_version: None,
+                has_update: false,
+                url: None,
+            },
+        )
     }
     fn samba_settings(
         &self,

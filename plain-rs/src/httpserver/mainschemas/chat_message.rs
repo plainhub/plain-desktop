@@ -1,7 +1,7 @@
 //! `ChatMessageMutation` — thin GraphQL surface for chat-item mutations.
 //!
 //! No business logic lives here; every resolver delegates to the shared
-//! chat service ([`crate::api::chat::ChatState`]). The GraphQL layer
+//! chat service ([`crate::chat_service::ChatState`]). The GraphQL layer
 //! only parses the wire arguments and forwards them.
 
 use async_graphql::{Context, ID, Object};
