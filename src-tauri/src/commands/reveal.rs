@@ -6,7 +6,7 @@ use tauri_plugin_dialog::DialogExt;
 /// Resolve a chat file URI (`fid:`, `app://`, relative or absolute path)
 /// to a local on-disk path, returning `None` when the file does not exist.
 fn local_file_path(uri: &str, data_dir: &Path) -> Option<PathBuf> {
-    let path = plain_rs::server::uri::resolve_uri(uri, data_dir);
+    let path = plain_rs::http_server::routes::uri::resolve_uri(uri, data_dir);
     path.is_file().then_some(path)
 }
 

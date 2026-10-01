@@ -22,8 +22,6 @@ pub mod enums;
 #[cfg(feature = "api")]
 pub mod feeds;
 #[cfg(feature = "api")]
-pub mod http_proxy;
-#[cfg(feature = "api")]
 pub mod http_server;
 #[cfg(feature = "library")]
 pub mod library;
@@ -36,8 +34,6 @@ pub mod media;
 pub mod notes;
 #[cfg(feature = "prefs")]
 pub mod prefs;
-#[cfg(feature = "api")]
-pub mod server;
 #[cfg(feature = "system")]
 pub mod storage;
 #[cfg(feature = "system")]

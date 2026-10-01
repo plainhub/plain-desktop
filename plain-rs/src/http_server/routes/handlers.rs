@@ -20,10 +20,10 @@ use std::net::SocketAddr;
 
 use super::request_key::{RequestKey, RequestKeyError, resolve_request_key};
 use super::response::{APP_ID, respond};
-use super::ws;
+use crate::http_server::websocket as ws;
 use crate::api::executor::execute_graphql;
 use crate::dlna_receiver;
-use crate::server::{AuthPolicy, ServerState};
+use crate::http_server::{AuthPolicy, ServerState};
 
 pub async fn health() -> Response {
     respond(200, APP_ID.as_bytes().to_vec(), "text/plain")
@@ -281,9 +281,9 @@ fn strip_replay_wrapper(body: &[u8]) -> String {
 }
 
 #[cfg(test)]
-#[path = "../../tests/unit/api/server/handlers.rs"]
+#[path = "../../../tests/unit/api/server/handlers.rs"]
 mod tests;
 
 #[cfg(all(test, feature = "system"))]
-#[path = "../../tests/unit/api/server/chat_peer.rs"]
+#[path = "../../../tests/unit/api/server/chat_peer.rs"]
 mod chat_peer_nas_tests;

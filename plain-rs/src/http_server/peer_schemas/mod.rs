@@ -22,7 +22,7 @@ use axum::response::Response;
 
 use crate::api::context::AppCtx;
 use crate::chat::peer_auth;
-use crate::server::response::respond;
+use crate::http_server::routes::response::respond;
 use crate::xchacha_encrypt_raw;
 
 pub use context::PeerCtx;

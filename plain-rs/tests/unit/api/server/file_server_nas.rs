@@ -2,8 +2,8 @@
 //! server (moved from plain-nas): range handling, recent-file tracking,
 //! codec probe and chat-attachment `fid:` resolution.
 use crate::media::kv::recent;
-use crate::server::ServerState;
-use crate::server::test_support::{as_desktop, nas_state_with};
+use crate::http_server::ServerState;
+use crate::http_server::test_support::{as_desktop, nas_state_with};
 use axum::body::Body;
 use axum::extract::Request;
 use axum::http::{HeaderName, StatusCode, header};
@@ -46,7 +46,7 @@ async fn call_fs(state: &ServerState, query: &str, headers: &[(&HeaderName, &str
         builder = builder.header(*name, *value);
     }
     let req = builder.body(Body::empty()).unwrap();
-    crate::server::file_server::fs_handler(axum::extract::State(state.clone()), req).await
+    crate::http_server::routes::file_server::fs_handler(axum::extract::State(state.clone()), req).await
 }
 
 async fn body_bytes(resp: Response) -> Vec<u8> {

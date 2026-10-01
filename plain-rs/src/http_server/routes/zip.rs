@@ -28,7 +28,7 @@ use std::path::{Path, PathBuf};
 use zip::CompressionMethod;
 use zip::write::SimpleFileOptions;
 
-use super::ServerState;
+use super::super::ServerState;
 
 #[derive(Deserialize)]
 pub struct IdQuery {
@@ -188,7 +188,7 @@ pub async fn zip_files_handler(
             if tmp_key.is_empty() {
                 return (StatusCode::BAD_REQUEST, "").into_response();
             }
-            let raw = match crate::server::temp_store::take(tmp_key) {
+            let raw = match crate::http_server::temp_store::take(tmp_key) {
                 Some(v) => v,
                 None => return (StatusCode::NOT_FOUND, "").into_response(),
             };

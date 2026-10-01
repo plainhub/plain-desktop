@@ -15,7 +15,7 @@ use axum::{
 };
 use serde::Deserialize;
 
-use super::{AuthPolicy, ServerState};
+use super::super::{AuthPolicy, ServerState};
 use crate::media::kv::{self, EventLog, PasswordStore, SessionInfo, SessionStore};
 
 fn status_error(status: StatusCode, msg: &str) -> Response {
@@ -275,5 +275,5 @@ pub async fn auth_setup_handler(State(state): State<ServerState>, body: Bytes) -
 }
 
 #[cfg(all(test, feature = "system"))]
-#[path = "../../tests/unit/api/server/auth.rs"]
+#[path = "../../../tests/unit/api/server/auth.rs"]
 mod tests;

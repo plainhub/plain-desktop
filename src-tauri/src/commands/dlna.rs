@@ -57,7 +57,7 @@ pub async fn dlna_state(
 pub async fn dlna_set_enabled(
     prefs: tauri::State<'_, std::sync::Arc<crate::prefs::Prefs>>,
     engine: tauri::State<'_, DlnaEngine>,
-    server: tauri::State<'_, plain_rs::server::runtime::ServerRuntime>,
+    server: tauri::State<'_, plain_rs::http_server::runtime::ServerRuntime>,
     enabled: bool,
 ) -> Result<(), String> {
     crate::prefs::dlna::set_enabled(&prefs, enabled);

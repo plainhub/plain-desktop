@@ -9,9 +9,9 @@ use tokio::signal::unix::{SignalKind, signal};
 use plain_rs::api::context::{AppCtx, ShellHooks};
 use plain_rs::http_server::main_schemas::capability_types;
 use plain_rs::http_server::main_schemas::types::Capability;
-use plain_rs::server::ServerState;
-use plain_rs::server::build_router;
-use plain_rs::server::{AuthPolicy, ServerSettings, events::spawn_media_event_bridge};
+use plain_rs::http_server::ServerState;
+use plain_rs::http_server::build_router;
+use plain_rs::http_server::{AuthPolicy, ServerSettings, events::spawn_media_event_bridge};
 
 use crate::config::Config;
 use crate::consts::AppPaths;
@@ -357,7 +357,7 @@ pub async fn run(paths: &AppPaths) -> Result<()> {
     plain_rs::media::thumb::init_from_config(&cfg_arc);
     plain_rs::media::thumb::prefetch::init_from_config(&cfg_arc, db.clone(), prefs.clone());
 
-    let cors_policy = plain_rs::server::cors::CorsPolicy::from_config(&cfg_arc);
+    let cors_policy = plain_rs::http_server::routes::cors::CorsPolicy::from_config(&cfg_arc);
     let schema = plain_rs::http_server::main_schemas::build_schema();
     let state = ServerState::new(
         Arc::new(schema),

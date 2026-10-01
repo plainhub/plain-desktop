@@ -77,7 +77,7 @@ fn desktop_schema_exposes_shared_media_fields() {
 #[cfg(feature = "system")]
 #[tokio::test]
 async fn db_path_reports_the_open_sqlite_file() {
-    let state = crate::server::test_support::nas_state();
+    let state = crate::http_server::test_support::nas_state();
     let response = state
         .schema
         .execute(async_graphql::Request::new("{ dbPath }").data(state.ctx.clone()))

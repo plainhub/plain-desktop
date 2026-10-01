@@ -34,7 +34,7 @@ fn one_schema_declares_capability_operations() {
 #[cfg(feature = "system")]
 #[tokio::test]
 async fn unsupported_hardware_uses_the_same_graphql_schema() {
-    let state = crate::server::test_support::nas_state();
+    let state = crate::http_server::test_support::nas_state();
     let response = crate::http_server::main_schemas::build_schema()
         .execute(
             async_graphql::Request::new("{ app { deviceType } disks { id } }")
@@ -49,7 +49,7 @@ async fn unsupported_hardware_uses_the_same_graphql_schema() {
 #[cfg(feature = "system")]
 #[tokio::test]
 async fn temp_value_mutation_feeds_shared_zip_store() {
-    let state = crate::server::test_support::nas_state();
+    let state = crate::http_server::test_support::nas_state();
     let response = crate::http_server::main_schemas::build_schema()
         .execute(
             async_graphql::Request::new(
@@ -60,7 +60,7 @@ async fn temp_value_mutation_feeds_shared_zip_store() {
         .await;
     assert!(response.errors.is_empty(), "{:?}", response.errors);
     assert_eq!(
-        crate::server::temp_store::take("zip-test-key"),
+        crate::http_server::temp_store::take("zip-test-key"),
         Some("[]".to_string())
     );
 }

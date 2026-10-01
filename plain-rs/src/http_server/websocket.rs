@@ -27,7 +27,7 @@ use axum::extract::ws::Message;
 use axum::extract::ws::WebSocket;
 
 use crate::api::context::AppCtx;
-use crate::server::ServerState;
+use crate::http_server::ServerState;
 use crate::{base64_decode, ed25519_verify, xchacha_decrypt_raw};
 
 /// WebSocket close code 1013 ("Try Again Later"). Mirrors Go's
@@ -62,7 +62,7 @@ pub async fn chat_socket_cid(socket: WebSocket, cid: String, state: ServerState)
     // this cid, the desktop URL token.
     let key = if matches!(
         state.settings.auth,
-        crate::server::AuthPolicy::Session { .. }
+        crate::http_server::AuthPolicy::Session { .. }
     ) {
         let session = crate::media::kv::SessionStore::new(&state.ctx.media.db).get(&cid);
         match session.and_then(|s| crate::media::kv::token_key(&s.token).ok()) {
@@ -343,7 +343,7 @@ mod login {
     ) -> Response {
         let ws = match ws {
             Ok(ws) => ws,
-            Err(_) => return super::super::static_files::index().await,
+            Err(_) => return crate::http_server::routes::static_files::index().await,
         };
         if p.cid.trim().is_empty() {
             return (StatusCode::BAD_REQUEST, "").into_response();

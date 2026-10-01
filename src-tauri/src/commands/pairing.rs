@@ -14,7 +14,7 @@ pub fn pair_device(
     device_ip: String,
     device_port: u16,
     state: tauri::State<'_, Arc<ChatState>>,
-    server_state: tauri::State<'_, plain_rs::server::runtime::ServerRuntime>,
+    server_state: tauri::State<'_, plain_rs::http_server::runtime::ServerRuntime>,
 ) {
     state.pairing.start_pairing(
         &device_id,
@@ -33,7 +33,7 @@ pub fn respond_pair_device(
     sender_ip: String,
     accepted: bool,
     state: tauri::State<'_, Arc<ChatState>>,
-    server_state: tauri::State<'_, plain_rs::server::runtime::ServerRuntime>,
+    server_state: tauri::State<'_, plain_rs::http_server::runtime::ServerRuntime>,
 ) -> Result<(), String> {
     let req: PairingRequest = serde_json::from_str(&request_json).map_err(|e| e.to_string())?;
     state

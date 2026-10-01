@@ -231,7 +231,7 @@ pub fn run() {
                     }
                 });
             });
-            plain_rs::server::events::spawn_media_event_bridge(event_tx.clone());
+            plain_rs::http_server::events::spawn_media_event_bridge(event_tx.clone());
             let ctx = plain_rs::api::context::AppCtx::assemble(
                 data_dir.clone(),
                 data_dir.join("cache"),
@@ -282,25 +282,25 @@ pub fn run() {
             let discover_mgr = ctx.discover_manager.clone();
             let dlna_engine = ctx.dlna_engine.clone();
             chat_state.attach_discovery(discover_mgr.clone());
-            let peer_resolver: plain_rs::http_proxy::PeerResolver = {
+            let peer_resolver: plain_rs::http_server::proxy::PeerResolver = {
                 let mgr = discover_mgr.clone();
                 Arc::new(move |id: &str| mgr.peer_address(id))
             };
-            let state = plain_rs::server::ServerState::new(
+            let state = plain_rs::http_server::ServerState::new(
                 Arc::new(plain_rs::http_server::main_schemas::build_schema()),
                 Arc::new(plain_rs::http_server::peer_schemas::build_schema()),
                 ctx,
-                plain_rs::server::ServerSettings {
-                    auth: plain_rs::server::AuthPolicy::LocalToken,
-                    cors: plain_rs::server::cors::CorsPolicy::permissive_default(),
+                plain_rs::http_server::ServerSettings {
+                    auth: plain_rs::http_server::AuthPolicy::LocalToken,
+                    cors: plain_rs::http_server::routes::cors::CorsPolicy::permissive_default(),
                     serve_spa: false,
                 },
             );
             app.handle().manage(tauri::async_runtime::block_on(async {
-                plain_rs::http_proxy::HttpProxyState::start(peer_resolver)
+                plain_rs::http_server::proxy::HttpProxyState::start(peer_resolver)
             }));
             let local_server_state = tauri::async_runtime::block_on(async {
-                plain_rs::server::runtime::ServerRuntime::start(state).await
+                plain_rs::http_server::runtime::ServerRuntime::start(state).await
             });
             app.handle().manage(dlna_engine.clone());
             // Start the DLNA renderer at startup when the toggle is on.

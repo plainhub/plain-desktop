@@ -1,5 +1,5 @@
-use plain_rs::http_proxy::HttpProxyState;
-use plain_rs::server::runtime::ServerRuntime;
+use plain_rs::http_server::proxy::HttpProxyState;
+use plain_rs::http_server::runtime::ServerRuntime;
 
 #[tauri::command]
 pub fn http_proxy_port(state: tauri::State<'_, HttpProxyState>) -> u16 {

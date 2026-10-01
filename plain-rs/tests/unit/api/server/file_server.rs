@@ -57,8 +57,8 @@ async fn cors_layer_adds_allow_origin_to_streaming_responses() {
     use tower::ServiceExt;
 
     let svc = tower::ServiceBuilder::new()
-        .layer(crate::server::cors::layer(
-            &crate::server::cors::CorsPolicy::permissive_default(),
+        .layer(crate::http_server::routes::cors::layer(
+            &crate::http_server::routes::cors::CorsPolicy::permissive_default(),
         ))
         .service(tower::service_fn(|_: axum::extract::Request| async {
             Ok::<_, std::convert::Infallible>(unsatisfiable_range_response(10))

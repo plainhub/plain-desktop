@@ -25,7 +25,7 @@ use super::response::respond;
 use crate::api::context::AppCtx;
 use crate::base64_decode;
 use crate::query::parse_query;
-use crate::server::ServerState;
+use crate::http_server::ServerState;
 use crate::xchacha_decrypt;
 
 pub async fn proxyfs_handler(State(state): State<ServerState>, req: Request) -> Response {
@@ -127,5 +127,5 @@ fn proxy_client() -> reqwest::Client {
 }
 
 #[cfg(test)]
-#[path = "../../tests/unit/api/server/proxy_file.rs"]
+#[path = "../../../tests/unit/api/server/proxy_file.rs"]
 mod tests;

@@ -32,7 +32,7 @@ use crate::api::context::AppCtx;
 use crate::http_server::main_schemas::types::{
     AudioFileInfo, FileInfo, ImageFileInfo, Location, MediaFileInfo, VideoFileInfo,
 };
-use crate::server::uri::resolve_uri;
+use crate::http_server::routes::uri::resolve_uri;
 
 #[derive(Default)]
 pub struct FileInfoQuery;

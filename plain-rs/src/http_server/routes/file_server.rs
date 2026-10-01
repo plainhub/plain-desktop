@@ -42,7 +42,7 @@ use super::uri::{parse_decrypted_id, resolve_uri};
 use crate::api::context::AppCtx;
 use crate::mime::mime_from_ext;
 use crate::query::parse_query;
-use crate::server::ServerState;
+use crate::http_server::ServerState;
 use crate::utils::async_read_stream::AsyncReadStream;
 use crate::utils::http::RangeParse;
 use crate::xchacha_decrypt;
@@ -624,9 +624,9 @@ async fn serve_pdf_preview(
 }
 
 #[cfg(test)]
-#[path = "../../tests/unit/api/server/file_server.rs"]
+#[path = "../../../tests/unit/api/server/file_server.rs"]
 mod tests;
 
 #[cfg(all(test, feature = "system"))]
-#[path = "../../tests/unit/api/server/file_server_nas.rs"]
+#[path = "../../../tests/unit/api/server/file_server_nas.rs"]
 mod nas_tests;

@@ -34,7 +34,7 @@ plain-desktop/
 
 - One root `Cargo.toml` workspace, one `Cargo.lock`, one `target/`.
 - `plain-rs` is the core; `nas` and `src-tauri` are shells over it.
-- Both shells use `plain_rs::http_server::main_schemas::build_schema()` and the same GraphQL executor. Main and peer GraphQL modules live under `plain-rs/src/http_server/{main_schemas,peer_schemas}`, matching plain-app. `AppCtx` is the shared resolver state; shell operations are supplied through `ShellHooks`, and the UI reads `app.capabilities` for optional features.
+- Both shells use `plain_rs::http_server::main_schemas::build_schema()` and the same GraphQL executor. Main and peer GraphQL modules live under `plain-rs/src/http_server/{main_schemas,peer_schemas}`, matching plain-app. HTTP server models, routes, WebSocket handling, proxy, and runtime are grouped under the same `http_server` boundary. `AppCtx` is the shared resolver state; shell operations are supplied through `ShellHooks`, and the UI reads `app.capabilities` for optional features.
 - HTTP authentication is configured by `ServerSettings`: the desktop local token and NAS client sessions use the same request and resolver pipeline. Tauri serves the desktop UI, while the shared router serves the NAS Web build.
 - Build/test: `cargo check --workspace`, `cargo test --workspace`
   (single crate: `cargo test -p plainnas` / `-p PlainApp` / `-p plain-rs --all-features`).
@@ -143,7 +143,7 @@ Vue Component → Composable Hook → gqlFetch() → Local Rust Server (Tauri) /
 - **Queries/Mutations**: Via `initQuery()` / `initMutation()` wrappers in `src/lib/api/`
 - **Core client**: `gqlFetch()` in `src/lib/api/gql-client.ts` — encrypts with XChaCha20-Poly1305, fetches, decrypts
 - **Real-time**: Event-driven updates via mitt event bus (no GraphQL subscriptions)
-- **Transport**: native `fetch`/`WebSocket` everywhere; in Tauri builds device URLs are rewritten through the shared local reverse proxy (`plain-rs/src/http_proxy/`, see docs/tauri-proxy-strategy.md)
+- **Transport**: native `fetch`/`WebSocket` everywhere; in Tauri builds device URLs are rewritten through the shared local reverse proxy (`plain-rs/src/http_server/proxy/`, see docs/tauri-proxy-strategy.md)
 - **State**: Pinia for cross-component state; `ref`/`reactive` for local state
 
 ## Build Commands
