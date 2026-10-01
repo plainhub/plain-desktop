@@ -2,14 +2,14 @@
 
 ## 模型
 
-每个文件被 trashed 时会存到对应 disk 的 `.nas-trash/<bucket>/<file>` 下，元数据写 KV store：
+每个文件或目录移入回收站时会存到对应 disk 的 `.nas-trash/<bucket>/<file>` 下，元数据写 KV store：
 
 ```graphql
-enum TrashItemType { FILE DIR }
+enum TrashedFileType { FILE DIR }
 
-type TrashItem {
+type TrashedFile {
   id: ID!              # trash id (uuid)
-  type: TrashItemType! # FILE | DIR
+  type: TrashedFileType! # FILE | DIR
   originalPath: String! # 删除前的原始路径
   disk: String!         # 磁盘根（"/" 或 "/mnt/data"）
   trashRelPath: String! # 相对 disk 的 trash 路径
@@ -26,23 +26,23 @@ type TrashItem {
 
 ## Query
 
-### `trashCount: Int!`
+### `trashedFileCount: Int!`
 
 ```graphql
-{ trashCount }
+{ trashedFileCount }
 ```
 
-### `trashItems(offset: Int!, limit: Int!, query: String!, sortBy: TrashSortBy!): [TrashItem!]!`
+### `trashedFiles(offset: Int!, limit: Int!, query: String!, sortBy: TrashedFileSortBy!): [TrashedFile!]!`
 
 `query` 是共享 DSL（API_SPEC §3/§5，空串 = 不过滤）；`sortBy` 必填。
 
 ```graphql
-{ trashItems(offset: 0, limit: 50, query: "", sortBy: DATE_DESC) {
-  id type originalPath displayName trashedPath size deletedAt
+{ trashedFiles(offset: 0, limit: 50, query: "", sortBy: DATE_DESC) {
+  id type originalPath displayName trashedPath sizeBytes deletedAt
 } }
 ```
 
-`TrashSortBy` 枚举：`DATE_ASC` / `DATE_DESC` / `SIZE_ASC` / `SIZE_DESC` / `NAME_ASC` / `NAME_DESC`。
+`TrashedFileSortBy` 枚举：`DATE_ASC` / `DATE_DESC` / `SIZE_ASC` / `SIZE_DESC` / `NAME_ASC` / `NAME_DESC`。
 
 curl：
 
@@ -50,7 +50,7 @@ curl：
 curl -s -X POST -H "Authorization: Bearer dev" \
   -H "Content-Type: application/json" \
   http://127.0.0.1:8080/graphql \
-  -d '{"query":"{ trashItems(offset: 0, limit: 10, query: \"\", sortBy: DATE_DESC) { id originalPath displayName } }"}'
+  -d '{"query":"{ trashedFiles(offset: 0, limit: 10, query: \"\", sortBy: DATE_DESC) { id originalPath displayName } }"}'
 ```
 
 ## Mutation
@@ -74,13 +74,13 @@ mutation { trashFiles(paths: ["/tmp/a.txt", "/tmp/dir"]) { affectedCount } }
 mutation { restoreFiles(paths: ["/mnt/data/.nas-trash/data/2026/06/f_abc", "trash-id-xyz"]) { affectedCount } }
 ```
 
-### `deleteTrashItem(path: String!): Boolean!`
+### `deleteTrashedFile(path: String!): Boolean!`
 
 **永久**删除一个 trash 条目（不进入二次回收，物理文件也删）。单条幂等删除，
 按 API_SPEC §6 返回 `Boolean!`。
 
 ```graphql
-mutation { deleteTrashItem(path: "trash-id-xyz") }
+mutation { deleteTrashedFile(path: "trash-id-xyz") }
 ```
 
 错误：

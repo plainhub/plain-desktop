@@ -76,7 +76,7 @@ curl -s -X POST -H "Authorization: Bearer dev" \
 | `app.md` | `app`, `deviceInfo`, `appUpdate` 三个 query + `setDeviceName`, `updateDeviceName`, `setTempValue` 等 mutation |
 | `storage.md` | `mounts`, `disks` query + `formatDisk`, `setMountAlias` mutation + StorageMount / StorageDisk 字段 |
 | `files.md` | `files`, `fileInfo`, `pathExists`, `pathKind`, `filesCount`, `recentFiles` query + `createDir`, `writeTextFile`, `renameFile`, `copyFile`, `moveFile`, `deleteFiles` mutation + File 字段 |
-| `trash.md` | `trashCount`, `trashItems` query + `trashFiles`, `restoreFiles`, `deleteTrashItem` mutation + TrashItem 字段 |
+| `trash.md` | `trashedFileCount`, `trashedFiles` query + `trashFiles`, `restoreFiles`, `deleteTrashedFile` mutation + TrashedFile 字段 |
 | `tags.md` | `tags` query + `createTag`, `updateTag`, `deleteTag`, `addToTags`, `updateTagRelations`, `removeFromTags` mutation + Tag / TagRelationStub 字段 |
 | `media.md` | `audios`, `audioCount`, `images`, `imageCount`, `videos`, `videoCount`, `mediaBuckets`, `recentFilesCount`, `mediaSourceDirs` query + `trashMediaItems`, `restoreMediaItems`, `deleteMediaItems` mutation + Audio/Image/Video/MediaBucket 字段 |
 | `scan.md` | `startMediaScan`, `pauseMediaScan`, `resumeMediaScan`, `stopMediaScan`, `rebuildMediaIndex` mutation + WebSocket `media_scan_progress` 事件 + ScanProgress 字段 |

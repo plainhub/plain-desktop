@@ -56,8 +56,8 @@ impl MediaQueryRoot {
         }
     }
 
-    /// Total number of trashed items.
-    async fn trash_count(&self) -> FieldResult<i32> {
+    /// Total number of trashed files and directories.
+    async fn trashed_file_count(&self) -> FieldResult<i32> {
         Ok(trash::trash_count()? as i32)
     }
 
@@ -65,20 +65,20 @@ impl MediaQueryRoot {
     /// the entries (blank = no filter); pass `DATE_DESC` for the usual
     /// newest-first view — the argument is required, there is no server
     /// default (API_SPEC §3).
-    async fn trash_items(
+    async fn trashed_files(
         &self,
         offset: i32,
         limit: i32,
         query: String,
-        sort_by: TrashSortBy,
-    ) -> FieldResult<Vec<TrashItem>> {
+        sort_by: TrashedFileSortBy,
+    ) -> FieldResult<Vec<TrashedFile>> {
         let order = match sort_by {
-            TrashSortBy::DATE_DESC => trash::SortOrder::DeletedAtNewest,
-            TrashSortBy::DATE_ASC => trash::SortOrder::DeletedAtOldest,
-            TrashSortBy::NAME_ASC => trash::SortOrder::NameAsc,
-            TrashSortBy::NAME_DESC => trash::SortOrder::NameDesc,
-            TrashSortBy::SIZE_ASC => trash::SortOrder::SizeAsc,
-            TrashSortBy::SIZE_DESC => trash::SortOrder::SizeDesc,
+            TrashedFileSortBy::DATE_DESC => trash::SortOrder::DeletedAtNewest,
+            TrashedFileSortBy::DATE_ASC => trash::SortOrder::DeletedAtOldest,
+            TrashedFileSortBy::NAME_ASC => trash::SortOrder::NameAsc,
+            TrashedFileSortBy::NAME_DESC => trash::SortOrder::NameDesc,
+            TrashedFileSortBy::SIZE_ASC => trash::SortOrder::SizeAsc,
+            TrashedFileSortBy::SIZE_DESC => trash::SortOrder::SizeDesc,
         };
         let items =
             trash::list_trash(offset.max(0) as usize, limit.max(1) as usize, &query, order)?;
@@ -93,10 +93,10 @@ impl MediaQueryRoot {
                     .to_string();
                 let trashed_path =
                     format!("{}/{}", it.disk.trim_end_matches('/'), it.trash_rel_path);
-                Some(TrashItem {
+                Some(TrashedFile {
                     // Rows with an unknown kind (older build) are skipped,
                     // not migrated — stale derived data heals by attrition.
-                    r#type: TrashItemType::from_kind(&it.kind)?,
+                    r#type: TrashedFileType::from_kind(&it.kind)?,
                     id: it.id.into(),
                     original_path: it.original_path,
                     disk: it.disk,

@@ -989,7 +989,7 @@ type MutationRoot {
 	Permanently delete one trashed entry. Path may be a physical trash
 	path or a trash id. Single idempotent delete → `Boolean!` (§6).
 	"""
-	deleteTrashItem(path: String!): Boolean!
+	deleteTrashedFile(path: String!): Boolean!
 	"""
 	Create a tag for the given data type and return it.
 	"""
@@ -1046,23 +1046,7 @@ type MutationRoot {
 	"""
 	stopMediaScan: Boolean!
 	"""
-	Rebuild the media index from scratch. Mirrors Go `rebuildMediaIndex`
-	in `internal/graph/media_scan_api.go`:
-	1. `media.StopScan()` — set the stop flag so the running scan loop
-	exits at its next yield.
-	2. `media.ResetAllMediaData()` — wipe every media index row.
-	3. `media.ResumeScan()` — clear the stop flag.
-	4. Synchronously publish the initial `{state:"running", root:...}`
-	event so the UI can show the spinner **before** we go off-thread
-	to do the heavy reset + walk. (Go does this in the same call
-	stack as the GraphQL resolver; the WS hub handler then receives
-	the event via the in-process eventbus.)
-	5. `go media.ScanAndSync(root)` — fire the actual walk+index on a
-	background tokio task. The resolver returns `true` immediately.
-	The reset and the walk are moved off the API thread so a large
-	library does not block other GraphQL calls; this is a deliberate
-	divergence from the Go side, where `ResetAllMediaData` runs on the
-	resolver goroutine. Functionally equivalent.
+	Rebuild the media index from scratch and begin a fresh scan.
 	"""
 	rebuildMediaIndex(root: String!): Boolean!
 	"""
@@ -1342,9 +1326,7 @@ type QueryRoot {
 	pomodoroSettings: PomodoroSettings!
 	pomodoroToday: PomodoroToday!
 	"""
-	Count of entries in a directory (non-recursive). Mirrors plain-app
-	`fileCount(root, query)`: `root` scopes the count (empty/`/` = whole
-	tree). When `trash:true` is in the query, returns the global trash count.
+	Count of entries in a directory (non-recursive).
 	"""
 	fileCount(root: String!, query: String!): Int!
 	"""
@@ -1353,25 +1335,20 @@ type QueryRoot {
 	"""
 	recentFiles: [File!]!
 	"""
-	File listing. Mirrors plain-app `files(root, offset, limit, query, sortBy)`
-	(Kotlin `FileSystemHelper.search`): the effective directory is
-	`parent` from the query DSL, falling back to the `root` argument,
-	then to the legacy Go-dialect `root_path` DSL field; `relative_path`
-	(legacy) is joined underneath. `text` → recursive tantivy search,
-	`trash:true` → trash listing.
+	File listing with directory, search, or trash results.
 	"""
 	files(root: String!, offset: Int!, limit: Int!, query: String!, sortBy: FileSortBy!): [File!]!
 	"""
-	Total number of trashed items.
+	Total number of trashed files and directories.
 	"""
-	trashCount: Int!
+	trashedFileCount: Int!
 	"""
 	Paginated trash listing. The DSL `text:` field of `query` filters
 	the entries (blank = no filter); pass `DATE_DESC` for the usual
 	newest-first view — the argument is required, there is no server
 	default (API_SPEC §3).
 	"""
-	trashItems(offset: Int!, limit: Int!, query: String!, sortBy: TrashSortBy!): [TrashItem!]!
+	trashedFiles(offset: Int!, limit: Int!, query: String!, sortBy: TrashedFileSortBy!): [TrashedFile!]!
 	"""
 	Look up tag relations for entity keys (media ids / entity keys),
 	filtered to the given data type. Mirrors plain-app `tagRelations`;
@@ -1569,9 +1546,9 @@ type Temperature {
 	celsius: Float!
 }
 
-type TrashItem {
+type TrashedFile {
 	id: ID!
-	type: TrashItemType!
+	type: TrashedFileType!
 	originalPath: String!
 	disk: String!
 	trashRelPath: String!
@@ -1588,21 +1565,21 @@ type TrashItem {
 	trashedPath: String!
 }
 
-"""
-Kind of a trashed entry (stored kind string `"file"` | `"dir"`).
-"""
-enum TrashItemType {
-	FILE
-	DIR
-}
-
-enum TrashSortBy {
+enum TrashedFileSortBy {
 	DATE_ASC
 	DATE_DESC
 	SIZE_ASC
 	SIZE_DESC
 	NAME_ASC
 	NAME_DESC
+}
+
+"""
+Kind of a trashed entry (stored kind string `"file"` | `"dir"`).
+"""
+enum TrashedFileType {
+	FILE
+	DIR
 }
 
 type Video {

@@ -126,8 +126,8 @@ gql_call "pathKind missing"  '{ pathKind(path: "/no/such/path") }'
 gql_call "fileInfo"  '{ fileInfo(path: "/tmp") { path updatedAt size tags { id name } } }'
 
 section "Trash"
-gql_call "trashCount"  '{ trashCount }'
-gql_call "trashItems"  '{ trashItems(offset: 0, limit: 5, query: "", sortBy: DATE_DESC) { id type originalPath displayName } }'
+gql_call "trashedFileCount"  '{ trashedFileCount }'
+gql_call "trashedFiles"  '{ trashedFiles(offset: 0, limit: 5, query: "", sortBy: DATE_DESC) { id type originalPath displayName } }'
 
 section "Tags"
 gql_call "tags Audio"  '{ tags(type: AUDIO) { id name count } }'
@@ -188,7 +188,7 @@ if [ "$(id -u)" -ne 0 ]; then
 else
   gql_call "trashFiles"   'mutation { trashFiles(paths: ["/tmp/test-api"]) { affectedCount } }'
 fi
-gql_call "trashItems after trash"  '{ trashItems(offset: 0, limit: 5, query: "", sortBy: DATE_DESC) { id type deletedAt sizeBytes } }'
+gql_call "trashedFiles after trash"  '{ trashedFiles(offset: 0, limit: 5, query: "", sortBy: DATE_DESC) { id type deletedAt sizeBytes } }'
 
 section "Mutations: Files cleanup"
 gql_call "deleteFiles" 'mutation { deleteFiles(paths: ["/tmp/test-api/note2.txt", "/tmp/test-api/note4.txt"]) }'
@@ -239,9 +239,9 @@ else
 fi
 
 section "Mutations: Trash cleanup"
-# restoreFiles + deleteTrashItem with fake paths exercise error handling.
+# restoreFiles + deleteTrashedFile with fake paths exercise error handling.
 gql_expect_fail "restoreFiles"  'mutation { restoreFiles(paths: ["/tmp/fake-trash"]) }'
-gql_expect_fail "deleteTrashItem"   'mutation { deleteTrashItem(path: "/tmp/fake-trash") }'
+gql_expect_fail "deleteTrashedFile"   'mutation { deleteTrashedFile(path: "/tmp/fake-trash") }'
 
 section "Mutations: Storage"
 gql_call "setMountAlias"        'mutation { setMountAlias(id: "fake", alias: "x") }'

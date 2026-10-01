@@ -31,7 +31,7 @@ pub use super::types::{
     ActionResult, Audio, Doc, DocExtGroup, File, FileSortBy, FileTask, FileTaskOpInput,
     FileTaskStatus, FileTaskType, Image, ImageSearchStatus, ImageSearchStatusType, Instant, Long,
     MediaBucket, MediaDataType, PathKind, ScanProgress, ScanState, Tag, TagRelation,
-    TagRelationStub, TrashItem, TrashItemType, TrashSortBy, Video,
+    TagRelationStub, TrashedFile, TrashedFileSortBy, TrashedFileType, Video,
 };
 pub use crate::enums::DataType;
 

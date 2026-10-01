@@ -7,7 +7,7 @@
 ## 总览
 
 - Go schema 声明 **29 个 Query + 46 个 Mutation**；Rust 端字段面已 1:1 全部存在，无缺失。
-- Rust 额外暴露的 NAS 扩展（Go 没有）：Query `trashItems`、`deleteTrashItem`、`scanProgress`（web 垃圾桶页/索引卡片在用）；Query `audioPlaylist`（web 播放器启动加载，plain-app 形状）；Query `bookmarks`/`bookmarkGroups` + 7 个书签 Mutation（plain-app 书签面全量，web 书签页在用，见 `docs/api/bookmarks.md`）。均不影响 Go 客户端。
+- Rust 额外暴露的 NAS 扩展（Go 没有）：Query `trashedFiles`、`scanProgress`（web 垃圾桶页/索引卡片在用）及 Mutation `deleteTrashedFile`；Query `audioPlaylist`（web 播放器启动加载，plain-app 形状）；Query `bookmarks`/`bookmarkGroups` + 7 个书签 Mutation（plain-app 书签页在用，见 `docs/api/bookmarks.md`）。均不影响 Go 客户端。
 - 本轮修复（此前 gql.sh 70/77）：`App.scanProgress` 缺失、`files.root` 必填、`fileInfo.id` 必填、媒体列表 `sortBy` 必填、`File.childCount` 缺失；并把 `trashMediaItems/restoreMediaItems/deleteMediaItems` 从回显 stub 实现为真实文件操作。
 
 ## 与 plain-app 的形状差异（逐项）
@@ -43,7 +43,7 @@
 
 ## 超出 Go 的行为（Rust 扩展，均为 web 需要或修复）
 
-1. `trashItems` / `deleteTrashItem` / `scanProgress`（Query）——垃圾桶页与索引卡片。（2026-09-23 更名：原 `listTrash` / `deleteTrash`。）
+1. `trashedFiles` / `scanProgress`（Query）与 `deleteTrashedFile`（Mutation）——垃圾桶页与索引卡片。（2026-09-23 更名：原 `listTrash` / `deleteTrash`。）
 2. `audioPlaylist(offset, limit)`（Query）——web 播放器启动加载队列；数据与 `App.audios` 同源（`audio_playlist` KV），Go 只暴露 `App.audios`。
 3. 书签全家桶（plain-app 面）：`bookmarks`/`bookmarkGroups` Query + addBookmarks/updateBookmark/deleteBookmarks/recordBookmarkClick/createBookmarkGroup/updateBookmarkGroup/deleteBookmarkGroup，存储 `bookmark:{id}`/`bookmark_group:{id}`；deleteBookmarkGroup 把成员移入未分组（同手机端）。**title/favicon 页面抓取未实现**（title 初始 = url，faviconPath 恒 ""，可手动改名）。
 4. `media:type:` 索引砍除、fid 索引回收、bucket 计数器、并行批量扫描引擎（性能 2.4×，见 SHORT_TERM）。

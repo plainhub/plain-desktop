@@ -81,12 +81,20 @@ fn sdl_contains_the_media_surface() {
         "type Image",
         "type Video",
         "type Doc",
-        "type TrashItem",
+        "trashedFileCount: Int!",
+        "trashedFiles(offset: Int!, limit: Int!, query: String!, sortBy: TrashedFileSortBy!): [TrashedFile!]!",
+        "deleteTrashedFile(path: String!): Boolean!",
+        "type TrashedFile",
+        "enum TrashedFileType",
+        "enum TrashedFileSortBy",
         "type FileTask",
         "type ScanProgress",
         "enum MediaDataType",
     ] {
         assert!(sdl.contains(needle), "SDL missing {needle}");
+    }
+    for obsolete in ["trashCount:", "trashItems(", "deleteTrashItem(", "type TrashItem"] {
+        assert!(!sdl.contains(obsolete), "SDL still contains {obsolete}");
     }
 }
 
@@ -165,18 +173,18 @@ fn default_scan_root_uses_all_configured_media_sources() {
         "/Users/alex/Music".to_string(),
     ];
     assert_eq!(
-        super::selected_scan_roots("/".to_string(), &sources),
+        crate::media::scan::selected_roots("/".to_string(), &sources),
         vec![
             std::path::PathBuf::from("/Users/alex/Pictures"),
             std::path::PathBuf::from("/Users/alex/Music")
         ]
     );
     assert_eq!(
-        super::selected_scan_roots("/tmp/sample".to_string(), &sources),
+        crate::media::scan::selected_roots("/tmp/sample".to_string(), &sources),
         vec![std::path::PathBuf::from("/tmp/sample")]
     );
     assert_eq!(
-        super::selected_scan_roots("/".to_string(), &[]),
+        crate::media::scan::selected_roots("/".to_string(), &[]),
         vec![std::path::PathBuf::from("/")]
     );
 }

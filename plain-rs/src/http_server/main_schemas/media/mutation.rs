@@ -90,7 +90,7 @@ impl MediaMutationRoot {
 
     /// Permanently delete one trashed entry. Path may be a physical trash
     /// path or a trash id. Single idempotent delete → `Boolean!` (§6).
-    async fn delete_trash_item(&self, path: String) -> FieldResult<bool> {
+    async fn delete_trashed_file(&self, path: String) -> FieldResult<bool> {
         crate::media::file_ops::delete_trash_item(&path).await?;
         Ok(true)
     }

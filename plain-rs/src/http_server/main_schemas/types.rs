@@ -621,7 +621,7 @@ pub enum FileSortBy {
 
 #[derive(Enum, Copy, Clone, Eq, PartialEq, Debug)]
 #[allow(non_camel_case_types)]
-pub enum TrashSortBy {
+pub enum TrashedFileSortBy {
     DATE_ASC,
     DATE_DESC,
     SIZE_ASC,
@@ -631,9 +631,9 @@ pub enum TrashSortBy {
 }
 
 #[derive(SimpleObject, Clone, Debug)]
-pub struct TrashItem {
+pub struct TrashedFile {
     pub id: ID,
-    pub r#type: TrashItemType,
+    pub r#type: TrashedFileType,
     pub original_path: String,
     pub disk: String,
     pub trash_rel_path: String,
@@ -652,12 +652,12 @@ pub struct TrashItem {
 /// Kind of a trashed entry (stored kind string `"file"` | `"dir"`).
 #[derive(Enum, Copy, Clone, Eq, PartialEq, Debug)]
 #[allow(non_camel_case_types, clippy::upper_case_acronyms)] // SDL contract names
-pub enum TrashItemType {
+pub enum TrashedFileType {
     FILE,
     DIR,
 }
 
-impl TrashItemType {
+impl TrashedFileType {
     pub fn from_kind(kind: &str) -> Option<Self> {
         match kind {
             "file" => Some(Self::FILE),
