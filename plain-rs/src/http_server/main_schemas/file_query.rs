@@ -26,7 +26,7 @@ use std::path::Path;
 
 use async_graphql::{Context, ID, Object, Result as GqlResult};
 
-use super::media::types::Long;
+use super::types::Long;
 use super::types::Mount;
 use crate::api::context::AppCtx;
 use crate::http_server::main_schemas::types::{

@@ -24,7 +24,7 @@ use std::sync::{Arc, Mutex, OnceLock};
 use crate::api::context::{AppCtx, WS_UPLOAD_MERGE_RESULT, WsEvent};
 use crate::chat::app_file_store;
 
-use super::media::types::Long;
+use super::types::Long;
 use super::types::{MergeTask, MergeTaskStatus};
 
 #[derive(Default)]

@@ -1,4 +1,4 @@
-use super::media::types::Instant;
+use super::types::Instant;
 use async_graphql::{Context, ID, InputObject, Object, SimpleObject};
 use std::sync::Arc;
 

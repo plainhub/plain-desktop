@@ -1,4 +1,4 @@
-use super::media::types::{Instant, Long};
+use super::types::{Instant, Long};
 use async_graphql::{Enum, ID, InputObject, SimpleObject};
 
 #[derive(SimpleObject, Clone, Debug)]

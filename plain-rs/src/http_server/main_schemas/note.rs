@@ -1,5 +1,5 @@
 use super::content_common;
-use super::media::types::{ActionResult, Instant, Tag};
+use super::types::{ActionResult, Instant, Tag};
 use async_graphql::{ComplexObject, Context, ID, InputObject, Object, SimpleObject};
 use std::sync::Arc;
 

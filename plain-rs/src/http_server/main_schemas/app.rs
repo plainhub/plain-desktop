@@ -2,7 +2,7 @@ use async_graphql::{Context, Object};
 use serde_json::json;
 use std::sync::Arc;
 
-use super::media::types::Long;
+use super::types::Long;
 use super::types::{App, Capability, DeviceInfo, DevicePlatform, DeviceStatus, Sim, Temperature};
 use crate::api::context::{AppCtx, WS_DEVICE_NAME_UPDATED, WsEvent};
 use crate::api::enums::AppChannelType;

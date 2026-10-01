@@ -48,7 +48,7 @@ impl ShellHooks for NasShell {
                 id: disk.id.into(),
                 name: disk.name,
                 path: disk.path,
-                size_bytes: plain_rs::http_server::main_schemas::media::types::Long(disk.size_bytes),
+                size_bytes: plain_rs::http_server::main_schemas::types::Long(disk.size_bytes),
                 removable: disk.removable,
                 model: disk.model,
             })
@@ -189,20 +189,20 @@ impl ShellHooks for NasShell {
         url: &str,
         title: &str,
         mime: &str,
-        media_type: plain_rs::http_server::main_schemas::media::types::MediaDataType,
+        media_type: plain_rs::http_server::main_schemas::types::MediaDataType,
         prefs: &plain_rs::prefs::Prefs,
     ) -> Result<()> {
         let kind = match media_type {
-            plain_rs::http_server::main_schemas::media::types::MediaDataType::AUDIO => {
+            plain_rs::http_server::main_schemas::types::MediaDataType::AUDIO => {
                 plain_rs::dlna_sender::MediaType::Audio
             }
-            plain_rs::http_server::main_schemas::media::types::MediaDataType::VIDEO => {
+            plain_rs::http_server::main_schemas::types::MediaDataType::VIDEO => {
                 plain_rs::dlna_sender::MediaType::Video
             }
-            plain_rs::http_server::main_schemas::media::types::MediaDataType::IMAGE => {
+            plain_rs::http_server::main_schemas::types::MediaDataType::IMAGE => {
                 plain_rs::dlna_sender::MediaType::Image
             }
-            plain_rs::http_server::main_schemas::media::types::MediaDataType::DOC => {
+            plain_rs::http_server::main_schemas::types::MediaDataType::DOC => {
                 anyhow::bail!("dlna_cast_doc_unsupported")
             }
         };

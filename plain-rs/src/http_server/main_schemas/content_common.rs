@@ -1,4 +1,4 @@
-use super::media::types::{Instant, Tag};
+use super::types::{Instant, Tag};
 use async_graphql::{Context, ID};
 use chrono::{DateTime, Utc};
 use std::sync::Arc;

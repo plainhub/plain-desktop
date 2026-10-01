@@ -1,7 +1,7 @@
 use async_graphql::{ComplexObject, Context, Object, SimpleObject};
 use std::sync::Arc;
 
-use super::media::types::{Instant, Long};
+use super::types::{Instant, Long};
 use super::types::parse_instant;
 use crate::api::context::AppCtx;
 use crate::api::db::DAppFile;

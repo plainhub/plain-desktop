@@ -10,8 +10,6 @@
 //! `String` (optional — file tasks key off it, empty for hosts without
 //! sessions).
 
-pub mod types;
-
 use async_graphql::{Context, ID, Object};
 use std::sync::Arc;
 
@@ -24,7 +22,7 @@ use crate::media::{file_tasks, trash};
 use crate::prefs::Prefs;
 
 pub use crate::enums::DataType;
-pub use types::{
+pub use super::types::{
     ActionResult, Audio, Doc, DocExtGroup, File, FileSortBy, FileTask, FileTaskOpInput,
     FileTaskStatus, FileTaskType, Image, ImageSearchStatus, ImageSearchStatusType, Instant, Long,
     MediaBucket, MediaDataType, PathKind, ScanProgress, ScanState, Tag, TagRelation,
@@ -1748,5 +1746,5 @@ async fn apply_media_items_action(
 }
 
 #[cfg(test)]
-#[path = "../../../../tests/unit/media/gql.rs"]
+#[path = "../../../tests/unit/media/gql.rs"]
 mod tests;

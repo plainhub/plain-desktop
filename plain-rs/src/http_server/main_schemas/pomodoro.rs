@@ -1,4 +1,4 @@
-use super::media::types::Instant;
+use super::types::Instant;
 use async_graphql::{Context, Object, SimpleObject};
 use serde::{Deserialize, Serialize};
 use serde_json::json;

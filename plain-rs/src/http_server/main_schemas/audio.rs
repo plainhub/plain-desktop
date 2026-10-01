@@ -4,7 +4,7 @@
 //! LIBRARY source resolves to zero tracks (playAllAudios returns null);
 //! the manual queue, playlists and history work in full.
 
-use super::media::types::Long;
+use super::types::Long;
 use crate::library::audio_queue::{self, AudioTrack};
 use async_graphql::{Context, ID, Object};
 use std::sync::Arc;

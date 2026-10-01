@@ -1,5 +1,5 @@
 use super::capability_types::*;
-use super::media::types::{Instant, MediaDataType};
+use super::types::{Instant, MediaDataType};
 use super::types::KeyValuePair;
 use crate::api::context::AppCtx;
 use async_graphql::{Context, ID, Object, Result};

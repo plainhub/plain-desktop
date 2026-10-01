@@ -241,7 +241,7 @@ pub trait ShellHooks: Send + Sync {
         _url: &str,
         _title: &str,
         _mime: &str,
-        _media_type: crate::http_server::main_schemas::media::types::MediaDataType,
+        _media_type: crate::http_server::main_schemas::types::MediaDataType,
         _prefs: &crate::prefs::Prefs,
     ) -> anyhow::Result<()> {
         anyhow::bail!("DLNA sender unavailable")

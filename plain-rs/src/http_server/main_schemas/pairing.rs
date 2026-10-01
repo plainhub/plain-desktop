@@ -14,7 +14,7 @@
 use async_graphql::{Context, Enum, ID, InputObject, Object, Result as GqlResult};
 use std::sync::Arc;
 
-use super::media::types::{Instant, Long};
+use super::types::{Instant, Long};
 use crate::api::context::AppCtx;
 use crate::api::enums::DeviceType;
 use crate::chat::pairing::protocol::PairingRequest;

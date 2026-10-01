@@ -1,4 +1,4 @@
-use super::media::types::Long;
+use super::types::Long;
 use async_graphql::{Context, Enum, Object, SimpleObject};
 use std::sync::Arc;
 
