@@ -4,10 +4,8 @@ use std::sync::{Arc, Mutex};
 
 #[cfg(feature = "sqlite_browse")]
 pub mod browse;
-#[cfg(feature = "chat")]
-mod schema_chat;
-#[cfg(feature = "library")]
-mod schema_library;
+#[cfg(any(feature = "chat", feature = "library"))]
+mod schema;
 #[cfg(feature = "chat")]
 mod app_file;
 #[cfg(feature = "chat")]
@@ -79,10 +77,8 @@ impl Db {
         conn.execute_batch(
             "PRAGMA journal_mode=WAL; PRAGMA synchronous=NORMAL; PRAGMA busy_timeout=5000;",
         )?;
-        #[cfg(feature = "chat")]
-        Self::init_chat(&conn)?;
-        #[cfg(feature = "library")]
-        Self::init_library(&conn)?;
+        #[cfg(any(feature = "chat", feature = "library"))]
+        schema::init(&conn)?;
         Ok(Self(Arc::new(Mutex::new(conn))))
     }
 
@@ -92,6 +88,21 @@ impl Db {
     {
         let conn = self.0.lock().unwrap();
         f(&conn)
+    }
+}
+
+#[cfg(feature = "chat")]
+impl Db {
+    pub fn table_columns(&self, table: &str) -> Vec<TableColumnMeta> {
+        self.with_conn(|conn| crate::sqlite_browse::table_columns(conn, table))
+    }
+
+    pub fn primary_key_column(&self, table: &str) -> String {
+        const FALLBACK: &str = "id";
+        self.with_conn(|conn| {
+            crate::sqlite_browse::primary_key_column(conn, table)
+                .unwrap_or_else(|| FALLBACK.to_string())
+        })
     }
 }
 
