@@ -497,7 +497,7 @@ fn mode_defaults_to_repeat_and_roundtrips() {
     assert_eq!(get_audio_mode(&db), "REPEAT_ONE");
     // It is a library pref row, persisted in the SQLite file.
     assert_eq!(
-        crate::db::audio_queue::get_pref(&db, "audio_play_mode").as_deref(),
+        crate::db::settings::get_setting(&db, "audio_play_mode").as_deref(),
         Some("REPEAT_ONE")
     );
 }

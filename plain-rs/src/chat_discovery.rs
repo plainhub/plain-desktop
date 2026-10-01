@@ -96,7 +96,7 @@ impl ChatDiscovery {
                             device_type: device.device_type.clone(),
                             version: device.version.clone(),
                             platform: device.platform.clone(),
-                            last_seen: crate::db::now_millis(),
+                            last_seen: crate::db::now_iso(),
                         };
                         if let Err(e) = worker_db.save_cached_nearby_device(&cached) {
                             log::error!(

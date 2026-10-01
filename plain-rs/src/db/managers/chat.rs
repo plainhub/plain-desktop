@@ -1,7 +1,7 @@
 use rusqlite::params;
 
 use crate::chat::enums::ChatStatus;
-use crate::db::{Db, DChat, now_iso};
+use crate::db::{DChat, Db, now_iso};
 
 const CHAT_COLS: &str =
     "id,from_id,to_id,channel_id,content,status,status_data,created_at,updated_at";

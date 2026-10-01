@@ -6,10 +6,10 @@
 //! every item.
 #![allow(dead_code)]
 
+use crate::db::Db;
 use crate::library::LibraryResult;
 use crate::library::audio_queue::AudioTrack;
 use crate::library::audio_queue::LibraryTracks;
-use crate::db::Db;
 use std::sync::atomic::{AtomicUsize, Ordering};
 
 static SEQ: AtomicUsize = AtomicUsize::new(0);

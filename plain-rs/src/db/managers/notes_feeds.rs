@@ -4,8 +4,9 @@ use crate::db::Db;
 pub use crate::db::models::notes_feeds::{FeedEntryRow, FeedRow, NoteRow};
 
 const NOTE_COLUMNS: &str = "id,title,content,deleted_at,created_at,updated_at";
-const FEED_COLUMNS: &str = "id,name,url,fetch_content,created_at,updated_at";
-const ENTRY_COLUMNS: &str = "id,feed_id,title,url,image,description,author,content,raw_id,published_at,created_at,updated_at";
+const FEED_COLUMNS: &str =
+    "id,name,url,logo,fetch_content,last_sync_at,last_error,created_at,updated_at";
+const ENTRY_COLUMNS: &str = "id,title,url,image,description,author,content,feed_id,raw_id,published_at,read,created_at,updated_at";
 const NOTE_TAG_KIND: i32 = 6;
 const FEED_ENTRY_TAG_KIND: i32 = 7;
 
@@ -25,26 +26,30 @@ fn feed_from_row(row: &rusqlite::Row<'_>) -> rusqlite::Result<FeedRow> {
         id: row.get(0)?,
         name: row.get(1)?,
         url: row.get(2)?,
-        fetch_content: row.get::<_, i64>(3)? != 0,
-        created_at: row.get(4)?,
-        updated_at: row.get(5)?,
+        logo: row.get(3)?,
+        fetch_content: row.get::<_, i64>(4)? != 0,
+        last_sync_at: row.get(5)?,
+        last_error: row.get(6)?,
+        created_at: row.get(7)?,
+        updated_at: row.get(8)?,
     })
 }
 
 fn entry_from_row(row: &rusqlite::Row<'_>) -> rusqlite::Result<FeedEntryRow> {
     Ok(FeedEntryRow {
         id: row.get(0)?,
-        feed_id: row.get(1)?,
-        title: row.get(2)?,
-        url: row.get(3)?,
-        image: row.get(4)?,
-        description: row.get(5)?,
-        author: row.get(6)?,
-        content: row.get(7)?,
+        title: row.get(1)?,
+        url: row.get(2)?,
+        image: row.get(3)?,
+        description: row.get(4)?,
+        author: row.get(5)?,
+        content: row.get(6)?,
+        feed_id: row.get(7)?,
         raw_id: row.get(8)?,
         published_at: row.get(9)?,
-        created_at: row.get(10)?,
-        updated_at: row.get(11)?,
+        read: row.get::<_, i64>(10)? != 0,
+        created_at: row.get(11)?,
+        updated_at: row.get(12)?,
     })
 }
 
@@ -275,7 +280,7 @@ impl Db {
         now: &str,
     ) -> rusqlite::Result<FeedRow> {
         self.with_conn(|c| {
-            c.execute("INSERT INTO feeds(id,name,url,fetch_content,created_at,updated_at) VALUES(?1,?2,?3,?4,?5,?5) ON CONFLICT(id) DO UPDATE SET name=excluded.name,url=excluded.url,fetch_content=excluded.fetch_content,updated_at=excluded.updated_at", params![id,name,url,fetch_content,now])?;
+            c.execute("INSERT INTO feeds(id,name,url,logo,fetch_content,last_error,created_at,updated_at) VALUES(?1,?2,?3,'',?4,'',?5,?5) ON CONFLICT(id) DO UPDATE SET name=excluded.name,url=excluded.url,fetch_content=excluded.fetch_content,updated_at=excluded.updated_at", params![id,name,url,fetch_content,now])?;
             c.query_row(&format!("SELECT {FEED_COLUMNS} FROM feeds WHERE id=?"), [id], feed_from_row)
         })
     }
@@ -343,7 +348,7 @@ impl Db {
             let tx = c.unchecked_transaction()?;
             let mut inserted = Vec::new();
             for entry in entries {
-                let count = tx.execute("INSERT OR IGNORE INTO feed_entries(id,feed_id,title,url,image,description,author,content,raw_id,published_at,created_at,updated_at) VALUES(?1,?2,?3,?4,?5,?6,?7,?8,?9,?10,?11,?12)", params![entry.id,entry.feed_id,entry.title,entry.url,entry.image,entry.description,entry.author,entry.content,entry.raw_id,entry.published_at,entry.created_at,entry.updated_at])?;
+                let count = tx.execute("INSERT OR IGNORE INTO feed_entries(id,title,url,image,description,author,content,feed_id,raw_id,published_at,read,created_at,updated_at) VALUES(?1,?2,?3,?4,?5,?6,?7,?8,?9,?10,?11,?12,?13)", params![entry.id,entry.title,entry.url,entry.image,entry.description,entry.author,entry.content,entry.feed_id,entry.raw_id,entry.published_at,entry.read,entry.created_at,entry.updated_at])?;
                 if count > 0 { inserted.push(entry.clone()); }
             }
             tx.commit()?;

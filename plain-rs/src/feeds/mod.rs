@@ -220,6 +220,7 @@ fn item_to_row(feed: &FeedRow, item: ParsedEntry) -> FeedEntryRow {
         content: String::new(),
         raw_id,
         published_at: parse_date(&item.published_at, &at),
+        read: false,
         created_at: at.clone(),
         updated_at: at,
     }
@@ -298,12 +299,7 @@ pub fn entry_counts(db: &Db) -> LibraryResult<Vec<(String, i32)>> {
     Ok(db.feed_entry_counts()?)
 }
 
-pub fn search(
-    db: &Db,
-    query: &str,
-    limit: i32,
-    offset: i32,
-) -> LibraryResult<Vec<FeedEntryRow>> {
+pub fn search(db: &Db, query: &str, limit: i32, offset: i32) -> LibraryResult<Vec<FeedEntryRow>> {
     Ok(db.feed_entries_list(query, i64::from(limit.max(0)), i64::from(offset.max(0)))?)
 }
 

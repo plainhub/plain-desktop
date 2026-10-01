@@ -27,11 +27,7 @@ pub fn all_folders(db: &Db) -> Vec<FavoriteFolderRow> {
     })
 }
 
-pub fn folder_by_paths(
-    db: &Db,
-    root_path: &str,
-    relative_path: &str,
-) -> Option<FavoriteFolderRow> {
+pub fn folder_by_paths(db: &Db, root_path: &str, relative_path: &str) -> Option<FavoriteFolderRow> {
     db.with_conn(|conn| {
         conn.query_row(
             "SELECT root_path,relative_path,alias FROM favorite_folders WHERE root_path=? AND relative_path=?",
@@ -58,11 +54,7 @@ pub fn insert_folder(db: &Db, row: &FavoriteFolderRow) {
 }
 
 /// Remove one row, returning it when it existed.
-pub fn remove_folder(
-    db: &Db,
-    root_path: &str,
-    relative_path: &str,
-) -> Option<FavoriteFolderRow> {
+pub fn remove_folder(db: &Db, root_path: &str, relative_path: &str) -> Option<FavoriteFolderRow> {
     let existing = folder_by_paths(db, root_path, relative_path);
     db.with_conn(|conn| {
         let _ = conn.execute(

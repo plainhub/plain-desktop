@@ -1,14 +1,12 @@
 //! Row IO for `tags` + `tag_relations` (plain-app Room `Tag` /
-//! `TagRelation` shapes). Counts are computed by subquery on read —
-//! there is no stored count to drift.
+//! `TagRelation` shapes).
 
 use rusqlite::params;
 
 use crate::db::Db;
 pub use crate::db::models::tag::{TagRelationRow, TagRow};
 
-const TAG_COLUMNS: &str =
-    "id,name,type,(SELECT COUNT(*) FROM tag_relations r WHERE r.tag_id = tags.id)";
+const TAG_COLUMNS: &str = "id,name,type,count";
 
 /// All tags of one kind in insertion order.
 pub fn tags_by_type(db: &Db, kind: i32) -> Vec<TagRow> {
@@ -49,17 +47,20 @@ fn row_to_tag(row: &rusqlite::Row<'_>) -> rusqlite::Result<TagRow> {
 pub fn insert_tag(db: &Db, tag: &TagRow) {
     db.with_conn(|conn| {
         let _ = conn.execute(
-            "INSERT INTO tags (id,name,type) VALUES (?1,?2,?3)",
-            params![tag.id, tag.name, tag.kind],
+            "INSERT INTO tags (id,name,type,count,created_at,updated_at) VALUES (?1,?2,?3,0,?4,?4)",
+            params![tag.id, tag.name, tag.kind, crate::utils::dbtime::now_iso()],
         );
     })
 }
 
 pub fn update_tag_name(db: &Db, id: &str, name: &str) -> bool {
     db.with_conn(|conn| {
-        conn.execute("UPDATE tags SET name=?1 WHERE id=?2", params![name, id])
-            .map(|n| n > 0)
-            .unwrap_or(false)
+        conn.execute(
+            "UPDATE tags SET name=?1,updated_at=?2 WHERE id=?3",
+            params![name, crate::utils::dbtime::now_iso(), id],
+        )
+        .map(|n| n > 0)
+        .unwrap_or(false)
     })
 }
 
@@ -90,11 +91,7 @@ pub fn relations_for_key(db: &Db, key: &str) -> Vec<TagRelationRow> {
 /// Relations for several keys filtered to one tag kind — the
 /// `tagRelations(type, keys)` query shape, one statement per key so the
 /// result keeps the input key order.
-pub fn relations_for_keys_of_kind(
-    db: &Db,
-    keys: &[String],
-    kind: i32,
-) -> Vec<TagRelationRow> {
+pub fn relations_for_keys_of_kind(db: &Db, keys: &[String], kind: i32) -> Vec<TagRelationRow> {
     db.with_conn(|conn| {
         let mut out = Vec::new();
         for key in keys {
@@ -144,8 +141,12 @@ pub fn insert_relations(db: &Db, rels: &[(String, String)]) {
                 continue;
             }
             let _ = conn.execute(
-                "INSERT OR IGNORE INTO tag_relations (tag_id,key) VALUES (?1,?2)",
-                params![tag_id, key],
+                "INSERT OR IGNORE INTO tag_relations (tag_id,key,type,created_at,size,title)                  SELECT id,?2,type,?3,0,'' FROM tags WHERE id=?1",
+                params![tag_id, key, crate::utils::dbtime::now_iso()],
+            );
+            let _ = conn.execute(
+                "UPDATE tags SET count=(SELECT COUNT(*) FROM tag_relations WHERE tag_id=tags.id),updated_at=?2 WHERE id=?1",
+                params![tag_id, crate::utils::dbtime::now_iso()],
             );
         }
     })
@@ -170,6 +171,10 @@ pub fn remove_relations(db: &Db, keys: &[String], tag_ids: &[String]) {
         let mut all: Vec<&String> = keys.iter().collect();
         all.extend(tag_ids.iter());
         let _ = conn.execute(&sql, rusqlite::params_from_iter(all));
+        let _ = conn.execute(
+            "UPDATE tags SET count=(SELECT COUNT(*) FROM tag_relations WHERE tag_id=tags.id)",
+            [],
+        );
     })
 }
 
@@ -186,6 +191,10 @@ pub fn remove_relations_for_keys(db: &Db, keys: &[String]) {
             .join(", ");
         let sql = format!("DELETE FROM tag_relations WHERE key IN ({placeholders})");
         let _ = conn.execute(&sql, rusqlite::params_from_iter(keys.iter()));
+        let _ = conn.execute(
+            "UPDATE tags SET count=(SELECT COUNT(*) FROM tag_relations WHERE tag_id=tags.id)",
+            [],
+        );
     })
 }
 

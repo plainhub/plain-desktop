@@ -34,14 +34,19 @@ pub struct PeerMutation;
 impl PeerMutation {
     /// Receive a chat item from an authenticated peer.
     /// Wire format: `mutation CreateChatItem($content: String!) { createChatItem(content: $content) { ... } }`
-    async fn create_chat_item(&self, ctx: &Context<'_>, content: String) -> ChatItem {
+    async fn create_chat_item(
+        &self,
+        ctx: &Context<'_>,
+        content: String,
+    ) -> async_graphql::Result<ChatItem> {
         let c = ctx.data_unchecked::<PeerCtx>();
-        ChatItem::from(
+        Ok(ChatItem::from(
             c.app
                 .chat
                 .service
-                .receive_peer_chat(&c.peer.id, &c.channel_id, &content),
-        )
+                .receive_peer_chat(&c.peer.id, &c.channel_id, &content)
+                .map_err(async_graphql::Error::new)?,
+        ))
     }
 
     /// Receive a channel system message from an authenticated peer.

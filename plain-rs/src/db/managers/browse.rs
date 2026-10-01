@@ -24,7 +24,9 @@ pub use rusqlite;
 /// runaway client from materialising an unbounded page.
 pub const MAX_PAGE_LIMIT: i64 = 1000;
 
-pub use crate::db::models::browse::{Result, SqliteBrowseError, SqliteColumnType, TableColumnMeta, column_type_of};
+pub use crate::db::models::browse::{
+    Result, SqliteBrowseError, SqliteColumnType, TableColumnMeta, column_type_of,
+};
 
 /// A string is safe to interpolate into SQL only as a plain identifier
 /// (letters/digits/underscore, not starting with a digit).

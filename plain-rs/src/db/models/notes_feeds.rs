@@ -13,7 +13,10 @@ pub struct FeedRow {
     pub id: String,
     pub name: String,
     pub url: String,
+    pub logo: String,
     pub fetch_content: bool,
+    pub last_sync_at: Option<String>,
+    pub last_error: String,
     pub created_at: String,
     pub updated_at: String,
 }
@@ -30,6 +33,7 @@ pub struct FeedEntryRow {
     pub content: String,
     pub raw_id: String,
     pub published_at: String,
+    pub read: bool,
     pub created_at: String,
     pub updated_at: String,
 }

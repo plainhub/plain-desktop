@@ -27,8 +27,7 @@ fn bookmark_store_survives_reopen_and_ungroups_on_group_delete() {
 /// order must not drift from the phone contract).
 #[test]
 fn listing_order_pins_first_then_sort_then_created() {
-    let db = Db::open(&crate::db::chat_tests::unique_tmp_dir("bm-order").join("plain.db"))
-        .unwrap();
+    let db = Db::open(&crate::db::chat_tests::unique_tmp_dir("bm-order").join("plain.db")).unwrap();
     let older = now_iso_minus(3600);
     let mut b1 = DBookmark::new("https://1.example", "");
     b1.sort_order = 2;

@@ -46,33 +46,18 @@ fn history_upsert_and_trim_are_deterministic() {
         play_count: 1,
         played_at: played_at.into(),
     };
-    crate::db::audio_queue::upsert_history(
-        &db,
-        &mk("/old.mp3", "2026-01-01T00:00:00.000Z"),
-    );
-    crate::db::audio_queue::upsert_history(
-        &db,
-        &mk("/new.mp3", "2026-01-02T00:00:00.000Z"),
-    );
+    crate::db::audio_queue::upsert_history(&db, &mk("/old.mp3", "2026-01-01T00:00:00.000Z"));
+    crate::db::audio_queue::upsert_history(&db, &mk("/new.mp3", "2026-01-02T00:00:00.000Z"));
     // Same millisecond tie: rowid (insertion order) breaks it.
-    crate::db::audio_queue::upsert_history(
-        &db,
-        &mk("/tie1.mp3", "2026-01-02T00:00:00.000Z"),
-    );
-    crate::db::audio_queue::upsert_history(
-        &db,
-        &mk("/tie2.mp3", "2026-01-02T00:00:00.000Z"),
-    );
+    crate::db::audio_queue::upsert_history(&db, &mk("/tie1.mp3", "2026-01-02T00:00:00.000Z"));
+    crate::db::audio_queue::upsert_history(&db, &mk("/tie2.mp3", "2026-01-02T00:00:00.000Z"));
     let all = crate::db::audio_queue::all_history(&db);
     assert_eq!(
         all.iter().map(|h| h.path.as_str()).collect::<Vec<_>>(),
         ["/tie2.mp3", "/tie1.mp3", "/new.mp3", "/old.mp3"]
     );
     // Upsert keeps the row, bumps nothing by itself (caller sets fields).
-    crate::db::audio_queue::upsert_history(
-        &db,
-        &mk("/old.mp3", "2026-01-03T00:00:00.000Z"),
-    );
+    crate::db::audio_queue::upsert_history(&db, &mk("/old.mp3", "2026-01-03T00:00:00.000Z"));
     assert_eq!(crate::db::audio_queue::all_history(&db).len(), 4);
     // Trim keeps the newest N.
     crate::db::audio_queue::trim_history(&db, 3);
@@ -96,10 +81,7 @@ fn remove_by_paths_deletes_only_matches() {
     };
     crate::db::audio_queue::upsert_history(&db, &history("/a.mp3"));
     crate::db::audio_queue::upsert_history(&db, &history("/b.mp3"));
-    crate::db::audio_queue::remove_history(
-        &db,
-        &["/a.mp3".to_string(), "/zz.mp3".to_string()],
-    );
+    crate::db::audio_queue::remove_history(&db, &["/a.mp3".to_string(), "/zz.mp3".to_string()]);
     let all = crate::db::audio_queue::all_history(&db);
     assert_eq!(all.len(), 1);
     assert_eq!(all[0].path, "/b.mp3");
@@ -128,8 +110,5 @@ fn playlist_item_counts_and_bulk_delete() {
 
     // Cascade delete by path across playlists.
     crate::db::audio_queue::remove_playlist_items_by_paths(&db, &["/1.mp3".to_string()]);
-    assert_eq!(
-        crate::db::audio_queue::playlist_items(&db, "p1").len(),
-        1
-    );
+    assert_eq!(crate::db::audio_queue::playlist_items(&db, "p1").len(), 1);
 }

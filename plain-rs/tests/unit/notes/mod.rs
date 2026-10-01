@@ -49,6 +49,7 @@ fn export_and_save_feed_entries() {
         content: String::new(),
         raw_id: "hash".into(),
         published_at: at.clone(),
+        read: false,
         created_at: at.clone(),
         updated_at: at,
     }])

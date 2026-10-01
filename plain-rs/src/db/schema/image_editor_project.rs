@@ -3,12 +3,12 @@ use rusqlite::Connection;
 pub(super) fn init(conn: &Connection) -> rusqlite::Result<()> {
     conn.execute_batch(
         "CREATE TABLE IF NOT EXISTS image_editor_projects (
-                id TEXT PRIMARY KEY,
-                state_b64 TEXT NOT NULL DEFAULT '',
+                id TEXT NOT NULL PRIMARY KEY,
+                state_b64 TEXT NOT NULL,
                 thumbnail TEXT,
-                canvas_width INTEGER NOT NULL DEFAULT 0,
-                canvas_height INTEGER NOT NULL DEFAULT 0,
-                layer_count INTEGER NOT NULL DEFAULT 0,
+                canvas_width INTEGER NOT NULL,
+                canvas_height INTEGER NOT NULL,
+                layer_count INTEGER NOT NULL,
                 created_at TEXT NOT NULL,
                 updated_at TEXT NOT NULL
             );

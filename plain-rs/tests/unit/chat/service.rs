@@ -1,5 +1,6 @@
 use super::*;
-use crate::db::{Db, DChat};
+use crate::chat::enums::{ChannelStatus, ChatStatus};
+use crate::db::{DChat, Db};
 use crate::xchacha_decrypt;
 use crate::{base64_decode, base64_encode};
 use std::path::PathBuf;
@@ -174,4 +175,69 @@ fn to_peer_content_passthrough_on_invalid_json() {
     let token = base64_encode(&[1u8; 32]);
     let content = "not json at all";
     assert_eq!(to_peer_content(content, &token), content);
+}
+
+#[tokio::test]
+async fn kicked_channel_rejects_incoming_message() {
+    let dir = unique_tmp_dir("kicked-channel");
+    let db = Db::open(&dir.join("plain.db")).expect("open db");
+    let service = ChatService::new(
+        db,
+        String::new(),
+        std::sync::Arc::new(ChatIdentity::new("self", "Self", String::new())),
+        DeviceType::Computer,
+        dir,
+        std::sync::Arc::new(TestTransport),
+        std::sync::Arc::new(NoChatHooks),
+        no_link_previews(),
+    );
+    let mut channel = crate::db::DChannel::new("group", "self");
+    channel.status = ChannelStatus::Kicked;
+    service.db.insert_channel(&channel);
+
+    assert_eq!(
+        service
+            .receive_peer_chat("peer", &channel.id, "{}")
+            .unwrap_err(),
+        "Channel not joined"
+    );
+    assert!(service.db.get_chats_by_channel(&channel.id).is_empty());
+    assert_eq!(
+        service
+            .receive_peer_chat("peer", "missing", "{}")
+            .unwrap_err(),
+        "Unknown channel"
+    );
+}
+
+#[tokio::test]
+async fn unpaired_peer_send_fails_and_local_cache_tracks_deletion() {
+    let dir = unique_tmp_dir("unpaired-send");
+    let db = Db::open(&dir.join("plain.db")).expect("open db");
+    let peer = crate::db::DPeer::new("peer", "Peer", "127.0.0.1", 8443, DeviceType::Phone);
+    db.upsert_peer(&peer);
+    let service = ChatService::new(
+        db,
+        String::new(),
+        std::sync::Arc::new(ChatIdentity::new("self", "Self", String::new())),
+        DeviceType::Computer,
+        dir,
+        std::sync::Arc::new(TestTransport),
+        std::sync::Arc::new(NoChatHooks),
+        no_link_previews(),
+    );
+
+    let sent = service.send_chat_item("peer:peer".to_string(), "{}".to_string());
+    assert_eq!(
+        service.db.get_chat_by_id(&sent[0].id).unwrap().status,
+        ChatStatus::Failed
+    );
+
+    let local = service.send_chat_item("peer:local".to_string(), "{}".to_string());
+    assert_eq!(
+        service.cacher.get_latest_chat("local").unwrap().id,
+        local[0].id
+    );
+    assert!(service.delete_chat_item(local[0].id.clone()));
+    assert!(service.cacher.get_latest_chat("local").is_none());
 }

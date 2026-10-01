@@ -26,7 +26,7 @@ fn open_creates_every_table_once() {
         "tags",
         "tag_relations",
         "favorite_folders",
-        "library_prefs",
+        "settings",
     ] {
         assert!(
             tables.iter().any(|t| t == expected),
@@ -50,10 +50,7 @@ fn open_creates_every_table_once() {
 fn source_row_defaults_to_none() {
     let db = test_db("source_default");
     let src = crate::db::audio_queue::get_source(&db);
-    assert_eq!(
-        src.source,
-        crate::db::audio_queue::QueueSourceKind::None
-    );
+    assert_eq!(src.source, crate::db::audio_queue::QueueSourceKind::None);
     assert_eq!(src.current_path, "");
     assert_eq!(src.current_index, -1);
 }
@@ -61,11 +58,11 @@ fn source_row_defaults_to_none() {
 #[test]
 fn prefs_round_trip() {
     let db = test_db("prefs");
-    assert!(crate::db::audio_queue::get_pref(&db, "k").is_none());
-    crate::db::audio_queue::set_pref(&db, "k", "v1");
-    crate::db::audio_queue::set_pref(&db, "k", "v2");
+    assert!(crate::db::settings::get_setting(&db, "k").is_none());
+    crate::db::settings::set_setting(&db, "k", "v1");
+    crate::db::settings::set_setting(&db, "k", "v2");
     assert_eq!(
-        crate::db::audio_queue::get_pref(&db, "k").as_deref(),
+        crate::db::settings::get_setting(&db, "k").as_deref(),
         Some("v2")
     );
 }

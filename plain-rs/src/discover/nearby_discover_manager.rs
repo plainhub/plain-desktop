@@ -351,7 +351,7 @@ impl NearbyDiscoverManager {
             device_type: device.device_type.clone(),
             version: device.version.clone(),
             platform: device.platform.clone(),
-            last_seen: iso_from_unix_millis(device.last_seen),
+            last_seen: device.last_seen.clone(),
             status: self.get_device_status(&device.id),
             discovery_methods: vec!["LAN".to_string()],
         }
@@ -380,7 +380,7 @@ impl NearbyDiscoverManager {
             log::error!("failed to read saved nearby devices before verification");
             return;
         };
-        let cutoff = now_millis() - 60_000;
+        let cutoff = iso_from_unix_millis(now_millis() - 60_000);
         let old_records = devices.into_iter().filter(|d| d.last_seen < cutoff);
         let results = futures_util::future::join_all(old_records.map(|device| async move {
             let discovery_ping_succeeded = if device.ips.is_empty() {
@@ -397,8 +397,8 @@ impl NearbyDiscoverManager {
             if discovery_ping_succeeded {
                 if let Err(e) = self.db.refresh_cached_nearby_device_if_last_seen_matches(
                     &device.id,
-                    device.last_seen,
-                    now_millis(),
+                    &device.last_seen,
+                    &now_iso(),
                 ) {
                     log::error!(
                         "failed to refresh nearby device record id={} err={e}",
@@ -408,7 +408,7 @@ impl NearbyDiscoverManager {
             } else {
                 match self
                     .db
-                    .delete_cached_nearby_device_if_last_seen_matches(&device.id, device.last_seen)
+                    .delete_cached_nearby_device_if_last_seen_matches(&device.id, &device.last_seen)
                 {
                     Ok(true) => {
                         self.seen_in_session.lock().unwrap().remove(&device.id);
@@ -561,7 +561,7 @@ impl NearbyDiscoverManager {
             device_type: device.device_type.clone(),
             version: device.version.clone(),
             platform: device.platform.clone(),
-            last_seen: now_millis(),
+            last_seen: now_iso(),
         };
         if let Err(e) = self.db.save_cached_nearby_device(&cached) {
             log::error!(
@@ -802,7 +802,7 @@ mod tests {
             device_type: "PHONE".into(),
             version: "1.0".into(),
             platform: "android".into(),
-            last_seen: now_millis() - 61_000,
+            last_seen: iso_from_unix_millis(now_millis() - 61_000),
         })
         .unwrap();
 

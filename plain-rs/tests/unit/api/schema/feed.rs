@@ -19,6 +19,7 @@ async fn graphql_feed_entry_joins_and_counts() {
         content: String::new(),
         raw_id: "hash".into(),
         published_at: at.clone(),
+        read: false,
         created_at: at.clone(),
         updated_at: at,
     }])

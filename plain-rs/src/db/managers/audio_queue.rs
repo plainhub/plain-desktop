@@ -1,11 +1,12 @@
-//! Row IO for the five audio tables plus `library_prefs`. One module per
-//! plain-app Room table; the playback-order state machine lives in
-//! [`crate::library::audio_queue`].
+//! Row IO for the audio tables and settings. The playback-order state machine
+//! lives in [`crate::library::audio_queue`].
 
 use rusqlite::params;
 
 use crate::db::Db;
-pub use crate::db::models::audio_queue::{HISTORY_KEEP, PlayHistory, Playlist, PlaylistItem, QueueItem, QueueSource, QueueSourceKind};
+pub use crate::db::models::audio_queue::{
+    HISTORY_KEEP, PlayHistory, Playlist, PlaylistItem, QueueItem, QueueSource, QueueSourceKind,
+};
 
 // ---------------------------------------------------------------------------
 // Queue source / prefs
@@ -49,29 +50,6 @@ pub fn save_source(db: &Db, src: &QueueSource) {
     })
 }
 
-/// Read a `library_prefs` value.
-pub fn get_pref(db: &Db, key: &str) -> Option<String> {
-    db.with_conn(|conn| {
-        conn.query_row(
-            "SELECT value FROM library_prefs WHERE key=?",
-            params![key],
-            |row| row.get::<_, String>(0),
-        )
-        .ok()
-    })
-}
-
-/// Write a `library_prefs` value.
-pub fn set_pref(db: &Db, key: &str, value: &str) {
-    db.with_conn(|conn| {
-        let _ = conn.execute(
-            "INSERT INTO library_prefs (key,value) VALUES (?1,?2)
-             ON CONFLICT(key) DO UPDATE SET value=?2",
-            params![key, value],
-        );
-    })
-}
-
 // ---------------------------------------------------------------------------
 // Manual queue items
 // ---------------------------------------------------------------------------
@@ -80,7 +58,7 @@ pub fn set_pref(db: &Db, key: &str, value: &str) {
 pub fn all_queue_items(db: &Db) -> Vec<QueueItem> {
     db.with_conn(|conn| {
         let mut stmt = match conn
-            .prepare("SELECT path,sort_order,title,artist,duration_secs FROM audio_queue_items ORDER BY sort_order ASC")
+            .prepare("SELECT path,sort_order,title,artist,duration_ms FROM audio_queue_items ORDER BY sort_order ASC")
         {
             Ok(s) => s,
             Err(_) => return vec![],
@@ -98,14 +76,14 @@ fn row_to_queue_item(row: &rusqlite::Row<'_>) -> rusqlite::Result<QueueItem> {
         sort_order: row.get(1)?,
         title: row.get(2)?,
         artist: row.get(3)?,
-        duration_secs: row.get(4)?,
+        duration_secs: row.get::<_, i64>(4)? / 1000,
     })
 }
 
 pub fn queue_item_by_path(db: &Db, path: &str) -> Option<QueueItem> {
     db.with_conn(|conn| {
         conn.query_row(
-            "SELECT path,sort_order,title,artist,duration_secs FROM audio_queue_items WHERE path=?",
+            "SELECT path,sort_order,title,artist,duration_ms FROM audio_queue_items WHERE path=?",
             params![path],
             row_to_queue_item,
         )
@@ -126,8 +104,8 @@ pub fn replace_queue_items(db: &Db, items: &[QueueItem]) {
         for (i, item) in items.iter().enumerate() {
             if tx
                 .execute(
-                    "INSERT INTO audio_queue_items (path,sort_order,title,artist,duration_secs) VALUES (?1,?2,?3,?4,?5)",
-                    params![item.path, i as i64, item.title, item.artist, item.duration_secs],
+                    "INSERT INTO audio_queue_items (path,sort_order,title,artist,duration_ms) VALUES (?1,?2,?3,?4,?5)",
+                    params![item.path, i as i64, item.title, item.artist, item.duration_secs * 1000],
                 )
                 .is_err()
             {
@@ -215,8 +193,7 @@ pub fn delete_playlist(db: &Db, id: &str) {
 // Playlist items
 // ---------------------------------------------------------------------------
 
-const ITEM_COLUMNS: &str =
-    "id,playlist_id,audio_path,title,artist,duration_secs,sort_order,added_at";
+const ITEM_COLUMNS: &str = "id,playlist_id,audio_path,title,artist,duration_ms,sort_order,added_at";
 
 /// One playlist's items in sort_order order (sort orders are dense: == index).
 pub fn playlist_items(db: &Db, playlist_id: &str) -> Vec<PlaylistItem> {
@@ -256,7 +233,7 @@ fn row_to_playlist_item(row: &rusqlite::Row<'_>) -> rusqlite::Result<PlaylistIte
         audio_path: row.get(2)?,
         title: row.get(3)?,
         artist: row.get(4)?,
-        duration_secs: row.get(5)?,
+        duration_secs: row.get::<_, i64>(5)? / 1000,
         sort_order: row.get(6)?,
         added_at: row.get(7)?,
     })
@@ -265,7 +242,7 @@ fn row_to_playlist_item(row: &rusqlite::Row<'_>) -> rusqlite::Result<PlaylistIte
 pub fn insert_playlist_item(db: &Db, item: &PlaylistItem) {
     db.with_conn(|conn| {
         let _ = conn.execute(
-            "INSERT INTO audio_playlist_items (id,playlist_id,audio_path,title,artist,duration_secs,sort_order,added_at) \
+            "INSERT INTO audio_playlist_items (id,playlist_id,audio_path,title,artist,duration_ms,sort_order,added_at) \
              VALUES (?1,?2,?3,?4,?5,?6,?7,?8)",
             params![
                 item.id,
@@ -273,7 +250,7 @@ pub fn insert_playlist_item(db: &Db, item: &PlaylistItem) {
                 item.audio_path,
                 item.title,
                 item.artist,
-                item.duration_secs,
+                item.duration_secs * 1000,
                 item.sort_order,
                 item.added_at
             ],
@@ -331,7 +308,7 @@ pub fn remove_playlist_items_by_paths(db: &Db, paths: &[String]) {
 // Play history
 // ---------------------------------------------------------------------------
 
-const HISTORY_COLUMNS: &str = "path,title,artist,duration_secs,play_count,played_at";
+const HISTORY_COLUMNS: &str = "path,title,artist,duration_ms,play_count,played_at";
 
 /// All history rows, newest first. `rowid` breaks same-millisecond ties
 /// in insertion order, so the newest insert always ranks first.
@@ -355,7 +332,7 @@ fn row_to_history(row: &rusqlite::Row<'_>) -> rusqlite::Result<PlayHistory> {
         path: row.get(0)?,
         title: row.get(1)?,
         artist: row.get(2)?,
-        duration_secs: row.get(3)?,
+        duration_secs: row.get::<_, i64>(3)? / 1000,
         play_count: row.get(4)?,
         played_at: row.get(5)?,
     })
@@ -366,14 +343,14 @@ fn row_to_history(row: &rusqlite::Row<'_>) -> rusqlite::Result<PlayHistory> {
 pub fn upsert_history(db: &Db, row: &PlayHistory) {
     db.with_conn(|conn| {
         let _ = conn.execute(
-            "INSERT INTO audio_play_history (path,title,artist,duration_secs,play_count,played_at) \
+            "INSERT INTO audio_play_history (path,title,artist,duration_ms,play_count,played_at) \
              VALUES (?1,?2,?3,?4,?5,?6) \
-             ON CONFLICT(path) DO UPDATE SET title=?2,artist=?3,duration_secs=?4,play_count=?5,played_at=?6",
+             ON CONFLICT(path) DO UPDATE SET title=?2,artist=?3,duration_ms=?4,play_count=?5,played_at=?6",
             params![
                 row.path,
                 row.title,
                 row.artist,
-                row.duration_secs,
+                row.duration_secs * 1000,
                 row.play_count,
                 row.played_at
             ],

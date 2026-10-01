@@ -25,7 +25,11 @@ pub mod content;
 
 pub mod enums;
 pub mod events;
+mod manager;
 pub mod pairing;
 pub mod peer_auth;
+mod peer_manager;
+mod receiver;
+mod sender;
 pub mod service;
 pub mod transport;

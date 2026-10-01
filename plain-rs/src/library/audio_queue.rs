@@ -28,11 +28,10 @@
 
 use std::collections::HashSet;
 
-use crate::library::LibraryResult;
 use crate::db::{
-    HISTORY_KEEP, Db, PlayHistory, Playlist, PlaylistItem, QueueItem, QueueSource,
-    QueueSourceKind,
+    Db, HISTORY_KEEP, PlayHistory, Playlist, PlaylistItem, QueueItem, QueueSource, QueueSourceKind,
 };
+use crate::library::LibraryResult;
 use crate::utils::dbtime::now_iso_millis;
 use crate::utils::shortid;
 
@@ -172,7 +171,7 @@ pub fn save_audio_current(db: &Db, path: &str) {
 
 /// The play mode name (REPEAT / REPEAT_ONE / SHUFFLE); REPEAT when unset.
 pub fn get_audio_mode(db: &Db) -> String {
-    let raw = crate::db::audio_queue::get_pref(db, PREF_AUDIO_MODE).unwrap_or_default();
+    let raw = crate::db::settings::get_setting(db, PREF_AUDIO_MODE).unwrap_or_default();
     let trimmed = raw.trim();
     if trimmed.is_empty() {
         DEFAULT_AUDIO_MODE.to_string()
@@ -183,7 +182,7 @@ pub fn get_audio_mode(db: &Db) -> String {
 
 pub fn save_audio_mode(db: &Db, mode: &str) {
     // Store trimmed — a clean preference value.
-    crate::db::audio_queue::set_pref(db, PREF_AUDIO_MODE, mode.trim());
+    crate::db::settings::set_setting(db, PREF_AUDIO_MODE, mode.trim());
 }
 
 /// Playlist id when the active playback source is a user playlist, else None.
@@ -282,11 +281,7 @@ pub fn remove_paths(db: &Db, paths: &[String]) {
     if paths.is_empty() {
         return;
     }
-    crate::db::audio_queue::remove_by_paths(
-        db,
-        "DELETE FROM audio_queue_items WHERE path",
-        paths,
-    );
+    crate::db::audio_queue::remove_by_paths(db, "DELETE FROM audio_queue_items WHERE path", paths);
     crate::db::audio_queue::remove_history(db, paths);
     crate::db::audio_queue::remove_playlist_items_by_paths(db, paths);
     let mut src = source(db);
@@ -322,11 +317,7 @@ impl Order {
     }
 }
 
-fn source_size_of(
-    db: &Db,
-    lib: &mut dyn LibraryTracks,
-    src: &QueueSource,
-) -> LibraryResult<usize> {
+fn source_size_of(db: &Db, lib: &mut dyn LibraryTracks, src: &QueueSource) -> LibraryResult<usize> {
     match src.source {
         QueueSourceKind::Playlist => {
             Ok(crate::db::audio_queue::playlist_items(db, &src.playlist_id).len())
@@ -347,14 +338,13 @@ fn current_pos_in_source(
         return Ok(-1);
     }
     match src.source {
-        QueueSourceKind::Playlist => Ok(crate::db::audio_queue::playlist_items(
-            db,
-            &src.playlist_id,
-        )
-        .into_iter()
-        .position(|i| i.audio_path == path)
-        .map(|p| p as i64)
-        .unwrap_or(-1)),
+        QueueSourceKind::Playlist => {
+            Ok(crate::db::audio_queue::playlist_items(db, &src.playlist_id)
+                .into_iter()
+                .position(|i| i.audio_path == path)
+                .map(|p| p as i64)
+                .unwrap_or(-1))
+        }
         QueueSourceKind::Library => {
             let sort = src.sort_by.clone();
             let cached = src.current_index;
@@ -431,13 +421,12 @@ fn source_track_at(
     rank: i64,
 ) -> LibraryResult<Option<AudioTrack>> {
     match src.source {
-        QueueSourceKind::Playlist => Ok(crate::db::audio_queue::playlist_items(
-            db,
-            &src.playlist_id,
-        )
-        .into_iter()
-        .nth(rank.max(0) as usize)
-        .map(|i| AudioTrack::from(&i))),
+        QueueSourceKind::Playlist => {
+            Ok(crate::db::audio_queue::playlist_items(db, &src.playlist_id)
+                .into_iter()
+                .nth(rank.max(0) as usize)
+                .map(|i| AudioTrack::from(&i)))
+        }
         QueueSourceKind::Library => Ok(lib
             .library_tracks_page(rank.max(0) as usize, 1, &src.sort_by)?
             .into_iter()
@@ -700,15 +689,14 @@ fn source_page(
         return Ok(vec![]);
     }
     match src.source {
-        QueueSourceKind::Playlist => Ok(crate::db::audio_queue::playlist_items(
-            db,
-            &src.playlist_id,
-        )
-        .into_iter()
-        .skip(offset.max(0) as usize)
-        .take(limit as usize)
-        .map(|i| AudioTrack::from(&i))
-        .collect()),
+        QueueSourceKind::Playlist => {
+            Ok(crate::db::audio_queue::playlist_items(db, &src.playlist_id)
+                .into_iter()
+                .skip(offset.max(0) as usize)
+                .take(limit as usize)
+                .map(|i| AudioTrack::from(&i))
+                .collect())
+        }
         QueueSourceKind::Library => {
             lib.library_tracks_page(offset.max(0) as usize, limit as usize, &src.sort_by)
         }

@@ -39,7 +39,7 @@ impl Db {
                name=excluded.name, ips=excluded.ips, port=excluded.port,
                device_type=excluded.device_type, version=excluded.version,
                platform=excluded.platform,
-               last_seen=MAX(nearby_device_cache.last_seen + 1, excluded.last_seen)",
+               last_seen=excluded.last_seen",
             params![device.id, device.name, device.ips.join(","), device.port as i64,
                 device.device_type, device.version, device.platform, device.last_seen],
         )?;
@@ -49,12 +49,12 @@ impl Db {
     pub fn refresh_cached_nearby_device_if_last_seen_matches(
         &self,
         id: &str,
-        last_seen: i64,
-        now: i64,
+        last_seen: &str,
+        now: &str,
     ) -> rusqlite::Result<bool> {
         let conn = self.0.lock().unwrap();
         Ok(conn.execute(
-            "UPDATE nearby_device_cache SET last_seen=MAX(last_seen + 1, ?3) WHERE id=?1 AND last_seen=?2",
+            "UPDATE nearby_device_cache SET last_seen=?3 WHERE id=?1 AND last_seen=?2",
             params![id, last_seen, now],
         )? == 1)
     }
@@ -62,7 +62,7 @@ impl Db {
     pub fn delete_cached_nearby_device_if_last_seen_matches(
         &self,
         id: &str,
-        last_seen: i64,
+        last_seen: &str,
     ) -> rusqlite::Result<bool> {
         let conn = self.0.lock().unwrap();
         Ok(conn.execute(

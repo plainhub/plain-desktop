@@ -51,6 +51,7 @@ fn opml_roundtrip_and_filtered_entry_counts() {
         content: String::new(),
         raw_id: "hash".into(),
         published_at: now.clone(),
+        read: false,
         created_at: now.clone(),
         updated_at: now,
     };

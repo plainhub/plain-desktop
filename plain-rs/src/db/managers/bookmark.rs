@@ -3,8 +3,8 @@
 
 use rusqlite::params;
 
-use crate::db::{Db, now_iso};
 pub use crate::db::models::bookmark::{DBookmark, DBookmarkGroup};
+use crate::db::{Db, now_iso};
 
 fn row_to_bookmark(row: &rusqlite::Row<'_>) -> rusqlite::Result<DBookmark> {
     Ok(DBookmark {
