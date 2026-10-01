@@ -24,6 +24,56 @@ use std::sync::atomic::{AtomicI32, AtomicI64, AtomicU64, Ordering};
 use std::time::Duration;
 use tokio::sync::{Mutex, Notify};
 
+pub fn selected_roots(root: String, source_dirs: &[String]) -> Vec<std::path::PathBuf> {
+    if root == "/" {
+        let sources = source_dirs
+            .iter()
+            .filter(|dir| !dir.is_empty())
+            .map(std::path::PathBuf::from)
+            .collect::<Vec<_>>();
+        if !sources.is_empty() {
+            return sources;
+        }
+    }
+    vec![std::path::PathBuf::from(root)]
+}
+
+pub async fn rebuild_index(db: Arc<crate::media::kv::Db>, root: String, source_dirs: &[String]) {
+    let root_path = std::path::PathBuf::from(&root);
+    let roots = selected_roots(root, source_dirs);
+
+    let scanner = scanner();
+    scanner.stop();
+    scanner.wait_for_running_task().await;
+    scanner.resume();
+    publish_initial_running(&root_path);
+
+    let root_for_walk = root_path.clone();
+    tokio::spawn(async move {
+        log::info!("[scan] rebuild tokio::spawn body entered");
+        let db_for_reset = db.clone();
+        let reset_result = tokio::task::spawn_blocking(move || {
+            log::info!("[scan] reset_all blocking body entered");
+            let result = reset_all(&db_for_reset);
+            log::info!("[scan] reset_all blocking body returned");
+            result
+        })
+        .await;
+        log::info!(
+            "[scan] rebuild reset_all joined, ok={}",
+            reset_result.is_ok()
+        );
+        match reset_result {
+            Ok(Ok(())) => {}
+            Ok(Err(error)) => log::error!("rebuild_media_index reset_all failed: {error}"),
+            Err(error) => log::error!("rebuild_media_index reset_all join error: {error}"),
+        }
+        if let Err(error) = start_walk_and_scan_paths(db, roots, root_for_walk).await {
+            log::error!("rebuild_media_index background scan failed: {error}");
+        }
+    });
+}
+
 const KEY_PREFIX: &str = "media:uuid:";
 const PATH_INDEX_PREFIX: &str = "media:path:";
 /// Legacy write-only index (`media:type:{kind}:{uuid}`) that no reader ever

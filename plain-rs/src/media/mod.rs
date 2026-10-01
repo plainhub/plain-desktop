@@ -5,13 +5,17 @@
 //! (macOS / Windows / Linux) can browse local files through the same
 //! GraphQL surface the NAS serves.
 
+pub mod catalog;
 pub mod config;
 pub mod cover;
 pub mod eventbus;
+pub mod file_browse;
+pub mod file_ops;
 pub mod file_tasks;
 pub mod fsx;
 pub mod image_index;
 pub mod index;
+pub mod item_ops;
 pub mod kv;
 #[cfg(feature = "library")]
 pub mod library_tracks;
@@ -23,6 +27,7 @@ pub mod pdf_preview;
 pub mod scan;
 pub mod search;
 pub mod service;
+pub mod tagging;
 pub mod thumb;
 pub mod trash;
 pub mod uuid;
