@@ -911,12 +911,6 @@ export const dbPathGQL = `
   }
 `
 
-export const dataStorePathGQL = `
-  query {
-    dataStorePath
-  }
-`
-
 export const uploadedChunksGQL = `
   query uploadedChunks($fileId: String!) {
     uploadedChunks(fileId: $fileId)
@@ -970,21 +964,16 @@ export const pomodoroTodayAndSettingsGQL = `
   }
 `
 
-export const dataStoreEntriesGQL = `
+export const userPrefsGQL = `
   query {
-    dataStoreEntries {
-      key
-      value
-    }
+    userPrefs
   }
 `
 
 export const prefsGQL = `
   query {
-    prefs {
-      key
-      value
-    }
+    systemPrefs
+    userPrefs
   }
 `
 

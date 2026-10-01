@@ -289,7 +289,7 @@ export default {
   no_excluded_dirs: '沒有排除的目錄。',
   developer: {
     storage: '儲存',
-    datastore: 'DataStore',
+    prefs: '偏好設定',
     database: '資料庫',
     logs: '日誌',
     developer_mode: '開發者模式',

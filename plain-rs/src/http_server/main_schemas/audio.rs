@@ -10,7 +10,6 @@ use async_graphql::{Context, ID, Object};
 use std::sync::Arc;
 
 use crate::api::context::AppCtx;
-use crate::db::Db;
 use crate::api::enums::MediaPlayMode;
 use crate::http_server::main_schemas::types::{
     AudioItem, AudioPlayHistory, AudioPlayback, AudioPlaylist,
@@ -76,7 +75,7 @@ impl AudioQuery {
         let current = audio_queue::get_audio_current(&c.db);
         AudioPlayback {
             current_path: (!current.is_empty()).then_some(current),
-            mode: media_play_mode_of(&c.db),
+            mode: media_play_mode_of(&c.prefs),
             is_playing: false,
             position_ms: Long(0),
         }
@@ -169,15 +168,20 @@ impl AudioMutation {
     }
 
     /// Persist the playback mode preference (REPEAT/REPEAT_ONE/SHUFFLE).
-    async fn update_audio_play_mode(&self, ctx: &Context<'_>, mode: MediaPlayMode) -> bool {
+    async fn update_audio_play_mode(
+        &self,
+        ctx: &Context<'_>,
+        mode: MediaPlayMode,
+    ) -> async_graphql::Result<bool> {
         let c = ctx.data_unchecked::<Arc<AppCtx>>();
         let mode_str = match mode {
             MediaPlayMode::Repeat => "REPEAT",
             MediaPlayMode::RepeatOne => "REPEAT_ONE",
             MediaPlayMode::Shuffle => "SHUFFLE",
         };
-        audio_queue::save_audio_mode(&c.db, mode_str);
-        true
+        audio_queue::save_audio_mode(&c.prefs, mode_str)
+            .map(|_| true)
+            .map_err(|error| async_graphql::Error::new(error.to_string()))
     }
 
     /// Reset the source, the manual queue and the current track.
@@ -312,8 +316,8 @@ fn text_of(query: &str) -> String {
 }
 
 /// Parse the stored play-mode name into the GraphQL enum (REPEAT default).
-fn media_play_mode_of(library: &Db) -> MediaPlayMode {
-    match audio_queue::get_audio_mode(library).as_str() {
+fn media_play_mode_of(prefs: &crate::prefs::Prefs) -> MediaPlayMode {
+    match audio_queue::get_audio_mode(prefs).as_str() {
         "REPEAT_ONE" => MediaPlayMode::RepeatOne,
         "SHUFFLE" => MediaPlayMode::Shuffle,
         _ => MediaPlayMode::Repeat,

@@ -11,7 +11,7 @@ fn tmp_prefs(tag: &str) -> (std::path::PathBuf, Prefs) {
         "plain-rs-prefs-{tag}-{}-{nanos}",
         std::process::id()
     ));
-    let path = dir.join("prefs.json");
+    let path = dir.join("system_prefs.json");
     (dir.clone(), Prefs::load(&path).unwrap())
 }
 
@@ -20,10 +20,10 @@ fn missing_file_starts_empty_and_creates_on_first_set() {
     let (dir, prefs) = tmp_prefs("missing");
     assert_eq!(prefs.get::<String>("device_name").unwrap(), None);
     assert!(prefs.set("device_name", "box").unwrap());
-    let file = dir.join("prefs.json");
+    let file = dir.join("system_prefs.json");
     assert!(file.exists(), "file created on first set");
     assert!(
-        !dir.join("prefs.json.tmp").exists(),
+        !dir.join("system_prefs.json.tmp").exists(),
         "tmp file renamed away"
     );
 }
@@ -52,10 +52,45 @@ fn roundtrip_string_and_json_shapes() {
 }
 
 #[test]
+fn system_and_user_preferences_are_persisted_separately() {
+    let (dir, prefs) = tmp_prefs("split-stores");
+    prefs.set("theme", "system").unwrap();
+    prefs.set_user("theme", serde_json::json!({"mode": "dark"})).unwrap();
+
+    let system: serde_json::Value =
+        serde_json::from_str(&std::fs::read_to_string(dir.join("system_prefs.json")).unwrap()).unwrap();
+    let user: serde_json::Value = serde_json::from_str(
+        &std::fs::read_to_string(dir.join("user_prefs.json")).unwrap(),
+    )
+    .unwrap();
+    assert_eq!(system["theme"], "system");
+    assert_eq!(user["theme"], serde_json::json!({"mode": "dark"}));
+    assert_eq!(
+        prefs.get_user::<serde_json::Value>("theme").unwrap(),
+        Some(serde_json::json!({"mode": "dark"}))
+    );
+    assert_eq!(prefs.get::<String>("theme").unwrap().as_deref(), Some("system"));
+}
+
+#[test]
+fn user_store_has_matching_default_and_clear_operations() {
+    let (dir, prefs) = tmp_prefs("user-ops");
+    assert_eq!(prefs.get_user_or("missing", 42), 42);
+    prefs.set("system", true).unwrap();
+    prefs.set_user("user", "value").unwrap();
+    prefs.clear_user().unwrap();
+    assert!(prefs.user_entries().is_empty());
+    assert!(prefs.get_or("system", false));
+    let reloaded = Prefs::load(&default_path(&dir)).unwrap();
+    assert!(reloaded.user_entries().is_empty());
+    assert!(reloaded.get_or("system", false));
+}
+
+#[test]
 fn set_same_value_skips_disk_write() {
     let (dir, prefs) = tmp_prefs("noop");
     assert!(prefs.set("k", 1u32).unwrap());
-    let file = dir.join("prefs.json");
+    let file = dir.join("system_prefs.json");
     let first = std::fs::read(&file).unwrap();
     // Same value again: no rewrite reported.
     assert!(!prefs.set("k", 1u32).unwrap());
@@ -81,7 +116,7 @@ fn clear_empties_and_persists() {
     prefs.set("b", "x").unwrap();
     prefs.clear().unwrap();
     assert_eq!(prefs.entries(), vec![]);
-    let reloaded = Prefs::load(&dir.join("prefs.json")).unwrap();
+    let reloaded = Prefs::load(&dir.join("system_prefs.json")).unwrap();
     assert_eq!(reloaded.entries(), vec![]);
 }
 
@@ -123,10 +158,10 @@ fn reload_sees_previous_writes_and_pretty_prints() {
     drop(prefs);
 
     // File is pretty-printed (hand-editable, like plain-desktop's).
-    let text = std::fs::read_to_string(dir.join("prefs.json")).unwrap();
+    let text = std::fs::read_to_string(dir.join("system_prefs.json")).unwrap();
     assert!(text.contains("\n  \"device_name\":"), "pretty: {text}");
 
-    let reloaded = Prefs::load(&dir.join("prefs.json")).unwrap();
+    let reloaded = Prefs::load(&dir.join("system_prefs.json")).unwrap();
     assert_eq!(
         reloaded.get::<String>("device_name").unwrap().as_deref(),
         Some("box")
@@ -137,37 +172,38 @@ fn reload_sees_previous_writes_and_pretty_prints() {
     );
 }
 
-/// Locks the desktop upgrade path: a prefs.json written by the old
-/// tauri-plugin-store (compact flat JSON map, same keys) loads as-is —
-/// no migration code needed, the first new write re-pretty-prints it.
+/// Both preference files load independently and retain their own key spaces.
 #[test]
-fn loads_plugin_store_file_without_migration() {
-    let (dir, _prefs) = tmp_prefs("pluginstore");
+fn loads_system_and_user_files_independently() {
+    let (dir, _prefs) = tmp_prefs("split-reload");
     std::fs::create_dir_all(&dir).unwrap();
     std::fs::write(
-        dir.join("prefs.json"),
-        r#"{"client_id":"ab12cd34","device_name":"MacBook-Pro","http_port":9000,"recent_files":["/a","/b"]}"#,
+        dir.join("system_prefs.json"),
+        r#"{"client_id":"ab12cd34","device_name":"MacBook-Pro","http_port":9000}"#,
     )
     .unwrap();
 
-    let prefs = Prefs::load(&dir.join("prefs.json")).unwrap();
+    std::fs::write(dir.join("user_prefs.json"), r#"{"theme":"dark"}"#).unwrap();
+
+    let prefs = Prefs::load(&default_path(&dir)).unwrap();
     assert_eq!(
         prefs.get::<String>("client_id").unwrap().as_deref(),
         Some("ab12cd34")
     );
     assert_eq!(prefs.get_or("http_port", 8080u64), 9000);
     assert_eq!(
-        prefs.get::<Vec<String>>("recent_files").unwrap(),
-        Some(vec!["/a".into(), "/b".into()])
+        prefs.get_user::<String>("theme").unwrap().as_deref(),
+        Some("dark")
     );
+    assert_eq!(prefs.get::<String>("theme").unwrap(), None);
 }
 
 #[test]
 fn corrupt_file_fails_loudly() {
     let (dir, _prefs) = tmp_prefs("corrupt");
     std::fs::create_dir_all(&dir).unwrap();
-    std::fs::write(dir.join("prefs.json"), "{not json").unwrap();
-    assert!(Prefs::load(&dir.join("prefs.json")).is_err());
+    std::fs::write(dir.join("system_prefs.json"), "{not json").unwrap();
+    assert!(Prefs::load(&dir.join("system_prefs.json")).is_err());
 }
 
 #[test]

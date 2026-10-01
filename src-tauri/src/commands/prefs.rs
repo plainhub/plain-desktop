@@ -1,7 +1,7 @@
 //! IPC bridge for the frontend `lib/prefs.ts` — the Tauri replacement
 //! for tauri-plugin-store. Backed by the process-wide `Arc<Prefs>`
 //! (see `lib.rs` setup); reads hit the in-memory map, writes persist
-//! atomically to `<app_data_dir>/prefs.json`.
+//! atomically to `<app_data_dir>/system_prefs.json`.
 
 use std::sync::Arc;
 

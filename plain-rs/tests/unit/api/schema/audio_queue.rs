@@ -2,6 +2,7 @@
 //! state-machine behavior locks live in plain-rs; these cover the local
 //! seam (NoLibrary library source, mode mapping, DSL text extraction).
 use super::*;
+use crate::db::Db;
 use crate::library::audio_queue::AudioTrack;
 
 fn test_library() -> Db {
@@ -18,12 +19,13 @@ fn test_library() -> Db {
 
 #[test]
 fn mode_maps_names_with_repeat_default() {
-    let db = test_library();
-    assert!(matches!(media_play_mode_of(&db), MediaPlayMode::Repeat));
-    crate::library::audio_queue::save_audio_mode(&db, "SHUFFLE");
-    assert!(matches!(media_play_mode_of(&db), MediaPlayMode::Shuffle));
-    crate::library::audio_queue::save_audio_mode(&db, "REPEAT_ONE");
-    assert!(matches!(media_play_mode_of(&db), MediaPlayMode::RepeatOne));
+    let dir = tempfile::tempdir().unwrap();
+    let prefs = crate::prefs::Prefs::load(&crate::prefs::default_path(dir.path())).unwrap();
+    assert!(matches!(media_play_mode_of(&prefs), MediaPlayMode::Repeat));
+    crate::library::audio_queue::save_audio_mode(&prefs, "SHUFFLE").unwrap();
+    assert!(matches!(media_play_mode_of(&prefs), MediaPlayMode::Shuffle));
+    crate::library::audio_queue::save_audio_mode(&prefs, "REPEAT_ONE").unwrap();
+    assert!(matches!(media_play_mode_of(&prefs), MediaPlayMode::RepeatOne));
 }
 
 #[test]

@@ -26,13 +26,13 @@ fn open_creates_every_table_once() {
         "tags",
         "tag_relations",
         "favorite_folders",
-        "settings",
     ] {
         assert!(
             tables.iter().any(|t| t == expected),
             "missing table {expected}"
         );
     }
+    assert!(!tables.iter().any(|t| t == "settings"));
     // Reopening the same file is fine (CREATE IF NOT EXISTS).
     let path = std::env::temp_dir().join(format!(
         "plain-rs-library-reopen2-{}.db",
@@ -53,16 +53,4 @@ fn source_row_defaults_to_none() {
     assert_eq!(src.source, crate::db::audio_queue::QueueSourceKind::None);
     assert_eq!(src.current_path, "");
     assert_eq!(src.current_index, -1);
-}
-
-#[test]
-fn prefs_round_trip() {
-    let db = test_db("prefs");
-    assert!(crate::db::settings::get_setting(&db, "k").is_none());
-    crate::db::settings::set_setting(&db, "k", "v1");
-    crate::db::settings::set_setting(&db, "k", "v2");
-    assert_eq!(
-        crate::db::settings::get_setting(&db, "k").as_deref(),
-        Some("v2")
-    );
 }

@@ -1,4 +1,5 @@
 //! Row IO for the audio tables and settings. The playback-order state machine
+//! Row IO for the audio queue tables. The playback-order state machine
 //! lives in [`crate::library::audio_queue`].
 
 use rusqlite::params;

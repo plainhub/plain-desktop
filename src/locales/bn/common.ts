@@ -292,7 +292,7 @@ export default {
   no_excluded_dirs: 'কোনও ডিরেক্টরি বাদ দেওয়া হয়নি।',
   developer: {
     storage: 'স্টোরেজ',
-    datastore: 'DataStore',
+    prefs: 'Preferences',
     database: 'ডেটাবেস',
     logs: 'লগ',
     developer_mode: 'ডেভেলপার মোড',

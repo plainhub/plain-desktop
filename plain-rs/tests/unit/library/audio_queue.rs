@@ -489,17 +489,18 @@ fn audio_track_from_path_stem() {
 
 #[test]
 fn mode_defaults_to_repeat_and_roundtrips() {
-    let db = test_db("mode");
-    assert_eq!(get_audio_mode(&db), "REPEAT");
-    save_audio_mode(&db, "SHUFFLE");
-    assert_eq!(get_audio_mode(&db), "SHUFFLE");
-    save_audio_mode(&db, "  REPEAT_ONE ");
-    assert_eq!(get_audio_mode(&db), "REPEAT_ONE");
-    // It is a library pref row, persisted in the SQLite file.
-    assert_eq!(
-        crate::db::settings::get_setting(&db, "audio_play_mode").as_deref(),
-        Some("REPEAT_ONE")
-    );
+    let dir = tempfile::tempdir().unwrap();
+    let prefs = crate::prefs::Prefs::load(&crate::prefs::default_path(dir.path())).unwrap();
+    assert_eq!(get_audio_mode(&prefs), "REPEAT");
+    save_audio_mode(&prefs, "SHUFFLE").unwrap();
+    assert_eq!(get_audio_mode(&prefs), "SHUFFLE");
+    save_audio_mode(&prefs, "  REPEAT_ONE ").unwrap();
+    assert_eq!(get_audio_mode(&prefs), "REPEAT_ONE");
+    let stored: serde_json::Value = serde_json::from_str(
+        &std::fs::read_to_string(dir.path().join("user_prefs.json")).unwrap(),
+    )
+    .unwrap();
+    assert_eq!(stored["audio_play_mode"], "REPEAT_ONE");
 }
 
 #[test]

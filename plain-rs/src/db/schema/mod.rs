@@ -33,7 +33,6 @@ mod pomodoro;
 #[cfg(feature = "chat")]
 mod session;
 #[cfg(feature = "library")]
-mod settings;
 #[cfg(feature = "chat")]
 mod share;
 #[cfg(feature = "library")]
@@ -72,8 +71,6 @@ pub(super) fn init(conn: &Connection) -> rusqlite::Result<()> {
     session::init(conn)?;
     #[cfg(feature = "chat")]
     share::init(conn)?;
-    #[cfg(feature = "library")]
-    settings::init(conn)?;
     #[cfg(feature = "library")]
     favorite_folder::init(conn)?;
     #[cfg(feature = "library")]

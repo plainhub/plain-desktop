@@ -288,7 +288,7 @@ export default {
   no_excluded_dirs: 'Нет исключенных директорий.',
   developer: {
     storage: 'Хранилище',
-    datastore: 'DataStore',
+    prefs: 'Preferences',
     database: 'База данных',
     logs: 'Журналы',
     developer_mode: 'Режим разработчика',

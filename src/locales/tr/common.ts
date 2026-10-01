@@ -288,7 +288,7 @@ export default {
   no_excluded_dirs: 'Hariç tutulan dizin yok.',
   developer: {
     storage: 'Depolama',
-    datastore: 'DataStore',
+    prefs: 'Preferences',
     database: 'Veritabanı',
     logs: 'Günlükler',
     developer_mode: 'Geliştirici Modu',

@@ -2,7 +2,7 @@
 //! secrets — the read-or-generate-and-persist flows previously
 //! duplicated in plain-nas (`db::server_client_id` sibling logic) and
 //! the plain-desktop Tauri shells. Key names are the plain-app
-//! DataStore contract: `client_id` / `device_name` /
+//! Prefs contract: `client_id` / `device_name` /
 //! `signature_key_pair` / `url_token` / `mdns_hostname`.
 
 use super::Prefs;

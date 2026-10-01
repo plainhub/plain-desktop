@@ -46,6 +46,19 @@ fn merged_schema_sdl_has_single_tag_surface() {
 }
 
 #[test]
+fn preference_schema_uses_separate_json_stores() {
+    let sdl = build_schema().sdl();
+    assert!(sdl.contains("userPrefs: JSON!"));
+    assert!(sdl.contains("systemPrefs: JSON!"));
+    assert!(sdl.contains("setUserPref(key: String!, value: JSON!): Boolean!"));
+    assert!(sdl.contains("removeUserPref(key: String!): Boolean!"));
+    assert!(!sdl.contains("prefsPath:"));
+    assert!(!sdl.contains("prefEntries:"));
+    assert!(!sdl.contains("setPref("));
+    assert!(!sdl.contains("deletePref("));
+}
+
+#[test]
 fn pairing_inputs_match_plain_app_wire_types() {
     let sdl = build_schema().sdl();
     assert!(sdl.contains("cancelPairing(deviceId: ID!): Boolean!"));

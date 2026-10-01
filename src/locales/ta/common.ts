@@ -288,7 +288,7 @@ export default {
   no_excluded_dirs: 'எந்த கோப்புறைகளும் தவிர்க்கப்படவில்லை.',
   developer: {
     storage: 'சேமிப்பு',
-    datastore: 'DataStore',
+    prefs: 'Preferences',
     database: 'தரவுத்தளம்',
     logs: 'பதிவுகள்',
     developer_mode: 'டெவலப்பர் பயன்முறை',

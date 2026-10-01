@@ -344,12 +344,12 @@ gql_call "updateAudioPlaylist"      "mutation { updateAudioPlaylist(id: \"$AP_ID
 gql_call "deleteAudioPlaylist"      "mutation { deleteAudioPlaylist(id: \"$AP_ID\") }"
 gql_call "deletePlaylistAudio"      'mutation { deletePlaylistAudio(path: "/tmp/fake.mp3") }'
 
-section "Developer pages (logs / datastore / database / device-info)"
+section "Developer pages (logs / prefs / database / device-info)"
 gql_call "appLogPath"     '{ appLogPath }'
 gql_call "appLogs"        '{ appLogs(offset: 0, limit: 10) }'
 gql_call "clearAppLogs"   'mutation { clearAppLogs }'
 gql_call "dbPath"         '{ dbPath }'
-gql_call "dataStorePath"  '{ dataStorePath }'
+gql_call "prefsPath"  '{ prefsPath }'
 gql_call "dbTables"       '{ dbTables }'
 gql_call "dbTableInfo"    '{ dbTableInfo(table: "tag") { idKey } }'
 gql_call "dbTableRowCount" '{ dbTableRowCount(table: "tag") }'

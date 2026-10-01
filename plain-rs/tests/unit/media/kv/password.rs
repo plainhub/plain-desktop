@@ -47,7 +47,7 @@ fn stored_as_password_hash_preference() {
     let hash = hash_hex(b'a');
     PasswordStore::new(&prefs).set(&hash).unwrap();
 
-    // Visible on the DataStore page as a plain preference.
+    // Visible on the Preferences page as a plain preference.
     let reloaded = Prefs::load(&dir.path().join("prefs.json")).unwrap();
     assert_eq!(
         reloaded.get::<String>("password_hash").unwrap().as_deref(),

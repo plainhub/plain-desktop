@@ -288,7 +288,7 @@ export default {
   no_excluded_dirs: 'कोई डायरेक्टरी बाहर नहीं की गई।',
   developer: {
     storage: 'स्टोरेज',
-    datastore: 'DataStore',
+    prefs: 'Preferences',
     database: 'डेटाबेस',
     logs: 'लॉग्स',
     developer_mode: 'डेवलपर मोड',

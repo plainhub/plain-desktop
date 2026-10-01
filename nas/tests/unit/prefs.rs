@@ -18,10 +18,10 @@ fn tmp_prefs() -> (std::path::PathBuf, Prefs) {
 }
 
 #[test]
-fn default_path_is_data_dir_prefs_json() {
+fn default_path_is_system_prefs_json() {
     assert_eq!(
         default_path(std::path::Path::new("/data")),
-        std::path::PathBuf::from("/data/prefs.json")
+        std::path::PathBuf::from("/data/system_prefs.json")
     );
 }
 

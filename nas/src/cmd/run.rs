@@ -289,8 +289,8 @@ pub async fn run(paths: &AppPaths) -> Result<()> {
     .context("ensure self-signed cert")?;
     let cfg_arc = Arc::new(cfg);
 
-    // Preferences (`<data_dir>/prefs.json`) — settings, device identity
-    // and small app state; the fjall store holds row data only.
+    // Preferences (`<data_dir>/system_prefs.json` and `user_prefs.json`);
+    // the fjall store holds media rows only.
     let prefs = Arc::new(
         crate::prefs::Prefs::load(&crate::prefs::default_path(&paths.data_dir))
             .context("load prefs")?,

@@ -12,9 +12,9 @@
           </template>
         </SidebarListItem>
         <SidebarListItem
-          :title="$t('developer.datastore')"
-          :active="activeSection === 'datastore'"
-          @click="navigate('/developer/datastore')"
+          :title="$t('developer.prefs')"
+          :active="activeSection === 'prefs'"
+          @click="navigate('/developer/prefs')"
         >
           <template #start>
             <i-lucide:archive />
@@ -53,7 +53,7 @@ const mainStore = useMainStore()
 const activeSection = computed(() => {
   const path = router.currentRoute.value.path
   if (path.startsWith('/developer/device-info')) return 'device-info'
-  if (path.startsWith('/developer/datastore')) return 'datastore'
+  if (path.startsWith('/developer/prefs')) return 'prefs'
   if (path.startsWith('/developer/database')) return 'database'
   if (path.startsWith('/developer/logs')) return 'logs'
   return ''

@@ -288,7 +288,7 @@ export default {
   no_excluded_dirs: 'Không có thư mục nào bị loại trừ.',
   developer: {
     storage: 'Bộ nhớ',
-    datastore: 'DataStore',
+    prefs: 'Preferences',
     database: 'Cơ sở dữ liệu',
     logs: 'Nhật ký',
     developer_mode: 'Chế độ nhà phát triển',

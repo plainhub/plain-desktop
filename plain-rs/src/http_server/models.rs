@@ -47,7 +47,7 @@ pub(crate) mod test_support {
     pub(crate) fn nas_state_with(seed: impl FnOnce(&crate::prefs::Prefs)) -> ServerState {
         let dir = tempfile::tempdir().expect("temp dir");
         let data_dir = dir.path().to_path_buf();
-        let prefs = Arc::new(crate::prefs::Prefs::load(&data_dir.join("prefs.json")).expect("prefs load"));
+        let prefs = Arc::new(crate::prefs::Prefs::load(&crate::prefs::default_path(&data_dir)).expect("prefs load"));
         seed(&prefs);
         let chat = Arc::new(crate::chat_service::ChatState::nas_init(&data_dir, &prefs).expect("chat init"));
         let config = Arc::new(crate::media::config::Config::parse("[server]\nhttp_port = 8080\n"));

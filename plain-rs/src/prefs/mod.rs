@@ -1,13 +1,12 @@
-//! Unified preferences storage for the Plain* apps — one flat
-//! string→JSON map in `<data_dir>/prefs.json`, shared by plain-nas
-//! (server settings, device identity, small app state) and the
-//! plain-desktop Tauri shells (previously tauri-plugin-store). The key
-//! names match plain-app's Jetpack DataStore entries, so the file is the
-//! cross-platform contract.
+//! Unified preferences storage for the Plain* apps — separate flat
+//! string→JSON maps in `<data_dir>/system_prefs.json` and
+//! `<data_dir>/user_prefs.json`, shared by plain-nas, plain-desktop,
+//! and plain-app. System state and user-configurable settings have
+//! independent files and key spaces.
 //!
 //! The whole map is kept in memory (it is a few KB) and every mutation
-//! rewrites the file atomically (write `prefs.json.tmp` + rename), so the
-//! file on disk is always complete and pretty-printed for hand editing.
+//! rewrites its file atomically (write a temporary sibling + rename), so
+//! each file on disk is complete and pretty-printed for hand editing.
 //! Every host shares one `Arc<Prefs>` per process — there is exactly one
 //! writer, no stale caches. Media rows / sessions / events live in each
 //! app's own store; the user library (audio queue/playlists/history,
@@ -104,19 +103,22 @@ impl std::error::Error for PrefsError {
 pub type Result<T> = std::result::Result<T, PrefsError>;
 
 pub struct Prefs {
-    path: PathBuf,
-    inner: RwLock<Map<String, Value>>,
+    system: PrefsStore,
+    user: PrefsStore,
 }
 
 impl std::fmt::Debug for Prefs {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.debug_struct("Prefs").field("path", &self.path).finish()
+        f.debug_struct("Prefs")
+            .field("system_path", &self.system.path)
+            .field("user_path", &self.user.path)
+            .finish()
     }
 }
 
 /// Location of the preferences file inside the app data dir.
 pub fn default_path(data_dir: &Path) -> PathBuf {
-    data_dir.join("prefs.json")
+    data_dir.join("system_prefs.json")
 }
 
 impl Prefs {
@@ -124,6 +126,92 @@ impl Prefs {
     /// malformed file is an error (the file is hand-editable, so parse
     /// failures should be loud, not silently discarded).
     pub fn load(path: &Path) -> Result<Self> {
+        let user_path = path.with_file_name("user_prefs.json");
+        Self::load_pair(path, &user_path)
+    }
+
+    /// Load the system and user preference files independently.
+    pub fn load_pair(system_path: &Path, user_path: &Path) -> Result<Self> {
+        Ok(Self {
+            system: PrefsStore::load(system_path)?,
+            user: PrefsStore::load(user_path)?,
+        })
+    }
+
+    /// Absolute path of the system preferences file.
+    pub fn path(&self) -> &Path {
+        &self.system.path
+    }
+
+    /// Absolute path of the user preferences file.
+    pub fn user_path(&self) -> &Path {
+        &self.user.path
+    }
+
+    pub fn get<T: DeserializeOwned>(&self, key: &str) -> Result<Option<T>> {
+        self.system.get(key)
+    }
+
+    pub fn get_or<T: DeserializeOwned>(&self, key: &str, default: T) -> T {
+        self.system.get_or(key, default)
+    }
+
+    pub fn set<T: Serialize>(&self, key: &str, value: T) -> Result<bool> {
+        self.system.set(key, value)
+    }
+
+    pub fn remove(&self, key: &str) -> Result<bool> {
+        self.system.remove(key)
+    }
+
+    pub fn clear(&self) -> Result<()> {
+        self.system.clear()
+    }
+
+    pub fn entries(&self) -> Vec<(String, Value)> {
+        self.system.entries()
+    }
+
+    pub fn entries_sorted(&self) -> Vec<(String, String)> {
+        self.system.entries_sorted()
+    }
+
+    pub fn get_user<T: DeserializeOwned>(&self, key: &str) -> Result<Option<T>> {
+        self.user.get(key)
+    }
+
+    pub fn get_user_or<T: DeserializeOwned>(&self, key: &str, default: T) -> T {
+        self.user.get_or(key, default)
+    }
+
+    pub fn set_user<T: Serialize>(&self, key: &str, value: T) -> Result<bool> {
+        self.user.set(key, value)
+    }
+
+    pub fn remove_user(&self, key: &str) -> Result<bool> {
+        self.user.remove(key)
+    }
+
+    pub fn clear_user(&self) -> Result<()> {
+        self.user.clear().map(|_| ())
+    }
+
+    pub fn user_entries(&self) -> Vec<(String, Value)> {
+        self.user.entries()
+    }
+
+    pub fn user_entries_sorted(&self) -> Vec<(String, String)> {
+        self.user.entries_sorted()
+    }
+}
+
+struct PrefsStore {
+    path: PathBuf,
+    inner: RwLock<Map<String, Value>>,
+}
+
+impl PrefsStore {
+    fn load(path: &Path) -> Result<Self> {
         let inner = match std::fs::read_to_string(path) {
             Ok(text) => serde_json::from_str(&text).map_err(|source| PrefsError::Parse {
                 path: path.to_path_buf(),
@@ -143,13 +231,8 @@ impl Prefs {
         })
     }
 
-    /// Absolute path of the backing file.
-    pub fn path(&self) -> &Path {
-        &self.path
-    }
-
     /// Read one entry, deserialized from its JSON value.
-    pub fn get<T: DeserializeOwned>(&self, key: &str) -> Result<Option<T>> {
+    fn get<T: DeserializeOwned>(&self, key: &str) -> Result<Option<T>> {
         match self.inner.read().unwrap().get(key) {
             None => Ok(None),
             Some(v) => Ok(Some(
@@ -159,13 +242,13 @@ impl Prefs {
     }
 
     /// Read one entry, or `default` when absent / not deserializable.
-    pub fn get_or<T: DeserializeOwned>(&self, key: &str, default: T) -> T {
+    fn get_or<T: DeserializeOwned>(&self, key: &str, default: T) -> T {
         self.get(key).unwrap_or(None).unwrap_or(default)
     }
 
     /// Write one entry and persist the file. Returns whether the value
     /// changed (skips the disk write when it did not).
-    pub fn set<T: Serialize>(&self, key: &str, value: T) -> Result<bool> {
+    fn set<T: Serialize>(&self, key: &str, value: T) -> Result<bool> {
         let new = serde_json::to_value(value).map_err(PrefsError::Encode)?;
         let mut inner = self.inner.write().unwrap();
         if inner.get(key) == Some(&new) {
@@ -176,7 +259,7 @@ impl Prefs {
     }
 
     /// Remove one entry (if present) and persist the file.
-    pub fn remove(&self, key: &str) -> Result<bool> {
+    fn remove(&self, key: &str) -> Result<bool> {
         let mut inner = self.inner.write().unwrap();
         if inner.remove(key).is_none() {
             return Ok(false);
@@ -185,7 +268,7 @@ impl Prefs {
     }
 
     /// Remove every entry and persist the file.
-    pub fn clear(&self) -> Result<()> {
+    fn clear(&self) -> Result<()> {
         let mut inner = self.inner.write().unwrap();
         inner.clear();
         self.save(&inner)?;
@@ -193,7 +276,7 @@ impl Prefs {
     }
 
     /// Every entry sorted by key with its raw JSON value.
-    pub fn entries(&self) -> Vec<(String, Value)> {
+    fn entries(&self) -> Vec<(String, Value)> {
         let mut entries: Vec<(String, Value)> = self
             .inner
             .read()
@@ -205,10 +288,8 @@ impl Prefs {
         entries
     }
 
-    /// Every entry sorted by key, values rendered as compact JSON —
-    /// the `dataStoreEntries` GraphQL shape (plain-nas and plain-desktop
-    /// render `serde_json::Value::to_string()` the same way).
-    pub fn entries_sorted(&self) -> Vec<(String, String)> {
+    /// Every entry sorted by key, with values rendered as compact JSON.
+    fn entries_sorted(&self) -> Vec<(String, String)> {
         self.entries()
             .into_iter()
             .map(|(k, v)| (k, v.to_string()))

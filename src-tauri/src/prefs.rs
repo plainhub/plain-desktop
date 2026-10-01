@@ -2,7 +2,7 @@
 //! engine (`plain_rs::prefs`). The Tauri shell owns no storage code:
 //! everything persists through the process-wide `Arc<Prefs>` managed
 //! as Tauri state in `lib.rs` — the same instance the local API server
-//! uses, so `<app_data_dir>/prefs.json` has exactly one writer.
+//! uses, so `system_prefs.json` and `user_prefs.json` each have one writer.
 //! Identity / url-token / mDNS-hostname bootstrap and the DLNA sender
 //! lists live in plain-rs (`plain_rs::prefs::identity`,
 //! `plain_rs::prefs::dlna`).

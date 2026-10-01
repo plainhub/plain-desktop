@@ -136,7 +136,7 @@ export default {
   },
   developer: {
     storage: '存储',
-    datastore: 'DataStore',
+    prefs: '偏好设置',
     database: '数据库',
     logs: '日志',
     developer_mode: '开发者模式',

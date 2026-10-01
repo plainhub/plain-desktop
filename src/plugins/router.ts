@@ -199,9 +199,9 @@ const router = createRouter({
           redirect: '/developer/device-info',
         },
         {
-          path: 'developer/datastore',
+          path: 'developer/prefs',
           components: {
-            default: () => import('@/views/developer/DeveloperDataStoreView.vue'),
+            default: () => import('@/views/developer/DeveloperPrefsView.vue'),
             LeftSidebar: () => import('@/views/developer/DeveloperSidebar.vue'),
           },
           meta: { group: 'developer' },

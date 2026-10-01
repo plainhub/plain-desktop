@@ -1,23 +1,30 @@
 <template>
   <Teleport v-if="isActive" to="#header-end-slot" defer>
-    <v-dropdown v-if="dataStorePath" v-model="pathOpen">
-      <template #trigger>
-        <v-icon-button>
-          <i-lucide:info />
-        </v-icon-button>
-      </template>
-      <section class="card card-info">
-        <div class="key-value vertical">
-          <div class="key">{{ $t('path') }}</div>
-          <div class="value">{{ dataStorePath }}</div>
-        </div>
-      </section>
-    </v-dropdown>
     <v-icon-button v-tooltip="$t('refresh')" :loading="loading" @click="refetch">
       <i-material-symbols:refresh-rounded />
     </v-icon-button>
   </Teleport>
   <div class="scroll-content">
+    <div class="button-group tab-group" role="tablist" aria-label="Preferences">
+      <button
+        type="button"
+        role="tab"
+        :aria-selected="activeTab === 'system'"
+        :class="{ selected: activeTab === 'system' }"
+        @click="activeTab = 'system'"
+      >
+        {{ $t('device.system') }}
+      </button>
+      <button
+        type="button"
+        role="tab"
+        :aria-selected="activeTab === 'user'"
+        :class="{ selected: activeTab === 'user' }"
+        @click="activeTab = 'user'"
+      >
+        {{ $t('user') }}
+      </button>
+    </div>
     <div v-if="loading" class="state-wrap">
       <v-circular-progress indeterminate />
     </div>
@@ -26,7 +33,7 @@
       :columns="['key', 'value']"
       :rows="entries"
       row-key="key"
-      :debug="app.debug"
+      :debug="app.debug && activeTab === 'user'"
       :deleting-key="deletingKey"
       @delete="deleteEntry"
     />
@@ -38,11 +45,11 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onActivated, onDeactivated } from 'vue'
+import { computed, ref, onActivated, onDeactivated } from 'vue'
 import { storeToRefs } from 'pinia'
 import { useTempStore } from '@/stores/temp'
-import { initQuery, dataStoreEntriesGQL, dataStorePathGQL } from '@/lib/api/query'
-import { initMutation, deleteDataStoreEntryGQL } from '@/lib/api/mutation'
+import { initQuery, prefsGQL } from '@/lib/api/query'
+import { initMutation, removeUserPrefGQL } from '@/lib/api/mutation'
 import DevDataTable from './DevDataTable.vue'
 
 const isActive = ref(false)
@@ -50,40 +57,40 @@ onActivated(() => { isActive.value = true })
 onDeactivated(() => { isActive.value = false })
 
 const { app } = storeToRefs(useTempStore())
+const activeTab = ref<'system' | 'user'>('user')
 
 interface KeyValuePair {
   key: string
   value: string
 }
 
-const entries = ref<KeyValuePair[]>([])
+const systemEntries = ref<KeyValuePair[]>([])
+const userEntries = ref<KeyValuePair[]>([])
+const entries = computed(() => activeTab.value === 'system' ? systemEntries.value : userEntries.value)
 const deletingKey = ref('')
-const dataStorePath = ref('')
-const pathOpen = ref(false)
-
-initQuery({
-  handle(data: { dataStorePath: string }, error: string) {
-    if (!error && data?.dataStorePath) dataStorePath.value = data.dataStorePath
-  },
-  document: dataStorePathGQL,
-})
-
 const { loading, refetch } = initQuery({
-  handle(data: { dataStoreEntries: KeyValuePair[] }, error: string) {
+  handle(data: { systemPrefs: Record<string, unknown>; userPrefs: Record<string, unknown> }, error: string) {
     if (!error) {
-      entries.value = data?.dataStoreEntries ?? []
+      systemEntries.value = toEntries(data?.systemPrefs)
+      userEntries.value = toEntries(data?.userPrefs)
     }
   },
-  document: dataStoreEntriesGQL,
+  document: prefsGQL,
 })
 
-const { mutate: deleteMutate } = initMutation({ document: deleteDataStoreEntryGQL })
+const { mutate: deleteMutate } = initMutation({ document: removeUserPrefGQL })
 
 async function deleteEntry(key: string) {
   deletingKey.value = key
   await deleteMutate({ key })
   deletingKey.value = ''
   refetch()
+}
+
+function toEntries(prefs: Record<string, unknown> | undefined): KeyValuePair[] {
+  return Object.entries(prefs ?? {})
+    .map(([key, value]) => ({ key, value: JSON.stringify(value) }))
+    .sort((a, b) => a.key.localeCompare(b.key))
 }
 </script>
 
@@ -92,6 +99,12 @@ async function deleteEntry(key: string) {
   flex: 1;
   overflow-y: auto;
   padding: 16px;
+}
+
+.tab-group {
+  width: fit-content;
+  margin-bottom: 16px;
+  background: var(--md-sys-color-surface-container);
 }
 
 .state-wrap {

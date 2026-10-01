@@ -25,6 +25,5 @@ pub mod notes_feeds;
 #[cfg(feature = "chat")]
 mod peer;
 #[cfg(feature = "library")]
-pub mod settings;
 #[cfg(feature = "library")]
 pub mod tag;

@@ -6,11 +6,11 @@
 
 | 项目 | plain-rs | plain-app |
 |---|---:|---:|
-| 表数 | 29 | 29 |
-| 同名表 | 25 | 25 |
-| 两边未对齐名称的表 | `favorite_folders`, `settings` | `book_chapters`, `books`（plain-rs 按要求不实现 book 功能） |
+| 表数 | 28 | 29 |
+| 同名表 | 24 | 24 |
+| 两边未对齐名称的表 | `favorite_folders` | `book_chapters`, `books`（plain-rs 按要求不实现 book 功能） |
 
-两边有 27 组功能表对应关系（25 张同名表，加上以下两组用户指定的表名映射）。表名映射为：plain-app `files` 对应 plain-rs `app_files`；plain-app `trashed_messages` 对应 plain-rs `trashed_sms`。这两组字段完全一致。
+两边有 26 组功能表对应关系（24 张同名表，加上以下两组用户指定的表名映射）。表名映射为：plain-app `files` 对应 plain-rs `app_files`；plain-app `trashed_messages` 对应 plain-rs `trashed_sms`。这两组字段完全一致。
 
 ## 字段差异
 
@@ -25,7 +25,6 @@
 | 表 | 字段 | 用途 |
 |---|---|---|
 | `favorite_folders` | `root_path`, `relative_path`, `alias` | plain-rs 资料库收藏目录。 |
-| `settings` | `key`, `value` | 用户设置。`prefs.json` 继续保存由 app 生成和管理的配置。 |
 
 ## plain-rs 当前字段清单
 
@@ -54,7 +53,6 @@
 | `peers` | `id`, `name`, `ip`, `key`, `public_key`, `status`, `port`, `device_type`, `token`, `created_at`, `updated_at` |
 | `pomodoro_items` | `id`, `date`, `completed_count`, `total_work_seconds`, `total_break_seconds`, `created_at`, `updated_at` |
 | `sessions` | `client_id`, `name`, `type`, `client_ip`, `os_name`, `os_version`, `browser_name`, `browser_version`, `token`, `last_active_at`, `created_at`, `updated_at` |
-| `settings` | `key`, `value` |
 | `shares` | `id`, `name`, `password`, `url_token`, `expires_at`, `read_only`, `data`, `created_at`, `updated_at` |
 | `tag_relations` | `tag_id`, `key`, `type`, `created_at`, `size`, `title` |
 | `tags` | `id`, `name`, `type`, `count`, `created_at`, `updated_at` |
@@ -63,6 +61,6 @@
 
 ## 说明
 
-- `library_prefs` 已改名为 `settings`，只用于用户设置；app 管理配置仍在 `prefs.json`。
+- 音频播放模式等用户设置保存在 `user_prefs.json`；系统状态保存在 `system_prefs.json`，均不属于 SQLite schema。
 - plain-rs 没有另建 `files` 表，继续使用 `app_files` 保存与 plain-app `files` 对应的数据。
 - schema 变更只更新当前建表定义和正常读写代码；未加入旧数据库迁移或兼容逻辑。

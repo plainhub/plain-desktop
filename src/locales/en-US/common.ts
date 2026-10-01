@@ -89,6 +89,7 @@ export default {
   stopped: 'Stopped',
   basic: 'Basic',
   name: 'Name',
+  user: 'User',
   address: 'Address',
   yes: 'Yes',
   no: 'No',
@@ -145,7 +146,7 @@ export default {
   },
   developer: {
     storage: 'Storage',
-    datastore: 'DataStore',
+    prefs: 'Preferences',
     database: 'Database',
     logs: 'Logs',
     developer_mode: 'Developer Mode',

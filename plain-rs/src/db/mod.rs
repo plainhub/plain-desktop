@@ -22,7 +22,7 @@ pub use managers::browse;
 pub use managers::devtools;
 #[cfg(feature = "library")]
 pub use managers::{
-    audio_queue, favorite_folder, image_editor_project, notes_feeds, settings, tag,
+    audio_queue, favorite_folder, image_editor_project, notes_feeds, tag,
 };
 
 #[cfg(all(feature = "chat", feature = "sqlite_browse"))]

@@ -621,6 +621,11 @@ enum ImageSearchStatusType {
 
 scalar Instant
 
+"""
+A scalar that can represent any JSON value.
+"""
+scalar JSON
+
 type KeyValuePair {
 	key: String!
 	value: String!
@@ -846,9 +851,8 @@ type MutationRoot {
 	"""
 	unpairPeer(id: ID!): Boolean!
 	clearAppLogs: Boolean!
-	setPref(key: String!, value: String!): KeyValuePair!
-	deletePref(key: String!): Boolean!
-	deleteDataStoreEntry(key: String!): Boolean!
+	setUserPref(key: String!, value: JSON!): Boolean!
+	removeUserPref(key: String!): Boolean!
 	createDbTableRow(table: String!, row: String!): Boolean!
 	deleteDbTableRows(table: String!, ids: [String!]!): Boolean!
 	"""
@@ -1286,9 +1290,8 @@ type QueryRoot {
 	appFileCount(query: String!): Int!
 	appLogs(offset: Int!, limit: Int!, query: String!): [String!]!
 	appLogPath: String!
-	prefs: [KeyValuePair!]!
-	dataStorePath: String!
-	dataStoreEntries: [KeyValuePair!]!
+	userPrefs: JSON!
+	systemPrefs: JSON!
 	dbPath: String!
 	dbTables: [String!]!
 	dbTableRowCount(table: String!): Long!

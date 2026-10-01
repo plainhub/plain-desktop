@@ -288,7 +288,7 @@ export default {
   no_excluded_dirs: 'Geen mappen uitgesloten.',
   developer: {
     storage: 'Opslag',
-    datastore: 'DataStore',
+    prefs: 'Preferences',
     database: 'Database',
     logs: 'Logboeken',
     developer_mode: 'Ontwikkelaarsmodus',

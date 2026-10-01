@@ -289,7 +289,7 @@ export default {
   no_excluded_dirs: 'Nessuna directory esclusa.',
   developer: {
     storage: 'Archiviazione',
-    datastore: 'DataStore',
+    prefs: 'Preferences',
     database: 'Database',
     logs: 'Log',
     developer_mode: 'Modalità sviluppatore',

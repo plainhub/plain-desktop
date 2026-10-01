@@ -19,14 +19,14 @@ chat = ["dep:serde_json", "dep:rusqlite", "sqlite_browse", "tokio/sync", "tokio/
 # playlists / play history, tags + tag relations, favorite folders.
 # Ported from plain-nas's fjall implementations so NAS and desktop run
 # identical behavior. Consumers without a library skip it entirely.
-library = ["dep:rusqlite", "dep:chrono"]
+library = ["dep:rusqlite", "dep:chrono", "prefs"]
 # SQLite table browsing for developer/debug UIs (the
 # /developer/database page): list tables, count + page rows as JSON,
 # PRAGMA column metadata, delete/insert rows. Shared by plain-nas
 # and plain-desktop devtools surfaces over the shared SQLite database.
 sqlite_browse = ["dep:rusqlite", "dep:serde_json"]
-# Unified preferences storage (`<data_dir>/prefs.json`, flat string→JSON
-# map): the single engine + first-run identity/url-token/mDNS-hostname
+# Unified preferences storage (`system_prefs.json` + `user_prefs.json`, flat
+# string→JSON maps): the shared engine + first-run identity/url-token/mDNS-hostname
 # bootstrap + DLNA sender-list helpers shared by plain-nas and the
 # plain-desktop Tauri shells (replaces per-app copies and
 # tauri-plugin-store).

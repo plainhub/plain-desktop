@@ -396,16 +396,13 @@ export interface GqlOperations {
     }
     variables: undefined
   }
-  setPrefGQL: {
+  setUserPrefGQL: {
     result: {
-      setPref: {
-        key: string
-        value: string
-      }
+      setUserPref: boolean
     }
     variables: {
       key: string
-      value: string
+      value: unknown
     }
   }
   updateDeviceNameGQL: {
@@ -1363,9 +1360,9 @@ export interface GqlOperations {
       query: string
     }
   }
-  deleteDataStoreEntryGQL: {
+  removeUserPrefGQL: {
     result: {
-      deleteDataStoreEntry: boolean
+      removeUserPref: boolean
     }
     variables: {
       key: string
@@ -2200,12 +2197,6 @@ export interface GqlOperations {
     }
     variables: undefined
   }
-  dataStorePathGQL: {
-    result: {
-      dataStorePath: string
-    }
-    variables: undefined
-  }
   uploadedChunksGQL: {
     result: {
       uploadedChunks: Array<string>
@@ -2263,21 +2254,16 @@ export interface GqlOperations {
     }
     variables: undefined
   }
-  dataStoreEntriesGQL: {
+  userPrefsGQL: {
     result: {
-      dataStoreEntries: Array<{
-        key: string
-        value: string
-      }>
+      userPrefs: unknown
     }
     variables: undefined
   }
   prefsGQL: {
     result: {
-      prefs: Array<{
-        key: string
-        value: string
-      }>
+      systemPrefs: unknown
+      userPrefs: unknown
     }
     variables: undefined
   }

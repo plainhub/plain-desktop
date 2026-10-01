@@ -30,7 +30,7 @@ fn persisted_as_base64_keypair_like_plain_desktop() {
     SignatureKey::new(&prefs).ensure().unwrap();
 
     // The preference is the base64 of the 64-byte keypair — readable on
-    // the DataStore page, exactly plain-desktop's storage shape.
+    // the Preferences page, exactly plain-desktop's storage shape.
     let stored = prefs
         .get::<String>(SIGNATURE_KEYPAIR_KEY)
         .unwrap()

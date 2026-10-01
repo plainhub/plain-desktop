@@ -63,15 +63,15 @@ pub fn run() {
             // The unified preferences store — created before anything
             // reads a preference (shortcut registration below reads
             // `capture_shortcut`). One Arc per process, shared with the
-            // local API server; `<app_data_dir>/prefs.json` (the file
-            // tauri-plugin-store used to write, loaded as-is).
+            // local API server; system and user settings use separate
+            // files under the app data directory.
             let data_dir = app
                 .path()
                 .app_data_dir()
                 .unwrap_or_else(|_| std::path::PathBuf::from("."));
             let prefs = Arc::new(
                 plain_rs::prefs::Prefs::load(&plain_rs::prefs::default_path(&data_dir))
-                    .expect("prefs.json load"),
+                    .expect("preference files load"),
             );
             let saved_roots = plain_rs::media::kv::media_source::get(&prefs);
             let mut root_candidates: Vec<std::path::PathBuf> = saved_roots

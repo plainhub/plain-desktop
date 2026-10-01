@@ -93,8 +93,8 @@ impl WsEvent {
 /// Passed per-request via `Request::data(Arc<AppCtx>)`.
 pub struct AppCtx {
     pub db: Arc<Db>,
-    /// The unified preferences store (`<data_dir>/prefs.json`) — the
-    /// single in-process writer; resolvers read/write through it.
+    /// The shared system/user preference stores — one in-process writer
+    /// for each file; resolvers read/write through them.
     pub prefs: Arc<crate::prefs::Prefs>,
     pub identity: Arc<AppIdentity>,
     pub peer_status: PeerStatusManager,
@@ -106,7 +106,7 @@ pub struct AppCtx {
     pub token: String,
     pub port: Arc<AtomicU16>,
     pub https_port: Arc<AtomicU16>,
-    /// App data directory — used by debug resolvers to read prefs.json.
+    /// App data directory — used by developer resolvers to locate app data.
     pub data_dir: std::path::PathBuf,
     /// App log directory — used by debug resolvers to read/clear plain.log.
     pub log_dir: std::path::PathBuf,

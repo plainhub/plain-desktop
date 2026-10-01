@@ -170,8 +170,8 @@ pub fn save_audio_current(db: &Db, path: &str) {
 }
 
 /// The play mode name (REPEAT / REPEAT_ONE / SHUFFLE); REPEAT when unset.
-pub fn get_audio_mode(db: &Db) -> String {
-    let raw = crate::db::settings::get_setting(db, PREF_AUDIO_MODE).unwrap_or_default();
+pub fn get_audio_mode(prefs: &crate::prefs::Prefs) -> String {
+    let raw = prefs.get_user_or(PREF_AUDIO_MODE, DEFAULT_AUDIO_MODE.to_string());
     let trimmed = raw.trim();
     if trimmed.is_empty() {
         DEFAULT_AUDIO_MODE.to_string()
@@ -180,9 +180,9 @@ pub fn get_audio_mode(db: &Db) -> String {
     }
 }
 
-pub fn save_audio_mode(db: &Db, mode: &str) {
+pub fn save_audio_mode(prefs: &crate::prefs::Prefs, mode: &str) -> crate::prefs::Result<bool> {
     // Store trimmed — a clean preference value.
-    crate::db::settings::set_setting(db, PREF_AUDIO_MODE, mode.trim());
+    prefs.set_user(PREF_AUDIO_MODE, mode.trim())
 }
 
 /// Playlist id when the active playback source is a user playlist, else None.

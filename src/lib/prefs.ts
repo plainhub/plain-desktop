@@ -2,8 +2,8 @@
  * Unified preferences store.
  *
  * On Tauri: backed by the Rust-side plain-rs Prefs engine
- * (`<app_data_dir>/prefs.json` — the same file the local API server
- * uses) through the `prefs_*` IPC commands.
+ * (`<app_data_dir>/system_prefs.json` — the system store also used by
+ * the local API server) through the `prefs_*` IPC commands.
  *   - Call `preload()` once during app bootstrap (before mounting) to
  *     populate the in-memory cache. Subsequent `get()` calls are
  *     synchronous.

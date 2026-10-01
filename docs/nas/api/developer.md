@@ -5,10 +5,10 @@
 `/developer/database`、`/developer/device-info`（deviceInfo 见 `app.md`）。
 
 桌面与 NAS 均使用 `<data_dir>/plain.db` 这一个 SQLite 文件。聊天、资料库、notes 和 feeds 表都在同一个连接中。
-`prefs.json` 保存设备设置；fjall 保存媒体等服务端状态。
+`system_prefs.json` 和 `user_prefs.json` 分别保存系统状态与用户设置；fjall 保存媒体等服务端状态。
 
-- **DataStore 页 = `<data_dir>/prefs.json`**：扁平 string→JSON map，存用户设置、
-  设备身份与小体量应用状态。写入时原子替换。
+- **DataStore 页 = `<data_dir>/system_prefs.json` + `<data_dir>/user_prefs.json`**：
+  两个独立的扁平 string→JSON map，分别存系统状态和用户设置。写入时各自原子替换。
 - **Database 页 = 单个 SQLite 文件**：列出该文件的全部用户表，包括 chats、peers、
   bookmarks、audio_queue、tags、favorite_folders、notes 和 feeds。表名没有库前缀；
   列元数据来自 `PRAGMA table_info`，行来自 `SELECT *` 的 JSON 字符串。
@@ -42,8 +42,8 @@ curl -s -X POST -H "Authorization: Bearer dev" -H "Content-Type: application/jso
 
 ### `dataStorePath: String!`
 
-偏好文件绝对路径（`<data_dir>/prefs.json`）——与 `dbPath` 是两个真实文件，
-对齐 plain-desktop 的 `prefs.json` / `plain.db` 二分。
+系统偏好文件绝对路径（`<data_dir>/system_prefs.json`）；用户偏好保存在同目录的
+`user_prefs.json`。两者与 `dbPath` 是独立文件。
 
 ### `dbTables: [String!]!`
 
@@ -70,8 +70,9 @@ curl -s -X POST -H "Authorization: Bearer dev" -H "Content-Type: application/jso
 
 ### `dataStoreEntries: [KeyValuePair!]!` `{ key value }`
 
-prefs.json 的全部条目，键排序，value 以 JSON 文本渲染（字符串带引号、对象/数组
-为紧凑 JSON——与 plain-desktop 的 `serde_json::Value::to_string()` 一致）。
+系统偏好文件的全部条目，键排序，value 以 JSON 文本渲染（字符串带引号、对象/数组
+为紧凑 JSON——与 plain-desktop 的 `serde_json::Value::to_string()` 一致）。用户偏好由
+`userPrefs` 查询返回。
 读一个小文件，完全不碰 fjall。注意 `password_hash` 等敏感键也在页内——本页与
 整库同权，仅限已认证管理员使用。
 

@@ -12,7 +12,7 @@ pub mod chat_message;
 mod chat_peer;
 mod chat_query;
 mod content_common;
-mod datastore;
+mod prefs;
 mod db;
 mod discover;
 mod download;
@@ -40,7 +40,7 @@ use chat_channel::ChatChannelMutation;
 use chat_message::ChatMessageMutation;
 use chat_peer::ChatPeerMutation;
 use chat_query::ChatQuery;
-use datastore::{DataStoreMutation, DataStoreQuery};
+use prefs::{PrefsMutation, PrefsQuery};
 use db::{DbMutation, DbQuery};
 use discover::{DiscoverMutation, DiscoverQuery};
 use download::DownloadMutation;
@@ -62,7 +62,7 @@ pub struct QueryRoot(
     ChatQuery,
     AppFileQuery,
     AppLogsQuery,
-    DataStoreQuery,
+    PrefsQuery,
     DbQuery,
     FileUploadQuery,
     FavoriteFolderQuery,
@@ -85,7 +85,7 @@ pub struct MutationRoot(
     ChatChannelMutation,
     ChatPeerMutation,
     AppLogsMutation,
-    DataStoreMutation,
+    PrefsMutation,
     DbMutation,
     FileUploadMutation,
     DiscoverMutation,
