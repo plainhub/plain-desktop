@@ -2,59 +2,38 @@ use rusqlite::Connection;
 use std::path::Path;
 use std::sync::{Arc, Mutex};
 
-#[cfg(feature = "sqlite_browse")]
-pub mod browse;
+#[cfg(any(
+    feature = "chat",
+    feature = "library",
+    feature = "sqlite_browse",
+    feature = "system"
+))]
+mod managers;
+#[cfg(any(feature = "chat", feature = "library", feature = "sqlite_browse"))]
+mod models;
 #[cfg(any(feature = "chat", feature = "library"))]
 mod schema;
-#[cfg(feature = "chat")]
-mod managers;
-#[cfg(feature = "chat")]
-mod models;
-#[cfg(feature = "chat")]
-pub mod bookmark;
-#[cfg(feature = "chat")]
-mod channel;
-#[cfg(feature = "chat")]
-mod chat;
-#[cfg(feature = "chat")]
-mod nearby_device;
-#[cfg(feature = "chat")]
-mod peer;
-#[cfg(feature = "chat")]
-mod db_time;
-#[cfg(feature = "library")]
-pub mod audio_queue;
-#[cfg(feature = "library")]
-pub mod image_editor_project;
-#[cfg(feature = "library")]
-pub mod favorite_folder;
-#[cfg(feature = "library")]
-pub mod notes_feeds;
-#[cfg(feature = "library")]
-pub mod tag;
-#[cfg(feature = "system")]
-pub mod devtools;
 
 #[cfg(feature = "chat")]
-pub use models::DAppFile;
-#[cfg(feature = "chat")]
-pub use channel::DChannel;
-#[cfg(feature = "chat")]
-pub use chat::DChat;
-#[cfg(feature = "chat")]
-pub use nearby_device::DNearbyDeviceCache;
-#[cfg(feature = "chat")]
-pub use peer::DPeer;
-#[cfg(feature = "chat")]
-pub use db_time::{iso_from_unix_millis, now_iso, now_millis, short_id};
+pub use managers::bookmark;
+#[cfg(feature = "sqlite_browse")]
+pub use managers::browse;
+#[cfg(feature = "system")]
+pub use managers::devtools;
 #[cfg(feature = "library")]
-pub use audio_queue::{HISTORY_KEEP, PlayHistory, Playlist, PlaylistItem, QueueItem, QueueSource, QueueSourceKind};
-#[cfg(feature = "library")]
-pub use favorite_folder::FavoriteFolderRow;
-#[cfg(feature = "library")]
-pub use tag::{TagRelationRow, TagRow};
+pub use managers::{audio_queue, favorite_folder, image_editor_project, notes_feeds, tag};
+
 #[cfg(all(feature = "chat", feature = "sqlite_browse"))]
 pub use crate::sqlite_browse::TableColumnMeta;
+#[cfg(feature = "chat")]
+pub use managers::db_time::{iso_from_unix_millis, now_iso, now_millis, short_id};
+#[cfg(feature = "chat")]
+pub use models::{DAppFile, DChannel, DChat, DNearbyDeviceCache, DPeer};
+#[cfg(feature = "library")]
+pub use models::{
+    FavoriteFolderRow, HISTORY_KEEP, PlayHistory, Playlist, PlaylistItem, QueueItem, QueueSource,
+    QueueSourceKind, TagRelationRow, TagRow,
+};
 
 #[derive(Clone)]
 pub struct Db(Arc<Mutex<Connection>>);
@@ -112,9 +91,9 @@ impl Db {
 #[path = "../../tests/unit/db/mod.rs"]
 mod tests;
 
-#[cfg(all(test, feature = "library"))]
-#[path = "../../tests/unit/library/db/mod.rs"]
-mod library_tests;
 #[cfg(all(test, feature = "chat"))]
 #[path = "../../tests/unit/chat/db/mod.rs"]
 mod chat_tests;
+#[cfg(all(test, feature = "library"))]
+#[path = "../../tests/unit/library/db/mod.rs"]
+mod library_tests;

@@ -4,23 +4,8 @@
 
 use rusqlite::params;
 
-use super::Db;
-
-#[derive(Clone, Debug, PartialEq, Eq)]
-pub struct TagRow {
-    pub id: String,
-    pub name: String,
-    /// Numeric plain-app `DataType` ordinal (0=DEFAULT, 1=AUDIO, 2=VIDEO,
-    /// 3=IMAGE, …).
-    pub kind: i32,
-    pub count: i32,
-}
-
-#[derive(Clone, Debug, PartialEq, Eq)]
-pub struct TagRelationRow {
-    pub tag_id: String,
-    pub key: String,
-}
+use crate::db::Db;
+pub use crate::db::models::tag::{TagRelationRow, TagRow};
 
 const TAG_COLUMNS: &str =
     "id,name,type,(SELECT COUNT(*) FROM tag_relations r WHERE r.tag_id = tags.id)";
@@ -205,5 +190,5 @@ pub fn remove_relations_for_keys(db: &Db, keys: &[String]) {
 }
 
 #[cfg(test)]
-#[path = "../../tests/unit/library/db/tag.rs"]
+#[path = "../../../tests/unit/library/db/tag.rs"]
 mod tests;

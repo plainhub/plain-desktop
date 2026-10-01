@@ -3,14 +3,8 @@
 
 use rusqlite::params;
 
-use super::Db;
-
-#[derive(Clone, Debug, PartialEq, Eq)]
-pub struct FavoriteFolderRow {
-    pub root_path: String,
-    pub relative_path: String,
-    pub alias: Option<String>,
-}
+use crate::db::Db;
+pub use crate::db::models::favorite_folder::FavoriteFolderRow;
 
 pub fn all_folders(db: &Db) -> Vec<FavoriteFolderRow> {
     db.with_conn(|conn| {
@@ -97,5 +91,5 @@ pub fn set_folder_alias(
 }
 
 #[cfg(test)]
-#[path = "../../tests/unit/library/db/favorite_folder.rs"]
+#[path = "../../../tests/unit/library/db/favorite_folder.rs"]
 mod tests;

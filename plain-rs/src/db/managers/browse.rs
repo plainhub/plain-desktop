@@ -15,7 +15,6 @@
 //! parameters).
 
 use rusqlite::Connection;
-use std::fmt;
 
 // Re-exported so consumers with a `with_conn` seam can name the
 // connection type without depending on rusqlite themselves.
@@ -25,73 +24,7 @@ pub use rusqlite;
 /// runaway client from materialising an unbounded page.
 pub const MAX_PAGE_LIMIT: i64 = 1000;
 
-/// A browsing failure: a rejected identifier, an empty required input, or
-/// the underlying SQLite error.
-#[derive(Debug)]
-pub enum SqliteBrowseError {
-    Invalid(String),
-    Sqlite(rusqlite::Error),
-}
-
-impl fmt::Display for SqliteBrowseError {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match self {
-            SqliteBrowseError::Invalid(msg) => write!(f, "{msg}"),
-            SqliteBrowseError::Sqlite(e) => write!(f, "sqlite: {e}"),
-        }
-    }
-}
-
-impl std::error::Error for SqliteBrowseError {
-    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
-        match self {
-            SqliteBrowseError::Invalid(_) => None,
-            SqliteBrowseError::Sqlite(e) => Some(e),
-        }
-    }
-}
-
-impl From<rusqlite::Error> for SqliteBrowseError {
-    fn from(e: rusqlite::Error) -> Self {
-        SqliteBrowseError::Sqlite(e)
-    }
-}
-
-pub type Result<T> = std::result::Result<T, SqliteBrowseError>;
-
-/// One column of a table, as reported by `PRAGMA table_info`.
-pub struct TableColumnMeta {
-    pub name: String,
-    pub data_type: String,
-    pub not_null: bool,
-    pub default_value: Option<String>,
-    pub primary_key: bool,
-}
-
-/// The standard SQLite column types, for mapping a declared type onto a
-/// UI-facing enum; anything else (or undeclared) is `Unknown`.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum SqliteColumnType {
-    Text,
-    Integer,
-    Real,
-    Blob,
-    Numeric,
-    Unknown,
-}
-
-/// Map a declared column type (as `PRAGMA table_info` reports it) onto
-/// [`SqliteColumnType`].
-pub fn column_type_of(declared: &str) -> SqliteColumnType {
-    match declared.to_ascii_uppercase().as_str() {
-        "TEXT" => SqliteColumnType::Text,
-        "INTEGER" => SqliteColumnType::Integer,
-        "REAL" => SqliteColumnType::Real,
-        "BLOB" => SqliteColumnType::Blob,
-        "NUMERIC" => SqliteColumnType::Numeric,
-        _ => SqliteColumnType::Unknown,
-    }
-}
+pub use crate::db::models::browse::{Result, SqliteBrowseError, SqliteColumnType, TableColumnMeta, column_type_of};
 
 /// A string is safe to interpolate into SQL only as a plain identifier
 /// (letters/digits/underscore, not starting with a digit).
@@ -316,5 +249,5 @@ fn value_to_string(value: rusqlite::types::Value) -> String {
 }
 
 #[cfg(test)]
-#[path = "../../tests/unit/sqlite_browse.rs"]
+#[path = "../../../tests/unit/sqlite_browse.rs"]
 mod tests;

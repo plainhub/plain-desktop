@@ -52,5 +52,5 @@ pub fn delete_table_rows(db: &Db, table: &str, ids: &[String]) -> Result<usize> 
 }
 
 #[cfg(test)]
-#[path = "../../tests/unit/db/devtools_sqlite.rs"]
+#[path = "../../../tests/unit/db/devtools_sqlite.rs"]
 mod tests;

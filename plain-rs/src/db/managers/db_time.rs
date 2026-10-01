@@ -12,5 +12,5 @@ pub fn short_id() -> String {
 }
 
 #[cfg(test)]
-#[path = "../../tests/unit/chat/db/utils.rs"]
+#[path = "../../../tests/unit/chat/db/utils.rs"]
 mod tests;

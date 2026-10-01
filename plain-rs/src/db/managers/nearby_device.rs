@@ -1,18 +1,6 @@
 use rusqlite::params;
 
-use super::Db;
-
-#[derive(Clone, Debug, PartialEq, Eq)]
-pub struct DNearbyDeviceCache {
-    pub id: String,
-    pub name: String,
-    pub ips: Vec<String>,
-    pub port: u16,
-    pub device_type: String,
-    pub version: String,
-    pub platform: String,
-    pub last_seen: i64,
-}
+use crate::db::{DNearbyDeviceCache, Db};
 
 impl Db {
     pub fn get_cached_nearby_devices(&self) -> rusqlite::Result<Vec<DNearbyDeviceCache>> {
@@ -85,5 +73,5 @@ impl Db {
 }
 
 #[cfg(test)]
-#[path = "../../tests/unit/chat/db/nearby_device.rs"]
+#[path = "../../../tests/unit/chat/db/nearby_device.rs"]
 mod tests;

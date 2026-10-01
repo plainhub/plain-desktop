@@ -1,38 +1,7 @@
 use rusqlite::params;
 
-use super::Db;
-use super::db_time::{now_iso, short_id};
 use crate::chat::enums::ChatStatus;
-
-#[derive(Clone, Debug)]
-pub struct DChat {
-    pub id: String,
-    pub from_id: String,
-    pub to_id: String,
-    pub channel_id: String,
-    pub content: String,
-    pub status: ChatStatus,
-    pub status_data: String,
-    pub created_at: String,
-    pub updated_at: String,
-}
-
-impl DChat {
-    pub fn new(from_id: &str, to_id: &str, channel_id: &str, content: &str) -> Self {
-        let now = now_iso();
-        Self {
-            id: short_id(),
-            from_id: from_id.to_string(),
-            to_id: to_id.to_string(),
-            channel_id: channel_id.to_string(),
-            content: content.to_string(),
-            status: ChatStatus::Sent,
-            status_data: String::new(),
-            created_at: now.clone(),
-            updated_at: now,
-        }
-    }
-}
+use crate::db::{Db, DChat, now_iso};
 
 const CHAT_COLS: &str =
     "id,from_id,to_id,channel_id,content,status,status_data,created_at,updated_at";
@@ -281,5 +250,5 @@ impl Db {
 }
 
 #[cfg(test)]
-#[path = "../../tests/unit/chat/db/chat.rs"]
+#[path = "../../../tests/unit/chat/db/chat.rs"]
 mod tests;
