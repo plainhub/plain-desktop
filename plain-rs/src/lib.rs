@@ -24,7 +24,7 @@ pub mod feeds;
 #[cfg(feature = "api")]
 pub mod http_proxy;
 #[cfg(feature = "api")]
-pub mod httpserver;
+pub mod http_server;
 #[cfg(feature = "library")]
 pub mod library;
 #[cfg(feature = "api")]

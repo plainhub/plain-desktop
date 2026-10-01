@@ -7,7 +7,7 @@ use async_graphql::{Context, Object};
 use std::sync::Arc;
 
 use crate::api::context::AppCtx;
-use crate::httpserver::mainschemas::types::FavoriteFolder;
+use crate::http_server::main_schemas::types::FavoriteFolder;
 
 fn to_gql(f: favorite_folders::FavoriteFolder) -> FavoriteFolder {
     FavoriteFolder {

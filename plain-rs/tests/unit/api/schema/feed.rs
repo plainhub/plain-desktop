@@ -23,7 +23,7 @@ async fn graphql_feed_entry_joins_and_counts() {
         updated_at: at,
     }])
     .unwrap();
-    let schema = crate::httpserver::mainschemas::build_schema();
+    let schema = crate::http_server::main_schemas::build_schema();
     let response = schema.execute(Request::new(r#"{ feedEntry(id: "entry") { title tags { id } feed { name } } feedEntries(offset: 0, limit: 10, query: "feed_id:feed") { id feedId } feedEntryCount(query: "feed_id:feed") feedEntryCounts { id count } }"#).data(db)).await;
     assert!(response.errors.is_empty(), "{:?}", response.errors);
     let data = response.data.into_json().unwrap();

@@ -21,7 +21,7 @@ use crate::api::context::{
 };
 use crate::api::db::{DNearbyDeviceCache, DPeer, Db, iso_from_unix_millis, now_iso, now_millis};
 use crate::chat_service::ChatState;
-use crate::httpserver::mainschemas::types::Peer;
+use crate::http_server::main_schemas::types::Peer;
 use crate::mdns::host_responder;
 use crate::mdns::service_browser::{FoundDevice, MdnsServiceBrowser, MdnsServiceSnapshot};
 use serde::Serialize;

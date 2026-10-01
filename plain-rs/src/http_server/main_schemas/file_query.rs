@@ -29,7 +29,7 @@ use async_graphql::{Context, ID, Object, Result as GqlResult};
 use super::media::types::Long;
 use super::types::Mount;
 use crate::api::context::AppCtx;
-use crate::httpserver::mainschemas::types::{
+use crate::http_server::main_schemas::types::{
     AudioFileInfo, FileInfo, ImageFileInfo, Location, MediaFileInfo, VideoFileInfo,
 };
 use crate::server::uri::resolve_uri;

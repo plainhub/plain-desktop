@@ -121,7 +121,7 @@ pub async fn peer_graphql_handler(
     let header_client_id = header_string(&headers, "c-id");
     let header_channel_id = header_string(&headers, "c-cid");
 
-    crate::httpserver::peerschemas::handle(
+    crate::http_server::peer_schemas::handle(
         &body,
         &header_client_id,
         &header_channel_id,

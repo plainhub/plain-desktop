@@ -27,8 +27,8 @@ use axum::extract::DefaultBodyLimit;
 use axum::routing::{get, post};
 
 use crate::api::context::AppCtx;
-use crate::httpserver::mainschemas::ApiSchema;
-use crate::httpserver::peerschemas::PeerSchema;
+use crate::http_server::main_schemas::ApiSchema;
+use crate::http_server::peer_schemas::PeerSchema;
 
 #[derive(Clone)]
 pub struct ServerState {
@@ -109,8 +109,8 @@ http_port = 8080
         .expect("nas app ctx");
         std::mem::forget(dir);
         ServerState::new(
-            Arc::new(crate::httpserver::mainschemas::build_schema()),
-            Arc::new(crate::httpserver::peerschemas::build_schema()),
+            Arc::new(crate::http_server::main_schemas::build_schema()),
+            Arc::new(crate::http_server::peer_schemas::build_schema()),
             ctx,
             ServerSettings {
                 auth: AuthPolicy::Session {

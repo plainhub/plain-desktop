@@ -5,7 +5,7 @@ use async_graphql::Request;
 async fn graphql_note_lifecycle_and_tags() {
     let dir = tempfile::tempdir().unwrap();
     let db = Arc::new(Db::open(&dir.path().join("plain.db")).unwrap());
-    let schema = crate::httpserver::mainschemas::build_schema();
+    let schema = crate::http_server::main_schemas::build_schema();
     let response = schema.execute(Request::new(r#"mutation { createNote(input: { title: "Title", content: "needle" }) { id title tags { id } } }"#).data(db.clone())).await;
     assert!(response.errors.is_empty(), "{:?}", response.errors);
     let id = response.data.into_json().unwrap()["createNote"]["id"]

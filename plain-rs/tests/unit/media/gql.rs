@@ -5,7 +5,7 @@ use std::sync::Arc;
 use async_graphql::{EmptySubscription, Schema};
 
 use crate::db::Db as SqlDb;
-use crate::httpserver::mainschemas::media::{MediaMutationRoot, MediaQueryRoot};
+use crate::http_server::main_schemas::media::{MediaMutationRoot, MediaQueryRoot};
 use crate::media::image_index::MediaSearchIndex;
 use crate::media::kv::Db;
 use crate::media::paths;
@@ -99,7 +99,7 @@ async fn media_list_tags_are_lazy_loaded() {
     idx.commit().unwrap();
 
     use std::sync::atomic::Ordering;
-    crate::httpserver::mainschemas::media::TAG_LOADS.store(0, Ordering::Relaxed);
+    crate::http_server::main_schemas::media::TAG_LOADS.store(0, Ordering::Relaxed);
     let resp = schema
         .execute(async_graphql::Request::new(
             r#"{ audios(offset: 0, limit: 10, query: "text:lazy-audio", sortBy: DATE_DESC) { id } }"#,
@@ -107,12 +107,12 @@ async fn media_list_tags_are_lazy_loaded() {
         .await;
     assert!(resp.errors.is_empty(), "{:?}", resp.errors);
     assert_eq!(
-        crate::httpserver::mainschemas::media::TAG_LOADS.load(Ordering::Relaxed),
+        crate::http_server::main_schemas::media::TAG_LOADS.load(Ordering::Relaxed),
         0,
         "no tags selection must not touch the tag store"
     );
 
-    crate::httpserver::mainschemas::media::TAG_LOADS.store(0, Ordering::Relaxed);
+    crate::http_server::main_schemas::media::TAG_LOADS.store(0, Ordering::Relaxed);
     let resp = schema
         .execute(async_graphql::Request::new(
             r#"{ audios(offset: 0, limit: 10, query: "text:lazy-audio", sortBy: DATE_DESC) { id tags { id } } }"#,
@@ -123,7 +123,7 @@ async fn media_list_tags_are_lazy_loaded() {
     let rows = data["audios"].as_array().map(Vec::len).unwrap_or(0);
     assert_eq!(rows, 1, "expected exactly our fixture row: {data}");
     assert_eq!(
-        crate::httpserver::mainschemas::media::TAG_LOADS.load(Ordering::Relaxed),
+        crate::http_server::main_schemas::media::TAG_LOADS.load(Ordering::Relaxed),
         rows,
         "tags selection loads exactly once per row"
     );

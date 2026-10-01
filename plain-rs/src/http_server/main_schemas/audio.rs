@@ -12,7 +12,7 @@ use std::sync::Arc;
 use crate::api::context::AppCtx;
 use crate::db::Db;
 use crate::api::enums::MediaPlayMode;
-use crate::httpserver::mainschemas::types::{
+use crate::http_server::main_schemas::types::{
     AudioItem, AudioPlayHistory, AudioPlayback, AudioPlaylist,
 };
 

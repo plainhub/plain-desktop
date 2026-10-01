@@ -6,7 +6,7 @@ pub use plain_rs::discover::{
     MdnsActivity, MdnsFirewallStatus, NearbyDiscoverManager, PeerStatusManager, firewall,
     macos_dns_sd,
 };
-use plain_rs::httpserver::mainschemas::types::Peer;
+use plain_rs::http_server::main_schemas::types::Peer;
 #[allow(unused_imports)]
 pub(crate) use plain_rs::mdns::host_responder::{
     get_best_ip as discover_get_best_ip, local_ipv4_strs as discover_local_ipv4_strs,

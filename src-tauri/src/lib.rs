@@ -287,8 +287,8 @@ pub fn run() {
                 Arc::new(move |id: &str| mgr.peer_address(id))
             };
             let state = plain_rs::server::ServerState::new(
-                Arc::new(plain_rs::httpserver::mainschemas::build_schema()),
-                Arc::new(plain_rs::httpserver::peerschemas::build_schema()),
+                Arc::new(plain_rs::http_server::main_schemas::build_schema()),
+                Arc::new(plain_rs::http_server::peer_schemas::build_schema()),
                 ctx,
                 plain_rs::server::ServerSettings {
                     auth: plain_rs::server::AuthPolicy::LocalToken,

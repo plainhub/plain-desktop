@@ -15,7 +15,7 @@ fn macos_data_volume_is_not_listed_as_a_second_internal_drive() {
 
 #[tokio::test]
 async fn mounts_query_returns_system_volumes() {
-    let response = crate::httpserver::mainschemas::build_schema()
+    let response = crate::http_server::main_schemas::build_schema()
         .execute("{ mounts { id path mountPoint fsType driveType diskId } }")
         .await;
     assert!(response.errors.is_empty(), "{:?}", response.errors);

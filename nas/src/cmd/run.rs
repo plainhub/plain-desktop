@@ -7,8 +7,8 @@ use std::sync::Arc;
 use tokio::signal::unix::{SignalKind, signal};
 
 use plain_rs::api::context::{AppCtx, ShellHooks};
-use plain_rs::httpserver::mainschemas::capability_types;
-use plain_rs::httpserver::mainschemas::types::Capability;
+use plain_rs::http_server::main_schemas::capability_types;
+use plain_rs::http_server::main_schemas::types::Capability;
 use plain_rs::server::ServerState;
 use plain_rs::server::build_router;
 use plain_rs::server::{AuthPolicy, ServerSettings, events::spawn_media_event_bridge};
@@ -48,7 +48,7 @@ impl ShellHooks for NasShell {
                 id: disk.id.into(),
                 name: disk.name,
                 path: disk.path,
-                size_bytes: plain_rs::httpserver::mainschemas::media::types::Long(disk.size_bytes),
+                size_bytes: plain_rs::http_server::main_schemas::media::types::Long(disk.size_bytes),
                 removable: disk.removable,
                 model: disk.model,
             })
@@ -189,20 +189,20 @@ impl ShellHooks for NasShell {
         url: &str,
         title: &str,
         mime: &str,
-        media_type: plain_rs::httpserver::mainschemas::media::types::MediaDataType,
+        media_type: plain_rs::http_server::main_schemas::media::types::MediaDataType,
         prefs: &plain_rs::prefs::Prefs,
     ) -> Result<()> {
         let kind = match media_type {
-            plain_rs::httpserver::mainschemas::media::types::MediaDataType::AUDIO => {
+            plain_rs::http_server::main_schemas::media::types::MediaDataType::AUDIO => {
                 plain_rs::dlna_sender::MediaType::Audio
             }
-            plain_rs::httpserver::mainschemas::media::types::MediaDataType::VIDEO => {
+            plain_rs::http_server::main_schemas::media::types::MediaDataType::VIDEO => {
                 plain_rs::dlna_sender::MediaType::Video
             }
-            plain_rs::httpserver::mainschemas::media::types::MediaDataType::IMAGE => {
+            plain_rs::http_server::main_schemas::media::types::MediaDataType::IMAGE => {
                 plain_rs::dlna_sender::MediaType::Image
             }
-            plain_rs::httpserver::mainschemas::media::types::MediaDataType::DOC => {
+            plain_rs::http_server::main_schemas::media::types::MediaDataType::DOC => {
                 anyhow::bail!("dlna_cast_doc_unsupported")
             }
         };
@@ -358,10 +358,10 @@ pub async fn run(paths: &AppPaths) -> Result<()> {
     plain_rs::media::thumb::prefetch::init_from_config(&cfg_arc, db.clone(), prefs.clone());
 
     let cors_policy = plain_rs::server::cors::CorsPolicy::from_config(&cfg_arc);
-    let schema = plain_rs::httpserver::mainschemas::build_schema();
+    let schema = plain_rs::http_server::main_schemas::build_schema();
     let state = ServerState::new(
         Arc::new(schema),
-        Arc::new(plain_rs::httpserver::peerschemas::build_schema()),
+        Arc::new(plain_rs::http_server::peer_schemas::build_schema()),
         ctx,
         ServerSettings {
             auth: AuthPolicy::Session {
