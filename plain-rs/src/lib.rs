@@ -64,3 +64,6 @@ pub mod image_editor;
 
 #[cfg(any(feature = "api", feature = "content_api"))]
 pub mod app_files;
+
+#[cfg(any(feature = "api", feature = "content_api"))]
+pub mod shares;

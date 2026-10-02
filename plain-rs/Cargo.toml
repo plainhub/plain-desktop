@@ -33,8 +33,10 @@ sqlite_browse = ["dep:rusqlite", "dep:serde_json"]
 prefs = ["dep:serde_json"]
 # Shared API stack for the desktop and NAS shells: GraphQL schemas,
 # axum HTTP/WS router, listener lifecycle, proxy, discovery and DLNA.
-content_api = ["dep:anyhow", "chat", "library", "dep:regex", "dep:async-graphql", "dep:axum", "dep:reqwest", "reqwest/rustls-tls", "dep:futures-util", "dep:quick-xml", "dep:scraper", "tokio/net", "tokio/rt-multi-thread", "tokio/sync", "tokio/time", "tokio/macros", "dep:subtle"]
+content_api = ["dep:hmac", "dep:sha2_mac", "dep:anyhow", "chat", "library", "dep:regex", "dep:async-graphql", "dep:axum", "dep:reqwest", "reqwest/rustls-tls", "dep:futures-util", "dep:quick-xml", "dep:scraper", "tokio/net", "tokio/rt-multi-thread", "tokio/sync", "tokio/time", "tokio/macros", "dep:subtle"]
 api = [
+    "dep:hmac",
+    "dep:sha2_mac",
     "media_gql",
     "chat",
     "library",
@@ -111,6 +113,8 @@ chacha20poly1305 = "0.10"
 p256 = { version = "0.13", default-features = false, features = ["ecdh", "pkcs8", "std"] }
 ed25519-dalek = { version = "2", features = ["rand_core"] }
 sha2 = "0.10"
+hmac = { version = "0.13", optional = true }
+sha2_mac = { package = "sha2", version = "0.11", optional = true }
 rand = "0.8"
 uuid = { version = "1", features = ["v4"] }
 log = "0.4"

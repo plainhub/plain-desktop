@@ -181,6 +181,9 @@ scalar Instant
 scalar Long
 
 type Mutation {
+	createShare(name: String!, realPaths: [String!]!, urlToken: String!, readOnly: Boolean!, expiresAt: Instant): ShareRecord!
+	updateShare(id: ID!, name: String!, expiresAt: Instant, realPaths: [String!]): ShareRecord!
+	deleteShare(id: ID!): Boolean!
 	importAppFile(source: String!, fileName: String!, mimeType: String!, deleteSource: Boolean!): AppFileRecord!
 	releaseAppFile(id: String!): Boolean!
 	createNote(input: NoteInput!): Note!
@@ -291,6 +294,14 @@ type PomodoroToday {
 }
 
 type Query {
+	browseShare(id: ID!, virtualPath: String!): ShareListing!
+	shareZipEntries(id: ID!, fileId: String!): [Root!]!
+	shareRecord(id: ID!): ShareRecord
+	shareRecords: [ShareRecord!]!
+	shareToken(id: ID!): String!
+	shareAuth(id: ID!): ShareAuthRecord
+	resolveSharePath(id: ID!, virtualPath: String!): String
+	resolveShareFile(id: ID!, fileId: String!): String
 	appFiles(offset: Int!, limit: Int!, query: String!): [AppFile!]!
 	appFileCount(query: String!): Int!
 	appFileRecord(id: String!): AppFileRecord
@@ -322,6 +333,34 @@ type Query {
 	imageEditorProjects: [ImageEditorProjectSummary!]!
 	imageEditorProject(id: ID!): ImageEditorProject
 	imageEditorProjectItems(offset: Int!, limit: Int!, query: String!): [ImageEditorProjectSummary!]!
+}
+
+type Root {
+	virtualPath: String!
+	realPath: String!
+	isDir: Boolean!
+}
+
+type ShareAuthRecord {
+	share: ShareRecord!
+	token: String!
+}
+
+type ShareListing {
+	share: ShareRecord!
+	entries: [Root!]!
+}
+
+type ShareRecord {
+	id: ID!
+	name: String!
+	password: String!
+	urlToken: String!
+	readOnly: Boolean!
+	expiresAt: Instant
+	createdAt: Instant!
+	updatedAt: Instant!
+	roots: [Root!]!
 }
 
 type Tag {

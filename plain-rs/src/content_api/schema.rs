@@ -20,10 +20,12 @@ mod note;
 #[path = "../http_server/main_schemas/pomodoro.rs"]
 mod pomodoro;
 mod pomodoro_host;
+mod shares_host;
 mod tags;
 use async_graphql::{EmptySubscription, MergedObject, Schema};
 #[derive(MergedObject, Default)]
 pub struct Query(
+    shares_host::ShareHostQuery,
     app_file::AppFileQuery,
     app_files_host::AppFileHostQuery,
     note::NoteQuery,
@@ -38,6 +40,7 @@ pub struct Query(
 );
 #[derive(MergedObject, Default)]
 pub struct Mutation(
+    shares_host::ShareHostMutation,
     app_files_host::AppFileHostMutation,
     note::NoteMutation,
     feed::FeedMutation,
@@ -58,6 +61,7 @@ pub fn build(
 ) -> ContentSchema {
     Schema::build(Query::default(), Mutation::default(), EmptySubscription)
         .data(db.clone())
+        .data(crate::shares::Service::new(db.clone(), prefs.clone()))
         .data(crate::app_files::FileStore::new(
             db.clone(),
             directory.clone(),

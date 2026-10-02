@@ -210,6 +210,17 @@ impl Db {
         })
     }
 
+    pub fn share_update(
+        &self,
+        id: &str,
+        name: &str,
+        expires_at: Option<&str>,
+        data: Option<&str>,
+        now: &str,
+    ) -> rusqlite::Result<bool> {
+        self.with_conn(|c| Ok(c.execute("UPDATE shares SET name=?2, expires_at=?3, data=COALESCE(?4,data), updated_at=?5 WHERE id=?1", params![id,name,expires_at,data,now])? != 0))
+    }
+
     pub fn share_delete(&self, id: &str) -> rusqlite::Result<usize> {
         self.with_conn(|c| c.execute("DELETE FROM shares WHERE id=?1", [id]))
     }
