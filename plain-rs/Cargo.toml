@@ -33,7 +33,7 @@ sqlite_browse = ["dep:rusqlite", "dep:serde_json"]
 prefs = ["dep:serde_json"]
 # Shared API stack for the desktop and NAS shells: GraphQL schemas,
 # axum HTTP/WS router, listener lifecycle, proxy, discovery and DLNA.
-content_api = ["chat", "library", "dep:regex", "dep:async-graphql", "dep:axum", "dep:reqwest", "reqwest/rustls-tls", "dep:futures-util", "dep:quick-xml", "dep:scraper", "tokio/net", "tokio/rt-multi-thread", "tokio/sync", "tokio/time", "tokio/macros", "dep:subtle"]
+content_api = ["dep:anyhow", "chat", "library", "dep:regex", "dep:async-graphql", "dep:axum", "dep:reqwest", "reqwest/rustls-tls", "dep:futures-util", "dep:quick-xml", "dep:scraper", "tokio/net", "tokio/rt-multi-thread", "tokio/sync", "tokio/time", "tokio/macros", "dep:subtle"]
 api = [
     "media_gql",
     "chat",

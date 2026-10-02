@@ -11,6 +11,9 @@ mod content_common;
 mod feed;
 #[path = "../http_server/main_schemas/note.rs"]
 mod note;
+#[path = "../http_server/main_schemas/pomodoro.rs"]
+mod pomodoro;
+mod pomodoro_host;
 mod tags;
 use async_graphql::{EmptySubscription, MergedObject, Schema};
 #[derive(MergedObject, Default)]
@@ -20,6 +23,8 @@ pub struct Query(
     tags::TagQuery,
     clipboard::ClipboardQuery,
     bookmark::BookmarkQuery,
+    pomodoro::PomodoroQuery,
+    pomodoro_host::PomodoroRecordQuery,
 );
 #[derive(MergedObject, Default)]
 pub struct Mutation(
@@ -29,6 +34,8 @@ pub struct Mutation(
     clipboard::ClipboardMutation,
     bookmark::BookmarkMutation,
     bookmarks::BookmarkMetadataMutation,
+    pomodoro::PomodoroMutation,
+    pomodoro_host::PomodoroHostMutation,
 );
 pub type ContentSchema = Schema<Query, Mutation, EmptySubscription>;
 pub fn build(
@@ -39,6 +46,11 @@ pub fn build(
 ) -> ContentSchema {
     Schema::build(Query::default(), Mutation::default(), EmptySubscription)
         .data(db.clone())
+        .data(crate::pomodoro::Service::new(
+            db.clone(),
+            prefs.clone(),
+            events.clone(),
+        ))
         .data(events.clone())
         .data(prefs)
         .data(crate::feeds::SyncService::new(

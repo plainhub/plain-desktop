@@ -24,6 +24,7 @@ pub async fn execute_graphql(
         .data(cid)
         .data(ctx.media.db.clone())
         .data(ctx.prefs.clone())
+        .data(ctx.pomodoro.clone())
         .data(ctx.event_tx.clone())
         .data(ctx.db.clone());
     let response = schema.execute(request).await;

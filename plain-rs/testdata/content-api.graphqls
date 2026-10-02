@@ -165,6 +165,13 @@ type Mutation {
 	updateBookmarkGroup(id: ID!, name: String!, collapsed: Boolean!, sortOrder: Int!): BookmarkGroup!
 	deleteBookmarkGroup(id: ID!): Boolean!
 	fetchBookmarkMetadata(id: ID!): Bookmark
+	startPomodoro(durationSec: Int!): Boolean!
+	pausePomodoro: Boolean!
+	stopPomodoro: Boolean!
+	configurePomodoroDay(date: String!, dayStart: Instant!): PomodoroToday!
+	tickPomodoro: PomodoroTickResult!
+	skipPomodoro: PomodoroTickResult!
+	adjustPomodoro(durationSec: Int!): PomodoroToday!
 }
 
 type Note {
@@ -180,6 +187,52 @@ type Note {
 input NoteInput {
 	title: String!
 	content: String!
+}
+
+type PomodoroRecord {
+	id: ID!
+	"""
+	Calendar date (YYYY-MM-DD) in the host device's local timezone.
+	"""
+	date: String!
+	completedCount: Int!
+	totalWorkSec: Long!
+	totalBreakSec: Long!
+	createdAt: Instant!
+	updatedAt: Instant!
+}
+
+type PomodoroSettings {
+	workDurationMin: Int!
+	shortBreakDurationMin: Int!
+	longBreakDurationMin: Int!
+	pomodorosBeforeLongBreak: Int!
+	showNotification: Boolean!
+	playSoundOnComplete: Boolean!
+	soundPath: String!
+	originalSoundName: String!
+}
+
+enum PomodoroState {
+	WORK
+	SHORT_BREAK
+	LONG_BREAK
+}
+
+type PomodoroTickResult {
+	today: PomodoroToday!
+	completedState: PomodoroState
+}
+
+type PomodoroToday {
+	date: Instant!
+	completedCount: Int!
+	currentRound: Int!
+	timeLeftSec: Int!
+	totalTimeSec: Int!
+	isRunning: Boolean!
+	isPaused: Boolean!
+	state: PomodoroState!
 }
 
 type Query {
@@ -201,6 +254,11 @@ type Query {
 	clipboardItemCount(query: String!): Int!
 	bookmarks: [Bookmark!]!
 	bookmarkGroups: [BookmarkGroup!]!
+	pomodoroSettings: PomodoroSettings!
+	pomodoroToday: PomodoroToday!
+	pomodoroRecord(date: String!): PomodoroRecord
+	pomodoroRecords(startDate: String!): [PomodoroRecord!]!
+	pomodoroTotalCompleted: Long!
 }
 
 type Tag {

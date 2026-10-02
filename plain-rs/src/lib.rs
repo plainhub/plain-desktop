@@ -55,3 +55,6 @@ pub mod content_api;
 pub mod content_types;
 #[cfg(any(feature = "api", feature = "content_api"))]
 pub mod ws_event;
+
+#[cfg(any(feature = "api", feature = "content_api"))]
+pub mod pomodoro;

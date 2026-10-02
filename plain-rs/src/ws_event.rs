@@ -39,3 +39,5 @@ impl WsEvent {
 }
 
 pub const WS_BOOKMARK_UPDATED: i32 = 15;
+
+pub const WS_POMODORO_ACTION: i32 = 11;

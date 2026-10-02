@@ -242,3 +242,6 @@ mod clipboard;
 
 #[path = "bookmarks.rs"]
 mod bookmarks;
+
+#[path = "pomodoro.rs"]
+mod pomodoro;

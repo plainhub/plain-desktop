@@ -112,6 +112,46 @@ async fn health(State(s): State<ServerState>, headers: HeaderMap) -> impl IntoRe
         StatusCode::UNAUTHORIZED
     }
 }
+fn content_changes(request: &Request) -> bool {
+    use async_graphql::parser::{
+        parse_query,
+        types::{OperationType, Selection},
+    };
+    let Ok(document) = parse_query(&request.query) else {
+        return false;
+    };
+    document
+        .operations
+        .iter()
+        .filter(|(name, _)| {
+            request
+                .operation_name
+                .as_deref()
+                .is_none_or(|selected| name.is_some_and(|n| n.as_str() == selected))
+        })
+        .any(|(_, operation)| {
+            operation.node.ty == OperationType::Mutation
+                && operation
+                    .node
+                    .selection_set
+                    .node
+                    .items
+                    .iter()
+                    .any(|selection| match &selection.node {
+                        Selection::Field(field) => !matches!(
+                            field.node.name.node.as_str(),
+                            "configurePomodoroDay"
+                                | "tickPomodoro"
+                                | "skipPomodoro"
+                                | "adjustPomodoro"
+                                | "startPomodoro"
+                                | "pausePomodoro"
+                                | "stopPomodoro"
+                        ),
+                        _ => true,
+                    })
+        })
+}
 async fn graphql(
     State(s): State<ServerState>,
     headers: HeaderMap,
@@ -120,7 +160,7 @@ async fn graphql(
     if !s.authenticated(&headers) {
         return StatusCode::UNAUTHORIZED.into_response();
     }
-    let mutation = request.query.trim_start().starts_with("mutation");
+    let mutation = content_changes(&request);
     let response = s.schema.execute(request).await;
     if mutation && response.errors.is_empty() {
         let _ = s.events.send(WsEvent::broadcast(47, "{}".into()));

@@ -46,7 +46,7 @@ pub const WS_NEARBY_DISCOVERY_STOPPED: i32 = 30;
 /// JSON object `{fileId, ok, value?, mergedSize?, error?}`. plain-app's event
 /// enum occupies 1..=37 (with gaps), so this contract appends at 38.
 pub const WS_UPLOAD_MERGE_RESULT: i32 = 38;
-pub const WS_POMODORO_ACTION: i32 = 11;
+pub use crate::ws_event::WS_POMODORO_ACTION;
 pub const WS_IMAGE_EDITOR_UPDATE: i32 = 34;
 
 pub use crate::ws_event::WsEvent;
@@ -54,6 +54,7 @@ pub use crate::ws_event::WsEvent;
 /// All server-level dependencies bundled for injection into async-graphql resolvers.
 /// Passed per-request via `Request::data(Arc<AppCtx>)`.
 pub struct AppCtx {
+    pub pomodoro: Arc<crate::pomodoro::Service>,
     pub feed_sync: Arc<crate::feeds::SyncService>,
     pub db: Arc<Db>,
     /// The shared system/user preference stores — one in-process writer
@@ -122,6 +123,7 @@ impl AppCtx {
         );
         let token = chat.service.token.clone();
         Ok(Arc::new(Self {
+            pomodoro: crate::pomodoro::Service::new(db.clone(), prefs.clone(), event_tx.clone()),
             feed_sync: crate::feeds::SyncService::new(
                 db.clone(),
                 event_tx.clone(),
