@@ -728,8 +728,7 @@ type MutationRoot {
 	relaunchApp: Boolean!
 	updateDeviceName(name: String!): Boolean!
 	"""
-	Play the given track: mark it current, enqueue it in the manual
-	queue when missing, and record the play.
+	Mark the track current and record playback without changing queue order.
 	"""
 	playAudio(path: String!): AudioItem!
 	"""

@@ -8,10 +8,7 @@ use crate::library::audio_queue::AudioTrack;
 fn test_library() -> Db {
     static SEQ: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
     let seq = SEQ.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
-    let dir = std::env::temp_dir().join(format!(
-        "plain-desktop-aqrs-{}-{seq}",
-        std::process::id()
-    ));
+    let dir = std::env::temp_dir().join(format!("plain-desktop-aqrs-{}-{seq}", std::process::id()));
     let _ = std::fs::remove_dir_all(&dir);
     std::fs::create_dir_all(&dir).unwrap();
     Db::open(&dir.join("plain.db")).unwrap()
@@ -21,11 +18,20 @@ fn test_library() -> Db {
 fn mode_maps_names_with_repeat_default() {
     let dir = tempfile::tempdir().unwrap();
     let prefs = crate::prefs::Prefs::load(&crate::prefs::default_path(dir.path())).unwrap();
-    assert!(matches!(media_play_mode_of(&prefs), MediaPlayMode::Repeat));
+    assert!(matches!(
+        media_play_mode_of(&prefs).unwrap(),
+        MediaPlayMode::Repeat
+    ));
     crate::library::audio_queue::save_audio_mode(&prefs, "SHUFFLE").unwrap();
-    assert!(matches!(media_play_mode_of(&prefs), MediaPlayMode::Shuffle));
+    assert!(matches!(
+        media_play_mode_of(&prefs).unwrap(),
+        MediaPlayMode::Shuffle
+    ));
     crate::library::audio_queue::save_audio_mode(&prefs, "REPEAT_ONE").unwrap();
-    assert!(matches!(media_play_mode_of(&prefs), MediaPlayMode::RepeatOne));
+    assert!(matches!(
+        media_play_mode_of(&prefs).unwrap(),
+        MediaPlayMode::RepeatOne
+    ));
 }
 
 #[test]
@@ -40,8 +46,9 @@ fn text_of_extracts_the_dsl_text_field() {
 fn play_audio_flow_on_the_resolver_seam() {
     let db = test_library();
     let track = AudioTrack::from_path_stem("/music/My Song.mp3");
-    crate::library::audio_queue::enqueue(&db, std::slice::from_ref(&track), false);
-    crate::library::audio_queue::on_playing(&db, &track.path, &track.title, &track.artist, 0);
+    crate::library::audio_queue::enqueue(&db, std::slice::from_ref(&track), false).unwrap();
+    crate::library::audio_queue::on_playing(&db, &track.path, &track.title, &track.artist, 0)
+        .unwrap();
 
     let mut lib = crate::library::audio_queue::NoLibrary;
     let page = crate::library::audio_queue::queue_page(&db, &mut lib, 0, 10, "").unwrap();
@@ -50,7 +57,7 @@ fn play_audio_flow_on_the_resolver_seam() {
     // playAllAudios on an empty library returns null (documented local
     // semantics — no media index yet).
     assert!(
-        crate::library::audio_queue::set_library_source(&db, &mut lib, None, false)
+        crate::library::audio_queue::set_library_source(&db, &mut lib, None, false, "DATE_DESC")
             .unwrap()
             .is_none()
     );

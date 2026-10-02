@@ -40,7 +40,8 @@ impl FakeLibrary {
                     title: format!("T-{}", p.rsplit('/').next().unwrap_or(p)),
                     artist: "A".to_string(),
                     path: p.to_string(),
-                    duration_secs: d,
+                    duration_ms: d,
+                    album_id: String::new(),
                 })
                 .collect(),
         }
@@ -81,12 +82,13 @@ impl LibraryTracks for FakeLibrary {
     }
 }
 
-pub fn audio(path: &str, title: &str, duration_secs: i64) -> AudioTrack {
+pub fn audio(path: &str, title: &str, duration_ms: i64) -> AudioTrack {
     AudioTrack {
         title: title.to_string(),
         artist: "A".to_string(),
         path: path.to_string(),
-        duration_secs,
+        duration_ms,
+        album_id: String::new(),
     }
 }
 

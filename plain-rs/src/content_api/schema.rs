@@ -22,9 +22,11 @@ mod pomodoro;
 mod pomodoro_host;
 mod shares_host;
 mod tags;
+mod video_progress;
 use async_graphql::{EmptySubscription, MergedObject, Schema};
 #[derive(MergedObject, Default)]
 pub struct Query(
+    video_progress::VideoProgressQuery,
     shares_host::ShareHostQuery,
     app_file::AppFileQuery,
     app_files_host::AppFileHostQuery,
@@ -40,6 +42,7 @@ pub struct Query(
 );
 #[derive(MergedObject, Default)]
 pub struct Mutation(
+    video_progress::VideoProgressMutation,
     shares_host::ShareHostMutation,
     app_files_host::AppFileHostMutation,
     note::NoteMutation,

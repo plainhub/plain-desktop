@@ -49,7 +49,7 @@ fn open_creates_every_table_once() {
 #[test]
 fn source_row_defaults_to_none() {
     let db = test_db("source_default");
-    let src = crate::db::audio_queue::get_source(&db);
+    let src = crate::db::audio_queue::get_source(&db).unwrap();
     assert_eq!(src.source, crate::db::audio_queue::QueueSourceKind::None);
     assert_eq!(src.current_path, "");
     assert_eq!(src.current_index, -1);

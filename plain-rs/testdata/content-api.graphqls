@@ -181,6 +181,8 @@ scalar Instant
 scalar Long
 
 type Mutation {
+	saveVideoPlayProgress(mediaId: ID!, positionMs: Long!): VideoPlayProgress!
+	deleteVideoPlayProgress(mediaId: ID!): Boolean!
 	createShare(name: String!, realPaths: [String!]!, urlToken: String!, readOnly: Boolean!, expiresAt: Instant): ShareRecord!
 	updateShare(id: ID!, name: String!, expiresAt: Instant, realPaths: [String!]): ShareRecord!
 	deleteShare(id: ID!): Boolean!
@@ -294,6 +296,8 @@ type PomodoroToday {
 }
 
 type Query {
+	videoPlayProgress(mediaId: ID!): VideoPlayProgress
+	recentVideoPlayProgress(since: Instant!): [VideoPlayProgress!]!
 	browseShare(id: ID!, virtualPath: String!): ShareListing!
 	shareZipEntries(id: ID!, fileId: String!): [Root!]!
 	shareRecord(id: ID!): ShareRecord
@@ -389,6 +393,12 @@ input TagRelationStub {
 	key: String!
 	title: String!
 	size: Long!
+}
+
+type VideoPlayProgress {
+	mediaId: ID!
+	positionMs: Long!
+	updatedAt: Instant!
 }
 
 """

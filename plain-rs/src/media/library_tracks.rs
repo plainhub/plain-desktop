@@ -44,7 +44,8 @@ fn search_result_to_audio(r: MediaSearchResult) -> AudioTrack {
         },
         artist: r.artist,
         path: r.path,
-        duration_secs: r.duration_secs as i64,
+        duration_ms: (r.duration_secs as i64).saturating_mul(1000),
+        album_id: String::new(),
     }
 }
 
@@ -152,7 +153,8 @@ pub fn playlist_audio_from_path(db: &Db, path: &str) -> AudioTrack {
                 m.title
             },
             artist: m.artist,
-            duration_secs: m.duration_sec as i64,
+            duration_ms: (m.duration_sec as i64).saturating_mul(1000),
+            album_id: String::new(),
             path,
         };
     }
@@ -165,7 +167,8 @@ pub fn playlist_audio_from_path(db: &Db, path: &str) -> AudioTrack {
             m.title
         },
         artist: m.artist,
-        duration_secs: m.duration_secs as i64,
+        duration_ms: (m.duration_secs as i64).saturating_mul(1000),
+        album_id: String::new(),
         path,
     }
 }

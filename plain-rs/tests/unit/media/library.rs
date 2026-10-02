@@ -69,14 +69,14 @@ fn playlist_audio_from_path_uses_index_row_and_file_stem_fallback() {
     let a = playlist_audio_from_path(&db, "/tqC/song.mp3");
     assert_eq!(a.title, "Indexed Title");
     assert_eq!(a.artist, "Artist");
-    assert_eq!(a.duration_secs, 42);
+    assert_eq!(a.duration_ms, 42_000);
 
     // Unindexed, nonexistent file: title falls back to the file stem,
     // tags/duration are empty/zero — never an error.
     let b = playlist_audio_from_path(&db, "/tqC/unknown_song.flac");
     assert_eq!(b.title, "unknown_song");
     assert_eq!(b.artist, "");
-    assert_eq!(b.duration_secs, 0);
+    assert_eq!(b.duration_ms, 0);
 }
 
 #[test]
@@ -86,7 +86,7 @@ fn empty_title_in_index_row_falls_back_to_file_stem() {
     crate::media_scan::upsert_media_row(&db, &mf).unwrap();
     let a = playlist_audio_from_path(&db, "/tqD/plain.mp3");
     assert_eq!(a.title, "plain");
-    assert_eq!(a.duration_secs, 7);
+    assert_eq!(a.duration_ms, 7_000);
 }
 
 #[test]
@@ -110,11 +110,16 @@ fn library_source_hydrates_missing_metadata() {
 
     // playAllAudios: the start track must come back with probed tags and
     // duration, not zeros.
-    let start =
-        plain_rs::library::audio_queue::set_library_source(&library, &mut tracks, None, false)
-            .unwrap()
-            .unwrap();
-    assert!(start.duration_secs > 0);
+    let start = plain_rs::library::audio_queue::set_library_source(
+        &library,
+        &mut tracks,
+        None,
+        false,
+        "DATE_DESC",
+    )
+    .unwrap()
+    .unwrap();
+    assert!(start.duration_ms > 0);
     assert_eq!(start.artist, "Hydrate Artist");
     assert_eq!(start.title, "Hydrate Title");
 
@@ -122,7 +127,7 @@ fn library_source_hydrates_missing_metadata() {
     let page =
         plain_rs::library::audio_queue::queue_page(&library, &mut tracks, 0, 10, "").unwrap();
     assert_eq!(page.len(), 1);
-    assert!(page[0].duration_secs > 0);
+    assert!(page[0].duration_ms > 0);
     assert_eq!(page[0].artist, "Hydrate Artist");
 }
 

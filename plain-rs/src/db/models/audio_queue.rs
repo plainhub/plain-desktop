@@ -3,9 +3,7 @@ pub const HISTORY_KEEP: usize = 200;
 
 /// Where the queue draws its tracks from (stored as the plain-app enum
 /// name: NONE / PLAYLIST / LIBRARY).
-#[derive(
-    Clone, Copy, Debug, Default, PartialEq, Eq, serde::Serialize, serde::Deserialize,
-)]
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub enum QueueSourceKind {
     #[default]
     #[serde(rename = "NONE")]
@@ -67,7 +65,7 @@ pub struct QueueItem {
     pub sort_order: i64,
     pub title: String,
     pub artist: String,
-    pub duration_secs: i64,
+    pub duration_ms: i64,
 }
 
 #[derive(Clone, Debug, PartialEq, serde::Serialize, serde::Deserialize)]
@@ -87,7 +85,8 @@ pub struct PlaylistItem {
     // playback still resolves the file live from audio_path.
     pub title: String,
     pub artist: String,
-    pub duration_secs: i64,
+    pub duration_ms: i64,
+    pub album_id: String,
     pub sort_order: i64,
     pub added_at: String,
 }
@@ -97,7 +96,7 @@ pub struct PlayHistory {
     pub path: String,
     pub title: String,
     pub artist: String,
-    pub duration_secs: i64,
+    pub duration_ms: i64,
     pub play_count: i64,
     pub played_at: String,
 }

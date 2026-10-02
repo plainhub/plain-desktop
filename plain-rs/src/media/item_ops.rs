@@ -126,7 +126,7 @@ pub async fn move_media_items(
         let _ = index.remove_by_uuid(uuid);
         let _ = index.add_media_file(&updated);
         if updated.r#type == "audio" {
-            let _ = audio_queue::remove_paths(library, std::slice::from_ref(&media.path));
+            audio_queue::remove_paths(library, std::slice::from_ref(&media.path))?;
         }
         moved += 1;
     }
@@ -182,7 +182,7 @@ async fn apply_media_items_action(
                 return Ok(());
             }
             if media.r#type == "audio" {
-                audio_queue::remove_paths(library, std::slice::from_ref(&media.path));
+                audio_queue::remove_paths(library, std::slice::from_ref(&media.path))?;
             }
             let trashed = trash::trash_paths(vec![media.path.clone()]).await?;
             let mut updated = media.clone();
@@ -218,7 +218,7 @@ async fn apply_media_items_action(
         }
         MediaItemsAction::Delete => {
             if media.r#type == "audio" {
-                audio_queue::remove_paths(library, std::slice::from_ref(&media.path));
+                audio_queue::remove_paths(library, std::slice::from_ref(&media.path))?;
             }
             if trash::is_trashed_path(&media.path) {
                 trash::delete_trash_by_path(&media.path).await?;
