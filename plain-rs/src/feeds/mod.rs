@@ -613,7 +613,8 @@ pub async fn create_without_sync(
     if db.feed_get_by_url(url)?.is_some() {
         return Err(error("feed_already_exists"));
     }
-    let title = preview(url).await?;
+    require_url(url)?;
+    let title = parse_feed(&fetch_text(url, 4 * 1024 * 1024).await?)?.title;
     Ok(db.feed_save(
         &uuid::Uuid::new_v4().to_string(),
         &title,

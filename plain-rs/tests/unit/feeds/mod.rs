@@ -165,3 +165,38 @@ fn missing_feed_links_and_images_remain_empty() {
     assert_eq!(assets::absolute_url(&feed.url, ""), None);
     assert_eq!(assets::absolute_url(&feed.url, "  "), None);
 }
+
+#[tokio::test]
+async fn create_fetches_channel_title_without_preview_api() {
+    use tokio::io::{AsyncReadExt, AsyncWriteExt};
+    let (_dir, db) = database();
+    let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+    let url = format!("http://{}/rss", listener.local_addr().unwrap());
+    let server = tokio::spawn(async move {
+        let (mut stream, _) = listener.accept().await.unwrap();
+        let mut request = [0_u8; 1024];
+        stream.read(&mut request).await.unwrap();
+        let body = "<rss><channel><title>A &amp; B</title></channel></rss>";
+        stream
+            .write_all(
+                format!(
+                    "HTTP/1.1 200 OK\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{}",
+                    body.len(),
+                    body
+                )
+                .as_bytes(),
+            )
+            .await
+            .unwrap();
+    });
+    let feed = create_without_sync(&db, &url, false).await.unwrap();
+    assert_eq!(feed.name, "A & B");
+    assert_eq!(db.feed_entry_count("").unwrap(), 0);
+    assert!(create_without_sync(&db, &url, false).await.is_err());
+    assert!(
+        create_without_sync(&db, "file:///tmp/test", false)
+            .await
+            .is_err()
+    );
+    server.await.unwrap();
+}
