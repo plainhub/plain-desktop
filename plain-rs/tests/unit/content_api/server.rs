@@ -251,3 +251,6 @@ mod image_editor;
 
 #[path = "app_files.rs"]
 mod app_files;
+
+#[path = "audio.rs"]
+mod audio;

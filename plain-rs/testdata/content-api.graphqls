@@ -24,6 +24,64 @@ type AppFileRecord {
 	updatedAt: Instant!
 }
 
+type AudioArtistPlayCount {
+	artist: String!
+	count: Long!
+}
+
+type AudioHostHistory {
+	path: String!
+	title: String!
+	artist: String!
+	durationMs: Long!
+	playCount: Long!
+	playedAt: Instant!
+}
+
+type AudioHostPlaylist {
+	id: ID!
+	name: String!
+	itemCount: Int!
+	createdAt: Instant!
+	updatedAt: Instant!
+}
+
+type AudioHostPlaylistItem {
+	id: ID!
+	playlistId: ID!
+	audioPath: String!
+	title: String!
+	artist: String!
+	albumId: ID!
+	durationMs: Long!
+	sortOrder: Long!
+	addedAt: Instant!
+}
+
+type AudioHostSource {
+	source: String!
+	playlistId: ID!
+	currentPath: String!
+	currentIndex: Long!
+	sortBy: String!
+}
+
+type AudioHostTrack {
+	path: String!
+	title: String!
+	artist: String!
+	albumId: ID!
+	durationMs: Long!
+}
+
+input AudioHostTrackInput {
+	path: String!
+	title: String!
+	artist: String!
+	albumId: ID!
+	durationMs: Long!
+}
+
 type Bookmark {
 	id: ID!
 	url: String!
@@ -181,6 +239,23 @@ scalar Instant
 scalar Long
 
 type Mutation {
+	audioHostEnqueue(items: [AudioHostTrackInput!]!, playNext: Boolean!): Boolean!
+	audioHostRemoveQueued(path: String!): Boolean!
+	audioHostReorder(paths: [String!]!): Boolean!
+	audioHostMoveQueued(from: Int!, to: Int!): Boolean!
+	audioHostClear: Boolean!
+	audioHostRemovePaths(paths: [String!]!): Boolean!
+	audioHostSetCurrent(path: String!): Boolean!
+	audioHostOnPlaying(path: String!, title: String!, artist: String!, durationMs: Long!): Boolean!
+	audioHostSetPlaylistSource(id: ID!, startPath: String): AudioHostTrack
+	audioHostSetLibrarySource(startPath: String, shuffle: Boolean!, sortBy: String!): AudioHostTrack
+	audioHostResolveNext(isNext: Boolean!, shuffle: Boolean!): AudioHostTrack
+	audioHostCreatePlaylist(name: String!): AudioHostPlaylist!
+	audioHostRenamePlaylist(id: ID!, name: String!): Boolean!
+	audioHostDeletePlaylist(id: ID!): Boolean!
+	audioHostAddPlaylistItems(id: ID!, items: [AudioHostTrackInput!]!): Int!
+	audioHostRemovePlaylistItems(id: ID!, paths: [String!]!): Boolean!
+	audioHostRecordHistory(path: String!, title: String!, artist: String!, durationMs: Long!): Boolean!
 	saveVideoPlayProgress(mediaId: ID!, positionMs: Long!): VideoPlayProgress!
 	deleteVideoPlayProgress(mediaId: ID!): Boolean!
 	createShare(name: String!, realPaths: [String!]!, urlToken: String!, readOnly: Boolean!, expiresAt: Instant): ShareRecord!
@@ -296,6 +371,16 @@ type PomodoroToday {
 }
 
 type Query {
+	audioSource: AudioHostSource!
+	audioQueuedPaths: [String!]!
+	audioHostQueueItems(offset: Int!, limit: Int!, query: String!): [AudioHostTrack!]!
+	audioHostQueueCount: Int!
+	audioHostPlaylists: [AudioHostPlaylist!]!
+	audioHostPlaylist(id: ID!): AudioHostPlaylist
+	audioHostPlaylistItems(id: ID!, offset: Int!, limit: Int!, query: String!): [AudioHostPlaylistItem!]!
+	audioHostPlaylistItemCount(id: ID!): Int!
+	audioHostHistory(offset: Int!, limit: Int!, query: String!): [AudioHostHistory!]!
+	audioArtistPlayCounts: [AudioArtistPlayCount!]!
 	videoPlayProgress(mediaId: ID!): VideoPlayProgress
 	recentVideoPlayProgress(since: Instant!): [VideoPlayProgress!]!
 	browseShare(id: ID!, virtualPath: String!): ShareListing!

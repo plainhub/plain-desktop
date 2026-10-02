@@ -38,7 +38,8 @@ use crate::utils::dbtime::now_iso_millis;
 use crate::utils::shortid;
 
 /// The track shape served by queue/playlist APIs (`PlaylistAudio`).
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, serde::Serialize, serde::Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct AudioTrack {
     pub title: String,
     pub artist: String,
@@ -221,7 +222,10 @@ pub fn on_playing(
     validate_duration(duration_ms)?;
     transaction(db, |c| {
         let mut src = io::get_source(c)?;
-        if src.source == QueueSourceKind::Library && src.current_path != path {
+        if src.source == QueueSourceKind::Library
+            && src.current_path != path
+            && !io::all_queue_items(c)?.iter().any(|q| q.path == path)
+        {
             src.current_index = -1;
         }
         src.current_path = path.into();
@@ -372,6 +376,18 @@ fn current_pos_in_source(
     if path.is_empty() || source_size == 0 {
         return Ok(-1);
     }
+    if crate::db::audio_queue::all_queue_items(db)?
+        .iter()
+        .any(|q| q.path == path)
+    {
+        return Ok(
+            if src.current_index >= -1 && src.current_index < source_size as i64 {
+                src.current_index
+            } else {
+                -1
+            },
+        );
+    }
     match src.source {
         QueueSourceKind::Playlist => {
             Ok(
@@ -510,23 +526,29 @@ fn superseded_source_paths(
 }
 
 fn next_source(db: &Db, order: &Order, rank: i64, path: &str) -> LibraryResult<QueueSource> {
-    let source_pos: i64 = match order.src.source {
-        QueueSourceKind::Playlist => {
-            crate::db::audio_queue::playlist_position(db, &order.src.playlist_id, path)?
-                .unwrap_or(-1)
-        }
-        QueueSourceKind::Library => {
-            if order.current_pos >= 0 && rank <= order.current_pos {
-                rank
-            } else if order.current_pos >= 0
-                && rank <= order.current_pos + order.manual_count as i64
-            {
-                -1
-            } else {
-                rank - order.manual_count as i64
+    let manual_start = order.current_pos + 1;
+    let source_pos: i64 = if rank >= manual_start && rank < manual_start + order.manual_count as i64
+    {
+        order.current_pos
+    } else {
+        match order.src.source {
+            QueueSourceKind::Playlist => {
+                crate::db::audio_queue::playlist_position(db, &order.src.playlist_id, path)?
+                    .unwrap_or(-1)
             }
+            QueueSourceKind::Library => {
+                if order.current_pos >= 0 && rank <= order.current_pos {
+                    rank
+                } else if order.current_pos >= 0
+                    && rank <= order.current_pos + order.manual_count as i64
+                {
+                    -1
+                } else {
+                    rank - order.manual_count as i64
+                }
+            }
+            QueueSourceKind::None => -1,
         }
-        QueueSourceKind::None => -1,
     };
     let mut src = order.src.clone();
     src.current_path = path.into();
@@ -546,6 +568,23 @@ pub fn resolve_next(
     is_next: bool,
     shuffle: bool,
 ) -> LibraryResult<Option<AudioTrack>> {
+    resolve_next_inner(db, lib, is_next, shuffle, true)
+}
+pub fn select_next(
+    db: &Db,
+    lib: &mut dyn LibraryTracks,
+    is_next: bool,
+    shuffle: bool,
+) -> LibraryResult<Option<AudioTrack>> {
+    resolve_next_inner(db, lib, is_next, shuffle, false)
+}
+fn resolve_next_inner(
+    db: &Db,
+    lib: &mut dyn LibraryTracks,
+    is_next: bool,
+    shuffle: bool,
+    record_play: bool,
+) -> LibraryResult<Option<AudioTrack>> {
     let order = playback_order(db, lib)?;
     if order.total() == 0 {
         return Ok(None);
@@ -553,7 +592,7 @@ pub fn resolve_next(
     let queued = crate::db::audio_queue::all_queue_items(db)?;
     let superseded = superseded_source_paths(db, lib, &order, &queued)?;
     let current = current_rank(&order, &queued);
-    let total = (order.total() - superseded.len()) as i64;
+    let total = order.total() as i64;
     if total == 0 {
         return Ok(None);
     }
@@ -578,22 +617,24 @@ pub fn resolve_next(
     // their manual slot instead and must not repeat.
     let mut audio = track_at(db, lib, &order, &queued, target)?;
     while let Some(a) = &audio {
-        if !superseded.contains(&a.path) {
+        let manual_start = order.current_pos + 1;
+        let in_manual = target >= manual_start && target < manual_start + order.manual_count as i64;
+        if in_manual || !superseded.contains(&a.path) {
             break;
         }
-        target = if is_next {
-            (target + 1) % order.total() as i64
+        target = if shuffle {
+            use rand::Rng;
+            rand::thread_rng().gen_range(0..total)
+        } else if is_next {
+            (target + 1) % total
         } else {
-            (target - 1 + order.total() as i64) % order.total() as i64
+            (target - 1 + total) % total
         };
         let next = track_at(db, lib, &order, &queued, target)?;
-        if next.as_ref().map(|n| n.path == a.path).unwrap_or(false) {
-            break;
-        }
         audio = next;
     }
     let audio = match audio {
-        Some(a) if !superseded.contains(&a.path) => a,
+        Some(a) => a,
         _ => return Ok(None),
     };
     let next = next_source(db, &order, target, &audio.path)?;
@@ -602,13 +643,16 @@ pub fn resolve_next(
             return Err(LibraryError::Other("playback source changed".into()));
         }
         io::save_source(c, &next)?;
-        record_history_conn(
-            c,
-            &audio.path,
-            &audio.title,
-            &audio.artist,
-            audio.duration_ms,
-        )
+        if record_play {
+            record_history_conn(
+                c,
+                &audio.path,
+                &audio.title,
+                &audio.artist,
+                audio.duration_ms,
+            )?;
+        }
+        Ok(())
     })?;
     Ok(Some(audio))
 }
@@ -795,6 +839,21 @@ pub fn set_playlist_source(
     playlist_id: &str,
     start_path: Option<&str>,
 ) -> LibraryResult<Option<AudioTrack>> {
+    set_playlist_source_inner(db, playlist_id, start_path, true)
+}
+pub fn select_playlist_source(
+    db: &Db,
+    playlist_id: &str,
+    start_path: Option<&str>,
+) -> LibraryResult<Option<AudioTrack>> {
+    set_playlist_source_inner(db, playlist_id, start_path, false)
+}
+fn set_playlist_source_inner(
+    db: &Db,
+    playlist_id: &str,
+    start_path: Option<&str>,
+    record_play: bool,
+) -> LibraryResult<Option<AudioTrack>> {
     transaction(db, |c| {
         if io::playlist_by_id(c, playlist_id)?.is_none() {
             return Err(LibraryError::Other("playlist not found".into()));
@@ -817,13 +876,15 @@ pub fn set_playlist_source(
         };
         io::save_source(c, &src)?;
         let track = AudioTrack::from(start);
-        record_history_conn(
-            c,
-            &track.path,
-            &track.title,
-            &track.artist,
-            track.duration_ms,
-        )?;
+        if record_play {
+            record_history_conn(
+                c,
+                &track.path,
+                &track.title,
+                &track.artist,
+                track.duration_ms,
+            )?;
+        }
         Ok(Some(track))
     })
 }
@@ -836,6 +897,25 @@ pub fn set_library_source(
     start_path: Option<&str>,
     shuffle: bool,
     sort: &str,
+) -> LibraryResult<Option<AudioTrack>> {
+    set_library_source_inner(db, lib, start_path, shuffle, sort, true)
+}
+pub fn select_library_source(
+    db: &Db,
+    lib: &mut dyn LibraryTracks,
+    start_path: Option<&str>,
+    shuffle: bool,
+    sort: &str,
+) -> LibraryResult<Option<AudioTrack>> {
+    set_library_source_inner(db, lib, start_path, shuffle, sort, false)
+}
+fn set_library_source_inner(
+    db: &Db,
+    lib: &mut dyn LibraryTracks,
+    start_path: Option<&str>,
+    shuffle: bool,
+    sort: &str,
+    record_play: bool,
 ) -> LibraryResult<Option<AudioTrack>> {
     let size = lib.library_count()?;
     if size == 0 {
@@ -881,13 +961,16 @@ pub fn set_library_source(
     transaction(db, |c| {
         io::replace_queue_items(c, &[])?;
         io::save_source(c, &src)?;
-        record_history_conn(
-            c,
-            &start.path,
-            &start.title,
-            &start.artist,
-            start.duration_ms,
-        )
+        if record_play {
+            record_history_conn(
+                c,
+                &start.path,
+                &start.title,
+                &start.artist,
+                start.duration_ms,
+            )?;
+        }
+        Ok(())
     })?;
     Ok(Some(start))
 }
@@ -1121,3 +1204,86 @@ fn record_history_conn(
 #[cfg(test)]
 #[path = "../../tests/unit/library/audio_queue.rs"]
 mod tests;
+
+pub fn playlist_item_records_page(
+    db: &Db,
+    playlist_id: &str,
+    offset: i64,
+    limit: i64,
+    text: &str,
+) -> LibraryResult<Vec<PlaylistItem>> {
+    if offset < 0 || limit < 0 {
+        return Err(LibraryError::Other("invalid pagination".into()));
+    }
+    let needle = text.trim().to_lowercase();
+    if needle.is_empty() {
+        return Ok(crate::db::audio_queue::playlist_items_page(
+            db,
+            playlist_id,
+            offset,
+            limit,
+        )?);
+    }
+    Ok(crate::db::audio_queue::playlist_items(db, playlist_id)?
+        .into_iter()
+        .filter(|i| {
+            i.title.to_lowercase().contains(&needle)
+                || i.artist.to_lowercase().contains(&needle)
+                || i.audio_path.to_lowercase().contains(&needle)
+        })
+        .skip(offset as usize)
+        .take(limit as usize)
+        .collect())
+}
+pub fn remove_playlist_items(db: &Db, playlist_id: &str, paths: &[String]) -> LibraryResult<()> {
+    transaction(db, |c| {
+        for path in paths {
+            io::remove_playlist_item(c, playlist_id, path)?;
+        }
+        if let Some(mut pl) = io::playlist_by_id(c, playlist_id)? {
+            pl.updated_at = now_iso_millis();
+            io::update_playlist(c, &pl)?;
+        }
+        Ok(())
+    })
+}
+pub fn move_queued(db: &Db, from: i32, to: i32) -> LibraryResult<()> {
+    transaction(db, |c| {
+        let mut items = io::all_queue_items(c)?;
+        if from < 0 || to < 0 || from as usize >= items.len() || to as usize >= items.len() {
+            return Err(LibraryError::Other("invalid queue index".into()));
+        }
+        let item = items.remove(from as usize);
+        items.insert(to as usize, item);
+        for (i, item) in items.iter_mut().enumerate() {
+            item.sort_order = i as i64;
+        }
+        io::replace_queue_items(c, &items)?;
+        Ok(())
+    })
+}
+pub fn record_history(
+    db: &Db,
+    path: &str,
+    title: &str,
+    artist: &str,
+    duration_ms: i64,
+) -> LibraryResult<()> {
+    if path.is_empty() {
+        return Err(LibraryError::Other("empty audio path".into()));
+    }
+    validate_duration(duration_ms)?;
+    transaction(db, |c| {
+        record_history_conn(c, path, title, artist, duration_ms)
+    })
+}
+pub fn artist_play_counts(db: &Db) -> LibraryResult<std::collections::BTreeMap<String, i64>> {
+    let mut out = std::collections::BTreeMap::<String, i64>::new();
+    for row in crate::db::audio_queue::all_history(db)? {
+        let total = out.entry(row.artist).or_default();
+        *total = total
+            .checked_add(row.play_count)
+            .ok_or_else(|| LibraryError::Other("play count overflow".into()))?;
+    }
+    Ok(out)
+}

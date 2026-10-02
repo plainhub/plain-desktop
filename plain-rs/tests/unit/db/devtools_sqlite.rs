@@ -53,15 +53,15 @@ fn rows_count_and_id_key_use_shared_database() {
     let db = dbs("route");
     db.with_conn(|conn| {
         conn.execute(
-            "INSERT INTO chats(id, from_id, to_id, created_at) VALUES ('c1', 'a', 'b', '2026')",
+            "INSERT INTO chats(id, from_id, to_id, channel_id, content, created_at, updated_at) VALUES ('c1', 'a', 'b', '', '{}', '2026', '2026')",
             [],
         )
         .unwrap();
     });
     db.with_conn(|conn| {
         conn.execute_batch(
-            "INSERT INTO tags(id, type, name) VALUES ('t1', 1, 'rock');
-                 INSERT INTO tags(id, type, name) VALUES ('t2', 2, 'jazz');",
+            "INSERT INTO tags(id, type, name, count, created_at, updated_at) VALUES ('t1', 1, 'rock', 0, '2026', '2026');
+                 INSERT INTO tags(id, type, name, count, created_at, updated_at) VALUES ('t2', 2, 'jazz', 0, '2026', '2026');",
         )
         .unwrap();
     });
@@ -78,7 +78,7 @@ fn rows_count_and_id_key_use_shared_database() {
     let cols = table_columns(&db, "tags").unwrap();
     assert_eq!(
         cols.iter().map(|c| c.name.as_str()).collect::<Vec<_>>(),
-        vec!["id", "type", "name"]
+        vec!["id", "name", "type", "count", "created_at", "updated_at"]
     );
 }
 
@@ -125,9 +125,9 @@ fn delete_removes_only_named_rows() {
     let db = dbs("delete");
     db.with_conn(|conn| {
         conn.execute_batch(
-            "INSERT INTO tags(id, type, name) VALUES ('t1', 1, 'a');
-                 INSERT INTO tags(id, type, name) VALUES ('t2', 2, 'b');
-                 INSERT INTO tags(id, type, name) VALUES ('t3', 3, 'c');",
+            "INSERT INTO tags(id, type, name, count, created_at, updated_at) VALUES ('t1', 1, 'a', 0, '2026', '2026');
+                 INSERT INTO tags(id, type, name, count, created_at, updated_at) VALUES ('t2', 2, 'b', 0, '2026', '2026');
+                 INSERT INTO tags(id, type, name, count, created_at, updated_at) VALUES ('t3', 3, 'c', 0, '2026', '2026');",
         )
         .unwrap();
     });

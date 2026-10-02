@@ -24,6 +24,7 @@ use tokio::{
 #[derive(Clone)]
 struct ServerState {
     schema: ContentSchema,
+    host: Arc<super::host::Host>,
     db: Arc<Db>,
     prefs: Arc<crate::prefs::Prefs>,
     directory: std::path::PathBuf,
@@ -61,14 +62,17 @@ impl ContentServer {
         let db = Arc::new(Db::open(path).map_err(|e| e.to_string())?);
         let (events, _) = broadcast::channel(256);
         let (stop, receiver) = watch::channel(false);
-        let schema = schema::build(
+        let host = Arc::new(super::host::Host::default());
+        let schema = schema::build_with_host(
             db.clone(),
             events.clone(),
             prefs.clone(),
             path.parent().unwrap_or(Path::new(".")).to_path_buf(),
+            host.clone(),
         );
         let state = ServerState {
             schema,
+            host,
             db,
             prefs,
             directory: path.parent().unwrap_or(Path::new(".")).to_path_buf(),
@@ -79,6 +83,7 @@ impl ContentServer {
         let router = Router::new()
             .route("/graphql", post(graphql))
             .route("/events", get(upgrade))
+            .route("/host", get(host_upgrade))
             .route("/health", get(health))
             .route("/fs", get(files::file))
             .layer(DefaultBodyLimit::max(32 * 1024 * 1024))
@@ -215,6 +220,44 @@ async fn events(
             }
         }
     }
+}
+async fn host_upgrade(
+    State(state): State<ServerState>,
+    headers: HeaderMap,
+    upgrade: WebSocketUpgrade,
+) -> axum::response::Response {
+    if !state.authenticated(&headers) {
+        return StatusCode::UNAUTHORIZED.into_response();
+    }
+    upgrade
+        .max_message_size(8 * 1024 * 1024)
+        .max_frame_size(8 * 1024 * 1024)
+        .on_upgrade(move |socket| host_socket(socket, state))
+        .into_response()
+}
+async fn host_socket(mut socket: WebSocket, mut state: ServerState) {
+    let (generation, mut outgoing) = state.host.connect();
+    loop {
+        tokio::select! {
+            _ = state.stop.changed() => break,
+            request = outgoing.recv() => match request {
+                Some(request) => if socket.send(Message::Text(request.to_string())).await.is_err() { break; },
+                None => break,
+            },
+            message = socket.recv() => match message {
+                Some(Ok(Message::Text(text))) => {
+                    match serde_json::from_str(&text) {
+                        Ok(value) => if state.host.reply(generation, value).is_err() { break; },
+                        Err(_) => break,
+                    }
+                },
+                Some(Ok(Message::Ping(data))) => if socket.send(Message::Pong(data)).await.is_err() { break; },
+                Some(Ok(Message::Close(_))) | Some(Err(_)) | None => break,
+                _ => {},
+            },
+        }
+    }
+    state.host.disconnect(generation);
 }
 #[cfg(test)]
 #[path = "../../tests/unit/content_api/server.rs"]

@@ -390,10 +390,8 @@ fn resolve_next_walks_order_and_skips_superseded() {
 
     let next = resolve_next(&db, &mut lib, true, false).unwrap().unwrap();
     assert_eq!(next.path, "/tqA/m9.mp3");
-    // The manual item is now current and is not in the source (currentPos
-    // -1): the order becomes manual first, then the whole source.
     let next2 = resolve_next(&db, &mut lib, true, false).unwrap().unwrap();
-    assert_eq!(next2.path, "/tqA/p1.mp3");
+    assert_eq!(next2.path, "/tqA/p3.mp3");
     // Manual items always sit right after the current position: as the
     // current advances into the source, m9 comes up again before p2.
     let next3 = resolve_next(&db, &mut lib, true, false).unwrap().unwrap();
@@ -405,10 +403,6 @@ fn resolve_next_walks_order_and_skips_superseded() {
     let prev2 = resolve_next(&db, &mut lib, false, false).unwrap().unwrap();
     assert_eq!(prev2.path, "/tqA/p2.mp3");
 
-    // plain-app quirk parity: when the natural next track is one that was
-    // manually queued AND exists in the source, the superseded-by-path walk
-    // rejects both copies and resolveNext returns null (the player keeps
-    // playing). Reproduced 1:1 from AudioQueueManager.resolveNext.
     let pl2 = create_playlist(&db, "Q").unwrap();
     add_playlist_items(
         &db,
@@ -422,7 +416,13 @@ fn resolve_next_walks_order_and_skips_superseded() {
     .unwrap();
     set_playlist_source(&db, &pl2.id, Some("/tqA/q2.mp3")).unwrap();
     enqueue(&db, &[audio("/tqA/q3.mp3", "Q3", 3)], false).unwrap();
-    assert!(resolve_next(&db, &mut lib, true, false).unwrap().is_none());
+    assert_eq!(
+        resolve_next(&db, &mut lib, true, false)
+            .unwrap()
+            .unwrap()
+            .path,
+        "/tqA/q3.mp3"
+    );
 }
 
 // ---------------------------------------------------------------------------
@@ -772,4 +772,30 @@ fn superseded_source_copies_are_removed_before_pagination() {
         vec!["/a", "/b", "/c", "/d"]
     );
     assert_eq!(queue_total(&db, &mut library).unwrap(), 4);
+}
+
+#[test]
+fn selecting_a_manual_track_retains_the_source_cursor_and_does_not_record_playback() {
+    let db = test_db("manual_source_cursor");
+    let mut lib = FakeLibrary::new(&[("/a", 1), ("/b", 2), ("/c", 3), ("/d", 4)]);
+    select_library_source(&db, &mut lib, Some("/a"), false, "DATE_DESC").unwrap();
+    enqueue(&db, &[audio("/d", "Manual", 4)], true).unwrap();
+    assert_eq!(
+        select_next(&db, &mut lib, true, false)
+            .unwrap()
+            .unwrap()
+            .path,
+        "/d"
+    );
+    assert_eq!(source(&db).unwrap().current_index, 0);
+    assert_eq!(
+        select_next(&db, &mut lib, true, false)
+            .unwrap()
+            .unwrap()
+            .path,
+        "/b"
+    );
+    assert!(history_page(&db, 0, 20, "").unwrap().is_empty());
+    on_playing(&db, "/b", "B", "", 2).unwrap();
+    assert_eq!(history_page(&db, 0, 20, "").unwrap()[0].play_count, 1);
 }

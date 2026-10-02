@@ -2,6 +2,7 @@ pub use crate::content_types as types;
 #[path = "../http_server/main_schemas/app_file.rs"]
 mod app_file;
 mod app_files_host;
+mod audio_host;
 #[path = "../http_server/main_schemas/bookmark.rs"]
 mod bookmark;
 #[path = "../http_server/main_schemas/bookmark_types.rs"]
@@ -26,6 +27,7 @@ mod video_progress;
 use async_graphql::{EmptySubscription, MergedObject, Schema};
 #[derive(MergedObject, Default)]
 pub struct Query(
+    audio_host::AudioHostQuery,
     video_progress::VideoProgressQuery,
     shares_host::ShareHostQuery,
     app_file::AppFileQuery,
@@ -42,6 +44,7 @@ pub struct Query(
 );
 #[derive(MergedObject, Default)]
 pub struct Mutation(
+    audio_host::AudioHostMutation,
     video_progress::VideoProgressMutation,
     shares_host::ShareHostMutation,
     app_files_host::AppFileHostMutation,
@@ -62,7 +65,27 @@ pub fn build(
     prefs: std::sync::Arc<crate::prefs::Prefs>,
     directory: std::path::PathBuf,
 ) -> ContentSchema {
+    build_with_host(
+        db,
+        events,
+        prefs,
+        directory,
+        std::sync::Arc::new(super::host::Host::default()),
+    )
+}
+pub(crate) fn build_with_host(
+    db: std::sync::Arc<crate::db::Db>,
+    events: tokio::sync::broadcast::Sender<crate::ws_event::WsEvent>,
+    prefs: std::sync::Arc<crate::prefs::Prefs>,
+    directory: std::path::PathBuf,
+    host: std::sync::Arc<super::host::Host>,
+) -> ContentSchema {
     Schema::build(Query::default(), Mutation::default(), EmptySubscription)
+        .data(std::sync::Arc::new(super::audio::Audio::new(
+            db.clone(),
+            host.clone(),
+        )))
+        .data(host)
         .data(db.clone())
         .data(crate::shares::Service::new(db.clone(), prefs.clone()))
         .data(crate::app_files::FileStore::new(
