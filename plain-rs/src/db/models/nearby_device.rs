@@ -1,4 +1,4 @@
-#[derive(Clone, Debug, PartialEq, Eq, serde::Serialize)]
+#[derive(Clone, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct DNearbyDeviceCache {
     pub id: String,
     pub name: String,

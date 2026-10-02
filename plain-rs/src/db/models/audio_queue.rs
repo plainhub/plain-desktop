@@ -3,7 +3,9 @@ pub const HISTORY_KEEP: usize = 200;
 
 /// Where the queue draws its tracks from (stored as the plain-app enum
 /// name: NONE / PLAYLIST / LIBRARY).
-#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, serde::Serialize)]
+#[derive(
+    Clone, Copy, Debug, Default, PartialEq, Eq, serde::Serialize, serde::Deserialize,
+)]
 pub enum QueueSourceKind {
     #[default]
     #[serde(rename = "NONE")]
@@ -33,7 +35,7 @@ impl QueueSourceKind {
 }
 
 /// The single queue-source row (plain-app `DAudioQueueSource`, id = 1).
-#[derive(Clone, Debug, PartialEq, serde::Serialize)]
+#[derive(Clone, Debug, PartialEq, serde::Serialize, serde::Deserialize)]
 pub struct QueueSource {
     pub source: QueueSourceKind,
     pub playlist_id: String,
@@ -59,7 +61,7 @@ impl Default for QueueSource {
 }
 
 /// One manual-queue row ("play next" / "add to queue").
-#[derive(Clone, Debug, PartialEq, serde::Serialize)]
+#[derive(Clone, Debug, PartialEq, serde::Serialize, serde::Deserialize)]
 pub struct QueueItem {
     pub path: String,
     pub sort_order: i64,
@@ -68,7 +70,7 @@ pub struct QueueItem {
     pub duration_secs: i64,
 }
 
-#[derive(Clone, Debug, PartialEq, serde::Serialize)]
+#[derive(Clone, Debug, PartialEq, serde::Serialize, serde::Deserialize)]
 pub struct Playlist {
     pub id: String,
     pub name: String,
@@ -76,7 +78,7 @@ pub struct Playlist {
     pub updated_at: String,
 }
 
-#[derive(Clone, Debug, PartialEq, serde::Serialize)]
+#[derive(Clone, Debug, PartialEq, serde::Serialize, serde::Deserialize)]
 pub struct PlaylistItem {
     pub id: String,
     pub playlist_id: String,
@@ -90,7 +92,7 @@ pub struct PlaylistItem {
     pub added_at: String,
 }
 
-#[derive(Clone, Debug, PartialEq, serde::Serialize)]
+#[derive(Clone, Debug, PartialEq, serde::Serialize, serde::Deserialize)]
 pub struct PlayHistory {
     pub path: String,
     pub title: String,

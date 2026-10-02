@@ -1,7 +1,7 @@
 /// Rows for the fixed-query tables that have no search DSL: clipboards,
 /// sessions, shares, pomodoro items, media duration cache, video play
 /// progress, image embeddings, archived conversations and trashed SMS.
-#[derive(Clone, Debug, serde::Serialize)]
+#[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
 pub struct ClipboardRow {
     pub id: String,
     pub text: String,
@@ -12,7 +12,7 @@ pub struct ClipboardRow {
     pub created_at: String,
 }
 
-#[derive(Clone, Debug, serde::Serialize)]
+#[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
 pub struct SessionRow {
     pub client_id: String,
     pub name: String,
@@ -28,7 +28,7 @@ pub struct SessionRow {
     pub updated_at: String,
 }
 
-#[derive(Clone, Debug, serde::Serialize)]
+#[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
 pub struct ShareRow {
     pub id: String,
     pub name: String,
@@ -41,7 +41,7 @@ pub struct ShareRow {
     pub updated_at: String,
 }
 
-#[derive(Clone, Debug, serde::Serialize)]
+#[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
 pub struct PomodoroItemRow {
     pub id: String,
     pub date: String,
@@ -52,7 +52,7 @@ pub struct PomodoroItemRow {
     pub updated_at: String,
 }
 
-#[derive(Clone, Debug, serde::Serialize)]
+#[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
 pub struct MediaItemRow {
     pub media_type: String,
     pub media_id: String,
@@ -60,7 +60,7 @@ pub struct MediaItemRow {
     pub updated_at: String,
 }
 
-#[derive(Clone, Debug, serde::Serialize)]
+#[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
 pub struct VideoPlayProgressRow {
     pub media_id: String,
     pub position_ms: i64,
@@ -69,7 +69,7 @@ pub struct VideoPlayProgressRow {
 
 /// The embedding blob is base64-encoded in JSON so the FFI payload stays
 /// text-safe across the JNI and C ABI boundaries.
-#[derive(Clone, Debug, serde::Serialize)]
+#[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
 pub struct ImageEmbeddingRow {
     pub id: String,
     pub path: String,
@@ -78,13 +78,13 @@ pub struct ImageEmbeddingRow {
     pub updated_at: String,
 }
 
-#[derive(Clone, Debug, serde::Serialize)]
+#[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
 pub struct ArchivedConversationRow {
     pub conversation_id: String,
     pub conversation_date: String,
 }
 
-#[derive(Clone, Debug, serde::Serialize)]
+#[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
 pub struct TrashedMessageRow {
     pub message_id: String,
     pub is_mms: bool,

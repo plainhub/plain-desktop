@@ -1,6 +1,6 @@
 use crate::db::{now_iso, short_id};
 
-#[derive(Clone, Debug, serde::Serialize)]
+#[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
 pub struct DBookmark {
     pub id: String,
     pub url: String,
@@ -34,7 +34,7 @@ impl DBookmark {
     }
 }
 
-#[derive(Clone, Debug, serde::Serialize)]
+#[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
 pub struct DBookmarkGroup {
     pub id: String,
     pub name: String,

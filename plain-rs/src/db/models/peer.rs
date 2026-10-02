@@ -3,7 +3,7 @@ use crate::db::now_iso;
 use crate::utils::http_url::build_url;
 
 /// Matches plain-app `DPeer` entity.
-#[derive(Clone, Debug, serde::Serialize)]
+#[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
 pub struct DPeer {
     pub id: String,
     pub name: String,

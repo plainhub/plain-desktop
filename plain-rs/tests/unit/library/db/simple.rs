@@ -349,3 +349,84 @@ fn trashed_messages_bulk_insert_and_retention_cleanup() {
     );
     assert!(db.trashed_message_ids().unwrap().is_empty());
 }
+
+/// The FFI boundary needs both directions: Kotlin serializes a row on write
+/// and deserializes the same shape on read.
+#[test]
+fn rows_round_trip_through_serde() {
+    let original = ClipboardRow {
+        id: "c1".into(),
+        text: "hello".into(),
+        hash: "h1".into(),
+        source: "peer".into(),
+        label: "label".into(),
+        sensitive: true,
+        created_at: "2026-01-01T00:00:00Z".into(),
+    };
+    let json = serde_json::to_string(&original).unwrap();
+    let back: ClipboardRow = serde_json::from_str(&json).unwrap();
+    assert_eq!(back.id, original.id);
+    assert_eq!(back.text, original.text);
+    assert_eq!(back.hash, original.hash);
+    assert_eq!(back.source, original.source);
+    assert_eq!(back.label, original.label);
+    assert_eq!(back.sensitive, original.sensitive);
+    assert_eq!(back.created_at, original.created_at);
+}
+
+/// Column names stay snake_case so the Kotlin data classes can map them
+/// without a translation layer.
+#[test]
+fn serialized_field_names_are_snake_case() {
+    let row = SessionRow {
+        client_id: "c".into(),
+        name: "n".into(),
+        r#type: "WEB".into(),
+        client_ip: "1.2.3.4".into(),
+        os_name: String::new(),
+        os_version: String::new(),
+        browser_name: String::new(),
+        browser_version: String::new(),
+        token: "t".into(),
+        last_active_at: None,
+        created_at: "2026-01-01T00:00:00Z".into(),
+        updated_at: "2026-01-01T00:00:00Z".into(),
+    };
+    let value: serde_json::Value = serde_json::to_value(&row).unwrap();
+    let object = value.as_object().unwrap();
+    for key in [
+        "client_id",
+        "client_ip",
+        "os_name",
+        "os_version",
+        "browser_name",
+        "browser_version",
+        "last_active_at",
+        "created_at",
+        "updated_at",
+    ] {
+        assert!(object.contains_key(key), "missing snake_case key {key}");
+    }
+    // The Rust keyword field is exposed under its plain name, not `r#type`.
+    assert_eq!(object["type"], "WEB");
+}
+
+/// The queue-source enum serializes as the plain-app enum names.
+#[test]
+fn queue_source_kind_serializes_as_upper_snake() {
+    use crate::db::models::audio_queue::QueueSourceKind;
+    assert_eq!(
+        serde_json::to_string(&QueueSourceKind::None).unwrap(),
+        "\"NONE\""
+    );
+    assert_eq!(
+        serde_json::to_string(&QueueSourceKind::Playlist).unwrap(),
+        "\"PLAYLIST\""
+    );
+    assert_eq!(
+        serde_json::to_string(&QueueSourceKind::Library).unwrap(),
+        "\"LIBRARY\""
+    );
+    let back: QueueSourceKind = serde_json::from_str("\"LIBRARY\"").unwrap();
+    assert_eq!(back, QueueSourceKind::Library);
+}
