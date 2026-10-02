@@ -1,4 +1,4 @@
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, serde::Serialize)]
 pub struct NoteRow {
     pub id: String,
     pub title: String,
@@ -8,7 +8,7 @@ pub struct NoteRow {
     pub updated_at: String,
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, serde::Serialize)]
 pub struct FeedRow {
     pub id: String,
     pub name: String,
@@ -21,7 +21,7 @@ pub struct FeedRow {
     pub updated_at: String,
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, serde::Serialize)]
 pub struct FeedEntryRow {
     pub id: String,
     pub feed_id: String,

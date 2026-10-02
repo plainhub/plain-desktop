@@ -1,5 +1,5 @@
 /// Content-addressable file store record. Matches plain-app `DAppFile`.
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, serde::Serialize)]
 pub struct DAppFile {
     /// Full SHA-256 hex digest (64 chars) — primary key.
     pub id: String,

@@ -1,4 +1,4 @@
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, serde::Serialize)]
 pub struct ImageEditorProjectRow {
     pub id: String,
     pub state_b64: String,

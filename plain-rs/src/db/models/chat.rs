@@ -1,7 +1,7 @@
 use crate::chat::enums::ChatStatus;
 use crate::db::{now_iso, short_id};
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, serde::Serialize)]
 pub struct DChat {
     pub id: String,
     pub from_id: String,

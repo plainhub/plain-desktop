@@ -1,4 +1,4 @@
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq, Eq, serde::Serialize)]
 pub struct TagRow {
     pub id: String,
     pub name: String,
@@ -8,7 +8,7 @@ pub struct TagRow {
     pub count: i32,
 }
 
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq, Eq, serde::Serialize)]
 pub struct TagRelationRow {
     pub tag_id: String,
     pub key: String,

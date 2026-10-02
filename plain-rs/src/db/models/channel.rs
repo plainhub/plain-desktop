@@ -3,7 +3,7 @@ use crate::chat::enums::ChannelStatus;
 use crate::db::now_iso;
 use crate::utils::short_uuid::short_uuid;
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, serde::Serialize)]
 pub struct DChannel {
     pub id: String,
     pub name: String,
