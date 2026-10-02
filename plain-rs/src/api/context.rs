@@ -11,7 +11,7 @@ use tokio::sync::broadcast;
 
 pub use crate::chat::events::{WS_MESSAGE_UPDATED, WS_PEER_STATUS_UPDATED};
 
-pub const WS_BOOKMARK_UPDATED: i32 = 15;
+pub use crate::ws_event::WS_BOOKMARK_UPDATED;
 pub const WS_DEVICE_NAME_UPDATED: i32 = 21;
 /// Peer file download progress — payload is a JSON array of
 /// `DownloadProgressItem` (id, messageId, downloaded, total, speed, status).

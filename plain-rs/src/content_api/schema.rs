@@ -1,4 +1,9 @@
 pub use crate::content_types as types;
+#[path = "../http_server/main_schemas/bookmark.rs"]
+mod bookmark;
+#[path = "../http_server/main_schemas/bookmark_types.rs"]
+mod bookmark_types;
+mod bookmarks;
 mod clipboard;
 #[path = "../http_server/main_schemas/content_common.rs"]
 mod content_common;
@@ -14,6 +19,7 @@ pub struct Query(
     feed::FeedQuery,
     tags::TagQuery,
     clipboard::ClipboardQuery,
+    bookmark::BookmarkQuery,
 );
 #[derive(MergedObject, Default)]
 pub struct Mutation(
@@ -21,6 +27,8 @@ pub struct Mutation(
     feed::FeedMutation,
     tags::TagMutation,
     clipboard::ClipboardMutation,
+    bookmark::BookmarkMutation,
+    bookmarks::BookmarkMetadataMutation,
 );
 pub type ContentSchema = Schema<Query, Mutation, EmptySubscription>;
 pub fn build(

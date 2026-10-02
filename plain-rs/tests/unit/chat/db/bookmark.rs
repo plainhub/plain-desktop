@@ -5,20 +5,20 @@ fn bookmark_store_survives_reopen_and_ungroups_on_group_delete() {
     let path = crate::db::chat_tests::unique_tmp_dir("bookmarks").join("plain.db");
     let db = Db::open(&path).unwrap();
     let group = DBookmarkGroup::new("Links");
-    insert_bookmark_group(&db, &group);
+    insert_bookmark_group(&db, &group).unwrap();
     let bookmark = DBookmark::new("https://example.com", &group.id);
-    insert_bookmark(&db, &bookmark);
+    insert_bookmark(&db, &bookmark).unwrap();
     assert_eq!(get_bookmarks_by_group_id(&db, &group.id).len(), 1);
     drop(db);
 
     let db = Db::open(&path).unwrap();
     assert_eq!(get_bookmarks(&db).len(), 1);
     assert_eq!(get_bookmark_groups(&db).len(), 1);
-    delete_bookmark_group(&db, &group.id);
+    delete_bookmark_group(&db, &group.id).unwrap();
     let ungrouped = get_bookmark_by_id(&db, &bookmark.id).unwrap();
     assert_eq!(ungrouped.group_id, "");
     assert!(get_bookmark_group_by_id(&db, &group.id).is_none());
-    assert_eq!(delete_bookmarks(&db, &[bookmark.id]), 1);
+    assert_eq!(delete_bookmarks(&db, &[bookmark.id]).unwrap(), 1);
     assert!(get_bookmarks(&db).is_empty());
 }
 
@@ -41,7 +41,7 @@ fn listing_order_pins_first_then_sort_then_created() {
     b3.updated_at = older.clone();
     b3.pinned = true;
     for b in [&b1, &b2, &b3] {
-        insert_bookmark(&db, b);
+        insert_bookmark(&db, b).unwrap();
     }
     let mine = [b1.id.clone(), b2.id.clone(), b3.id.clone()];
     let ids: Vec<String> = get_bookmarks(&db)

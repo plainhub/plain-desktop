@@ -2,6 +2,38 @@ type ActionResult {
 	affectedCount: Int!
 }
 
+type Bookmark {
+	id: ID!
+	url: String!
+	title: String!
+	faviconPath: String!
+	groupId: ID!
+	pinned: Boolean!
+	clickCount: Int!
+	sortOrder: Int!
+	createdAt: Instant!
+	updatedAt: Instant!
+	lastClickedAt: Instant
+}
+
+type BookmarkGroup {
+	id: ID!
+	name: String!
+	collapsed: Boolean!
+	sortOrder: Int!
+	itemCount: Int!
+	createdAt: Instant!
+	updatedAt: Instant!
+}
+
+input BookmarkInput {
+	url: String!
+	title: String!
+	groupId: ID!
+	pinned: Boolean!
+	sortOrder: Int!
+}
+
 type ClipboardItem {
 	id: ID!
 	text: String!
@@ -125,6 +157,14 @@ type Mutation {
 	recordClipboard(input: ClipboardRecordInput!): ClipboardRecordResult!
 	deleteClipboardItems(query: String!): ActionResult!
 	deleteClipboardItemsByIds(ids: [ID!]!): ActionResult!
+	addBookmarks(urls: [String!]!, groupId: ID!): [Bookmark!]!
+	updateBookmark(id: ID!, input: BookmarkInput!): Bookmark!
+	deleteBookmarks(ids: [ID!]!): ActionResult!
+	recordBookmarkClick(id: ID!): Boolean!
+	createBookmarkGroup(name: String!): BookmarkGroup!
+	updateBookmarkGroup(id: ID!, name: String!, collapsed: Boolean!, sortOrder: Int!): BookmarkGroup!
+	deleteBookmarkGroup(id: ID!): Boolean!
+	fetchBookmarkMetadata(id: ID!): Bookmark
 }
 
 type Note {
@@ -159,6 +199,8 @@ type Query {
 	tagRelations(type: DataType!, keys: [String!]!): [TagRelation!]!
 	clipboardItems(offset: Int!, limit: Int!, query: String!): [ClipboardItem!]!
 	clipboardItemCount(query: String!): Int!
+	bookmarks: [Bookmark!]!
+	bookmarkGroups: [BookmarkGroup!]!
 }
 
 type Tag {

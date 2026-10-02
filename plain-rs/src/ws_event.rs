@@ -37,3 +37,5 @@ impl WsEvent {
         }
     }
 }
+
+pub const WS_BOOKMARK_UPDATED: i32 = 15;

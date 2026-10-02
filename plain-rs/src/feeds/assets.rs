@@ -10,6 +10,12 @@ pub struct FeedAssets {
 }
 impl FeedAssets {
     pub async fn cache(&self, url: &str) -> LibraryResult<String> {
+        self.cache_formats(url, false).await
+    }
+    pub async fn cache_bookmark_icon(&self, url: &str) -> LibraryResult<String> {
+        self.cache_formats(url, true).await
+    }
+    async fn cache_formats(&self, url: &str, bookmark: bool) -> LibraryResult<String> {
         let response = reqwest::Client::builder()
             .timeout(std::time::Duration::from_secs(15))
             .build()
@@ -29,7 +35,11 @@ impl FeedAssets {
             .next()
             .unwrap_or_default()
             .to_lowercase();
-        if !["image/png", "image/jpeg", "image/webp"].contains(&mime.as_str()) {
+        if !["image/png", "image/jpeg", "image/webp"].contains(&mime.as_str())
+            && !(bookmark
+                && ["image/x-icon", "image/vnd.microsoft.icon", "image/svg+xml"]
+                    .contains(&mime.as_str()))
+        {
             return Err(LibraryError::Other("unsupported feed image format".into()));
         }
         let mut bytes = Vec::new();

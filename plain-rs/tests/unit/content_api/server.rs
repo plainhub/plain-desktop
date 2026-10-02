@@ -239,3 +239,6 @@ async fn measure_loopback_note_page_latency() {
 
 #[path = "clipboard.rs"]
 mod clipboard;
+
+#[path = "bookmarks.rs"]
+mod bookmarks;

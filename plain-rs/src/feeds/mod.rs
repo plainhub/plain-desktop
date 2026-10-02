@@ -249,7 +249,7 @@ fn item_to_row(feed: &FeedRow, item: ParsedEntry) -> FeedEntryRow {
     }
 }
 
-async fn fetch_text(url: &str, max_bytes: usize) -> LibraryResult<String> {
+pub(crate) async fn fetch_text(url: &str, max_bytes: usize) -> LibraryResult<String> {
     require_url(url)?;
     let client = reqwest::Client::builder()
         .timeout(std::time::Duration::from_secs(25))
@@ -624,5 +624,5 @@ pub async fn create_without_sync(
     )?)
 }
 
-mod assets;
+pub(crate) mod assets;
 pub use assets::FeedAssets;

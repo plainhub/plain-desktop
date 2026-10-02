@@ -113,3 +113,5 @@ pub fn build_schema() -> ApiSchema {
 #[cfg(test)]
 #[path = "../../../tests/unit/api/schema.rs"]
 mod tests;
+
+mod bookmark_types;

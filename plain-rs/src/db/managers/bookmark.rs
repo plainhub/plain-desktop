@@ -76,9 +76,9 @@ pub fn get_bookmarks_by_group_id(db: &Db, group_id: &str) -> Vec<DBookmark> {
     })
 }
 
-pub fn insert_bookmark(db: &Db, bookmark: &DBookmark) {
+pub fn insert_bookmark(db: &Db, bookmark: &DBookmark) -> rusqlite::Result<usize> {
     db.with_conn(|conn| {
-        let _ = conn.execute(
+        conn.execute(
             "INSERT INTO bookmarks (id,url,title,favicon_path,group_id,pinned,click_count,last_clicked_at,sort_order,created_at,updated_at) \
              VALUES (?1,?2,?3,?4,?5,?6,?7,?8,?9,?10,?11)",
             params![
@@ -94,13 +94,13 @@ pub fn insert_bookmark(db: &Db, bookmark: &DBookmark) {
                 bookmark.created_at,
                 bookmark.updated_at
             ],
-        );
+        )
     })
 }
 
-pub fn update_bookmark(db: &Db, bookmark: &DBookmark) {
+pub fn update_bookmark(db: &Db, bookmark: &DBookmark) -> rusqlite::Result<usize> {
     db.with_conn(|conn| {
-        let _ = conn.execute(
+        conn.execute(
             "UPDATE bookmarks SET url=?1,title=?2,favicon_path=?3,group_id=?4,pinned=?5,click_count=?6,last_clicked_at=?7,sort_order=?8,updated_at=?9 WHERE id=?10",
             params![
                 bookmark.url,
@@ -114,22 +114,37 @@ pub fn update_bookmark(db: &Db, bookmark: &DBookmark) {
                 bookmark.updated_at,
                 bookmark.id
             ],
-        );
+        )
     })
 }
 
-pub fn delete_bookmarks(db: &Db, ids: &[String]) -> i32 {
+pub fn delete_bookmarks(db: &Db, ids: &[String]) -> rusqlite::Result<i32> {
+    delete_bookmarks_with_rows(db, ids).map(|rows| rows.len() as i32)
+}
+
+pub fn delete_bookmarks_with_rows(db: &Db, ids: &[String]) -> rusqlite::Result<Vec<DBookmark>> {
     if ids.is_empty() {
-        return 0;
+        return Ok(vec![]);
     }
     db.with_conn(|conn| {
+        let tx = conn.unchecked_transaction()?;
         let placeholders = (1..=ids.len())
             .map(|i| format!("?{i}"))
             .collect::<Vec<_>>()
             .join(", ");
-        let sql = format!("DELETE FROM bookmarks WHERE id IN ({placeholders})");
-        conn.execute(&sql, rusqlite::params_from_iter(ids.iter()))
-            .unwrap_or(0) as i32
+        let rows = {
+            let mut stmt = tx.prepare(&format!(
+                "SELECT {BOOKMARK_COLUMNS} FROM bookmarks WHERE id IN ({placeholders})"
+            ))?;
+            stmt.query_map(rusqlite::params_from_iter(ids.iter()), row_to_bookmark)?
+                .collect::<rusqlite::Result<Vec<_>>>()?
+        };
+        tx.execute(
+            &format!("DELETE FROM bookmarks WHERE id IN ({placeholders})"),
+            rusqlite::params_from_iter(ids.iter()),
+        )?;
+        tx.commit()?;
+        Ok(rows)
     })
 }
 
@@ -159,9 +174,9 @@ pub fn get_bookmark_group_by_id(db: &Db, id: &str) -> Option<DBookmarkGroup> {
     })
 }
 
-pub fn insert_bookmark_group(db: &Db, group: &DBookmarkGroup) {
+pub fn insert_bookmark_group(db: &Db, group: &DBookmarkGroup) -> rusqlite::Result<usize> {
     db.with_conn(|conn| {
-        let _ = conn.execute(
+        conn.execute(
             "INSERT INTO bookmark_groups (id,name,collapsed,sort_order,created_at,updated_at) VALUES (?1,?2,?3,?4,?5,?6)",
             params![
                 group.id,
@@ -171,13 +186,13 @@ pub fn insert_bookmark_group(db: &Db, group: &DBookmarkGroup) {
                 group.created_at,
                 group.updated_at
             ],
-        );
+        )
     })
 }
 
-pub fn update_bookmark_group(db: &Db, group: &DBookmarkGroup) {
+pub fn update_bookmark_group(db: &Db, group: &DBookmarkGroup) -> rusqlite::Result<usize> {
     db.with_conn(|conn| {
-        let _ = conn.execute(
+        conn.execute(
             "UPDATE bookmark_groups SET name=?1,collapsed=?2,sort_order=?3,updated_at=?4 WHERE id=?5",
             params![
                 group.name,
@@ -186,19 +201,38 @@ pub fn update_bookmark_group(db: &Db, group: &DBookmarkGroup) {
                 group.updated_at,
                 group.id
             ],
-        );
+        )
     })
 }
 
-pub fn delete_bookmark_group(db: &Db, id: &str) {
-    let now = now_iso();
+pub fn delete_bookmark_group(db: &Db, id: &str) -> rusqlite::Result<usize> {
     db.with_conn(|conn| {
-        let _ = conn.execute("DELETE FROM bookmark_groups WHERE id=?", params![id]);
-        let _ = conn.execute(
+        let tx = conn.unchecked_transaction()?;
+        let count = tx.execute("DELETE FROM bookmark_groups WHERE id=?", params![id])?;
+        tx.execute(
             "UPDATE bookmarks SET group_id='', updated_at=?1 WHERE group_id=?2",
-            params![now, id],
-        );
+            params![now_iso(), id],
+        )?;
+        tx.commit()?;
+        Ok(count)
     })
+}
+
+pub fn record_click(db: &Db, id: &str) -> rusqlite::Result<usize> {
+    db.with_conn(|conn| conn.execute("UPDATE bookmarks SET click_count=click_count+1,last_clicked_at=?1,updated_at=?1 WHERE id=?2", params![now_iso(), id]))
+}
+
+pub fn update_fields(db: &Db, b: &DBookmark) -> rusqlite::Result<usize> {
+    db.with_conn(|conn| conn.execute("UPDATE bookmarks SET url=?1,title=?2,group_id=?3,pinned=?4,sort_order=?5,updated_at=?6 WHERE id=?7", params![b.url,b.title,b.group_id,b.pinned,b.sort_order,now_iso(),b.id]))
+}
+
+pub fn update_metadata(
+    db: &Db,
+    original: &DBookmark,
+    title: &str,
+    icon: &str,
+) -> rusqlite::Result<usize> {
+    db.with_conn(|conn| conn.execute("UPDATE bookmarks SET title=?1,favicon_path=?2,updated_at=?3 WHERE id=?4 AND url=?5 AND title=?6 AND favicon_path=?7", params![title,icon,now_iso(),original.id,original.url,original.title,original.favicon_path]))
 }
 
 #[cfg(test)]
