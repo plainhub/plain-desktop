@@ -17,9 +17,9 @@ pub mod dlna_receiver;
 pub mod dlna_sender;
 #[cfg(feature = "api")]
 pub mod download;
-#[cfg(any(feature = "api", feature = "media_gql"))]
+#[cfg(any(feature = "api", feature = "media_gql", feature = "content_api"))]
 pub mod enums;
-#[cfg(feature = "api")]
+#[cfg(any(feature = "api", feature = "content_api"))]
 pub mod feeds;
 #[cfg(feature = "api")]
 pub mod http_server;
@@ -30,7 +30,7 @@ pub mod link_preview;
 pub mod mdns;
 #[cfg(feature = "media")]
 pub mod media;
-#[cfg(feature = "api")]
+#[cfg(any(feature = "api", feature = "content_api"))]
 pub mod notes;
 #[cfg(feature = "prefs")]
 pub mod prefs;
@@ -48,3 +48,10 @@ pub mod ws_frame;
 
 pub use crypto::*;
 pub use utils::*;
+
+#[cfg(feature = "content_api")]
+pub mod content_api;
+#[cfg(any(feature = "api", feature = "content_api"))]
+pub mod content_types;
+#[cfg(any(feature = "api", feature = "content_api"))]
+pub mod ws_event;

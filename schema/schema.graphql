@@ -1,7 +1,3 @@
-"""
-Bulk-operation outcome (plain-app contract): how many entities the
-mutation actually affected.
-"""
 type ActionResult {
 	affectedCount: Int!
 }
@@ -446,6 +442,9 @@ type Feed {
 	name: String!
 	url: String!
 	fetchContent: Boolean!
+	logo: String!
+	lastSyncAt: Instant
+	lastError: FeedError!
 	createdAt: Instant!
 	updatedAt: Instant!
 }
@@ -460,6 +459,7 @@ type FeedEntry {
 	content: String!
 	feedId: ID!
 	rawId: String!
+	read: Boolean!
 	publishedAt: Instant!
 	createdAt: Instant!
 	updatedAt: Instant!
@@ -470,6 +470,21 @@ type FeedEntry {
 type FeedEntryCount {
 	id: ID!
 	count: Int!
+}
+
+type FeedError {
+	code: String!
+	detail: String!
+}
+
+type FeedPreview {
+	name: String!
+}
+
+type FeedSyncState {
+	feedId: ID!
+	status: String!
+	error: String!
 }
 
 type File {
@@ -940,6 +955,7 @@ type MutationRoot {
 	saveImageEditorProject(id: ID!, input: ImageEditorProjectInput!): ImageEditorProject!
 	deleteImageEditorProject(id: ID!): Boolean!
 	broadcastImageEditorUpdate(id: ID!, update: String!): Boolean!
+	saveNote(id: ID!, input: NoteInput!): Note!
 	createNote(input: NoteInput!): Note!
 	updateNote(id: ID!, input: NoteInput!): Note!
 	saveFeedEntriesToNotes(query: String!): [ID!]!
@@ -947,6 +963,8 @@ type MutationRoot {
 	restoreNotes(query: String!): ActionResult!
 	deleteNotes(query: String!): ActionResult!
 	exportNotes(query: String!): String!
+	updateFeedUrl(id: ID!, url: String!): Feed!
+	markFeedEntriesRead(query: String!, read: Boolean!): ActionResult!
 	syncFeeds(id: ID): Boolean!
 	updateFeed(id: ID!, name: String!, fetchContent: Boolean!): Feed!
 	createFeed(url: String!, fetchContent: Boolean!): Feed!
@@ -1153,6 +1171,10 @@ input PairingRequestInput {
 	awareSupported: Boolean!
 }
 
+"""
+Bulk-operation outcome (plain-app contract): how many entities the
+mutation actually affected.
+"""
 enum PathKind {
 	FILE
 	DIR
@@ -1330,6 +1352,9 @@ type QueryRoot {
 	noteCount(query: String!): Int!
 	note(id: ID!): Note
 	notes(offset: Int!, limit: Int!, query: String!): [Note!]!
+	feedSyncStates: [FeedSyncState!]!
+	feed(id: ID!): Feed
+	previewFeed(url: String!): FeedPreview!
 	feeds: [Feed!]!
 	feedEntryCounts: [FeedEntryCount!]!
 	feedEntryCount(query: String!): Int!
@@ -1337,6 +1362,8 @@ type QueryRoot {
 	feedEntries(offset: Int!, limit: Int!, query: String!): [FeedEntry!]!
 	pomodoroSettings: PomodoroSettings!
 	pomodoroToday: PomodoroToday!
+	tag(id: ID!): Tag
+	tagKeys(id: ID!): [String!]!
 	"""
 	Count of entries in a directory (non-recursive).
 	"""

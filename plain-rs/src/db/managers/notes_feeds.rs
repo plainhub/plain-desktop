@@ -78,13 +78,20 @@ fn query_filter(query: &str, notes: bool, force_trashed: Option<bool>) -> (Strin
                 if !field.value.is_empty() {
                     clauses.push(
                         if notes {
-                            "content LIKE ?"
+                            "content LIKE ? ESCAPE '\\'"
                         } else {
-                            "(title LIKE ? OR description LIKE ? OR content LIKE ?)"
+                            "(title LIKE ? ESCAPE '\\' OR description LIKE ? ESCAPE '\\' OR content LIKE ? ESCAPE '\\')"
                         }
                         .to_string(),
                     );
-                    let pattern = format!("%{}%", field.value);
+                    let pattern = format!(
+                        "%{}%",
+                        field
+                            .value
+                            .replace('\\', "\\\\")
+                            .replace('%', "\\%")
+                            .replace('_', "\\_")
+                    );
                     for _ in 0..if notes { 1 } else { 3 } {
                         values.push(Value::Text(pattern.clone()));
                     }
@@ -102,6 +109,10 @@ fn query_filter(query: &str, notes: bool, force_trashed: Option<bool>) -> (Strin
             "tag_id" => {
                 clauses.push("id IN (SELECT key FROM tag_relations WHERE tag_id=?)".to_string());
                 values.push(Value::Text(field.value));
+            }
+            "read" if !notes => {
+                clauses.push("read=?".into());
+                values.push(Value::Integer(i64::from(field.value == "true")));
             }
             "feed_id" if !notes => {
                 clauses.push("feed_id=?".to_string());
@@ -151,7 +162,7 @@ impl Db {
         values.push(Value::Integer(limit.max(0)));
         values.push(Value::Integer(offset.max(0)));
         self.with_conn(|c| {
-            let mut stmt = c.prepare(&format!("SELECT {NOTE_COLUMNS} FROM notes WHERE {where_sql} ORDER BY updated_at DESC LIMIT ? OFFSET ?"))?;
+            let mut stmt = c.prepare(&format!("SELECT {NOTE_COLUMNS} FROM notes WHERE {where_sql} ORDER BY updated_at DESC, id DESC LIMIT ? OFFSET ?"))?;
             stmt.query_map(params_from_iter(values), note_from_row)?.collect()
         })
     }
@@ -317,7 +328,7 @@ impl Db {
         values.push(Value::Integer(limit.max(0)));
         values.push(Value::Integer(offset.max(0)));
         self.with_conn(|c| {
-            let mut stmt = c.prepare(&format!("SELECT {ENTRY_COLUMNS} FROM feed_entries WHERE {where_sql} ORDER BY published_at DESC LIMIT ? OFFSET ?"))?;
+            let mut stmt = c.prepare(&format!("SELECT {ENTRY_COLUMNS} FROM feed_entries WHERE {where_sql} ORDER BY published_at DESC, id DESC LIMIT ? OFFSET ?"))?;
             stmt.query_map(params_from_iter(values), entry_from_row)?.collect()
         })
     }
@@ -348,7 +359,7 @@ impl Db {
             let tx = c.unchecked_transaction()?;
             let mut inserted = Vec::new();
             for entry in entries {
-                let count = tx.execute("INSERT OR IGNORE INTO feed_entries(id,title,url,image,description,author,content,feed_id,raw_id,published_at,read,created_at,updated_at) VALUES(?1,?2,?3,?4,?5,?6,?7,?8,?9,?10,?11,?12,?13)", params![entry.id,entry.title,entry.url,entry.image,entry.description,entry.author,entry.content,entry.feed_id,entry.raw_id,entry.published_at,entry.read,entry.created_at,entry.updated_at])?;
+                let count = tx.execute("INSERT OR IGNORE INTO feed_entries(id,title,url,image,description,author,content,feed_id,raw_id,published_at,read,created_at,updated_at) SELECT ?1,?2,?3,?4,?5,?6,?7,?8,?9,?10,?11,?12,?13 WHERE NOT EXISTS (SELECT 1 FROM feed_entries WHERE feed_id=?8 AND (raw_id=?9 OR (url=?3 AND ?3<>'')))", params![entry.id,entry.title,entry.url,entry.image,entry.description,entry.author,entry.content,entry.feed_id,entry.raw_id,entry.published_at,entry.read,entry.created_at,entry.updated_at])?;
                 if count > 0 { inserted.push(entry.clone()); }
             }
             tx.commit()?;

@@ -49,49 +49,12 @@ pub const WS_UPLOAD_MERGE_RESULT: i32 = 38;
 pub const WS_POMODORO_ACTION: i32 = 11;
 pub const WS_IMAGE_EDITOR_UPDATE: i32 = 34;
 
-#[derive(Clone, Debug)]
-pub struct WsEvent {
-    pub event_type: i32,
-    pub payload: String,
-    pub binary_payload: Option<Vec<u8>>,
-    /// Delivery target: `Some(cid)` delivers only to the socket whose cid
-    /// matches (per-client media/file-task/DLNA progress); `None`
-    /// broadcasts to every connected socket.
-    pub target_cid: Option<String>,
-}
-
-impl WsEvent {
-    pub fn broadcast(event_type: i32, payload: String) -> Self {
-        Self {
-            event_type,
-            payload,
-            binary_payload: None,
-            target_cid: None,
-        }
-    }
-
-    pub fn targeted(event_type: i32, payload: String, cid: &str) -> Self {
-        Self {
-            event_type,
-            payload,
-            binary_payload: None,
-            target_cid: Some(cid.to_string()),
-        }
-    }
-
-    pub fn broadcast_binary(event_type: i32, payload: Vec<u8>) -> Self {
-        Self {
-            event_type,
-            payload: String::new(),
-            binary_payload: Some(payload),
-            target_cid: None,
-        }
-    }
-}
+pub use crate::ws_event::WsEvent;
 
 /// All server-level dependencies bundled for injection into async-graphql resolvers.
 /// Passed per-request via `Request::data(Arc<AppCtx>)`.
 pub struct AppCtx {
+    pub feed_sync: Arc<crate::feeds::SyncService>,
     pub db: Arc<Db>,
     /// The shared system/user preference stores — one in-process writer
     /// for each file; resolvers read/write through them.
@@ -159,6 +122,14 @@ impl AppCtx {
         );
         let token = chat.service.token.clone();
         Ok(Arc::new(Self {
+            feed_sync: crate::feeds::SyncService::new(
+                db.clone(),
+                event_tx.clone(),
+                Some(Arc::new(crate::feeds::FeedAssets {
+                    db: db.clone(),
+                    directory: data_dir.clone(),
+                })),
+            ),
             db,
             prefs,
             identity,

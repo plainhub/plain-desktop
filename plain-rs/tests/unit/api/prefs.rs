@@ -1,4 +1,5 @@
 use super::*;
+use crate::prefs::Prefs;
 
 #[test]
 fn preference_key_rejects_empty_or_unsafe_keys() {
@@ -22,7 +23,10 @@ fn user_preference_values_keep_native_json_types() {
         .set_user("theme", serde_json::json!({"dark": true, "scale": [1, 2]}))
         .unwrap();
 
-    assert_eq!(prefs.get::<String>("theme").unwrap().as_deref(), Some("dark"));
+    assert_eq!(
+        prefs.get::<String>("theme").unwrap().as_deref(),
+        Some("dark")
+    );
     assert_eq!(
         prefs.get_user::<serde_json::Value>("theme").unwrap(),
         Some(serde_json::json!({"dark": true, "scale": [1, 2]})),

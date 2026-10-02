@@ -87,3 +87,11 @@ fn export_and_save_feed_entries() {
         1
     );
 }
+
+#[test]
+fn markdown_titles_are_derived_in_rust() {
+    assert_eq!(markdown_title("## Sub\nsome text\n# Real\nmore"), "Real");
+    assert_eq!(markdown_title("![alt][id]"), "🖼");
+    assert_eq!(markdown_title("<IMG src='x.png'>"), "🖼");
+    assert_eq!(markdown_title("a\nb"), "ab");
+}

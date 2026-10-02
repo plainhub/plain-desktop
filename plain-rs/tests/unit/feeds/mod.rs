@@ -22,7 +22,7 @@ fn parses_rss_and_atom_entries() {
 fn article_content_ignores_navigation_and_preserves_markdown() {
     let html = "<html><body><nav>Menu</nav><article><h2>Title</h2><p>Read <a href=\"https://example.org/more\">more</a>.</p></article></body></html>";
     let markdown = html_to_markdown(&article_html(html));
-    assert!(markdown.contains("Title\n----------"), "{markdown}");
+    assert!(markdown.contains("## Title"), "{markdown}");
     assert!(markdown.contains("[more](https://example.org/more)"));
     assert!(!markdown.contains("Menu"));
 }
@@ -87,8 +87,8 @@ async fn sync_fetches_and_deduplicates_entries() {
         }
     });
     let feed = db.feed_save("feed", "News", &url, false, &now()).unwrap();
-    sync_one(&db, &feed).await.unwrap();
-    sync_one(&db, &feed).await.unwrap();
+    sync_one(&db, &feed, None).await.unwrap();
+    sync_one(&db, &feed, None).await.unwrap();
     assert_eq!(db.feed_entry_count("").unwrap(), 1);
     server.await.unwrap();
 }

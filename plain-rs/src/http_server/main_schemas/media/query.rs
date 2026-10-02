@@ -9,6 +9,24 @@ pub struct MediaQueryRoot;
 
 #[Object]
 impl MediaQueryRoot {
+    async fn tag(&self, ctx: &Context<'_>, id: ID) -> FieldResult<Option<Tag>> {
+        let db = ctx.data::<Arc<SqlDb>>()?;
+        Ok(
+            crate::library::tags::tag_by_id(db, id.as_str()).map(|t| Tag {
+                id: t.id.into(),
+                name: t.name,
+                r#type: t.kind,
+                count: t.count,
+            }),
+        )
+    }
+    async fn tag_keys(&self, ctx: &Context<'_>, id: ID) -> FieldResult<Vec<String>> {
+        Ok(crate::library::tags::keys_for_tag(
+            ctx.data::<Arc<SqlDb>>()?,
+            id.as_str(),
+        ))
+    }
+
     /// Count of entries in a directory (non-recursive).
     async fn file_count(&self, root: String, query: String) -> FieldResult<i32> {
         Ok(crate::media::file_browse::count_files(&root, &query)?)

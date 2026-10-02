@@ -1,6 +1,6 @@
-use crate::enums::DataType;
 use crate::db::Db;
 use crate::db::notes_feeds::NoteRow;
+use crate::enums::DataType;
 use crate::library::tags;
 use crate::library::{LibraryError, LibraryResult};
 
@@ -10,14 +10,14 @@ fn now() -> String {
 
 pub fn create(db: &Db, title: &str, content: &str) -> LibraryResult<NoteRow> {
     let id = uuid::Uuid::new_v4().to_string();
-    Ok(db.note_save(&id, title, content, &now())?)
+    Ok(db.note_save(&id, &resolved_title(title, content), content, &now())?)
 }
 
 pub fn update(db: &Db, id: &str, title: &str, content: &str) -> LibraryResult<NoteRow> {
     if db.note_get(id)?.is_none() {
         return Err(LibraryError::Other(format!("Note {id} not found")));
     }
-    Ok(db.note_save(id, title, content, &now())?)
+    Ok(db.note_save(id, &resolved_title(title, content), content, &now())?)
 }
 
 pub fn search(db: &Db, query: &str, limit: i32, offset: i32) -> LibraryResult<Vec<NoteRow>> {
@@ -100,3 +100,38 @@ pub fn export(db: &Db, query: &str) -> LibraryResult<String> {
 #[cfg(test)]
 #[path = "../../tests/unit/notes/mod.rs"]
 mod tests;
+
+pub fn save(db: &Db, id: &str, title: &str, content: &str) -> LibraryResult<NoteRow> {
+    if id.is_empty() {
+        return Err(crate::library::LibraryError::Other(
+            "note id is required".into(),
+        ));
+    }
+    Ok(db.note_save(id, &resolved_title(title, content), content, &now())?)
+}
+
+pub fn markdown_title(content: &str) -> String {
+    static IMAGES: std::sync::OnceLock<regex::Regex> = std::sync::OnceLock::new();
+    let images = IMAGES.get_or_init(|| {
+        regex::Regex::new(r"(?i)!\[.*?\]\(.*?\)|!\[.*?\]\[.*?\]|<img.*?>").unwrap()
+    });
+    for line in content.lines() {
+        if let Some(title) = line.trim().strip_prefix("# ") {
+            return images.replace_all(title.trim(), "🖼").into_owned();
+        }
+    }
+    images
+        .replace_all(content, "🖼")
+        .replace('\n', "")
+        .trim()
+        .chars()
+        .take(50)
+        .collect()
+}
+fn resolved_title<'a>(title: &'a str, content: &str) -> std::borrow::Cow<'a, str> {
+    if title.is_empty() {
+        markdown_title(content).into()
+    } else {
+        title.into()
+    }
+}

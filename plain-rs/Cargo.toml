@@ -33,6 +33,7 @@ sqlite_browse = ["dep:rusqlite", "dep:serde_json"]
 prefs = ["dep:serde_json"]
 # Shared API stack for the desktop and NAS shells: GraphQL schemas,
 # axum HTTP/WS router, listener lifecycle, proxy, discovery and DLNA.
+content_api = ["chat", "library", "dep:regex", "dep:async-graphql", "dep:axum", "dep:reqwest", "reqwest/rustls-tls", "dep:futures-util", "dep:quick-xml", "dep:htmd", "dep:scraper", "tokio/net", "tokio/rt-multi-thread", "tokio/sync", "tokio/time", "tokio/macros", "dep:subtle"]
 api = [
     "media_gql",
     "chat",
@@ -46,9 +47,10 @@ api = [
     "dep:serde_json",
     "dep:futures-util",
     "dep:reqwest",
+    "reqwest/native-tls",
     "dep:regex",
     "dep:quick-xml",
-    "dep:html2md",
+    "dep:htmd",
     "dep:scraper",
     "dep:sysinfo",
     "dep:tokio-tungstenite",
@@ -105,6 +107,7 @@ media_gql = ["media", "library", "dep:async-graphql"]
 system = ["api", "dep:nix", "dep:ureq", "dep:dashmap", "dep:http"]
 
 [dependencies]
+subtle = { version = "2", optional = true }
 chacha20poly1305 = "0.10"
 p256 = { version = "0.13", default-features = false, features = ["ecdh", "pkcs8", "std"] }
 ed25519-dalek = { version = "2", features = ["rand_core"] }
@@ -161,10 +164,10 @@ axum-server = { version = "0.7", features = ["tls-rustls"], optional = true }
 # the server side is axum + the host's axum-server rustls listener.
 native-tls = { version = "0.2", optional = true }
 # "stream" enables bytes_stream() for /proxyfs response forwarding.
-reqwest = { version = "0.12", default-features = false, features = ["native-tls", "stream"], optional = true }
+reqwest = { version = "0.12", default-features = false, features = ["stream"], optional = true }
 regex = { version = "1", optional = true }
 quick-xml = { version = "0.42", optional = true }
-html2md = { version = "0.2.17", optional = true }
+htmd = { version = "0.5.5", optional = true }
 scraper = { version = "0.27", optional = true }
 sysinfo = { version = "0.32", default-features = false, features = ["system", "disk"], optional = true }
 tokio-tungstenite = { version = "0.24", features = ["native-tls"], optional = true }

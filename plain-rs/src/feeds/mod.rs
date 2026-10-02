@@ -1,8 +1,8 @@
-use crate::api::context::WsEvent;
 use crate::db::Db;
 use crate::db::notes_feeds::{FeedEntryRow, FeedRow};
 use crate::library::{LibraryError, LibraryResult};
 use crate::utils::http_url::parse_http_url;
+use crate::ws_event::WsEvent;
 use chrono::{DateTime, Utc};
 use futures_util::StreamExt;
 use futures_util::stream;
@@ -17,10 +17,13 @@ use tokio::sync::broadcast;
 struct ParsedFeed {
     title: String,
     entries: Vec<ParsedEntry>,
+    logo: String,
+    site_url: String,
 }
 
 #[derive(Default)]
 struct ParsedEntry {
+    raw_id: String,
     title: String,
     url: String,
     image: String,
@@ -144,6 +147,7 @@ fn assign_text(
     if let Some(item) = entry {
         match name {
             "title" => item.title.push_str(text),
+            "guid" | "id" => item.raw_id.push_str(text),
             "link" => {
                 if item.url.is_empty() {
                     item.url.push_str(text);
@@ -155,6 +159,10 @@ fn assign_text(
             "pubdate" | "published" | "updated" | "date" => item.published_at.push_str(text),
             _ => {}
         }
+    } else if name == "url" && stack.iter().any(|n| n == "image") {
+        feed.logo.push_str(text);
+    } else if name == "link" {
+        feed.site_url.push_str(text);
     } else if name == "title"
         && stack
             .get(stack.len().saturating_sub(2))
@@ -177,7 +185,13 @@ fn parse_date(text: &str, fallback: &str) -> String {
 }
 
 fn html_to_markdown(html: &str) -> String {
-    html2md::parse_html(html).trim().to_string()
+    htmd::HtmlToMarkdown::builder()
+        .skip_tags(vec!["script", "style", "nav", "footer", "header", "form"])
+        .build()
+        .convert(html)
+        .unwrap_or_default()
+        .trim()
+        .to_string()
 }
 
 fn article_html(html: &str) -> String {
@@ -194,7 +208,9 @@ fn article_html(html: &str) -> String {
 fn item_to_row(feed: &FeedRow, item: ParsedEntry) -> FeedEntryRow {
     let at = now();
     let fallback = uuid::Uuid::new_v4().to_string();
-    let raw_key = if !item.url.is_empty() {
+    let raw_key = if !item.raw_id.is_empty() {
+        item.raw_id.as_str()
+    } else if !item.url.is_empty() {
         item.url.as_str()
     } else if !item.title.is_empty() {
         item.title.as_str()
@@ -204,6 +220,10 @@ fn item_to_row(feed: &FeedRow, item: ParsedEntry) -> FeedEntryRow {
     let raw_id = crate::utils::hex::bytes_to_hex(&Sha256::digest(
         format!("{}_{}", feed.id, raw_key).as_bytes(),
     ));
+    let image = assets::absolute_url(&feed.url, &item.image)
+        .or_else(|| assets::main_image(&item.content, &feed.url))
+        .or_else(|| assets::main_image(&item.description, &feed.url))
+        .unwrap_or_default();
     let description = if item.content.is_empty() {
         &item.description
     } else {
@@ -213,9 +233,9 @@ fn item_to_row(feed: &FeedRow, item: ParsedEntry) -> FeedEntryRow {
         id: uuid::Uuid::new_v4().to_string(),
         feed_id: feed.id.clone(),
         title: html_to_markdown(&item.title),
-        url: item.url,
-        image: item.image,
-        description: html_to_markdown(description),
+        url: assets::absolute_url(&feed.url, &item.url).unwrap_or(item.url),
+        image,
+        description: html_to_markdown(&assets::normalize_html(description, &feed.url)),
         author: item.author,
         content: String::new(),
         raw_id,
@@ -238,7 +258,20 @@ async fn fetch_text(url: &str, max_bytes: usize) -> LibraryResult<String> {
         .await
         .map_err(error)?
         .error_for_status()
-        .map_err(error)?;
+        .map_err(|e| {
+            error(format!(
+                "{}: {e}",
+                if e.is_timeout() {
+                    "TIMEOUT"
+                } else if e.status().is_some() {
+                    "SERVER"
+                } else if e.is_connect() {
+                    "DNS"
+                } else {
+                    "UNKNOWN"
+                }
+            ))
+        })?;
     if response
         .content_length()
         .is_some_and(|size| size > max_bytes as u64)
@@ -263,11 +296,11 @@ pub async fn create(
     fetch_content: bool,
     events: broadcast::Sender<WsEvent>,
 ) -> LibraryResult<FeedRow> {
-    require_url(url)?;
-    let xml = fetch_text(url, 4 * 1024 * 1024).await?;
-    let parsed = parse_feed(&xml)?;
-    let id = uuid::Uuid::new_v4().to_string();
-    let feed = db.feed_save(&id, &parsed.title, url, fetch_content, &now())?;
+    if db.feed_get_by_url(url)?.is_some() {
+        return Err(error("feed_already_exists"));
+    }
+    let feed = create_without_sync(&db, url, fetch_content).await?;
+    let id = feed.id.clone();
     queue_sync(db, events, Some(id));
     Ok(feed)
 }
@@ -317,11 +350,33 @@ pub fn delete_entries(db: &Db, query: &str) -> LibraryResult<usize> {
 }
 
 pub async fn sync_entry_content(db: &Db, id: &str) -> LibraryResult<FeedEntryRow> {
+    sync_entry_content_with_assets(db, id, None).await
+}
+pub async fn sync_entry_content_with_assets(
+    db: &Db,
+    id: &str,
+    assets: Option<&FeedAssets>,
+) -> LibraryResult<FeedEntryRow> {
     let entry = db
         .feed_entry_get(id)?
         .ok_or_else(|| error(format!("Feed entry {id} not found")))?;
-    if let Ok(html) = fetch_text(&entry.url, 4 * 1024 * 1024).await {
-        let content = html_to_markdown(&article_html(&html));
+    {
+        let html = fetch_text(&entry.url, 4 * 1024 * 1024).await?;
+        let article = assets::normalize_html(&article_html(&html), &entry.url);
+        let content = html_to_markdown(&article);
+        if let Some(assets) = assets {
+            if !entry.image.starts_with('/') {
+                if let Some(url) = if entry.image.is_empty() {
+                    assets::main_image(&article, &entry.url)
+                } else {
+                    Some(entry.image.clone())
+                } {
+                    if let Ok(image) = assets.cache(&url).await {
+                        db.feed_entry_set_image(id, &image)?;
+                    }
+                }
+            }
+        }
         if content.len() >= entry.description.len() && !content.is_empty() {
             db.feed_entry_set_content(id, &content, &now())?;
         }
@@ -329,7 +384,7 @@ pub async fn sync_entry_content(db: &Db, id: &str) -> LibraryResult<FeedEntryRow
     Ok(db.feed_entry_get(id)?.unwrap_or(entry))
 }
 
-async fn sync_one(db: &Db, feed: &FeedRow) -> LibraryResult<()> {
+async fn sync_one(db: &Db, feed: &FeedRow, assets: Option<&FeedAssets>) -> LibraryResult<()> {
     let xml = fetch_text(&feed.url, 4 * 1024 * 1024).await?;
     let parsed = parse_feed(&xml)?;
     let rows: Vec<_> = parsed
@@ -341,48 +396,154 @@ async fn sync_one(db: &Db, feed: &FeedRow) -> LibraryResult<()> {
     if feed.fetch_content {
         stream::iter(inserted)
             .for_each_concurrent(4, |entry| async move {
-                let _ = sync_entry_content(db, &entry.id).await;
+                let _ = sync_entry_content_with_assets(db, &entry.id, assets).await;
             })
             .await;
+    }
+    if let Some(assets) = assets {
+        if feed.logo.is_empty() {
+            let mut candidates = Vec::new();
+            if let Some(url) =
+                assets::absolute_url(&feed.url, &parsed.logo).filter(|_| !parsed.logo.is_empty())
+            {
+                candidates.push(url);
+            }
+            let site = if parsed.site_url.is_empty() {
+                feed.url.clone()
+            } else {
+                parsed.site_url
+            };
+            if let Ok(html) = fetch_text(&site, 2 * 1024 * 1024).await {
+                let document = Html::parse_document(&html);
+                for element in document.select(&Selector::parse("link[rel][href]").unwrap()) {
+                    if element
+                        .value()
+                        .attr("rel")
+                        .unwrap_or_default()
+                        .contains("icon")
+                    {
+                        if let Some(url) = assets::absolute_url(
+                            &site,
+                            element.value().attr("href").unwrap_or_default(),
+                        ) {
+                            candidates.push(url);
+                        }
+                    }
+                }
+            }
+            for url in candidates {
+                if let Ok(logo) = assets.cache(&url).await {
+                    db.feed_set_logo(&feed.id, &logo)?;
+                    break;
+                }
+            }
+        }
+        for entry in db.feed_entries_list(&format!("feed_id:{}", feed.id), i64::MAX, 0)? {
+            if entry.image.starts_with("http") {
+                if let Ok(image) = assets.cache(&entry.image).await {
+                    db.feed_entry_set_image(&entry.id, &image)?;
+                }
+            }
+        }
     }
     Ok(())
 }
 
+pub async fn sync(
+    db: Arc<Db>,
+    events: broadcast::Sender<WsEvent>,
+    id: Option<String>,
+) -> LibraryResult<()> {
+    sync_with_assets(db, events, id, None).await
+}
+pub async fn sync_with_assets(
+    db: Arc<Db>,
+    events: broadcast::Sender<WsEvent>,
+    id: Option<String>,
+    assets: Option<Arc<FeedAssets>>,
+) -> LibraryResult<()> {
+    let feeds = match id.as_deref() {
+        Some(id) => vec![db.feed_get(id)?.ok_or_else(|| error("feed_not_found"))?],
+        None => db.feeds_list()?,
+    };
+    let errors: Vec<String> = stream::iter(feeds)
+        .map(|feed| {
+            let db = db.clone();
+            let events = events.clone();
+            let assets = assets.clone();
+            async move {
+                let result = sync_one(&db, &feed, assets.as_deref()).await;
+                let detail = result
+                    .as_ref()
+                    .err()
+                    .map(ToString::to_string)
+                    .unwrap_or_default();
+                let code = if detail.is_empty() {
+                    ""
+                } else if detail.contains("TIMEOUT:") || detail.contains("timed out") {
+                    "TIMEOUT"
+                } else if detail.contains("SERVER:") {
+                    "SERVER"
+                } else if detail.contains("DNS:") {
+                    "DNS"
+                } else if detail.contains("invalid_feed_content")
+                    || detail.contains("decode")
+                    || detail.contains("XML")
+                {
+                    "PARSE"
+                } else {
+                    "UNKNOWN"
+                };
+                let stored = serde_json::json!({"code":code,"detail":detail}).to_string();
+                let persist = db.feed_set_sync_status(&feed.id, &now(), &stored);
+                let detail = persist.err().map(|e| e.to_string()).unwrap_or(detail);
+                let _ = events.send(WsEvent::broadcast(
+                    4,
+                    serde_json::json!({"feedId":feed.id,"error":detail}).to_string(),
+                ));
+                detail
+            }
+        })
+        .buffer_unordered(16)
+        .filter(|e| std::future::ready(!e.is_empty()))
+        .collect()
+        .await;
+    if id.is_none() {
+        let _ = events.send(WsEvent::broadcast(
+            4,
+            serde_json::json!({"feedId":"all","error":errors.join("\n")}).to_string(),
+        ));
+    }
+    if errors.is_empty() {
+        Ok(())
+    } else {
+        Err(error(errors.join("\n")))
+    }
+}
 pub fn queue_sync(db: Arc<Db>, events: broadcast::Sender<WsEvent>, id: Option<String>) {
     tokio::spawn(async move {
-        let (feeds, read_error) = match id.as_deref() {
-            Some(id) => match db.feed_get(id) {
-                Ok(feed) => (feed.into_iter().collect(), None),
-                Err(error) => (Vec::new(), Some(error.to_string())),
-            },
-            None => match db.feeds_list() {
-                Ok(feeds) => (feeds, None),
-                Err(error) => (Vec::new(), Some(error.to_string())),
-            },
-        };
-        let errors: Vec<String> = stream::iter(feeds)
-            .map(|feed| {
-                let db = db.clone();
-                async move {
-                    sync_one(&db, &feed)
-                        .await
-                        .err()
-                        .map(|error| error.to_string())
-                }
-            })
-            .buffer_unordered(16)
-            .filter_map(async |error| error)
-            .collect()
-            .await;
-        let mut errors = errors;
-        if let Some(error) = read_error {
-            errors.push(error);
-        }
-        let feed_id = id.unwrap_or_else(|| "all".to_string());
-        let payload =
-            serde_json::json!({ "feedId": feed_id, "error": errors.join("\n") }).to_string();
-        let _ = events.send(WsEvent::broadcast(4, payload));
+        let _ = sync(db, events, id).await;
     });
+}
+pub async fn preview(url: &str) -> LibraryResult<String> {
+    require_url(url)?;
+    Ok(parse_feed(&fetch_text(url, 4 * 1024 * 1024).await?)?.title)
+}
+pub fn update_url(db: &Db, id: &str, url: &str) -> LibraryResult<FeedRow> {
+    require_url(url)?;
+    let feed = db.feed_get(id)?.ok_or_else(|| error("feed_not_found"))?;
+    Ok(db.feed_save(id, &feed.name, url, feed.fetch_content, &now())?)
+}
+pub fn mark_read(db: &Db, query: &str, read: bool) -> LibraryResult<usize> {
+    if query.trim().is_empty() {
+        return Err(error("query is required"));
+    }
+    let ids = db
+        .feed_entries_list(query, i64::MAX, 0)?
+        .into_iter()
+        .map(|e| e.id)
+        .collect::<Vec<_>>();
+    Ok(db.feed_entries_mark_read(&ids, read)?)
 }
 
 pub fn import_opml(db: &Db, content: &str) -> LibraryResult<()> {
@@ -442,3 +603,26 @@ pub fn export_opml(db: &Db) -> LibraryResult<String> {
 #[cfg(test)]
 #[path = "../../tests/unit/feeds/mod.rs"]
 mod tests;
+
+mod sync_service;
+pub use sync_service::{FeedSyncState, SyncService};
+pub async fn create_without_sync(
+    db: &Db,
+    url: &str,
+    fetch_content: bool,
+) -> LibraryResult<FeedRow> {
+    if db.feed_get_by_url(url)?.is_some() {
+        return Err(error("feed_already_exists"));
+    }
+    let title = preview(url).await?;
+    Ok(db.feed_save(
+        &uuid::Uuid::new_v4().to_string(),
+        &title,
+        url,
+        fetch_content,
+        &now(),
+    )?)
+}
+
+mod assets;
+pub use assets::FeedAssets;

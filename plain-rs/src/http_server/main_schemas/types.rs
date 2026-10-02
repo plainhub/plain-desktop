@@ -1,3 +1,4 @@
+pub use crate::content_types::{ActionResult, Instant, Long, Tag, TagRelation, TagRelationStub};
 use async_graphql::{ComplexObject, Enum, ID, InputObject, SimpleObject, Union};
 
 use crate::api::db::{DBookmark, DBookmarkGroup, DChannel, DChat, DPeer};
@@ -113,7 +114,6 @@ pub struct KeyValuePair {
     pub key: String,
     pub value: String,
 }
-
 
 /// Chunked-upload merge job state (plain-app `MergeTaskStatus`).
 #[derive(Enum, Copy, Clone, Eq, PartialEq, Debug)]
@@ -550,49 +550,6 @@ impl Bookmark {
 
 // Media GraphQL scalar and output types.
 
-/// The Long scalar type represents a signed 64-bit numeric non-fractional
-/// value. Serialized as a JSON number — GraphQL `Int` is only 32-bit, so
-/// byte counts and millisecond durations that can exceed 2^31 use this.
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Default)]
-pub struct Long(pub i64);
-
-#[async_graphql::Scalar]
-impl async_graphql::ScalarType for Long {
-    fn parse(value: async_graphql::Value) -> async_graphql::InputValueResult<Self> {
-        if let async_graphql::Value::Number(n) = &value
-            && let Some(i) = n.as_i64()
-        {
-            return Ok(Long(i));
-        }
-        Err(async_graphql::InputValueError::expected_type(value))
-    }
-
-    fn to_value(&self) -> async_graphql::Value {
-        async_graphql::Value::from(self.0)
-    }
-}
-
-/// ISO-8601 / RFC 3339 UTC timestamp string, e.g. 2026-09-20T12:34:56.789Z
-/// (plain-app `Instant` scalar).
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Default)]
-pub struct Instant(pub chrono::DateTime<chrono::Utc>);
-
-#[async_graphql::Scalar]
-impl async_graphql::ScalarType for Instant {
-    fn parse(value: async_graphql::Value) -> async_graphql::InputValueResult<Self> {
-        if let async_graphql::Value::String(s) = &value
-            && let Ok(dt) = chrono::DateTime::parse_from_rfc3339(s)
-        {
-            return Ok(Instant(dt.with_timezone(&chrono::Utc)));
-        }
-        Err(async_graphql::InputValueError::expected_type(value))
-    }
-
-    fn to_value(&self) -> async_graphql::Value {
-        async_graphql::Value::String(self.0.to_rfc3339_opts(chrono::SecondsFormat::Millis, true))
-    }
-}
-
 #[derive(SimpleObject, Clone, Debug)]
 pub struct File {
     pub name: String,
@@ -689,34 +646,6 @@ impl MediaDataType {
             MediaDataType::IMAGE => DataType::Image,
         }
     }
-}
-
-#[derive(SimpleObject, Clone, Debug)]
-pub struct Tag {
-    pub id: ID,
-    pub name: String,
-    /// Numeric tag kind — the ordinal of the tag's `DataType`
-    /// (DEFAULT=0, AUDIO=1, VIDEO=2, IMAGE=3, …). The NAS only has data
-    /// for the media kinds; the Int is frozen phone contract (API_SPEC
-    /// §9), the mapping lives in docs/api/tags.md.
-    pub r#type: i32,
-    pub count: i32,
-}
-
-#[derive(SimpleObject, InputObject, Clone, Debug)]
-pub struct TagRelationStub {
-    pub key: String,
-    pub title: String,
-    pub size: Long,
-}
-
-/// One (tag, item-key) relation (plain-app contract). `key` is the media id
-/// / entity key the tag is attached to.
-#[derive(SimpleObject, Clone, Debug)]
-pub struct TagRelation {
-    #[graphql(name = "tagId")]
-    pub tag_id: ID,
-    pub key: String,
 }
 
 #[derive(Enum, Copy, Clone, Eq, PartialEq, Debug)]
@@ -902,11 +831,6 @@ pub struct MediaBucket {
 
 /// Bulk-operation outcome (plain-app contract): how many entities the
 /// mutation actually affected.
-#[derive(SimpleObject, Clone, Debug)]
-pub struct ActionResult {
-    #[graphql(name = "affectedCount")]
-    pub affected_count: i32,
-}
 
 #[derive(Enum, Copy, Clone, Eq, PartialEq, Debug)]
 #[allow(non_camel_case_types, clippy::upper_case_acronyms)] // SDL contract names

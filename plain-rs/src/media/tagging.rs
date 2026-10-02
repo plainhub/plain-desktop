@@ -7,7 +7,7 @@ pub fn add_to_tags(db: &Db, kind: DataType, tag_ids: &[String], query: &str) {
     if tag_ids.is_empty() {
         return;
     }
-    let keys = resolve_media_keys(&image_index::global(), kind, query);
+    let keys = resolve_keys(db, kind, query);
     if keys.is_empty() {
         return;
     }
@@ -44,7 +44,7 @@ pub fn remove_from_tags(db: &Db, kind: DataType, tag_ids: &[String], query: &str
     if tag_ids.is_empty() {
         return;
     }
-    let keys = resolve_media_keys(&image_index::global(), kind, query);
+    let keys = resolve_keys(db, kind, query);
     if !keys.is_empty() {
         crate::library::tags::remove_relations(db, &keys, tag_ids);
     }
@@ -86,4 +86,17 @@ fn parse_ids_query(query: &str) -> Option<Vec<String>> {
             .map(str::to_string)
             .collect(),
     )
+}
+
+fn resolve_keys(db: &Db, kind: DataType, query: &str) -> Vec<String> {
+    match kind {
+        DataType::Note => db.note_ids(query, None).unwrap_or_default(),
+        DataType::FeedEntry => db
+            .feed_entries_list(query, i64::MAX, 0)
+            .unwrap_or_default()
+            .into_iter()
+            .map(|entry| entry.id)
+            .collect(),
+        _ => resolve_media_keys(&image_index::global(), kind, query),
+    }
 }

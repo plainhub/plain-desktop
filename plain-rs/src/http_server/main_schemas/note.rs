@@ -3,8 +3,8 @@ use super::types::{ActionResult, Instant, Tag};
 use async_graphql::{ComplexObject, Context, ID, InputObject, Object, SimpleObject};
 use std::sync::Arc;
 
-use crate::enums::DataType;
 use crate::db::{Db, notes_feeds::NoteRow};
+use crate::enums::DataType;
 use crate::notes;
 
 type GqlResult<T> = async_graphql::Result<T>;
@@ -82,6 +82,14 @@ pub struct NoteMutation;
 
 #[Object]
 impl NoteMutation {
+    async fn save_note(&self, ctx: &Context<'_>, id: ID, input: NoteInput) -> GqlResult<Note> {
+        to_model(notes::save(
+            ctx.data::<Arc<Db>>()?,
+            id.as_str(),
+            &input.title,
+            &input.content,
+        )?)
+    }
     async fn create_note(&self, ctx: &Context<'_>, input: NoteInput) -> GqlResult<Note> {
         to_model(notes::create(
             ctx.data::<Arc<Db>>()?,
@@ -104,12 +112,10 @@ impl NoteMutation {
         ctx: &Context<'_>,
         query: String,
     ) -> GqlResult<Vec<ID>> {
-        Ok(
-            notes::save_feed_entries(ctx.data::<Arc<Db>>()?, &query)?
-                .into_iter()
-                .map(ID)
-                .collect(),
-        )
+        Ok(notes::save_feed_entries(ctx.data::<Arc<Db>>()?, &query)?
+            .into_iter()
+            .map(ID)
+            .collect())
     }
 
     async fn trash_notes(&self, ctx: &Context<'_>, query: String) -> GqlResult<ActionResult> {
@@ -135,6 +141,6 @@ impl NoteMutation {
     }
 }
 
-#[cfg(test)]
+#[cfg(all(test, feature = "api"))]
 #[path = "../../../tests/unit/api/schema/note.rs"]
 mod tests;

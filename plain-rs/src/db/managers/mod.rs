@@ -28,3 +28,6 @@ mod peer;
 pub mod simple;
 #[cfg(feature = "library")]
 pub mod tag;
+
+#[cfg(feature = "library")]
+mod content_state;
