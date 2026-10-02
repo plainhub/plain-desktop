@@ -430,11 +430,7 @@ impl Peer {
 
 pub use super::bookmark_types::{Bookmark, BookmarkGroup, BookmarkInput};
 
-pub(crate) fn parse_instant(value: &str) -> async_graphql::Result<Instant> {
-    chrono::DateTime::parse_from_rfc3339(value)
-        .map(|dt| Instant(dt.with_timezone(&chrono::Utc)))
-        .map_err(|e| async_graphql::Error::new(format!("invalid stored timestamp: {e}")))
-}
+pub(crate) use crate::content_types::parse_instant;
 
 macro_rules! instant_fields {
     ($name:ident, $($field:ident),+ $(,)?) => {

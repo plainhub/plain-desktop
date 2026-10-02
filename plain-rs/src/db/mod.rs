@@ -21,16 +21,12 @@ pub use managers::browse;
 #[cfg(feature = "system")]
 pub use managers::devtools;
 #[cfg(feature = "library")]
-pub use managers::{
-    audio_queue, favorite_folder, image_editor_project, notes_feeds, tag,
-};
+pub use managers::{audio_queue, favorite_folder, image_editor_project, notes_feeds, tag};
 
 #[cfg(all(feature = "chat", feature = "sqlite_browse"))]
 pub use crate::sqlite_browse::TableColumnMeta;
 #[cfg(feature = "chat")]
 pub use managers::db_time::{iso_from_unix_millis, now_iso, now_millis, short_id};
-#[cfg(feature = "chat")]
-pub use models::{DAppFile, DChannel, DChat, DNearbyDeviceCache, DPeer};
 #[cfg(feature = "library")]
 pub use models::{
     ArchivedConversationRow, ClipboardRow, FavoriteFolderRow, HISTORY_KEEP, ImageEmbeddingRow,
@@ -38,9 +34,11 @@ pub use models::{
     QueueSourceKind, SessionRow, ShareRow, TagRelationRow, TagRow, TrashedMessageRow,
     VideoPlayProgressRow,
 };
+#[cfg(feature = "chat")]
+pub use models::{DAppFile, DChannel, DChat, DNearbyDeviceCache, DPeer};
 
 #[derive(Clone)]
-pub struct Db(Arc<Mutex<Connection>>);
+pub struct Db(Arc<Mutex<Connection>>, Arc<Mutex<()>>);
 
 impl Db {
     pub fn open(db_path: &Path) -> rusqlite::Result<Self> {
@@ -64,7 +62,14 @@ impl Db {
         )?;
         #[cfg(any(feature = "chat", feature = "library"))]
         schema::init(&conn)?;
-        Ok(Self(Arc::new(Mutex::new(conn))))
+        Ok(Self(Arc::new(Mutex::new(conn)), Arc::new(Mutex::new(()))))
+    }
+
+    #[cfg(feature = "chat")]
+    pub(crate) fn app_files_lock(&self) -> std::io::Result<std::sync::MutexGuard<'_, ()>> {
+        self.1
+            .lock()
+            .map_err(|_| std::io::Error::other("app file store lock poisoned"))
     }
 
     pub fn with_conn<F, T>(&self, f: F) -> T

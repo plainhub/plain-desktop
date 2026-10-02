@@ -32,7 +32,7 @@ use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use crate::utils::hex::bytes_to_hex;
 use crate::utils::mime::mime_extension;
 
-use crate::db::{Db, DAppFile, DChat};
+use crate::db::{DAppFile, DChat, Db};
 
 /// Default MIME type when the client did not supply one.
 const DEFAULT_MIME: &str = "application/octet-stream";
@@ -173,124 +173,43 @@ pub fn import_file(
     file_name: &str,
     mime_type: &str,
 ) -> std::io::Result<ImportResult> {
-    let (weak_hash, size) = weak_hash_file(src)?;
-    let strong_hash = strong_hash_file(src)?;
-
-    // Step 1: weak probe.
-    let weak_candidates = db.find_app_files_by_weak(size as i64, &weak_hash);
-    for cand in weak_candidates {
-        if cand.id == strong_hash {
-            // Step 2: strong match — reuse. The record's `real_path` is the
-            // authority for where the canonical file lives (its extension
-            // may have come from the original upload's file name).
-            db.increment_app_file_ref(&strong_hash);
-            let real_path = data_dir.join(&cand.real_path);
-            ensure_canonical_exists(&real_path, src)?;
-            let fid_suffix = fid_suffix_of(&real_path, &strong_hash);
-            return Ok(ImportResult {
-                id: strong_hash,
-                fid_suffix,
-                mime_type: cand.mime_type,
-                real_path,
-                reused: true,
-            });
-        }
-    }
-
-    // Step 2 (race guard): direct id lookup.
-    if let Some(existing) = db.get_app_file(&strong_hash) {
-        db.increment_app_file_ref(&strong_hash);
-        let real_path = data_dir.join(&existing.real_path);
-        ensure_canonical_exists(&real_path, src)?;
-        let fid_suffix = fid_suffix_of(&real_path, &strong_hash);
-        return Ok(ImportResult {
-            id: strong_hash,
-            fid_suffix,
-            mime_type: existing.mime_type,
-            real_path,
-            reused: true,
-        });
-    }
-
-    // No match — insert new record.
-    let effective_mime = if mime_type.is_empty() {
-        DEFAULT_MIME.to_string()
+    let guessed_mime = crate::utils::mime::mime_from_ext(if file_name.is_empty() {
+        src.to_str().unwrap_or_default()
     } else {
-        mime_type.to_string()
-    };
-    let ext = ext_from_name(file_name, &effective_mime);
-    let real_path = dest_path(data_dir, &strong_hash, &ext);
-    if let Some(parent) = real_path.parent() {
-        fs::create_dir_all(parent)?;
-    }
-    fs::copy(src, &real_path)?;
-
-    let now = crate::db::now_iso();
-    let record = DAppFile {
-        id: strong_hash.clone(),
-        size: size as i64,
-        mime_type: effective_mime.clone(),
-        real_path: relative_dest_path(&strong_hash, &ext),
-        ref_count: 1,
-        weak_hash,
-        created_at: now.clone(),
-        updated_at: now,
-    };
-    db.insert_app_file(&record);
-
-    let fid_suffix = if ext.is_empty() {
-        strong_hash.clone()
+        file_name
+    });
+    let mime_type = if mime_type.is_empty() {
+        guessed_mime
     } else {
-        format!("{strong_hash}.{ext}")
+        mime_type
     };
-    Ok(ImportResult {
-        id: strong_hash,
-        fid_suffix,
-        mime_type: effective_mime,
-        real_path,
-        reused: false,
-    })
+    let strong = strong_hash_file(src)?;
+    let (weak, size) = weak_hash_file(src)?;
+    store(
+        db,
+        data_dir,
+        &strong,
+        &weak,
+        size,
+        file_name,
+        mime_type,
+        |path| {
+            fs::copy(src, path)?;
+            if strong_hash_file(path)? != strong || fs::metadata(path)?.len() != size {
+                return Err(std::io::Error::other("source changed during import"));
+            }
+            Ok(())
+        },
+    )
 }
 
-/// In-memory variant — useful for tests or small synthetic uploads.
 pub fn import_bytes(
     db: &Db,
     data_dir: &Path,
     data: &[u8],
     mime_type: &str,
 ) -> std::io::Result<ImportResult> {
-    let mut hasher = Sha256::new();
-    hasher.update(data);
-    let strong_hash = bytes_to_hex(&hasher.finalize());
-
-    if let Some(existing) = db.get_app_file(&strong_hash) {
-        db.increment_app_file_ref(&strong_hash);
-        let real_path = data_dir.join(&existing.real_path);
-        let fid_suffix = fid_suffix_of(&real_path, &strong_hash);
-        return Ok(ImportResult {
-            id: strong_hash,
-            fid_suffix,
-            mime_type: existing.mime_type,
-            real_path,
-            reused: true,
-        });
-    }
-
-    let effective_mime = if mime_type.is_empty() {
-        DEFAULT_MIME.to_string()
-    } else {
-        mime_type.to_string()
-    };
-    let ext = fid_ext(&effective_mime);
-    let real_path = dest_path(data_dir, &strong_hash, ext);
-    if let Some(parent) = real_path.parent() {
-        fs::create_dir_all(parent)?;
-    }
-    fs::write(&real_path, data)?;
-
-    // Weak hash for in-memory data is the same as strong (we have the full
-    // bytes). Use first 4K + last 4K to stay consistent with the file path
-    // for index reuse.
+    let strong = bytes_to_hex(&Sha256::digest(data));
     let mut weak = Sha256::new();
     if data.len() <= WEAK_HEAD + WEAK_TAIL {
         weak.update(data);
@@ -298,47 +217,154 @@ pub fn import_bytes(
         weak.update(&data[..WEAK_HEAD]);
         weak.update(&data[data.len() - WEAK_TAIL..]);
     }
-    let weak_hash = bytes_to_hex(&weak.finalize());
+    store(
+        db,
+        data_dir,
+        &strong,
+        &bytes_to_hex(&weak.finalize()),
+        data.len() as u64,
+        "",
+        mime_type,
+        |path| fs::write(path, data),
+    )
+}
 
-    let now = crate::db::now_iso();
-    let record = DAppFile {
-        id: strong_hash.clone(),
-        size: data.len() as i64,
-        mime_type: effective_mime.clone(),
-        real_path: relative_dest_path(&strong_hash, ext),
-        ref_count: 1,
-        weak_hash,
-        created_at: now.clone(),
-        updated_at: now,
-    };
-    db.insert_app_file(&record);
-
-    let fid_suffix = if ext.is_empty() {
-        strong_hash.clone()
+fn store(
+    db: &Db,
+    directory: &Path,
+    strong: &str,
+    weak: &str,
+    size: u64,
+    name: &str,
+    mime: &str,
+    write: impl FnOnce(&Path) -> std::io::Result<()>,
+) -> std::io::Result<ImportResult> {
+    let _guard = db.app_files_lock()?;
+    let existing = db.app_file_get(strong).map_err(std::io::Error::other)?;
+    let effective_mime = existing
+        .as_ref()
+        .map(|file| file.mime_type.as_str())
+        .unwrap_or(if mime.is_empty() { DEFAULT_MIME } else { mime });
+    let relative = existing
+        .as_ref()
+        .map(|file| file.real_path.clone())
+        .unwrap_or_else(|| relative_dest_path(strong, &ext_from_name(name, effective_mime)));
+    let path = owned_path(directory, &relative)?;
+    let mut installed = false;
+    if !path.is_file() {
+        let temporary = path.with_file_name(format!(
+            ".import-{}",
+            crate::utils::short_uuid::short_uuid()
+        ));
+        let result = write(&temporary).and_then(|_| {
+            fs::File::open(&temporary)?.sync_all()?;
+            fs::rename(&temporary, &path)
+        });
+        if let Err(error) = result {
+            let _ = fs::remove_file(temporary);
+            return Err(error);
+        }
+        installed = true;
+    }
+    let result = if existing.is_some() {
+        db.app_file_retain(strong)
     } else {
-        format!("{strong_hash}.{ext}")
+        let now = crate::db::now_iso();
+        db.app_file_insert(&DAppFile {
+            id: strong.into(),
+            size: size.try_into().map_err(std::io::Error::other)?,
+            mime_type: effective_mime.into(),
+            real_path: relative,
+            ref_count: 1,
+            weak_hash: weak.into(),
+            created_at: now.clone(),
+            updated_at: now,
+        })
     };
+    if let Err(error) = result {
+        if installed && existing.is_none() {
+            let _ = fs::remove_file(&path);
+        }
+        return Err(std::io::Error::other(error));
+    }
     Ok(ImportResult {
-        id: strong_hash,
-        fid_suffix,
-        mime_type: effective_mime,
-        real_path,
-        reused: false,
+        id: strong.into(),
+        fid_suffix: fid_suffix_of(&path, strong),
+        mime_type: effective_mime.into(),
+        real_path: path,
+        reused: existing.is_some(),
     })
 }
 
-/// If the canonical path is missing but the source is a normal file, copy.
-/// (The `app_files` table can outlive its backing file after a manual
-/// wipe; `importFile` in plain-app silently restores it.)
-fn ensure_canonical_exists(real_path: &Path, src: &Path) -> std::io::Result<()> {
-    if real_path.exists() {
-        return Ok(());
+fn owned_path(directory: &Path, relative: &str) -> std::io::Result<PathBuf> {
+    let relative = Path::new(relative);
+    if !relative.starts_with("files")
+        || relative
+            .components()
+            .any(|part| !matches!(part, std::path::Component::Normal(_)))
+    {
+        return Err(std::io::Error::other("invalid app file path"));
     }
-    if let Some(parent) = real_path.parent() {
-        fs::create_dir_all(parent)?;
+    let path = directory.join(relative);
+    let parent = path
+        .parent()
+        .ok_or_else(|| std::io::Error::other("invalid app file parent"))?;
+    fs::create_dir_all(directory)?;
+    let root = fs::canonicalize(directory)?;
+    let mut ancestor = parent;
+    while !ancestor.exists() {
+        ancestor = ancestor
+            .parent()
+            .ok_or_else(|| std::io::Error::other("invalid app file parent"))?;
     }
-    fs::copy(src, real_path)?;
-    Ok(())
+    if !fs::canonicalize(ancestor)?.starts_with(&root) {
+        return Err(std::io::Error::other("app file parent outside store"));
+    }
+    fs::create_dir_all(parent)?;
+    if !fs::canonicalize(parent)?.starts_with(&root)
+        || (path.exists() && !fs::canonicalize(&path)?.starts_with(&root))
+    {
+        return Err(std::io::Error::other("app file path outside store"));
+    }
+    Ok(path)
+}
+
+pub fn release(db: &Db, directory: &Path, id: &str) -> std::io::Result<bool> {
+    let _guard = db.app_files_lock()?;
+    let Some(file) = db.app_file_get(id).map_err(std::io::Error::other)? else {
+        return Ok(false);
+    };
+    let path = owned_path(directory, &file.real_path)?;
+    let quarantine = path.with_file_name(format!(
+        ".release-{}",
+        crate::utils::short_uuid::short_uuid()
+    ));
+    let moved = file.ref_count <= 1 && path.exists();
+    if moved {
+        fs::rename(&path, &quarantine)?;
+    }
+    let result = db.with_conn(|conn| {
+        let tx = conn.unchecked_transaction()?;
+        if file.ref_count > 1 {
+            tx.execute(
+                "UPDATE app_files SET ref_count=ref_count-1,updated_at=?1 WHERE id=?2",
+                rusqlite::params![crate::db::now_iso(), id],
+            )?;
+        } else {
+            tx.execute("DELETE FROM app_files WHERE id=?1", rusqlite::params![id])?;
+        }
+        tx.commit()
+    });
+    if let Err(error) = result {
+        if moved {
+            fs::rename(&quarantine, &path)?;
+        }
+        return Err(std::io::Error::other(error));
+    }
+    if moved {
+        fs::remove_file(quarantine)?;
+    }
+    Ok(true)
 }
 
 /// Async helper: create a temp file in `dir` and return the path + handle.

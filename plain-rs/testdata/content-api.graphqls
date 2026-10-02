@@ -2,6 +2,28 @@ type ActionResult {
 	affectedCount: Int!
 }
 
+type AppFile {
+	id: String!
+	size: Long!
+	mimeType: String!
+	realPath: String!
+	fileName: String!
+	createdAt: Instant!
+	updatedAt: Instant!
+}
+
+type AppFileRecord {
+	fileName: String!
+	id: String!
+	size: Long!
+	mimeType: String!
+	realPath: String!
+	refCount: Int!
+	weakHash: String!
+	createdAt: Instant!
+	updatedAt: Instant!
+}
+
 type Bookmark {
 	id: ID!
 	url: String!
@@ -159,6 +181,8 @@ scalar Instant
 scalar Long
 
 type Mutation {
+	importAppFile(source: String!, fileName: String!, mimeType: String!, deleteSource: Boolean!): AppFileRecord!
+	releaseAppFile(id: String!): Boolean!
 	createNote(input: NoteInput!): Note!
 	updateNote(id: ID!, input: NoteInput!): Note!
 	saveFeedEntriesToNotes(query: String!): [ID!]!
@@ -267,6 +291,11 @@ type PomodoroToday {
 }
 
 type Query {
+	appFiles(offset: Int!, limit: Int!, query: String!): [AppFile!]!
+	appFileCount(query: String!): Int!
+	appFileRecord(id: String!): AppFileRecord
+	appFileRecords(offset: Int!, limit: Int!, query: String!): [AppFileRecord!]!
+	resolveAppFile(id: String!): String!
 	noteCount(query: String!): Int!
 	note(id: ID!): Note
 	notes(offset: Int!, limit: Int!, query: String!): [Note!]!

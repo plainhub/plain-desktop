@@ -254,3 +254,71 @@ fn display_name_falls_back_to_mime_extension() {
     f.mime_type = "application/octet-stream".to_string();
     assert_eq!(display_name(&f, &map), "file");
 }
+
+#[test]
+fn concurrent_imports_and_releases_keep_other_owners_files() {
+    let dir = tempfile::tempdir().unwrap();
+    let db = Db::open(&dir.path().join("plain.db")).unwrap();
+    let results = std::thread::scope(|scope| {
+        let tasks = (0..16)
+            .map(|_| {
+                let db = db.clone();
+                let directory = dir.path().to_path_buf();
+                scope.spawn(move || {
+                    import_bytes(&db, &directory, b"shared attachment", "image/jpeg").unwrap()
+                })
+            })
+            .collect::<Vec<_>>();
+        tasks
+            .into_iter()
+            .map(|task| task.join().unwrap())
+            .collect::<Vec<_>>()
+    });
+    let file = &results[0];
+    assert_eq!(db.app_file_get(&file.id).unwrap().unwrap().ref_count, 16);
+    for _ in 0..15 {
+        assert!(release(&db, dir.path(), &file.id).unwrap());
+        assert!(file.real_path.exists());
+    }
+    assert!(release(&db, dir.path(), &file.id).unwrap());
+    assert!(db.app_file_get(&file.id).unwrap().is_none());
+    assert!(!file.real_path.exists());
+    assert!(!release(&db, dir.path(), &file.id).unwrap());
+}
+
+#[test]
+fn failed_database_changes_restore_files_and_counts() {
+    let dir = tempfile::tempdir().unwrap();
+    let db = Db::open(&dir.path().join("plain.db")).unwrap();
+    db.with_conn(|conn| conn.execute_batch("CREATE TRIGGER fail_insert BEFORE INSERT ON app_files BEGIN SELECT RAISE(ABORT,'test'); END;")).unwrap();
+    assert!(import_bytes(&db, dir.path(), b"new file", "text/plain").is_err());
+    assert_eq!(db.app_file_count("").unwrap(), 0);
+    let hash = bytes_to_hex(&Sha256::digest(b"new file"));
+    assert!(!dest_path(dir.path(), &hash, "txt").exists());
+    db.with_conn(|conn| conn.execute_batch("DROP TRIGGER fail_insert;"))
+        .unwrap();
+    let file = import_bytes(&db, dir.path(), b"existing file", "text/plain").unwrap();
+    db.with_conn(|conn|conn.execute_batch("CREATE TRIGGER fail_delete BEFORE DELETE ON app_files BEGIN SELECT RAISE(ABORT,'test'); END;")).unwrap();
+    assert!(release(&db, dir.path(), &file.id).is_err());
+    assert_eq!(fs::read(&file.real_path).unwrap(), b"existing file");
+    assert_eq!(db.app_file_get(&file.id).unwrap().unwrap().ref_count, 1);
+    db.with_conn(|conn| conn.execute_batch("DROP TRIGGER fail_delete;"))
+        .unwrap();
+    fs::remove_file(&file.real_path).unwrap();
+    let restored = import_bytes(&db, dir.path(), b"existing file", "text/plain").unwrap();
+    assert!(restored.reused);
+    assert_eq!(fs::read(&restored.real_path).unwrap(), b"existing file");
+    assert_eq!(db.app_file_get(&file.id).unwrap().unwrap().ref_count, 2);
+}
+
+#[cfg(unix)]
+#[test]
+fn store_rejects_symlink_escape_before_creating_paths() {
+    let dir = tempfile::tempdir().unwrap();
+    let outside = tempfile::tempdir().unwrap();
+    let db = Db::open(&dir.path().join("plain.db")).unwrap();
+    std::os::unix::fs::symlink(outside.path(), dir.path().join("files")).unwrap();
+    assert!(import_bytes(&db, dir.path(), b"attachment", "text/plain").is_err());
+    assert_eq!(fs::read_dir(outside.path()).unwrap().count(), 0);
+    assert_eq!(db.app_file_count("").unwrap(), 0);
+}

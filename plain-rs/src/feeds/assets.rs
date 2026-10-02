@@ -73,9 +73,8 @@ impl FeedAssets {
         if path != owned || !owned.starts_with(self.directory.join("files")) {
             return;
         }
-        if self.db.decrement_app_file_ref(id) <= 0 {
-            let _ = std::fs::remove_file(owned);
-            self.db.delete_app_file(id);
+        if let Err(error) = crate::chat::app_file_store::release(&self.db, &self.directory, id) {
+            log::warn!("feed asset release failed: {error}");
         }
     }
 }

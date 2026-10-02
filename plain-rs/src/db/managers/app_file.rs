@@ -1,4 +1,4 @@
-use rusqlite::params;
+use rusqlite::{OptionalExtension, params};
 
 use super::super::{DAppFile, Db};
 
@@ -18,6 +18,74 @@ fn row_to_app_file(row: &rusqlite::Row<'_>) -> rusqlite::Result<DAppFile> {
 }
 
 impl Db {
+    pub fn app_file_get(&self, id: &str) -> rusqlite::Result<Option<DAppFile>> {
+        self.with_conn(|conn| {
+            conn.query_row(
+                &format!("SELECT {APP_FILE_COLS} FROM app_files WHERE id=?1"),
+                params![id],
+                row_to_app_file,
+            )
+            .optional()
+        })
+    }
+
+    pub fn app_file_insert(&self, file: &DAppFile) -> rusqlite::Result<()> {
+        self.with_conn(|conn| conn.execute(
+            "INSERT INTO app_files (id,size,mime_type,real_path,ref_count,weak_hash,created_at,updated_at) VALUES (?1,?2,?3,?4,?5,?6,?7,?8)",
+            params![file.id,file.size,file.mime_type,file.real_path,file.ref_count,file.weak_hash,file.created_at,file.updated_at]).map(|_| ()))
+    }
+
+    pub fn app_file_retain(&self, id: &str) -> rusqlite::Result<()> {
+        self.with_conn(|conn| {
+            let affected = conn.execute(
+                "UPDATE app_files SET ref_count=ref_count+1,updated_at=?1 WHERE id=?2",
+                params![crate::db::now_iso(), id],
+            )?;
+            if affected == 0 {
+                return Err(rusqlite::Error::QueryReturnedNoRows);
+            }
+            Ok(())
+        })
+    }
+
+    pub fn app_file_items(
+        &self,
+        offset: i32,
+        limit: i32,
+        query: &str,
+    ) -> rusqlite::Result<Vec<DAppFile>> {
+        let text = crate::utils::search_dsl::field_value(query, "text").unwrap_or_default();
+        let pattern = format!(
+            "%{}%",
+            text.trim()
+                .replace('\\', "\\\\")
+                .replace('%', "\\%")
+                .replace('_', "\\_")
+        );
+        self.with_conn(|conn| {
+            let mut stmt = conn.prepare(&format!("SELECT {APP_FILE_COLS} FROM app_files WHERE real_path LIKE ?1 ESCAPE '\\' ORDER BY created_at DESC,id LIMIT ?2 OFFSET ?3"))?;
+            stmt.query_map(params![pattern,limit.max(0),offset.max(0)],row_to_app_file)?.collect()
+        })
+    }
+
+    pub fn app_file_count(&self, query: &str) -> rusqlite::Result<i32> {
+        let text = crate::utils::search_dsl::field_value(query, "text").unwrap_or_default();
+        let pattern = format!(
+            "%{}%",
+            text.trim()
+                .replace('\\', "\\\\")
+                .replace('%', "\\%")
+                .replace('_', "\\_")
+        );
+        self.with_conn(|conn| {
+            conn.query_row(
+                "SELECT COUNT(*) FROM app_files WHERE real_path LIKE ?1 ESCAPE '\\'",
+                params![pattern],
+                |row| row.get(0),
+            )
+        })
+    }
+
     pub fn get_app_file(&self, id: &str) -> Option<DAppFile> {
         let conn = self.0.lock().unwrap();
         conn.query_row(

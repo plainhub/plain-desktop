@@ -1,4 +1,7 @@
 pub use crate::content_types as types;
+#[path = "../http_server/main_schemas/app_file.rs"]
+mod app_file;
+mod app_files_host;
 #[path = "../http_server/main_schemas/bookmark.rs"]
 mod bookmark;
 #[path = "../http_server/main_schemas/bookmark_types.rs"]
@@ -21,6 +24,8 @@ mod tags;
 use async_graphql::{EmptySubscription, MergedObject, Schema};
 #[derive(MergedObject, Default)]
 pub struct Query(
+    app_file::AppFileQuery,
+    app_files_host::AppFileHostQuery,
     note::NoteQuery,
     feed::FeedQuery,
     tags::TagQuery,
@@ -33,6 +38,7 @@ pub struct Query(
 );
 #[derive(MergedObject, Default)]
 pub struct Mutation(
+    app_files_host::AppFileHostMutation,
     note::NoteMutation,
     feed::FeedMutation,
     tags::TagMutation,
@@ -52,6 +58,10 @@ pub fn build(
 ) -> ContentSchema {
     Schema::build(Query::default(), Mutation::default(), EmptySubscription)
         .data(db.clone())
+        .data(crate::app_files::FileStore::new(
+            db.clone(),
+            directory.clone(),
+        ))
         .data(crate::pomodoro::Service::new(
             db.clone(),
             prefs.clone(),

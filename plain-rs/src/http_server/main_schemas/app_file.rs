@@ -1,11 +1,10 @@
 use async_graphql::{ComplexObject, Context, Object, SimpleObject};
 use std::sync::Arc;
 
-use super::types::{Instant, Long};
 use super::types::parse_instant;
-use crate::api::context::AppCtx;
-use crate::api::db::DAppFile;
+use super::types::{Instant, Long};
 use crate::chat::app_file_store::{display_name, file_name_map};
+use crate::db::{DAppFile, Db};
 
 #[derive(SimpleObject)]
 #[graphql(name = "AppFile")]
@@ -58,34 +57,23 @@ impl AppFileQuery {
         offset: i32,
         limit: i32,
         query: String,
-    ) -> Vec<AppFile> {
-        let c = ctx.data_unchecked::<Arc<AppCtx>>();
-        let files = c.db.get_app_file_page(limit, offset);
-        let name_map = file_name_map(&c.db.get_all_chats());
-        let text = query.trim();
-        files
+    ) -> async_graphql::Result<Vec<AppFile>> {
+        if offset < 0 || limit < 0 {
+            return Err(async_graphql::Error::new("invalid pagination"));
+        }
+        let db = ctx.data::<Arc<Db>>()?;
+        let files = db.app_file_items(offset, limit, &query)?;
+        let names = file_name_map(&db.get_all_chats());
+        Ok(files
             .into_iter()
-            .map(|f| {
-                let display = display_name(&f, &name_map);
-                AppFile::from_dappfile(f, display)
+            .map(|file| {
+                let name = display_name(&file, &names);
+                AppFile::from_dappfile(file, name)
             })
-            .filter(|f| text.is_empty() || f.file_name.contains(text))
-            .collect()
+            .collect())
     }
 
-    async fn app_file_count(&self, ctx: &Context<'_>, query: String) -> i32 {
-        let c = ctx.data_unchecked::<Arc<AppCtx>>();
-        let text = query.trim();
-        if text.is_empty() {
-            return c.db.count_app_files();
-        }
-        let name_map = file_name_map(&c.db.get_all_chats());
-        c.db.get_all_app_files()
-            .into_iter()
-            .filter(|f| {
-                let display = display_name(f, &name_map);
-                display.contains(text)
-            })
-            .count() as i32
+    async fn app_file_count(&self, ctx: &Context<'_>, query: String) -> async_graphql::Result<i32> {
+        Ok(ctx.data::<Arc<Db>>()?.app_file_count(&query)?)
     }
 }

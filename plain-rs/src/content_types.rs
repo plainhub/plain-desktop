@@ -71,3 +71,9 @@ pub struct TagRelation {
     pub tag_id: ID,
     pub key: String,
 }
+
+pub(crate) fn parse_instant(value: &str) -> async_graphql::Result<Instant> {
+    chrono::DateTime::parse_from_rfc3339(value)
+        .map(|dt| Instant(dt.with_timezone(&chrono::Utc)))
+        .map_err(|e| async_graphql::Error::new(format!("invalid stored timestamp: {e}")))
+}

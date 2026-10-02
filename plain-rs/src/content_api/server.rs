@@ -80,7 +80,7 @@ impl ContentServer {
             .route("/graphql", post(graphql))
             .route("/events", get(upgrade))
             .route("/health", get(health))
-            .route("/fs", get(file))
+            .route("/fs", get(files::file))
             .layer(DefaultBodyLimit::max(32 * 1024 * 1024))
             .with_state(state);
         let listener = tokio::net::TcpListener::from_std(listener).map_err(|e| e.to_string())?;
@@ -220,50 +220,5 @@ async fn events(
 #[path = "../../tests/unit/content_api/server.rs"]
 mod tests;
 
-#[derive(serde::Deserialize)]
-struct FileQuery {
-    id: String,
-}
-async fn file(
-    State(state): State<ServerState>,
-    headers: HeaderMap,
-    Query(query): Query<FileQuery>,
-) -> axum::response::Response {
-    if !state.authenticated(&headers) {
-        return StatusCode::UNAUTHORIZED.into_response();
-    }
-    let Some(decoded) = crate::xchacha_decrypt(
-        &crate::prefs::ensure_url_token(&state.prefs),
-        &crate::base64_decode(&query.id),
-    ) else {
-        return StatusCode::NOT_FOUND.into_response();
-    };
-    let Ok(uri) = String::from_utf8(decoded) else {
-        return StatusCode::NOT_FOUND.into_response();
-    };
-    let path = Path::new(&uri);
-    let Some(id) = path.file_stem().and_then(|v| v.to_str()) else {
-        return StatusCode::NOT_FOUND.into_response();
-    };
-    let Some(record) = state.db.get_app_file(id) else {
-        return StatusCode::NOT_FOUND.into_response();
-    };
-    let owned = state.directory.join(record.real_path);
-    if path != owned || !owned.starts_with(state.directory.join("files")) {
-        return StatusCode::NOT_FOUND.into_response();
-    }
-    match tokio::fs::read(owned).await {
-        Ok(bytes) => (
-            [
-                (axum::http::header::CONTENT_TYPE, record.mime_type),
-                (
-                    axum::http::header::CACHE_CONTROL,
-                    "private, max-age=3600".into(),
-                ),
-            ],
-            bytes,
-        )
-            .into_response(),
-        Err(_) => StatusCode::NOT_FOUND.into_response(),
-    }
-}
+#[path = "files.rs"]
+mod files;

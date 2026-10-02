@@ -248,3 +248,6 @@ mod pomodoro;
 
 #[path = "image_editor.rs"]
 mod image_editor;
+
+#[path = "app_files.rs"]
+mod app_files;
