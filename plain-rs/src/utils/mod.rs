@@ -15,3 +15,6 @@ pub mod search_dsl;
 pub mod short_uuid;
 pub mod shortid;
 pub mod unique_path;
+
+#[cfg(any(feature = "api", feature = "content_api"))]
+pub mod html_to_markdown;

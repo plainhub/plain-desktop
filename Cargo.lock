@@ -1757,7 +1757,7 @@ dependencies = [
  "bit-set",
  "cssparser",
  "foldhash 0.2.0",
- "html5ever 0.39.0",
+ "html5ever",
  "precomputed-hash",
  "selectors",
  "tendril",
@@ -2876,34 +2876,13 @@ dependencies = [
 ]
 
 [[package]]
-name = "htmd"
-version = "0.5.5"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a5a1c7113c831fec68cbd79cd8bf281a84e5b6943f51473dc266b0b88a6a017e"
-dependencies = [
- "html5ever 0.38.0",
- "markup5ever_rcdom",
- "phf",
-]
-
-[[package]]
-name = "html5ever"
-version = "0.38.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "1054432bae2f14e0061e33d23402fbaa67a921d319d56adc6bcf887ddad1cbc2"
-dependencies = [
- "log",
- "markup5ever 0.38.0",
-]
-
-[[package]]
 name = "html5ever"
 version = "0.39.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "46a1761807faccc9a19e86944bbf40610014066306f96edcdedc2fb714bcb7b8"
 dependencies = [
  "log",
- "markup5ever 0.39.0",
+ "markup5ever",
 ]
 
 [[package]]
@@ -3880,17 +3859,6 @@ dependencies = [
 
 [[package]]
 name = "markup5ever"
-version = "0.38.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "8983d30f2915feeaaab2d6babdd6bc7e9ed1a00b66b5e6d74df19aa9c0e91862"
-dependencies = [
- "log",
- "tendril",
- "web_atoms",
-]
-
-[[package]]
-name = "markup5ever"
 version = "0.39.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "7122d987ec5f704ee56f6e5b41a7d93722e9aae27ae07cafa4036c4d3f9757de"
@@ -3898,18 +3866,6 @@ dependencies = [
  "log",
  "tendril",
  "web_atoms",
-]
-
-[[package]]
-name = "markup5ever_rcdom"
-version = "0.38.0+unofficial"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "333171ccdf66e915257740d44e38ea5b1b19ce7b45d33cc35cb6f118fbd981ff"
-dependencies = [
- "html5ever 0.38.0",
- "markup5ever 0.38.0",
- "tendril",
- "xml5ever",
 ]
 
 [[package]]
@@ -5033,7 +4989,6 @@ dependencies = [
  "futures",
  "futures-core",
  "futures-util",
- "htmd",
  "http",
  "if-addrs",
  "image",
@@ -6065,7 +6020,7 @@ dependencies = [
  "cssparser",
  "ego-tree",
  "getopts",
- "html5ever 0.39.0",
+ "html5ever",
  "precomputed-hash",
  "selectors",
  "tendril",
@@ -6547,7 +6502,6 @@ dependencies = [
  "parking_lot",
  "phf_shared",
  "precomputed-hash",
- "serde",
 ]
 
 [[package]]
@@ -8974,16 +8928,6 @@ name = "xkeysym"
 version = "0.2.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "b9cc00251562a284751c9973bace760d86c0276c471b4be569fe6b068ee97a56"
-
-[[package]]
-name = "xml5ever"
-version = "0.38.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d3dc9559429edf0cd3f327cc0afd9d6b36fa8cec6d93107b7fbe64f806b5f2d9"
-dependencies = [
- "log",
- "markup5ever 0.38.0",
-]
 
 [[package]]
 name = "xxhash-rust"

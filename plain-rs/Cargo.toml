@@ -33,7 +33,7 @@ sqlite_browse = ["dep:rusqlite", "dep:serde_json"]
 prefs = ["dep:serde_json"]
 # Shared API stack for the desktop and NAS shells: GraphQL schemas,
 # axum HTTP/WS router, listener lifecycle, proxy, discovery and DLNA.
-content_api = ["chat", "library", "dep:regex", "dep:async-graphql", "dep:axum", "dep:reqwest", "reqwest/rustls-tls", "dep:futures-util", "dep:quick-xml", "dep:htmd", "dep:scraper", "tokio/net", "tokio/rt-multi-thread", "tokio/sync", "tokio/time", "tokio/macros", "dep:subtle"]
+content_api = ["chat", "library", "dep:regex", "dep:async-graphql", "dep:axum", "dep:reqwest", "reqwest/rustls-tls", "dep:futures-util", "dep:quick-xml", "dep:scraper", "tokio/net", "tokio/rt-multi-thread", "tokio/sync", "tokio/time", "tokio/macros", "dep:subtle"]
 api = [
     "media_gql",
     "chat",
@@ -50,7 +50,6 @@ api = [
     "reqwest/native-tls",
     "dep:regex",
     "dep:quick-xml",
-    "dep:htmd",
     "dep:scraper",
     "dep:sysinfo",
     "dep:tokio-tungstenite",
@@ -167,7 +166,6 @@ native-tls = { version = "0.2", optional = true }
 reqwest = { version = "0.12", default-features = false, features = ["stream"], optional = true }
 regex = { version = "1", optional = true }
 quick-xml = { version = "0.42", optional = true }
-htmd = { version = "0.5.5", optional = true }
 scraper = { version = "0.27", optional = true }
 sysinfo = { version = "0.32", default-features = false, features = ["system", "disk"], optional = true }
 tokio-tungstenite = { version = "0.24", features = ["native-tls"], optional = true }

@@ -1,6 +1,7 @@
 use crate::db::Db;
 use crate::db::notes_feeds::{FeedEntryRow, FeedRow};
 use crate::library::{LibraryError, LibraryResult};
+use crate::utils::html_to_markdown::html_to_markdown;
 use crate::utils::http_url::parse_http_url;
 use crate::ws_event::WsEvent;
 use chrono::{DateTime, Utc};
@@ -26,6 +27,7 @@ struct ParsedEntry {
     raw_id: String,
     title: String,
     url: String,
+    url_from_attribute: bool,
     image: String,
     description: String,
     content: String,
@@ -63,7 +65,7 @@ fn local_name(name: &str) -> String {
 
 fn parse_feed(xml: &str) -> LibraryResult<ParsedFeed> {
     let mut reader = Reader::from_str(xml);
-    reader.config_mut().trim_text(true);
+    reader.config_mut().trim_text(false);
     let mut feed = ParsedFeed::default();
     let mut entry: Option<ParsedEntry> = None;
     let mut stack: Vec<String> = Vec::new();
@@ -80,6 +82,7 @@ fn parse_feed(xml: &str) -> LibraryResult<ParsedFeed> {
                             let rel = attr(&reader, &tag, "rel").unwrap_or_default();
                             if rel.is_empty() || rel == "alternate" {
                                 item.url = href;
+                                item.url_from_attribute = true;
                             }
                         }
                     }
@@ -99,6 +102,7 @@ fn parse_feed(xml: &str) -> LibraryResult<ParsedFeed> {
                             let rel = attr(&reader, &tag, "rel").unwrap_or_default();
                             if rel.is_empty() || rel == "alternate" {
                                 item.url = href;
+                                item.url_from_attribute = true;
                             }
                         }
                     }
@@ -110,9 +114,11 @@ fn parse_feed(xml: &str) -> LibraryResult<ParsedFeed> {
                 }
             }
             Event::Text(value) => {
-                let decoded = quick_xml::escape::unescape(&value.xml10_content())
-                    .map_err(error)?
-                    .into_owned();
+                assign_text(&mut feed, entry.as_mut(), &stack, &value.xml10_content());
+            }
+            Event::GeneralRef(value) => {
+                let reference = format!("&{};", value.xml10_content());
+                let decoded = quick_xml::escape::unescape(&reference).map_err(error)?;
                 assign_text(&mut feed, entry.as_mut(), &stack, &decoded);
             }
             Event::CData(value) => {
@@ -121,8 +127,12 @@ fn parse_feed(xml: &str) -> LibraryResult<ParsedFeed> {
             Event::End(tag) => {
                 let name = local_name(tag.name().as_ref());
                 if (name == "item" || name == "entry")
-                    && let Some(item) = entry.take()
+                    && let Some(mut item) = entry.take()
                 {
+                    item.url = item.url.trim().to_string();
+                    item.raw_id = item.raw_id.trim().to_string();
+                    item.author = item.author.trim().to_string();
+                    item.published_at = item.published_at.trim().to_string();
                     feed.entries.push(item);
                 }
                 stack.pop();
@@ -131,6 +141,9 @@ fn parse_feed(xml: &str) -> LibraryResult<ParsedFeed> {
             _ => {}
         }
     }
+    feed.title = feed.title.trim().to_string();
+    feed.logo = feed.logo.trim().to_string();
+    feed.site_url = feed.site_url.trim().to_string();
     if feed.title.is_empty() && feed.entries.is_empty() {
         return Err(error("invalid_feed_content"));
     }
@@ -149,7 +162,7 @@ fn assign_text(
             "title" => item.title.push_str(text),
             "guid" | "id" => item.raw_id.push_str(text),
             "link" => {
-                if item.url.is_empty() {
+                if !item.url_from_attribute {
                     item.url.push_str(text);
                 }
             }
@@ -182,16 +195,6 @@ fn parse_date(text: &str, fallback: &str) -> String {
                 .to_rfc3339_opts(chrono::SecondsFormat::Millis, true)
         })
         .unwrap_or_else(|| fallback.to_string())
-}
-
-fn html_to_markdown(html: &str) -> String {
-    htmd::HtmlToMarkdown::builder()
-        .skip_tags(vec!["script", "style", "nav", "footer", "header", "form"])
-        .build()
-        .convert(html)
-        .unwrap_or_default()
-        .trim()
-        .to_string()
 }
 
 fn article_html(html: &str) -> String {

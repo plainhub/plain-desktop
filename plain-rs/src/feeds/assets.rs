@@ -70,6 +70,9 @@ impl FeedAssets {
     }
 }
 pub fn absolute_url(base: &str, reference: &str) -> Option<String> {
+    if reference.trim().is_empty() {
+        return None;
+    }
     reqwest::Url::parse(base)
         .ok()?
         .join(reference)
