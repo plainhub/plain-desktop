@@ -528,10 +528,6 @@ pub fn queue_sync(db: Arc<Db>, events: broadcast::Sender<WsEvent>, id: Option<St
         let _ = sync(db, events, id).await;
     });
 }
-pub async fn preview(url: &str) -> LibraryResult<String> {
-    require_url(url)?;
-    Ok(parse_feed(&fetch_text(url, 4 * 1024 * 1024).await?)?.title)
-}
 pub fn update_url(db: &Db, id: &str, url: &str) -> LibraryResult<FeedRow> {
     require_url(url)?;
     let feed = db.feed_get(id)?.ok_or_else(|| error("feed_not_found"))?;

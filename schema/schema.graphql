@@ -477,10 +477,6 @@ type FeedError {
 	detail: String!
 }
 
-type FeedPreview {
-	name: String!
-}
-
 type FeedSyncState {
 	feedId: ID!
 	status: String!
@@ -955,7 +951,6 @@ type MutationRoot {
 	saveImageEditorProject(id: ID!, input: ImageEditorProjectInput!): ImageEditorProject!
 	deleteImageEditorProject(id: ID!): Boolean!
 	broadcastImageEditorUpdate(id: ID!, update: String!): Boolean!
-	saveNote(id: ID!, input: NoteInput!): Note!
 	createNote(input: NoteInput!): Note!
 	updateNote(id: ID!, input: NoteInput!): Note!
 	saveFeedEntriesToNotes(query: String!): [ID!]!
@@ -1354,7 +1349,6 @@ type QueryRoot {
 	notes(offset: Int!, limit: Int!, query: String!): [Note!]!
 	feedSyncStates: [FeedSyncState!]!
 	feed(id: ID!): Feed
-	previewFeed(url: String!): FeedPreview!
 	feeds: [Feed!]!
 	feedEntryCounts: [FeedEntryCount!]!
 	feedEntryCount(query: String!): Int!

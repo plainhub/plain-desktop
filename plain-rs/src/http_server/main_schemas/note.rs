@@ -82,14 +82,6 @@ pub struct NoteMutation;
 
 #[Object]
 impl NoteMutation {
-    async fn save_note(&self, ctx: &Context<'_>, id: ID, input: NoteInput) -> GqlResult<Note> {
-        to_model(notes::save(
-            ctx.data::<Arc<Db>>()?,
-            id.as_str(),
-            &input.title,
-            &input.content,
-        )?)
-    }
     async fn create_note(&self, ctx: &Context<'_>, input: NoteInput) -> GqlResult<Note> {
         to_model(notes::create(
             ctx.data::<Arc<Db>>()?,

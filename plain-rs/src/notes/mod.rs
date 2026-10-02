@@ -101,15 +101,6 @@ pub fn export(db: &Db, query: &str) -> LibraryResult<String> {
 #[path = "../../tests/unit/notes/mod.rs"]
 mod tests;
 
-pub fn save(db: &Db, id: &str, title: &str, content: &str) -> LibraryResult<NoteRow> {
-    if id.is_empty() {
-        return Err(crate::library::LibraryError::Other(
-            "note id is required".into(),
-        ));
-    }
-    Ok(db.note_save(id, &resolved_title(title, content), content, &now())?)
-}
-
 pub fn markdown_title(content: &str) -> String {
     static IMAGES: std::sync::OnceLock<regex::Regex> = std::sync::OnceLock::new();
     let images = IMAGES.get_or_init(|| {

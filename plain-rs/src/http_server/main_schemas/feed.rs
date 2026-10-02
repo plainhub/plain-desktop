@@ -23,11 +23,6 @@ pub struct FeedError {
 }
 
 #[derive(SimpleObject, Clone)]
-pub struct FeedPreview {
-    pub name: String,
-}
-
-#[derive(SimpleObject, Clone)]
 pub struct Feed {
     pub id: ID,
     pub name: String,
@@ -134,12 +129,6 @@ impl FeedQuery {
             .map(|row| feed_model(ctx, row))
             .transpose()
     }
-    async fn preview_feed(&self, url: String) -> GqlResult<FeedPreview> {
-        Ok(FeedPreview {
-            name: feeds::preview(&url).await?,
-        })
-    }
-
     async fn feeds(&self, ctx: &Context<'_>) -> GqlResult<Vec<Feed>> {
         feeds::list(ctx.data::<Arc<Db>>()?)?
             .into_iter()
