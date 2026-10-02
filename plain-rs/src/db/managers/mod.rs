@@ -31,3 +31,6 @@ pub mod tag;
 
 #[cfg(feature = "library")]
 mod content_state;
+
+#[cfg(feature = "library")]
+mod clipboard;

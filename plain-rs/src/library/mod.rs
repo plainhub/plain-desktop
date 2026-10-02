@@ -46,3 +46,5 @@ impl From<rusqlite::Error> for LibraryError {
 }
 
 pub type LibraryResult<T> = std::result::Result<T, LibraryError>;
+
+pub mod clipboard;

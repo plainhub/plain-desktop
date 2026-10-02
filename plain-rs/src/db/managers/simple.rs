@@ -4,15 +4,10 @@ use rusqlite::{OptionalExtension, params, params_from_iter};
 
 use crate::db::Db;
 use crate::db::models::simple::{
-    ArchivedConversationRow, ClipboardRow, ImageEmbeddingRow, MediaItemRow, PomodoroItemRow,
-    SessionRow, ShareRow, TrashedMessageRow, VideoPlayProgressRow,
+    ArchivedConversationRow, ImageEmbeddingRow, MediaItemRow, PomodoroItemRow, SessionRow,
+    ShareRow, TrashedMessageRow, VideoPlayProgressRow,
 };
 
-// Re-exported so FFI consumers can name the row types without reaching into
-// the private models module.
-pub use crate::db::models::simple::*;
-
-const CLIPBOARD_COLUMNS: &str = "id, text, hash, source, label, sensitive, created_at";
 const SESSION_COLUMNS: &str = "client_id, name, type, client_ip, os_name, os_version, \
      browser_name, browser_version, token, last_active_at, created_at, updated_at";
 const SHARE_COLUMNS: &str = "id, name, password, url_token, expires_at, read_only, data, \
@@ -22,18 +17,6 @@ const POMODORO_COLUMNS: &str =
 const MEDIA_ITEM_COLUMNS: &str = "media_type, media_id, duration_ms, updated_at";
 const VIDEO_PROGRESS_COLUMNS: &str = "media_id, position_ms, updated_at";
 const EMBEDDING_COLUMNS: &str = "id, path, embedding, created_at, updated_at";
-
-fn clipboard_from_row(row: &rusqlite::Row<'_>) -> rusqlite::Result<ClipboardRow> {
-    Ok(ClipboardRow {
-        id: row.get(0)?,
-        text: row.get(1)?,
-        hash: row.get(2)?,
-        source: row.get(3)?,
-        label: row.get(4)?,
-        sensitive: row.get::<_, i64>(5)? != 0,
-        created_at: row.get(6)?,
-    })
-}
 
 fn session_from_row(row: &rusqlite::Row<'_>) -> rusqlite::Result<SessionRow> {
     Ok(SessionRow {
@@ -118,80 +101,6 @@ fn in_clause(column: &str, values: &[String]) -> (String, Vec<Value>) {
 }
 
 impl Db {
-    pub fn clipboard_save(&self, row: &ClipboardRow) -> rusqlite::Result<()> {
-        self.with_conn(|c| {
-            c.execute(
-                "INSERT OR REPLACE INTO clipboards (id, text, hash, source, label, sensitive, created_at)
-                 VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)",
-                params![
-                    row.id,
-                    row.text,
-                    row.hash,
-                    row.source,
-                    row.label,
-                    row.sensitive as i64,
-                    row.created_at
-                ],
-            )?;
-            Ok(())
-        })
-    }
-
-    pub fn clipboard_get(&self, id: &str) -> rusqlite::Result<Option<ClipboardRow>> {
-        self.with_conn(|c| {
-            c.query_row(
-                &format!("SELECT {CLIPBOARD_COLUMNS} FROM clipboards WHERE id=?1"),
-                [id],
-                clipboard_from_row,
-            )
-            .optional()
-        })
-    }
-
-    pub fn clipboard_latest(&self) -> rusqlite::Result<Option<ClipboardRow>> {
-        self.with_conn(|c| {
-            c.query_row(
-                &format!(
-                    "SELECT {CLIPBOARD_COLUMNS} FROM clipboards ORDER BY created_at DESC LIMIT 1"
-                ),
-                [],
-                clipboard_from_row,
-            )
-            .optional()
-        })
-    }
-
-    pub fn clipboard_latest_by_hash(&self, hash: &str) -> rusqlite::Result<Option<ClipboardRow>> {
-        self.with_conn(|c| {
-            c.query_row(
-                &format!(
-                    "SELECT {CLIPBOARD_COLUMNS} FROM clipboards WHERE hash=?1 ORDER BY created_at DESC LIMIT 1"
-                ),
-                [hash],
-                clipboard_from_row,
-            )
-            .optional()
-        })
-    }
-
-    pub fn clipboard_delete_by_ids(&self, ids: &[String]) -> rusqlite::Result<usize> {
-        let (clause, values) = in_clause("id", ids);
-        self.with_conn(|c| {
-            c.execute(
-                &format!("DELETE FROM clipboards WHERE {clause}"),
-                params_from_iter(values),
-            )
-        })
-    }
-
-    pub fn clipboard_clear(&self) -> rusqlite::Result<usize> {
-        self.with_conn(|c| c.execute("DELETE FROM clipboards", []))
-    }
-
-    pub fn clipboard_count_rows(&self) -> rusqlite::Result<i64> {
-        self.with_conn(|c| c.query_row("SELECT COUNT(*) FROM clipboards", [], |r| r.get(0)))
-    }
-
     pub fn session_list(&self) -> rusqlite::Result<Vec<SessionRow>> {
         self.with_conn(|c| {
             let mut stmt = c.prepare(&format!(

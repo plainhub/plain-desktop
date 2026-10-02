@@ -1,4 +1,5 @@
 pub use crate::content_types as types;
+mod clipboard;
 #[path = "../http_server/main_schemas/content_common.rs"]
 mod content_common;
 #[path = "../http_server/main_schemas/feed.rs"]
@@ -8,9 +9,19 @@ mod note;
 mod tags;
 use async_graphql::{EmptySubscription, MergedObject, Schema};
 #[derive(MergedObject, Default)]
-pub struct Query(note::NoteQuery, feed::FeedQuery, tags::TagQuery);
+pub struct Query(
+    note::NoteQuery,
+    feed::FeedQuery,
+    tags::TagQuery,
+    clipboard::ClipboardQuery,
+);
 #[derive(MergedObject, Default)]
-pub struct Mutation(note::NoteMutation, feed::FeedMutation, tags::TagMutation);
+pub struct Mutation(
+    note::NoteMutation,
+    feed::FeedMutation,
+    tags::TagMutation,
+    clipboard::ClipboardMutation,
+);
 pub type ContentSchema = Schema<Query, Mutation, EmptySubscription>;
 pub fn build(
     db: std::sync::Arc<crate::db::Db>,

@@ -236,3 +236,6 @@ async fn measure_loopback_note_page_latency() {
     );
     server.shutdown().await;
 }
+
+#[path = "clipboard.rs"]
+mod clipboard;
