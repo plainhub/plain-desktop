@@ -33,8 +33,10 @@ pub use managers::db_time::{iso_from_unix_millis, now_iso, now_millis, short_id}
 pub use models::{DAppFile, DChannel, DChat, DNearbyDeviceCache, DPeer};
 #[cfg(feature = "library")]
 pub use models::{
-    FavoriteFolderRow, HISTORY_KEEP, PlayHistory, Playlist, PlaylistItem, QueueItem, QueueSource,
-    QueueSourceKind, TagRelationRow, TagRow,
+    ArchivedConversationRow, ClipboardRow, FavoriteFolderRow, HISTORY_KEEP, ImageEmbeddingRow,
+    MediaItemRow, PlayHistory, Playlist, PlaylistItem, PomodoroItemRow, QueueItem, QueueSource,
+    QueueSourceKind, SessionRow, ShareRow, TagRelationRow, TagRow, TrashedMessageRow,
+    VideoPlayProgressRow,
 };
 
 #[derive(Clone)]

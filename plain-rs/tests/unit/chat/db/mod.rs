@@ -54,15 +54,12 @@ fn primary_key_column_returns_named_pk() {
     let db_path = unique_tmp_dir("pk-named").join("plain.db");
     let db = Db::open(&db_path).expect("open db");
 
-    db.with_conn(|conn| {
-        conn.execute_batch(
-            "CREATE TABLE sessions (client_id TEXT PRIMARY KEY, token TEXT NOT NULL DEFAULT '');",
-        )
-        .expect("create sessions");
-    });
-
-    assert_eq!(db.primary_key_column("sessions"), "client_id");
+    // Read the named primary key off the real schema: `sessions` declares
+    // `client_id TEXT NOT NULL PRIMARY KEY`, `chats` declares a table-level
+    // `PRIMARY KEY(id)`.
     assert_eq!(db.primary_key_column("chats"), "id");
+    #[cfg(feature = "library")]
+    assert_eq!(db.primary_key_column("sessions"), "client_id");
 }
 
 #[test]
@@ -118,9 +115,9 @@ fn chat_tables_match_plain_app_schema() {
                 "from_id",
                 "to_id",
                 "channel_id",
-                "content",
                 "status",
                 "status_data",
+                "content",
                 "created_at",
                 "updated_at",
             ],
@@ -130,9 +127,9 @@ fn chat_tables_match_plain_app_schema() {
             &[
                 "id",
                 "name",
+                "key",
                 "owner_id",
                 "members",
-                "key",
                 "version",
                 "status",
                 "created_at",

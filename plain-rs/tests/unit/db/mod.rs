@@ -7,10 +7,18 @@ fn one_connection_has_chat_and_library_tables() {
     let db = Db::open(&dir.path().join("plain.db")).unwrap();
     let clone = db.clone();
     db.with_conn(|conn| {
-        conn.execute("INSERT INTO chats(id) VALUES ('chat-1')", [])
-            .unwrap();
-        conn.execute("INSERT INTO tags(id, name) VALUES ('tag-1', 'shared')", [])
-            .unwrap();
+        conn.execute(
+            "INSERT INTO chats(id, from_id, to_id, channel_id, content, created_at, updated_at) \
+             VALUES ('chat-1', 'me', 'peer-1', '', 'hello', '2026-01-01T00:00:00Z', '2026-01-01T00:00:00Z')",
+            [],
+        )
+        .unwrap();
+        conn.execute(
+            "INSERT INTO tags(id, name, type, count, created_at, updated_at) \
+             VALUES ('tag-1', 'shared', 1, 0, '2026-01-01T00:00:00Z', '2026-01-01T00:00:00Z')",
+            [],
+        )
+        .unwrap();
     });
     clone.with_conn(|conn| {
         assert_eq!(

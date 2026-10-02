@@ -1,16 +1,16 @@
 use rusqlite::Connection;
 
+#[cfg(feature = "library")]
+mod archived_conversation;
 #[cfg(feature = "chat")]
 mod app_file;
-#[cfg(feature = "chat")]
-mod archived_conversation;
 #[cfg(feature = "library")]
 mod audio;
 #[cfg(feature = "chat")]
 mod bookmark;
 #[cfg(feature = "chat")]
 mod chat;
-#[cfg(feature = "chat")]
+#[cfg(feature = "library")]
 mod clipboard;
 #[cfg(feature = "library")]
 mod favorite_folder;
@@ -30,24 +30,23 @@ mod notes;
 mod peer;
 #[cfg(feature = "library")]
 mod pomodoro;
-#[cfg(feature = "chat")]
+#[cfg(feature = "library")]
 mod session;
 #[cfg(feature = "library")]
-#[cfg(feature = "chat")]
 mod share;
 #[cfg(feature = "library")]
 mod tag;
-#[cfg(feature = "chat")]
+#[cfg(feature = "library")]
 mod trashed_sms;
 #[cfg(feature = "library")]
 mod video_play_progress;
 
 pub(super) fn init(conn: &Connection) -> rusqlite::Result<()> {
-    #[cfg(feature = "chat")]
+    #[cfg(feature = "library")]
     archived_conversation::init(conn)?;
     #[cfg(feature = "chat")]
     chat::init(conn)?;
-    #[cfg(feature = "chat")]
+    #[cfg(feature = "library")]
     clipboard::init(conn)?;
     #[cfg(feature = "chat")]
     peer::init(conn)?;
@@ -67,9 +66,9 @@ pub(super) fn init(conn: &Connection) -> rusqlite::Result<()> {
     media_item::init(conn)?;
     #[cfg(feature = "library")]
     pomodoro::init(conn)?;
-    #[cfg(feature = "chat")]
+    #[cfg(feature = "library")]
     session::init(conn)?;
-    #[cfg(feature = "chat")]
+    #[cfg(feature = "library")]
     share::init(conn)?;
     #[cfg(feature = "library")]
     favorite_folder::init(conn)?;
@@ -79,7 +78,7 @@ pub(super) fn init(conn: &Connection) -> rusqlite::Result<()> {
     notes::init(conn)?;
     #[cfg(feature = "library")]
     feeds::init(conn)?;
-    #[cfg(feature = "chat")]
+    #[cfg(feature = "library")]
     trashed_sms::init(conn)?;
     #[cfg(feature = "library")]
     video_play_progress::init(conn)?;

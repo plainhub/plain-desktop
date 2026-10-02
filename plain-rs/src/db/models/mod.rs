@@ -42,4 +42,9 @@ pub use nearby_device::DNearbyDeviceCache;
 #[cfg(feature = "chat")]
 pub use peer::DPeer;
 #[cfg(feature = "library")]
+pub use simple::{
+    ArchivedConversationRow, ClipboardRow, ImageEmbeddingRow, MediaItemRow, PomodoroItemRow,
+    SessionRow, ShareRow, TrashedMessageRow, VideoPlayProgressRow,
+};
+#[cfg(feature = "library")]
 pub use tag::{TagRelationRow, TagRow};
