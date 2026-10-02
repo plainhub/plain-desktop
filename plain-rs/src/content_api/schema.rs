@@ -9,6 +9,9 @@ mod clipboard;
 mod content_common;
 #[path = "../http_server/main_schemas/feed.rs"]
 mod feed;
+mod image_editor_host;
+#[path = "../http_server/main_schemas/image_editor_project.rs"]
+mod image_editor_project;
 #[path = "../http_server/main_schemas/note.rs"]
 mod note;
 #[path = "../http_server/main_schemas/pomodoro.rs"]
@@ -25,6 +28,8 @@ pub struct Query(
     bookmark::BookmarkQuery,
     pomodoro::PomodoroQuery,
     pomodoro_host::PomodoroRecordQuery,
+    image_editor_project::ImageEditorProjectQuery,
+    image_editor_host::ImageEditorItemsQuery,
 );
 #[derive(MergedObject, Default)]
 pub struct Mutation(
@@ -36,6 +41,7 @@ pub struct Mutation(
     bookmarks::BookmarkMetadataMutation,
     pomodoro::PomodoroMutation,
     pomodoro_host::PomodoroHostMutation,
+    image_editor_project::ImageEditorProjectMutation,
 );
 pub type ContentSchema = Schema<Query, Mutation, EmptySubscription>;
 pub fn build(
@@ -52,6 +58,7 @@ pub fn build(
             events.clone(),
         ))
         .data(events.clone())
+        .data(crate::image_editor::Updates::new(events.clone()))
         .data(prefs)
         .data(crate::feeds::SyncService::new(
             db.clone(),

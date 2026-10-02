@@ -58,3 +58,6 @@ pub mod ws_event;
 
 #[cfg(any(feature = "api", feature = "content_api"))]
 pub mod pomodoro;
+
+#[cfg(any(feature = "api", feature = "content_api"))]
+pub mod image_editor;

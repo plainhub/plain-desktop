@@ -2,8 +2,8 @@ use super::types::Instant;
 use async_graphql::{Context, ID, InputObject, Object, SimpleObject};
 use std::sync::Arc;
 
-use crate::api::context::{AppCtx, WS_IMAGE_EDITOR_UPDATE, WsEvent};
 use crate::db::{Db, image_editor_project as store};
+use crate::image_editor::Updates;
 
 #[derive(SimpleObject)]
 pub struct ImageEditorProject {
@@ -55,7 +55,7 @@ fn to_project(row: store::ImageEditorProjectRow) -> async_graphql::Result<ImageE
     })
 }
 
-fn to_summary(
+pub(super) fn to_summary(
     row: store::ImageEditorProjectRow,
 ) -> async_graphql::Result<ImageEditorProjectSummary> {
     Ok(ImageEditorProjectSummary {
@@ -77,7 +77,7 @@ impl ImageEditorProjectQuery {
         &self,
         ctx: &Context<'_>,
     ) -> async_graphql::Result<Vec<ImageEditorProjectSummary>> {
-        store::list(ctx.data::<Arc<Db>>()?, 20)?
+        store::summaries(ctx.data::<Arc<Db>>()?, 0, 20, "")?
             .into_iter()
             .map(to_summary)
             .collect()
@@ -105,6 +105,18 @@ impl ImageEditorProjectMutation {
         id: ID,
         input: ImageEditorProjectInput,
     ) -> async_graphql::Result<ImageEditorProject> {
+        if input.canvas_width < 0
+            || input.canvas_height < 0
+            || input.layer_count < 0
+            || input.state_b64.len() > crate::image_editor::MAX_STATE_BYTES
+            || input
+                .thumbnail
+                .as_ref()
+                .is_some_and(|s| s.len() > 1024 * 1024)
+        {
+            return Err(async_graphql::Error::new("invalid image editor project"));
+        }
+        crate::image_editor::decode(&input.state_b64).map_err(async_graphql::Error::new)?;
         let id = if id.is_empty() {
             uuid::Uuid::new_v4().to_string()
         } else {
@@ -137,19 +149,9 @@ impl ImageEditorProjectMutation {
         id: ID,
         update: String,
     ) -> async_graphql::Result<bool> {
-        let id_bytes = id.as_str().as_bytes();
-        if id_bytes.len() > u8::MAX as usize {
-            return Err(async_graphql::Error::new("invalid_image_editor_project_id"));
-        }
-        let update_bytes = crate::utils::base64::base64_decode(&update);
-        let mut payload = Vec::with_capacity(1 + id_bytes.len() + update_bytes.len());
-        payload.push(id_bytes.len() as u8);
-        payload.extend_from_slice(id_bytes);
-        payload.extend_from_slice(&update_bytes);
-        let app = ctx.data_unchecked::<Arc<AppCtx>>();
-        let _ = app
-            .event_tx
-            .send(WsEvent::broadcast_binary(WS_IMAGE_EDITOR_UPDATE, payload));
+        ctx.data::<Arc<Updates>>()?
+            .publish(id.as_str(), &update)
+            .map_err(async_graphql::Error::new)?;
         Ok(true)
     }
 }

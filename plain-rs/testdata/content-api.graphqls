@@ -126,6 +126,34 @@ type FeedSyncState {
 	error: String!
 }
 
+type ImageEditorProject {
+	id: ID!
+	stateB64: String!
+	thumbnail: String
+	canvasWidth: Int!
+	canvasHeight: Int!
+	layerCount: Int!
+	createdAt: Instant!
+	updatedAt: Instant!
+}
+
+input ImageEditorProjectInput {
+	stateB64: String!
+	thumbnail: String
+	canvasWidth: Int!
+	canvasHeight: Int!
+	layerCount: Int!
+}
+
+type ImageEditorProjectSummary {
+	id: ID!
+	thumbnail: String
+	canvasWidth: Int!
+	canvasHeight: Int!
+	layerCount: Int!
+	updatedAt: Instant!
+}
+
 scalar Instant
 
 scalar Long
@@ -172,6 +200,9 @@ type Mutation {
 	tickPomodoro: PomodoroTickResult!
 	skipPomodoro: PomodoroTickResult!
 	adjustPomodoro(durationSec: Int!): PomodoroToday!
+	saveImageEditorProject(id: ID!, input: ImageEditorProjectInput!): ImageEditorProject!
+	deleteImageEditorProject(id: ID!): Boolean!
+	broadcastImageEditorUpdate(id: ID!, update: String!): Boolean!
 }
 
 type Note {
@@ -259,6 +290,9 @@ type Query {
 	pomodoroRecord(date: String!): PomodoroRecord
 	pomodoroRecords(startDate: String!): [PomodoroRecord!]!
 	pomodoroTotalCompleted: Long!
+	imageEditorProjects: [ImageEditorProjectSummary!]!
+	imageEditorProject(id: ID!): ImageEditorProject
+	imageEditorProjectItems(offset: Int!, limit: Int!, query: String!): [ImageEditorProjectSummary!]!
 }
 
 type Tag {

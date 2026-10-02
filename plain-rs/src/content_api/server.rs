@@ -81,7 +81,7 @@ impl ContentServer {
             .route("/events", get(upgrade))
             .route("/health", get(health))
             .route("/fs", get(file))
-            .layer(DefaultBodyLimit::max(8 * 1024 * 1024))
+            .layer(DefaultBodyLimit::max(32 * 1024 * 1024))
             .with_state(state);
         let listener = tokio::net::TcpListener::from_std(listener).map_err(|e| e.to_string())?;
         let task = tokio::spawn(async move {
@@ -140,7 +140,8 @@ fn content_changes(request: &Request) -> bool {
                     .any(|selection| match &selection.node {
                         Selection::Field(field) => !matches!(
                             field.node.name.node.as_str(),
-                            "configurePomodoroDay"
+                            "broadcastImageEditorUpdate"
+                                | "configurePomodoroDay"
                                 | "tickPomodoro"
                                 | "skipPomodoro"
                                 | "adjustPomodoro"
@@ -196,8 +197,21 @@ async fn events(
             _=state.stop.changed()=>break,
             message=socket.recv()=>match message {Some(Ok(Message::Ping(data)))=>{if socket.send(Message::Pong(data)).await.is_err(){break;}},Some(Ok(Message::Close(_)))|None|Some(Err(_))=>break,_=>{}},
             event=receiver.recv()=>{
-                let message=match event {Ok(e)=>serde_json::json!({"type":e.event_type,"payload":e.payload}).to_string(),Err(broadcast::error::RecvError::Lagged(_))=>"{\"type\":47,\"payload\":\"{}\"}".into(),Err(_)=>break};
-                if socket.send(Message::Text(message)).await.is_err(){break;}
+                let message = match event {
+                    Ok(ref e) => match &e.binary_payload {
+                        Some(payload) => {
+                            let mut frame = Vec::with_capacity(4 + payload.len());
+                            frame.extend_from_slice(&e.event_type.to_le_bytes());
+                            frame.extend_from_slice(&payload);
+                            Message::Binary(frame)
+                        }
+                        None => Message::Text(serde_json::json!({"type":e.event_type,"payload":e.payload}).to_string()),
+                    },
+                    Err(broadcast::error::RecvError::Lagged(_)) => Message::Text("{\"type\":47,\"payload\":\"{}\"}".into()),
+                    Err(_) => break,
+                };
+                if socket.send(message).await.is_err(){break;}
+
             }
         }
     }

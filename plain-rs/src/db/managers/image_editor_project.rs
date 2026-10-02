@@ -40,6 +40,25 @@ pub fn list(db: &Db, limit: i32) -> rusqlite::Result<Vec<ImageEditorProjectRow>>
     })
 }
 
+pub fn summaries(
+    db: &Db,
+    offset: i32,
+    limit: i32,
+    query: &str,
+) -> rusqlite::Result<Vec<ImageEditorProjectRow>> {
+    let text = crate::utils::search_dsl::field_value(query, "text").unwrap_or_default();
+    let pattern = format!(
+        "%{}%",
+        text.replace('\\', "\\\\")
+            .replace('%', "\\%")
+            .replace('_', "\\_")
+    );
+    db.with_conn(|conn| {
+        let mut stmt = conn.prepare("SELECT id,'',thumbnail,canvas_width,canvas_height,layer_count,created_at,updated_at FROM image_editor_projects WHERE id LIKE ?1 ESCAPE '\\' ORDER BY updated_at DESC,id LIMIT ?2 OFFSET ?3")?;
+        stmt.query_map(params![pattern,limit.clamp(0,100),offset.max(0)],from_row)?.collect()
+    })
+}
+
 pub fn save(
     db: &Db,
     id: &str,

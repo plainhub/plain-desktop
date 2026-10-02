@@ -245,3 +245,6 @@ mod bookmarks;
 
 #[path = "pomodoro.rs"]
 mod pomodoro;
+
+#[path = "image_editor.rs"]
+mod image_editor;
