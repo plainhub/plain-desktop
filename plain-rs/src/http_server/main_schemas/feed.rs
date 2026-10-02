@@ -79,7 +79,7 @@ fn feed_model(ctx: &Context<'_>, row: FeedRow) -> GqlResult<Feed> {
         name: row.name,
         url: row.url,
         fetch_content: row.fetch_content,
-        logo: image_id(ctx, &row.logo)?,
+        logo: row.logo,
         last_sync_at: row
             .last_sync_at
             .as_deref()

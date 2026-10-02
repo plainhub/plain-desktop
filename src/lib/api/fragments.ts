@@ -278,6 +278,7 @@ export const feedFragment = `
     id
     name
     url
+    logo
     fetchContent
     createdAt
     updatedAt

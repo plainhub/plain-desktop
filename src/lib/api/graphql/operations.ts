@@ -253,6 +253,7 @@ export interface Fragment_FeedFragment {
   id: string
   name: string
   url: string
+  logo: string
   fetchContent: boolean
   createdAt: string
   updatedAt: string

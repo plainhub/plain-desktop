@@ -366,6 +366,7 @@ export interface IFeed extends IData {
   id: string
   name: string
   url: string
+  logo: string
   fetchContent: boolean
 }
 
