@@ -3,10 +3,10 @@ use rusqlite::params;
 use crate::chat::enums::{DeviceType, PeerStatus};
 use crate::db::{DPeer, Db, now_iso};
 
-const PEER_COLS: &str =
+pub(super) const PEER_COLS: &str =
     "id,name,ip,key,public_key,status,port,device_type,token,created_at,updated_at";
 
-fn row_to_peer(row: &rusqlite::Row<'_>) -> rusqlite::Result<DPeer> {
+pub(super) fn row_to_peer(row: &rusqlite::Row<'_>) -> rusqlite::Result<DPeer> {
     Ok(DPeer {
         id: row.get(0)?,
         name: row.get(1)?,
@@ -14,7 +14,7 @@ fn row_to_peer(row: &rusqlite::Row<'_>) -> rusqlite::Result<DPeer> {
         key: row.get(3)?,
         public_key: row.get(4)?,
         status: row.get(5)?,
-        port: row.get::<_, i64>(6)? as u16,
+        port: row.get(6)?,
         device_type: row.get(7)?,
         token: row.get(8)?,
         created_at: row.get(9)?,

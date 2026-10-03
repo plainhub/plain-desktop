@@ -15,7 +15,7 @@ mod models;
 mod schema;
 
 #[cfg(feature = "chat")]
-pub use managers::bookmark;
+pub use managers::{bookmark, chat_store};
 #[cfg(feature = "sqlite_browse")]
 pub use managers::browse;
 #[cfg(feature = "system")]

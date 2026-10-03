@@ -1,0 +1,160 @@
+use super::server::ServerState;
+use crate::{
+    chat::enums::{ChatStatus, PeerStatus},
+    db::{
+        DChannel, DChat, DNearbyDeviceCache, DPeer,
+        chat_store::{self, SaveMode},
+    },
+};
+use axum::{
+    Json,
+    extract::State,
+    http::{HeaderMap, StatusCode},
+    response::{IntoResponse, Response},
+};
+use serde::Deserialize;
+use serde_json::{Value, json};
+#[derive(Deserialize)]
+#[serde(tag = "action", rename_all = "camelCase", deny_unknown_fields)]
+pub(super) enum Request {
+    Peers {
+        statuses: Vec<PeerStatus>,
+    },
+    Peer {
+        id: String,
+    },
+    PeersByIds {
+        ids: Vec<String>,
+    },
+    SavePeers {
+        items: Vec<DPeer>,
+        mode: SaveMode,
+    },
+    DeletePeers {
+        ids: Vec<String>,
+    },
+    PatchPeer {
+        before: DPeer,
+        after: DPeer,
+    },
+    PatchChannel {
+        before: DChannel,
+        after: DChannel,
+    },
+    Channels,
+    Channel {
+        id: String,
+    },
+    SaveChannels {
+        items: Vec<DChannel>,
+        mode: SaveMode,
+    },
+    DeleteChannels {
+        ids: Vec<String>,
+    },
+    Chats {
+        filter: chat_store::messages::Filter,
+    },
+    Chat {
+        id: String,
+    },
+    SaveChats {
+        items: Vec<DChat>,
+        mode: SaveMode,
+    },
+    DeleteChats {
+        ids: Vec<String>,
+    },
+    ChatStatus {
+        id: String,
+        status: ChatStatus,
+        data: Option<String>,
+    },
+    ChatContent {
+        id: String,
+        content: String,
+    },
+    ChatIds {
+        query: String,
+    },
+    Nearby,
+    SaveNearby {
+        item: DNearbyDeviceCache,
+    },
+    TouchNearby {
+        id: String,
+    },
+    DeleteNearby {
+        id: String,
+    },
+}
+pub(super) async fn call(
+    State(state): State<ServerState>,
+    headers: HeaderMap,
+    Json(request): Json<Request>,
+) -> Response {
+    if !state.authenticated(&headers) {
+        return StatusCode::UNAUTHORIZED.into_response();
+    }
+    let db = state.db.clone();
+    let result = tokio::task::spawn_blocking(move || -> anyhow::Result<Value> {
+        use chat_store::{channels, messages, nearby, peers};
+        Ok(match request {
+            Request::Peers { statuses } => serde_json::to_value(
+                peers::all(&db)?
+                    .into_iter()
+                    .filter(|p| statuses.is_empty() || statuses.contains(&p.status))
+                    .collect::<Vec<_>>(),
+            )?,
+            Request::Peer { id } => serde_json::to_value(peers::get(&db, &id)?)?,
+            Request::PeersByIds { ids } => serde_json::to_value(
+                peers::all(&db)?
+                    .into_iter()
+                    .filter(|p| ids.contains(&p.id))
+                    .collect::<Vec<_>>(),
+            )?,
+            Request::SavePeers { items, mode } => {
+                peers::save(&db, &items, mode)?;
+                json!(true)
+            }
+            Request::DeletePeers { ids } => json!(peers::delete(&db, &ids)?),
+            Request::PatchPeer { before, after } => {
+                serde_json::to_value(peers::patch(&db, &before, &after)?)?
+            }
+            Request::PatchChannel { before, after } => {
+                serde_json::to_value(channels::patch(&db, &before, &after)?)?
+            }
+            Request::Channels => serde_json::to_value(channels::all(&db)?)?,
+            Request::Channel { id } => serde_json::to_value(channels::get(&db, &id)?)?,
+            Request::SaveChannels { items, mode } => {
+                channels::save(&db, &items, mode)?;
+                json!(true)
+            }
+            Request::DeleteChannels { ids } => json!(channels::delete(&db, &ids)?),
+            Request::Chats { filter } => messages::list(&db, &filter)?,
+            Request::Chat { id } => serde_json::to_value(messages::get(&db, &id)?)?,
+            Request::SaveChats { items, mode } => {
+                messages::save(&db, &items, mode)?;
+                json!(true)
+            }
+            Request::DeleteChats { ids } => json!(messages::delete(&db, &ids)?),
+            Request::ChatStatus { id, status, data } => {
+                json!(messages::status(&db, &id, status, data.as_deref())?)
+            }
+            Request::ChatContent { id, content } => json!(messages::content(&db, &id, &content)?),
+            Request::ChatIds { query } => json!(messages::ids(&db, &query)?),
+            Request::Nearby => serde_json::to_value(nearby::all(&db)?)?,
+            Request::SaveNearby { item } => {
+                nearby::save(&db, &item)?;
+                json!(true)
+            }
+            Request::TouchNearby { id } => json!(nearby::touch(&db, &id)?),
+            Request::DeleteNearby { id } => json!(nearby::delete(&db, &id)?),
+        })
+    })
+    .await;
+    match result {Ok(Ok(value))=>Json(json!({"result":value})).into_response(),error=>(StatusCode::BAD_REQUEST,Json(json!({"error": match error {Ok(Err(e))=>e.to_string(),Err(e)=>e.to_string(),_=>unreachable!()}}))).into_response()}
+}
+#[cfg(test)]
+#[path = "../../tests/unit/content_api/chat_store_routes.rs"]
+mod tests;

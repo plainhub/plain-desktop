@@ -14,7 +14,7 @@ name = "plain_rs"
 # extracted from plain-desktop's port of the plain-app chat stack.
 # Desktop and plain-nas both enable this; consumers without chat skip
 # the rusqlite build entirely.
-chat = ["dep:serde_json", "dep:rusqlite", "sqlite_browse", "tokio/sync", "tokio/rt", "tokio/fs", "tokio/time"]
+chat = ["dep:chrono", "dep:anyhow", "dep:serde_json", "dep:rusqlite", "sqlite_browse", "tokio/sync", "tokio/rt", "tokio/fs", "tokio/time"]
 # Shared user-library domain (SQLite storage): audio playback queue /
 # playlists / play history, tags + tag relations, favorite folders.
 # Ported from plain-nas's fjall implementations so NAS and desktop run

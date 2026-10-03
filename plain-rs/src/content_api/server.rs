@@ -26,7 +26,7 @@ pub(super) struct ServerState {
     schema: ContentSchema,
     pub(super) files: Arc<super::file_tasks::FileTasks>,
     pub(super) host: Arc<super::host::Host>,
-    db: Arc<Db>,
+    pub(super) db: Arc<Db>,
     prefs: Arc<crate::prefs::Prefs>,
     directory: std::path::PathBuf,
     token: Arc<str>,
@@ -101,6 +101,7 @@ impl ContentServer {
             .route("/host", get(host_upgrade))
             .route("/health", get(health))
             .route("/fs", get(files::file))
+            .route("/chat/store", post(super::chat_store_routes::call))
             .route("/files/write", post(super::file_writes::write))
             .route("/files/read", post(super::file_reads::read))
             .route("/files/stat", post(super::file_reads::stat))

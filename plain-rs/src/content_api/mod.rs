@@ -27,3 +27,5 @@ mod file_access;
 
 mod services;
 mod file_mutation_routes;
+
+mod chat_store_routes;

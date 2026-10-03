@@ -34,3 +34,6 @@ mod content_state;
 
 #[cfg(feature = "library")]
 mod clipboard;
+
+#[cfg(feature = "chat")]
+pub mod chat_store;
