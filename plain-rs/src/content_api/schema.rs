@@ -24,6 +24,7 @@ mod pomodoro;
 mod pomodoro_host;
 mod shares_host;
 mod tags;
+mod tags_host;
 mod video_progress;
 use async_graphql::{EmptySubscription, MergedObject, Schema};
 #[derive(MergedObject, Default)]
@@ -37,6 +38,7 @@ pub struct Query(
     note::NoteQuery,
     feed::FeedQuery,
     tags::TagQuery,
+    tags_host::TagHostQuery,
     clipboard::ClipboardQuery,
     bookmark::BookmarkQuery,
     pomodoro::PomodoroQuery,
@@ -54,6 +56,7 @@ pub struct Mutation(
     note::NoteMutation,
     feed::FeedMutation,
     tags::TagMutation,
+    tags_host::TagHostMutation,
     clipboard::ClipboardMutation,
     bookmark::BookmarkMutation,
     bookmarks::BookmarkMetadataMutation,

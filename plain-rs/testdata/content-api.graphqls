@@ -310,6 +310,12 @@ type Mutation {
 	addToTags(type: DataType!, tagIds: [ID!]!, query: String!): Boolean!
 	updateTagRelations(type: DataType!, item: TagRelationStub!, addTagIds: [ID!]!, removeTagIds: [ID!]!): Boolean!
 	removeFromTags(type: DataType!, tagIds: [ID!]!, query: String!): Boolean!
+	tagHostAdd(items: [TagHostRelationInput!]!): Boolean!
+	tagHostEdit(type: DataType!, item: TagHostItemInput!, addTagIds: [ID!]!, removeTagIds: [ID!]!): Boolean!
+	tagHostRemove(keys: [String!]!, tagIds: [ID!]!): Boolean!
+	tagHostRemoveKeys(type: DataType!, keys: [String!]!): Boolean!
+	tagHostClearType(type: DataType!): Boolean!
+	tagHostClearTag(id: ID!): Boolean!
 	recordClipboard(input: ClipboardRecordInput!): ClipboardRecordResult!
 	deleteClipboardItems(query: String!): ActionResult!
 	deleteClipboardItemsByIds(ids: [ID!]!): ActionResult!
@@ -435,6 +441,10 @@ type Query {
 	tag(id: ID!): Tag
 	tagKeys(id: ID!): [String!]!
 	tagRelations(type: DataType!, keys: [String!]!): [TagRelation!]!
+	tagHostAll(type: DataType!): [TagHostRecord!]!
+	tagHostGet(id: ID!): TagHostRecord
+	tagHostRelations(type: DataType!, keys: [String!]!): [TagHostRelation!]!
+	tagHostIntersection(tagIds: [ID!]!): [String!]!
 	clipboardItems(offset: Int!, limit: Int!, query: String!): [ClipboardItem!]!
 	clipboardItemCount(query: String!): Int!
 	bookmarks: [Bookmark!]!
@@ -488,6 +498,38 @@ type Tag {
 	"""
 	type: Int!
 	count: Int!
+}
+
+input TagHostItemInput {
+	key: String!
+	sizeBytes: Long!
+	title: String!
+}
+
+type TagHostRecord {
+	id: ID!
+	name: String!
+	type: Int!
+	count: Int!
+	createdAt: Instant!
+	updatedAt: Instant!
+}
+
+type TagHostRelation {
+	tagId: ID!
+	key: String!
+	type: Int!
+	createdAt: Instant!
+	sizeBytes: Long!
+	title: String!
+}
+
+input TagHostRelationInput {
+	tagId: ID!
+	key: String!
+	type: DataType!
+	sizeBytes: Long!
+	title: String!
 }
 
 """

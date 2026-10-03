@@ -12,7 +12,7 @@ impl MediaQueryRoot {
     async fn tag(&self, ctx: &Context<'_>, id: ID) -> FieldResult<Option<Tag>> {
         let db = ctx.data::<Arc<SqlDb>>()?;
         Ok(
-            crate::library::tags::tag_by_id(db, id.as_str()).map(|t| Tag {
+            crate::library::tags::tag_by_id(db, id.as_str())?.map(|t| Tag {
                 id: t.id.into(),
                 name: t.name,
                 r#type: t.kind,
@@ -24,7 +24,7 @@ impl MediaQueryRoot {
         Ok(crate::library::tags::keys_for_tag(
             ctx.data::<Arc<SqlDb>>()?,
             id.as_str(),
-        ))
+        )?)
     }
 
     /// Count of entries in a directory (non-recursive).
@@ -143,7 +143,7 @@ impl MediaQueryRoot {
     ) -> FieldResult<Vec<TagRelation>> {
         let library = ctx.data::<Arc<SqlDb>>()?;
         let kind = r#type.kind();
-        let out = crate::library::tags::relations_for_keys_of_kind(library, &keys, kind)
+        let out = crate::library::tags::relations_for_keys_of_kind(library, &keys, kind)?
             .into_iter()
             .map(|rel| TagRelation {
                 tag_id: rel.tag_id.into(),
@@ -157,7 +157,7 @@ impl MediaQueryRoot {
     async fn tags(&self, ctx: &Context<'_>, r#type: DataType) -> FieldResult<Vec<Tag>> {
         let library = ctx.data::<Arc<SqlDb>>()?;
         let kind = r#type.kind();
-        let tags = crate::library::tags::tags_by_type(library, kind);
+        let tags = crate::library::tags::tags_by_type(library, kind)?;
         Ok(tags
             .into_iter()
             .map(|t| Tag {

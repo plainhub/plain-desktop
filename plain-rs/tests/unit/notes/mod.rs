@@ -18,11 +18,15 @@ fn note_search_bulk_lifecycle_and_tags() {
         1
     );
     let tag = tags::create_tag(&db, DataType::Note.kind(), "work").unwrap();
-    tags::add_relations(&db, &[(tag.id, a.id.clone())]);
+    tags::add_relations(&db, &[(tag.id, a.id.clone())]).unwrap();
     assert_eq!(trash(&db, &format!("ids:{}", a.id)).unwrap(), 1);
     assert_eq!(count(&db, "").unwrap(), 1);
     assert_eq!(count(&db, "trash:true").unwrap(), 1);
-    assert!(tags::tags_for_key_of_kind(&db, &a.id, DataType::Note.kind()).is_empty());
+    assert!(
+        tags::tags_for_key_of_kind(&db, &a.id, DataType::Note.kind())
+            .unwrap()
+            .is_empty()
+    );
     assert_eq!(restore(&db, &format!("ids:{}", a.id)).unwrap(), 1);
     assert_eq!(count(&db, "").unwrap(), 2);
     assert_eq!(trash(&db, "all:true").unwrap(), 2);
@@ -73,17 +77,22 @@ fn export_and_save_feed_entries() {
             (note_tag.id.clone(), "entry".into()),
             (feed_tag.id.clone(), "entry".into()),
         ],
-    );
+    )
+    .unwrap();
     assert_eq!(trash(&db, "ids:entry").unwrap(), 1);
     assert_eq!(
-        tags::tags_for_key_of_kind(&db, "entry", DataType::FeedEntry.kind()).len(),
+        tags::tags_for_key_of_kind(&db, "entry", DataType::FeedEntry.kind())
+            .unwrap()
+            .len(),
         1
     );
     restore(&db, "ids:entry").unwrap();
-    tags::add_relations(&db, &[(note_tag.id, "entry".into())]);
+    tags::add_relations(&db, &[(note_tag.id, "entry".into())]).unwrap();
     assert_eq!(crate::feeds::delete_entries(&db, "ids:entry").unwrap(), 1);
     assert_eq!(
-        tags::tags_for_key_of_kind(&db, "entry", DataType::Note.kind()).len(),
+        tags::tags_for_key_of_kind(&db, "entry", DataType::Note.kind())
+            .unwrap()
+            .len(),
         1
     );
 }

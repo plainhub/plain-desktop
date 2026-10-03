@@ -197,7 +197,7 @@ async fn apply_media_items_action(
             updated.is_trash = true;
             updated.deleted_at = chrono::Utc::now().timestamp();
             for key in [media.uuid.clone(), media.path.clone()] {
-                crate::library::tags::remove_relations_for_keys(library, &[key]);
+                crate::library::tags::remove_relations_for_keys(library, &[key])?;
             }
             scan::upsert_media_row(db, &updated)?;
         }

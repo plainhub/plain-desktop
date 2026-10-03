@@ -131,7 +131,7 @@ impl MediaMutationRoot {
     /// Delete a tag together with its relations. Single idempotent delete → `Boolean!` (§6).
     async fn delete_tag(&self, ctx: &Context<'_>, id: ID) -> FieldResult<bool> {
         let library = ctx.data::<Arc<SqlDb>>()?;
-        crate::library::tags::delete_tag(library, &id);
+        crate::library::tags::delete_tag(library, &id)?;
         Ok(true)
     }
 
@@ -152,7 +152,7 @@ impl MediaMutationRoot {
             .map(|t| t.trim().to_string())
             .filter(|t| !t.is_empty())
             .collect();
-        crate::media::tagging::add_to_tags(library, r#type, &tag_ids, &query);
+        crate::media::tagging::add_to_tags(library, r#type, &tag_ids, &query)?;
         Ok(true)
     }
 
@@ -166,7 +166,6 @@ impl MediaMutationRoot {
         remove_tag_ids: Vec<ID>,
     ) -> FieldResult<bool> {
         let library = ctx.data::<Arc<SqlDb>>()?;
-        let _ = r#type;
         let add = add_tag_ids
             .iter()
             .map(|id| id.to_string())
@@ -175,7 +174,15 @@ impl MediaMutationRoot {
             .iter()
             .map(|id| id.to_string())
             .collect::<Vec<_>>();
-        crate::media::tagging::update_relations(library, &item.key, &add, &remove);
+        crate::library::tag_records::edit(
+            library,
+            r#type.kind(),
+            &item.key,
+            &item.title,
+            item.size.0,
+            &add,
+            &remove,
+        )?;
         Ok(true)
     }
 
@@ -193,7 +200,7 @@ impl MediaMutationRoot {
             .map(|t| t.trim().to_string())
             .filter(|t| !t.is_empty())
             .collect();
-        crate::media::tagging::remove_from_tags(library, r#type, &tag_ids, &query);
+        crate::media::tagging::remove_from_tags(library, r#type, &tag_ids, &query)?;
         Ok(true)
     }
 

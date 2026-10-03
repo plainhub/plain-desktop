@@ -1,84 +1,72 @@
-use crate::db::Db;
-use crate::enums::DataType;
 use crate::media::image_index::{self, MediaSearchIndex, MediaSort};
 use crate::utils::search_dsl;
+use crate::{
+    db::Db,
+    enums::DataType,
+    library::{LibraryError, LibraryResult, tags},
+};
 
-pub fn add_to_tags(db: &Db, kind: DataType, tag_ids: &[String], query: &str) {
-    if tag_ids.is_empty() {
-        return;
-    }
-    let keys = resolve_keys(db, kind, query);
-    if keys.is_empty() {
-        return;
-    }
-    let mut relations = Vec::new();
-    for tag_id in tag_ids {
-        let existing: std::collections::HashSet<String> =
-            crate::library::tags::keys_for_tag(db, tag_id)
-                .into_iter()
-                .collect();
-        for key in &keys {
-            if !existing.contains(key) {
-                relations.push((tag_id.clone(), key.clone()));
-            }
+pub fn add_to_tags(db: &Db, kind: DataType, ids: &[String], query: &str) -> LibraryResult<()> {
+    let keys = resolve_keys(db, kind, query)?;
+    validate_tags(db, kind, ids)?;
+    tags::add_relations(
+        db,
+        &ids.iter()
+            .flat_map(|id| keys.iter().map(move |key| (id.clone(), key.clone())))
+            .collect::<Vec<_>>(),
+    )
+}
+pub fn update_relations(
+    db: &Db,
+    kind: DataType,
+    key: &str,
+    add: &[String],
+    remove: &[String],
+) -> LibraryResult<()> {
+    tags::edit_relations(db, kind.kind(), key, add, remove)
+}
+pub fn remove_from_tags(db: &Db, kind: DataType, ids: &[String], query: &str) -> LibraryResult<()> {
+    let keys = resolve_keys(db, kind, query)?;
+    validate_tags(db, kind, ids)?;
+    tags::remove_relations(db, &keys, ids)
+}
+fn validate_tags(db: &Db, kind: DataType, ids: &[String]) -> LibraryResult<()> {
+    for id in ids {
+        if tags::tag_by_id(db, id)?.is_none_or(|row| row.kind != kind.kind()) {
+            return Err(LibraryError::Other("tag type mismatch".into()));
         }
     }
-    crate::library::tags::add_relations(db, &relations);
+    Ok(())
 }
-
-pub fn update_relations(db: &Db, key: &str, add_tag_ids: &[String], remove_tag_ids: &[String]) {
-    let add = add_tag_ids
-        .iter()
-        .filter(|tag_id| !tag_id.is_empty())
-        .map(|tag_id| (tag_id.clone(), key.to_string()))
-        .collect::<Vec<_>>();
-    if !add.is_empty() {
-        crate::library::tags::add_relations(db, &add);
-    }
-    if !remove_tag_ids.is_empty() {
-        crate::library::tags::remove_relations(db, &[key.to_string()], remove_tag_ids);
-    }
-}
-
-pub fn remove_from_tags(db: &Db, kind: DataType, tag_ids: &[String], query: &str) {
-    if tag_ids.is_empty() {
-        return;
-    }
-    let keys = resolve_keys(db, kind, query);
-    if !keys.is_empty() {
-        crate::library::tags::remove_relations(db, &keys, tag_ids);
-    }
-}
-
-fn resolve_media_keys(index: &MediaSearchIndex, kind: DataType, query: &str) -> Vec<String> {
-    if let Some(keys) = parse_ids_query(query) {
-        return keys;
-    }
-    match index.search(
-        query,
-        kind.media_type_str(),
-        None,
-        MediaSort::DateDesc,
-        0,
-        10_000,
-    ) {
-        Ok(rows) => rows.into_iter().map(|row| row.uuid).collect(),
-        Err(error) => {
-            log::error!("[tags] resolve keys failed for {query:?}: {error}");
-            Vec::new()
+fn resolve_media_keys(
+    index: &MediaSearchIndex,
+    kind: DataType,
+    query: &str,
+) -> LibraryResult<Vec<String>> {
+    let mut keys = Vec::new();
+    let mut offset = 0;
+    loop {
+        let rows = index
+            .search(
+                query,
+                kind.media_type_str(),
+                None,
+                MediaSort::DateDesc,
+                offset,
+                500,
+            )
+            .map_err(|e| LibraryError::Other(e.to_string()))?;
+        let count = rows.len();
+        keys.extend(rows.into_iter().map(|row| row.uuid));
+        if count < 500 {
+            break;
         }
+        offset += count;
     }
+    Ok(keys)
 }
-
 fn parse_ids_query(query: &str) -> Option<Vec<String>> {
-    let ids = search_dsl::parse(query)
-        .into_iter()
-        .filter(|field| field.name == "ids")
-        .map(|field| field.value)
-        .last()?;
-    if ids.trim().is_empty() {
-        return None;
-    }
+    let ids = search_dsl::field_value(query, "ids")?;
     Some(
         ids.split(',')
             .map(str::trim)
@@ -87,16 +75,20 @@ fn parse_ids_query(query: &str) -> Option<Vec<String>> {
             .collect(),
     )
 }
-
-fn resolve_keys(db: &Db, kind: DataType, query: &str) -> Vec<String> {
+fn resolve_keys(db: &Db, kind: DataType, query: &str) -> LibraryResult<Vec<String>> {
+    if query.trim().is_empty() {
+        return Err(LibraryError::Other("query is required".into()));
+    }
+    if let Some(ids) = parse_ids_query(query) {
+        return Ok(ids);
+    }
     match kind {
-        DataType::Note => db.note_ids(query, None).unwrap_or_default(),
-        DataType::FeedEntry => db
-            .feed_entries_list(query, i64::MAX, 0)
-            .unwrap_or_default()
+        DataType::Note => Ok(db.note_ids(query, None)?),
+        DataType::FeedEntry => Ok(db
+            .feed_entries_list(query, i64::MAX, 0)?
             .into_iter()
-            .map(|entry| entry.id)
-            .collect(),
+            .map(|row| row.id)
+            .collect()),
         _ => resolve_media_keys(&image_index::global(), kind, query),
     }
 }

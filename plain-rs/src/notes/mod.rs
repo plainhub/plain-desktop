@@ -81,19 +81,21 @@ pub fn export(db: &Db, query: &str) -> LibraryResult<String> {
     let notes = db.notes_list(query, i64::MAX, 0)?;
     let values: Vec<_> = notes
         .into_iter()
-        .map(|note| {
+        .map(|note| -> LibraryResult<serde_json::Value> {
             let tag_values: Vec<_> = tags::tags_for_key_of_kind(
                 db,
                 &note.id,
                 DataType::Note.kind(),
-            )
+            )?
             .into_iter()
             .map(|tag| serde_json::json!({ "id": tag.id, "name": tag.name, "count": tag.count }))
             .collect();
-            serde_json::json!({ "id": note.id, "title": note.title, "content": note.content,
-            "createdAt": note.created_at, "updatedAt": note.updated_at, "tags": tag_values })
+            Ok(
+                serde_json::json!({ "id": note.id, "title": note.title, "content": note.content,
+            "createdAt": note.created_at, "updatedAt": note.updated_at, "tags": tag_values }),
+            )
         })
-        .collect();
+        .collect::<LibraryResult<Vec<_>>>()?;
     Ok(serde_json::to_string(&values).map_err(|e| LibraryError::Other(e.to_string()))?)
 }
 

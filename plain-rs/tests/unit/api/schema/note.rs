@@ -13,7 +13,7 @@ async fn graphql_note_lifecycle_and_tags() {
         .unwrap()
         .to_string();
     let tag = crate::library::tags::create_tag(&db, DataType::Note.kind(), "work").unwrap();
-    crate::library::tags::add_relations(&db, &[(tag.id, id.clone())]);
+    crate::library::tags::add_relations(&db, &[(tag.id, id.clone())]).unwrap();
     let response = schema.execute(Request::new(format!(r#"{{ note(id: "{id}") {{ title content tags {{ name }} }} noteCount(query: "text:needle") }}"#)).data(db.clone())).await;
     assert!(response.errors.is_empty(), "{:?}", response.errors);
     let data = response.data.into_json().unwrap();

@@ -54,52 +54,50 @@ pub(crate) fn count_tag_load() {
     TAG_LOADS.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
 }
 
-fn tags_by_key(library: &SqlDb, key: &str, kind: i32) -> Vec<Tag> {
-    crate::library::tags::tags_for_key_of_kind(library, key, kind)
-        .into_iter()
-        .map(|t| Tag {
-            id: t.id.into(),
-            name: t.name,
-            r#type: t.kind,
-            count: t.count,
-        })
-        .collect()
+fn tags_by_key(library: &SqlDb, key: &str, kind: i32) -> FieldResult<Vec<Tag>> {
+    Ok(
+        crate::library::tags::tags_for_key_of_kind(library, key, kind)?
+            .into_iter()
+            .map(|t| Tag {
+                id: t.id.into(),
+                name: t.name,
+                r#type: t.kind,
+                count: t.count,
+            })
+            .collect(),
+    )
 }
-
-fn lazy_tags(ctx: &Context<'_>, id: &str, data_type: DataType) -> Vec<Tag> {
+fn lazy_tags(ctx: &Context<'_>, id: &str, data_type: DataType) -> FieldResult<Vec<Tag>> {
     count_tag_load();
-    ctx.data::<Arc<SqlDb>>()
-        .ok()
-        .map(|l| tags_by_key(l, id, data_type.kind()))
-        .unwrap_or_default()
+    tags_by_key(ctx.data::<Arc<SqlDb>>()?, id, data_type.kind())
 }
 
 #[async_graphql::ComplexObject]
 impl Audio {
     /// Tags resolve lazily — only when the selection asks for the field,
     /// mirroring plain-app's DataLoader `dataProperty`.
-    pub async fn tags(&self, ctx: &Context<'_>) -> Vec<Tag> {
+    pub async fn tags(&self, ctx: &Context<'_>) -> FieldResult<Vec<Tag>> {
         lazy_tags(ctx, &self.id, DataType::Audio)
     }
 }
 
 #[async_graphql::ComplexObject]
 impl Image {
-    pub async fn tags(&self, ctx: &Context<'_>) -> Vec<Tag> {
+    pub async fn tags(&self, ctx: &Context<'_>) -> FieldResult<Vec<Tag>> {
         lazy_tags(ctx, &self.id, DataType::Image)
     }
 }
 
 #[async_graphql::ComplexObject]
 impl Video {
-    pub async fn tags(&self, ctx: &Context<'_>) -> Vec<Tag> {
+    pub async fn tags(&self, ctx: &Context<'_>) -> FieldResult<Vec<Tag>> {
         lazy_tags(ctx, &self.id, DataType::Video)
     }
 }
 
 #[async_graphql::ComplexObject]
 impl Doc {
-    pub async fn tags(&self, ctx: &Context<'_>) -> Vec<Tag> {
+    pub async fn tags(&self, ctx: &Context<'_>) -> FieldResult<Vec<Tag>> {
         lazy_tags(ctx, &self.id, DataType::Doc)
     }
 }

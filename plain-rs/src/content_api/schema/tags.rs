@@ -34,19 +34,16 @@ pub struct TagQuery;
 impl TagQuery {
     async fn tags(&self, ctx: &Context<'_>, r#type: DataType) -> Result<Vec<Tag>> {
         let db = ctx.data::<Arc<Db>>()?;
-        Ok(tags::tags_by_type(db, r#type.kind())
+        Ok(tags::tags_by_type(db, r#type.kind())?
             .into_iter()
-            .map(|mut t| {
-                t.count = tags::keys_for_tag(db, &t.id).len() as i32;
-                model(t)
-            })
+            .map(model)
             .collect())
     }
     async fn tag(&self, ctx: &Context<'_>, id: ID) -> Result<Option<Tag>> {
-        Ok(tags::tag_by_id(ctx.data::<Arc<Db>>()?, id.as_str()).map(model))
+        Ok(tags::tag_by_id(ctx.data::<Arc<Db>>()?, id.as_str())?.map(model))
     }
     async fn tag_keys(&self, ctx: &Context<'_>, id: ID) -> Result<Vec<String>> {
-        Ok(tags::keys_for_tag(ctx.data::<Arc<Db>>()?, id.as_str()))
+        Ok(tags::keys_for_tag(ctx.data::<Arc<Db>>()?, id.as_str())?)
     }
     async fn tag_relations(
         &self,
@@ -55,7 +52,7 @@ impl TagQuery {
         keys: Vec<String>,
     ) -> Result<Vec<TagRelation>> {
         Ok(
-            tags::relations_for_keys_of_kind(ctx.data::<Arc<Db>>()?, &keys, r#type.kind())
+            tags::relations_for_keys_of_kind(ctx.data::<Arc<Db>>()?, &keys, r#type.kind())?
                 .into_iter()
                 .map(|r| TagRelation {
                     tag_id: ID(r.tag_id),
@@ -83,7 +80,7 @@ impl TagMutation {
         ))
     }
     async fn delete_tag(&self, ctx: &Context<'_>, id: ID) -> Result<bool> {
-        tags::delete_tag(ctx.data::<Arc<Db>>()?, id.as_str());
+        tags::delete_tag(ctx.data::<Arc<Db>>()?, id.as_str())?;
         Ok(true)
     }
     async fn add_to_tags(
@@ -96,7 +93,7 @@ impl TagMutation {
         let db = ctx.data::<Arc<Db>>()?;
         let keys = keys(db, r#type, &query)?;
         for tag in &tag_ids {
-            if tags::tag_by_id(db, tag.as_str()).is_none_or(|t| t.kind != r#type.kind()) {
+            if tags::tag_by_id(db, tag.as_str())?.is_none_or(|t| t.kind != r#type.kind()) {
                 return Err("tag type mismatch".into());
             }
         }
@@ -106,7 +103,7 @@ impl TagMutation {
                 .iter()
                 .flat_map(|id| keys.iter().map(move |k| (id.to_string(), k.clone())))
                 .collect::<Vec<_>>(),
-        );
+        )?;
         Ok(true)
     }
     async fn update_tag_relations(
@@ -117,27 +114,21 @@ impl TagMutation {
         add_tag_ids: Vec<ID>,
         remove_tag_ids: Vec<ID>,
     ) -> Result<bool> {
-        let db = ctx.data::<Arc<Db>>()?;
-        for tag in add_tag_ids.iter().chain(&remove_tag_ids) {
-            if tags::tag_by_id(db, tag.as_str()).is_none_or(|t| t.kind != r#type.kind()) {
-                return Err("tag type mismatch".into());
-            }
-        }
-        tags::add_relations(
-            db,
+        crate::library::tag_records::edit(
+            ctx.data::<Arc<Db>>()?,
+            r#type.kind(),
+            &item.key,
+            &item.title,
+            item.size.0,
             &add_tag_ids
                 .into_iter()
-                .map(|id| (id.to_string(), item.key.clone()))
+                .map(|id| id.to_string())
                 .collect::<Vec<_>>(),
-        );
-        tags::remove_relations(
-            db,
-            &[item.key],
             &remove_tag_ids
                 .into_iter()
                 .map(|id| id.to_string())
                 .collect::<Vec<_>>(),
-        );
+        )?;
         Ok(true)
     }
     async fn remove_from_tags(
@@ -155,7 +146,7 @@ impl TagMutation {
                 .into_iter()
                 .map(|id| id.to_string())
                 .collect::<Vec<_>>(),
-        );
+        )?;
         Ok(true)
     }
 }
