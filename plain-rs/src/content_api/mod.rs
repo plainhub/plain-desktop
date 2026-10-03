@@ -12,6 +12,8 @@ mod image_index;
 mod image_index_host;
 
 mod file_tasks;
+mod file_task_walk;
+mod file_task_media;
 
 #[cfg(feature = "http_transport")]
 mod http_bridge;

@@ -101,20 +101,14 @@ pub(crate) fn build_with_host(
     directory: std::path::PathBuf,
     host: std::sync::Arc<super::host::Host>,
 ) -> ContentSchema {
+    let audio = std::sync::Arc::new(super::audio::Audio::new(db.clone(), host.clone()));
+    let index = std::sync::Arc::new(super::image_index::ImageIndex::new(db.clone(), host.clone()));
     Schema::build(Query::default(), Mutation::default(), EmptySubscription)
         .data(std::sync::Arc::new(super::file_tasks::FileTasks::new(
-            db.clone(),
-            host.clone(),
-            events.clone(),
+            db.clone(), host.clone(), events.clone(), audio.clone(), index.clone(), prefs.clone(),
         )))
-        .data(std::sync::Arc::new(super::audio::Audio::new(
-            db.clone(),
-            host.clone(),
-        )))
-        .data(std::sync::Arc::new(super::image_index::ImageIndex::new(
-            db.clone(),
-            host.clone(),
-        )))
+        .data(audio)
+        .data(index)
         .data(host)
         .data(db.clone())
         .data(crate::shares::Service::new(db.clone(), prefs.clone()))

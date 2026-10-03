@@ -70,7 +70,19 @@ pub trait Events: Send + Sync + 'static {
     fn changed(&self, task: &FileTask);
 }
 pub type HookResult<'a> = Pin<Box<dyn Future<Output = Result<()>> + Send + 'a>>;
+pub type PrepareResult<'a> = Pin<Box<dyn Future<Output = Result<serde_json::Value>> + Send + 'a>>;
 pub trait Hooks: Send + Sync + 'static {
+    fn prepare<'a>(&'a self, _: FileTaskType, _: &'a FileTaskOp) -> PrepareResult<'a> {
+        Box::pin(async { Ok(serde_json::Value::Null) })
+    }
+    fn completed_with_snapshot<'a>(
+        &'a self,
+        kind: FileTaskType,
+        op: &'a CompletedOp,
+        _: &'a serde_json::Value,
+    ) -> HookResult<'a> {
+        self.completed(kind, op)
+    }
     fn authorize<'a>(&'a self, kind: FileTaskType, ops: &'a [FileTaskOp]) -> HookResult<'a>;
     fn completed<'a>(&'a self, kind: FileTaskType, op: &'a CompletedOp) -> HookResult<'a>;
 }
@@ -300,6 +312,7 @@ async fn execute(
             hooks
                 .authorize(task.kind, std::slice::from_ref(&op))
                 .await?;
+            let prepared = hooks.prepare(task.kind, &op).await?;
             let state = active.clone();
             let storage = store.clone();
             let emitter = events.clone();
@@ -376,7 +389,9 @@ async fn execute(
                 current.updated_at = Utc::now();
                 store.put(current)
             };
-            hooks.completed(task.kind, &completed).await?;
+            hooks
+                .completed_with_snapshot(task.kind, &completed, &prepared)
+                .await?;
             receipt_saved?;
             if let Some(error) = progress_error
                 .lock()

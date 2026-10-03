@@ -328,6 +328,18 @@ pub fn remove_paths(db: &Db, paths: &[String]) -> LibraryResult<()> {
     transaction(db, |c| remove_paths_conn(c, paths))
 }
 
+pub(crate) fn remove_root_paths_conn(c: &rusqlite::Connection, root: &str) -> LibraryResult<()> {
+    let prefix = format!("{}/", root.trim_end_matches('/'));
+    let mut statement = c.prepare("SELECT path FROM (SELECT path FROM audio_queue_items UNION SELECT audio_path AS path FROM audio_playlist_items UNION SELECT path FROM audio_play_history UNION SELECT current_path AS path FROM audio_queue_source) WHERE path=?1 OR substr(path,1,length(?2))=?2")?;
+    let paths = statement
+        .query_map(rusqlite::params![root, prefix], |row| {
+            row.get::<_, String>(0)
+        })?
+        .collect::<rusqlite::Result<Vec<_>>>()?;
+    drop(statement);
+    remove_paths_conn(c, &paths)
+}
+
 pub(crate) fn remove_paths_conn(c: &rusqlite::Connection, paths: &[String]) -> LibraryResult<()> {
     io::remove_queue_paths(c, paths)?;
     io::remove_history(c, paths)?;

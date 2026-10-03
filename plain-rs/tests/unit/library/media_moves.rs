@@ -119,3 +119,27 @@ fn invalid_bindings_are_rejected_before_any_write_and_path_prefixes_are_exact() 
         )
     });
 }
+
+#[test]
+fn private_files_without_provider_ids_clear_only_audio_paths_inside_the_moved_root() {
+    let db = db();
+    db.with_conn(|c| c.execute_batch("INSERT INTO audio_queue_items(path,sort_order,title,artist,duration_ms) VALUES('/private/song',0,'song','',1),('/private_sibling/song',1,'other','',1); INSERT INTO audio_queue_source(id,source,playlist_id,current_path,current_index,sort_by) VALUES(1,'NONE','','/private/song',0,'NAME_ASC');")).unwrap();
+    rebind(&db, &[], "/private", "/destination").unwrap();
+    db.with_conn(|c| {
+        assert_eq!(
+            c.query_row("SELECT path FROM audio_queue_items", [], |row| row
+                .get::<_, String>(0))
+                .unwrap(),
+            "/private_sibling/song"
+        );
+        assert_eq!(
+            c.query_row(
+                "SELECT current_path FROM audio_queue_source WHERE id=1",
+                [],
+                |row| row.get::<_, String>(0)
+            )
+            .unwrap(),
+            ""
+        );
+    });
+}

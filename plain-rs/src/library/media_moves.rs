@@ -92,6 +92,7 @@ pub fn rebind(
             if media_type==DataType::Image { tx.execute("DELETE FROM image_embeddings WHERE id IN (?1,?2)",params![binding.source_id,binding.destination_id])?; }
             if media_type==DataType::Audio { audio_queue::remove_paths_conn(&tx,std::slice::from_ref(&binding.source_path))?; }
         }
+        audio_queue::remove_root_paths_conn(&tx, source_root)?;
         let source_prefix = format!("{}/",source_root.trim_end_matches('/'));
         let mut statement = tx.prepare("SELECT tag_id,key,created_at,size,title FROM tag_relations WHERE type=?1 AND (key=?2 OR substr(key,1,length(?3))=?3)")?;
         let relations = statement.query_map(params![DataType::File.kind(),source_root,source_prefix],|row|Ok((row.get::<_,String>(0)?,row.get::<_,String>(1)?,row.get::<_,String>(2)?,row.get::<_,i64>(3)?,row.get::<_,String>(4)?)))?.collect::<rusqlite::Result<Vec<_>>>()?;

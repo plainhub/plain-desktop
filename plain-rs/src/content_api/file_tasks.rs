@@ -3,7 +3,7 @@ use crate::{
     db::Db,
     filesystem::tasks::{
         self, CompletedOp, Events, FileTask, FileTaskOp, FileTaskStatus, FileTaskType, HookResult,
-        Hooks, Service,
+        Hooks, PrepareResult, Service,
     },
     ws_event::WsEvent,
 };
@@ -16,15 +16,27 @@ use std::{
 use tokio::sync::broadcast;
 pub struct FileTasks {
     db: Arc<Db>,
-    host: Arc<Host>,
     events: broadcast::Sender<WsEvent>,
     service: Mutex<Option<Arc<Service>>>,
+    hooks: Arc<NativeHooks>,
 }
 impl FileTasks {
-    pub fn new(db: Arc<Db>, host: Arc<Host>, events: broadcast::Sender<WsEvent>) -> Self {
+    pub fn new(
+        db: Arc<Db>,
+        host: Arc<Host>,
+        events: broadcast::Sender<WsEvent>,
+        audio: Arc<super::audio::Audio>,
+        index: Arc<super::image_index::ImageIndex>,
+        prefs: Arc<crate::prefs::Prefs>,
+    ) -> Self {
         Self {
+            hooks: Arc::new(NativeHooks {
+                host: host.clone(),
+                audio,
+                index,
+                prefs,
+            }),
             db,
-            host,
             events,
             service: Mutex::new(None),
         }
@@ -41,7 +53,7 @@ impl FileTasks {
         let next = Arc::new(Service::with_hooks(
             Arc::new(tasks::sqlite::SqliteStore(self.db.clone())),
             Arc::new(Changes(self.events.clone())),
-            Arc::new(NativeHooks(self.host.clone())),
+            self.hooks.clone(),
         ));
         *service = Some(next.clone());
         Ok(next)
@@ -63,7 +75,7 @@ impl FileTasks {
         {
             bail!("absolute file paths required");
         }
-        NativeHooks(self.host.clone()).authorize(kind, &ops).await?;
+        self.hooks.authorize(kind, &ops).await?;
         self.service()?.create(client_id, kind, title, ops)
     }
     pub async fn remove(&self, client_id: String, id: String) -> Result<bool> {
@@ -83,11 +95,16 @@ impl Events for Changes {
         }
     }
 }
-struct NativeHooks(Arc<Host>);
+struct NativeHooks {
+    host: Arc<Host>,
+    audio: Arc<super::audio::Audio>,
+    index: Arc<super::image_index::ImageIndex>,
+    prefs: Arc<crate::prefs::Prefs>,
+}
 impl NativeHooks {
     async fn call(&self, method: &str, params: serde_json::Value) -> Result<()> {
         if self
-            .0
+            .host
             .call(method, params)
             .await
             .map_err(anyhow::Error::msg)?
@@ -100,6 +117,67 @@ impl NativeHooks {
     }
 }
 impl Hooks for NativeHooks {
+    fn prepare<'a>(&'a self, kind: FileTaskType, op: &'a FileTaskOp) -> PrepareResult<'a> {
+        Box::pin(async move {
+            if kind == FileTaskType::Move {
+                super::file_task_media::prepare(&self.host, &op.src).await
+            } else {
+                Ok(serde_json::Value::Null)
+            }
+        })
+    }
+    fn completed_with_snapshot<'a>(
+        &'a self,
+        kind: FileTaskType,
+        op: &'a CompletedOp,
+        snapshot: &'a serde_json::Value,
+    ) -> HookResult<'a> {
+        Box::pin(async move {
+            self.completed(kind, op).await?;
+            if kind == FileTaskType::Move {
+                let change = super::file_task_media::resolve(&self.host, &op.dst, snapshot).await?;
+                let prefs = self.prefs.clone();
+                let index = self.index.clone();
+                self.audio
+                    .run(move |db, engine| {
+                        use crate::library::{audio_commands, audio_playback, media_moves};
+                        let before = audio_playback::snapshot(db)?;
+                        let source_prefix =
+                            format!("{}/", change.source_root.trim_end_matches('/'));
+                        let moved_audio = !before.path.is_empty()
+                            && (before.path == change.source_root
+                                || before.path.starts_with(&source_prefix));
+                        let rebind = |db: &Db| {
+                            media_moves::rebind(
+                                db,
+                                &change.bindings,
+                                &change.source_root,
+                                &change.destination_root,
+                            )
+                        };
+                        if change.bindings.iter().any(|row| row.media_type == 3) {
+                            index.update_cache(rebind)?;
+                        } else {
+                            rebind(db)?;
+                        }
+                        if moved_audio {
+                            audio_commands::command(
+                                db,
+                                &prefs,
+                                engine,
+                                audio_commands::Action::Clear,
+                                0,
+                                1.0,
+                            )?;
+                        }
+                        Ok(())
+                    })
+                    .await
+                    .map_err(|e| anyhow!(e.message))?;
+            }
+            Ok(())
+        })
+    }
     fn authorize<'a>(&'a self, kind: FileTaskType, ops: &'a [FileTaskOp]) -> HookResult<'a> {
         Box::pin(async move {
             self.call("fileTaskAuthorize",json!({"type":kind,"paths":ops.iter().flat_map(|op| [&op.src,&op.dst]).collect::<Vec<_>>()})).await
@@ -108,30 +186,11 @@ impl Hooks for NativeHooks {
     fn completed<'a>(&'a self, kind: FileTaskType, op: &'a CompletedOp) -> HookResult<'a> {
         Box::pin(async move {
             let root = PathBuf::from(&op.dst);
-            let mut directories = Vec::<tokio::fs::ReadDir>::new();
-            let mut next = Some(root.clone());
+            let mut walker = super::file_task_walk::FileWalker::new(&root);
             let mut batch = Vec::new();
-            loop {
-                let path = if let Some(path) = next.take() {
-                    Some(path)
-                } else {
-                    loop {
-                        let Some(directory) = directories.last_mut() else {
-                            break None;
-                        };
-                        if let Some(entry) = directory.next_entry().await? {
-                            break Some(entry.path());
-                        }
-                        directories.pop();
-                    }
-                };
-                let Some(path) = path else {
-                    break;
-                };
+            while let Some(path) = walker.next().await? {
                 let info = tokio::fs::symlink_metadata(&path).await?;
-                if info.is_dir() {
-                    directories.push(tokio::fs::read_dir(&path).await?);
-                } else if info.is_file() {
+                if info.is_file() {
                     batch.push(
                         path.to_str()
                             .ok_or_else(|| anyhow!("invalid path encoding"))?
