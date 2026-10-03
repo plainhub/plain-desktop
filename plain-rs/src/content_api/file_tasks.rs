@@ -173,7 +173,7 @@ impl NativeHooks {
                 let index = self.index.clone();
                 self.audio
                     .run(move |db, engine| {
-                        use crate::library::{audio_commands, audio_playback, media_moves};
+                        use crate::library::{audio_playback, file_task_audio, media_moves};
                         let before = audio_playback::snapshot(db)?;
                         let source_prefix =
                             format!("{}/", change.source_root.trim_end_matches('/'));
@@ -196,16 +196,13 @@ impl NativeHooks {
                             )
                         };
                         index.update_cache(rebind)?;
-                        if moved_audio {
-                            audio_commands::command(
-                                db,
-                                &prefs,
-                                engine,
-                                audio_commands::Action::Clear,
-                                0,
-                                1.0,
-                            )?;
-                        }
+                        file_task_audio::clear_after_move(
+                            db,
+                            &prefs,
+                            engine,
+                            receipt.as_deref(),
+                            moved_audio.then_some(before.path.as_str()),
+                        )?;
                         Ok(())
                     })
                     .await
