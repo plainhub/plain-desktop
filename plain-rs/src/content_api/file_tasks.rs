@@ -78,6 +78,10 @@ impl FileTasks {
         self.hooks.authorize(kind, &ops).await?;
         self.service()?.create(client_id, kind, title, ops)
     }
+    pub async fn recover(&self, client_id: String, id: String) -> Result<Option<FileTask>> {
+        let service = self.service()?;
+        tokio::task::spawn_blocking(move || service.recover(&client_id, &id)).await?
+    }
     pub async fn remove(&self, client_id: String, id: String) -> Result<bool> {
         let service = self.service()?;
         tokio::task::spawn_blocking(move || service.remove(&client_id, &id)).await?
@@ -132,6 +136,33 @@ impl Hooks for NativeHooks {
         op: &'a CompletedOp,
         snapshot: &'a serde_json::Value,
     ) -> HookResult<'a> {
+        self.apply_completed(kind, op, snapshot, None)
+    }
+    fn completed_receipt<'a>(&'a self, kind: FileTaskType, op: &'a CompletedOp) -> HookResult<'a> {
+        match op.recovery.as_ref() {
+            Some(recovery) => {
+                self.apply_completed(kind, op, &recovery.snapshot, Some(recovery.id.clone()))
+            }
+            None => Box::pin(async { bail!("missing file recovery receipt") }),
+        }
+    }
+    fn authorize<'a>(&'a self, kind: FileTaskType, ops: &'a [FileTaskOp]) -> HookResult<'a> {
+        Box::pin(async move {
+            self.call("fileTaskAuthorize",json!({"type":kind,"paths":ops.iter().flat_map(|op| [&op.src,&op.dst]).collect::<Vec<_>>()})).await
+        })
+    }
+    fn completed<'a>(&'a self, kind: FileTaskType, op: &'a CompletedOp) -> HookResult<'a> {
+        self.scan_completed(kind, op)
+    }
+}
+impl NativeHooks {
+    fn apply_completed<'a>(
+        &'a self,
+        kind: FileTaskType,
+        op: &'a CompletedOp,
+        snapshot: &'a serde_json::Value,
+        receipt: Option<String>,
+    ) -> HookResult<'a> {
         Box::pin(async move {
             self.completed(kind, op).await?;
             if kind == FileTaskType::Move {
@@ -155,12 +186,13 @@ impl Hooks for NativeHooks {
                                     raw_source.trim_end_matches('/')
                                 )));
                         let rebind = |db: &Db| {
-                            media_moves::rebind_with_aliases(
+                            media_moves::rebind_once(
                                 db,
                                 &change.bindings,
                                 &change.source_root,
                                 &change.destination_root,
                                 &[(raw_source, raw_destination)],
+                                receipt.as_deref(),
                             )
                         };
                         index.update_cache(rebind)?;
@@ -182,12 +214,7 @@ impl Hooks for NativeHooks {
             Ok(())
         })
     }
-    fn authorize<'a>(&'a self, kind: FileTaskType, ops: &'a [FileTaskOp]) -> HookResult<'a> {
-        Box::pin(async move {
-            self.call("fileTaskAuthorize",json!({"type":kind,"paths":ops.iter().flat_map(|op| [&op.src,&op.dst]).collect::<Vec<_>>()})).await
-        })
-    }
-    fn completed<'a>(&'a self, kind: FileTaskType, op: &'a CompletedOp) -> HookResult<'a> {
+    fn scan_completed<'a>(&'a self, kind: FileTaskType, op: &'a CompletedOp) -> HookResult<'a> {
         Box::pin(async move {
             let root = PathBuf::from(&op.dst);
             let mut walker = super::file_task_walk::FileWalker::new(&root);

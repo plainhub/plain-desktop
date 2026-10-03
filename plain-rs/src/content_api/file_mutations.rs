@@ -49,6 +49,7 @@ impl FileTasks {
             .completed_with_snapshot(
                 FileTaskType::Move,
                 &CompletedOp {
+                    recovery: None,
                     src: path,
                     dst: destination.clone(),
                 },

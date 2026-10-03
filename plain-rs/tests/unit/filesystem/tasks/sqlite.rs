@@ -19,6 +19,7 @@ fn sqlite_tasks_preserve_exact_progress_receipts_and_owner_across_reopen() {
         created_at: now,
         updated_at: now,
         completed_ops: vec![CompletedOp {
+            recovery: None,
             src: "/source/a".into(),
             dst: "/dest/a_1".into(),
         }],

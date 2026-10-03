@@ -174,6 +174,8 @@ async fn media_move_case(missing_destination: bool) {
     let source_root = source.clone();
     let clear_count = Arc::new(std::sync::atomic::AtomicUsize::new(0));
     let clear = clear_count.clone();
+    let unavailable = Arc::new(std::sync::atomic::AtomicBool::new(missing_destination));
+    let missing = unavailable.clone();
     let worker = tokio::spawn(async move {
         while let Some(Ok(Message::Text(text))) = socket.next().await {
             let request: Value = serde_json::from_str(&text).unwrap();
@@ -184,7 +186,7 @@ async fn media_move_case(missing_destination: bool) {
                     let rows = params["paths"].as_array().unwrap().iter().filter_map(|path| {
                         let path = path.as_str().unwrap();
                         let old = PathBuf::from(path).starts_with(&source_root);
-                        if missing_destination && !old { return None }
+                        if missing.load(std::sync::atomic::Ordering::SeqCst) && !old { return None }
                         let (kind,id) = match PathBuf::from(path).file_name().unwrap().to_str().unwrap() {
                             "audio" => (1,1), "video" => (2,2), "image" => (3,3), "document" => (24,4), _ => panic!("unexpected path"),
                         };
@@ -244,6 +246,61 @@ async fn media_move_case(missing_destination: bool) {
         })
         .map(|id| assert_eq!(id, "1"))
         .unwrap();
+        let client = reqwest::Client::new();
+        let url = format!("http://127.0.0.1:{}/files/mutate", server.port);
+        assert_eq!(
+            client
+                .post(&url)
+                .header("content-type", "application/json")
+                .body(json!({"action":"recover","clientId":"owner","id":id}).to_string())
+                .send()
+                .await
+                .unwrap()
+                .status(),
+            401
+        );
+        let foreign = client
+            .post(&url)
+            .bearer_auth(&token)
+            .header("content-type", "application/json")
+            .body(json!({"action":"recover","clientId":"foreign","id":id}).to_string())
+            .send()
+            .await
+            .unwrap()
+            .text()
+            .await
+            .unwrap();
+        assert!(serde_json::from_str::<Value>(&foreign).unwrap().is_null());
+        unavailable.store(false, std::sync::atomic::Ordering::SeqCst);
+        let response = client
+            .post(&url)
+            .bearer_auth(&token)
+            .header("content-type", "application/json")
+            .body(json!({"action":"recover","clientId":"owner","id":id}).to_string())
+            .send()
+            .await
+            .unwrap();
+        assert!(response.status().is_success());
+        let recovered = tokio::time::timeout(std::time::Duration::from_secs(5),async {
+            loop {
+                let row=call(server.port,&token,format!("query {{ fileHostTaskRecord(clientId:\"owner\",id:{}) {{ status error }} }}",json!(id))).await;
+                let task=row["data"]["fileHostTaskRecord"].clone();
+                if task["status"]=="DONE" || task["status"]=="ERROR" { break task; }
+                tokio::time::sleep(std::time::Duration::from_millis(5)).await;
+            }
+        }).await.unwrap();
+        assert_eq!(recovered["status"], "DONE", "{recovered}");
+        assert_eq!(clear_count.load(std::sync::atomic::Ordering::SeqCst), 1);
+        assert_eq!(
+            db.with_conn(|c| c.query_row(
+                "SELECT duration_ms FROM media_item WHERE media_id='11'",
+                [],
+                |r| r.get::<_, i64>(0)
+            ))
+            .unwrap(),
+            5000000001
+        );
+        assert!(!base.join("target_2").exists());
     } else {
         assert_eq!(task["status"], "DONE", "{task}");
         assert_eq!(clear_count.load(std::sync::atomic::Ordering::SeqCst), 1);

@@ -39,6 +39,16 @@ pub fn rebind_with_aliases(
     destination_root: &str,
     aliases: &[(String, String)],
 ) -> LibraryResult<usize> {
+    rebind_once(db, bindings, source_root, destination_root, aliases, None)
+}
+pub fn rebind_once(
+    db: &Db,
+    bindings: &[Binding],
+    source_root: &str,
+    destination_root: &str,
+    aliases: &[(String, String)],
+    receipt: Option<&str>,
+) -> LibraryResult<usize> {
     let mut sources = HashSet::new();
     let mut destinations = HashSet::new();
     for binding in bindings {
@@ -58,6 +68,10 @@ pub fn rebind_with_aliases(
     }
     db.with_conn(|c| {
         let tx = c.unchecked_transaction()?;
+        if let Some(id) = receipt {
+            if id.is_empty() { return Err(invalid("empty recovery receipt")); }
+            if tx.query_row("SELECT 1 FROM file_task_effects WHERE id=?1", [id], |_| Ok(())).optional()?.is_some() { return Ok(0); }
+        }
         let mut snapshots = Vec::new();
         for binding in bindings {
             let media_type = kind(binding.media_type)?;
@@ -119,6 +133,7 @@ pub fn rebind_with_aliases(
         }
         tx.execute("DELETE FROM image_embeddings WHERE path=?1 OR substr(path,1,length(?2))=?2",params![source_root,source_prefix])?;
         }
+        if let Some(id) = receipt { tx.execute("INSERT INTO file_task_effects(id) VALUES(?1)", [id])?; }
         tx.commit()?;
         Ok(bindings.len())
     })

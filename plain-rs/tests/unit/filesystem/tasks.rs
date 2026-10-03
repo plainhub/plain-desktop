@@ -466,3 +466,138 @@ async fn special_files_fail_without_blocking_the_worker() {
     assert!(failed.error.contains("unsupported file type"));
     assert!(!target.exists());
 }
+struct RecoverableHooks {
+    fail: AtomicBool,
+    denied: AtomicBool,
+    calls: std::sync::atomic::AtomicUsize,
+}
+impl Hooks for RecoverableHooks {
+    fn authorize<'a>(&'a self, _: FileTaskType, _: &'a [FileTaskOp]) -> HookResult<'a> {
+        Box::pin(async move {
+            if self.denied.load(Ordering::SeqCst) {
+                bail!("revoked recovery permission");
+            }
+            Ok(())
+        })
+    }
+    fn prepare<'a>(&'a self, _: FileTaskType, _: &'a FileTaskOp) -> PrepareResult<'a> {
+        Box::pin(async { Ok(serde_json::json!({"originalMediaId":"original"})) })
+    }
+    fn completed_with_snapshot<'a>(
+        &'a self,
+        _: FileTaskType,
+        _: &'a CompletedOp,
+        snapshot: &'a serde_json::Value,
+    ) -> HookResult<'a> {
+        Box::pin(async move {
+            assert_eq!(snapshot["originalMediaId"], "original");
+            self.calls.fetch_add(1, Ordering::SeqCst);
+            if self.fail.load(Ordering::SeqCst) {
+                bail!("recoverable scanner failure");
+            }
+            Ok(())
+        })
+    }
+    fn completed<'a>(&'a self, _: FileTaskType, _: &'a CompletedOp) -> HookResult<'a> {
+        Box::pin(async { bail!("snapshot required") })
+    }
+}
+#[cfg(feature = "content_api")]
+#[tokio::test]
+async fn persisted_receipt_recovers_after_restart_without_repeating_move_and_checks_owner_and_permission()
+ {
+    let temp = tempfile::tempdir().unwrap();
+    let source = temp.path().join("source");
+    let destination = temp.path().join("destination");
+    std::fs::write(&source, b"fixture").unwrap();
+    let store = Arc::new(sqlite::SqliteStore(Arc::new(
+        crate::db::Db::open(&temp.path().join("db")).unwrap(),
+    )));
+    let hooks = Arc::new(RecoverableHooks {
+        fail: AtomicBool::new(true),
+        denied: AtomicBool::new(false),
+        calls: std::sync::atomic::AtomicUsize::new(0),
+    });
+    let first = Service::with_hooks(store.clone(), Arc::new(Recorder::default()), hooks.clone());
+    let queued = first
+        .create(
+            "owner",
+            FileTaskType::Move,
+            "move",
+            vec![op(&source, &destination)],
+        )
+        .unwrap();
+    let failed = terminal(&first, "owner", &queued.id).await;
+    assert_eq!(failed.status, FileTaskStatus::Error);
+    assert!(failed.completed_ops[0].recovery.is_some());
+    assert!(!source.exists());
+    drop(first);
+    let reopened = Service::with_hooks(
+        Arc::new(sqlite::SqliteStore(Arc::new(
+            crate::db::Db::open(&temp.path().join("db")).unwrap(),
+        ))),
+        Arc::new(Recorder::default()),
+        hooks.clone(),
+    );
+    assert!(reopened.recover("foreign", &queued.id).unwrap().is_none());
+    hooks.fail.store(false, Ordering::SeqCst);
+    hooks.denied.store(true, Ordering::SeqCst);
+    reopened.recover("owner", &queued.id).unwrap();
+    assert!(
+        terminal(&reopened, "owner", &queued.id)
+            .await
+            .error
+            .contains("permission")
+    );
+    hooks.denied.store(false, Ordering::SeqCst);
+    reopened.recover("owner", &queued.id).unwrap();
+    let recovered = terminal(&reopened, "owner", &queued.id).await;
+    assert_eq!(recovered.status, FileTaskStatus::Done);
+    assert!(recovered.completed_ops[0].recovery.is_none());
+    assert_eq!(std::fs::read(&destination).unwrap(), b"fixture");
+    assert!(!temp.path().join("destination_1").exists());
+    assert_eq!(hooks.calls.load(Ordering::SeqCst), 2);
+    reopened.recover("owner", &queued.id).unwrap();
+    assert_eq!(hooks.calls.load(Ordering::SeqCst), 2);
+}
+#[tokio::test]
+async fn recovering_one_completed_operation_never_claims_or_replays_unexecuted_operations() {
+    let temp = tempfile::tempdir().unwrap();
+    let source = temp.path().join("one");
+    let second = temp.path().join("two");
+    std::fs::write(&source, b"first").unwrap();
+    std::fs::write(&second, b"second").unwrap();
+    let hooks = Arc::new(RecoverableHooks {
+        fail: AtomicBool::new(true),
+        denied: AtomicBool::new(false),
+        calls: std::sync::atomic::AtomicUsize::new(0),
+    });
+    let service = Service::with_hooks(
+        Arc::new(MemoryStore::default()),
+        Arc::new(Recorder::default()),
+        hooks.clone(),
+    );
+    let task = service
+        .create(
+            "owner",
+            FileTaskType::Move,
+            "two operations",
+            vec![
+                op(&source, &temp.path().join("first-out")),
+                op(&second, &temp.path().join("second-out")),
+            ],
+        )
+        .unwrap();
+    assert_eq!(
+        terminal(&service, "owner", &task.id).await.status,
+        FileTaskStatus::Error
+    );
+    hooks.fail.store(false, Ordering::SeqCst);
+    service.recover("owner", &task.id).unwrap();
+    let result = terminal(&service, "owner", &task.id).await;
+    assert_eq!(result.status, FileTaskStatus::Error);
+    assert!(result.error.contains("incomplete physical task"));
+    assert!(second.exists());
+    assert!(!temp.path().join("second-out").exists());
+    assert!(result.completed_ops[0].recovery.is_none());
+}

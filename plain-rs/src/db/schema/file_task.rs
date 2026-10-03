@@ -16,6 +16,7 @@ pub(super) fn init(conn: &Connection) -> rusqlite::Result<()> {
         updated_at TEXT NOT NULL,
         completed_ops TEXT NOT NULL
     );
+    CREATE TABLE IF NOT EXISTS file_task_effects (id TEXT NOT NULL PRIMARY KEY);
     CREATE INDEX IF NOT EXISTS idx_file_tasks_client_updated ON file_tasks(client_id, updated_at);",
     )
 }

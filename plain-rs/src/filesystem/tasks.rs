@@ -40,6 +40,13 @@ pub struct FileTaskOp {
 pub struct CompletedOp {
     pub src: String,
     pub dst: String,
+    pub recovery: Option<Recovery>,
+}
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct Recovery {
+    pub id: String,
+    pub snapshot: serde_json::Value,
+    pub final_op: bool,
 }
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct FileTask {
@@ -83,6 +90,16 @@ pub trait Hooks: Send + Sync + 'static {
     ) -> HookResult<'a> {
         self.completed(kind, op)
     }
+    fn completed_receipt<'a>(&'a self, kind: FileTaskType, op: &'a CompletedOp) -> HookResult<'a> {
+        Box::pin(async move {
+            let recovery = op
+                .recovery
+                .as_ref()
+                .ok_or_else(|| anyhow!("missing file recovery receipt"))?;
+            self.completed_with_snapshot(kind, op, &recovery.snapshot)
+                .await
+        })
+    }
     fn authorize<'a>(&'a self, kind: FileTaskType, ops: &'a [FileTaskOp]) -> HookResult<'a>;
     fn completed<'a>(&'a self, kind: FileTaskType, op: &'a CompletedOp) -> HookResult<'a>;
 }
@@ -98,6 +115,7 @@ impl Hooks for NoHooks {
 struct Request {
     task: FileTask,
     ops: Vec<FileTaskOp>,
+    recovery: bool,
 }
 type Active = Arc<Mutex<HashMap<String, FileTask>>>;
 pub struct Service {
@@ -122,7 +140,11 @@ impl Service {
         let emitter = events.clone();
         tokio::spawn(async move {
             while let Some(request) = receiver.recv().await {
-                execute(request, &state, &storage, &emitter, &hooks).await;
+                if request.recovery {
+                    recover(request.task, &state, &storage, &emitter, &hooks).await;
+                } else {
+                    execute(request, &state, &storage, &emitter, &hooks).await;
+                }
             }
         });
         Self {
@@ -177,8 +199,61 @@ impl Service {
         permit.send(Request {
             task: task.clone(),
             ops,
+            recovery: false,
         });
         Ok(task)
+    }
+    pub fn recover(&self, client_id: &str, id: &str) -> Result<Option<FileTask>> {
+        if client_id.is_empty() {
+            bail!("unauthorized");
+        }
+        let permit = self
+            .queue
+            .try_reserve()
+            .map_err(|e| anyhow!("file task queue: {e}"))?;
+        let mut active = self
+            .active
+            .lock()
+            .map_err(|_| anyhow!("file task state poisoned"))?;
+        if let Some(task) = active.get(id) {
+            if task.client_id != client_id {
+                return Ok(None);
+            }
+            if matches!(
+                task.status,
+                FileTaskStatus::Running | FileTaskStatus::Queued
+            ) {
+                return Ok(Some(task.clone()));
+            }
+        }
+        let mut task = match active
+            .get(id)
+            .filter(|t| t.client_id == client_id)
+            .cloned()
+            .or(self
+                .store
+                .list(client_id)?
+                .into_iter()
+                .find(|t| t.id == id && t.client_id == client_id))
+        {
+            Some(task) => task,
+            None => return Ok(None),
+        };
+        if !task.completed_ops.iter().any(|op| op.recovery.is_some()) {
+            return Ok(Some(task));
+        }
+        task.status = FileTaskStatus::Queued;
+        task.updated_at = Utc::now();
+        self.store.put(&task)?;
+        active.insert(id.to_owned(), task.clone());
+        drop(active);
+        self.events.changed(&task);
+        permit.send(Request {
+            task: task.clone(),
+            ops: Vec::new(),
+            recovery: true,
+        });
+        Ok(Some(task))
     }
     pub fn remove(&self, client_id: &str, id: &str) -> Result<bool> {
         if client_id.is_empty() {
@@ -272,6 +347,93 @@ fn save(
     events.changed(task);
     Ok(())
 }
+fn acknowledge(id: &str, active: &Active, store: &Arc<dyn Store>) -> Result<()> {
+    let mut tasks = active
+        .lock()
+        .map_err(|_| anyhow!("file task state poisoned"))?;
+    let task = tasks
+        .get_mut(id)
+        .ok_or_else(|| anyhow!("file task disappeared"))?;
+    let mut next = task.clone();
+    for op in &mut next.completed_ops {
+        op.recovery = None;
+    }
+    next.updated_at = Utc::now();
+    store.put(&next)?;
+    *task = next;
+    Ok(())
+}
+async fn recover(
+    mut task: FileTask,
+    active: &Active,
+    store: &Arc<dyn Store>,
+    events: &Arc<dyn Events>,
+    hooks: &Arc<dyn Hooks>,
+) {
+    let complete = task
+        .completed_ops
+        .last()
+        .and_then(|op| op.recovery.as_ref())
+        .is_some_and(|r| r.final_op);
+    let result = async {
+        task.status = FileTaskStatus::Running;
+        save(&task, active, store, events)?;
+        for op in task.completed_ops.iter().filter(|op| op.recovery.is_some()) {
+            let paths = FileTaskOp {
+                src: op.src.clone(),
+                dst: op.dst.clone(),
+                overwrite: false,
+            };
+            hooks
+                .authorize(task.kind, std::slice::from_ref(&paths))
+                .await?;
+            hooks.completed_receipt(task.kind, op).await?;
+        }
+        acknowledge(&task.id, active, store)?;
+        Ok::<_, anyhow::Error>(())
+    }
+    .await;
+    if let Ok(tasks) = active.lock() {
+        if let Some(current) = tasks.get(&task.id) {
+            task = current.clone();
+        }
+    }
+    match result {
+        Ok(())
+            if complete
+                && task.total_bytes == task.done_bytes
+                && task.total_items == task.done_items =>
+        {
+            task.status = FileTaskStatus::Done;
+            task.error.clear();
+        }
+        Ok(()) => {
+            task.status = FileTaskStatus::Error;
+            task.error =
+                "file postprocessing recovered; incomplete physical task was not replayed".into();
+        }
+        Err(error) => {
+            task.status = FileTaskStatus::Error;
+            task.error = error.to_string();
+        }
+    }
+    task.updated_at = Utc::now();
+    match save(&task, active, store, events) {
+        Ok(()) => {
+            if let Ok(mut tasks) = active.lock() {
+                tasks.remove(&task.id);
+            }
+        }
+        Err(error) => {
+            task.status = FileTaskStatus::Error;
+            task.error = format!("file task persistence: {error}");
+            if let Ok(mut tasks) = active.lock() {
+                tasks.insert(task.id.clone(), task.clone());
+            }
+            events.changed(&task);
+        }
+    }
+}
 async fn execute(
     request: Request,
     active: &Active,
@@ -308,7 +470,8 @@ async fn execute(
         task.updated_at = Utc::now();
         task.last_persist = Some(task.updated_at);
         save(&task, active, store, events)?;
-        for op in request.ops {
+        let count = request.ops.len();
+        for (operation_index, op) in request.ops.into_iter().enumerate() {
             hooks
                 .authorize(task.kind, std::slice::from_ref(&op))
                 .await?;
@@ -377,6 +540,11 @@ async fn execute(
                     .to_str()
                     .ok_or_else(|| anyhow!("invalid destination encoding"))?
                     .into(),
+                recovery: Some(Recovery {
+                    id: crate::utils::shortid::new_id(),
+                    snapshot: prepared,
+                    final_op: operation_index + 1 == count,
+                }),
             };
             let receipt_saved = {
                 let mut tasks = active
@@ -389,10 +557,9 @@ async fn execute(
                 current.updated_at = Utc::now();
                 store.put(current)
             };
-            hooks
-                .completed_with_snapshot(task.kind, &completed, &prepared)
-                .await?;
             receipt_saved?;
+            hooks.completed_receipt(task.kind, &completed).await?;
+            acknowledge(&task.id, active, store)?;
             if let Some(error) = progress_error
                 .lock()
                 .map_err(|_| anyhow!("file task error state poisoned"))?

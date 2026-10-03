@@ -10,8 +10,18 @@ use serde_json::json;
 #[derive(Deserialize)]
 #[serde(tag = "action", rename_all = "camelCase", deny_unknown_fields)]
 pub(super) enum Request {
-    Rename { path: String, name: String },
-    Delete { path: String },
+    Rename {
+        path: String,
+        name: String,
+    },
+    Delete {
+        path: String,
+    },
+    Recover {
+        #[serde(rename = "clientId")]
+        client_id: String,
+        id: String,
+    },
 }
 pub(super) async fn mutate(
     State(state): State<ServerState>,
@@ -22,6 +32,12 @@ pub(super) async fn mutate(
         return StatusCode::UNAUTHORIZED.into_response();
     }
     let result = match request {
+        Request::Recover { client_id, id } => {
+            state.files.recover(client_id, id).await.map(|task| {
+                task.map(|task| json!({"id": task.id, "status": task.status}))
+                    .unwrap_or(serde_json::Value::Null)
+            })
+        }
         Request::Rename { path, name } => state
             .files
             .rename(path, name)

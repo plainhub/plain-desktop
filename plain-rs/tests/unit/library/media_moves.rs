@@ -187,3 +187,47 @@ fn raw_alias_and_canonical_roots_rebind_file_tags_and_remove_stale_path_caches()
     })
     .unwrap();
 }
+#[test]
+fn recovery_receipt_and_rebinding_commit_atomically_and_provider_id_swap_is_not_repeated() {
+    let db = db();
+    db.with_conn(|c|c.execute_batch("INSERT INTO media_item(media_type,media_id,duration_ms,updated_at) VALUES('video','a',11,'first'),('video','b',22,'second'); INSERT INTO video_play_progress(media_id,position_ms,updated_at) VALUES('a',1,'first'),('b',2,'second');")).unwrap();
+    let bindings = [binding(2, "a", "b"), binding(2, "b", "a")];
+    assert_eq!(
+        rebind_once(&db, &bindings, "/source", "/target", &[], Some("receipt")).unwrap(),
+        2
+    );
+    assert_eq!(
+        rebind_once(&db, &bindings, "/source", "/target", &[], Some("receipt")).unwrap(),
+        0
+    );
+    assert_eq!(
+        db.with_conn(|c| c.query_row(
+            "SELECT duration_ms FROM media_item WHERE media_id='a'",
+            [],
+            |r| r.get::<_, i64>(0)
+        ))
+        .unwrap(),
+        22
+    );
+    db.with_conn(|c|c.execute_batch("CREATE TRIGGER fail_move BEFORE DELETE ON media_item BEGIN SELECT RAISE(ABORT,'fixture failure'); END;")).unwrap();
+    assert!(
+        rebind_once(
+            &db,
+            &bindings,
+            "/source",
+            "/target",
+            &[],
+            Some("rolled-back")
+        )
+        .is_err()
+    );
+    assert_eq!(
+        db.with_conn(|c| c.query_row(
+            "SELECT count(*) FROM file_task_effects WHERE id='rolled-back'",
+            [],
+            |r| r.get::<_, i64>(0)
+        ))
+        .unwrap(),
+        0
+    );
+}
