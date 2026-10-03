@@ -63,3 +63,6 @@ pub mod media_metadata;
 pub mod image_indexing;
 
 pub mod media_actions;
+
+#[cfg(any(feature = "api", feature = "content_api", feature = "media_gql"))]
+pub mod media_moves;

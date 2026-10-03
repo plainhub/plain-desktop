@@ -42,6 +42,8 @@ pub mod system;
 pub mod sqlite_browse {
     pub use crate::db::browse::*;
 }
+#[cfg(feature = "http_transport")]
+pub mod http_transport;
 pub mod tls;
 pub mod utils;
 pub mod ws_frame;

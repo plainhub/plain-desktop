@@ -34,7 +34,9 @@ prefs = ["dep:serde_json"]
 # Shared API stack for the desktop and NAS shells: GraphQL schemas,
 # axum HTTP/WS router, listener lifecycle, proxy, discovery and DLNA.
 content_api = ["dep:hmac", "dep:sha2_mac", "dep:anyhow", "chat", "library", "dep:regex", "dep:async-graphql", "dep:axum", "dep:reqwest", "reqwest/rustls-tls", "dep:futures-util", "dep:quick-xml", "dep:scraper", "tokio/net", "tokio/rt-multi-thread", "tokio/sync", "tokio/time", "tokio/macros", "dep:subtle"]
+http_transport = ["dep:axum", "dep:axum-server", "dep:rustls", "dep:rustls-pemfile", "tokio/net", "tokio/rt", "tokio/sync", "tokio/time"]
 api = [
+    "http_transport",
     "dep:hmac",
     "dep:sha2_mac",
     "media_gql",
@@ -162,7 +164,9 @@ futures-util = { version = "0.3", default-features = false, features = ["sink", 
 async-graphql = { version = "7", default-features = false, optional = true }
 # Same axum stack plain-nas pins, so both servers share one framework.
 axum = { version = "0.7", default-features = false, features = ["ws", "multipart", "json", "query", "tokio", "http1"], optional = true }
-axum-server = { version = "0.7", features = ["tls-rustls"], optional = true }
+rustls = { version = "0.23", default-features = false, features = ["ring", "std"], optional = true }
+rustls-pemfile = { version = "2", optional = true }
+axum-server = { version = "0.7", features = ["tls-rustls-no-provider"], optional = true }
 # Client-side TLS for the peer-status WS connector (peer_status_manager);
 # the server side is axum + the host's axum-server rustls listener.
 native-tls = { version = "0.2", optional = true }
@@ -187,6 +191,7 @@ tower-http = { version = "0.5", features = ["cors", "compression-gzip", "compres
 http = { version = "1", optional = true }
 
 [dev-dependencies]
+reqwest = { version = "0.12", default-features = false, features = ["rustls-tls"] }
 serde_json = "1"
 tokio = { version = "1", features = ["full"] }
 futures = "0.3"

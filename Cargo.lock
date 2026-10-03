@@ -5079,6 +5079,8 @@ dependencies = [
  "regex",
  "reqwest 0.12.28",
  "rusqlite",
+ "rustls",
+ "rustls-pemfile",
  "rusty_h264-common",
  "rusty_h264-decoder",
  "scraper",
