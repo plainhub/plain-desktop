@@ -171,7 +171,11 @@ async fn engine_commands_resume_exact_progress_and_propagate_native_failures() {
                 "audioMetadata" => {
                     json!({"path":"/one","title":"One","artist":"Test","albumId":"42","durationMs":117123})
                 }
-                "audioEngineCommand" => request["params"]["playback"].clone(),
+                "audioEngineCommand" => {
+                    let mut report = request["params"]["playback"].clone();
+                    report["loaded"] = request["params"]["newTrack"].clone();
+                    report
+                }
                 method => panic!("unexpected {method}"),
             };
             let reply = if fail.load(std::sync::atomic::Ordering::SeqCst) {

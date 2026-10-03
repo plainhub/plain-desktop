@@ -40,6 +40,7 @@ impl Engine for Fake {
             path: c.playback.path.clone(),
             position_ms: c.playback.position_ms,
             revision: c.playback.revision,
+            loaded: c.new_track,
         })
     }
 }

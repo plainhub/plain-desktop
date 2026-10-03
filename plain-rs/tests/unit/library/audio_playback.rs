@@ -45,6 +45,7 @@ fn playback_start_is_once_per_revision_and_failed_history_write_can_retry() {
     let db = Db::open(&dir.path().join("db")).unwrap();
     let track = audio_queue::AudioTrack::from_path_stem("one");
     let row = prepare_track(&db, &track, true).unwrap();
+    loaded(&db, &track.path, row.revision).unwrap();
     assert!(started(&db, &track, row.revision).unwrap());
     assert!(!started(&db, &track, row.revision).unwrap());
     assert_eq!(
@@ -52,6 +53,7 @@ fn playback_start_is_once_per_revision_and_failed_history_write_can_retry() {
         1
     );
     let newer = prepare_track(&db, &track, false).unwrap();
+    loaded(&db, &track.path, newer.revision).unwrap();
     assert!(!started(&db, &track, row.revision).unwrap());
     db.with_conn(|c| c.execute_batch("CREATE TRIGGER fail_history BEFORE INSERT ON audio_play_history BEGIN SELECT RAISE(ABORT,'fail'); END")).unwrap();
     assert!(started(&db, &track, newer.revision).is_err());
@@ -62,4 +64,27 @@ fn playback_start_is_once_per_revision_and_failed_history_write_can_retry() {
         audio_queue::history_page(&db, 0, 10, "").unwrap()[0].play_count,
         2
     );
+}
+
+#[test]
+fn buffered_start_survives_pause_resume_and_seek_but_not_track_replacement() {
+    let dir = tempfile::tempdir().unwrap();
+    let db = Db::open(&dir.path().join("db")).unwrap();
+    let track = audio_queue::AudioTrack::from_path_stem("one");
+    let first = prepare_track(&db, &track, false).unwrap();
+    loaded(&db, &track.path, first.revision).unwrap();
+    invalidate(&db).unwrap();
+    seek(&db, 100).unwrap();
+    assert!(started(&db, &track, first.revision).unwrap());
+    let next = prepare_track(&db, &track, false).unwrap();
+    loaded(&db, &track.path, next.revision).unwrap();
+    assert!(!started(&db, &track, first.revision).unwrap());
+    assert!(started(&db, &track, next.revision).unwrap());
+    assert_eq!(
+        audio_queue::history_page(&db, 0, 10, "").unwrap()[0].play_count,
+        2
+    );
+    audio_queue::save_audio_current(&db, "other").unwrap();
+    audio_queue::save_audio_current(&db, "one").unwrap();
+    assert!(!started(&db, &track, next.revision).unwrap());
 }

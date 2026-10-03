@@ -35,7 +35,7 @@ pub(crate) fn sync_source(c: &Connection, path: &str) -> rusqlite::Result<()> {
         .revision
         .checked_add(1)
         .ok_or(rusqlite::Error::IntegralValueOutOfRange(2, old.revision))?;
-    c.execute("INSERT INTO audio_playback (id,path,position_ms,revision) VALUES (1,?1,0,?2) ON CONFLICT(id) DO UPDATE SET path=?1,position_ms=0,revision=?2", params![path,revision])?;
+    c.execute("INSERT INTO audio_playback (id,path,position_ms,revision) VALUES (1,?1,0,?2) ON CONFLICT(id) DO UPDATE SET path=?1,position_ms=0,revision=?2,load_revision=-1", params![path,revision])?;
     Ok(())
 }
 pub fn snapshot(db: &Db) -> LibraryResult<Playback> {
@@ -109,6 +109,16 @@ pub fn prepare_track(
         Ok(row)
     })
 }
+pub fn loaded(db: &Db, path: &str, revision: i64) -> LibraryResult<()> {
+    let changed=db.with_conn(|c|c.execute("UPDATE audio_playback SET load_revision=?1,started_revision=-1 WHERE id=1 AND revision=?1 AND path=?2",params![revision,path]))?;
+    if changed == 0 {
+        return Err(LibraryError::Other(
+            "stale engine load acknowledgement".into(),
+        ));
+    }
+    Ok(())
+}
+
 pub fn started(
     db: &Db,
     track: &super::audio_queue::AudioTrack,
@@ -119,7 +129,7 @@ pub fn started(
     }
     db.with_conn(|c| {
         let tx=c.unchecked_transaction()?;
-        let changed=tx.execute("UPDATE audio_playback SET started_revision=?1 WHERE id=1 AND revision=?1 AND path=?2 AND started_revision<>?1",params![revision,track.path])?;
+        let changed=tx.execute("UPDATE audio_playback SET started_revision=?1 WHERE id=1 AND load_revision=?1 AND path=?2 AND started_revision<>?1",params![revision,track.path])?;
         if changed>0 { super::audio_queue::record_history_conn(&tx,&track.path,&track.title,&track.artist,track.duration_ms)?; }
         tx.commit()?;
         Ok(changed>0)

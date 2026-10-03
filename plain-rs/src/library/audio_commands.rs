@@ -36,6 +36,7 @@ pub struct EngineReport {
     pub path: String,
     pub position_ms: i64,
     pub revision: i64,
+    pub loaded: bool,
 }
 pub trait Engine: LibraryTracks {
     fn metadata(&mut self, path: &str) -> LibraryResult<AudioTrack>;
@@ -191,6 +192,9 @@ fn dispatch(
         return Err(LibraryError::Other(
             "invalid audio engine acknowledgement".into(),
         ));
+    }
+    if report.loaded {
+        audio_playback::loaded(db, &report.path, revision)?;
     }
     if !report.path.is_empty() {
         audio_playback::report(db, &report.path, revision, report.position_ms)?;
