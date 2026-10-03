@@ -150,7 +150,6 @@ impl LibraryTracks for NoLibrary {
 
 /// Play-mode preference key (plain-app `AudioPlayModePreference`).
 const PREF_AUDIO_MODE: &str = "audio_play_mode";
-const DEFAULT_AUDIO_MODE: &str = "REPEAT";
 
 // ---------------------------------------------------------------------------
 // Current source / current track / play mode
@@ -181,22 +180,26 @@ pub fn save_audio_current(db: &Db, path: &str) -> LibraryResult<()> {
 }
 
 /// The play mode name (REPEAT / REPEAT_ONE / SHUFFLE); REPEAT when unset.
-pub fn get_audio_mode(prefs: &crate::prefs::Prefs) -> LibraryResult<String> {
-    let raw = prefs
-        .get_user::<String>(PREF_AUDIO_MODE)
+pub fn play_mode(
+    prefs: &crate::prefs::Prefs,
+) -> LibraryResult<super::audio_play_mode::MediaPlayMode> {
+    use super::audio_play_mode::MediaPlayMode;
+    let ordinal = prefs
+        .get_user::<i32>(PREF_AUDIO_MODE)
         .map_err(|e| LibraryError::Other(e.to_string()))?
-        .unwrap_or_else(|| DEFAULT_AUDIO_MODE.into());
-    let trimmed = raw.trim();
-    Ok(if trimmed.is_empty() {
-        DEFAULT_AUDIO_MODE.into()
-    } else {
-        trimmed.into()
-    })
+        .unwrap_or(MediaPlayMode::Repeat.ordinal());
+    MediaPlayMode::from_ordinal(ordinal)
+        .ok_or_else(|| LibraryError::Other("invalid audio play mode".into()))
 }
-
-pub fn save_audio_mode(prefs: &crate::prefs::Prefs, mode: &str) -> crate::prefs::Result<bool> {
-    // Store trimmed — a clean preference value.
-    prefs.set_user(PREF_AUDIO_MODE, mode.trim())
+pub fn get_audio_mode(prefs: &crate::prefs::Prefs) -> LibraryResult<String> {
+    Ok(play_mode(prefs)?.name().into())
+}
+pub fn save_audio_mode(prefs: &crate::prefs::Prefs, mode: &str) -> LibraryResult<bool> {
+    let mode = super::audio_play_mode::MediaPlayMode::from_name(mode.trim())
+        .ok_or_else(|| LibraryError::Other("invalid audio play mode".into()))?;
+    prefs
+        .set_user(PREF_AUDIO_MODE, mode.ordinal())
+        .map_err(|e| LibraryError::Other(e.to_string()))
 }
 
 /// Playlist id when the active playback source is a user playlist, else None.

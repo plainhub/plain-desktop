@@ -543,7 +543,12 @@ fn mode_defaults_to_repeat_and_roundtrips() {
     let stored: serde_json::Value =
         serde_json::from_str(&std::fs::read_to_string(dir.path().join("user_prefs.json")).unwrap())
             .unwrap();
-    assert_eq!(stored["audio_play_mode"], "REPEAT_ONE");
+    assert_eq!(stored["audio_play_mode"], 1);
+    prefs.set_user("audio_play_mode", 2).unwrap();
+    assert_eq!(get_audio_mode(&prefs).unwrap(), "SHUFFLE");
+    prefs.set_user("audio_play_mode", 99).unwrap();
+    assert!(get_audio_mode(&prefs).is_err());
+    assert!(save_audio_mode(&prefs, "unsupported").is_err());
 }
 
 #[test]

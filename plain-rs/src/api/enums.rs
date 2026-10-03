@@ -435,14 +435,7 @@ impl FromStr for DownloadStatus {
 
 // ── MediaPlayMode ──────────────────────────────────────────────────────────
 
-/// Audio playback repeat mode, mirroring the plain-app `MediaPlayMode` enum.
-#[derive(Debug, Clone, Copy, Eq, PartialEq, Enum)]
-#[graphql(name = "MediaPlayMode", rename_items = "SCREAMING_SNAKE_CASE")]
-pub enum MediaPlayMode {
-    Repeat,
-    RepeatOne,
-    Shuffle,
-}
+pub use crate::library::audio_play_mode::MediaPlayMode;
 
 // ── Permission ─────────────────────────────────────────────────────────────
 

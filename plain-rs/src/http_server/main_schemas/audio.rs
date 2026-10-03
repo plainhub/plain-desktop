@@ -354,13 +354,8 @@ fn text_of(query: &str) -> String {
     crate::utils::search_dsl::field_value(query, "text").unwrap_or_default()
 }
 
-/// Parse the stored play-mode name into the GraphQL enum (REPEAT default).
 fn media_play_mode_of(prefs: &crate::prefs::Prefs) -> async_graphql::Result<MediaPlayMode> {
-    Ok(match audio_queue::get_audio_mode(prefs)?.as_str() {
-        "REPEAT_ONE" => MediaPlayMode::RepeatOne,
-        "SHUFFLE" => MediaPlayMode::Shuffle,
-        _ => MediaPlayMode::Repeat,
-    })
+    Ok(audio_queue::play_mode(prefs)?)
 }
 
 #[cfg(test)]

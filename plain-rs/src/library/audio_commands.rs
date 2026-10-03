@@ -91,8 +91,10 @@ pub fn command(
     let mut track = None;
     let playback = match action {
         Action::Next | Action::Previous | Action::Completed => {
-            let mode = audio_queue::get_audio_mode(prefs)?;
-            let selected = if matches!(action, Action::Completed) && mode == "REPEAT_ONE" {
+            let mode = audio_queue::play_mode(prefs)?;
+            let selected = if matches!(action, Action::Completed)
+                && mode == super::audio_play_mode::MediaPlayMode::RepeatOne
+            {
                 let path = audio_queue::get_audio_current(db)?;
                 if path.is_empty() {
                     None
@@ -104,7 +106,7 @@ pub fn command(
                     db,
                     engine,
                     !matches!(action, Action::Previous),
-                    mode == "SHUFFLE",
+                    mode == super::audio_play_mode::MediaPlayMode::Shuffle,
                 )?
             };
             if let Some(selected) = selected {

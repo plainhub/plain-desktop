@@ -52,3 +52,5 @@ pub mod clipboard;
 pub mod audio_playback;
 
 pub mod audio_commands;
+
+pub mod audio_play_mode;
