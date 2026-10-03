@@ -7,6 +7,18 @@ struct MemoryStore {
     fail_done: AtomicBool,
 }
 impl Store for MemoryStore {
+    fn remove(&self, client_id: &str, id: &str) -> Result<bool> {
+        let mut tasks = self.tasks.lock().unwrap();
+        if tasks.get(id).is_some_and(|task| {
+            task.client_id == client_id
+                && matches!(task.status, FileTaskStatus::Done | FileTaskStatus::Error)
+        }) {
+            tasks.remove(id);
+            Ok(true)
+        } else {
+            Ok(false)
+        }
+    }
     fn put(&self, t: &FileTask) -> Result<()> {
         if self.fail.load(Ordering::SeqCst)
             || (t.status == FileTaskStatus::Done && self.fail_done.load(Ordering::SeqCst))
@@ -187,6 +199,7 @@ async fn stored_interrupted_tasks_become_errors_without_replaying_operations() {
         done_items: 0,
         created_at: now,
         updated_at: now,
+        completed_ops: Vec::new(),
         last_persist: None,
     };
     store.put(&task).unwrap();
@@ -285,6 +298,9 @@ async fn completion_storage_failure_is_visible_in_active_error_state() {
 
 struct SlowStore(MemoryStore);
 impl Store for SlowStore {
+    fn remove(&self, client_id: &str, id: &str) -> Result<bool> {
+        self.0.remove(client_id, id)
+    }
     fn put(&self, task: &FileTask) -> Result<()> {
         self.0.put(task)
     }
@@ -336,4 +352,117 @@ async fn concurrent_polling_never_changes_completed_tasks_to_interrupted() {
             b"synthetic"
         );
     }
+}
+
+struct ScanFailure;
+impl Hooks for ScanFailure {
+    fn authorize<'a>(&'a self, _: FileTaskType, _: &'a [FileTaskOp]) -> HookResult<'a> {
+        Box::pin(async { Ok(()) })
+    }
+    fn completed<'a>(&'a self, _: FileTaskType, _: &'a CompletedOp) -> HookResult<'a> {
+        Box::pin(async { bail!("synthetic scan failure") })
+    }
+}
+#[tokio::test]
+async fn completed_receipts_keep_resolved_collision_paths_when_native_scan_fails() {
+    let service = Service::with_hooks(
+        Arc::new(MemoryStore::default()),
+        Arc::new(Recorder::default()),
+        Arc::new(ScanFailure),
+    );
+    let temp = tempfile::tempdir().unwrap();
+    let source = temp.path().join("source");
+    let target = temp.path().join("copy.txt");
+    std::fs::write(&source, b"synthetic").unwrap();
+    std::fs::write(&target, b"existing").unwrap();
+    let task = service
+        .create(
+            "owner",
+            FileTaskType::Copy,
+            "copy",
+            vec![op(&source, &target)],
+        )
+        .unwrap();
+    let task = terminal(&service, "owner", &task.id).await;
+    assert_eq!(task.status, FileTaskStatus::Error);
+    assert!(task.error.contains("scan failure"));
+    assert_eq!(task.completed_ops.len(), 1);
+    assert_eq!(
+        task.completed_ops[0].dst,
+        temp.path().join("copy_1.txt").to_str().unwrap()
+    );
+    assert_eq!(std::fs::read(&target).unwrap(), b"existing");
+    assert_eq!(
+        std::fs::read(&task.completed_ops[0].dst).unwrap(),
+        b"synthetic"
+    );
+    assert!(!service.remove("foreign", &task.id).unwrap());
+    assert!(service.remove("owner", &task.id).unwrap());
+    assert!(service.list("owner").unwrap().is_empty());
+}
+struct RevokedBeforeOperation(std::sync::atomic::AtomicUsize);
+impl Hooks for RevokedBeforeOperation {
+    fn authorize<'a>(&'a self, _: FileTaskType, _: &'a [FileTaskOp]) -> HookResult<'a> {
+        Box::pin(async move {
+            if self.0.fetch_add(1, Ordering::SeqCst) > 0 {
+                bail!("synthetic permission revoked");
+            }
+            Ok(())
+        })
+    }
+    fn completed<'a>(&'a self, _: FileTaskType, _: &'a CompletedOp) -> HookResult<'a> {
+        Box::pin(async { Ok(()) })
+    }
+}
+#[tokio::test]
+async fn permission_revoked_after_measurement_prevents_physical_execution() {
+    let service = Service::with_hooks(
+        Arc::new(MemoryStore::default()),
+        Arc::new(Recorder::default()),
+        Arc::new(RevokedBeforeOperation(std::sync::atomic::AtomicUsize::new(
+            0,
+        ))),
+    );
+    let temp = tempfile::tempdir().unwrap();
+    let source = temp.path().join("source");
+    let target = temp.path().join("target");
+    std::fs::write(&source, b"synthetic").unwrap();
+    let task = service
+        .create(
+            "owner",
+            FileTaskType::Move,
+            "move",
+            vec![op(&source, &target)],
+        )
+        .unwrap();
+    let failed = terminal(&service, "owner", &task.id).await;
+    assert_eq!(failed.status, FileTaskStatus::Error);
+    assert!(failed.error.contains("permission revoked"));
+    assert!(failed.completed_ops.is_empty());
+    assert_eq!(std::fs::read(&source).unwrap(), b"synthetic");
+    assert!(!target.exists());
+}
+#[cfg(unix)]
+#[tokio::test]
+async fn special_files_fail_without_blocking_the_worker() {
+    let service = Service::new(
+        Arc::new(MemoryStore::default()),
+        Arc::new(Recorder::default()),
+    );
+    let temp = tempfile::tempdir().unwrap();
+    let source = temp.path().join("socket");
+    let _socket = std::os::unix::net::UnixListener::bind(&source).unwrap();
+    let target = temp.path().join("target");
+    let task = service
+        .create(
+            "owner",
+            FileTaskType::Copy,
+            "copy",
+            vec![op(&source, &target)],
+        )
+        .unwrap();
+    let failed = terminal(&service, "owner", &task.id).await;
+    assert_eq!(failed.status, FileTaskStatus::Error);
+    assert!(failed.error.contains("unsupported file type"));
+    assert!(!target.exists());
 }

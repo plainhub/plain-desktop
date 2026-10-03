@@ -1,14 +1,19 @@
+#[cfg(feature = "content_api")]
+pub mod sqlite;
 use anyhow::{Result, anyhow, bail};
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use std::{
     collections::HashMap,
+    future::Future,
     path::Path,
+    pin::Pin,
     sync::{Arc, Mutex},
 };
 use tokio::sync::mpsc;
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
+#[cfg_attr(feature = "content_api", derive(async_graphql::Enum))]
 pub enum FileTaskType {
     Copy,
     Move,
@@ -16,6 +21,7 @@ pub enum FileTaskType {
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
+#[cfg_attr(feature = "content_api", derive(async_graphql::Enum))]
 pub enum FileTaskStatus {
     Queued,
     Running,
@@ -31,6 +37,11 @@ pub struct FileTaskOp {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct CompletedOp {
+    pub src: String,
+    pub dst: String,
+}
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct FileTask {
     pub id: String,
     pub client_id: String,
@@ -45,6 +56,7 @@ pub struct FileTask {
     pub done_items: i64,
     pub created_at: DateTime<Utc>,
     pub updated_at: DateTime<Utc>,
+    pub completed_ops: Vec<CompletedOp>,
     #[serde(skip)]
     pub last_persist: Option<DateTime<Utc>>,
 }
@@ -52,9 +64,24 @@ pub struct FileTask {
 pub trait Store: Send + Sync + 'static {
     fn put(&self, task: &FileTask) -> Result<()>;
     fn list(&self, client_id: &str) -> Result<Vec<FileTask>>;
+    fn remove(&self, client_id: &str, id: &str) -> Result<bool>;
 }
 pub trait Events: Send + Sync + 'static {
     fn changed(&self, task: &FileTask);
+}
+pub type HookResult<'a> = Pin<Box<dyn Future<Output = Result<()>> + Send + 'a>>;
+pub trait Hooks: Send + Sync + 'static {
+    fn authorize<'a>(&'a self, kind: FileTaskType, ops: &'a [FileTaskOp]) -> HookResult<'a>;
+    fn completed<'a>(&'a self, kind: FileTaskType, op: &'a CompletedOp) -> HookResult<'a>;
+}
+struct NoHooks;
+impl Hooks for NoHooks {
+    fn authorize<'a>(&'a self, _: FileTaskType, _: &'a [FileTaskOp]) -> HookResult<'a> {
+        Box::pin(async { Ok(()) })
+    }
+    fn completed<'a>(&'a self, _: FileTaskType, _: &'a CompletedOp) -> HookResult<'a> {
+        Box::pin(async { Ok(()) })
+    }
 }
 struct Request {
     task: FileTask,
@@ -69,6 +96,13 @@ pub struct Service {
 }
 impl Service {
     pub fn new(store: Arc<dyn Store>, events: Arc<dyn Events>) -> Self {
+        Self::with_hooks(store, events, Arc::new(NoHooks))
+    }
+    pub fn with_hooks(
+        store: Arc<dyn Store>,
+        events: Arc<dyn Events>,
+        hooks: Arc<dyn Hooks>,
+    ) -> Self {
         let (queue, mut receiver) = mpsc::channel::<Request>(32);
         let active: Active = Arc::new(Mutex::new(HashMap::new()));
         let state = active.clone();
@@ -76,7 +110,7 @@ impl Service {
         let emitter = events.clone();
         tokio::spawn(async move {
             while let Some(request) = receiver.recv().await {
-                execute(request, &state, &storage, &emitter).await;
+                execute(request, &state, &storage, &emitter, &hooks).await;
             }
         });
         Self {
@@ -117,6 +151,7 @@ impl Service {
             done_items: 0,
             created_at: now,
             updated_at: now,
+            completed_ops: Vec::new(),
             last_persist: None,
         };
         let mut active = self
@@ -132,6 +167,32 @@ impl Service {
             ops,
         });
         Ok(task)
+    }
+    pub fn remove(&self, client_id: &str, id: &str) -> Result<bool> {
+        if client_id.is_empty() {
+            bail!("unauthorized");
+        }
+        let mut active = self
+            .active
+            .lock()
+            .map_err(|_| anyhow!("file task state poisoned"))?;
+        if let Some(task) = active.get(id) {
+            if task.client_id != client_id {
+                return Ok(false);
+            }
+            if matches!(
+                task.status,
+                FileTaskStatus::Queued | FileTaskStatus::Running
+            ) {
+                bail!("file task still active");
+            }
+            self.store.put(task)?;
+        }
+        let removed = self.store.remove(client_id, id)?;
+        if removed {
+            active.remove(id);
+        }
+        Ok(removed)
     }
     pub fn get(&self, id: &str) -> Result<Option<FileTask>> {
         Ok(self
@@ -204,9 +265,11 @@ async fn execute(
     active: &Active,
     store: &Arc<dyn Store>,
     events: &Arc<dyn Events>,
+    hooks: &Arc<dyn Hooks>,
 ) {
     let mut task = request.task;
     let result = async {
+        hooks.authorize(task.kind, &request.ops).await?;
         let paths = request
             .ops
             .iter()
@@ -234,10 +297,15 @@ async fn execute(
         task.last_persist = Some(task.updated_at);
         save(&task, active, store, events)?;
         for op in request.ops {
+            hooks
+                .authorize(task.kind, std::slice::from_ref(&op))
+                .await?;
             let state = active.clone();
             let storage = store.clone();
             let emitter = events.clone();
             let id = task.id.clone();
+            let progress_error = Arc::new(Mutex::new(None::<String>));
+            let error_state = progress_error.clone();
             let progress = move |bytes: i64, items: i64| -> std::io::Result<()> {
                 let mut tasks = state
                     .lock()
@@ -259,14 +327,18 @@ async fn execute(
                     .is_none_or(|last| (task.updated_at - last).num_milliseconds() >= 200)
                 {
                     task.last_persist = Some(task.updated_at);
-                    storage.put(task).map_err(std::io::Error::other)?;
+                    if let Err(error) = storage.put(task) {
+                        *error_state.lock().map_err(|_| {
+                            std::io::Error::other("file task error state poisoned")
+                        })? = Some(error.to_string());
+                    }
                     let snapshot = task.clone();
                     drop(tasks);
                     emitter.changed(&snapshot);
                 }
                 Ok(())
             };
-            match task.kind {
+            let destination = match task.kind {
                 FileTaskType::Copy => {
                     super::copy_path_with_progress(
                         Path::new(&op.src),
@@ -274,7 +346,7 @@ async fn execute(
                         op.overwrite,
                         Some(&progress),
                     )
-                    .await?;
+                    .await?
                 }
                 FileTaskType::Move => {
                     super::move_path_with_progress(
@@ -283,8 +355,35 @@ async fn execute(
                         op.overwrite,
                         Some(&progress),
                     )
-                    .await?;
+                    .await?
                 }
+            };
+            let completed = CompletedOp {
+                src: op.src,
+                dst: destination
+                    .to_str()
+                    .ok_or_else(|| anyhow!("invalid destination encoding"))?
+                    .into(),
+            };
+            let receipt_saved = {
+                let mut tasks = active
+                    .lock()
+                    .map_err(|_| anyhow!("file task state poisoned"))?;
+                let current = tasks
+                    .get_mut(&task.id)
+                    .ok_or_else(|| anyhow!("file task disappeared"))?;
+                current.completed_ops.push(completed.clone());
+                current.updated_at = Utc::now();
+                store.put(current)
+            };
+            hooks.completed(task.kind, &completed).await?;
+            receipt_saved?;
+            if let Some(error) = progress_error
+                .lock()
+                .map_err(|_| anyhow!("file task error state poisoned"))?
+                .take()
+            {
+                bail!("file task persistence: {error}");
             }
         }
         Ok::<_, anyhow::Error>(())

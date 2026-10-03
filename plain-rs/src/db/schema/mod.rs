@@ -1,9 +1,9 @@
 use rusqlite::Connection;
 
-#[cfg(feature = "library")]
-mod archived_conversation;
 #[cfg(feature = "chat")]
 mod app_file;
+#[cfg(feature = "library")]
+mod archived_conversation;
 #[cfg(feature = "library")]
 mod audio;
 #[cfg(feature = "chat")]
@@ -16,6 +16,8 @@ mod clipboard;
 mod favorite_folder;
 #[cfg(feature = "library")]
 mod feeds;
+#[cfg(feature = "library")]
+mod file_task;
 #[cfg(feature = "library")]
 mod image_editor_project;
 #[cfg(feature = "library")]
@@ -72,6 +74,8 @@ pub(super) fn init(conn: &Connection) -> rusqlite::Result<()> {
     share::init(conn)?;
     #[cfg(feature = "library")]
     favorite_folder::init(conn)?;
+    #[cfg(feature = "library")]
+    file_task::init(conn)?;
     #[cfg(feature = "library")]
     image_editor_project::init(conn)?;
     #[cfg(feature = "library")]

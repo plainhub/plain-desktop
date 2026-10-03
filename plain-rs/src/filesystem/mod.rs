@@ -557,6 +557,12 @@ async fn copy_file_contents(
             tokio::fs::create_dir_all(parent).await?;
         }
     }
+    if !tokio::fs::symlink_metadata(src).await?.is_file() {
+        return Err(std::io::Error::new(
+            std::io::ErrorKind::Unsupported,
+            "unsupported file type",
+        ));
+    }
     let mut in_f = tokio::fs::File::open(src).await?;
     let mut options = tokio::fs::OpenOptions::new();
     options.write(true);
@@ -767,23 +773,39 @@ fn read_dirents(fd: i32, buf: &mut [u8]) -> std::io::Result<usize> {
 mod tests;
 
 pub fn measure(path: &Path) -> std::io::Result<(i64, i64)> {
-    let mut stack = vec![path.to_path_buf()];
+    let mut directories = Vec::<std::fs::ReadDir>::new();
+    let mut next = Some(path.to_path_buf());
     let mut bytes = 0_i64;
     let mut items = 0_i64;
-    while let Some(path) = stack.pop() {
+    loop {
+        let path = if let Some(path) = next.take() {
+            path
+        } else {
+            loop {
+                let Some(directory) = directories.last_mut() else {
+                    return Ok((bytes, items));
+                };
+                if let Some(entry) = directory.next() {
+                    break entry?.path();
+                }
+                directories.pop();
+            }
+        };
         let info = std::fs::symlink_metadata(&path)?;
         if info.is_dir() {
-            for entry in std::fs::read_dir(&path)? {
-                stack.push(entry?.path());
-            }
-        } else {
+            directories.push(std::fs::read_dir(path)?);
+        } else if info.is_file() || info.file_type().is_symlink() {
             bytes = bytes
                 .checked_add(i64::try_from(info.len()).map_err(std::io::Error::other)?)
                 .ok_or_else(|| std::io::Error::other("file size overflow"))?;
             items = items
                 .checked_add(1)
                 .ok_or_else(|| std::io::Error::other("file count overflow"))?;
+        } else {
+            return Err(std::io::Error::new(
+                std::io::ErrorKind::Unsupported,
+                "unsupported file type",
+            ));
         }
     }
-    Ok((bytes, items))
 }

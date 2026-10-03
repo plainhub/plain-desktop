@@ -21,6 +21,17 @@ fn db_key(client_id: &str, task_id: &str) -> String {
 }
 struct KvStore;
 impl Store for KvStore {
+    fn remove(&self, client_id: &str, id: &str) -> Result<bool> {
+        let task = self.list(client_id)?.into_iter().find(|task| task.id == id);
+        if task
+            .is_some_and(|task| matches!(task.status, FileTaskStatus::Done | FileTaskStatus::Error))
+        {
+            get_default().remove(db_key(client_id, id))?;
+            Ok(true)
+        } else {
+            Ok(false)
+        }
+    }
     fn put(&self, task: &FileTask) -> Result<()> {
         get_default().insert(db_key(&task.client_id, &task.id), serde_json::to_vec(task)?)?;
         Ok(())

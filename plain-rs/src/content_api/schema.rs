@@ -16,6 +16,7 @@ mod content_common;
 mod favorite_folder;
 #[path = "../http_server/main_schemas/feed.rs"]
 mod feed;
+mod file_tasks;
 mod image_editor_host;
 #[path = "../http_server/main_schemas/image_editor_project.rs"]
 mod image_editor_project;
@@ -34,6 +35,7 @@ mod video_progress;
 use async_graphql::{EmptySubscription, MergedObject, Schema};
 #[derive(MergedObject, Default)]
 pub struct Query(
+    file_tasks::FileTaskQuery,
     audio_host::AudioHostQuery,
     audio_playback::AudioPlaybackQuery,
     video_progress::VideoProgressQuery,
@@ -56,6 +58,7 @@ pub struct Query(
 );
 #[derive(MergedObject, Default)]
 pub struct Mutation(
+    file_tasks::FileTaskMutation,
     audio_host::AudioHostMutation,
     audio_playback::AudioPlaybackMutation,
     video_progress::VideoProgressMutation,
@@ -99,6 +102,11 @@ pub(crate) fn build_with_host(
     host: std::sync::Arc<super::host::Host>,
 ) -> ContentSchema {
     Schema::build(Query::default(), Mutation::default(), EmptySubscription)
+        .data(std::sync::Arc::new(super::file_tasks::FileTasks::new(
+            db.clone(),
+            host.clone(),
+            events.clone(),
+        )))
         .data(std::sync::Arc::new(super::audio::Audio::new(
             db.clone(),
             host.clone(),
