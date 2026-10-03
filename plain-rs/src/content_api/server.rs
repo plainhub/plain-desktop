@@ -31,6 +31,8 @@ struct ServerState {
     token: Arc<str>,
     events: broadcast::Sender<WsEvent>,
     stop: watch::Receiver<bool>,
+    #[cfg(feature = "http_transport")]
+    bridge: Arc<super::http_bridge::HttpBridge>,
 }
 impl ServerState {
     fn authenticated(&self, headers: &HeaderMap) -> bool {
@@ -46,6 +48,10 @@ pub struct ContentServer {
     pub port: u16,
     task: JoinHandle<()>,
     stop: watch::Sender<bool>,
+    #[cfg(feature = "http_transport")]
+    bridge: Arc<super::http_bridge::HttpBridge>,
+    #[cfg(feature = "http_transport")]
+    public: tokio::sync::Mutex<Option<PublicServer>>,
 }
 impl ContentServer {
     pub fn start(
@@ -70,6 +76,8 @@ impl ContentServer {
             path.parent().unwrap_or(Path::new(".")).to_path_buf(),
             host.clone(),
         );
+        #[cfg(feature = "http_transport")]
+        let bridge = Arc::new(super::http_bridge::HttpBridge::new(host.clone()));
         let state = ServerState {
             schema,
             host,
@@ -79,13 +87,18 @@ impl ContentServer {
             token: Arc::from(token),
             events,
             stop: receiver.clone(),
+            #[cfg(feature = "http_transport")]
+            bridge: bridge.clone(),
         };
         let router = Router::new()
             .route("/graphql", post(graphql))
             .route("/events", get(upgrade))
             .route("/host", get(host_upgrade))
             .route("/health", get(health))
-            .route("/fs", get(files::file))
+            .route("/fs", get(files::file));
+        #[cfg(feature = "http_transport")]
+        let router = router.route("/http_host/:id", get(http_host_upgrade));
+        let router = router
             .layer(DefaultBodyLimit::max(32 * 1024 * 1024))
             .with_state(state);
         let listener = tokio::net::TcpListener::from_std(listener).map_err(|e| e.to_string())?;
@@ -97,9 +110,54 @@ impl ContentServer {
                 })
                 .await;
         });
-        Ok(Self { port, task, stop })
+        Ok(Self {
+            port,
+            task,
+            stop,
+            #[cfg(feature = "http_transport")]
+            bridge,
+            #[cfg(feature = "http_transport")]
+            public: tokio::sync::Mutex::new(None),
+        })
+    }
+    #[cfg(feature = "http_transport")]
+    pub async fn start_public(
+        &self,
+        http: u16,
+        https: u16,
+        cert: Vec<u8>,
+        key: Vec<u8>,
+    ) -> Result<(u16, u16), String> {
+        let mut guard = self.public.lock().await;
+        if guard.is_some() {
+            return Err("Public HTTP server is already running".into());
+        }
+        let (stop, receiver) = watch::channel(false);
+        let router = Router::new()
+            .fallback(super::http_bridge::handle)
+            .layer(DefaultBodyLimit::max(64 * 1024 * 1024 * 1024))
+            .with_state(super::http_bridge::HttpBridgeState {
+                bridge: self.bridge.clone(),
+                stop: receiver,
+            });
+        let listeners =
+            crate::http_transport::HttpListeners::start(router, http, https, cert, key).await?;
+        let ports = (listeners.http_port, listeners.https_port);
+        *guard = Some(PublicServer { listeners, stop });
+        Ok(ports)
+    }
+    #[cfg(feature = "http_transport")]
+    pub async fn stop_public(&self) {
+        let mut guard = self.public.lock().await;
+        if let Some(public) = guard.take() {
+            let _ = public.stop.send(true);
+            let PublicServer { listeners, stop: _ } = public;
+            listeners.shutdown().await;
+        }
     }
     pub async fn shutdown(mut self) {
+        #[cfg(feature = "http_transport")]
+        self.stop_public().await;
         let _ = self.stop.send(true);
         let _ = (&mut self.task).await;
     }
@@ -264,4 +322,24 @@ async fn host_socket(mut socket: WebSocket, mut state: ServerState) {
 mod tests;
 
 #[path = "files.rs"]
-mod files;
+pub(super) mod files;
+
+#[cfg(feature = "http_transport")]
+struct PublicServer {
+    listeners: crate::http_transport::HttpListeners,
+    stop: watch::Sender<bool>,
+}
+#[cfg(feature = "http_transport")]
+async fn http_host_upgrade(
+    State(state): State<ServerState>,
+    axum::extract::Path(id): axum::extract::Path<String>,
+    headers: HeaderMap,
+    socket: WebSocketUpgrade,
+) -> axum::response::Response {
+    if !state.authenticated(&headers) {
+        return StatusCode::UNAUTHORIZED.into_response();
+    }
+    socket
+        .on_upgrade(move |socket| async move { state.bridge.attach(&id, socket).await })
+        .into_response()
+}

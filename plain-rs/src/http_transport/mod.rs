@@ -1,6 +1,9 @@
 pub mod bind;
 
-use axum::Router;
+use axum::{Extension, Router};
+
+#[derive(Clone)]
+pub struct ConnectionScheme(pub &'static str);
 use axum_server::{Handle, tls_rustls::RustlsConfig};
 use std::{net::SocketAddr, time::Duration};
 use tokio::{sync::watch, task::JoinHandle};
@@ -43,6 +46,7 @@ impl HttpListeners {
         let (stop, mut receiver) = watch::channel(false);
         let app = router
             .clone()
+            .layer(Extension(ConnectionScheme("http")))
             .into_make_service_with_connect_info::<SocketAddr>();
         let http_task = tokio::spawn(async move {
             if let Err(error) = axum::serve(http, app)
@@ -59,7 +63,11 @@ impl HttpListeners {
         let tls_task = tokio::spawn(async move {
             if let Err(error) = axum_server::from_tcp_rustls(https, tls)
                 .handle(handle)
-                .serve(router.into_make_service_with_connect_info::<SocketAddr>())
+                .serve(
+                    router
+                        .layer(Extension(ConnectionScheme("https")))
+                        .into_make_service_with_connect_info::<SocketAddr>(),
+                )
                 .await
             {
                 log::error!("HTTPS serve failed: {error}");

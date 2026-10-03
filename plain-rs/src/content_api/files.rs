@@ -44,7 +44,11 @@ pub(super) async fn file(
     stream_file(&owned, &record.mime_type, &headers).await
 }
 
-async fn stream_file(path: &Path, mime: &str, headers: &HeaderMap) -> axum::response::Response {
+pub(crate) async fn stream_file(
+    path: &Path,
+    mime: &str,
+    headers: &HeaderMap,
+) -> axum::response::Response {
     use crate::utils::http::RangeParse;
     use tokio::io::{AsyncReadExt, AsyncSeekExt};
     let Ok(mut file) = tokio::fs::File::open(path).await else {
