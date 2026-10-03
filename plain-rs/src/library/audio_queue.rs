@@ -325,18 +325,20 @@ pub fn remove_paths(db: &Db, paths: &[String]) -> LibraryResult<()> {
     if paths.is_empty() {
         return Ok(());
     }
-    transaction(db, |c| {
-        io::remove_queue_paths(c, paths)?;
-        io::remove_history(c, paths)?;
-        io::remove_playlist_items_by_paths(c, paths)?;
-        let mut src = io::get_source(c)?;
-        if paths.contains(&src.current_path) {
-            src.current_path.clear();
-            src.current_index = -1;
-            io::save_source(c, &src)?;
-        }
-        Ok(())
-    })
+    transaction(db, |c| remove_paths_conn(c, paths))
+}
+
+pub(crate) fn remove_paths_conn(c: &rusqlite::Connection, paths: &[String]) -> LibraryResult<()> {
+    io::remove_queue_paths(c, paths)?;
+    io::remove_history(c, paths)?;
+    io::remove_playlist_items_by_paths(c, paths)?;
+    let mut src = io::get_source(c)?;
+    if paths.contains(&src.current_path) {
+        src.current_path.clear();
+        src.current_index = -1;
+        io::save_source(c, &src)?;
+    }
+    Ok(())
 }
 
 /// Reset the source and the manual queue. Stopping playback is the caller's

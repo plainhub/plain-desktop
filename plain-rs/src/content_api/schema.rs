@@ -17,6 +17,9 @@ mod feed;
 mod image_editor_host;
 #[path = "../http_server/main_schemas/image_editor_project.rs"]
 mod image_editor_project;
+mod image_index;
+mod media_actions;
+mod media_aux;
 #[path = "../http_server/main_schemas/note.rs"]
 mod note;
 #[path = "../http_server/main_schemas/pomodoro.rs"]
@@ -25,8 +28,6 @@ mod pomodoro_host;
 mod shares_host;
 mod tags;
 mod tags_host;
-mod media_aux;
-mod image_index;
 mod video_progress;
 use async_graphql::{EmptySubscription, MergedObject, Schema};
 #[derive(MergedObject, Default)]
@@ -62,6 +63,7 @@ pub struct Mutation(
     tags::TagMutation,
     tags_host::TagHostMutation,
     media_aux::MediaAuxMutation,
+    media_actions::MediaActionMutation,
     image_index::ImageIndexMutation,
     clipboard::ClipboardMutation,
     bookmark::BookmarkMutation,
@@ -97,7 +99,10 @@ pub(crate) fn build_with_host(
             db.clone(),
             host.clone(),
         )))
-        .data(std::sync::Arc::new(super::image_index::ImageIndex::new(db.clone(),host.clone())))
+        .data(std::sync::Arc::new(super::image_index::ImageIndex::new(
+            db.clone(),
+            host.clone(),
+        )))
         .data(host)
         .data(db.clone())
         .data(crate::shares::Service::new(db.clone(), prefs.clone()))

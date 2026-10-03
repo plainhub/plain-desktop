@@ -1,3 +1,10 @@
+enum Action {
+	TRASH
+	RESTORE
+	DELETE
+	MOVE
+}
+
 type ActionResult {
 	affectedCount: Int!
 }
@@ -276,6 +283,11 @@ scalar Instant
 
 scalar Long
 
+type MediaHostActionResult {
+	affectedCount: Int!
+	failedIds: [ID!]!
+}
+
 type MediaHostDuration {
 	type: DataType!
 	mediaId: ID!
@@ -348,6 +360,7 @@ type Mutation {
 	imageHostSaveEmbeddings(items: [ImageHostEmbeddingInput!]!): Boolean!
 	imageHostRemoveEmbeddings(ids: [ID!]!): Long!
 	imageHostClearEmbeddings: Long!
+	mediaHostAction(type: DataType!, action: Action!, ids: [ID!]!, fromTrash: Boolean!, destDir: String!): MediaHostActionResult!
 	imageHostStartIndex(force: Boolean!): ImageHostIndexStatus!
 	imageHostIndexSelected(ids: [ID!]!): ImageHostIndexStatus!
 	imageHostCancelIndex: ImageHostIndexStatus!

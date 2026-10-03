@@ -121,22 +121,29 @@ impl ImageIndex {
         if ids.is_empty() {
             return Ok(0);
         }
+        self.update_cache(|db| image_embeddings::delete(db, ids))
+    }
+    pub fn update_cache<T>(
+        &self,
+        operation: impl FnOnce(&Db) -> LibraryResult<T>,
+    ) -> LibraryResult<T> {
         let mut s = self.state.lock().unwrap();
         s.generation = s
             .generation
             .checked_add(1)
             .ok_or_else(|| LibraryError::Other("image index generation overflow".into()))?;
         s.status.version = s.generation;
-        let count = image_embeddings::delete(&self.db, ids)?;
-        s.status.indexed_images = image_embeddings::count(&self.db)?
-            .try_into()
-            .map_err(|_| LibraryError::Other("invalid image embedding count".into()))?;
+        let result = operation(&self.db);
         if s.worker && !s.suspended {
             let force = s.pending.iter().any(|j| matches!(j, Job::Full(true)));
             s.pending.clear();
             s.pending.push_back(Job::Full(force));
         }
-        Ok(count)
+        let value = result?;
+        s.status.indexed_images = image_embeddings::count(&self.db)?
+            .try_into()
+            .map_err(|_| LibraryError::Other("invalid image embedding count".into()))?;
+        Ok(value)
     }
     pub fn clear(&self) -> LibraryResult<usize> {
         let mut s = self.state.lock().unwrap();
