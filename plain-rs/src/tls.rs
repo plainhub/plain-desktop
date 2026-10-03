@@ -42,17 +42,22 @@ pub fn ensure_self_signed_pem(
         std::fs::create_dir_all(dir)?;
     }
 
-    let CertifiedKey { cert, key_pair } =
-        generate_simple_self_signed(san_names.to_vec()).map_err(io::Error::other)?;
-
-    let cert_pem = cert.pem().into_bytes();
-    let key_pem = key_pair.serialize_pem().into_bytes();
+    let (cert_pem, key_pem) = generate_pem(san_names)?;
 
     std::fs::write(cert_path, &cert_pem)?;
     std::fs::write(key_path, &key_pem)?;
     log::info!("tls: certificate written to {}", cert_path.display());
 
     Ok((cert_pem, key_pem))
+}
+
+pub fn generate_pem(san_names: &[String]) -> io::Result<(Vec<u8>, Vec<u8>)> {
+    let CertifiedKey { cert, key_pair } =
+        generate_simple_self_signed(san_names.to_vec()).map_err(io::Error::other)?;
+    Ok((
+        cert.pem().into_bytes(),
+        key_pair.serialize_pem().into_bytes(),
+    ))
 }
 
 #[cfg(test)]
