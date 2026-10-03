@@ -2,6 +2,7 @@ use chrono::{DateTime, Utc};
 use std::path::{Path, PathBuf};
 mod rename;
 pub mod tasks;
+pub mod writes;
 pub type TransferProgress = dyn Fn(i64, i64) -> std::io::Result<()> + Send + Sync;
 
 /// Mirrors Go `model.File`: the GraphQL-side result of any "look at a

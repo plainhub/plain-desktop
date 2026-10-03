@@ -22,9 +22,9 @@ use tokio::{
     task::JoinHandle,
 };
 #[derive(Clone)]
-struct ServerState {
+pub(super) struct ServerState {
     schema: ContentSchema,
-    host: Arc<super::host::Host>,
+    pub(super) host: Arc<super::host::Host>,
     db: Arc<Db>,
     prefs: Arc<crate::prefs::Prefs>,
     directory: std::path::PathBuf,
@@ -35,7 +35,7 @@ struct ServerState {
     bridge: Arc<super::http_bridge::HttpBridge>,
 }
 impl ServerState {
-    fn authenticated(&self, headers: &HeaderMap) -> bool {
+    pub(super) fn authenticated(&self, headers: &HeaderMap) -> bool {
         let candidate = headers
             .get("authorization")
             .and_then(|h| h.to_str().ok())
@@ -95,7 +95,8 @@ impl ContentServer {
             .route("/events", get(upgrade))
             .route("/host", get(host_upgrade))
             .route("/health", get(health))
-            .route("/fs", get(files::file));
+            .route("/fs", get(files::file))
+            .route("/files/write", post(super::file_writes::write));
         #[cfg(feature = "http_transport")]
         let router = router.route("/http_host/:id", get(http_host_upgrade));
         let router = router

@@ -19,3 +19,5 @@ mod file_task_media;
 mod http_bridge;
 #[cfg(feature = "http_transport")]
 mod http_bridge_file;
+
+mod file_writes;
