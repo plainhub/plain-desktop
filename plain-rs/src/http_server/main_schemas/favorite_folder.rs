@@ -3,11 +3,11 @@
 //! The mutations return the whole updated list (phone contract).
 
 use crate::library::favorite_folders;
-use async_graphql::{Context, Object};
+use async_graphql::{Context, Object, Result};
 use std::sync::Arc;
 
-use crate::api::context::AppCtx;
-use crate::http_server::main_schemas::types::FavoriteFolder;
+use crate::content_types::FavoriteFolder;
+use crate::db::Db;
 
 fn to_gql(f: favorite_folders::FavoriteFolder) -> FavoriteFolder {
     FavoriteFolder {
@@ -17,11 +17,11 @@ fn to_gql(f: favorite_folders::FavoriteFolder) -> FavoriteFolder {
     }
 }
 
-fn list_gql(c: &Arc<AppCtx>) -> Vec<FavoriteFolder> {
-    favorite_folders::list(&c.db)
+fn list_gql(db: &Arc<Db>) -> Result<Vec<FavoriteFolder>> {
+    Ok(favorite_folders::list(db)?
         .into_iter()
         .map(to_gql)
-        .collect()
+        .collect())
 }
 
 #[derive(Default)]
@@ -30,9 +30,9 @@ pub struct FavoriteFolderQuery;
 #[Object]
 impl FavoriteFolderQuery {
     /// List all favorite folders.
-    async fn favorite_folders(&self, ctx: &Context<'_>) -> Vec<FavoriteFolder> {
-        let c = ctx.data_unchecked::<Arc<AppCtx>>();
-        list_gql(c)
+    async fn favorite_folders(&self, ctx: &Context<'_>) -> Result<Vec<FavoriteFolder>> {
+        let db = ctx.data::<Arc<Db>>()?;
+        list_gql(db)
     }
 }
 
@@ -47,11 +47,10 @@ impl FavoriteFolderMutation {
         ctx: &Context<'_>,
         #[graphql(name = "rootPath")] root_path: String,
         #[graphql(name = "fullPath")] full_path: String,
-    ) -> Vec<FavoriteFolder> {
-        let c = ctx.data_unchecked::<Arc<AppCtx>>();
-        let (root, rel) = favorite_folders::split_full_path(&root_path, &full_path);
-        favorite_folders::add(&c.db, &root, &rel);
-        list_gql(c)
+    ) -> Result<Vec<FavoriteFolder>> {
+        let db = ctx.data::<Arc<Db>>()?;
+        favorite_folders::add_full_path(db, &root_path, &full_path)?;
+        list_gql(db)
     }
 
     /// Remove the favorite folder identified by `fullPath` and return the
@@ -60,12 +59,12 @@ impl FavoriteFolderMutation {
         &self,
         ctx: &Context<'_>,
         #[graphql(name = "fullPath")] full_path: String,
-    ) -> Vec<FavoriteFolder> {
-        let c = ctx.data_unchecked::<Arc<AppCtx>>();
-        if let Some(f) = favorite_folders::find_by_full_path(&c.db, &full_path) {
-            favorite_folders::remove(&c.db, &f.root_path, &f.relative_path);
+    ) -> Result<Vec<FavoriteFolder>> {
+        let db = ctx.data::<Arc<Db>>()?;
+        if let Some(f) = favorite_folders::find_by_full_path(db, &full_path)? {
+            favorite_folders::remove(db, &f.root_path, &f.relative_path)?;
         }
-        list_gql(c)
+        list_gql(db)
     }
 
     /// Set the favorite folder's display alias and return the whole list.
@@ -74,11 +73,11 @@ impl FavoriteFolderMutation {
         ctx: &Context<'_>,
         #[graphql(name = "fullPath")] full_path: String,
         alias: String,
-    ) -> Vec<FavoriteFolder> {
-        let c = ctx.data_unchecked::<Arc<AppCtx>>();
-        if let Some(f) = favorite_folders::find_by_full_path(&c.db, &full_path) {
-            favorite_folders::set_alias(&c.db, &f.root_path, &f.relative_path, &alias);
+    ) -> Result<Vec<FavoriteFolder>> {
+        let db = ctx.data::<Arc<Db>>()?;
+        if let Some(f) = favorite_folders::find_by_full_path(db, &full_path)? {
+            favorite_folders::set_alias(db, &f.root_path, &f.relative_path, &alias)?;
         }
-        list_gql(c)
+        list_gql(db)
     }
 }

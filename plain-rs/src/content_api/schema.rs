@@ -12,6 +12,8 @@ mod bookmarks;
 mod clipboard;
 #[path = "../http_server/main_schemas/content_common.rs"]
 mod content_common;
+#[path = "../http_server/main_schemas/favorite_folder.rs"]
+mod favorite_folder;
 #[path = "../http_server/main_schemas/feed.rs"]
 mod feed;
 mod image_editor_host;
@@ -37,6 +39,7 @@ pub struct Query(
     video_progress::VideoProgressQuery,
     shares_host::ShareHostQuery,
     app_file::AppFileQuery,
+    favorite_folder::FavoriteFolderQuery,
     app_files_host::AppFileHostQuery,
     note::NoteQuery,
     feed::FeedQuery,
@@ -58,6 +61,7 @@ pub struct Mutation(
     video_progress::VideoProgressMutation,
     shares_host::ShareHostMutation,
     app_files_host::AppFileHostMutation,
+    favorite_folder::FavoriteFolderMutation,
     note::NoteMutation,
     feed::FeedMutation,
     tags::TagMutation,

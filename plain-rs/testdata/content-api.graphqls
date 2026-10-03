@@ -185,6 +185,12 @@ enum DataType {
 	DOC
 }
 
+type FavoriteFolder {
+	rootPath: String!
+	fullPath: String!
+	alias: String
+}
+
 type Feed {
 	id: ID!
 	name: String!
@@ -326,6 +332,19 @@ type Mutation {
 	deleteShare(id: ID!): Boolean!
 	importAppFile(source: String!, fileName: String!, mimeType: String!, deleteSource: Boolean!): AppFileRecord!
 	releaseAppFile(id: String!): Boolean!
+	"""
+	Register a favorite folder and return the whole list.
+	"""
+	addFavoriteFolder(rootPath: String!, fullPath: String!): [FavoriteFolder!]!
+	"""
+	Remove the favorite folder identified by `fullPath` and return the
+	whole list.
+	"""
+	removeFavoriteFolder(fullPath: String!): [FavoriteFolder!]!
+	"""
+	Set the favorite folder's display alias and return the whole list.
+	"""
+	setFavoriteFolderAlias(fullPath: String!, alias: String!): [FavoriteFolder!]!
 	createNote(input: NoteInput!): Note!
 	updateNote(id: ID!, input: NoteInput!): Note!
 	saveFeedEntriesToNotes(query: String!): [ID!]!
@@ -472,6 +491,10 @@ type Query {
 	resolveShareFile(id: ID!, fileId: String!): String
 	appFiles(offset: Int!, limit: Int!, query: String!): [AppFile!]!
 	appFileCount(query: String!): Int!
+	"""
+	List all favorite folders.
+	"""
+	favoriteFolders: [FavoriteFolder!]!
 	appFileRecord(id: String!): AppFileRecord
 	appFileRecords(offset: Int!, limit: Int!, query: String!): [AppFileRecord!]!
 	resolveAppFile(id: String!): String!

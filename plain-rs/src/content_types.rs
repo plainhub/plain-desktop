@@ -77,3 +77,10 @@ pub(crate) fn parse_instant(value: &str) -> async_graphql::Result<Instant> {
         .map(|dt| Instant(dt.with_timezone(&chrono::Utc)))
         .map_err(|e| async_graphql::Error::new(format!("invalid stored timestamp: {e}")))
 }
+
+#[derive(SimpleObject)]
+pub struct FavoriteFolder {
+    pub root_path: String,
+    pub full_path: String,
+    pub alias: Option<String>,
+}

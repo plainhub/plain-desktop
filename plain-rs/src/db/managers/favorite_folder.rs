@@ -1,87 +1,83 @@
-//! Row IO for `favorite_folders` — (rootPath, relativePath) pairs with
-//! an optional alias, insertion order preserved.
-
-use rusqlite::params;
-
 use crate::db::Db;
 pub use crate::db::models::favorite_folder::FavoriteFolderRow;
-
-pub fn all_folders(db: &Db) -> Vec<FavoriteFolderRow> {
-    db.with_conn(|conn| {
-        let mut stmt = match conn.prepare(
-            "SELECT root_path,relative_path,alias FROM favorite_folders ORDER BY rowid ASC",
-        ) {
-            Ok(s) => s,
-            Err(_) => return vec![],
-        };
-        stmt.query_map(params![], |row| {
-            Ok(FavoriteFolderRow {
-                root_path: row.get(0)?,
-                relative_path: row.get(1)?,
-                alias: row.get(2)?,
-            })
+use rusqlite::{Connection, OptionalExtension, params};
+pub(crate) mod io {
+    use super::*;
+    fn row(value: &rusqlite::Row<'_>) -> rusqlite::Result<FavoriteFolderRow> {
+        Ok(FavoriteFolderRow {
+            root_path: value.get(0)?,
+            relative_path: value.get(1)?,
+            alias: value.get(2)?,
         })
-        .ok()
-        .map(|iter| iter.filter_map(|r| r.ok()).collect())
-        .unwrap_or_default()
+    }
+    pub fn all(c: &Connection) -> rusqlite::Result<Vec<FavoriteFolderRow>> {
+        c.prepare("SELECT root_path,relative_path,alias FROM favorite_folders ORDER BY rowid")?
+            .query_map([], row)?
+            .collect()
+    }
+    pub fn get(
+        c: &Connection,
+        root: &str,
+        rel: &str,
+    ) -> rusqlite::Result<Option<FavoriteFolderRow>> {
+        c.query_row("SELECT root_path,relative_path,alias FROM favorite_folders WHERE root_path=?1 AND relative_path=?2",params![root,rel],row).optional()
+    }
+    pub fn insert(c: &Connection, value: &FavoriteFolderRow) -> rusqlite::Result<()> {
+        c.execute("INSERT INTO favorite_folders(root_path,relative_path,alias) VALUES(?1,?2,?3) ON CONFLICT(root_path,relative_path) DO NOTHING",params![value.root_path,value.relative_path,value.alias])?;
+        Ok(())
+    }
+    pub fn remove(
+        c: &Connection,
+        root: &str,
+        rel: &str,
+    ) -> rusqlite::Result<Option<FavoriteFolderRow>> {
+        let value = get(c, root, rel)?;
+        c.execute(
+            "DELETE FROM favorite_folders WHERE root_path=?1 AND relative_path=?2",
+            params![root, rel],
+        )?;
+        Ok(value)
+    }
+}
+pub fn all_folders(db: &Db) -> rusqlite::Result<Vec<FavoriteFolderRow>> {
+    db.with_conn(io::all)
+}
+pub fn folder_by_paths(
+    db: &Db,
+    root: &str,
+    rel: &str,
+) -> rusqlite::Result<Option<FavoriteFolderRow>> {
+    db.with_conn(|c| io::get(c, root, rel))
+}
+pub fn insert_folder(db: &Db, value: &FavoriteFolderRow) -> rusqlite::Result<()> {
+    db.with_conn(|c| io::insert(c, value))
+}
+pub fn remove_folder(
+    db: &Db,
+    root: &str,
+    rel: &str,
+) -> rusqlite::Result<Option<FavoriteFolderRow>> {
+    db.with_conn(|c| {
+        let tx = c.unchecked_transaction()?;
+        let value = io::remove(&tx, root, rel)?;
+        tx.commit()?;
+        Ok(value)
     })
 }
-
-pub fn folder_by_paths(db: &Db, root_path: &str, relative_path: &str) -> Option<FavoriteFolderRow> {
-    db.with_conn(|conn| {
-        conn.query_row(
-            "SELECT root_path,relative_path,alias FROM favorite_folders WHERE root_path=? AND relative_path=?",
-            params![root_path, relative_path],
-            |row| {
-                Ok(FavoriteFolderRow {
-                    root_path: row.get(0)?,
-                    relative_path: row.get(1)?,
-                    alias: row.get(2)?,
-                })
-            },
-        )
-        .ok()
-    })
-}
-
-pub fn insert_folder(db: &Db, row: &FavoriteFolderRow) {
-    db.with_conn(|conn| {
-        let _ = conn.execute(
-            "INSERT INTO favorite_folders (root_path,relative_path,alias) VALUES (?1,?2,?3)",
-            params![row.root_path, row.relative_path, row.alias],
-        );
-    })
-}
-
-/// Remove one row, returning it when it existed.
-pub fn remove_folder(db: &Db, root_path: &str, relative_path: &str) -> Option<FavoriteFolderRow> {
-    let existing = folder_by_paths(db, root_path, relative_path);
-    db.with_conn(|conn| {
-        let _ = conn.execute(
-            "DELETE FROM favorite_folders WHERE root_path=? AND relative_path=?",
-            params![root_path, relative_path],
-        );
-    });
-    existing
-}
-
-/// Set or clear (NULL) the alias. Returns whether the row exists.
 pub fn set_folder_alias(
     db: &Db,
-    root_path: &str,
-    relative_path: &str,
+    root: &str,
+    rel: &str,
     alias: Option<&str>,
-) -> bool {
-    db.with_conn(|conn| {
-        conn.execute(
+) -> rusqlite::Result<bool> {
+    db.with_conn(|c| {
+        c.execute(
             "UPDATE favorite_folders SET alias=?1 WHERE root_path=?2 AND relative_path=?3",
-            params![alias, root_path, relative_path],
+            params![alias, root, rel],
         )
         .map(|n| n > 0)
-        .unwrap_or(false)
     })
 }
-
 #[cfg(test)]
 #[path = "../../../tests/unit/library/db/favorite_folder.rs"]
 mod tests;

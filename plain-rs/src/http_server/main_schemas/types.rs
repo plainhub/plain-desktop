@@ -1,4 +1,6 @@
-pub use crate::content_types::{ActionResult, Instant, Long, Tag, TagRelation, TagRelationStub};
+pub use crate::content_types::{
+    ActionResult, FavoriteFolder, Instant, Long, Tag, TagRelation, TagRelationStub,
+};
 use async_graphql::{ComplexObject, Enum, ID, InputObject, SimpleObject, Union};
 
 use crate::api::db::{DChannel, DChat, DPeer};
@@ -101,13 +103,6 @@ pub struct Sim {
 
 // BatteryHealth / BatteryStatus / BatteryPlugged / Battery were removed:
 // dynamic battery state now lives in DeviceStatus (batteryLevel + charging).
-
-#[derive(SimpleObject)]
-pub struct FavoriteFolder {
-    pub root_path: String,
-    pub full_path: String,
-    pub alias: Option<String>,
-}
 
 #[derive(SimpleObject)]
 pub struct KeyValuePair {

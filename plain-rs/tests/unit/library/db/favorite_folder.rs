@@ -14,7 +14,8 @@ fn rows_keep_insertion_order() {
             relative_path: "x".into(),
             alias: None,
         },
-    );
+    )
+    .unwrap();
     crate::db::favorite_folder::insert_folder(
         &db,
         &crate::db::FavoriteFolderRow {
@@ -22,8 +23,9 @@ fn rows_keep_insertion_order() {
             relative_path: "y".into(),
             alias: Some("Alias".into()),
         },
-    );
-    let all = crate::db::favorite_folder::all_folders(&db);
+    )
+    .unwrap();
+    let all = crate::db::favorite_folder::all_folders(&db).unwrap();
     assert_eq!(all.len(), 2);
     assert_eq!(all[0].root_path, "/a");
     assert_eq!(all[1].alias.as_deref(), Some("Alias"));
@@ -39,21 +41,15 @@ fn set_alias_updates_and_reports_existence() {
             relative_path: "x".into(),
             alias: None,
         },
+    )
+    .unwrap();
+    assert!(crate::db::favorite_folder::set_folder_alias(&db, "/a", "x", Some("N")).unwrap());
+    assert!(
+        !crate::db::favorite_folder::set_folder_alias(&db, "/a", "missing", Some("N")).unwrap()
     );
-    assert!(crate::db::favorite_folder::set_folder_alias(
-        &db,
-        "/a",
-        "x",
-        Some("N")
-    ));
-    assert!(!crate::db::favorite_folder::set_folder_alias(
-        &db,
-        "/a",
-        "missing",
-        Some("N")
-    ));
     assert_eq!(
         crate::db::favorite_folder::folder_by_paths(&db, "/a", "x")
+            .unwrap()
             .unwrap()
             .alias
             .as_deref(),
@@ -71,8 +67,13 @@ fn remove_folder_returns_the_row() {
             relative_path: "x".into(),
             alias: Some("Z".into()),
         },
-    );
-    let removed = crate::db::favorite_folder::remove_folder(&db, "/a", "x");
+    )
+    .unwrap();
+    let removed = crate::db::favorite_folder::remove_folder(&db, "/a", "x").unwrap();
     assert_eq!(removed.unwrap().alias.as_deref(), Some("Z"));
-    assert!(crate::db::favorite_folder::remove_folder(&db, "/a", "x").is_none());
+    assert!(
+        crate::db::favorite_folder::remove_folder(&db, "/a", "x")
+            .unwrap()
+            .is_none()
+    );
 }
