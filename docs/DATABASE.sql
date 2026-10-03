@@ -17,6 +17,13 @@ CREATE TABLE IF NOT EXISTS archived_conversations (
 conversation_id TEXT NOT NULL PRIMARY KEY,
 conversation_date TEXT NOT NULL
 );
+CREATE TABLE IF NOT EXISTS audio_playback (
+id INTEGER NOT NULL PRIMARY KEY CHECK (id=1),
+path TEXT NOT NULL,
+position_ms INTEGER NOT NULL CHECK (position_ms>=0),
+revision INTEGER NOT NULL CHECK (revision>=0),
+started_revision INTEGER NOT NULL DEFAULT -1
+);
 CREATE TABLE IF NOT EXISTS audio_queue_source (
 id INTEGER NOT NULL,
 source TEXT NOT NULL,
@@ -199,6 +206,7 @@ total_break_seconds INTEGER NOT NULL,
 created_at TEXT NOT NULL,
 updated_at TEXT NOT NULL
 );
+CREATE TABLE IF NOT EXISTS pomodoro_runtime (id INTEGER PRIMARY KEY CHECK(id=1), data TEXT NOT NULL);
 CREATE TABLE IF NOT EXISTS sessions (
 client_id TEXT NOT NULL PRIMARY KEY,
 name TEXT NOT NULL DEFAULT '',

@@ -29,6 +29,18 @@ type AudioArtistPlayCount {
 	count: Long!
 }
 
+enum AudioCommand {
+	PLAY
+	PAUSE
+	SEEK
+	NEXT
+	PREVIOUS
+	COMPLETED
+	CLEAR
+	RESTART
+	SET_SPEED
+}
+
 type AudioHostHistory {
 	path: String!
 	title: String!
@@ -80,6 +92,12 @@ input AudioHostTrackInput {
 	artist: String!
 	albumId: ID!
 	durationMs: Long!
+}
+
+type AudioPlayback {
+	path: String!
+	positionMs: Long!
+	revision: Long!
 }
 
 type Bookmark {
@@ -256,6 +274,12 @@ type Mutation {
 	audioHostAddPlaylistItems(id: ID!, items: [AudioHostTrackInput!]!): Int!
 	audioHostRemovePlaylistItems(id: ID!, paths: [String!]!): Boolean!
 	audioHostRecordHistory(path: String!, title: String!, artist: String!, durationMs: Long!): Boolean!
+	audioReportStarted(track: AudioHostTrackInput!, revision: Long!): Boolean!
+	audioReportProgress(path: String!, revision: Long!, positionMs: Long!): Boolean!
+	audioInvalidateEngine: AudioPlayback!
+	audioCommand(action: AudioCommand!, positionMs: Long!, speed: Float!): AudioPlayback!
+	audioPlayTrack(track: AudioHostTrackInput!, enqueue: Boolean!): AudioPlayback!
+	audioPlayPath(path: String!): AudioPlayback!
 	saveVideoPlayProgress(mediaId: ID!, positionMs: Long!): VideoPlayProgress!
 	deleteVideoPlayProgress(mediaId: ID!): Boolean!
 	createShare(name: String!, realPaths: [String!]!, urlToken: String!, readOnly: Boolean!, expiresAt: Instant): ShareRecord!
@@ -381,6 +405,7 @@ type Query {
 	audioHostPlaylistItemCount(id: ID!): Int!
 	audioHostHistory(offset: Int!, limit: Int!, query: String!): [AudioHostHistory!]!
 	audioArtistPlayCounts: [AudioArtistPlayCount!]!
+	audioPlayback: AudioPlayback!
 	videoPlayProgress(mediaId: ID!): VideoPlayProgress
 	recentVideoPlayProgress(since: Instant!): [VideoPlayProgress!]!
 	browseShare(id: ID!, virtualPath: String!): ShareListing!

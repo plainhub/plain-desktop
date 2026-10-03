@@ -2,7 +2,14 @@ use rusqlite::Connection;
 
 pub(super) fn init(conn: &Connection) -> rusqlite::Result<()> {
     conn.execute_batch(
-        "CREATE TABLE IF NOT EXISTS audio_queue_source (
+        "CREATE TABLE IF NOT EXISTS audio_playback (
+                id INTEGER NOT NULL PRIMARY KEY CHECK (id=1),
+                path TEXT NOT NULL,
+                position_ms INTEGER NOT NULL CHECK (position_ms>=0),
+                revision INTEGER NOT NULL CHECK (revision>=0),
+                started_revision INTEGER NOT NULL DEFAULT -1
+            );
+            CREATE TABLE IF NOT EXISTS audio_queue_source (
                 id INTEGER NOT NULL,
                 source TEXT NOT NULL,
                 playlist_id TEXT NOT NULL,

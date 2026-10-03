@@ -17,6 +17,7 @@ pub(crate) mod io {
     }
     pub fn save_source(c: &Connection, src: &QueueSource) -> rusqlite::Result<()> {
         c.execute("INSERT INTO audio_queue_source (id,source,playlist_id,current_path,current_index,sort_by) VALUES (1,?1,?2,?3,?4,?5) ON CONFLICT(id) DO UPDATE SET source=?1,playlist_id=?2,current_path=?3,current_index=?4,sort_by=?5", params![src.source.as_str(),src.playlist_id,src.current_path,src.current_index,src.sort_by])?;
+        crate::library::audio_playback::sync_source(c, &src.current_path)?;
         Ok(())
     }
     fn queue_row(r: &rusqlite::Row<'_>) -> rusqlite::Result<QueueItem> {
@@ -208,7 +209,11 @@ pub fn get_source(db: &Db) -> rusqlite::Result<QueueSource> {
     db.with_conn(|c| io::get_source(c))
 }
 pub fn save_source(db: &Db, src: &QueueSource) -> rusqlite::Result<()> {
-    db.with_conn(|c| io::save_source(c, src))
+    db.with_conn(|c| {
+        let tx = c.unchecked_transaction()?;
+        io::save_source(&tx, src)?;
+        tx.commit()
+    })
 }
 pub fn all_queue_items(db: &Db) -> rusqlite::Result<Vec<QueueItem>> {
     db.with_conn(|c| io::all_queue_items(c))

@@ -55,3 +55,18 @@ impl LibraryTracks for HostLibrary {
         self.call("audioLibraryContains", json!({"path":path}))
     }
 }
+
+impl crate::library::audio_commands::Engine for HostLibrary {
+    fn metadata(&mut self, path: &str) -> LibraryResult<AudioTrack> {
+        self.call("audioMetadata", json!({"path":path}))
+    }
+    fn execute(
+        &mut self,
+        command: &crate::library::audio_commands::EngineCommand,
+    ) -> LibraryResult<crate::library::audio_commands::EngineReport> {
+        self.call(
+            "audioEngineCommand",
+            serde_json::to_value(command).map_err(|e| LibraryError::Other(e.to_string()))?,
+        )
+    }
+}

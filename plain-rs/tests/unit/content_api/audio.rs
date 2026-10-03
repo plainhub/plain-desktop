@@ -144,3 +144,88 @@ async fn authenticated_host_resolves_large_library_and_counts_only_reported_star
     );
     server.shutdown().await;
 }
+
+#[tokio::test]
+async fn engine_commands_resume_exact_progress_and_propagate_native_failures() {
+    let dir = tempfile::tempdir().unwrap();
+    let token = crate::base64_encode(&[8; 32]);
+    let server = ContentServer::start(
+        &dir.path().join("db"),
+        &token,
+        Arc::new(crate::prefs::Prefs::load(&dir.path().join("prefs.json")).unwrap()),
+    )
+    .unwrap();
+    let mut request = format!("ws://127.0.0.1:{}/host", server.port)
+        .into_client_request()
+        .unwrap();
+    request
+        .headers_mut()
+        .insert("authorization", format!("Bearer {token}").parse().unwrap());
+    let (mut socket, _) = connect_async(request).await.unwrap();
+    let failed = Arc::new(std::sync::atomic::AtomicBool::new(false));
+    let fail = failed.clone();
+    let task = tokio::spawn(async move {
+        while let Some(Ok(Message::Text(text))) = socket.next().await {
+            let request: Value = serde_json::from_str(&text).unwrap();
+            let result = match request["method"].as_str().unwrap() {
+                "audioMetadata" => {
+                    json!({"path":"/one","title":"One","artist":"Test","albumId":"42","durationMs":117123})
+                }
+                "audioEngineCommand" => request["params"]["playback"].clone(),
+                method => panic!("unexpected {method}"),
+            };
+            let reply = if fail.load(std::sync::atomic::Ordering::SeqCst) {
+                json!({"id":request["id"],"error":"engine unavailable"})
+            } else {
+                json!({"id":request["id"],"result":result})
+            };
+            socket
+                .send(Message::Text(reply.to_string().into()))
+                .await
+                .unwrap();
+        }
+    });
+    let played=call(server.port,&token,r#"mutation {audioPlayTrack(track:{path:"/one",title:"One",artist:"Test",albumId:"42",durationMs:117123},enqueue:true) {path positionMs revision}}"#).await;
+    assert!(played.get("errors").is_none(), "{played}");
+    let old = played["data"]["audioPlayTrack"]["revision"]
+        .as_i64()
+        .unwrap();
+    let sought = call(
+        server.port,
+        &token,
+        "mutation {audioCommand(action:SEEK,positionMs:3000000123,speed:1) {positionMs revision}}",
+    )
+    .await;
+    assert_eq!(
+        sought["data"]["audioCommand"]["positionMs"],
+        3_000_000_123i64
+    );
+    let stale = call(
+        server.port,
+        &token,
+        &format!(r#"mutation {{audioReportProgress(path:"/one",revision:{old},positionMs:0)}}"#),
+    )
+    .await;
+    assert_eq!(stale["data"]["audioReportProgress"], false);
+    let resumed = call(
+        server.port,
+        &token,
+        "mutation {audioCommand(action:PLAY,positionMs:0,speed:1) {path positionMs}}",
+    )
+    .await;
+    assert_eq!(
+        resumed["data"]["audioCommand"]["positionMs"],
+        3_000_000_123i64
+    );
+    failed.store(true, std::sync::atomic::Ordering::SeqCst);
+    let failed = call(
+        server.port,
+        &token,
+        "mutation {audioCommand(action:PAUSE,positionMs:0,speed:1) {path}}",
+    )
+    .await;
+    assert!(failed.get("errors").is_some(), "{failed}");
+    task.abort();
+    let _ = task.await;
+    server.shutdown().await;
+}

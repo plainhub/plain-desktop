@@ -252,32 +252,41 @@ pub fn enqueue(db: &Db, items: &[AudioTrack], play_next: bool) -> LibraryResult<
         }
     }
     transaction(db, |c| {
-        let mut queued = io::all_queue_items(c)?;
-        let mut incoming = Vec::new();
-        let mut seen = HashSet::new();
-        for item in items.iter().rev() {
-            if !seen.insert(&item.path) {
-                continue;
-            }
-            incoming.push(QueueItem {
-                path: item.path.clone(),
-                sort_order: 0,
-                title: item.title.clone(),
-                artist: item.artist.clone(),
-                duration_ms: item.duration_ms,
-            });
-        }
-        incoming.reverse();
-        queued.retain(|q| !seen.contains(&q.path));
-        if play_next {
-            incoming.extend(queued);
-            queued = incoming;
-        } else {
-            queued.extend(incoming);
-        }
-        io::replace_queue_items(c, &queued)?;
+        enqueue_conn(c, items, play_next)?;
         Ok(())
     })
+}
+
+pub(crate) fn enqueue_conn(
+    c: &rusqlite::Connection,
+    items: &[AudioTrack],
+    play_next: bool,
+) -> LibraryResult<()> {
+    let mut queued = io::all_queue_items(c)?;
+    let mut incoming = Vec::new();
+    let mut seen = HashSet::new();
+    for item in items.iter().rev() {
+        if !seen.insert(&item.path) {
+            continue;
+        }
+        incoming.push(QueueItem {
+            path: item.path.clone(),
+            sort_order: 0,
+            title: item.title.clone(),
+            artist: item.artist.clone(),
+            duration_ms: item.duration_ms,
+        });
+    }
+    incoming.reverse();
+    queued.retain(|q| !seen.contains(&q.path));
+    if play_next {
+        incoming.extend(queued);
+        queued = incoming;
+    } else {
+        queued.extend(incoming);
+    }
+    io::replace_queue_items(c, &queued)?;
+    Ok(())
 }
 
 pub fn remove_queued(db: &Db, path: &str) -> LibraryResult<()> {
@@ -1171,7 +1180,7 @@ fn validate_duration(value: i64) -> LibraryResult<()> {
     }
     Ok(())
 }
-fn record_history_conn(
+pub(crate) fn record_history_conn(
     c: &rusqlite::Connection,
     path: &str,
     title: &str,

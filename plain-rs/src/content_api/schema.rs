@@ -3,6 +3,7 @@ pub use crate::content_types as types;
 mod app_file;
 mod app_files_host;
 mod audio_host;
+mod audio_playback;
 #[path = "../http_server/main_schemas/bookmark.rs"]
 mod bookmark;
 #[path = "../http_server/main_schemas/bookmark_types.rs"]
@@ -28,6 +29,7 @@ use async_graphql::{EmptySubscription, MergedObject, Schema};
 #[derive(MergedObject, Default)]
 pub struct Query(
     audio_host::AudioHostQuery,
+    audio_playback::AudioPlaybackQuery,
     video_progress::VideoProgressQuery,
     shares_host::ShareHostQuery,
     app_file::AppFileQuery,
@@ -45,6 +47,7 @@ pub struct Query(
 #[derive(MergedObject, Default)]
 pub struct Mutation(
     audio_host::AudioHostMutation,
+    audio_playback::AudioPlaybackMutation,
     video_progress::VideoProgressMutation,
     shares_host::ShareHostMutation,
     app_files_host::AppFileHostMutation,
