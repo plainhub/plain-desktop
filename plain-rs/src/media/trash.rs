@@ -413,12 +413,10 @@ pub async fn delete_trash_by_path(trashed_path: &str) -> Result<()> {
         let lock = lock_for_disk(&it.disk);
         let _g = lock.lock().await;
         let abs = abs_trash_path(&it.disk, &it.trash_rel_path);
-        let _ = std::fs::remove_dir_all(&abs);
-        let _ = std::fs::remove_file(&abs);
+        crate::media::fsx::remove(&abs).await?;
         delete_item_keys(&it)?;
     } else {
-        let _ = std::fs::remove_dir_all(&p);
-        let _ = std::fs::remove_file(&p);
+        crate::media::fsx::remove(&p).await?;
     }
     Ok(())
 }

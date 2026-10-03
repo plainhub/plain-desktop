@@ -1096,7 +1096,9 @@ fn stage_scanned(batch: &mut crate::media::kv::Batch, row: &ScannedFile) {
 
 pub fn get_by_uuid(db: &crate::media::kv::Db, uuid: &str) -> Result<Option<MediaFile>> {
     let key = format!("{KEY_PREFIX}{uuid}");
-    Ok(db.get(&key)?.and_then(|v| serde_json::from_slice(&v).ok()))
+    db.get(&key)?
+        .map(|value| serde_json::from_slice(&value).map_err(Into::into))
+        .transpose()
 }
 
 pub fn get_by_path(db: &crate::media::kv::Db, path: &str) -> Result<Option<MediaFile>> {

@@ -73,7 +73,7 @@ pub fn cleanup(
 ) -> LibraryResult<usize> {
     if !matches!(
         kind,
-        DataType::Audio | DataType::Video | DataType::Image | DataType::Doc
+        DataType::Audio | DataType::Video | DataType::Image | DataType::Doc | DataType::File
     ) {
         return Err(invalid("unsupported media kind"));
     }

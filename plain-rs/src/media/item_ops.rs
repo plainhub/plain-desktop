@@ -4,10 +4,12 @@ use std::sync::Arc;
 use anyhow::{Result, bail};
 
 use crate::db::Db as SqlDb;
-use crate::library::audio_queue;
+use crate::enums::DataType;
+use crate::library::{audio_queue, media_actions};
 use crate::media::image_index::{self, MediaSort};
 use crate::media::kv::Db;
 use crate::media::{scan, trash};
+use std::collections::HashSet;
 
 #[derive(Clone, Copy, PartialEq, Debug)]
 pub enum MediaItemsAction {
@@ -23,55 +25,96 @@ pub async fn run_media_items_action(
     query: &str,
     action: MediaItemsAction,
 ) -> Result<i32> {
-    let fields = crate::utils::search_dsl::parse(query);
-    if fields.is_empty() {
-        bail!("bulk_query_required");
+    let trash_filter = match action {
+        MediaItemsAction::Restore | MediaItemsAction::Delete => Some(true),
+        MediaItemsAction::Trash => None,
+    };
+    let uuids = select_ids(query, media_type, trash_filter)?;
+    let mut affected = 0_i32;
+    let mut failures = Vec::new();
+    for uuid in uuids {
+        let result = async {
+            let media = scan::get_by_uuid(db, &uuid)?
+                .ok_or_else(|| anyhow::anyhow!("media item not found"))?;
+            require_media_type(&media, media_type)?;
+            apply_media_items_action(db, library, &media, action).await
+        }
+        .await;
+        match result {
+            Ok(true) => {
+                affected = affected
+                    .checked_add(1)
+                    .ok_or_else(|| anyhow::anyhow!("media action count overflow"))?
+            }
+            Ok(false) => {}
+            Err(error) => failures.push(format!("{uuid}: {error}")),
+        }
     }
-    let ids = fields
+    if !failures.is_empty() {
+        bail!(
+            "{action:?}: {} media actions failed ({affected} completed): {}",
+            failures.len(),
+            failures.join("; ")
+        );
+    }
+    Ok(affected)
+}
+
+fn require_media_type(media: &scan::MediaFile, expected: Option<&str>) -> Result<()> {
+    if expected.is_some_and(|kind| !kind.is_empty() && kind != media.r#type) {
+        bail!("media type mismatch");
+    }
+    Ok(())
+}
+
+fn select_ids(
+    query: &str,
+    media_type: Option<&str>,
+    trash_filter: Option<bool>,
+) -> Result<Vec<String>> {
+    let (ids, _) = bulk_selection(query)?;
+    if crate::utils::search_dsl::parse(query)
         .iter()
-        .filter(|field| field.name == "ids")
-        .map(|field| field.value.clone())
-        .last()
-        .unwrap_or_default();
-    let text = fields
-        .iter()
-        .filter(|field| field.name == "text")
-        .map(|field| field.value.clone())
-        .last()
-        .unwrap_or_default();
-    let uuids = if !ids.trim().is_empty() {
-        split_ids(&ids)
-    } else {
-        let trash_filter = match action {
-            MediaItemsAction::Restore | MediaItemsAction::Delete => Some(true),
-            MediaItemsAction::Trash => None,
-        };
-        match image_index::global().search(
-            &text,
+        .any(|field| field.name == "ids")
+    {
+        return Ok(split_ids(&ids));
+    }
+    let index = image_index::global();
+    search_ids(&index, query, media_type, trash_filter)
+}
+
+fn search_ids(
+    index: &image_index::MediaSearchIndex,
+    query: &str,
+    media_type: Option<&str>,
+    trash_filter: Option<bool>,
+) -> Result<Vec<String>> {
+    let expected = index.count(query, media_type, trash_filter)?;
+    let mut result = Vec::with_capacity(expected);
+    let mut seen = HashSet::new();
+    loop {
+        let page = index.search(
+            query,
             media_type,
             trash_filter,
             MediaSort::DateDesc,
-            0,
-            10_000,
-        ) {
-            Ok(rows) => rows.into_iter().map(|row| row.uuid).collect(),
-            Err(error) => {
-                log::error!("[media-items] search failed: {error}");
-                Vec::new()
-            }
+            result.len(),
+            512,
+        )?;
+        if page.is_empty() {
+            break;
         }
-    };
-
-    for uuid in &uuids {
-        let media = match scan::get_by_uuid(db, uuid) {
-            Ok(Some(media)) => media,
-            _ => continue,
-        };
-        if let Err(error) = apply_media_items_action(db, library, &media, action).await {
-            log::debug!("[media-items] {action:?} {}: {error}", media.path);
+        for row in page {
+            if !seen.insert(row.uuid.clone()) {
+                bail!("media selection changed; retry");
+            }
+            result.push(row.uuid);
         }
     }
-    Ok(i32::try_from(uuids.len()).unwrap_or(i32::MAX))
+    if result.len() != expected {
+        bail!("media selection changed; retry");
+    }
+    Ok(result)
 }
 
 pub async fn move_media_items(
@@ -85,19 +128,7 @@ pub async fn move_media_items(
     if !dest.is_dir() {
         bail!("dest_dir is not a directory: {dest_dir}");
     }
-    let (ids, text) = bulk_selection(query)?;
-    let uuids = if !ids.trim().is_empty() {
-        split_ids(&ids)
-    } else {
-        match image_index::global().search(&text, media_type, None, MediaSort::DateDesc, 0, 10_000)
-        {
-            Ok(rows) => rows.into_iter().map(|row| row.uuid).collect(),
-            Err(error) => {
-                log::error!("[media-items] move search failed: {error}");
-                Vec::new()
-            }
-        }
-    };
+    let uuids = select_ids(query, media_type, None)?;
 
     let index = image_index::global();
     let mut moved = 0_i32;
@@ -155,10 +186,12 @@ fn bulk_selection(query: &str) -> Result<(String, String)> {
 }
 
 fn split_ids(ids: &str) -> Vec<String> {
+    let mut seen = HashSet::new();
     ids.split(',')
         .map(str::trim)
         .filter(|id| !id.is_empty())
         .map(str::to_string)
+        .filter(|id| seen.insert(id.clone()))
         .collect()
 }
 
@@ -175,14 +208,11 @@ async fn apply_media_items_action(
     library: &SqlDb,
     media: &scan::MediaFile,
     action: MediaItemsAction,
-) -> Result<()> {
+) -> Result<bool> {
     match action {
         MediaItemsAction::Trash => {
             if media.is_trash {
-                return Ok(());
-            }
-            if media.r#type == "audio" {
-                audio_queue::remove_paths(library, std::slice::from_ref(&media.path))?;
+                return Ok(false);
             }
             let trashed = trash::trash_paths(vec![media.path.clone()]).await?;
             let mut updated = media.clone();
@@ -196,14 +226,12 @@ async fn apply_media_items_action(
             }
             updated.is_trash = true;
             updated.deleted_at = chrono::Utc::now().timestamp();
-            for key in [media.uuid.clone(), media.path.clone()] {
-                crate::library::tags::remove_relations_for_keys(library, &[key])?;
-            }
+            cleanup_references(library, media, media_actions::Action::Trash)?;
             scan::upsert_media_row(db, &updated)?;
         }
         MediaItemsAction::Restore => {
             if !media.is_trash {
-                return Ok(());
+                return Ok(false);
             }
             let restored = trash::restore_paths(vec![media.path.clone()]).await?;
             let mut updated = media.clone();
@@ -217,21 +245,51 @@ async fn apply_media_items_action(
             scan::upsert_media_row(db, &updated)?;
         }
         MediaItemsAction::Delete => {
-            if media.r#type == "audio" {
-                audio_queue::remove_paths(library, std::slice::from_ref(&media.path))?;
-            }
             if trash::is_trashed_path(&media.path) {
                 trash::delete_trash_by_path(&media.path).await?;
             } else {
-                let path = std::path::Path::new(&media.path);
-                if path.is_file() {
-                    std::fs::remove_file(path)?;
-                } else if path.is_dir() {
-                    std::fs::remove_dir_all(path)?;
-                }
+                crate::media::fsx::remove(std::path::Path::new(&media.path)).await?;
             }
+            cleanup_references(library, media, media_actions::Action::Delete)?;
             scan::delete_by_uuid(db, &media.uuid)?;
+            image_index::global().remove_by_uuid(&media.uuid)?;
         }
     }
+    Ok(true)
+}
+
+fn cleanup_references(
+    library: &SqlDb,
+    media: &scan::MediaFile,
+    action: media_actions::Action,
+) -> Result<()> {
+    let kind = match media.r#type.as_str() {
+        "audio" => DataType::Audio,
+        "video" => DataType::Video,
+        "image" => DataType::Image,
+        "doc" => DataType::Doc,
+        _ => DataType::File,
+    };
+    let mut keys = vec![media.uuid.clone(), media.path.clone()];
+    if !media.original_path.is_empty() {
+        keys.push(media.original_path.clone());
+    }
+    let items = keys
+        .into_iter()
+        .map(|id| media_actions::Item {
+            path: if id == media.uuid {
+                media.path.clone()
+            } else {
+                id.clone()
+            },
+            id,
+            destination_path: String::new(),
+        })
+        .collect::<Vec<_>>();
+    media_actions::cleanup(library, kind, action, &items)?;
     Ok(())
 }
+
+#[cfg(test)]
+#[path = "../../tests/unit/media/item_ops.rs"]
+mod tests;
