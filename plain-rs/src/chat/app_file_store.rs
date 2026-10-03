@@ -22,6 +22,8 @@
 //! miss, the file is copied into the canonical location and a new
 //! `app_files` row is inserted.
 
+pub mod chat_deletion;
+
 use std::fs;
 use std::io::{Read, Seek};
 use std::path::{Path, PathBuf};

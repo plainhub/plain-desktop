@@ -65,6 +65,12 @@ pub(super) enum Request {
     DeleteChats {
         ids: Vec<String>,
     },
+    DeletePeerChats {
+        id: String,
+    },
+    DeleteChannelChats {
+        id: String,
+    },
     ChatStatus {
         id: String,
         status: ChatStatus,
@@ -97,6 +103,7 @@ pub(super) async fn call(
         return StatusCode::UNAUTHORIZED.into_response();
     }
     let db = state.db.clone();
+    let directory = state.directory.clone();
     let result = tokio::task::spawn_blocking(move || -> anyhow::Result<Value> {
         use chat_store::{channels, messages, nearby, peers};
         Ok(match request {
@@ -137,7 +144,27 @@ pub(super) async fn call(
                 messages::save(&db, &items, mode)?;
                 json!(true)
             }
-            Request::DeleteChats { ids } => json!(messages::delete(&db, &ids)?),
+            Request::DeleteChats { ids } => {
+                json!(crate::chat::app_file_store::chat_deletion::delete(
+                    &db,
+                    &directory,
+                    crate::chat::app_file_store::chat_deletion::Selection::Ids(&ids)
+                )?)
+            }
+            Request::DeletePeerChats { id } => {
+                json!(crate::chat::app_file_store::chat_deletion::delete(
+                    &db,
+                    &directory,
+                    crate::chat::app_file_store::chat_deletion::Selection::Peer(&id)
+                )?)
+            }
+            Request::DeleteChannelChats { id } => {
+                json!(crate::chat::app_file_store::chat_deletion::delete(
+                    &db,
+                    &directory,
+                    crate::chat::app_file_store::chat_deletion::Selection::Channel(&id)
+                )?)
+            }
             Request::ChatStatus { id, status, data } => {
                 json!(messages::status(&db, &id, status, data.as_deref())?)
             }

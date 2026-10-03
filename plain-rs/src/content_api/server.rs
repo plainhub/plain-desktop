@@ -28,7 +28,7 @@ pub(super) struct ServerState {
     pub(super) host: Arc<super::host::Host>,
     pub(super) db: Arc<Db>,
     prefs: Arc<crate::prefs::Prefs>,
-    directory: std::path::PathBuf,
+    pub(super) directory: std::path::PathBuf,
     token: Arc<str>,
     events: broadcast::Sender<WsEvent>,
     stop: watch::Receiver<bool>,

@@ -56,7 +56,18 @@ impl<T: PeerTransport + 'static> ChatService<T> {
         if self.db.get_chat_by_id(&id).is_none() {
             return false;
         }
-        self.db.delete_chat(&id);
+        match super::app_file_store::chat_deletion::delete(
+            &self.db,
+            &self.data_dir,
+            super::app_file_store::chat_deletion::Selection::Ids(std::slice::from_ref(&id)),
+        ) {
+            Ok(0) => return false,
+            Ok(_) => {}
+            Err(error) => {
+                log::error!("chat deletion failed: {error}");
+                return false;
+            }
+        }
         self.cacher.load(&self.db);
         self.emit(WS_MESSAGE_DELETED, json!([id]).to_string());
         true
@@ -70,10 +81,20 @@ impl<T: PeerTransport + 'static> ChatService<T> {
         if ids.is_empty() {
             return 0;
         }
-        self.db.delete_chats_by_ids(&ids);
+        let count = match super::app_file_store::chat_deletion::delete(
+            &self.db,
+            &self.data_dir,
+            super::app_file_store::chat_deletion::Selection::Ids(&ids),
+        ) {
+            Ok(count) => count,
+            Err(error) => {
+                log::error!("chat deletion failed: {error}");
+                return 0;
+            }
+        };
         self.cacher.load(&self.db);
         self.emit(WS_MESSAGE_DELETED, format!("ids={}", ids.join(",")));
-        ids.len() as i32
+        count as i32
     }
 
     /// Retry a failed chat item: set status to `PENDING`, emit

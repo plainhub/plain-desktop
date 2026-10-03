@@ -18,7 +18,14 @@ impl<T: PeerTransport + 'static> ChatService<T> {
         if self.db.get_peer_by_id(id).is_none() {
             return false;
         }
-        self.db.delete_chats_by_peer(id);
+        if let Err(error) = crate::chat::app_file_store::chat_deletion::delete(
+            &self.db,
+            &self.data_dir,
+            crate::chat::app_file_store::chat_deletion::Selection::Peer(id),
+        ) {
+            log::error!("chat deletion failed: {error}");
+            return false;
+        }
         if self.db.any_channel_has_member(id) {
             self.db
                 .update_peer_status_and_key(id, PeerStatus::Channel, "");

@@ -6,7 +6,6 @@
 use crate::base64_decode;
 use crate::random_bytes;
 
-use crate::db::{DChannel, now_iso};
 use crate::chat::enums::ChannelStatus;
 use crate::chat::events::{
     ChatEvent, WS_CHANNELS_UPDATED, channels_updated_payload, load_key_cache,
@@ -14,6 +13,7 @@ use crate::chat::events::{
 };
 use crate::chat::service::ChatService;
 use crate::chat::transport::PeerTransport;
+use crate::db::{DChannel, now_iso};
 
 use super::messages::{ChannelMember, decode_members, encode_members, has_member};
 use super::sender;
@@ -88,7 +88,14 @@ impl<T: PeerTransport + 'static> ChatService<T> {
             ch.updated_at = now_iso();
             self.db.update_channel(&ch);
         }
-        self.db.delete_chats_by_channel(id);
+        if let Err(error) = crate::chat::app_file_store::chat_deletion::delete(
+            &self.db,
+            &self.data_dir,
+            crate::chat::app_file_store::chat_deletion::Selection::Channel(id),
+        ) {
+            log::error!("chat deletion failed: {error}");
+            return false;
+        }
         self.db.delete_channel(id);
         refresh_peer_key_cache(&self.db, &self.peer_key_cache);
         self.emit_channels_updated();
@@ -259,7 +266,14 @@ impl<T: PeerTransport + 'static> ChatService<T> {
             )
             .await;
         }
-        self.db.delete_chats_by_channel(&ch.id);
+        if let Err(error) = crate::chat::app_file_store::chat_deletion::delete(
+            &self.db,
+            &self.data_dir,
+            crate::chat::app_file_store::chat_deletion::Selection::Channel(&ch.id),
+        ) {
+            log::error!("chat deletion failed: {error}");
+            return false;
+        }
         self.db.delete_channel(&ch.id);
         refresh_peer_key_cache(&self.db, &self.peer_key_cache);
         self.emit_channels_updated();
