@@ -56,3 +56,6 @@ pub mod audio_commands;
 pub mod audio_play_mode;
 
 pub mod tag_records;
+
+pub mod image_embeddings;
+pub mod media_metadata;

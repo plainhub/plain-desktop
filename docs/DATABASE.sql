@@ -165,9 +165,10 @@ updated_at TEXT NOT NULL
 );
 CREATE TABLE IF NOT EXISTS media_item (
 media_type TEXT NOT NULL,
-media_id TEXT NOT NULL PRIMARY KEY,
+media_id TEXT NOT NULL,
 duration_ms INTEGER NOT NULL,
-updated_at TEXT NOT NULL
+updated_at TEXT NOT NULL,
+PRIMARY KEY (media_type, media_id)
 );
 CREATE TABLE IF NOT EXISTS nearby_device_cache (
 id TEXT NOT NULL PRIMARY KEY,

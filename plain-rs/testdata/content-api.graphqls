@@ -252,9 +252,27 @@ type ImageEditorProjectSummary {
 	updatedAt: Instant!
 }
 
+input ImageHostEmbeddingInput {
+	id: ID!
+	path: String!
+	embeddingBase64: String!
+}
+
+type ImageHostSearchResult {
+	imageId: ID!
+	score: Float!
+}
+
 scalar Instant
 
 scalar Long
+
+type MediaHostDuration {
+	type: DataType!
+	mediaId: ID!
+	durationMs: Long!
+	updatedAt: Instant!
+}
 
 type Mutation {
 	audioHostEnqueue(items: [AudioHostTrackInput!]!, playNext: Boolean!): Boolean!
@@ -316,6 +334,11 @@ type Mutation {
 	tagHostRemoveKeys(type: DataType!, keys: [String!]!): Boolean!
 	tagHostClearType(type: DataType!): Boolean!
 	tagHostClearTag(id: ID!): Boolean!
+	mediaHostSaveDuration(type: DataType!, mediaId: ID!, durationMs: Long!): Boolean!
+	mediaHostRemoveDurations(type: DataType!, mediaIds: [ID!]!): Long!
+	imageHostSaveEmbeddings(items: [ImageHostEmbeddingInput!]!): Boolean!
+	imageHostRemoveEmbeddings(ids: [ID!]!): Long!
+	imageHostClearEmbeddings: Long!
 	recordClipboard(input: ClipboardRecordInput!): ClipboardRecordResult!
 	deleteClipboardItems(query: String!): ActionResult!
 	deleteClipboardItemsByIds(ids: [ID!]!): ActionResult!
@@ -445,6 +468,10 @@ type Query {
 	tagHostGet(id: ID!): TagHostRecord
 	tagHostRelations(type: DataType!, keys: [String!]!): [TagHostRelation!]!
 	tagHostIntersection(tagIds: [ID!]!): [String!]!
+	mediaHostDurations: [MediaHostDuration!]!
+	imageHostEmbeddingIds: [ID!]!
+	imageHostEmbeddingCount: Long!
+	imageHostSearch(embeddingBase64: String!, maxResults: Int!): [ImageHostSearchResult!]!
 	clipboardItems(offset: Int!, limit: Int!, query: String!): [ClipboardItem!]!
 	clipboardItemCount(query: String!): Int!
 	bookmarks: [Bookmark!]!
