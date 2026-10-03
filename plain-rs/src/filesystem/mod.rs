@@ -1,6 +1,8 @@
 use chrono::{DateTime, Utc};
 use std::path::{Path, PathBuf};
 mod rename;
+pub mod tasks;
+pub type TransferProgress = dyn Fn(i64, i64) -> std::io::Result<()> + Send + Sync;
 
 /// Mirrors Go `model.File`: the GraphQL-side result of any "look at a
 /// path on disk" operation. Field-for-field equivalent to the Go struct
@@ -267,19 +269,45 @@ pub async fn rename(src: &Path, dst: &Path) -> std::io::Result<()> {
 ///   `name_N.ext` instead of erroring.
 /// - Refuses to copy a directory into itself.
 pub async fn copy_path(src: &Path, dst: &Path, overwrite: bool) -> std::io::Result<PathBuf> {
+    copy_path_with_progress(src, dst, overwrite, None).await
+}
+pub async fn copy_path_with_progress(
+    src: &Path,
+    dst: &Path,
+    overwrite: bool,
+    progress: Option<&TransferProgress>,
+) -> std::io::Result<PathBuf> {
     let src = clean(src);
     let info = tokio::fs::symlink_metadata(&src).await?;
     let resolved = resolve_destination(&src, dst, overwrite).await?;
     require_separate_paths(&src, &resolved, info.is_dir()).await?;
-    copy_to(&src, &resolved, overwrite).await?;
+    copy_to(&src, &resolved, overwrite, progress).await?;
     Ok(resolved)
 }
 
 pub async fn move_path(src: &Path, dst: &Path, overwrite: bool) -> std::io::Result<PathBuf> {
+    move_path_with_progress(src, dst, overwrite, None).await
+}
+pub async fn move_path_with_progress(
+    src: &Path,
+    dst: &Path,
+    overwrite: bool,
+    progress: Option<&TransferProgress>,
+) -> std::io::Result<PathBuf> {
     let src = clean(src);
     let info = tokio::fs::symlink_metadata(&src).await?;
     let resolved = resolve_destination(&src, dst, overwrite).await?;
     require_separate_paths(&src, &resolved, info.is_dir()).await?;
+    let totals = if progress.is_some() {
+        let path = src.clone();
+        Some(
+            tokio::task::spawn_blocking(move || measure(&path))
+                .await
+                .map_err(std::io::Error::other)??,
+        )
+    } else {
+        None
+    };
     let result = if overwrite {
         tokio::fs::rename(&src, &resolved).await
     } else {
@@ -290,9 +318,15 @@ pub async fn move_path(src: &Path, dst: &Path, overwrite: bool) -> std::io::Resu
             .map_err(std::io::Error::other)?
     };
     match result {
-        Ok(()) => Ok(resolved),
+        Ok(()) => {
+            if let (Some(callback), Some((bytes, items))) = (progress, totals) {
+                callback(bytes, items)?;
+            }
+            Ok(resolved)
+        }
         Err(error) if rename::copy_required(&error, overwrite) => {
-            copy_and_remove(&src, &resolved, overwrite).await?;
+            copy_to(&src, &resolved, overwrite, progress).await?;
+            remove(&src).await?;
             Ok(resolved)
         }
         Err(error) => Err(error),
@@ -300,7 +334,7 @@ pub async fn move_path(src: &Path, dst: &Path, overwrite: bool) -> std::io::Resu
 }
 
 async fn copy_and_remove(src: &Path, dst: &Path, overwrite: bool) -> std::io::Result<()> {
-    copy_to(src, dst, overwrite).await?;
+    copy_to(src, dst, overwrite, None).await?;
     remove(src).await
 }
 
@@ -396,14 +430,23 @@ async fn require_separate_paths(src: &Path, dst: &Path, is_dir: bool) -> std::io
     Ok(())
 }
 
-async fn copy_to(src: &Path, dst: &Path, overwrite: bool) -> std::io::Result<()> {
+async fn copy_to(
+    src: &Path,
+    dst: &Path,
+    overwrite: bool,
+    progress: Option<&TransferProgress>,
+) -> std::io::Result<()> {
     let info = tokio::fs::symlink_metadata(src).await?;
     if info.is_dir() {
-        copy_dir_recursive(src, dst, overwrite).await
+        copy_dir_recursive(src, dst, overwrite, progress).await
     } else if info.file_type().is_symlink() {
-        copy_link(src, dst, overwrite).await
+        copy_link(src, dst, overwrite).await?;
+        if let Some(callback) = progress {
+            callback(i64::try_from(info.len()).map_err(std::io::Error::other)?, 1)?;
+        }
+        Ok(())
     } else {
-        copy_file_contents(src, dst, overwrite).await
+        copy_file_contents(src, dst, overwrite, progress).await
     }
 }
 
@@ -503,7 +546,12 @@ fn file_info_to_model(
     })
 }
 
-async fn copy_file_contents(src: &Path, dst: &Path, overwrite: bool) -> std::io::Result<()> {
+async fn copy_file_contents(
+    src: &Path,
+    dst: &Path,
+    overwrite: bool,
+    progress: Option<&TransferProgress>,
+) -> std::io::Result<()> {
     if let Some(parent) = dst.parent() {
         if !parent.as_os_str().is_empty() {
             tokio::fs::create_dir_all(parent).await?;
@@ -518,15 +566,34 @@ async fn copy_file_contents(src: &Path, dst: &Path, overwrite: bool) -> std::io:
         options.create_new(true);
     }
     let mut out_f = options.open(dst).await?;
-    tokio::io::copy(&mut in_f, &mut out_f).await?;
+    use tokio::io::{AsyncReadExt, AsyncWriteExt};
+    let mut buffer = vec![0_u8; 64 * 1024];
+    loop {
+        let length = in_f.read(&mut buffer).await?;
+        if length == 0 {
+            break;
+        }
+        out_f.write_all(&buffer[..length]).await?;
+        if let Some(callback) = progress {
+            callback(length as i64, 0)?;
+        }
+    }
     out_f
         .set_permissions(in_f.metadata().await?.permissions())
         .await?;
     out_f.sync_all().await?;
+    if let Some(callback) = progress {
+        callback(0, 1)?;
+    }
     Ok(())
 }
 
-async fn copy_dir_recursive(src: &Path, dst: &Path, overwrite: bool) -> std::io::Result<()> {
+async fn copy_dir_recursive(
+    src: &Path,
+    dst: &Path,
+    overwrite: bool,
+    progress: Option<&TransferProgress>,
+) -> std::io::Result<()> {
     if let Some(parent) = dst.parent().filter(|p| !p.as_os_str().is_empty()) {
         tokio::fs::create_dir_all(parent).await?;
     }
@@ -551,8 +618,15 @@ async fn copy_dir_recursive(src: &Path, dst: &Path, overwrite: bool) -> std::io:
                 stack.push((child_src, child_dst));
             } else if ft.is_symlink() {
                 copy_link(&child_src, &child_dst, overwrite).await?;
+                if let Some(callback) = progress {
+                    callback(
+                        i64::try_from(entry.metadata().await?.len())
+                            .map_err(std::io::Error::other)?,
+                        1,
+                    )?;
+                }
             } else {
-                copy_file_contents(&child_src, &child_dst, overwrite).await?;
+                copy_file_contents(&child_src, &child_dst, overwrite, progress).await?;
             }
         }
     }
@@ -691,3 +765,25 @@ fn read_dirents(fd: i32, buf: &mut [u8]) -> std::io::Result<usize> {
 #[cfg(test)]
 #[path = "../../tests/unit/filesystem.rs"]
 mod tests;
+
+pub fn measure(path: &Path) -> std::io::Result<(i64, i64)> {
+    let mut stack = vec![path.to_path_buf()];
+    let mut bytes = 0_i64;
+    let mut items = 0_i64;
+    while let Some(path) = stack.pop() {
+        let info = std::fs::symlink_metadata(&path)?;
+        if info.is_dir() {
+            for entry in std::fs::read_dir(&path)? {
+                stack.push(entry?.path());
+            }
+        } else {
+            bytes = bytes
+                .checked_add(i64::try_from(info.len()).map_err(std::io::Error::other)?)
+                .ok_or_else(|| std::io::Error::other("file size overflow"))?;
+            items = items
+                .checked_add(1)
+                .ok_or_else(|| std::io::Error::other("file count overflow"))?;
+        }
+    }
+    Ok((bytes, items))
+}

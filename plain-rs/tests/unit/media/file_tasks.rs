@@ -1,65 +1,56 @@
-//! Unit tests for `src/file_tasks.rs` — moved out-of-line; compiled
-//! as the `tests` child module via `#[cfg(test)] #[path]` there.
 use super::*;
-use std::env;
-
-static SEQ: std::sync::atomic::AtomicUsize = std::sync::atomic::AtomicUsize::new(0);
-fn fresh_db() {
-    let n = SEQ.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
-    let p = env::temp_dir().join(format!("plain-nas-tasks-{n}"));
-    let _ = std::fs::remove_dir_all(&p);
-    std::fs::create_dir_all(&p).unwrap();
-    let _ = crate::media::kv::open(&p.join("fjall")).unwrap();
-}
-
-#[test]
-fn compute_totals_single_file() {
-    let dir = env::temp_dir().join("plain-nas-totals-file");
-    let _ = std::fs::create_dir_all(&dir);
-    let f = dir.join("a.bin");
-    std::fs::write(&f, b"12345").unwrap();
-    let (b, i) = compute_totals(&[FileTaskOp {
-        src: f.to_string_lossy().to_string(),
-        dst: dir.join("b.bin").to_string_lossy().to_string(),
-        overwrite: false,
-    }]);
-    assert_eq!(b, 5);
-    assert_eq!(i, 1);
-    let _ = std::fs::remove_file(&f);
-}
-
-#[test]
-fn compute_totals_dir() {
-    let dir = env::temp_dir().join("plain-nas-totals-dir");
-    let _ = std::fs::remove_dir_all(&dir);
-    std::fs::create_dir_all(dir.join("sub")).unwrap();
-    std::fs::write(dir.join("a.txt"), b"hi").unwrap();
-    std::fs::write(dir.join("sub/b.txt"), b"world!").unwrap();
-    let (b, i) = compute_totals(&[FileTaskOp {
-        src: dir.to_string_lossy().to_string(),
-        dst: dir.with_extension("_out").to_string_lossy().to_string(),
-        overwrite: false,
-    }]);
-    assert_eq!(b, 2 + 6);
-    assert_eq!(i, 2);
-}
-
 #[tokio::test]
-async fn round_trip_persist() {
-    fresh_db();
-    let t = create_copy_task(
-        "cid",
+async fn queued_tasks_really_finish_and_kv_history_is_checked_and_owner_isolated() {
+    let root = crate::media::paths::pin_test_data_dir();
+    crate::media::kv::open(&root.join("fjall")).unwrap();
+    let temp = tempfile::tempdir().unwrap();
+    let source = temp.path().join("source");
+    let destination = temp.path().join("destination");
+    std::fs::write(&source, b"synthetic").unwrap();
+    let cid = format!("task-{}", crate::utils::shortid::new_id());
+    let task = create_copy_task(
+        &cid,
         vec![FileTaskOp {
-            src: "/a".into(),
-            dst: "/b".into(),
+            src: source.to_str().unwrap().into(),
+            dst: destination.to_str().unwrap().into(),
             overwrite: false,
         }],
     )
     .unwrap();
-    assert_eq!(t.client_id, "cid");
-    assert_eq!(t.status, FileTaskStatus::Queued);
-    // Give the worker a moment to record at least the initial snapshot.
-    tokio::time::sleep(std::time::Duration::from_millis(50)).await;
-    let tasks = list_tasks("cid").unwrap();
-    assert!(!tasks.is_empty());
+    let completed = tokio::time::timeout(std::time::Duration::from_secs(5), async {
+        loop {
+            let tasks = list_tasks(&cid).unwrap();
+            assert_eq!(tasks.len(), 1);
+            if matches!(
+                tasks[0].status,
+                FileTaskStatus::Done | FileTaskStatus::Error
+            ) {
+                break tasks[0].clone();
+            }
+            tokio::time::sleep(std::time::Duration::from_millis(10)).await;
+        }
+    })
+    .await
+    .unwrap();
+    assert_eq!(completed.status, FileTaskStatus::Done);
+    assert_eq!(completed.done_bytes, 9);
+    assert_eq!(completed.done_items, 1);
+    assert_eq!(std::fs::read(destination).unwrap(), b"synthetic");
+    let neighboring = format!("{cid}:neighbor");
+    let foreign = FileTask {
+        client_id: neighboring.clone(),
+        id: "foreign".into(),
+        ..completed.clone()
+    };
+    KvStore.put(&foreign).unwrap();
+    assert_eq!(list_tasks(&cid).unwrap().len(), 1);
+    assert_eq!(list_tasks(&neighboring).unwrap().len(), 1);
+    let malformed = db_key(&cid, "broken");
+    get_default().insert(&malformed, b"invalid JSON").unwrap();
+    assert!(list_tasks(&cid).is_err());
+    get_default().remove(malformed).unwrap();
+    get_default().remove(db_key(&cid, &task.id)).unwrap();
+    get_default()
+        .remove(db_key(&neighboring, "foreign"))
+        .unwrap();
 }
