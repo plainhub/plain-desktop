@@ -6,27 +6,33 @@
 use std::path::{Path, PathBuf};
 
 /// If `target` does not exist, return it unchanged. Otherwise return the
-/// first non-existing sibling of the form `stem_N.ext` (N from 1 to 9999).
+/// first non-existing sibling of the form `stem_N.ext`.
 /// The split keeps dot-directories intact (`.gitignore` → `.gitignore_1`).
-/// If all 9999 candidates are taken, `target` is returned as-is.
-pub fn unique_sibling(target: &Path) -> PathBuf {
-    if !target.exists() {
-        return target.to_path_buf();
-    }
+/// Directory lookup failures are propagated.
+pub fn unique_sibling(target: &Path) -> std::io::Result<PathBuf> {
     let parent = target.parent().unwrap_or_else(|| Path::new(""));
     let base = target.file_name().and_then(|n| n.to_str()).unwrap_or("");
     let (stem, ext) = match base.rfind('.') {
-        // i > 0 keeps dotfiles (".gitignore") whole.
         Some(i) if i > 0 => (&base[..i], &base[i..]),
         _ => (base, ""),
     };
-    for n in 1..10000 {
-        let candidate = parent.join(format!("{stem}_{n}{ext}"));
-        if !candidate.exists() {
-            return candidate;
+    let mut n = 0_u64;
+    loop {
+        let candidate = if n == 0 {
+            target.to_path_buf()
+        } else {
+            parent.join(format!("{stem}_{n}{ext}"))
+        };
+        match std::fs::symlink_metadata(&candidate) {
+            Ok(_) => {
+                n = n
+                    .checked_add(1)
+                    .ok_or_else(|| std::io::Error::other("unique filename exhausted"))?
+            }
+            Err(error) if error.kind() == std::io::ErrorKind::NotFound => return Ok(candidate),
+            Err(error) => return Err(error),
         }
     }
-    target.to_path_buf()
 }
 
 #[cfg(test)]
@@ -49,7 +55,7 @@ mod tests {
     fn non_existing_target_unchanged() {
         let dir = scratch("free");
         let t = dir.join("a.txt");
-        assert_eq!(unique_sibling(&t), t);
+        assert_eq!(unique_sibling(&t).unwrap(), t);
         let _ = std::fs::remove_dir_all(&dir);
     }
 
@@ -57,9 +63,15 @@ mod tests {
     fn existing_target_gets_index_suffix() {
         let dir = scratch("basic");
         std::fs::write(dir.join("a.txt"), b"x").unwrap();
-        assert_eq!(unique_sibling(&dir.join("a.txt")), dir.join("a_1.txt"));
+        assert_eq!(
+            unique_sibling(&dir.join("a.txt")).unwrap(),
+            dir.join("a_1.txt")
+        );
         std::fs::write(dir.join("a_1.txt"), b"x").unwrap();
-        assert_eq!(unique_sibling(&dir.join("a.txt")), dir.join("a_2.txt"));
+        assert_eq!(
+            unique_sibling(&dir.join("a.txt")).unwrap(),
+            dir.join("a_2.txt")
+        );
         let _ = std::fs::remove_dir_all(&dir);
     }
 
@@ -67,10 +79,13 @@ mod tests {
     fn extensionless_and_dotfile() {
         let dir = scratch("edge");
         std::fs::write(dir.join("README"), b"x").unwrap();
-        assert_eq!(unique_sibling(&dir.join("README")), dir.join("README_1"));
+        assert_eq!(
+            unique_sibling(&dir.join("README")).unwrap(),
+            dir.join("README_1")
+        );
         std::fs::write(dir.join(".gitignore"), b"x").unwrap();
         assert_eq!(
-            unique_sibling(&dir.join(".gitignore")),
+            unique_sibling(&dir.join(".gitignore")).unwrap(),
             dir.join(".gitignore_1")
         );
         let _ = std::fs::remove_dir_all(&dir);

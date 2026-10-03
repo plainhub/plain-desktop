@@ -70,3 +70,6 @@ pub mod shares;
 
 #[cfg(any(feature = "api", feature = "content_api"))]
 pub mod video_progress;
+
+#[cfg(any(feature = "media", feature = "content_api"))]
+pub mod filesystem;

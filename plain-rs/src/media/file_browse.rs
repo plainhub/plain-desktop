@@ -114,10 +114,10 @@ pub async fn list_files(
     }
     let entries = match sort {
         fsx::SortBy::NameAsc | fsx::SortBy::NameDesc => {
-            fsx::list_dir_paged(Path::new(&base), show_hidden, offset, limit, sort).await
+            fsx::list_dir_paged(Path::new(&base), show_hidden, offset, limit, sort).await?
         }
         _ => {
-            let mut entries = fsx::list_dir(Path::new(&base), show_hidden).await;
+            let mut entries = fsx::list_dir(Path::new(&base), show_hidden).await?;
             match sort {
                 fsx::SortBy::DateAsc => entries.sort_by(|a, b| {
                     match a.is_dir.cmp(&b.is_dir).reverse() {

@@ -310,7 +310,7 @@ fn perform_merge(
                 }
                 target.clone()
             } else if target.exists() {
-                crate::utils::unique_path::unique_sibling(&target)
+                crate::utils::unique_path::unique_sibling(&target)?
             } else {
                 target.clone()
             };

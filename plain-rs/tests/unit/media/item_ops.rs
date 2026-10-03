@@ -172,6 +172,7 @@ fn search_selection_includes_every_page_beyond_ten_thousand() {
 
 #[tokio::test]
 async fn no_op_trash_does_not_count_and_trash_filesystem_errors_are_visible() {
+    crate::media::kv::open(&crate::media::paths::pin_test_data_dir().join("fjall")).unwrap();
     crate::media::paths::pin_test_data_dir();
     let library = fixtures::test_db("item_noop");
     let temp = tempfile::tempdir().unwrap();

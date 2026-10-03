@@ -17,9 +17,9 @@
 //! Frontend subscribes via WebSocket (see `ws_hub.rs`) to receive the
 //! same payload format as the Go side.
 
+use crate::media::eventbus;
 use crate::media::eventbus::EVENT_FILE_TASK_PROGRESS;
 use crate::media::kv::get_default;
-use crate::media::eventbus;
 use anyhow::{Result, anyhow};
 use chrono::{DateTime, Utc};
 use parking_lot::Mutex;
@@ -358,7 +358,10 @@ fn compute_totals(ops: &[FileTaskOp]) -> (i64, i64) {
             continue;
         };
         if meta.is_dir() {
-            for entry in crate::media::walk::Walk::new(s).into_iter().filter_map(|e| e.ok()) {
+            for entry in crate::media::walk::Walk::new(s)
+                .into_iter()
+                .filter_map(|e| e.ok())
+            {
                 if entry.file_type().is_file() {
                     if let Ok(m) = entry.metadata() {
                         total_bytes += m.len() as i64;
@@ -457,7 +460,7 @@ fn resolve_dst(
     let dst_p = clean(dst);
     if dst_p == src {
         // duplicate: same name in same dir — shared `name_1.ext` convention
-        return Ok(unique_path(src));
+        return Ok(unique_path(src)?);
     }
     if let Ok(d) = std::fs::metadata(&dst_p) {
         if d.is_dir() {
@@ -467,13 +470,13 @@ fn resolve_dst(
     if !overwrite {
         // unique suffix
         if dst_p.exists() {
-            return Ok(unique_path(&dst_p));
+            return Ok(unique_path(&dst_p)?);
         }
     }
     Ok(dst_p)
 }
 
-fn unique_path(target: &Path) -> PathBuf {
+fn unique_path(target: &Path) -> std::io::Result<PathBuf> {
     crate::utils::unique_path::unique_sibling(target)
 }
 

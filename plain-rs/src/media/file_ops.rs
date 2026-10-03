@@ -35,6 +35,13 @@ pub async fn write_text_file(path: &str, content: &str, overwrite: bool) -> Resu
 }
 
 pub async fn rename_file(path: &str, name: &str) -> Result<()> {
+    if !matches!(
+        Path::new(name).components().next(),
+        Some(std::path::Component::Normal(_))
+    ) || Path::new(name).components().count() != 1
+    {
+        bail!("invalid file name");
+    }
     let path = PathBuf::from(path);
     let parent = path.parent().ok_or_else(|| anyhow::anyhow!("bad path"))?;
     fsx::rename(&path, &parent.join(name)).await?;

@@ -2,6 +2,7 @@
 //! as the `tests` child module via `#[cfg(test)] #[path]` there.
 use super::*;
 use std::path::Path;
+use std::path::PathBuf;
 
 #[test]
 fn decodes_plain_ascii() {
@@ -156,22 +157,6 @@ fn animated_or_svg_by_extension_and_header() {
     assert!(is_animated_image_or_svg(&p));
 }
 
-#[test]
-fn split_name_ext_basic() {
-    assert_eq!(
-        split_name_ext("foo.txt"),
-        ("foo".to_string(), ".txt".to_string())
-    );
-    assert_eq!(split_name_ext("foo"), ("foo".to_string(), String::new()));
-    assert_eq!(
-        split_name_ext(".hidden"),
-        (".hidden".to_string(), String::new())
-    );
-    assert_eq!(
-        split_name_ext("a.tar.gz"),
-        ("a.tar".to_string(), ".gz".to_string())
-    );
-}
 #[test]
 fn directory_counts_work_on_host_platform() {
     let dir = tempfile::tempdir().unwrap();
