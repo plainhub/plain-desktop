@@ -4,6 +4,8 @@ use crate::{
 };
 use base64::{Engine, engine::general_purpose::STANDARD};
 use rusqlite::params;
+#[derive(serde::Serialize, serde::Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct EmbeddingInput {
     pub id: String,
     pub path: String,

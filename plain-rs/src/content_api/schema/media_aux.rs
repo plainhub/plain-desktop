@@ -136,14 +136,16 @@ impl MediaAuxMutation {
     }
     async fn image_host_remove_embeddings(&self, ctx: &Context<'_>, ids: Vec<ID>) -> Result<Long> {
         Ok(Long(
-            embeddings::delete(
-                ctx.data::<Arc<Db>>()?,
-                &ids.into_iter().map(|id| id.to_string()).collect::<Vec<_>>(),
-            )?
-            .try_into()?,
+            ctx.data::<Arc<crate::content_api::image_index::ImageIndex>>()?
+                .remove(&ids.into_iter().map(|id| id.to_string()).collect::<Vec<_>>())?
+                .try_into()?,
         ))
     }
     async fn image_host_clear_embeddings(&self, ctx: &Context<'_>) -> Result<Long> {
-        Ok(Long(embeddings::clear(ctx.data::<Arc<Db>>()?)?.try_into()?))
+        Ok(Long(
+            ctx.data::<Arc<crate::content_api::image_index::ImageIndex>>()?
+                .clear()?
+                .try_into()?,
+        ))
     }
 }

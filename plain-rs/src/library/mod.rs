@@ -59,3 +59,5 @@ pub mod tag_records;
 
 pub mod image_embeddings;
 pub mod media_metadata;
+
+pub mod image_indexing;

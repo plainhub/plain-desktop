@@ -258,6 +258,15 @@ input ImageHostEmbeddingInput {
 	embeddingBase64: String!
 }
 
+type ImageHostIndexStatus {
+	version: Long!
+	isRunning: Boolean!
+	totalImages: Long!
+	indexedImages: Long!
+	skippedImages: Long!
+	errorMessage: String!
+}
+
 type ImageHostSearchResult {
 	imageId: ID!
 	score: Float!
@@ -339,6 +348,9 @@ type Mutation {
 	imageHostSaveEmbeddings(items: [ImageHostEmbeddingInput!]!): Boolean!
 	imageHostRemoveEmbeddings(ids: [ID!]!): Long!
 	imageHostClearEmbeddings: Long!
+	imageHostStartIndex(force: Boolean!): ImageHostIndexStatus!
+	imageHostIndexSelected(ids: [ID!]!): ImageHostIndexStatus!
+	imageHostCancelIndex: ImageHostIndexStatus!
 	recordClipboard(input: ClipboardRecordInput!): ClipboardRecordResult!
 	deleteClipboardItems(query: String!): ActionResult!
 	deleteClipboardItemsByIds(ids: [ID!]!): ActionResult!
@@ -472,6 +484,7 @@ type Query {
 	imageHostEmbeddingIds: [ID!]!
 	imageHostEmbeddingCount: Long!
 	imageHostSearch(embeddingBase64: String!, maxResults: Int!): [ImageHostSearchResult!]!
+	imageHostIndexStatus: ImageHostIndexStatus!
 	clipboardItems(offset: Int!, limit: Int!, query: String!): [ClipboardItem!]!
 	clipboardItemCount(query: String!): Int!
 	bookmarks: [Bookmark!]!

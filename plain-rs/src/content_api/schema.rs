@@ -26,6 +26,7 @@ mod shares_host;
 mod tags;
 mod tags_host;
 mod media_aux;
+mod image_index;
 mod video_progress;
 use async_graphql::{EmptySubscription, MergedObject, Schema};
 #[derive(MergedObject, Default)]
@@ -41,6 +42,7 @@ pub struct Query(
     tags::TagQuery,
     tags_host::TagHostQuery,
     media_aux::MediaAuxQuery,
+    image_index::ImageIndexQuery,
     clipboard::ClipboardQuery,
     bookmark::BookmarkQuery,
     pomodoro::PomodoroQuery,
@@ -60,6 +62,7 @@ pub struct Mutation(
     tags::TagMutation,
     tags_host::TagHostMutation,
     media_aux::MediaAuxMutation,
+    image_index::ImageIndexMutation,
     clipboard::ClipboardMutation,
     bookmark::BookmarkMutation,
     bookmarks::BookmarkMetadataMutation,
@@ -94,6 +97,7 @@ pub(crate) fn build_with_host(
             db.clone(),
             host.clone(),
         )))
+        .data(std::sync::Arc::new(super::image_index::ImageIndex::new(db.clone(),host.clone())))
         .data(host)
         .data(db.clone())
         .data(crate::shares::Service::new(db.clone(), prefs.clone()))
