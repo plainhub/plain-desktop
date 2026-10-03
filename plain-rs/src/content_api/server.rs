@@ -96,7 +96,9 @@ impl ContentServer {
             .route("/host", get(host_upgrade))
             .route("/health", get(health))
             .route("/fs", get(files::file))
-            .route("/files/write", post(super::file_writes::write));
+            .route("/files/write", post(super::file_writes::write))
+            .route("/files/read", post(super::file_reads::read))
+            .route("/files/stat", post(super::file_reads::stat));
         #[cfg(feature = "http_transport")]
         let router = router.route("/http_host/:id", get(http_host_upgrade));
         let router = router

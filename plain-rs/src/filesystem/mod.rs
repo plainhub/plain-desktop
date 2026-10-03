@@ -3,6 +3,8 @@ use std::path::{Path, PathBuf};
 mod rename;
 pub mod tasks;
 pub mod writes;
+pub mod browse;
+pub mod record;
 pub type TransferProgress = dyn Fn(i64, i64) -> std::io::Result<()> + Send + Sync;
 
 /// Mirrors Go `model.File`: the GraphQL-side result of any "look at a
@@ -38,8 +40,10 @@ pub async fn stat(p: &Path) -> std::io::Result<FileEntry> {
 }
 
 /// Sort order for directory listing.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, serde::Deserialize)]
+#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 pub enum SortBy {
+    #[serde(alias = "TAKEN_AT_DESC")]
     NameAsc,
     NameDesc,
     DateAsc,

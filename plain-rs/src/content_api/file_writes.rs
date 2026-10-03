@@ -1,4 +1,4 @@
-use super::server::ServerState;
+use super::{file_access::receipt, server::ServerState};
 use crate::filesystem::writes::Operation;
 use axum::{
     Json,
@@ -35,16 +35,9 @@ async fn execute(state: &ServerState, operation: Operation) -> Result<Value, Str
     let entry = crate::filesystem::stat(std::path::Path::new(&path))
         .await
         .map_err(|e| e.to_string())?;
-    Ok(
-        json!({"name":std::path::Path::new(&entry.path).file_name().unwrap_or_default().to_string_lossy(), "path":entry.path,"permission":"rw","createdAt":entry.created_at.timestamp_millis(),"updatedAt":entry.updated_at.timestamp_millis(),"size":entry.size,"isDir":entry.is_dir,"childCount":entry.child_count}),
-    )
-}
-async fn receipt(state: &ServerState, method: &str, path: &str) -> Result<(), String> {
-    let value = state.host.call(method, json!({"paths":[path]})).await?;
-    if value.as_bool() != Some(true) {
-        return Err("invalid file host receipt".into());
-    }
-    Ok(())
+    let mut record = crate::filesystem::record::FileRecord::from(entry);
+    record.permission = "rw".into();
+    serde_json::to_value(record).map_err(|e| e.to_string())
 }
 
 #[cfg(test)]
