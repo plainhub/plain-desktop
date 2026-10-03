@@ -35,7 +35,7 @@ async fn lookup(host: &Host, paths: &[String]) -> Result<Vec<Identity>> {
     }
     Ok(rows)
 }
-async fn normalized(path: &Path) -> Result<String> {
+pub(super) async fn normalized(path: &Path) -> Result<String> {
     let parent = tokio::fs::canonicalize(
         path.parent()
             .ok_or_else(|| anyhow!("missing file parent"))?,
@@ -116,4 +116,32 @@ pub(super) async fn resolve(host: &Host, destination: &str, snapshot: &Value) ->
         source_root: snapshot.root,
         destination_root: destination,
     })
+}
+
+pub(super) async fn deletion_snapshot(
+    host: &Host,
+    root: String,
+    paths: &[String],
+) -> Result<Value> {
+    let mut items = Vec::new();
+    for batch in paths.chunks(128) {
+        items.extend(lookup(host, batch).await?);
+    }
+    Ok(serde_json::to_value(Snapshot { root, items })?)
+}
+pub(super) fn deleted_items(
+    snapshot: &Value,
+    paths: &[String],
+) -> Result<Vec<crate::library::media_deletes::Item>> {
+    let snapshot: Snapshot = serde_json::from_value(snapshot.clone())?;
+    Ok(snapshot
+        .items
+        .into_iter()
+        .filter(|item| paths.contains(&item.path))
+        .map(|item| crate::library::media_deletes::Item {
+            media_type: item.media_type,
+            id: item.media_id,
+            path: item.path,
+        })
+        .collect())
 }

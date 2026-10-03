@@ -4,6 +4,7 @@ mod rename;
 pub mod tasks;
 pub mod writes;
 pub mod browse;
+pub mod deletion;
 pub mod record;
 pub type TransferProgress = dyn Fn(i64, i64) -> std::io::Result<()> + Send + Sync;
 

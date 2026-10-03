@@ -136,6 +136,8 @@ impl Hooks for NativeHooks {
             self.completed(kind, op).await?;
             if kind == FileTaskType::Move {
                 let change = super::file_task_media::resolve(&self.host, &op.dst, snapshot).await?;
+                let raw_source = op.src.clone();
+                let raw_destination = op.dst.clone();
                 let prefs = self.prefs.clone();
                 let index = self.index.clone();
                 self.audio
@@ -146,20 +148,22 @@ impl Hooks for NativeHooks {
                             format!("{}/", change.source_root.trim_end_matches('/'));
                         let moved_audio = !before.path.is_empty()
                             && (before.path == change.source_root
-                                || before.path.starts_with(&source_prefix));
+                                || before.path.starts_with(&source_prefix)
+                                || before.path == raw_source
+                                || before.path.starts_with(&format!(
+                                    "{}/",
+                                    raw_source.trim_end_matches('/')
+                                )));
                         let rebind = |db: &Db| {
-                            media_moves::rebind(
+                            media_moves::rebind_with_aliases(
                                 db,
                                 &change.bindings,
                                 &change.source_root,
                                 &change.destination_root,
+                                &[(raw_source, raw_destination)],
                             )
                         };
-                        if change.bindings.iter().any(|row| row.media_type == 3) {
-                            index.update_cache(rebind)?;
-                        } else {
-                            rebind(db)?;
-                        }
+                        index.update_cache(rebind)?;
                         if moved_audio {
                             audio_commands::command(
                                 db,
@@ -226,3 +230,6 @@ impl Hooks for NativeHooks {
 #[cfg(test)]
 #[path = "../../tests/unit/content_api/file_tasks.rs"]
 mod tests;
+
+#[path = "file_mutations.rs"]
+mod mutations;

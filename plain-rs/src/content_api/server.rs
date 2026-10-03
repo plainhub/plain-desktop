@@ -24,6 +24,7 @@ use tokio::{
 #[derive(Clone)]
 pub(super) struct ServerState {
     schema: ContentSchema,
+    pub(super) files: Arc<super::file_tasks::FileTasks>,
     pub(super) host: Arc<super::host::Host>,
     db: Arc<Db>,
     prefs: Arc<crate::prefs::Prefs>,
@@ -69,17 +70,21 @@ impl ContentServer {
         let (events, _) = broadcast::channel(256);
         let (stop, receiver) = watch::channel(false);
         let host = Arc::new(super::host::Host::default());
-        let schema = schema::build_with_host(
+        let services =
+            super::services::Services::new(db.clone(), host.clone(), events.clone(), prefs.clone());
+        let schema = schema::build_with_services(
             db.clone(),
             events.clone(),
             prefs.clone(),
             path.parent().unwrap_or(Path::new(".")).to_path_buf(),
             host.clone(),
+            services.clone(),
         );
         #[cfg(feature = "http_transport")]
         let bridge = Arc::new(super::http_bridge::HttpBridge::new(host.clone()));
         let state = ServerState {
             schema,
+            files: services.files,
             host,
             db,
             prefs,
@@ -98,7 +103,8 @@ impl ContentServer {
             .route("/fs", get(files::file))
             .route("/files/write", post(super::file_writes::write))
             .route("/files/read", post(super::file_reads::read))
-            .route("/files/stat", post(super::file_reads::stat));
+            .route("/files/stat", post(super::file_reads::stat))
+            .route("/files/mutate", post(super::file_mutation_routes::mutate));
         #[cfg(feature = "http_transport")]
         let router = router.route("/http_host/:id", get(http_host_upgrade));
         let router = router

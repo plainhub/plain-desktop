@@ -101,14 +101,22 @@ pub(crate) fn build_with_host(
     directory: std::path::PathBuf,
     host: std::sync::Arc<super::host::Host>,
 ) -> ContentSchema {
-    let audio = std::sync::Arc::new(super::audio::Audio::new(db.clone(), host.clone()));
-    let index = std::sync::Arc::new(super::image_index::ImageIndex::new(db.clone(), host.clone()));
+    let services =
+        super::services::Services::new(db.clone(), host.clone(), events.clone(), prefs.clone());
+    build_with_services(db, events, prefs, directory, host, services)
+}
+pub(crate) fn build_with_services(
+    db: std::sync::Arc<crate::db::Db>,
+    events: tokio::sync::broadcast::Sender<crate::ws_event::WsEvent>,
+    prefs: std::sync::Arc<crate::prefs::Prefs>,
+    directory: std::path::PathBuf,
+    host: std::sync::Arc<super::host::Host>,
+    services: super::services::Services,
+) -> ContentSchema {
     Schema::build(Query::default(), Mutation::default(), EmptySubscription)
-        .data(std::sync::Arc::new(super::file_tasks::FileTasks::new(
-            db.clone(), host.clone(), events.clone(), audio.clone(), index.clone(), prefs.clone(),
-        )))
-        .data(audio)
-        .data(index)
+        .data(services.files)
+        .data(services.audio)
+        .data(services.index)
         .data(host)
         .data(db.clone())
         .data(crate::shares::Service::new(db.clone(), prefs.clone()))

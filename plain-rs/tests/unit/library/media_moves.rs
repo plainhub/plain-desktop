@@ -143,3 +143,47 @@ fn private_files_without_provider_ids_clear_only_audio_paths_inside_the_moved_ro
         );
     });
 }
+
+#[test]
+fn raw_alias_and_canonical_roots_rebind_file_tags_and_remove_stale_path_caches() {
+    let db = db();
+    db.with_conn(|c|c.execute_batch("INSERT INTO tag_relations(tag_id,key,type,created_at,size,title) VALUES('raw','/view/old/file',22,'first',1,'raw'),('canonical','/physical/old/file',22,'first',1,'canonical'),('sibling','/view/old_sibling/file',22,'first',1,'sibling'); INSERT INTO image_embeddings(id,path,embedding,created_at,updated_at) VALUES('raw','/view/old/file',x'3f800000','first','first'); INSERT INTO audio_queue_items(path,sort_order,title,artist,duration_ms) VALUES('/view/old/audio',0,'raw','',1),('/physical/old/audio',1,'canonical','',1),('/view/old_sibling/audio',2,'keep','',1);")).unwrap();
+    rebind_with_aliases(
+        &db,
+        &[],
+        "/physical/old",
+        "/physical/new",
+        &[("/view/old".into(), "/view/new".into())],
+    )
+    .unwrap();
+    db.with_conn(|c| {
+        assert_eq!(
+            c.query_row(
+                "SELECT key FROM tag_relations WHERE tag_id='raw'",
+                [],
+                |r| r.get::<_, String>(0)
+            )?,
+            "/view/new/file"
+        );
+        assert_eq!(
+            c.query_row(
+                "SELECT key FROM tag_relations WHERE tag_id='canonical'",
+                [],
+                |r| r.get::<_, String>(0)
+            )?,
+            "/physical/new/file"
+        );
+        assert_eq!(
+            c.query_row("SELECT count(*) FROM image_embeddings", [], |r| r
+                .get::<_, i64>(0))?,
+            0
+        );
+        assert_eq!(
+            c.query_row("SELECT count(*) FROM audio_queue_items", [], |r| r
+                .get::<_, i64>(0))?,
+            1
+        );
+        Ok::<_, rusqlite::Error>(())
+    })
+    .unwrap();
+}

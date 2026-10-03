@@ -30,6 +30,15 @@ pub fn rebind(
     source_root: &str,
     destination_root: &str,
 ) -> LibraryResult<usize> {
+    rebind_with_aliases(db, bindings, source_root, destination_root, &[])
+}
+pub fn rebind_with_aliases(
+    db: &Db,
+    bindings: &[Binding],
+    source_root: &str,
+    destination_root: &str,
+    aliases: &[(String, String)],
+) -> LibraryResult<usize> {
     let mut sources = HashSet::new();
     let mut destinations = HashSet::new();
     for binding in bindings {
@@ -92,6 +101,10 @@ pub fn rebind(
             if media_type==DataType::Image { tx.execute("DELETE FROM image_embeddings WHERE id IN (?1,?2)",params![binding.source_id,binding.destination_id])?; }
             if media_type==DataType::Audio { audio_queue::remove_paths_conn(&tx,std::slice::from_ref(&binding.source_path))?; }
         }
+        let mut roots=HashSet::new();
+        for (source_root,destination_root) in aliases.iter().map(|(a,b)|(a.as_str(),b.as_str())).chain(std::iter::once((source_root,destination_root))) {
+            if source_root.is_empty()||destination_root.is_empty() { return Err(invalid("file move roots required")); }
+            if !roots.insert(source_root) { continue; }
         audio_queue::remove_root_paths_conn(&tx, source_root)?;
         let source_prefix = format!("{}/",source_root.trim_end_matches('/'));
         let mut statement = tx.prepare("SELECT tag_id,key,created_at,size,title FROM tag_relations WHERE type=?1 AND (key=?2 OR substr(key,1,length(?3))=?3)")?;
@@ -103,6 +116,8 @@ pub fn rebind(
             if destination==key { continue; }
             tx.execute("INSERT INTO tag_relations(tag_id,key,type,created_at,size,title) VALUES(?1,?2,?3,?4,?5,?6) ON CONFLICT(tag_id,key,type) DO UPDATE SET created_at=min(tag_relations.created_at,excluded.created_at),size=excluded.size,title=excluded.title",params![tag,destination,DataType::File.kind(),created,size,title])?;
             tx.execute("DELETE FROM tag_relations WHERE tag_id=?1 AND key=?2 AND type=?3",params![tag,key,DataType::File.kind()])?;
+        }
+        tx.execute("DELETE FROM image_embeddings WHERE path=?1 OR substr(path,1,length(?2))=?2",params![source_root,source_prefix])?;
         }
         tx.commit()?;
         Ok(bindings.len())

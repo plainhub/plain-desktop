@@ -66,3 +66,5 @@ pub mod media_actions;
 
 #[cfg(any(feature = "api", feature = "content_api", feature = "media_gql"))]
 pub mod media_moves;
+
+pub mod media_deletes;
