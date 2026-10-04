@@ -47,3 +47,5 @@ pub mod download_status;
 
 pub mod nearby_scan;
 pub mod lan_ip;
+
+pub mod nearby_devices;

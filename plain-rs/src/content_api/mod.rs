@@ -50,3 +50,5 @@ mod peer_query;
 mod peer_graphql;
 
 mod pairing_runtime;
+
+mod nearby_devices;

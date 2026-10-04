@@ -35,6 +35,7 @@ pub(super) struct ServerState {
     pub(super) attachments: Arc<crate::chat::attachment_imports::Imports>,
     pub(super) delivery: Arc<crate::chat::delivery::Delivery>,
     pub(super) pairing_runtime: Arc<super::pairing_runtime::Runtime>,
+    pub(super) nearby_devices: Arc<crate::chat::nearby_devices::Devices>,
     pub(super) ble_scans: Arc<crate::chat::nearby_scan::Scans>,
     pub(super) pairing: Arc<crate::chat::pairing::sessions::Sessions>,
     pub(super) prefs: Arc<crate::prefs::Prefs>,
@@ -123,6 +124,7 @@ impl ContentServer {
             attachments,
             delivery: Arc::new(crate::chat::delivery::Delivery::new((*db).clone())),
             pairing_runtime: Arc::new(super::pairing_runtime::Runtime::default()),
+            nearby_devices: Arc::new(crate::chat::nearby_devices::Devices::default()),
             ble_scans: Arc::new(crate::chat::nearby_scan::Scans::default()),
             pairing: Arc::new(crate::chat::pairing::sessions::Sessions::default()),
             files: services.files,
@@ -141,6 +143,7 @@ impl ContentServer {
             state.events.clone(),
             receiver.clone(),
         );
+        super::nearby_devices::start(state.clone());
         let router = Router::new()
             .route("/graphql", post(graphql))
             .route("/events", get(upgrade))
@@ -151,6 +154,7 @@ impl ContentServer {
             .route("/chat/peer-graphql", post(super::peer_graphql::call))
             .route("/chat/transport", post(super::peer_transport::call))
             .route("/chat/prewarm", post(super::prewarm::call))
+            .route("/chat/nearby-devices", post(super::nearby_devices::call))
             .route("/chat/nearby", post(super::nearby_http::call))
             .route("/chat/link-preview", post(super::link_preview::call))
             .route("/chat/download", post(super::download_queue::call))

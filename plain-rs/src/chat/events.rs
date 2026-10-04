@@ -22,6 +22,7 @@ pub const WS_PAIRING_SUCCESS: i32 = 23;
 pub const WS_PAIRING_CANCELLED: i32 = 25;
 pub const WS_PAIRING_STARTED: i32 = 26;
 pub const WS_PAIRING_FAILED: i32 = 24;
+pub const WS_NEARBY_DEVICE_FOUND: i32 = 27;
 pub const WS_CHANNEL_INVITE_RECEIVED: i32 = 28;
 
 /// A chat-domain push event: wire framing (`[i32 BE event_type][encrypted

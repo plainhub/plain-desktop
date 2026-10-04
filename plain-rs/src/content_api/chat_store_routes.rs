@@ -221,6 +221,8 @@ pub(super) async fn call(
     let transport = state.transport.clone();
     let previews = state.previews.clone();
     let prewarmer = state.prewarmer.clone();
+    let nearby_devices=state.nearby_devices.clone();
+    let events=state.events.clone();
     let result = tokio::task::spawn_blocking(move || -> anyhow::Result<Value> {
         use chat_store::{channels, messages, nearby, peers};
         Ok(match request {
@@ -449,7 +451,13 @@ pub(super) async fn call(
                 json!(true)
             }
             Request::TouchNearby { id } => json!(nearby::touch(&db, &id)?),
-            Request::DeleteNearby { id } => json!(nearby::delete(&db, &id)?),
+            Request::DeleteNearby { id } => {
+                let deleted=nearby::delete(&db,&id)?;
+                if nearby_devices.forget(&id) {
+                    let _=events.send(crate::ws_event::WsEvent::broadcast(crate::chat::events::WS_NEARBY_DEVICE_FOUND,json!({"revision":nearby_devices.snapshot().revision,"eventId":null}).to_string()));
+                }
+                json!(deleted)
+            },
         })
     })
     .await;

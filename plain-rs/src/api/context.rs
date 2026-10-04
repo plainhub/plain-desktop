@@ -34,7 +34,7 @@ pub use crate::chat::events::WS_PAIRING_CANCELLED;
 pub use crate::chat::events::WS_PAIRING_STARTED;
 /// Emitted for each LAN device that replied to a discover broadcast.
 /// Payload is a single `DiscoveredDevice` JSON object.
-pub const WS_NEARBY_DEVICE_FOUND: i32 = 27;
+pub use crate::chat::events::WS_NEARBY_DEVICE_FOUND;
 pub const WS_NEARBY_DEVICE_UNREACHABLE: i32 = 46;
 /// Mirrors plain-app's `StartNearbyDiscoveryEvent` — fired when the
 /// `startDiscovery` mutation kicks off the background scan loop.
