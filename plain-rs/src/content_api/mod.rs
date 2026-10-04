@@ -36,6 +36,8 @@ mod pairing;
 mod chat_delivery;
 
 mod peer_transport;
+mod prewarm;
+mod nearby_http;
 
 mod attachment_imports;
 

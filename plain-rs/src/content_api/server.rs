@@ -29,6 +29,7 @@ pub(super) struct ServerState {
     pub(super) db: Arc<Db>,
     pub(super) transport: Arc<crate::chat::transport_router::Router>,
     pub(super) previews: Arc<crate::link_preview::Schedule>,
+    pub(super) prewarmer: Arc<crate::chat::prewarm::Prewarmer>,
     pub(super) downloads: Arc<crate::chat::download_queue::Queue>,
     pub(super) attachments: Arc<crate::chat::attachment_imports::Imports>,
     pub(super) delivery: Arc<crate::chat::delivery::Delivery>,
@@ -111,6 +112,7 @@ impl ContentServer {
             schema,
             transport: Arc::new(crate::chat::transport_router::Router::default()),
             previews,
+            prewarmer: Arc::new(crate::chat::prewarm::Prewarmer::default()),
             downloads,
             attachments,
             delivery: Arc::new(crate::chat::delivery::Delivery::new((*db).clone())),
@@ -133,6 +135,8 @@ impl ContentServer {
             .route("/health", get(health))
             .route("/fs", get(files::file))
             .route("/chat/transport", post(super::peer_transport::call))
+            .route("/chat/prewarm", post(super::prewarm::call))
+            .route("/chat/nearby", post(super::nearby_http::call))
             .route("/chat/link-preview", post(super::link_preview::call))
             .route("/chat/download", post(super::download_queue::call))
             .route("/chat/attachment", post(super::attachment_imports::call))

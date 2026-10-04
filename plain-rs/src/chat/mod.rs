@@ -29,8 +29,11 @@ pub mod enums;
 pub mod events;
 mod manager;
 pub mod message_lifecycle;
+#[cfg(any(feature = "api", feature = "content_api"))]
+pub mod nearby_http;
 pub mod pairing;
 pub mod peer_auth;
+pub mod prewarm;
 mod peer_manager;
 mod receiver;
 mod sender;

@@ -219,6 +219,7 @@ pub(super) async fn call(
     let pairing = state.pairing.clone();
     let transport = state.transport.clone();
     let previews = state.previews.clone();
+    let prewarmer = state.prewarmer.clone();
     let result = tokio::task::spawn_blocking(move || -> anyhow::Result<Value> {
         use chat_store::{channels, messages, nearby, peers};
         Ok(match request {
@@ -276,6 +277,7 @@ pub(super) async fn call(
                 let deleted = peers::delete(&db, &ids)?;
                 for id in ids {
                     transport.forget(&id);
+                    prewarmer.forget(&id);
                 }
                 json!(deleted)
             }
@@ -286,6 +288,7 @@ pub(super) async fn call(
                     crate::chat::app_file_store::chat_deletion::Selection::PeerRecord(&id),
                 )?;
                 transport.forget(&id);
+                prewarmer.forget(&id);
                 json!(removed != 0)
             }
             Request::RemoveChannel { id } => serde_json::to_value(
@@ -294,6 +297,7 @@ pub(super) async fn call(
             Request::UnpairPeer { id } => {
                 let unpaired = peers::unpair(&db, &id)?;
                 transport.forget(&id);
+                prewarmer.forget(&id);
                 json!(unpaired)
             }
             Request::DiscoverPeer {
