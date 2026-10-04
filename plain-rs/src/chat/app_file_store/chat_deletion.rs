@@ -17,11 +17,25 @@ pub enum Selection<'a> {
 }
 
 pub fn delete(db: &Db, directory: &Path, selection: Selection<'_>) -> Result<usize> {
-    Ok(mutate(db, directory, selection)?.count)
+    Ok(mutate(db, directory, selection, None)?.count)
 }
 
 pub fn remove_channel(db: &Db, directory: &Path, id: &str) -> Result<Option<crate::db::DChannel>> {
-    Ok(mutate(db, directory, Selection::ChannelRecord(id))?.channel)
+    Ok(mutate(db, directory, Selection::ChannelRecord(id), None)?.channel)
+}
+
+pub fn remove_channel_if_matches(
+    db: &Db,
+    directory: &Path,
+    expected: &crate::db::DChannel,
+) -> Result<Option<crate::db::DChannel>> {
+    Ok(mutate(
+        db,
+        directory,
+        Selection::ChannelRecord(&expected.id),
+        Some(expected),
+    )?
+    .channel)
 }
 
 struct Outcome {
@@ -29,7 +43,12 @@ struct Outcome {
     channel: Option<crate::db::DChannel>,
 }
 
-fn mutate(db: &Db, directory: &Path, selection: Selection<'_>) -> Result<Outcome> {
+fn mutate(
+    db: &Db,
+    directory: &Path,
+    selection: Selection<'_>,
+    expected: Option<&crate::db::DChannel>,
+) -> Result<Outcome> {
     let _guard = db.app_files_lock()?;
     let mut staged: Vec<(PathBuf, PathBuf)> = Vec::new();
     let result = db.with_conn(|connection| -> Result<Outcome> {
@@ -55,6 +74,9 @@ fn mutate(db: &Db, directory: &Path, selection: Selection<'_>) -> Result<Outcome
         } else {
             None
         };
+        if expected.is_some_and(|row| channel.as_ref() != Some(row)) {
+            bail!("Channel changed during mutation");
+        }
         if let Selection::PeerRecord(id) = &selection {
             if !tx.query_row(
                 "SELECT EXISTS(SELECT 1 FROM peers WHERE id=?1)",

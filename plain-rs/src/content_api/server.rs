@@ -34,6 +34,7 @@ pub(super) struct ServerState {
     pub(super) downloads: Arc<crate::chat::download_queue::Queue>,
     pub(super) attachments: Arc<crate::chat::attachment_imports::Imports>,
     pub(super) delivery: Arc<crate::chat::delivery::Delivery>,
+    pub(super) channel_delivery: Arc<tokio::sync::Semaphore>,
     pub(super) ble_pairing: Arc<super::ble_pairing::Pairings>,
     pub(super) pairing_runtime: Arc<super::pairing_runtime::Runtime>,
     pub(super) nearby_devices: Arc<crate::chat::nearby_devices::Devices>,
@@ -124,6 +125,7 @@ impl ContentServer {
             downloads,
             attachments,
             delivery: Arc::new(crate::chat::delivery::Delivery::new((*db).clone())),
+            channel_delivery: Arc::new(tokio::sync::Semaphore::new(4)),
             ble_pairing: Arc::new(super::ble_pairing::Pairings::default()),
             pairing_runtime: Arc::new(super::pairing_runtime::Runtime::default()),
             nearby_devices: Arc::new(crate::chat::nearby_devices::Devices::default()),
@@ -152,6 +154,7 @@ impl ContentServer {
             .route("/host", get(host_upgrade))
             .route("/health", get(health))
             .route("/fs", get(files::file))
+            .route("/chat/channel", post(super::channel_runtime::call))
             .route("/chat/pairing", post(super::pairing_runtime::call))
             .route("/chat/peer-graphql", post(super::peer_graphql::call))
             .route("/chat/transport", post(super::peer_transport::call))

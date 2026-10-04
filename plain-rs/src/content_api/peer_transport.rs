@@ -35,6 +35,17 @@ pub(super) async fn send(
     key: &[u8],
     body: &str,
 ) -> Result<Value, String> {
+    send_checked(host, router, peer, channel_id, key, body, || Ok(())).await
+}
+pub(super) async fn send_checked(
+    host: &Host,
+    router: &Router,
+    peer: &DPeer,
+    channel_id: &str,
+    key: &[u8],
+    body: &str,
+    validate: impl Fn() -> Result<(), String>,
+) -> Result<Value, String> {
     if key.len() != 32 {
         return Err("Invalid peer transport key".into());
     }
@@ -51,6 +62,7 @@ pub(super) async fn send(
         ticket: first,
     };
     loop {
+        validate()?;
         let timeout_ms = 15_000;
         let attempt=tokio::time::timeout(Duration::from_millis(timeout_ms),host.call("peerTransportAttempt",json!({"transport":pending.ticket.transport,"timeoutMs":timeout_ms,"peer":peer,"channelId":channel_id,"key":crate::base64_encode(key),"body":body}))).await;
         let outcome = match attempt {

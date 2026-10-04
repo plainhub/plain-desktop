@@ -30,6 +30,8 @@ mod file_mutation_routes;
 
 mod chat_store_routes;
 mod channel_outgoing;
+mod channel_delivery;
+mod channel_runtime;
 mod peer_wire;
 mod pairing;
 pub(crate) mod pairing_timeout;

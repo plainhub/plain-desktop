@@ -162,53 +162,9 @@ impl Mutation {
     }
 }
 async fn broadcast(state: &ServerState, channel: &crate::db::DChannel) -> anyhow::Result<()> {
-    #[derive(Deserialize)]
-    #[serde(rename_all = "camelCase", deny_unknown_fields)]
-    struct Device {
-        name: String,
-        device_type: crate::chat::enums::DeviceType,
-    }
-    let device: Device = serde_json::from_value(
-        state
-            .host
-            .call("peerDeviceInfo", json!({}))
-            .await
-            .map_err(anyhow::Error::msg)?,
-    )?;
-    let Some(channel) = crate::db::chat_store::channels::get(&state.db, &channel.id)? else {
-        return Ok(());
-    };
-    let prepared = super::channel_outgoing::prepare(
-        &state.db,
-        &state.prefs,
-        &channel,
-        ChannelSystemMessageType::Update,
-        "",
-        &device.name,
-        device.device_type,
-    )?;
-    let wire =
-        super::channel_outgoing::wire(&state.prefs, prepared.message_type, &prepared.payload)?;
-    for target in prepared.targets {
-        match super::peer_transport::send(
-            &state.host,
-            &state.transport,
-            &target.peer,
-            &target.channel_id,
-            &crate::base64_decode(&target.key),
-            &wire,
-        )
-        .await
-        {
-            Ok(response)
-                if response["data"]["channelSystemMessage"].as_bool() == Some(true)
-                    && response
-                        .get("errors")
-                        .is_none_or(|v| v.is_null() || v.as_array().is_some_and(Vec::is_empty)) => {
-            }
-            Ok(_) => log::warn!("Channel update rejected by {}", target.peer.id),
-            Err(error) => log::warn!("Channel update to {}: {error}", target.peer.id),
-        }
+    if let Some(current) = crate::db::chat_store::channels::get(&state.db, &channel.id)? {
+        super::channel_delivery::send(state, &current, ChannelSystemMessageType::Update, "", false)
+            .await?;
     }
     Ok(())
 }

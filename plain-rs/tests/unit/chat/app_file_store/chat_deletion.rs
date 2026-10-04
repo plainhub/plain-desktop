@@ -192,3 +192,49 @@ fn discovery_and_unpair_update_only_owned_fields_and_require_paired_peer() {
     assert_eq!(peers::get(&db, "peer").unwrap().unwrap().name, "new");
     assert!(!peers::unpair(&db, "missing").unwrap());
 }
+
+#[test]
+fn checked_channel_delete_preserves_newer_row_message_and_attachment() {
+    use crate::{
+        chat::channel::state::{self, Action},
+        db::{DChannel, chat_store::channels},
+    };
+    let root = std::env::temp_dir().join(format!(
+        "plain-checked-channel-{}",
+        crate::utils::short_uuid::short_uuid()
+    ));
+    fs::create_dir_all(&root).unwrap();
+    let db = Db::open(&root.join("plain.db")).unwrap();
+    let channel = state::create(&db, "actor", "fixture").unwrap();
+    let file = import_bytes(&db, &root, b"channel attachment", "text/plain").unwrap();
+    let content=serde_json::json!({"type":"FILES","value":{"items":[{"uri":format!("fid:{}",file.fid_suffix)}]}}).to_string();
+    let chat = DChat::new("actor", "", &channel.id, &content);
+    messages::save(&db, &[chat.clone()], SaveMode::Insert).unwrap();
+    let current: DChannel = state::apply(
+        &db,
+        "actor",
+        &channel.id,
+        Action::Rename {
+            name: "newer".into(),
+        },
+    )
+    .unwrap();
+    assert!(remove_channel_if_matches(&db, &root, &channel).is_err());
+    assert_eq!(channels::get(&db, &channel.id).unwrap().unwrap(), current);
+    assert!(messages::get(&db, &chat.id).unwrap().is_some());
+    assert_eq!(db.app_file_get(&file.id).unwrap().unwrap().ref_count, 1);
+    assert_eq!(
+        fs::read(root.join(&file.real_path)).unwrap(),
+        b"channel attachment"
+    );
+    assert_eq!(
+        remove_channel_if_matches(&db, &root, &current)
+            .unwrap()
+            .unwrap(),
+        current
+    );
+    assert!(channels::get(&db, &channel.id).unwrap().is_none());
+    assert!(messages::get(&db, &chat.id).unwrap().is_none());
+    assert!(!root.join(&file.real_path).exists());
+    fs::remove_dir_all(root).unwrap();
+}
