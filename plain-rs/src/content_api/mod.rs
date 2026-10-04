@@ -36,3 +36,5 @@ mod pairing;
 mod chat_delivery;
 
 mod peer_transport;
+
+mod attachment_imports;

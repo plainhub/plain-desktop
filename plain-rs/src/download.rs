@@ -22,7 +22,7 @@ use tokio::task::JoinHandle;
 
 use crate::api::context::{AppCtx, WS_DOWNLOAD_PROGRESS, WS_MESSAGE_UPDATED, WsEvent};
 use crate::api::enums::DownloadStatus;
-use crate::chat::app_file_store::import_file;
+use crate::chat::app_file_store::import_attachment;
 
 /// Download task state. Mirrors plain-app `DownloadStatus`.
 #[derive(Clone, Debug)]
@@ -220,8 +220,8 @@ async fn execute_download(
     };
 
     // Collect (index, peer_file_id, file_name, file_size) for fsid: URIs.
-    let mut to_download: Vec<(usize, String, String, u64)> = Vec::new();
-    for (i, item) in items.iter().enumerate() {
+    let mut to_download: Vec<(String, String, String, u64)> = Vec::new();
+    for item in items.iter() {
         let uri = item.get("uri").and_then(|u| u.as_str()).unwrap_or("");
         if let Some(file_id) = uri.strip_prefix("fsid:") {
             let file_name = item
@@ -230,7 +230,12 @@ async fn execute_download(
                 .unwrap_or("file")
                 .to_string();
             let file_size = item.get("size").and_then(|s| s.as_u64()).unwrap_or(0);
-            to_download.push((i, file_id.to_string(), file_name, file_size));
+            let attachment_id = item
+                .get("id")
+                .and_then(|v| v.as_str())
+                .unwrap_or_default()
+                .to_owned();
+            to_download.push((attachment_id, file_id.to_string(), file_name, file_size));
         }
     }
 
@@ -261,7 +266,7 @@ async fn execute_download(
     let mut downloaded_so_far: u64 = 0;
     let mut all_ok = true;
 
-    for (item_index, file_id, file_name, file_size) in &to_download {
+    for (attachment_id, file_id, file_name, file_size) in &to_download {
         if abort_rx.try_recv().is_ok() {
             let mut s = state.lock().await;
             s.status = DownloadStatus::Paused;
@@ -279,17 +284,16 @@ async fn execute_download(
             &state,
             url.as_str(),
             file_name,
+            &message_id,
+            attachment_id,
+            &format!("fsid:{file_id}"),
             *file_size,
             &mut downloaded_so_far,
             &mut abort_rx,
         )
         .await
         {
-            Ok(fid_suffix) => {
-                if let Some(item) = items.get_mut(*item_index) {
-                    item["uri"] = Value::String(format!("fid:{fid_suffix}"));
-                }
-            }
+            Ok(_) => {}
             Err(e) => {
                 log::warn!("[download] failed to download {file_id}: {e}");
                 all_ok = false;
@@ -304,9 +308,6 @@ async fn execute_download(
         return;
     }
 
-    let new_content = serde_json::to_string(&content).unwrap_or_else(|_| chat.content.clone());
-    ctx.db.update_chat_content(&message_id, &new_content);
-
     // Re-fetch the updated chat and emit the FULL item JSON (including the
     // `data` field with re-encrypted `fid:` file ids) so the web client can
     // resolve the new local URLs without a page refresh. Mirrors how
@@ -314,7 +315,7 @@ async fn execute_download(
     let updated_chat = match ctx.db.get_chat_by_id(&message_id) {
         Some(c) => c,
         None => {
-            set_completed(&ctx, &state).await;
+            set_failed(&ctx, &state, "Message unavailable").await;
             cleanup(&message_id).await;
             return;
         }
@@ -337,6 +338,9 @@ async fn download_one(
     state: &Arc<Mutex<DownloadState>>,
     url: &str,
     file_name: &str,
+    message_id: &str,
+    attachment_id: &str,
+    original_uri: &str,
     file_size: u64,
     downloaded_so_far: &mut u64,
     abort_rx: &mut tokio::sync::oneshot::Receiver<()>,
@@ -352,8 +356,9 @@ async fn download_one(
     }
 
     let temp_dir = std::env::temp_dir();
-    let temp_name = format!("plain_dl_{}_{}", std::process::id(), file_name);
+    let temp_name = format!("plain_dl_{}", uuid::Uuid::new_v4());
     let temp_path: PathBuf = temp_dir.join(&temp_name);
+    let _temporary = Temporary(temp_path.clone());
 
     let mut file = tokio::fs::File::create(&temp_path)
         .await
@@ -401,7 +406,12 @@ async fn download_one(
         }
     }
 
-    file.flush().await.ok();
+    file.flush()
+        .await
+        .map_err(|e| format!("Flush failed: {e}"))?;
+    if file.metadata().await.map_err(|e| e.to_string())?.len() != file_size {
+        return Err("Incomplete download".into());
+    }
     drop(file);
 
     let import_result = {
@@ -409,13 +419,32 @@ async fn download_one(
         let data_dir = ctx.data_dir.clone();
         let temp_path = temp_path.clone();
         let file_name = file_name.to_string();
-        tokio::task::spawn_blocking(move || import_file(&db, &data_dir, &temp_path, &file_name, ""))
-            .await
-            .map_err(|e| format!("Import task panicked: {e}"))?
-            .map_err(|e| format!("Import failed: {e}"))?
+        let message_id = message_id.to_owned();
+        let attachment_id = attachment_id.to_owned();
+        let original_uri = original_uri.to_owned();
+        tokio::task::spawn_blocking(move || {
+            import_attachment(
+                &db,
+                &data_dir,
+                &temp_path,
+                &file_name,
+                &message_id,
+                &attachment_id,
+                &original_uri,
+            )
+        })
+        .await
+        .map_err(|e| format!("Import task panicked: {e}"))?
+        .map_err(|e| format!("Import failed: {e}"))?
     };
 
     let _ = tokio::fs::remove_file(&temp_path).await;
+    if let Some(chat) = &import_result.chat {
+        let payload = serde_json::json!([crate::chat::service::chat_to_json(chat)]).to_string();
+        let _ = ctx
+            .event_tx
+            .send(WsEvent::broadcast(WS_MESSAGE_UPDATED, payload));
+    }
 
     {
         let mut s = state.lock().await;
@@ -450,4 +479,11 @@ async fn cleanup(message_id: &str) {
     tokio::time::sleep(std::time::Duration::from_millis(500)).await;
     let mut tasks = manager().tasks.lock().await;
     tasks.remove(message_id);
+}
+
+struct Temporary(PathBuf);
+impl Drop for Temporary {
+    fn drop(&mut self) {
+        let _ = std::fs::remove_file(&self.0);
+    }
 }

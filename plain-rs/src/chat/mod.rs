@@ -19,6 +19,7 @@
 //! plug in through small traits.
 
 pub mod app_file_store;
+pub mod attachment_imports;
 pub mod cacher;
 pub mod channel;
 pub mod content;

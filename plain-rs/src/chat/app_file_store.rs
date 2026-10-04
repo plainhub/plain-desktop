@@ -22,6 +22,7 @@
 //! miss, the file is copied into the canonical location and a new
 //! `app_files` row is inserted.
 
+mod attachment_commit;
 pub mod chat_deletion;
 
 use std::fs;
@@ -56,6 +57,7 @@ pub struct ImportResult {
     pub real_path: PathBuf,
     /// `true` if an existing record was reused (dedup hit).
     pub reused: bool,
+    pub chat: Option<DChat>,
 }
 
 /// MIME → fid file extension. Returns an empty string for unknown types so
@@ -195,6 +197,7 @@ pub fn import_file(
         size,
         file_name,
         mime_type,
+        None,
         |path| {
             fs::copy(src, path)?;
             if strong_hash_file(path)? != strong || fs::metadata(path)?.len() != size {
@@ -227,6 +230,7 @@ pub fn import_bytes(
         data.len() as u64,
         "",
         mime_type,
+        None,
         |path| fs::write(path, data),
     )
 }
@@ -239,8 +243,10 @@ fn store(
     size: u64,
     name: &str,
     mime: &str,
+    attachment: Option<attachment_commit::Selection<'_>>,
     write: impl FnOnce(&Path) -> std::io::Result<()>,
 ) -> std::io::Result<ImportResult> {
+    let size: i64 = size.try_into().map_err(std::io::Error::other)?;
     let _guard = db.app_files_lock()?;
     let existing = db.app_file_get(strong).map_err(std::io::Error::other)?;
     let effective_mime = existing
@@ -268,21 +274,22 @@ fn store(
         }
         installed = true;
     }
-    let result = if existing.is_some() {
-        db.app_file_retain(strong)
-    } else {
-        let now = crate::db::now_iso();
-        db.app_file_insert(&DAppFile {
+    let result = attachment_commit::commit(
+        db,
+        &DAppFile {
             id: strong.into(),
-            size: size.try_into().map_err(std::io::Error::other)?,
+            size,
             mime_type: effective_mime.into(),
             real_path: relative,
             ref_count: 1,
             weak_hash: weak.into(),
-            created_at: now.clone(),
-            updated_at: now,
-        })
-    };
+            created_at: crate::db::now_iso(),
+            updated_at: crate::db::now_iso(),
+        },
+        existing.is_some(),
+        &fid_suffix_of(&path, strong),
+        attachment,
+    );
     if let Err(error) = result {
         if installed && existing.is_none() {
             let _ = fs::remove_file(&path);
@@ -295,6 +302,7 @@ fn store(
         mime_type: effective_mime.into(),
         real_path: path,
         reused: existing.is_some(),
+        chat: result.unwrap(),
     })
 }
 
@@ -467,3 +475,37 @@ pub fn display_name(file: &DAppFile, name_map: &HashMap<String, String>) -> Stri
 #[cfg(test)]
 #[path = "../../tests/unit/chat/app_file_store.rs"]
 mod tests;
+
+pub fn import_attachment(
+    db: &Db,
+    data_dir: &Path,
+    src: &Path,
+    file_name: &str,
+    message_id: &str,
+    id: &str,
+    original_uri: &str,
+) -> std::io::Result<ImportResult> {
+    let strong = strong_hash_file(src)?;
+    let (weak, size) = weak_hash_file(src)?;
+    store(
+        db,
+        data_dir,
+        &strong,
+        &weak,
+        size,
+        file_name,
+        crate::utils::mime::mime_from_ext(file_name),
+        Some(attachment_commit::Selection {
+            message_id,
+            id,
+            original_uri,
+        }),
+        |path| {
+            fs::copy(src, path)?;
+            if strong_hash_file(path)? != strong || fs::metadata(path)?.len() != size {
+                return Err(std::io::Error::other("source changed during import"));
+            }
+            Ok(())
+        },
+    )
+}
