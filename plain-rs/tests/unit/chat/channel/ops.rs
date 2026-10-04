@@ -52,7 +52,7 @@ fn service(dir_label: &str) -> ChatService<TestTransport> {
 #[tokio::test]
 async fn create_channel_sets_owner_member_and_key() {
     let svc = service("create");
-    let ch = svc.create_channel("Team");
+    let ch = svc.create_channel("Team").unwrap();
 
     assert_eq!(ch.name, "Team");
     assert_eq!(ch.owner_id, "me-nas");
@@ -69,7 +69,7 @@ async fn create_channel_sets_owner_member_and_key() {
 #[tokio::test]
 async fn add_channel_member_enforces_owner_and_duplicates() {
     let svc = service("add-member");
-    let ch = svc.create_channel("Team");
+    let ch = svc.create_channel("Team").unwrap();
 
     // Unknown peer: added as PENDING member, no invite delivery (no peer row).
     let updated = svc
@@ -104,7 +104,7 @@ async fn add_channel_member_enforces_owner_and_duplicates() {
 #[tokio::test]
 async fn decline_channel_invite_removes_channel_and_chats() {
     let svc = service("decline");
-    let ch = svc.create_channel("Team");
+    let ch = svc.create_channel("Team").unwrap();
     let mut chat = crate::db::DChat::new("me", "", &ch.id, "{}");
     chat.id = "m1".to_string();
     svc.db.insert_chat(&chat);
@@ -117,7 +117,7 @@ async fn decline_channel_invite_removes_channel_and_chats() {
 #[tokio::test]
 async fn delete_peer_demotes_channel_members() {
     let svc = service("del-peer");
-    let mut ch = svc.create_channel("Team");
+    let mut ch = svc.create_channel("Team").unwrap();
     // peer-x as a joined channel member.
     ch.members = r#"[{"peerId":"me-nas","status":"JOINED"},{"peerId":"peer-x","status":"JOINED"}]"#
         .to_string();

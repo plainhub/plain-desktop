@@ -4,18 +4,15 @@
 //! layer; error strings are the wire messages the resolvers surface.
 
 use crate::base64_decode;
-use crate::random_bytes;
 
-use crate::chat::enums::ChannelStatus;
 use crate::chat::events::{
     ChatEvent, WS_CHANNELS_UPDATED, channels_updated_payload, load_key_cache,
     refresh_peer_key_cache,
 };
 use crate::chat::service::ChatService;
 use crate::chat::transport::PeerTransport;
-use crate::db::{DChannel, now_iso};
+use crate::db::DChannel;
 
-use super::messages::{ChannelMember, decode_members, encode_members, has_member};
 use super::sender;
 
 impl<T: PeerTransport + 'static> ChatService<T> {
@@ -31,23 +28,21 @@ impl<T: PeerTransport + 'static> ChatService<T> {
     /// generated immediately. Without the owner in `members`,
     /// `build_member_peers` omits it from the invite's `memberPeers`, so
     /// the invitee rejects the invite ("no owner memberPeerInfo").
-    pub fn create_channel(&self, name: &str) -> DChannel {
-        let mut ch = DChannel::new(name.trim(), &self.identity.client_id);
-        ch.members = encode_members(&[ChannelMember::new(&self.identity.client_id)]);
-        ch.key = crate::base64_encode(&random_bytes(32));
-        self.db.insert_channel(&ch);
+    pub fn create_channel(&self, name: &str) -> Result<DChannel, String> {
+        let channel = super::state::create(&self.db, &self.identity.client_id, name)
+            .map_err(|e| e.to_string())?;
         self.emit_channels_updated();
-        ch
+        Ok(channel)
     }
 
     pub async fn update_channel_name(&self, id: &str, name: &str) -> Result<DChannel, String> {
-        let Some(mut ch) = self.db.get_channel_by_id(id) else {
-            return Err("Channel not found".to_string());
-        };
-        ch.name = name.trim().to_string();
-        ch.version += 1;
-        ch.updated_at = now_iso();
-        self.db.update_channel(&ch);
+        let ch = super::state::apply(
+            &self.db,
+            &self.identity.client_id,
+            id,
+            super::state::Action::Rename { name: name.into() },
+        )
+        .map_err(|e| e.to_string())?;
         if ch.owner_id == self.identity.client_id {
             let kp_bytes = base64_decode(&self.identity.ed25519_keypair);
             let channel_key = base64_decode(&ch.key);
@@ -100,53 +95,47 @@ impl<T: PeerTransport + 'static> ChatService<T> {
     }
 
     pub async fn leave_channel(&self, id: &str) -> bool {
-        if let Some(mut ch) = self.db.get_channel_by_id(id) {
-            if ch.owner_id != self.identity.client_id {
-                if let Some(owner_peer) = self.db.get_peer_by_id(&ch.owner_id) {
-                    let kp_bytes = base64_decode(&self.identity.ed25519_keypair);
-                    let channel_key = base64_decode(&ch.key);
-                    let _ = sender::send_leave(
-                        &self.transport,
-                        &ch.id,
-                        &owner_peer,
-                        &self.identity.client_id,
-                        &kp_bytes,
-                        &channel_key,
-                        &self.peer_key_cache,
-                    )
-                    .await;
-                }
-                let new_members: Vec<ChannelMember> = decode_members(&ch.members)
-                    .into_iter()
-                    .filter(|m| m.peer_id != self.identity.client_id)
-                    .collect();
-                ch.members = encode_members(&new_members);
-                ch.status = ChannelStatus::Left;
-                ch.updated_at = now_iso();
-                self.db.update_channel(&ch);
-                refresh_peer_key_cache(&self.db, &self.peer_key_cache);
+        let ch = match super::state::apply(
+            &self.db,
+            &self.identity.client_id,
+            id,
+            super::state::Action::Leave,
+        ) {
+            Ok(ch) => ch,
+            Err(error) => {
+                log::error!("channel leave failed: {error}");
+                return false;
             }
-            self.emit_channels_updated();
+        };
+        if let Some(owner_peer) = self.db.get_peer_by_id(&ch.owner_id) {
+            let kp_bytes = base64_decode(&self.identity.ed25519_keypair);
+            let channel_key = base64_decode(&ch.key);
+            let _ = sender::send_leave(
+                &self.transport,
+                &ch.id,
+                &owner_peer,
+                &self.identity.client_id,
+                &kp_bytes,
+                &channel_key,
+                &self.peer_key_cache,
+            )
+            .await;
         }
+        refresh_peer_key_cache(&self.db, &self.peer_key_cache);
+        self.emit_channels_updated();
         true
     }
 
     pub async fn add_channel_member(&self, id: &str, peer_id: &str) -> Result<DChannel, String> {
-        let Some(mut ch) = self.db.get_channel_by_id(id) else {
-            return Err("Channel not found".to_string());
-        };
-        if ch.owner_id != self.identity.client_id {
-            return Err("Only owner can add members".to_string());
-        }
-        let mut new_members = decode_members(&ch.members);
-        if has_member(&new_members, peer_id) {
-            return Err("Already a member".to_string());
-        }
-        new_members.push(ChannelMember::pending(peer_id));
-        ch.members = encode_members(&new_members);
-        ch.version += 1;
-        ch.updated_at = now_iso();
-        self.db.update_channel(&ch);
+        let ch = super::state::apply(
+            &self.db,
+            &self.identity.client_id,
+            id,
+            super::state::Action::Invite {
+                peer: peer_id.into(),
+            },
+        )
+        .map_err(|e| e.to_string())?;
 
         if let Some(peer) = self.db.get_peer_by_id(peer_id) {
             let kp_bytes = base64_decode(&self.identity.ed25519_keypair);
@@ -170,24 +159,15 @@ impl<T: PeerTransport + 'static> ChatService<T> {
     }
 
     pub async fn remove_channel_member(&self, id: &str, peer_id: &str) -> Result<DChannel, String> {
-        let Some(mut ch) = self.db.get_channel_by_id(id) else {
-            return Err("Channel not found".to_string());
-        };
-        if ch.owner_id != self.identity.client_id {
-            return Err("Only owner can remove members".to_string());
-        }
-        let members = decode_members(&ch.members);
-        if !has_member(&members, peer_id) {
-            return Err("Not a member".to_string());
-        }
-        let new_members: Vec<ChannelMember> = members
-            .into_iter()
-            .filter(|m| m.peer_id != peer_id)
-            .collect();
-        ch.members = encode_members(&new_members);
-        ch.version += 1;
-        ch.updated_at = now_iso();
-        self.db.update_channel(&ch);
+        let ch = super::state::apply(
+            &self.db,
+            &self.identity.client_id,
+            id,
+            super::state::Action::Kick {
+                peer: peer_id.into(),
+            },
+        )
+        .map_err(|e| e.to_string())?;
 
         let kp_bytes = base64_decode(&self.identity.ed25519_keypair);
         let channel_key = base64_decode(&ch.key);
@@ -221,9 +201,13 @@ impl<T: PeerTransport + 'static> ChatService<T> {
     }
 
     pub async fn accept_channel_invite(&self, id: &str) -> Result<bool, String> {
-        let Some(ch) = self.db.get_channel_by_id(id) else {
-            return Err("Channel not found".to_string());
-        };
+        let ch = super::state::apply(
+            &self.db,
+            &self.identity.client_id,
+            id,
+            super::state::Action::Accept,
+        )
+        .map_err(|e| e.to_string())?;
         let Some(owner_peer) = self.db.get_peer_by_id(&ch.owner_id) else {
             return Err("Owner peer not found".to_string());
         };

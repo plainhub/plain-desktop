@@ -20,9 +20,13 @@ fn gql_err(msg: String) -> GqlError {
 
 #[Object]
 impl ChatChannelMutation {
-    async fn create_chat_channel(&self, ctx: &Context<'_>, name: String) -> ChatChannel {
+    async fn create_chat_channel(&self, ctx: &Context<'_>, name: String) -> GqlResult<ChatChannel> {
         let c = ctx.data_unchecked::<Arc<AppCtx>>();
-        ChatChannel::from(c.chat.service.create_channel(&name))
+        c.chat
+            .service
+            .create_channel(&name)
+            .map(ChatChannel::from)
+            .map_err(gql_err)
     }
 
     async fn update_chat_channel(

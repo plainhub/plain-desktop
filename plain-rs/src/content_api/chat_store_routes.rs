@@ -57,6 +57,15 @@ pub(super) enum Request {
         before: DChannel,
         after: DChannel,
     },
+    CreateChannel {
+        actor: String,
+        name: String,
+    },
+    ChannelAction {
+        actor: String,
+        id: String,
+        operation: crate::chat::channel::state::Action,
+    },
     Channels,
     Channel {
         id: String,
@@ -167,6 +176,16 @@ pub(super) async fn call(
             Request::PatchChannel { before, after } => {
                 serde_json::to_value(channels::patch(&db, &before, &after)?)?
             }
+            Request::CreateChannel { actor, name } => {
+                serde_json::to_value(crate::chat::channel::state::create(&db, &actor, &name)?)?
+            }
+            Request::ChannelAction {
+                actor,
+                id,
+                operation,
+            } => serde_json::to_value(crate::chat::channel::state::apply(
+                &db, &actor, &id, operation,
+            )?)?,
             Request::Channels => serde_json::to_value(channels::all(&db)?)?,
             Request::Channel { id } => serde_json::to_value(channels::get(&db, &id)?)?,
             Request::SaveChannels { items, mode } => {
