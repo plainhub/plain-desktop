@@ -128,6 +128,11 @@ impl ContentServer {
             #[cfg(feature = "http_transport")]
             bridge: bridge.clone(),
         };
+        super::pairing_timeout::start(
+            state.pairing.clone(),
+            state.events.clone(),
+            receiver.clone(),
+        );
         let router = Router::new()
             .route("/graphql", post(graphql))
             .route("/events", get(upgrade))

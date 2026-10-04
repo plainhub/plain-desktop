@@ -29,6 +29,7 @@ pub mod enums;
 pub mod events;
 mod manager;
 pub mod message_lifecycle;
+pub mod nearby_wire;
 #[cfg(any(feature = "api", feature = "content_api"))]
 pub mod nearby_http;
 pub mod pairing;

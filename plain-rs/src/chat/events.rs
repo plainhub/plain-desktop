@@ -17,6 +17,7 @@ pub const WS_MESSAGE_UPDATED: i32 = 3;
 pub const WS_DOWNLOAD_PROGRESS: i32 = 16;
 pub const WS_CHANNELS_UPDATED: i32 = 18;
 pub const WS_PEER_STATUS_UPDATED: i32 = 20;
+pub const WS_PAIRING_FAILED: i32 = 24;
 pub const WS_CHANNEL_INVITE_RECEIVED: i32 = 28;
 
 /// A chat-domain push event: wire framing (`[i32 BE event_type][encrypted

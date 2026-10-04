@@ -1,4 +1,5 @@
 use super::*;
+use crate::chat::pairing::protocol::PairingCancel;
 use axum::{
     Router,
     http::{HeaderMap, StatusCode},

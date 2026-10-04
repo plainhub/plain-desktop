@@ -1,7 +1,6 @@
 use crate::db::{DPeer, Db, chat_store::peers};
 use anyhow::{Result, bail};
 use serde::{Deserialize, Serialize};
-use sha2::{Digest, Sha256};
 use std::{
     collections::HashMap,
     future::Future,
@@ -140,7 +139,7 @@ pub async fn run<D: Driver>(
     if !caps.ble_ready {
         return Ok(None);
     }
-    let short_id = crate::utils::hex::bytes_to_hex(&Sha256::digest(id.as_bytes())[..8]);
+    let short_id = super::nearby_wire::short_id(id);
     let scan = tokio::time::timeout(Duration::from_secs(15), driver.scan(&short_id)).await;
     let Some(mut value) = scan.map_err(|_| anyhow::anyhow!("Peer prewarm scan timed out"))?? else {
         return Ok(None);

@@ -1,33 +1,11 @@
-use super::pairing::protocol::{PairingCancel, PairingRequest, PairingResponse};
+pub use super::nearby_wire::Message;
 use anyhow::Result;
-use serde::Deserialize;
 use std::{
     net::{IpAddr, SocketAddr},
     sync::OnceLock,
     time::Duration,
 };
 
-#[derive(Deserialize)]
-#[serde(
-    tag = "kind",
-    content = "payload",
-    rename_all = "SCREAMING_SNAKE_CASE",
-    deny_unknown_fields
-)]
-pub enum Message {
-    PairRequest(PairingRequest),
-    PairResponse(PairingResponse),
-    PairCancel(PairingCancel),
-}
-impl Message {
-    pub fn wire(&self) -> Result<String> {
-        Ok(match self {
-            Self::PairRequest(value) => format!("PAIR_REQUEST:{}", serde_json::to_string(value)?),
-            Self::PairResponse(value) => format!("PAIR_RESPONSE:{}", serde_json::to_string(value)?),
-            Self::PairCancel(value) => format!("PAIR_CANCEL:{}", serde_json::to_string(value)?),
-        })
-    }
-}
 fn client() -> Result<&'static reqwest::Client> {
     static CLIENT: OnceLock<Result<reqwest::Client, String>> = OnceLock::new();
     CLIENT

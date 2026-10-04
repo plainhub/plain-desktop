@@ -27,7 +27,7 @@ pub const WS_PAIRING_REQUEST_RECEIVED: i32 = 22;
 pub const WS_PAIRING_SUCCESS: i32 = 23;
 /// Mirrors plain-app's `PairingFailedEvent` — fired when a pairing
 /// handshake fails or is rejected by the remote device.
-pub const WS_PAIRING_FAILED: i32 = 24;
+pub use crate::chat::events::WS_PAIRING_FAILED;
 /// Mirrors plain-app's `PairingCanceledEvent` — fired when an in-progress
 /// pairing is cancelled by either side.
 pub const WS_PAIRING_CANCELLED: i32 = 25;

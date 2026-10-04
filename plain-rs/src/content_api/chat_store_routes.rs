@@ -95,6 +95,7 @@ pub(super) enum Request {
         id: String,
         generation: String,
     },
+    PairingTickets,
     ReceivePairingCancel {
         cancel: crate::chat::pairing::protocol::PairingCancel,
     },
@@ -333,6 +334,7 @@ pub(super) async fn call(
             Request::ExpirePairing { id, generation } => {
                 serde_json::to_value(pairing.expire(&id, &generation))?
             }
+            Request::PairingTickets => serde_json::to_value(pairing.tickets())?,
             Request::ReceivePairingCancel { cancel } => {
                 super::pairing::receive_cancel(&prefs, &pairing, cancel)?
             }

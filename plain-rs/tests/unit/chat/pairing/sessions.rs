@@ -44,3 +44,44 @@ fn concurrent_responses_consume_ephemeral_key_once() {
         1
     );
 }
+
+#[test]
+fn batch_expiry_keeps_fresh_replacements_and_returns_each_expired_ticket_once() {
+    let sessions = Sessions::default();
+    let old = sessions.start(target(), EcdhSession::generate());
+    sessions.0.lock().unwrap().get_mut("peer").unwrap().started = Instant::now() - RESPONSE_TIMEOUT;
+    let fresh = sessions.start(target(), EcdhSession::generate());
+    assert!(sessions.expire_all().is_empty());
+    assert_eq!(sessions.tickets()[0].generation, fresh.generation);
+    assert_ne!(old.generation, fresh.generation);
+    sessions.0.lock().unwrap().get_mut("peer").unwrap().started = Instant::now() - RESPONSE_TIMEOUT;
+    assert!(sessions.tickets().is_empty());
+    assert_eq!(sessions.expire_all()[0].generation, fresh.generation);
+    assert!(sessions.expire_all().is_empty());
+}
+
+#[cfg(feature = "content_api")]
+#[tokio::test]
+async fn rust_timeout_worker_emits_committed_expiry_and_stops_with_server() {
+    let sessions = std::sync::Arc::new(Sessions::default());
+    let ticket = sessions.start(target(), EcdhSession::generate());
+    sessions.0.lock().unwrap().get_mut("peer").unwrap().started = Instant::now() - RESPONSE_TIMEOUT;
+    let (events, mut receiver) = tokio::sync::broadcast::channel(8);
+    let (stop, stopping) = tokio::sync::watch::channel(false);
+    let worker = crate::content_api::pairing_timeout::start(sessions.clone(), events, stopping);
+    let event = tokio::time::timeout(Duration::from_secs(2), receiver.recv())
+        .await
+        .unwrap()
+        .unwrap();
+    assert_eq!(event.event_type, crate::chat::events::WS_PAIRING_FAILED);
+    let payload: serde_json::Value = serde_json::from_str(&event.payload).unwrap();
+    assert_eq!(payload["generation"], ticket.generation);
+    assert_eq!(payload["deviceId"], "peer");
+    assert!(sessions.tickets().is_empty());
+    assert!(sessions.take("peer").is_none());
+    stop.send(true).unwrap();
+    tokio::time::timeout(Duration::from_secs(2), worker)
+        .await
+        .unwrap()
+        .unwrap();
+}

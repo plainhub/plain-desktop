@@ -12,6 +12,16 @@ use serde_json::json;
 #[derive(Deserialize)]
 #[serde(tag = "action", rename_all = "camelCase", deny_unknown_fields)]
 pub(super) enum Request {
+    Encode {
+        message: Message,
+    },
+    Parse {
+        body: String,
+    },
+    DiscoverReply {
+        payload: String,
+        short_id: String,
+    },
     Send {
         ip: String,
         port: u16,
@@ -30,10 +40,20 @@ pub(super) async fn call(
     if !state.authenticated(&headers) {
         return StatusCode::UNAUTHORIZED.into_response();
     }
-    let result = match request {
-        Request::Send { ip, port, message } => nearby_http::send(&ip, port, &message).await,
-        Request::Probe { ip, port } => nearby_http::probe(&ip, port).await,
-    };
+    let result = async {
+        Ok::<_, anyhow::Error>(match request {
+            Request::Encode { message } => json!(message.wire()?),
+            Request::Parse { body } => serde_json::to_value(Message::parse(&body)?)?,
+            Request::DiscoverReply { payload, short_id } => serde_json::to_value(
+                crate::chat::nearby_wire::discover_reply(&payload, &short_id)?,
+            )?,
+            Request::Send { ip, port, message } => {
+                json!(nearby_http::send(&ip, port, &message).await?)
+            }
+            Request::Probe { ip, port } => json!(nearby_http::probe(&ip, port).await?),
+        })
+    }
+    .await;
     match result {
         Ok(value) => Json(json!({"result":value})).into_response(),
         Err(error) => (

@@ -105,6 +105,26 @@ impl Sessions {
     pub fn contains(&self, id: &str) -> bool {
         self.0.lock().unwrap().contains_key(id)
     }
+    pub fn tickets(&self) -> Vec<Ticket> {
+        self.0
+            .lock()
+            .unwrap()
+            .values()
+            .filter(|pending| !pending.expired())
+            .map(|pending| pending.ticket.clone())
+            .collect()
+    }
+    pub fn expire_all(&self) -> Vec<Ticket> {
+        let mut pending = self.0.lock().unwrap();
+        let ids = pending
+            .iter()
+            .filter(|(_, value)| value.expired())
+            .map(|(id, _)| id.clone())
+            .collect::<Vec<_>>();
+        ids.into_iter()
+            .filter_map(|id| pending.remove(&id).map(|value| value.ticket))
+            .collect()
+    }
     pub fn current(&self, id: &str, generation: &str) -> bool {
         self.0
             .lock()
