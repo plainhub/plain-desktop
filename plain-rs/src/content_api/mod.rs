@@ -45,3 +45,6 @@ mod attachment_imports;
 mod download_queue;
 
 mod link_preview;
+
+mod peer_query;
+mod peer_graphql;

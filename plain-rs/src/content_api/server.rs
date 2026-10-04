@@ -24,6 +24,7 @@ use tokio::{
 #[derive(Clone)]
 pub(super) struct ServerState {
     schema: ContentSchema,
+    pub(super) peer_schema: super::peer_graphql::PeerSchema,
     pub(super) files: Arc<super::file_tasks::FileTasks>,
     pub(super) host: Arc<super::host::Host>,
     pub(super) db: Arc<Db>,
@@ -38,7 +39,7 @@ pub(super) struct ServerState {
     pub(super) directory: std::path::PathBuf,
     token: Arc<str>,
     pub(super) events: broadcast::Sender<WsEvent>,
-    stop: watch::Receiver<bool>,
+    pub(super) stop: watch::Receiver<bool>,
     #[cfg(feature = "http_transport")]
     bridge: Arc<super::http_bridge::HttpBridge>,
 }
@@ -54,6 +55,8 @@ impl ServerState {
 }
 pub struct ContentServer {
     pub port: u16,
+    #[cfg(feature = "http_transport")]
+    state: ServerState,
     task: JoinHandle<()>,
     stop: watch::Sender<bool>,
     #[cfg(feature = "http_transport")]
@@ -110,6 +113,7 @@ impl ContentServer {
         ));
         let state = ServerState {
             schema,
+            peer_schema: super::peer_graphql::schema(),
             transport: Arc::new(crate::chat::transport_router::Router::default()),
             previews,
             prewarmer: Arc::new(crate::chat::prewarm::Prewarmer::default()),
@@ -139,6 +143,7 @@ impl ContentServer {
             .route("/host", get(host_upgrade))
             .route("/health", get(health))
             .route("/fs", get(files::file))
+            .route("/chat/peer-graphql", post(super::peer_graphql::call))
             .route("/chat/transport", post(super::peer_transport::call))
             .route("/chat/prewarm", post(super::prewarm::call))
             .route("/chat/nearby", post(super::nearby_http::call))
@@ -155,7 +160,7 @@ impl ContentServer {
         let router = router.route("/http_host/:id", get(http_host_upgrade));
         let router = router
             .layer(DefaultBodyLimit::max(32 * 1024 * 1024))
-            .with_state(state);
+            .with_state(state.clone());
         let listener = tokio::net::TcpListener::from_std(listener).map_err(|e| e.to_string())?;
         let task = tokio::spawn(async move {
             let mut stop = receiver;
@@ -167,6 +172,8 @@ impl ContentServer {
         });
         Ok(Self {
             port,
+            #[cfg(feature = "http_transport")]
+            state,
             task,
             stop,
             #[cfg(feature = "http_transport")]
@@ -188,13 +195,18 @@ impl ContentServer {
             return Err("Public HTTP server is already running".into());
         }
         let (stop, receiver) = watch::channel(false);
+        let peer_router = Router::new()
+            .route("/peer_graphql", post(super::peer_graphql::public))
+            .layer(DefaultBodyLimit::max(32 * 1024 * 1024))
+            .with_state(self.state.clone());
         let router = Router::new()
             .fallback(super::http_bridge::handle)
             .layer(DefaultBodyLimit::max(64 * 1024 * 1024 * 1024))
             .with_state(super::http_bridge::HttpBridgeState {
                 bridge: self.bridge.clone(),
                 stop: receiver,
-            });
+            })
+            .merge(peer_router);
         let listeners =
             crate::http_transport::HttpListeners::start(router, http, https, cert, key).await?;
         let ports = (listeners.http_port, listeners.https_port);
