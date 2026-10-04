@@ -56,3 +56,56 @@ pub fn patch(db: &Db, before: &DPeer, after: &DPeer) -> Result<Option<DPeer>> {
  tx.commit()?;Ok(row)
  })
 }
+
+pub fn unpair(db: &Db, id: &str) -> Result<bool> {
+    Ok(db.with_conn(|c| {
+        c.execute(
+            "UPDATE peers SET status='UNPAIRED',updated_at=?2 WHERE id=?1",
+            params![id, crate::db::now_iso()],
+        )
+    })? == 1)
+}
+
+pub fn discovered(
+    db: &Db,
+    id: &str,
+    ips: &[String],
+    port: u16,
+    name: &str,
+    device_type: crate::chat::enums::DeviceType,
+) -> Result<Option<DPeer>> {
+    db.with_conn(|c| -> Result<Option<DPeer>> {
+        let tx = c.unchecked_transaction()?;
+        let current = tx
+            .query_row(
+                &format!("SELECT {PEER_COLS} FROM peers WHERE id=?1"),
+                [id],
+                row_to_peer,
+            )
+            .optional()?;
+        let Some(peer) = current else {
+            return Ok(None);
+        };
+        if peer.status != crate::chat::enums::PeerStatus::Paired {
+            return Ok(None);
+        }
+        let ip = ips.join(",");
+        if peer.ip != ip
+            || peer.port != port
+            || peer.name != name
+            || peer.device_type != device_type
+        {
+            tx.execute(
+                "UPDATE peers SET ip=?2,port=?3,name=?4,device_type=?5,updated_at=?6 WHERE id=?1",
+                params![id, ip, port, name, device_type, crate::db::now_iso()],
+            )?;
+        }
+        let row = tx.query_row(
+            &format!("SELECT {PEER_COLS} FROM peers WHERE id=?1"),
+            [id],
+            row_to_peer,
+        )?;
+        tx.commit()?;
+        Ok(Some(row))
+    })
+}

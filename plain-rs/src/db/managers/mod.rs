@@ -7,7 +7,7 @@ pub mod bookmark;
 #[cfg(feature = "sqlite_browse")]
 pub mod browse;
 #[cfg(feature = "chat")]
-mod channel;
+pub(super) mod channel;
 #[cfg(feature = "chat")]
 mod chat;
 #[cfg(feature = "chat")]

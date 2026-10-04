@@ -75,3 +75,120 @@ fn failed_sql_restores_attachment_and_message_then_retry_deletes_once() {
     );
     fs::remove_dir_all(root).unwrap();
 }
+
+#[test]
+fn entity_removal_is_atomic_retains_channel_peer_and_returns_removed_channel_snapshot() {
+    use crate::{
+        chat::enums::{DeviceType, PeerStatus},
+        db::{
+            DChannel, DPeer,
+            chat_store::{channels, peers},
+        },
+    };
+    let root = std::env::temp_dir().join(format!(
+        "plain-entity-delete-{}",
+        crate::utils::short_uuid::short_uuid()
+    ));
+    fs::create_dir_all(&root).unwrap();
+    let db = Db::open(&root.join("plain.db")).unwrap();
+    let file = import_bytes(&db, &root, b"entity fixture", "text/plain").unwrap();
+    import_bytes(&db, &root, b"entity fixture", "text/plain").unwrap();
+    let mut peer = DPeer::new("peer", "peer", "", 1, DeviceType::Phone);
+    peer.status = PeerStatus::Paired;
+    peer.key = "pair-key".into();
+    peer.token = "login-token".into();
+    peer.public_key = "public".into();
+    peers::save(&db, &[peer], SaveMode::Insert).unwrap();
+    let mut channel = DChannel::new("group", "owner");
+    channel.id = "group".into();
+    channel.members = r#"[{"peerId":"peer","status":"PENDING"}]"#.into();
+    channel.key = "channel-secret".into();
+    channels::save(&db, &[channel], SaveMode::Insert).unwrap();
+    let content=serde_json::json!({"type":"FILES","value":{"items":[{"uri":format!("fid:{}",file.fid_suffix)}]}}).to_string();
+    let mut direct = DChat::new("me", "peer", "", &content);
+    direct.id = "direct".into();
+    let mut group = DChat::new("peer", "me", "group", &content);
+    group.id = "group-message".into();
+    messages::save(&db, &[direct, group], SaveMode::Insert).unwrap();
+    assert_eq!(
+        delete(&db, &root, Selection::PeerRecord("peer")).unwrap(),
+        1
+    );
+    let peer = peers::get(&db, "peer").unwrap().unwrap();
+    assert_eq!(peer.status, PeerStatus::Channel);
+    assert!(peer.key.is_empty());
+    assert_eq!(peer.token, "login-token");
+    assert_eq!(peer.public_key, "public");
+    assert!(messages::get(&db, "direct").unwrap().is_none());
+    assert!(messages::get(&db, "group-message").unwrap().is_some());
+    assert_eq!(db.app_file_get(&file.id).unwrap().unwrap().ref_count, 1);
+    db.with_conn(|c| c.execute_batch("CREATE TRIGGER reject_channel BEFORE DELETE ON chat_channels BEGIN SELECT RAISE(ABORT,'entity rollback'); END;")).unwrap();
+    assert!(remove_channel(&db, &root, "group").is_err());
+    assert!(channels::get(&db, "group").unwrap().is_some());
+    assert!(messages::get(&db, "group-message").unwrap().is_some());
+    assert!(db.app_file_get(&file.id).unwrap().is_some());
+    assert_eq!(
+        fs::read(root.join(&file.real_path)).unwrap(),
+        b"entity fixture"
+    );
+    db.with_conn(|c| c.execute_batch("DROP TRIGGER reject_channel"))
+        .unwrap();
+    assert_eq!(
+        remove_channel(&db, &root, "group").unwrap().unwrap().key,
+        "channel-secret"
+    );
+    assert!(messages::get(&db, "group-message").unwrap().is_none());
+    assert!(db.app_file_get(&file.id).unwrap().is_none());
+    assert!(!root.join(&file.real_path).exists());
+    assert_eq!(
+        delete(&db, &root, Selection::PeerRecord("peer")).unwrap(),
+        1
+    );
+    assert!(peers::get(&db, "peer").unwrap().is_none());
+    assert_eq!(
+        delete(&db, &root, Selection::PeerRecord("peer")).unwrap(),
+        0
+    );
+    assert!(remove_channel(&db, &root, "group").unwrap().is_none());
+    fs::remove_dir_all(root).unwrap();
+}
+
+#[test]
+fn discovery_and_unpair_update_only_owned_fields_and_require_paired_peer() {
+    use crate::{
+        chat::enums::{DeviceType, PeerStatus},
+        db::{DPeer, chat_store::peers},
+    };
+    let db = Db::open(Path::new(":memory:")).unwrap();
+    let mut peer = DPeer::new("peer", "old", "old-ip", 1, DeviceType::Phone);
+    peer.status = PeerStatus::Paired;
+    peer.key = "current-key".into();
+    peer.token = "session".into();
+    peers::save(&db, &[peer], SaveMode::Insert).unwrap();
+    let refreshed = peers::discovered(
+        &db,
+        "peer",
+        &["127.0.0.1".into(), "::1".into()],
+        443,
+        "new",
+        DeviceType::Computer,
+    )
+    .unwrap()
+    .unwrap();
+    assert_eq!(refreshed.ip, "127.0.0.1,::1");
+    assert_eq!(refreshed.name, "new");
+    assert_eq!(refreshed.key, "current-key");
+    assert_eq!(refreshed.token, "session");
+    assert!(peers::unpair(&db, "peer").unwrap());
+    let unpaired = peers::get(&db, "peer").unwrap().unwrap();
+    assert_eq!(unpaired.status, PeerStatus::Unpaired);
+    assert_eq!(unpaired.key, "current-key");
+    assert_eq!(unpaired.token, "session");
+    assert!(
+        peers::discovered(&db, "peer", &[], 1, "stale", DeviceType::Phone)
+            .unwrap()
+            .is_none()
+    );
+    assert_eq!(peers::get(&db, "peer").unwrap().unwrap().name, "new");
+    assert!(!peers::unpair(&db, "missing").unwrap());
+}

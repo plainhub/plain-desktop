@@ -69,7 +69,7 @@ impl<T: PeerTransport + 'static> ChatService<T> {
     }
 
     pub async fn delete_channel(&self, id: &str) -> bool {
-        if let Some(mut ch) = self.db.get_channel_by_id(id) {
+        if let Some(ch) = self.db.get_channel_by_id(id) {
             if ch.owner_id == self.identity.client_id {
                 let kp_bytes = base64_decode(&self.identity.ed25519_keypair);
                 let channel_key = base64_decode(&ch.key);
@@ -84,20 +84,17 @@ impl<T: PeerTransport + 'static> ChatService<T> {
                 )
                 .await;
             }
-            ch.status = ChannelStatus::Left;
-            ch.updated_at = now_iso();
-            self.db.update_channel(&ch);
         }
         if let Err(error) = crate::chat::app_file_store::chat_deletion::delete(
             &self.db,
             &self.data_dir,
-            crate::chat::app_file_store::chat_deletion::Selection::Channel(id),
+            crate::chat::app_file_store::chat_deletion::Selection::ChannelRecord(id),
         ) {
             log::error!("chat deletion failed: {error}");
             return false;
         }
-        self.db.delete_channel(id);
         refresh_peer_key_cache(&self.db, &self.peer_key_cache);
+        self.cacher.load(&self.db);
         self.emit_channels_updated();
         true
     }
@@ -269,13 +266,13 @@ impl<T: PeerTransport + 'static> ChatService<T> {
         if let Err(error) = crate::chat::app_file_store::chat_deletion::delete(
             &self.db,
             &self.data_dir,
-            crate::chat::app_file_store::chat_deletion::Selection::Channel(&ch.id),
+            crate::chat::app_file_store::chat_deletion::Selection::ChannelRecord(&ch.id),
         ) {
             log::error!("chat deletion failed: {error}");
             return false;
         }
-        self.db.delete_channel(&ch.id);
         refresh_peer_key_cache(&self.db, &self.peer_key_cache);
+        self.cacher.load(&self.db);
         self.emit_channels_updated();
         true
     }

@@ -14,23 +14,17 @@ impl<T: PeerTransport + 'static> ChatService<T> {
     ///
     /// Returns `false` if the peer id is unknown, `true` otherwise.
     pub fn delete_peer(&self, id: &str) -> bool {
-        use crate::chat::enums::PeerStatus;
-        if self.db.get_peer_by_id(id).is_none() {
-            return false;
-        }
-        if let Err(error) = crate::chat::app_file_store::chat_deletion::delete(
+        match crate::chat::app_file_store::chat_deletion::delete(
             &self.db,
             &self.data_dir,
-            crate::chat::app_file_store::chat_deletion::Selection::Peer(id),
+            crate::chat::app_file_store::chat_deletion::Selection::PeerRecord(id),
         ) {
-            log::error!("chat deletion failed: {error}");
-            return false;
-        }
-        if self.db.any_channel_has_member(id) {
-            self.db
-                .update_peer_status_and_key(id, PeerStatus::Channel, "");
-        } else {
-            self.db.delete_peer(id);
+            Ok(0) => return false,
+            Ok(_) => {}
+            Err(error) => {
+                log::error!("peer removal failed: {error}");
+                return false;
+            }
         }
         refresh_peer_key_cache(&self.db, &self.peer_key_cache);
         self.cacher.load(&self.db);
@@ -46,11 +40,14 @@ impl<T: PeerTransport + 'static> ChatService<T> {
     /// shared key intact so a future re-pair can reuse the stored
     /// credentials. Returns `false` if the peer id is unknown.
     pub fn unpair_peer(&self, id: &str) -> bool {
-        use crate::chat::enums::PeerStatus;
-        if self.db.get_peer_by_id(id).is_none() {
-            return false;
+        match crate::db::chat_store::peers::unpair(&self.db, id) {
+            Ok(true) => {}
+            Ok(false) => return false,
+            Err(error) => {
+                log::error!("peer unpair failed: {error}");
+                return false;
+            }
         }
-        self.db.update_peer_status(id, PeerStatus::Unpaired);
         refresh_peer_key_cache(&self.db, &self.peer_key_cache);
         self.emit(
             WS_PEER_STATUS_UPDATED,

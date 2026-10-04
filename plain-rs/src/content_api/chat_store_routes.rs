@@ -33,6 +33,22 @@ pub(super) enum Request {
     DeletePeers {
         ids: Vec<String>,
     },
+    RemovePeer {
+        id: String,
+    },
+    RemoveChannel {
+        id: String,
+    },
+    UnpairPeer {
+        id: String,
+    },
+    DiscoverPeer {
+        id: String,
+        ips: Vec<String>,
+        port: u16,
+        name: String,
+        device_type: crate::chat::enums::DeviceType,
+    },
     PatchPeer {
         before: DPeer,
         after: DPeer,
@@ -125,6 +141,26 @@ pub(super) async fn call(
                 json!(true)
             }
             Request::DeletePeers { ids } => json!(peers::delete(&db, &ids)?),
+            Request::RemovePeer { id } => json!(
+                crate::chat::app_file_store::chat_deletion::delete(
+                    &db,
+                    &directory,
+                    crate::chat::app_file_store::chat_deletion::Selection::PeerRecord(&id)
+                )? != 0
+            ),
+            Request::RemoveChannel { id } => serde_json::to_value(
+                crate::chat::app_file_store::chat_deletion::remove_channel(&db, &directory, &id)?,
+            )?,
+            Request::UnpairPeer { id } => json!(peers::unpair(&db, &id)?),
+            Request::DiscoverPeer {
+                id,
+                ips,
+                port,
+                name,
+                device_type,
+            } => {
+                serde_json::to_value(peers::discovered(&db, &id, &ips, port, &name, device_type)?)?
+            }
             Request::PatchPeer { before, after } => {
                 serde_json::to_value(peers::patch(&db, &before, &after)?)?
             }
