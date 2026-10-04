@@ -21,17 +21,17 @@ pub use crate::chat::events::WS_DOWNLOAD_PROGRESS;
 /// Mirrors plain-app's `PairingRequestReceivedEvent` — fired when the local
 /// pairing manager receives an incoming PAIR_REQUEST that the user must
 /// accept or reject. Payload is a `PairingEvent` JSON object.
-pub const WS_PAIRING_REQUEST_RECEIVED: i32 = 22;
+pub use crate::chat::events::WS_PAIRING_REQUEST_RECEIVED;
 /// Mirrors plain-app's `PairingSuccessEvent` — fired when a pairing
 /// handshake completes successfully.
-pub const WS_PAIRING_SUCCESS: i32 = 23;
+pub use crate::chat::events::WS_PAIRING_SUCCESS;
 /// Mirrors plain-app's `PairingFailedEvent` — fired when a pairing
 /// handshake fails or is rejected by the remote device.
 pub use crate::chat::events::WS_PAIRING_FAILED;
 /// Mirrors plain-app's `PairingCanceledEvent` — fired when an in-progress
 /// pairing is cancelled by either side.
-pub const WS_PAIRING_CANCELLED: i32 = 25;
-pub const WS_PAIRING_STARTED: i32 = 26;
+pub use crate::chat::events::WS_PAIRING_CANCELLED;
+pub use crate::chat::events::WS_PAIRING_STARTED;
 /// Emitted for each LAN device that replied to a discover broadcast.
 /// Payload is a single `DiscoveredDevice` JSON object.
 pub const WS_NEARBY_DEVICE_FOUND: i32 = 27;

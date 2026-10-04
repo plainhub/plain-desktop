@@ -34,6 +34,8 @@ pub(super) struct ServerState {
     pub(super) downloads: Arc<crate::chat::download_queue::Queue>,
     pub(super) attachments: Arc<crate::chat::attachment_imports::Imports>,
     pub(super) delivery: Arc<crate::chat::delivery::Delivery>,
+    pub(super) pairing_runtime: Arc<super::pairing_runtime::Runtime>,
+    pub(super) ble_scans: Arc<crate::chat::nearby_scan::Scans>,
     pub(super) pairing: Arc<crate::chat::pairing::sessions::Sessions>,
     pub(super) prefs: Arc<crate::prefs::Prefs>,
     pub(super) directory: std::path::PathBuf,
@@ -120,6 +122,8 @@ impl ContentServer {
             downloads,
             attachments,
             delivery: Arc::new(crate::chat::delivery::Delivery::new((*db).clone())),
+            pairing_runtime: Arc::new(super::pairing_runtime::Runtime::default()),
+            ble_scans: Arc::new(crate::chat::nearby_scan::Scans::default()),
             pairing: Arc::new(crate::chat::pairing::sessions::Sessions::default()),
             files: services.files,
             host,
@@ -143,6 +147,7 @@ impl ContentServer {
             .route("/host", get(host_upgrade))
             .route("/health", get(health))
             .route("/fs", get(files::file))
+            .route("/chat/pairing", post(super::pairing_runtime::call))
             .route("/chat/peer-graphql", post(super::peer_graphql::call))
             .route("/chat/transport", post(super::peer_transport::call))
             .route("/chat/prewarm", post(super::prewarm::call))
@@ -181,6 +186,10 @@ impl ContentServer {
             #[cfg(feature = "http_transport")]
             public: tokio::sync::Mutex::new(None),
         })
+    }
+    #[cfg(all(test, feature = "http_transport"))]
+    pub(super) fn runtime_state(&self) -> ServerState {
+        self.state.clone()
     }
     #[cfg(feature = "http_transport")]
     pub async fn start_public(

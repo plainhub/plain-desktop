@@ -12,6 +12,20 @@ use serde_json::json;
 #[derive(Deserialize)]
 #[serde(tag = "action", rename_all = "camelCase", deny_unknown_fields)]
 pub(super) enum Request {
+    ScanBegin,
+    ScanSeen {
+        id: String,
+        short_id: String,
+    },
+    ScanReply {
+        id: String,
+        short_id: String,
+        generation: String,
+        payload: Option<String>,
+    },
+    ScanEnd {
+        id: String,
+    },
     Encode {
         message: Message,
     },
@@ -42,6 +56,25 @@ pub(super) async fn call(
     }
     let result = async {
         Ok::<_, anyhow::Error>(match request {
+            Request::ScanBegin => json!(state.ble_scans.begin()?),
+            Request::ScanSeen { id, short_id } => {
+                serde_json::to_value(state.ble_scans.seen(&id, &short_id)?)?
+            }
+            Request::ScanReply {
+                id,
+                short_id,
+                generation,
+                payload,
+            } => serde_json::to_value(state.ble_scans.reply(
+                &id,
+                &short_id,
+                &generation,
+                payload.as_deref(),
+            )?)?,
+            Request::ScanEnd { id } => {
+                state.ble_scans.end(&id);
+                json!(true)
+            }
             Request::Encode { message } => json!(message.wire()?),
             Request::Parse { body } => serde_json::to_value(Message::parse(&body)?)?,
             Request::DiscoverReply { payload, short_id } => serde_json::to_value(

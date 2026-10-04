@@ -44,3 +44,6 @@ pub mod transport_router;
 
 pub mod download_queue;
 pub mod download_status;
+
+pub mod nearby_scan;
+pub mod lan_ip;

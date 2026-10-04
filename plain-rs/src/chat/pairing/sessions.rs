@@ -14,7 +14,7 @@ pub struct Target {
     pub device_ip: String,
     pub device_port: u16,
 }
-#[derive(Clone, Serialize)]
+#[derive(Clone, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Ticket {
     #[serde(flatten)]
@@ -69,6 +69,16 @@ impl Sessions {
             },
         );
         new
+    }
+    pub fn incoming_target(&self, id: &str, signature: &str) -> Option<Target> {
+        self.1
+            .lock()
+            .unwrap()
+            .get(id)
+            .filter(|pending| {
+                pending.signature == signature && super::timestamp_ok(pending.timestamp)
+            })
+            .map(|pending| pending.target.clone())
     }
     pub fn take_incoming(&self, id: &str, signature: &str) -> Option<Target> {
         let mut incoming = self.1.lock().unwrap();
