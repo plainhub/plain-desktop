@@ -179,6 +179,7 @@ fn mutate(db: &Db, directory: &Path, selection: Selection<'_>) -> Result<Outcome
                         params![id, crate::db::now_iso()],
                     )?
                 } else {
+                    tx.execute("DELETE FROM chat_receipts WHERE peer_id=?1", [id])?;
                     tx.execute("DELETE FROM peers WHERE id=?1", [id])?
                 }
             }

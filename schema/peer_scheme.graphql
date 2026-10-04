@@ -33,7 +33,7 @@ type PeerMutation {
 	Receive a chat item from an authenticated peer.
 	Wire format: `mutation CreateChatItem($content: String!) { createChatItem(content: $content) { ... } }`
 	"""
-	createChatItem(content: String!): ChatItem!
+	createChatItem(content: String!): [ChatItem!]!
 	"""
 	Receive a channel system message from an authenticated peer.
 	Wire format: `mutation ChannelSystemMessage($type: ChannelSystemMessageType!, $payload: String!) { channelSystemMessage(type: $type, payload: $payload) }`

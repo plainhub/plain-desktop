@@ -17,6 +17,23 @@ use serde_json::{Value, json};
 #[derive(Deserialize)]
 #[serde(tag = "action", rename_all = "camelCase", deny_unknown_fields)]
 pub(super) enum Request {
+    CreateChat {
+        to_id: String,
+        channel_id: String,
+        content: String,
+    },
+    ReceiveChat {
+        from_id: String,
+        channel_id: String,
+        content: String,
+        signature: String,
+        timestamp: i64,
+    },
+    ChatDelivery {
+        id: String,
+        results: Option<Vec<crate::chat::channel::chat_helper::ChannelDeliveryResult>>,
+        retry: bool,
+    },
     Peers {
         statuses: Vec<PeerStatus>,
     },
@@ -203,6 +220,33 @@ pub(super) async fn call(
     let result = tokio::task::spawn_blocking(move || -> anyhow::Result<Value> {
         use chat_store::{channels, messages, nearby, peers};
         Ok(match request {
+            Request::CreateChat {
+                to_id,
+                channel_id,
+                content,
+            } => serde_json::to_value(crate::chat::message_lifecycle::create(
+                &db,
+                &to_id,
+                &channel_id,
+                &content,
+            )?)?,
+            Request::ReceiveChat {
+                from_id,
+                channel_id,
+                content,
+                signature,
+                timestamp,
+            } => serde_json::to_value(crate::chat::message_lifecycle::receive(
+                &db,
+                &from_id,
+                &channel_id,
+                &content,
+                &signature,
+                timestamp,
+            )?)?,
+            Request::ChatDelivery { id, results, retry } => serde_json::to_value(
+                crate::chat::message_lifecycle::delivery(&db, &id, results, retry)?,
+            )?,
             Request::Peers { statuses } => serde_json::to_value(
                 peers::all(&db)?
                     .into_iter()

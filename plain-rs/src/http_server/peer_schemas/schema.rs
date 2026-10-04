@@ -38,15 +38,22 @@ impl PeerMutation {
         &self,
         ctx: &Context<'_>,
         content: String,
-    ) -> async_graphql::Result<ChatItem> {
+    ) -> async_graphql::Result<Vec<ChatItem>> {
         let c = ctx.data_unchecked::<PeerCtx>();
-        Ok(ChatItem::from(
-            c.app
-                .chat
-                .service
-                .receive_peer_chat(&c.peer.id, &c.channel_id, &content)
-                .map_err(async_graphql::Error::new)?,
-        ))
+        Ok(c.app
+            .chat
+            .service
+            .receive_peer_chat(
+                &c.peer.id,
+                &c.channel_id,
+                &content,
+                &c.signature,
+                c.timestamp,
+            )
+            .map_err(async_graphql::Error::new)?
+            .into_iter()
+            .map(ChatItem::from)
+            .collect())
     }
 
     /// Receive a channel system message from an authenticated peer.

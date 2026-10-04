@@ -9,7 +9,7 @@ pub mod browse;
 #[cfg(feature = "chat")]
 pub(super) mod channel;
 #[cfg(feature = "chat")]
-mod chat;
+pub(crate) mod chat;
 #[cfg(feature = "chat")]
 pub(super) mod db_time;
 #[cfg(feature = "system")]

@@ -50,11 +50,21 @@ async fn send_chat_item_accepts_bare_peer_id_and_local_target() {
         no_link_previews(),
     );
 
-    let bare = service.send_chat_item("peer-id".to_string(), "{}".to_string());
+    let bare = service
+        .send_chat_item(
+            "peer-id".to_string(),
+            r#"{"type":"TEXT","value":{"text":"fixture"}}"#.to_string(),
+        )
+        .unwrap();
     assert_eq!(bare[0].to_id, "peer-id");
     assert_eq!(bare[0].status, ChatStatus::Pending);
 
-    let local = service.send_chat_item("peer:local".to_string(), "{}".to_string());
+    let local = service
+        .send_chat_item(
+            "peer:local".to_string(),
+            r#"{"type":"TEXT","value":{"text":"fixture"}}"#.to_string(),
+        )
+        .unwrap();
     assert_eq!(local[0].to_id, "local");
     assert_eq!(local[0].status, ChatStatus::Sent);
 }
@@ -192,19 +202,38 @@ async fn kicked_channel_rejects_incoming_message() {
         no_link_previews(),
     );
     let mut channel = crate::db::DChannel::new("group", "self");
+    service.db.upsert_peer(&crate::db::DPeer::new(
+        "peer",
+        "Fixture",
+        "",
+        1,
+        DeviceType::Phone,
+    ));
     channel.status = ChannelStatus::Kicked;
     service.db.insert_channel(&channel);
 
     assert_eq!(
         service
-            .receive_peer_chat("peer", &channel.id, "{}")
+            .receive_peer_chat(
+                "peer",
+                &channel.id,
+                "{}",
+                &crate::base64_encode(&[7; 64]),
+                crate::chat::pairing::now_ms()
+            )
             .unwrap_err(),
         "Channel not joined"
     );
     assert!(service.db.get_chats_by_channel(&channel.id).is_empty());
     assert_eq!(
         service
-            .receive_peer_chat("peer", "missing", "{}")
+            .receive_peer_chat(
+                "peer",
+                "missing",
+                "{}",
+                &crate::base64_encode(&[7; 64]),
+                crate::chat::pairing::now_ms()
+            )
             .unwrap_err(),
         "Unknown channel"
     );
@@ -227,13 +256,23 @@ async fn unpaired_peer_send_fails_and_local_cache_tracks_deletion() {
         no_link_previews(),
     );
 
-    let sent = service.send_chat_item("peer:peer".to_string(), "{}".to_string());
+    let sent = service
+        .send_chat_item(
+            "peer:peer".to_string(),
+            r#"{"type":"TEXT","value":{"text":"fixture"}}"#.to_string(),
+        )
+        .unwrap();
     assert_eq!(
         service.db.get_chat_by_id(&sent[0].id).unwrap().status,
         ChatStatus::Failed
     );
 
-    let local = service.send_chat_item("peer:local".to_string(), "{}".to_string());
+    let local = service
+        .send_chat_item(
+            "peer:local".to_string(),
+            r#"{"type":"TEXT","value":{"text":"fixture"}}"#.to_string(),
+        )
+        .unwrap();
     assert_eq!(
         service.cacher.get_latest_chat("local").unwrap().id,
         local[0].id

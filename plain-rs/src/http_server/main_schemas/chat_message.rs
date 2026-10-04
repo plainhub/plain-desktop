@@ -20,14 +20,15 @@ impl ChatMessageMutation {
         ctx: &Context<'_>,
         target: String,
         content: String,
-    ) -> Vec<ChatItem> {
+    ) -> async_graphql::Result<Vec<ChatItem>> {
         let c = ctx.data_unchecked::<Arc<AppCtx>>();
-        c.chat
+        Ok(c.chat
             .service
             .send_chat_item(target, content)
+            .map_err(async_graphql::Error::new)?
             .into_iter()
             .map(|chat| ChatItem::from(chat))
-            .collect()
+            .collect())
     }
 
     /// Delete a chat item, broadcasting `WS_MESSAGE_DELETED`.

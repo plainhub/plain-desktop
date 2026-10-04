@@ -45,7 +45,7 @@ pub fn delete(db: &Db, ids: &[String]) -> Result<usize> {
         Ok(n)
     })
 }
-fn validate_content(content: &str) -> Result<()> {
+pub(crate) fn validate_content(content: &str) -> Result<()> {
     let value: serde_json::Value = serde_json::from_str(content)?;
     if !matches!(
         value.get("type").and_then(|v| v.as_str()),

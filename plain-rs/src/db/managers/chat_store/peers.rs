@@ -38,6 +38,7 @@ pub fn delete(db: &Db, ids: &[String]) -> Result<usize> {
         let tx = c.unchecked_transaction()?;
         let mut n = 0;
         for id in ids {
+            tx.execute("DELETE FROM chat_receipts WHERE peer_id=?1", [id])?;
             n += tx.execute("DELETE FROM peers WHERE id=?1", [id])?;
         }
         tx.commit()?;

@@ -9,7 +9,7 @@ use std::sync::Arc;
 use tokio::sync::broadcast;
 
 use crate::api::context::{AppCtx, WsEvent};
-use crate::api::db::{Db, DPeer};
+use crate::api::db::{DPeer, Db};
 
 /// Everything a peer resolver needs to fulfil a request.
 pub struct PeerCtx {
@@ -21,6 +21,8 @@ pub struct PeerCtx {
     /// channel; ignored by `channelSystemMessage` (the channel id there
     /// is part of the encrypted payload).
     pub channel_id: String,
+    pub signature: String,
+    pub timestamp: i64,
     /// Shared application context (db handle, event bus, etc.).
     pub app: Arc<AppCtx>,
 }

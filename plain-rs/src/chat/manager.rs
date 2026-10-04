@@ -14,7 +14,7 @@ impl<T: PeerTransport + 'static> ChatService<T> {
     /// Delivery is spawned fire-and-forget; the final status is published
     /// via `WS_MESSAGE_UPDATED`. Returns the initially-inserted row (status
     /// `PENDING` for remote targets) so the caller can render immediately.
-    pub fn send_chat_item(&self, to_id: String, content: String) -> Vec<DChat> {
+    pub fn send_chat_item(&self, to_id: String, content: String) -> Result<Vec<DChat>, String> {
         let is_channel = to_id.starts_with("channel:");
         let peer_id = if is_channel {
             String::new()
@@ -33,22 +33,19 @@ impl<T: PeerTransport + 'static> ChatService<T> {
         };
 
         let is_remote = (!peer_id.is_empty() && peer_id != "local") || is_channel;
-        let mut chat = DChat::new("me", &to, &channel_id, &content);
-        if is_remote {
-            chat.status = ChatStatus::Pending;
-        }
-        self.db.insert_chat(&chat);
+        let chat = super::message_lifecycle::create(&self.db, &to, &channel_id, &content)
+            .map_err(|e| e.to_string())?;
         self.cacher.load(&self.db);
+
+        self.emit(WS_MESSAGE_CREATED, json!([chat_to_json(&chat)]).to_string());
 
         if is_remote {
             self.spawn_delivery(&chat);
         }
 
-        self.emit(WS_MESSAGE_CREATED, json!([chat_to_json(&chat)]).to_string());
-
         self.spawn_link_preview_refresh(&chat.id, &chat.content);
 
-        vec![chat]
+        Ok(vec![chat])
     }
 
     /// Delete a single chat item and broadcast `WS_MESSAGE_DELETED`.

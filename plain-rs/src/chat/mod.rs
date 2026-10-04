@@ -26,6 +26,7 @@ pub mod content;
 pub mod enums;
 pub mod events;
 mod manager;
+pub mod message_lifecycle;
 pub mod pairing;
 pub mod peer_auth;
 mod peer_manager;

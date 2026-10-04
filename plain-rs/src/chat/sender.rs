@@ -1,9 +1,6 @@
 use crate::base64_decode;
-use crate::chat::channel::chat_helper::{
-    SendResult, build_no_leader_status_data, build_status_data_json, compute_status, send,
-};
+use crate::chat::channel::chat_helper::{ChannelDeliveryResult, SendResult, send};
 use crate::chat::content::to_peer_content;
-use crate::chat::enums::ChatStatus;
 use crate::chat::events::{ChatEvent, WS_MESSAGE_UPDATED, load_key_cache};
 use crate::chat::manager::chat_to_json;
 use crate::chat::service::ChatService;
@@ -19,19 +16,20 @@ impl<T: PeerTransport + 'static> ChatService<T> {
     fn spawn_peer_delivery(&self, chat: &DChat) {
         let peer_id = chat.to_id.clone();
         let Some(peer) = self.db.get_peer_by_id(&peer_id) else {
+            apply_delivery(&self.db, &self.event_tx, &chat.id, None);
             return;
         };
         if !peer.is_paired() {
-            if let Some(updated) = self.db.update_chat_status_and_data(
+            apply_delivery(
+                &self.db,
+                &self.event_tx,
                 &chat.id,
-                ChatStatus::Failed,
-                &peer_delivery_status_data(&peer.id, &peer.name, "peer unpaired"),
-            ) {
-                self.emit(
-                    WS_MESSAGE_UPDATED,
-                    json!([chat_to_json(&updated)]).to_string(),
-                );
-            }
+                Some(vec![ChannelDeliveryResult {
+                    peer_id: peer.id.clone(),
+                    peer_name: peer.name.clone(),
+                    error: Some("peer unpaired".into()),
+                }]),
+            );
             return;
         }
         let key = {
@@ -42,7 +40,10 @@ impl<T: PeerTransport + 'static> ChatService<T> {
             let raw = base64_decode(&peer.key);
             if raw.len() == 32 { Some(raw) } else { None }
         });
-        let Some(key) = key else { return };
+        let Some(key) = key else {
+            apply_delivery(&self.db, &self.event_tx, &chat.id, None);
+            return;
+        };
 
         let chat_id = chat.id.clone();
         let peer_urls = peer_graphql_urls(&peer);
@@ -71,21 +72,15 @@ impl<T: PeerTransport + 'static> ChatService<T> {
                 // kick a re-browse so the peer row refreshes for next time.
                 hooks.rebrowse_peers();
             }
-            let (new_status, status_data) = match delivery_result {
-                Ok(()) => (ChatStatus::Sent, String::new()),
-                Err(error) => (
-                    ChatStatus::Failed,
-                    peer_delivery_status_data(&peer_id_for_status, &peer_name_for_status, &error),
-                ),
+            let results = match delivery_result {
+                Ok(()) => vec![],
+                Err(error) => vec![ChannelDeliveryResult {
+                    peer_id: peer_id_for_status,
+                    peer_name: peer_name_for_status,
+                    error: Some(error),
+                }],
             };
-            if let Some(updated) =
-                db.update_chat_status_and_data(&chat_id, new_status, &status_data)
-            {
-                let _ = event_tx.send(ChatEvent {
-                    event_type: WS_MESSAGE_UPDATED,
-                    payload: json!([chat_to_json(&updated)]).to_string(),
-                });
-            }
+            apply_delivery(&db, &event_tx, &chat_id, Some(results));
         });
     }
 
@@ -94,6 +89,7 @@ impl<T: PeerTransport + 'static> ChatService<T> {
     fn spawn_channel_delivery(&self, chat: &DChat) {
         let channel_id = chat.channel_id.clone();
         let Some(channel) = self.db.get_channel_by_id(&channel_id) else {
+            apply_delivery(&self.db, &self.event_tx, &chat.id, None);
             return;
         };
 
@@ -128,26 +124,14 @@ impl<T: PeerTransport + 'static> ChatService<T> {
             )
             .await;
 
-            let (status, status_data) = match result {
-                SendResult::Status(results) => {
-                    let s = compute_status(&results);
-                    let d = build_status_data_json(&results);
-                    (s, d)
-                }
+            let results = match result {
+                SendResult::Status(results) => Some(results),
                 SendResult::NoLeader | SendResult::LeaderPeerMissing(()) => {
-                    // No reachable leader/member means stale peer addresses —
-                    // kick a re-browse so peers' IP/port refresh.
                     hooks.rebrowse_peers();
-                    (ChatStatus::Failed, build_no_leader_status_data())
+                    None
                 }
             };
-
-            if let Some(updated) = db.update_chat_status_and_data(&chat_id, status, &status_data) {
-                let _ = event_tx.send(ChatEvent {
-                    event_type: WS_MESSAGE_UPDATED,
-                    payload: json!([chat_to_json(&updated)]).to_string(),
-                });
-            }
+            apply_delivery(&db, &event_tx, &chat_id, results);
         });
     }
 
@@ -166,13 +150,20 @@ impl<T: PeerTransport + 'static> ChatService<T> {
     }
 }
 
-fn peer_delivery_status_data(peer_id: &str, peer_name: &str, error: &str) -> String {
-    json!({
-        "results": [{
-            "peerId": peer_id,
-            "peerName": peer_name,
-            "error": error,
-        }]
-    })
-    .to_string()
+fn apply_delivery(
+    db: &crate::db::Db,
+    event_tx: &tokio::sync::broadcast::Sender<ChatEvent>,
+    id: &str,
+    results: Option<Vec<ChannelDeliveryResult>>,
+) {
+    match super::message_lifecycle::delivery(db, id, results, false) {
+        Ok(Some(updated)) => {
+            let _ = event_tx.send(ChatEvent {
+                event_type: WS_MESSAGE_UPDATED,
+                payload: json!([chat_to_json(&updated)]).to_string(),
+            });
+        }
+        Ok(None) => {}
+        Err(error) => log::error!("chat delivery status failed: {error}"),
+    }
 }

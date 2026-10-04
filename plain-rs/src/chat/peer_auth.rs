@@ -5,7 +5,7 @@ use crate::{
 };
 use rusqlite::OptionalExtension;
 use std::time::{SystemTime, UNIX_EPOCH};
-const TIMESTAMP_WINDOW_MS: u64 = 5 * 60 * 1000;
+pub(crate) const TIMESTAMP_WINDOW_MS: u64 = 5 * 60 * 1000;
 
 pub struct AuthenticatedPeer {
     pub peer: DPeer,

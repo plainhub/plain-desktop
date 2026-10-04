@@ -27,16 +27,17 @@ use std::collections::HashSet;
 
 use serde_json::{Value, json};
 
-use crate::db::{Db, DChannel, DPeer};
 use crate::chat::enums::ChatStatus;
 use crate::chat::events::ChannelKeyCache;
 use crate::chat::transport::{PeerTransport, deliver_to_peer, peer_graphql_urls};
+use crate::db::{DChannel, DPeer, Db};
 
 // ── DMessageDeliveryResult ──────────────────────────────────────────────────
 
 /// One delivery attempt result, matching Kotlin's `DMessageDeliveryResult`.
 /// `error` is `None` when the message was delivered successfully.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, serde::Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct ChannelDeliveryResult {
     pub peer_id: String,
     pub peer_name: String,

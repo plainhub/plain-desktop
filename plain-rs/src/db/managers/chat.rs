@@ -3,10 +3,10 @@ use rusqlite::params;
 use crate::chat::enums::ChatStatus;
 use crate::db::{DChat, Db, now_iso};
 
-pub(super) const CHAT_COLS: &str =
+pub(crate) const CHAT_COLS: &str =
     "id,from_id,to_id,channel_id,content,status,status_data,created_at,updated_at";
 
-pub(super) fn row_to_chat(row: &rusqlite::Row<'_>) -> rusqlite::Result<DChat> {
+pub(crate) fn row_to_chat(row: &rusqlite::Row<'_>) -> rusqlite::Result<DChat> {
     Ok(DChat {
         id: row.get(0)?,
         from_id: row.get(1)?,

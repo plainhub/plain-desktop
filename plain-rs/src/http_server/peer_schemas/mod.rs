@@ -69,6 +69,8 @@ pub async fn handle(
         .unwrap_or_default();
 
     let peer_ctx = PeerCtx {
+        signature: authed.signature_b64,
+        timestamp: authed.timestamp,
         peer: authed.peer,
         channel_id: header_channel_id.to_string(),
         app: ctx.clone(),

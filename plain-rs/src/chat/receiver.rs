@@ -1,6 +1,6 @@
 use crate::base64_decode;
 use crate::chat::channel::handler as channel_handler;
-use crate::chat::enums::{ChannelStatus, ChannelSystemMessageType};
+use crate::chat::enums::ChannelSystemMessageType;
 use crate::chat::events::{WS_CHANNELS_UPDATED, WS_MESSAGE_CREATED, channels_updated_payload};
 use crate::chat::manager::chat_to_json;
 use crate::chat::service::ChatService;
@@ -18,26 +18,22 @@ impl<T: PeerTransport + 'static> ChatService<T> {
         from_id: &str,
         channel_id: &str,
         content: &str,
-    ) -> Result<DChat, String> {
-        // Channel membership gate (mirrors Kotlin's
-        // `PeerGraphQL.createChatItem` IllegalStateException("Channel not joined")).
-        if !channel_id.is_empty() {
-            let channel = self
-                .db
-                .get_channel_by_id(channel_id)
-                .ok_or("Unknown channel")?;
-            if channel.status != ChannelStatus::Joined {
-                return Err("Channel not joined".to_string());
-            }
-        }
-        let to_id = if channel_id.is_empty() { "me" } else { "" };
-        let chat = DChat::new(from_id, to_id, channel_id, content);
-        self.db.insert_chat(&chat);
+        signature: &str,
+        timestamp: i64,
+    ) -> Result<Option<DChat>, String> {
+        let Some(received) = super::message_lifecycle::receive(
+            &self.db, from_id, channel_id, content, signature, timestamp,
+        )
+        .map_err(|e| e.to_string())?
+        else {
+            return Ok(None);
+        };
+        let chat = received.chat;
         self.cacher.load(&self.db);
         self.emit(WS_MESSAGE_CREATED, json!([chat_to_json(&chat)]).to_string());
 
         self.spawn_link_preview_refresh(&chat.id, &chat.content);
-        Ok(chat)
+        Ok(Some(chat))
     }
 
     /// Dispatch an incoming `channelSystemMessage` to the local channel handler

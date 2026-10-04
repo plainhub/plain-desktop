@@ -12,20 +12,22 @@ mod managers;
 #[cfg(feature = "chat")]
 pub(crate) use managers::channel::{CHANNEL_COLS, row_to_channel};
 #[cfg(feature = "chat")]
+pub(crate) use managers::chat::{CHAT_COLS, row_to_chat};
+#[cfg(feature = "chat")]
 pub(crate) use managers::peer::{PEER_COLS, row_to_peer};
 #[cfg(any(feature = "chat", feature = "library", feature = "sqlite_browse"))]
 mod models;
 #[cfg(any(feature = "chat", feature = "library"))]
 mod schema;
 
-#[cfg(feature = "chat")]
-pub use managers::{bookmark, chat_store};
 #[cfg(feature = "sqlite_browse")]
 pub use managers::browse;
 #[cfg(feature = "system")]
 pub use managers::devtools;
 #[cfg(feature = "library")]
 pub use managers::{audio_queue, favorite_folder, image_editor_project, notes_feeds, tag};
+#[cfg(feature = "chat")]
+pub use managers::{bookmark, chat_store};
 
 #[cfg(all(feature = "chat", feature = "sqlite_browse"))]
 pub use crate::sqlite_browse::TableColumnMeta;
