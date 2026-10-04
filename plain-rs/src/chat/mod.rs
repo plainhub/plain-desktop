@@ -22,6 +22,7 @@ pub mod app_file_store;
 pub mod cacher;
 pub mod channel;
 pub mod content;
+pub mod delivery;
 
 pub mod enums;
 pub mod events;

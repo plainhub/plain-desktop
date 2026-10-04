@@ -27,6 +27,26 @@ pub trait PeerTransport: Send + Sync {
         channel_id: Option<&'a str>,
         body: &'a [u8],
     ) -> impl std::future::Future<Output = Result<Vec<u8>, String>> + Send;
+    fn message(
+        &self,
+        peer: &DPeer,
+        client_id: &str,
+        channel_id: &str,
+        key: &[u8],
+        body: &str,
+    ) -> impl std::future::Future<Output = Result<(), String>> + Send {
+        async move {
+            deliver_signed(
+                self,
+                &peer_graphql_urls(peer),
+                key,
+                client_id,
+                body,
+                (!channel_id.is_empty()).then_some(channel_id),
+            )
+            .await
+        }
+    }
 }
 
 /// Blanket forwarding impl so callers can pass `&Arc<T>` where `&T` is
@@ -40,6 +60,18 @@ impl<T: PeerTransport> PeerTransport for std::sync::Arc<T> {
         body: &'a [u8],
     ) -> impl std::future::Future<Output = Result<Vec<u8>, String>> + Send {
         (**self).post(url, client_id, channel_id, body)
+    }
+    async fn message(
+        &self,
+        peer: &DPeer,
+        client_id: &str,
+        channel_id: &str,
+        key: &[u8],
+        body: &str,
+    ) -> Result<(), String> {
+        (**self)
+            .message(peer, client_id, channel_id, key, body)
+            .await
     }
 }
 
@@ -76,6 +108,25 @@ pub async fn deliver_to_peer<T: PeerTransport>(
 ) -> Result<(), String> {
     let payload = chat_item_request(kp_bytes, content)?;
 
+    deliver_signed(
+        transport,
+        peer_graphql_urls,
+        key,
+        client_id,
+        &payload,
+        channel_id,
+    )
+    .await
+}
+
+pub async fn deliver_signed<T: PeerTransport + ?Sized>(
+    transport: &T,
+    peer_graphql_urls: &[String],
+    key: &[u8],
+    client_id: &str,
+    payload: &str,
+    channel_id: Option<&str>,
+) -> Result<(), String> {
     let Some(encrypted) = xchacha_encrypt_raw(key, payload.as_bytes()) else {
         return Err("encrypt failed".to_string());
     };
@@ -104,9 +155,8 @@ pub async fn deliver_to_peer<T: PeerTransport>(
             errors.push(format!("{peer_graphql_url}: invalid JSON response"));
             continue;
         };
-        if value.get("errors").is_some() {
-            log::warn!("deliver_to_peer GraphQL errors from {peer_graphql_url}: {value}");
-            errors.push(format!("{peer_graphql_url}: GraphQL errors {value}"));
+        if let Err(error) = message_response(&value) {
+            errors.push(format!("{peer_graphql_url}: {error}"));
             continue;
         }
         return Ok(());
@@ -117,6 +167,24 @@ pub async fn deliver_to_peer<T: PeerTransport>(
     } else {
         errors.join("; ")
     })
+}
+
+pub fn message_response(value: &serde_json::Value) -> Result<(), String> {
+    if let Some(errors) = value.get("errors") {
+        match errors {
+            serde_json::Value::Null => {}
+            serde_json::Value::Array(errors) if errors.is_empty() => {}
+            _ => return Err(format!("GraphQL errors {errors}")),
+        }
+    }
+    if !value
+        .get("data")
+        .and_then(|data| data.get("createChatItem"))
+        .is_some_and(serde_json::Value::is_array)
+    {
+        return Err("Missing createChatItem delivery receipt".into());
+    }
+    Ok(())
 }
 
 pub const CREATE_CHAT_ITEM: &str = "mutation CreateChatItem($content: String!) { createChatItem(content: $content) { id fromId toId createdAt } }";

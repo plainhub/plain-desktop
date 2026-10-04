@@ -87,8 +87,8 @@ async fn peer_graphql_create_chat_item_roundtrip() {
 
     let resp = super::peer_graphql_handler(
         axum::extract::State(state.clone()),
-        headers,
-        Bytes::from(body),
+        headers.clone(),
+        Bytes::from(body.clone()),
     )
     .await;
     assert_eq!(resp.status(), StatusCode::OK);
@@ -101,7 +101,8 @@ async fn peer_graphql_create_chat_item_roundtrip() {
     let plain = xchacha_decrypt_raw(&key, &bytes).expect("decrypt response");
     let v: serde_json::Value = serde_json::from_slice(&plain).unwrap();
     assert!(v.get("errors").is_none(), "{v}");
-    let item = &v["data"]["createChatItem"];
+    assert_eq!(v["data"]["createChatItem"].as_array().unwrap().len(), 1);
+    let item = &v["data"]["createChatItem"][0];
     let id = item["id"].as_str().unwrap().to_string();
     assert_eq!(item["fromId"], "peer-a");
     assert_eq!(item["toId"], "me");
@@ -116,6 +117,19 @@ async fn peer_graphql_create_chat_item_roundtrip() {
         .expect("row persisted");
     assert_eq!(row.from_id, "peer-a");
     assert_eq!(row.to_id, "me");
+    let replay = super::peer_graphql_handler(
+        axum::extract::State(state.clone()),
+        headers,
+        Bytes::from(body),
+    )
+    .await;
+    assert_eq!(replay.status(), StatusCode::OK);
+    let bytes = axum::body::to_bytes(replay.into_body(), 1024 * 1024)
+        .await
+        .unwrap();
+    let plain = xchacha_decrypt_raw(&key, &bytes).unwrap();
+    let replay: serde_json::Value = serde_json::from_slice(&plain).unwrap();
+    assert_eq!(replay["data"]["createChatItem"], serde_json::json!([]));
 }
 
 /// Unknown peer → 401 with the auth reason.

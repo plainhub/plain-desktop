@@ -79,6 +79,24 @@ pub fn delivery(
     results: Option<Vec<ChannelDeliveryResult>>,
     retry: bool,
 ) -> Result<Option<DChat>> {
+    delivery_impl(db, id, results, retry, None)
+}
+pub(super) fn delivery_for_content(
+    db: &Db,
+    id: &str,
+    results: Option<Vec<ChannelDeliveryResult>>,
+    retry: bool,
+    content: &str,
+) -> Result<Option<DChat>> {
+    delivery_impl(db, id, results, retry, Some(content))
+}
+fn delivery_impl(
+    db: &Db,
+    id: &str,
+    results: Option<Vec<ChannelDeliveryResult>>,
+    retry: bool,
+    expected_content: Option<&str>,
+) -> Result<Option<DChat>> {
     db.with_conn(|c| -> Result<Option<DChat>> {
         let tx = c.unchecked_transaction()?;
         let Some(mut chat) = tx
@@ -91,6 +109,9 @@ pub fn delivery(
         else {
             return Ok(None);
         };
+        if expected_content.is_some_and(|content| content != chat.content) {
+            bail!("Message content changed during delivery");
+        }
         let (status, data) = if let Some(mut results) = results {
             let mut ids = std::collections::HashSet::new();
             if results

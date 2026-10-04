@@ -84,6 +84,7 @@ pub fn no_link_previews() -> LinkPreviewFn {
 /// Generic over the app's HTTP transport to peers.
 pub struct ChatService<T: PeerTransport> {
     pub db: Db,
+    pub delivery: std::sync::Arc<super::delivery::Delivery>,
     pub cacher: ChatCacher,
     /// Base64 local URL token — the key behind `/fs` file ids.
     pub token: String,
@@ -121,6 +122,7 @@ impl<T: PeerTransport + 'static> ChatService<T> {
         cacher.load(&db);
         load_key_cache(&db, &peer_key_cache, &channel_key_cache);
         Self {
+            delivery: std::sync::Arc::new(super::delivery::Delivery::new(db.clone())),
             db,
             cacher,
             token,

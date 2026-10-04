@@ -256,12 +256,23 @@ async fn unpaired_peer_send_fails_and_local_cache_tracks_deletion() {
         no_link_previews(),
     );
 
+    let mut events = service.event_tx.subscribe();
     let sent = service
         .send_chat_item(
             "peer:peer".to_string(),
             r#"{"type":"TEXT","value":{"text":"fixture"}}"#.to_string(),
         )
         .unwrap();
+    let created = tokio::time::timeout(std::time::Duration::from_secs(2), events.recv())
+        .await
+        .unwrap()
+        .unwrap();
+    assert_eq!(created.event_type, crate::chat::events::WS_MESSAGE_CREATED);
+    let updated = tokio::time::timeout(std::time::Duration::from_secs(2), events.recv())
+        .await
+        .unwrap()
+        .unwrap();
+    assert_eq!(updated.event_type, crate::chat::events::WS_MESSAGE_UPDATED);
     assert_eq!(
         service.db.get_chat_by_id(&sent[0].id).unwrap().status,
         ChatStatus::Failed
