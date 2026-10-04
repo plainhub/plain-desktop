@@ -10,7 +10,7 @@ pub fn now_ms() -> i64 {
 }
 
 pub fn timestamp_ok(ts: i64) -> bool {
-    (now_ms() - ts).abs() <= MAX_TIMESTAMP_DIFF_MS
+    now_ms().abs_diff(ts) <= MAX_TIMESTAMP_DIFF_MS as u64
 }
 
 /// Signature canonicalization for the pairing `deviceType` field.

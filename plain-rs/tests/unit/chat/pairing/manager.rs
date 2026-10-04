@@ -1,7 +1,7 @@
 use super::*;
-use crate::db::Db;
 use crate::chat::service::ChatIdentity;
 use crate::chat::transport::PeerTransport;
+use crate::db::Db;
 use std::sync::Arc;
 
 struct TestTransport;
@@ -114,4 +114,49 @@ fn cancel_pairing_without_session_is_silent() {
     mgr.cancel_pairing("ghost");
     assert!(rx.try_recv().is_err());
     assert!(!mgr.is_pairing("ghost"));
+}
+
+#[test]
+fn wrong_recipient_keeps_pending_session_and_storage_failure_emits_no_success() {
+    let mgr = manager();
+    let (kp, vk) = crate::ed25519_generate();
+    let remote = crate::EcdhSession::generate();
+    mgr.sessions.lock().unwrap().insert(
+        "peer".into(),
+        PairingSession {
+            device_name: "Fixture".into(),
+            device_ip: "127.0.0.1".into(),
+            device_port: 1,
+            ecdh: Some(crate::EcdhSession::generate()),
+        },
+    );
+    let mut response = PairingResponse {
+        from_id: "peer".into(),
+        to_id: "other-device".into(),
+        port: 2443,
+        device_type: "PHONE".into(),
+        ecdh_public_key: crate::base64_encode(&remote.public_key_bytes),
+        signature_public_key: crate::base64_encode(&vk),
+        accepted: true,
+        timestamp: now_ms(),
+        ips: vec![],
+        signature: String::new(),
+        aware_supported: false,
+    };
+    response.signature = crate::ed25519_sign(&kp, response.signature_data().as_bytes());
+    let mut rx = mgr.subscribe();
+    mgr.on_pair_response(response.clone(), "127.0.0.1");
+    assert!(mgr.is_pairing("peer"));
+    assert!(rx.try_recv().is_err());
+    mgr.db.with_conn(|c|c.execute_batch("CREATE TRIGGER fail_pair BEFORE INSERT ON peers BEGIN SELECT RAISE(ABORT,'fixture failure'); END;")).unwrap();
+    response.to_id = "self".into();
+    response.signature = crate::ed25519_sign(&kp, response.signature_data().as_bytes());
+    mgr.on_pair_response(response, "127.0.0.1");
+    assert!(!mgr.is_pairing("peer"));
+    assert!(matches!(
+        rx.try_recv().unwrap().kind,
+        PairingEventKind::Failed { .. }
+    ));
+    assert!(rx.try_recv().is_err());
+    assert!(mgr.db.get_peer_by_id("peer").is_none());
 }

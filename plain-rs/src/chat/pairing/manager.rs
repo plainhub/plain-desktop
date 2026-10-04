@@ -30,16 +30,15 @@ use crate::EcdhSession;
 use crate::base64_decode;
 use crate::base64_encode;
 use crate::ed25519_sign;
-use crate::ed25519_verify;
 use crate::utils::http_url::build_url;
 
-use crate::db::{Db, DPeer, now_iso};
-use crate::chat::enums::{DeviceType, PeerStatus};
+use crate::chat::enums::DeviceType;
 use crate::chat::service::ChatIdentity;
 use crate::chat::transport::PeerTransport;
+use crate::db::Db;
 
 use super::protocol::{PairingCancel, PairingRequest, PairingResponse};
-use super::utils::{local_ipv4_strs, now_ms, prefer_sender_ip, timestamp_ok};
+use super::utils::{local_ipv4_strs, now_ms, prefer_sender_ip};
 
 const PAIR_REQUEST_PREFIX: &str = "PAIR_REQUEST:";
 const PAIR_RESPONSE_PREFIX: &str = "PAIR_RESPONSE:";
@@ -287,19 +286,8 @@ impl<T: PeerTransport + 'static> PairingManager<T> {
             sender_ip,
             req.timestamp
         );
-        if !timestamp_ok(req.timestamp) {
-            log::warn!(
-                "local_pairing: PAIR_REQUEST timestamp out of range now_diff_ms={}",
-                now_ms() - req.timestamp
-            );
-            return;
-        }
-        if !ed25519_verify(
-            &req.signature_public_key,
-            req.signature_data().as_bytes(),
-            &req.signature,
-        ) {
-            log::warn!("local_pairing: PAIR_REQUEST signature invalid");
+        if !super::security::verify_request(&req) {
+            log::warn!("local_pairing: invalid PAIR_REQUEST");
             return;
         }
         log::info!("local_pairing: PAIR_REQUEST signature OK, emitting IncomingRequest");
@@ -327,6 +315,9 @@ impl<T: PeerTransport + 'static> PairingManager<T> {
         accepted: bool,
         local_port: u16,
     ) {
+        if !super::security::verify_request(&request) {
+            return;
+        }
         let identity = &self.identity;
         let kp_bytes = base64_decode(&identity.ed25519_keypair);
         let vk_bytes = if kp_bytes.len() == 64 {
@@ -369,24 +360,30 @@ impl<T: PeerTransport + 'static> PairingManager<T> {
             );
             if let Some(shared) = ecdh.compute_shared_key(&req_pub_bytes) {
                 let peer_ips = prefer_sender_ip(&request.ips, &target_ip);
-                let token = self
-                    .db
-                    .get_peer_by_id(&request.from_id)
-                    .map(|p| p.token)
-                    .unwrap_or_default();
-                let peer = DPeer {
-                    id: request.from_id.clone(),
-                    name: request.from_name.clone(),
-                    ip: peer_ips.clone(),
-                    key: base64_encode(&shared),
-                    public_key: request.signature_public_key.clone(),
-                    status: PeerStatus::Paired,
-                    port: request.port,
-                    device_type: DeviceType::from_str(&request.device_type)
-                        .unwrap_or(DeviceType::Unknown),
-                    token,
-                    created_at: now_iso(),
-                    updated_at: now_iso(),
+                let peer = match super::peer_store::save(
+                    &self.db,
+                    super::peer_store::Facts {
+                        id: request.from_id.clone(),
+                        name: request.from_name.clone(),
+                        ips: peer_ips.split(',').map(str::to_owned).collect(),
+                        port: request.port,
+                        device_type: DeviceType::from_str(&request.device_type)
+                            .unwrap_or(DeviceType::Unknown),
+                        key: base64_encode(&shared),
+                        public_key: request.signature_public_key.clone(),
+                    },
+                ) {
+                    Ok(peer) => peer,
+                    Err(error) => {
+                        let _ = self.event_tx.send(PairingEvent {
+                            kind: PairingEventKind::Failed {
+                                reason: error.to_string(),
+                            },
+                            device_id: request.from_id.clone(),
+                            device_name: request.from_name.clone(),
+                        });
+                        return;
+                    }
                 };
                 log::info!(
                     "local_pairing: inserting peer id={} name={} ip={} port={} device_type={}",
@@ -396,7 +393,6 @@ impl<T: PeerTransport + 'static> PairingManager<T> {
                     peer.port,
                     peer.device_type
                 );
-                self.db.upsert_peer(&peer);
                 let msg = format!(
                     "{}{}",
                     PAIR_RESPONSE_PREFIX,
@@ -448,16 +444,8 @@ impl<T: PeerTransport + 'static> PairingManager<T> {
     // ── Initiator receives response ───────────────────────────────────────────
 
     fn on_pair_response(&self, resp: PairingResponse, sender_ip: &str) {
-        if !timestamp_ok(resp.timestamp) {
-            log::warn!("local_pairing: PAIR_RESPONSE timestamp out of range");
-            return;
-        }
-        if !ed25519_verify(
-            &resp.signature_public_key,
-            resp.signature_data().as_bytes(),
-            &resp.signature,
-        ) {
-            log::warn!("local_pairing: PAIR_RESPONSE signature invalid");
+        if !super::security::verify_response(&resp, &self.identity.client_id, &resp.from_id) {
+            log::warn!("local_pairing: invalid PAIR_RESPONSE");
             return;
         }
 
@@ -502,25 +490,27 @@ impl<T: PeerTransport + 'static> PairingManager<T> {
         };
 
         let peer_ips = prefer_sender_ip(&resp.ips, sender_ip);
-        let token = self
-            .db
-            .get_peer_by_id(&resp.from_id)
-            .map(|p| p.token)
-            .unwrap_or_default();
-        let peer = DPeer {
-            id: resp.from_id.clone(),
-            name: session.device_name.clone(),
-            ip: peer_ips,
-            key: base64_encode(&shared),
-            public_key: resp.signature_public_key.clone(),
-            status: PeerStatus::Paired,
-            port: resp.port,
-            device_type: DeviceType::from_str(&resp.device_type).unwrap_or(DeviceType::Unknown),
-            token,
-            created_at: now_iso(),
-            updated_at: now_iso(),
-        };
-        self.db.upsert_peer(&peer);
+        if let Err(error) = super::peer_store::save(
+            &self.db,
+            super::peer_store::Facts {
+                id: resp.from_id.clone(),
+                name: session.device_name.clone(),
+                ips: peer_ips.split(',').map(str::to_owned).collect(),
+                port: resp.port,
+                device_type: DeviceType::from_str(&resp.device_type).unwrap_or(DeviceType::Unknown),
+                key: base64_encode(&shared),
+                public_key: resp.signature_public_key.clone(),
+            },
+        ) {
+            let _ = self.event_tx.send(PairingEvent {
+                kind: PairingEventKind::Failed {
+                    reason: error.to_string(),
+                },
+                device_id: resp.from_id.clone(),
+                device_name: session.device_name.clone(),
+            });
+            return;
+        }
         let _ = self.event_tx.send(PairingEvent {
             kind: PairingEventKind::Success,
             device_id: resp.from_id.clone(),

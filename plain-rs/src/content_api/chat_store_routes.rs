@@ -57,6 +57,28 @@ pub(super) enum Request {
         before: DChannel,
         after: DChannel,
     },
+    PairingRequest {
+        device: super::pairing::Device,
+    },
+    PairingResponse {
+        request: crate::chat::pairing::protocol::PairingRequest,
+        accepted: bool,
+        device: super::pairing::Device,
+    },
+    ValidatePairingRequest {
+        request: crate::chat::pairing::protocol::PairingRequest,
+    },
+    ValidatePairingResponse {
+        response: crate::chat::pairing::protocol::PairingResponse,
+        expected: String,
+    },
+    DerivePairingKey {
+        private_key: String,
+        public_key: String,
+    },
+    SavePairedPeer {
+        facts: crate::chat::pairing::peer_store::Facts,
+    },
     AuthenticatePeer {
         from_id: String,
         channel_id: String,
@@ -215,6 +237,25 @@ pub(super) async fn call(
             }
             Request::PatchChannel { before, after } => {
                 serde_json::to_value(channels::patch(&db, &before, &after)?)?
+            }
+            Request::PairingRequest { device } => super::pairing::request(&prefs, device)?,
+            Request::PairingResponse {
+                request,
+                accepted,
+                device,
+            } => super::pairing::response(&prefs, request, accepted, device)?,
+            Request::ValidatePairingRequest { request } => {
+                json!(crate::chat::pairing::security::verify_request(&request))
+            }
+            Request::ValidatePairingResponse { response, expected } => json!(
+                super::pairing::validate_response(&prefs, &response, &expected)?
+            ),
+            Request::DerivePairingKey {
+                private_key,
+                public_key,
+            } => json!(super::pairing::derive(&private_key, &public_key)),
+            Request::SavePairedPeer { facts } => {
+                serde_json::to_value(crate::chat::pairing::peer_store::save(&db, facts)?)?
             }
             Request::AuthenticatePeer {
                 from_id,
