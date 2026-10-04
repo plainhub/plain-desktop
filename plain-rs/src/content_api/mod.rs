@@ -38,3 +38,5 @@ mod chat_delivery;
 mod peer_transport;
 
 mod attachment_imports;
+
+mod download_queue;

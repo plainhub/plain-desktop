@@ -17,7 +17,7 @@ pub const WS_DEVICE_NAME_UPDATED: i32 = 21;
 /// `DownloadProgressItem` (id, messageId, downloaded, total, speed, status).
 /// Mirrors plain-app's `EventType.DOWNLOAD_PROGRESS`. The web client maps
 /// event type 16 to `download_progress` (see `app-socket.ts`).
-pub const WS_DOWNLOAD_PROGRESS: i32 = 16;
+pub use crate::chat::events::WS_DOWNLOAD_PROGRESS;
 /// Mirrors plain-app's `PairingRequestReceivedEvent` — fired when the local
 /// pairing manager receives an incoming PAIR_REQUEST that the user must
 /// accept or reject. Payload is a `PairingEvent` JSON object.
@@ -46,8 +46,8 @@ pub const WS_NEARBY_DISCOVERY_STOPPED: i32 = 30;
 /// JSON object `{fileId, ok, value?, mergedSize?, error?}`. plain-app's event
 /// enum occupies 1..=37 (with gaps), so this contract appends at 38.
 pub const WS_UPLOAD_MERGE_RESULT: i32 = 38;
-pub use crate::ws_event::WS_POMODORO_ACTION;
 pub use crate::ws_event::WS_IMAGE_EDITOR_UPDATE;
+pub use crate::ws_event::WS_POMODORO_ACTION;
 
 pub use crate::ws_event::WsEvent;
 

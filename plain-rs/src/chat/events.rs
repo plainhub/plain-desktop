@@ -8,12 +8,13 @@ use std::sync::{Arc, RwLock};
 use crate::base64_decode;
 
 use crate::chat::channel::messages::decode_members;
-use crate::db::Db;
 use crate::chat::enums::ChannelStatus;
+use crate::db::Db;
 
 pub const WS_MESSAGE_CREATED: i32 = 1;
 pub const WS_MESSAGE_DELETED: i32 = 2;
 pub const WS_MESSAGE_UPDATED: i32 = 3;
+pub const WS_DOWNLOAD_PROGRESS: i32 = 16;
 pub const WS_CHANNELS_UPDATED: i32 = 18;
 pub const WS_PEER_STATUS_UPDATED: i32 = 20;
 pub const WS_CHANNEL_INVITE_RECEIVED: i32 = 28;

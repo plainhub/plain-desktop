@@ -28,6 +28,7 @@ pub(super) struct ServerState {
     pub(super) host: Arc<super::host::Host>,
     pub(super) db: Arc<Db>,
     pub(super) transport: Arc<crate::chat::transport_router::Router>,
+    pub(super) downloads: Arc<crate::chat::download_queue::Queue>,
     pub(super) attachments: Arc<crate::chat::attachment_imports::Imports>,
     pub(super) delivery: Arc<crate::chat::delivery::Delivery>,
     pub(super) pairing: Arc<crate::chat::pairing::sessions::Sessions>,
@@ -86,10 +87,18 @@ impl ContentServer {
         );
         #[cfg(feature = "http_transport")]
         let bridge = Arc::new(super::http_bridge::HttpBridge::new(host.clone()));
+        let attachments = Arc::new(crate::chat::attachment_imports::Imports::default());
+        let downloads = Arc::new(crate::chat::download_queue::Queue::new(
+            (*db).clone(),
+            path.parent().unwrap_or(Path::new(".")).to_path_buf(),
+            attachments.clone(),
+        ));
+        super::download_queue::start(&downloads, host.clone(), events.clone(), receiver.clone());
         let state = ServerState {
             schema,
             transport: Arc::new(crate::chat::transport_router::Router::default()),
-            attachments: Arc::new(crate::chat::attachment_imports::Imports::default()),
+            downloads,
+            attachments,
             delivery: Arc::new(crate::chat::delivery::Delivery::new((*db).clone())),
             pairing: Arc::new(crate::chat::pairing::sessions::Sessions::default()),
             files: services.files,
@@ -110,6 +119,7 @@ impl ContentServer {
             .route("/health", get(health))
             .route("/fs", get(files::file))
             .route("/chat/transport", post(super::peer_transport::call))
+            .route("/chat/download", post(super::download_queue::call))
             .route("/chat/attachment", post(super::attachment_imports::call))
             .route("/chat/send", post(super::chat_delivery::call))
             .route("/chat/store", post(super::chat_store_routes::call))

@@ -37,3 +37,6 @@ mod sender;
 pub mod service;
 pub mod transport;
 pub mod transport_router;
+
+pub mod download_queue;
+pub mod download_status;
