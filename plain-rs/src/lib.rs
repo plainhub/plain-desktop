@@ -25,7 +25,7 @@ pub mod feeds;
 pub mod http_server;
 #[cfg(feature = "library")]
 pub mod library;
-#[cfg(feature = "api")]
+#[cfg(any(feature = "api", feature = "content_api"))]
 pub mod link_preview;
 pub mod mdns;
 #[cfg(feature = "media")]

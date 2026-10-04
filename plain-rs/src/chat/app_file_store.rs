@@ -24,6 +24,7 @@
 
 mod attachment_commit;
 pub mod chat_deletion;
+pub(crate) mod content_refs;
 
 use std::fs;
 use std::io::{Read, Seek};
@@ -495,7 +496,7 @@ pub fn import_attachment(
         size,
         file_name,
         crate::utils::mime::mime_from_ext(file_name),
-        Some(attachment_commit::Selection {
+        Some(attachment_commit::Selection::Attachment {
             message_id,
             id,
             original_uri,
@@ -507,5 +508,39 @@ pub fn import_attachment(
             }
             Ok(())
         },
+    )
+}
+
+pub fn import_preview_image(
+    db: &Db,
+    directory: &Path,
+    bytes: &[u8],
+    mime: &str,
+    message_id: &str,
+    text: &str,
+    preview: &serde_json::Value,
+) -> std::io::Result<ImportResult> {
+    let strong = bytes_to_hex(&Sha256::digest(bytes));
+    let mut weak = Sha256::new();
+    if bytes.len() <= WEAK_HEAD + WEAK_TAIL {
+        weak.update(bytes)
+    } else {
+        weak.update(&bytes[..WEAK_HEAD]);
+        weak.update(&bytes[bytes.len() - WEAK_TAIL..]);
+    }
+    store(
+        db,
+        directory,
+        &strong,
+        &bytes_to_hex(&weak.finalize()),
+        bytes.len() as u64,
+        "",
+        mime,
+        Some(attachment_commit::Selection::LinkPreview {
+            message_id,
+            text,
+            preview,
+        }),
+        |path| fs::write(path, bytes),
     )
 }

@@ -16,13 +16,18 @@ use std::path::Path;
 use std::sync::OnceLock;
 use std::time::Duration;
 
+use futures_util::StreamExt;
 use regex::Regex;
 use serde_json::{Value, json};
 
 use crate::utils::image_dimensions;
 
-use crate::chat::app_file_store::import_bytes;
+mod commit;
+mod schedule;
+use crate::chat::app_file_store::import_preview_image;
 use crate::db::Db;
+pub use commit::{Edit, edit};
+pub use schedule::Schedule;
 
 /// Maximum HTML response body we will parse.
 const MAX_RESPONSE_SIZE: usize = 10 * 1024 * 1024; // 10MB
@@ -131,10 +136,15 @@ fn extract_host(url: &str) -> String {
 /// Attempt a shared fetch client (per call this is cheap; reqwest caches
 /// connections internally).
 fn http_client() -> Option<reqwest::Client> {
-    reqwest::Client::builder()
-        .timeout(FETCH_TIMEOUT)
-        .build()
-        .ok()
+    static CLIENT: OnceLock<Option<reqwest::Client>> = OnceLock::new();
+    CLIENT
+        .get_or_init(|| {
+            reqwest::Client::builder()
+                .timeout(FETCH_TIMEOUT)
+                .build()
+                .ok()
+        })
+        .clone()
 }
 
 /// Trim a string, return `None` when it becomes empty. Mirrors the
@@ -166,16 +176,13 @@ fn og_title_or_default(html: &str) -> Option<String> {
 
 /// Fetch one URL and build a link-preview JSON object (same shape as
 /// `plain-app` `DLinkPreview`). Any failure returns `{url, hasError: true}`.
-async fn fetch_link_preview(db: &Db, data_dir: &Path, url: &str) -> Value {
-    let Some(client) = http_client() else {
-        return error_preview(url);
-    };
+async fn fetch_link_preview(client: &reqwest::Client, url: &str) -> (Value, Option<Image>) {
     let response = match client.get(url).send().await {
         Ok(r) => r,
-        Err(_) => return error_preview(url),
+        Err(_) => return (error_preview(url), None),
     };
     if !response.status().is_success() {
-        return error_preview(url);
+        return (error_preview(url), None);
     }
     let content_type = response
         .headers()
@@ -184,7 +191,7 @@ async fn fetch_link_preview(db: &Db, data_dir: &Path, url: &str) -> Value {
         .unwrap_or("")
         .to_lowercase();
     if !content_type.contains("text/html") {
-        return error_preview(url);
+        return (error_preview(url), None);
     }
     if response
         .headers()
@@ -193,11 +200,11 @@ async fn fetch_link_preview(db: &Db, data_dir: &Path, url: &str) -> Value {
         .and_then(|s| s.parse::<usize>().ok())
         .is_some_and(|len| len > MAX_RESPONSE_SIZE)
     {
-        return error_preview(url);
+        return (error_preview(url), None);
     }
-    let html = match response.text().await {
-        Ok(t) => t,
-        Err(_) => return error_preview(url),
+    let html = match read_bounded(response, MAX_RESPONSE_SIZE).await {
+        Ok(bytes) => String::from_utf8_lossy(&bytes).into_owned(),
+        Err(_) => return (error_preview(url), None),
     };
     let domain = extract_host(url);
 
@@ -238,33 +245,36 @@ async fn fetch_link_preview(db: &Db, data_dir: &Path, url: &str) -> Value {
             });
     }
 
-    let mut image_local_path: Option<String> = None;
+    let mut image: Option<Image> = None;
     let mut image_width = 0;
     let mut image_height = 0;
     if let Some(active_url) = image_url.as_deref()
         && is_valid_url(active_url)
     {
-        let (path, w, h) = download_image_with_size(db, data_dir, active_url).await;
-        image_local_path = path;
+        let (downloaded, w, h) = download_image_with_size(client, active_url).await;
+        image = downloaded;
         image_width = w;
         image_height = h;
-        if image_local_path.is_none() && active_url.ends_with("/favicon.ico") {
+        if image.is_none() && active_url.ends_with("/favicon.ico") {
             image_url = None;
         }
     }
 
-    json!({
-        "url": url,
-        "title": title.and_then(|t| optional(&t).map(|s| s.chars().take(200).collect::<String>())),
-        "description": description.and_then(|d| optional(&d).map(|s| s.chars().take(300).collect::<String>())),
-        "imageUrl": image_url.and_then(|u| optional(&u)),
-        "imageLocalPath": image_local_path,
-        "imageWidth": image_width,
-        "imageHeight": image_height,
-        "siteName": site_name.and_then(|s| optional(&s).map(|v| v.chars().take(100).collect::<String>())),
-        "domain": optional(&domain),
-        "hasError": false,
-    })
+    (
+        json!({
+            "url": url,
+            "title": title.and_then(|t| optional(&t).map(|s| s.chars().take(200).collect::<String>())),
+            "description": description.and_then(|d| optional(&d).map(|s| s.chars().take(300).collect::<String>())),
+            "imageUrl": image_url.and_then(|u| optional(&u)),
+            "imageLocalPath": Value::Null,
+            "imageWidth": image_width,
+            "imageHeight": image_height,
+            "siteName": site_name.and_then(|s| optional(&s).map(|v| v.chars().take(100).collect::<String>())),
+            "domain": optional(&domain),
+            "hasError": false,
+        }),
+        image,
+    )
 }
 
 fn error_preview(url: &str) -> Value {
@@ -292,13 +302,9 @@ fn extract_favicon(html: &str, url: &str) -> Option<String> {
 /// return `(fid:..., width, height)` (empty path on failure). Mirrors
 /// `downloadImageWithSize` + `importImageBytesToFid`.
 async fn download_image_with_size(
-    db: &Db,
-    data_dir: &Path,
+    client: &reqwest::Client,
     image_url: &str,
-) -> (Option<String>, i32, i32) {
-    let Some(client) = http_client() else {
-        return (None, 0, 0);
-    };
+) -> (Option<Image>, i32, i32) {
     let response = match client.get(image_url).send().await {
         Ok(r) => r,
         Err(_) => return (None, 0, 0),
@@ -319,7 +325,7 @@ async fn download_image_with_size(
     if !is_image_ctype {
         return (None, 0, 0);
     }
-    let bytes = match response.bytes().await {
+    let bytes = match read_bounded(response, MAX_IMAGE_SIZE).await {
         Ok(b) => b,
         Err(_) => return (None, 0, 0),
     };
@@ -333,57 +339,101 @@ async fn download_image_with_size(
     if (w < 100 || h < 100) && !is_favicon {
         return (None, w, h);
     }
-    let path = import_bytes(db, data_dir, &bytes, &content_type)
-        .ok()
-        .map(|r| format!("fid:{}", r.fid_suffix));
-    (path, w, h)
+    (
+        Some(Image {
+            bytes,
+            mime: content_type,
+        }),
+        w,
+        h,
+    )
 }
 
-/// Rewrite a text chat item's `content` JSON to add `linkPreviews` for any
-/// URLs found in its text. Returns the updated content string, or `None`
-/// when there is nothing to change (non-text, no URLs, or no previews
-/// resolved). Existing previews are preserved; only the URLs that are both
-/// new and resolvable are appended.
-pub async fn ensure_link_previews(db: &Db, data_dir: &Path, content: &str) -> Option<String> {
-    let mut v: Value = serde_json::from_str(content).ok()?;
-    let type_uppercase = v.get("type").and_then(|t| t.as_str())?.to_uppercase();
-    if type_uppercase != "TEXT" {
-        return None;
+struct Image {
+    bytes: Vec<u8>,
+    mime: String,
+}
+async fn read_bounded(mut response: reqwest::Response, limit: usize) -> anyhow::Result<Vec<u8>> {
+    let mut bytes = Vec::new();
+    while let Some(chunk) = response.chunk().await? {
+        if chunk.len() > limit.saturating_sub(bytes.len()) {
+            anyhow::bail!("Preview response too large");
+        }
+        bytes.extend_from_slice(&chunk);
     }
-    let text = v.pointer("/value/text").and_then(|t| t.as_str())?;
-    let urls = extract_urls(text);
-    if urls.is_empty() {
-        return None;
-    }
-
-    let mut previews: Vec<Value> = v
-        .pointer("/value/linkPreviews")
-        .and_then(|p| p.as_array())
-        .cloned()
-        .unwrap_or_default();
-    let existing: HashSet<String> = previews
-        .iter()
-        .filter_map(|p| p.get("url").and_then(|u| u.as_str()))
-        .map(String::from)
-        .collect();
-
-    for url in &urls {
-        if existing.contains(url) {
+    Ok(bytes)
+}
+pub async fn refresh(
+    db: &Db,
+    directory: &Path,
+    id: &str,
+) -> anyhow::Result<Option<crate::db::DChat>> {
+    let Some(client) = http_client() else {
+        return Ok(None);
+    };
+    refresh_with(db, directory, id, &client).await
+}
+async fn refresh_with(
+    db: &Db,
+    directory: &Path,
+    id: &str,
+    client: &reqwest::Client,
+) -> anyhow::Result<Option<crate::db::DChat>> {
+    let Some(row) = crate::db::chat_store::messages::get(db, id)? else {
+        return Ok(None);
+    };
+    let content: Value = serde_json::from_str(&row.content)?;
+    if content["type"] != "TEXT" {
+        return Ok(None);
+    };
+    let text = content["value"]["text"]
+        .as_str()
+        .ok_or_else(|| anyhow::anyhow!("Invalid text message"))?;
+    let existing = content["value"]["linkPreviews"]
+        .as_array()
+        .into_iter()
+        .flatten()
+        .filter_map(|p| p["url"].as_str())
+        .collect::<HashSet<_>>();
+    let mut updated = None;
+    let urls = extract_urls(text)
+        .into_iter()
+        .filter(|url| !existing.contains(url.as_str()))
+        .collect::<Vec<_>>();
+    let mut fetched = futures_util::stream::iter(
+        urls.into_iter()
+            .map(|url| async move { fetch_link_preview(client, &url).await }),
+    )
+    .buffered(5);
+    while let Some((preview, image)) = fetched.next().await {
+        if preview["hasError"] == true {
             continue;
         }
-        let preview = fetch_link_preview(db, data_dir, url).await;
-        if preview.get("hasError").and_then(|e| e.as_bool()) != Some(true) {
-            previews.push(preview);
+        let db = db.clone();
+        let directory = directory.to_path_buf();
+        let id = id.to_owned();
+        let text = text.to_owned();
+        let result = tokio::task::spawn_blocking(move || match image {
+            Some(image) => Ok(import_preview_image(
+                &db,
+                &directory,
+                &image.bytes,
+                &image.mime,
+                &id,
+                &text,
+                &preview,
+            )?
+            .chat),
+            None => commit::append(&db, &id, &text, &preview),
+        })
+        .await??;
+        if result.is_none() {
+            break;
         }
+        updated = result;
     }
-    if previews.is_empty() {
-        return None;
-    }
-
-    v["value"]["linkPreviews"] = Value::Array(previews);
-    serde_json::to_string(&v).ok()
+    Ok(updated)
 }
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -434,3 +484,7 @@ mod tests {
         );
     }
 }
+
+#[cfg(test)]
+#[path = "../tests/unit/link_preview/fetch.rs"]
+mod fetch_tests;

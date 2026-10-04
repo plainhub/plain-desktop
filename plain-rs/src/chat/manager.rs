@@ -116,25 +116,20 @@ impl<T: PeerTransport + 'static> ChatService<T> {
     /// Async link-preview refresh: rewrite the stored `content` with a
     /// `linkPreviews` array (via the app hook) and broadcast the result
     /// as `WS_MESSAGE_UPDATED`. Fire-and-forget like delivery.
-    pub(super) fn spawn_link_preview_refresh(&self, chat_id: &str, content: &str) {
+    pub(super) fn spawn_link_preview_refresh(&self, chat_id: &str, _content: &str) {
         let db = self.db.clone();
         let data_dir = self.data_dir.clone();
         let event_tx = self.event_tx.clone();
         let chat_id = chat_id.to_string();
-        let content = content.to_string();
         let link_previews = self.link_previews.clone();
         tokio::spawn(async move {
-            let Some(new_content) = link_previews(db.clone(), data_dir, content).await else {
+            let Some(updated) = link_previews(db.clone(), data_dir, chat_id).await else {
                 return;
             };
-            if db.update_chat_content(&chat_id, &new_content)
-                && let Some(updated) = db.get_chat_by_id(&chat_id)
-            {
-                let _ = event_tx.send(ChatEvent {
-                    event_type: WS_MESSAGE_UPDATED,
-                    payload: json!([chat_to_json(&updated)]).to_string(),
-                });
-            }
+            let _ = event_tx.send(ChatEvent {
+                event_type: WS_MESSAGE_UPDATED,
+                payload: json!([chat_to_json(&updated)]).to_string(),
+            });
         });
     }
 }

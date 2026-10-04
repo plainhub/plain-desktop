@@ -115,9 +115,12 @@ impl ChatHooks for DesktopChatHooks {
 
 /// The desktop OpenGraph scraper behind the shared link-preview seam.
 fn desktop_link_previews() -> LinkPreviewFn {
-    Arc::new(|db, data_dir, content| {
+    Arc::new(|db, data_dir, id| {
         Box::pin(async move {
-            super::link_preview::ensure_link_previews(&db, &data_dir, &content).await
+            super::link_preview::refresh(&db, &data_dir, &id)
+                .await
+                .ok()
+                .flatten()
         })
     })
 }

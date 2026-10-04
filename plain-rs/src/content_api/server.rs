@@ -28,6 +28,7 @@ pub(super) struct ServerState {
     pub(super) host: Arc<super::host::Host>,
     pub(super) db: Arc<Db>,
     pub(super) transport: Arc<crate::chat::transport_router::Router>,
+    pub(super) previews: Arc<crate::link_preview::Schedule>,
     pub(super) downloads: Arc<crate::chat::download_queue::Queue>,
     pub(super) attachments: Arc<crate::chat::attachment_imports::Imports>,
     pub(super) delivery: Arc<crate::chat::delivery::Delivery>,
@@ -35,7 +36,7 @@ pub(super) struct ServerState {
     pub(super) prefs: Arc<crate::prefs::Prefs>,
     pub(super) directory: std::path::PathBuf,
     token: Arc<str>,
-    events: broadcast::Sender<WsEvent>,
+    pub(super) events: broadcast::Sender<WsEvent>,
     stop: watch::Receiver<bool>,
     #[cfg(feature = "http_transport")]
     bridge: Arc<super::http_bridge::HttpBridge>,
@@ -94,9 +95,22 @@ impl ContentServer {
             attachments.clone(),
         ));
         super::download_queue::start(&downloads, host.clone(), events.clone(), receiver.clone());
+        let preview_events = events.clone();
+        let previews = Arc::new(crate::link_preview::Schedule::new(
+            (*db).clone(),
+            path.parent().unwrap_or(Path::new(".")).to_path_buf(),
+            Arc::new(move |row| {
+                let _ = preview_events.send(WsEvent::broadcast(
+                    crate::chat::events::WS_MESSAGE_UPDATED,
+                    serde_json::json!([crate::chat::service::chat_to_json(&row)]).to_string(),
+                ));
+            }),
+            receiver.clone(),
+        ));
         let state = ServerState {
             schema,
             transport: Arc::new(crate::chat::transport_router::Router::default()),
+            previews,
             downloads,
             attachments,
             delivery: Arc::new(crate::chat::delivery::Delivery::new((*db).clone())),
@@ -119,6 +133,7 @@ impl ContentServer {
             .route("/health", get(health))
             .route("/fs", get(files::file))
             .route("/chat/transport", post(super::peer_transport::call))
+            .route("/chat/link-preview", post(super::link_preview::call))
             .route("/chat/download", post(super::download_queue::call))
             .route("/chat/attachment", post(super::attachment_imports::call))
             .route("/chat/send", post(super::chat_delivery::call))

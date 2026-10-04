@@ -69,11 +69,10 @@ pub trait ChatHooks: Send + Sync {
 pub struct NoChatHooks;
 impl ChatHooks for NoChatHooks {}
 
-/// Async link-preview seam: rewrite a persisted message's `content` with
-/// link previews filled in (`None` = leave unchanged). plain-desktop
-/// scrapes OpenGraph data; the NAS side starts as a no-op.
+/// Fetch previews for a stored message ID and return the committed row.
+/// The consumer must not rewrite content from an earlier snapshot.
 pub type LinkPreviewFn =
-    Arc<dyn Fn(Db, PathBuf, String) -> BoxFuture<'static, Option<String>> + Send + Sync>;
+    Arc<dyn Fn(Db, PathBuf, String) -> BoxFuture<'static, Option<DChat>> + Send + Sync>;
 
 /// A `LinkPreviewFn` that never rewrites content.
 pub fn no_link_previews() -> LinkPreviewFn {

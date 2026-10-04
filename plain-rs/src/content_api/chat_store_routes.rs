@@ -218,6 +218,7 @@ pub(super) async fn call(
     let prefs = state.prefs.clone();
     let pairing = state.pairing.clone();
     let transport = state.transport.clone();
+    let previews = state.previews.clone();
     let result = tokio::task::spawn_blocking(move || -> anyhow::Result<Value> {
         use chat_store::{channels, messages, nearby, peers};
         Ok(match request {
@@ -225,26 +226,32 @@ pub(super) async fn call(
                 to_id,
                 channel_id,
                 content,
-            } => serde_json::to_value(crate::chat::message_lifecycle::create(
-                &db,
-                &to_id,
-                &channel_id,
-                &content,
-            )?)?,
+            } => {
+                let chat =
+                    crate::chat::message_lifecycle::create(&db, &to_id, &channel_id, &content)?;
+                previews.request(&chat.id);
+                serde_json::to_value(chat)?
+            }
             Request::ReceiveChat {
                 from_id,
                 channel_id,
                 content,
                 signature,
                 timestamp,
-            } => serde_json::to_value(crate::chat::message_lifecycle::receive(
-                &db,
-                &from_id,
-                &channel_id,
-                &content,
-                &signature,
-                timestamp,
-            )?)?,
+            } => {
+                let received = crate::chat::message_lifecycle::receive(
+                    &db,
+                    &from_id,
+                    &channel_id,
+                    &content,
+                    &signature,
+                    timestamp,
+                )?;
+                if let Some(received) = &received {
+                    previews.request(&received.chat.id);
+                }
+                serde_json::to_value(received)?
+            }
             Request::ChatDelivery { id, results, retry } => serde_json::to_value(
                 crate::chat::message_lifecycle::delivery(&db, &id, results, retry)?,
             )?,
