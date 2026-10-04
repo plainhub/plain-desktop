@@ -2,18 +2,12 @@ use super::*;
 use crate::base64_encode;
 use crate::{ed25519_generate, ed25519_sign};
 
-/// Empty `public_key` or `signature` is accepted (permissive for
-/// backward compatibility with older peers that did not sign).
-/// Mirrors plain-app `DChatChannelExtensions.verifyEd25519Signature`.
 #[test]
-fn verify_channel_signature_permissive_on_empty() {
+fn verify_channel_signature_rejects_missing_key_or_signature() {
     let payload = "ch_x|1|invite|peer_y";
-    // Both empty → accept.
-    assert!(verify_channel_signature("", payload, ""));
-    // Empty public key, non-empty signature → accept.
-    assert!(verify_channel_signature("", payload, "AAAA"));
-    // Non-empty public key, empty signature → accept.
-    assert!(verify_channel_signature("AAAA", payload, ""));
+    assert!(!verify_channel_signature("", payload, ""));
+    assert!(!verify_channel_signature("", payload, "AAAA"));
+    assert!(!verify_channel_signature("AAAA", payload, ""));
 }
 
 /// A real signature round-trip should verify, and tampering should fail.

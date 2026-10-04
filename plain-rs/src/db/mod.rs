@@ -11,6 +11,8 @@ use std::sync::{Arc, Mutex};
 mod managers;
 #[cfg(feature = "chat")]
 pub(crate) use managers::channel::{CHANNEL_COLS, row_to_channel};
+#[cfg(feature = "chat")]
+pub(crate) use managers::peer::{PEER_COLS, row_to_peer};
 #[cfg(any(feature = "chat", feature = "library", feature = "sqlite_browse"))]
 mod models;
 #[cfg(any(feature = "chat", feature = "library"))]
