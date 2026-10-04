@@ -97,6 +97,26 @@ pub(super) fn signing_keypair(prefs: &Prefs) -> Result<Vec<u8>> {
     keypair.extend(public);
     Ok(keypair)
 }
+pub(super) fn authenticate(db: &Db, id: &str, channel_id: &str, body: &str) -> serde_json::Value {
+    match crate::chat::peer_auth::authenticate(db, id, channel_id, &crate::base64_decode(body)) {
+        Ok(value) => {
+            json!({"status":200,"key":crate::base64_encode(&value.key),"content":value.graphql_json,"signature":value.signature_b64,"timestamp":value.timestamp})
+        }
+        Err(error) => json!({"status":error.http_status(),"reason":error.reason()}),
+    }
+}
+pub(super) fn envelope(key: &str, public_key: &str, body: &str) -> serde_json::Value {
+    match crate::chat::peer_auth::decrypt(
+        &crate::base64_decode(key),
+        public_key,
+        &crate::base64_decode(body),
+    ) {
+        Ok(value) => {
+            json!({"status":200,"content":value.content,"signature":value.signature_b64,"timestamp":value.timestamp})
+        }
+        Err(error) => json!({"status":error.http_status(),"reason":error.reason()}),
+    }
+}
 #[cfg(test)]
 #[path = "../../tests/unit/content_api/peer_wire.rs"]
 mod tests;

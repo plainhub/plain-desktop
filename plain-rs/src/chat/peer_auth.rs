@@ -1,37 +1,12 @@
-//! Peer authentication for `/peer_graphql` requests.
-//!
-//! Faithful translation of plain-app `PeerGraphQLService.handle` +
-//! `PeerChatParser.decrypt`.
-//!
-//! Trust chain:
-//!   1. Look up the peer by the `c-id` header (must exist — needed for
-//!      the Ed25519 public key).
-//!   2. Pick the decryption key:
-//!      * `c-cid` present → use channel key from `channel_key_cache`.
-//!        Supports non-paired channel members (they have `PeerStatus::Channel`,
-//!        not `Paired`). No paired check.
-//!      * `c-cid` absent → require paired peer, use peer's shared key.
-//!   3. Decrypt the body with XChaCha20-Poly1305.
-//!   4. Split `signature|timestamp|{graphql_json}`.
-//!   5. Verify timestamp is within ±5 minutes.
-//!   6. Verify Ed25519 signature over `{timestamp}{graphql_json}`.
-
+use crate::{
+    base64_decode,
+    db::{CHANNEL_COLS, DPeer, Db, PEER_COLS, row_to_channel, row_to_peer},
+    ed25519_verify, xchacha_decrypt_raw,
+};
+use rusqlite::OptionalExtension;
 use std::time::{SystemTime, UNIX_EPOCH};
+const TIMESTAMP_WINDOW_MS: u64 = 5 * 60 * 1000;
 
-use crate::base64_decode;
-use crate::ed25519_verify;
-use crate::xchacha_decrypt_raw;
-
-use crate::db::{Db, DPeer};
-use crate::chat::events::ChannelKeyCache;
-
-/// Maximum allowed clock skew (forward or backward) for a peer request.
-/// Mirrors `PeerChatParser.MAX_TIMESTAMP_DIFF_MS`.
-const TIMESTAMP_WINDOW_MS: i64 = 5 * 60 * 1000;
-
-/// Outcome of the auth chain. On success, carries the peer's key and the
-/// parsed plaintext payload (already split into `signature`, `timestamp`,
-/// and the GraphQL JSON body).
 pub struct AuthenticatedPeer {
     pub peer: DPeer,
     pub key: Vec<u8>,
@@ -39,8 +14,11 @@ pub struct AuthenticatedPeer {
     pub timestamp: i64,
     pub graphql_json: String,
 }
-
-/// Failure modes the caller may want to map to different HTTP responses.
+pub struct Envelope {
+    pub signature_b64: String,
+    pub timestamp: i64,
+    pub content: String,
+}
 #[derive(Debug)]
 pub enum AuthError {
     UnknownPeer,
@@ -51,119 +29,111 @@ pub enum AuthError {
     BadSignature,
     MissingFields,
     NoChannelKey,
+    Storage,
 }
-
 impl AuthError {
-    /// Short, machine-readable reason string for logging / response bodies.
     pub fn reason(&self) -> &'static str {
         match self {
-            AuthError::UnknownPeer => "unknown peer",
-            AuthError::NotPaired => "not paired",
-            AuthError::DecryptFailed => "decrypt failed",
-            AuthError::NotUtf8 => "not utf-8",
-            AuthError::TimestampExpired => "timestamp expired",
-            AuthError::BadSignature => "bad signature",
-            AuthError::MissingFields => "missing fields",
-            AuthError::NoChannelKey => "no channel key",
+            Self::UnknownPeer => "unknown peer",
+            Self::NotPaired => "not paired",
+            Self::DecryptFailed => "decrypt failed",
+            Self::NotUtf8 => "not utf-8",
+            Self::TimestampExpired => "timestamp expired",
+            Self::BadSignature => "bad signature",
+            Self::MissingFields => "missing fields",
+            Self::NoChannelKey => "no channel key",
+            Self::Storage => "peer storage failed",
+        }
+    }
+    pub fn http_status(&self) -> u16 {
+        match self {
+            Self::NotPaired => 403,
+            Self::TimestampExpired | Self::MissingFields => 400,
+            Self::Storage => 500,
+            _ => 401,
         }
     }
 }
-
-/// Run the full auth chain for an incoming peer request.
-///
-/// Direct translation of `PeerGraphQLService.handle` (key selection) +
-/// `PeerChatParser.decrypt` (decryption + signature/timestamp verification).
-///
-/// `header_client_id` is the peer id from the `c-id` header;
-/// `header_channel_id` is the channel id from the `c-cid` header
-/// (used to look up a per-channel key when present);
-/// `channel_key_cache` carries the local node's known per-channel
-/// keys; `body` is the raw (encrypted) request body.
-pub fn authenticate(
-    db: &Db,
-    header_client_id: &str,
-    header_channel_id: &str,
-    body: &[u8],
-    channel_key_cache: &ChannelKeyCache,
-) -> Result<AuthenticatedPeer, AuthError> {
-    // The peer must exist — we need its publicKey for signature verification.
-    // Mirrors plain-app: `PeerCacher.getPublicKeyBytes(clientId)` returns null
-    // if the peer isn't in the cache, which triggers UNAUTHORIZED.
-    let peer = db
-        .get_peer_by_id(header_client_id)
-        .ok_or(AuthError::UnknownPeer)?;
-
-    // ── Key selection — mirrors `PeerGraphQLService.handle` ──
-    //
-    // val token = if (channelId.isNotEmpty()) {
-    //     ChannelCacher.getKeyBytes(channelId)        // NO paired check
-    // } else {
-    //     val peer = PeerCacher.getPeer(clientId)
-    //     if (peer == null || !peer.isPaired()) {     // paired check HERE
-    //         call.respondNoBody(HttpStatus.FORBIDDEN)
-    //         return
-    //     }
-    //     PeerCacher.getKeyBytes(clientId)
-    // }
-    let key = if !header_channel_id.is_empty() {
-        // Channel message: use channel key, no paired check.
-        // Non-paired channel members (PeerStatus::Channel) are allowed.
-        let cache = channel_key_cache.read().unwrap();
-        cache
-            .get(header_channel_id)
-            .cloned()
-            .ok_or(AuthError::NoChannelKey)?
-    } else {
-        // Direct peer-to-peer message: require paired peer.
-        if !peer.is_paired() {
-            return Err(AuthError::NotPaired);
-        }
-        base64_decode(&peer.key)
-    };
-
-    // ── Decrypt — mirrors `PeerChatParser.decrypt` ──
-    let plaintext_bytes = xchacha_decrypt_raw(&key, body).ok_or(AuthError::DecryptFailed)?;
-    let plaintext = std::str::from_utf8(&plaintext_bytes)
-        .map_err(|_| AuthError::NotUtf8)?
-        .to_string();
-
-    // Wire format: `signature|timestamp|{graphql_json}`
+pub fn decrypt(key: &[u8], public_key: &str, body: &[u8]) -> Result<Envelope, AuthError> {
+    let plaintext = xchacha_decrypt_raw(key, body).ok_or(AuthError::DecryptFailed)?;
+    let plaintext = std::str::from_utf8(&plaintext).map_err(|_| AuthError::NotUtf8)?;
     let mut parts = plaintext.splitn(3, '|');
-    let signature_b64 = parts.next().unwrap_or_default().to_string();
-    let ts_str = parts.next().unwrap_or_default();
-    let graphql_json = parts.next().unwrap_or_default().to_string();
-
-    if signature_b64.is_empty() || graphql_json.is_empty() {
+    let signature_b64 = parts.next().unwrap_or_default();
+    let raw_timestamp = parts.next().ok_or(AuthError::MissingFields)?;
+    let content = parts
+        .next()
+        .filter(|s| !s.is_empty())
+        .ok_or(AuthError::MissingFields)?;
+    if signature_b64.is_empty() {
         return Err(AuthError::MissingFields);
     }
-
-    let timestamp: i64 = ts_str.parse().unwrap_or(0);
-
-    // ── Timestamp freshness — mirrors `PeerChatParser.decrypt` ──
-    let now_ms = SystemTime::now()
+    let timestamp = raw_timestamp
+        .parse::<i64>()
+        .map_err(|_| AuthError::MissingFields)?;
+    let now = SystemTime::now()
         .duration_since(UNIX_EPOCH)
         .unwrap_or_default()
         .as_millis() as i64;
-    if (now_ms - timestamp).abs() > TIMESTAMP_WINDOW_MS {
+    if now.abs_diff(timestamp) > TIMESTAMP_WINDOW_MS {
         return Err(AuthError::TimestampExpired);
     }
-
-    // ── Signature verification — mirrors `PeerChatParser.decrypt` ──
-    // Signature is computed over `{timestamp}{graphql_json}` (no separator).
-    let sig_data = format!("{timestamp}{graphql_json}");
-    if !ed25519_verify(&peer.public_key, sig_data.as_bytes(), &signature_b64) {
+    if !ed25519_verify(
+        public_key,
+        format!("{timestamp}{content}").as_bytes(),
+        signature_b64,
+    ) {
         return Err(AuthError::BadSignature);
     }
-
+    Ok(Envelope {
+        signature_b64: signature_b64.into(),
+        timestamp,
+        content: content.into(),
+    })
+}
+pub fn authenticate(
+    db: &Db,
+    client_id: &str,
+    channel_id: &str,
+    body: &[u8],
+) -> Result<AuthenticatedPeer, AuthError> {
+    let (peer, key) = db.with_conn(|c| -> Result<_, AuthError> {
+        let peer = c
+            .query_row(
+                &format!("SELECT {PEER_COLS} FROM peers WHERE id=?1"),
+                [client_id],
+                row_to_peer,
+            )
+            .optional()
+            .map_err(|_| AuthError::Storage)?
+            .ok_or(AuthError::UnknownPeer)?;
+        let key = if channel_id.is_empty() {
+            if !peer.is_paired() {
+                return Err(AuthError::NotPaired);
+            }
+            base64_decode(&peer.key)
+        } else {
+            let channel = c
+                .query_row(
+                    &format!("SELECT {CHANNEL_COLS} FROM chat_channels WHERE id=?1"),
+                    [channel_id],
+                    row_to_channel,
+                )
+                .optional()
+                .map_err(|_| AuthError::Storage)?
+                .ok_or(AuthError::NoChannelKey)?;
+            base64_decode(&channel.key)
+        };
+        Ok((peer, key))
+    })?;
+    let envelope = decrypt(&key, &peer.public_key, body)?;
     Ok(AuthenticatedPeer {
         peer,
         key,
-        signature_b64,
-        timestamp,
-        graphql_json,
+        signature_b64: envelope.signature_b64,
+        timestamp: envelope.timestamp,
+        graphql_json: envelope.content,
     })
 }
-
 #[cfg(test)]
 #[path = "../../tests/unit/chat/peer_auth.rs"]
 mod tests;

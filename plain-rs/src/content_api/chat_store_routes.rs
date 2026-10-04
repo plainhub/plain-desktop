@@ -57,6 +57,16 @@ pub(super) enum Request {
         before: DChannel,
         after: DChannel,
     },
+    AuthenticatePeer {
+        from_id: String,
+        channel_id: String,
+        body: String,
+    },
+    AuthenticateEnvelope {
+        key: String,
+        public_key: String,
+        body: String,
+    },
     PreparePeer {
         id: String,
         operation: super::peer_wire::Operation,
@@ -206,6 +216,16 @@ pub(super) async fn call(
             Request::PatchChannel { before, after } => {
                 serde_json::to_value(channels::patch(&db, &before, &after)?)?
             }
+            Request::AuthenticatePeer {
+                from_id,
+                channel_id,
+                body,
+            } => super::peer_wire::authenticate(&db, &from_id, &channel_id, &body),
+            Request::AuthenticateEnvelope {
+                key,
+                public_key,
+                body,
+            } => super::peer_wire::envelope(&key, &public_key, &body),
             Request::PreparePeer { id, operation } => {
                 serde_json::to_value(super::peer_wire::prepare(&db, &prefs, &id, operation)?)?
             }

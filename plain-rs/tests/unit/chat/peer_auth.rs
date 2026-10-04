@@ -1,7 +1,6 @@
 use super::*;
-use crate::db::{Db, DPeer};
 use crate::chat::enums::{DeviceType, PeerStatus};
-use crate::chat::events::{ChannelKeyCache, new_channel_key_cache};
+use crate::db::{DPeer, Db};
 use crate::{base64_encode, ed25519_generate, ed25519_sign, xchacha_encrypt_raw};
 use std::time::{SystemTime, UNIX_EPOCH};
 
@@ -65,8 +64,7 @@ fn authenticate_roundtrip_paired_peer() {
     let graphql_json = r#"{"query":"mutation { createChatItem(content: \"x\") { id } }"}"#;
     let body = build_body(&kp, &key, graphql_json, now_ms());
 
-    let cache: ChannelKeyCache = new_channel_key_cache();
-    let authed = authenticate(&db, &peer_id, "", &body, &cache).expect("auth ok");
+    let authed = authenticate(&db, &peer_id, "", &body).expect("auth ok");
     assert_eq!(authed.peer.id, "peer-a");
     assert_eq!(authed.graphql_json, graphql_json);
     assert_eq!(authed.key, key.to_vec());
@@ -76,18 +74,17 @@ fn authenticate_roundtrip_paired_peer() {
 fn authenticate_rejects_unknown_peer_and_unpaired() {
     let (db, _path) = unique_db();
     let (_, key, kp) = seed_paired_peer(&db);
-    let cache = new_channel_key_cache();
     let body = build_body(&kp, &key, "{}", now_ms());
 
     assert!(matches!(
-        authenticate(&db, "ghost", "", &body, &cache),
+        authenticate(&db, "ghost", "", &body),
         Err(AuthError::UnknownPeer)
     ));
 
     // Demote to CHANNEL → direct message rejected, channel message OK.
     db.update_peer_status("peer-a", PeerStatus::Channel);
     assert!(matches!(
-        authenticate(&db, "peer-a", "", &body, &cache),
+        authenticate(&db, "peer-a", "", &body),
         Err(AuthError::NotPaired)
     ));
     db.update_peer_status("peer-a", PeerStatus::Paired);
@@ -97,13 +94,12 @@ fn authenticate_rejects_unknown_peer_and_unpaired() {
 fn authenticate_rejects_wrong_key_and_bad_signature() {
     let (db, _path) = unique_db();
     let (peer_id, key, kp) = seed_paired_peer(&db);
-    let cache = new_channel_key_cache();
 
     // Encrypted with a different key → DecryptFailed.
     let wrong_key = [1u8; 32];
     let body = build_body(&kp, &wrong_key, "{}", now_ms());
     assert!(matches!(
-        authenticate(&db, &peer_id, "", &body, &cache),
+        authenticate(&db, &peer_id, "", &body),
         Err(AuthError::DecryptFailed)
     ));
 
@@ -114,7 +110,7 @@ fn authenticate_rejects_wrong_key_and_bad_signature() {
     db.upsert_peer(&peer);
     let body = build_body(&kp, &key, "{}", now_ms());
     assert!(matches!(
-        authenticate(&db, &peer_id, "", &body, &cache),
+        authenticate(&db, &peer_id, "", &body),
         Err(AuthError::BadSignature)
     ));
 }
@@ -123,12 +119,11 @@ fn authenticate_rejects_wrong_key_and_bad_signature() {
 fn authenticate_rejects_expired_timestamp_and_missing_fields() {
     let (db, _path) = unique_db();
     let (peer_id, key, kp) = seed_paired_peer(&db);
-    let cache = new_channel_key_cache();
 
     // Six minutes old.
     let body = build_body(&kp, &key, "{}", now_ms() - 6 * 60 * 1000);
     assert!(matches!(
-        authenticate(&db, &peer_id, "", &body, &cache),
+        authenticate(&db, &peer_id, "", &body),
         Err(AuthError::TimestampExpired)
     ));
 
@@ -136,7 +131,7 @@ fn authenticate_rejects_expired_timestamp_and_missing_fields() {
     let payload = format!("|{}|{{}}", now_ms());
     let body = xchacha_encrypt_raw(&key, payload.as_bytes()).unwrap();
     assert!(matches!(
-        authenticate(&db, &peer_id, "", &body, &cache),
+        authenticate(&db, &peer_id, "", &body),
         Err(AuthError::MissingFields)
     ));
 }
@@ -148,31 +143,53 @@ fn authenticate_channel_message_uses_channel_key_without_paired_check() {
     // Channel member (not paired) with a channel key in the cache.
     db.update_peer_status("peer-a", PeerStatus::Channel);
     let channel_key = [42u8; 32];
-    let cache = new_channel_key_cache();
-    cache
-        .write()
-        .unwrap()
-        .insert("ch-1".into(), channel_key.to_vec());
-
+    let mut channel = crate::db::DChannel::new("channel", "owner");
+    channel.id = "ch-1".into();
+    channel.key = base64_encode(&channel_key);
+    crate::db::chat_store::channels::save(&db, &[channel], crate::db::chat_store::SaveMode::Insert)
+        .unwrap();
     let graphql_json =
         r#"{"query":"mutation { channelSystemMessage(type: INVITE, payload: \"{}\") }"}"#;
     let body = build_body(&kp, &channel_key, graphql_json, now_ms());
 
     // With c-cid set, the channel key decrypts and no paired check fires.
-    let authed = authenticate(&db, "peer-a", "ch-1", &body, &cache).expect("channel auth ok");
+    let authed = authenticate(&db, "peer-a", "ch-1", &body).expect("channel auth ok");
     assert_eq!(authed.graphql_json, graphql_json);
     assert_eq!(authed.key, channel_key.to_vec());
 
     // Without a cached channel key → NoChannelKey.
-    let empty_cache = new_channel_key_cache();
+    crate::db::chat_store::channels::delete(&db, &["ch-1".into()]).unwrap();
     assert!(matches!(
-        authenticate(&db, "peer-a", "ch-1", &body, &empty_cache),
+        authenticate(&db, "peer-a", "ch-1", &body),
         Err(AuthError::NoChannelKey)
     ));
     // Sanity: the peer's own key would NOT decrypt this body.
     let wrong = build_body(&kp, &peer_key, graphql_json, now_ms());
     assert!(matches!(
-        authenticate(&db, "peer-a", "", &wrong, &cache),
+        authenticate(&db, "peer-a", "", &wrong),
         Err(AuthError::NotPaired)
+    ));
+}
+
+#[test]
+fn extreme_timestamp_and_malformed_envelopes_do_not_panic_and_storage_failures_are_real() {
+    let (db, _) = unique_db();
+    let (id, key, kp) = seed_paired_peer(&db);
+    for timestamp in [i64::MIN, i64::MAX] {
+        assert!(matches!(
+            authenticate(&db, &id, "", &build_body(&kp, &key, "{}", timestamp)),
+            Err(AuthError::TimestampExpired)
+        ));
+    }
+    let malformed = xchacha_encrypt_raw(&key, b"signature|not-a-number|{}").unwrap();
+    assert!(matches!(
+        authenticate(&db, &id, "", &malformed),
+        Err(AuthError::MissingFields)
+    ));
+    db.with_conn(|c| c.execute_batch("DROP TABLE peers"))
+        .unwrap();
+    assert!(matches!(
+        authenticate(&db, &id, "", &build_body(&kp, &key, "{}", now_ms())),
+        Err(AuthError::Storage)
     ));
 }
