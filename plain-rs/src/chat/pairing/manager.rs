@@ -19,10 +19,8 @@
 //! the Db's key-cache is considered stale (callers should re-query
 //! `get_peers`).
 
-use std::collections::HashMap;
 use std::str::FromStr;
-use std::sync::{Arc, Mutex};
-use std::time::Duration;
+use std::sync::Arc;
 
 use serde::Serialize;
 
@@ -38,6 +36,7 @@ use crate::chat::transport::PeerTransport;
 use crate::db::Db;
 
 use super::protocol::{PairingCancel, PairingRequest, PairingResponse};
+use super::sessions::{RESPONSE_TIMEOUT, Sessions, Target, Ticket};
 use super::utils::{local_ipv4_strs, now_ms, prefer_sender_ip};
 
 const PAIR_REQUEST_PREFIX: &str = "PAIR_REQUEST:";
@@ -48,19 +47,6 @@ const DISCOVER_REPLY_MESSAGE: &str = "DISCOVER_REPLY:";
 /// Pairing is interactive; a stale/unreachable peer must fail fast.
 #[allow(dead_code)]
 const REQUEST_TIMEOUT_MS: u64 = 5_000;
-/// Mirrors plain-app `PairingInitiator.PAIR_RESPONSE_TIMEOUT_MS`.
-const PAIR_RESPONSE_TIMEOUT_MS: u64 = 90_000;
-
-// ── Internal session state ────────────────────────────────────────────────────
-
-struct PairingSession {
-    device_name: String,
-    device_ip: String,
-    device_port: u16,
-    /// Ephemeral ECDH session.  Consumed when shared key is derived.
-    ecdh: Option<EcdhSession>,
-}
-
 // ── Pairing manager ───────────────────────────────────────────────────────────
 
 pub struct PairingManager<T: PeerTransport> {
@@ -70,7 +56,7 @@ pub struct PairingManager<T: PeerTransport> {
     /// "NAS" on plain-nas).
     pub local_device_type: &'static str,
     transport: Arc<T>,
-    sessions: Arc<Mutex<HashMap<String, PairingSession>>>,
+    sessions: Arc<Sessions>,
     /// Broadcast channel to notify the frontend of pairing events.
     event_tx: tokio::sync::broadcast::Sender<PairingEvent>,
 }
@@ -131,7 +117,7 @@ impl<T: PeerTransport + 'static> PairingManager<T> {
             identity,
             local_device_type,
             transport,
-            sessions: Arc::new(Mutex::new(HashMap::new())),
+            sessions: Arc::new(Sessions::default()),
             event_tx: tx,
         }
     }
@@ -212,18 +198,20 @@ impl<T: PeerTransport + 'static> PairingManager<T> {
         };
         req.signature = ed25519_sign(&kp_bytes, req.signature_data().as_bytes());
 
-        {
-            let mut sessions = self.sessions.lock().unwrap();
-            sessions.insert(
-                device_id.to_string(),
-                PairingSession {
-                    device_name: device_name.to_string(),
-                    device_ip: device_ip.to_string(),
-                    device_port,
-                    ecdh: Some(ecdh),
-                },
-            );
-        }
+        let ticket = self.sessions.start(
+            Target {
+                device_id: device_id.into(),
+                device_name: device_name.into(),
+                device_ip: device_ip.into(),
+                device_port,
+            },
+            ecdh,
+        );
+        let timeout_manager = self.clone();
+        let timeout_ticket = ticket.clone();
+        tokio::spawn(async move {
+            timeout_manager.arm_response_timeout(timeout_ticket).await;
+        });
 
         let msg = format!(
             "{}{}",
@@ -237,14 +225,22 @@ impl<T: PeerTransport + 'static> PairingManager<T> {
         let transport = self.transport.clone();
         tokio::spawn(async move {
             if post_nearby(&transport, &msg, &target_ip, device_port).await {
+                if !mgr.sessions.current(&device_id, &ticket.generation) {
+                    return;
+                }
                 let _ = mgr.event_tx.send(PairingEvent {
                     kind: PairingEventKind::Started,
                     device_id: device_id.clone(),
                     device_name: device_name.clone(),
                 });
-                mgr.arm_response_timeout(device_id, device_name).await;
             } else {
-                mgr.sessions.lock().unwrap().remove(&device_id);
+                if mgr
+                    .sessions
+                    .cancel(&device_id, Some(&ticket.generation))
+                    .is_none()
+                {
+                    return;
+                }
                 let _ = mgr.event_tx.send(PairingEvent {
                     kind: PairingEventKind::Failed {
                         reason: "Failed to send pairing request".to_string(),
@@ -260,16 +256,18 @@ impl<T: PeerTransport + 'static> PairingManager<T> {
     /// by `on_pair_response` (or cancel) on the happy paths, so its continued
     /// existence after the timeout means no response arrived. Mirrors
     /// plain-app `PairingInitiator.awaitPairResponse`.
-    async fn arm_response_timeout(&self, device_id: String, device_name: String) {
-        tokio::time::sleep(Duration::from_millis(PAIR_RESPONSE_TIMEOUT_MS)).await;
-        if self.sessions.lock().unwrap().remove(&device_id).is_some() {
-            log::error!("local_pairing: response timeout for {device_name}");
+    async fn arm_response_timeout(&self, ticket: Ticket) {
+        tokio::time::sleep(RESPONSE_TIMEOUT).await;
+        if let Some(ticket) = self
+            .sessions
+            .expire(&ticket.target.device_id, &ticket.generation)
+        {
             let _ = self.event_tx.send(PairingEvent {
                 kind: PairingEventKind::Failed {
-                    reason: "Pairing timed out".to_string(),
+                    reason: "Pairing timed out".into(),
                 },
-                device_id,
-                device_name,
+                device_id: ticket.target.device_id,
+                device_name: ticket.target.device_name,
             });
         }
     }
@@ -296,6 +294,9 @@ impl<T: PeerTransport + 'static> PairingManager<T> {
         // the PAIR_RESPONSE. Mirrors plain-app's `handlePairRequest`
         // which sets `request.fromIp = senderAddress`.
         req.from_ip = sender_ip.to_string();
+        if !self.sessions.receive(&req) {
+            return;
+        }
         let _ = self.event_tx.send(PairingEvent {
             kind: PairingEventKind::IncomingRequest {
                 request: Box::new(req.clone()),
@@ -318,6 +319,12 @@ impl<T: PeerTransport + 'static> PairingManager<T> {
         if !super::security::verify_request(&request) {
             return;
         }
+        let Some(incoming) = self
+            .sessions
+            .take_incoming(&request.from_id, &request.signature)
+        else {
+            return;
+        };
         let identity = &self.identity;
         let kp_bytes = base64_decode(&identity.ed25519_keypair);
         let vk_bytes = if kp_bytes.len() == 64 {
@@ -328,7 +335,7 @@ impl<T: PeerTransport + 'static> PairingManager<T> {
         let sig_pub_b64 = base64_encode(&vk_bytes);
         let ts = now_ms();
         let target_ip = if sender_ip.is_empty() {
-            request.from_ip.clone()
+            incoming.device_ip
         } else {
             sender_ip.to_string()
         };
@@ -449,18 +456,19 @@ impl<T: PeerTransport + 'static> PairingManager<T> {
             return;
         }
 
-        let session = {
-            let mut sessions = self.sessions.lock().unwrap();
-            sessions.remove(&resp.from_id)
-        };
-
-        let Some(session) = session else {
-            log::debug!(
-                "local_pairing: no session for PAIR_RESPONSE from {}",
-                resp.from_id
-            );
+        let Some(session) = self.sessions.take(&resp.from_id) else {
             return;
         };
+        if session.expired() {
+            let _ = self.event_tx.send(PairingEvent {
+                kind: PairingEventKind::Failed {
+                    reason: "Pairing timed out".into(),
+                },
+                device_id: resp.from_id,
+                device_name: session.ticket.target.device_name,
+            });
+            return;
+        }
 
         if !resp.accepted {
             let _ = self.event_tx.send(PairingEvent {
@@ -468,15 +476,12 @@ impl<T: PeerTransport + 'static> PairingManager<T> {
                     reason: "Pairing request was rejected".to_string(),
                 },
                 device_id: resp.from_id.clone(),
-                device_name: session.device_name.clone(),
+                device_name: session.ticket.target.device_name.clone(),
             });
             return;
         }
 
-        let Some(ecdh) = session.ecdh else {
-            log::error!("local_pairing: session ECDH already consumed");
-            return;
-        };
+        let ecdh = session.ecdh;
         let resp_pub_bytes = base64_decode(&resp.ecdh_public_key);
         let Some(shared) = ecdh.compute_shared_key(&resp_pub_bytes) else {
             let _ = self.event_tx.send(PairingEvent {
@@ -484,7 +489,7 @@ impl<T: PeerTransport + 'static> PairingManager<T> {
                     reason: "ECDH key computation failed".to_string(),
                 },
                 device_id: resp.from_id.clone(),
-                device_name: session.device_name.clone(),
+                device_name: session.ticket.target.device_name.clone(),
             });
             return;
         };
@@ -494,7 +499,7 @@ impl<T: PeerTransport + 'static> PairingManager<T> {
             &self.db,
             super::peer_store::Facts {
                 id: resp.from_id.clone(),
-                name: session.device_name.clone(),
+                name: session.ticket.target.device_name.clone(),
                 ips: peer_ips.split(',').map(str::to_owned).collect(),
                 port: resp.port,
                 device_type: DeviceType::from_str(&resp.device_type).unwrap_or(DeviceType::Unknown),
@@ -507,26 +512,28 @@ impl<T: PeerTransport + 'static> PairingManager<T> {
                     reason: error.to_string(),
                 },
                 device_id: resp.from_id.clone(),
-                device_name: session.device_name.clone(),
+                device_name: session.ticket.target.device_name.clone(),
             });
             return;
         }
         let _ = self.event_tx.send(PairingEvent {
             kind: PairingEventKind::Success,
             device_id: resp.from_id.clone(),
-            device_name: session.device_name.clone(),
+            device_name: session.ticket.target.device_name.clone(),
         });
     }
 
     fn on_pair_cancel(&self, cancel: PairingCancel) {
-        {
-            let mut sessions = self.sessions.lock().unwrap();
-            sessions.remove(&cancel.from_id);
+        if cancel.to_id != self.identity.client_id {
+            return;
         }
+        let Some(target) = self.sessions.receive_cancel(&cancel.from_id) else {
+            return;
+        };
         let _ = self.event_tx.send(PairingEvent {
             kind: PairingEventKind::Cancelled,
-            device_id: cancel.from_id.clone(),
-            device_name: String::new(),
+            device_id: target.device_id,
+            device_name: target.device_name,
         });
     }
 
@@ -534,11 +541,7 @@ impl<T: PeerTransport + 'static> PairingManager<T> {
     /// plain-app `PairingInitiator.cancel`: sends PAIR_CANCEL to the peer,
     /// emits `Cancelled`, and drops the session.
     pub fn cancel_pairing(&self, device_id: &str) {
-        let session = {
-            let mut sessions = self.sessions.lock().unwrap();
-            sessions.remove(device_id)
-        };
-        if let Some(s) = session {
+        if let Some(ticket) = self.sessions.cancel(device_id, None) {
             let cancel = PairingCancel {
                 from_id: self.identity.client_id.clone(),
                 to_id: device_id.to_string(),
@@ -548,8 +551,8 @@ impl<T: PeerTransport + 'static> PairingManager<T> {
                 PAIR_CANCEL_PREFIX,
                 serde_json::to_string(&cancel).unwrap_or_default()
             );
-            let target_ip = s.device_ip.clone();
-            let target_port = s.device_port;
+            let target_ip = ticket.target.device_ip.clone();
+            let target_port = ticket.target.device_port;
             let transport = self.transport.clone();
             tokio::spawn(async move {
                 post_nearby(&transport, &msg, &target_ip, target_port).await;
@@ -557,7 +560,7 @@ impl<T: PeerTransport + 'static> PairingManager<T> {
             let _ = self.event_tx.send(PairingEvent {
                 kind: PairingEventKind::Cancelled,
                 device_id: device_id.to_string(),
-                device_name: s.device_name.clone(),
+                device_name: ticket.target.device_name.clone(),
             });
             log::debug!("Pairing cancelled for device: {device_id}");
         }
@@ -566,7 +569,7 @@ impl<T: PeerTransport + 'static> PairingManager<T> {
     /// Whether a pairing session is currently in progress for `device_id`.
     /// Mirrors plain-app's `NearbyViewModel.itemStatus[deviceId] == PAIRING`.
     pub fn is_pairing(&self, device_id: &str) -> bool {
-        self.sessions.lock().unwrap().contains_key(device_id)
+        self.sessions.contains(device_id)
     }
 }
 

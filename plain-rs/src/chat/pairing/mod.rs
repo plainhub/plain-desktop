@@ -1,7 +1,8 @@
 pub mod manager;
+pub mod peer_store;
 pub mod protocol;
 pub mod security;
-pub mod peer_store;
+pub mod sessions;
 mod utils;
 
 pub use manager::{PairingEvent, PairingEventKind, PairingManager};

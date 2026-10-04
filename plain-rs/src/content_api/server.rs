@@ -27,6 +27,7 @@ pub(super) struct ServerState {
     pub(super) files: Arc<super::file_tasks::FileTasks>,
     pub(super) host: Arc<super::host::Host>,
     pub(super) db: Arc<Db>,
+    pub(super) pairing: Arc<crate::chat::pairing::sessions::Sessions>,
     pub(super) prefs: Arc<crate::prefs::Prefs>,
     pub(super) directory: std::path::PathBuf,
     token: Arc<str>,
@@ -84,6 +85,7 @@ impl ContentServer {
         let bridge = Arc::new(super::http_bridge::HttpBridge::new(host.clone()));
         let state = ServerState {
             schema,
+            pairing: Arc::new(crate::chat::pairing::sessions::Sessions::default()),
             files: services.files,
             host,
             db,

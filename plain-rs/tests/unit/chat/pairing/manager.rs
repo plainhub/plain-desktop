@@ -121,14 +121,14 @@ fn wrong_recipient_keeps_pending_session_and_storage_failure_emits_no_success() 
     let mgr = manager();
     let (kp, vk) = crate::ed25519_generate();
     let remote = crate::EcdhSession::generate();
-    mgr.sessions.lock().unwrap().insert(
-        "peer".into(),
-        PairingSession {
+    mgr.sessions.start(
+        Target {
+            device_id: "peer".into(),
             device_name: "Fixture".into(),
             device_ip: "127.0.0.1".into(),
             device_port: 1,
-            ecdh: Some(crate::EcdhSession::generate()),
         },
+        crate::EcdhSession::generate(),
     );
     let mut response = PairingResponse {
         from_id: "peer".into(),
@@ -159,4 +159,39 @@ fn wrong_recipient_keeps_pending_session_and_storage_failure_emits_no_success() 
     ));
     assert!(rx.try_recv().is_err());
     assert!(mgr.db.get_peer_by_id("peer").is_none());
+}
+
+#[test]
+fn cancellation_requires_local_recipient_and_consumes_only_existing_session() {
+    let mgr = manager();
+    mgr.sessions.start(
+        Target {
+            device_id: "peer".into(),
+            device_name: "Fixture".into(),
+            device_ip: "127.0.0.1".into(),
+            device_port: 1,
+        },
+        crate::EcdhSession::generate(),
+    );
+    let mut rx = mgr.subscribe();
+    mgr.on_pair_cancel(PairingCancel {
+        from_id: "peer".into(),
+        to_id: "other".into(),
+    });
+    assert!(mgr.is_pairing("peer"));
+    assert!(rx.try_recv().is_err());
+    mgr.on_pair_cancel(PairingCancel {
+        from_id: "peer".into(),
+        to_id: "self".into(),
+    });
+    assert!(!mgr.is_pairing("peer"));
+    assert!(matches!(
+        rx.try_recv().unwrap().kind,
+        PairingEventKind::Cancelled
+    ));
+    mgr.on_pair_cancel(PairingCancel {
+        from_id: "peer".into(),
+        to_id: "self".into(),
+    });
+    assert!(rx.try_recv().is_err());
 }

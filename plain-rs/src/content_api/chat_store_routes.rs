@@ -57,24 +57,32 @@ pub(super) enum Request {
         before: DChannel,
         after: DChannel,
     },
-    PairingRequest {
+    StartPairing {
+        target: crate::chat::pairing::sessions::Target,
         device: super::pairing::Device,
     },
-    PairingResponse {
+    CompletePairing {
+        response: crate::chat::pairing::protocol::PairingResponse,
+        sender_ip: String,
+    },
+    RespondPairing {
         request: crate::chat::pairing::protocol::PairingRequest,
         accepted: bool,
         device: super::pairing::Device,
     },
-    ValidatePairingRequest {
+    CancelPairing {
+        id: String,
+        generation: Option<String>,
+    },
+    ExpirePairing {
+        id: String,
+        generation: String,
+    },
+    ReceivePairingCancel {
+        cancel: crate::chat::pairing::protocol::PairingCancel,
+    },
+    ReceivePairingRequest {
         request: crate::chat::pairing::protocol::PairingRequest,
-    },
-    ValidatePairingResponse {
-        response: crate::chat::pairing::protocol::PairingResponse,
-        expected: String,
-    },
-    DerivePairingKey {
-        private_key: String,
-        public_key: String,
     },
     SavePairedPeer {
         facts: crate::chat::pairing::peer_store::Facts,
@@ -191,6 +199,7 @@ pub(super) async fn call(
     let db = state.db.clone();
     let directory = state.directory.clone();
     let prefs = state.prefs.clone();
+    let pairing = state.pairing.clone();
     let result = tokio::task::spawn_blocking(move || -> anyhow::Result<Value> {
         use chat_store::{channels, messages, nearby, peers};
         Ok(match request {
@@ -238,22 +247,30 @@ pub(super) async fn call(
             Request::PatchChannel { before, after } => {
                 serde_json::to_value(channels::patch(&db, &before, &after)?)?
             }
-            Request::PairingRequest { device } => super::pairing::request(&prefs, device)?,
-            Request::PairingResponse {
+            Request::StartPairing { target, device } => {
+                super::pairing::start(&prefs, &pairing, target, device)?
+            }
+            Request::CompletePairing {
+                response,
+                sender_ip,
+            } => super::pairing::complete(&db, &prefs, &pairing, response, &sender_ip)?,
+            Request::RespondPairing {
                 request,
                 accepted,
                 device,
-            } => super::pairing::response(&prefs, request, accepted, device)?,
-            Request::ValidatePairingRequest { request } => {
-                json!(crate::chat::pairing::security::verify_request(&request))
+            } => super::pairing::respond(&db, &prefs, &pairing, request, accepted, device)?,
+            Request::CancelPairing { id, generation } => {
+                super::pairing::cancel(&prefs, &pairing, &id, generation.as_deref())?
             }
-            Request::ValidatePairingResponse { response, expected } => json!(
-                super::pairing::validate_response(&prefs, &response, &expected)?
-            ),
-            Request::DerivePairingKey {
-                private_key,
-                public_key,
-            } => json!(super::pairing::derive(&private_key, &public_key)),
+            Request::ExpirePairing { id, generation } => {
+                serde_json::to_value(pairing.expire(&id, &generation))?
+            }
+            Request::ReceivePairingCancel { cancel } => {
+                super::pairing::receive_cancel(&prefs, &pairing, cancel)?
+            }
+            Request::ReceivePairingRequest { request } => {
+                json!(super::pairing::receive_request(&pairing, &request))
+            }
             Request::SavePairedPeer { facts } => {
                 serde_json::to_value(crate::chat::pairing::peer_store::save(&db, facts)?)?
             }
