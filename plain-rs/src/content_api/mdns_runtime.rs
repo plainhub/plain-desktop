@@ -119,7 +119,7 @@ impl Runtime {
             ensure!(
                 state
                     .host
-                    .call("mdnsMulticast", json!({"acquire":true}))
+                    .call("mdnsMulticast", json!({"acquire":true,"lease":self.id}))
                     .await
                     .map_err(anyhow::Error::msg)?
                     .as_bool()
@@ -179,7 +179,7 @@ impl Runtime {
         ensure!(
             state
                 .host
-                .call("mdnsMulticast", json!({"acquire":true}))
+                .call("mdnsMulticast", json!({"acquire":true,"lease":self.id}))
                 .await
                 .map_err(anyhow::Error::msg)?
                 .as_bool()
@@ -366,7 +366,9 @@ impl Runtime {
         if owner.as_ref() == Some(&self.id) {
             host_responder::stop();
             crate::mdns::packet_capture::set_enabled(false);
-            let _ = host.call("mdnsMulticast", json!({"acquire":false})).await;
+            let _ = host
+                .call("mdnsMulticast", json!({"acquire":false,"lease":self.id}))
+                .await;
             *owner = None;
         }
     }
