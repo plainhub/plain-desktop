@@ -16,10 +16,6 @@ use serde_json::json;
 #[serde(tag = "action", rename_all = "camelCase", deny_unknown_fields)]
 pub(super) enum Request {
     Snapshot,
-    Scanning {
-        lan: bool,
-        ble: bool,
-    },
     BleScanning {
         ble: bool,
     },
@@ -94,12 +90,6 @@ impl Context {
 async fn execute(state: &ServerState, request: Request) -> anyhow::Result<serde_json::Value> {
     match request {
         Request::Snapshot => {}
-        Request::Scanning { lan, ble } => {
-            state
-                .nearby_devices
-                .scanning(lan, ble, chat_store::nearby::all(&state.db)?)?;
-            publish(state, None);
-        }
         Request::BleScanning { ble } => {
             state.nearby_devices.scanning_modes(
                 None,

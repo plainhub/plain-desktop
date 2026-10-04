@@ -224,7 +224,7 @@ fn send_goodbye(previous: &MdnsServiceInfo) {
     );
     for iface in &candidates {
         let _ = socket2::SockRef::from(&*socket).set_multicast_if_v4(&iface.ip);
-        if let Err(e) = socket.send_to(&bytes, target) {
+        if let Err(e) = send_recorded(socket.as_ref(), &bytes, target) {
             log::error!("mDNS goodbye {}: {e}", iface.name);
         }
     }
@@ -460,7 +460,7 @@ fn broadcast_service() {
             continue;
         };
         let _ = socket2::SockRef::from(&*socket).set_multicast_if_v4(&iface.ip);
-        if let Err(e) = socket.send_to(&bytes, target) {
+        if let Err(e) = send_recorded(socket.as_ref(), &bytes, target) {
             log::error!("mDNS announce {}: {e}", iface.name);
         }
     }
@@ -496,7 +496,8 @@ pub fn send_unicast_query(bytes: &[u8], ip: &str) {
         // ephemeral source port always comes back to this exact socket
         // (RFC 6762 §6.7 legacy-unicast path).
         if let Some(socket) = ensure_qu_socket() {
-            if let Err(e) = socket.send_to(bytes, SocketAddrV4::new(v4, MDNS_PORT)) {
+            if let Err(e) = send_recorded(socket.as_ref(), bytes, SocketAddrV4::new(v4, MDNS_PORT))
+            {
                 log::error!("mDNS unicast query to {ip}: {e}");
             }
         }
@@ -506,7 +507,11 @@ pub fn send_unicast_query(bytes: &[u8], ip: &str) {
         let Some(socket) = IPV6_SOCKET.read().unwrap().clone() else {
             return;
         };
-        if let Err(e) = socket.send_to(bytes, SocketAddrV6::new(v6, MDNS_PORT, 0, 0)) {
+        if let Err(e) = send_recorded(
+            socket.as_ref(),
+            bytes,
+            SocketAddrV6::new(v6, MDNS_PORT, 0, 0),
+        ) {
             log::error!("mDNS unicast query to {ip}: {e}");
         }
     }
@@ -532,7 +537,7 @@ fn send_to_group(socket: &std::net::UdpSocket, bytes: &[u8]) {
     let target = SocketAddrV4::new(MDNS_GROUP, MDNS_PORT);
     let candidates = candidate_interfaces();
     if candidates.is_empty() {
-        if let Err(e) = socket.send_to(bytes, target) {
+        if let Err(e) = send_recorded(socket, bytes, target) {
             log::error!("mDNS sendQuery: {e}");
         }
         return;
@@ -543,7 +548,7 @@ fn send_to_group(socket: &std::net::UdpSocket, bytes: &[u8]) {
     // peers live (e.g. Ethernet/VM bridge enumerated before Wi-Fi).
     for iface in candidates {
         let _ = socket2::SockRef::from(socket).set_multicast_if_v4(&iface.ip);
-        if let Err(e) = socket.send_to(bytes, target) {
+        if let Err(e) = send_recorded(socket, bytes, target) {
             log::error!("mDNS sendQuery {}: {e}", iface.name);
         }
     }
@@ -686,6 +691,7 @@ fn run_ipv6_loop(socket: &Arc<std::net::UdpSocket>) {
                 if !IPV6_RUNNING.load(Ordering::SeqCst) || !still_current_ipv6(socket) {
                     break;
                 }
+                record_received(socket, src, &buf[..n]);
                 let std::net::IpAddr::V6(v6) = src.ip() else {
                     continue;
                 };
@@ -730,12 +736,12 @@ fn send_ipv6_query(bytes: &[u8]) {
     let target = SocketAddrV6::new(MDNS_GROUP_V6, MDNS_PORT, 0, 0);
     let interfaces = candidate_ipv6_interfaces();
     if interfaces.is_empty() {
-        let _ = socket.send_to(bytes, target);
+        let _ = send_recorded(socket.as_ref(), bytes, target);
         return;
     }
     for (name, index) in interfaces {
         let _ = socket2::SockRef::from(&*socket).set_multicast_if_v6(index);
-        if let Err(e) = socket.send_to(bytes, target) {
+        if let Err(e) = send_recorded(socket.as_ref(), bytes, target) {
             log::error!("mDNS sendQuery v6 {}: {e}", name);
         }
     }
@@ -777,6 +783,7 @@ fn qu_receive_loop(socket: &Arc<std::net::UdpSocket>) {
                 if !still_current_qu(socket) {
                     break;
                 }
+                record_received(socket, src, &buf[..n]);
                 if let std::net::IpAddr::V4(v4) = src.ip() {
                     notify_packet_listeners(&buf[..n], &v4.to_string());
                 }
@@ -843,6 +850,7 @@ impl Worker {
                     if !self.is_current() {
                         break;
                     }
+                    record_received(&self.socket, src, &buf[..n]);
                     let sender_ip = match src.ip() {
                         std::net::IpAddr::V4(v4) => v4.to_string(),
                         std::net::IpAddr::V6(_) => continue,
@@ -883,7 +891,7 @@ impl Worker {
                             socket2::SockRef::from(&*self.socket)
                                 .set_multicast_if_v4(&response_iface.ip)?;
                         }
-                        self.socket.send_to(&response.bytes, dest)?;
+                        send_recorded(&self.socket, &response.bytes, dest)?;
                         Ok(())
                     })();
                     if let Err(e) = send_result {
@@ -1055,6 +1063,28 @@ fn joined_iface_list() -> Vec<String> {
     let mut names: Vec<String> = joined_iface_set().into_iter().collect();
     names.sort();
     names
+}
+
+pub(crate) fn record_received(
+    socket: &std::net::UdpSocket,
+    src: std::net::SocketAddr,
+    bytes: &[u8],
+) {
+    if let Ok(dst) = socket.local_addr() {
+        super::packet_capture::record("IN", src, dst, bytes);
+    }
+}
+pub(crate) fn send_recorded(
+    socket: &std::net::UdpSocket,
+    bytes: &[u8],
+    dst: impl Into<std::net::SocketAddr>,
+) -> io::Result<usize> {
+    let dst = dst.into();
+    let size = socket.send_to(bytes, dst)?;
+    if let Ok(src) = socket.local_addr() {
+        super::packet_capture::record("OUT", src, dst, &bytes[..size]);
+    }
+    Ok(size)
 }
 
 #[cfg(test)]

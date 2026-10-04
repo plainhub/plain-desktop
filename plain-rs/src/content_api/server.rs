@@ -398,6 +398,7 @@ async fn host_upgrade(
 }
 async fn host_socket(mut socket: WebSocket, mut state: ServerState) {
     let (generation, mut outgoing) = state.host.connect();
+    tokio::spawn(super::mdns_runtime::Runtime::host_connected(state.clone(), generation));
     loop {
         tokio::select! {
             _ = state.stop.changed() => break,

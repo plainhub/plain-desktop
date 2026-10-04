@@ -51,6 +51,10 @@ impl Host {
         self.ready.notify_waiters();
         (generation, receiver)
     }
+    pub fn is_current(&self, generation: u64) -> bool {
+        let state = self.state.lock().unwrap();
+        state.generation == generation && state.sender.is_some()
+    }
     pub fn disconnect(&self, generation: u64) {
         let mut state = self.state.lock().unwrap();
         if state.generation != generation {

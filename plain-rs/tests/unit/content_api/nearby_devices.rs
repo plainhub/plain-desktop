@@ -56,15 +56,9 @@ async fn rust_sweep_honors_radio_pause_and_real_tls_verdicts() {
     .await
     .unwrap();
     assert_eq!(chat_store::nearby::all(&state.db).unwrap().len(), 2);
-    execute(
-        &state,
-        Request::Scanning {
-            lan: true,
-            ble: false,
-        },
-    )
-    .await
-    .unwrap();
+    execute(&state, Request::BleScanning { ble: true })
+        .await
+        .unwrap();
     let (generation, mut requests) = state.host.connect();
     let host = state.host.clone();
     let facts = tokio::spawn(async move {

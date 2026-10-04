@@ -13,3 +13,5 @@ pub mod packet_codec;
 pub mod service_browser;
 pub mod service_info;
 pub mod service_response_builder;
+
+pub mod packet_capture;
