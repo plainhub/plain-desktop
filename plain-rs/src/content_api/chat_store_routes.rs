@@ -57,6 +57,18 @@ pub(super) enum Request {
         before: DChannel,
         after: DChannel,
     },
+    PreparePeer {
+        id: String,
+        operation: super::peer_wire::Operation,
+    },
+    EncryptPeer {
+        key: String,
+        body: String,
+    },
+    DecryptPeer {
+        key: String,
+        body: String,
+    },
     SignChannel {
         message_type: crate::chat::enums::ChannelSystemMessageType,
         payload: String,
@@ -194,6 +206,11 @@ pub(super) async fn call(
             Request::PatchChannel { before, after } => {
                 serde_json::to_value(channels::patch(&db, &before, &after)?)?
             }
+            Request::PreparePeer { id, operation } => {
+                serde_json::to_value(super::peer_wire::prepare(&db, &prefs, &id, operation)?)?
+            }
+            Request::EncryptPeer { key, body } => json!(super::peer_wire::encrypt(&key, &body)?),
+            Request::DecryptPeer { key, body } => json!(super::peer_wire::decrypt(&key, &body)?),
             Request::SignChannel {
                 message_type,
                 payload,

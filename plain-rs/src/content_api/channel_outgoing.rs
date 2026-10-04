@@ -1,3 +1,4 @@
+use super::peer_wire::signing_keypair;
 use crate::{
     chat::{
         channel::{messages::ChannelMember, outgoing},
@@ -90,27 +91,6 @@ pub(super) fn prepare(
         message_type: kind,
         targets,
     })
-}
-fn signing_keypair(prefs: &Prefs) -> Result<Vec<u8>> {
-    let raw = prefs
-        .get::<String>("signature_key_pair")?
-        .ok_or_else(|| anyhow::anyhow!("Missing signature keypair"))?;
-    let pair: serde_json::Value = serde_json::from_str(&raw)?;
-    let mut keypair = crate::base64_decode(
-        pair["privateKey"]
-            .as_str()
-            .ok_or_else(|| anyhow::anyhow!("Missing private key"))?,
-    );
-    let public = crate::base64_decode(
-        pair["publicKey"]
-            .as_str()
-            .ok_or_else(|| anyhow::anyhow!("Missing public key"))?,
-    );
-    if keypair.len() != 32 || public.len() != 32 {
-        bail!("Invalid signature keypair");
-    }
-    keypair.extend(public);
-    Ok(keypair)
 }
 pub(super) fn wire(prefs: &Prefs, kind: ChannelSystemMessageType, payload: &str) -> Result<String> {
     channel_system_request(&signing_keypair(prefs)?, kind.as_str(), payload)

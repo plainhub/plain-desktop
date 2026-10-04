@@ -74,16 +74,7 @@ pub async fn deliver_to_peer<T: PeerTransport>(
     content: &str,
     channel_id: Option<&str>,
 ) -> Result<(), String> {
-    let graphql_json = serde_json::to_string(&json!({
-        "query": "mutation CreateChatItem($content: String!) { createChatItem(content: $content) { id fromId toId createdAt } }",
-        "variables": { "content": content }
-    }))
-    .unwrap_or_default();
-
-    let ts = now_ms();
-    let sig_data = format!("{ts}{graphql_json}");
-    let signature = ed25519_sign(kp_bytes, sig_data.as_bytes());
-    let payload = format!("{signature}|{ts}|{graphql_json}");
+    let payload = chat_item_request(kp_bytes, content)?;
 
     let Some(encrypted) = xchacha_encrypt_raw(key, payload.as_bytes()) else {
         return Err("encrypt failed".to_string());
@@ -128,30 +119,43 @@ pub async fn deliver_to_peer<T: PeerTransport>(
     })
 }
 
-pub fn channel_system_request(
-    kp_bytes: &[u8],
-    msg_type: &str,
-    payload: &str,
-) -> Result<String, String> {
-    let graphql_json = serde_json::to_string(&json!({
-        "query": "mutation ChannelSystemMessage($type: ChannelSystemMessageType!, $payload: String!) { channelSystemMessage(type: $type, payload: $payload) }",
-        "variables": { "type": msg_type, "payload": payload }
-    }))
-    .unwrap_or_default();
+pub const CREATE_CHAT_ITEM: &str = "mutation CreateChatItem($content: String!) { createChatItem(content: $content) { id fromId toId createdAt } }";
+pub const START_AWARE: &str = "mutation StartAware { startAware }";
 
+pub fn signed_request(
+    kp_bytes: &[u8],
+    query: &str,
+    variables: serde_json::Value,
+) -> Result<String, String> {
+    let graphql_json = serde_json::to_string(&json!({"query":query,"variables":variables}))
+        .map_err(|e| e.to_string())?;
     let ts = now_ms();
-    let sig_data = format!("{ts}{graphql_json}");
-    let signature = ed25519_sign(kp_bytes, sig_data.as_bytes());
+    let signed = format!("{ts}{graphql_json}");
+    let signature = ed25519_sign(kp_bytes, signed.as_bytes());
     if kp_bytes.len() != 64
         || !crate::ed25519_verify(
             &crate::base64_encode(&kp_bytes[32..]),
-            sig_data.as_bytes(),
+            signed.as_bytes(),
             &signature,
         )
     {
-        return Err("Invalid channel signing keypair".into());
+        return Err("Invalid peer signing keypair".into());
     }
     Ok(format!("{signature}|{ts}|{graphql_json}"))
+}
+pub fn chat_item_request(kp_bytes: &[u8], content: &str) -> Result<String, String> {
+    signed_request(kp_bytes, CREATE_CHAT_ITEM, json!({"content":content}))
+}
+pub fn channel_system_request(
+    kp_bytes: &[u8],
+    kind: &str,
+    payload: &str,
+) -> Result<String, String> {
+    signed_request(
+        kp_bytes,
+        "mutation ChannelSystemMessage($type: ChannelSystemMessageType!, $payload: String!) { channelSystemMessage(type: $type, payload: $payload) }",
+        json!({"type":kind,"payload":payload}),
+    )
 }
 
 /// Send a `channelSystemMessage` GraphQL mutation to a peer over the same
