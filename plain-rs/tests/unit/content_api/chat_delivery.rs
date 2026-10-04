@@ -4,7 +4,10 @@ use serde_json::Value;
 async fn host_transport_preserves_signed_wire_and_requires_an_actual_receipt() {
     let host = Arc::new(Host::default());
     let (generation, mut receiver) = host.connect();
-    let transport = Transport(host.clone());
+    let transport = Transport(
+        host.clone(),
+        Arc::new(crate::chat::transport_router::Router::default()),
+    );
     let peer = DPeer::new(
         "fixture",
         "fixture",
@@ -20,8 +23,15 @@ async fn host_transport_preserves_signed_wire_and_requires_an_actual_receipt() {
                 json!({"createChatItem":null}),
                 json!({"createChatItem":[]}),
             ] {
+                let capabilities = receiver.recv().await.unwrap();
+                assert_eq!(capabilities["method"], "peerTransportCapabilities");
+                host.reply(
+                    generation,
+                    json!({"id":capabilities["id"],"result":["LAN"]}),
+                )
+                .unwrap();
                 let request = receiver.recv().await.unwrap();
-                assert_eq!(request["method"], "chatTransport");
+                assert_eq!(request["method"], "peerTransportAttempt");
                 assert_eq!(request["params"]["peer"]["id"], "fixture");
                 assert_eq!(request["params"]["channelId"], "channel");
                 assert_eq!(request["params"]["body"], "signed|123|request");
@@ -31,7 +41,7 @@ async fn host_transport_preserves_signed_wire_and_requires_an_actual_receipt() {
                 );
                 let errors = if data == json!({"createChatItem":null}) {
                     Value::Null
-                } else if data == json!({"createChatItem":[]}) && request["id"].as_u64() == Some(3)
+                } else if data == json!({"createChatItem":[]}) && request["id"].as_u64() == Some(6)
                 {
                     json!([{"message":"rejected"}])
                 } else {
@@ -39,7 +49,7 @@ async fn host_transport_preserves_signed_wire_and_requires_an_actual_receipt() {
                 };
                 host.reply(
                     generation,
-                    json!({"id":request["id"],"result":{"data":data,"errors":errors}}),
+                    json!({"id":request["id"],"result":{"kind":"connected","response":{"data":data,"errors":errors}}}),
                 )
                 .unwrap();
             }

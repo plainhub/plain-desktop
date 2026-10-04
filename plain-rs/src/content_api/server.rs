@@ -27,6 +27,7 @@ pub(super) struct ServerState {
     pub(super) files: Arc<super::file_tasks::FileTasks>,
     pub(super) host: Arc<super::host::Host>,
     pub(super) db: Arc<Db>,
+    pub(super) transport: Arc<crate::chat::transport_router::Router>,
     pub(super) delivery: Arc<crate::chat::delivery::Delivery>,
     pub(super) pairing: Arc<crate::chat::pairing::sessions::Sessions>,
     pub(super) prefs: Arc<crate::prefs::Prefs>,
@@ -86,6 +87,7 @@ impl ContentServer {
         let bridge = Arc::new(super::http_bridge::HttpBridge::new(host.clone()));
         let state = ServerState {
             schema,
+            transport: Arc::new(crate::chat::transport_router::Router::default()),
             delivery: Arc::new(crate::chat::delivery::Delivery::new((*db).clone())),
             pairing: Arc::new(crate::chat::pairing::sessions::Sessions::default()),
             files: services.files,
@@ -105,6 +107,7 @@ impl ContentServer {
             .route("/host", get(host_upgrade))
             .route("/health", get(health))
             .route("/fs", get(files::file))
+            .route("/chat/transport", post(super::peer_transport::call))
             .route("/chat/send", post(super::chat_delivery::call))
             .route("/chat/store", post(super::chat_store_routes::call))
             .route("/files/write", post(super::file_writes::write))

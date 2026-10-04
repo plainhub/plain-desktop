@@ -217,6 +217,7 @@ pub(super) async fn call(
     let directory = state.directory.clone();
     let prefs = state.prefs.clone();
     let pairing = state.pairing.clone();
+    let transport = state.transport.clone();
     let result = tokio::task::spawn_blocking(move || -> anyhow::Result<Value> {
         use chat_store::{channels, messages, nearby, peers};
         Ok(match request {
@@ -264,18 +265,30 @@ pub(super) async fn call(
                 peers::save(&db, &items, mode)?;
                 json!(true)
             }
-            Request::DeletePeers { ids } => json!(peers::delete(&db, &ids)?),
-            Request::RemovePeer { id } => json!(
-                crate::chat::app_file_store::chat_deletion::delete(
+            Request::DeletePeers { ids } => {
+                let deleted = peers::delete(&db, &ids)?;
+                for id in ids {
+                    transport.forget(&id);
+                }
+                json!(deleted)
+            }
+            Request::RemovePeer { id } => {
+                let removed = crate::chat::app_file_store::chat_deletion::delete(
                     &db,
                     &directory,
-                    crate::chat::app_file_store::chat_deletion::Selection::PeerRecord(&id)
-                )? != 0
-            ),
+                    crate::chat::app_file_store::chat_deletion::Selection::PeerRecord(&id),
+                )?;
+                transport.forget(&id);
+                json!(removed != 0)
+            }
             Request::RemoveChannel { id } => serde_json::to_value(
                 crate::chat::app_file_store::chat_deletion::remove_channel(&db, &directory, &id)?,
             )?,
-            Request::UnpairPeer { id } => json!(peers::unpair(&db, &id)?),
+            Request::UnpairPeer { id } => {
+                let unpaired = peers::unpair(&db, &id)?;
+                transport.forget(&id);
+                json!(unpaired)
+            }
             Request::DiscoverPeer {
                 id,
                 ips,
