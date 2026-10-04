@@ -33,6 +33,7 @@ mod channel_outgoing;
 mod channel_delivery;
 mod channel_runtime;
 mod discovery_advertisement;
+mod mdns_runtime;
 mod peer_wire;
 mod pairing;
 pub(crate) mod pairing_timeout;

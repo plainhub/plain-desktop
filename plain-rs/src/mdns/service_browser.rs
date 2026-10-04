@@ -103,6 +103,8 @@ struct Inner {
     on_device: Box<dyn Fn(FoundDevice) + Send + Sync>,
     qu_active: AtomicBool,
     browse_cycles: AtomicU64,
+    generation: AtomicU64,
+    listener_generation: AtomicU64,
 }
 
 /// mDNS service browser. Created once and cloned cheaply (all state behind an
@@ -130,6 +132,8 @@ impl MdnsServiceBrowser {
                 on_device: Box::new(on_device),
                 qu_active: AtomicBool::new(false),
                 browse_cycles: AtomicU64::new(0),
+                generation: AtomicU64::new(0),
+                listener_generation: AtomicU64::new(0),
             }),
         }
     }
@@ -146,12 +150,26 @@ impl MdnsServiceBrowser {
             return;
         }
         let inner = self.inner.clone();
+        let generation = inner.generation.fetch_add(1, Ordering::SeqCst) + 1;
         std::thread::Builder::new()
             .name("plain-mdns-browser".to_string())
             .spawn(move || {
-                while inner.running.load(Ordering::SeqCst) {
+                while inner.running.load(Ordering::SeqCst)
+                    && inner.generation.load(Ordering::SeqCst) == generation
+                {
                     browse_once(&inner);
-                    std::thread::sleep(Duration::from_millis(DISCOVER_INTERVAL_MS));
+                    let deadline =
+                        std::time::Instant::now() + Duration::from_millis(DISCOVER_INTERVAL_MS);
+                    while inner.running.load(Ordering::SeqCst)
+                        && inner.generation.load(Ordering::SeqCst) == generation
+                    {
+                        let Some(remaining) =
+                            deadline.checked_duration_since(std::time::Instant::now())
+                        else {
+                            break;
+                        };
+                        std::thread::sleep(remaining.min(Duration::from_millis(100)));
+                    }
                 }
             })
             .expect("spawn mdns browser");
@@ -162,6 +180,7 @@ impl MdnsServiceBrowser {
     /// paired peers' IPs after a network change even when no page is scanning.
     pub fn stop(&self) {
         self.inner.running.store(false, Ordering::SeqCst);
+        self.inner.generation.fetch_add(1, Ordering::SeqCst);
     }
 
     /// Installs the resident packet listener so inbound mDNS responses keep
@@ -172,11 +191,34 @@ impl MdnsServiceBrowser {
         if guard.is_some() {
             return;
         }
-        let inner = self.inner.clone();
+        let generation = self
+            .inner
+            .listener_generation
+            .fetch_add(1, Ordering::SeqCst)
+            + 1;
+        let inner = Arc::downgrade(&self.inner);
         let listener: host_responder::PacketListener =
-            Arc::new(move |data: &[u8], sender: &str| handle_packet(&inner, data, sender));
+            Arc::new(move |data: &[u8], sender: &str| {
+                if let Some(inner) = inner.upgrade() {
+                    if inner.listener_generation.load(Ordering::SeqCst) != generation {
+                        return;
+                    }
+                    handle_packet(&inner, data, sender);
+                }
+            });
         host_responder::add_packet_listener(listener.clone());
         *guard = Some(listener);
+    }
+
+    pub fn shutdown(&self) {
+        self.stop();
+        self.inner
+            .listener_generation
+            .fetch_add(1, Ordering::SeqCst);
+        if let Some(listener) = self.inner.listener.lock().unwrap().take() {
+            host_responder::remove_packet_listener(&listener);
+        }
+        self.clear_instances();
     }
 
     /// Replaces the requery seed addresses. Injected by the caller from its
@@ -185,7 +227,7 @@ impl MdnsServiceBrowser {
     pub fn seed_known_addrs(&self, addrs: &[String]) {
         let mut seed = self.inner.seed_addrs.lock().unwrap();
         seed.clear();
-        seed.extend(addrs.iter().filter(|a| !a.is_empty()).cloned());
+        seed.extend(addrs.iter().filter(|a| !a.is_empty()).take(512).cloned());
     }
 
     /// One-shot PTR query used by directed re-discovery of a paired peer.
@@ -542,6 +584,25 @@ fn handle_packet(inner: &Inner, data: &[u8], sender: &str) {
                 state.srv_txt_queried_at.remove(key);
                 state.a_queried_at.remove(key);
             }
+        }
+    }
+
+    {
+        let mut state = inner.state.lock().unwrap();
+        if state.instances.len() > 512 {
+            let mut keys = state.instances.keys().cloned().collect::<Vec<_>>();
+            keys.sort();
+            for key in keys.into_iter().skip(512) {
+                state.instances.remove(&key);
+            }
+            let retained = state.instances.keys().cloned().collect::<HashSet<_>>();
+            state
+                .hostname_to_instance
+                .retain(|_, key| retained.contains(key));
+            state
+                .srv_txt_queried_at
+                .retain(|key, _| retained.contains(key));
+            state.a_queried_at.clear();
         }
     }
 
@@ -1019,5 +1080,42 @@ mod tests {
 
     fn local_ip_sender() -> Option<String> {
         super::host_responder::local_ipv4_strs().into_iter().next()
+    }
+    #[test]
+    fn shutdown_invalidates_captured_listener_and_releases_its_inner() {
+        let browser = MdnsServiceBrowser::new(
+            "local".into(),
+            Arc::new(RwLock::new("local.local".into())),
+            |_| {},
+        );
+        browser.install_listener();
+        let old = browser.inner.listener.lock().unwrap().clone().unwrap();
+        let weak = Arc::downgrade(&browser.inner);
+        browser.shutdown();
+        browser.install_listener();
+        let service = crate::mdns::service_info::build_service_info(
+            "Remote",
+            "remote.local",
+            2443,
+            "peer",
+            "PHONE",
+            "1",
+            "android",
+            vec!["192.0.2.7".into()],
+            false,
+            false,
+        );
+        let query = packet_codec::build_ptr_query(PLAINAPP_SERVICE_TYPE);
+        let packet =
+            crate::mdns::service_response_builder::build_response_if_match(&query, &service)
+                .unwrap()
+                .bytes;
+        old(&packet, "192.0.2.1");
+        assert!(browser.snapshot().is_empty());
+        browser.inner.listener.lock().unwrap().clone().unwrap()(&packet, "192.0.2.1");
+        assert_eq!(browser.snapshot().len(), 1);
+        browser.shutdown();
+        drop(browser);
+        assert!(weak.upgrade().is_none());
     }
 }

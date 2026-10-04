@@ -105,7 +105,17 @@ impl Devices {
         ble: bool,
         cached: Vec<crate::db::DNearbyDeviceCache>,
     ) -> Result<()> {
+        self.scanning_modes(Some(lan), Some(ble), cached)
+    }
+    pub fn scanning_modes(
+        &self,
+        lan: Option<bool>,
+        ble: Option<bool>,
+        cached: Vec<crate::db::DNearbyDeviceCache>,
+    ) -> Result<()> {
         let mut s = self.0.lock().unwrap();
+        let lan = lan.unwrap_or(s.lan);
+        let ble = ble.unwrap_or(s.ble);
         if s.lan != lan || s.ble != ble {
             for entry in s.entries.values_mut() {
                 entry.generation = uuid::Uuid::new_v4().to_string();

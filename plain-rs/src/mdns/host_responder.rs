@@ -1,8 +1,7 @@
 //! Lightweight mDNS responder — single receive socket, standards-aware reply.
 //!
-//! Mirrors plain-app's Kotlin `MdnsHostResponder` (see `docs/mdns.md`): the
-//! three bring-up resilience mechanisms are kept in lock-step with that code
-//! so both platforms behave identically.
+//! Shared by desktop and mobile runtimes; native adapters only manage OS
+//! multicast permission and network-change notifications.
 //!
 //! RECEIVE: One socket bound to 0.0.0.0:5353 joins 224.0.0.251 on every valid
 //! LAN interface. Network changes reuse the socket and only join missing
@@ -88,6 +87,8 @@ static RETRY_DELAY_MS: AtomicU64 = AtomicU64::new(INITIAL_RETRY_MS);
 static RETRY_PENDING: AtomicBool = AtomicBool::new(false);
 /// Marshals the single periodic re-announce thread.
 static REANNOUNCE_STARTED: AtomicBool = AtomicBool::new(false);
+static GENERATION: AtomicU64 = AtomicU64::new(0);
+static LIFECYCLE: std::sync::Mutex<()> = std::sync::Mutex::new(());
 
 /// Takes (reads and resets) the external-multicast-seen flag. The browser
 /// polls this every scan cycle: no external multicast means the receive path
@@ -101,10 +102,47 @@ pub fn is_running() -> bool {
     INNER.running.load(Ordering::SeqCst) && INNER.socket.read().unwrap().is_some()
 }
 
+pub fn clear_service() {
+    let _guard = LIFECYCLE.lock().unwrap();
+    clear_service_inner();
+}
+fn clear_service_inner() {
+    if let Some(previous) = INNER.service_info.write().unwrap().take() {
+        send_goodbye(&previous);
+    }
+}
+
+pub fn stop() {
+    let _guard = LIFECYCLE.lock().unwrap();
+    GENERATION.fetch_add(1, Ordering::SeqCst);
+    clear_service_inner();
+    INNER.running.store(false, Ordering::SeqCst);
+    IPV6_RUNNING.store(false, Ordering::SeqCst);
+    INNER.socket.write().unwrap().take();
+    IPV6_SOCKET.write().unwrap().take();
+    QU_SOCKET.write().unwrap().take();
+    INNER.hostname.write().unwrap().clear();
+    *joined_ifaces().lock().unwrap() = None;
+    RETRY_PENDING.store(false, Ordering::SeqCst);
+    REANNOUNCE_STARTED.store(false, Ordering::SeqCst);
+}
+
+pub fn remove_packet_listener(listener: &PacketListener) {
+    INNER
+        .listeners
+        .write()
+        .unwrap()
+        .retain(|item| !Arc::ptr_eq(item, listener));
+}
+
 /// Starts the mDNS responder. `service` advertises the PlainApp service
 /// (PTR/SRV/TXT/A answers); when None the responder only answers A-record
 /// queries for `mdns_hostname`.
 pub fn start(mdns_hostname: &str, service: Option<MdnsServiceInfo>) -> bool {
+    let _guard = LIFECYCLE.lock().unwrap();
+    start_inner(mdns_hostname, service)
+}
+fn start_inner(mdns_hostname: &str, service: Option<MdnsServiceInfo>) -> bool {
     let normalized = normalize_hostname(mdns_hostname);
     if normalized.is_empty() {
         log::error!("mDNS start skipped: empty hostname");
@@ -113,19 +151,20 @@ pub fn start(mdns_hostname: &str, service: Option<MdnsServiceInfo>) -> bool {
     *INNER.hostname.write().unwrap() = normalized;
     *INNER.service_info.write().unwrap() = service;
     RETRY_DELAY_MS.store(INITIAL_RETRY_MS, Ordering::SeqCst);
-    let ok = restart_socket();
-    ensure_ipv6_started();
+    let ok = restart_socket_inner();
+    ensure_ipv6_started_inner();
     ok
 }
 
 /// Ensures the responder socket is up so discovery works even while the HTTP
 /// service is off. When already running this keeps the current configuration.
 pub fn ensure_started(mdns_hostname: &str) -> bool {
+    let _guard = LIFECYCLE.lock().unwrap();
     if is_running() {
         return true;
     }
     let service = INNER.service_info.read().unwrap().clone();
-    start(mdns_hostname, service)
+    start_inner(mdns_hostname, service)
 }
 
 /// Replaces the published service and re-announces it right away instead of
@@ -142,12 +181,14 @@ pub fn ensure_started(mdns_hostname: &str) -> bool {
 /// is stored either way and goes out with the next
 /// `start`/`restart_socket`. Mirrors the Kotlin `MdnsHostResponder.updateService`.
 pub fn update_service(service: MdnsServiceInfo) -> bool {
+    let _guard = LIFECYCLE.lock().unwrap();
     let fqdn = service.instance_fqdn();
     let previous = {
         let mut guard = INNER.service_info.write().unwrap();
         match guard.clone() {
             None => return false,
             Some(prev) => {
+                *INNER.hostname.write().unwrap() = normalize_hostname(&service.target_hostname);
                 *guard = Some(service);
                 prev
             }
@@ -195,6 +236,10 @@ fn send_goodbye(previous: &MdnsServiceInfo) {
 /// churn). The socket is rebuilt only when it does not exist yet. Mirrors the
 /// Kotlin `MdnsHostResponder.restartSocket`.
 pub fn restart_socket() -> bool {
+    let _guard = LIFECYCLE.lock().unwrap();
+    restart_socket_inner()
+}
+fn restart_socket_inner() -> bool {
     let hostname = INNER.hostname.read().unwrap().clone();
     if hostname.is_empty() {
         log::error!("mDNS restart skipped: hostname not configured");
@@ -283,7 +328,10 @@ fn sync_memberships(socket: &std::net::UdpSocket, candidates: &[MdnsIface]) -> b
         // All per-interface joins failed (EINVAL on some kernels) — fall back
         // to the default interface so single-NIC devices still work.
         match socket.join_multicast_v4(&MDNS_GROUP, &Ipv4Addr::UNSPECIFIED) {
-            Ok(()) => log::debug!("mDNS joined (default)"),
+            Ok(()) => {
+                log::debug!("mDNS joined (default)");
+                return true;
+            }
             Err(e) => log::error!("mDNS joinGroup default: {e}"),
         }
     }
@@ -305,21 +353,39 @@ fn next_retry_delay(current: u64) -> u64 {
 /// Reschedules a bring-up attempt with exponential backoff (2s → 4s → … → 32s).
 /// At most one retry is pending at a time. Because [restart_socket] reuses a
 /// live socket, a stale retry that fires after a successful bring-up is
-/// idempotent (it just re-joins and re-announces), so no cancellation is needed.
+/// idempotent. Stop invalidates the retry before it can touch a new lifecycle.
 fn schedule_retry() {
     if RETRY_PENDING.swap(true, Ordering::SeqCst) {
         return;
     }
     let delay = RETRY_DELAY_MS.load(Ordering::SeqCst);
+    let generation = GENERATION.load(Ordering::SeqCst);
     std::thread::Builder::new()
         .name("plain-mdns-retry".to_string())
         .spawn(move || {
-            std::thread::sleep(Duration::from_millis(delay));
+            if !wait_generation(delay, generation) {
+                return;
+            }
+            let _guard = LIFECYCLE.lock().unwrap();
+            if GENERATION.load(Ordering::SeqCst) != generation {
+                return;
+            }
             RETRY_PENDING.store(false, Ordering::SeqCst);
             RETRY_DELAY_MS.store(next_retry_delay(delay), Ordering::SeqCst);
-            restart_socket();
+            restart_socket_inner();
         })
         .ok();
+}
+
+fn wait_generation(milliseconds: u64, generation: u64) -> bool {
+    let deadline = std::time::Instant::now() + Duration::from_millis(milliseconds);
+    while GENERATION.load(Ordering::SeqCst) == generation {
+        let Some(remaining) = deadline.checked_duration_since(std::time::Instant::now()) else {
+            return true;
+        };
+        std::thread::sleep(remaining.min(Duration::from_millis(100)));
+    }
+    false
 }
 
 /// Starts the periodic re-announcer (singleton). Broadcasts the full service
@@ -330,11 +396,18 @@ fn ensure_reannounce() {
     if REANNOUNCE_STARTED.swap(true, Ordering::SeqCst) {
         return;
     }
+    let generation = GENERATION.load(Ordering::SeqCst);
     std::thread::Builder::new()
         .name("plain-mdns-announce".to_string())
         .spawn(move || {
             loop {
-                std::thread::sleep(Duration::from_millis(REANNOUNCE_MS));
+                if !wait_generation(REANNOUNCE_MS, generation) {
+                    break;
+                }
+                let _guard = LIFECYCLE.lock().unwrap();
+                if GENERATION.load(Ordering::SeqCst) != generation {
+                    break;
+                }
                 if INNER.service_info.read().unwrap().is_some() {
                     broadcast_service();
                 }
@@ -445,6 +518,10 @@ pub fn send_unicast_query(bytes: &[u8], ip: &str) {
 /// exact socket — a 5353-bound socket could lose them to another
 /// SO_REUSEPORT peer on the same machine.
 pub fn send_qu_query(bytes: &[u8]) {
+    let _guard = LIFECYCLE.lock().unwrap();
+    if !is_running() {
+        return;
+    }
     if let Some(socket) = ensure_qu_socket() {
         send_to_group(&socket, bytes);
     }
@@ -567,6 +644,10 @@ fn sync_ipv6_memberships(socket: &std::net::UdpSocket) -> bool {
 /// Brings the IPv6 `ff02::fb` listener up so IPv6 multicast announcements are
 /// received even on networks where devices never answer IPv4 multicast.
 pub fn ensure_ipv6_started() -> bool {
+    let _guard = LIFECYCLE.lock().unwrap();
+    ensure_ipv6_started_inner()
+}
+fn ensure_ipv6_started_inner() -> bool {
     let existing = IPV6_SOCKET.read().unwrap().clone();
     if !(IPV6_RUNNING.load(Ordering::SeqCst) && existing.is_some()) {
         match create_ipv6_socket() {
@@ -597,8 +678,14 @@ fn run_ipv6_loop(socket: &Arc<std::net::UdpSocket>) {
     let _ = socket.set_read_timeout(Some(Duration::from_millis(RECEIVE_TIMEOUT_MS)));
     let mut buf = [0u8; RECV_BUF_SIZE];
     loop {
+        if !IPV6_RUNNING.load(Ordering::SeqCst) || !still_current_ipv6(socket) {
+            break;
+        }
         match socket.recv_from(&mut buf) {
             Ok((n, src)) => {
+                if !IPV6_RUNNING.load(Ordering::SeqCst) || !still_current_ipv6(socket) {
+                    break;
+                }
                 let std::net::IpAddr::V6(v6) = src.ip() else {
                     continue;
                 };
@@ -620,7 +707,7 @@ fn run_ipv6_loop(socket: &Arc<std::net::UdpSocket>) {
                 break;
             }
         }
-        if !IPV6_RUNNING.load(Ordering::SeqCst) {
+        if !IPV6_RUNNING.load(Ordering::SeqCst) || !still_current_ipv6(&socket) {
             break;
         }
     }
@@ -678,21 +765,40 @@ fn ensure_qu_socket() -> Option<Arc<std::net::UdpSocket>> {
     Some(socket)
 }
 
-fn qu_receive_loop(socket: &std::net::UdpSocket) {
+fn qu_receive_loop(socket: &Arc<std::net::UdpSocket>) {
+    let _ = socket.set_read_timeout(Some(Duration::from_millis(RECEIVE_TIMEOUT_MS)));
     let mut buf = [0u8; RECV_BUF_SIZE];
     loop {
+        if !still_current_qu(socket) {
+            break;
+        }
         match socket.recv_from(&mut buf) {
             Ok((n, src)) => {
+                if !still_current_qu(socket) {
+                    break;
+                }
                 if let std::net::IpAddr::V4(v4) = src.ip() {
                     notify_packet_listeners(&buf[..n], &v4.to_string());
                 }
             }
             Err(err) => {
+                if err.kind() == io::ErrorKind::WouldBlock || err.kind() == io::ErrorKind::TimedOut
+                {
+                    continue;
+                }
                 log::debug!("mDNS QU receive error, stopping: {err}");
+                let mut guard = QU_SOCKET.write().unwrap();
+                if matches!(guard.as_ref(), Some(current) if Arc::ptr_eq(socket, current)) {
+                    guard.take();
+                }
                 break;
             }
         }
     }
+}
+
+fn still_current_qu(socket: &Arc<std::net::UdpSocket>) -> bool {
+    matches!(QU_SOCKET.read().unwrap().as_ref(), Some(current) if Arc::ptr_eq(socket, current))
 }
 
 fn create_qu_socket() -> io::Result<std::net::UdpSocket> {
@@ -719,14 +825,24 @@ struct Worker {
 }
 
 impl Worker {
+    fn is_current(&self) -> bool {
+        INNER.running.load(Ordering::SeqCst)
+            && matches!(INNER.socket.read().unwrap().as_ref(), Some(current) if Arc::ptr_eq(&self.socket, current))
+    }
     fn run_loop(&self) {
         let _ = self
             .socket
             .set_read_timeout(Some(Duration::from_millis(RECEIVE_TIMEOUT_MS)));
         let mut buf = [0u8; RECV_BUF_SIZE];
         loop {
+            if !self.is_current() {
+                break;
+            }
             match self.socket.recv_from(&mut buf) {
                 Ok((n, src)) => {
+                    if !self.is_current() {
+                        break;
+                    }
                     let sender_ip = match src.ip() {
                         std::net::IpAddr::V4(v4) => v4.to_string(),
                         std::net::IpAddr::V6(_) => continue,
@@ -794,7 +910,9 @@ impl Worker {
                     break;
                 }
             }
-            if !INNER.running.load(Ordering::SeqCst) {
+            if !INNER.running.load(Ordering::SeqCst)
+                || !matches!(INNER.socket.read().unwrap().as_ref(), Some(current) if Arc::ptr_eq(&self.socket, current))
+            {
                 break;
             }
         }
@@ -984,6 +1102,58 @@ mod tests {
         // A fabricated external address is never local.
         assert!(!is_local_ip("192.0.2.1"));
         assert!(!is_local_ip(""));
+    }
+
+    #[test]
+    fn replaced_receivers_exit_without_dispatching_late_datagrams() {
+        let _guard = LIFECYCLE.lock().unwrap();
+        let old = Arc::new(std::net::UdpSocket::bind("127.0.0.1:0").unwrap());
+        let replacement = Arc::new(std::net::UdpSocket::bind("127.0.0.1:0").unwrap());
+        *QU_SOCKET.write().unwrap() = Some(old.clone());
+        let received = Arc::new(std::sync::atomic::AtomicUsize::new(0));
+        let count = received.clone();
+        let listener: PacketListener = Arc::new(move |bytes, _| {
+            if bytes == b"late-fixture" {
+                count.fetch_add(1, Ordering::SeqCst);
+            }
+        });
+        add_packet_listener(listener.clone());
+        let worker_socket = old.clone();
+        let (done, finished) = std::sync::mpsc::channel();
+        let worker = std::thread::spawn(move || {
+            qu_receive_loop(&worker_socket);
+            done.send(()).unwrap();
+        });
+        assert!(finished.recv_timeout(Duration::from_millis(50)).is_err());
+        *QU_SOCKET.write().unwrap() = Some(replacement.clone());
+        replacement
+            .send_to(b"late-fixture", old.local_addr().unwrap())
+            .unwrap();
+        finished.recv_timeout(Duration::from_secs(2)).unwrap();
+        worker.join().unwrap();
+        assert_eq!(received.load(Ordering::SeqCst), 0);
+        assert!(still_current_qu(&replacement));
+        QU_SOCKET.write().unwrap().take();
+        remove_packet_listener(&listener);
+
+        let socket = Arc::new(std::net::UdpSocket::bind("[::1]:0").unwrap());
+        *IPV6_SOCKET.write().unwrap() = Some(socket.clone());
+        IPV6_RUNNING.store(true, Ordering::SeqCst);
+        let (done, finished) = std::sync::mpsc::channel();
+        let worker_socket = socket.clone();
+        let worker = std::thread::spawn(move || {
+            run_ipv6_loop(&worker_socket);
+            done.send(()).unwrap();
+        });
+        // IPv6 lifetime must be independent of the absent QU socket.
+        assert!(finished.recv_timeout(Duration::from_millis(50)).is_err());
+        IPV6_SOCKET.write().unwrap().take();
+        IPV6_RUNNING.store(false, Ordering::SeqCst);
+        socket
+            .send_to(b"late-fixture", socket.local_addr().unwrap())
+            .unwrap();
+        finished.recv_timeout(Duration::from_secs(2)).unwrap();
+        worker.join().unwrap();
     }
 
     // ── interfaces_to_join (incremental multicast membership) ──────────────

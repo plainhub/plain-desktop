@@ -20,6 +20,9 @@ pub(super) enum Request {
         lan: bool,
         ble: bool,
     },
+    BleScanning {
+        ble: bool,
+    },
     Seen {
         device: Device,
         visible: bool,
@@ -32,6 +35,62 @@ fn publish(state: &ServerState, event_id: Option<&str>) {
         json!({"revision":state.nearby_devices.snapshot().revision,"eventId":event_id}).to_string(),
     ));
 }
+#[derive(Clone)]
+pub(super) struct Context {
+    pub db: std::sync::Arc<crate::db::Db>,
+    pub prefs: std::sync::Arc<crate::prefs::Prefs>,
+    pub devices: std::sync::Arc<crate::chat::nearby_devices::Devices>,
+    pub events: tokio::sync::broadcast::Sender<WsEvent>,
+}
+impl From<&ServerState> for Context {
+    fn from(state: &ServerState) -> Self {
+        Self {
+            db: state.db.clone(),
+            prefs: state.prefs.clone(),
+            devices: state.nearby_devices.clone(),
+            events: state.events.clone(),
+        }
+    }
+}
+impl Context {
+    pub(super) fn seen(
+        &self,
+        device: Device,
+        visible: bool,
+        resident: bool,
+    ) -> anyhow::Result<bool> {
+        if device.id == self.prefs.get::<String>("client_id")?.unwrap_or_default() {
+            return Ok(false);
+        }
+        device.validate()?;
+        if resident {
+            chat_store::nearby::save(&self.db, &device.cache())?;
+            let kind = serde_json::from_value(json!(device.device_type))
+                .unwrap_or(crate::chat::enums::DeviceType::Other);
+            chat_store::peers::discovered(
+                &self.db,
+                &device.id,
+                &device.ips,
+                device.port,
+                &device.name,
+                kind,
+            )?;
+        }
+        if visible
+            || self
+                .devices
+                .snapshot()
+                .devices
+                .iter()
+                .any(|d| d.id == device.id)
+        {
+            let id = device.id.clone();
+            let emit = self.devices.observe(device, visible)?;
+            let _=self.events.send(WsEvent::broadcast(crate::chat::events::WS_NEARBY_DEVICE_FOUND,json!({"revision":self.devices.snapshot().revision,"eventId":(visible && emit).then_some(id)}).to_string()));
+        }
+        Ok(true)
+    }
+}
 async fn execute(state: &ServerState, request: Request) -> anyhow::Result<serde_json::Value> {
     match request {
         Request::Snapshot => {}
@@ -41,46 +100,21 @@ async fn execute(state: &ServerState, request: Request) -> anyhow::Result<serde_
                 .scanning(lan, ble, chat_store::nearby::all(&state.db)?)?;
             publish(state, None);
         }
+        Request::BleScanning { ble } => {
+            state.nearby_devices.scanning_modes(
+                None,
+                Some(ble),
+                chat_store::nearby::all(&state.db)?,
+            )?;
+            publish(state, None);
+        }
         Request::Seen {
             device,
             visible,
             resident,
         } => {
-            if device.id
-                == state
-                    .prefs
-                    .get::<String>("client_id")
-                    .ok()
-                    .flatten()
-                    .unwrap_or_default()
-            {
+            if !Context::from(state).seen(device, visible, resident)? {
                 return Ok(json!({"ignored":true}));
-            }
-            device.validate()?;
-            if resident {
-                chat_store::nearby::save(&state.db, &device.cache())?;
-                let device_type = serde_json::from_value(json!(device.device_type))
-                    .unwrap_or(crate::chat::enums::DeviceType::Other);
-                chat_store::peers::discovered(
-                    &state.db,
-                    &device.id,
-                    &device.ips,
-                    device.port,
-                    &device.name,
-                    device_type,
-                )?;
-            }
-            if visible
-                || state
-                    .nearby_devices
-                    .snapshot()
-                    .devices
-                    .iter()
-                    .any(|d| d.id == device.id)
-            {
-                let id = device.id.clone();
-                let emit = state.nearby_devices.observe(device, visible)?;
-                publish(state, (visible && emit).then_some(id.as_str()));
             }
         }
     }

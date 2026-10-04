@@ -24,6 +24,7 @@ use tokio::{
 #[derive(Clone)]
 pub(super) struct ServerState {
     schema: ContentSchema,
+    pub(super) mdns: Arc<super::mdns_runtime::Runtime>,
     pub(super) peer_schema: super::peer_graphql::PeerSchema,
     pub(super) files: Arc<super::file_tasks::FileTasks>,
     pub(super) host: Arc<super::host::Host>,
@@ -118,6 +119,7 @@ impl ContentServer {
         ));
         let state = ServerState {
             schema,
+            mdns: Arc::new(super::mdns_runtime::Runtime::default()),
             peer_schema: super::peer_graphql::schema(),
             transport: Arc::new(crate::chat::transport_router::Router::default()),
             previews,
@@ -148,6 +150,15 @@ impl ContentServer {
             receiver.clone(),
         );
         super::nearby_devices::start(state.clone());
+        let mdns = state.mdns.clone();
+        let mdns_host = state.host.clone();
+        let mut mdns_stop = receiver.clone();
+        tokio::spawn(async move {
+            if !*mdns_stop.borrow() {
+                let _ = mdns_stop.changed().await;
+            }
+            mdns.close(&mdns_host).await;
+        });
         let router = Router::new()
             .route("/graphql", post(graphql))
             .route("/events", get(upgrade))
@@ -158,6 +169,7 @@ impl ContentServer {
                 "/chat/discovery",
                 post(super::discovery_advertisement::call),
             )
+            .route("/chat/mdns", post(super::mdns_runtime::call))
             .route("/chat/channel", post(super::channel_runtime::call))
             .route("/chat/pairing", post(super::pairing_runtime::call))
             .route("/chat/peer-graphql", post(super::peer_graphql::call))
@@ -248,6 +260,8 @@ impl ContentServer {
         #[cfg(feature = "http_transport")]
         self.stop_public().await;
         let _ = self.stop.send(true);
+        #[cfg(feature = "http_transport")]
+        self.state.mdns.close(&self.state.host).await;
         let _ = (&mut self.task).await;
     }
 }

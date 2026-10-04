@@ -6,7 +6,7 @@ use super::packet_codec::{self, TYPE_A, TYPE_AAAA, TYPE_PTR, TYPE_SRV, TYPE_TXT}
 pub const PLAINAPP_SERVICE_TYPE: &str = "_plainapp._tcp.local";
 
 /// A service instance published by a PlainApp device over mDNS.
-#[derive(Debug, Clone, serde::Serialize)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct MdnsServiceInfo {
     pub instance_name: String,   // e.g. "Pixel 7 Pro"
