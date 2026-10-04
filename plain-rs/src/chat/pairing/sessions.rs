@@ -26,6 +26,7 @@ pub struct Pending {
     pub ticket: Ticket,
     pub ecdh: EcdhSession,
     started: Instant,
+    sent: bool,
 }
 #[derive(Default)]
 pub struct Sessions(
@@ -108,6 +109,7 @@ impl Sessions {
                 ticket: ticket.clone(),
                 ecdh,
                 started: Instant::now(),
+                sent: false,
             },
         );
         ticket
@@ -141,6 +143,51 @@ impl Sessions {
             .unwrap()
             .get(id)
             .is_some_and(|p| p.ticket.generation == generation)
+    }
+    pub fn mark_sent(&self, id: &str, generation: &str) -> bool {
+        let mut pending = self.0.lock().unwrap();
+        let Some(p) = pending.get_mut(id) else {
+            return false;
+        };
+        if p.ticket.generation != generation || p.expired() {
+            return false;
+        }
+        p.sent = true;
+        true
+    }
+    pub fn states(&self) -> Vec<(Ticket, &'static str)> {
+        self.0
+            .lock()
+            .unwrap()
+            .values()
+            .filter(|p| !p.expired())
+            .map(|p| {
+                (
+                    p.ticket.clone(),
+                    if p.sent { "PAIRING" } else { "STARTING" },
+                )
+            })
+            .collect()
+    }
+    pub fn remaining_ms(&self, id: &str, generation: &str) -> Option<u64> {
+        let pending = self.0.lock().unwrap();
+        let p = pending.get(id)?;
+        if p.ticket.generation != generation || p.expired() {
+            return None;
+        }
+        Some(
+            RESPONSE_TIMEOUT
+                .saturating_sub(p.started.elapsed())
+                .as_millis()
+                .min(u64::MAX as u128) as u64,
+        )
+    }
+    pub fn take_checked(&self, id: &str, generation: Option<&str>) -> Option<Pending> {
+        let mut pending = self.0.lock().unwrap();
+        if generation.is_some_and(|g| pending.get(id).is_none_or(|p| p.ticket.generation != g)) {
+            return None;
+        }
+        pending.remove(id)
     }
     pub fn take(&self, id: &str) -> Option<Pending> {
         self.0.lock().unwrap().remove(id)

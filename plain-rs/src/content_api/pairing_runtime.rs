@@ -81,9 +81,22 @@ impl Runtime {
 #[derive(Deserialize)]
 #[serde(tag = "action", rename_all = "camelCase", deny_unknown_fields)]
 pub(super) enum Request {
+    States,
     PendingRequest {
         id: String,
         signature: String,
+    },
+    Start {
+        target: Target,
+        ips: Vec<String>,
+        interfaces: Vec<Interface>,
+        methods: Vec<String>,
+        ble: bool,
+        device: Device,
+    },
+    StartBle {
+        target: Target,
+        device: Device,
     },
     StartLan {
         target: Target,
@@ -113,12 +126,12 @@ pub(super) enum Request {
         device: Device,
     },
 }
-fn event(state: &ServerState, kind: i32, value: Value) {
+pub(super) fn event(state: &ServerState, kind: i32, value: Value) {
     let _ = state
         .events
         .send(crate::ws_event::WsEvent::broadcast(kind, value.to_string()));
 }
-fn failed(state: &ServerState, target: &Target, error: &str, generation: Option<&str>) {
+pub(super) fn failed(state: &ServerState, target: &Target, error: &str, generation: Option<&str>) {
     let mut result =
         json!({"deviceId":target.device_id,"deviceName":target.device_name,"error":error});
     if let Some(generation) = generation {
@@ -134,7 +147,7 @@ fn canceled(state: &ServerState, value: &Value) {
         json!({"deviceId":ticket["deviceId"],"deviceName":ticket["deviceName"]}),
     );
 }
-fn success(state: &ServerState, peer: &Value, ip: &str) {
+pub(super) fn success(state: &ServerState, peer: &Value, ip: &str) {
     event(
         state,
         crate::chat::events::WS_PAIRING_SUCCESS,
@@ -143,9 +156,37 @@ fn success(state: &ServerState, peer: &Value, ip: &str) {
 }
 async fn execute(state: &ServerState, request: Request) -> anyhow::Result<Value> {
     Ok(match request {
+        Request::States=>json!(state.pairing.states().into_iter().map(|(ticket,phase)|json!({"deviceId":ticket.target.device_id,"generation":ticket.generation,"phase":phase})).collect::<Vec<_>>()),
         Request::PendingRequest { id, signature } => {
             json!(state.pairing.incoming_target(&id, &signature).is_some())
         }
+        Request::Start {
+            target,
+            ips,
+            interfaces,
+            methods,
+            ble,
+            device,
+        } => {
+            if methods.iter().any(|m| m == "LAN") && !ips.is_empty() {
+                Box::pin(execute(
+                    state,
+                    Request::StartLan {
+                        target,
+                        ips,
+                        interfaces,
+                        device,
+                    },
+                ))
+                .await?
+            } else if methods.iter().any(|m| m == "BLE") && ble {
+                super::ble_pairing::start(state, target, device)?
+            } else {
+                failed(state, &target, "No pairing transport available", None);
+                Value::Null
+            }
+        }
+        Request::StartBle { target, device } => super::ble_pairing::start(state, target, device)?,
         Request::StartLan {
             mut target,
             ips,
@@ -168,11 +209,7 @@ async fn execute(state: &ServerState, request: Request) -> anyhow::Result<Value>
             .await
             .unwrap_or(false);
             if sent {
-                if state
-                    .pairing
-                    .tickets()
-                    .iter()
-                    .any(|current| current.generation == ticket.generation)
+                if state.pairing.mark_sent(&ticket.target.device_id,&ticket.generation)
                 {
                     event(
                         state,

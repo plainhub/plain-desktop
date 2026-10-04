@@ -74,7 +74,9 @@ async fn lan_runtime_sends_signed_tls_requests_and_cancel_cannot_remove_replacem
         device_ip: "stale".into(),
         device_port: listeners.https_port,
     };
-    let start = || Request::StartLan {
+    let start = || Request::Start {
+        methods: vec!["LAN".into(), "BLE".into()],
+        ble: true,
         target: target.clone(),
         ips: vec!["invalid".into(), "127.0.0.1".into()],
         interfaces: vec![],

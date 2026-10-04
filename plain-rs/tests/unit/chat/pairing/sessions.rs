@@ -85,3 +85,36 @@ async fn rust_timeout_worker_emits_committed_expiry_and_stops_with_server() {
         .unwrap()
         .unwrap();
 }
+
+#[test]
+fn remaining_deadline_and_checked_take_follow_current_generation() {
+    let sessions = Sessions::default();
+    let old = sessions.start(target(), EcdhSession::generate());
+    assert_eq!(sessions.states()[0].1, "STARTING");
+    assert!(sessions.mark_sent("peer", &old.generation));
+    assert_eq!(sessions.states()[0].1, "PAIRING");
+    let remaining = sessions.remaining_ms("peer", &old.generation).unwrap();
+    assert!(remaining > 89000 && remaining <= 90000);
+    let next = sessions.start(target(), EcdhSession::generate());
+    assert!(sessions.remaining_ms("peer", &old.generation).is_none());
+    assert!(
+        sessions
+            .take_checked("peer", Some(&old.generation))
+            .is_none()
+    );
+    sessions.0.lock().unwrap().get_mut("peer").unwrap().started = Instant::now() - RESPONSE_TIMEOUT;
+    assert!(sessions.remaining_ms("peer", &next.generation).is_none());
+    assert_eq!(
+        sessions
+            .take_checked("peer", Some(&next.generation))
+            .unwrap()
+            .ticket
+            .generation,
+        next.generation
+    );
+    assert!(
+        sessions
+            .take_checked("peer", Some(&next.generation))
+            .is_none()
+    );
+}

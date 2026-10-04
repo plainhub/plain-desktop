@@ -52,3 +52,5 @@ mod peer_graphql;
 mod pairing_runtime;
 
 mod nearby_devices;
+
+mod ble_pairing;

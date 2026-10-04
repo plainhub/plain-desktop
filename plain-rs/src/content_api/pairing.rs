@@ -121,10 +121,20 @@ pub(super) fn complete(
     response: PairingResponse,
     sender_ip: &str,
 ) -> Result<Value> {
+    complete_checked(db, prefs, sessions, response, sender_ip, None)
+}
+pub(super) fn complete_checked(
+    db: &Db,
+    prefs: &Prefs,
+    sessions: &Sessions,
+    response: PairingResponse,
+    sender_ip: &str,
+    generation: Option<&str>,
+) -> Result<Value> {
     if !validate_response(prefs, &response, &response.from_id)? {
         return Ok(Value::Null);
     }
-    let Some(pending) = sessions.take(&response.from_id) else {
+    let Some(pending) = sessions.take_checked(&response.from_id, generation) else {
         return Ok(Value::Null);
     };
     let ticket = pending.ticket.clone();
