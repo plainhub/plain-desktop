@@ -178,6 +178,8 @@ impl NearbyDiscoverManager {
                 &self.app_version,
                 std::env::consts::OS,
                 host_responder::local_ipv4_strs(),
+                false,
+                false,
             )
         });
         host_responder::start(&hostname, service);
@@ -201,6 +203,8 @@ impl NearbyDiscoverManager {
             &self.app_version,
             std::env::consts::OS,
             host_responder::local_ipv4_strs(),
+            false,
+            false,
         );
         host_responder::update_service(service);
     }

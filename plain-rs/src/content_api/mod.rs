@@ -32,6 +32,7 @@ mod chat_store_routes;
 mod channel_outgoing;
 mod channel_delivery;
 mod channel_runtime;
+mod discovery_advertisement;
 mod peer_wire;
 mod pairing;
 pub(crate) mod pairing_timeout;

@@ -19,15 +19,7 @@ impl PeerTransport for TestTransport {
 }
 
 fn manager() -> PairingManager<TestTransport> {
-    let path = std::env::temp_dir().join(format!(
-        "plain-rs-chat-pairing-{}-{}.db",
-        std::process::id(),
-        std::time::SystemTime::now()
-            .duration_since(std::time::UNIX_EPOCH)
-            .unwrap()
-            .as_nanos(),
-    ));
-    let db = Db::open(&path).unwrap();
+    let db = Db::open(std::path::Path::new(":memory:")).unwrap();
     let identity = Arc::new(ChatIdentity::new("self", "NAS", ""));
     PairingManager::new(db, identity, "NAS", Arc::new(TestTransport))
 }

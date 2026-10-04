@@ -30,6 +30,7 @@ pub mod events;
 mod manager;
 pub mod message_lifecycle;
 pub mod nearby_wire;
+pub mod discovery_advertisement;
 #[cfg(any(feature = "api", feature = "content_api"))]
 pub mod nearby_http;
 pub mod pairing;

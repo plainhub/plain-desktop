@@ -6,7 +6,8 @@ use super::packet_codec::{self, TYPE_A, TYPE_AAAA, TYPE_PTR, TYPE_SRV, TYPE_TXT}
 pub const PLAINAPP_SERVICE_TYPE: &str = "_plainapp._tcp.local";
 
 /// A service instance published by a PlainApp device over mDNS.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, serde::Serialize)]
+#[serde(rename_all = "camelCase")]
 pub struct MdnsServiceInfo {
     pub instance_name: String,   // e.g. "Pixel 7 Pro"
     pub service_type: String,    // e.g. "_plainapp._tcp.local"
@@ -132,7 +133,7 @@ impl MdnsParsedResponse {
 
 /// Builds the advertised mDNS service for this device. TXT keys are the
 /// PlainApp wire schema: id / dv / ver / pf (plus aw / ar Wi-Fi-Aware flags,
-/// always 0 on desktop builds).
+/// supplied by the caller).
 pub fn build_service_info(
     instance_name: &str,
     hostname: &str,
@@ -142,6 +143,8 @@ pub fn build_service_info(
     version: &str,
     platform: &str,
     ips: Vec<String>,
+    aware_supported: bool,
+    aware_running: bool,
 ) -> MdnsServiceInfo {
     MdnsServiceInfo {
         instance_name: instance_name.to_string(),
@@ -153,8 +156,8 @@ pub fn build_service_info(
             format!("dv={device_type}"),
             format!("ver={version}"),
             format!("pf={platform}"),
-            "aw=0".to_string(),
-            "ar=0".to_string(),
+            format!("aw={}", u8::from(aware_supported)),
+            format!("ar={}", u8::from(aware_running)),
         ],
         ips,
     }

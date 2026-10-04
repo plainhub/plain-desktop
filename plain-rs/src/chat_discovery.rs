@@ -160,6 +160,8 @@ impl ChatDiscovery {
                 crate::system::version::version(),
                 std::env::consts::OS,
                 host_responder::local_ipv4_strs(),
+                false,
+                false,
             )
         });
         host_responder::start(&hostname, service);
@@ -183,6 +185,8 @@ impl ChatDiscovery {
             crate::system::version::version(),
             std::env::consts::OS,
             host_responder::local_ipv4_strs(),
+            false,
+            false,
         );
         host_responder::update_service(service);
     }

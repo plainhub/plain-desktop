@@ -154,6 +154,10 @@ impl ContentServer {
             .route("/host", get(host_upgrade))
             .route("/health", get(health))
             .route("/fs", get(files::file))
+            .route(
+                "/chat/discovery",
+                post(super::discovery_advertisement::call),
+            )
             .route("/chat/channel", post(super::channel_runtime::call))
             .route("/chat/pairing", post(super::pairing_runtime::call))
             .route("/chat/peer-graphql", post(super::peer_graphql::call))
