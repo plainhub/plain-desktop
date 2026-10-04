@@ -1,6 +1,6 @@
 use super::*;
-use crate::db::{Db, DPeer};
 use crate::chat::enums::{DeviceType, MemberStatus};
+use crate::db::{DPeer, Db};
 use crate::ed25519_generate;
 use std::path::PathBuf;
 use std::time::{SystemTime, UNIX_EPOCH};
@@ -21,7 +21,20 @@ fn build(
     name: &str,
     kp: &[u8],
 ) -> Vec<MemberPeerInfo> {
-    build_member_peers(channel, db, client_id, name, DeviceType::Nas, kp)
+    let payload = super::super::outgoing::build(
+        Some(db),
+        channel,
+        client_id,
+        name,
+        DeviceType::Nas,
+        kp,
+        ChannelSystemMessageType::Invite,
+        "guest",
+    )
+    .unwrap();
+    serde_json::from_str::<ChannelInvite>(&payload)
+        .unwrap()
+        .member_peers
 }
 
 /// Regression test for the invite flow: `build_member_peers` must include
@@ -56,8 +69,7 @@ fn build_member_peers_includes_owner_when_owner_is_member() {
 /// The owner must appear exactly once, even alongside other members.
 #[test]
 fn build_member_peers_includes_owner_alongside_members() {
-    let db =
-        Db::open(&unique_tmp_dir("owner-plus-member").join("plain.db")).expect("open db");
+    let db = Db::open(&unique_tmp_dir("owner-plus-member").join("plain.db")).expect("open db");
     let (kp_bytes, _vk_bytes) = ed25519_generate();
     let client_id = "owner-1";
     let member_id = "member-1";
@@ -89,8 +101,7 @@ fn build_member_peers_includes_owner_alongside_members() {
 /// "no owner memberPeerInfo".
 #[test]
 fn build_member_peers_includes_owner_even_when_not_in_members() {
-    let db = Db::open(&unique_tmp_dir("owner-not-in-members").join("plain.db"))
-        .expect("open db");
+    let db = Db::open(&unique_tmp_dir("owner-not-in-members").join("plain.db")).expect("open db");
     let (kp_bytes, _vk_bytes) = ed25519_generate();
     let client_id = "owner-1";
     let member_id = "member-1";

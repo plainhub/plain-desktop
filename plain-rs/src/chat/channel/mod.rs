@@ -5,4 +5,5 @@ pub mod ops;
 pub mod sender;
 pub mod state;
 pub mod incoming;
+pub mod outgoing;
 mod incoming_store;

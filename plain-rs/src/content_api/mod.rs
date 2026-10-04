@@ -29,3 +29,4 @@ mod services;
 mod file_mutation_routes;
 
 mod chat_store_routes;
+mod channel_outgoing;

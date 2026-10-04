@@ -20,12 +20,11 @@
 use std::str::FromStr;
 
 use crate::base64_encode;
-use crate::ed25519_sign;
 
-use crate::db::{Db, DChannel, DPeer};
-use crate::chat::enums::{ChannelSystemMessageAction, ChannelSystemMessageType, DeviceType};
+use crate::chat::enums::{ChannelSystemMessageType, DeviceType};
 use crate::chat::events::PeerKeyCache;
 use crate::chat::transport::{PeerTransport, deliver_channel_system_message};
+use crate::db::{DChannel, DPeer, Db};
 
 use super::messages::*;
 
@@ -47,32 +46,18 @@ pub async fn send_invite<T: PeerTransport>(
     key_cache: &PeerKeyCache,
     channel_key: &[u8],
 ) -> bool {
-    let member_peers = build_member_peers(
+    let Ok(payload) = super::outgoing::build(
+        Some(db),
         channel,
-        db,
         client_id,
         device_name,
         self_device_type,
         kp_bytes,
-    );
-    let sig_payload = channel_message_payload(
-        &channel.id,
-        channel.version,
-        ChannelSystemMessageAction::Invite,
+        ChannelSystemMessageType::Invite,
         &peer.id,
-    );
-    let signature = ed25519_sign(kp_bytes, sig_payload.as_bytes());
-    let invite = ChannelInvite {
-        channel_id: channel.id.clone(),
-        channel_name: channel.name.clone(),
-        key: channel.key.clone(),
-        owner: client_id.to_string(),
-        members: decode_members(&channel.members),
-        member_peers,
-        version: channel.version,
-        signature,
+    ) else {
+        return false;
     };
-    let payload = serde_json::to_string(&invite).unwrap_or_default();
     deliver_type(
         transport,
         peer,
@@ -107,18 +92,20 @@ pub async fn send_invite_accept<T: PeerTransport>(
     channel_key: &[u8],
     key_cache: &PeerKeyCache,
 ) -> bool {
-    let public_key = if kp_bytes.len() == 64 {
-        base64_encode(&kp_bytes[32..])
-    } else {
-        String::new()
-    };
-    let accept = ChannelInviteAccept {
-        channel_id: channel_id.to_string(),
-        public_key,
-        name: name.to_string(),
+    let mut channel = DChannel::new("", "");
+    channel.id = channel_id.into();
+    let Ok(payload) = super::outgoing::build(
+        None,
+        &channel,
+        client_id,
+        name,
         device_type,
+        kp_bytes,
+        ChannelSystemMessageType::InviteAccept,
+        "",
+    ) else {
+        return false;
     };
-    let payload = serde_json::to_string(&accept).unwrap_or_default();
     deliver_type(
         transport,
         owner_peer,
@@ -144,10 +131,20 @@ pub async fn send_invite_decline<T: PeerTransport>(
     channel_key: &[u8],
     key_cache: &PeerKeyCache,
 ) -> bool {
-    let decline = ChannelInviteDecline {
-        channel_id: channel_id.to_string(),
+    let mut channel = DChannel::new("", "");
+    channel.id = channel_id.into();
+    let Ok(payload) = super::outgoing::build(
+        None,
+        &channel,
+        client_id,
+        "",
+        DeviceType::Phone,
+        kp_bytes,
+        ChannelSystemMessageType::InviteDecline,
+        "",
+    ) else {
+        return false;
     };
-    let payload = serde_json::to_string(&decline).unwrap_or_default();
     deliver_type(
         transport,
         owner_peer,
@@ -176,30 +173,18 @@ pub async fn broadcast_update<T: PeerTransport>(
     key_cache: &PeerKeyCache,
     channel_key: &[u8],
 ) {
-    let member_peers = build_member_peers(
+    let Ok(payload) = super::outgoing::build(
+        Some(db),
         channel,
-        db,
         client_id,
         device_name,
         self_device_type,
         kp_bytes,
-    );
-    let sig_payload = channel_message_payload(
-        &channel.id,
-        channel.version,
-        ChannelSystemMessageAction::Update,
+        ChannelSystemMessageType::Update,
         "",
-    );
-    let signature = ed25519_sign(kp_bytes, sig_payload.as_bytes());
-    let update = ChannelUpdate {
-        channel_id: channel.id.clone(),
-        channel_name: channel.name.clone(),
-        members: decode_members(&channel.members),
-        member_peers,
-        version: channel.version,
-        signature,
+    ) else {
+        return;
     };
-    let payload = serde_json::to_string(&update).unwrap_or_default();
     let member_ids = member_ids_excluding(channel, client_id);
     for member_id in member_ids {
         if let Some(peer) = db.get_peer_by_id(&member_id) {
@@ -232,19 +217,21 @@ pub async fn send_kick<T: PeerTransport>(
     channel_key: &[u8],
     key_cache: &PeerKeyCache,
 ) -> bool {
-    let sig_payload = channel_message_payload(
-        channel_id,
-        version,
-        ChannelSystemMessageAction::Kick,
+    let mut channel = DChannel::new("", client_id);
+    channel.id = channel_id.into();
+    channel.version = version;
+    let Ok(payload) = super::outgoing::build(
+        None,
+        &channel,
+        client_id,
+        "",
+        DeviceType::Phone,
+        kp_bytes,
+        ChannelSystemMessageType::Kick,
         &peer.id,
-    );
-    let signature = ed25519_sign(kp_bytes, sig_payload.as_bytes());
-    let kick = ChannelKick {
-        channel_id: channel_id.to_string(),
-        version,
-        signature,
+    ) else {
+        return false;
     };
-    let payload = serde_json::to_string(&kick).unwrap_or_default();
     deliver_type(
         transport,
         peer,
@@ -272,19 +259,18 @@ pub async fn broadcast_kick<T: PeerTransport>(
     key_cache: &PeerKeyCache,
     channel_key: &[u8],
 ) {
-    let sig_payload = channel_message_payload(
-        &channel.id,
-        channel.version,
-        ChannelSystemMessageAction::Kick,
+    let Ok(payload) = super::outgoing::build(
+        Some(db),
+        channel,
+        client_id,
         "",
-    );
-    let signature = ed25519_sign(kp_bytes, sig_payload.as_bytes());
-    let kick = ChannelKick {
-        channel_id: channel.id.clone(),
-        version: channel.version,
-        signature,
+        DeviceType::Phone,
+        kp_bytes,
+        ChannelSystemMessageType::Kick,
+        "",
+    ) else {
+        return;
     };
-    let payload = serde_json::to_string(&kick).unwrap_or_default();
     let member_ids = member_ids_excluding(channel, client_id);
     for member_id in member_ids {
         if let Some(peer) = db.get_peer_by_id(&member_id) {
@@ -316,10 +302,20 @@ pub async fn send_leave<T: PeerTransport>(
     channel_key: &[u8],
     key_cache: &PeerKeyCache,
 ) -> bool {
-    let leave = ChannelLeave {
-        channel_id: channel_id.to_string(),
+    let mut channel = DChannel::new("", "");
+    channel.id = channel_id.into();
+    let Ok(payload) = super::outgoing::build(
+        None,
+        &channel,
+        client_id,
+        "",
+        DeviceType::Phone,
+        kp_bytes,
+        ChannelSystemMessageType::Leave,
+        "",
+    ) else {
+        return false;
     };
-    let payload = serde_json::to_string(&leave).unwrap_or_default();
     deliver_type(
         transport,
         owner_peer,
@@ -335,53 +331,6 @@ pub async fn send_leave<T: PeerTransport>(
 }
 
 // ── Internals ──────────────────────────────────────────────────────────────
-
-/// Build the `MemberPeerInfo` array for the channel members.
-///
-/// Mirrors plain-app `DChatChannel.getPeersAsync()` — the owner is always
-/// included first (synthesized from local device info, since the owner is
-/// not in the `peers` table), then every other member. This ensures the
-/// invitee can always find the owner's `publicKey` for signature
-/// verification, even if the owner is not in the `members` list.
-#[allow(clippy::too_many_arguments)]
-fn build_member_peers(
-    channel: &DChannel,
-    db: &Db,
-    client_id: &str,
-    device_name: &str,
-    self_device_type: DeviceType,
-    kp_bytes: &[u8],
-) -> Vec<MemberPeerInfo> {
-    let self_pub_key = if kp_bytes.len() == 64 {
-        base64_encode(&kp_bytes[32..])
-    } else {
-        String::new()
-    };
-    let mut peers = vec![MemberPeerInfo {
-        id: client_id.to_string(),
-        name: device_name.to_string(),
-        public_key: self_pub_key,
-        device_type: self_device_type,
-        ip: String::new(),
-        port: 0,
-    }];
-    for m in decode_members(&channel.members) {
-        if m.peer_id == client_id {
-            continue; // already added above
-        }
-        if let Some(p) = db.get_peer_by_id(&m.peer_id) {
-            peers.push(MemberPeerInfo {
-                id: p.id,
-                name: p.name,
-                public_key: p.public_key,
-                device_type: p.device_type,
-                ip: p.ip,
-                port: p.port,
-            });
-        }
-    }
-    peers
-}
 
 fn member_ids_excluding(channel: &DChannel, exclude_id: &str) -> Vec<String> {
     decode_members(&channel.members)

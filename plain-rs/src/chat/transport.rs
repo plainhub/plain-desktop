@@ -128,6 +128,32 @@ pub async fn deliver_to_peer<T: PeerTransport>(
     })
 }
 
+pub fn channel_system_request(
+    kp_bytes: &[u8],
+    msg_type: &str,
+    payload: &str,
+) -> Result<String, String> {
+    let graphql_json = serde_json::to_string(&json!({
+        "query": "mutation ChannelSystemMessage($type: ChannelSystemMessageType!, $payload: String!) { channelSystemMessage(type: $type, payload: $payload) }",
+        "variables": { "type": msg_type, "payload": payload }
+    }))
+    .unwrap_or_default();
+
+    let ts = now_ms();
+    let sig_data = format!("{ts}{graphql_json}");
+    let signature = ed25519_sign(kp_bytes, sig_data.as_bytes());
+    if kp_bytes.len() != 64
+        || !crate::ed25519_verify(
+            &crate::base64_encode(&kp_bytes[32..]),
+            sig_data.as_bytes(),
+            &signature,
+        )
+    {
+        return Err("Invalid channel signing keypair".into());
+    }
+    Ok(format!("{signature}|{ts}|{graphql_json}"))
+}
+
 /// Send a `channelSystemMessage` GraphQL mutation to a peer over the same
 /// transport used by `deliver_to_peer`. Returns `true` if the peer
 /// acknowledged the request, `false` otherwise.
@@ -149,16 +175,9 @@ pub async fn deliver_channel_system_message<T: PeerTransport>(
     payload: &str,
     channel_id_opt: Option<&str>,
 ) -> bool {
-    let graphql_json = serde_json::to_string(&json!({
-        "query": "mutation ChannelSystemMessage($type: ChannelSystemMessageType!, $payload: String!) { channelSystemMessage(type: $type, payload: $payload) }",
-        "variables": { "type": msg_type, "payload": payload }
-    }))
-    .unwrap_or_default();
-
-    let ts = now_ms();
-    let sig_data = format!("{ts}{graphql_json}");
-    let signature = ed25519_sign(kp_bytes, sig_data.as_bytes());
-    let wire = format!("{signature}|{ts}|{graphql_json}");
+    let Ok(wire) = channel_system_request(kp_bytes, msg_type, payload) else {
+        return false;
+    };
 
     let Some(encrypted) = xchacha_encrypt_raw(key, wire.as_bytes()) else {
         log::warn!("[channel] encrypt failed for {} ({msg_type})", peer.id);
@@ -179,8 +198,11 @@ pub async fn deliver_channel_system_message<T: PeerTransport>(
         let Ok(value) = serde_json::from_slice::<serde_json::Value>(&decrypted) else {
             continue;
         };
-        if value.get("errors").is_some() {
-            log::warn!("[channel] {} GraphQL errors from {url}: {value}", msg_type);
+        if value.get("errors").is_some_and(|errors| {
+            !errors.is_null() && errors.as_array().is_none_or(|items| !items.is_empty())
+        }) || value["data"]["channelSystemMessage"].as_bool() != Some(true)
+        {
+            log::warn!("[channel] {msg_type} rejected by {url}: {value}");
             continue;
         }
         log::debug!("[channel] {} sent to {} via {url}", msg_type, peer.id);

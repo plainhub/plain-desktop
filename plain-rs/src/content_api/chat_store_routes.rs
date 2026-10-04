@@ -57,6 +57,17 @@ pub(super) enum Request {
         before: DChannel,
         after: DChannel,
     },
+    SignChannel {
+        message_type: crate::chat::enums::ChannelSystemMessageType,
+        payload: String,
+    },
+    PrepareChannel {
+        channel: DChannel,
+        message_type: crate::chat::enums::ChannelSystemMessageType,
+        target: String,
+        name: String,
+        device_type: crate::chat::enums::DeviceType,
+    },
     ReceiveChannel {
         actor: String,
         from_id: String,
@@ -135,6 +146,7 @@ pub(super) async fn call(
     }
     let db = state.db.clone();
     let directory = state.directory.clone();
+    let prefs = state.prefs.clone();
     let result = tokio::task::spawn_blocking(move || -> anyhow::Result<Value> {
         use chat_store::{channels, messages, nearby, peers};
         Ok(match request {
@@ -182,6 +194,29 @@ pub(super) async fn call(
             Request::PatchChannel { before, after } => {
                 serde_json::to_value(channels::patch(&db, &before, &after)?)?
             }
+            Request::SignChannel {
+                message_type,
+                payload,
+            } => json!(super::channel_outgoing::wire(
+                &prefs,
+                message_type,
+                &payload
+            )?),
+            Request::PrepareChannel {
+                channel,
+                message_type,
+                target,
+                name,
+                device_type,
+            } => serde_json::to_value(super::channel_outgoing::prepare(
+                &db,
+                &prefs,
+                &channel,
+                message_type,
+                &target,
+                &name,
+                device_type,
+            )?)?,
             Request::ReceiveChannel {
                 actor,
                 from_id,
