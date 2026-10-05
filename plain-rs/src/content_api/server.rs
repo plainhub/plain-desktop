@@ -217,6 +217,7 @@ impl ContentServer {
             .route("/files/mutate", post(super::file_mutation_routes::mutate))
             .route("/system/sms-state", post(super::sms_state::call))
             .route("/system/sms", post(super::sms_query::call))
+            .route("/system/sms-send", post(super::sms_send::call))
             .route("/system/providers", post(super::system_providers::call))
             .route("/system/media-buckets", post(super::media_buckets::call))
             .route("/system/permissions", post(super::system_permissions::call))
