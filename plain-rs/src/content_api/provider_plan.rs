@@ -16,6 +16,10 @@ use serde_json::{Value, json};
 pub(super) enum Provider {
     Call,
     Contact,
+    Audio,
+    Video,
+    Image,
+    Doc,
 }
 #[derive(Deserialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
@@ -27,6 +31,12 @@ pub(super) struct Request {
 pub(super) struct Plan {
     pub clauses: Vec<String>,
     pub args: Vec<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub ids_column: Option<String>,
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    pub ids: Vec<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub trash: Option<bool>,
 }
 impl Plan {
     pub(super) fn add(&mut self, clause: String, values: Vec<String>) {
@@ -47,9 +57,9 @@ impl Plan {
         );
     }
     pub(super) fn ids(&mut self, column: &str, ids: Vec<String>) {
-        let markers = vec!["?"; ids.len()].join(",");
         if !ids.is_empty() {
-            self.add(format!("{column} IN ({markers})"), ids);
+            self.ids_column = Some(column.to_owned());
+            self.ids = ids;
         }
     }
 }
@@ -100,6 +110,20 @@ fn plan(provider: Provider, fields: &[FilterField], dates: &Value) -> Plan {
     if matches!(provider, Provider::Contact) {
         plan.equal("mimetype", "vnd.android.cursor.item/name");
     }
+    if matches!(provider, Provider::Doc) {
+        plan.add(
+            "(mime_type LIKE ? OR mime_type IN (?,?,?,?,?))".into(),
+            vec![
+                "text/%".into(),
+                "application/pdf".into(),
+                "application/msword".into(),
+                "application/vnd.openxmlformats-officedocument.wordprocessingml.document".into(),
+                "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet".into(),
+                "application/javascript".into(),
+            ],
+        );
+        plan.add("size > 0".into(), vec![]);
+    }
     for field in fields {
         match (provider, field.name.as_str()) {
             (Provider::Call, "text") => plan.contains("number", &field.value),
@@ -127,10 +151,57 @@ fn plan(provider: Provider, fields: &[FilterField], dates: &Value) -> Plan {
                     plan.add(format!("{column} {op} ?"), vec![number.to_string()]);
                 }
             }
+            (Provider::Audio, "text") => plan.add("(title LIKE '%' || ? || '%' ESCAPE '\\' OR artist LIKE '%' || ? || '%' ESCAPE '\\')".into(), vec![escape_like(&field.value), escape_like(&field.value)]),
+            (Provider::Audio, "path") => plan.equal("_data", &field.value),
+            (Provider::Audio, "name") => plan.equal("title", &field.value),
+            (Provider::Audio, "artist") => plan.equal("artist", &field.value),
+            (Provider::Video | Provider::Image, "text") => {
+                let column = if matches!(provider, Provider::Image) { "(title LIKE '%' || ? || '%' ESCAPE '\\' OR _data LIKE '%' || ? || '%' ESCAPE '\\')" } else { "title LIKE '%' || ? || '%' ESCAPE '\\'" };
+                let value = escape_like(&field.value);
+                plan.add(column.into(), if matches!(provider, Provider::Image) { vec![value.clone(), value] } else { vec![value] });
+            }
+            (Provider::Audio | Provider::Video | Provider::Image | Provider::Doc, "ids") => plan.ids("_id", field.value.split(',').map(str::to_owned).collect()),
+            (Provider::Audio | Provider::Video | Provider::Image | Provider::Doc, "bucket_id") => plan.equal("bucket_id", &field.value),
+            (Provider::Audio | Provider::Video | Provider::Image | Provider::Doc, "excluded_dir") => plan.add("_data NOT LIKE ? || '%' ESCAPE '\\'".into(), vec![escape_like(&field.value)]),
+            (Provider::Doc, "text") => plan.add("_display_name LIKE '%' || ? || '%' ESCAPE '\\'".into(), vec![escape_like(&field.value)]),
+            (Provider::Doc, "ext") => plan.add("_display_name LIKE ? ESCAPE '\\'".into(), vec![format!("%.{}", escape_like(&field.value))]),
+            (Provider::Doc, "parent") => plan.add("_data LIKE ? ESCAPE '\\'".into(), vec![format!("{}/%", escape_like(field.value.trim_end_matches('/')))]),
+            (Provider::Doc, "type") => plan.equal("mime_type", &field.value),
+            (Provider::Doc, "file_size") => {
+                let (op, value) = comparison(field);
+                if ["=", "!=", ">", ">=", "<", "<="].contains(&op) {
+                    if let Some(bytes) = parse_size_to_bytes(value) { plan.add(format!("size {op} ?"), vec![bytes.to_string()]); }
+                }
+            }
+            (Provider::Audio | Provider::Video | Provider::Image | Provider::Doc, "trash") => plan.trash = field.value.parse::<bool>().ok(),
             _ => {}
         }
     }
     plan
+}
+fn escape_like(value: &str) -> String {
+    value
+        .replace('\\', "\\\\")
+        .replace('%', "\\%")
+        .replace('_', "\\_")
+}
+fn parse_size_to_bytes(value: &str) -> Option<u64> {
+    let value = value.trim();
+    let split = value
+        .find(|c: char| !c.is_ascii_digit() && c != '.')
+        .unwrap_or(value.len());
+    let number = value[..split].parse::<f64>().ok()?;
+    let unit = value[split..].trim().to_ascii_lowercase();
+    let multiplier = match unit.as_str() {
+        "" | "b" => 1.0,
+        "kb" | "kib" => 1024.0,
+        "mb" | "mib" => 1024.0_f64.powi(2),
+        "gb" | "gib" => 1024.0_f64.powi(3),
+        "tb" | "tib" => 1024.0_f64.powi(4),
+        _ => return None,
+    };
+    let bytes = number * multiplier;
+    (bytes.is_finite() && bytes >= 0.0 && bytes <= u64::MAX as f64).then_some(bytes as u64)
 }
 async fn execute(state: &ServerState, request: Request) -> anyhow::Result<Value> {
     let fields = fields(&state.db, &request.query)?;

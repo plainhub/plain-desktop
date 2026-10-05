@@ -40,6 +40,7 @@ async fn execute(state: &ServerState, request: Request) -> anyhow::Result<Value>
     let kind = match request.provider {
         Provider::Call => crate::enums::DataType::Call.kind(),
         Provider::Contact => crate::enums::DataType::Contact.kind(),
+        _ => anyhow::bail!("unsupported delete provider"),
     };
     state.db.with_conn(|c| -> rusqlite::Result<()> {
         let tx = c.unchecked_transaction()?;

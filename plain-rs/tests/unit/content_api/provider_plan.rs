@@ -26,9 +26,45 @@ fn contact_plans_keep_name_rows_and_empty_tag_ids_match_nothing() {
     let db = Db::open(&dir.path().join("db")).unwrap();
     let parsed = fields(&db, "tag_id:absent").unwrap();
     let result = plan(Provider::Contact, &parsed, &Value::Null);
-    assert_eq!(
-        result.args,
-        vec!["vnd.android.cursor.item/name", "invalid_ids"]
+    assert_eq!(result.args, vec!["vnd.android.cursor.item/name"]);
+    assert_eq!(result.ids_column.as_deref(), Some("raw_contact_id"));
+    assert_eq!(result.ids, vec!["invalid_ids"]);
+}
+
+#[test]
+fn media_plans_own_filters_and_keep_values_bound() {
+    let fields = vec![
+        FilterField {
+            name: "text".into(),
+            op: ":".into(),
+            value: "%_\\".into(),
+        },
+        FilterField {
+            name: "excluded_dir".into(),
+            op: ":".into(),
+            value: "/storage/Pictures".into(),
+        },
+        FilterField {
+            name: "file_size".into(),
+            op: ":".into(),
+            value: ">=1.5 MB".into(),
+        },
+        FilterField {
+            name: "trash".into(),
+            op: ":".into(),
+            value: "true".into(),
+        },
+    ];
+    let result = plan(Provider::Doc, &fields, &Value::Null);
+    assert_eq!(result.trash, Some(true));
+    assert!(result.clauses.iter().any(|c| c.contains("mime_type LIKE")));
+    assert!(result.clauses.iter().any(|c| c == "size >= ?"));
+    assert!(result.args.contains(&1_572_864u64.to_string()));
+    assert!(result.args.contains(&"\\%\\_\\\\".to_owned()));
+    assert!(
+        result
+            .clauses
+            .iter()
+            .all(|c| !c.contains("/storage/Pictures"))
     );
-    assert!(result.clauses.iter().any(|s| s == "raw_contact_id IN (?)"));
 }
