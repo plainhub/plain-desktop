@@ -77,7 +77,8 @@ fn media_plans_own_filters_and_keep_values_bound() {
 
 #[test]
 fn plain_file_plans_keep_parent_facts_host_owned_and_hide_dotfiles_by_default() {
-    let fields = search_dsl::parse("text:'report%_' parent:/storage/docs file_size:>=1.5MB");
+    let fields =
+        search_dsl::parse("text:'report%_' parent:/storage/docs file_size:>=1.5MB ids:7,8");
     let result = plan(Provider::File, &fields, &Value::Null, Some("42"), false);
     assert!(
         result
@@ -96,6 +97,9 @@ fn plain_file_plans_keep_parent_facts_host_owned_and_hide_dotfiles_by_default() 
     assert!(result.args.contains(&"42".to_owned()));
     assert!(result.args.contains(&1_572_864u64.to_string()));
     assert!(result.args.contains(&"report\\%\\_".to_owned()));
+    let wire = serde_json::to_value(&result).unwrap();
+    assert_eq!(wire["idsColumn"], "_id");
+    assert!(wire.get("ids_column").is_none());
 
     let shown = search_dsl::parse("show_hidden:true");
     assert!(

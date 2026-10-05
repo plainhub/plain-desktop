@@ -31,6 +31,7 @@ pub(super) struct Request {
     resolved_parent_id: Option<String>,
 }
 #[derive(Default, Serialize)]
+#[serde(rename_all = "camelCase")]
 pub(super) struct Plan {
     pub clauses: Vec<String>,
     pub args: Vec<String>,
