@@ -44,13 +44,15 @@ mod provider_plan;
 mod request_replay;
 mod sms_query;
 mod sms_state;
-mod system_providers;
 mod system_permissions;
+mod system_providers;
 
 mod chat_delivery;
 mod chat_service;
 
 mod nearby_http;
+#[cfg(feature = "http_transport")]
+mod nearby_public;
 mod peer_transport;
 mod prewarm;
 

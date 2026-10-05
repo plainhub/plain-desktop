@@ -387,6 +387,52 @@ async fn execute(state: &ServerState, request: Request) -> anyhow::Result<Value>
         }
     })
 }
+
+pub(super) async fn handle_nearby_post(
+    state: &ServerState,
+    body: &str,
+    remote_ip: &str,
+) -> anyhow::Result<bool> {
+    use crate::chat::nearby_wire::Message;
+    let kind = body
+        .split_once(':')
+        .map(|(kind, _)| kind)
+        .unwrap_or_default();
+    if !matches!(
+        kind,
+        "PAIR_REQUEST" | "PAIR_RESPONSE" | "PAIR_CANCEL" | "DISCOVER" | "DISCOVER_REPLY"
+    ) {
+        return Ok(false);
+    }
+    match Message::parse(body)? {
+        Message::PairRequest(request) => {
+            execute(
+                state,
+                Request::ReceiveRequest {
+                    request,
+                    address: remote_ip.to_owned(),
+                    ble: false,
+                },
+            )
+            .await?;
+        }
+        Message::PairResponse(response) => {
+            execute(
+                state,
+                Request::Complete {
+                    response,
+                    sender_ip: remote_ip.to_owned(),
+                },
+            )
+            .await?;
+        }
+        Message::PairCancel(cancel) => {
+            execute(state, Request::ReceiveCancel { cancel }).await?;
+        }
+        Message::Discover | Message::DiscoverReply(_) => {}
+    }
+    Ok(true)
+}
 pub(super) async fn call(
     State(state): State<ServerState>,
     headers: HeaderMap,

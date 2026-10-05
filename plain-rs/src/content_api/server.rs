@@ -277,6 +277,9 @@ impl ContentServer {
                 state: self.state.clone(),
                 stop: receiver.clone(),
             });
+        let nearby_router = Router::new()
+            .route("/nearby", post(super::nearby_public::call))
+            .with_state(self.state.clone());
         let router = Router::new()
             .fallback(super::http_bridge::handle)
             .layer(DefaultBodyLimit::max(64 * 1024 * 1024 * 1024))
@@ -285,7 +288,8 @@ impl ContentServer {
                 stop: receiver,
             })
             .merge(peer_router)
-            .merge(status_router);
+            .merge(status_router)
+            .merge(nearby_router);
         let listeners =
             crate::http_transport::HttpListeners::start(router, http, https, cert, key).await?;
         let ports = (listeners.http_port, listeners.https_port);

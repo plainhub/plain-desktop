@@ -42,6 +42,51 @@ fn device() -> Device {
 }
 #[cfg(feature = "http_transport")]
 #[tokio::test]
+async fn public_nearby_endpoint_runs_pairing_parser_in_rust() {
+    let (_dir, server) = fixture("local");
+    let cert = rcgen::generate_simple_self_signed(vec!["localhost".into()]).unwrap();
+    let (_, https_port) = server
+        .start_public(
+            0,
+            0,
+            cert.cert.pem().into_bytes(),
+            cert.key_pair.serialize_pem().into_bytes(),
+        )
+        .await
+        .unwrap();
+    let client = reqwest::Client::builder()
+        .danger_accept_invalid_certs(true)
+        .build()
+        .unwrap();
+    let response = client
+        .post(format!("https://127.0.0.1:{https_port}/nearby"))
+        .body("NOPE:{{}}")
+        .send()
+        .await
+        .unwrap();
+    assert_eq!(response.status(), reqwest::StatusCode::BAD_REQUEST);
+    assert_eq!(response.text().await.unwrap(), "unknown message type");
+    let malformed = client
+        .post(format!("https://127.0.0.1:{https_port}/nearby"))
+        .body("PAIR_REQUEST:{}")
+        .send()
+        .await
+        .unwrap();
+    assert_eq!(malformed.status(), reqwest::StatusCode::BAD_REQUEST);
+    assert_eq!(malformed.text().await.unwrap(), "invalid nearby message");
+    let request = client
+        .post(format!("https://127.0.0.1:{https_port}/nearby"))
+        .body("PAIR_REQUEST:{\"fromId\":\"peer\",\"fromName\":\"fixture\",\"port\":2443,\"deviceType\":\"PHONE\",\"ecdhPublicKey\":\"\",\"signaturePublicKey\":\"\",\"timestamp\":1,\"ips\":[],\"signature\":\"invalid\",\"awareSupported\":false}")
+        .send()
+        .await
+        .unwrap();
+    assert_eq!(request.status(), reqwest::StatusCode::OK);
+    assert_eq!(request.text().await.unwrap(), "1");
+    server.stop_public().await;
+}
+
+#[cfg(feature = "http_transport")]
+#[tokio::test]
 async fn lan_runtime_sends_signed_tls_requests_and_cancel_cannot_remove_replacement() {
     use axum::{Router, body::Bytes, extract::State, routing::post};
     async fn receive(
