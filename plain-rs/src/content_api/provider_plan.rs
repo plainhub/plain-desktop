@@ -20,12 +20,15 @@ pub(super) enum Provider {
     Video,
     Image,
     Doc,
+    File,
 }
 #[derive(Deserialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub(super) struct Request {
     provider: Provider,
     query: String,
+    #[serde(default)]
+    resolved_parent_id: Option<String>,
 }
 #[derive(Default, Serialize)]
 pub(super) struct Plan {
@@ -105,7 +108,13 @@ fn comparison(field: &FilterField) -> (&str, &str) {
     }
     (op, value)
 }
-fn plan(provider: Provider, fields: &[FilterField], dates: &Value) -> Plan {
+fn plan(
+    provider: Provider,
+    fields: &[FilterField],
+    dates: &Value,
+    resolved_parent_id: Option<&str>,
+    query_is_empty: bool,
+) -> Plan {
     let mut plan = Plan::default();
     if matches!(provider, Provider::Contact) {
         plan.equal("mimetype", "vnd.android.cursor.item/name");
@@ -123,6 +132,17 @@ fn plan(provider: Provider, fields: &[FilterField], dates: &Value) -> Plan {
             ],
         );
         plan.add("size > 0".into(), vec![]);
+    }
+    if matches!(provider, Provider::File) && !query_is_empty {
+        let show_hidden = fields
+            .iter()
+            .any(|field| field.name == "show_hidden" && field.value.eq_ignore_ascii_case("true"));
+        if !show_hidden {
+            plan.add(
+                "_display_name NOT LIKE ? ESCAPE '\\'".into(),
+                vec![".%".into()],
+            );
+        }
     }
     for field in fields {
         match (provider, field.name.as_str()) {
@@ -170,6 +190,16 @@ fn plan(provider: Provider, fields: &[FilterField], dates: &Value) -> Plan {
             (Provider::Doc, "file_size") => {
                 let (op, value) = comparison(field);
                 if ["=", "!=", ">", ">=", "<", "<="].contains(&op) {
+                    if let Some(bytes) = parse_size_to_bytes(value) { plan.add(format!("size {op} ?"), vec![bytes.to_string()]); }
+                }
+            }
+            (Provider::File, "text") => plan.add("_display_name LIKE '%' || ? || '%' ESCAPE '\\'".into(), vec![escape_like(&field.value)]),
+            (Provider::File, "parent") => plan.add("parent = ?".into(), vec![resolved_parent_id.unwrap_or("-1").to_owned()]),
+            (Provider::File, "type") => plan.equal("mime_type", &field.value),
+            (Provider::File, "ids") => plan.ids("_id", field.value.split(',').map(str::to_owned).collect()),
+            (Provider::File, "file_size") => {
+                let (op, value) = comparison(field);
+                if ["=", "!=", ">", ">=", "<", "<="] .contains(&op) {
                     if let Some(bytes) = parse_size_to_bytes(value) { plan.add(format!("size {op} ?"), vec![bytes.to_string()]); }
                 }
             }
@@ -223,6 +253,8 @@ async fn execute(state: &ServerState, request: Request) -> anyhow::Result<Value>
         request.provider,
         &fields,
         &dates,
+        request.resolved_parent_id.as_deref(),
+        request.query.is_empty(),
     ))?)
 }
 pub(super) async fn call(
