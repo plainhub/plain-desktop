@@ -27,6 +27,7 @@ pub(super) struct ServerState {
     pub(super) peer_status: Arc<super::peer_status::Runtime>,
     pub(super) mdns: Arc<super::mdns_runtime::Runtime>,
     pub(super) guest_replay: Arc<super::request_replay::Replay>,
+    pub(super) main_replay: Arc<super::request_replay::Replay>,
     pub(super) peer_schema: super::peer_graphql::PeerSchema,
     pub(super) files: Arc<super::file_tasks::FileTasks>,
     pub(super) host: Arc<super::host::Host>,
@@ -131,6 +132,7 @@ impl ContentServer {
             mdns: Arc::new(super::mdns_runtime::Runtime::default()),
             peer_schema: super::peer_graphql::schema(),
             guest_replay: Arc::new(super::request_replay::Replay::default()),
+            main_replay: Arc::new(super::request_replay::Replay::default()),
             transport: Arc::new(crate::chat::transport_router::Router::default()),
             previews,
             prewarmer: Arc::new(crate::chat::prewarm::Prewarmer::default()),
@@ -281,6 +283,10 @@ impl ContentServer {
         let nearby_router = Router::new()
             .route("/nearby", post(super::nearby_public::call))
             .with_state(self.state.clone());
+        let main_graphql_router = Router::new()
+            .route("/graphql", post(super::main_graphql::call))
+            .layer(DefaultBodyLimit::max(32 * 1024 * 1024))
+            .with_state(self.state.clone());
         let router = Router::new()
             .fallback(super::http_bridge::handle)
             .layer(DefaultBodyLimit::max(64 * 1024 * 1024 * 1024))
@@ -290,7 +296,8 @@ impl ContentServer {
             })
             .merge(peer_router)
             .merge(status_router)
-            .merge(nearby_router);
+            .merge(nearby_router)
+            .merge(main_graphql_router);
         let listeners =
             crate::http_transport::HttpListeners::start(router, http, https, cert, key).await?;
         let ports = (listeners.http_port, listeners.https_port);

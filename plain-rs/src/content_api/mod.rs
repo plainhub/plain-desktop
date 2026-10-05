@@ -64,6 +64,8 @@ mod link_preview;
 
 mod media_buckets;
 
+mod main_graphql;
+
 mod peer_address;
 mod peer_graphql;
 mod peer_lan;
