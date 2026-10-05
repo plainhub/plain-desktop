@@ -216,6 +216,7 @@ impl ContentServer {
             .route("/system/sms-state", post(super::sms_state::call))
             .route("/system/sms", post(super::sms_query::call))
             .route("/system/providers", post(super::system_providers::call))
+            .route("/system/media-buckets", post(super::media_buckets::call))
             .route("/system/permissions", post(super::system_permissions::call))
             .route("/system/provider-plan", post(super::provider_plan::call))
             .route(

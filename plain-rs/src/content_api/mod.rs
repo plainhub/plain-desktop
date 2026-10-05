@@ -62,6 +62,8 @@ mod download_queue;
 
 mod link_preview;
 
+mod media_buckets;
+
 mod peer_address;
 mod peer_graphql;
 mod peer_lan;
