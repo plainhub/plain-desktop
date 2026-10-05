@@ -1,7 +1,7 @@
 use super::*;
 use crate::filesystem::{
     deletion::{Outcome, Plan},
-    tasks::{CompletedOp, FileTaskOp, FileTaskType, Hooks},
+    tasks::{FileTaskOp, FileTaskStatus, FileTaskType, Hooks},
 };
 impl FileTasks {
     pub async fn rename(&self, path: String, name: String) -> Result<Option<String>> {
@@ -35,28 +35,35 @@ impl FileTasks {
         if tokio::fs::symlink_metadata(&destination).await.is_ok() {
             return Ok(None);
         }
-        let snapshot = self.hooks.prepare(FileTaskType::Move, &op).await?;
-        self.hooks
-            .authorize(FileTaskType::Move, std::slice::from_ref(&op))
-            .await?;
-        if crate::filesystem::rename(&source, std::path::Path::new(&destination))
-            .await
-            .is_err()
-        {
-            return Ok(None);
+        let client_id = self
+            .hooks
+            .prefs
+            .get::<String>("client_id")?
+            .filter(|value| !value.is_empty())
+            .ok_or_else(|| anyhow!("file task identity unavailable"))?;
+        let service = self.service()?;
+        let task = service.rename(&client_id, path, destination.clone())?;
+        loop {
+            let current = match service.get(&task.id)? {
+                Some(current) => current,
+                None => self
+                    .list(client_id.clone())
+                    .await?
+                    .into_iter()
+                    .find(|row| row.id == task.id)
+                    .ok_or_else(|| anyhow!("rename task unavailable"))?,
+            };
+            match current.status {
+                FileTaskStatus::Done => break,
+                FileTaskStatus::Error if current.completed_ops.is_empty() => return Ok(None),
+                FileTaskStatus::Error => bail!(
+                    "rename postprocessing requires recovery for task {}: {}",
+                    current.id,
+                    current.error
+                ),
+                _ => tokio::time::sleep(std::time::Duration::from_millis(20)).await,
+            }
         }
-        self.hooks
-            .completed_with_snapshot(
-                FileTaskType::Move,
-                &CompletedOp {
-                    recovery: None,
-                    src: path,
-                    dst: destination.clone(),
-                },
-                &snapshot,
-            )
-            .await?;
-        let _ = self.events.send(WsEvent::broadcast(47, "{}".into()));
         Ok(Some(destination))
     }
     pub async fn delete(&self, path: String) -> Result<Outcome> {

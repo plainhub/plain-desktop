@@ -1,3 +1,4 @@
+mod evidence;
 #[cfg(feature = "content_api")]
 pub mod sqlite;
 use anyhow::{Result, anyhow, bail};
@@ -47,6 +48,7 @@ pub struct Recovery {
     pub id: String,
     pub snapshot: serde_json::Value,
     pub final_op: bool,
+    pub evidence: Option<evidence::Evidence>,
 }
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct FileTask {
@@ -116,6 +118,7 @@ struct Request {
     task: FileTask,
     ops: Vec<FileTaskOp>,
     recovery: bool,
+    rename: bool,
 }
 type Active = Arc<Mutex<HashMap<String, FileTask>>>;
 pub struct Service {
@@ -161,6 +164,29 @@ impl Service {
         title: &str,
         ops: Vec<FileTaskOp>,
     ) -> Result<FileTask> {
+        self.admit(client_id, kind, title, ops, false)
+    }
+    pub fn rename(&self, client_id: &str, src: String, dst: String) -> Result<FileTask> {
+        self.admit(
+            client_id,
+            FileTaskType::Move,
+            "rename",
+            vec![FileTaskOp {
+                src,
+                dst,
+                overwrite: false,
+            }],
+            true,
+        )
+    }
+    fn admit(
+        &self,
+        client_id: &str,
+        kind: FileTaskType,
+        title: &str,
+        ops: Vec<FileTaskOp>,
+        rename: bool,
+    ) -> Result<FileTask> {
         if client_id.is_empty() {
             bail!("unauthorized");
         }
@@ -200,6 +226,7 @@ impl Service {
             task: task.clone(),
             ops,
             recovery: false,
+            rename,
         });
         Ok(task)
     }
@@ -252,6 +279,7 @@ impl Service {
             task: task.clone(),
             ops: Vec::new(),
             recovery: true,
+            rename: false,
         });
         Ok(Some(task))
     }
@@ -347,7 +375,7 @@ fn save(
     events.changed(task);
     Ok(())
 }
-fn acknowledge(id: &str, active: &Active, store: &Arc<dyn Store>) -> Result<()> {
+fn acknowledge(id: &str, receipt_id: &str, active: &Active, store: &Arc<dyn Store>) -> Result<()> {
     let mut tasks = active
         .lock()
         .map_err(|_| anyhow!("file task state poisoned"))?;
@@ -356,7 +384,13 @@ fn acknowledge(id: &str, active: &Active, store: &Arc<dyn Store>) -> Result<()> 
         .ok_or_else(|| anyhow!("file task disappeared"))?;
     let mut next = task.clone();
     for op in &mut next.completed_ops {
-        op.recovery = None;
+        if op
+            .recovery
+            .as_ref()
+            .is_some_and(|receipt| receipt.id == receipt_id)
+        {
+            op.recovery = None;
+        }
     }
     next.updated_at = Utc::now();
     store.put(&next)?;
@@ -387,9 +421,21 @@ async fn recover(
             hooks
                 .authorize(task.kind, std::slice::from_ref(&paths))
                 .await?;
+            evidence::verify(
+                Path::new(&op.dst).to_owned(),
+                op.recovery
+                    .as_ref()
+                    .unwrap()
+                    .evidence
+                    .clone()
+                    .ok_or_else(|| anyhow!("file recovery evidence unavailable"))?,
+                true,
+            )
+            .await?;
+            validate_receipt(task.kind, op).await?;
             hooks.completed_receipt(task.kind, op).await?;
+            acknowledge(&task.id, &op.recovery.as_ref().unwrap().id, active, store)?;
         }
-        acknowledge(&task.id, active, store)?;
         Ok::<_, anyhow::Error>(())
     }
     .await;
@@ -476,6 +522,9 @@ async fn execute(
                 .authorize(task.kind, std::slice::from_ref(&op))
                 .await?;
             let prepared = hooks.prepare(task.kind, &op).await?;
+            hooks
+                .authorize(task.kind, std::slice::from_ref(&op))
+                .await?;
             let state = active.clone();
             let storage = store.clone();
             let emitter = events.clone();
@@ -514,27 +563,37 @@ async fn execute(
                 }
                 Ok(())
             };
-            let destination = match task.kind {
-                FileTaskType::Copy => {
-                    super::copy_path_with_progress(
-                        Path::new(&op.src),
-                        Path::new(&op.dst),
-                        op.overwrite,
-                        Some(&progress),
-                    )
-                    .await?
-                }
-                FileTaskType::Move => {
-                    super::move_path_with_progress(
-                        Path::new(&op.src),
-                        Path::new(&op.dst),
-                        op.overwrite,
-                        Some(&progress),
-                    )
-                    .await?
+            let destination = if request.rename {
+                super::rename(Path::new(&op.src), Path::new(&op.dst)).await?;
+                let target = op.dst.clone();
+                let (bytes, items) =
+                    tokio::task::spawn_blocking(move || super::measure(Path::new(&target)))
+                        .await??;
+                progress(bytes, items)?;
+                Path::new(&op.dst).to_owned()
+            } else {
+                match task.kind {
+                    FileTaskType::Copy => {
+                        super::copy_path_with_progress(
+                            Path::new(&op.src),
+                            Path::new(&op.dst),
+                            op.overwrite,
+                            Some(&progress),
+                        )
+                        .await?
+                    }
+                    FileTaskType::Move => {
+                        super::move_path_with_progress(
+                            Path::new(&op.src),
+                            Path::new(&op.dst),
+                            op.overwrite,
+                            Some(&progress),
+                        )
+                        .await?
+                    }
                 }
             };
-            let completed = CompletedOp {
+            let mut completed = CompletedOp {
                 src: op.src,
                 dst: destination
                     .to_str()
@@ -544,6 +603,7 @@ async fn execute(
                     id: crate::utils::shortid::new_id(),
                     snapshot: prepared,
                     final_op: operation_index + 1 == count,
+                    evidence: None,
                 }),
             };
             let receipt_saved = {
@@ -558,8 +618,29 @@ async fn execute(
                 store.put(current)
             };
             receipt_saved?;
+            completed.recovery.as_mut().unwrap().evidence =
+                Some(evidence::capture(destination).await?);
+            {
+                let mut tasks = active
+                    .lock()
+                    .map_err(|_| anyhow!("file task state poisoned"))?;
+                let current = tasks
+                    .get_mut(&task.id)
+                    .ok_or_else(|| anyhow!("file task disappeared"))?;
+                *current
+                    .completed_ops
+                    .last_mut()
+                    .ok_or_else(|| anyhow!("file receipt disappeared"))? = completed.clone();
+                store.put(current)?;
+            }
+            validate_receipt(task.kind, &completed).await?;
             hooks.completed_receipt(task.kind, &completed).await?;
-            acknowledge(&task.id, active, store)?;
+            acknowledge(
+                &task.id,
+                &completed.recovery.as_ref().unwrap().id,
+                active,
+                store,
+            )?;
             if let Some(error) = progress_error
                 .lock()
                 .map_err(|_| anyhow!("file task error state poisoned"))?
@@ -603,6 +684,30 @@ async fn execute(
     } else if let Ok(mut tasks) = active.lock() {
         tasks.remove(&task.id);
     }
+}
+
+pub async fn validate_receipt(kind: FileTaskType, op: &CompletedOp) -> Result<()> {
+    let op = op.clone();
+    tokio::task::spawn_blocking(move || validate_receipt_sync(kind, &op)).await?
+}
+pub fn validate_receipt_sync(kind: FileTaskType, op: &CompletedOp) -> Result<()> {
+    let receipt = op
+        .recovery
+        .as_ref()
+        .ok_or_else(|| anyhow!("missing file recovery receipt"))?;
+    let evidence = receipt
+        .evidence
+        .as_ref()
+        .ok_or_else(|| anyhow!("file recovery evidence unavailable"))?;
+    evidence::verify_sync(Path::new(&op.dst), evidence, false)?;
+    if kind == FileTaskType::Move {
+        match std::fs::symlink_metadata(&op.src) {
+            Err(error) if error.kind() == std::io::ErrorKind::NotFound => {}
+            Err(error) => return Err(error.into()),
+            Ok(_) => bail!("file recovery source exists"),
+        }
+    }
+    Ok(())
 }
 
 #[cfg(test)]

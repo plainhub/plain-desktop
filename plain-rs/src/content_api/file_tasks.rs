@@ -165,10 +165,13 @@ impl NativeHooks {
     ) -> HookResult<'a> {
         Box::pin(async move {
             self.completed(kind, op).await?;
+            tasks::validate_receipt(kind, op).await?;
             if kind == FileTaskType::Move {
                 let change = super::file_task_media::resolve(&self.host, &op.dst, snapshot).await?;
+                tasks::validate_receipt(kind, op).await?;
                 let raw_source = op.src.clone();
                 let raw_destination = op.dst.clone();
+                let verified_op = op.clone();
                 let prefs = self.prefs.clone();
                 let index = self.index.clone();
                 self.audio
@@ -186,6 +189,9 @@ impl NativeHooks {
                                     raw_source.trim_end_matches('/')
                                 )));
                         let rebind = |db: &Db| {
+                            tasks::validate_receipt_sync(kind, &verified_op).map_err(|error| {
+                                crate::library::LibraryError::Other(error.to_string())
+                            })?;
                             media_moves::rebind_once(
                                 db,
                                 &change.bindings,

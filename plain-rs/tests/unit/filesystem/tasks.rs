@@ -601,3 +601,243 @@ async fn recovering_one_completed_operation_never_claims_or_replays_unexecuted_o
     assert!(!temp.path().join("second-out").exists());
     assert!(result.completed_ops[0].recovery.is_none());
 }
+
+#[tokio::test]
+async fn renamed_files_have_recoverable_receipts_and_never_choose_a_collision_name() {
+    let temp = tempfile::tempdir().unwrap();
+    let source = temp.path().join("source");
+    let destination = temp.path().join("renamed");
+    std::fs::write(&source, b"rename fixture").unwrap();
+    let hooks = Arc::new(RecoverableHooks {
+        fail: AtomicBool::new(true),
+        denied: AtomicBool::new(false),
+        calls: std::sync::atomic::AtomicUsize::new(0),
+    });
+    let store = Arc::new(MemoryStore::default());
+    let service = Service::with_hooks(store.clone(), Arc::new(Recorder::default()), hooks.clone());
+    let queued = service
+        .rename(
+            "owner",
+            source.to_str().unwrap().into(),
+            destination.to_str().unwrap().into(),
+        )
+        .unwrap();
+    let failed = terminal(&service, "owner", &queued.id).await;
+    assert_eq!(failed.status, FileTaskStatus::Error);
+    assert!(!source.exists());
+    assert_eq!(failed.completed_ops[0].dst, destination.to_str().unwrap());
+    drop(service);
+    hooks.fail.store(false, Ordering::SeqCst);
+    let service = Service::with_hooks(store, Arc::new(Recorder::default()), hooks.clone());
+    service.recover("owner", &queued.id).unwrap();
+    let done = terminal(&service, "owner", &queued.id).await;
+    assert_eq!(done.status, FileTaskStatus::Done);
+    assert_eq!(done.done_bytes, 14);
+    assert!(done.completed_ops[0].recovery.is_none());
+    assert!(!temp.path().join("renamed_1").exists());
+    std::fs::write(&source, b"another source").unwrap();
+    let collision = service
+        .rename(
+            "owner",
+            source.to_str().unwrap().into(),
+            destination.to_str().unwrap().into(),
+        )
+        .unwrap();
+    let failed = terminal(&service, "owner", &collision.id).await;
+    assert_eq!(failed.status, FileTaskStatus::Error);
+    assert!(failed.completed_ops.is_empty());
+    assert_eq!(std::fs::read(&destination).unwrap(), b"rename fixture");
+    assert_eq!(std::fs::read(&source).unwrap(), b"another source");
+    assert!(!temp.path().join("renamed_1").exists());
+}
+
+#[tokio::test]
+async fn recovery_rejects_replaced_directory_files_links_and_recreated_move_sources() {
+    for alteration in 0..5 {
+        let temp = tempfile::tempdir().unwrap();
+        let source = temp.path().join("source");
+        let destination = temp.path().join("destination");
+        std::fs::create_dir(&source).unwrap();
+        std::fs::write(source.join("file"), b"before").unwrap();
+        #[cfg(unix)]
+        std::os::unix::fs::symlink("file", source.join("link")).unwrap();
+        let hooks = Arc::new(RecoverableHooks {
+            fail: AtomicBool::new(true),
+            denied: AtomicBool::new(false),
+            calls: std::sync::atomic::AtomicUsize::new(0),
+        });
+        let store = Arc::new(MemoryStore::default());
+        let service =
+            Service::with_hooks(store.clone(), Arc::new(Recorder::default()), hooks.clone());
+        let task = service
+            .create(
+                "owner",
+                FileTaskType::Move,
+                "move",
+                vec![op(&source, &destination)],
+            )
+            .unwrap();
+        assert_eq!(
+            terminal(&service, "owner", &task.id).await.status,
+            FileTaskStatus::Error
+        );
+        drop(service);
+        hooks.fail.store(false, Ordering::SeqCst);
+        match alteration {
+            0 => {
+                let path = destination.join("file");
+                let modified = std::fs::metadata(&path).unwrap().modified().unwrap();
+                std::fs::write(&path, b"edited").unwrap();
+                std::fs::File::options()
+                    .write(true)
+                    .open(&path)
+                    .unwrap()
+                    .set_times(std::fs::FileTimes::new().set_modified(modified))
+                    .unwrap();
+            }
+            1 => {
+                std::fs::rename(destination.join("file"), destination.join("old")).unwrap();
+                std::fs::write(destination.join("file"), b"before").unwrap();
+                std::fs::remove_file(destination.join("old")).unwrap();
+            }
+            2 => {
+                std::fs::create_dir(&source).unwrap();
+            }
+            4 => {
+                std::fs::create_dir(destination.join("extra-empty")).unwrap();
+            }
+            _ => {
+                #[cfg(unix)]
+                {
+                    std::fs::remove_file(destination.join("link")).unwrap();
+                    std::os::unix::fs::symlink("other", destination.join("link")).unwrap();
+                }
+                #[cfg(not(unix))]
+                {
+                    std::fs::write(destination.join("extra"), b"extra").unwrap();
+                }
+            }
+        }
+        let service =
+            Service::with_hooks(store.clone(), Arc::new(Recorder::default()), hooks.clone());
+        service.recover("owner", &task.id).unwrap();
+        let failed = terminal(&service, "owner", &task.id).await;
+        assert_eq!(
+            failed.status,
+            FileTaskStatus::Error,
+            "alteration {alteration}"
+        );
+        assert!(failed.completed_ops[0].recovery.is_some());
+        assert_eq!(hooks.calls.load(Ordering::SeqCst), 1);
+        assert!(!temp.path().join("destination_1").exists());
+        assert!(
+            failed.error.contains("changed") || failed.error.contains("source exists"),
+            "{}",
+            failed.error
+        );
+    }
+}
+
+#[tokio::test]
+async fn recovery_with_missing_evidence_keeps_receipts_and_refuses_unverified_success() {
+    let temp = tempfile::tempdir().unwrap();
+    let source = temp.path().join("source");
+    let target = temp.path().join("target");
+    std::fs::write(&source, b"fixture").unwrap();
+    let hooks = Arc::new(RecoverableHooks {
+        fail: AtomicBool::new(true),
+        denied: AtomicBool::new(false),
+        calls: std::sync::atomic::AtomicUsize::new(0),
+    });
+    let store = Arc::new(MemoryStore::default());
+    let service = Service::with_hooks(store.clone(), Arc::new(Recorder::default()), hooks.clone());
+    let task = service
+        .create(
+            "owner",
+            FileTaskType::Copy,
+            "copy",
+            vec![op(&source, &target)],
+        )
+        .unwrap();
+    let mut failed = terminal(&service, "owner", &task.id).await;
+    failed.completed_ops[0].recovery.as_mut().unwrap().evidence = None;
+    store.put(&failed).unwrap();
+    drop(service);
+    hooks.fail.store(false, Ordering::SeqCst);
+    let service = Service::with_hooks(store, Arc::new(Recorder::default()), hooks.clone());
+    service.recover("owner", &task.id).unwrap();
+    let failed = terminal(&service, "owner", &task.id).await;
+    assert_eq!(failed.status, FileTaskStatus::Error);
+    assert!(failed.error.contains("evidence unavailable"));
+    assert!(failed.completed_ops[0].recovery.is_some());
+    assert_eq!(hooks.calls.load(Ordering::SeqCst), 1);
+}
+
+struct FailSecondReceipt(std::sync::atomic::AtomicUsize);
+impl Hooks for FailSecondReceipt {
+    fn authorize<'a>(&'a self, _: FileTaskType, _: &'a [FileTaskOp]) -> HookResult<'a> {
+        Box::pin(async { Ok(()) })
+    }
+    fn completed<'a>(&'a self, _: FileTaskType, _: &'a CompletedOp) -> HookResult<'a> {
+        Box::pin(async move {
+            if self.0.fetch_add(1, Ordering::SeqCst) == 1 {
+                bail!("second receipt failed");
+            }
+            Ok(())
+        })
+    }
+}
+#[tokio::test]
+async fn recovery_persists_each_ack_before_a_later_receipt_fails() {
+    let temp = tempfile::tempdir().unwrap();
+    let store = Arc::new(MemoryStore::default());
+    let creator = Service::with_hooks(
+        store.clone(),
+        Arc::new(Recorder::default()),
+        Arc::new(ScanFailure),
+    );
+    let mut failed = Vec::new();
+    for i in 0..2 {
+        let source = temp.path().join(format!("source-{i}"));
+        let target = temp.path().join(format!("target-{i}"));
+        std::fs::write(&source, b"fixture").unwrap();
+        let task = creator
+            .create(
+                "owner",
+                FileTaskType::Copy,
+                "copy",
+                vec![op(&source, &target)],
+            )
+            .unwrap();
+        failed.push(terminal(&creator, "owner", &task.id).await);
+    }
+    drop(creator);
+    let mut combined = failed.remove(0);
+    combined.completed_ops[0]
+        .recovery
+        .as_mut()
+        .unwrap()
+        .final_op = false;
+    combined
+        .completed_ops
+        .push(failed[0].completed_ops[0].clone());
+    combined.total_bytes = 14;
+    combined.done_bytes = 14;
+    combined.total_items = 2;
+    combined.done_items = 2;
+    store.put(&combined).unwrap();
+    let hooks = Arc::new(FailSecondReceipt(std::sync::atomic::AtomicUsize::new(0)));
+    let first = Service::with_hooks(store.clone(), Arc::new(Recorder::default()), hooks.clone());
+    first.recover("owner", &combined.id).unwrap();
+    let partial = terminal(&first, "owner", &combined.id).await;
+    assert_eq!(partial.status, FileTaskStatus::Error);
+    assert!(partial.completed_ops[0].recovery.is_none());
+    assert!(partial.completed_ops[1].recovery.is_some());
+    drop(first);
+    let restarted = Service::with_hooks(store, Arc::new(Recorder::default()), hooks.clone());
+    restarted.recover("owner", &combined.id).unwrap();
+    let done = terminal(&restarted, "owner", &combined.id).await;
+    assert_eq!(done.status, FileTaskStatus::Done);
+    assert!(done.completed_ops.iter().all(|op| op.recovery.is_none()));
+    assert_eq!(hooks.0.load(Ordering::SeqCst), 3);
+}
