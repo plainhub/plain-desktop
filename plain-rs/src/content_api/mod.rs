@@ -45,6 +45,7 @@ mod request_replay;
 mod sms_query;
 mod sms_state;
 mod system_providers;
+mod system_permissions;
 
 mod chat_delivery;
 mod chat_service;
