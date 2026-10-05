@@ -268,8 +268,42 @@ where
     F: FnOnce(PathBuf, PathBuf) -> Fut,
     Fut: std::future::Future<Output = std::io::Result<()>>,
 {
+    rename_with_intent(
+        src,
+        dst,
+        progress,
+        |_, _| async { Ok(String::new()) },
+        |_, source, target| checkpoint(source, target),
+    )
+    .await
+}
+
+pub async fn rename_with_intent<B, BFut, C, CFut>(
+    src: &Path,
+    dst: &Path,
+    progress: Option<&TransferProgress>,
+    begin: B,
+    checkpoint: C,
+) -> std::io::Result<bool>
+where
+    B: FnOnce(PathBuf, PathBuf) -> BFut,
+    BFut: std::future::Future<Output = std::io::Result<String>>,
+    C: FnOnce(String, PathBuf, PathBuf) -> CFut,
+    CFut: std::future::Future<Output = std::io::Result<()>>,
+{
     let from = src.to_path_buf();
     let to = dst.to_path_buf();
+    match tokio::fs::symlink_metadata(&to).await {
+        Ok(_) => {
+            return Err(std::io::Error::new(
+                std::io::ErrorKind::AlreadyExists,
+                "rename destination exists",
+            ));
+        }
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => {}
+        Err(error) => return Err(error),
+    }
+    let receipt_id = begin(from.clone(), to.clone()).await?;
     let result = tokio::task::spawn_blocking(move || rename::no_replace(&from, &to))
         .await
         .map_err(std::io::Error::other)?;
@@ -285,7 +319,8 @@ where
             Ok(false)
         }
         Err(error) if rename::copy_required(&error, false) => {
-            copy_remove_with_checkpoint(src, dst, false, progress, checkpoint).await?;
+            checkpoint(receipt_id, src.to_owned(), dst.to_owned()).await?;
+            remove(src).await?;
             Ok(true)
         }
         Err(error) => Err(error),
@@ -342,10 +377,36 @@ where
     F: FnOnce(PathBuf, PathBuf) -> Fut,
     Fut: std::future::Future<Output = std::io::Result<()>>,
 {
+    move_path_with_intent(
+        src,
+        dst,
+        overwrite,
+        progress,
+        |_, _| async { Ok(String::new()) },
+        |_, source, target| checkpoint(source, target),
+    )
+    .await
+}
+
+pub async fn move_path_with_intent<B, BFut, C, CFut>(
+    src: &Path,
+    dst: &Path,
+    overwrite: bool,
+    progress: Option<&TransferProgress>,
+    begin: B,
+    checkpoint: C,
+) -> std::io::Result<(PathBuf, bool)>
+where
+    B: FnOnce(PathBuf, PathBuf) -> BFut,
+    BFut: std::future::Future<Output = std::io::Result<String>>,
+    C: FnOnce(String, PathBuf, PathBuf) -> CFut,
+    CFut: std::future::Future<Output = std::io::Result<()>>,
+{
     let src = clean(src);
     let info = tokio::fs::symlink_metadata(&src).await?;
     let resolved = resolve_destination(&src, dst, overwrite).await?;
     require_separate_paths(&src, &resolved, info.is_dir()).await?;
+    let receipt_id = begin(src.clone(), resolved.clone()).await?;
     let totals = if progress.is_some() {
         let path = src.clone();
         Some(
@@ -373,15 +434,16 @@ where
             Ok((resolved, false))
         }
         Err(error) if rename::copy_required(&error, overwrite) => {
-            let destination =
-                copy_remove_with_checkpoint(&src, &resolved, overwrite, progress, checkpoint)
-                    .await?;
-            Ok((destination, true))
+            copy_to(&src, &resolved, overwrite, progress).await?;
+            checkpoint(receipt_id, src.clone(), resolved.clone()).await?;
+            remove(&src).await?;
+            Ok((resolved, true))
         }
         Err(error) => Err(error),
     }
 }
 
+#[cfg(test)]
 async fn copy_remove_with_checkpoint<F, Fut>(
     src: &Path,
     dst: &Path,
@@ -401,6 +463,7 @@ where
     Ok(dst)
 }
 
+#[cfg(test)]
 async fn copy_and_remove(src: &Path, dst: &Path, overwrite: bool) -> std::io::Result<()> {
     copy_to(src, dst, overwrite, None).await?;
     remove(src).await

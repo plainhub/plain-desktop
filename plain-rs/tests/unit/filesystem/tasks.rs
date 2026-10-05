@@ -179,6 +179,8 @@ fn interrupted_cross_volume_move(
                 evidence: Some(destination_evidence),
                 source_evidence: Some(source_evidence),
                 source_cleanup_pending: true,
+                physical_pending: false,
+                destination_before: None,
             }),
         }],
         last_persist: None,
@@ -675,6 +677,173 @@ async fn persisted_receipt_recovers_after_restart_without_repeating_move_and_che
     assert_eq!(hooks.calls.load(Ordering::SeqCst), 2);
     reopened.recover("owner", &queued.id).unwrap();
     assert_eq!(hooks.calls.load(Ordering::SeqCst), 2);
+}
+
+#[tokio::test]
+async fn physical_move_intent_recovers_atomic_rename_before_first_receipt_write() {
+    let temp = tempfile::tempdir().unwrap();
+    let source = temp.path().join("source");
+    let destination = temp.path().join("destination");
+    std::fs::write(&source, b"atomic move").unwrap();
+    let source_evidence = evidence::capture(source.clone()).await.unwrap();
+    let now = Utc::now();
+    let task = FileTask {
+        id: "interrupted-atomic-move".into(),
+        client_id: "owner".into(),
+        kind: FileTaskType::Move,
+        title: "move".into(),
+        status: FileTaskStatus::Error,
+        error: "process interrupted".into(),
+        total_bytes: 11,
+        done_bytes: 11,
+        total_items: 1,
+        done_items: 1,
+        created_at: now,
+        updated_at: now,
+        completed_ops: vec![CompletedOp {
+            src: source.to_string_lossy().into_owned(),
+            dst: destination.to_string_lossy().into_owned(),
+            recovery: Some(Recovery {
+                id: "pending-atomic-receipt".into(),
+                snapshot: serde_json::json!({"originalMediaId":"original"}),
+                final_op: true,
+                evidence: None,
+                source_evidence: Some(source_evidence),
+                source_cleanup_pending: false,
+                physical_pending: true,
+                destination_before: None,
+            }),
+        }],
+        last_persist: None,
+    };
+    let store = Arc::new(MemoryStore::default());
+    store.put(&task).unwrap();
+    std::fs::rename(&source, &destination).unwrap();
+    let hooks = Arc::new(RecoverableHooks {
+        fail: AtomicBool::new(false),
+        denied: AtomicBool::new(false),
+        calls: std::sync::atomic::AtomicUsize::new(0),
+    });
+    let service = Service::with_hooks(store, Arc::new(Recorder::default()), hooks.clone());
+
+    service.recover("owner", &task.id).unwrap();
+    let recovered = terminal(&service, "owner", &task.id).await;
+
+    assert_eq!(recovered.status, FileTaskStatus::Done);
+    assert!(recovered.completed_ops[0].recovery.is_none());
+    assert_eq!(std::fs::read(&destination).unwrap(), b"atomic move");
+    assert!(!source.exists());
+    assert_eq!(hooks.calls.load(Ordering::SeqCst), 1);
+}
+
+#[tokio::test]
+async fn pending_move_intent_refuses_changed_source_and_preserves_receipt() {
+    let temp = tempfile::tempdir().unwrap();
+    let source = temp.path().join("source");
+    let destination = temp.path().join("destination");
+    std::fs::write(&source, b"original").unwrap();
+    let source_evidence = evidence::capture(source.clone()).await.unwrap();
+    std::fs::write(&source, b"changed!").unwrap();
+    let now = Utc::now();
+    let task = FileTask {
+        id: "changed-source-intent".into(),
+        client_id: "owner".into(),
+        kind: FileTaskType::Move,
+        title: "move".into(),
+        status: FileTaskStatus::Error,
+        error: "process interrupted".into(),
+        total_bytes: 8,
+        done_bytes: 8,
+        total_items: 1,
+        done_items: 1,
+        created_at: now,
+        updated_at: now,
+        completed_ops: vec![CompletedOp {
+            src: source.to_string_lossy().into_owned(),
+            dst: destination.to_string_lossy().into_owned(),
+            recovery: Some(Recovery {
+                id: "pending-changed-receipt".into(),
+                snapshot: serde_json::Value::Null,
+                final_op: true,
+                evidence: None,
+                source_evidence: Some(source_evidence),
+                source_cleanup_pending: false,
+                physical_pending: true,
+                destination_before: None,
+            }),
+        }],
+        last_persist: None,
+    };
+    let store = Arc::new(MemoryStore::default());
+    store.put(&task).unwrap();
+    let service = Service::new(store, Arc::new(Recorder::default()));
+
+    service.recover("owner", &task.id).unwrap();
+    let recovered = terminal(&service, "owner", &task.id).await;
+
+    assert_eq!(recovered.status, FileTaskStatus::Error);
+    assert!(recovered.error.contains("destination"));
+    assert!(recovered.completed_ops[0].recovery.is_some());
+    assert_eq!(std::fs::read(&source).unwrap(), b"changed!");
+    assert!(!destination.exists());
+}
+
+#[tokio::test]
+async fn pending_copy_move_intent_never_deletes_source_without_a_persisted_copy_checkpoint() {
+    let temp = tempfile::tempdir().unwrap();
+    let source = temp.path().join("source");
+    let destination = temp.path().join("destination");
+    std::fs::write(&source, b"copy completed before checkpoint").unwrap();
+    let source_evidence = evidence::capture(source.clone()).await.unwrap();
+    std::fs::write(&destination, b"copy completed before checkpoint").unwrap();
+    let now = Utc::now();
+    let task = FileTask {
+        id: "ambiguous-copy-move".into(),
+        client_id: "owner".into(),
+        kind: FileTaskType::Move,
+        title: "move".into(),
+        status: FileTaskStatus::Error,
+        error: "process interrupted".into(),
+        total_bytes: 32,
+        done_bytes: 32,
+        total_items: 1,
+        done_items: 1,
+        created_at: now,
+        updated_at: now,
+        completed_ops: vec![CompletedOp {
+            src: source.to_string_lossy().into_owned(),
+            dst: destination.to_string_lossy().into_owned(),
+            recovery: Some(Recovery {
+                id: "ambiguous-copy-receipt".into(),
+                snapshot: serde_json::Value::Null,
+                final_op: true,
+                evidence: None,
+                source_evidence: Some(source_evidence),
+                source_cleanup_pending: false,
+                physical_pending: true,
+                destination_before: None,
+            }),
+        }],
+        last_persist: None,
+    };
+    let store = Arc::new(MemoryStore::default());
+    store.put(&task).unwrap();
+    let service = Service::new(store, Arc::new(Recorder::default()));
+
+    service.recover("owner", &task.id).unwrap();
+    let recovered = terminal(&service, "owner", &task.id).await;
+
+    assert_eq!(recovered.status, FileTaskStatus::Error);
+    assert!(recovered.error.contains("ambiguous"));
+    assert!(recovered.completed_ops[0].recovery.is_some());
+    assert_eq!(
+        std::fs::read(&source).unwrap(),
+        b"copy completed before checkpoint"
+    );
+    assert_eq!(
+        std::fs::read(&destination).unwrap(),
+        b"copy completed before checkpoint"
+    );
 }
 #[tokio::test]
 async fn recovering_one_completed_operation_never_claims_or_replays_unexecuted_operations() {
