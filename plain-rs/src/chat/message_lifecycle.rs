@@ -4,8 +4,7 @@ use crate::{
         enums::{ChannelStatus, ChatStatus},
     },
     db::{
-        CHANNEL_COLS, CHAT_COLS, DChannel, DChat, DPeer, Db, PEER_COLS,
-        chat_store::{SaveMode, messages},
+        CHANNEL_COLS, CHAT_COLS, DChannel, DChat, DPeer, Db, PEER_COLS, chat_store::messages,
         now_iso, row_to_channel, row_to_chat, row_to_peer,
     },
 };
@@ -26,7 +25,15 @@ pub fn create(db: &Db, to_id: &str, channel_id: &str, content: &str) -> Result<D
     if !channel_id.is_empty() || (!to_id.is_empty() && to_id != "local") {
         chat.status = ChatStatus::Pending;
     }
-    messages::save(db, std::slice::from_ref(&chat), SaveMode::Insert)?;
+    messages::validate_content(content)?;
+    let _files = db.app_files_lock()?;
+    let refs = super::app_file_store::content_refs::collect(&serde_json::from_str(content)?);
+    db.with_conn(|c| -> Result<()> {
+        let tx=c.unchecked_transaction()?;
+        super::app_file_store::content_refs::claim(&tx,refs)?;
+        tx.execute("INSERT INTO chats(id,from_id,to_id,channel_id,content,status,status_data,created_at,updated_at) VALUES(?1,?2,?3,?4,?5,?6,?7,?8,?9)",params![chat.id,chat.from_id,chat.to_id,chat.channel_id,chat.content,chat.status,chat.status_data,chat.created_at,chat.updated_at])?;
+        tx.commit()?;Ok(())
+    })?;
     Ok(chat)
 }
 pub fn receive(

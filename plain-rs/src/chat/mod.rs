@@ -53,3 +53,5 @@ pub mod lan_ip;
 pub mod nearby_devices;
 
 pub mod peer_status;
+
+pub mod message_commands;

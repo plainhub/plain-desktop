@@ -11,7 +11,7 @@ use axum::{
 };
 use serde::Deserialize;
 use serde_json::json;
-struct Transport(ServerState);
+pub(super) struct Transport(pub(super) ServerState);
 impl PeerTransport for Transport {
     async fn post<'a>(
         &'a self,
@@ -48,6 +48,22 @@ pub(super) async fn call(
     if !state.authenticated(&headers) {
         return StatusCode::UNAUTHORIZED.into_response();
     }
+    let result = deliver(&state, &request.id, request.recipients).await;
+    match result {
+        Ok(receipt) => Json(json!({"result":receipt})).into_response(),
+        Err(error) => (
+            StatusCode::BAD_REQUEST,
+            Json(json!({"error":error.to_string()})),
+        )
+            .into_response(),
+    }
+}
+
+pub(super) async fn deliver(
+    state: &ServerState,
+    id: &str,
+    recipients: Option<Vec<String>>,
+) -> anyhow::Result<crate::chat::delivery::Receipt> {
     let result = async {
         let client_id = state
             .prefs
@@ -63,20 +79,23 @@ pub(super) async fn call(
                 &client_id,
                 &key,
                 &token,
-                &request.id,
-                request.recipients,
+                id,
+                recipients,
             )
             .await
     }
     .await;
-    match result {
-        Ok(receipt) => Json(json!({"result":receipt})).into_response(),
-        Err(error) => (
-            StatusCode::BAD_REQUEST,
-            Json(json!({"error":error.to_string()})),
-        )
-            .into_response(),
+    let receipt = result?;
+    if receipt.rediscover {
+        state.mdns.browse_resident();
     }
+    if let Some(chat) = &receipt.chat {
+        let _ = state.events.send(crate::ws_event::WsEvent::broadcast(
+            crate::chat::events::WS_MESSAGE_UPDATED,
+            serde_json::json!([crate::chat::service::chat_to_json(chat)]).to_string(),
+        ));
+    }
+    Ok(receipt)
 }
 
 #[cfg(test)]

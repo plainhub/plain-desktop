@@ -195,6 +195,7 @@ impl ContentServer {
             .route("/chat/download", post(super::download_queue::call))
             .route("/chat/attachment", post(super::attachment_imports::call))
             .route("/chat/send", post(super::chat_delivery::call))
+            .route("/chat/service", post(super::chat_service::call))
             .route("/chat/store", post(super::chat_store_routes::call))
             .route("/files/write", post(super::file_writes::write))
             .route("/files/read", post(super::file_reads::read))

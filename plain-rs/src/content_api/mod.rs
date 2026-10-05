@@ -39,6 +39,7 @@ mod pairing;
 pub(crate) mod pairing_timeout;
 
 mod chat_delivery;
+mod chat_service;
 
 mod peer_transport;
 mod prewarm;
