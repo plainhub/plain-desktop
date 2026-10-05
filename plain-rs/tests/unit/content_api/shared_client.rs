@@ -272,3 +272,41 @@ async fn own_share_links_use_root_secret_ports_and_revocation_without_host() {
     );
     server.shutdown().await;
 }
+
+#[tokio::test]
+async fn root_candidates_preserve_foreign_self_unbound_and_deduplicated_endpoint_cases() {
+    let (_dir, server, _) = root();
+    let state = server.runtime_state();
+    let mut expected = card(8443);
+    expected.peer_info.ip = "10.0.0.9".into();
+    let foreign = candidates(&state, &expected, false).unwrap();
+    assert_eq!(foreign.len(), 1);
+    assert_eq!(foreign[0].host, "10.0.0.9");
+    assert_eq!(foreign[0].port, 8443);
+    expected.peer_info.id = "local".into();
+    state.prefs.set_user("https_port", 9999).unwrap();
+    let own = candidates(&state, &expected, false).unwrap();
+    assert_eq!(own[0].host, "127.0.0.1");
+    assert_eq!(own[0].port, 9999);
+    assert!(
+        own.iter()
+            .any(|link| link.host == "10.0.0.9" && link.port == 8443)
+    );
+    state.prefs.set_user("https_port", 0).unwrap();
+    let unbound = candidates(&state, &expected, false).unwrap();
+    assert_eq!(unbound.len(), 1);
+    assert_eq!(unbound[0].host, "10.0.0.9");
+    assert_eq!(unbound[0].port, 8443);
+    state.prefs.set_user("https_port", 9999).unwrap();
+    expected.peer_info.ip = "127.0.0.1".into();
+    expected.peer_info.port = 9999;
+    assert_eq!(
+        candidates(&state, &expected, false)
+            .unwrap()
+            .iter()
+            .filter(|link| link.host == "127.0.0.1" && link.port == 9999)
+            .count(),
+        1
+    );
+    server.shutdown().await;
+}
