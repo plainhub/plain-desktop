@@ -145,22 +145,7 @@ pub(super) async fn file(
             response.status()
         );
         super::peer_address::current(&state.db, &request.id, &request.expected)?;
-        let status = StatusCode::from_u16(response.status().as_u16())?;
-        let length = response.content_length();
-        let stream = futures_util::stream::unfold(
-            (response.bytes_stream(), permit, body_stop),
-            |(mut stream, permit, mut stop)| async move {
-                let chunk = tokio::select! { _=stop.changed()=>None,chunk=tokio::time::timeout(Duration::from_secs(30),stream.next())=>match chunk { Ok(chunk)=>chunk.map(|chunk|chunk.map_err(std::io::Error::other)), Err(_)=>Some(Err(std::io::Error::new(std::io::ErrorKind::TimedOut,"Peer file stalled"))) } };
-                chunk.map(|chunk| (chunk, (stream, permit, stop)))
-            },
-        );
-        let mut response = (status, Body::from_stream(stream)).into_response();
-        if let Some(length) = length {
-            response
-                .headers_mut()
-                .insert("content-length", length.to_string().parse()?);
-        }
-        Ok::<Response, anyhow::Error>(response)
+        streaming(response, permit, body_stop)
     };
     match tokio::select! {_=stop.changed()=>Err(anyhow::anyhow!("Core stopped")),result=work=>result}
     {
@@ -171,6 +156,28 @@ pub(super) async fn file(
         )
             .into_response(),
     }
+}
+pub(super) fn streaming(
+    response: reqwest::Response,
+    permit: tokio::sync::OwnedSemaphorePermit,
+    stop: tokio::sync::watch::Receiver<bool>,
+) -> Result<Response> {
+    let status = StatusCode::from_u16(response.status().as_u16())?;
+    let length = response.content_length();
+    let stream = futures_util::stream::unfold(
+        (response.bytes_stream(), permit, stop),
+        |(mut stream, permit, mut stop)| async move {
+            let chunk = tokio::select! { _=stop.changed()=>None,chunk=tokio::time::timeout(Duration::from_secs(30),stream.next())=>match chunk { Ok(chunk)=>chunk.map(|chunk|chunk.map_err(std::io::Error::other)), Err(_)=>Some(Err(std::io::Error::new(std::io::ErrorKind::TimedOut,"Peer file stalled"))) } };
+            chunk.map(|chunk| (chunk, (stream, permit, stop)))
+        },
+    );
+    let mut response = (status, Body::from_stream(stream)).into_response();
+    if let Some(length) = length {
+        response
+            .headers_mut()
+            .insert("content-length", length.to_string().parse()?);
+    }
+    Ok(response)
 }
 #[cfg(all(test, feature = "http_transport"))]
 #[path = "../../tests/unit/content_api/peer_lan.rs"]

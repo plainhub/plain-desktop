@@ -180,6 +180,8 @@ impl ContentServer {
             .route("/chat/pairing", post(super::pairing_runtime::call))
             .route("/chat/peer-graphql", post(super::peer_graphql::call))
             .route("/chat/lan/file", post(super::peer_lan::file))
+            .route("/shares/client", post(super::shared_client::call))
+            .route("/shares/client/file", post(super::shared_download::file))
             .route("/chat/transport", post(super::peer_transport::call))
             .route("/chat/prewarm", post(super::prewarm::call))
             .route("/chat/nearby-devices", post(super::nearby_devices::call))

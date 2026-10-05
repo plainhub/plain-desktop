@@ -23,6 +23,7 @@ pub mod attachment_imports;
 pub mod cacher;
 pub mod channel;
 pub mod content;
+pub mod share_card;
 pub mod delivery;
 
 pub mod enums;

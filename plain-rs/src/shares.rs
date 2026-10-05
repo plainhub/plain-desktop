@@ -1,3 +1,4 @@
+pub mod client;
 use crate::{
     db::{Db, ShareRow},
     prefs::Prefs,
