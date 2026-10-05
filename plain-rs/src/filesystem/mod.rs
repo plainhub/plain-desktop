@@ -1,11 +1,11 @@
 use chrono::{DateTime, Utc};
 use std::path::{Path, PathBuf};
-mod rename;
-pub mod tasks;
-pub mod writes;
 pub mod browse;
 pub mod deletion;
 pub mod record;
+mod rename;
+pub mod tasks;
+pub mod writes;
 pub type TransferProgress = dyn Fn(i64, i64) -> std::io::Result<()> + Send + Sync;
 
 /// Mirrors Go `model.File`: the GraphQL-side result of any "look at a
@@ -253,16 +253,42 @@ pub fn count_dir_entries(dir: &Path, show_hidden: bool) -> std::io::Result<usize
 /// index here — callers that need it call `media_scan::delete_by_path` +
 /// `media_scan::scan` themselves, the same way the Go handlers do.
 pub async fn rename(src: &Path, dst: &Path) -> std::io::Result<()> {
+    rename_with_checkpoint(src, dst, None, |_, _| async { Ok(()) })
+        .await
+        .map(|_| ())
+}
+
+pub async fn rename_with_checkpoint<F, Fut>(
+    src: &Path,
+    dst: &Path,
+    progress: Option<&TransferProgress>,
+    checkpoint: F,
+) -> std::io::Result<bool>
+where
+    F: FnOnce(PathBuf, PathBuf) -> Fut,
+    Fut: std::future::Future<Output = std::io::Result<()>>,
+{
     let from = src.to_path_buf();
     let to = dst.to_path_buf();
     let result = tokio::task::spawn_blocking(move || rename::no_replace(&from, &to))
         .await
         .map_err(std::io::Error::other)?;
     match result {
-        Err(error) if rename::copy_required(&error, false) => {
-            copy_and_remove(src, dst, false).await
+        Ok(()) => {
+            if let Some(callback) = progress {
+                let target = dst.to_owned();
+                let (bytes, items) = tokio::task::spawn_blocking(move || measure(&target))
+                    .await
+                    .map_err(std::io::Error::other)??;
+                callback(bytes, items)?;
+            }
+            Ok(false)
         }
-        result => result,
+        Err(error) if rename::copy_required(&error, false) => {
+            copy_remove_with_checkpoint(src, dst, false, progress, checkpoint).await?;
+            Ok(true)
+        }
+        Err(error) => Err(error),
     }
 }
 
@@ -300,6 +326,22 @@ pub async fn move_path_with_progress(
     overwrite: bool,
     progress: Option<&TransferProgress>,
 ) -> std::io::Result<PathBuf> {
+    move_path_with_checkpoint(src, dst, overwrite, progress, |_, _| async { Ok(()) })
+        .await
+        .map(|(path, _)| path)
+}
+
+pub async fn move_path_with_checkpoint<F, Fut>(
+    src: &Path,
+    dst: &Path,
+    overwrite: bool,
+    progress: Option<&TransferProgress>,
+    checkpoint: F,
+) -> std::io::Result<(PathBuf, bool)>
+where
+    F: FnOnce(PathBuf, PathBuf) -> Fut,
+    Fut: std::future::Future<Output = std::io::Result<()>>,
+{
     let src = clean(src);
     let info = tokio::fs::symlink_metadata(&src).await?;
     let resolved = resolve_destination(&src, dst, overwrite).await?;
@@ -328,15 +370,35 @@ pub async fn move_path_with_progress(
             if let (Some(callback), Some((bytes, items))) = (progress, totals) {
                 callback(bytes, items)?;
             }
-            Ok(resolved)
+            Ok((resolved, false))
         }
         Err(error) if rename::copy_required(&error, overwrite) => {
-            copy_to(&src, &resolved, overwrite, progress).await?;
-            remove(&src).await?;
-            Ok(resolved)
+            let destination =
+                copy_remove_with_checkpoint(&src, &resolved, overwrite, progress, checkpoint)
+                    .await?;
+            Ok((destination, true))
         }
         Err(error) => Err(error),
     }
+}
+
+async fn copy_remove_with_checkpoint<F, Fut>(
+    src: &Path,
+    dst: &Path,
+    overwrite: bool,
+    progress: Option<&TransferProgress>,
+    checkpoint: F,
+) -> std::io::Result<PathBuf>
+where
+    F: FnOnce(PathBuf, PathBuf) -> Fut,
+    Fut: std::future::Future<Output = std::io::Result<()>>,
+{
+    let src = clean(src);
+    let dst = clean(dst);
+    copy_to(&src, &dst, overwrite, progress).await?;
+    checkpoint(src.clone(), dst.clone()).await?;
+    remove(&src).await?;
+    Ok(dst)
 }
 
 async fn copy_and_remove(src: &Path, dst: &Path, overwrite: bool) -> std::io::Result<()> {

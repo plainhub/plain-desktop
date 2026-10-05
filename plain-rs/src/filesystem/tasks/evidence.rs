@@ -108,6 +108,47 @@ fn inspect(root: &Path, content: bool) -> Result<Evidence> {
 pub async fn verify(root: PathBuf, expected: Evidence, content: bool) -> Result<()> {
     tokio::task::spawn_blocking(move || verify_sync(&root, &expected, content)).await?
 }
+pub async fn verify_source_subset(root: PathBuf, expected: Evidence) -> Result<()> {
+    tokio::task::spawn_blocking(move || verify_source_subset_sync(&root, &expected)).await?
+}
+pub fn verify_source_subset_sync(root: &Path, expected: &Evidence) -> Result<()> {
+    let actual = inspect(root, true)?;
+    let expected = expected
+        .entries
+        .iter()
+        .map(|entry| (entry.path.as_path(), entry))
+        .collect::<std::collections::HashMap<_, _>>();
+    for entry in actual.entries {
+        let original = expected
+            .get(entry.path.as_path())
+            .ok_or_else(|| anyhow!("file recovery source changed"))?;
+        if entry.kind != original.kind
+            || entry.size != original.size
+            || entry.identity != original.identity
+            || entry.digest != original.digest
+        {
+            bail!("file recovery source changed");
+        }
+    }
+    Ok(())
+}
+pub fn verify_copy_pair(source: &Evidence, destination: &Evidence) -> Result<()> {
+    let mut source = source.entries.iter().collect::<Vec<_>>();
+    let mut destination = destination.entries.iter().collect::<Vec<_>>();
+    source.sort_by(|a, b| a.path.cmp(&b.path));
+    destination.sort_by(|a, b| a.path.cmp(&b.path));
+    if source.len() != destination.len()
+        || source.iter().zip(destination.iter()).any(|(src, dst)| {
+            src.path != dst.path
+                || src.kind != dst.kind
+                || src.size != dst.size
+                || src.digest != dst.digest
+        })
+    {
+        bail!("file changed during cross-volume move");
+    }
+    Ok(())
+}
 pub fn verify_sync(root: &Path, expected: &Evidence, content: bool) -> Result<()> {
     let actual = inspect(root, content)?;
     let mut expected = expected.clone();

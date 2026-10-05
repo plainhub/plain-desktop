@@ -147,6 +147,122 @@ async fn owned_services_execute_multi_op_copy_and_directory_move_with_exact_cumu
             .all(|pair| pair[1].done_bytes >= pair[0].done_bytes)
     );
 }
+
+fn interrupted_cross_volume_move(
+    id: &str,
+    source: &Path,
+    destination: &Path,
+    source_evidence: evidence::Evidence,
+    destination_evidence: evidence::Evidence,
+) -> FileTask {
+    let now = Utc::now();
+    FileTask {
+        id: id.into(),
+        client_id: "owner".into(),
+        kind: FileTaskType::Move,
+        title: "move".into(),
+        status: FileTaskStatus::Error,
+        error: "source cleanup interrupted".into(),
+        total_bytes: 8,
+        done_bytes: 8,
+        total_items: 2,
+        done_items: 2,
+        created_at: now,
+        updated_at: now,
+        completed_ops: vec![CompletedOp {
+            src: source.to_string_lossy().into_owned(),
+            dst: destination.to_string_lossy().into_owned(),
+            recovery: Some(Recovery {
+                id: "receipt".into(),
+                snapshot: serde_json::Value::Null,
+                final_op: true,
+                evidence: Some(destination_evidence),
+                source_evidence: Some(source_evidence),
+                source_cleanup_pending: true,
+            }),
+        }],
+        last_persist: None,
+    }
+}
+
+#[tokio::test]
+async fn cross_volume_move_recovery_finishes_partial_source_removal() {
+    let temp = tempfile::tempdir().unwrap();
+    let source = temp.path().join("source");
+    let destination = temp.path().join("destination");
+    std::fs::create_dir(&source).unwrap();
+    std::fs::create_dir(&destination).unwrap();
+    std::fs::write(source.join("removed"), b"gone").unwrap();
+    std::fs::write(source.join("remaining"), b"stay").unwrap();
+    std::fs::write(destination.join("removed"), b"gone").unwrap();
+    std::fs::write(destination.join("remaining"), b"stay").unwrap();
+    let source_evidence = evidence::capture(source.clone()).await.unwrap();
+    let destination_evidence = evidence::capture(destination.clone()).await.unwrap();
+    evidence::verify_copy_pair(&source_evidence, &destination_evidence).unwrap();
+    std::fs::remove_file(source.join("removed")).unwrap();
+
+    #[cfg(feature = "content_api")]
+    let store: Arc<dyn Store> = Arc::new(sqlite::SqliteStore(Arc::new(
+        crate::db::Db::open(&temp.path().join("recovery.db")).unwrap(),
+    )));
+    #[cfg(not(feature = "content_api"))]
+    let store: Arc<dyn Store> = Arc::new(MemoryStore::default());
+    let task = interrupted_cross_volume_move(
+        "partial-move",
+        &source,
+        &destination,
+        source_evidence,
+        destination_evidence,
+    );
+    store.put(&task).unwrap();
+    let service = Service::new(store, Arc::new(Recorder::default()));
+    service.recover("owner", &task.id).unwrap();
+    let recovered = terminal(&service, "owner", &task.id).await;
+    assert_eq!(recovered.status, FileTaskStatus::Done);
+    assert!(!source.exists());
+    assert_eq!(std::fs::read(destination.join("removed")).unwrap(), b"gone");
+    assert_eq!(
+        std::fs::read(destination.join("remaining")).unwrap(),
+        b"stay"
+    );
+    assert!(recovered.completed_ops[0].recovery.is_none());
+}
+
+#[tokio::test]
+async fn cross_volume_move_recovery_preserves_replaced_source_entries() {
+    let temp = tempfile::tempdir().unwrap();
+    let source = temp.path().join("source");
+    let destination = temp.path().join("destination");
+    std::fs::create_dir(&source).unwrap();
+    std::fs::create_dir(&destination).unwrap();
+    std::fs::write(source.join("file"), b"original").unwrap();
+    std::fs::write(destination.join("file"), b"original").unwrap();
+    let source_evidence = evidence::capture(source.clone()).await.unwrap();
+    let destination_evidence = evidence::capture(destination.clone()).await.unwrap();
+    std::fs::remove_file(source.join("file")).unwrap();
+    std::fs::write(source.join("file"), b"original").unwrap();
+
+    let store = Arc::new(MemoryStore::default());
+    let task = interrupted_cross_volume_move(
+        "replaced-move",
+        &source,
+        &destination,
+        source_evidence,
+        destination_evidence,
+    );
+    store.put(&task).unwrap();
+    let service = Service::new(store, Arc::new(Recorder::default()));
+    service.recover("owner", &task.id).unwrap();
+    let failed = terminal(&service, "owner", &task.id).await;
+    assert_eq!(failed.status, FileTaskStatus::Error);
+    assert!(failed.error.contains("source changed"));
+    assert!(failed.completed_ops[0].recovery.is_some());
+    assert_eq!(std::fs::read(source.join("file")).unwrap(), b"original");
+    assert_eq!(
+        std::fs::read(destination.join("file")).unwrap(),
+        b"original"
+    );
+}
 #[tokio::test]
 async fn storage_errors_are_not_admitted_and_invalid_sources_finish_with_error() {
     let store = Arc::new(MemoryStore::default());

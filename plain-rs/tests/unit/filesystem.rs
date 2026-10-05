@@ -72,6 +72,37 @@ async fn cross_device_pipeline_streams_a_complete_file_and_removes_source() {
     );
 }
 #[tokio::test]
+async fn copy_based_move_checkpoints_after_copy_and_before_source_removal() {
+    use std::sync::{
+        Arc,
+        atomic::{AtomicBool, Ordering},
+    };
+    let source_dir = tempfile::tempdir().unwrap();
+    let source = source_dir.path().join("source");
+    let destination = source_dir.path().join("destination");
+    std::fs::write(&source, b"cross-volume fixture").unwrap();
+    let observed = Arc::new(AtomicBool::new(false));
+    let checkpoint_observed = observed.clone();
+    let resolved = copy_remove_with_checkpoint(
+        &source,
+        &destination,
+        false,
+        None,
+        move |source, target| async move {
+            assert!(source.exists());
+            assert_eq!(std::fs::read(&target).unwrap(), b"cross-volume fixture");
+            checkpoint_observed.store(true, Ordering::SeqCst);
+            Ok(())
+        },
+    )
+    .await
+    .unwrap();
+    assert!(observed.load(Ordering::SeqCst));
+    assert_eq!(resolved, destination);
+    assert!(!source.exists());
+    assert_eq!(std::fs::read(resolved).unwrap(), b"cross-volume fixture");
+}
+#[tokio::test]
 async fn failed_copy_keeps_source_and_existing_destination() {
     let temp = tempfile::tempdir().unwrap();
     let source = temp.path().join("source");

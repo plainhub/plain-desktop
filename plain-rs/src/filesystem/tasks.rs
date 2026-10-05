@@ -7,7 +7,7 @@ use serde::{Deserialize, Serialize};
 use std::{
     collections::HashMap,
     future::Future,
-    path::Path,
+    path::{Path, PathBuf},
     pin::Pin,
     sync::{Arc, Mutex},
 };
@@ -49,6 +49,10 @@ pub struct Recovery {
     pub snapshot: serde_json::Value,
     pub final_op: bool,
     pub evidence: Option<evidence::Evidence>,
+    #[serde(default)]
+    pub source_evidence: Option<evidence::Evidence>,
+    #[serde(default)]
+    pub source_cleanup_pending: bool,
 }
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct FileTask {
@@ -397,6 +401,103 @@ fn acknowledge(id: &str, receipt_id: &str, active: &Active, store: &Arc<dyn Stor
     *task = next;
     Ok(())
 }
+fn record_completed(
+    task_id: &str,
+    completed: &CompletedOp,
+    active: &Active,
+    store: &Arc<dyn Store>,
+) -> Result<()> {
+    let mut tasks = active
+        .lock()
+        .map_err(|_| anyhow!("file task state poisoned"))?;
+    let task = tasks
+        .get_mut(task_id)
+        .ok_or_else(|| anyhow!("file task disappeared"))?;
+    task.completed_ops.push(completed.clone());
+    task.updated_at = Utc::now();
+    store.put(task)
+}
+fn set_source_cleanup_pending(
+    task_id: &str,
+    receipt_id: &str,
+    pending: bool,
+    active: &Active,
+    store: &Arc<dyn Store>,
+) -> Result<CompletedOp> {
+    let mut tasks = active
+        .lock()
+        .map_err(|_| anyhow!("file task state poisoned"))?;
+    let task = tasks
+        .get_mut(task_id)
+        .ok_or_else(|| anyhow!("file task disappeared"))?;
+    let mut next = task.clone();
+    let completed = next
+        .completed_ops
+        .iter_mut()
+        .find(|op| {
+            op.recovery
+                .as_ref()
+                .is_some_and(|recovery| recovery.id == receipt_id)
+        })
+        .ok_or_else(|| anyhow!("file recovery receipt disappeared"))?;
+    let recovery = completed
+        .recovery
+        .as_mut()
+        .ok_or_else(|| anyhow!("file recovery receipt disappeared"))?;
+    recovery.source_cleanup_pending = pending;
+    next.updated_at = Utc::now();
+    store.put(&next)?;
+    let completed = next
+        .completed_ops
+        .iter()
+        .find(|op| {
+            op.recovery
+                .as_ref()
+                .is_some_and(|recovery| recovery.id == receipt_id)
+        })
+        .cloned()
+        .ok_or_else(|| anyhow!("file recovery receipt disappeared"))?;
+    *task = next;
+    Ok(completed)
+}
+async fn persist_cross_volume_move_checkpoint(
+    source: PathBuf,
+    target: PathBuf,
+    task_id: String,
+    source_path: String,
+    snapshot: serde_json::Value,
+    final_op: bool,
+    active: Active,
+    store: Arc<dyn Store>,
+) -> std::io::Result<()> {
+    let source_evidence = evidence::capture(source.clone())
+        .await
+        .map_err(std::io::Error::other)?;
+    let target_evidence = evidence::capture(target.clone())
+        .await
+        .map_err(std::io::Error::other)?;
+    evidence::verify_copy_pair(&source_evidence, &target_evidence)
+        .map_err(std::io::Error::other)?;
+    let completed = CompletedOp {
+        src: source_path,
+        dst: target
+            .to_str()
+            .ok_or_else(|| std::io::Error::other("invalid destination encoding"))?
+            .into(),
+        recovery: Some(Recovery {
+            id: crate::utils::shortid::new_id(),
+            snapshot,
+            final_op,
+            evidence: Some(target_evidence),
+            source_evidence: Some(source_evidence.clone()),
+            source_cleanup_pending: true,
+        }),
+    };
+    record_completed(&task_id, &completed, &active, &store).map_err(std::io::Error::other)?;
+    evidence::verify_source_subset(source, source_evidence)
+        .await
+        .map_err(std::io::Error::other)
+}
 async fn recover(
     mut task: FileTask,
     active: &Active,
@@ -412,7 +513,13 @@ async fn recover(
     let result = async {
         task.status = FileTaskStatus::Running;
         save(&task, active, store, events)?;
-        for op in task.completed_ops.iter().filter(|op| op.recovery.is_some()) {
+        let recoverable = task
+            .completed_ops
+            .iter()
+            .filter(|op| op.recovery.is_some())
+            .cloned()
+            .collect::<Vec<_>>();
+        for mut op in recoverable {
             let paths = FileTaskOp {
                 src: op.src.clone(),
                 dst: op.dst.clone(),
@@ -421,6 +528,33 @@ async fn recover(
             hooks
                 .authorize(task.kind, std::slice::from_ref(&paths))
                 .await?;
+            let recovery = op.recovery.as_ref().unwrap().clone();
+            if recovery.source_cleanup_pending {
+                evidence::verify(
+                    Path::new(&op.dst).to_owned(),
+                    recovery
+                        .evidence
+                        .clone()
+                        .ok_or_else(|| anyhow!("file recovery evidence unavailable"))?,
+                    true,
+                )
+                .await?;
+                match tokio::fs::symlink_metadata(&op.src).await {
+                    Ok(_) => {
+                        evidence::verify_source_subset(
+                            Path::new(&op.src).to_owned(),
+                            recovery.source_evidence.clone().ok_or_else(|| {
+                                anyhow!("file recovery source evidence unavailable")
+                            })?,
+                        )
+                        .await?
+                    }
+                    Err(error) if error.kind() == std::io::ErrorKind::NotFound => {}
+                    Err(error) => return Err(error.into()),
+                }
+                super::remove(Path::new(&op.src)).await?;
+                op = set_source_cleanup_pending(&task.id, &recovery.id, false, active, store)?;
+            }
             evidence::verify(
                 Path::new(&op.dst).to_owned(),
                 op.recovery
@@ -432,8 +566,8 @@ async fn recover(
                 true,
             )
             .await?;
-            validate_receipt(task.kind, op).await?;
-            hooks.completed_receipt(task.kind, op).await?;
+            validate_receipt(task.kind, &op).await?;
+            hooks.completed_receipt(task.kind, &op).await?;
             acknowledge(&task.id, &op.recovery.as_ref().unwrap().id, active, store)?;
         }
         Ok::<_, anyhow::Error>(())
@@ -563,76 +697,118 @@ async fn execute(
                 }
                 Ok(())
             };
-            let destination = if request.rename {
-                super::rename(Path::new(&op.src), Path::new(&op.dst)).await?;
-                let target = op.dst.clone();
-                let (bytes, items) =
-                    tokio::task::spawn_blocking(move || super::measure(Path::new(&target)))
-                        .await??;
-                progress(bytes, items)?;
-                Path::new(&op.dst).to_owned()
+            let (destination, checkpointed_move) = if request.rename {
+                let checkpoint_active = active.clone();
+                let checkpoint_store = store.clone();
+                let checkpoint_task_id = task.id.clone();
+                let checkpoint_source = op.src.clone();
+                let checkpoint_snapshot = prepared.clone();
+                let checkpoint_final = operation_index + 1 == count;
+                let checkpointed = super::rename_with_checkpoint(
+                    Path::new(&op.src),
+                    Path::new(&op.dst),
+                    Some(&progress),
+                    move |source, target| {
+                        persist_cross_volume_move_checkpoint(
+                            source,
+                            target,
+                            checkpoint_task_id,
+                            checkpoint_source,
+                            checkpoint_snapshot,
+                            checkpoint_final,
+                            checkpoint_active,
+                            checkpoint_store,
+                        )
+                    },
+                )
+                .await?;
+                (Path::new(&op.dst).to_owned(), checkpointed)
             } else {
                 match task.kind {
-                    FileTaskType::Copy => {
+                    FileTaskType::Copy => (
                         super::copy_path_with_progress(
                             Path::new(&op.src),
                             Path::new(&op.dst),
                             op.overwrite,
                             Some(&progress),
                         )
-                        .await?
-                    }
+                        .await?,
+                        false,
+                    ),
                     FileTaskType::Move => {
-                        super::move_path_with_progress(
+                        let checkpoint_active = active.clone();
+                        let checkpoint_store = store.clone();
+                        let checkpoint_task_id = task.id.clone();
+                        let checkpoint_source = op.src.clone();
+                        let checkpoint_snapshot = prepared.clone();
+                        let checkpoint_final = operation_index + 1 == count;
+                        let (destination, checkpointed) = super::move_path_with_checkpoint(
                             Path::new(&op.src),
                             Path::new(&op.dst),
                             op.overwrite,
                             Some(&progress),
+                            move |source, target| {
+                                persist_cross_volume_move_checkpoint(
+                                    source,
+                                    target,
+                                    checkpoint_task_id,
+                                    checkpoint_source,
+                                    checkpoint_snapshot,
+                                    checkpoint_final,
+                                    checkpoint_active,
+                                    checkpoint_store,
+                                )
+                            },
                         )
-                        .await?
+                        .await?;
+                        (destination, checkpointed)
                     }
                 }
             };
-            let mut completed = CompletedOp {
-                src: op.src,
-                dst: destination
-                    .to_str()
-                    .ok_or_else(|| anyhow!("invalid destination encoding"))?
-                    .into(),
-                recovery: Some(Recovery {
-                    id: crate::utils::shortid::new_id(),
-                    snapshot: prepared,
-                    final_op: operation_index + 1 == count,
-                    evidence: None,
-                }),
-            };
-            let receipt_saved = {
-                let mut tasks = active
+            let completed = if checkpointed_move {
+                let recovery_id = active
                     .lock()
-                    .map_err(|_| anyhow!("file task state poisoned"))?;
-                let current = tasks
-                    .get_mut(&task.id)
-                    .ok_or_else(|| anyhow!("file task disappeared"))?;
-                current.completed_ops.push(completed.clone());
-                current.updated_at = Utc::now();
-                store.put(current)
+                    .map_err(|_| anyhow!("file task state poisoned"))?
+                    .get(&task.id)
+                    .and_then(|current| current.completed_ops.last())
+                    .and_then(|completed| completed.recovery.as_ref())
+                    .map(|recovery| recovery.id.clone())
+                    .ok_or_else(|| anyhow!("file move recovery receipt disappeared"))?;
+                set_source_cleanup_pending(&task.id, &recovery_id, false, active, store)?
+            } else {
+                let mut completed = CompletedOp {
+                    src: op.src,
+                    dst: destination
+                        .to_str()
+                        .ok_or_else(|| anyhow!("invalid destination encoding"))?
+                        .into(),
+                    recovery: Some(Recovery {
+                        id: crate::utils::shortid::new_id(),
+                        snapshot: prepared,
+                        final_op: operation_index + 1 == count,
+                        evidence: None,
+                        source_evidence: None,
+                        source_cleanup_pending: false,
+                    }),
+                };
+                record_completed(&task.id, &completed, active, store)?;
+                completed.recovery.as_mut().unwrap().evidence =
+                    Some(evidence::capture(destination).await?);
+                {
+                    let mut tasks = active
+                        .lock()
+                        .map_err(|_| anyhow!("file task state poisoned"))?;
+                    let current = tasks
+                        .get_mut(&task.id)
+                        .ok_or_else(|| anyhow!("file task disappeared"))?;
+                    *current
+                        .completed_ops
+                        .last_mut()
+                        .ok_or_else(|| anyhow!("file receipt disappeared"))? = completed.clone();
+                    store.put(current)?;
+                }
+                completed
             };
-            receipt_saved?;
-            completed.recovery.as_mut().unwrap().evidence =
-                Some(evidence::capture(destination).await?);
-            {
-                let mut tasks = active
-                    .lock()
-                    .map_err(|_| anyhow!("file task state poisoned"))?;
-                let current = tasks
-                    .get_mut(&task.id)
-                    .ok_or_else(|| anyhow!("file task disappeared"))?;
-                *current
-                    .completed_ops
-                    .last_mut()
-                    .ok_or_else(|| anyhow!("file receipt disappeared"))? = completed.clone();
-                store.put(current)?;
-            }
             validate_receipt(task.kind, &completed).await?;
             hooks.completed_receipt(task.kind, &completed).await?;
             acknowledge(
