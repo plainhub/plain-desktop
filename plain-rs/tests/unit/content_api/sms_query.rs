@@ -1,4 +1,25 @@
 use super::*;
+#[test]
+fn archived_conversation_search_matches_address_and_snippet_case_insensitively() {
+    let addresses = vec!["+1 555 0100".to_owned()];
+    assert!(archived_matches(
+        &addresses,
+        "Old project update",
+        "555 0100"
+    ));
+    assert!(archived_matches(
+        &addresses,
+        "Old project update",
+        "PROJECT"
+    ));
+    assert!(archived_matches(&addresses, "Old project update", "  "));
+    assert!(!archived_matches(
+        &addresses,
+        "Old project update",
+        "missing"
+    ));
+}
+
 fn db(dir: &tempfile::TempDir) -> Db {
     Db::open(&dir.path().join("db")).unwrap()
 }

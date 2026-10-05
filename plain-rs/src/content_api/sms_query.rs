@@ -38,7 +38,11 @@ pub(super) enum Request {
     ConversationCount {
         query: String,
     },
-    ArchivedConversations,
+    ArchivedConversations {
+        query: String,
+        offset: i32,
+        limit: i32,
+    },
     ConversationDate {
         id: String,
     },
@@ -270,6 +274,14 @@ fn addresses(mut candidates: Vec<String>, own: &[String]) -> Vec<String> {
         non_self = distinct;
     }
     non_self
+}
+fn archived_matches(addresses: &[String], snippet: &str, query: &str) -> bool {
+    let query = query.trim().to_lowercase();
+    query.is_empty()
+        || addresses
+            .iter()
+            .any(|address| address.to_lowercase().contains(&query))
+        || snippet.to_lowercase().contains(&query)
 }
 fn conversation_models(
     db: &Db,
@@ -511,7 +523,11 @@ async fn execute(state: &ServerState, request: Request) -> anyhow::Result<Value>
             };
             json!({"count":conversation_models(&state.db,rows,&query,0,i32::MAX)?.len()})
         }
-        Request::ArchivedConversations => {
+        Request::ArchivedConversations {
+            query,
+            offset,
+            limit,
+        } => {
             let records = state.db.archived_conversation_list()?;
             let ids = records
                 .iter()
@@ -542,9 +558,13 @@ async fn execute(state: &ServerState, request: Request) -> anyhow::Result<Value>
             let items=records.into_iter().filter_map(|record|by_id.get(&record.conversation_id).map(|row|{
                 let date=instant(&record.conversation_date).ok()?;
                 let snippet=if let Some(value)=facts["snippets"][&row.id].as_str(){value.to_owned()}else{row.snippet.clone()};
-                Some(json!({"id":row.id,"address":addresses(row.addresses.clone(),&[]).first().cloned().unwrap_or_default(),"addresses":addresses(row.addresses.clone(),&[]),"snippet":snippet,"date":date.to_rfc3339(),"messageCount":row.message_count,"read":row.read}))
+                let addresses = addresses(row.addresses.clone(),&[]);
+                if !archived_matches(&addresses, &snippet, &query) {
+                    return None;
+                }
+                Some(json!({"id":row.id,"address":addresses.first().cloned().unwrap_or_default(),"addresses":addresses,"snippet":snippet,"date":date.to_rfc3339(),"messageCount":row.message_count,"read":row.read}))
             }).flatten()).collect::<Vec<_>>();
-            json!({"items":items})
+            json!({"items":items.into_iter().skip(offset.max(0) as usize).take(limit.max(0) as usize).collect::<Vec<_>>()})
         }
         Request::ConversationDate { id } => {
             let rows = conversation_facts(state, Some(vec![id]), None).await?;
