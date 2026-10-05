@@ -49,11 +49,7 @@ impl ServerCertVerifier for PeerVerifier {
             .supported_schemes()
     }
 }
-pub(super) async fn connect(
-    url: &str,
-) -> anyhow::Result<
-    tokio_tungstenite::WebSocketStream<tokio_tungstenite::MaybeTlsStream<tokio::net::TcpStream>>,
-> {
+pub(super) fn config() -> anyhow::Result<rustls::ClientConfig> {
     let config = rustls::ClientConfig::builder_with_provider(Arc::new(
         rustls::crypto::ring::default_provider(),
     ))
@@ -61,6 +57,14 @@ pub(super) async fn connect(
     .dangerous()
     .with_custom_certificate_verifier(Arc::new(PeerVerifier))
     .with_no_client_auth();
+    Ok(config)
+}
+pub(super) async fn connect(
+    url: &str,
+) -> anyhow::Result<
+    tokio_tungstenite::WebSocketStream<tokio_tungstenite::MaybeTlsStream<tokio::net::TcpStream>>,
+> {
+    let config = config()?;
     let ws_config = tokio_tungstenite::tungstenite::protocol::WebSocketConfig::default()
         .max_message_size(Some(64 * 1024))
         .max_frame_size(Some(64 * 1024));

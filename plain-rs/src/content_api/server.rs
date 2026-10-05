@@ -35,6 +35,7 @@ pub(super) struct ServerState {
     pub(super) previews: Arc<crate::link_preview::Schedule>,
     pub(super) prewarmer: Arc<crate::chat::prewarm::Prewarmer>,
     pub(super) shared_batches: Arc<super::shared_batch::Runtime>,
+    pub(super) download_runtime: Arc<super::download_queue::Runtime>,
     pub(super) downloads: Arc<crate::chat::download_queue::Queue>,
     pub(super) attachments: Arc<crate::chat::attachment_imports::Imports>,
     pub(super) delivery: Arc<crate::chat::delivery::Delivery>,
@@ -50,7 +51,7 @@ pub(super) struct ServerState {
     pub(super) events: broadcast::Sender<WsEvent>,
     pub(super) stop: watch::Receiver<bool>,
     #[cfg(feature = "http_transport")]
-    bridge: Arc<super::http_bridge::HttpBridge>,
+    pub(super) bridge: Arc<super::http_bridge::HttpBridge>,
 }
 impl ServerState {
     pub(super) fn authenticated(&self, headers: &HeaderMap) -> bool {
@@ -108,7 +109,6 @@ impl ContentServer {
             path.parent().unwrap_or(Path::new(".")).to_path_buf(),
             attachments.clone(),
         ));
-        super::download_queue::start(&downloads, host.clone(), events.clone(), receiver.clone());
         let preview_events = events.clone();
         let previews = Arc::new(crate::link_preview::Schedule::new(
             (*db).clone(),
@@ -131,6 +131,7 @@ impl ContentServer {
             previews,
             prewarmer: Arc::new(crate::chat::prewarm::Prewarmer::default()),
             shared_batches: Arc::new(super::shared_batch::Runtime::default()),
+            download_runtime: Arc::new(super::download_queue::Runtime::default()),
             downloads,
             attachments,
             delivery: Arc::new(crate::chat::delivery::Delivery::new((*db).clone())),
@@ -151,6 +152,7 @@ impl ContentServer {
             #[cfg(feature = "http_transport")]
             bridge: bridge.clone(),
         };
+        super::download_queue::start(state.clone());
         super::shared_batch::start(state.clone());
         super::pairing_timeout::start(
             state.pairing.clone(),
@@ -196,6 +198,7 @@ impl ContentServer {
             .route("/chat/attachment", post(super::attachment_imports::call))
             .route("/chat/send", post(super::chat_delivery::call))
             .route("/chat/service", post(super::chat_service::call))
+            .route("/chat/ble-http", post(super::ble_http::call))
             .route("/chat/store", post(super::chat_store_routes::call))
             .route("/files/write", post(super::file_writes::write))
             .route("/files/read", post(super::file_reads::read))
@@ -244,10 +247,7 @@ impl ContentServer {
             return Err("Public HTTP server is already running".into());
         }
         let (stop, receiver) = watch::channel(false);
-        let peer_router = Router::new()
-            .route("/peer_graphql", post(super::peer_graphql::public))
-            .layer(DefaultBodyLimit::max(32 * 1024 * 1024))
-            .with_state(self.state.clone());
+        let peer_router = peer_routes(self.state.clone());
         let status_router = Router::new()
             .route("/status", get(super::peer_status::public))
             .with_state(super::peer_status::PublicState {
@@ -297,6 +297,14 @@ impl ContentServer {
         self.stop_public().await;
         #[cfg(feature = "http_transport")]
         self.state.shared_batches.shutdown(&self.state.host).await;
+        self.state.download_runtime.shutdown().await;
+        if self.state.host.connected() && self.state.host.needs_socket_cleanup() {
+            let _ = self
+                .state
+                .host
+                .call("peerTransportSocketCloseAll", serde_json::json!({}))
+                .await;
+        }
         let _ = self.stop.send(true);
         #[cfg(feature = "http_transport")]
         self.state.mdns.close(&self.state.host).await;
@@ -307,6 +315,31 @@ impl Drop for ContentServer {
     fn drop(&mut self) {
         let _ = self.stop.send(true);
         self.task.abort();
+    }
+}
+fn peer_routes(state: ServerState) -> Router {
+    Router::new()
+        .route("/peer_graphql", post(super::peer_graphql::public))
+        .route("/fs", get(super::peer_files::file))
+        .layer(DefaultBodyLimit::max(32 * 1024 * 1024))
+        .with_state(state)
+}
+pub(super) fn peer_router(state: ServerState) -> Router {
+    let routes = peer_routes(state.clone());
+    #[cfg(feature = "http_transport")]
+    {
+        routes.merge(
+            Router::new()
+                .fallback(super::http_bridge::handle)
+                .with_state(super::http_bridge::HttpBridgeState {
+                    bridge: state.bridge.clone(),
+                    stop: state.stop.clone(),
+                }),
+        )
+    }
+    #[cfg(not(feature = "http_transport"))]
+    {
+        routes
     }
 }
 async fn health(State(s): State<ServerState>, headers: HeaderMap) -> impl IntoResponse {

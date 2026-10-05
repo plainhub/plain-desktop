@@ -18,23 +18,32 @@ pub struct Received {
     pub channel: Option<DChannel>,
 }
 pub fn create(db: &Db, to_id: &str, channel_id: &str, content: &str) -> Result<DChat> {
-    if !to_id.is_empty() && !channel_id.is_empty() {
-        bail!("Ambiguous chat target");
-    }
-    let mut chat = DChat::new("me", to_id, channel_id, content);
-    if !channel_id.is_empty() || (!to_id.is_empty() && to_id != "local") {
-        chat.status = ChatStatus::Pending;
-    }
+    Ok(create_many(db, &[(to_id.to_owned(), channel_id.to_owned())], content)?.remove(0))
+}
+pub fn create_many(db: &Db, targets: &[(String, String)], content: &str) -> Result<Vec<DChat>> {
     messages::validate_content(content)?;
+    let mut chats = Vec::with_capacity(targets.len());
+    for (to, channel) in targets {
+        if !to.is_empty() && !channel.is_empty() {
+            bail!("Ambiguous chat target");
+        }
+        let mut chat = DChat::new("me", to, channel, content);
+        if !channel.is_empty() || (!to.is_empty() && to != "local") {
+            chat.status = ChatStatus::Pending;
+        }
+        chats.push(chat);
+    }
     let _files = db.app_files_lock()?;
     let refs = super::app_file_store::content_refs::collect(&serde_json::from_str(content)?);
     db.with_conn(|c| -> Result<()> {
         let tx=c.unchecked_transaction()?;
-        super::app_file_store::content_refs::claim(&tx,refs)?;
-        tx.execute("INSERT INTO chats(id,from_id,to_id,channel_id,content,status,status_data,created_at,updated_at) VALUES(?1,?2,?3,?4,?5,?6,?7,?8,?9)",params![chat.id,chat.from_id,chat.to_id,chat.channel_id,chat.content,chat.status,chat.status_data,chat.created_at,chat.updated_at])?;
-        tx.commit()?;Ok(())
+        for chat in &chats {
+            super::app_file_store::content_refs::claim(&tx,refs.clone())?;
+            tx.execute("INSERT INTO chats(id,from_id,to_id,channel_id,content,status,status_data,created_at,updated_at) VALUES(?1,?2,?3,?4,?5,?6,?7,?8,?9)",params![chat.id,chat.from_id,chat.to_id,chat.channel_id,chat.content,chat.status,chat.status_data,chat.created_at,chat.updated_at])?;
+        }
+        tx.commit()?; Ok(())
     })?;
-    Ok(chat)
+    Ok(chats)
 }
 pub fn receive(
     db: &Db,

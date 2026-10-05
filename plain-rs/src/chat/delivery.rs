@@ -41,7 +41,6 @@ impl Delivery {
         locks.insert(id.into(), Arc::downgrade(&lock));
         lock
     }
-    #[allow(clippy::too_many_arguments)]
     pub async fn send<T: PeerTransport>(
         &self,
         transport: &T,
@@ -51,9 +50,31 @@ impl Delivery {
         id: &str,
         recipients: Option<Vec<String>>,
     ) -> Result<Receipt> {
+        self.send_observed(
+            transport,
+            client_id,
+            signing_key,
+            url_token,
+            id,
+            recipients,
+            |_| {},
+        )
+        .await
+    }
+    #[allow(clippy::too_many_arguments)]
+    pub async fn send_observed<T: PeerTransport>(
+        &self,
+        transport: &T,
+        client_id: &str,
+        signing_key: &[u8],
+        url_token: &str,
+        id: &str,
+        recipients: Option<Vec<String>>,
+        pending: impl Fn(&DChat) + Send,
+    ) -> Result<Receipt> {
         let lock = self.message_lock(id);
         let _guard = lock.lock().await;
-        let Some(chat) = messages::get(&self.db, id)? else {
+        let Some(mut chat) = messages::get(&self.db, id)? else {
             return Ok(Receipt {
                 chat: None,
                 rediscover: false,
@@ -113,6 +134,13 @@ impl Delivery {
                     .collect(),
             }
         };
+        chat.status = super::enums::ChatStatus::Pending;
+        chat.updated_at = crate::db::now_iso();
+        self.db.with_conn(|connection|->Result<()> {
+            let changed=connection.execute("UPDATE chats SET status='PENDING',updated_at=?3 WHERE id=?1 AND content=?2 AND from_id='me'",rusqlite::params![chat.id,chat.content,chat.updated_at])?;
+            if changed!=1 {bail!("Message changed before delivery");}Ok(())
+        })?;
+        pending(&chat);
         let mut results = Vec::with_capacity(targets.len());
         let mut rediscover = false;
         for target in targets {

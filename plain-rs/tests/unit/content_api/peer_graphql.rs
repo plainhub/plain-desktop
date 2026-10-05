@@ -93,9 +93,9 @@ async fn encrypted_public_and_ble_rpc_share_auth_executor_and_receipts() {
                     result
                 }
                 "peerDeviceInfo" => json!({"name":"fixture tablet","deviceType":"TABLET"}),
-                "peerTransportCapabilities" => json!(["AWARE"]),
-                "peerTransportAttempt" => {
-                    let wire = request["params"]["body"].as_str().unwrap();
+                "peerTransportCapabilities" => json!(["BLE"]),
+                "peerTransportBleExchange" => {
+                    let wire = raw_ble_wire(&request["params"], &[7; 32]);
                     let parts: Vec<_> = wire.splitn(3, '|').collect();
                     assert!(crate::ed25519_verify(
                         &crate::base64_encode(&local_public_key),
@@ -118,7 +118,7 @@ async fn encrypted_public_and_ble_rpc_share_auth_executor_and_receipts() {
                     if let Some(done) = broadcast_done.take() {
                         let _ = done.send(());
                     }
-                    json!({"kind":"connected","response":{"data":{"channelSystemMessage":true}}})
+                    raw_ble_reply(json!({"data":{"channelSystemMessage":true}}), &[7; 32])
                 }
                 _ => panic!("Unexpected Host call: HTTPS must bypass httpExchange: {request}"),
             };
@@ -285,4 +285,21 @@ async fn encrypted_public_and_ble_rpc_share_auth_executor_and_receipts() {
     assert_eq!(result["result"]["status"], 403);
     server.shutdown().await;
     responder.abort();
+}
+
+#[cfg(feature = "http_transport")]
+fn raw_ble_wire(params: &Value, key: &[u8]) -> String {
+    let envelope: Value = serde_json::from_str(params["body"].as_str().unwrap()).unwrap();
+    String::from_utf8(
+        crate::xchacha_decrypt_raw(key, &crate::base64_decode(envelope["b"].as_str().unwrap()))
+            .unwrap(),
+    )
+    .unwrap()
+}
+#[cfg(feature = "http_transport")]
+fn raw_ble_reply(value: Value, key: &[u8]) -> Value {
+    let bytes = crate::xchacha_encrypt_raw(key, value.to_string().as_bytes()).unwrap();
+    json!({"s":200,"b":crate::base64_encode(&bytes)})
+        .to_string()
+        .into()
 }

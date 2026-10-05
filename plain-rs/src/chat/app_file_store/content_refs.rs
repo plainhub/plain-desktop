@@ -135,3 +135,26 @@ pub fn finish<T>(result: Result<T>, staged: Vec<(PathBuf, PathBuf)>) -> Result<T
         }
     }
 }
+
+pub(crate) fn release_unbound(
+    db: &crate::db::Db,
+    directory: &Path,
+    imports: BTreeMap<String, i64>,
+) -> Result<()> {
+    let _files = db.app_files_lock()?;
+    let mut staged = vec![];
+    let result=db.with_conn(|c| -> Result<()> {
+        let tx=c.unchecked_transaction()?;
+        let mut releases=BTreeMap::new();
+        for (id,count) in imports {
+            let refs: Option<i64>=tx.query_row("SELECT ref_count FROM app_files WHERE id=?1",[&id],|r|r.get(0)).optional()?;
+            let Some(refs)=refs else { continue };
+            let used:i64=tx.query_row("SELECT count(*) FROM chats c,json_tree(c.content) j WHERE j.type='text' AND ((json_extract(c.content,'$.type') IN ('FILES','IMAGES') AND j.key='uri' AND j.path LIKE '$.value.items[%]') OR (json_extract(c.content,'$.type')='TEXT' AND j.key='imageLocalPath' AND j.path LIKE '$.value.linkPreviews[%]')) AND substr(j.atom,1,4)='fid:' AND (CASE WHEN instr(substr(j.atom,5),'.')=0 THEN substr(j.atom,5) ELSE substr(j.atom,5,instr(substr(j.atom,5),'.')-1) END)=?1",[&id],|r|r.get(0))?;
+            let count=count.min(refs.saturating_sub(used)).max(0);
+            if count>0 { releases.insert(id,count); }
+        }
+        release(&tx,directory,releases,&mut staged)?;
+        tx.commit()?; Ok(())
+    });
+    finish(result, staged)
+}

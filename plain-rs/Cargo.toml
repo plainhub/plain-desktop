@@ -33,7 +33,7 @@ sqlite_browse = ["dep:rusqlite", "dep:serde_json"]
 prefs = ["dep:serde_json"]
 # Shared API stack for the desktop and NAS shells: GraphQL schemas,
 # axum HTTP/WS router, listener lifecycle, proxy, discovery and DLNA.
-content_api = ["dep:zip", "dep:tokio-tungstenite", "tokio-tungstenite/rustls-tls-webpki-roots", "dep:rustls", "dep:hmac", "dep:sha2_mac", "dep:anyhow", "chat", "library", "dep:regex", "dep:async-graphql", "dep:axum", "dep:reqwest", "reqwest/rustls-tls", "dep:futures-util", "dep:quick-xml", "dep:scraper", "tokio/net", "tokio/rt-multi-thread", "tokio/sync", "tokio/time", "tokio/macros", "dep:subtle"]
+content_api = ["dep:hyper", "dep:hyper-util", "dep:http-body-util", "dep:tokio-rustls", "dep:tower", "dep:zip", "dep:tokio-tungstenite", "tokio-tungstenite/rustls-tls-webpki-roots", "dep:rustls", "dep:hmac", "dep:sha2_mac", "dep:anyhow", "chat", "library", "dep:regex", "dep:async-graphql", "dep:axum", "dep:reqwest", "reqwest/rustls-tls", "dep:futures-util", "dep:quick-xml", "dep:scraper", "tokio/net", "tokio/rt-multi-thread", "tokio/sync", "tokio/time", "tokio/macros", "dep:subtle"]
 http_transport = ["dep:axum", "dep:axum-server", "dep:rustls", "dep:rustls-pemfile", "tokio/net", "tokio/rt", "tokio/sync", "tokio/time"]
 api = [
     "http_transport",
@@ -191,12 +191,20 @@ dashmap = { version = "5", optional = true }
 tower-http = { version = "0.5", features = ["cors", "compression-gzip", "compression-deflate", "trace"], optional = true }
 http = { version = "1", optional = true }
 
+
+hyper = { version = "1", features = ["client", "http1"], optional = true }
+hyper-util = { version = "0.1", features = ["tokio"], optional = true }
+http-body-util = { version = "0.1", optional = true }
+tokio-rustls = { version = "0.26", default-features = false, features = ["ring"], optional = true }
+
+tower = { version = "0.5", features = ["util"], optional = true }
+
 [dev-dependencies]
 reqwest = { version = "0.12", default-features = false, features = ["rustls-tls"] }
 serde_json = "1"
 tokio = { version = "1", features = ["full"] }
 futures = "0.3"
-tower = { version = "0.4", features = ["util"] }
+tower = { version = "0.5", features = ["util"] }
 tempfile = "3"
 base64 = "0.22"
 tokio-tungstenite = { version = "0.30", features = ["connect", "rustls-tls-webpki-roots"] }

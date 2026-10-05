@@ -12,27 +12,21 @@ use axum::{
 use serde::Deserialize;
 use serde_json::{Value, json};
 use std::time::Duration;
-fn notify(state: &ServerState) {
+pub(super) fn notify(state: &ServerState) {
     let _ = state
         .events
         .send(crate::ws_event::WsEvent::broadcast(10003, "".into()));
 }
-struct Pending<'a> {
-    router: &'a Router,
-    state: &'a ServerState,
-    ticket: Ticket,
+pub(super) struct Pending<'a> {
+    pub(super) router: &'a Router,
+    pub(super) state: &'a ServerState,
+    pub(super) ticket: Ticket,
 }
 impl Drop for Pending<'_> {
     fn drop(&mut self) {
         self.router.abort(&self.ticket);
         notify(self.state);
     }
-}
-#[derive(Deserialize)]
-#[serde(tag = "kind", rename_all = "camelCase", deny_unknown_fields)]
-enum Attempt {
-    Connected { response: Value },
-    Unavailable { error: String },
 }
 pub(super) async fn send(
     state: &ServerState,
@@ -111,27 +105,31 @@ pub(super) async fn send_checked(
                 }
             }
         }
-        let timeout_ms = 15_000;
-        let attempt=tokio::time::timeout(Duration::from_millis(timeout_ms),host.call("peerTransportAttempt",json!({"transport":pending.ticket.transport,"timeoutMs":timeout_ms,"peer":super::peer_address::view(peer),"channelId":channel_id,"key":crate::base64_encode(key),"body":body}))).await;
-        let outcome = match attempt {
-            Err(_) => Outcome::Unavailable {
-                error: "Transport attempt timed out after 15s".into(),
-            },
-            Ok(Err(error)) => return Err(error),
-            Ok(Ok(value)) => {
-                match serde_json::from_value::<Attempt>(value).map_err(|e| e.to_string())? {
-                    Attempt::Connected { response } => {
-                        validate()?;
-                        super::peer_address::current(&state.db, &peer.id, peer)
-                            .map_err(|e| e.to_string())?;
-                        router
-                            .finish(&pending.ticket, Outcome::Connected)
-                            .map_err(|e| e.to_string())?;
-                        return Ok(response);
-                    }
-                    Attempt::Unavailable { error } => Outcome::Unavailable { error },
+        let attempt = tokio::time::timeout(Duration::from_secs(15), async {
+            match pending.ticket.transport {
+                TransportType::Aware => {
+                    super::peer_sdk::aware_send(state, peer, channel_id, key, body).await
                 }
+                TransportType::Ble => {
+                    super::peer_sdk::ble_send(state, peer, channel_id, key, body).await
+                }
+                TransportType::Lan => unreachable!(),
             }
+        })
+        .await;
+        let outcome = match attempt {
+            Err(_) => return Err("SDK response timed out; delivery is unconfirmed".into()),
+            Ok(Ok(response)) => {
+                validate()?;
+                super::peer_address::current(&state.db, &peer.id, peer)
+                    .map_err(|e| e.to_string())?;
+                router
+                    .finish(&pending.ticket, Outcome::Connected)
+                    .map_err(|e| e.to_string())?;
+                return Ok(response);
+            }
+            Ok(Err(super::peer_lan::Failure::Fatal(error))) => return Err(error),
+            Ok(Err(super::peer_lan::Failure::Unavailable(error))) => Outcome::Unavailable { error },
         };
         let step = router
             .finish(&pending.ticket, outcome)
@@ -167,6 +165,9 @@ pub(super) enum Request {
         ticket: Ticket,
     },
     SnapshotTransfers,
+    AwareConfig {
+        id: String,
+    },
 }
 pub(super) async fn call(
     State(state): State<ServerState>,
@@ -206,6 +207,13 @@ pub(super) async fn call(
             }
             Request::FinishDownload { ticket, outcome } => {
                 serde_json::to_value(state.transport.finish(&ticket, outcome)?)?
+            }
+            Request::AwareConfig { id } => {
+                let peer=peers::get(&state.db,&id)?.ok_or_else(||anyhow::anyhow!("Unknown peer"))?;
+                let key=crate::base64_decode(&peer.key);
+                anyhow::ensure!(key.is_empty() || key.len()==32,"Invalid Aware pairing key");
+                let actor=state.prefs.get::<String>("client_id")?.filter(|s|!s.is_empty()).ok_or_else(||anyhow::anyhow!("Missing local identity"))?;
+                json!({"pmk":if key.is_empty(){Value::Null}else{json!(crate::base64_encode(&key))},"isClient":actor<id,"localPort":state.prefs.get_user::<u16>("https_port")?.unwrap_or(8443)})
             }
             Request::SnapshotTransfers => serde_json::to_value(state.transport.active())?,
             Request::Abort { ticket } => {

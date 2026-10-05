@@ -119,10 +119,15 @@ async fn signed_invites_ack_keys_and_deleted_broadcast_use_rust_snapshot() {
             let req = rx.recv().await.unwrap();
             let result = match req["method"].as_str().unwrap() {
                 "peerDeviceInfo" => json!({"name":"Actual tablet","deviceType":"TABLET"}),
-                "peerTransportCapabilities" => json!(["AWARE"]),
-                "peerTransportAttempt" => {
+                "peerTransportCapabilities" => json!(["BLE"]),
+                "peerTransportBleExchange" => {
                     let p = &req["params"];
-                    let body = p["body"].as_str().unwrap();
+                    let key = if p["peer"]["id"] == "paired" {
+                        vec![8; 32]
+                    } else {
+                        crate::base64_decode(&channel_key)
+                    };
+                    let body = raw_ble_wire(p, &key);
                     let pieces: Vec<_> = body.splitn(3, '|').collect();
                     let public = crate::base64_encode(
                         &super::super::peer_wire::signing_keypair(&prefs).unwrap()[32..],
@@ -140,14 +145,15 @@ async fn signed_invites_ack_keys_and_deleted_broadcast_use_rust_snapshot() {
                         assert_eq!(payload["memberPeers"][0]["deviceType"], "TABLET");
                     }
                     if p["peer"]["id"] == "paired" {
-                        assert_eq!(p["key"], crate::base64_encode(&[8; 32]));
-                        assert_eq!(p["channelId"], "");
+                        assert_eq!(p["headers"]["c-cid"], "");
                     } else {
-                        assert_eq!(p["key"], channel_key);
-                        assert_eq!(p["channelId"], channel_id);
+                        assert_eq!(p["headers"]["c-cid"], channel_id);
                     }
                     attempts.push(wire["variables"]["type"].as_str().unwrap().to_owned());
-                    json!({"kind":"connected","response":{"data":{"channelSystemMessage": attempts.len()!=1}}})
+                    raw_ble_reply(
+                        json!({"data":{"channelSystemMessage":attempts.len()!=1}}),
+                        &key,
+                    )
                 }
                 method => panic!("Unexpected {method}"),
             };
@@ -259,7 +265,7 @@ async fn stale_device_facts_and_decline_ack_cannot_act_on_replacement() {
         .host
         .reply(
             generation,
-            json!({"id":capabilities["id"],"result":["AWARE"]}),
+            json!({"id":capabilities["id"],"result":["BLE"]}),
         )
         .unwrap();
     let attempt = rx.recv().await.unwrap();
@@ -272,7 +278,7 @@ async fn stale_device_facts_and_decline_ack_cannot_act_on_replacement() {
         },
     )
     .unwrap();
-    state.host.reply(generation,json!({"id":attempt["id"],"result":{"kind":"connected","response":{"data":{"channelSystemMessage":true}}}})).unwrap();
+    state.host.reply(generation,json!({"id":attempt["id"],"result":raw_ble_reply(json!({"data":{"channelSystemMessage":true}}),&[8;32])})).unwrap();
     assert!(
         call.await
             .unwrap()
@@ -325,7 +331,7 @@ async fn peer_key_changes_before_physical_send_are_rejected_and_accept_leave_dec
     peers::save(&state.db, &[peer], crate::db::chat_store::SaveMode::Update).unwrap();
     state
         .host
-        .reply(generation, json!({"id":cap["id"],"result":["AWARE"]}))
+        .reply(generation, json!({"id":cap["id"],"result":["BLE"]}))
         .unwrap();
     assert_eq!(
         call.await.unwrap().unwrap()["response"]["errors"][0]["message"],
@@ -338,10 +344,9 @@ async fn peer_key_changes_before_physical_send_are_rejected_and_accept_leave_dec
             let req = rx.recv().await.unwrap();
             let result = match req["method"].as_str().unwrap() {
                 "peerDeviceInfo" => json!({"name":"Actual tablet","deviceType":"TABLET"}),
-                "peerTransportCapabilities" => json!(["AWARE"]),
-                "peerTransportAttempt" => {
-                    assert_eq!(req["params"]["key"], crate::base64_encode(&[9; 32]));
-                    let body = req["params"]["body"].as_str().unwrap();
+                "peerTransportCapabilities" => json!(["BLE"]),
+                "peerTransportBleExchange" => {
+                    let body = raw_ble_wire(&req["params"], &[9; 32]);
                     let wire: Value =
                         serde_json::from_str(body.splitn(3, '|').nth(2).unwrap()).unwrap();
                     let kind = wire["variables"]["type"].as_str().unwrap().to_string();
@@ -353,7 +358,7 @@ async fn peer_key_changes_before_physical_send_are_rejected_and_accept_leave_dec
                         assert_eq!(payload["name"], "Actual tablet");
                     }
                     kinds.push(kind);
-                    json!({"kind":"connected","response":{"data":{"channelSystemMessage":true}}})
+                    raw_ble_reply(json!({"data":{"channelSystemMessage":true}}), &[9; 32])
                 }
                 method => panic!("Unexpected {method}"),
             };
@@ -411,4 +416,21 @@ async fn peer_key_changes_before_physical_send_are_rejected_and_accept_leave_dec
     );
     state.host.disconnect(generation);
     server.shutdown().await;
+}
+
+#[cfg(feature = "http_transport")]
+fn raw_ble_wire(params: &Value, key: &[u8]) -> String {
+    let envelope: Value = serde_json::from_str(params["body"].as_str().unwrap()).unwrap();
+    String::from_utf8(
+        crate::xchacha_decrypt_raw(key, &crate::base64_decode(envelope["b"].as_str().unwrap()))
+            .unwrap(),
+    )
+    .unwrap()
+}
+#[cfg(feature = "http_transport")]
+fn raw_ble_reply(value: Value, key: &[u8]) -> Value {
+    let bytes = crate::xchacha_encrypt_raw(key, value.to_string().as_bytes()).unwrap();
+    json!({"s":200,"b":crate::base64_encode(&bytes)})
+        .to_string()
+        .into()
 }

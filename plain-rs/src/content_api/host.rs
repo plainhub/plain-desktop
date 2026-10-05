@@ -11,6 +11,7 @@ type Reply = Result<Value, String>;
 struct State {
     generation: u64,
     next_id: u64,
+    peer_sockets: bool,
     sender: Option<mpsc::Sender<Value>>,
     pending: HashMap<u64, oneshot::Sender<Reply>>,
 }
@@ -38,6 +39,9 @@ impl Drop for Pending {
     }
 }
 impl Host {
+    pub(super) fn needs_socket_cleanup(&self) -> bool {
+        self.state.lock().unwrap().peer_sockets
+    }
     pub(super) fn connected(&self) -> bool {
         self.state.lock().unwrap().sender.is_some()
     }
@@ -49,6 +53,7 @@ impl Host {
         }
         state.generation += 1;
         state.sender = Some(sender);
+        state.peer_sockets = false;
         let generation = state.generation;
         drop(state);
         self.ready.notify_waiters();
@@ -91,6 +96,13 @@ impl Host {
         Ok(())
     }
     pub async fn call(&self, method: &str, params: Value) -> Reply {
+        self.call_inner(method, params, Some(Duration::from_secs(25)))
+            .await
+    }
+    pub(super) async fn call_wait(&self, method: &str, params: Value) -> Reply {
+        self.call_inner(method, params, None).await
+    }
+    async fn call_inner(&self, method: &str, params: Value, timeout: Option<Duration>) -> Reply {
         let _permit = self
             .capacity
             .try_acquire()
@@ -103,6 +115,9 @@ impl Host {
             let request = {
                 let mut state = self.state.lock().unwrap();
                 if let Some(sender) = state.sender.clone() {
+                    if method == "peerTransportSocketOpen" {
+                        state.peer_sockets = true;
+                    }
                     state.next_id += 1;
                     let id = state.next_id;
                     let (reply, receiver) = oneshot::channel();
@@ -130,10 +145,13 @@ impl Host {
             state: self.state.clone(),
             id,
         };
-        tokio::time::timeout(Duration::from_secs(25), receiver)
-            .await
-            .map_err(|_| "host request timed out")?
-            .map_err(|_| "host reply canceled")?
+        match timeout {
+            Some(timeout) => tokio::time::timeout(timeout, receiver)
+                .await
+                .map_err(|_| "host request timed out")?,
+            None => receiver.await,
+        }
+        .map_err(|_| "host reply canceled")?
     }
 }
 

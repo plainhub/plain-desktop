@@ -55,3 +55,5 @@ pub mod nearby_devices;
 pub mod peer_status;
 
 pub mod message_commands;
+
+pub mod share_send;

@@ -64,6 +64,14 @@ pub(super) async fn deliver(
     id: &str,
     recipients: Option<Vec<String>>,
 ) -> anyhow::Result<crate::chat::delivery::Receipt> {
+    deliver_observed(state, id, recipients, |_| {}).await
+}
+pub(super) async fn deliver_observed(
+    state: &ServerState,
+    id: &str,
+    recipients: Option<Vec<String>>,
+    pending: impl Fn(&crate::db::DChat) + Send + Sync,
+) -> anyhow::Result<crate::chat::delivery::Receipt> {
     let result = async {
         let client_id = state
             .prefs
@@ -74,13 +82,20 @@ pub(super) async fn deliver(
         let token = state.prefs.get::<String>("url_token")?.unwrap_or_default();
         state
             .delivery
-            .send(
+            .send_observed(
                 &Transport(state.clone()),
                 &client_id,
                 &key,
                 &token,
                 id,
                 recipients,
+                |chat| {
+                    pending(chat);
+                    let _ = state.events.send(crate::ws_event::WsEvent::broadcast(
+                        crate::chat::events::WS_MESSAGE_UPDATED,
+                        serde_json::json!([crate::chat::service::chat_to_json(chat)]).to_string(),
+                    ));
+                },
             )
             .await
     }

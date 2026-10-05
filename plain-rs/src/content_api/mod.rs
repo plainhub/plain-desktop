@@ -70,3 +70,16 @@ mod peer_status;
 
 mod status_socket;
 mod status_outgoing;
+
+mod peer_sdk;
+
+mod peer_download;
+
+mod chat_actions;
+
+mod peer_files;
+mod ble_http;
+
+#[cfg(test)]
+#[path = "../../tests/unit/content_api/chat_flow.rs"]
+mod chat_flow;

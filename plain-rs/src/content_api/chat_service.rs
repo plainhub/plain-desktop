@@ -1,5 +1,5 @@
 use super::server::ServerState;
-use crate::{chat::message_commands, db::DChat};
+use crate::chat::message_commands;
 use anyhow::Result;
 use axum::{
     Json,
@@ -12,6 +12,54 @@ use serde_json::{Value, json};
 #[derive(Deserialize)]
 #[serde(tag = "action", rename_all = "camelCase", deny_unknown_fields)]
 pub(super) enum Request {
+    Retry {
+        id: String,
+    },
+    Items {
+        target: String,
+        offset: i64,
+        limit: i64,
+        query: String,
+    },
+    Send {
+        target: String,
+        content: String,
+    },
+    SendText {
+        targets: Vec<String>,
+        text: String,
+    },
+    SendMany {
+        targets: Vec<String>,
+        content: String,
+    },
+    Share {
+        targets: Vec<String>,
+        uris: Vec<String>,
+        text: Option<String>,
+        caption: Option<String>,
+        images: Option<bool>,
+        normalize: bool,
+    },
+    ShareContent {
+        id: String,
+    },
+    Folder {
+        targets: Vec<String>,
+        path: String,
+        name: String,
+        expires_at: Option<String>,
+    },
+    Forward {
+        id: String,
+        target: String,
+    },
+    Delete {
+        ids: Vec<String>,
+    },
+    DeleteQuery {
+        query: String,
+    },
     Create {
         target: String,
         content: String,
@@ -33,13 +81,7 @@ pub(super) enum Request {
         target: String,
     },
 }
-fn committed(state: &ServerState, chat: &DChat, event: i32) {
-    state.previews.request(&chat.id);
-    let _ = state.events.send(crate::ws_event::WsEvent::broadcast(
-        event,
-        json!([crate::chat::service::chat_to_json(chat)]).to_string(),
-    ));
-}
+use super::chat_actions::committed;
 pub(super) async fn call(
     State(state): State<ServerState>,
     headers: HeaderMap,
@@ -53,6 +95,94 @@ pub(super) async fn call(
     }
     let work: Result<Value> = async {
         match request {
+            Request::Retry { id } => Ok(serde_json::to_value(
+                super::chat_actions::retry(&state, id).await?,
+            )?),
+            Request::Items {
+                target,
+                offset,
+                limit,
+                query,
+            } => {
+                let (peer, channel) = message_commands::target(&target)?;
+                let text = crate::utils::search_dsl::parse(&query)
+                    .into_iter()
+                    .find(|f| f.name == "text")
+                    .map(|f| f.value.trim().to_string())
+                    .unwrap_or_default();
+                let mut value = crate::db::chat_store::messages::list(
+                    &state.db,
+                    &crate::db::chat_store::messages::Filter {
+                        peer: channel.is_empty().then_some(peer),
+                        channel: (!channel.is_empty()).then_some(channel),
+                        text,
+                        offset,
+                        limit: Some(limit),
+                        descending: true,
+                        latest: false,
+                        count_only: false,
+                    },
+                )?;
+                if let Some(rows) = value.as_array_mut() {
+                    rows.reverse();
+                }
+                Ok(value)
+            }
+            Request::Send { target, content } => Ok(serde_json::to_value(
+                super::chat_actions::send(&state, &target, &content).await?,
+            )?),
+            Request::SendText { targets, text } => Ok(serde_json::to_value(
+                super::chat_actions::send_text(&state, targets, &text).await?,
+            )?),
+            Request::SendMany { targets, content } => Ok(serde_json::to_value(
+                super::chat_actions::send_many(&state, targets, content).await?,
+            )?),
+            Request::Share {
+                targets,
+                uris,
+                text,
+                caption,
+                images,
+                normalize,
+            } => {
+                super::chat_actions::share(&state, targets, uris, text, caption, images, normalize)
+                    .await
+            }
+            Request::ShareContent { id } => super::chat_actions::share_content(&state, &id).await,
+            Request::Folder {
+                targets,
+                path,
+                name,
+                expires_at,
+            } => {
+                if path.trim().is_empty() {
+                    return Ok(json!({"ok":false,"chats":[]}));
+                }
+                let token = crate::base64_encode(&crate::random_bytes(32));
+                let service = crate::shares::Service::new(state.db.clone(), state.prefs.clone());
+                let row = service.create(name, vec![path], token, true, expires_at)?;
+                let content = super::chat_actions::share_content(&state, &row.id)
+                    .await?
+                    .to_string();
+                let rows = super::chat_actions::send_many(&state, targets, content).await?;
+                Ok(json!({"ok":true,"chats":rows}))
+            }
+            Request::Forward { id, target } => {
+                let row = crate::db::chat_store::messages::get(&state.db, &id)?
+                    .ok_or_else(|| anyhow::anyhow!("Message unavailable"))?;
+                Ok(serde_json::to_value(
+                    super::chat_actions::send(&state, &target, &row.content).await?,
+                )?)
+            }
+            Request::Delete { ids } => Ok(json!(super::chat_actions::delete(&state, ids)?)),
+            Request::DeleteQuery { query } => {
+                let ids = if query.trim().is_empty() {
+                    vec![]
+                } else {
+                    crate::db::chat_store::messages::ids(&state.db, &query)?
+                };
+                Ok(json!(super::chat_actions::delete(&state, ids)?))
+            }
             Request::Create { target, content } => {
                 let db = state.db.clone();
                 let chat = tokio::task::spawn_blocking(move || {

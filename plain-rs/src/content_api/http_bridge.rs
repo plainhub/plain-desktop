@@ -18,6 +18,9 @@ use std::{
 };
 use tokio::sync::{OwnedSemaphorePermit, Semaphore, mpsc, oneshot, watch};
 
+#[derive(Clone)]
+pub(super) struct RemoteHost(pub String);
+
 const CHUNK: usize = 64 * 1024;
 struct Pending {
     attached: oneshot::Sender<()>,
@@ -226,7 +229,7 @@ pub async fn handle(
     } else {
         Duration::from_secs(30)
     };
-    let metadata = json!({"kind":"request","method":if request.method()==axum::http::Method::HEAD {"GET"}else{request.method().as_str()},"scheme":scheme.0.0,"uri":request.uri().to_string(),"remoteHost":remote.ip().to_string(),"webSocket":upgrade.is_some(),"headers":request.headers().iter().map(|(k,v)|(k.as_str().to_string(),v.to_str().unwrap_or_default().to_string())).collect::<HashMap<_,_>>()});
+    let metadata = json!({"kind":"request","method":if request.method()==axum::http::Method::HEAD {"GET"}else{request.method().as_str()},"scheme":scheme.0.0,"uri":request.uri().to_string(),"remoteHost":request.extensions().get::<RemoteHost>().map(|host|host.0.clone()).unwrap_or_else(||remote.ip().to_string()),"webSocket":upgrade.is_some(),"headers":request.headers().iter().map(|(k,v)|(k.as_str().to_string(),v.to_str().unwrap_or_default().to_string())).collect::<HashMap<_,_>>()});
     let multipart = request
         .headers()
         .get("content-type")
