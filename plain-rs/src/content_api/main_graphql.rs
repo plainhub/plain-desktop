@@ -66,7 +66,7 @@ async fn execute(
 
     let request = if token_mode {
         let decrypted =
-            crate::crypto::chacha20_decrypt(&key, &body).ok_or(StatusCode::UNAUTHORIZED)?;
+            crate::crypto::xchacha_decrypt_raw(&key, &body).ok_or(StatusCode::UNAUTHORIZED)?;
         if decrypted.is_empty() {
             return Err(StatusCode::UNAUTHORIZED);
         }
@@ -95,7 +95,7 @@ async fn execute(
         .as_bytes()
         .to_vec();
     let mut response = if token_mode {
-        let encrypted = crate::crypto::chacha20_encrypt(&key, &result)
+        let encrypted = crate::crypto::xchacha_encrypt_raw(&key, &result)
             .ok_or(StatusCode::INTERNAL_SERVER_ERROR)?;
         encrypted.into_response()
     } else {
@@ -168,7 +168,7 @@ pub(super) async fn init(
     let token = facts["tokenKey"].as_str().unwrap_or_default();
     let key = crate::utils::base64::base64_decode(token);
     let token_authenticated =
-        key.len() == 32 && crate::crypto::chacha20_decrypt(&key, &body).is_some();
+        key.len() == 32 && crate::crypto::xchacha_decrypt_raw(&key, &body).is_some();
     let response = match state
         .host
         .call(
