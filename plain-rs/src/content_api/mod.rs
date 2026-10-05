@@ -11,9 +11,9 @@ mod image_index;
 
 mod image_index_host;
 
-mod file_tasks;
-mod file_task_walk;
 mod file_task_media;
+mod file_task_walk;
+mod file_tasks;
 
 #[cfg(feature = "http_transport")]
 mod http_bridge;
@@ -22,28 +22,36 @@ mod http_bridge_file;
 
 mod file_writes;
 
-mod file_reads;
 mod file_access;
+mod file_reads;
 
-mod services;
 mod file_mutation_routes;
+mod services;
 
-mod chat_store_routes;
-mod channel_outgoing;
 mod channel_delivery;
+mod channel_outgoing;
 mod channel_runtime;
+mod chat_store_routes;
 mod discovery_advertisement;
+mod guest_graphql;
 mod mdns_runtime;
-mod peer_wire;
+mod notification_actions;
 mod pairing;
 pub(crate) mod pairing_timeout;
+mod peer_wire;
+mod provider_deletes;
+mod provider_plan;
+mod request_replay;
+mod sms_query;
+mod sms_state;
+mod system_providers;
 
 mod chat_delivery;
 mod chat_service;
 
+mod nearby_http;
 mod peer_transport;
 mod prewarm;
-mod nearby_http;
 
 mod attachment_imports;
 
@@ -51,14 +59,14 @@ mod download_queue;
 
 mod link_preview;
 
-mod peer_query;
 mod peer_address;
+mod peer_graphql;
 mod peer_lan;
+mod peer_query;
+mod shared_batch;
 mod shared_client;
 mod shared_download;
 mod shared_zip;
-mod shared_batch;
-mod peer_graphql;
 
 mod pairing_runtime;
 
@@ -68,8 +76,8 @@ mod ble_pairing;
 
 mod peer_status;
 
-mod status_socket;
 mod status_outgoing;
+mod status_socket;
 
 mod peer_sdk;
 
@@ -77,8 +85,8 @@ mod peer_download;
 
 mod chat_actions;
 
-mod peer_files;
 mod ble_http;
+mod peer_files;
 
 #[cfg(test)]
 #[path = "../../tests/unit/content_api/chat_flow.rs"]

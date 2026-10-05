@@ -10,6 +10,7 @@ use serde_json::json;
 #[derive(Deserialize)]
 #[serde(tag = "action", rename_all = "camelCase", deny_unknown_fields)]
 pub(super) enum Request {
+    RecoverDeletions,
     Rename {
         path: String,
         name: String,
@@ -32,6 +33,11 @@ pub(super) async fn mutate(
         return StatusCode::UNAUTHORIZED.into_response();
     }
     let result = match request {
+        Request::RecoverDeletions => state
+            .files
+            .recover_deletions()
+            .await
+            .map(|count| json!({"count":count})),
         Request::Recover { client_id, id } => {
             state.files.recover(client_id, id).await.map(|task| {
                 task.map(|task| json!({"id": task.id, "status": task.status}))

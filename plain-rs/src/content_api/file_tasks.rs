@@ -14,7 +14,9 @@ use std::{
     sync::{Arc, Mutex},
 };
 use tokio::sync::broadcast;
+mod deletion_recovery;
 pub struct FileTasks {
+    deletion_lock: tokio::sync::Mutex<()>,
     db: Arc<Db>,
     events: broadcast::Sender<WsEvent>,
     service: Mutex<Option<Arc<Service>>>,
@@ -37,6 +39,7 @@ impl FileTasks {
                 prefs,
             }),
             db,
+            deletion_lock: tokio::sync::Mutex::new(()),
             events,
             service: Mutex::new(None),
         }

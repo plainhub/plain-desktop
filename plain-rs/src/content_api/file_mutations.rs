@@ -67,6 +67,7 @@ impl FileTasks {
         Ok(Some(destination))
     }
     pub async fn delete(&self, path: String) -> Result<Outcome> {
+        let _guard = self.deletion_lock.lock().await;
         crate::filesystem::deletion::validate(std::path::Path::new(&path))?;
         self.hooks
             .call("fileTaskAuthorize", json!({"paths":[path]}))
@@ -96,7 +97,35 @@ impl FileTasks {
         self.hooks
             .call("fileTaskAuthorize", json!({"paths":[root]}))
             .await?;
+        let intent = deletion_recovery::Intent {
+            id: crate::short_uuid::short_uuid(),
+            path,
+            root,
+            planned: plan.paths(),
+            snapshot,
+            outcome: None,
+        };
+        intent.save(&self.db)?;
         let outcome = tokio::task::spawn_blocking(move || plan.execute()).await?;
+        let intent = deletion_recovery::Intent {
+            outcome: Some(outcome.clone()),
+            ..intent
+        };
+        intent.save(&self.db)?;
+        self.finish_deletion(&intent, &outcome).await?;
+        Ok(outcome)
+    }
+    pub(super) async fn finish_deletion(
+        &self,
+        intent: &deletion_recovery::Intent,
+        outcome: &Outcome,
+    ) -> Result<()> {
+        let root = intent.root.clone();
+        let path = intent.path.clone();
+        let snapshot = intent.snapshot.clone();
+        for path in &outcome.paths {
+            deletion_recovery::require_absent(path)?;
+        }
         if !outcome.paths.is_empty() {
             let items = super::super::file_task_media::deleted_items(&snapshot, &outcome.paths)?;
             let mut removed_paths = outcome.paths.clone();
@@ -133,8 +162,13 @@ impl FileTasks {
                                     .path
                                     .starts_with(&format!("{}/", root.trim_end_matches('/')))
                         });
-                    let cleanup =
-                        |db: &Db| media_deletes::cleanup(db, &items, &removed_paths, &roots);
+                    let cleanup = |db: &Db| {
+                        for path in &removed_paths {
+                            deletion_recovery::require_absent(path)
+                                .map_err(|e| crate::library::LibraryError::Other(e.to_string()))?;
+                        }
+                        media_deletes::cleanup(db, &items, &removed_paths, &roots)
+                    };
                     index.update_cache(cleanup)?;
                     if stop && !before.path.is_empty() {
                         audio_commands::command(
@@ -157,6 +191,7 @@ impl FileTasks {
                     .await?;
             }
         }
-        Ok(outcome)
+        intent.remove(&self.db)?;
+        Ok(())
     }
 }

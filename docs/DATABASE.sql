@@ -102,6 +102,8 @@ PRIMARY KEY(id)
 CREATE INDEX IF NOT EXISTS idx_chats_from_id ON chats(from_id);
 CREATE INDEX IF NOT EXISTS idx_chats_to_id ON chats(to_id);
 CREATE INDEX IF NOT EXISTS idx_chats_channel_id ON chats(channel_id);
+CREATE TABLE IF NOT EXISTS chat_receipts (receipt_id TEXT NOT NULL PRIMARY KEY,peer_id TEXT NOT NULL,timestamp_ms INTEGER NOT NULL);
+CREATE INDEX IF NOT EXISTS idx_chat_receipts_timestamp ON chat_receipts(timestamp_ms);
 CREATE TABLE IF NOT EXISTS chat_channels (
 id TEXT NOT NULL,
 name TEXT NOT NULL,
@@ -159,6 +161,9 @@ created_at TEXT NOT NULL,
 updated_at TEXT NOT NULL,
 completed_ops TEXT NOT NULL
 );
+CREATE TABLE IF NOT EXISTS file_deletions (id TEXT NOT NULL PRIMARY KEY, payload TEXT NOT NULL);
+CREATE TABLE IF NOT EXISTS file_task_audio_effects (id TEXT NOT NULL PRIMARY KEY, path TEXT NOT NULL, revision INTEGER NOT NULL);
+CREATE TABLE IF NOT EXISTS file_task_effects (id TEXT NOT NULL PRIMARY KEY);
 CREATE INDEX IF NOT EXISTS idx_file_tasks_client_updated ON file_tasks(client_id, updated_at);
 CREATE TABLE IF NOT EXISTS image_editor_projects (
 id TEXT NOT NULL PRIMARY KEY,

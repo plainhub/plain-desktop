@@ -49,3 +49,18 @@ fn changed_nodes_remain_failed_and_do_not_erase_receipts_for_other_successes() {
     assert!(blocked.join("keep").is_file());
     assert!(!removed.exists());
 }
+
+#[test]
+fn plan_does_not_remove_replaced_file() {
+    let dir = tempfile::tempdir().unwrap();
+    let path = dir.path().join("original");
+    std::fs::write(&path, "old").unwrap();
+    let plan = super::Plan::inspect(&path).unwrap();
+    std::fs::rename(&path, dir.path().join("old")).unwrap();
+    std::fs::write(&path, "replacement").unwrap();
+    let result = plan.execute();
+    assert!(!result.removed);
+    assert!(result.paths.is_empty());
+    assert_eq!(std::fs::read_to_string(path).unwrap(), "replacement");
+    assert_eq!(result.failures.len(), 1);
+}

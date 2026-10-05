@@ -26,6 +26,7 @@ pub(super) struct ServerState {
     schema: ContentSchema,
     pub(super) peer_status: Arc<super::peer_status::Runtime>,
     pub(super) mdns: Arc<super::mdns_runtime::Runtime>,
+    pub(super) guest_replay: Arc<super::request_replay::Replay>,
     pub(super) peer_schema: super::peer_graphql::PeerSchema,
     pub(super) files: Arc<super::file_tasks::FileTasks>,
     pub(super) host: Arc<super::host::Host>,
@@ -129,6 +130,7 @@ impl ContentServer {
             peer_status: Arc::new(super::peer_status::Runtime::default()),
             mdns: Arc::new(super::mdns_runtime::Runtime::default()),
             peer_schema: super::peer_graphql::schema(),
+            guest_replay: Arc::new(super::request_replay::Replay::default()),
             transport: Arc::new(crate::chat::transport_router::Router::default()),
             previews,
             prewarmer: Arc::new(crate::chat::prewarm::Prewarmer::default()),
@@ -201,13 +203,29 @@ impl ContentServer {
             .route("/chat/send", post(super::chat_delivery::call))
             .route("/chat/service", post(super::chat_service::call))
             .route("/files/thumbnail", post(super::thumbnails::call))
-            .route("/files/thumbnail/output/:token", post(super::thumbnails::output))
+            .route(
+                "/files/thumbnail/output/:token",
+                post(super::thumbnails::output),
+            )
             .route("/chat/ble-http", post(super::ble_http::call))
             .route("/chat/store", post(super::chat_store_routes::call))
             .route("/files/write", post(super::file_writes::write))
             .route("/files/read", post(super::file_reads::read))
             .route("/files/stat", post(super::file_reads::stat))
-            .route("/files/mutate", post(super::file_mutation_routes::mutate));
+            .route("/files/mutate", post(super::file_mutation_routes::mutate))
+            .route("/system/sms-state", post(super::sms_state::call))
+            .route("/system/sms", post(super::sms_query::call))
+            .route("/system/providers", post(super::system_providers::call))
+            .route("/system/provider-plan", post(super::provider_plan::call))
+            .route(
+                "/system/provider-delete",
+                post(super::provider_deletes::call),
+            )
+            .route(
+                "/system/notification",
+                post(super::notification_actions::call),
+            )
+            .route("/http/guest", post(super::guest_graphql::call));
         #[cfg(feature = "http_transport")]
         let router = router.route("/http_host/:id", get(http_host_upgrade));
         let router = router
@@ -324,6 +342,7 @@ impl Drop for ContentServer {
 fn peer_routes(state: ServerState) -> Router {
     Router::new()
         .route("/peer_graphql", post(super::peer_graphql::public))
+        .route("/guest_graphql", post(super::guest_graphql::public))
         .route("/fs", get(super::peer_files::file))
         .layer(DefaultBodyLimit::max(32 * 1024 * 1024))
         .with_state(state)
