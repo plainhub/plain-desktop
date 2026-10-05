@@ -141,6 +141,22 @@ pub(super) async fn health(State(state): State<ServerState>) -> Response {
     }
 }
 
+fn shutdown_allowed(address: SocketAddr) -> bool {
+    matches!(address.ip(), std::net::IpAddr::V4(ip) if ip == std::net::Ipv4Addr::LOCALHOST)
+        || matches!(address.ip(), std::net::IpAddr::V6(ip) if ip == std::net::Ipv6Addr::LOCALHOST)
+}
+
+pub(super) async fn shutdown(
+    State(state): State<ServerState>,
+    ConnectInfo(address): ConnectInfo<SocketAddr>,
+) -> Response {
+    if !shutdown_allowed(address) {
+        return StatusCode::FORBIDDEN.into_response();
+    }
+    let _ = state.host.call("mainGraphqlShutdown", json!({})).await;
+    StatusCode::GONE.into_response()
+}
+
 pub(super) async fn init(
     State(state): State<ServerState>,
     ConnectInfo(remote): ConnectInfo<SocketAddr>,

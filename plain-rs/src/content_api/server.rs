@@ -288,6 +288,7 @@ impl ContentServer {
             .route("/graphql", post(super::main_graphql::call))
             .route("/health", get(super::main_graphql::health))
             .route("/init", post(super::main_graphql::init))
+            .route("/shutdown", get(super::main_graphql::shutdown))
             .layer(DefaultBodyLimit::max(32 * 1024 * 1024))
             .with_state(self.state.clone());
         let router = Router::new()
