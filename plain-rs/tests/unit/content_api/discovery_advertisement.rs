@@ -79,3 +79,105 @@ async fn authenticated_http_uses_current_root_preferences_after_delayed_os_facts
     state.host.disconnect(generation);
     server.shutdown().await;
 }
+
+#[cfg(feature = "http_transport")]
+#[tokio::test]
+async fn ble_scan_decodes_raw_bytes_without_host_and_checks_request_contract() {
+    let dir = tempfile::tempdir().unwrap();
+    let prefs =
+        std::sync::Arc::new(crate::prefs::Prefs::load(&dir.path().join("system.json")).unwrap());
+    let token = crate::base64_encode(&[2; 32]);
+    let server =
+        super::super::ContentServer::start(&dir.path().join("plain.db"), &token, prefs).unwrap();
+    let client = reqwest::Client::new();
+    let url = format!("http://127.0.0.1:{}/chat/discovery", server.port);
+    let call = |body: Value| {
+        client
+            .post(&url)
+            .bearer_auth(&token)
+            .header("content-type", "application/json")
+            .body(body.to_string())
+    };
+    assert_eq!(
+        client
+            .post(&url)
+            .header("content-type", "application/json")
+            .body(json!({"action":"bleDecode","payload":null}).to_string())
+            .send()
+            .await
+            .unwrap()
+            .status(),
+        401
+    );
+    let result: Value = serde_json::from_str(
+        &call(json!({"action":"bleDecode","payload":[243,0,1,2,3,4,128,254,255]}))
+            .send()
+            .await
+            .unwrap()
+            .text()
+            .await
+            .unwrap(),
+    )
+    .unwrap();
+    assert_eq!(
+        result["result"],
+        json!({"shortId":"000102030480feff","awareSupported":true,"awareRunning":true})
+    );
+    for payload in [Value::Null, json!([1, 2, 3])] {
+        let row: Value = serde_json::from_str(
+            &call(json!({"action":"bleDecode","payload":payload}))
+                .send()
+                .await
+                .unwrap()
+                .text()
+                .await
+                .unwrap(),
+        )
+        .unwrap();
+        assert_eq!(row["result"], Value::Null);
+    }
+    let row: Value = serde_json::from_str(
+        &call(json!({"action":"bleShortId","id":"fixture"}))
+            .send()
+            .await
+            .unwrap()
+            .text()
+            .await
+            .unwrap(),
+    )
+    .unwrap();
+    assert_eq!(row["result"], "f16d05ec6b29248d");
+    assert_eq!(
+        call(json!({"action":"bleDecode","payload":[-1]}))
+            .send()
+            .await
+            .unwrap()
+            .status(),
+        422
+    );
+    assert_eq!(
+        call(json!({"action":"bleShortId","id":"fixture","shortId":"spoof"}))
+            .send()
+            .await
+            .unwrap()
+            .status(),
+        422
+    );
+    assert_eq!(
+        call(json!({"action":"bleShortId","id":""}))
+            .send()
+            .await
+            .unwrap()
+            .status(),
+        400
+    );
+    assert_eq!(
+        call(json!({"action":"bleDecode","payload":vec![0u8;1651]}))
+            .send()
+            .await
+            .unwrap()
+            .status(),
+        400
+    );
+    server.shutdown().await;
+}

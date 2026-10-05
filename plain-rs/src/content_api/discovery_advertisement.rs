@@ -15,8 +15,26 @@ pub(super) enum Request {
     Reply {},
     Mdns {},
     Ble {},
+    BleDecode { payload: Option<Vec<u8>> },
+    BleShortId { id: String },
 }
 pub(super) async fn execute(state: &ServerState, request: Request) -> Result<Value> {
+    match &request {
+        Request::BleDecode { payload } => {
+            anyhow::ensure!(
+                payload.as_ref().is_none_or(|bytes| bytes.len() <= 1650),
+                "BLE payload exceeds advertising limit"
+            );
+            return Ok(serde_json::to_value(
+                payload.as_deref().and_then(advertisement::decode_ble),
+            )?);
+        }
+        Request::BleShortId { id } => {
+            anyhow::ensure!(!id.is_empty() && id.len() <= 1024, "Invalid peer identity");
+            return Ok(json!(crate::chat::nearby_wire::short_id(id)));
+        }
+        _ => {}
+    }
     let facts: Facts = serde_json::from_value(
         state
             .host
@@ -47,7 +65,7 @@ pub(super) async fn execute(state: &ServerState, request: Request) -> Result<Val
                 .get::<String>("mdns_hostname")?
                 .unwrap_or_else(|| "plainapp.local".into()),
         )?)?),
-        Request::Ble {} => unreachable!(),
+        Request::Ble {} | Request::BleDecode { .. } | Request::BleShortId { .. } => unreachable!(),
     }
 }
 pub(super) async fn call(

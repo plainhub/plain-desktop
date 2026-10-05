@@ -59,3 +59,27 @@ fn compact_ble_payload_preserves_all_flags_and_existing_sha256_short_id() {
     }
     assert!(ble("", true, true).is_err());
 }
+
+#[test]
+fn ble_scan_header_preserves_wire_bits_and_rejects_truncated_data() {
+    let bytes = [0xf3, 0, 1, 2, 3, 4, 128, 254, 255, 42];
+    for size in 0..9 {
+        assert!(decode_ble(&bytes[..size]).is_none());
+    }
+    assert_eq!(
+        decode_ble(&bytes),
+        Some(BleParts {
+            short_id: "000102030480feff".into(),
+            aware_supported: true,
+            aware_running: true
+        })
+    );
+    for flags in 0..=255 {
+        let mut payload = bytes;
+        payload[0] = flags;
+        let parsed = decode_ble(&payload).unwrap();
+        assert_eq!(parsed.aware_supported, flags & 1 != 0);
+        assert_eq!(parsed.aware_running, flags & 2 != 0);
+        assert_eq!(parsed.short_id, "000102030480feff");
+    }
+}

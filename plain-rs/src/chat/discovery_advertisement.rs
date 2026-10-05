@@ -1,7 +1,7 @@
 use super::{enums::DeviceType, nearby_wire::DiscoverReply};
 use crate::mdns::service_info::{MdnsServiceInfo, build_service_info};
 use anyhow::{Result, ensure};
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 
 #[derive(Deserialize)]
@@ -55,6 +55,23 @@ pub fn ble(id: &str, supported: bool, running: bool) -> Result<[u8; 9]> {
     payload[0] = u8::from(supported) | (u8::from(running) << 1);
     payload[1..].copy_from_slice(&Sha256::digest(id.as_bytes())[..8]);
     Ok(payload)
+}
+#[derive(Debug, Serialize, PartialEq)]
+#[serde(rename_all = "camelCase")]
+pub struct BleParts {
+    pub short_id: String,
+    pub aware_supported: bool,
+    pub aware_running: bool,
+}
+pub fn decode_ble(payload: &[u8]) -> Option<BleParts> {
+    if payload.len() < 9 {
+        return None;
+    }
+    Some(BleParts {
+        short_id: crate::utils::hex::bytes_to_hex(&payload[1..9]),
+        aware_supported: payload[0] & 1 != 0,
+        aware_running: payload[0] & 2 != 0,
+    })
 }
 #[cfg(test)]
 #[path = "../../tests/unit/chat/discovery_advertisement.rs"]
