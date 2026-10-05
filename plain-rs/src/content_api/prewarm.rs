@@ -44,8 +44,7 @@ impl Driver for Native<'_> {
             bail!("Peer no longer paired")
         }
         let response = peer_transport::send(
-            &self.0.host,
-            &self.0.transport,
+            self.0,
             &prepared.peer,
             &prepared.channel_id,
             &crate::base64_decode(&prepared.key),

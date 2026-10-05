@@ -159,6 +159,25 @@ impl Router {
         state.routes.retain(|_, route| route.peer != peer);
         state.circuits.retain(|(id, _), _| id != peer);
     }
+    pub fn active(&self) -> HashMap<String, TransportType> {
+        let state = self.state.lock().unwrap();
+        let now = Instant::now();
+        let mut active = HashMap::<String, (u64, TransportType)>::new();
+        for route in state.routes.values().filter(|route| route.deadline > now) {
+            if let Some(ticket) = &route.active {
+                let entry = active
+                    .entry(route.peer.clone())
+                    .or_insert((ticket.generation, ticket.transport));
+                if ticket.generation > entry.0 {
+                    *entry = (ticket.generation, ticket.transport);
+                }
+            }
+        }
+        active
+            .into_iter()
+            .map(|(peer, (_, kind))| (peer, kind))
+            .collect()
+    }
     pub fn abort(&self, ticket: &Ticket) {
         let mut state = self.state.lock().unwrap();
         if state

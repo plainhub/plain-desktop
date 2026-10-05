@@ -54,7 +54,7 @@ async fn encrypted_public_and_ble_rpc_share_auth_executor_and_receipts() {
     let db = Db::open(&dir.path().join("plain.db")).unwrap();
     let key = [7; 32];
     let (kp, public_key) = crate::ed25519_generate();
-    let mut peer = DPeer::new("peer", "phone", "127.0.0.1", 443, DeviceType::Phone);
+    let mut peer = DPeer::new("peer", "phone", "", 443, DeviceType::Phone);
     peer.status = PeerStatus::Paired;
     peer.key = crate::base64_encode(&key);
     peer.public_key = crate::base64_encode(&public_key);
@@ -93,7 +93,7 @@ async fn encrypted_public_and_ble_rpc_share_auth_executor_and_receipts() {
                     result
                 }
                 "peerDeviceInfo" => json!({"name":"fixture tablet","deviceType":"TABLET"}),
-                "peerTransportCapabilities" => json!(["LAN"]),
+                "peerTransportCapabilities" => json!(["AWARE"]),
                 "peerTransportAttempt" => {
                     let wire = request["params"]["body"].as_str().unwrap();
                     let parts: Vec<_> = wire.splitn(3, '|').collect();

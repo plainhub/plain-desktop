@@ -1,4 +1,4 @@
-use super::{host::Host, server::ServerState};
+use super::server::ServerState;
 use crate::{
     chat::transport::{PeerTransport, message_response},
     db::DPeer,
@@ -11,8 +11,7 @@ use axum::{
 };
 use serde::Deserialize;
 use serde_json::json;
-use std::sync::Arc;
-struct Transport(Arc<Host>, Arc<crate::chat::transport_router::Router>);
+struct Transport(ServerState);
 impl PeerTransport for Transport {
     async fn post<'a>(
         &'a self,
@@ -31,8 +30,7 @@ impl PeerTransport for Transport {
         key: &[u8],
         body: &str,
     ) -> Result<(), String> {
-        let response =
-            super::peer_transport::send(&self.0, &self.1, peer, channel_id, key, body).await?;
+        let response = super::peer_transport::send(&self.0, peer, channel_id, key, body).await?;
         message_response(&response)
     }
 }
@@ -61,7 +59,7 @@ pub(super) async fn call(
         state
             .delivery
             .send(
-                &Transport(state.host.clone(), state.transport.clone()),
+                &Transport(state.clone()),
                 &client_id,
                 &key,
                 &token,

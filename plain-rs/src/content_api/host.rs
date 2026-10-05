@@ -38,6 +38,9 @@ impl Drop for Pending {
     }
 }
 impl Host {
+    pub(super) fn connected(&self) -> bool {
+        self.state.lock().unwrap().sender.is_some()
+    }
     pub fn connect(&self) -> (u64, mpsc::Receiver<Value>) {
         let (sender, receiver) = mpsc::channel(32);
         let mut state = self.state.lock().unwrap();

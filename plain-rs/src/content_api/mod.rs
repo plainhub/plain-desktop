@@ -52,6 +52,7 @@ mod link_preview;
 
 mod peer_query;
 mod peer_address;
+mod peer_lan;
 mod peer_graphql;
 
 mod pairing_runtime;

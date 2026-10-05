@@ -30,6 +30,7 @@ pub(super) struct ServerState {
     pub(super) files: Arc<super::file_tasks::FileTasks>,
     pub(super) host: Arc<super::host::Host>,
     pub(super) db: Arc<Db>,
+    pub(super) lan: Arc<super::peer_lan::Lan>,
     pub(super) transport: Arc<crate::chat::transport_router::Router>,
     pub(super) previews: Arc<crate::link_preview::Schedule>,
     pub(super) prewarmer: Arc<crate::chat::prewarm::Prewarmer>,
@@ -86,6 +87,7 @@ impl ContentServer {
         let db = Arc::new(Db::open(path).map_err(|e| e.to_string())?);
         let (events, _) = broadcast::channel(256);
         let (stop, receiver) = watch::channel(false);
+        let lan = Arc::new(super::peer_lan::Lan::new().map_err(|e| e.to_string())?);
         let host = Arc::new(super::host::Host::default());
         let services =
             super::services::Services::new(db.clone(), host.clone(), events.clone(), prefs.clone());
@@ -119,6 +121,7 @@ impl ContentServer {
             receiver.clone(),
         ));
         let state = ServerState {
+            lan,
             schema,
             peer_status: Arc::new(super::peer_status::Runtime::default()),
             mdns: Arc::new(super::mdns_runtime::Runtime::default()),
@@ -176,6 +179,7 @@ impl ContentServer {
             .route("/chat/channel", post(super::channel_runtime::call))
             .route("/chat/pairing", post(super::pairing_runtime::call))
             .route("/chat/peer-graphql", post(super::peer_graphql::call))
+            .route("/chat/lan/file", post(super::peer_lan::file))
             .route("/chat/transport", post(super::peer_transport::call))
             .route("/chat/prewarm", post(super::prewarm::call))
             .route("/chat/nearby-devices", post(super::nearby_devices::call))

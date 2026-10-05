@@ -1,20 +1,34 @@
+#![cfg(feature = "http_transport")]
 use super::*;
 use serde_json::Value;
+use std::sync::Arc;
 #[tokio::test]
 async fn host_transport_preserves_signed_wire_and_requires_an_actual_receipt() {
-    let host = Arc::new(Host::default());
+    let dir = tempfile::tempdir().unwrap();
+    let prefs = Arc::new(crate::prefs::Prefs::load(&dir.path().join("system.json")).unwrap());
+    let server = super::super::ContentServer::start(
+        &dir.path().join("plain.db"),
+        &crate::base64_encode(&[1; 32]),
+        prefs,
+    )
+    .unwrap();
+    let state = server.runtime_state();
+    let host = state.host.clone();
     let (generation, mut receiver) = host.connect();
-    let transport = Transport(
-        host.clone(),
-        Arc::new(crate::chat::transport_router::Router::default()),
-    );
+    let transport = Transport(state.clone());
     let peer = DPeer::new(
         "fixture",
         "fixture",
-        "127.0.0.1",
+        "",
         443,
         crate::chat::enums::DeviceType::Phone,
     );
+    crate::db::chat_store::peers::save(
+        &state.db,
+        &[peer.clone()],
+        crate::db::chat_store::SaveMode::Insert,
+    )
+    .unwrap();
     let responder = {
         let host = host.clone();
         tokio::spawn(async move {
@@ -27,7 +41,7 @@ async fn host_transport_preserves_signed_wire_and_requires_an_actual_receipt() {
                 assert_eq!(capabilities["method"], "peerTransportCapabilities");
                 host.reply(
                     generation,
-                    json!({"id":capabilities["id"],"result":["LAN"]}),
+                    json!({"id":capabilities["id"],"result":["AWARE"]}),
                 )
                 .unwrap();
                 let request = receiver.recv().await.unwrap();

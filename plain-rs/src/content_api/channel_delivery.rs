@@ -147,8 +147,7 @@ async fn deliver(
                 (&peer.key, "")
             };
             let response = super::peer_transport::send_checked(
-                &state.host,
-                &state.transport,
+                state,
                 &peer,
                 cid,
                 &crate::base64_decode(key),

@@ -17,13 +17,7 @@ fn fixture() -> (tempfile::TempDir, super::super::ContentServer) {
 }
 #[cfg(feature = "http_transport")]
 fn add_peer(state: &ServerState, id: &str, paired: bool) {
-    let mut peer = crate::db::DPeer::new(
-        id,
-        id,
-        "127.0.0.1",
-        2443,
-        crate::chat::enums::DeviceType::Tablet,
-    );
+    let mut peer = crate::db::DPeer::new(id, id, "", 2443, crate::chat::enums::DeviceType::Tablet);
     if paired {
         peer.key = crate::base64_encode(&[8; 32]);
     }
@@ -125,7 +119,7 @@ async fn signed_invites_ack_keys_and_deleted_broadcast_use_rust_snapshot() {
             let req = rx.recv().await.unwrap();
             let result = match req["method"].as_str().unwrap() {
                 "peerDeviceInfo" => json!({"name":"Actual tablet","deviceType":"TABLET"}),
-                "peerTransportCapabilities" => json!(["LAN"]),
+                "peerTransportCapabilities" => json!(["AWARE"]),
                 "peerTransportAttempt" => {
                     let p = &req["params"];
                     let body = p["body"].as_str().unwrap();
@@ -265,7 +259,7 @@ async fn stale_device_facts_and_decline_ack_cannot_act_on_replacement() {
         .host
         .reply(
             generation,
-            json!({"id":capabilities["id"],"result":["LAN"]}),
+            json!({"id":capabilities["id"],"result":["AWARE"]}),
         )
         .unwrap();
     let attempt = rx.recv().await.unwrap();
@@ -331,7 +325,7 @@ async fn peer_key_changes_before_physical_send_are_rejected_and_accept_leave_dec
     peers::save(&state.db, &[peer], crate::db::chat_store::SaveMode::Update).unwrap();
     state
         .host
-        .reply(generation, json!({"id":cap["id"],"result":["LAN"]}))
+        .reply(generation, json!({"id":cap["id"],"result":["AWARE"]}))
         .unwrap();
     assert_eq!(
         call.await.unwrap().unwrap()["response"]["errors"][0]["message"],
@@ -344,7 +338,7 @@ async fn peer_key_changes_before_physical_send_are_rejected_and_accept_leave_dec
             let req = rx.recv().await.unwrap();
             let result = match req["method"].as_str().unwrap() {
                 "peerDeviceInfo" => json!({"name":"Actual tablet","deviceType":"TABLET"}),
-                "peerTransportCapabilities" => json!(["LAN"]),
+                "peerTransportCapabilities" => json!(["AWARE"]),
                 "peerTransportAttempt" => {
                     assert_eq!(req["params"]["key"], crate::base64_encode(&[9; 32]));
                     let body = req["params"]["body"].as_str().unwrap();
