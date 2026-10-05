@@ -299,7 +299,7 @@ async fn websocket_upgrade_denial_binary_text_and_shutdown_are_preserved() {
             .await
             .is_err()
     );
-    let (mut external, _) = connect_async(format!("ws://127.0.0.1:{http}/status"))
+    let (mut external, _) = connect_async(format!("ws://127.0.0.1:{http}/bridge-test"))
         .await
         .unwrap();
     external

@@ -2,7 +2,7 @@ use super::nearby_discover_manager::NearbyDiscoverManager;
 use crate::api::AppIdentity;
 use crate::api::context::{WS_PEER_STATUS_UPDATED, WsEvent};
 use crate::api::db::{DPeer, Db};
-use crate::{base64_decode, chacha20_encrypt, ed25519_sign};
+use crate::base64_decode;
 use futures_util::{SinkExt, StreamExt};
 use std::collections::HashMap;
 use std::sync::{
@@ -193,18 +193,10 @@ impl PeerStatusManager {
     fn open_socket(&self, peer: DPeer, key: Vec<u8>) {
         let peer_id = peer.id.clone();
         let local_client_id = self.inner.identity.client_id.clone();
-        let timestamp = now_ms().to_string();
-        let signature = ed25519_sign(
-            &base64_decode(&self.inner.identity.ed25519_keypair),
-            format!("{timestamp}{local_client_id}").as_bytes(),
-        );
-        if signature.is_empty() {
-            self.schedule_reconnect(peer_id);
-            return;
-        }
-        let Some(payload) = chacha20_encrypt(
+        let Ok(payload) = crate::chat::peer_status::handshake(
             &key,
-            format!("{signature}|{timestamp}|{local_client_id}").as_bytes(),
+            &base64_decode(&self.inner.identity.ed25519_keypair),
+            &local_client_id,
         ) else {
             self.schedule_reconnect(peer_id);
             return;
@@ -386,12 +378,4 @@ impl PeerStatusManager {
             let _ = event_tx.send(WsEvent::broadcast(WS_PEER_STATUS_UPDATED, payload));
         }
     }
-}
-
-fn now_ms() -> i64 {
-    use std::time::{SystemTime, UNIX_EPOCH};
-    SystemTime::now()
-        .duration_since(UNIX_EPOCH)
-        .unwrap_or_default()
-        .as_millis() as i64
 }

@@ -1,0 +1,137 @@
+use super::server::ServerState;
+use axum::{
+    Json,
+    extract::{
+        Query, State, WebSocketUpgrade,
+        ws::{Message, WebSocket},
+    },
+    http::{HeaderMap, StatusCode},
+    response::{IntoResponse, Response},
+};
+use serde::Deserialize;
+use serde_json::json;
+use std::{sync::Arc, time::Duration};
+
+pub(super) struct Runtime {
+    pub(super) connections: crate::chat::peer_status::Connections,
+    capacity: Arc<tokio::sync::Semaphore>,
+}
+impl Default for Runtime {
+    fn default() -> Self {
+        Self {
+            connections: Default::default(),
+            capacity: Arc::new(tokio::sync::Semaphore::new(128)),
+        }
+    }
+}
+#[derive(Clone)]
+pub(super) struct PublicState {
+    pub(super) state: ServerState,
+    pub(super) stop: tokio::sync::watch::Receiver<bool>,
+}
+#[derive(Deserialize)]
+pub(super) struct Parameters {
+    cid: Option<String>,
+}
+pub(super) async fn public(
+    State(public): State<PublicState>,
+    Query(query): Query<Parameters>,
+    ws: WebSocketUpgrade,
+) -> Response {
+    let state = public.state.clone();
+    if !state.prefs.get_user_or("service", false) || *state.stop.borrow() {
+        return StatusCode::FORBIDDEN.into_response();
+    }
+    let Some(id) = query.cid.filter(|id| !id.is_empty() && id.len() <= 1024) else {
+        return StatusCode::BAD_REQUEST.into_response();
+    };
+    let Ok(permit) = state.peer_status.capacity.clone().try_acquire_owned() else {
+        return StatusCode::TOO_MANY_REQUESTS.into_response();
+    };
+    ws.max_message_size(64 * 1024)
+        .max_frame_size(64 * 1024)
+        .on_upgrade(move |socket| async move {
+            let _permit = permit;
+            connected(state, public.stop, id, socket).await;
+        })
+}
+fn emit(state: &ServerState, id: &str, online: bool) {
+    let _=state.events.send(crate::ws_event::WsEvent::broadcast(10002,json!({"id":id,"online":online,"runtimeId":state.peer_status.connections.snapshot(&state.db)["runtimeId"]}).to_string()));
+}
+struct ConnectionGuard {
+    state: ServerState,
+    lease: String,
+}
+impl Drop for ConnectionGuard {
+    fn drop(&mut self) {
+        if let Some((peer, online)) = self
+            .state
+            .peer_status
+            .connections
+            .close(&self.state.db, &self.lease)
+        {
+            emit(&self.state, &peer, online);
+        }
+    }
+}
+async fn connected(
+    state: ServerState,
+    mut public_stop: tokio::sync::watch::Receiver<bool>,
+    id: String,
+    mut socket: WebSocket,
+) {
+    let mut stop = state.stop.clone();
+    let authenticated = tokio::select! {
+        _=stop.changed()=>None,
+        _=public_stop.changed()=>None,
+        frame=tokio::time::timeout(Duration::from_secs(10),socket.recv())=>match frame {
+            Ok(Some(Ok(Message::Binary(body))))=>state.peer_status.connections.open(&state.db,&id,&body).ok(),
+            _=>None,
+        }
+    };
+    let Some((lease, changed)) = authenticated else {
+        let _ = socket.close().await;
+        return;
+    };
+    let _guard = ConnectionGuard {
+        state: state.clone(),
+        lease: lease.clone(),
+    };
+    if changed {
+        emit(&state, &id, true);
+    }
+    let mut check = tokio::time::interval(Duration::from_secs(1));
+    let sent = tokio::select! {_=stop.changed()=>false,_=public_stop.changed()=>false,result=socket.send(Message::Text("ok".into()))=>result.is_ok()};
+    if sent {
+        loop {
+            tokio::select! {
+                _=stop.changed()=>break,
+                _=public_stop.changed()=>break,
+                _=check.tick()=>if !state.prefs.get_user_or("service",false) || !state.peer_status.connections.valid(&state.db,&lease) { break; },
+                frame=socket.recv()=>match frame {
+                    Some(Ok(Message::Close(_)))|None|Some(Err(_))=>break,
+                    _=>{},
+                }
+            }
+        }
+    }
+    let _ = tokio::time::timeout(Duration::from_secs(1), socket.close()).await;
+}
+#[derive(Deserialize)]
+#[serde(tag = "action", rename_all = "camelCase", deny_unknown_fields)]
+pub(super) enum Request {
+    Snapshot {},
+}
+pub(super) async fn call(
+    State(state): State<ServerState>,
+    headers: HeaderMap,
+    Json(_): Json<Request>,
+) -> Response {
+    if !state.authenticated(&headers) {
+        return StatusCode::UNAUTHORIZED.into_response();
+    }
+    Json(json!({"result":state.peer_status.connections.snapshot(&state.db)})).into_response()
+}
+#[cfg(all(test, feature = "http_transport"))]
+#[path = "../../tests/unit/content_api/peer_status.rs"]
+mod tests;

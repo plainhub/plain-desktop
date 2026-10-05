@@ -24,6 +24,7 @@ use tokio::{
 #[derive(Clone)]
 pub(super) struct ServerState {
     schema: ContentSchema,
+    pub(super) peer_status: Arc<super::peer_status::Runtime>,
     pub(super) mdns: Arc<super::mdns_runtime::Runtime>,
     pub(super) peer_schema: super::peer_graphql::PeerSchema,
     pub(super) files: Arc<super::file_tasks::FileTasks>,
@@ -119,6 +120,7 @@ impl ContentServer {
         ));
         let state = ServerState {
             schema,
+            peer_status: Arc::new(super::peer_status::Runtime::default()),
             mdns: Arc::new(super::mdns_runtime::Runtime::default()),
             peer_schema: super::peer_graphql::schema(),
             transport: Arc::new(crate::chat::transport_router::Router::default()),
@@ -169,6 +171,7 @@ impl ContentServer {
                 "/chat/discovery",
                 post(super::discovery_advertisement::call),
             )
+            .route("/chat/peer-status", post(super::peer_status::call))
             .route("/chat/mdns", post(super::mdns_runtime::call))
             .route("/chat/channel", post(super::channel_runtime::call))
             .route("/chat/pairing", post(super::pairing_runtime::call))
@@ -233,6 +236,12 @@ impl ContentServer {
             .route("/peer_graphql", post(super::peer_graphql::public))
             .layer(DefaultBodyLimit::max(32 * 1024 * 1024))
             .with_state(self.state.clone());
+        let status_router = Router::new()
+            .route("/status", get(super::peer_status::public))
+            .with_state(super::peer_status::PublicState {
+                state: self.state.clone(),
+                stop: receiver.clone(),
+            });
         let router = Router::new()
             .fallback(super::http_bridge::handle)
             .layer(DefaultBodyLimit::max(64 * 1024 * 1024 * 1024))
@@ -240,7 +249,8 @@ impl ContentServer {
                 bridge: self.bridge.clone(),
                 stop: receiver,
             })
-            .merge(peer_router);
+            .merge(peer_router)
+            .merge(status_router);
         let listeners =
             crate::http_transport::HttpListeners::start(router, http, https, cert, key).await?;
         let ports = (listeners.http_port, listeners.https_port);
@@ -398,7 +408,10 @@ async fn host_upgrade(
 }
 async fn host_socket(mut socket: WebSocket, mut state: ServerState) {
     let (generation, mut outgoing) = state.host.connect();
-    tokio::spawn(super::mdns_runtime::Runtime::host_connected(state.clone(), generation));
+    tokio::spawn(super::mdns_runtime::Runtime::host_connected(
+        state.clone(),
+        generation,
+    ));
     loop {
         tokio::select! {
             _ = state.stop.changed() => break,

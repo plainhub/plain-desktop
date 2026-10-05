@@ -55,7 +55,7 @@ pub fn xchacha_decrypt(token_b64: &str, data: &[u8]) -> Option<Vec<u8>> {
 
 // ── ChaCha20-Poly1305 (12-byte nonce) — mDNS / nearby discovery ──────────────
 //
-// Used by PeerStatusManager and NearbyDiscoverManager for local peer discovery
+// Used by NearbyDiscoverManager for local peer discovery
 // (distinct from the Android CryptoHelper which uses XChaCha20 / Google Tink).
 
 /// Encrypt `plaintext` with a 32-byte key using ChaCha20-Poly1305.

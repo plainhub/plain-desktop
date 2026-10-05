@@ -58,3 +58,5 @@ mod pairing_runtime;
 mod nearby_devices;
 
 mod ble_pairing;
+
+mod peer_status;

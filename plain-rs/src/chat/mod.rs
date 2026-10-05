@@ -50,3 +50,5 @@ pub mod nearby_scan;
 pub mod lan_ip;
 
 pub mod nearby_devices;
+
+pub mod peer_status;
