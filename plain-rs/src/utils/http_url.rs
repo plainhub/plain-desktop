@@ -257,14 +257,7 @@ fn split_host_port(authority: &str) -> Option<(&str, Option<u16>)> {
 /// Build `scheme://host[:port]path`, omitting the port when it is the
 /// scheme's default (80 for http/ws, 443 for https/wss).
 pub fn build_url(scheme: &str, host: &str, port: u16, path: &str) -> String {
-    let omit_port = ((scheme == "http" || scheme == "ws") && port == 80)
-        || ((scheme == "https" || scheme == "wss") && port == 443);
-    let port_part = if omit_port {
-        String::new()
-    } else {
-        format!(":{port}")
-    };
-    format!("{scheme}://{host}{port_part}{path}")
+    crate::utils::build_url::build_url(scheme, host, port, path)
 }
 
 #[cfg(test)]

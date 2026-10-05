@@ -8,6 +8,11 @@ pub fn build_url(scheme: &str, host: &str, port: u16, path: &str) -> String {
     } else {
         format!(":{port}")
     };
+    let host = if host.contains(':') && !host.starts_with('[') {
+        format!("[{host}]")
+    } else {
+        host.to_string()
+    };
     format!("{scheme}://{host}{port_part}{path}")
 }
 

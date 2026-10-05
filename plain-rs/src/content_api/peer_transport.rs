@@ -64,7 +64,7 @@ pub(super) async fn send_checked(
     loop {
         validate()?;
         let timeout_ms = 15_000;
-        let attempt=tokio::time::timeout(Duration::from_millis(timeout_ms),host.call("peerTransportAttempt",json!({"transport":pending.ticket.transport,"timeoutMs":timeout_ms,"peer":peer,"channelId":channel_id,"key":crate::base64_encode(key),"body":body}))).await;
+        let attempt=tokio::time::timeout(Duration::from_millis(timeout_ms),host.call("peerTransportAttempt",json!({"transport":pending.ticket.transport,"timeoutMs":timeout_ms,"peer":super::peer_address::view(peer),"channelId":channel_id,"key":crate::base64_encode(key),"body":body}))).await;
         let outcome = match attempt {
             Err(_) => Outcome::Unavailable {
                 error: "Transport attempt timed out after 15s".into(),
@@ -149,7 +149,7 @@ pub(super) async fn call(
                 let peer =
                     peers::get(&state.db, &id)?.ok_or_else(|| anyhow::anyhow!("Unknown peer"))?;
                 let step = state.transport.begin(&peer, &available)?;
-                json!({"peer":peer,"ticket":step.ticket,"error":step.error})
+                json!({"peer":super::peer_address::view(&peer),"ticket":step.ticket,"error":step.error})
             }
             Request::FinishDownload { ticket, outcome } => {
                 serde_json::to_value(state.transport.finish(&ticket, outcome)?)?

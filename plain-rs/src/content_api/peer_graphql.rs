@@ -154,7 +154,10 @@ impl Mutation {
             .ok_or_else(|| async_graphql::Error::new("Unknown peer"))?;
         Ok(c.state
             .host
-            .call("peerStartAware", json!({"peer":peer}))
+            .call(
+                "peerStartAware",
+                json!({"peer":super::peer_address::view(&peer)}),
+            )
             .await
             .map_err(async_graphql::Error::new)?
             .as_bool()

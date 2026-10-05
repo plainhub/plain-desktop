@@ -43,12 +43,19 @@ impl DPeer {
         self.status == PeerStatus::Paired
     }
 
-    pub fn best_ip(&self) -> &str {
-        self.ip.split(',').next().unwrap_or(&self.ip).trim()
+    pub fn best_ip(&self) -> String {
+        let ips = self
+            .ip
+            .split(',')
+            .map(str::trim)
+            .filter(|ip| !ip.is_empty())
+            .map(str::to_string)
+            .collect::<Vec<_>>();
+        crate::chat::lan_ip::best(&ips, &crate::chat::lan_ip::local_interfaces())
     }
 
     pub fn base_url(&self) -> String {
-        build_url("https", self.best_ip(), self.port, "")
+        build_url("https", &self.best_ip(), self.port, "")
     }
 
     pub fn peer_graphql_url(&self) -> String {

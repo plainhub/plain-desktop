@@ -190,9 +190,10 @@ impl Outgoing {
             .get::<String>("client_id")?
             .filter(|id| !id.is_empty())
             .ok_or_else(|| anyhow::anyhow!("Missing identity"))?;
+        let selected_ip = peer.best_ip();
         let url = crate::utils::build_url::build_url(
             "wss",
-            peer.best_ip(),
+            &selected_ip,
             peer.port,
             &format!("/status?cid={actor}"),
         );
@@ -205,7 +206,8 @@ impl Outgoing {
             current.is_paired()
                 && fingerprint(&current) == fingerprint(peer)
                 && current.ip == peer.ip
-                && current.port == peer.port,
+                && current.port == peer.port
+                && current.best_ip() == selected_ip,
             "Peer changed"
         );
         ensure!(
@@ -245,6 +247,10 @@ impl Outgoing {
             self.current(epoch) && state.prefs.get_user_or("service", false),
             "Status runtime stopped"
         );
+        ensure!(
+            super::peer_address::current(&state.db, &peer.id, peer)?.best_ip() == selected_ip,
+            "Peer address changed"
+        );
         let (lease, changed) = state
             .peer_status
             .connections
@@ -260,7 +266,7 @@ impl Outgoing {
         let mut tick = tokio::time::interval(Duration::from_secs(1));
         loop {
             tokio::select! {
-                _=tick.tick()=>ensure!(state.prefs.get_user_or("service",false) && state.peer_status.connections.valid(&state.db,&lease) && state.prefs.get::<String>("client_id")?.as_deref()==Some(&actor),"Peer changed"),
+                _=tick.tick()=>ensure!(state.prefs.get_user_or("service",false) && state.peer_status.connections.valid(&state.db,&lease) && peer.best_ip()==selected_ip && state.prefs.get::<String>("client_id")?.as_deref()==Some(&actor),"Peer changed"),
                 frame=socket.next()=>match frame { Some(Ok(tokio_tungstenite::tungstenite::Message::Close(_)))|None|Some(Err(_))=>return Err(anyhow::anyhow!("Status connection closed")),_=>{} }
             }
         }
@@ -273,7 +279,10 @@ pub(super) async fn ensure_aware(state: &ServerState) -> Result<()> {
     for peer in peers::all(&state.db)?.into_iter().filter(|p| p.is_paired()) {
         state
             .host
-            .call("peerStartAware", json!({"peer":peer}))
+            .call(
+                "peerStartAware",
+                json!({"peer":super::peer_address::view(&peer)}),
+            )
             .await
             .map_err(anyhow::Error::msg)?;
     }

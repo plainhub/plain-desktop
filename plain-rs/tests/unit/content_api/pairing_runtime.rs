@@ -79,7 +79,6 @@ async fn lan_runtime_sends_signed_tls_requests_and_cancel_cannot_remove_replacem
         ble: true,
         target: target.clone(),
         ips: vec!["invalid".into(), "127.0.0.1".into()],
-        interfaces: vec![],
         device: device(),
     };
     let first = execute(&state, start()).await.unwrap();

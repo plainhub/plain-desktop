@@ -3,7 +3,6 @@ use super::{
     server::ServerState,
 };
 use crate::chat::{
-    lan_ip::Interface,
     nearby_http::{self, Message},
     pairing::{
         protocol::{PairingCancel, PairingRequest, PairingResponse},
@@ -89,7 +88,6 @@ pub(super) enum Request {
     Start {
         target: Target,
         ips: Vec<String>,
-        interfaces: Vec<Interface>,
         methods: Vec<String>,
         ble: bool,
         device: Device,
@@ -101,7 +99,6 @@ pub(super) enum Request {
     StartLan {
         target: Target,
         ips: Vec<String>,
-        interfaces: Vec<Interface>,
         device: Device,
     },
     Cancel {
@@ -163,7 +160,6 @@ async fn execute(state: &ServerState, request: Request) -> anyhow::Result<Value>
         Request::Start {
             target,
             ips,
-            interfaces,
             methods,
             ble,
             device,
@@ -174,8 +170,7 @@ async fn execute(state: &ServerState, request: Request) -> anyhow::Result<Value>
                     Request::StartLan {
                         target,
                         ips,
-                        interfaces,
-                        device,
+                                    device,
                     },
                 ))
                 .await?
@@ -190,10 +185,9 @@ async fn execute(state: &ServerState, request: Request) -> anyhow::Result<Value>
         Request::StartLan {
             mut target,
             ips,
-            interfaces,
             device,
         } => {
-            target.device_ip = crate::chat::lan_ip::best(&ips, &interfaces);
+            target.device_ip = crate::chat::lan_ip::best(&ips, &crate::chat::lan_ip::local_interfaces());
             if target.device_ip.is_empty() {
                 failed(state, &target, "No reachable pairing address", None);
                 return Ok(Value::Null);

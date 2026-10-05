@@ -1,9 +1,5 @@
 use super::server::ServerState;
-use crate::{
-    chat::{lan_ip::Interface, nearby_devices::Device},
-    db::chat_store,
-    ws_event::WsEvent,
-};
+use crate::{chat::nearby_devices::Device, db::chat_store, ws_event::WsEvent};
 use axum::{
     Json,
     extract::State,
@@ -114,7 +110,10 @@ async fn execute(state: &ServerState, request: Request) -> anyhow::Result<serde_
         .map(|p| p.id)
         .collect();
     let mut snapshot = serde_json::to_value(state.nearby_devices.snapshot())?;
+    let interfaces = crate::chat::lan_ip::local_interfaces();
     for device in snapshot["devices"].as_array_mut().unwrap() {
+        let ips: Vec<String> = serde_json::from_value(device["ips"].clone())?;
+        device["bestIp"] = json!(crate::chat::lan_ip::best(&ips, &interfaces));
         device["status"] = json!(if paired.contains(device["id"].as_str().unwrap()) {
             "PAIRED"
         } else {
@@ -153,12 +152,7 @@ async fn sweep(state: &ServerState) -> anyhow::Result<()> {
     if facts.get("paused").and_then(serde_json::Value::as_bool) != Some(false) {
         return Ok(());
     }
-    let interfaces: Vec<Interface> = serde_json::from_value(
-        facts
-            .get("interfaces")
-            .cloned()
-            .ok_or_else(|| anyhow::anyhow!("Missing interfaces"))?,
-    )?;
+    let interfaces = crate::chat::lan_ip::local_interfaces();
     let mut changed = false;
     for chunk in stale.chunks(4) {
         if !state.nearby_devices.active() {

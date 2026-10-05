@@ -203,7 +203,7 @@ impl PeerStatusManager {
         };
         let url = crate::utils::build_url::build_url(
             "wss",
-            peer.best_ip(),
+            &peer.best_ip(),
             peer.port,
             &format!("/status?cid={local_client_id}"),
         );

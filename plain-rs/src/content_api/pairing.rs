@@ -166,7 +166,7 @@ pub(super) fn complete_checked(
         )
     })();
     Ok(match result {
-        Ok(peer) => json!({"ticket":ticket,"peer":peer,"error":""}),
+        Ok(peer) => json!({"ticket":ticket,"peer":super::peer_address::view(&peer),"error":""}),
         Err(error) => json!({"ticket":ticket,"peer":null,"error":error.to_string()}),
     })
 }
@@ -206,7 +206,7 @@ pub(super) fn respond(
     } else {
         None
     };
-    Ok(json!({"response":response,"peer":peer}))
+    Ok(json!({"response":response,"peer":peer.as_ref().map(super::peer_address::view)}))
 }
 pub(super) fn cancel(
     prefs: &Prefs,

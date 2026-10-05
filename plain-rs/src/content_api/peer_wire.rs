@@ -18,6 +18,7 @@ pub(super) enum Operation {
 #[derive(Serialize)]
 #[serde(rename_all = "camelCase")]
 pub(super) struct Prepared {
+    #[serde(serialize_with = "super::peer_address::serialize_view")]
     pub peer: DPeer,
     pub body: String,
     pub key: String,

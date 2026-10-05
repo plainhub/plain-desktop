@@ -43,6 +43,15 @@ pub(super) enum Request {
     PeersByIds {
         ids: Vec<String>,
     },
+    PeerAddress {
+        id: String,
+        expected: DPeer,
+    },
+    PeerFileUrl {
+        id: String,
+        expected: DPeer,
+        file_id: String,
+    },
     SavePeers {
         items: Vec<DPeer>,
         mode: SaveMode,
@@ -221,8 +230,8 @@ pub(super) async fn call(
     let transport = state.transport.clone();
     let previews = state.previews.clone();
     let prewarmer = state.prewarmer.clone();
-    let nearby_devices=state.nearby_devices.clone();
-    let events=state.events.clone();
+    let nearby_devices = state.nearby_devices.clone();
+    let events = state.events.clone();
     let result = tokio::task::spawn_blocking(move || -> anyhow::Result<Value> {
         use chat_store::{channels, messages, nearby, peers};
         Ok(match request {
@@ -259,19 +268,40 @@ pub(super) async fn call(
             Request::ChatDelivery { id, results, retry } => serde_json::to_value(
                 crate::chat::message_lifecycle::delivery(&db, &id, results, retry)?,
             )?,
-            Request::Peers { statuses } => serde_json::to_value(
-                peers::all(&db)?
-                    .into_iter()
-                    .filter(|p| statuses.is_empty() || statuses.contains(&p.status))
-                    .collect::<Vec<_>>(),
+            Request::Peers { statuses } => {
+                let rows = peers::all(&db)?;
+                serde_json::to_value(
+                    rows.iter()
+                        .filter(|p| statuses.is_empty() || statuses.contains(&p.status))
+                        .map(super::peer_address::view)
+                        .collect::<Vec<_>>(),
+                )?
+            }
+            Request::Peer { id } => serde_json::to_value(
+                peers::get(&db, &id)?
+                    .as_ref()
+                    .map(super::peer_address::view),
             )?,
-            Request::Peer { id } => serde_json::to_value(peers::get(&db, &id)?)?,
-            Request::PeersByIds { ids } => serde_json::to_value(
-                peers::all(&db)?
-                    .into_iter()
-                    .filter(|p| ids.contains(&p.id))
-                    .collect::<Vec<_>>(),
+            Request::PeersByIds { ids } => {
+                let rows = peers::all(&db)?;
+                serde_json::to_value(
+                    rows.iter()
+                        .filter(|p| ids.contains(&p.id))
+                        .map(super::peer_address::view)
+                        .collect::<Vec<_>>(),
+                )?
+            }
+            Request::PeerAddress { id, expected } => serde_json::to_value(
+                super::peer_address::address(&super::peer_address::current(&db, &id, &expected)?),
             )?,
+            Request::PeerFileUrl {
+                id,
+                expected,
+                file_id,
+            } => json!(super::peer_address::file_url(
+                &super::peer_address::current(&db, &id, &expected)?,
+                &file_id
+            )?),
             Request::SavePeers { items, mode } => {
                 peers::save(&db, &items, mode)?;
                 json!(true)
@@ -309,12 +339,16 @@ pub(super) async fn call(
                 port,
                 name,
                 device_type,
-            } => {
-                serde_json::to_value(peers::discovered(&db, &id, &ips, port, &name, device_type)?)?
-            }
-            Request::PatchPeer { before, after } => {
-                serde_json::to_value(peers::patch(&db, &before, &after)?)?
-            }
+            } => serde_json::to_value(
+                peers::discovered(&db, &id, &ips, port, &name, device_type)?
+                    .as_ref()
+                    .map(super::peer_address::view),
+            )?,
+            Request::PatchPeer { before, after } => serde_json::to_value(
+                peers::patch(&db, &before, &after)?
+                    .as_ref()
+                    .map(super::peer_address::view),
+            )?,
             Request::PatchChannel { before, after } => {
                 serde_json::to_value(channels::patch(&db, &before, &after)?)?
             }
@@ -445,19 +479,31 @@ pub(super) async fn call(
             }
             Request::ChatContent { id, content } => json!(messages::content(&db, &id, &content)?),
             Request::ChatIds { query } => json!(messages::ids(&db, &query)?),
-            Request::Nearby => serde_json::to_value(nearby::all(&db)?)?,
+            Request::Nearby => {
+                let interfaces = crate::chat::lan_ip::local_interfaces();
+                let mut rows = serde_json::to_value(nearby::all(&db)?)?;
+                for row in rows.as_array_mut().unwrap() {
+                    let ips: Vec<String> = serde_json::from_value(row["ips"].clone())?;
+                    row["bestIp"] = json!(crate::chat::lan_ip::best(&ips, &interfaces));
+                }
+                rows
+            }
             Request::SaveNearby { item } => {
                 nearby::save(&db, &item)?;
                 json!(true)
             }
             Request::TouchNearby { id } => json!(nearby::touch(&db, &id)?),
             Request::DeleteNearby { id } => {
-                let deleted=nearby::delete(&db,&id)?;
+                let deleted = nearby::delete(&db, &id)?;
                 if nearby_devices.forget(&id) {
-                    let _=events.send(crate::ws_event::WsEvent::broadcast(crate::chat::events::WS_NEARBY_DEVICE_FOUND,json!({"revision":nearby_devices.snapshot().revision,"eventId":null}).to_string()));
+                    let _ = events.send(crate::ws_event::WsEvent::broadcast(
+                        crate::chat::events::WS_NEARBY_DEVICE_FOUND,
+                        json!({"revision":nearby_devices.snapshot().revision,"eventId":null})
+                            .to_string(),
+                    ));
                 }
                 json!(deleted)
-            },
+            }
         })
     })
     .await;
