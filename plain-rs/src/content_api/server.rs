@@ -34,6 +34,7 @@ pub(super) struct ServerState {
     pub(super) transport: Arc<crate::chat::transport_router::Router>,
     pub(super) previews: Arc<crate::link_preview::Schedule>,
     pub(super) prewarmer: Arc<crate::chat::prewarm::Prewarmer>,
+    pub(super) shared_batches: Arc<super::shared_batch::Runtime>,
     pub(super) downloads: Arc<crate::chat::download_queue::Queue>,
     pub(super) attachments: Arc<crate::chat::attachment_imports::Imports>,
     pub(super) delivery: Arc<crate::chat::delivery::Delivery>,
@@ -129,6 +130,7 @@ impl ContentServer {
             transport: Arc::new(crate::chat::transport_router::Router::default()),
             previews,
             prewarmer: Arc::new(crate::chat::prewarm::Prewarmer::default()),
+            shared_batches: Arc::new(super::shared_batch::Runtime::default()),
             downloads,
             attachments,
             delivery: Arc::new(crate::chat::delivery::Delivery::new((*db).clone())),
@@ -149,6 +151,7 @@ impl ContentServer {
             #[cfg(feature = "http_transport")]
             bridge: bridge.clone(),
         };
+        super::shared_batch::start(state.clone());
         super::pairing_timeout::start(
             state.pairing.clone(),
             state.events.clone(),
@@ -183,6 +186,7 @@ impl ContentServer {
             .route("/shares/client", post(super::shared_client::call))
             .route("/shares/client/file", post(super::shared_download::file))
             .route("/shares/client/zip", post(super::shared_zip::call))
+            .route("/shares/batch", post(super::shared_batch::call))
             .route("/chat/transport", post(super::peer_transport::call))
             .route("/chat/prewarm", post(super::prewarm::call))
             .route("/chat/nearby-devices", post(super::nearby_devices::call))
@@ -290,6 +294,8 @@ impl ContentServer {
     pub async fn shutdown(mut self) {
         #[cfg(feature = "http_transport")]
         self.stop_public().await;
+        #[cfg(feature = "http_transport")]
+        self.state.shared_batches.shutdown(&self.state.host).await;
         let _ = self.stop.send(true);
         #[cfg(feature = "http_transport")]
         self.state.mdns.close(&self.state.host).await;

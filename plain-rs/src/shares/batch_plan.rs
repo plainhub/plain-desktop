@@ -19,7 +19,7 @@ pub struct Target {
     pub store_to_downloads: bool,
     pub entry_name: String,
 }
-#[derive(Debug, Serialize)]
+#[derive(Clone, Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Plan {
     pub targets: Vec<Target>,

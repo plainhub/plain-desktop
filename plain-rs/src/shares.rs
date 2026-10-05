@@ -321,3 +321,5 @@ fn validate_expiry(value: Option<&str>) -> anyhow::Result<()> {
 #[cfg(test)]
 #[path = "../tests/unit/shares.rs"]
 mod tests;
+
+pub mod batch_queue;
