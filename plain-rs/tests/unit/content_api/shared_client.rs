@@ -139,6 +139,15 @@ async fn authenticated_http_browse_updates_card_and_streams_real_tls_files_witho
             .status(),
         400
     );
+    let plan = client.post(&url).bearer_auth(&token).header("content-type", "application/json")
+        .body(json!({"action":"plan","kind":"SYNC","link":Link::new("127.0.0.1",port,"fixture",&URL_SAFE.encode([7;32])).unwrap(),
+            "entries":[{"name":"Root","virtualPath":"root","isDir":true,"size":0,"mimeType":"","hasThumb":false}],
+            "target_dir":"/out","downloads_base":"/downloads"}).to_string()).send().await.unwrap();
+    assert_eq!(plan.status(), 200);
+    let plan: Value = serde_json::from_str(&plan.text().await.unwrap()).unwrap();
+    assert_eq!(plan["result"]["totalSize"], 8);
+    assert_eq!(plan["result"]["targets"][0]["writeDir"], "/out/Root");
+    assert_eq!(plan["result"]["targets"][0]["entryName"], "Root/a 中文.txt");
     server.shutdown().await;
     tls.abort();
 }

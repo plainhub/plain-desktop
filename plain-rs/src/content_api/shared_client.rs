@@ -105,7 +105,7 @@ fn discovery_candidates(
         }
     }
 }
-async fn fetch(state: &ServerState, link: &Link, path: Option<&str>) -> Result<Info> {
+pub(super) async fn fetch(state: &ServerState, link: &Link, path: Option<&str>) -> Result<Info> {
     let _permit = state.lan.capacity.clone().acquire_owned().await?;
     let response = state
         .lan
@@ -179,6 +179,13 @@ async fn browse(
 #[derive(Deserialize)]
 #[serde(tag = "action", rename_all = "camelCase", deny_unknown_fields)]
 pub(super) enum Request {
+    Plan {
+        kind: crate::shares::batch_plan::Kind,
+        link: Link,
+        entries: Vec<crate::shares::client::File>,
+        target_dir: String,
+        downloads_base: String,
+    },
     OwnLink {
         id: String,
         host: Option<String>,
@@ -217,6 +224,31 @@ pub(super) async fn call(
     }
     let work = async {
         match request {
+            Request::Plan {
+                kind,
+                link,
+                entries,
+                target_dir,
+                downloads_base,
+            } => {
+                link.url("/guest_graphql")?;
+                let mut walker = crate::shares::batch_plan::Walker::new(
+                    kind,
+                    entries,
+                    &target_dir,
+                    &downloads_base,
+                )?;
+                while let Some(path) = walker.next_directory()? {
+                    let info = fetch(
+                        &state,
+                        &link,
+                        if path.is_empty() { None } else { Some(&path) },
+                    )
+                    .await?;
+                    walker.supply(info.entries)?;
+                }
+                Ok(serde_json::to_value(walker.finish()?)?)
+            }
             Request::OwnLink { id, host } => {
                 let service = crate::shares::Service::new(state.db.clone(), state.prefs.clone());
                 let token = service.token(&id)?;

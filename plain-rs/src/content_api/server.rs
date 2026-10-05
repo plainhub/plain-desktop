@@ -182,6 +182,7 @@ impl ContentServer {
             .route("/chat/lan/file", post(super::peer_lan::file))
             .route("/shares/client", post(super::shared_client::call))
             .route("/shares/client/file", post(super::shared_download::file))
+            .route("/shares/client/zip", post(super::shared_zip::call))
             .route("/chat/transport", post(super::peer_transport::call))
             .route("/chat/prewarm", post(super::prewarm::call))
             .route("/chat/nearby-devices", post(super::nearby_devices::call))
