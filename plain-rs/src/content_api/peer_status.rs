@@ -15,11 +15,24 @@ use std::{sync::Arc, time::Duration};
 pub(super) struct Runtime {
     pub(super) connections: crate::chat::peer_status::Connections,
     capacity: Arc<tokio::sync::Semaphore>,
+    pub(super) outgoing: Arc<super::status_outgoing::Outgoing>,
+    pub(super) control: tokio::sync::Mutex<()>,
+    pub(super) public_active: std::sync::atomic::AtomicBool,
+}
+impl Runtime {
+    fn snapshot(&self, db: &crate::db::Db) -> serde_json::Value {
+        let mut row = self.connections.snapshot(db);
+        row["outgoing"] = self.outgoing.snapshot();
+        row
+    }
 }
 impl Default for Runtime {
     fn default() -> Self {
         Self {
             connections: Default::default(),
+            control: tokio::sync::Mutex::new(()),
+            public_active: std::sync::atomic::AtomicBool::new(false),
+            outgoing: Arc::new(super::status_outgoing::Outgoing::new()),
             capacity: Arc::new(tokio::sync::Semaphore::new(128)),
         }
     }
@@ -55,12 +68,12 @@ pub(super) async fn public(
             connected(state, public.stop, id, socket).await;
         })
 }
-fn emit(state: &ServerState, id: &str, online: bool) {
-    let _=state.events.send(crate::ws_event::WsEvent::broadcast(10002,json!({"id":id,"online":online,"runtimeId":state.peer_status.connections.snapshot(&state.db)["runtimeId"]}).to_string()));
+pub(super) fn emit(state: &ServerState, id: &str, online: bool) {
+    let _=state.events.send(crate::ws_event::WsEvent::broadcast(10002,json!({"id":id,"online":online,"runtimeId":state.peer_status.snapshot(&state.db)["runtimeId"]}).to_string()));
 }
-struct ConnectionGuard {
-    state: ServerState,
-    lease: String,
+pub(super) struct ConnectionGuard {
+    pub(super) state: ServerState,
+    pub(super) lease: String,
 }
 impl Drop for ConnectionGuard {
     fn drop(&mut self) {
@@ -121,16 +134,61 @@ async fn connected(
 #[serde(tag = "action", rename_all = "camelCase", deny_unknown_fields)]
 pub(super) enum Request {
     Snapshot {},
+    Start {},
+    Stop {},
+    Reconnect {},
+    EnsureAware {},
 }
 pub(super) async fn call(
     State(state): State<ServerState>,
     headers: HeaderMap,
-    Json(_): Json<Request>,
+    Json(request): Json<Request>,
 ) -> Response {
     if !state.authenticated(&headers) {
         return StatusCode::UNAUTHORIZED.into_response();
     }
-    Json(json!({"result":state.peer_status.connections.snapshot(&state.db)})).into_response()
+    if matches!(request, Request::EnsureAware {}) {
+        return match super::status_outgoing::ensure_aware(&state).await {
+            Ok(()) => Json(json!({"result":state.peer_status.snapshot(&state.db)})).into_response(),
+            Err(error) => (
+                StatusCode::BAD_REQUEST,
+                Json(json!({"error":error.to_string()})),
+            )
+                .into_response(),
+        };
+    }
+    let _control = state.peer_status.control.lock().await;
+    let result = match request {
+        Request::Snapshot {} => Ok(()),
+        Request::Start {} => {
+            if state
+                .peer_status
+                .public_active
+                .load(std::sync::atomic::Ordering::SeqCst)
+            {
+                state.peer_status.outgoing.start(state.clone());
+                Ok(())
+            } else {
+                Err(anyhow::anyhow!("Public server inactive"))
+            }
+        }
+        Request::Stop {} => {
+            state.peer_status.outgoing.stop().await;
+            state.peer_status.connections.clear_hints();
+            emit(&state, "", false);
+            Ok(())
+        }
+        Request::Reconnect {} => state.peer_status.outgoing.reconnect(&state),
+        Request::EnsureAware {} => Ok(()),
+    };
+    match result {
+        Ok(()) => Json(json!({"result":state.peer_status.snapshot(&state.db)})).into_response(),
+        Err(error) => (
+            StatusCode::BAD_REQUEST,
+            Json(json!({"error":error.to_string()})),
+        )
+            .into_response(),
+    }
 }
 #[cfg(all(test, feature = "http_transport"))]
 #[path = "../../tests/unit/content_api/peer_status.rs"]

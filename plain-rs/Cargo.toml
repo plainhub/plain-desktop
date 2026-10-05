@@ -33,7 +33,7 @@ sqlite_browse = ["dep:rusqlite", "dep:serde_json"]
 prefs = ["dep:serde_json"]
 # Shared API stack for the desktop and NAS shells: GraphQL schemas,
 # axum HTTP/WS router, listener lifecycle, proxy, discovery and DLNA.
-content_api = ["dep:hmac", "dep:sha2_mac", "dep:anyhow", "chat", "library", "dep:regex", "dep:async-graphql", "dep:axum", "dep:reqwest", "reqwest/rustls-tls", "dep:futures-util", "dep:quick-xml", "dep:scraper", "tokio/net", "tokio/rt-multi-thread", "tokio/sync", "tokio/time", "tokio/macros", "dep:subtle"]
+content_api = ["dep:tokio-tungstenite", "tokio-tungstenite/rustls-tls-webpki-roots", "dep:rustls", "dep:hmac", "dep:sha2_mac", "dep:anyhow", "chat", "library", "dep:regex", "dep:async-graphql", "dep:axum", "dep:reqwest", "reqwest/rustls-tls", "dep:futures-util", "dep:quick-xml", "dep:scraper", "tokio/net", "tokio/rt-multi-thread", "tokio/sync", "tokio/time", "tokio/macros", "dep:subtle"]
 http_transport = ["dep:axum", "dep:axum-server", "dep:rustls", "dep:rustls-pemfile", "tokio/net", "tokio/rt", "tokio/sync", "tokio/time"]
 api = [
     "http_transport",
@@ -57,6 +57,7 @@ api = [
     "dep:scraper",
     "dep:sysinfo",
     "dep:tokio-tungstenite",
+    "tokio-tungstenite/native-tls",
     "dep:zip",
     "dep:tower-http",
     "tokio/net",
@@ -176,7 +177,7 @@ regex = { version = "1", optional = true }
 quick-xml = { version = "0.42", optional = true }
 scraper = { version = "0.27", optional = true }
 sysinfo = { version = "0.32", default-features = false, features = ["system", "disk"], optional = true }
-tokio-tungstenite = { version = "0.24", features = ["native-tls"], optional = true }
+tokio-tungstenite = { version = "0.30", default-features = false, features = ["connect"], optional = true }
 # AsyncReadStream needs the AsyncRead trait + ReadBuf (io-util is the
 # minimal feature set that provides them; no runtime/net).
 tokio = { version = "1", default-features = false, features = ["io-util"] }
@@ -198,7 +199,7 @@ futures = "0.3"
 tower = { version = "0.4", features = ["util"] }
 tempfile = "3"
 base64 = "0.22"
-tokio-tungstenite-test = { package = "tokio-tungstenite", version = "0.30" }
+tokio-tungstenite = { version = "0.30", features = ["connect", "rustls-tls-webpki-roots"] }
 
 [[example]]
 name = "thumb_bench"

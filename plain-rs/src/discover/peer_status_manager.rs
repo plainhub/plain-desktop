@@ -249,7 +249,7 @@ impl PeerStatusManager {
                 return;
             };
 
-            if ws.send(Message::Binary(payload)).await.is_err() {
+            if ws.send(Message::Binary(payload.into())).await.is_err() {
                 manager.connection_closed(&peer_id_for_task, task_id);
                 return;
             }

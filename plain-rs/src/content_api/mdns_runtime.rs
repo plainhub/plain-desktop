@@ -99,6 +99,11 @@ impl Runtime {
                 .to_string(),
         ));
     }
+    pub(super) fn browse_resident(&self) {
+        if let Some(session) = self.session.lock().unwrap().as_ref() {
+            session.browser.send_ptr_query();
+        }
+    }
     pub(super) fn snapshot(&self) -> Value {
         let guard = self.session.lock().unwrap();
         let session = guard.as_ref();
@@ -140,6 +145,9 @@ impl Runtime {
         let context = Context::from(state);
         let weak = Arc::downgrade(self);
         let observer = context.clone();
+        let status = state.peer_status.clone();
+        let status_db = state.db.clone();
+        let status_events = state.events.clone();
         let visible = scanning.clone();
         let browser = MdnsServiceBrowser::new(id, hostname.clone(), move |found| {
             let Some(runtime) = weak.upgrade() else {
@@ -165,7 +173,14 @@ impl Runtime {
                 discovery_methods: vec!["LAN".into()],
             };
             match observer.seen(device, visible.load(Ordering::SeqCst), true) {
-                Ok(true) => runtime.emit(&observer, Some(&id), visible.load(Ordering::SeqCst)),
+                Ok(true) => {
+                    if visible.load(Ordering::SeqCst)
+                        && status.connections.hint(&status_db, &id).unwrap_or(false)
+                    {
+                        let _=status_events.send(crate::ws_event::WsEvent::broadcast(10002,json!({"runtimeId":status.connections.snapshot(&status_db)["runtimeId"]}).to_string()));
+                    }
+                    runtime.emit(&observer, Some(&id), visible.load(Ordering::SeqCst));
+                }
                 Ok(false) => {}
                 Err(error) => log::warn!("mDNS observation: {error}"),
             }

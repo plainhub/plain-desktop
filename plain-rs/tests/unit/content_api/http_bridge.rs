@@ -1,6 +1,6 @@
 use super::*;
 use crate::content_api::ContentServer;
-use tokio_tungstenite_test::{
+use tokio_tungstenite::{
     connect_async,
     tungstenite::{Message as WsMessage, client::IntoClientRequest},
 };
@@ -30,8 +30,8 @@ async fn socket(
     port: u16,
     token: &str,
     path: &str,
-) -> tokio_tungstenite_test::WebSocketStream<
-    tokio_tungstenite_test::MaybeTlsStream<tokio::net::TcpStream>,
+) -> tokio_tungstenite::WebSocketStream<
+    tokio_tungstenite::MaybeTlsStream<tokio::net::TcpStream>,
 > {
     let mut request = format!("ws://127.0.0.1:{port}{path}")
         .into_client_request()

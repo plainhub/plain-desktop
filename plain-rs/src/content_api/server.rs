@@ -254,12 +254,26 @@ impl ContentServer {
         let listeners =
             crate::http_transport::HttpListeners::start(router, http, https, cert, key).await?;
         let ports = (listeners.http_port, listeners.https_port);
+        {
+            let _control = self.state.peer_status.control.lock().await;
+            self.state
+                .peer_status
+                .public_active
+                .store(true, std::sync::atomic::Ordering::SeqCst);
+            self.state.peer_status.outgoing.start(self.state.clone());
+        }
         *guard = Some(PublicServer { listeners, stop });
         Ok(ports)
     }
     #[cfg(feature = "http_transport")]
     pub async fn stop_public(&self) {
         let mut guard = self.public.lock().await;
+        let _control = self.state.peer_status.control.lock().await;
+        self.state
+            .peer_status
+            .public_active
+            .store(false, std::sync::atomic::Ordering::SeqCst);
+        self.state.peer_status.outgoing.stop().await;
         if let Some(public) = guard.take() {
             let _ = public.stop.send(true);
             let PublicServer { listeners, stop: _ } = public;

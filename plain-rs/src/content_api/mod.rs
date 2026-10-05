@@ -60,3 +60,6 @@ mod nearby_devices;
 mod ble_pairing;
 
 mod peer_status;
+
+mod status_socket;
+mod status_outgoing;

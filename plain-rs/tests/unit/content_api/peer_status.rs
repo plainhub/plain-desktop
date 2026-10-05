@@ -8,7 +8,7 @@ use crate::{
     },
 };
 use futures_util::{SinkExt, StreamExt};
-use tokio_tungstenite_test::{connect_async, tungstenite::Message};
+use tokio_tungstenite::{connect_async, tungstenite::Message};
 
 #[tokio::test]
 async fn public_status_auth_scoped_connections_key_rotation_and_stop_use_rust_without_host() {
@@ -156,4 +156,128 @@ async fn public_status_auth_scoped_connections_key_rotation_and_stop_use_rust_wi
     .unwrap();
     assert_eq!(stale.recv().await.unwrap().event_type, 10002);
     server.shutdown().await;
+}
+
+#[tokio::test]
+async fn rust_outgoing_reconnects_same_address_without_native_and_stops_without_revival() {
+    use crate::db::chat_store::{SaveMode, peers};
+    async fn wait_online(server: &ContentServer, id: &str, online: bool) {
+        tokio::time::timeout(Duration::from_secs(12), async {
+            loop {
+                let row = server
+                    .runtime_state()
+                    .peer_status
+                    .connections
+                    .snapshot(&server.runtime_state().db);
+                if row["online"]
+                    .as_array()
+                    .unwrap()
+                    .iter()
+                    .any(|value| value.as_str() == Some(id))
+                    == online
+                {
+                    break;
+                }
+                tokio::time::sleep(Duration::from_millis(20)).await;
+            }
+        })
+        .await
+        .unwrap();
+    }
+    fn configured(dir: &std::path::Path, id: &str) -> (Arc<crate::prefs::Prefs>, Vec<u8>) {
+        let prefs = Arc::new(crate::prefs::Prefs::load(&dir.join("system.json")).unwrap());
+        let (kp, pk) = crate::ed25519_generate();
+        prefs.set_user("service", true).unwrap();
+        prefs.set("client_id", id).unwrap();
+        prefs.set("signature_key_pair",json!({"privateKey":crate::base64_encode(&kp[..32]),"publicKey":crate::base64_encode(&pk)}).to_string()).unwrap();
+        (prefs, pk.to_vec())
+    }
+    let a_dir = tempfile::tempdir().unwrap();
+    let b_dir = tempfile::tempdir().unwrap();
+    let (a_prefs, a_pk) = configured(a_dir.path(), "a");
+    let (b_prefs, b_pk) = configured(b_dir.path(), "b");
+    let shared = crate::base64_encode(&[17; 32]);
+    let a_path = a_dir.path().join("plain.db");
+    let b_path = b_dir.path().join("plain.db");
+    let a_db = Db::open(&a_path).unwrap();
+    let b_db = Db::open(&b_path).unwrap();
+    let mut a_peer = DPeer::new("a", "a", "127.0.0.1", 443, DeviceType::Phone);
+    a_peer.key = shared.clone();
+    a_peer.public_key = crate::base64_encode(&a_pk);
+    a_peer.status = PeerStatus::Paired;
+    peers::save(&b_db, &[a_peer], SaveMode::Insert).unwrap();
+    let b =
+        ContentServer::start(&b_path, &crate::base64_encode(&[12; 32]), b_prefs.clone()).unwrap();
+    let cert = rcgen::generate_simple_self_signed(vec!["localhost".into()]).unwrap();
+    let (_, b_https) = b
+        .start_public(
+            0,
+            0,
+            cert.cert.pem().into_bytes(),
+            cert.key_pair.serialize_pem().into_bytes(),
+        )
+        .await
+        .unwrap();
+    let mut b_peer = DPeer::new("b", "b", "127.0.0.1", b_https, DeviceType::Phone);
+    b_peer.key = shared;
+    b_peer.public_key = crate::base64_encode(&b_pk);
+    b_peer.status = PeerStatus::Paired;
+    peers::save(&a_db, &[b_peer.clone()], SaveMode::Insert).unwrap();
+    let a_token = crate::base64_encode(&[13; 32]);
+    let a = ContentServer::start(&a_path, &a_token, a_prefs).unwrap();
+    a.start_public(
+        0,
+        0,
+        cert.cert.pem().into_bytes(),
+        cert.key_pair.serialize_pem().into_bytes(),
+    )
+    .await
+    .unwrap();
+    wait_online(&a, "b", true).await;
+    wait_online(&b, "a", true).await;
+    b.stop_public().await;
+    wait_online(&a, "b", false).await;
+    b.start_public(
+        0,
+        b_https,
+        cert.cert.pem().into_bytes(),
+        cert.key_pair.serialize_pem().into_bytes(),
+    )
+    .await
+    .unwrap();
+    wait_online(&a, "b", true).await;
+    b_peer.status = PeerStatus::Unpaired;
+    peers::save(&a_db, &[b_peer.clone()], SaveMode::Update).unwrap();
+    wait_online(&a, "b", false).await;
+    wait_online(&b, "a", false).await;
+    b_peer.status = PeerStatus::Paired;
+    peers::save(&a_db, &[b_peer], SaveMode::Update).unwrap();
+    wait_online(&a, "b", true).await;
+    let client = reqwest::Client::new();
+    let local = format!("http://127.0.0.1:{}/chat/peer-status", a.port);
+    let command = |action: &str| {
+        client
+            .post(&local)
+            .bearer_auth(&a_token)
+            .header("content-type", "application/json")
+            .body(json!({"action":action}).to_string())
+    };
+    assert_eq!(command("stop").send().await.unwrap().status(), 200);
+    wait_online(&a, "b", false).await;
+    wait_online(&b, "a", false).await;
+    tokio::time::sleep(Duration::from_millis(1100)).await;
+    assert_eq!(
+        a.runtime_state()
+            .peer_status
+            .connections
+            .snapshot(&a.runtime_state().db)["online"],
+        json!([])
+    );
+    assert_eq!(command("start").send().await.unwrap().status(), 200);
+    wait_online(&a, "b", true).await;
+    a.stop_public().await;
+    assert_eq!(command("start").send().await.unwrap().status(), 400);
+    wait_online(&a, "b", false).await;
+    a.shutdown().await;
+    b.shutdown().await;
 }

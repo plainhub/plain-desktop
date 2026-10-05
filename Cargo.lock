@@ -5095,7 +5095,6 @@ dependencies = [
  "tantivy",
  "tempfile",
  "tokio",
- "tokio-tungstenite 0.24.0",
  "tokio-tungstenite 0.30.0",
  "tower 0.4.13",
  "tower-http 0.5.2",
@@ -7522,9 +7521,7 @@ checksum = "edc5f74e248dc973e0dbb7b74c7e0d6fcc301c694ff50049504004ef4d0cdcd9"
 dependencies = [
  "futures-util",
  "log",
- "native-tls",
  "tokio",
- "tokio-native-tls",
  "tungstenite 0.24.0",
 ]
 
@@ -7536,8 +7533,14 @@ checksum = "17a073bfed563fa236697a068031408a93cd9522e08abf9933ead3e73411bd71"
 dependencies = [
  "futures-util",
  "log",
+ "native-tls",
+ "rustls",
+ "rustls-pki-types",
  "tokio",
+ "tokio-native-tls",
+ "tokio-rustls",
  "tungstenite 0.30.0",
+ "webpki-roots 0.26.11",
 ]
 
 [[package]]
@@ -7815,7 +7818,6 @@ dependencies = [
  "http",
  "httparse",
  "log",
- "native-tls",
  "rand 0.8.8",
  "sha1 0.10.7",
  "thiserror 1.0.69",
@@ -7833,7 +7835,10 @@ dependencies = [
  "http",
  "httparse",
  "log",
+ "native-tls",
  "rand 0.10.3",
+ "rustls",
+ "rustls-pki-types",
  "sha1 0.11.0",
  "thiserror 2.0.21",
 ]

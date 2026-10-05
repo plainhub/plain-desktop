@@ -40,7 +40,7 @@ async fn encrypted_public_and_ble_rpc_share_auth_executor_and_receipts() {
     };
     use futures_util::{SinkExt, StreamExt};
     use std::sync::Arc;
-    use tokio_tungstenite_test::{
+    use tokio_tungstenite::{
         connect_async,
         tungstenite::{Message, client::IntoClientRequest},
     };
