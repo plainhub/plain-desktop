@@ -32,6 +32,11 @@ pub(super) async fn file(State(state): State<ServerState>, mut request: Request)
     else {
         return StatusCode::NOT_FOUND.into_response();
     };
+    if crate::utils::query::query_get(&query, "w").is_some()
+        && crate::utils::query::query_get(&query, "h").is_some()
+    {
+        return forward(state, request).await;
+    }
     let offset = crate::utils::query::query_get(&query, "offset");
     let length = crate::utils::query::query_get(&query, "length");
     if let (Some(offset), Some(length)) = (offset, length) {

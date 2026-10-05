@@ -18,3 +18,6 @@ pub mod unique_path;
 
 #[cfg(any(feature = "api", feature = "content_api"))]
 pub mod html_to_markdown;
+
+#[cfg(any(feature = "content_api", feature = "media"))]
+pub mod keyed_locks;

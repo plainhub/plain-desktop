@@ -29,6 +29,7 @@ pub(super) struct ServerState {
     pub(super) peer_schema: super::peer_graphql::PeerSchema,
     pub(super) files: Arc<super::file_tasks::FileTasks>,
     pub(super) host: Arc<super::host::Host>,
+    pub(super) thumbnails: Arc<super::thumbnails::Thumbnails>,
     pub(super) db: Arc<Db>,
     pub(super) lan: Arc<super::peer_lan::Lan>,
     pub(super) transport: Arc<crate::chat::transport_router::Router>,
@@ -124,6 +125,7 @@ impl ContentServer {
         let state = ServerState {
             lan,
             schema,
+            thumbnails: Arc::new(super::thumbnails::Thumbnails::default()),
             peer_status: Arc::new(super::peer_status::Runtime::default()),
             mdns: Arc::new(super::mdns_runtime::Runtime::default()),
             peer_schema: super::peer_graphql::schema(),
@@ -198,6 +200,8 @@ impl ContentServer {
             .route("/chat/attachment", post(super::attachment_imports::call))
             .route("/chat/send", post(super::chat_delivery::call))
             .route("/chat/service", post(super::chat_service::call))
+            .route("/files/thumbnail", post(super::thumbnails::call))
+            .route("/files/thumbnail/output/:token", post(super::thumbnails::output))
             .route("/chat/ble-http", post(super::ble_http::call))
             .route("/chat/store", post(super::chat_store_routes::call))
             .route("/files/write", post(super::file_writes::write))

@@ -67,3 +67,34 @@ async fn map_does_not_leak() {
     }
     assert_eq!(locks.in_flight_keys(), 0);
 }
+
+#[tokio::test]
+async fn cancellation_releases_waiting_and_running_keys() {
+    let locks = Arc::new(KeyedLocks::new());
+    let entered = Arc::new(tokio::sync::Notify::new());
+    let first = tokio::spawn({
+        let locks = locks.clone();
+        let entered = entered.clone();
+        async move {
+            locks
+                .with_lock("cancelled".into(), async {
+                    entered.notify_one();
+                    std::future::pending::<()>().await
+                })
+                .await
+        }
+    });
+    entered.notified().await;
+    let second = tokio::spawn({
+        let locks = locks.clone();
+        async move { locks.with_lock("cancelled".into(), async {}).await }
+    });
+    tokio::task::yield_now().await;
+    second.abort();
+    let _ = second.await;
+    first.abort();
+    let _ = first.await;
+    assert_eq!(locks.in_flight_keys(), 0);
+    locks.with_lock("cancelled".into(), async {}).await;
+    assert_eq!(locks.in_flight_keys(), 0);
+}

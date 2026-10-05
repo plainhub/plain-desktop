@@ -83,3 +83,5 @@ mod ble_http;
 #[cfg(test)]
 #[path = "../../tests/unit/content_api/chat_flow.rs"]
 mod chat_flow;
+
+mod thumbnails;
