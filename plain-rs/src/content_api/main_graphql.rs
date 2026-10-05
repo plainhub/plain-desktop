@@ -1,11 +1,13 @@
 use super::server::ServerState;
 use axum::{
+    Json,
     body::Bytes,
-    extract::State,
+    extract::{ConnectInfo, State},
     http::{HeaderMap, StatusCode, header::CONTENT_TYPE},
     response::{IntoResponse, Response},
 };
 use serde_json::json;
+use std::net::SocketAddr;
 use subtle::ConstantTimeEq;
 
 fn bearer_value(value: &str) -> &str {
@@ -137,4 +139,50 @@ pub(super) async fn health(State(state): State<ServerState>) -> Response {
             .into_response(),
         Err(_) => StatusCode::BAD_GATEWAY.into_response(),
     }
+}
+
+pub(super) async fn init(
+    State(state): State<ServerState>,
+    ConnectInfo(remote): ConnectInfo<SocketAddr>,
+    headers: HeaderMap,
+    body: Bytes,
+) -> Response {
+    let client_id = headers
+        .get("c-id")
+        .and_then(|value| value.to_str().ok())
+        .unwrap_or_default();
+    if client_id.is_empty() {
+        return StatusCode::BAD_REQUEST.into_response();
+    }
+    let facts = match state
+        .host
+        .call("mainGraphqlInitFacts", json!({"clientId":client_id}))
+        .await
+    {
+        Ok(facts) => facts,
+        Err(_) => return StatusCode::BAD_GATEWAY.into_response(),
+    };
+    if facts["desktopAccessEnabled"].as_bool() != Some(true) {
+        return StatusCode::NOT_FOUND.into_response();
+    }
+    let token = facts["tokenKey"].as_str().unwrap_or_default();
+    let key = crate::utils::base64::base64_decode(token);
+    let token_authenticated =
+        key.len() == 32 && crate::crypto::chacha20_decrypt(&key, &body).is_some();
+    let response = match state
+        .host
+        .call(
+            "mainGraphqlInitResponse",
+            json!({
+                "clientId": client_id,
+                "remoteHost": remote.ip().to_string(),
+                "resetPassword": !token_authenticated,
+            }),
+        )
+        .await
+    {
+        Ok(response) => response,
+        Err(_) => return StatusCode::BAD_GATEWAY.into_response(),
+    };
+    Json(response).into_response()
 }
