@@ -127,3 +127,14 @@ pub(super) async fn call(
 #[cfg(test)]
 #[path = "../../tests/unit/content_api/main_graphql.rs"]
 mod tests;
+
+pub(super) async fn health(State(state): State<ServerState>) -> Response {
+    match state.host.call("mainGraphqlHealth", json!({})).await {
+        Ok(value) => value
+            .as_str()
+            .unwrap_or_default()
+            .to_owned()
+            .into_response(),
+        Err(_) => StatusCode::BAD_GATEWAY.into_response(),
+    }
+}
