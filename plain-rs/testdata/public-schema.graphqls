@@ -427,6 +427,52 @@ type FavoriteFolder {
 	alias: String
 }
 
+type Feed {
+	id: ID!
+	name: String!
+	url: String!
+	fetchContent: Boolean!
+	logo: String!
+	lastSyncAt: Instant
+	lastError: FeedError!
+	createdAt: Instant!
+	updatedAt: Instant!
+}
+
+type FeedEntry {
+	feedId: ID!
+	id: ID!
+	title: String!
+	url: String!
+	image: String!
+	description: String!
+	author: String!
+	content: String!
+	rawId: String!
+	read: Boolean!
+	publishedAt: Instant!
+	createdAt: Instant!
+	updatedAt: Instant!
+	tags: [Tag!]!
+	feed: Feed
+}
+
+type FeedEntryCount {
+	id: ID!
+	count: Int!
+}
+
+type FeedError {
+	code: String!
+	detail: String!
+}
+
+type FeedSyncState {
+	feedId: ID!
+	status: String!
+	error: String!
+}
+
 """
 One entry of a directory listing or a search page.
 """
@@ -638,6 +684,36 @@ type Mutation {
 	saveImageEditorProject(id: ID!, input: ImageEditorProjectInput!): ImageEditorProject!
 	deleteImageEditorProject(id: ID!): Boolean!
 	broadcastImageEditorUpdate(id: ID!, update: String!): Boolean!
+	createNote(input: NoteInput!): Note!
+	updateNote(id: ID!, input: NoteInput!): Note!
+	saveFeedEntriesToNotes(query: String!): [ID!]!
+	trashNotes(query: String!): ActionResult!
+	restoreNotes(query: String!): ActionResult!
+	"""
+	A blank query would match every note, and a bulk delete is not
+	something a client should be able to aim at the whole library by
+	accident — refused before the store is touched.
+	"""
+	deleteNotes(query: String!): ActionResult!
+	exportNotes(query: String!): String!
+	updateFeedUrl(id: ID!, url: String!): Feed!
+	markFeedEntriesRead(query: String!, read: Boolean!): ActionResult!
+	"""
+	Starts the sync and returns immediately; the web client watches the
+	websocket for `FEEDS_FETCHED` rather than blocking on this call.
+	"""
+	syncFeeds(id: ID): Boolean!
+	updateFeed(id: ID!, name: String!, fetchContent: Boolean!): Feed!
+	createFeed(url: String!, fetchContent: Boolean!): Feed!
+	importFeeds(content: String!): Boolean!
+	exportFeeds: String!
+	deleteFeed(id: ID!): Boolean!
+	syncFeedEntryContent(id: ID!): FeedEntry!
+	"""
+	Blank query refused for the same reason as `deleteNotes`: a bulk
+	delete must never be aimable at the whole library by accident.
+	"""
+	deleteFeedEntries(query: String!): ActionResult!
 	uninstallPackages(ids: [ID!]!): Boolean!
 	"""
 	Bundle unpacking is heavy disk I/O, so the platform side keeps it off
@@ -799,6 +875,21 @@ type Mutation {
 	updateDeviceName(name: String!): Boolean!
 	startDiscovery: Boolean!
 	stopDiscovery: Boolean!
+}
+
+type Note {
+	id: ID!
+	title: String!
+	content: String!
+	deletedAt: Instant
+	createdAt: Instant!
+	updatedAt: Instant!
+	tags: [Tag!]!
+}
+
+input NoteInput {
+	title: String!
+	content: String!
 }
 
 type Notification {
@@ -971,6 +1062,16 @@ type Query {
 	pomodoroToday: PomodoroToday!
 	imageEditorProjects: [ImageEditorProjectSummary!]!
 	imageEditorProject(id: ID!): ImageEditorProject
+	noteCount(query: String!): Int!
+	note(id: ID!): Note
+	notes(offset: Int!, limit: Int!, query: String!): [Note!]!
+	feedSyncStates: [FeedSyncState!]!
+	feed(id: ID!): Feed
+	feeds: [Feed!]!
+	feedEntryCounts: [FeedEntryCount!]!
+	feedEntryCount(query: String!): Int!
+	feedEntry(id: ID!): FeedEntry
+	feedEntries(offset: Int!, limit: Int!, query: String!): [FeedEntry!]!
 	packages(offset: Int!, limit: Int!, query: String!, sortBy: FileSortBy!): [Package!]!
 	packageCount(query: String!): Int!
 	packageStatuses(ids: [ID!]!): [PackageStatus!]!

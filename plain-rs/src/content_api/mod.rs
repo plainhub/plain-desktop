@@ -80,6 +80,10 @@ mod public_media;
 #[allow(dead_code)]
 mod public_tags;
 #[allow(dead_code)]
+mod public_feeds;
+#[allow(dead_code)]
+mod public_notes;
+#[allow(dead_code)]
 mod public_notifications;
 #[allow(dead_code)]
 mod public_packages;

@@ -53,6 +53,16 @@ pub(super) fn optional_instant(value: &Value, key: &str) -> Option<Instant> {
         .map(|parsed| Instant(parsed.with_timezone(&chrono::Utc)))
 }
 
+/// A timestamp read straight out of one of this crate's own tables, where
+/// it is stored as RFC3339. A malformed one is corruption in a table only
+/// Rust writes, so it degrades to the epoch the same way an unreadable
+/// platform fact does instead of failing the whole page.
+pub(super) fn stored_instant(value: &str) -> Instant {
+    chrono::DateTime::parse_from_rfc3339(value)
+        .map(|parsed| Instant(parsed.with_timezone(&chrono::Utc)))
+        .unwrap_or_else(|_| epoch())
+}
+
 fn epoch() -> Instant {
     Instant(chrono::DateTime::from_timestamp(0, 0).unwrap_or_default())
 }

@@ -11,6 +11,7 @@ use super::public_calls::{CallsMutation, CallsQuery};
 use super::public_clipboard::{ClipboardMutation, ClipboardQuery};
 use super::public_contacts::{ContactsMutation, ContactsQuery};
 use super::public_device::{DeviceMutation, DeviceQuery};
+use super::public_feeds::{FeedsMutation, FeedsQuery};
 use super::public_file_ops::{FileOpsMutation, MediaActionMutation, UploadQuery};
 use super::public_files::{FilesQuery, FavoritesMutation};
 use super::public_image_index::{ImageIndexMutation, ImageIndexQuery};
@@ -19,6 +20,7 @@ use super::public_media::MediaQuery;
 use super::public_prefs::{PrefsMutation, PrefsQuery};
 use super::public_tags::{TagsMutation, TagsQuery};
 use super::public_notifications::{NotificationsMutation, NotificationsQuery};
+use super::public_notes::{NotesMutation, NotesQuery};
 use super::public_packages::{PackagesMutation, PackagesQuery};
 use super::public_screen_mirror::{ScreenMirrorMutation, ScreenMirrorQuery, SettingsMutation};
 use super::public_sms::{SmsMutation, SmsQuery};
@@ -50,6 +52,8 @@ pub struct Query(
     schema::bookmark::BookmarkQuery,
     schema::pomodoro::PomodoroQuery,
     schema::image_editor_project::ImageEditorProjectQuery,
+    NotesQuery,
+    FeedsQuery,
     PackagesQuery,
     NotificationsQuery,
     ClipboardQuery,
@@ -72,6 +76,8 @@ pub struct Mutation(
     schema::bookmark::BookmarkMutation,
     schema::pomodoro::PomodoroMutation,
     schema::image_editor_project::ImageEditorProjectMutation,
+    NotesMutation,
+    FeedsMutation,
     PackagesMutation,
     NotificationsMutation,
     ClipboardMutation,
@@ -111,7 +117,15 @@ pub fn build(
             prefs.clone(),
             events.clone(),
         )))
-        .data(crate::image_editor::Updates::new(events))
+        .data(crate::image_editor::Updates::new(events.clone()))
+        .data(Arc::new(crate::feeds::SyncService::new(
+            db.clone(),
+            events,
+            Some(Arc::new(crate::feeds::FeedAssets {
+                db: db.clone(),
+                directory: directory.clone(),
+            })),
+        )))
         .data(prefs)
         .data(db.clone())
         .data(Arc::new(crate::feeds::FeedAssets { db, directory }))

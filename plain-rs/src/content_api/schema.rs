@@ -11,11 +11,11 @@ mod bookmark_types;
 mod bookmarks;
 pub(crate) mod clipboard;
 #[path = "../http_server/main_schemas/content_common.rs"]
-mod content_common;
+pub(crate) mod content_common;
 #[path = "../http_server/main_schemas/favorite_folder.rs"]
 mod favorite_folder;
 #[path = "../http_server/main_schemas/feed.rs"]
-mod feed;
+pub(crate) mod feed;
 mod file_tasks;
 mod image_editor_host;
 #[path = "../http_server/main_schemas/image_editor_project.rs"]
