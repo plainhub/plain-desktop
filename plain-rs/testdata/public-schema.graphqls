@@ -182,6 +182,27 @@ input ContactWebsiteInput {
 	label: String!
 }
 
+"""
+The contract's content kinds. The numeric values are plain-app's
+`DataType` ordinals and are what the tag tables store, so they are the
+contract's order rather than a free choice.
+"""
+enum DataType {
+	DEFAULT
+	AUDIO
+	VIDEO
+	IMAGE
+	SMS
+	CONTACT
+	NOTE
+	FEED_ENTRY
+	CALL
+	PACKAGE
+	FILE
+	APP_FILE
+	DOC
+}
+
 type Doc {
 	id: ID!
 	title: String!
@@ -438,6 +459,37 @@ type Mutation {
 	cancelImageIndex: Boolean!
 	openAccessibilitySettings: Boolean!
 	openWebSettings(feature: WebSettingsFeature): Boolean!
+	"""
+	Each mutation returns the whole updated list, so a client never has
+	to guess what the operation did to the rows it did not touch.
+	"""
+	addFavoriteFolder(rootPath: String!, fullPath: String!): [FavoriteFolder!]!
+	"""
+	An unknown `fullPath` is not an error: the folder was already gone,
+	and returning the current list is the honest answer either way.
+	"""
+	removeFavoriteFolder(fullPath: String!): [FavoriteFolder!]!
+	setFavoriteFolderAlias(fullPath: String!, alias: String!): [FavoriteFolder!]!
+	createTag(type: DataType!, name: String!): Tag!
+	updateTag(id: ID!, name: String!): Tag!
+	deleteTag(id: ID!): Boolean!
+	"""
+	Attaches every tag to every key the query matches. An empty query
+	would tag the whole library, so it is rejected before the platform
+	ever sees it.
+	"""
+	addToTags(type: DataType!, tagIds: [ID!]!, query: String!): Boolean!
+	"""
+	Same key resolution as `addToTags`, minus the title and size the
+	relation stub carries — removal has nothing to record.
+	"""
+	removeFromTags(type: DataType!, tagIds: [ID!]!, query: String!): Boolean!
+	"""
+	One key, an explicit add and remove list. The stub's title and size are
+	stored on the relation: the tag editor shows them without a second
+	lookup, so dropping them would make a tagged row render blank.
+	"""
+	updateTagRelations(type: DataType!, item: TagRelationStub!, addTagIds: [ID!]!, removeTagIds: [ID!]!): Boolean!
 }
 
 type Notification {
@@ -646,6 +698,14 @@ type Query {
 	docCount(query: String!): Int!
 	docs(offset: Int!, limit: Int!, query: String!, sortBy: FileSortBy!): [Doc!]!
 	docExtGroups: [DocExtGroup!]!
+	tags(type: DataType!): [Tag!]!
+	tagRelations(type: DataType!, keys: [String!]!): [TagRelation!]!
+	"""
+	`null` when the id is unknown — the web client treats that as "gone"
+	and drops the tag from its list.
+	"""
+	tag(id: ID!): Tag
+	tagKeys(id: ID!): [String!]!
 }
 
 enum ScreenMirrorMode {
@@ -725,6 +785,21 @@ type Tag {
 	id: ID!
 	name: String!
 	count: Int!
+}
+
+"""
+One (tag, item-key) relation (plain-app contract). `key` is the media id
+/ entity key the tag is attached to.
+"""
+type TagRelation {
+	tagId: ID!
+	key: String!
+}
+
+input TagRelationStub {
+	key: String!
+	title: String!
+	size: Long!
 }
 
 type Video {

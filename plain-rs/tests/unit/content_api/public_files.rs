@@ -410,6 +410,67 @@ async fn recent_files_are_gated_and_projected_from_the_platform() {
     assert_eq!(items[1]["size"], 4096);
 }
 
+/// Every mutation returns the whole list, so a client re-renders from the
+/// response instead of guessing what happened to rows it did not touch.
+#[tokio::test]
+async fn favorite_folder_mutations_return_the_whole_list() {
+    let (_dir, schema) = fixture("[]");
+    let response = schema
+        .execute(
+            r#"mutation { addFavoriteFolder(rootPath:"/storage/emulated/0",
+                                fullPath:"/storage/emulated/0/DCIM") { fullPath alias } }"#,
+        )
+        .await;
+    assert!(response.errors.is_empty(), "{:?}", response.errors);
+    assert_eq!(
+        response.data.into_json().unwrap()["addFavoriteFolder"],
+        json!([{"fullPath": "/storage/emulated/0/DCIM", "alias": null}])
+    );
+
+    let response = schema
+        .execute(
+            r#"mutation { setFavoriteFolderAlias(fullPath:"/storage/emulated/0/DCIM", alias:"Camera")
+                          { fullPath alias } }"#,
+        )
+        .await;
+    assert!(response.errors.is_empty(), "{:?}", response.errors);
+    let list = response.data.into_json().unwrap();
+    let list = &list["setFavoriteFolderAlias"];
+    assert_eq!(list[0]["alias"], "Camera");
+
+    let response = schema
+        .execute(r#"mutation { removeFavoriteFolder(fullPath:"/storage/emulated/0/DCIM") { fullPath } }"#)
+        .await;
+    assert!(response.errors.is_empty(), "{:?}", response.errors);
+    assert_eq!(
+        response.data.into_json().unwrap()["removeFavoriteFolder"],
+        json!([])
+    );
+}
+
+/// Removing a folder that is already gone is a no-op, not an error: the
+/// client cannot tell the two apart and would only show a spurious failure.
+#[tokio::test]
+async fn removing_an_unknown_favorite_folder_is_a_no_op() {
+    let (_dir, schema) = fixture("[]");
+    let response = schema
+        .execute(r#"mutation { removeFavoriteFolder(fullPath:"/nope") { fullPath } }"#)
+        .await;
+    assert!(response.errors.is_empty(), "{:?}", response.errors);
+    assert_eq!(
+        response.data.into_json().unwrap()["removeFavoriteFolder"],
+        json!([])
+    );
+    let response = schema
+        .execute(r#"mutation { setFavoriteFolderAlias(fullPath:"/nope", alias:"x") { fullPath } }"#)
+        .await;
+    assert!(response.errors.is_empty(), "{:?}", response.errors);
+    assert_eq!(
+        response.data.into_json().unwrap()["setFavoriteFolderAlias"],
+        json!([])
+    );
+}
+
 /// `TAKEN_AT_DESC` has no filesystem equivalent — it is an EXIF-time sort
 /// the directory walk cannot do, so it must not be mistaken for a name
 /// sort that would silently return a different page.

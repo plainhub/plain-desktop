@@ -170,17 +170,78 @@ impl FilesQuery {
         &self,
         ctx: &Context<'_>,
     ) -> async_graphql::Result<Vec<FavoriteFolder>> {
-        let db = ctx.data_unchecked::<Arc<Db>>();
-        Ok(crate::library::favorite_folders::list(db)
-            .map_err(|error| async_graphql::Error::new(error.to_string()))?
-            .iter()
-            .map(|folder| FavoriteFolder {
-                root_path: folder.root_path.clone(),
-                full_path: crate::library::favorite_folders::full_path_of(folder),
-                alias: folder.alias.clone(),
-            })
-            .collect())
+        favorite_folders(ctx).await
     }
+}
+
+#[derive(Default)]
+pub struct FavoritesMutation;
+
+#[Object]
+impl FavoritesMutation {
+    /// Each mutation returns the whole updated list, so a client never has
+    /// to guess what the operation did to the rows it did not touch.
+    async fn add_favorite_folder(
+        &self,
+        ctx: &Context<'_>,
+        root_path: String,
+        full_path: String,
+    ) -> async_graphql::Result<Vec<FavoriteFolder>> {
+        crate::library::favorite_folders::add_full_path(db(ctx), &root_path, &full_path)
+            .map_err(|error| async_graphql::Error::new(error.to_string()))?;
+        favorite_folders(ctx).await
+    }
+
+    /// An unknown `fullPath` is not an error: the folder was already gone,
+    /// and returning the current list is the honest answer either way.
+    async fn remove_favorite_folder(
+        &self,
+        ctx: &Context<'_>,
+        full_path: String,
+    ) -> async_graphql::Result<Vec<FavoriteFolder>> {
+        let db = db(ctx);
+        if let Some(folder) = crate::library::favorite_folders::find_by_full_path(db, &full_path)
+            .map_err(|error| async_graphql::Error::new(error.to_string()))?
+        {
+            crate::library::favorite_folders::remove(db, &folder.root_path, &folder.relative_path)
+                .map_err(|error| async_graphql::Error::new(error.to_string()))?;
+        }
+        favorite_folders(ctx).await
+    }
+
+    async fn set_favorite_folder_alias(
+        &self,
+        ctx: &Context<'_>,
+        full_path: String,
+        alias: String,
+    ) -> async_graphql::Result<Vec<FavoriteFolder>> {
+        let db = db(ctx);
+        if let Some(folder) = crate::library::favorite_folders::find_by_full_path(db, &full_path)
+            .map_err(|error| async_graphql::Error::new(error.to_string()))?
+        {
+            crate::library::favorite_folders::set_alias(
+                db,
+                &folder.root_path,
+                &folder.relative_path,
+                &alias,
+            )
+            .map_err(|error| async_graphql::Error::new(error.to_string()))?;
+        }
+        favorite_folders(ctx).await
+    }
+}
+
+async fn favorite_folders(ctx: &Context<'_>) -> async_graphql::Result<Vec<FavoriteFolder>> {
+    let db = db(ctx);
+    Ok(crate::library::favorite_folders::list(db)
+        .map_err(|error| async_graphql::Error::new(error.to_string()))?
+        .iter()
+        .map(|folder| FavoriteFolder {
+            root_path: folder.root_path.clone(),
+            full_path: crate::library::favorite_folders::full_path_of(folder),
+            alias: folder.alias.clone(),
+        })
+        .collect())
 }
 
 #[derive(Enum, Copy, Clone, Eq, PartialEq, Debug)]
@@ -332,6 +393,10 @@ fn host<'a>(ctx: &'a Context<'_>) -> &'a Arc<Host> {
 
 fn prefs<'a>(ctx: &'a Context<'_>) -> &'a Arc<crate::prefs::Prefs> {
     ctx.data_unchecked::<Arc<crate::prefs::Prefs>>()
+}
+
+fn db<'a>(ctx: &'a Context<'_>) -> &'a Arc<Db> {
+    ctx.data_unchecked::<Arc<Db>>()
 }
 
 async fn host_call(ctx: &Context<'_>, method: &str, params: Value) -> async_graphql::Result<Value> {
