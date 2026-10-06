@@ -4,7 +4,7 @@
 //! app's own provider view reads the exact same platform facts, so both
 //! surfaces must agree on what a query DSL means.
 
-use super::public_facts::{flag, i64, id, instant, optional_instant, text};
+use super::public_facts::{flag, id, instant, integer, optional_instant, text};
 use super::public_gate;
 use super::system_providers;
 use crate::content_api::host::Host;
@@ -133,7 +133,7 @@ fn package(value: &Value) -> Package {
         },
         version: text(value, "version"),
         path: text(value, "path"),
-        size: Long(i64(value, "size")),
+        size: Long(integer(value, "size")),
         certs: value["certs"]
             .as_array()
             .map(|certs| certs.iter().map(certificate).collect())

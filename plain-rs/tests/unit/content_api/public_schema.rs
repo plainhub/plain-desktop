@@ -42,7 +42,7 @@ fn public_schema_matches_committed_sdl() {
 /// The contract shapes every resolver must keep, spelled out so a rename or
 /// an optional-turned-required argument cannot pass the snapshot review.
 #[test]
-fn public_schema_exposes_the_package_notification_and_clipboard_contract() {
+fn public_schema_exposes_the_contract_it_has_to_serve() {
     let sdl = sdl();
     for field in [
         "packages(offset: Int!, limit: Int!, query: String!, sortBy: FileSortBy!): [Package!]!",
@@ -58,12 +58,32 @@ fn public_schema_exposes_the_package_notification_and_clipboard_contract() {
         "clipboardItemCount(query: String!): Int!",
         "setClipboard(text: String!): Boolean!",
         "deleteClipboardItems(query: String!): ActionResult!",
+        "contacts(offset: Int!, limit: Int!, query: String!): [Contact!]!",
+        "contactCount(query: String!): Int!",
+        "contactSources: [ContactSource!]!",
+        "contactGroups: [ContactGroup!]!",
+        "createContact(input: ContactInput!): Contact!",
+        "updateContact(id: ID!, input: ContactInput!): Contact!",
+        "deleteContacts(query: String!): ActionResult!",
+        "createContactGroup(name: String!, accountName: String!, accountType: String!): ContactGroup!",
+        "updateContactGroup(id: ID!, name: String!): ContactGroup!",
+        "deleteContactGroup(id: ID!): Boolean!",
     ] {
         assert!(sdl.contains(field), "missing {field}");
     }
     assert!(
         sdl.contains("replyActions: [String!]!"),
         "replyActions renamed"
+    );
+    // The contract's Tag carries no numeric kind — that is the `tags(type:)`
+    // filter — so it must not be the app's wider content_types::Tag.
+    assert!(
+        sdl.contains("type Tag {\n\tid: ID!\n\tname: String!\n\tcount: Int!\n}"),
+        "Tag shape drifted from the contract:\n{}",
+        sdl.split("type Tag {")
+            .nth(1)
+            .map(|rest| format!("type Tag {{{rest}"))
+            .unwrap_or_default()
     );
     for field in [
         "serialNumber: String!",

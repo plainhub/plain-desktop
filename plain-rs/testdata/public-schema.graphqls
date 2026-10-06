@@ -22,6 +22,152 @@ type ClipboardItem {
 	createdAt: Instant!
 }
 
+type Contact {
+	id: ID!
+	prefix: String!
+	firstName: String!
+	middleName: String!
+	lastName: String!
+	suffix: String!
+	nickname: String!
+	photoId: String!
+	phoneNumbers: [ContactPhoneNumber!]!
+	emails: [ContactEmail!]!
+	addresses: [ContactAddress!]!
+	events: [ContactEvent!]!
+	source: String!
+	starred: Boolean!
+	contactId: ID!
+	thumbnailId: String!
+	notes: String!
+	groups: [ContactGroup!]!
+	organization: Organization
+	websites: [ContactWebsite!]!
+	ims: [ContactIm!]!
+	ringtone: String!
+	updatedAt: Instant!
+	tags: [Tag!]!
+}
+
+type ContactAddress {
+	value: String!
+	type: PostalType!
+	label: String!
+}
+
+input ContactAddressInput {
+	value: String!
+	type: PostalType!
+	label: String!
+}
+
+type ContactEmail {
+	value: String!
+	type: EmailType!
+	label: String!
+}
+
+input ContactEmailInput {
+	value: String!
+	type: EmailType!
+	label: String!
+}
+
+type ContactEvent {
+	value: String!
+	type: EventType!
+	label: String!
+}
+
+input ContactEventInput {
+	value: String!
+	type: EventType!
+	label: String!
+}
+
+type ContactGroup {
+	id: ID!
+	name: String!
+	contactCount: Int!
+}
+
+type ContactIm {
+	value: String!
+	protocol: ImProtocol!
+	customProtocol: String!
+}
+
+input ContactImInput {
+	value: String!
+	protocol: ImProtocol!
+	customProtocol: String!
+}
+
+input ContactInput {
+	prefix: String!
+	firstName: String!
+	middleName: String!
+	lastName: String!
+	suffix: String!
+	nickname: String!
+	phoneNumbers: [ContactPhoneInput!]!
+	emails: [ContactEmailInput!]!
+	addresses: [ContactAddressInput!]!
+	events: [ContactEventInput!]!
+	source: String!
+	starred: Boolean!
+	notes: String!
+	groupIds: [ID!]!
+	organization: OrganizationInput
+	websites: [ContactWebsiteInput!]!
+	ims: [ContactImInput!]!
+}
+
+input ContactPhoneInput {
+	value: String!
+	type: PhoneType!
+	label: String!
+}
+
+type ContactPhoneNumber {
+	value: String!
+	type: PhoneType!
+	label: String!
+	normalizedNumber: String!
+}
+
+type ContactSource {
+	name: String!
+	type: String!
+}
+
+type ContactWebsite {
+	value: String!
+	type: WebsiteType!
+	label: String!
+}
+
+input ContactWebsiteInput {
+	value: String!
+	type: WebsiteType!
+	label: String!
+}
+
+enum EmailType {
+	CUSTOM
+	HOME
+	WORK
+	OTHER
+	MOBILE
+}
+
+enum EventType {
+	CUSTOM
+	ANNIVERSARY
+	BIRTHDAY
+	OTHER
+}
+
 enum FileSortBy {
 	DATE_ASC
 	DATE_DESC
@@ -30,6 +176,19 @@ enum FileSortBy {
 	NAME_ASC
 	NAME_DESC
 	TAKEN_AT_DESC
+}
+
+enum ImProtocol {
+	CUSTOM
+	AIM
+	MSN
+	YAHOO
+	SKYPE
+	QQ
+	GOOGLE_TALK
+	ICQ
+	JABBER
+	NETMEETING
 }
 
 scalar Instant
@@ -61,6 +220,12 @@ type Mutation {
 	send `all:true` to target everything (API_SPEC §5).
 	"""
 	deleteClipboardItems(query: String!): ActionResult!
+	createContact(input: ContactInput!): Contact!
+	updateContact(id: ID!, input: ContactInput!): Contact!
+	deleteContacts(query: String!): ActionResult!
+	createContactGroup(name: String!, accountName: String!, accountType: String!): ContactGroup!
+	updateContactGroup(id: ID!, name: String!): ContactGroup!
+	deleteContactGroup(id: ID!): Boolean!
 }
 
 type Notification {
@@ -82,6 +247,16 @@ type Notification {
 	`actionIndex` indexes this list, not `actions`.
 	"""
 	replyActions: [String!]!
+}
+
+type Organization {
+	company: String!
+	title: String!
+}
+
+input OrganizationInput {
+	company: String!
+	title: String!
 }
 
 type Package {
@@ -117,6 +292,36 @@ enum PackageType {
 	USER
 }
 
+enum PhoneType {
+	CUSTOM
+	HOME
+	MOBILE
+	WORK
+	FAX_WORK
+	FAX_HOME
+	PAGER
+	OTHER
+	CALLBACK
+	CAR
+	COMPANY_MAIN
+	ISDN
+	MAIN
+	OTHER_FAX
+	RADIO
+	TELEX
+	TTY_DDD
+	WORK_MOBILE
+	WORK_PAGER
+	ASSISTANT
+}
+
+enum PostalType {
+	CUSTOM
+	HOME
+	WORK
+	OTHER
+}
+
 type Query {
 	packages(offset: Int!, limit: Int!, query: String!, sortBy: FileSortBy!): [Package!]!
 	packageCount(query: String!): Int!
@@ -128,6 +333,34 @@ type Query {
 	"""
 	clipboardItems(offset: Int!, limit: Int!, query: String!): [ClipboardItem!]!
 	clipboardItemCount(query: String!): Int!
+	contacts(offset: Int!, limit: Int!, query: String!): [Contact!]!
+	"""
+	plain-app degrades this to 0 rather than erroring when the web client
+	was not granted the contact permission.
+	"""
+	contactCount(query: String!): Int!
+	contactSources: [ContactSource!]!
+	contactGroups: [ContactGroup!]!
+}
+
+"""
+The contract's `Tag` carries no numeric kind — that lives in the
+`tags(type:)` filter instead — so it is not `content_types::Tag`.
+"""
+type Tag {
+	id: ID!
+	name: String!
+	count: Int!
+}
+
+enum WebsiteType {
+	CUSTOM
+	HOMEPAGE
+	BLOG
+	FTP
+	HOME
+	WORK
+	OTHER
 }
 
 """

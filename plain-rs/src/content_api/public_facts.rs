@@ -1,14 +1,30 @@
-//! Host fact decoding for the public `/graphql` schema.
+//! Host access and fact decoding for the public `/graphql` schema.
 //!
 //! The platform layer answers with JSON (`systemPackageFacts`,
-//! `systemNotificationFacts`, …); these helpers turn it into the contract
-//! types in [`crate::content_types`]. Missing timestamps fall back to the
-//! epoch, matching plain-app's `Instant.fromEpochMilliseconds(0)` for facts
-//! the platform could not fill in.
+//! `systemContactFacts`, …); these helpers turn it into the contract types
+//! in [`crate::content_types`]. Missing timestamps fall back to the epoch,
+//! matching plain-app's `Instant.fromEpochMilliseconds(0)` for facts the
+//! platform could not fill in.
 
+use crate::content_api::host::Host;
 use crate::content_types::Instant;
-use async_graphql::ID;
+use async_graphql::{Context, ID};
 use serde_json::Value;
+use std::sync::Arc;
+
+/// One host round trip returning a JSON array of facts.
+pub(super) async fn host_json(
+    ctx: &Context<'_>,
+    method: &str,
+    params: Value,
+) -> async_graphql::Result<Vec<Value>> {
+    let facts = ctx
+        .data_unchecked::<Arc<Host>>()
+        .call(method, params)
+        .await
+        .map_err(|error| async_graphql::Error::new(error))?;
+    serde_json::from_value(facts).map_err(|error| async_graphql::Error::new(error.to_string()))
+}
 
 pub(super) fn text(value: &Value, key: &str) -> String {
     value[key].as_str().unwrap_or_default().to_string()
@@ -20,6 +36,10 @@ pub(super) fn flag(value: &Value, key: &str) -> bool {
 
 pub(super) fn id(value: &Value, key: &str) -> ID {
     ID::from(text(value, key))
+}
+
+pub(super) fn integer(value: &Value, key: &str) -> i64 {
+    value[key].as_i64().unwrap_or_default()
 }
 
 pub(super) fn instant(value: &Value, key: &str) -> Instant {
@@ -49,6 +69,17 @@ pub(super) fn strings(value: &Value, key: &str) -> Vec<String> {
         .unwrap_or_default()
 }
 
-pub(super) fn i64(value: &Value, key: &str) -> i64 {
-    value[key].as_i64().unwrap_or_default()
+/// Maps a nested array of raw facts, dropping anything that is not an object
+/// so one malformed row cannot fail the whole page.
+pub(super) fn list<T>(value: &Value, key: &str, item: impl Fn(&Value) -> T) -> Vec<T> {
+    value[key]
+        .as_array()
+        .map(|items| {
+            items
+                .iter()
+                .filter(|item| item.is_object())
+                .map(item)
+                .collect()
+        })
+        .unwrap_or_default()
 }

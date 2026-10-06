@@ -54,6 +54,10 @@ mod public_dlna;
 #[allow(dead_code)]
 mod public_clipboard;
 #[allow(dead_code)]
+mod public_contact_types;
+#[allow(dead_code)]
+mod public_contacts;
+#[allow(dead_code)]
 mod public_facts;
 #[allow(dead_code)]
 mod public_gate;

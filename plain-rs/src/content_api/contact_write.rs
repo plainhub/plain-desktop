@@ -1,4 +1,6 @@
+use super::host::Host;
 use super::server::ServerState;
+use crate::prefs::Prefs;
 use axum::{
     Json,
     extract::State,
@@ -17,7 +19,7 @@ const MAX_ENTRIES: usize = 128;
 
 #[derive(Clone, Copy, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "camelCase")]
-enum Action {
+pub(super) enum Action {
     CreateContact,
     UpdateContact,
     CreateGroup,
@@ -28,17 +30,17 @@ enum Action {
 #[derive(Deserialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub(super) struct Request {
-    action: Action,
+    pub(super) action: Action,
     #[serde(default)]
-    id: Option<String>,
+    pub(super) id: Option<String>,
     #[serde(default)]
-    input: Option<Value>,
+    pub(super) input: Option<Value>,
     #[serde(default)]
-    name: Option<String>,
+    pub(super) name: Option<String>,
     #[serde(default)]
-    account_name: Option<String>,
+    pub(super) account_name: Option<String>,
     #[serde(default)]
-    account_type: Option<String>,
+    pub(super) account_type: Option<String>,
 }
 
 fn permission_allowed(configured: &[String]) -> bool {
@@ -186,8 +188,8 @@ fn validate_contact_input(input: &Value, require_source: bool) -> anyhow::Result
     Ok(())
 }
 
-async fn execute(state: &ServerState, request: Request) -> anyhow::Result<Value> {
-    let configured: Vec<String> = state.prefs.get_or("api_permissions", Vec::new());
+pub(super) async fn execute(prefs: &Prefs, host: &Host, request: Request) -> anyhow::Result<Value> {
+    let configured: Vec<String> = prefs.get_or("api_permissions", Vec::new());
     anyhow::ensure!(permission_allowed(&configured), "no_permission");
     match request.action {
         Action::CreateContact | Action::UpdateContact => {
@@ -210,8 +212,7 @@ async fn execute(state: &ServerState, request: Request) -> anyhow::Result<Value>
                 params["id"] = Value::String(id.to_owned());
             }
             validate_contact_input(input, creating)?;
-            let result = state
-                .host
+            let result = host
                 .call(
                     if creating {
                         "systemCreateContact"
@@ -236,8 +237,7 @@ async fn execute(state: &ServerState, request: Request) -> anyhow::Result<Value>
             bounded(account_name, MAX_NAME_LEN, "account name")?;
             let account_type = required(request.account_type.as_ref(), "account type")?;
             bounded(account_type, MAX_NAME_LEN, "account type")?;
-            let result = state
-                .host
+            let result = host
                 .call(
                     "systemCreateContactGroup",
                     json!({
@@ -264,9 +264,7 @@ async fn execute(state: &ServerState, request: Request) -> anyhow::Result<Value>
                 bounded(name, MAX_GROUP_NAME_LEN, "group name")?;
                 params["name"] = Value::String(name.to_owned());
             }
-            state
-                .host
-                .call(method, params)
+            host.call(method, params)
                 .await
                 .map_err(anyhow::Error::msg)?;
             Ok(json!({"ok": true}))
@@ -282,7 +280,7 @@ pub(super) async fn call(
     if !state.authenticated(&headers) {
         return StatusCode::UNAUTHORIZED.into_response();
     }
-    match execute(&state, request).await {
+    match execute(&state.prefs, &state.host, request).await {
         Ok(value) => Json(value).into_response(),
         Err(error) => (
             StatusCode::BAD_REQUEST,

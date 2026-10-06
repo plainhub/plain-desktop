@@ -8,6 +8,7 @@
 //! from [`crate::content_types`] is a gap to fill rather than a leak.
 
 use super::public_clipboard::{ClipboardMutation, ClipboardQuery};
+use super::public_contacts::{ContactsMutation, ContactsQuery};
 use super::public_notifications::{NotificationsMutation, NotificationsQuery};
 use super::public_packages::{PackagesMutation, PackagesQuery};
 use crate::content_api::host::Host;
@@ -16,10 +17,20 @@ use async_graphql::{EmptySubscription, MergedObject, Schema};
 use std::sync::Arc;
 
 #[derive(MergedObject, Default)]
-pub struct Query(PackagesQuery, NotificationsQuery, ClipboardQuery);
+pub struct Query(
+    PackagesQuery,
+    NotificationsQuery,
+    ClipboardQuery,
+    ContactsQuery,
+);
 
 #[derive(MergedObject, Default)]
-pub struct Mutation(PackagesMutation, NotificationsMutation, ClipboardMutation);
+pub struct Mutation(
+    PackagesMutation,
+    NotificationsMutation,
+    ClipboardMutation,
+    ContactsMutation,
+);
 
 pub type PublicSchema = Schema<Query, Mutation, EmptySubscription>;
 
