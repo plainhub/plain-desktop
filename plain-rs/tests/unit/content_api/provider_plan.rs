@@ -182,3 +182,51 @@ fn mediastore_plans_only_name_columns_its_strict_grammar_accepts() {
         }
     }
 }
+
+#[test]
+fn media_trash_filter_constrains_on_the_nas_trash_path() {
+    // Every media query carries `trash:<bool>`, so a plan that only records the
+    // flag leaves trashed files in the ordinary lists.
+    for provider in [Provider::Doc, Provider::Audio, Provider::Video, Provider::Image] {
+        let on = plan(
+            provider,
+            &search_dsl::parse("trash:true"),
+            &Value::Null,
+            None,
+            false,
+        );
+        assert_eq!(on.trash, Some(true));
+        assert!(
+            on.clauses
+                .iter()
+                .any(|c| c == "_data LIKE '%/.nas-trash%'"),
+            "{provider:?} trash:true produced no path clause"
+        );
+
+        let off = plan(
+            provider,
+            &search_dsl::parse("trash:false"),
+            &Value::Null,
+            None,
+            false,
+        );
+        assert_eq!(off.trash, Some(false));
+        assert!(
+            off.clauses
+                .iter()
+                .any(|c| c == "_data NOT LIKE '%/.nas-trash%'"),
+            "{provider:?} trash:false produced no path clause"
+        );
+    }
+
+    // Contact and Call are not media stores and have no trash scope.
+    assert!(plan(
+        Provider::Contact,
+        &search_dsl::parse("trash:true"),
+        &Value::Null,
+        None,
+        false
+    )
+    .trash
+    .is_none());
+}

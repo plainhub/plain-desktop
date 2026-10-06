@@ -11,7 +11,7 @@ use axum::{
 };
 use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
-#[derive(Deserialize, Serialize, Clone, Copy)]
+#[derive(Deserialize, Serialize, Clone, Copy, Debug)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 pub(super) enum Provider {
     Call,
@@ -204,7 +204,21 @@ fn plan(
                     if let Some(bytes) = parse_size_to_bytes(value) { plan.add(format!("_size {op} ?"), vec![bytes.to_string()]); }
                 }
             }
-            (Provider::Audio | Provider::Video | Provider::Image | Provider::Doc, "trash") => plan.trash = field.value.parse::<bool>().ok(),
+            (Provider::Audio | Provider::Video | Provider::Image | Provider::Doc, "trash") => {
+                if let Some(flag) = field.value.parse::<bool>().ok() {
+                    plan.trash = Some(flag);
+                    // Trashing moves the file into a `.nas-trash` directory
+                    // instead of asking MediaStore for its own trash, so the
+                    // filter has to be a path match. MediaProvider's strict
+                    // grammar accepts `_data` but not `is_trashed`, and every
+                    // media query carries `trash:<bool>`, so dropping the flag
+                    // left trashed files in the ordinary lists.
+                    plan.add(
+                        format!("_data {} '%/.nas-trash%'", if flag { "LIKE" } else { "NOT LIKE" }),
+                        vec![],
+                    );
+                }
+            }
             _ => {}
         }
     }
