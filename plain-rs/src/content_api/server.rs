@@ -296,11 +296,12 @@ impl ContentServer {
             .layer(DefaultBodyLimit::max(32 * 1024 * 1024))
             .with_state(self.state.clone());
         let router = Router::new()
-            .fallback(super::http_bridge::handle)
+            .fallback(super::public_static::static_or_bridge)
             .layer(DefaultBodyLimit::max(64 * 1024 * 1024 * 1024))
             .with_state(super::http_bridge::HttpBridgeState {
                 bridge: self.bridge.clone(),
                 stop: receiver,
+                prefs: self.state.prefs.clone(),
             })
             .merge(peer_router)
             .merge(status_router)
@@ -378,6 +379,7 @@ pub(super) fn peer_router(state: ServerState) -> Router {
                 .with_state(super::http_bridge::HttpBridgeState {
                     bridge: state.bridge.clone(),
                     stop: state.stop.clone(),
+                    prefs: state.prefs.clone(),
                 }),
         )
     }

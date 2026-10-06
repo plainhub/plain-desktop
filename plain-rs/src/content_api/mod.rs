@@ -45,6 +45,7 @@ mod request_replay;
 mod sms_query;
 mod contact_write;
 mod public_proxy;
+mod public_static;
 mod sms_send;
 mod sms_state;
 mod system_permissions;

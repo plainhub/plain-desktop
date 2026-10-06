@@ -73,6 +73,7 @@ async fn forward(state: ServerState, request: Request) -> Response {
             State(super::http_bridge::HttpBridgeState {
                 bridge: state.bridge.clone(),
                 stop: state.stop.clone(),
+                prefs: state.prefs.clone(),
             }),
             request
                 .extensions()

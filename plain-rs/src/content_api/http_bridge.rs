@@ -148,6 +148,8 @@ impl HttpBridge {
 pub struct HttpBridgeState {
     pub bridge: Arc<HttpBridge>,
     pub stop: watch::Receiver<bool>,
+    /// Read by the SPA fallback to resolve the extracted web bundle root.
+    pub prefs: Arc<crate::prefs::Prefs>,
 }
 fn text(value: Value) -> Message {
     Message::Text(value.to_string())
