@@ -49,6 +49,7 @@ pub(super) struct ServerState {
     pub(super) ble_scans: Arc<crate::chat::nearby_scan::Scans>,
     pub(super) pairing: Arc<crate::chat::pairing::sessions::Sessions>,
     pub(super) prefs: Arc<crate::prefs::Prefs>,
+    pub(super) dlna: Arc<crate::dlna_receiver::receiver_engine::DlnaEngine>,
     pub(super) sms_send_lock: Arc<tokio::sync::Mutex<()>>,
     pub(super) login_attempts: Arc<std::sync::Mutex<super::ws_login::LoginAttempts>>,
     pub(super) directory: std::path::PathBuf,
@@ -149,6 +150,7 @@ impl ContentServer {
             nearby_devices: Arc::new(crate::chat::nearby_devices::Devices::default()),
             ble_scans: Arc::new(crate::chat::nearby_scan::Scans::default()),
             pairing: Arc::new(crate::chat::pairing::sessions::Sessions::default()),
+            dlna: Arc::new(crate::dlna_receiver::receiver_engine::DlnaEngine::new()),
             files: services.files,
             host,
             db,
@@ -238,6 +240,7 @@ impl ContentServer {
                 "/system/notification",
                 post(super::notification_actions::call),
             )
+            .route("/dlna/receiver", post(super::public_dlna::call))
             .route("/http/guest", post(super::guest_graphql::call));
         #[cfg(feature = "http_transport")]
         let router = router.route("/http_host/:id", get(http_host_upgrade));
@@ -322,7 +325,8 @@ impl ContentServer {
             .merge(peer_router)
             .merge(status_router)
             .merge(nearby_router)
-            .merge(main_graphql_router);
+            .merge(main_graphql_router)
+            .merge(super::public_dlna::router(self.state.clone()));
         let listeners =
             crate::http_transport::HttpListeners::start(router, http, https, cert, key).await?;
         let ports = (listeners.http_port, listeners.https_port);

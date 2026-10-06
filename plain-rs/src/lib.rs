@@ -11,7 +11,7 @@ pub mod crypto;
 pub mod db;
 #[cfg(feature = "api")]
 pub mod discover;
-#[cfg(feature = "api")]
+#[cfg(any(feature = "api", feature = "content_api"))]
 pub mod dlna_receiver;
 #[cfg(feature = "system")]
 pub mod dlna_sender;

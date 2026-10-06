@@ -21,6 +21,7 @@ const SSDP_PORT: u16 = 1900;
 pub struct DlnaEngine {
     pub state: Arc<RwLock<DlnaRendererState>>,
     command_tx: StdMutex<Option<mpsc::UnboundedSender<DlnaCommand>>>,
+    command_rx: StdMutex<Option<mpsc::UnboundedReceiver<DlnaCommand>>>,
     tasks: StdMutex<Vec<JoinHandle<()>>>,
     device_uuid: String,
     running: Arc<AtomicBool>,
@@ -28,9 +29,11 @@ pub struct DlnaEngine {
 
 impl DlnaEngine {
     pub fn new() -> Self {
+        let (command_tx, command_rx) = mpsc::unbounded_channel::<DlnaCommand>();
         Self {
             state: Arc::new(RwLock::new(DlnaRendererState::default())),
-            command_tx: StdMutex::new(None),
+            command_tx: StdMutex::new(Some(command_tx)),
+            command_rx: StdMutex::new(Some(command_rx)),
             tasks: StdMutex::new(Vec::new()),
             device_uuid: generate_uuid(),
             running: Arc::new(AtomicBool::new(false)),
@@ -56,6 +59,50 @@ impl DlnaEngine {
         self.command_tx.lock().unwrap().clone()
     }
 
+    /// Current renderer state, for the host UI to project.
+    pub async fn snapshot(&self) -> DlnaRendererState {
+        self.state.read().await.clone()
+    }
+
+    /// The player reports its own position so `GetPositionInfo` answers with
+    /// real numbers instead of zeros.
+    pub async fn set_position(&self, position_ms: i64, duration_ms: i64) {
+        let mut s = self.state.write().await;
+        s.current_position_ms = position_ms.max(0);
+        s.duration_ms = duration_ms.max(0);
+    }
+
+    /// The player has applied `seek_target_ms`; stop re-reporting it.
+    pub async fn clear_seek_target(&self) {
+        self.state.write().await.seek_target_ms = None;
+    }
+
+    /// The player reports what it is actually doing, so `GetTransportInfo`
+    /// answers with the renderer's real state rather than the last command.
+    pub async fn set_playback_state(&self, playback: DlnaPlaybackState) {
+        self.state.write().await.playback_state = playback;
+    }
+
+    /// The player exited: drop the media and go back to no-media-present,
+    /// which is what the `Stop` command does.
+    pub async fn clear_media(&self) {
+        let mut s = self.state.write().await;
+        s.media_uri.clear();
+        s.media_title.clear();
+        s.media_album_art_uri.clear();
+        s.media_type = crate::dlna_receiver::types::DlnaMediaType::UNKNOWN;
+        s.playback_state = DlnaPlaybackState::NoMediaPresent;
+        s.seek_target_ms = None;
+    }
+
+    pub async fn set_retrying(&self, retrying: bool) {
+        self.state.write().await.is_retrying = retrying;
+    }
+
+    pub async fn set_start_error(&self, error: String) {
+        self.state.write().await.start_error = error;
+    }
+
     pub async fn start(&self, port: u16) {
         if self.running.swap(true, Ordering::Relaxed) {
             return;
@@ -67,8 +114,10 @@ impl DlnaEngine {
             s.is_running = true;
         }
 
-        let (tx, rx) = mpsc::unbounded_channel::<DlnaCommand>();
-        *self.command_tx.lock().unwrap() = Some(tx);
+        let Some(mut rx) = self.command_rx.lock().unwrap().take() else {
+            return;
+        };
+        while rx.try_recv().is_ok() {}
 
         let state = self.state.clone();
         let task = tokio::spawn(run_command_processor(state, rx));
@@ -94,7 +143,6 @@ impl DlnaEngine {
             t.abort();
         }
         self.tasks.lock().unwrap().clear();
-        *self.command_tx.lock().unwrap() = None;
         let mut s = self.state.write().await;
         s.is_running = false;
         s.reset();
@@ -112,7 +160,7 @@ impl DlnaEngine {
         };
         let play_queued = s.pending_play_queued;
         drop(s);
-        self.dispatch_accept(&pending, play_queued);
+        self.dispatch_accept(&pending, play_queued).await;
         if remember && !pending.sender_ip.is_empty() {
             crate::prefs::dlna::remove_sender(prefs, "dlna_denied_senders", &pending.sender_ip);
             crate::prefs::dlna::add_sender(
@@ -148,8 +196,8 @@ impl DlnaEngine {
         }
     }
 
-    fn dispatch_accept(&self, pending: &PendingCastRequest, play_queued: bool) {
-        let mut s = self.state.blocking_write();
+    async fn dispatch_accept(&self, pending: &PendingCastRequest, play_queued: bool) {
+        let mut s = self.state.write().await;
         s.pending_cast_request = None;
         s.raw_pending_cast_request = None;
         s.pending_play_queued = false;

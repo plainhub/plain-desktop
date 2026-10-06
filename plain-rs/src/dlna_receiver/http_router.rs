@@ -24,6 +24,10 @@ pub async fn route(
     device_uuid: &str,
     device_name: &str,
     local_ip: &str,
+    // The socket peer address, never a request header: the allow/deny rules
+    // and the "remember this sender" prefs key on it, so a control point that
+    // forged `c-ip` would otherwise impersonate a trusted sender.
+    sender_ip: &str,
     command_tx: &tokio::sync::mpsc::UnboundedSender<DlnaCommand>,
     allowed_senders: &[String],
     denied_senders: &[String],
@@ -45,6 +49,7 @@ pub async fn route(
             state,
             headers,
             body,
+            sender_ip,
             command_tx,
             allowed_senders,
             denied_senders,
@@ -77,6 +82,7 @@ async fn handle_soap(
     state: &Arc<RwLock<DlnaRendererState>>,
     headers: &std::collections::HashMap<String, String>,
     body: &str,
+    sender_ip: &str,
     command_tx: &tokio::sync::mpsc::UnboundedSender<DlnaCommand>,
     allowed_senders: &[String],
     denied_senders: &[String],
@@ -99,8 +105,8 @@ async fn handle_soap(
     let (action, params) = soap_handler::parse_soap_action(soap_action, body);
     log::debug!("DLNA SOAP action: {action}");
 
-    let sender_ip = headers.get("c-ip").cloned().unwrap_or_default();
-    let sender_name = soap_handler::resolve_sender_name(headers, &sender_ip);
+    let sender_name = soap_handler::resolve_sender_name(headers, sender_ip);
+    let sender_ip = sender_ip.to_string();
 
     let response_body = match action.as_str() {
         "SetAVTransportURI" => {
