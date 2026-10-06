@@ -126,13 +126,16 @@ fn signature_data(
 }
 
 fn sign(prefs: &crate::prefs::Prefs, text: &str) -> anyhow::Result<String> {
-    let keypair = prefs
-        .get::<String>("signature_key_pair")?
-        .ok_or_else(|| anyhow::anyhow!("signature key pair is missing"))?;
-    Ok(crate::crypto::ed25519_sign(
-        keypair.as_bytes(),
-        text.as_bytes(),
-    ))
+    // `signature_key_pair` is plain-app's JSON keypair, not a bare base64
+    // string. Handing the raw string bytes to ed25519_sign gave it something
+    // that is not 64 bytes, so it returned an empty signature — the login
+    // still reported COMPLETED and the client failed verification with
+    // nothing wrong anywhere on the server.
+    let keypair = super::peer_wire::signing_keypair(prefs)?;
+    let signature = crate::crypto::ed25519_sign(&keypair, text.as_bytes());
+    // An empty signature is a refusal, never a valid-looking answer.
+    anyhow::ensure!(!signature.is_empty(), "ed25519 signing produced no signature");
+    Ok(signature)
 }
 
 async fn issue(state: &ServerState, request: &Request) -> anyhow::Result<Value> {
