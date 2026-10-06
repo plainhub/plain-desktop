@@ -16,7 +16,7 @@ path = "src/main.rs"
 # HTTP & Web
 axum = { version = "0.7", features = ["json", "query", "ws", "multipart", "tokio", "http1"] }
 tokio = { version = "1", features = ["full"] }
-axum-server = { version = "0.7", features = ["tls-rustls"] }
+axum-server = { version = "0.7", features = ["tls-rustls-no-provider"] }
 
 # GraphQL lives in the shared plain-rs API schema.
 
@@ -38,7 +38,10 @@ clap = { version = "4", features = ["derive"] }
 # TLS
 # Self-signed cert generation lives in plain-rs (plain_rs::tls); only the
 # rustls server side remains here.
-rustls = { version = "0.23", features = ["ring", "std"] }
+# default-features would pull aws-lc-rs alongside ring; two providers leave
+# rustls unable to pick a process default, which panics every TLS test that
+# relies on one. ring is what the code actually uses.
+rustls = { version = "0.23", default-features = false, features = ["ring", "std"] }
 
 # log crate facade bridge (plain-rs media code logs via log::)
 log = "0.4"
