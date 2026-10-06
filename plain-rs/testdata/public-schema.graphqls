@@ -51,9 +51,63 @@ type AppFile {
 	updatedAt: Instant!
 }
 
+type Audio {
+	id: ID!
+	title: String!
+	artist: String!
+	path: String!
+	durationMs: Long!
+	size: Long!
+	bucketId: ID!
+	"""
+	FileId of the album-art image, usable in file display URLs; empty
+	when the track has no album art.
+	"""
+	albumFileId: String!
+	createdAt: Instant!
+	updatedAt: Instant!
+	isFavorite: Boolean!
+	tags: [Tag!]!
+}
+
 type AudioFileInfo {
 	durationMs: Long!
 	location: Location
+}
+
+type AudioItem {
+	title: String!
+	artist: String!
+	path: String!
+	durationMs: Long!
+}
+
+type AudioPlayHistory {
+	path: String!
+	title: String!
+	artist: String!
+	durationMs: Long!
+	playCount: Int!
+	playedAt: Instant!
+}
+
+type AudioPlayback {
+	"""
+	Null while the player is idle — the queue stores an empty string as
+	"no current track", and the contract says `null`, not `""`.
+	"""
+	currentPath: String
+	mode: MediaPlayMode!
+	isPlaying: Boolean!
+	positionMs: Long!
+}
+
+type AudioPlaylist {
+	id: ID!
+	name: String!
+	itemCount: Int!
+	createdAt: Instant!
+	updatedAt: Instant!
 }
 
 type Bookmark {
@@ -635,6 +689,12 @@ enum MediaDataType {
 
 union MediaFileInfo = ImageFileInfo | AudioFileInfo | VideoFileInfo
 
+enum MediaPlayMode {
+	REPEAT
+	REPEAT_ONE
+	SHUFFLE
+}
+
 type MergeTask {
 	status: MergeTaskStatus!
 	value: String
@@ -714,6 +774,38 @@ type Mutation {
 	delete must never be aimable at the whole library by accident.
 	"""
 	deleteFeedEntries(query: String!): ActionResult!
+	"""
+	Marks the track current without touching the queue, which is what a
+	"play this one row" tap means. The metadata comes from the platform
+	because the queue stores whatever the file says.
+	"""
+	playAudio(path: String!): AudioItem!
+	updateAudioPlayMode(mode: MediaPlayMode!): Boolean!
+	"""
+	Clearing the queue is two actions: the rows go, and the player is
+	told to stop. Leaving the second to the app would leave a player
+	running over an empty queue.
+	"""
+	clearAudioQueue: Boolean!
+	removeAudioFromQueue(path: String!): Boolean!
+	"""
+	The cap is the same 1000 plain-app uses: this is "queue these", not a
+	bulk import, and a client that means everything should page instead.
+	"""
+	addAudiosToQueue(query: String!): Boolean!
+	reorderAudioQueue(paths: [String!]!): Boolean!
+	createAudioPlaylist(name: String!): AudioPlaylist!
+	updateAudioPlaylist(id: ID!, name: String!): AudioPlaylist!
+	deleteAudioPlaylist(id: ID!): Boolean!
+	addAudioPlaylistItems(id: ID!, paths: [String!]!): Boolean!
+	removeAudioPlaylistItem(id: ID!, path: String!): Boolean!
+	"""
+	Null when there is nothing to play — an empty playlist, or a start
+	path that is no longer in it — rather than an error, because "it
+	played nothing" is the honest answer and the caller can show it.
+	"""
+	playAudioPlaylist(id: ID!, path: String, shuffle: Boolean!): AudioItem
+	playAllAudios(shuffle: Boolean!): AudioItem
 	uninstallPackages(ids: [ID!]!): Boolean!
 	"""
 	Bundle unpacking is heavy disk I/O, so the platform side keeps it off
@@ -1072,6 +1164,30 @@ type Query {
 	feedEntryCount(query: String!): Int!
 	feedEntry(id: ID!): FeedEntry
 	feedEntries(offset: Int!, limit: Int!, query: String!): [FeedEntry!]!
+	audioCount(query: String!): Int!
+	audios(offset: Int!, limit: Int!, query: String!, sortBy: FileSortBy!): [Audio!]!
+	"""
+	Null rather than an empty string when the track carries no lyrics:
+	"no lyrics file" and "a lyrics file that is empty" are the same
+	answer to a client, and only one of them survives the wire.
+	"""
+	audioLyrics(path: String!): String
+	"""
+	The active queue, paged. Filtering is on the item title and artist,
+	which is the same text a client would show.
+	"""
+	audioQueueItems(offset: Int!, limit: Int!, query: String!): [AudioItem!]!
+	audioQueueItemCount: Int!
+	audioPlaylists: [AudioPlaylist!]!
+	audioPlaylistItems(id: ID!, offset: Int!, limit: Int!, query: String!): [AudioItem!]!
+	audioPlaylistItemCount(id: ID!): Int!
+	audioPlayHistory(offset: Int!, limit: Int!, query: String!): [AudioPlayHistory!]!
+	"""
+	Half of this is a store read (the mode is a user preference, the
+	current path is the queue's) and half is the player itself, which is
+	platform state Rust cannot see.
+	"""
+	audioPlayback: AudioPlayback!
 	packages(offset: Int!, limit: Int!, query: String!, sortBy: FileSortBy!): [Package!]!
 	packageCount(query: String!): Int!
 	packageStatuses(ids: [ID!]!): [PackageStatus!]!

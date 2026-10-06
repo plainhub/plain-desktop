@@ -55,6 +55,8 @@ mod public_dlna;
 #[allow(dead_code)]
 mod public_db;
 #[allow(dead_code)]
+mod public_audio;
+#[allow(dead_code)]
 mod public_calls;
 #[allow(dead_code)]
 mod public_clipboard;

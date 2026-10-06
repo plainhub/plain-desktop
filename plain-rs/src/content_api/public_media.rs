@@ -414,7 +414,7 @@ async fn media_rows(
     host_call(ctx, method, params).await
 }
 
-async fn media_count(
+pub(super) async fn media_count(
     ctx: &Context<'_>,
     data_type: &str,
     query: String,
@@ -431,7 +431,7 @@ async fn media_count(
 /// Tags are per-row, so they are fetched once for the page and keyed by the
 /// media id. The platform answers from the same Rust store the roots read
 /// from, so the ids have to survive the round trip unchanged.
-async fn tags_for(
+pub(super) async fn tags_for(
     ctx: &Context<'_>,
     data_type: &str,
     items: &Value,

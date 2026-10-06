@@ -7,6 +7,7 @@
 //! network. Here only the contract's root fields exist, so anything missing
 //! from [`crate::content_types`] is a gap to fill rather than a leak.
 
+use super::public_audio::{AudioMutation, AudioQuery};
 use super::public_calls::{CallsMutation, CallsQuery};
 use super::public_clipboard::{ClipboardMutation, ClipboardQuery};
 use super::public_contacts::{ContactsMutation, ContactsQuery};
@@ -54,6 +55,7 @@ pub struct Query(
     schema::image_editor_project::ImageEditorProjectQuery,
     NotesQuery,
     FeedsQuery,
+    AudioQuery,
     PackagesQuery,
     NotificationsQuery,
     ClipboardQuery,
@@ -78,6 +80,7 @@ pub struct Mutation(
     schema::image_editor_project::ImageEditorProjectMutation,
     NotesMutation,
     FeedsMutation,
+    AudioMutation,
     PackagesMutation,
     NotificationsMutation,
     ClipboardMutation,
@@ -106,7 +109,8 @@ pub fn build(
     directory: std::path::PathBuf,
 ) -> PublicSchema {
     Schema::build(Query::default(), Mutation::default(), EmptySubscription)
-        .data(host)
+        .data(host.clone())
+        .data(Arc::new(super::audio::Audio::new(db.clone(), host)))
         .data(events.clone())
         .data(crate::app_files::FileStore::new(
             db.clone(),
