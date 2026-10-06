@@ -50,7 +50,6 @@ pub(super) struct ServerState {
     pub(super) pairing: Arc<crate::chat::pairing::sessions::Sessions>,
     pub(super) prefs: Arc<crate::prefs::Prefs>,
     pub(super) dlna: Arc<crate::dlna_receiver::receiver_engine::DlnaEngine>,
-    pub(super) sms_send_lock: Arc<tokio::sync::Mutex<()>>,
     pub(super) login_attempts: Arc<std::sync::Mutex<super::ws_login::LoginAttempts>>,
     pub(super) directory: std::path::PathBuf,
     token: Arc<str>,
@@ -158,7 +157,6 @@ impl ContentServer {
             login_attempts: Arc::new(std::sync::Mutex::new(
                 super::ws_login::LoginAttempts::default(),
             )),
-            sms_send_lock: Arc::new(tokio::sync::Mutex::new(())),
             directory: path.parent().unwrap_or(Path::new(".")).to_path_buf(),
             token: Arc::from(token),
             events,

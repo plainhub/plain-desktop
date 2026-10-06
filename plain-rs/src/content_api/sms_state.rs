@@ -20,7 +20,7 @@ pub(super) enum Request {
     Restore { ids: Vec<String> },
 }
 
-fn execute(db: &Db, request: Request) -> anyhow::Result<Value> {
+pub(super) fn execute(db: &Db, request: Request) -> anyhow::Result<Value> {
     Ok(match request {
         Request::Archives => json!({"items": db.archived_conversation_list()?}),
         Request::Archive { id, date } => {

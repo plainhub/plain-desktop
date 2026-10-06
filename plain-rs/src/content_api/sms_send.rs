@@ -1,4 +1,6 @@
+use super::host::Host;
 use super::server::ServerState;
+use crate::prefs::Prefs;
 use axum::{
     Json,
     extract::State,
@@ -24,11 +26,11 @@ struct Receipt {
 #[derive(Deserialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub(super) struct Request {
-    number: String,
-    body: String,
-    subscription_id: Option<i32>,
-    client_id: Option<String>,
-    client_request_id: Option<String>,
+    pub(super) number: String,
+    pub(super) body: String,
+    pub(super) subscription_id: Option<i32>,
+    pub(super) client_id: Option<String>,
+    pub(super) client_request_id: Option<String>,
 }
 
 fn permission_allowed(configured: &[String]) -> bool {
@@ -65,9 +67,14 @@ fn claim(
     Ok(true)
 }
 
-async fn execute(state: &ServerState, request: Request) -> anyhow::Result<Value> {
+/// One send queue for the whole process, shared by the provider route and
+/// the public `/graphql` root: the claim-then-send window must not be
+/// interleaved with itself through a second entry point.
+static SEND_LOCK: tokio::sync::Mutex<()> = tokio::sync::Mutex::const_new(());
+
+pub(super) async fn execute(prefs: &Prefs, host: &Host, request: Request) -> anyhow::Result<Value> {
     anyhow::ensure!(!request.number.trim().is_empty(), "phone number is empty");
-    let configured: Vec<String> = state.prefs.get_or("api_permissions", Vec::new());
+    let configured: Vec<String> = prefs.get_or("api_permissions", Vec::new());
     anyhow::ensure!(permission_allowed(&configured), "no_permission");
     let request_id = request
         .client_request_id
@@ -84,7 +91,7 @@ async fn execute(state: &ServerState, request: Request) -> anyhow::Result<Value>
         )
     });
     if let Some(key) = &receipt_key {
-        let _guard = state.sms_send_lock.lock().await;
+        let _guard = SEND_LOCK.lock().await;
         let payload_hash = digest(
             serde_json::to_vec(&json!({
                 "number": &request.number,
@@ -96,28 +103,26 @@ async fn execute(state: &ServerState, request: Request) -> anyhow::Result<Value>
         let now_ms = std::time::SystemTime::now()
             .duration_since(std::time::UNIX_EPOCH)?
             .as_millis() as u64;
-        let mut receipts: Vec<Receipt> = state.prefs.get_or(RECEIPTS_KEY, Vec::new());
+        let mut receipts: Vec<Receipt> = prefs.get_or(RECEIPTS_KEY, Vec::new());
         if !claim(&mut receipts, key, &payload_hash, now_ms)? {
             return Ok(json!({"sent":true,"duplicate":true}));
         }
         // Persist the idempotency claim before asking the platform to dispatch.
         // This makes an ambiguous timeout/retry at-most-once across restarts.
-        state.prefs.set(RECEIPTS_KEY, &receipts)?;
+        prefs.set(RECEIPTS_KEY, &receipts)?;
     }
-    state
-        .host
-        .call(
-            "systemSendSms",
-            json!({
-                "number": request.number,
-                "body": request.body,
-                "subscriptionId": request.subscription_id,
-                "clientId": request.client_id,
-                "clientRequestId": request.client_request_id,
-            }),
-        )
-        .await
-        .map_err(anyhow::Error::msg)?;
+    host.call(
+        "systemSendSms",
+        json!({
+            "number": request.number,
+            "body": request.body,
+            "subscriptionId": request.subscription_id,
+            "clientId": request.client_id,
+            "clientRequestId": request.client_request_id,
+        }),
+    )
+    .await
+    .map_err(anyhow::Error::msg)?;
     Ok(json!({"sent":true}))
 }
 
@@ -129,7 +134,7 @@ pub(super) async fn call(
     if !state.authenticated(&headers) {
         return StatusCode::UNAUTHORIZED.into_response();
     }
-    match execute(&state, request).await {
+    match execute(&state.prefs, &state.host, request).await {
         Ok(value) => Json(value).into_response(),
         Err(error) => (
             StatusCode::BAD_REQUEST,

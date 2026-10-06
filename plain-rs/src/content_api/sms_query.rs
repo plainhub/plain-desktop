@@ -336,8 +336,13 @@ fn text_ids(facts: Value, filters: &[String]) -> anyhow::Result<Vec<String>> {
         .map(|(id, _)| id)
         .collect())
 }
-async fn prepare(state: &ServerState, query: &str, include_trashed: bool) -> anyhow::Result<Plans> {
-    let fields = provider_plan::fields(&state.db, query)?;
+async fn prepare(
+    db: &crate::db::Db,
+    host: &super::host::Host,
+    query: &str,
+    include_trashed: bool,
+) -> anyhow::Result<Plans> {
+    let fields = provider_plan::fields(&db, query)?;
     let filters = fields
         .iter()
         .filter(|f| f.name == "text")
@@ -347,20 +352,22 @@ async fn prepare(state: &ServerState, query: &str, include_trashed: bool) -> any
         None
     } else {
         Some(text_ids(
-            state
-                .host
-                .call("systemMmsTextFacts", json!({}))
+            host.call("systemMmsTextFacts", json!({}))
                 .await
                 .map_err(anyhow::Error::msg)?,
             &filters,
         )?)
     };
-    plans(&state.db, &fields, include_trashed, ids)
+    plans(&db, &fields, include_trashed, ids)
 }
-async fn count(state: &ServerState, query: &str, include_trashed: bool) -> anyhow::Result<i64> {
-    let plans = prepare(state, query, include_trashed).await?;
-    let receipt = state
-        .host
+async fn count(
+    db: &crate::db::Db,
+    host: &super::host::Host,
+    query: &str,
+    include_trashed: bool,
+) -> anyhow::Result<i64> {
+    let plans = prepare(db, host, query, include_trashed).await?;
+    let receipt = host
         .call("systemSmsCountFacts", serde_json::to_value(plans)?)
         .await
         .map_err(anyhow::Error::msg)?;
@@ -404,10 +411,11 @@ fn page(
         .collect())
 }
 async fn matched_conversation_facts(
-    state: &ServerState,
+    db: &crate::db::Db,
+    host: &super::host::Host,
     query: &str,
 ) -> anyhow::Result<Vec<ThreadFacts>> {
-    let mut plans = prepare(state, query, true).await?;
+    let mut plans = prepare(db, host, query, true).await?;
     plans.sms.clauses.retain(|c| !c.starts_with("date "));
     plans
         .mms
@@ -415,9 +423,7 @@ async fn matched_conversation_facts(
         .into_iter()
         .for_each(|m| m.clauses.retain(|c| !c.starts_with("date ")));
     let hits: Vec<(String, String)> = serde_json::from_value(
-        state
-            .host
-            .call("systemSmsThreadFacts", json!({"plans":plans}))
+        host.call("systemSmsThreadFacts", json!({"plans":plans}))
             .await
             .map_err(anyhow::Error::msg)?,
     )?;
@@ -436,15 +442,14 @@ async fn matched_conversation_facts(
     let mut latest = latest.into_iter().collect::<Vec<_>>();
     latest.sort_by(|a, b| instant(&b.1).ok().cmp(&instant(&a.1).ok()));
     let ids = latest.into_iter().map(|(id, _)| id).collect::<Vec<_>>();
-    conversation_facts(state, Some(ids), None).await
+    conversation_facts(host, Some(ids), None).await
 }
 async fn conversation_facts(
-    state: &ServerState,
+    host: &super::host::Host,
     ids: Option<Vec<String>>,
     limit: Option<i64>,
 ) -> anyhow::Result<Vec<ThreadFacts>> {
-    let facts = state
-        .host
+    let facts = host
         .call(
             "systemSmsConversationFacts",
             json!({"ids":ids,"limit":limit}),
@@ -453,7 +458,11 @@ async fn conversation_facts(
         .map_err(anyhow::Error::msg)?;
     Ok(serde_json::from_value(facts["items"].clone())?)
 }
-async fn execute(state: &ServerState, request: Request) -> anyhow::Result<Value> {
+pub(super) async fn execute(
+    db: &crate::db::Db,
+    host: &super::host::Host,
+    request: Request,
+) -> anyhow::Result<Value> {
     Ok(match request {
         Request::Search {
             query,
@@ -464,9 +473,8 @@ async fn execute(state: &ServerState, request: Request) -> anyhow::Result<Value>
             if limit <= 0 {
                 return Ok(json!({"items":[]}));
             }
-            let plans = prepare(state, &query, include_trashed).await?;
-            let receipt = state
-                .host
+            let plans = prepare(db, host, &query, include_trashed).await?;
+            let receipt = host
                 .call(
                     "systemSmsRowsFacts",
                     json!({"plans":plans,"limit":i64::from(offset.max(0))+i64::from(limit)}),
@@ -476,23 +484,21 @@ async fn execute(state: &ServerState, request: Request) -> anyhow::Result<Value>
             let canonical = receipt["canonicalAddress"].as_str().unwrap_or_default();
             json!({"items":page(serde_json::from_value(receipt["items"].clone())?,offset,limit,canonical)?})
         }
-        Request::Count { query } => json!({"count":count(state,&query,false).await?}),
+        Request::Count { query } => json!({"count":count(db,host,&query,false).await?}),
         Request::Ids {
             query,
             include_trashed,
         } => {
-            let plans = prepare(state, &query, include_trashed).await?;
+            let plans = prepare(db, host, &query, include_trashed).await?;
             let ids: Vec<String> = serde_json::from_value(
-                state
-                    .host
-                    .call("systemSmsIdsFacts", serde_json::to_value(plans)?)
+                host.call("systemSmsIdsFacts", serde_json::to_value(plans)?)
                     .await
                     .map_err(anyhow::Error::msg)?,
             )?;
             json!({"ids":ids.into_iter().collect::<std::collections::BTreeSet<_>>()})
         }
         Request::Counts => {
-            json!({"total":count(state,"",true).await?,"inbox":count(state,"type:1",true).await?,"sent":count(state,"type:2",true).await?,"drafts":count(state,"type:3",true).await?})
+            json!({"total":count(db,host,"",true).await?,"inbox":count(db,host,"type:1",true).await?,"sent":count(db,host,"type:2",true).await?,"drafts":count(db,host,"type:3",true).await?})
         }
         Request::Conversations {
             query,
@@ -501,34 +507,34 @@ async fn execute(state: &ServerState, request: Request) -> anyhow::Result<Value>
         } => {
             let rows = if query.is_empty() {
                 conversation_facts(
-                    state,
+                    host,
                     None,
                     Some(
                         i64::from(offset.max(0))
                             + i64::from(limit.max(0))
-                            + i64::from(state.db.archived_conversation_list()?.len() as i32),
+                            + i64::from(db.archived_conversation_list()?.len() as i32),
                     ),
                 )
                 .await?
             } else {
-                matched_conversation_facts(state, &query).await?
+                matched_conversation_facts(db, host, &query).await?
             };
-            json!({"items":conversation_models(&state.db,rows,&query,offset,limit)?})
+            json!({"items":conversation_models(&db,rows,&query,offset,limit)?})
         }
         Request::ConversationCount { query } => {
             let rows = if query.is_empty() {
-                conversation_facts(state, None, None).await?
+                conversation_facts(host, None, None).await?
             } else {
-                matched_conversation_facts(state, &query).await?
+                matched_conversation_facts(db, host, &query).await?
             };
-            json!({"count":conversation_models(&state.db,rows,&query,0,i32::MAX)?.len()})
+            json!({"count":conversation_models(&db,rows,&query,0,i32::MAX)?.len()})
         }
         Request::ArchivedConversations {
             query,
             offset,
             limit,
         } => {
-            let records = state.db.archived_conversation_list()?;
+            let records = db.archived_conversation_list()?;
             let ids = records
                 .iter()
                 .map(|r| r.conversation_id.clone())
@@ -542,8 +548,7 @@ async fn execute(state: &ServerState, request: Request) -> anyhow::Result<Value>
                     ))
                 })
                 .collect::<anyhow::Result<std::collections::HashMap<_, _>>>()?;
-            let facts = state
-                .host
+            let facts = host
                 .call(
                     "systemSmsConversationFacts",
                     json!({"ids":ids,"beforeDates":before}),
@@ -567,11 +572,11 @@ async fn execute(state: &ServerState, request: Request) -> anyhow::Result<Value>
             json!({"items":items.into_iter().skip(offset.max(0) as usize).take(limit.max(0) as usize).collect::<Vec<_>>()})
         }
         Request::ConversationDate { id } => {
-            let rows = conversation_facts(state, Some(vec![id]), None).await?;
+            let rows = conversation_facts(host, Some(vec![id]), None).await?;
             json!({"date":rows.first().map(|r|&r.date)})
         }
         Request::TextIds { filters } => {
-            json!({"ids":text_ids(state.host.call("systemMmsTextFacts",json!({})).await.map_err(anyhow::Error::msg)?,&filters)?})
+            json!({"ids":text_ids(host.call("systemMmsTextFacts",json!({})).await.map_err(anyhow::Error::msg)?,&filters)?})
         }
     })
 }
@@ -583,7 +588,7 @@ pub(super) async fn call(
     if !state.authenticated(&headers) {
         return StatusCode::UNAUTHORIZED.into_response();
     }
-    match execute(&state, request).await {
+    match execute(&state.db, &state.host, request).await {
         Ok(value) => Json(value).into_response(),
         Err(error) => (
             StatusCode::BAD_REQUEST,

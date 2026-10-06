@@ -2,6 +2,30 @@ type ActionResult {
 	affectedCount: Int!
 }
 
+type Call {
+	id: ID!
+	number: String!
+	name: String!
+	photoId: String!
+	startedAt: Instant!
+	durationSec: Int!
+	type: CallType!
+	accountId: ID!
+	geo: PhoneGeo
+	tags: [Tag!]!
+}
+
+enum CallType {
+	INCOMING
+	OUTGOING
+	MISSED
+	VOICEMAIL
+	REJECTED
+	BLOCKED
+	ANSWERED_EXTERNALLY
+	UNKNOWN
+}
+
 type Certificate {
 	issuer: String!
 	subject: String!
@@ -226,6 +250,27 @@ type Mutation {
 	createContactGroup(name: String!, accountName: String!, accountType: String!): ContactGroup!
 	updateContactGroup(id: ID!, name: String!): ContactGroup!
 	deleteContactGroup(id: ID!): Boolean!
+	archiveSmsConversation(id: ID!): Boolean!
+	unarchiveSmsConversation(id: ID!): Boolean!
+	trashSms(query: String!): ActionResult!
+	restoreSms(query: String!): ActionResult!
+	deleteSms(query: String!): ActionResult!
+	"""
+	`subscriptionId` picks the SIM (-1 = system default, see `sims`);
+	`requestId` is an optional idempotency key that dedupes retried sends.
+	"""
+	sendSms(number: String!, body: String!, subscriptionId: Int!, requestId: String): Boolean!
+	"""
+	Compose an MMS in the device's default SMS app and track the send.
+	Returns a pendingId consumed by the MMS polling flow.
+	"""
+	sendMms(number: String!, body: String!, attachmentPaths: [String!]!, threadId: ID!): String!
+	deleteCalls(query: String!): ActionResult!
+	"""
+	`showDialer` hands the number to the dialer instead of placing the
+	call outright.
+	"""
+	call(number: String!, showDialer: Boolean!): Boolean!
 }
 
 type Notification {
@@ -292,6 +337,13 @@ enum PackageType {
 	USER
 }
 
+type PhoneGeo {
+	country: String!
+	numberType: String!
+	carrier: String!
+	description: String!
+}
+
 enum PhoneType {
 	CUSTOM
 	HOME
@@ -341,6 +393,65 @@ type Query {
 	contactCount(query: String!): Int!
 	contactSources: [ContactSource!]!
 	contactGroups: [ContactGroup!]!
+	sms(offset: Int!, limit: Int!, query: String!): [Sms!]!
+	smsCount(query: String!): Int!
+	smsBoxCounts: SmsCounts!
+	smsConversations(offset: Int!, limit: Int!, query: String!): [SmsConversation!]!
+	smsConversationCount(query: String!): Int!
+	archivedSmsConversations(offset: Int!, limit: Int!, query: String!): [SmsConversation!]!
+	calls(offset: Int!, limit: Int!, query: String!): [Call!]!
+	"""
+	plain-app degrades this to 0 rather than erroring.
+	"""
+	callCount(query: String!): Int!
+}
+
+type Sms {
+	id: ID!
+	body: String!
+	address: String!
+	sentAt: Instant!
+	serviceCenter: String!
+	read: Boolean!
+	threadId: ID!
+	type: SmsType!
+	subscriptionId: Int!
+	isMms: Boolean!
+	attachments: [SmsAttachment!]!
+	tags: [Tag!]!
+}
+
+type SmsAttachment {
+	path: String!
+	contentType: String!
+	name: String!
+}
+
+type SmsConversation {
+	id: ID!
+	address: String!
+	snippet: String!
+	lastMessageAt: Instant!
+	messageCount: Int!
+	read: Boolean!
+	addresses: [String!]!
+}
+
+type SmsCounts {
+	total: Int!
+	inbox: Int!
+	sent: Int!
+	drafts: Int!
+}
+
+enum SmsType {
+	INBOX
+	SENT
+	DRAFT
+	OUTBOX
+	FAILED
+	QUEUED
+	UNKNOWN
 }
 
 """

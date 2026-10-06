@@ -68,6 +68,23 @@ fn public_schema_exposes_the_contract_it_has_to_serve() {
         "createContactGroup(name: String!, accountName: String!, accountType: String!): ContactGroup!",
         "updateContactGroup(id: ID!, name: String!): ContactGroup!",
         "deleteContactGroup(id: ID!): Boolean!",
+        "sms(offset: Int!, limit: Int!, query: String!): [Sms!]!",
+        "smsCount(query: String!): Int!",
+        "smsBoxCounts: SmsCounts!",
+        "smsConversations(offset: Int!, limit: Int!, query: String!): [SmsConversation!]!",
+        "smsConversationCount(query: String!): Int!",
+        "archivedSmsConversations(offset: Int!, limit: Int!, query: String!): [SmsConversation!]!",
+        "archiveSmsConversation(id: ID!): Boolean!",
+        "unarchiveSmsConversation(id: ID!): Boolean!",
+        "trashSms(query: String!): ActionResult!",
+        "restoreSms(query: String!): ActionResult!",
+        "deleteSms(query: String!): ActionResult!",
+        "sendSms(number: String!, body: String!, subscriptionId: Int!, requestId: String): Boolean!",
+        "sendMms(number: String!, body: String!, attachmentPaths: [String!]!, threadId: ID!): String!",
+        "calls(offset: Int!, limit: Int!, query: String!): [Call!]!",
+        "callCount(query: String!): Int!",
+        "call(number: String!, showDialer: Boolean!): Boolean!",
+        "deleteCalls(query: String!): ActionResult!",
     ] {
         assert!(sdl.contains(field), "missing {field}");
     }

@@ -52,6 +52,8 @@ mod public_dlna;
 // hands the document to Kotlin and nothing under `public_schema` is
 // reachable — drop these allows in the same commit that flips that over.
 #[allow(dead_code)]
+mod public_calls;
+#[allow(dead_code)]
 mod public_clipboard;
 #[allow(dead_code)]
 mod public_contact_types;
@@ -67,6 +69,8 @@ mod public_notifications;
 mod public_packages;
 #[allow(dead_code)]
 mod public_schema;
+#[allow(dead_code)]
+mod public_sms;
 mod public_upload;
 mod public_zip;
 mod ws_login;
