@@ -21,9 +21,10 @@ export function useNotifications() {
 
   const { loading, refetch } = initQuery({
     handle: (data: any, error: string) => {
-      if (data) {
-        notifications.value = data.notifications.map((it: any) => ({ ...it, icon: getFileUrlByPath(urlTokenKey.value, 'pkgicon://' + it.appId) }))
-      }
+      // A failed query can still hand back a truthy `data`; reading
+      // data.notifications off it then throws inside the handler.
+      if (error || !data?.notifications) return
+      notifications.value = data.notifications.map((it: any) => ({ ...it, icon: getFileUrlByPath(urlTokenKey.value, 'pkgicon://' + it.appId) }))
     },
     document: notificationsGQL,
   })

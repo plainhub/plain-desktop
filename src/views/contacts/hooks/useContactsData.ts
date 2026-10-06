@@ -59,9 +59,13 @@ export function useContactsData() {
 
   const { loading, fetch } = initLazyQuery({
     handle: (data: { contacts: IContact[]; contactCount: number }, error: string) => {
-      if (data) {
-        items.value = data.contacts
-        selectable.total.value = data.contactCount
+      if (error) {
+        toast(t(error), 'error')
+      } else if (data) {
+        // A response that carries data but no `contacts` would leave items
+        // undefined, and the template's items.length then throws.
+        items.value = data.contacts ?? []
+        selectable.total.value = data.contactCount ?? 0
       }
     },
     document: contactsGQL,
@@ -74,8 +78,8 @@ export function useContactsData() {
 
   initQuery({
     handle: (data: { contactSources: IContactSource[] }, error: string) => {
-      if (data) {
-        sources.value = data.contactSources
+      if (!error && data) {
+        sources.value = data.contactSources ?? []
       }
     },
     document: contactSourcesGQL,
