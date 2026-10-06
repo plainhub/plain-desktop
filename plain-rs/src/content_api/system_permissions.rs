@@ -56,34 +56,12 @@ async fn execute(state: &ServerState, request: Request) -> anyhow::Result<Value>
     let configured = configured
         .into_iter()
         .collect::<std::collections::HashSet<_>>();
-    let enabled = api_enabled(&request.permissions, &configured);
+    let enabled = super::public_gate::api_enabled(&request.permissions, &configured);
     if !enabled || !request.require_granted {
         return Ok(json!({"allowed": enabled}));
     }
-    let facts = state
-        .host
-        .call(
-            "systemPermissionFacts",
-            json!({"permissions":request.permissions}),
-        )
-        .await
-        .map_err(anyhow::Error::msg)?;
-    let grants = facts["granted"]
-        .as_object()
-        .ok_or_else(|| anyhow::anyhow!("invalid permission facts"))?;
-    let granted = request
-        .permissions
-        .iter()
-        .all(|name| grants.get(name).and_then(Value::as_bool) == Some(true));
-    Ok(json!({"allowed":enabled && granted}))
-}
-
-fn api_enabled(permissions: &[String], configured: &std::collections::HashSet<String>) -> bool {
-    permissions.iter().all(|name| {
-        configured.contains(name)
-            || (name == "READ_CONTACTS" && configured.contains("WRITE_CONTACTS"))
-            || (name == "READ_CALL_LOG" && configured.contains("WRITE_CALL_LOG"))
-    })
+    let granted = super::public_gate::granted(&state.host, &request.permissions).await?;
+    Ok(json!({"allowed":granted}))
 }
 
 pub(super) async fn call(

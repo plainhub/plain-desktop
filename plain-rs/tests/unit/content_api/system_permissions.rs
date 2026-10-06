@@ -1,4 +1,4 @@
-use super::*;
+use crate::content_api::public_gate::api_enabled;
 
 #[test]
 fn write_contact_and_call_permissions_imply_read_access() {

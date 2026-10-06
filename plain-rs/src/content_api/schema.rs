@@ -9,7 +9,7 @@ mod bookmark;
 #[path = "../http_server/main_schemas/bookmark_types.rs"]
 mod bookmark_types;
 mod bookmarks;
-mod clipboard;
+pub(crate) mod clipboard;
 #[path = "../http_server/main_schemas/content_common.rs"]
 mod content_common;
 #[path = "../http_server/main_schemas/favorite_folder.rs"]

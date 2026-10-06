@@ -1,0 +1,144 @@
+type ActionResult {
+	affectedCount: Int!
+}
+
+type Certificate {
+	issuer: String!
+	subject: String!
+	serialNumber: String!
+	validFrom: Instant!
+	validTo: Instant!
+}
+
+type ClipboardItem {
+	id: ID!
+	text: String!
+	"""
+	Client id of the sync origin: empty = captured locally on this device, otherwise received from that peer.
+	"""
+	source: String!
+	label: String!
+	sensitive: Boolean!
+	createdAt: Instant!
+}
+
+enum FileSortBy {
+	DATE_ASC
+	DATE_DESC
+	SIZE_ASC
+	SIZE_DESC
+	NAME_ASC
+	NAME_DESC
+	TAKEN_AT_DESC
+}
+
+scalar Instant
+
+scalar Long
+
+type Mutation {
+	uninstallPackages(ids: [ID!]!): Boolean!
+	"""
+	Bundle unpacking is heavy disk I/O, so the platform side keeps it off
+	the engine thread; a failure surfaces as `Installation failed: …`.
+	"""
+	installPackage(path: String!): PackageInstallPending!
+	deleteNotifications(ids: [ID!]!): ActionResult!
+	"""
+	`actionIndex` indexes [`Notification::reply_actions`], the
+	reply-capable subset — not the plain action list.
+	"""
+	replyNotification(id: ID!, actionIndex: Int!, text: String!): Boolean!
+	"""
+	Write text into the system clipboard on behalf of the calling client.
+	The write is recorded with the caller as source; the local watcher
+	sees it but skips re-broadcasting (hash dedup), so there is no loop.
+	"""
+	setClipboard(text: String!): Boolean!
+	"""
+	Delete clipboard history entries matching the query DSL (`ids:` /
+	`text:`; a bare word is a text LIKE). A blank query is rejected —
+	send `all:true` to target everything (API_SPEC §5).
+	"""
+	deleteClipboardItems(query: String!): ActionResult!
+}
+
+type Notification {
+	id: ID!
+	"""
+	Android FLAG_ONLY_ALERT_ONCE: re-posted updates must not sound/vibrate again.
+	"""
+	onlyOnce: Boolean!
+	isClearable: Boolean!
+	appId: ID!
+	appName: String!
+	postedAt: Instant!
+	silent: Boolean!
+	title: String!
+	body: String!
+	actions: [String!]!
+	"""
+	Subset of `actions` that support inline reply; `replyNotification`'s
+	`actionIndex` indexes this list, not `actions`.
+	"""
+	replyActions: [String!]!
+}
+
+type Package {
+	id: ID!
+	name: String!
+	type: PackageType!
+	version: String!
+	path: String!
+	size: Long!
+	certs: [Certificate!]!
+	installedAt: Instant!
+	updatedAt: Instant!
+}
+
+type PackageInstallPending {
+	id: ID!
+	updatedAt: Instant
+	isNew: Boolean!
+}
+
+type PackageStatus {
+	id: ID!
+	exists: Boolean!
+	updatedAt: Instant
+}
+
+enum PackageType {
+	SYSTEM
+	"""
+	Anything the platform did not report as a pre-installed package.
+	Misclassifying a user app as system would hide it from uninstall.
+	"""
+	USER
+}
+
+type Query {
+	packages(offset: Int!, limit: Int!, query: String!, sortBy: FileSortBy!): [Package!]!
+	packageCount(query: String!): Int!
+	packageStatuses(ids: [ID!]!): [PackageStatus!]!
+	notifications(offset: Int!, limit: Int!, query: String!): [Notification!]!
+	notificationCount(query: String!): Int!
+	"""
+	Paged clipboard history, newest first.
+	"""
+	clipboardItems(offset: Int!, limit: Int!, query: String!): [ClipboardItem!]!
+	clipboardItemCount(query: String!): Int!
+}
+
+"""
+Directs the executor to include this field or fragment only when the `if` argument is true.
+"""
+directive @include(if: Boolean!) on FIELD | FRAGMENT_SPREAD | INLINE_FRAGMENT
+"""
+Directs the executor to skip this field or fragment when the `if` argument is true.
+"""
+directive @skip(if: Boolean!) on FIELD | FRAGMENT_SPREAD | INLINE_FRAGMENT
+schema {
+	query: Query
+	mutation: Mutation
+}

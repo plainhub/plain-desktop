@@ -47,6 +47,22 @@ mod contact_write;
 mod public_proxy;
 mod public_static;
 mod public_dlna;
+// The public `/graphql` schema is assembled domain by domain. It only starts
+// serving once every contract root exists; until then `main_graphql` still
+// hands the document to Kotlin and nothing under `public_schema` is
+// reachable — drop these allows in the same commit that flips that over.
+#[allow(dead_code)]
+mod public_clipboard;
+#[allow(dead_code)]
+mod public_facts;
+#[allow(dead_code)]
+mod public_gate;
+#[allow(dead_code)]
+mod public_notifications;
+#[allow(dead_code)]
+mod public_packages;
+#[allow(dead_code)]
+mod public_schema;
 mod public_upload;
 mod public_zip;
 mod ws_login;

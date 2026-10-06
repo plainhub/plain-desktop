@@ -35,7 +35,7 @@ fn instant(value: &Value, key: &str) -> Option<chrono::DateTime<chrono::FixedOff
         .as_str()
         .and_then(|v| chrono::DateTime::parse_from_rfc3339(v).ok())
 }
-fn packages(
+pub(super) fn packages(
     db: &Db,
     mut facts: Vec<Value>,
     query: &str,
@@ -93,7 +93,7 @@ fn packages(
     });
     Ok(facts.into_iter().map(|v| v["item"].clone()).collect())
 }
-fn notifications(prefs: &Prefs, mut facts: Vec<Value>, query: &str) -> Vec<Value> {
+pub(super) fn notifications(prefs: &Prefs, mut facts: Vec<Value>, query: &str) -> Vec<Value> {
     let groups = search_dsl::parse(query);
     let filter_text = groups
         .iter()
@@ -121,7 +121,7 @@ fn notifications(prefs: &Prefs, mut facts: Vec<Value>, query: &str) -> Vec<Value
     facts.sort_by(|a, b| instant(b, "time").cmp(&instant(a, "time")));
     facts
 }
-fn page(items: Vec<Value>, offset: i64, limit: i64) -> Vec<Value> {
+pub(super) fn page(items: Vec<Value>, offset: i64, limit: i64) -> Vec<Value> {
     items
         .into_iter()
         .skip(offset.max(0) as usize)

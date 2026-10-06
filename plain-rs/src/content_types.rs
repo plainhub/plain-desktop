@@ -1,4 +1,4 @@
-use async_graphql::{ID, InputObject, SimpleObject};
+use async_graphql::{Enum, ID, InputObject, SimpleObject};
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Default)]
 pub struct Instant(pub chrono::DateTime<chrono::Utc>);
@@ -83,4 +83,108 @@ pub struct FavoriteFolder {
     pub root_path: String,
     pub full_path: String,
     pub alias: Option<String>,
+}
+
+#[derive(Enum, Copy, Clone, Eq, PartialEq, Debug)]
+pub enum FileSortBy {
+    DateAsc,
+    DateDesc,
+    SizeAsc,
+    SizeDesc,
+    NameAsc,
+    NameDesc,
+    TakenAtDesc,
+}
+
+impl FileSortBy {
+    /// The wire name the search DSL and the platform layer sort by. It
+    /// doubles as the `sortBy` value the host provider route accepts.
+    pub(crate) fn as_str(self) -> &'static str {
+        match self {
+            FileSortBy::DateAsc => "DATE_ASC",
+            FileSortBy::DateDesc => "DATE_DESC",
+            FileSortBy::SizeAsc => "SIZE_ASC",
+            FileSortBy::SizeDesc => "SIZE_DESC",
+            FileSortBy::NameAsc => "NAME_ASC",
+            FileSortBy::NameDesc => "NAME_DESC",
+            FileSortBy::TakenAtDesc => "TAKEN_AT_DESC",
+        }
+    }
+}
+
+#[derive(Enum, Copy, Clone, Eq, PartialEq, Debug, Default)]
+pub enum PackageType {
+    System,
+    /// Anything the platform did not report as a pre-installed package.
+    /// Misclassifying a user app as system would hide it from uninstall.
+    #[default]
+    User,
+}
+
+#[derive(SimpleObject, Clone, Debug)]
+pub struct Certificate {
+    pub issuer: String,
+    pub subject: String,
+    #[graphql(name = "serialNumber")]
+    pub serial_number: String,
+    #[graphql(name = "validFrom")]
+    pub valid_from: Instant,
+    #[graphql(name = "validTo")]
+    pub valid_to: Instant,
+}
+
+#[derive(SimpleObject, Clone, Debug)]
+pub struct Package {
+    pub id: ID,
+    pub name: String,
+    pub r#type: PackageType,
+    pub version: String,
+    pub path: String,
+    pub size: Long,
+    pub certs: Vec<Certificate>,
+    #[graphql(name = "installedAt")]
+    pub installed_at: Instant,
+    #[graphql(name = "updatedAt")]
+    pub updated_at: Instant,
+}
+
+#[derive(SimpleObject, Clone, Debug)]
+pub struct PackageStatus {
+    pub id: ID,
+    pub exists: bool,
+    #[graphql(name = "updatedAt")]
+    pub updated_at: Option<Instant>,
+}
+
+#[derive(SimpleObject, Clone, Debug)]
+pub struct PackageInstallPending {
+    pub id: ID,
+    #[graphql(name = "updatedAt")]
+    pub updated_at: Option<Instant>,
+    #[graphql(name = "isNew")]
+    pub is_new: bool,
+}
+
+#[derive(SimpleObject, Clone, Debug)]
+pub struct Notification {
+    pub id: ID,
+    /// Android FLAG_ONLY_ALERT_ONCE: re-posted updates must not sound/vibrate again.
+    #[graphql(name = "onlyOnce")]
+    pub only_once: bool,
+    #[graphql(name = "isClearable")]
+    pub is_clearable: bool,
+    #[graphql(name = "appId")]
+    pub app_id: ID,
+    #[graphql(name = "appName")]
+    pub app_name: String,
+    #[graphql(name = "postedAt")]
+    pub posted_at: Instant,
+    pub silent: bool,
+    pub title: String,
+    pub body: String,
+    pub actions: Vec<String>,
+    /// Subset of `actions` that support inline reply; `replyNotification`'s
+    /// `actionIndex` indexes this list, not `actions`.
+    #[graphql(name = "replyActions")]
+    pub reply_actions: Vec<String>,
 }
