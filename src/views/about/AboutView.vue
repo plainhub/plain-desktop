@@ -41,7 +41,7 @@
 
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
-import { invoke } from '@tauri-apps/api/core'
+import { invoke, isTauri } from '@tauri-apps/api/core'
 import { openUrl } from '@/lib/browser'
 import { copyTextToClipboard } from '@/lib/clipboard'
 
@@ -85,6 +85,10 @@ const statusClass = () => {
 }
 
 async function runCheck() {
+  // The update check is a Tauri command. In a browser `window.__TAURI_INTERNALS__`
+  // is undefined, so calling invoke throws a TypeError that the global error
+  // boundary turns into a full-page error screen over an otherwise fine page.
+  if (!isTauri()) return
   status.value = 'loading'
   error.value = ''
   try {
