@@ -2,6 +2,11 @@ type ActionResult {
 	affectedCount: Int!
 }
 
+type AudioFileInfo {
+	durationMs: Long!
+	location: Location
+}
+
 type Call {
 	id: ID!
 	number: String!
@@ -177,6 +182,13 @@ input ContactWebsiteInput {
 	label: String!
 }
 
+enum DriveType {
+	INTERNAL_STORAGE
+	SDCARD
+	USB_STORAGE
+	APP
+}
+
 enum EmailType {
 	CUSTOM
 	HOME
@@ -190,6 +202,41 @@ enum EventType {
 	ANNIVERSARY
 	BIRTHDAY
 	OTHER
+}
+
+type FavoriteFolder {
+	rootPath: String!
+	fullPath: String!
+	alias: String
+}
+
+"""
+One entry of a directory listing or a search page.
+"""
+type File {
+	"""
+	Empty for non-media files — exposed as `null` rather than an empty id.
+	"""
+	mediaId: ID
+	name: String!
+	path: String!
+	createdAt: Instant
+	updatedAt: Instant!
+	size: Long!
+	isDir: Boolean!
+	childCount: Int!
+}
+
+"""
+Stat plus the media probe for one path. `data` is `null` when the name
+is not a media extension, which is why it is a union and not a
+single struct.
+"""
+type FileInfo {
+	path: String!
+	updatedAt: Instant!
+	size: Long!
+	data: MediaFileInfo
 }
 
 enum FileSortBy {
@@ -215,6 +262,12 @@ enum ImProtocol {
 	NETMEETING
 }
 
+type ImageFileInfo {
+	width: Int!
+	height: Int!
+	location: Location
+}
+
 type ImageSearchStatus {
 	status: ImageSearchStatusType!
 	downloadProgress: Int!
@@ -236,7 +289,34 @@ enum ImageSearchStatusType {
 
 scalar Instant
 
+type Location {
+	latitude: Float!
+	longitude: Float!
+}
+
 scalar Long
+
+union MediaFileInfo = ImageFileInfo | AudioFileInfo | VideoFileInfo
+
+"""
+A mounted volume. The phone reports one row per storage the platform
+knows about (internal, SD card, each USB disk, the app-private dir);
+the fields are all filled by the host, never derived here.
+"""
+type Mount {
+	id: ID!
+	name: String!
+	path: String!
+	mountPoint: String!
+	fsType: String!
+	totalBytes: Long!
+	usedBytes: Long!
+	freeBytes: Long!
+	remote: Boolean!
+	alias: String!
+	driveType: DriveType!
+	diskId: String!
+}
 
 type Mutation {
 	uninstallPackages(ids: [ID!]!): Boolean!
@@ -375,6 +455,11 @@ enum PackageType {
 	USER
 }
 
+enum PathKind {
+	FILE
+	DIR
+}
+
 type PhoneGeo {
 	country: String!
 	numberType: String!
@@ -450,6 +535,55 @@ type Query {
 	screenMirrorVideoCodec: ScreenMirrorVideoCodec
 	screenMirrorQuality: ScreenMirrorQuality!
 	imageSearchStatus: ImageSearchStatus!
+	"""
+	Volumes the platform reports. The host builds these because drive
+	enumeration is platform state; there is nothing to gate.
+	"""
+	mounts: [Mount!]!
+	"""
+	Recently-opened files. Reading them is a storage read, so this one
+	gates — plain-app's `recentFiles` calls `checkEnabledAsync`.
+	"""
+	recentFiles: [File!]!
+	"""
+	One page of a directory listing, filtered and sorted by the search
+	DSL. `query` may carry a `parent` field to redirect the root, which
+	is what the file manager's breadcrumb links send.
+	"""
+	files(root: String!, offset: Int!, limit: Int!, query: String!, sortBy: FileSortBy!): [File!]!
+	"""
+	Total matches for the same query, ignoring paging.
+	"""
+	fileCount(root: String!, query: String!): Int!
+	"""
+	Stat plus, for media names, the platform's decoder output. A path
+	that cannot be resolved is not an error: plain-app reports zeros so
+	the info panel renders rather than blowing up on a stale link.
+	
+	The probe only runs once the stat succeeded — that stat is what the
+	file-access authorization rides on, so probing a denied path would
+	hand a client metadata for bytes it may not read.
+	"""
+	fileInfo(path: String!, fileName: String): FileInfo!
+	"""
+	A total predicate, never an error: a blank path, `"."`, a missing
+	file and a denied path all read as `false` so callers can use it in
+	a filter without guarding every call.
+	"""
+	pathExists(path: String!): Boolean!
+	"""
+	Same total-predicate semantics as `pathExists`; `null` when the path
+	cannot be resolved.
+	"""
+	pathKind(path: String!): PathKind
+	"""
+	Bookmarked directories. These live in the Rust SQLite
+	`favorite_folders` table, so this reads the store directly instead
+	of asking the platform to refresh — going through the host would
+	re-enter this very root once `main_graphql` serves the public
+	schema.
+	"""
+	favoriteFolders: [FavoriteFolder!]!
 }
 
 enum ScreenMirrorMode {
@@ -529,6 +663,13 @@ type Tag {
 	id: ID!
 	name: String!
 	count: Int!
+}
+
+type VideoFileInfo {
+	width: Int!
+	height: Int!
+	durationMs: Long!
+	location: Location
 }
 
 enum WebSettingsFeature {

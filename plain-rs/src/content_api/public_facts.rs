@@ -72,7 +72,13 @@ pub(super) fn strings(value: &Value, key: &str) -> Vec<String> {
 /// Maps a nested array of raw facts, dropping anything that is not an object
 /// so one malformed row cannot fail the whole page.
 pub(super) fn list<T>(value: &Value, key: &str, item: impl Fn(&Value) -> T) -> Vec<T> {
-    value[key]
+    rows(&value[key], item)
+}
+
+/// The same mapping for a host reply that is a bare JSON array rather than
+/// an object wrapping one.
+pub(super) fn rows<T>(value: &Value, item: impl Fn(&Value) -> T) -> Vec<T> {
+    value
         .as_array()
         .map(|items| {
             items

@@ -62,6 +62,8 @@ mod public_contacts;
 #[allow(dead_code)]
 mod public_facts;
 #[allow(dead_code)]
+mod public_files;
+#[allow(dead_code)]
 mod public_image_index;
 #[allow(dead_code)]
 mod public_gate;

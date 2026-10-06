@@ -7,16 +7,15 @@
 //! network. Here only the contract's root fields exist, so anything missing
 //! from [`crate::content_types`] is a gap to fill rather than a leak.
 
-use super::public_clipboard::{ClipboardMutation, ClipboardQuery};
 use super::public_calls::{CallsMutation, CallsQuery};
+use super::public_clipboard::{ClipboardMutation, ClipboardQuery};
 use super::public_contacts::{ContactsMutation, ContactsQuery};
+use super::public_files::FilesQuery;
 use super::public_image_index::{ImageIndexMutation, ImageIndexQuery};
-use super::public_screen_mirror::{
-    ScreenMirrorMutation, ScreenMirrorQuery, SettingsMutation,
-};
-use super::public_sms::{SmsMutation, SmsQuery};
 use super::public_notifications::{NotificationsMutation, NotificationsQuery};
 use super::public_packages::{PackagesMutation, PackagesQuery};
+use super::public_screen_mirror::{ScreenMirrorMutation, ScreenMirrorQuery, SettingsMutation};
+use super::public_sms::{SmsMutation, SmsQuery};
 use crate::content_api::host::Host;
 use crate::{db::Db, prefs::Prefs};
 use async_graphql::{EmptySubscription, MergedObject, Schema};
@@ -32,6 +31,7 @@ pub struct Query(
     CallsQuery,
     ScreenMirrorQuery,
     ImageIndexQuery,
+    FilesQuery,
 );
 
 #[derive(MergedObject, Default)]
