@@ -326,9 +326,10 @@ fn db<'a>(ctx: &'a Context<'_>) -> async_graphql::Result<&'a Arc<Db>> {
 }
 
 fn sync_service(ctx: &Context<'_>) -> async_graphql::Result<Arc<feeds::SyncService>> {
-    ctx.data::<Arc<feeds::SyncService>>()
-        .cloned()
-        .map_err(|_| async_graphql::Error::new("feed sync service unavailable"))
+    // Let async-graphql's own "Data `...` does not exist" through: rewriting
+    // it as a flat message told a caller the sync service was merely off when
+    // the real fault was that it was never registered at all.
+    Ok(ctx.data::<Arc<feeds::SyncService>>()?.clone())
 }
 
 #[cfg(test)]
