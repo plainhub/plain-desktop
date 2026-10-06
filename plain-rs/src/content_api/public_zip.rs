@@ -225,21 +225,18 @@ fn stream_archive(
     let length = file.metadata().map(|meta| meta.len()).unwrap_or_default();
     let _cleanup = _guard;
     let source = tokio::fs::File::from_std(file);
-    let stream = futures_util::stream::try_unfold(
-        source,
-        |mut file| async move {
-            use tokio::io::AsyncReadExt;
-            let mut buffer = vec![0u8; 64 * 1024];
-            let read = file.read(&mut buffer).await?;
-            if read == 0 {
-                return Ok::<_, std::io::Error>(None);
-            }
-            Ok::<_, std::io::Error>(Some((
-                axum::body::Bytes::from(buffer[..read].to_vec()),
-                file,
-            )))
-        },
-    );
+    let stream = futures_util::stream::try_unfold(source, |mut file| async move {
+        use tokio::io::AsyncReadExt;
+        let mut buffer = vec![0u8; 64 * 1024];
+        let read = file.read(&mut buffer).await?;
+        if read == 0 {
+            return Ok::<_, std::io::Error>(None);
+        }
+        Ok::<_, std::io::Error>(Some((
+            axum::body::Bytes::from(buffer[..read].to_vec()),
+            file,
+        )))
+    });
     Response::builder()
         .status(StatusCode::OK)
         .header(header::CONTENT_TYPE, "application/zip")

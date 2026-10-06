@@ -168,6 +168,44 @@ async fn playback_joins_the_queue_state_and_the_player_state() {
     assert_eq!(playback["positionMs"], 4200);
 }
 
+/// Playing a track must mark it current without touching the queue (2026-09-27,
+/// T58). `playAudio` used to append the track to the manual queue, and enqueue
+/// moves an already-queued track to the tail — so every desktop play jumped the
+/// clicked track to the end. Queueing is the caller's job: they combine
+/// `addAudiosToQueue`/`enqueue` with the play.
+#[tokio::test]
+async fn playing_a_track_never_changes_the_queue() {
+    let (_dir, schema) = fixture_with(GRANTED, |method, params| match method {
+        "systemAudioPlaylistTracks" => json!([{
+            "title": "Track", "artist": "Artist",
+            "path": params["paths"][0].as_str().unwrap(), "durationMs": 1000,
+        }]),
+        _other => json!({}),
+    });
+    database(&schema);
+    seed_queue(&schema, &[("/music/one.mp3", "One", "A"), ("/music/two.mp3", "Two", "B")]);
+
+    let played = query(
+        &schema,
+        r#"mutation { playAudio(path: "/music/one.mp3") { path } }"#,
+    )
+    .await;
+    assert_eq!(played["data"]["playAudio"]["path"], "/music/one.mp3", "{played}");
+
+    let after = query(&schema, r#"query { audioQueueItems(offset: 0, limit: 10, query: "") { path } }"#).await;
+    let paths: Vec<&str> = after["data"]["audioQueueItems"]
+        .as_array()
+        .unwrap_or_else(|| panic!("{after}"))
+        .iter()
+        .map(|item| item["path"].as_str().unwrap())
+        .collect();
+    assert_eq!(
+        paths,
+        vec!["/music/one.mp3", "/music/two.mp3"],
+        "playAudio must leave the queue exactly as it was — got {paths:?}",
+    );
+}
+
 /// The store keeps "no current track" as an empty string. The contract says
 /// null, and an empty path is not a track a client can act on.
 #[tokio::test]
