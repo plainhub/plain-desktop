@@ -10,6 +10,7 @@
 use super::public_calls::{CallsMutation, CallsQuery};
 use super::public_clipboard::{ClipboardMutation, ClipboardQuery};
 use super::public_contacts::{ContactsMutation, ContactsQuery};
+use super::public_device::{DeviceMutation, DeviceQuery};
 use super::public_file_ops::{FileOpsMutation, MediaActionMutation, UploadQuery};
 use super::public_files::{FilesQuery, FavoritesMutation};
 use super::public_image_index::{ImageIndexMutation, ImageIndexQuery};
@@ -42,6 +43,7 @@ pub struct Query(
     PrefsQuery,
     DbQuery,
     UploadQuery,
+    DeviceQuery,
 );
 
 #[derive(MergedObject, Default)]
@@ -61,6 +63,7 @@ pub struct Mutation(
     DbMutation,
     FileOpsMutation,
     MediaActionMutation,
+    DeviceMutation,
 );
 
 pub type PublicSchema = Schema<Query, Mutation, EmptySubscription>;

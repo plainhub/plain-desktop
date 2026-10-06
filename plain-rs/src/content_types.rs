@@ -85,6 +85,127 @@ pub struct FavoriteFolder {
     pub alias: Option<String>,
 }
 
+/// The `app` root echoes a write back rather than reading the store again,
+/// so a caller can confirm what it asked for without a round trip.
+#[derive(SimpleObject, Clone, Debug)]
+pub struct KeyValuePair {
+    pub key: String,
+    pub value: String,
+}
+
+/// Optional device features. A client hides a whole section when its
+/// capability is absent, which is why this is a list rather than a set of
+/// booleans on the app root.
+#[derive(Enum, Copy, Clone, Eq, PartialEq, Debug)]
+pub enum Capability {
+    MediaTrash,
+    MirrorAudio,
+    DocPreview,
+    ImageSearch,
+    MediaScan,
+    Sms,
+    Calls,
+    CallPhone,
+    Contacts,
+    Packages,
+    Notes,
+    Feeds,
+    ScreenMirror,
+    ImageEditor,
+    Notifications,
+    Clipboard,
+    Pomodoro,
+}
+
+impl Capability {
+    /// Unknown members parse to `None` rather than to a capability the
+    /// client would render as a section it cannot drive.
+    pub(crate) fn parse(value: &str) -> Option<Self> {
+        Some(match value {
+            "MEDIA_TRASH" => Self::MediaTrash,
+            "MIRROR_AUDIO" => Self::MirrorAudio,
+            "DOC_PREVIEW" => Self::DocPreview,
+            "IMAGE_SEARCH" => Self::ImageSearch,
+            "MEDIA_SCAN" => Self::MediaScan,
+            "SMS" => Self::Sms,
+            "CALLS" => Self::Calls,
+            "CALL_PHONE" => Self::CallPhone,
+            "CONTACTS" => Self::Contacts,
+            "PACKAGES" => Self::Packages,
+            "NOTES" => Self::Notes,
+            "FEEDS" => Self::Feeds,
+            "SCREEN_MIRROR" => Self::ScreenMirror,
+            "IMAGE_EDITOR" => Self::ImageEditor,
+            "NOTIFICATIONS" => Self::Notifications,
+            "CLIPBOARD" => Self::Clipboard,
+            "POMODORO" => Self::Pomodoro,
+            _ => return None,
+        })
+    }
+}
+
+#[derive(Enum, Copy, Clone, Eq, PartialEq, Debug)]
+pub enum Permission {
+    WriteExternalStorage,
+    ReadSms,
+    SendSms,
+    ReadContacts,
+    WriteContacts,
+    ReadCallLog,
+    WriteCallLog,
+    CallPhone,
+    PostNotifications,
+    NearbyWifiDevices,
+    AccessFineLocation,
+    Camera,
+    SystemAlertWindow,
+    RecordAudio,
+    ReadMediaImages,
+    ReadMediaVideos,
+    ReadMediaAudio,
+    NotificationListener,
+    ReadPhoneState,
+    ReadPhoneNumbers,
+    ScheduleExactAlarm,
+    QueryAllPackages,
+    Adb,
+    Clipboard,
+}
+
+impl Permission {
+    /// Unknown members parse to `None`: a permission this build has never
+    /// heard of is not one the client can request.
+    pub(crate) fn parse(value: &str) -> Option<Self> {
+        Some(match value {
+            "WRITE_EXTERNAL_STORAGE" => Self::WriteExternalStorage,
+            "READ_SMS" => Self::ReadSms,
+            "SEND_SMS" => Self::SendSms,
+            "READ_CONTACTS" => Self::ReadContacts,
+            "WRITE_CONTACTS" => Self::WriteContacts,
+            "READ_CALL_LOG" => Self::ReadCallLog,
+            "WRITE_CALL_LOG" => Self::WriteCallLog,
+            "CALL_PHONE" => Self::CallPhone,
+            "POST_NOTIFICATIONS" => Self::PostNotifications,
+            "NEARBY_WIFI_DEVICES" => Self::NearbyWifiDevices,
+            "ACCESS_FINE_LOCATION" => Self::AccessFineLocation,
+            "CAMERA" => Self::Camera,
+            "SYSTEM_ALERT_WINDOW" => Self::SystemAlertWindow,
+            "RECORD_AUDIO" => Self::RecordAudio,
+            "READ_MEDIA_IMAGES" => Self::ReadMediaImages,
+            "READ_MEDIA_VIDEOS" => Self::ReadMediaVideos,
+            "READ_MEDIA_AUDIO" => Self::ReadMediaAudio,
+            "NOTIFICATION_LISTENER" => Self::NotificationListener,
+            "READ_PHONE_STATE" => Self::ReadPhoneState,
+            "READ_PHONE_NUMBERS" => Self::ReadPhoneNumbers,
+            "SCHEDULE_EXACT_ALARM" => Self::ScheduleExactAlarm,
+            "QUERY_ALL_PACKAGES" => Self::QueryAllPackages,
+            "ADB" => Self::Adb,
+            "CLIPBOARD" => Self::Clipboard,
+            _ => return None,
+        })
+    }
+}
+
 #[derive(Enum, Copy, Clone, Eq, PartialEq, Debug, Default)]
 pub enum DriveType {
     #[default]

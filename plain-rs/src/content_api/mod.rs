@@ -65,6 +65,8 @@ mod public_contacts;
 #[allow(dead_code)]
 mod public_facts;
 #[allow(dead_code)]
+mod public_device;
+#[allow(dead_code)]
 mod public_file_ops;
 #[allow(dead_code)]
 mod public_files;

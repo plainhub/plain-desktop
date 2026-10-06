@@ -2,6 +2,45 @@ type ActionResult {
 	affectedCount: Int!
 }
 
+type AndroidExtras {
+	sdkVersion: Int!
+	versionCodeName: String!
+	securityPatch: String!
+	bootloader: String!
+	fingerprint: String!
+	hardware: String!
+	radioVersion: String!
+	board: String!
+	buildBrand: String!
+	buildNumber: String!
+	device: String!
+	javaVmVersion: String!
+	glEsVersion: String!
+	buildTime: Instant!
+}
+
+type App {
+	clientId: String!
+	urlToken: String!
+	httpPort: Int!
+	httpsPort: Int!
+	appDir: String!
+	deviceName: String!
+	deviceType: DeviceType!
+	capabilities: [Capability!]!
+	buildChannel: AppChannelType!
+	permissions: [Permission!]!
+	downloadsDir: String!
+	developerMode: Boolean!
+	debug: Boolean!
+}
+
+enum AppChannelType {
+	GITHUB
+	GOOGLE
+	FDROID
+}
+
 type AudioFileInfo {
 	durationMs: Long!
 	location: Location
@@ -29,6 +68,31 @@ enum CallType {
 	BLOCKED
 	ANSWERED_EXTERNALLY
 	UNKNOWN
+}
+
+"""
+Optional device features. A client hides a whole section when its
+capability is absent, which is why this is a list rather than a set of
+booleans on the app root.
+"""
+enum Capability {
+	MEDIA_TRASH
+	MIRROR_AUDIO
+	DOC_PREVIEW
+	IMAGE_SEARCH
+	MEDIA_SCAN
+	SMS
+	CALLS
+	CALL_PHONE
+	CONTACTS
+	PACKAGES
+	NOTES
+	FEEDS
+	SCREEN_MIRROR
+	IMAGE_EDITOR
+	NOTIFICATIONS
+	CLIPBOARD
+	POMODORO
 }
 
 type Certificate {
@@ -224,6 +288,58 @@ type DbTableInfo {
 	idKey: String!
 }
 
+type DeviceInfo {
+	name: String!
+	platform: DevicePlatform!
+	manufacturer: String!
+	model: String!
+	osName: String!
+	osVersion: String!
+	kernelVersion: String!
+	appVersion: String!
+	appBuildNumber: String!
+	language: String!
+	cpuArch: String!
+	cpuModel: String
+	totalMemory: Long!
+	totalStorage: Long!
+	display: DisplayInfo
+	android: AndroidExtras
+}
+
+enum DevicePlatform {
+	ANDROID
+	IOS
+	MACOS
+	WINDOWS
+	LINUX
+}
+
+type DeviceStatus {
+	uptimeSec: Long!
+	batteryLevel: Int
+	charging: Boolean!
+	temperatures: [Temperature!]!
+	cpuUsage: Float!
+	memoryAvailable: Long
+	storageAvailable: Long!
+}
+
+enum DeviceType {
+	COMPUTER
+	PHONE
+	TABLET
+	TV
+	NAS
+	OTHER
+}
+
+type DisplayInfo {
+	width: Int!
+	height: Int!
+	density: Float!
+}
+
 type Doc {
 	id: ID!
 	title: String!
@@ -365,6 +481,15 @@ scalar Instant
 A scalar that can represent any JSON value.
 """
 scalar JSON
+
+"""
+The `app` root echoes a write back rather than reading the store again,
+so a caller can confirm what it asked for without a round trip.
+"""
+type KeyValuePair {
+	key: String!
+	value: String!
+}
 
 type Location {
 	latitude: Float!
@@ -577,6 +702,20 @@ type Mutation {
 	and the trash.
 	"""
 	moveMediaItems(type: MediaDataType!, query: String!, destDir: String!): ActionResult!
+	clearAppLogs: Boolean!
+	setTempValue(key: String!, value: String!): KeyValuePair!
+	"""
+	The app restarts itself; the response only acknowledges that the
+	request was accepted, since the connection dies with the process.
+	"""
+	relaunchApp: Boolean!
+	"""
+	Renaming the device also re-publishes the mDNS advertisement, so a
+	client that waits for the new name to appear does see it.
+	"""
+	updateDeviceName(name: String!): Boolean!
+	startDiscovery: Boolean!
+	stopDiscovery: Boolean!
 }
 
 type Notification {
@@ -646,6 +785,33 @@ enum PackageType {
 enum PathKind {
 	FILE
 	DIR
+}
+
+enum Permission {
+	WRITE_EXTERNAL_STORAGE
+	READ_SMS
+	SEND_SMS
+	READ_CONTACTS
+	WRITE_CONTACTS
+	READ_CALL_LOG
+	WRITE_CALL_LOG
+	CALL_PHONE
+	POST_NOTIFICATIONS
+	NEARBY_WIFI_DEVICES
+	ACCESS_FINE_LOCATION
+	CAMERA
+	SYSTEM_ALERT_WINDOW
+	RECORD_AUDIO
+	READ_MEDIA_IMAGES
+	READ_MEDIA_VIDEOS
+	READ_MEDIA_AUDIO
+	NOTIFICATION_LISTENER
+	READ_PHONE_STATE
+	READ_PHONE_NUMBERS
+	SCHEDULE_EXACT_ALARM
+	QUERY_ALL_PACKAGES
+	ADB
+	CLIPBOARD
 }
 
 type PhoneGeo {
@@ -817,6 +983,30 @@ type Query {
 	client sees before it calls `mergeChunks`.
 	"""
 	mergeStatus(fileId: String!): MergeTask!
+	"""
+	Battery level is null when the platform cannot report it; CPU and
+	storage are not, because a zero there is a real reading.
+	"""
+	deviceStatus: DeviceStatus!
+	deviceInfo: DeviceInfo!
+	"""
+	Everything a client needs to reach this device: its identity, the
+	port it listens on and the token that authorises it.
+	"""
+	app: App!
+	"""
+	Log lines, newest first. A blank `query` pages the buffer directly;
+	a non-blank one filters the whole buffer and then pages, so a
+	search cannot be cut short by the page size.
+	"""
+	appLogs(offset: Int!, limit: Int!, query: String!): [String!]!
+	appLogPath: String!
+	"""
+	Whether the mDNS advertiser is currently scanning. Starting and
+	stopping are commands, not state, so they report success rather
+	than a snapshot the caller would have to re-read.
+	"""
+	isDiscovering: Boolean!
 }
 
 enum ScreenMirrorMode {
@@ -911,6 +1101,11 @@ input TagRelationStub {
 	key: String!
 	title: String!
 	size: Long!
+}
+
+type Temperature {
+	label: String!
+	celsius: Float!
 }
 
 type Video {
