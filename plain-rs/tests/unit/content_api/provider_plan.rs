@@ -64,7 +64,7 @@ fn media_plans_own_filters_and_keep_values_bound() {
     let result = plan(Provider::Doc, &fields, &Value::Null, None, false);
     assert_eq!(result.trash, Some(true));
     assert!(result.clauses.iter().any(|c| c.contains("mime_type LIKE")));
-    assert!(result.clauses.iter().any(|c| c == "size >= ?"));
+    assert!(result.clauses.iter().any(|c| c == "_size >= ?"));
     assert!(result.args.contains(&1_572_864u64.to_string()));
     assert!(result.args.contains(&"\\%\\_\\\\".to_owned()));
     assert!(
@@ -93,7 +93,7 @@ fn plain_file_plans_keep_parent_facts_host_owned_and_hide_dotfiles_by_default() 
             .iter()
             .any(|c| c == "_display_name LIKE '%' || ? || '%' ESCAPE '\\'")
     );
-    assert!(result.clauses.iter().any(|c| c == "size >= ?"));
+    assert!(result.clauses.iter().any(|c| c == "_size >= ?"));
     assert!(result.args.contains(&"42".to_owned()));
     assert!(result.args.contains(&1_572_864u64.to_string()));
     assert!(result.args.contains(&"report\\%\\_".to_owned()));
@@ -108,4 +108,77 @@ fn plain_file_plans_keep_parent_facts_host_owned_and_hide_dotfiles_by_default() 
             .iter()
             .any(|c| c.contains("NOT LIKE"))
     );
+}
+
+#[test]
+fn mediastore_plans_only_name_columns_its_strict_grammar_accepts() {
+    // MediaProvider parses the legacy /file URI with a strict SQL grammar and
+    // answers an unknown identifier with `Invalid token <name>`, which reaches
+    // the app as a fatal IllegalArgumentException. `_size` is the real column;
+    // the bare `size` alias is not part of the grammar.
+    const COLUMNS: &[&str] = &[
+        "_data",
+        "_display_name",
+        "_id",
+        "_size",
+        "artist",
+        "bucket_id",
+        "data2",
+        "date",
+        "date_added",
+        "date_modified",
+        "duration",
+        "media_type",
+        "mime_type",
+        "mimetype",
+        "number",
+        "parent",
+        "raw_contact_id",
+        "title",
+        "type",
+    ];
+    const KEYWORDS: &[&str] = &["and", "or", "not", "like", "in", "escape", "is"];
+
+    let queries = [
+        "",
+        "text:'a%_'",
+        "file_size:>=1.5MB ext:pdf type:text/plain bucket_id:1 parent:/sd excluded_dir:/sd/x show_hidden:true ids:1,2 trash:true",
+    ];
+    let providers = [
+        ("Doc", Provider::Doc),
+        ("File", Provider::File),
+        ("Audio", Provider::Audio),
+        ("Video", Provider::Video),
+        ("Image", Provider::Image),
+    ];
+
+    for (name, provider) in providers {
+        for query in queries {
+            let fields = search_dsl::parse(query);
+            let result = plan(provider, &fields, &Value::Null, Some("1"), false);
+            for clause in &result.clauses {
+                let stripped: String = {
+                    let mut out = String::with_capacity(clause.len());
+                    let mut quoted = false;
+                    for c in clause.chars() {
+                        match c {
+                            '\'' => quoted = !quoted,
+                            _ if !quoted => out.push(c),
+                            _ => {}
+                        }
+                    }
+                    out
+                };
+                for token in stripped.split(|c: char| !(c.is_ascii_alphanumeric() || c == '_')) {
+                    if token.is_empty() || token.starts_with(|c: char| c.is_ascii_digit()) {
+                        continue;
+                    }
+                    assert!(
+                        COLUMNS.contains(&token) || KEYWORDS.contains(&token.to_ascii_lowercase().as_str()),
+                        "{name} clause `{clause}` names unknown column `{token}`"
+                    );
+                }
+            }
+        }
+    }
 }

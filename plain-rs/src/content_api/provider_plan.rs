@@ -132,7 +132,7 @@ fn plan(
                 "application/javascript".into(),
             ],
         );
-        plan.add("size > 0".into(), vec![]);
+        plan.add("_size > 0".into(), vec![]);
     }
     if matches!(provider, Provider::File) && !query_is_empty {
         let show_hidden = fields
@@ -191,7 +191,7 @@ fn plan(
             (Provider::Doc, "file_size") => {
                 let (op, value) = comparison(field);
                 if ["=", "!=", ">", ">=", "<", "<="].contains(&op) {
-                    if let Some(bytes) = parse_size_to_bytes(value) { plan.add(format!("size {op} ?"), vec![bytes.to_string()]); }
+                    if let Some(bytes) = parse_size_to_bytes(value) { plan.add(format!("_size {op} ?"), vec![bytes.to_string()]); }
                 }
             }
             (Provider::File, "text") => plan.add("_display_name LIKE '%' || ? || '%' ESCAPE '\\'".into(), vec![escape_like(&field.value)]),
@@ -201,7 +201,7 @@ fn plan(
             (Provider::File, "file_size") => {
                 let (op, value) = comparison(field);
                 if ["=", "!=", ">", ">=", "<", "<="] .contains(&op) {
-                    if let Some(bytes) = parse_size_to_bytes(value) { plan.add(format!("size {op} ?"), vec![bytes.to_string()]); }
+                    if let Some(bytes) = parse_size_to_bytes(value) { plan.add(format!("_size {op} ?"), vec![bytes.to_string()]); }
                 }
             }
             (Provider::Audio | Provider::Video | Provider::Image | Provider::Doc, "trash") => plan.trash = field.value.parse::<bool>().ok(),
