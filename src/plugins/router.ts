@@ -313,6 +313,11 @@ const router = createRouter({
       component: () => import('@/views/image-editor/ImageEditorView.vue'),
       meta: { requiresAuth: true, group: 'image_editor' },
     },
+    // Without a catch-all an unknown path matches no component at all and the
+    // router renders an empty shell -- a white page with no explanation, which
+    // is how a typo'd or stale link (/audio vs the real /audios) looks like a
+    // broken app. Bounce home, the same way a bare /media-preview does.
+    { path: '/:pathMatch(.*)*', redirect: '/' },
   ],
 })
 
