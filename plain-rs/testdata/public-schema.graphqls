@@ -394,6 +394,21 @@ enum MediaDataType {
 
 union MediaFileInfo = ImageFileInfo | AudioFileInfo | VideoFileInfo
 
+type MergeTask {
+	status: MergeTaskStatus!
+	value: String
+	mergedSize: Long
+	error: String
+}
+
+enum MergeTaskStatus {
+	NONE
+	STARTED
+	MERGING
+	DONE
+	FAILED
+}
+
 """
 A mounted volume. The phone reports one row per storage the platform
 knows about (internal, SD card, each USB disk, the app-private dir);
@@ -525,6 +540,43 @@ type Mutation {
 	"""
 	createDbTableRow(table: String!, row: String!): Boolean!
 	deleteDbTableRows(table: String!, ids: [String!]!): Boolean!
+	"""
+	Counts what was actually removed. A path that was already gone
+	counts as zero, so the number is the delta rather than the request
+	size.
+	"""
+	deleteFiles(paths: [String!]!): ActionResult!
+	createDir(path: String!): File!
+	"""
+	`false` rather than an error when the rename is refused: a name that
+	is empty, a traversal segment, or an existing destination are all
+	ordinary outcomes for a user typing in a rename box.
+	"""
+	renameFile(path: String!, name: String!): Boolean!
+	writeTextFile(path: String!, content: String!, overwrite: Boolean!): File!
+	copyFile(src: String!, dst: String!, overwrite: Boolean!): Boolean!
+	moveFile(src: String!, dst: String!, overwrite: Boolean!): Boolean!
+	deleteChunks(fileId: String!): Boolean!
+	"""
+	Starts the merge and returns immediately; completion arrives over the
+	websocket, and `mergeStatus` is the polling fallback for a lost event.
+	"""
+	mergeChunks(fileId: String!, totalChunks: Int!, path: String!, replace: Boolean!, totalSize: Long!): MergeTask!
+	mergeAppFileChunks(fileId: String!, totalChunks: Int!, fileName: String!, totalSize: Long!): MergeTask!
+	"""
+	A blank query would match the whole library, and a bulk delete is
+	not something a client should be able to aim at everything by
+	accident — it is refused before the platform is asked.
+	"""
+	deleteMediaItems(type: MediaDataType!, query: String!): ActionResult!
+	trashMediaItems(type: MediaDataType!, query: String!): ActionResult!
+	restoreMediaItems(type: MediaDataType!, query: String!): ActionResult!
+	"""
+	The only media action that is also a storage write, so it is the
+	only one that gates — the others just move rows between the library
+	and the trash.
+	"""
+	moveMediaItems(type: MediaDataType!, query: String!, destDir: String!): ActionResult!
 }
 
 type Notification {
@@ -754,6 +806,17 @@ type Query {
 	dbTableRows(table: String!, offset: Int!, limit: Int!): [String!]!
 	dbTableColumns(table: String!): [DbTableColumn!]!
 	dbTableInfo(table: String!): DbTableInfo!
+	"""
+	Chunk state for a client-chosen chunk-set id, as `index:byteSize`
+	strings. An empty list means the upload never started or was
+	discarded — the caller cannot tell, and does not need to.
+	"""
+	uploadedChunks(fileId: String!): [String!]!
+	"""
+	`NONE` when no merge was ever started for this id, which is what a
+	client sees before it calls `mergeChunks`.
+	"""
+	mergeStatus(fileId: String!): MergeTask!
 }
 
 enum ScreenMirrorMode {
