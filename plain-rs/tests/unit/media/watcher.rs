@@ -5,7 +5,7 @@ use super::*;
 fn tmp_db() -> crate::media::kv::Db {
     let dir = tempfile::tempdir().unwrap();
     let db = crate::media::kv::Db::open(dir.path()).unwrap();
-    std::mem::forget(dir);
+    crate::test_tempdirs::retain(dir);
     db
 }
 
@@ -52,7 +52,7 @@ fn put_media_row(db: &crate::media::kv::Db, m: &crate::media::scan::MediaFile) {
 fn tmp_index() -> crate::media::image_index::MediaSearchIndex {
     let dir = tempfile::tempdir().unwrap();
     let idx = crate::media::image_index::MediaSearchIndex::open(dir.path()).unwrap();
-    std::mem::forget(dir);
+    crate::test_tempdirs::retain(dir);
     idx
 }
 

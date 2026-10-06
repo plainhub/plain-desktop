@@ -41,7 +41,7 @@ fn mf(path: &str, kind: &str, size: i64, modified: i64) -> MediaFile {
 fn tmp_index() -> MediaSearchIndex {
     let dir = tempfile::tempdir().unwrap();
     let idx = MediaSearchIndex::open(dir.path()).unwrap();
-    std::mem::forget(dir);
+    crate::test_tempdirs::retain(dir);
     idx
 }
 

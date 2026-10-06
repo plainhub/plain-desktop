@@ -5,7 +5,7 @@ use super::*;
 fn tmp_prefs() -> crate::prefs::Prefs {
     let dir = tempfile::tempdir().unwrap();
     let prefs = crate::prefs::Prefs::load(&dir.path().join("prefs.json")).unwrap();
-    std::mem::forget(dir);
+    crate::test_tempdirs::retain(dir);
     prefs
 }
 

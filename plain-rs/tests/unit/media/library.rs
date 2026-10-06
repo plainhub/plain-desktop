@@ -22,7 +22,7 @@ fn tmp_library(tag: &str) -> Db {
 fn tmp_index() -> Arc<MediaSearchIndex> {
     let dir = tempfile::tempdir().unwrap();
     let idx = MediaSearchIndex::open(dir.path()).unwrap();
-    std::mem::forget(dir);
+    crate::test_tempdirs::retain(dir);
     Arc::new(idx)
 }
 

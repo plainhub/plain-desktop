@@ -16,7 +16,7 @@ fn tree() -> tempfile::TempDir {
 fn tmp_db() -> Arc<crate::media::kv::Db> {
     let dir = tree();
     let db = crate::media::kv::Db::open(dir.path()).unwrap();
-    std::mem::forget(dir);
+    crate::test_tempdirs::retain(dir);
     Arc::new(db)
 }
 

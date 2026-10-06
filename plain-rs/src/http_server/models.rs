@@ -56,7 +56,7 @@ pub(crate) mod test_support {
             data_dir.clone(), data_dir.join("cache"), data_dir.join("logs"), prefs.clone(), chat.clone(), event_tx,
             Arc::new(crate::api::context::LogShell { version: String::new() }), 8080, 8443,
         ).expect("nas app ctx");
-        std::mem::forget(dir);
+        crate::test_tempdirs::retain(dir);
         ServerState::new(
             Arc::new(crate::http_server::main_schemas::build_schema()),
             Arc::new(crate::http_server::peer_schemas::build_schema()), ctx,
