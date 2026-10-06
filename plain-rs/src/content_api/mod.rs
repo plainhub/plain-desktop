@@ -47,6 +47,7 @@ mod contact_write;
 mod public_proxy;
 mod public_static;
 mod public_upload;
+mod public_zip;
 mod ws_login;
 mod sms_send;
 mod sms_state;

@@ -296,6 +296,8 @@ impl ContentServer {
             .route("/graphql", post(super::main_graphql::call))
             .route("/health", get(super::main_graphql::health))
             .route("/proxyfs", get(super::public_proxy::call))
+            .route("/zip/dir", get(super::public_zip::dir))
+            .route("/zip/files", get(super::public_zip::files))
             .route(
                 "/upload",
                 post(super::public_upload::upload).layer(DefaultBodyLimit::max(15 * 60 * 1000 * 1000)),

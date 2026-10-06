@@ -18,7 +18,6 @@ use serde_json::{Value, json};
 use sha2::{Digest, Sha512};
 use std::{
     collections::HashMap,
-    sync::Mutex,
     time::{Duration, Instant, SystemTime, UNIX_EPOCH},
 };
 

@@ -14,7 +14,7 @@ use axum::{
     body::Body,
     extract::{Request, State},
     http::{HeaderValue, Method, StatusCode, header},
-    response::{IntoResponse, Response},
+    response::Response,
 };
 use std::path::{Component, Path, PathBuf};
 
