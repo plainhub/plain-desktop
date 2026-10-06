@@ -122,20 +122,24 @@ pub fn build(
             db.clone(),
             directory.clone(),
         ))
-        .data(Arc::new(crate::pomodoro::Service::new(
+        // Both constructors already hand back an `Arc`, and the resolvers ask
+        // for `Arc<Service>` / `Arc<SyncService>` — wrapping again here
+        // registered `Arc<Arc<_>>` and every pomodoro and feed-sync call
+        // failed with "Data ... does not exist".
+        .data(crate::pomodoro::Service::new(
             db.clone(),
             prefs.clone(),
             events.clone(),
-        )))
+        ))
         .data(crate::image_editor::Updates::new(events.clone()))
-        .data(Arc::new(crate::feeds::SyncService::new(
+        .data(crate::feeds::SyncService::new(
             db.clone(),
             events,
             Some(Arc::new(crate::feeds::FeedAssets {
                 db: db.clone(),
                 directory: directory.clone(),
             })),
-        )))
+        ))
         .data(prefs)
         .data(db.clone())
         .data(Arc::new(crate::feeds::FeedAssets { db, directory }))

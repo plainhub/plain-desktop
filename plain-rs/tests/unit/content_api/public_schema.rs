@@ -223,3 +223,34 @@ fn public_schema_exposes_the_contract_it_has_to_serve() {
         assert!(sdl.contains(field), "certificate field renamed: {field}");
     }
 }
+
+/// Rendering the SDL cannot tell a working resolver from one whose
+/// `ctx.data::<T>()` was never registered — both print the same field, and
+/// both satisfy the snapshot and contract assertions above. The pomodoro and
+/// feed-sync roots shipped that way: present in every snapshot, broken for
+/// every client (`Data Arc<...> does not exist`), because their services were
+/// registered as `Arc<Arc<_>>`.
+#[tokio::test]
+async fn public_schema_pomodoro_roots_execute() {
+    let db = Arc::new(Db::open(std::path::Path::new(":memory:")).unwrap());
+    let dir = tempfile::tempdir().unwrap();
+    let prefs = Arc::new(Prefs::load(&dir.path().join("system_prefs.json")).unwrap());
+    let (events, _) = tokio::sync::broadcast::channel(16);
+    let schema = build(
+        Arc::new(crate::content_api::host::Host::default()),
+        events,
+        prefs,
+        db,
+        dir.path().to_path_buf(),
+    );
+
+    for query in [
+        "{ pomodoroToday { date completedCount } }",
+        "{ pomodoroSettings { workDurationMin } }",
+        "{ feedSyncStates { feedId status } }",
+        "{ feeds { id name } }",
+    ] {
+        let response = schema.execute(query).await;
+        assert!(response.errors.is_empty(), "{query} -> {:?}", response.errors);
+    }
+}
