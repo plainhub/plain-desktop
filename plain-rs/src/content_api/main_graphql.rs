@@ -81,19 +81,10 @@ async fn execute(
         String::from_utf8(body.to_vec()).map_err(|_| StatusCode::BAD_REQUEST)?
     };
 
-    let result = state
-        .host
-        .call(
-            "mainGraphqlExecute",
-            json!({"clientId":client_id,"request":request}),
-        )
-        .await
-        .map_err(|_| StatusCode::BAD_GATEWAY)?;
-    let result = result
-        .as_str()
-        .ok_or(StatusCode::BAD_GATEWAY)?
-        .as_bytes()
-        .to_vec();
+    // The body is the contract's own request envelope, so it parses straight
+    // into async-graphql's request type. `client_id` has already done its
+    // job by this point — auth, and the replay guard above.
+    let result = run(&state.public, &request).await?;
     let mut response = if token_mode {
         let encrypted = crate::crypto::xchacha_encrypt_raw(&key, &result)
             .ok_or(StatusCode::INTERNAL_SERVER_ERROR)?;
@@ -113,6 +104,21 @@ async fn execute(
         .unwrap(),
     );
     Ok(response)
+}
+
+/// Executes a decrypted request envelope against the contract schema.
+///
+/// Split out of [`execute`] so the flip itself — Rust answers `/graphql`,
+/// nothing is handed to the platform — is testable without standing up a
+/// whole server: a document that queries the schema and never reaches the
+/// host is the thing to pin down.
+pub(super) async fn run(
+    schema: &super::public_schema::PublicSchema,
+    request: &str,
+) -> Result<Vec<u8>, StatusCode> {
+    let parsed: async_graphql::Request =
+        serde_json::from_str(request).map_err(|_| StatusCode::BAD_REQUEST)?;
+    serde_json::to_vec(&schema.execute(parsed).await).map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)
 }
 
 pub(super) async fn call(

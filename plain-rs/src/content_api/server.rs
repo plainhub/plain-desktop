@@ -24,6 +24,9 @@ use tokio::{
 #[derive(Clone)]
 pub(super) struct ServerState {
     schema: ContentSchema,
+    /// The contract schema the public `/graphql` executes. Built once next
+    /// to the app's own schema so both share one host and one database.
+    pub(super) public: super::public_schema::PublicSchema,
     pub(super) peer_status: Arc<super::peer_status::Runtime>,
     pub(super) mdns: Arc<super::mdns_runtime::Runtime>,
     pub(super) guest_replay: Arc<super::request_replay::Replay>,
@@ -98,13 +101,21 @@ impl ContentServer {
         let host = Arc::new(super::host::Host::default());
         let services =
             super::services::Services::new(db.clone(), host.clone(), events.clone(), prefs.clone());
+        let directory = path.parent().unwrap_or(Path::new(".")).to_path_buf();
         let schema = schema::build_with_services(
             db.clone(),
             events.clone(),
             prefs.clone(),
-            path.parent().unwrap_or(Path::new(".")).to_path_buf(),
+            directory.clone(),
             host.clone(),
             services.clone(),
+        );
+        let public = super::public_schema::build(
+            host.clone(),
+            events.clone(),
+            prefs.clone(),
+            db.clone(),
+            directory,
         );
         #[cfg(feature = "http_transport")]
         let bridge = Arc::new(super::http_bridge::HttpBridge::new(host.clone()));
@@ -127,6 +138,7 @@ impl ContentServer {
             receiver.clone(),
         ));
         let state = ServerState {
+            public,
             lan,
             schema,
             thumbnails: Arc::new(super::thumbnails::Thumbnails::default()),
@@ -301,7 +313,8 @@ impl ContentServer {
             .route("/zip/files", get(super::public_zip::files))
             .route(
                 "/upload",
-                post(super::public_upload::upload).layer(DefaultBodyLimit::max(15 * 60 * 1000 * 1000)),
+                post(super::public_upload::upload)
+                    .layer(DefaultBodyLimit::max(15 * 60 * 1000 * 1000)),
             )
             .route(
                 "/upload_chunk",
