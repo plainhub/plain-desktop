@@ -254,3 +254,193 @@ async fn public_schema_pomodoro_roots_execute() {
         assert!(response.errors.is_empty(), "{query} -> {:?}", response.errors);
     }
 }
+
+
+/// Scalars and enums a probe can ask for without pulling in a whole object
+/// graph; anything else is skipped as a selection leaf.
+const PROBE_LEAVES: [&str; 12] = [
+    "Int", "String", "Boolean", "Float", "ID", "Long", "Instant", "JSON", "DateTime",
+    "FileSortBy", "MediaDataType", "DataType",
+];
+
+/// Parses the committed SDL into `(type name, field, field type)` triples.
+/// Deliberately a dumb line reader: the SDL is already frozen against the
+/// built schema by the test above, so this only has to be consistent with it.
+///
+/// Two things this has to get right, both of which silently turn the walk
+/// into a no-op rather than into an error:
+///   * every braced block counts, not just `type` — otherwise an `enum`'s
+///     values land on whichever type happened to precede it;
+///   * a field's type is whatever follows the *argument list's* closing
+///     paren. Splitting on the first colon reads `offset: Int!` as the type
+///     and leaves every root that takes arguments unprobeable;
+///   * a `"""` description can span lines and its continuation lines look
+///     exactly like fields, colon and all.
+fn sdl_fields(sdl: &str) -> Vec<(String, String, String)> {
+    let mut out = Vec::new();
+    let mut owner = String::new();
+    let mut depth = 0usize;
+    let mut in_description = false;
+    for raw in sdl.lines() {
+        let line = raw.trim();
+        if in_description {
+            if line.ends_with("\"\"\"") {
+                in_description = false;
+            }
+            continue;
+        }
+        if line.is_empty() || line.starts_with('#') {
+            continue;
+        }
+        let keyword = line
+            .split_whitespace()
+            .next()
+            .filter(|k| {
+                matches!(*k, "type" | "interface" | "input" | "enum" | "scalar" | "union")
+            });
+        if let Some(keyword) = keyword {
+            if line.ends_with('{') {
+                depth += 1;
+                owner = if matches!(keyword, "type" | "interface") {
+                    line.split_whitespace().nth(1).unwrap_or_default().to_string()
+                } else {
+                    String::new()
+                };
+                continue;
+            }
+        }
+        if line.starts_with('}') {
+            depth = depth.saturating_sub(1);
+            if depth == 0 {
+                owner.clear();
+            }
+            continue;
+        }
+        if line.starts_with("\"\"\"") {
+            // A one-line description opens and closes on the same line; only an
+            // unterminated one puts the parser into description mode.
+            // A bare `"""` on its own line opens a block that ends on some
+            // later line, so length matters as much as the suffix.
+            in_description = !(line.ends_with("\"\"\"") && line.len() > 3);
+            continue;
+        }
+        if owner.is_empty() {
+            continue;
+        }
+        let (field, ty) = match line.find('(') {
+            Some(open) => {
+                let close = line[open..]
+                    .find(')')
+                    .map(|i| i + open)
+                    .unwrap_or_else(|| line.len() - 1);
+                (
+                    line[..open].trim().to_string(),
+                    line[close + 1..].trim_start_matches(':').trim().to_string(),
+                )
+            }
+            None => match line.split_once(':') {
+                Some((n, t)) => (n.trim().to_string(), t.trim().to_string()),
+                None => continue,
+            },
+        };
+        if !field.is_empty() && !field.contains(' ') {
+            out.push((owner.clone(), field, ty));
+        }
+    }
+    out
+}
+
+/// Enum names in the SDL. An enum is a leaf for query purposes — it needs no
+/// selection set — so it belongs with the scalars, not with the objects.
+fn sdl_enums(sdl: &str) -> Vec<String> {
+    sdl.lines()
+        .map(str::trim)
+        .filter(|l| l.starts_with("enum ") && l.ends_with('{'))
+        .filter_map(|l| l.split_whitespace().nth(1).map(str::to_string))
+        .collect()
+}
+
+/// Strip list and non-null wrappers down to the named type. Order matters:
+/// `[AppFile!]!` does not yield to trim_start/trim_end pairs, because the
+/// trailing `!` sits outside the closing bracket.
+fn base_type(ty: &str) -> String {
+    ty.trim()
+        .chars()
+        .filter(|c| !matches!(c, '[' | ']' | '!'))
+        .collect()
+}
+
+#[tokio::test]
+async fn no_root_field_fails_for_unregistered_schema_data() {
+    let sdl = sdl();
+    let fields = sdl_fields(&sdl);
+    let enums = sdl_enums(&sdl);
+    let is_leaf = |ty: &str| PROBE_LEAVES.contains(&ty) || enums.iter().any(|e| e == ty);
+    let leaves = |ty: &str| -> Vec<String> {
+        let ty = base_type(ty);
+        fields
+            .iter()
+            .filter(|(owner, _, _)| owner.as_str() == ty)
+            .filter(|(_, _, field_ty)| is_leaf(&base_type(field_ty)))
+            .map(|(_, name, _)| name.clone())
+            .take(3)
+            .collect()
+    };
+
+    let roots: Vec<(String, String)> = fields
+        .iter()
+        .filter(|(owner, _, _)| owner == "Query")
+        .map(|(_, name, ty)| (name.clone(), ty.clone()))
+        .collect();
+
+    let db = Arc::new(Db::open(std::path::Path::new(":memory:")).unwrap());
+    let dir = tempfile::tempdir().unwrap();
+    let prefs = Arc::new(Prefs::load(&dir.path().join("system_prefs.json")).unwrap());
+    let (events, _) = tokio::sync::broadcast::channel(16);
+    let schema = build(
+        Arc::new(crate::content_api::host::Host::default()),
+        events,
+        prefs,
+        db,
+        dir.path().to_path_buf(),
+    );
+
+    let mut unregistered = Vec::new();
+    let mut unwalkable = Vec::new();
+    for (name, ty) in &roots {
+        let base = base_type(ty);
+        let selection = leaves(ty);
+        // An object type queried without a selection set fails validation before
+        // any resolver runs — the probe would look "covered" while testing
+        // nothing. Skipping those silently is exactly how feedSyncStates went
+        // unchecked here, so an unwalkable root is a failure, not a gap.
+        if selection.is_empty() && !is_leaf(&base) {
+            unwalkable.push(format!("{name}: {base} has no probeable leaf field"));
+            continue;
+        }
+        let query = if selection.is_empty() {
+            format!("{{ {name} }}")
+        } else {
+            format!("{{ {name} {{ {} }} }}", selection.join(" "))
+        };
+        let response = schema.execute(query.as_str()).await;
+        for error in response.errors {
+            if error.message.contains("does not exist") {
+                unregistered.push(format!("{name}: {}", error.message));
+            }
+        }
+    }
+
+    assert!(
+        unwalkable.is_empty(),
+        "roots this probe could not reach at all: {unwalkable:#?}"
+    );
+    assert!(roots.len() > 50, "only walked {} roots", roots.len());
+    assert!(
+        unregistered.is_empty(),
+        "roots that resolve nothing because their schema data was never \
+         registered: {unregistered:#?}"
+    );
+}
+
+
