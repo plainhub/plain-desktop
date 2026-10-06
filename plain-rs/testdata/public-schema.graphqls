@@ -182,6 +182,23 @@ input ContactWebsiteInput {
 	label: String!
 }
 
+type Doc {
+	id: ID!
+	title: String!
+	path: String!
+	extension: String!
+	size: Long!
+	bucketId: ID!
+	createdAt: Instant!
+	updatedAt: Instant!
+	tags: [Tag!]!
+}
+
+type DocExtGroup {
+	ext: String!
+	count: Int!
+}
+
 enum DriveType {
 	INTERNAL_STORAGE
 	SDCARD
@@ -262,6 +279,19 @@ enum ImProtocol {
 	NETMEETING
 }
 
+type Image {
+	id: ID!
+	title: String!
+	path: String!
+	size: Long!
+	bucketId: ID!
+	createdAt: Instant!
+	updatedAt: Instant!
+	takenAt: Instant
+	isFavorite: Boolean!
+	tags: [Tag!]!
+}
+
 type ImageFileInfo {
 	width: Int!
 	height: Int!
@@ -295,6 +325,25 @@ type Location {
 }
 
 scalar Long
+
+type MediaBucket {
+	id: ID!
+	name: String!
+	itemCount: Int!
+	topItemPaths: [String!]!
+}
+
+"""
+The library kind a client is asking about. The names are the contract's,
+which is also what the platform's `DataType` enum uses — the mapping is
+the identity, so there is nothing to translate.
+"""
+enum MediaDataType {
+	AUDIO
+	VIDEO
+	IMAGE
+	DOC
+}
 
 union MediaFileInfo = ImageFileInfo | AudioFileInfo | VideoFileInfo
 
@@ -584,6 +633,19 @@ type Query {
 	schema.
 	"""
 	favoriteFolders: [FavoriteFolder!]!
+	"""
+	Folder counts for one library kind. Degrades to empty rather than
+	erroring: a client showing the folder strip has nothing useful to do
+	with `no_permission`, but an empty strip reads as "no folders yet".
+	"""
+	mediaBuckets(type: MediaDataType!): [MediaBucket!]!
+	imageCount(query: String!): Int!
+	images(offset: Int!, limit: Int!, query: String!, sortBy: FileSortBy!): [Image!]!
+	videoCount(query: String!): Int!
+	videos(offset: Int!, limit: Int!, query: String!, sortBy: FileSortBy!): [Video!]!
+	docCount(query: String!): Int!
+	docs(offset: Int!, limit: Int!, query: String!, sortBy: FileSortBy!): [Doc!]!
+	docExtGroups: [DocExtGroup!]!
 }
 
 enum ScreenMirrorMode {
@@ -663,6 +725,20 @@ type Tag {
 	id: ID!
 	name: String!
 	count: Int!
+}
+
+type Video {
+	id: ID!
+	title: String!
+	path: String!
+	durationMs: Long!
+	size: Long!
+	bucketId: ID!
+	createdAt: Instant!
+	updatedAt: Instant!
+	takenAt: Instant
+	isFavorite: Boolean!
+	tags: [Tag!]!
 }
 
 type VideoFileInfo {

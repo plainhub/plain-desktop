@@ -12,6 +12,7 @@ use super::public_clipboard::{ClipboardMutation, ClipboardQuery};
 use super::public_contacts::{ContactsMutation, ContactsQuery};
 use super::public_files::FilesQuery;
 use super::public_image_index::{ImageIndexMutation, ImageIndexQuery};
+use super::public_media::MediaQuery;
 use super::public_notifications::{NotificationsMutation, NotificationsQuery};
 use super::public_packages::{PackagesMutation, PackagesQuery};
 use super::public_screen_mirror::{ScreenMirrorMutation, ScreenMirrorQuery, SettingsMutation};
@@ -32,6 +33,7 @@ pub struct Query(
     ScreenMirrorQuery,
     ImageIndexQuery,
     FilesQuery,
+    MediaQuery,
 );
 
 #[derive(MergedObject, Default)]
