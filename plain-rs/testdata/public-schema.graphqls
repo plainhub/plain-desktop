@@ -215,6 +215,25 @@ enum ImProtocol {
 	NETMEETING
 }
 
+type ImageSearchStatus {
+	status: ImageSearchStatusType!
+	downloadProgress: Int!
+	errorMessage: String!
+	modelSize: Long!
+	modelDir: String!
+	isIndexing: Boolean!
+	totalImages: Int!
+	indexedImages: Int!
+}
+
+enum ImageSearchStatusType {
+	UNAVAILABLE
+	DOWNLOADING
+	LOADING
+	READY
+	ERROR
+}
+
 scalar Instant
 
 scalar Long
@@ -271,6 +290,25 @@ type Mutation {
 	call outright.
 	"""
 	call(number: String!, showDialer: Boolean!): Boolean!
+	startScreenMirror(audio: Boolean!): Boolean!
+	stopScreenMirror: Boolean!
+	"""
+	Returns false when the device has not granted RECORD_AUDIO yet; the
+	platform asks for it and the caller retries.
+	"""
+	requestScreenMirrorAudio: Boolean!
+	requestScreenMirrorKeyFrame: Boolean!
+	updateScreenMirrorQuality(mode: ScreenMirrorMode!): Boolean!
+	enableImageSearch: Boolean!
+	disableImageSearch: Boolean!
+	cancelImageModelDownload: Boolean!
+	"""
+	`force` re-scans images that already have an embedding.
+	"""
+	startImageIndex(force: Boolean): Boolean!
+	cancelImageIndex: Boolean!
+	openAccessibilitySettings: Boolean!
+	openWebSettings(feature: WebSettingsFeature): Boolean!
 }
 
 type Notification {
@@ -404,6 +442,35 @@ type Query {
 	plain-app degrades this to 0 rather than erroring.
 	"""
 	callCount(query: String!): Int!
+	isScreenMirroring: Boolean!
+	screenMirrorControlEnabled: Boolean!
+	"""
+	Null while the pipeline has not published its codec configuration.
+	"""
+	screenMirrorVideoCodec: ScreenMirrorVideoCodec
+	screenMirrorQuality: ScreenMirrorQuality!
+	imageSearchStatus: ImageSearchStatus!
+}
+
+enum ScreenMirrorMode {
+	HD
+	SMOOTH
+}
+
+type ScreenMirrorQuality {
+	mode: ScreenMirrorMode!
+	resolution: Int!
+}
+
+type ScreenMirrorVideoCodec {
+	"""
+	H.264 Annex-B codec configuration (SPS/PPS), base64-encoded.
+	"""
+	annexB: String!
+	"""
+	Latest H.264 keyframe, base64-encoded; null until the pipeline emits one.
+	"""
+	keyFrame: String
 }
 
 type Sms {
@@ -462,6 +529,18 @@ type Tag {
 	id: ID!
 	name: String!
 	count: Int!
+}
+
+enum WebSettingsFeature {
+	FILES
+	CONTACTS
+	SMS
+	CALL_LOGS
+	CALL_PHONE
+	PHONE_NUMBER
+	APPS
+	NOTIFICATIONS
+	CLIPBOARD
 }
 
 enum WebsiteType {

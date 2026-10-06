@@ -8,7 +8,13 @@
 //! from [`crate::content_types`] is a gap to fill rather than a leak.
 
 use super::public_clipboard::{ClipboardMutation, ClipboardQuery};
+use super::public_calls::{CallsMutation, CallsQuery};
 use super::public_contacts::{ContactsMutation, ContactsQuery};
+use super::public_image_index::{ImageIndexMutation, ImageIndexQuery};
+use super::public_screen_mirror::{
+    ScreenMirrorMutation, ScreenMirrorQuery, SettingsMutation,
+};
+use super::public_sms::{SmsMutation, SmsQuery};
 use super::public_notifications::{NotificationsMutation, NotificationsQuery};
 use super::public_packages::{PackagesMutation, PackagesQuery};
 use crate::content_api::host::Host;
@@ -22,6 +28,10 @@ pub struct Query(
     NotificationsQuery,
     ClipboardQuery,
     ContactsQuery,
+    SmsQuery,
+    CallsQuery,
+    ScreenMirrorQuery,
+    ImageIndexQuery,
 );
 
 #[derive(MergedObject, Default)]
@@ -30,6 +40,11 @@ pub struct Mutation(
     NotificationsMutation,
     ClipboardMutation,
     ContactsMutation,
+    SmsMutation,
+    CallsMutation,
+    ScreenMirrorMutation,
+    ImageIndexMutation,
+    SettingsMutation,
 );
 
 pub type PublicSchema = Schema<Query, Mutation, EmptySubscription>;

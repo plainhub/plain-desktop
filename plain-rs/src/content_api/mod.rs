@@ -62,6 +62,8 @@ mod public_contacts;
 #[allow(dead_code)]
 mod public_facts;
 #[allow(dead_code)]
+mod public_image_index;
+#[allow(dead_code)]
 mod public_gate;
 #[allow(dead_code)]
 mod public_notifications;
@@ -69,6 +71,8 @@ mod public_notifications;
 mod public_packages;
 #[allow(dead_code)]
 mod public_schema;
+#[allow(dead_code)]
+mod public_screen_mirror;
 #[allow(dead_code)]
 mod public_sms;
 mod public_upload;

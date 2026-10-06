@@ -85,6 +85,23 @@ fn public_schema_exposes_the_contract_it_has_to_serve() {
         "callCount(query: String!): Int!",
         "call(number: String!, showDialer: Boolean!): Boolean!",
         "deleteCalls(query: String!): ActionResult!",
+        "isScreenMirroring: Boolean!",
+        "screenMirrorVideoCodec: ScreenMirrorVideoCodec",
+        "screenMirrorControlEnabled: Boolean!",
+        "screenMirrorQuality: ScreenMirrorQuality!",
+        "startScreenMirror(audio: Boolean!): Boolean!",
+        "requestScreenMirrorAudio: Boolean!",
+        "stopScreenMirror: Boolean!",
+        "updateScreenMirrorQuality(mode: ScreenMirrorMode!): Boolean!",
+        "requestScreenMirrorKeyFrame: Boolean!",
+        "imageSearchStatus: ImageSearchStatus!",
+        "enableImageSearch: Boolean!",
+        "disableImageSearch: Boolean!",
+        "cancelImageModelDownload: Boolean!",
+        "startImageIndex(force: Boolean): Boolean!",
+        "cancelImageIndex: Boolean!",
+        "openAccessibilitySettings: Boolean!",
+        "openWebSettings(feature: WebSettingsFeature): Boolean!",
     ] {
         assert!(sdl.contains(field), "missing {field}");
     }
