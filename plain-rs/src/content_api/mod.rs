@@ -63,6 +63,8 @@ mod public_clipboard;
 #[allow(dead_code)]
 mod public_contact_types;
 #[allow(dead_code)]
+mod public_chat;
+#[allow(dead_code)]
 mod public_contacts;
 #[allow(dead_code)]
 mod public_facts;
@@ -91,6 +93,8 @@ mod public_notifications;
 mod public_packages;
 #[allow(dead_code)]
 mod public_schema;
+#[allow(dead_code)]
+mod public_peers;
 #[allow(dead_code)]
 mod public_prefs;
 #[allow(dead_code)]

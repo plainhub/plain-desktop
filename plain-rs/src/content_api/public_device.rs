@@ -155,6 +155,19 @@ pub struct App {
     pub debug: bool,
 }
 
+impl DeviceType {
+    pub(super) fn as_str(self) -> &'static str {
+        match self {
+            DeviceType::Computer => "COMPUTER",
+            DeviceType::Phone => "PHONE",
+            DeviceType::Tablet => "TABLET",
+            DeviceType::Tv => "TV",
+            DeviceType::Nas => "NAS",
+            DeviceType::Other => "OTHER",
+        }
+    }
+}
+
 #[derive(Default)]
 pub struct DeviceQuery;
 
@@ -370,7 +383,7 @@ fn device_platform(value: &str) -> DevicePlatform {
     }
 }
 
-fn device_type(value: &str) -> DeviceType {
+pub(super) fn device_type(value: &str) -> DeviceType {
     match value {
         "PHONE" => DeviceType::Phone,
         "TABLET" => DeviceType::Tablet,

@@ -199,6 +199,77 @@ type Certificate {
 	validTo: Instant!
 }
 
+enum ChannelMemberStatus {
+	JOINED
+	PENDING
+}
+
+type ChatChannel {
+	id: ID!
+	ownerId: ID!
+	name: String!
+	members: [ChatChannelMember!]!
+	"""
+	Monotonically increasing mutation counter; receivers ignore channel
+	updates whose version is not greater than their local copy.
+	"""
+	version: Long!
+	status: ChatChannelStatus!
+	createdAt: Instant!
+	updatedAt: Instant!
+}
+
+type ChatChannelMember {
+	peerId: ID!
+	status: ChannelMemberStatus!
+}
+
+enum ChatChannelStatus {
+	JOINED
+	LEFT
+	KICKED
+}
+
+type ChatItem {
+	"""
+	`me` when this device created the item, otherwise the client id of
+	the originating peer.
+	"""
+	fromId: ID!
+	"""
+	Peer id for direct messages; empty for channel messages —
+	`channelId` is authoritative there.
+	"""
+	toId: ID!
+	"""
+	Null for direct messages: the store keeps "" and the contract says
+	null, because "" is not a channel a client can query.
+	"""
+	channelId: ID
+	id: ID!
+	"""
+	Message envelope JSON: `{type: TEXT|IMAGES|FILES|SHARE, value: {…}}` —
+	parse `value` according to `type`.
+	"""
+	content: String!
+	createdAt: Instant!
+	updatedAt: Instant!
+	status: ChatStatus!
+	"""
+	Per-recipient delivery details as JSON (peer delivery results);
+	empty when the message has no delivery failures. Drives
+	SENT/PARTIAL/FAILED alongside `status`.
+	"""
+	statusData: String!
+}
+
+enum ChatStatus {
+	SENT
+	PARTIAL
+	FAILED
+	PENDING
+}
+
 type ClipboardItem {
 	id: ID!
 	text: String!
@@ -428,6 +499,12 @@ enum DeviceType {
 	TV
 	NAS
 	OTHER
+}
+
+enum DiscoveryMethod {
+	LAN
+	BLE
+	QR
 }
 
 type DisplayInfo {
@@ -806,6 +883,34 @@ type Mutation {
 	"""
 	playAudioPlaylist(id: ID!, path: String, shuffle: Boolean!): AudioItem
 	playAllAudios(shuffle: Boolean!): AudioItem
+	"""
+	Send a chat message. `target` is the chat target id — a bare peer id
+	(an optional `peer:` prefix is accepted), or a `channel:<id>`
+	prefixed channel id; same value space as the `chatItems` query.
+	`content` is the message envelope JSON, same shape as
+	`ChatItem.content`.
+	"""
+	sendChatItem(target: String!, content: String!): [ChatItem!]!
+	"""
+	Always true: an id that is already gone is the state the caller asked
+	for, and the contract has no way to say "nothing was there".
+	"""
+	deleteChatItem(id: ID!): Boolean!
+	deleteChatItems(query: String!): ActionResult!
+	retryChatItem(id: ID!): ChatItem!
+	createChatChannel(name: String!): ChatChannel!
+	updateChatChannel(id: ID!, name: String!): ChatChannel!
+	deleteChatChannel(id: ID!): Boolean!
+	leaveChatChannel(id: ID!): Boolean!
+	addChatChannelMember(id: ID!, peerId: ID!): ChatChannel!
+	removeChatChannelMember(id: ID!, peerId: ID!): ChatChannel!
+	acceptChatChannelInvite(id: ID!): Boolean!
+	declineChatChannelInvite(id: ID!): Boolean!
+	pairDevice(input: PairingDeviceInput!): Boolean!
+	cancelPairing(deviceId: ID!): Boolean!
+	respondToPairing(input: PairingRequestInput!, accepted: Boolean!): Boolean!
+	deletePeer(id: ID!): Boolean!
+	unpairPeer(id: ID!): Boolean!
 	uninstallPackages(ids: [ID!]!): Boolean!
 	"""
 	Bundle unpacking is heavy disk I/O, so the platform side keeps it off
@@ -1048,9 +1153,53 @@ enum PackageType {
 	USER
 }
 
+input PairingDeviceInput {
+	id: ID!
+	name: String!
+	ips: [String!]!
+	port: Int!
+	deviceType: DeviceType!
+	version: String!
+	platform: String!
+	lastSeen: String!
+	discoveryMethods: [DiscoveryMethod!]!
+}
+
+input PairingRequestInput {
+	fromId: ID!
+	fromName: String!
+	port: Int!
+	deviceType: DeviceType!
+	ecdhPublicKey: String!
+	signaturePublicKey: String!
+	timestamp: Long!
+	ips: [String!]!
+	signature: String!
+	fromIp: String!
+	awareSupported: Boolean!
+}
+
 enum PathKind {
 	FILE
 	DIR
+}
+
+type Peer {
+	id: ID!
+	name: String!
+	ip: String!
+	status: PeerStatus!
+	port: Int!
+	deviceType: DeviceType!
+	createdAt: Instant!
+	updatedAt: Instant!
+	online: Boolean!
+}
+
+enum PeerStatus {
+	PAIRED
+	UNPAIRED
+	CHANNEL
 }
 
 enum Permission {
@@ -1188,6 +1337,25 @@ type Query {
 	platform state Rust cannot see.
 	"""
 	audioPlayback: AudioPlayback!
+	"""
+	Latest-first page of one conversation, returned oldest-to-newest so
+	clients can render directly. `target` is the chat target id: a bare
+	peer id (an optional `peer:` prefix is accepted), or a
+	`channel:<id>` prefixed channel id.
+	"""
+	chatItems(target: String!, offset: Int!, limit: Int!, query: String!): [ChatItem!]!
+	"""
+	The most recent item of every conversation (direct and channel),
+	newest conversation first.
+	"""
+	latestChatItems: [ChatItem!]!
+	chatChannels: [ChatChannel!]!
+	peers: [Peer!]!
+	"""
+	The SIM slots the platform reports. Empty on a device with no
+	telephony, which is the honest answer rather than an error.
+	"""
+	sims: [Sim!]!
 	packages(offset: Int!, limit: Int!, query: String!, sortBy: FileSortBy!): [Package!]!
 	packageCount(query: String!): Int!
 	packageStatuses(ids: [ID!]!): [PackageStatus!]!
@@ -1364,6 +1532,13 @@ type ScreenMirrorVideoCodec {
 	Latest H.264 keyframe, base64-encoded; null until the pipeline emits one.
 	"""
 	keyFrame: String
+}
+
+type Sim {
+	id: ID!
+	label: String!
+	number: String!
+	subscriptionId: Int!
 }
 
 type Sms {

@@ -10,6 +10,7 @@
 use super::public_audio::{AudioMutation, AudioQuery};
 use super::public_calls::{CallsMutation, CallsQuery};
 use super::public_clipboard::{ClipboardMutation, ClipboardQuery};
+use super::public_chat::{ChatMutation, ChatQuery};
 use super::public_contacts::{ContactsMutation, ContactsQuery};
 use super::public_device::{DeviceMutation, DeviceQuery};
 use super::public_feeds::{FeedsMutation, FeedsQuery};
@@ -18,6 +19,7 @@ use super::public_files::{FilesQuery, FavoritesMutation};
 use super::public_image_index::{ImageIndexMutation, ImageIndexQuery};
 use super::public_db::{DbMutation, DbQuery};
 use super::public_media::MediaQuery;
+use super::public_peers::{PeersMutation, PeersQuery};
 use super::public_prefs::{PrefsMutation, PrefsQuery};
 use super::public_tags::{TagsMutation, TagsQuery};
 use super::public_notifications::{NotificationsMutation, NotificationsQuery};
@@ -56,6 +58,8 @@ pub struct Query(
     NotesQuery,
     FeedsQuery,
     AudioQuery,
+    ChatQuery,
+    PeersQuery,
     PackagesQuery,
     NotificationsQuery,
     ClipboardQuery,
@@ -81,6 +85,8 @@ pub struct Mutation(
     NotesMutation,
     FeedsMutation,
     AudioMutation,
+    ChatMutation,
+    PeersMutation,
     PackagesMutation,
     NotificationsMutation,
     ClipboardMutation,
