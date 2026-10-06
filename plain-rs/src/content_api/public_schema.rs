@@ -12,7 +12,9 @@ use super::public_clipboard::{ClipboardMutation, ClipboardQuery};
 use super::public_contacts::{ContactsMutation, ContactsQuery};
 use super::public_files::{FilesQuery, FavoritesMutation};
 use super::public_image_index::{ImageIndexMutation, ImageIndexQuery};
+use super::public_db::{DbMutation, DbQuery};
 use super::public_media::MediaQuery;
+use super::public_prefs::{PrefsMutation, PrefsQuery};
 use super::public_tags::{TagsMutation, TagsQuery};
 use super::public_notifications::{NotificationsMutation, NotificationsQuery};
 use super::public_packages::{PackagesMutation, PackagesQuery};
@@ -36,6 +38,8 @@ pub struct Query(
     FilesQuery,
     MediaQuery,
     TagsQuery,
+    PrefsQuery,
+    DbQuery,
 );
 
 #[derive(MergedObject, Default)]
@@ -51,6 +55,8 @@ pub struct Mutation(
     SettingsMutation,
     FavoritesMutation,
     TagsMutation,
+    PrefsMutation,
+    DbMutation,
 );
 
 pub type PublicSchema = Schema<Query, Mutation, EmptySubscription>;

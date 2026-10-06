@@ -203,6 +203,27 @@ enum DataType {
 	DOC
 }
 
+enum DbColumnType {
+	TEXT
+	INTEGER
+	REAL
+	BLOB
+	NUMERIC
+	UNKNOWN
+}
+
+type DbTableColumn {
+	name: String!
+	dataType: DbColumnType!
+	notNull: Boolean!
+	defaultValue: String
+	primaryKey: Boolean!
+}
+
+type DbTableInfo {
+	idKey: String!
+}
+
 type Doc {
 	id: ID!
 	title: String!
@@ -339,6 +360,11 @@ enum ImageSearchStatusType {
 }
 
 scalar Instant
+
+"""
+A scalar that can represent any JSON value.
+"""
+scalar JSON
 
 type Location {
 	latitude: Float!
@@ -490,6 +516,15 @@ type Mutation {
 	lookup, so dropping them would make a tagged row render blank.
 	"""
 	updateTagRelations(type: DataType!, item: TagRelationStub!, addTagIds: [ID!]!, removeTagIds: [ID!]!): Boolean!
+	setUserPref(key: String!, value: JSON!): Boolean!
+	removeUserPref(key: String!): Boolean!
+	"""
+	`row` is a JSON object of column values. A malformed one is reported
+	as `false` rather than an error: this is a developer console, and the
+	operator is the one who typed it.
+	"""
+	createDbTableRow(table: String!, row: String!): Boolean!
+	deleteDbTableRows(table: String!, ids: [String!]!): Boolean!
 }
 
 type Notification {
@@ -706,6 +741,19 @@ type Query {
 	"""
 	tag(id: ID!): Tag
 	tagKeys(id: ID!): [String!]!
+	userPrefs: JSON!
+	systemPrefs: JSON!
+	dbPath: String!
+	dbTables: [String!]!
+	dbTableRowCount(table: String!): Long!
+	"""
+	Rows come back as pre-rendered JSON strings, one per row — the
+	column set differs per table, so there is no single row type to
+	model.
+	"""
+	dbTableRows(table: String!, offset: Int!, limit: Int!): [String!]!
+	dbTableColumns(table: String!): [DbTableColumn!]!
+	dbTableInfo(table: String!): DbTableInfo!
 }
 
 enum ScreenMirrorMode {

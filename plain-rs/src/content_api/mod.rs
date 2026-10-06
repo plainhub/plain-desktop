@@ -46,11 +46,14 @@ mod sms_query;
 mod contact_write;
 mod public_proxy;
 mod public_static;
+#[allow(dead_code)]
 mod public_dlna;
 // The public `/graphql` schema is assembled domain by domain. It only starts
 // serving once every contract root exists; until then `main_graphql` still
 // hands the document to Kotlin and nothing under `public_schema` is
 // reachable — drop these allows in the same commit that flips that over.
+#[allow(dead_code)]
+mod public_db;
 #[allow(dead_code)]
 mod public_calls;
 #[allow(dead_code)]
@@ -68,6 +71,7 @@ mod public_image_index;
 #[allow(dead_code)]
 mod public_gate;
 #[allow(dead_code)]
+#[allow(dead_code)]
 mod public_media;
 #[allow(dead_code)]
 mod public_tags;
@@ -77,6 +81,8 @@ mod public_notifications;
 mod public_packages;
 #[allow(dead_code)]
 mod public_schema;
+#[allow(dead_code)]
+mod public_prefs;
 #[allow(dead_code)]
 mod public_screen_mirror;
 #[allow(dead_code)]
