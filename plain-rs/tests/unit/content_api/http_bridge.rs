@@ -30,9 +30,7 @@ async fn socket(
     port: u16,
     token: &str,
     path: &str,
-) -> tokio_tungstenite::WebSocketStream<
-    tokio_tungstenite::MaybeTlsStream<tokio::net::TcpStream>,
-> {
+) -> tokio_tungstenite::WebSocketStream<tokio_tungstenite::MaybeTlsStream<tokio::net::TcpStream>> {
     let mut request = format!("ws://127.0.0.1:{port}{path}")
         .into_client_request()
         .unwrap();
@@ -208,7 +206,9 @@ async fn multipart_preserves_parts_and_streams_large_file() {
     body.extend(vec![b'z'; CHUNK * 4 + 1]);
     body.extend_from_slice(b"\r\n--test--\r\n");
     let response = reqwest::Client::new()
-        .post(format!("http://127.0.0.1:{http}/upload"))
+        // A path the Rust router does not claim, so this still exercises the
+        // bridge multipart forwarding for the routes that have not moved yet.
+        .post(format!("http://127.0.0.1:{http}/multipart-probe"))
         .header("content-type", "multipart/form-data; boundary=test")
         .body(body)
         .send()
