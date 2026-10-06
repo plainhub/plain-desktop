@@ -166,8 +166,14 @@ pub(super) async fn static_or_bridge(
     upgrade: Option<axum::extract::ws::WebSocketUpgrade>,
     request: Request,
 ) -> Response {
-    if let Some(response) = serve(&state.prefs, request.method(), request.uri().path()).await {
-        return response;
+    // A WebSocket upgrade must reach the bridge: the SPA would answer `/` with
+    // index.html and a 200, and the client then fails its login handshake
+    // instead of upgrading. The web clients connect to `ws://<host>/?cid=…`,
+    // and the host bridge owns the session/login/screen-mirror channels.
+    if upgrade.is_none() {
+        if let Some(response) = serve(&state.prefs, request.method(), request.uri().path()).await {
+            return response;
+        }
     }
     super::http_bridge::handle(
         State(state),

@@ -26,7 +26,9 @@ const LOGIN_ATTEMPT_WINDOW: Duration = Duration::from_secs(60);
 const MAX_TRACKED_CLIENTS: usize = 256;
 
 /// Truncate a SHA-512 hex hash to the 32-byte ChaCha20 key — mirrors
-/// plain-app's `HttpServerManager.hashToToken`.
+/// plain-app's `HttpServerManager.hashToToken`. Test-only: it pins the wire
+/// contract the Kotlin host implements, the host derives the real key itself.
+#[cfg(test)]
 fn hash_to_token(hash: &str) -> Vec<u8> {
     hash.as_bytes().iter().copied().take(32).collect()
 }

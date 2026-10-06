@@ -156,11 +156,15 @@ pub async fn nearby(
 /// Desktop unmatched paths: DLNA receiver routes first, then WebSocket
 /// upgrades (any path; `/status…` selects the peer-status socket), then
 /// 404. Same order the hand-rolled dispatch used.
-pub async fn fallback(State(state): State<ServerState>, req: Request) -> Response {
+pub async fn fallback(
+    State(state): State<ServerState>,
+    ConnectInfo(remote): ConnectInfo<SocketAddr>,
+    req: Request,
+) -> Response {
     let method = req.method().as_str().to_owned();
     let path = req.uri().path().to_owned();
     if dlna_receiver::is_receiver_path(&method, &path) {
-        return dlna_route(&state, req, &method, &path).await;
+        return dlna_route(&state, req, &method, &path, remote.ip().to_string()).await;
     }
     if req.method() == Method::GET {
         let (mut parts, _) = req.into_parts();
@@ -189,7 +193,13 @@ pub async fn fallback(State(state): State<ServerState>, req: Request) -> Respons
 /// DLNA MediaRenderer receiver routes — served plain (no token) so remote
 /// control points can reach them. Gated by the DLNA toggle + running
 /// engine, mirroring plain-app's `handleDlnaReceiver` (404 when disabled).
-async fn dlna_route(state: &ServerState, req: Request, method: &str, path: &str) -> Response {
+async fn dlna_route(
+    state: &ServerState,
+    req: Request,
+    method: &str,
+    path: &str,
+    sender_ip: String,
+) -> Response {
     let ctx = &state.ctx;
     if !crate::prefs::dlna::enabled(&ctx.prefs) || !ctx.dlna_engine.is_running() {
         return respond(404, Vec::new(), "text/plain");
@@ -225,6 +235,7 @@ async fn dlna_route(state: &ServerState, req: Request, method: &str, path: &str)
         ctx.dlna_engine.device_uuid(),
         &device_name,
         &local_ip,
+        &sender_ip,
         &command_tx,
         &allowed,
         &denied,

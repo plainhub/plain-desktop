@@ -73,7 +73,7 @@ pub struct FeedEntryCount {
     pub count: i32,
 }
 
-fn feed_model(ctx: &Context<'_>, row: FeedRow) -> GqlResult<Feed> {
+fn feed_model(_ctx: &Context<'_>, row: FeedRow) -> GqlResult<Feed> {
     Ok(Feed {
         id: ID(row.id),
         name: row.name,

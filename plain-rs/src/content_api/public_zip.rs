@@ -216,7 +216,7 @@ fn stream_archive(
     staging: Vec<PathBuf>,
 ) -> Response {
     let _guard = Staging { paths: staging };
-    let (file, path) = match build_archive(&state.directory, items) {
+    let (file, _staged_path) = match build_archive(&state.directory, items) {
         Ok(pair) => pair,
         Err(error) => return plain(StatusCode::BAD_REQUEST, error.to_string()),
     };
