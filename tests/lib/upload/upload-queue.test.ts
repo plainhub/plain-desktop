@@ -178,6 +178,12 @@ describe('UploadQueue', () => {
       }
     })
 
+    // This one drives 120 virtual seconds (8 tasks x 3 attempts x the 2s+8s
+    // backoff), and waitUnlessAborted polls with a 100ms interval, so the
+    // fake-timer advance runs ~10k callbacks. On an idle machine it takes
+    // ~4.5s, which is only 30% of the default 15s budget -- and it timed out at
+    // 15.1s while a full Android build was running alongside. Give it its own
+    // budget rather than letting machine load decide whether the suite is red.
     it('auto-pauses the queue after 5 consecutive transient failures', async () => {
       vi.useFakeTimers()
       try {
@@ -199,7 +205,7 @@ describe('UploadQueue', () => {
       } finally {
         vi.useRealTimers()
       }
-    })
+    }, 30_000)
   })
 
   describe('retryUploadTask', () => {
