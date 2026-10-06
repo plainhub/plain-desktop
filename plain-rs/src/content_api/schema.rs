@@ -1,11 +1,11 @@
 pub use crate::content_types as types;
 #[path = "../http_server/main_schemas/app_file.rs"]
-mod app_file;
+pub(crate) mod app_file;
 mod app_files_host;
 mod audio_host;
 mod audio_playback;
 #[path = "../http_server/main_schemas/bookmark.rs"]
-mod bookmark;
+pub(crate) mod bookmark;
 #[path = "../http_server/main_schemas/bookmark_types.rs"]
 mod bookmark_types;
 mod bookmarks;
@@ -19,14 +19,14 @@ mod feed;
 mod file_tasks;
 mod image_editor_host;
 #[path = "../http_server/main_schemas/image_editor_project.rs"]
-mod image_editor_project;
+pub(crate) mod image_editor_project;
 mod image_index;
 mod media_actions;
 mod media_aux;
 #[path = "../http_server/main_schemas/note.rs"]
 mod note;
 #[path = "../http_server/main_schemas/pomodoro.rs"]
-mod pomodoro;
+pub(crate) mod pomodoro;
 mod pomodoro_host;
 mod shares_host;
 mod tags;

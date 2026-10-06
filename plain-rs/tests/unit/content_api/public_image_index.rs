@@ -24,9 +24,11 @@ fn fixture() -> (tempfile::TempDir, PublicSchema) {
     let prefs = Arc::new(crate::prefs::Prefs::load(&dir.path().join("prefs.json")).unwrap());
     let db = Arc::new(crate::db::Db::open(&dir.path().join("data.db")).unwrap());
     let host = Arc::new(Host::default());
+    let directory = dir.path().to_path_buf();
+    let (events, _) = tokio::sync::broadcast::channel(16);
     (
         dir,
-        crate::content_api::public_schema::build(host, prefs, db),
+        crate::content_api::public_schema::build(host, events, prefs, db, directory),
     )
 }
 

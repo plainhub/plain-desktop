@@ -41,9 +41,51 @@ enum AppChannelType {
 	FDROID
 }
 
+type AppFile {
+	id: String!
+	size: Long!
+	mimeType: String!
+	realPath: String!
+	fileName: String!
+	createdAt: Instant!
+	updatedAt: Instant!
+}
+
 type AudioFileInfo {
 	durationMs: Long!
 	location: Location
+}
+
+type Bookmark {
+	id: ID!
+	url: String!
+	title: String!
+	faviconPath: String!
+	groupId: ID!
+	pinned: Boolean!
+	clickCount: Int!
+	sortOrder: Int!
+	createdAt: Instant!
+	updatedAt: Instant!
+	lastClickedAt: Instant
+}
+
+type BookmarkGroup {
+	id: ID!
+	name: String!
+	collapsed: Boolean!
+	sortOrder: Int!
+	itemCount: Int!
+	createdAt: Instant!
+	updatedAt: Instant!
+}
+
+input BookmarkInput {
+	url: String!
+	title: String!
+	groupId: ID!
+	pinned: Boolean!
+	sortOrder: Int!
 }
 
 type Call {
@@ -450,6 +492,34 @@ type Image {
 	tags: [Tag!]!
 }
 
+type ImageEditorProject {
+	id: ID!
+	stateB64: String!
+	thumbnail: String
+	canvasWidth: Int!
+	canvasHeight: Int!
+	layerCount: Int!
+	createdAt: Instant!
+	updatedAt: Instant!
+}
+
+input ImageEditorProjectInput {
+	stateB64: String!
+	thumbnail: String
+	canvasWidth: Int!
+	canvasHeight: Int!
+	layerCount: Int!
+}
+
+type ImageEditorProjectSummary {
+	id: ID!
+	thumbnail: String
+	canvasWidth: Int!
+	canvasHeight: Int!
+	layerCount: Int!
+	updatedAt: Instant!
+}
+
 type ImageFileInfo {
 	width: Int!
 	height: Int!
@@ -555,6 +625,19 @@ type Mount {
 }
 
 type Mutation {
+	addBookmarks(urls: [String!]!, groupId: ID!): [Bookmark!]!
+	updateBookmark(id: ID!, input: BookmarkInput!): Bookmark!
+	deleteBookmarks(ids: [ID!]!): ActionResult!
+	recordBookmarkClick(id: ID!): Boolean!
+	createBookmarkGroup(name: String!): BookmarkGroup!
+	updateBookmarkGroup(id: ID!, name: String!, collapsed: Boolean!, sortOrder: Int!): BookmarkGroup!
+	deleteBookmarkGroup(id: ID!): Boolean!
+	startPomodoro(durationSec: Int!): Boolean!
+	pausePomodoro: Boolean!
+	stopPomodoro: Boolean!
+	saveImageEditorProject(id: ID!, input: ImageEditorProjectInput!): ImageEditorProject!
+	deleteImageEditorProject(id: ID!): Boolean!
+	broadcastImageEditorUpdate(id: ID!, update: String!): Boolean!
 	uninstallPackages(ids: [ID!]!): Boolean!
 	"""
 	Bundle unpacking is heavy disk I/O, so the platform side keeps it off
@@ -844,6 +927,34 @@ enum PhoneType {
 	ASSISTANT
 }
 
+type PomodoroSettings {
+	workDurationMin: Int!
+	shortBreakDurationMin: Int!
+	longBreakDurationMin: Int!
+	pomodorosBeforeLongBreak: Int!
+	showNotification: Boolean!
+	playSoundOnComplete: Boolean!
+	soundPath: String!
+	originalSoundName: String!
+}
+
+enum PomodoroState {
+	WORK
+	SHORT_BREAK
+	LONG_BREAK
+}
+
+type PomodoroToday {
+	date: Instant!
+	completedCount: Int!
+	currentRound: Int!
+	timeLeftSec: Int!
+	totalTimeSec: Int!
+	isRunning: Boolean!
+	isPaused: Boolean!
+	state: PomodoroState!
+}
+
 enum PostalType {
 	CUSTOM
 	HOME
@@ -852,6 +963,14 @@ enum PostalType {
 }
 
 type Query {
+	appFiles(offset: Int!, limit: Int!, query: String!): [AppFile!]!
+	appFileCount(query: String!): Int!
+	bookmarks: [Bookmark!]!
+	bookmarkGroups: [BookmarkGroup!]!
+	pomodoroSettings: PomodoroSettings!
+	pomodoroToday: PomodoroToday!
+	imageEditorProjects: [ImageEditorProjectSummary!]!
+	imageEditorProject(id: ID!): ImageEditorProject
 	packages(offset: Int!, limit: Int!, query: String!, sortBy: FileSortBy!): [Package!]!
 	packageCount(query: String!): Int!
 	packageStatuses(ids: [ID!]!): [PackageStatus!]!

@@ -8,7 +8,7 @@
 //! everything".
 
 use super::host::Host;
-use super::public_facts::{flag, id, integer, list, optional_instant, text};
+use super::public_facts::{flag, integer, list, optional_instant, text};
 use crate::content_types::{Capability, Instant, KeyValuePair, Long, Permission};
 use async_graphql::{Context, Enum, Object, SimpleObject};
 use serde_json::{Value, json};

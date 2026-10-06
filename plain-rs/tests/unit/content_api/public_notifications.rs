@@ -26,9 +26,11 @@ fn fixture(permissions: Value) -> (tempfile::TempDir, PublicSchema) {
     prefs.set("api_permissions", permissions).unwrap();
     let db = Arc::new(Db::open(std::path::Path::new(":memory:")).unwrap());
     let host = Arc::new(Host::default());
+    let directory = dir.path().to_path_buf();
+    let (events, _) = tokio::sync::broadcast::channel(16);
     (
         dir,
-        crate::content_api::public_schema::build(host, prefs, db),
+        crate::content_api::public_schema::build(host, events, prefs, db, directory),
     )
 }
 

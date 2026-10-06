@@ -10,9 +10,11 @@ fn fixture(permissions: Value) -> (tempfile::TempDir, PublicSchema) {
     let db = Arc::new(Db::open(&dir.path().join("data.db")).unwrap());
     crate::library::clipboard::record(&db, "hello", "web", "web", false).unwrap();
     let host = Arc::new(Host::default());
+    let directory = dir.path().to_path_buf();
+    let (events, _) = tokio::sync::broadcast::channel(16);
     (
         dir,
-        crate::content_api::public_schema::build(host, prefs, db),
+        crate::content_api::public_schema::build(host, events, prefs, db, directory),
     )
 }
 

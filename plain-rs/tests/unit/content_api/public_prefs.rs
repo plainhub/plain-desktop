@@ -30,9 +30,11 @@ fn fixture(
     let db = Arc::new(Db::open(&dir.path().join("data.db")).unwrap());
     let host = Arc::new(Host::default());
     stub(host.clone(), handler);
+    let directory = dir.path().to_path_buf();
+    let (events, _) = tokio::sync::broadcast::channel(16);
     (
         dir,
-        crate::content_api::public_schema::build(host, prefs, db),
+        crate::content_api::public_schema::build(host, events, prefs, db, directory),
     )
 }
 
@@ -45,7 +47,9 @@ async fn reads_come_from_the_rust_store() {
     stub(host.clone(), |method, _| {
         panic!("a read must not reach the platform: {method}")
     });
-    let schema = crate::content_api::public_schema::build(host, prefs.clone(), db);
+    let (events, _) = tokio::sync::broadcast::channel(16);
+    let schema =
+        crate::content_api::public_schema::build(host, events, prefs.clone(), db, dir.path().into());
 
     prefs.set("device_name", "Pixel").unwrap();
     prefs.set_user("recent_search", json!(["a", "b"])).unwrap();

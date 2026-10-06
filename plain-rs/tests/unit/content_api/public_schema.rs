@@ -11,10 +11,13 @@ fn sdl() -> String {
     let db = Arc::new(Db::open(std::path::Path::new(":memory:")).unwrap());
     let dir = tempfile::tempdir().unwrap();
     let prefs = Arc::new(Prefs::load(&dir.path().join("system_prefs.json")).unwrap());
+    let (events, _) = tokio::sync::broadcast::channel(16);
     build(
         Arc::new(crate::content_api::host::Host::default()),
+        events,
         prefs,
         db,
+        dir.path().to_path_buf(),
     )
     .sdl()
 }

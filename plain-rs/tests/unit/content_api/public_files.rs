@@ -50,7 +50,9 @@ fn fixture_with(
         .unwrap();
     let db = Arc::new(Db::open(&dir.path().join("data.db")).unwrap());
     let host = Arc::new(Host::default());
-    let schema = crate::content_api::public_schema::build(host.clone(), prefs, db);
+    let (events, _) = tokio::sync::broadcast::channel(16);
+    let schema =
+        crate::content_api::public_schema::build(host.clone(), events, prefs, db, dir.path().into());
     stub(host, handler);
     (dir, schema)
 }
@@ -371,7 +373,9 @@ async fn favorite_folders_are_read_from_the_rust_store() {
     .unwrap();
     crate::library::favorite_folders::set_alias(&db, "/storage/emulated/0", "DCIM", "Camera")
         .unwrap();
-    let schema = crate::content_api::public_schema::build(host, prefs, db);
+    let (events, _) = tokio::sync::broadcast::channel(16);
+    let schema =
+        crate::content_api::public_schema::build(host, events, prefs, db, dir.path().into());
 
     let response = schema
         .execute(r#"query { favoriteFolders { rootPath fullPath alias } }"#)
