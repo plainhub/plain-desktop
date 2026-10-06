@@ -13,7 +13,21 @@ pub(super) struct Request {
     provider: Provider,
     ids: Vec<String>,
 }
+fn delete_permission(provider: &Provider) -> Option<&'static str> {
+    match provider {
+        Provider::Call => Some("WRITE_CALL_LOG"),
+        Provider::Contact => Some("WRITE_CONTACTS"),
+        _ => None,
+    }
+}
 async fn execute(state: &ServerState, request: Request) -> anyhow::Result<Value> {
+    if let Some(permission) = delete_permission(&request.provider) {
+        let configured: Vec<String> = state.prefs.get_or("api_permissions", Vec::new());
+        anyhow::ensure!(
+            configured.iter().any(|name| name == permission),
+            "no_permission"
+        );
+    }
     let requested = request
         .ids
         .into_iter()
@@ -71,3 +85,7 @@ pub(super) async fn call(
             .into_response(),
     }
 }
+
+#[cfg(test)]
+#[path = "../../tests/unit/content_api/provider_deletes.rs"]
+mod tests;

@@ -43,6 +43,7 @@ mod provider_deletes;
 mod provider_plan;
 mod request_replay;
 mod sms_query;
+mod contact_write;
 mod sms_send;
 mod sms_state;
 mod system_permissions;
