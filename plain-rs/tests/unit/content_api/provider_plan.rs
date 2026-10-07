@@ -1,4 +1,5 @@
 use super::*;
+use crate::content_api::host::Host;
 
 /// `plan` now rejects a field the provider does not know, so the cases below —
 /// which are all about what a *known* field produces — unwrap in one place.
@@ -376,4 +377,68 @@ fn unknown_fields_are_refused_instead_of_dropped() {
             .unwrap_or_else(|e| panic!("{query} must stay accepted for {provider:?}: {e}"));
         }
     }
+}
+
+/// The four providers that contribute no clause of their own could resolve a
+/// query of fields they do not act on to every row, and an empty clause list is
+/// what `ContentWhere` renders as `1=1`. The predicate asks the built plan, so
+/// these cases must agree with what `plan` actually produced — if they drift,
+/// the guard is guarding a fiction.
+#[tokio::test]
+async fn a_query_that_builds_no_clause_is_the_one_the_destructive_path_refuses() {
+    let dir = tempfile::tempdir().unwrap();
+    let db = Db::open(&dir.path().join("db")).unwrap();
+    // No `start_time` in any query below, so the host is never called.
+    let host = Host::default();
+
+    // The same field name, two providers, opposite answers: `trash` pins the
+    // `.nas-trash` path on the media providers and means nothing on Call. A
+    // guard written against field names would get one of these two wrong.
+    for (provider, query) in [
+        (Provider::Audio, "type:1"),
+        (Provider::Audio, "show_hidden:false"),
+        (Provider::Image, "type:1"),
+        (Provider::Video, "type:1"),
+        (Provider::Call, "trash:false"),
+        (Provider::Call, "show_hidden:false"),
+    ] {
+        let parsed = fields(&db, query).unwrap();
+        assert!(
+            plan(provider, &parsed, &Value::Null, None, query.is_empty())
+                .unwrap()
+                .clauses
+                .is_empty(),
+            "{provider:?} {query:?} was expected to build no clause"
+        );
+        assert!(
+            require_narrowing(&db, &host, provider, query).await.is_err(),
+            "{provider:?} {query:?} reaches a mutation with nothing selected"
+        );
+    }
+
+    for (provider, query) in [
+        (Provider::Audio, "trash:false"),
+        (Provider::Image, "trash:false"),
+        (Provider::Audio, "text:x"),
+        (Provider::Call, "type:1"),
+        (Provider::Call, "text:123"),
+        // Always narrowed by a clause of the provider's own, so the guard can
+        // never fire for them however the query is spelled.
+        (Provider::Contact, "trash:false"),
+        (Provider::Doc, "trash:false"),
+        (Provider::File, "trash:false"),
+    ] {
+        require_narrowing(&db, &host, provider, query)
+            .await
+            .unwrap_or_else(|e| panic!("{provider:?} {query:?} was refused: {e}"));
+    }
+
+    // `all` builds no clause by design and says so; blank is the caller's own
+    // guard to own.
+    require_narrowing(&db, &host, Provider::Audio, "all:true")
+        .await
+        .expect("all:true is the sanctioned whole-table ask");
+    require_narrowing(&db, &host, Provider::Audio, "")
+        .await
+        .expect("blank is refused by the caller's guard, not this one");
 }

@@ -284,22 +284,74 @@ fn parse_size_to_bytes(value: &str) -> Option<u64> {
     let bytes = number * multiplier;
     (bytes.is_finite() && bytes >= 0.0 && bytes <= u64::MAX as f64).then_some(bytes as u64)
 }
-async fn execute(state: &ServerState, request: Request) -> anyhow::Result<Value> {
-    let fields = fields(&state.db, &request.query)?;
-    let dates = fields
+async fn dates(host: &super::host::Host, fields: &[FilterField]) -> anyhow::Result<Value> {
+    let raw = fields
         .iter()
         .filter(|f| f.name == "start_time")
         .map(|f| comparison(f).1.to_owned())
         .collect::<Vec<_>>();
-    let dates = if dates.is_empty() {
-        Value::Null
-    } else {
-        state
-            .host
-            .call("systemEpochMillis", json!({"values":dates}))
-            .await
-            .map_err(anyhow::Error::msg)?
-    };
+    if raw.is_empty() {
+        return Ok(Value::Null);
+    }
+    host.call("systemEpochMillis", json!({"values":raw}))
+        .await
+        .map_err(anyhow::Error::msg)
+}
+
+/// Refuses a request that acts on a query naming no selection.
+///
+/// `plan` drops the fields it does not act on — `trash` and `show_hidden`
+/// ride along from a media view, `type` carries over from Apps — and an empty
+/// clause list is what `ContentWhere` renders as `1=1`. On a listing that only
+/// means "everything", which is what those fields ask for anyway. On the path
+/// that turns a query into the id set `deleteMediaItems` / `trashMediaItems` /
+/// `restoreMediaItems` / `moveMediaItems` / `deleteCalls` act on, it means the
+/// operation covers the whole table, so those ask this first.
+///
+/// It asks the built plan rather than the field names, because "did this name
+/// narrow anything" is not a property of the name: the same field produces a
+/// clause on one provider (`trash` pins the `.nas-trash` path on the media
+/// providers) and none on another (Call has no trash to scope by). Audio lost
+/// the unconditional `duration > 0` its Kotlin helper used to add, which is
+/// how a `type:` leak from the Apps view became a whole-table delete.
+///
+/// Providers that always contribute a clause of their own cannot come back
+/// empty and need no case here: Contact pins `mimetype`, Doc its mime types,
+/// File the dotfile exclusion.
+pub(super) async fn require_narrowing(
+    db: &Db,
+    host: &super::host::Host,
+    provider: Provider,
+    query: &str,
+) -> anyhow::Result<()> {
+    // A blank query is the caller's own guard to own, and `all` builds no
+    // clause on purpose: it is how a caller says "every row, I mean it".
+    if query.trim().is_empty() {
+        return Ok(());
+    }
+    let parsed = fields(db, query)?;
+    if parsed.iter().any(|f| f.name == "all") {
+        return Ok(());
+    }
+    let plan = plan(
+        provider,
+        &parsed,
+        &dates(host, &parsed).await?,
+        None,
+        query.is_empty(),
+    )?;
+    if plan.clauses.is_empty() {
+        return Err(anyhow::anyhow!(
+            "query {query:?} selects no {provider:?} row — nothing in it narrows the selection, so \
+             the operation would cover the whole table; pass 'all:true' to target every row on \
+             purpose"
+        ));
+    }
+    Ok(())
+}
+async fn execute(state: &ServerState, request: Request) -> anyhow::Result<Value> {
+    let fields = fields(&state.db, &request.query)?;
+    let dates = dates(&state.host, &fields).await?;
     Ok(serde_json::to_value(plan(
         request.provider,
         &fields,

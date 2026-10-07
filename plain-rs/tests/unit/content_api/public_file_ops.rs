@@ -416,3 +416,40 @@ fn merge_status_reads_back_the_names_the_contract_uses() {
     // the client has never heard of.
     assert_eq!(MergeTaskStatus::parse("WAT"), MergeTaskStatus::None);
 }
+
+/// The predicate is worth nothing if the actions do not ask it, so this drives
+/// the real mutation. Audio contributes no clause of its own, so `type:1` —
+/// what the Apps view leaves behind when the user navigates to a media one —
+/// used to resolve to the whole library.
+#[tokio::test]
+async fn a_media_action_refuses_a_query_that_selects_nothing_and_all_true_still_goes_through() {
+    let (_dir, schema) = fixture_with(GRANTED, |method, _| match method {
+        "systemPermissionFacts" => json!({ "granted": { "WRITE_EXTERNAL_STORAGE": true } }),
+        "systemMediaAction" => json!(0),
+        other => panic!("unexpected host call {other}"),
+    });
+
+    for mutation in [
+        r#"mutation { deleteMediaItems(type: AUDIO, query: "type:1") { affectedCount } }"#,
+        r#"mutation { trashMediaItems(type: AUDIO, query: "type:1") { affectedCount } }"#,
+        r#"mutation { restoreMediaItems(type: AUDIO, query: "type:1") { affectedCount } }"#,
+        r#"mutation { moveMediaItems(type: AUDIO, query: "type:1", destDir: "/sdcard/x") { affectedCount } }"#,
+        r#"mutation { trashMediaItems(type: IMAGE, query: "show_hidden:false") { affectedCount } }"#,
+    ] {
+        let response = schema.execute(mutation).await;
+        assert_eq!(response.errors.len(), 1, "{mutation} was not refused");
+        assert!(
+            response.errors[0].message.contains("selects no"),
+            "{mutation} failed for the wrong reason: {}",
+            response.errors[0].message
+        );
+    }
+
+    // `all:true` builds no clause either, and says so — refusing it would
+    // leave no way to target everything on purpose.
+    let response = schema
+        .execute(r#"mutation { trashMediaItems(type: AUDIO, query: "all:true") { affectedCount } }"#)
+        .await;
+    assert!(response.errors.is_empty(), "{:?}", response.errors);
+    assert!(format!("{:?}", response.data).contains("affectedCount"));
+}

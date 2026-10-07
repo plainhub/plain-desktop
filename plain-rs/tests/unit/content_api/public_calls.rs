@@ -179,3 +179,28 @@ async fn delete_calls_rejects_a_blank_query_before_touching_the_platform() {
         response.errors
     );
 }
+
+/// Call contributes no clause of its own — it has no trash scope and no
+/// duration floor — so every field the web client carries into it from a media
+/// view builds nothing, and an empty clause list is `1=1` on the way to the
+/// platform. That is the whole call log.
+#[tokio::test]
+async fn delete_calls_refuses_a_query_of_fields_it_does_not_act_on() {
+    let (_dir, schema) = fixture(json!(["WRITE_CALL_LOG"]));
+    stub(schema_host(&schema), |method, _| {
+        panic!("a refused delete must not reach the platform: {method}")
+    });
+    for query in ["trash:false", "show_hidden:false"] {
+        let response = schema
+            .execute(&format!(
+                r#"mutation {{ deleteCalls(query:"{query}") {{ affectedCount }} }}"#
+            ))
+            .await;
+        assert_eq!(response.errors.len(), 1, "{query} was not refused");
+        assert!(
+            response.errors[0].message.contains("selects no"),
+            "{query} failed for the wrong reason: {}",
+            response.errors[0].message
+        );
+    }
+}

@@ -8,10 +8,12 @@
 //! query never means "everything", and a bulk delete never runs unguarded.
 
 use super::host::Host;
+use super::provider_plan::{self, Provider};
 use super::public_facts::{integer, text};
 use super::public_gate;
 use super::public_media::MediaDataType;
 use crate::content_types::{ActionResult, File, Long};
+use crate::db::Db;
 use async_graphql::{Context, Enum, Object, SimpleObject};
 use serde_json::{Value, json};
 use std::sync::Arc;
@@ -238,6 +240,7 @@ impl MediaActionMutation {
         query: String,
     ) -> async_graphql::Result<ActionResult> {
         require_explicit_query(&query)?;
+        require_narrowing_media(ctx, r#type, &query).await?;
         let affected = media_action(ctx, "delete", r#type, &query, Value::Null).await?;
         Ok(ActionResult {
             affected_count: affected,
@@ -251,6 +254,7 @@ impl MediaActionMutation {
         query: String,
     ) -> async_graphql::Result<ActionResult> {
         require_explicit_query(&query)?;
+        require_narrowing_media(ctx, r#type, &query).await?;
         let affected = media_action(ctx, "trash", r#type, &query, Value::Null).await?;
         Ok(ActionResult {
             affected_count: affected,
@@ -264,6 +268,7 @@ impl MediaActionMutation {
         query: String,
     ) -> async_graphql::Result<ActionResult> {
         require_explicit_query(&query)?;
+        require_narrowing_media(ctx, r#type, &query).await?;
         let affected = media_action(ctx, "restore", r#type, &query, Value::Null).await?;
         Ok(ActionResult {
             affected_count: affected,
@@ -282,6 +287,7 @@ impl MediaActionMutation {
     ) -> async_graphql::Result<ActionResult> {
         public_gate::require(prefs(ctx), &[STORAGE])?;
         require_explicit_query(&query)?;
+        require_narrowing_media(ctx, r#type, &query).await?;
         let affected = media_action(ctx, "move", r#type, &query, json!(dest_dir)).await?;
         Ok(ActionResult {
             affected_count: affected,
@@ -294,6 +300,32 @@ fn require_explicit_query(query: &str) -> async_graphql::Result<()> {
         return Err(async_graphql::Error::new("explicit query required"));
     }
     Ok(())
+}
+
+/// Refuses a media action whose query builds no clause, which would resolve to
+/// every row of the library. Blank is already the caller's business; this is
+/// the other half — a query can be non-empty and still name nothing that
+/// narrows, because the fields it carries are ones this provider does not act
+/// on.
+async fn require_narrowing_media(
+    ctx: &Context<'_>,
+    r#type: MediaDataType,
+    query: &str,
+) -> async_graphql::Result<()> {
+    let provider = match r#type {
+        MediaDataType::Audio => Provider::Audio,
+        MediaDataType::Video => Provider::Video,
+        MediaDataType::Image => Provider::Image,
+        MediaDataType::Doc => Provider::Doc,
+    };
+    provider_plan::require_narrowing(
+        ctx.data_unchecked::<Arc<Db>>(),
+        ctx.data_unchecked::<Arc<Host>>(),
+        provider,
+        query,
+    )
+    .await
+    .map_err(|error| async_graphql::Error::new(error.to_string()))
 }
 
 async fn transfer(

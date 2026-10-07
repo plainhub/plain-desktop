@@ -6,6 +6,7 @@
 use super::public_contact_types::Tag;
 use super::public_facts::{host_json, instant, integer, text};
 use super::public_gate;
+use super::provider_plan::{self, Provider};
 use crate::content_api::host::Host;
 use crate::content_types::ActionResult;
 use crate::{db::Db, enums::DataType, prefs::Prefs};
@@ -124,6 +125,16 @@ impl CallsMutation {
             ));
         }
         public_gate::require(ctx.data_unchecked::<Arc<Prefs>>(), &[WRITE])?;
+        // Call contributes no clause of its own, so a query carrying only
+        // fields it does not act on resolves to the entire call log.
+        provider_plan::require_narrowing(
+            ctx.data_unchecked::<Arc<Db>>(),
+            ctx.data_unchecked::<Arc<Host>>(),
+            Provider::Call,
+            &query,
+        )
+        .await
+        .map_err(|error| async_graphql::Error::new(error.to_string()))?;
         let ids: Vec<Value> =
             host_json(ctx, "systemCallIds", serde_json::json!({ "query": query }))
                 .await?
