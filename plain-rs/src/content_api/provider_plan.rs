@@ -97,8 +97,8 @@ pub(super) fn fields(db: &Db, query: &str) -> anyhow::Result<Vec<FilterField>> {
 /// Every entry is here because a builder in `plain-desktop` can emit it for
 /// this provider, and the field has no match arm. `all` and `trash` are
 /// accepted everywhere: `all` is the only sanctioned way to ask for a whole
-/// table, and `trash` narrows only the media providers on purpose, since
-/// Contacts and Calls have no trash scope to filter by.
+/// table, and `trash` reaches the media providers as a MediaStore query
+/// argument, which Contacts and Calls have no store to answer.
 fn intentionally_ignored(provider: Provider, field: &str) -> bool {
     match (provider, field) {
         (_, "all" | "trash") => true,
@@ -231,17 +231,17 @@ fn plan(
             }
             (Provider::Audio | Provider::Video | Provider::Image | Provider::Doc, "trash") => {
                 if let Some(flag) = field.value.parse::<bool>().ok() {
+                    // The phone's trash is MediaStore's own: `IS_TRASHED` is what
+                    // `NativeMediaActions` writes, and MediaStore answers a
+                    // trashed-only read with the `QUERY_ARG_MATCH_TRASHED`
+                    // argument instead of a selection clause. It has to be an
+                    // argument — MediaProvider parses a legacy selection with a
+                    // strict grammar and answers `is_trashed` with
+                    // `Invalid token`, which reaches the app as a fatal throw.
+                    // The `.plain-trash` tree belongs to the NAS store, which no
+                    // phone process creates, so matching its path here could only
+                    // ever filter every row out.
                     plan.trash = Some(flag);
-                    // Trashing moves the file into a `.nas-trash` directory
-                    // instead of asking MediaStore for its own trash, so the
-                    // filter has to be a path match. MediaProvider's strict
-                    // grammar accepts `_data` but not `is_trashed`, and every
-                    // media query carries `trash:<bool>`, so dropping the flag
-                    // left trashed files in the ordinary lists.
-                    plan.add(
-                        format!("_data {} '%/.nas-trash%'", if flag { "LIKE" } else { "NOT LIKE" }),
-                        vec![],
-                    );
                 }
             }
             // Reached only when no arm above matched, so these are fields this
@@ -310,10 +310,10 @@ async fn dates(host: &super::host::Host, fields: &[FilterField]) -> anyhow::Resu
 ///
 /// It asks the built plan rather than the field names, because "did this name
 /// narrow anything" is not a property of the name: the same field produces a
-/// clause on one provider (`trash` pins the `.nas-trash` path on the media
-/// providers) and none on another (Call has no trash to scope by). Audio lost
-/// the unconditional `duration > 0` its Kotlin helper used to add, which is
-/// how a `type:` leak from the Apps view became a whole-table delete.
+/// clause on one provider (`type` is a Call column and nothing at all on the
+/// media providers, whose own kind is the provider choice) and none on another.
+/// Audio lost the unconditional `duration > 0` its Kotlin helper used to add,
+/// which is how a `type:` leak from the Apps view became a whole-table delete.
 ///
 /// Providers that always contribute a clause of their own cannot come back
 /// empty and need no case here: Contact pins `mimetype`, Doc its mime types,
@@ -331,6 +331,17 @@ pub(super) async fn require_narrowing(
     }
     let parsed = fields(db, query)?;
     if parsed.iter().any(|f| f.name == "all") {
+        return Ok(());
+    }
+    // `trash:true` names the trashed set, which is a scope of its own: it is
+    // answered by the MediaStore query argument rather than a clause, so the
+    // clause list stays empty for a query that is anything but the whole table.
+    // `trash:false` is the complement and narrows nothing — it is the case the
+    // empty-list check below exists to refuse.
+    if parsed
+        .iter()
+        .any(|f| f.name == "trash" && f.value.eq_ignore_ascii_case("true"))
+    {
         return Ok(());
     }
     let plan = plan(

@@ -270,45 +270,31 @@ fn every_field_the_web_client_can_emit_is_still_accepted() {
 }
 
 #[test]
-fn media_trash_filter_constrains_on_the_nas_trash_path() {
-    // Every media query carries `trash:<bool>`, so a plan that only records the
-    // flag leaves trashed files in the ordinary lists.
+fn media_trash_rides_the_query_argument_and_builds_no_clause() {
+    // The phone trashes through MediaStore, and MediaStore answers a
+    // trashed-only read with the `QUERY_ARG_MATCH_TRASHED` argument. None of
+    // that is a selection, so the plan carries the flag alone. It must build no
+    // clause: a clause here would be a path match on the NAS store's
+    // `.plain-trash` tree, which no phone process creates, and `trash:false`
+    // producing one is exactly how a bulk ask read as narrowed when it was
+    // really the whole table.
     for provider in [Provider::Doc, Provider::Audio, Provider::Video, Provider::Image] {
-        let on = plan_ok(
-            provider,
-            &search_dsl::parse("trash:true"),
-            &Value::Null,
-            None,
-            false,
-        );
-        assert_eq!(on.trash, Some(true));
-        assert!(
-            on.clauses
-                .iter()
-                .any(|c| c == "_data LIKE '%/.nas-trash%'"),
-            "{provider:?} trash:true produced no path clause"
-        );
-
-        let off = plan_ok(
-            provider,
-            &search_dsl::parse("trash:false"),
-            &Value::Null,
-            None,
-            false,
-        );
-        assert_eq!(off.trash, Some(false));
-        assert!(
-            off.clauses
-                .iter()
-                .any(|c| c == "_data NOT LIKE '%/.nas-trash%'"),
-            "{provider:?} trash:false produced no path clause"
-        );
+        // What the same provider builds with nothing in the query at all: Doc
+        // pins its mime types, the rest build nothing. Trash must add to that
+        // baseline rather than to it.
+        let bare = plan_ok(provider, &search_dsl::parse(""), &Value::Null, None, false);
+        for (query, expected) in [("trash:true", true), ("trash:false", false)] {
+            let plan = plan_ok(provider, &search_dsl::parse(query), &Value::Null, None, false);
+            assert_eq!(plan.trash, Some(expected), "{provider:?} {query} lost the flag");
+            assert_eq!(
+                plan.clauses, bare.clauses,
+                "{provider:?} {query} built a selection clause: {:?}",
+                plan.clauses
+            );
+        }
     }
 
-    // Contact and Call are not media stores and have no trash scope.
-    // `trash` is accepted on every provider but only narrows the media ones.
-    // Contacts have no trash, so it must stay a no-op there rather than
-    // becoming a filter that does not exist.
+    // Contact and Call are not media stores and have no trash to ask for.
     assert!(plan_ok(
         Provider::Contact,
         &search_dsl::parse("trash:true"),
@@ -391,14 +377,18 @@ async fn a_query_that_builds_no_clause_is_the_one_the_destructive_path_refuses()
     // No `start_time` in any query below, so the host is never called.
     let host = Host::default();
 
-    // The same field name, two providers, opposite answers: `trash` pins the
-    // `.nas-trash` path on the media providers and means nothing on Call. A
-    // guard written against field names would get one of these two wrong.
+    // The same field name, two providers, opposite answers: `type` is a Call
+    // column and a no-op on the media providers, whose own kind is the provider
+    // choice. A guard written against field names would get one of these two
+    // wrong.
     for (provider, query) in [
         (Provider::Audio, "type:1"),
         (Provider::Audio, "show_hidden:false"),
         (Provider::Image, "type:1"),
         (Provider::Video, "type:1"),
+        // The complement of the trashed set is the whole table.
+        (Provider::Audio, "trash:false"),
+        (Provider::Image, "trash:false"),
         (Provider::Call, "trash:false"),
         (Provider::Call, "show_hidden:false"),
     ] {
@@ -417,8 +407,6 @@ async fn a_query_that_builds_no_clause_is_the_one_the_destructive_path_refuses()
     }
 
     for (provider, query) in [
-        (Provider::Audio, "trash:false"),
-        (Provider::Image, "trash:false"),
         (Provider::Audio, "text:x"),
         (Provider::Call, "type:1"),
         (Provider::Call, "text:123"),
@@ -434,10 +422,13 @@ async fn a_query_that_builds_no_clause_is_the_one_the_destructive_path_refuses()
     }
 
     // `all` builds no clause by design and says so; blank is the caller's own
-    // guard to own.
+    // guard to own. So does `trash:true`, which names the trashed set.
     require_narrowing(&db, &host, Provider::Audio, "all:true")
         .await
         .expect("all:true is the sanctioned whole-table ask");
+    require_narrowing(&db, &host, Provider::Audio, "trash:true")
+        .await
+        .expect("trash:true is the trashed set, which is a scope of its own");
     require_narrowing(&db, &host, Provider::Audio, "")
         .await
         .expect("blank is refused by the caller's guard, not this one");
