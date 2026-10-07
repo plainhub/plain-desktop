@@ -104,3 +104,49 @@ fn markdown_titles_are_derived_in_rust() {
     assert_eq!(markdown_title("<IMG src='x.png'>"), "🖼");
     assert_eq!(markdown_title("a\nb"), "ab");
 }
+
+/// A bulk query naming a field the table does not understand used to be
+/// silently dropped, leaving the clause list empty — which renders as `1=1`.
+/// For a destructive mutation that is the whole table, and it looks exactly
+/// like the `all:true` sentinel to the caller.
+#[test]
+fn unknown_and_inert_query_fields_are_rejected_instead_of_widening() {
+    let (_dir, db) = database();
+    create(&db, "First", "one").unwrap();
+    create(&db, "Second", "two").unwrap();
+
+    // `id` is not a field this table knows — `ids` is — so it used to be
+    // dropped and `deleteNotes`/`trashNotes` hit every row.
+    let err = trash(&db, "id:__probe__").unwrap_err().to_string();
+    assert!(err.contains("unsupported note filter: id"), "{err}");
+    let err = delete(&db, "zzz_no_such_field:x").unwrap_err().to_string();
+    assert!(
+        err.contains("unsupported note filter: zzz_no_such_field"),
+        "{err}"
+    );
+
+    // A field that parses but narrows nothing is the same hazard by another
+    // route, so it is refused too rather than widening to every row.
+    let err = trash(&db, "text:").unwrap_err().to_string();
+    assert!(err.contains("selects no note rows"), "{err}");
+
+    // Nothing was touched along the way.
+    assert_eq!(count(&db, "").unwrap(), 2);
+
+    // The supported vocabulary still works, including the explicit sentinel
+    // that is allowed to select everything on purpose.
+    assert_eq!(count(&db, "text:one").unwrap(), 1);
+    assert_eq!(count(&db, "ids:__probe__").unwrap(), 0);
+    assert_eq!(trash(&db, "all:true").unwrap(), 2);
+}
+
+/// `trash` scopes the notes table; the feed-entry table has no `deleted_at`,
+/// so accepting it there would be a field that silently does nothing.
+#[test]
+fn note_only_fields_are_rejected_on_feed_entries() {
+    let (_dir, db) = database();
+    let err = db.feed_entries_list("trash:true", 10, 0).unwrap_err().to_string();
+    assert!(err.contains("unsupported feed entry filter: trash"), "{err}");
+    // The feed-only fields are the ones that belong there.
+    assert!(db.feed_entries_list("read:true", 10, 0).is_ok());
+}

@@ -53,10 +53,32 @@ fn entry_from_row(row: &rusqlite::Row<'_>) -> rusqlite::Result<FeedEntryRow> {
     })
 }
 
-fn query_filter(query: &str, notes: bool, force_trashed: Option<bool>) -> (String, Vec<Value>) {
+/// Compile a query DSL string into SQL for the notes / feed-entry tables.
+///
+/// A field this table does not understand is an error, never a silent drop:
+/// dropping it used to leave the clause list empty, which rendered as `1=1`
+/// and turned any bulk mutation naming a misspelt field into a whole-table
+/// operation indistinguishable from the `all:true` sentinel. The same rule
+/// rejects a field that parses but contributes nothing, so no query can reach
+/// `1=1` without saying `all:true`.
+///
+/// A blank query is not an error — "no filter" is what `query: ""` means on the
+/// read paths. The blank guard for bulk mutations lives in `explicit()`.
+fn query_filter(
+    query: &str,
+    notes: bool,
+    force_trashed: Option<bool>,
+) -> Result<(String, Vec<Value>), String> {
+    let kind = if notes { "note" } else { "feed entry" };
     let fields = crate::utils::search_dsl::parse(query);
     let mut clauses = Vec::new();
     let mut values = Vec::new();
+    // Counts clauses the caller's own fields produced. The implicit deleted_at
+    // scope clause below is not one of them — it is present for every notes
+    // query, so it cannot tell "unfiltered" apart from "nothing I asked for
+    // was understood".
+    let mut from_fields = 0usize;
+    let mut whole_table = false;
     if notes {
         let trashed = force_trashed.unwrap_or_else(|| {
             fields
@@ -75,26 +97,29 @@ fn query_filter(query: &str, notes: bool, force_trashed: Option<bool>) -> (Strin
     for field in fields {
         match field.name.as_str() {
             "text" => {
-                if !field.value.is_empty() {
-                    clauses.push(
-                        if notes {
-                            "content LIKE ? ESCAPE '\\'"
-                        } else {
-                            "(title LIKE ? ESCAPE '\\' OR description LIKE ? ESCAPE '\\' OR content LIKE ? ESCAPE '\\')"
-                        }
-                        .to_string(),
-                    );
-                    let pattern = format!(
-                        "%{}%",
-                        field
-                            .value
-                            .replace('\\', "\\\\")
-                            .replace('%', "\\%")
-                            .replace('_', "\\_")
-                    );
-                    for _ in 0..if notes { 1 } else { 3 } {
-                        values.push(Value::Text(pattern.clone()));
+                if field.value.is_empty() {
+                    // No term to search for. Widening to every row here is the
+                    // exact hazard the from_fields check exists to stop.
+                    continue;
+                }
+                clauses.push(
+                    if notes {
+                        "content LIKE ? ESCAPE '\\'"
+                    } else {
+                        "(title LIKE ? ESCAPE '\\' OR description LIKE ? ESCAPE '\\' OR content LIKE ? ESCAPE '\\')"
                     }
+                    .to_string(),
+                );
+                let pattern = format!(
+                    "%{}%",
+                    field
+                        .value
+                        .replace('\\', "\\\\")
+                        .replace('%', "\\%")
+                        .replace('_', "\\_")
+                );
+                for _ in 0..if notes { 1 } else { 3 } {
+                    values.push(Value::Text(pattern.clone()));
                 }
             }
             "ids" => {
@@ -138,17 +163,49 @@ fn query_filter(query: &str, notes: bool, force_trashed: Option<bool>) -> (Strin
                 clauses.push(format!("created_at {} ?", field.op));
                 values.push(Value::Text(field.value));
             }
-            _ => {}
+            // The one query that is allowed to select every row without
+            // naming a field. `continue` so it is not counted as a filter.
+            "all" if field.value == "true" => {
+                whole_table = true;
+                continue;
+            }
+            // Already consumed above to pick the deleted_at scope, so it adds
+            // no clause of its own — but it did shape the query.
+            "trash" if notes => {}
+            _ => return Err(format!("unsupported {kind} filter: {}", field.name)),
         }
+        from_fields += 1;
     }
-    (
+    if !query.trim().is_empty() && from_fields == 0 && !whole_table {
+        return Err(format!(
+            "query {query:?} selects no {kind} rows — none of its fields filter this table; \
+             pass 'all:true' to target every row on purpose"
+        ));
+    }
+    Ok((
         if clauses.is_empty() {
             "1=1".to_string()
         } else {
             clauses.join(" AND ")
         },
         values,
-    )
+    ))
+}
+
+/// Same as [query_filter], carrying a rejected query as a rusqlite error so the
+/// `impl Db` methods below stay `rusqlite::Result`.
+///
+/// `ModuleError` would describe this better ("our layer refused, SQLite said
+/// nothing") but it only exists under rusqlite's `vtab` feature, which this
+/// crate does not enable. `InvalidParameterName` is the variant already used to
+/// carry a message out of this layer, and the offending field really is an
+/// invalid parameter.
+fn filter(
+    query: &str,
+    notes: bool,
+    force_trashed: Option<bool>,
+) -> rusqlite::Result<(String, Vec<Value>)> {
+    query_filter(query, notes, force_trashed).map_err(rusqlite::Error::InvalidParameterName)
 }
 
 impl Db {
@@ -158,7 +215,7 @@ impl Db {
         limit: i64,
         offset: i64,
     ) -> rusqlite::Result<Vec<NoteRow>> {
-        let (where_sql, mut values) = query_filter(query, true, None);
+        let (where_sql, mut values) = filter(query, true, None)?;
         values.push(Value::Integer(limit.max(0)));
         values.push(Value::Integer(offset.max(0)));
         self.with_conn(|c| {
@@ -168,7 +225,7 @@ impl Db {
     }
 
     pub fn notes_count(&self, query: &str) -> rusqlite::Result<i32> {
-        let (where_sql, values) = query_filter(query, true, None);
+        let (where_sql, values) = filter(query, true, None)?;
         self.with_conn(|c| {
             c.query_row(
                 &format!("SELECT COUNT(*) FROM notes WHERE {where_sql}"),
@@ -183,7 +240,7 @@ impl Db {
         query: &str,
         force_trashed: Option<bool>,
     ) -> rusqlite::Result<Vec<String>> {
-        let (where_sql, values) = query_filter(query, true, force_trashed);
+        let (where_sql, values) = filter(query, true, force_trashed)?;
         self.with_conn(|c| {
             let mut stmt = c.prepare(&format!("SELECT id FROM notes WHERE {where_sql}"))?;
             stmt.query_map(params_from_iter(values), |r| r.get(0))?
@@ -324,7 +381,7 @@ impl Db {
         limit: i64,
         offset: i64,
     ) -> rusqlite::Result<Vec<FeedEntryRow>> {
-        let (where_sql, mut values) = query_filter(query, false, None);
+        let (where_sql, mut values) = filter(query, false, None)?;
         values.push(Value::Integer(limit.max(0)));
         values.push(Value::Integer(offset.max(0)));
         self.with_conn(|c| {
@@ -334,7 +391,7 @@ impl Db {
     }
 
     pub fn feed_entry_count(&self, query: &str) -> rusqlite::Result<i32> {
-        let (where_sql, values) = query_filter(query, false, None);
+        let (where_sql, values) = filter(query, false, None)?;
         self.with_conn(|c| {
             c.query_row(
                 &format!("SELECT COUNT(*) FROM feed_entries WHERE {where_sql}"),
@@ -383,7 +440,7 @@ impl Db {
     }
 
     pub fn feed_entries_delete(&self, query: &str) -> rusqlite::Result<usize> {
-        let (where_sql, values) = query_filter(query, false, None);
+        let (where_sql, values) = filter(query, false, None)?;
         self.with_conn(|c| {
             let tx = c.unchecked_transaction()?;
             let mut stmt = tx.prepare(&format!("SELECT id FROM feed_entries WHERE {where_sql}"))?;
