@@ -1,5 +1,14 @@
 import { describe, it, expect } from 'vitest'
-import { splitInGroup, removeQuotation, detectGroupType, splitGroup, parseGroup, parseQuery, buildQuery } from '@/lib/search'
+import {
+  splitInGroup,
+  removeQuotation,
+  detectGroupType,
+  splitGroup,
+  parseGroup,
+  parseQuery,
+  buildQuery,
+  buildTextFilter,
+} from '@/lib/search'
 import type { IFilterField } from '@/lib/search'
 
 describe('splitInGroup', () => {
@@ -11,12 +20,24 @@ describe('splitInGroup', () => {
     expect(splitInGroup('"hello world" foo')).toEqual(['"hello world"', 'foo'])
   })
 
-  it('returns null for empty string', () => {
-    expect(splitInGroup('')).toBeNull()
+  it('returns an empty array for empty string', () => {
+    expect(splitInGroup('')).toEqual([])
   })
 
   it('handles single token without spaces', () => {
     expect(splitInGroup('singleton')).toEqual(['singleton'])
+  })
+
+  it('keeps a backslash-escaped space inside one token', () => {
+    // The phone parses these strings too, and its tokenizer resolves `\`
+    // before splitting. A token this one disagreed on is a filter the phone
+    // never applies.
+    expect(splitInGroup('hello\\ world foo')).toEqual(['hello world', 'foo'])
+  })
+
+  it('does not let an escaped quote open a quoted run', () => {
+    // Exactly what buildTextFilter emits for `don't stop`.
+    expect(splitInGroup("don\\'t\\ stop")).toEqual(["don't stop"])
   })
 })
 
@@ -29,8 +50,11 @@ describe('removeQuotation', () => {
     expect(removeQuotation("'world'")).toBe('world')
   })
 
-  it('removes mixed quotes', () => {
-    expect(removeQuotation(`"it's"`)).toBe('its')
+  it('keeps a quote that is not the outer pair', () => {
+    // Stripping every quote is what lost the apostrophe in `it's`; the phone
+    // only removes a matching pair at both ends.
+    expect(removeQuotation(`"it's"`)).toBe(`it's`)
+    expect(removeQuotation(`it's`)).toBe(`it's`)
   })
 
   it('returns string unchanged when no quotes', () => {
@@ -201,9 +225,17 @@ describe('buildQuery', () => {
     expect(buildQuery(fields)).toBe('hello')
   })
 
-  it('wraps multi-word text value in quotes', () => {
+  it('escapes whitespace in a multi-word text value', () => {
     const fields: IFilterField[] = [{ name: 'text', op: '', value: 'hello world' }]
-    expect(buildQuery(fields)).toBe('"hello world"')
+    expect(buildQuery(fields)).toBe('hello\\ world')
+  })
+
+  it('drops an empty text value instead of emitting a bare text: token', () => {
+    const fields: IFilterField[] = [
+      { name: 'text', op: '', value: '  ' },
+      { name: 'trash', op: '', value: 'false' },
+    ]
+    expect(buildQuery(fields)).toBe('trash:false')
   })
 
   it('builds a field:value query', () => {
@@ -248,5 +280,48 @@ describe('buildQuery', () => {
     const parsed = parseQuery('is:starred')
     const built = buildQuery(parsed)
     expect(built).toBe('starred:true')
+  })
+})
+
+/**
+ * The exact tokens the escaper emits, mirrored by `SearchHelper.buildTextFilter`
+ * in plain-app and by `plain-rs`'s own parser tests. All three read the same
+ * strings, so a change to any one of them shows up as a red suite rather than
+ * as a search that silently stops matching on the phone.
+ */
+describe('buildTextFilter', () => {
+  const cases: [string, string][] = [
+    ['', ''],
+    ['   ', ''],
+    ['hello', 'hello'],
+    ['hello world', 'hello\\ world'],
+    ['Meeting: notes', 'text:Meeting:\\ notes'],
+    ['http://x.com', 'text:http://x.com'],
+    ['12:30', 'text:12:30'],
+    ["don't", "don\\'t"],
+    ['a\\b', 'a\\\\b'],
+    ['=foo', '=foo'],
+    ['50%_', '50%_'],
+  ]
+
+  it.each(cases)('emits the wire token for %j', (input, expected) => {
+    expect(buildTextFilter(input)).toBe(expected)
+  })
+
+  it.each(cases.filter(([input]) => input.trim() !== ''))(
+    'round-trips %j through the parser that reads it',
+    (input) => {
+      const fields = parseQuery(buildTextFilter(input))
+      expect(fields).toHaveLength(1)
+      expect(fields[0].name).toBe('text')
+      expect(fields[0].value).toBe(input)
+    },
+  )
+
+  it('keeps the other filters alongside the escaped text', () => {
+    const fields = parseQuery(`${buildTextFilter('Meeting: notes')} trash:false ids:1,2`)
+    expect(fields.find((f) => f.name === 'text')?.value).toBe('Meeting: notes')
+    expect(fields.find((f) => f.name === 'trash')?.value).toBe('false')
+    expect(fields.find((f) => f.name === 'ids')?.value).toBe('1,2')
   })
 })

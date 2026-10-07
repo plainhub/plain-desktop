@@ -8,9 +8,50 @@ export interface IQueryGroup {
   value: string
 }
 
-const GROUP_DELIMITER = /(?:[^\s"]+|"[^"]*")+/g
 const FILTER_DELIMITER = ':'
 const NOT_TYPE = 'NOT'
+
+/**
+ * Tokenizer, ported to match `plain-rs`'s `search_dsl::split_in_group` — the
+ * phone is what ultimately parses these strings, so a query the two tokenizers
+ * disagree on is a filter the phone never applies. The previous regex had no
+ * notion of a backslash escape and dropped quotes instead of carrying them,
+ * which is why a term containing `'` lost characters here and was still sent on
+ * to the phone in a different shape.
+ */
+export function splitInGroup(s: string) {
+  const result: string[] = []
+  let buf = ''
+  let quote = ''
+  let escape = false
+  for (const c of s) {
+    if (escape) {
+      buf += c
+      escape = false
+    } else if (c === '\\') {
+      escape = true
+    } else if (quote) {
+      buf += c
+      if (c === quote) {
+        quote = ''
+      }
+    } else if (c === '"' || c === "'") {
+      quote = c
+      buf += c
+    } else if (/\s/.test(c)) {
+      if (buf) {
+        result.push(buf)
+        buf = ''
+      }
+    } else {
+      buf += c
+    }
+  }
+  if (buf) {
+    result.push(buf)
+  }
+  return result
+}
 const INVERT: any = {
   '=': '!=',
   '>=': '<',
@@ -24,12 +65,15 @@ const INVERT: any = {
 const NUMBER_OPS = ['>', '>=', '<', '<=']
 const GROUP_TYPES = Object.keys(INVERT).filter((k: string) => k !== 'in' && k !== 'nin')
 
-export function splitInGroup(s: string) {
-  return s.match(GROUP_DELIMITER)
-}
-
 export function removeQuotation(s: string) {
-  return s.replace(/['"]+/g, '')
+  if (s.length >= 2) {
+    const first = s[0]
+    const last = s[s.length - 1]
+    if ((first === '"' && last === '"') || (first === "'" && last === "'")) {
+      return s.slice(1, -1)
+    }
+  }
+  return s
 }
 
 export function detectGroupType(group: string) {
@@ -107,6 +151,28 @@ export const parseQuery = (q: string): IFilterField[] => {
   return groups.filter((it) => it.op !== NOT_TYPE)
 }
 
+/**
+ * Turns free text into a filter token the phone's query language can carry.
+ *
+ * The DSL has no literal-text form: a bare `Meeting: notes` reaches the phone
+ * as the *field* `Meeting`, and the notes and media query layers refuse a field
+ * the table has no column for — so the search came back as an error instead of
+ * results. Escaping the characters the tokenizer treats specially keeps the
+ * phrase inside one token. Text without a colon is emitted bare, which the
+ * parser reads as a `text` field directly, skipping the operator sniffing that
+ * would eat a leading `=`, `<` or `>`.
+ *
+ * Mirrors `SearchHelper.buildTextFilter` in plain-app; the same table is pinned
+ * by tests on both sides and by `plain-rs`'s own parser tests.
+ */
+export const buildTextFilter = (text: string) => {
+  if (!text.trim()) {
+    return ''
+  }
+  const escaped = text.replace(/[\\'"\s]/g, (c) => '\\' + c)
+  return text.includes(FILTER_DELIMITER) ? `text${FILTER_DELIMITER}${escaped}` : escaped
+}
+
 export const buildQuery = (fileds: IFilterField[]) => {
   const items: string[] = []
   fileds.forEach((it) => {
@@ -116,10 +182,9 @@ export const buildQuery = (fileds: IFilterField[]) => {
 
     const value = it.value
     if (it.name === 'text') {
-      if (value.indexOf(' ') !== -1) {
-        items.push(`"${value}"`)
-      } else {
-        items.push(value)
+      const token = buildTextFilter(value)
+      if (token) {
+        items.push(token)
       }
     } else if (value.indexOf(' ') !== -1) {
       items.push(`${it.name}:${it.op}"${value}"`)

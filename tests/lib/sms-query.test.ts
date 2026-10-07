@@ -35,10 +35,14 @@ describe('SMS query building', () => {
     expect(query).toBe('hello')
   })
 
-  it('builds text search with spaces as quoted', () => {
+  it('builds text search with spaces as one escaped token', () => {
+    // Escaped rather than quoted: the phone's tokenizer resolves `\` before
+    // splitting, and its removeQuotation only strips a matching pair at both
+    // ends — so a quoted value containing an apostrophe lost the character.
     const fields: IFilterField[] = [{ name: 'text', op: '', value: 'hello world' }]
     const query = buildQuery(fields)
-    expect(query).toBe('"hello world"')
+    expect(query).toBe('hello\\ world')
+    expect(parseQuery(query)).toEqual([{ name: 'text', op: '', value: 'hello world' }])
   })
 })
 

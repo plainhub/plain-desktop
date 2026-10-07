@@ -92,6 +92,31 @@ pub(super) fn fields(db: &Db, query: &str) -> anyhow::Result<Vec<FilterField>> {
     }
     Ok(fields)
 }
+/// Names the web client puts in a query that this provider must not act on.
+///
+/// Every entry is here because a builder in `plain-desktop` can emit it for
+/// this provider, and the field has no match arm. `all` and `trash` are
+/// accepted everywhere: `all` is the only sanctioned way to ask for a whole
+/// table, and `trash` narrows only the media providers on purpose, since
+/// Contacts and Calls have no trash scope to filter by.
+fn intentionally_ignored(provider: Provider, field: &str) -> bool {
+    match (provider, field) {
+        (_, "all" | "trash") => true,
+        // Read before the loop, where it decides whether dotfiles are hidden.
+        // The docs view shares the files filter object, so it arrives there too.
+        (_, "show_hidden") => true,
+        // Sent when a mount or a favorite folder is picked in the files
+        // sidebar; the listing itself is scoped by `parent`, not by this.
+        (Provider::File | Provider::Doc, "root_path") => true,
+        // The apps and messages views are the only ones that set `type`, and
+        // neither branch clears it when the user navigates away — so a media
+        // search made after picking `type:USER` in Apps carries it over. A media
+        // provider's own kind is already the provider choice, so there is no
+        // column left for it to compare against.
+        (Provider::Audio | Provider::Video | Provider::Image, "type") => true,
+        _ => false,
+    }
+}
 fn comparison(field: &FilterField) -> (&str, &str) {
     let mut value = field.value.trim();
     let mut op = field.op.as_str();
@@ -115,7 +140,7 @@ fn plan(
     dates: &Value,
     resolved_parent_id: Option<&str>,
     query_is_empty: bool,
-) -> Plan {
+) -> anyhow::Result<Plan> {
     let mut plan = Plan::default();
     if matches!(provider, Provider::Contact) {
         plan.equal("mimetype", "vnd.android.cursor.item/name");
@@ -219,10 +244,21 @@ fn plan(
                     );
                 }
             }
-            _ => {}
+            // Reached only when no arm above matched, so these are fields this
+            // provider has no column for. Dropping them used to leave the
+            // clause list empty — which ContentWhere renders as `1=1`, turning
+            // a delete into a whole-table operation. Say which field instead.
+            _ => {
+                if !intentionally_ignored(provider, field.name.as_str()) {
+                    return Err(anyhow::anyhow!(
+                        "unsupported {provider:?} filter: {}",
+                        field.name
+                    ));
+                }
+            }
         }
     }
-    plan
+    Ok(plan)
 }
 fn escape_like(value: &str) -> String {
     value
@@ -270,7 +306,7 @@ async fn execute(state: &ServerState, request: Request) -> anyhow::Result<Value>
         &dates,
         request.resolved_parent_id.as_deref(),
         request.query.is_empty(),
-    ))?)
+    )?)?)
 }
 pub(super) async fn call(
     State(state): State<ServerState>,

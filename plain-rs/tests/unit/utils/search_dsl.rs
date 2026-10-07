@@ -109,3 +109,41 @@ fn parse_not_inverts_eq() {
         }]
     );
 }
+
+/// The tokens `SearchHelper.buildTextFilter` emits in plain-app, read back by
+/// this parser. A search box holds free text, and without escaping a term like
+/// `Meeting: notes` arrives here as the *field* `Meeting` — which the notes and
+/// media query layers refuse by name, so the search failed instead of matching.
+/// Both sides of the wire pin the same strings, so a change to either one
+/// turns exactly one of the two suites red.
+#[test]
+fn provider_plan_survives_every_token_this_emits() {
+    let cases = [
+        ("hello", "hello"),
+        (r"hello\ world", "hello world"),
+        (r"text:Meeting:\ notes", "Meeting: notes"),
+        ("text:http://x.com", "http://x.com"),
+        ("text:12:30", "12:30"),
+        (r"don\'t", "don't"),
+        (r"a\\b", r"a\b"),
+        ("=foo", "=foo"),
+        ("50%_", "50%_"),
+    ];
+    for (token, expected) in cases {
+        let f = parse(token);
+        assert_eq!(f.len(), 1, "{token:?} should be one field, got {f:?}");
+        assert_eq!(f[0].name, "text", "{token:?} lost its field name");
+        assert_eq!(f[0].value, expected, "{token:?} did not round-trip");
+    }
+}
+
+/// The escaper emits these next to real filters, so the text must survive
+/// being concatenated with them.
+#[test]
+fn provider_plan_reads_escaped_text_beside_other_filters() {
+    let f = parse(r"text:Meeting:\ notes trash:false ids:1,2");
+    let text = f.iter().find(|f| f.name == "text").map(|f| &f.value);
+    assert_eq!(text, Some(&"Meeting: notes".to_string()));
+    assert_eq!(f.iter().find(|f| f.name == "trash").map(|f| &f.value), Some(&"false".to_string()));
+    assert_eq!(f.iter().find(|f| f.name == "ids").map(|f| &f.value), Some(&"1,2".to_string()));
+}
