@@ -37,28 +37,29 @@ async fn execute(
     let authorization = headers
         .get("authorization")
         .and_then(|value| value.to_str().ok());
-    let facts = state
-        .host
-        .call("mainGraphqlAuthFacts", json!({"clientId":client_id}))
-        .await
-        .map_err(|_| StatusCode::BAD_GATEWAY)?;
-    if facts["desktopAccessEnabled"].as_bool() != Some(true) {
+    if !state.prefs.get_user_or("service", false)
+        || !state.prefs.get_user_or("desktop_access", true)
+    {
         return Err(StatusCode::NOT_FOUND);
     }
     if client_id.is_empty() {
         return Err(StatusCode::UNAUTHORIZED);
     }
 
+    let session = state
+        .db
+        .session_get(client_id)
+        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?
+        .ok_or(StatusCode::UNAUTHORIZED)?;
     let (token_mode, key) = if authorization.is_none() {
-        let token = facts["tokenKey"].as_str().unwrap_or_default();
-        let key = crate::utils::base64::base64_decode(token);
-        if key.len() != 32 {
-            return Err(StatusCode::UNAUTHORIZED);
-        }
+        let key = super::sessions::key(&state.db, client_id)
+            .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?
+            .ok_or(StatusCode::UNAUTHORIZED)?;
         (true, key)
     } else {
-        let token = facts["customSessionToken"].as_str().unwrap_or_default();
-        if !valid_custom_bearer(authorization.unwrap(), token) {
+        if session.r#type != "CUSTOM"
+            || !valid_custom_bearer(authorization.unwrap(), &session.token)
+        {
             return Err(StatusCode::UNAUTHORIZED);
         }
         (false, Vec::new())
@@ -84,6 +85,7 @@ async fn execute(
     // The body is the contract's own request envelope, so it parses straight
     // into async-graphql's request type. `client_id` has already done its
     // job by this point — auth, and the replay guard above.
+    super::sessions::touch(state, client_id).map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
     let result = run(&state.public, &request, Some(state.clone())).await?;
     let mut response = if token_mode {
         let encrypted = crate::crypto::xchacha_encrypt_raw(&key, &result)
@@ -181,35 +183,31 @@ pub(super) async fn init(
     if client_id.is_empty() {
         return StatusCode::BAD_REQUEST.into_response();
     }
-    let facts = match state
-        .host
-        .call("mainGraphqlInitFacts", json!({"clientId":client_id}))
-        .await
+    if !state.prefs.get_user_or("service", false)
+        || !state.prefs.get_user_or("desktop_access", true)
     {
-        Ok(facts) => facts,
-        Err(_) => return StatusCode::BAD_GATEWAY.into_response(),
-    };
-    if facts["desktopAccessEnabled"].as_bool() != Some(true) {
         return StatusCode::NOT_FOUND.into_response();
     }
-    let token = facts["tokenKey"].as_str().unwrap_or_default();
-    let key = crate::utils::base64::base64_decode(token);
-    let token_authenticated =
-        key.len() == 32 && crate::crypto::xchacha_decrypt_raw(&key, &body).is_some();
-    let response = match state
-        .host
-        .call(
-            "mainGraphqlInitResponse",
-            json!({
-                "clientId": client_id,
-                "remoteHost": remote.ip().to_string(),
-                "resetPassword": !token_authenticated,
-            }),
-        )
-        .await
-    {
-        Ok(response) => response,
-        Err(_) => return StatusCode::BAD_GATEWAY.into_response(),
+    let key = match super::sessions::key(&state.db, client_id) {
+        Ok(key) => key,
+        Err(_) => return StatusCode::INTERNAL_SERVER_ERROR.into_response(),
     };
-    Json(response).into_response()
+    let authenticated = key
+        .as_ref()
+        .is_some_and(|key| crate::crypto::xchacha_decrypt_raw(key, &body).is_some());
+    let password = if !authenticated && state.prefs.get_or("password_type", 2_i32) == 2 {
+        match super::ws_login::reset_password(&state) {
+            Ok(password) => password,
+            Err(_) => return StatusCode::INTERNAL_SERVER_ERROR.into_response(),
+        }
+    } else {
+        String::new()
+    };
+    let pair = match super::peer_wire::signing_keypair(&state.prefs) {
+        Ok(pair) => pair,
+        Err(_) => return StatusCode::INTERNAL_SERVER_ERROR.into_response(),
+    };
+    let _ = remote;
+    Json(json!({"signaturePublicKey":crate::base64_encode(&pair[32..]),"password":password}))
+        .into_response()
 }

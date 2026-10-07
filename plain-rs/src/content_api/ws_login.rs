@@ -3,7 +3,7 @@
 //! The session token is the key to `/upload`, `/zip`, the token-mode
 //! `/graphql` and the WS session frames, so it must have exactly one issuer.
 //! Rust owns it: the `sessions` row is the single source of truth, and the
-//! host keeps only a hot-path cache of the value Rust returned.
+//! host only performs UI confirmation, notifications and socket delivery.
 
 use super::server::ServerState;
 use crate::db::SessionRow;
@@ -15,7 +15,7 @@ use axum::{
 };
 use serde::Deserialize;
 use serde_json::{Value, json};
-use sha2::{Digest, Sha512};
+use sha2::{Digest, Sha256, Sha512};
 use std::{
     collections::HashMap,
     time::{Duration, Instant, SystemTime, UNIX_EPOCH},
@@ -25,10 +25,7 @@ const LOGIN_ATTEMPT_LIMIT: usize = 5;
 const LOGIN_ATTEMPT_WINDOW: Duration = Duration::from_secs(60);
 const MAX_TRACKED_CLIENTS: usize = 256;
 
-/// Truncate a SHA-512 hex hash to the 32-byte ChaCha20 key — mirrors
-/// plain-app's `HttpServerManager.hashToToken`. Test-only: it pins the wire
-/// contract the Kotlin host implements, the host derives the real key itself.
-#[cfg(test)]
+/// The key uses the first 32 ASCII bytes of the full SHA-512 hex digest.
 fn hash_to_token(hash: &str) -> Vec<u8> {
     hash.as_bytes().iter().copied().take(32).collect()
 }
@@ -54,6 +51,7 @@ fn now_ms() -> u64 {
 #[derive(Default)]
 pub(super) struct LoginAttempts {
     entries: HashMap<String, Vec<Instant>>,
+    pending: HashMap<String, Pending>,
 }
 
 impl LoginAttempts {
@@ -77,22 +75,52 @@ impl LoginAttempts {
     }
 }
 
-#[derive(Clone, Copy, Deserialize, PartialEq, Eq)]
-#[serde(rename_all = "camelCase")]
-enum Action {
-    Issue,
-    /// Second leg: the user confirmed the 2FA prompt.
-    Complete,
+#[derive(Clone)]
+struct Pending {
+    client_id: String,
+    client_ip: String,
+    request: Value,
+    at: Instant,
+}
+
+impl LoginAttempts {
+    pub(super) fn cancel_client(&mut self, client_id: &str) {
+        self.pending.retain(|_, value| value.client_id != client_id);
+    }
 }
 
 #[derive(Deserialize)]
-#[serde(rename_all = "camelCase", deny_unknown_fields)]
-pub(super) struct Request {
-    action: Action,
-    client_id: String,
-    #[serde(default)]
-    client_ip: String,
-    request: Value,
+#[serde(tag = "action", rename_all = "camelCase", deny_unknown_fields)]
+pub(super) enum Request {
+    Issue {
+        #[serde(rename = "clientId")]
+        client_id: String,
+        #[serde(rename = "clientIp")]
+        client_ip: String,
+        frame: String,
+    },
+    Complete {
+        #[serde(rename = "requestId")]
+        request_id: String,
+    },
+    Cancel {
+        #[serde(rename = "requestId")]
+        request_id: String,
+    },
+    ResetPassword,
+}
+
+pub(super) fn reset_password(state: &ServerState) -> anyhow::Result<String> {
+    use rand::Rng;
+    let alphabet = b"23456789abcdefghijkmnpqrstuvwxyzABCDEFGHJKMNPQRSTUVWXYZ";
+    let password: String = (0..6)
+        .map(|_| alphabet[rand::thread_rng().gen_range(0..alphabet.len())] as char)
+        .collect();
+    state.prefs.set("password", &password)?;
+    let _ = state
+        .events
+        .send(crate::ws_event::WsEvent::broadcast(47, "{}".to_owned()));
+    Ok(password)
 }
 
 fn text(value: &Value, field: &str) -> String {
@@ -134,11 +162,14 @@ fn sign(prefs: &crate::prefs::Prefs, text: &str) -> anyhow::Result<String> {
     let keypair = super::peer_wire::signing_keypair(prefs)?;
     let signature = crate::crypto::ed25519_sign(&keypair, text.as_bytes());
     // An empty signature is a refusal, never a valid-looking answer.
-    anyhow::ensure!(!signature.is_empty(), "ed25519 signing produced no signature");
+    anyhow::ensure!(
+        !signature.is_empty(),
+        "ed25519 signing produced no signature"
+    );
     Ok(signature)
 }
 
-async fn issue(state: &ServerState, request: &Request) -> anyhow::Result<Value> {
+async fn issue(state: &ServerState, request: &Pending) -> anyhow::Result<Value> {
     let device_client_id = state
         .prefs
         .get::<String>("client_id")?
@@ -146,12 +177,6 @@ async fn issue(state: &ServerState, request: &Request) -> anyhow::Result<Value> 
     let offered = text(&request.request, "password");
     anyhow::ensure!(offered == password_digest(&state.prefs), "invalid_password");
     let chat_paired = peer_chat_paired(&request.request);
-    let two_factor = state.prefs.get_user_or("auth_two_factor", true);
-    if request.action == Action::Issue && (chat_paired || two_factor) {
-        // The host renders the confirmation prompt and re-enters with
-        // `complete`; no token exists yet.
-        return Ok(json!({"status": "PENDING"}));
-    }
     let keypair = crate::crypto::EcdhSession::generate();
     let peer_public = crate::utils::base64::base64_decode(&text(&request.request, "ecdhPublicKey"));
     let ecdh_public_key = crate::utils::base64::base64_encode(&keypair.public_key_bytes);
@@ -179,12 +204,33 @@ async fn issue(state: &ServerState, request: &Request) -> anyhow::Result<Value> 
         "chatPaired": chat_paired,
     });
     persist(state, request, &token)?;
+    if chat_paired {
+        let peer = &request.request["peer"];
+        let mut material = b"plain-chat-pairing-v1".to_vec();
+        material.extend(&shared);
+        let mut ips = vec![request.client_ip.clone()];
+        if let Some(extra) = peer["ips"].as_array() {
+            ips.extend(extra.iter().filter_map(Value::as_str).map(str::to_owned));
+        }
+        crate::chat::pairing::peer_store::save(
+            &state.db,
+            crate::chat::pairing::peer_store::Facts {
+                id: request.client_id.clone(),
+                name: text(peer, "deviceName"),
+                ips,
+                port: peer["port"].as_u64().unwrap() as u16,
+                device_type: serde_json::from_value(peer["deviceType"].clone())?,
+                key: crate::base64_encode(&Sha256::digest(&material)),
+                public_key: text(peer, "signaturePublicKey"),
+            },
+        )?;
+    }
     Ok(json!({"status": "COMPLETED", "token": token, "response": response}))
 }
 
 /// The browser's client id is the row key; the device's own client id and the
 /// custom session name/type are preserved from any existing row.
-fn persist(state: &ServerState, request: &Request, token: &str) -> anyhow::Result<()> {
+fn persist(state: &ServerState, request: &Pending, token: &str) -> anyhow::Result<()> {
     let existing = state
         .db
         .session_get(&request.client_id)
@@ -199,7 +245,7 @@ fn persist(state: &ServerState, request: &Request, token: &str) -> anyhow::Resul
         r#type: existing
             .as_ref()
             .map(|row| row.r#type.clone())
-            .unwrap_or_default(),
+            .unwrap_or_else(|| "WEB".into()),
         client_ip: request.client_ip.clone(),
         os_name: text(&request.request, "osName"),
         os_version: text(&request.request, "osVersion"),
@@ -223,6 +269,125 @@ fn persist(state: &ServerState, request: &Request, token: &str) -> anyhow::Resul
     Ok(())
 }
 
+pub(super) async fn execute(state: &ServerState, request: Request) -> anyhow::Result<Value> {
+    if matches!(&request, Request::Issue { .. } | Request::Complete { .. }) {
+        anyhow::ensure!(
+            state.prefs.get_user_or("service", false)
+                && state.prefs.get_user_or("desktop_access", true),
+            "desktop_access_disabled"
+        );
+    }
+    let (pending, request_id) = match request {
+        Request::ResetPassword => return Ok(json!({"password":reset_password(state)?})),
+        Request::Cancel { request_id } => {
+            state
+                .login_attempts
+                .lock()
+                .map_err(|_| anyhow::anyhow!("Login state unavailable"))?
+                .pending
+                .remove(&request_id);
+            return Ok(json!({"cancelled":true}));
+        }
+        Request::Complete { request_id } => {
+            let pending = state
+                .login_attempts
+                .lock()
+                .map_err(|_| anyhow::anyhow!("Login state unavailable"))?
+                .pending
+                .remove(&request_id)
+                .ok_or_else(|| anyhow::anyhow!("Login confirmation is no longer pending"))?;
+            anyhow::ensure!(
+                pending.at.elapsed() < Duration::from_secs(300),
+                "Login confirmation expired"
+            );
+            (pending, request_id)
+        }
+        Request::Issue {
+            client_id,
+            client_ip,
+            frame,
+        } => {
+            anyhow::ensure!(!client_id.is_empty(), "Client id is required");
+            let allowed = state
+                .login_attempts
+                .lock()
+                .map_err(|_| anyhow::anyhow!("Login state unavailable"))?
+                .acquire(&if client_ip.is_empty() {
+                    format!("cid:{client_id}")
+                } else {
+                    client_ip.clone()
+                });
+            anyhow::ensure!(allowed, "too_many_login_attempts");
+            let key = hash_to_token(&password_digest(&state.prefs));
+            let bytes = crate::crypto::xchacha_decrypt_raw(&key, &crate::base64_decode(&frame))
+                .ok_or_else(|| anyhow::anyhow!("invalid_password"))?;
+            let request: Value = serde_json::from_slice(&bytes)?;
+            for field in ["browserName", "browserVersion", "osName", "osVersion"] {
+                anyhow::ensure!(
+                    request[field].is_string(),
+                    "Invalid login metadata: {field}"
+                );
+            }
+            anyhow::ensure!(
+                request["isMobile"].is_boolean(),
+                "Invalid login metadata: isMobile"
+            );
+            if let Some(peer) = request.get("peer").filter(|peer| !peer.is_null()) {
+                anyhow::ensure!(
+                    peer["deviceName"].is_string()
+                        && peer["signaturePublicKey"].is_string()
+                        && peer["port"]
+                            .as_i64()
+                            .is_some_and(|port| i32::try_from(port).is_ok()),
+                    "Invalid peer metadata"
+                );
+                let _: crate::chat::enums::DeviceType =
+                    serde_json::from_value(peer["deviceType"].clone())?;
+                let _: Vec<String> = serde_json::from_value(peer["ips"].clone())?;
+            }
+
+            anyhow::ensure!(
+                text(&request, "password") == password_digest(&state.prefs),
+                "invalid_password"
+            );
+            let pending = Pending {
+                client_id,
+                client_ip,
+                request,
+                at: Instant::now(),
+            };
+            let id = uuid::Uuid::new_v4().to_string();
+            if peer_chat_paired(&pending.request) || state.prefs.get_or("auth_two_factor", true) {
+                let response = json!({"clientId":state.prefs.get_or("client_id",String::new()), "status":"PENDING"});
+                let encrypted =
+                    crate::crypto::xchacha_encrypt_raw(&key, &serde_json::to_vec(&response)?)
+                        .ok_or_else(|| anyhow::anyhow!("Response encryption failed"))?;
+                let mut attempts = state
+                    .login_attempts
+                    .lock()
+                    .map_err(|_| anyhow::anyhow!("Login state unavailable"))?;
+                attempts
+                    .pending
+                    .retain(|_, item| item.at.elapsed() < Duration::from_secs(300));
+                attempts.cancel_client(&pending.client_id);
+                attempts.pending.insert(id.clone(), pending.clone());
+                return Ok(
+                    json!({"status":"PENDING","requestId":id,"request":pending.request,"frame":crate::base64_encode(&encrypted)}),
+                );
+            }
+            (pending, id)
+        }
+    };
+    let mut result = issue(state, &pending).await?;
+    let key = hash_to_token(&password_digest(&state.prefs));
+    let bytes = crate::crypto::xchacha_encrypt_raw(&key, &serde_json::to_vec(&result["response"])?)
+        .ok_or_else(|| anyhow::anyhow!("Response encryption failed"))?;
+    result["frame"] = json!(crate::base64_encode(&bytes));
+    result["requestId"] = json!(request_id);
+    result["request"] = pending.request;
+    Ok(result)
+}
+
 pub(super) async fn call(
     State(state): State<ServerState>,
     headers: HeaderMap,
@@ -231,23 +396,7 @@ pub(super) async fn call(
     if !state.authenticated(&headers) {
         return StatusCode::UNAUTHORIZED.into_response();
     }
-    let allowed = match state.login_attempts.lock() {
-        Ok(mut attempts) => {
-            let key = if request.client_ip.is_empty() {
-                format!("cid:{}", request.client_id)
-            } else {
-                request.client_ip.clone()
-            };
-            attempts.acquire(&key)
-        }
-        Err(_) => return StatusCode::INTERNAL_SERVER_ERROR.into_response(),
-    };
-    let outcome = if allowed {
-        issue(&state, &request).await
-    } else {
-        Err(anyhow::anyhow!("too_many_login_attempts"))
-    };
-    match outcome {
+    match execute(&state, request).await {
         Ok(value) => Json(value).into_response(),
         Err(error) => (
             StatusCode::BAD_REQUEST,

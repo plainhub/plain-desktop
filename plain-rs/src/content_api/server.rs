@@ -238,6 +238,7 @@ impl ContentServer {
             .route("/system/sms-send", post(super::sms_send::call))
             .route("/system/contact-write", post(super::contact_write::call))
             .route("/system/ws-login", post(super::ws_login::call))
+            .route("/system/sessions", post(super::sessions::call))
             .route("/system/providers", post(super::system_providers::call))
             .route("/system/media-buckets", post(super::media_buckets::call))
             .route("/system/permissions", post(super::system_permissions::call))

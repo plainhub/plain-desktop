@@ -32,6 +32,7 @@ mod channel_delivery;
 mod channel_outgoing;
 mod channel_runtime;
 mod chat_store_routes;
+mod contact_write;
 mod discovery_advertisement;
 mod guest_graphql;
 mod mdns_runtime;
@@ -41,50 +42,47 @@ pub(crate) mod pairing_timeout;
 mod peer_wire;
 mod provider_deletes;
 mod provider_plan;
-mod request_replay;
-mod sms_query;
-mod contact_write;
-mod public_proxy;
-mod public_static;
 #[allow(dead_code)]
 mod public_dlna;
+mod public_proxy;
+mod public_static;
+mod request_replay;
+mod sms_query;
 // The public `/graphql` schema is assembled domain by domain. It only starts
 // serving once every contract root exists; until then `main_graphql` still
 // hands the document to Kotlin and nothing under `public_schema` is
 // reachable — drop these allows in the same commit that flips that over.
 #[allow(dead_code)]
-mod public_db;
-#[allow(dead_code)]
 mod public_audio;
 #[allow(dead_code)]
 mod public_calls;
+#[allow(dead_code)]
+mod public_chat;
 #[allow(dead_code)]
 mod public_clipboard;
 #[allow(dead_code)]
 mod public_contact_types;
 #[allow(dead_code)]
-mod public_chat;
-#[allow(dead_code)]
 mod public_contacts;
+#[allow(dead_code)]
+mod public_db;
+#[allow(dead_code)]
+mod public_device;
 #[allow(dead_code)]
 mod public_facts;
 #[allow(dead_code)]
-mod public_device;
+mod public_feeds;
 #[allow(dead_code)]
 mod public_file_ops;
 #[allow(dead_code)]
 mod public_files;
 #[allow(dead_code)]
-mod public_image_index;
-#[allow(dead_code)]
 mod public_gate;
+#[allow(dead_code)]
+mod public_image_index;
 #[allow(dead_code)]
 #[allow(dead_code)]
 mod public_media;
-#[allow(dead_code)]
-mod public_tags;
-#[allow(dead_code)]
-mod public_feeds;
 #[allow(dead_code)]
 mod public_notes;
 #[allow(dead_code)]
@@ -92,22 +90,25 @@ mod public_notifications;
 #[allow(dead_code)]
 mod public_packages;
 #[allow(dead_code)]
-mod public_schema;
-#[allow(dead_code)]
 mod public_peers;
 #[allow(dead_code)]
 mod public_prefs;
 #[allow(dead_code)]
+mod public_schema;
+#[allow(dead_code)]
 mod public_screen_mirror;
 #[allow(dead_code)]
 mod public_sms;
+#[allow(dead_code)]
+mod public_tags;
 mod public_upload;
 mod public_zip;
-mod ws_login;
+mod sessions;
 mod sms_send;
 mod sms_state;
 mod system_permissions;
 mod system_providers;
+mod ws_login;
 
 mod chat_delivery;
 mod chat_service;
