@@ -2,7 +2,7 @@
 //!
 //! Storage model
 //! =============
-//! Each physical trash lives at `${MOUNT}/.nas-trash/` (one per disk).
+//! Each physical trash lives at `${MOUNT}/.plain-trash/` (one per disk).
 //! Buckets under that root: `data/YYYY/MM/f_<id>` or `d_<id>`.
 //! Metadata lives in the global KV store under the `trash:*` key namespace:
 //!   - `trash:item:<id>`                → JSON-encoded `TrashItem`
@@ -16,7 +16,7 @@
 //! - Delete is always a single `rename(2)` (O(1)) — no recursion, no copy.
 //! - Trash metadata is the **single source of truth** for restore / GC.
 //! - All rename+metadata operations on a given disk are serialized by an
-//!   `flock` on `${MOUNT}/.nas-trash/.lock`.
+//!   `flock` on `${MOUNT}/.plain-trash/.lock`.
 
 use crate::utils::shortid;
 use anyhow::{Context, Result, anyhow, bail};
@@ -163,7 +163,7 @@ fn lock_for_disk(disk: &str) -> Arc<tokio::sync::Mutex<()>> {
 // ----- Trash layout helpers -----
 
 fn trash_root(disk_mount: &str) -> PathBuf {
-    PathBuf::from(disk_mount).join(".nas-trash")
+    PathBuf::from(disk_mount).join(".plain-trash")
 }
 fn abs_trash_path(disk: &str, rel: &str) -> PathBuf {
     trash_root(disk).join(rel)
@@ -196,16 +196,16 @@ fn sanitize_bucket_name(s: &str) -> String {
         .collect()
 }
 
-fn is_in_nas_trash<P: AsRef<Path>>(p: P) -> bool {
+fn is_in_plain_trash<P: AsRef<Path>>(p: P) -> bool {
     p.as_ref()
         .components()
-        .any(|c| c.as_os_str() == ".nas-trash")
+        .any(|c| c.as_os_str() == ".plain-trash")
 }
 
-/// True when the path points inside any disk-local `.nas-trash` directory
+/// True when the path points inside any disk-local `.plain-trash` directory
 /// (used by the media items delete action to route through trash metadata).
 pub fn is_trashed_path(p: &str) -> bool {
-    is_in_nas_trash(PathBuf::from(p).clean_path())
+    is_in_plain_trash(PathBuf::from(p).clean_path())
 }
 
 fn validate_trashable_path(p: &Path) -> Result<()> {
@@ -216,8 +216,8 @@ fn validate_trashable_path(p: &Path) -> Result<()> {
     if cleaned == PathBuf::from("/") {
         bail!("refuse to trash root");
     }
-    if is_in_nas_trash(&cleaned) {
-        bail!("refuse to trash items inside .nas-trash");
+    if is_in_plain_trash(&cleaned) {
+        bail!("refuse to trash items inside .plain-trash");
     }
     Ok(())
 }
@@ -247,7 +247,7 @@ fn unique_restored_path(target: &Path) -> PathBuf {
 
 // ----- High-level operations -----
 
-/// Move each path into its disk-local `.nas-trash` (single rename).
+/// Move each path into its disk-local `.plain-trash` (single rename).
 /// Returns the new trashed physical paths.
 pub async fn trash_paths(paths: Vec<String>) -> Result<Vec<String>> {
     let mut out = Vec::with_capacity(paths.len());
@@ -323,7 +323,7 @@ pub async fn trash_paths(paths: Vec<String>) -> Result<Vec<String>> {
 
 fn validate_restore_path(p: &Path) -> Result<String> {
     let cleaned = p.clean_path();
-    if is_in_nas_trash(&cleaned) {
+    if is_in_plain_trash(&cleaned) {
         let id = parse_trash_id_from_path(&cleaned).ok_or_else(|| anyhow!("invalid trash path"))?;
         Ok(id)
     } else {
@@ -405,7 +405,7 @@ pub async fn restore_paths(trashed_paths: Vec<String>) -> Result<Vec<String>> {
 /// path or a raw id.
 pub async fn delete_trash_by_path(trashed_path: &str) -> Result<()> {
     let p = PathBuf::from(trashed_path).clean_path();
-    if !is_in_nas_trash(&p) {
+    if !is_in_plain_trash(&p) {
         bail!("not a trash path");
     }
     let id = parse_trash_id_from_path(&p).ok_or_else(|| anyhow!("invalid trash path"))?;

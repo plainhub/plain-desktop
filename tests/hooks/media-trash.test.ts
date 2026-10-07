@@ -67,8 +67,8 @@ describe('useFileTrashState isTrashed', () => {
     expect(isTrashed.value).toBe(true)
   })
 
-  it('detects NAS trash tree (/.nas-trash/)', () => {
-    const { isTrashed } = useFileTrashState(() => source({ path: '/data/.nas-trash/2026/09/f_abc123_pic.png' }))
+  it('detects NAS trash tree (/.plain-trash/)', () => {
+    const { isTrashed } = useFileTrashState(() => source({ path: '/data/.plain-trash/2026/09/f_abc123_pic.png' }))
     expect(isTrashed.value).toBe(true)
   })
 

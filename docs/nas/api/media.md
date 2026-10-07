@@ -145,7 +145,7 @@ mutation { setMediaSourceDirs(dirs: ["/mnt/data/photos", "/mnt/data/music"]) }
 
 ### `trashMediaItems(type: MediaDataType!, query: String!): ActionResult!`
 
-把 query 选中的媒体移入所在盘的 `.nas-trash`；返回实际处理条数。
+把 query 选中的媒体移入所在盘的 `.plain-trash`；返回实际处理条数。
 
 > **空 query 守卫（API_SPEC §5）**：`trashMediaItems` / `restoreMediaItems` /
 > `deleteMediaItems` / `moveMediaItems` 四个按 `query` 编址的批量操作，

@@ -2,7 +2,7 @@
 
 ## 模型
 
-每个文件或目录移入回收站时会存到对应 disk 的 `.nas-trash/<bucket>/<file>` 下，元数据写 KV store：
+每个文件或目录移入回收站时会存到对应 disk 的 `.plain-trash/<bucket>/<file>` 下，元数据写 KV store：
 
 ```graphql
 enum TrashedFileType { FILE DIR }
@@ -57,7 +57,7 @@ curl -s -X POST -H "Authorization: Bearer dev" \
 
 ### `trashFiles(paths: [String!]!): ActionResult!`
 
-把若干 path 移到 `.nas-trash`。文件 / 目录都可以。**同时从 media index 删**。
+把若干 path 移到 `.plain-trash`。文件 / 目录都可以。**同时从 media index 删**。
 批量破坏类操作返回 `ActionResult{affectedCount}`（API_SPEC §6）——实际移入
 trash 的条目数。
 
@@ -71,7 +71,7 @@ mutation { trashFiles(paths: ["/tmp/a.txt", "/tmp/dir"]) { affectedCount } }
 `affectedCount` = 实际恢复的条目数。
 
 ```graphql
-mutation { restoreFiles(paths: ["/mnt/data/.nas-trash/data/2026/06/f_abc", "trash-id-xyz"]) { affectedCount } }
+mutation { restoreFiles(paths: ["/mnt/data/.plain-trash/data/2026/06/f_abc", "trash-id-xyz"]) { affectedCount } }
 ```
 
 ### `deleteTrashedFile(path: String!): Boolean!`
@@ -91,5 +91,5 @@ mutation { deleteTrashedFile(path: "trash-id-xyz") }
 
 ## 注意
 
-- trash bucket layout：`.nas-trash/data/YYYY/MM/f_<hash>_<name>` — 同一月内同 hash 冲突会自动加序号。
+- trash bucket layout：`.plain-trash/data/YYYY/MM/f_<hash>_<name>` — 同一月内同 hash 冲突会自动加序号。
 - restore 失败时原 trash 条目仍保留（不会丢失文件）。

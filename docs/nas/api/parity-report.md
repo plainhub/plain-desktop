@@ -52,10 +52,10 @@
 ## 已知问题 / 待办
 
 1. **`deviceInfo` 在 Mac 上全 0**（os/cpuCores/memoryTotalBytes…）：`device_info.rs` 读 `/proc`，Linux-only。smartbox（Linux）正常。如需 Mac 开发体验，可加 sysctl 分支。
-2. **媒体 trash/restore 的真实文件流无法在 Mac 非 root 验证**：`.nas-trash` 建在挂载点根（`/`），非 root EPERM；与 Go 相同按条目吞错，GraphQL 仍返回成功。待 smartbox 上人工点一遍（含 `trashFiles` 根目录写权限）。
+2. **媒体 trash/restore 的真实文件流无法在 Mac 非 root 验证**：`.plain-trash` 建在挂载点根（`/`），非 root EPERM；与 Go 相同按条目吞错，GraphQL 仍返回成功。待 smartbox 上人工点一遍（含 `trashFiles` 根目录写权限）。
 3. **删除/恢复后 tag 关系清理**：trash 时按 uuid+path 双键清理（Go 只按 uuid）；restore 不自动恢复 tag 关系（Go 同）。注意 Rust 的 tag key 历史上混用 path/uuid（`file_info` 用 path 查），plain-app 端用文件 id——键口径统一是后续清理项。
 4. **NAME 排序上限 10 万条**：媒体库超 10 万时 NAME_*/仅返回前 10 万内的排序窗口（DATE/SIZE 排序无限制）。
-5. **`excluded_dir` 是查询时过滤**（Go 同款）：设置变更即时生效，但 `.nas-trash` 内 trash 行仍可被 `trash:true` 搜到，属预期。
+5. **`excluded_dir` 是查询时过滤**（Go 同款）：设置变更即时生效，但 `.plain-trash` 内 trash 行仍可被 `trash:true` 搜到，属预期。
 6. **`playAudio` 未在 gql.sh 覆盖**，Rust 已实现（playlist 模块）；建议补一条测试。
 7. **`setDeviceName`/`trashFiles`** 需 root（systemd 部署下可用），gql.sh 已按环境 SKIP。
 

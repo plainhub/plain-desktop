@@ -500,7 +500,7 @@ pub struct TrashedFile {
     pub size_bytes: Option<Long>,
     pub entry_count: Option<i32>,
     pub display_name: String, // base name of original_path
-    pub trashed_path: String, // physical path under .nas-trash
+    pub trashed_path: String, // physical path under .plain-trash
 }
 
 /// Kind of a trashed entry (stored kind string `"file"` | `"dir"`).

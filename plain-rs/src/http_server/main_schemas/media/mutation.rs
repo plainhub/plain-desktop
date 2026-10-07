@@ -64,7 +64,7 @@ impl MediaMutationRoot {
         })
     }
 
-    /// Move each path to its disk-local `.nas-trash`. Batch destructive
+    /// Move each path to its disk-local `.plain-trash`. Batch destructive
     /// op → `ActionResult` per API_SPEC §6 (`affectedCount` = how many
     /// paths were actually trashed).
     async fn trash_files(
@@ -307,7 +307,7 @@ impl MediaMutationRoot {
         Ok(true)
     }
 
-    /// Move the media items matching `query` into their disks' `.nas-trash`; `affectedCount` = items trashed. Blank query is rejected (`bulk_query_required`, §5).
+    /// Move the media items matching `query` into their disks' `.plain-trash`; `affectedCount` = items trashed. Blank query is rejected (`bulk_query_required`, §5).
     async fn trash_media_items(
         &self,
         ctx: &Context<'_>,

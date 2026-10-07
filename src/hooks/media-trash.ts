@@ -70,8 +70,8 @@ export function useFileTrashState(current: (() => ISource | undefined) | Ref<ISo
     const currentValue = typeof current === 'function' ? current() : current.value
     const path = currentValue?.path ?? ''
     // Phones trash via MediaStore (files renamed with a `.trashed-` prefix);
-    // a NAS moves files into its `.nas-trash` tree. Either marker means trash.
-    return path.includes('.trashed-') || path.includes('/.nas-trash/')
+    // a NAS moves files into its `.plain-trash` tree. Either marker means trash.
+    return path.includes('.trashed-') || path.includes('/.plain-trash/')
   })
 
   const canTrash = computed(() => {

@@ -180,11 +180,11 @@ gql_call "copyFile"    'mutation { copyFile(src: "/tmp/test-api/note2.txt", dst:
 gql_call "moveFile"    'mutation { moveFile(src: "/tmp/test-api/note3.txt", dst: "/tmp/test-api/note4.txt", overwrite: true) }'
 
 section "Mutations: Trash"
-# trashFiles needs write access to ${MOUNT}/.nas-trash/ — fails as non-root
+# trashFiles needs write access to ${MOUNT}/.plain-trash/ — fails as non-root
 # when the mount root is /. We still exercise the call but don't count it.
 section "Mutations: Trash (trashFiles skipped if non-root)"
 if [ "$(id -u)" -ne 0 ]; then
-  printf '%s %s\n' "$(gray '[SKIP]')" "trashFiles (requires root for /.nas-trash/)"
+  printf '%s %s\n' "$(gray '[SKIP]')" "trashFiles (requires root for /.plain-trash/)"
 else
   gql_call "trashFiles"   'mutation { trashFiles(paths: ["/tmp/test-api"]) { affectedCount } }'
 fi

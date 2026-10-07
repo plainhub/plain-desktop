@@ -195,7 +195,7 @@ paths via `media_scan::is_media_excluded` — system/program files must not
 swamp the images/videos/audios views:
 
 - **System roots** (never descended from `/`): `/proc /sys /dev /run /tmp /snap /usr /etc /var /boot /opt /srv /lib /lib32 /lib64 /bin /sbin`.
-- **Hidden entries**: any path component starting with `.` (`.git`, `.cache`, the app's own `.nas-trash`, …) — same rule the watcher already applied to events.
+- **Hidden entries**: any path component starting with `.` (`.git`, `.cache`, the app's own `.plain-trash`, …) — same rule the watcher already applied to events.
 - **Application dependency tree**: `node_modules`.
 - **Application profile cache**: `User Data/Cache`, `User Data/Caches`, `User Data/GPUCache`, `User Data/Code Cache`, `User Data/CacheStorage` (case-insensitive). A user folder named only `Cache` remains eligible.
 - **The app's own `DATA_DIR` and cache dir** (kills the thumbnail-cache feedback loop).
@@ -270,7 +270,7 @@ Supported filters:
 - Progress event: `consts::EVENT_MEDIA_SCAN_PROGRESS` via `eventbus`.
 - Source-dir whitelist: `db::media_source::get()`; when set, only paths under these prefixes are indexed.
 - Explicitly skipped:
-  - `.nas-trash` (unified trash directory)
+  - `.plain-trash` (unified trash directory)
   - system dirs like `/proc`, `/sys`, `/dev`, etc.
   - hidden directories/files (`.` prefix)
 
@@ -290,7 +290,7 @@ GraphQL batch actions: `trashMediaItems`, `restoreMediaItems`, `deleteMediaItems
 
 Implementation:
 
-- Trash: moves file into `.nas-trash`, updates `path`, `is_trash=true`, `deleted_at`
+- Trash: moves file into `.plain-trash`, updates `path`, `is_trash=true`, `deleted_at`
 - Restore: moves file back to `original_path`
 - Delete permanently: deletes the file, then calls `delete_by_uuid()` to remove metadata and secondary keys
 

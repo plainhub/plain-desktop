@@ -1000,7 +1000,7 @@ type MutationRoot {
 	"""
 	deleteFiles(paths: [String!]!): ActionResult!
 	"""
-	Move each path to its disk-local `.nas-trash`. Batch destructive
+	Move each path to its disk-local `.plain-trash`. Batch destructive
 	op → `ActionResult` per API_SPEC §6 (`affectedCount` = how many
 	paths were actually trashed).
 	"""
@@ -1080,7 +1080,7 @@ type MutationRoot {
 	"""
 	setMediaSourceDirs(dirs: [String!]!): Boolean!
 	"""
-	Move the media items matching `query` into their disks' `.nas-trash`; `affectedCount` = items trashed. Blank query is rejected (`bulk_query_required`, §5).
+	Move the media items matching `query` into their disks' `.plain-trash`; `affectedCount` = items trashed. Blank query is rejected (`bulk_query_required`, §5).
 	"""
 	trashMediaItems(type: MediaDataType!, query: String!): ActionResult!
 	"""

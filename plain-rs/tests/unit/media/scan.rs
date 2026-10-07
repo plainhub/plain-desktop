@@ -37,10 +37,10 @@ fn media_exclusions() {
     assert!(!excl("/DATA/Gallery/photo.jpg"));
     assert!(!excl("/home/u/Photos/a.jpg"));
     assert!(!excl("/mnt/usb1/dcam/b.jpg"));
-    // Hidden entries anywhere (also covers the app's `.nas-trash`).
+    // Hidden entries anywhere (also covers the app's `.plain-trash`).
     assert!(excl("/DATA/.thumbs/a.jpg"));
     assert!(excl("/home/u/proj/.git/HEAD"));
-    assert!(excl("/disk/.nas-trash/old.png"));
+    assert!(excl("/disk/.plain-trash/old.png"));
     assert!(excl("/home/u/web/node_modules/lib.js"));
     assert!(!excl("/home/u/app/target/debug/x"));
     assert!(!excl("/srv/site/dist/icon.svg"));

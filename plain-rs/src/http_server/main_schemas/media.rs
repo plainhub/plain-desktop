@@ -211,7 +211,7 @@ fn scan_state_to_gql(state: scan::ScanState) -> ScanState {
 
 /// Convert a `crate::media::trash::TrashItem` into the GraphQL `File`
 /// type:
-///   * `path` = `<disk>/.nas-trash/<trash_rel_path>` (the physical trashed path)
+///   * `path` = `<disk>/.plain-trash/<trash_rel_path>` (the physical trashed path)
 ///   * `is_dir` = (kind == "dir")
 ///   * `created_at` = `updated_at` = `deleted_at` (unix seconds → RFC3339)
 ///   * `size` = it.size.unwrap_or(0)
@@ -219,7 +219,7 @@ fn scan_state_to_gql(state: scan::ScanState) -> ScanState {
 fn trash_item_to_file(it: trash::TrashItem) -> File {
     let is_dir = it.kind == "dir";
     let trashed_path = format!(
-        "{}/.nas-trash/{}",
+        "{}/.plain-trash/{}",
         it.disk.trim_end_matches('/'),
         it.trash_rel_path
     );

@@ -8,7 +8,7 @@ static SEQ: AtomicUsize = AtomicUsize::new(0);
 fn fresh_db() {
     // Set up an isolated database path for tests.
     let id = SEQ.fetch_add(1, Ordering::SeqCst);
-    let path = env::temp_dir().join(format!("plain-nas-trash-test-{id}"));
+    let path = env::temp_dir().join(format!("plain-trash-test-{id}"));
     let _ = std::fs::remove_dir_all(&path);
     std::fs::create_dir_all(&path).unwrap();
     // `set_var` is unsafe in edition 2024 (it can race with other

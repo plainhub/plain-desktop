@@ -125,7 +125,7 @@ pub fn set_extra_excluded_roots(roots: Vec<String>) {
 }
 
 /// `true` if `path` must not enter the media library index. Hidden entries
-/// (`.git`, `.cache`, the app's own `.nas-trash`, …) are excluded everywhere,
+/// (`.git`, `.cache`, the app's own `.plain-trash`, …) are excluded everywhere,
 /// matching the phone MediaScanner semantics the watcher already follows.
 pub fn is_media_excluded(path: &str) -> bool {
     let paths = crate::media::paths::detect();
@@ -684,7 +684,7 @@ fn apply_bucket_deltas(db: &crate::media::kv::Db, deltas: &HashMap<(String, Stri
 }
 
 /// Bucket grouping applies to normal library rows only — trashed rows live
-/// under `.nas-trash` and must not show up as (or inflate) buckets.
+/// under `.plain-trash` and must not show up as (or inflate) buckets.
 fn bucket_of_row(m: &MediaFile) -> Option<(String, String)> {
     if m.is_trash || !crate::media::image_index::bucketed_type(&m.r#type) {
         None

@@ -6,7 +6,7 @@ PlainNAS has a single unified trash for both Files and Media.
 
 ## Unified Trash
 
-- Location: per-disk `${MOUNT}/.nas-trash` (one trash directory per filesystem / physical disk)
+- Location: per-disk `${MOUNT}/.plain-trash` (one trash directory per filesystem / physical disk)
 - Used by: Files view and Media (Images/Videos/Audios)
 - Implementation (core rules):
 	- Delete is always a single `rename(2)` (O(1))
@@ -17,7 +17,7 @@ PlainNAS has a single unified trash for both Files and Media.
 - Directory layout (per disk):
 
 ```
-${MOUNT}/.nas-trash/
+${MOUNT}/.plain-trash/
 	data/YYYY/MM/f_<id>
 	data/YYYY/MM/d_<id>
 	.lock
@@ -33,5 +33,5 @@ ${MOUNT}/.nas-trash/
 
 Notes:
 - `${DATA_DIR}` defaults to `/var/lib/plain-nas` (see `src/consts.rs`).
-- `.nas-trash` is a hidden directory and is excluded from indexing/scans.
+- `.plain-trash` is a hidden directory and is excluded from indexing/scans.
 - Mountpoint detection uses `/proc/self/mountinfo` and falls back to resolving symlinked path components when needed (e.g. if a mount is accessed via a symlink like `/DATA`).

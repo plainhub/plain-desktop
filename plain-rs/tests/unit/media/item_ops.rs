@@ -219,7 +219,7 @@ async fn no_op_trash_does_not_count_and_trash_filesystem_errors_are_visible() {
         .unwrap();
     let blocking = temp.path().join("blocking-file");
     std::fs::write(&blocking, b"synthetic").unwrap();
-    let trash_path = blocking.join(".nas-trash/data/2026/10/f_synthetic_file.wav");
+    let trash_path = blocking.join(".plain-trash/data/2026/10/f_synthetic_file.wav");
     assert!(
         trash::delete_trash_by_path(trash_path.to_str().unwrap())
             .await
