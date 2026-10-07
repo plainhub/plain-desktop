@@ -336,11 +336,29 @@ fn text_ids(facts: Value, filters: &[String]) -> anyhow::Result<Vec<String>> {
         .map(|(id, _)| id)
         .collect())
 }
+/// Whether the built plan still covers the whole table, which is the one thing
+/// the path behind `trashSms` / `restoreSms` / `deleteSms` must not do.
+///
+/// `plans` drops what it does not recognise, which is right for a listing — a
+/// wrong answer there is one row too wide — but those mutations act on the ids
+/// the query resolves to, and `ContentWhere` renders an empty clause list as
+/// `1=1`. It asks the plan rather than the field names because "did this name
+/// narrow anything?" is not a property of the name: `archived` only contributes
+/// a clause when `thread_id` also matches a stored archive record, so
+/// `archived:1` alone builds nothing while a name list calls it a selector.
+/// An empty query is left alone — selecting all to act on all is what it says
+/// — and `all:true` is the sanctioned spelling for a caller that means it.
+fn narrows_nothing(query: &str, fields: &[FilterField], sms: &Plan) -> bool {
+    !query.trim().is_empty()
+        && sms.clauses.is_empty()
+        && !fields.iter().any(|f| f.name == "all" && f.value == "true")
+}
 async fn prepare(
     db: &crate::db::Db,
     host: &super::host::Host,
     query: &str,
     include_trashed: bool,
+    destructive: bool,
 ) -> anyhow::Result<Plans> {
     let fields = provider_plan::fields(&db, query)?;
     let filters = fields
@@ -358,7 +376,15 @@ async fn prepare(
             &filters,
         )?)
     };
-    plans(&db, &fields, include_trashed, ids)
+    let plans = plans(&db, &fields, include_trashed, ids)?;
+    if destructive && narrows_nothing(query, &fields, &plans.sms) {
+        return Err(anyhow::anyhow!(
+            "query {query:?} selects no sms message — nothing in it narrows the selection, so \
+             the operation would cover the whole table; pass 'all:true' to target every \
+             message on purpose"
+        ));
+    }
+    Ok(plans)
 }
 async fn count(
     db: &crate::db::Db,
@@ -366,7 +392,7 @@ async fn count(
     query: &str,
     include_trashed: bool,
 ) -> anyhow::Result<i64> {
-    let plans = prepare(db, host, query, include_trashed).await?;
+    let plans = prepare(db, host, query, include_trashed, false).await?;
     let receipt = host
         .call("systemSmsCountFacts", serde_json::to_value(plans)?)
         .await
@@ -415,7 +441,7 @@ async fn matched_conversation_facts(
     host: &super::host::Host,
     query: &str,
 ) -> anyhow::Result<Vec<ThreadFacts>> {
-    let mut plans = prepare(db, host, query, true).await?;
+    let mut plans = prepare(db, host, query, true, false).await?;
     plans.sms.clauses.retain(|c| !c.starts_with("date "));
     plans
         .mms
@@ -473,7 +499,7 @@ pub(super) async fn execute(
             if limit <= 0 {
                 return Ok(json!({"items":[]}));
             }
-            let plans = prepare(db, host, &query, include_trashed).await?;
+            let plans = prepare(db, host, &query, include_trashed, false).await?;
             let receipt = host
                 .call(
                     "systemSmsRowsFacts",
@@ -489,7 +515,7 @@ pub(super) async fn execute(
             query,
             include_trashed,
         } => {
-            let plans = prepare(db, host, &query, include_trashed).await?;
+            let plans = prepare(db, host, &query, include_trashed, true).await?;
             let ids: Vec<String> = serde_json::from_value(
                 host.call("systemSmsIdsFacts", serde_json::to_value(plans)?)
                     .await
