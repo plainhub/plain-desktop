@@ -74,35 +74,26 @@ pub fn load_key_cache(db: &Db, peer_cache: &PeerKeyCache, channel_cache: &Channe
     }
 }
 
-/// Serialize all joined channels into the wire format the web client's
-/// `channels_updated` handler expects — a JSON array of channel models
-/// with camelCase fields. Mirrors plain-app's `channelsToJsonModelString`
-/// (`ChannelManager.kt`), which wraps `channels.map { it.toModel() }`.
+/// Public channel projection shared by GraphQL and WebSocket events.
+pub fn channel_to_json(ch: &crate::db::DChannel) -> serde_json::Value {
+    let members: Vec<serde_json::Value> = decode_members(&ch.members)
+        .into_iter()
+        .map(|m| serde_json::json!({"peerId":m.peer_id,"status":m.status.to_string()}))
+        .collect();
+    serde_json::json!({"id":ch.id,"name":ch.name,"ownerId":ch.owner_id,"members":members,
+        "version":ch.version,"status":ch.status.to_string(),"createdAt":ch.created_at,"updatedAt":ch.updated_at})
+}
+
+pub fn public_channels(db: &Db) -> anyhow::Result<serde_json::Value> {
+    let mut channels = crate::db::chat_store::channels::all(db)?;
+    channels.sort_by(|a, b| a.name.cmp(&b.name));
+    Ok(serde_json::Value::Array(
+        channels.iter().map(channel_to_json).collect(),
+    ))
+}
+
 pub fn channels_updated_payload(db: &Db) -> String {
     let channels = db.get_channels(ChannelStatus::Joined);
-    let arr: Vec<serde_json::Value> = channels
-        .iter()
-        .map(|ch| {
-            let members: Vec<serde_json::Value> = decode_members(&ch.members)
-                .into_iter()
-                .map(|m| {
-                    serde_json::json!({
-                        "peerId": m.peer_id,
-                        "status": m.status.to_string(),
-                    })
-                })
-                .collect();
-            serde_json::json!({
-                "id": ch.id,
-                "name": ch.name,
-                "ownerId": ch.owner_id,
-                "members": members,
-                "version": ch.version,
-                "status": ch.status.to_string(),
-                "createdAt": ch.created_at,
-                "updatedAt": ch.updated_at,
-            })
-        })
-        .collect();
-    serde_json::to_string(&arr).unwrap_or_else(|_| "[]".to_string())
+    serde_json::to_string(&channels.iter().map(channel_to_json).collect::<Vec<_>>())
+        .unwrap_or_else(|_| "[]".to_string())
 }

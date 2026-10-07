@@ -103,49 +103,15 @@ impl Mutation {
         payload: String,
     ) -> async_graphql::Result<bool> {
         let c = ctx.data_unchecked::<PeerContext>();
-        let actor = c
-            .state
-            .prefs
-            .get::<String>("client_id")?
-            .filter(|id| !id.is_empty())
-            .ok_or_else(|| async_graphql::Error::new("Missing client identity"))?;
-        let received = match crate::chat::channel::incoming::receive(
-            &c.state.db,
-            &actor,
-            &c.authenticated.peer.id,
-            r#type,
-            &payload,
-        ) {
-            Ok(received) => received,
+        match super::channel_runtime::receive(&c.state, &c.authenticated.peer.id, r#type, &payload)
+            .await
+        {
+            Ok(received) => Ok(received["accepted"].as_bool().unwrap_or(false)),
             Err(error) => {
                 log::warn!("Channel message rejected: {error}");
-                return Ok(false);
-            }
-        };
-        if received.changed || received.invite.is_some() || received.cancel.is_some() {
-            let _ = c.state.events.send(crate::ws_event::WsEvent::broadcast(
-                crate::chat::events::WS_CHANNELS_UPDATED,
-                serde_json::to_string(&received)?,
-            ));
-        }
-        if received.broadcast {
-            if let Some(channel) = received.channel.clone() {
-                let state = c.state.clone();
-                tokio::spawn(async move {
-                    let mut stop = state.stop.clone();
-                    if *stop.borrow() {
-                        return;
-                    }
-                    tokio::select! {
-                        _ = stop.changed() => {},
-                        result = broadcast(&state, &channel) => {
-                            if let Err(error) = result { log::warn!("Channel update broadcast: {error}"); }
-                        },
-                    }
-                });
+                Ok(false)
             }
         }
-        Ok(received.accepted)
     }
     async fn start_aware(&self, ctx: &Context<'_>) -> async_graphql::Result<bool> {
         let c = ctx.data_unchecked::<PeerContext>();
@@ -163,13 +129,6 @@ impl Mutation {
             .as_bool()
             .unwrap_or(false))
     }
-}
-async fn broadcast(state: &ServerState, channel: &crate::db::DChannel) -> anyhow::Result<()> {
-    if let Some(current) = crate::db::chat_store::channels::get(&state.db, &channel.id)? {
-        super::channel_delivery::send(state, &current, ChannelSystemMessageType::Update, "", false)
-            .await?;
-    }
-    Ok(())
 }
 pub(super) type PeerSchema = Schema<Query, Mutation, EmptySubscription>;
 pub(super) fn schema() -> PeerSchema {

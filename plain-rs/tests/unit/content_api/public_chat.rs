@@ -191,10 +191,8 @@ async fn the_latest_page_covers_every_conversation() {
     let latest = query(&schema, r#"query { latestChatItems { id content } }"#).await;
     let rows = latest["data"]["latestChatItems"].as_array().unwrap();
     assert_eq!(rows.len(), 2, "{latest}");
-    let ids: std::collections::HashSet<&str> = rows
-        .iter()
-        .map(|row| row["id"].as_str().unwrap())
-        .collect();
+    let ids: std::collections::HashSet<&str> =
+        rows.iter().map(|row| row["id"].as_str().unwrap()).collect();
     assert!(ids.contains("m2"), "{latest}");
     assert!(ids.contains("c1"), "{latest}");
     assert!(!ids.contains("m1"), "{latest}");
@@ -244,7 +242,10 @@ async fn bulk_delete_counts_what_it_removed() {
         r#"mutation { deleteChatItems(query: "channel:chan-1") { affectedCount } }"#,
     )
     .await;
-    assert_eq!(deleted["data"]["deleteChatItems"]["affectedCount"], 3, "{deleted}");
+    assert_eq!(
+        deleted["data"]["deleteChatItems"]["affectedCount"], 3,
+        "{deleted}"
+    );
 }
 
 #[tokio::test]
@@ -262,7 +263,10 @@ async fn retrying_reports_the_row_it_requeued() {
         r#"mutation { retryChatItem(id: "new-1") { id status } }"#,
     )
     .await;
-    assert_eq!(retried["data"]["retryChatItem"]["status"], "PENDING", "{retried}");
+    assert_eq!(
+        retried["data"]["retryChatItem"]["status"], "PENDING",
+        "{retried}"
+    );
 }
 
 /// A retry for an id that is not in the store has no row to report, and the
@@ -271,107 +275,181 @@ async fn retrying_reports_the_row_it_requeued() {
 async fn retrying_an_unknown_id_is_an_error() {
     let (_dir, schema) = fixture_with(|_method, _| Value::Null);
     let retried = query(&schema, r#"mutation { retryChatItem(id: "nope") { id } }"#).await;
-    assert!(!retried["errors"].as_array().is_none_or(Vec::is_empty), "{retried}");
+    assert!(
+        !retried["errors"].as_array().is_none_or(Vec::is_empty),
+        "{retried}"
+    );
 }
 
-// ── channels ────────────────────────────────────────────────────────────
-
-fn channel_fixture() -> (tempfile::TempDir, PublicSchema) {
-    fixture_with(|method, params| match method {
-        "systemChatChannelFacts" => json!([channel("chan-1", "General", 3, "JOINED")]),
-        "systemChatChannelAction" => match params["action"].as_str().unwrap_or_default() {
-            "create" => channel("chan-2", "New", 1, "JOINED"),
-            "rename" => channel("chan-2", "Renamed", 1, "JOINED"),
-            "invite" | "kick" => channel("chan-1", "General", 3, "JOINED"),
-            _ => json!(true),
-        },
-        _other => panic!("unexpected host call {_other}"),
-    })
-}
-
-fn channel(id: &str, name: &str, version: i64, status: &str) -> Value {
-    json!({
-        "id": id, "ownerId": "me", "name": name,
-        "members": [
-            { "peerId": "me", "status": "JOINED" },
-            { "peerId": "peer-9", "status": "PENDING" },
-        ],
-        "version": version, "status": status,
-        "createdAt": T1, "updatedAt": T2,
-    })
-}
-
-#[tokio::test]
-async fn channels_report_their_members_and_version() {
-    let (_dir, schema) = channel_fixture();
-    let listed = query(
-        &schema,
-        r#"query { chatChannels { id ownerId name members { peerId status } version status } }"#,
+// Channel roots execute against the same runtime as the mobile endpoint.
+#[cfg(feature = "http_transport")]
+fn channel_fixture() -> (tempfile::TempDir, super::super::ContentServer) {
+    let dir = tempfile::tempdir().unwrap();
+    let prefs = Arc::new(Prefs::load(&dir.path().join("prefs.json")).unwrap());
+    prefs.set("client_id", "actor").unwrap();
+    let server = super::super::ContentServer::start(
+        &dir.path().join("plain.db"),
+        &crate::base64_encode(&[3; 32]),
+        prefs,
     )
-    .await;
-    let rows = listed["data"]["chatChannels"].as_array().unwrap();
-    assert_eq!(rows.len(), 1, "{listed}");
-    assert_eq!(rows[0]["version"], 3);
-    assert_eq!(rows[0]["status"], "JOINED");
-    let members = rows[0]["members"].as_array().unwrap();
-    assert_eq!(members[0]["peerId"], "me");
-    assert_eq!(members[1]["status"], "PENDING");
+    .unwrap();
+    (dir, server)
 }
-
-#[tokio::test]
-async fn creating_and_renaming_a_channel_report_the_new_row() {
-    let (_dir, schema) = channel_fixture();
-    let created = query(&schema, r#"mutation { createChatChannel(name: "New") { id name } }"#).await;
-    assert_eq!(created["data"]["createChatChannel"]["name"], "New", "{created}");
-
-    let renamed = query(
-        &schema,
-        r#"mutation { updateChatChannel(id: "chan-2", name: "Renamed") { name version } }"#,
+#[cfg(feature = "http_transport")]
+async fn channel_query(state: &super::super::server::ServerState, document: &str) -> Value {
+    let bytes = super::super::main_graphql::run(
+        &state.public,
+        &json!({"query":document}).to_string(),
+        Some(state.clone()),
     )
-    .await;
-    assert_eq!(renamed["data"]["updateChatChannel"]["name"], "Renamed", "{renamed}");
-    assert_eq!(renamed["data"]["updateChatChannel"]["version"], 1);
+    .await
+    .unwrap();
+    serde_json::from_slice(&bytes).unwrap()
 }
-
+#[cfg(feature = "http_transport")]
 #[tokio::test]
-async fn membership_changes_report_the_channel_they_changed() {
-    let (_dir, schema) = channel_fixture();
-    let invited = query(
-        &schema,
-        r#"mutation { addChatChannelMember(id: "chan-1", peerId: "peer-9") { id members { peerId } } }"#,
+async fn channel_roots_read_current_store_and_share_runtime_mutations_without_host() {
+    let (_dir, server) = channel_fixture();
+    let state = server.runtime_state();
+    let mut events = state.events.subscribe();
+    let created = channel_query(&state, r#"mutation { createChatChannel(name:"General") { id name ownerId version members { peerId status } } }"#).await;
+    assert!(
+        created["errors"].as_array().is_none_or(Vec::is_empty),
+        "{created}"
+    );
+    let id = created["data"]["createChatChannel"]["id"].as_str().unwrap();
+    assert_eq!(created["data"]["createChatChannel"]["ownerId"], "actor");
+    let event: Value = serde_json::from_str(&events.recv().await.unwrap().payload).unwrap();
+    assert_eq!(event["channels"][0]["id"], id);
+    assert!(event["channels"][0].get("key").is_none());
+    assert_eq!(event["channels"][0].as_object().unwrap().len(), 8);
+    assert_eq!(event["channels"][0]["members"][0]["peerId"], "actor");
+    let renamed = channel_query(
+        &state,
+        &format!(
+            r#"mutation {{ updateChatChannel(id:"{id}",name:"Renamed") {{ name version }} }}"#
+        ),
     )
     .await;
     assert_eq!(
-        invited["data"]["addChatChannelMember"]["members"]
-            .as_array()
-            .map(Vec::len),
-        Some(2),
+        renamed["data"]["updateChatChannel"]["name"], "Renamed",
+        "{renamed}"
+    );
+    assert_eq!(renamed["data"]["updateChatChannel"]["version"], 2);
+    let invited = channel_query(&state, &format!(r#"mutation {{ addChatChannelMember(id:"{id}",peerId:"unknown") {{ members {{ peerId status }} version }} }}"#)).await;
+    assert_eq!(
+        invited["data"]["addChatChannelMember"]["version"], 3,
         "{invited}"
     );
-
-    let kicked = query(
-        &schema,
-        r#"mutation { removeChatChannelMember(id: "chan-1", peerId: "peer-9") { id } }"#,
+    assert_eq!(
+        invited["data"]["addChatChannelMember"]["members"][1]["status"],
+        "PENDING"
+    );
+    let listed = channel_query(
+        &state,
+        "{ chatChannels { id name version members { peerId status } } }",
     )
     .await;
-    assert_eq!(kicked["data"]["removeChatChannelMember"]["id"], "chan-1", "{kicked}");
+    assert_eq!(
+        listed["data"]["chatChannels"][0]["name"], "Renamed",
+        "{listed}"
+    );
+    assert_eq!(listed["data"]["chatChannels"][0]["version"], 3);
+    let kicked = channel_query(&state, &format!(r#"mutation {{ removeChatChannelMember(id:"{id}",peerId:"unknown") {{ version members {{ peerId }} }} }}"#)).await;
+    assert_eq!(
+        kicked["data"]["removeChatChannelMember"]["version"], 4,
+        "{kicked}"
+    );
+    assert_eq!(
+        kicked["data"]["removeChatChannelMember"]["members"]
+            .as_array()
+            .unwrap()
+            .len(),
+        1
+    );
+    for action in ["leaveChatChannel", "acceptChatChannelInvite"] {
+        let rejected =
+            channel_query(&state, &format!(r#"mutation {{ {action}(id:"{id}") }}"#)).await;
+        assert!(
+            !rejected["errors"].as_array().is_none_or(Vec::is_empty),
+            "{rejected}"
+        );
+    }
+    let deleted = channel_query(
+        &state,
+        &format!(r#"mutation {{ deleteChatChannel(id:"{id}") }}"#),
+    )
+    .await;
+    assert_eq!(deleted["data"]["deleteChatChannel"], true, "{deleted}");
+    assert!(
+        crate::db::chat_store::channels::get(&state.db, id)
+            .unwrap()
+            .is_none()
+    );
+    let missing = channel_query(
+        &state,
+        r#"mutation { declineChatChannelInvite(id:"missing") }"#,
+    )
+    .await;
+    assert!(
+        !missing["errors"].as_array().is_none_or(Vec::is_empty),
+        "{missing}"
+    );
+    let mut last = Value::Null;
+    while let Ok(event) = events.try_recv() {
+        last = serde_json::from_str(&event.payload).unwrap();
+    }
+    assert_eq!(last["channels"], json!([]));
+    server.shutdown().await;
+}
+#[cfg(feature = "http_transport")]
+#[tokio::test]
+async fn channel_query_reads_all_statuses_sorted_by_name_without_native_cache() {
+    let (_dir, server) = channel_fixture();
+    let state = server.runtime_state();
+    for (name, status) in [
+        ("Zed", crate::chat::enums::ChannelStatus::Joined),
+        ("Alpha", crate::chat::enums::ChannelStatus::Left),
+    ] {
+        let mut row = crate::chat::channel::state::create(&state.db, "actor", name).unwrap();
+        row.status = status;
+        crate::db::chat_store::channels::save(
+            &state.db,
+            &[row],
+            crate::db::chat_store::SaveMode::Update,
+        )
+        .unwrap();
+    }
+    let result = channel_query(&state, "{ chatChannels { name status } }").await;
+    assert_eq!(
+        result["data"]["chatChannels"],
+        json!([{"name":"Alpha","status":"LEFT"},{"name":"Zed","status":"JOINED"}]),
+        "{result}"
+    );
+    server.shutdown().await;
 }
 
+#[cfg(feature = "http_transport")]
 #[tokio::test]
-async fn the_remaining_channel_mutations_acknowledge_the_request() {
-    let (_dir, schema) = channel_fixture();
-    for document in [
-        r#"mutation { deleteChatChannel(id: "chan-1") }"#,
-        r#"mutation { leaveChatChannel(id: "chan-1") }"#,
-        r#"mutation { acceptChatChannelInvite(id: "chan-1") }"#,
-        r#"mutation { declineChatChannelInvite(id: "chan-1") }"#,
-    ] {
-        let result = query(&schema, document).await;
-        assert!(result["errors"].as_array().is_none_or(Vec::is_empty), "{result}");
-        let (field, _) = document
-            .trim_start_matches("mutation { ")
-            .split_once('(')
-            .unwrap();
-        assert_eq!(result["data"][field], true, "{result}");
-    }
+async fn channel_snapshot_recovers_current_public_list_without_emitting_another_event() {
+    let (_dir, server) = channel_fixture();
+    let state = server.runtime_state();
+    let channel =
+        crate::chat::channel::state::create(&state.db, "actor", "before-reconnect").unwrap();
+    let mut events = state.events.subscribe();
+    let client = reqwest::Client::new();
+    let response = client
+        .post(format!("http://127.0.0.1:{}/chat/channel", server.port))
+        .bearer_auth(crate::base64_encode(&[3; 32]))
+        .header("Content-Type", "application/json")
+        .body(json!({"action":"snapshot"}).to_string())
+        .send()
+        .await
+        .unwrap();
+    assert_eq!(response.status(), 200);
+    let snapshot: Value = serde_json::from_str(&response.text().await.unwrap()).unwrap();
+    assert_eq!(snapshot["result"]["channels"][0]["id"], channel.id);
+    assert!(snapshot["result"]["channels"][0].get("key").is_none());
+    assert!(events.try_recv().is_err());
+    server.shutdown().await;
 }

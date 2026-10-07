@@ -223,6 +223,23 @@ pub(super) async fn call(
     if !state.authenticated(&headers) {
         return StatusCode::UNAUTHORIZED.into_response();
     }
+    if let Request::ReceiveChannel {
+        from_id,
+        message_type,
+        payload,
+        ..
+    } = &request
+    {
+        return match super::channel_runtime::receive(&state, from_id, *message_type, payload).await
+        {
+            Ok(value) => Json(json!({"result":value})).into_response(),
+            Err(error) => (
+                StatusCode::BAD_REQUEST,
+                Json(json!({"error":error.to_string()})),
+            )
+                .into_response(),
+        };
+    }
     let db = state.db.clone();
     let directory = state.directory.clone();
     let prefs = state.prefs.clone();
@@ -418,18 +435,7 @@ pub(super) async fn call(
                 &name,
                 device_type,
             )?)?,
-            Request::ReceiveChannel {
-                actor,
-                from_id,
-                message_type,
-                payload,
-            } => serde_json::to_value(crate::chat::channel::incoming::receive(
-                &db,
-                &actor,
-                &from_id,
-                message_type,
-                &payload,
-            )?)?,
+            Request::ReceiveChannel { .. } => unreachable!("handled by channel runtime"),
             Request::CreateChannel { actor, name } => {
                 serde_json::to_value(crate::chat::channel::state::create(&db, &actor, &name)?)?
             }

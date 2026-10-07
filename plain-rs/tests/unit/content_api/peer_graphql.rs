@@ -248,12 +248,23 @@ async fn encrypted_public_and_ble_rpc_share_auth_executor_and_receipts() {
         },
     )
     .unwrap();
+    let mut channel_events = server.runtime_state().events.subscribe();
     let response = client.post(&public_url).header("c-id","peer").body(wire(json!({"query":"mutation Accept($payload:String!) { channelSystemMessage(type:INVITE_ACCEPT,payload:$payload) }","variables":{"payload":json!({"channelId":channel.id,"publicKey":crate::base64_encode(&public_key),"name":"joined","deviceType":"PHONE"}).to_string()}}))).send().await.unwrap();
     let content: Value = serde_json::from_slice(
         &crate::xchacha_decrypt_raw(&key, &response.bytes().await.unwrap()).unwrap(),
     )
     .unwrap();
     assert_eq!(content["data"]["channelSystemMessage"], true, "{content}");
+    let event = tokio::time::timeout(std::time::Duration::from_secs(2), channel_events.recv())
+        .await
+        .unwrap()
+        .unwrap();
+    assert_eq!(event.event_type, crate::chat::events::WS_CHANNELS_UPDATED);
+    let event: Value = serde_json::from_str(&event.payload).unwrap();
+    assert_eq!(event["channels"][0]["id"], channel.id);
+    assert_eq!(event["channels"][0]["members"][1]["status"], "JOINED");
+    assert!(event["channels"][0].get("key").is_none());
+
     tokio::time::timeout(std::time::Duration::from_secs(2), broadcast_received)
         .await
         .unwrap()

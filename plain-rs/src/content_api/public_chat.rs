@@ -131,7 +131,7 @@ impl ChatQuery {
     }
 
     async fn chat_channels(&self, ctx: &Context<'_>) -> async_graphql::Result<Vec<ChatChannel>> {
-        let facts = host_call(ctx, "systemChatChannelFacts", json!({})).await?;
+        let facts = crate::chat::events::public_channels(db(ctx)?)?;
         Ok(rows(&facts, channel))
     }
 }
@@ -200,7 +200,7 @@ impl ChatMutation {
         ctx: &Context<'_>,
         name: String,
     ) -> async_graphql::Result<ChatChannel> {
-        action(ctx, "create", &[( "name", json!(name))]).await
+        action(ctx, "create", &[("name", json!(name))]).await
     }
 
     async fn update_chat_channel(
@@ -244,7 +244,7 @@ impl ChatMutation {
             "invite",
             &[
                 ("id", json!(id.as_str())),
-                ("peerId", json!(peer_id.as_str())),
+                ("peer", json!(peer_id.as_str())),
             ],
         )
         .await
@@ -261,7 +261,7 @@ impl ChatMutation {
             "kick",
             &[
                 ("id", json!(id.as_str())),
-                ("peerId", json!(peer_id.as_str())),
+                ("peer", json!(peer_id.as_str())),
             ],
         )
         .await
@@ -294,8 +294,11 @@ async fn action(
     for (key, value) in fields {
         params.insert((*key).to_string(), value.clone());
     }
-    let facts = host_call(ctx, "systemChatChannelAction", Value::Object(params)).await?;
-    Ok(channel(&facts))
+    let request = serde_json::from_value(Value::Object(params))?;
+    let result =
+        super::channel_runtime::execute(ctx.data::<super::server::ServerState>()?, request).await?;
+    let row: crate::db::DChannel = serde_json::from_value(result["channel"].clone())?;
+    Ok(channel(&crate::chat::events::channel_to_json(&row)))
 }
 
 /// The mutations the contract types as `Boolean!` acknowledge the request
@@ -311,7 +314,8 @@ async fn flag(
     for (key, value) in fields {
         params.insert((*key).to_string(), value.clone());
     }
-    host_call(ctx, "systemChatChannelAction", Value::Object(params)).await?;
+    let request = serde_json::from_value(Value::Object(params))?;
+    super::channel_runtime::execute(ctx.data::<super::server::ServerState>()?, request).await?;
     Ok(true)
 }
 
@@ -323,15 +327,16 @@ fn from_json(value: &Value) -> ChatItem {
     ChatItem {
         from_id: super::public_facts::id(value, "fromId"),
         to_id: super::public_facts::id(value, "toId"),
-        channel_id: Some(super::public_facts::id(value, "channelId"))
-            .filter(|id| !id.is_empty()),
+        channel_id: Some(super::public_facts::id(value, "channelId")).filter(|id| !id.is_empty()),
         id: super::public_facts::id(value, "id"),
         content: super::public_facts::text(value, "content"),
         created_at: super::public_facts::stored_instant(&super::public_facts::text(
-            value, "createdAt",
+            value,
+            "createdAt",
         )),
         updated_at: super::public_facts::stored_instant(&super::public_facts::text(
-            value, "updatedAt",
+            value,
+            "updatedAt",
         )),
         status: ChatStatus::parse(&super::public_facts::text(value, "status")),
         status_data: super::public_facts::text(value, "statusData"),
@@ -357,10 +362,12 @@ fn channel(value: &Value) -> ChatChannel {
             _ => ChatChannelStatus::Joined,
         },
         created_at: super::public_facts::stored_instant(&super::public_facts::text(
-            value, "createdAt",
+            value,
+            "createdAt",
         )),
         updated_at: super::public_facts::stored_instant(&super::public_facts::text(
-            value, "updatedAt",
+            value,
+            "updatedAt",
         )),
     }
 }

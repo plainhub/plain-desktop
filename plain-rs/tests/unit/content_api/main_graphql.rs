@@ -18,7 +18,10 @@ fn shutdown_only_accepts_ipv4_and_ipv6_loopback_peers() {
     assert!(!shutdown_allowed("[::ffff:127.0.0.1]:443".parse().unwrap()));
 }
 
-fn contract_schema() -> (tempfile::TempDir, crate::content_api::public_schema::PublicSchema) {
+fn contract_schema() -> (
+    tempfile::TempDir,
+    crate::content_api::public_schema::PublicSchema,
+) {
     use crate::{db::Db, prefs::Prefs};
     use std::sync::Arc;
     let dir = tempfile::tempdir().unwrap();
@@ -50,15 +53,18 @@ async fn a_public_request_is_executed_by_rust() {
     })
     .to_string();
 
-    let body = run(&schema, &document).await.unwrap();
+    let body = run(&schema, &document, None).await.unwrap();
     let result: serde_json::Value = serde_json::from_slice(&body).unwrap();
-    assert_eq!(result["data"]["createNote"]["title"], "From the LAN", "{result}");
+    assert_eq!(
+        result["data"]["createNote"]["title"], "From the LAN",
+        "{result}"
+    );
 
     let read = serde_json::json!({
         "query": "query { notes(query: \"\", offset: 0, limit: 10) { title } }",
     })
     .to_string();
-    let body = run(&schema, &read).await.unwrap();
+    let body = run(&schema, &read, None).await.unwrap();
     let result: serde_json::Value = serde_json::from_slice(&body).unwrap();
     assert_eq!(
         result["data"]["notes"].as_array().map(Vec::len),
@@ -77,7 +83,7 @@ async fn variables_and_operation_names_reach_the_resolver() {
     })
     .to_string();
 
-    let body = run(&schema, &document).await.unwrap();
+    let body = run(&schema, &document, None).await.unwrap();
     let result: serde_json::Value = serde_json::from_slice(&body).unwrap();
     assert_eq!(result["data"]["noteCount"], 0, "{result}");
     assert!(result.get("errors").is_none(), "{result}");
@@ -90,13 +96,16 @@ async fn variables_and_operation_names_reach_the_resolver() {
 async fn a_body_that_is_not_a_graphql_request_is_refused() {
     let (_dir, schema) = contract_schema();
     assert_eq!(
-        run(&schema, "not json").await.unwrap_err(),
+        run(&schema, "not json", None).await.unwrap_err(),
         StatusCode::BAD_REQUEST
     );
 
-    let body = run(&schema, "{}").await.unwrap();
+    let body = run(&schema, "{}", None).await.unwrap();
     let result: serde_json::Value = serde_json::from_slice(&body).unwrap();
-    assert!(!result["errors"].as_array().is_none_or(Vec::is_empty), "{result}");
+    assert!(
+        !result["errors"].as_array().is_none_or(Vec::is_empty),
+        "{result}"
+    );
 }
 
 /// A field the contract does not have is a schema error, not a crash and not
@@ -105,7 +114,7 @@ async fn a_body_that_is_not_a_graphql_request_is_refused() {
 async fn an_unknown_field_is_reported_as_a_graphql_error() {
     let (_dir, schema) = contract_schema();
     let document = serde_json::json!({ "query": "query { noSuchRoot }" }).to_string();
-    let body = run(&schema, &document).await.unwrap();
+    let body = run(&schema, &document, None).await.unwrap();
     let result: serde_json::Value = serde_json::from_slice(&body).unwrap();
     assert!(
         !result["errors"].as_array().is_none_or(Vec::is_empty),
