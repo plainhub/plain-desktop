@@ -111,16 +111,21 @@ pub(super) async fn run(
                 let mut offset = 0u64;
                 loop {
                     super::peer_address::current(&state.db, &peer.id, &peer)?;
-                    let response=super::peer_sdk::ble(state,&peer,json!({"m":"GET","p":"/fs","q":{"id":[file_id],"offset":[offset.to_string()],"length":["8192"]}}),"").await.map_err(|e|anyhow::anyhow!("{e:?}"))?;
-                    ensure!(
-                        response["s"].as_u64().unwrap_or(200) == 200,
-                        "BLE file HTTP failure"
-                    );
-                    let chunk = super::peer_sdk::decode_bytes(
-                        response["b"]
-                            .as_str()
-                            .ok_or_else(|| anyhow::anyhow!("Missing BLE bytes"))?,
-                    )?;
+                    let response = super::peer_sdk::ble(
+                        state,
+                        &peer,
+                        super::ble_wire::Request::FileChunk {
+                            client_id: super::peer_sdk::ble_actor(state)
+                                .map_err(|e| anyhow::anyhow!("{e:?}"))?,
+                            file_id: file_id.into(),
+                            offset,
+                            length: 8192,
+                        },
+                    )
+                    .await
+                    .map_err(|e| anyhow::anyhow!("{e:?}"))?;
+                    let (status, chunk) = super::ble_wire::decode_response(&response)?;
+                    ensure!(status == 200, "BLE file HTTP failure");
                     ensure!(chunk.len() <= 8192, "Invalid BLE chunk length");
                     write(state, task, &mut file, &mut bytes, &chunk).await?;
                     offset += chunk.len() as u64;

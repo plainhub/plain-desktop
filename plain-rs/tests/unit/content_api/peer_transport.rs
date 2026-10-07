@@ -36,6 +36,7 @@ async fn rust_falls_back_from_unavailable_socket_and_authenticates_raw_ble_busin
     let (_dir, server, state) = state();
     let host = state.host.clone();
     let (generation, mut receiver) = host.connect();
+    let ble = state.ble_transport.clone();
     let responder = tokio::spawn(async move {
         while let Some(request) = receiver.recv().await {
             let response = match request["method"].as_str().unwrap() {
@@ -47,18 +48,18 @@ async fn rust_falls_back_from_unavailable_socket_and_authenticates_raw_ble_busin
                     json!({"id":request["id"],"result":true})
                 }
                 "peerTransportBleExchange" => {
-                    assert_eq!(request["params"]["headers"]["c-id"], "actor");
-                    assert_eq!(request["params"]["headers"]["c-cid"], "channel");
-                    let body: Value =
-                        serde_json::from_str(request["params"]["body"].as_str().unwrap()).unwrap();
-                    assert_eq!(body["p"], "/peer_graphql");
-                    assert_eq!(body["bb"], true);
+                    let crate::content_api::ble_wire::Request::PeerGraphql {
+                        client_id,
+                        channel_id,
+                        body,
+                    } = ble.request_for_test(&request["params"])
+                    else {
+                        panic!("Expected peer request")
+                    };
+                    assert_eq!(client_id, "actor");
+                    assert_eq!(channel_id, "channel");
                     assert_eq!(
-                        crate::xchacha_decrypt_raw(
-                            &[7; 32],
-                            &crate::base64_decode(body["b"].as_str().unwrap())
-                        )
-                        .unwrap(),
+                        crate::xchacha_decrypt_raw(&[7; 32], &body).unwrap(),
                         b"signed request"
                     );
                     let bytes = crate::xchacha_encrypt_raw(
@@ -66,7 +67,7 @@ async fn rust_falls_back_from_unavailable_socket_and_authenticates_raw_ble_busin
                         br#"{"errors":[{"message":"business rejection"}]}"#,
                     )
                     .unwrap();
-                    json!({"id":request["id"],"result":json!({"s":200,"b":crate::base64_encode(&bytes)}).to_string()})
+                    json!({"id":request["id"],"result":ble.reply_for_test(&request["params"],crate::content_api::ble_wire::response(200,&bytes).unwrap())})
                 }
                 _ => panic!("{request}"),
             };
@@ -106,7 +107,7 @@ async fn cancel_releases_route_and_malformed_raw_ble_response_is_terminal() {
     let exchange = receiver.recv().await.unwrap();
     host.reply(
         generation,
-        json!({"id":exchange["id"],"result":"malformed response"}),
+        json!({"id":exchange["id"],"result":state.ble_transport.reply_for_test(&exchange["params"], b"malformed response".to_vec())}),
     )
     .unwrap();
     assert!(call.await.unwrap().is_err());

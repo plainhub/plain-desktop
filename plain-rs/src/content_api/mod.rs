@@ -156,6 +156,7 @@ mod peer_download;
 mod chat_actions;
 
 mod ble_http;
+pub mod ble_wire;
 mod peer_files;
 
 #[cfg(test)]

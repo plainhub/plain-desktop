@@ -33,6 +33,7 @@ async fn host_transport_preserves_signed_wire_and_requires_an_actual_receipt() {
     .unwrap();
     let responder = {
         let host = host.clone();
+        let ble = state.ble_transport.clone();
         tokio::spawn(async move {
             for data in [
                 json!({"createChatItem":[]}),
@@ -49,9 +50,15 @@ async fn host_transport_preserves_signed_wire_and_requires_an_actual_receipt() {
                 let request = receiver.recv().await.unwrap();
                 assert_eq!(request["method"], "peerTransportBleExchange");
                 assert_eq!(request["params"]["peer"]["id"], "fixture");
-                assert_eq!(request["params"]["headers"]["c-cid"], "channel");
+                assert!(
+                    matches!(ble.request_for_test(&request["params"]), crate::content_api::ble_wire::Request::PeerGraphql { channel_id, .. } if channel_id == "channel")
+                );
                 assert_eq!(
-                    raw_ble_wire(&request["params"], &[7; 32]),
+                    crate::content_api::ble_http::test_peer_wire(
+                        &ble,
+                        &request["params"],
+                        &[7; 32]
+                    ),
                     "signed|123|request"
                 );
                 let errors = if data == json!({"createChatItem":null}) {
@@ -64,7 +71,7 @@ async fn host_transport_preserves_signed_wire_and_requires_an_actual_receipt() {
                 };
                 host.reply(
                     generation,
-                    json!({"id":request["id"],"result":raw_ble_reply(json!({"data":data,"errors":errors}),&[7;32])}),
+                    json!({"id":request["id"],"result":crate::content_api::ble_http::test_reply(&ble, &request["params"], json!({"data":data,"errors":errors}),&[7;32])}),
                 )
                 .unwrap();
             }
@@ -90,21 +97,4 @@ async fn host_transport_preserves_signed_wire_and_requires_an_actual_receipt() {
     );
     responder.await.unwrap();
     host.disconnect(generation);
-}
-
-#[cfg(feature = "http_transport")]
-fn raw_ble_wire(params: &Value, key: &[u8]) -> String {
-    let envelope: Value = serde_json::from_str(params["body"].as_str().unwrap()).unwrap();
-    String::from_utf8(
-        crate::xchacha_decrypt_raw(key, &crate::base64_decode(envelope["b"].as_str().unwrap()))
-            .unwrap(),
-    )
-    .unwrap()
-}
-#[cfg(feature = "http_transport")]
-fn raw_ble_reply(value: Value, key: &[u8]) -> Value {
-    let bytes = crate::xchacha_encrypt_raw(key, value.to_string().as_bytes()).unwrap();
-    json!({"s":200,"b":crate::base64_encode(&bytes)})
-        .to_string()
-        .into()
 }

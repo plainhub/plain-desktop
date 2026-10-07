@@ -46,6 +46,7 @@ pub(super) struct ServerState {
     pub(super) attachments: Arc<crate::chat::attachment_imports::Imports>,
     pub(super) delivery: Arc<crate::chat::delivery::Delivery>,
     pub(super) channel_delivery: Arc<tokio::sync::Semaphore>,
+    pub(super) ble_transport: Arc<super::ble_http::Runtime>,
     pub(super) ble_pairing: Arc<super::ble_pairing::Pairings>,
     pub(super) pairing_runtime: Arc<super::pairing_runtime::Runtime>,
     pub(super) nearby_devices: Arc<crate::chat::nearby_devices::Devices>,
@@ -156,6 +157,7 @@ impl ContentServer {
             attachments,
             delivery: Arc::new(crate::chat::delivery::Delivery::new((*db).clone())),
             channel_delivery: Arc::new(tokio::sync::Semaphore::new(4)),
+            ble_transport: Arc::new(super::ble_http::Runtime::default()),
             ble_pairing: Arc::new(super::ble_pairing::Pairings::default()),
             pairing_runtime: Arc::new(super::pairing_runtime::Runtime::default()),
             nearby_devices: Arc::new(crate::chat::nearby_devices::Devices::default()),
@@ -227,7 +229,8 @@ impl ContentServer {
                 "/files/thumbnail/output/:token",
                 post(super::thumbnails::output),
             )
-            .route("/chat/ble-http", post(super::ble_http::call))
+            .route("/chat/ble-exchange/:token", get(super::ble_http::outgoing))
+            .route("/chat/ble-incoming", get(super::ble_http::incoming))
             .route("/chat/store", post(super::chat_store_routes::call))
             .route("/files/write", post(super::file_writes::write))
             .route("/files/read", post(super::file_reads::read))

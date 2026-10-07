@@ -56,22 +56,24 @@ async fn root_ble_chunks_commit_exact_bytes_and_reject_short_and_overlong_reads(
     let (generation, mut requests) = state.host.connect();
     let host = state.host.clone();
     let data = payload.clone();
+    let ble = state.ble_transport.clone();
     let responder = tokio::spawn(async move {
         while let Some(request) = requests.recv().await {
             let result = match request["method"].as_str().unwrap() {
                 "peerTransportCapabilities" => json!(["BLE"]),
                 "peerTransportBleExchange" => {
-                    let body: Value =
-                        serde_json::from_str(request["params"]["body"].as_str().unwrap()).unwrap();
-                    assert_eq!(body["m"], "GET");
-                    assert_eq!(body["p"], "/fs");
-                    assert_eq!(body["q"]["length"][0], "8192");
-                    let offset = body["q"]["offset"][0]
-                        .as_str()
-                        .unwrap()
-                        .parse::<usize>()
-                        .unwrap();
-                    let id = body["q"]["id"][0].as_str().unwrap();
+                    let crate::content_api::ble_wire::Request::FileChunk {
+                        file_id,
+                        offset,
+                        length,
+                        ..
+                    } = ble.request_for_test(&request["params"])
+                    else {
+                        panic!("Expected file request")
+                    };
+                    assert_eq!(length, 8192);
+                    let offset = offset as usize;
+                    let id = file_id.as_str();
                     let bytes = if id == "short" {
                         b"short".as_slice()
                     } else if id == "overlong" {
@@ -79,9 +81,10 @@ async fn root_ble_chunks_commit_exact_bytes_and_reject_short_and_overlong_reads(
                     } else {
                         &data[offset..data.len().min(offset + 8192)]
                     };
-                    json!({"s":200,"b":crate::base64_encode(bytes)})
-                        .to_string()
-                        .into()
+                    ble.reply_for_test(
+                        &request["params"],
+                        crate::content_api::ble_wire::response(200, bytes).unwrap(),
+                    )
                 }
                 "peerTransportSocketCloseAll" => json!(true),
                 _ => panic!("{request}"),

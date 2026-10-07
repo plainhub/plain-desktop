@@ -42,6 +42,10 @@ impl Host {
     pub(super) fn needs_socket_cleanup(&self) -> bool {
         self.state.lock().unwrap().peer_sockets
     }
+    pub(super) fn generation(&self) -> Option<u64> {
+        let state = self.state.lock().unwrap();
+        state.sender.as_ref().map(|_| state.generation)
+    }
     pub(super) fn connected(&self) -> bool {
         self.state.lock().unwrap().sender.is_some()
     }

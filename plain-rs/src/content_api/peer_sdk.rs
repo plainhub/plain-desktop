@@ -183,24 +183,27 @@ fn decode_response(status: u16, key: &[u8], bytes: &[u8]) -> Result<Value> {
 pub(super) async fn ble(
     state: &ServerState,
     peer: &crate::db::DPeer,
-    request: Value,
-    channel: &str,
-) -> Result<Value, Failure> {
-    let actor = state
+    request: super::ble_wire::Request,
+) -> Result<Vec<u8>, Failure> {
+    state
+        .ble_transport
+        .exchange(
+            state,
+            peer,
+            request
+                .encode()
+                .map_err(|e| Failure::Fatal(e.to_string()))?,
+        )
+        .await
+        .map_err(|e| Failure::Fatal(e.to_string()))
+}
+pub(super) fn ble_actor(state: &ServerState) -> Result<String, Failure> {
+    state
         .prefs
         .get::<String>("client_id")
         .map_err(|e| Failure::Fatal(e.to_string()))?
         .filter(|s| !s.is_empty())
-        .ok_or_else(|| Failure::Fatal("Missing peer actor".into()))?;
-    let short = crate::chat::nearby_wire::short_id(&peer.id);
-    let value=state.host.call("peerTransportBleExchange",json!({"peer":super::peer_address::view(peer),"shortId":short,"headers":{"c-id":actor,"c-cid":channel},"body":request.to_string()})).await.map_err(Failure::Fatal)?;
-    let raw = value
-        .as_str()
-        .ok_or_else(|| Failure::Fatal("Missing BLE response".into()))?;
-    if raw.len() > 6 * 1024 * 1024 {
-        return Err(Failure::Fatal("BLE response exceeds limit".into()));
-    }
-    serde_json::from_str(raw).map_err(|e| Failure::Fatal(e.to_string()))
+        .ok_or_else(|| Failure::Fatal("Missing peer actor".into()))
 }
 pub(super) async fn ble_send(
     state: &ServerState,
@@ -214,25 +217,14 @@ pub(super) async fn ble_send(
     let response = ble(
         state,
         peer,
-        json!({"m":"POST","p":"/peer_graphql","b":crate::base64_encode(&encrypted),"bb":true}),
-        channel,
+        super::ble_wire::Request::PeerGraphql {
+            client_id: ble_actor(state)?,
+            channel_id: channel.into(),
+            body: encrypted,
+        },
     )
     .await?;
-    let bytes = decode_bytes(
-        response["b"]
-            .as_str()
-            .ok_or_else(|| Failure::Fatal("Missing BLE body".into()))?,
-    )
-    .map_err(|e| Failure::Fatal(e.to_string()))?;
-    decode_response(response["s"].as_u64().unwrap_or(200) as u16, key, &bytes)
-        .map_err(|e| Failure::Fatal(e.to_string()))
-}
-
-pub(super) fn decode_bytes(encoded: &str) -> Result<Vec<u8>> {
-    let bytes = crate::base64_decode(encoded);
-    ensure!(
-        crate::base64_encode(&bytes) == encoded,
-        "Invalid SDK byte encoding"
-    );
-    Ok(bytes)
+    let (status, bytes) =
+        super::ble_wire::decode_response(&response).map_err(|e| Failure::Fatal(e.to_string()))?;
+    decode_response(status, key, bytes).map_err(|e| Failure::Fatal(e.to_string()))
 }

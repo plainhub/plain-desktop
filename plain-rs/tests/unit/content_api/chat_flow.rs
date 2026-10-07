@@ -292,7 +292,7 @@ async fn aware_host_only_moves_raw_socket_bytes_rust_performs_tls_crypto_and_gra
 }
 #[tokio::test]
 async fn ble_incoming_file_uses_root_encrypted_fid_and_eof_without_native_http_bridge() {
-    let (dir, server, _, token) = root("local");
+    let (dir, server, _, _token) = root("local");
     let state = server.runtime_state();
     let imported = crate::chat::app_file_store::import_bytes(
         &state.db,
@@ -311,24 +311,24 @@ async fn ble_incoming_file_uses_root_encrypted_fid_and_eof_without_native_http_b
         (6, 8192, b" bytes".as_slice()),
         (12, 8192, b"".as_slice()),
     ] {
-        let body = json!({"m":"GET","p":"/fs","q":{"id":[crate::base64_encode(&encrypted)],"offset":[offset.to_string()],"length":[length.to_string()]}});
-        let response = reqwest::Client::new()
-            .post(format!("http://127.0.0.1:{}/chat/ble-http", server.port))
-            .bearer_auth(&token)
-            .header("content-type", "application/json")
-            .body(json!({"body":body.to_string(),"headers":{"c-id":"peer"},"remote_host":"fixture BLE MAC"}).to_string())
-            .send()
-            .await
-            .unwrap();
-        let status = response.status();
-        let value: Value = serde_json::from_slice(&response.bytes().await.unwrap()).unwrap();
-        assert_eq!(status, 200, "{value}");
-        let compact: Value = serde_json::from_str(value["result"].as_str().unwrap()).unwrap();
-        assert_eq!(compact["s"], 200);
-        assert_eq!(
-            crate::base64_decode(compact["b"].as_str().unwrap()),
-            expected
-        );
+        let request = crate::content_api::ble_wire::Request::FileChunk {
+            client_id: "peer".into(),
+            file_id: crate::base64_encode(&encrypted),
+            offset,
+            length,
+        }
+        .encode()
+        .unwrap();
+        let bytes = crate::content_api::ble_http::dispatch(
+            state.clone(),
+            "fixture BLE MAC".into(),
+            &request,
+        )
+        .await
+        .unwrap();
+        let (status, body) = crate::content_api::ble_wire::decode_response(&bytes).unwrap();
+        assert_eq!(status, 200);
+        assert_eq!(body, expected);
     }
     assert!(!state.host.connected());
     server.shutdown().await;
@@ -406,7 +406,7 @@ async fn public_retry_returns_committed_pending_before_root_owned_delivery_recei
         .unwrap();
     let exchange = requests.recv().await.unwrap();
     let bytes = crate::xchacha_encrypt_raw(&[7; 32], br#"{"data":{"createChatItem":[]}}"#).unwrap();
-    state.host.reply(generation,json!({"id":exchange["id"],"result":json!({"s":200,"b":crate::base64_encode(&bytes)}).to_string()})).unwrap();
+    state.host.reply(generation,json!({"id":exchange["id"],"result":state.ble_transport.reply_for_test(&exchange["params"], crate::content_api::ble_wire::response(200,&bytes).unwrap())})).unwrap();
     tokio::time::timeout(std::time::Duration::from_secs(2), async {
         loop {
             if crate::db::chat_store::messages::get(&state.db, &row.id)
