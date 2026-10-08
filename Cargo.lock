@@ -4982,6 +4982,13 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "f6b464fbc74e149a392436b17d523f769e057cb6877f6a5c4618bc6f11800548"
 
 [[package]]
+name = "plain-ble"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+]
+
+[[package]]
 name = "plain-rs"
 version = "0.1.0"
 dependencies = [
@@ -5018,6 +5025,7 @@ dependencies = [
  "notify",
  "p256",
  "parking_lot",
+ "plain-ble",
  "quick-xml 0.42.0",
  "rand 0.8.8",
  "rcgen",
