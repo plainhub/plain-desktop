@@ -1,7 +1,11 @@
 use super::*;
 use crate::content_api::host::Host;
-use crate::content_api::public_schema::PublicSchema;
-use crate::db::Db;
+use crate::content_api::server::ServerState;
+
+struct PublicSchema {
+    state: ServerState,
+    _server: super::super::ContentServer,
+}
 use crate::prefs::Prefs;
 use serde_json::{Value, json};
 use std::sync::Arc;
@@ -28,35 +32,58 @@ fn fixture_with(
 ) -> (tempfile::TempDir, PublicSchema) {
     let dir = tempfile::tempdir().unwrap();
     let prefs = Arc::new(Prefs::load(&dir.path().join("prefs.json")).unwrap());
-    let db = Arc::new(Db::open(&dir.path().join("data.db")).unwrap());
-    let host = Arc::new(Host::default());
-    stub(host.clone(), handler);
-    let directory = dir.path().to_path_buf();
-    let (events, _) = tokio::sync::broadcast::channel(16);
+    prefs.set("client_id", "actor").unwrap();
+    let server = super::super::ContentServer::start(
+        &dir.path().join("data.db"),
+        &crate::base64_encode(&[3; 32]),
+        prefs,
+    )
+    .unwrap();
+    let state = server.runtime_state();
+    let mut peer = crate::db::DPeer::new(
+        "peer-1",
+        "Pixel",
+        "192.168.1.20",
+        1234,
+        crate::chat::enums::DeviceType::Phone,
+    );
+    peer.status = crate::chat::enums::PeerStatus::Paired;
+    crate::db::chat_store::peers::save(&state.db, &[peer], crate::db::chat_store::SaveMode::Insert)
+        .unwrap();
+    state
+        .peer_status
+        .connections
+        .hint(&state.db, "peer-1")
+        .unwrap();
+    stub(state.host.clone(), handler);
     (
         dir,
-        crate::content_api::public_schema::build(host, events, prefs, db, directory),
+        PublicSchema {
+            state,
+            _server: server,
+        },
     )
 }
 
 async fn query(schema: &PublicSchema, document: &str) -> Value {
-    serde_json::to_value(schema.execute(document).await).unwrap()
+    let bytes = super::super::main_graphql::run(
+        &schema.state.public,
+        &json!({"query":document}).to_string(),
+        Some(schema.state.clone()),
+    )
+    .await
+    .unwrap();
+    serde_json::from_slice(&bytes).unwrap()
 }
-
-const PEER: &str = r#"{
-    "id": "peer-1", "name": "Pixel", "ip": "192.168.1.20", "status": "PAIRED",
-    "port": 1234, "deviceType": "PHONE", "createdAt": "2026-01-02T03:04:05+00:00",
-    "updatedAt": "2026-01-02T04:04:05+00:00", "online": true
-}"#;
 
 fn fixture() -> (tempfile::TempDir, PublicSchema) {
     fixture_with(|method, _| match method {
-        "systemPeerFacts" => json!([serde_json::from_str::<Value>(PEER).unwrap()]),
         "systemSimFacts" => json!([
             { "id": "sim-0", "label": "SIM 1", "number": "+15550100", "subscriptionId": 1 },
         ]),
-        "systemPairDevice" | "systemCancelPairing" | "systemRespondToPairing"
-        | "systemDeletePeer" | "systemUnpairPeer" => json!(true),
+        "discoveryFacts" => {
+            json!({"name":"local","deviceType":"PHONE","version":"1","platform":"android","ips":[],"awareSupported":false,"awareRunning":false})
+        }
         _other => panic!("unexpected host call {_other}"),
     })
 }
@@ -82,7 +109,11 @@ async fn a_peer_reports_its_liveness_and_kind() {
 #[tokio::test]
 async fn sims_carry_the_slot_the_sender_chooses() {
     let (_dir, schema) = fixture();
-    let listed = query(&schema, r#"query { sims { id label number subscriptionId } }"#).await;
+    let listed = query(
+        &schema,
+        r#"query { sims { id label number subscriptionId } }"#,
+    )
+    .await;
     let rows = listed["data"]["sims"].as_array().unwrap();
     assert_eq!(rows.len(), 1, "{listed}");
     assert_eq!(rows[0]["subscriptionId"], 1);
@@ -96,7 +127,10 @@ async fn an_empty_sim_list_is_not_an_error() {
         _other => panic!("unexpected host call {_other}"),
     });
     let listed = query(&schema, r#"query { sims { id } }"#).await;
-    assert!(listed["errors"].as_array().is_none_or(Vec::is_empty), "{listed}");
+    assert!(
+        listed["errors"].as_array().is_none_or(Vec::is_empty),
+        "{listed}"
+    );
     assert_eq!(listed["data"]["sims"].as_array().map(Vec::len), Some(0));
 }
 
@@ -106,7 +140,7 @@ async fn pairing_sends_the_device_the_contract_described() {
     let paired = query(
         &schema,
         r#"mutation { pairDevice(input: {
-            id: "peer-9", name: "Tablet", ips: ["10.0.0.5"], port: 4321,
+            id: "peer-9", name: "Tablet", ips: [], port: 4321,
             deviceType: TABLET, version: "1.2.3", platform: "android",
             lastSeen: "2026-01-02T03:04:05+00:00", discoveryMethods: [LAN, BLE]
         }) }"#,
@@ -135,40 +169,41 @@ async fn responding_to_a_pairing_request_passes_the_whole_handshake() {
 async fn cancelling_and_unpairing_both_acknowledge() {
     let (_dir, schema) = fixture();
     for (document, field) in [
-        (r#"mutation { cancelPairing(deviceId: "peer-9") }"#, "cancelPairing"),
+        (
+            r#"mutation { cancelPairing(deviceId: "peer-9") }"#,
+            "cancelPairing",
+        ),
         (r#"mutation { unpairPeer(id: "peer-1") }"#, "unpairPeer"),
         (r#"mutation { deletePeer(id: "peer-1") }"#, "deletePeer"),
     ] {
         let result = query(&schema, document).await;
-        assert!(result["errors"].as_array().is_none_or(Vec::is_empty), "{result}");
+        assert!(
+            result["errors"].as_array().is_none_or(Vec::is_empty),
+            "{result}"
+        );
         assert_eq!(result["data"][field], true, "{result}");
     }
 }
 
-/// The enums are the contract's own on both sides, so a value that reaches
-/// the host has to be spelled the way the host's enum spells it — not a
-/// Rust variant name and not a numeric ordinal.
 #[tokio::test]
-async fn discovery_methods_travel_as_the_contract_names_them() {
-    let (_dir, schema) = fixture_with(|method, params| {
-        if method == "systemPairDevice" {
-            assert_eq!(
-                params["input"]["discoveryMethods"],
-                json!(["LAN", "QR"]),
-                "discovery methods must reach the host as contract names"
-            );
-            assert_eq!(params["input"]["deviceType"], "TABLET");
-        }
-        json!(true)
-    });
+async fn unsupported_transport_does_not_call_native_pairing() {
+    let (_dir, schema) = fixture();
+    let mut events = schema.state.events.subscribe();
     let paired = query(
         &schema,
         r#"mutation { pairDevice(input: {
-            id: "peer-9", name: "Tablet", ips: [], port: 4321,
-            deviceType: TABLET, version: "1", platform: "android",
-            lastSeen: "2026-01-02T03:04:05+00:00", discoveryMethods: [LAN, QR]
-        }) }"#,
+        id: "peer-9", name: "Tablet", ips: [], port: 4321,
+        deviceType: TABLET, version: "1", platform: "android",
+        lastSeen: "2026-01-02T03:04:05+00:00", discoveryMethods: [LAN, QR]
+    }) }"#,
     )
     .await;
-    assert!(paired["errors"].as_array().is_none_or(Vec::is_empty), "{paired}");
+    assert!(
+        paired["errors"].as_array().is_none_or(Vec::is_empty),
+        "{paired}"
+    );
+    assert_eq!(
+        events.recv().await.unwrap().event_type,
+        crate::chat::events::WS_PAIRING_FAILED
+    );
 }

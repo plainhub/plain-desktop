@@ -308,14 +308,12 @@ async fn media_info(
 }
 
 fn location(value: &Value) -> Option<Location> {
-    let raw = &value["location"];
-    if raw.is_null() {
-        return None;
-    }
-    Some(Location {
-        latitude: raw["latitude"].as_f64().unwrap_or_default(),
-        longitude: raw["longitude"].as_f64().unwrap_or_default(),
-    })
+    let raw=&value["location"];
+    if let (Some(latitude),Some(longitude))=(raw["latitude"].as_f64(),raw["longitude"].as_f64()){return Some(Location{latitude,longitude});}
+    let raw=value["rawLocation"].as_str()?;
+    static PATTERN:std::sync::OnceLock<regex::Regex>=std::sync::OnceLock::new();
+    let matched=PATTERN.get_or_init(||regex::Regex::new(r"([+\-]\d{1,3}\.\d{4})([+\-]\d{1,3}\.\d{4})").unwrap()).captures(raw)?;
+    Some(Location{latitude:matched[1].parse().ok()?,longitude:matched[2].parse().ok()?})
 }
 
 /// Kept in step with plain-app's `isImageFast` / `isVideoFast` /
@@ -360,13 +358,13 @@ fn file(item: &Value) -> File {
 
 fn mount(item: &Value) -> Mount {
     Mount {
-        id: id(item, "id"),
+        id: async_graphql::ID(format!("path:{}",text(item,"path"))),
         name: text(item, "name"),
         path: text(item, "path"),
-        mount_point: text(item, "mountPoint"),
+        mount_point: text(item, "path"),
         fs_type: text(item, "fsType"),
         total_bytes: Long(integer(item, "totalBytes")),
-        used_bytes: Long(integer(item, "usedBytes")),
+        used_bytes: Long(integer(item, "totalBytes").saturating_sub(integer(item,"freeBytes")).max(0)),
         free_bytes: Long(integer(item, "freeBytes")),
         remote: flag(item, "remote"),
         alias: text(item, "alias"),

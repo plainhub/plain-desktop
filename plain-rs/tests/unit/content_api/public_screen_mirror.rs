@@ -97,8 +97,9 @@ async fn no_published_codec_is_null_rather_than_an_empty_object() {
 }
 
 #[tokio::test]
-async fn quality_is_read_from_the_platform_store() {
+async fn quality_is_read_from_the_single_rust_store() {
     let (_dir, schema) = fixture();
+    schema.data::<Arc<crate::prefs::Prefs>>().unwrap().set_user("screen_mirror_quality", json!({"mode":"SMOOTH","resolution":720}).to_string()).unwrap();
     stub(schema_host(&schema), |method, _| match method {
         "systemScreenMirrorQuality" => json!({"mode":"SMOOTH","resolution":720}),
         other => panic!("unexpected host call {other}"),

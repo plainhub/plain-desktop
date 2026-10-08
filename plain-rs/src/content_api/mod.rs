@@ -8,6 +8,7 @@ mod audio_library;
 mod audio;
 
 mod image_index;
+mod image_models;
 
 mod image_index_host;
 
@@ -16,9 +17,7 @@ mod file_task_walk;
 mod file_tasks;
 
 #[cfg(feature = "http_transport")]
-mod http_bridge;
-#[cfg(feature = "http_transport")]
-mod http_bridge_file;
+mod native_resources;
 
 mod file_writes;
 
@@ -56,6 +55,7 @@ mod sms_query;
 mod public_audio;
 #[allow(dead_code)]
 mod public_calls;
+mod phone_geo;
 #[allow(dead_code)]
 mod public_chat;
 #[allow(dead_code)]
@@ -145,6 +145,7 @@ mod nearby_devices;
 mod ble_pairing;
 
 mod peer_status;
+mod peer_actions;
 
 mod status_outgoing;
 mod status_socket;
@@ -164,3 +165,25 @@ mod peer_files;
 mod chat_flow;
 
 mod thumbnails;
+
+mod main_ws;
+
+mod mobile_files;
+
+mod cast_runtime;
+
+mod mms_send;
+
+mod dlna_sender_runtime;
+mod dlna_sender_scan;
+mod dlna_sender_playback;
+
+#[cfg(feature="http_transport")]
+mod public_cors;
+
+#[cfg(feature = "http_transport")]
+mod tls_identity;
+
+mod preferences;
+
+mod image_search;

@@ -18,7 +18,7 @@ pub mod db;
 pub mod discover;
 #[cfg(any(feature = "api", feature = "content_api"))]
 pub mod dlna_receiver;
-#[cfg(feature = "system")]
+#[cfg(any(feature = "system", feature = "content_api"))]
 pub mod dlna_sender;
 #[cfg(feature = "api")]
 pub mod download;
@@ -50,6 +50,8 @@ pub mod sqlite_browse {
 #[cfg(feature = "http_transport")]
 pub mod http_transport;
 pub mod tls;
+#[cfg(feature = "http_transport")]
+pub mod tls_identity;
 pub mod utils;
 pub mod ws_frame;
 
@@ -107,3 +109,13 @@ pub(crate) mod test_tempdirs {
         }
     }
 }
+
+#[cfg(any(feature = "api", feature = "content_api"))]
+pub mod uploads;
+
+#[cfg(any(feature = "api", feature = "content_api"))]
+#[path = "dlna_sender/media_alias.rs"]
+pub mod dlna_media_alias;
+
+#[cfg(feature = "content_api")]
+mod clip_tokenizer;

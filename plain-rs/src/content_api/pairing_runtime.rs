@@ -151,7 +151,71 @@ pub(super) fn success(state: &ServerState, peer: &Value, ip: &str) {
         json!({"deviceId":peer["id"],"deviceName":peer["name"],"ip":ip,"key":peer["key"]}),
     );
 }
-async fn execute(state: &ServerState, request: Request) -> anyhow::Result<Value> {
+async fn local_device(state: &ServerState) -> anyhow::Result<Device> {
+    let reply: crate::chat::nearby_wire::DiscoverReply = serde_json::from_value(
+        super::discovery_advertisement::execute(
+            state,
+            super::discovery_advertisement::Request::Reply {},
+        )
+        .await?,
+    )?;
+    Ok(Device {
+        name: reply.name,
+        port: reply.port,
+        device_type: reply.device_type.to_string(),
+        ips: reply.ips,
+        aware_supported: reply.aware_supported,
+    })
+}
+pub(super) async fn start_device(
+    state: &ServerState,
+    target: Target,
+    ips: Vec<String>,
+    methods: Vec<String>,
+) -> anyhow::Result<Value> {
+    let ble = if methods.iter().any(|method| method == "BLE")
+        && !(methods.iter().any(|method| method == "LAN") && !ips.is_empty())
+    {
+        state
+            .host
+            .call("peerTransportCapabilities", json!({}))
+            .await
+            .map_err(anyhow::Error::msg)?
+            .as_array()
+            .is_some_and(|items| items.iter().any(|item| item.as_str() == Some("BLE")))
+    } else {
+        false
+    };
+    let device = local_device(state).await?;
+    execute(
+        state,
+        Request::Start {
+            target,
+            ips,
+            methods,
+            ble,
+            device,
+        },
+    )
+    .await
+}
+pub(super) async fn respond_device(
+    state: &ServerState,
+    request: PairingRequest,
+    accepted: bool,
+) -> anyhow::Result<Value> {
+    let device = local_device(state).await?;
+    execute(
+        state,
+        Request::Respond {
+            request,
+            accepted,
+            device,
+        },
+    )
+    .await
+}
+pub(super) async fn execute(state: &ServerState, request: Request) -> anyhow::Result<Value> {
     Ok(match request {
         Request::States=>json!(state.pairing.states().into_iter().map(|(ticket,phase)|json!({"deviceId":ticket.target.device_id,"generation":ticket.generation,"phase":phase})).collect::<Vec<_>>()),
         Request::PendingRequest { id, signature } => {

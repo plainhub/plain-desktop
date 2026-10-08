@@ -200,45 +200,43 @@ async fn the_latest_page_covers_every_conversation() {
 
 // ── the mutations, which are commands rather than store writes ──────────
 
-fn chat_fixture() -> (tempfile::TempDir, PublicSchema) {
-    fixture_with(|method, _| match method {
-        "systemChatSend" => json!([{
-            "id": "new-1", "fromId": "me", "toId": "peer-1", "channelId": "",
-            "content": "{\"type\":\"TEXT\"}", "status": "PENDING",
-            "statusData": "", "createdAt": T2, "updatedAt": T2,
-        }]),
-        "systemChatDeleteOne" => json!(true),
-        "systemChatDeleteQuery" => json!(3),
-        "systemChatRetry" => json!({
-            "id": "new-1", "fromId": "me", "toId": "peer-1", "channelId": "",
-            "content": "{\"type\":\"TEXT\"}", "status": "PENDING",
-            "statusData": "", "createdAt": T2, "updatedAt": T2,
-        }),
-        _other => panic!("unexpected host call {_other}"),
-    })
+#[cfg(feature = "http_transport")]
+fn chat_fixture() -> (tempfile::TempDir, super::super::ContentServer) {
+    channel_fixture()
 }
 
+#[cfg(feature = "http_transport")]
 #[tokio::test]
-async fn sending_reports_the_queued_row_not_the_delivered_one() {
-    let (_dir, schema) = chat_fixture();
-    let sent = query(
-        &schema,
-        r#"mutation { sendChatItem(target: "peer-1", content: "{\"type\":\"TEXT\"}") {
-            id fromId toId channelId status
-        } }"#,
-    )
-    .await;
+async fn sending_persists_and_emits_without_native_business_callbacks() {
+    let (_dir, server) = chat_fixture();
+    let state = server.runtime_state();
+    let mut events = state.events.subscribe();
+    let sent = channel_query(&state, r#"mutation { sendChatItem(target: "peer:local", content: "{\"type\":\"TEXT\",\"value\":\"hello\"}") { id fromId toId channelId status } }"#).await;
     let rows = sent["data"]["sendChatItem"].as_array().unwrap();
     assert_eq!(rows.len(), 1, "{sent}");
-    assert_eq!(rows[0]["status"], "PENDING", "{sent}");
     assert!(rows[0]["channelId"].is_null(), "{sent}");
+    assert!(
+        crate::db::chat_store::messages::get(&state.db, rows[0]["id"].as_str().unwrap())
+            .unwrap()
+            .is_some()
+    );
+    assert_eq!(
+        events.recv().await.unwrap().event_type,
+        crate::chat::events::WS_MESSAGE_CREATED
+    );
+    server.shutdown().await;
 }
 
+#[cfg(feature = "http_transport")]
 #[tokio::test]
-async fn bulk_delete_counts_what_it_removed() {
-    let (_dir, schema) = chat_fixture();
-    let deleted = query(
-        &schema,
+async fn bulk_delete_counts_persisted_rows() {
+    let (_dir, server) = chat_fixture();
+    let state = server.runtime_state();
+    for id in ["m1", "m2", "m3"] {
+        seed(&state.db, id, "me", "", "chan-1", "hello", T1);
+    }
+    let deleted = channel_query(
+        &state,
         r#"mutation { deleteChatItems(query: "channel:chan-1") { affectedCount } }"#,
     )
     .await;
@@ -246,39 +244,61 @@ async fn bulk_delete_counts_what_it_removed() {
         deleted["data"]["deleteChatItems"]["affectedCount"], 3,
         "{deleted}"
     );
+    assert!(
+        crate::db::chat_store::messages::get(&state.db, "m1")
+            .unwrap()
+            .is_none()
+    );
+    server.shutdown().await;
 }
 
+#[cfg(feature = "http_transport")]
 #[tokio::test]
-async fn deleting_one_item_is_always_true() {
-    let (_dir, schema) = chat_fixture();
-    let deleted = query(&schema, r#"mutation { deleteChatItem(id: "m1") }"#).await;
-    assert_eq!(deleted["data"]["deleteChatItem"], true, "{deleted}");
+async fn deleting_one_item_is_idempotent() {
+    let (_dir, server) = chat_fixture();
+    let state = server.runtime_state();
+    seed(&state.db, "m1", "me", "local", "", "hello", T1);
+    for _ in 0..2 {
+        let deleted = channel_query(&state, r#"mutation { deleteChatItem(id: "m1") }"#).await;
+        assert_eq!(deleted["data"]["deleteChatItem"], true, "{deleted}");
+    }
+    server.shutdown().await;
 }
 
+#[cfg(feature = "http_transport")]
 #[tokio::test]
-async fn retrying_reports_the_row_it_requeued() {
-    let (_dir, schema) = chat_fixture();
-    let retried = query(
-        &schema,
+async fn retrying_reports_the_persisted_row() {
+    let (_dir, server) = chat_fixture();
+    let state = server.runtime_state();
+    seed(
+        &state.db,
+        "new-1",
+        "me",
+        "local",
+        "",
+        r#"{"type":"TEXT","value":"hello"}"#,
+        T1,
+    );
+    let retried = channel_query(
+        &state,
         r#"mutation { retryChatItem(id: "new-1") { id status } }"#,
     )
     .await;
-    assert_eq!(
-        retried["data"]["retryChatItem"]["status"], "PENDING",
-        "{retried}"
-    );
+    assert_eq!(retried["data"]["retryChatItem"]["id"], "new-1", "{retried}");
+    server.shutdown().await;
 }
 
-/// A retry for an id that is not in the store has no row to report, and the
-/// contract types it non-null — so this is the one case that errors.
+#[cfg(feature = "http_transport")]
 #[tokio::test]
 async fn retrying_an_unknown_id_is_an_error() {
-    let (_dir, schema) = fixture_with(|_method, _| Value::Null);
-    let retried = query(&schema, r#"mutation { retryChatItem(id: "nope") { id } }"#).await;
+    let (_dir, server) = chat_fixture();
+    let state = server.runtime_state();
+    let retried = channel_query(&state, r#"mutation { retryChatItem(id: "nope") { id } }"#).await;
     assert!(
         !retried["errors"].as_array().is_none_or(Vec::is_empty),
         "{retried}"
     );
+    server.shutdown().await;
 }
 
 // Channel roots execute against the same runtime as the mobile endpoint.

@@ -176,12 +176,7 @@ pub(super) async fn call(
             }
             Request::Delete { ids } => Ok(json!(super::chat_actions::delete(&state, ids)?)),
             Request::DeleteQuery { query } => {
-                let ids = if query.trim().is_empty() {
-                    vec![]
-                } else {
-                    crate::db::chat_store::messages::ids(&state.db, &query)?
-                };
-                Ok(json!(super::chat_actions::delete(&state, ids)?))
+                Ok(json!(super::chat_actions::delete_query(&state, &query)?))
             }
             Request::Create { target, content } => {
                 let db = state.db.clone();

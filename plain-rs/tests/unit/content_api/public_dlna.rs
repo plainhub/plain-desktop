@@ -25,6 +25,18 @@ fn fixture() -> (tempfile::TempDir, super::super::ContentServer) {
         prefs,
     )
     .unwrap();
+    let host=server.runtime_state().host.clone();
+    let (generation,mut requests)=host.connect();
+    tokio::spawn(async move {
+        while let Some(request)=requests.recv().await {
+            let result=match request["method"].as_str().unwrap() {
+                "mdnsMulticast"=>json!(true),
+                "systemCastAddressFacts"=>json!({"deviceName":"Test Phone"}),
+                other=>panic!("Unexpected platform primitive: {other}"),
+            };
+            let _=host.reply(generation,json!({"id":request["id"],"result":result}));
+        }
+    });
     assert_eq!(
         TOKEN,
         crate::base64_encode(&[3; 32]),
@@ -93,10 +105,10 @@ async fn receiver_paths_answer_only_while_the_toggle_and_service_are_on() {
     // discoverable or answerable at all.
     assert_eq!(describe().await, 404);
 
-    state.prefs.set("service", true).unwrap();
+    state.prefs.set_user("service", true).unwrap();
     assert_eq!(describe().await, 404, "service alone is not enough");
 
-    state.prefs.set("dlna", true).unwrap();
+    state.prefs.set_user("dlna", true).unwrap();
     let body = client
         .get(format!("{base}/description.xml"))
         .send()
@@ -148,8 +160,8 @@ async fn a_forged_c_ip_header_cannot_impersonate_an_allowed_sender() {
     let client = reqwest::Client::new();
     let base = format!("http://127.0.0.1:{port}");
     let state = server.runtime_state();
-    state.prefs.set("service", true).unwrap();
-    state.prefs.set("dlna", true).unwrap();
+    state.prefs.set_user("service", true).unwrap();
+    state.prefs.set_user("dlna", true).unwrap();
     // 10.0.0.9 is "trusted"; the request below actually arrives from loopback.
     crate::prefs::dlna::add_sender(&state.prefs, "dlna_allowed_senders", "10.0.0.9", "TV");
 

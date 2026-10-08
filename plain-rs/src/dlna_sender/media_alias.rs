@@ -23,6 +23,7 @@ struct MediaAliasEntry {
     path: String,
     mime: String,
     expires_at: Instant,
+    owner: Option<String>,
 }
 
 static ALIASES: Mutex<Option<HashMap<String, MediaAliasEntry>>> = Mutex::new(None);
@@ -44,6 +45,12 @@ fn aliases_mut() -> std::sync::MutexGuard<'static, Option<HashMap<String, MediaA
 /// rare on a single-process install (would require two `Cast` calls in
 /// the same nanosecond).
 pub fn register(path: &str, mime: &str) -> (String, String) {
+    register_owned(path, mime, None)
+}
+pub fn register_for_owner(path: &str, mime: &str, owner: &str) -> (String, String) {
+    register_owned(path, mime, Some(owner))
+}
+fn register_owned(path: &str, mime: &str, owner: Option<&str>) -> (String, String) {
     let now = SystemTime::now()
         .duration_since(UNIX_EPOCH)
         .map(|d| d.as_nanos())
@@ -59,6 +66,7 @@ pub fn register(path: &str, mime: &str) -> (String, String) {
         path: path.to_string(),
         mime: mime.trim().to_string(),
         expires_at: Instant::now() + TTL,
+        owner: owner.map(str::to_owned),
     };
     let mut g = aliases_mut();
     if let Some(map) = g.as_mut() {
@@ -77,7 +85,7 @@ pub fn lookup(id: &str) -> Option<(String, String)> {
     let mut g = aliases_mut();
     let map = g.as_mut()?;
     let entry = map.get(id).cloned()?;
-    if Instant::now() > entry.expires_at {
+    if entry.owner.is_none() && Instant::now() > entry.expires_at {
         map.remove(id);
         return None;
     }
@@ -92,6 +100,7 @@ pub fn lookup(id: &str) -> Option<(String, String)> {
 /// The encrypted `file_id` is resolved to a real path via
 /// `fsx::path_from_file_id` (the Rust port of `plainfs.PathFromFileID`),
 /// then registered as a short alias.
+#[cfg(feature = "media")]
 pub fn safe_media_url(input_url: &str, mime: &str) -> String {
     safe_media_url_with_prefs(input_url, mime, None)
 }
@@ -100,6 +109,7 @@ pub fn safe_media_url(input_url: &str, mime: &str) -> String {
 /// filesystem path using the provided `crate::db::Db` (required for the
 /// `url_token` lookup). When `db` is `None`, the encrypted id is used
 /// verbatim as the alias key — this is a fallback for tests.
+#[cfg(feature = "media")]
 pub fn safe_media_url_with_prefs(
     input_url: &str,
     mime: &str,
@@ -187,3 +197,10 @@ fn is_safe_ext(e: &str) -> bool {
 #[cfg(test)]
 #[path = "../../tests/unit/dlna_sender/dlna/media_alias.rs"]
 mod tests;
+
+pub fn release_owner(owner: &str) {
+    let mut aliases = aliases_mut();
+    if let Some(aliases) = aliases.as_mut() {
+        aliases.retain(|_, entry| entry.owner.as_deref() != Some(owner));
+    }
+}

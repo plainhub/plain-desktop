@@ -35,18 +35,21 @@ fn register_no_extension_yields_bin() {
     assert_eq!(ext, "bin");
 }
 
+#[cfg(feature="media")]
 #[test]
 fn safe_media_url_passes_through_non_fs() {
     let url = "http://other.example/path?x=1";
     assert_eq!(safe_media_url(url, "video/mp4"), url);
 }
 
+#[cfg(feature="media")]
 #[test]
 fn safe_media_url_passes_through_missing_id() {
     let url = "http://other.example/fs?other=1";
     assert_eq!(safe_media_url(url, "video/mp4"), url);
 }
 
+#[cfg(feature="media")]
 #[test]
 fn safe_media_url_passes_through_empty_id() {
     let url = "http://other.example/fs?id=";

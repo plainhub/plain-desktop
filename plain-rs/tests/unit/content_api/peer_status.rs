@@ -154,7 +154,15 @@ async fn public_status_auth_scoped_connections_key_rotation_and_stop_use_rust_wi
     })
     .await
     .unwrap();
-    assert_eq!(stale.recv().await.unwrap().event_type, 10002);
+    tokio::time::timeout(Duration::from_secs(3), async {
+        loop {
+            if stale.recv().await.unwrap().event_type == 10002 {
+                break;
+            }
+        }
+    })
+    .await
+    .unwrap();
     server.shutdown().await;
 }
 

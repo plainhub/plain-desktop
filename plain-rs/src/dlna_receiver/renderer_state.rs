@@ -2,6 +2,7 @@ use crate::dlna_receiver::types::{DlnaMediaType, DlnaPlaybackState, PendingCastR
 
 #[derive(Clone)]
 pub struct DlnaRendererState {
+    pub version: u64,
     pub is_running: bool,
     pub is_retrying: bool,
     pub media_uri: String,
@@ -22,6 +23,7 @@ pub struct DlnaRendererState {
 impl Default for DlnaRendererState {
     fn default() -> Self {
         Self {
+            version: 0,
             is_running: false,
             is_retrying: false,
             media_uri: String::new(),

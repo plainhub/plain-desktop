@@ -144,8 +144,7 @@ async fn handle_soap(
                 });
                 s.pending_play_queued = false;
                 drop(s);
-                receiver_engine::check_rules(state, allowed_senders, denied_senders, command_tx)
-                    .await;
+                receiver_engine::check_rules(state, allowed_senders, denied_senders).await;
             }
             soap_handler::build_response("SetAVTransportURI", "")
         }

@@ -1,12 +1,7 @@
-//! Public `/graphql` preference roots.
-//!
-//! Reads come straight from the Rust store the app already persists to.
-//! Writes go back through the platform instead, because the platform keeps
-//! an in-memory copy of every pref and fans the change out to the live
-//! `StateFlow`s the UI collects. Writing the file from here would persist
-//! the value and leave every observer showing the old one.
+//! Public preference roots share the local Rust store and notify UI projections.
 
-use super::host::Host;
+use crate::ws_event::WsEvent;
+use tokio::sync::broadcast;
 use crate::prefs::Prefs;
 use async_graphql::{Context, Json, Object};
 use serde_json::Value;
@@ -64,12 +59,8 @@ impl PrefsMutation {
     ) -> async_graphql::Result<bool> {
         validate_key(&key)?;
         validate_value(&value.0)?;
-        host_call(
-            ctx,
-            "systemSetUserPref",
-            serde_json::json!({ "key": key, "value": value.0 }),
-        )
-        .await?;
+        super::preferences::set(prefs(ctx), ctx.data_unchecked::<broadcast::Sender<WsEvent>>(), true, &key, value.0)
+            .map_err(async_graphql::Error::new)?;
         Ok(true)
     }
 
@@ -79,25 +70,14 @@ impl PrefsMutation {
         key: String,
     ) -> async_graphql::Result<bool> {
         validate_key(&key)?;
-        host_call(
-            ctx,
-            "systemRemoveUserPref",
-            serde_json::json!({ "key": key }),
-        )
-        .await?;
+        super::preferences::remove(prefs(ctx), ctx.data_unchecked::<broadcast::Sender<WsEvent>>(), true, &key)
+            .map_err(async_graphql::Error::new)?;
         Ok(true)
     }
 }
 
 fn prefs<'a>(ctx: &'a Context<'_>) -> &'a Arc<Prefs> {
     ctx.data_unchecked::<Arc<Prefs>>()
-}
-
-async fn host_call(ctx: &Context<'_>, method: &str, params: Value) -> async_graphql::Result<Value> {
-    ctx.data_unchecked::<Arc<Host>>()
-        .call(method, params)
-        .await
-        .map_err(async_graphql::Error::new)
 }
 
 #[cfg(test)]

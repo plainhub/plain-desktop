@@ -9,24 +9,24 @@
 
 use super::public_audio::{AudioMutation, AudioQuery};
 use super::public_calls::{CallsMutation, CallsQuery};
-use super::public_clipboard::{ClipboardMutation, ClipboardQuery};
 use super::public_chat::{ChatMutation, ChatQuery};
+use super::public_clipboard::{ClipboardMutation, ClipboardQuery};
 use super::public_contacts::{ContactsMutation, ContactsQuery};
+use super::public_db::{DbMutation, DbQuery};
 use super::public_device::{DeviceMutation, DeviceQuery};
 use super::public_feeds::{FeedsMutation, FeedsQuery};
 use super::public_file_ops::{FileOpsMutation, MediaActionMutation, UploadQuery};
-use super::public_files::{FilesQuery, FavoritesMutation};
+use super::public_files::{FavoritesMutation, FilesQuery};
 use super::public_image_index::{ImageIndexMutation, ImageIndexQuery};
-use super::public_db::{DbMutation, DbQuery};
 use super::public_media::MediaQuery;
+use super::public_notes::{NotesMutation, NotesQuery};
+use super::public_notifications::{NotificationsMutation, NotificationsQuery};
+use super::public_packages::{PackagesMutation, PackagesQuery};
 use super::public_peers::{PeersMutation, PeersQuery};
 use super::public_prefs::{PrefsMutation, PrefsQuery};
-use super::public_tags::{TagsMutation, TagsQuery};
-use super::public_notifications::{NotificationsMutation, NotificationsQuery};
-use super::public_notes::{NotesMutation, NotesQuery};
-use super::public_packages::{PackagesMutation, PackagesQuery};
 use super::public_screen_mirror::{ScreenMirrorMutation, ScreenMirrorQuery, SettingsMutation};
 use super::public_sms::{SmsMutation, SmsQuery};
+use super::public_tags::{TagsMutation, TagsQuery};
 use super::schema;
 use crate::content_api::host::Host;
 use crate::{db::Db, prefs::Prefs};
@@ -114,9 +114,62 @@ pub fn build(
     db: Arc<Db>,
     directory: std::path::PathBuf,
 ) -> PublicSchema {
+    let mms = super::mms_send::Runtime::new(
+        host.clone(),
+        prefs.clone(),
+        db.clone(),
+        directory.clone(),
+        events.clone(),
+    );
+    build_with_mms(host, events, prefs, db, directory, mms)
+}
+pub(super) fn build_with_mms(
+    host: Arc<Host>,
+    events: tokio::sync::broadcast::Sender<crate::ws_event::WsEvent>,
+    prefs: Arc<Prefs>,
+    db: Arc<Db>,
+    directory: std::path::PathBuf,
+    mms: Arc<super::mms_send::Runtime>,
+) -> PublicSchema {
+    let services =
+        super::services::Services::new(db.clone(), host.clone(), events.clone(), prefs.clone());
+    let models = super::image_models::Runtime::new(
+        directory.clone(),
+        host.clone(),
+        prefs.clone(),
+        services.index.clone(),
+        events.clone(),
+    );
+    build_with_runtime(host, events, prefs, db, directory, mms, services, models)
+}
+pub(crate) fn build_with_runtime(
+    host: Arc<Host>,
+    events: tokio::sync::broadcast::Sender<crate::ws_event::WsEvent>,
+    prefs: Arc<Prefs>,
+    db: Arc<Db>,
+    directory: std::path::PathBuf,
+    mms: Arc<super::mms_send::Runtime>,
+    services: super::services::Services,
+    models: Arc<super::image_models::Runtime>,
+) -> PublicSchema {
     Schema::build(Query::default(), Mutation::default(), EmptySubscription)
+        .data(mms)
+        .data(Arc::new(super::phone_geo::Runtime::default()))
+        .data(Arc::new(crate::uploads::Runtime::with_completion({
+            let host = host.clone();
+            move |path| {
+                let host = host.clone();
+                Box::pin(async move {
+                    if let Err(error) = host.call("scanFilesFacts", serde_json::json!({"paths": [path.to_string_lossy()]})).await {
+                        log::warn!("Merged upload media scan failed: {error}");
+                    }
+                })
+            }
+        })))
         .data(host.clone())
-        .data(Arc::new(super::audio::Audio::new(db.clone(), host)))
+        .data(services.audio)
+        .data(services.index)
+        .data(models)
         .data(events.clone())
         .data(crate::app_files::FileStore::new(
             db.clone(),

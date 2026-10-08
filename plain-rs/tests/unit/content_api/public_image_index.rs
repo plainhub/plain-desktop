@@ -1,4 +1,5 @@
 use super::*;
+use crate::content_api::host::Host;
 use crate::content_api::public_schema::PublicSchema;
 use serde_json::{Value, json};
 
@@ -37,102 +38,59 @@ fn schema_host(schema: &PublicSchema) -> Arc<Host> {
 }
 
 #[tokio::test]
-async fn image_search_status_is_projected_from_the_platform() {
-    let (_dir, schema) = fixture();
-    stub(schema_host(&schema), |method, _| match method {
-        "systemImageSearchStatus" => json!({
-            "status": "DOWNLOADING", "downloadProgress": 42, "errorMessage": "",
-            "modelSize": 734003200i64, "modelDir": "/data/models", "isIndexing": true,
-            "totalImages": 1200, "indexedImages": 340,
-        }),
-        other => panic!("unexpected host call {other}"),
+async fn image_search_status_is_owned_by_rust_without_platform_projection() {
+    let (dir, schema) = fixture();
+    stub(schema_host(&schema), |method, _| {
+        panic!("Status must not ask platform: {method}")
     });
-    let response = schema
-        .execute(
-            r#"query { imageSearchStatus { status downloadProgress errorMessage
-                     modelSize modelDir isIndexing totalImages indexedImages } }"#,
-        )
-        .await;
+    let response=schema.execute("{ imageSearchStatus { status modelSize modelDir isIndexing totalImages indexedImages } }").await;
     assert!(response.errors.is_empty(), "{:?}", response.errors);
-    let status = &response.data.into_json().unwrap()["imageSearchStatus"];
-    assert_eq!(status["status"], "DOWNLOADING");
-    assert_eq!(status["downloadProgress"], 42);
-    // The model is far past 2 GiB on some devices: it must stay a Long.
-    assert_eq!(status["modelSize"], 734003200i64);
-    assert_eq!(status["modelDir"], "/data/models");
-    assert_eq!(status["isIndexing"], true);
-    assert_eq!(status["indexedImages"], 340);
+    let row = &response.data.into_json().unwrap()["imageSearchStatus"];
+    assert_eq!(row["status"], "UNAVAILABLE");
+    assert_eq!(row["modelSize"], 399703800i64);
+    assert_eq!(
+        row["modelDir"],
+        dir.path().join("ai_models").to_string_lossy().as_ref()
+    );
+    assert_eq!(row["isIndexing"], false);
+    assert_eq!(row["indexedImages"], 0);
 }
-
 #[tokio::test]
-async fn an_unrecognised_status_reads_as_unavailable() {
+async fn unavailable_platform_does_not_download_or_enable() {
     let (_dir, schema) = fixture();
     stub(schema_host(&schema), |method, _| match method {
-        "systemImageSearchStatus" => json!({"status":"SOMETHING_NEW"}),
-        other => panic!("unexpected host call {other}"),
+        "systemImageModelAvailability" => json!(false),
+        other => panic!("Unexpected platform operation: {other}"),
     });
-    let response = schema
-        .execute(r#"query { imageSearchStatus { status } }"#)
-        .await;
+    let response = schema.execute("mutation { enableImageSearch }").await;
+    assert!(response.errors.is_empty(), "{:?}", response.errors);
     assert_eq!(
-        response.data.into_json().unwrap()["imageSearchStatus"]["status"],
-        "UNAVAILABLE"
+        response.data.into_json().unwrap()["enableImageSearch"],
+        true
+    );
+    let models = schema
+        .data::<Arc<super::super::image_models::Runtime>>()
+        .unwrap();
+    assert_eq!(
+        models.snapshot().status.status,
+        ImageSearchStatusType::Unavailable
     );
 }
-
 #[tokio::test]
-async fn start_image_index_forwards_the_force_choice_and_defaults_to_false() {
+async fn cancel_index_mutates_the_same_index_queried_by_model_status() {
     let (_dir, schema) = fixture();
-    let seen = Arc::new(std::sync::Mutex::new(Vec::<Value>::new()));
-    let recorder = seen.clone();
-    stub(schema_host(&schema), move |method, params| match method {
-        "systemStartImageIndex" | "systemCancelImageIndex" => {
-            recorder.lock().unwrap().push(params["force"].clone());
-            json!(true)
-        }
-        other => panic!("unexpected host call {other}"),
-    });
-    for document in [
-        r#"mutation { startImageIndex(force:true) }"#,
-        r#"mutation { startImageIndex }"#,
-        r#"mutation { cancelImageIndex }"#,
-    ] {
-        let response = schema.execute(document).await;
-        assert!(
-            response.errors.is_empty(),
-            "{document}: {:?}",
-            response.errors
-        );
-    }
+    let index = schema
+        .data::<Arc<super::super::image_index::ImageIndex>>()
+        .unwrap();
+    let before = index.status().version;
+    let response = schema.execute("mutation { cancelImageIndex }").await;
+    assert!(response.errors.is_empty(), "{:?}", response.errors);
+    assert!(index.status().version > before);
+    let models = schema
+        .data::<Arc<super::super::image_models::Runtime>>()
+        .unwrap();
     assert_eq!(
-        *seen.lock().unwrap(),
-        vec![json!(true), json!(false), json!(false)],
-        "force must reach the platform exactly as the caller asked"
+        models.snapshot().status.is_indexing,
+        index.status().is_running
     );
-}
-
-#[tokio::test]
-async fn the_image_search_switches_and_download_cancel_all_reach_the_platform() {
-    let (_dir, schema) = fixture();
-    stub(schema_host(&schema), |method, _| match method {
-        "systemEnableImageSearch"
-        | "systemDisableImageSearch"
-        | "systemCancelImageModelDownload" => {
-            json!(true)
-        }
-        other => panic!("unexpected host call {method}"),
-    });
-    for mutation in [
-        "enableImageSearch",
-        "disableImageSearch",
-        "cancelImageModelDownload",
-    ] {
-        let response = schema.execute(&format!("mutation {{ {mutation} }}")).await;
-        assert!(
-            response.errors.is_empty(),
-            "{mutation}: {:?}",
-            response.errors
-        );
-        assert_eq!(response.data.into_json().unwrap()[mutation], true);
-    }
 }

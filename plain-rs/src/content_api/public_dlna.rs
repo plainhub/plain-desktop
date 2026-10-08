@@ -33,7 +33,7 @@ pub(super) const EVENT_UPDATED: i32 = 10005;
 const MAX_BODY: usize = 2 * 1024 * 1024;
 
 fn access_allowed(state: &ServerState) -> bool {
-    crate::prefs::dlna::enabled(&state.prefs) && state.prefs.get_or("service", false)
+    crate::prefs::dlna::enabled(&state.prefs) && state.prefs.get_user_or("service", false)
 }
 
 fn headers_to_map(headers: &HeaderMap) -> HashMap<String, String> {
@@ -51,10 +51,15 @@ fn headers_to_map(headers: &HeaderMap) -> HashMap<String, String> {
 async fn device_name(state: &ServerState) -> String {
     state
         .host
-        .call("dlnaDeviceName", json!({}))
+        .call("systemCastAddressFacts", json!({}))
         .await
         .ok()
-        .and_then(|value| value.get("name").and_then(Value::as_str).map(String::from))
+        .and_then(|value| {
+            value
+                .get("senderName")
+                .and_then(Value::as_str)
+                .map(String::from)
+        })
         .unwrap_or_default()
 }
 
@@ -75,6 +80,7 @@ fn local_ip() -> String {
 
 pub(super) fn snapshot(state: &DlnaRendererState) -> Value {
     json!({
+        "version": state.version,
         "isRunning": state.is_running,
         "isRetrying": state.is_retrying,
         "mediaUri": state.media_uri,
@@ -113,7 +119,6 @@ pub(super) async fn receiver(
     // the peer address, so it comes from the socket — a control point that
     // forged `c-ip` would otherwise be able to impersonate a trusted sender.
     let sender_ip = peer.ip().to_string();
-    let had_pending = state.dlna.state.read().await.pending_cast_request.is_some();
 
     let response = crate::dlna_receiver::http_router::route(
         &state.dlna.state,
@@ -133,9 +138,7 @@ pub(super) async fn receiver(
     )
     .await;
 
-    if !had_pending && state.dlna.state.read().await.pending_cast_request.is_some() {
-        emit(&state);
-    }
+    emit(&state);
 
     let mut out = Response::builder()
         .status(StatusCode::from_u16(response.status).unwrap_or(StatusCode::INTERNAL_SERVER_ERROR));
@@ -186,6 +189,11 @@ pub(super) enum Request {
         port: u16,
     },
     Snapshot {},
+    Rules {},
+    RemoveRule {
+        ip: String,
+        allowed: bool,
+    },
     Accept {
         remember: bool,
     },
@@ -206,14 +214,35 @@ pub(super) enum Request {
 }
 
 pub(super) async fn execute(state: &ServerState, request: Request) -> Result<Value, String> {
+    let _guard = state.cast.receiver_operations.lock().await;
     let engine = &state.dlna;
     match request {
+        Request::Rules {} => Ok(rules(state)),
+        Request::RemoveRule { ip, allowed } => {
+            crate::prefs::dlna::remove_sender(
+                &state.prefs,
+                if allowed {
+                    "dlna_allowed_senders"
+                } else {
+                    "dlna_denied_senders"
+                },
+                &ip,
+            );
+            Ok(rules(state))
+        }
         Request::Start { port } => {
+            super::dlna_sender_runtime::acquire_permission(state, &state.cast.receiver_lease)
+                .await?;
             engine.start(port).await;
+            if !engine.snapshot().await.is_running {
+                super::dlna_sender_runtime::release_permission(state, &state.cast.receiver_lease)
+                    .await;
+            }
             Ok(snapshot(&engine.snapshot().await))
         }
         Request::Stop {} => {
             engine.stop().await;
+            super::dlna_sender_runtime::release_permission(state, &state.cast.receiver_lease).await;
             Ok(snapshot(&engine.snapshot().await))
         }
         Request::Retry { port } => {
@@ -221,7 +250,14 @@ pub(super) async fn execute(state: &ServerState, request: Request) -> Result<Val
             // stop path aborts the tasks this command is running on.
             engine.set_retrying(true).await;
             engine.stop().await;
+            super::dlna_sender_runtime::release_permission(state, &state.cast.receiver_lease).await;
+            super::dlna_sender_runtime::acquire_permission(state, &state.cast.receiver_lease)
+                .await?;
             engine.start(port).await;
+            if !engine.snapshot().await.is_running {
+                super::dlna_sender_runtime::release_permission(state, &state.cast.receiver_lease)
+                    .await;
+            }
             engine.set_retrying(false).await;
             Ok(snapshot(&engine.snapshot().await))
         }
@@ -290,3 +326,36 @@ pub(super) async fn call(
 #[cfg(all(test, feature = "http_transport"))]
 #[path = "../../tests/unit/content_api/public_dlna.rs"]
 mod tests;
+
+pub(super) fn follow_changes(state: &ServerState) {
+    let mut changes = state.dlna.changes();
+    let state = state.clone();
+    tokio::spawn(async move {
+        let mut stop = state.stop.clone();
+        loop {
+            if *stop.borrow() {
+                break;
+            }
+            tokio::select! {
+                _ = stop.changed() => break,
+                result = changes.recv() => {
+                    if matches!(result, Err(tokio::sync::broadcast::error::RecvError::Closed)) { break; }
+                    emit(&state);
+                }
+            }
+        }
+    });
+}
+
+fn rules(state: &ServerState) -> Value {
+    let entries = |key| {
+        crate::prefs::dlna::senders(&state.prefs, key)
+            .into_iter()
+            .map(|entry| {
+                let (ip, name) = crate::prefs::dlna::decode_sender_entry(&entry);
+                json!({"ip":ip,"name":name})
+            })
+            .collect::<Vec<_>>()
+    };
+    json!({"allowed":entries("dlna_allowed_senders"),"denied":entries("dlna_denied_senders")})
+}

@@ -85,10 +85,10 @@ impl ScreenMirrorQuery {
         ctx: &Context<'_>,
     ) -> async_graphql::Result<ScreenMirrorQuality> {
         let stored = ctx
-            .data_unchecked::<Arc<Host>>()
-            .call("systemScreenMirrorQuality", serde_json::json!({}))
-            .await
-            .map_err(|error| async_graphql::Error::new(error))?;
+            .data_unchecked::<Arc<crate::prefs::Prefs>>()
+            .get_user_or("screen_mirror_quality", String::new());
+        let stored: Value = serde_json::from_str(&stored)
+            .unwrap_or_else(|_| serde_json::json!({"mode":"HD","resolution":1080}));
         Ok(quality(&stored))
     }
 }
@@ -143,6 +143,10 @@ impl ScreenMirrorMutation {
         ctx: &Context<'_>,
         mode: ScreenMirrorMode,
     ) -> async_graphql::Result<bool> {
+        let quality = serde_json::json!({"mode":mode.name(),"resolution":if mode==ScreenMirrorMode::Smooth {720}else{1080}});
+        ctx.data_unchecked::<Arc<crate::prefs::Prefs>>()
+            .set_user("screen_mirror_quality", &quality.to_string())
+            .map_err(|error| async_graphql::Error::new(error.to_string()))?;
         dispatch(
             ctx,
             "systemUpdateScreenMirrorQuality",

@@ -20,7 +20,7 @@ fn enabled_defaults_false_and_roundtrips() {
     assert!(!enabled(&prefs));
     set_enabled(&prefs, true);
     assert!(enabled(&prefs));
-    assert!(Prefs::load(prefs.path()).unwrap().get_or("dlna", false));
+    assert!(Prefs::load(prefs.path()).unwrap().get_user_or("dlna", false));
 }
 
 #[test]

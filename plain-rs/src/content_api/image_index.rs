@@ -47,6 +47,9 @@ impl ImageIndex {
             state: Arc::new(Mutex::new(State::default())),
         }
     }
+    pub(super) fn search(&self, embedding: &str, limit: usize) -> LibraryResult<Vec<image_embeddings::SearchResult>> {
+        image_embeddings::search(&self.db, embedding, limit)
+    }
     pub fn status(&self) -> Status {
         self.state.lock().unwrap().status.clone()
     }

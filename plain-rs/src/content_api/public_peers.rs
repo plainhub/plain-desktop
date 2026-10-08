@@ -1,8 +1,4 @@
-//! Public `/graphql` peer, SIM and pairing roots.
-//!
-//! Every one of these is a command rather than a read: pairing moves a
-//! device through a handshake the app owns, and `sims` is the telephony
-//! slot list. Rust holds the contract shape; the platform holds the state.
+//! Public peer, SIM and pairing roots.
 
 use super::host::Host;
 use super::public_device::{DeviceType, device_type as parse_device_type};
@@ -103,8 +99,28 @@ pub struct PeersQuery;
 #[Object]
 impl PeersQuery {
     async fn peers(&self, ctx: &Context<'_>) -> async_graphql::Result<Vec<Peer>> {
-        let facts = host_call(ctx, "systemPeerFacts", json!({})).await?;
-        Ok(super::public_facts::rows(&facts, peer))
+        let state = ctx.data::<super::server::ServerState>()?;
+        let online = state.peer_status.connections.snapshot(&state.db);
+        Ok(crate::db::chat_store::peers::all(&state.db)?
+            .into_iter()
+            .map(|row| Peer {
+                online: online["online"]
+                    .as_array()
+                    .is_some_and(|ids| ids.iter().any(|id| id.as_str() == Some(row.id.as_str()))),
+                id: row.id.into(),
+                name: row.name,
+                ip: row.ip,
+                status: match row.status {
+                    crate::chat::enums::PeerStatus::Paired => PeerStatus::Paired,
+                    crate::chat::enums::PeerStatus::Unpaired => PeerStatus::Unpaired,
+                    crate::chat::enums::PeerStatus::Channel => PeerStatus::Channel,
+                },
+                port: i32::from(row.port),
+                device_type: parse_device_type(&row.device_type.to_string()),
+                created_at: super::public_facts::stored_instant(&row.created_at),
+                updated_at: super::public_facts::stored_instant(&row.updated_at),
+            })
+            .collect())
     }
 
     /// The SIM slots the platform reports. Empty on a device with no
@@ -130,7 +146,22 @@ impl PeersMutation {
         ctx: &Context<'_>,
         input: PairingDeviceInput,
     ) -> async_graphql::Result<bool> {
-        host_call(ctx, "systemPairDevice", json!({ "input": device(&input) })).await?;
+        super::pairing_runtime::start_device(
+            ctx.data::<super::server::ServerState>()?,
+            crate::chat::pairing::sessions::Target {
+                device_id: input.id.to_string(),
+                device_name: input.name,
+                device_ip: String::new(),
+                device_port: u16::try_from(input.port)?,
+            },
+            input.ips,
+            input
+                .discovery_methods
+                .iter()
+                .map(|method| method.as_str().to_owned())
+                .collect(),
+        )
+        .await?;
         Ok(true)
     }
 
@@ -139,10 +170,12 @@ impl PeersMutation {
         ctx: &Context<'_>,
         device_id: async_graphql::ID,
     ) -> async_graphql::Result<bool> {
-        host_call(
-            ctx,
-            "systemCancelPairing",
-            json!({ "deviceId": device_id.as_str() }),
+        super::pairing_runtime::execute(
+            ctx.data::<super::server::ServerState>()?,
+            super::pairing_runtime::Request::Cancel {
+                id: device_id.to_string(),
+                generation: None,
+            },
         )
         .await?;
         Ok(true)
@@ -154,10 +187,10 @@ impl PeersMutation {
         input: PairingRequestInput,
         accepted: bool,
     ) -> async_graphql::Result<bool> {
-        host_call(
-            ctx,
-            "systemRespondToPairing",
-            json!({ "input": request(&input), "accepted": accepted }),
+        super::pairing_runtime::respond_device(
+            ctx.data::<super::server::ServerState>()?,
+            serde_json::from_value(request(&input))?,
+            accepted,
         )
         .await?;
         Ok(true)
@@ -168,7 +201,7 @@ impl PeersMutation {
         ctx: &Context<'_>,
         id: async_graphql::ID,
     ) -> async_graphql::Result<bool> {
-        host_call(ctx, "systemDeletePeer", json!({ "id": id.as_str() })).await?;
+        super::peer_actions::remove(ctx.data::<super::server::ServerState>()?, id.as_str())?;
         Ok(true)
     }
 
@@ -177,51 +210,9 @@ impl PeersMutation {
         ctx: &Context<'_>,
         id: async_graphql::ID,
     ) -> async_graphql::Result<bool> {
-        host_call(ctx, "systemUnpairPeer", json!({ "id": id.as_str() })).await?;
+        super::peer_actions::unpair(ctx.data::<super::server::ServerState>()?, id.as_str())?;
         Ok(true)
     }
-}
-
-fn peer(value: &Value) -> Peer {
-    Peer {
-        id: super::public_facts::id(value, "id"),
-        name: super::public_facts::text(value, "name"),
-        ip: super::public_facts::text(value, "ip"),
-        status: match super::public_facts::text(value, "status").as_str() {
-            "UNPAIRED" => PeerStatus::Unpaired,
-            "CHANNEL" => PeerStatus::Channel,
-            _ => PeerStatus::Paired,
-        },
-        port: super::public_facts::integer(value, "port") as i32,
-        device_type: parse_device_type(&super::public_facts::text(value, "deviceType")),
-        created_at: super::public_facts::stored_instant(&super::public_facts::text(
-            value, "createdAt",
-        )),
-        updated_at: super::public_facts::stored_instant(&super::public_facts::text(
-            value, "updatedAt",
-        )),
-        online: super::public_facts::flag(value, "online"),
-    }
-}
-
-/// The enums are the contract's own, so both sides spell them the same way
-/// and the host reads them straight back off the wire.
-fn device(input: &PairingDeviceInput) -> Value {
-    json!({
-        "id": input.id.as_str(),
-        "name": input.name,
-        "ips": input.ips,
-        "port": input.port,
-        "deviceType": input.device_type.as_str(),
-        "version": input.version,
-        "platform": input.platform,
-        "lastSeen": input.last_seen,
-        "discoveryMethods": input
-            .discovery_methods
-            .iter()
-            .map(|method| method.as_str())
-            .collect::<Vec<_>>(),
-    })
 }
 
 fn request(input: &PairingRequestInput) -> Value {
@@ -247,6 +238,6 @@ async fn host_call(ctx: &Context<'_>, method: &str, params: Value) -> async_grap
         .map_err(async_graphql::Error::new)
 }
 
-#[cfg(test)]
+#[cfg(all(test, feature = "http_transport"))]
 #[path = "../../tests/unit/content_api/public_peers.rs"]
 mod tests;

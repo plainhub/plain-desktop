@@ -21,6 +21,27 @@ pub enum Action {
     Accept,
 }
 
+pub fn pending_invitation(
+    db: &Db,
+    actor: &str,
+    id: &str,
+    owner: Option<&str>,
+) -> Result<Option<DChannel>> {
+    let Some(channel) = channels::get(db, id)? else {
+        return Ok(None);
+    };
+    if channel.status != ChannelStatus::Joined
+        || owner.is_some_and(|owner| owner != channel.owner_id)
+    {
+        return Ok(None);
+    }
+    let members: Vec<ChannelMember> = serde_json::from_str(&channel.members)?;
+    Ok(members
+        .iter()
+        .any(|member| member.peer_id == actor && member.is_pending())
+        .then_some(channel))
+}
+
 pub fn create(db: &Db, actor: &str, name: &str) -> Result<DChannel> {
     if actor.is_empty() {
         bail!("Missing channel actor");

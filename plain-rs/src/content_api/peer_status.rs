@@ -69,6 +69,12 @@ pub(super) async fn public(
         })
 }
 pub(super) fn emit(state: &ServerState, id: &str, online: bool) {
+    if !id.is_empty() {
+        let _ = state.events.send(crate::ws_event::WsEvent::broadcast(
+            crate::chat::events::WS_PEER_STATUS_UPDATED,
+            json!({"id":id,"online":online}).to_string(),
+        ));
+    }
     let _=state.events.send(crate::ws_event::WsEvent::broadcast(10002,json!({"id":id,"online":online,"runtimeId":state.peer_status.snapshot(&state.db)["runtimeId"]}).to_string()));
 }
 pub(super) struct ConnectionGuard {

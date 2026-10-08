@@ -56,16 +56,7 @@ fn plain(status: StatusCode, body: impl Into<String>) -> Response {
 /// plain-app percent-encodes the download name; the desktop route does the
 /// same before writing the `Content-Disposition`.
 fn url_escape(value: &str) -> String {
-    let mut out = String::with_capacity(value.len());
-    for byte in value.as_bytes() {
-        match byte {
-            b'A'..=b'Z' | b'a'..=b'z' | b'0'..=b'9' | b'-' | b'_' | b'.' | b'~' => {
-                out.push(*byte as char)
-            }
-            _ => out.push_str(&format!("%{byte:02X}")),
-        }
-    }
-    out
+    super::mobile_files::escape(value)
 }
 
 /// Decrypt a urlToken-protected `id` into its plaintext payload.

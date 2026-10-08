@@ -54,6 +54,7 @@ pub use crate::ws_event::WsEvent;
 /// All server-level dependencies bundled for injection into async-graphql resolvers.
 /// Passed per-request via `Request::data(Arc<AppCtx>)`.
 pub struct AppCtx {
+    pub uploads: Arc<crate::uploads::Runtime>,
     pub image_updates: Arc<crate::image_editor::Updates>,
     pub pomodoro: Arc<crate::pomodoro::Service>,
     pub feed_sync: Arc<crate::feeds::SyncService>,
@@ -124,6 +125,7 @@ impl AppCtx {
         );
         let token = chat.service.token.clone();
         Ok(Arc::new(Self {
+            uploads: Arc::new(crate::uploads::Runtime::default()),
             image_updates: crate::image_editor::Updates::new(event_tx.clone()),
             pomodoro: crate::pomodoro::Service::new(db.clone(), prefs.clone(), event_tx.clone()),
             feed_sync: crate::feeds::SyncService::new(

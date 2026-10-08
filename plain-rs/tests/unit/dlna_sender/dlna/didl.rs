@@ -49,3 +49,32 @@ fn special_chars_are_escaped() {
     // The unescaped `<` must NOT appear in the URL position.
     assert!(!xml.contains(">http://x/<a>&b\"c</res>"));
 }
+
+#[test]
+fn mobile_metadata_is_valid_xml_with_album_art_and_unknown_class() {
+    let xml = metadata(
+        "http://host/file?x=1&y=2",
+        "A & <B>",
+        "audio/mpeg",
+        MediaType::Unknown,
+        "http://host/art?a=1&b=2",
+        true,
+    );
+    let mut reader = quick_xml::Reader::from_str(&xml);
+    loop {
+        match reader.read_event().unwrap() {
+            quick_xml::events::Event::Eof => break,
+            quick_xml::events::Event::Start(tag) => {
+                for attribute in tag.attributes() {
+                    attribute.unwrap();
+                }
+            }
+            _ => {}
+        }
+    }
+    assert!(xml.contains("object.item</upnp:class>"));
+    assert!(xml.contains("A &amp; &lt;B&gt;"));
+    assert!(xml.contains("http://host/art?a=1&amp;b=2"));
+    assert!(xml.contains("parentID=\"-1\""));
+    assert!(!xml.contains("\\\""));
+}

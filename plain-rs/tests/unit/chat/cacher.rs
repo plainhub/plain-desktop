@@ -1,6 +1,6 @@
 use super::*;
-use crate::db::{Db, DChannel, DPeer};
 use crate::chat::enums::{ChannelStatus, DeviceType, PeerStatus};
+use crate::db::{DChannel, DPeer, Db};
 use std::path::PathBuf;
 use std::time::{SystemTime, UNIX_EPOCH};
 

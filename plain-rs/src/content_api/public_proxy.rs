@@ -88,13 +88,16 @@ pub(super) async fn call(
                 .into_response();
         }
     };
+    proxy(&url, &headers).await
+}
+pub(super) async fn proxy(url: &str, headers: &HeaderMap) -> Response {
     let client = match reqwest::Client::builder().build() {
         Ok(client) => client,
         Err(error) => {
             return (StatusCode::INTERNAL_SERVER_ERROR, error.to_string()).into_response();
         }
     };
-    let mut request = client.get(&url);
+    let mut request = client.get(url);
     if let Some(agent) = headers.get(header::USER_AGENT) {
         request = request.header(header::USER_AGENT, agent);
     }

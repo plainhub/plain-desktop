@@ -305,20 +305,8 @@ impl SmsMutation {
         attachment_paths: Vec<String>,
         thread_id: ID,
     ) -> async_graphql::Result<String> {
-        let pending = ctx
-            .data_unchecked::<Arc<Host>>()
-            .call(
-                "systemSendMms",
-                serde_json::json!({
-                    "number": number,
-                    "body": body,
-                    "attachmentPaths": attachment_paths,
-                    "threadId": thread_id.0,
-                }),
-            )
-            .await
-            .map_err(|error| async_graphql::Error::new(error))?;
-        Ok(pending.as_str().unwrap_or_default().to_owned())
+        ctx.data_unchecked::<Arc<super::mms_send::Runtime>>().send(number,body,attachment_paths,thread_id.0).await.map_err(|error|async_graphql::Error::new(error.to_string()))
+
     }
 }
 

@@ -198,7 +198,7 @@ pub(super) async fn dispatch(
     #[cfg(feature = "http_transport")]
     {
         req.extensions_mut()
-            .insert(super::http_bridge::RemoteHost(remote_host));
+            .insert(super::native_resources::RemoteHost(remote_host));
         req.extensions_mut()
             .insert(crate::http_transport::ConnectionScheme("https"));
     }

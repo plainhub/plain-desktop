@@ -19,14 +19,14 @@ use tokio::sync::{Semaphore, oneshot};
 #[derive(Deserialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub(super) struct Request {
-    path: String,
-    width: u32,
-    height: u32,
-    center_crop: bool,
-    media_id: String,
-    file_name: String,
+    pub(super) path: String,
+    pub(super) width: u32,
+    pub(super) height: u32,
+    pub(super) center_crop: bool,
+    pub(super) media_id: String,
+    pub(super) file_name: String,
     #[serde(default)]
-    if_none_match: Option<String>,
+    pub(super) if_none_match: Option<String>,
 }
 pub(super) struct Thumbnails {
     locks: KeyedLocks,
@@ -232,8 +232,11 @@ pub(super) async fn call(
     if !state.authenticated(&headers) {
         return StatusCode::UNAUTHORIZED.into_response();
     }
+    response(&state, request).await
+}
+pub(super) async fn response(state: &ServerState, request: Request) -> Response {
     let conditional = request.if_none_match.clone();
-    match state.thumbnails.get(&state, request).await {
+    match state.thumbnails.get(state, request).await {
         Ok(Some(bytes)) => {
             let mime = if bytes.starts_with(b"\x89PNG") {
                 "image/png"

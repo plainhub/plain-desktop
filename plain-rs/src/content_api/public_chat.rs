@@ -1,12 +1,3 @@
-//! Public `/graphql` chat roots: messages and channels.
-//!
-//! Reads come straight from the Rust store — `chatItems` and
-//! `latestChatItems` are the same queries the app's own chat store runs.
-//! Writes go through the host, because sending a message is not a row
-//! insert: it is delivery, a retry queue and the UI's own list refresh, all
-//! of which the manager already owns.
-
-use super::host::Host;
 use crate::content_types::{ActionResult, Instant};
 use crate::db::{DChat, Db};
 use async_graphql::{Context, Enum, Object, SimpleObject};
@@ -152,13 +143,10 @@ impl ChatMutation {
         target: String,
         content: String,
     ) -> async_graphql::Result<Vec<ChatItem>> {
-        let facts = host_call(
-            ctx,
-            "systemChatSend",
-            json!({ "target": target, "content": content }),
-        )
-        .await?;
-        Ok(rows(&facts, from_json))
+        let row =
+            super::chat_actions::send(ctx.data::<super::server::ServerState>()?, &target, &content)
+                .await?;
+        Ok(vec![item(&row)])
     }
 
     /// Always true: an id that is already gone is the state the caller asked
@@ -168,7 +156,10 @@ impl ChatMutation {
         ctx: &Context<'_>,
         id: async_graphql::ID,
     ) -> async_graphql::Result<bool> {
-        host_call(ctx, "systemChatDeleteOne", json!({ "id": id.as_str() })).await?;
+        super::chat_actions::delete(
+            ctx.data::<super::server::ServerState>()?,
+            vec![id.to_string()],
+        )?;
         Ok(true)
     }
 
@@ -177,9 +168,10 @@ impl ChatMutation {
         ctx: &Context<'_>,
         query: String,
     ) -> async_graphql::Result<ActionResult> {
-        let count = host_call(ctx, "systemChatDeleteQuery", json!({ "query": query })).await?;
+        let count =
+            super::chat_actions::delete_query(ctx.data::<super::server::ServerState>()?, &query)?;
         Ok(ActionResult {
-            affected_count: count.as_i64().unwrap_or_default() as i32,
+            affected_count: i32::try_from(count)?,
         })
     }
 
@@ -188,11 +180,10 @@ impl ChatMutation {
         ctx: &Context<'_>,
         id: async_graphql::ID,
     ) -> async_graphql::Result<ChatItem> {
-        let facts = host_call(ctx, "systemChatRetry", json!({ "id": id.as_str() })).await?;
-        if facts.is_null() {
-            return Err(format!("Chat item {} not found", id.as_str()).into());
-        }
-        Ok(from_json(&facts))
+        let row =
+            super::chat_actions::retry(ctx.data::<super::server::ServerState>()?, id.to_string())
+                .await?;
+        Ok(item(&row))
     }
 
     async fn create_chat_channel(
@@ -386,13 +377,6 @@ fn rows<T>(value: &Value, item: impl Fn(&Value) -> T) -> Vec<T> {
 
 fn db<'a>(ctx: &'a Context<'_>) -> async_graphql::Result<&'a Arc<Db>> {
     ctx.data::<Arc<Db>>()
-}
-
-async fn host_call(ctx: &Context<'_>, method: &str, params: Value) -> async_graphql::Result<Value> {
-    ctx.data_unchecked::<Arc<Host>>()
-        .call(method, params)
-        .await
-        .map_err(async_graphql::Error::new)
 }
 
 #[cfg(test)]

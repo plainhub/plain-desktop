@@ -23,6 +23,8 @@ use tokio::{
 };
 #[derive(Clone)]
 pub(super) struct ServerState {
+    #[cfg(feature = "http_transport")]
+    pub(super) build_debug: Arc<std::sync::atomic::AtomicBool>,
     schema: ContentSchema,
     /// The contract schema the public `/graphql` executes. Built once next
     /// to the app's own schema so both share one host and one database.
@@ -54,13 +56,18 @@ pub(super) struct ServerState {
     pub(super) pairing: Arc<crate::chat::pairing::sessions::Sessions>,
     pub(super) prefs: Arc<crate::prefs::Prefs>,
     pub(super) dlna: Arc<crate::dlna_receiver::receiver_engine::DlnaEngine>,
+    pub(super) image_models: Arc<super::image_models::Runtime>,
+    pub(super) mms: Arc<super::mms_send::Runtime>,
+    pub(super) cast: Arc<super::dlna_sender_runtime::Runtime>,
+    pub(super) audio: Arc<super::audio::Audio>,
+    pub(super) main_ws: Arc<super::main_ws::Runtime>,
     pub(super) login_attempts: Arc<std::sync::Mutex<super::ws_login::LoginAttempts>>,
     pub(super) directory: std::path::PathBuf,
-    token: Arc<str>,
+    pub(super) token: Arc<str>,
     pub(super) events: broadcast::Sender<WsEvent>,
     pub(super) stop: watch::Receiver<bool>,
     #[cfg(feature = "http_transport")]
-    pub(super) bridge: Arc<super::http_bridge::HttpBridge>,
+    pub(super) bridge: Arc<super::native_resources::NativeResources>,
 }
 impl ServerState {
     pub(super) fn authenticated(&self, headers: &HeaderMap) -> bool {
@@ -78,8 +85,6 @@ pub struct ContentServer {
     state: ServerState,
     task: JoinHandle<()>,
     stop: watch::Sender<bool>,
-    #[cfg(feature = "http_transport")]
-    bridge: Arc<super::http_bridge::HttpBridge>,
     #[cfg(feature = "http_transport")]
     public: tokio::sync::Mutex<Option<PublicServer>>,
 }
@@ -111,15 +116,32 @@ impl ContentServer {
             host.clone(),
             services.clone(),
         );
-        let public = super::public_schema::build(
+        let mms = super::mms_send::Runtime::new(
+            host.clone(),
+            prefs.clone(),
+            db.clone(),
+            directory.clone(),
+            events.clone(),
+        );
+        let image_models = super::image_models::Runtime::new(
+            directory.clone(),
+            host.clone(),
+            prefs.clone(),
+            services.index.clone(),
+            events.clone(),
+        );
+        let public = super::public_schema::build_with_runtime(
             host.clone(),
             events.clone(),
             prefs.clone(),
             db.clone(),
             directory,
+            mms.clone(),
+            services.clone(),
+            image_models.clone(),
         );
         #[cfg(feature = "http_transport")]
-        let bridge = Arc::new(super::http_bridge::HttpBridge::new(host.clone()));
+        let bridge = Arc::new(super::native_resources::NativeResources::new(host.clone()));
         let attachments = Arc::new(crate::chat::attachment_imports::Imports::default());
         let downloads = Arc::new(crate::chat::download_queue::Queue::new(
             (*db).clone(),
@@ -165,19 +187,27 @@ impl ContentServer {
             pairing: Arc::new(crate::chat::pairing::sessions::Sessions::default()),
             dlna: Arc::new(crate::dlna_receiver::receiver_engine::DlnaEngine::new()),
             files: services.files,
+            audio: services.audio,
             host,
             db,
             prefs,
+            image_models: image_models.clone(),
+            mms,
+            cast: Arc::new(super::dlna_sender_runtime::Runtime::default()),
+            main_ws: Arc::new(super::main_ws::Runtime::default()),
             login_attempts: Arc::new(std::sync::Mutex::new(
                 super::ws_login::LoginAttempts::default(),
             )),
             directory: path.parent().unwrap_or(Path::new(".")).to_path_buf(),
+            build_debug: Arc::new(std::sync::atomic::AtomicBool::new(false)),
             token: Arc::from(token),
             events,
             stop: receiver.clone(),
             #[cfg(feature = "http_transport")]
             bridge: bridge.clone(),
         };
+        #[cfg(feature = "http_transport")]
+        state.mms.set_resources(bridge.clone(), receiver.clone());
         super::download_queue::start(state.clone());
         super::shared_batch::start(state.clone());
         super::pairing_timeout::start(
@@ -186,6 +216,9 @@ impl ContentServer {
             receiver.clone(),
         );
         super::nearby_devices::start(state.clone());
+        image_models.follow(receiver.clone());
+        state.mms.follow(receiver.clone());
+        super::public_dlna::follow_changes(&state);
         let mdns = state.mdns.clone();
         let mdns_host = state.host.clone();
         let mut mdns_stop = receiver.clone();
@@ -241,8 +274,15 @@ impl ContentServer {
             .route("/system/sms-send", post(super::sms_send::call))
             .route("/system/contact-write", post(super::contact_write::call))
             .route("/system/ws-login", post(super::ws_login::call))
+            .route("/system/ws-runtime", post(super::main_ws::call))
+            .route(
+                "/system/dlna-sender",
+                post(super::dlna_sender_runtime::call),
+            )
+            .route("/system/mms-runtime", post(super::mms_send::call))
             .route("/system/sessions", post(super::sessions::call))
             .route("/system/providers", post(super::system_providers::call))
+            .route("/system/preferences", post(super::preferences::call))
             .route("/system/media-buckets", post(super::media_buckets::call))
             .route("/system/permissions", post(super::system_permissions::call))
             .route("/system/provider-plan", post(super::provider_plan::call))
@@ -255,9 +295,15 @@ impl ContentServer {
                 post(super::notification_actions::call),
             )
             .route("/dlna/receiver", post(super::public_dlna::call))
+            .route("/system/image-models", post(super::image_models::call))
+            .route("/system/image-search", post(super::image_search::call))
             .route("/http/guest", post(super::guest_graphql::call));
         #[cfg(feature = "http_transport")]
-        let router = router.route("/http_host/:id", get(http_host_upgrade));
+        let router = router.route("/system/tls", post(super::tls_identity::call))
+            .route("/resources/:id", get(resource_upgrade)).route(
+            "/system/notification-event",
+            post(super::public_notifications::publish),
+        );
         let router = router
             .layer(DefaultBodyLimit::max(32 * 1024 * 1024))
             .with_state(state.clone());
@@ -276,8 +322,6 @@ impl ContentServer {
             state,
             task,
             stop,
-            #[cfg(feature = "http_transport")]
-            bridge,
             #[cfg(feature = "http_transport")]
             public: tokio::sync::Mutex::new(None),
         })
@@ -325,23 +369,29 @@ impl ContentServer {
                 post(super::public_upload::upload_chunk)
                     .layer(DefaultBodyLimit::max(15 * 60 * 1000 * 1000)),
             )
+            .route("/", get(super::main_ws::upgrade))
+            .route("/media/:id", get(super::cast_runtime::media))
+            .route(
+                "/callback/cast",
+                axum::routing::any(super::cast_runtime::callback),
+            )
             .route("/init", post(super::main_graphql::init))
             .route("/shutdown", get(super::main_graphql::shutdown))
             .layer(DefaultBodyLimit::max(32 * 1024 * 1024))
             .with_state(self.state.clone());
         let router = Router::new()
-            .fallback(super::public_static::static_or_bridge)
+            .fallback(super::public_static::fallback)
             .layer(DefaultBodyLimit::max(64 * 1024 * 1024 * 1024))
-            .with_state(super::http_bridge::HttpBridgeState {
-                bridge: self.bridge.clone(),
-                stop: receiver,
-                prefs: self.state.prefs.clone(),
-            })
+            .with_state(self.state.clone())
             .merge(peer_router)
             .merge(status_router)
             .merge(nearby_router)
             .merge(main_graphql_router)
-            .merge(super::public_dlna::router(self.state.clone()));
+            .merge(super::public_dlna::router(self.state.clone()))
+            .layer(axum::middleware::from_fn_with_state(
+                self.state.clone(),
+                super::public_cors::apply,
+            ));
         let listeners =
             crate::http_transport::HttpListeners::start(router, http, https, cert, key).await?;
         let ports = (listeners.http_port, listeners.https_port);
@@ -365,11 +415,32 @@ impl ContentServer {
             .public_active
             .store(false, std::sync::atomic::Ordering::SeqCst);
         self.state.peer_status.outgoing.stop().await;
+        self.state.main_ws.close_client(&self.state, None);
+        self.state.mms.cancel_all().await;
+        let _cast_guard = self.state.cast.operations.lock().await;
+        super::dlna_sender_playback::end(&self.state, true).await;
+        let _receiver_guard = self.state.cast.receiver_operations.lock().await;
+        self.state.dlna.stop().await;
+        super::dlna_sender_runtime::release_permission(
+            &self.state,
+            &self.state.cast.receiver_lease,
+        )
+        .await;
+        self.state.cast.stop_tasks();
+        super::dlna_sender_runtime::release_permission(&self.state, &self.state.cast.scan_lease)
+            .await;
+        self.state.cast.publish(&self.state);
         if let Some(public) = guard.take() {
             let _ = public.stop.send(true);
             let PublicServer { listeners, stop: _ } = public;
             listeners.shutdown().await;
         }
+    }
+    #[cfg(feature = "http_transport")]
+    pub fn set_build_debug(&self, debug: bool) {
+        self.state
+            .build_debug
+            .store(debug, std::sync::atomic::Ordering::Relaxed);
     }
     pub async fn shutdown(mut self) {
         #[cfg(feature = "http_transport")]
@@ -377,6 +448,8 @@ impl ContentServer {
         #[cfg(feature = "http_transport")]
         self.state.shared_batches.shutdown(&self.state.host).await;
         self.state.download_runtime.shutdown().await;
+        self.state.mms.shutdown().await;
+        self.state.image_models.shutdown().await;
         if self.state.host.connected() && self.state.host.needs_socket_cleanup() {
             let _ = self
                 .state
@@ -405,23 +478,7 @@ fn peer_routes(state: ServerState) -> Router {
         .with_state(state)
 }
 pub(super) fn peer_router(state: ServerState) -> Router {
-    let routes = peer_routes(state.clone());
-    #[cfg(feature = "http_transport")]
-    {
-        routes.merge(
-            Router::new()
-                .fallback(super::http_bridge::handle)
-                .with_state(super::http_bridge::HttpBridgeState {
-                    bridge: state.bridge.clone(),
-                    stop: state.stop.clone(),
-                    prefs: state.prefs.clone(),
-                }),
-        )
-    }
-    #[cfg(not(feature = "http_transport"))]
-    {
-        routes
-    }
+    peer_routes(state)
 }
 async fn health(State(s): State<ServerState>, headers: HeaderMap) -> impl IntoResponse {
     if s.authenticated(&headers) {
@@ -513,7 +570,18 @@ async fn events(
     loop {
         tokio::select! {
             _=state.stop.changed()=>break,
-            message=socket.recv()=>match message {Some(Ok(Message::Ping(data)))=>{if socket.send(Message::Pong(data)).await.is_err(){break;}},Some(Ok(Message::Close(_)))|None|Some(Err(_))=>break,_=>{}},
+            message=socket.recv()=>match message {Some(Ok(Message::Ping(data)))=>{if socket.send(Message::Pong(data)).await.is_err(){break;}},Some(Ok(Message::Close(_)))|None|Some(Err(_))=>break,
+            Some(Ok(Message::Text(text))) => {
+                if let Ok(value) = serde_json::from_str::<serde_json::Value>(&text) {
+                    if let (Some(kind),Some(payload))=(value["type"].as_i64().and_then(|v|i32::try_from(v).ok()),value["payload"].as_str()) {
+                        if (0..10000).contains(&kind) { let _=state.events.send(WsEvent::broadcast(kind,payload.to_owned())); }
+                    }
+                }
+            },
+            Some(Ok(Message::Binary(bytes))) if bytes.len()>=4 => {
+                let kind=i32::from_le_bytes(bytes[..4].try_into().unwrap());
+                if (0..10000).contains(&kind) { let _=state.events.send(WsEvent::broadcast_binary(kind,bytes[4..].to_vec())); }
+            },_=>{}},
             event=receiver.recv()=>{
                 let message = match event {
                     Ok(ref e) => match &e.binary_payload {
@@ -589,7 +657,7 @@ struct PublicServer {
     stop: watch::Sender<bool>,
 }
 #[cfg(feature = "http_transport")]
-async fn http_host_upgrade(
+async fn resource_upgrade(
     State(state): State<ServerState>,
     axum::extract::Path(id): axum::extract::Path<String>,
     headers: HeaderMap,

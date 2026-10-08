@@ -385,6 +385,7 @@ pub(super) async fn execute(state: &ServerState, request: Request) -> anyhow::Re
     result["frame"] = json!(crate::base64_encode(&bytes));
     result["requestId"] = json!(request_id);
     result["request"] = pending.request;
+    result["clientIp"] = json!(pending.client_ip);
     Ok(result)
 }
 
@@ -396,8 +397,26 @@ pub(super) async fn call(
     if !state.authenticated(&headers) {
         return StatusCode::UNAUTHORIZED.into_response();
     }
+    if let Request::Cancel { request_id } = &request {
+        state.main_ws.reject(request_id);
+    }
+    let complete = match &request {
+        Request::Complete { request_id } => Some(request_id.clone()),
+        _ => None,
+    };
     match execute(&state, request).await {
-        Ok(value) => Json(value).into_response(),
+        Ok(value) => {
+            if let Some(id) = complete {
+                if let Err(error) = state.main_ws.complete(&state, &id, &value).await {
+                    return (
+                        StatusCode::BAD_REQUEST,
+                        Json(json!({"error":error.to_string()})),
+                    )
+                        .into_response();
+                }
+            }
+            Json(value).into_response()
+        }
         Err(error) => (
             StatusCode::BAD_REQUEST,
             Json(json!({"error":error.to_string()})),

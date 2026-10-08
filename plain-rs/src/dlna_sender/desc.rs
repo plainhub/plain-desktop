@@ -28,6 +28,7 @@ const FETCH_BODY_CAP: usize = 2 << 20;
 /// Fetch the XML at `location` and parse it into a `DiscoveredDevice`.
 /// Returns an error string on network failure, non-2xx status, or XML
 /// errors. The caller's context is **not** honoured — see module docs.
+#[cfg(feature = "system")]
 pub fn fetch_and_parse_device(location: &str) -> Result<DiscoveredDevice, String> {
     let started = std::time::Instant::now();
     let agent = ureq::AgentBuilder::new().timeout(FETCH_TIMEOUT).build();
@@ -140,6 +141,7 @@ pub fn parse_device_desc(body: &[u8]) -> DiscoveredDevice {
 /// devices by fetching each unique `Location`. If `on_device` is `Some`,
 /// it is invoked once for every device we successfully parse (including
 /// duplicates suppressed by `Location`).
+#[cfg(feature = "system")]
 pub fn discover_upnp_devices<F: FnMut(&DiscoveredDevice)>(
     search_targets: &[String],
     mut on_device: Option<F>,
@@ -185,6 +187,7 @@ pub fn discover_upnp_devices<F: FnMut(&DiscoveredDevice)>(
 /// Resolve a UDN to a `DiscoveredDevice`. Hits the in-memory cache first
 /// (populated by previous discovery rounds); on miss, runs a fresh SSDP
 /// scan. Mirrors Go `findUPnPDeviceByUDN(ctx, udn)`.
+#[cfg(feature = "system")]
 pub fn find_upnp_device_by_udn(udn: &str) -> Result<DiscoveredDevice, String> {
     let udn = udn.trim();
     if udn.is_empty() {

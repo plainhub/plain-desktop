@@ -11,6 +11,8 @@ pub struct EmbeddingInput {
     pub path: String,
     pub embedding_base64: String,
 }
+#[derive(serde::Serialize)]
+#[serde(rename_all = "camelCase")]
 pub struct SearchResult {
     pub image_id: String,
     pub score: f32,

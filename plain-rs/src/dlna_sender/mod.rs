@@ -25,19 +25,22 @@
 //!     background task)
 //!   * [`lookup_media_alias`] (called by the `/media/:id.ext` handler)
 
-pub mod xml_sax;
 pub mod desc;
 pub mod didl;
+#[cfg(feature = "system")]
 pub mod discovery;
-pub mod media_alias;
+pub mod xml_sax;
+pub use crate::dlna_media_alias as media_alias;
 pub mod soap;
 pub mod ssdp;
 pub mod types;
 pub mod util;
 
+#[cfg(feature = "system")]
 use types::DiscoveredDevice;
 pub use types::{MediaType, Renderer};
 
+#[cfg(feature = "system")]
 use serde_json::json;
 
 /// Cast a media URL to a renderer by UDN. Mirrors Go `Cast(ctx, …)`.
@@ -48,6 +51,7 @@ use serde_json::json;
 /// `db` is used to resolve the encrypted `file_id` in `/fs?id=…` URLs to
 /// a real filesystem path before registering the alias. Mirrors Go's
 /// `plainfs.PathFromFileID(id)` call inside `dlnaSafeMediaURL`.
+#[cfg(feature = "system")]
 pub fn cast(
     renderer_udn: &str,
     media_url: &str,
@@ -96,6 +100,7 @@ pub fn cast(
 
 /// JSON payload published on `dlna:renderer:found`. Mirrors
 /// `rendererPayload(d)` in Go.
+#[cfg(feature = "system")]
 pub fn renderer_payload(d: &DiscoveredDevice) -> serde_json::Value {
     json!({
         "udn": d.udn,
@@ -107,6 +112,7 @@ pub fn renderer_payload(d: &DiscoveredDevice) -> serde_json::Value {
 }
 
 /// JSON payload published on `dlna:discovery:done`.
+#[cfg(feature = "system")]
 pub fn discovery_done_payload() -> serde_json::Value {
     json!({ "done": true })
 }
@@ -114,16 +120,18 @@ pub fn discovery_done_payload() -> serde_json::Value {
 /// Join the long-lived renderer discovery task. Mirrors Go
 /// `StartRendererDiscovery(clientID)`. Idempotent: if a task is already
 /// running, we just register `client_id` and flush the current cache.
+#[cfg(feature = "system")]
 pub fn start_renderer_discovery(client_id: &str) {
     discovery::start_renderer_discovery(client_id);
 }
 
 /// Snapshot the cached renderers (sorted by name). Mirrors Go
 /// `CachedRenderers()`.
+#[cfg(feature = "system")]
 pub fn cached_renderers() -> Vec<Renderer> {
     discovery::cached_renderers()
 }
 
-#[cfg(test)]
+#[cfg(all(test, feature = "system"))]
 #[path = "../../tests/unit/dlna_sender/dlna/mod.rs"]
 mod tests;

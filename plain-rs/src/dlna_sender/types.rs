@@ -24,6 +24,7 @@ pub enum MediaType {
     Audio,
     Video,
     Image,
+    Unknown,
 }
 
 impl MediaType {
@@ -32,6 +33,7 @@ impl MediaType {
             MediaType::Audio => "AUDIO",
             MediaType::Video => "VIDEO",
             MediaType::Image => "IMAGE",
+            MediaType::Unknown => "UNKNOWN",
         }
     }
 }

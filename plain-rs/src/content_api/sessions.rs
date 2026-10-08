@@ -44,7 +44,7 @@ pub(super) fn touch(state: &ServerState, client_id: &str) -> anyhow::Result<()> 
         .db
         .session_touch(&[(client_id.to_owned(), now.to_string())])?;
     let _ = state.events.send(crate::ws_event::WsEvent::broadcast(
-        10005,
+        10007,
         json!({"clientId":client_id,"time":now}).to_string(),
     ));
     Ok(())
@@ -91,6 +91,7 @@ pub(super) fn execute(state: &ServerState, request: Request) -> anyhow::Result<V
                 .lock()
                 .map_err(|_| anyhow::anyhow!("Login state unavailable"))?
                 .cancel_client(&client_id);
+            state.main_ws.close_client(state, Some(&client_id));
             json!(state.db.session_delete(&client_id)? > 0)
         }
     })

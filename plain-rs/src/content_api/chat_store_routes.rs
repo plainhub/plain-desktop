@@ -176,6 +176,7 @@ pub(super) enum Request {
     Chats {
         filter: chat_store::messages::Filter,
     },
+    LatestChats,
     Chat {
         id: String,
     },
@@ -249,6 +250,7 @@ pub(super) async fn call(
     let prewarmer = state.prewarmer.clone();
     let nearby_devices = state.nearby_devices.clone();
     let events = state.events.clone();
+    let runtime = state.clone();
     let result = tokio::task::spawn_blocking(move || -> anyhow::Result<Value> {
         use chat_store::{channels, messages, nearby, peers};
         Ok(match request {
@@ -331,25 +333,11 @@ pub(super) async fn call(
                 }
                 json!(deleted)
             }
-            Request::RemovePeer { id } => {
-                let removed = crate::chat::app_file_store::chat_deletion::delete(
-                    &db,
-                    &directory,
-                    crate::chat::app_file_store::chat_deletion::Selection::PeerRecord(&id),
-                )?;
-                transport.forget(&id);
-                prewarmer.forget(&id);
-                json!(removed != 0)
-            }
+            Request::RemovePeer { id } => json!(super::peer_actions::remove(&runtime, &id)?),
             Request::RemoveChannel { id } => serde_json::to_value(
                 crate::chat::app_file_store::chat_deletion::remove_channel(&db, &directory, &id)?,
             )?,
-            Request::UnpairPeer { id } => {
-                let unpaired = peers::unpair(&db, &id)?;
-                transport.forget(&id);
-                prewarmer.forget(&id);
-                json!(unpaired)
-            }
+            Request::UnpairPeer { id } => json!(super::peer_actions::unpair(&runtime, &id)?),
             Request::DiscoverPeer {
                 id,
                 ips,
@@ -454,6 +442,9 @@ pub(super) async fn call(
             }
             Request::DeleteChannels { ids } => json!(channels::delete(&db, &ids)?),
             Request::Chats { filter } => messages::list(&db, &filter)?,
+            Request::LatestChats => {
+                serde_json::to_value(crate::chat::cacher::ChatCacher::snapshot(&db)?)?
+            }
             Request::Chat { id } => serde_json::to_value(messages::get(&db, &id)?)?,
             Request::SaveChats { items, mode } => {
                 messages::save(&db, &items, mode)?;

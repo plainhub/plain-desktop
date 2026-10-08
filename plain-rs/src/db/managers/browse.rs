@@ -94,16 +94,25 @@ pub fn row_count(conn: &Connection, table: &str) -> Result<i64> {
 /// text as JSON strings, blobs as hex strings, NULL as null.
 /// `limit` is clamped to [`MAX_PAGE_LIMIT`], `offset` floored at 0.
 pub fn rows_page(conn: &Connection, table: &str, offset: i64, limit: i64) -> Result<Vec<String>> {
+    rows_page_values(conn,table,offset.max(0),limit.clamp(0,MAX_PAGE_LIMIT),false)
+}
+pub fn rows_page_text(conn:&Connection,table:&str,offset:i64,limit:i64)->Result<Vec<String>> {rows_page_values(conn,table,offset,limit,true)}
+fn rows_page_values(conn:&Connection,table:&str,offset:i64,limit:i64,text:bool)->Result<Vec<String>> {
     check_table(table)?;
-    let offset = offset.max(0);
-    let limit = limit.clamp(0, MAX_PAGE_LIMIT);
     let mut stmt = conn.prepare(&format!("SELECT * FROM `{table}` LIMIT ?1 OFFSET ?2"))?;
     let col_names: Vec<String> = stmt.column_names().iter().map(|s| s.to_string()).collect();
     let mut rows = stmt.query_map(rusqlite::params![limit, offset], |row| {
         let mut obj = serde_json::Map::new();
         for (i, col) in col_names.iter().enumerate() {
             let val: rusqlite::types::Value = row.get(i)?;
-            obj.insert(col.clone(), value_to_json(val));
+            let value=if text {match val {
+                rusqlite::types::Value::Null=>serde_json::Value::Null,
+                rusqlite::types::Value::Text(value)=>serde_json::Value::String(value),
+                rusqlite::types::Value::Integer(value)=>serde_json::Value::String(value.to_string()),
+                rusqlite::types::Value::Real(value)=>serde_json::Value::String(value.to_string()),
+                rusqlite::types::Value::Blob(value)=>serde_json::Value::String(String::from_utf8_lossy(&value).into_owned()),
+            }}else{value_to_json(val)};
+            obj.insert(col.clone(),value);
         }
         Ok(serde_json::Value::Object(obj).to_string())
     })?;

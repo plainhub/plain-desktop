@@ -9,7 +9,7 @@ pub mod xml_templates;
 /// Whether a persisted sender list (`ip|name` entries, see
 /// [`crate::api::ShellHooks::dlna_senders`]) contains `ip`.
 pub fn senders_contain_ip(list: &[String], ip: &str) -> bool {
-    list.iter().any(|entry| entry.split('|').next() == Some(ip))
+    crate::prefs::dlna::senders_contain_ip(list, ip)
 }
 
 /// True when `method` + `path` targets a DLNA MediaRenderer receiver endpoint.

@@ -276,133 +276,43 @@ async fn a_blank_media_query_is_refused_before_the_platform() {
     }
 }
 
-#[tokio::test]
-async fn chunk_state_is_listed_for_the_requested_upload() {
-    let (_dir, schema) = fixture_with("[]", |method, params| match method {
-        "systemUploadedChunkFacts" => {
-            assert_eq!(params["fileId"], "abc");
-            json!({ "chunks": ["0:1024", "1:2048"] })
-        }
-        other => panic!("unexpected host call {other}"),
-    });
-    let response = schema
-        .execute(r#"query { uploadedChunks(fileId:"abc") }"#)
-        .await;
-    assert!(response.errors.is_empty(), "{:?}", response.errors);
-    assert_eq!(
-        response.data.into_json().unwrap()["uploadedChunks"],
-        json!(["0:1024", "1:2048"])
-    );
+fn upload_fixture() -> (tempfile::TempDir, tempfile::TempDir, PublicSchema, std::path::PathBuf) {
+    let temp=tempfile::tempdir().unwrap();let base=temp.path().join("chunks");
+    let path=base.clone();let (dir,schema)=fixture_with("[]",move|method,_|match method {
+        "uploadTmpDirFacts"=>json!({"path":path}),
+        other=>panic!("Unexpected platform primitive: {other}"),
+    });(temp,dir,schema,base)
 }
-
-/// An upload that was never started reads as NONE, not an error — the
-/// client polls this before it has sent anything.
-#[tokio::test]
-async fn an_unstarted_merge_is_none_with_no_value() {
-    let (_dir, schema) = fixture_with("[]", |method, _| match method {
-        "systemMergeStatusFacts" => {
-            json!({"status":"NONE","value":Value::Null,"mergedSize":Value::Null,"error":Value::Null})
-        }
-        other => panic!("unexpected host call {other}"),
-    });
-    let response = schema
-        .execute(r#"query { mergeStatus(fileId:"x") { status value mergedSize error } }"#)
-        .await;
-    assert!(response.errors.is_empty(), "{:?}", response.errors);
-    let task = response.data.into_json().unwrap()["mergeStatus"].clone();
-    assert_eq!(task["status"], "NONE");
-    assert_eq!(task["value"], Value::Null);
-    assert_eq!(task["mergedSize"], Value::Null);
+async fn merge_status(schema:&PublicSchema,id:&str)->Value {
+    let response=schema.execute(format!(r#"{{mergeStatus(fileId:"{id}"){{status value mergedSize error}}}}"#)).await;
+    assert!(response.errors.is_empty(),"{:?}",response.errors);response.data.into_json().unwrap()["mergeStatus"].clone()
 }
-
-#[tokio::test]
-async fn a_finished_merge_carries_its_value_and_size() {
-    let (_dir, schema) = fixture_with("[]", |method, _| match method {
-        "systemMergeStatusFacts" => {
-            json!({"status":"DONE","value":"/storage/a.bin","mergedSize":4096,"error":Value::Null})
-        }
-        other => panic!("unexpected host call {other}"),
-    });
-    let response = schema
-        .execute(r#"query { mergeStatus(fileId:"x") { status value mergedSize } }"#)
-        .await;
-    assert!(response.errors.is_empty(), "{:?}", response.errors);
-    let task = response.data.into_json().unwrap()["mergeStatus"].clone();
-    assert_eq!(task["status"], "DONE");
-    assert_eq!(task["value"], "/storage/a.bin");
-    assert_eq!(task["mergedSize"], 4096);
+async fn wait_merge(schema:&PublicSchema,id:&str)->Value {
+    let deadline=tokio::time::Instant::now()+std::time::Duration::from_secs(10);
+    loop {let status=merge_status(schema,id).await;if matches!(status["status"].as_str(),Some("DONE"|"FAILED")){return status;}assert!(tokio::time::Instant::now()<deadline,"Merge did not complete: {status}");tokio::time::sleep(std::time::Duration::from_millis(10)).await;}
 }
-
 #[tokio::test]
-async fn starting_a_merge_returns_started_and_the_arguments_reach_the_platform() {
-    let (_dir, schema) = fixture_with("[]", |method, params| match method {
-        "systemMergeChunks" => {
-            assert_eq!(params["fileId"], "abc");
-            assert_eq!(params["totalChunks"], 2);
-            assert_eq!(params["path"], "/storage/a.bin");
-            assert_eq!(params["replace"], true);
-            assert_eq!(params["totalSize"], 8192);
-            json!({"status":"STARTED"})
-        }
-        other => panic!("unexpected host call {other}"),
-    });
-    let response = schema
-        .execute(
-            r#"mutation { mergeChunks(fileId:"abc", totalChunks:2, path:"/storage/a.bin", replace:true, totalSize:8192)
-                      { status } }"#,
-        )
-        .await;
-    assert!(response.errors.is_empty(), "{:?}", response.errors);
-    assert_eq!(
-        response.data.into_json().unwrap()["mergeChunks"]["status"],
-        "STARTED"
-    );
+async fn graphql_uploads_list_merge_and_recover_the_same_rust_job() {
+    let (temp,_dir,schema,base)=upload_fixture();let chunks=base.join("abc");tokio::fs::create_dir_all(&chunks).await.unwrap();
+    tokio::fs::write(chunks.join("chunk_1"),b"def").await.unwrap();tokio::fs::write(chunks.join("chunk_0"),b"abc").await.unwrap();
+    let response=schema.execute(r#"{uploadedChunks(fileId:"abc")}"#).await;assert!(response.errors.is_empty(),"{:?}",response.errors);assert_eq!(response.data.into_json().unwrap()["uploadedChunks"],json!(["0:3","1:3"]));
+    assert_eq!(merge_status(&schema,"abc").await["status"],"NONE");
+    let target=temp.path().join("result.bin");let response=schema.execute(format!(r#"mutation {{mergeChunks(fileId:"abc",totalChunks:2,path:"{}",replace:true,totalSize:6){{status}}}}"#,target.display())).await;
+    assert!(response.errors.is_empty(),"{:?}",response.errors);assert_eq!(response.data.into_json().unwrap()["mergeChunks"]["status"],"STARTED");
+    let status=wait_merge(&schema,"abc").await;assert_eq!(status["status"],"DONE");assert_eq!(status["value"],"result.bin");assert_eq!(status["mergedSize"],6);assert_eq!(status["error"],Value::Null);assert_eq!(tokio::fs::read(&target).await.unwrap(),b"abcdef");
+    let response=schema.execute(format!(r#"mutation {{mergeChunks(fileId:"abc",totalChunks:2,path:"{}",replace:true,totalSize:6){{status}}}}"#,target.display())).await;assert!(response.errors.is_empty());assert_eq!(response.data.into_json().unwrap()["mergeChunks"]["status"],"DONE");
 }
-
-/// The app-file merge writes into the private store, so it never takes a
-/// path or a replace flag — only a name hint.
 #[tokio::test]
-async fn the_app_file_merge_sends_only_a_name_hint() {
-    let (_dir, schema) = fixture_with("[]", |method, params| match method {
-        "systemMergeAppFileChunks" => {
-            assert_eq!(params["fileId"], "abc");
-            assert_eq!(params["fileName"], "photo.jpg");
-            assert!(params.get("path").is_none());
-            assert!(params.get("replace").is_none());
-            json!({"status":"MERGING"})
-        }
-        other => panic!("unexpected host call {other}"),
-    });
-    let response = schema
-        .execute(
-            r#"mutation { mergeAppFileChunks(fileId:"abc", totalChunks:1, fileName:"photo.jpg", totalSize:10)
-                      { status } }"#,
-        )
-        .await;
-    assert!(response.errors.is_empty(), "{:?}", response.errors);
-    assert_eq!(
-        response.data.into_json().unwrap()["mergeAppFileChunks"]["status"],
-        "MERGING"
-    );
+async fn graphql_failed_merge_keeps_error_and_no_value() {
+    let (temp,_dir,schema,base)=upload_fixture();let chunks=base.join("abc");tokio::fs::create_dir_all(&chunks).await.unwrap();tokio::fs::write(chunks.join("chunk_0"),b"abc").await.unwrap();
+    let response=schema.execute(format!(r#"mutation {{mergeChunks(fileId:"abc",totalChunks:2,path:"{}",replace:false,totalSize:6){{status}}}}"#,temp.path().join("result").display())).await;
+    assert!(response.errors.is_empty(),"{:?}",response.errors);let status=wait_merge(&schema,"abc").await;assert_eq!(status["status"],"FAILED");assert!(status["error"].as_str().unwrap().contains("Missing chunk 1"));assert_eq!(status["value"],Value::Null);assert!(chunks.exists());
 }
-
 #[tokio::test]
-async fn a_failed_merge_keeps_its_error_and_omits_the_value() {
-    let (_dir, schema) = fixture_with("[]", |method, _| match method {
-        "systemMergeChunks" => json!({"status":"FAILED","error":"sum mismatch"}),
-        other => panic!("unexpected host call {other}"),
-    });
-    let response = schema
-        .execute(
-            r#"mutation { mergeChunks(fileId:"abc", totalChunks:2, path:"/a", replace:false, totalSize:1)
-                      { status value error } }"#,
-        )
-        .await;
-    assert!(response.errors.is_empty(), "{:?}", response.errors);
-    let task = response.data.into_json().unwrap()["mergeChunks"].clone();
-    assert_eq!(task["status"], "FAILED");
-    assert_eq!(task["error"], "sum mismatch");
-    assert_eq!(task["value"], Value::Null);
+async fn graphql_app_file_merge_imports_into_the_rust_store() {
+    let (_temp,_dir,schema,base)=upload_fixture();let chunks=base.join("abc");tokio::fs::create_dir_all(&chunks).await.unwrap();tokio::fs::write(chunks.join("chunk_0"),b"image").await.unwrap();
+    let response=schema.execute(r#"mutation {mergeAppFileChunks(fileId:"abc",totalChunks:1,fileName:"photo.jpg",totalSize:5){status}}"#).await;assert!(response.errors.is_empty(),"{:?}",response.errors);
+    let status=wait_merge(&schema,"abc").await;assert_eq!(status["status"],"DONE");assert!(!status["value"].as_str().unwrap().is_empty());assert_eq!(status["mergedSize"],5);assert!(!chunks.exists());
 }
 
 #[test]

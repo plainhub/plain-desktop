@@ -4,12 +4,13 @@
 //! report it and forward the start/cancel/enable commands. Nothing here is
 //! gated — plain-app lets any web client drive the index.
 
-use super::public_facts::{flag, integer, text};
-use crate::content_api::host::Host;
+use serde::Serialize;
+
 use async_graphql::{Context, Enum, Object, SimpleObject};
 use std::sync::Arc;
 
-#[derive(Enum, Copy, Clone, Eq, PartialEq, Debug, Default)]
+#[derive(Enum, Copy, Clone, Eq, PartialEq, Debug, Default, Serialize)]
+#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 pub enum ImageSearchStatusType {
     #[default]
     Unavailable,
@@ -19,19 +20,8 @@ pub enum ImageSearchStatusType {
     Error,
 }
 
-impl ImageSearchStatusType {
-    fn parse(value: &str) -> Self {
-        match value {
-            "DOWNLOADING" => Self::Downloading,
-            "LOADING" => Self::Loading,
-            "READY" => Self::Ready,
-            "ERROR" => Self::Error,
-            _ => Self::Unavailable,
-        }
-    }
-}
-
-#[derive(SimpleObject, Clone, Debug)]
+#[derive(SimpleObject, Clone, Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
 pub struct ImageSearchStatus {
     pub status: ImageSearchStatusType,
     #[graphql(name = "downloadProgress")]
@@ -59,21 +49,10 @@ impl ImageIndexQuery {
         &self,
         ctx: &Context<'_>,
     ) -> async_graphql::Result<ImageSearchStatus> {
-        let status = ctx
-            .data_unchecked::<Arc<Host>>()
-            .call("systemImageSearchStatus", serde_json::json!({}))
-            .await
-            .map_err(|error| async_graphql::Error::new(error))?;
-        Ok(ImageSearchStatus {
-            status: ImageSearchStatusType::parse(&text(&status, "status")),
-            download_progress: integer(&status, "downloadProgress") as i32,
-            error_message: text(&status, "errorMessage"),
-            model_size: crate::content_types::Long(integer(&status, "modelSize")),
-            model_dir: text(&status, "modelDir"),
-            is_indexing: flag(&status, "isIndexing"),
-            total_images: integer(&status, "totalImages") as i32,
-            indexed_images: integer(&status, "indexedImages") as i32,
-        })
+        Ok(ctx
+            .data_unchecked::<Arc<super::image_models::Runtime>>()
+            .snapshot()
+            .status)
     }
 }
 
@@ -83,15 +62,27 @@ pub struct ImageIndexMutation;
 #[Object]
 impl ImageIndexMutation {
     async fn enable_image_search(&self, ctx: &Context<'_>) -> async_graphql::Result<bool> {
-        dispatch(ctx, "systemEnableImageSearch", false).await
+        ctx.data_unchecked::<Arc<super::image_models::Runtime>>()
+            .enable(false)
+            .await
+            .map_err(async_graphql::Error::new)?;
+        Ok(true)
     }
 
     async fn disable_image_search(&self, ctx: &Context<'_>) -> async_graphql::Result<bool> {
-        dispatch(ctx, "systemDisableImageSearch", false).await
+        ctx.data_unchecked::<Arc<super::image_models::Runtime>>()
+            .cancel(true)
+            .await
+            .map_err(async_graphql::Error::new)?;
+        Ok(true)
     }
 
     async fn cancel_image_model_download(&self, ctx: &Context<'_>) -> async_graphql::Result<bool> {
-        dispatch(ctx, "systemCancelImageModelDownload", false).await
+        ctx.data_unchecked::<Arc<super::image_models::Runtime>>()
+            .cancel(false)
+            .await
+            .map_err(async_graphql::Error::new)?;
+        Ok(true)
     }
 
     /// `force` re-scans images that already have an embedding.
@@ -100,22 +91,18 @@ impl ImageIndexMutation {
         ctx: &Context<'_>,
         force: Option<bool>,
     ) -> async_graphql::Result<bool> {
-        dispatch(ctx, "systemStartImageIndex", force.unwrap_or(false)).await
+        ctx.data_unchecked::<Arc<super::image_index::ImageIndex>>()
+            .start(force.unwrap_or(false))
+            .map_err(|e| async_graphql::Error::new(e.to_string()))?;
+        Ok(true)
     }
 
     async fn cancel_image_index(&self, ctx: &Context<'_>) -> async_graphql::Result<bool> {
-        dispatch(ctx, "systemCancelImageIndex", false).await
+        ctx.data_unchecked::<Arc<super::image_index::ImageIndex>>()
+            .cancel()
+            .map_err(|e| async_graphql::Error::new(e.to_string()))?;
+        Ok(true)
     }
-}
-
-/// Only `startImageIndex` carries a `force`; the other commands send it as
-/// false so the host sees one payload shape for the whole group.
-async fn dispatch(ctx: &Context<'_>, method: &str, force: bool) -> async_graphql::Result<bool> {
-    ctx.data_unchecked::<Arc<Host>>()
-        .call(method, serde_json::json!({ "force": force }))
-        .await
-        .map_err(|error| async_graphql::Error::new(error))?;
-    Ok(true)
 }
 
 #[cfg(test)]

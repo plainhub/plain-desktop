@@ -15,7 +15,18 @@ impl async_graphql::ScalarType for Instant {
     }
 
     fn to_value(&self) -> async_graphql::Value {
-        async_graphql::Value::String(self.0.to_rfc3339_opts(chrono::SecondsFormat::Millis, true))
+        async_graphql::Value::String(self.wire())
+    }
+}
+
+impl Instant {
+    fn wire(&self) -> String {
+        self.0.to_rfc3339_opts(chrono::SecondsFormat::Millis, true)
+    }
+}
+impl serde::Serialize for Instant {
+    fn serialize<S: serde::Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
+        serializer.serialize_str(&self.wire())
     }
 }
 
@@ -37,7 +48,8 @@ pub struct ActionResult {
     pub affected_count: i32,
 }
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Default)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Default, serde::Serialize)]
+#[serde(transparent)]
 pub struct Long(pub i64);
 
 #[async_graphql::Scalar]
@@ -399,7 +411,8 @@ pub struct PackageInstallPending {
     pub is_new: bool,
 }
 
-#[derive(SimpleObject, Clone, Debug)]
+#[derive(SimpleObject, Clone, Debug, serde::Serialize)]
+#[serde(rename_all = "camelCase")]
 pub struct Notification {
     pub id: ID,
     /// Android FLAG_ONLY_ALERT_ONCE: re-posted updates must not sound/vibrate again.

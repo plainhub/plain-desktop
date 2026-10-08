@@ -3,10 +3,10 @@
 //! Reads reuse the same provider search the contact roots use, so a call and
 //! a contact from the same query DSL behave alike.
 
+use super::provider_plan::{self, Provider};
 use super::public_contact_types::Tag;
 use super::public_facts::{host_json, instant, integer, text};
 use super::public_gate;
-use super::provider_plan::{self, Provider};
 use crate::content_api::host::Host;
 use crate::content_types::ActionResult;
 use crate::{db::Db, enums::DataType, prefs::Prefs};
@@ -92,7 +92,32 @@ impl CallsQuery {
         )
         .await?;
         let db = ctx.data_unchecked::<Arc<Db>>();
-        Ok(facts.iter().map(|fact| call(db, fact)).collect())
+        let host = ctx.data_unchecked::<Arc<Host>>();
+        let locale = host
+            .call("systemPhoneLocaleFacts", serde_json::json!({}))
+            .await
+            .ok()
+            .and_then(|facts| serde_json::from_value::<super::phone_geo::LocaleFacts>(facts).ok());
+        let runtime = ctx.data_unchecked::<Arc<super::phone_geo::Runtime>>();
+        let prefs = ctx.data_unchecked::<Arc<Prefs>>();
+        let mut calls = Vec::with_capacity(facts.len());
+        for fact in &facts {
+            let mut row = call(db, fact);
+            let path = text(fact, "photoUri");
+            row.photo_id = if path.is_empty()
+                || path.to_ascii_lowercase().starts_with("http://")
+                || path.to_ascii_lowercase().starts_with("https://")
+            {
+                path
+            } else {
+                crate::chat::content::make_file_id(&path, &prefs.get_or("url_token", String::new()))
+            };
+            if let Some(locale) = &locale {
+                row.geo = runtime.lookup(host, &row.number, locale).await;
+            }
+            calls.push(row);
+        }
+        Ok(calls)
     }
 
     /// plain-app degrades this to 0 rather than erroring.
@@ -192,17 +217,12 @@ fn call(db: &Arc<Db>, fact: &Value) -> Call {
         id: ID::from(id),
         number: text(fact, "number"),
         name: text(fact, "name"),
-        photo_id: text(fact, "photoId"),
+        photo_id: String::new(),
         started_at: instant(fact, "startedAt"),
         duration_sec: integer(fact, "durationSec") as i32,
         r#type: CallType::from_android(integer(fact, "type")),
         account_id: ID::from(text(fact, "accountId")),
-        geo: fact["geo"].as_object().map(|geo| PhoneGeo {
-            country: text(&Value::Object(geo.clone()), "country"),
-            number_type: text(&Value::Object(geo.clone()), "numberType"),
-            carrier: text(&Value::Object(geo.clone()), "carrier"),
-            description: text(&Value::Object(geo.clone()), "description"),
-        }),
+        geo: None,
     }
 }
 

@@ -1,4 +1,5 @@
 use super::*;
+use crate::content_api::host::Host;
 use crate::content_api::public_schema::PublicSchema;
 use crate::db::Db;
 use crate::prefs::Prefs;
@@ -48,8 +49,13 @@ async fn reads_come_from_the_rust_store() {
         panic!("a read must not reach the platform: {method}")
     });
     let (events, _) = tokio::sync::broadcast::channel(16);
-    let schema =
-        crate::content_api::public_schema::build(host, events, prefs.clone(), db, dir.path().into());
+    let schema = crate::content_api::public_schema::build(
+        host,
+        events,
+        prefs.clone(),
+        db,
+        dir.path().into(),
+    );
 
     prefs.set("device_name", "Pixel").unwrap();
     prefs.set_user("recent_search", json!(["a", "b"])).unwrap();

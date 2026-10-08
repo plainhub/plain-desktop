@@ -127,7 +127,7 @@ async fn notification_items(ctx: &Context<'_>, query: &str) -> async_graphql::Re
     ))
 }
 
-fn notification(value: &Value) -> Notification {
+pub(super) fn notification(value: &Value) -> Notification {
     Notification {
         id: id(value, "id"),
         only_once: flag(value, "onlyOnce"),
@@ -146,3 +146,38 @@ fn notification(value: &Value) -> Notification {
 #[cfg(test)]
 #[path = "../../tests/unit/content_api/public_notifications.rs"]
 mod tests;
+
+#[derive(serde::Deserialize)]
+#[serde(deny_unknown_fields)]
+pub(super) struct EventFacts {
+    #[serde(rename = "type")]
+    event_type: i32,
+    notification: Value,
+}
+pub(super) async fn publish(
+    axum::extract::State(state): axum::extract::State<super::server::ServerState>,
+    headers: axum::http::HeaderMap,
+    axum::Json(facts): axum::Json<EventFacts>,
+) -> axum::response::Response {
+    use axum::response::IntoResponse;
+    if !state.authenticated(&headers) {
+        return axum::http::StatusCode::UNAUTHORIZED.into_response();
+    }
+    if !matches!(facts.event_type, 7 | 8 | 9) {
+        return axum::http::StatusCode::BAD_REQUEST.into_response();
+    }
+    if facts.event_type != 9
+        && (!public_gate::is_enabled(&state.prefs, &[PERMISSION])
+            || system_providers::notifications(&state.prefs, vec![facts.notification.clone()], "")
+                .is_empty())
+    {
+        return axum::Json(true).into_response();
+    }
+    let item = notification(&facts.notification);
+    let payload = serde_json::to_string(&item).unwrap();
+    let _ = state.events.send(crate::ws_event::WsEvent::broadcast(
+        facts.event_type,
+        payload,
+    ));
+    axum::Json(true).into_response()
+}

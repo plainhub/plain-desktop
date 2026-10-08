@@ -212,7 +212,7 @@ struct ThreadFacts {
 fn instant(value: &str) -> anyhow::Result<chrono::DateTime<chrono::FixedOffset>> {
     Ok(chrono::DateTime::parse_from_rfc3339(value)?)
 }
-fn addresses_match(first: &str, second: &str, candidates: &[String]) -> bool {
+pub(super) fn addresses_match(first: &str, second: &str, candidates: &[String]) -> bool {
     let normalize = |value: &str| {
         let trimmed = value.trim();
         let phone = !trimmed.is_empty()

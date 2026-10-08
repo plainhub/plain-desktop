@@ -39,7 +39,7 @@ fn schema_host(schema: &PublicSchema) -> Arc<Host> {
 
 fn call_fact(id: &str, kind: i64) -> Value {
     json!({
-        "id": id, "number": "+1555", "name": "Ada", "photoId": "fid:abc",
+        "id": id, "number": "+8618012345678", "name": "Ada", "photoUri": "",
         "startedAt": "2026-10-05T00:00:00Z", "durationSec": 42, "type": kind,
         "accountId": "acc-1",
         "geo": {"country":"US","numberType":"MOBILE","carrier":"Test","description":"mobile"},
@@ -65,6 +65,8 @@ async fn calls_map_the_provider_rows_onto_the_contract_type() {
             assert_eq!(params["limit"], 20);
             json!([call_fact("c1", 2)])
         }
+        "systemPhoneLocaleFacts"=>json!({"region":"CN","locale":"zh_CN","available":true}),
+        "systemPhoneMetadata"=>json!({"carrier":"Test","description":"mobile"}),
         other => panic!("unexpected host call {other}"),
     });
     let response = schema

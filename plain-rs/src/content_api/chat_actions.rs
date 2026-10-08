@@ -229,6 +229,15 @@ pub(super) async fn share_content(state: &ServerState, id: &str) -> Result<Value
         state.prefs.get_user::<u16>("https_port")?.unwrap_or(8443),
     )
 }
+pub(super) fn delete_query(state: &ServerState, query: &str) -> Result<usize> {
+    let ids = if query.trim().is_empty() {
+        vec![]
+    } else {
+        crate::db::chat_store::messages::ids(&state.db, query)?
+    };
+    delete(state, ids)
+}
+
 pub(super) fn delete(state: &ServerState, ids: Vec<String>) -> Result<usize> {
     let count = crate::chat::app_file_store::chat_deletion::delete(
         &state.db,

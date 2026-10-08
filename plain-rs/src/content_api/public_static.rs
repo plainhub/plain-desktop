@@ -97,8 +97,12 @@ fn now_ms() -> i64 {
         .unwrap_or_default()
 }
 
-async fn serve(prefs: &crate::prefs::Prefs, method: &Method, path: &str) -> Option<Response> {
-    if method != Method::GET {
+pub(super) async fn serve(
+    prefs: &crate::prefs::Prefs,
+    method: &Method,
+    path: &str,
+) -> Option<Response> {
+    if method != Method::GET && method != Method::HEAD {
         return None;
     }
     if !(prefs.get_user_or("service", false) && prefs.get_user_or("desktop_access", true)) {
@@ -157,32 +161,18 @@ async fn serve(prefs: &crate::prefs::Prefs, method: &Method, path: &str) -> Opti
     response.body(Body::from(body)).ok()
 }
 
-/// Public router fallback: try the SPA first, then hand everything else to
-/// the host bridge. Replaces the Kotlin `serveRustWebAsset` branch.
-pub(super) async fn static_or_bridge(
-    State(state): State<super::http_bridge::HttpBridgeState>,
-    axum::extract::ConnectInfo(remote): axum::extract::ConnectInfo<std::net::SocketAddr>,
-    scheme: axum::Extension<crate::http_transport::ConnectionScheme>,
-    upgrade: Option<axum::extract::ws::WebSocketUpgrade>,
+pub(super) async fn fallback(
+    State(state): State<super::server::ServerState>,
     request: Request,
 ) -> Response {
-    // A WebSocket upgrade must reach the bridge: the SPA would answer `/` with
-    // index.html and a 200, and the client then fails its login handshake
-    // instead of upgrading. The web clients connect to `ws://<host>/?cid=…`,
-    // and the host bridge owns the session/login/screen-mirror channels.
-    if upgrade.is_none() {
-        if let Some(response) = serve(&state.prefs, request.method(), request.uri().path()).await {
-            return response;
-        }
-    }
-    super::http_bridge::handle(
-        State(state),
-        axum::extract::ConnectInfo(remote),
-        scheme,
-        upgrade,
-        request,
-    )
-    .await
+    serve(&state.prefs, request.method(), request.uri().path())
+        .await
+        .unwrap_or_else(|| {
+            Response::builder()
+                .status(StatusCode::NOT_FOUND)
+                .body(Body::empty())
+                .unwrap()
+        })
 }
 
 #[cfg(test)]

@@ -33,7 +33,7 @@ sqlite_browse = ["dep:rusqlite", "dep:serde_json"]
 prefs = ["dep:serde_json"]
 # Shared API stack for the desktop and NAS shells: GraphQL schemas,
 # axum HTTP/WS router, listener lifecycle, proxy, discovery and DLNA.
-content_api = ["dep:hyper", "dep:hyper-util", "dep:http-body-util", "dep:tokio-rustls", "dep:tower", "dep:zip", "dep:tokio-tungstenite", "tokio-tungstenite/rustls-tls-webpki-roots", "dep:rustls", "dep:hmac", "dep:sha2_mac", "dep:anyhow", "chat", "library", "dep:regex", "dep:async-graphql", "dep:axum", "dep:reqwest", "reqwest/rustls-tls", "dep:futures-util", "dep:quick-xml", "dep:scraper", "tokio/net", "tokio/rt-multi-thread", "tokio/sync", "tokio/time", "tokio/macros", "dep:subtle"]
+content_api = ["dep:unicode-normalization","dep:phonenumber","sqlite_browse", "dep:hyper", "dep:hyper-util", "dep:http-body-util", "dep:tokio-rustls", "dep:tower", "dep:zip", "dep:tokio-tungstenite", "tokio-tungstenite/rustls-tls-webpki-roots", "dep:rustls", "dep:hmac", "dep:sha2_mac", "dep:anyhow", "chat", "library", "dep:regex", "dep:async-graphql", "dep:axum", "dep:reqwest", "reqwest/rustls-tls", "dep:futures-util", "dep:quick-xml", "dep:scraper", "tokio/net", "tokio/rt-multi-thread", "tokio/sync", "tokio/time", "tokio/macros", "dep:subtle"]
 http_transport = ["dep:axum", "dep:axum-server", "dep:rustls", "dep:rustls-pemfile", "tokio/net", "tokio/rt", "tokio/sync", "tokio/time"]
 api = [
     "http_transport",
@@ -111,6 +111,8 @@ media_gql = ["media", "library", "dep:async-graphql"]
 system = ["api", "dep:nix", "dep:ureq", "dep:dashmap", "dep:http"]
 
 [dependencies]
+p12-keystore = "0.3.2"
+phonenumber = { version = "0.3.10", optional = true }
 plain-ble = { path = "../plain-ble" }
 subtle = { version = "2", optional = true }
 chacha20poly1305 = "0.10"
@@ -175,6 +177,7 @@ native-tls = { version = "0.2", optional = true }
 # "stream" enables bytes_stream() for /proxyfs response forwarding.
 reqwest = { version = "0.12", default-features = false, features = ["stream"], optional = true }
 regex = { version = "1", optional = true }
+unicode-normalization = { version = "0.1", optional = true }
 quick-xml = { version = "0.42", optional = true }
 scraper = { version = "0.27", optional = true }
 sysinfo = { version = "0.32", default-features = false, features = ["system", "disk"], optional = true }
