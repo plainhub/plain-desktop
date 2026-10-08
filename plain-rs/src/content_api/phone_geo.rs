@@ -43,37 +43,27 @@ impl Runtime {
         result
     }
     async fn resolve(&self, host: &Host, number: &str, locale: &LocaleFacts) -> Option<PhoneGeo> {
-        let number = phonenumber::parse(locale.region.parse().ok(), number).ok()?;
-        if !number.is_valid() {
+        // Parsing and classification belong to the platform: it owns the
+        // libphonenumber data for the device's region, and iOS has none at
+        // all. This used to parse the number here and hand back a country
+        // code plus national number just so the host could rebuild the very
+        // same number object.
+        let facts = host
+            .call(
+                "systemPhoneMetadata",
+                json!({
+                    "number":number,"region":locale.region,"locale":locale.locale
+                }),
+            )
+            .await
+            .ok()?;
+        let country = facts["country"].as_str().unwrap_or_default();
+        if country.is_empty() {
             return None;
         }
-        let kind = number.number_type(&phonenumber::metadata::DATABASE);
-        let number_type = match kind {
-            phonenumber::Type::FixedLine => "FIXED_LINE",
-            phonenumber::Type::Mobile => "MOBILE",
-            phonenumber::Type::FixedLineOrMobile => "FIXED_LINE_OR_MOBILE",
-            phonenumber::Type::TollFree => "TOLL_FREE",
-            phonenumber::Type::PremiumRate => "PREMIUM_RATE",
-            phonenumber::Type::SharedCost => "SHARED_COST",
-            phonenumber::Type::PersonalNumber => "PERSONAL_NUMBER",
-            phonenumber::Type::Voip => "VOIP",
-            phonenumber::Type::Pager => "PAGER",
-            phonenumber::Type::Uan => "UAN",
-            phonenumber::Type::Voicemail => "VOICEMAIL",
-            _ => "",
-        };
-        let code = number.code().value();
-        let facts = host.call("systemPhoneMetadata", json!({
-            "countryCode":code,"nationalNumber":number.national().to_string(),"locale":locale.locale,
-            "includeCarrier":matches!(kind,phonenumber::Type::Mobile|phonenumber::Type::FixedLineOrMobile|phonenumber::Type::Pager),
-        })).await.ok()?;
         Some(PhoneGeo {
-            country: number
-                .country()
-                .id()
-                .map(|country| country.as_ref().to_owned())
-                .unwrap_or_default(),
-            number_type: number_type.to_owned(),
+            country: country.to_owned(),
+            number_type: facts["numberType"].as_str().unwrap_or_default().to_owned(),
             carrier: facts["carrier"].as_str().unwrap_or_default().to_owned(),
             description: facts["description"].as_str().unwrap_or_default().to_owned(),
         })

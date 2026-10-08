@@ -66,7 +66,7 @@ async fn calls_map_the_provider_rows_onto_the_contract_type() {
             json!([call_fact("c1", 2)])
         }
         "systemPhoneLocaleFacts"=>json!({"region":"CN","locale":"zh_CN","available":true}),
-        "systemPhoneMetadata"=>json!({"carrier":"Test","description":"mobile"}),
+        "systemPhoneMetadata"=>json!({"country":"CN","numberType":"MOBILE","carrier":"Test","description":"mobile"}),
         other => panic!("unexpected host call {other}"),
     });
     let response = schema
@@ -85,6 +85,7 @@ async fn calls_map_the_provider_rows_onto_the_contract_type() {
     assert_eq!(call["startedAt"], "2026-10-05T00:00:00.000Z");
     assert_eq!(call["accountId"], "acc-1");
     assert_eq!(call["geo"]["numberType"], "MOBILE");
+    assert_eq!(call["geo"]["country"], "CN");
     assert_eq!(call["tags"], json!([]));
 }
 
