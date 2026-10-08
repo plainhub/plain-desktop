@@ -117,7 +117,7 @@ def main():
         cmd += ["--skip_submodule_sync"]
         run(cmd)
         if "apple-ios" in target:
-            archives = sorted((build / "Release").rglob("onnxruntime.framework/onnxruntime"))
+            archives = sorted((build / "Release").rglob("static_framework/onnxruntime.framework/onnxruntime"))
             if len(archives) != 1:
                 raise RuntimeError("ONNX Runtime static framework missing or ambiguous")
             shutil.copy2(archives[0], destination)
