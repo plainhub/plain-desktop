@@ -23,7 +23,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             .ok_or("Usage: image_search PACKAGE OUTPUT_JSON [image:PATH|text:QUERY ...]")?,
     );
     let output = PathBuf::from(arguments.next().ok_or("Missing output file")?);
-    let manifest = Manifest::parse(&std::fs::read(directory.join("manifest.json"))?)?;
+    let manifest = Manifest::read(&directory.join("manifest.json"))?;
     let start = Instant::now();
     let engine = Engine::open(directory, manifest)?;
     let initialized_ms = start.elapsed().as_secs_f64() * 1000.0;

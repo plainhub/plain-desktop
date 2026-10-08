@@ -190,10 +190,10 @@ impl Runtime {
     async fn load(&self, selection: Selection) -> Result<(), String> {
         let active = self.directory.join("active");
         let default = crate::image_inference::default_model::manifest();
-        let active_is_default = std::fs::read(active.join("manifest.json"))
-            .ok()
-            .and_then(|bytes| crate::image_inference::manifest::Manifest::parse(&bytes).ok())
-            .is_some_and(|manifest| manifest.fingerprint().ok() == default.fingerprint().ok());
+        let active_is_default =
+            crate::image_inference::manifest::Manifest::read(&active.join("manifest.json"))
+                .ok()
+                .is_some_and(|manifest| manifest.fingerprint().ok() == default.fingerprint().ok());
         let source = match selection {
             Selection::Incoming => self.directory.join("incoming"),
             Selection::Active => active.clone(),
@@ -206,10 +206,8 @@ impl Runtime {
             }
         };
         self.set_status(ImageSearchStatusType::Loading, String::new());
-        let bytes = tokio::fs::read(source.join("manifest.json"))
-            .await
-            .map_err(|e| e.to_string())?;
-        let manifest = crate::image_inference::manifest::Manifest::parse(&bytes)?;
+        let manifest =
+            crate::image_inference::manifest::Manifest::read(&source.join("manifest.json"))?;
         let fingerprint = manifest.fingerprint()?;
         self.pause_index().await?;
         if let Some(engine) = self.engine.lock().unwrap().as_ref() {

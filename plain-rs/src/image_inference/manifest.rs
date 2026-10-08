@@ -90,6 +90,24 @@ pub struct Manifest {
     pub preprocess: Preprocess,
 }
 impl Manifest {
+    pub fn read(path: &Path) -> Result<Self, String> {
+        use std::io::Read;
+        if !std::fs::symlink_metadata(path)
+            .map_err(|e| e.to_string())?
+            .file_type()
+            .is_file()
+        {
+            return Err("Model manifest must be a regular file".into());
+        }
+        let mut bytes = Vec::new();
+        std::fs::File::open(path)
+            .map_err(|e| e.to_string())?
+            .take(65537)
+            .read_to_end(&mut bytes)
+            .map_err(|e| e.to_string())?;
+        Self::parse(&bytes)
+    }
+
     pub fn parse(bytes: &[u8]) -> Result<Self, String> {
         if bytes.len() > 64 * 1024 {
             return Err("Model manifest exceeds 64 KiB".into());

@@ -21,8 +21,7 @@ pub struct Engine {
     pub manifest: Manifest,
     directory: PathBuf,
     tokenizer: Tokenizer,
-    image: Mutex<Option<Session>>,
-    text: Mutex<Option<Session>>,
+    session: Mutex<Option<(bool, Session)>>,
 }
 pub fn normalize(values: &mut [f32]) -> Result<(), String> {
     let norm = values
@@ -97,8 +96,7 @@ impl Engine {
             manifest,
             directory,
             tokenizer,
-            image: Mutex::new(None),
-            text: Mutex::new(None),
+            session: Mutex::new(None),
         };
         engine.image_tensor(vec![
             0.0;
@@ -162,16 +160,26 @@ impl Engine {
                 element_type: 7,
             })
             .collect::<Vec<_>>();
-        let mut session = self.text.lock().map_err(|e| e.to_string())?;
-        if session.is_none() {
-            *session = Some(self.session(&self.manifest.text.file)?);
-        }
-        session.as_mut().unwrap().run(
-            &mut inputs,
-            &self.manifest.text.output,
-            self.manifest.dimensions,
-        )
+        self.run(false, &mut inputs, &self.manifest.text.output)
     }
+    fn run(&self, image: bool, inputs: &mut [Input], output: &str) -> Result<Vec<f32>, String> {
+        let mut session = self.session.lock().map_err(|e| e.to_string())?;
+        if session.as_ref().is_none_or(|(kind, _)| *kind != image) {
+            *session = None;
+            let file = if image {
+                &self.manifest.image.file
+            } else {
+                &self.manifest.text.file
+            };
+            *session = Some((image, self.session(file)?));
+        }
+        session
+            .as_mut()
+            .unwrap()
+            .1
+            .run(inputs, output, self.manifest.dimensions)
+    }
+
     fn image_tensor(&self, mut data: Vec<f32>) -> Result<Vec<f32>, String> {
         let size = self.manifest.preprocess.size as i64;
         let shape = match self.manifest.preprocess.layout {
@@ -187,22 +195,16 @@ impl Engine {
             rank: 4,
             element_type: 1,
         }];
-        let mut session = self.image.lock().map_err(|e| e.to_string())?;
-        if session.is_none() {
-            *session = Some(self.session(&self.manifest.image.file)?);
-        }
-        session.as_mut().unwrap().run(
-            &mut inputs,
-            &self.manifest.image.output,
-            self.manifest.dimensions,
-        )
+        self.run(true, &mut inputs, &self.manifest.image.output)
     }
     pub fn release_all(&self) {
-        self.release_image();
-        *self.text.lock().unwrap() = None;
+        *self.session.lock().unwrap() = None;
     }
     pub fn release_image(&self) {
-        *self.image.lock().unwrap() = None;
+        let mut session = self.session.lock().unwrap();
+        if session.as_ref().is_some_and(|(image, _)| *image) {
+            *session = None;
+        }
     }
 }
 impl ImageEncoder for Engine {

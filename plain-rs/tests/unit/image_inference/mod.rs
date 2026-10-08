@@ -136,3 +136,13 @@ fn preprocessing_uses_manifest_normalization_and_skips_tiny_images() {
     image::RgbImage::new(32, 32).save(&path).unwrap();
     assert!(preprocess::tensor(&path, &config).unwrap().is_none());
 }
+
+#[test]
+fn manifest_reader_bounds_input_before_parsing() {
+    let directory = tempfile::tempdir().unwrap();
+    fixture(directory.path());
+    let path = directory.path().join("manifest.json");
+    assert!(Manifest::read(&path).is_ok());
+    std::fs::write(&path, vec![b' '; 65537]).unwrap();
+    assert!(Manifest::read(&path).err().unwrap().contains("64 KiB"));
+}
