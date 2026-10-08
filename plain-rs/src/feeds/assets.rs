@@ -1,6 +1,8 @@
 use crate::{
     db::Db,
     library::{LibraryError, LibraryResult},
+    utils::html_to_markdown::dom::Dom,
+    utils::http_url::{join, parse_http_url},
 };
 use futures_util::StreamExt;
 use std::{path::PathBuf, sync::Arc};
@@ -78,31 +80,56 @@ impl FeedAssets {
         }
     }
 }
+/// Resolves `reference` against `base`, keeping only http(s). A `javascript:`
+/// or `data:` reference must stay as it is instead of turning into a
+/// site-relative path.
 pub fn absolute_url(base: &str, reference: &str) -> Option<String> {
-    if reference.trim().is_empty() {
+    let reference = reference.trim();
+    if reference.is_empty() {
         return None;
     }
-    reqwest::Url::parse(base)
-        .ok()?
-        .join(reference)
-        .ok()
-        .filter(|u| ["http", "https"].contains(&u.scheme()))
-        .map(|u| u.to_string())
+    if let Some(scheme) = scheme_of(reference) {
+        return ["http", "https"]
+            .contains(&scheme.as_str())
+            .then(|| reference.to_string());
+    }
+    if let Some(rest) = reference.strip_prefix("//") {
+        return Some(format!("{}://{rest}", parse_http_url(base)?.scheme));
+    }
+    join(base, reference)
 }
+
+fn scheme_of(reference: &str) -> Option<String> {
+    let colon = reference.find(':')?;
+    let scheme = &reference[..colon];
+    let valid = !scheme.is_empty()
+        && !scheme.contains('/')
+        && scheme
+            .chars()
+            .all(|c| c.is_ascii_alphanumeric() || c == '+' || c == '-' || c == '.');
+    valid.then(|| scheme.to_ascii_lowercase())
+}
+
+/// Rewrites relative `src`/`href` references to absolute ones, so article
+/// HTML keeps working after it is read outside the page it came from.
 pub fn normalize_html(html: &str, base: &str) -> String {
-    let regex = regex::Regex::new(r#"(?is)(src|href)\s*=\s*["']([^"']+)["']"#).unwrap();
-    regex
-        .replace_all(html, |captures: &regex::Captures| {
-            absolute_url(base, &captures[2])
-                .map(|url| format!("{}=\"{}\"", &captures[1], url))
-                .unwrap_or_else(|| captures[0].to_string())
-        })
-        .into_owned()
+    let mut dom = Dom::parse(html);
+    for node in &mut dom.0 {
+        for (name, value) in node.attrs.iter_mut() {
+            if matches!(name.as_str(), "src" | "href")
+                && let Some(url) = absolute_url(base, value)
+            {
+                *value = url;
+            }
+        }
+    }
+    super::inner_html(&dom, 0)
 }
+
 pub fn main_image(html: &str, base: &str) -> Option<String> {
-    let document = scraper::Html::parse_fragment(html);
-    document
-        .select(&scraper::Selector::parse("img[src]").unwrap())
-        .filter_map(|e| absolute_url(base, e.value().attr("src")?))
-        .next()
+    Dom::parse(html)
+        .0
+        .iter()
+        .filter(|node| node.tag == "img")
+        .find_map(|node| absolute_url(base, node.attr("src")))
 }

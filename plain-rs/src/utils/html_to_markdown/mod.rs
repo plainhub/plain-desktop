@@ -1,4 +1,4 @@
-mod dom;
+pub(crate) mod dom;
 mod entities;
 mod table;
 

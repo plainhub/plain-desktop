@@ -1,15 +1,14 @@
 use crate::db::Db;
 use crate::db::notes_feeds::{FeedEntryRow, FeedRow};
 use crate::library::{LibraryError, LibraryResult};
+use crate::utils::html_to_markdown::dom::{Dom, Node};
 use crate::utils::html_to_markdown::html_to_markdown;
 use crate::utils::http_url::parse_http_url;
+use crate::utils::xml::{self, Event, StartTag};
 use crate::ws_event::WsEvent;
-use chrono::{DateTime, Utc};
+use chrono::Utc;
 use futures_util::StreamExt;
 use futures_util::stream;
-use quick_xml::events::{BytesStart, Event};
-use quick_xml::{Reader, XmlVersion};
-use scraper::{Html, Selector};
 use sha2::{Digest, Sha256};
 use std::sync::Arc;
 use tokio::sync::broadcast;
@@ -20,6 +19,9 @@ struct ParsedFeed {
     entries: Vec<ParsedEntry>,
     logo: String,
     site_url: String,
+    /// Atom states the site URL as `<link href>`; once taken, the whitespace
+    /// inside that tag must not be appended to it as if it were the URL.
+    site_url_from_attribute: bool,
 }
 
 #[derive(Default)]
@@ -51,81 +53,46 @@ fn require_url(url: &str) -> LibraryResult<()> {
     Ok(())
 }
 
-fn attr(_reader: &Reader<&[u8]>, tag: &BytesStart<'_>, key: &str) -> Option<String> {
-    tag.attributes()
-        .flatten()
-        .find(|a| a.key.local_name().as_ref() == key)
-        .and_then(|a| a.normalized_value(XmlVersion::Implicit1_0).ok())
-        .map(|v| v.into_owned())
+fn inside(stack: &[String], name: &str) -> bool {
+    stack.iter().any(|open| open == name)
 }
 
-fn local_name(name: &str) -> String {
-    name.rsplit(':').next().unwrap_or(name).to_ascii_lowercase()
+/// Serialized children of a node — the body without the node's own tag.
+fn inner_html(dom: &Dom, id: usize) -> String {
+    dom.0[id]
+        .children
+        .iter()
+        .map(|&child| dom.outer_html(child))
+        .collect()
 }
 
 fn parse_feed(xml: &str) -> LibraryResult<ParsedFeed> {
-    let mut reader = Reader::from_str(xml);
-    reader.config_mut().trim_text(false);
+    let mut reader = xml::Reader::new(xml);
     let mut feed = ParsedFeed::default();
     let mut entry: Option<ParsedEntry> = None;
     let mut stack: Vec<String> = Vec::new();
-    loop {
-        match reader.read_event().map_err(error)? {
+    while let Some(event) = reader.next() {
+        match event {
             Event::Start(tag) => {
-                let name = local_name(tag.name().as_ref());
-                if name == "item" || name == "entry" {
-                    entry = Some(ParsedEntry::default());
+                if tag.name == "item" || tag.name == "entry" {
+                    if tag.empty {
+                        feed.entries.push(ParsedEntry::default());
+                    } else {
+                        entry = Some(ParsedEntry::default());
+                    }
+                } else if let Some(item) = entry.as_mut() {
+                    assign_item_tag(item, &tag);
+                } else {
+                    assign_feed_tag(&mut feed, &stack, &tag);
                 }
-                if let Some(item) = entry.as_mut() {
-                    if name == "link" {
-                        if let Some(href) = attr(&reader, &tag, "href") {
-                            let rel = attr(&reader, &tag, "rel").unwrap_or_default();
-                            if rel.is_empty() || rel == "alternate" {
-                                item.url = href;
-                                item.url_from_attribute = true;
-                            }
-                        }
-                    }
-                    if name == "thumbnail" || name == "enclosure" || name == "content" {
-                        if let Some(url) = attr(&reader, &tag, "url") {
-                            item.image = url;
-                        }
-                    }
-                }
-                stack.push(name);
-            }
-            Event::Empty(tag) => {
-                if let Some(item) = entry.as_mut() {
-                    let name = local_name(tag.name().as_ref());
-                    if name == "link" {
-                        if let Some(href) = attr(&reader, &tag, "href") {
-                            let rel = attr(&reader, &tag, "rel").unwrap_or_default();
-                            if rel.is_empty() || rel == "alternate" {
-                                item.url = href;
-                                item.url_from_attribute = true;
-                            }
-                        }
-                    }
-                    if name == "thumbnail" || name == "enclosure" || name == "content" {
-                        if let Some(url) = attr(&reader, &tag, "url") {
-                            item.image = url;
-                        }
-                    }
+                if !tag.empty {
+                    stack.push(tag.name);
                 }
             }
-            Event::Text(value) => {
-                assign_text(&mut feed, entry.as_mut(), &stack, &value.xml10_content());
+            Event::Text(text) => {
+                assign_text(&mut feed, entry.as_mut(), &stack, &text);
             }
-            Event::GeneralRef(value) => {
-                let reference = format!("&{};", value.xml10_content());
-                let decoded = quick_xml::escape::unescape(&reference).map_err(error)?;
-                assign_text(&mut feed, entry.as_mut(), &stack, &decoded);
-            }
-            Event::CData(value) => {
-                assign_text(&mut feed, entry.as_mut(), &stack, &value.xml10_content());
-            }
-            Event::End(tag) => {
-                let name = local_name(tag.name().as_ref());
+            Event::End(name) => {
                 if (name == "item" || name == "entry")
                     && let Some(mut item) = entry.take()
                 {
@@ -137,8 +104,6 @@ fn parse_feed(xml: &str) -> LibraryResult<ParsedFeed> {
                 }
                 stack.pop();
             }
-            Event::Eof => break,
-            _ => {}
         }
     }
     feed.title = feed.title.trim().to_string();
@@ -148,6 +113,37 @@ fn parse_feed(xml: &str) -> LibraryResult<ParsedFeed> {
         return Err(error("invalid_feed_content"));
     }
     Ok(feed)
+}
+
+fn assign_item_tag(item: &mut ParsedEntry, tag: &StartTag) {
+    if tag.name == "link" {
+        if let Some(href) = tag.attr("href") {
+            let rel = tag.attr("rel").unwrap_or_default();
+            if rel.is_empty() || rel == "alternate" {
+                item.url = href.to_string();
+                item.url_from_attribute = true;
+            }
+        }
+    }
+    if matches!(tag.name.as_str(), "thumbnail" | "enclosure" | "content") {
+        if let Some(url) = tag.attr("url") {
+            item.image = url.to_string();
+        }
+    }
+}
+
+fn assign_feed_tag(feed: &mut ParsedFeed, stack: &[String], tag: &StartTag) {
+    if tag.name != "link" || inside(stack, "image") || !feed.site_url.is_empty() {
+        return;
+    }
+    let rel = tag.attr("rel").unwrap_or_default();
+    if !rel.is_empty() && rel != "alternate" {
+        return;
+    }
+    if let Some(href) = tag.attr("href") {
+        feed.site_url.push_str(href);
+        feed.site_url_from_attribute = true;
+    }
 }
 
 fn assign_text(
@@ -172,9 +168,11 @@ fn assign_text(
             "pubdate" | "published" | "updated" | "date" => item.published_at.push_str(text),
             _ => {}
         }
-    } else if name == "url" && stack.iter().any(|n| n == "image") {
+    } else if name == "url" && inside(stack, "image") {
         feed.logo.push_str(text);
-    } else if name == "link" {
+    } else if name == "link" && !inside(stack, "image") && !feed.site_url_from_attribute {
+        // RSS puts the site URL in `<link>text</link>`. `<image><link>` is a
+        // different thing and must not be glued onto the channel URL.
         feed.site_url.push_str(text);
     } else if name == "title"
         && stack
@@ -186,9 +184,7 @@ fn assign_text(
 }
 
 fn parse_date(text: &str, fallback: &str) -> String {
-    DateTime::parse_from_rfc3339(text)
-        .or_else(|_| DateTime::parse_from_rfc2822(text))
-        .ok()
+    date::parse(text)
         .filter(|date| date.with_timezone(&Utc) < Utc::now())
         .map(|date| {
             date.with_timezone(&Utc)
@@ -197,15 +193,20 @@ fn parse_date(text: &str, fallback: &str) -> String {
         .unwrap_or_else(|| fallback.to_string())
 }
 
+/// Picks the article body out of a fetched page: the first `<article>`, else
+/// `<main>`, else a `role="main"` container, else `<body>`. Pages that have
+/// none of them (minimal HTML, fragments) are used as they are.
 fn article_html(html: &str) -> String {
-    let document = Html::parse_document(html);
-    for selector in ["article", "main", "[role=main]", "body"] {
-        let selector = Selector::parse(selector).unwrap();
-        if let Some(element) = document.select(&selector).next() {
-            return element.inner_html();
-        }
+    let dom = Dom::parse(html);
+    let pick = |wanted: &dyn Fn(&Node) -> bool| (1..dom.0.len()).find(|&id| wanted(&dom.0[id]));
+    let found = pick(&|node| node.tag == "article")
+        .or_else(|| pick(&|node| node.tag == "main"))
+        .or_else(|| pick(&|node| node.attr("role") == "main"))
+        .or_else(|| pick(&|node| node.tag == "body"));
+    match found {
+        Some(id) => inner_html(&dom, id),
+        None => inner_html(&dom, 0),
     }
-    html.to_string()
 }
 
 fn item_to_row(feed: &FeedRow, item: ParsedEntry) -> FeedEntryRow {
@@ -417,20 +418,13 @@ async fn sync_one(db: &Db, feed: &FeedRow, assets: Option<&FeedAssets>) -> Libra
                 parsed.site_url
             };
             if let Ok(html) = fetch_text(&site, 2 * 1024 * 1024).await {
-                let document = Html::parse_document(&html);
-                for element in document.select(&Selector::parse("link[rel][href]").unwrap()) {
-                    if element
-                        .value()
-                        .attr("rel")
-                        .unwrap_or_default()
-                        .contains("icon")
-                    {
-                        if let Some(url) = assets::absolute_url(
-                            &site,
-                            element.value().attr("href").unwrap_or_default(),
-                        ) {
-                            candidates.push(url);
-                        }
+                let dom = Dom::parse(&html);
+                for node in &dom.0 {
+                    if node.tag != "link" || !node.attr("rel").contains("icon") {
+                        continue;
+                    }
+                    if let Some(url) = assets::absolute_url(&site, node.attr("href")) {
+                        candidates.push(url);
                     }
                 }
             }
@@ -546,37 +540,40 @@ pub fn mark_read(db: &Db, query: &str, read: bool) -> LibraryResult<usize> {
 }
 
 pub fn import_opml(db: &Db, content: &str) -> LibraryResult<()> {
-    let mut reader = Reader::from_str(content);
+    let mut reader = xml::Reader::new(content);
     let mut feeds = Vec::new();
-    loop {
-        match reader.read_event().map_err(error)? {
-            Event::Start(tag) | Event::Empty(tag)
-                if local_name(tag.name().as_ref()) == "outline" =>
-            {
-                if let Some(url) = attr(&reader, &tag, "xmlUrl") {
-                    require_url(&url)?;
-                    let name = attr(&reader, &tag, "title")
-                        .or_else(|| attr(&reader, &tag, "text"))
-                        .unwrap_or_default();
-                    let fetch_content =
-                        attr(&reader, &tag, "fetchContent").as_deref() == Some("true");
-                    feeds.push((name, url, fetch_content));
-                }
-            }
-            Event::Eof => break,
-            _ => {}
+    while let Some(event) = reader.next() {
+        let Event::Start(tag) = event else {
+            continue;
+        };
+        if tag.name != "outline" {
+            continue;
         }
+        // Outlines without xmlUrl are the folders that group subscriptions.
+        let Some(url) = tag.attr("xmlUrl") else {
+            continue;
+        };
+        let name = tag
+            .attr("title")
+            .or_else(|| tag.attr("text"))
+            .unwrap_or_default()
+            .to_string();
+        let fetch_content = tag.attr("fetchContent") == Some("true");
+        feeds.push((name, url.to_string(), fetch_content));
     }
     for (name, url, fetch_content) in feeds {
-        if db.feed_get_by_url(&url)?.is_none() {
-            db.feed_save(
-                &uuid::Uuid::new_v4().to_string(),
-                &name,
-                &url,
-                fetch_content,
-                &now(),
-            )?;
+        // One malformed outline must not cost the user the rest of the file:
+        // OPML is hand-edited and exported by plenty of other readers.
+        if require_url(&url).is_err() || db.feed_get_by_url(&url)?.is_some() {
+            continue;
         }
+        db.feed_save(
+            &uuid::Uuid::new_v4().to_string(),
+            &name,
+            &url,
+            fetch_content,
+            &now(),
+        )?;
     }
     Ok(())
 }
@@ -589,9 +586,9 @@ pub fn export_opml(db: &Db) -> LibraryResult<String> {
     for feed in db.feeds_list()? {
         xml.push_str(&format!(
             "<outline text=\"{}\" title=\"{}\" xmlUrl=\"{}\" fetchContent=\"{}\"/>",
-            quick_xml::escape::escape(&feed.name),
-            quick_xml::escape::escape(&feed.name),
-            quick_xml::escape::escape(&feed.url),
+            xml::escape(&feed.name),
+            xml::escape(&feed.name),
+            xml::escape(&feed.url),
             feed.fetch_content
         ));
     }
@@ -603,6 +600,7 @@ pub fn export_opml(db: &Db) -> LibraryResult<String> {
 #[path = "../../tests/unit/feeds/mod.rs"]
 mod tests;
 
+mod date;
 mod sync_service;
 pub use sync_service::{FeedSyncState, SyncService};
 pub async fn create_without_sync(
