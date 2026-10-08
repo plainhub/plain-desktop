@@ -7,27 +7,25 @@ pub struct Interface {
     pub prefix_length: u8,
 }
 pub fn local_interfaces() -> Vec<Interface> {
-    if_addrs::get_if_addrs()
-        .unwrap_or_else(|error| {
-            log::debug!("Peer interface enumeration: {error}");
-            vec![]
-        })
+    crate::utils::ifaddr::list()
         .into_iter()
-        .filter_map(|interface| match interface.addr {
-            if_addrs::IfAddr::V4(v4) if !v4.ip.is_loopback() && !v4.ip.is_unspecified() => {
-                let mask = u32::from(v4.netmask);
-                let prefix_length = mask.leading_ones() as u8;
-                let expected = if prefix_length == 0 {
-                    0
-                } else {
-                    u32::MAX << (32 - prefix_length)
-                };
-                (mask == expected).then_some(Interface {
-                    ip: v4.ip,
-                    prefix_length,
-                })
+        .filter_map(|interface| {
+            if interface.ip.is_unspecified() {
+                return None;
             }
-            _ => None,
+            // A mask that is not a run of leading ones means the kernel gave
+            // us something we cannot read as a prefix length.
+            let mask = u32::from(interface.netmask?);
+            let prefix_length = mask.leading_ones() as u8;
+            let expected = if prefix_length == 0 {
+                0
+            } else {
+                u32::MAX << (32 - prefix_length)
+            };
+            (mask == expected).then_some(Interface {
+                ip: interface.ip,
+                prefix_length,
+            })
         })
         .collect()
 }

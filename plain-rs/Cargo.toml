@@ -119,7 +119,6 @@ sha2_mac = { package = "sha2", version = "0.11", optional = true }
 rand = "0.8"
 uuid = { version = "1", features = ["v4"] }
 log = "0.4"
-if-addrs = "0.13"
 socket2 = { version = "0.5", features = ["all"] }
 serde = { version = "1", features = ["derive"] }
 # Chat domain (feature "chat"): wire-JSON parsing + the plain-app chat

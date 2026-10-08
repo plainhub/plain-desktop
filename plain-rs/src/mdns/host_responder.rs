@@ -18,7 +18,6 @@
 use super::packet_codec::{self, MdnsResponse, TYPE_A};
 use super::service_info::{MdnsServiceInfo, PLAINAPP_SERVICE_TYPE};
 use super::service_response_builder;
-use if_addrs::{IfAddr, Interface};
 use std::collections::HashSet;
 use std::io;
 use std::net::{Ipv4Addr, Ipv6Addr, SocketAddrV4, SocketAddrV6};
@@ -563,21 +562,17 @@ fn ipv6_joined() -> &'static std::sync::Mutex<Option<HashSet<u32>>> {
 /// and addresses with no usable scope id.
 pub fn candidate_ipv6_interfaces() -> Vec<(String, u32)> {
     let mut seen = HashSet::new();
-    if_addrs::get_if_addrs()
-        .unwrap_or_default()
+    crate::utils::ifaddr::list_v6()
         .into_iter()
-        .filter_map(|iface| match iface.addr {
-            IfAddr::V6(v6) => {
-                let index = iface.index?;
-                if v6.ip.is_loopback() || v6.ip.is_multicast() || index == 0 {
-                    return None;
-                }
-                if !seen.insert(index) {
-                    return None;
-                }
-                Some((iface.name, index))
+        .filter_map(|iface| {
+            let index = iface.index;
+            if iface.ip.is_multicast() || index == 0 {
+                return None;
             }
-            _ => None,
+            if !seen.insert(index) {
+                return None;
+            }
+            Some((iface.name, index))
         })
         .collect()
 }
@@ -585,13 +580,9 @@ pub fn candidate_ipv6_interfaces() -> Vec<(String, u32)> {
 /// This host's own non-loopback IPv6 addresses, used to ignore the multicast
 /// loop-back of our own IPv6 queries.
 pub fn candidate_ipv6_addresses() -> Vec<String> {
-    if_addrs::get_if_addrs()
-        .unwrap_or_default()
+    crate::utils::ifaddr::list_v6()
         .into_iter()
-        .filter_map(|iface| match iface.addr {
-            IfAddr::V6(v6) if !v6.ip.is_loopback() => Some(v6.ip.to_string()),
-            _ => None,
-        })
+        .map(|iface| iface.ip.to_string())
         .collect()
 }
 
@@ -979,26 +970,25 @@ pub struct MdnsIface {
 }
 
 pub fn candidate_interfaces() -> Vec<MdnsIface> {
-    let interfaces: Vec<Interface> = if_addrs::get_if_addrs().unwrap_or_default();
     let mut seen = std::collections::HashSet::new();
-    interfaces
+    crate::utils::ifaddr::list()
         .into_iter()
-        .filter_map(|iface| match iface.addr {
-            IfAddr::V4(v4) => {
-                let ip = v4.ip;
-                if ip.is_loopback() || ip.is_link_local() || ip.is_unspecified() {
-                    return None;
-                }
-                if !seen.insert(ip) {
-                    return None;
-                }
-                Some(MdnsIface {
-                    name: iface.name,
-                    ip,
-                    netmask: v4.netmask,
-                })
+        .filter_map(|iface| {
+            let ip = iface.ip;
+            if ip.is_link_local() || ip.is_unspecified() {
+                return None;
             }
-            _ => None,
+            if !seen.insert(ip) {
+                return None;
+            }
+            Some(MdnsIface {
+                name: iface.name,
+                ip,
+                // A point-to-point link with no netmask has no subnet to
+                // match a response against; the caller would pick the wrong
+                // interface, so leave it out.
+                netmask: iface.netmask?,
+            })
         })
         .collect()
 }
