@@ -180,7 +180,19 @@ pub(super) async fn call(
         }
         Request::Stop {} => {
             state.peer_status.outgoing.stop().await;
+            let previous = state.peer_status.connections.snapshot(&state.db);
             state.peer_status.connections.clear_hints();
+            let current = state.peer_status.connections.snapshot(&state.db);
+            if let Some(ids) = previous["online"].as_array() {
+                for id in ids.iter().filter_map(|id| id.as_str()) {
+                    if !current["online"]
+                        .as_array()
+                        .is_some_and(|ids| ids.iter().any(|current| current.as_str() == Some(id)))
+                    {
+                        emit(&state, id, false);
+                    }
+                }
+            }
             emit(&state, "", false);
             Ok(())
         }

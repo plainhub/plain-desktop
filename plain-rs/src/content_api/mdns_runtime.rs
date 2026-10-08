@@ -177,6 +177,10 @@ impl Runtime {
                     if visible.load(Ordering::SeqCst)
                         && status.connections.hint(&status_db, &id).unwrap_or(false)
                     {
+                        let _ = status_events.send(crate::ws_event::WsEvent::broadcast(
+                            crate::chat::events::WS_PEER_STATUS_UPDATED,
+                            json!({"id":id,"online":true}).to_string(),
+                        ));
                         let _=status_events.send(crate::ws_event::WsEvent::broadcast(10002,json!({"runtimeId":status.connections.snapshot(&status_db)["runtimeId"]}).to_string()));
                     }
                     runtime.emit(&observer, Some(&id), visible.load(Ordering::SeqCst));
