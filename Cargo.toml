@@ -1,6 +1,6 @@
 [workspace]
 resolver = "3"
-members = ["plain-ble", "plain-rs", "nas", "src-tauri"]
+members = ["plain-rs", "nas", "src-tauri"]
 
 # Light optimization for workspace code: the thumbnail engine's hot
 # loops (progressive DC decode, box resample) live in the plain-rs media

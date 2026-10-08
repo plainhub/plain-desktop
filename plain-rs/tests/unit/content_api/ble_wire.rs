@@ -16,7 +16,7 @@ fn fixed_peer_wire_vector() {
     );
 }
 #[test]
-fn all_bytes_roundtrip_across_minimum_and_large_mtu() {
+fn assembler_roundtrips_all_bytes_across_mtu_sizes() {
     let data = message(&[], &(0..8192).map(|i| i as u8).collect::<Vec<_>>()).unwrap();
     for limit in [20, 182, 244, 512] {
         let mut assembler = Assembler::default();
@@ -62,16 +62,14 @@ fn file_range_checks_and_exact_decode() {
     data.push(0);
     assert!(Request::decode(&data).is_err());
     for (offset, length) in [(0, 0), (0, 8193), (u64::MAX, 1)] {
-        assert!(
-            Request::FileChunk {
-                client_id: "a".into(),
-                file_id: "f".into(),
-                offset,
-                length
-            }
-            .encode()
-            .is_err()
-        );
+        assert!(Request::FileChunk {
+            client_id: "a".into(),
+            file_id: "f".into(),
+            offset,
+            length
+        }
+        .encode()
+        .is_err());
     }
 }
 #[test]
@@ -109,11 +107,9 @@ fn malformed_frames_reset_and_allow_clean_retry() {
 #[test]
 fn missing_start_and_end_and_declared_limits() {
     let data = message(&[], &[1; 40]).unwrap();
-    assert!(
-        Assembler::default()
-            .push(&frame(&data, 1, false, 1, 20).unwrap().unwrap())
-            .is_err()
-    );
+    assert!(Assembler::default()
+        .push(&frame(&data, 1, false, 1, 20).unwrap().unwrap())
+        .is_err());
     let mut full = frame(&data, 1, false, 0, 512).unwrap().unwrap();
     full[1] &= !2;
     assert!(Assembler::default().push(&full).is_err());
@@ -144,8 +140,7 @@ fn timeout_rejects_continuation() {
     a.push(&frame(&data, 1, false, 0, 20).unwrap().unwrap())
         .unwrap();
     a.last = Some(Instant::now() - Duration::from_secs(16));
-    assert!(
-        a.push(&frame(&data, 1, false, 1, 20).unwrap().unwrap())
-            .is_err()
-    );
+    assert!(a
+        .push(&frame(&data, 1, false, 1, 20).unwrap().unwrap())
+        .is_err());
 }

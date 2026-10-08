@@ -109,7 +109,6 @@ system = ["api", "dep:nix", "dep:ureq", "dep:http"]
 
 [dependencies]
 p12-keystore = "0.3.2"
-plain-ble = { path = "../plain-ble" }
 subtle = { version = "2", optional = true }
 chacha20poly1305 = "0.10"
 p256 = { version = "0.13", default-features = false, features = ["ecdh", "pkcs8", "std"] }

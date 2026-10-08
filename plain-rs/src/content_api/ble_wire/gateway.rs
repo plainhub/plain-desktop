@@ -1,5 +1,5 @@
-use super::{Reader, message, parts, string};
-use anyhow::{Result, bail, ensure};
+use super::{message, parts, string, Reader};
+use anyhow::{bail, ensure, Result};
 
 #[derive(Debug, PartialEq)]
 pub enum GatewayRequest {
@@ -76,5 +76,5 @@ fn validate_password(password: &str) -> Result<()> {
     Ok(())
 }
 #[cfg(test)]
-#[path = "../tests/unit/gateway.rs"]
+#[path = "../../../tests/unit/content_api/ble_gateway.rs"]
 mod tests;
