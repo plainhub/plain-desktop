@@ -64,11 +64,8 @@ const subtitle = computed(() => {
   if (props.status.isIndexing) return t('ai.scanning_subtitle')
   return t('ai.ready_subtitle')
 })
-const progressText = computed(() => {
-  const loaded = (((props.status.downloadProgress / 100) * props.status.modelSize) / 1e6).toFixed(1)
-  const total = (props.status.modelSize / 1e6).toFixed(1)
-  return `${t('ai.model_file')} <b>${loaded}</b> / <b>${total} MB</b>`
-})
+const progressText = computed(() => `${t('ai.model_file')} <b>${props.status.downloadProgress}%</b>`)
+
 const indexText = computed(() => `${t('ai.scanning_title')} <b>${props.status.indexedImages}</b> / <b>${props.status.totalImages}</b>`)
 </script>
 
