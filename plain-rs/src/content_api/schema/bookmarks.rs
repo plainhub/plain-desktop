@@ -60,28 +60,26 @@ impl BookmarkMetadataMutation {
 }
 
 fn page_metadata(html: &str, base: &str) -> (Option<String>, Option<String>) {
-    let document = scraper::Html::parse_document(html);
-    let title = document
-        .select(&scraper::Selector::parse("meta[property='og:title']").unwrap())
-        .find_map(|e| e.value().attr("content").map(str::to_owned))
+    let dom = crate::utils::html_to_markdown::dom::Dom::parse(html);
+    let title = dom
+        .0
+        .iter()
+        .find(|node| node.tag == "meta" && node.attr("property") == "og:title")
+        .map(|node| node.attr("content").to_owned())
         .or_else(|| {
-            document
-                .select(&scraper::Selector::parse("title").unwrap())
-                .next()
-                .map(|e| e.text().collect::<String>())
+            dom.0
+                .iter()
+                .enumerate()
+                .find(|(_, node)| node.tag == "title")
+                .map(|(id, _)| dom.text(id))
         })
         .map(|t| t.trim().chars().take(200).collect::<String>())
         .filter(|t| !t.is_empty());
-    let icon = document
-        .select(&scraper::Selector::parse("link[rel][href]").unwrap())
-        .filter(|e| {
-            e.value()
-                .attr("rel")
-                .unwrap_or_default()
-                .to_lowercase()
-                .contains("icon")
-        })
-        .find_map(|e| crate::feeds::assets::absolute_url(base, e.value().attr("href")?))
+    let icon = dom
+        .0
+        .iter()
+        .filter(|node| node.tag == "link" && node.attr("rel").to_lowercase().contains("icon"))
+        .find_map(|node| crate::feeds::assets::absolute_url(base, node.attr("href")))
         .or_else(|| crate::feeds::assets::absolute_url(base, "/favicon.ico"));
     (title, icon)
 }

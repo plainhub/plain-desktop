@@ -32,6 +32,21 @@ fn text(input: &str) -> String {
 }
 
 #[test]
+fn the_original_casing_survives_for_wire_keys() {
+    let mut reader = Reader::new("<Event><TrackDuration val=\"00:01:02\"/></Event>");
+    let Event::Start(event) = reader.next().unwrap() else {
+        panic!("expected a start tag");
+    };
+    assert_eq!(event.name, "event");
+    assert_eq!(event.raw, "Event");
+    let Event::Start(duration) = reader.next().unwrap() else {
+        panic!("expected a start tag");
+    };
+    assert_eq!(duration.raw, "TrackDuration");
+    assert_eq!(duration.attr("val"), Some("00:01:02"));
+}
+
+#[test]
 fn elements_attributes_and_self_closing_tags() {
     assert_eq!(
         tags(r#"<?xml version="1.0"?><rss version='2.0'><channel><link/><item/></channel></rss>"#),
@@ -81,6 +96,7 @@ fn cdata_comments_and_declarations_do_not_leak_into_text() {
         [
             Event::Start(StartTag {
                 name: "rss".into(),
+                raw: "rss".into(),
                 attrs: vec![],
                 empty: false
             }),

@@ -75,45 +75,42 @@ pub(super) async fn media(
     super::mobile_files::secure(response, None, false)
 }
 fn attributes(xml: &str) -> std::collections::HashMap<String, String> {
-    use quick_xml::{Reader, events::Event};
+    use crate::utils::xml::{Event, Reader};
     let mut values = std::collections::HashMap::new();
     let mut documents = vec![xml.to_owned()];
     let mut remaining = 8;
     while let Some(document) = documents.pop() {
-        if remaining == 0 { break; }
+        if remaining == 0 {
+            break;
+        }
         remaining -= 1;
-        let mut reader = Reader::from_str(&document);
+        let mut reader = Reader::new(&document);
         let mut last_change = None::<String>;
-        loop {
-            match reader.read_event() {
-                Ok(Event::Start(tag) | Event::Empty(tag)) => {
-                    let name = tag.local_name().as_ref().to_owned();
-                    if name == "LastChange" { last_change = Some(String::new()); }
-                    for attr in tag.attributes().flatten() {
-                        if attr.key.as_ref() == "val" {
-                            if let Ok(value) = attr.normalized_value(quick_xml::XmlVersion::Implicit1_0) {
-                                values.insert(name.clone(), value.into_owned());
-                            }
-                        }
+        while let Some(event) = reader.next() {
+            match event {
+                Event::Start(tag) => {
+                    // Keys keep the casing the sender used — the callback
+                    // looks them up as `TrackDuration`, not `trackduration`.
+                    if let Some(val) = tag.attr("val") {
+                        values.insert(tag.raw.clone(), val.to_owned());
                     }
-                    if name == "AVTransportURIMetaData" { values.entry(name).or_default(); }
+                    if tag.name == "avtransporturimetadata" {
+                        values.entry(tag.raw.clone()).or_default();
+                    }
+                    if tag.name == "lastchange" {
+                        last_change = Some(String::new());
+                    }
                 }
-                Ok(Event::Text(text)) => {
-                    if let Some(body) = last_change.as_mut() { body.push_str(text.as_ref()); }
-                }
-                Ok(Event::CData(text)) => {
-                    if let Some(body) = last_change.as_mut() { body.push_str(text.as_ref()); }
-                }
-                Ok(Event::GeneralRef(reference)) => {
+                Event::Text(text) => {
                     if let Some(body) = last_change.as_mut() {
-                        let entity = format!("&{};", reference.as_ref());
-                        if let Ok(decoded) = quick_xml::escape::unescape(&entity) { body.push_str(&decoded); }
+                        body.push_str(&text);
                     }
                 }
-                Ok(Event::End(tag)) if tag.local_name().as_ref() == "LastChange" => {
-                    if let Some(body) = last_change.take().filter(|body| body.contains('<')) { documents.push(body); }
+                Event::End(name) if name == "lastchange" => {
+                    if let Some(body) = last_change.take().filter(|body| body.contains('<')) {
+                        documents.push(body);
+                    }
                 }
-                Ok(Event::Eof) | Err(_) => break,
                 _ => {}
             }
         }

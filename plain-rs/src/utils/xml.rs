@@ -12,6 +12,9 @@
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct StartTag {
     pub name: String,
+    /// The name exactly as written, e.g. `TrackDuration`. Needed when the tag
+    /// name doubles as a wire key that has to keep its casing.
+    pub raw: String,
     pub attrs: Vec<(String, String)>,
     /// True for `<x/>`; no matching end tag follows.
     pub empty: bool,
@@ -140,7 +143,8 @@ impl<'a> Reader<'a> {
         let input = self.input;
         let mut cursor = self.pos + 1;
         let name_end = scan_name_end(input, cursor);
-        let name = local_name(&input[cursor..name_end]);
+        let raw = input[cursor..name_end].to_string();
+        let name = local_name(&raw);
         cursor = name_end;
         let mut attrs: Vec<(String, String)> = Vec::new();
         let mut empty = false;
@@ -182,7 +186,12 @@ impl<'a> Reader<'a> {
         if !empty {
             self.open.push(name.clone());
         }
-        Event::Start(StartTag { name, attrs, empty })
+        Event::Start(StartTag {
+            name,
+            raw,
+            attrs,
+            empty,
+        })
     }
 }
 

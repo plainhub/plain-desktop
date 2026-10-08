@@ -60,18 +60,20 @@ fn mobile_metadata_is_valid_xml_with_album_art_and_unknown_class() {
         "http://host/art?a=1&b=2",
         true,
     );
-    let mut reader = quick_xml::Reader::from_str(&xml);
-    loop {
-        match reader.read_event().unwrap() {
-            quick_xml::events::Event::Eof => break,
-            quick_xml::events::Event::Start(tag) => {
-                for attribute in tag.attributes() {
-                    attribute.unwrap();
-                }
-            }
-            _ => {}
+    let mut elements = Vec::new();
+    let mut reader = crate::utils::xml::Reader::new(&xml);
+    while let Some(event) = reader.next() {
+        if let crate::utils::xml::Event::Start(tag) = event {
+            elements.push((tag.name.clone(), tag.attrs.clone()));
         }
     }
+    // The markup has to survive a real parse, not just look right.
+    assert!(elements.iter().any(|(name, _)| name == "res"));
+    assert!(elements.iter().any(|(_, attrs)| {
+        attrs
+            .iter()
+            .any(|(key, value)| key == "parentID" && value == "-1")
+    }));
     assert!(xml.contains("object.item</upnp:class>"));
     assert!(xml.contains("A &amp; &lt;B&gt;"));
     assert!(xml.contains("http://host/art?a=1&amp;b=2"));
