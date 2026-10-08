@@ -47,30 +47,30 @@ async fn image_search_status_is_owned_by_rust_without_platform_projection() {
     assert!(response.errors.is_empty(), "{:?}", response.errors);
     let row = &response.data.into_json().unwrap()["imageSearchStatus"];
     assert_eq!(row["status"], "UNAVAILABLE");
-    assert_eq!(row["modelSize"], 399703800i64);
+    assert_eq!(
+        row["modelSize"],
+        crate::image_inference::default_model::manifest().size() as i64
+    );
     assert_eq!(
         row["modelDir"],
-        dir.path().join("ai_models").to_string_lossy().as_ref()
+        dir.path()
+            .join("ai_models/incoming")
+            .to_string_lossy()
+            .as_ref()
     );
     assert_eq!(row["isIndexing"], false);
     assert_eq!(row["indexedImages"], 0);
 }
 #[tokio::test]
-async fn unavailable_platform_does_not_download_or_enable() {
+async fn restore_without_enabled_model_does_not_contact_platform() {
     let (_dir, schema) = fixture();
-    stub(schema_host(&schema), |method, _| match method {
-        "systemImageModelAvailability" => json!(false),
-        other => panic!("Unexpected platform operation: {other}"),
+    stub(schema_host(&schema), |method, _| {
+        panic!("Unexpected platform operation: {method}")
     });
-    let response = schema.execute("mutation { enableImageSearch }").await;
-    assert!(response.errors.is_empty(), "{:?}", response.errors);
-    assert_eq!(
-        response.data.into_json().unwrap()["enableImageSearch"],
-        true
-    );
     let models = schema
         .data::<Arc<super::super::image_models::Runtime>>()
         .unwrap();
+    models.enable(true).await.unwrap();
     assert_eq!(
         models.snapshot().status.status,
         ImageSearchStatusType::Unavailable
@@ -92,5 +92,24 @@ async fn cancel_index_mutates_the_same_index_queried_by_model_status() {
     assert_eq!(
         models.snapshot().status.is_indexing,
         index.status().is_running
+    );
+}
+
+#[tokio::test]
+async fn importing_without_a_complete_package_does_not_start_default_download() {
+    let (_dir, schema) = fixture();
+    let response = schema.execute("mutation { importImageSearchModel }").await;
+    assert_eq!(response.errors.len(), 1);
+    assert!(
+        response.errors[0]
+            .message
+            .contains("complete model package")
+    );
+    let models = schema
+        .data::<Arc<super::super::image_models::Runtime>>()
+        .unwrap();
+    assert_eq!(
+        models.snapshot().status.status,
+        ImageSearchStatusType::Unavailable
     );
 }

@@ -1,7 +1,7 @@
 export default {
   'ai.image_search': 'AI Image Search',
   'ai.engine_subtitle': 'Search your photos by describing what you see — completely offline, running on your device.',
-  'ai.setup_hint': 'A small AI model ({size}) will be downloaded to enable smart photo search.',
+  'ai.setup_hint': 'An AI model ({size}) will be downloaded to enable smart photo search.',
   'ai.activate_download': 'Download & Enable',
   'ai.manual_upload': 'Upload Model Files Manually',
   'ai.model_source_hint': 'You can download files from {link}.',
@@ -29,5 +29,5 @@ export default {
   'ai.uploading': 'Uploading {name}…',
   'ai.upload_done': 'Upload complete',
   'ai.upload_failed': 'Upload failed: {error}',
-  'ai.wrong_files': 'Invalid files. Required: mobileclip_s2_image.tflite, mobileclip_s2_text.tflite, tokenizer.json',
+  'ai.wrong_files': 'Invalid files. Required: manifest.json + ONNX + tokenizer.json',
 }

@@ -69,6 +69,14 @@ impl ImageIndexMutation {
         Ok(true)
     }
 
+    async fn import_image_search_model(&self, ctx: &Context<'_>) -> async_graphql::Result<bool> {
+        ctx.data_unchecked::<Arc<super::image_models::Runtime>>()
+            .import()
+            .await
+            .map_err(async_graphql::Error::new)?;
+        Ok(true)
+    }
+
     async fn disable_image_search(&self, ctx: &Context<'_>) -> async_graphql::Result<bool> {
         ctx.data_unchecked::<Arc<super::image_models::Runtime>>()
             .cancel(true)

@@ -1,7 +1,7 @@
 export default {
   'ai.image_search': 'AI 图片搜索',
   'ai.engine_subtitle': '用文字描述所见，在相册中搜索图片——完全离线，运行于本设备。',
-  'ai.setup_hint': '将下载一个小型 AI 模型（{size}）以启用智能图片搜索。',
+  'ai.setup_hint': '将下载一个AI 模型（{size}）以启用智能图片搜索。',
   'ai.activate_download': '下载并启用',
   'ai.manual_upload': '手动上传模型文件',
   'ai.model_source_hint': '可从 {link} 下载文件。',
@@ -29,5 +29,5 @@ export default {
   'ai.uploading': '正在上传 {name}…',
   'ai.upload_done': '上传完成',
   'ai.upload_failed': '上传失败：{error}',
-  'ai.wrong_files': '文件无效。需要：mobileclip_s2_image.tflite、mobileclip_s2_text.tflite、tokenizer.json',
+  'ai.wrong_files': '文件无效。需要：manifest.json、ONNX、tokenizer.json',
 }

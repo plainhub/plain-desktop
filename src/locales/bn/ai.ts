@@ -29,5 +29,5 @@ export default {
   'ai.uploading': '{name} আপলোড হচ্ছে…',
   'ai.upload_done': 'আপলোড সম্পন্ন',
   'ai.upload_failed': 'আপলোড ব্যর্থ: {error}',
-  'ai.wrong_files': 'অবৈধ ফাইল। প্রয়োজনীয়: mobileclip_s2_image.tflite, mobileclip_s2_text.tflite, tokenizer.json',
+  'ai.wrong_files': 'অবৈধ ফাইল। প্রয়োজনীয়: manifest.json + ONNX + tokenizer.json',
 }

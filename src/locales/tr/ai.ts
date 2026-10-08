@@ -29,5 +29,5 @@ export default {
   'ai.uploading': '{name} yükleniyor…',
   'ai.upload_done': 'Yükleme tamamlandı',
   'ai.upload_failed': 'Yükleme başarısız: {error}',
-  'ai.wrong_files': 'Geçersiz dosyalar. Gerekenler: mobileclip_s2_image.tflite, mobileclip_s2_text.tflite, tokenizer.json',
+  'ai.wrong_files': 'Geçersiz dosyalar. Gerekenler: manifest.json + ONNX + tokenizer.json',
 }

@@ -11,14 +11,20 @@ pub(super) struct HostProvider {
     host: Arc<Host>,
     runtime: tokio::runtime::Handle,
     ended: bool,
+    encoder: Option<Arc<dyn crate::image_inference::ImageEncoder>>,
 }
 impl HostProvider {
-    pub fn new(host: Arc<Host>, job_id: String) -> Self {
+    pub fn new(
+        host: Arc<Host>,
+        job_id: String,
+        encoder: Option<Arc<dyn crate::image_inference::ImageEncoder>>,
+    ) -> Self {
         Self {
             host,
             job_id,
             runtime: tokio::runtime::Handle::current(),
             ended: false,
+            encoder,
         }
     }
 
@@ -31,6 +37,9 @@ impl HostProvider {
             return Err(LibraryError::Other(
                 "image index engine cleanup failed".into(),
             ));
+        }
+        if let Some(encoder) = &self.encoder {
+            encoder.release();
         }
         self.ended = true;
         Ok(())
@@ -63,10 +72,63 @@ impl Provider for HostProvider {
         )
     }
     fn embed(&mut self, revision: &str, items: &[Image]) -> LibraryResult<Embedded> {
-        self.call(
-            "imageIndexEmbed",
-            json!({"revision":revision,"items":items}),
-        )
+        self.verify(revision)?;
+        let encoder = self
+            .encoder
+            .as_ref()
+            .ok_or_else(|| LibraryError::Other("Image encoder unavailable".into()))?;
+        let mut embedded = Embedded {
+            items: Vec::new(),
+            skipped_ids: Vec::new(),
+        };
+        for item in items {
+            let vector = if item.path.starts_with("ph://") {
+                None
+            } else {
+                encoder
+                    .image(std::path::Path::new(&item.path))
+                    .map_err(LibraryError::Other)?
+            };
+            let vector = if vector.is_none() {
+                let decoded: Option<String> =
+                    self.call("imageIndexDecode", json!({"path":item.path,"id":item.id}))?;
+                if let Some(path) = decoded {
+                    let result = encoder
+                        .image(std::path::Path::new(&path))
+                        .map_err(LibraryError::Other);
+                    let released: bool = self.call("imageIndexRelease", json!({"path":path}))?;
+                    if !released {
+                        return Err(LibraryError::Other(
+                            "Image decode resource cleanup failed".into(),
+                        ));
+                    }
+                    result?
+                } else {
+                    None
+                }
+            } else {
+                vector
+            };
+            match vector {
+                Some(vector) => {
+                    embedded
+                        .items
+                        .push(crate::library::image_embeddings::EmbeddingInput {
+                            id: item.id.clone(),
+                            path: item.path.clone(),
+                            embedding_base64: crate::base64_encode(
+                                &vector
+                                    .iter()
+                                    .flat_map(|v| v.to_be_bytes())
+                                    .collect::<Vec<_>>(),
+                            ),
+                        })
+                }
+                None => embedded.skipped_ids.push(item.id.clone()),
+            }
+        }
+        self.verify(revision)?;
+        Ok(embedded)
     }
     fn verify(&mut self, revision: &str) -> LibraryResult<()> {
         let verified: bool = self.call("imageIndexVerify", json!({"revision":revision}))?;
@@ -80,6 +142,9 @@ impl Provider for HostProvider {
 }
 impl Drop for HostProvider {
     fn drop(&mut self) {
+        if let Some(encoder) = &self.encoder {
+            encoder.release();
+        }
         if self.ended {
             return;
         }

@@ -29,5 +29,5 @@ export default {
   'ai.uploading': '{name} 업로드 중…',
   'ai.upload_done': '업로드 완료',
   'ai.upload_failed': '업로드 실패: {error}',
-  'ai.wrong_files': '잘못된 파일입니다. 필요한 파일: mobileclip_s2_image.tflite, mobileclip_s2_text.tflite, tokenizer.json',
+  'ai.wrong_files': '잘못된 파일입니다. 필요한 파일: manifest.json + ONNX + tokenizer.json',
 }

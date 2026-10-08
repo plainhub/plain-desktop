@@ -118,4 +118,4 @@ pub mod uploads;
 pub mod dlna_media_alias;
 
 #[cfg(feature = "content_api")]
-mod clip_tokenizer;
+pub mod image_inference;

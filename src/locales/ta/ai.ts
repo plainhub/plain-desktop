@@ -29,5 +29,5 @@ export default {
   'ai.uploading': '{name} பதிவேற்றப்படுகிறது…',
   'ai.upload_done': 'பதிவேற்றம் முடிந்தது',
   'ai.upload_failed': 'பதிவேற்றம் தோல்வியடைந்தது: {error}',
-  'ai.wrong_files': 'தவறான கோப்புகள். தேவையானவை: mobileclip_s2_image.tflite, mobileclip_s2_text.tflite, tokenizer.json',
+  'ai.wrong_files': 'தவறான கோப்புகள். தேவையானவை: manifest.json + ONNX + tokenizer.json',
 }

@@ -2,57 +2,36 @@
   <div>
     <p class="setup-desc">{{ $t('ai.engine_subtitle') }}</p>
 
-    <template v-if="uploading">
-      <progress-card :label-html="uploadStatus" :value="uploadProgress" />
-      <v-outlined-button class="btn-block setup-cancel" @click="cancelUpload">
-        {{ $t('ai.cancel_upload') }}
-      </v-outlined-button>
-    </template>
+    <p class="setup-hint">{{ $t('ai.setup_hint', { size: formatSize(status.modelSize) }) }}</p>
 
-    <template v-else>
-      <p class="setup-hint">{{ $t('ai.setup_hint', { size: formatSize(status.modelSize) }) }}</p>
+    <div v-if="status.errorMessage" class="setup-error">{{ status.errorMessage }}</div>
 
-      <div v-if="status.errorMessage" class="setup-error">{{ status.errorMessage }}</div>
+    <v-filled-button class="btn-block" :loading="enableLoading" @click="enable">
+      {{ $t('ai.activate_download') }}
+    </v-filled-button>
 
-      <v-filled-button class="btn-block" :loading="enableLoading" @click="enable">
-        {{ $t('ai.activate_download') }}
-      </v-filled-button>
+    <div class="setup-divider">
+      <span>{{ $t('or') }}</span>
+    </div>
+    <AISearchModelImport :model-dir="status.modelDir" />
 
-      <div class="setup-divider"><span>{{ $t('or') }}</span></div>
-
-      <v-outlined-button class="btn-block" :disabled="enableLoading" @click="fileInput?.click()">
-        {{ $t('ai.manual_upload') }}
-      </v-outlined-button>
-
-      <p class="setup-source" v-html="modelSourceHtml" />
-    </template>
-
-    <input ref="fileInput" style="display: none" type="file" multiple accept=".tflite,.json" @change="onFileChange" />
+    <p class="setup-source" v-html="modelSourceHtml" />
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, computed, watch } from 'vue'
+import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 import type { IImageSearchStatus } from '@/lib/interfaces'
-import { useAIModelUpload } from '@/hooks/ai-model-upload'
+import AISearchModelImport from './AISearchModelImport.vue'
 import { useImageSearchActions } from '@/hooks/ai/use-image-search-actions'
 
-const MODEL_URL = 'https://huggingface.co/plainhub/mobileclip-s2-tflite/tree/main'
+const MODEL_URL = 'https://huggingface.co/google/siglip2-base-patch16-256'
 
-const props = defineProps<{ status: IImageSearchStatus }>()
+defineProps<{ status: IImageSearchStatus }>()
 const { t } = useI18n()
 
-const fileInput = ref<HTMLInputElement | null>(null)
-const { uploading, uploadStatus, uploadProgress, uploadDone, startUpload, cancelUpload } = useAIModelUpload()
 const { enable, enableLoading } = useImageSearchActions()
-
-watch(uploadDone, (done) => {
-  if (done) {
-    uploadDone.value = false
-    enable()
-  }
-}, { immediate: true })
 
 const modelSourceHtml = computed(() => {
   const link = `<a href="${MODEL_URL}" target="_blank" rel="noopener">${t('ai.model_source_link')}</a>`
@@ -63,14 +42,6 @@ function formatSize(bytes: number): string {
   if (bytes >= 1e9) return (bytes / 1e9).toFixed(1) + ' GB'
   if (bytes >= 1e6) return (bytes / 1e6).toFixed(0) + ' MB'
   return Math.round(bytes / 1e3) + ' KB'
-}
-
-function onFileChange(e: Event) {
-  const files = (e.target as HTMLInputElement).files
-  if (files && files.length > 0) {
-    startUpload(files, props.status.modelDir)
-    ;(e.target as HTMLInputElement).value = ''
-  }
 }
 </script>
 
@@ -100,13 +71,17 @@ function onFileChange(e: Event) {
   align-items: center;
   gap: 12px;
   margin: 16px 0;
-  &::before, &::after {
+  &::before,
+  &::after {
     content: '';
     flex: 1;
     height: 1px;
     background: var(--md-sys-color-outline-variant);
   }
-  span { font-size: 0.8rem; color: var(--md-sys-color-on-surface-variant); }
+  span {
+    font-size: 0.8rem;
+    color: var(--md-sys-color-on-surface-variant);
+  }
 }
 .setup-source {
   text-align: center;
@@ -116,7 +91,9 @@ function onFileChange(e: Event) {
   :deep(a) {
     color: var(--md-sys-color-primary);
     text-decoration: none;
-    &:hover { text-decoration: underline; }
+    &:hover {
+      text-decoration: underline;
+    }
   }
 }
 .setup-label {

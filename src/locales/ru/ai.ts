@@ -29,5 +29,5 @@ export default {
   'ai.uploading': 'Выгрузка {name}…',
   'ai.upload_done': 'Выгрузка завершена',
   'ai.upload_failed': 'Ошибка выгрузки: {error}',
-  'ai.wrong_files': 'Неверные файлы. Необходимы: mobileclip_s2_image.tflite, mobileclip_s2_text.tflite, tokenizer.json',
+  'ai.wrong_files': 'Неверные файлы. Необходимы: manifest.json + ONNX + tokenizer.json',
 }

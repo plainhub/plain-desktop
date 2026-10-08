@@ -1,7 +1,7 @@
 export default {
   'ai.image_search': 'AI 圖片搜尋',
   'ai.engine_subtitle': '以文字描述所見，在相簿中搜尋圖片——完全離線，直接在裝置上運行。',
-  'ai.setup_hint': '將下載一個小型 AI 模型（{size}）以啟用智慧圖片搜尋。',
+  'ai.setup_hint': '將下載一個AI 模型（{size}）以啟用智慧圖片搜尋。',
   'ai.activate_download': '下載並啟用',
   'ai.manual_upload': '手動上傳模型檔案',
   'ai.model_source_hint': '可從 {link} 下載檔案。',
@@ -29,5 +29,5 @@ export default {
   'ai.uploading': '正在上傳 {name}…',
   'ai.upload_done': '上傳完成',
   'ai.upload_failed': '上傳失敗：{error}',
-  'ai.wrong_files': '檔案無效。需要：mobileclip_s2_image.tflite、mobileclip_s2_text.tflite、tokenizer.json',
+  'ai.wrong_files': '檔案無效。需要：manifest.json、ONNX、tokenizer.json',
 }

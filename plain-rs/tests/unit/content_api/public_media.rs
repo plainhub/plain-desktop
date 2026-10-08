@@ -131,7 +131,7 @@ async fn browsing_media_errors_out_without_the_api_permission() {
 #[tokio::test]
 async fn images_carry_their_row_and_their_tags() {
     let (_dir, schema) = fixture_with(GRANTED, true, |method, params| match method {
-        "systemImageRows" => {
+        "systemMediaRows" => {
             assert_eq!(params["offset"], 0);
             assert_eq!(params["limit"], 20);
             assert_eq!(params["sortBy"], "DATE_DESC");
@@ -174,14 +174,12 @@ async fn images_carry_their_row_and_their_tags() {
     assert_eq!(items[1]["tags"], json!([]));
 }
 
-/// `text` is split off the query and sent separately so the platform does
-/// not filter on it twice; everything else rides through as `extraQuery`.
 #[tokio::test]
-async fn the_text_filter_is_split_out_of_the_image_query() {
+async fn filename_search_receives_the_complete_query_without_loaded_models() {
     let (_dir, schema) = fixture_with(GRANTED, true, |method, params| match method {
-        "systemImageRows" => {
-            assert_eq!(params["queryText"], "sunset");
-            assert_eq!(params["extraQuery"], "text:sunset size:>100");
+        "systemMediaRows" => {
+            assert_eq!(params["dataType"], "IMAGE");
+            assert_eq!(params["query"], "text:sunset size:>100");
             json!([])
         }
         other => panic!("unexpected host call {other}"),
@@ -195,11 +193,11 @@ async fn the_text_filter_is_split_out_of_the_image_query() {
 }
 
 #[tokio::test]
-async fn a_query_without_a_text_field_sends_an_empty_text() {
+async fn filename_search_preserves_queries_without_text() {
     let (_dir, schema) = fixture_with(GRANTED, true, |method, params| match method {
-        "systemImageRows" => {
-            assert_eq!(params["queryText"], "");
-            assert_eq!(params["extraQuery"], "size:>100");
+        "systemMediaRows" => {
+            assert_eq!(params["dataType"], "IMAGE");
+            assert_eq!(params["query"], "size:>100");
             json!([])
         }
         other => panic!("unexpected host call {other}"),
@@ -213,11 +211,11 @@ async fn a_query_without_a_text_field_sends_an_empty_text() {
 }
 
 #[tokio::test]
-async fn the_image_count_uses_the_combined_search() {
+async fn image_count_uses_the_platform_catalog_without_loaded_models() {
     let (_dir, schema) = fixture_with(GRANTED, true, |method, params| match method {
-        "systemImageCount" => {
-            assert_eq!(params["queryText"], "cat");
-            assert_eq!(params["extraQuery"], "text:cat");
+        "systemMediaCount" => {
+            assert_eq!(params["dataType"], "IMAGE");
+            assert_eq!(params["query"], "text:cat");
             json!(42)
         }
         other => panic!("unexpected host call {other}"),
@@ -358,7 +356,7 @@ async fn video_and_doc_counts_reach_the_platform_with_the_kind() {
 #[tokio::test]
 async fn an_empty_page_skips_the_tag_lookup() {
     let (_dir, schema) = fixture_with(GRANTED, true, |method, _| match method {
-        "systemImageRows" => json!([]),
+        "systemMediaRows" => json!([]),
         other => panic!("unexpected host call {other}"),
     });
     let response = schema

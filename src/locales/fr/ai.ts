@@ -29,5 +29,5 @@ export default {
   'ai.uploading': 'Téléversement de {name}…',
   'ai.upload_done': 'Téléversement terminé',
   'ai.upload_failed': 'Échec du téléversement : {error}',
-  'ai.wrong_files': 'Fichiers invalides. Requis : mobileclip_s2_image.tflite, mobileclip_s2_text.tflite, tokenizer.json',
+  'ai.wrong_files': 'Fichiers invalides. Requis : manifest.json + ONNX + tokenizer.json',
 }

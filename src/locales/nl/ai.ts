@@ -29,5 +29,5 @@ export default {
   'ai.uploading': '{name} wordt geüpload…',
   'ai.upload_done': 'Upload voltooid',
   'ai.upload_failed': 'Upload mislukt: {error}',
-  'ai.wrong_files': 'Ongeldige bestanden. Vereist: mobileclip_s2_image.tflite, mobileclip_s2_text.tflite, tokenizer.json',
+  'ai.wrong_files': 'Ongeldige bestanden. Vereist: manifest.json + ONNX + tokenizer.json',
 }

@@ -15,25 +15,19 @@ use serde::{Deserialize, Serialize};
 use serde_json::json;
 use std::{
     path::PathBuf,
-    sync::{Arc, Mutex},
+    sync::{
+        Arc, Mutex,
+        atomic::{AtomicBool, Ordering},
+    },
     time::Duration,
 };
 
-const FILES: [(&str, u64); 3] = [
-    ("mobileclip_s2_image.tflite", 144120668),
-    ("mobileclip_s2_text.tflite", 253874828),
-    ("tokenizer.json", 1708304),
-];
-const BASE: &str = "https://huggingface.co/plainhub/mobileclip-s2-tflite/resolve/main";
 #[derive(Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub(super) struct Snapshot {
     pub version: u64,
     #[serde(flatten)]
     pub status: ImageSearchStatus,
-    pub image_model: String,
-    pub text_model: String,
-    pub tokenizer: String,
 }
 struct ModelState {
     version: u64,
@@ -42,15 +36,24 @@ struct ModelState {
     progress: i32,
     error: String,
 }
+#[derive(Clone, Copy)]
+enum Selection {
+    Default,
+    Active,
+    Incoming,
+}
+
 pub(super) struct Runtime {
     directory: PathBuf,
     host: Arc<Host>,
     prefs: Arc<Prefs>,
     index: Arc<ImageIndex>,
     state: Mutex<ModelState>,
-    tokenizer: Mutex<Option<Arc<crate::clip_tokenizer::ClipTokenizer>>>,
+    engine: Mutex<Option<Arc<crate::image_inference::Engine>>>,
     task: Mutex<Option<tokio::task::JoinHandle<()>>>,
     operations: tokio::sync::Mutex<()>,
+    cancelled: AtomicBool,
+    observing: AtomicBool,
     events: tokio::sync::broadcast::Sender<WsEvent>,
 }
 impl Runtime {
@@ -74,9 +77,11 @@ impl Runtime {
                 progress: 0,
                 error: String::new(),
             }),
-            tokenizer: Mutex::new(None),
+            engine: Mutex::new(None),
             task: Mutex::new(None),
             operations: tokio::sync::Mutex::new(()),
+            cancelled: AtomicBool::new(false),
+            observing: AtomicBool::new(false),
         })
     }
     pub fn snapshot(&self) -> Snapshot {
@@ -93,28 +98,20 @@ impl Runtime {
                     index.error_message
                 },
                 model_size: crate::content_types::Long(
-                    FILES.iter().map(|(_, size)| *size).sum::<u64>() as i64,
+                    self.engine.lock().unwrap().as_ref().map_or_else(
+                        || crate::image_inference::default_model::manifest().size(),
+                        |e| e.manifest.size(),
+                    ) as i64,
                 ),
-                model_dir: self.directory.to_string_lossy().into_owned(),
+                model_dir: self
+                    .directory
+                    .join("incoming")
+                    .to_string_lossy()
+                    .into_owned(),
                 is_indexing: index.is_running,
                 total_images: index.total_images.min(i32::MAX as usize) as i32,
                 indexed_images: index.indexed_images.min(i32::MAX as usize) as i32,
             },
-            image_model: self
-                .directory
-                .join(FILES[0].0)
-                .to_string_lossy()
-                .into_owned(),
-            text_model: self
-                .directory
-                .join(FILES[1].0)
-                .to_string_lossy()
-                .into_owned(),
-            tokenizer: self
-                .directory
-                .join(FILES[2].0)
-                .to_string_lossy()
-                .into_owned(),
         };
         let fingerprint = serde_json::to_string(&snapshot).unwrap();
         if state.fingerprint != fingerprint {
@@ -144,12 +141,23 @@ impl Runtime {
         self.publish();
     }
     fn available(&self) -> bool {
-        FILES.iter().all(|(name, size)| {
-            std::fs::metadata(self.directory.join(name))
-                .is_ok_and(|meta| meta.is_file() && meta.len() == *size)
-        })
+        self.directory.join("active/manifest.json").is_file()
     }
     pub async fn enable(self: &Arc<Self>, restore: bool) -> Result<(), String> {
+        self.activate(if restore {
+            Selection::Active
+        } else {
+            Selection::Default
+        })
+        .await
+    }
+    pub async fn import(self: &Arc<Self>) -> Result<(), String> {
+        if !self.directory.join("incoming/manifest.json").is_file() {
+            return Err("Upload a complete model package first".into());
+        }
+        self.activate(Selection::Incoming).await
+    }
+    async fn activate(self: &Arc<Self>, selection: Selection) -> Result<(), String> {
         let _guard = self.operations.lock().await;
         if self
             .task
@@ -160,57 +168,110 @@ impl Runtime {
         {
             return Ok(());
         }
-        if self
-            .host
-            .call("systemImageModelAvailability", json!({}))
-            .await?
-            .as_bool()
-            != Some(true)
-        {
-            return Ok(());
-        }
-        if restore
+        if matches!(selection, Selection::Active)
             && (!self.prefs.get_user_or("ai_image_search_enabled", false) || !self.available())
         {
             return Ok(());
         }
+        self.cancelled.store(false, Ordering::Release);
         let runtime = self.clone();
         *self.task.lock().unwrap() = Some(tokio::spawn(async move {
-            if let Err(error) = runtime.load().await {
-                let _ = runtime.host.call("systemImageModelsClose", json!({})).await;
-                runtime.set_status(ImageSearchStatusType::Error, error);
+            if let Err(error) = runtime.load(selection).await {
+                let status = if runtime.engine.lock().unwrap().is_some() {
+                    ImageSearchStatusType::Ready
+                } else {
+                    ImageSearchStatusType::Error
+                };
+                runtime.set_status(status, error);
             }
         }));
         Ok(())
     }
-    async fn load(&self) -> Result<(), String> {
-        if !self.available() {
-            self.state.lock().unwrap().progress = 0;
-            self.set_status(ImageSearchStatusType::Downloading, String::new());
-            if let Err(error) = self.download().await {
-                let _ = tokio::fs::remove_dir_all(&self.directory).await;
-                return Err(error);
+    async fn load(&self, selection: Selection) -> Result<(), String> {
+        let active = self.directory.join("active");
+        let default = crate::image_inference::default_model::manifest();
+        let active_is_default = std::fs::read(active.join("manifest.json"))
+            .ok()
+            .and_then(|bytes| crate::image_inference::manifest::Manifest::parse(&bytes).ok())
+            .is_some_and(|manifest| manifest.fingerprint().ok() == default.fingerprint().ok());
+        let source = match selection {
+            Selection::Incoming => self.directory.join("incoming"),
+            Selection::Active => active.clone(),
+            Selection::Default if active_is_default => active.clone(),
+            Selection::Default => {
+                self.state.lock().unwrap().progress = 0;
+                self.set_status(ImageSearchStatusType::Downloading, String::new());
+                self.download().await?;
+                self.directory.join("download")
+            }
+        };
+        self.set_status(ImageSearchStatusType::Loading, String::new());
+        let bytes = tokio::fs::read(source.join("manifest.json"))
+            .await
+            .map_err(|e| e.to_string())?;
+        let manifest = crate::image_inference::manifest::Manifest::parse(&bytes)?;
+        let fingerprint = manifest.fingerprint()?;
+        self.pause_index().await?;
+        if let Some(engine) = self.engine.lock().unwrap().as_ref() {
+            engine.release_all();
+        }
+        let directory = source.clone();
+        let engine = tokio::task::spawn_blocking(move || {
+            crate::image_inference::Engine::open(directory, manifest)
+        })
+        .await
+        .map_err(|e| e.to_string())??;
+        if self.cancelled.load(Ordering::Acquire) {
+            return Err("Model activation cancelled".into());
+        }
+        let previous = self.directory.join("previous");
+        if source != active {
+            if previous.exists() {
+                std::fs::remove_dir_all(&previous).map_err(|e| e.to_string())?;
+            }
+            if active.exists() {
+                std::fs::rename(&active, &previous).map_err(|e| e.to_string())?;
+            }
+            if let Err(error) = std::fs::rename(&source, &active) {
+                if previous.exists() {
+                    let _ = std::fs::rename(&previous, &active);
+                }
+                return Err(error.to_string());
             }
         }
-        self.set_status(ImageSearchStatusType::Loading, String::new());
-        let snapshot = self.snapshot();
-        let tokenizer = Arc::new(crate::clip_tokenizer::ClipTokenizer::parse(
-            &tokio::fs::read(&snapshot.tokenizer)
-                .await
-                .map_err(|e| e.to_string())?,
-        )?);
-        self.host.call("systemImageModelsLoad",json!({"imageModel":snapshot.image_model,"textModel":snapshot.text_model,"tokenizer":snapshot.tokenizer})).await?;
-        *self.tokenizer.lock().unwrap() = Some(tokenizer);
+        let engine = Arc::new(engine.relocate(active));
+        if self
+            .prefs
+            .get_user_or("ai_image_search_model", String::new())
+            != fingerprint
+        {
+            self.index.clear().map_err(|e| e.to_string())?;
+            self.prefs
+                .set_user("ai_image_search_model", fingerprint)
+                .map_err(|e| e.to_string())?;
+        }
+        self.index.set_encoder(Some(engine.clone()));
+        *self.engine.lock().unwrap() = Some(engine);
         self.prefs
             .set_user("ai_image_search_enabled", true)
             .map_err(|e| e.to_string())?;
+        if !self.observing.load(Ordering::Acquire) {
+            self.host
+                .call("systemImageModelsObserve", json!({"enabled":true}))
+                .await?;
+            self.observing.store(true, Ordering::Release);
+        }
         self.index.start(false).map_err(|e| e.to_string())?;
         self.set_status(ImageSearchStatusType::Ready, String::new());
+        if previous.exists() {
+            let _ = tokio::fs::remove_dir_all(previous).await;
+        }
         Ok(())
     }
     async fn download(&self) -> Result<(), String> {
         use tokio::io::AsyncWriteExt;
-        tokio::fs::create_dir_all(&self.directory)
+        let directory = self.directory.join("download");
+        tokio::fs::create_dir_all(&directory)
             .await
             .map_err(|e| e.to_string())?;
         let client = reqwest::Client::builder()
@@ -218,22 +279,31 @@ impl Runtime {
             .read_timeout(Duration::from_secs(30))
             .build()
             .map_err(|e| e.to_string())?;
-        let total = FILES.iter().map(|(_, size)| *size).sum::<u64>();
+        let manifest = crate::image_inference::default_model::manifest();
+        let total = manifest.size();
         let mut downloaded = 0u64;
-        for (name, expected) in FILES {
+        for (asset, url) in crate::image_inference::default_model::downloads(&manifest) {
+            if self.cancelled.load(Ordering::Acquire) {
+                return Err("Model download cancelled".into());
+            }
+            let name = asset.name.as_str();
+            let expected = asset.size;
             let mut response = client
-                .get(format!("{BASE}/{name}"))
+                .get(url)
                 .send()
                 .await
                 .map_err(|e| e.to_string())?
                 .error_for_status()
                 .map_err(|e| e.to_string())?;
-            let partial = self.directory.join(format!("{name}.part"));
+            let partial = directory.join(format!("{name}.part"));
             let mut file = tokio::fs::File::create(&partial)
                 .await
                 .map_err(|e| e.to_string())?;
             let mut size = 0u64;
             while let Some(bytes) = response.chunk().await.map_err(|e| e.to_string())? {
+                if self.cancelled.load(Ordering::Acquire) {
+                    return Err("Model download cancelled".into());
+                }
                 file.write_all(&bytes).await.map_err(|e| e.to_string())?;
                 size += bytes.len() as u64;
                 downloaded += bytes.len() as u64;
@@ -256,10 +326,22 @@ impl Runtime {
             if size != expected {
                 return Err(format!("Incomplete model: {name}"));
             }
-            tokio::fs::rename(partial, self.directory.join(name))
+            tokio::fs::rename(partial, directory.join(name))
                 .await
                 .map_err(|e| e.to_string())?;
         }
+        tokio::fs::write(
+            directory.join("LICENSE"),
+            include_str!("../image_inference/APACHE-2.0.txt"),
+        )
+        .await
+        .map_err(|e| e.to_string())?;
+        tokio::fs::write(
+            directory.join("manifest.json"),
+            serde_json::to_vec(&manifest).map_err(|e| e.to_string())?,
+        )
+        .await
+        .map_err(|e| e.to_string())?;
         self.state.lock().unwrap().progress = 100;
         self.publish();
         Ok(())
@@ -276,54 +358,45 @@ impl Runtime {
         if limit > 500 {
             return Err("Image search limit too large".into());
         }
-        let tokenizer = self
-            .tokenizer
+        let engine = self
+            .engine
             .lock()
             .unwrap()
             .clone()
-            .ok_or("Image tokenizer is unavailable")?;
-        let value = self
-            .host
-            .call(
-                "systemImageTextEmbed",
-                json!({"tokenIds": tokenizer.encode(text)}),
-            )
-            .await?;
-        let mut vector: Vec<f32> = serde_json::from_value(value).map_err(|e| e.to_string())?;
-        if vector.is_empty() || vector.len() > 4096 || vector.iter().any(|v| !v.is_finite()) {
-            return Err("Invalid image query embedding".into());
-        }
-        let norm = vector
-            .iter()
-            .fold(0.0f32, |sum, value| sum + value * value)
-            .sqrt();
-        if !norm.is_finite() {
-            return Err("Invalid image query embedding norm".into());
-        }
-        if norm > 0.0 {
-            for value in &mut vector {
-                *value /= norm;
-            }
-        }
+            .ok_or("Image search engine unavailable")?;
+        let minimum_score = engine.manifest.minimum_score;
+        let text = text.to_owned();
+        let vector = tokio::task::spawn_blocking(move || engine.text(&text))
+            .await
+            .map_err(|e| e.to_string())??;
         let bytes = vector
             .iter()
             .flat_map(|value| value.to_be_bytes())
             .collect::<Vec<_>>();
         let encoded = crate::base64_encode(&bytes);
         let index = self.index.clone();
-        tokio::task::spawn_blocking(move || index.search(&encoded, limit))
+        tokio::task::spawn_blocking(move || index.search_with_score(&encoded, limit, minimum_score))
             .await
             .map_err(|e| e.to_string())?
             .map_err(|e| e.to_string())
     }
+    pub async fn release(&self) -> Result<(), String> {
+        let _guard = self.operations.lock().await;
+        self.pause_index().await?;
+        if let Some(engine) = self.engine.lock().unwrap().as_ref() {
+            engine.release_all();
+        }
+        self.publish();
+        Ok(())
+    }
     async fn stop_task(&self) {
+        self.cancelled.store(true, Ordering::Release);
         let task = self.task.lock().unwrap().take();
         if let Some(task) = task {
-            task.abort();
             let _ = task.await;
         }
     }
-    async fn close_models(&self) -> Result<(), String> {
+    async fn pause_index(&self) -> Result<(), String> {
         self.index.cancel().map_err(|e| e.to_string())?;
         tokio::time::timeout(Duration::from_secs(45), async {
             while self.index.status().is_running {
@@ -332,8 +405,17 @@ impl Runtime {
         })
         .await
         .map_err(|_| "Image index cancellation timed out".to_owned())?;
-        self.host.call("systemImageModelsClose", json!({})).await?;
-        *self.tokenizer.lock().unwrap() = None;
+        Ok(())
+    }
+    async fn close_models(&self) -> Result<(), String> {
+        self.pause_index().await?;
+        self.index.set_encoder(None);
+        *self.engine.lock().unwrap() = None;
+        if self.observing.swap(false, Ordering::AcqRel) {
+            self.host
+                .call("systemImageModelsObserve", json!({"enabled":false}))
+                .await?;
+        }
         Ok(())
     }
     pub async fn cancel(&self, disable: bool) -> Result<(), String> {
@@ -358,6 +440,12 @@ impl Runtime {
             return Ok(());
         }
         self.stop_task().await;
+        if !disable && self.engine.lock().unwrap().is_some() {
+            let engine = self.engine.lock().unwrap().clone().unwrap();
+            self.index.set_encoder(Some(engine));
+            self.set_status(ImageSearchStatusType::Ready, String::new());
+            return Ok(());
+        }
         self.close_models().await?;
         if disable {
             self.index.clear().map_err(|e| e.to_string())?;
@@ -365,10 +453,19 @@ impl Runtime {
         self.prefs
             .set_user("ai_image_search_enabled", false)
             .map_err(|e| e.to_string())?;
-        if self.directory.exists() {
+        if disable && self.directory.exists() {
             tokio::fs::remove_dir_all(&self.directory)
                 .await
                 .map_err(|e| e.to_string())?;
+        } else {
+            for name in ["download", "incoming"] {
+                let path = self.directory.join(name);
+                if path.exists() {
+                    tokio::fs::remove_dir_all(path)
+                        .await
+                        .map_err(|e| e.to_string())?;
+                }
+            }
         }
         self.state.lock().unwrap().progress = 0;
         self.set_status(ImageSearchStatusType::Unavailable, String::new());
@@ -405,8 +502,10 @@ pub(super) enum Command {
     Search { text: String, limit: usize },
     Restore,
     Enable,
+    Import,
     Disable,
     Cancel,
+    Release,
     Error { message: String },
 }
 pub(super) async fn call(
@@ -435,11 +534,17 @@ pub(super) async fn call(
         Command::Snapshot => Ok(()),
         Command::Restore => runtime.enable(true).await,
         Command::Enable => runtime.enable(false).await,
+        Command::Import => runtime.import().await,
         Command::Disable => runtime.cancel(true).await,
         Command::Cancel => runtime.cancel(false).await,
+        Command::Release => runtime.release().await,
     };
     match result {
         Ok(()) => Json(json!({"result":runtime.snapshot()})).into_response(),
         Err(error) => (StatusCode::BAD_REQUEST, Json(json!({"error":error}))).into_response(),
     }
 }
+
+#[cfg(test)]
+#[path = "../../tests/unit/content_api/image_models.rs"]
+mod tests;

@@ -29,5 +29,5 @@ export default {
   'ai.uploading': 'Caricamento di {name}…',
   'ai.upload_done': 'Caricamento completato',
   'ai.upload_failed': 'Caricamento fallito: {error}',
-  'ai.wrong_files': 'File non validi. Richiesti: mobileclip_s2_image.tflite, mobileclip_s2_text.tflite, tokenizer.json',
+  'ai.wrong_files': 'File non validi. Richiesti: manifest.json + ONNX + tokenizer.json',
 }

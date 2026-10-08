@@ -785,6 +785,10 @@ export const deleteFilesGQL = `
   }
 `
 
+export const importImageSearchModelGQL = `
+  mutation { importImageSearchModel }
+`
+
 export const enableImageSearchGQL = `
   mutation { enableImageSearch }
 `

@@ -57,6 +57,17 @@ pub fn save(db: &Db, items: &[EmbeddingInput]) -> LibraryResult<()> {
     })
 }
 pub fn search(db: &Db, query: &str, limit: usize) -> LibraryResult<Vec<SearchResult>> {
+    search_with_score(db, query, limit, 0.15)
+}
+pub fn search_with_score(
+    db: &Db,
+    query: &str,
+    limit: usize,
+    minimum_score: f32,
+) -> LibraryResult<Vec<SearchResult>> {
+    if !minimum_score.is_finite() || !(-1.0..=1.0).contains(&minimum_score) {
+        return Err(LibraryError::Other("Invalid model score threshold".into()));
+    }
     if limit > 500 {
         return Err(LibraryError::Other("image search limit too large".into()));
     }
@@ -81,7 +92,7 @@ pub fn search(db: &Db, query: &str, limit: usize) -> LibraryResult<Vec<SearchRes
             if !score.is_finite() {
                 return Err(LibraryError::Other("invalid image search score".into()));
             }
-            if score < 0.15 {
+            if score < minimum_score {
                 continue;
             }
             top.push(SearchResult {

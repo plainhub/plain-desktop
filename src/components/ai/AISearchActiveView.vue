@@ -32,19 +32,17 @@
         <span>{{ $t('ai.indexed_count', { count: status.indexedImages }) }}</span>
         <v-outlined-button :loading="startIndexLoading" @click="startIndex(true)">{{ $t('ai.rescan') }}</v-outlined-button>
       </div>
-      <danger-action
-        class="active-danger-card"
-        :label="$t('ai.unload_model')"
-        :confirm-text="$t('ai.confirm_delete')"
-        :loading="disableLoading"
-        @confirm="disable"
-      />
+      <div v-if="status.errorMessage" class="help-text">{{ status.errorMessage }}</div>
+      <v-outlined-button class="btn-block active-action" :loading="enableLoading" @click="enable">{{ $t('ai.activate_download') }} · SigLIP2 Base</v-outlined-button>
+      <AISearchModelImport :model-dir="status.modelDir" />
+      <danger-action class="active-danger-card" :label="$t('ai.unload_model')" :confirm-text="$t('ai.confirm_delete')" :loading="disableLoading" @confirm="disable" />
     </template>
   </div>
 </template>
 
 <script setup lang="ts">
 import { computed } from 'vue'
+import AISearchModelImport from './AISearchModelImport.vue'
 import { useI18n } from 'vue-i18n'
 import type { IImageSearchStatus } from '@/lib/interfaces'
 import { ImageSearchStatusType } from '@/lib/status'
@@ -52,7 +50,7 @@ import { useImageSearchActions } from '@/hooks/ai/use-image-search-actions'
 
 const props = defineProps<{ status: IImageSearchStatus }>()
 const { t } = useI18n()
-const { startIndex, cancelIndex, disable, cancelDownload, startIndexLoading, cancelIndexLoading, disableLoading, cancelDownloadLoading } = useImageSearchActions()
+const { enable, enableLoading, startIndex, cancelIndex, disable, cancelDownload, startIndexLoading, cancelIndexLoading, disableLoading, cancelDownloadLoading } = useImageSearchActions()
 
 const isDownloading = computed(() => props.status.status === ImageSearchStatusType.DOWNLOADING)
 const isLoading = computed(() => props.status.status === ImageSearchStatusType.LOADING)
@@ -67,21 +65,25 @@ const subtitle = computed(() => {
   return t('ai.ready_subtitle')
 })
 const progressText = computed(() => {
-  const loaded = ((props.status.downloadProgress / 100) * props.status.modelSize / 1e6).toFixed(1)
+  const loaded = (((props.status.downloadProgress / 100) * props.status.modelSize) / 1e6).toFixed(1)
   const total = (props.status.modelSize / 1e6).toFixed(1)
   return `${t('ai.model_file')} <b>${loaded}</b> / <b>${total} MB</b>`
 })
-const indexText = computed(() =>
-  `${t('ai.scanning_title')} <b>${props.status.indexedImages}</b> / <b>${props.status.totalImages}</b>`
-)
+const indexText = computed(() => `${t('ai.scanning_title')} <b>${props.status.indexedImages}</b> / <b>${props.status.totalImages}</b>`)
 </script>
 
 <style lang="scss" scoped>
 .active-data-row {
-  display: flex; justify-content: space-between; align-items: center;
-  font-size: 0.875rem; margin-bottom: 16px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 0.875rem;
+  margin-bottom: 16px;
 }
-.active-danger-card { margin-top: 16px; }
-.active-action { margin-top: 24px; }
+.active-danger-card {
+  margin-top: 16px;
+}
+.active-action {
+  margin-top: 24px;
+}
 </style>
-

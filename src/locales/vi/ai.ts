@@ -29,5 +29,5 @@ export default {
   'ai.uploading': 'Đang tải lên {name}…',
   'ai.upload_done': 'Tải lên hoàn tất',
   'ai.upload_failed': 'Tải lên thất bại: {error}',
-  'ai.wrong_files': 'Tệp không hợp lệ. Yêu cầu: mobileclip_s2_image.tflite, mobileclip_s2_text.tflite, tokenizer.json',
+  'ai.wrong_files': 'Tệp không hợp lệ. Yêu cầu: manifest.json + ONNX + tokenizer.json',
 }

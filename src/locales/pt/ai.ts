@@ -29,5 +29,5 @@ export default {
   'ai.uploading': 'Enviando {name}…',
   'ai.upload_done': 'Envio concluído',
   'ai.upload_failed': 'Falha no envio: {error}',
-  'ai.wrong_files': 'Arquivos inválidos. Necessário: mobileclip_s2_image.tflite, mobileclip_s2_text.tflite, tokenizer.json',
+  'ai.wrong_files': 'Arquivos inválidos. Necessário: manifest.json + ONNX + tokenizer.json',
 }

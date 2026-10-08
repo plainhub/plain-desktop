@@ -972,6 +972,7 @@ type Mutation {
 	requestScreenMirrorKeyFrame: Boolean!
 	updateScreenMirrorQuality(mode: ScreenMirrorMode!): Boolean!
 	enableImageSearch: Boolean!
+	importImageSearchModel: Boolean!
 	disableImageSearch: Boolean!
 	cancelImageModelDownload: Boolean!
 	"""

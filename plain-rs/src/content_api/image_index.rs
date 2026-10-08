@@ -38,6 +38,7 @@ pub struct ImageIndex {
     db: Arc<Db>,
     host: Arc<Host>,
     state: Arc<Mutex<State>>,
+    encoder: Mutex<Option<Arc<dyn crate::image_inference::ImageEncoder>>>,
 }
 impl ImageIndex {
     pub fn new(db: Arc<Db>, host: Arc<Host>) -> Self {
@@ -45,10 +46,26 @@ impl ImageIndex {
             db,
             host,
             state: Arc::new(Mutex::new(State::default())),
+            encoder: Mutex::new(None),
         }
     }
-    pub(super) fn search(&self, embedding: &str, limit: usize) -> LibraryResult<Vec<image_embeddings::SearchResult>> {
+    pub(super) fn search(
+        &self,
+        embedding: &str,
+        limit: usize,
+    ) -> LibraryResult<Vec<image_embeddings::SearchResult>> {
         image_embeddings::search(&self.db, embedding, limit)
+    }
+    pub(super) fn search_with_score(
+        &self,
+        embedding: &str,
+        limit: usize,
+        minimum_score: f32,
+    ) -> LibraryResult<Vec<image_embeddings::SearchResult>> {
+        image_embeddings::search_with_score(&self.db, embedding, limit, minimum_score)
+    }
+    pub fn set_encoder(&self, encoder: Option<Arc<dyn crate::image_inference::ImageEncoder>>) {
+        *self.encoder.lock().unwrap() = encoder;
     }
     pub fn status(&self) -> Status {
         self.state.lock().unwrap().status.clone()
@@ -205,7 +222,8 @@ impl ImageIndex {
                 host: self.host.clone(),
                 runtime: tokio::runtime::Handle::current(),
             };
-            let provider = HostProvider::new(self.host.clone(), generation.to_string());
+            let encoder = self.encoder.lock().unwrap().clone();
+            let provider = HostProvider::new(self.host.clone(), generation.to_string(), encoder);
             let db = self.db.clone();
             let result = tokio::task::spawn_blocking(move || {
                 let mut provider = provider;

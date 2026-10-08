@@ -29,5 +29,5 @@ export default {
   'ai.uploading': '{name} अपलोड हो रहा है…',
   'ai.upload_done': 'अपलोड पूर्ण',
   'ai.upload_failed': 'अपलोड विफल: {error}',
-  'ai.wrong_files': 'अमान्य फ़ाइलें। आवश्यक: mobileclip_s2_image.tflite, mobileclip_s2_text.tflite, tokenizer.json',
+  'ai.wrong_files': 'अमान्य फ़ाइलें। आवश्यक: manifest.json + ONNX + tokenizer.json',
 }

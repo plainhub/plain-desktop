@@ -40,9 +40,6 @@ fn setup(
                     let end = (offset + 128).min(300);
                     json!({"revision":"one","items":(offset..end).map(|n|json!({"id":n.to_string(),"path":format!("/synthetic/{n}")})).collect::<Vec<_>>(),"nextCursor":end.to_string(),"done":end==300})
                 }
-                "imageIndexEmbed" => {
-                    json!({"items":p["items"].as_array().unwrap().iter().map(|i|json!({"id":i["id"],"path":i["path"],"embeddingBase64":crate::utils::base64::base64_encode(&1.0_f32.to_be_bytes())})).collect::<Vec<_>>(),"skippedIds":[]})
-                }
                 "imageIndexResolve" => json!(
                     p["ids"]
                         .as_array()
@@ -64,7 +61,15 @@ fn setup(
                 .unwrap();
         }
     });
-    (Arc::new(ImageIndex::new(db, host)), task, ended)
+    let service = Arc::new(ImageIndex::new(db, host));
+    struct Encoder;
+    impl crate::image_inference::ImageEncoder for Encoder {
+        fn image(&self, _: &std::path::Path) -> Result<Option<Vec<f32>>, String> {
+            Ok(Some(vec![1.0]))
+        }
+    }
+    service.set_encoder(Some(Arc::new(Encoder)));
+    (service, task, ended)
 }
 #[tokio::test]
 async fn host_job_runs_bounded_scan_and_releases_engine_before_completion() {

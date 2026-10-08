@@ -29,5 +29,5 @@ export default {
   'ai.uploading': '{name} をアップロード中…',
   'ai.upload_done': 'アップロード完了',
   'ai.upload_failed': 'アップロード失敗：{error}',
-  'ai.wrong_files': '無効なファイルです。必要なファイル：mobileclip_s2_image.tflite、mobileclip_s2_text.tflite、tokenizer.json',
+  'ai.wrong_files': '無効なファイルです。必要なファイル：manifest.json、ONNX、tokenizer.json',
 }
