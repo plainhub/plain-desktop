@@ -1,4 +1,3 @@
-use base64::Engine;
 use rusqlite::types::Value;
 use rusqlite::{OptionalExtension, params, params_from_iter};
 
@@ -83,7 +82,7 @@ fn embedding_from_row(row: &rusqlite::Row<'_>) -> rusqlite::Result<ImageEmbeddin
     Ok(ImageEmbeddingRow {
         id: row.get(0)?,
         path: row.get(1)?,
-        embedding_base64: base64::engine::general_purpose::STANDARD.encode(blob),
+        embedding_base64: crate::utils::base64::base64_encode(&blob),
         created_at: row.get(3)?,
         updated_at: row.get(4)?,
     })
@@ -388,8 +387,7 @@ impl Db {
     }
 
     pub fn embedding_save(&self, row: &ImageEmbeddingRow) -> rusqlite::Result<()> {
-        let blob = base64::engine::general_purpose::STANDARD
-            .decode(&row.embedding_base64)
+        let blob = crate::utils::base64::base64_decode_checked(&row.embedding_base64)
             .map_err(|e| rusqlite::Error::InvalidParameterName(e.to_string()))?;
         self.with_conn(|c| {
             c.execute(

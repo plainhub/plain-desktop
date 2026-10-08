@@ -1,5 +1,4 @@
 use super::*;
-use base64::{Engine, engine::general_purpose::STANDARD};
 use serde_json::json;
 use std::sync::atomic::{AtomicUsize, Ordering};
 async fn wait(service: &ImageIndex) {
@@ -42,7 +41,7 @@ fn setup(
                     json!({"revision":"one","items":(offset..end).map(|n|json!({"id":n.to_string(),"path":format!("/synthetic/{n}")})).collect::<Vec<_>>(),"nextCursor":end.to_string(),"done":end==300})
                 }
                 "imageIndexEmbed" => {
-                    json!({"items":p["items"].as_array().unwrap().iter().map(|i|json!({"id":i["id"],"path":i["path"],"embeddingBase64":STANDARD.encode(1.0_f32.to_be_bytes())})).collect::<Vec<_>>(),"skippedIds":[]})
+                    json!({"items":p["items"].as_array().unwrap().iter().map(|i|json!({"id":i["id"],"path":i["path"],"embeddingBase64":crate::utils::base64::base64_encode(&1.0_f32.to_be_bytes())})).collect::<Vec<_>>(),"skippedIds":[]})
                 }
                 "imageIndexResolve" => json!(
                     p["ids"]
@@ -105,7 +104,7 @@ async fn cancelled_generation_cannot_resurrect_deleted_embeddings() {
     let input = EmbeddingInput {
         id: "one".into(),
         path: "/synthetic/one".into(),
-        embedding_base64: STANDARD.encode(1.0_f32.to_be_bytes()),
+        embedding_base64: crate::utils::base64::base64_encode(&1.0_f32.to_be_bytes()),
     };
     image_embeddings::save(&service.db, std::slice::from_ref(&input)).unwrap();
     assert_eq!(service.remove(&["one".into()]).unwrap(), 1);

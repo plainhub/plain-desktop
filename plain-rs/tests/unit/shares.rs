@@ -5,7 +5,7 @@ fn fixture() -> (tempfile::TempDir, Arc<Service>) {
     let prefs =
         Arc::new(Prefs::load_pair(&dir.path().join("system"), &dir.path().join("user")).unwrap());
     prefs
-        .set("master_secret", STANDARD.encode([7; 32]))
+        .set("master_secret", crate::utils::base64::base64_encode(&[7; 32]))
         .unwrap();
     prefs.set_user("service", true).unwrap();
     (dir, Service::new(db, prefs))
@@ -15,7 +15,7 @@ fn create(service: &Service, paths: Vec<PathBuf>) -> ShareRow {
         .create(
             "share".into(),
             paths.iter().map(|p| p.to_str().unwrap().into()).collect(),
-            STANDARD.encode([8; 32]),
+            crate::utils::base64::base64_encode(&[8; 32]),
             true,
             None,
         )
@@ -62,7 +62,7 @@ fn duplicate_names_are_rejected_without_persisting() {
         s.create(
             "x".into(),
             vec![a.to_str().unwrap().into(), b.to_str().unwrap().into()],
-            STANDARD.encode([8; 32]),
+            crate::utils::base64::base64_encode(&[8; 32]),
             true,
             None
         )
@@ -78,7 +78,7 @@ fn fresh_auth_revocation_expiry_and_disabled_service() {
     let row = create(&s, vec![a]);
     assert!(s.active(&row.id, true).unwrap().is_some());
     let token = s.token(&row.id).unwrap();
-    assert_eq!(URL_SAFE.decode(token).unwrap().len(), 32);
+    assert_eq!(crate::utils::base64::base64_decode_checked(&token).unwrap().len(), 32);
     s.prefs.set_user("service", false).unwrap();
     assert!(s.active(&row.id, true).unwrap().is_none());
     s.prefs.set_user("service", true).unwrap();
@@ -106,7 +106,7 @@ fn encrypted_file_ids_are_share_bound_and_roots_are_fresh() {
     std::fs::write(a.join("x"), b"x").unwrap();
     let row = create(&s, vec![a]);
     let encrypt = |id: &str| {
-        STANDARD.encode(
+        crate::utils::base64::base64_encode(&
             crate::xchacha_encrypt_raw(
                 &[8; 32],
                 serde_json::json!({"sharedId":id,"virtualPath":"a/x"})
@@ -178,7 +178,7 @@ fn browse_and_archive_exclude_escaping_symlinks() {
             .collect::<Vec<_>>(),
         vec!["root/a", "root/empty"]
     );
-    let encrypted = STANDARD.encode(
+    let encrypted = crate::utils::base64::base64_encode(&
         crate::xchacha_encrypt_raw(
             &[8; 32],
             serde_json::json!({"sharedId":row.id,"virtualPath":"root"})
@@ -204,9 +204,9 @@ fn token_matches_standard_hmac_vector() {
     row.id = "Hi There".into();
     s.db.share_save(&row).unwrap();
     s.prefs
-        .set("master_secret", STANDARD.encode([0x0b; 32]))
+        .set("master_secret", crate::utils::base64::base64_encode(&[0x0b; 32]))
         .unwrap();
     let expected = "198a607eb44bfbc69903a0f1cf2bbdc5ba0aa3f3d9ae3c1c7a3b1696a0b68cf7";
-    let actual = URL_SAFE.decode(s.token(&row.id).unwrap()).unwrap();
+    let actual = crate::utils::base64::base64_decode_checked(&s.token(&row.id).unwrap()).unwrap();
     assert_eq!(crate::hex::bytes_to_hex(&actual), expected);
 }

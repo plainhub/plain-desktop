@@ -2,7 +2,6 @@ use crate::{
     db::Db,
     library::{LibraryError, LibraryResult},
 };
-use base64::{Engine, engine::general_purpose::STANDARD};
 use rusqlite::params;
 #[derive(serde::Serialize, serde::Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -31,8 +30,7 @@ fn vector(bytes: &[u8]) -> LibraryResult<Vec<f32>> {
     Ok(values)
 }
 fn decode(value: &str) -> LibraryResult<Vec<u8>> {
-    STANDARD
-        .decode(value)
+    crate::utils::base64::base64_decode_checked(value)
         .map_err(|e| LibraryError::Other(e.to_string()))
 }
 pub fn save(db: &Db, items: &[EmbeddingInput]) -> LibraryResult<()> {

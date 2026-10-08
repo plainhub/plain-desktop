@@ -28,7 +28,7 @@ async fn guest_executes_encrypted_contract_and_rejects_replay_and_revocation() {
             None,
         )
         .unwrap();
-    let key = URL_SAFE.decode(service.token(&share.id).unwrap()).unwrap();
+    let key = crate::utils::base64::base64_decode_checked(&service.token(&share.id).unwrap()).unwrap();
     let wrap = |nonce: &str, query: &str| {
         crate::xchacha_encrypt_raw(
             &key,

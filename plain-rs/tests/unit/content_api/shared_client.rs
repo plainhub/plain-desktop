@@ -8,10 +8,6 @@ use crate::{
     },
     shares::client::Link,
 };
-use base64::{
-    Engine,
-    engine::general_purpose::{STANDARD, URL_SAFE},
-};
 use std::sync::{
     Arc,
     atomic::{AtomicUsize, Ordering},
@@ -25,7 +21,7 @@ fn root() -> (tempfile::TempDir, ContentServer, String) {
     (dir, server, token)
 }
 fn card(port: u16) -> Card {
-    serde_json::from_value(json!({"shareId":"fixture","urlToken":URL_SAFE.encode([7;32]),"peerInfo":{"id":"peer","ip":"127.0.0.1","port":port},"name":"old","itemCount":2,"totalSize":8,"expiresAt":"2030-01-01T00:00:00Z"})).unwrap()
+    serde_json::from_value(json!({"shareId":"fixture","urlToken":crate::utils::base64::base64_encode_url_safe(&[7;32]),"peerInfo":{"id":"peer","ip":"127.0.0.1","port":port},"name":"old","itemCount":2,"totalSize":8,"expiresAt":"2030-01-01T00:00:00Z"})).unwrap()
 }
 fn save_card(state: &ServerState, card: &Card) -> DChat {
     let row = DChat::new(
@@ -58,7 +54,7 @@ async fn tls() -> (u16, tokio::task::JoinHandle<()>, Arc<AtomicUsize>) {
     let router=Router::new().route("/guest_graphql",post(move |headers:HeaderMap,body:Bytes|{let count=seen.clone();async move {
         assert_eq!(headers["c-id"],"fixture");let plain=crate::xchacha_decrypt_raw(&[7;32],&body).unwrap();let plain=String::from_utf8(plain).unwrap();let parts:Vec<_>=plain.splitn(3,'|').collect();assert!(uuid::Uuid::parse_str(parts[1]).is_ok());let request:Value=serde_json::from_str(parts[2]).unwrap();count.fetch_add(1,Ordering::SeqCst);
         if request["variables"]["virtualPath"]=="slow" {tokio::time::sleep(Duration::from_millis(200)).await;}
-        let info=json!({"data":{"sharedInfo":{"name":"current","readOnly":true,"requiresPassword":false,"expiresAt":null,"urlToken":STANDARD.encode([8;32]),"entries":[{"name":"a 中文.txt","virtualPath":"folder/ +?#中文%","isDir":false,"size":8,"mimeType":"text/plain","hasThumb":false}]}}});
+        let info=json!({"data":{"sharedInfo":{"name":"current","readOnly":true,"requiresPassword":false,"expiresAt":null,"urlToken":crate::utils::base64::base64_encode(&[8;32]),"entries":[{"name":"a 中文.txt","virtualPath":"folder/ +?#中文%","isDir":false,"size":8,"mimeType":"text/plain","hasThumb":false}]}}});
         crate::xchacha_encrypt_raw(&[7;32],info.to_string().as_bytes()).unwrap()
     }})).route("/fs",get(|Query(params):Query<std::collections::HashMap<String,String>>|async move {
         assert_eq!(params["sid"],"fixture");let plain=crate::xchacha_decrypt_raw(&[8;32],&crate::base64_decode(&params["id"])).unwrap();let decoded:Value=serde_json::from_slice(&plain).unwrap();assert_eq!(decoded["virtualPath"],"folder/ +?#中文%");"download"
@@ -140,7 +136,7 @@ async fn authenticated_http_browse_updates_card_and_streams_real_tls_files_witho
         400
     );
     let plan = client.post(&url).bearer_auth(&token).header("content-type", "application/json")
-        .body(json!({"action":"plan","kind":"SYNC","link":Link::new("127.0.0.1",port,"fixture",&URL_SAFE.encode([7;32])).unwrap(),
+        .body(json!({"action":"plan","kind":"SYNC","link":Link::new("127.0.0.1",port,"fixture",&crate::utils::base64::base64_encode_url_safe(&[7;32])).unwrap(),
             "entries":[{"name":"Root","virtualPath":"root","isDir":true,"size":0,"mimeType":"","hasThumb":false}],
             "target_dir":"/out","downloads_base":"/downloads"}).to_string()).send().await.unwrap();
     assert_eq!(plan.status(), 200);
@@ -228,7 +224,7 @@ async fn own_share_links_use_root_secret_ports_and_revocation_without_host() {
     let state = server.runtime_state();
     state
         .prefs
-        .set("master_secret", STANDARD.encode([5; 32]))
+        .set("master_secret", crate::utils::base64::base64_encode(&[5; 32]))
         .unwrap();
     state.prefs.set_user("https_port", 2443).unwrap();
     let path = dir.path().join("file.txt");
@@ -238,7 +234,7 @@ async fn own_share_links_use_root_secret_ports_and_revocation_without_host() {
         .create(
             "fixture".into(),
             vec![path.to_str().unwrap().into()],
-            STANDARD.encode([8; 32]),
+            crate::utils::base64::base64_encode(&[8; 32]),
             true,
             None,
         )

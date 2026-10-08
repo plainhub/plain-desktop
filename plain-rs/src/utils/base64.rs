@@ -1,28 +1,49 @@
-/// Standard base64 encoder (RFC 4648, with `+` and `/`, padded with `=`).
-pub fn base64_encode(bytes: &[u8]) -> String {
-    const T: &[u8] = b"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
+//! Base64 (RFC 4648) in both alphabets.
+//!
+//! Two alphabets exist because two kinds of payload travel through the app:
+//! `+/` with padding for bytes (tokens, keys, image blobs) and `-_` for
+//! values that go into URLs. Decoding accepts either — a string containing
+//! `-`/`_` is URL-safe, one containing `+`/`/` is standard, and one with
+//! neither decodes the same either way. Mixing both in one string is an
+//! error rather than a guess.
+
+/// A rejected string: the first bad character and what it was.
+#[derive(Debug, PartialEq, Eq)]
+pub struct Invalid {
+    pub offset: usize,
+    pub found: char,
+}
+
+impl std::fmt::Display for Invalid {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(
+            f,
+            "invalid base64 character {:?} at {}",
+            self.found, self.offset
+        )
+    }
+}
+
+impl std::error::Error for Invalid {}
+
+const STANDARD: &[u8; 64] = b"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
+const URL_SAFE: &[u8; 64] = b"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_";
+
+fn encode(bytes: &[u8], alphabet: &[u8; 64]) -> String {
     let mut out = String::with_capacity(bytes.len().div_ceil(3) * 4);
     for chunk in bytes.chunks(3) {
         let b0 = chunk[0] as usize;
-        let b1 = if chunk.len() > 1 {
-            chunk[1] as usize
-        } else {
-            0
-        };
-        let b2 = if chunk.len() > 2 {
-            chunk[2] as usize
-        } else {
-            0
-        };
-        out.push(T[b0 >> 2] as char);
-        out.push(T[((b0 & 3) << 4) | (b1 >> 4)] as char);
+        let b1 = chunk.get(1).copied().unwrap_or(0) as usize;
+        let b2 = chunk.get(2).copied().unwrap_or(0) as usize;
+        out.push(alphabet[b0 >> 2] as char);
+        out.push(alphabet[((b0 & 3) << 4) | (b1 >> 4)] as char);
         out.push(if chunk.len() > 1 {
-            T[((b1 & 0xf) << 2) | (b2 >> 6)] as char
+            alphabet[((b1 & 0xf) << 2) | (b2 >> 6)] as char
         } else {
             '='
         });
         out.push(if chunk.len() > 2 {
-            T[b2 & 0x3f] as char
+            alphabet[b2 & 0x3f] as char
         } else {
             '='
         });
@@ -30,32 +51,145 @@ pub fn base64_encode(bytes: &[u8]) -> String {
     out
 }
 
-/// Standard base64 decoder. Ignores `=` padding; returns an empty Vec on empty input.
-pub fn base64_decode(s: &str) -> Vec<u8> {
-    let val = |c: u8| -> u8 {
-        match c {
-            b'A'..=b'Z' => c - b'A',
-            b'a'..=b'z' => c - b'a' + 26,
-            b'0'..=b'9' => c - b'0' + 52,
-            b'+' => 62,
-            b'/' => 63,
-            _ => 0,
-        }
-    };
-    let cleaned: Vec<u8> = s.bytes().filter(|&c| c != b'=').collect();
-    let mut out = Vec::with_capacity(cleaned.len() * 3 / 4 + 1);
-    for chunk in cleaned.chunks(4) {
-        let v0 = val(chunk[0]);
-        let v1 = if chunk.len() > 1 { val(chunk[1]) } else { 0 };
-        let v2 = if chunk.len() > 2 { val(chunk[2]) } else { 0 };
-        let v3 = if chunk.len() > 3 { val(chunk[3]) } else { 0 };
-        out.push((v0 << 2) | (v1 >> 4));
+/// Standard alphabet (`+` / `/`), padded with `=`.
+pub fn base64_encode(bytes: &[u8]) -> String {
+    encode(bytes, STANDARD)
+}
+
+/// URL-safe alphabet (`-` / `_`), padded with `=`.
+pub fn base64_encode_url_safe(bytes: &[u8]) -> String {
+    encode(bytes, URL_SAFE)
+}
+
+/// Decodes either alphabet, with or without `=` padding.
+///
+/// Padding is optional because plenty of producers drop it. A length of
+/// `4n + 1` can never be valid and is rejected.
+pub fn base64_decode_checked(input: &str) -> Result<Vec<u8>, Invalid> {
+    let body = input.trim_end_matches('=');
+    if let Some(offset) = body.find('=') {
+        // Padding only ever belongs at the end.
+        return Err(Invalid { offset, found: '=' });
+    }
+    let mut symbols: Vec<u8> = Vec::with_capacity(body.len());
+    let mut tail: Option<bool> = None;
+    for (offset, c) in body.char_indices() {
+        let value = match c {
+            'A'..='Z' => c as u8 - b'A',
+            'a'..='z' => c as u8 - b'a' + 26,
+            '0'..='9' => c as u8 - b'0' + 52,
+            '+' | '/' | '-' | '_' => {
+                let url_safe = matches!(c, '-' | '_');
+                match tail {
+                    Some(seen) if seen != url_safe => {
+                        return Err(Invalid { offset, found: c });
+                    }
+                    Some(_) => {}
+                    None => tail = Some(url_safe),
+                }
+                if c == '+' || c == '-' { 62 } else { 63 }
+            }
+            _ => return Err(Invalid { offset, found: c }),
+        };
+        symbols.push(value);
+    }
+    if symbols.len() % 4 == 1 {
+        return Err(Invalid {
+            offset: body.len(),
+            found: '\0',
+        });
+    }
+    let mut out = Vec::with_capacity(symbols.len() * 3 / 4);
+    for chunk in symbols.chunks(4) {
+        let v0 = chunk[0] as u32;
+        let v1 = chunk[1] as u32;
+        let v2 = chunk.get(2).copied().unwrap_or(0) as u32;
+        let v3 = chunk.get(3).copied().unwrap_or(0) as u32;
+        out.push(((v0 << 2) | (v1 >> 4)) as u8);
         if chunk.len() > 2 {
-            out.push(((v1 & 0xf) << 4) | (v2 >> 2));
+            out.push((((v1 & 0xf) << 4) | (v2 >> 2)) as u8);
         }
         if chunk.len() > 3 {
-            out.push(((v2 & 3) << 6) | v3);
+            out.push((((v2 & 0x3) << 6) | v3) as u8);
         }
     }
-    out
+    Ok(out)
+}
+
+/// Convenience wrapper for call sites that only need the bytes: an invalid
+/// string decodes to nothing. Use [`base64_decode_checked`] when "this input
+/// was garbage" has to be distinguishable from "this input was empty".
+pub fn base64_decode(input: &str) -> Vec<u8> {
+    base64_decode_checked(input).unwrap_or_default()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn rfc4648_vectors() {
+        for (plain, encoded) in [
+            ("", ""),
+            ("f", "Zg=="),
+            ("fo", "Zm8="),
+            ("foo", "Zm9v"),
+            ("foob", "Zm9vYg=="),
+            ("fooba", "Zm9vYmE="),
+            ("foobar", "Zm9vYmFy"),
+        ] {
+            assert_eq!(base64_encode(plain.as_bytes()), encoded, "encode {plain:?}");
+            assert_eq!(
+                base64_decode(encoded),
+                plain.as_bytes(),
+                "decode {encoded:?}"
+            );
+        }
+        // The URL-safe alphabet swaps the two characters that are unsafe in
+        // a URL, and decodes to exactly the same bytes.
+        assert_eq!(base64_encode_url_safe(&[0xfb, 0xff, 0xbf]), "-_-_");
+        assert_eq!(base64_decode("-_-_"), vec![0xfb, 0xff, 0xbf]);
+    }
+
+    #[test]
+    fn binary_round_trip_over_every_byte() {
+        let all: Vec<u8> = (0..=255u8).collect();
+        for encoded in [
+            base64_encode(&all),
+            base64_encode_url_safe(&all),
+            base64_encode(&all).replace('=', ""),
+        ] {
+            assert_eq!(base64_decode(&encoded), all);
+        }
+    }
+
+    #[test]
+    fn unpadded_input_decodes_like_padded_input() {
+        assert_eq!(base64_decode("Zm9vYg"), b"foob".to_vec());
+        assert_eq!(base64_decode("Zg"), b"f".to_vec());
+    }
+
+    #[test]
+    fn junk_is_rejected_instead_of_decoding_to_garbage() {
+        // The old decoder mapped every unknown character to 0, so a
+        // corrupted key still "decoded" to a full-length buffer and passed
+        // length checks downstream.
+        for junk in ["Zm9v!!!!", "Zm9v Yg==", "Zg==Zg", "@@@@", "A"] {
+            assert!(
+                base64_decode_checked(junk).is_err(),
+                "{junk:?} must be rejected"
+            );
+        }
+        assert!(base64_decode_checked("Zm9v!!!!").is_err());
+        // Mixed alphabets in one string are a mistake, not a URL-safe value.
+        assert!(base64_decode_checked("ab-_cd+/").is_err());
+        // Report where it went wrong.
+        assert_eq!(
+            base64_decode_checked("Zm9v!"),
+            Err(Invalid {
+                offset: 4,
+                found: '!'
+            })
+        );
+    }
 }

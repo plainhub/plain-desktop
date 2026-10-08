@@ -7,7 +7,6 @@
 
 use crate::prefs::Prefs;
 use anyhow::Result;
-use base64::Engine;
 
 const SIGNATURE_KEYPAIR_KEY: &str = "signature_key_pair";
 
@@ -31,7 +30,7 @@ impl<'a> SignatureKey<'a> {
             return Ok(kp);
         }
         let (keypair, _) = crate::crypto::ed25519_generate();
-        let b64 = base64::engine::general_purpose::STANDARD.encode(keypair);
+        let b64 = crate::utils::base64::base64_encode(&keypair);
         self.prefs.set(SIGNATURE_KEYPAIR_KEY, &b64)?;
         Ok(b64)
     }
@@ -42,7 +41,7 @@ impl<'a> SignatureKey<'a> {
         let kp = self.decode(&self.ensure_keypair_b64()?)?;
         let public =
             crate::crypto::ed25519_public_from_keypair(&kp).expect("validated 64-byte keypair");
-        Ok(base64::engine::general_purpose::STANDARD.encode(public))
+        Ok(crate::utils::base64::base64_encode(&public))
     }
 
     /// Ensure a signing keypair exists. Returns the 64-byte private
@@ -53,7 +52,7 @@ impl<'a> SignatureKey<'a> {
     }
 
     fn decode(&self, b64: &str) -> Result<[u8; 64]> {
-        let bytes = base64::engine::general_purpose::STANDARD.decode(b64)?;
+        let bytes = crate::utils::base64::base64_decode_checked(b64)?;
         let mut kp = [0u8; 64];
         anyhow::ensure!(bytes.len() == 64, "keypair must be 64 bytes");
         kp.copy_from_slice(&bytes);
@@ -65,8 +64,7 @@ impl<'a> SignatureKey<'a> {
 /// well-formed public key (rejects corrupted entries so they are
 /// regenerated instead of serving a broken identity).
 fn is_valid_keypair(b64: &str) -> bool {
-    base64::engine::general_purpose::STANDARD
-        .decode(b64)
+    crate::utils::base64::base64_decode_checked(b64)
         .ok()
         .and_then(|b| crate::crypto::ed25519_public_from_keypair(&b))
         .is_some()

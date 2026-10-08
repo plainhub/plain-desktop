@@ -5,7 +5,6 @@ use crate::http_server::test_support::nas_state;
 use axum::body::Body;
 use axum::http::{Request, StatusCode, header};
 use axum::response::Response;
-use base64::Engine as _;
 use tower::ServiceExt;
 
 fn ws_upgrade_request(uri: &str) -> Request<Body> {
@@ -124,7 +123,7 @@ fn auth_handshake_crypto_chain() {
     // Client frame: server and client each hold an ECDH session.
     let server = crate::crypto::EcdhSession::generate();
     let client = crate::crypto::EcdhSession::generate();
-    let client_pub_b64 = base64::engine::general_purpose::STANDARD.encode(&client.public_key_bytes);
+    let client_pub_b64 = crate::utils::base64::base64_encode(&client.public_key_bytes);
     let req = serde_json::json!({
         "password": hash,
         "ecdhPublicKey": client_pub_b64,
@@ -137,10 +136,8 @@ fn auth_handshake_crypto_chain() {
     assert_eq!(req["password"].as_str().unwrap(), hash);
 
     // Both sides derive the same session token.
-    let client_pub = base64::engine::general_purpose::STANDARD
-        .decode(req["ecdhPublicKey"].as_str().unwrap())
-        .unwrap();
-    let server_pub_b64 = base64::engine::general_purpose::STANDARD.encode(&server.public_key_bytes);
+    let client_pub = crate::utils::base64::base64_decode_checked(req["ecdhPublicKey"].as_str().unwrap()).unwrap();
+    let server_pub_b64 = crate::utils::base64::base64_encode(&server.public_key_bytes);
     let client_token = client.compute_shared_key(&server.public_key_bytes).unwrap();
     let server_token = server.compute_shared_key(&client_pub).unwrap();
     assert_eq!(
@@ -150,7 +147,7 @@ fn auth_handshake_crypto_chain() {
 
     // Signature over the exact response string, verified with the /init key.
     let (keypair, public) = crate::ed25519_generate();
-    let public_b64 = base64::engine::general_purpose::STANDARD.encode(public);
+    let public_b64 = crate::utils::base64::base64_encode(&public);
     let ts: u64 = 1_700_000_000_000;
     let msg = format!("client-1|OK|{server_pub_b64}|{ts}");
     let sig = crate::ed25519_sign(&keypair, msg.as_bytes());

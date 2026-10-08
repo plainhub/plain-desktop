@@ -19,7 +19,7 @@ chat = ["dep:chrono", "dep:anyhow", "dep:serde_json", "dep:rusqlite", "sqlite_br
 # playlists / play history, tags + tag relations, favorite folders.
 # Ported from plain-nas's fjall implementations so NAS and desktop run
 # identical behavior. Consumers without a library skip it entirely.
-library = ["dep:rusqlite", "dep:chrono", "dep:base64", "prefs"]
+library = ["dep:rusqlite", "dep:chrono", "prefs"]
 # SQLite table browsing for developer/debug UIs (the
 # /developer/database page): list tables, count + page rows as JSON,
 # PRAGMA column metadata, delete/insert rows. Shared by plain-nas
@@ -75,7 +75,6 @@ media = [
     "prefs",
     "dep:sysinfo",
     "dep:anyhow",
-    "dep:base64",
     "dep:chrono",
     "dep:fjall",
     "dep:tantivy",
@@ -133,7 +132,6 @@ rusqlite = { version = "0.32", features = ["bundled"], optional = true }
 # Media stack (feature "media"), pinned to the versions plain-nas built
 # against — see plain-nas Cargo.toml for the per-crate rationale.
 anyhow = { version = "1", optional = true }
-base64 = { version = "0.22", optional = true }
 chrono = { version = "0.4", features = ["serde"], optional = true }
 fjall = { version = "=3.1.10", optional = true }
 tantivy = { version = "0.22", optional = true }
@@ -205,7 +203,6 @@ tokio = { version = "1", features = ["full"] }
 futures = "0.3"
 tower = { version = "0.5", features = ["util"] }
 tempfile = "3"
-base64 = "0.22"
 tokio-tungstenite = { version = "0.30", features = ["connect", "rustls-tls-webpki-roots"] }
 
 [[example]]

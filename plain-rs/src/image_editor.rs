@@ -1,8 +1,4 @@
 use crate::ws_event::{WS_IMAGE_EDITOR_UPDATE, WsEvent};
-use base64::{
-    Engine,
-    engine::{DecodePaddingMode, GeneralPurpose, GeneralPurposeConfig},
-};
 use std::sync::Arc;
 use tokio::sync::{Semaphore, broadcast};
 
@@ -14,12 +10,8 @@ pub fn decode(value: &str) -> Result<Vec<u8>, String> {
         .chars()
         .filter(|c| !c.is_ascii_whitespace())
         .collect::<String>();
-    GeneralPurpose::new(
-        &base64::alphabet::STANDARD,
-        GeneralPurposeConfig::new().with_decode_padding_mode(DecodePaddingMode::Indifferent),
-    )
-    .decode(value)
-    .map_err(|_| "invalid image editor base64".into())
+    crate::utils::base64::base64_decode_checked(&value)
+        .map_err(|_| "invalid image editor base64".into())
 }
 
 pub struct Updates {

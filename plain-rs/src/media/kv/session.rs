@@ -5,7 +5,6 @@
 
 use super::Db;
 use anyhow::{Result, anyhow};
-use base64::Engine;
 use chrono::{DateTime, Utc};
 use rand::RngCore;
 use serde::{Deserialize, Serialize};
@@ -53,7 +52,7 @@ impl<'a> SessionStore<'a> {
             // Generate a new 32-byte key and base64-encode it, matching the Go side.
             let mut key = [0u8; KEY_LEN];
             rand::thread_rng().fill_bytes(&mut key);
-            info.token = base64::engine::general_purpose::STANDARD.encode(key);
+            info.token = crate::utils::base64::base64_encode(&key);
         }
         let now = Utc::now();
         if info.created_at.timestamp() == 0 {
@@ -99,9 +98,7 @@ fn key_for(client_id: &str) -> Vec<u8> {
 
 /// Helper used by the API layer to derive a 32-byte key from a session token.
 pub fn token_key(token: &str) -> Result<[u8; KEY_LEN]> {
-    let bytes = base64::engine::general_purpose::STANDARD
-        .decode(token)
-        .map_err(|_| anyhow!("invalid base64 token"))?;
+    let bytes = crate::utils::base64::base64_decode_checked(token).map_err(|_| anyhow!("invalid base64 token"))?;
     if bytes.len() != KEY_LEN {
         return Err(anyhow!("token must be {} bytes", KEY_LEN));
     }

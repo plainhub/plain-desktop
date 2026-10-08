@@ -3,7 +3,6 @@
 #[path = "../fixtures.rs"]
 mod fixtures;
 use crate::db::Db;
-use base64::Engine;
 use fixtures::*;
 
 use crate::db::models::simple::{
@@ -263,7 +262,7 @@ fn image_embedding_blob_survives_the_base64_boundary() {
     let db = test_db("embedding");
     // 0..=255 exercises every byte value through the JSON/base64 hop.
     let raw: Vec<u8> = (0u8..=255).collect();
-    let encoded = base64::engine::general_purpose::STANDARD.encode(&raw);
+    let encoded = crate::utils::base64::base64_encode(&raw);
     db.embedding_save(&ImageEmbeddingRow {
         id: "e1".into(),
         path: "/photos/a.jpg".into(),

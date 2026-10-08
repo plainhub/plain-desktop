@@ -1,8 +1,4 @@
 use anyhow::{Result, ensure};
-use base64::{
-    Engine,
-    engine::general_purpose::{STANDARD, URL_SAFE},
-};
 use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -60,7 +56,7 @@ impl Link {
         Ok(url)
     }
     pub fn key(&self) -> Result<Vec<u8>> {
-        let key = URL_SAFE.decode(&self.token)?;
+        let key = crate::utils::base64::base64_decode_checked(&self.token)?;
         ensure!(key.len() == 32, "Invalid share token");
         Ok(key)
     }
@@ -91,13 +87,13 @@ impl Link {
         }
         let info: Info = serde_json::from_value(response["data"]["sharedInfo"].clone())?;
         ensure!(
-            STANDARD.decode(&info.url_token)?.len() == 32,
+            crate::utils::base64::base64_decode_checked(&info.url_token)?.len() == 32,
             "Invalid shared file token"
         );
         Ok(info)
     }
     pub fn file_url(&self, url_token: &str, virtual_path: &str, zip: bool) -> Result<String> {
-        let key = STANDARD.decode(url_token)?;
+        let key = crate::utils::base64::base64_decode_checked(url_token)?;
         ensure!(key.len() == 32, "Invalid shared file token");
         let bytes = crate::xchacha_encrypt_raw(
             &key,

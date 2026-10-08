@@ -15,8 +15,7 @@ fn ensure_is_stable_and_wellformed() {
     let second = SignatureKey::new(&prefs).ensure().unwrap();
     assert_eq!(first, second, "public key must be stable across calls");
     assert_eq!(
-        base64::engine::general_purpose::STANDARD
-            .decode(&first)
+        crate::utils::base64::base64_decode_checked(&first)
             .unwrap()
             .len(),
         32,
@@ -35,8 +34,7 @@ fn persisted_as_base64_keypair_like_plain_desktop() {
         .get::<String>(SIGNATURE_KEYPAIR_KEY)
         .unwrap()
         .expect("keypair pref written");
-    let bytes = base64::engine::general_purpose::STANDARD
-        .decode(&stored)
+    let bytes = crate::utils::base64::base64_decode_checked(&stored)
         .unwrap();
     assert_eq!(bytes.len(), 64);
 
@@ -61,8 +59,7 @@ fn regenerate_after_corruption() {
     let regenerated = SignatureKey::new(&prefs).ensure().unwrap();
     assert_ne!(original, regenerated);
     assert_eq!(
-        base64::engine::general_purpose::STANDARD
-            .decode(&regenerated)
+        crate::utils::base64::base64_decode_checked(&regenerated)
             .unwrap()
             .len(),
         32

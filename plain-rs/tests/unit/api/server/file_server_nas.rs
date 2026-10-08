@@ -8,7 +8,6 @@ use axum::body::Body;
 use axum::extract::Request;
 use axum::http::{HeaderName, StatusCode, header};
 use axum::response::Response;
-use base64::Engine as _;
 
 /// A test state plus the raw 32-byte url_token key used to mint file ids —
 /// exactly the XChaCha20-Poly1305 nonce||ct||tag → base64 shape the web
@@ -19,7 +18,7 @@ fn test_state() -> (ServerState, Vec<u8>) {
         prefs
             .set(
                 "url_token",
-                &base64::engine::general_purpose::STANDARD.encode(key),
+                &crate::utils::base64::base64_encode(&key),
             )
             .expect("set url_token");
     });
@@ -28,7 +27,7 @@ fn test_state() -> (ServerState, Vec<u8>) {
 
 fn file_id(key: &[u8], path: &str) -> String {
     let blob = crate::xchacha_encrypt_raw(key, path.as_bytes()).expect("encrypt");
-    base64::engine::general_purpose::STANDARD.encode(blob)
+    crate::utils::base64::base64_encode(&blob)
 }
 
 /// A 10-byte file whose extension keeps it off the image/video special

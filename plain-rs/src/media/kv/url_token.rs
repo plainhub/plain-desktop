@@ -7,16 +7,13 @@
 
 use crate::prefs::Prefs;
 use anyhow::Result;
-use base64::Engine;
 
 const URL_TOKEN_KEY: &str = "url_token";
 
 /// Validate that a token string is valid base64 and decodes to exactly
 /// 32 bytes.
 fn is_valid_token(token: &str) -> bool {
-    base64::engine::general_purpose::STANDARD
-        .decode(token)
-        .is_ok_and(|decoded| decoded.len() == 32)
+    crate::utils::base64::base64_decode_checked(token).is_ok_and(|decoded| decoded.len() == 32)
 }
 
 pub struct UrlToken<'a> {

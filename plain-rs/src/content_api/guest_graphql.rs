@@ -8,7 +8,6 @@ use axum::{
     http::{HeaderMap, StatusCode},
     response::{IntoResponse, Response},
 };
-use base64::{Engine, engine::general_purpose::URL_SAFE};
 use serde::Deserialize;
 use serde_json::{Value, json};
 
@@ -116,7 +115,7 @@ async fn execute(state: &ServerState, id: &str, body: &[u8]) -> (u16, Vec<u8>) {
     }
     let key = match shares
         .token(id)
-        .and_then(|key| URL_SAFE.decode(key).map_err(Into::into))
+        .and_then(|key| crate::utils::base64::base64_decode_checked(&key).map_err(Into::into))
     {
         Ok(key) => key,
         Err(_) => return (500, vec![]),

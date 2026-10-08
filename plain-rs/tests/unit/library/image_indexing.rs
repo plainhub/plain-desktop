@@ -1,5 +1,4 @@
 use super::*;
-use base64::{Engine, engine::general_purpose::STANDARD};
 use std::sync::{
     Mutex,
     atomic::{AtomicBool, Ordering},
@@ -31,7 +30,7 @@ fn input(id: &str) -> EmbeddingInput {
     EmbeddingInput {
         id: id.into(),
         path: format!("/image/{id}"),
-        embedding_base64: STANDARD.encode(1.0_f32.to_be_bytes()),
+        embedding_base64: crate::utils::base64::base64_encode(&1.0_f32.to_be_bytes()),
     }
 }
 impl Provider for Mock {

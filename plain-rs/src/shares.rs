@@ -4,10 +4,6 @@ use crate::{
     db::{Db, ShareRow},
     prefs::Prefs,
 };
-use base64::{
-    Engine,
-    engine::general_purpose::{STANDARD, URL_SAFE},
-};
 use hmac::{Hmac, KeyInit, Mac};
 use serde::{Deserialize, Serialize};
 use std::{
@@ -77,7 +73,10 @@ impl Service {
         read_only: bool,
         expires: Option<String>,
     ) -> anyhow::Result<ShareRow> {
-        anyhow::ensure!(STANDARD.decode(&token)?.len() == 32, "invalid URL token");
+        anyhow::ensure!(
+            crate::utils::base64::base64_decode_checked(&token)?.len() == 32,
+            "invalid URL token"
+        );
         validate_expiry(expires.as_deref())?;
         let now = chrono::Utc::now().to_rfc3339();
         let row = ShareRow {
@@ -137,11 +136,13 @@ impl Service {
             .prefs
             .get::<String>("master_secret")?
             .ok_or_else(|| anyhow::anyhow!("master secret not initialized"))?;
-        let key = STANDARD.decode(secret)?;
+        let key = crate::utils::base64::base64_decode_checked(&secret)?;
         anyhow::ensure!(key.len() == 32, "invalid master secret");
         let mut mac = Hmac::<sha2_mac::Sha256>::new_from_slice(&key)?;
         mac.update(id.as_bytes());
-        Ok(URL_SAFE.encode(mac.finalize().into_bytes()))
+        Ok(crate::utils::base64::base64_encode_url_safe(
+            &mac.finalize().into_bytes(),
+        ))
     }
     pub fn resolve(
         &self,
@@ -297,7 +298,7 @@ impl Service {
             return Ok(None);
         };
         let ciphertext = crate::base64_decode(encrypted);
-        let key = STANDARD.decode(&row.url_token)?;
+        let key = crate::utils::base64::base64_decode_checked(&row.url_token)?;
         let Some(plain) = crate::xchacha_decrypt_raw(&key, &ciphertext) else {
             return Ok(None);
         };

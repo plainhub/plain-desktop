@@ -321,7 +321,6 @@ mod login {
     use axum::extract::{Query, State};
     use axum::http::StatusCode;
     use axum::response::{IntoResponse, Response};
-    use base64::Engine;
     use futures_util::{SinkExt, StreamExt};
     use serde::Deserialize;
 
@@ -450,7 +449,7 @@ mod login {
         }
 
         let client_pub =
-            match base64::engine::general_purpose::STANDARD.decode(&req.ecdh_public_key) {
+            match crate::utils::base64::base64_decode_checked(&req.ecdh_public_key) {
                 Ok(v) => v,
                 Err(e) => {
                     log::warn!("[ws/auth] cid={cid} bad ecdh public key: {e}");
@@ -459,8 +458,7 @@ mod login {
                 }
             };
         let ecdh = crate::crypto::EcdhSession::generate();
-        let ecdh_public_b64 =
-            base64::engine::general_purpose::STANDARD.encode(&ecdh.public_key_bytes);
+        let ecdh_public_b64 = crate::utils::base64::base64_encode(&ecdh.public_key_bytes);
         // Same derivation the client performs; both sides end up with
         // this 32-byte token, stored base64 in the session for later
         // request bodies.
@@ -472,7 +470,7 @@ mod login {
                 return;
             }
         };
-        let token_b64 = base64::engine::general_purpose::STANDARD.encode(token);
+        let token_b64 = crate::utils::base64::base64_encode(&token);
 
         let sessions = crate::media::kv::SessionStore::new(&state.ctx.media.db);
         let info = match sessions.get(&cid) {
