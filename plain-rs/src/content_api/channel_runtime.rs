@@ -23,7 +23,10 @@ use serde_json::{Value, json};
 #[serde(tag = "action", rename_all = "camelCase", deny_unknown_fields)]
 pub(super) enum Request {
     Snapshot,
-    Invitation { id: String, owner: Option<String> },
+    Invitation {
+        id: String,
+        owner: Option<String>,
+    },
     Create {
         name: String,
     },
@@ -145,7 +148,9 @@ pub(super) async fn execute(state: &ServerState, request: Request) -> Result<Val
         .filter(|s| !s.is_empty())
         .ok_or_else(|| anyhow::anyhow!("Missing client identity"))?;
     if let Request::Invitation { id, owner } = &request {
-        return Ok(json!({"channel":state::pending_invitation(&state.db, &actor, id, owner.as_deref())?}));
+        return Ok(
+            json!({"channel":state::pending_invitation(&state.db, &actor, id, owner.as_deref())?}),
+        );
     }
     let (channel, response) = match request {
         Request::Create { name } => {

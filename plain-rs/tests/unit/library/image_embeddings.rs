@@ -3,8 +3,8 @@ use super::*;
 mod fixtures;
 use fixtures::test_db;
 fn encode(values: &[f32]) -> String {
-    crate::utils::base64::base64_encode(&
-        values
+    crate::utils::base64::base64_encode(
+        &values
             .iter()
             .flat_map(|v| v.to_be_bytes())
             .collect::<Vec<_>>(),

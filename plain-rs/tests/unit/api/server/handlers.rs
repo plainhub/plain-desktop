@@ -22,5 +22,8 @@ fn strip_replay_wrapper_handles_partial_prefix() {
     // payload kept intact.
     assert_eq!(strip_replay_wrapper(b"a|b"), "a|b");
     assert_eq!(strip_replay_wrapper(b"abc|def|ghi"), "abc|def|ghi");
-    assert_eq!(strip_replay_wrapper(b"1234567890|onlyone"), "1234567890|onlyone");
+    assert_eq!(
+        strip_replay_wrapper(b"1234567890|onlyone"),
+        "1234567890|onlyone"
+    );
 }

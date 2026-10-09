@@ -1,7 +1,7 @@
 use crate::content_api::host::Host;
 use crate::content_api::public_schema::PublicSchema;
-use crate::db::notes_feeds::FeedEntryRow;
 use crate::db::Db;
+use crate::db::notes_feeds::FeedEntryRow;
 use crate::prefs::Prefs;
 use serde_json::{Value, json};
 use std::sync::Arc;
@@ -87,7 +87,10 @@ fn seed_entry(db: &Arc<Db>, feed: &str, title: &str, image: &str) {
 async fn an_unknown_feed_is_null_rather_than_an_error() {
     let (_dir, schema) = fixture();
     let data = query(&schema, r#"query { feed(id: "nope") { name } }"#).await;
-    assert!(data["errors"].as_array().is_none_or(Vec::is_empty), "{data}");
+    assert!(
+        data["errors"].as_array().is_none_or(Vec::is_empty),
+        "{data}"
+    );
     assert!(data["data"]["feed"].is_null(), "{data}");
 }
 
@@ -196,7 +199,10 @@ async fn paging_and_the_search_dsl_narrow_the_entry_list() {
         r#"query { feedEntries(query: "", offset: 0, limit: 2) { title } }"#,
     )
     .await;
-    assert_eq!(page["data"]["feedEntries"].as_array().map(Vec::len), Some(2));
+    assert_eq!(
+        page["data"]["feedEntries"].as_array().map(Vec::len),
+        Some(2)
+    );
 
     let filtered = query(
         &schema,
@@ -221,7 +227,10 @@ async fn a_blank_bulk_query_is_refused_before_the_store_is_touched() {
         r#"mutation { deleteFeedEntries(query: "") { affectedCount } }"#,
     )
     .await;
-    assert!(!refused["errors"].as_array().is_none_or(Vec::is_empty), "{refused}");
+    assert!(
+        !refused["errors"].as_array().is_none_or(Vec::is_empty),
+        "{refused}"
+    );
 
     let total = query(&schema, r#"query { feedEntryCount(query: "") }"#).await;
     assert_eq!(total["data"]["feedEntryCount"], 1);
@@ -241,7 +250,10 @@ async fn marking_read_counts_what_it_actually_flipped() {
         r#"mutation { markFeedEntriesRead(query: "", read: true) { affectedCount } }"#,
     )
     .await;
-    assert!(!refused["errors"].as_array().is_none_or(Vec::is_empty), "{refused}");
+    assert!(
+        !refused["errors"].as_array().is_none_or(Vec::is_empty),
+        "{refused}"
+    );
 
     let marked = query(
         &schema,
@@ -309,7 +321,10 @@ async fn opml_round_trips_through_export_and_import() {
     seed_feed(db, "round", "Round trip");
 
     let exported = query(&schema, r#"mutation { exportFeeds }"#).await;
-    let opml = exported["data"]["exportFeeds"].as_str().unwrap().to_string();
+    let opml = exported["data"]["exportFeeds"]
+        .as_str()
+        .unwrap()
+        .to_string();
     assert!(opml.contains("https://example.com/round.xml"), "{opml}");
 
     query(&schema, r#"mutation { deleteFeed(id: "round") }"#).await;
@@ -321,7 +336,10 @@ async fn opml_round_trips_through_export_and_import() {
         ),
     )
     .await;
-    assert!(imported["errors"].as_array().is_none_or(Vec::is_empty), "{imported}");
+    assert!(
+        imported["errors"].as_array().is_none_or(Vec::is_empty),
+        "{imported}"
+    );
 
     let feeds = query(&schema, r#"query { feeds { url } }"#).await;
     let urls: Vec<&str> = feeds["data"]["feeds"]

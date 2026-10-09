@@ -93,7 +93,12 @@ fn sdl_contains_the_media_surface() {
     ] {
         assert!(sdl.contains(needle), "SDL missing {needle}");
     }
-    for obsolete in ["trashCount:", "trashItems(", "deleteTrashItem(", "type TrashItem"] {
+    for obsolete in [
+        "trashCount:",
+        "trashItems(",
+        "deleteTrashItem(",
+        "type TrashItem",
+    ] {
         assert!(!sdl.contains(obsolete), "SDL still contains {obsolete}");
     }
 }

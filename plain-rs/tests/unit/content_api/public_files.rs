@@ -51,8 +51,13 @@ fn fixture_with(
     let db = Arc::new(Db::open(&dir.path().join("data.db")).unwrap());
     let host = Arc::new(Host::default());
     let (events, _) = tokio::sync::broadcast::channel(16);
-    let schema =
-        crate::content_api::public_schema::build(host.clone(), events, prefs, db, dir.path().into());
+    let schema = crate::content_api::public_schema::build(
+        host.clone(),
+        events,
+        prefs,
+        db,
+        dir.path().into(),
+    );
     stub(host, handler);
     (dir, schema)
 }

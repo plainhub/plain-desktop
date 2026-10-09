@@ -310,5 +310,5 @@ pub(super) async fn release_permission(state: &ServerState, slot: &Mutex<Option<
 }
 
 #[cfg(test)]
-#[path="../../tests/unit/content_api/dlna_sender_runtime.rs"]
+#[path = "../../tests/unit/content_api/dlna_sender_runtime.rs"]
 mod tests;

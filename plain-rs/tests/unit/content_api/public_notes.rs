@@ -54,8 +54,13 @@ async fn query(schema: &PublicSchema, document: &str) -> Value {
 
 async fn rows(schema: &PublicSchema, selection: &str) -> Vec<Value> {
     let data = query(schema, &format!("query {{ {selection} }}")).await;
-    assert!(data["errors"].as_array().is_none_or(Vec::is_empty), "{data}");
-    let (name, _) = selection.split_once('(').expect("a selection with arguments");
+    assert!(
+        data["errors"].as_array().is_none_or(Vec::is_empty),
+        "{data}"
+    );
+    let (name, _) = selection
+        .split_once('(')
+        .expect("a selection with arguments");
     data["data"][name.trim()]
         .as_array()
         .cloned()
@@ -85,7 +90,10 @@ async fn a_created_note_comes_back_with_the_fields_the_contract_promises() {
 async fn an_unknown_note_id_is_null_rather_than_an_error() {
     let (_dir, schema) = fixture();
     let data = query(&schema, r#"query { note(id: "nope") { title } }"#).await;
-    assert!(data["errors"].as_array().is_none_or(Vec::is_empty), "{data}");
+    assert!(
+        data["errors"].as_array().is_none_or(Vec::is_empty),
+        "{data}"
+    );
     assert!(data["data"]["note"].is_null(), "{data}");
 }
 
@@ -106,7 +114,11 @@ async fn the_page_and_the_count_agree_on_the_search_dsl() {
         )
         .await;
     }
-    let filtered = rows(&schema, r#"notes(query: "text:hotel", offset: 0, limit: 10) { title }"#).await;
+    let filtered = rows(
+        &schema,
+        r#"notes(query: "text:hotel", offset: 0, limit: 10) { title }"#,
+    )
+    .await;
     assert_eq!(filtered.len(), 1, "{filtered:?}");
     assert_eq!(filtered[0]["title"], "Holiday plans");
 
@@ -129,12 +141,11 @@ async fn a_tagged_note_reports_the_contract_tag_shape() {
         r#"mutation { createNote(input: {title: "Taxes", content: ""}) { id } }"#,
     )
     .await;
-    let id = created["data"]["createNote"]["id"].as_str().unwrap().to_string();
-    crate::library::tags::add_relations(
-        library,
-        &[(tag.id.clone(), id.clone())],
-    )
-    .unwrap();
+    let id = created["data"]["createNote"]["id"]
+        .as_str()
+        .unwrap()
+        .to_string();
+    crate::library::tags::add_relations(library, &[(tag.id.clone(), id.clone())]).unwrap();
 
     let listed = rows(
         &schema,
@@ -157,7 +168,10 @@ async fn delete_only_reaches_the_trash_and_reports_what_it_removed() {
         r#"mutation { createNote(input: {title: "Temp", content: ""}) { id } }"#,
     )
     .await;
-    let id = created["data"]["createNote"]["id"].as_str().unwrap().to_string();
+    let id = created["data"]["createNote"]["id"]
+        .as_str()
+        .unwrap()
+        .to_string();
 
     let early = query(
         &schema,
@@ -194,8 +208,15 @@ async fn a_blank_bulk_query_is_refused_before_the_store_is_touched() {
         r#"mutation { createNote(input: {title: "Keep me", content: ""}) { id } }"#,
     )
     .await;
-    let refused = query(&schema, r#"mutation { deleteNotes(query: "") { affectedCount } }"#).await;
-    assert!(!refused["errors"].as_array().is_none_or(Vec::is_empty), "{refused}");
+    let refused = query(
+        &schema,
+        r#"mutation { deleteNotes(query: "") { affectedCount } }"#,
+    )
+    .await;
+    assert!(
+        !refused["errors"].as_array().is_none_or(Vec::is_empty),
+        "{refused}"
+    );
 
     let survivors = query(&schema, r#"query { noteCount(query: "") }"#).await;
     assert_eq!(survivors["data"]["noteCount"], 1);
@@ -209,26 +230,38 @@ async fn trash_and_restore_move_a_note_between_the_two_lists() {
         r#"mutation { createNote(input: {title: "Later", content: ""}) { id } }"#,
     )
     .await;
-    let id = created["data"]["createNote"]["id"].as_str().unwrap().to_string();
+    let id = created["data"]["createNote"]["id"]
+        .as_str()
+        .unwrap()
+        .to_string();
 
     let _ = query(
         &schema,
         &format!(r#"mutation {{ trashNotes(query: "ids:{id}") {{ affectedCount }} }}"#),
     )
     .await;
-    let after_trash = query(&schema, r#"query { notes(query: "ids:", offset: 0, limit: 10) { title } }"#).await;
-    assert!(after_trash["data"]["notes"].as_array().unwrap().is_empty(), "{after_trash}");
+    let after_trash = query(
+        &schema,
+        r#"query { notes(query: "ids:", offset: 0, limit: 10) { title } }"#,
+    )
+    .await;
+    assert!(
+        after_trash["data"]["notes"].as_array().unwrap().is_empty(),
+        "{after_trash}"
+    );
 
     let _ = query(
         &schema,
         &format!(r#"mutation {{ restoreNotes(query: "ids:{id}") {{ affectedCount }} }}"#),
     )
     .await;
-    let after_restore = query(&schema, r#"query { notes(query: "", offset: 0, limit: 10) { title } }"#).await;
+    let after_restore = query(
+        &schema,
+        r#"query { notes(query: "", offset: 0, limit: 10) { title } }"#,
+    )
+    .await;
     assert_eq!(
-        after_restore["data"]["notes"]
-            .as_array()
-            .map(Vec::len),
+        after_restore["data"]["notes"].as_array().map(Vec::len),
         Some(1),
         "{after_restore}"
     );
@@ -242,7 +275,10 @@ async fn updating_a_note_replaces_both_fields() {
         r#"mutation { createNote(input: {title: "Draft", content: "v1"}) { id } }"#,
     )
     .await;
-    let id = created["data"]["createNote"]["id"].as_str().unwrap().to_string();
+    let id = created["data"]["createNote"]["id"]
+        .as_str()
+        .unwrap()
+        .to_string();
     let updated = query(
         &schema,
         &format!(

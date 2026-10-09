@@ -193,7 +193,11 @@ impl FeedsMutation {
         Ok(feed_model(row))
     }
 
-    async fn import_feeds(&self, ctx: &Context<'_>, content: String) -> async_graphql::Result<bool> {
+    async fn import_feeds(
+        &self,
+        ctx: &Context<'_>,
+        content: String,
+    ) -> async_graphql::Result<bool> {
         feeds::import_opml(db(ctx)?, &content)?;
         Ok(true)
     }
@@ -231,12 +235,9 @@ impl FeedsMutation {
         id: async_graphql::ID,
     ) -> async_graphql::Result<FeedEntry> {
         let library = db(ctx)?;
-        let row = feeds::sync_entry_content_with_assets(
-            library,
-            id.as_str(),
-            assets(ctx).as_deref(),
-        )
-        .await?;
+        let row =
+            feeds::sync_entry_content_with_assets(library, id.as_str(), assets(ctx).as_deref())
+                .await?;
         let mut tags = tags_by_key(library, &[row.id.clone()], DataType::FeedEntry)?;
         let tagged = tags.remove(&row.id).unwrap_or_default();
         entry(library, row, tagged).await

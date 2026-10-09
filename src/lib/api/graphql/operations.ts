@@ -1272,6 +1272,12 @@ export interface GqlOperations {
       paths: Array<string>
     }
   }
+  importImageSearchModelGQL: {
+    result: {
+      importImageSearchModel: boolean
+    }
+    variables: undefined
+  }
   enableImageSearchGQL: {
     result: {
       enableImageSearch: boolean

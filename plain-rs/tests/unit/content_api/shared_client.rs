@@ -224,7 +224,10 @@ async fn own_share_links_use_root_secret_ports_and_revocation_without_host() {
     let state = server.runtime_state();
     state
         .prefs
-        .set("master_secret", crate::utils::base64::base64_encode(&[5; 32]))
+        .set(
+            "master_secret",
+            crate::utils::base64::base64_encode(&[5; 32]),
+        )
         .unwrap();
     state.prefs.set_user("https_port", 2443).unwrap();
     let path = dir.path().join("file.txt");

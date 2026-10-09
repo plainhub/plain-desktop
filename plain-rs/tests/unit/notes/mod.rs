@@ -145,8 +145,14 @@ fn unknown_and_inert_query_fields_are_rejected_instead_of_widening() {
 #[test]
 fn note_only_fields_are_rejected_on_feed_entries() {
     let (_dir, db) = database();
-    let err = db.feed_entries_list("trash:true", 10, 0).unwrap_err().to_string();
-    assert!(err.contains("unsupported feed entry filter: trash"), "{err}");
+    let err = db
+        .feed_entries_list("trash:true", 10, 0)
+        .unwrap_err()
+        .to_string();
+    assert!(
+        err.contains("unsupported feed entry filter: trash"),
+        "{err}"
+    );
     // The feed-only fields are the ones that belong there.
     assert!(db.feed_entries_list("read:true", 10, 0).is_ok());
 }

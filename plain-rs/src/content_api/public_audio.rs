@@ -126,7 +126,12 @@ impl AudioQuery {
         if !public_gate::require_granted(ctx, &[STORAGE]).await? {
             return Ok(0);
         }
-        let count = host_call(ctx, "systemMediaCount", json!({ "dataType": "AUDIO", "query": query })).await?;
+        let count = host_call(
+            ctx,
+            "systemMediaCount",
+            json!({ "dataType": "AUDIO", "query": query }),
+        )
+        .await?;
         Ok(count.as_i64().unwrap_or_default() as i32)
     }
 
@@ -151,7 +156,8 @@ impl AudioQuery {
             .await?,
             |item| item.clone(),
         );
-        let tags = super::public_media::tags_for(ctx, "AUDIO", &Value::Array(items.clone())).await?;
+        let tags =
+            super::public_media::tags_for(ctx, "AUDIO", &Value::Array(items.clone())).await?;
         Ok(items
             .iter()
             .map(|item| {
@@ -184,7 +190,10 @@ impl AudioQuery {
     ) -> async_graphql::Result<Option<String>> {
         public_gate::require(prefs(ctx), &[STORAGE])?;
         let lyrics = host_call(ctx, "systemAudioLyrics", json!({ "path": path })).await?;
-        Ok(lyrics.as_str().filter(|value| !value.is_empty()).map(str::to_string))
+        Ok(lyrics
+            .as_str()
+            .filter(|value| !value.is_empty())
+            .map(str::to_string))
     }
 
     /// The active queue, paged. Filtering is on the item title and artist,
@@ -213,7 +222,10 @@ impl AudioQuery {
             .try_into()?)
     }
 
-    async fn audio_playlists(&self, ctx: &Context<'_>) -> async_graphql::Result<Vec<AudioPlaylist>> {
+    async fn audio_playlists(
+        &self,
+        ctx: &Context<'_>,
+    ) -> async_graphql::Result<Vec<AudioPlaylist>> {
         Ok(audio(ctx)?
             .run(|db, _| domain::playlists(db))
             .await?
@@ -232,7 +244,13 @@ impl AudioQuery {
     ) -> async_graphql::Result<Vec<AudioItem>> {
         Ok(audio(ctx)?
             .run(move |db, _| {
-                domain::playlist_item_records_page(db, id.as_str(), offset as i64, limit as i64, &query)
+                domain::playlist_item_records_page(
+                    db,
+                    id.as_str(),
+                    offset as i64,
+                    limit as i64,
+                    &query,
+                )
             })
             .await?
             .into_iter()
@@ -277,7 +295,9 @@ impl AudioQuery {
     /// current path is the queue's) and half is the player itself, which is
     /// platform state Rust cannot see.
     async fn audio_playback(&self, ctx: &Context<'_>) -> async_graphql::Result<AudioPlayback> {
-        let current = audio(ctx)?.run(|db, _| domain::get_audio_current(db)).await?;
+        let current = audio(ctx)?
+            .run(|db, _| domain::get_audio_current(db))
+            .await?;
         let mode = MediaPlayMode::parse(
             host_call(ctx, "systemAudioPlayMode", json!({}))
                 .await?
@@ -302,7 +322,11 @@ impl AudioMutation {
     /// Marks the track current without touching the queue, which is what a
     /// "play this one row" tap means. The metadata comes from the platform
     /// because the queue stores whatever the file says.
-    async fn play_audio(&self, ctx: &Context<'_>, path: String) -> async_graphql::Result<AudioItem> {
+    async fn play_audio(
+        &self,
+        ctx: &Context<'_>,
+        path: String,
+    ) -> async_graphql::Result<AudioItem> {
         let facts = host_call(ctx, "systemAudioPlaylistTracks", json!({ "paths": [path] })).await?;
         let track = super::public_facts::rows(&facts, |item| item.clone())
             .into_iter()
@@ -328,12 +352,7 @@ impl AudioMutation {
         ctx: &Context<'_>,
         mode: MediaPlayMode,
     ) -> async_graphql::Result<bool> {
-        host_call(
-            ctx,
-            "systemAudioPlayMode",
-            json!({ "mode": mode.as_str() }),
-        )
-        .await?;
+        host_call(ctx, "systemAudioPlayMode", json!({ "mode": mode.as_str() })).await?;
         Ok(true)
     }
 
@@ -476,9 +495,7 @@ impl AudioMutation {
         shuffle: bool,
     ) -> async_graphql::Result<Option<AudioItem>> {
         let start = audio(ctx)?
-            .run(move |db, _| {
-                domain::select_playlist_source(db, id.as_str(), path.as_deref())
-            })
+            .run(move |db, _| domain::select_playlist_source(db, id.as_str(), path.as_deref()))
             .await?;
         self.start_playback(ctx, start, shuffle).await
     }
@@ -492,9 +509,7 @@ impl AudioMutation {
         let start = audio(ctx)?
             .run({
                 let sort_by = sort_by.as_str().unwrap_or_default().to_string();
-                move |db, lib| {
-                    domain::select_library_source(db, lib, None, shuffle, &sort_by)
-                }
+                move |db, lib| domain::select_library_source(db, lib, None, shuffle, &sort_by)
             })
             .await?;
         self.start_playback(ctx, start, shuffle).await

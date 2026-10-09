@@ -1,5 +1,5 @@
-pub mod client;
 pub mod batch_plan;
+pub mod client;
 use crate::{
     db::{Db, ShareRow},
     prefs::Prefs,

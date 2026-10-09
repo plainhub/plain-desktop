@@ -251,16 +251,29 @@ async fn public_schema_pomodoro_roots_execute() {
         "{ feeds { id name } }",
     ] {
         let response = schema.execute(query).await;
-        assert!(response.errors.is_empty(), "{query} -> {:?}", response.errors);
+        assert!(
+            response.errors.is_empty(),
+            "{query} -> {:?}",
+            response.errors
+        );
     }
 }
-
 
 /// Scalars and enums a probe can ask for without pulling in a whole object
 /// graph; anything else is skipped as a selection leaf.
 const PROBE_LEAVES: [&str; 12] = [
-    "Int", "String", "Boolean", "Float", "ID", "Long", "Instant", "JSON", "DateTime",
-    "FileSortBy", "MediaDataType", "DataType",
+    "Int",
+    "String",
+    "Boolean",
+    "Float",
+    "ID",
+    "Long",
+    "Instant",
+    "JSON",
+    "DateTime",
+    "FileSortBy",
+    "MediaDataType",
+    "DataType",
 ];
 
 /// Parses the committed SDL into `(type name, field, field type)` triples.
@@ -292,17 +305,20 @@ fn sdl_fields(sdl: &str) -> Vec<(String, String, String)> {
         if line.is_empty() || line.starts_with('#') {
             continue;
         }
-        let keyword = line
-            .split_whitespace()
-            .next()
-            .filter(|k| {
-                matches!(*k, "type" | "interface" | "input" | "enum" | "scalar" | "union")
-            });
+        let keyword = line.split_whitespace().next().filter(|k| {
+            matches!(
+                *k,
+                "type" | "interface" | "input" | "enum" | "scalar" | "union"
+            )
+        });
         if let Some(keyword) = keyword {
             if line.ends_with('{') {
                 depth += 1;
                 owner = if matches!(keyword, "type" | "interface") {
-                    line.split_whitespace().nth(1).unwrap_or_default().to_string()
+                    line.split_whitespace()
+                        .nth(1)
+                        .unwrap_or_default()
+                        .to_string()
                 } else {
                     String::new()
                 };
@@ -442,5 +458,3 @@ async fn no_root_field_fails_for_unregistered_schema_data() {
          registered: {unregistered:#?}"
     );
 }
-
-

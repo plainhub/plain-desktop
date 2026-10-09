@@ -69,12 +69,11 @@ impl NotesQuery {
     ) -> async_graphql::Result<Vec<Note>> {
         let library = db(ctx)?;
         let rows = notes::search(library, &query, limit, offset)?;
-        let tags =
-            tags_by_key(
-                library,
-                &rows.iter().map(|row| row.id.clone()).collect::<Vec<_>>(),
-                DataType::Note,
-            )?;
+        let tags = tags_by_key(
+            library,
+            &rows.iter().map(|row| row.id.clone()).collect::<Vec<_>>(),
+            DataType::Note,
+        )?;
         Ok(rows
             .into_iter()
             .map(|row| {
@@ -162,7 +161,11 @@ impl NotesMutation {
         })
     }
 
-    async fn export_notes(&self, ctx: &Context<'_>, query: String) -> async_graphql::Result<String> {
+    async fn export_notes(
+        &self,
+        ctx: &Context<'_>,
+        query: String,
+    ) -> async_graphql::Result<String> {
         Ok(notes::export(db(ctx)?, &query)?)
     }
 }
@@ -208,10 +211,7 @@ pub(super) fn tags_by_key(
     let mut by_key: HashMap<String, Vec<Tag>> = HashMap::new();
     for relation in relations {
         if let Some(tag) = by_id.get(&relation.tag_id) {
-            by_key
-                .entry(relation.key)
-                .or_default()
-                .push(tag.clone());
+            by_key.entry(relation.key).or_default().push(tag.clone());
         }
     }
     Ok(by_key)

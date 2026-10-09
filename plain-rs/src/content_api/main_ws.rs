@@ -310,5 +310,5 @@ pub(super) async fn call(
 }
 
 #[cfg(test)]
-#[path="../../tests/unit/content_api/main_ws.rs"]
+#[path = "../../tests/unit/content_api/main_ws.rs"]
 mod tests;

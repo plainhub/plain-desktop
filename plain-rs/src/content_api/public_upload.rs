@@ -388,7 +388,17 @@ pub(super) async fn upload_chunk(State(state): State<ServerState>, request: Requ
                     break;
                 }
                 let base = match upload_tmp_dir(&state).await {
-                    Ok(base) => match crate::uploads::chunk_path(Path::new(&base), &current.file_id, current.index) { Ok(path)=>path,Err(error)=> { failure=Some(plain(StatusCode::BAD_REQUEST,error.to_string())); break; } },
+                    Ok(base) => match crate::uploads::chunk_path(
+                        Path::new(&base),
+                        &current.file_id,
+                        current.index,
+                    ) {
+                        Ok(path) => path,
+                        Err(error) => {
+                            failure = Some(plain(StatusCode::BAD_REQUEST, error.to_string()));
+                            break;
+                        }
+                    },
                     Err(error) => {
                         failure = Some(plain(StatusCode::BAD_REQUEST, error.to_string()));
                         break;

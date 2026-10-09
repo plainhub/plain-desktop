@@ -1,11 +1,11 @@
 //! Public preference roots share the local Rust store and notify UI projections.
 
-use crate::ws_event::WsEvent;
-use tokio::sync::broadcast;
 use crate::prefs::Prefs;
+use crate::ws_event::WsEvent;
 use async_graphql::{Context, Json, Object};
 use serde_json::Value;
 use std::sync::Arc;
+use tokio::sync::broadcast;
 
 /// The same bounds the platform enforces: a pref key ends up in a file name
 /// and a JSON object, so it is restricted to characters that survive both.
@@ -59,8 +59,14 @@ impl PrefsMutation {
     ) -> async_graphql::Result<bool> {
         validate_key(&key)?;
         validate_value(&value.0)?;
-        super::preferences::set(prefs(ctx), ctx.data_unchecked::<broadcast::Sender<WsEvent>>(), true, &key, value.0)
-            .map_err(async_graphql::Error::new)?;
+        super::preferences::set(
+            prefs(ctx),
+            ctx.data_unchecked::<broadcast::Sender<WsEvent>>(),
+            true,
+            &key,
+            value.0,
+        )
+        .map_err(async_graphql::Error::new)?;
         Ok(true)
     }
 
@@ -70,8 +76,13 @@ impl PrefsMutation {
         key: String,
     ) -> async_graphql::Result<bool> {
         validate_key(&key)?;
-        super::preferences::remove(prefs(ctx), ctx.data_unchecked::<broadcast::Sender<WsEvent>>(), true, &key)
-            .map_err(async_graphql::Error::new)?;
+        super::preferences::remove(
+            prefs(ctx),
+            ctx.data_unchecked::<broadcast::Sender<WsEvent>>(),
+            true,
+            &key,
+        )
+        .map_err(async_graphql::Error::new)?;
         Ok(true)
     }
 }

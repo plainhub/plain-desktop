@@ -34,8 +34,7 @@ fn persisted_as_base64_keypair_like_plain_desktop() {
         .get::<String>(SIGNATURE_KEYPAIR_KEY)
         .unwrap()
         .expect("keypair pref written");
-    let bytes = crate::utils::base64::base64_decode_checked(&stored)
-        .unwrap();
+    let bytes = crate::utils::base64::base64_decode_checked(&stored).unwrap();
     assert_eq!(bytes.len(), 64);
 
     // Reload from the same file: same identity, sign/verify roundtrip.

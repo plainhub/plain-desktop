@@ -7,11 +7,11 @@
 //! `disk_id` and tells volumes from partitions by `path` (partitions carry
 //! a block-device path, volumes don't).
 
+use crate::prefs::Prefs;
 use crate::storage::blockdev::{
     LsblkDevice, base_block_device_name, disk_id_from_name, is_user_visible_disk_name,
     resolve_underlying_single_base_disk, run_lsblk,
 };
-use crate::prefs::Prefs;
 use serde::Serialize;
 use serde_json::Value;
 

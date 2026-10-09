@@ -25,16 +25,16 @@ fn fixture() -> (tempfile::TempDir, super::super::ContentServer) {
         prefs,
     )
     .unwrap();
-    let host=server.runtime_state().host.clone();
-    let (generation,mut requests)=host.connect();
+    let host = server.runtime_state().host.clone();
+    let (generation, mut requests) = host.connect();
     tokio::spawn(async move {
-        while let Some(request)=requests.recv().await {
-            let result=match request["method"].as_str().unwrap() {
-                "mdnsMulticast"=>json!(true),
-                "systemCastAddressFacts"=>json!({"deviceName":"Test Phone"}),
-                other=>panic!("Unexpected platform primitive: {other}"),
+        while let Some(request) = requests.recv().await {
+            let result = match request["method"].as_str().unwrap() {
+                "mdnsMulticast" => json!(true),
+                "systemCastAddressFacts" => json!({"deviceName":"Test Phone"}),
+                other => panic!("Unexpected platform primitive: {other}"),
             };
-            let _=host.reply(generation,json!({"id":request["id"],"result":result}));
+            let _ = host.reply(generation, json!({"id":request["id"],"result":result}));
         }
     });
     assert_eq!(

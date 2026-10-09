@@ -105,7 +105,10 @@ fn signing_a_broken_keypair_is_an_error_not_an_empty_signature() {
     ));
     let prefs = Prefs::load(&dir.join("system_prefs.json")).unwrap();
     prefs
-        .set("signature_key_pair", json!({"privateKey": "AAAA"}).to_string())
+        .set(
+            "signature_key_pair",
+            json!({"privateKey": "AAAA"}).to_string(),
+        )
         .unwrap();
     assert!(sign(&prefs, "device|COMPLETED|pk|42").is_err());
 }

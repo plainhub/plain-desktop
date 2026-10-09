@@ -136,7 +136,9 @@ fn auth_handshake_crypto_chain() {
     assert_eq!(req["password"].as_str().unwrap(), hash);
 
     // Both sides derive the same session token.
-    let client_pub = crate::utils::base64::base64_decode_checked(req["ecdhPublicKey"].as_str().unwrap()).unwrap();
+    let client_pub =
+        crate::utils::base64::base64_decode_checked(req["ecdhPublicKey"].as_str().unwrap())
+            .unwrap();
     let server_pub_b64 = crate::utils::base64::base64_encode(&server.public_key_bytes);
     let client_token = client.compute_shared_key(&server.public_key_bytes).unwrap();
     let server_token = server.compute_shared_key(&client_pub).unwrap();

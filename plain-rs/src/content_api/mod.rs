@@ -51,11 +51,11 @@ mod sms_query;
 // serving once every contract root exists; until then `main_graphql` still
 // hands the document to Kotlin and nothing under `public_schema` is
 // reachable — drop these allows in the same commit that flips that over.
+mod phone_geo;
 #[allow(dead_code)]
 mod public_audio;
 #[allow(dead_code)]
 mod public_calls;
-mod phone_geo;
 #[allow(dead_code)]
 mod public_chat;
 #[allow(dead_code)]
@@ -144,8 +144,8 @@ mod nearby_devices;
 
 mod ble_pairing;
 
-mod peer_status;
 mod peer_actions;
+mod peer_status;
 
 mod status_outgoing;
 mod status_socket;
@@ -174,11 +174,11 @@ mod cast_runtime;
 
 mod mms_send;
 
+mod dlna_sender_playback;
 mod dlna_sender_runtime;
 mod dlna_sender_scan;
-mod dlna_sender_playback;
 
-#[cfg(feature="http_transport")]
+#[cfg(feature = "http_transport")]
 mod public_cors;
 
 #[cfg(feature = "http_transport")]

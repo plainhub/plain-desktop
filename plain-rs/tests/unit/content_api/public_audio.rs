@@ -27,15 +27,17 @@ const GRANTED: &str = r#"["WRITE_EXTERNAL_STORAGE"]"#;
 
 fn fixture() -> (tempfile::TempDir, PublicSchema) {
     fixture_with(GRANTED, |method, params| match method {
-        "systemAudioPlaylistTracks" => json!(params["paths"]
-            .as_array()
-            .unwrap()
-            .iter()
-            .map(|path| json!({
-                "title": "Track", "artist": "Artist",
-                "path": path.as_str().unwrap(), "durationMs": 1000,
-            }))
-            .collect::<Vec<_>>()),
+        "systemAudioPlaylistTracks" => json!(
+            params["paths"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .map(|path| json!({
+                    "title": "Track", "artist": "Artist",
+                    "path": path.as_str().unwrap(), "durationMs": 1000,
+                }))
+                .collect::<Vec<_>>()
+        ),
         "systemAudioLibrarySort" => json!("DATE_DESC"),
         "systemAudioPlayMode" => json!("REPEAT"),
         "systemAudioPlaybackState" => json!({ "isPlaying": false, "positionMs": 0 }),
@@ -127,7 +129,9 @@ async fn the_queue_is_paged_and_its_count_matches() {
         r#"query { audioQueueItems(offset: 0, limit: 2, query: "") { title artist path durationMs } }"#,
     )
     .await;
-    let rows = page["data"]["audioQueueItems"].as_array().unwrap_or_else(|| panic!("{page}"));
+    let rows = page["data"]["audioQueueItems"]
+        .as_array()
+        .unwrap_or_else(|| panic!("{page}"));
     assert_eq!(rows.len(), 2, "{page}");
     assert_eq!(rows[0]["durationMs"], 1000);
 
@@ -140,21 +144,27 @@ async fn the_queue_is_paged_and_its_count_matches() {
 #[tokio::test]
 async fn playback_joins_the_queue_state_and_the_player_state() {
     let (_dir, schema) = fixture_with(GRANTED, |method, params| match method {
-        "systemAudioPlaylistTracks" => json!(params["paths"]
-            .as_array()
-            .unwrap()
-            .iter()
-            .map(|path| json!({
-                "title": "Track", "artist": "Artist",
-                "path": path.as_str().unwrap(), "durationMs": 1000,
-            }))
-            .collect::<Vec<_>>()),
+        "systemAudioPlaylistTracks" => json!(
+            params["paths"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .map(|path| json!({
+                    "title": "Track", "artist": "Artist",
+                    "path": path.as_str().unwrap(), "durationMs": 1000,
+                }))
+                .collect::<Vec<_>>()
+        ),
         "systemAudioPlayMode" => json!("SHUFFLE"),
         "systemAudioPlaybackState" => json!({ "isPlaying": true, "positionMs": 4200 }),
         _other => panic!("unexpected host call {_other}"),
     });
     database(&schema);
-    query(&schema, r#"mutation { playAudio(path: "/music/one.mp3") { title path } }"#).await;
+    query(
+        &schema,
+        r#"mutation { playAudio(path: "/music/one.mp3") { title path } }"#,
+    )
+    .await;
 
     let state = query(
         &schema,
@@ -183,16 +193,29 @@ async fn playing_a_track_never_changes_the_queue() {
         _other => json!({}),
     });
     database(&schema);
-    seed_queue(&schema, &[("/music/one.mp3", "One", "A"), ("/music/two.mp3", "Two", "B")]);
+    seed_queue(
+        &schema,
+        &[
+            ("/music/one.mp3", "One", "A"),
+            ("/music/two.mp3", "Two", "B"),
+        ],
+    );
 
     let played = query(
         &schema,
         r#"mutation { playAudio(path: "/music/one.mp3") { path } }"#,
     )
     .await;
-    assert_eq!(played["data"]["playAudio"]["path"], "/music/one.mp3", "{played}");
+    assert_eq!(
+        played["data"]["playAudio"]["path"], "/music/one.mp3",
+        "{played}"
+    );
 
-    let after = query(&schema, r#"query { audioQueueItems(offset: 0, limit: 10, query: "") { path } }"#).await;
+    let after = query(
+        &schema,
+        r#"query { audioQueueItems(offset: 0, limit: 10, query: "") { path } }"#,
+    )
+    .await;
     let paths: Vec<&str> = after["data"]["audioQueueItems"]
         .as_array()
         .unwrap_or_else(|| panic!("{after}"))
@@ -216,7 +239,10 @@ async fn an_idle_player_reports_a_null_current_path() {
         r#"query { audioPlayback { currentPath mode isPlaying positionMs } }"#,
     )
     .await;
-    assert!(state["data"]["audioPlayback"]["currentPath"].is_null(), "{state}");
+    assert!(
+        state["data"]["audioPlayback"]["currentPath"].is_null(),
+        "{state}"
+    );
     assert_eq!(state["data"]["audioPlayback"]["mode"], "REPEAT");
 }
 
@@ -277,7 +303,11 @@ async fn reordering_writes_the_order_the_client_sent() {
         .iter()
         .map(|row| row["path"].as_str().unwrap())
         .collect();
-    assert_eq!(paths, vec!["/music/c.mp3", "/music/a.mp3", "/music/b.mp3"], "{items}");
+    assert_eq!(
+        paths,
+        vec!["/music/c.mp3", "/music/a.mp3", "/music/b.mp3"],
+        "{items}"
+    );
 }
 
 #[tokio::test]
@@ -285,7 +315,10 @@ async fn removing_one_item_leaves_the_rest_of_the_queue() {
     let (_dir, schema) = fixture();
     seed_queue(
         &schema,
-        &[("/music/a.mp3", "Alpha", "One"), ("/music/b.mp3", "Beta", "Two")],
+        &[
+            ("/music/a.mp3", "Alpha", "One"),
+            ("/music/b.mp3", "Beta", "Two"),
+        ],
     );
     let ok = query(
         &schema,
@@ -348,7 +381,10 @@ async fn a_playlist_is_created_renamed_and_empties_into_a_count() {
     assert_eq!(renamed["data"]["updateAudioPlaylist"]["itemCount"], 2);
 
     let listed = query(&schema, r#"query { audioPlaylists { id name itemCount } }"#).await;
-    assert_eq!(listed["data"]["audioPlaylists"].as_array().map(Vec::len), Some(1));
+    assert_eq!(
+        listed["data"]["audioPlaylists"].as_array().map(Vec::len),
+        Some(1)
+    );
 
     let _ = query(
         &schema,
@@ -356,7 +392,10 @@ async fn a_playlist_is_created_renamed_and_empties_into_a_count() {
     )
     .await;
     let after = query(&schema, r#"query { audioPlaylists { id } }"#).await;
-    assert_eq!(after["data"]["audioPlaylists"].as_array().map(Vec::len), Some(0));
+    assert_eq!(
+        after["data"]["audioPlaylists"].as_array().map(Vec::len),
+        Some(0)
+    );
 }
 
 #[tokio::test]
@@ -382,7 +421,10 @@ async fn removing_a_playlist_item_lowers_its_count() {
         &format!(r#"mutation {{ removeAudioPlaylistItem(id: "{id}", path: "/music/a.mp3") }}"#),
     )
     .await;
-    assert_eq!(removed["data"]["removeAudioPlaylistItem"], true, "{removed}");
+    assert_eq!(
+        removed["data"]["removeAudioPlaylistItem"], true,
+        "{removed}"
+    );
 
     let count = query(
         &schema,
@@ -412,22 +454,36 @@ async fn playing_an_empty_playlist_is_null_rather_than_an_error() {
         &format!(r#"mutation {{ playAudioPlaylist(id: "{id}", shuffle: false) {{ title }} }}"#),
     )
     .await;
-    assert!(played["errors"].as_array().is_none_or(Vec::is_empty), "{played}");
+    assert!(
+        played["errors"].as_array().is_none_or(Vec::is_empty),
+        "{played}"
+    );
     assert!(played["data"]["playAudioPlaylist"].is_null(), "{played}");
 }
 
 #[tokio::test]
 async fn playing_the_library_is_null_when_nothing_matches() {
     let (_dir, schema) = fixture();
-    let played = query(&schema, r#"mutation { playAllAudios(shuffle: false) { title } }"#).await;
-    assert!(played["errors"].as_array().is_none_or(Vec::is_empty), "{played}");
+    let played = query(
+        &schema,
+        r#"mutation { playAllAudios(shuffle: false) { title } }"#,
+    )
+    .await;
+    assert!(
+        played["errors"].as_array().is_none_or(Vec::is_empty),
+        "{played}"
+    );
     assert!(played["data"]["playAllAudios"].is_null(), "{played}");
 }
 
 #[tokio::test]
 async fn play_mode_is_written_through_the_host_preference() {
     let (_dir, schema) = fixture();
-    let ok = query(&schema, r#"mutation { updateAudioPlayMode(mode: REPEAT_ONE) }"#).await;
+    let ok = query(
+        &schema,
+        r#"mutation { updateAudioPlayMode(mode: REPEAT_ONE) }"#,
+    )
+    .await;
     assert_eq!(ok["data"]["updateAudioPlayMode"], true, "{ok}");
 
     let state = query(&schema, r#"query { audioPlayback { mode } }"#).await;
@@ -456,7 +512,10 @@ async fn an_ungranted_library_counts_zero_and_refuses_to_list() {
         r#"query { audios(offset: 0, limit: 10, query: "", sortBy: NAME_ASC) { title } }"#,
     )
     .await;
-    assert!(!listed["errors"].as_array().is_none_or(Vec::is_empty), "{listed}");
+    assert!(
+        !listed["errors"].as_array().is_none_or(Vec::is_empty),
+        "{listed}"
+    );
 }
 
 #[tokio::test]

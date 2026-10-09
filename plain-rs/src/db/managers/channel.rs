@@ -4,7 +4,8 @@ use crate::chat::channel::messages::decode_members;
 use crate::chat::enums::ChannelStatus;
 use crate::db::{DChannel, Db};
 
-pub(crate) const CHANNEL_COLS: &str = "id,name,owner_id,members,key,version,status,created_at,updated_at";
+pub(crate) const CHANNEL_COLS: &str =
+    "id,name,owner_id,members,key,version,status,created_at,updated_at";
 
 pub(crate) fn row_to_channel(row: &rusqlite::Row<'_>) -> rusqlite::Result<DChannel> {
     Ok(DChannel {

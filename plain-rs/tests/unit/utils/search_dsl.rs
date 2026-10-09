@@ -144,6 +144,12 @@ fn provider_plan_reads_escaped_text_beside_other_filters() {
     let f = parse(r"text:Meeting:\ notes trash:false ids:1,2");
     let text = f.iter().find(|f| f.name == "text").map(|f| &f.value);
     assert_eq!(text, Some(&"Meeting: notes".to_string()));
-    assert_eq!(f.iter().find(|f| f.name == "trash").map(|f| &f.value), Some(&"false".to_string()));
-    assert_eq!(f.iter().find(|f| f.name == "ids").map(|f| &f.value), Some(&"1,2".to_string()));
+    assert_eq!(
+        f.iter().find(|f| f.name == "trash").map(|f| &f.value),
+        Some(&"false".to_string())
+    );
+    assert_eq!(
+        f.iter().find(|f| f.name == "ids").map(|f| &f.value),
+        Some(&"1,2".to_string())
+    );
 }

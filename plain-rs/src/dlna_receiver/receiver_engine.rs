@@ -353,7 +353,14 @@ async fn run_ssdp_loop(
     }
 }
 
-async fn respond_to_search(socket: &UdpSocket, message: &str, source: std::net::SocketAddr, uuid: &str, ip: &str, port: u16) {
+async fn respond_to_search(
+    socket: &UdpSocket,
+    message: &str,
+    source: std::net::SocketAddr,
+    uuid: &str,
+    ip: &str,
+    port: u16,
+) {
     if message.contains("M-SEARCH") {
         for response in ssdp_messages::search_responses(uuid, ip, port) {
             let _ = socket.send_to(response.as_bytes(), source).await;
@@ -445,5 +452,5 @@ fn apply_command(s: &mut DlnaRendererState, cmd: DlnaCommand) {
 }
 
 #[cfg(test)]
-#[path="../../tests/unit/dlna_receiver/receiver_engine.rs"]
+#[path = "../../tests/unit/dlna_receiver/receiver_engine.rs"]
 mod tests;

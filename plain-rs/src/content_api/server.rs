@@ -299,11 +299,13 @@ impl ContentServer {
             .route("/system/image-search", post(super::image_search::call))
             .route("/http/guest", post(super::guest_graphql::call));
         #[cfg(feature = "http_transport")]
-        let router = router.route("/system/tls", post(super::tls_identity::call))
-            .route("/resources/:id", get(resource_upgrade)).route(
-            "/system/notification-event",
-            post(super::public_notifications::publish),
-        );
+        let router = router
+            .route("/system/tls", post(super::tls_identity::call))
+            .route("/resources/:id", get(resource_upgrade))
+            .route(
+                "/system/notification-event",
+                post(super::public_notifications::publish),
+            );
         let router = router
             .layer(DefaultBodyLimit::max(32 * 1024 * 1024))
             .with_state(state.clone());

@@ -12,7 +12,6 @@ pub mod chat_message;
 mod chat_peer;
 mod chat_query;
 mod content_common;
-mod prefs;
 mod db;
 mod discover;
 mod download;
@@ -25,6 +24,7 @@ pub mod media;
 mod note;
 mod pairing;
 mod pomodoro;
+mod prefs;
 pub mod types;
 mod util;
 
@@ -40,7 +40,6 @@ use chat_channel::ChatChannelMutation;
 use chat_message::ChatMessageMutation;
 use chat_peer::ChatPeerMutation;
 use chat_query::ChatQuery;
-use prefs::{PrefsMutation, PrefsQuery};
 use db::{DbMutation, DbQuery};
 use discover::{DiscoverMutation, DiscoverQuery};
 use download::DownloadMutation;
@@ -52,6 +51,7 @@ use image_editor_project::{ImageEditorProjectMutation, ImageEditorProjectQuery};
 use note::{NoteMutation, NoteQuery};
 use pairing::PairingMutation;
 use pomodoro::{PomodoroMutation, PomodoroQuery};
+use prefs::{PrefsMutation, PrefsQuery};
 
 #[derive(MergedObject, Default)]
 pub struct QueryRoot(

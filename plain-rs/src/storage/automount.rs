@@ -10,8 +10,8 @@
 //! `udevadm monitor --udev --subsystem-match=block --property` and
 //! debounces bursts into a single reconciliation, exactly like the Go side.
 
-use crate::storage::blockdev::{flatten_devices, run_lsblk};
 use crate::prefs::Prefs;
+use crate::storage::blockdev::{flatten_devices, run_lsblk};
 use anyhow::{Result, anyhow};
 use serde::{Deserialize, Serialize};
 use std::collections::{BTreeMap, HashMap, HashSet};

@@ -448,15 +448,14 @@ mod login {
             return;
         }
 
-        let client_pub =
-            match crate::utils::base64::base64_decode_checked(&req.ecdh_public_key) {
-                Ok(v) => v,
-                Err(e) => {
-                    log::warn!("[ws/auth] cid={cid} bad ecdh public key: {e}");
-                    send_close(&mut tx, CLOSE_TRY_AGAIN_LATER, INVALID_REQUEST_REASON).await;
-                    return;
-                }
-            };
+        let client_pub = match crate::utils::base64::base64_decode_checked(&req.ecdh_public_key) {
+            Ok(v) => v,
+            Err(e) => {
+                log::warn!("[ws/auth] cid={cid} bad ecdh public key: {e}");
+                send_close(&mut tx, CLOSE_TRY_AGAIN_LATER, INVALID_REQUEST_REASON).await;
+                return;
+            }
+        };
         let ecdh = crate::crypto::EcdhSession::generate();
         let ecdh_public_b64 = crate::utils::base64::base64_encode(&ecdh.public_key_bytes);
         // Same derivation the client performs; both sides end up with

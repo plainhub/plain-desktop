@@ -276,43 +276,118 @@ async fn a_blank_media_query_is_refused_before_the_platform() {
     }
 }
 
-fn upload_fixture() -> (tempfile::TempDir, tempfile::TempDir, PublicSchema, std::path::PathBuf) {
-    let temp=tempfile::tempdir().unwrap();let base=temp.path().join("chunks");
-    let path=base.clone();let (dir,schema)=fixture_with("[]",move|method,_|match method {
-        "uploadTmpDirFacts"=>json!({"path":path}),
-        other=>panic!("Unexpected platform primitive: {other}"),
-    });(temp,dir,schema,base)
+fn upload_fixture() -> (
+    tempfile::TempDir,
+    tempfile::TempDir,
+    PublicSchema,
+    std::path::PathBuf,
+) {
+    let temp = tempfile::tempdir().unwrap();
+    let base = temp.path().join("chunks");
+    let path = base.clone();
+    let (dir, schema) = fixture_with("[]", move |method, _| match method {
+        "uploadTmpDirFacts" => json!({"path":path}),
+        other => panic!("Unexpected platform primitive: {other}"),
+    });
+    (temp, dir, schema, base)
 }
-async fn merge_status(schema:&PublicSchema,id:&str)->Value {
-    let response=schema.execute(format!(r#"{{mergeStatus(fileId:"{id}"){{status value mergedSize error}}}}"#)).await;
-    assert!(response.errors.is_empty(),"{:?}",response.errors);response.data.into_json().unwrap()["mergeStatus"].clone()
+async fn merge_status(schema: &PublicSchema, id: &str) -> Value {
+    let response = schema
+        .execute(format!(
+            r#"{{mergeStatus(fileId:"{id}"){{status value mergedSize error}}}}"#
+        ))
+        .await;
+    assert!(response.errors.is_empty(), "{:?}", response.errors);
+    response.data.into_json().unwrap()["mergeStatus"].clone()
 }
-async fn wait_merge(schema:&PublicSchema,id:&str)->Value {
-    let deadline=tokio::time::Instant::now()+std::time::Duration::from_secs(10);
-    loop {let status=merge_status(schema,id).await;if matches!(status["status"].as_str(),Some("DONE"|"FAILED")){return status;}assert!(tokio::time::Instant::now()<deadline,"Merge did not complete: {status}");tokio::time::sleep(std::time::Duration::from_millis(10)).await;}
+async fn wait_merge(schema: &PublicSchema, id: &str) -> Value {
+    let deadline = tokio::time::Instant::now() + std::time::Duration::from_secs(10);
+    loop {
+        let status = merge_status(schema, id).await;
+        if matches!(status["status"].as_str(), Some("DONE" | "FAILED")) {
+            return status;
+        }
+        assert!(
+            tokio::time::Instant::now() < deadline,
+            "Merge did not complete: {status}"
+        );
+        tokio::time::sleep(std::time::Duration::from_millis(10)).await;
+    }
 }
 #[tokio::test]
 async fn graphql_uploads_list_merge_and_recover_the_same_rust_job() {
-    let (temp,_dir,schema,base)=upload_fixture();let chunks=base.join("abc");tokio::fs::create_dir_all(&chunks).await.unwrap();
-    tokio::fs::write(chunks.join("chunk_1"),b"def").await.unwrap();tokio::fs::write(chunks.join("chunk_0"),b"abc").await.unwrap();
-    let response=schema.execute(r#"{uploadedChunks(fileId:"abc")}"#).await;assert!(response.errors.is_empty(),"{:?}",response.errors);assert_eq!(response.data.into_json().unwrap()["uploadedChunks"],json!(["0:3","1:3"]));
-    assert_eq!(merge_status(&schema,"abc").await["status"],"NONE");
-    let target=temp.path().join("result.bin");let response=schema.execute(format!(r#"mutation {{mergeChunks(fileId:"abc",totalChunks:2,path:"{}",replace:true,totalSize:6){{status}}}}"#,target.display())).await;
-    assert!(response.errors.is_empty(),"{:?}",response.errors);assert_eq!(response.data.into_json().unwrap()["mergeChunks"]["status"],"STARTED");
-    let status=wait_merge(&schema,"abc").await;assert_eq!(status["status"],"DONE");assert_eq!(status["value"],"result.bin");assert_eq!(status["mergedSize"],6);assert_eq!(status["error"],Value::Null);assert_eq!(tokio::fs::read(&target).await.unwrap(),b"abcdef");
-    let response=schema.execute(format!(r#"mutation {{mergeChunks(fileId:"abc",totalChunks:2,path:"{}",replace:true,totalSize:6){{status}}}}"#,target.display())).await;assert!(response.errors.is_empty());assert_eq!(response.data.into_json().unwrap()["mergeChunks"]["status"],"DONE");
+    let (temp, _dir, schema, base) = upload_fixture();
+    let chunks = base.join("abc");
+    tokio::fs::create_dir_all(&chunks).await.unwrap();
+    tokio::fs::write(chunks.join("chunk_1"), b"def")
+        .await
+        .unwrap();
+    tokio::fs::write(chunks.join("chunk_0"), b"abc")
+        .await
+        .unwrap();
+    let response = schema.execute(r#"{uploadedChunks(fileId:"abc")}"#).await;
+    assert!(response.errors.is_empty(), "{:?}", response.errors);
+    assert_eq!(
+        response.data.into_json().unwrap()["uploadedChunks"],
+        json!(["0:3", "1:3"])
+    );
+    assert_eq!(merge_status(&schema, "abc").await["status"], "NONE");
+    let target = temp.path().join("result.bin");
+    let response=schema.execute(format!(r#"mutation {{mergeChunks(fileId:"abc",totalChunks:2,path:"{}",replace:true,totalSize:6){{status}}}}"#,target.display())).await;
+    assert!(response.errors.is_empty(), "{:?}", response.errors);
+    assert_eq!(
+        response.data.into_json().unwrap()["mergeChunks"]["status"],
+        "STARTED"
+    );
+    let status = wait_merge(&schema, "abc").await;
+    assert_eq!(status["status"], "DONE");
+    assert_eq!(status["value"], "result.bin");
+    assert_eq!(status["mergedSize"], 6);
+    assert_eq!(status["error"], Value::Null);
+    assert_eq!(tokio::fs::read(&target).await.unwrap(), b"abcdef");
+    let response=schema.execute(format!(r#"mutation {{mergeChunks(fileId:"abc",totalChunks:2,path:"{}",replace:true,totalSize:6){{status}}}}"#,target.display())).await;
+    assert!(response.errors.is_empty());
+    assert_eq!(
+        response.data.into_json().unwrap()["mergeChunks"]["status"],
+        "DONE"
+    );
 }
 #[tokio::test]
 async fn graphql_failed_merge_keeps_error_and_no_value() {
-    let (temp,_dir,schema,base)=upload_fixture();let chunks=base.join("abc");tokio::fs::create_dir_all(&chunks).await.unwrap();tokio::fs::write(chunks.join("chunk_0"),b"abc").await.unwrap();
+    let (temp, _dir, schema, base) = upload_fixture();
+    let chunks = base.join("abc");
+    tokio::fs::create_dir_all(&chunks).await.unwrap();
+    tokio::fs::write(chunks.join("chunk_0"), b"abc")
+        .await
+        .unwrap();
     let response=schema.execute(format!(r#"mutation {{mergeChunks(fileId:"abc",totalChunks:2,path:"{}",replace:false,totalSize:6){{status}}}}"#,temp.path().join("result").display())).await;
-    assert!(response.errors.is_empty(),"{:?}",response.errors);let status=wait_merge(&schema,"abc").await;assert_eq!(status["status"],"FAILED");assert!(status["error"].as_str().unwrap().contains("Missing chunk 1"));assert_eq!(status["value"],Value::Null);assert!(chunks.exists());
+    assert!(response.errors.is_empty(), "{:?}", response.errors);
+    let status = wait_merge(&schema, "abc").await;
+    assert_eq!(status["status"], "FAILED");
+    assert!(
+        status["error"]
+            .as_str()
+            .unwrap()
+            .contains("Missing chunk 1")
+    );
+    assert_eq!(status["value"], Value::Null);
+    assert!(chunks.exists());
 }
 #[tokio::test]
 async fn graphql_app_file_merge_imports_into_the_rust_store() {
-    let (_temp,_dir,schema,base)=upload_fixture();let chunks=base.join("abc");tokio::fs::create_dir_all(&chunks).await.unwrap();tokio::fs::write(chunks.join("chunk_0"),b"image").await.unwrap();
-    let response=schema.execute(r#"mutation {mergeAppFileChunks(fileId:"abc",totalChunks:1,fileName:"photo.jpg",totalSize:5){status}}"#).await;assert!(response.errors.is_empty(),"{:?}",response.errors);
-    let status=wait_merge(&schema,"abc").await;assert_eq!(status["status"],"DONE");assert!(!status["value"].as_str().unwrap().is_empty());assert_eq!(status["mergedSize"],5);assert!(!chunks.exists());
+    let (_temp, _dir, schema, base) = upload_fixture();
+    let chunks = base.join("abc");
+    tokio::fs::create_dir_all(&chunks).await.unwrap();
+    tokio::fs::write(chunks.join("chunk_0"), b"image")
+        .await
+        .unwrap();
+    let response=schema.execute(r#"mutation {mergeAppFileChunks(fileId:"abc",totalChunks:1,fileName:"photo.jpg",totalSize:5){status}}"#).await;
+    assert!(response.errors.is_empty(), "{:?}", response.errors);
+    let status = wait_merge(&schema, "abc").await;
+    assert_eq!(status["status"], "DONE");
+    assert!(!status["value"].as_str().unwrap().is_empty());
+    assert_eq!(status["mergedSize"], 5);
+    assert!(!chunks.exists());
 }
 
 #[test]
@@ -358,7 +433,9 @@ async fn a_media_action_refuses_a_query_that_selects_nothing_and_all_true_still_
     // `all:true` builds no clause either, and says so — refusing it would
     // leave no way to target everything on purpose.
     let response = schema
-        .execute(r#"mutation { trashMediaItems(type: AUDIO, query: "all:true") { affectedCount } }"#)
+        .execute(
+            r#"mutation { trashMediaItems(type: AUDIO, query: "all:true") { affectedCount } }"#,
+        )
         .await;
     assert!(response.errors.is_empty(), "{:?}", response.errors);
     assert!(format!("{:?}", response.data).contains("affectedCount"));

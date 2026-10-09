@@ -21,7 +21,10 @@ static OVERRIDE: OnceLock<MediaPaths> = OnceLock::new();
 /// are ignored, so tests in a host binary cannot fight the host's
 /// startup value.
 pub fn set(data_dir: PathBuf, cache_dir: PathBuf) {
-    let _ = OVERRIDE.set(MediaPaths { data_dir, cache_dir });
+    let _ = OVERRIDE.set(MediaPaths {
+        data_dir,
+        cache_dir,
+    });
 }
 
 pub fn detect() -> MediaPaths {
@@ -34,7 +37,10 @@ pub fn detect() -> MediaPaths {
     let cache_dir = std::env::var("PLAIN_RS_CACHE_DIR")
         .map(PathBuf::from)
         .unwrap_or_else(|_| default_cache_dir());
-    MediaPaths { data_dir, cache_dir }
+    MediaPaths {
+        data_dir,
+        cache_dir,
+    }
 }
 
 fn home() -> PathBuf {

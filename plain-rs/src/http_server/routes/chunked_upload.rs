@@ -15,11 +15,28 @@ use anyhow::Result;
 use std::path::{Path, PathBuf};
 
 const UPLOAD_SUBDIR: &str = "upload_tmp";
-pub async fn save_chunk(data_dir: &Path, file_id: &str, index: i32, bytes: &[u8]) -> Result<PathBuf> {
-    crate::uploads::save_chunk(&data_dir.join(UPLOAD_SUBDIR),file_id,i64::from(index),bytes).await
+pub async fn save_chunk(
+    data_dir: &Path,
+    file_id: &str,
+    index: i32,
+    bytes: &[u8],
+) -> Result<PathBuf> {
+    crate::uploads::save_chunk(
+        &data_dir.join(UPLOAD_SUBDIR),
+        file_id,
+        i64::from(index),
+        bytes,
+    )
+    .await
 }
 pub async fn list_uploaded_chunks(data_dir: &Path, file_id: &str) -> Result<Vec<i32>> {
-    Ok(crate::uploads::chunks(&data_dir.join(UPLOAD_SUBDIR),file_id).await?.into_iter().filter_map(|(index,_)|i32::try_from(index).ok()).collect())
+    Ok(
+        crate::uploads::chunks(&data_dir.join(UPLOAD_SUBDIR), file_id)
+            .await?
+            .into_iter()
+            .filter_map(|(index, _)| i32::try_from(index).ok())
+            .collect(),
+    )
 }
 
 /// Concatenate chunks into `path`.

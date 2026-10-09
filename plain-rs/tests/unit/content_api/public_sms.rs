@@ -259,20 +259,33 @@ async fn send_sms_maps_the_default_sim_to_no_subscription() {
 async fn send_mms_allocates_one_rust_pending_id_and_launches_only_a_native_intent() {
     let (_dir, schema) = fixture(json!(["SEND_SMS"]));
     stub(schema_host(&schema), |method, params| match method {
-        "systemMmsLatest"=>json!(7),
-        "systemMmsLaunch"=>{assert_eq!(params["number"],"+1555");assert_eq!(params["attachments"],json!([]));json!(100)},
-        "systemMmsCandidates"=>json!([]),
-        other=>panic!("Unexpected platform primitive: {other}"),
+        "systemMmsLatest" => json!(7),
+        "systemMmsLaunch" => {
+            assert_eq!(params["number"], "+1555");
+            assert_eq!(params["attachments"], json!([]));
+            json!(100)
+        }
+        "systemMmsCandidates" => json!([]),
+        other => panic!("Unexpected platform primitive: {other}"),
     });
-    let response=schema.execute(r#"mutation {sendMms(number:"+1555",body:"hi",attachmentPaths:[],threadId:"t1")}"#).await;
-    assert!(response.errors.is_empty(),"{:?}",response.errors);
-    let id=response.data.into_json().unwrap()["sendMms"].as_str().unwrap().to_owned();
+    let response = schema
+        .execute(r#"mutation {sendMms(number:"+1555",body:"hi",attachmentPaths:[],threadId:"t1")}"#)
+        .await;
+    assert!(response.errors.is_empty(), "{:?}", response.errors);
+    let id = response.data.into_json().unwrap()["sendMms"]
+        .as_str()
+        .unwrap()
+        .to_owned();
     assert!(id.starts_with("pending_mms_"));
-    let runtime=schema.data::<Arc<super::super::mms_send::Runtime>>().unwrap();
-    assert_eq!(runtime.snapshot()[0]["id"],id);
-    assert_eq!(runtime.snapshot()[0]["threadId"],"t1");
-    let duplicate=schema.execute(r#"mutation {sendMms(number:"+1555",body:"hi",attachmentPaths:[],threadId:"t1")}"#).await;
-    assert_eq!(duplicate.errors.len(),1);
+    let runtime = schema
+        .data::<Arc<super::super::mms_send::Runtime>>()
+        .unwrap();
+    assert_eq!(runtime.snapshot()[0]["id"], id);
+    assert_eq!(runtime.snapshot()[0]["threadId"], "t1");
+    let duplicate = schema
+        .execute(r#"mutation {sendMms(number:"+1555",body:"hi",attachmentPaths:[],threadId:"t1")}"#)
+        .await;
+    assert_eq!(duplicate.errors.len(), 1);
     assert!(duplicate.errors[0].message.contains("already pending"));
     runtime.cancel_all();
 }

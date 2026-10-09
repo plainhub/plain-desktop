@@ -17,9 +17,9 @@ pub use plain_rs::chat_service;
 // Shared system/domain modules hosted by plain-rs, re-exported under the historical
 // module paths so call sites stay stable.
 pub use plain_rs::storage::automount;
+pub use plain_rs::storage::mounts;
 pub use plain_rs::system::consts;
 pub use plain_rs::system::log;
-pub use plain_rs::storage::mounts;
 
 // Media/file stack — now hosted by plain-rs (`plain_rs::media`), wired
 // through under the historical module paths so call sites stay stable.

@@ -71,5 +71,5 @@ impl Runtime {
 }
 
 #[cfg(test)]
-#[path="../../tests/unit/content_api/phone_geo.rs"]
+#[path = "../../tests/unit/content_api/phone_geo.rs"]
 mod tests;

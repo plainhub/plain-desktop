@@ -116,7 +116,13 @@ fn a_destructive_query_that_builds_no_clause_is_refused() {
     }
 
     // The fields that do build a clause, so a real selection goes through.
-    for query in ["ids:1,2", "text:hello", "type:1", "thread_id:7", "trashed:1"] {
+    for query in [
+        "ids:1,2",
+        "text:hello",
+        "type:1",
+        "thread_id:7",
+        "trashed:1",
+    ] {
         let fields = provider_plan::fields(&db, query).unwrap();
         let plans = plans(&db, &fields, true, None).unwrap();
         assert!(

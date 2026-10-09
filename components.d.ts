@@ -80,7 +80,6 @@ declare module 'vue' {
     DeleteFileConfirm: typeof import('./src/components/DeleteFileConfirm.vue')['default']
     DevDataTable: typeof import('./src/views/developer/DevDataTable.vue')['default']
     DeveloperDatabaseView: typeof import('./src/views/developer/DeveloperDatabaseView.vue')['default']
-    DeveloperPrefsView: typeof import('./src/views/developer/DeveloperPrefsView.vue')['default']
     DeveloperLogsView: typeof import('./src/views/developer/DeveloperLogsView.vue')['default']
     DeveloperPrefsView: typeof import('./src/views/developer/DeveloperPrefsView.vue')['default']
     DeveloperSidebar: typeof import('./src/views/developer/DeveloperSidebar.vue')['default']

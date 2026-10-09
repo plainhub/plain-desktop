@@ -179,8 +179,14 @@ fn mediastore_plans_only_name_columns_its_strict_grammar_accepts() {
             "type:image/png bucket_id:1 excluded_dir:/sd/x show_hidden:true \
              ids:1,2 trash:true",
         ),
-        (Provider::Video, "text:'a%_' bucket_id:1 ids:1,2 trash:true type:video/mp4"),
-        (Provider::Image, "text:'a%_' bucket_id:1 ids:1,2 trash:true type:image/png"),
+        (
+            Provider::Video,
+            "text:'a%_' bucket_id:1 ids:1,2 trash:true type:video/mp4",
+        ),
+        (
+            Provider::Image,
+            "text:'a%_' bucket_id:1 ids:1,2 trash:true type:image/png",
+        ),
     ];
 
     for (provider, query) in queries {
@@ -205,7 +211,8 @@ fn mediastore_plans_only_name_columns_its_strict_grammar_accepts() {
                         continue;
                     }
                     assert!(
-                        COLUMNS.contains(&token) || KEYWORDS.contains(&token.to_ascii_lowercase().as_str()),
+                        COLUMNS.contains(&token)
+                            || KEYWORDS.contains(&token.to_ascii_lowercase().as_str()),
                         "{provider:?} clause `{clause}` names unknown column `{token}`"
                     );
                 }
@@ -231,19 +238,43 @@ fn every_field_the_web_client_can_emit_is_still_accepted() {
             &["text", "tag_id", "bucket_id", "trash", "type"],
             "media view",
         ),
-        (Provider::Video, &["text", "tag_id", "bucket_id", "trash"], "media view"),
-        (Provider::Image, &["text", "tag_id", "bucket_id", "trash"], "media view"),
+        (
+            Provider::Video,
+            &["text", "tag_id", "bucket_id", "trash"],
+            "media view",
+        ),
+        (
+            Provider::Image,
+            &["text", "tag_id", "bucket_id", "trash"],
+            "media view",
+        ),
         // hooks/files.ts buildQ, plus root_path from hooks/files-sidebar.ts.
         (
             Provider::File,
-            &["text", "parent", "type", "root_path", "show_hidden", "file_size"],
+            &[
+                "text",
+                "parent",
+                "type",
+                "root_path",
+                "show_hidden",
+                "file_size",
+            ],
             "files view",
         ),
         // buildNextDocsQ keeps whatever the shared files filter already holds,
         // so a docs query can arrive carrying any of the files keys too.
         (
             Provider::Doc,
-            &["text", "ext", "file_size", "parent", "type", "root_path", "show_hidden", "trash"],
+            &[
+                "text",
+                "ext",
+                "file_size",
+                "parent",
+                "type",
+                "root_path",
+                "show_hidden",
+                "trash",
+            ],
             "docs view",
         ),
         // buildNextCallsQ.
@@ -278,14 +309,29 @@ fn media_trash_rides_the_query_argument_and_builds_no_clause() {
     // `.plain-trash` tree, which no phone process creates, and `trash:false`
     // producing one is exactly how a bulk ask read as narrowed when it was
     // really the whole table.
-    for provider in [Provider::Doc, Provider::Audio, Provider::Video, Provider::Image] {
+    for provider in [
+        Provider::Doc,
+        Provider::Audio,
+        Provider::Video,
+        Provider::Image,
+    ] {
         // What the same provider builds with nothing in the query at all: Doc
         // pins its mime types, the rest build nothing. Trash must add to that
         // baseline rather than to it.
         let bare = plan_ok(provider, &search_dsl::parse(""), &Value::Null, None, false);
         for (query, expected) in [("trash:true", true), ("trash:false", false)] {
-            let plan = plan_ok(provider, &search_dsl::parse(query), &Value::Null, None, false);
-            assert_eq!(plan.trash, Some(expected), "{provider:?} {query} lost the flag");
+            let plan = plan_ok(
+                provider,
+                &search_dsl::parse(query),
+                &Value::Null,
+                None,
+                false,
+            );
+            assert_eq!(
+                plan.trash,
+                Some(expected),
+                "{provider:?} {query} lost the flag"
+            );
             assert_eq!(
                 plan.clauses, bare.clauses,
                 "{provider:?} {query} built a selection clause: {:?}",
@@ -295,15 +341,17 @@ fn media_trash_rides_the_query_argument_and_builds_no_clause() {
     }
 
     // Contact and Call are not media stores and have no trash to ask for.
-    assert!(plan_ok(
-        Provider::Contact,
-        &search_dsl::parse("trash:true"),
-        &Value::Null,
-        None,
-        false
-    )
-    .trash
-    .is_none());
+    assert!(
+        plan_ok(
+            Provider::Contact,
+            &search_dsl::parse("trash:true"),
+            &Value::Null,
+            None,
+            false
+        )
+        .trash
+        .is_none()
+    );
 }
 
 /// A field the provider has never heard of is refused by name. Dropping it
@@ -338,9 +386,25 @@ fn unknown_fields_are_refused_instead_of_dropped() {
         );
     }
     // `id` is one provider's field and no other's.
-    assert!(plan(Provider::Contact, &search_dsl::parse("id:1"), &Value::Null, None, false).is_ok());
     assert!(
-        plan(Provider::Call, &search_dsl::parse("id:1"), &Value::Null, None, false).is_err(),
+        plan(
+            Provider::Contact,
+            &search_dsl::parse("id:1"),
+            &Value::Null,
+            None,
+            false
+        )
+        .is_ok()
+    );
+    assert!(
+        plan(
+            Provider::Call,
+            &search_dsl::parse("id:1"),
+            &Value::Null,
+            None,
+            false
+        )
+        .is_err(),
         "Contact's `id` must not leak into another provider's vocabulary"
     );
     // The whole-table sentinel and the no-op flags still pass on every
@@ -401,7 +465,9 @@ async fn a_query_that_builds_no_clause_is_the_one_the_destructive_path_refuses()
             "{provider:?} {query:?} was expected to build no clause"
         );
         assert!(
-            require_narrowing(&db, &host, provider, query).await.is_err(),
+            require_narrowing(&db, &host, provider, query)
+                .await
+                .is_err(),
             "{provider:?} {query:?} reaches a mutation with nothing selected"
         );
     }

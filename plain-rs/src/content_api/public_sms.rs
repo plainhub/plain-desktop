@@ -305,8 +305,10 @@ impl SmsMutation {
         attachment_paths: Vec<String>,
         thread_id: ID,
     ) -> async_graphql::Result<String> {
-        ctx.data_unchecked::<Arc<super::mms_send::Runtime>>().send(number,body,attachment_paths,thread_id.0).await.map_err(|error|async_graphql::Error::new(error.to_string()))
-
+        ctx.data_unchecked::<Arc<super::mms_send::Runtime>>()
+            .send(number, body, attachment_paths, thread_id.0)
+            .await
+            .map_err(|error| async_graphql::Error::new(error.to_string()))
     }
 }
 

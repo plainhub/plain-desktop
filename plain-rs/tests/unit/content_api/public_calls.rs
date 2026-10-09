@@ -65,8 +65,10 @@ async fn calls_map_the_provider_rows_onto_the_contract_type() {
             assert_eq!(params["limit"], 20);
             json!([call_fact("c1", 2)])
         }
-        "systemPhoneLocaleFacts"=>json!({"region":"CN","locale":"zh_CN","available":true}),
-        "systemPhoneMetadata"=>json!({"country":"CN","numberType":"MOBILE","carrier":"Test","description":"mobile"}),
+        "systemPhoneLocaleFacts" => json!({"region":"CN","locale":"zh_CN","available":true}),
+        "systemPhoneMetadata" => {
+            json!({"country":"CN","numberType":"MOBILE","carrier":"Test","description":"mobile"})
+        }
         other => panic!("unexpected host call {other}"),
     });
     let response = schema

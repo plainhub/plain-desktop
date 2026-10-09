@@ -69,5 +69,4 @@ pub const ETC_MAIN_CONFIG: &str = "/etc/plainnas/config.toml";
 pub const ETC_TLS_SERVER_PEM: &str = "/etc/plainnas/tls.pem";
 pub const ETC_TLS_SERVER_KEY: &str = "/etc/plainnas/tls.key";
 
-
 pub static DATA_DIR: &str = "/var/lib/plainnas";

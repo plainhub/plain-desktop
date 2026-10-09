@@ -24,8 +24,8 @@ use axum::response::Response;
 use super::response::respond;
 use crate::api::context::AppCtx;
 use crate::base64_decode;
-use crate::query::parse_query;
 use crate::http_server::ServerState;
+use crate::query::parse_query;
 use crate::xchacha_decrypt;
 
 pub async fn proxyfs_handler(State(state): State<ServerState>, req: Request) -> Response {

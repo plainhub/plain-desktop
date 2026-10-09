@@ -1,7 +1,13 @@
 use super::*;
 #[test]
 fn guest_wire_and_file_ids_use_existing_xchacha_contract_and_exact_query_encoding() {
-    let link = Link::new("::1", 8443, "share +/?#中文", &crate::utils::base64::base64_encode_url_safe(&[7; 32])).unwrap();
+    let link = Link::new(
+        "::1",
+        8443,
+        "share +/?#中文",
+        &crate::utils::base64::base64_encode_url_safe(&[7; 32]),
+    )
+    .unwrap();
     assert!(link.page_url.starts_with("https://[::1]:8443/s/share"));
     let first = link.request(Some("folder/quoted\" 中文%")).unwrap();
     let second = link.request(None).unwrap();
@@ -22,7 +28,11 @@ fn guest_wire_and_file_ids_use_existing_xchacha_contract_and_exact_query_encodin
         "folder/quoted\" 中文%"
     );
     let url = link
-        .file_url(&crate::utils::base64::base64_encode(&[8; 32]), "folder/+/?#中文%", false)
+        .file_url(
+            &crate::utils::base64::base64_encode(&[8; 32]),
+            "folder/+/?#中文%",
+            false,
+        )
         .unwrap();
     let url = reqwest::Url::parse(&url).unwrap();
     let query: std::collections::HashMap<_, _> = url.query_pairs().collect();
@@ -37,12 +47,26 @@ fn guest_wire_and_file_ids_use_existing_xchacha_contract_and_exact_query_encodin
     );
     assert!(link.file_url("bad", "", false).is_err());
     for host in ["localhost/path", "evil@localhost", "a,b", "a?b", "a\\b"] {
-        assert!(Link::new(host, 443, "id", &crate::utils::base64::base64_encode_url_safe(&[7; 32])).is_err());
+        assert!(
+            Link::new(
+                host,
+                443,
+                "id",
+                &crate::utils::base64::base64_encode_url_safe(&[7; 32])
+            )
+            .is_err()
+        );
     }
 }
 #[test]
 fn guest_response_never_accepts_unauthenticated_data_or_invalid_file_tokens() {
-    let link = Link::new("localhost", 443, "id", &crate::utils::base64::base64_encode_url_safe(&[7; 32])).unwrap();
+    let link = Link::new(
+        "localhost",
+        443,
+        "id",
+        &crate::utils::base64::base64_encode_url_safe(&[7; 32]),
+    )
+    .unwrap();
     let plain=json!({"data":{"sharedInfo":{"name":"share","readOnly":true,"requiresPassword":false,"expiresAt":null,"urlToken":crate::utils::base64::base64_encode(&[8;32]),"entries":[]}}}).to_string();
     assert!(link.response(plain.as_bytes()).is_err());
     assert_eq!(

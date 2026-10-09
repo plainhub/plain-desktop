@@ -1,9 +1,9 @@
 //! Unit tests for the nas `/fs` behaviors merged into the shared file
 //! server (moved from plain-nas): range handling, recent-file tracking,
 //! codec probe and chat-attachment `fid:` resolution.
-use crate::media::kv::recent;
 use crate::http_server::ServerState;
 use crate::http_server::test_support::{as_desktop, nas_state_with};
+use crate::media::kv::recent;
 use axum::body::Body;
 use axum::extract::Request;
 use axum::http::{HeaderName, StatusCode, header};
@@ -16,10 +16,7 @@ fn test_state() -> (ServerState, Vec<u8>) {
     let key = [7u8; 32];
     let state = nas_state_with(|prefs| {
         prefs
-            .set(
-                "url_token",
-                &crate::utils::base64::base64_encode(&key),
-            )
+            .set("url_token", &crate::utils::base64::base64_encode(&key))
             .expect("set url_token");
     });
     (as_desktop(&state), key.to_vec())
@@ -45,7 +42,8 @@ async fn call_fs(state: &ServerState, query: &str, headers: &[(&HeaderName, &str
         builder = builder.header(*name, *value);
     }
     let req = builder.body(Body::empty()).unwrap();
-    crate::http_server::routes::file_server::fs_handler(axum::extract::State(state.clone()), req).await
+    crate::http_server::routes::file_server::fs_handler(axum::extract::State(state.clone()), req)
+        .await
 }
 
 async fn body_bytes(resp: Response) -> Vec<u8> {

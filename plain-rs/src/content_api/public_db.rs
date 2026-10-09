@@ -180,27 +180,84 @@ fn table_arg(table: &str) -> Value {
 }
 
 async fn host_call(ctx: &Context<'_>, method: &str, params: Value) -> async_graphql::Result<Value> {
-    let host=ctx.data_unchecked::<Arc<Host>>();
-    let path=host.call("systemDbPath",empty()).await.map_err(async_graphql::Error::new)?.as_str().unwrap_or_default().to_owned();
-    let method=method.to_owned();
-    tokio::task::spawn_blocking(move||{let result=execute(&path,&method,&params);if matches!(method.as_str(),"systemCreateDbRow"|"systemDeleteDbRows") {Ok(result.unwrap_or(serde_json::json!(false)))}else{result}}).await.map_err(|e|async_graphql::Error::new(e.to_string()))?.map_err(|e|async_graphql::Error::new(e.to_string()))
+    let host = ctx.data_unchecked::<Arc<Host>>();
+    let path = host
+        .call("systemDbPath", empty())
+        .await
+        .map_err(async_graphql::Error::new)?
+        .as_str()
+        .unwrap_or_default()
+        .to_owned();
+    let method = method.to_owned();
+    tokio::task::spawn_blocking(move || {
+        let result = execute(&path, &method, &params);
+        if matches!(method.as_str(), "systemCreateDbRow" | "systemDeleteDbRows") {
+            Ok(result.unwrap_or(serde_json::json!(false)))
+        } else {
+            result
+        }
+    })
+    .await
+    .map_err(|e| async_graphql::Error::new(e.to_string()))?
+    .map_err(|e| async_graphql::Error::new(e.to_string()))
 }
-fn execute(path:&str,method:&str,params:&Value)->anyhow::Result<Value> {
+fn execute(path: &str, method: &str, params: &Value) -> anyhow::Result<Value> {
     use crate::sqlite_browse as browse;
-    use browse::rusqlite::{Connection,OpenFlags};
-    if path.is_empty(){return Ok(match method {"systemDbFacts"=>serde_json::json!({"path":"","tables":[]}),"systemDbRowCount"=>serde_json::json!(0),"systemDbRows"=>serde_json::json!({"rows":[]}),"systemDbColumns"=>serde_json::json!({"columns":[]}),"systemDbInfo"=>serde_json::json!({"idKey":"id"}),_=>serde_json::json!(false)});}
-    let conn=Connection::open_with_flags(path,OpenFlags::SQLITE_OPEN_READ_WRITE)?;conn.busy_timeout(std::time::Duration::from_secs(5))?;
-    if method=="systemDbFacts" {let tables:Vec<_>=browse::tables(&conn).into_iter().filter(|name|!name.starts_with("android_")&&!name.starts_with("room_")).collect();return Ok(serde_json::json!({"path":path,"tables":tables}));}
-    let table=params["table"].as_str().unwrap_or_default();
-    anyhow::ensure!(browse::table_exists(&conn,table),"Table not found or invalid identifier: {table}");
+    use browse::rusqlite::{Connection, OpenFlags};
+    if path.is_empty() {
+        return Ok(match method {
+            "systemDbFacts" => serde_json::json!({"path":"","tables":[]}),
+            "systemDbRowCount" => serde_json::json!(0),
+            "systemDbRows" => serde_json::json!({"rows":[]}),
+            "systemDbColumns" => serde_json::json!({"columns":[]}),
+            "systemDbInfo" => serde_json::json!({"idKey":"id"}),
+            _ => serde_json::json!(false),
+        });
+    }
+    let conn = Connection::open_with_flags(path, OpenFlags::SQLITE_OPEN_READ_WRITE)?;
+    conn.busy_timeout(std::time::Duration::from_secs(5))?;
+    if method == "systemDbFacts" {
+        let tables: Vec<_> = browse::tables(&conn)
+            .into_iter()
+            .filter(|name| !name.starts_with("android_") && !name.starts_with("room_"))
+            .collect();
+        return Ok(serde_json::json!({"path":path,"tables":tables}));
+    }
+    let table = params["table"].as_str().unwrap_or_default();
+    anyhow::ensure!(
+        browse::table_exists(&conn, table),
+        "Table not found or invalid identifier: {table}"
+    );
     Ok(match method {
-        "systemDbRowCount"=>serde_json::json!(browse::row_count(&conn,table)?),
-        "systemDbRows"=>serde_json::json!({"rows":browse::rows_page_text(&conn,table,params["offset"].as_i64().unwrap_or_default(),params["limit"].as_i64().unwrap_or_default())?}),
-        "systemDbColumns"=>serde_json::json!({"columns":browse::table_columns(&conn,table).into_iter().map(|column|serde_json::json!({"name":column.name,"dataType":column.data_type,"notNull":column.not_null,"defaultValue":column.default_value,"primaryKey":column.primary_key})).collect::<Vec<_>>()}),
-        "systemDbInfo"=>serde_json::json!({"idKey":browse::primary_key_column(&conn,table).unwrap_or_else(||"id".into())}),
-        "systemCreateDbRow"=>{let mut row:serde_json::Map<String,Value>=serde_json::from_str(params["row"].as_str().unwrap_or_default())?;for value in row.values_mut(){if value.is_null(){*value=Value::String("null".into());}}browse::insert_row(&conn,table,&row)?;serde_json::json!(true)},
-        "systemDeleteDbRows"=>{let ids:Vec<String>=serde_json::from_value(params["ids"].clone())?;anyhow::ensure!(!ids.is_empty(),"ids must not be empty");let key=browse::primary_key_column(&conn,table).unwrap_or_else(||"id".into());browse::delete_rows(&conn,table,&key,&ids)?;serde_json::json!(true)},
-        _=>anyhow::bail!("Unsupported database operation"),
+        "systemDbRowCount" => serde_json::json!(browse::row_count(&conn, table)?),
+        "systemDbRows" => {
+            serde_json::json!({"rows":browse::rows_page_text(&conn,table,params["offset"].as_i64().unwrap_or_default(),params["limit"].as_i64().unwrap_or_default())?})
+        }
+        "systemDbColumns" => {
+            serde_json::json!({"columns":browse::table_columns(&conn,table).into_iter().map(|column|serde_json::json!({"name":column.name,"dataType":column.data_type,"notNull":column.not_null,"defaultValue":column.default_value,"primaryKey":column.primary_key})).collect::<Vec<_>>()})
+        }
+        "systemDbInfo" => {
+            serde_json::json!({"idKey":browse::primary_key_column(&conn,table).unwrap_or_else(||"id".into())})
+        }
+        "systemCreateDbRow" => {
+            let mut row: serde_json::Map<String, Value> =
+                serde_json::from_str(params["row"].as_str().unwrap_or_default())?;
+            for value in row.values_mut() {
+                if value.is_null() {
+                    *value = Value::String("null".into());
+                }
+            }
+            browse::insert_row(&conn, table, &row)?;
+            serde_json::json!(true)
+        }
+        "systemDeleteDbRows" => {
+            let ids: Vec<String> = serde_json::from_value(params["ids"].clone())?;
+            anyhow::ensure!(!ids.is_empty(), "ids must not be empty");
+            let key = browse::primary_key_column(&conn, table).unwrap_or_else(|| "id".into());
+            browse::delete_rows(&conn, table, &key, &ids)?;
+            serde_json::json!(true)
+        }
+        _ => anyhow::bail!("Unsupported database operation"),
     })
 }
 

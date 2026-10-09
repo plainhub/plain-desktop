@@ -160,7 +160,13 @@ pub(crate) fn build_with_runtime(
             move |path| {
                 let host = host.clone();
                 Box::pin(async move {
-                    if let Err(error) = host.call("scanFilesFacts", serde_json::json!({"paths": [path.to_string_lossy()]})).await {
+                    if let Err(error) = host
+                        .call(
+                            "scanFilesFacts",
+                            serde_json::json!({"paths": [path.to_string_lossy()]}),
+                        )
+                        .await
+                    {
                         log::warn!("Merged upload media scan failed: {error}");
                     }
                 })

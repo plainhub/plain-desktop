@@ -1,4 +1,4 @@
-use async_graphql::{Context, Object, ID};
+use async_graphql::{Context, ID, Object};
 use std::sync::Arc;
 
 use super::types::{ChatChannel, ChatItem, Peer};

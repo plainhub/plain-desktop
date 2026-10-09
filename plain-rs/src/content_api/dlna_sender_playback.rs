@@ -91,7 +91,8 @@ pub(super) async fn cast(state: &ServerState, item: Item, advance: bool) -> Resu
     }
     if item.audio {
         let track = item.clone();
-        let _ = state.audio
+        let _ = state
+            .audio
             .run(move |db, _lib| {
                 crate::library::audio_queue::on_playing(
                     db,

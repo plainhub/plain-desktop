@@ -172,8 +172,14 @@ impl MediaQuery {
         if !public_gate::require_granted(ctx, &[STORAGE]).await? {
             return Ok(0);
         }
-        super::image_search::count(ctx.data_unchecked::<Arc<Host>>(), ctx.data_unchecked::<Arc<super::image_models::Runtime>>(), &text_field(&query), &query)
-            .await.map_err(async_graphql::Error::new)
+        super::image_search::count(
+            ctx.data_unchecked::<Arc<Host>>(),
+            ctx.data_unchecked::<Arc<super::image_models::Runtime>>(),
+            &text_field(&query),
+            &query,
+        )
+        .await
+        .map_err(async_graphql::Error::new)
     }
 
     async fn images(
@@ -185,8 +191,19 @@ impl MediaQuery {
         sort_by: crate::content_types::FileSortBy,
     ) -> async_graphql::Result<Vec<Image>> {
         public_gate::require(prefs(ctx), &[STORAGE])?;
-        let items = Value::Array(super::image_search::rows(ctx.data_unchecked::<Arc<Host>>(), ctx.data_unchecked::<Arc<super::image_models::Runtime>>(), &text_field(&query), &query, offset, limit, sort_by.as_str())
-            .await.map_err(async_graphql::Error::new)?);
+        let items = Value::Array(
+            super::image_search::rows(
+                ctx.data_unchecked::<Arc<Host>>(),
+                ctx.data_unchecked::<Arc<super::image_models::Runtime>>(),
+                &text_field(&query),
+                &query,
+                offset,
+                limit,
+                sort_by.as_str(),
+            )
+            .await
+            .map_err(async_graphql::Error::new)?,
+        );
         let tags = tags_for(ctx, "IMAGE", &items).await?;
         Ok(rows(&items, |item| {
             let row = row(item);

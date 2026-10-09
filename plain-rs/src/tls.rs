@@ -145,20 +145,22 @@ mod tests {
     }
     #[test]
     fn pkcs12_roundtrip_and_wrong_password_are_handled_in_rust() {
-        use p12_keystore::{KeyStore, KeyStoreEntry, PrivateKeyChain, PrivateKey, Certificate};
-        let cert=generate_simple_self_signed(vec!["localhost".into()]).unwrap();
-        let key=PrivateKey::from_der(&cert.key_pair.serialize_der()).unwrap();
-        let certificate=Certificate::from_der(cert.cert.der()).unwrap();
-        let mut store=KeyStore::new();
-        store.add_entry("server",KeyStoreEntry::PrivateKeyChain(PrivateKeyChain::new(vec![1u8],key,vec![certificate])));
-        let bytes=store.writer("password").write().unwrap();
-        let (chain,private)=decode_pkcs12(&bytes,"password").unwrap();
-        assert_eq!(chain,cert.cert.pem().into_bytes());
-        assert_eq!(private,cert.key_pair.serialize_pem().into_bytes());
-        assert!(decode_pkcs12(&bytes,"wrong").is_err());
-        assert!(decode_pkcs12(b"invalid","password").is_err());
-        let empty=KeyStore::new().writer("").write().unwrap();
-        assert!(decode_pkcs12(&empty,"").is_err());
+        use p12_keystore::{Certificate, KeyStore, KeyStoreEntry, PrivateKey, PrivateKeyChain};
+        let cert = generate_simple_self_signed(vec!["localhost".into()]).unwrap();
+        let key = PrivateKey::from_der(&cert.key_pair.serialize_der()).unwrap();
+        let certificate = Certificate::from_der(cert.cert.der()).unwrap();
+        let mut store = KeyStore::new();
+        store.add_entry(
+            "server",
+            KeyStoreEntry::PrivateKeyChain(PrivateKeyChain::new(vec![1u8], key, vec![certificate])),
+        );
+        let bytes = store.writer("password").write().unwrap();
+        let (chain, private) = decode_pkcs12(&bytes, "password").unwrap();
+        assert_eq!(chain, cert.cert.pem().into_bytes());
+        assert_eq!(private, cert.key_pair.serialize_pem().into_bytes());
+        assert!(decode_pkcs12(&bytes, "wrong").is_err());
+        assert!(decode_pkcs12(b"invalid", "password").is_err());
+        let empty = KeyStore::new().writer("").write().unwrap();
+        assert!(decode_pkcs12(&empty, "").is_err());
     }
-
 }

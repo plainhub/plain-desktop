@@ -417,13 +417,25 @@ mod tests {
     }
     #[test]
     fn protocol_mime_wins_over_conflicting_class_and_url() {
-        for (mime, expected) in [("video/mp4", DlnaMediaType::VIDEO),("video/mp2t",DlnaMediaType::VIDEO),("audio/flac",DlnaMediaType::AUDIO),("image/png",DlnaMediaType::IMAGE)] {
-            let meta=format!(r#"<item><upnp:class>object.item.audioItem.musicTrack</upnp:class><res protocolInfo="http-get:*:{mime}:*">http://host/fs?id=a</res></item>"#);
-            assert_eq!(extract_media_type_from_didl_meta(&meta,"http://host/a.mp4"),expected);
+        for (mime, expected) in [
+            ("video/mp4", DlnaMediaType::VIDEO),
+            ("video/mp2t", DlnaMediaType::VIDEO),
+            ("audio/flac", DlnaMediaType::AUDIO),
+            ("image/png", DlnaMediaType::IMAGE),
+        ] {
+            let meta = format!(
+                r#"<item><upnp:class>object.item.audioItem.musicTrack</upnp:class><res protocolInfo="http-get:*:{mime}:*">http://host/fs?id=a</res></item>"#
+            );
+            assert_eq!(
+                extract_media_type_from_didl_meta(&meta, "http://host/a.mp4"),
+                expected
+            );
         }
         for url in ["", "http://host/fs?id=unknown", "http://host/a.unknownext"] {
-            assert_eq!(extract_media_type_from_didl_meta("",url),DlnaMediaType::UNKNOWN);
+            assert_eq!(
+                extract_media_type_from_didl_meta("", url),
+                DlnaMediaType::UNKNOWN
+            );
         }
     }
-
 }

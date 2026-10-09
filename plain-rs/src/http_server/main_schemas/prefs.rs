@@ -23,12 +23,16 @@ pub struct PrefsQuery;
 impl PrefsQuery {
     async fn user_prefs(&self, ctx: &Context<'_>) -> Json<Value> {
         let c = ctx.data_unchecked::<Arc<AppCtx>>();
-        Json(Value::Object(c.prefs.user_entries().into_iter().collect::<Map<_, _>>()))
+        Json(Value::Object(
+            c.prefs.user_entries().into_iter().collect::<Map<_, _>>(),
+        ))
     }
 
     async fn system_prefs(&self, ctx: &Context<'_>) -> Json<Value> {
         let c = ctx.data_unchecked::<Arc<AppCtx>>();
-        Json(Value::Object(c.prefs.entries().into_iter().collect::<Map<_, _>>()))
+        Json(Value::Object(
+            c.prefs.entries().into_iter().collect::<Map<_, _>>(),
+        ))
     }
 }
 

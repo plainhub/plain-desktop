@@ -20,9 +20,9 @@ use std::net::SocketAddr;
 
 use super::request_key::{RequestKey, RequestKeyError, resolve_request_key};
 use super::response::{APP_ID, respond};
-use crate::http_server::websocket as ws;
 use crate::api::executor::execute_graphql;
 use crate::dlna_receiver;
+use crate::http_server::websocket as ws;
 use crate::http_server::{AuthPolicy, ServerState};
 
 pub async fn health() -> Response {

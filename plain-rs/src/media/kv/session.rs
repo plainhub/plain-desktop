@@ -98,7 +98,8 @@ fn key_for(client_id: &str) -> Vec<u8> {
 
 /// Helper used by the API layer to derive a 32-byte key from a session token.
 pub fn token_key(token: &str) -> Result<[u8; KEY_LEN]> {
-    let bytes = crate::utils::base64::base64_decode_checked(token).map_err(|_| anyhow!("invalid base64 token"))?;
+    let bytes = crate::utils::base64::base64_decode_checked(token)
+        .map_err(|_| anyhow!("invalid base64 token"))?;
     if bytes.len() != KEY_LEN {
         return Err(anyhow!("token must be {} bytes", KEY_LEN));
     }

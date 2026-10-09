@@ -1,7 +1,7 @@
 //! Unit tests for the nas auth handlers (moved from plain-nas).
 use super::init_session;
-use crate::media::kv::PasswordStore;
 use crate::http_server::test_support::nas_state;
+use crate::media::kv::PasswordStore;
 use axum::http::{HeaderMap, StatusCode};
 
 fn cid_headers(cid: &str) -> HeaderMap {

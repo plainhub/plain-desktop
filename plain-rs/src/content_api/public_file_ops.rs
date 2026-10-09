@@ -64,9 +64,10 @@ impl UploadQuery {
         ctx: &Context<'_>,
         file_id: String,
     ) -> async_graphql::Result<Vec<String>> {
-        let base=upload_base(ctx).await?;
-        crate::uploads::list(&base,&file_id).await.map_err(|error|async_graphql::Error::new(error.to_string()))
-
+        let base = upload_base(ctx).await?;
+        crate::uploads::list(&base, &file_id)
+            .await
+            .map_err(|error| async_graphql::Error::new(error.to_string()))
     }
 
     /// `NONE` when no merge was ever started for this id, which is what a
@@ -76,8 +77,10 @@ impl UploadQuery {
         ctx: &Context<'_>,
         file_id: String,
     ) -> async_graphql::Result<MergeTask> {
-        Ok(merge_task(&ctx.data_unchecked::<std::sync::Arc<crate::uploads::Runtime>>().status(&file_id)))
-
+        Ok(merge_task(
+            &ctx.data_unchecked::<std::sync::Arc<crate::uploads::Runtime>>()
+                .status(&file_id),
+        ))
     }
 }
 
@@ -173,9 +176,11 @@ impl FileOpsMutation {
         ctx: &Context<'_>,
         file_id: String,
     ) -> async_graphql::Result<bool> {
-        let base=upload_base(ctx).await?;
-        ctx.data_unchecked::<std::sync::Arc<crate::uploads::Runtime>>().delete(&base,&file_id).await.map_err(|error|async_graphql::Error::new(error.to_string()))
-
+        let base = upload_base(ctx).await?;
+        ctx.data_unchecked::<std::sync::Arc<crate::uploads::Runtime>>()
+            .delete(&base, &file_id)
+            .await
+            .map_err(|error| async_graphql::Error::new(error.to_string()))
     }
 
     /// Starts the merge and returns immediately; completion arrives over the
@@ -189,8 +194,17 @@ impl FileOpsMutation {
         replace: bool,
         total_size: crate::content_types::Long,
     ) -> async_graphql::Result<MergeTask> {
-        start_merge(ctx,file_id,total_chunks,total_size.0,crate::uploads::Kind::File {path:std::path::PathBuf::from(path),replace}).await
-
+        start_merge(
+            ctx,
+            file_id,
+            total_chunks,
+            total_size.0,
+            crate::uploads::Kind::File {
+                path: std::path::PathBuf::from(path),
+                replace,
+            },
+        )
+        .await
     }
 
     async fn merge_app_file_chunks(
@@ -201,8 +215,14 @@ impl FileOpsMutation {
         file_name: String,
         total_size: crate::content_types::Long,
     ) -> async_graphql::Result<MergeTask> {
-        start_merge(ctx,file_id,total_chunks,total_size.0,crate::uploads::Kind::AppFile {name:file_name}).await
-
+        start_merge(
+            ctx,
+            file_id,
+            total_chunks,
+            total_size.0,
+            crate::uploads::Kind::AppFile { name: file_name },
+        )
+        .await
     }
 }
 
@@ -392,15 +412,30 @@ async fn host_call(ctx: &Context<'_>, method: &str, params: Value) -> async_grap
 #[path = "../../tests/unit/content_api/public_file_ops.rs"]
 mod tests;
 
-async fn upload_base(ctx:&Context<'_>)->async_graphql::Result<std::path::PathBuf> {
-    let facts=host_call(ctx,"uploadTmpDirFacts",json!({})).await?;
-    Ok(std::path::PathBuf::from(text(&facts,"path")))
+async fn upload_base(ctx: &Context<'_>) -> async_graphql::Result<std::path::PathBuf> {
+    let facts = host_call(ctx, "uploadTmpDirFacts", json!({})).await?;
+    Ok(std::path::PathBuf::from(text(&facts, "path")))
 }
-async fn start_merge(ctx:&Context<'_>,id:String,count:i32,size:i64,kind:crate::uploads::Kind)->async_graphql::Result<MergeTask> {
-    let base=upload_base(ctx).await?;
-    let store=ctx.data_unchecked::<std::sync::Arc<crate::app_files::FileStore>>().clone();
-    let runtime=ctx.data_unchecked::<std::sync::Arc<crate::uploads::Runtime>>().clone();
-    let events=ctx.data_unchecked::<tokio::sync::broadcast::Sender<crate::ws_event::WsEvent>>().clone();
-    let value=runtime.start(store,base,id,count,size,kind,events).await.map_err(|error|async_graphql::Error::new(error.to_string()))?;
+async fn start_merge(
+    ctx: &Context<'_>,
+    id: String,
+    count: i32,
+    size: i64,
+    kind: crate::uploads::Kind,
+) -> async_graphql::Result<MergeTask> {
+    let base = upload_base(ctx).await?;
+    let store = ctx
+        .data_unchecked::<std::sync::Arc<crate::app_files::FileStore>>()
+        .clone();
+    let runtime = ctx
+        .data_unchecked::<std::sync::Arc<crate::uploads::Runtime>>()
+        .clone();
+    let events = ctx
+        .data_unchecked::<tokio::sync::broadcast::Sender<crate::ws_event::WsEvent>>()
+        .clone();
+    let value = runtime
+        .start(store, base, id, count, size, kind, events)
+        .await
+        .map_err(|error| async_graphql::Error::new(error.to_string()))?;
     Ok(merge_task(&value))
 }

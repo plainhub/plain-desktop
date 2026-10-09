@@ -9,13 +9,13 @@ pub mod temp_store;
 pub mod tls;
 pub mod websocket;
 
-pub use models::{AuthPolicy, ServerSettings, ServerState};
-#[cfg(all(test, feature = "system"))]
-pub(crate) use models::test_support;
-pub use routes::cors::CorsPolicy;
 use axum::Router;
 use axum::extract::DefaultBodyLimit;
 use axum::routing::{get, post};
+#[cfg(all(test, feature = "system"))]
+pub(crate) use models::test_support;
+pub use models::{AuthPolicy, ServerSettings, ServerState};
+pub use routes::cors::CorsPolicy;
 
 use routes::{auth, cors, file_server, handlers, proxy_file, static_files, upload, zip};
 
@@ -30,8 +30,14 @@ pub fn build_router(state: ServerState) -> Router {
         .route("/peer_graphql", post(handlers::peer_graphql_handler))
         .route("/nearby", post(handlers::nearby))
         .route("/fs", get(file_server::fs_handler))
-        .route("/upload", post(upload::upload_handler).layer(DefaultBodyLimit::max(MAX_UPLOAD_BODY_BYTES)))
-        .route("/upload_chunk", post(upload::upload_chunk_handler).layer(DefaultBodyLimit::max(MAX_UPLOAD_BODY_BYTES)))
+        .route(
+            "/upload",
+            post(upload::upload_handler).layer(DefaultBodyLimit::max(MAX_UPLOAD_BODY_BYTES)),
+        )
+        .route(
+            "/upload_chunk",
+            post(upload::upload_chunk_handler).layer(DefaultBodyLimit::max(MAX_UPLOAD_BODY_BYTES)),
+        )
         .route("/zip/dir", get(zip::zip_dir_handler))
         .route("/zip/files", get(zip::zip_files_handler));
 
@@ -58,7 +64,8 @@ pub fn build_router(state: ServerState) -> Router {
         return router.with_state(state);
     }
 
-    router.route("/proxyfs", get(proxy_file::proxyfs_handler))
+    router
+        .route("/proxyfs", get(proxy_file::proxyfs_handler))
         .fallback(handlers::fallback)
         .layer(cors::layer(&state.settings.cors))
         .with_state(state)

@@ -55,21 +55,26 @@ fn roundtrip_string_and_json_shapes() {
 fn system_and_user_preferences_are_persisted_separately() {
     let (dir, prefs) = tmp_prefs("split-stores");
     prefs.set("theme", "system").unwrap();
-    prefs.set_user("theme", serde_json::json!({"mode": "dark"})).unwrap();
+    prefs
+        .set_user("theme", serde_json::json!({"mode": "dark"}))
+        .unwrap();
 
     let system: serde_json::Value =
-        serde_json::from_str(&std::fs::read_to_string(dir.join("system_prefs.json")).unwrap()).unwrap();
-    let user: serde_json::Value = serde_json::from_str(
-        &std::fs::read_to_string(dir.join("user_prefs.json")).unwrap(),
-    )
-    .unwrap();
+        serde_json::from_str(&std::fs::read_to_string(dir.join("system_prefs.json")).unwrap())
+            .unwrap();
+    let user: serde_json::Value =
+        serde_json::from_str(&std::fs::read_to_string(dir.join("user_prefs.json")).unwrap())
+            .unwrap();
     assert_eq!(system["theme"], "system");
     assert_eq!(user["theme"], serde_json::json!({"mode": "dark"}));
     assert_eq!(
         prefs.get_user::<serde_json::Value>("theme").unwrap(),
         Some(serde_json::json!({"mode": "dark"}))
     );
-    assert_eq!(prefs.get::<String>("theme").unwrap().as_deref(), Some("system"));
+    assert_eq!(
+        prefs.get::<String>("theme").unwrap().as_deref(),
+        Some("system")
+    );
 }
 
 #[test]

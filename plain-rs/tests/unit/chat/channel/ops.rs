@@ -1,7 +1,7 @@
-use crate::db::{Db, DPeer};
 use crate::chat::enums::{ChannelStatus, DeviceType, MemberStatus};
 use crate::chat::service::{ChatIdentity, ChatService, NoChatHooks, no_link_previews};
 use crate::chat::transport::PeerTransport;
+use crate::db::{DPeer, Db};
 use std::path::PathBuf;
 use std::sync::Arc;
 use std::time::{SystemTime, UNIX_EPOCH};

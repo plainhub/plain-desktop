@@ -7,10 +7,10 @@ use std::sync::Arc;
 use tokio::signal::unix::{SignalKind, signal};
 
 use plain_rs::api::context::{AppCtx, ShellHooks};
-use plain_rs::http_server::main_schemas::capability_types;
-use plain_rs::http_server::main_schemas::types::Capability;
 use plain_rs::http_server::ServerState;
 use plain_rs::http_server::build_router;
+use plain_rs::http_server::main_schemas::capability_types;
+use plain_rs::http_server::main_schemas::types::Capability;
 use plain_rs::http_server::{AuthPolicy, ServerSettings, events::spawn_media_event_bridge};
 
 use crate::config::Config;
@@ -316,8 +316,8 @@ pub async fn run(paths: &AppPaths) -> Result<()> {
 
     // Chat stack (plain-app contract): SQLite plain.db + pairing manager
     // over the shared plain_rs::chat module.
-    let mut chat =
-        plain_rs::chat_service::ChatState::nas_init(&paths.data_dir, &prefs).context("init chat")?;
+    let mut chat = plain_rs::chat_service::ChatState::nas_init(&paths.data_dir, &prefs)
+        .context("init chat")?;
     chat.start_discovery(&prefs);
     let chat_discovery = chat.discovery.clone();
     let chat = Arc::new(chat);

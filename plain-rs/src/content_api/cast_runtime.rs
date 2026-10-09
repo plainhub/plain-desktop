@@ -194,7 +194,8 @@ async fn apply(
             Some(snapshot.items[index].clone())
         } else if snapshot.current_audio {
             let shuffle = state.prefs.get_user_or("audio_play_mode", String::new()) == "SHUFFLE";
-            state.audio
+            state
+                .audio
                 .run(move |db, lib| {
                     crate::library::audio_queue::select_next(db, lib, true, shuffle)
                 })

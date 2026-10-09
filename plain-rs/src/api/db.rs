@@ -6,7 +6,7 @@ pub use crate::db::bookmark::{
     insert_bookmark, insert_bookmark_group, update_bookmark, update_bookmark_group,
 };
 pub use crate::db::{
-    Db, DAppFile, DChannel, DChat, DNearbyDeviceCache, DPeer, iso_from_unix_millis, now_iso,
+    DAppFile, DChannel, DChat, DNearbyDeviceCache, DPeer, Db, iso_from_unix_millis, now_iso,
     now_millis,
 };
 

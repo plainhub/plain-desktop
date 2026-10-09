@@ -1,6 +1,6 @@
 use super::capability_types::*;
-use super::types::{Instant, MediaDataType};
 use super::types::KeyValuePair;
+use super::types::{Instant, MediaDataType};
 use crate::api::context::AppCtx;
 use async_graphql::{Context, ID, Object, Result};
 use std::sync::Arc;
