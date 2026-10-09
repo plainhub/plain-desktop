@@ -64,7 +64,10 @@ pub(super) fn record(direction: &'static str, src: SocketAddr, dst: SocketAddr, 
     }
     let (summary, detail) = decode(bytes);
     let row = PacketLog {
-        time: chrono::Utc::now().timestamp_millis(),
+        time: std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .map(|value| value.as_millis() as i64)
+            .unwrap_or_else(|error| -(error.duration().as_millis() as i64)),
         direction,
         src_ip: src.ip().to_string(),
         src_port: src.port(),

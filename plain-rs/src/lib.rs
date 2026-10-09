@@ -5,12 +5,15 @@
 
 #[cfg(feature = "api")]
 pub mod api;
+#[cfg(feature = "ble")]
+pub mod ble;
 #[cfg(feature = "chat")]
 pub mod chat;
 #[cfg(feature = "system")]
 pub mod chat_discovery;
 #[cfg(feature = "api")]
 pub mod chat_service;
+#[cfg(feature = "crypto")]
 pub mod crypto;
 #[cfg(any(feature = "chat", feature = "library", feature = "sqlite_browse"))]
 pub mod db;
@@ -53,8 +56,10 @@ pub mod tls;
 #[cfg(feature = "http_transport")]
 pub mod tls_identity;
 pub mod utils;
+#[cfg(feature = "crypto")]
 pub mod ws_frame;
 
+#[cfg(feature = "crypto")]
 pub use crypto::*;
 pub use utils::*;
 

@@ -74,7 +74,7 @@ pub fn decode_pkcs12(bytes: &[u8], password: &str) -> Result<(Vec<u8>, Vec<u8>),
         return Err("No certificate chain found in certificate file".into());
     }
     let pem = |label: &str, bytes: &[u8]| {
-        let encoded = crate::base64_encode(bytes);
+        let encoded = crate::utils::base64::base64_encode(bytes);
         let mut text = format!("-----BEGIN {label}-----\n");
         for line in encoded.as_bytes().chunks(64) {
             text.push_str(std::str::from_utf8(line).unwrap());

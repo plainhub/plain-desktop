@@ -1,6 +1,5 @@
-#[path = "ble_wire/gateway.rs"]
 mod gateway;
-use anyhow::{bail, ensure, Result};
+use anyhow::{Result, bail, ensure};
 pub use gateway::GatewayRequest;
 use std::time::{Duration, Instant};
 
@@ -270,5 +269,8 @@ impl Assembler {
 }
 
 #[cfg(test)]
-#[path = "../../tests/unit/content_api/ble_wire.rs"]
+#[path = "../../tests/unit/ble/mod.rs"]
 mod tests;
+
+#[cfg(feature = "ble-native")]
+pub mod ffi;

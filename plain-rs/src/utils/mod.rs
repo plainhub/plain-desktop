@@ -2,7 +2,8 @@ pub mod async_read_stream;
 pub mod base64;
 pub mod build_url;
 pub mod dbtime;
-pub mod hash;
+#[cfg(feature = "crypto")]
+pub use crate::crypto::hash;
 pub mod hex;
 pub mod hostname;
 pub mod http;

@@ -10,11 +10,15 @@ rust-version = "1.96"
 name = "plain_rs"
 
 [features]
+default = ["crypto"]
+crypto = ["dep:chacha20poly1305", "dep:p256", "dep:ed25519-dalek"]
+ble = ["dep:anyhow"]
+ble-native = ["ble", "crypto", "dep:serde_json", "dep:jni"]
 # Shared chat domain (SQLite storage, pairing/channel wire protocol),
 # extracted from plain-desktop's port of the plain-app chat stack.
 # Desktop and plain-nas both enable this; consumers without chat skip
 # the rusqlite build entirely.
-chat = ["dep:chrono", "dep:anyhow", "dep:serde_json", "dep:rusqlite", "sqlite_browse", "tokio/sync", "tokio/rt", "tokio/fs", "tokio/time"]
+chat = ["crypto", "dep:chrono", "dep:anyhow", "dep:serde_json", "dep:rusqlite", "sqlite_browse", "tokio/sync", "tokio/rt", "tokio/fs", "tokio/time"]
 # Shared user-library domain (SQLite storage): audio playback queue /
 # playlists / play history, tags + tag relations, favorite folders.
 # Ported from plain-nas's fjall implementations so NAS and desktop run
@@ -30,10 +34,10 @@ sqlite_browse = ["dep:rusqlite", "dep:serde_json"]
 # bootstrap + DLNA sender-list helpers shared by plain-nas and the
 # plain-desktop Tauri shells (replaces per-app copies and
 # tauri-plugin-store).
-prefs = ["dep:serde_json"]
+prefs = ["crypto", "dep:serde_json"]
 # Shared API stack for the desktop and NAS shells: GraphQL schemas,
 # axum HTTP/WS router, listener lifecycle, proxy, discovery and DLNA.
-content_api = ["dep:tokenizers", "dep:image", "sqlite_browse", "dep:hyper", "dep:hyper-util", "dep:http-body-util", "dep:tokio-rustls", "dep:tower", "dep:zip", "dep:tokio-tungstenite", "tokio-tungstenite/rustls-tls-webpki-roots", "dep:rustls", "dep:hmac", "dep:sha2_mac", "dep:anyhow", "chat", "library", "dep:regex", "dep:async-graphql", "dep:axum", "dep:reqwest", "reqwest/rustls-tls", "dep:futures-util", "tokio/net", "tokio/rt-multi-thread", "tokio/sync", "tokio/time", "tokio/macros", "dep:subtle"]
+content_api = ["ble", "crypto", "dep:tokenizers", "dep:image", "sqlite_browse", "dep:hyper", "dep:hyper-util", "dep:http-body-util", "dep:tokio-rustls", "dep:tower", "dep:zip", "dep:tokio-tungstenite", "tokio-tungstenite/rustls-tls-webpki-roots", "dep:rustls", "dep:hmac", "dep:sha2_mac", "dep:anyhow", "chat", "library", "dep:regex", "dep:async-graphql", "dep:axum", "dep:reqwest", "reqwest/rustls-tls", "dep:futures-util", "tokio/net", "tokio/rt-multi-thread", "tokio/sync", "tokio/time", "tokio/macros", "dep:subtle"]
 http_transport = ["dep:axum", "dep:axum-server", "dep:rustls", "dep:rustls-pemfile", "tokio/net", "tokio/rt", "tokio/sync", "tokio/time"]
 api = [
     "http_transport",
@@ -108,12 +112,12 @@ media_gql = ["media", "library", "dep:async-graphql"]
 system = ["api", "dep:nix", "dep:ureq", "dep:http"]
 
 [dependencies]
+chacha20poly1305 = { version = "0.10", optional = true }
+p256 = { version = "0.13", default-features = false, features = ["ecdh", "pkcs8", "std"], optional = true }
+ed25519-dalek = { version = "2", features = ["rand_core"], optional = true }
 tokenizers = { version = "0.22.2", default-features = false, features = ["fancy-regex"], optional = true }
 p12-keystore = "0.3.2"
 subtle = { version = "2", optional = true }
-chacha20poly1305 = "0.10"
-p256 = { version = "0.13", default-features = false, features = ["ecdh", "pkcs8", "std"] }
-ed25519-dalek = { version = "2", features = ["rand_core"] }
 sha2 = "0.10"
 hmac = { version = "0.13", optional = true }
 sha2_mac = { package = "sha2", version = "0.11", optional = true }
@@ -212,3 +216,6 @@ cc = "1"
 [[example]]
 name = "image_search"
 required-features = ["content_api"]
+
+[target.'cfg(target_os = "android")'.dependencies]
+jni = { version = "0.22", optional = true }
