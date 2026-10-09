@@ -2,10 +2,9 @@
 //!
 //! The Vue bundle is 11 MB / 1000+ files and ships inside the APK / iOS
 //! bundle, which the Rust crate cannot read on its own. The host extracts it
-//! once into a version-stamped directory under the app data dir and publishes
-//! the path through the `web_asset_root` pref; everything after that — path
-//! safety, SPA fallback, cache headers, the `__SERVER_TIME__` bootstrap — is
-//! decided here.
+//! once into a version-stamped directory under the app data dir and passes
+//! that path to `start_public`; everything after that — path safety, SPA
+//! fallback, cache headers, the `__SERVER_TIME__` bootstrap — is decided here.
 //!
 //! Embedding the bundle in the crate instead would duplicate 11 MB in every
 //! `.so`/framework and force a full plain-rs rebuild on every web-only change.
@@ -99,6 +98,7 @@ fn now_ms() -> i64 {
 
 pub(super) async fn serve(
     prefs: &crate::prefs::Prefs,
+    root: Option<&Path>,
     method: &Method,
     path: &str,
 ) -> Option<Response> {
@@ -108,10 +108,7 @@ pub(super) async fn serve(
     if !(prefs.get_user_or("service", false) && prefs.get_user_or("desktop_access", true)) {
         return None;
     }
-    let root = prefs
-        .get::<String>("web_asset_root")
-        .unwrap_or_default()
-        .filter(|value| !value.is_empty())?;
+    let root = root?;
     let requested = path.split(['?', '#']).next().unwrap_or_default();
     let requested = requested.strip_prefix('/').unwrap_or(requested);
     // Anything that is not a real file, and any extension-less path, is a
@@ -165,8 +162,18 @@ pub(super) async fn fallback(
     State(state): State<super::server::ServerState>,
     request: Request,
 ) -> Response {
-    serve(&state.prefs, request.method(), request.uri().path())
-        .await
+    let root = state
+        .web_root
+        .read()
+        .ok()
+        .and_then(|guard| guard.clone());
+    serve(
+        &state.prefs,
+        root.as_deref(),
+        request.method(),
+        request.uri().path(),
+    )
+    .await
         .unwrap_or_else(|| {
             Response::builder()
                 .status(StatusCode::NOT_FOUND)

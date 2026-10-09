@@ -13,7 +13,7 @@ use axum::{
 };
 use std::{
     net::{Ipv4Addr, TcpListener},
-    path::Path,
+    path::{Path, PathBuf},
     sync::Arc,
 };
 use subtle::ConstantTimeEq;
@@ -25,6 +25,8 @@ use tokio::{
 pub(super) struct ServerState {
     #[cfg(feature = "http_transport")]
     pub(super) build_debug: Arc<std::sync::atomic::AtomicBool>,
+    #[cfg(feature = "http_transport")]
+    pub(super) web_root: Arc<std::sync::RwLock<Option<PathBuf>>>,
     schema: ContentSchema,
     /// The contract schema the public `/graphql` executes. Built once next
     /// to the app's own schema so both share one host and one database.
@@ -200,6 +202,7 @@ impl ContentServer {
             )),
             directory: path.parent().unwrap_or(Path::new(".")).to_path_buf(),
             build_debug: Arc::new(std::sync::atomic::AtomicBool::new(false)),
+            web_root: Arc::new(std::sync::RwLock::new(None)),
             token: Arc::from(token),
             events,
             stop: receiver.clone(),
@@ -443,6 +446,15 @@ impl ContentServer {
         self.state
             .build_debug
             .store(debug, std::sync::atomic::Ordering::Relaxed);
+    }
+    /// The bundle root the host unpacked this run. Empty means the SPA is not
+    /// served, which is the desktop case where the bundle is loaded by the
+    /// webview itself.
+    #[cfg(feature = "http_transport")]
+    pub fn set_web_root(&self, root: &str) {
+        if let Ok(mut guard) = self.state.web_root.write() {
+            *guard = (!root.is_empty()).then(|| PathBuf::from(root));
+        }
     }
     pub async fn shutdown(mut self) {
         #[cfg(feature = "http_transport")]
