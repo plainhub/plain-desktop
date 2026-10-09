@@ -24,6 +24,8 @@ use tokio::{
 #[derive(Clone)]
 pub(super) struct ServerState {
     #[cfg(feature = "http_transport")]
+    pub(super) public_server: Arc<tokio::sync::Mutex<Option<PublicServer>>>,
+    #[cfg(feature = "http_transport")]
     pub(super) build_debug: Arc<std::sync::atomic::AtomicBool>,
     #[cfg(feature = "http_transport")]
     pub(super) web_root: Arc<std::sync::RwLock<Option<PathBuf>>>,
@@ -87,8 +89,6 @@ pub struct ContentServer {
     state: ServerState,
     task: JoinHandle<()>,
     stop: watch::Sender<bool>,
-    #[cfg(feature = "http_transport")]
-    public: tokio::sync::Mutex<Option<PublicServer>>,
 }
 impl ContentServer {
     pub fn start(
@@ -163,6 +163,8 @@ impl ContentServer {
             receiver.clone(),
         ));
         let state = ServerState {
+            #[cfg(feature = "http_transport")]
+            public_server: Arc::new(tokio::sync::Mutex::new(None)),
             public,
             lan,
             schema,
@@ -303,6 +305,10 @@ impl ContentServer {
             .route("/http/guest", post(super::guest_graphql::call));
         #[cfg(feature = "http_transport")]
         let router = router
+            .route(
+                "/system/http-server/health",
+                post(super::public_lifecycle::health),
+            )
             .route("/system/tls", post(super::tls_identity::call))
             .route("/resources/:id", get(resource_upgrade))
             .route(
@@ -327,8 +333,6 @@ impl ContentServer {
             state,
             task,
             stop,
-            #[cfg(feature = "http_transport")]
-            public: tokio::sync::Mutex::new(None),
         })
     }
     #[cfg(all(test, feature = "http_transport"))]
@@ -343,7 +347,7 @@ impl ContentServer {
         cert: Vec<u8>,
         key: Vec<u8>,
     ) -> Result<(u16, u16), String> {
-        let mut guard = self.public.lock().await;
+        let mut guard = self.state.public_server.lock().await;
         if guard.is_some() {
             return Err("Public HTTP server is already running".into());
         }
@@ -408,38 +412,29 @@ impl ContentServer {
                 .store(true, std::sync::atomic::Ordering::SeqCst);
             self.state.peer_status.outgoing.start(self.state.clone());
         }
-        *guard = Some(PublicServer { listeners, stop });
+        let generation = super::public_lifecycle::next_generation();
+        let failure = listeners.failures();
+        *guard = Some(PublicServer {
+            listeners,
+            stop,
+            generation,
+        });
+        super::public_lifecycle::monitor(self.state.clone(), failure, receiver, generation);
         Ok(ports)
     }
     #[cfg(feature = "http_transport")]
     pub async fn stop_public(&self) {
-        let mut guard = self.public.lock().await;
-        let _control = self.state.peer_status.control.lock().await;
+        let mut guard = self.state.public_server.lock().await;
+        super::public_lifecycle::stop_locked(&self.state, &mut guard).await;
+    }
+    #[cfg(feature = "http_transport")]
+    pub async fn public_generation(&self) -> Option<u64> {
         self.state
-            .peer_status
-            .public_active
-            .store(false, std::sync::atomic::Ordering::SeqCst);
-        self.state.peer_status.outgoing.stop().await;
-        self.state.main_ws.close_client(&self.state, None);
-        self.state.mms.cancel_all().await;
-        let _cast_guard = self.state.cast.operations.lock().await;
-        super::dlna_sender_playback::end(&self.state, true).await;
-        let _receiver_guard = self.state.cast.receiver_operations.lock().await;
-        self.state.dlna.stop().await;
-        super::dlna_sender_runtime::release_permission(
-            &self.state,
-            &self.state.cast.receiver_lease,
-        )
-        .await;
-        self.state.cast.stop_tasks();
-        super::dlna_sender_runtime::release_permission(&self.state, &self.state.cast.scan_lease)
-            .await;
-        self.state.cast.publish(&self.state);
-        if let Some(public) = guard.take() {
-            let _ = public.stop.send(true);
-            let PublicServer { listeners, stop: _ } = public;
-            listeners.shutdown().await;
-        }
+            .public_server
+            .lock()
+            .await
+            .as_ref()
+            .map(|server| server.generation)
     }
     #[cfg(feature = "http_transport")]
     pub fn set_build_debug(&self, debug: bool) {
@@ -481,6 +476,10 @@ impl Drop for ContentServer {
     fn drop(&mut self) {
         let _ = self.stop.send(true);
         self.task.abort();
+        #[cfg(feature = "http_transport")]
+        if let Ok(mut guard) = self.state.public_server.try_lock() {
+            guard.take();
+        }
     }
 }
 fn peer_routes(state: ServerState) -> Router {
@@ -666,9 +665,10 @@ mod tests;
 pub(super) mod files;
 
 #[cfg(feature = "http_transport")]
-struct PublicServer {
-    listeners: crate::http_transport::HttpListeners,
-    stop: watch::Sender<bool>,
+pub(super) struct PublicServer {
+    pub(super) listeners: crate::http_transport::HttpListeners,
+    pub(super) stop: watch::Sender<bool>,
+    pub(super) generation: u64,
 }
 #[cfg(feature = "http_transport")]
 async fn resource_upgrade(

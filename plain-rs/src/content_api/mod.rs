@@ -187,3 +187,6 @@ mod tls_identity;
 mod preferences;
 
 mod image_search;
+
+#[cfg(feature = "http_transport")]
+mod public_lifecycle;

@@ -14,6 +14,7 @@ pub struct HttpListeners {
     stop: watch::Sender<bool>,
     tls_handle: Handle,
     tasks: Vec<JoinHandle<()>>,
+    failure: watch::Receiver<Option<String>>,
 }
 
 impl HttpListeners {
@@ -34,6 +35,10 @@ impl HttpListeners {
         https_port: u16,
         tls: RustlsConfig,
     ) -> Result<Self, String> {
+        let router = router.route(
+            "/__plain_server_ready",
+            axum::routing::get(|| async { axum::http::StatusCode::NO_CONTENT }),
+        );
         let http = bind::bind_listener_fallback(http_port, &bind::HTTP_PORTS)
             .map_err(|e| format!("HTTP bind failed: {e}"))?;
         let https = bind::bind_listener_fallback(https_port, &bind::HTTPS_PORTS)
@@ -48,19 +53,24 @@ impl HttpListeners {
             .clone()
             .layer(Extension(ConnectionScheme("http")))
             .into_make_service_with_connect_info::<SocketAddr>();
+        let (failure_sender, failure) = watch::channel(None);
+        let http_failure = failure_sender.clone();
         let http_task = tokio::spawn(async move {
+            let mut task_guard = ListenerTaskGuard::new("HTTP", http_failure.clone());
             if let Err(error) = axum::serve(http, app)
                 .with_graceful_shutdown(async move {
                     let _ = receiver.changed().await;
                 })
                 .await
             {
-                log::error!("HTTP serve failed: {error}");
+                let _ = http_failure.send(Some(format!("HTTP serve failed: {error}")));
             }
+            task_guard.completed = true;
         });
         let tls_handle = Handle::new();
         let handle = tls_handle.clone();
         let tls_task = tokio::spawn(async move {
+            let mut task_guard = ListenerTaskGuard::new("HTTPS", failure_sender.clone());
             if let Err(error) = axum_server::from_tcp_rustls(https, tls)
                 .handle(handle)
                 .serve(
@@ -70,16 +80,63 @@ impl HttpListeners {
                 )
                 .await
             {
-                log::error!("HTTPS serve failed: {error}");
+                let _ = failure_sender.send(Some(format!("HTTPS serve failed: {error}")));
             }
+            task_guard.completed = true;
         });
-        Ok(Self {
+        let listeners = Self {
             http_port,
             https_port,
             stop,
             tls_handle,
             tasks: vec![http_task, tls_task],
+            failure,
+        };
+        if let Err(error) = listeners.check_health().await {
+            listeners.shutdown().await;
+            return Err(error);
+        }
+        Ok(listeners)
+    }
+
+    pub fn failures(&self) -> watch::Receiver<Option<String>> {
+        self.failure.clone()
+    }
+
+    pub async fn check_health(&self) -> Result<(), String> {
+        let client = reqwest::Client::builder()
+            .no_proxy()
+            .danger_accept_invalid_certs(true)
+            .timeout(Duration::from_millis(500))
+            .build()
+            .map_err(|e| e.to_string())?;
+        tokio::time::timeout(Duration::from_millis(8_500), async {
+            loop {
+                if let Some(error) = self.failure.borrow().clone() {
+                    return Err(error);
+                }
+                let mut healthy = true;
+                for (scheme, port) in [("http", self.http_port), ("https", self.https_port)] {
+                    match client
+                        .get(format!("{scheme}://127.0.0.1:{port}/__plain_server_ready"))
+                        .send()
+                        .await
+                    {
+                        Ok(response) if response.status() == reqwest::StatusCode::NO_CONTENT => {}
+                        _ => {
+                            healthy = false;
+                            break;
+                        }
+                    }
+                }
+                if healthy {
+                    return Ok(());
+                }
+                tokio::time::sleep(Duration::from_millis(100)).await;
+            }
         })
+        .await
+        .map_err(|_| "HTTP/HTTPS server readiness timed out".to_string())?
     }
 
     pub async fn shutdown(mut self) {
@@ -102,6 +159,33 @@ impl Drop for HttpListeners {
         self.tls_handle.shutdown();
         for task in &self.tasks {
             task.abort();
+        }
+    }
+}
+
+struct ListenerTaskGuard {
+    scheme: &'static str,
+    failure: watch::Sender<Option<String>>,
+    completed: bool,
+}
+
+impl ListenerTaskGuard {
+    fn new(scheme: &'static str, failure: watch::Sender<Option<String>>) -> Self {
+        Self {
+            scheme,
+            failure,
+            completed: false,
+        }
+    }
+}
+
+impl Drop for ListenerTaskGuard {
+    fn drop(&mut self) {
+        if !self.completed {
+            let _ = self.failure.send(Some(format!(
+                "{} listener task terminated unexpectedly",
+                self.scheme
+            )));
         }
     }
 }

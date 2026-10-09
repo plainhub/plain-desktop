@@ -63,3 +63,24 @@ async fn drop_releases_listeners() {
         assert!(std::net::TcpListener::bind(("0.0.0.0", port)).is_ok());
     }
 }
+
+#[tokio::test]
+async fn listener_task_abort_is_reported_and_shutdown_releases_ports() {
+    let (cert, key) = certificate();
+    let server = HttpListeners::start(Router::new(), 0, 0, cert, key)
+        .await
+        .unwrap();
+    let ports = [server.http_port, server.https_port];
+    let mut failure = server.failures();
+    server.tasks[1].abort();
+    tokio::time::timeout(Duration::from_secs(1), failure.changed())
+        .await
+        .unwrap()
+        .unwrap();
+    assert!(failure.borrow().as_ref().unwrap().contains("HTTPS"));
+    assert!(server.check_health().await.is_err());
+    server.shutdown().await;
+    for port in ports {
+        assert!(std::net::TcpListener::bind(("0.0.0.0", port)).is_ok());
+    }
+}
