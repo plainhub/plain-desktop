@@ -21,10 +21,12 @@ pub(super) enum Request {
         resident: bool,
     },
 }
-fn publish(state: &ServerState, event_id: Option<&str>) {
+pub(super) const EVENT_UPDATED: i32 = 10011;
+
+fn publish(state: &ServerState) {
     let _ = state.events.send(WsEvent::broadcast(
-        crate::chat::events::WS_NEARBY_DEVICE_FOUND,
-        json!({"revision":state.nearby_devices.snapshot().revision,"eventId":event_id}).to_string(),
+        EVENT_UPDATED,
+        json!({"revision":state.nearby_devices.snapshot().revision}).to_string(),
     ));
 }
 #[derive(Clone)]
@@ -78,7 +80,24 @@ impl Context {
         {
             let id = device.id.clone();
             let emit = self.devices.observe(device, visible)?;
-            let _=self.events.send(WsEvent::broadcast(crate::chat::events::WS_NEARBY_DEVICE_FOUND,json!({"revision":self.devices.snapshot().revision,"eventId":(visible && emit).then_some(id)}).to_string()));
+            let _ = self.events.send(WsEvent::broadcast(
+                EVENT_UPDATED,
+                json!({"revision":self.devices.snapshot().revision}).to_string(),
+            ));
+            if visible && emit {
+                let snapshot = snapshot(&self.db, &self.devices)?;
+                if let Some(device) = snapshot["devices"]
+                    .as_array()
+                    .unwrap()
+                    .iter()
+                    .find(|device| device["id"] == id)
+                {
+                    let _ = self.events.send(WsEvent::broadcast(
+                        crate::chat::events::WS_NEARBY_DEVICE_FOUND,
+                        device.to_string(),
+                    ));
+                }
+            }
         }
         Ok(true)
     }
@@ -92,7 +111,7 @@ async fn execute(state: &ServerState, request: Request) -> anyhow::Result<serde_
                 Some(ble),
                 chat_store::nearby::all(&state.db)?,
             )?;
-            publish(state, None);
+            publish(state);
         }
         Request::Seen {
             device,
@@ -104,12 +123,18 @@ async fn execute(state: &ServerState, request: Request) -> anyhow::Result<serde_
             }
         }
     }
-    let paired: std::collections::HashSet<_> = chat_store::peers::all(&state.db)?
+    snapshot(&state.db, &state.nearby_devices)
+}
+fn snapshot(
+    db: &crate::db::Db,
+    devices: &crate::chat::nearby_devices::Devices,
+) -> anyhow::Result<serde_json::Value> {
+    let paired: std::collections::HashSet<_> = chat_store::peers::all(db)?
         .into_iter()
         .filter(|p| p.is_paired())
         .map(|p| p.id)
         .collect();
-    let mut snapshot = serde_json::to_value(state.nearby_devices.snapshot())?;
+    let mut snapshot = serde_json::to_value(devices.snapshot())?;
     let interfaces = crate::chat::lan_ip::local_interfaces();
     for device in snapshot["devices"].as_array_mut().unwrap() {
         let ips: Vec<String> = serde_json::from_value(device["ips"].clone())?;
@@ -174,7 +199,7 @@ async fn sweep(state: &ServerState) -> anyhow::Result<()> {
         }
     }
     if changed {
-        publish(state, None);
+        publish(state);
     }
     Ok(())
 }

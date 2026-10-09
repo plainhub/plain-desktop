@@ -1,6 +1,7 @@
 pub(crate) mod host;
 pub mod schema;
 mod server;
+mod events;
 pub use server::ContentServer;
 
 mod audio_library;

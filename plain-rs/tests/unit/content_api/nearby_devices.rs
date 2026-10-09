@@ -114,15 +114,17 @@ async fn rust_sweep_honors_radio_pause_and_real_tls_verdicts() {
     let peer = chat_store::peers::get(&state.db, "live").unwrap().unwrap();
     assert_eq!(peer.key, "preserved-key");
     assert_eq!(peer.name, "fixture");
+    let invalidation = events.recv().await.unwrap();
+    assert_eq!(invalidation.event_type, EVENT_UPDATED);
     let first = events.recv().await.unwrap();
     assert_eq!(
         first.event_type,
         crate::chat::events::WS_NEARBY_DEVICE_FOUND
     );
-    assert_eq!(
-        serde_json::from_str::<serde_json::Value>(&first.payload).unwrap()["eventId"],
-        "live"
-    );
+    let public: serde_json::Value = serde_json::from_str(&first.payload).unwrap();
+    assert_eq!(public["id"], "live");
+    assert_eq!(public["status"], "PAIRED");
+    assert!(public.get("key").is_none());
     execute(
         &state,
         Request::Seen {
@@ -134,7 +136,77 @@ async fn rust_sweep_honors_radio_pause_and_real_tls_verdicts() {
     .await
     .unwrap();
     let next = events.recv().await.unwrap();
-    assert!(serde_json::from_str::<serde_json::Value>(&next.payload).unwrap()["eventId"].is_null());
+    assert_eq!(next.event_type, EVENT_UPDATED);
+    assert!(events.try_recv().is_err());
     listeners.shutdown().await;
+    server.shutdown().await;
+}
+
+#[tokio::test]
+async fn nearby_invalidation_and_public_device_payloads_have_distinct_contracts() {
+    let dir = tempfile::tempdir().unwrap();
+    let prefs =
+        std::sync::Arc::new(crate::prefs::Prefs::load(&dir.path().join("prefs.json")).unwrap());
+    prefs.set("client_id", "local").unwrap();
+    let server = super::super::ContentServer::start(
+        &dir.path().join("data.db"),
+        &crate::base64_encode(&[3; 32]),
+        prefs,
+    )
+    .unwrap();
+    let state = server.runtime_state();
+    let mut events = state.events.subscribe();
+    let device = Device {
+        id: "synthetic-nearby".into(),
+        name: "Synthetic".into(),
+        ips: vec![],
+        port: 2443,
+        device_type: "PHONE".into(),
+        version: "1".into(),
+        platform: "test".into(),
+        last_seen: "2026-10-10T00:00:00Z".into(),
+        discovery_methods: vec!["BLE".into()],
+    };
+    execute(
+        &state,
+        Request::Seen {
+            device: device.clone(),
+            visible: true,
+            resident: false,
+        },
+    )
+    .await
+    .unwrap();
+    let invalidation = events.recv().await.unwrap();
+    assert_eq!(invalidation.event_type, EVENT_UPDATED);
+    let notice: serde_json::Value = serde_json::from_str(&invalidation.payload).unwrap();
+    assert!(notice["revision"].is_u64());
+    assert!(notice.get("id").is_none());
+    let public = events.recv().await.unwrap();
+    assert_eq!(
+        public.event_type,
+        crate::chat::events::WS_NEARBY_DEVICE_FOUND
+    );
+    let row: serde_json::Value = serde_json::from_str(&public.payload).unwrap();
+    assert_eq!(row["id"], device.id);
+    assert_eq!(row["name"], device.name);
+    assert_eq!(row["status"], "UNPAIRED");
+    assert_eq!(row["bestIp"], "");
+    assert_eq!(row["discoveryMethods"], json!(["BLE"]));
+    assert!(row.get("eventId").is_none());
+    execute(&state, Request::Snapshot).await.unwrap();
+    assert!(events.try_recv().is_err());
+    execute(
+        &state,
+        Request::Seen {
+            device,
+            visible: true,
+            resident: false,
+        },
+    )
+    .await
+    .unwrap();
+    assert_eq!(events.recv().await.unwrap().event_type, EVENT_UPDATED);
+    assert!(events.try_recv().is_err());
     server.shutdown().await;
 }

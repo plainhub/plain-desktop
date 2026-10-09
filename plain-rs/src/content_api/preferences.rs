@@ -35,13 +35,27 @@ pub(super) fn set(
     value: Value,
 ) -> Result<bool, String> {
     let changed = if user {
-        prefs.set_user(key, value)
+        prefs.set_user(key, &value)
     } else {
-        prefs.set(key, value)
+        prefs.set(key, &value)
     }
     .map_err(|e| e.to_string())?;
     if changed {
         let _ = events.send(WsEvent::broadcast(10010, "{}".into()));
+        if user {
+            let event = match key {
+                "device_name" => Some((21, value.to_string())),
+                "notification_filter" => Some((10, String::new())),
+                "pomodoro_settings" => value
+                    .as_str()
+                    .and_then(|raw| serde_json::from_str::<Value>(raw).ok())
+                    .map(|settings| (12, settings.to_string())),
+                _ => None,
+            };
+            if let Some((kind, payload)) = event {
+                let _ = events.send(WsEvent::broadcast(kind, payload));
+            }
+        }
     }
     Ok(changed)
 }
@@ -102,3 +116,7 @@ pub(super) async fn call(
             .into_response(),
     }
 }
+
+#[cfg(test)]
+#[path = "../../tests/unit/content_api/preferences.rs"]
+mod tests;

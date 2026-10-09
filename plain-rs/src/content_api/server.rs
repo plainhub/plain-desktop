@@ -242,7 +242,7 @@ impl ContentServer {
         });
         let router = Router::new()
             .route("/graphql", post(graphql))
-            .route("/events", get(upgrade))
+            .route("/events", get(super::events::subscribe))
             .route("/host", get(host_upgrade))
             .route("/health", get(health))
             .route("/fs", get(files::file))
@@ -617,65 +617,6 @@ async fn graphql(
         let _ = s.events.send(WsEvent::broadcast(47, "{}".into()));
     }
     Json(response).into_response()
-}
-async fn upgrade(
-    State(s): State<ServerState>,
-    headers: HeaderMap,
-    ws: WebSocketUpgrade,
-) -> axum::response::Response {
-    if !s.authenticated(&headers) {
-        return StatusCode::UNAUTHORIZED.into_response();
-    }
-    let receiver = s.events.subscribe();
-    ws.on_upgrade(move |socket| events(socket, s, receiver))
-        .into_response()
-}
-async fn events(
-    mut socket: WebSocket,
-    mut state: ServerState,
-    mut receiver: broadcast::Receiver<WsEvent>,
-) {
-    if socket
-        .send(Message::Text("{\"type\":47,\"payload\":\"{}\"}".into()))
-        .await
-        .is_err()
-    {
-        return;
-    }
-    loop {
-        tokio::select! {
-            _=state.stop.changed()=>break,
-            message=socket.recv()=>match message {Some(Ok(Message::Ping(data)))=>{if socket.send(Message::Pong(data)).await.is_err(){break;}},Some(Ok(Message::Close(_)))|None|Some(Err(_))=>break,
-            Some(Ok(Message::Text(text))) => {
-                if let Ok(value) = serde_json::from_str::<serde_json::Value>(&text) {
-                    if let (Some(kind),Some(payload))=(value["type"].as_i64().and_then(|v|i32::try_from(v).ok()),value["payload"].as_str()) {
-                        if (0..10000).contains(&kind) { let _=state.events.send(WsEvent::broadcast(kind,payload.to_owned())); }
-                    }
-                }
-            },
-            Some(Ok(Message::Binary(bytes))) if bytes.len()>=4 => {
-                let kind=i32::from_le_bytes(bytes[..4].try_into().unwrap());
-                if (0..10000).contains(&kind) { let _=state.events.send(WsEvent::broadcast_binary(kind,bytes[4..].to_vec())); }
-            },_=>{}},
-            event=receiver.recv()=>{
-                let message = match event {
-                    Ok(ref e) => match &e.binary_payload {
-                        Some(payload) => {
-                            let mut frame = Vec::with_capacity(4 + payload.len());
-                            frame.extend_from_slice(&e.event_type.to_le_bytes());
-                            frame.extend_from_slice(&payload);
-                            Message::Binary(frame)
-                        }
-                        None => Message::Text(serde_json::json!({"type":e.event_type,"payload":e.payload}).to_string()),
-                    },
-                    Err(broadcast::error::RecvError::Lagged(_)) => Message::Text("{\"type\":47,\"payload\":\"{}\"}".into()),
-                    Err(_) => break,
-                };
-                if socket.send(message).await.is_err(){break;}
-
-            }
-        }
-    }
 }
 async fn host_upgrade(
     State(state): State<ServerState>,
