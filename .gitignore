@@ -44,7 +44,6 @@ target/
 /nas/src/web_dist/
 # Local machine cargo config (mac dev linker for TCC-stable signing); not part of the build
 .cargo/config.toml
-/docs/
 # Local project docs kept out of VCS
 AGENTS.md
 DONE.md
