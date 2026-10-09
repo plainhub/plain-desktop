@@ -84,7 +84,6 @@ impl Outgoing {
         let actor = state.prefs.get::<String>("client_id")?.unwrap_or_default();
         let wanted: HashMap<String, DPeer> = peers::all(&state.db)?
             .into_iter()
-            .filter(|_| state.prefs.get_user_or("service", false))
             .filter(|p| p.is_paired() && !p.key.is_empty() && !actor.is_empty() && actor < p.id)
             .map(|p| (p.id.clone(), p))
             .collect();
@@ -151,7 +150,7 @@ impl Outgoing {
     }
     async fn worker(self: Arc<Self>, state: ServerState, id: String, epoch: u64) {
         let mut attempts = 0u32;
-        while self.current(epoch) && state.prefs.get_user_or("service", false) {
+        while self.current(epoch) {
             if attempts > 0 {
                 tokio::time::sleep(Duration::from_millis(
                     (1000u64 << attempts.saturating_sub(1).min(6)).min(60_000),
@@ -244,7 +243,7 @@ impl Outgoing {
         })
         .await??;
         ensure!(
-            self.current(epoch) && state.prefs.get_user_or("service", false),
+            self.current(epoch),
             "Status runtime stopped"
         );
         ensure!(
@@ -266,7 +265,7 @@ impl Outgoing {
         let mut tick = tokio::time::interval(Duration::from_secs(1));
         loop {
             tokio::select! {
-                _=tick.tick()=>ensure!(state.prefs.get_user_or("service",false) && state.peer_status.connections.valid(&state.db,&lease) && peer.best_ip()==selected_ip && state.prefs.get::<String>("client_id")?.as_deref()==Some(&actor),"Peer changed"),
+                _=tick.tick()=>ensure!(state.peer_status.connections.valid(&state.db,&lease) && peer.best_ip()==selected_ip && state.prefs.get::<String>("client_id")?.as_deref()==Some(&actor),"Peer changed"),
                 frame=socket.next()=>match frame { Some(Ok(tokio_tungstenite::tungstenite::Message::Close(_)))|None|Some(Err(_))=>return Err(anyhow::anyhow!("Status connection closed")),_=>{} }
             }
         }

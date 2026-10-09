@@ -41,7 +41,7 @@ struct ZipFilesRequest {
 }
 
 fn desktop_access_allowed(state: &ServerState) -> bool {
-    state.prefs.get_user_or("service", false) && state.prefs.get_user_or("desktop_access", true)
+    state.prefs.get_user_or("desktop_access", true)
 }
 
 fn plain(status: StatusCode, body: impl Into<String>) -> Response {

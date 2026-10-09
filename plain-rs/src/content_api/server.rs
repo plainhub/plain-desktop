@@ -87,21 +87,28 @@ pub struct ContentServer {
     pub port: u16,
     #[cfg(feature = "http_transport")]
     state: ServerState,
-    task: JoinHandle<()>,
+    task: Option<JoinHandle<()>>,
+    #[cfg(feature = "http_transport")]
+    local_router: Option<Router>,
     stop: watch::Sender<bool>,
 }
 impl ContentServer {
-    pub fn start(
+    fn build(
         path: &Path,
         token: &str,
         prefs: Arc<crate::prefs::Prefs>,
-    ) -> Result<Self, String> {
+    ) -> Result<
+        (
+            ServerState,
+            Router,
+            watch::Sender<bool>,
+            watch::Receiver<bool>,
+        ),
+        String,
+    > {
         if crate::base64_decode(token).len() != 32 {
             return Err("token must contain 32 random bytes".into());
         }
-        let listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).map_err(|e| e.to_string())?;
-        let port = listener.local_addr().map_err(|e| e.to_string())?.port();
-        listener.set_nonblocking(true).map_err(|e| e.to_string())?;
         let db = Arc::new(Db::open(path).map_err(|e| e.to_string())?);
         let (events, _) = broadcast::channel(256);
         let (stop, receiver) = watch::channel(false);
@@ -318,12 +325,22 @@ impl ContentServer {
         let router = router
             .layer(DefaultBodyLimit::max(32 * 1024 * 1024))
             .with_state(state.clone());
+        Ok((state, router, stop, receiver))
+    }
+    pub fn start(
+        path: &Path,
+        token: &str,
+        prefs: Arc<crate::prefs::Prefs>,
+    ) -> Result<Self, String> {
+        let (state, router, stop, mut receiver) = Self::build(path, token, prefs)?;
+        let listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).map_err(|e| e.to_string())?;
+        let port = listener.local_addr().map_err(|e| e.to_string())?.port();
+        listener.set_nonblocking(true).map_err(|e| e.to_string())?;
         let listener = tokio::net::TcpListener::from_std(listener).map_err(|e| e.to_string())?;
         let task = tokio::spawn(async move {
-            let mut stop = receiver;
             let _ = axum::serve(listener, router)
                 .with_graceful_shutdown(async move {
-                    let _ = stop.changed().await;
+                    let _ = receiver.changed().await;
                 })
                 .await;
         });
@@ -331,9 +348,36 @@ impl ContentServer {
             port,
             #[cfg(feature = "http_transport")]
             state,
-            task,
+            task: Some(task),
             stop,
+            #[cfg(feature = "http_transport")]
+            local_router: None,
         })
+    }
+    #[cfg(feature = "http_transport")]
+    pub async fn start_http(
+        path: &Path,
+        token: &str,
+        prefs: Arc<crate::prefs::Prefs>,
+        http: u16,
+        https: u16,
+        cert: Vec<u8>,
+        key: Vec<u8>,
+        debug: bool,
+        web_root: &str,
+    ) -> Result<Self, String> {
+        let (state, router, stop, _) = Self::build(path, token, prefs)?;
+        let mut server = Self {
+            port: 0,
+            state,
+            task: None,
+            stop,
+            local_router: Some(router),
+        };
+        server.set_build_debug(debug);
+        server.set_web_root(web_root);
+        server.port = server.start_public(http, https, cert, key).await?.0;
+        Ok(server)
     }
     #[cfg(all(test, feature = "http_transport"))]
     pub(super) fn runtime_state(&self) -> ServerState {
@@ -401,6 +445,11 @@ impl ContentServer {
                 self.state.clone(),
                 super::public_cors::apply,
             ));
+        let router = if let Some(local) = &self.local_router {
+            unified_router(self.state.clone(), local.clone(), router)
+        } else {
+            router
+        };
         let listeners =
             crate::http_transport::HttpListeners::start(router, http, https, cert, key).await?;
         let ports = (listeners.http_port, listeners.https_port);
@@ -426,6 +475,15 @@ impl ContentServer {
     pub async fn stop_public(&self) {
         let mut guard = self.state.public_server.lock().await;
         super::public_lifecycle::stop_locked(&self.state, &mut guard).await;
+    }
+    #[cfg(feature = "http_transport")]
+    pub async fn http_ports(&self) -> Option<(u16, u16)> {
+        self.state
+            .public_server
+            .lock()
+            .await
+            .as_ref()
+            .map(|server| (server.listeners.http_port, server.listeners.https_port))
     }
     #[cfg(feature = "http_transport")]
     pub async fn public_generation(&self) -> Option<u64> {
@@ -469,13 +527,17 @@ impl ContentServer {
         let _ = self.stop.send(true);
         #[cfg(feature = "http_transport")]
         self.state.mdns.close(&self.state.host).await;
-        let _ = (&mut self.task).await;
+        if let Some(task) = &mut self.task {
+            let _ = task.await;
+        }
     }
 }
 impl Drop for ContentServer {
     fn drop(&mut self) {
         let _ = self.stop.send(true);
-        self.task.abort();
+        if let Some(task) = &self.task {
+            task.abort();
+        }
         #[cfg(feature = "http_transport")]
         if let Ok(mut guard) = self.state.public_server.try_lock() {
             guard.take();
@@ -684,3 +746,31 @@ async fn resource_upgrade(
         .on_upgrade(move |socket| async move { state.bridge.attach(&id, socket).await })
         .into_response()
 }
+
+#[cfg(feature = "http_transport")]
+fn unified_router(state: ServerState, local: Router, remote: Router) -> Router {
+    Router::new().fallback(move |request: axum::extract::Request| {
+        use tower::ServiceExt;
+        let local = local.clone();
+        let remote = remote.clone();
+        let state = state.clone();
+        async move {
+            if state.authenticated(request.headers()) {
+                let loopback = request
+                    .extensions()
+                    .get::<axum::extract::ConnectInfo<std::net::SocketAddr>>()
+                    .is_some_and(|peer| peer.0.ip().is_loopback());
+                if !loopback {
+                    return StatusCode::FORBIDDEN.into_response();
+                }
+                local.oneshot(request).await.unwrap()
+            } else {
+                remote.oneshot(request).await.unwrap()
+            }
+        }
+    })
+}
+
+#[cfg(all(test, feature = "http_transport"))]
+#[path = "../../tests/unit/content_api/unified_http.rs"]
+mod unified_http_tests;

@@ -52,7 +52,7 @@ pub(super) async fn public(
     ws: WebSocketUpgrade,
 ) -> Response {
     let state = public.state.clone();
-    if !state.prefs.get_user_or("service", false) || *state.stop.borrow() {
+    if *state.stop.borrow() {
         return StatusCode::FORBIDDEN.into_response();
     }
     let Some(id) = query.cid.filter(|id| !id.is_empty() && id.len() <= 1024) else {
@@ -126,7 +126,7 @@ async fn connected(
             tokio::select! {
                 _=stop.changed()=>break,
                 _=public_stop.changed()=>break,
-                _=check.tick()=>if !state.prefs.get_user_or("service",false) || !state.peer_status.connections.valid(&state.db,&lease) { break; },
+                _=check.tick()=>if !state.peer_status.connections.valid(&state.db,&lease) { break; },
                 frame=socket.recv()=>match frame {
                     Some(Ok(Message::Close(_)))|None|Some(Err(_))=>break,
                     _=>{},

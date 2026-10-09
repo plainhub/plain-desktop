@@ -272,8 +272,7 @@ fn persist(state: &ServerState, request: &Pending, token: &str) -> anyhow::Resul
 pub(super) async fn execute(state: &ServerState, request: Request) -> anyhow::Result<Value> {
     if matches!(&request, Request::Issue { .. } | Request::Complete { .. }) {
         anyhow::ensure!(
-            state.prefs.get_user_or("service", false)
-                && state.prefs.get_user_or("desktop_access", true),
+            state.prefs.get_user_or("desktop_access", true),
             "desktop_access_disabled"
         );
     }

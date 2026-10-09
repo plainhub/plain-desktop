@@ -100,7 +100,7 @@ fn close(code: u16, reason: &'static str) -> Message {
     }))
 }
 fn enabled(state: &ServerState) -> bool {
-    state.prefs.get_user_or("service", false) && state.prefs.get_user_or("desktop_access", true)
+    state.prefs.get_user_or("desktop_access", true)
 }
 #[derive(Deserialize)]
 pub(super) struct Params {

@@ -77,9 +77,6 @@ pub(super) async fn resolve_reference(
 }
 pub(super) async fn file(State(state): State<ServerState>, request: Request) -> Response {
     let request = request.into_parts().0;
-    if !state.prefs.get_user_or("service", false) {
-        return StatusCode::FORBIDDEN.into_response();
-    }
     let id = query(&request, "id").unwrap_or_default();
     if id.is_empty() {
         return StatusCode::BAD_REQUEST.into_response();

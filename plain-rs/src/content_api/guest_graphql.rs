@@ -103,9 +103,6 @@ impl Query {
     }
 }
 async fn execute(state: &ServerState, id: &str, body: &[u8]) -> (u16, Vec<u8>) {
-    if !state.prefs.get_user_or("service", false) {
-        return (403, vec![]);
-    }
     if id.is_empty() {
         return (401, vec![]);
     }

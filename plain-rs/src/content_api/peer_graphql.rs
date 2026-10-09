@@ -145,9 +145,6 @@ pub(super) async fn execute(
     channel_id: &str,
     body: &[u8],
 ) -> (u16, Vec<u8>) {
-    if !state.prefs.get_user_or("service", false) {
-        return (403, vec![]);
-    }
     let authenticated =
         match crate::chat::peer_auth::authenticate(&state.db, client_id, channel_id, body) {
             Ok(authenticated) => authenticated,

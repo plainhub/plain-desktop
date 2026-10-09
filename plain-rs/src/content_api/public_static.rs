@@ -105,7 +105,7 @@ pub(super) async fn serve(
     if method != Method::GET && method != Method::HEAD {
         return None;
     }
-    if !(prefs.get_user_or("service", false) && prefs.get_user_or("desktop_access", true)) {
+    if !(prefs.get_user_or("desktop_access", true)) {
         return None;
     }
     let root = root?;

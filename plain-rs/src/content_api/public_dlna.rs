@@ -33,7 +33,7 @@ pub(super) const EVENT_UPDATED: i32 = 10005;
 const MAX_BODY: usize = 2 * 1024 * 1024;
 
 fn access_allowed(state: &ServerState) -> bool {
-    crate::prefs::dlna::enabled(&state.prefs) && state.prefs.get_user_or("service", false)
+    crate::prefs::dlna::enabled(&state.prefs)
 }
 
 fn headers_to_map(headers: &HeaderMap) -> HashMap<String, String> {

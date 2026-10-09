@@ -15,9 +15,6 @@ pub(super) async fn media(
     Path(raw): Path<String>,
     request: Request,
 ) -> Response {
-    if !state.prefs.get_user_or("service", false) {
-        return StatusCode::FORBIDDEN.into_response();
-    }
     let id = raw.split('.').next().unwrap_or_default();
     let Some((path, mime)) = crate::dlna_media_alias::lookup(id) else {
         return StatusCode::BAD_REQUEST.into_response();
@@ -120,9 +117,6 @@ fn attributes(xml: &str) -> std::collections::HashMap<String, String> {
 pub(super) async fn callback(State(state): State<ServerState>, request: Request) -> Response {
     if request.method().as_str() != "NOTIFY" {
         return StatusCode::METHOD_NOT_ALLOWED.into_response();
-    }
-    if !state.prefs.get_user_or("service", false) {
-        return StatusCode::FORBIDDEN.into_response();
     }
     let sid = request
         .headers()

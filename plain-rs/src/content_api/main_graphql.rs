@@ -37,8 +37,7 @@ async fn execute(
     let authorization = headers
         .get("authorization")
         .and_then(|value| value.to_str().ok());
-    if !state.prefs.get_user_or("service", false)
-        || !state.prefs.get_user_or("desktop_access", true)
+    if !state.prefs.get_user_or("desktop_access", true)
     {
         return Err(StatusCode::NOT_FOUND);
     }
@@ -183,8 +182,7 @@ pub(super) async fn init(
     if client_id.is_empty() {
         return StatusCode::BAD_REQUEST.into_response();
     }
-    if !state.prefs.get_user_or("service", false)
-        || !state.prefs.get_user_or("desktop_access", true)
+    if !state.prefs.get_user_or("desktop_access", true)
     {
         return StatusCode::NOT_FOUND.into_response();
     }

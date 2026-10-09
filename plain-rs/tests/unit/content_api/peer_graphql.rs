@@ -289,7 +289,7 @@ async fn encrypted_public_and_ble_rpc_share_auth_executor_and_receipts() {
             .await
             .unwrap()
             .status(),
-        403
+        200
     );
     let result = client
         .post(&rpc_url)
@@ -303,7 +303,7 @@ async fn encrypted_public_and_ble_rpc_share_auth_executor_and_receipts() {
         .await
         .unwrap();
     let result: Value = serde_json::from_str(&result).unwrap();
-    assert_eq!(result["result"]["status"], 403);
+    assert_eq!(result["result"]["status"], 200);
     server.shutdown().await;
     responder.abort();
 }
