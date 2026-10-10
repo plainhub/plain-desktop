@@ -64,7 +64,7 @@ async fn execute(state: &ServerState, request: Request) -> anyhow::Result<Value>
             anyhow::bail!("unsupported provider")
         }
     } else {
-        crate::services::notifications::query::notifications(&state.prefs, facts, &request.query)
+        crate::services::notifications::query::notifications(&state.prefs, facts, &request.query)?
     };
     Ok(if is_count {
         json!({"count":items.len()})

@@ -10,9 +10,14 @@ fn device() -> Device {
 }
 fn prefs(dir: &std::path::Path, id: &str) -> Prefs {
     let prefs = Prefs::load(&dir.join(format!("{id}.json"))).unwrap();
-    let (kp, pubkey) = plain_rs::crypto::ed25519_generate();
+    let (kp, _pubkey) = plain_rs::crypto::ed25519_generate();
     prefs.set("client_id", id).unwrap();
-    prefs.set("signature_key_pair",json!({"privateKey":plain_rs::utils::base64::base64_encode(&kp[..32]),"publicKey":plain_rs::utils::base64::base64_encode(&pubkey)}).to_string()).unwrap();
+    prefs
+        .set(
+            "signature_key_pair",
+            plain_rs::utils::base64::base64_encode(&kp),
+        )
+        .unwrap();
     prefs
 }
 fn respond(

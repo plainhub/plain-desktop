@@ -323,7 +323,14 @@ impl DeviceMutation {
         ctx: &Context<'_>,
         name: String,
     ) -> async_graphql::Result<bool> {
-        host_call(ctx, "systemUpdateDeviceName", json!({ "name": name })).await?;
+        crate::graphql::resolvers::settings::state::update_user(
+            ctx,
+            plain_rs::prefs::user::UserSettingsPatch {
+                device_name: Some(name),
+                ..Default::default()
+            },
+        )
+        .await?;
         Ok(true)
     }
 

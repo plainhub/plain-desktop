@@ -25,7 +25,7 @@ pub(crate) fn api_enabled(permissions: &[String], configured: &HashSet<String>) 
 }
 
 fn configured(prefs: &Prefs) -> Vec<String> {
-    prefs.get_or("api_permissions", Vec::new())
+    prefs.get_or(plain_rs::prefs::system::keys::API_PERMISSIONS, Vec::new())
 }
 
 pub(crate) async fn granted(host: &Host, permissions: &[String]) -> anyhow::Result<bool> {

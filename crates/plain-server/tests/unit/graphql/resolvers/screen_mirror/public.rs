@@ -104,7 +104,7 @@ async fn quality_is_read_from_the_single_rust_store() {
         .unwrap()
         .set_user(
             "screen_mirror_quality",
-            json!({"mode":"SMOOTH","resolution":720}).to_string(),
+            json!({"mode":"SMOOTH","resolution":720}),
         )
         .unwrap();
     stub(schema_host(&schema), |method, _| match method {

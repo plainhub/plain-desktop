@@ -55,7 +55,7 @@ fn login_attempts_are_rate_limited_per_key() {
 }
 
 #[test]
-fn signing_uses_the_json_keypair_the_host_stores() {
+fn signing_uses_the_core_keypair() {
     let dir = std::env::temp_dir().join(format!(
         "plain-ws-login-sign-{}-{}",
         std::process::id(),
@@ -65,19 +65,11 @@ fn signing_uses_the_json_keypair_the_host_stores() {
             .as_nanos()
     ));
     let prefs = Prefs::load(&dir.join("system_prefs.json")).unwrap();
-    // plain-app stores the keypair as a JSON object; Rust used to read the
-    // pref as a bare string and sign with those bytes, which produced an
-    // empty signature and a "signature verification failed" on the client
-    // with no error on the server.
     let (keypair, public) = plain_rs::crypto::ed25519_generate();
     prefs
         .set(
             "signature_key_pair",
-            json!({
-                "privateKey": plain_rs::utils::base64::base64_encode(&keypair[..32]),
-                "publicKey": plain_rs::utils::base64::base64_encode(&public),
-            })
-            .to_string(),
+            plain_rs::utils::base64::base64_encode(&keypair),
         )
         .unwrap();
 
@@ -104,11 +96,6 @@ fn signing_a_broken_keypair_is_an_error_not_an_empty_signature() {
             .as_nanos()
     ));
     let prefs = Prefs::load(&dir.join("system_prefs.json")).unwrap();
-    prefs
-        .set(
-            "signature_key_pair",
-            json!({"privateKey": "AAAA"}).to_string(),
-        )
-        .unwrap();
+    prefs.set("signature_key_pair", "AAAA").unwrap();
     assert!(sign(&prefs, "device|COMPLETED|pk|42").is_err());
 }

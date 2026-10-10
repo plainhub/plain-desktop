@@ -224,7 +224,7 @@ pub(crate) async fn call(
                 let peer=peers::get(&state.db,&id)?.ok_or_else(||anyhow::anyhow!("Unknown peer"))?;
                 let key=plain_rs::utils::base64::base64_decode(&peer.key);
                 anyhow::ensure!(key.is_empty() || key.len()==32,"Invalid Aware pairing key");
-                let actor=state.prefs.get::<String>("client_id")?.filter(|s|!s.is_empty()).ok_or_else(||anyhow::anyhow!("Missing local identity"))?;
+                let actor=state.prefs.get::<String>(plain_rs::prefs::system::keys::CLIENT_ID)?.filter(|s|!s.is_empty()).ok_or_else(||anyhow::anyhow!("Missing local identity"))?;
                 json!({"pmk":if key.is_empty(){Value::Null}else{json!(plain_rs::utils::base64::base64_encode(&key))},"isClient":actor<id,"localPort":state.prefs.get_user::<u16>("https_port")?.unwrap_or(8443)})
             }
             Request::SnapshotTransfers => serde_json::to_value(state.transport.active())?,

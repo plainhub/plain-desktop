@@ -192,7 +192,12 @@ pub(crate) async fn init(
     let authenticated = key
         .as_ref()
         .is_some_and(|key| plain_rs::crypto::xchacha_decrypt_raw(key, &body).is_some());
-    let password = if !authenticated && state.prefs.get_or("password_type", 2_i32) == 2 {
+    let password = if !authenticated
+        && state
+            .prefs
+            .get_or(plain_rs::prefs::system::keys::PASSWORD_TYPE, 2_i32)
+            == 2
+    {
         match crate::http::auth::ws_login::reset_password(&state) {
             Ok(password) => password,
             Err(_) => return StatusCode::INTERNAL_SERVER_ERROR.into_response(),

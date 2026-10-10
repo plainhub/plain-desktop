@@ -54,7 +54,7 @@ pub(crate) async fn send(
         .map_err(|e| Failure::Fatal(e.to_string()))?;
     let actor = state
         .prefs
-        .get::<String>("client_id")
+        .get::<String>(plain_rs::prefs::system::keys::CLIENT_ID)
         .map_err(|e| Failure::Fatal(e.to_string()))?
         .filter(|id| !id.is_empty())
         .ok_or_else(|| Failure::Fatal("Missing peer actor".into()))?;
@@ -135,7 +135,7 @@ pub(crate) async fn file(
         let url = crate::services::peers::peer_address::file_url(&peer, &request.file_id)?;
         let actor = state
             .prefs
-            .get::<String>("client_id")?
+            .get::<String>(plain_rs::prefs::system::keys::CLIENT_ID)?
             .filter(|s| !s.is_empty())
             .ok_or_else(|| anyhow::anyhow!("Missing peer actor"))?;
         let response = tokio::time::timeout(

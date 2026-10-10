@@ -129,7 +129,7 @@ impl Service {
         anyhow::ensure!(self.db.share_get(id)?.is_some(), "share not found");
         let secret = self
             .prefs
-            .get::<String>("master_secret")?
+            .get::<String>(crate::prefs::system::keys::MASTER_SECRET)?
             .ok_or_else(|| anyhow::anyhow!("master secret not initialized"))?;
         let key = crate::utils::base64::base64_decode_checked(&secret)?;
         anyhow::ensure!(key.len() == 32, "invalid master secret");

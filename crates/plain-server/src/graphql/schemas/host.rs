@@ -8,6 +8,8 @@ use crate::graphql::resolvers::pomodoro::pomodoro;
 use async_graphql::{EmptySubscription, MergedObject, Schema};
 #[derive(MergedObject, Default)]
 pub struct Query(
+    crate::graphql::resolvers::settings::public::PrefsQuery,
+    crate::graphql::resolvers::settings::state::PreferencesQuery,
     crate::graphql::resolvers::files::tasks::FileTaskQuery,
     crate::graphql::resolvers::audio::host::AudioHostQuery,
     crate::graphql::resolvers::audio::playback::AudioPlaybackQuery,
@@ -31,6 +33,7 @@ pub struct Query(
 );
 #[derive(MergedObject, Default)]
 pub struct Mutation(
+    crate::graphql::resolvers::settings::state::PreferencesMutation,
     crate::graphql::resolvers::files::tasks::FileTaskMutation,
     crate::graphql::resolvers::audio::host::AudioHostMutation,
     crate::graphql::resolvers::audio::playback::AudioPlaybackMutation,
@@ -128,3 +131,7 @@ pub(crate) fn build_with_services(
         }))
         .finish()
 }
+
+#[cfg(test)]
+#[path = "../../../tests/unit/graphql/schemas/host.rs"]
+mod tests;

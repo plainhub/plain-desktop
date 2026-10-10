@@ -197,7 +197,12 @@ async fn rust_outgoing_reconnects_same_address_without_native_and_stops_without_
         let (kp, pk) = plain_rs::crypto::ed25519_generate();
         prefs.set_user("service", true).unwrap();
         prefs.set("client_id", id).unwrap();
-        prefs.set("signature_key_pair",json!({"privateKey":plain_rs::utils::base64::base64_encode(&kp[..32]),"publicKey":plain_rs::utils::base64::base64_encode(&pk)}).to_string()).unwrap();
+        prefs
+            .set(
+                "signature_key_pair",
+                plain_rs::utils::base64::base64_encode(&kp),
+            )
+            .unwrap();
         (prefs, pk.to_vec())
     }
     let a_dir = tempfile::tempdir().unwrap();

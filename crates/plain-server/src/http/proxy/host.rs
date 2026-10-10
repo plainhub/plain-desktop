@@ -46,7 +46,10 @@ fn target_url(plaintext: &str) -> anyhow::Result<&str> {
 }
 
 fn decode_target(state: &ServerState, id: &str) -> anyhow::Result<String> {
-    let token = state.prefs.get::<String>("url_token").unwrap_or_default();
+    let token = state
+        .prefs
+        .get::<String>(plain_rs::prefs::system::keys::URL_TOKEN)
+        .unwrap_or_default();
     let key = plain_rs::utils::base64::base64_decode(token.as_deref().unwrap_or_default());
     anyhow::ensure!(key.len() == 32, "url token is not available");
     let blob = plain_rs::utils::base64::base64_decode(id);

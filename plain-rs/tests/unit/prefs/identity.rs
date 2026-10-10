@@ -28,7 +28,7 @@ fn ensure_identity_generates_and_persists_all_three_keys() {
         Some(id.client_id.as_str())
     );
     assert_eq!(
-        prefs.get::<String>("device_name").unwrap().as_deref(),
+        prefs.get_user::<String>("device_name").unwrap().as_deref(),
         Some(id.device_name.as_str())
     );
     assert_eq!(
@@ -57,9 +57,9 @@ fn ensure_identity_is_idempotent_and_reuses_stored_values() {
 #[test]
 fn ensure_identity_normalizes_stored_device_name() {
     let prefs = tmp_prefs("normalize");
-    prefs.set("device_name", "Box.local").unwrap();
+    prefs.set_user("device_name", "Box.local").unwrap();
     assert_eq!(ensure_identity(&prefs).device_name, "Box");
-    prefs.set("device_name", "  ").unwrap();
+    prefs.set_user("device_name", "  ").unwrap();
     let regenerated = ensure_identity(&prefs).device_name;
     assert!(!regenerated.is_empty(), "blank name regenerates");
 }
@@ -86,17 +86,10 @@ fn ensure_url_token_regenerates_zero_token() {
 }
 
 #[test]
-fn ensure_mdns_hostname_generates_two_char_local_host() {
+fn ensure_mdns_hostname_uses_the_shared_default() {
     let prefs = tmp_prefs("mdns");
     let h = ensure_mdns_hostname(&prefs);
-    // <label>.local with a two-char label from the allowed alphabet.
-    let label = h.strip_suffix(".local").expect(".local suffix");
-    assert_eq!(label.len(), 2);
-    assert!(
-        label
-            .bytes()
-            .all(|b| b"abcdefghjkmnpqrstuwxyz".contains(&b))
-    );
+    assert_eq!(h, "plainapp.local");
     // Persisted + stable across reloads.
     assert_eq!(
         prefs.get::<String>("mdns_hostname").unwrap().as_deref(),
@@ -104,19 +97,6 @@ fn ensure_mdns_hostname_generates_two_char_local_host() {
     );
     let reloaded = Prefs::load(prefs.path()).unwrap();
     assert_eq!(ensure_mdns_hostname(&reloaded), h);
-}
-
-#[test]
-fn random_mdns_hostname_labels_draw_from_allowed_alphabet() {
-    for _ in 0..100 {
-        let label = random_mdns_hostname_label();
-        assert_eq!(label.len(), 2);
-        assert!(
-            label
-                .chars()
-                .all(|c| MDNS_HOSTNAME_CHARS.contains(&(c as u8)))
-        );
-    }
 }
 
 #[test]

@@ -35,7 +35,7 @@ fn hash_to_token(hash: &str) -> Vec<u8> {
 /// truncation of the same hex string, so the two must never be conflated.
 fn password_digest(prefs: &plain_rs::prefs::Prefs) -> String {
     let password = prefs
-        .get::<String>("password")
+        .get::<String>(plain_rs::prefs::system::keys::PASSWORD)
         .unwrap_or_default()
         .unwrap_or_default();
     plain_rs::utils::hex::bytes_to_hex(&Sha512::digest(password.as_bytes()))
@@ -111,14 +111,13 @@ pub(crate) enum Request {
 }
 
 pub(crate) fn reset_password(state: &ServerState) -> anyhow::Result<String> {
-    use rand::Rng;
-    let alphabet = b"23456789abcdefghijkmnpqrstuvwxyzABCDEFGHJKMNPQRSTUVWXYZ";
-    let password: String = (0..6)
-        .map(|_| alphabet[rand::thread_rng().gen_range(0..alphabet.len())] as char)
-        .collect();
-    state.prefs.set("password", &password)?;
+    plain_rs::prefs::system::Command::ResetPassword.apply(&state.prefs)?;
+    let password = state
+        .prefs
+        .get::<String>(plain_rs::prefs::system::keys::PASSWORD)?
+        .ok_or_else(|| anyhow::anyhow!("Missing password"))?;
     let _ = state.events.send(plain_rs::events::WsEvent::broadcast(
-        "CONTENT_CHANGED",
+        "PREFS_UPDATED",
         "{}".to_owned(),
     ));
     Ok(password)
@@ -173,7 +172,7 @@ fn sign(prefs: &plain_rs::prefs::Prefs, text: &str) -> anyhow::Result<String> {
 async fn issue(state: &ServerState, request: &Pending) -> anyhow::Result<Value> {
     let device_client_id = state
         .prefs
-        .get::<String>("client_id")?
+        .get::<String>(plain_rs::prefs::system::keys::CLIENT_ID)?
         .ok_or_else(|| anyhow::anyhow!("device client id is missing"))?;
     let offered = text(&request.request, "password");
     anyhow::ensure!(offered == password_digest(&state.prefs), "invalid_password");
@@ -361,8 +360,12 @@ pub(crate) async fn execute(state: &ServerState, request: Request) -> anyhow::Re
                 at: Instant::now(),
             };
             let id = uuid::Uuid::new_v4().to_string();
-            if peer_chat_paired(&pending.request) || state.prefs.get_or("auth_two_factor", true) {
-                let response = json!({"clientId":state.prefs.get_or("client_id",String::new()), "status":"PENDING"});
+            if peer_chat_paired(&pending.request)
+                || state
+                    .prefs
+                    .get_or(plain_rs::prefs::system::keys::AUTH_TWO_FACTOR, true)
+            {
+                let response = json!({"clientId":state.prefs.get_or(plain_rs::prefs::system::keys::CLIENT_ID,String::new()), "status":"PENDING"});
                 let encrypted =
                     plain_rs::crypto::xchacha_encrypt_raw(&key, &serde_json::to_vec(&response)?)
                         .ok_or_else(|| anyhow::anyhow!("Response encryption failed"))?;

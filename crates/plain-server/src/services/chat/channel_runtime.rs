@@ -93,7 +93,7 @@ pub(crate) async fn receive(
 ) -> Result<Value> {
     let actor = state
         .prefs
-        .get::<String>("client_id")?
+        .get::<String>(plain_rs::prefs::system::keys::CLIENT_ID)?
         .filter(|id| !id.is_empty())
         .ok_or_else(|| anyhow::anyhow!("Missing client identity"))?;
     let received =
@@ -142,7 +142,7 @@ pub(crate) async fn execute(state: &ServerState, request: Request) -> Result<Val
     }
     let actor = state
         .prefs
-        .get::<String>("client_id")?
+        .get::<String>(plain_rs::prefs::system::keys::CLIENT_ID)?
         .filter(|s| !s.is_empty())
         .ok_or_else(|| anyhow::anyhow!("Missing client identity"))?;
     if let Request::Invitation { id, owner } = &request {

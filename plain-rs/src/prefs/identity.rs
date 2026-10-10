@@ -64,26 +64,29 @@ fn ensure_string(prefs: &Prefs, key: &str, make: impl FnOnce() -> String) -> Str
 /// values without rewriting the file. A stored `device_name` is
 /// normalized (whitespace, trailing `.`/`.local` stripped) on read.
 pub fn ensure_identity(prefs: &Prefs) -> AppIdentity {
-    let client_id = ensure_string(prefs, "client_id", short_uuid::short_uuid);
-    let device_name = match prefs.get::<String>("device_name").unwrap_or(None) {
-        Some(v) => {
-            let v = v
-                .trim()
-                .trim_end_matches('.')
-                .trim_end_matches(".local")
-                .to_string();
-            if v.is_empty() {
-                ensure_string(prefs, "device_name", default_device_name)
-            } else {
-                v
-            }
-        }
-        None => ensure_string(prefs, "device_name", default_device_name),
-    };
-    let ed25519_keypair = ensure_string(prefs, "signature_key_pair", || {
-        let (kp, _) = ed25519_generate();
-        base64_encode(&kp)
-    });
+    let client_id = ensure_string(
+        prefs,
+        crate::prefs::system::keys::CLIENT_ID,
+        short_uuid::short_uuid,
+    );
+    let device_name = prefs
+        .get_user::<String>(crate::prefs::user::keys::DEVICE_NAME)
+        .expect("Device name unavailable")
+        .filter(|v| !v.trim().is_empty())
+        .unwrap_or_else(|| {
+            let name = default_device_name();
+            prefs
+                .set_user(crate::prefs::user::keys::DEVICE_NAME, &name)
+                .expect("Device name persistence failed");
+            name
+        })
+        .trim()
+        .trim_end_matches('.')
+        .trim_end_matches(".local")
+        .to_string();
+    let ed25519_keypair = base64_encode(
+        &crate::prefs::system::ensure_signing_keypair(prefs).expect("Signing identity unavailable"),
+    );
     AppIdentity {
         client_id,
         device_name,
@@ -97,36 +100,25 @@ pub fn ensure_identity(prefs: &Prefs) -> AppIdentity {
 /// Windows) — regenerate it instead of serving it forever.
 pub fn ensure_url_token(prefs: &Prefs) -> String {
     let zero_token = base64_encode(&[0u8; 32]);
-    match prefs.get::<String>("url_token").unwrap_or(None) {
+    match prefs
+        .get::<String>(crate::prefs::system::keys::URL_TOKEN)
+        .unwrap_or(None)
+    {
         Some(t) if !t.is_empty() && t != zero_token => t,
         _ => {
             let token = gen_token();
-            let _ = prefs.set("url_token", &token);
+            let _ = prefs.set(crate::prefs::system::keys::URL_TOKEN, &token);
             token
         }
     }
 }
 
-/// Allowed chars for the random mDNS host label — mirrors plain-app's
-/// `MdnsHostnamePreference`: `('a'..'z')` minus the ambiguous `i l o v`.
-const MDNS_HOSTNAME_CHARS: &[u8] = b"abcdefghjkmnpqrstuwxyz";
-
-fn random_mdns_hostname_label() -> String {
-    use rand::Rng;
-    let mut rng = rand::thread_rng();
-    (0..2)
-        .map(|_| MDNS_HOSTNAME_CHARS[rng.gen_range(0..MDNS_HOSTNAME_CHARS.len())] as char)
-        .collect()
-}
-
-/// mDNS hostname for local-network discovery — mirrors plain-app's
-/// `MdnsHostnamePreference.ensureValueAsync`: returns the stored value,
-/// or on first run generates a random two-char host under `.local` and
-/// persists it.
 pub fn ensure_mdns_hostname(prefs: &Prefs) -> String {
-    ensure_string(prefs, "mdns_hostname", || {
-        format!("{}.local", random_mdns_hostname_label())
-    })
+    ensure_string(
+        prefs,
+        crate::prefs::system::keys::MDNS_HOSTNAME,
+        crate::prefs::system::default_mdns_hostname,
+    )
 }
 
 #[cfg(test)]

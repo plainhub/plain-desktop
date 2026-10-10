@@ -42,7 +42,7 @@ pub(crate) async fn run(
     let permit = state.lan.capacity.clone().acquire_owned().await?;
     let actor = state
         .prefs
-        .get::<String>("client_id")?
+        .get::<String>(plain_rs::prefs::system::keys::CLIENT_ID)?
         .filter(|v| !v.is_empty())
         .ok_or_else(|| anyhow::anyhow!("Missing peer actor"))?;
     let mut file = tokio::fs::File::create(path).await?;

@@ -55,7 +55,12 @@ impl Context {
         visible: bool,
         resident: bool,
     ) -> anyhow::Result<bool> {
-        if device.id == self.prefs.get::<String>("client_id")?.unwrap_or_default() {
+        if device.id
+            == self
+                .prefs
+                .get::<String>(plain_rs::prefs::system::keys::CLIENT_ID)?
+                .unwrap_or_default()
+        {
             return Ok(false);
         }
         device.validate()?;

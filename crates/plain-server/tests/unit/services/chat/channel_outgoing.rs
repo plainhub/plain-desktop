@@ -18,11 +18,7 @@ fn private_prepare_uses_persisted_signing_identity_and_current_peer_keys() {
     let (key, public) = ed25519_generate();
     prefs.set("client_id", "actor").unwrap();
     prefs
-        .set(
-            "signature_key_pair",
-            json!({"privateKey":base64_encode(&key[..32]),"publicKey":base64_encode(&public)})
-                .to_string(),
-        )
+        .set("signature_key_pair", base64_encode(&key))
         .unwrap();
     let db = Db::open(std::path::Path::new(":memory:")).unwrap();
     let mut paired = DPeer::new("paired", "paired", "127.0.0.1", 1, DeviceType::Phone);
@@ -81,8 +77,7 @@ fn private_prepare_uses_persisted_signing_identity_and_current_peer_keys() {
     prefs
         .set(
             "signature_key_pair",
-            json!({"privateKey":base64_encode(&[1;32]),"publicKey":base64_encode(&public)})
-                .to_string(),
+            base64_encode(&[vec![1; 32], public.to_vec()].concat()),
         )
         .unwrap();
     assert!(

@@ -42,7 +42,7 @@ pub fn path_from_file_id(id: &str, prefs: &plain_rs::prefs::Prefs) -> Result<Str
     log::debug!("[path_from_file_id] ciphertext len: {}", ciphertext.len());
 
     let token = prefs
-        .get::<String>("url_token")
+        .get::<String>(plain_rs::prefs::system::keys::URL_TOKEN)
         .ok()
         .flatten()
         .filter(|t| !t.is_empty())

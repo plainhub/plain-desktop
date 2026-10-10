@@ -1,10 +1,7 @@
 use async_graphql::{Context, Object};
-use serde_json::json;
 use std::sync::Arc;
 
 use crate::assembly::context::AppCtx;
-use crate::assembly::context::WS_DEVICE_NAME_UPDATED;
-use crate::assembly::context::WsEvent;
 use crate::assembly::enums::AppChannelType;
 use crate::assembly::enums::Permission;
 use crate::graphql::resolvers::app::desktop_types::App;
@@ -122,19 +119,15 @@ impl AppMutation {
     }
 
     async fn update_device_name(&self, ctx: &Context<'_>, name: String) -> bool {
-        let c = ctx.data_unchecked::<Arc<AppCtx>>();
-        // Updates the shared name AND republishes the mDNS service (goodbye
-        // for the old instance) so peers see the new name right away.
-        // The chat identity is shared with the pairing manager, so channel /
-        // pairing wire traffic picks the rename up too.
-        c.discover_manager.apply_device_rename(&name);
-        c.chat.identity.set_device_name(&name);
-        let _ = c.prefs.set("device_name", name.as_str());
-        let _ = c.event_tx.send(WsEvent::broadcast(
-            WS_DEVICE_NAME_UPDATED,
-            json!(name).to_string(),
-        ));
-        true
+        crate::graphql::resolvers::settings::state::update_user(
+            ctx,
+            plain_rs::prefs::user::UserSettingsPatch {
+                device_name: Some(name),
+                ..Default::default()
+            },
+        )
+        .await
+        .is_ok()
     }
 }
 

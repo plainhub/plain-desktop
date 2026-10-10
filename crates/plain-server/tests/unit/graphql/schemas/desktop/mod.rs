@@ -6,6 +6,7 @@
 //! definition is duplicated.
 
 use super::*;
+use crate::graphql::resolvers::settings::state::{PreferencesMutation, PreferencesQuery};
 use async_graphql::{EmptyMutation, EmptySubscription, Schema};
 use std::collections::BTreeMap;
 use std::path::Path;
@@ -24,6 +25,11 @@ struct ChatMutation(
 
 #[derive(Default, async_graphql::MergedObject)]
 struct DiscoverMutations(DiscoverMutation, PairingMutation);
+
+#[derive(Default, async_graphql::MergedObject)]
+struct PreferenceQueries(PrefsQuery, PreferencesQuery);
+#[derive(Default, async_graphql::MergedObject)]
+struct PreferenceMutations(PrefsMutation, PreferencesMutation);
 
 fn sdl_of<Q: async_graphql::ObjectType + 'static, M: async_graphql::ObjectType + 'static>(
     query: Q,
@@ -68,7 +74,10 @@ fn feature_sdl() -> Vec<(&'static str, String)> {
         ),
         ("note", sdl_of(NoteQuery, NoteMutation)),
         ("pomodoro", sdl_of(PomodoroQuery, PomodoroMutation)),
-        ("prefs", sdl_of(PrefsQuery, PrefsMutation)),
+        (
+            "prefs",
+            sdl_of(PreferenceQueries::default(), PreferenceMutations::default()),
+        ),
     ]
 }
 
@@ -235,6 +244,11 @@ fn split_covers_every_type_of_the_merged_schema() {
 #[ignore]
 fn export_split_schema_sdl() {
     let dir = split_dir();
+    std::fs::write(
+        dir.parent().unwrap().join("schema.graphql"),
+        build_schema().sdl(),
+    )
+    .expect("write merged SDL");
     std::fs::create_dir_all(&dir).expect("create schema/features directory");
     for (file, body) in split_sdl() {
         std::fs::write(dir.join(file), body).expect("write feature SDL");

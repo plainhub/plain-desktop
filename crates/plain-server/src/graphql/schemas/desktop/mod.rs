@@ -41,6 +41,7 @@ use crate::graphql::resolvers::uploads::desktop::FileUploadQuery;
 
 #[derive(MergedObject, Default)]
 pub struct QueryRoot(
+    crate::graphql::resolvers::settings::state::PreferencesQuery,
     AppQuery,
     AudioQuery,
     BookmarkQuery,
@@ -63,6 +64,7 @@ pub struct QueryRoot(
 
 #[derive(MergedObject, Default)]
 pub struct MutationRoot(
+    crate::graphql::resolvers::settings::state::PreferencesMutation,
     AppMutation,
     AudioMutation,
     BookmarkMutation,

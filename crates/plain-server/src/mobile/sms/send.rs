@@ -74,7 +74,8 @@ static SEND_LOCK: tokio::sync::Mutex<()> = tokio::sync::Mutex::const_new(());
 
 pub(crate) async fn execute(prefs: &Prefs, host: &Host, request: Request) -> anyhow::Result<Value> {
     anyhow::ensure!(!request.number.trim().is_empty(), "phone number is empty");
-    let configured: Vec<String> = prefs.get_or("api_permissions", Vec::new());
+    let configured: Vec<String> =
+        prefs.get_or(plain_rs::prefs::system::keys::API_PERMISSIONS, Vec::new());
     anyhow::ensure!(permission_allowed(&configured), "no_permission");
     let request_id = request
         .client_request_id

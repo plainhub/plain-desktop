@@ -1,32 +1,7 @@
-use crate::assembly::server::ServerState;
-use axum::{
-    Json,
-    extract::State,
-    http::{HeaderMap, StatusCode},
-    response::{IntoResponse, Response},
-};
 use plain_rs::events::WsEvent;
 use plain_rs::prefs::Prefs;
-use serde::Deserialize;
 use serde_json::{Value, json};
 use tokio::sync::broadcast;
-
-#[derive(Deserialize)]
-#[serde(tag = "action", rename_all = "camelCase")]
-pub(crate) enum Command {
-    Snapshot {
-        user: bool,
-    },
-    Set {
-        user: bool,
-        key: String,
-        value: Value,
-    },
-    Remove {
-        user: bool,
-        key: String,
-    },
-}
 
 pub(crate) fn set(
     prefs: &Prefs,
@@ -36,7 +11,13 @@ pub(crate) fn set(
     value: Value,
 ) -> Result<bool, String> {
     let changed = if user {
-        prefs.set_user(key, &value)
+        if let Some(changed) = plain_rs::prefs::user::set_entry(prefs, key, value.clone())
+            .map_err(|e| e.to_string())?
+        {
+            Ok(changed)
+        } else {
+            prefs.set_user(key, &value)
+        }
     } else {
         prefs.set(key, &value)
     }
@@ -45,12 +26,15 @@ pub(crate) fn set(
         let _ = events.send(WsEvent::broadcast("PREFS_UPDATED", "{}".into()));
         if user {
             let event = match key {
-                "device_name" => Some(("DEVICE_NAME_UPDATED", value.to_string())),
-                "notification_filter" => Some(("NOTIFICATION_REFRESHED", String::new())),
-                "pomodoro_settings" => value
-                    .as_str()
-                    .and_then(|raw| serde_json::from_str::<Value>(raw).ok())
-                    .map(|settings| ("POMODORO_SETTINGS_UPDATE", settings.to_string())),
+                plain_rs::prefs::user::keys::DEVICE_NAME => {
+                    Some(("DEVICE_NAME_UPDATED", value.to_string()))
+                }
+                plain_rs::prefs::user::keys::NOTIFICATION_FILTER => {
+                    Some(("NOTIFICATION_REFRESHED", String::new()))
+                }
+                plain_rs::prefs::user::keys::POMODORO_SETTINGS => {
+                    Some(("POMODORO_SETTINGS_UPDATE", value.to_string()))
+                }
                 _ => None,
             };
             if let Some((kind, payload)) = event {
@@ -77,45 +61,6 @@ pub(crate) fn remove(
         let _ = events.send(WsEvent::broadcast("PREFS_UPDATED", "{}".into()));
     }
     Ok(changed)
-}
-
-pub(crate) async fn call(
-    State(state): State<ServerState>,
-    headers: HeaderMap,
-    Json(command): Json<Command>,
-) -> Response {
-    if !state.authenticated(&headers) {
-        return StatusCode::UNAUTHORIZED.into_response();
-    }
-    let result = tokio::task::spawn_blocking(move || -> Result<Value, String> {
-        match command {
-            Command::Snapshot { user } => Ok(Value::Object(
-                if user {
-                    state.prefs.user_entries()
-                } else {
-                    state.prefs.entries()
-                }
-                .into_iter()
-                .collect(),
-            )),
-            Command::Set { user, key, value } => {
-                set(&state.prefs, &state.events, user, &key, value)
-                    .map(|changed| json!({"changed": changed}))
-            }
-            Command::Remove { user, key } => remove(&state.prefs, &state.events, user, &key)
-                .map(|changed| json!({"changed": changed})),
-        }
-    })
-    .await;
-    match result {
-        Ok(Ok(value)) => Json(value).into_response(),
-        Ok(Err(error)) => (StatusCode::BAD_REQUEST, Json(json!({"error": error}))).into_response(),
-        Err(error) => (
-            StatusCode::INTERNAL_SERVER_ERROR,
-            Json(json!({"error": error.to_string()})),
-        )
-            .into_response(),
-    }
 }
 
 #[cfg(test)]

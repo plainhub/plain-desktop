@@ -21,7 +21,16 @@ async fn pomodoro_host_ticks_statistics_atomic_completion_and_restart() {
     let path = dir.path().join("plain.db");
     let db = Arc::new(Db::open(&path).unwrap());
     let prefs = Arc::new(plain_rs::prefs::Prefs::load(&dir.path().join("prefs.json")).unwrap());
-    prefs.set_user("pomodoro_settings",&r#"{"workDurationMin":1,"shortBreakDurationMin":2,"longBreakDurationMin":3,"pomodorosBeforeLongBreak":2}"#).unwrap();
+    let mut settings = plain_rs::prefs::user::UserSettings::default().pomodoro_settings;
+    for (key, value) in [
+        ("workDurationMin", 1),
+        ("shortBreakDurationMin", 2),
+        ("longBreakDurationMin", 3),
+        ("pomodorosBeforeLongBreak", 2),
+    ] {
+        settings[key] = json!(value);
+    }
+    prefs.set_user("pomodoro_settings", settings).unwrap();
     let token = plain_rs::utils::base64::base64_encode(&[12; 32]);
     let server = ContentServer::start(&path, &token, prefs.clone()).unwrap();
     let config = r#"mutation {configurePomodoroDay(date:"2026-10-03",dayStart:"2026-10-02T16:00:00Z") {date timeLeftSec}}"#;

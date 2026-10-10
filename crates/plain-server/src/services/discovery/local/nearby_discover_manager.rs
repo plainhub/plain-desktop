@@ -251,7 +251,7 @@ impl NearbyDiscoverManager {
     /// `MdnsHostnamePreference` + `WebAddressBar` save path, applied
     /// immediately by re-publishing on the shared responder socket.
     pub fn set_mdns_hostname(&self, prefs: &plain_rs::prefs::Prefs, hostname: &str) {
-        let _ = prefs.set("mdns_hostname", hostname);
+        let _ = prefs.set(plain_rs::prefs::system::keys::MDNS_HOSTNAME, hostname);
         *self.mdns_hostname.write().unwrap() = hostname.to_string();
         self.publish_service();
         // Drop instances cached under the previous hostname and re-browse so

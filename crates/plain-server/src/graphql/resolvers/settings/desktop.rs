@@ -30,9 +30,9 @@ impl PrefsQuery {
 
     async fn system_prefs(&self, ctx: &Context<'_>) -> Json<Value> {
         let c = ctx.data_unchecked::<Arc<AppCtx>>();
-        Json(Value::Object(
-            c.prefs.entries().into_iter().collect::<Map<_, _>>(),
-        ))
+        Json(Value::Object(plain_rs::prefs::system::public_entries(
+            &c.prefs,
+        )))
     }
 }
 
@@ -56,9 +56,14 @@ impl PrefsMutation {
             return Err(Error::new("invalid_pref_value"));
         }
         let c = ctx.data_unchecked::<Arc<AppCtx>>();
-        c.prefs
-            .set_user(&key, value.0)
-            .map_err(|e| Error::new(e.to_string()))?;
+        if plain_rs::prefs::user::set_entry(&c.prefs, &key, value.0.clone())
+            .map_err(|e| Error::new(e.to_string()))?
+            .is_none()
+        {
+            c.prefs
+                .set_user(&key, value.0)
+                .map_err(|e| Error::new(e.to_string()))?;
+        }
         Ok(true)
     }
 

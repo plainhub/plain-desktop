@@ -12,11 +12,7 @@ fn fixture() -> (tempfile::TempDir, crate::assembly::server::ContentServer) {
     prefs
         .set(
             "signature_key_pair",
-            json!({
-                "privateKey": plain_rs::utils::base64::base64_encode(&key[..32]),
-                "publicKey": plain_rs::utils::base64::base64_encode(&public),
-            })
-            .to_string(),
+            plain_rs::utils::base64::base64_encode(&key),
         )
         .unwrap();
     let server = crate::assembly::server::ContentServer::start(

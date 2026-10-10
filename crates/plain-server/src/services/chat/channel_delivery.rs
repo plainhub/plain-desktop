@@ -46,7 +46,10 @@ async fn deliver(
         current(state, channel, removed)?,
         "Channel changed before send"
     );
-    let actor = state.prefs.get::<String>("client_id")?.unwrap_or_default();
+    let actor = state
+        .prefs
+        .get::<String>(plain_rs::prefs::system::keys::CLIENT_ID)?
+        .unwrap_or_default();
     ensure!(!actor.is_empty(), "Missing client identity");
     match kind {
         ChannelSystemMessageType::Invite

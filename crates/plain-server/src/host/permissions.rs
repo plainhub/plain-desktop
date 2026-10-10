@@ -8,32 +8,7 @@ use axum::{
 use serde::Deserialize;
 use serde_json::{Value, json};
 
-const PERMISSIONS: &[&str] = &[
-    "WRITE_EXTERNAL_STORAGE",
-    "READ_SMS",
-    "SEND_SMS",
-    "READ_CONTACTS",
-    "WRITE_CONTACTS",
-    "READ_CALL_LOG",
-    "WRITE_CALL_LOG",
-    "CALL_PHONE",
-    "POST_NOTIFICATIONS",
-    "NEARBY_WIFI_DEVICES",
-    "ACCESS_FINE_LOCATION",
-    "CAMERA",
-    "SYSTEM_ALERT_WINDOW",
-    "RECORD_AUDIO",
-    "READ_MEDIA_IMAGES",
-    "READ_MEDIA_VIDEOS",
-    "READ_MEDIA_AUDIO",
-    "NOTIFICATION_LISTENER",
-    "READ_PHONE_STATE",
-    "READ_PHONE_NUMBERS",
-    "SCHEDULE_EXACT_ALARM",
-    "QUERY_ALL_PACKAGES",
-    "ADB",
-    "CLIPBOARD",
-];
+use plain_rs::prefs::system::PERMISSIONS;
 
 #[derive(Deserialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
@@ -52,7 +27,9 @@ async fn execute(state: &ServerState, request: Request) -> anyhow::Result<Value>
             .all(|name| PERMISSIONS.contains(&name.as_str())),
         "unknown permission"
     );
-    let configured: Vec<String> = state.prefs.get_or("api_permissions", Vec::new());
+    let configured: Vec<String> = state
+        .prefs
+        .get_or(plain_rs::prefs::system::keys::API_PERMISSIONS, Vec::new());
     let configured = configured
         .into_iter()
         .collect::<std::collections::HashSet<_>>();

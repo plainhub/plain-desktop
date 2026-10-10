@@ -10,7 +10,12 @@ fn root(id: &str) -> (tempfile::TempDir, ContentServer, Vec<u8>, String) {
     prefs.set("client_id", id).unwrap();
     prefs.set_user("service", true).unwrap();
     let (kp, pk) = plain_rs::crypto::ed25519_generate();
-    prefs.set("signature_key_pair",json!({"privateKey":plain_rs::utils::base64::base64_encode(&kp[..32]),"publicKey":plain_rs::utils::base64::base64_encode(&pk)}).to_string()).unwrap();
+    prefs
+        .set(
+            "signature_key_pair",
+            plain_rs::utils::base64::base64_encode(&kp),
+        )
+        .unwrap();
     let token = plain_rs::utils::base64::base64_encode(&[3; 32]);
     let server = ContentServer::start(&dir.path().join("plain.db"), &token, prefs).unwrap();
     (dir, server, kp.to_vec(), token)

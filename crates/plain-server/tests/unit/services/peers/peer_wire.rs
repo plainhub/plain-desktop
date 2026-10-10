@@ -17,11 +17,7 @@ fn signing_current_peer_and_channel_keys_and_authenticated_crypto_roundtrip() {
     let prefs = Prefs::load(&dir.join("system_prefs.json")).unwrap();
     let (key, public) = ed25519_generate();
     prefs
-        .set(
-            "signature_key_pair",
-            json!({"privateKey":base64_encode(&key[..32]),"publicKey":base64_encode(&public)})
-                .to_string(),
-        )
+        .set("signature_key_pair", base64_encode(&key))
         .unwrap();
     let db = Db::open(std::path::Path::new(":memory:")).unwrap();
     let mut peer = DPeer::new("peer", "peer", "127.0.0.1", 1, DeviceType::Phone);

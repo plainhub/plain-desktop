@@ -14,15 +14,23 @@ fn committed_preferences_emit_public_state_once_without_host_forwarding() {
         ),
         (
             "notification_filter",
-            json!("{}"),
+            json!({"mode":"blacklist","apps":[]}),
             "NOTIFICATION_REFRESHED",
             String::new(),
         ),
         (
             "pomodoro_settings",
-            json!("{\"workDurationMin\":30}"),
+            {
+                let mut value = plain_rs::prefs::user::UserSettings::default().pomodoro_settings;
+                value["workDurationMin"] = json!(30);
+                value
+            },
             "POMODORO_SETTINGS_UPDATE",
-            "{\"workDurationMin\":30}".to_string(),
+            {
+                let mut value = plain_rs::prefs::user::UserSettings::default().pomodoro_settings;
+                value["workDurationMin"] = json!(30);
+                value.to_string()
+            },
         ),
     ] {
         assert!(set(&prefs, &events, true, key, value.clone()).unwrap());

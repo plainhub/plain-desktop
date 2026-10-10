@@ -43,26 +43,24 @@ pub(crate) async fn execute(state: &ServerState, request: Request) -> Result<Val
             .await
             .map_err(anyhow::Error::msg)?,
     )?;
-    let id = state.prefs.get::<String>("client_id")?.unwrap_or_default();
+    let id = state
+        .prefs
+        .get::<String>(plain_rs::prefs::system::keys::CLIENT_ID)?
+        .unwrap_or_default();
     if matches!(request, Request::Ble {}) {
         return Ok(json!(plain_rs::utils::base64::base64_encode(
             &advertisement::ble(&id, facts.aware_supported, facts.aware_running)?
         )));
     }
-    let name = state
-        .prefs
-        .get_user::<String>("device_name")?
-        .unwrap_or_default();
-    let port = state.prefs.get_user::<u16>("https_port")?.unwrap_or(8443);
+    let settings = plain_rs::prefs::user::snapshot(&state.prefs)?;
+    let name = settings.device_name;
+    let port = settings.https_port as u16;
     let reply = advertisement::reply(&id, &name, port, facts)?;
     match request {
         Request::Reply {} => Ok(serde_json::to_value(reply)?),
         Request::Mdns {} => Ok(serde_json::to_value(advertisement::mdns(
             &reply,
-            &state
-                .prefs
-                .get::<String>("mdns_hostname")?
-                .unwrap_or_else(|| "plainapp.local".into()),
+            &plain_rs::prefs::ensure_mdns_hostname(&state.prefs),
         )?)?),
         Request::Ble {} | Request::BleDecode { .. } | Request::BleShortId { .. } => unreachable!(),
     }

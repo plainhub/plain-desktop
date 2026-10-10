@@ -81,25 +81,7 @@ pub(crate) fn decrypt(key: &str, body: &str) -> Result<Option<String>> {
         .map_err(Into::into)
 }
 pub(crate) fn signing_keypair(prefs: &Prefs) -> Result<Vec<u8>> {
-    let raw = prefs
-        .get::<String>("signature_key_pair")?
-        .ok_or_else(|| anyhow::anyhow!("Missing signature keypair"))?;
-    let pair: serde_json::Value = serde_json::from_str(&raw)?;
-    let mut keypair = plain_rs::utils::base64::base64_decode(
-        pair["privateKey"]
-            .as_str()
-            .ok_or_else(|| anyhow::anyhow!("Missing private key"))?,
-    );
-    let public = plain_rs::utils::base64::base64_decode(
-        pair["publicKey"]
-            .as_str()
-            .ok_or_else(|| anyhow::anyhow!("Missing public key"))?,
-    );
-    if keypair.len() != 32 || public.len() != 32 {
-        bail!("Invalid signature keypair");
-    }
-    keypair.extend(public);
-    Ok(keypair)
+    plain_rs::prefs::system::signing_keypair(prefs)
 }
 pub(crate) fn authenticate(db: &Db, id: &str, channel_id: &str, body: &str) -> serde_json::Value {
     match plain_rs::transport::auth::authenticate(

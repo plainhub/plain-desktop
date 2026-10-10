@@ -6,7 +6,12 @@ fn fixture() -> (tempfile::TempDir, crate::assembly::server::ContentServer) {
     let prefs = Arc::new(plain_rs::prefs::Prefs::load(&dir.path().join("system.json")).unwrap());
     let (key, public) = plain_rs::crypto::ed25519_generate();
     prefs.set("client_id", "actor").unwrap();
-    prefs.set("signature_key_pair",json!({"privateKey":plain_rs::utils::base64::base64_encode(&key[..32]),"publicKey":plain_rs::utils::base64::base64_encode(&public)}).to_string()).unwrap();
+    prefs
+        .set(
+            "signature_key_pair",
+            plain_rs::utils::base64::base64_encode(&key),
+        )
+        .unwrap();
     let server = crate::assembly::server::ContentServer::start(
         &dir.path().join("plain.db"),
         &plain_rs::utils::base64::base64_encode(&[3; 32]),

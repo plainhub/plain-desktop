@@ -120,7 +120,7 @@ pub(crate) async fn aware(
     }));
     let actor = state
         .prefs
-        .get::<String>("client_id")
+        .get::<String>(plain_rs::prefs::system::keys::CLIENT_ID)
         .map_err(|e| Failure::Fatal(e.to_string()))?
         .filter(|s| !s.is_empty())
         .ok_or_else(|| Failure::Fatal("Missing peer actor".into()))?;
@@ -202,7 +202,7 @@ pub(crate) async fn ble(
 pub(crate) fn ble_actor(state: &ServerState) -> Result<String, Failure> {
     state
         .prefs
-        .get::<String>("client_id")
+        .get::<String>(plain_rs::prefs::system::keys::CLIENT_ID)
         .map_err(|e| Failure::Fatal(e.to_string()))?
         .filter(|s| !s.is_empty())
         .ok_or_else(|| Failure::Fatal("Missing peer actor".into()))

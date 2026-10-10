@@ -120,7 +120,7 @@ impl CallsQuery {
             } else {
                 plain_rs::chat::messages::content::make_file_id(
                     &path,
-                    &prefs.get_or("url_token", String::new()),
+                    &prefs.get_or(plain_rs::prefs::system::keys::URL_TOKEN, String::new()),
                 )
             };
             if let Some(locale) = &locale {

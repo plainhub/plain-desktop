@@ -63,7 +63,7 @@ fn url_escape(value: &str) -> String {
 fn decrypt_url_id(state: &ServerState, id: &str) -> Option<String> {
     let token = state
         .prefs
-        .get::<String>("url_token")
+        .get::<String>(plain_rs::prefs::system::keys::URL_TOKEN)
         .ok()
         .flatten()
         .unwrap_or_default();

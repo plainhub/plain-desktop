@@ -3,6 +3,7 @@ use plain_rs::chat::enums::DeviceType;
 use plain_rs::chat::enums::PeerStatus;
 use plain_rs::db::DPeer;
 use plain_rs::db::Db;
+use plain_rs::prefs::ensure_mdns_hostname;
 
 fn unique_tmp_dir(label: &str) -> std::path::PathBuf {
     static SEQ: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
@@ -23,7 +24,7 @@ fn mdns_hostname_is_generated_once_and_persisted() {
     let b = ensure_mdns_hostname(&prefs);
     assert_eq!(a, b);
     assert!(a.ends_with(".local"));
-    assert_eq!(a.trim_end_matches(".local").len(), 2);
+    assert_eq!(a, "plainapp.local");
     let stored: Option<String> = prefs.get("mdns_hostname").unwrap();
     assert_eq!(stored.as_deref(), Some(a.as_str()));
 }

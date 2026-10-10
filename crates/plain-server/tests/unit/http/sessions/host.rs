@@ -13,7 +13,12 @@ fn fixture() -> (tempfile::TempDir, ContentServer) {
     prefs.set("password", "secret").unwrap();
     prefs.set("client_id", "phone").unwrap();
     let (private, public) = plain_rs::crypto::ed25519_generate();
-    prefs.set("signature_key_pair", json!({"privateKey":plain_rs::utils::base64::base64_encode(&private[..32]),"publicKey":plain_rs::utils::base64::base64_encode(&public)}).to_string()).unwrap();
+    prefs
+        .set(
+            "signature_key_pair",
+            plain_rs::utils::base64::base64_encode(&private),
+        )
+        .unwrap();
     let server = ContentServer::start(
         &dir.path().join("data.db"),
         &plain_rs::utils::base64::base64_encode(&[3; 32]),
@@ -163,10 +168,9 @@ async fn web_login_ecdh_encrypted_response_signature_and_token_auth_survive_rest
         response["ecdhPublicKey"].as_str().unwrap(),
         response["timestamp"].as_u64().unwrap()
     );
-    let stored: Value =
-        serde_json::from_str(&state.prefs.get_or("signature_key_pair", String::new())).unwrap();
+    let pair = plain_rs::prefs::system::signing_keypair(&state.prefs).unwrap();
     assert!(plain_rs::crypto::ed25519_verify(
-        stored["publicKey"].as_str().unwrap(),
+        &plain_rs::base64_encode(&pair[32..]),
         material.as_bytes(),
         response["signature"].as_str().unwrap()
     ));

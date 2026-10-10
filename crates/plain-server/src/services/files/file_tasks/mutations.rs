@@ -40,7 +40,7 @@ impl FileTasks {
         let client_id = self
             .hooks
             .prefs
-            .get::<String>("client_id")?
+            .get::<String>(plain_rs::prefs::system::keys::CLIENT_ID)?
             .filter(|value| !value.is_empty())
             .ok_or_else(|| anyhow!("file task identity unavailable"))?;
         let service = self.service()?;

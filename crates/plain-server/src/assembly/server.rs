@@ -384,10 +384,6 @@ impl ContentServer {
             .route("/system/sessions", post(crate::http::sessions::host::call))
             .route("/system/providers", post(crate::http::routes::system::call))
             .route(
-                "/system/preferences",
-                post(crate::services::settings::preferences::call),
-            )
-            .route(
                 "/system/media-buckets",
                 post(crate::services::files::media_buckets::call),
             )

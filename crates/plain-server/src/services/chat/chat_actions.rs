@@ -214,7 +214,7 @@ pub(crate) async fn share_content(state: &ServerState, id: &str) -> Result<Value
         .ok_or_else(|| anyhow::anyhow!("Share unavailable"))?;
     let actor = state
         .prefs
-        .get::<String>("client_id")?
+        .get::<String>(plain_rs::prefs::system::keys::CLIENT_ID)?
         .filter(|s| !s.is_empty())
         .ok_or_else(|| anyhow::anyhow!("Missing identity"))?;
     let facts = state

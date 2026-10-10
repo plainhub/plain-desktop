@@ -23,29 +23,6 @@ use plain_rs::chat::service::ChatIdentity;
 use plain_rs::db::Db;
 
 const LOCAL_DEVICE_TYPE_WIRE: &str = "NAS";
-/// Mirrors plain-app's `MdnsHostnamePreference`: random two-char label
-/// from the DNS-safe alphabet, persisted on first use.
-const MDNS_HOSTNAME_CHARS: &[u8] = b"abcdefghjkmnpqrstuwxyz";
-
-fn ensure_mdns_hostname(prefs: &plain_rs::prefs::Prefs) -> String {
-    if let Some(hostname) = prefs
-        .get::<String>("mdns_hostname")
-        .ok()
-        .flatten()
-        .filter(|h| !h.is_empty())
-    {
-        return hostname;
-    }
-    use rand::Rng;
-    let label: String = (0..2)
-        .map(|_| {
-            MDNS_HOSTNAME_CHARS[rand::thread_rng().gen_range(0..MDNS_HOSTNAME_CHARS.len())] as char
-        })
-        .collect();
-    let hostname = format!("{label}.local");
-    let _ = prefs.set("mdns_hostname", &hostname);
-    hostname
-}
 
 pub struct ChatDiscovery {
     browser: MdnsServiceBrowser,
@@ -60,7 +37,7 @@ impl ChatDiscovery {
     /// browser listener and spawn the discovery worker. Publishes the
     /// service once an HTTPS port is known ([`Self::set_https_port`]).
     pub fn start(db: Db, identity: Arc<ChatIdentity>, prefs: &plain_rs::prefs::Prefs) -> Arc<Self> {
-        let hostname = Arc::new(RwLock::new(ensure_mdns_hostname(prefs)));
+        let hostname = Arc::new(RwLock::new(plain_rs::prefs::ensure_mdns_hostname(prefs)));
         let online: Arc<Mutex<HashSet<String>>> = Arc::new(Mutex::new(HashSet::new()));
 
         // Found devices arrive on the mDNS responder packet thread — hand

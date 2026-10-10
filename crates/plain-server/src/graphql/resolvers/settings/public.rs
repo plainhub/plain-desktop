@@ -42,7 +42,9 @@ impl PrefsQuery {
     }
 
     async fn system_prefs(&self, ctx: &Context<'_>) -> Json<Value> {
-        Json(Value::Object(prefs(ctx).entries().into_iter().collect()))
+        Json(Value::Object(plain_rs::prefs::system::public_entries(
+            prefs(ctx),
+        )))
     }
 }
 

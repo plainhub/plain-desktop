@@ -79,7 +79,10 @@ impl Outgoing {
         work.started && work.epoch == epoch
     }
     pub(crate) fn reconcile(self: &Arc<Self>, state: &ServerState, epoch: u64) -> Result<()> {
-        let actor = state.prefs.get::<String>("client_id")?.unwrap_or_default();
+        let actor = state
+            .prefs
+            .get::<String>(plain_rs::prefs::system::keys::CLIENT_ID)?
+            .unwrap_or_default();
         let wanted: HashMap<String, DPeer> = peers::all(&state.db)?
             .into_iter()
             .filter(|p| p.is_paired() && !p.key.is_empty() && !actor.is_empty() && actor < p.id)
@@ -163,7 +166,10 @@ impl Outgoing {
             let Some(peer) = peers::get(&state.db, &id).ok().flatten() else {
                 break;
             };
-            let Ok(actor) = state.prefs.get::<String>("client_id") else {
+            let Ok(actor) = state
+                .prefs
+                .get::<String>(plain_rs::prefs::system::keys::CLIENT_ID)
+            else {
                 break;
             };
             if !peer.is_paired() || actor.as_ref().is_none_or(|actor| actor >= &id) {
@@ -184,7 +190,7 @@ impl Outgoing {
         ensure!(self.current(epoch), "Status runtime stopped");
         let actor = state
             .prefs
-            .get::<String>("client_id")?
+            .get::<String>(plain_rs::prefs::system::keys::CLIENT_ID)?
             .filter(|id| !id.is_empty())
             .ok_or_else(|| anyhow::anyhow!("Missing identity"))?;
         let selected_ip = peer.best_ip();
@@ -210,7 +216,11 @@ impl Outgoing {
             "Peer changed"
         );
         ensure!(
-            state.prefs.get::<String>("client_id")?.as_deref() == Some(&actor),
+            state
+                .prefs
+                .get::<String>(plain_rs::prefs::system::keys::CLIENT_ID)?
+                .as_deref()
+                == Some(&actor),
             "Identity changed"
         );
         let keypair = crate::services::peers::peer_wire::signing_keypair(&state.prefs)?;
@@ -267,7 +277,7 @@ impl Outgoing {
         let mut tick = tokio::time::interval(Duration::from_secs(1));
         loop {
             tokio::select! {
-                _=tick.tick()=>ensure!(state.peer_status.connections.valid(&state.db,&lease) && peer.best_ip()==selected_ip && state.prefs.get::<String>("client_id")?.as_deref()==Some(&actor),"Peer changed"),
+                _=tick.tick()=>ensure!(state.peer_status.connections.valid(&state.db,&lease) && peer.best_ip()==selected_ip && state.prefs.get::<String>(plain_rs::prefs::system::keys::CLIENT_ID)?.as_deref()==Some(&actor),"Peer changed"),
                 frame=socket.next()=>match frame { Some(Ok(tokio_tungstenite::tungstenite::Message::Close(_)))|None|Some(Err(_))=>return Err(anyhow::anyhow!("Status connection closed")),_=>{} }
             }
         }

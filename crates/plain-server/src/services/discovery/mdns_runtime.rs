@@ -97,6 +97,22 @@ pub(crate) enum Request {
     DebugStop { token: String },
 }
 impl Runtime {
+    pub(crate) async fn update_hostname(self: &Arc<Self>, state: &ServerState) -> Result<()> {
+        let hostname = state
+            .prefs
+            .get::<String>(plain_rs::prefs::system::keys::MDNS_HOSTNAME)?
+            .ok_or_else(|| anyhow::anyhow!("Missing hostname"))?;
+        {
+            let guard = self.session.lock().unwrap();
+            let Some(session) = guard.as_ref() else {
+                return Ok(());
+            };
+            *session.hostname.write().unwrap() = hostname;
+        }
+        self.execute(state, Request::Update {}).await?;
+        Ok(())
+    }
+
     fn emit(&self, context: &Context, peer: Option<&str>, online: bool) {
         let revision = self.revision.fetch_add(1, Ordering::SeqCst) + 1;
         let _ = context.events.send(plain_rs::events::WsEvent::broadcast(
@@ -139,12 +155,15 @@ impl Runtime {
             );
             return Ok(());
         }
-        let id = state.prefs.get::<String>("client_id")?.unwrap_or_default();
+        let id = state
+            .prefs
+            .get::<String>(plain_rs::prefs::system::keys::CLIENT_ID)?
+            .unwrap_or_default();
         ensure!(!id.is_empty(), "Missing client identity");
         let hostname = Arc::new(RwLock::new(
             state
                 .prefs
-                .get::<String>("mdns_hostname")?
+                .get::<String>(plain_rs::prefs::system::keys::MDNS_HOSTNAME)?
                 .unwrap_or_else(|| "plainapp.local".into()),
         ));
         let scanning = Arc::new(AtomicBool::new(false));

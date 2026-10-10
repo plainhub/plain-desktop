@@ -75,6 +75,7 @@ use std::sync::Arc;
 // and a note about which roots are reused is not part of the contract.
 #[derive(MergedObject, Default)]
 pub struct Query(
+    crate::graphql::resolvers::settings::state::PreferencesQuery,
     MobileQueryImpl,
     crate::graphql::resolvers::files::app_file::AppFileQuery,
     crate::graphql::resolvers::bookmarks::bookmark::BookmarkQuery,
@@ -103,6 +104,7 @@ pub struct Query(
 
 #[derive(MergedObject, Default)]
 pub struct Mutation(
+    crate::graphql::resolvers::settings::state::PreferencesMutation,
     MobileMutationImpl,
     crate::graphql::resolvers::bookmarks::bookmark::BookmarkMutation,
     crate::graphql::resolvers::pomodoro::pomodoro::PomodoroMutation,

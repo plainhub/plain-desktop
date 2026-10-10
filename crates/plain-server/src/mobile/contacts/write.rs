@@ -189,7 +189,8 @@ fn validate_contact_input(input: &Value, require_source: bool) -> anyhow::Result
 }
 
 pub(crate) async fn execute(prefs: &Prefs, host: &Host, request: Request) -> anyhow::Result<Value> {
-    let configured: Vec<String> = prefs.get_or("api_permissions", Vec::new());
+    let configured: Vec<String> =
+        prefs.get_or(plain_rs::prefs::system::keys::API_PERMISSIONS, Vec::new());
     anyhow::ensure!(permission_allowed(&configured), "no_permission");
     match request.action {
         Action::CreateContact | Action::UpdateContact => {

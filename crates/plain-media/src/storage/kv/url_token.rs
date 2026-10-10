@@ -8,7 +8,7 @@
 use anyhow::Result;
 use plain_rs::prefs::Prefs;
 
-const URL_TOKEN_KEY: &str = "url_token";
+const URL_TOKEN_KEY: &str = plain_rs::prefs::system::keys::URL_TOKEN;
 
 /// Validate that a token string is valid base64 and decodes to exactly
 /// 32 bytes.

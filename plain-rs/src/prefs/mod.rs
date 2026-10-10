@@ -15,6 +15,8 @@
 pub mod dlna;
 pub mod identity;
 pub mod server;
+pub mod system;
+pub mod user;
 
 pub use identity::{AppIdentity, ensure_identity, ensure_mdns_hostname, ensure_url_token};
 
@@ -164,6 +166,34 @@ impl Prefs {
         self.system.remove(key)
     }
 
+    pub(crate) fn update_system<T>(
+        &self,
+        update: impl FnOnce(&mut Map<String, Value>) -> Result<T>,
+    ) -> Result<T> {
+        let mut stored = self.system.inner.write().unwrap();
+        let mut next = stored.clone();
+        let result = update(&mut next)?;
+        if next != *stored {
+            self.system.save(&next)?;
+            *stored = next;
+        }
+        Ok(result)
+    }
+
+    pub(crate) fn update_user<T>(
+        &self,
+        update: impl FnOnce(&mut Map<String, Value>) -> Result<T>,
+    ) -> Result<T> {
+        let mut stored = self.user.inner.write().unwrap();
+        let mut next = stored.clone();
+        let result = update(&mut next)?;
+        if next != *stored {
+            self.user.save(&next)?;
+            *stored = next;
+        }
+        Ok(result)
+    }
+
     pub fn clear(&self) -> Result<()> {
         self.system.clear()
     }
@@ -254,24 +284,30 @@ impl PrefsStore {
         if inner.get(key) == Some(&new) {
             return Ok(false);
         }
-        inner.insert(key.to_string(), new);
-        self.save(&inner)
+        let mut next = inner.clone();
+        next.insert(key.to_string(), new);
+        self.save(&next)?;
+        *inner = next;
+        Ok(true)
     }
 
     /// Remove one entry (if present) and persist the file.
     fn remove(&self, key: &str) -> Result<bool> {
         let mut inner = self.inner.write().unwrap();
-        if inner.remove(key).is_none() {
+        let mut next = inner.clone();
+        if next.remove(key).is_none() {
             return Ok(false);
         }
-        self.save(&inner)
+        self.save(&next)?;
+        *inner = next;
+        Ok(true)
     }
 
     /// Remove every entry and persist the file.
     fn clear(&self) -> Result<()> {
         let mut inner = self.inner.write().unwrap();
+        self.save(&Map::new())?;
         inner.clear();
-        self.save(&inner)?;
         Ok(())
     }
 

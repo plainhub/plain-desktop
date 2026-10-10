@@ -11,7 +11,7 @@ use std::sync::Arc;
 use tokio::sync::broadcast;
 
 #[derive(Clone, Deserialize, Serialize, SimpleObject)]
-#[serde(default, rename_all = "camelCase")]
+#[serde(rename_all = "camelCase")]
 pub struct PomodoroSettings {
     pub work_duration_min: i32,
     pub short_break_duration_min: i32,
@@ -24,16 +24,8 @@ pub struct PomodoroSettings {
 }
 impl Default for PomodoroSettings {
     fn default() -> Self {
-        Self {
-            work_duration_min: 25,
-            short_break_duration_min: 5,
-            long_break_duration_min: 15,
-            pomodoros_before_long_break: 4,
-            show_notification: true,
-            play_sound_on_complete: true,
-            sound_path: String::new(),
-            original_sound_name: String::new(),
-        }
+        serde_json::from_value(plain_rs::prefs::user::UserSettings::default().pomodoro_settings)
+            .expect("Default pomodoro settings")
     }
 }
 #[derive(Enum, Clone, Copy, PartialEq, Eq, Deserialize, Serialize, Debug)]
@@ -89,14 +81,9 @@ impl Service {
         Arc::new(Self { db, prefs, events })
     }
     pub fn settings(&self) -> anyhow::Result<PomodoroSettings> {
-        let raw = self
-            .prefs
-            .get_user_or::<String>("pomodoro_settings", String::new());
-        let settings = if raw.is_empty() {
-            PomodoroSettings::default()
-        } else {
-            serde_json::from_str(&raw)?
-        };
+        let settings: PomodoroSettings = serde_json::from_value(
+            plain_rs::prefs::user::snapshot(&self.prefs)?.pomodoro_settings,
+        )?;
         anyhow::ensure!(
             (1..=1440).contains(&settings.work_duration_min)
                 && (1..=1440).contains(&settings.short_break_duration_min)

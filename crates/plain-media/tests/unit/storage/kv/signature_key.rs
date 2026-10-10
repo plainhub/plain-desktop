@@ -29,9 +29,9 @@ fn persisted_as_base64_keypair_like_plain_desktop() {
     SignatureKey::new(&prefs).ensure().unwrap();
 
     // The preference is the base64 of the 64-byte keypair — readable on
-    // the Preferences page, exactly plain-desktop's storage shape.
+    // all shells share the core storage shape.
     let stored = prefs
-        .get::<String>(SIGNATURE_KEYPAIR_KEY)
+        .get::<String>(plain_rs::prefs::system::keys::SIGNATURE_KEY_PAIR)
         .unwrap()
         .expect("keypair pref written");
     let bytes = plain_rs::utils::base64::base64_decode_checked(&stored).unwrap();
@@ -50,17 +50,18 @@ fn persisted_as_base64_keypair_like_plain_desktop() {
 }
 
 #[test]
-fn regenerate_after_corruption() {
+fn corrupted_identity_is_refused_without_replacement() {
     let (_dir, prefs) = test_prefs("corrupt");
-    let original = SignatureKey::new(&prefs).ensure().unwrap();
-    // A malformed stored value must be replaced, not served.
-    prefs.set(SIGNATURE_KEYPAIR_KEY, "short").unwrap();
-    let regenerated = SignatureKey::new(&prefs).ensure().unwrap();
-    assert_ne!(original, regenerated);
+    SignatureKey::new(&prefs).ensure().unwrap();
+    prefs
+        .set(plain_rs::prefs::system::keys::SIGNATURE_KEY_PAIR, "short")
+        .unwrap();
+    assert!(SignatureKey::new(&prefs).ensure().is_err());
     assert_eq!(
-        plain_rs::utils::base64::base64_decode_checked(&regenerated)
+        prefs
+            .get::<String>(plain_rs::prefs::system::keys::SIGNATURE_KEY_PAIR)
             .unwrap()
-            .len(),
-        32
+            .as_deref(),
+        Some("short")
     );
 }

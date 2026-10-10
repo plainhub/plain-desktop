@@ -49,7 +49,12 @@ async fn encrypted_public_and_ble_rpc_share_auth_executor_and_receipts() {
     prefs.set_user("service", true).unwrap();
     prefs.set("client_id", "local").unwrap();
     let (local_keypair, local_public_key) = plain_rs::crypto::ed25519_generate();
-    prefs.set("signature_key_pair", json!({"privateKey":plain_rs::utils::base64::base64_encode(&local_keypair[..32]),"publicKey":plain_rs::utils::base64::base64_encode(&local_public_key)}).to_string()).unwrap();
+    prefs
+        .set(
+            "signature_key_pair",
+            plain_rs::utils::base64::base64_encode(&local_keypair),
+        )
+        .unwrap();
     let token = plain_rs::utils::base64::base64_encode(&[5; 32]);
     let db = Db::open(&dir.path().join("plain.db")).unwrap();
     let key = [7; 32];

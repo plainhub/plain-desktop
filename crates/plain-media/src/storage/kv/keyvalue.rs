@@ -9,7 +9,7 @@ use plain_rs::prefs::Prefs;
 /// system hostname, mirroring plain-app's `.ifEmpty { getDeviceName() }`.
 pub fn device_display_name(prefs: &Prefs) -> String {
     prefs
-        .get::<String>("device_name")
+        .get_user::<String>(plain_rs::prefs::user::keys::DEVICE_NAME)
         .ok()
         .flatten()
         .unwrap_or_default()
@@ -19,10 +19,10 @@ pub fn device_display_name(prefs: &Prefs) -> String {
 /// `clientId` in auth responses and `App.clientId` — web clients use it
 /// as the remote peer identity for TOFU verification.
 pub fn server_client_id(prefs: &Prefs) -> String {
-    if let Ok(Some(id)) = prefs.get::<String>("client_id") {
+    if let Ok(Some(id)) = prefs.get::<String>(plain_rs::prefs::system::keys::CLIENT_ID) {
         return id;
     }
     let id = plain_rs::crypto::gen_token();
-    let _ = prefs.set("client_id", &id);
+    let _ = prefs.set(plain_rs::prefs::system::keys::CLIENT_ID, &id);
     id
 }

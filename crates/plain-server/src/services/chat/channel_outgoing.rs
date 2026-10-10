@@ -45,7 +45,7 @@ pub(crate) fn prepare(
         bail!("Invalid channel owner destination");
     }
     let actor = prefs
-        .get::<String>("client_id")?
+        .get::<String>(plain_rs::prefs::system::keys::CLIENT_ID)?
         .filter(|id| !id.is_empty())
         .ok_or_else(|| anyhow::anyhow!("Missing client identity"))?;
     let keypair = signing_keypair(prefs)?;

@@ -125,11 +125,12 @@ async fn notification_items(ctx: &Context<'_>, query: &str) -> async_graphql::Re
         .map_err(|error| async_graphql::Error::new(error))?;
     let facts: Vec<Value> = serde_json::from_value(facts)
         .map_err(|error| async_graphql::Error::new(error.to_string()))?;
-    Ok(crate::services::notifications::query::notifications(
+    crate::services::notifications::query::notifications(
         ctx.data_unchecked::<Arc<Prefs>>(),
         facts,
         query,
-    ))
+    )
+    .map_err(|error| async_graphql::Error::new(error.to_string()))
 }
 
 pub(crate) fn notification(value: &Value) -> Notification {
@@ -181,7 +182,7 @@ pub(crate) async fn publish(
                 vec![facts.notification.clone()],
                 "",
             )
-            .is_empty())
+            .map_or(true, |items| items.is_empty()))
     {
         return axum::Json(true).into_response();
     }

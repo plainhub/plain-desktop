@@ -9,16 +9,18 @@ fn instant(value: &Value, key: &str) -> Option<chrono::DateTime<chrono::FixedOff
         .as_str()
         .and_then(|v| chrono::DateTime::parse_from_rfc3339(v).ok())
 }
-pub(crate) fn notifications(prefs: &Prefs, mut facts: Vec<Value>, query: &str) -> Vec<Value> {
+pub(crate) fn notifications(
+    prefs: &Prefs,
+    mut facts: Vec<Value>,
+    query: &str,
+) -> anyhow::Result<Vec<Value>> {
     let groups = search_dsl::parse(query);
     let filter_text = groups
         .iter()
         .find(|g| g.name == "text")
         .map(|g| g.value.trim().to_lowercase())
         .unwrap_or_default();
-    let filter = prefs.get_user_or::<String>("notification_filter", String::new());
-    let filter: Value =
-        serde_json::from_str(&filter).unwrap_or_else(|_| json!({"mode":"blacklist","apps":[]}));
+    let filter = plain_rs::prefs::user::snapshot(prefs)?.notification_filter;
     facts.retain(|item| {
         let listed = filter["apps"]
             .as_array()
@@ -35,5 +37,5 @@ pub(crate) fn notifications(prefs: &Prefs, mut facts: Vec<Value>, query: &str) -
                     .any(|key| text(item, key).contains(&filter_text)))
     });
     facts.sort_by(|a, b| instant(b, "time").cmp(&instant(a, "time")));
-    facts
+    Ok(facts)
 }
