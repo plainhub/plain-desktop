@@ -1,0 +1,82 @@
+type Feed {
+	id: ID!
+	name: String!
+	url: String!
+	fetchContent: Boolean!
+	logo: String!
+	lastSyncAt: Instant
+	lastError: FeedError!
+	createdAt: Instant!
+	updatedAt: Instant!
+}
+
+type FeedEntry {
+	id: ID!
+	title: String!
+	url: String!
+	image: String!
+	description: String!
+	author: String!
+	content: String!
+	feedId: ID!
+	rawId: String!
+	read: Boolean!
+	publishedAt: Instant!
+	createdAt: Instant!
+	updatedAt: Instant!
+	tags: [Tag!]!
+	feed: Feed
+}
+
+type FeedEntryCount {
+	id: ID!
+	count: Int!
+}
+
+type FeedError {
+	code: String!
+	detail: String!
+}
+
+type FeedMutation {
+	updateFeedUrl(id: ID!, url: String!): Feed!
+	markFeedEntriesRead(query: String!, read: Boolean!): ActionResult!
+	syncFeeds(id: ID): Boolean!
+	updateFeed(id: ID!, name: String!, fetchContent: Boolean!): Feed!
+	createFeed(url: String!, fetchContent: Boolean!): Feed!
+	importFeeds(content: String!): Boolean!
+	exportFeeds: String!
+	deleteFeed(id: ID!): Boolean!
+	syncFeedEntryContent(id: ID!): FeedEntry!
+	deleteFeedEntries(query: String!): ActionResult!
+}
+
+type FeedQuery {
+	feedSyncStates: [FeedSyncState!]!
+	feed(id: ID!): Feed
+	feeds: [Feed!]!
+	feedEntryCounts: [FeedEntryCount!]!
+	feedEntryCount(query: String!): Int!
+	feedEntry(id: ID!): FeedEntry
+	feedEntries(offset: Int!, limit: Int!, query: String!): [FeedEntry!]!
+}
+
+type FeedSyncState {
+	feedId: ID!
+	status: String!
+	error: String!
+}
+
+type Tag {
+	id: ID!
+	name: String!
+	"""
+	Numeric tag kind — the ordinal of the tag's `DataType`
+	(DEFAULT=0, AUDIO=1, VIDEO=2, IMAGE=3, …). The NAS only has data
+	for the media kinds; the Int is frozen phone contract (API_SPEC
+	§9), the mapping lives in docs/api/tags.md.
+	"""
+	type: Int!
+	count: Int!
+}
+

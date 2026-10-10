@@ -1,0 +1,31 @@
+type Note {
+	id: ID!
+	title: String!
+	content: String!
+	deletedAt: Instant
+	createdAt: Instant!
+	updatedAt: Instant!
+	tags: [Tag!]!
+}
+
+input NoteInput {
+	title: String!
+	content: String!
+}
+
+type NoteMutation {
+	createNote(input: NoteInput!): Note!
+	updateNote(id: ID!, input: NoteInput!): Note!
+	saveFeedEntriesToNotes(query: String!): [ID!]!
+	trashNotes(query: String!): ActionResult!
+	restoreNotes(query: String!): ActionResult!
+	deleteNotes(query: String!): ActionResult!
+	exportNotes(query: String!): String!
+}
+
+type NoteQuery {
+	noteCount(query: String!): Int!
+	note(id: ID!): Note
+	notes(offset: Int!, limit: Int!, query: String!): [Note!]!
+}
+

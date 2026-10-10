@@ -1,0 +1,29 @@
+type FavoriteFolder {
+	rootPath: String!
+	fullPath: String!
+	alias: String
+}
+
+type FavoriteFolderMutation {
+	"""
+	Register a favorite folder and return the whole list.
+	"""
+	addFavoriteFolder(rootPath: String!, fullPath: String!): [FavoriteFolder!]!
+	"""
+	Remove the favorite folder identified by `fullPath` and return the
+	whole list.
+	"""
+	removeFavoriteFolder(fullPath: String!): [FavoriteFolder!]!
+	"""
+	Set the favorite folder's display alias and return the whole list.
+	"""
+	setFavoriteFolderAlias(fullPath: String!, alias: String!): [FavoriteFolder!]!
+}
+
+type FavoriteFolderQuery {
+	"""
+	List all favorite folders.
+	"""
+	favoriteFolders: [FavoriteFolder!]!
+}
+

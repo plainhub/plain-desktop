@@ -1,0 +1,9 @@
+type AppLogsMutation {
+	clearAppLogs: Boolean!
+}
+
+type AppLogsQuery {
+	appLogs(offset: Int!, limit: Int!, query: String!): [String!]!
+	appLogPath: String!
+}
+

@@ -1,0 +1,39 @@
+type ImageEditorProject {
+	id: ID!
+	stateB64: String!
+	thumbnail: String
+	canvasWidth: Int!
+	canvasHeight: Int!
+	layerCount: Int!
+	createdAt: Instant!
+	updatedAt: Instant!
+}
+
+input ImageEditorProjectInput {
+	stateB64: String!
+	thumbnail: String
+	canvasWidth: Int!
+	canvasHeight: Int!
+	layerCount: Int!
+}
+
+type ImageEditorProjectMutation {
+	saveImageEditorProject(id: ID!, input: ImageEditorProjectInput!): ImageEditorProject!
+	deleteImageEditorProject(id: ID!): Boolean!
+	broadcastImageEditorUpdate(id: ID!, update: String!): Boolean!
+}
+
+type ImageEditorProjectQuery {
+	imageEditorProjects: [ImageEditorProjectSummary!]!
+	imageEditorProject(id: ID!): ImageEditorProject
+}
+
+type ImageEditorProjectSummary {
+	id: ID!
+	thumbnail: String
+	canvasWidth: Int!
+	canvasHeight: Int!
+	layerCount: Int!
+	updatedAt: Instant!
+}
+

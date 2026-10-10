@@ -1,0 +1,152 @@
+enum ChannelMemberStatus {
+	JOINED
+	PENDING
+}
+
+type ChatChannel {
+	id: ID!
+	name: String!
+	ownerId: ID!
+	members: [ChatChannelMember!]!
+	version: Long!
+	status: ChatChannelStatus!
+	createdAt: Instant!
+	updatedAt: Instant!
+}
+
+type ChatChannelMember {
+	peerId: ID!
+	status: ChannelMemberStatus!
+}
+
+enum ChatChannelStatus {
+	JOINED
+	LEFT
+	KICKED
+}
+
+type ChatItem {
+	id: ID!
+	fromId: ID!
+	toId: ID!
+	channelId: ID
+	content: String!
+	status: ChatStatus!
+	statusData: String!
+	createdAt: Instant!
+	updatedAt: Instant!
+}
+
+type ChatMutation {
+	sendChatItem(target: String!, content: String!): [ChatItem!]!
+	"""
+	Delete a chat item, broadcasting `WS_MESSAGE_DELETED`.
+	"""
+	deleteChatItem(id: ID!): Boolean!
+	"""
+	Bulk-delete chats by query (`ids:`, `channel:`, `peer:`).
+	"""
+	deleteChatItems(query: String!): ActionResult!
+	"""
+	Retry a failed chat item.
+	"""
+	retryChatItem(id: ID!): ChatItem!
+	createChatChannel(name: String!): ChatChannel!
+	updateChatChannel(id: ID!, name: String!): ChatChannel!
+	deleteChatChannel(id: ID!): Boolean!
+	leaveChatChannel(id: ID!): Boolean!
+	addChatChannelMember(id: ID!, peerId: ID!): ChatChannel!
+	removeChatChannelMember(id: ID!, peerId: ID!): ChatChannel!
+	acceptChatChannelInvite(id: ID!): Boolean!
+	declineChatChannelInvite(id: ID!): Boolean!
+	"""
+	Web-only convenience mutation that branches to
+	`acceptChatChannelInvite` or `declineChatChannelInvite` based
+	on the `accept` flag. The plain-app Android schema doesn't
+	expose this — the web client added it so the
+	`ChannelInviteModal` can use a single GraphQL document for
+	both buttons. Returns the `accept` flag verbatim so the
+	modal's `onDone` handler can read the chosen action back from
+	the mutation result.
+	"""
+	respondChannelInvite(id: ID!, accept: Boolean!): Boolean!
+	channelSystemMessage(type: String!, payload: String!): Boolean!
+	"""
+	Mirrors plain-app `PeerManager.deletePeer(peerId)`:
+	1. Delete all 1:1 chats with the peer (`ChatDbHelper.deleteAllChatsAsync`).
+	2. If the peer is still a member of any local channel, demote it
+	to `status="CHANNEL"` with an empty shared key — the row
+	must remain so channel routing can still resolve it.
+	3. Otherwise delete the peer row outright.
+	4. Refresh the peer key cache so future deliveries skip the
+	demoted / deleted peer.
+	
+	Returns `false` if the peer id is unknown, `true` otherwise.
+	The frontend's `PeerManager.deletePeer` re-fetches the peers /
+	latest-chats lists on success; no WS event is required.
+	"""
+	deletePeer(id: ID!): Boolean!
+	"""
+	Mirrors plain-app `PeerManager.markUnpaired(peerId)` (invoked
+	indirectly via `NearbyViewModel.unpairDevice`): flips the peer's
+	status to "UNPAIRED" and bumps `updated_at`, leaving the shared
+	key intact so a future re-pair can reuse the stored credentials.
+	
+	Returns `false` if the peer id is unknown, `true` otherwise.
+	"""
+	unpairPeer(id: ID!): Boolean!
+	"""
+	Start downloading all `fsid:` files in the given message from the
+	given peer. Returns `false` if a download is already in flight for
+	that message. Progress is reported via `WS_DOWNLOAD_PROGRESS`.
+	"""
+	downloadPeerFile(messageId: String!, peerId: String!): Boolean!
+	"""
+	Pause an in-flight download. Returns `false` if no active task
+	exists for the message.
+	"""
+	pauseDownload(messageId: String!): Boolean!
+	"""
+	Resume a paused download. The peer id is required because the
+	manager does not cache it between pause/resume cycles.
+	"""
+	resumeDownload(messageId: String!, peerId: String!): Boolean!
+	"""
+	Retry a failed download.
+	"""
+	retryDownload(messageId: String!, peerId: String!): Boolean!
+}
+
+type ChatQuery {
+	chatItems(target: String!, offset: Int!, limit: Int!, query: String!): [ChatItem!]!
+	chatItem(id: ID!): ChatItem
+	chatChannels: [ChatChannel!]!
+	peers: [Peer!]!
+	latestChatItems: [ChatItem!]!
+}
+
+enum ChatStatus {
+	SENT
+	FAILED
+	PARTIAL
+	PENDING
+}
+
+type Peer {
+	id: ID!
+	name: String!
+	ip: String!
+	status: PeerStatus!
+	online: Boolean!
+	port: Int!
+	deviceType: DeviceType!
+	createdAt: Instant!
+	updatedAt: Instant!
+}
+
+enum PeerStatus {
+	PAIRED
+	UNPAIRED
+	CHANNEL
+}
+

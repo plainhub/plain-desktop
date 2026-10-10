@@ -114,4 +114,8 @@ pub fn build_schema() -> ApiSchema {
 #[path = "../../../tests/unit/api/schema.rs"]
 mod tests;
 
+#[cfg(test)]
+#[path = "../../../tests/unit/api/schema_split.rs"]
+mod schema_split;
+
 mod bookmark_types;

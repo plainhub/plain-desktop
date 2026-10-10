@@ -1,0 +1,35 @@
+enum DbColumnType {
+	TEXT
+	INTEGER
+	REAL
+	BLOB
+	NUMERIC
+	UNKNOWN
+}
+
+type DbMutation {
+	createDbTableRow(table: String!, row: String!): Boolean!
+	deleteDbTableRows(table: String!, ids: [String!]!): Boolean!
+}
+
+type DbQuery {
+	dbPath: String!
+	dbTables: [String!]!
+	dbTableRowCount(table: String!): Long!
+	dbTableRows(table: String!, offset: Int!, limit: Int!): [String!]!
+	dbTableInfo(table: String!): DbTableInfo!
+	dbTableColumns(table: String!): [DbTableColumn!]!
+}
+
+type DbTableColumn {
+	name: String!
+	dataType: DbColumnType!
+	notNull: Boolean!
+	defaultValue: String
+	primaryKey: Boolean!
+}
+
+type DbTableInfo {
+	idKey: String!
+}
+

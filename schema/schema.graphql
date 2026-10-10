@@ -865,23 +865,8 @@ type MutationRoot {
 	removeUserPref(key: String!): Boolean!
 	createDbTableRow(table: String!, row: String!): Boolean!
 	deleteDbTableRows(table: String!, ids: [String!]!): Boolean!
-	"""
-	Recursively remove the staging directory for `file_id`.
-	Idempotent — returns `true` whether the directory existed or not.
-	"""
 	deleteChunks(fileId: String!): Boolean!
-	"""
-	Start merging the staged chunks into a regular file at `path` in the
-	background. Completion is signalled with WS event 38
-	(`upload_merge_result`); `mergeStatus` is the polling fallback for
-	lost events. Chunks are kept on failure so a retry reuses them.
-	"""
 	mergeChunks(fileId: String!, totalChunks: Int!, path: String!, replace: Boolean!, totalSize: Long!): MergeTask!
-	"""
-	Start merging the staged chunks and import the result into the
-	content-addressable app-file store (dedup). The returned `value` is
-	the fidSuffix (`"{hash}.{ext}"`) the client uses to build a `fid:` URI.
-	"""
 	mergeAppFileChunks(fileId: String!, totalChunks: Int!, fileName: String!, totalSize: Long!): MergeTask!
 	"""
 	Mirrors plain-app's `startDiscovery` mutation: kicks off the
@@ -1314,16 +1299,7 @@ type QueryRoot {
 	dbTableRows(table: String!, offset: Int!, limit: Int!): [String!]!
 	dbTableInfo(table: String!): DbTableInfo!
 	dbTableColumns(table: String!): [DbTableColumn!]!
-	"""
-	List the chunk indices the server already has on disk for `file_id`,
-	in the format `"<index>:<size>"` (matches what the web client
-	expects — see `lib/upload/upload.ts::getUploadedChunks`).
-	"""
 	uploadedChunks(fileId: String!): [String!]!
-	"""
-	Current state of the merge job for `file_id`. Polled by the web
-	client when WS event 38 was missed.
-	"""
 	mergeStatus(fileId: String!): MergeTask!
 	"""
 	List all favorite folders.

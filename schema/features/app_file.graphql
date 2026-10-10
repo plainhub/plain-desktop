@@ -1,0 +1,15 @@
+type AppFile {
+	id: String!
+	size: Long!
+	mimeType: String!
+	realPath: String!
+	fileName: String!
+	createdAt: Instant!
+	updatedAt: Instant!
+}
+
+type AppFileQuery {
+	appFiles(offset: Int!, limit: Int!, query: String!): [AppFile!]!
+	appFileCount(query: String!): Int!
+}
+

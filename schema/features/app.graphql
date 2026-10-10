@@ -1,0 +1,196 @@
+type AndroidExtras {
+	sdkVersion: Int!
+	versionCodeName: String!
+	securityPatch: String!
+	bootloader: String!
+	fingerprint: String!
+	hardware: String!
+	radioVersion: String!
+	board: String!
+	buildBrand: String!
+	buildNumber: String!
+	device: String!
+	javaVmVersion: String!
+	glEsVersion: String!
+	buildTime: Instant!
+}
+
+type App {
+	clientId: String!
+	urlToken: String!
+	httpPort: Int!
+	httpsPort: Int!
+	appDir: String!
+	deviceName: String!
+	deviceType: DeviceType!
+	capabilities: [Capability!]!
+	buildChannel: AppChannelType!
+	permissions: [Permission!]!
+	downloadsDir: String!
+	developerMode: Boolean!
+	debug: Boolean!
+}
+
+enum AppChannelType {
+	GITHUB
+	GOOGLE
+	FDROID
+}
+
+type AppMutation {
+	relaunchApp: Boolean!
+	updateDeviceName(name: String!): Boolean!
+}
+
+type AppQuery {
+	app: App!
+	deviceInfo: DeviceInfo!
+	sims: [Sim!]!
+	deviceStatus: DeviceStatus!
+}
+
+"""
+Optional capabilities the server declares about itself; the web client
+gates UI on these instead of sniffing OS versions. Mirrors plain-app
+`Capability`.
+"""
+enum Capability {
+	MEDIA_TRASH
+	MIRROR_AUDIO
+	DOC_PREVIEW
+	IMAGE_SEARCH
+	MEDIA_SCAN
+	SMS
+	CALLS
+	CALL_PHONE
+	CONTACTS
+	PACKAGES
+	NOTES
+	FEEDS
+	SCREEN_MIRROR
+	IMAGE_EDITOR
+	NOTIFICATIONS
+	CLIPBOARD
+	POMODORO
+	LAN_SHARE
+	DISK_MANAGER
+}
+
+type DeviceInfo {
+	name: String!
+	platform: DevicePlatform!
+	manufacturer: String!
+	model: String!
+	osName: String!
+	osVersion: String!
+	kernelVersion: String!
+	appVersion: String!
+	appBuildNumber: String!
+	language: String!
+	cpuArch: String!
+	cpuModel: String
+	totalMemory: Long!
+	totalStorage: Long!
+	display: DisplayInfo
+	android: AndroidExtras
+}
+
+enum DevicePlatform {
+	ANDROID
+	IOS
+	MACOS
+	WINDOWS
+	LINUX
+}
+
+type DeviceStatus {
+	uptimeSec: Long!
+	"""
+	0-100; None when the device has no battery or the level is unknown.
+	"""
+	batteryLevel: Int
+	"""
+	True only while actively charging; full-while-plugged is false.
+	"""
+	charging: Boolean!
+	"""
+	Empty when the platform exposes no temperature sources.
+	"""
+	temperatures: [Temperature!]!
+	"""
+	0-100 percent, diffed from two CPU counter samples.
+	"""
+	cpuUsage: Float!
+	"""
+	OS-level available memory; None when the platform does not expose it.
+	"""
+	memoryAvailable: Long
+	"""
+	Available bytes on the primary data volume.
+	"""
+	storageAvailable: Long!
+}
+
+enum DeviceType {
+	PHONE
+	TABLET
+	COMPUTER
+	TV
+	NAS
+	OTHER
+}
+
+type DisplayInfo {
+	width: Int!
+	height: Int!
+	density: Float!
+}
+
+scalar Instant
+
+scalar Long
+
+"""
+Client-side access rights, mirroring the plain-app `Permission` enum.
+The desktop local server grants none — phone features require a paired
+phone backend.
+"""
+enum Permission {
+	WRITE_EXTERNAL_STORAGE
+	READ_SMS
+	SEND_SMS
+	READ_CONTACTS
+	WRITE_CONTACTS
+	READ_CALL_LOG
+	WRITE_CALL_LOG
+	CALL_PHONE
+	POST_NOTIFICATIONS
+	NEARBY_WIFI_DEVICES
+	ACCESS_FINE_LOCATION
+	CAMERA
+	SYSTEM_ALERT_WINDOW
+	RECORD_AUDIO
+	READ_MEDIA_IMAGES
+	READ_MEDIA_VIDEOS
+	READ_MEDIA_AUDIO
+	NOTIFICATION_LISTENER
+	READ_PHONE_STATE
+	READ_PHONE_NUMBERS
+	SCHEDULE_EXACT_ALARM
+	QUERY_ALL_PACKAGES
+	ADB
+	CLIPBOARD
+}
+
+type Sim {
+	id: String!
+	label: String!
+	number: String!
+	subscriptionId: Int!
+}
+
+type Temperature {
+	label: String!
+	celsius: Float!
+}
+

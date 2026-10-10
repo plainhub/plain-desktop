@@ -1,0 +1,100 @@
+type DiscoverMutations {
+	"""
+	Mirrors plain-app's `startDiscovery` mutation: kicks off the
+	background scan loop that pushes discovered devices over the
+	local server WS as `WS_NEARBY_DEVICE_FOUND`. Returns `true` if
+	the loop was started, `false` if it was already running.
+	"""
+	startDiscovery: Boolean!
+	"""
+	Mirrors plain-app's `stopDiscovery` mutation: tears down the
+	background scan loop started by `startDiscovery`. Returns
+	`true` if a loop was cancelled, `false` if none was active.
+	"""
+	stopDiscovery: Boolean!
+	"""
+	Initiate pairing with a discovered device. POSTs a PAIR_REQUEST to the
+	target's `POST /nearby` endpoint. Completion (success / fail / timeout /
+	cancel) is reported via `WS_PAIRING_*` push events.
+	"""
+	pairDevice(input: PairingDeviceInput!): Boolean!
+	"""
+	Cancel an in-progress pairing we initiated. The remote peer receives
+	a PAIR_CANCEL via `POST /nearby`; completion is reported via
+	`WS_PAIRING_CANCELLED`.
+	"""
+	cancelPairing(deviceId: ID!): Boolean!
+	"""
+	Respond to an incoming PAIR_REQUEST that the user accepted or
+	rejected. Accepting stores the peer and POSTs a PAIR_RESPONSE
+	back to the requester at `input.from_ip`.
+	"""
+	respondToPairing(input: PairingRequestInput!, accepted: Boolean!): Boolean!
+}
+
+type DiscoverQuery {
+	"""
+	Mirrors plain-app's `isDiscovering` query: returns `true`
+	while the background scan loop is running.
+	"""
+	isDiscovering: Boolean!
+}
+
+enum DiscoveryMethod {
+	LAN
+	BLE
+	QR
+}
+
+"""
+Initiate pairing with a discovered LAN device. Mirrors plain-app's
+`PairingDeviceInput` (see `app/.../web/models/Pairing.kt`).
+"""
+input PairingDeviceInput {
+	id: ID!
+	name: String!
+	ips: [String!]!
+	port: Int!
+	deviceType: DeviceType!
+	version: String!
+	platform: String!
+	"""
+	ISO-8601 string. We don't currently use it for the protocol, but
+	accept it so the browser can pass the full discovered device.
+	"""
+	lastSeen: Instant!
+	discoveryMethods: [DiscoveryMethod!]!
+}
+
+"""
+Incoming-pairing request payload. Mirrors plain-app's
+`PairingRequestInput` (see `app/.../web/models/Pairing.kt`).
+"""
+input PairingRequestInput {
+	fromId: ID!
+	fromName: String!
+	port: Int!
+	deviceType: DeviceType!
+	ecdhPublicKey: String!
+	signaturePublicKey: String!
+	timestamp: Long!
+	ips: [String!]!
+	"""
+	Signature on the original PAIR_REQUEST — required for the responder
+	to verify the requester. Empty string is rejected by the signature
+	check; the browser always forwards the full request object.
+	"""
+	signature: String!
+	"""
+	Stamped on the receiver side; carried in the input so the
+	responder knows which IP to POST the response back to.
+	"""
+	fromIp: String!
+	"""
+	Whether the requester's device supports Wi-Fi Aware (mirrors
+	plain-app's `PairingRequestInput.awareSupported`). Forwarded to
+	the protocol layer; the Tauri desktop build always sends `false`.
+	"""
+	awareSupported: Boolean!
+}
+

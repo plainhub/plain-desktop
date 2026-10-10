@@ -1,0 +1,39 @@
+type PomodoroMutation {
+	startPomodoro(durationSec: Int!): Boolean!
+	pausePomodoro: Boolean!
+	stopPomodoro: Boolean!
+}
+
+type PomodoroQuery {
+	pomodoroSettings: PomodoroSettings!
+	pomodoroToday: PomodoroToday!
+}
+
+type PomodoroSettings {
+	workDurationMin: Int!
+	shortBreakDurationMin: Int!
+	longBreakDurationMin: Int!
+	pomodorosBeforeLongBreak: Int!
+	showNotification: Boolean!
+	playSoundOnComplete: Boolean!
+	soundPath: String!
+	originalSoundName: String!
+}
+
+enum PomodoroState {
+	WORK
+	SHORT_BREAK
+	LONG_BREAK
+}
+
+type PomodoroToday {
+	date: Instant!
+	completedCount: Int!
+	currentRound: Int!
+	timeLeftSec: Int!
+	totalTimeSec: Int!
+	isRunning: Boolean!
+	isPaused: Boolean!
+	state: PomodoroState!
+}
+

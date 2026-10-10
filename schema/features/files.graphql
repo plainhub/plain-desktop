@@ -1,0 +1,84 @@
+type AudioFileInfo {
+	"""
+	Milliseconds. `0` in local mode (see `VideoFileInfo::duration_ms`).
+	"""
+	durationMs: Long!
+	location: Location
+}
+
+enum DriveType {
+	INTERNAL_STORAGE
+	SDCARD
+	USB_STORAGE
+	APP
+}
+
+"""
+`fileInfo` query result. `data` is `None` for non-media files.
+"""
+type FileInfo {
+	path: String!
+	size: Long!
+	data: MediaFileInfo
+	updatedAt: Instant!
+}
+
+type FileInfoQuery {
+	mounts: [Mount!]!
+	"""
+	Mirrors the plain-app contract `fileInfo(path, fileName)` — `path`
+	locates the file; `fileName` is an optional display hint that selects
+	the media-info probe on the phone and is unused here.
+	"""
+	fileInfo(path: String!, fileName: String): FileInfo!
+}
+
+type ImageFileInfo {
+	width: Int!
+	height: Int!
+	location: Location
+}
+
+"""
+EXIF / video GPS coordinate pair. Mirrors plain-app `Location`.
+"""
+type Location {
+	latitude: Float!
+	longitude: Float!
+}
+
+"""
+Polymorphic media-metadata payload — clients select via `... on XFileInfo`.
+"""
+union MediaFileInfo = ImageFileInfo | VideoFileInfo | AudioFileInfo
+
+"""
+All fields from both `homeStatsGQL` and the full `mountsGQL` query.
+"""
+type Mount {
+	id: ID!
+	name: String!
+	path: String!
+	mountPoint: String!
+	fsType: String!
+	totalBytes: Long!
+	usedBytes: Long!
+	freeBytes: Long!
+	remote: Boolean!
+	alias: String!
+	driveType: DriveType!
+	diskId: String!
+}
+
+type VideoFileInfo {
+	width: Int!
+	height: Int!
+	"""
+	Milliseconds. `0` in local mode — the desktop local server has no
+	`MediaMetadataRetriever` equivalent. Main-window traffic still goes
+	through the device server and returns real durations.
+	"""
+	durationMs: Long!
+	location: Location
+}
+

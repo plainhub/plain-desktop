@@ -1,0 +1,152 @@
+"""
+One track of the playback queue / a playlist (plain-app `AudioItem`).
+Stored durations are seconds; the wire field is milliseconds.
+"""
+type AudioItem {
+	title: String!
+	artist: String!
+	path: String!
+	durationMs: Long!
+}
+
+type AudioMutation {
+	"""
+	Mark the track current and record playback without changing queue order.
+	"""
+	playAudio(path: String!): AudioItem!
+	"""
+	Persist the playback mode preference (REPEAT/REPEAT_ONE/SHUFFLE).
+	"""
+	updateAudioPlayMode(mode: MediaPlayMode!): Boolean!
+	"""
+	Reset the source, the manual queue and the current track.
+	"""
+	clearAudioQueue: Boolean!
+	"""
+	Remove a track from the manual queue.
+	"""
+	removeAudioFromQueue(path: String!): Boolean!
+	"""
+	Add up to 1000 tracks matching `query` to the manual queue. The
+	desktop local server has no media index — only the explicit
+	`ids:`…-style paths would be meaningful, and the audio page that
+	builds such queries is empty here, so this is a no-op returning
+	`true` until a library index exists.
+	"""
+	addAudiosToQueue(query: String!): Boolean!
+	"""
+	Drag & drop reorder of the manual queue; unknown paths keep their
+	order at the end.
+	"""
+	reorderAudioQueue(paths: [String!]!): Boolean!
+	"""
+	Create an empty user playlist and return it.
+	"""
+	createAudioPlaylist(name: String!): AudioPlaylist!
+	"""
+	Update a playlist's name; returns the updated playlist.
+	"""
+	updateAudioPlaylist(id: ID!, name: String!): AudioPlaylist!
+	"""
+	Delete a playlist; its items go with it.
+	"""
+	deleteAudioPlaylist(id: ID!): Boolean!
+	"""
+	Add tracks (by path) to a playlist; duplicates are ignored.
+	"""
+	addAudioPlaylistItems(id: ID!, paths: [String!]!): Boolean!
+	"""
+	Remove one track (by path) from a playlist.
+	"""
+	removeAudioPlaylistItem(id: ID!, path: String!): Boolean!
+	"""
+	Play a user playlist: make it the playback source and resolve the
+	track to start with (random one when shuffling).
+	"""
+	playAudioPlaylist(id: ID!, path: String, shuffle: Boolean!): AudioItem
+	"""
+	Queue the whole audio library and start playback. The desktop
+	local server has no media index — the library is empty, so this
+	returns null.
+	"""
+	playAllAudios(shuffle: Boolean!): AudioItem
+}
+
+"""
+Recently played track (plain-app `AudioPlayHistory`).
+"""
+type AudioPlayHistory {
+	path: String!
+	title: String!
+	artist: String!
+	durationMs: Long!
+	playCount: Int!
+	playedAt: Instant!
+}
+
+"""
+Audio player state (plain-app `AudioPlayback`). The desktop backend has
+no playback engine — the queue is the shared state machine, the client
+renders audio.
+"""
+type AudioPlayback {
+	mode: MediaPlayMode!
+	currentPath: String
+	isPlaying: Boolean!
+	positionMs: Long!
+}
+
+"""
+A user playlist (plain-app `AudioPlaylist`); `itemCount` is live.
+"""
+type AudioPlaylist {
+	id: ID!
+	name: String!
+	itemCount: Int!
+	createdAt: Instant!
+	updatedAt: Instant!
+}
+
+type AudioQuery {
+	"""
+	The active playback queue (manual items + context), paginated.
+	`query` is the shared DSL; its `text:` field filters the page.
+	"""
+	audioQueueItems(offset: Int!, limit: Int!, query: String!): [AudioItem!]!
+	"""
+	Total tracks in the active playback queue.
+	"""
+	audioQueueItemCount: Int!
+	"""
+	Player state: play mode preference and the current queue track
+	path (null = idle). The desktop backend has no transport — audio
+	renders on the client — so isPlaying/positionMs serve idle values.
+	"""
+	audioPlayback: AudioPlayback!
+	"""
+	All user playlists, most recently updated first.
+	"""
+	audioPlaylists: [AudioPlaylist!]!
+	"""
+	One playlist's tracks, position order, paginated.
+	"""
+	audioPlaylistItems(id: ID!, offset: Int!, limit: Int!, query: String!): [AudioItem!]!
+	"""
+	Track count of one playlist.
+	"""
+	audioPlaylistItemCount(id: ID!): Int!
+	"""
+	Recently played tracks, newest first.
+	"""
+	audioPlayHistory(offset: Int!, limit: Int!, query: String!): [AudioPlayHistory!]!
+}
+
+"""
+Audio playback repeat mode, mirroring the plain-app `MediaPlayMode` enum.
+"""
+enum MediaPlayMode {
+	REPEAT
+	REPEAT_ONE
+	SHUFFLE
+}
+

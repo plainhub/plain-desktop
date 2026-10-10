@@ -1,0 +1,15 @@
+"""
+A scalar that can represent any JSON value.
+"""
+scalar JSON
+
+type PrefsMutation {
+	setUserPref(key: String!, value: JSON!): Boolean!
+	removeUserPref(key: String!): Boolean!
+}
+
+type PrefsQuery {
+	userPrefs: JSON!
+	systemPrefs: JSON!
+}
+

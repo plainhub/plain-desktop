@@ -1,0 +1,33 @@
+type FileUploadMutation {
+	deleteChunks(fileId: String!): Boolean!
+	mergeChunks(fileId: String!, totalChunks: Int!, path: String!, replace: Boolean!, totalSize: Long!): MergeTask!
+	mergeAppFileChunks(fileId: String!, totalChunks: Int!, fileName: String!, totalSize: Long!): MergeTask!
+}
+
+type FileUploadQuery {
+	uploadedChunks(fileId: String!): [String!]!
+	mergeStatus(fileId: String!): MergeTask!
+}
+
+"""
+Chunked-upload merge job (plain-app `MergeTask`): `value` is the merged
+result's base name once `DONE`; `merged_size` its size in bytes.
+"""
+type MergeTask {
+	status: MergeTaskStatus!
+	value: String
+	mergedSize: Long
+	error: String
+}
+
+"""
+Chunked-upload merge job state (plain-app `MergeTaskStatus`).
+"""
+enum MergeTaskStatus {
+	NONE
+	STARTED
+	MERGING
+	DONE
+	FAILED
+}
+
