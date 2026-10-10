@@ -60,8 +60,12 @@ pub fn is_valid_url(url: &str) -> bool {
     true
 }
 
-use crate::chat::app_file_store::content_refs;
-use crate::db::{CHAT_COLS, DChat, Db, now_iso, row_to_chat};
+use crate::chat::attachments::app_file_store::content_refs;
+use crate::db::CHAT_COLS;
+use crate::db::DChat;
+use crate::db::Db;
+use crate::db::now_iso;
+use crate::db::row_to_chat;
 use anyhow::{Result, bail};
 use rusqlite::{OptionalExtension, params};
 use serde::Serialize;
@@ -179,5 +183,5 @@ pub fn append(db: &Db, id: &str, text: &str, preview: &Value) -> Result<Option<D
 }
 
 #[cfg(test)]
-#[path = "../../tests/unit/chat/link_preview/commit.rs"]
+#[path = "../../tests/unit/chat/link_preview.rs"]
 mod tests;

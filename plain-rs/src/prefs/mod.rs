@@ -321,5 +321,5 @@ impl PrefsStore {
 }
 
 #[cfg(test)]
-#[path = "../../tests/unit/prefs.rs"]
+#[path = "../../tests/unit/prefs/mod.rs"]
 mod tests;

@@ -1,16 +1,17 @@
 #![allow(non_snake_case)]
 
 #[allow(unused_imports)]
-pub(crate) use plain_rs::mdns::host_responder::{
-    get_best_ip as discover_get_best_ip, local_ipv4_strs as discover_local_ipv4_strs,
-};
+pub(crate) use plain_rs::protocols::mdns::host_responder::get_best_ip as discover_get_best_ip;
+pub(crate) use plain_rs::protocols::mdns::host_responder::local_ipv4_strs as discover_local_ipv4_strs;
 use plain_server::assembly::enums::DeviceType;
-use plain_server::graphql::main::types::Peer;
+use plain_server::graphql::resolvers::peers::types::Peer;
 #[allow(unused_imports)]
-pub use plain_server::services::discover::{
-    MdnsActivity, MdnsFirewallStatus, NearbyDiscoverManager, PeerStatusManager, firewall,
-    macos_dns_sd,
-};
+pub use plain_server::services::discovery::local::MdnsActivity;
+pub use plain_server::services::discovery::local::MdnsFirewallStatus;
+pub use plain_server::services::discovery::local::NearbyDiscoverManager;
+pub use plain_server::services::discovery::local::PeerStatusManager;
+pub use plain_server::services::discovery::local::firewall;
+pub use plain_server::services::discovery::local::macos_dns_sd;
 
 // ── Remote-device login sessions (peers.token) ───────────────────────────────
 
@@ -86,7 +87,7 @@ pub async fn update_peer_name(
 #[tauri::command]
 pub async fn mdns_snapshot(
     state: tauri::State<'_, NearbyDiscoverManager>,
-) -> Result<Vec<plain_rs::mdns::service_browser::MdnsServiceSnapshot>, String> {
+) -> Result<Vec<plain_rs::protocols::mdns::service_browser::MdnsServiceSnapshot>, String> {
     let mgr = state.inner().clone();
     tauri::async_runtime::spawn_blocking(move || mgr.mdns_snapshot())
         .await

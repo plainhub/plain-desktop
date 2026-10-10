@@ -386,11 +386,11 @@ impl FromStr for PackageType {
 
 // ── DownloadStatus ─────────────────────────────────────────────────────────
 
-pub use plain_rs::chat::download_status::DownloadStatus;
+pub use plain_rs::chat::attachments::download_status::DownloadStatus;
 
 // ── MediaPlayMode ──────────────────────────────────────────────────────────
 
-pub use plain_rs::library::audio_play_mode::MediaPlayMode;
+pub use plain_rs::media::audio::play_mode::MediaPlayMode;
 
 // ── Permission ─────────────────────────────────────────────────────────────
 

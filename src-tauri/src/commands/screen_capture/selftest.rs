@@ -17,10 +17,11 @@ use std::time::Duration;
 
 use tauri::{AppHandle, Manager, Runtime};
 
-use super::backend::capture_frame_at_cursor_exclusive;
-use super::contract::{CaptureError, CaptureErrorCode};
-use super::runtime::ScreenCaptureRuntime;
-use super::window::TauriCaptureWindowPort;
+use crate::commands::screen_capture::backend::capture_frame_at_cursor_exclusive;
+use crate::commands::screen_capture::contract::CaptureError;
+use crate::commands::screen_capture::contract::CaptureErrorCode;
+use crate::commands::screen_capture::runtime::ScreenCaptureRuntime;
+use crate::commands::screen_capture::window::TauriCaptureWindowPort;
 
 const FLAG_PATH: &str = "/tmp/plain-capture-selftest";
 const OUTPUT_DIR: &str = "/tmp/cap-exp";
@@ -44,7 +45,7 @@ pub fn schedule_trigger<R: Runtime>(app: AppHandle<R>) {
             return;
         }
         log::info!("screen capture self-test triggering the global capture path");
-        super::shortcut::trigger_global_capture(&app);
+        crate::commands::screen_capture::shortcut::trigger_global_capture(&app);
     });
 }
 
@@ -115,7 +116,10 @@ async fn capture_selfie(stem: &str) -> Result<(), CaptureError> {
     .map_err(|_| CaptureError::new(CaptureErrorCode::CaptureFailed, "self-test worker failed"))?
 }
 
-fn write_frame_png(frame: super::contract::CapturedFrame, stem: &str) -> Result<(), CaptureError> {
+fn write_frame_png(
+    frame: crate::commands::screen_capture::contract::CapturedFrame,
+    stem: &str,
+) -> Result<(), CaptureError> {
     use image::{ExtendedColorType, ImageEncoder, codecs::png::PngEncoder};
 
     let width = frame.descriptor().width;

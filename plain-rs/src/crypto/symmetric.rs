@@ -21,7 +21,7 @@ use crate::utils::base64::base64_decode;
 pub fn xchacha_encrypt_raw(key: &[u8], plaintext: &[u8]) -> Option<Vec<u8>> {
     let cipher = XChaCha20Poly1305::new_from_slice(key).ok()?;
     let mut nonce_bytes = [0u8; 24];
-    super::gen_random(&mut nonce_bytes);
+    crate::crypto::gen_random(&mut nonce_bytes);
     let nonce = XNonce::from_slice(&nonce_bytes);
     let ciphertext = cipher.encrypt(nonce, plaintext).ok()?;
     let mut result = Vec::with_capacity(24 + ciphertext.len());
@@ -63,7 +63,7 @@ pub fn xchacha_decrypt(token_b64: &str, data: &[u8]) -> Option<Vec<u8>> {
 pub fn chacha20_encrypt(key: &[u8], plaintext: &[u8]) -> Option<Vec<u8>> {
     let cipher = ChaCha20Poly1305::new_from_slice(key).ok()?;
     let mut nonce_bytes = [0u8; 12];
-    super::gen_random(&mut nonce_bytes);
+    crate::crypto::gen_random(&mut nonce_bytes);
     let nonce = ChaNonce::from_slice(&nonce_bytes);
     let ciphertext = cipher.encrypt(nonce, plaintext).ok()?;
     let mut result = Vec::with_capacity(12 + ciphertext.len());

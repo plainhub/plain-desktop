@@ -3,7 +3,7 @@ use std::sync::atomic::{AtomicU32, Ordering};
 use std::sync::{Mutex, OnceLock};
 use tauri::{AppHandle, Manager, PhysicalPosition};
 
-use super::webview_creation;
+use crate::commands::webview_creation;
 
 /// Diagonal offset (physical pixels) between a freshly opened window and
 /// the focused window it cascades from, so the new window stays near its

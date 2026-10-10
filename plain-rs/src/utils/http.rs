@@ -91,7 +91,7 @@ pub fn parse_range_header(range: &str, file_size: u64) -> RangeParse {
 /// both the legacy `filename="…"` and the `filename*=utf-8''…` forms —
 /// matching plain-app exactly so non-ASCII names round-trip correctly.
 pub fn content_disposition(kind: &str, filename: &str) -> String {
-    let encoded = super::query::url_encode(filename);
+    let encoded = crate::utils::query::url_encode(filename);
     format!("{kind}; filename=\"{encoded}\"; filename*=utf-8''{encoded}")
 }
 

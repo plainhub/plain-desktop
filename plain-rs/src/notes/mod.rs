@@ -1,63 +1,64 @@
 use crate::db::Db;
 use crate::db::notes_feeds::NoteRow;
 use crate::enums::DataType;
-use crate::library::tags;
-use crate::library::{LibraryError, LibraryResult};
+use crate::error::DomainError;
+use crate::error::DomainResult;
+use crate::tags;
 
 fn now() -> String {
     chrono::Utc::now().to_rfc3339_opts(chrono::SecondsFormat::Millis, true)
 }
 
-pub fn create(db: &Db, title: &str, content: &str) -> LibraryResult<NoteRow> {
+pub fn create(db: &Db, title: &str, content: &str) -> DomainResult<NoteRow> {
     let id = uuid::Uuid::new_v4().to_string();
     Ok(db.note_save(&id, &resolved_title(title, content), content, &now())?)
 }
 
-pub fn update(db: &Db, id: &str, title: &str, content: &str) -> LibraryResult<NoteRow> {
+pub fn update(db: &Db, id: &str, title: &str, content: &str) -> DomainResult<NoteRow> {
     if db.note_get(id)?.is_none() {
-        return Err(LibraryError::Other(format!("Note {id} not found")));
+        return Err(DomainError::Other(format!("Note {id} not found")));
     }
     Ok(db.note_save(id, &resolved_title(title, content), content, &now())?)
 }
 
-pub fn search(db: &Db, query: &str, limit: i32, offset: i32) -> LibraryResult<Vec<NoteRow>> {
+pub fn search(db: &Db, query: &str, limit: i32, offset: i32) -> DomainResult<Vec<NoteRow>> {
     Ok(db.notes_list(query, i64::from(limit.max(0)), i64::from(offset.max(0)))?)
 }
 
-pub fn count(db: &Db, query: &str) -> LibraryResult<i32> {
+pub fn count(db: &Db, query: &str) -> DomainResult<i32> {
     Ok(db.notes_count(query)?)
 }
 
-pub fn get(db: &Db, id: &str) -> LibraryResult<Option<NoteRow>> {
+pub fn get(db: &Db, id: &str) -> DomainResult<Option<NoteRow>> {
     Ok(db.note_get(id)?)
 }
 
-fn explicit(query: &str) -> LibraryResult<()> {
+fn explicit(query: &str) -> DomainResult<()> {
     if query.trim().is_empty() {
-        return Err(LibraryError::Other("query is required for bulk mutations — pass 'all:true' to explicitly target everything".to_string()));
+        return Err(DomainError::Other("query is required for bulk mutations — pass 'all:true' to explicitly target everything".to_string()));
     }
     Ok(())
 }
 
-pub fn trash(db: &Db, query: &str) -> LibraryResult<usize> {
+pub fn trash(db: &Db, query: &str) -> DomainResult<usize> {
     explicit(query)?;
     let ids = db.note_ids(query, Some(false))?;
     Ok(db.notes_set_deleted(&ids, true, &now())?)
 }
 
-pub fn restore(db: &Db, query: &str) -> LibraryResult<usize> {
+pub fn restore(db: &Db, query: &str) -> DomainResult<usize> {
     explicit(query)?;
     let ids = db.note_ids(query, Some(true))?;
     Ok(db.notes_set_deleted(&ids, false, &now())?)
 }
 
-pub fn delete(db: &Db, query: &str) -> LibraryResult<usize> {
+pub fn delete(db: &Db, query: &str) -> DomainResult<usize> {
     explicit(query)?;
     let ids = db.note_ids(query, Some(true))?;
     Ok(db.notes_delete(&ids)?)
 }
 
-pub fn save_feed_entries(db: &Db, query: &str) -> LibraryResult<Vec<String>> {
+pub fn save_feed_entries(db: &Db, query: &str) -> DomainResult<Vec<String>> {
     explicit(query)?;
     let entries = db.feed_entries_list(query, i64::MAX, 0)?;
     let mut ids = Vec::with_capacity(entries.len());
@@ -77,11 +78,11 @@ pub fn save_feed_entries(db: &Db, query: &str) -> LibraryResult<Vec<String>> {
     Ok(ids)
 }
 
-pub fn export(db: &Db, query: &str) -> LibraryResult<String> {
+pub fn export(db: &Db, query: &str) -> DomainResult<String> {
     let notes = db.notes_list(query, i64::MAX, 0)?;
     let values: Vec<_> = notes
         .into_iter()
-        .map(|note| -> LibraryResult<serde_json::Value> {
+        .map(|note| -> DomainResult<serde_json::Value> {
             let tag_values: Vec<_> = tags::tags_for_key_of_kind(
                 db,
                 &note.id,
@@ -95,8 +96,8 @@ pub fn export(db: &Db, query: &str) -> LibraryResult<String> {
             "createdAt": note.created_at, "updatedAt": note.updated_at, "tags": tag_values }),
             )
         })
-        .collect::<LibraryResult<Vec<_>>>()?;
-    Ok(serde_json::to_string(&values).map_err(|e| LibraryError::Other(e.to_string()))?)
+        .collect::<DomainResult<Vec<_>>>()?;
+    Ok(serde_json::to_string(&values).map_err(|e| DomainError::Other(e.to_string()))?)
 }
 
 #[cfg(test)]

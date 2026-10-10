@@ -1,6 +1,7 @@
 use tauri::ipc::{InvokeBody, Response};
 
-use super::contract::{CaptureError, CaptureErrorCode};
+use crate::commands::screen_capture::contract::CaptureError;
+use crate::commands::screen_capture::contract::CaptureErrorCode;
 
 pub fn raw_response(bytes: Vec<u8>) -> Response {
     Response::new(bytes)

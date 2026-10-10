@@ -1,5 +1,8 @@
-use super::contract::{CaptureError, CaptureErrorCode, CapturedFrame};
-use crate::capture::{Capture, with_native_acquisition_lease};
+use crate::capture::Capture;
+use crate::capture::with_native_acquisition_lease;
+use crate::commands::screen_capture::contract::CaptureError;
+use crate::commands::screen_capture::contract::CaptureErrorCode;
+use crate::commands::screen_capture::contract::CapturedFrame;
 
 pub(crate) fn capture_frame_at_cursor(
     backend: &dyn Capture,

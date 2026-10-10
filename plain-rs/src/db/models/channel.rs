@@ -1,4 +1,4 @@
-use crate::chat::channel::messages::decode_members;
+use crate::chat::channels::messages::decode_members;
 use crate::chat::enums::ChannelStatus;
 use crate::db::now_iso;
 use crate::utils::short_uuid::short_uuid;

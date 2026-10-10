@@ -2,13 +2,19 @@ use chrono::Utc;
 use futures_util::StreamExt;
 use futures_util::stream;
 use plain_rs::db::Db;
-use plain_rs::db::notes_feeds::{FeedEntryRow, FeedRow};
-use plain_rs::library::{LibraryError, LibraryResult};
-use plain_rs::utils::html_to_markdown::dom::{Dom, Node};
+use plain_rs::db::notes_feeds::FeedEntryRow;
+use plain_rs::db::notes_feeds::FeedRow;
+use plain_rs::error::DomainError;
+use plain_rs::error::DomainResult;
+use plain_rs::events::WsEvent;
+use plain_rs::feeds::{error, now, require_url};
+use plain_rs::utils::html_to_markdown::dom::Dom;
+use plain_rs::utils::html_to_markdown::dom::Node;
 use plain_rs::utils::html_to_markdown::html_to_markdown;
 use plain_rs::utils::http_url::parse_http_url;
-use plain_rs::utils::xml::{self, Event, StartTag};
-use plain_rs::ws_event::WsEvent;
+use plain_rs::utils::xml;
+use plain_rs::utils::xml::Event;
+use plain_rs::utils::xml::StartTag;
 use sha2::{Digest, Sha256};
 use std::sync::Arc;
 use tokio::sync::broadcast;
@@ -37,22 +43,6 @@ struct ParsedEntry {
     published_at: String,
 }
 
-fn now() -> String {
-    Utc::now().to_rfc3339_opts(chrono::SecondsFormat::Millis, true)
-}
-
-fn error(message: impl ToString) -> LibraryError {
-    LibraryError::Other(message.to_string())
-}
-
-fn require_url(url: &str) -> LibraryResult<()> {
-    let parsed = parse_http_url(url).ok_or_else(|| error("invalid_feed_url"))?;
-    if parsed.host.is_empty() {
-        return Err(error("invalid_feed_url"));
-    }
-    Ok(())
-}
-
 fn inside(stack: &[String], name: &str) -> bool {
     stack.iter().any(|open| open == name)
 }
@@ -66,7 +56,7 @@ fn inner_html(dom: &Dom, id: usize) -> String {
         .collect()
 }
 
-fn parse_feed(xml: &str) -> LibraryResult<ParsedFeed> {
+fn parse_feed(xml: &str) -> DomainResult<ParsedFeed> {
     let mut reader = xml::Reader::new(xml);
     let mut feed = ParsedFeed::default();
     let mut entry: Option<ParsedEntry> = None;
@@ -250,7 +240,7 @@ fn item_to_row(feed: &FeedRow, item: ParsedEntry) -> FeedEntryRow {
     }
 }
 
-pub(crate) async fn fetch_text(url: &str, max_bytes: usize) -> LibraryResult<String> {
+pub(crate) async fn fetch_text(url: &str, max_bytes: usize) -> DomainResult<String> {
     require_url(url)?;
     let client = reqwest::Client::builder()
         .timeout(std::time::Duration::from_secs(25))
@@ -299,7 +289,7 @@ pub async fn create(
     url: &str,
     fetch_content: bool,
     events: broadcast::Sender<WsEvent>,
-) -> LibraryResult<FeedRow> {
+) -> DomainResult<FeedRow> {
     if db.feed_get_by_url(url)?.is_some() {
         return Err(error("feed_already_exists"));
     }
@@ -309,58 +299,14 @@ pub async fn create(
     Ok(feed)
 }
 
-pub fn update(db: &Db, id: &str, name: &str, fetch_content: bool) -> LibraryResult<FeedRow> {
-    let feed = db
-        .feed_get(id)?
-        .ok_or_else(|| error(format!("Feed {id} not found")))?;
-    Ok(db.feed_save(id, name, &feed.url, fetch_content, &now())?)
-}
-
-pub fn delete(db: &Db, id: &str) -> LibraryResult<bool> {
-    Ok(db.feed_delete(id)?)
-}
-
-pub fn list(db: &Db) -> LibraryResult<Vec<FeedRow>> {
-    Ok(db.feeds_list()?)
-}
-
-pub fn get(db: &Db, id: &str) -> LibraryResult<Option<FeedRow>> {
-    Ok(db.feed_get(id)?)
-}
-
-pub fn entry_get(db: &Db, id: &str) -> LibraryResult<Option<FeedEntryRow>> {
-    Ok(db.feed_entry_get(id)?)
-}
-
-pub fn entry_counts(db: &Db) -> LibraryResult<Vec<(String, i32)>> {
-    Ok(db.feed_entry_counts()?)
-}
-
-pub fn search(db: &Db, query: &str, limit: i32, offset: i32) -> LibraryResult<Vec<FeedEntryRow>> {
-    Ok(db.feed_entries_list(query, i64::from(limit.max(0)), i64::from(offset.max(0)))?)
-}
-
-pub fn count(db: &Db, query: &str) -> LibraryResult<i32> {
-    Ok(db.feed_entry_count(query)?)
-}
-
-pub fn delete_entries(db: &Db, query: &str) -> LibraryResult<usize> {
-    if query.trim().is_empty() {
-        return Err(error(
-            "query is required for bulk mutations — pass 'all:true' to explicitly target everything",
-        ));
-    }
-    Ok(db.feed_entries_delete(query)?)
-}
-
-pub async fn sync_entry_content(db: &Db, id: &str) -> LibraryResult<FeedEntryRow> {
+pub async fn sync_entry_content(db: &Db, id: &str) -> DomainResult<FeedEntryRow> {
     sync_entry_content_with_assets(db, id, None).await
 }
 pub async fn sync_entry_content_with_assets(
     db: &Db,
     id: &str,
     assets: Option<&FeedAssets>,
-) -> LibraryResult<FeedEntryRow> {
+) -> DomainResult<FeedEntryRow> {
     let entry = db
         .feed_entry_get(id)?
         .ok_or_else(|| error(format!("Feed entry {id} not found")))?;
@@ -388,7 +334,7 @@ pub async fn sync_entry_content_with_assets(
     Ok(db.feed_entry_get(id)?.unwrap_or(entry))
 }
 
-async fn sync_one(db: &Db, feed: &FeedRow, assets: Option<&FeedAssets>) -> LibraryResult<()> {
+async fn sync_one(db: &Db, feed: &FeedRow, assets: Option<&FeedAssets>) -> DomainResult<()> {
     let xml = fetch_text(&feed.url, 4 * 1024 * 1024).await?;
     let parsed = parse_feed(&xml)?;
     let rows: Vec<_> = parsed
@@ -450,7 +396,7 @@ pub async fn sync(
     db: Arc<Db>,
     events: broadcast::Sender<WsEvent>,
     id: Option<String>,
-) -> LibraryResult<()> {
+) -> DomainResult<()> {
     sync_with_assets(db, events, id, None).await
 }
 pub async fn sync_with_assets(
@@ -458,7 +404,7 @@ pub async fn sync_with_assets(
     events: broadcast::Sender<WsEvent>,
     id: Option<String>,
     assets: Option<Arc<FeedAssets>>,
-) -> LibraryResult<()> {
+) -> DomainResult<()> {
     let feeds = match id.as_deref() {
         Some(id) => vec![db.feed_get(id)?.ok_or_else(|| error("feed_not_found"))?],
         None => db.feeds_list()?,
@@ -522,92 +468,15 @@ pub fn queue_sync(db: Arc<Db>, events: broadcast::Sender<WsEvent>, id: Option<St
         let _ = sync(db, events, id).await;
     });
 }
-pub fn update_url(db: &Db, id: &str, url: &str) -> LibraryResult<FeedRow> {
-    require_url(url)?;
-    let feed = db.feed_get(id)?.ok_or_else(|| error("feed_not_found"))?;
-    Ok(db.feed_save(id, &feed.name, url, feed.fetch_content, &now())?)
-}
-pub fn mark_read(db: &Db, query: &str, read: bool) -> LibraryResult<usize> {
-    if query.trim().is_empty() {
-        return Err(error("query is required"));
-    }
-    let ids = db
-        .feed_entries_list(query, i64::MAX, 0)?
-        .into_iter()
-        .map(|e| e.id)
-        .collect::<Vec<_>>();
-    Ok(db.feed_entries_mark_read(&ids, read)?)
-}
-
-pub fn import_opml(db: &Db, content: &str) -> LibraryResult<()> {
-    let mut reader = xml::Reader::new(content);
-    let mut feeds = Vec::new();
-    while let Some(event) = reader.next() {
-        let Event::Start(tag) = event else {
-            continue;
-        };
-        if tag.name != "outline" {
-            continue;
-        }
-        // Outlines without xmlUrl are the folders that group subscriptions.
-        let Some(url) = tag.attr("xmlUrl") else {
-            continue;
-        };
-        let name = tag
-            .attr("title")
-            .or_else(|| tag.attr("text"))
-            .unwrap_or_default()
-            .to_string();
-        let fetch_content = tag.attr("fetchContent") == Some("true");
-        feeds.push((name, url.to_string(), fetch_content));
-    }
-    for (name, url, fetch_content) in feeds {
-        // One malformed outline must not cost the user the rest of the file:
-        // OPML is hand-edited and exported by plenty of other readers.
-        if require_url(&url).is_err() || db.feed_get_by_url(&url)?.is_some() {
-            continue;
-        }
-        db.feed_save(
-            &uuid::Uuid::new_v4().to_string(),
-            &name,
-            &url,
-            fetch_content,
-            &now(),
-        )?;
-    }
-    Ok(())
-}
-
-pub fn export_opml(db: &Db) -> LibraryResult<String> {
-    let mut xml = format!(
-        "<?xml version=\"1.0\" encoding=\"UTF-8\"?><opml version=\"2.0\"><head><title>PlainApp</title><dateCreated>{}</dateCreated></head><body>",
-        now()
-    );
-    for feed in db.feeds_list()? {
-        xml.push_str(&format!(
-            "<outline text=\"{}\" title=\"{}\" xmlUrl=\"{}\" fetchContent=\"{}\"/>",
-            xml::escape(&feed.name),
-            xml::escape(&feed.name),
-            xml::escape(&feed.url),
-            feed.fetch_content
-        ));
-    }
-    xml.push_str("</body></opml>");
-    Ok(xml)
-}
 
 #[cfg(test)]
 #[path = "../../../tests/unit/services/feeds/mod.rs"]
 mod tests;
 
-mod date;
+use plain_rs::feeds::date;
 mod sync_service;
 pub use sync_service::{FeedSyncState, SyncService};
-pub async fn create_without_sync(
-    db: &Db,
-    url: &str,
-    fetch_content: bool,
-) -> LibraryResult<FeedRow> {
+pub async fn create_without_sync(db: &Db, url: &str, fetch_content: bool) -> DomainResult<FeedRow> {
     if db.feed_get_by_url(url)?.is_some() {
         return Err(error("feed_already_exists"));
     }
@@ -622,5 +491,5 @@ pub async fn create_without_sync(
     )?)
 }
 
-pub(crate) mod assets;
+pub mod assets;
 pub use assets::FeedAssets;

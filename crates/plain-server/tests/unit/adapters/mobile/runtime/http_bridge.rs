@@ -1,5 +1,5 @@
 use super::*;
-use crate::adapters::mobile::ContentServer;
+use crate::assembly::server::ContentServer;
 use tokio_tungstenite::{
     connect_async,
     tungstenite::{Message as WsMessage, client::IntoClientRequest},

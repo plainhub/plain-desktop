@@ -1,6 +1,6 @@
 use rusqlite::Connection;
 
-pub(super) fn init(conn: &Connection) -> rusqlite::Result<()> {
+pub(crate) fn init(conn: &Connection) -> rusqlite::Result<()> {
     conn.execute_batch(
         "CREATE TABLE IF NOT EXISTS media_item (
                 media_type TEXT NOT NULL,

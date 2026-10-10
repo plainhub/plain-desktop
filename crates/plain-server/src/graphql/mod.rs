@@ -1,8 +1,8 @@
-#[cfg(feature = "api")]
-pub mod main;
-#[cfg(feature = "api")]
-pub mod peer;
-#[cfg(any(feature = "api", feature = "content_api"))]
-pub mod shared;
-#[cfg(any(feature = "api", feature = "content_api"))]
+#[cfg(any(feature = "api", feature = "host-api"))]
 pub mod types;
+
+#[cfg(any(feature = "api", feature = "host-api"))]
+pub mod schemas;
+
+#[cfg(any(feature = "api", feature = "host-api"))]
+pub mod resolvers;

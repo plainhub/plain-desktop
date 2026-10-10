@@ -4,16 +4,28 @@ use std::time::Duration;
 
 use serde::Serialize;
 
-use super::buffers::validate_result_payload;
-use super::contract::{
-    CaptureOrigin, CaptureRequest, CaptureResultDescriptor, CaptureResultSubmission, CaptureTarget,
-    CaptureTriggerKind, CapturedFrame, CapturedFrameDescriptor, NativeCapturePhase,
-};
-use super::coordinator::{CaptureCallerRole, CaptureCleanup, CaptureCoordinator, TerminalOutcome};
-use super::export::{CaptureExportPort, SaveCaptureOutcome, normalized_png_path};
 #[cfg(test)]
 use crate::capture::Capture;
-use crate::capture::{CaptureError, CaptureErrorCode, DisplayInfo};
+use crate::capture::CaptureError;
+use crate::capture::CaptureErrorCode;
+use crate::capture::DisplayInfo;
+use crate::commands::screen_capture::buffers::validate_result_payload;
+use crate::commands::screen_capture::contract::CaptureOrigin;
+use crate::commands::screen_capture::contract::CaptureRequest;
+use crate::commands::screen_capture::contract::CaptureResultDescriptor;
+use crate::commands::screen_capture::contract::CaptureResultSubmission;
+use crate::commands::screen_capture::contract::CaptureTarget;
+use crate::commands::screen_capture::contract::CaptureTriggerKind;
+use crate::commands::screen_capture::contract::CapturedFrame;
+use crate::commands::screen_capture::contract::CapturedFrameDescriptor;
+use crate::commands::screen_capture::contract::NativeCapturePhase;
+use crate::commands::screen_capture::coordinator::CaptureCallerRole;
+use crate::commands::screen_capture::coordinator::CaptureCleanup;
+use crate::commands::screen_capture::coordinator::CaptureCoordinator;
+use crate::commands::screen_capture::coordinator::TerminalOutcome;
+use crate::commands::screen_capture::export::CaptureExportPort;
+use crate::commands::screen_capture::export::SaveCaptureOutcome;
+use crate::commands::screen_capture::export::normalized_png_path;
 
 pub const OVERLAY_WINDOW_LABEL_PREFIX: &str = "screen-capture-overlay";
 pub const OVERLAY_WINDOW_LABEL: &str = "screen-capture-overlay-1";
@@ -2702,24 +2714,45 @@ mod tests {
 
     use serde_json::Value;
 
-    use super::{
-        CAPTURE_PROTOCOL_VERSION, CapturePublishOutcome, CaptureTimeoutKind, CaptureWindowPort,
-        CaptureWindowState, DeliveryFailedPayload, FRAME_AVAILABLE_EVENT, FrameAvailablePayload,
-        OVERLAY_ROUTE, OVERLAY_WINDOW_LABEL, OverlayConcealment, OverlaySessionEndedPayload,
-        OverlayWindowSpec, ResultAvailablePayload, ScreenCaptureRuntime, SessionEndedPayload,
-        SessionStartedPayload, TargetUnavailablePayload, acquire_and_publish_once,
-        is_overlay_window_label, overlay_window_label,
-    };
-    use crate::capture::{
-        Capture, DisplayInfo, Frame, LogicalPoint, LogicalSize, PhysicalPoint, PhysicalRect,
-        PhysicalSize,
-    };
+    use super::CAPTURE_PROTOCOL_VERSION;
+    use super::CapturePublishOutcome;
+    use super::CaptureTimeoutKind;
+    use super::CaptureWindowPort;
+    use super::CaptureWindowState;
+    use super::DeliveryFailedPayload;
+    use super::FRAME_AVAILABLE_EVENT;
+    use super::FrameAvailablePayload;
+    use super::OVERLAY_ROUTE;
+    use super::OVERLAY_WINDOW_LABEL;
+    use super::OverlayConcealment;
+    use super::OverlaySessionEndedPayload;
+    use super::OverlayWindowSpec;
+    use super::ResultAvailablePayload;
+    use super::ScreenCaptureRuntime;
+    use super::SessionEndedPayload;
+    use super::SessionStartedPayload;
+    use super::TargetUnavailablePayload;
+    use super::acquire_and_publish_once;
+    use super::is_overlay_window_label;
+    use super::overlay_window_label;
+    use crate::capture::Capture;
+    use crate::capture::DisplayInfo;
+    use crate::capture::Frame;
+    use crate::capture::LogicalPoint;
+    use crate::capture::LogicalSize;
+    use crate::capture::PhysicalPoint;
+    use crate::capture::PhysicalRect;
+    use crate::capture::PhysicalSize;
     use crate::commands::screen_capture::backend::capture_frame_at_cursor;
-    use crate::commands::screen_capture::contract::{
-        CaptureError, CaptureErrorCode, CaptureOrigin, CaptureResultSubmission, CaptureTarget,
-        CapturedFrame, NativeCapturePhase,
-    };
-    use crate::commands::screen_capture::export::{CaptureExportPort, SaveCaptureOutcome};
+    use crate::commands::screen_capture::contract::CaptureError;
+    use crate::commands::screen_capture::contract::CaptureErrorCode;
+    use crate::commands::screen_capture::contract::CaptureOrigin;
+    use crate::commands::screen_capture::contract::CaptureResultSubmission;
+    use crate::commands::screen_capture::contract::CaptureTarget;
+    use crate::commands::screen_capture::contract::CapturedFrame;
+    use crate::commands::screen_capture::contract::NativeCapturePhase;
+    use crate::commands::screen_capture::export::CaptureExportPort;
+    use crate::commands::screen_capture::export::SaveCaptureOutcome;
 
     #[derive(Debug, Clone, PartialEq)]
     enum WindowOperation {

@@ -2,7 +2,10 @@
 //! XDG ScreenCast portal (which the app layer drives directly because it
 //! needs async session management and user interaction).
 
-use super::{Capture, CaptureError, CaptureErrorCode, wayland_cursor_is_unavailable};
+use crate::capture::Capture;
+use crate::capture::CaptureError;
+use crate::capture::CaptureErrorCode;
+use crate::capture::wayland_cursor_is_unavailable;
 
 pub(crate) mod wayland;
 pub(crate) mod x11;

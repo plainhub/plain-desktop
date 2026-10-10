@@ -7,9 +7,9 @@
 #![allow(dead_code)]
 
 use crate::db::Db;
-use crate::library::LibraryResult;
-use crate::library::audio_queue::AudioTrack;
-use crate::library::audio_queue::LibraryTracks;
+use crate::error::DomainResult;
+use crate::media::audio::queue::AudioTrack;
+use crate::media::audio::queue::LibraryTracks;
 use std::sync::atomic::{AtomicUsize, Ordering};
 
 static SEQ: AtomicUsize = AtomicUsize::new(0);
@@ -49,10 +49,10 @@ impl FakeLibrary {
 }
 
 impl LibraryTracks for FakeLibrary {
-    fn library_count(&mut self) -> LibraryResult<usize> {
+    fn library_count(&mut self) -> DomainResult<usize> {
         Ok(self.tracks.len())
     }
-    fn library_path_at(&mut self, offset: usize, _sort_by: &str) -> LibraryResult<Option<String>> {
+    fn library_path_at(&mut self, offset: usize, _sort_by: &str) -> DomainResult<Option<String>> {
         Ok(self.tracks.get(offset).map(|t| t.path.clone()))
     }
     fn library_tracks_page(
@@ -60,7 +60,7 @@ impl LibraryTracks for FakeLibrary {
         offset: usize,
         limit: usize,
         _sort_by: &str,
-    ) -> LibraryResult<Vec<AudioTrack>> {
+    ) -> DomainResult<Vec<AudioTrack>> {
         Ok(self
             .tracks
             .iter()
@@ -69,7 +69,7 @@ impl LibraryTracks for FakeLibrary {
             .cloned()
             .collect())
     }
-    fn library_locate(&mut self, path: &str, _sort_by: &str) -> LibraryResult<i64> {
+    fn library_locate(&mut self, path: &str, _sort_by: &str) -> DomainResult<i64> {
         Ok(self
             .tracks
             .iter()
@@ -77,7 +77,7 @@ impl LibraryTracks for FakeLibrary {
             .map(|p| p as i64)
             .unwrap_or(-1))
     }
-    fn library_contains(&mut self, path: &str) -> LibraryResult<bool> {
+    fn library_contains(&mut self, path: &str) -> DomainResult<bool> {
         Ok(self.tracks.iter().any(|t| t.path == path))
     }
 }

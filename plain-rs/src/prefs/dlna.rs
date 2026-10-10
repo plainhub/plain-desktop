@@ -4,7 +4,7 @@
 //! `DlnaPreference`; previously duplicated inside the plain-desktop
 //! Tauri shells behind AppHandle accessors.
 
-use super::Prefs;
+use crate::prefs::Prefs;
 
 const SEP: char = '|';
 
@@ -61,5 +61,5 @@ pub fn remove_sender(prefs: &Prefs, key: &str, ip: &str) {
 }
 
 #[cfg(test)]
-#[path = "../../tests/unit/prefs_dlna.rs"]
+#[path = "../../tests/unit/prefs/dlna.rs"]
 mod tests;

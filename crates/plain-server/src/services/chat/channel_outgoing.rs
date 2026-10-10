@@ -1,0 +1,102 @@
+use crate::services::peers::peer_wire::signing_keypair;
+use anyhow::{Result, bail};
+use plain_rs::chat::channels::messages::ChannelMember;
+use plain_rs::chat::channels::outgoing;
+use plain_rs::chat::enums::ChannelSystemMessageType;
+use plain_rs::chat::enums::DeviceType;
+use plain_rs::db::DChannel;
+use plain_rs::db::DPeer;
+use plain_rs::db::Db;
+use plain_rs::db::chat_store::peers;
+use plain_rs::prefs::Prefs;
+use plain_rs::transport::contract::channel_system_request;
+use serde::Serialize;
+
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+pub(crate) struct Prepared {
+    pub payload: String,
+    pub message_type: ChannelSystemMessageType,
+    pub targets: Vec<Target>,
+}
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+pub(crate) struct Target {
+    pub peer: DPeer,
+    pub key: String,
+    pub channel_id: String,
+}
+pub(crate) fn prepare(
+    db: &Db,
+    prefs: &Prefs,
+    channel: &DChannel,
+    kind: ChannelSystemMessageType,
+    target: &str,
+    name: &str,
+    device: DeviceType,
+) -> Result<Prepared> {
+    if matches!(
+        kind,
+        ChannelSystemMessageType::InviteAccept
+            | ChannelSystemMessageType::InviteDecline
+            | ChannelSystemMessageType::Leave
+    ) && (target.is_empty() || target != channel.owner_id)
+    {
+        bail!("Invalid channel owner destination");
+    }
+    let actor = prefs
+        .get::<String>("client_id")?
+        .filter(|id| !id.is_empty())
+        .ok_or_else(|| anyhow::anyhow!("Missing client identity"))?;
+    let keypair = signing_keypair(prefs)?;
+    let payload = outgoing::build(
+        Some(db),
+        channel,
+        &actor,
+        name,
+        device,
+        &keypair,
+        kind,
+        target,
+    )?;
+    let ids = if !target.is_empty() {
+        vec![target.to_owned()]
+    } else {
+        serde_json::from_str::<Vec<ChannelMember>>(&channel.members)?
+            .into_iter()
+            .filter(|m| m.peer_id != actor)
+            .map(|m| m.peer_id)
+            .collect()
+    };
+    let mut targets = Vec::new();
+    for id in ids {
+        let Some(peer) = peers::get(db, &id)? else {
+            continue;
+        };
+        let (key, cid) = if !peer.key.is_empty() {
+            (peer.key.clone(), String::new())
+        } else {
+            (channel.key.clone(), channel.id.clone())
+        };
+        if plain_rs::utils::base64::base64_decode(&key).len() != 32 {
+            bail!("Invalid channel transport key for {}", peer.id);
+        }
+        targets.push(Target {
+            peer,
+            key,
+            channel_id: cid,
+        });
+    }
+    Ok(Prepared {
+        payload,
+        message_type: kind,
+        targets,
+    })
+}
+pub(crate) fn wire(prefs: &Prefs, kind: ChannelSystemMessageType, payload: &str) -> Result<String> {
+    channel_system_request(&signing_keypair(prefs)?, kind.as_str(), payload)
+        .map_err(anyhow::Error::msg)
+}
+#[cfg(test)]
+#[path = "../../../tests/unit/services/chat/channel_outgoing.rs"]
+mod tests;

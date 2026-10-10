@@ -1,21 +1,32 @@
+#[cfg(feature = "api")]
 pub mod events;
+#[cfg(feature = "api")]
 pub mod models;
-pub mod proxy;
-pub mod routes;
+#[cfg(feature = "api")]
 pub mod runtime;
+#[cfg(feature = "api")]
 pub mod temp_store;
+#[cfg(feature = "api")]
 pub mod tls;
+#[cfg(feature = "api")]
 pub mod websocket;
 
+pub use crate::http::routes::local::cors::CorsPolicy;
 use axum::Router;
 use axum::extract::DefaultBodyLimit;
 use axum::routing::{get, post};
 #[cfg(all(test, feature = "system"))]
 pub(crate) use models::test_support;
 pub use models::{AuthPolicy, ServerSettings, ServerState};
-pub use routes::cors::CorsPolicy;
 
-use routes::{auth, cors, file_server, handlers, proxy_file, static_files, upload, zip};
+use crate::http::routes::local::auth;
+use crate::http::routes::local::cors;
+use crate::http::routes::local::file_server;
+use crate::http::routes::local::handlers;
+use crate::http::routes::local::proxy_file;
+use crate::http::routes::local::static_files;
+use crate::http::routes::local::upload;
+use crate::http::routes::local::zip;
 
 pub const MAX_UPLOAD_BODY_BYTES: usize = 64 * 1024 * 1024 * 1024;
 
@@ -45,7 +56,10 @@ pub fn build_router(state: ServerState) -> Router {
             .route("/auth", post(auth::auth_handler))
             .route("/auth/status", post(auth::auth_status_handler))
             .route("/auth/setup", post(auth::auth_setup_handler))
-            .route("/media/:name", get(routes::media_alias::media_handler))
+            .route(
+                "/media/:name",
+                get(crate::http::routes::local::media_alias::media_handler),
+            )
             .route("/", get(websocket::root_handler))
             .route("/broken-image.png", get(static_files::broken_image))
             .route("/favicon.ico", get(static_files::favicon))

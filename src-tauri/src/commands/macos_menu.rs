@@ -158,17 +158,17 @@ pub fn setup(app: &mut App) -> tauri::Result<()> {
     apply_menu(app.handle(), &labels)?;
 
     // ── Dock right-click menu ─────────────────────────────────────────────
-    super::macos_dock::setup(app.handle().clone());
+    crate::commands::macos_dock::setup(app.handle().clone());
 
     // ── Menu event handler ────────────────────────────────────────────────
     app.on_menu_event(|app, event| {
         let id = event.id().as_ref();
         match id {
             "new-window" => {
-                super::window::create_window(app, "/".to_string());
+                crate::commands::window::create_window(app, "/".to_string());
             }
             "about" => {
-                super::window::open_about(app);
+                crate::commands::window::open_about(app);
             }
             "toggle-devtools" => {
                 let windows = app.webview_windows();

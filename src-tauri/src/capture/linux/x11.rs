@@ -10,10 +10,14 @@ use x11rb::protocol::randr::ConnectionExt as RandrConnectionExt;
 use x11rb::protocol::xproto::{ConnectionExt, ImageFormat, Window};
 use x11rb::rust_connection::RustConnection;
 
-use super::super::{
-    Capture, CaptureError, CaptureErrorCode, DisplayInfo, Frame, PhysicalPoint,
-    checked_rounded_i32, select_display_at,
-};
+use crate::capture::Capture;
+use crate::capture::CaptureError;
+use crate::capture::CaptureErrorCode;
+use crate::capture::DisplayInfo;
+use crate::capture::Frame;
+use crate::capture::PhysicalPoint;
+use crate::capture::checked_rounded_i32;
+use crate::capture::select_display_at;
 
 pub struct X11Capture {
     conn: RustConnection,
@@ -101,15 +105,15 @@ impl Capture for X11Capture {
                             x: i32::from(x),
                             y: i32::from(y),
                         },
-                        physical_size: super::super::PhysicalSize {
+                        physical_size: crate::capture::linux::super::PhysicalSize {
                             width: u32::from(width),
                             height: u32::from(height),
                         },
-                        logical_origin: super::super::LogicalPoint {
+                        logical_origin: crate::capture::linux::super::LogicalPoint {
                             x: f64::from(x),
                             y: f64::from(y),
                         },
-                        logical_size: super::super::LogicalSize {
+                        logical_size: crate::capture::linux::super::LogicalSize {
                             width: f64::from(width),
                             height: f64::from(height),
                         },
@@ -153,7 +157,7 @@ impl Capture for X11Capture {
         exclude_window_ids: &[u64],
     ) -> Result<Frame, CaptureError> {
         let _ = exclude_window_ids;
-        super::super::preflight_capture_permission()?;
+        crate::capture::linux::super::preflight_capture_permission()?;
         let (_, x, y, width, height) = self.display_entry(display)?;
 
         let image = self

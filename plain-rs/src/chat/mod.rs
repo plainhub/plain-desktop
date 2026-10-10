@@ -18,45 +18,18 @@
 //! discovery wiring, link-preview scraping) stay in each consumer and
 //! plug in through small traits.
 
-pub mod app_file_store;
-pub mod attachment_imports;
 pub mod cacher;
-pub mod channel;
-pub mod content;
+pub mod channels;
 pub mod delivery;
-pub mod share_card;
 
-pub mod discovery_advertisement;
 pub mod enums;
 pub mod events;
 mod manager;
-pub mod message_lifecycle;
-#[cfg(feature = "http-client")]
-pub mod nearby_http;
-pub mod nearby_wire;
-pub mod pairing;
-pub mod peer_auth;
-mod peer_manager;
-pub mod prewarm;
-mod receiver;
-mod sender;
 pub mod service;
-pub mod transport;
-pub mod transport_router;
-
-pub mod download_queue;
-pub mod download_status;
-
-pub mod lan_ip;
-pub mod nearby_scan;
-
-pub mod nearby_devices;
-
-pub mod peer_status;
-
-pub mod message_commands;
-
-pub mod share_send;
 
 #[cfg(feature = "link-preview")]
 pub mod link_preview;
+
+pub mod attachments;
+
+pub mod messages;

@@ -21,10 +21,17 @@ use objc2_screen_capture_kit::{
     SCContentFilter, SCDisplay, SCScreenshotManager, SCShareableContent, SCStreamConfiguration,
 };
 
-use super::{
-    Capture, CaptureError, CaptureErrorCode, DisplayInfo, LogicalPoint, LogicalSize, PhysicalPoint,
-    PhysicalSize, checked_rounded_i32, checked_rounded_u32, permission_preflight_result,
-};
+use crate::capture::Capture;
+use crate::capture::CaptureError;
+use crate::capture::CaptureErrorCode;
+use crate::capture::DisplayInfo;
+use crate::capture::LogicalPoint;
+use crate::capture::LogicalSize;
+use crate::capture::PhysicalPoint;
+use crate::capture::PhysicalSize;
+use crate::capture::checked_rounded_i32;
+use crate::capture::checked_rounded_u32;
+use crate::capture::permission_preflight_result;
 
 const MACOS_NATIVE_DISPLAY_PREFIX: &str = "macos-cg-display:";
 
@@ -65,12 +72,12 @@ impl Capture for MacosCapture {
         &self,
         display: &DisplayInfo,
         exclude_window_ids: &[u64],
-    ) -> Result<super::Frame, CaptureError> {
+    ) -> Result<crate::capture::Frame, CaptureError> {
         capture_display(display, exclude_window_ids)
     }
 }
 
-use super::Frame;
+use crate::capture::Frame;
 
 pub(crate) fn preflight_capture_permission() -> Result<(), CaptureError> {
     permission_preflight_result(CGPreflightScreenCaptureAccess())
@@ -544,9 +551,10 @@ fn capture_display(
 
 #[cfg(test)]
 mod tests {
-    use super::{
-        monitor_id, native_display_geometry, parse_display_id, select_display_by_native_id,
-    };
+    use super::monitor_id;
+    use super::native_display_geometry;
+    use super::parse_display_id;
+    use super::select_display_by_native_id;
     use crate::capture::CaptureErrorCode;
 
     #[test]

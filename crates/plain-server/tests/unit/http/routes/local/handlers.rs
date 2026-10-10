@@ -1,0 +1,152 @@
+//! Unit tests for the merged /nearby + /peer_graphql handlers (moved
+//! from plain-nas; driven through the desktop branch whose peer schema
+//! lives in plain-rs — the nas branch's own schema is exercised by the
+//! nas crate's router test).
+use crate::http::server::test_support::as_desktop;
+use crate::http::server::test_support::nas_state;
+use axum::body::Bytes;
+use axum::http::{HeaderMap, StatusCode};
+use std::net::SocketAddr;
+
+use plain_rs::chat::enums::DeviceType;
+use plain_rs::chat::enums::PeerStatus;
+use plain_rs::crypto::ed25519_generate;
+use plain_rs::crypto::ed25519_sign;
+use plain_rs::crypto::xchacha_decrypt_raw;
+use plain_rs::crypto::xchacha_encrypt_raw;
+use plain_rs::db::DPeer;
+use plain_rs::utils::base64::base64_encode;
+
+fn now_ms() -> i64 {
+    std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .unwrap_or_default()
+        .as_millis() as i64
+}
+
+#[tokio::test]
+async fn nearby_dispatches_known_prefixes() {
+    let state = as_desktop(&nas_state());
+    let addr: SocketAddr = "203.0.113.9:50000".parse().unwrap();
+
+    let resp = super::nearby(
+        axum::extract::State(state.clone()),
+        axum::extract::ConnectInfo(addr),
+        Bytes::from_static(b"DISCOVER:"),
+    )
+    .await;
+    assert_eq!(resp.status(), StatusCode::OK);
+
+    let resp = super::nearby(
+        axum::extract::State(state),
+        axum::extract::ConnectInfo(addr),
+        Bytes::from_static(b"WHAT:"),
+    )
+    .await;
+    assert_eq!(resp.status(), StatusCode::BAD_REQUEST);
+}
+
+/// End-to-end ingestion: a paired peer posts an encrypted + signed
+/// `createChatItem`; the handler authenticates, executes the peer schema,
+/// and answers with an encrypted response. The message must land in the
+/// DB with the peer as sender.
+#[tokio::test]
+async fn peer_graphql_create_chat_item_roundtrip() {
+    let state = as_desktop(&nas_state());
+
+    // Seed a paired peer with a known shared key + Ed25519 identity.
+    let (kp, vk) = ed25519_generate();
+    let key = [31u8; 32];
+    state.ctx.chat.service.db.upsert_peer(&DPeer {
+        id: "peer-a".into(),
+        name: "Phone".into(),
+        ip: "203.0.113.9".into(),
+        key: base64_encode(&key),
+        public_key: base64_encode(&vk),
+        status: PeerStatus::Paired,
+        port: 2443,
+        device_type: DeviceType::Phone,
+        token: String::new(),
+        created_at: "2026-01-01T00:00:00Z".into(),
+        updated_at: "2026-01-01T00:00:00Z".into(),
+    });
+    plain_rs::chat::events::refresh_peer_key_cache(
+        &state.ctx.chat.service.db,
+        &state.ctx.chat.service.peer_key_cache,
+    );
+
+    // Build the wire body: encrypt(signature|timestamp|graphql_json).
+    let graphql_json = serde_json::json!({
+        "query": "mutation CreateChatItem($content: String!) { createChatItem(content: $content) { id fromId toId } }",
+        "variables": { "content": "{\"type\":\"TEXT\",\"value\":{\"text\":\"hi nas\"}}" }
+    })
+    .to_string();
+    let ts = now_ms();
+    let sig = ed25519_sign(&kp, format!("{ts}{graphql_json}").as_bytes());
+    let payload = format!("{sig}|{ts}|{graphql_json}");
+    let body = xchacha_encrypt_raw(&key, payload.as_bytes()).expect("encrypt body");
+
+    let mut headers = HeaderMap::new();
+    headers.insert("c-id", "peer-a".parse().unwrap());
+
+    let resp = super::peer_graphql_handler(
+        axum::extract::State(state.clone()),
+        headers.clone(),
+        Bytes::from(body.clone()),
+    )
+    .await;
+    assert_eq!(resp.status(), StatusCode::OK);
+
+    // Decrypt the response with the same shared key; the peer schema must
+    // have created the item.
+    let bytes = axum::body::to_bytes(resp.into_body(), 1024 * 1024)
+        .await
+        .unwrap();
+    let plain = xchacha_decrypt_raw(&key, &bytes).expect("decrypt response");
+    let v: serde_json::Value = serde_json::from_slice(&plain).unwrap();
+    assert!(v.get("errors").is_none(), "{v}");
+    assert_eq!(v["data"]["createChatItem"].as_array().unwrap().len(), 1);
+    let item = &v["data"]["createChatItem"][0];
+    let id = item["id"].as_str().unwrap().to_string();
+    assert_eq!(item["fromId"], "peer-a");
+    assert_eq!(item["toId"], "me");
+
+    // The message landed in the DB with the peer as sender.
+    let row = state
+        .ctx
+        .chat
+        .service
+        .db
+        .get_chat_by_id(&id)
+        .expect("row persisted");
+    assert_eq!(row.from_id, "peer-a");
+    assert_eq!(row.to_id, "me");
+    let replay = super::peer_graphql_handler(
+        axum::extract::State(state.clone()),
+        headers,
+        Bytes::from(body),
+    )
+    .await;
+    assert_eq!(replay.status(), StatusCode::OK);
+    let bytes = axum::body::to_bytes(replay.into_body(), 1024 * 1024)
+        .await
+        .unwrap();
+    let plain = xchacha_decrypt_raw(&key, &bytes).unwrap();
+    let replay: serde_json::Value = serde_json::from_slice(&plain).unwrap();
+    assert_eq!(replay["data"]["createChatItem"], serde_json::json!([]));
+}
+
+/// Unknown peer → 401 with the auth reason.
+#[tokio::test]
+async fn peer_graphql_rejects_unknown_peer() {
+    let state = as_desktop(&nas_state());
+    let mut headers = HeaderMap::new();
+    headers.insert("c-id", "ghost".parse().unwrap());
+    let resp = super::peer_graphql_handler(
+        axum::extract::State(state),
+        headers,
+        Bytes::from_static(b"whatever"),
+    )
+    .await;
+    assert_eq!(resp.status(), StatusCode::UNAUTHORIZED);
+}

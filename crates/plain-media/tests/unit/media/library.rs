@@ -5,11 +5,11 @@ use super::*;
 use crate::media_scan::MediaFile;
 use std::sync::Arc;
 
-fn test_db(tag: &str) -> crate::db::Db {
+fn test_db(tag: &str) -> plain_rs::db::Db {
     let p = std::env::temp_dir().join(format!("plain-nas-lib-{tag}-{}", std::process::id()));
     let _ = std::fs::remove_dir_all(&p);
     std::fs::create_dir_all(&p).unwrap();
-    crate::db::Db::open(&p.join("fjall")).unwrap()
+    plain_rs::db::Db::open(&p.join("fjall")).unwrap()
 }
 
 fn tmp_library(tag: &str) -> Db {
@@ -110,7 +110,7 @@ fn library_source_hydrates_missing_metadata() {
 
     // playAllAudios: the start track must come back with probed tags and
     // duration, not zeros.
-    let start = plain_rs::library::audio_queue::set_library_source(
+    let start = plain_rs::media::audio::queue::set_library_source(
         &library,
         &mut tracks,
         None,
@@ -125,7 +125,7 @@ fn library_source_hydrates_missing_metadata() {
 
     // The queue page (library segment) serves the hydrated values too.
     let page =
-        plain_rs::library::audio_queue::queue_page(&library, &mut tracks, 0, 10, "").unwrap();
+        plain_rs::media::audio::queue::queue_page(&library, &mut tracks, 0, 10, "").unwrap();
     assert_eq!(page.len(), 1);
     assert!(page[0].duration_ms > 0);
     assert_eq!(page[0].artist, "Hydrate Artist");

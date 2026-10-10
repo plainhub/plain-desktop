@@ -1,10 +1,10 @@
-//! Tauri commands driving the shared pairing manager in `plain_server::services::chat_service`.
+//! Tauri commands driving the shared pairing manager in `plain_server::services::chat::desktop`.
 
 use std::sync::Arc;
 
-use plain_rs::chat::pairing::protocol::PairingRequest;
+use plain_rs::peers::pairing::protocol::PairingRequest;
 
-use plain_server::services::chat_service::ChatState;
+use plain_server::services::chat::desktop::ChatState;
 
 /// Initiate pairing with a discovered device.
 #[tauri::command]

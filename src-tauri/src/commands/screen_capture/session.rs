@@ -1,4 +1,5 @@
-use super::contract::{CaptureError, CaptureErrorCode};
+use crate::commands::screen_capture::contract::CaptureError;
+use crate::commands::screen_capture::contract::CaptureErrorCode;
 
 #[derive(Debug, Default)]
 pub struct CaptureSessionGuard {

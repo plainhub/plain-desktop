@@ -1,4 +1,4 @@
-use plain_server::http::server::proxy::HttpProxyState;
+use plain_server::http::proxy::local::HttpProxyState;
 use plain_server::http::server::runtime::ServerRuntime;
 
 #[tauri::command]
@@ -23,7 +23,7 @@ pub fn local_server_token(state: tauri::State<'_, ServerRuntime>) -> String {
 
 #[tauri::command]
 pub async fn local_ipv4_strs() -> Result<Vec<String>, String> {
-    tauri::async_runtime::spawn_blocking(plain_rs::mdns::host_responder::local_ipv4_strs)
+    tauri::async_runtime::spawn_blocking(plain_rs::protocols::mdns::host_responder::local_ipv4_strs)
         .await
         .map_err(|error| error.to_string())
 }

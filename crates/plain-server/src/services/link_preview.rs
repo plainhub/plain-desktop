@@ -27,7 +27,7 @@ pub use plain_rs::chat::link_preview::extract_urls;
 use plain_rs::chat::link_preview::is_valid_url;
 mod schedule;
 pub use commit::{Edit, edit};
-use plain_rs::chat::app_file_store::import_preview_image;
+use plain_rs::chat::attachments::app_file_store::import_preview_image;
 use plain_rs::db::Db;
 pub use schedule::Schedule;
 
@@ -429,5 +429,5 @@ mod tests {
 }
 
 #[cfg(test)]
-#[path = "../../tests/unit/services/fetch.rs"]
+#[path = "../../tests/unit/services/link_preview.rs"]
 mod fetch_tests;

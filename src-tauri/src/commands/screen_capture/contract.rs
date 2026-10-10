@@ -1,8 +1,10 @@
 use serde::{Deserialize, Serialize};
 
-use crate::capture::{DisplayInfo, MAX_RAW_FRAME_BYTES};
+use crate::capture::DisplayInfo;
+use crate::capture::MAX_RAW_FRAME_BYTES;
 
-pub use crate::capture::{CaptureError, CaptureErrorCode};
+pub use crate::capture::CaptureError;
+pub use crate::capture::CaptureErrorCode;
 
 pub const MAX_PNG_RESULT_BYTES: usize = 160 * 1024 * 1024;
 

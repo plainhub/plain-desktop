@@ -1,0 +1,74 @@
+use crate::base64_decode;
+#[cfg(test)]
+use crate::chat::channels::incoming::verify as verify_channel_signature;
+use crate::chat::channels::messages::channel_message_payload;
+#[cfg(test)]
+use crate::chat::enums::ChannelSystemMessageAction;
+use crate::chat::enums::ChannelSystemMessageType;
+use crate::chat::events::ChatEvent;
+use crate::chat::events::WS_CHANNEL_INVITE_RECEIVED;
+use crate::chat::events::WS_CHANNELS_UPDATED;
+use crate::chat::events::channels_updated_payload;
+use crate::chat::events::load_key_cache;
+use crate::chat::service::ChatService;
+use crate::transport::contract::PeerTransport;
+use serde_json::json;
+
+pub fn handle<T: PeerTransport + 'static>(
+    service: &ChatService<T>,
+    from: &str,
+    kind: ChannelSystemMessageType,
+    payload: &str,
+    kp_bytes: &[u8],
+) -> bool {
+    let result = match super::incoming::receive(
+        &service.db,
+        &service.identity.client_id,
+        from,
+        kind,
+        payload,
+    ) {
+        Ok(result) => result,
+        Err(error) => {
+            log::warn!("channel message rejected: {error}");
+            return false;
+        }
+    };
+    if result.changed {
+        load_key_cache(
+            &service.db,
+            &service.peer_key_cache,
+            &service.channel_key_cache,
+        );
+        let _ = service.event_tx.send(ChatEvent {
+            event_type: WS_CHANNELS_UPDATED,
+            payload: channels_updated_payload(&service.db),
+        });
+    }
+    if let Some(invite) = result.invite {
+        let _=service.event_tx.send(ChatEvent {event_type:WS_CHANNEL_INVITE_RECEIVED,payload:json!({"channelId":invite.channel_id,"channelName":invite.channel_name,"fromId":invite.owner_peer_id,"fromName":invite.owner_peer_name}).to_string()});
+    }
+    if result.broadcast {
+        if let Some(channel) = result.channel {
+            let transport = service.transport.clone();
+            let db = service.db.clone();
+            let cache = service.peer_key_cache.clone();
+            let actor = service.identity.client_id.clone();
+            let name = service.identity.device_name();
+            let kind = service.wire_device_type;
+            let keypair = kp_bytes.to_vec();
+            let key = base64_decode(&channel.key);
+            tokio::spawn(async move {
+                super::sender::broadcast_update(
+                    &transport, &channel, &actor, &name, kind, &keypair, &db, &cache, &key,
+                )
+                .await;
+            });
+        }
+    }
+    result.accepted
+}
+
+#[cfg(test)]
+#[path = "../../../tests/unit/chat/channels/handler.rs"]
+mod tests;

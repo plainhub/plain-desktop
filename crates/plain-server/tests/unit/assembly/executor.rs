@@ -4,7 +4,7 @@ use super::*;
 async fn named_operation_reaches_shared_schema() {
     let state = crate::http::server::test_support::nas_state();
     let response = execute_graphql(
-        &crate::graphql::main::build_schema(),
+        &crate::graphql::schemas::desktop::build_schema(),
         json!({
             "query": "query Ignored { app { clientId } } query Selected { app { deviceType } }",
             "operationName": "Selected"
@@ -22,14 +22,14 @@ async fn client_id_reaches_mutation_resolvers() {
     let state = crate::http::server::test_support::nas_state();
     let cid = "executor-client".to_string();
     let response = execute_graphql(
-        &crate::graphql::main::build_schema(),
+        &crate::graphql::schemas::desktop::build_schema(),
         json!({ "query": "mutation { logout }" }),
         state.ctx.clone(),
         cid.clone(),
     )
     .await;
     assert!(response.get("errors").is_none(), "{response}");
-    let events = plain_media::media::kv::EventLog::new(&state.ctx.media.db)
+    let events = plain_media::storage::kv::EventLog::new(&state.ctx.media.db)
         .list(0, 10, None)
         .unwrap();
     assert!(events.iter().any(|event| event.client_id == cid));

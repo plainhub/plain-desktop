@@ -10,7 +10,8 @@
 pub use plain_rs::prefs::Prefs;
 
 pub use plain_rs::prefs::dlna;
-pub use plain_rs::prefs::{ensure_identity, ensure_url_token};
+pub use plain_rs::prefs::ensure_identity;
+pub use plain_rs::prefs::ensure_url_token;
 
 /// Persist the device display name (plain-app `device_name` key).
 pub fn set_device_name(prefs: &Prefs, name: &str) {

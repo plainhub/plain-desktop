@@ -1,14 +1,17 @@
 use super::*;
-use crate::chat::enums::{ChannelStatus, ChatStatus};
-use crate::db::{DChat, Db};
+use crate::base64_decode;
+use crate::base64_encode;
+use crate::chat::enums::ChannelStatus;
+use crate::chat::enums::ChatStatus;
+use crate::db::DChat;
+use crate::db::Db;
 use crate::xchacha_decrypt;
-use crate::{base64_decode, base64_encode};
 use std::path::PathBuf;
 use std::time::{SystemTime, UNIX_EPOCH};
 
 struct TestTransport;
 
-impl crate::chat::transport::PeerTransport for TestTransport {
+impl crate::transport::contract::PeerTransport for TestTransport {
     async fn post<'a>(
         &'a self,
         _url: &'a str,
@@ -219,7 +222,7 @@ async fn kicked_channel_rejects_incoming_message() {
                 &channel.id,
                 "{}",
                 &crate::base64_encode(&[7; 64]),
-                crate::chat::pairing::now_ms()
+                crate::peers::pairing::now_ms()
             )
             .unwrap_err(),
         "Channel not joined"
@@ -232,7 +235,7 @@ async fn kicked_channel_rejects_incoming_message() {
                 "missing",
                 "{}",
                 &crate::base64_encode(&[7; 64]),
-                crate::chat::pairing::now_ms()
+                crate::peers::pairing::now_ms()
             )
             .unwrap_err(),
         "Unknown channel"

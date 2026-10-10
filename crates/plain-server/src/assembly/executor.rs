@@ -1,8 +1,8 @@
 use serde_json::{Value, json};
 use std::sync::Arc;
 
-use super::context::AppCtx;
-use crate::graphql::main::ApiSchema;
+use crate::assembly::context::AppCtx;
+use crate::graphql::schemas::desktop::ApiSchema;
 
 pub async fn execute_graphql(
     schema: &ApiSchema,

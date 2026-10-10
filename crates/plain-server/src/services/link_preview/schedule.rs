@@ -1,5 +1,6 @@
 use futures_util::{FutureExt, future::BoxFuture};
-use plain_rs::db::{DChat, Db};
+use plain_rs::db::DChat;
+use plain_rs::db::Db;
 use std::{
     collections::HashMap,
     path::PathBuf,
@@ -30,7 +31,9 @@ impl Schedule {
             publish,
             stop,
             Arc::new(|db, directory, id| {
-                Box::pin(async move { super::refresh(&db, &directory, &id).await })
+                Box::pin(async move {
+                    crate::services::link_preview::refresh(&db, &directory, &id).await
+                })
             }),
         )
     }

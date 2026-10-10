@@ -8,31 +8,29 @@ use std::sync::{Arc, Mutex};
     feature = "sqlite_browse",
     feature = "sqlite_browse"
 ))]
-mod managers;
+mod repositories;
 #[cfg(feature = "chat")]
-pub(crate) use managers::channel::{CHANNEL_COLS, row_to_channel};
+pub(crate) use repositories::channel::{CHANNEL_COLS, row_to_channel};
 #[cfg(feature = "chat")]
-pub(crate) use managers::chat::{CHAT_COLS, row_to_chat};
+pub(crate) use repositories::chat::{CHAT_COLS, row_to_chat};
 #[cfg(feature = "chat")]
-pub(crate) use managers::peer::{PEER_COLS, row_to_peer};
+pub(crate) use repositories::peer::{PEER_COLS, row_to_peer};
 #[cfg(any(feature = "chat", feature = "library", feature = "sqlite_browse"))]
 mod models;
 #[cfg(any(feature = "chat", feature = "library"))]
 mod schema;
 
 #[cfg(feature = "sqlite_browse")]
-pub use managers::browse;
+pub use repositories::browse;
 #[cfg(feature = "sqlite_browse")]
-pub use managers::devtools;
+pub use repositories::devtools;
 #[cfg(feature = "library")]
-pub use managers::{audio_queue, favorite_folder, image_editor_project, notes_feeds, tag};
+pub use repositories::{audio_queue, favorite_folder, image_editor_project, notes_feeds, tag};
 #[cfg(feature = "chat")]
-pub use managers::{bookmark, chat_store};
+pub use repositories::{bookmark, chat_store};
 
 #[cfg(all(feature = "chat", feature = "sqlite_browse"))]
 pub use crate::sqlite_browse::TableColumnMeta;
-#[cfg(feature = "chat")]
-pub use managers::db_time::{iso_from_unix_millis, now_iso, now_millis, short_id};
 #[cfg(feature = "library")]
 pub use models::{
     ArchivedConversationRow, ClipboardRow, FavoriteFolderRow, HISTORY_KEEP, ImageEmbeddingRow,
@@ -42,6 +40,8 @@ pub use models::{
 };
 #[cfg(feature = "chat")]
 pub use models::{DAppFile, DChannel, DChat, DNearbyDeviceCache, DPeer};
+#[cfg(feature = "chat")]
+pub use repositories::db_time::{iso_from_unix_millis, now_iso, now_millis, short_id};
 
 #[derive(Clone)]
 pub struct Db(Arc<Mutex<Connection>>, Arc<Mutex<()>>);
@@ -107,8 +107,8 @@ impl Db {
 mod tests;
 
 #[cfg(all(test, feature = "chat"))]
-#[path = "../../tests/unit/chat/db/mod.rs"]
+#[path = "../../tests/unit/db/mod.rs"]
 mod chat_tests;
 #[cfg(all(test, feature = "library"))]
-#[path = "../../tests/unit/library/db/mod.rs"]
+#[path = "../../tests/unit/db/mod.rs"]
 mod library_tests;

@@ -3,7 +3,7 @@ use std::sync::{Arc, RwLock};
 
 use crate::base64_decode;
 
-use crate::chat::channel::messages::decode_members;
+use crate::chat::channels::messages::decode_members;
 use crate::chat::enums::ChannelStatus;
 use crate::db::Db;
 

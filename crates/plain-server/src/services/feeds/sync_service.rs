@@ -1,4 +1,5 @@
-use plain_rs::{db::Db, ws_event::WsEvent};
+use plain_rs::db::Db;
+use plain_rs::events::WsEvent;
 use std::{
     collections::BTreeMap,
     sync::{Arc, Mutex},
@@ -14,14 +15,14 @@ pub struct SyncService {
     db: Arc<Db>,
     events: broadcast::Sender<WsEvent>,
     states: Mutex<BTreeMap<String, FeedSyncState>>,
-    assets: Option<Arc<super::FeedAssets>>,
+    assets: Option<Arc<crate::services::feeds::FeedAssets>>,
     gate: AsyncMutex<()>,
 }
 impl SyncService {
     pub fn new(
         db: Arc<Db>,
         events: broadcast::Sender<WsEvent>,
-        assets: Option<Arc<super::FeedAssets>>,
+        assets: Option<Arc<crate::services::feeds::FeedAssets>>,
     ) -> Arc<Self> {
         Arc::new(Self {
             db,
@@ -56,7 +57,7 @@ impl SyncService {
             .send(WsEvent::broadcast("CONTENT_CHANGED", "{}".into()));
         tokio::spawn(async move {
             let _guard = this.gate.lock().await;
-            let error = super::sync_with_assets(
+            let error = crate::services::feeds::sync_with_assets(
                 this.db.clone(),
                 this.events.clone(),
                 id,

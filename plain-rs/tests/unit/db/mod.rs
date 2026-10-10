@@ -1,35 +1,56 @@
-use super::*;
+//! Unit tests for `src/library/db/mod.rs` (Db open + DDL).
 
-#[cfg(all(feature = "chat", feature = "library"))]
+#[path = "../library/fixtures.rs"]
+mod fixtures;
+use crate::db::Db;
+use fixtures::*;
+
 #[test]
-fn one_connection_has_chat_and_library_tables() {
-    let dir = tempfile::tempdir().unwrap();
-    let db = Db::open(&dir.path().join("plain.db")).unwrap();
-    let clone = db.clone();
-    db.with_conn(|conn| {
-        conn.execute(
-            "INSERT INTO chats(id, from_id, to_id, channel_id, content, created_at, updated_at) \
-             VALUES ('chat-1', 'me', 'peer-1', '', 'hello', '2026-01-01T00:00:00Z', '2026-01-01T00:00:00Z')",
-            [],
-        )
-        .unwrap();
-        conn.execute(
-            "INSERT INTO tags(id, name, type, count, created_at, updated_at) \
-             VALUES ('tag-1', 'shared', 1, 0, '2026-01-01T00:00:00Z', '2026-01-01T00:00:00Z')",
-            [],
-        )
-        .unwrap();
+fn open_creates_every_table_once() {
+    let db = test_db("open_tables");
+    let tables: Vec<String> = db.with_conn(|conn| {
+        let mut stmt = conn
+            .prepare("SELECT name FROM sqlite_master WHERE type='table' ORDER BY name")
+            .unwrap();
+        stmt.query_map([], |row| row.get::<_, String>(0))
+            .unwrap()
+            .filter_map(|r| r.ok())
+            .collect()
     });
-    clone.with_conn(|conn| {
-        assert_eq!(
-            conn.query_row("SELECT COUNT(*) FROM chats", [], |r| r.get::<_, i64>(0))
-                .unwrap(),
-            1
+    for expected in [
+        "audio_queue_source",
+        "audio_queue_items",
+        "audio_playlists",
+        "audio_playlist_items",
+        "audio_play_history",
+        "tags",
+        "tag_relations",
+        "favorite_folders",
+    ] {
+        assert!(
+            tables.iter().any(|t| t == expected),
+            "missing table {expected}"
         );
-        assert_eq!(
-            conn.query_row("SELECT COUNT(*) FROM tags", [], |r| r.get::<_, i64>(0))
-                .unwrap(),
-            1
-        );
-    });
+    }
+    assert!(!tables.iter().any(|t| t == "settings"));
+    // Reopening the same file is fine (CREATE IF NOT EXISTS).
+    let path = std::env::temp_dir().join(format!(
+        "plain-rs-library-reopen2-{}.db",
+        std::process::id()
+    ));
+    let _ = std::fs::remove_file(&path);
+    {
+        let _a = Db::open(&path).unwrap();
+    }
+    let _b = Db::open(&path).unwrap();
+    let _ = std::fs::remove_file(&path);
+}
+
+#[test]
+fn source_row_defaults_to_none() {
+    let db = test_db("source_default");
+    let src = crate::db::audio_queue::get_source(&db).unwrap();
+    assert_eq!(src.source, crate::db::audio_queue::QueueSourceKind::None);
+    assert_eq!(src.current_path, "");
+    assert_eq!(src.current_index, -1);
 }

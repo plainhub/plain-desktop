@@ -1,11 +1,17 @@
 use std::sync::Arc;
 
-use super::buffers::SessionBuffers;
-use super::contract::{
-    CaptureError, CaptureErrorCode, CaptureOrigin, CaptureRequest, CaptureResultDescriptor,
-    CaptureTarget, CaptureTriggerKind, CapturedFrame, CapturedFrameDescriptor, NativeCapturePhase,
-};
-use super::session::CaptureSessionGuard;
+use crate::commands::screen_capture::buffers::SessionBuffers;
+use crate::commands::screen_capture::contract::CaptureError;
+use crate::commands::screen_capture::contract::CaptureErrorCode;
+use crate::commands::screen_capture::contract::CaptureOrigin;
+use crate::commands::screen_capture::contract::CaptureRequest;
+use crate::commands::screen_capture::contract::CaptureResultDescriptor;
+use crate::commands::screen_capture::contract::CaptureTarget;
+use crate::commands::screen_capture::contract::CaptureTriggerKind;
+use crate::commands::screen_capture::contract::CapturedFrame;
+use crate::commands::screen_capture::contract::CapturedFrameDescriptor;
+use crate::commands::screen_capture::contract::NativeCapturePhase;
+use crate::commands::screen_capture::session::CaptureSessionGuard;
 use serde::Serialize;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -794,12 +800,23 @@ fn unauthorized_error(detail: &str) -> CaptureError {
 
 #[cfg(test)]
 mod tests {
-    use super::{CaptureCallerRole, CaptureCoordinator, TerminalOutcome};
-    use crate::capture::{DisplayInfo, LogicalPoint, LogicalSize, PhysicalPoint, PhysicalSize};
-    use crate::commands::screen_capture::contract::{
-        CaptureError, CaptureErrorCode, CaptureOrigin, CaptureRequest, CaptureResultDescriptor,
-        CaptureTarget, CaptureTriggerKind, CapturedFrame, NativeCapturePhase,
-    };
+    use super::CaptureCallerRole;
+    use super::CaptureCoordinator;
+    use super::TerminalOutcome;
+    use crate::capture::DisplayInfo;
+    use crate::capture::LogicalPoint;
+    use crate::capture::LogicalSize;
+    use crate::capture::PhysicalPoint;
+    use crate::capture::PhysicalSize;
+    use crate::commands::screen_capture::contract::CaptureError;
+    use crate::commands::screen_capture::contract::CaptureErrorCode;
+    use crate::commands::screen_capture::contract::CaptureOrigin;
+    use crate::commands::screen_capture::contract::CaptureRequest;
+    use crate::commands::screen_capture::contract::CaptureResultDescriptor;
+    use crate::commands::screen_capture::contract::CaptureTarget;
+    use crate::commands::screen_capture::contract::CaptureTriggerKind;
+    use crate::commands::screen_capture::contract::CapturedFrame;
+    use crate::commands::screen_capture::contract::NativeCapturePhase;
 
     const OVERLAY: &str = "screen-capture-overlay";
     const GENERATION: u64 = 7;

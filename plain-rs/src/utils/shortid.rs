@@ -5,7 +5,7 @@
 //! safely. Identical distribution to a UUID v4 (we set the v4 bits so
 //! legacy consumers can still detect the format if they care).
 //!
-//! Distinct from [`super::short_uuid`] (base36, Kotlin-derived): this one
+//! Distinct from [`crate::utils::short_uuid`] (base36, Kotlin-derived): this one
 //! is the 22-char URL-safe format used by the plain-nas API (trash item
 //! ids, task ids, tag ids).
 

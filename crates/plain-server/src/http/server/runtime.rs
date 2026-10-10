@@ -2,8 +2,8 @@ use axum_server::tls_rustls::RustlsConfig;
 use std::sync::Mutex;
 use std::sync::atomic::Ordering;
 
-use super::ServerState;
 use crate::http::listeners::HttpListeners;
+use crate::http::server::ServerState;
 
 pub struct ServerRuntime {
     state: ServerState,
@@ -56,7 +56,7 @@ impl ServerRuntime {
             previous.shutdown().await;
         }
         let listeners = match HttpListeners::start_with_tls(
-            super::build_router(self.state.clone()),
+            crate::http::server::build_router(self.state.clone()),
             http_port,
             https_port,
             tls,

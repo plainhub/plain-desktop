@@ -107,7 +107,7 @@ async fn projects_persist_project_summaries_and_validate_state() {
 #[tokio::test]
 async fn binary_updates_have_bounded_queue_and_exact_payload() {
     let (sender, mut receiver) = broadcast::channel(64);
-    let updates = plain_rs::image_editor::Updates::new(sender);
+    let updates = plain_rs::media::images::editor::Updates::new(sender);
     updates.publish("画布", "AQID").unwrap();
     let event = receiver.recv().await.unwrap();
     assert_eq!(event.event_type, "IMAGE_EDITOR_UPDATE");
@@ -165,7 +165,7 @@ async fn websocket_binary_delta_does_not_invalidate_content() {
         .unwrap();
     assert!(frame.is_binary());
     let bytes = frame.into_data();
-    let (kind, payload) = plain_rs::ws_frame::decode_raw(&bytes).unwrap();
+    let (kind, payload) = plain_rs::protocols::websocket::decode_raw(&bytes).unwrap();
     assert_eq!(kind, "IMAGE_EDITOR_UPDATE");
     assert_eq!(payload, [1, b'p', 1, 2, 3]);
     assert!(

@@ -115,7 +115,8 @@ fn extract_version(tag: &str) -> Option<String> {
 
 #[cfg(test)]
 mod tests {
-    use super::{compare_versions, extract_version};
+    use super::compare_versions;
+    use super::extract_version;
     use std::cmp::Ordering;
 
     #[test]

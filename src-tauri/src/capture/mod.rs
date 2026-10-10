@@ -447,13 +447,22 @@ pub fn select_logical_monitor(displays: &[DisplayInfo], x: f64, y: f64) -> Optio
 
 #[cfg(test)]
 mod tests {
-    use super::{
-        CaptureError, CaptureErrorCode, DisplayInfo, LogicalPoint, LogicalSize,
-        NATIVE_ACQUISITION_GATE, PhysicalPoint, PhysicalRect, PhysicalSize,
-        bottom_left_visible_frame_to_top_left_area, checked_rounded_i32, checked_rounded_u32,
-        permission_preflight_result, select_logical_monitor,
-        top_left_physical_work_area_to_local_css, wayland_cursor_is_unavailable,
-    };
+    use super::CaptureError;
+    use super::CaptureErrorCode;
+    use super::DisplayInfo;
+    use super::LogicalPoint;
+    use super::LogicalSize;
+    use super::NATIVE_ACQUISITION_GATE;
+    use super::PhysicalPoint;
+    use super::PhysicalRect;
+    use super::PhysicalSize;
+    use super::bottom_left_visible_frame_to_top_left_area;
+    use super::checked_rounded_i32;
+    use super::checked_rounded_u32;
+    use super::permission_preflight_result;
+    use super::select_logical_monitor;
+    use super::top_left_physical_work_area_to_local_css;
+    use super::wayland_cursor_is_unavailable;
 
     #[test]
     fn acquisition_gate_rejects_overlap_and_releases_only_when_the_lease_drops() {

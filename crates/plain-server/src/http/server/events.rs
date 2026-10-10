@@ -1,7 +1,8 @@
 use tokio::sync::broadcast;
 
 use crate::assembly::context::WsEvent;
-use plain_media::media::eventbus::{self, EventBus};
+use plain_media::events as eventbus;
+use plain_media::events::EventBus;
 
 pub const WS_MEDIA_SCAN_PROGRESS: &'static str = "MEDIA_SCAN_PROGRESS";
 pub const WS_FILE_TASK_PROGRESS: &'static str = "FILE_TASK_PROGRESS";

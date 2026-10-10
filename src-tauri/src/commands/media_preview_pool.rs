@@ -3,7 +3,7 @@ use tauri::{AppHandle, Manager, WebviewUrl, WebviewWindowBuilder};
 
 use plain_rs::query::url_encode;
 
-use super::webview_creation;
+use crate::commands::webview_creation;
 
 const WARM_LABEL: &str = "media-preview-warm";
 const WARM_WARMUP_PATH: &str = "/media-preview?__warm__=1";

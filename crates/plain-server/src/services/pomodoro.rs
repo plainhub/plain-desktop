@@ -1,17 +1,14 @@
+use crate::graphql::types::Instant;
 use async_graphql::{Enum, SimpleObject};
 use chrono::{DateTime, Utc};
+use plain_rs::db::Db;
+use plain_rs::events::WS_POMODORO_ACTION;
+use plain_rs::events::WsEvent;
+use plain_rs::prefs::Prefs;
 use rusqlite::{OptionalExtension, params};
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 use tokio::sync::broadcast;
-use {
-    crate::graphql::types::Instant,
-    plain_rs::{
-        db::Db,
-        prefs::Prefs,
-        ws_event::{WS_POMODORO_ACTION, WsEvent},
-    },
-};
 
 #[derive(Clone, Deserialize, Serialize, SimpleObject)]
 #[serde(default, rename_all = "camelCase")]

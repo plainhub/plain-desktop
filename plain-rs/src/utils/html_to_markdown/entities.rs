@@ -1,7 +1,7 @@
 use regex::Regex;
 use std::sync::LazyLock;
 
-pub(super) fn decode(input: &str) -> String {
+pub(crate) fn decode(input: &str) -> String {
     if !input.contains('&') {
         return input.to_string();
     }

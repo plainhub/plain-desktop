@@ -422,7 +422,8 @@ fn exif_tiff_from_jpeg(jpeg: &[u8]) -> Option<&[u8]> {
 
 #[cfg(test)]
 mod tests {
-    use super::{dimensions, exif_gps};
+    use super::dimensions;
+    use super::exif_gps;
 
     #[test]
     fn ico_dimensions_parse() {

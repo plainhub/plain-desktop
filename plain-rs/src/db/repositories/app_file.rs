@@ -1,0 +1,198 @@
+use rusqlite::{OptionalExtension, params};
+
+use crate::db::DAppFile;
+use crate::db::Db;
+
+const APP_FILE_COLS: &str = "id,size,mime_type,real_path,ref_count,weak_hash,created_at,updated_at";
+
+fn row_to_app_file(row: &rusqlite::Row<'_>) -> rusqlite::Result<DAppFile> {
+    Ok(DAppFile {
+        id: row.get(0)?,
+        size: row.get(1)?,
+        mime_type: row.get(2)?,
+        real_path: row.get(3)?,
+        ref_count: row.get(4)?,
+        weak_hash: row.get(5)?,
+        created_at: row.get(6)?,
+        updated_at: row.get(7)?,
+    })
+}
+
+impl Db {
+    pub fn app_file_get(&self, id: &str) -> rusqlite::Result<Option<DAppFile>> {
+        self.with_conn(|conn| {
+            conn.query_row(
+                &format!("SELECT {APP_FILE_COLS} FROM app_files WHERE id=?1"),
+                params![id],
+                row_to_app_file,
+            )
+            .optional()
+        })
+    }
+
+    pub fn app_file_insert(&self, file: &DAppFile) -> rusqlite::Result<()> {
+        self.with_conn(|conn| conn.execute(
+            "INSERT INTO app_files (id,size,mime_type,real_path,ref_count,weak_hash,created_at,updated_at) VALUES (?1,?2,?3,?4,?5,?6,?7,?8)",
+            params![file.id,file.size,file.mime_type,file.real_path,file.ref_count,file.weak_hash,file.created_at,file.updated_at]).map(|_| ()))
+    }
+
+    pub fn app_file_retain(&self, id: &str) -> rusqlite::Result<()> {
+        self.with_conn(|conn| {
+            let affected = conn.execute(
+                "UPDATE app_files SET ref_count=ref_count+1,updated_at=?1 WHERE id=?2",
+                params![crate::db::now_iso(), id],
+            )?;
+            if affected == 0 {
+                return Err(rusqlite::Error::QueryReturnedNoRows);
+            }
+            Ok(())
+        })
+    }
+
+    pub fn app_file_items(
+        &self,
+        offset: i32,
+        limit: i32,
+        query: &str,
+    ) -> rusqlite::Result<Vec<DAppFile>> {
+        let text = crate::utils::search_dsl::field_value(query, "text").unwrap_or_default();
+        let pattern = format!(
+            "%{}%",
+            text.trim()
+                .replace('\\', "\\\\")
+                .replace('%', "\\%")
+                .replace('_', "\\_")
+        );
+        self.with_conn(|conn| {
+            let mut stmt = conn.prepare(&format!("SELECT {APP_FILE_COLS} FROM app_files WHERE real_path LIKE ?1 ESCAPE '\\' ORDER BY created_at DESC,id LIMIT ?2 OFFSET ?3"))?;
+            stmt.query_map(params![pattern,limit.max(0),offset.max(0)],row_to_app_file)?.collect()
+        })
+    }
+
+    pub fn app_file_count(&self, query: &str) -> rusqlite::Result<i32> {
+        let text = crate::utils::search_dsl::field_value(query, "text").unwrap_or_default();
+        let pattern = format!(
+            "%{}%",
+            text.trim()
+                .replace('\\', "\\\\")
+                .replace('%', "\\%")
+                .replace('_', "\\_")
+        );
+        self.with_conn(|conn| {
+            conn.query_row(
+                "SELECT COUNT(*) FROM app_files WHERE real_path LIKE ?1 ESCAPE '\\'",
+                params![pattern],
+                |row| row.get(0),
+            )
+        })
+    }
+
+    pub fn get_app_file(&self, id: &str) -> Option<DAppFile> {
+        let conn = self.0.lock().unwrap();
+        conn.query_row(
+            &format!("SELECT {APP_FILE_COLS} FROM app_files WHERE id=?"),
+            params![id],
+            row_to_app_file,
+        )
+        .ok()
+    }
+
+    pub fn find_app_files_by_weak(&self, size: i64, weak_hash: &str) -> Vec<DAppFile> {
+        let conn = self.0.lock().unwrap();
+        let mut stmt = match conn.prepare(&format!(
+            "SELECT {APP_FILE_COLS} FROM app_files WHERE size=? AND weak_hash=?"
+        )) {
+            Ok(s) => s,
+            Err(_) => return vec![],
+        };
+        stmt.query_map(params![size, weak_hash], row_to_app_file)
+            .ok()
+            .map(|iter| iter.filter_map(|r| r.ok()).collect())
+            .unwrap_or_default()
+    }
+
+    pub fn insert_app_file(&self, f: &DAppFile) {
+        let conn = self.0.lock().unwrap();
+        let _ = conn.execute(
+            "INSERT OR IGNORE INTO app_files \
+             (id,size,mime_type,real_path,ref_count,weak_hash,created_at,updated_at) \
+             VALUES (?1,?2,?3,?4,?5,?6,?7,?8)",
+            params![
+                f.id,
+                f.size,
+                f.mime_type,
+                f.real_path,
+                f.ref_count,
+                f.weak_hash,
+                f.created_at,
+                f.updated_at
+            ],
+        );
+    }
+
+    pub fn increment_app_file_ref(&self, id: &str) {
+        let conn = self.0.lock().unwrap();
+        let _ = conn.execute(
+            "UPDATE app_files SET ref_count=ref_count+1 WHERE id=?",
+            params![id],
+        );
+    }
+
+    pub fn decrement_app_file_ref(&self, id: &str) -> i32 {
+        {
+            let conn = self.0.lock().unwrap();
+            let _ = conn.execute(
+                "UPDATE app_files SET ref_count=ref_count-1 WHERE id=?",
+                params![id],
+            );
+        }
+        let conn = self.0.lock().unwrap();
+        conn.query_row(
+            "SELECT ref_count FROM app_files WHERE id=?",
+            params![id],
+            |r| r.get(0),
+        )
+        .unwrap_or(0)
+    }
+
+    pub fn delete_app_file(&self, id: &str) {
+        let conn = self.0.lock().unwrap();
+        let _ = conn.execute("DELETE FROM app_files WHERE id=?", params![id]);
+    }
+
+    pub fn get_app_file_page(&self, limit: i32, offset: i32) -> Vec<DAppFile> {
+        let conn = self.0.lock().unwrap();
+        let mut stmt = match conn.prepare(&format!(
+            "SELECT {APP_FILE_COLS} FROM app_files ORDER BY created_at DESC LIMIT ?1 OFFSET ?2"
+        )) {
+            Ok(s) => s,
+            Err(_) => return vec![],
+        };
+        stmt.query_map(params![limit, offset], row_to_app_file)
+            .ok()
+            .map(|iter| iter.filter_map(|r| r.ok()).collect())
+            .unwrap_or_default()
+    }
+
+    pub fn get_all_app_files(&self) -> Vec<DAppFile> {
+        let conn = self.0.lock().unwrap();
+        let mut stmt = match conn.prepare(&format!(
+            "SELECT {APP_FILE_COLS} FROM app_files ORDER BY created_at DESC"
+        )) {
+            Ok(s) => s,
+            Err(_) => return vec![],
+        };
+        stmt.query_map(params![], row_to_app_file)
+            .ok()
+            .map(|iter| iter.filter_map(|r| r.ok()).collect())
+            .unwrap_or_default()
+    }
+
+    pub fn count_app_files(&self) -> i32 {
+        let conn = self.0.lock().unwrap();
+        conn.query_row("SELECT COUNT(*) FROM app_files", params![], |r| {
+            r.get::<_, i64>(0)
+        })
+        .unwrap_or(0) as i32
+    }
+}

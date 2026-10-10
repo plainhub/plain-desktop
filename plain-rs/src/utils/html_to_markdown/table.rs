@@ -1,6 +1,6 @@
-use super::dom::Dom;
+use crate::utils::html_to_markdown::dom::Dom;
 
-pub(super) fn cell(dom: &Dom, id: usize, content: &str) -> String {
+pub(crate) fn cell(dom: &Dom, id: usize, content: &str) -> String {
     let first = dom.0[id]
         .parent
         .is_some_and(|p| dom.0[p].children.first() == Some(&id));
@@ -14,7 +14,7 @@ pub(super) fn cell(dom: &Dom, id: usize, content: &str) -> String {
     )
 }
 
-pub(super) fn spanned(dom: &Dom, id: usize, content: &str) -> String {
+pub(crate) fn spanned(dom: &Dom, id: usize, content: &str) -> String {
     let span = dom.0[id].attr("colspan").parse::<i32>().unwrap_or(1);
     if span <= 1 {
         String::new()
@@ -35,7 +35,7 @@ fn first_row(dom: &Dom, id: usize) -> Option<usize> {
     None
 }
 
-pub(super) fn row(dom: &Dom, id: usize, content: &str) -> String {
+pub(crate) fn row(dom: &Dom, id: usize, content: &str) -> String {
     let mut table = dom.0[id].parent;
     if table.is_some_and(|p| matches!(dom.0[p].tag.as_str(), "thead" | "tbody" | "tfoot")) {
         table = dom.0[table.unwrap()].parent;
@@ -64,7 +64,7 @@ pub(super) fn row(dom: &Dom, id: usize, content: &str) -> String {
     )
 }
 
-pub(super) fn nested(dom: &Dom, id: usize) -> bool {
+pub(crate) fn nested(dom: &Dom, id: usize) -> bool {
     let mut parent = dom.0[id].parent;
     while let Some(p) = parent {
         if dom.0[p].tag == "table" {

@@ -5,10 +5,11 @@ mod symmetric;
 pub use hash::sha512_hex;
 
 #[cfg(test)]
-#[path = "../../tests/unit/crypto/cross_platform_vectors.rs"]
+#[path = "../../tests/unit/crypto/mod.rs"]
 mod cross_platform_vectors;
 
-pub use crate::utils::base64::{base64_decode, base64_encode};
+pub use crate::utils::base64::base64_decode;
+pub use crate::utils::base64::base64_encode;
 pub use ecdh::EcdhSession;
 pub use ed25519::{ed25519_generate, ed25519_public_from_keypair, ed25519_sign, ed25519_verify};
 pub use symmetric::{

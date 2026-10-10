@@ -1,9 +1,9 @@
 use std::sync::Arc;
 
 use crate::assembly::context::AppCtx;
-use crate::graphql::main::ApiSchema;
-use crate::graphql::peer::PeerSchema;
-use crate::http::server::routes::cors;
+use crate::graphql::schemas::desktop::ApiSchema;
+use crate::graphql::schemas::peer::PeerSchema;
+use crate::http::routes::local::cors;
 
 #[derive(Clone)]
 pub struct ServerState {
@@ -73,10 +73,10 @@ pub(crate) mod test_support {
         );
         seed(&prefs);
         let chat = Arc::new(
-            crate::services::chat_service::ChatState::nas_init(&data_dir, &prefs)
+            crate::services::chat::desktop::ChatState::nas_init(&data_dir, &prefs)
                 .expect("chat init"),
         );
-        let config = Arc::new(plain_media::media::config::Config::parse(
+        let config = Arc::new(plain_media::config::Config::parse(
             "[server]\nhttp_port = 8080\n",
         ));
         let (event_tx, _) = tokio::sync::broadcast::channel(64);
@@ -96,8 +96,8 @@ pub(crate) mod test_support {
         .expect("nas app ctx");
         crate::test_tempdirs::retain(dir);
         ServerState::new(
-            Arc::new(crate::graphql::main::build_schema()),
-            Arc::new(crate::graphql::peer::build_schema()),
+            Arc::new(crate::graphql::schemas::desktop::build_schema()),
+            Arc::new(crate::graphql::schemas::peer::build_schema()),
             ctx,
             ServerSettings {
                 auth: AuthPolicy::Session {

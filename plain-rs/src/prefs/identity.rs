@@ -5,9 +5,12 @@
 //! Prefs contract: `client_id` / `device_name` /
 //! `signature_key_pair` / `url_token` / `mdns_hostname`.
 
-use super::Prefs;
+use crate::prefs::Prefs;
 
-use crate::{base64_encode, ed25519_generate, gen_token, short_uuid};
+use crate::base64_encode;
+use crate::ed25519_generate;
+use crate::gen_token;
+use crate::short_uuid;
 
 /// Persistent device identity loaded from the preferences store.
 #[derive(Clone, Debug)]
@@ -127,5 +130,5 @@ pub fn ensure_mdns_hostname(prefs: &Prefs) -> String {
 }
 
 #[cfg(test)]
-#[path = "../../tests/unit/prefs_identity.rs"]
+#[path = "../../tests/unit/prefs/identity.rs"]
 mod tests;

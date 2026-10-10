@@ -21,10 +21,15 @@ use ashpd::desktop::{
 use pipewire as pw;
 use pw::{properties::properties, spa};
 
-use crate::capture::{
-    CaptureError, CaptureErrorCode, DisplayInfo, Frame, LogicalPoint, LogicalSize,
-    MAX_RAW_FRAME_BYTES, PhysicalPoint, PhysicalSize,
-};
+use crate::capture::CaptureError;
+use crate::capture::CaptureErrorCode;
+use crate::capture::DisplayInfo;
+use crate::capture::Frame;
+use crate::capture::LogicalPoint;
+use crate::capture::LogicalSize;
+use crate::capture::MAX_RAW_FRAME_BYTES;
+use crate::capture::PhysicalPoint;
+use crate::capture::PhysicalSize;
 
 const PIPEWIRE_POLL_INTERVAL: Duration = Duration::from_millis(50);
 const PORTAL_CLOSE_TIMEOUT: Duration = Duration::from_secs(2);
@@ -769,9 +774,11 @@ fn capture_timeout() -> CaptureError {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::capture::{
-        CaptureErrorCode, LogicalPoint, LogicalSize, PhysicalPoint, PhysicalSize,
-    };
+    use crate::capture::CaptureErrorCode;
+    use crate::capture::LogicalPoint;
+    use crate::capture::LogicalSize;
+    use crate::capture::PhysicalPoint;
+    use crate::capture::PhysicalSize;
 
     fn monitor(
         id: &str,

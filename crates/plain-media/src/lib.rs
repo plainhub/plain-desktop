@@ -1,5 +1,27 @@
-pub use plain_rs::*;
-pub mod media;
+//! Media stack shared by plain-nas and the plain-desktop local API:
+//! fjall KV storage, file/media indexes, the media scanner, thumbnail
+//! engine, metadata extraction, file-management helpers, and the
+//! watcher. Ported from plain-nas so every desktop platform
+//! (macOS / Windows / Linux) can browse local files through the same
+//! GraphQL surface the NAS serves.
+
+pub mod catalog;
+pub mod config;
+pub mod events;
+pub mod index;
+pub mod metadata;
+pub mod scan;
+pub mod search;
+pub mod watch;
+
+pub mod previews;
+
+pub mod adapters;
+
+pub mod operations;
+
+pub mod storage;
+
 /// Test fixtures whose dir must outlive the helper that created it
 /// (`Db::open(dir)`, `ServerState`…) register it here instead of
 /// `mem::forget`-ing the TempDir: dirs stay alive for the whole test

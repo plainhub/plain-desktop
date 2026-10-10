@@ -1,9 +1,9 @@
 use serde::Serialize;
 
-use plain_server::services::dlna_receiver::receiver_engine::DlnaEngine;
-use plain_server::services::dlna_receiver::types::{
-    DlnaMediaType, DlnaPlaybackState, PendingCastRequest,
-};
+use plain_server::services::casting::receiver::receiver_engine::DlnaEngine;
+use plain_server::services::casting::receiver::types::DlnaMediaType;
+use plain_server::services::casting::receiver::types::DlnaPlaybackState;
+use plain_server::services::casting::receiver::types::PendingCastRequest;
 
 #[derive(Serialize)]
 #[serde(rename_all = "camelCase")]

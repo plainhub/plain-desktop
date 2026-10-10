@@ -1,10 +1,12 @@
 use std::sync::Arc;
 
-use super::contract::{
-    CaptureResultDescriptor, CapturedFrame, CapturedFrameDescriptor, MAX_PNG_RESULT_BYTES,
-};
+use crate::capture::CaptureError;
+use crate::capture::CaptureErrorCode;
 use crate::capture::MAX_RAW_FRAME_BYTES;
-use crate::capture::{CaptureError, CaptureErrorCode};
+use crate::commands::screen_capture::contract::CaptureResultDescriptor;
+use crate::commands::screen_capture::contract::CapturedFrame;
+use crate::commands::screen_capture::contract::CapturedFrameDescriptor;
+use crate::commands::screen_capture::contract::MAX_PNG_RESULT_BYTES;
 
 #[derive(Debug)]
 struct CaptureResult {

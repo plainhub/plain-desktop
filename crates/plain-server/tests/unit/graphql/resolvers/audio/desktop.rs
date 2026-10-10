@@ -1,0 +1,64 @@
+//! Resolver-mapping tests for the audio-queue schema module — the queue
+//! state-machine behavior locks live in plain-rs; these cover the local
+//! seam (NoLibrary library source, mode mapping, DSL text extraction).
+use super::*;
+use plain_rs::db::Db;
+use plain_rs::media::audio::queue::AudioTrack;
+
+fn test_library() -> Db {
+    static SEQ: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
+    let seq = SEQ.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+    let dir = std::env::temp_dir().join(format!("plain-desktop-aqrs-{}-{seq}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&dir);
+    std::fs::create_dir_all(&dir).unwrap();
+    Db::open(&dir.join("plain.db")).unwrap()
+}
+
+#[test]
+fn mode_maps_names_with_repeat_default() {
+    let dir = tempfile::tempdir().unwrap();
+    let prefs = plain_rs::prefs::Prefs::load(&plain_rs::prefs::default_path(dir.path())).unwrap();
+    assert!(matches!(
+        media_play_mode_of(&prefs).unwrap(),
+        MediaPlayMode::Repeat
+    ));
+    plain_rs::media::audio::queue::save_audio_mode(&prefs, "SHUFFLE").unwrap();
+    assert!(matches!(
+        media_play_mode_of(&prefs).unwrap(),
+        MediaPlayMode::Shuffle
+    ));
+    plain_rs::media::audio::queue::save_audio_mode(&prefs, "REPEAT_ONE").unwrap();
+    assert!(matches!(
+        media_play_mode_of(&prefs).unwrap(),
+        MediaPlayMode::RepeatOne
+    ));
+}
+
+#[test]
+fn text_of_extracts_the_dsl_text_field() {
+    assert_eq!(text_of(r#"text:"road song" trash:false"#), "road song");
+    assert_eq!(text_of(""), "");
+}
+
+/// playAudio → queue + history through the core, on the exact handles
+/// the resolvers use (queue renders head→manual→tail, supersede hidden).
+#[test]
+fn play_audio_flow_on_the_resolver_seam() {
+    let db = test_library();
+    let track = AudioTrack::from_path_stem("/music/My Song.mp3");
+    plain_rs::media::audio::queue::enqueue(&db, std::slice::from_ref(&track), false).unwrap();
+    plain_rs::media::audio::queue::on_playing(&db, &track.path, &track.title, &track.artist, 0)
+        .unwrap();
+
+    let mut lib = plain_rs::media::audio::queue::NoLibrary;
+    let page = plain_rs::media::audio::queue::queue_page(&db, &mut lib, 0, 10, "").unwrap();
+    assert_eq!(page.len(), 1);
+    assert_eq!(page[0].title, "My Song");
+    // playAllAudios on an empty library returns null (documented local
+    // semantics — no media index yet).
+    assert!(
+        plain_rs::media::audio::queue::set_library_source(&db, &mut lib, None, false, "DATE_DESC")
+            .unwrap()
+            .is_none()
+    );
+}

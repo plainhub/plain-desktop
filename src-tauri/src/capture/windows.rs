@@ -38,10 +38,14 @@ use windows::Win32::UI::WindowsAndMessaging::GetCursorPos;
 use windows::core::BOOL;
 use windows::core::{IInspectable, Interface, factory};
 
-use super::{
-    Capture, CaptureError, CaptureErrorCode, DisplayInfo, Frame, PhysicalPoint,
-    checked_rounded_i32, select_display_at,
-};
+use crate::capture::Capture;
+use crate::capture::CaptureError;
+use crate::capture::CaptureErrorCode;
+use crate::capture::DisplayInfo;
+use crate::capture::Frame;
+use crate::capture::PhysicalPoint;
+use crate::capture::checked_rounded_i32;
+use crate::capture::select_display_at;
 
 const FRAME_TIMEOUT: Duration = Duration::from_secs(3);
 const BASE_DPI: u32 = 96;
@@ -208,12 +212,12 @@ fn display_info(index: usize, entry: &MonitorEntry) -> Result<DisplayInfo, Captu
             x: entry.frame.left,
             y: entry.frame.top,
         },
-        physical_size: super::PhysicalSize { width, height },
-        logical_origin: super::LogicalPoint {
+        physical_size: crate::capture::PhysicalSize { width, height },
+        logical_origin: crate::capture::LogicalPoint {
             x: f64::from(entry.frame.left) / scale_factor,
             y: f64::from(entry.frame.top) / scale_factor,
         },
-        logical_size: super::LogicalSize {
+        logical_size: crate::capture::LogicalSize {
             width: f64::from(width) / scale_factor,
             height: f64::from(height) / scale_factor,
         },
@@ -425,7 +429,7 @@ impl Capture for WindowsCapture {
         exclude_window_ids: &[u64],
     ) -> Result<Frame, CaptureError> {
         let _ = exclude_window_ids;
-        super::preflight_capture_permission()?;
+        crate::capture::preflight_capture_permission()?;
         let (entry, _) = find_monitor_for(display)?;
         let dxgi_device: IDXGIDevice = self
             .device
@@ -466,7 +470,8 @@ impl Capture for WindowsCapture {
 
 #[cfg(test)]
 mod tests {
-    use super::{MonitorEntry, monitor_id};
+    use super::MonitorEntry;
+    use super::monitor_id;
     use windows::Win32::Foundation::RECT;
     use windows::Win32::Graphics::Gdi::HMONITOR;
 

@@ -26,7 +26,7 @@
 //!
 //! This is deliberately not a general-purpose URL library.
 
-use super::query::percent_decode;
+use crate::utils::query::percent_decode;
 
 /// Subset of a URL that the call-sites actually use.
 #[derive(Debug, Clone, PartialEq, Eq)]

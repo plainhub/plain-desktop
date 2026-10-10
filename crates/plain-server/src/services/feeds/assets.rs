@@ -1,35 +1,33 @@
 use futures_util::StreamExt;
-use plain_rs::{
-    db::Db,
-    library::{LibraryError, LibraryResult},
-    utils::{
-        html_to_markdown::dom::Dom,
-        http_url::{join, parse_http_url},
-    },
-};
+use plain_rs::db::Db;
+use plain_rs::error::DomainError;
+use plain_rs::error::DomainResult;
+use plain_rs::utils::html_to_markdown::dom::Dom;
+use plain_rs::utils::http_url::join;
+use plain_rs::utils::http_url::parse_http_url;
 use std::{path::PathBuf, sync::Arc};
 pub struct FeedAssets {
     pub db: Arc<Db>,
     pub directory: PathBuf,
 }
 impl FeedAssets {
-    pub async fn cache(&self, url: &str) -> LibraryResult<String> {
+    pub async fn cache(&self, url: &str) -> DomainResult<String> {
         self.cache_formats(url, false).await
     }
-    pub async fn cache_bookmark_icon(&self, url: &str) -> LibraryResult<String> {
+    pub async fn cache_bookmark_icon(&self, url: &str) -> DomainResult<String> {
         self.cache_formats(url, true).await
     }
-    async fn cache_formats(&self, url: &str, bookmark: bool) -> LibraryResult<String> {
+    async fn cache_formats(&self, url: &str, bookmark: bool) -> DomainResult<String> {
         let response = reqwest::Client::builder()
             .timeout(std::time::Duration::from_secs(15))
             .build()
-            .map_err(|e| LibraryError::Other(e.to_string()))?
+            .map_err(|e| DomainError::Other(e.to_string()))?
             .get(url)
             .send()
             .await
-            .map_err(|e| LibraryError::Other(e.to_string()))?
+            .map_err(|e| DomainError::Other(e.to_string()))?
             .error_for_status()
-            .map_err(|e| LibraryError::Other(e.to_string()))?;
+            .map_err(|e| DomainError::Other(e.to_string()))?;
         let mime = response
             .headers()
             .get("content-type")
@@ -44,25 +42,27 @@ impl FeedAssets {
                 && ["image/x-icon", "image/vnd.microsoft.icon", "image/svg+xml"]
                     .contains(&mime.as_str()))
         {
-            return Err(LibraryError::Other("unsupported feed image format".into()));
+            return Err(DomainError::Other("unsupported feed image format".into()));
         }
         let mut bytes = Vec::new();
         let mut stream = response.bytes_stream();
         while let Some(chunk) = stream.next().await {
-            let chunk = chunk.map_err(|e| LibraryError::Other(e.to_string()))?;
+            let chunk = chunk.map_err(|e| DomainError::Other(e.to_string()))?;
             if bytes.len() + chunk.len() > 2 * 1024 * 1024 {
-                return Err(LibraryError::Other("feed image too large".into()));
+                return Err(DomainError::Other("feed image too large".into()));
             }
             bytes.extend_from_slice(&chunk);
         }
         let db = self.db.clone();
         let directory = self.directory.clone();
         let file = tokio::task::spawn_blocking(move || {
-            plain_rs::chat::app_file_store::import_bytes(&db, &directory, &bytes, &mime)
+            plain_rs::chat::attachments::app_file_store::import_bytes(
+                &db, &directory, &bytes, &mime,
+            )
         })
         .await
-        .map_err(|e| LibraryError::Other(e.to_string()))?
-        .map_err(|e| LibraryError::Other(e.to_string()))?;
+        .map_err(|e| DomainError::Other(e.to_string()))?
+        .map_err(|e| DomainError::Other(e.to_string()))?;
         Ok(file.real_path.to_string_lossy().into_owned())
     }
     pub fn release(&self, uri: &str) {
@@ -77,7 +77,9 @@ impl FeedAssets {
         if path != owned || !owned.starts_with(self.directory.join("files")) {
             return;
         }
-        if let Err(error) = plain_rs::chat::app_file_store::release(&self.db, &self.directory, id) {
+        if let Err(error) =
+            plain_rs::chat::attachments::app_file_store::release(&self.db, &self.directory, id)
+        {
             log::warn!("feed asset release failed: {error}");
         }
     }
@@ -125,7 +127,7 @@ pub fn normalize_html(html: &str, base: &str) -> String {
             }
         }
     }
-    super::inner_html(&dom, 0)
+    crate::services::feeds::inner_html(&dom, 0)
 }
 
 pub fn main_image(html: &str, base: &str) -> Option<String> {

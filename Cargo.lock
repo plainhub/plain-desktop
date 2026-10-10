@@ -5593,6 +5593,7 @@ dependencies = [
  "plain-rs",
  "plain-server",
  "rustls",
+ "serde",
  "serde_json",
  "tokio",
 ]

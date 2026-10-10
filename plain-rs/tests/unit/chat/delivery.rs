@@ -1,12 +1,11 @@
 use super::*;
-use crate::{
-    base64_encode,
-    chat::{
-        enums::{ChatStatus, DeviceType, PeerStatus},
-        message_lifecycle,
-    },
-    db::{DPeer, chat_store::SaveMode},
-};
+use crate::base64_encode;
+use crate::chat::enums::ChatStatus;
+use crate::chat::enums::DeviceType;
+use crate::chat::enums::PeerStatus;
+use crate::chat::messages::message_lifecycle;
+use crate::db::DPeer;
+use crate::db::chat_store::SaveMode;
 use serde_json::{Value, json};
 use std::sync::atomic::{AtomicUsize, Ordering};
 struct Transport {
@@ -209,7 +208,7 @@ fn attachment_uris_and_response_receipts_match_mobile_contract() {
     ] {
         let content =
             json!({"type":"FILES","value":{"items":[{"uri":uri,"name":"x"}]}}).to_string();
-        let wire = super::super::content::peer_content(&content, &token).unwrap();
+        let wire = crate::content::peer_content(&content, &token).unwrap();
         let wire: Value = serde_json::from_str(&wire).unwrap();
         let uri_wire = wire["value"]["items"][0]["uri"].as_str().unwrap();
         let decrypted = crate::xchacha_decrypt(
@@ -218,19 +217,20 @@ fn attachment_uris_and_response_receipts_match_mobile_contract() {
         )
         .unwrap();
         assert_eq!(String::from_utf8(decrypted).unwrap(), uri);
-        assert!(super::super::content::peer_content(&content, "").is_err());
+        assert!(crate::content::peer_content(&content, "").is_err());
     }
     assert!(
-        crate::chat::transport::message_response(
+        crate::transport::contract::message_response(
             &json!({"data":{"createChatItem":[]},"errors":[]})
         )
         .is_ok()
     );
     assert!(
-        crate::chat::transport::message_response(&json!({"data":{"createChatItem":null}})).is_err()
+        crate::transport::contract::message_response(&json!({"data":{"createChatItem":null}}))
+            .is_err()
     );
     assert!(
-        crate::chat::transport::message_response(
+        crate::transport::contract::message_response(
             &json!({"data":{"createChatItem":[]},"errors":[{"message":"rejected"}]})
         )
         .is_err()

@@ -24,6 +24,8 @@ description = "Shared Plain protocol, crypto, persistence and domain primitives"
 "link-preview" = ["chat", "dep:regex"]
 "http-client" = ["dep:reqwest", "reqwest/rustls-tls", "tokio/net", "tokio/rt", "tokio/time"]
 
+"feeds" = ["library", "html"]
+
 [dependencies]
 "reqwest" = { version = "0.12", default-features = false, features = ["stream"], optional = true }
 "chacha20poly1305" = { "version" = "0.10", "optional" = true }

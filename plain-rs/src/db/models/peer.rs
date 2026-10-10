@@ -1,4 +1,5 @@
-use crate::chat::enums::{DeviceType, PeerStatus};
+use crate::chat::enums::DeviceType;
+use crate::chat::enums::PeerStatus;
 use crate::db::now_iso;
 use crate::utils::http_url::build_url;
 
@@ -51,7 +52,7 @@ impl DPeer {
             .filter(|ip| !ip.is_empty())
             .map(str::to_string)
             .collect::<Vec<_>>();
-        crate::chat::lan_ip::best(&ips, &crate::chat::lan_ip::local_interfaces())
+        crate::transport::lan::best(&ips, &crate::transport::lan::local_interfaces())
     }
 
     pub fn base_url(&self) -> String {

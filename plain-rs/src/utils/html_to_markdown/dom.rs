@@ -1,4 +1,4 @@
-use super::entities::decode;
+use crate::utils::html_to_markdown::entities::decode;
 
 #[derive(Default)]
 pub struct Node {

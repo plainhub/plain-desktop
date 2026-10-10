@@ -28,10 +28,9 @@ use axum::extract::ws::WebSocket;
 
 use crate::assembly::context::AppCtx;
 use crate::http::server::ServerState;
-use plain_rs::{
-    crypto::{ed25519_verify, xchacha_decrypt_raw},
-    utils::base64::base64_decode,
-};
+use plain_rs::crypto::ed25519_verify;
+use plain_rs::crypto::xchacha_decrypt_raw;
+use plain_rs::utils::base64::base64_decode;
 
 /// WebSocket close code 1013 ("Try Again Later"). Mirrors Go's
 /// `websocket.CloseTryAgainLater` and plain-app's
@@ -67,8 +66,8 @@ pub async fn chat_socket_cid(socket: WebSocket, cid: String, state: ServerState)
         state.settings.auth,
         crate::http::server::AuthPolicy::Session { .. }
     ) {
-        let session = plain_media::media::kv::SessionStore::new(&state.ctx.media.db).get(&cid);
-        match session.and_then(|s| plain_media::media::kv::token_key(&s.token).ok()) {
+        let session = plain_media::storage::kv::SessionStore::new(&state.ctx.media.db).get(&cid);
+        match session.and_then(|s| plain_media::storage::kv::token_key(&s.token).ok()) {
             Some(k) => k,
             None => {
                 let mut socket = socket;
@@ -133,8 +132,8 @@ pub async fn chat_socket_cid(socket: WebSocket, cid: String, state: ServerState)
                             ev.event_type
                         );
                         let encoded = match ev.binary_payload {
-                            Some(payload) => plain_rs::ws_frame::encode_raw(ev.event_type, &payload),
-                            None => plain_rs::ws_frame::encode(ev.event_type, ev.payload.as_bytes(), &key),
+                            Some(payload) => plain_rs::protocols::websocket::encode_raw(ev.event_type, &payload),
+                            None => plain_rs::protocols::websocket::encode(ev.event_type, ev.payload.as_bytes(), &key),
                         };
                         if let Some(bytes) = encoded {
                             match socket.send(Message::Binary(bytes)).await {
@@ -344,7 +343,7 @@ mod login {
     ) -> Response {
         let ws = match ws {
             Ok(ws) => ws,
-            Err(_) => return crate::http::server::routes::static_files::index().await,
+            Err(_) => return crate::http::routes::local::static_files::index().await,
         };
         if p.cid.trim().is_empty() {
             return (StatusCode::BAD_REQUEST, "").into_response();
@@ -353,8 +352,10 @@ mod login {
             ws.on_upgrade(move |socket| auth_handshake(socket, state, p.cid))
                 .into_response()
         } else {
-            ws.on_upgrade(move |socket| super::chat_socket_cid(socket, p.cid, state))
-                .into_response()
+            ws.on_upgrade(move |socket| {
+                crate::http::server::websocket::chat_socket_cid(socket, p.cid, state)
+            })
+            .into_response()
         }
     }
 
@@ -406,7 +407,7 @@ mod login {
 
         // The key the client used is the first half of the stored sha512
         // hex (ASCII bytes), mirroring the REST `/auth` handler.
-        let hash = plain_media::media::kv::PasswordStore::new(&state.ctx.prefs)
+        let hash = plain_media::storage::kv::PasswordStore::new(&state.ctx.prefs)
             .get()
             .unwrap_or_default();
         if hash.len() < 32 {
@@ -474,13 +475,13 @@ mod login {
         };
         let token_b64 = plain_rs::utils::base64::base64_encode(&token);
 
-        let sessions = plain_media::media::kv::SessionStore::new(&state.ctx.media.db);
+        let sessions = plain_media::storage::kv::SessionStore::new(&state.ctx.media.db);
         let info = match sessions.get(&cid) {
-            Some(s) => plain_media::media::kv::SessionInfo {
+            Some(s) => plain_media::storage::kv::SessionInfo {
                 token: token_b64.clone(),
                 ..s
             },
-            None => plain_media::media::kv::SessionInfo {
+            None => plain_media::storage::kv::SessionInfo {
                 client_id: cid.clone(),
                 token: token_b64.clone(),
                 client_name: client_name(
@@ -512,12 +513,12 @@ mod login {
         // `clientId|status|ecdhPublicKey|timestamp`
         // (AuthResponse.toSignatureData).
         let status = "COMPLETED";
-        let resp_client_id = plain_media::media::kv::server_client_id(&state.ctx.prefs);
+        let resp_client_id = plain_media::storage::kv::server_client_id(&state.ctx.prefs);
         // The client verifies `clientId|status|ecdhPublicKey|timestamp`
         // using the exact fields from this response — sign the same
         // values we send.
         let signature = plain_rs::crypto::ed25519_sign(
-            &plain_media::media::kv::SignatureKey::new(&state.ctx.prefs)
+            &plain_media::storage::kv::SignatureKey::new(&state.ctx.prefs)
                 .ensure_keypair()
                 .unwrap_or([0u8; 64]),
             format!("{resp_client_id}|{status}|{ecdh_public_b64}|{timestamp}").as_bytes(),
@@ -584,5 +585,5 @@ mod login {
 pub use login::root_handler;
 
 #[cfg(all(test, feature = "system"))]
-#[path = "../../../tests/unit/http/server/ws_nas.rs"]
+#[path = "../../../tests/unit/http/server/websocket.rs"]
 mod nas_tests;

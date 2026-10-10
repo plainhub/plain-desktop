@@ -1,8 +1,12 @@
 use crate::chat::enums::ChatStatus;
-use crate::chat::events::{ChatEvent, WS_MESSAGE_CREATED, WS_MESSAGE_DELETED, WS_MESSAGE_UPDATED};
+use crate::chat::events::ChatEvent;
+use crate::chat::events::WS_MESSAGE_CREATED;
+use crate::chat::events::WS_MESSAGE_DELETED;
+use crate::chat::events::WS_MESSAGE_UPDATED;
 use crate::chat::service::ChatService;
-use crate::chat::transport::PeerTransport;
-use crate::db::{DChat, Db};
+use crate::db::DChat;
+use crate::db::Db;
+use crate::transport::contract::PeerTransport;
 use serde_json::{Value, json};
 
 impl<T: PeerTransport + 'static> ChatService<T> {
@@ -33,8 +37,9 @@ impl<T: PeerTransport + 'static> ChatService<T> {
         };
 
         let is_remote = (!peer_id.is_empty() && peer_id != "local") || is_channel;
-        let chat = super::message_lifecycle::create(&self.db, &to, &channel_id, &content)
-            .map_err(|e| e.to_string())?;
+        let chat =
+            crate::chat::messages::message_lifecycle::create(&self.db, &to, &channel_id, &content)
+                .map_err(|e| e.to_string())?;
         self.cacher.load(&self.db);
 
         self.emit(WS_MESSAGE_CREATED, json!([chat_to_json(&chat)]).to_string());
@@ -53,10 +58,12 @@ impl<T: PeerTransport + 'static> ChatService<T> {
         if self.db.get_chat_by_id(&id).is_none() {
             return false;
         }
-        match super::app_file_store::chat_deletion::delete(
+        match crate::chat::attachments::app_file_store::chat_deletion::delete(
             &self.db,
             &self.data_dir,
-            super::app_file_store::chat_deletion::Selection::Ids(std::slice::from_ref(&id)),
+            crate::chat::attachments::app_file_store::chat_deletion::Selection::Ids(
+                std::slice::from_ref(&id),
+            ),
         ) {
             Ok(0) => return false,
             Ok(_) => {}
@@ -78,10 +85,10 @@ impl<T: PeerTransport + 'static> ChatService<T> {
         if ids.is_empty() {
             return 0;
         }
-        let count = match super::app_file_store::chat_deletion::delete(
+        let count = match crate::chat::attachments::app_file_store::chat_deletion::delete(
             &self.db,
             &self.data_dir,
-            super::app_file_store::chat_deletion::Selection::Ids(&ids),
+            crate::chat::attachments::app_file_store::chat_deletion::Selection::Ids(&ids),
         ) {
             Ok(count) => count,
             Err(error) => {
@@ -116,7 +123,7 @@ impl<T: PeerTransport + 'static> ChatService<T> {
     /// Async link-preview refresh: rewrite the stored `content` with a
     /// `linkPreviews` array (via the app hook) and broadcast the result
     /// as `WS_MESSAGE_UPDATED`. Fire-and-forget like delivery.
-    pub(super) fn spawn_link_preview_refresh(&self, chat_id: &str, _content: &str) {
+    pub(crate) fn spawn_link_preview_refresh(&self, chat_id: &str, _content: &str) {
         let db = self.db.clone();
         let data_dir = self.data_dir.clone();
         let event_tx = self.event_tx.clone();

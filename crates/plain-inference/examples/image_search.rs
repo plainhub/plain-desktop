@@ -1,4 +1,6 @@
-use plain_inference::{Engine, ImageEncoder, manifest::Manifest};
+use plain_inference::embedding::Engine;
+use plain_inference::embedding::ImageEncoder;
+use plain_inference::models::manifest::Manifest;
 use serde::Serialize;
 use std::{path::PathBuf, time::Instant};
 #[derive(Serialize)]

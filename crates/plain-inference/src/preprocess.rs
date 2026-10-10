@@ -1,4 +1,7 @@
-use super::manifest::{Interpolation, Layout, Preprocess, Resize};
+use crate::models::manifest::Interpolation;
+use crate::models::manifest::Layout;
+use crate::models::manifest::Preprocess;
+use crate::models::manifest::Resize;
 use image::{ImageDecoder, ImageReader, imageops::FilterType};
 use std::path::Path;
 

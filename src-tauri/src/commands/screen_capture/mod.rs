@@ -26,15 +26,20 @@ pub(crate) fn png_fixture(width: u32, height: u32) -> Vec<u8> {
 
 #[cfg(test)]
 mod contract_tests {
-    use super::contract::{
-        CaptureOrigin, CaptureRequest, CaptureTarget, CaptureTriggerKind, CapturedFrame,
-        NativeCapturePhase,
-    };
+    use super::contract::CaptureOrigin;
+    use super::contract::CaptureRequest;
+    use super::contract::CaptureTarget;
+    use super::contract::CaptureTriggerKind;
+    use super::contract::CapturedFrame;
+    use super::contract::NativeCapturePhase;
+    use crate::capture::CaptureErrorCode;
+    use crate::capture::DisplayInfo;
+    use crate::capture::LogicalPoint;
+    use crate::capture::LogicalSize;
     use crate::capture::MAX_RAW_FRAME_BYTES;
-    use crate::capture::{
-        CaptureErrorCode, DisplayInfo, LogicalPoint, LogicalSize, PhysicalPoint, PhysicalSize,
-        select_display_at,
-    };
+    use crate::capture::PhysicalPoint;
+    use crate::capture::PhysicalSize;
+    use crate::capture::select_display_at;
 
     fn monitor(
         id: &str,
@@ -218,11 +223,15 @@ mod backend_tests {
     use std::sync::Mutex;
 
     use super::backend::capture_frame_at_cursor;
-    use crate::capture::{Capture, Frame};
-    use crate::capture::{
-        CaptureError, CaptureErrorCode, DisplayInfo, LogicalPoint, LogicalSize, PhysicalPoint,
-        PhysicalSize,
-    };
+    use crate::capture::Capture;
+    use crate::capture::CaptureError;
+    use crate::capture::CaptureErrorCode;
+    use crate::capture::DisplayInfo;
+    use crate::capture::Frame;
+    use crate::capture::LogicalPoint;
+    use crate::capture::LogicalSize;
+    use crate::capture::PhysicalPoint;
+    use crate::capture::PhysicalSize;
 
     struct FakeBackend {
         monitor_snapshots: Mutex<VecDeque<Vec<DisplayInfo>>>,
@@ -411,10 +420,14 @@ mod backend_tests {
 #[cfg(test)]
 mod buffer_tests {
     use super::buffers::SessionBuffers;
-    use super::contract::{CaptureResultDescriptor, CapturedFrame};
-    use crate::capture::{
-        CaptureErrorCode, DisplayInfo, LogicalPoint, LogicalSize, PhysicalPoint, PhysicalSize,
-    };
+    use super::contract::CaptureResultDescriptor;
+    use super::contract::CapturedFrame;
+    use crate::capture::CaptureErrorCode;
+    use crate::capture::DisplayInfo;
+    use crate::capture::LogicalPoint;
+    use crate::capture::LogicalSize;
+    use crate::capture::PhysicalPoint;
+    use crate::capture::PhysicalSize;
 
     fn frame(session_id: &str, width: u32, height: u32) -> CapturedFrame {
         CapturedFrame::new(
@@ -634,7 +647,8 @@ mod ipc_tests {
     use tauri::ipc::{InvokeBody, InvokeResponseBody, IpcResponse};
 
     use super::contract::CaptureErrorCode;
-    use super::ipc::{raw_response, require_raw_body};
+    use super::ipc::raw_response;
+    use super::ipc::require_raw_body;
 
     fn fixture(width: usize, height: usize) -> Vec<u8> {
         (0..width * height * 4)
@@ -737,12 +751,17 @@ mod session_tests {
 
 #[cfg(test)]
 mod platform_tests {
-    use crate::capture::{
-        CaptureErrorCode, DisplayInfo, LogicalPoint, LogicalSize, PhysicalPoint, PhysicalSize,
-        bottom_left_visible_frame_to_top_left_area, permission_preflight_result,
-        select_logical_monitor, top_left_physical_work_area_to_local_css,
-        wayland_cursor_is_unavailable,
-    };
+    use crate::capture::CaptureErrorCode;
+    use crate::capture::DisplayInfo;
+    use crate::capture::LogicalPoint;
+    use crate::capture::LogicalSize;
+    use crate::capture::PhysicalPoint;
+    use crate::capture::PhysicalSize;
+    use crate::capture::bottom_left_visible_frame_to_top_left_area;
+    use crate::capture::permission_preflight_result;
+    use crate::capture::select_logical_monitor;
+    use crate::capture::top_left_physical_work_area_to_local_css;
+    use crate::capture::wayland_cursor_is_unavailable;
 
     #[test]
     fn macos_visible_frame_reserves_the_menu_bar_and_dock() {

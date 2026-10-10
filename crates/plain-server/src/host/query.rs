@@ -1,0 +1,335 @@
+use plain_rs::db::Db;
+use plain_rs::utils::search_dsl;
+use plain_rs::utils::search_dsl::FilterField;
+use serde::{Deserialize, Serialize};
+use serde_json::{Value, json};
+#[derive(Deserialize, Serialize, Clone, Copy, Debug)]
+#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
+pub(crate) enum Provider {
+    Call,
+    Contact,
+    Audio,
+    Video,
+    Image,
+    Doc,
+    File,
+}
+#[derive(Default, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub(crate) struct Plan {
+    pub clauses: Vec<String>,
+    pub args: Vec<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub ids_column: Option<String>,
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    pub ids: Vec<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub trash: Option<bool>,
+}
+impl Plan {
+    pub(crate) fn add(&mut self, clause: String, values: Vec<String>) {
+        self.clauses.push(clause);
+        self.args.extend(values);
+    }
+    pub(crate) fn equal(&mut self, column: &str, value: &str) {
+        self.add(format!("{column} = ?"), vec![value.to_owned()]);
+    }
+    pub(crate) fn contains(&mut self, column: &str, value: &str) {
+        let value = value
+            .replace('\\', "\\\\")
+            .replace('%', "\\%")
+            .replace('_', "\\_");
+        self.add(
+            format!("{column} LIKE '%' || ? || '%' ESCAPE '\\'"),
+            vec![value],
+        );
+    }
+    pub(crate) fn ids(&mut self, column: &str, ids: Vec<String>) {
+        if !ids.is_empty() {
+            self.ids_column = Some(column.to_owned());
+            self.ids = ids;
+        }
+    }
+}
+pub(crate) fn fields(db: &Db, query: &str) -> anyhow::Result<Vec<FilterField>> {
+    let mut fields = search_dsl::parse(query);
+    let tag_ids = fields
+        .iter()
+        .filter(|f| f.name == "tag_id")
+        .map(|f| f.value.clone())
+        .collect::<std::collections::HashSet<_>>();
+    fields.retain(|f| f.name != "tag_id");
+    if !tag_ids.is_empty() {
+        let mut ids = std::collections::BTreeSet::new();
+        for id in tag_ids {
+            ids.extend(plain_rs::db::tag::keys_for_tag(db, &id)?);
+        }
+        fields.push(FilterField {
+            name: "ids".into(),
+            op: "=".into(),
+            value: if ids.is_empty() {
+                "invalid_ids".into()
+            } else {
+                ids.into_iter().collect::<Vec<_>>().join(",")
+            },
+        });
+    }
+    Ok(fields)
+}
+/// Names the web client puts in a query that this provider must not act on.
+///
+/// Every entry is here because a builder in `plain-desktop` can emit it for
+/// this provider, and the field has no match arm. `all` and `trash` are
+/// accepted everywhere: `all` is the only sanctioned way to ask for a whole
+/// table, and `trash` reaches the media providers as a MediaStore query
+/// argument, which Contacts and Calls have no store to answer.
+pub(crate) fn intentionally_ignored(provider: Provider, field: &str) -> bool {
+    match (provider, field) {
+        (_, "all" | "trash") => true,
+        // Read before the loop, where it decides whether dotfiles are hidden.
+        // The docs view shares the files filter object, so it arrives there too.
+        (_, "show_hidden") => true,
+        // Sent when a mount or a favorite folder is picked in the files
+        // sidebar; the listing itself is scoped by `parent`, not by this.
+        (Provider::File | Provider::Doc, "root_path") => true,
+        // The apps and messages views are the only ones that set `type`, and
+        // neither branch clears it when the user navigates away — so a media
+        // search made after picking `type:USER` in Apps carries it over. A media
+        // provider's own kind is already the provider choice, so there is no
+        // column left for it to compare against.
+        (Provider::Audio | Provider::Video | Provider::Image, "type") => true,
+        _ => false,
+    }
+}
+pub(crate) fn comparison(field: &FilterField) -> (&str, &str) {
+    let mut value = field.value.trim();
+    let mut op = field.op.as_str();
+    if matches!(op, "" | ":" | "=") {
+        op = "=";
+        for prefix in [">=", "<=", "!=", ">", "<", "="] {
+            if let Some(rest) = value.strip_prefix(prefix) {
+                op = prefix;
+                value = rest.trim();
+                break;
+            }
+        }
+    } else if let Some(rest) = value.strip_prefix(op) {
+        value = rest.trim();
+    }
+    (op, value)
+}
+pub(crate) fn plan(
+    provider: Provider,
+    fields: &[FilterField],
+    _dates: &Value,
+    resolved_parent_id: Option<&str>,
+    query_is_empty: bool,
+) -> anyhow::Result<Plan> {
+    let mut plan = Plan::default();
+
+    if matches!(provider, Provider::Doc) {
+        plan.add(
+            "(mime_type LIKE ? OR mime_type IN (?,?,?,?,?))".into(),
+            vec![
+                "text/%".into(),
+                "application/pdf".into(),
+                "application/msword".into(),
+                "application/vnd.openxmlformats-officedocument.wordprocessingml.document".into(),
+                "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet".into(),
+                "application/javascript".into(),
+            ],
+        );
+        plan.add("_size > 0".into(), vec![]);
+    }
+    if matches!(provider, Provider::File) && !query_is_empty {
+        let show_hidden = fields
+            .iter()
+            .any(|field| field.name == "show_hidden" && field.value.eq_ignore_ascii_case("true"));
+        if !show_hidden {
+            plan.add(
+                "_display_name NOT LIKE ? ESCAPE '\\'".into(),
+                vec![".%".into()],
+            );
+        }
+    }
+    for field in fields {
+        match (provider, field.name.as_str()) {
+            (Provider::Audio, "text") => plan.add("(title LIKE '%' || ? || '%' ESCAPE '\\' OR artist LIKE '%' || ? || '%' ESCAPE '\\')".into(), vec![escape_like(&field.value), escape_like(&field.value)]),
+            (Provider::Audio, "path") => plan.equal("_data", &field.value),
+            (Provider::Audio, "name") => plan.equal("title", &field.value),
+            (Provider::Audio, "artist") => plan.equal("artist", &field.value),
+            (Provider::Video | Provider::Image, "text") => {
+                let column = if matches!(provider, Provider::Image) { "(title LIKE '%' || ? || '%' ESCAPE '\\' OR _data LIKE '%' || ? || '%' ESCAPE '\\')" } else { "title LIKE '%' || ? || '%' ESCAPE '\\'" };
+                let value = escape_like(&field.value);
+                plan.add(column.into(), if matches!(provider, Provider::Image) { vec![value.clone(), value] } else { vec![value] });
+            }
+            (Provider::Audio | Provider::Video | Provider::Image | Provider::Doc, "ids") => plan.ids("_id", field.value.split(',').map(str::to_owned).collect()),
+            (Provider::Audio | Provider::Video | Provider::Image | Provider::Doc, "bucket_id") => plan.equal("bucket_id", &field.value),
+            (Provider::Audio | Provider::Video | Provider::Image | Provider::Doc, "excluded_dir") => plan.add("_data NOT LIKE ? || '%' ESCAPE '\\'".into(), vec![escape_like(&field.value)]),
+            (Provider::Doc, "text") => plan.add("_display_name LIKE '%' || ? || '%' ESCAPE '\\'".into(), vec![escape_like(&field.value)]),
+            (Provider::Doc, "ext") => plan.add("_display_name LIKE ? ESCAPE '\\'".into(), vec![format!("%.{}", escape_like(&field.value))]),
+            (Provider::Doc, "parent") => plan.add("_data LIKE ? ESCAPE '\\'".into(), vec![format!("{}/%", escape_like(field.value.trim_end_matches('/')))]),
+            (Provider::Doc, "type") => plan.equal("mime_type", &field.value),
+            (Provider::Doc, "file_size") => {
+                let (op, value) = comparison(field);
+                if ["=", "!=", ">", ">=", "<", "<="].contains(&op) {
+                    if let Some(bytes) = parse_size_to_bytes(value) { plan.add(format!("_size {op} ?"), vec![bytes.to_string()]); }
+                }
+            }
+            (Provider::File, "text") => plan.add("_display_name LIKE '%' || ? || '%' ESCAPE '\\'".into(), vec![escape_like(&field.value)]),
+            (Provider::File, "parent") => plan.add("parent = ?".into(), vec![resolved_parent_id.unwrap_or("-1").to_owned()]),
+            (Provider::File, "type") => plan.equal("mime_type", &field.value),
+            (Provider::File, "ids") => plan.ids("_id", field.value.split(',').map(str::to_owned).collect()),
+            (Provider::File, "file_size") => {
+                let (op, value) = comparison(field);
+                if ["=", "!=", ">", ">=", "<", "<="] .contains(&op) {
+                    if let Some(bytes) = parse_size_to_bytes(value) { plan.add(format!("_size {op} ?"), vec![bytes.to_string()]); }
+                }
+            }
+            (Provider::Audio | Provider::Video | Provider::Image | Provider::Doc, "trash") => {
+                if let Some(flag) = field.value.parse::<bool>().ok() {
+                    // The phone's trash is MediaStore's own: `IS_TRASHED` is what
+                    // `NativeMediaActions` writes, and MediaStore answers a
+                    // trashed-only read with the `QUERY_ARG_MATCH_TRASHED`
+                    // argument instead of a selection clause. It has to be an
+                    // argument — MediaProvider parses a legacy selection with a
+                    // strict grammar and answers `is_trashed` with
+                    // `Invalid token`, which reaches the app as a fatal throw.
+                    // The `.plain-trash` tree belongs to the NAS store, which no
+                    // phone process creates, so matching its path here could only
+                    // ever filter every row out.
+                    plan.trash = Some(flag);
+                }
+            }
+            // Reached only when no arm above matched, so these are fields this
+            // provider has no column for. Dropping them used to leave the
+            // clause list empty — which ContentWhere renders as `1=1`, turning
+            // a delete into a whole-table operation. Say which field instead.
+            _ => {
+                if !intentionally_ignored(provider, field.name.as_str()) {
+                    return Err(anyhow::anyhow!(
+                        "unsupported {provider:?} filter: {}",
+                        field.name
+                    ));
+                }
+            }
+        }
+    }
+    Ok(plan)
+}
+fn escape_like(value: &str) -> String {
+    value
+        .replace('\\', "\\\\")
+        .replace('%', "\\%")
+        .replace('_', "\\_")
+}
+fn parse_size_to_bytes(value: &str) -> Option<u64> {
+    let value = value.trim();
+    let split = value
+        .find(|c: char| !c.is_ascii_digit() && c != '.')
+        .unwrap_or(value.len());
+    let number = value[..split].parse::<f64>().ok()?;
+    let unit = value[split..].trim().to_ascii_lowercase();
+    let multiplier = match unit.as_str() {
+        "" | "b" => 1.0,
+        "kb" | "kib" => 1024.0,
+        "mb" | "mib" => 1024.0_f64.powi(2),
+        "gb" | "gib" => 1024.0_f64.powi(3),
+        "tb" | "tib" => 1024.0_f64.powi(4),
+        _ => return None,
+    };
+    let bytes = number * multiplier;
+    (bytes.is_finite() && bytes >= 0.0 && bytes <= u64::MAX as f64).then_some(bytes as u64)
+}
+pub(crate) async fn dates(
+    host: &crate::host::bridge::Host,
+    fields: &[FilterField],
+) -> anyhow::Result<Value> {
+    let raw = fields
+        .iter()
+        .filter(|f| f.name == "start_time")
+        .map(|f| comparison(f).1.to_owned())
+        .collect::<Vec<_>>();
+    if raw.is_empty() {
+        return Ok(Value::Null);
+    }
+    host.call("systemEpochMillis", json!({"values":raw}))
+        .await
+        .map_err(anyhow::Error::msg)
+}
+
+/// Refuses a request that acts on a query naming no selection.
+///
+/// `plan` drops the fields it does not act on — `trash` and `show_hidden`
+/// ride along from a media view, `type` carries over from Apps — and an empty
+/// clause list is what `ContentWhere` renders as `1=1`. On a listing that only
+/// means "everything", which is what those fields ask for anyway. On the path
+/// that turns a query into the id set `deleteMediaItems` / `trashMediaItems` /
+/// `restoreMediaItems` / `moveMediaItems` / `deleteCalls` act on, it means the
+/// operation covers the whole table, so those ask this first.
+///
+/// It asks the built plan rather than the field names, because "did this name
+/// narrow anything" is not a property of the name: the same field produces a
+/// clause on one provider (`type` is a Call column and nothing at all on the
+/// media providers, whose own kind is the provider choice) and none on another.
+/// Audio lost the unconditional `duration > 0` its Kotlin helper used to add,
+/// which is how a `type:` leak from the Apps view became a whole-table delete.
+///
+/// Providers that always contribute a clause of their own cannot come back
+/// empty and need no case here: Contact pins `mimetype`, Doc its mime types,
+/// File the dotfile exclusion.
+pub(crate) async fn require_narrowing_with(
+    builder: impl FnOnce(Provider, &[FilterField], &Value, Option<&str>, bool) -> anyhow::Result<Plan>,
+    db: &Db,
+    host: &crate::host::bridge::Host,
+    provider: Provider,
+    query: &str,
+) -> anyhow::Result<()> {
+    // A blank query is the caller's own guard to own, and `all` builds no
+    // clause on purpose: it is how a caller says "every row, I mean it".
+    if query.trim().is_empty() {
+        return Ok(());
+    }
+    let parsed = fields(db, query)?;
+    if parsed.iter().any(|f| f.name == "all") {
+        return Ok(());
+    }
+    // `trash:true` names the trashed set, which is a scope of its own: it is
+    // answered by the MediaStore query argument rather than a clause, so the
+    // clause list stays empty for a query that is anything but the whole table.
+    // `trash:false` is the complement and narrows nothing — it is the case the
+    // empty-list check below exists to refuse.
+    if parsed
+        .iter()
+        .any(|f| f.name == "trash" && f.value.eq_ignore_ascii_case("true"))
+    {
+        return Ok(());
+    }
+    let plan = builder(
+        provider,
+        &parsed,
+        &dates(host, &parsed).await?,
+        None,
+        query.is_empty(),
+    )?;
+    if plan.clauses.is_empty() {
+        return Err(anyhow::anyhow!(
+            "query {query:?} selects no {provider:?} row — nothing in it narrows the selection, so \
+             the operation would cover the whole table; pass 'all:true' to target every row on \
+             purpose"
+        ));
+    }
+    Ok(())
+}
+#[cfg(test)]
+#[path = "../../tests/unit/host/query.rs"]
+mod tests;
+
+pub(crate) async fn require_narrowing(
+    db: &Db,
+    host: &crate::host::bridge::Host,
+    provider: Provider,
+    query: &str,
+) -> anyhow::Result<()> {
+    require_narrowing_with(plan, db, host, provider, query).await
+}

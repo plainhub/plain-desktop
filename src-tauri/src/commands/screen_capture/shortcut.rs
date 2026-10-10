@@ -2,10 +2,14 @@ use serde::Serialize;
 use tauri::{AppHandle, Manager, Runtime, plugin::TauriPlugin};
 use tauri_plugin_global_shortcut::{GlobalShortcutExt, Shortcut, ShortcutState};
 
-use super::commands::{finish_reserved_capture, new_capture_session_id, schedule_capture_timeouts};
-use super::contract::{CaptureError, CaptureErrorCode, CaptureOrigin};
-use super::runtime::ScreenCaptureRuntime;
-use super::window::TauriCaptureWindowPort;
+use crate::commands::screen_capture::commands::finish_reserved_capture;
+use crate::commands::screen_capture::commands::new_capture_session_id;
+use crate::commands::screen_capture::commands::schedule_capture_timeouts;
+use crate::commands::screen_capture::contract::CaptureError;
+use crate::commands::screen_capture::contract::CaptureErrorCode;
+use crate::commands::screen_capture::contract::CaptureOrigin;
+use crate::commands::screen_capture::runtime::ScreenCaptureRuntime;
+use crate::commands::screen_capture::window::TauriCaptureWindowPort;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum CaptureShortcutPlatform {
@@ -293,7 +297,8 @@ where
     windows
         .into_iter()
         .find(|(label, focused)| {
-            *focused && super::runtime::is_regular_window_label(label.as_ref())
+            *focused
+                && crate::commands::screen_capture::runtime::is_regular_window_label(label.as_ref())
         })
         .map(|(label, _)| label.as_ref().to_string())
 }

@@ -43,7 +43,7 @@ mod trashed_sms;
 #[cfg(feature = "library")]
 mod video_play_progress;
 
-pub(super) fn init(conn: &Connection) -> rusqlite::Result<()> {
+pub(crate) fn init(conn: &Connection) -> rusqlite::Result<()> {
     #[cfg(feature = "library")]
     archived_conversation::init(conn)?;
     #[cfg(feature = "chat")]

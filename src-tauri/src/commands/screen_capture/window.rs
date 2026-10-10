@@ -9,15 +9,28 @@ use tauri::{PhysicalPosition, PhysicalSize};
 #[cfg(target_os = "windows")]
 use crate::commands::webview_creation;
 
-use super::runtime::FRAME_AVAILABLE_EVENT;
-use super::runtime::{
-    CaptureWindowPort, CaptureWindowState, DELIVERY_FAILED_EVENT, DeliveryFailedPayload,
-    FrameAvailablePayload, OVERLAY_SESSION_ENDED_EVENT, OverlayConcealment,
-    OverlaySessionEndedPayload, OverlayWindowSpec, RESULT_AVAILABLE_EVENT, ResultAvailablePayload,
-    SESSION_ENDED_EVENT, SESSION_STARTED_EVENT, ScreenCaptureRuntime, SessionEndedPayload,
-    SessionStartedPayload, TARGET_UNAVAILABLE_EVENT, TargetUnavailablePayload,
-};
-use crate::capture::{CaptureError, CaptureErrorCode, DisplayInfo};
+use crate::capture::CaptureError;
+use crate::capture::CaptureErrorCode;
+use crate::capture::DisplayInfo;
+use crate::commands::screen_capture::runtime::CaptureWindowPort;
+use crate::commands::screen_capture::runtime::CaptureWindowState;
+use crate::commands::screen_capture::runtime::DELIVERY_FAILED_EVENT;
+use crate::commands::screen_capture::runtime::DeliveryFailedPayload;
+use crate::commands::screen_capture::runtime::FRAME_AVAILABLE_EVENT;
+use crate::commands::screen_capture::runtime::FrameAvailablePayload;
+use crate::commands::screen_capture::runtime::OVERLAY_SESSION_ENDED_EVENT;
+use crate::commands::screen_capture::runtime::OverlayConcealment;
+use crate::commands::screen_capture::runtime::OverlaySessionEndedPayload;
+use crate::commands::screen_capture::runtime::OverlayWindowSpec;
+use crate::commands::screen_capture::runtime::RESULT_AVAILABLE_EVENT;
+use crate::commands::screen_capture::runtime::ResultAvailablePayload;
+use crate::commands::screen_capture::runtime::SESSION_ENDED_EVENT;
+use crate::commands::screen_capture::runtime::SESSION_STARTED_EVENT;
+use crate::commands::screen_capture::runtime::ScreenCaptureRuntime;
+use crate::commands::screen_capture::runtime::SessionEndedPayload;
+use crate::commands::screen_capture::runtime::SessionStartedPayload;
+use crate::commands::screen_capture::runtime::TARGET_UNAVAILABLE_EVENT;
+use crate::commands::screen_capture::runtime::TargetUnavailablePayload;
 
 /// The production implementation of the small synchronous window interface
 /// used by the capture runtime. Keeping Tauri handles out of the coordinator
@@ -32,7 +45,9 @@ pub(crate) fn overlay_native_window_ids<R: tauri::Runtime>(app: &tauri::AppHandl
 
     app.webview_windows()
         .into_iter()
-        .filter(|(label, _)| super::runtime::is_overlay_window_label(label.as_str()))
+        .filter(|(label, _)| {
+            crate::commands::screen_capture::runtime::is_overlay_window_label(label.as_str())
+        })
         .filter_map(|(_, window)| {
             let ns_window = window.ns_window().ok()? as *mut NSWindow;
             let number = unsafe { ns_window.as_ref()? }.windowNumber();
@@ -379,8 +394,8 @@ impl<R: Runtime> CaptureWindowPort for TauriCaptureWindowPort<R> {
             monitor.scale_factor
         );
         #[cfg(target_os = "linux")]
-        if super::shortcut::current_linux_shortcut_backend()
-            == super::shortcut::LinuxShortcutBackend::WaylandPortalRequired
+        if crate::commands::screen_capture::shortcut::current_linux_shortcut_backend()
+            == crate::commands::screen_capture::shortcut::LinuxShortcutBackend::WaylandPortalRequired
         {
             return position_wayland_overlay(&window, monitor);
         }

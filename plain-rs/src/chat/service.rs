@@ -17,12 +17,15 @@ use tokio::sync::broadcast;
 
 use crate::chat::cacher::ChatCacher;
 use crate::chat::enums::DeviceType;
-use crate::chat::events::{
-    ChannelKeyCache, ChatEvent, PeerKeyCache, load_key_cache, new_channel_key_cache,
-    new_peer_key_cache,
-};
-use crate::chat::transport::PeerTransport;
-use crate::db::{DChat, Db};
+use crate::chat::events::ChannelKeyCache;
+use crate::chat::events::ChatEvent;
+use crate::chat::events::PeerKeyCache;
+use crate::chat::events::load_key_cache;
+use crate::chat::events::new_channel_key_cache;
+use crate::chat::events::new_peer_key_cache;
+use crate::db::DChat;
+use crate::db::Db;
+use crate::transport::contract::PeerTransport;
 
 /// Local device identity for pairing and message signing.
 pub struct ChatIdentity {
@@ -83,7 +86,7 @@ pub fn no_link_previews() -> LinkPreviewFn {
 /// Generic over the app's HTTP transport to peers.
 pub struct ChatService<T: PeerTransport> {
     pub db: Db,
-    pub delivery: std::sync::Arc<super::delivery::Delivery>,
+    pub delivery: std::sync::Arc<crate::chat::delivery::Delivery>,
     pub cacher: ChatCacher,
     /// Base64 local URL token — the key behind `/fs` file ids.
     pub token: String,
@@ -121,7 +124,7 @@ impl<T: PeerTransport + 'static> ChatService<T> {
         cacher.load(&db);
         load_key_cache(&db, &peer_key_cache, &channel_key_cache);
         Self {
-            delivery: std::sync::Arc::new(super::delivery::Delivery::new(db.clone())),
+            delivery: std::sync::Arc::new(crate::chat::delivery::Delivery::new(db.clone())),
             db,
             cacher,
             token,
@@ -137,7 +140,7 @@ impl<T: PeerTransport + 'static> ChatService<T> {
         }
     }
 
-    pub(super) fn emit(&self, event_type: &'static str, payload: String) {
+    pub(crate) fn emit(&self, event_type: &'static str, payload: String) {
         let _ = self.event_tx.send(ChatEvent {
             event_type,
             payload,
@@ -153,8 +156,9 @@ impl<T: PeerTransport + 'static> ChatService<T> {
     }
 }
 
-pub use crate::chat::content::to_peer_content;
-pub use crate::chat::manager::{chat_to_json, resolve_chat_ids};
+pub use crate::chat::manager::chat_to_json;
+pub use crate::chat::manager::resolve_chat_ids;
+pub use crate::chat::messages::content::to_peer_content;
 
 #[cfg(test)]
 #[path = "../../tests/unit/chat/service.rs"]

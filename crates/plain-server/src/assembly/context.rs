@@ -1,17 +1,19 @@
 //! Shared types, WebSocket event infrastructure, and resolver context.
 
 use crate::assembly::AppIdentity;
-use crate::services::chat_service::ChatState;
-use crate::services::discover::{NearbyDiscoverManager, PeerStatusManager};
+use crate::services::chat::desktop::ChatState;
+use crate::services::discovery::local::NearbyDiscoverManager;
+use crate::services::discovery::local::PeerStatusManager;
 use plain_rs::db::Db;
 use std::path::PathBuf;
 use std::sync::Arc;
 use std::sync::atomic::AtomicU16;
 use tokio::sync::broadcast;
 
-pub use plain_rs::chat::events::{WS_MESSAGE_UPDATED, WS_PEER_STATUS_UPDATED};
+pub use plain_rs::chat::events::WS_MESSAGE_UPDATED;
+pub use plain_rs::chat::events::WS_PEER_STATUS_UPDATED;
 
-pub use plain_rs::ws_event::WS_BOOKMARK_UPDATED;
+pub use plain_rs::events::WS_BOOKMARK_UPDATED;
 pub const WS_DEVICE_NAME_UPDATED: &'static str = "DEVICE_NAME_UPDATED";
 /// Peer file download progress — payload is a JSON array of
 /// `DownloadProgressItem` (id, messageId, downloaded, total, speed, status).
@@ -44,16 +46,16 @@ pub const WS_NEARBY_DISCOVERY_STOPPED: &'static str = "NEARBY_DISCOVERY_STOPPED"
 /// Result of an async chunk merge started by `mergeChunksAsync`. Payload is a
 /// JSON object `{fileId, ok, value?, mergedSize?, error?}`.
 pub const WS_UPLOAD_MERGE_RESULT: &'static str = "UPLOAD_MERGE_RESULT";
-pub use plain_rs::ws_event::WS_IMAGE_EDITOR_UPDATE;
-pub use plain_rs::ws_event::WS_POMODORO_ACTION;
+pub use plain_rs::events::WS_IMAGE_EDITOR_UPDATE;
+pub use plain_rs::events::WS_POMODORO_ACTION;
 
-pub use plain_rs::ws_event::WsEvent;
+pub use plain_rs::events::WsEvent;
 
 /// All server-level dependencies bundled for injection into async-graphql resolvers.
 /// Passed per-request via `Request::data(Arc<AppCtx>)`.
 pub struct AppCtx {
-    pub uploads: Arc<plain_rs::uploads::Runtime>,
-    pub image_updates: Arc<plain_rs::image_editor::Updates>,
+    pub uploads: Arc<plain_rs::files::uploads::Runtime>,
+    pub image_updates: Arc<plain_rs::media::images::editor::Updates>,
     pub pomodoro: Arc<crate::services::pomodoro::Service>,
     pub feed_sync: Arc<crate::services::feeds::SyncService>,
     pub db: Arc<Db>,
@@ -65,7 +67,7 @@ pub struct AppCtx {
     pub discover_manager: NearbyDiscoverManager,
     /// The assembled chat stack (service + pairing manager + key caches).
     pub chat: Arc<ChatState>,
-    pub dlna_engine: Arc<crate::services::dlna_receiver::receiver_engine::DlnaEngine>,
+    pub dlna_engine: Arc<crate::services::casting::receiver::receiver_engine::DlnaEngine>,
     pub event_tx: broadcast::Sender<WsEvent>,
     pub token: String,
     pub port: Arc<AtomicU16>,
@@ -81,7 +83,7 @@ pub struct AppCtx {
     /// The media stack (fjall store, scan engine, thumbnails) behind the
     /// `media` feature — plain-desktop enables it for local file browsing.
     #[cfg(feature = "media")]
-    pub media: Arc<plain_media::media::service::MediaService>,
+    pub media: Arc<plain_media::scan::service::MediaService>,
 }
 
 impl AppCtx {
@@ -103,7 +105,7 @@ impl AppCtx {
             ed25519_keypair: chat.identity.ed25519_keypair.clone(),
         });
         let db = Arc::new(chat.service.db.clone());
-        let media = Arc::new(plain_media::media::service::MediaService::init(
+        let media = Arc::new(plain_media::scan::service::MediaService::init(
             &data_dir, &cache_dir,
         )?);
         let peer_status = PeerStatusManager::new(db.clone(), identity.clone());
@@ -123,8 +125,8 @@ impl AppCtx {
         );
         let token = chat.service.token.clone();
         Ok(Arc::new(Self {
-            uploads: Arc::new(plain_rs::uploads::Runtime::default()),
-            image_updates: plain_rs::image_editor::Updates::new(event_tx.clone()),
+            uploads: Arc::new(plain_rs::files::uploads::Runtime::default()),
+            image_updates: plain_rs::media::images::editor::Updates::new(event_tx.clone()),
             pomodoro: crate::services::pomodoro::Service::new(
                 db.clone(),
                 prefs.clone(),
@@ -145,7 +147,7 @@ impl AppCtx {
             discover_manager,
             chat,
             dlna_engine: Arc::new(
-                crate::services::dlna_receiver::receiver_engine::DlnaEngine::new(),
+                crate::services::casting::receiver::receiver_engine::DlnaEngine::new(),
             ),
             event_tx,
             token,
@@ -170,30 +172,34 @@ pub trait ShellHooks: Send + Sync {
     fn app_version(&self) -> String {
         String::new()
     }
-    fn capabilities(&self) -> Vec<crate::graphql::main::types::Capability> {
+    fn capabilities(&self) -> Vec<crate::graphql::resolvers::app::desktop_types::Capability> {
         Vec::new()
     }
-    fn disks(&self) -> anyhow::Result<Vec<crate::graphql::main::capability_types::Disk>> {
+    fn disks(&self) -> anyhow::Result<Vec<crate::graphql::resolvers::app::capability_types::Disk>> {
         anyhow::bail!("disk manager unavailable")
     }
-    fn app_update(&self) -> anyhow::Result<crate::graphql::main::capability_types::AppUpdate> {
-        Ok(crate::graphql::main::capability_types::AppUpdate {
-            current_version: self.app_version(),
-            latest_version: None,
-            has_update: false,
-            url: None,
-        })
+    fn app_update(
+        &self,
+    ) -> anyhow::Result<crate::graphql::resolvers::app::capability_types::AppUpdate> {
+        Ok(
+            crate::graphql::resolvers::app::capability_types::AppUpdate {
+                current_version: self.app_version(),
+                latest_version: None,
+                has_update: false,
+                url: None,
+            },
+        )
     }
     fn samba_settings(
         &self,
         _prefs: &plain_rs::prefs::Prefs,
-    ) -> anyhow::Result<crate::graphql::main::capability_types::SambaSettings> {
+    ) -> anyhow::Result<crate::graphql::resolvers::app::capability_types::SambaSettings> {
         anyhow::bail!("LAN share unavailable")
     }
     fn set_samba_settings(
         &self,
         _prefs: &plain_rs::prefs::Prefs,
-        _input: crate::graphql::main::capability_types::SambaSettingsInput,
+        _input: crate::graphql::resolvers::app::capability_types::SambaSettingsInput,
     ) -> anyhow::Result<()> {
         anyhow::bail!("LAN share unavailable")
     }
@@ -207,7 +213,7 @@ pub trait ShellHooks: Send + Sync {
     fn dlna_renderers(
         &self,
         _cid: &str,
-    ) -> anyhow::Result<Vec<crate::graphql::main::capability_types::DlnaRenderer>> {
+    ) -> anyhow::Result<Vec<crate::graphql::resolvers::app::capability_types::DlnaRenderer>> {
         anyhow::bail!("DLNA sender unavailable")
     }
     fn dlna_cast(
@@ -216,7 +222,7 @@ pub trait ShellHooks: Send + Sync {
         _url: &str,
         _title: &str,
         _mime: &str,
-        _media_type: crate::graphql::main::types::MediaDataType,
+        _media_type: crate::graphql::resolvers::media::types::MediaDataType,
         _prefs: &plain_rs::prefs::Prefs,
     ) -> anyhow::Result<()> {
         anyhow::bail!("DLNA sender unavailable")

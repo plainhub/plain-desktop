@@ -6,20 +6,31 @@ use tauri::{
     ipc::{Request, Response},
 };
 
-use super::backend::capture_frame_at_cursor_exclusive;
-use super::contract::{
-    CaptureResultDescriptor, CaptureResultSubmission, CaptureTarget, CapturedFrame,
-    MAX_PNG_RESULT_BYTES, NativeCapturePhase,
-};
-use super::export::{SaveCaptureOutcome, TauriCaptureExportPort, stable_png_filename};
-use super::ipc::{raw_response, require_raw_body};
-use super::runtime::{
-    CapturePublishOutcome, CaptureStartResponse, CaptureTicket, CaptureTimeoutKind, OverlayInit,
-    ScreenCaptureRuntime, acquire_and_publish_once, is_overlay_window_label,
-    is_regular_window_label,
-};
-use super::window::TauriCaptureWindowPort;
-use crate::capture::{CaptureError, CaptureErrorCode, CssRect};
+use crate::capture::CaptureError;
+use crate::capture::CaptureErrorCode;
+use crate::capture::CssRect;
+use crate::commands::screen_capture::backend::capture_frame_at_cursor_exclusive;
+use crate::commands::screen_capture::contract::CaptureResultDescriptor;
+use crate::commands::screen_capture::contract::CaptureResultSubmission;
+use crate::commands::screen_capture::contract::CaptureTarget;
+use crate::commands::screen_capture::contract::CapturedFrame;
+use crate::commands::screen_capture::contract::MAX_PNG_RESULT_BYTES;
+use crate::commands::screen_capture::contract::NativeCapturePhase;
+use crate::commands::screen_capture::export::SaveCaptureOutcome;
+use crate::commands::screen_capture::export::TauriCaptureExportPort;
+use crate::commands::screen_capture::export::stable_png_filename;
+use crate::commands::screen_capture::ipc::raw_response;
+use crate::commands::screen_capture::ipc::require_raw_body;
+use crate::commands::screen_capture::runtime::CapturePublishOutcome;
+use crate::commands::screen_capture::runtime::CaptureStartResponse;
+use crate::commands::screen_capture::runtime::CaptureTicket;
+use crate::commands::screen_capture::runtime::CaptureTimeoutKind;
+use crate::commands::screen_capture::runtime::OverlayInit;
+use crate::commands::screen_capture::runtime::ScreenCaptureRuntime;
+use crate::commands::screen_capture::runtime::acquire_and_publish_once;
+use crate::commands::screen_capture::runtime::is_overlay_window_label;
+use crate::commands::screen_capture::runtime::is_regular_window_label;
+use crate::commands::screen_capture::window::TauriCaptureWindowPort;
 
 pub const RESULT_SESSION_HEADER: &str = "x-plain-capture-session-id";
 pub const RESULT_GENERATION_HEADER: &str = "x-plain-capture-overlay-generation";
@@ -123,19 +134,20 @@ pub fn screen_capture_open_permission_settings(window: WebviewWindow) -> Result<
 }
 
 #[tauri::command]
-pub fn screen_capture_shortcut_status() -> super::shortcut::CaptureShortcutStatus {
-    super::shortcut::snapshot_status()
+pub fn screen_capture_shortcut_status()
+-> crate::commands::screen_capture::shortcut::CaptureShortcutStatus {
+    crate::commands::screen_capture::shortcut::snapshot_status()
 }
 
 #[tauri::command]
 pub async fn screen_capture_set_shortcut(
     window: WebviewWindow,
     accelerator: Option<String>,
-) -> Result<super::shortcut::CaptureShortcutStatus, CaptureError> {
+) -> Result<crate::commands::screen_capture::shortcut::CaptureShortcutStatus, CaptureError> {
     authorize_permission_command_caller(window.label())?;
     let app = window.app_handle().clone();
     tauri::async_runtime::spawn_blocking(move || {
-        super::shortcut::apply_shortcut_change(&app, accelerator)
+        crate::commands::screen_capture::shortcut::apply_shortcut_change(&app, accelerator)
     })
     .await
     .map_err(|error| {
@@ -373,7 +385,7 @@ pub fn screen_capture_pending_frame(
     window: WebviewWindow,
     runtime: State<'_, ScreenCaptureRuntime>,
     overlay_generation: u64,
-) -> Result<Option<super::runtime::FrameAvailablePayload>, CaptureError> {
+) -> Result<Option<crate::commands::screen_capture::runtime::FrameAvailablePayload>, CaptureError> {
     #[cfg(target_os = "windows")]
     log::info!(
         "screen capture pending-frame command entered caller={} generation={}",
@@ -413,8 +425,8 @@ pub fn screen_capture_frame_presented(
         result.is_ok()
     );
     #[cfg(all(debug_assertions, target_os = "macos"))]
-    if result.is_ok() && super::selftest::armed() {
-        super::selftest::schedule_presentation_probe(
+    if result.is_ok() && crate::commands::screen_capture::selftest::armed() {
+        crate::commands::screen_capture::selftest::schedule_presentation_probe(
             window.app_handle().clone(),
             session_id.clone(),
             caller_window_label,
@@ -910,7 +922,7 @@ async fn acquire_native_frame<R: Runtime>(
         );
     }
 
-    let exclude = super::window::overlay_native_window_ids(&app);
+    let exclude = crate::commands::screen_capture::window::overlay_native_window_ids(&app);
     tauri::async_runtime::spawn_blocking(move || {
         let backend = crate::capture::platform_capture()?;
         capture_frame_at_cursor_exclusive(backend.as_ref(), &session_id, &exclude)
@@ -1016,11 +1028,12 @@ where
 
 #[cfg(test)]
 mod tests {
-    use super::{
-        MAX_CLIENT_ERROR_DETAIL_CHARS, authorize_permission_command_caller,
-        bounded_client_error_detail, new_capture_delivery_lease_id, new_capture_result_id,
-        new_capture_session_id,
-    };
+    use super::MAX_CLIENT_ERROR_DETAIL_CHARS;
+    use super::authorize_permission_command_caller;
+    use super::bounded_client_error_detail;
+    use super::new_capture_delivery_lease_id;
+    use super::new_capture_result_id;
+    use super::new_capture_session_id;
 
     #[test]
     fn client_error_detail_is_bounded_and_cannot_forge_log_lines() {

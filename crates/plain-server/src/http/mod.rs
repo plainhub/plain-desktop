@@ -4,3 +4,16 @@ pub mod listeners;
 pub mod server;
 #[cfg(feature = "http_transport")]
 pub mod tls_identity;
+
+#[cfg(all(feature = "host-api", feature = "http_transport"))]
+pub mod tls_identity_host;
+
+pub mod proxy;
+
+pub mod routes;
+
+pub mod websocket;
+
+pub mod auth;
+
+pub mod sessions;

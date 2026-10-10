@@ -1,0 +1,101 @@
+//! Host access and fact decoding for the public `/graphql` schema.
+//!
+//! The platform layer answers with JSON (`systemPackageFacts`,
+//! `systemContactFacts`, …); these helpers turn it into the contract types
+//! in [`crate::graphql::types`]. Missing timestamps fall back to the epoch,
+//! matching plain-app's `Instant.fromEpochMilliseconds(0)` for facts the
+//! platform could not fill in.
+
+use crate::graphql::types::Instant;
+use crate::host::bridge::Host;
+use async_graphql::{Context, ID};
+use serde_json::Value;
+use std::sync::Arc;
+
+/// One host round trip returning a JSON array of facts.
+pub(crate) async fn host_json(
+    ctx: &Context<'_>,
+    method: &str,
+    params: Value,
+) -> async_graphql::Result<Vec<Value>> {
+    let facts = ctx
+        .data_unchecked::<Arc<Host>>()
+        .call(method, params)
+        .await
+        .map_err(|error| async_graphql::Error::new(error))?;
+    serde_json::from_value(facts).map_err(|error| async_graphql::Error::new(error.to_string()))
+}
+
+pub(crate) fn text(value: &Value, key: &str) -> String {
+    value[key].as_str().unwrap_or_default().to_string()
+}
+
+pub(crate) fn flag(value: &Value, key: &str) -> bool {
+    value[key].as_bool().unwrap_or(false)
+}
+
+pub(crate) fn id(value: &Value, key: &str) -> ID {
+    ID::from(text(value, key))
+}
+
+pub(crate) fn integer(value: &Value, key: &str) -> i64 {
+    value[key].as_i64().unwrap_or_default()
+}
+
+pub(crate) fn instant(value: &Value, key: &str) -> Instant {
+    optional_instant(value, key).unwrap_or(epoch())
+}
+
+pub(crate) fn optional_instant(value: &Value, key: &str) -> Option<Instant> {
+    value[key]
+        .as_str()
+        .and_then(|raw| chrono::DateTime::parse_from_rfc3339(raw).ok())
+        .map(|parsed| Instant(parsed.with_timezone(&chrono::Utc)))
+}
+
+/// A timestamp read straight out of one of this crate's own tables, where
+/// it is stored as RFC3339. A malformed one is corruption in a table only
+/// Rust writes, so it degrades to the epoch the same way an unreadable
+/// platform fact does instead of failing the whole page.
+pub(crate) fn stored_instant(value: &str) -> Instant {
+    chrono::DateTime::parse_from_rfc3339(value)
+        .map(|parsed| Instant(parsed.with_timezone(&chrono::Utc)))
+        .unwrap_or_else(|_| epoch())
+}
+
+fn epoch() -> Instant {
+    Instant(chrono::DateTime::from_timestamp(0, 0).unwrap_or_default())
+}
+
+pub(crate) fn strings(value: &Value, key: &str) -> Vec<String> {
+    value[key]
+        .as_array()
+        .map(|items| {
+            items
+                .iter()
+                .map(|item| item.as_str().unwrap_or_default().to_string())
+                .collect()
+        })
+        .unwrap_or_default()
+}
+
+/// Maps a nested array of raw facts, dropping anything that is not an object
+/// so one malformed row cannot fail the whole page.
+pub(crate) fn list<T>(value: &Value, key: &str, item: impl Fn(&Value) -> T) -> Vec<T> {
+    rows(&value[key], item)
+}
+
+/// The same mapping for a host reply that is a bare JSON array rather than
+/// an object wrapping one.
+pub(crate) fn rows<T>(value: &Value, item: impl Fn(&Value) -> T) -> Vec<T> {
+    value
+        .as_array()
+        .map(|items| {
+            items
+                .iter()
+                .filter(|item| item.is_object())
+                .map(item)
+                .collect()
+        })
+        .unwrap_or_default()
+}

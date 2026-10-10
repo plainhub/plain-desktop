@@ -1,8 +1,4 @@
 #[cfg(feature = "chat")]
-pub mod app_files;
-#[cfg(feature = "ble")]
-pub mod ble;
-#[cfg(feature = "chat")]
 pub mod chat;
 #[cfg(feature = "crypto")]
 pub mod crypto;
@@ -10,38 +6,24 @@ pub mod crypto;
 pub mod db;
 #[cfg(feature = "library")]
 pub mod enums;
-#[cfg(feature = "filesystem")]
-pub mod filesystem;
-#[cfg(feature = "services")]
-pub mod image_editor;
+#[cfg(feature = "events")]
+pub mod events;
 #[cfg(feature = "library")]
-pub mod library;
-#[cfg(feature = "mdns")]
-pub mod mdns;
+pub mod media;
 #[cfg(feature = "library")]
 pub mod notes;
 #[cfg(feature = "prefs")]
 pub mod prefs;
-#[cfg(feature = "services")]
-pub mod shares;
 #[cfg(feature = "tls")]
 pub mod tls;
-#[cfg(feature = "services")]
-pub mod uploads;
-#[cfg(feature = "library")]
-pub mod video_progress;
-#[cfg(feature = "events")]
-pub mod ws_event;
 #[cfg(feature = "sqlite_browse")]
 pub mod sqlite_browse {
     pub use crate::db::browse::*;
 }
 pub mod utils;
 #[cfg(feature = "crypto")]
-pub use crypto::*;
-pub use utils::*;
-#[cfg(feature = "crypto")]
-pub mod ws_frame;
+pub use crate::crypto::*;
+pub use crate::utils::*;
 /// Test fixtures whose dir must outlive the helper that created it
 /// (`Db::open(dir)`, `ServerState`…) register it here instead of
 /// `mem::forget`-ing the TempDir: dirs stay alive for the whole test
@@ -68,3 +50,41 @@ pub(crate) mod test_tempdirs {
         }
     }
 }
+
+#[cfg(feature = "library")]
+pub mod favorites;
+
+#[cfg(feature = "library")]
+pub mod tags;
+
+#[cfg(feature = "library")]
+pub mod clipboard;
+
+#[cfg(feature = "library")]
+pub mod error;
+
+#[cfg(any(
+    feature = "chat",
+    feature = "filesystem",
+    feature = "services",
+    feature = "library"
+))]
+pub mod files;
+
+#[cfg(any(feature = "ble", feature = "mdns", feature = "crypto"))]
+pub mod protocols;
+
+#[cfg(feature = "ble-native")]
+pub mod ffi;
+
+#[cfg(feature = "chat")]
+pub mod discovery;
+
+#[cfg(feature = "chat")]
+pub mod peers;
+
+#[cfg(feature = "chat")]
+pub mod transport;
+
+#[cfg(feature = "feeds")]
+pub mod feeds;

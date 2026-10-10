@@ -1,12 +1,13 @@
-use super::{
-    channel::{chat_helper::ChannelDeliveryResult, messages::ChannelMember},
-    enums::ChannelStatus,
-    transport::{PeerTransport, chat_item_request},
-};
-use crate::db::{
-    DChat, Db,
-    chat_store::{channels, messages, peers},
-};
+use crate::chat::channels::chat_helper::ChannelDeliveryResult;
+use crate::chat::channels::messages::ChannelMember;
+use crate::chat::enums::ChannelStatus;
+use crate::db::DChat;
+use crate::db::Db;
+use crate::db::chat_store::channels;
+use crate::db::chat_store::messages;
+use crate::db::chat_store::peers;
+use crate::transport::contract::PeerTransport;
+use crate::transport::contract::chat_item_request;
 use anyhow::{Result, bail};
 use std::{
     collections::{HashMap, HashSet},
@@ -93,7 +94,7 @@ impl Delivery {
                 rediscover: false,
             });
         }
-        let content = super::content::peer_content(&chat.content, url_token)?;
+        let content = crate::chat::messages::content::peer_content(&chat.content, url_token)?;
         let targets = if chat.channel_id.is_empty() {
             if retry {
                 bail!("Targeted retry requires a channel");
@@ -134,7 +135,7 @@ impl Delivery {
                     .collect(),
             }
         };
-        chat.status = super::enums::ChatStatus::Pending;
+        chat.status = crate::chat::enums::ChatStatus::Pending;
         chat.updated_at = crate::db::now_iso();
         self.db.with_conn(|connection|->Result<()> {
             let changed=connection.execute("UPDATE chats SET status='PENDING',updated_at=?3 WHERE id=?1 AND content=?2 AND from_id='me'",rusqlite::params![chat.id,chat.content,chat.updated_at])?;
@@ -213,7 +214,7 @@ impl Delivery {
         rediscover: bool,
     ) -> Result<Receipt> {
         Ok(Receipt {
-            chat: super::message_lifecycle::delivery_for_content(
+            chat: crate::chat::messages::message_lifecycle::delivery_for_content(
                 &self.db,
                 &chat.id,
                 results,
@@ -228,3 +229,7 @@ impl Delivery {
 #[cfg(test)]
 #[path = "../../tests/unit/chat/delivery.rs"]
 mod tests;
+
+mod receiver;
+
+mod sender;

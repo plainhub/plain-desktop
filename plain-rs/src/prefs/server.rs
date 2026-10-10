@@ -1,4 +1,4 @@
-use super::Prefs;
+use crate::prefs::Prefs;
 
 pub fn http_port(prefs: &Prefs) -> u16 {
     prefs.get_or("http_port", 8080u64) as u16
