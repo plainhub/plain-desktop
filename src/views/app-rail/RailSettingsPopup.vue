@@ -137,7 +137,6 @@ import { openAboutWindow } from '@/lib/api/tauri-window'
 import { clearCurrentSession } from '@/lib/device/current'
 import { clear as prefsClear } from '@/lib/prefs'
 import { useLocaleSwitch } from '@/composables/useLocaleSwitch'
-import emitter from '@/plugins/eventbus'
 import ThemeChanger from '@/components/ThemeChanger.vue'
 import CustomizeUIModal from './CustomizeUIModal.vue'
 import ExcludedDirsModal from './ExcludedDirsModal.vue'
@@ -295,7 +294,6 @@ function editDeviceName() {
     done: (value: string) => {
       if (app.value) app.value.deviceName = value
       void updateLoginPeerName(getRemoteClientId(), value)
-      emitter.emit('DEVICE_NAME_UPDATED', value)
     },
   })
 }
