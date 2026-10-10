@@ -165,10 +165,8 @@ pub(crate) async fn call(
                 if path.trim().is_empty() {
                     return Ok(json!({"ok":false,"chats":[]}));
                 }
-                let token =
-                    plain_rs::utils::base64::base64_encode(&plain_rs::crypto::random_bytes(32));
                 let service = plain_rs::files::shares::Service::new(state.db.clone(), state.prefs.clone());
-                let row = service.create(name, vec![path], token, true, expires_at)?;
+                let row = service.create(name, vec![path], true, expires_at)?;
                 let content =
                     crate::services::chat::chat_actions::share_content(&state, &row.id)
                         .await?

@@ -18,11 +18,25 @@ fn create(service: &Service, paths: Vec<PathBuf>) -> ShareRow {
         .create(
             "share".into(),
             paths.iter().map(|p| p.to_str().unwrap().into()).collect(),
-            crate::utils::base64::base64_encode(&[8; 32]),
             true,
             None,
         )
         .unwrap()
+}
+#[test]
+fn generated_url_token_is_unique_and_32_bytes() {
+    let (dir, s) = fixture();
+    let root = dir.path().join("docs");
+    std::fs::create_dir(&root).unwrap();
+    let a = create(&s, vec![root.clone()]);
+    let b = create(&s, vec![root]);
+    assert_eq!(
+        crate::utils::base64::base64_decode_checked(&a.url_token)
+            .unwrap()
+            .len(),
+        32
+    );
+    assert_ne!(a.url_token, b.url_token);
 }
 #[test]
 fn roots_traversal_and_files() {
@@ -65,7 +79,6 @@ fn duplicate_names_are_rejected_without_persisting() {
         s.create(
             "x".into(),
             vec![a.to_str().unwrap().into(), b.to_str().unwrap().into()],
-            crate::utils::base64::base64_encode(&[8; 32]),
             true,
             None
         )

@@ -368,7 +368,7 @@ type Mutation {
 	audioPlayPath(path: String!): AudioPlayback!
 	saveVideoPlayProgress(mediaId: ID!, positionMs: Long!): VideoPlayProgress!
 	deleteVideoPlayProgress(mediaId: ID!): Boolean!
-	createShare(name: String!, realPaths: [String!]!, urlToken: String!, readOnly: Boolean!, expiresAt: Instant): ShareRecord!
+	createShare(name: String!, realPaths: [String!]!, readOnly: Boolean!, expiresAt: Instant): ShareRecord!
 	updateShare(id: ID!, name: String!, expiresAt: Instant, realPaths: [String!]): ShareRecord!
 	deleteShare(id: ID!): Boolean!
 	importAppFile(source: String!, fileName: String!, mimeType: String!, deleteSource: Boolean!): AppFileRecord!

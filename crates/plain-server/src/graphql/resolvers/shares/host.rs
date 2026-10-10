@@ -141,7 +141,6 @@ impl ShareHostMutation {
         ctx: &Context<'_>,
         name: String,
         real_paths: Vec<String>,
-        url_token: String,
         read_only: bool,
         expires_at: Option<Instant>,
     ) -> async_graphql::Result<ShareRecord> {
@@ -151,7 +150,6 @@ impl ShareHostMutation {
                 service.create(
                     name,
                     real_paths,
-                    url_token,
                     read_only,
                     expires_at.map(|i| i.0.to_rfc3339()),
                 )

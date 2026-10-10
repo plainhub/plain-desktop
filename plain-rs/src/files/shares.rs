@@ -69,21 +69,16 @@ impl Service {
         &self,
         name: String,
         paths: Vec<String>,
-        token: String,
         read_only: bool,
         expires: Option<String>,
     ) -> anyhow::Result<ShareRow> {
-        anyhow::ensure!(
-            crate::utils::base64::base64_decode_checked(&token)?.len() == 32,
-            "invalid URL token"
-        );
         validate_expiry(expires.as_deref())?;
         let now = chrono::Utc::now().to_rfc3339();
         let row = ShareRow {
             id: crate::short_uuid::short_uuid(),
             name,
             password: String::new(),
-            url_token: token,
+            url_token: crate::crypto::gen_token(),
             read_only,
             expires_at: expires,
             data: Self::build_roots(paths)?,

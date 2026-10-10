@@ -242,7 +242,6 @@ async fn own_share_links_use_root_secret_ports_and_revocation_without_host() {
         .create(
             "fixture".into(),
             vec![path.to_str().unwrap().into()],
-            plain_rs::utils::base64::base64_encode(&[8; 32]),
             true,
             None,
         )

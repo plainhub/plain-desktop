@@ -27,7 +27,6 @@ async fn guest_executes_encrypted_contract_and_rejects_replay_and_revocation() {
         .create(
             "Test".into(),
             vec![folder.to_str().unwrap().into()],
-            plain_rs::utils::base64::base64_encode(&[12; 32]),
             true,
             None,
         )
