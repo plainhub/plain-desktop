@@ -414,6 +414,7 @@ async fn no_root_field_fails_for_unregistered_schema_data() {
     let dir = tempfile::tempdir().unwrap();
     let prefs = Arc::new(Prefs::load(&dir.path().join("system_prefs.json")).unwrap());
     let (events, _) = tokio::sync::broadcast::channel(16);
+    let probe_prefs = prefs.clone();
     let schema = build(
         Arc::new(crate::host::bridge::Host::default()),
         events,
@@ -424,6 +425,15 @@ async fn no_root_field_fails_for_unregistered_schema_data() {
 
     let mut unregistered = Vec::new();
     let mut unwalkable = Vec::new();
+    // `peers` resolves against `assembly::server::ServerState`, which the HTTP
+    // layer registers per request; without it the probe reports the root as
+    // unregistered. A real server instance provides the genuine type.
+    let server = crate::assembly::server::ContentServer::start(
+        &dir.path().join("probe.db"),
+        &plain_rs::utils::base64::base64_encode(&[7; 32]),
+        probe_prefs,
+    )
+    .expect("probe server");
     for (name, ty) in &roots {
         let base = base_type(ty);
         let selection = leaves(ty);
@@ -440,7 +450,12 @@ async fn no_root_field_fails_for_unregistered_schema_data() {
         } else {
             format!("{{ {name} {{ {} }} }}", selection.join(" "))
         };
-        let response = schema.execute(query.as_str()).await;
+        let response = schema
+            .execute(
+                async_graphql::Request::new(query.as_str())
+                    .data(server.runtime_state()),
+            )
+            .await;
         for error in response.errors {
             if error.message.contains("does not exist") {
                 unregistered.push(format!("{name}: {}", error.message));

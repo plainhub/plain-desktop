@@ -6,7 +6,7 @@ use plain_rs::db::DPeer;
 use plain_rs::db::chat_store::SaveMode;
 use plain_rs::db::chat_store::messages;
 use plain_rs::db::chat_store::peers;
-use plain_rs::shares::client::Link;
+use plain_rs::files::shares::client::Link;
 use std::sync::{
     Arc,
     atomic::{AtomicUsize, Ordering},

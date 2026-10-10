@@ -1058,7 +1058,11 @@ fn joined_iface_list() -> Vec<String> {
     names
 }
 
-pub(crate) fn record_received(
+/// Test seam: public under the `test-seams` feature so plain-server's mdns
+/// runtime tests can assert the packet-capture effect of these sends.
+#[cfg(any(test, feature = "test-seams"))]
+#[doc(hidden)]
+pub fn record_received(
     socket: &std::net::UdpSocket,
     src: std::net::SocketAddr,
     bytes: &[u8],
@@ -1067,7 +1071,10 @@ pub(crate) fn record_received(
         crate::protocols::mdns::packet_capture::record("IN", src, dst, bytes);
     }
 }
-pub(crate) fn send_recorded(
+/// Test seam: public under the `test-seams` feature, see [`record_received`].
+#[cfg(any(test, feature = "test-seams"))]
+#[doc(hidden)]
+pub fn send_recorded(
     socket: &std::net::UdpSocket,
     bytes: &[u8],
     dst: impl Into<std::net::SocketAddr>,

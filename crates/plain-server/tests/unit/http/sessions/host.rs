@@ -55,7 +55,7 @@ async fn native_management_public_auth_and_revoke_share_one_database_without_hos
     let mut headers = HeaderMap::new();
     headers.insert("c-id", id.parse().unwrap());
     headers.insert("authorization", format!("Bearer {token}").parse().unwrap());
-    let response = main_graphql::call(
+    let response = graphql::call(
         State(state.clone()),
         headers.clone(),
         axum::body::Bytes::from(r#"{"query":"{noteCount(query:\"\")}"}"#),
@@ -87,7 +87,7 @@ async fn native_management_public_auth_and_revoke_share_one_database_without_hos
     let mut wrong = headers.clone();
     wrong.insert("authorization", "Bearer wrong".parse().unwrap());
     assert_eq!(
-        main_graphql::call(State(state.clone()), wrong, axum::body::Bytes::from("{}"))
+        graphql::call(State(state.clone()), wrong, axum::body::Bytes::from("{}"))
             .await
             .status(),
         StatusCode::UNAUTHORIZED
@@ -101,7 +101,7 @@ async fn native_management_public_auth_and_revoke_share_one_database_without_hos
     .unwrap();
     assert!(key(&state.db, id).unwrap().is_none());
     assert_eq!(
-        main_graphql::call(State(state.clone()), headers, axum::body::Bytes::from("{}"))
+        graphql::call(State(state.clone()), headers, axum::body::Bytes::from("{}"))
             .await
             .status(),
         StatusCode::UNAUTHORIZED
@@ -177,7 +177,7 @@ async fn web_login_ecdh_encrypted_response_signature_and_token_auth_survive_rest
         chrono::Utc::now().timestamp_millis(),
         uuid::Uuid::new_v4()
     );
-    let response = main_graphql::call(
+    let response = graphql::call(
         State(state.clone()),
         headers.clone(),
         axum::body::Bytes::from(
@@ -196,7 +196,7 @@ async fn web_login_ecdh_encrypted_response_signature_and_token_auth_survive_rest
         format!("Bearer {}", row.token).parse().unwrap(),
     );
     assert_eq!(
-        main_graphql::call(State(state), headers, axum::body::Bytes::from("{}"))
+        graphql::call(State(state), headers, axum::body::Bytes::from("{}"))
             .await
             .status(),
         StatusCode::UNAUTHORIZED
@@ -326,7 +326,7 @@ async fn login_pairing_and_password_initialization_use_rust_state_only() {
     let token = key(&state.db, "browser").unwrap().unwrap();
     let mut headers = HeaderMap::new();
     headers.insert("c-id", "browser".parse().unwrap());
-    let response = main_graphql::init(
+    let response = graphql::init(
         State(state.clone()),
         axum::extract::ConnectInfo("127.0.0.1:1".parse().unwrap()),
         headers.clone(),
@@ -341,7 +341,7 @@ async fn login_pairing_and_password_initialization_use_rust_state_only() {
     .unwrap();
     assert_eq!(response["password"], "");
     assert!(!response["signaturePublicKey"].as_str().unwrap().is_empty());
-    let response = main_graphql::init(
+    let response = graphql::init(
         State(state.clone()),
         axum::extract::ConnectInfo("127.0.0.1:1".parse().unwrap()),
         headers,

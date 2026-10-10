@@ -282,6 +282,10 @@ type ClipboardItem {
 	createdAt: Instant!
 }
 
+"""
+The contract's `Tag` carries no numeric kind — that lives in the
+`tags(type:)` filter instead — so it is not `content_types::Tag`.
+"""
 type Contact {
 	id: ID!
 	prefix: String!
@@ -808,6 +812,39 @@ type Mount {
 }
 
 type Mutation {
+	uninstallPackages(ids: [ID!]!): Boolean!
+	"""
+	Bundle unpacking is heavy disk I/O, so the platform side keeps it off
+	the engine thread; a failure surfaces as `Installation failed: …`.
+	"""
+	installPackage(path: String!): PackageInstallPending!
+	createContact(input: ContactInput!): Contact!
+	updateContact(id: ID!, input: ContactInput!): Contact!
+	deleteContacts(query: String!): ActionResult!
+	createContactGroup(name: String!, accountName: String!, accountType: String!): ContactGroup!
+	updateContactGroup(id: ID!, name: String!): ContactGroup!
+	deleteContactGroup(id: ID!): Boolean!
+	archiveSmsConversation(id: ID!): Boolean!
+	unarchiveSmsConversation(id: ID!): Boolean!
+	trashSms(query: String!): ActionResult!
+	restoreSms(query: String!): ActionResult!
+	deleteSms(query: String!): ActionResult!
+	"""
+	`subscriptionId` picks the SIM (-1 = system default, see `sims`);
+	`requestId` is an optional idempotency key that dedupes retried sends.
+	"""
+	sendSms(number: String!, body: String!, subscriptionId: Int!, requestId: String): Boolean!
+	"""
+	Compose an MMS in the device's default SMS app and track the send.
+	Returns a pendingId consumed by the MMS polling flow.
+	"""
+	sendMms(number: String!, body: String!, attachmentPaths: [String!]!, threadId: ID!): String!
+	deleteCalls(query: String!): ActionResult!
+	"""
+	`showDialer` hands the number to the dialer instead of placing the
+	call outright.
+	"""
+	call(number: String!, showDialer: Boolean!): Boolean!
 	addBookmarks(urls: [String!]!, groupId: ID!): [Bookmark!]!
 	updateBookmark(id: ID!, input: BookmarkInput!): Bookmark!
 	deleteBookmarks(ids: [ID!]!): ActionResult!
@@ -911,12 +948,6 @@ type Mutation {
 	respondToPairing(input: PairingRequestInput!, accepted: Boolean!): Boolean!
 	deletePeer(id: ID!): Boolean!
 	unpairPeer(id: ID!): Boolean!
-	uninstallPackages(ids: [ID!]!): Boolean!
-	"""
-	Bundle unpacking is heavy disk I/O, so the platform side keeps it off
-	the engine thread; a failure surfaces as `Installation failed: …`.
-	"""
-	installPackage(path: String!): PackageInstallPending!
 	deleteNotifications(ids: [ID!]!): ActionResult!
 	"""
 	`actionIndex` indexes [`Notification::reply_actions`], the
@@ -935,33 +966,6 @@ type Mutation {
 	send `all:true` to target everything.
 	"""
 	deleteClipboardItems(query: String!): ActionResult!
-	createContact(input: ContactInput!): Contact!
-	updateContact(id: ID!, input: ContactInput!): Contact!
-	deleteContacts(query: String!): ActionResult!
-	createContactGroup(name: String!, accountName: String!, accountType: String!): ContactGroup!
-	updateContactGroup(id: ID!, name: String!): ContactGroup!
-	deleteContactGroup(id: ID!): Boolean!
-	archiveSmsConversation(id: ID!): Boolean!
-	unarchiveSmsConversation(id: ID!): Boolean!
-	trashSms(query: String!): ActionResult!
-	restoreSms(query: String!): ActionResult!
-	deleteSms(query: String!): ActionResult!
-	"""
-	`subscriptionId` picks the SIM (-1 = system default, see `sims`);
-	`requestId` is an optional idempotency key that dedupes retried sends.
-	"""
-	sendSms(number: String!, body: String!, subscriptionId: Int!, requestId: String): Boolean!
-	"""
-	Compose an MMS in the device's default SMS app and track the send.
-	Returns a pendingId consumed by the MMS polling flow.
-	"""
-	sendMms(number: String!, body: String!, attachmentPaths: [String!]!, threadId: ID!): String!
-	deleteCalls(query: String!): ActionResult!
-	"""
-	`showDialer` hands the number to the dialer instead of placing the
-	call outright.
-	"""
-	call(number: String!, showDialer: Boolean!): Boolean!
 	startScreenMirror(audio: Boolean!): Boolean!
 	stopScreenMirror: Boolean!
 	"""
@@ -1296,6 +1300,28 @@ enum PostalType {
 }
 
 type Query {
+	packages(query: String!, offset: Int!, limit: Int!, sortBy: FileSortBy!): [Package!]!
+	packageCount(query: String!): Int!
+	packageStatuses(ids: [ID!]!): [PackageStatus!]!
+	contacts(query: String!, offset: Int!, limit: Int!): [Contact!]!
+	"""
+	plain-app degrades this to 0 rather than erroring when the web client
+	was not granted the contact permission.
+	"""
+	contactCount(query: String!): Int!
+	contactSources: [ContactSource!]!
+	contactGroups: [ContactGroup!]!
+	sms(query: String!, offset: Int!, limit: Int!): [Sms!]!
+	smsCount(query: String!): Int!
+	smsBoxCounts: SmsCounts!
+	smsConversations(query: String!, offset: Int!, limit: Int!): [SmsConversation!]!
+	smsConversationCount(query: String!): Int!
+	archivedSmsConversations(query: String!, offset: Int!, limit: Int!): [SmsConversation!]!
+	calls(query: String!, offset: Int!, limit: Int!): [Call!]!
+	"""
+	plain-app degrades this to 0 rather than erroring.
+	"""
+	callCount(query: String!): Int!
 	appFiles(query: String!, offset: Int!, limit: Int!): [AppFile!]!
 	appFileCount(query: String!): Int!
 	bookmarks: [Bookmark!]!
@@ -1357,9 +1383,6 @@ type Query {
 	telephony, which is the honest answer rather than an error.
 	"""
 	sims: [Sim!]!
-	packages(query: String!, offset: Int!, limit: Int!, sortBy: FileSortBy!): [Package!]!
-	packageCount(query: String!): Int!
-	packageStatuses(ids: [ID!]!): [PackageStatus!]!
 	notifications(query: String!, offset: Int!, limit: Int!): [Notification!]!
 	notificationCount(query: String!): Int!
 	"""
@@ -1367,25 +1390,6 @@ type Query {
 	"""
 	clipboardItems(query: String!, offset: Int!, limit: Int!): [ClipboardItem!]!
 	clipboardItemCount(query: String!): Int!
-	contacts(query: String!, offset: Int!, limit: Int!): [Contact!]!
-	"""
-	plain-app degrades this to 0 rather than erroring when the web client
-	was not granted the contact permission.
-	"""
-	contactCount(query: String!): Int!
-	contactSources: [ContactSource!]!
-	contactGroups: [ContactGroup!]!
-	sms(query: String!, offset: Int!, limit: Int!): [Sms!]!
-	smsCount(query: String!): Int!
-	smsBoxCounts: SmsCounts!
-	smsConversations(query: String!, offset: Int!, limit: Int!): [SmsConversation!]!
-	smsConversationCount(query: String!): Int!
-	archivedSmsConversations(query: String!, offset: Int!, limit: Int!): [SmsConversation!]!
-	calls(query: String!, offset: Int!, limit: Int!): [Call!]!
-	"""
-	plain-app degrades this to 0 rather than erroring.
-	"""
-	callCount(query: String!): Int!
 	isScreenMirroring: Boolean!
 	screenMirrorControlEnabled: Boolean!
 	"""
@@ -1443,11 +1447,6 @@ type Query {
 	schema.
 	"""
 	favoriteFolders: [FavoriteFolder!]!
-	"""
-	Folder counts for one library kind. Degrades to empty rather than
-	erroring: a client showing the folder strip has nothing useful to do
-	with `no_permission`, but an empty strip reads as "no folders yet".
-	"""
 	mediaBuckets(type: MediaDataType!): [MediaBucket!]!
 	imageCount(query: String!): Int!
 	images(query: String!, offset: Int!, limit: Int!, sortBy: FileSortBy!): [Image!]!
@@ -1590,10 +1589,6 @@ enum SmsType {
 	UNKNOWN
 }
 
-"""
-The contract's `Tag` carries no numeric kind — that lives in the
-`tags(type:)` filter instead — so it is not `content_types::Tag`.
-"""
 type Tag {
 	id: ID!
 	name: String!

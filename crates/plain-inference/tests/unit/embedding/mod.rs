@@ -1,50 +1,9 @@
 use super::*;
-use crate::models::{default_model, manifest};
-use sha2::{Digest, Sha256};
+use crate::models::default_model;
+use crate::models::test_fixture::fixture;
+use crate::models::package as onnx_package;
+use crate::preprocess;
 
-pub(crate) fn fixture(directory: &Path) -> Manifest {
-    std::fs::create_dir_all(directory).unwrap();
-    let mut manifest = default_model::manifest();
-    let data: [(&str, &[u8]); 3] = [
-        (
-            "image.onnx",
-            include_bytes!("../../../../../plain-rs/testdata/image_search/image.onnx"),
-        ),
-        (
-            "text.onnx",
-            include_bytes!("../../../../../plain-rs/testdata/image_search/text.onnx"),
-        ),
-        (
-            "tokenizer.json",
-            include_bytes!("../../../../../plain-rs/testdata/image_search/tokenizer.json"),
-        ),
-    ];
-    manifest.files = data
-        .into_iter()
-        .map(|(name, bytes)| {
-            std::fs::write(directory.join(name), bytes).unwrap();
-            manifest::File {
-                name: name.into(),
-                size: bytes.len() as u64,
-                sha256: format!("{:x}", Sha256::digest(bytes)),
-            }
-        })
-        .collect();
-    manifest.dimensions = 4;
-    manifest.image.input = "pixels".into();
-    manifest.image.output = "embedding".into();
-    manifest.text.inputs[0].name = "ids".into();
-    manifest.text.output = "embedding".into();
-    manifest.preprocess.size = 16;
-    manifest.tokenizer.context_length = 4;
-    manifest.tokenizer.pad_token = "[PAD]".into();
-    std::fs::write(
-        directory.join("manifest.json"),
-        serde_json::to_vec(&manifest).unwrap(),
-    )
-    .unwrap();
-    manifest
-}
 #[test]
 fn real_runtime_executes_paired_encoders_and_reloads_released_sessions() {
     let directory = tempfile::tempdir().unwrap();

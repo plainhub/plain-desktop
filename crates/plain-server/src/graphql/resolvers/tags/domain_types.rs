@@ -9,7 +9,7 @@ pub struct Tag {
     pub name: String,
     /// Numeric tag kind — the ordinal of the tag's `DataType`
     /// (DEFAULT=0, AUDIO=1, VIDEO=2, IMAGE=3, …). The NAS only has data
-    /// for the media kinds; the Int is frozen phone contract .
+    /// for the media kinds; the Int is frozen phone contract.
     pub r#type: i32,
     pub count: i32,
 }

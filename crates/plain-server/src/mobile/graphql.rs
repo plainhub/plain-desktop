@@ -7,10 +7,13 @@ use crate::mobile::phone_calls::resolvers::CallsQuery;
 use crate::mobile::sms::resolvers::SmsMutation;
 use crate::mobile::sms::resolvers::SmsQuery;
 use async_graphql::{EmptySubscription, MergedObject, SchemaBuilder};
+// Not named `Query`: async-graphql derives a merged object's GraphQL name
+// from its Rust type name, and this one is merged into `public::Query`.
 #[derive(MergedObject, Default)]
-pub struct Query(PackagesQuery, ContactsQuery, SmsQuery, CallsQuery);
+pub struct MobileQuery(PackagesQuery, ContactsQuery, SmsQuery, CallsQuery);
+// Not named `Mutation`, for the same reason as `MobileQuery`.
 #[derive(MergedObject, Default)]
-pub struct Mutation(
+pub struct MobileMutation(
     PackagesMutation,
     ContactsMutation,
     SmsMutation,

@@ -1,4 +1,5 @@
 use super::*;
+use plain_rs::feeds::{count, delete_entries, export_opml, import_opml};
 
 fn database() -> (tempfile::TempDir, Db) {
     let dir = tempfile::tempdir().unwrap();

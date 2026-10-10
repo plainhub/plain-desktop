@@ -23,7 +23,7 @@ async fn settled(runtime: &Runtime) {
 async fn failed_replacement_preserves_active_package_index_and_search() {
     let directory = tempfile::tempdir().unwrap();
     let incoming = directory.path().join("ai_models/incoming");
-    let original = plain_inference::tests::fixture(&incoming);
+    let original = plain_inference::models::test_fixture::fixture(&incoming);
     let photo = directory.path().join("photo.png");
     image::RgbImage::from_pixel(64, 64, image::Rgb([128, 64, 32]))
         .save(&photo)
@@ -61,7 +61,7 @@ async fn failed_replacement_preserves_active_package_index_and_search() {
     );
     assert_eq!(plain_rs::media::images::embeddings::count(&db).unwrap(), 1);
     assert_eq!(runtime.search("cat", 50).await.unwrap()[0].image_id, "one");
-    let mut replacement = plain_inference::tests::fixture(&incoming);
+    let mut replacement = plain_inference::models::test_fixture::fixture(&incoming);
     replacement.files[0].sha256 = "0".repeat(64);
     std::fs::write(
         incoming.join("manifest.json"),
@@ -94,7 +94,7 @@ async fn failed_replacement_preserves_active_package_index_and_search() {
     );
     assert!(runtime.snapshot().status.error_message.is_empty());
     assert_eq!(runtime.search("cat", 50).await.unwrap()[0].score, 1.0);
-    replacement = plain_inference::tests::fixture(&incoming);
+    replacement = plain_inference::models::test_fixture::fixture(&incoming);
     replacement.id = "different-space".into();
     std::fs::write(
         incoming.join("manifest.json"),

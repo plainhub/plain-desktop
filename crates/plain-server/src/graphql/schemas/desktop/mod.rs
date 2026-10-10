@@ -99,7 +99,3 @@ pub fn build_schema() -> ApiSchema {
 #[cfg(test)]
 #[path = "../../../../tests/unit/graphql/schemas/desktop/mod.rs"]
 mod tests;
-
-#[cfg(test)]
-#[path = "../../../../tests/unit/graphql/schemas/desktop/mod.rs"]
-mod schema_split;

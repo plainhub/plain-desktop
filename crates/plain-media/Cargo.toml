@@ -8,6 +8,9 @@ description = "Shared Plain media scanning, indexing and thumbnails"
 [features]
 "default" = ["library"]
 "library" = ["plain-rs/library"]
+# Exposes test-only seams (e.g. paths::pin_test_data_dir) to dependent crates'
+# test binaries, which `#[cfg(test)]` alone cannot reach.
+"test-seams" = []
 
 [dependencies]
 "rand" = "0.8"

@@ -64,8 +64,12 @@ fn default_cache_dir() -> PathBuf {
 /// whichever value the env var held when the index first initialized
 /// rooted the index there, and the owning test's `TempDir` cleanup then
 /// deleted the index directory out from under every later test.
-#[cfg(test)]
-pub(crate) fn pin_test_data_dir() -> PathBuf {
+///
+/// Public under the `test-seams` feature so plain-server's media resolver
+/// tests can pin the same process-global index from their own test binary.
+#[cfg(any(test, feature = "test-seams"))]
+#[doc(hidden)]
+pub fn pin_test_data_dir() -> PathBuf {
     static PINNED: OnceLock<PathBuf> = OnceLock::new();
     PINNED
         .get_or_init(|| {

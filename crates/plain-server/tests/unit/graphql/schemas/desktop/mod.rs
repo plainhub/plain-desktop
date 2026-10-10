@@ -16,14 +16,14 @@ fn split_dir() -> std::path::PathBuf {
 
 #[derive(Default, async_graphql::MergedObject)]
 struct ChatMutation(
-    chat_message::ChatMessageMutation,
-    chat_channel::ChatChannelMutation,
-    chat_peer::ChatPeerMutation,
-    download::DownloadMutation,
+    ChatMessageMutation,
+    ChatChannelMutation,
+    ChatPeerMutation,
+    DownloadMutation,
 );
 
 #[derive(Default, async_graphql::MergedObject)]
-struct DiscoverMutations(discover::DiscoverMutation, pairing::PairingMutation);
+struct DiscoverMutations(DiscoverMutation, PairingMutation);
 
 fn sdl_of<Q: async_graphql::ObjectType + 'static, M: async_graphql::ObjectType + 'static>(
     query: Q,
@@ -36,63 +36,39 @@ fn sdl_of<Q: async_graphql::ObjectType + 'static, M: async_graphql::ObjectType +
 
 fn feature_sdl() -> Vec<(&'static str, String)> {
     vec![
-        ("app", sdl_of(app::AppQuery, app::AppMutation)),
-        ("app_file", sdl_of(app_file::AppFileQuery, EmptyMutation)),
-        (
-            "app_logs",
-            sdl_of(app_logs::AppLogsQuery, app_logs::AppLogsMutation),
-        ),
-        ("audio", sdl_of(audio::AudioQuery, audio::AudioMutation)),
-        (
-            "bookmark",
-            sdl_of(bookmark::BookmarkQuery, bookmark::BookmarkMutation),
-        ),
-        (
-            "capability",
-            sdl_of(capability::CapabilityQuery, capability::CapabilityMutation),
-        ),
-        (
-            "chat",
-            sdl_of(chat_query::ChatQuery, ChatMutation::default()),
-        ),
-        ("db", sdl_of(db::DbQuery, db::DbMutation)),
+        ("app", sdl_of(AppQuery, AppMutation)),
+        ("app_file", sdl_of(AppFileQuery, EmptyMutation)),
+        ("app_logs", sdl_of(AppLogsQuery, AppLogsMutation)),
+        ("audio", sdl_of(AudioQuery, AudioMutation)),
+        ("bookmark", sdl_of(BookmarkQuery, BookmarkMutation)),
+        ("capability", sdl_of(CapabilityQuery, CapabilityMutation)),
+        ("chat", sdl_of(ChatQuery, ChatMutation::default())),
+        ("db", sdl_of(DbQuery, DbMutation)),
         (
             "discover",
-            sdl_of(discover::DiscoverQuery, DiscoverMutations::default()),
+            sdl_of(DiscoverQuery, DiscoverMutations::default()),
         ),
         (
             "favorite_folder",
-            sdl_of(
-                favorite_folder::FavoriteFolderQuery,
-                favorite_folder::FavoriteFolderMutation,
-            ),
+            sdl_of(FavoriteFolderQuery, FavoriteFolderMutation),
         ),
-        ("feed", sdl_of(feed::FeedQuery, feed::FeedMutation)),
-        ("files", sdl_of(file_query::FileInfoQuery, EmptyMutation)),
-        (
-            "file_upload",
-            sdl_of(
-                file_upload::FileUploadQuery,
-                file_upload::FileUploadMutation,
-            ),
-        ),
+        ("feed", sdl_of(FeedQuery, FeedMutation)),
+        ("files", sdl_of(FileInfoQuery, EmptyMutation)),
+        ("file_upload", sdl_of(FileUploadQuery, FileUploadMutation)),
         (
             "image_editor",
-            sdl_of(
-                image_editor_project::ImageEditorProjectQuery,
-                image_editor_project::ImageEditorProjectMutation,
-            ),
+            sdl_of(ImageEditorProjectQuery, ImageEditorProjectMutation),
         ),
         (
             "media",
-            sdl_of(media::MediaQueryRoot, media::MediaMutationRoot),
+            sdl_of(
+                crate::graphql::resolvers::media::desktop::MediaQueryRoot,
+                crate::graphql::resolvers::media::desktop::MediaMutationRoot,
+            ),
         ),
-        ("note", sdl_of(note::NoteQuery, note::NoteMutation)),
-        (
-            "pomodoro",
-            sdl_of(pomodoro::PomodoroQuery, pomodoro::PomodoroMutation),
-        ),
-        ("prefs", sdl_of(prefs::PrefsQuery, prefs::PrefsMutation)),
+        ("note", sdl_of(NoteQuery, NoteMutation)),
+        ("pomodoro", sdl_of(PomodoroQuery, PomodoroMutation)),
+        ("prefs", sdl_of(PrefsQuery, PrefsMutation)),
     ]
 }
 

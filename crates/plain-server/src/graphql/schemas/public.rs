@@ -7,13 +7,13 @@
 //! network. Here only the contract's root fields exist, so anything missing
 //! from [`crate::graphql::types`] is a gap to fill rather than a leak.
 #[cfg(feature = "mobile")]
-use crate::mobile::graphql::Mutation as MobileMutation;
+use crate::mobile::graphql::MobileMutation as MobileMutationImpl;
 #[cfg(feature = "mobile")]
-use crate::mobile::graphql::Query as MobileQuery;
+use crate::mobile::graphql::MobileQuery as MobileQueryImpl;
 #[cfg(not(feature = "mobile"))]
-type MobileQuery = async_graphql::MergedObjectTail;
+type MobileQueryImpl = async_graphql::MergedObjectTail;
 #[cfg(not(feature = "mobile"))]
-type MobileMutation = async_graphql::MergedObjectTail;
+type MobileMutationImpl = async_graphql::MergedObjectTail;
 use crate::graphql::resolvers::docs::public::DocsQuery;
 use crate::graphql::resolvers::images::public::ImagesQuery;
 use crate::graphql::resolvers::videos::public::VideosQuery;
@@ -75,7 +75,7 @@ use std::sync::Arc;
 // and a note about which roots are reused is not part of the contract.
 #[derive(MergedObject, Default)]
 pub struct Query(
-    MobileQuery,
+    MobileQueryImpl,
     crate::graphql::resolvers::files::app_file::AppFileQuery,
     crate::graphql::resolvers::bookmarks::bookmark::BookmarkQuery,
     crate::graphql::resolvers::pomodoro::pomodoro::PomodoroQuery,
@@ -103,7 +103,7 @@ pub struct Query(
 
 #[derive(MergedObject, Default)]
 pub struct Mutation(
-    MobileMutation,
+    MobileMutationImpl,
     crate::graphql::resolvers::bookmarks::bookmark::BookmarkMutation,
     crate::graphql::resolvers::pomodoro::pomodoro::PomodoroMutation,
     crate::graphql::resolvers::images::image_editor_project::ImageEditorProjectMutation,

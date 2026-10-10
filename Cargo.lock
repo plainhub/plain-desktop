@@ -5555,6 +5555,7 @@ dependencies = [
  "plain-media",
  "plain-rs",
  "rand 0.8.8",
+ "rcgen",
  "regex",
  "reqwest 0.12.28",
  "rusqlite",

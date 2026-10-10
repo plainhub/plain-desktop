@@ -6,6 +6,9 @@ rust-version = "1.96"
 description = "Shared Plain ONNX image and text inference"
 
 [features]
+# Exposes test-only seams (e.g. models::test_fixture) to dependent crates'
+# test binaries, which `#[cfg(test)]` alone cannot reach.
+"test-seams" = []
 
 [dependencies]
 "tokenizers" = { "version" = "0.22.2", "default-features" = false, "features" = ["fancy-regex"] }
