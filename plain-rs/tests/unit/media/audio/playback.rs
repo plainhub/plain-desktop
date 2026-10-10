@@ -1,5 +1,5 @@
 use super::*;
-use crate::media::audio::queue;
+use crate::media::audio::queue as audio_queue;
 #[test]
 fn resume_is_exact_and_stale_reports_cannot_overwrite_seek_or_returned_track() {
     let dir = tempfile::tempdir().unwrap();

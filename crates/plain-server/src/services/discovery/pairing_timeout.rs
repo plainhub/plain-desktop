@@ -32,3 +32,7 @@ pub(crate) fn start(
         }
     })
 }
+
+#[cfg(test)]
+#[path = "../../../tests/unit/services/discovery/pairing_timeout.rs"]
+mod tests;

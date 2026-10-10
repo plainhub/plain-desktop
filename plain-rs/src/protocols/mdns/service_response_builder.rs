@@ -202,8 +202,8 @@ fn a_records(service: &MdnsServiceInfo) -> Vec<u8> {
 
 #[cfg(test)]
 mod tests {
+    use super::super::service_info::MdnsServiceInfo;
     use super::super::service_info::PLAINAPP_SERVICE_TYPE;
-    use super::crate::protocols::mdns::service_info::MdnsServiceInfo;
     use super::*;
 
     fn service(port: u16) -> MdnsServiceInfo {

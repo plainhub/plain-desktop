@@ -1,5 +1,5 @@
 use super::*;
-use axum::{extract::ConnectInfo, routing::get};
+use axum::{extract::ConnectInfo, routing::get, routing::post};
 
 fn certificate() -> (Vec<u8>, Vec<u8>) {
     let cert = rcgen::generate_simple_self_signed(vec!["localhost".into()]).unwrap();
@@ -83,4 +83,66 @@ async fn listener_task_abort_is_reported_and_shutdown_releases_ports() {
     for port in ports {
         assert!(std::net::TcpListener::bind(("0.0.0.0", port)).is_ok());
     }
+}
+
+/// The nearby wire speaks over the generated-TLS listener: plain-rs's
+/// client must probe, deliver a pairing cancel, read a rejection as
+/// `false`, honour its own deadline, and fail once the listener is gone.
+#[tokio::test]
+async fn nearby_client_handles_probe_accept_reject_timeout_and_offline() {
+    use axum::http::{HeaderMap, StatusCode};
+    use plain_rs::discovery::nearby_http::{Message, post_url, probe, send, url};
+    use plain_rs::peers::pairing::protocol::PairingCancel;
+
+    let (cert, key) = certificate();
+    let router = Router::new().route(
+        "/nearby",
+        post(|headers: HeaderMap, body: String| async move {
+            assert_eq!(headers["content-type"], "application/json");
+            if body == "DISCOVER:" {
+                return StatusCode::OK;
+            }
+            if body == "slow" {
+                tokio::time::sleep(Duration::from_millis(100)).await;
+                return StatusCode::OK;
+            }
+            let value: serde_json::Value =
+                serde_json::from_str(body.strip_prefix("PAIR_CANCEL:").unwrap()).unwrap();
+            if value["toId"] == "reject" {
+                StatusCode::BAD_REQUEST
+            } else {
+                StatusCode::OK
+            }
+        }),
+    );
+    let server = HttpListeners::start(router, 0, 0, cert, key).await.unwrap();
+    assert!(probe("127.0.0.1", server.https_port).await.unwrap());
+    let cancel = |to: &str| {
+        Message::PairCancel(PairingCancel {
+            from_id: "fixture".into(),
+            to_id: to.into(),
+        })
+    };
+    assert!(
+        send("127.0.0.1", server.https_port, &cancel("accept"))
+            .await
+            .unwrap()
+    );
+    assert!(
+        !send("127.0.0.1", server.https_port, &cancel("reject"))
+            .await
+            .unwrap()
+    );
+    assert!(
+        !post_url(
+            &url("127.0.0.1", server.https_port).unwrap(),
+            "slow".into(),
+            Duration::from_millis(10)
+        )
+        .await
+        .unwrap()
+    );
+    let port = server.https_port;
+    server.shutdown().await;
+    assert!(!probe("127.0.0.1", port).await.unwrap());
 }

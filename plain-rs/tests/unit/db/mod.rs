@@ -3,7 +3,20 @@
 #[path = "../library/fixtures.rs"]
 mod fixtures;
 use crate::db::Db;
-use fixtures::*;
+use fixtures::test_db;
+
+/// Fresh temp dir per call (label + pid + nanos): isolates parallel
+/// tests and leaves nothing behind from a previous run.
+pub fn unique_tmp_dir(label: &str) -> std::path::PathBuf {
+    let nanos = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map(|d| d.as_nanos())
+        .unwrap_or(0);
+    std::env::temp_dir().join(format!(
+        "plain-rs-db-{label}-{}-{nanos}",
+        std::process::id()
+    ))
+}
 
 #[test]
 fn open_creates_every_table_once() {
@@ -33,17 +46,19 @@ fn open_creates_every_table_once() {
         );
     }
     assert!(!tables.iter().any(|t| t == "settings"));
-    // Reopening the same file is fine (CREATE IF NOT EXISTS).
-    let path = std::env::temp_dir().join(format!(
-        "plain-rs-library-reopen2-{}.db",
-        std::process::id()
-    ));
-    let _ = std::fs::remove_file(&path);
+    // Reopening the same file is fine (CREATE IF NOT EXISTS). The path
+    // must be unique: this file is mounted as `db::tests`,
+    // `db::chat_tests` and `db::library_tests` in one binary, and all
+    // three run concurrently.
+    let dir = tempfile::Builder::new()
+        .prefix("plain-rs-library-reopen2-")
+        .tempdir()
+        .unwrap();
+    let path = dir.path().join("reopen.db");
     {
         let _a = Db::open(&path).unwrap();
     }
     let _b = Db::open(&path).unwrap();
-    let _ = std::fs::remove_file(&path);
 }
 
 #[test]

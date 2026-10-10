@@ -21,7 +21,9 @@ fn client() -> Result<&'static reqwest::Client> {
         .as_ref()
         .map_err(|e| anyhow::anyhow!(e.to_owned()))
 }
-fn url(ip: &str, port: u16) -> Result<String> {
+/// Endpoint the nearby wire speaks to. Shared with the TLS listener
+/// tests in plain-server, which assert against the same URL.
+pub fn url(ip: &str, port: u16) -> Result<String> {
     anyhow::ensure!(port != 0, "Missing nearby port");
     let ip: IpAddr = ip
         .trim()
@@ -30,7 +32,9 @@ fn url(ip: &str, port: u16) -> Result<String> {
         .parse()?;
     Ok(format!("https://{}/nearby", SocketAddr::new(ip, port)))
 }
-async fn post_url(url: &str, body: String, timeout: Duration) -> Result<bool> {
+/// POST a raw wire body; `false` on transport failure, timeout or a
+/// non-success status. `timeout` is the per-call deadline.
+pub async fn post_url(url: &str, body: String, timeout: Duration) -> Result<bool> {
     let result = client()?
         .post(url)
         .header(reqwest::header::CONTENT_TYPE, "application/json")

@@ -65,18 +65,18 @@ async fn merge_replace_false_appends_variant() {
     let dest = dir.join("myfile.txt");
     std::fs::write(&dest, b"existing").unwrap();
     // Pre-existing variant (1)
-    let v1 = dir.join("myfile (1).txt");
+    let v1 = dir.join("myfile_1.txt");
     std::fs::write(&v1, b"existing-v1").unwrap();
 
     save_chunk(&dir, "f2", 0, b"fresh").await.unwrap();
     let (name, size) = merge_chunks(&dir, "f2", 1, dest.to_str().unwrap(), false)
         .await
         .unwrap();
-    assert_eq!(name, "myfile (2).txt");
+    assert_eq!(name, "myfile_2.txt");
     assert_eq!(size, b"fresh".len() as u64);
     let body = std::fs::read(&v1).unwrap();
-    assert_eq!(body, b"existing-v1", "variant (1) must be untouched");
-    let new_body = std::fs::read(dir.join("myfile (2).txt")).unwrap();
+    assert_eq!(body, b"existing-v1", "variant 1 must be untouched");
+    let new_body = std::fs::read(dir.join("myfile_2.txt")).unwrap();
     assert_eq!(new_body, b"fresh");
 }
 

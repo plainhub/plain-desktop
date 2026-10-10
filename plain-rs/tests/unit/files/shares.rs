@@ -126,10 +126,13 @@ fn encrypted_file_ids_are_share_bound_and_roots_are_fresh() {
     std::fs::create_dir(&b).unwrap();
     std::fs::write(a.join("x"), b"x").unwrap();
     let row = create(&s, vec![a]);
+    // Guests encrypt the file id with the share's URL token — the same
+    // key the web client uses in `getSharedFileId(urlToken, …)`.
+    let key = crate::utils::base64::base64_decode_checked(&row.url_token).unwrap();
     let encrypt = |id: &str| {
         crate::utils::base64::base64_encode(
             &crate::xchacha_encrypt_raw(
-                &[8; 32],
+                &key,
                 serde_json::json!({"sharedId":id,"virtualPath":"a/x"})
                     .to_string()
                     .as_bytes(),
@@ -201,7 +204,7 @@ fn browse_and_archive_exclude_escaping_symlinks() {
     );
     let encrypted = crate::utils::base64::base64_encode(
         &crate::xchacha_encrypt_raw(
-            &[8; 32],
+            &crate::utils::base64::base64_decode_checked(&row.url_token).unwrap(),
             serde_json::json!({"sharedId":row.id,"virtualPath":"root"})
                 .to_string()
                 .as_bytes(),

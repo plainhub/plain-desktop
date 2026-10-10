@@ -902,7 +902,7 @@ mod tests {
 
     use super::super::service_info::MdnsServiceInfo;
     use super::super::service_response_builder;
-    use super::crate::protocols::mdns::service_info::PLAINAPP_SERVICE_TYPE as SERVICE_TYPE;
+    use crate::protocols::mdns::service_info::PLAINAPP_SERVICE_TYPE as SERVICE_TYPE;
 
     fn test_service(instance_name: &str, service_type: &str) -> MdnsServiceInfo {
         MdnsServiceInfo {

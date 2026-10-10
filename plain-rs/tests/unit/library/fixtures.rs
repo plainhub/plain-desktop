@@ -3,25 +3,27 @@
 //! for a platform media index.
 //!
 //! Included (`#[path]`) by several test modules; not every consumer uses
-//! every item.
+//! every item. Paths name `plain_rs::` explicitly so the same file also
+//! works when plain-media mounts it from its own crate root.
 #![allow(dead_code)]
 
-use crate::db::Db;
-use crate::error::DomainResult;
-use crate::media::audio::queue::AudioTrack;
-use crate::media::audio::queue::LibraryTracks;
-use std::sync::atomic::{AtomicUsize, Ordering};
+use plain_rs::db::Db;
+use plain_rs::error::DomainResult;
+use plain_rs::media::audio::queue::AudioTrack;
+use plain_rs::media::audio::queue::LibraryTracks;
 
-static SEQ: AtomicUsize = AtomicUsize::new(0);
-
-/// Private per-test SQLite file (unique dir per tag + seq + pid): full
-/// isolation from parallel tests and previous runs.
+/// Private per-test SQLite file. The dir comes from `tempfile`, so
+/// concurrent tests never collide — this file is `#[path]`-mounted
+/// several times in one binary and a hand-rolled counter would restart
+/// per mount.
 pub fn test_db(tag: &str) -> Db {
-    let n = SEQ.fetch_add(1, Ordering::SeqCst);
-    let p = std::env::temp_dir().join(format!("plain-rs-library-{tag}-{n}-{}", std::process::id()));
-    let _ = std::fs::remove_dir_all(&p);
-    std::fs::create_dir_all(&p).unwrap();
-    Db::open(&p.join("plain.db")).unwrap()
+    let dir = tempfile::Builder::new()
+        .prefix(&format!("plain-rs-library-{tag}-"))
+        .tempdir()
+        .unwrap();
+    let db = Db::open(&dir.path().join("plain.db")).unwrap();
+    plain_rs::test_tempdirs::retain(dir);
+    db
 }
 
 /// Deterministic library for the LIBRARY-source tests: tracks in the

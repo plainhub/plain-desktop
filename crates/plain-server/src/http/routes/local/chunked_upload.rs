@@ -41,8 +41,9 @@ pub async fn list_uploaded_chunks(data_dir: &Path, file_id: &str) -> Result<Vec<
 
 /// Concatenate chunks into `path`.
 ///
-/// - `replace=false`: if `path` already exists, append a `(N)` suffix before
-///   the file extension, exactly as the Go side does.
+/// - `replace=false`: if `path` already exists, `unique_sibling` picks the
+///   first free `name_N.ext` (the convention unified across plain-nas and
+///   plain-desktop on 2026-09-04).
 /// - On success the chunk directory is removed.
 /// - `trigger_media_scan` is called at the end (currently a no-op).
 pub async fn merge_chunks(

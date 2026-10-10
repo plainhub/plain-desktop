@@ -25,11 +25,13 @@ description = "Shared Plain protocol, crypto, persistence and domain primitives"
 "http-client" = ["dep:reqwest", "reqwest/rustls-tls", "tokio/net", "tokio/rt", "tokio/time"]
 
 "feeds" = ["library", "html"]
-# Exposes test-only seams (e.g. mdns host_responder packet-capture helpers)
-# to dependent crates' test binaries, which `#[cfg(test)]` cannot reach.
-"test-seams" = []
+# Exposes test-only seams (e.g. mdns host_responder packet-capture
+# helpers, the tempdir registry) to dependent crates' test binaries,
+# which `#[cfg(test)]` cannot reach.
+"test-seams" = ["dep:tempfile"]
 
 [dependencies]
+"tempfile" = { "version" = "3", "optional" = true }
 "reqwest" = { version = "0.12", default-features = false, features = ["stream"], optional = true }
 "chacha20poly1305" = { "version" = "0.10", "optional" = true }
 "p256" = { "version" = "0.13", "default-features" = false, "features" = ["ecdh", "pkcs8", "std"], "optional" = true }

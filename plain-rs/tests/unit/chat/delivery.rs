@@ -208,7 +208,7 @@ fn attachment_uris_and_response_receipts_match_mobile_contract() {
     ] {
         let content =
             json!({"type":"FILES","value":{"items":[{"uri":uri,"name":"x"}]}}).to_string();
-        let wire = crate::content::peer_content(&content, &token).unwrap();
+        let wire = crate::chat::messages::content::peer_content(&content, &token).unwrap();
         let wire: Value = serde_json::from_str(&wire).unwrap();
         let uri_wire = wire["value"]["items"][0]["uri"].as_str().unwrap();
         let decrypted = crate::xchacha_decrypt(
@@ -217,7 +217,7 @@ fn attachment_uris_and_response_receipts_match_mobile_contract() {
         )
         .unwrap();
         assert_eq!(String::from_utf8(decrypted).unwrap(), uri);
-        assert!(crate::content::peer_content(&content, "").is_err());
+        assert!(crate::chat::messages::content::peer_content(&content, "").is_err());
     }
     assert!(
         crate::transport::contract::message_response(

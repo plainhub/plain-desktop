@@ -1,3 +1,8 @@
+// Lets test fixtures that dependent crates mount via `#[path]` name
+// this crate explicitly (`plain_rs::…`) instead of `crate::`, which
+// would resolve to the *mounting* crate.
+extern crate self as plain_rs;
+
 #[cfg(feature = "chat")]
 pub mod chat;
 #[cfg(feature = "crypto")]
@@ -28,13 +33,17 @@ pub use crate::utils::*;
 /// (`Db::open(dir)`, `ServerState`…) register it here instead of
 /// `mem::forget`-ing the TempDir: dirs stay alive for the whole test
 /// run and are deleted when the test process exits normally.
-#[cfg(test)]
-pub(crate) mod test_tempdirs {
+///
+/// Also reachable from dependent crates' test binaries through the
+/// `test-seams` feature, which is what shared `#[path]`-mounted
+/// fixtures need.
+#[cfg(any(test, feature = "test-seams"))]
+pub mod test_tempdirs {
     use std::sync::Mutex;
 
     static RETAINED: Mutex<Vec<tempfile::TempDir>> = Mutex::new(Vec::new());
 
-    pub(crate) fn retain(dir: tempfile::TempDir) {
+    pub fn retain(dir: tempfile::TempDir) {
         static REGISTERED: std::sync::Once = std::sync::Once::new();
         REGISTERED.call_once(|| unsafe {
             libc::atexit(clear);

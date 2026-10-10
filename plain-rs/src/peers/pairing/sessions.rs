@@ -183,6 +183,16 @@ impl Sessions {
                 .min(u64::MAX as u128) as u64,
         )
     }
+    /// Test seam: age an existing ticket so [`Pending::expired`] reports
+    /// it as past `RESPONSE_TIMEOUT`. The expiry worker lives in
+    /// plain-server, and `#[cfg(test)]` here cannot reach the private
+    /// `started` field from that crate's test binary.
+    #[cfg(feature = "test-seams")]
+    pub fn age_for_test(&self, id: &str, by: Duration) {
+        if let Some(pending) = self.0.lock().unwrap().get_mut(id) {
+            pending.started -= by;
+        }
+    }
     pub fn take_checked(&self, id: &str, generation: Option<&str>) -> Option<Pending> {
         let mut pending = self.0.lock().unwrap();
         if generation.is_some_and(|g| pending.get(id).is_none_or(|p| p.ticket.generation != g)) {
