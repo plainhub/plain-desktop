@@ -6,15 +6,15 @@ use anyhow::{Context, Result};
 use std::sync::Arc;
 use tokio::signal::unix::{SignalKind, signal};
 
-use plain_server::api::context::{AppCtx, ShellHooks};
-use plain_server::http_server::ServerState;
-use plain_server::http_server::build_router;
-use plain_server::http_server::main_schemas::capability_types;
-use plain_server::http_server::main_schemas::types::Capability;
-use plain_server::http_server::{AuthPolicy, ServerSettings, events::spawn_media_event_bridge};
+use plain_server::assembly::context::{AppCtx, ShellHooks};
+use plain_server::graphql::main::capability_types;
+use plain_server::graphql::main::types::Capability;
+use plain_server::http::server::ServerState;
+use plain_server::http::server::build_router;
+use plain_server::http::server::{AuthPolicy, ServerSettings, events::spawn_media_event_bridge};
 
-use crate::config::Config;
-use crate::consts::AppPaths;
+use plain_media::media::config::Config;
+use plain_server::platform::system::consts::AppPaths;
 
 struct NasShell;
 
@@ -24,12 +24,12 @@ impl ShellHooks for NasShell {
     }
 
     fn app_version(&self) -> String {
-        plain_server::system::version::full_version()
+        plain_server::platform::system::version::full_version()
     }
 
     fn capabilities(&self) -> Vec<Capability> {
         let mut caps = Vec::new();
-        if !plain_server::storage::samba::detect_systemd_service_name().is_empty() {
+        if !plain_server::platform::storage::samba::detect_systemd_service_name().is_empty() {
             caps.push(Capability::LanShare);
         }
         if command_present("lsblk") {
@@ -42,13 +42,13 @@ impl ShellHooks for NasShell {
     }
 
     fn disks(&self) -> Result<Vec<capability_types::Disk>> {
-        Ok(plain_server::storage::storage_disks::list_disks()
+        Ok(plain_server::platform::storage::storage_disks::list_disks()
             .into_iter()
             .map(|disk| capability_types::Disk {
                 id: disk.id.into(),
                 name: disk.name,
                 path: disk.path,
-                size_bytes: plain_server::http_server::main_schemas::types::Long(disk.size_bytes),
+                size_bytes: plain_server::graphql::main::types::Long(disk.size_bytes),
                 removable: disk.removable,
                 model: disk.model,
             })
@@ -56,7 +56,7 @@ impl ShellHooks for NasShell {
     }
 
     fn app_update(&self) -> Result<capability_types::AppUpdate> {
-        let update = plain_server::system::app_update::app_update();
+        let update = plain_server::platform::system::app_update::app_update();
         Ok(capability_types::AppUpdate {
             current_version: update.current_version,
             latest_version: update.latest_version,
@@ -67,10 +67,10 @@ impl ShellHooks for NasShell {
 
     fn samba_settings(
         &self,
-        prefs: &plain_server::prefs::Prefs,
+        prefs: &plain_rs::prefs::Prefs,
     ) -> Result<capability_types::SambaSettings> {
-        let settings = plain_server::storage::samba::get_samba_settings(prefs);
-        let service = plain_server::storage::samba::get_service_status();
+        let settings = plain_server::platform::storage::samba::get_samba_settings(prefs);
+        let service = plain_server::platform::storage::samba::get_service_status();
         let (service_name, service_active, service_enabled) = if service.name.is_empty() {
             (
                 settings.service_name,
@@ -91,10 +91,10 @@ impl ShellHooks for NasShell {
                     name: share.name,
                     share_path: share.share_path,
                     auth: match share.auth {
-                        plain_server::storage::samba::SambaShareAuth::Guest => {
+                        plain_server::platform::storage::samba::SambaShareAuth::Guest => {
                             capability_types::SambaShareAuth::GUEST
                         }
-                        plain_server::storage::samba::SambaShareAuth::Password => {
+                        plain_server::platform::storage::samba::SambaShareAuth::Password => {
                             capability_types::SambaShareAuth::PASSWORD
                         }
                     },
@@ -109,10 +109,10 @@ impl ShellHooks for NasShell {
 
     fn set_samba_settings(
         &self,
-        prefs: &plain_server::prefs::Prefs,
+        prefs: &plain_rs::prefs::Prefs,
         input: capability_types::SambaSettingsInput,
     ) -> Result<()> {
-        let previous = plain_server::storage::samba::get_samba_settings(prefs);
+        let previous = plain_server::platform::storage::samba::get_samba_settings(prefs);
         let mut needs_password = false;
         let shares = input
             .shares
@@ -120,14 +120,14 @@ impl ShellHooks for NasShell {
             .map(|share| {
                 let auth = match share.auth {
                     capability_types::SambaShareAuth::GUEST => {
-                        plain_server::storage::samba::SambaShareAuth::Guest
+                        plain_server::platform::storage::samba::SambaShareAuth::Guest
                     }
                     capability_types::SambaShareAuth::PASSWORD => {
                         needs_password = true;
-                        plain_server::storage::samba::SambaShareAuth::Password
+                        plain_server::platform::storage::samba::SambaShareAuth::Password
                     }
                 };
-                plain_server::storage::samba::SambaShare {
+                plain_server::platform::storage::samba::SambaShare {
                     name: share.name,
                     share_path: share.share_path,
                     auth,
@@ -146,32 +146,33 @@ impl ShellHooks for NasShell {
             !needs_password || previous.has_password,
             "password required"
         );
-        plain_server::storage::samba::set_samba_settings(prefs, &desired)?;
-        let applied = plain_server::storage::samba::get_samba_settings(prefs);
-        plain_server::storage::samba::apply(prefs, &applied, "")?;
+        plain_server::platform::storage::samba::set_samba_settings(prefs, &desired)?;
+        let applied = plain_server::platform::storage::samba::get_samba_settings(prefs);
+        plain_server::platform::storage::samba::apply(prefs, &applied, "")?;
         Ok(())
     }
 
     fn set_samba_user_password(
         &self,
-        prefs: &plain_server::prefs::Prefs,
+        prefs: &plain_rs::prefs::Prefs,
         password: &str,
     ) -> Result<()> {
-        plain_server::storage::samba::set_user_password(password).map_err(anyhow::Error::msg)?;
-        let mut settings = plain_server::storage::samba::get_samba_settings(prefs);
+        plain_server::platform::storage::samba::set_user_password(password)
+            .map_err(anyhow::Error::msg)?;
+        let mut settings = plain_server::platform::storage::samba::get_samba_settings(prefs);
         settings.has_password = true;
-        plain_server::storage::samba::set_samba_settings(prefs, &settings)?;
+        plain_server::platform::storage::samba::set_samba_settings(prefs, &settings)?;
         if settings.enabled {
-            let _ = plain_server::storage::samba::apply(prefs, &settings, "");
+            let _ = plain_server::platform::storage::samba::apply(prefs, &settings, "");
         }
         Ok(())
     }
 
     fn dlna_renderers(&self, cid: &str) -> Result<Vec<capability_types::DlnaRenderer>> {
         if !cid.is_empty() {
-            plain_server::dlna_sender::start_renderer_discovery(cid);
+            plain_server::services::dlna_sender::start_renderer_discovery(cid);
         }
-        Ok(plain_server::dlna_sender::cached_renderers()
+        Ok(plain_server::services::dlna_sender::cached_renderers()
             .into_iter()
             .map(|renderer| capability_types::DlnaRenderer {
                 udn: renderer.udn,
@@ -189,24 +190,24 @@ impl ShellHooks for NasShell {
         url: &str,
         title: &str,
         mime: &str,
-        media_type: plain_server::http_server::main_schemas::types::MediaDataType,
-        prefs: &plain_server::prefs::Prefs,
+        media_type: plain_server::graphql::main::types::MediaDataType,
+        prefs: &plain_rs::prefs::Prefs,
     ) -> Result<()> {
         let kind = match media_type {
-            plain_server::http_server::main_schemas::types::MediaDataType::AUDIO => {
-                plain_server::dlna_sender::MediaType::Audio
+            plain_server::graphql::main::types::MediaDataType::AUDIO => {
+                plain_server::services::dlna_sender::MediaType::Audio
             }
-            plain_server::http_server::main_schemas::types::MediaDataType::VIDEO => {
-                plain_server::dlna_sender::MediaType::Video
+            plain_server::graphql::main::types::MediaDataType::VIDEO => {
+                plain_server::services::dlna_sender::MediaType::Video
             }
-            plain_server::http_server::main_schemas::types::MediaDataType::IMAGE => {
-                plain_server::dlna_sender::MediaType::Image
+            plain_server::graphql::main::types::MediaDataType::IMAGE => {
+                plain_server::services::dlna_sender::MediaType::Image
             }
-            plain_server::http_server::main_schemas::types::MediaDataType::DOC => {
+            plain_server::graphql::main::types::MediaDataType::DOC => {
                 anyhow::bail!("dlna_cast_doc_unsupported")
             }
         };
-        plain_server::dlna_sender::cast(renderer_udn, url, title, mime, kind, prefs)
+        plain_server::services::dlna_sender::cast(renderer_udn, url, title, mime, kind, prefs)
             .map_err(anyhow::Error::msg)
     }
 
@@ -224,22 +225,22 @@ impl ShellHooks for NasShell {
 
     fn format_disk(
         &self,
-        prefs: &Arc<plain_server::prefs::Prefs>,
+        prefs: &Arc<plain_rs::prefs::Prefs>,
         path: &str,
         cid: &str,
     ) -> Result<()> {
         let on_unmount = |mount: &str| {
-            let _ = plain_server::media::kv::EventLog::new(plain_server::media::kv::get_default())
+            let _ = plain_media::media::kv::EventLog::new(plain_media::media::kv::get_default())
                 .add("unmount", mount, cid);
         };
-        let result = plain_server::storage::format_disk::format_disk_single_partition(
+        let result = plain_server::platform::storage::format_disk::format_disk_single_partition(
             prefs, path, on_unmount,
         );
-        plain_server::media::eventbus::Bus::new().publish(
-            plain_server::media::eventbus::EVENT_DISK_FORMAT_DONE,
+        plain_media::media::eventbus::Bus::new().publish(
+            plain_media::media::eventbus::EVENT_DISK_FORMAT_DONE,
             serde_json::json!({"path": path, "ok": result.is_ok(), "error": result.as_ref().err().map(ToString::to_string)}),
         );
-        let _ = plain_server::media::kv::EventLog::new(plain_server::media::kv::get_default()).add(
+        let _ = plain_media::media::kv::EventLog::new(plain_media::media::kv::get_default()).add(
             if result.is_ok() {
                 "format_disk"
             } else {
@@ -269,7 +270,7 @@ pub async fn run(paths: &AppPaths) -> Result<()> {
     std::fs::create_dir_all(&paths.data_dir).context("mkdir data dir")?;
     // Host bootstrap for the shared media stack: pin its data/cache dirs
     // before anything (scan exclusions, thumb cache) probes them.
-    plain_server::media::paths::set(paths.data_dir.clone(), paths.cache_dir.clone());
+    plain_media::media::paths::set(paths.data_dir.clone(), paths.cache_dir.clone());
 
     let cfg = Config::load(&paths.config_path);
     // Extra media-scan exclusions (comma-separated absolute paths), merged
@@ -281,8 +282,8 @@ pub async fn run(paths: &AppPaths) -> Result<()> {
         .filter(|s| s.starts_with('/'))
         .map(str::to_string)
         .collect();
-    crate::media_scan::set_extra_excluded_roots(extra);
-    plain_server::tls::ensure_self_signed_pem(
+    plain_media::media::scan::set_extra_excluded_roots(extra);
+    plain_rs::tls::ensure_self_signed_pem(
         &paths.tls_cert,
         &paths.tls_key,
         &["plainnas.local".to_string(), "localhost".to_string()],
@@ -300,7 +301,9 @@ pub async fn run(paths: &AppPaths) -> Result<()> {
 
     // On-disk log (`<data_dir>/logs/latest.log`) — the surface behind the
     // developer UI's logs page. stderr keeps mirroring every line.
-    crate::log::set_file(&crate::log::default_log_file(&paths.data_dir));
+    plain_server::platform::system::log::set_file(
+        &plain_server::platform::system::log::default_log_file(&paths.data_dir),
+    );
 
     // Scan and mount all discovered filesystems into /mnt/usbX based on the
     // persisted FSUUID<->usbX slot map (Go calls EnsureMountedUSBVolumes at
@@ -308,17 +311,20 @@ pub async fn run(paths: &AppPaths) -> Result<()> {
     {
         let p = prefs.clone();
         std::mem::drop(tokio::task::spawn_blocking(move || {
-            if let Err(e) = crate::automount::ensure_mounted_usb_volumes(&p) {
+            if let Err(e) =
+                plain_server::platform::storage::automount::ensure_mounted_usb_volumes(&p)
+            {
                 log::error!("storage mount ensure failed: {e}");
             }
-            crate::automount::run_automount_watcher();
+            plain_server::platform::storage::automount::run_automount_watcher();
         }));
     }
 
     // Chat stack (plain-app contract): SQLite plain.db + pairing manager
-    // over the shared plain_server::chat module.
-    let mut chat = plain_server::chat_service::ChatState::nas_init(&paths.data_dir, &prefs)
-        .context("init chat")?;
+    // over the shared plain_rs::chat module.
+    let mut chat =
+        plain_server::services::chat_service::ChatState::nas_init(&paths.data_dir, &prefs)
+            .context("init chat")?;
     chat.start_discovery(&prefs);
     let chat_discovery = chat.discovery.clone();
     let chat = Arc::new(chat);
@@ -326,7 +332,7 @@ pub async fn run(paths: &AppPaths) -> Result<()> {
     // The unified WS event channel: chat/pairing bridges (phone-protocol
     // numbers) + the media/nas push bridge (41-45).
     let (event_tx, _) =
-        tokio::sync::broadcast::channel::<plain_server::api::context::WsEvent>(1024);
+        tokio::sync::broadcast::channel::<plain_server::assembly::context::WsEvent>(1024);
     chat.spawn_event_bridges(event_tx.clone(), |_ev| {});
     spawn_media_event_bridge(event_tx.clone());
 
@@ -356,14 +362,14 @@ pub async fn run(paths: &AppPaths) -> Result<()> {
 
     // Thumbnail engine budgets ([thumbnails] mem_budget_mb / lru_mb) and
     // the background prefetcher ([thumbnails] prefetch / prefetch_per_sec).
-    plain_server::media::thumb::init_from_config(&cfg_arc);
-    plain_server::media::thumb::prefetch::init_from_config(&cfg_arc, db.clone(), prefs.clone());
+    plain_media::media::thumb::init_from_config(&cfg_arc);
+    plain_media::media::thumb::prefetch::init_from_config(&cfg_arc, db.clone(), prefs.clone());
 
-    let cors_policy = plain_server::http_server::routes::cors::CorsPolicy::from_config(&cfg_arc);
-    let schema = plain_server::http_server::main_schemas::build_schema();
+    let cors_policy = plain_server::http::server::routes::cors::CorsPolicy::from_config(&cfg_arc);
+    let schema = plain_server::graphql::main::build_schema();
     let state = ServerState::new(
         Arc::new(schema),
-        Arc::new(plain_server::http_server::peer_schemas::build_schema()),
+        Arc::new(plain_server::graphql::peer::build_schema()),
         ctx,
         ServerSettings {
             auth: AuthPolicy::Session {
@@ -385,14 +391,15 @@ pub async fn run(paths: &AppPaths) -> Result<()> {
     std::mem::drop(tokio::task::spawn_blocking(move || {
         // The NAS policy for a from-scratch file search index: the mounted
         // /mnt/usb* volumes (same logic the Go watcher used).
-        let roots: Vec<std::path::PathBuf> = crate::mounts::list_mounts(&heal_prefs)
-            .iter()
-            .filter_map(|m| m.mount_point.as_deref())
-            .map(str::trim)
-            .filter(|mp| is_plain_nas_usb_mount(mp))
-            .map(std::path::PathBuf::from)
-            .collect();
-        crate::watcher::build_missing_indexes(&heal_data_dir, &heal_db, &roots);
+        let roots: Vec<std::path::PathBuf> =
+            plain_server::platform::storage::mounts::list_mounts(&heal_prefs)
+                .iter()
+                .filter_map(|m| m.mount_point.as_deref())
+                .map(str::trim)
+                .filter(|mp| is_plain_nas_usb_mount(mp))
+                .map(std::path::PathBuf::from)
+                .collect();
+        plain_media::media::watcher::build_missing_indexes(&heal_data_dir, &heal_db, &roots);
     }));
 
     let mut handles = Vec::new();

@@ -3,48 +3,13 @@
 // limit overflows long before the roots themselves do.
 #![recursion_limit = "512"]
 
+pub mod adapters;
 #[cfg(feature = "api")]
-pub mod api;
-#[cfg(feature = "system")]
-pub mod chat_discovery;
-#[cfg(feature = "api")]
-pub mod chat_service;
-#[cfg(feature = "api")]
-pub mod discover;
-#[cfg(any(feature = "api", feature = "content_api"))]
-pub mod dlna_receiver;
-#[cfg(any(feature = "system", feature = "content_api"))]
-pub mod dlna_sender;
-#[cfg(feature = "api")]
-pub mod download;
-#[cfg(any(feature = "api", feature = "content_api"))]
-pub mod feeds;
-#[cfg(feature = "api")]
-pub mod http_server;
-#[cfg(feature = "http_transport")]
-pub mod http_transport;
-#[cfg(any(feature = "api", feature = "content_api"))]
-pub mod link_preview;
-#[cfg(feature = "system")]
-pub mod storage;
-#[cfg(feature = "system")]
-pub mod system;
-#[cfg(feature = "http_transport")]
-pub mod tls_identity;
-
-#[cfg(feature = "image-inference")]
-pub use plain_inference as image_inference;
-#[cfg(feature = "media")]
-pub use plain_media::media;
-pub use plain_rs::*;
-
-#[cfg(feature = "content_api")]
-pub mod content_api;
-#[cfg(any(feature = "api", feature = "content_api"))]
-pub mod content_types;
-
-#[cfg(any(feature = "api", feature = "content_api"))]
-pub mod pomodoro;
+pub mod assembly;
+pub mod graphql;
+pub mod http;
+pub mod platform;
+pub mod services;
 
 /// Test fixtures whose dir must outlive the helper that created it
 /// (`Db::open(dir)`, `ServerState`…) register it here instead of
@@ -72,7 +37,3 @@ pub(crate) mod test_tempdirs {
         }
     }
 }
-
-#[cfg(any(feature = "api", feature = "content_api"))]
-#[path = "dlna_sender/media_alias.rs"]
-pub mod dlna_media_alias;

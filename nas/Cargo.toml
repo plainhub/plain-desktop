@@ -13,6 +13,8 @@ name = "plainnas"
 path = "src/main.rs"
 
 [dependencies]
+plain-rs = { path = "../plain-rs", default-features = false, features = ["crypto", "chat", "library", "prefs", "mdns", "filesystem", "tls"] }
+plain-media = { path = "../crates/plain-media" }
 # HTTP & Web
 axum = { version = "0.7", features = ["json", "query", "ws", "multipart", "tokio", "http1"] }
 tokio = { version = "1", features = ["full"] }

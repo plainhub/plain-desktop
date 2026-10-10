@@ -1,9 +1,9 @@
 //! `plain-nas passwd` - interactively reset the admin password.
-use crate::consts::AppPaths;
 use crate::crypto;
-use crate::db;
 use crate::read_password;
 use anyhow::Result;
+use plain_media::media::kv;
+use plain_server::platform::system::consts::AppPaths;
 
 pub fn run(paths: &AppPaths) -> Result<()> {
     if !nix::unistd::Uid::current().is_root() {
@@ -12,7 +12,7 @@ pub fn run(paths: &AppPaths) -> Result<()> {
     }
     std::fs::create_dir_all(&paths.data_dir).ok();
     let prefs = crate::prefs::Prefs::load(&crate::prefs::default_path(&paths.data_dir))?;
-    let pw = db::PasswordStore::new(&prefs);
+    let pw = kv::PasswordStore::new(&prefs);
     let password = read_password::prompt_password("New password: ")?;
     let confirm = read_password::prompt_password("Confirm: ")?;
     if password != confirm {

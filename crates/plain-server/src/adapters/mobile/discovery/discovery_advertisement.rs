@@ -1,0 +1,96 @@
+use crate::adapters::mobile::runtime::server::ServerState;
+use anyhow::Result;
+use axum::{
+    Json,
+    extract::State,
+    http::{HeaderMap, StatusCode},
+    response::{IntoResponse, Response},
+};
+use plain_rs::chat::discovery_advertisement::{self as advertisement, Facts};
+use serde::Deserialize;
+use serde_json::{Value, json};
+#[derive(Deserialize)]
+#[serde(tag = "action", rename_all = "camelCase", deny_unknown_fields)]
+pub(in crate::adapters::mobile) enum Request {
+    Reply {},
+    Mdns {},
+    Ble {},
+    BleDecode { payload: Option<Vec<u8>> },
+    BleShortId { id: String },
+}
+pub(in crate::adapters::mobile) async fn execute(
+    state: &ServerState,
+    request: Request,
+) -> Result<Value> {
+    match &request {
+        Request::BleDecode { payload } => {
+            anyhow::ensure!(
+                payload.as_ref().is_none_or(|bytes| bytes.len() <= 1650),
+                "BLE payload exceeds advertising limit"
+            );
+            return Ok(serde_json::to_value(
+                payload.as_deref().and_then(advertisement::decode_ble),
+            )?);
+        }
+        Request::BleShortId { id } => {
+            anyhow::ensure!(!id.is_empty() && id.len() <= 1024, "Invalid peer identity");
+            return Ok(json!(plain_rs::chat::nearby_wire::short_id(id)));
+        }
+        _ => {}
+    }
+    let facts: Facts = serde_json::from_value(
+        state
+            .host
+            .call("discoveryFacts", json!({}))
+            .await
+            .map_err(anyhow::Error::msg)?,
+    )?;
+    let id = state.prefs.get::<String>("client_id")?.unwrap_or_default();
+    if matches!(request, Request::Ble {}) {
+        return Ok(json!(plain_rs::utils::base64::base64_encode(
+            &advertisement::ble(&id, facts.aware_supported, facts.aware_running)?
+        )));
+    }
+    let name = state
+        .prefs
+        .get_user::<String>("device_name")?
+        .unwrap_or_default();
+    let port = state.prefs.get_user::<u16>("https_port")?.unwrap_or(8443);
+    let reply = advertisement::reply(&id, &name, port, facts)?;
+    match request {
+        Request::Reply {} => Ok(serde_json::to_value(reply)?),
+        Request::Mdns {} => Ok(serde_json::to_value(advertisement::mdns(
+            &reply,
+            &state
+                .prefs
+                .get::<String>("mdns_hostname")?
+                .unwrap_or_else(|| "plainapp.local".into()),
+        )?)?),
+        Request::Ble {} | Request::BleDecode { .. } | Request::BleShortId { .. } => unreachable!(),
+    }
+}
+pub(in crate::adapters::mobile) async fn call(
+    State(state): State<ServerState>,
+    headers: HeaderMap,
+    Json(request): Json<Request>,
+) -> Response {
+    if !state.authenticated(&headers) {
+        return StatusCode::UNAUTHORIZED.into_response();
+    }
+    let mut stop = state.stop.clone();
+    if *stop.borrow() {
+        return StatusCode::SERVICE_UNAVAILABLE.into_response();
+    }
+    let result = tokio::select! { _=stop.changed()=>Err(anyhow::anyhow!("Server stopped")), result=execute(&state,request)=>result };
+    match result {
+        Ok(value) => Json(json!({"result":value})).into_response(),
+        Err(error) => (
+            StatusCode::BAD_REQUEST,
+            Json(json!({"error":error.to_string()})),
+        )
+            .into_response(),
+    }
+}
+#[cfg(test)]
+#[path = "../../../../tests/unit/adapters/mobile/discovery/discovery_advertisement.rs"]
+mod tests;

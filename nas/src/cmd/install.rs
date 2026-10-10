@@ -9,8 +9,8 @@ mod packages;
 #[path = "install/ui.rs"]
 mod ui;
 
-use crate::consts::AppPaths;
 use anyhow::{Context, Result};
+use plain_server::platform::system::consts::AppPaths;
 use std::path::Path;
 
 pub fn run(paths: &AppPaths, with_libreoffice: bool) -> Result<()> {

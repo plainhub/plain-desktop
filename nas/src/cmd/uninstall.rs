@@ -1,6 +1,6 @@
 //! `plain-nas uninstall` - removes config and/or data when not asked to keep.
-use crate::consts::AppPaths;
 use anyhow::Result;
+use plain_server::platform::system::consts::AppPaths;
 
 pub fn run(paths: &AppPaths, keep_config: bool, keep_data: bool) -> Result<()> {
     if !nix::unistd::Uid::current().is_root() {
