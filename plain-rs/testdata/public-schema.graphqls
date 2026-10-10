@@ -932,7 +932,7 @@ type Mutation {
 	"""
 	Delete clipboard history entries matching the query DSL (`ids:` /
 	`text:`; a bare word is a text LIKE). A blank query is rejected —
-	send `all:true` to target everything (API_SPEC §5).
+	send `all:true` to target everything.
 	"""
 	deleteClipboardItems(query: String!): ActionResult!
 	createContact(input: ContactInput!): Contact!

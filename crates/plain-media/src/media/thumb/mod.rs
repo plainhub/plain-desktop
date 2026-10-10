@@ -16,7 +16,6 @@
 //! Non-image files go through the cover-art path (sidecar/lofty); cover-less
 //! MP4-family videos extract a keyframe via pure-Rust demux + H.264 decode
 //! (`video.rs`). Other containers/codec combinations have no pure-Rust
-//! decoder and answer `204 No Content` (documented in docs/thumbnails.md).
 
 pub mod admission;
 #[cfg(test)]

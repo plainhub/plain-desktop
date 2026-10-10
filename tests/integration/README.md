@@ -37,7 +37,7 @@ template.
 | `RUST_API_URL` | yes | Rust local server URL (e.g. `http://127.0.0.1:8080`) |
 | `RUST_API_TOKEN` | yes | Rust local server URL token (base64 32-byte key, from `app.urlToken`) |
 | `RUST_CLIENT_ID` | no | `c-id` header value (default: `integration-test`) |
-| `ANDROID_API_URL` | yes | Android device HTTPS URL (e.g. `https://192.168.1.100:8443`) |
+| `ANDROID_API_URL` | yes | Android device HTTPS URL (e.g. `https://phone.local:8443`) |
 | `ANDROID_API_TOKEN` | yes | Android device auth token (base64 32-byte key) |
 | `ANDROID_CLIENT_ID` | no | `c-id` header value (default: `integration-test`) |
 

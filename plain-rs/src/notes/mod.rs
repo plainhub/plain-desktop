@@ -34,7 +34,7 @@ pub fn get(db: &Db, id: &str) -> LibraryResult<Option<NoteRow>> {
 
 fn explicit(query: &str) -> LibraryResult<()> {
     if query.trim().is_empty() {
-        return Err(LibraryError::Other("query is required for bulk mutations — pass 'all:true' to explicitly target everything (API_SPEC §5)".to_string()));
+        return Err(LibraryError::Other("query is required for bulk mutations — pass 'all:true' to explicitly target everything".to_string()));
     }
     Ok(())
 }

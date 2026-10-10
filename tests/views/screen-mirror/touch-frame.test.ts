@@ -13,7 +13,7 @@ describe('encodeTouchFrame', () => {
     expect(frame).toHaveLength(4 + 8)
   })
 
-  it('matches the plain-app decoder golden frame byte for byte (API_SPEC §12.4)', () => {
+  it('matches the plain-app decoder golden frame byte for byte', () => {
     // DOWN(0.5, 0.25, pointerId=1) + MOVE(0.75, 0.5, dt=16) — the exact byte
     // sequence TouchFrameDecodeTest on the phone asserts as well.
     const frame = encodeTouchFrame([

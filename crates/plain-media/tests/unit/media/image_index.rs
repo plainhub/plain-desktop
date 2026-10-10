@@ -102,18 +102,18 @@ fn search_filter_and_sort() {
 fn excluded_absolute_directory_matches_only_its_tree() {
     let idx = tmp_index();
     for (path, kind) in [
-        ("/Users/mac/Projects/smartcoding/app/icons/a.png", "image"),
-        ("/Users/mac/Projects/smartcoding/video.mp4", "video"),
-        ("/Users/mac/Projects/smartcoding/music.mp3", "audio"),
-        ("/Users/mac/Projects/smartcoding-other/keep.png", "image"),
-        ("/Users/mac/Pictures/keep.png", "image"),
-        ("/Users/mac/My Projects/inside.png", "image"),
+        ("/Users/tester/Projects/workspace/app/icons/a.png", "image"),
+        ("/Users/tester/Projects/workspace/video.mp4", "video"),
+        ("/Users/tester/Projects/workspace/music.mp3", "audio"),
+        ("/Users/tester/Projects/workspace-other/keep.png", "image"),
+        ("/Users/tester/Pictures/keep.png", "image"),
+        ("/Users/tester/My Projects/inside.png", "image"),
     ] {
         idx.add_media_file(&mf(path, kind, 10, 100)).unwrap();
     }
     idx.commit().unwrap();
 
-    let query = "excluded_dir:/Users/mac/Projects/smartcoding/";
+    let query = "excluded_dir:/Users/tester/Projects/workspace/";
     for kind in ["image", "video", "audio"] {
         let results = idx
             .search(query, Some(kind), None, MediaSort::DateDesc, 0, 10)
@@ -121,14 +121,14 @@ fn excluded_absolute_directory_matches_only_its_tree() {
         assert!(
             results
                 .iter()
-                .all(|item| !item.path.starts_with("/Users/mac/Projects/smartcoding/"))
+                .all(|item| !item.path.starts_with("/Users/tester/Projects/workspace/"))
         );
         assert_eq!(idx.count(query, Some(kind), None).unwrap(), results.len());
     }
     assert_eq!(idx.count(query, Some("image"), None).unwrap(), 3);
     let spaced = idx
         .search(
-            "excluded_dir:\"/Users/mac/My Projects/\"",
+            "excluded_dir:\"/Users/tester/My Projects/\"",
             Some("image"),
             None,
             MediaSort::DateDesc,

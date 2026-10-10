@@ -1,4 +1,4 @@
-// Generates `docs/DATABASE.sql` from the machine-readable source of truth:
+// Generates `.ai/docs/DATABASE.sql` from the machine-readable source of truth:
 // the CREATE TABLE / CREATE INDEX statements in
 // `plain-rs/src/db/schema/*.rs` (the shared SQLite schema).
 //
@@ -42,7 +42,7 @@ export function generateDatabaseSql() {
   return header.join('\n') + stmts.join('\n') + '\n'
 }
 
-const FILE = 'docs/DATABASE.sql'
+const FILE = '.ai/docs/DATABASE.sql'
 
 if (process.argv[1] && process.argv[1].endsWith('gen-db-schema-sql.mjs')) {
   if (process.argv.includes('--write')) {

@@ -1,5 +1,4 @@
 // Binary touch-frame wire format, ported from plain-cast's low-latency
-// gesture control (docs/touch-low-latency-design.md §3.2). Hot-path touch
 // samples travel as one compact binary frame instead of per-event requests.
 export const TOUCH_ACTION_DOWN = 0
 export const TOUCH_ACTION_MOVE = 1

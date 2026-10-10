@@ -1,5 +1,5 @@
 // Screen mirror gesture control, ported from plain-cast's low-latency design
-// (docs/touch-low-latency-design.md): pointerdown injects the contact
+// pointerdown injects the contact
 // immediately (no tap/drag classification delay), pointermove emits every
 // coalesced sample at digitizer rate, a tap is a natural short down+up, a
 // long-press is a natural hold (server-side keep-alive). Touch samples ride
@@ -397,7 +397,7 @@ export function useScreenMirrorControl(
   let overlayEl: HTMLElement | null = null
 
   const sendControl = (event: ScreenMirrorControlEvent) => {
-    // Upstream JSON frames ride the typed envelope (API_SPEC §12.3):
+    // Upstream JSON frames ride the typed envelope:
     // {"type":"screenMirrorControl","input":{…}}. WS is the only control
     // channel (the GraphQL mutation was removed); drops are silent because
     // the server resets touch streams on disconnect.

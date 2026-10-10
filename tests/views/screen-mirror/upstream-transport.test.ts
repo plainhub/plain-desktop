@@ -10,7 +10,7 @@ import { defineComponent, h, ref } from 'vue'
 import { mount } from '@vue/test-utils'
 import { useScreenMirrorControl, type ScreenMirrorControlEvent } from '@/views/screen-mirror/screen-mirror-control'
 
-// Locks the upstream transport contract (API_SPEC §12.3/§12.6): the WS is
+// Locks the upstream transport contract: the WS is
 // the only control channel — the composable's sendControl must ride the
 // typed JSON envelope, and when the socket is down the frame is dropped
 // (the GraphQL mutation was removed; no fallback transport may return).

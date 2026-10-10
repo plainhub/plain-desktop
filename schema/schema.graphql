@@ -986,13 +986,13 @@ type MutationRoot {
 	deleteFiles(paths: [String!]!): ActionResult!
 	"""
 	Move each path to its disk-local `.plain-trash`. Batch destructive
-	op → `ActionResult` per API_SPEC §6 (`affectedCount` = how many
+	op → `ActionResult` (`affectedCount` = how many
 	paths were actually trashed).
 	"""
 	trashFiles(paths: [String!]!): ActionResult!
 	"""
 	Restore one or more trashed entries by physical trash path or id.
-	Batch restore → `ActionResult` per API_SPEC §6.
+	Batch restore → `ActionResult`.
 	"""
 	restoreFiles(paths: [String!]!): ActionResult!
 	"""
@@ -1354,7 +1354,7 @@ type QueryRoot {
 	Paginated trash listing. The DSL `text:` field of `query` filters
 	the entries (blank = no filter); pass `DATE_DESC` for the usual
 	newest-first view — the argument is required, there is no server
-	default (API_SPEC §3).
+	default.
 	"""
 	trashedFiles(offset: Int!, limit: Int!, query: String!, sortBy: TrashedFileSortBy!): [TrashedFile!]!
 	"""
@@ -1518,8 +1518,7 @@ type Tag {
 	"""
 	Numeric tag kind — the ordinal of the tag's `DataType`
 	(DEFAULT=0, AUDIO=1, VIDEO=2, IMAGE=3, …). The NAS only has data
-	for the media kinds; the Int is frozen phone contract (API_SPEC
-	§9), the mapping lives in docs/api/tags.md.
+	for the media kinds; the Int is frozen phone contract.
 	"""
 	type: Int!
 	count: Int!
