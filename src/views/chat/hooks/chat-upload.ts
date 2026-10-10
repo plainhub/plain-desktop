@@ -293,7 +293,7 @@ export function useChatUpload(chatId: ComputedRef<string>, channelId: ComputedRe
       Object.keys(downloadProgress).forEach((k) => delete downloadProgress[k])
       Object.assign(downloadProgress, newProgress)
     }
-    emitter.on('download_progress', handlers.download_progress)
+    emitter.on('DOWNLOAD_PROGRESS', handlers.download_progress)
   })
 
   onUnmounted(() => {

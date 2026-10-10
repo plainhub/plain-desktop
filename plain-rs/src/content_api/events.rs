@@ -16,7 +16,7 @@ use tokio::sync::broadcast;
 #[serde(deny_unknown_fields)]
 struct HostEventPacket {
     #[serde(rename = "type")]
-    kind: i32,
+    kind: String,
     payload: String,
 }
 
@@ -47,7 +47,7 @@ async fn receive(
 ) {
     if socket
         .send(Message::Text(
-            json!({"type":47,"payload":"{}","hostCapabilities":{"textTypes":HOST_TEXT_TYPES,"binaryTypes":HOST_BINARY_TYPES}}).to_string().into(),
+            json!({"type":"CONTENT_CHANGED","payload":"{}","hostCapabilities":{"textTypes":HOST_TEXT_TYPES,"binaryTypes":HOST_BINARY_TYPES}}).to_string().into(),
         ))
         .await
         .is_err()
@@ -72,14 +72,13 @@ async fn receive(
                         if event.is_host_event() { continue; }
                         match event.binary_payload {
                             Some(payload) => {
-                                let mut frame = event.event_type.to_le_bytes().to_vec();
-                                frame.extend(payload);
+                                let Some(frame) = crate::ws_frame::encode_raw(event.event_type, &payload) else { continue; };
                                 Message::Binary(frame.into())
                             },
                             None => Message::Text(json!({"type":event.event_type,"payload":event.payload}).to_string().into()),
                         }
                     },
-                    Err(broadcast::error::RecvError::Lagged(_)) => Message::Text(json!({"type":47,"payload":"{}"}).to_string().into()),
+                    Err(broadcast::error::RecvError::Lagged(_)) => Message::Text(json!({"type":"CONTENT_CHANGED","payload":"{}"}).to_string().into()),
                     Err(_) => break,
                 };
                 if socket.send(message).await.is_err() { break; }
@@ -92,11 +91,11 @@ fn host_event(message: Message) -> Option<WsEvent> {
     match message {
         Message::Text(text) => {
             let packet: HostEventPacket = serde_json::from_str(&text).ok()?;
-            WsEvent::host_text(packet.kind, packet.payload)
+            WsEvent::host_text(&packet.kind, packet.payload)
         }
-        Message::Binary(bytes) if bytes.len() >= 4 => {
-            let kind = i32::from_le_bytes(bytes[..4].try_into().ok()?);
-            WsEvent::host_binary(kind, bytes[4..].to_vec())
+        Message::Binary(bytes) => {
+            let (kind, payload) = crate::ws_frame::decode_raw(&bytes)?;
+            WsEvent::host_binary(kind, payload.to_vec())
         }
         _ => None,
     }

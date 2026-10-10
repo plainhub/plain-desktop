@@ -86,10 +86,10 @@ export function createSmsNotificationRefresh(refresh: () => void | Promise<unkno
   function subscribe() {
     if (subscribed) return
     subscribed = true
-    emitter.on('notification_created', handleNotification)
-    emitter.on('notification_updated', handleNotification)
-    emitter.on('sms_changed', handleSmsChanged)
-    emitter.on('mms_sent', handleMmsSent)
+    emitter.on('NOTIFICATION_CREATED', handleNotification)
+    emitter.on('NOTIFICATION_UPDATED', handleNotification)
+    emitter.on('SMS_PROVIDER_CHANGED', handleSmsChanged)
+    emitter.on('MMS_SENT', handleMmsSent)
     emitter.on('app_socket_connection_changed', handleConnectionChanged)
     document.addEventListener('visibilitychange', handleResume)
     window.addEventListener('focus', handleResume)
@@ -103,10 +103,10 @@ export function createSmsNotificationRefresh(refresh: () => void | Promise<unkno
     if (!subscribed) return
     subscribed = false
     refreshQueued = false
-    emitter.off('notification_created', handleNotification)
-    emitter.off('notification_updated', handleNotification)
-    emitter.off('sms_changed', handleSmsChanged)
-    emitter.off('mms_sent', handleMmsSent)
+    emitter.off('NOTIFICATION_CREATED', handleNotification)
+    emitter.off('NOTIFICATION_UPDATED', handleNotification)
+    emitter.off('SMS_PROVIDER_CHANGED', handleSmsChanged)
+    emitter.off('MMS_SENT', handleMmsSent)
     emitter.off('app_socket_connection_changed', handleConnectionChanged)
     document.removeEventListener('visibilitychange', handleResume)
     window.removeEventListener('focus', handleResume)

@@ -137,8 +137,8 @@ export function useScanAction() {
   const onScanProgress = (p: IScanProgress) => {
     if (p) scanProgress.value = { indexed: p.indexed, pending: p.pending, total: p.total, state: p.state }
   }
-  emitter.on('media_scan_progress', onScanProgress)
-  onUnmounted(() => emitter.off('media_scan_progress', onScanProgress))
+  emitter.on('MEDIA_SCAN_PROGRESS', onScanProgress)
+  onUnmounted(() => emitter.off('MEDIA_SCAN_PROGRESS', onScanProgress))
 
   const scanActive = computed(() => ['RUNNING', 'PAUSED'].includes(scanProgress.value.state))
 

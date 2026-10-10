@@ -156,7 +156,7 @@ async fn public_status_auth_scoped_connections_key_rotation_and_stop_use_rust_wi
     .unwrap();
     tokio::time::timeout(Duration::from_secs(3), async {
         loop {
-            if stale.recv().await.unwrap().event_type == 10002 {
+            if stale.recv().await.unwrap().event_type == "PEER_CONNECTIONS_UPDATED" {
                 break;
             }
         }

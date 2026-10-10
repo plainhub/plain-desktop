@@ -33,8 +33,8 @@ function connectPeer(peer: LoginPeer) {
       ws.send(bitArrayToUint8Array(chachaEncrypt(key, new Date().getTime().toString())))
     }
     ws.onmessage = async (event: MessageEvent) => {
-      const r = parseWebSocketData(await event.data.arrayBuffer())
       try {
+        const r = parseWebSocketData(await event.data.arrayBuffer())
         const json = chachaDecrypt(key, r.data)
         const data = json ? JSON.parse(json) : null
         if (data && findLoginPeer(peer.id)) {

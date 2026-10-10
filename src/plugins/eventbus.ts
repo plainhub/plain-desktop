@@ -6,10 +6,10 @@ import type { ScreenMirrorVideoCodec } from '@/views/screen-mirror/screen-mirror
 type Events = {
   upload_task_done: IUploadItem
   upload_progress: IUploadItem
-  upload_merge_result: IUploadMergeResultEvent
+  UPLOAD_MERGE_RESULT: IUploadMergeResultEvent
   refetch_app: undefined
   refetch_favorite_folders: undefined
-  permissions_updated: undefined
+  PERMISSIONS_UPDATED: undefined
   do_play_audio: undefined
   pause_audio: undefined
   item_tags_updated: IItemTagsUpdatedEvent
@@ -23,50 +23,50 @@ type Events = {
   file_renamed: IFileRenamedEvent
   toast: string
   tap_phone: string
-  feeds_fetched: any
-  message_created: any
-  message_updated: any
-  message_deleted: any
-  notification_created: any
-  notification_updated: any
-  notification_deleted: any
-  notification_refreshed: any
+  FEEDS_FETCHED: any
+  MESSAGE_CREATED: any
+  MESSAGE_UPDATED: any
+  MESSAGE_DELETED: any
+  NOTIFICATION_CREATED: any
+  NOTIFICATION_UPDATED: any
+  NOTIFICATION_DELETED: any
+  NOTIFICATION_REFRESHED: any
   color_mode_changed: undefined
   app_socket_connection_changed: boolean
-  pomodoro_action: any
-  pomodoro_settings_update: any
-  screen_mirroring: string
-  screen_mirror_video: Uint8Array
-  screen_mirror_audio: Uint8Array
-  screen_mirror_video_codec: ScreenMirrorVideoCodec
-  screen_mirror_audio_granted: boolean
-  bookmark_updated: any
-  download_progress: any[]
-  channels_updated: any[]
-  peer_status_updated: { id: string, online: boolean }
-  channel_invite_received: { channelId: string, channelName: string, fromId: string, fromName: string }
-  device_name_updated: string
+  POMODORO_ACTION: any
+  POMODORO_SETTINGS_UPDATE: any
+  SCREEN_MIRRORING: string
+  SCREEN_MIRROR_VIDEO: Uint8Array
+  SCREEN_MIRROR_AUDIO: Uint8Array
+  SCREEN_MIRROR_VIDEO_CODEC: ScreenMirrorVideoCodec
+  SCREEN_MIRROR_AUDIO_GRANTED: boolean
+  BOOKMARK_UPDATED: any
+  DOWNLOAD_PROGRESS: any[]
+  CHANNELS_UPDATED: any[]
+  PEER_STATUS_UPDATED: { id: string, online: boolean }
+  CHANNEL_INVITE_RECEIVED: { channelId: string, channelName: string, fromId: string, fromName: string }
+  DEVICE_NAME_UPDATED: string
   sms_sent: undefined
-  image_search_updated: any
-  mms_sent: string
-  sms_changed: ISmsChangedEvent | null
-  sms_send_result: ISmsSendResultEvent
-  mms_send_result: IMmsSendResultEvent
-  pairing_request_received: PairingRequest
-  pairing_success: PairingResult
-  pairing_failed: PairingResult
-  pairing_canceled: PairingResult
-  pairing_started: PairingResult
-  nearby_device_found: any
-  nearby_device_unreachable: { id: string }
-  nearby_discovery_started: undefined
-  nearby_discovery_stopped: { reason?: string } | undefined
-  image_editor_update: ArrayBuffer
-  peer_ws_event: { peerId: string, type: number, data: any }
-  media_scan_progress: IScanProgress
-  file_task_progress: any
-  dlna_renderer_found: any
-  dlna_discovery_done: any
+  IMAGE_SEARCH_UPDATED: any
+  MMS_SENT: string
+  SMS_PROVIDER_CHANGED: ISmsChangedEvent | null
+  SMS_SEND_RESULT: ISmsSendResultEvent
+  MMS_SEND_RESULT: IMmsSendResultEvent
+  PAIRING_REQUEST_RECEIVED: PairingRequest
+  PAIRING_SUCCESS: PairingResult
+  PAIRING_FAILED: PairingResult
+  PAIRING_CANCELED: PairingResult
+  PAIRING_STARTED: PairingResult
+  NEARBY_DEVICE_FOUND: any
+  NEARBY_DEVICE_UNREACHABLE: { id: string }
+  NEARBY_DISCOVERY_STARTED: undefined
+  NEARBY_DISCOVERY_STOPPED: { reason?: string } | undefined
+  IMAGE_EDITOR_UPDATE: ArrayBuffer
+  peer_ws_event: { peerId: string, type: string, data: any }
+  MEDIA_SCAN_PROGRESS: IScanProgress
+  FILE_TASK_PROGRESS: any
+  DLNA_RENDERER_FOUND: any
+  DLNA_DISCOVERY_DONE: any
 }
 
 type Handler<T = any> = (event: T) => void

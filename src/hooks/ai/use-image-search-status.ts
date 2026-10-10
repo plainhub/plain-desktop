@@ -30,8 +30,8 @@ export function useImageSearchStatus() {
     if (data) status.value = { ...data }
   }
 
-  emitter.on('image_search_updated', onStatusUpdated)
-  onUnmounted(() => emitter.off('image_search_updated', onStatusUpdated))
+  emitter.on('IMAGE_SEARCH_UPDATED', onStatusUpdated)
+  onUnmounted(() => emitter.off('IMAGE_SEARCH_UPDATED', onStatusUpdated))
 
   return { status }
 }

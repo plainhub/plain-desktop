@@ -24,9 +24,6 @@ fn sample_request() -> crate::chat::pairing::protocol::PairingRequest {
     }
 }
 
-/// Pairing events map onto the phone-protocol WS numbers with the
-/// plain-app payload shapes: raw `PairingRequest` for 22,
-/// `DPairingResult { deviceId, deviceName, error }` for 23-26.
 #[test]
 fn pairing_event_ws_payload_matches_phone_protocol() {
     let (msg, payload) =
@@ -35,14 +32,14 @@ fn pairing_event_ws_payload_matches_phone_protocol() {
             sender_ip: String::new(),
         }))
         .unwrap();
-    assert_eq!(msg, 22);
+    assert_eq!(msg, "PAIRING_REQUEST_RECEIVED");
     let body: serde_json::Value = serde_json::from_str(&payload).unwrap();
     assert_eq!(body["fromId"], "p");
     assert!(body.get("deviceId").is_none());
 
     let (msg, payload) =
         pairing_event_ws_payload(&pairing_event(PairingEventKind::Started)).unwrap();
-    assert_eq!(msg, 26);
+    assert_eq!(msg, "PAIRING_STARTED");
     let body: serde_json::Value = serde_json::from_str(&payload).unwrap();
     assert_eq!(body["deviceId"], "dev-1");
     assert_eq!(body["deviceName"], "NAS");
@@ -50,7 +47,7 @@ fn pairing_event_ws_payload_matches_phone_protocol() {
 
     let (msg, payload) =
         pairing_event_ws_payload(&pairing_event(PairingEventKind::Success)).unwrap();
-    assert_eq!(msg, 23);
+    assert_eq!(msg, "PAIRING_SUCCESS");
     let body: serde_json::Value = serde_json::from_str(&payload).unwrap();
     assert_eq!(body["deviceId"], "dev-1");
 
@@ -58,13 +55,13 @@ fn pairing_event_ws_payload_matches_phone_protocol() {
         reason: "x".into(),
     }))
     .unwrap();
-    assert_eq!(msg, 24);
+    assert_eq!(msg, "PAIRING_FAILED");
     let body: serde_json::Value = serde_json::from_str(&payload).unwrap();
     assert_eq!(body["error"], "x");
 
     let (msg, payload) =
         pairing_event_ws_payload(&pairing_event(PairingEventKind::Cancelled)).unwrap();
-    assert_eq!(msg, 25);
+    assert_eq!(msg, "PAIRING_CANCELED");
     let body: serde_json::Value = serde_json::from_str(&payload).unwrap();
     assert_eq!(body["error"], "");
 }

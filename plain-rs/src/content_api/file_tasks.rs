@@ -98,7 +98,7 @@ struct Changes(broadcast::Sender<WsEvent>);
 impl Events for Changes {
     fn changed(&self, task: &FileTask) {
         if matches!(task.status, FileTaskStatus::Done | FileTaskStatus::Error) {
-            let _ = self.0.send(WsEvent::broadcast(47, "{}".into()));
+            let _ = self.0.send(WsEvent::broadcast("CONTENT_CHANGED", "{}".into()));
         }
     }
 }

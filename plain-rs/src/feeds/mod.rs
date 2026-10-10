@@ -495,7 +495,7 @@ pub async fn sync_with_assets(
                 let persist = db.feed_set_sync_status(&feed.id, &now(), &stored);
                 let detail = persist.err().map(|e| e.to_string()).unwrap_or(detail);
                 let _ = events.send(WsEvent::broadcast(
-                    4,
+                    "FEEDS_FETCHED",
                     serde_json::json!({"feedId":feed.id,"error":detail}).to_string(),
                 ));
                 detail
@@ -507,7 +507,7 @@ pub async fn sync_with_assets(
         .await;
     if id.is_none() {
         let _ = events.send(WsEvent::broadcast(
-            4,
+            "FEEDS_FETCHED",
             serde_json::json!({"feedId":"all","error":errors.join("\n")}).to_string(),
         ));
     }

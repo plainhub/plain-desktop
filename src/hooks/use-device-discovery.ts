@@ -68,11 +68,11 @@ function ensureListener() {
   if (listenerInitialized) return
   listenerInitialized = true
 
-  emitter.on('nearby_device_found', (device: DiscoveredDevice) => {
+  emitter.on('NEARBY_DEVICE_FOUND', (device: DiscoveredDevice) => {
     upsertDiscoveredDevice(device)
   })
 
-  emitter.on('nearby_device_unreachable', ({ id }) => {
+  emitter.on('NEARBY_DEVICE_UNREACHABLE', ({ id }) => {
     devices.value = devices.value.filter((device) => device.id !== id)
   })
 
@@ -80,15 +80,15 @@ function ensureListener() {
     if (connected && activeCount > 0) void startMutate()
   })
 
-  emitter.on('nearby_discovery_started', () => {
+  emitter.on('NEARBY_DISCOVERY_STARTED', () => {
     status.value = DiscoveryStatus.SEARCHING
   })
 
-  emitter.on('nearby_discovery_stopped', (payload: any) => {
+  emitter.on('NEARBY_DISCOVERY_STOPPED', (payload: any) => {
     status.value = payload?.reason === 'no_receivers' ? DiscoveryStatus.NETWORK_ERROR : DiscoveryStatus.IDLE
   })
 
-  emitter.on('pairing_success', (result: PairingResult) => {
+  emitter.on('PAIRING_SUCCESS', (result: PairingResult) => {
     const device = devices.value.find((d) => d.id === result.deviceId)
     if (device) {
       device.status = PeerStatus.PAIRED
@@ -96,21 +96,21 @@ function ensureListener() {
     useChatStore().fetchPeers()
   })
 
-  emitter.on('pairing_failed', (result: PairingResult) => {
+  emitter.on('PAIRING_FAILED', (result: PairingResult) => {
     const device = devices.value.find((d) => d.id === result.deviceId)
     if (device) {
       device.status = PeerStatus.UNPAIRED
     }
   })
   
-  emitter.on('pairing_canceled', (result: PairingResult) => {
+  emitter.on('PAIRING_CANCELED', (result: PairingResult) => {
     const device = devices.value.find((d) => d.id === result.deviceId)
     if (device) {
       device.status = PeerStatus.UNPAIRED
     }
   })
 
-  emitter.on('pairing_started', (result: PairingResult) => {
+  emitter.on('PAIRING_STARTED', (result: PairingResult) => {
     const device = devices.value.find((d) => d.id === result.deviceId)
     if (device) {
       device.status = 'PAIRING'

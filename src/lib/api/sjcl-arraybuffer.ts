@@ -9,10 +9,11 @@ export function arrayBufferFromBits(arr: Uint8Array): ArrayBuffer {
   return arr.buffer.slice(arr.byteOffset, arr.byteOffset + arr.byteLength) as ArrayBuffer
 }
 
-export function parseWebSocketData(buffer: ArrayBuffer): { type: number; data: Uint8Array } {
-  if (buffer.byteLength < 4) return { type: 0, data: new Uint8Array(0) }
-  const view = new DataView(buffer)
-  const type = view.getInt32(0)
-  const data = new Uint8Array(buffer, 4)
-  return { type, data }
+export function parseWebSocketData(buffer: ArrayBuffer): { type: string; data: Uint8Array } {
+  const bytes = new Uint8Array(buffer)
+  const end = bytes.indexOf(0)
+  if (end <= 0) throw new Error('Missing WebSocket event name')
+  const type = new TextDecoder('utf-8', { fatal: true }).decode(bytes.subarray(0, end))
+  if (!/^[A-Z_]+$/.test(type)) throw new Error('Invalid WebSocket event name')
+  return { type, data: bytes.subarray(end + 1) }
 }

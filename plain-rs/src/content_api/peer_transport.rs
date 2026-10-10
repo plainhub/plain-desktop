@@ -15,7 +15,7 @@ use std::time::Duration;
 pub(super) fn notify(state: &ServerState) {
     let _ = state
         .events
-        .send(crate::ws_event::WsEvent::broadcast(10003, "".into()));
+        .send(crate::ws_event::WsEvent::broadcast("PEER_TRANSPORT_UPDATED", "".into()));
 }
 pub(super) struct Pending<'a> {
     pub(super) router: &'a Router,

@@ -44,7 +44,7 @@ pub(super) fn touch(state: &ServerState, client_id: &str) -> anyhow::Result<()> 
         .db
         .session_touch(&[(client_id.to_owned(), now.to_string())])?;
     let _ = state.events.send(crate::ws_event::WsEvent::broadcast(
-        10007,
+        "WEB_REQUEST_RECEIVED",
         json!({"clientId":client_id,"time":now}).to_string(),
     ));
     Ok(())

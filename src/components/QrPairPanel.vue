@@ -130,17 +130,17 @@ const onCanceled = (r: PairingResult) => onResult(r, false)
 
 onMounted(() => {
   void reload()
-  emitter.on('pairing_request_received', onRequest)
-  emitter.on('pairing_success', onSuccess)
-  emitter.on('pairing_failed', onFailed)
-  emitter.on('pairing_canceled', onCanceled)
+  emitter.on('PAIRING_REQUEST_RECEIVED', onRequest)
+  emitter.on('PAIRING_SUCCESS', onSuccess)
+  emitter.on('PAIRING_FAILED', onFailed)
+  emitter.on('PAIRING_CANCELED', onCanceled)
 })
 
 onBeforeUnmount(() => {
-  emitter.off('pairing_request_received', onRequest)
-  emitter.off('pairing_success', onSuccess)
-  emitter.off('pairing_failed', onFailed)
-  emitter.off('pairing_canceled', onCanceled)
+  emitter.off('PAIRING_REQUEST_RECEIVED', onRequest)
+  emitter.off('PAIRING_SUCCESS', onSuccess)
+  emitter.off('PAIRING_FAILED', onFailed)
+  emitter.off('PAIRING_CANCELED', onCanceled)
 })
 </script>
 

@@ -12,7 +12,7 @@ afterEach(() => vi.useRealTimers())
 
 describe('SMS result ledger', () => {
   it('queues a correlated SMS result while its thread has no active listener', () => {
-    emitter.emit('sms_send_result', { clientId: 'browser-a', requestId: 'inactive-sms', success: false, resultCode: 1 })
+    emitter.emit('SMS_SEND_RESULT', { clientId: 'browser-a', requestId: 'inactive-sms', success: false, resultCode: 1 })
 
     expect(takeSmsSendResult('inactive-sms')).toEqual({
       clientId: 'browser-a', requestId: 'inactive-sms', success: false, resultCode: 1,
@@ -23,7 +23,7 @@ describe('SMS result ledger', () => {
     const handler = vi.fn(() => true)
     const unsubscribe = subscribeSmsSendResults(handler)
 
-    emitter.emit('sms_send_result', { clientId: 'browser-a', requestId: 'active-sms', success: true })
+    emitter.emit('SMS_SEND_RESULT', { clientId: 'browser-a', requestId: 'active-sms', success: true })
     unsubscribe()
 
     expect(handler).toHaveBeenCalledOnce()
@@ -31,15 +31,15 @@ describe('SMS result ledger', () => {
   })
 
   it('keeps concurrent sends from one client separated by request ID', () => {
-    emitter.emit('sms_send_result', { clientId: 'browser-a', requestId: 'send-a', success: true })
-    emitter.emit('sms_send_result', { clientId: 'browser-a', requestId: 'send-b', success: false, resultCode: 4 })
+    emitter.emit('SMS_SEND_RESULT', { clientId: 'browser-a', requestId: 'send-a', success: true })
+    emitter.emit('SMS_SEND_RESULT', { clientId: 'browser-a', requestId: 'send-b', success: false, resultCode: 4 })
 
     expect(takeSmsSendResult('send-b')).toMatchObject({ requestId: 'send-b', success: false })
     expect(takeSmsSendResult('send-a')).toMatchObject({ requestId: 'send-a', success: true })
   })
 
   it('queues an MMS timeout for its inactive originating thread', () => {
-    emitter.emit('mms_send_result', { pendingId: 'inactive-mms', success: false, resultCode: -1000 })
+    emitter.emit('MMS_SEND_RESULT', { pendingId: 'inactive-mms', success: false, resultCode: -1000 })
 
     expect(takeMmsSendResult('inactive-mms')).toEqual({
       pendingId: 'inactive-mms', success: false, resultCode: -1000,
@@ -47,7 +47,7 @@ describe('SMS result ledger', () => {
   })
 
   it('queues legacy MMS success while its originating thread is inactive', () => {
-    emitter.emit('mms_sent', 'successful-mms')
+    emitter.emit('MMS_SENT', 'successful-mms')
 
     expect(takeMmsSendResult('successful-mms')).toEqual({
       pendingId: 'successful-mms', success: true,
@@ -56,13 +56,13 @@ describe('SMS result ledger', () => {
 
   it('expires orphaned results after a bounded window longer than backend completion', () => {
     vi.useFakeTimers()
-    emitter.emit('sms_send_result', { clientId: 'browser-a', requestId: 'orphan-sms', success: true })
+    emitter.emit('SMS_SEND_RESULT', { clientId: 'browser-a', requestId: 'orphan-sms', success: true })
     vi.advanceTimersByTime(SMS_RESULT_LEDGER_TTL_MS)
     expect(takeSmsSendResult('orphan-sms')).toBeUndefined()
   })
 
   it('lets modal MMS flows explicitly discard a result with no optimistic owner', () => {
-    emitter.emit('mms_sent', 'modal-mms')
+    emitter.emit('MMS_SENT', 'modal-mms')
     discardMmsSendResult('modal-mms')
     expect(takeMmsSendResult('modal-mms')).toBeUndefined()
   })

@@ -111,18 +111,18 @@ export function useMainView() {
 
   onMounted(() => {
     emitter.on('refetch_app', refetchAppHandler)
-    emitter.on('permissions_updated', refetchAppHandler)
+    emitter.on('PERMISSIONS_UPDATED', refetchAppHandler)
     emitter.on('media_items_actioned', mediaItemsActionedHandler)
-    emitter.on('device_name_updated', deviceNameUpdatedHandler)
-    emitter.on('pairing_request_received', pairingRequestHandler)
+    emitter.on('DEVICE_NAME_UPDATED', deviceNameUpdatedHandler)
+    emitter.on('PAIRING_REQUEST_RECEIVED', pairingRequestHandler)
   })
 
   onUnmounted(() => {
     emitter.off('refetch_app', refetchAppHandler)
-    emitter.off('permissions_updated', refetchAppHandler)
+    emitter.off('PERMISSIONS_UPDATED', refetchAppHandler)
     emitter.off('media_items_actioned', mediaItemsActionedHandler)
-    emitter.off('device_name_updated', deviceNameUpdatedHandler)
-    emitter.off('pairing_request_received', pairingRequestHandler)
+    emitter.off('DEVICE_NAME_UPDATED', deviceNameUpdatedHandler)
+    emitter.off('PAIRING_REQUEST_RECEIVED', pairingRequestHandler)
   })
 
   // Restore persisted state from prefs

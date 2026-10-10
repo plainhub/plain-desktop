@@ -119,6 +119,7 @@ pub async fn chat_socket_cid(socket: WebSocket, cid: String, state: ServerState)
             event = event_rx.recv() => {
                 match event {
                     Ok(ev) => {
+                        if ev.is_internal() { continue; }
                         if let Some(target) = ev.target_cid.as_ref() {
                             if target != &cid {
                                 continue;
@@ -128,13 +129,11 @@ pub async fn chat_socket_cid(socket: WebSocket, cid: String, state: ServerState)
                             "local_server chat_ws: forwarding event type={} to cid={cid}",
                             ev.event_type
                         );
-                        let payload = ev
-                            .binary_payload
-                            .as_deref()
-                            .unwrap_or(ev.payload.as_bytes());
-                        if let Some(bytes) =
-                            crate::ws_frame::encode(ev.event_type, payload, &key)
-                        {
+                        let encoded = match ev.binary_payload {
+                            Some(payload) => crate::ws_frame::encode_raw(ev.event_type, &payload),
+                            None => crate::ws_frame::encode(ev.event_type, ev.payload.as_bytes(), &key),
+                        };
+                        if let Some(bytes) = encoded {
                             match socket.send(Message::Binary(bytes)).await {
                                 Ok(_) => {}
                                 Err(e) => {

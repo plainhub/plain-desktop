@@ -7,34 +7,24 @@ async fn http_record_search_delete_and_restart() {
     let token = crate::base64_encode(&[9; 32]);
     let prefs = Arc::new(crate::prefs::Prefs::load(&dir.path().join("system_prefs.json")).unwrap());
     let server = ContentServer::start(&path, &token, prefs.clone()).unwrap();
-    use tokio::io::{AsyncReadExt, AsyncWriteExt};
-    let mut socket = tokio::net::TcpStream::connect(("127.0.0.1", server.port))
-        .await
+    use futures_util::StreamExt;
+    use tokio_tungstenite::{connect_async, tungstenite::client::IntoClientRequest};
+    let mut request = format!("ws://127.0.0.1:{}/events", server.port)
+        .into_client_request()
         .unwrap();
-    socket.write_all(format!("GET /events HTTP/1.1\r\nHost: localhost\r\nAuthorization: Bearer {token}\r\nUpgrade: websocket\r\nConnection: Upgrade\r\nSec-WebSocket-Version: 13\r\nSec-WebSocket-Key: dGhlIHNhbXBsZSBub25jZQ==\r\n\r\n").as_bytes()).await.unwrap();
-    let mut headers = vec![];
-    loop {
-        headers.push(socket.read_u8().await.unwrap());
-        if headers.ends_with(b"\r\n\r\n") {
-            break;
-        }
+    request
+        .headers_mut()
+        .insert("authorization", format!("Bearer {token}").parse().unwrap());
+    let (mut socket, _) = connect_async(request).await.unwrap();
+    async fn event(
+        socket: &mut tokio_tungstenite::WebSocketStream<
+            tokio_tungstenite::MaybeTlsStream<tokio::net::TcpStream>,
+        >,
+    ) -> serde_json::Value {
+        let frame = socket.next().await.unwrap().unwrap();
+        serde_json::from_str(frame.to_text().unwrap()).unwrap()
     }
-    assert!(
-        String::from_utf8(headers)
-            .unwrap()
-            .starts_with("HTTP/1.1 101")
-    );
-    async fn event(socket: &mut tokio::net::TcpStream) -> serde_json::Value {
-        use tokio::io::AsyncReadExt;
-        let mut header = [0; 2];
-        socket.read_exact(&mut header).await.unwrap();
-        assert_eq!(header[0], 0x81);
-        assert!(header[1] < 126);
-        let mut bytes = vec![0; header[1] as usize];
-        socket.read_exact(&mut bytes).await.unwrap();
-        serde_json::from_slice(&bytes).unwrap()
-    }
-    assert_eq!(event(&mut socket).await["type"], 47);
+    assert_eq!(event(&mut socket).await["type"], "CONTENT_CHANGED");
     let query = r#"mutation {recordClipboard(input:{text:"100%_ 🌍",source:"peer",label:"label",sensitive:true}) {inserted item {id text source label sensitive createdAt}}}"#;
     let first = call(server.port, &token, query).await;
     assert!(first.get("errors").is_none(), "{first}");
@@ -42,7 +32,7 @@ async fn http_record_search_delete_and_restart() {
     let changed = tokio::time::timeout(std::time::Duration::from_secs(2), event(&mut socket))
         .await
         .unwrap();
-    assert_eq!(changed["type"], 47);
+    assert_eq!(changed["type"], "CONTENT_CHANGED");
     assert_eq!(changed["payload"], "{}");
     drop(socket);
 

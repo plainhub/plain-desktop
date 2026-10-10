@@ -16,60 +16,7 @@ import { isLocalMode } from '@/lib/device/local-mode'
 import { openSocket } from '@/lib/api/http'
 import { get as prefsGet, set as prefsSet } from '@/lib/prefs'
 
-const EventType: { [key: number]: string } = {
-  1: 'message_created',
-  2: 'message_deleted',
-  3: 'message_updated',
-  4: 'feeds_fetched',
-  5: 'screen_mirroring',
-  7: 'notification_created',
-  8: 'notification_updated',
-  9: 'notification_deleted',
-  10: 'notification_refreshed',
-  11: 'pomodoro_action',
-  12: 'pomodoro_settings_update',
-  14: 'screen_mirror_audio_granted',
-  15: 'bookmark_updated',
-  16: 'download_progress',
-  17: 'mms_sent',
-  18: 'channels_updated',
-  19: 'image_search_updated',
-  20: 'peer_status_updated',
-  21: 'device_name_updated',
-  22: 'pairing_request_received',
-  23: 'pairing_success',
-  24: 'pairing_failed',
-  25: 'pairing_canceled',
-  26: 'pairing_started',
-  27: 'nearby_device_found',
-  28: 'channel_invite_received',
-  29: 'nearby_discovery_started',
-  30: 'nearby_discovery_stopped',
-  31: 'screen_mirror_video',
-  32: 'screen_mirror_video_codec',
-  33: 'screen_mirror_audio',
-  34: 'image_editor_update',
-  35: 'sms_changed',
-  36: 'sms_send_result',
-  37: 'mms_send_result',
-  38: 'upload_merge_result',
-  40: 'permissions_updated',
-  // plain-nas pushes (src/ws_hub.rs) start at 41 so they never collide
-  // with the phone events above.
-  41: 'media_scan_progress',
-  42: 'file_task_progress',
-  43: 'dlna_renderer_found',
-  44: 'dlna_discovery_done',
-  46: 'nearby_device_unreachable',
-}
-
-// Screen mirror binary frames (H.264 NAL / Opus) and image editor Yjs updates
-// are sent raw — skip ChaCha20 decryption so the bytes are consumed directly.
-const RAW_BINARY_EVENTS = new Set([
-  31, // SCREEN_MIRROR_VIDEO
-  33, // SCREEN_MIRROR_AUDIO
-  34, // IMAGE_EDITOR_UPDATE
-])
+const RAW_BINARY_EVENTS = new Set(['SCREEN_MIRROR_VIDEO', 'SCREEN_MIRROR_AUDIO', 'IMAGE_EDITOR_UPDATE'])
 
 // Upstream control channel on the live app socket. Post-registration frames
 // are ChaCha20-encrypted with the same key as the registration frame; the
@@ -156,16 +103,10 @@ export function useAppSocket() {
       }
       ws.onmessage = async (event: MessageEvent) => {
         const buffer = await event.data.arrayBuffer()
-        const r = parseWebSocketData(buffer)
-        const type = EventType[r.type]
         try {
+          const r = parseWebSocketData(buffer)
+          const type = r.type
           if (RAW_BINARY_EVENTS.has(r.type)) {
-            // Zero-copy: pass the Uint8Array view directly. The view shares
-            // the underlying WebSocket buffer — no slice, no memcpy. Downstream
-            // (mirror-codec-video / mirror-codec-audio) consumes Uint8Array
-            // and never touches .buffer, so the 4-byte type prefix is never
-            // read. This matters for 1080p@60fps where each frame is ~100KB
-            // and a per-frame slice would copy ~6MB/s.
             emitter.emit(type as any, r.data)
           } else {
             const json = chachaDecrypt(key, r.data)
@@ -221,7 +162,7 @@ export function useAppSocket() {
     })
     // A permission change on the phone resolves whatever "check phone" flow
     // the banner was pointing at (grant permission / toggle access switch).
-    emitter.on('permissions_updated', () => {
+    emitter.on('PERMISSIONS_UPDATED', () => {
       tapPhoneMessage.value = ''
     })
     window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => {

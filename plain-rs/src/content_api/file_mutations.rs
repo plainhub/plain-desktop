@@ -184,7 +184,7 @@ impl FileTasks {
                 })
                 .await
                 .map_err(|e| anyhow!(e.message))?;
-            let _ = self.events.send(WsEvent::broadcast(47, "{}".into()));
+            let _ = self.events.send(WsEvent::broadcast("CONTENT_CHANGED", "{}".into()));
             for paths in outcome.paths.chunks(128) {
                 self.hooks
                     .call("fileTaskScan", json!({"paths":paths}))

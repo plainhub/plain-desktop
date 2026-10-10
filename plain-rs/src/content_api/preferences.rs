@@ -41,15 +41,15 @@ pub(super) fn set(
     }
     .map_err(|e| e.to_string())?;
     if changed {
-        let _ = events.send(WsEvent::broadcast(10010, "{}".into()));
+        let _ = events.send(WsEvent::broadcast("PREFS_UPDATED", "{}".into()));
         if user {
             let event = match key {
-                "device_name" => Some((21, value.to_string())),
-                "notification_filter" => Some((10, String::new())),
+                "device_name" => Some(("DEVICE_NAME_UPDATED", value.to_string())),
+                "notification_filter" => Some(("NOTIFICATION_REFRESHED", String::new())),
                 "pomodoro_settings" => value
                     .as_str()
                     .and_then(|raw| serde_json::from_str::<Value>(raw).ok())
-                    .map(|settings| (12, settings.to_string())),
+                    .map(|settings| ("POMODORO_SETTINGS_UPDATE", settings.to_string())),
                 _ => None,
             };
             if let Some((kind, payload)) = event {
@@ -73,7 +73,7 @@ pub(super) fn remove(
     }
     .map_err(|e| e.to_string())?;
     if changed {
-        let _ = events.send(WsEvent::broadcast(10010, "{}".into()));
+        let _ = events.send(WsEvent::broadcast("PREFS_UPDATED", "{}".into()));
     }
     Ok(changed)
 }

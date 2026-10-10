@@ -30,7 +30,7 @@ const PEER_NOTIFICATIONS_GQL = `
   ${notificationFragment}
 `
 
-const NOTIFICATION_EVENTS = new Set([7, 8, 9, 10])
+const NOTIFICATION_EVENTS = new Set(['NOTIFICATION_CREATED', 'NOTIFICATION_UPDATED', 'NOTIFICATION_DELETED', 'NOTIFICATION_REFRESHED'])
 const REFRESH_INTERVAL = 60000
 
 export interface PeerNotificationGroup {
@@ -127,25 +127,25 @@ export function startLocalPeerData() {
   const { notificationVolume } = storeToRefs(useMainStore())
 
   emitter.on('peer_ws_event', ({ peerId, type, data }) => {
-    if (!NOTIFICATION_EVENTS.has(type) && type !== 40) return
+    if (!NOTIFICATION_EVENTS.has(type) && type !== 'PERMISSIONS_UPDATED') return
     const group = groupOf(peerId)
     if (!group || !findLoginPeer(peerId)) return
-    // 40 = PERMISSIONS_UPDATED — peer's `app.permissions` (e.g.
+    // PERMISSIONS_UPDATED — peer's `app.permissions` (e.g.
     // NOTIFICATION_LISTENER) may have changed; re-pull notifications+app.
-    if (type === 40) {
+    if (type === 'PERMISSIONS_UPDATED') {
       fetchPeerNotifications(peerId, true)
       // The peer acted, so any "check phone" banner is obsolete.
       emitter.emit('tap_phone', '')
       return
     }
     const decorated = decorate(group, data)
-    if (type === 7) {
+    if (type === 'NOTIFICATION_CREATED') {
       group.items = upsertNotification(group.items, decorated)
       if (notificationVolume.value > 0) playNotificationSound(notificationVolume.value)
       showDesktopNotification({ title: decorated.title, body: decorated.body, icon: decorated.icon, silent: true })
-    } else if (type === 8) {
+    } else if (type === 'NOTIFICATION_UPDATED') {
       group.items = upsertNotification(group.items, decorated)
-    } else if (type === 9) {
+    } else if (type === 'NOTIFICATION_DELETED') {
       group.items = removeNotification(group.items, data.id)
     } else {
       fetchPeerNotifications(peerId, true)

@@ -163,7 +163,7 @@ pub(super) fn start(state: ServerState) {
             tokio::select! { result=changed.changed()=>if result.is_err(){break}, _=stop.changed()=>break };
             let _ = progress_state
                 .events
-                .send(crate::ws_event::WsEvent::broadcast(10004, String::new()));
+                .send(crate::ws_event::WsEvent::broadcast("SHARED_FOLDER_DOWNLOAD_UPDATED", String::new()));
         }
     });
 

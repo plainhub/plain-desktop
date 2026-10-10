@@ -531,7 +531,7 @@ impl NearbyDiscoverManager {
             .collect()
     }
 
-    fn emit_event(&self, event_type: i32, payload: &str) {
+    fn emit_event(&self, event_type: &'static str, payload: &str) {
         if let Some(tx) = self.event_tx.read().unwrap().clone() {
             let _ = tx.send(WsEvent::broadcast(event_type, payload.to_string()));
         }

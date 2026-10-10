@@ -71,7 +71,7 @@ function waitForMergeResult(upload: IUploadItem, fileId: string): Promise<IMerge
       settled = true
       if (watchdog) clearTimeout(watchdog)
       if (pauseProbe) clearInterval(pauseProbe)
-      emitter.off('upload_merge_result', onMergeEvent)
+      emitter.off('UPLOAD_MERGE_RESULT', onMergeEvent)
       resolve(outcome)
     }
 
@@ -84,7 +84,7 @@ function waitForMergeResult(upload: IUploadItem, fileId: string): Promise<IMerge
       }
     }
 
-    emitter.on('upload_merge_result', onMergeEvent)
+    emitter.on('UPLOAD_MERGE_RESULT', onMergeEvent)
 
     pauseProbe = setInterval(() => {
       if (upload.status === 'paused' || upload.status === 'canceled') {

@@ -72,14 +72,14 @@ const handleSuccess = (r: PairingResult) => dismissOnRemoteResult(r)
 const handleFailed = (r: PairingResult) => dismissOnRemoteResult(r)
 const handleCanceled = (r: PairingResult) => dismissOnRemoteResult(r)
 
-emitter.on('pairing_success', handleSuccess)
-emitter.on('pairing_failed', handleFailed)
-emitter.on('pairing_canceled', handleCanceled)
+emitter.on('PAIRING_SUCCESS', handleSuccess)
+emitter.on('PAIRING_FAILED', handleFailed)
+emitter.on('PAIRING_CANCELED', handleCanceled)
 
 onBeforeUnmount(() => {
-  emitter.off('pairing_success', handleSuccess)
-  emitter.off('pairing_failed', handleFailed)
-  emitter.off('pairing_canceled', handleCanceled)
+  emitter.off('PAIRING_SUCCESS', handleSuccess)
+  emitter.off('PAIRING_FAILED', handleFailed)
+  emitter.off('PAIRING_CANCELED', handleCanceled)
 })
 
 async function allow() {

@@ -13,7 +13,7 @@ use std::sync::{
     Arc, Mutex, RwLock,
     atomic::{AtomicBool, AtomicU64, Ordering},
 };
-const WS_MDNS_UPDATED: i32 = 10001;
+const WS_MDNS_UPDATED: &'static str = "MDNS_UPDATED";
 static OWNER: tokio::sync::Mutex<Option<String>> = tokio::sync::Mutex::const_new(None);
 struct Session {
     browser: MdnsServiceBrowser,
@@ -52,7 +52,7 @@ impl Session {
             .context
             .events
             .send(crate::ws_event::WsEvent::broadcast(
-                if active { 29 } else { 30 },
+                if active { "NEARBY_DISCOVERY_STARTED" } else { "NEARBY_DISCOVERY_STOPPED" },
                 "{}".into(),
             ));
         Ok(active)
@@ -181,7 +181,7 @@ impl Runtime {
                             crate::chat::events::WS_PEER_STATUS_UPDATED,
                             json!({"id":id,"online":true}).to_string(),
                         ));
-                        let _=status_events.send(crate::ws_event::WsEvent::broadcast(10002,json!({"runtimeId":status.connections.snapshot(&status_db)["runtimeId"]}).to_string()));
+                        let _=status_events.send(crate::ws_event::WsEvent::broadcast("PEER_CONNECTIONS_UPDATED",json!({"runtimeId":status.connections.snapshot(&status_db)["runtimeId"]}).to_string()));
                     }
                     runtime.emit(&observer, Some(&id), visible.load(Ordering::SeqCst));
                 }

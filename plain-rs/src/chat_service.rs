@@ -386,7 +386,7 @@ struct DPairingResult<'a> {
 ///
 /// Shared by the desktop WS bridge and hosts that re-publish pairing
 /// events on their own buses (plain-nas's eventbus).
-pub fn pairing_event_ws_payload(ev: &PairingEvent) -> Option<(i32, String)> {
+pub fn pairing_event_ws_payload(ev: &PairingEvent) -> Option<(&'static str, String)> {
     let result = DPairingResult {
         device_id: &ev.device_id,
         device_name: &ev.device_name,

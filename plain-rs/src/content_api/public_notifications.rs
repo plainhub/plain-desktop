@@ -151,7 +151,7 @@ mod tests;
 #[serde(deny_unknown_fields)]
 pub(super) struct EventFacts {
     #[serde(rename = "type")]
-    event_type: i32,
+    event_type: String,
     notification: Value,
 }
 pub(super) async fn publish(
@@ -163,10 +163,13 @@ pub(super) async fn publish(
     if !state.authenticated(&headers) {
         return axum::http::StatusCode::UNAUTHORIZED.into_response();
     }
-    if !matches!(facts.event_type, 7 | 8 | 9) {
-        return axum::http::StatusCode::BAD_REQUEST.into_response();
-    }
-    if facts.event_type != 9
+    let kind = match facts.event_type.as_str() {
+        "NOTIFICATION_CREATED" => "NOTIFICATION_CREATED",
+        "NOTIFICATION_UPDATED" => "NOTIFICATION_UPDATED",
+        "NOTIFICATION_DELETED" => "NOTIFICATION_DELETED",
+        _ => return axum::http::StatusCode::BAD_REQUEST.into_response(),
+    };
+    if facts.event_type != "NOTIFICATION_DELETED"
         && (!public_gate::is_enabled(&state.prefs, &[PERMISSION])
             || system_providers::notifications(&state.prefs, vec![facts.notification.clone()], "")
                 .is_empty())
@@ -176,7 +179,7 @@ pub(super) async fn publish(
     let item = notification(&facts.notification);
     let payload = serde_json::to_string(&item).unwrap();
     let _ = state.events.send(crate::ws_event::WsEvent::broadcast(
-        facts.event_type,
+        kind,
         payload,
     ));
     axum::Json(true).into_response()

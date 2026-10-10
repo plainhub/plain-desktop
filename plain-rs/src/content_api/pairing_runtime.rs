@@ -123,7 +123,7 @@ pub(super) enum Request {
         device: Device,
     },
 }
-pub(super) fn event(state: &ServerState, kind: i32, value: Value) {
+pub(super) fn event(state: &ServerState, kind: &'static str, value: Value) {
     let _ = state
         .events
         .send(crate::ws_event::WsEvent::broadcast(kind, value.to_string()));

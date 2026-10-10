@@ -295,7 +295,7 @@ function editDeviceName() {
     done: (value: string) => {
       if (app.value) app.value.deviceName = value
       void updateLoginPeerName(getRemoteClientId(), value)
-      emitter.emit('device_name_updated', value)
+      emitter.emit('DEVICE_NAME_UPDATED', value)
     },
   })
 }

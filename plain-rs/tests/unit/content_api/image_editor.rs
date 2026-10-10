@@ -109,7 +109,7 @@ async fn binary_updates_have_bounded_queue_and_exact_payload() {
     let updates = crate::image_editor::Updates::new(sender);
     updates.publish("画布", "AQID").unwrap();
     let event = receiver.recv().await.unwrap();
-    assert_eq!(event.event_type, 34);
+    assert_eq!(event.event_type, "IMAGE_EDITOR_UPDATE");
     assert_eq!(
         event.binary_payload.unwrap(),
         [vec![6], "画布".as_bytes().to_vec(), vec![1, 2, 3]].concat()
@@ -128,7 +128,8 @@ async fn binary_updates_have_bounded_queue_and_exact_payload() {
 
 #[tokio::test]
 async fn websocket_binary_delta_does_not_invalidate_content() {
-    use tokio::io::{AsyncReadExt, AsyncWriteExt};
+    use futures_util::StreamExt;
+    use tokio_tungstenite::{connect_async, tungstenite::client::IntoClientRequest};
     let dir = tempfile::tempdir().unwrap();
     let token = crate::base64_encode(&[13; 32]);
     let server = ContentServer::start(
@@ -137,26 +138,18 @@ async fn websocket_binary_delta_does_not_invalidate_content() {
         Arc::new(crate::prefs::Prefs::load(&dir.path().join("system_prefs.json")).unwrap()),
     )
     .unwrap();
-    let mut socket = tokio::net::TcpStream::connect(("127.0.0.1", server.port))
-        .await
+    let mut request = format!("ws://127.0.0.1:{}/events", server.port)
+        .into_client_request()
         .unwrap();
-    socket.write_all(format!("GET /events HTTP/1.1\r\nHost: localhost\r\nAuthorization: Bearer {token}\r\nUpgrade: websocket\r\nConnection: Upgrade\r\nSec-WebSocket-Version: 13\r\nSec-WebSocket-Key: dGhlIHNhbXBsZSBub25jZQ==\r\n\r\n").as_bytes()).await.unwrap();
-    let mut headers = vec![];
-    loop {
-        headers.push(socket.read_u8().await.unwrap());
-        if headers.ends_with(b"\r\n\r\n") {
-            break;
-        }
-    }
-    async fn frame(socket: &mut tokio::net::TcpStream) -> (u8, Vec<u8>) {
-        let code = socket.read_u8().await.unwrap();
-        let size = socket.read_u8().await.unwrap();
-        assert!(size < 126);
-        let mut bytes = vec![0; size as usize];
-        socket.read_exact(&mut bytes).await.unwrap();
-        (code, bytes)
-    }
-    assert_eq!(frame(&mut socket).await.0, 0x81);
+    request
+        .headers_mut()
+        .insert("authorization", format!("Bearer {token}").parse().unwrap());
+    let (mut socket, _) = connect_async(request).await.unwrap();
+    let greeting = socket.next().await.unwrap().unwrap();
+    assert_eq!(
+        serde_json::from_str::<serde_json::Value>(greeting.to_text().unwrap()).unwrap()["type"],
+        "CONTENT_CHANGED"
+    );
     let result = call(
         server.port,
         &token,
@@ -164,13 +157,18 @@ async fn websocket_binary_delta_does_not_invalidate_content() {
     )
     .await;
     assert!(result.get("errors").is_none(), "{result}");
-    let (code, bytes) = tokio::time::timeout(std::time::Duration::from_secs(2), frame(&mut socket))
+    let frame = tokio::time::timeout(std::time::Duration::from_secs(2), socket.next())
         .await
+        .unwrap()
+        .unwrap()
         .unwrap();
-    assert_eq!(code, 0x82);
-    assert_eq!(bytes, vec![34, 0, 0, 0, 1, b'p', 1, 2, 3]);
+    assert!(frame.is_binary());
+    let bytes = frame.into_data();
+    let (kind, payload) = crate::ws_frame::decode_raw(&bytes).unwrap();
+    assert_eq!(kind, "IMAGE_EDITOR_UPDATE");
+    assert_eq!(payload, [1, b'p', 1, 2, 3]);
     assert!(
-        tokio::time::timeout(std::time::Duration::from_millis(100), frame(&mut socket))
+        tokio::time::timeout(std::time::Duration::from_millis(100), socket.next())
             .await
             .is_err()
     );

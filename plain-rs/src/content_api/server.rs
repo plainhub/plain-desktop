@@ -614,7 +614,7 @@ async fn graphql(
     let mutation = content_changes(&request);
     let response = s.schema.execute(request).await;
     if mutation && response.errors.is_empty() {
-        let _ = s.events.send(WsEvent::broadcast(47, "{}".into()));
+        let _ = s.events.send(WsEvent::broadcast("CONTENT_CHANGED", "{}".into()));
     }
     Json(response).into_response()
 }

@@ -90,8 +90,8 @@ function onChannelsUpdated(list: any[]) {
   if (updated) channel.value = { ...updated }
 }
 
-onMounted(() => { emitter.on('channels_updated', onChannelsUpdated) })
-onUnmounted(() => { emitter.off('channels_updated', onChannelsUpdated) })
+onMounted(() => { emitter.on('CHANNELS_UPDATED', onChannelsUpdated) })
+onUnmounted(() => { emitter.off('CHANNELS_UPDATED', onChannelsUpdated) })
 
 const pendingIds = reactive(new Set<string>())
 

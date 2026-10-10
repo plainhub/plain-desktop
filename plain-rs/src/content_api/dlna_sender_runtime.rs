@@ -13,7 +13,7 @@ use std::{
     sync::{Arc, Mutex},
 };
 
-pub(super) const EVENT_UPDATED: i32 = 10008;
+pub(super) const EVENT_UPDATED: &'static str = "DLNA_SENDER_UPDATED";
 #[derive(Clone, Default, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub(super) struct Device {

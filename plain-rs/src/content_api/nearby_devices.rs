@@ -21,7 +21,7 @@ pub(super) enum Request {
         resident: bool,
     },
 }
-pub(super) const EVENT_UPDATED: i32 = 10011;
+pub(super) const EVENT_UPDATED: &'static str = "NEARBY_DEVICES_UPDATED";
 
 fn publish(state: &ServerState) {
     let _ = state.events.send(WsEvent::broadcast(

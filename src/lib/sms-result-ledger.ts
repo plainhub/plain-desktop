@@ -61,7 +61,7 @@ function recordMmsResult(result: IMmsSendResultEvent) {
   enforceBound(mmsResults, deleteMmsResult)
 }
 
-emitter.on('sms_send_result', (result) => {
+emitter.on('SMS_SEND_RESULT', (result) => {
   if (!result.requestId) return
   recordSmsResult(result)
   for (const handler of smsHandlers) {
@@ -72,7 +72,7 @@ emitter.on('sms_send_result', (result) => {
   }
 })
 
-emitter.on('mms_send_result', (result) => {
+emitter.on('MMS_SEND_RESULT', (result) => {
   recordMmsResult(result)
   // The phone finished the MMS — the "confirm on phone" banner is obsolete.
   emitter.emit('tap_phone', '')
@@ -86,7 +86,7 @@ emitter.on('mms_send_result', (result) => {
 
 // Event 17 is the legacy/success half of the MMS result contract. Recording
 // it here prevents a success from being lost while its route is deactivated.
-emitter.on('mms_sent', (pendingId) => {
+emitter.on('MMS_SENT', (pendingId) => {
   emitter.emit('tap_phone', '')
   const result: IMmsSendResultEvent = { pendingId, success: true }
   recordMmsResult(result)

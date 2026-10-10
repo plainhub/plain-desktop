@@ -182,7 +182,7 @@ impl Runtime {
                 let _guard = runtime.lifecycle.lock().await;
                 runtime.tasks.lock().unwrap().remove(&id);
                 runtime.jobs.lock().unwrap().insert(id, status);
-                let _ = events.send(WsEvent::broadcast(38, event.to_string()));
+                let _ = events.send(WsEvent::broadcast("UPLOAD_MERGE_RESULT", event.to_string()));
             }
         });
         self.tasks.lock().unwrap().insert(task_id, task);

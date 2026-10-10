@@ -9,20 +9,25 @@ fn committed_preferences_emit_public_state_once_without_host_forwarding() {
         (
             "device_name",
             json!("Synthetic"),
-            21,
+            "DEVICE_NAME_UPDATED",
             "\"Synthetic\"".to_string(),
         ),
-        ("notification_filter", json!("{}"), 10, String::new()),
+        (
+            "notification_filter",
+            json!("{}"),
+            "NOTIFICATION_REFRESHED",
+            String::new(),
+        ),
         (
             "pomodoro_settings",
             json!("{\"workDurationMin\":30}"),
-            12,
+            "POMODORO_SETTINGS_UPDATE",
             "{\"workDurationMin\":30}".to_string(),
         ),
     ] {
         assert!(set(&prefs, &events, true, key, value.clone()).unwrap());
         let invalidation = receiver.try_recv().unwrap();
-        assert_eq!(invalidation.event_type, 10010);
+        assert_eq!(invalidation.event_type, "PREFS_UPDATED");
         let public = receiver.try_recv().unwrap();
         assert_eq!(public.event_type, kind);
         assert_eq!(public.payload, payload);

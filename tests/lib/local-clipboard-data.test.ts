@@ -90,10 +90,10 @@ describe('local clipboard data sync gating', () => {
     expect(peerClipboardGroups.value[0].clipboardSync).toBe(true)
   })
 
-  it('event 39 re-arms a disabled peer and reloads once the switch is on', async () => {
+  it('CLIPBOARD_CHANGED re-arms a disabled peer and reloads once the switch is on', async () => {
     mockGqlFetchPeer.mockImplementation(listReply({ data: { clipboardItems: [{ id: 'c2' }], clipboardItemCount: 1 } }))
     addGroup({ clipboardSync: false })
-    handlePeerClipboardEvent('p1', 39)
+    handlePeerClipboardEvent('p1', 'CLIPBOARD_CHANGED')
     await flush()
     const g = peerClipboardGroups.value[0]
     expect(g.clipboardSync).toBe(true)
@@ -144,7 +144,7 @@ describe('local clipboard sync direction', () => {
     expect(writeText).not.toHaveBeenCalled()
   })
 
-  it('applies a newer entry into the system clipboard on event 39 when receiving', async () => {
+  it('applies a newer entry into the system clipboard on CLIPBOARD_CHANGED when receiving', async () => {
     mockGqlFetchPeer.mockImplementation(listReply({ data: { clipboardItems: [{ id: 'c1', text: 'old' }], clipboardItemCount: 1 } }))
     addGroup()
     await gotoPeerClipboardPage('p1', 1)
@@ -152,7 +152,7 @@ describe('local clipboard sync direction', () => {
     expect(writeText).not.toHaveBeenCalled()
 
     mockGqlFetchPeer.mockImplementation(listReply({ data: { clipboardItems: [{ id: 'c2', text: 'fresh' }, { id: 'c1', text: 'old' }], clipboardItemCount: 2 } }))
-    handlePeerClipboardEvent('p1', 39)
+    handlePeerClipboardEvent('p1', 'CLIPBOARD_CHANGED')
     await flush()
     expect(writeText).toHaveBeenCalledExactlyOnceWith('fresh')
   })
@@ -163,7 +163,7 @@ describe('local clipboard sync direction', () => {
     await gotoPeerClipboardPage('p1', 1)
     await flush()
     mockGqlFetchPeer.mockImplementation(listReply({ data: { clipboardItems: [{ id: 'c2', text: 'secret', sensitive: true }], clipboardItemCount: 2 } }))
-    handlePeerClipboardEvent('p1', 39)
+    handlePeerClipboardEvent('p1', 'CLIPBOARD_CHANGED')
     await flush()
     expect(writeText).not.toHaveBeenCalled()
   })
@@ -173,7 +173,7 @@ describe('local clipboard sync direction', () => {
     addGroup()
     setPeerClipboardDirection('p1', 'push')
     await flush()
-    handlePeerClipboardEvent('p1', 39)
+    handlePeerClipboardEvent('p1', 'CLIPBOARD_CHANGED')
     await flush()
     expect(peerClipboardGroups.value[0].items).toHaveLength(1)
     expect(writeText).not.toHaveBeenCalled()

@@ -327,7 +327,7 @@ onActivated(() => {
   unsubscribeSmsResults = subscribeSmsSendResults(onSmsSendResult)
   unsubscribeMmsResults = subscribeMmsSendResults(onMmsSendResult)
   thread.subscribe(true)
-  emitter.on('mms_sent', onMmsSent)
+  emitter.on('MMS_SENT', onMmsSent)
   applyRouteQuery(true)
   captureActivation += 1
   if (__IS_TAURI__ && captureEligible.value) void activateCaptureTarget(captureActivation)
@@ -336,7 +336,7 @@ onActivated(() => {
 onDeactivated(() => {
   isActive.value = false
   thread.unsubscribe()
-  emitter.off('mms_sent', onMmsSent)
+  emitter.off('MMS_SENT', onMmsSent)
   unsubscribeSmsResults?.()
   unsubscribeMmsResults?.()
   unsubscribeSmsResults = undefined

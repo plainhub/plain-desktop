@@ -137,7 +137,7 @@ impl<T: PeerTransport + 'static> ChatService<T> {
         }
     }
 
-    pub(super) fn emit(&self, event_type: i32, payload: String) {
+    pub(super) fn emit(&self, event_type: &'static str, payload: String) {
         let _ = self.event_tx.send(ChatEvent {
             event_type,
             payload,

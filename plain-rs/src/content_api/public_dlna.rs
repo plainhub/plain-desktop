@@ -26,7 +26,7 @@ use std::{collections::HashMap, net::SocketAddr};
 
 /// Broadcast when the renderer state changes, so the host overlay can pull a
 /// fresh snapshot instead of polling.
-pub(super) const EVENT_UPDATED: i32 = 10005;
+pub(super) const EVENT_UPDATED: &'static str = "DLNA_RENDERER_UPDATED";
 
 /// Control points send a small description document; a larger cap than they
 /// need would only widen the surface for a stray LAN client.

@@ -292,16 +292,16 @@ export function useMessageThread(
     loadContacts(force)
     emitter.on('item_tags_updated', onItemTagsUpdated)
     emitter.on('items_tags_updated', onItemsTagsUpdated)
-    emitter.on('mms_sent', onMmsSent)
-    emitter.on('permissions_updated', onPermissionsUpdated)
+    emitter.on('MMS_SENT', onMmsSent)
+    emitter.on('PERMISSIONS_UPDATED', onPermissionsUpdated)
     stateRefresh.subscribe()
   }
 
   function unsubscribe() {
     emitter.off('item_tags_updated', onItemTagsUpdated)
     emitter.off('items_tags_updated', onItemsTagsUpdated)
-    emitter.off('mms_sent', onMmsSent)
-    emitter.off('permissions_updated', onPermissionsUpdated)
+    emitter.off('MMS_SENT', onMmsSent)
+    emitter.off('PERMISSIONS_UPDATED', onPermissionsUpdated)
     stateRefresh.unsubscribe()
     cancelRetries()
   }

@@ -99,20 +99,20 @@ export const useChatStore = defineStore('chat', () => {
     }))
   }
 
-  emitter.on('channels_updated', (data: any[]) => {
+  emitter.on('CHANNELS_UPDATED', (data: any[]) => {
     if (!data) return
     const list = data.map((c: any) => ({ ...c }) as IChatChannel)
     channelCacher.replaceChannels(list)
     setCached<IChatChannel[]>('chat:channels', channelCacher.channels.value)
   })
 
-  emitter.on('peer_status_updated', (data) => {
+  emitter.on('PEER_STATUS_UPDATED', (data) => {
     if (!data?.id) return
     peerCacher.setOnline(data.id, !!data.online)
     setCached<IPeer[]>('chat:peers', peersCacheValue())
   })
 
-  emitter.on('channel_invite_received', (data) => {
+  emitter.on('CHANNEL_INVITE_RECEIVED', (data) => {
     if (!data?.channelId) return
     const invite = {
       channelId: data.channelId,
@@ -147,7 +147,7 @@ export const useChatStore = defineStore('chat', () => {
     }
   })
 
-  emitter.on('message_created', (items: any[]) => {
+  emitter.on('MESSAGE_CREATED', (items: any[]) => {
     if (!Array.isArray(items)) return
     items.map(normalizeChatItem).forEach((item) => {
       chatCacher.upsertLatest(item)
@@ -155,7 +155,7 @@ export const useChatStore = defineStore('chat', () => {
     setCached<Record<string, IChatItem>>('chat:latest_items', chatCacher.latestChatMap.value)
   })
 
-  emitter.on('message_updated', (items: any[]) => {
+  emitter.on('MESSAGE_UPDATED', (items: any[]) => {
     if (!Array.isArray(items)) return
     items.map(normalizeChatItem).forEach((item) => {
       chatCacher.updateLatestIfPresent(item)
@@ -163,7 +163,7 @@ export const useChatStore = defineStore('chat', () => {
     setCached<Record<string, IChatItem>>('chat:latest_items', chatCacher.latestChatMap.value)
   })
 
-  emitter.on('message_deleted', (data: string) => {
+  emitter.on('MESSAGE_DELETED', (data: string) => {
     if (typeof data !== 'string') return
     if (data.startsWith('ids=')) {
       const ids = data.slice(4).split(',').filter(Boolean)

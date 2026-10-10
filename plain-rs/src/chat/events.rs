@@ -1,7 +1,3 @@
-//! Chat WebSocket events + key caches — the shared event vocabulary of
-//! the chat stack. Event types use plain-app's wire numbers so the same
-//! web client works against any server.
-
 use std::collections::HashMap;
 use std::sync::{Arc, RwLock};
 
@@ -11,25 +7,23 @@ use crate::chat::channel::messages::decode_members;
 use crate::chat::enums::ChannelStatus;
 use crate::db::Db;
 
-pub const WS_MESSAGE_CREATED: i32 = 1;
-pub const WS_MESSAGE_DELETED: i32 = 2;
-pub const WS_MESSAGE_UPDATED: i32 = 3;
-pub const WS_DOWNLOAD_PROGRESS: i32 = 16;
-pub const WS_CHANNELS_UPDATED: i32 = 18;
-pub const WS_PEER_STATUS_UPDATED: i32 = 20;
-pub const WS_PAIRING_REQUEST_RECEIVED: i32 = 22;
-pub const WS_PAIRING_SUCCESS: i32 = 23;
-pub const WS_PAIRING_CANCELLED: i32 = 25;
-pub const WS_PAIRING_STARTED: i32 = 26;
-pub const WS_PAIRING_FAILED: i32 = 24;
-pub const WS_NEARBY_DEVICE_FOUND: i32 = 27;
-pub const WS_CHANNEL_INVITE_RECEIVED: i32 = 28;
+pub const WS_MESSAGE_CREATED: &'static str = "MESSAGE_CREATED";
+pub const WS_MESSAGE_DELETED: &'static str = "MESSAGE_DELETED";
+pub const WS_MESSAGE_UPDATED: &'static str = "MESSAGE_UPDATED";
+pub const WS_DOWNLOAD_PROGRESS: &'static str = "DOWNLOAD_PROGRESS";
+pub const WS_CHANNELS_UPDATED: &'static str = "CHANNELS_UPDATED";
+pub const WS_PEER_STATUS_UPDATED: &'static str = "PEER_STATUS_UPDATED";
+pub const WS_PAIRING_REQUEST_RECEIVED: &'static str = "PAIRING_REQUEST_RECEIVED";
+pub const WS_PAIRING_SUCCESS: &'static str = "PAIRING_SUCCESS";
+pub const WS_PAIRING_CANCELLED: &'static str = "PAIRING_CANCELED";
+pub const WS_PAIRING_STARTED: &'static str = "PAIRING_STARTED";
+pub const WS_PAIRING_FAILED: &'static str = "PAIRING_FAILED";
+pub const WS_NEARBY_DEVICE_FOUND: &'static str = "NEARBY_DEVICE_FOUND";
+pub const WS_CHANNEL_INVITE_RECEIVED: &'static str = "CHANNEL_INVITE_RECEIVED";
 
-/// A chat-domain push event: wire framing (`[i32 BE event_type][encrypted
-/// payload]`) comes from the shared `ws_frame` codec at the app's WS layer.
 #[derive(Clone, Debug)]
 pub struct ChatEvent {
-    pub event_type: i32,
+    pub event_type: &'static str,
     pub payload: String,
 }
 

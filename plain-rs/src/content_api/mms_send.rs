@@ -197,7 +197,7 @@ impl Runtime {
         for value in terminal {
             let _ = self
                 .events
-                .send(WsEvent::broadcast(37, value["result"].to_string()));
+                .send(WsEvent::broadcast("MMS_SEND_RESULT", value["result"].to_string()));
         }
         Ok(())
     }
@@ -360,9 +360,9 @@ impl Runtime {
             }
         }
         let event = if result_code == 0 {
-            WsEvent::broadcast(17, json!(pending.id).to_string())
+            WsEvent::broadcast("MMS_SENT", json!(pending.id).to_string())
         } else {
-            WsEvent::broadcast(37, result.to_string())
+            WsEvent::broadcast("MMS_SEND_RESULT", result.to_string())
         };
         let _ = self.events.send(event);
         if result_code == -1001 {

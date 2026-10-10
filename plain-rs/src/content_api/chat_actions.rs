@@ -6,7 +6,7 @@ use crate::{
 };
 use anyhow::{Result, ensure};
 use serde_json::{Value, json};
-pub(super) fn committed(state: &ServerState, chat: &DChat, event: i32) {
+pub(super) fn committed(state: &ServerState, chat: &DChat, event: &'static str) {
     state.previews.request(&chat.id);
     let _ = state.events.send(WsEvent::broadcast(
         event,

@@ -29,9 +29,9 @@ describe('useDeviceDiscovery', () => {
       deviceType: 'PHONE', version: '1', platform: 'android',
       lastSeen: '2026-09-25T00:00:00Z', status: 'UNPAIRED', discoveryMethods: ['LAN'],
     }
-    emitter.emit('nearby_device_found', device)
+    emitter.emit('NEARBY_DEVICE_FOUND', device)
     expect(discovery.devices.value.map((item) => item.id)).toEqual(['phone-1'])
-    emitter.emit('nearby_device_unreachable', { id: 'phone-1' })
+    emitter.emit('NEARBY_DEVICE_UNREACHABLE', { id: 'phone-1' })
     expect(discovery.devices.value).toEqual([])
     emitter.emit('app_socket_connection_changed', true)
     await Promise.resolve()

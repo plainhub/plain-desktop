@@ -60,25 +60,25 @@ export function useNotifications() {
   }
 
   onMounted(() => {
-    emitter.on('notification_created', async (data: any) => {
+    emitter.on('NOTIFICATION_CREATED', async (data: any) => {
       data.icon = getFileUrlByPath(urlTokenKey.value, 'pkgicon://' + data.appId)
       notifications.value = [{ ...data }, ...notifications.value]
       notify(data)
     })
 
-    emitter.on('notification_updated', async (data: any) => {
+    emitter.on('NOTIFICATION_UPDATED', async (data: any) => {
       data.icon = getFileUrlByPath(urlTokenKey.value, 'pkgicon://' + data.appId)
       notifications.value = notifications.value.map((n) => n.id === data.id ? { ...data } : n)
       notify(data)
     })
 
-    emitter.on('notification_deleted', async (data: any) => {
+    emitter.on('NOTIFICATION_DELETED', async (data: any) => {
       notifications.value = notifications.value.filter((n) => n.id !== data.id)
     })
 
-    emitter.on('notification_refreshed', async () => refetch())
+    emitter.on('NOTIFICATION_REFRESHED', async () => refetch())
 
-    emitter.on('permissions_updated', async () => refetch())
+    emitter.on('PERMISSIONS_UPDATED', async () => refetch())
   })
 
   return {

@@ -29,7 +29,7 @@ export function useChatEvents(chatId: ComputedRef<string>, chatItems: Ref<IChatI
       const newItems = items.filter((i) => !existingIds.has(i.id))
       if (newItems.length) { chatItems.value = [...chatItems.value, ...newItems]; scrollBottom() }
     }
-    emitter.on('message_created', handlers.message_created)
+    emitter.on('MESSAGE_CREATED', handlers.message_created)
 
     handlers.message_deleted = (data: string) => {
       if (typeof data !== 'string') return
@@ -42,14 +42,14 @@ export function useChatEvents(chatId: ComputedRef<string>, chatItems: Ref<IChatI
         chatItems.value = []
       }
     }
-    emitter.on('message_deleted', handlers.message_deleted)
+    emitter.on('MESSAGE_DELETED', handlers.message_deleted)
 
     handlers.message_updated = (items: any[]) => {
       const updateMap = new Map(items.map((item) => [item.id, normalizeChatItem(item)]))
       chatItems.value = chatItems.value.map((i) => updateMap.has(i.id) ? { ...i, ...updateMap.get(i.id)! } : i)
       if (updateMap.size) scrollBottom()
     }
-    emitter.on('message_updated', handlers.message_updated)
+    emitter.on('MESSAGE_UPDATED', handlers.message_updated)
   })
 
   onUnmounted(() => {

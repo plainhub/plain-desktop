@@ -238,14 +238,14 @@ export function usePomodoro() {
   onMounted(() => {
     requestNotificationPermission()
     if (totalTime.value === 0) initTimer('work')
-    emitter.on('pomodoro_action', handlePomodoroAction)
-    emitter.on('pomodoro_settings_update', handlePomodoroSettingsUpdate)
+    emitter.on('POMODORO_ACTION', handlePomodoroAction)
+    emitter.on('POMODORO_SETTINGS_UPDATE', handlePomodoroSettingsUpdate)
   })
 
   onUnmounted(() => {
     clearTimer()
-    emitter.off('pomodoro_action', handlePomodoroAction)
-    emitter.off('pomodoro_settings_update', handlePomodoroSettingsUpdate)
+    emitter.off('POMODORO_ACTION', handlePomodoroAction)
+    emitter.off('POMODORO_SETTINGS_UPDATE', handlePomodoroSettingsUpdate)
   })
 
   watch(settings, () => {

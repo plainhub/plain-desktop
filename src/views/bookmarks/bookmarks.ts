@@ -147,11 +147,11 @@ export function useBookmarkOperations() {
   onMounted(() => {
     loading.value = true
     fetchBookmarks()
-    emitter.on('bookmark_updated', onWsBookmarkUpdated)
+    emitter.on('BOOKMARK_UPDATED', onWsBookmarkUpdated)
   })
 
   onUnmounted(() => {
-    emitter.off('bookmark_updated', onWsBookmarkUpdated)
+    emitter.off('BOOKMARK_UPDATED', onWsBookmarkUpdated)
   })
 
   return {

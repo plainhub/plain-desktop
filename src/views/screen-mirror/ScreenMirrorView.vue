@@ -167,12 +167,12 @@ watch(controlOverlayRef, (el) => {
 
 onActivated(() => {
   isActive.value = true
-  emitter.on('screen_mirroring', service.onScreenMirroring)
-  emitter.on('screen_mirror_video', pipeline.handleVideo)
-  emitter.on('screen_mirror_audio', pipeline.handleAudio)
-  emitter.on('screen_mirror_video_codec', pipeline.handleConfig)
+  emitter.on('SCREEN_MIRRORING', service.onScreenMirroring)
+  emitter.on('SCREEN_MIRROR_VIDEO', pipeline.handleVideo)
+  emitter.on('SCREEN_MIRROR_AUDIO', pipeline.handleAudio)
+  emitter.on('SCREEN_MIRROR_VIDEO_CODEC', pipeline.handleConfig)
   emitter.on('app_socket_connection_changed', service.onSocketReconnect)
-  emitter.on('screen_mirror_audio_granted', service.onAudioGranted)
+  emitter.on('SCREEN_MIRROR_AUDIO_GRANTED', service.onAudioGranted)
   document.addEventListener('fullscreenchange', media.onFullscreenChange)
   media.attachFullscreenListener()
   service.fetchState()
@@ -180,12 +180,12 @@ onActivated(() => {
 
 onDeactivated(() => {
   isActive.value = false
-  emitter.off('screen_mirroring', service.onScreenMirroring)
-  emitter.off('screen_mirror_video', pipeline.handleVideo)
-  emitter.off('screen_mirror_audio', pipeline.handleAudio)
-  emitter.off('screen_mirror_video_codec', pipeline.handleConfig)
+  emitter.off('SCREEN_MIRRORING', service.onScreenMirroring)
+  emitter.off('SCREEN_MIRROR_VIDEO', pipeline.handleVideo)
+  emitter.off('SCREEN_MIRROR_AUDIO', pipeline.handleAudio)
+  emitter.off('SCREEN_MIRROR_VIDEO_CODEC', pipeline.handleConfig)
   emitter.off('app_socket_connection_changed', service.onSocketReconnect)
-  emitter.off('screen_mirror_audio_granted', service.onAudioGranted)
+  emitter.off('SCREEN_MIRROR_AUDIO_GRANTED', service.onAudioGranted)
   document.removeEventListener('fullscreenchange', media.onFullscreenChange)
   media.detachFullscreenListener()
   pipeline.cleanup()

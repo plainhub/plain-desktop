@@ -141,11 +141,11 @@ export function useFeedsSidebar() {
 
   onMounted(() => {
     emitter.on('feed_entries_deleted', fetch)
-    emitter.on('feeds_fetched', fetch)
+    emitter.on('FEEDS_FETCHED', fetch)
   })
   onUnmounted(() => {
     emitter.off('feed_entries_deleted', fetch)
-    emitter.off('feeds_fetched', fetch)
+    emitter.off('FEEDS_FETCHED', fetch)
   })
 
   return {

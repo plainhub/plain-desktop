@@ -51,7 +51,7 @@ impl SyncService {
             );
         }
         let this = self.clone();
-        let _ = this.events.send(WsEvent::broadcast(47, "{}".into()));
+        let _ = this.events.send(WsEvent::broadcast("CONTENT_CHANGED", "{}".into()));
         tokio::spawn(async move {
             let _guard = this.gate.lock().await;
             let error = super::sync_with_assets(
@@ -77,7 +77,7 @@ impl SyncService {
                     error,
                 },
             );
-            let _ = this.events.send(WsEvent::broadcast(47, "{}".into()));
+            let _ = this.events.send(WsEvent::broadcast("CONTENT_CHANGED", "{}".into()));
         });
     }
 }

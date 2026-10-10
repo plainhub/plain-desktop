@@ -41,7 +41,7 @@ impl Runtime {
     }
     fn changed(&self, state: &ServerState) {
         let _ = state.events.send(crate::ws_event::WsEvent::broadcast(
-            10006,
+            "ONLINE_CLIENTS_UPDATED",
             json!(self.snapshot()).to_string(),
         ));
     }
@@ -203,12 +203,11 @@ async fn run(mut socket: WebSocket, mut state: ServerState, params: Params, ip: 
             },
             event = receiver.recv(), if registered => {
                 let event = match event { Ok(event) => event, Err(tokio::sync::broadcast::error::RecvError::Lagged(_)) => { let _ = socket.send(close(1013,"slow_client")).await; break; }, Err(_) => break };
-                if event.event_type >= 10000 || event.target_cid.as_ref().is_some_and(|cid| cid != &params.cid) { continue; }
+                if event.is_internal() || event.target_cid.as_ref().is_some_and(|cid| cid != &params.cid) { continue; }
                 if !enabled(&state) { break; }
                 let Some(key) = super::sessions::key(&state.db, &params.cid).ok().flatten() else { break; };
                 let bytes = if let Some(payload) = event.binary_payload {
-                    let mut bytes = event.event_type.to_be_bytes().to_vec();
-                    bytes.extend(payload);
+                    let Some(bytes) = crate::ws_frame::encode_raw(event.event_type, &payload) else { continue; };
                     bytes
                 } else {
                     let payload = if event.event_type == crate::chat::events::WS_CHANNELS_UPDATED {

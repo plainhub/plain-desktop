@@ -48,9 +48,9 @@ describe('SMS notification refresh', () => {
     const refresh = vi.fn<() => void | Promise<void>>()
       .mockImplementationOnce(() => new Promise<void>((resolve) => { finish = resolve }))
     subscribe(refresh)
-    emitter.emit('sms_changed', { uris: [] })
+    emitter.emit('SMS_PROVIDER_CHANGED', { uris: [] })
     await vi.advanceTimersByTimeAsync(SMS_NOTIFICATION_REFRESH_DELAY_MS)
-    emitter.emit('sms_changed', { uris: [] })
+    emitter.emit('SMS_PROVIDER_CHANGED', { uris: [] })
     await vi.advanceTimersByTimeAsync(SMS_NOTIFICATION_REFRESH_DELAY_MS)
     expect(refresh).toHaveBeenCalledOnce()
     finish()
@@ -63,9 +63,9 @@ describe('SMS notification refresh', () => {
     let finish!: () => void
     const refresh = vi.fn(() => new Promise<void>((resolve) => { finish = resolve }))
     const subscription = subscribe(refresh)
-    emitter.emit('sms_changed', { uris: [] })
+    emitter.emit('SMS_PROVIDER_CHANGED', { uris: [] })
     await vi.advanceTimersByTimeAsync(SMS_NOTIFICATION_REFRESH_DELAY_MS)
-    emitter.emit('sms_changed', { uris: [] })
+    emitter.emit('SMS_PROVIDER_CHANGED', { uris: [] })
     await vi.advanceTimersByTimeAsync(SMS_NOTIFICATION_REFRESH_DELAY_MS)
     subscription.unsubscribe()
     finish()
@@ -78,7 +78,7 @@ describe('SMS notification refresh', () => {
     const refresh = vi.fn()
     subscribe(refresh)
     for (let elapsed = 0; elapsed < 2000; elapsed += 100) {
-      emitter.emit('sms_changed', { uris: ['content://sms/1'] })
+      emitter.emit('SMS_PROVIDER_CHANGED', { uris: ['content://sms/1'] })
       vi.advanceTimersByTime(100)
     }
     expect(refresh).toHaveBeenCalled()
@@ -119,7 +119,7 @@ describe('SMS notification refresh', () => {
     const refresh = vi.fn()
     subscribe(refresh)
 
-    emitter.emit('notification_created', notification('com.google.android.apps.messaging'))
+    emitter.emit('NOTIFICATION_CREATED', notification('com.google.android.apps.messaging'))
 
     expect(refresh).not.toHaveBeenCalled()
     vi.advanceTimersByTime(SMS_NOTIFICATION_REFRESH_DELAY_MS)
@@ -131,9 +131,9 @@ describe('SMS notification refresh', () => {
     const refresh = vi.fn()
     subscribe(refresh)
 
-    emitter.emit('notification_created', notification('com.android.mms'))
+    emitter.emit('NOTIFICATION_CREATED', notification('com.android.mms'))
     vi.advanceTimersByTime(SMS_NOTIFICATION_REFRESH_DELAY_MS - 1)
-    emitter.emit('notification_updated', notification('com.android.mms'))
+    emitter.emit('NOTIFICATION_UPDATED', notification('com.android.mms'))
     vi.advanceTimersByTime(SMS_NOTIFICATION_REFRESH_DELAY_MS - 1)
 
     expect(refresh).not.toHaveBeenCalled()
@@ -146,7 +146,7 @@ describe('SMS notification refresh', () => {
     const refresh = vi.fn()
     subscribe(refresh)
 
-    emitter.emit('notification_created', notification('com.example.calendar'))
+    emitter.emit('NOTIFICATION_CREATED', notification('com.example.calendar'))
     vi.advanceTimersByTime(SMS_NOTIFICATION_REFRESH_DELAY_MS)
 
     expect(refresh).not.toHaveBeenCalled()
@@ -157,9 +157,9 @@ describe('SMS notification refresh', () => {
     const refresh = vi.fn()
     const subscription = subscribe(refresh)
 
-    emitter.emit('notification_created', notification('com.android.mms'))
+    emitter.emit('NOTIFICATION_CREATED', notification('com.android.mms'))
     subscription.unsubscribe()
-    emitter.emit('notification_updated', notification('com.android.mms'))
+    emitter.emit('NOTIFICATION_UPDATED', notification('com.android.mms'))
     vi.advanceTimersByTime(SMS_NOTIFICATION_REFRESH_DELAY_MS)
 
     expect(refresh).not.toHaveBeenCalled()
@@ -172,7 +172,7 @@ describe('SMS notification refresh', () => {
 
     subscription.unsubscribe()
     subscription.subscribe()
-    emitter.emit('notification_created', notification('com.android.mms'))
+    emitter.emit('NOTIFICATION_CREATED', notification('com.android.mms'))
     vi.advanceTimersByTime(SMS_NOTIFICATION_REFRESH_DELAY_MS)
 
     expect(refresh).toHaveBeenCalledTimes(1)
@@ -185,7 +185,7 @@ describe('SMS notification refresh', () => {
     subscribe(refreshThread)
     subscribe(refreshSidebar)
 
-    emitter.emit('notification_updated', notification('com.android.mms'))
+    emitter.emit('NOTIFICATION_UPDATED', notification('com.android.mms'))
     vi.advanceTimersByTime(SMS_NOTIFICATION_REFRESH_DELAY_MS)
 
     expect(refreshThread).toHaveBeenCalledTimes(1)
@@ -197,7 +197,7 @@ describe('SMS notification refresh', () => {
     const refresh = vi.fn()
     subscribe(refresh)
 
-    emitter.emit('sms_changed', { uris: ['content://sms/1'] })
+    emitter.emit('SMS_PROVIDER_CHANGED', { uris: ['content://sms/1'] })
     emitter.emit('app_socket_connection_changed', true)
     vi.advanceTimersByTime(SMS_NOTIFICATION_REFRESH_DELAY_MS)
 
@@ -212,9 +212,9 @@ describe('SMS notification refresh', () => {
     subscription.subscribe()
     cleanups.push(subscription.unsubscribe)
 
-    emitter.emit('notification_created', notification('com.android.mms'))
+    emitter.emit('NOTIFICATION_CREATED', notification('com.android.mms'))
     vi.advanceTimersByTime(SMS_NOTIFICATION_REFRESH_DELAY_MS)
-    emitter.emit('sms_changed', { uris: ['content://sms/1'] })
+    emitter.emit('SMS_PROVIDER_CHANGED', { uris: ['content://sms/1'] })
     vi.advanceTimersByTime(SMS_NOTIFICATION_REFRESH_DELAY_MS)
     expect(refresh).toHaveBeenCalledTimes(2)
     expect(reloadContacts).not.toHaveBeenCalled()
@@ -239,7 +239,7 @@ describe('SMS notification refresh', () => {
     const refresh = vi.fn()
     subscribe(refresh)
 
-    emitter.emit('mms_sent', 'pending-mms-1')
+    emitter.emit('MMS_SENT', 'pending-mms-1')
     vi.advanceTimersByTime(SMS_NOTIFICATION_REFRESH_DELAY_MS)
 
     expect(refresh).toHaveBeenCalledOnce()

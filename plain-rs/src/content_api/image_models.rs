@@ -124,11 +124,11 @@ impl Runtime {
     fn publish(&self) {
         let snapshot = self.snapshot();
         let _ = self.events.send(WsEvent::broadcast(
-            10009,
+            "IMAGE_MODELS_UPDATED",
             serde_json::to_string(&snapshot).unwrap(),
         ));
         let _ = self.events.send(WsEvent::broadcast(
-            19,
+            "IMAGE_SEARCH_UPDATED",
             serde_json::to_string(&snapshot.status).unwrap(),
         ));
     }

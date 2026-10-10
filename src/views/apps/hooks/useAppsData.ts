@@ -84,8 +84,8 @@ export function useAppsData() {
   watch(() => route.fullPath, () => { applyRouteQuery() })
 
   const permissionsUpdatedHandler = () => { if (isActive.value) fetch() }
-  onActivated(() => emitter.on('permissions_updated', permissionsUpdatedHandler))
-  onDeactivated(() => emitter.off('permissions_updated', permissionsUpdatedHandler))
+  onActivated(() => emitter.on('PERMISSIONS_UPDATED', permissionsUpdatedHandler))
+  onDeactivated(() => emitter.off('PERMISSIONS_UPDATED', permissionsUpdatedHandler))
 
   return {
     items, page, limit, q, loading, fetch, sorting, isActive,

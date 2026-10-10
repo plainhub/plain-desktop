@@ -5,7 +5,7 @@ import { arrayBufferToBase64 } from '@/lib/strutil'
 import type { SyncTransport, Unsubscribe, UpdateHandler } from './sync-transport'
 
 const BROADCAST_DEBOUNCE_MS = 50
-const IMAGE_EDITOR_UPDATE_EVENT = 'image_editor_update'
+const IMAGE_EDITOR_UPDATE_EVENT = 'IMAGE_EDITOR_UPDATE'
 
 function decodeFrame(data: ArrayBuffer): { pid: string; update: Uint8Array } | null {
   const bytes = new Uint8Array(data)

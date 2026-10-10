@@ -132,7 +132,7 @@ async fn execute(state: &ServerState, id: &str, body: &[u8]) -> (u16, Vec<u8>) {
         Err(_) => return (400, vec![]),
     };
     let _ = state.events.send(crate::ws_event::WsEvent::broadcast(
-        10007,
+        "WEB_REQUEST_RECEIVED",
         json!({"clientId":id,"time":now}).to_string(),
     ));
     let schema = Schema::build(Query, EmptyMutation, EmptySubscription)

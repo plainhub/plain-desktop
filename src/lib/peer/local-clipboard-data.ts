@@ -12,7 +12,7 @@ import { copyTextToClipboard } from '@/lib/clipboard'
 import { get as prefsGet, set as prefsSet } from '@/lib/prefs'
 import { useMainStore } from '@/stores/main'
 
-const CLIPBOARD_EVENT_TYPE = 39
+const CLIPBOARD_EVENT_TYPE = 'CLIPBOARD_CHANGED'
 
 const DIRECTIONS_PREF_KEY = 'clipboard_directions'
 const APPLIED_PREF_KEY = 'clipboard_applied'
@@ -154,9 +154,9 @@ function syncGroups() {
   }
 }
 
-/** Event 39 means the phone is broadcasting clipboard changes, so a previously
+/** CLIPBOARD_CHANGED means the phone is broadcasting clipboard changes, so a previously
  *  disabled peer gets its probe re-armed here. */
-export function handlePeerClipboardEvent(peerId: string, type: number) {
+export function handlePeerClipboardEvent(peerId: string, type: string) {
   if (type !== CLIPBOARD_EVENT_TYPE) return
   const group = groupOf(peerId)
   if (!group || !findLoginPeer(peerId)) return
@@ -174,7 +174,7 @@ export function setPeerClipboardDirection(peerId: string, direction: ClipboardDi
   if (!group) return
   group.page = 1
   // User attention is on this device right now — re-arm the phone-switch probe
-  // the same way event 39 does.
+  // the same way CLIPBOARD_CHANGED does.
   group.clipboardSync = null
   fetchPeerClipboard(peerId)
 }

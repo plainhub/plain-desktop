@@ -118,14 +118,14 @@ export function useMessagesSidebar() {
     loadContacts(true)
     applyRouteQuery(true)
     emitter.on('sms_sent' as any, smsSentHandler)
-    emitter.on('permissions_updated', permissionsUpdatedHandler)
+    emitter.on('PERMISSIONS_UPDATED', permissionsUpdatedHandler)
     notificationRefresh.subscribe()
   })
 
   onDeactivated(() => {
     isActive.value = false
     emitter.off('sms_sent' as any, smsSentHandler)
-    emitter.off('permissions_updated', permissionsUpdatedHandler)
+    emitter.off('PERMISSIONS_UPDATED', permissionsUpdatedHandler)
     notificationRefresh.unsubscribe()
     if (smsSentTimer) clearTimeout(smsSentTimer)
     smsSentTimer = undefined

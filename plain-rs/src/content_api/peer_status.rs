@@ -75,7 +75,7 @@ pub(super) fn emit(state: &ServerState, id: &str, online: bool) {
             json!({"id":id,"online":online}).to_string(),
         ));
     }
-    let _=state.events.send(crate::ws_event::WsEvent::broadcast(10002,json!({"id":id,"online":online,"runtimeId":state.peer_status.snapshot(&state.db)["runtimeId"]}).to_string()));
+    let _=state.events.send(crate::ws_event::WsEvent::broadcast("PEER_CONNECTIONS_UPDATED",json!({"id":id,"online":online,"runtimeId":state.peer_status.snapshot(&state.db)["runtimeId"]}).to_string()));
 }
 pub(super) struct ConnectionGuard {
     pub(super) state: ServerState,

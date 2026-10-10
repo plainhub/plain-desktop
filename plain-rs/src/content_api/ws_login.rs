@@ -119,7 +119,7 @@ pub(super) fn reset_password(state: &ServerState) -> anyhow::Result<String> {
     state.prefs.set("password", &password)?;
     let _ = state
         .events
-        .send(crate::ws_event::WsEvent::broadcast(47, "{}".to_owned()));
+        .send(crate::ws_event::WsEvent::broadcast("CONTENT_CHANGED", "{}".to_owned()));
     Ok(password)
 }
 

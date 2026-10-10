@@ -29,8 +29,8 @@ export function useImageSearchActions() {
     else cancelIndexLoading.value = false
   }
 
-  emitter.on('image_search_updated', onStatusUpdated)
-  onUnmounted(() => emitter.off('image_search_updated', onStatusUpdated))
+  emitter.on('IMAGE_SEARCH_UPDATED', onStatusUpdated)
+  onUnmounted(() => emitter.off('IMAGE_SEARCH_UPDATED', onStatusUpdated))
 
   async function dispatch(mutate: (variables: object) => Promise<unknown>, loading: typeof enableLoading, variables: object = {}) {
     loading.value = true
