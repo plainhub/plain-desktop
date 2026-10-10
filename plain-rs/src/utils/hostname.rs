@@ -35,7 +35,7 @@ pub fn get() -> String {
 mod tests {
     #[test]
     fn returns_non_empty_on_linux() {
-        let h = crate::utils::get();
+        let h = super::get();
         // A Linux box always has a hostname; it may be truncated but not empty.
         assert!(!h.is_empty());
     }
