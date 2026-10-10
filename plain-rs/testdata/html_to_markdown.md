@@ -10,6 +10,6 @@ Numeric entities in Rust use valid Unicode scalar values: supplementary characte
 
 Feed integration tests additionally lock XML entity decoding and whitespace, description/content selection, relative links/images, missing assets, article extraction, and code indentation. RSS/Atom entities must be decoded once before HTML entity decoding.
 
-Run Rust tests with `cargo test -p plain-rs --features content_api`. Run the App contract with `./gradlew --no-daemon :shared:testAndroidHostTest --tests 'com.ismartcoding.plain.lib.html2md.*'`.
+Run Rust tests with `cargo test -p plain-rs --features html`. Run the App contract with `./gradlew --no-daemon :shared:testAndroidHostTest --tests 'com.ismartcoding.plain.lib.html2md.*'`.
 
 Do not regenerate expected output from the Rust implementation. An intended behavior change requires reviewing the changed expected strings and updating both fixtures together.

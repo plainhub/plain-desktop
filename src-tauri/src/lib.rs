@@ -70,10 +70,10 @@ pub fn run() {
                 .app_data_dir()
                 .unwrap_or_else(|_| std::path::PathBuf::from("."));
             let prefs = Arc::new(
-                plain_rs::prefs::Prefs::load(&plain_rs::prefs::default_path(&data_dir))
+                plain_server::prefs::Prefs::load(&plain_server::prefs::default_path(&data_dir))
                     .expect("preference files load"),
             );
-            let saved_roots = plain_rs::media::kv::media_source::get(&prefs);
+            let saved_roots = plain_server::media::kv::media_source::get(&prefs);
             let mut root_candidates: Vec<std::path::PathBuf> = saved_roots
                 .iter()
                 .map(std::path::PathBuf::from)
@@ -128,7 +128,7 @@ pub fn run() {
                 .collect();
             let media_sources_changed = roots != saved_roots;
             if media_sources_changed {
-                if let Err(error) = plain_rs::media::kv::media_source::set(&prefs, &roots) {
+                if let Err(error) = plain_server::media::kv::media_source::set(&prefs, &roots) {
                     log::warn!("media source initialization failed: {error}");
                 }
             }
@@ -208,12 +208,12 @@ pub fn run() {
                 .app_log_dir()
                 .unwrap_or_else(|_| data_dir.join("logs"));
             let db_path = data_dir.join("plain.db");
-            let db = match plain_rs::db::Db::open(&db_path) {
+            let db = match plain_server::db::Db::open(&db_path) {
                 Ok(d) => Arc::new(d),
                 Err(e) => panic!("local_db open failed: {e}"),
             };
             let identity = Arc::new(crate::prefs::ensure_identity(&prefs));
-            let chat_state = Arc::new(plain_rs::chat_service::ChatState::new(
+            let chat_state = Arc::new(plain_server::chat_service::ChatState::new(
                 &db,
                 &identity,
                 identity.device_name.clone(),
@@ -225,14 +225,14 @@ pub fn run() {
             tauri::async_runtime::block_on(async {
                 chat_state.spawn_event_bridges(event_tx.clone(), {
                     let handle = app.handle().clone();
-                    move |event: &plain_rs::chat::pairing::PairingEvent| {
+                    move |event: &plain_server::chat::pairing::PairingEvent| {
                         use tauri::Emitter;
                         let _ = handle.emit("pairing-event", event.clone());
                     }
                 });
             });
-            plain_rs::http_server::events::spawn_media_event_bridge(event_tx.clone());
-            let ctx = plain_rs::api::context::AppCtx::assemble(
+            plain_server::http_server::events::spawn_media_event_bridge(event_tx.clone());
+            let ctx = plain_server::api::context::AppCtx::assemble(
                 data_dir.clone(),
                 data_dir.join("cache"),
                 log_dir,
@@ -244,13 +244,13 @@ pub fn run() {
                 0,
             )
             .expect("assemble local API context");
-            let media_roots: Vec<std::path::PathBuf> = plain_rs::media::kv::media_source::get(&prefs)
+            let media_roots: Vec<std::path::PathBuf> = plain_server::media::kv::media_source::get(&prefs)
                 .into_iter()
                 .map(std::path::PathBuf::from)
                 .filter(|path| path.is_dir())
                 .collect();
             if !media_roots.is_empty() {
-                if let Ok(watcher) = plain_rs::media::watcher::start_watching(ctx.media.db.clone(), &media_roots) {
+                if let Ok(watcher) = plain_server::media::watcher::start_watching(ctx.media.db.clone(), &media_roots) {
                     app.handle().manage(std::sync::Mutex::new(watcher));
                 }
                 let needs_initial_scan = media_sources_changed
@@ -261,14 +261,14 @@ pub fn run() {
                     let db_for_index = media_db.clone();
                     let roots_for_index = media_roots.clone();
                     let _ = tauri::async_runtime::spawn_blocking(move || {
-                        plain_rs::media::watcher::build_missing_indexes(
+                        plain_server::media::watcher::build_missing_indexes(
                             &data_dir_for_index,
                             &db_for_index,
                             &roots_for_index,
                         );
                     }).await;
                     if needs_initial_scan {
-                        if let Err(error) = plain_rs::media::scan::start_walk_and_scan_paths(
+                        if let Err(error) = plain_server::media::scan::start_walk_and_scan_paths(
                             media_db,
                             media_roots,
                             std::path::PathBuf::from("/"),
@@ -282,29 +282,29 @@ pub fn run() {
             let discover_mgr = ctx.discover_manager.clone();
             let dlna_engine = ctx.dlna_engine.clone();
             chat_state.attach_discovery(discover_mgr.clone());
-            let peer_resolver: plain_rs::http_server::proxy::PeerResolver = {
+            let peer_resolver: plain_server::http_server::proxy::PeerResolver = {
                 let mgr = discover_mgr.clone();
                 Arc::new(move |id: &str| mgr.peer_address(id))
             };
-            let state = plain_rs::http_server::ServerState::new(
-                Arc::new(plain_rs::http_server::main_schemas::build_schema()),
-                Arc::new(plain_rs::http_server::peer_schemas::build_schema()),
+            let state = plain_server::http_server::ServerState::new(
+                Arc::new(plain_server::http_server::main_schemas::build_schema()),
+                Arc::new(plain_server::http_server::peer_schemas::build_schema()),
                 ctx,
-                plain_rs::http_server::ServerSettings {
-                    auth: plain_rs::http_server::AuthPolicy::LocalToken,
-                    cors: plain_rs::http_server::routes::cors::CorsPolicy::permissive_default(),
+                plain_server::http_server::ServerSettings {
+                    auth: plain_server::http_server::AuthPolicy::LocalToken,
+                    cors: plain_server::http_server::routes::cors::CorsPolicy::permissive_default(),
                     serve_spa: false,
                 },
             );
             app.handle().manage(tauri::async_runtime::block_on(async {
-                plain_rs::http_server::proxy::HttpProxyState::start(peer_resolver)
+                plain_server::http_server::proxy::HttpProxyState::start(peer_resolver)
             }));
             let local_server_state = tauri::async_runtime::block_on(async {
-                plain_rs::http_server::runtime::ServerRuntime::start(state).await
+                plain_server::http_server::runtime::ServerRuntime::start(state).await
             });
             app.handle().manage(dlna_engine.clone());
             // Start the DLNA renderer at startup when the toggle is on.
-            if plain_rs::prefs::dlna::enabled(&prefs) {
+            if plain_server::prefs::dlna::enabled(&prefs) {
                 let engine = dlna_engine.clone();
                 let port = local_server_state.port();
                 tauri::async_runtime::spawn(async move {

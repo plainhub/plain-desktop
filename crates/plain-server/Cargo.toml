@@ -1,0 +1,77 @@
+[package]
+name = "plain-server"
+version = "0.1.0"
+edition = "2024"
+rust-version = "1.96"
+description = "Shared Plain server assembly and desktop/mobile adapters"
+
+[features]
+"crypto" = ["plain-rs/crypto"]
+"ble" = ["plain-rs/ble"]
+"ble-native" = ["plain-rs/ble-native"]
+"chat" = ["plain-rs/chat"]
+"library" = ["plain-rs/library"]
+"prefs" = ["plain-rs/prefs"]
+"sqlite_browse" = ["plain-rs/sqlite_browse"]
+"default" = ["crypto"]
+"media" = ["dep:plain-media", "library"]
+"media_gql" = ["media", "library", "dep:async-graphql", "plain-rs/graphql"]
+"image-inference" = ["dep:plain-inference"]
+"http_transport" = ["dep:serde_json", "dep:reqwest", "reqwest/rustls-tls", "dep:axum", "dep:axum-server", "dep:rustls", "dep:rustls-pemfile", "tokio/net", "tokio/rt", "tokio/sync", "tokio/time", "plain-rs/tls"]
+"api" = ["dep:anyhow", "dep:chrono", "dep:rusqlite", "http_transport", "dep:hmac", "dep:sha2_mac", "media_gql", "chat", "library", "prefs", "sqlite_browse", "dep:async-graphql", "dep:axum", "dep:axum-server", "dep:native-tls", "dep:serde_json", "dep:futures-util", "dep:reqwest", "reqwest/native-tls", "dep:regex", "dep:sysinfo", "dep:tokio-tungstenite", "tokio-tungstenite/native-tls", "dep:zip", "dep:tower-http", "tokio/net", "tokio/rt", "tokio/sync", "tokio/time", "tokio/fs", "tokio/macros", "plain-rs/services", "plain-rs/filesystem", "plain-rs/html", "plain-rs/tls", "plain-rs/graphql"]
+"content_api" = ["dep:serde_json", "dep:chrono", "dep:rusqlite", "ble", "crypto", "dep:image", "sqlite_browse", "dep:hyper", "dep:hyper-util", "dep:http-body-util", "dep:tokio-rustls", "dep:tower", "dep:zip", "dep:tokio-tungstenite", "tokio-tungstenite/rustls-tls-webpki-roots", "dep:rustls", "dep:hmac", "dep:sha2_mac", "dep:anyhow", "chat", "library", "dep:regex", "dep:async-graphql", "dep:axum", "dep:reqwest", "reqwest/rustls-tls", "dep:futures-util", "tokio/net", "tokio/rt-multi-thread", "tokio/sync", "tokio/time", "tokio/macros", "dep:subtle", "plain-rs/services", "plain-rs/filesystem", "plain-rs/html", "plain-rs/tls", "plain-rs/graphql", "image-inference"]
+"system" = ["api", "dep:nix", "dep:ureq", "dep:http"]
+
+[dependencies]
+parking_lot = "0.12"
+"subtle" = { "version" = "2", "optional" = true }
+"futures-util" = { "version" = "0.3", "default-features" = false, "features" = ["sink", "std"], "optional" = true }
+"axum" = { "version" = "0.7", "default-features" = false, "features" = ["ws", "multipart", "json", "query", "tokio", "http1"], "optional" = true }
+"rustls" = { "version" = "0.23", "default-features" = false, "features" = ["ring", "std"], "optional" = true }
+"rustls-pemfile" = { "version" = "2", "optional" = true }
+"axum-server" = { "version" = "0.7", "features" = ["tls-rustls-no-provider"], "optional" = true }
+"native-tls" = { "version" = "0.2", "optional" = true }
+"reqwest" = { "version" = "0.12", "default-features" = false, "features" = ["stream"], "optional" = true }
+"tokio-tungstenite" = { "version" = "0.30", "default-features" = false, "features" = ["connect"], "optional" = true }
+"nix" = { "version" = "0.28", "features" = ["mount", "fs", "user"], "optional" = true }
+"zip" = { "version" = "2", "default-features" = false, "features" = ["deflate"], "optional" = true }
+"ureq" = { "version" = "2", "default-features" = false, "features" = ["tls"], "optional" = true }
+"tower-http" = { "version" = "0.5", "features" = ["cors", "compression-gzip", "compression-deflate", "trace"], "optional" = true }
+"http" = { "version" = "1", "optional" = true }
+"hyper" = { "version" = "1", "features" = ["client", "http1"], "optional" = true }
+"hyper-util" = { "version" = "0.1", "features" = ["tokio"], "optional" = true }
+"http-body-util" = { "version" = "0.1", "optional" = true }
+"tokio-rustls" = { "version" = "0.26", "default-features" = false, "features" = ["ring"], "optional" = true }
+"tower" = { "version" = "0.5", "features" = ["util"], "optional" = true }
+"anyhow" = { "version" = "1", "optional" = true }
+"bytes" = "1"
+"chrono" = { "version" = "0.4", "features" = ["serde"], "optional" = true }
+"serde" = { "version" = "1", "features" = ["derive"] }
+"serde_json" = { "version" = "1", "optional" = true }
+"sha2" = "0.10"
+"hmac" = { "version" = "0.13", "optional" = true }
+"sha2_mac" = { "package" = "sha2", "version" = "0.11", "optional" = true }
+"rand" = "0.8"
+"uuid" = { "version" = "1", "features" = ["v4"] }
+"log" = "0.4"
+"libc" = "0.2"
+"rusqlite" = { "version" = "0.32", "features" = ["bundled"], "optional" = true }
+"regex" = { "version" = "1", "optional" = true }
+"tokio" = { "version" = "1", "default-features" = false, "features" = ["io-util"] }
+"async-graphql" = { "version" = "7", "default-features" = false, "optional" = true }
+"image" = { "version" = "0.25", "default-features" = false, "features" = ["jpeg", "png", "webp", "gif"], "optional" = true }
+"socket2" = { "version" = "0.5", "features" = ["all"] }
+"sysinfo" = { "version" = "0.32", "default-features" = false, "features" = ["system", "disk"], "optional" = true }
+"tempfile" = { "version" = "3", "optional" = true }
+"plain-rs" = { "path" = "../../plain-rs", "default-features" = false }
+"plain-media" = { "path" = "../plain-media", "optional" = true }
+"plain-inference" = { "path" = "../plain-inference", "optional" = true }
+
+[dev-dependencies]
+"reqwest" = { "version" = "0.12", "default-features" = false, "features" = ["rustls-tls"] }
+"serde_json" = "1"
+"tokio" = { "version" = "1", "features" = ["full"] }
+"futures" = "0.3"
+"tower" = { "version" = "0.5", "features" = ["util"] }
+"tempfile" = "3"
+"tokio-tungstenite" = { "version" = "0.30", "features" = ["connect", "rustls-tls-webpki-roots"] }

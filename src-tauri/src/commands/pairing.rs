@@ -1,10 +1,10 @@
-//! Tauri commands driving the shared pairing manager in `plain_rs::chat_service`.
+//! Tauri commands driving the shared pairing manager in `plain_server::chat_service`.
 
 use std::sync::Arc;
 
-use plain_rs::chat::pairing::protocol::PairingRequest;
+use plain_server::chat::pairing::protocol::PairingRequest;
 
-use plain_rs::chat_service::ChatState;
+use plain_server::chat_service::ChatState;
 
 /// Initiate pairing with a discovered device.
 #[tauri::command]
@@ -14,7 +14,7 @@ pub fn pair_device(
     device_ip: String,
     device_port: u16,
     state: tauri::State<'_, Arc<ChatState>>,
-    server_state: tauri::State<'_, plain_rs::http_server::runtime::ServerRuntime>,
+    server_state: tauri::State<'_, plain_server::http_server::runtime::ServerRuntime>,
 ) {
     state.pairing.start_pairing(
         &device_id,
@@ -33,7 +33,7 @@ pub fn respond_pair_device(
     sender_ip: String,
     accepted: bool,
     state: tauri::State<'_, Arc<ChatState>>,
-    server_state: tauri::State<'_, plain_rs::http_server::runtime::ServerRuntime>,
+    server_state: tauri::State<'_, plain_server::http_server::runtime::ServerRuntime>,
 ) -> Result<(), String> {
     let req: PairingRequest = serde_json::from_str(&request_json).map_err(|e| e.to_string())?;
     state
@@ -61,9 +61,9 @@ pub fn get_device_identity(
     } else {
         saved_name
     };
-    let kp = plain_rs::base64_decode(&identity.ed25519_keypair);
+    let kp = plain_server::base64_decode(&identity.ed25519_keypair);
     let pub_key_b64 = if kp.len() == 64 {
-        plain_rs::base64_encode(&kp[32..])
+        plain_server::base64_encode(&kp[32..])
     } else {
         String::new()
     };

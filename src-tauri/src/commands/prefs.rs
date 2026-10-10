@@ -5,7 +5,7 @@
 
 use std::sync::Arc;
 
-use plain_rs::prefs::Prefs;
+use plain_server::prefs::Prefs;
 
 #[tauri::command]
 pub fn prefs_get_all(prefs: tauri::State<'_, Arc<Prefs>>) -> Vec<(String, serde_json::Value)> {

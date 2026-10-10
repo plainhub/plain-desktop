@@ -1,221 +1,64 @@
 [package]
 name = "plain-rs"
 version = "0.1.0"
-description = "Shared Rust primitives for the Plain* projects: crypto (ECDH P-256, Ed25519, XChaCha20-Poly1305) and utils (base64, hex, mime, query, http, http_url, short_uuid, shortid, hostname, ifaddr, async_read_stream, hash)"
-authors = ["iSmartCoding"]
 edition = "2024"
 rust-version = "1.96"
-
-[lib]
-name = "plain_rs"
+description = "Shared Plain protocol, crypto, persistence and domain primitives"
 
 [features]
-default = ["crypto"]
-crypto = ["dep:chacha20poly1305", "dep:p256", "dep:ed25519-dalek"]
-ble = ["dep:anyhow"]
-ble-native = ["ble", "crypto", "dep:serde_json", "dep:jni"]
-# Shared chat domain (SQLite storage, pairing/channel wire protocol),
-# extracted from plain-desktop's port of the plain-app chat stack.
-# Desktop and plain-nas both enable this; consumers without chat skip
-# the rusqlite build entirely.
-chat = ["crypto", "dep:chrono", "dep:anyhow", "dep:serde_json", "dep:rusqlite", "sqlite_browse", "tokio/sync", "tokio/rt", "tokio/fs", "tokio/time"]
-# Shared user-library domain (SQLite storage): audio playback queue /
-# playlists / play history, tags + tag relations, favorite folders.
-# Ported from plain-nas's fjall implementations so NAS and desktop run
-# identical behavior. Consumers without a library skip it entirely.
-library = ["dep:rusqlite", "dep:chrono", "prefs"]
-# SQLite table browsing for developer/debug UIs (the
-# /developer/database page): list tables, count + page rows as JSON,
-# PRAGMA column metadata, delete/insert rows. Shared by plain-nas
-# and plain-desktop devtools surfaces over the shared SQLite database.
-sqlite_browse = ["dep:rusqlite", "dep:serde_json"]
-# Unified preferences storage (`system_prefs.json` + `user_prefs.json`, flat
-# string→JSON maps): the shared engine + first-run identity/url-token/mDNS-hostname
-# bootstrap + DLNA sender-list helpers shared by plain-nas and the
-# plain-desktop Tauri shells (replaces per-app copies and
-# tauri-plugin-store).
-prefs = ["crypto", "dep:serde_json"]
-# Shared API stack for the desktop and NAS shells: GraphQL schemas,
-# axum HTTP/WS router, listener lifecycle, proxy, discovery and DLNA.
-content_api = ["ble", "crypto", "dep:tokenizers", "dep:image", "sqlite_browse", "dep:hyper", "dep:hyper-util", "dep:http-body-util", "dep:tokio-rustls", "dep:tower", "dep:zip", "dep:tokio-tungstenite", "tokio-tungstenite/rustls-tls-webpki-roots", "dep:rustls", "dep:hmac", "dep:sha2_mac", "dep:anyhow", "chat", "library", "dep:regex", "dep:async-graphql", "dep:axum", "dep:reqwest", "reqwest/rustls-tls", "dep:futures-util", "tokio/net", "tokio/rt-multi-thread", "tokio/sync", "tokio/time", "tokio/macros", "dep:subtle"]
-http_transport = ["dep:reqwest", "reqwest/rustls-tls", "dep:axum", "dep:axum-server", "dep:rustls", "dep:rustls-pemfile", "tokio/net", "tokio/rt", "tokio/sync", "tokio/time"]
-api = [
-    "http_transport",
-    "dep:hmac",
-    "dep:sha2_mac",
-    "media_gql",
-    "chat",
-    "library",
-    "prefs",
-    "sqlite_browse",
-    "dep:async-graphql",
-    "dep:axum",
-    "dep:axum-server",
-    "dep:native-tls",
-    "dep:serde_json",
-    "dep:futures-util",
-    "dep:reqwest",
-    "reqwest/native-tls",
-    "dep:regex",
-    "dep:sysinfo",
-    "dep:tokio-tungstenite",
-    "tokio-tungstenite/native-tls",
-    "dep:zip",
-    "dep:tower-http",
-    "tokio/net",
-    "tokio/rt",
-    "tokio/sync",
-    "tokio/time",
-    "tokio/fs",
-    "tokio/macros",
-]
-# Media stack ported from plain-nas: fjall KV store, file/media search
-# indexes (tantivy), media scanner, thumbnail engine, metadata/cover/
-# lyrics extraction, file management (fsx/trash/file_tasks), watcher.
-# plain-nas consumes it for its NAS surfaces; plain-desktop enables it
-# (plus media_gql for the GraphQL roots) so the desktop apps can browse
-# local files on macOS / Windows / Linux.
-media = [
-    "prefs",
-    "dep:sysinfo",
-    "dep:anyhow",
-    "dep:chrono",
-    "dep:fjall",
-    "dep:tantivy",
-    "dep:lofty",
-    "dep:image",
-    "dep:fast_image_resize",
-    "dep:jpeg-decoder",
-    "dep:jpeg-encoder",
-    "dep:mp4",
-    "dep:rusty_h264-decoder",
-    "dep:rusty_h264-common",
-    "dep:notify",
-    "dep:tempfile",
-    "dep:sha1",
-    "dep:xxhash-rust",
-    "dep:parking_lot",
-    "dep:serde_json",
-    "tokio/rt",
-    "tokio/process",
-    "tokio/sync",
-    "tokio/time",
-    "tokio/fs",
-    "tokio/macros",
-]
-# The media GraphQL roots (files/images/videos/docs/audios queries,
-# media-scan mutations, file-management mutations) used by the shared
-# desktop/NAS API schema.
-media_gql = ["media", "library", "dep:async-graphql"]
-# Shared storage, system services, and DLNA sender capabilities.
-# Shells opt in and decide which operations they expose.
-system = ["api", "dep:nix", "dep:ureq", "dep:http"]
+"default" = ["crypto"]
+"crypto" = ["dep:chacha20poly1305", "dep:p256", "dep:ed25519-dalek"]
+"ble" = ["dep:anyhow"]
+"ble-native" = ["ble", "crypto", "dep:serde_json", "dep:jni"]
+"mdns" = ["dep:socket2"]
+"tls" = ["dep:rcgen", "dep:p12-keystore"]
+"chat" = ["crypto", "mdns", "dep:chrono", "dep:anyhow", "dep:serde_json", "dep:rusqlite", "sqlite_browse", "tokio/sync", "tokio/rt", "tokio/fs", "tokio/time"]
+"library" = ["dep:regex", "dep:rusqlite", "dep:chrono", "dep:anyhow", "prefs", "events", "tokio/rt", "tokio/fs", "tokio/time"]
+"sqlite_browse" = ["dep:rusqlite", "dep:serde_json", "dep:anyhow"]
+"prefs" = ["crypto", "dep:serde_json"]
+"filesystem" = ["library", "dep:anyhow", "tokio/fs", "tokio/rt", "tokio/time", "tokio/sync"]
+"events" = ["tokio/sync"]
+"services" = ["link-preview", "http-client", "chat", "library", "events", "dep:hmac", "dep:sha2_mac"]
+"graphql" = ["dep:async-graphql"]
+"html" = ["dep:regex"]
+"link-preview" = ["chat", "dep:regex"]
+"http-client" = ["dep:reqwest", "reqwest/rustls-tls", "tokio/net", "tokio/rt", "tokio/time"]
 
 [dependencies]
-chacha20poly1305 = { version = "0.10", optional = true }
-p256 = { version = "0.13", default-features = false, features = ["ecdh", "pkcs8", "std"], optional = true }
-ed25519-dalek = { version = "2", features = ["rand_core"], optional = true }
-tokenizers = { version = "0.22.2", default-features = false, features = ["fancy-regex"], optional = true }
-p12-keystore = "0.3.2"
-subtle = { version = "2", optional = true }
-sha2 = "0.10"
-hmac = { version = "0.13", optional = true }
-sha2_mac = { package = "sha2", version = "0.11", optional = true }
-rand = "0.8"
-uuid = { version = "1", features = ["v4"] }
-log = "0.4"
-socket2 = { version = "0.5", features = ["all"] }
-serde = { version = "1", features = ["derive"] }
-# Chat domain (feature "chat"): wire-JSON parsing + the plain-app chat
-# SQLite schema (same version plain-desktop pins: 0.32, bundled so no
-# system libsqlite3 is needed on musl/static builds).
-serde_json = { version = "1", optional = true }
-rusqlite = { version = "0.32", features = ["bundled"], optional = true }
-# Media stack (feature "media"), pinned to the versions plain-nas built
-# against — see plain-nas Cargo.toml for the per-crate rationale.
-anyhow = { version = "1", optional = true }
-chrono = { version = "0.4", features = ["serde"], optional = true }
-fjall = { version = "=3.1.10", optional = true }
-tantivy = { version = "0.22", optional = true }
-lofty = { version = "0.22", optional = true }
-image = { version = "0.25", default-features = false, features = ["jpeg", "png", "webp", "gif"], optional = true }
-fast_image_resize = { version = "5", features = ["rayon"], optional = true }
-jpeg-decoder = { version = "0.3", default-features = true, optional = true }
-jpeg-encoder = { version = "0.7", optional = true }
-mp4 = { version = "0.14", optional = true }
-rusty_h264-decoder = { version = "=0.16.0", default-features = false, features = ["std"], optional = true }
-rusty_h264-common = { version = "=0.16.0", default-features = false, features = ["std"], optional = true }
-notify = { version = "7", optional = true }
-tempfile = { version = "3", optional = true }
-sha1 = { version = "0.10", optional = true }
-xxhash-rust = { version = "0.8", features = ["xxh64"], optional = true }
-parking_lot = { version = "0.12", optional = true }
-# Self-signed TLS cert generation for the local HTTPS servers
-# (plain-desktop local/tls.rs, plain-nas cmd/run.rs). ring backend to
-# match the consumers' rustls stacks.
-rcgen = { version = "0.13", default-features = false, features = ["pem", "ring"] }
-# Platform FFI for hostname(2) / getifaddrs(3) — libc is already a transitive
-# dependency of the ecosystem crates, listing it explicitly for direct use.
-libc = "0.2"
-# AsyncReadStream: AsyncRead -> Stream adapter (bytes is the canonical
-# byte type both axum and tokio re-export).
-bytes = "1"
-futures-core = "0.3"
-# api feature: async/IO plumbing for the embedded local server.
-futures-util = { version = "0.3", default-features = false, features = ["sink", "std"], optional = true }
-async-graphql = { version = "7", default-features = false, optional = true }
-# Same axum stack plain-nas pins, so both servers share one framework.
-axum = { version = "0.7", default-features = false, features = ["ws", "multipart", "json", "query", "tokio", "http1"], optional = true }
-rustls = { version = "0.23", default-features = false, features = ["ring", "std"], optional = true }
-rustls-pemfile = { version = "2", optional = true }
-axum-server = { version = "0.7", features = ["tls-rustls-no-provider"], optional = true }
-# Client-side TLS for the peer-status WS connector (peer_status_manager);
-# the server side is axum + the host's axum-server rustls listener.
-native-tls = { version = "0.2", optional = true }
-# "stream" enables bytes_stream() for /proxyfs response forwarding.
-reqwest = { version = "0.12", default-features = false, features = ["stream"], optional = true }
-regex = { version = "1", optional = true }
-sysinfo = { version = "0.32", default-features = false, features = ["system", "disk"], optional = true }
-tokio-tungstenite = { version = "0.30", default-features = false, features = ["connect"], optional = true }
-# AsyncReadStream needs the AsyncRead trait + ReadBuf (io-util is the
-# minimal feature set that provides them; no runtime/net).
-tokio = { version = "1", default-features = false, features = ["io-util"] }
-# NAS system modules (feature "nas"): mount(2)/statfs(2) for the
-# automounter and mounts listing, plus the HTTP/zip bits the moved
-# NAS surfaces use directly.
-nix = { version = "0.28", features = ["mount", "fs", "user"], optional = true }
-zip = { version = "2", default-features = false, features = ["deflate"], optional = true }
-ureq = { version = "2", default-features = false, features = ["tls"], optional = true }
-tower-http = { version = "0.5", features = ["cors", "compression-gzip", "compression-deflate", "trace"], optional = true }
-http = { version = "1", optional = true }
-
-
-hyper = { version = "1", features = ["client", "http1"], optional = true }
-hyper-util = { version = "0.1", features = ["tokio"], optional = true }
-http-body-util = { version = "0.1", optional = true }
-tokio-rustls = { version = "0.26", default-features = false, features = ["ring"], optional = true }
-
-tower = { version = "0.5", features = ["util"], optional = true }
+"reqwest" = { version = "0.12", default-features = false, features = ["stream"], optional = true }
+"chacha20poly1305" = { "version" = "0.10", "optional" = true }
+"p256" = { "version" = "0.13", "default-features" = false, "features" = ["ecdh", "pkcs8", "std"], "optional" = true }
+"ed25519-dalek" = { "version" = "2", "features" = ["rand_core"], "optional" = true }
+"p12-keystore" = { "version" = "0.3.2", "optional" = true }
+"sha2" = "0.10"
+"hmac" = { "version" = "0.13", "optional" = true }
+"sha2_mac" = { "package" = "sha2", "version" = "0.11", "optional" = true }
+"rand" = "0.8"
+"uuid" = { "version" = "1", "features" = ["v4"] }
+"log" = "0.4"
+"socket2" = { "version" = "0.5", "optional" = true, "features" = ["all"] }
+"serde" = { "version" = "1", "features" = ["derive"] }
+"serde_json" = { "version" = "1", "optional" = true }
+"rusqlite" = { "version" = "0.32", "features" = ["bundled"], "optional" = true }
+"anyhow" = { "version" = "1", "optional" = true }
+"chrono" = { "version" = "0.4", "features" = ["serde"], "optional" = true }
+"rcgen" = { "version" = "0.13", "default-features" = false, "features" = ["pem", "ring"], "optional" = true }
+"libc" = "0.2"
+"bytes" = "1"
+"futures-core" = "0.3"
+"async-graphql" = { "version" = "7", "default-features" = false, "optional" = true }
+"regex" = { "version" = "1", "optional" = true }
+"tokio" = { "version" = "1", "default-features" = false, "features" = ["io-util"] }
 
 [dev-dependencies]
-reqwest = { version = "0.12", default-features = false, features = ["rustls-tls"] }
-serde_json = "1"
-tokio = { version = "1", features = ["full"] }
-futures = "0.3"
-tower = { version = "0.5", features = ["util"] }
-tempfile = "3"
-tokio-tungstenite = { version = "0.30", features = ["connect", "rustls-tls-webpki-roots"] }
-
-[[example]]
-name = "thumb_bench"
-required-features = ["media"]
-
-[build-dependencies]
-cc = "1"
-
-[[example]]
-name = "image_search"
-required-features = ["content_api"]
+"serde_json" = "1"
+"tokio" = { "version" = "1", "features" = ["full"] }
+"futures" = "0.3"
+"tempfile" = "3"
 
 [target.'cfg(target_os = "android")'.dependencies]
-jni = { version = "0.22", optional = true }
+jni = { "version" = "0.22", "optional" = true }
+
+[[example]]
+name = "discover_probe"
+required-features = ["mdns"]

@@ -18,8 +18,8 @@ pub mod shortid;
 pub mod unique_path;
 pub mod xml;
 
-#[cfg(any(feature = "api", feature = "content_api"))]
+#[cfg(feature = "html")]
 pub mod html_to_markdown;
 
-#[cfg(any(feature = "content_api", feature = "media"))]
+#[cfg(any(feature = "graphql", feature = "filesystem"))]
 pub mod keyed_locks;

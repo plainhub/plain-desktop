@@ -1,7 +1,7 @@
 use super::entities::decode;
 
 #[derive(Default)]
-pub(crate) struct Node {
+pub struct Node {
     pub tag: String,
     pub text: String,
     pub attrs: Vec<(String, String)>,
@@ -109,7 +109,7 @@ impl Node {
     }
 }
 
-pub(crate) struct Dom(pub Vec<Node>);
+pub struct Dom(pub Vec<Node>);
 
 fn take_while(input: &str, pos: &mut usize, predicate: impl Fn(char) -> bool) -> String {
     let start = *pos;

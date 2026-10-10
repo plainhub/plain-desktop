@@ -25,6 +25,7 @@
 mod attachment_commit;
 pub mod chat_deletion;
 pub(crate) mod content_refs;
+pub use content_refs::{collect as content_reference_ids, release_unbound};
 
 use std::fs;
 use std::io::{Read, Seek};

@@ -1,13 +1,7 @@
 /// Audio playback repeat mode, mirroring the plain-app `MediaPlayMode` enum.
 #[derive(Debug, Clone, Copy, Eq, PartialEq)]
-#[cfg_attr(
-    any(feature = "api", feature = "media_gql", feature = "content_api"),
-    derive(async_graphql::Enum)
-)]
-#[cfg_attr(
-    any(feature = "api", feature = "media_gql", feature = "content_api"),
-    graphql(rename_items = "SCREAMING_SNAKE_CASE")
-)]
+#[cfg_attr(feature = "graphql", derive(async_graphql::Enum))]
+#[cfg_attr(feature = "graphql", graphql(rename_items = "SCREAMING_SNAKE_CASE"))]
 pub enum MediaPlayMode {
     Repeat,
     RepeatOne,

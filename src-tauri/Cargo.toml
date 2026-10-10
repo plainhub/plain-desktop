@@ -28,9 +28,8 @@ tauri-plugin-dialog = "2"
 tauri-plugin-fs = "2"
 tauri-plugin-global-shortcut = "=2.3.2"
 tauri-plugin-clipboard-manager = "=2.3.3"
-# Shared Rust core: crypto + utils + chat domain + the api stack
-# (GraphQL schema, axum router, media gql roots).
-plain_rs = { path = "../plain-rs", package = "plain-rs", features = ["api"] }
+# Shared server assembly, with core and media dependencies.
+plain_server = { path = "../crates/plain-server", package = "plain-server", features = ["api"] }
 
 rand = "0.8"
 

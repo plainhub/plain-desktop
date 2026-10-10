@@ -203,11 +203,11 @@ async fn cross_volume_move_recovery_finishes_partial_source_removal() {
     evidence::verify_copy_pair(&source_evidence, &destination_evidence).unwrap();
     std::fs::remove_file(source.join("removed")).unwrap();
 
-    #[cfg(feature = "content_api")]
+    #[cfg(feature = "graphql")]
     let store: Arc<dyn Store> = Arc::new(sqlite::SqliteStore(Arc::new(
         crate::db::Db::open(&temp.path().join("recovery.db")).unwrap(),
     )));
-    #[cfg(not(feature = "content_api"))]
+    #[cfg(not(feature = "graphql"))]
     let store: Arc<dyn Store> = Arc::new(MemoryStore::default());
     let task = interrupted_cross_volume_move(
         "partial-move",
@@ -620,7 +620,7 @@ impl Hooks for RecoverableHooks {
         Box::pin(async { bail!("snapshot required") })
     }
 }
-#[cfg(feature = "content_api")]
+#[cfg(feature = "graphql")]
 #[tokio::test]
 async fn persisted_receipt_recovers_after_restart_without_repeating_move_and_checks_owner_and_permission()
  {

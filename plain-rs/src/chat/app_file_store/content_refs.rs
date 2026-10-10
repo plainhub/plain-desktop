@@ -136,7 +136,7 @@ pub fn finish<T>(result: Result<T>, staged: Vec<(PathBuf, PathBuf)>) -> Result<T
     }
 }
 
-pub(crate) fn release_unbound(
+pub fn release_unbound(
     db: &crate::db::Db,
     directory: &Path,
     imports: BTreeMap<String, i64>,

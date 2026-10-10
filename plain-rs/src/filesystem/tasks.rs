@@ -1,5 +1,5 @@
 mod evidence;
-#[cfg(feature = "content_api")]
+#[cfg(feature = "graphql")]
 pub mod sqlite;
 use anyhow::{Result, anyhow, bail};
 use chrono::{DateTime, Utc};
@@ -14,7 +14,7 @@ use std::{
 use tokio::sync::mpsc;
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
-#[cfg_attr(feature = "content_api", derive(async_graphql::Enum))]
+#[cfg_attr(feature = "graphql", derive(async_graphql::Enum))]
 pub enum FileTaskType {
     Copy,
     Move,
@@ -22,7 +22,7 @@ pub enum FileTaskType {
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
-#[cfg_attr(feature = "content_api", derive(async_graphql::Enum))]
+#[cfg_attr(feature = "graphql", derive(async_graphql::Enum))]
 pub enum FileTaskStatus {
     Queued,
     Running,

@@ -31,7 +31,7 @@ pub mod enums;
 pub mod events;
 mod manager;
 pub mod message_lifecycle;
-#[cfg(any(feature = "api", feature = "content_api"))]
+#[cfg(feature = "http-client")]
 pub mod nearby_http;
 pub mod nearby_wire;
 pub mod pairing;
@@ -57,3 +57,6 @@ pub mod peer_status;
 pub mod message_commands;
 
 pub mod share_send;
+
+#[cfg(feature = "link-preview")]
+pub mod link_preview;

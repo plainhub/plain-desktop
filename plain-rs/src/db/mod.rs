@@ -6,7 +6,7 @@ use std::sync::{Arc, Mutex};
     feature = "chat",
     feature = "library",
     feature = "sqlite_browse",
-    feature = "system"
+    feature = "sqlite_browse"
 ))]
 mod managers;
 #[cfg(feature = "chat")]
@@ -22,7 +22,7 @@ mod schema;
 
 #[cfg(feature = "sqlite_browse")]
 pub use managers::browse;
-#[cfg(feature = "system")]
+#[cfg(feature = "sqlite_browse")]
 pub use managers::devtools;
 #[cfg(feature = "library")]
 pub use managers::{audio_queue, favorite_folder, image_editor_project, notes_feeds, tag};

@@ -1,10 +1,10 @@
 [workspace]
 resolver = "3"
-members = ["plain-rs", "nas", "src-tauri"]
+members = ["plain-rs", "crates/plain-media", "crates/plain-inference", "crates/plain-server", "nas", "src-tauri"]
 
 # Light optimization for workspace code: the thumbnail engine's hot
-# loops (progressive DC decode, box resample) live in the plain-rs media
-# feature and are 5-10x slower at opt-level 0 — dev instances must not
+# loops (progressive DC decode, box resample) live in the plain-media
+# crate and are 5-10x slower at opt-level 0 — dev instances must not
 # look broken.
 [profile.dev]
 opt-level = 1

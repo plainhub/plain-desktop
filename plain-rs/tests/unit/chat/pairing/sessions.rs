@@ -60,7 +60,7 @@ fn batch_expiry_keeps_fresh_replacements_and_returns_each_expired_ticket_once() 
     assert!(sessions.expire_all().is_empty());
 }
 
-#[cfg(feature = "content_api")]
+#[cfg(feature = "graphql")]
 #[tokio::test]
 async fn rust_timeout_worker_emits_committed_expiry_and_stops_with_server() {
     let sessions = std::sync::Arc::new(Sessions::default());

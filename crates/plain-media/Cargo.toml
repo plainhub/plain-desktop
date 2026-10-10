@@ -1,0 +1,52 @@
+[package]
+name = "plain-media"
+version = "0.1.0"
+edition = "2024"
+rust-version = "1.96"
+description = "Shared Plain media scanning, indexing and thumbnails"
+
+[features]
+"default" = ["library"]
+"library" = ["plain-rs/library"]
+
+[dependencies]
+"rand" = "0.8"
+"uuid" = { "version" = "1", "features" = ["v4"] }
+"log" = "0.4"
+"serde" = { "version" = "1", "features" = ["derive"] }
+"serde_json" = { "version" = "1" }
+"rusqlite" = { "version" = "0.32", "features" = ["bundled"] }
+"anyhow" = { "version" = "1" }
+"chrono" = { "version" = "0.4", "features" = ["serde"] }
+"fjall" = { "version" = "=3.1.10" }
+"tantivy" = { "version" = "0.22" }
+"lofty" = { "version" = "0.22" }
+"image" = { "version" = "0.25", "default-features" = false, "features" = ["jpeg", "png", "webp", "gif"] }
+"fast_image_resize" = { "version" = "5", "features" = ["rayon"] }
+"jpeg-decoder" = { "version" = "0.3", "default-features" = true }
+"jpeg-encoder" = { "version" = "0.7" }
+"mp4" = { "version" = "0.14" }
+"rusty_h264-decoder" = { "version" = "=0.16.0", "default-features" = false, "features" = ["std"] }
+"rusty_h264-common" = { "version" = "=0.16.0", "default-features" = false, "features" = ["std"] }
+"notify" = { "version" = "7" }
+"tempfile" = { "version" = "3" }
+"sha1" = { "version" = "0.10" }
+"xxhash-rust" = { "version" = "0.8", "features" = ["xxh64"] }
+"parking_lot" = { "version" = "0.12" }
+"libc" = "0.2"
+"bytes" = "1"
+"sysinfo" = { "version" = "0.32", "default-features" = false, "features" = ["system", "disk"] }
+"tokio" = { "version" = "1", "default-features" = false, "features" = ["rt", "process", "sync", "time", "fs", "macros", "io-util"] }
+"plain-rs" = { "path" = "../../plain-rs", "default-features" = false, "features" = ["crypto", "prefs", "library", "filesystem", "events"] }
+
+[dev-dependencies]
+"reqwest" = { "version" = "0.12", "default-features" = false, "features" = ["rustls-tls"] }
+"serde_json" = "1"
+"tokio" = { "version" = "1", "features" = ["full"] }
+"futures" = "0.3"
+"tower" = { "version" = "0.5", "features" = ["util"] }
+"tempfile" = "3"
+"tokio-tungstenite" = { "version" = "0.30", "features" = ["connect", "rustls-tls-webpki-roots"] }
+
+[[example]]
+name = "thumb_bench"

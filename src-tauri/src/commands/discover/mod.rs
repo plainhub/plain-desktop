@@ -1,14 +1,14 @@
 #![allow(non_snake_case)]
 
-use plain_rs::api::enums::DeviceType;
+use plain_server::api::enums::DeviceType;
 #[allow(unused_imports)]
-pub use plain_rs::discover::{
+pub use plain_server::discover::{
     MdnsActivity, MdnsFirewallStatus, NearbyDiscoverManager, PeerStatusManager, firewall,
     macos_dns_sd,
 };
-use plain_rs::http_server::main_schemas::types::Peer;
+use plain_server::http_server::main_schemas::types::Peer;
 #[allow(unused_imports)]
-pub(crate) use plain_rs::mdns::host_responder::{
+pub(crate) use plain_server::mdns::host_responder::{
     get_best_ip as discover_get_best_ip, local_ipv4_strs as discover_local_ipv4_strs,
 };
 
@@ -86,7 +86,7 @@ pub async fn update_peer_name(
 #[tauri::command]
 pub async fn mdns_snapshot(
     state: tauri::State<'_, NearbyDiscoverManager>,
-) -> Result<Vec<plain_rs::mdns::service_browser::MdnsServiceSnapshot>, String> {
+) -> Result<Vec<plain_server::mdns::service_browser::MdnsServiceSnapshot>, String> {
     let mgr = state.inner().clone();
     tauri::async_runtime::spawn_blocking(move || mgr.mdns_snapshot())
         .await

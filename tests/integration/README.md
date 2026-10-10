@@ -88,9 +88,9 @@ working against the Rust local server:
 
 | Test | Divergence | Fix |
 |---|---|---|
-| `peers: both return arrays with identical Peer field set (incl. online)` | Rust `Peer` struct lacks `online` field; Android has it via `PeerStatusManager.isOnline` | Add `online: bool` to Rust `Peer` ([types.rs](../../plain-rs/src/api/schema/types.rs)) |
-| `cancelPairing mutation name accepted by both` | Rust exposes `cancelPairDevice`; Android (and the frontend) uses `cancelPairing` | Rename in [pairing.rs](../../plain-rs/src/api/schema/pairing.rs) |
-| `respondToPairing mutation name accepted by both` | Rust exposes `respondPairDevice`; Android (and the frontend) uses `respondToPairing` | Rename in [pairing.rs](../../plain-rs/src/api/schema/pairing.rs) |
+| `peers: both return arrays with identical Peer field set (incl. online)` | Rust `Peer` struct lacks `online` field; Android has it via `PeerStatusManager.isOnline` | Add `online: bool` to Rust `Peer` ([types.rs](../../crates/plain-server/src/api/schema/types.rs)) |
+| `cancelPairing mutation name accepted by both` | Rust exposes `cancelPairDevice`; Android (and the frontend) uses `cancelPairing` | Rename in [pairing.rs](../../crates/plain-server/src/api/schema/pairing.rs) |
+| `respondToPairing mutation name accepted by both` | Rust exposes `respondPairDevice`; Android (and the frontend) uses `respondToPairing` | Rename in [pairing.rs](../../crates/plain-server/src/api/schema/pairing.rs) |
 
 Once fixed, these tests pass and serve as regression guards.
 

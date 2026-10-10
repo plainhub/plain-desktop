@@ -18,9 +18,9 @@ axum = { version = "0.7", features = ["json", "query", "ws", "multipart", "tokio
 tokio = { version = "1", features = ["full"] }
 axum-server = { version = "0.7", features = ["tls-rustls-no-provider"] }
 
-# GraphQL lives in the shared plain-rs API schema.
+# GraphQL lives in the shared plain-server API schema.
 
-plain_rs = { path = "../plain-rs", package = "plain-rs", features = ["chat", "library", "prefs", "sqlite_browse", "media", "media_gql", "system"] }
+plain_server = { path = "../crates/plain-server", package = "plain-server", features = ["chat", "library", "prefs", "sqlite_browse", "media", "media_gql", "system"] }
 serde_json = "1"
 
 # Platform FFI (already a transitive of nix/tokio/ring — listing explicitly

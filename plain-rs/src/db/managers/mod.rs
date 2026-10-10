@@ -12,7 +12,7 @@ pub(super) mod channel;
 pub(crate) mod chat;
 #[cfg(feature = "chat")]
 pub(super) mod db_time;
-#[cfg(feature = "system")]
+#[cfg(feature = "sqlite_browse")]
 pub mod devtools;
 #[cfg(feature = "library")]
 pub mod favorite_folder;

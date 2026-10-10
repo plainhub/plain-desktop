@@ -13,10 +13,7 @@ use rusqlite::types::{FromSql, FromSqlError, FromSqlResult, ToSql, ToSqlOutput, 
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
-#[cfg_attr(
-    any(feature = "api", feature = "content_api"),
-    derive(async_graphql::Enum)
-)]
+#[cfg_attr(feature = "graphql", derive(async_graphql::Enum))]
 pub enum PeerStatus {
     Paired,
     Unpaired,
@@ -62,10 +59,7 @@ impl FromSql for PeerStatus {
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
-#[cfg_attr(
-    any(feature = "api", feature = "content_api"),
-    derive(async_graphql::Enum)
-)]
+#[cfg_attr(feature = "graphql", derive(async_graphql::Enum))]
 pub enum ChatStatus {
     Sent,
     Failed,
@@ -266,10 +260,7 @@ impl FromSql for DeviceType {
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
-#[cfg_attr(
-    any(feature = "api", feature = "content_api"),
-    derive(async_graphql::Enum)
-)]
+#[cfg_attr(feature = "graphql", derive(async_graphql::Enum))]
 pub enum ChannelSystemMessageType {
     Invite,
     InviteAccept,

@@ -5,9 +5,8 @@ use crate::{
 };
 use rusqlite::params;
 use std::collections::HashSet;
-#[derive(
-    Clone, Copy, Debug, PartialEq, Eq, async_graphql::Enum, serde::Serialize, serde::Deserialize,
-)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+#[cfg_attr(feature = "graphql", derive(async_graphql::Enum))]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 pub enum Action {
     Trash,

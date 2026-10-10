@@ -1,0 +1,25 @@
+[package]
+name = "plain-inference"
+version = "0.1.0"
+edition = "2024"
+rust-version = "1.96"
+description = "Shared Plain ONNX image and text inference"
+
+[features]
+
+[dependencies]
+"tokenizers" = { "version" = "0.22.2", "default-features" = false, "features" = ["fancy-regex"] }
+"image" = { "version" = "0.25", "default-features" = false, "features" = ["jpeg", "png", "webp", "gif"] }
+"sha2" = "0.10"
+"log" = "0.4"
+"serde" = { "version" = "1", "features" = ["derive"] }
+"serde_json" = { "version" = "1" }
+
+[dev-dependencies]
+"tempfile" = "3"
+
+[build-dependencies]
+"cc" = "1"
+
+[[example]]
+name = "image_search"

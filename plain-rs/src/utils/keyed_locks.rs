@@ -75,5 +75,5 @@ impl Drop for Lease<'_> {
 }
 
 #[cfg(test)]
-#[path = "../../tests/unit/media/thumb/singleflight.rs"]
+#[path = "../../tests/unit/utils/keyed_locks.rs"]
 mod tests;

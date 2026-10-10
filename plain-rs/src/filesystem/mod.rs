@@ -775,7 +775,7 @@ async fn copy_dir_recursive(
 /// `internal/graph/helpers/files_helper.go`. Skips `.` and `..`. Returns
 /// `threshold` (and caps there) once the count exceeds the threshold so
 /// the response stays cheap on huge trees.
-pub(crate) fn count_dir_entries_fast(path: &Path, threshold: i32) -> std::io::Result<i32> {
+pub fn count_dir_entries_fast(path: &Path, threshold: i32) -> std::io::Result<i32> {
     #[cfg(not(target_os = "linux"))]
     {
         let mut count = 0;

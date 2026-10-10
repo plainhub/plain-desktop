@@ -9,24 +9,24 @@ mod prefs;
 mod read_password;
 mod version;
 
-// Chat stack — one assembly in plain-rs (`plain_rs::chat_service`,
+// Chat stack — one assembly in plain-rs (`plain_server::chat_service`,
 // NAS flavor via `ChatState::nas_init`), re-exported under the
 // historical module path so call sites stay stable.
-pub use plain_rs::chat_service;
+pub use plain_server::chat_service;
 
 // Shared system/domain modules hosted by plain-rs, re-exported under the historical
 // module paths so call sites stay stable.
-pub use plain_rs::storage::automount;
-pub use plain_rs::storage::mounts;
-pub use plain_rs::system::consts;
-pub use plain_rs::system::log;
+pub use plain_server::storage::automount;
+pub use plain_server::storage::mounts;
+pub use plain_server::system::consts;
+pub use plain_server::system::log;
 
-// Media/file stack — now hosted by plain-rs (`plain_rs::media`), wired
+// Media/file stack — now hosted by plain-rs (`plain_server::media`), wired
 // through under the historical module paths so call sites stay stable.
-pub use plain_rs::media::config;
-pub use plain_rs::media::kv as db;
-pub use plain_rs::media::scan as media_scan;
-pub use plain_rs::media::watcher;
+pub use plain_server::media::config;
+pub use plain_server::media::kv as db;
+pub use plain_server::media::scan as media_scan;
+pub use plain_server::media::watcher;
 
 use consts::AppPaths;
 
@@ -65,7 +65,7 @@ fn main() -> Result<()> {
     // so the runtime can pick it up.
     let _ = rustls::crypto::ring::default_provider().install_default();
 
-    plain_rs::system::version::set(
+    plain_server::system::version::set(
         crate::version::VERSION,
         crate::version::COMMIT,
         crate::version::BUILD_TIME,

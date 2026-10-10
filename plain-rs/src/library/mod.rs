@@ -65,7 +65,6 @@ pub mod image_indexing;
 pub mod media_actions;
 
 pub mod file_task_audio;
-#[cfg(any(feature = "api", feature = "content_api", feature = "media_gql"))]
 pub mod media_moves;
 
 pub mod media_deletes;

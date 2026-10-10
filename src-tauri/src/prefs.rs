@@ -1,16 +1,16 @@
 //! Thin desktop-shell preference helpers over the shared plain-rs
-//! engine (`plain_rs::prefs`). The Tauri shell owns no storage code:
+//! engine (`plain_server::prefs`). The Tauri shell owns no storage code:
 //! everything persists through the process-wide `Arc<Prefs>` managed
 //! as Tauri state in `lib.rs` — the same instance the local API server
 //! uses, so `system_prefs.json` and `user_prefs.json` each have one writer.
 //! Identity / url-token / mDNS-hostname bootstrap and the DLNA sender
-//! lists live in plain-rs (`plain_rs::prefs::identity`,
-//! `plain_rs::prefs::dlna`).
+//! lists live in plain-rs (`plain_server::prefs::identity`,
+//! `plain_server::prefs::dlna`).
 
-pub use plain_rs::prefs::Prefs;
+pub use plain_server::prefs::Prefs;
 
-pub use plain_rs::prefs::dlna;
-pub use plain_rs::prefs::{ensure_identity, ensure_url_token};
+pub use plain_server::prefs::dlna;
+pub use plain_server::prefs::{ensure_identity, ensure_url_token};
 
 /// Persist the device display name (plain-app `device_name` key).
 pub fn set_device_name(prefs: &Prefs, name: &str) {

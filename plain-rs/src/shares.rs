@@ -12,7 +12,8 @@ use std::{
     sync::Arc,
 };
 
-#[derive(Clone, Debug, Serialize, Deserialize, async_graphql::SimpleObject)]
+#[derive(Clone, Debug, Serialize, Deserialize)]
+#[cfg_attr(feature = "graphql", derive(async_graphql::SimpleObject))]
 #[serde(rename_all = "camelCase")]
 pub struct Root {
     pub virtual_path: String,
