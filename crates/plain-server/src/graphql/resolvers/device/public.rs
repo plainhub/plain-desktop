@@ -254,9 +254,9 @@ impl DeviceQuery {
     async fn app_logs(
         &self,
         ctx: &Context<'_>,
+        query: String,
         offset: i32,
         limit: i32,
-        query: String,
     ) -> async_graphql::Result<Vec<String>> {
         let text = text_of(&query);
         let facts = host_call(

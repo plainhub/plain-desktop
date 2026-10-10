@@ -46,9 +46,9 @@ impl AudioQuery {
     async fn audio_queue_items(
         &self,
         ctx: &Context<'_>,
+        query: String,
         offset: i32,
         limit: i32,
-        query: String,
     ) -> async_graphql::Result<Vec<AudioItem>> {
         let c = ctx.data_unchecked::<Arc<AppCtx>>();
         let text = text_of(&query);
@@ -99,9 +99,9 @@ impl AudioQuery {
         &self,
         ctx: &Context<'_>,
         id: ID,
+        query: String,
         offset: i32,
         limit: i32,
-        query: String,
     ) -> async_graphql::Result<Vec<AudioItem>> {
         let c = ctx.data_unchecked::<Arc<AppCtx>>();
         Ok(audio_queue::playlist_items_page(
@@ -130,9 +130,9 @@ impl AudioQuery {
     async fn audio_play_history(
         &self,
         ctx: &Context<'_>,
+        query: String,
         offset: i32,
         limit: i32,
-        query: String,
     ) -> async_graphql::Result<Vec<AudioPlayHistory>> {
         let c = ctx.data_unchecked::<Arc<AppCtx>>();
         Ok(

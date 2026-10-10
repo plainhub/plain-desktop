@@ -113,9 +113,9 @@ impl SmsQuery {
     async fn sms(
         &self,
         ctx: &Context<'_>,
+        query: String,
         offset: i32,
         limit: i32,
-        query: String,
     ) -> async_graphql::Result<Vec<Sms>> {
         if !public_gate::require_granted(ctx, &[READ]).await? {
             return Ok(Vec::new());
@@ -168,14 +168,14 @@ impl SmsQuery {
     async fn sms_conversations(
         &self,
         ctx: &Context<'_>,
+        query: String,
         offset: i32,
         limit: i32,
-        query: String,
     ) -> async_graphql::Result<Vec<SmsConversation>> {
         if !public_gate::require_granted(ctx, &[READ]).await? {
             return Ok(Vec::new());
         }
-        conversations(ctx, offset, limit, query, false).await
+        conversations(ctx, query, offset, limit, false).await
     }
 
     async fn sms_conversation_count(
@@ -192,14 +192,14 @@ impl SmsQuery {
     async fn archived_sms_conversations(
         &self,
         ctx: &Context<'_>,
+        query: String,
         offset: i32,
         limit: i32,
-        query: String,
     ) -> async_graphql::Result<Vec<SmsConversation>> {
         if !public_gate::require_granted(ctx, &[READ]).await? {
             return Ok(Vec::new());
         }
-        conversations(ctx, offset, limit, query, true).await
+        conversations(ctx, query, offset, limit, true).await
     }
 }
 
@@ -332,9 +332,9 @@ async fn count(ctx: &Context<'_>, request: sms_query::Request) -> async_graphql:
 
 async fn conversations(
     ctx: &Context<'_>,
+    query: String,
     offset: i32,
     limit: i32,
-    query: String,
     archived: bool,
 ) -> async_graphql::Result<Vec<SmsConversation>> {
     let request = if archived {

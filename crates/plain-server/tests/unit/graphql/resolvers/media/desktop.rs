@@ -83,7 +83,7 @@ fn sdl_contains_the_media_surface() {
         "type Video",
         "type Doc",
         "trashedFileCount: Int!",
-        "trashedFiles(offset: Int!, limit: Int!, query: String!, sortBy: TrashedFileSortBy!): [TrashedFile!]!",
+        "trashedFiles(query: String!, offset: Int!, limit: Int!, sortBy: TrashedFileSortBy!): [TrashedFile!]!",
         "deleteTrashedFile(path: String!): Boolean!",
         "type TrashedFile",
         "enum TrashedFileType",

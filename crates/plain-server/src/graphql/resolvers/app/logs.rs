@@ -12,9 +12,9 @@ impl AppLogsQuery {
     async fn app_logs(
         &self,
         ctx: &Context<'_>,
+        query: String,
         offset: i32,
         limit: i32,
-        query: String,
     ) -> Vec<String> {
         let c = ctx.data_unchecked::<Arc<AppCtx>>();
         read_log_lines(&c.log_dir.join("plain.log"), &query, offset, limit)

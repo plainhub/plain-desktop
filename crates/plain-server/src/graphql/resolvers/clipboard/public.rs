@@ -26,9 +26,9 @@ impl ClipboardQuery {
     async fn clipboard_items(
         &self,
         ctx: &Context<'_>,
+        query: String,
         offset: i32,
         limit: i32,
-        query: String,
     ) -> async_graphql::Result<Vec<ClipboardItem>> {
         enabled(ctx)?;
         ctx.data::<Arc<Db>>()?

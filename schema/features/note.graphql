@@ -26,6 +26,6 @@ type NoteMutation {
 type NoteQuery {
 	noteCount(query: String!): Int!
 	note(id: ID!): Note
-	notes(offset: Int!, limit: Int!, query: String!): [Note!]!
+	notes(query: String!, offset: Int!, limit: Int!): [Note!]!
 }
 

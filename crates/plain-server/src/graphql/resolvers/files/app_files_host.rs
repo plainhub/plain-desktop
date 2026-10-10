@@ -53,9 +53,9 @@ impl AppFileHostQuery {
     async fn app_file_records(
         &self,
         ctx: &Context<'_>,
+        query: String,
         offset: i32,
         limit: i32,
-        query: String,
     ) -> async_graphql::Result<Vec<AppFileRecord>> {
         if offset < 0 || limit < 0 {
             return Err(async_graphql::Error::new("invalid pagination"));

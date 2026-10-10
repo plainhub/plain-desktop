@@ -16,9 +16,9 @@ impl ChatQuery {
         &self,
         ctx: &Context<'_>,
         target: String,
+        query: String,
         offset: i32,
         limit: i32,
-        query: String,
     ) -> Vec<ChatItem> {
         let c = ctx.data_unchecked::<Arc<AppCtx>>();
         c.db.get_chats_page(&target, &query, offset, limit)

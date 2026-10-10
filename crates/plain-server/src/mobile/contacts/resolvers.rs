@@ -33,9 +33,9 @@ impl ContactsQuery {
     async fn contacts(
         &self,
         ctx: &Context<'_>,
+        query: String,
         offset: i32,
         limit: i32,
-        query: String,
     ) -> async_graphql::Result<Vec<Contact>> {
         public_gate::require(ctx.data_unchecked::<Arc<Prefs>>(), &[READ])?;
         let facts = host_json(

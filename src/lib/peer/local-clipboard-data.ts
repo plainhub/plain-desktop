@@ -40,7 +40,7 @@ function receiveEnabled(peerId: string) {
 
 const PEER_CLIPBOARD_GQL = `
   query clipboardItems($offset: Int!, $limit: Int!, $query: String!) {
-    clipboardItems(offset: $offset, limit: $limit, query: $query) {
+    clipboardItems(query: $query, offset: $offset, limit: $limit) {
       ...ClipboardItemFragment
     }
     clipboardItemCount(query: $query)

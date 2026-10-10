@@ -43,7 +43,7 @@ type CapabilityQuery {
 	audioLyrics(path: String!): String
 	disks: [Disk!]!
 	sessions: [Session!]!
-	auditEvents(offset: Int!, limit: Int!, query: String!): [AuditEvent!]!
+	auditEvents(query: String!, offset: Int!, limit: Int!): [AuditEvent!]!
 	appUpdate: AppUpdate!
 	sambaSettings: SambaSettings!
 	dlnaRenderers: [DlnaRenderer!]!

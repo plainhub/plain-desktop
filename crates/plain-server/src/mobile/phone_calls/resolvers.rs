@@ -86,9 +86,9 @@ impl CallsQuery {
     async fn calls(
         &self,
         ctx: &Context<'_>,
+        query: String,
         offset: i32,
         limit: i32,
-        query: String,
     ) -> async_graphql::Result<Vec<Call>> {
         public_gate::require(ctx.data_unchecked::<Arc<Prefs>>(), &[READ])?;
         let facts = host_json(

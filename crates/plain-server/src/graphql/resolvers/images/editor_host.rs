@@ -11,9 +11,9 @@ impl ImageEditorItemsQuery {
     async fn image_editor_project_items(
         &self,
         ctx: &Context<'_>,
+        query: String,
         offset: i32,
         limit: i32,
-        query: String,
     ) -> async_graphql::Result<Vec<ImageEditorProjectSummary>> {
         if offset < 0 || limit < 0 {
             return Err(async_graphql::Error::new("invalid pagination"));

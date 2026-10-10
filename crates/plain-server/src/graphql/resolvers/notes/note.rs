@@ -69,9 +69,9 @@ impl NoteQuery {
     async fn notes(
         &self,
         ctx: &Context<'_>,
+        query: String,
         offset: i32,
         limit: i32,
-        query: String,
     ) -> GqlResult<Vec<Note>> {
         notes::search(ctx.data::<Arc<Db>>()?, &query, limit, offset)?
             .into_iter()

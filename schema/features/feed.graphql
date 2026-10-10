@@ -58,7 +58,7 @@ type FeedQuery {
 	feedEntryCounts: [FeedEntryCount!]!
 	feedEntryCount(query: String!): Int!
 	feedEntry(id: ID!): FeedEntry
-	feedEntries(offset: Int!, limit: Int!, query: String!): [FeedEntry!]!
+	feedEntries(query: String!, offset: Int!, limit: Int!): [FeedEntry!]!
 }
 
 type FeedSyncState {

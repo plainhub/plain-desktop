@@ -105,9 +105,9 @@ impl ChatQuery {
         &self,
         ctx: &Context<'_>,
         target: String,
+        query: String,
         offset: i32,
         limit: i32,
-        query: String,
     ) -> async_graphql::Result<Vec<ChatItem>> {
         let text = text_of(&query);
         Ok(db(ctx)?

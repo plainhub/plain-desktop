@@ -3,7 +3,7 @@ type AppLogsMutation {
 }
 
 type AppLogsQuery {
-	appLogs(offset: Int!, limit: Int!, query: String!): [String!]!
+	appLogs(query: String!, offset: Int!, limit: Int!): [String!]!
 	appLogPath: String!
 }
 

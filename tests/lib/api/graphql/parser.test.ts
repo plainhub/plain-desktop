@@ -6,7 +6,7 @@ import { GraphQLSyntaxError, parseDocument, parseSchema } from '../../../../src/
 const LOCAL_SDL = `
 type QueryRoot {
   app: App!
-  chatItems(target: String!, offset: Int!, limit: Int!, query: String!): [ChatItem!]!
+  chatItems(target: String!, query: String!, offset: Int!, limit: Int!): [ChatItem!]!
   count(query: String): Int!
   task: Job
 }
@@ -59,7 +59,7 @@ describe('parseSchema', () => {
     expect(sdl.queryRoot).toBe('QueryRoot')
     const root = sdl.types.get('QueryRoot')!
     const chatItems = root.fields.find((f) => f.name === 'chatItems')!
-    expect(chatItems.args.map((a) => a.name)).toEqual(['target', 'offset', 'limit', 'query'])
+    expect(chatItems.args.map((a) => a.name)).toEqual(['target', 'query', 'offset', 'limit'])
     expect(chatItems.type).toMatchObject({ ofType: 'list', nonNull: true })
     const count = root.fields.find((f) => f.name === 'count')!
     expect(count.args[0].type).toMatchObject({ ofType: 'named', name: 'String', nonNull: false })

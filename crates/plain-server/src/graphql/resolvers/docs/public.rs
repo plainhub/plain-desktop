@@ -66,9 +66,9 @@ impl DocsQuery {
     async fn docs(
         &self,
         ctx: &Context<'_>,
+        query: String,
         offset: i32,
         limit: i32,
-        query: String,
         sort_by: crate::graphql::resolvers::files::types::FileSortBy,
     ) -> async_graphql::Result<Vec<Doc>> {
         public_gate::require(prefs(ctx), &[STORAGE])?;

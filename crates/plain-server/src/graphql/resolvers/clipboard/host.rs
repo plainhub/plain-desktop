@@ -52,9 +52,9 @@ impl ClipboardQuery {
     async fn clipboard_items(
         &self,
         ctx: &Context<'_>,
+        query: String,
         offset: i32,
         limit: i32,
-        query: String,
     ) -> Result<Vec<ClipboardItem>> {
         ctx.data::<Arc<Db>>()?
             .clipboard_page(&query, limit.into(), offset.into())?

@@ -29,9 +29,9 @@ impl NotificationsQuery {
     async fn notifications(
         &self,
         ctx: &Context<'_>,
+        query: String,
         offset: i32,
         limit: i32,
-        query: String,
     ) -> async_graphql::Result<Vec<Notification>> {
         public_gate::require(ctx.data_unchecked::<Arc<Prefs>>(), &[PERMISSION])?;
         let items = notification_items(ctx, &query).await?;

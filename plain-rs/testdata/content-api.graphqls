@@ -510,16 +510,16 @@ type PomodoroToday {
 
 type Query {
 	fileHostTaskRecord(clientId: String!, id: ID!): FileHostTask
-	fileHostTasks(clientId: String!, offset: Int!, limit: Int!, query: String!): [FileHostTask!]!
+	fileHostTasks(clientId: String!, query: String!, offset: Int!, limit: Int!): [FileHostTask!]!
 	audioSource: AudioHostSource!
 	audioQueuedPaths: [String!]!
-	audioHostQueueItems(offset: Int!, limit: Int!, query: String!): [AudioHostTrack!]!
+	audioHostQueueItems(query: String!, offset: Int!, limit: Int!): [AudioHostTrack!]!
 	audioHostQueueCount: Int!
 	audioHostPlaylists: [AudioHostPlaylist!]!
 	audioHostPlaylist(id: ID!): AudioHostPlaylist
-	audioHostPlaylistItems(id: ID!, offset: Int!, limit: Int!, query: String!): [AudioHostPlaylistItem!]!
+	audioHostPlaylistItems(id: ID!, query: String!, offset: Int!, limit: Int!): [AudioHostPlaylistItem!]!
 	audioHostPlaylistItemCount(id: ID!): Int!
-	audioHostHistory(offset: Int!, limit: Int!, query: String!): [AudioHostHistory!]!
+	audioHostHistory(query: String!, offset: Int!, limit: Int!): [AudioHostHistory!]!
 	audioArtistPlayCounts: [AudioArtistPlayCount!]!
 	audioPlayback: AudioPlayback!
 	videoPlayProgress(mediaId: ID!): VideoPlayProgress
@@ -532,25 +532,25 @@ type Query {
 	shareAuth(id: ID!): ShareAuthRecord
 	resolveSharePath(id: ID!, virtualPath: String!): String
 	resolveShareFile(id: ID!, fileId: String!): String
-	appFiles(offset: Int!, limit: Int!, query: String!): [AppFile!]!
+	appFiles(query: String!, offset: Int!, limit: Int!): [AppFile!]!
 	appFileCount(query: String!): Int!
 	"""
 	List all favorite folders.
 	"""
 	favoriteFolders: [FavoriteFolder!]!
 	appFileRecord(id: String!): AppFileRecord
-	appFileRecords(offset: Int!, limit: Int!, query: String!): [AppFileRecord!]!
+	appFileRecords(query: String!, offset: Int!, limit: Int!): [AppFileRecord!]!
 	resolveAppFile(id: String!): String!
 	noteCount(query: String!): Int!
 	note(id: ID!): Note
-	notes(offset: Int!, limit: Int!, query: String!): [Note!]!
+	notes(query: String!, offset: Int!, limit: Int!): [Note!]!
 	feedSyncStates: [FeedSyncState!]!
 	feed(id: ID!): Feed
 	feeds: [Feed!]!
 	feedEntryCounts: [FeedEntryCount!]!
 	feedEntryCount(query: String!): Int!
 	feedEntry(id: ID!): FeedEntry
-	feedEntries(offset: Int!, limit: Int!, query: String!): [FeedEntry!]!
+	feedEntries(query: String!, offset: Int!, limit: Int!): [FeedEntry!]!
 	tags(type: DataType!): [Tag!]!
 	tag(id: ID!): Tag
 	tagKeys(id: ID!): [String!]!
@@ -564,7 +564,7 @@ type Query {
 	imageHostEmbeddingCount: Long!
 	imageHostSearch(embeddingBase64: String!, maxResults: Int!): [ImageHostSearchResult!]!
 	imageHostIndexStatus: ImageHostIndexStatus!
-	clipboardItems(offset: Int!, limit: Int!, query: String!): [ClipboardItem!]!
+	clipboardItems(query: String!, offset: Int!, limit: Int!): [ClipboardItem!]!
 	clipboardItemCount(query: String!): Int!
 	bookmarks: [Bookmark!]!
 	bookmarkGroups: [BookmarkGroup!]!
@@ -575,7 +575,7 @@ type Query {
 	pomodoroTotalCompleted: Long!
 	imageEditorProjects: [ImageEditorProjectSummary!]!
 	imageEditorProject(id: ID!): ImageEditorProject
-	imageEditorProjectItems(offset: Int!, limit: Int!, query: String!): [ImageEditorProjectSummary!]!
+	imageEditorProjectItems(query: String!, offset: Int!, limit: Int!): [ImageEditorProjectSummary!]!
 }
 
 type Root {

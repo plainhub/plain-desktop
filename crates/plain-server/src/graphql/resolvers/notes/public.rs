@@ -65,9 +65,9 @@ impl NotesQuery {
     async fn notes(
         &self,
         ctx: &Context<'_>,
+        query: String,
         offset: i32,
         limit: i32,
-        query: String,
     ) -> async_graphql::Result<Vec<Note>> {
         let library = db(ctx)?;
         let rows = notes::search(library, &query, limit, offset)?;

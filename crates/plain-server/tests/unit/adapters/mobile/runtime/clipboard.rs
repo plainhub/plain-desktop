@@ -101,7 +101,7 @@ fn clipboard_wire_contract() {
         Arc::new(plain_rs::prefs::Prefs::load(&dir.path().join("system_prefs.json")).unwrap());
     let sdl = schema::build(db, events, prefs, dir.path().into()).sdl();
     for field in [
-        "clipboardItems(offset: Int!, limit: Int!, query: String!): [ClipboardItem!]!",
+        "clipboardItems(query: String!, offset: Int!, limit: Int!): [ClipboardItem!]!",
         "clipboardItemCount(query: String!): Int!",
         "deleteClipboardItems(query: String!): ActionResult!",
         "recordClipboard(input: ClipboardRecordInput!): ClipboardRecordResult!",

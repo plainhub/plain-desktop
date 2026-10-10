@@ -51,9 +51,9 @@ impl MediaQueryRoot {
     async fn files(
         &self,
         root: String,
+        query: String,
         offset: i32,
         limit: i32,
-        query: String,
         sort_by: FileSortBy,
     ) -> FieldResult<Vec<File>> {
         let sort = match sort_by {
@@ -87,9 +87,9 @@ impl MediaQueryRoot {
     /// default.
     async fn trashed_files(
         &self,
+        query: String,
         offset: i32,
         limit: i32,
-        query: String,
         sort_by: TrashedFileSortBy,
     ) -> FieldResult<Vec<TrashedFile>> {
         let order = match sort_by {
@@ -182,9 +182,9 @@ impl MediaQueryRoot {
     async fn audios(
         &self,
         ctx: &Context<'_>,
+        query: String,
         offset: i32,
         limit: i32,
-        query: String,
         sort_by: FileSortBy,
     ) -> FieldResult<Vec<Audio>> {
         let rows = plain_media::catalog::search_page(
@@ -278,9 +278,9 @@ impl MediaQueryRoot {
     /// Image list (paginated, backed by the tantivy media search index).
     async fn images(
         &self,
+        query: String,
         offset: i32,
         limit: i32,
-        query: String,
         sort_by: FileSortBy,
     ) -> FieldResult<Vec<Image>> {
         let rows = plain_media::catalog::search_page(
@@ -322,9 +322,9 @@ impl MediaQueryRoot {
     async fn videos(
         &self,
         ctx: &Context<'_>,
+        query: String,
         offset: i32,
         limit: i32,
-        query: String,
         sort_by: FileSortBy,
     ) -> FieldResult<Vec<Video>> {
         let rows = plain_media::catalog::search_page(
@@ -367,9 +367,9 @@ impl MediaQueryRoot {
     /// Docs need no metadata hydration, so this maps index rows directly.
     async fn docs(
         &self,
+        query: String,
         offset: i32,
         limit: i32,
-        query: String,
         sort_by: FileSortBy,
     ) -> FieldResult<Vec<Doc>> {
         let rows = plain_media::catalog::search_page(

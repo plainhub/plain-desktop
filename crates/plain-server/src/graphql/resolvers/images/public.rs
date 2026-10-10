@@ -69,9 +69,9 @@ impl ImagesQuery {
     async fn images(
         &self,
         ctx: &Context<'_>,
+        query: String,
         offset: i32,
         limit: i32,
-        query: String,
         sort_by: crate::graphql::resolvers::files::types::FileSortBy,
     ) -> async_graphql::Result<Vec<Image>> {
         public_gate::require(prefs(ctx), &[STORAGE])?;

@@ -116,9 +116,9 @@ impl FeedsQuery {
     async fn feed_entries(
         &self,
         ctx: &Context<'_>,
+        query: String,
         offset: i32,
         limit: i32,
-        query: String,
     ) -> async_graphql::Result<Vec<FeedEntry>> {
         let library = db(ctx)?;
         let rows = plain_rs::feeds::search(library, &query, limit, offset)?;

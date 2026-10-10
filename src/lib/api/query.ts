@@ -175,7 +175,7 @@ export function initLazyQuery<TResult = any>(params: InitQueryParams<TResult>) {
 
 export const chatItemsGQL = `
   query ($target: String!) {
-    chatItems(target: $target, offset: 0, limit: 200, query: "") {
+    chatItems(target: $target, query: "", offset: 0, limit: 200) {
       ...ChatItemFragment
     }
   }
@@ -218,7 +218,7 @@ export const latestChatItemsGQL = `
 
 export const appFilesGQL = `
   query appFiles($offset: Int!, $limit: Int!) {
-    appFiles(offset: $offset, limit: $limit, query: "") {
+    appFiles(query: "", offset: $offset, limit: $limit) {
       id
       size
       mimeType
@@ -288,7 +288,7 @@ export const fileInfoGQL = `
 
 export const smsGQL = `
   query sms($offset: Int!, $limit: Int!, $query: String!) {
-    sms(offset: $offset, limit: $limit, query: $query) {
+    sms(query: $query, offset: $offset, limit: $limit) {
       ...SmsFragment
     }
     smsCount(query: $query)
@@ -309,7 +309,7 @@ export const simsGQL = `
 
 export const smsConversationsGQL = `
   query smsConversations($offset: Int!, $limit: Int!, $query: String!) {
-    smsConversations(offset: $offset, limit: $limit, query: $query) {
+    smsConversations(query: $query, offset: $offset, limit: $limit) {
       ...SmsConversationFragment
     }
     smsConversationCount(query: $query)
@@ -319,7 +319,7 @@ export const smsConversationsGQL = `
 
 export const smsConversationsWithAddressesGQL = `
   query smsConversations($offset: Int!, $limit: Int!, $query: String!) {
-    smsConversations(offset: $offset, limit: $limit, query: $query) {
+    smsConversations(query: $query, offset: $offset, limit: $limit) {
       ...SmsConversationWithAddressesFragment
     }
     smsConversationCount(query: $query)
@@ -329,7 +329,7 @@ export const smsConversationsWithAddressesGQL = `
 
 export const contactsGQL = `
   query contacts($offset: Int!, $limit: Int!, $query: String!) {
-    contacts(offset: $offset, limit: $limit, query: $query) {
+    contacts(query: $query, offset: $offset, limit: $limit) {
       ...ContactFragment
     }
     contactCount(query: $query)
@@ -395,7 +395,7 @@ export const contactSourcesGQL = `
 
 export const callsGQL = `
   query calls($offset: Int!, $limit: Int!, $query: String!) {
-    calls(offset: $offset, limit: $limit, query: $query) {
+    calls(query: $query, offset: $offset, limit: $limit) {
       ...CallFragment
     }
     callCount(query: $query)
@@ -405,7 +405,7 @@ export const callsGQL = `
 
 export const imagesGQL = `
   query images($offset: Int!, $limit: Int!, $query: String!, $sortBy: FileSortBy!) {
-    images(offset: $offset, limit: $limit, query: $query, sortBy: $sortBy) {
+    images(query: $query, offset: $offset, limit: $limit, sortBy: $sortBy) {
       ...ImageFragment
     }
     imageCount(query: $query)
@@ -441,7 +441,7 @@ export const scanProgressGQL = `
 
 export const videosGQL = `
   query videos($offset: Int!, $limit: Int!, $query: String!, $sortBy: FileSortBy!) {
-    videos(offset: $offset, limit: $limit, query: $query, sortBy: $sortBy) {
+    videos(query: $query, offset: $offset, limit: $limit, sortBy: $sortBy) {
       ...VideoFragment
     }
     videoCount(query: $query)
@@ -451,7 +451,7 @@ export const videosGQL = `
 
 export const audiosGQL = `
   query audios($offset: Int!, $limit: Int!, $query: String!, $sortBy: FileSortBy!) {
-    items: audios(offset: $offset, limit: $limit, query: $query, sortBy: $sortBy) {
+    items: audios(query: $query, offset: $offset, limit: $limit, sortBy: $sortBy) {
       ...AudioFragment
     }
     total: audioCount(query: $query)
@@ -461,7 +461,7 @@ export const audiosGQL = `
 
 export const filesGQL = `
   query files($root: String!, $offset: Int!, $limit: Int!, $query: String!, $sortBy: FileSortBy!) {
-    files(root: $root, offset: $offset, limit: $limit, query: $query, sortBy: $sortBy) {
+    files(root: $root, query: $query, offset: $offset, limit: $limit, sortBy: $sortBy) {
       ...FileFragment
     }
   }
@@ -549,7 +549,7 @@ export const appGQL = `
 
 export const audioQueueGQL = `
   query audioQueue($offset: Int!, $limit: Int!) {
-    items: audioQueueItems(offset: $offset, limit: $limit, query: "") {
+    items: audioQueueItems(query: "", offset: $offset, limit: $limit) {
       ...AudioItemFragment
     }
     total: audioQueueItemCount
@@ -585,7 +585,7 @@ export const mediaBucketsGQL = `
 
 export const notesGQL = `
   query notes($offset: Int!, $limit: Int!, $query: String!) {
-    notes(offset: $offset, limit: $limit, query: $query) {
+    notes(query: $query, offset: $offset, limit: $limit) {
       id
       title
       deletedAt
@@ -620,7 +620,7 @@ export const feedsGQL = `
 
 export const feedEntriesGQL = `
   query feedEntries($offset: Int!, $limit: Int!, $query: String!) {
-    items: feedEntries(offset: $offset, limit: $limit, query: $query) {
+    items: feedEntries(query: $query, offset: $offset, limit: $limit) {
       id
       title
       url
@@ -697,7 +697,7 @@ export const audioCountGQL = `
 
 export const docsGQL = `
   query docs($offset: Int!, $limit: Int!, $query: String!, $sortBy: FileSortBy!) {
-    items: docs(offset: $offset, limit: $limit, query: $query, sortBy: $sortBy) {
+    items: docs(query: $query, offset: $offset, limit: $limit, sortBy: $sortBy) {
       ...DocFragment
     }
     total: docCount(query: $query)
@@ -769,7 +769,7 @@ export const smsCountGQL = `
 
 export const archivedSmsConversationsGQL = `
   query {
-    archivedSmsConversations(offset: 0, limit: 200, query: "") {
+    archivedSmsConversations(query: "", offset: 0, limit: 200) {
       ...SmsConversationFragment
     }
   }
@@ -778,7 +778,7 @@ export const archivedSmsConversationsGQL = `
 
 export const archivedSmsConversationsWithAddressesGQL = `
   query {
-    archivedSmsConversations(offset: 0, limit: 200, query: "") {
+    archivedSmsConversations(query: "", offset: 0, limit: 200) {
       ...SmsConversationWithAddressesFragment
     }
   }
@@ -794,7 +794,7 @@ export const noteCountGQL = `
 
 export const packagesGQL = `
   query packages($offset: Int!, $limit: Int!, $query: String!, $sortBy: FileSortBy!) {
-    packages(offset: $offset, limit: $limit, query: $query, sortBy: $sortBy) {
+    packages(query: $query, offset: $offset, limit: $limit, sortBy: $sortBy) {
       ...PackageFragment
     }
     packageCount(query: $query)
@@ -854,7 +854,7 @@ export const requestScreenMirrorKeyFrameGQL = `
 
 export const notificationsGQL = `
   query {
-    notifications(offset: 0, limit: 200, query: "") {
+    notifications(query: "", offset: 0, limit: 200) {
       ...NotificationFragment
     }
   }
@@ -863,7 +863,7 @@ export const notificationsGQL = `
 
 export const clipboardItemsGQL = `
   query clipboardItems($offset: Int!, $limit: Int!, $query: String!) {
-    clipboardItems(offset: $offset, limit: $limit, query: $query) {
+    clipboardItems(query: $query, offset: $offset, limit: $limit) {
       ...ClipboardItemFragment
     }
     clipboardItemCount(query: $query)
@@ -895,7 +895,7 @@ export const deviceStatusGQL = `
 
 export const appLogsGQL = `
   query AppLogs($offset: Int!, $limit: Int!) {
-    appLogs(offset: $offset, limit: $limit, query: "")
+    appLogs(query: "", offset: $offset, limit: $limit)
   }
 `
 

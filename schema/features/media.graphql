@@ -323,7 +323,7 @@ type MediaQueryRoot {
 	"""
 	File listing with directory, search, or trash results.
 	"""
-	files(root: String!, offset: Int!, limit: Int!, query: String!, sortBy: FileSortBy!): [File!]!
+	files(root: String!, query: String!, offset: Int!, limit: Int!, sortBy: FileSortBy!): [File!]!
 	"""
 	Total number of trashed files and directories.
 	"""
@@ -334,7 +334,7 @@ type MediaQueryRoot {
 	newest-first view — the argument is required, there is no server
 	default.
 	"""
-	trashedFiles(offset: Int!, limit: Int!, query: String!, sortBy: TrashedFileSortBy!): [TrashedFile!]!
+	trashedFiles(query: String!, offset: Int!, limit: Int!, sortBy: TrashedFileSortBy!): [TrashedFile!]!
 	"""
 	Look up tag relations for entity keys (media ids / entity keys),
 	filtered to the given data type. Mirrors plain-app `tagRelations`;
@@ -352,7 +352,7 @@ type MediaQueryRoot {
 	"""
 	Audio list (paginated, backed by the tantivy media search index).
 	"""
-	audios(offset: Int!, limit: Int!, query: String!, sortBy: FileSortBy!): [Audio!]!
+	audios(query: String!, offset: Int!, limit: Int!, sortBy: FileSortBy!): [Audio!]!
 	"""
 	Audio count (tantivy counting collector).
 	"""
@@ -386,7 +386,7 @@ type MediaQueryRoot {
 	"""
 	Image list (paginated, backed by the tantivy media search index).
 	"""
-	images(offset: Int!, limit: Int!, query: String!, sortBy: FileSortBy!): [Image!]!
+	images(query: String!, offset: Int!, limit: Int!, sortBy: FileSortBy!): [Image!]!
 	"""
 	Image count (tantivy counting collector).
 	"""
@@ -394,7 +394,7 @@ type MediaQueryRoot {
 	"""
 	Video list (paginated, backed by the tantivy media search index).
 	"""
-	videos(offset: Int!, limit: Int!, query: String!, sortBy: FileSortBy!): [Video!]!
+	videos(query: String!, offset: Int!, limit: Int!, sortBy: FileSortBy!): [Video!]!
 	"""
 	Video count (tantivy counting collector).
 	"""
@@ -403,7 +403,7 @@ type MediaQueryRoot {
 	Document list (paginated, backed by the tantivy media search index).
 	Docs need no metadata hydration, so this maps index rows directly.
 	"""
-	docs(offset: Int!, limit: Int!, query: String!, sortBy: FileSortBy!): [Doc!]!
+	docs(query: String!, offset: Int!, limit: Int!, sortBy: FileSortBy!): [Doc!]!
 	"""
 	Document count (tantivy counting collector).
 	"""

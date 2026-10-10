@@ -18,7 +18,7 @@ let loaded = false
 
 const allContactsGQL = `
   query allContacts {
-    contacts(offset: 0, limit: 10000, query: "") {
+    contacts(query: "", offset: 0, limit: 10000) {
       ...ContactFragment
     }
   }

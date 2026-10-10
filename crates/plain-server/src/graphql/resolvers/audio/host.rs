@@ -156,9 +156,9 @@ impl AudioHostQuery {
     async fn audio_host_queue_items(
         &self,
         ctx: &Context<'_>,
+        query: String,
         offset: i32,
         limit: i32,
-        query: String,
     ) -> async_graphql::Result<Vec<AudioHostTrack>> {
         Ok(audio(ctx)?
             .run(move |db, lib| domain::queue_page(db, lib, offset as i64, limit as i64, &query))
@@ -203,9 +203,9 @@ impl AudioHostQuery {
         &self,
         ctx: &Context<'_>,
         id: ID,
+        query: String,
         offset: i32,
         limit: i32,
-        query: String,
     ) -> async_graphql::Result<Vec<AudioHostPlaylistItem>> {
         audio(ctx)?
             .run(move |db, _| {
@@ -235,9 +235,9 @@ impl AudioHostQuery {
     async fn audio_host_history(
         &self,
         ctx: &Context<'_>,
+        query: String,
         offset: i32,
         limit: i32,
-        query: String,
     ) -> async_graphql::Result<Vec<AudioHostHistory>> {
         audio(ctx)?
             .run(move |db, _| domain::history_page(db, offset as i64, limit as i64, &query))

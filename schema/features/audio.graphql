@@ -112,7 +112,7 @@ type AudioQuery {
 	The active playback queue (manual items + context), paginated.
 	`query` is the shared DSL; its `text:` field filters the page.
 	"""
-	audioQueueItems(offset: Int!, limit: Int!, query: String!): [AudioItem!]!
+	audioQueueItems(query: String!, offset: Int!, limit: Int!): [AudioItem!]!
 	"""
 	Total tracks in the active playback queue.
 	"""
@@ -130,7 +130,7 @@ type AudioQuery {
 	"""
 	One playlist's tracks, position order, paginated.
 	"""
-	audioPlaylistItems(id: ID!, offset: Int!, limit: Int!, query: String!): [AudioItem!]!
+	audioPlaylistItems(id: ID!, query: String!, offset: Int!, limit: Int!): [AudioItem!]!
 	"""
 	Track count of one playlist.
 	"""
@@ -138,7 +138,7 @@ type AudioQuery {
 	"""
 	Recently played tracks, newest first.
 	"""
-	audioPlayHistory(offset: Int!, limit: Int!, query: String!): [AudioPlayHistory!]!
+	audioPlayHistory(query: String!, offset: Int!, limit: Int!): [AudioPlayHistory!]!
 }
 
 """

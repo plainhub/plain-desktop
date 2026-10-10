@@ -157,9 +157,9 @@ impl FeedQuery {
     async fn feed_entries(
         &self,
         ctx: &Context<'_>,
+        query: String,
         offset: i32,
         limit: i32,
-        query: String,
     ) -> GqlResult<Vec<FeedEntry>> {
         plain_rs::feeds::search(ctx.data::<Arc<Db>>()?, &query, limit, offset)?
             .into_iter()

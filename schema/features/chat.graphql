@@ -118,7 +118,7 @@ type ChatMutation {
 }
 
 type ChatQuery {
-	chatItems(target: String!, offset: Int!, limit: Int!, query: String!): [ChatItem!]!
+	chatItems(target: String!, query: String!, offset: Int!, limit: Int!): [ChatItem!]!
 	chatItem(id: ID!): ChatItem
 	chatChannels: [ChatChannel!]!
 	peers: [Peer!]!

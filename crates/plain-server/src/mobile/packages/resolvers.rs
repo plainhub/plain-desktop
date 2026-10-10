@@ -36,9 +36,9 @@ impl PackagesQuery {
     async fn packages(
         &self,
         ctx: &Context<'_>,
+        query: String,
         offset: i32,
         limit: i32,
-        query: String,
         sort_by: FileSortBy,
     ) -> async_graphql::Result<Vec<Package>> {
         public_gate::require(ctx.data_unchecked::<Arc<Prefs>>(), &[PERMISSION])?;

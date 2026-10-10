@@ -9,7 +9,7 @@ type AppFile {
 }
 
 type AppFileQuery {
-	appFiles(offset: Int!, limit: Int!, query: String!): [AppFile!]!
+	appFiles(query: String!, offset: Int!, limit: Int!): [AppFile!]!
 	appFileCount(query: String!): Int!
 }
 

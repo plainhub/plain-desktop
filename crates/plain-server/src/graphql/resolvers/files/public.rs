@@ -66,9 +66,9 @@ impl FilesQuery {
         &self,
         ctx: &Context<'_>,
         root: String,
+        query: String,
         offset: i32,
         limit: i32,
-        query: String,
         sort_by: FileSortBy,
     ) -> async_graphql::Result<Vec<File>> {
         public_gate::require(prefs(ctx), &[STORAGE])?;

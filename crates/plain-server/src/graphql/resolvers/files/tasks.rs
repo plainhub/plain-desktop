@@ -84,9 +84,9 @@ impl FileTaskQuery {
         &self,
         ctx: &Context<'_>,
         client_id: String,
+        query: String,
         offset: i32,
         limit: i32,
-        query: String,
     ) -> Result<Vec<FileHostTask>> {
         if offset < 0 || limit < 0 {
             return Err("invalid pagination".into());

@@ -45,9 +45,9 @@ impl CapabilityQuery {
     async fn audit_events(
         &self,
         ctx: &Context<'_>,
+        query: String,
         offset: i32,
         limit: i32,
-        query: String,
     ) -> Result<Vec<AuditEvent>> {
         let c = ctx.data_unchecked::<Arc<AppCtx>>();
         let needle = plain_media::search::parse(&query)
