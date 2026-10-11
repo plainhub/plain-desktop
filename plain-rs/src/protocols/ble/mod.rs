@@ -1,7 +1,18 @@
 mod gateway;
+pub mod print;
 use anyhow::{Result, bail, ensure};
 pub use gateway::GatewayRequest;
 use std::time::{Duration, Instant};
+
+/// GATT service UUID shared by every Plain peer.
+pub const SERVICE_UUID: &str = "d8d5c4a0-8f0a-4e7d-b9e1-706c70616901";
+/// Characteristic carrying Nearby discovery/pairing messages.
+pub const NEARBY_CHAR_UUID: &str = "d8d5c4a0-8f0a-4e7d-b9e1-706c70616911";
+/// Characteristic carrying peer GraphQL / file-chunk traffic.
+pub const HTTP_CHAR_UUID: &str = "d8d5c4a0-8f0a-4e7d-b9e1-706c70616913";
+/// Bluetooth SIG Client Characteristic Configuration descriptor (standard value,
+/// not Plain-owned; duplicated in the platform layer that writes it).
+pub const CCC_DESCRIPTOR_UUID: &str = "00002902-0000-1000-8000-00805f9b34fb";
 
 pub const HEADER: usize = 10;
 pub const MAX_BODY: usize = 4 * 1024 * 1024;

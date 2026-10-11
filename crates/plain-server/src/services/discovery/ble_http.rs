@@ -124,7 +124,7 @@ pub(crate) async fn incoming(
             let Message::Text(text) = first else { anyhow::bail!("Missing BLE connection facts"); };
             ensure!(text.len() <= 4096, "BLE facts exceed limit");
             let facts: Incoming = serde_json::from_str(&text)?;
-            ensure!(!facts.remote_host.is_empty() && facts.characteristic_uuid.eq_ignore_ascii_case("d8d5c4a0-8f0a-4e7d-b9e1-706c70616913"), "Invalid BLE connection facts");
+            ensure!(!facts.remote_host.is_empty() && facts.characteristic_uuid.eq_ignore_ascii_case(ble::HTTP_CHAR_UUID), "Invalid BLE connection facts");
             let bytes = receive(&mut socket, Duration::from_secs(15)).await?;
             let mut stop = state.stop.clone();
             let response = tokio::select! {
