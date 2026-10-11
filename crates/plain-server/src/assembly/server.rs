@@ -362,20 +362,8 @@ impl ContentServer {
                 post(crate::services::discovery::nearby_http::call),
             )
             .route(
-                "/chat/link-preview",
-                post(crate::services::chat::link_preview::call),
-            )
-            .route(
                 "/chat/download",
                 post(crate::services::chat::download_queue::call),
-            )
-            .route(
-                "/chat/send",
-                post(crate::services::chat::chat_delivery::call),
-            )
-            .route(
-                "/chat/service",
-                post(crate::services::chat::chat_service::call),
             )
             .route(
                 "/files/thumbnail/output/:token",

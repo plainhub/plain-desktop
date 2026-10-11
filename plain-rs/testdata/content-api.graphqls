@@ -139,6 +139,87 @@ input BookmarkInput {
 	sortOrder: Int!
 }
 
+enum ChannelMemberStatus {
+	JOINED
+	PENDING
+}
+
+type ChatChannel {
+	id: ID!
+	ownerId: ID!
+	name: String!
+	members: [ChatChannelMember!]!
+	"""
+	Monotonically increasing mutation counter; receivers ignore channel
+	updates whose version is not greater than their local copy.
+	"""
+	version: Long!
+	status: ChatChannelStatus!
+	createdAt: Instant!
+	updatedAt: Instant!
+}
+
+type ChatChannelMember {
+	peerId: ID!
+	status: ChannelMemberStatus!
+}
+
+enum ChatChannelStatus {
+	JOINED
+	LEFT
+	KICKED
+}
+
+type ChatConversation {
+	id: ID!
+	chat: ChatItem!
+}
+
+type ChatItem {
+	"""
+	`me` when this device created the item, otherwise the client id of
+	the originating peer.
+	"""
+	fromId: ID!
+	"""
+	Peer id for direct messages; empty for channel messages —
+	`channelId` is authoritative there.
+	"""
+	toId: ID!
+	"""
+	Null for direct messages: the store keeps "" and the contract says
+	null, because "" is not a channel a client can query.
+	"""
+	channelId: ID
+	id: ID!
+	"""
+	Message envelope JSON: `{type: TEXT|IMAGES|FILES|SHARE, value: {…}}` —
+	parse `value` according to `type`.
+	"""
+	content: String!
+	createdAt: Instant!
+	updatedAt: Instant!
+	status: ChatStatus!
+	"""
+	Per-recipient delivery details as JSON (peer delivery results);
+	empty when the message has no delivery failures. Drives
+	SENT/PARTIAL/FAILED alongside `status`.
+	"""
+	statusData: String!
+}
+
+enum ChatStatus {
+	SENT
+	PARTIAL
+	FAILED
+	PENDING
+}
+
+type ChatTextEdit {
+	changed: Boolean!
+	chat: ChatItem!
+}
+
 type ClipboardItem {
 	id: ID!
 	text: String!
@@ -346,6 +427,36 @@ type MediaHostDuration {
 }
 
 type Mutation {
+	"""
+	Send a chat message. `target` is the chat target id — a bare peer id
+	(an optional `peer:` prefix is accepted), or a `channel:<id>`
+	prefixed channel id; same value space as the `chatItems` query.
+	`content` is the message envelope JSON, same shape as
+	`ChatItem.content`.
+	"""
+	sendChatItem(target: String!, content: String!): [ChatItem!]!
+	"""
+	Always true: an id that is already gone is the state the caller asked
+	for, and the contract has no way to say "nothing was there".
+	"""
+	deleteChatItem(id: ID!): Boolean!
+	deleteChatItems(query: String!): ActionResult!
+	retryChatItem(id: ID!): ChatItem!
+	createChatChannel(name: String!): ChatChannel!
+	updateChatChannel(id: ID!, name: String!): ChatChannel!
+	deleteChatChannel(id: ID!): Boolean!
+	leaveChatChannel(id: ID!): Boolean!
+	addChatChannelMember(id: ID!, peerId: ID!): ChatChannel!
+	removeChatChannelMember(id: ID!, peerId: ID!): ChatChannel!
+	acceptChatChannelInvite(id: ID!): Boolean!
+	declineChatChannelInvite(id: ID!): Boolean!
+	sendChatText(target: String!, text: String!): ChatItem!
+	forwardChatItem(id: ID!, target: String!): ChatItem!
+	deliverChatItem(id: ID!, recipients: [ID!]): ChatItem!
+	createChatItem(target: String!, content: String!): ChatItem!
+	replaceChatFiles(id: ID!, content: String!): ChatItem
+	clearChatItems(target: String!): ActionResult!
+	editChatText(id: ID!, text: String!): ChatTextEdit!
 	setSystemPref(key: String!, value: JSON!): ActionResult!
 	removeSystemPref(key: String!): ActionResult!
 	updateSystemSettings(input: SystemSettingsInput!): SettingsUpdate!
@@ -526,6 +637,24 @@ type PomodoroToday {
 }
 
 type Query {
+	"""
+	Latest-first page of one conversation, returned oldest-to-newest so
+	clients can render directly. `target` is the chat target id: a bare
+	peer id (an optional `peer:` prefix is accepted), or a
+	`channel:<id>` prefixed channel id.
+	"""
+	chatItems(target: String!, query: String!, offset: Int!, limit: Int!): [ChatItem!]!
+	"""
+	The most recent item of every conversation (direct and channel),
+	newest conversation first.
+	"""
+	latestChatItems: [ChatItem!]!
+	chatChannels: [ChatChannel!]!
+	chatItem(id: ID!): ChatItem
+	chatConversations: [ChatConversation!]!
+	chatRecords(query: String!, offset: Int!, limit: Int!): [ChatItem!]!
+	chatCount(query: String!): Int!
+	chatIds(query: String!): [ID!]!
 	userPrefs: JSON!
 	systemPrefs: JSON!
 	systemSettings: SystemSettings!

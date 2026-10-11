@@ -1,14 +1,7 @@
 use crate::assembly::server::ServerState;
-use axum::{
-    Json,
-    extract::State,
-    http::{HeaderMap, StatusCode},
-    response::{IntoResponse, Response},
-};
 use plain_rs::db::DPeer;
 use plain_rs::transport::contract::PeerTransport;
 use plain_rs::transport::contract::message_response;
-use serde::Deserialize;
 use serde_json::json;
 pub(crate) struct Transport(pub(crate) ServerState);
 impl PeerTransport for Transport {
@@ -35,31 +28,6 @@ impl PeerTransport for Transport {
         message_response(&response)
     }
 }
-#[derive(Deserialize)]
-#[serde(deny_unknown_fields)]
-pub(crate) struct Request {
-    id: String,
-    recipients: Option<Vec<String>>,
-}
-pub(crate) async fn call(
-    State(state): State<ServerState>,
-    headers: HeaderMap,
-    Json(request): Json<Request>,
-) -> Response {
-    if !state.authenticated(&headers) {
-        return StatusCode::UNAUTHORIZED.into_response();
-    }
-    let result = deliver(&state, &request.id, request.recipients).await;
-    match result {
-        Ok(receipt) => Json(json!({"result":receipt})).into_response(),
-        Err(error) => (
-            StatusCode::BAD_REQUEST,
-            Json(json!({"error":error.to_string()})),
-        )
-            .into_response(),
-    }
-}
-
 pub(crate) async fn deliver(
     state: &ServerState,
     id: &str,

@@ -5,7 +5,7 @@ use plain_rs::chat::messages::message_commands;
 use plain_rs::chat::messages::share_send;
 use plain_rs::db::DChat;
 use plain_rs::events::WsEvent;
-use serde_json::{Value, json};
+use serde_json::json;
 pub(crate) fn committed(state: &ServerState, chat: &DChat, event: &'static str) {
     state.previews.request(&chat.id);
     let _ = state.events.send(WsEvent::broadcast(
@@ -68,82 +68,6 @@ pub(crate) async fn send_text(
         ids: plain_rs::chat::attachments::app_file_store::content_reference_ids(&content),
     };
     send_many(state, targets, content.to_string()).await
-}
-pub(crate) async fn share(
-    state: &ServerState,
-    targets: Vec<String>,
-    attachments: Vec<share_send::Attachment>,
-    text: Option<String>,
-    caption: Option<String>,
-    images: Option<bool>,
-    normalize: bool,
-) -> Result<Value> {
-    ensure!(targets.len() <= 128, "Too many share targets");
-    if targets.is_empty() {
-        return Ok(json!({"ok":false,"chats":[]}));
-    }
-    for target in &targets {
-        message_commands::target(target)?;
-    }
-    if attachments.is_empty() {
-        let Some(text) = text.filter(|s| !s.trim().is_empty()) else {
-            return Ok(json!({"ok":false,"chats":[]}));
-        };
-        let chats = send_text(state, targets, &text).await?;
-        return Ok(outcome(chats));
-    }
-    let items = share_send::attachments(&state.db, &attachments, normalize)?;
-    if items.is_empty() {
-        return Ok(json!({"ok":false,"chats":[]}));
-    }
-    let images = images.unwrap_or_else(|| {
-        items
-            .iter()
-            .all(|v| share_send::visual(v["fileName"].as_str().unwrap_or_default()))
-    });
-    let content =
-        json!({"type":if images {"IMAGES"}else{"FILES"},"value":{"items":items}}).to_string();
-    let mut chats = send_many(state, targets.clone(), content).await?;
-    if let Some(caption) = caption.filter(|s| !s.trim().is_empty()) {
-        chats.extend(send_text(state, targets, &caption).await?);
-    }
-    Ok(outcome(chats))
-}
-fn outcome(chats: Vec<DChat>) -> Value {
-    let ok = !chats.is_empty()
-        && chats
-            .iter()
-            .all(|row| row.status == plain_rs::chat::enums::ChatStatus::Sent);
-    json!({"ok":ok,"chats":chats})
-}
-pub(crate) async fn share_content(state: &ServerState, id: &str) -> Result<Value> {
-    let service = plain_rs::files::shares::Service::new(state.db.clone(), state.prefs.clone());
-    let row = state
-        .db
-        .share_get(id)?
-        .ok_or_else(|| anyhow::anyhow!("Share unavailable"))?;
-    let actor = state
-        .prefs
-        .get::<String>(plain_rs::prefs::system::keys::CLIENT_ID)?
-        .filter(|s| !s.is_empty())
-        .ok_or_else(|| anyhow::anyhow!("Missing identity"))?;
-    let facts = state
-        .host
-        .call("discoveryFacts", json!({}))
-        .await
-        .map_err(anyhow::Error::msg)?;
-    let ip = facts["ips"]
-        .as_array()
-        .and_then(|v| v.first())
-        .and_then(Value::as_str)
-        .unwrap_or_default();
-    share_send::folder_card(
-        &service,
-        &row,
-        &actor,
-        ip,
-        state.prefs.get_user::<u16>("https_port")?.unwrap_or(8443),
-    )
 }
 pub(crate) fn delete_query(state: &ServerState, query: &str) -> Result<usize> {
     let ids = if query.trim().is_empty() {

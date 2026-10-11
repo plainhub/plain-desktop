@@ -202,7 +202,17 @@ async fn the_latest_page_covers_every_conversation() {
 
 #[cfg(feature = "http_transport")]
 fn chat_fixture() -> (tempfile::TempDir, crate::assembly::server::ContentServer) {
-    channel_fixture()
+    let (dir, server) = channel_fixture();
+    let (key, _) = plain_rs::crypto::ed25519_generate();
+    server
+        .runtime_state()
+        .prefs
+        .set(
+            "signature_key_pair",
+            plain_rs::utils::base64::base64_encode(&key),
+        )
+        .unwrap();
+    (dir, server)
 }
 
 #[cfg(feature = "http_transport")]
@@ -211,7 +221,7 @@ async fn sending_persists_and_emits_without_native_business_callbacks() {
     let (_dir, server) = chat_fixture();
     let state = server.runtime_state();
     let mut events = state.events.subscribe();
-    let sent = channel_query(&state, r#"mutation { sendChatItem(target: "peer:local", content: "{\"type\":\"TEXT\",\"value\":\"hello\"}") { id fromId toId channelId status } }"#).await;
+    let sent = channel_query(&state, r#"mutation { sendChatItem(target: "peer:local", content: "{\"type\":\"TEXT\",\"value\":{\"text\":\"hello\"}}") { id fromId toId channelId status } }"#).await;
     let rows = sent["data"]["sendChatItem"].as_array().unwrap();
     assert_eq!(rows.len(), 1, "{sent}");
     assert!(rows[0]["channelId"].is_null(), "{sent}");
@@ -233,7 +243,15 @@ async fn bulk_delete_counts_persisted_rows() {
     let (_dir, server) = chat_fixture();
     let state = server.runtime_state();
     for id in ["m1", "m2", "m3"] {
-        seed(&state.db, id, "me", "", "chan-1", "hello", T1);
+        seed(
+            &state.db,
+            id,
+            "me",
+            "",
+            "chan-1",
+            r#"{"type":"TEXT","value":{"text":"hello"}}"#,
+            T1,
+        );
     }
     let deleted = channel_query(
         &state,
@@ -257,7 +275,15 @@ async fn bulk_delete_counts_persisted_rows() {
 async fn deleting_one_item_is_idempotent() {
     let (_dir, server) = chat_fixture();
     let state = server.runtime_state();
-    seed(&state.db, "m1", "me", "local", "", "hello", T1);
+    seed(
+        &state.db,
+        "m1",
+        "me",
+        "local",
+        "",
+        r#"{"type":"TEXT","value":{"text":"hello"}}"#,
+        T1,
+    );
     for _ in 0..2 {
         let deleted = channel_query(&state, r#"mutation { deleteChatItem(id: "m1") }"#).await;
         assert_eq!(deleted["data"]["deleteChatItem"], true, "{deleted}");
@@ -276,7 +302,7 @@ async fn retrying_reports_the_persisted_row() {
         "me",
         "local",
         "",
-        r#"{"type":"TEXT","value":"hello"}"#,
+        r#"{"type":"TEXT","value":{"text":"hello"}}"#,
         T1,
     );
     let retried = channel_query(

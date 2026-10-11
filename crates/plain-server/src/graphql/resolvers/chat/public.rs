@@ -326,7 +326,7 @@ async fn flag(
     Ok(true)
 }
 
-fn item(row: &DChat) -> ChatItem {
+pub(crate) fn item(row: &DChat) -> ChatItem {
     from_json(&plain_rs::chat::service::chat_to_json(row))
 }
 
