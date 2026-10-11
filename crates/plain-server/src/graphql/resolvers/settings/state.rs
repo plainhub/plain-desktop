@@ -112,7 +112,7 @@ impl PreferencesMutation {
         let before = plain_rs::prefs::user::snapshot(prefs(ctx)?)?;
         let changed = plain_rs::prefs::user::Action::RecordSearch(query).apply(prefs(ctx)?)?;
         notify(ctx, changed);
-        emit_user_events(ctx, &before)?;
+        emit_user_events_ctx(ctx, &before)?;
         Ok(ActionResult {
             affected_count: i32::from(changed),
         })
@@ -121,7 +121,7 @@ impl PreferencesMutation {
         let before = plain_rs::prefs::user::snapshot(prefs(ctx)?)?;
         let changed = plain_rs::prefs::user::Action::RemoveSearch(query).apply(prefs(ctx)?)?;
         notify(ctx, changed);
-        emit_user_events(ctx, &before)?;
+        emit_user_events_ctx(ctx, &before)?;
         Ok(ActionResult {
             affected_count: i32::from(changed),
         })
@@ -130,7 +130,7 @@ impl PreferencesMutation {
         let before = plain_rs::prefs::user::snapshot(prefs(ctx)?)?;
         let changed = plain_rs::prefs::user::Action::ClearSearches.apply(prefs(ctx)?)?;
         notify(ctx, changed);
-        emit_user_events(ctx, &before)?;
+        emit_user_events_ctx(ctx, &before)?;
         Ok(ActionResult {
             affected_count: i32::from(changed),
         })
@@ -144,7 +144,7 @@ impl PreferencesMutation {
         let changed =
             plain_rs::prefs::user::Action::RecordSaveDirectory(path).apply(prefs(ctx)?)?;
         notify(ctx, changed);
-        emit_user_events(ctx, &before)?;
+        emit_user_events_ctx(ctx, &before)?;
         Ok(ActionResult {
             affected_count: i32::from(changed),
         })
@@ -158,7 +158,7 @@ impl PreferencesMutation {
         let changed = plain_rs::prefs::user::Action::ToggleNotificationApp(package_name)
             .apply(prefs(ctx)?)?;
         notify(ctx, changed);
-        emit_user_events(ctx, &before)?;
+        emit_user_events_ctx(ctx, &before)?;
         Ok(ActionResult {
             affected_count: i32::from(changed),
         })
@@ -172,7 +172,7 @@ impl PreferencesMutation {
         let changed =
             plain_rs::prefs::user::Action::SetNotificationMode(mode).apply(prefs(ctx)?)?;
         notify(ctx, changed);
-        emit_user_events(ctx, &before)?;
+        emit_user_events_ctx(ctx, &before)?;
         Ok(ActionResult {
             affected_count: i32::from(changed),
         })
@@ -181,7 +181,7 @@ impl PreferencesMutation {
         let before = plain_rs::prefs::user::snapshot(prefs(ctx)?)?;
         let changed = plain_rs::prefs::user::Action::ClearNotificationApps.apply(prefs(ctx)?)?;
         notify(ctx, changed);
-        emit_user_events(ctx, &before)?;
+        emit_user_events_ctx(ctx, &before)?;
         Ok(ActionResult {
             affected_count: i32::from(changed),
         })
@@ -194,32 +194,46 @@ impl PreferencesMutation {
         let before = plain_rs::prefs::user::snapshot(prefs(ctx)?)?;
         let changed = plain_rs::prefs::user::Action::DeleteVideos(paths).apply(prefs(ctx)?)?;
         notify(ctx, changed);
-        emit_user_events(ctx, &before)?;
+        emit_user_events_ctx(ctx, &before)?;
         Ok(ActionResult {
             affected_count: i32::from(changed),
         })
     }
 }
-fn emit_user_events(ctx: &Context<'_>, before: &plain_rs::prefs::user::UserSettings) -> Result<()> {
-    let settings = plain_rs::prefs::user::snapshot(prefs(ctx)?)?;
-    if let Some(events) = events(ctx) {
-        if before.device_name != settings.device_name {
+/// Emits the events derived from one user-settings write. Takes the already
+/// computed `after` snapshot so every caller shares one diff, and so a write
+/// never re-reads the store it just persisted.
+fn emit_user_events(
+    events: Option<&broadcast::Sender<WsEvent>>,
+    before: &plain_rs::prefs::user::UserSettings,
+    after: &plain_rs::prefs::user::UserSettings,
+) -> Result<()> {
+    if let Some(events) = events {
+        if before.device_name != after.device_name {
             let _ = events.send(WsEvent::broadcast(
                 "DEVICE_NAME_UPDATED",
-                serde_json::to_string(&settings.device_name)?,
+                serde_json::to_string(&after.device_name)?,
             ));
         }
-        if before.notification_filter != settings.notification_filter {
+        if before.notification_filter != after.notification_filter {
             let _ = events.send(WsEvent::broadcast("NOTIFICATION_REFRESHED", String::new()));
         }
-        if before.pomodoro_settings != settings.pomodoro_settings {
+        if before.pomodoro_settings != after.pomodoro_settings {
             let _ = events.send(WsEvent::broadcast(
                 "POMODORO_SETTINGS_UPDATE",
-                settings.pomodoro_settings.to_string(),
+                after.pomodoro_settings.to_string(),
             ));
         }
     }
     Ok(())
+}
+
+fn emit_user_events_ctx(
+    ctx: &Context<'_>,
+    before: &plain_rs::prefs::user::UserSettings,
+) -> Result<()> {
+    let after = plain_rs::prefs::user::snapshot(prefs(ctx)?)?;
+    emit_user_events(events(ctx), before, &after)
 }
 
 #[cfg(test)]
@@ -277,29 +291,102 @@ pub(crate) async fn update_user(
     ctx: &Context<'_>,
     patch: plain_rs::prefs::user::UserSettingsPatch,
 ) -> Result<bool> {
-    let before = plain_rs::prefs::user::snapshot(prefs(ctx)?)?;
-    let changed = plain_rs::prefs::user::patch(prefs(ctx)?, patch)?;
-    notify(ctx, changed);
+    apply_user_patch(UserPatchEnv::from_ctx(ctx)?, patch).await
+}
+
+/// The handles a user-settings write needs, independent of how the caller
+/// reached the store. GraphQL resolvers build one from the request context;
+/// the App's native (JNI/C ABI) entry point builds one from the server state.
+/// Every path then runs the same [`apply_user_patch`], so validation, the
+/// persisted snapshot and the derived events/host effects cannot drift apart.
+pub(crate) struct UserPatchEnv<'a> {
+    prefs: &'a Arc<Prefs>,
+    events: Option<&'a broadcast::Sender<WsEvent>>,
+    /// Host (mobile/JNI) side: mDNS advertisement and desktop-access teardown.
     #[cfg(feature = "host-api")]
-    if before.desktop_access && !plain_rs::prefs::user::snapshot(prefs(ctx)?)?.desktop_access {
-        if let Some(state) = ctx.data_opt::<crate::assembly::server::ServerState>() {
+    server: Option<&'a crate::assembly::server::ServerState>,
+    /// Desktop side: nearby-discover and chat identity follow a rename.
+    #[cfg(feature = "api")]
+    app: Option<&'a Arc<crate::assembly::context::AppCtx>>,
+}
+
+impl<'a> UserPatchEnv<'a> {
+    pub(crate) fn from_ctx(ctx: &'a Context<'_>) -> Result<Self> {
+        Ok(Self {
+            prefs: prefs(ctx)?,
+            events: events(ctx),
+            #[cfg(feature = "host-api")]
+            server: ctx.data_opt::<crate::assembly::server::ServerState>(),
+            #[cfg(feature = "api")]
+            app: ctx.data_opt::<Arc<crate::assembly::context::AppCtx>>(),
+        })
+    }
+
+    /// `graphql/executor` puts this same `ServerState` into every local
+    /// request context, so a local resolver and the native caller observe
+    /// identical handles.
+    #[cfg(feature = "host-api")]
+    pub(crate) fn from_server(state: &'a crate::assembly::server::ServerState) -> Self {
+        Self {
+            prefs: &state.prefs,
+            events: Some(&state.events),
+            server: Some(state),
+            #[cfg(feature = "api")]
+            app: None,
+        }
+    }
+}
+
+/// Validates, persists and publishes one user-settings patch.
+pub(crate) async fn apply_user_patch(
+    env: UserPatchEnv<'_>,
+    patch: plain_rs::prefs::user::UserSettingsPatch,
+) -> Result<bool> {
+    let before = plain_rs::prefs::user::snapshot(env.prefs)?;
+    let changed = plain_rs::prefs::user::patch(env.prefs, patch)?;
+    if changed {
+        if let Some(events) = env.events {
+            let _ = events.send(WsEvent::broadcast("PREFS_UPDATED", "{}".into()));
+        }
+    }
+    // One read after the write feeds every effect below.
+    let after = plain_rs::prefs::user::snapshot(env.prefs)?;
+    #[cfg(feature = "host-api")]
+    if before.desktop_access && !after.desktop_access {
+        if let Some(state) = env.server {
             state.main_ws.close_client(state, None);
         }
     }
-    let after = plain_rs::prefs::user::snapshot(prefs(ctx)?)?;
     if before.device_name != after.device_name {
         #[cfg(feature = "host-api")]
-        if let Some(state) = ctx.data_opt::<crate::assembly::server::ServerState>() {
+        if let Some(state) = env.server {
             state.mdns.update_hostname(state).await?;
         }
         #[cfg(feature = "api")]
-        if let Some(context) = ctx.data_opt::<Arc<crate::assembly::context::AppCtx>>() {
-            context
-                .discover_manager
+        if let Some(app) = env.app {
+            app.discover_manager
                 .apply_device_rename(&after.device_name);
-            context.chat.identity.set_device_name(&after.device_name);
+            app.chat.identity.set_device_name(&after.device_name);
         }
     }
-    emit_user_events(ctx, &before)?;
+    emit_user_events(env.events, &before, &after)?;
+    Ok(changed)
+}
+
+/// Runs one user-settings action and publishes the same events a patch does.
+/// Split from [`apply_user_patch`] so both entry points stay in step.
+pub(crate) async fn apply_user_action(
+    env: UserPatchEnv<'_>,
+    action: plain_rs::prefs::user::Action,
+) -> Result<bool> {
+    let before = plain_rs::prefs::user::snapshot(env.prefs)?;
+    let changed = action.apply(env.prefs)?;
+    if changed {
+        if let Some(events) = env.events {
+            let _ = events.send(WsEvent::broadcast("PREFS_UPDATED", "{}".into()));
+        }
+    }
+    let after = plain_rs::prefs::user::snapshot(env.prefs)?;
+    emit_user_events(env.events, &before, &after)?;
     Ok(changed)
 }
