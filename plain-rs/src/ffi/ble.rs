@@ -247,7 +247,7 @@ mod android {
         sys::{jboolean, jbyteArray, jint, jlong},
     };
     #[unsafe(no_mangle)]
-    pub extern "system" fn Java_com_ismartcoding_plain_ble_RustBleBridge_encoderNative(
+    pub extern "system" fn Java_com_ismartcoding_plain_rust_RustBleBridge_encoderNative(
         mut env: EnvUnowned<'_>,
         _: JObject<'_>,
         data: JByteArray<'_>,
@@ -271,14 +271,14 @@ mod android {
         .resolve::<ThrowRuntimeExAndDefault>()
     }
     #[unsafe(no_mangle)]
-    pub extern "system" fn Java_com_ismartcoding_plain_ble_RustBleBridge_newNative(
+    pub extern "system" fn Java_com_ismartcoding_plain_rust_RustBleBridge_newNative(
         _: EnvUnowned<'_>,
         _: JObject<'_>,
     ) -> jlong {
         plain_ble_new() as jlong
     }
     #[unsafe(no_mangle)]
-    pub extern "system" fn Java_com_ismartcoding_plain_ble_RustBleBridge_freeNative(
+    pub extern "system" fn Java_com_ismartcoding_plain_rust_RustBleBridge_freeNative(
         _: EnvUnowned<'_>,
         _: JObject<'_>,
         handle: jlong,
@@ -286,7 +286,7 @@ mod android {
         plain_ble_free(handle as u64);
     }
     #[unsafe(no_mangle)]
-    pub extern "system" fn Java_com_ismartcoding_plain_ble_RustBleBridge_infoNative(
+    pub extern "system" fn Java_com_ismartcoding_plain_rust_RustBleBridge_infoNative(
         _: EnvUnowned<'_>,
         _: JObject<'_>,
         handle: jlong,
@@ -294,7 +294,7 @@ mod android {
         plain_ble_info(handle as u64) as jlong
     }
     #[unsafe(no_mangle)]
-    pub extern "system" fn Java_com_ismartcoding_plain_ble_RustBleBridge_callNative(
+    pub extern "system" fn Java_com_ismartcoding_plain_rust_RustBleBridge_callNative(
         mut env: EnvUnowned<'_>,
         _: JObject<'_>,
         action: jint,
