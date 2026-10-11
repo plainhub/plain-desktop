@@ -59,6 +59,7 @@ pub(crate) struct ServerState {
     pub(crate) pairing_runtime: Arc<crate::services::discovery::pairing_runtime::Runtime>,
     pub(crate) nearby_devices: Arc<plain_rs::discovery::nearby_devices::Devices>,
     pub(crate) ble_scans: Arc<plain_rs::discovery::nearby_scan::Scans>,
+    pub(crate) ble_scan: Arc<crate::services::discovery::ble_scan::Runtime>,
     pub(crate) pairing: Arc<plain_rs::peers::pairing::sessions::Sessions>,
     pub(crate) prefs: Arc<plain_rs::prefs::Prefs>,
     pub(crate) dlna: Arc<crate::services::casting::receiver::receiver_engine::DlnaEngine>,
@@ -208,6 +209,7 @@ impl ContentServer {
             ),
             nearby_devices: Arc::new(plain_rs::discovery::nearby_devices::Devices::default()),
             ble_scans: Arc::new(plain_rs::discovery::nearby_scan::Scans::default()),
+            ble_scan: Arc::new(crate::services::discovery::ble_scan::Runtime::default()),
             pairing: Arc::new(plain_rs::peers::pairing::sessions::Sessions::default()),
             dlna: Arc::new(crate::services::casting::receiver::receiver_engine::DlnaEngine::new()),
             files: services.files,
@@ -246,6 +248,7 @@ impl ContentServer {
             receiver.clone(),
         );
         crate::services::discovery::nearby_devices::start(state.clone());
+        crate::services::discovery::ble_scan::start(state.clone());
         image_models.follow(receiver.clone());
         #[cfg(feature = "mobile")]
         state.mobile.mms.follow(receiver.clone());

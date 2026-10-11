@@ -11,6 +11,9 @@ pub mod ble_http;
 pub mod ble_pairing;
 
 #[cfg(feature = "host-api")]
+pub mod ble_scan;
+
+#[cfg(feature = "host-api")]
 pub mod discovery_advertisement;
 
 #[cfg(feature = "host-api")]

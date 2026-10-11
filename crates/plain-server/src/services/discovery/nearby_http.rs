@@ -58,9 +58,9 @@ pub(crate) async fn call(
     let result = async {
         Ok::<_, anyhow::Error>(match request {
             Request::ScanBegin => json!(state.ble_scans.begin()?),
-            Request::ScanSeen { id, short_id } => {
-                serde_json::to_value(state.ble_scans.seen(&id, &short_id)?)?
-            }
+            Request::ScanSeen { id, short_id } => serde_json::to_value(
+                crate::services::discovery::ble_scan::seen(&state, &id, &short_id).await?,
+            )?,
             Request::ScanReply {
                 id,
                 short_id,
