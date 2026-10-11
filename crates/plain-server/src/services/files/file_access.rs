@@ -1,7 +1,7 @@
-use crate::assembly::server::ServerState;
+use crate::host::bridge::Host;
 use serde_json::json;
-pub(crate) async fn receipt(state: &ServerState, method: &str, path: &str) -> Result<(), String> {
-    let value = state.host.call(method, json!({"paths":[path]})).await?;
+pub(crate) async fn receipt(host: &Host, method: &str, path: &str) -> Result<(), String> {
+    let value = host.call(method, json!({"paths":[path]})).await?;
     if value.as_bool() != Some(true) {
         return Err("invalid file host receipt".into());
     }

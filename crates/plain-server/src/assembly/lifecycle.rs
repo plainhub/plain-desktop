@@ -1,32 +1,17 @@
 use crate::assembly::server::PublicServer;
 use crate::assembly::server::ServerState;
-use axum::{
-    Json,
-    extract::State,
-    http::{HeaderMap, StatusCode},
-    response::IntoResponse,
-};
 use std::sync::atomic::{AtomicU64, Ordering};
 use tokio::sync::watch;
+
+#[derive(Clone, serde::Serialize)]
+pub(crate) struct HttpServerFailure {
+    pub generation: u64,
+    pub message: String,
+}
 
 pub(crate) fn next_generation() -> u64 {
     static GENERATION: AtomicU64 = AtomicU64::new(1);
     GENERATION.fetch_add(1, Ordering::Relaxed)
-}
-
-pub(crate) async fn health(
-    State(state): State<ServerState>,
-    headers: HeaderMap,
-) -> axum::response::Response {
-    if !state.authenticated(&headers) {
-        return StatusCode::UNAUTHORIZED.into_response();
-    }
-    let guard = state.public_server.lock().await;
-    let result = match guard.as_ref() {
-        Some(server) => server.listeners.check_health().await,
-        None => Err("Public HTTP server is not running".into()),
-    };
-    Json(serde_json::json!({"healthy": result.is_ok(), "error": result.err()})).into_response()
 }
 
 pub(crate) fn monitor(
@@ -61,14 +46,16 @@ pub(crate) fn monitor(
             return;
         }
         stop_locked(&state, &mut guard).await;
+        let failure = HttpServerFailure {
+            generation,
+            message: error,
+        };
+        *state.http_failure.lock().unwrap() = Some(failure.clone());
+        let _ = state.events.send(plain_rs::events::WsEvent::broadcast(
+            plain_rs::events::HTTP_SERVER_FAILED,
+            serde_json::to_string(&failure).unwrap(),
+        ));
         drop(guard);
-        let _ = state
-            .host
-            .call(
-                "mainGraphqlServerFailed",
-                serde_json::json!({"generation": generation, "message": error}),
-            )
-            .await;
     });
 }
 

@@ -13,7 +13,6 @@ use crate::graphql::types::Instant;
 use crate::graphql::types::Long;
 use crate::graphql::types::facts::id;
 use crate::graphql::types::facts::integer;
-use crate::graphql::types::facts::list;
 use crate::graphql::types::facts::optional_instant;
 use crate::graphql::types::facts::rows;
 use crate::graphql::types::facts::text;
@@ -22,7 +21,7 @@ use crate::http::auth::public_gate;
 use async_graphql::{Context, Enum, Object, SimpleObject};
 use chrono::{DateTime, Utc};
 use serde_json::{Value, json};
-use std::{collections::HashMap, path::Path, sync::Arc};
+use std::{collections::HashMap, sync::Arc};
 
 pub(crate) const STORAGE: &str = "WRITE_EXTERNAL_STORAGE";
 
@@ -220,22 +219,26 @@ pub(crate) async fn tags_for(
     if keys.is_empty() {
         return Ok(Default::default());
     }
-    let facts = host_call(
-        ctx,
-        "systemMediaTagFacts",
-        json!({ "dataType": data_type, "keys": keys }),
-    )
-    .await?;
-    let mut tags = HashMap::new();
-    for item in rows(&facts, |item| item.clone()) {
-        tags.insert(
-            text(&item, "key"),
-            list(&item, "tags", |tag| Tag {
-                id: id(tag, "id"),
-                name: text(tag, "name"),
-                count: integer(tag, "count") as i32,
-            }),
-        );
+    let kind = match data_type {
+        "AUDIO" => plain_rs::enums::DataType::Audio,
+        "VIDEO" => plain_rs::enums::DataType::Video,
+        "IMAGE" => plain_rs::enums::DataType::Image,
+        "DOC" => plain_rs::enums::DataType::Doc,
+        _ => return Err("unsupported media type".into()),
+    }
+    .kind();
+    let db = ctx.data::<Arc<plain_rs::db::Db>>()?;
+    let rows = plain_rs::tags::tags_by_type(db, kind)?;
+    let by_id: HashMap<_, _> = rows.into_iter().map(|tag| (tag.id.clone(), tag)).collect();
+    let mut tags: HashMap<String, Vec<Tag>> = HashMap::new();
+    for relation in plain_rs::tags::relations_for_keys_of_kind(db, &keys, kind)? {
+        if let Some(tag) = by_id.get(&relation.tag_id) {
+            tags.entry(relation.key).or_default().push(Tag {
+                id: tag.id.clone().into(),
+                name: tag.name.clone(),
+                count: tag.count,
+            });
+        }
     }
     Ok(tags)
 }

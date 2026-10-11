@@ -72,13 +72,6 @@ fn image_row(id: &str, path: &str) -> Value {
 
 /// The contract `Tag` has no numeric kind field — the media kind is implied
 /// by the list it came from.
-fn tag(id: &str, name: &str) -> Value {
-    json!({ "id": id, "name": name, "count": 7 })
-}
-
-/// Counts degrade to zero and folder strips degrade to empty when the
-/// platform grant is missing: the web client shows an empty library, not an
-/// error page.
 #[tokio::test]
 async fn counts_and_buckets_degrade_when_storage_is_not_granted() {
     let (_dir, schema) = fixture(GRANTED, false);
@@ -140,16 +133,24 @@ async fn images_carry_their_row_and_their_tags() {
                 image_row("i2", "/storage/DCIM/two.jpg"),
             ])
         }
-        "systemMediaTagFacts" => {
-            assert_eq!(params["dataType"], "IMAGE");
-            assert_eq!(params["keys"], json!(["i1", "i2"]));
-            json!([
-                {"key": "i1", "tags": [tag("t1", "holiday")]},
-                {"key": "i2", "tags": []},
-            ])
-        }
         other => panic!("unexpected host call {other}"),
     });
+    let db = schema.data::<Arc<Db>>().unwrap();
+    let kind = plain_rs::enums::DataType::Image.kind();
+    let tag = plain_rs::tags::create_tag(db, kind, "holiday").unwrap();
+    let relations = (1..=7)
+        .map(|i| {
+            (
+                tag.id.clone(),
+                if i == 1 {
+                    "i1".into()
+                } else {
+                    format!("other{i}")
+                },
+            )
+        })
+        .collect::<Vec<_>>();
+    plain_rs::tags::add_relations(db, &relations).unwrap();
     let response = schema
         .execute(
             r#"query { images(offset:0, limit:20, query:"", sortBy:DATE_DESC)
@@ -241,7 +242,6 @@ async fn videos_carry_the_duration_and_the_taken_time() {
                 "isFavorite": false,
             }])
         }
-        "systemMediaTagFacts" => json!([]),
         other => panic!("unexpected host call {other}"),
     });
     let response = schema
@@ -269,7 +269,6 @@ async fn doc_extensions_come_from_the_path() {
             {"id":"d2","title":"b","path":"/storage/Docs/noext","durationMs":0,"size":10,
              "bucketId":"b3","createdAt":"2026-01-02T03:04:05Z","updatedAt":"2026-01-02T03:04:05Z"},
         ]),
-        "systemMediaTagFacts" => json!([]),
         other => panic!("unexpected host call {other}"),
     });
     let response = schema

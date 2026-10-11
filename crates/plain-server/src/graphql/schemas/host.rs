@@ -94,6 +94,7 @@ pub(crate) fn build_with_services(
     services: crate::assembly::services::Services,
 ) -> ContentSchema {
     Schema::build(Query::default(), Mutation::default(), EmptySubscription)
+        .data(services.media_actions)
         .data(services.files)
         .data(services.audio)
         .data(services.index)

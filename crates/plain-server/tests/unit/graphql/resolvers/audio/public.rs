@@ -14,13 +14,23 @@ fn stub(host: Arc<Host>, handler: impl Fn(&str, Value) -> Value + Send + 'static
             let Some(id) = request["id"].as_u64() else {
                 continue;
             };
-            let result = handler(
-                &request["method"].as_str().unwrap_or_default(),
-                request["params"].clone(),
-            );
+            let result = if request["method"] == "systemAudioPlaybackPermission" {
+                json!(true)
+            } else {
+                handler(
+                    &request["method"].as_str().unwrap_or_default(),
+                    request["params"].clone(),
+                )
+            };
             let _ = host.reply(generation, json!({ "id": id, "result": result }));
         }
     });
+}
+
+fn engine_report(params: &Value) -> Value {
+    let mut report = params["playback"].clone();
+    report["loaded"] = json!(params["action"] == "PLAY");
+    report
 }
 
 const GRANTED: &str = r#"["WRITE_EXTERNAL_STORAGE"]"#;
@@ -38,16 +48,13 @@ fn fixture() -> (tempfile::TempDir, PublicSchema) {
                 }))
                 .collect::<Vec<_>>()
         ),
-        "systemAudioLibrarySort" => json!("DATE_DESC"),
-        "systemAudioPlayMode" => json!("REPEAT"),
         "systemAudioPlaybackState" => json!({ "isPlaying": false, "positionMs": 0 }),
-        "systemAudioPlay" | "systemAudioClear" => json!(true),
+        "audioEngineCommand" => engine_report(&params),
         "systemAudioSearchTracks" => json!([{
             "title": "Queued", "artist": "Artist", "path": "/music/one.mp3", "durationMs": 1000,
         }]),
         "systemMediaRows" => json!([]),
         "systemMediaCount" => json!(0),
-        "systemMediaTagFacts" => json!([]),
         "systemAudioLyrics" => json!(""),
         // The playback order is the library plus the queue, so the library
         // half has to answer even when nothing is queued from it.
@@ -155,11 +162,15 @@ async fn playback_joins_the_queue_state_and_the_player_state() {
                 }))
                 .collect::<Vec<_>>()
         ),
-        "systemAudioPlayMode" => json!("SHUFFLE"),
+        "audioEngineCommand" => engine_report(&params),
         "systemAudioPlaybackState" => json!({ "isPlaying": true, "positionMs": 4200 }),
         _other => panic!("unexpected host call {_other}"),
     });
-    database(&schema);
+    schema
+        .data::<Arc<Prefs>>()
+        .unwrap()
+        .set_user("audio_play_mode", 2)
+        .unwrap();
     query(
         &schema,
         r#"mutation { playAudio(path: "/music/one.mp3") { title path } }"#,
@@ -190,6 +201,7 @@ async fn playing_a_track_never_changes_the_queue() {
             "title": "Track", "artist": "Artist",
             "path": params["paths"][0].as_str().unwrap(), "durationMs": 1000,
         }]),
+        "audioEngineCommand" => engine_report(&params),
         _other => json!({}),
     });
     database(&schema);
@@ -267,11 +279,16 @@ async fn empty_lyrics_are_null_rather_than_an_empty_string() {
 async fn clearing_empties_the_queue_and_tells_the_player() {
     let (_dir, schema) = fixture();
     seed_queue(&schema, &[("/music/a.mp3", "Alpha", "One")]);
+    let mut events = schema
+        .data::<tokio::sync::broadcast::Sender<plain_rs::events::WsEvent>>()
+        .unwrap()
+        .subscribe();
     let cleared = query(&schema, r#"mutation { clearAudioQueue }"#).await;
     assert_eq!(cleared["data"]["clearAudioQueue"], true, "{cleared}");
 
     let count = query(&schema, r#"query { audioQueueItemCount }"#).await;
     assert_eq!(count["data"]["audioQueueItemCount"], 0, "{count}");
+    assert_eq!(events.try_recv().unwrap().event_type, "CONTENT_CHANGED");
 }
 
 #[tokio::test]
@@ -477,7 +494,7 @@ async fn playing_the_library_is_null_when_nothing_matches() {
 }
 
 #[tokio::test]
-async fn play_mode_is_written_through_the_host_preference() {
+async fn play_mode_is_written_and_read_from_rust_preferences() {
     let (_dir, schema) = fixture();
     let ok = query(
         &schema,
@@ -487,7 +504,7 @@ async fn play_mode_is_written_through_the_host_preference() {
     assert_eq!(ok["data"]["updateAudioPlayMode"], true, "{ok}");
 
     let state = query(&schema, r#"query { audioPlayback { mode } }"#).await;
-    assert_eq!(state["data"]["audioPlayback"]["mode"], "REPEAT");
+    assert_eq!(state["data"]["audioPlayback"]["mode"], "REPEAT_ONE");
 }
 
 /// Without storage the library degrades rather than erroring — the same rule
@@ -521,7 +538,6 @@ async fn an_ungranted_library_counts_zero_and_refuses_to_list() {
 #[tokio::test]
 async fn a_library_row_keeps_the_album_art_reference() {
     let (_dir, schema) = fixture_with(GRANTED, |method, _params| match method {
-        "systemMediaTagFacts" => json!([]),
         "systemMediaRows" => json!([{
             "id": "1", "title": "Song", "artist": "Band", "path": "/m/a.mp3",
             "size": 42, "bucketId": "bucket-1", "durationMs": 1234,

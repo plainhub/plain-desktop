@@ -201,6 +201,8 @@ pub(crate) fn build_with_runtime(
             }),
         ))
         .data(host.clone())
+        .data(services.media_actions)
+        .data(services.files)
         .data(services.audio)
         .data(services.index)
         .data(models)

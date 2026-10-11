@@ -87,6 +87,39 @@ impl FileTasks {
         self.hooks.authorize(kind, &ops).await?;
         self.service()?.create(client_id, kind, title, ops)
     }
+    pub async fn execute(&self, kind: FileTaskType, ops: Vec<FileTaskOp>) -> Result<bool> {
+        let client_id = self
+            .hooks
+            .prefs
+            .get::<String>(plain_rs::prefs::system::keys::CLIENT_ID)?
+            .filter(|value| !value.is_empty())
+            .ok_or_else(|| anyhow!("file task identity unavailable"))?;
+        let task = self
+            .create(&client_id, kind, &format!("{kind:?}").to_uppercase(), ops)
+            .await?;
+        let service = self.service()?;
+        let mut recovered = false;
+        loop {
+            let current = match service.get(&task.id)? {
+                Some(current) => current,
+                None => self
+                    .list(client_id.clone())
+                    .await?
+                    .into_iter()
+                    .find(|row| row.id == task.id)
+                    .ok_or_else(|| anyhow!("file task unavailable"))?,
+            };
+            match current.status {
+                FileTaskStatus::Done => return Ok(true),
+                FileTaskStatus::Error if !recovered => {
+                    self.recover(client_id.clone(), task.id.clone()).await?;
+                    recovered = true;
+                }
+                FileTaskStatus::Error => return Ok(false),
+                _ => tokio::time::sleep(std::time::Duration::from_millis(20)).await,
+            }
+        }
+    }
     pub async fn recover(&self, client_id: String, id: String) -> Result<Option<FileTask>> {
         let service = self.service()?;
         tokio::task::spawn_blocking(move || service.recover(&client_id, &id)).await?

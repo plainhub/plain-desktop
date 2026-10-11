@@ -99,13 +99,15 @@ async fn deliver(
             | ChannelSystemMessageType::Update
             | ChannelSystemMessageType::InviteAccept
     ) {
-        serde_json::from_value(
-            state
-                .host
-                .call("peerDeviceInfo", json!({}))
-                .await
-                .map_err(anyhow::Error::msg)?,
-        )?
+        let facts = state
+            .host
+            .call("discoveryFacts", json!({}))
+            .await
+            .map_err(anyhow::Error::msg)?;
+        Device {
+            name: plain_rs::prefs::user::snapshot(&state.prefs)?.device_name,
+            device_type: serde_json::from_value(facts["deviceType"].clone())?,
+        }
     } else {
         Device {
             name: String::new(),

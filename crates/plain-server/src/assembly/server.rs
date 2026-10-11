@@ -25,6 +25,9 @@ pub(crate) struct ServerState {
     #[cfg(feature = "http_transport")]
     pub(crate) public_server: Arc<tokio::sync::Mutex<Option<PublicServer>>>,
     #[cfg(feature = "http_transport")]
+    pub(crate) http_failure:
+        Arc<std::sync::Mutex<Option<crate::assembly::lifecycle::HttpServerFailure>>>,
+    #[cfg(feature = "http_transport")]
     pub(crate) build_debug: Arc<std::sync::atomic::AtomicBool>,
     #[cfg(feature = "http_transport")]
     pub(crate) web_root: Arc<std::sync::RwLock<Option<PathBuf>>>,
@@ -226,6 +229,8 @@ impl ContentServer {
         let state = ServerState {
             #[cfg(feature = "http_transport")]
             public_server: Arc::new(tokio::sync::Mutex::new(None)),
+            #[cfg(feature = "http_transport")]
+            http_failure: Arc::new(std::sync::Mutex::new(None)),
             public,
             lan,
             schema,
@@ -572,6 +577,7 @@ impl ContentServer {
                 .store(true, std::sync::atomic::Ordering::SeqCst);
             self.state.peer_status.outgoing.start(self.state.clone());
         }
+        *self.state.http_failure.lock().unwrap() = None;
         let generation = crate::assembly::lifecycle::next_generation();
         let failure = listeners.failures();
         *guard = Some(PublicServer {

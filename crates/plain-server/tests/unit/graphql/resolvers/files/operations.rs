@@ -43,6 +43,7 @@ fn fixture_with(
             json!(serde_json::from_str::<Vec<String>>(permissions).unwrap()),
         )
         .unwrap();
+    prefs.set("client_id", "file-test").unwrap();
     let db = Arc::new(Db::open(&dir.path().join("data.db")).unwrap());
     let host = Arc::new(Host::default());
     stub(host.clone(), handler);
@@ -54,11 +55,13 @@ fn fixture_with(
     )
 }
 
-fn dir_fact(name: &str, path: &str) -> Value {
-    json!({
-        "name": name, "path": path, "mediaId": "", "createdAt": Value::Null,
-        "updatedAt": "2026-01-02T03:04:05Z", "size": 0, "isDir": true, "childCount": 0,
-    })
+fn file_platform(method: &str, _params: Value) -> Value {
+    match method {
+        "systemPermissionFacts" => json!({"granted":{"WRITE_EXTERNAL_STORAGE":true}}),
+        "fileTaskAuthorize" | "fileTaskScan" => json!(true),
+        "fileTaskMediaSnapshot" => json!([]),
+        other => panic!("unexpected platform operation {other}"),
+    }
 }
 
 #[tokio::test]
@@ -84,26 +87,27 @@ async fn file_writes_are_gated_on_storage_permission() {
 /// gone did not delete anything.
 #[tokio::test]
 async fn delete_files_reports_what_was_actually_removed() {
-    let (_dir, schema) = fixture_with(GRANTED, |method, params| match method {
-        "systemPermissionFacts" => json!({ "granted": { "WRITE_EXTERNAL_STORAGE": true } }),
-        "systemDeleteFiles" => {
-            assert_eq!(params["paths"], json!(["/a", "/b", "/c"]));
-            json!(2)
-        }
-        other => panic!("unexpected host call {other}"),
-    });
+    let (dir, schema) = fixture_with(GRANTED, file_platform);
+    let paths = ["a", "b", "missing"].map(|name| dir.path().join(name));
+    for path in &paths[..2] {
+        std::fs::write(path, "value").unwrap();
+    }
     let response = schema
-        .execute(r#"mutation { deleteFiles(paths:["/a","/b","/c"]) { affectedCount } }"#)
+        .execute(
+            async_graphql::Request::new(
+                "mutation($paths:[String!]!) {deleteFiles(paths:$paths){affectedCount}}",
+            )
+            .variables(async_graphql::Variables::from_json(json!({"paths":paths}))),
+        )
         .await;
     assert!(response.errors.is_empty(), "{:?}", response.errors);
     assert_eq!(
         response.data.into_json().unwrap()["deleteFiles"]["affectedCount"],
         2
     );
+    assert!(paths.iter().all(|path| !path.exists()));
 }
 
-/// An empty path list is not a request; answering 0 without asking the
-/// platform keeps a client bug from turning into a full-disk operation.
 #[tokio::test]
 async fn deleting_no_paths_is_a_no_op() {
     let (_dir, schema) = fixture_with(GRANTED, |method, _| match method {
@@ -122,36 +126,26 @@ async fn deleting_no_paths_is_a_no_op() {
 
 #[tokio::test]
 async fn a_created_directory_reads_back_as_a_file_row() {
-    let (_dir, schema) = fixture_with(GRANTED, |method, params| match method {
-        "systemPermissionFacts" => json!({ "granted": { "WRITE_EXTERNAL_STORAGE": true } }),
-        "systemCreateDir" => {
-            assert_eq!(params["path"], "/storage/DCIM");
-            dir_fact("DCIM", "/storage/DCIM")
-        }
-        other => panic!("unexpected host call {other}"),
-    });
-    let response = schema
-        .execute(
-            r#"mutation { createDir(path:"/storage/DCIM") { name path isDir childCount mediaId updatedAt } }"#,
-        )
-        .await;
+    let (dir, schema) = fixture_with(GRANTED, file_platform);
+    let path = dir.path().join("DCIM");
+    let response = schema.execute(async_graphql::Request::new("mutation($path:String!){createDir(path:$path){name path isDir childCount mediaId updatedAt}}")
+        .variables(async_graphql::Variables::from_json(json!({"path":path})))).await;
     assert!(response.errors.is_empty(), "{:?}", response.errors);
-    let row = response.data.into_json().unwrap();
-    let row = &row["createDir"];
+    let value = response.data.into_json().unwrap();
+    let row = &value["createDir"];
     assert_eq!(row["name"], "DCIM");
-    assert_eq!(row["path"], "/storage/DCIM");
+    assert_eq!(row["path"], json!(path));
     assert_eq!(row["isDir"], true);
-    assert_eq!(row["mediaId"], Value::Null);
-    assert_eq!(row["updatedAt"], "2026-01-02T03:04:05.000Z");
+    assert_eq!(row["childCount"], 0);
+    assert!(row["mediaId"].is_null());
+    assert!(chrono::DateTime::parse_from_rfc3339(row["updatedAt"].as_str().unwrap()).is_ok());
+    assert!(path.is_dir());
 }
 
-/// A refused rename is an ordinary outcome, not a failure — an empty name,
-/// a traversal segment or an occupied destination.
 #[tokio::test]
 async fn a_refused_rename_reports_false() {
     let (_dir, schema) = fixture_with(GRANTED, |method, _| match method {
         "systemPermissionFacts" => json!({ "granted": { "WRITE_EXTERNAL_STORAGE": true } }),
-        "systemRenameFile" => json!(false),
         other => panic!("unexpected host call {other}"),
     });
     let response = schema
@@ -162,27 +156,30 @@ async fn a_refused_rename_reports_false() {
 }
 
 #[tokio::test]
-async fn copy_and_move_carry_their_intent_to_the_platform() {
-    let (_dir, schema) = fixture_with(GRANTED, |method, params| match method {
-        "systemPermissionFacts" => json!({ "granted": { "WRITE_EXTERNAL_STORAGE": true } }),
-        "systemTransferFile" => {
-            assert_eq!(params["src"], "/a");
-            assert_eq!(params["dst"], "/b");
-            assert_eq!(params["overwrite"], true);
-            assert!(params["type"] == "COPY" || params["type"] == "MOVE");
-            json!(true)
-        }
-        other => panic!("unexpected host call {other}"),
-    });
-    for (name, expected) in [("copyFile", "COPY"), ("moveFile", "MOVE")] {
-        let response = schema
-            .execute(&format!(
-                r#"mutation {{ {name}(src:"/a", dst:"/b", overwrite:true) }}"#
-            ))
-            .await;
-        assert!(response.errors.is_empty(), "{name}: {:?}", response.errors);
+async fn copy_and_move_use_the_shared_file_tasks() {
+    let (dir, schema) = fixture_with(GRANTED, file_platform);
+    let source = dir.path().join("a");
+    let destination = dir.path().join("b");
+    for name in ["copyFile", "moveFile"] {
+        std::fs::write(&source, "new").unwrap();
+        std::fs::write(&destination, "old").unwrap();
+        let response = schema.execute(async_graphql::Request::new(format!("mutation($src:String!,$dst:String!){{{name}(src:$src,dst:$dst,overwrite:true)}}"))
+            .variables(async_graphql::Variables::from_json(json!({"src":source,"dst":destination})))).await;
+        assert!(response.errors.is_empty(), "{:?}", response.errors);
         assert_eq!(response.data.into_json().unwrap()[name], true);
-        let _ = expected;
+        assert_eq!(std::fs::read_to_string(&destination).unwrap(), "new");
+        assert_eq!(source.exists(), name == "copyFile");
+        let tasks = schema
+            .data::<Arc<crate::services::files::file_tasks::FileTasks>>()
+            .unwrap()
+            .list("file-test".into())
+            .await
+            .unwrap();
+        assert!(
+            tasks
+                .iter()
+                .any(|task| task.title == if name == "copyFile" { "COPY" } else { "MOVE" })
+        );
     }
 }
 
@@ -190,10 +187,13 @@ async fn copy_and_move_carry_their_intent_to_the_platform() {
 async fn media_trash_and_restore_do_not_need_a_storage_grant() {
     let (_dir, schema) = fixture_with("[]", |method, params| match method {
         "systemPermissionFacts" => json!({ "granted": { "WRITE_EXTERNAL_STORAGE": true } }),
-        "systemMediaAction" => {
-            assert_eq!(params["action"], "trash");
+        "systemMediaIdsFacts" => {
             assert_eq!(params["dataType"], "IMAGE");
-            json!(4)
+            json!((1..=4).map(|i| i.to_string()).collect::<Vec<_>>())
+        }
+        "mediaAction" => {
+            assert_eq!(params["action"], "TRASH");
+            json!({"successful":params["ids"].as_array().unwrap().iter().map(|id| json!({"id":id,"path":format!("/media/{}",id.as_str().unwrap()),"destinationPath":"/item"})).collect::<Vec<_>>(),"failedIds":[]})
         }
         other => panic!("unexpected host call {other}"),
     });
@@ -225,11 +225,14 @@ async fn moving_media_is_gated() {
 async fn moving_media_forwards_the_destination() {
     let (_dir, schema) = fixture_with(GRANTED, |method, params| match method {
         "systemPermissionFacts" => json!({ "granted": { "WRITE_EXTERNAL_STORAGE": true } }),
-        "systemMediaAction" => {
-            assert_eq!(params["action"], "move");
+        "systemMediaIdsFacts" => {
             assert_eq!(params["dataType"], "DOC");
+            json!((1..=2).map(|i| i.to_string()).collect::<Vec<_>>())
+        }
+        "mediaAction" => {
+            assert_eq!(params["action"], "MOVE");
             assert_eq!(params["destDir"], "/storage/Docs");
-            json!(2)
+            json!({"successful":params["ids"].as_array().unwrap().iter().map(|id| json!({"id":id,"path":format!("/media/{}",id.as_str().unwrap()),"destinationPath":"/storage/Docs/item"})).collect::<Vec<_>>(),"failedIds":[]})
         }
         other => panic!("unexpected host call {other}"),
     });
@@ -287,6 +290,7 @@ fn upload_fixture() -> (
     let path = base.clone();
     let (dir, schema) = fixture_with("[]", move |method, _| match method {
         "uploadTmpDirFacts" => json!({"path":path}),
+        "scanFilesFacts" => json!(true),
         other => panic!("Unexpected platform primitive: {other}"),
     });
     (temp, dir, schema, base)
@@ -410,7 +414,7 @@ fn merge_status_reads_back_the_names_the_contract_uses() {
 async fn a_media_action_refuses_a_query_that_selects_nothing_and_all_true_still_goes_through() {
     let (_dir, schema) = fixture_with(GRANTED, |method, _| match method {
         "systemPermissionFacts" => json!({ "granted": { "WRITE_EXTERNAL_STORAGE": true } }),
-        "systemMediaAction" => json!(0),
+        "systemMediaIdsFacts" => json!([]),
         other => panic!("unexpected host call {other}"),
     });
 
@@ -439,4 +443,86 @@ async fn a_media_action_refuses_a_query_that_selects_nothing_and_all_true_still_
         .await;
     assert!(response.errors.is_empty(), "{:?}", response.errors);
     assert!(format!("{:?}", response.data).contains("affectedCount"));
+}
+
+#[tokio::test]
+async fn media_batches_commit_successes_and_notify_only_confirmed_ids() {
+    let batches = Arc::new(std::sync::Mutex::new(Vec::new()));
+    let calls = batches.clone();
+    let (_dir, schema) = fixture_with(GRANTED, move |method, params| match method {
+        "systemAppFacts" => json!({"capabilities":["MEDIA_TRASH"]}),
+        "systemMediaIdsFacts" => {
+            assert_eq!(params["fromTrash"], true);
+            json!(
+                (0..501)
+                    .map(|i| i.to_string())
+                    .chain(["0".into()])
+                    .collect::<Vec<_>>()
+            )
+        }
+        "mediaAction" => {
+            assert_eq!(params["fromTrash"], true);
+            let ids = params["ids"].as_array().unwrap();
+            calls.lock().unwrap().push(ids.len());
+            let successful = ids.iter().filter(|id| **id != json!("1")).map(|id| json!({"id":id,"path":format!("/media/{}", id.as_str().unwrap()),"destinationPath":""})).collect::<Vec<_>>();
+            let failed = ids
+                .iter()
+                .filter(|id| **id == json!("1"))
+                .cloned()
+                .collect::<Vec<_>>();
+            json!({"successful":successful,"failedIds":failed})
+        }
+        other => panic!("unexpected platform operation {other}"),
+    });
+    let db = schema.data::<Arc<Db>>().unwrap();
+    let tag =
+        plain_rs::tags::create_tag(db, plain_rs::enums::DataType::Video.kind(), "keep failed")
+            .unwrap();
+    plain_rs::tags::add_relations(
+        db,
+        &[(tag.id.clone(), "0".into()), (tag.id.clone(), "1".into())],
+    )
+    .unwrap();
+    let mut events = schema
+        .data::<tokio::sync::broadcast::Sender<plain_rs::events::WsEvent>>()
+        .unwrap()
+        .subscribe();
+    let response = schema
+        .execute(r#"mutation {deleteMediaItems(type:VIDEO,query:"all:true"){affectedCount}}"#)
+        .await;
+    assert_eq!(response.errors.len(), 1);
+    assert!(
+        response.errors[0]
+            .message
+            .contains("1 media actions failed (500 completed)")
+    );
+    assert_eq!(*batches.lock().unwrap(), vec![500, 1]);
+    assert_eq!(
+        plain_rs::tags::keys_for_tag(db, &tag.id).unwrap(),
+        vec!["1"]
+    );
+    let mut committed = Vec::new();
+    let mut refreshes = 0;
+    while let Ok(event) = events.try_recv() {
+        if event.event_type == "CONTENT_CHANGED" {
+            assert!(!event.is_internal());
+            refreshes += 1;
+        }
+        if event.event_type == plain_rs::events::MEDIA_ACTION_FINISHED {
+            assert!(event.is_internal());
+            let payload: Value = serde_json::from_str(&event.payload).unwrap();
+            assert_eq!(payload["type"], 2);
+            assert_eq!(payload["action"], "DELETE");
+            committed.extend(
+                payload["ids"]
+                    .as_array()
+                    .unwrap()
+                    .iter()
+                    .map(|id| id.as_str().unwrap().to_owned()),
+            );
+        }
+    }
+    assert_eq!(refreshes, 2);
+    assert_eq!(committed.len(), 500);
+    assert!(!committed.contains(&"1".to_string()));
 }

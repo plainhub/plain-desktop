@@ -27,6 +27,14 @@ fn fixture(
 ) -> (tempfile::TempDir, PublicSchema) {
     let dir = tempfile::tempdir().unwrap();
     let prefs = Arc::new(Prefs::load(&dir.path().join("prefs.json")).unwrap());
+    plain_rs::prefs::system::bootstrap(&prefs).unwrap();
+    prefs.set("client_id", "c1").unwrap();
+    prefs.set("url_token", "dG9rZW4=").unwrap();
+    prefs.set("api_permissions", vec!["READ_SMS"]).unwrap();
+    prefs.set_user("http_port", 8080).unwrap();
+    prefs.set_user("https_port", 8443).unwrap();
+    prefs.set_user("device_name", "Pixel 8").unwrap();
+    prefs.set_user("developer_mode", true).unwrap();
     let db = Arc::new(Db::open(&dir.path().join("data.db")).unwrap());
     let host = Arc::new(Host::default());
     stub(host.clone(), handler);
@@ -138,11 +146,11 @@ async fn unreadable_readings_are_null_but_real_zeroes_are_zero() {
 async fn the_app_root_exposes_the_identity_and_the_capability_lists() {
     let (_dir, schema) = fixture(|method, _| match method {
         "systemAppFacts" => json!({
-            "clientId": "c1", "urlToken": "dG9rZW4=", "httpPort": 8080, "httpsPort": 8443,
-            "appDir": "/data/user/0/com.ismartcoding.plain", "deviceName": "Pixel 8",
+            "clientId": "stale", "urlToken": "stale", "httpPort": 9999, "httpsPort": 9999,
+            "appDir": "/data/user/0/com.ismartcoding.plain", "deviceName": "stale",
             "deviceType": "PHONE", "capabilities": ["SMS", "CONTACTS", "WAT"],
-            "buildChannel": "GITHUB", "permissions": ["READ_SMS", "NOPE"],
-            "downloadsDir": "/storage/emulated/0/Download", "developerMode": true, "debug": false,
+            "buildChannel": "GITHUB", "permissions": ["RECORD_AUDIO", "READ_SMS", "ADB", "NOPE"],
+            "downloadsDir": "/storage/emulated/0/Download", "developerMode": false, "debug": false,
         }),
         other => panic!("unexpected host call {other}"),
     });
@@ -160,7 +168,10 @@ async fn the_app_root_exposes_the_identity_and_the_capability_lists() {
     assert_eq!(app["buildChannel"], "GITHUB");
     assert_eq!(app["developerMode"], true);
     assert_eq!(app["capabilities"], json!(["SMS", "CONTACTS"]));
-    assert_eq!(app["permissions"], json!(["READ_SMS"]));
+    assert_eq!(
+        app["permissions"],
+        json!(["READ_SMS", "RECORD_AUDIO", "ADB"])
+    );
 }
 
 /// A capability or permission this build has never heard of is dropped
@@ -264,23 +275,38 @@ async fn a_temp_value_is_echoed_rather_than_read_back() {
 }
 
 #[tokio::test]
-async fn discovery_state_and_commands_are_separate_calls() {
-    let (_dir, schema) = fixture(|method, _| match method {
-        "systemDiscoveryFacts" => json!({ "scanning": true }),
-        "systemStartDiscovery" | "systemStopDiscovery" => json!(true),
+async fn discovery_commands_use_the_shared_runtime_and_platform_multicast_lease() {
+    let dir = tempfile::tempdir().unwrap();
+    let prefs = Arc::new(Prefs::load(&dir.path().join("prefs.json")).unwrap());
+    prefs.set("client_id", "discovery-test").unwrap();
+    let server = crate::assembly::server::ContentServer::start(
+        &dir.path().join("db"),
+        &plain_rs::utils::base64::base64_encode(&[4; 32]),
+        prefs,
+    )
+    .unwrap();
+    let state = server.runtime_state();
+    stub(state.host.clone(), |method, _| match method {
+        "mdnsMulticast" => json!(true),
         other => panic!("unexpected host call {other}"),
     });
-    let response = schema.execute(r#"query { isDiscovering }"#).await;
+    let execute = |document: &str| {
+        state
+            .public
+            .execute(async_graphql::Request::new(document).data(state.clone()))
+    };
+    let response = execute("{isDiscovering}").await;
     assert!(response.errors.is_empty(), "{:?}", response.errors);
+    assert_eq!(response.data.into_json().unwrap()["isDiscovering"], false);
+    let response = execute("mutation {startDiscovery}").await;
+    assert!(response.errors.is_empty(), "{:?}", response.errors);
+    assert_eq!(state.mdns.snapshot()["scanning"], true);
+    let response = execute("{isDiscovering}").await;
     assert_eq!(response.data.into_json().unwrap()["isDiscovering"], true);
-
-    let response = schema
-        .execute(r#"mutation { startDiscovery stopDiscovery }"#)
-        .await;
+    let response = execute("mutation {stopDiscovery}").await;
     assert!(response.errors.is_empty(), "{:?}", response.errors);
-    let data = response.data.into_json().unwrap();
-    assert_eq!(data["startDiscovery"], true);
-    assert_eq!(data["stopDiscovery"], true);
+    assert_eq!(state.mdns.snapshot()["scanning"], false);
+    server.shutdown().await;
 }
 
 #[tokio::test]

@@ -1,3 +1,6 @@
+pub const HTTP_SERVER_FAILED: &str = "HTTP_SERVER_FAILED";
+pub const MEDIA_ACTION_FINISHED: &str = "MEDIA_ACTION_FINISHED";
+
 #[derive(Clone, Debug)]
 pub struct WsEvent {
     host_origin: bool,
@@ -27,7 +30,9 @@ impl WsEvent {
     pub fn is_internal(&self) -> bool {
         matches!(
             self.event_type,
-            "MDNS_UPDATED"
+            HTTP_SERVER_FAILED
+                | MEDIA_ACTION_FINISHED
+                | "MDNS_UPDATED"
                 | "PEER_CONNECTIONS_UPDATED"
                 | "PEER_TRANSPORT_UPDATED"
                 | "SHARED_FOLDER_DOWNLOAD_UPDATED"

@@ -50,6 +50,12 @@ impl HostEvents {
                 Ok(event) if event.binary_payload.is_some() => continue,
                 Ok(event) => return Some(json!({"type":event.event_type,"payload":event.payload})),
                 Err(broadcast::error::RecvError::Lagged(_)) => {
+                    #[cfg(feature = "http_transport")]
+                    if let Some(failure) = self.state.http_failure.lock().unwrap().as_ref() {
+                        return Some(
+                            json!({"type":plain_rs::events::HTTP_SERVER_FAILED,"payload":serde_json::to_string(failure).unwrap(),"reconcile":true}),
+                        );
+                    }
                     return Some(json!({"type":"CONTENT_CHANGED","payload":"{}","reconcile":true}));
                 }
                 Err(_) => return None,

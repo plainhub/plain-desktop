@@ -127,7 +127,7 @@ async fn sender_controls_use_soap_and_release_the_original_subscription() {
             let id = request["id"].as_u64().unwrap();
             let result = match request["method"].as_str().unwrap() {
                 "systemCastAddressFacts" => {
-                    json!({"baseUrl":"http://127.0.0.1:7878", "senderName":"Test Phone"})
+                    json!({"ip":"127.0.0.1", "defaultDeviceName":"Test Phone"})
                 }
                 "systemFileResource" => json!("video/mp4"),
                 method => panic!("Unexpected native operation: {method}"),

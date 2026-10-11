@@ -43,6 +43,7 @@ async fn encrypted_public_and_ble_rpc_share_auth_executor_and_receipts() {
     let dir = tempfile::tempdir().unwrap();
     let prefs = Arc::new(plain_rs::prefs::Prefs::load(&dir.path().join("system.json")).unwrap());
     prefs.set_user("service", true).unwrap();
+    prefs.set_user("device_name", "fixture tablet").unwrap();
     prefs.set("client_id", "local").unwrap();
     let (local_keypair, local_public_key) = plain_rs::crypto::ed25519_generate();
     prefs
@@ -88,7 +89,7 @@ async fn encrypted_public_and_ble_rpc_share_auth_executor_and_receipts() {
                     count += 1;
                     result
                 }
-                "peerDeviceInfo" => json!({"name":"fixture tablet","deviceType":"TABLET"}),
+                "discoveryFacts" => json!({"name":"fixture tablet","deviceType":"TABLET"}),
                 "peerTransportCapabilities" => json!(["BLE"]),
                 "peerTransportBleExchange" => {
                     let wire = crate::services::discovery::ble_http::test_peer_wire(

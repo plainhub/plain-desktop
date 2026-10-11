@@ -27,7 +27,9 @@ fn fixture() -> (tempfile::TempDir, crate::assembly::server::ContentServer) {
         while let Some(request) = requests.recv().await {
             let result = match request["method"].as_str().unwrap() {
                 "mdnsMulticast" => json!(true),
-                "systemCastAddressFacts" => json!({"deviceName":"Test Phone"}),
+                "systemCastAddressFacts" => {
+                    json!({"ip":"127.0.0.1","defaultDeviceName":"Test Phone"})
+                }
                 other => panic!("Unexpected platform primitive: {other}"),
             };
             let _ = host.reply(generation, json!({"id":request["id"],"result":result}));

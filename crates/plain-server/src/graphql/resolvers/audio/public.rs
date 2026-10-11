@@ -13,7 +13,7 @@ use crate::graphql::types::Long;
 use crate::host::bridge::Host;
 use crate::http::auth::public_gate;
 use crate::services::audio::host::Audio as AudioService;
-use async_graphql::{Context, Enum, Object, SimpleObject};
+use async_graphql::{Context, Object, SimpleObject};
 use plain_rs::db::PlayHistory;
 use plain_rs::db::Playlist;
 use plain_rs::media::audio::queue as domain;
@@ -23,31 +23,7 @@ use std::sync::Arc;
 
 const STORAGE: &str = "WRITE_EXTERNAL_STORAGE";
 
-#[derive(Enum, Copy, Clone, Eq, PartialEq, Debug, Default)]
-pub enum MediaPlayMode {
-    #[default]
-    Repeat,
-    RepeatOne,
-    Shuffle,
-}
-
-impl MediaPlayMode {
-    fn as_str(self) -> &'static str {
-        match self {
-            MediaPlayMode::Repeat => "REPEAT",
-            MediaPlayMode::RepeatOne => "REPEAT_ONE",
-            MediaPlayMode::Shuffle => "SHUFFLE",
-        }
-    }
-
-    fn parse(value: &str) -> Self {
-        match value {
-            "REPEAT_ONE" => MediaPlayMode::RepeatOne,
-            "SHUFFLE" => MediaPlayMode::Shuffle,
-            _ => MediaPlayMode::Repeat,
-        }
-    }
-}
+pub use plain_rs::media::audio::play_mode::MediaPlayMode;
 
 #[derive(SimpleObject, Clone, Debug)]
 pub struct AudioItem {
@@ -305,12 +281,7 @@ impl AudioQuery {
         let current = audio(ctx)?
             .run(|db, _| domain::get_audio_current(db))
             .await?;
-        let mode = MediaPlayMode::parse(
-            host_call(ctx, "systemAudioPlayMode", json!({}))
-                .await?
-                .as_str()
-                .unwrap_or_default(),
-        );
+        let mode = domain::play_mode(prefs(ctx))?;
         let player = host_call(ctx, "systemAudioPlaybackState", json!({})).await?;
         Ok(AudioPlayback {
             current_path: Some(current).filter(|path| !path.is_empty()),
@@ -359,7 +330,14 @@ impl AudioMutation {
         ctx: &Context<'_>,
         mode: MediaPlayMode,
     ) -> async_graphql::Result<bool> {
-        host_call(ctx, "systemAudioPlayMode", json!({ "mode": mode.as_str() })).await?;
+        crate::graphql::resolvers::settings::state::apply_user_patch(
+            crate::graphql::resolvers::settings::state::UserPatchEnv::from_ctx(ctx)?,
+            plain_rs::prefs::user::UserSettingsPatch {
+                audio_play_mode: Some(mode.ordinal()),
+                ..Default::default()
+            },
+        )
+        .await?;
         Ok(true)
     }
 
@@ -368,7 +346,20 @@ impl AudioMutation {
     /// running over an empty queue.
     async fn clear_audio_queue(&self, ctx: &Context<'_>) -> async_graphql::Result<bool> {
         audio(ctx)?.run(|db, _| domain::clear_queue(db)).await?;
-        host_call(ctx, "systemAudioClear", json!({})).await?;
+        let prefs = prefs(ctx).clone();
+        audio(ctx)?
+            .run(move |db, engine| {
+                plain_rs::media::audio::commands::command(
+                    db,
+                    &prefs,
+                    engine,
+                    plain_rs::media::audio::commands::Action::Clear,
+                    0,
+                    1.0,
+                )
+            })
+            .await?;
+        notify_playback(ctx)?;
         Ok(true)
     }
 
@@ -390,11 +381,11 @@ impl AudioMutation {
         ctx: &Context<'_>,
         query: String,
     ) -> async_graphql::Result<bool> {
-        let sort_by = host_call(ctx, "systemAudioLibrarySort", json!({})).await?;
+        let sort_by = library_sort(ctx)?;
         let facts = host_call(
             ctx,
             "systemAudioSearchTracks",
-            json!({ "query": query, "limit": QUEUE_SEARCH_LIMIT, "offset": 0, "sortBy": sort_by.as_str().unwrap_or_default() }),
+            json!({ "query": query, "limit": QUEUE_SEARCH_LIMIT, "offset": 0, "sortBy": sort_by.as_str() }),
         )
         .await?;
         let tracks = crate::graphql::types::facts::rows(&facts, |item| track(item));
@@ -512,10 +503,10 @@ impl AudioMutation {
         ctx: &Context<'_>,
         shuffle: bool,
     ) -> async_graphql::Result<Option<AudioItem>> {
-        let sort_by = host_call(ctx, "systemAudioLibrarySort", json!({})).await?;
+        let sort_by = library_sort(ctx)?;
         let start = audio(ctx)?
             .run({
-                let sort_by = sort_by.as_str().unwrap_or_default().to_string();
+                let sort_by = sort_by.as_str().to_string();
                 move |db, lib| domain::select_library_source(db, lib, None, shuffle, &sort_by)
             })
             .await?;
@@ -545,15 +536,30 @@ impl AudioMutation {
         let Some(track) = track else {
             return Ok(None);
         };
-        let item = item(track);
-        host_call(
-            ctx,
-            "systemAudioPlay",
-            json!({ "track": { "title": item.title, "artist": item.artist, "path": item.path, "durationMs": item.duration_ms.0 } }),
-        )
-        .await?;
+        ctx.data::<Arc<Host>>()?
+            .call_wait("systemAudioPlaybackPermission", json!({}))
+            .await
+            .map_err(async_graphql::Error::new)?;
+        let item = item(track.clone());
+        let prefs = prefs(ctx).clone();
+        audio(ctx)?
+            .run(move |db, engine| {
+                plain_rs::media::audio::commands::play_track(db, &prefs, engine, track, false)
+            })
+            .await?;
+        notify_playback(ctx)?;
         Ok(Some(item))
     }
+}
+
+fn notify_playback(ctx: &Context<'_>) -> async_graphql::Result<()> {
+    let _ = ctx
+        .data::<tokio::sync::broadcast::Sender<plain_rs::events::WsEvent>>()?
+        .send(plain_rs::events::WsEvent::broadcast(
+            "CONTENT_CHANGED",
+            "{}".into(),
+        ));
+    Ok(())
 }
 
 const QUEUE_SEARCH_LIMIT: i64 = 1000;
@@ -602,6 +608,14 @@ fn history(row: PlayHistory) -> async_graphql::Result<AudioPlayHistory> {
 
 fn audio<'a>(ctx: &'a Context<'_>) -> async_graphql::Result<&'a Arc<AudioService>> {
     ctx.data::<Arc<AudioService>>()
+}
+
+fn library_sort(
+    ctx: &Context<'_>,
+) -> async_graphql::Result<crate::graphql::resolvers::files::types::FileSortBy> {
+    crate::graphql::resolvers::files::types::FileSortBy::from_ordinal(
+        plain_rs::prefs::user::snapshot(prefs(ctx))?.audio_sort_by,
+    )
 }
 
 fn prefs<'a>(ctx: &'a Context<'_>) -> &'a Arc<plain_rs::prefs::Prefs> {

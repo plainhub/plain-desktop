@@ -225,25 +225,39 @@ impl DeviceQuery {
     /// port it listens on and the token that authorises it.
     async fn app(&self, ctx: &Context<'_>) -> async_graphql::Result<App> {
         let facts = host_call(ctx, "systemAppFacts", json!({})).await?;
+        let prefs = ctx.data::<Arc<plain_rs::prefs::Prefs>>()?;
+        let user = plain_rs::prefs::user::snapshot(prefs)?;
+        let system = plain_rs::prefs::system::snapshot(prefs)?;
+        let grants = crate::graphql::types::facts::strings(&facts, "permissions");
+        let mut permissions: Vec<_> = grants
+            .iter()
+            .filter(|name| system.api_permissions.contains(name))
+            .filter_map(|name| Permission::parse(name))
+            .collect();
+        for (name, permission) in [
+            ("RECORD_AUDIO", Permission::RecordAudio),
+            ("ADB", Permission::Adb),
+        ] {
+            if grants.iter().any(|grant| grant == name) && !permissions.contains(&permission) {
+                permissions.push(permission);
+            }
+        }
         Ok(App {
-            client_id: text(&facts, "clientId"),
-            url_token: text(&facts, "urlToken"),
-            http_port: integer(&facts, "httpPort") as i32,
-            https_port: integer(&facts, "httpsPort") as i32,
+            client_id: system.client_id,
+            url_token: system.url_token,
+            http_port: user.http_port,
+            https_port: user.https_port,
             app_dir: text(&facts, "appDir"),
-            device_name: text(&facts, "deviceName"),
+            device_name: user.device_name,
             device_type: device_type(&text(&facts, "deviceType")),
             capabilities: crate::graphql::types::facts::strings(&facts, "capabilities")
                 .iter()
                 .filter_map(|value| Capability::parse(value))
                 .collect(),
             build_channel: app_channel(&text(&facts, "buildChannel")),
-            permissions: crate::graphql::types::facts::strings(&facts, "permissions")
-                .iter()
-                .filter_map(|value| Permission::parse(value))
-                .collect(),
+            permissions,
             downloads_dir: text(&facts, "downloadsDir"),
-            developer_mode: flag(&facts, "developerMode"),
+            developer_mode: user.developer_mode,
             debug: flag(&facts, "debug"),
         })
     }
@@ -277,7 +291,10 @@ impl DeviceQuery {
     /// stopping are commands, not state, so they report success rather
     /// than a snapshot the caller would have to re-read.
     async fn is_discovering(&self, ctx: &Context<'_>) -> async_graphql::Result<bool> {
-        let facts = host_call(ctx, "systemDiscoveryFacts", json!({})).await?;
+        let facts = ctx
+            .data::<crate::assembly::server::ServerState>()?
+            .mdns
+            .snapshot();
         Ok(flag(&facts, "scanning"))
     }
 }
@@ -335,12 +352,26 @@ impl DeviceMutation {
     }
 
     async fn start_discovery(&self, ctx: &Context<'_>) -> async_graphql::Result<bool> {
-        host_call(ctx, "systemStartDiscovery", json!({})).await?;
+        let state = ctx.data::<crate::assembly::server::ServerState>()?;
+        state
+            .mdns
+            .execute(
+                state,
+                crate::services::discovery::mdns_runtime::Request::Start {},
+            )
+            .await?;
         Ok(true)
     }
 
     async fn stop_discovery(&self, ctx: &Context<'_>) -> async_graphql::Result<bool> {
-        host_call(ctx, "systemStopDiscovery", json!({})).await?;
+        let state = ctx.data::<crate::assembly::server::ServerState>()?;
+        state
+            .mdns
+            .execute(
+                state,
+                crate::services::discovery::mdns_runtime::Request::Stop {},
+            )
+            .await?;
         Ok(true)
     }
 }

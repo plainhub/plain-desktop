@@ -146,15 +146,8 @@ pub(crate) async fn call(
 #[path = "../../../tests/unit/http/routes/graphql.rs"]
 mod tests;
 
-pub(crate) async fn health(State(state): State<ServerState>) -> Response {
-    match state.host.call("mainGraphqlHealth", json!({})).await {
-        Ok(value) => value
-            .as_str()
-            .unwrap_or_default()
-            .to_owned()
-            .into_response(),
-        Err(_) => StatusCode::BAD_GATEWAY.into_response(),
-    }
+pub(crate) async fn health() -> &'static str {
+    "OK"
 }
 
 fn shutdown_allowed(address: SocketAddr) -> bool {
@@ -169,7 +162,21 @@ pub(crate) async fn shutdown(
     if !shutdown_allowed(address) {
         return StatusCode::FORBIDDEN.into_response();
     }
-    let _ = state.host.call("mainGraphqlShutdown", json!({})).await;
+    match crate::graphql::resolvers::settings::state::apply_user_patch(
+        crate::graphql::resolvers::settings::state::UserPatchEnv::from_server(&state),
+        plain_rs::prefs::user::UserSettingsPatch {
+            desktop_access: Some(false),
+            ..Default::default()
+        },
+    )
+    .await
+    {
+        Ok(_) => {}
+        Err(error) => {
+            log::error!("Desktop access shutdown failed: {error:?}");
+            return StatusCode::INTERNAL_SERVER_ERROR.into_response();
+        }
+    }
     StatusCode::GONE.into_response()
 }
 

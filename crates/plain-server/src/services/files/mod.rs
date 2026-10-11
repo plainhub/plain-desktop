@@ -12,3 +12,9 @@ pub mod file_tasks;
 
 #[cfg(feature = "host-api")]
 pub mod media_buckets;
+
+#[cfg(feature = "host-api")]
+pub mod writes;
+
+#[cfg(feature = "host-api")]
+pub mod media_actions;

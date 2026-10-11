@@ -5,6 +5,7 @@ fn fixture() -> (tempfile::TempDir, crate::assembly::server::ContentServer) {
     let dir = tempfile::tempdir().unwrap();
     let prefs = Arc::new(plain_rs::prefs::Prefs::load(&dir.path().join("system.json")).unwrap());
     let (key, public) = plain_rs::crypto::ed25519_generate();
+    prefs.set_user("device_name", "Actual tablet").unwrap();
     prefs.set("client_id", "actor").unwrap();
     prefs
         .set(
@@ -130,7 +131,7 @@ async fn signed_invites_ack_keys_and_deleted_broadcast_use_rust_snapshot() {
         while attempts.len() < 5 {
             let req = rx.recv().await.unwrap();
             let result = match req["method"].as_str().unwrap() {
-                "peerDeviceInfo" => json!({"name":"Actual tablet","deviceType":"TABLET"}),
+                "discoveryFacts" => json!({"name":"Actual tablet","deviceType":"TABLET"}),
                 "peerTransportCapabilities" => json!(["BLE"]),
                 "peerTransportBleExchange" => {
                     let p = &req["params"];
@@ -251,7 +252,7 @@ async fn stale_device_facts_and_decline_ack_cannot_act_on_replacement() {
         tokio::spawn(async move { execute(&state, Request::Accept { id }).await })
     };
     let facts = rx.recv().await.unwrap();
-    assert_eq!(facts["method"], "peerDeviceInfo");
+    assert_eq!(facts["method"], "discoveryFacts");
     let newer = state::apply(
         &state.db,
         "owner",
@@ -367,7 +368,7 @@ async fn peer_key_changes_before_physical_send_are_rejected_and_accept_leave_dec
         while kinds.len() < 3 {
             let req = rx.recv().await.unwrap();
             let result = match req["method"].as_str().unwrap() {
-                "peerDeviceInfo" => json!({"name":"Actual tablet","deviceType":"TABLET"}),
+                "discoveryFacts" => json!({"name":"Actual tablet","deviceType":"TABLET"}),
                 "peerTransportCapabilities" => json!(["BLE"]),
                 "peerTransportBleExchange" => {
                     let body = crate::services::discovery::ble_http::test_peer_wire(

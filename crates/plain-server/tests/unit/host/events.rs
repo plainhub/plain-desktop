@@ -21,6 +21,8 @@ async fn native_events_enforce_direction_and_reconcile_lag() {
         "PAIRING_SUCCESS",
         "CONTENT_CHANGED",
         "UNKNOWN_EVENT",
+        plain_rs::events::HTTP_SERVER_FAILED,
+        plain_rs::events::MEDIA_ACTION_FINISHED,
     ] {
         assert!(bridge.publish_text(kind, "{}".into()).is_err());
         assert!(bridge.publish_binary(kind, vec![]).is_err());
@@ -90,5 +92,29 @@ async fn native_requests_reply_and_replacement_cancel_pending_calls() {
             .host
             .is_current(replacement.generation)
     );
+    server.shutdown().await;
+}
+
+#[cfg(feature = "http_transport")]
+#[tokio::test]
+async fn listener_failure_survives_event_queue_overflow() {
+    let dir = tempfile::tempdir().unwrap();
+    let server = server(&dir);
+    let bridge = server.host_events();
+    let state = server.runtime_state();
+    *state.http_failure.lock().unwrap() = Some(crate::assembly::lifecycle::HttpServerFailure {
+        generation: 7,
+        message: "failed".into(),
+    });
+    for _ in 0..300 {
+        let _ = state
+            .events
+            .send(WsEvent::broadcast("CONTENT_CHANGED", "{}".into()));
+    }
+    let event = bridge.next_event().await.unwrap();
+    assert_eq!(event["type"], "HTTP_SERVER_FAILED");
+    assert_eq!(event["reconcile"], true);
+    let payload: Value = serde_json::from_str(event["payload"].as_str().unwrap()).unwrap();
+    assert_eq!(payload["generation"], 7);
     server.shutdown().await;
 }

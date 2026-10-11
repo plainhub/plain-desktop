@@ -8,20 +8,38 @@ use crate::services::casting::sender::util::xml_escape;
 use serde_json::json;
 use std::time::Duration;
 
+async fn address(state: &ServerState) -> Result<(String, String), String> {
+    let facts = state.host.call("systemCastAddressFacts", json!({})).await?;
+    let ip = facts["ip"]
+        .as_str()
+        .filter(|ip| !ip.is_empty())
+        .ok_or("Missing cast HTTP address")?;
+    let settings =
+        plain_rs::prefs::user::snapshot(&state.prefs).map_err(|error| error.to_string())?;
+    let base = if settings.http_port == 80 {
+        format!("http://{ip}")
+    } else {
+        format!("http://{ip}:{}", settings.http_port)
+    };
+    let name = if settings.device_name.is_empty() {
+        facts["defaultDeviceName"]
+            .as_str()
+            .unwrap_or_default()
+            .to_owned()
+    } else {
+        settings.device_name
+    };
+    Ok((base, name))
+}
+
 pub(crate) async fn soap(
     state: &ServerState,
     device: &DiscoveredDevice,
     action: &str,
     params: &str,
 ) -> Result<String, String> {
-    let facts = state.host.call("systemCastAddressFacts", json!({})).await?;
-    protocol::soap_response(
-        device,
-        action,
-        params,
-        facts["senderName"].as_str().unwrap_or_default(),
-    )
-    .await
+    let (_, name) = address(state).await?;
+    protocol::soap_response(device, action, params, &name).await
 }
 async fn mime_type(state: &ServerState, path: &str) -> String {
     state
@@ -41,10 +59,7 @@ async fn mime_type(state: &ServerState, path: &str) -> String {
         .unwrap_or_else(|| plain_rs::utils::mime::mime_from_ext(path).to_owned())
 }
 async fn media_url(state: &ServerState, path: &str, art: bool) -> Result<String, String> {
-    let facts = state.host.call("systemCastAddressFacts", json!({})).await?;
-    let base = facts["baseUrl"]
-        .as_str()
-        .ok_or("Missing cast HTTP address")?;
+    let (base, _) = address(state).await?;
     let mime = if art {
         "image/jpeg".to_owned()
     } else {
@@ -117,11 +132,8 @@ pub(crate) async fn cast(state: &ServerState, item: Item, advance: bool) -> Resu
         s.active = true;
     }
     if !advance {
-        let facts = state.host.call("systemCastAddressFacts", json!({})).await?;
-        let callback = format!(
-            "{}/callback/cast",
-            facts["baseUrl"].as_str().unwrap_or_default()
-        );
+        let (base, _) = address(state).await?;
+        let callback = format!("{base}/callback/cast");
         if let Ok(subscription) = protocol::subscription(&device, Some(&callback), "", false).await
         {
             if !subscription.sid.is_empty() {

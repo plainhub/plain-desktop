@@ -38,15 +38,12 @@ async fn app_and_remote_access_share_listeners_without_background_service() {
         format!("https://127.0.0.1:{https}"),
     ] {
         let response = client
-            .post(format!("{url}/system/http-server/health"))
+            .get(format!("{url}/health"))
             .bearer_auth(&token)
             .send()
             .await
             .unwrap();
         assert_eq!(response.status(), 200);
-        let body: serde_json::Value =
-            serde_json::from_slice(&response.bytes().await.unwrap()).unwrap();
-        assert_eq!(body["healthy"], true);
         assert_eq!(
             client
                 .post(format!("{url}/graphql"))
@@ -88,8 +85,8 @@ async fn app_and_remote_access_share_listeners_without_background_service() {
     use tower::ServiceExt;
     for peer in [None, Some("192.0.2.42:1234"), Some("127.0.0.1:1234")] {
         let mut request = axum::http::Request::builder()
-            .method("POST")
-            .uri("/system/http-server/health")
+            .method("GET")
+            .uri("/health")
             .header("authorization", format!("Bearer {token}"))
             .header("x-forwarded-for", "127.0.0.1")
             .body(axum::body::Body::empty())
