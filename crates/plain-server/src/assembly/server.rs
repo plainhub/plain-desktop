@@ -100,6 +100,38 @@ impl ContentServer {
         crate::host::events::HostEvents::new(self.state.clone())
     }
 
+    /// The user-settings store as JSON, defaults merged — the shape the App's
+    /// native bridge reads to seed its flows.
+    pub fn user_settings_json(&self) -> Result<String, String> {
+        let snapshot = plain_rs::prefs::user::snapshot(&self.state.prefs)
+            .map_err(|e| e.to_string())?;
+        serde_json::to_string(&snapshot).map_err(|e| e.to_string())
+    }
+
+    /// Applies one user-settings patch on behalf of the App's native (JNI/C
+    /// ABI) caller. Runs the same [`apply_user_patch`] the GraphQL resolvers
+    /// use, so a preference written from Kotlin and one written by a remote
+    /// client validate, persist and broadcast identically.
+    pub async fn update_user_prefs(&self, patch_json: &str) -> Result<bool, String> {
+        use crate::graphql::resolvers::settings::state::{apply_user_patch, UserPatchEnv};
+        let patch: plain_rs::prefs::user::UserSettingsPatch =
+            serde_json::from_str(patch_json).map_err(|e| e.to_string())?;
+        apply_user_patch(UserPatchEnv::from_server(&self.state), patch)
+            .await
+            .map_err(|error| error.message)
+    }
+
+    /// Runs one user-settings action on behalf of the App's native (JNI/C
+    /// ABI) caller, through the same write path as [Self::update_user_prefs].
+    pub async fn run_user_action(&self, action_json: &str) -> Result<bool, String> {
+        use crate::graphql::resolvers::settings::state::{apply_user_action, UserPatchEnv};
+        let action: plain_rs::prefs::user::Action =
+            serde_json::from_str(action_json).map_err(|e| e.to_string())?;
+        apply_user_action(UserPatchEnv::from_server(&self.state), action)
+            .await
+            .map_err(|error| error.message)
+    }
+
     fn build(
         path: &Path,
         token: &str,

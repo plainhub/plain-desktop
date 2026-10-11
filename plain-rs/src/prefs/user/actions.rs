@@ -1,5 +1,12 @@
 use super::*;
+use serde::{Deserialize, Serialize};
 
+/// A user-settings command that is more than a field write: it enforces
+/// limits, de-duplication and cross-field rules, so it stays an action rather
+/// than a patch. Tagged so a non-GraphQL caller (the App's native bridge) can
+/// dispatch it without a hand-written match.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(tag = "action", content = "value", rename_all = "camelCase")]
 pub enum Action {
     RecordSearch(String),
     RemoveSearch(String),
