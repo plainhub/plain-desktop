@@ -8,8 +8,6 @@ use crate::graphql::resolvers::pomodoro::pomodoro;
 use async_graphql::{EmptySubscription, MergedObject, Schema};
 #[derive(MergedObject, Default)]
 pub struct Query(
-    #[cfg(all(feature = "host-api", feature = "http_transport"))]
-    crate::graphql::resolvers::core::CoreQuery,
     crate::graphql::resolvers::settings::public::PrefsQuery,
     crate::graphql::resolvers::settings::state::PreferencesQuery,
     crate::graphql::resolvers::files::tasks::FileTaskQuery,
