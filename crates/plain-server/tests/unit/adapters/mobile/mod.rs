@@ -123,64 +123,6 @@ async fn full_text_forward_query_and_delete_share_one_file_until_last_owner() {
     server.shutdown().await;
 }
 #[tokio::test]
-async fn picked_sources_are_imported_once_caption_is_separate_and_deleted_placeholders_release_imports()
- {
-    let (dir, server, _, token) = root("local");
-    let state = server.runtime_state();
-    let (host_generation, mut requests) = state.host.connect();
-    let host = state.host.clone();
-    let db = state.db.clone();
-    let responder = tokio::spawn(async move {
-        let mut reads = 0;
-        while let Some(request) = requests.recv().await {
-            let result = match request["method"].as_str().unwrap() {
-                "chatPickedFacts" => {
-                    json!([{"uri":"content://fixture","name":"fixture.txt","size":99,"mimeType":"text/plain"}])
-                }
-                "chatPickedRead" => {
-                    reads += 1;
-                    std::fs::write(request["params"]["path"].as_str().unwrap(), b"abc").unwrap();
-                    if reads == 2 {
-                        plain_rs::chat::attachments::app_file_store::chat_deletion::delete(
-                            &db,
-                            dir.path(),
-                            plain_rs::chat::attachments::app_file_store::chat_deletion::Selection::Peer("local"),
-                        )
-                        .unwrap();
-                    }
-                    json!({"width":0,"height":0,"durationMs":0})
-                }
-                "chatPickedRelease" => {
-                    let path = request["params"]["path"].as_str().unwrap();
-                    std::fs::remove_file(path).unwrap();
-                    json!(true)
-                }
-                _ => panic!("{request}"),
-            };
-            host.reply(host_generation, json!({"id":request["id"],"result":result}))
-                .unwrap();
-        }
-    });
-    let result=call(&server,&token,json!({"action":"share","targets":["local","local"],"uris":["content://fixture","content://fixture"],"text":null,"caption":"caption","images":null,"normalize":false})).await;
-    assert_eq!(result["ok"], true);
-    assert_eq!(result["chats"].as_array().unwrap().len(), 4);
-    let content: Value =
-        serde_json::from_str(result["chats"][0]["content"].as_str().unwrap()).unwrap();
-    let item = &content["value"]["items"][0];
-    assert_eq!(item["size"], 3);
-    let id = item["uri"].as_str().unwrap()[4..]
-        .split('.')
-        .next()
-        .unwrap();
-    assert_eq!(state.db.app_file_get(id).unwrap().unwrap().ref_count, 2);
-    let result=call(&server,&token,json!({"action":"share","targets":["local"],"uris":["content://fixture"],"text":null,"caption":null,"images":false,"normalize":false})).await;
-    assert_eq!(result["ok"], false);
-    assert!(state.db.app_file_get(id).unwrap().is_none());
-    state.host.disconnect(host_generation);
-    responder.abort();
-    server.shutdown().await;
-}
-#[tokio::test]
 async fn aware_host_only_moves_raw_socket_bytes_rust_performs_tls_crypto_and_graphql() {
     let (_a, a, kp, _) = root("a");
     let (_b, b, bkp, _) = root("b");
@@ -378,16 +320,7 @@ fn share_classification_keeps_gallery_formats_and_opaque_names() {
     assert!(plain_rs::chat::messages::share_send::visual("movie.3gpp"));
     assert!(!plain_rs::chat::messages::share_send::visual("icon.ico"));
     assert!(!plain_rs::chat::messages::share_send::visual("source.ts"));
-    let facts = [plain_rs::chat::messages::share_send::PickedFile {
-        uri: "content://fixture".into(),
-        name: "gallery.APNG".into(),
-        size: 5,
-        mime_type: String::new(),
-    }];
-    assert_eq!(
-        plain_rs::chat::messages::share_send::placeholders(&facts, true).unwrap()[0]["fileName"],
-        "gallery.APNG"
-    );
+
 }
 #[tokio::test]
 async fn public_retry_returns_committed_pending_before_root_owned_delivery_receipt() {

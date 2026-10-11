@@ -8,21 +8,46 @@ use serde_json::{Value, json};
 use std::path::Path;
 #[derive(Clone, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
-pub struct PickedFile {
-    pub uri: String,
+pub struct Attachment {
+    pub file_id: String,
     pub name: String,
-    pub size: i64,
-    pub mime_type: String,
+    pub width: i32,
+    pub height: i32,
+    pub duration_ms: i64,
 }
-pub fn placeholders(files: &[PickedFile], normalize: bool) -> Result<Vec<Value>> {
-    files.iter().map(|file| {
-        ensure!(!file.uri.is_empty() && file.size>=0,"Invalid picker facts");
-        let mut name=file.name.clone();
-        if normalize {{ let ext=crate::utils::mime::mime_extension(&file.mime_type);
-            if ext != "bin" {name=format!("{}.{}",name.rsplit_once('.').map(|(base,_)|base).unwrap_or(&name),ext);}
-        }}
-        Ok(json!({"id":crate::utils::short_uuid::short_uuid(),"uri":file.uri,"size":file.size,"fileName":name,"summary":"","width":0,"height":0,"durationMs":0}))
-    }).collect()
+pub fn attachments(db: &Db, files: &[Attachment], normalize: bool) -> Result<Vec<Value>> {
+    files
+        .iter()
+        .map(|attachment| {
+            ensure!(
+                attachment.width >= 0 && attachment.height >= 0 && attachment.duration_ms >= 0,
+                "Invalid attachment metadata"
+            );
+            let file = db
+                .app_file_get(&attachment.file_id)?
+                .ok_or_else(|| anyhow::anyhow!("Unknown app file reference"))?;
+            let suffix = Path::new(&file.real_path)
+                .file_name()
+                .and_then(|name| name.to_str())
+                .ok_or_else(|| anyhow::anyhow!("Invalid stored attachment"))?;
+            let mut name = attachment.name.clone();
+            if normalize {
+                let ext = crate::utils::mime::mime_extension(&file.mime_type);
+                if ext != "bin" {
+                    name = format!(
+                        "{}.{}",
+                        name.rsplit_once('.').map(|(base, _)| base).unwrap_or(&name),
+                        ext
+                    );
+                }
+            }
+            Ok(
+                json!({"id":crate::utils::short_uuid::short_uuid(),"uri":format!("fid:{suffix}"),
+            "size":file.size,"fileName":name,"summary":"","width":attachment.width,
+            "height":attachment.height,"durationMs":attachment.duration_ms}),
+            )
+        })
+        .collect()
 }
 pub fn image(name: &str) -> bool {
     matches!(

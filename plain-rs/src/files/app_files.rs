@@ -59,8 +59,18 @@ impl FileStore {
     pub async fn release(self: &Arc<Self>, id: String) -> Result<bool, String> {
         let store = self.clone();
         tokio::task::spawn_blocking(move || {
-            crate::chat::attachments::app_file_store::release(&store.db, &store.directory, &id)
-                .map_err(|e| e.to_string())
+            let exists = store
+                .db
+                .app_file_get(&id)
+                .map_err(|e| e.to_string())?
+                .is_some();
+            crate::chat::attachments::app_file_store::release_unbound(
+                &store.db,
+                &store.directory,
+                [(id, 1)].into_iter().collect(),
+            )
+            .map_err(|e| e.to_string())?;
+            Ok(exists)
         })
         .await
         .map_err(|e| e.to_string())?

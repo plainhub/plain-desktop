@@ -72,7 +72,7 @@ pub(crate) async fn send_text(
 pub(crate) async fn share(
     state: &ServerState,
     targets: Vec<String>,
-    uris: Vec<String>,
+    attachments: Vec<share_send::Attachment>,
     text: Option<String>,
     caption: Option<String>,
     images: Option<bool>,
@@ -85,25 +85,14 @@ pub(crate) async fn share(
     for target in &targets {
         message_commands::target(target)?;
     }
-    if uris.is_empty() {
+    if attachments.is_empty() {
         let Some(text) = text.filter(|s| !s.trim().is_empty()) else {
             return Ok(json!({"ok":false,"chats":[]}));
         };
         let chats = send_text(state, targets, &text).await?;
         return Ok(outcome(chats));
     }
-    let mut unique = std::collections::HashSet::new();
-    let uris: Vec<_> = uris
-        .into_iter()
-        .filter(|uri| unique.insert(uri.clone()))
-        .collect();
-    let facts = state
-        .host
-        .call("chatPickedFacts", json!({"uris":uris}))
-        .await
-        .map_err(anyhow::Error::msg)?;
-    let facts: Vec<share_send::PickedFile> = serde_json::from_value(facts)?;
-    let mut items = share_send::placeholders(&facts, normalize)?;
+    let items = share_send::attachments(&state.db, &attachments, normalize)?;
     if items.is_empty() {
         return Ok(json!({"ok":false,"chats":[]}));
     }
@@ -112,92 +101,13 @@ pub(crate) async fn share(
             .iter()
             .all(|v| share_send::visual(v["fileName"].as_str().unwrap_or_default()))
     });
-    let target_pairs = targets
-        .iter()
-        .map(|target| message_commands::target(target))
-        .collect::<Result<Vec<_>>>()?;
     let content =
         json!({"type":if images {"IMAGES"}else{"FILES"},"value":{"items":items}}).to_string();
-    let rows = plain_rs::chat::messages::message_lifecycle::create_many(
-        &state.db,
-        &target_pairs,
-        &content,
-    )?;
-    for row in &rows {
-        committed(state, row, events::WS_MESSAGE_CREATED);
-    }
-    let mut imports = Imported {
-        db: state.db.clone(),
-        directory: state.directory.clone(),
-        ids: Default::default(),
-    };
-    let staging = state.directory.join("chat-picks");
-    std::fs::create_dir_all(&staging)?;
-    let mut warnings = vec![];
-    for (item, fact) in items.iter_mut().zip(&facts) {
-        let path = staging.join(plain_rs::utils::short_uuid::short_uuid());
-        let mut stage = Stage {
-            host: state.host.clone(),
-            path: path.clone(),
-            released: false,
-        };
-        let name = item["fileName"].as_str().unwrap_or_default();
-        let kind = if share_send::image(name) {
-            "image"
-        } else if share_send::visual(name) {
-            "video"
-        } else {
-            "file"
-        };
-        let result = state
-            .host
-            .call_wait(
-                "chatPickedRead",
-                json!({"uri":fact.uri,"path":path,"kind":kind}),
-            )
-            .await;
-        if let Ok(metadata) = result {
-            let imported = plain_rs::chat::attachments::app_file_store::import_file(
-                &state.db,
-                &state.directory,
-                &path,
-                item["fileName"].as_str().unwrap_or_default(),
-                &fact.mime_type,
-            );
-            if let Ok(imported) = imported {
-                *imports.ids.entry(imported.id.clone()).or_default() += 1;
-                item["uri"] = json!(format!("fid:{}", imported.fid_suffix));
-                item["size"] = json!(std::fs::metadata(&imported.real_path)?.len());
-                for key in ["width", "height", "durationMs"] {
-                    item[key] = metadata[key].clone();
-                }
-            } else if let Err(error) = imported {
-                warnings.push(error.to_string());
-            }
-        } else if let Err(error) = result {
-            warnings.push(error);
-        }
-        stage.release().await?;
-    }
-    let ids: Vec<_> = rows.into_iter().map(|row| row.id).collect();
-    let rows = message_commands::replace_many(&state.db, &state.directory, &ids, items)?;
-    let mut chats = futures_util::future::join_all(rows.into_iter().flatten().map(|row| async {
-        committed(state, &row, events::WS_MESSAGE_UPDATED);
-        deliver(state, row).await
-    }))
-    .await
-    .into_iter()
-    .collect::<Result<Vec<_>>>()?;
-    let all_present = chats.len() == ids.len();
+    let mut chats = send_many(state, targets.clone(), content).await?;
     if let Some(caption) = caption.filter(|s| !s.trim().is_empty()) {
         chats.extend(send_text(state, targets, &caption).await?);
     }
-    let mut result = outcome(chats);
-    result["warnings"] = json!(warnings);
-    if !all_present {
-        result["ok"] = json!(false);
-    }
-    Ok(result)
+    Ok(outcome(chats))
 }
 fn outcome(chats: Vec<DChat>) -> Value {
     let ok = !chats.is_empty()
@@ -273,38 +183,6 @@ impl Drop for Imported {
         }
     }
 }
-struct Stage {
-    host: std::sync::Arc<crate::host::bridge::Host>,
-    path: std::path::PathBuf,
-    released: bool,
-}
-impl Stage {
-    async fn release(&mut self) -> Result<()> {
-        let receipt = self
-            .host
-            .call("chatPickedRelease", json!({"path":self.path}))
-            .await
-            .map_err(anyhow::Error::msg)?;
-        ensure!(receipt == json!(true), "Selected file release rejected");
-        self.released = true;
-        Ok(())
-    }
-}
-impl Drop for Stage {
-    fn drop(&mut self) {
-        if self.released {
-            return;
-        }
-        let host = self.host.clone();
-        let path = self.path.clone();
-        if let Ok(runtime) = tokio::runtime::Handle::try_current() {
-            runtime.spawn(async move {
-                let _ = host.call("chatPickedRelease", json!({"path":path})).await;
-            });
-        }
-    }
-}
-
 pub(crate) async fn retry(state: &ServerState, id: String) -> Result<DChat> {
     let (sender, receiver) = tokio::sync::oneshot::channel();
     let sender = std::sync::Arc::new(std::sync::Mutex::new(Some(sender)));

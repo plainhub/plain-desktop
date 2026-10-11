@@ -35,7 +35,7 @@ pub(crate) enum Request {
     },
     Share {
         targets: Vec<String>,
-        uris: Vec<String>,
+        attachments: Vec<plain_rs::chat::messages::share_send::Attachment>,
         text: Option<String>,
         caption: Option<String>,
         images: Option<bool>,
@@ -142,14 +142,14 @@ pub(crate) async fn call(
             )?),
             Request::Share {
                 targets,
-                uris,
+                attachments,
                 text,
                 caption,
                 images,
                 normalize,
             } => {
                 crate::services::chat::chat_actions::share(
-                    &state, targets, uris, text, caption, images, normalize,
+                    &state, targets, attachments, text, caption, images, normalize,
                 )
                 .await
             }
