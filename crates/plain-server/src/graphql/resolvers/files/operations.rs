@@ -101,7 +101,7 @@ impl FileOpsMutation {
         ctx: &Context<'_>,
         paths: Vec<String>,
     ) -> async_graphql::Result<ActionResult> {
-        public_gate::require(prefs(ctx), &[STORAGE])?;
+        public_gate::require(ctx, prefs(ctx), &[STORAGE])?;
         if paths.is_empty() {
             return Ok(ActionResult { affected_count: 0 });
         }
@@ -112,7 +112,7 @@ impl FileOpsMutation {
     }
 
     async fn create_dir(&self, ctx: &Context<'_>, path: String) -> async_graphql::Result<File> {
-        public_gate::require(prefs(ctx), &[STORAGE])?;
+        public_gate::require(ctx, prefs(ctx), &[STORAGE])?;
         let facts = host_call(ctx, "systemCreateDir", json!({ "path": path })).await?;
         Ok(file(&facts))
     }
@@ -126,7 +126,7 @@ impl FileOpsMutation {
         path: String,
         name: String,
     ) -> async_graphql::Result<bool> {
-        public_gate::require(prefs(ctx), &[STORAGE])?;
+        public_gate::require(ctx, prefs(ctx), &[STORAGE])?;
         let renamed = host_call(
             ctx,
             "systemRenameFile",
@@ -143,7 +143,7 @@ impl FileOpsMutation {
         content: String,
         overwrite: bool,
     ) -> async_graphql::Result<File> {
-        public_gate::require(prefs(ctx), &[STORAGE])?;
+        public_gate::require(ctx, prefs(ctx), &[STORAGE])?;
         let facts = host_call(
             ctx,
             "systemWriteTextFile",
@@ -160,7 +160,7 @@ impl FileOpsMutation {
         dst: String,
         overwrite: bool,
     ) -> async_graphql::Result<bool> {
-        public_gate::require(prefs(ctx), &[STORAGE])?;
+        public_gate::require(ctx, prefs(ctx), &[STORAGE])?;
         transfer(ctx, "COPY", src, dst, overwrite).await
     }
 
@@ -171,7 +171,7 @@ impl FileOpsMutation {
         dst: String,
         overwrite: bool,
     ) -> async_graphql::Result<bool> {
-        public_gate::require(prefs(ctx), &[STORAGE])?;
+        public_gate::require(ctx, prefs(ctx), &[STORAGE])?;
         transfer(ctx, "MOVE", src, dst, overwrite).await
     }
 
@@ -290,7 +290,7 @@ impl MediaActionMutation {
         query: String,
         dest_dir: String,
     ) -> async_graphql::Result<ActionResult> {
-        public_gate::require(prefs(ctx), &[STORAGE])?;
+        public_gate::require(ctx, prefs(ctx), &[STORAGE])?;
         require_explicit_query(&query)?;
         require_narrowing_media(ctx, r#type, &query).await?;
         let affected = media_action(ctx, "move", r#type, &query, json!(dest_dir)).await?;

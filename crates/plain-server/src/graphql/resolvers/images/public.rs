@@ -74,7 +74,7 @@ impl ImagesQuery {
         limit: i32,
         sort_by: crate::graphql::resolvers::files::types::FileSortBy,
     ) -> async_graphql::Result<Vec<Image>> {
-        public_gate::require(prefs(ctx), &[STORAGE])?;
+        public_gate::require(ctx, prefs(ctx), &[STORAGE])?;
         let items = Value::Array(
             crate::services::images::search::rows(
                 ctx.data_unchecked::<Arc<Host>>(),

@@ -90,7 +90,7 @@ impl CallsQuery {
         offset: i32,
         limit: i32,
     ) -> async_graphql::Result<Vec<Call>> {
-        public_gate::require(ctx.data_unchecked::<Arc<Prefs>>(), &[READ])?;
+        public_gate::require(ctx, ctx.data_unchecked::<Arc<Prefs>>(), &[READ])?;
         let facts = host_json(
             ctx,
             "systemCallFacts",
@@ -160,7 +160,7 @@ impl CallsMutation {
                 "query is required for bulk mutations — pass 'all:true' to explicitly target everything",
             ));
         }
-        public_gate::require(ctx.data_unchecked::<Arc<Prefs>>(), &[WRITE])?;
+        public_gate::require(ctx, ctx.data_unchecked::<Arc<Prefs>>(), &[WRITE])?;
         // Call contributes no clause of its own, so a query carrying only
         // fields it does not act on resolves to the entire call log.
         crate::mobile::query::require_narrowing(
@@ -201,7 +201,7 @@ impl CallsMutation {
         number: String,
         show_dialer: bool,
     ) -> async_graphql::Result<bool> {
-        public_gate::require(ctx.data_unchecked::<Arc<Prefs>>(), &["CALL_PHONE"])?;
+        public_gate::require(ctx, ctx.data_unchecked::<Arc<Prefs>>(), &["CALL_PHONE"])?;
         ctx.data_unchecked::<Arc<Host>>()
             .call(
                 "systemMakeCall",

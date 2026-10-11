@@ -52,7 +52,23 @@ pub(crate) fn is_enabled(prefs: &Prefs, permissions: &[&str]) -> bool {
 
 /// plain-app's `checkEnabledAsync`: error out unless every named permission
 /// was handed to the web client.
-pub(crate) fn require(prefs: &Prefs, permissions: &[&str]) -> async_graphql::Result<()> {
+///
+/// A local caller already sits inside the app and is held by real OS grants and
+/// file authorization, so the web opt-in list does not apply to it — otherwise
+/// the app could not reuse these fields for its own data once it stops calling
+/// over loopback HTTP. The origin comes from the adapter that received the
+/// request, so a remote caller cannot claim to be local.
+pub(crate) fn require(
+    ctx: &async_graphql::Context<'_>,
+    prefs: &Prefs,
+    permissions: &[&str],
+) -> async_graphql::Result<()> {
+    if ctx
+        .data_opt::<crate::graphql::executor::RequestOrigin>()
+        .is_some_and(|origin| *origin == crate::graphql::executor::RequestOrigin::Local)
+    {
+        return Ok(());
+    }
     if is_enabled(prefs, permissions) {
         Ok(())
     } else {
@@ -79,3 +95,7 @@ pub(crate) async fn require_granted(
     )
     .await
 }
+
+#[cfg(test)]
+#[path = "../../../tests/unit/http/auth/public_gate.rs"]
+mod tests;

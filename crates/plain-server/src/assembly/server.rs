@@ -400,7 +400,6 @@ impl ContentServer {
                 "/system/media-buckets",
                 post(crate::services::files::media_buckets::call),
             )
-            .route("/system/permissions", post(crate::host::permissions::call))
             .route(
                 "/system/provider-plan",
                 post(crate::http::routes::provider_query::call),

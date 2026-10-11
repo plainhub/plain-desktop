@@ -146,7 +146,7 @@ impl AudioQuery {
         limit: i32,
         sort_by: crate::graphql::resolvers::files::types::FileSortBy,
     ) -> async_graphql::Result<Vec<Audio>> {
-        public_gate::require(prefs(ctx), &[STORAGE])?;
+        public_gate::require(ctx, prefs(ctx), &[STORAGE])?;
         let items = crate::graphql::types::facts::rows(
             &host_call(
                 ctx,
@@ -195,7 +195,7 @@ impl AudioQuery {
         ctx: &Context<'_>,
         path: String,
     ) -> async_graphql::Result<Option<String>> {
-        public_gate::require(prefs(ctx), &[STORAGE])?;
+        public_gate::require(ctx, prefs(ctx), &[STORAGE])?;
         let lyrics = host_call(ctx, "systemAudioLyrics", json!({ "path": path })).await?;
         Ok(lyrics
             .as_str()
@@ -212,7 +212,7 @@ impl AudioQuery {
         offset: i32,
         limit: i32,
     ) -> async_graphql::Result<Vec<AudioItem>> {
-        public_gate::require(prefs(ctx), &[STORAGE])?;
+        public_gate::require(ctx, prefs(ctx), &[STORAGE])?;
         Ok(audio(ctx)?
             .run(move |db, lib| domain::queue_page(db, lib, offset as i64, limit as i64, &query))
             .await?
@@ -222,7 +222,7 @@ impl AudioQuery {
     }
 
     async fn audio_queue_item_count(&self, ctx: &Context<'_>) -> async_graphql::Result<i32> {
-        public_gate::require(prefs(ctx), &[STORAGE])?;
+        public_gate::require(ctx, prefs(ctx), &[STORAGE])?;
         Ok(audio(ctx)?
             .run(|db, lib| domain::queue_total(db, lib))
             .await?

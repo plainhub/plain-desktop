@@ -70,7 +70,7 @@ impl VideosQuery {
         limit: i32,
         sort_by: crate::graphql::resolvers::files::types::FileSortBy,
     ) -> async_graphql::Result<Vec<Video>> {
-        public_gate::require(prefs(ctx), &[STORAGE])?;
+        public_gate::require(ctx, prefs(ctx), &[STORAGE])?;
         let items = media_rows(
             ctx,
             "systemMediaRows",

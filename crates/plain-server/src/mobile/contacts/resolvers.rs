@@ -37,7 +37,7 @@ impl ContactsQuery {
         offset: i32,
         limit: i32,
     ) -> async_graphql::Result<Vec<Contact>> {
-        public_gate::require(ctx.data_unchecked::<Arc<Prefs>>(), &[READ])?;
+        public_gate::require(ctx, ctx.data_unchecked::<Arc<Prefs>>(), &[READ])?;
         let facts = host_json(
             ctx,
             "systemContactFacts",
@@ -66,7 +66,7 @@ impl ContactsQuery {
         &self,
         ctx: &Context<'_>,
     ) -> async_graphql::Result<Vec<ContactSource>> {
-        public_gate::require(ctx.data_unchecked::<Arc<Prefs>>(), &[READ])?;
+        public_gate::require(ctx, ctx.data_unchecked::<Arc<Prefs>>(), &[READ])?;
         Ok(host_json(ctx, "systemContactSources", json!({}))
             .await?
             .iter()
@@ -78,7 +78,7 @@ impl ContactsQuery {
     }
 
     async fn contact_groups(&self, ctx: &Context<'_>) -> async_graphql::Result<Vec<ContactGroup>> {
-        public_gate::require(ctx.data_unchecked::<Arc<Prefs>>(), &[READ])?;
+        public_gate::require(ctx, ctx.data_unchecked::<Arc<Prefs>>(), &[READ])?;
         Ok(host_json(ctx, "systemContactGroupFacts", json!({}))
             .await?
             .iter()
@@ -143,7 +143,7 @@ impl ContactsMutation {
                 "query is required for bulk mutations — pass 'all:true' to explicitly target everything",
             ));
         }
-        public_gate::require(ctx.data_unchecked::<Arc<Prefs>>(), &[WRITE])?;
+        public_gate::require(ctx, ctx.data_unchecked::<Arc<Prefs>>(), &[WRITE])?;
         let ids: Vec<Value> = host_json(ctx, "systemContactIds", json!({ "query": query }))
             .await?
             .iter()

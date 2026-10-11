@@ -41,7 +41,7 @@ impl PackagesQuery {
         limit: i32,
         sort_by: FileSortBy,
     ) -> async_graphql::Result<Vec<Package>> {
-        public_gate::require(ctx.data_unchecked::<Arc<Prefs>>(), &[PERMISSION])?;
+        public_gate::require(ctx, ctx.data_unchecked::<Arc<Prefs>>(), &[PERMISSION])?;
         let items = package_items(ctx, &query, sort_by).await?;
         Ok(system_providers::page(items, offset.into(), limit.into())
             .iter()
@@ -61,7 +61,7 @@ impl PackagesQuery {
         ctx: &Context<'_>,
         ids: Vec<async_graphql::ID>,
     ) -> async_graphql::Result<Vec<PackageStatus>> {
-        public_gate::require(ctx.data_unchecked::<Arc<Prefs>>(), &[PERMISSION])?;
+        public_gate::require(ctx, ctx.data_unchecked::<Arc<Prefs>>(), &[PERMISSION])?;
         let ids: Vec<String> = ids.iter().map(|id| id.0.clone()).collect();
         let facts = ctx
             .data_unchecked::<Arc<Host>>()
@@ -82,7 +82,7 @@ impl PackagesMutation {
         ctx: &Context<'_>,
         ids: Vec<async_graphql::ID>,
     ) -> async_graphql::Result<bool> {
-        public_gate::require(ctx.data_unchecked::<Arc<Prefs>>(), &[PERMISSION])?;
+        public_gate::require(ctx, ctx.data_unchecked::<Arc<Prefs>>(), &[PERMISSION])?;
         let ids: Vec<String> = ids.iter().map(|id| id.0.clone()).collect();
         ctx.data_unchecked::<Arc<Host>>()
             .call("systemUninstallPackages", serde_json::json!({ "ids": ids }))
@@ -98,7 +98,7 @@ impl PackagesMutation {
         ctx: &Context<'_>,
         path: String,
     ) -> async_graphql::Result<PackageInstallPending> {
-        public_gate::require(ctx.data_unchecked::<Arc<Prefs>>(), &[PERMISSION])?;
+        public_gate::require(ctx, ctx.data_unchecked::<Arc<Prefs>>(), &[PERMISSION])?;
         let receipt = ctx
             .data_unchecked::<Arc<Host>>()
             .call("systemInstallPackage", serde_json::json!({ "path": path }))

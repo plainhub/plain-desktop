@@ -2,22 +2,40 @@ use crate::assembly::server::ServerState;
 use async_graphql::{ObjectType, Request, Response, Schema, SubscriptionType};
 use plain_rs::events::WsEvent;
 
+/// Where a GraphQL request came from, injected by the adapter that received
+/// it — never by the document or its variables.
+#[derive(Clone, Copy, PartialEq, Eq)]
+pub enum RequestOrigin {
+    /// This device, over the native bridge. Holds real OS grants and file
+    /// authorization; must not be judged by the web API permission list.
+    Local,
+    /// Another device, over HTTP. Answerable only where the user handed the
+    /// web client the matching `api_permissions` entry.
+    Remote,
+}
+
 pub struct RequestContext {
     state: Option<ServerState>,
     notify_changes: bool,
+    origin: RequestOrigin,
 }
 impl RequestContext {
     pub(crate) fn local(state: ServerState) -> Self {
         Self {
             state: Some(state),
             notify_changes: true,
+            origin: RequestOrigin::Local,
         }
     }
     pub(crate) fn remote(state: Option<ServerState>) -> Self {
         Self {
             state,
             notify_changes: false,
+            origin: RequestOrigin::Remote,
         }
+    }
+    pub(crate) fn origin(&self) -> RequestOrigin {
+        self.origin
     }
 }
 pub async fn execute_graphql<
@@ -30,9 +48,10 @@ pub async fn execute_graphql<
     context: RequestContext,
 ) -> Response {
     let changed = context.notify_changes && content_changes(&request);
+    let origin = context.origin();
     let request = match context.state.as_ref() {
-        Some(state) => request.data(state.clone()),
-        None => request,
+        Some(state) => request.data(state.clone()).data(origin),
+        None => request.data(origin),
     };
     let response = schema.execute(request).await;
     if changed && response.errors.is_empty() {

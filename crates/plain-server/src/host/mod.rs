@@ -2,7 +2,6 @@
 pub mod query;
 
 #[cfg(feature = "host-api")]
-pub mod permissions;
 
 #[cfg(feature = "host-api")]
 pub mod bridge;

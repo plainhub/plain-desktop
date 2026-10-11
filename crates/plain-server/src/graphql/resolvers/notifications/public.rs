@@ -33,7 +33,7 @@ impl NotificationsQuery {
         offset: i32,
         limit: i32,
     ) -> async_graphql::Result<Vec<Notification>> {
-        public_gate::require(ctx.data_unchecked::<Arc<Prefs>>(), &[PERMISSION])?;
+        public_gate::require(ctx, ctx.data_unchecked::<Arc<Prefs>>(), &[PERMISSION])?;
         let items = notification_items(ctx, &query).await?;
         Ok(system_providers::page(items, offset.into(), limit.into())
             .iter()
@@ -46,7 +46,7 @@ impl NotificationsQuery {
         ctx: &Context<'_>,
         query: String,
     ) -> async_graphql::Result<i32> {
-        public_gate::require(ctx.data_unchecked::<Arc<Prefs>>(), &[PERMISSION])?;
+        public_gate::require(ctx, ctx.data_unchecked::<Arc<Prefs>>(), &[PERMISSION])?;
         Ok(notification_items(ctx, &query).await?.len() as i32)
     }
 }
@@ -61,7 +61,7 @@ impl NotificationsMutation {
         ctx: &Context<'_>,
         ids: Vec<async_graphql::ID>,
     ) -> async_graphql::Result<ActionResult> {
-        public_gate::require(ctx.data_unchecked::<Arc<Prefs>>(), &[PERMISSION])?;
+        public_gate::require(ctx, ctx.data_unchecked::<Arc<Prefs>>(), &[PERMISSION])?;
         let ids: Vec<String> = ids.iter().map(|id| id.0.clone()).collect();
         let receipt = ctx
             .data_unchecked::<Arc<Host>>()
@@ -94,7 +94,7 @@ impl NotificationsMutation {
         action_index: i32,
         text: String,
     ) -> async_graphql::Result<bool> {
-        public_gate::require(ctx.data_unchecked::<Arc<Prefs>>(), &[PERMISSION])?;
+        public_gate::require(ctx, ctx.data_unchecked::<Arc<Prefs>>(), &[PERMISSION])?;
         if action_index < 0 {
             return Err(async_graphql::Error::new("action_not_found"));
         }

@@ -54,7 +54,7 @@ impl FilesQuery {
     /// Recently-opened files. Reading them is a storage read, so this one
     /// gates — plain-app's `recentFiles` calls `checkEnabledAsync`.
     async fn recent_files(&self, ctx: &Context<'_>) -> async_graphql::Result<Vec<File>> {
-        public_gate::require(prefs(ctx), &[STORAGE])?;
+        public_gate::require(ctx, prefs(ctx), &[STORAGE])?;
         let facts = host_call(ctx, "systemRecentFileFacts", json!({})).await?;
         Ok(rows(&facts, file))
     }
@@ -71,7 +71,7 @@ impl FilesQuery {
         limit: i32,
         sort_by: FileSortBy,
     ) -> async_graphql::Result<Vec<File>> {
-        public_gate::require(prefs(ctx), &[STORAGE])?;
+        public_gate::require(ctx, prefs(ctx), &[STORAGE])?;
         let page = file_reads::execute(
             host(ctx),
             Request {
@@ -97,7 +97,7 @@ impl FilesQuery {
         root: String,
         query: String,
     ) -> async_graphql::Result<i32> {
-        public_gate::require(prefs(ctx), &[STORAGE])?;
+        public_gate::require(ctx, prefs(ctx), &[STORAGE])?;
         let page = file_reads::execute(
             host(ctx),
             Request {
@@ -129,7 +129,7 @@ impl FilesQuery {
         path: String,
         file_name: Option<String>,
     ) -> async_graphql::Result<FileInfo> {
-        public_gate::require(prefs(ctx), &[STORAGE])?;
+        public_gate::require(ctx, prefs(ctx), &[STORAGE])?;
         let record = file_reads::stat_record(host(ctx), &path).await;
         let name = file_name.unwrap_or_else(|| {
             Path::new(&path)
