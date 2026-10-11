@@ -92,6 +92,10 @@ pub struct ContentServer {
     stop: watch::Sender<bool>,
 }
 impl ContentServer {
+    pub fn dlna_receiver(&self) -> crate::services::casting::receiver::control::Controller {
+        crate::services::casting::receiver::control::Controller::new(self.state.clone())
+    }
+
     pub fn graphql_executor(&self) -> crate::graphql::executor::GraphqlExecutor {
         crate::graphql::executor::GraphqlExecutor::new(self.state.clone())
     }
@@ -285,7 +289,7 @@ impl ContentServer {
         image_models.follow(receiver.clone());
         #[cfg(feature = "mobile")]
         state.mobile.mms.follow(receiver.clone());
-        crate::graphql::resolvers::casting::control::follow_changes(&state);
+        crate::services::casting::receiver::control::follow_changes(&state);
         let mdns = state.mdns.clone();
         let mdns_host = state.host.clone();
         let mut mdns_stop = receiver.clone();
@@ -403,10 +407,6 @@ impl ContentServer {
             .route(
                 "/system/provider-plan",
                 post(crate::http::routes::provider_query::call),
-            )
-            .route(
-                "/dlna/receiver",
-                post(crate::graphql::resolvers::casting::control::call),
             )
             .route(
                 "/system/image-models",

@@ -200,42 +200,33 @@ async fn a_forged_c_ip_header_cannot_impersonate_an_allowed_sender() {
 
 #[cfg(feature = "http_transport")]
 #[tokio::test]
-async fn host_control_surfaces_the_lifecycle_and_the_cast_prompt() {
-    let (dir, server) = fixture();
-    let client = reqwest::Client::new();
-    let url = format!("http://127.0.0.1:{}/dlna/receiver", server.port);
+async fn native_control_surfaces_lifecycle_and_cast_prompt_without_public_http() {
+    let (dir, server, _) = public_fixture().await;
+    server.stop_public().await;
+    let controller = server.dlna_receiver();
     let state = server.runtime_state();
-    let token = TOKEN.to_string();
     let post = |body: Value| {
-        let client = client.clone();
-        let url = url.clone();
-        let token = token.clone();
+        let controller = &controller;
         async move {
-            let response = client
-                .post(&url)
-                .header("authorization", format!("Bearer {token}"))
-                .header("content-type", "application/json")
-                .body(body.to_string())
-                .send()
-                .await
-                .unwrap();
-            (response.status(), response.text().await.unwrap())
+            let value: Value =
+                serde_json::from_str(&controller.execute_json(&body.to_string()).await.unwrap())
+                    .unwrap();
+            (200, json!({"result": value}).to_string())
         }
     };
 
-    let anonymous = client
-        .post(&url)
-        .header("content-type", "application/json")
-        .body(json!({"action": "start", "port": 7878}).to_string())
-        .send()
-        .await
-        .unwrap()
-        .status();
-    assert_eq!(
-        anonymous, 401,
-        "the host control surface must require the local token"
+    assert!(
+        controller
+            .execute_json(r#"{"action":"position","positionMs":1}"#)
+            .await
+            .is_err()
     );
-
+    assert!(
+        controller
+            .execute_json(r#"{"action":"snapshot","unexpected":true}"#)
+            .await
+            .is_err()
+    );
     let (status, body) = post(json!({"action": "start", "port": 7878})).await;
     assert_eq!(status, 200);
     let row: Value = serde_json::from_str(&body).unwrap();
@@ -293,8 +284,77 @@ async fn host_control_surfaces_the_lifecycle_and_the_cast_prompt() {
     assert_eq!(row["result"]["currentPositionMs"], json!(4200));
     assert_eq!(row["result"]["durationMs"], json!(9000));
 
+    let rules: Value = serde_json::from_str(
+        &controller
+            .execute_json(r#"{"action":"rules"}"#)
+            .await
+            .unwrap(),
+    )
+    .unwrap();
+    assert_eq!(rules["allowed"][0]["ip"], "10.0.0.9");
+    let rules: Value = serde_json::from_str(
+        &controller
+            .execute_json(r#"{"action":"removeRule","ip":"10.0.0.9","allowed":true}"#)
+            .await
+            .unwrap(),
+    )
+    .unwrap();
+    assert_eq!(rules["allowed"], json!([]));
+    post(json!({"action":"playback","state":"PausedPlayback"})).await;
+    state.dlna.state.write().await.seek_target_ms = Some(3000);
+    post(json!({"action":"seekConsumed"})).await;
+    let snapshot: Value = serde_json::from_str(
+        &controller
+            .execute_json(r#"{"action":"snapshot"}"#)
+            .await
+            .unwrap(),
+    )
+    .unwrap();
+    assert_eq!(snapshot["playbackState"], "PausedPlayback");
+    assert_eq!(snapshot["seekTargetMs"], Value::Null);
+    post(json!({"action":"stopped"})).await;
+    let snapshot: Value = serde_json::from_str(
+        &controller
+            .execute_json(r#"{"action":"snapshot"}"#)
+            .await
+            .unwrap(),
+    )
+    .unwrap();
+    assert_eq!(snapshot["mediaUri"], "");
+    post(json!({"action":"retry","port":7878})).await;
     let (_, body) = post(json!({"action": "stop"})).await;
     let row: Value = serde_json::from_str(&body).unwrap();
     assert_eq!(row["result"]["isRunning"], json!(false));
     drop(dir);
+}
+
+#[tokio::test]
+async fn public_dlna_reads_the_native_players_reported_position() {
+    let (_dir, server, port) = public_fixture().await;
+    let state = server.runtime_state();
+    state.prefs.set_user("service", true).unwrap();
+    state.prefs.set_user("dlna", true).unwrap();
+    let controller = server.dlna_receiver();
+    controller
+        .execute_json(r#"{"action":"position","positionMs":15000,"durationMs":120000}"#)
+        .await
+        .unwrap();
+    let soap = r#"<s:Envelope xmlns:s="http://schemas.xmlsoap.org/soap/envelope/"><s:Body><u:GetPositionInfo xmlns:u="urn:schemas-upnp-org:service:AVTransport:1"><InstanceID>0</InstanceID></u:GetPositionInfo></s:Body></s:Envelope>"#;
+    let response = reqwest::Client::new()
+        .post(format!("http://127.0.0.1:{port}/AVTransport/control"))
+        .header(
+            "soapaction",
+            r#""urn:schemas-upnp-org:service:AVTransport:1#GetPositionInfo""#,
+        )
+        .body(soap)
+        .send()
+        .await
+        .unwrap();
+    assert_eq!(response.status(), 200);
+    let body = response.text().await.unwrap();
+    assert!(body.contains("<RelTime>00:00:15</RelTime>"), "{body}");
+    assert!(
+        body.contains("<TrackDuration>00:02:00</TrackDuration>"),
+        "{body}"
+    );
 }

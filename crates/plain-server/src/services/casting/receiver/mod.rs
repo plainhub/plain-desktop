@@ -1,3 +1,5 @@
+#[cfg(feature = "host-api")]
+pub mod control;
 pub mod http_router;
 pub mod receiver_engine;
 pub mod renderer_state;
