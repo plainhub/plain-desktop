@@ -354,10 +354,6 @@ impl ContentServer {
                 post(crate::services::images::thumbnails::output),
             )
             .route(
-                "/chat/ble-exchange/:token",
-                get(crate::services::discovery::ble_http::outgoing),
-            )
-            .route(
                 "/chat/ble-incoming",
                 get(crate::services::discovery::ble_http::incoming),
             )

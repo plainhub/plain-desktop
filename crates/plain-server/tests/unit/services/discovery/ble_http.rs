@@ -31,19 +31,19 @@ fn socket_request(
     req
 }
 #[tokio::test]
-async fn outgoing_uses_binary_and_single_use_token() {
+async fn outgoing_completes_in_one_host_call() {
     let (_dir, server) = fixture();
     let state = server.runtime_state();
     let (generation, mut requests) = state.host.connect();
     let task_state = state.clone();
+    let peer = plain_rs::db::DPeer::new(
+        "peer",
+        "peer",
+        "",
+        443,
+        plain_rs::chat::enums::DeviceType::Phone,
+    );
     let task = tokio::spawn(async move {
-        let peer = plain_rs::db::DPeer::new(
-            "peer",
-            "peer",
-            "",
-            443,
-            plain_rs::chat::enums::DeviceType::Phone,
-        );
         task_state
             .ble_transport
             .exchange(
@@ -60,24 +60,14 @@ async fn outgoing_uses_binary_and_single_use_token() {
             .await
             .unwrap()
     });
+    // Rust asks the host for the whole exchange in a single call, carrying the
+    // encoded request — there is no websocket token/handshake in between.
     let call = requests.recv().await.unwrap();
-    assert!(call["params"].get("body").is_none());
-    let path = format!(
-        "/chat/ble-exchange/{}",
-        call["params"]["token"].as_str().unwrap()
-    );
-    let (mut socket, _) = connect_async(socket_request(
-        server.port,
-        &path,
-        &plain_rs::utils::base64::base64_encode(&[3; 32]),
-    ))
-    .await
-    .unwrap();
-    let WsMessage::Binary(bytes) = socket.next().await.unwrap().unwrap() else {
-        panic!("Expected binary")
-    };
+    assert_eq!(call["method"], "peerTransportBleExchange");
+    assert!(call["params"].get("token").is_none());
+    let request = plain_rs::utils::base64::base64_decode(call["params"]["request"].as_str().unwrap());
     assert_eq!(
-        Request::decode(&bytes).unwrap(),
+        Request::decode(&request).unwrap(),
         Request::PeerGraphql {
             client_id: "actor".into(),
             channel_id: "频道".into(),
@@ -85,27 +75,14 @@ async fn outgoing_uses_binary_and_single_use_token() {
         }
     );
     let reply = ble::response(403, &[255, 0]).unwrap();
-    socket
-        .send(WsMessage::Binary(reply.clone().into()))
-        .await
-        .unwrap();
     state
         .host
         .reply(
             generation,
-            serde_json::json!({"id":call["id"],"result":true}),
+            serde_json::json!({"id":call["id"],"result":{"response":plain_rs::utils::base64::base64_encode(&reply)}}),
         )
         .unwrap();
     assert_eq!(task.await.unwrap(), reply);
-    assert!(
-        connect_async(socket_request(
-            server.port,
-            &path,
-            &plain_rs::utils::base64::base64_encode(&[3; 32])
-        ))
-        .await
-        .is_err()
-    );
     state.host.disconnect(generation);
     server.shutdown().await;
 }
@@ -164,15 +141,6 @@ async fn local_channels_reject_bad_auth_and_wrong_frame_type() {
         connect_async(socket_request(server.port, "/chat/ble-incoming", "wrong"))
             .await
             .is_err()
-    );
-    assert!(
-        connect_async(socket_request(
-            server.port,
-            "/chat/ble-exchange/unknown",
-            &plain_rs::utils::base64::base64_encode(&[3; 32])
-        ))
-        .await
-        .is_err()
     );
     let (mut socket, _) = connect_async(socket_request(
         server.port,
