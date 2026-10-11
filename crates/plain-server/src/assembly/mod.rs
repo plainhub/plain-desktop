@@ -21,9 +21,6 @@ pub use plain_rs::prefs::identity::AppIdentity;
 pub use plain_rs::prefs::identity::default_device_name;
 pub use plain_rs::prefs::identity::generate_identity;
 
-#[cfg(feature = "host-api")]
-pub mod events;
-
 #[cfg(all(feature = "host-api", feature = "http_transport"))]
 pub mod lifecycle;
 

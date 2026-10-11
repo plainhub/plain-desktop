@@ -3,10 +3,7 @@ use crate::graphql::schemas::host::ContentSchema;
 use async_graphql::Request;
 use axum::{
     Json, Router,
-    extract::{
-        DefaultBodyLimit, State, WebSocketUpgrade,
-        ws::{Message, WebSocket},
-    },
+    extract::{DefaultBodyLimit, State, WebSocketUpgrade},
     http::{HeaderMap, StatusCode},
     response::IntoResponse,
     routing::{get, post},
@@ -31,7 +28,7 @@ pub(crate) struct ServerState {
     pub(crate) build_debug: Arc<std::sync::atomic::AtomicBool>,
     #[cfg(feature = "http_transport")]
     pub(crate) web_root: Arc<std::sync::RwLock<Option<PathBuf>>>,
-    schema: ContentSchema,
+    pub(crate) schema: ContentSchema,
     /// The contract schema the public `/graphql` executes. Built once next
     /// to the app's own schema so both share one host and one database.
     pub(crate) public: crate::graphql::schemas::public::PublicSchema,
@@ -89,7 +86,6 @@ impl ServerState {
 }
 pub struct ContentServer {
     pub port: u16,
-    #[cfg(feature = "http_transport")]
     state: ServerState,
     task: Option<JoinHandle<()>>,
     #[cfg(feature = "http_transport")]
@@ -97,6 +93,13 @@ pub struct ContentServer {
     stop: watch::Sender<bool>,
 }
 impl ContentServer {
+    pub fn graphql_executor(&self) -> crate::graphql::executor::GraphqlExecutor {
+        crate::graphql::executor::GraphqlExecutor::new(self.state.clone())
+    }
+    pub fn host_events(&self) -> crate::host::events::HostEvents {
+        crate::host::events::HostEvents::new(self.state.clone())
+    }
+
     fn build(
         path: &Path,
         token: &str,
@@ -264,8 +267,6 @@ impl ContentServer {
         });
         let router = Router::new()
             .route("/graphql", post(graphql))
-            .route("/events", get(crate::assembly::events::subscribe))
-            .route("/host", get(host_upgrade))
             .route("/health", get(health))
             .route("/fs", get(crate::http::routes::files::file))
             .route(
@@ -446,7 +447,6 @@ impl ContentServer {
         });
         Ok(Self {
             port,
-            #[cfg(feature = "http_transport")]
             state,
             task: Some(task),
             stop,
@@ -674,47 +674,6 @@ async fn health(State(s): State<ServerState>, headers: HeaderMap) -> impl IntoRe
         StatusCode::UNAUTHORIZED
     }
 }
-fn content_changes(request: &Request) -> bool {
-    use async_graphql::parser::{
-        parse_query,
-        types::{OperationType, Selection},
-    };
-    let Ok(document) = parse_query(&request.query) else {
-        return false;
-    };
-    document
-        .operations
-        .iter()
-        .filter(|(name, _)| {
-            request
-                .operation_name
-                .as_deref()
-                .is_none_or(|selected| name.is_some_and(|n| n.as_str() == selected))
-        })
-        .any(|(_, operation)| {
-            operation.node.ty == OperationType::Mutation
-                && operation
-                    .node
-                    .selection_set
-                    .node
-                    .items
-                    .iter()
-                    .any(|selection| match &selection.node {
-                        Selection::Field(field) => !matches!(
-                            field.node.name.node.as_str(),
-                            "broadcastImageEditorUpdate"
-                                | "configurePomodoroDay"
-                                | "tickPomodoro"
-                                | "skipPomodoro"
-                                | "adjustPomodoro"
-                                | "startPomodoro"
-                                | "pausePomodoro"
-                                | "stopPomodoro"
-                        ),
-                        _ => true,
-                    })
-        })
-}
 async fn graphql(
     State(s): State<ServerState>,
     headers: HeaderMap,
@@ -723,58 +682,13 @@ async fn graphql(
     if !s.authenticated(&headers) {
         return StatusCode::UNAUTHORIZED.into_response();
     }
-    let mutation = content_changes(&request);
-    let response = s.schema.execute(request).await;
-    if mutation && response.errors.is_empty() {
-        let _ = s
-            .events
-            .send(WsEvent::broadcast("CONTENT_CHANGED", "{}".into()));
-    }
+    let response = crate::graphql::executor::execute_graphql(
+        &s.schema,
+        request,
+        crate::graphql::executor::RequestContext::local(s.clone()),
+    )
+    .await;
     Json(response).into_response()
-}
-async fn host_upgrade(
-    State(state): State<ServerState>,
-    headers: HeaderMap,
-    upgrade: WebSocketUpgrade,
-) -> axum::response::Response {
-    if !state.authenticated(&headers) {
-        return StatusCode::UNAUTHORIZED.into_response();
-    }
-    upgrade
-        .max_message_size(8 * 1024 * 1024)
-        .max_frame_size(8 * 1024 * 1024)
-        .on_upgrade(move |socket| host_socket(socket, state))
-        .into_response()
-}
-async fn host_socket(mut socket: WebSocket, mut state: ServerState) {
-    let (generation, mut outgoing) = state.host.connect();
-    tokio::spawn(
-        crate::services::discovery::mdns_runtime::Runtime::host_connected(
-            state.clone(),
-            generation,
-        ),
-    );
-    loop {
-        tokio::select! {
-            _ = state.stop.changed() => break,
-            request = outgoing.recv() => match request {
-                Some(request) => if socket.send(Message::Text(request.to_string())).await.is_err() { break; },
-                None => break,
-            },
-            message = socket.recv() => match message {
-                Some(Ok(Message::Text(text))) => {
-                    match serde_json::from_str(&text) {
-                        Ok(value) => if state.host.reply(generation, value).is_err() { break; },
-                        Err(_) => break,
-                    }
-                },
-                Some(Ok(Message::Ping(data))) => if socket.send(Message::Pong(data)).await.is_err() { break; },
-                Some(Ok(Message::Close(_))) | Some(Err(_)) | None => break,
-                _ => {},
-            },
-        }
-    }
-    state.host.disconnect(generation);
 }
 #[cfg(test)]
 #[path = "../../tests/unit/assembly/server.rs"]

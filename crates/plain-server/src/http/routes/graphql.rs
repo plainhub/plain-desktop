@@ -120,11 +120,15 @@ pub(crate) async fn run(
 ) -> Result<Vec<u8>, StatusCode> {
     let parsed: async_graphql::Request =
         serde_json::from_str(request).map_err(|_| StatusCode::BAD_REQUEST)?;
-    let parsed = match state {
-        Some(state) => parsed.data(state),
-        None => parsed,
-    };
-    serde_json::to_vec(&schema.execute(parsed).await).map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)
+    serde_json::to_vec(
+        &crate::graphql::executor::execute_graphql(
+            schema,
+            parsed,
+            crate::graphql::executor::RequestContext::remote(state),
+        )
+        .await,
+    )
+    .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)
 }
 
 pub(crate) async fn call(

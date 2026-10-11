@@ -1,11 +1,7 @@
 use crate::assembly::server::ContentServer;
-use futures_util::{SinkExt, StreamExt};
 use serde_json::{Value, json};
 use std::sync::{Arc, Mutex};
-use tokio_tungstenite::{
-    connect_async,
-    tungstenite::{Message, client::IntoClientRequest},
-};
+use tokio_tungstenite::tungstenite::Message;
 #[tokio::test]
 async fn reads_authorize_effective_parent_and_own_pagination_count_and_zip_filtering() {
     let temp = tempfile::tempdir().unwrap();
@@ -23,13 +19,7 @@ async fn reads_authorize_effective_parent_and_own_pagination_count_and_zip_filte
         Arc::new(plain_rs::prefs::Prefs::load(&temp.path().join("prefs.json")).unwrap()),
     )
     .unwrap();
-    let mut request = format!("ws://127.0.0.1:{}/host", server.port)
-        .into_client_request()
-        .unwrap();
-    request
-        .headers_mut()
-        .insert("authorization", format!("Bearer {token}").parse().unwrap());
-    let (mut socket, _) = connect_async(request).await.unwrap();
+    let mut socket = crate::host::events::TestHost::new(&server);
     let paths = Arc::new(Mutex::new(Vec::<String>::new()));
     let facts = paths.clone();
     let forbidden = denied.to_string_lossy().into_owned();

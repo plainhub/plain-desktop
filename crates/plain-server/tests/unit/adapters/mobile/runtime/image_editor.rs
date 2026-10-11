@@ -128,9 +128,7 @@ async fn binary_updates_have_bounded_queue_and_exact_payload() {
 }
 
 #[tokio::test]
-async fn websocket_binary_delta_does_not_invalidate_content() {
-    use futures_util::StreamExt;
-    use tokio_tungstenite::{connect_async, tungstenite::client::IntoClientRequest};
+async fn binary_delta_does_not_invalidate_content() {
     let dir = tempfile::tempdir().unwrap();
     let token = plain_rs::utils::base64::base64_encode(&[13; 32]);
     let server = ContentServer::start(
@@ -139,18 +137,7 @@ async fn websocket_binary_delta_does_not_invalidate_content() {
         Arc::new(plain_rs::prefs::Prefs::load(&dir.path().join("system_prefs.json")).unwrap()),
     )
     .unwrap();
-    let mut request = format!("ws://127.0.0.1:{}/events", server.port)
-        .into_client_request()
-        .unwrap();
-    request
-        .headers_mut()
-        .insert("authorization", format!("Bearer {token}").parse().unwrap());
-    let (mut socket, _) = connect_async(request).await.unwrap();
-    let greeting = socket.next().await.unwrap().unwrap();
-    assert_eq!(
-        serde_json::from_str::<serde_json::Value>(greeting.to_text().unwrap()).unwrap()["type"],
-        "CONTENT_CHANGED"
-    );
+    let mut socket = server.runtime_state().events.subscribe();
     let result = call(
         server.port,
         &token,
@@ -158,18 +145,14 @@ async fn websocket_binary_delta_does_not_invalidate_content() {
     )
     .await;
     assert!(result.get("errors").is_none(), "{result}");
-    let frame = tokio::time::timeout(std::time::Duration::from_secs(2), socket.next())
+    let event = tokio::time::timeout(std::time::Duration::from_secs(2), socket.recv())
         .await
         .unwrap()
-        .unwrap()
         .unwrap();
-    assert!(frame.is_binary());
-    let bytes = frame.into_data();
-    let (kind, payload) = plain_rs::protocols::websocket::decode_raw(&bytes).unwrap();
-    assert_eq!(kind, "IMAGE_EDITOR_UPDATE");
-    assert_eq!(payload, [1, b'p', 1, 2, 3]);
+    assert_eq!(event.event_type, "IMAGE_EDITOR_UPDATE");
+    assert_eq!(event.binary_payload.unwrap(), [1, b'p', 1, 2, 3]);
     assert!(
-        tokio::time::timeout(std::time::Duration::from_millis(100), socket.next())
+        tokio::time::timeout(std::time::Duration::from_millis(100), socket.recv())
             .await
             .is_err()
     );

@@ -31,7 +31,6 @@ async fn peer_schema_preserves_required_arguments_and_empty_query() {
 #[tokio::test]
 async fn encrypted_public_and_ble_rpc_share_auth_executor_and_receipts() {
     use crate::assembly::server::ContentServer;
-    use futures_util::{SinkExt, StreamExt};
     use plain_rs::chat::enums::DeviceType;
     use plain_rs::chat::enums::PeerStatus;
     use plain_rs::db::DPeer;
@@ -40,10 +39,7 @@ async fn encrypted_public_and_ble_rpc_share_auth_executor_and_receipts() {
     use plain_rs::db::chat_store::messages;
     use plain_rs::db::chat_store::peers;
     use std::sync::Arc;
-    use tokio_tungstenite::{
-        connect_async,
-        tungstenite::{Message, client::IntoClientRequest},
-    };
+    use tokio_tungstenite::tungstenite::Message;
     let dir = tempfile::tempdir().unwrap();
     let prefs = Arc::new(plain_rs::prefs::Prefs::load(&dir.path().join("system.json")).unwrap());
     prefs.set_user("service", true).unwrap();
@@ -75,13 +71,7 @@ async fn encrypted_public_and_ble_rpc_share_auth_executor_and_receipts() {
         )
         .await
         .unwrap();
-    let mut request = format!("ws://127.0.0.1:{}/host", server.port)
-        .into_client_request()
-        .unwrap();
-    request
-        .headers_mut()
-        .insert("authorization", format!("Bearer {token}").parse().unwrap());
-    let (mut host, _) = connect_async(request).await.unwrap();
+    let mut host = crate::host::events::TestHost::new(&server);
     let (broadcast_done, broadcast_received) = tokio::sync::oneshot::channel();
     let ble = server.runtime_state().ble_transport.clone();
     let responder = tokio::spawn(async move {

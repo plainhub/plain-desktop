@@ -42,7 +42,7 @@ async fn socket(
 #[tokio::test]
 async fn public_streams_multi_chunk_body_and_preserves_peer_uri_headers() {
     let (_dir, server, token, http, https) = setup().await;
-    let mut host = socket(server.port, &token, "/host").await;
+    let mut host = crate::host::events::TestHost::new(&server);
     let port = server.port;
     let task = tokio::spawn(async move {
         use futures_util::SinkExt;
@@ -139,7 +139,7 @@ async fn internal_exchange_rejects_missing_auth_and_unknown_id() {
 async fn multipart_preserves_parts_and_streams_large_file() {
     use futures_util::SinkExt;
     let (_dir, server, token, http, _) = setup().await;
-    let mut host = socket(server.port, &token, "/host").await;
+    let mut host = crate::host::events::TestHost::new(&server);
     let port = server.port;
     let task = tokio::spawn(async move {
         let request: Value =
@@ -223,7 +223,7 @@ async fn multipart_preserves_parts_and_streams_large_file() {
 async fn websocket_upgrade_denial_binary_text_and_shutdown_are_preserved() {
     use futures_util::SinkExt;
     let (_dir, server, token, http, _) = setup().await;
-    let mut host = socket(server.port, &token, "/host").await;
+    let mut host = crate::host::events::TestHost::new(&server);
     let port = server.port;
     let task = tokio::spawn(async move {
         for index in 0..2 {
@@ -335,7 +335,7 @@ async fn host_authorized_file_uses_range_and_does_not_buffer_whole_file() {
     let (dir, server, token, http, _) = setup().await;
     let path = dir.path().join("file.bin");
     std::fs::write(&path, vec![41; CHUNK * 20]).unwrap();
-    let mut host = socket(server.port, &token, "/host").await;
+    let mut host = crate::host::events::TestHost::new(&server);
     let port = server.port;
     let task = tokio::spawn(async move {
         let request: Value =

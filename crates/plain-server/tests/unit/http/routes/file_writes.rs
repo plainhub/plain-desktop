@@ -1,14 +1,10 @@
 use crate::assembly::server::ContentServer;
-use futures_util::{SinkExt, StreamExt};
 use serde_json::{Value, json};
 use std::sync::{
     Arc, Mutex,
     atomic::{AtomicBool, Ordering},
 };
-use tokio_tungstenite::{
-    connect_async,
-    tungstenite::{Message, client::IntoClientRequest},
-};
+use tokio_tungstenite::tungstenite::Message;
 
 #[tokio::test]
 async fn authenticated_writes_require_native_authorization_and_confirm_scans() {
@@ -20,13 +16,7 @@ async fn authenticated_writes_require_native_authorization_and_confirm_scans() {
         Arc::new(plain_rs::prefs::Prefs::load(&temp.path().join("prefs.json")).unwrap()),
     )
     .unwrap();
-    let mut request = format!("ws://127.0.0.1:{}/host", server.port)
-        .into_client_request()
-        .unwrap();
-    request
-        .headers_mut()
-        .insert("authorization", format!("Bearer {token}").parse().unwrap());
-    let (mut socket, _) = connect_async(request).await.unwrap();
+    let mut socket = crate::host::events::TestHost::new(&server);
     let denied = Arc::new(AtomicBool::new(false));
     let gate = denied.clone();
     let scan_failed = Arc::new(AtomicBool::new(false));

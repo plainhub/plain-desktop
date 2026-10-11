@@ -1,10 +1,6 @@
 use super::*;
-use futures_util::{SinkExt, StreamExt};
 use serde_json::{Value, json};
-use tokio_tungstenite::{
-    connect_async,
-    tungstenite::{Message, client::IntoClientRequest},
-};
+use tokio_tungstenite::tungstenite::Message;
 
 #[tokio::test]
 async fn authenticated_host_resolves_large_library_and_counts_only_reported_starts() {
@@ -16,13 +12,7 @@ async fn authenticated_host_resolves_large_library_and_counts_only_reported_star
         Arc::new(plain_rs::prefs::Prefs::load(&dir.path().join("prefs.json")).unwrap()),
     )
     .unwrap();
-    let url = format!("ws://127.0.0.1:{}/host", server.port);
-    assert!(connect_async(&url).await.is_err());
-    let mut request = url.into_client_request().unwrap();
-    request
-        .headers_mut()
-        .insert("authorization", format!("Bearer {token}").parse().unwrap());
-    let (mut socket, _) = connect_async(request).await.unwrap();
+    let mut socket = crate::host::events::TestHost::new(&server);
     let task = tokio::spawn(async move {
         while let Some(Ok(Message::Text(text))) = socket.next().await {
             let request: Value = serde_json::from_str(&text).unwrap();
@@ -155,13 +145,7 @@ async fn engine_commands_resume_exact_progress_and_propagate_native_failures() {
         Arc::new(plain_rs::prefs::Prefs::load(&dir.path().join("prefs.json")).unwrap()),
     )
     .unwrap();
-    let mut request = format!("ws://127.0.0.1:{}/host", server.port)
-        .into_client_request()
-        .unwrap();
-    request
-        .headers_mut()
-        .insert("authorization", format!("Bearer {token}").parse().unwrap());
-    let (mut socket, _) = connect_async(request).await.unwrap();
+    let mut socket = crate::host::events::TestHost::new(&server);
     let failed = Arc::new(std::sync::atomic::AtomicBool::new(false));
     let fail = failed.clone();
     let task = tokio::spawn(async move {

@@ -8,24 +8,13 @@ async fn http_record_search_delete_and_restart() {
     let prefs =
         Arc::new(plain_rs::prefs::Prefs::load(&dir.path().join("system_prefs.json")).unwrap());
     let server = ContentServer::start(&path, &token, prefs.clone()).unwrap();
-    use futures_util::StreamExt;
-    use tokio_tungstenite::{connect_async, tungstenite::client::IntoClientRequest};
-    let mut request = format!("ws://127.0.0.1:{}/events", server.port)
-        .into_client_request()
-        .unwrap();
-    request
-        .headers_mut()
-        .insert("authorization", format!("Bearer {token}").parse().unwrap());
-    let (mut socket, _) = connect_async(request).await.unwrap();
+    let mut socket = server.runtime_state().events.subscribe();
     async fn event(
-        socket: &mut tokio_tungstenite::WebSocketStream<
-            tokio_tungstenite::MaybeTlsStream<tokio::net::TcpStream>,
-        >,
+        socket: &mut tokio::sync::broadcast::Receiver<plain_rs::events::WsEvent>,
     ) -> serde_json::Value {
-        let frame = socket.next().await.unwrap().unwrap();
-        serde_json::from_str(frame.to_text().unwrap()).unwrap()
+        let event = socket.recv().await.unwrap();
+        serde_json::json!({"type":event.event_type,"payload":event.payload})
     }
-    assert_eq!(event(&mut socket).await["type"], "CONTENT_CHANGED");
     let query = r#"mutation {recordClipboard(input:{text:"100%_ 🌍",source:"peer",label:"label",sensitive:true}) {inserted item {id text source label sensitive createdAt}}}"#;
     let first = call(server.port, &token, query).await;
     assert!(first.get("errors").is_none(), "{first}");

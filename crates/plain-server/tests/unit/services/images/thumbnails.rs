@@ -1,15 +1,11 @@
 use crate::assembly::server::ContentServer;
-use futures_util::{SinkExt, StreamExt};
 use serde_json::{Value, json};
 use sha2::Digest;
 use std::sync::{
     Arc,
     atomic::{AtomicUsize, Ordering},
 };
-use tokio_tungstenite::{
-    connect_async,
-    tungstenite::{Message, client::IntoClientRequest},
-};
+use tokio_tungstenite::tungstenite::Message;
 
 #[tokio::test]
 async fn caches_coalesce_invalidate_and_preserve_system_fallback_and_permissions() {
@@ -19,13 +15,7 @@ async fn caches_coalesce_invalidate_and_preserve_system_fallback_and_permissions
     let prefs = Arc::new(plain_rs::prefs::Prefs::load(&dir.path().join("prefs.json")).unwrap());
     let token = plain_rs::utils::base64::base64_encode(&[5; 32]);
     let server = ContentServer::start(&dir.path().join("content.db"), &token, prefs).unwrap();
-    let mut request = format!("ws://127.0.0.1:{}/host", server.port)
-        .into_client_request()
-        .unwrap();
-    request
-        .headers_mut()
-        .insert("authorization", format!("Bearer {token}").parse().unwrap());
-    let (mut socket, _) = connect_async(request).await.unwrap();
+    let mut socket = crate::host::events::TestHost::new(&server);
     let decodes = Arc::new(AtomicUsize::new(0));
     let count = decodes.clone();
     let deny = Arc::new(AtomicUsize::new(0));

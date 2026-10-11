@@ -1,11 +1,7 @@
 use crate::assembly::server::ContentServer;
-use futures_util::{SinkExt, StreamExt};
 use serde_json::{Value, json};
 use std::sync::Arc;
-use tokio_tungstenite::{
-    connect_async,
-    tungstenite::{Message, client::IntoClientRequest},
-};
+use tokio_tungstenite::tungstenite::Message;
 #[tokio::test]
 async fn strict_rename_rebinds_and_delete_cleans_confirmed_metadata_through_shared_host_services() {
     let temp = tempfile::tempdir().unwrap();
@@ -20,13 +16,7 @@ async fn strict_rename_rebinds_and_delete_cleans_confirmed_metadata_through_shar
     let server = ContentServer::start(&path, &token, prefs).unwrap();
     let db = plain_rs::db::Db::open(&path).unwrap();
     db.with_conn(|c|{c.execute("INSERT INTO tag_relations(tag_id,key,type,created_at,size,title) VALUES('image','old',3,'first',9,'image')",[])?;c.execute("INSERT INTO tag_relations(tag_id,key,type,created_at,size,title) VALUES('file',?1,22,'first',9,'file')",[source.to_str().unwrap()])?;Ok::<_,rusqlite::Error>(())}).unwrap();
-    let mut request = format!("ws://127.0.0.1:{}/host", server.port)
-        .into_client_request()
-        .unwrap();
-    request
-        .headers_mut()
-        .insert("authorization", format!("Bearer {token}").parse().unwrap());
-    let (mut socket, _) = connect_async(request).await.unwrap();
+    let mut socket = crate::host::events::TestHost::new(&server);
     let worker = tokio::spawn(async move {
         while let Some(Ok(Message::Text(text))) = socket.next().await {
             let request: Value = serde_json::from_str(&text).unwrap();
@@ -151,14 +141,8 @@ async fn failed_rename_postprocessing_is_visible_and_recovers_after_core_restart
     prefs.set("client_id", "owner").unwrap();
     let db = plain_rs::db::Db::open(&db_path).unwrap();
     db.with_conn(|c| c.execute("INSERT INTO tag_relations(tag_id,key,type,created_at,size,title) VALUES('tag',?1,22,'first',7,'file')", [source.to_str().unwrap()])).unwrap();
-    async fn host(port: u16, token: &str, fail: bool) -> tokio::task::JoinHandle<()> {
-        let mut request = format!("ws://127.0.0.1:{port}/host")
-            .into_client_request()
-            .unwrap();
-        request
-            .headers_mut()
-            .insert("authorization", format!("Bearer {token}").parse().unwrap());
-        let (mut socket, _) = connect_async(request).await.unwrap();
+    async fn host(server: &ContentServer, fail: bool) -> tokio::task::JoinHandle<()> {
+        let mut socket = crate::host::events::TestHost::new(server);
         tokio::spawn(async move {
             while let Some(Ok(Message::Text(text))) = socket.next().await {
                 let call: Value = serde_json::from_str(&text).unwrap();
@@ -180,7 +164,7 @@ async fn failed_rename_postprocessing_is_visible_and_recovers_after_core_restart
     }
     let client = reqwest::Client::new();
     let first = ContentServer::start(&db_path, &token, prefs.clone()).unwrap();
-    let worker = host(first.port, &token, true).await;
+    let worker = host(&first, true).await;
     let response = client
         .post(format!("http://127.0.0.1:{}/files/mutate", first.port))
         .bearer_auth(&token)
@@ -213,7 +197,7 @@ async fn failed_rename_postprocessing_is_visible_and_recovers_after_core_restart
     let _ = worker.await;
     first.shutdown().await;
     let second = ContentServer::start(&db_path, &token, prefs).unwrap();
-    let worker = host(second.port, &token, false).await;
+    let worker = host(&second, false).await;
     let response = client
         .post(format!("http://127.0.0.1:{}/files/mutate", second.port))
         .bearer_auth(&token)

@@ -1,12 +1,8 @@
 use super::*;
 use crate::assembly::server::ContentServer;
-use futures_util::{SinkExt, StreamExt};
 use plain_rs::files::tasks::Store;
 use serde_json::{Value, json};
-use tokio_tungstenite::{
-    connect_async,
-    tungstenite::{Message, client::IntoClientRequest},
-};
+use tokio_tungstenite::tungstenite::Message;
 async fn call(port: u16, token: &str, doc: String) -> Value {
     let text = reqwest::Client::new()
         .post(format!("http://127.0.0.1:{port}/graphql"))
@@ -32,13 +28,7 @@ async fn mobile_http_tasks_persist_resolved_paths_and_gate_execution_on_native_a
         Arc::new(plain_rs::prefs::Prefs::load(&temp.path().join("prefs.json")).unwrap()),
     )
     .unwrap();
-    let mut request = format!("ws://127.0.0.1:{}/host", server.port)
-        .into_client_request()
-        .unwrap();
-    request
-        .headers_mut()
-        .insert("authorization", format!("Bearer {token}").parse().unwrap());
-    let (mut socket, _) = connect_async(request).await.unwrap();
+    let mut socket = crate::host::events::TestHost::new(&server);
     let revoked = Arc::new(std::sync::atomic::AtomicBool::new(false));
     let denied = revoked.clone();
     let scanned = Arc::new(Mutex::new(Vec::<String>::new()));
@@ -164,13 +154,7 @@ async fn media_move_case(missing_destination: bool) {
         c.execute("INSERT INTO audio_playback(id,path,position_ms,revision) VALUES(1,?1,100,4)",[&audio_path])?;
         Ok(())
     }).unwrap();
-    let mut request = format!("ws://127.0.0.1:{}/host", server.port)
-        .into_client_request()
-        .unwrap();
-    request
-        .headers_mut()
-        .insert("authorization", format!("Bearer {token}").parse().unwrap());
-    let (mut socket, _) = connect_async(request).await.unwrap();
+    let mut socket = crate::host::events::TestHost::new(&server);
     let source_root = source.clone();
     let clear_count = Arc::new(std::sync::atomic::AtomicUsize::new(0));
     let clear = clear_count.clone();

@@ -15,3 +15,6 @@ pub mod image_index;
 
 #[cfg(feature = "host-api")]
 pub mod filesystem;
+
+#[cfg(feature = "host-api")]
+pub mod events;
