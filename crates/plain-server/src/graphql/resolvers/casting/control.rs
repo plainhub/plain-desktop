@@ -138,7 +138,8 @@ pub(crate) async fn receiver(
     )
     .await;
 
-    emit(&state);
+    let renderer = state.dlna.snapshot().await;
+    emit(&state, &renderer);
 
     let mut out = Response::builder()
         .status(StatusCode::from_u16(response.status).unwrap_or(StatusCode::INTERNAL_SERVER_ERROR));
@@ -171,10 +172,12 @@ pub(crate) fn router(state: ServerState) -> axum::Router {
         .with_state(state)
 }
 
-fn emit(state: &ServerState) {
+/// Pushes the renderer state *in the event*, so the app renders it directly
+/// instead of being told to go and fetch it over HTTP.
+fn emit(state: &ServerState, renderer: &DlnaRendererState) {
     let _ = state.events.send(plain_rs::events::WsEvent::broadcast(
         EVENT_UPDATED,
-        json!({"pending": true}).to_string(),
+        json!({"renderer": snapshot(renderer)}).to_string(),
     ));
 }
 
@@ -287,17 +290,18 @@ pub(crate) async fn execute(state: &ServerState, request: Request) -> Result<Val
             engine.accept_cast(remember, &state.prefs).await;
             let after = engine.snapshot().await;
             if before.is_some() {
-                emit(state);
+                emit(state, &after);
             }
             Ok(snapshot(&after))
         }
         Request::Reject { remember } => {
             let before = engine.snapshot().await.pending_cast_request;
             engine.reject_cast(remember, &state.prefs).await;
+            let after = engine.snapshot().await;
             if before.is_some() {
-                emit(state);
+                emit(state, &after);
             }
-            Ok(snapshot(&engine.snapshot().await))
+            Ok(snapshot(&after))
         }
         Request::Position {
             position_ms,
@@ -360,7 +364,8 @@ pub(crate) fn follow_changes(state: &ServerState) {
                 _ = stop.changed() => break,
                 result = changes.recv() => {
                     if matches!(result, Err(tokio::sync::broadcast::error::RecvError::Closed)) { break; }
-                    emit(&state);
+                    let renderer = state.dlna.snapshot().await;
+                    emit(&state, &renderer);
                 }
             }
         }
