@@ -14,6 +14,16 @@ pub(crate) fn next_generation() -> u64 {
     GENERATION.fetch_add(1, Ordering::Relaxed)
 }
 
+/// Runs this device's listener self-probe. Shared by the app-only GraphQL
+/// root and the diagnostics route so both report the same verdict.
+pub(crate) async fn probe(state: &ServerState) -> Result<(), String> {
+    let guard = state.public_server.lock().await;
+    match guard.as_ref() {
+        Some(server) => server.listeners.check_health().await,
+        None => Err("Public HTTP server is not running".into()),
+    }
+}
+
 pub(crate) async fn health(
     State(state): State<ServerState>,
     headers: HeaderMap,
@@ -21,11 +31,7 @@ pub(crate) async fn health(
     if !state.authenticated(&headers) {
         return StatusCode::UNAUTHORIZED.into_response();
     }
-    let guard = state.public_server.lock().await;
-    let result = match guard.as_ref() {
-        Some(server) => server.listeners.check_health().await,
-        None => Err("Public HTTP server is not running".into()),
-    };
+    let result = probe(&state).await;
     Json(serde_json::json!({"healthy": result.is_ok(), "error": result.err()})).into_response()
 }
 

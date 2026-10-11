@@ -451,10 +451,7 @@ async fn no_root_field_fails_for_unregistered_schema_data() {
             format!("{{ {name} {{ {} }} }}", selection.join(" "))
         };
         let response = schema
-            .execute(
-                async_graphql::Request::new(query.as_str())
-                    .data(server.runtime_state()),
-            )
+            .execute(async_graphql::Request::new(query.as_str()).data(server.runtime_state()))
             .await;
         for error in response.errors {
             if error.message.contains("does not exist") {

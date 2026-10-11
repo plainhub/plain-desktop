@@ -1,3 +1,5 @@
+#[cfg(all(feature = "host-api", feature = "http_transport"))]
+pub mod core;
 pub mod files;
 
 pub mod bookmarks;

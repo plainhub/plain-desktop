@@ -188,11 +188,7 @@ impl Runtime {
     }
 }
 #[cfg(test)]
-pub(crate) fn test_peer_wire(
-    runtime: &Runtime,
-    params: &serde_json::Value,
-    key: &[u8],
-) -> String {
+pub(crate) fn test_peer_wire(runtime: &Runtime, params: &serde_json::Value, key: &[u8]) -> String {
     let Request::PeerGraphql { body, .. } = runtime.request_for_test(params) else {
         panic!("Expected peer request")
     };

@@ -65,7 +65,8 @@ async fn outgoing_completes_in_one_host_call() {
     let call = requests.recv().await.unwrap();
     assert_eq!(call["method"], "peerTransportBleExchange");
     assert!(call["params"].get("token").is_none());
-    let request = plain_rs::utils::base64::base64_decode(call["params"]["request"].as_str().unwrap());
+    let request =
+        plain_rs::utils::base64::base64_decode(call["params"]["request"].as_str().unwrap());
     assert_eq!(
         Request::decode(&request).unwrap(),
         Request::PeerGraphql {

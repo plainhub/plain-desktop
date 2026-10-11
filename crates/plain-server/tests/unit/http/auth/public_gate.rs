@@ -1,7 +1,7 @@
 use super::*;
 use crate::graphql::executor::RequestOrigin;
-use plain_rs::prefs::system::keys::API_PERMISSIONS;
 use plain_rs::prefs::Prefs;
+use plain_rs::prefs::system::keys::API_PERMISSIONS;
 use std::sync::Arc;
 
 fn prefs_with(permissions: &[&str]) -> Arc<Prefs> {
@@ -10,7 +10,10 @@ fn prefs_with(permissions: &[&str]) -> Arc<Prefs> {
     prefs
         .set(
             API_PERMISSIONS,
-            permissions.iter().map(|p| p.to_string()).collect::<Vec<_>>(),
+            permissions
+                .iter()
+                .map(|p| p.to_string())
+                .collect::<Vec<_>>(),
         )
         .unwrap();
     prefs
@@ -30,12 +33,17 @@ fn remote_caller_without_permission_is_refused() {
     }
     let prefs = prefs_with(&[]);
     for origin in [RequestOrigin::Remote] {
-        let schema: Schema<Query, EmptyMutation, EmptySubscription> = Schema::build(Query, EmptyMutation, EmptySubscription).finish();
-        let response = tokio::runtime::Runtime::new()
-            .unwrap()
-            .block_on(async {
-                schema.execute(async_graphql::Request::new("query { probe }").data(prefs.clone()).data(origin)).await
-            });
+        let schema: Schema<Query, EmptyMutation, EmptySubscription> =
+            Schema::build(Query, EmptyMutation, EmptySubscription).finish();
+        let response = tokio::runtime::Runtime::new().unwrap().block_on(async {
+            schema
+                .execute(
+                    async_graphql::Request::new("query { probe }")
+                        .data(prefs.clone())
+                        .data(origin),
+                )
+                .await
+        });
         assert!(
             response.errors.iter().any(|e| e.message == "no_permission"),
             "remote caller must still be refused, got {:?}",
@@ -63,10 +71,18 @@ fn local_caller_bypasses_the_web_permission_list() {
         Schema::build(Query, EmptyMutation, EmptySubscription).finish();
     let response = tokio::runtime::Runtime::new().unwrap().block_on(async {
         schema
-            .execute(async_graphql::Request::new("query { probe }").data(prefs.clone()).data(RequestOrigin::Local))
+            .execute(
+                async_graphql::Request::new("query { probe }")
+                    .data(prefs.clone())
+                    .data(RequestOrigin::Local),
+            )
             .await
     });
-    assert!(response.errors.is_empty(), "local caller must pass, got {:?}", response.errors);
+    assert!(
+        response.errors.is_empty(),
+        "local caller must pass, got {:?}",
+        response.errors
+    );
 }
 
 /// A remote caller that *was* granted the permission still passes.
@@ -86,10 +102,18 @@ fn remote_caller_with_permission_is_allowed() {
         Schema::build(Query, EmptyMutation, EmptySubscription).finish();
     let response = tokio::runtime::Runtime::new().unwrap().block_on(async {
         schema
-            .execute(async_graphql::Request::new("query { probe }").data(prefs.clone()).data(RequestOrigin::Remote))
+            .execute(
+                async_graphql::Request::new("query { probe }")
+                    .data(prefs.clone())
+                    .data(RequestOrigin::Remote),
+            )
             .await
     });
-    assert!(response.errors.is_empty(), "granted remote caller must pass, got {:?}", response.errors);
+    assert!(
+        response.errors.is_empty(),
+        "granted remote caller must pass, got {:?}",
+        response.errors
+    );
 }
 
 #[test]

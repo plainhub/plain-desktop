@@ -364,8 +364,7 @@ pub(crate) async fn apply_user_patch(
         }
         #[cfg(feature = "api")]
         if let Some(app) = env.app {
-            app.discover_manager
-                .apply_device_rename(&after.device_name);
+            app.discover_manager.apply_device_rename(&after.device_name);
             app.chat.identity.set_device_name(&after.device_name);
         }
     }
