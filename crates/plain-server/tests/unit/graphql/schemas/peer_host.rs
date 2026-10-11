@@ -170,45 +170,6 @@ async fn encrypted_public_and_ble_rpc_share_auth_executor_and_receipts() {
     let id = content["data"]["renamed"][0]["id"].as_str().unwrap();
     assert_eq!(messages::get(&db, id).unwrap().unwrap().from_id, "peer");
     assert!(content["data"]["renamed"][0]["channelId"].is_null());
-    let rpc_url = format!("http://127.0.0.1:{}/chat/peer-graphql", server.port);
-    let rpc = |body: Vec<u8>| json!({"clientId":"peer","channelId":"","body":plain_rs::utils::base64::base64_encode(&body)});
-    assert_eq!(
-        client
-            .post(&rpc_url)
-            .header("content-type", "application/json")
-            .body(rpc(body.clone()).to_string())
-            .send()
-            .await
-            .unwrap()
-            .status(),
-        401
-    );
-    let response = client
-        .post(&rpc_url)
-        .bearer_auth(&token)
-        .header("content-type", "application/json")
-        .body(rpc(body).to_string())
-        .send()
-        .await
-        .unwrap()
-        .text()
-        .await
-        .unwrap();
-    let response: Value = serde_json::from_str(&response).unwrap();
-    assert_eq!(response["result"]["status"], 200);
-    let content: Value = serde_json::from_slice(
-        &plain_rs::crypto::xchacha_decrypt_raw(
-            &key,
-            &plain_rs::utils::base64::base64_decode(response["result"]["body"].as_str().unwrap()),
-        )
-        .unwrap(),
-    )
-    .unwrap();
-    assert_eq!(
-        content["data"]["renamed"],
-        json!([]),
-        "replay across transports is empty"
-    );
     for expected in [false, true] {
         let response = client
             .post(&public_url)
@@ -294,19 +255,6 @@ async fn encrypted_public_and_ble_rpc_share_auth_executor_and_receipts() {
             .status(),
         200
     );
-    let result = client
-        .post(&rpc_url)
-        .bearer_auth(&token)
-        .header("content-type", "application/json")
-        .body(rpc(wire(json!({"query":"mutation { startAware }"}))).to_string())
-        .send()
-        .await
-        .unwrap()
-        .text()
-        .await
-        .unwrap();
-    let result: Value = serde_json::from_str(&result).unwrap();
-    assert_eq!(result["result"]["status"], 200);
     server.shutdown().await;
     responder.abort();
 }

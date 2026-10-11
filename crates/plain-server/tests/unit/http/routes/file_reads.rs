@@ -101,28 +101,6 @@ async fn reads_authorize_effective_parent_and_own_pagination_count_and_zip_filte
         paths.lock().unwrap().last().unwrap(),
         archive.to_str().unwrap()
     );
-    let stat_url = format!("http://127.0.0.1:{}/files/stat", server.port);
-    let (status, record) = call(
-        &client,
-        &stat_url,
-        &token,
-        &json!({"path":root.join("a.txt")}),
-    )
-    .await;
-    assert_eq!(status, 200);
-    assert_eq!(record["file"]["size"], 4);
-    let (_, record) = call(&client, &stat_url, &token, &json!({"path":denied})).await;
-    assert!(record["file"].is_null());
-    let (_, record) = call(&client, &stat_url, &token, &json!({"path":"."})).await;
-    assert!(record["file"].is_null());
-    let (_, record) = call(
-        &client,
-        &stat_url,
-        &token,
-        &json!({"path":root.join("missing")}),
-    )
-    .await;
-    assert!(record["file"].is_null());
     server.shutdown().await;
     worker.abort();
 }

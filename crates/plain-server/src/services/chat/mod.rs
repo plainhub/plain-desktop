@@ -2,8 +2,6 @@
 pub mod desktop;
 
 #[cfg(feature = "host-api")]
-pub mod attachment_imports;
-
 #[cfg(feature = "host-api")]
 pub mod channel_delivery;
 

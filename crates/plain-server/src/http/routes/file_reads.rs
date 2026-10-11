@@ -76,22 +76,3 @@ pub(crate) async fn stat_record(host: &Host, path: &str) -> Option<FileRecord> {
 #[cfg(test)]
 #[path = "../../../tests/unit/http/routes/file_reads.rs"]
 mod tests;
-
-#[derive(serde::Deserialize)]
-#[serde(deny_unknown_fields)]
-pub(crate) struct StatRequest {
-    path: String,
-}
-pub(crate) async fn stat(
-    State(state): State<ServerState>,
-    headers: HeaderMap,
-    Json(request): Json<StatRequest>,
-) -> Response {
-    if !state.authenticated(&headers) {
-        return StatusCode::UNAUTHORIZED.into_response();
-    }
-    match stat_record(&state.host, &request.path).await {
-        Some(file) => Json(json!({"file":file})).into_response(),
-        None => Json(json!({"file":null})).into_response(),
-    }
-}

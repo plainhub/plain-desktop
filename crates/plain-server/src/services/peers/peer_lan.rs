@@ -1,15 +1,12 @@
 use crate::assembly::server::ServerState;
 use anyhow::{Result, ensure};
 use axum::{
-    Json,
     body::Body,
-    extract::State,
-    http::{HeaderMap, StatusCode},
+    http::StatusCode,
     response::{IntoResponse, Response},
 };
 use futures_util::StreamExt;
 use plain_rs::db::DPeer;
-use serde::Deserialize;
 use serde_json::{Value, json};
 use std::{sync::Arc, time::Duration};
 pub(crate) struct Lan {
@@ -104,62 +101,6 @@ pub(crate) async fn limited(response: reqwest::Response, limit: usize) -> Result
         body.extend_from_slice(&bytes);
     }
     Ok(body)
-}
-#[derive(Deserialize)]
-#[serde(deny_unknown_fields)]
-pub(crate) struct FileRequest {
-    id: String,
-    expected: DPeer,
-    file_id: String,
-}
-pub(crate) async fn file(
-    State(state): State<ServerState>,
-    headers: HeaderMap,
-    Json(request): Json<FileRequest>,
-) -> Response {
-    if !state.authenticated(&headers) {
-        return StatusCode::UNAUTHORIZED.into_response();
-    }
-    if *state.stop.borrow() {
-        return StatusCode::SERVICE_UNAVAILABLE.into_response();
-    }
-    let mut stop = state.stop.clone();
-    let body_stop = stop.clone();
-    let work = async {
-        let permit = state.lan.capacity.clone().acquire_owned().await?;
-        let peer = crate::services::peers::peer_address::current(
-            &state.db,
-            &request.id,
-            &request.expected,
-        )?;
-        let url = crate::services::peers::peer_address::file_url(&peer, &request.file_id)?;
-        let actor = state
-            .prefs
-            .get::<String>(plain_rs::prefs::system::keys::CLIENT_ID)?
-            .filter(|s| !s.is_empty())
-            .ok_or_else(|| anyhow::anyhow!("Missing peer actor"))?;
-        let response = tokio::time::timeout(
-            Duration::from_secs(10),
-            state.lan.client.get(url).header("c-id", actor).send(),
-        )
-        .await??;
-        ensure!(
-            response.status().is_success(),
-            "Peer file HTTP {}",
-            response.status()
-        );
-        crate::services::peers::peer_address::current(&state.db, &request.id, &request.expected)?;
-        streaming(response, permit, body_stop)
-    };
-    match tokio::select! {_=stop.changed()=>Err(anyhow::anyhow!("Core stopped")),result=work=>result}
-    {
-        Ok(response) => response,
-        Err(error) => (
-            StatusCode::BAD_GATEWAY,
-            Json(json!({"error":error.to_string()})),
-        )
-            .into_response(),
-    }
 }
 pub(crate) fn streaming(
     response: reqwest::Response,

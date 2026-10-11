@@ -224,16 +224,6 @@ impl Drop for Temporary {
         let _ = std::fs::remove_file(&self.0);
     }
 }
-pub(crate) async fn call(
-    State(state): State<ServerState>,
-    headers: HeaderMap,
-    Json(request): Json<Request>,
-) -> Response {
-    if !state.authenticated(&headers) {
-        return StatusCode::UNAUTHORIZED.into_response();
-    }
-    response(&state, request).await
-}
 pub(crate) async fn response(state: &ServerState, request: Request) -> Response {
     let conditional = request.if_none_match.clone();
     match state.thumbnails.get(state, request).await {

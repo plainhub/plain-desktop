@@ -48,7 +48,6 @@ pub(crate) struct ServerState {
     pub(crate) shared_batches: Arc<crate::services::peers::shared_batch::Runtime>,
     pub(crate) download_runtime: Arc<crate::services::chat::download_queue::Runtime>,
     pub(crate) downloads: Arc<plain_rs::chat::attachments::download_queue::Queue>,
-    pub(crate) attachments: Arc<plain_rs::chat::attachments::attachment_imports::Imports>,
     pub(crate) delivery: Arc<plain_rs::chat::delivery::Delivery>,
     pub(crate) channel_delivery: Arc<tokio::sync::Semaphore>,
     pub(crate) ble_transport: Arc<crate::services::discovery::ble_http::Runtime>,
@@ -202,7 +201,6 @@ impl ContentServer {
             shared_batches: Arc::new(crate::services::peers::shared_batch::Runtime::default()),
             download_runtime: Arc::new(crate::services::chat::download_queue::Runtime::default()),
             downloads,
-            attachments,
             delivery: Arc::new(plain_rs::chat::delivery::Delivery::new((*db).clone())),
             channel_delivery: Arc::new(tokio::sync::Semaphore::new(4)),
             ble_transport: Arc::new(crate::services::discovery::ble_http::Runtime::default()),
@@ -290,14 +288,6 @@ impl ContentServer {
                 post(crate::services::discovery::pairing_runtime::call),
             )
             .route(
-                "/chat/peer-graphql",
-                post(crate::graphql::schemas::peer_host::call),
-            )
-            .route(
-                "/chat/lan/file",
-                post(crate::services::peers::peer_lan::file),
-            )
-            .route(
                 "/shares/client",
                 post(crate::services::peers::shared_client::call),
             )
@@ -335,20 +325,12 @@ impl ContentServer {
                 post(crate::services::chat::download_queue::call),
             )
             .route(
-                "/chat/attachment",
-                post(crate::services::chat::attachment_imports::call),
-            )
-            .route(
                 "/chat/send",
                 post(crate::services::chat::chat_delivery::call),
             )
             .route(
                 "/chat/service",
                 post(crate::services::chat::chat_service::call),
-            )
-            .route(
-                "/files/thumbnail",
-                post(crate::services::images::thumbnails::call),
             )
             .route(
                 "/files/thumbnail/output/:token",
@@ -367,7 +349,6 @@ impl ContentServer {
                 post(crate::http::routes::file_writes::write),
             )
             .route("/files/read", post(crate::http::routes::file_reads::read))
-            .route("/files/stat", post(crate::http::routes::file_reads::stat))
             .route(
                 "/files/mutate",
                 post(crate::http::routes::file_mutations::mutate),
@@ -407,8 +388,7 @@ impl ContentServer {
             .route(
                 "/system/image-search",
                 post(crate::services::images::search::call),
-            )
-            .route("/http/guest", post(crate::http::auth::guest_graphql::call));
+            );
         #[cfg(feature = "http_transport")]
         let router = router
             .route(

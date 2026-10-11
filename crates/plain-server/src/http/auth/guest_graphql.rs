@@ -2,14 +2,12 @@ use crate::assembly::server::ServerState;
 use crate::graphql::types::Long;
 use async_graphql::{Context, EmptyMutation, EmptySubscription, Object, Schema, SimpleObject};
 use axum::{
-    Json,
     body::Bytes,
     extract::State,
     http::{HeaderMap, StatusCode},
     response::{IntoResponse, Response},
 };
 use plain_rs::files::shares::Service;
-use serde::Deserialize;
 use serde_json::{Value, json};
 
 #[derive(SimpleObject)]
@@ -167,29 +165,6 @@ pub(crate) async fn public(
         [("content-type", "application/octet-stream")],
         body,
     )
-        .into_response()
-}
-#[derive(Deserialize)]
-#[serde(rename_all = "camelCase", deny_unknown_fields)]
-pub(crate) struct Request {
-    client_id: String,
-    body: String,
-}
-pub(crate) async fn call(
-    State(state): State<ServerState>,
-    headers: HeaderMap,
-    Json(request): Json<Request>,
-) -> Response {
-    if !state.authenticated(&headers) {
-        return StatusCode::UNAUTHORIZED.into_response();
-    }
-    let (status, body) = execute(
-        &state,
-        &request.client_id,
-        &plain_rs::utils::base64::base64_decode(&request.body),
-    )
-    .await;
-    Json(json!({"status":status,"body":plain_rs::utils::base64::base64_encode(&body)}))
         .into_response()
 }
 #[cfg(test)]

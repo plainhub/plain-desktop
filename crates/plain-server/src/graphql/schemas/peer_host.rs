@@ -3,7 +3,6 @@ use crate::graphql::resolvers::peers::query::Query;
 use crate::graphql::types::Instant;
 use async_graphql::{Context, EmptySubscription, ID, Object, Schema, SimpleObject};
 use axum::{
-    Json,
     body::Bytes,
     extract::State,
     http::{HeaderMap, StatusCode},
@@ -13,7 +12,6 @@ use plain_rs::chat::enums::ChannelSystemMessageType;
 use plain_rs::chat::enums::ChatStatus;
 use plain_rs::db::DChat;
 use plain_rs::transport::auth::AuthenticatedPeer;
-use serde::Deserialize;
 use serde_json::{Value, json};
 
 #[derive(SimpleObject)]
@@ -193,31 +191,6 @@ pub(crate) async fn public(
         [("content-type", "application/octet-stream")],
         body,
     )
-        .into_response()
-}
-#[derive(Deserialize)]
-#[serde(rename_all = "camelCase", deny_unknown_fields)]
-pub(crate) struct Request {
-    client_id: String,
-    channel_id: String,
-    body: String,
-}
-pub(crate) async fn call(
-    State(state): State<ServerState>,
-    headers: HeaderMap,
-    Json(request): Json<Request>,
-) -> Response {
-    if !state.authenticated(&headers) {
-        return StatusCode::UNAUTHORIZED.into_response();
-    }
-    let (status, body) = execute(
-        &state,
-        &request.client_id,
-        &request.channel_id,
-        &plain_rs::utils::base64::base64_decode(&request.body),
-    )
-    .await;
-    Json(json!({"result":{"status":status,"body":plain_rs::utils::base64::base64_encode(&body)}}))
         .into_response()
 }
 #[cfg(test)]

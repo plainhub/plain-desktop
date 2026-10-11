@@ -1,10 +1,4 @@
 use crate::host::bridge::Host;
-use axum::{
-    Json,
-    extract::State,
-    http::{HeaderMap, StatusCode},
-    response::{IntoResponse, Response},
-};
 use plain_rs::db::Db;
 use plain_rs::events::WsEvent;
 use plain_rs::prefs::Prefs;
@@ -446,34 +440,6 @@ pub(crate) enum Command {
     CancelAll,
     Replay,
 }
-pub(crate) async fn call(
-    State(state): State<crate::assembly::server::ServerState>,
-    headers: HeaderMap,
-    Json(command): Json<Command>,
-) -> Response {
-    if !state.authenticated(&headers) {
-        return StatusCode::UNAUTHORIZED.into_response();
-    }
-    let result = match command {
-        Command::Snapshot => state.mobile.mms.snapshot(),
-        Command::CancelAll => {
-            state.mobile.mms.cancel_all().await;
-            json!(true)
-        }
-        Command::Replay => {
-            if let Err(error) = state.mobile.mms.replay() {
-                return (
-                    StatusCode::BAD_REQUEST,
-                    Json(json!({"error":error.to_string()})),
-                )
-                    .into_response();
-            }
-            json!(true)
-        }
-    };
-    Json(json!({"result":result})).into_response()
-}
-
 #[cfg(test)]
 #[path = "../../../tests/unit/mobile/sms/mms.rs"]
 mod tests;

@@ -1,11 +1,4 @@
-use crate::assembly::server::ServerState;
 use crate::host::bridge::Host;
-use axum::{
-    Json,
-    extract::State,
-    http::{HeaderMap, StatusCode},
-    response::{IntoResponse, Response},
-};
 use plain_rs::prefs::Prefs;
 use serde::Deserialize;
 use serde_json::{Value, json};
@@ -270,24 +263,6 @@ pub(crate) async fn execute(prefs: &Prefs, host: &Host, request: Request) -> any
                 .map_err(anyhow::Error::msg)?;
             Ok(json!({"ok": true}))
         }
-    }
-}
-
-pub(crate) async fn call(
-    State(state): State<ServerState>,
-    headers: HeaderMap,
-    Json(request): Json<Request>,
-) -> Response {
-    if !state.authenticated(&headers) {
-        return StatusCode::UNAUTHORIZED.into_response();
-    }
-    match execute(&state.prefs, &state.host, request).await {
-        Ok(value) => Json(value).into_response(),
-        Err(error) => (
-            StatusCode::BAD_REQUEST,
-            Json(json!({"error":error.to_string()})),
-        )
-            .into_response(),
     }
 }
 
