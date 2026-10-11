@@ -1,34 +1,13 @@
-use crate::graphql::types::Instant;
-use crate::graphql::types::Long;
+use crate::graphql::resolvers::audio::public::{AudioItem, AudioPlaylist, AudioPlaylistItem};
+use crate::graphql::types::{Instant, Long};
 use crate::services::audio::host::Audio;
 use async_graphql::{Context, ID, InputObject, Object, SimpleObject};
-use plain_rs::db::PlayHistory;
-use plain_rs::db::Playlist;
 use plain_rs::db::PlaylistItem;
 use plain_rs::db::QueueSource;
 use plain_rs::media::audio::queue as domain;
 use plain_rs::media::audio::queue::AudioTrack;
 use std::sync::Arc;
 
-#[derive(SimpleObject)]
-pub struct AudioHostTrack {
-    path: String,
-    title: String,
-    artist: String,
-    album_id: ID,
-    duration_ms: Long,
-}
-impl From<AudioTrack> for AudioHostTrack {
-    fn from(row: AudioTrack) -> Self {
-        Self {
-            path: row.path,
-            title: row.title,
-            artist: row.artist,
-            album_id: row.album_id.into(),
-            duration_ms: Long(row.duration_ms),
-        }
-    }
-}
 #[derive(InputObject)]
 pub struct AudioHostTrackInput {
     path: String,
@@ -48,8 +27,9 @@ impl From<AudioHostTrackInput> for AudioTrack {
         }
     }
 }
+
 #[derive(SimpleObject)]
-struct AudioHostSource {
+pub struct AudioHostSource {
     source: String,
     playlist_id: ID,
     current_path: String,
@@ -67,67 +47,7 @@ impl From<QueueSource> for AudioHostSource {
         }
     }
 }
-#[derive(SimpleObject)]
-struct AudioHostPlaylist {
-    id: ID,
-    name: String,
-    item_count: i32,
-    created_at: Instant,
-    updated_at: Instant,
-}
-fn playlist(row: Playlist, count: usize) -> async_graphql::Result<AudioHostPlaylist> {
-    Ok(AudioHostPlaylist {
-        id: row.id.into(),
-        name: row.name,
-        item_count: count.try_into()?,
-        created_at: crate::graphql::resolvers::common::content_common::instant(&row.created_at)?,
-        updated_at: crate::graphql::resolvers::common::content_common::instant(&row.updated_at)?,
-    })
-}
-#[derive(SimpleObject)]
-struct AudioHostPlaylistItem {
-    id: ID,
-    playlist_id: ID,
-    audio_path: String,
-    title: String,
-    artist: String,
-    album_id: ID,
-    duration_ms: Long,
-    sort_order: Long,
-    added_at: Instant,
-}
-fn item(row: PlaylistItem) -> async_graphql::Result<AudioHostPlaylistItem> {
-    Ok(AudioHostPlaylistItem {
-        id: row.id.into(),
-        playlist_id: row.playlist_id.into(),
-        audio_path: row.audio_path,
-        title: row.title,
-        artist: row.artist,
-        album_id: row.album_id.into(),
-        duration_ms: Long(row.duration_ms),
-        sort_order: Long(row.sort_order),
-        added_at: crate::graphql::resolvers::common::content_common::instant(&row.added_at)?,
-    })
-}
-#[derive(SimpleObject)]
-struct AudioHostHistory {
-    path: String,
-    title: String,
-    artist: String,
-    duration_ms: Long,
-    play_count: Long,
-    played_at: Instant,
-}
-fn history(row: PlayHistory) -> async_graphql::Result<AudioHostHistory> {
-    Ok(AudioHostHistory {
-        path: row.path,
-        title: row.title,
-        artist: row.artist,
-        duration_ms: Long(row.duration_ms),
-        play_count: Long(row.play_count),
-        played_at: crate::graphql::resolvers::common::content_common::instant(&row.played_at)?,
-    })
-}
+
 #[derive(SimpleObject)]
 struct AudioArtistPlayCount {
     artist: String,
@@ -136,6 +56,7 @@ struct AudioArtistPlayCount {
 fn audio<'a>(ctx: &'a Context<'_>) -> async_graphql::Result<&'a Arc<Audio>> {
     ctx.data::<Arc<Audio>>()
 }
+
 #[derive(Default)]
 pub struct AudioHostQuery;
 #[Object]
@@ -153,99 +74,6 @@ impl AudioHostQuery {
             })
             .await
     }
-    async fn audio_host_queue_items(
-        &self,
-        ctx: &Context<'_>,
-        query: String,
-        offset: i32,
-        limit: i32,
-    ) -> async_graphql::Result<Vec<AudioHostTrack>> {
-        Ok(audio(ctx)?
-            .run(move |db, lib| domain::queue_page(db, lib, offset as i64, limit as i64, &query))
-            .await?
-            .into_iter()
-            .map(Into::into)
-            .collect())
-    }
-    async fn audio_host_queue_count(&self, ctx: &Context<'_>) -> async_graphql::Result<i32> {
-        Ok(audio(ctx)?
-            .run(|db, lib| domain::queue_total(db, lib))
-            .await?
-            .try_into()?)
-    }
-    async fn audio_host_playlists(
-        &self,
-        ctx: &Context<'_>,
-    ) -> async_graphql::Result<Vec<AudioHostPlaylist>> {
-        audio(ctx)?
-            .run(|db, _| domain::playlists(db))
-            .await?
-            .into_iter()
-            .map(|(r, c)| playlist(r, c))
-            .collect()
-    }
-    async fn audio_host_playlist(
-        &self,
-        ctx: &Context<'_>,
-        id: ID,
-    ) -> async_graphql::Result<Option<AudioHostPlaylist>> {
-        audio(ctx)?
-            .run(move |db, _| {
-                domain::playlist_by_id(db, id.as_str())?
-                    .map(|r| Ok((r, domain::playlist_item_count(db, id.as_str())?)))
-                    .transpose()
-            })
-            .await?
-            .map(|(r, c)| playlist(r, c))
-            .transpose()
-    }
-    async fn audio_host_playlist_items(
-        &self,
-        ctx: &Context<'_>,
-        id: ID,
-        query: String,
-        offset: i32,
-        limit: i32,
-    ) -> async_graphql::Result<Vec<AudioHostPlaylistItem>> {
-        audio(ctx)?
-            .run(move |db, _| {
-                domain::playlist_item_records_page(
-                    db,
-                    id.as_str(),
-                    offset as i64,
-                    limit as i64,
-                    &query,
-                )
-            })
-            .await?
-            .into_iter()
-            .map(item)
-            .collect()
-    }
-    async fn audio_host_playlist_item_count(
-        &self,
-        ctx: &Context<'_>,
-        id: ID,
-    ) -> async_graphql::Result<i32> {
-        Ok(audio(ctx)?
-            .run(move |db, _| domain::playlist_item_count(db, id.as_str()))
-            .await?
-            .try_into()?)
-    }
-    async fn audio_host_history(
-        &self,
-        ctx: &Context<'_>,
-        query: String,
-        offset: i32,
-        limit: i32,
-    ) -> async_graphql::Result<Vec<AudioHostHistory>> {
-        audio(ctx)?
-            .run(move |db, _| domain::history_page(db, offset as i64, limit as i64, &query))
-            .await?
-            .into_iter()
-            .map(history)
-            .collect()
-    }
     async fn audio_artist_play_counts(
         &self,
         ctx: &Context<'_>,
@@ -261,6 +89,7 @@ impl AudioHostQuery {
             .collect())
     }
 }
+
 #[derive(Default)]
 pub struct AudioHostMutation;
 #[Object]
@@ -355,7 +184,7 @@ impl AudioHostMutation {
         ctx: &Context<'_>,
         id: ID,
         start_path: Option<String>,
-    ) -> async_graphql::Result<Option<AudioHostTrack>> {
+    ) -> async_graphql::Result<Option<AudioItem>> {
         Ok(audio(ctx)?
             .run(move |db, _| {
                 domain::select_playlist_source(db, id.as_str(), start_path.as_deref())
@@ -369,7 +198,7 @@ impl AudioHostMutation {
         start_path: Option<String>,
         shuffle: bool,
         sort_by: String,
-    ) -> async_graphql::Result<Option<AudioHostTrack>> {
+    ) -> async_graphql::Result<Option<AudioItem>> {
         Ok(audio(ctx)?
             .run(move |db, lib| {
                 domain::select_library_source(db, lib, start_path.as_deref(), shuffle, &sort_by)
@@ -382,44 +211,11 @@ impl AudioHostMutation {
         ctx: &Context<'_>,
         is_next: bool,
         shuffle: bool,
-    ) -> async_graphql::Result<Option<AudioHostTrack>> {
+    ) -> async_graphql::Result<Option<AudioItem>> {
         Ok(audio(ctx)?
             .run(move |db, lib| domain::select_next(db, lib, is_next, shuffle))
             .await?
             .map(Into::into))
-    }
-    async fn audio_host_create_playlist(
-        &self,
-        ctx: &Context<'_>,
-        name: String,
-    ) -> async_graphql::Result<AudioHostPlaylist> {
-        playlist(
-            audio(ctx)?
-                .run(move |db, _| domain::create_playlist(db, &name))
-                .await?,
-            0,
-        )
-    }
-    async fn audio_host_rename_playlist(
-        &self,
-        ctx: &Context<'_>,
-        id: ID,
-        name: String,
-    ) -> async_graphql::Result<bool> {
-        audio(ctx)?
-            .run(move |db, _| domain::rename_playlist(db, id.as_str(), &name))
-            .await?;
-        Ok(true)
-    }
-    async fn audio_host_delete_playlist(
-        &self,
-        ctx: &Context<'_>,
-        id: ID,
-    ) -> async_graphql::Result<bool> {
-        audio(ctx)?
-            .run(move |db, _| domain::delete_playlist(db, id.as_str()))
-            .await?;
-        Ok(true)
     }
     async fn audio_host_add_playlist_items(
         &self,

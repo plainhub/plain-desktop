@@ -181,6 +181,7 @@ pub(crate) fn build_with_runtime(
     #[cfg(feature = "mobile")] mobile: Arc<crate::mobile::Runtime>,
 ) -> PublicSchema {
     let builder = Schema::build(Query::default(), Mutation::default(), EmptySubscription)
+        .data(crate::graphql::resolvers::tags::loader::new(db.clone()))
         .data(Arc::new(
             plain_rs::files::uploads::Runtime::with_completion({
                 let host = host.clone();

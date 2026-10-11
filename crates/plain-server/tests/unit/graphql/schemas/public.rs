@@ -48,6 +48,9 @@ fn public_schema_matches_committed_sdl() {
 #[test]
 fn public_schema_exposes_the_contract_it_has_to_serve() {
     let sdl = sdl();
+    assert!(sdl.contains("lastSeen: Instant!"));
+    assert!(sdl.contains("TTY_TDD"));
+    assert!(!sdl.contains("TTY_DDD"));
     for field in [
         "packages(query: String!, offset: Int!, limit: Int!, sortBy: FileSortBy!): [Package!]!",
         "packageStatuses(ids: [ID!]!): [PackageStatus!]!",
@@ -161,7 +164,8 @@ fn public_schema_exposes_the_contract_it_has_to_serve() {
         "audioQueueItemCount: Int!",
         "audioPlayback: AudioPlayback!",
         "audioPlaylists: [AudioPlaylist!]!",
-        "audioPlaylistItems(id: ID!, query: String!, offset: Int!, limit: Int!): [AudioItem!]!",
+        "audioPlaylist(id: ID!): AudioPlaylist",
+        "audioPlaylistItems(id: ID!, query: String!, offset: Int!, limit: Int!): [AudioPlaylistItem!]!",
         "audioPlaylistItemCount(id: ID!): Int!",
         "audioPlayHistory(query: String!, offset: Int!, limit: Int!): [AudioPlayHistory!]!",
         "playAudio(path: String!): AudioItem!",

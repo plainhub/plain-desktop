@@ -29,12 +29,23 @@ pub use plain_rs::media::audio::play_mode::MediaPlayMode;
 pub struct AudioItem {
     pub title: String,
     pub artist: String,
+    /// Album id from the platform catalog, null when the track carries no
+    /// album metadata.
+    #[graphql(name = "albumId")]
+    pub album_id: Option<async_graphql::ID>,
     pub path: String,
     #[graphql(name = "durationMs")]
     pub duration_ms: Long,
 }
 
+impl From<AudioTrack> for AudioItem {
+    fn from(track: AudioTrack) -> Self {
+        item(track)
+    }
+}
+
 #[derive(SimpleObject, Clone, Debug)]
+#[graphql(complex)]
 pub struct Audio {
     pub id: async_graphql::ID,
     pub title: String,
@@ -55,7 +66,18 @@ pub struct Audio {
     pub updated_at: Instant,
     #[graphql(name = "isFavorite")]
     pub is_favorite: bool,
-    pub tags: Vec<Tag>,
+}
+
+#[async_graphql::ComplexObject]
+impl Audio {
+    async fn tags(&self, ctx: &async_graphql::Context<'_>) -> async_graphql::Result<Vec<Tag>> {
+        crate::graphql::resolvers::tags::loader::load(
+            ctx,
+            plain_rs::enums::DataType::Audio,
+            self.id.as_str(),
+        )
+        .await
+    }
 }
 
 #[derive(SimpleObject, Clone, Debug)]
@@ -81,6 +103,25 @@ pub struct AudioPlaylist {
     pub created_at: Instant,
     #[graphql(name = "updatedAt")]
     pub updated_at: Instant,
+}
+
+#[derive(SimpleObject, Clone, Debug)]
+pub struct AudioPlaylistItem {
+    pub id: async_graphql::ID,
+    #[graphql(name = "playlistId")]
+    pub playlist_id: async_graphql::ID,
+    #[graphql(name = "audioPath")]
+    pub audio_path: String,
+    pub title: String,
+    pub artist: String,
+    #[graphql(name = "albumId")]
+    pub album_id: Option<async_graphql::ID>,
+    #[graphql(name = "durationMs")]
+    pub duration_ms: Long,
+    #[graphql(name = "sortOrder")]
+    pub sort_order: Long,
+    #[graphql(name = "addedAt")]
+    pub added_at: Instant,
 }
 
 #[derive(SimpleObject, Clone, Debug)]
@@ -135,12 +176,6 @@ impl AudioQuery {
             .await?,
             |item| item.clone(),
         );
-        let tags = crate::graphql::resolvers::media::public::tags_for(
-            ctx,
-            "AUDIO",
-            &Value::Array(items.clone()),
-        )
-        .await?;
         Ok(items
             .iter()
             .map(|item| {
@@ -157,7 +192,6 @@ impl AudioQuery {
                     created_at: crate::graphql::types::facts::instant(item, "createdAt"),
                     updated_at: crate::graphql::types::facts::instant(item, "updatedAt"),
                     is_favorite: crate::graphql::types::facts::flag(item, "isFavorite"),
-                    tags: tags.get(&id.to_string()).cloned().unwrap_or_default(),
                 }
             })
             .collect())
@@ -217,6 +251,25 @@ impl AudioQuery {
             .collect::<async_graphql::Result<Vec<_>>>()?)
     }
 
+    async fn audio_playlist(
+        &self,
+        ctx: &Context<'_>,
+        id: async_graphql::ID,
+    ) -> async_graphql::Result<Option<AudioPlaylist>> {
+        let key = id.as_str().to_string();
+        let fetched = audio(ctx)?
+            .run(move |db, _| {
+                domain::playlist_by_id(db, &key)?
+                    .map(|row| Ok::<(Playlist, usize), plain_rs::error::DomainError>((
+                        row,
+                        domain::playlist_item_count(db, &key)?,
+                    )))
+                    .transpose()
+            })
+            .await?;
+        fetched.map(|(row, count)| playlist(row, count)).transpose()
+    }
+
     async fn audio_playlist_items(
         &self,
         ctx: &Context<'_>,
@@ -224,7 +277,7 @@ impl AudioQuery {
         query: String,
         offset: i32,
         limit: i32,
-    ) -> async_graphql::Result<Vec<AudioItem>> {
+    ) -> async_graphql::Result<Vec<AudioPlaylistItem>> {
         Ok(audio(ctx)?
             .run(move |db, _| {
                 domain::playlist_item_records_page(
@@ -237,14 +290,7 @@ impl AudioQuery {
             })
             .await?
             .into_iter()
-            .map(|row| {
-                Ok(AudioItem {
-                    title: row.title,
-                    artist: row.artist,
-                    path: row.audio_path,
-                    duration_ms: Long(row.duration_ms),
-                })
-            })
+            .map(playlist_item)
             .collect::<async_graphql::Result<Vec<_>>>()?)
     }
 
@@ -313,6 +359,7 @@ impl AudioMutation {
         let item = AudioItem {
             title: crate::graphql::types::facts::text(&track, "title"),
             artist: crate::graphql::types::facts::text(&track, "artist"),
+            album_id: album_id_option(crate::graphql::types::facts::text(&track, "albumId")),
             path: crate::graphql::types::facts::text(&track, "path"),
             duration_ms: Long(crate::graphql::types::facts::integer(&track, "durationMs")),
         };
@@ -568,9 +615,32 @@ fn item(track: AudioTrack) -> AudioItem {
     AudioItem {
         title: track.title,
         artist: track.artist,
+        album_id: album_id_option(track.album_id),
         path: track.path,
         duration_ms: Long(track.duration_ms),
     }
+}
+
+fn album_id_option(value: String) -> Option<async_graphql::ID> {
+    if value.is_empty() {
+        None
+    } else {
+        Some(value.into())
+    }
+}
+
+fn playlist_item(row: plain_rs::db::PlaylistItem) -> async_graphql::Result<AudioPlaylistItem> {
+    Ok(AudioPlaylistItem {
+        id: row.id.into(),
+        playlist_id: row.playlist_id.into(),
+        audio_path: row.audio_path,
+        title: row.title,
+        artist: row.artist,
+        album_id: album_id_option(row.album_id),
+        duration_ms: Long(row.duration_ms),
+        sort_order: Long(row.sort_order),
+        added_at: crate::graphql::resolvers::common::content_common::instant(&row.added_at)?,
+    })
 }
 
 fn track(value: &Value) -> AudioTrack {
