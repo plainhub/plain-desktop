@@ -374,10 +374,6 @@ impl ContentServer {
                 post(crate::http::routes::provider_query::call),
             )
             .route(
-                "/system/notification",
-                post(crate::services::notifications::actions::call),
-            )
-            .route(
                 "/dlna/receiver",
                 post(crate::graphql::resolvers::casting::control::call),
             )
