@@ -34,6 +34,7 @@ impl WsEvent {
                 | "DLNA_RENDERER_UPDATED"
                 | "ONLINE_CLIENTS_UPDATED"
                 | "WEB_REQUEST_RECEIVED"
+                | "WEB_LOGIN_REQUESTED"
                 | "DLNA_SENDER_UPDATED"
                 | "IMAGE_MODELS_UPDATED"
                 | "PREFS_UPDATED"

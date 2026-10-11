@@ -172,7 +172,7 @@ async fn run(mut socket: WebSocket, mut state: ServerState, params: Params, ip: 
                                 let request_id = result["requestId"].as_str().unwrap().to_owned();
                                 pending = Some(request_id.clone());
                                 if let Some(c) = state.main_ws.connections.lock().unwrap().get_mut(&id) { c.pending = Some(request_id.clone()); }
-                                if state.host.call("systemWebLoginRequest", json!({"clientId":params.cid,"clientIp":ip,"request":result["request"],"requestId":request_id})).await.is_err() { break; }
+                                notify_login_request(&state, &params.cid, &ip, &request_id, &result["request"]);
                             } else {
                                 let mut result = result;
                                 result["clientIp"] = json!(ip);
@@ -246,6 +246,15 @@ async fn run(mut socket: WebSocket, mut state: ServerState, params: Params, ip: 
     }
     let _ = tokio::time::timeout(Duration::from_secs(1), socket.close()).await;
 }
+fn notify_login_request(state: &ServerState, client_id: &str, client_ip: &str, request_id: &str, request: &Value) {
+    let mut request = request.clone();
+    request["password"] = json!("");
+    let _ = state.events.send(plain_rs::events::WsEvent::broadcast(
+        "WEB_LOGIN_REQUESTED",
+        json!({"clientId":client_id,"clientIp":client_ip,"requestId":request_id,"request":request}).to_string(),
+    ));
+}
+
 fn controls(bytes: &[u8]) -> Vec<Value> {
     if bytes.first() == Some(&0x54) {
         let Some(&count) = bytes.get(1) else {

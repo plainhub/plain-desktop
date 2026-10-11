@@ -92,6 +92,10 @@ pub struct ContentServer {
     stop: watch::Sender<bool>,
 }
 impl ContentServer {
+    pub fn web_login_confirmation(&self) -> crate::http::auth::ws_login::Confirmation {
+        crate::http::auth::ws_login::Confirmation::new(self.state.clone())
+    }
+
     pub fn dlna_receiver(&self) -> crate::services::casting::receiver::control::Controller {
         crate::services::casting::receiver::control::Controller::new(self.state.clone())
     }
@@ -389,7 +393,6 @@ impl ContentServer {
                 "/files/mutate",
                 post(crate::http::routes::file_mutations::mutate),
             )
-            .route("/system/ws-login", post(crate::http::auth::ws_login::call))
             .route(
                 "/system/ws-runtime",
                 post(crate::http::websocket::host::call),

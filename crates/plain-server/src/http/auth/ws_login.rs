@@ -6,14 +6,7 @@
 //! host only performs UI confirmation, notifications and socket delivery.
 
 use crate::assembly::server::ServerState;
-use axum::{
-    Json,
-    extract::State,
-    http::{HeaderMap, StatusCode},
-    response::{IntoResponse, Response},
-};
 use plain_rs::db::SessionRow;
-use serde::Deserialize;
 use serde_json::{Value, json};
 use sha2::{Digest, Sha256, Sha512};
 use std::{
@@ -89,25 +82,57 @@ impl LoginAttempts {
     }
 }
 
-#[derive(Deserialize)]
-#[serde(tag = "action", rename_all = "camelCase", deny_unknown_fields)]
 pub(crate) enum Request {
     Issue {
-        #[serde(rename = "clientId")]
         client_id: String,
-        #[serde(rename = "clientIp")]
         client_ip: String,
         frame: String,
     },
     Complete {
-        #[serde(rename = "requestId")]
         request_id: String,
     },
     Cancel {
-        #[serde(rename = "requestId")]
         request_id: String,
     },
-    ResetPassword,
+}
+
+pub struct Confirmation {
+    state: ServerState,
+}
+
+impl Confirmation {
+    pub(crate) fn new(state: ServerState) -> Self {
+        Self { state }
+    }
+
+    pub async fn decide(&self, request_id: &str, allowed: bool) -> Result<(), String> {
+        if allowed {
+            let result = execute(
+                &self.state,
+                Request::Complete {
+                    request_id: request_id.into(),
+                },
+            )
+            .await
+            .map_err(|error| error.to_string())?;
+            self.state
+                .main_ws
+                .complete(&self.state, request_id, &result)
+                .await
+                .map_err(|error| error.to_string())
+        } else {
+            self.state.main_ws.reject(request_id);
+            execute(
+                &self.state,
+                Request::Cancel {
+                    request_id: request_id.into(),
+                },
+            )
+            .await
+            .map_err(|error| error.to_string())?;
+            Ok(())
+        }
+    }
 }
 
 pub(crate) fn reset_password(state: &ServerState) -> anyhow::Result<String> {
@@ -278,7 +303,6 @@ pub(crate) async fn execute(state: &ServerState, request: Request) -> anyhow::Re
         );
     }
     let (pending, request_id) = match request {
-        Request::ResetPassword => return Ok(json!({"password":reset_password(state)?})),
         Request::Cancel { request_id } => {
             state
                 .login_attempts
@@ -395,42 +419,6 @@ pub(crate) async fn execute(state: &ServerState, request: Request) -> anyhow::Re
     result["request"] = pending.request;
     result["clientIp"] = json!(pending.client_ip);
     Ok(result)
-}
-
-pub(crate) async fn call(
-    State(state): State<ServerState>,
-    headers: HeaderMap,
-    Json(request): Json<Request>,
-) -> Response {
-    if !state.authenticated(&headers) {
-        return StatusCode::UNAUTHORIZED.into_response();
-    }
-    if let Request::Cancel { request_id } = &request {
-        state.main_ws.reject(request_id);
-    }
-    let complete = match &request {
-        Request::Complete { request_id } => Some(request_id.clone()),
-        _ => None,
-    };
-    match execute(&state, request).await {
-        Ok(value) => {
-            if let Some(id) = complete {
-                if let Err(error) = state.main_ws.complete(&state, &id, &value).await {
-                    return (
-                        StatusCode::BAD_REQUEST,
-                        Json(json!({"error":error.to_string()})),
-                    )
-                        .into_response();
-                }
-            }
-            Json(value).into_response()
-        }
-        Err(error) => (
-            StatusCode::BAD_REQUEST,
-            Json(json!({"error":error.to_string()})),
-        )
-            .into_response(),
-    }
 }
 
 #[cfg(test)]
