@@ -15,3 +15,6 @@ pub mod uploads;
 
 #[cfg(feature = "core")]
 pub mod archives;
+
+#[cfg(feature = "core")]
+pub mod pairing;

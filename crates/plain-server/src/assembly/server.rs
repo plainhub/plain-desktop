@@ -193,6 +193,13 @@ impl ContentServer {
             .await
     }
 
+    pub fn native_pairing(&self) -> Result<crate::native::pairing::NativePairing, String> {
+        self.state.native_client_id()?;
+        Ok(crate::native::pairing::NativePairing::new(
+            self.state.clone(),
+        ))
+    }
+
     pub fn host_events(&self) -> crate::host::events::HostEvents {
         crate::host::events::HostEvents::new(self.state.clone())
     }

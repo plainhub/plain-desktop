@@ -1,90 +1,63 @@
-//! Tauri commands driving the shared pairing manager in `plain_server::services::chat::desktop`.
-
+use plain_rs::peers::pairing::{protocol::PairingRequest, sessions::Target};
+use plain_server::assembly::server::ContentServer;
+use plain_server::native::pairing::DeviceIdentity;
 use std::sync::Arc;
 
-use plain_rs::peers::pairing::protocol::PairingRequest;
-
-use plain_server::services::chat::desktop::ChatState;
-
-/// Initiate pairing with a discovered device.
 #[tauri::command]
-pub fn pair_device(
+pub async fn pair_device(
     device_id: String,
     device_name: String,
     device_ip: String,
     device_port: u16,
-    state: tauri::State<'_, Arc<ChatState>>,
-    server_state: tauri::State<'_, plain_server::http::server::runtime::ServerRuntime>,
-) {
-    state.pairing.start_pairing(
-        &device_id,
-        &device_name,
-        &device_ip,
-        device_port,
-        server_state.https_port(),
-    );
+    core: tauri::State<'_, Arc<ContentServer>>,
+) -> Result<(), String> {
+    core.native_pairing()?
+        .start(
+            Target {
+                device_id,
+                device_name,
+                device_ip: device_ip.clone(),
+                device_port,
+            },
+            vec![device_ip],
+            vec!["LAN".into()],
+        )
+        .await
 }
 
-/// Accept or reject an incoming PAIR_REQUEST.
-/// `request_json` is the JSON-serialised `PairingRequest` from the `IncomingRequest` event.
 #[tauri::command]
-pub fn respond_pair_device(
+pub async fn respond_pair_device(
     request_json: String,
     sender_ip: String,
     accepted: bool,
-    state: tauri::State<'_, Arc<ChatState>>,
-    server_state: tauri::State<'_, plain_server::http::server::runtime::ServerRuntime>,
+    core: tauri::State<'_, Arc<ContentServer>>,
 ) -> Result<(), String> {
-    let req: PairingRequest = serde_json::from_str(&request_json).map_err(|e| e.to_string())?;
-    state
-        .pairing
-        .respond_to_pairing(req, &sender_ip, accepted, server_state.https_port());
-    Ok(())
+    let request: PairingRequest =
+        serde_json::from_str(&request_json).map_err(|error| error.to_string())?;
+    core.native_pairing()?
+        .respond(request, &sender_ip, accepted)
+        .await
 }
 
-/// Cancel an in-progress pairing initiated by us.
 #[tauri::command]
-pub fn cancel_pair_device(device_id: String, state: tauri::State<'_, Arc<ChatState>>) {
-    state.pairing.cancel_pairing(&device_id);
+pub async fn cancel_pair_device(
+    device_id: String,
+    core: tauri::State<'_, Arc<ContentServer>>,
+) -> Result<(), String> {
+    core.native_pairing()?.cancel(&device_id).await
 }
 
-/// Return the local device's identity (client_id, device_name, public key).
 #[tauri::command]
 pub fn get_device_identity(
-    state: tauri::State<'_, Arc<ChatState>>,
-    prefs: tauri::State<'_, std::sync::Arc<crate::prefs::Prefs>>,
-) -> serde_json::Value {
-    let identity = &state.pairing.identity;
-    let saved_name = crate::prefs::get_device_name(&prefs);
-    let device_name = if saved_name.is_empty() {
-        identity.device_name()
-    } else {
-        saved_name
-    };
-    let kp = plain_rs::utils::base64::base64_decode(&identity.ed25519_keypair);
-    let pub_key_b64 = if kp.len() == 64 {
-        plain_rs::utils::base64::base64_encode(&kp[32..])
-    } else {
-        String::new()
-    };
-    serde_json::json!({
-        "clientId": identity.client_id,
-        "deviceName": device_name,
-        "publicKey": pub_key_b64,
-    })
+    core: tauri::State<'_, Arc<ContentServer>>,
+) -> Result<DeviceIdentity, String> {
+    core.native_pairing()?.identity()
 }
 
-/// Update the local device's display name. Updates the shared name state and
-/// republishes the mDNS service so peers drop the old instance and see the
-/// new name right away.
 #[tauri::command]
-pub fn set_device_name(
+pub async fn set_device_name(
     name: String,
-    prefs: tauri::State<'_, std::sync::Arc<crate::prefs::Prefs>>,
-    state: tauri::State<'_, Arc<ChatState>>,
-    discover: tauri::State<'_, crate::commands::discover::NearbyDiscoverManager>,
-) {
-    crate::prefs::set_device_name(&prefs, &name);
-    state.identity.set_device_name(&name);
-    discover.apply_device_rename(&name);
+    core: tauri::State<'_, Arc<ContentServer>>,
+) -> Result<bool, String> {
+    core.native_pairing()?.set_device_name(name).await
 }
