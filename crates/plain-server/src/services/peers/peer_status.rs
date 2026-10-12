@@ -1,11 +1,10 @@
 use crate::assembly::server::ServerState;
 use axum::{
-    Json,
     extract::{
         Query, State, WebSocketUpgrade,
         ws::{Message, WebSocket},
     },
-    http::{HeaderMap, StatusCode},
+    http::StatusCode,
     response::{IntoResponse, Response},
 };
 use serde::Deserialize;
@@ -144,69 +143,6 @@ pub(crate) enum Request {
     Stop {},
     Reconnect {},
     EnsureAware {},
-}
-pub(crate) async fn call(
-    State(state): State<ServerState>,
-    headers: HeaderMap,
-    Json(request): Json<Request>,
-) -> Response {
-    if !state.authenticated(&headers) {
-        return StatusCode::UNAUTHORIZED.into_response();
-    }
-    if matches!(request, Request::EnsureAware {}) {
-        return match crate::services::peers::status_outgoing::ensure_aware(&state).await {
-            Ok(()) => Json(json!({"result":state.peer_status.snapshot(&state.db)})).into_response(),
-            Err(error) => (
-                StatusCode::BAD_REQUEST,
-                Json(json!({"error":error.to_string()})),
-            )
-                .into_response(),
-        };
-    }
-    let _control = state.peer_status.control.lock().await;
-    let result = match request {
-        Request::Snapshot {} => Ok(()),
-        Request::Start {} => {
-            if state
-                .peer_status
-                .public_active
-                .load(std::sync::atomic::Ordering::SeqCst)
-            {
-                state.peer_status.outgoing.start(state.clone());
-                Ok(())
-            } else {
-                Err(anyhow::anyhow!("Public server inactive"))
-            }
-        }
-        Request::Stop {} => {
-            state.peer_status.outgoing.stop().await;
-            let previous = state.peer_status.connections.snapshot(&state.db);
-            state.peer_status.connections.clear_hints();
-            let current = state.peer_status.connections.snapshot(&state.db);
-            if let Some(ids) = previous["online"].as_array() {
-                for id in ids.iter().filter_map(|id| id.as_str()) {
-                    if !current["online"]
-                        .as_array()
-                        .is_some_and(|ids| ids.iter().any(|current| current.as_str() == Some(id)))
-                    {
-                        emit(&state, id, false);
-                    }
-                }
-            }
-            emit(&state, "", false);
-            Ok(())
-        }
-        Request::Reconnect {} => state.peer_status.outgoing.reconnect(&state),
-        Request::EnsureAware {} => Ok(()),
-    };
-    match result {
-        Ok(()) => Json(json!({"result":state.peer_status.snapshot(&state.db)})).into_response(),
-        Err(error) => (
-            StatusCode::BAD_REQUEST,
-            Json(json!({"error":error.to_string()})),
-        )
-            .into_response(),
-    }
 }
 #[cfg(all(test, feature = "http_transport"))]
 #[path = "../../../tests/unit/services/peers/peer_status.rs"]

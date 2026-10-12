@@ -103,6 +103,12 @@ impl ContentServer {
         crate::services::casting::receiver::control::Controller::new(self.state.clone())
     }
 
+    pub fn peer_status_controller(
+        &self,
+    ) -> crate::services::peers::peer_status_controller::Controller {
+        crate::services::peers::peer_status_controller::Controller::new(self.state.clone())
+    }
+
     pub fn graphql_executor(&self) -> crate::graphql::executor::GraphqlExecutor {
         crate::graphql::executor::GraphqlExecutor::new(self.state.clone())
     }
@@ -313,20 +319,8 @@ impl ContentServer {
             .route("/health", get(health))
             .route("/fs", get(crate::http::routes::files::file))
             .route(
-                "/chat/discovery",
-                post(crate::services::discovery::discovery_advertisement::call),
-            )
-            .route(
-                "/chat/peer-status",
-                post(crate::services::peers::peer_status::call),
-            )
-            .route(
                 "/chat/mdns",
                 post(crate::services::discovery::mdns_runtime::call),
-            )
-            .route(
-                "/chat/channel",
-                post(crate::services::chat::channel_runtime::call),
             )
             .route(
                 "/chat/pairing",
@@ -353,14 +347,6 @@ impl ContentServer {
                 post(crate::services::peers::peer_transport::call),
             )
             .route("/chat/prewarm", post(crate::services::chat::prewarm::call))
-            .route(
-                "/chat/nearby-devices",
-                post(crate::services::discovery::nearby_devices::call),
-            )
-            .route(
-                "/chat/nearby",
-                post(crate::services::discovery::nearby_http::call),
-            )
             .route(
                 "/chat/download",
                 post(crate::services::chat::download_queue::call),

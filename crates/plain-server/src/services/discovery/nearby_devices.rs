@@ -1,10 +1,4 @@
 use crate::assembly::server::ServerState;
-use axum::{
-    Json,
-    extract::State,
-    http::{HeaderMap, StatusCode},
-    response::{IntoResponse, Response},
-};
 use plain_rs::db::chat_store;
 use plain_rs::discovery::nearby_devices::Device;
 use plain_rs::events::WsEvent;
@@ -153,23 +147,6 @@ fn snapshot(
         });
     }
     Ok(snapshot)
-}
-pub(crate) async fn call(
-    State(state): State<ServerState>,
-    headers: HeaderMap,
-    Json(request): Json<Request>,
-) -> Response {
-    if !state.authenticated(&headers) {
-        return StatusCode::UNAUTHORIZED.into_response();
-    }
-    match execute(&state, request).await {
-        Ok(result) => Json(json!({"result":result})).into_response(),
-        Err(e) => (
-            StatusCode::BAD_REQUEST,
-            Json(json!({"error":e.to_string()})),
-        )
-            .into_response(),
-    }
 }
 async fn sweep(state: &ServerState) -> anyhow::Result<()> {
     let stale = state.nearby_devices.stale(&state.db)?;

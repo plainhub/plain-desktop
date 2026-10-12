@@ -1,12 +1,6 @@
 use crate::assembly::server::ServerState;
 use crate::services::chat::channel_delivery;
 use anyhow::{Result, ensure};
-use axum::{
-    Json,
-    extract::State,
-    http::{HeaderMap, StatusCode},
-    response::{IntoResponse, Response},
-};
 use plain_rs::chat::attachments::app_file_store::chat_deletion;
 use plain_rs::chat::channels::state;
 use plain_rs::chat::channels::state::Action;
@@ -260,23 +254,6 @@ pub(crate) async fn execute(state: &ServerState, request: Request) -> Result<Val
         }
     };
     Ok(json!({"channel":channel,"response":response}))
-}
-pub(crate) async fn call(
-    State(state): State<ServerState>,
-    headers: HeaderMap,
-    Json(request): Json<Request>,
-) -> Response {
-    if !state.authenticated(&headers) {
-        return StatusCode::UNAUTHORIZED.into_response();
-    }
-    match execute(&state, request).await {
-        Ok(value) => Json(json!({"result":value})).into_response(),
-        Err(error) => (
-            StatusCode::BAD_REQUEST,
-            Json(json!({"error":error.to_string()})),
-        )
-            .into_response(),
-    }
 }
 #[cfg(test)]
 #[path = "../../../tests/unit/services/chat/channel_runtime.rs"]

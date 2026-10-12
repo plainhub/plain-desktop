@@ -15,6 +15,8 @@ pub mod peer_sdk;
 
 #[cfg(feature = "host-api")]
 pub mod peer_status;
+#[cfg(feature = "host-api")]
+pub mod peer_status_controller;
 
 #[cfg(feature = "host-api")]
 pub mod peer_transport;
