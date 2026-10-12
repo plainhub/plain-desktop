@@ -511,6 +511,30 @@ impl ContentServer {
         let router = router.merge(crate::mobile::http::routes(state.clone()));
         Ok((state, router, stop, receiver))
     }
+    pub fn open(directory: &Path) -> Result<Self, String> {
+        tokio::runtime::Handle::try_current().map_err(|error| error.to_string())?;
+        if !directory.is_absolute() {
+            return Err("absolute core data directory required".into());
+        }
+        std::fs::create_dir_all(directory).map_err(|error| error.to_string())?;
+        let prefs = Arc::new(
+            plain_rs::prefs::Prefs::load(&plain_rs::prefs::default_path(directory))
+                .map_err(|error| error.to_string())?,
+        );
+        let url_token = plain_rs::prefs::identity::ensure_url_token(&prefs);
+        crate::assembly::core_dependencies::CoreDependencies::validate_token(&url_token)?;
+        if prefs
+            .get::<String>(plain_rs::prefs::system::keys::URL_TOKEN)
+            .map_err(|error| error.to_string())?
+            .as_deref()
+            != Some(url_token.as_str())
+        {
+            return Err("URL token persistence failed".into());
+        }
+        let token = plain_rs::crypto::gen_token();
+        Self::start_core(&directory.join("plain.db"), &token, prefs)
+    }
+
     pub fn start_core(
         path: &Path,
         token: &str,
