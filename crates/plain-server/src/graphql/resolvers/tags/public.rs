@@ -6,79 +6,17 @@
 //!
 use crate::graphql::resolvers::tags::domain_types::Tag;
 use crate::graphql::resolvers::tags::domain_types::TagRelation;
+pub use crate::graphql::resolvers::tags::domain_types::TagRelationStub;
 use crate::graphql::types::Long;
 use crate::host::bridge::Host;
-use async_graphql::{Context, Enum, InputObject, Object};
+use async_graphql::{Context, Object};
 use plain_rs::db::Db;
 use plain_rs::db::TagRow;
+pub use plain_rs::enums::DataType;
 use plain_rs::tags;
 use plain_rs::tags::records as tag_records;
 use serde_json::{Value, json};
 use std::sync::Arc;
-
-/// The contract's content kinds. The numeric values are plain-app's
-/// `DataType` ordinals and are what the tag tables store, so they are the
-/// contract's order rather than a free choice.
-#[derive(Enum, Copy, Clone, Eq, PartialEq, Debug)]
-pub enum DataType {
-    Default,
-    Audio,
-    Video,
-    Image,
-    Sms,
-    Contact,
-    Note,
-    FeedEntry,
-    Call,
-    Package,
-    File,
-    AppFile,
-    Doc,
-}
-
-impl DataType {
-    fn kind(self) -> i32 {
-        match self {
-            DataType::Default => 0,
-            DataType::Audio => 1,
-            DataType::Video => 2,
-            DataType::Image => 3,
-            DataType::Sms => 4,
-            DataType::Contact => 5,
-            DataType::Note => 6,
-            DataType::FeedEntry => 7,
-            DataType::Call => 8,
-            DataType::Package => 21,
-            DataType::File => 22,
-            DataType::AppFile => 23,
-            DataType::Doc => 24,
-        }
-    }
-
-    /// The kinds a query DSL can be resolved against. NOTE and FEED_ENTRY
-    /// are absent on purpose: their id readers live behind the notes and
-    /// feeds roots, and a tag write must not re-enter the public schema to
-    /// reach them.
-    fn tags_queryable(self) -> bool {
-        matches!(
-            self,
-            DataType::Audio
-                | DataType::Video
-                | DataType::Image
-                | DataType::Doc
-                | DataType::Call
-                | DataType::Contact
-                | DataType::Sms
-        )
-    }
-}
-
-#[derive(InputObject, Clone, Debug)]
-pub struct TagRelationStub {
-    pub key: String,
-    pub title: String,
-    pub size: Long,
-}
 
 #[derive(Default)]
 pub struct TagsQuery;
@@ -254,7 +192,7 @@ async fn tag_query_stubs(
     let facts = host_call(
         ctx,
         "systemTagQueryStubs",
-        json!({ "dataType": r#type.name(), "query": query }),
+        json!({ "dataType": data_type_name(r#type), "query": query }),
     )
     .await?;
     Ok(crate::graphql::types::facts::rows(&facts, |item| {
@@ -276,7 +214,7 @@ async fn tag_query_keys(
     let facts = host_call(
         ctx,
         "systemTagQueryKeys",
-        json!({ "dataType": r#type.name(), "query": query }),
+        json!({ "dataType": data_type_name(r#type), "query": query }),
     )
     .await?;
     Ok(crate::graphql::types::facts::strings(&facts, "ids"))
@@ -286,10 +224,10 @@ async fn tag_query_keys(
 /// client meant, and the desktop UI has no way to express "tag everything",
 /// so it is refused rather than silently applied.
 fn require_queryable(r#type: DataType, query: &str) -> async_graphql::Result<()> {
-    if !r#type.tags_queryable() {
+    if !tags_queryable(r#type) {
         return Err(async_graphql::Error::new(format!(
             "Unsupported tag query type: {}",
-            r#type.name()
+            data_type_name(r#type)
         )));
     }
     if query.trim().is_empty() {
@@ -298,25 +236,34 @@ fn require_queryable(r#type: DataType, query: &str) -> async_graphql::Result<()>
     Ok(())
 }
 
-impl DataType {
-    /// The contract's spelling, which is also what the platform's own
-    /// `DataType` enum uses.
-    fn name(self) -> &'static str {
-        match self {
-            DataType::Default => "DEFAULT",
-            DataType::Audio => "AUDIO",
-            DataType::Video => "VIDEO",
-            DataType::Image => "IMAGE",
-            DataType::Sms => "SMS",
-            DataType::Contact => "CONTACT",
-            DataType::Note => "NOTE",
-            DataType::FeedEntry => "FEED_ENTRY",
-            DataType::Call => "CALL",
-            DataType::Package => "PACKAGE",
-            DataType::File => "FILE",
-            DataType::AppFile => "APP_FILE",
-            DataType::Doc => "DOC",
-        }
+fn tags_queryable(kind: DataType) -> bool {
+    matches!(
+        kind,
+        DataType::Audio
+            | DataType::Video
+            | DataType::Image
+            | DataType::Doc
+            | DataType::Call
+            | DataType::Contact
+            | DataType::Sms
+    )
+}
+
+fn data_type_name(kind: DataType) -> &'static str {
+    match kind {
+        DataType::Default => "DEFAULT",
+        DataType::Audio => "AUDIO",
+        DataType::Video => "VIDEO",
+        DataType::Image => "IMAGE",
+        DataType::Sms => "SMS",
+        DataType::Contact => "CONTACT",
+        DataType::Note => "NOTE",
+        DataType::FeedEntry => "FEED_ENTRY",
+        DataType::Call => "CALL",
+        DataType::Package => "PACKAGE",
+        DataType::File => "FILE",
+        DataType::AppFile => "APP_FILE",
+        DataType::Doc => "DOC",
     }
 }
 
