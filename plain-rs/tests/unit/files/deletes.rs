@@ -68,3 +68,154 @@ fn deleted_receipts_cascade_atomically_and_preserve_failed_and_foreign_records()
     })
     .unwrap();
 }
+
+fn catalog_file(data_type: DataType, path: &str) -> crate::db::MediaFileMetadata {
+    crate::db::MediaFileMetadata {
+        data_type,
+        path: path.into(),
+        title: "Title".into(),
+        artist: String::new(),
+        bucket_id: "/root".into(),
+        size_bytes: 10,
+        duration_ms: 0,
+        album_file_id: String::new(),
+        width: 0,
+        height: 0,
+        rotation: 0,
+        taken_at: None,
+        created_at: "2026-10-13T00:00:00Z".into(),
+        updated_at: "2026-10-13T00:00:00Z".into(),
+    }
+}
+
+#[test]
+fn deletion_uses_current_catalog_identities_and_preserves_partial_failures_and_foreign_types() {
+    let db = Db::open(std::path::Path::new(":memory:")).unwrap();
+    let created = db
+        .record_media_files(&[
+            catalog_file(DataType::Video, "/root/deleted.mp4"),
+            catalog_file(DataType::Image, "/root/failed.jpg"),
+            catalog_file(DataType::Image, "/root_sibling/keep.jpg"),
+        ])
+        .unwrap();
+    let video = &created[0].id;
+    db.with_conn(|c| -> rusqlite::Result<()> {
+        c.execute("INSERT INTO tag_relations(tag_id,key,type,created_at,size,title) VALUES('media',?1,2,'first',1,'title'),('foreign',?1,6,'first',1,'title')",[video])?;
+        c.execute("INSERT INTO video_play_progress(media_id,position_ms,updated_at) VALUES(?1,123,'first')",[video])?;
+        c.execute("INSERT INTO media_item(media_type,media_id,duration_ms,updated_at) VALUES('video',?1,100,'first')",[video])?;
+        Ok(())
+    }).unwrap();
+    cleanup(&db, &[], &["/root/deleted.mp4".into()], &[]).unwrap();
+    assert!(
+        db.media_file_by_path(DataType::Video, "/root/deleted.mp4")
+            .unwrap()
+            .is_none()
+    );
+    assert!(
+        db.media_file_by_path(DataType::Image, "/root/failed.jpg")
+            .unwrap()
+            .is_some()
+    );
+    assert!(
+        db.media_file_by_path(DataType::Image, "/root_sibling/keep.jpg")
+            .unwrap()
+            .is_some()
+    );
+    db.with_conn(|c| -> rusqlite::Result<()> {
+        assert_eq!(
+            c.query_row(
+                "SELECT count(*) FROM tag_relations WHERE key=?1 AND type=2",
+                [video],
+                |r| r.get::<_, i64>(0)
+            )?,
+            0
+        );
+        assert_eq!(
+            c.query_row(
+                "SELECT count(*) FROM tag_relations WHERE key=?1 AND type=6",
+                [video],
+                |r| r.get::<_, i64>(0)
+            )?,
+            1
+        );
+        assert_eq!(
+            c.query_row("SELECT count(*) FROM video_play_progress", [], |r| r
+                .get::<_, i64>(0))?,
+            0
+        );
+        assert_eq!(
+            c.query_row("SELECT count(*) FROM media_item", [], |r| r
+                .get::<_, i64>(0))?,
+            0
+        );
+        Ok(())
+    })
+    .unwrap();
+}
+
+#[test]
+fn confirmed_directory_removal_cleans_descendants_using_literal_boundaries() {
+    let db = Db::open(std::path::Path::new(":memory:")).unwrap();
+    db.record_media_files(&[
+        catalog_file(DataType::Image, "/root_%/child.jpg"),
+        catalog_file(DataType::Image, "/root_%/nested/child.jpg"),
+        catalog_file(DataType::Image, "/root_%_sibling/keep.jpg"),
+        catalog_file(DataType::Image, "/rootAB/keep.jpg"),
+    ])
+    .unwrap();
+    cleanup(&db, &[], &["/root_%".into()], &["/root_%".into()]).unwrap();
+    assert_eq!(db.media_file_count(DataType::Image).unwrap(), 2);
+    assert!(
+        db.media_file_by_path(DataType::Image, "/root_%/child.jpg")
+            .unwrap()
+            .is_none()
+    );
+    assert!(
+        db.media_file_by_path(DataType::Image, "/root_%_sibling/keep.jpg")
+            .unwrap()
+            .is_some()
+    );
+    assert!(
+        db.media_file_by_path(DataType::Image, "/rootAB/keep.jpg")
+            .unwrap()
+            .is_some()
+    );
+}
+
+#[test]
+fn catalog_deletion_failure_rolls_back_all_associated_state_cleanup() {
+    let db = Db::open(std::path::Path::new(":memory:")).unwrap();
+    let created = db
+        .record_media_files(&[catalog_file(DataType::Video, "/root/deleted.mp4")])
+        .unwrap()
+        .remove(0);
+    db.with_conn(|c| -> rusqlite::Result<()> {
+        c.execute("INSERT INTO tag_relations(tag_id,key,type,created_at,size,title) VALUES('media',?1,2,'first',1,'title')",[&created.id])?;
+        c.execute("INSERT INTO video_play_progress(media_id,position_ms,updated_at) VALUES(?1,123,'first')",[&created.id])?;
+        c.execute_batch("CREATE TRIGGER reject_catalog_delete BEFORE DELETE ON media_files BEGIN SELECT RAISE(ABORT,'catalog delete rejected'); END;")?;
+        Ok(())
+    }).unwrap();
+    assert!(cleanup(&db, &[], &[created.path.clone()], &[]).is_err());
+    assert_eq!(db.media_file_count(DataType::Video).unwrap(), 1);
+    db.with_conn(|c| -> rusqlite::Result<()> {
+        assert_eq!(
+            c.query_row("SELECT count(*) FROM tag_relations", [], |r| r
+                .get::<_, i64>(0))?,
+            1
+        );
+        assert_eq!(
+            c.query_row("SELECT count(*) FROM video_play_progress", [], |r| r
+                .get::<_, i64>(0))?,
+            1
+        );
+        Ok(())
+    })
+    .unwrap();
+}
+
+#[cfg(windows)]
+#[test]
+fn directory_prefix_uses_the_same_separator_as_native_canonical_paths() {
+    assert_eq!(directory_prefix(r"C:\root"), r"C:\root\");
+    assert_eq!(directory_prefix("C:/root"), "C:/root/");
+}
