@@ -7,7 +7,8 @@
 /// (`shared/src/commonMain/kotlin/com/ismartcoding/plain/enums/DataType.kt`).
 /// GraphQL-arg and tag-column domain; `kind()` is the ordinal stored in
 /// the shared library db `type` column.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 #[cfg_attr(feature = "graphql", derive(async_graphql::Enum))]
 #[cfg_attr(
     feature = "graphql",

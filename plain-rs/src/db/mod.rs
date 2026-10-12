@@ -115,3 +115,6 @@ mod library_tests;
 
 #[cfg(feature = "library")]
 pub use models::{MediaFileMetadata, MediaFileRow};
+
+#[cfg(feature = "library")]
+pub use repositories::media_file;

@@ -2,9 +2,9 @@ use crate::db::{Db, MediaFileMetadata, MediaFileRow};
 use crate::enums::DataType;
 use rusqlite::{OptionalExtension, params};
 
-const COLUMNS: &str = "id,data_type,path,title,artist,bucket_id,size_bytes,duration_ms,album_file_id,width,height,rotation,taken_at,created_at,updated_at,is_favorite,is_trashed,original_path";
+pub const COLUMNS: &str = "id,data_type,path,title,artist,bucket_id,size_bytes,duration_ms,album_file_id,width,height,rotation,taken_at,created_at,updated_at,is_favorite,is_trashed,original_path";
 
-fn row(row: &rusqlite::Row<'_>) -> rusqlite::Result<MediaFileRow> {
+pub fn from_row(row: &rusqlite::Row<'_>) -> rusqlite::Result<MediaFileRow> {
     Ok(MediaFileRow {
         id: row.get(0)?,
         data_type: row.get(1)?,
@@ -45,12 +45,12 @@ impl Db {
             for file in files {
                 let data_type = kind(file.data_type)?;
                 tx.execute(
-                    "INSERT INTO media_files(id,data_type,path,title,artist,bucket_id,size_bytes,duration_ms,album_file_id,width,height,rotation,taken_at,created_at,updated_at)
-                     VALUES(?1,?2,?3,?4,?5,?6,?7,?8,?9,?10,?11,?12,?13,?14,?15)
-                     ON CONFLICT(data_type,path) DO UPDATE SET title=excluded.title,artist=excluded.artist,bucket_id=excluded.bucket_id,size_bytes=excluded.size_bytes,duration_ms=excluded.duration_ms,album_file_id=excluded.album_file_id,width=excluded.width,height=excluded.height,rotation=excluded.rotation,taken_at=excluded.taken_at,updated_at=excluded.updated_at",
-                    params![uuid::Uuid::new_v4().to_string(),data_type,file.path,file.title,file.artist,file.bucket_id,file.size_bytes,file.duration_ms,file.album_file_id,file.width,file.height,file.rotation,file.taken_at,file.created_at,file.updated_at],
+                    "INSERT INTO media_files(id,data_type,path,title,artist,bucket_id,size_bytes,duration_ms,album_file_id,width,height,rotation,taken_at,created_at,updated_at,mime_type)
+                     VALUES(?1,?2,?3,?4,?5,?6,?7,?8,?9,?10,?11,?12,?13,?14,?15,?16)
+                     ON CONFLICT(data_type,path) DO UPDATE SET title=excluded.title,artist=excluded.artist,bucket_id=excluded.bucket_id,size_bytes=excluded.size_bytes,duration_ms=excluded.duration_ms,album_file_id=excluded.album_file_id,width=excluded.width,height=excluded.height,rotation=excluded.rotation,taken_at=excluded.taken_at,updated_at=excluded.updated_at,mime_type=excluded.mime_type",
+                    params![uuid::Uuid::new_v4().to_string(),data_type,file.path,file.title,file.artist,file.bucket_id,file.size_bytes,file.duration_ms,file.album_file_id,file.width,file.height,file.rotation,file.taken_at,file.created_at,file.updated_at,crate::utils::mime::mime_from_ext(&file.path)],
                 )?;
-                rows.push(tx.query_row(&format!("SELECT {COLUMNS} FROM media_files WHERE data_type=?1 AND path=?2"),params![data_type,file.path],row)?);
+                rows.push(tx.query_row(&format!("SELECT {COLUMNS} FROM media_files WHERE data_type=?1 AND path=?2"),params![data_type,file.path],from_row)?);
             }
             tx.commit()?;
             Ok(rows)
@@ -67,7 +67,7 @@ impl Db {
             conn.query_row(
                 &format!("SELECT {COLUMNS} FROM media_files WHERE data_type=?1 AND path=?2"),
                 params![data_type, path],
-                row,
+                from_row,
             )
             .optional()
         })
@@ -82,7 +82,7 @@ impl Db {
         let data_type = kind(data_type)?;
         self.with_conn(|conn| {
             let mut statement = conn.prepare(&format!("SELECT {COLUMNS} FROM media_files WHERE data_type=?1 AND is_trashed=0 ORDER BY updated_at DESC,id LIMIT ?2 OFFSET ?3"))?;
-            statement.query_map(params![data_type,limit,offset],row)?.collect()
+            statement.query_map(params![data_type,limit,offset],from_row)?.collect()
         })
     }
 

@@ -24,3 +24,6 @@ pub mod upload_chunks;
 
 #[cfg(feature = "core")]
 pub mod archives;
+
+#[cfg(feature = "core")]
+pub(crate) mod media_catalog;
