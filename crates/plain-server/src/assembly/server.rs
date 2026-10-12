@@ -90,6 +90,21 @@ impl ServerState {
             .ok_or_else(|| "native client identity unavailable".into())
     }
 
+    pub(crate) async fn public_ports(&self) -> Option<(u16, u16)> {
+        #[cfg(feature = "http_transport")]
+        {
+            self.public_server
+                .lock()
+                .await
+                .as_ref()
+                .map(|server| (server.listeners.http_port, server.listeners.https_port))
+        }
+        #[cfg(not(feature = "http_transport"))]
+        {
+            None
+        }
+    }
+
     pub(crate) fn authenticated(&self, headers: &HeaderMap) -> bool {
         let candidate = headers
             .get("authorization")
@@ -644,6 +659,17 @@ impl ContentServer {
         key: Vec<u8>,
     ) -> Result<(u16, u16), String> {
         let _core = self.state.shutdown.lock().await;
+        self.start_public_locked(http, https, cert, key).await
+    }
+
+    #[cfg(feature = "http_transport")]
+    async fn start_public_locked(
+        &self,
+        http: u16,
+        https: u16,
+        cert: Vec<u8>,
+        key: Vec<u8>,
+    ) -> Result<(u16, u16), String> {
         self.state.native_client_id()?;
         let mut guard = self.state.public_server.lock().await;
         if guard.is_some() {
@@ -679,19 +705,96 @@ impl ContentServer {
         crate::assembly::lifecycle::monitor(self.state.clone(), failure, receiver, generation);
         Ok(ports)
     }
+    pub fn native_url_token(&self) -> Result<String, String> {
+        self.state.native_client_id()?;
+        self.state
+            .prefs
+            .get::<String>(plain_rs::prefs::system::keys::URL_TOKEN)
+            .map_err(|error| error.to_string())?
+            .filter(|token| !token.is_empty())
+            .ok_or_else(|| "native URL token unavailable".into())
+    }
+
+    pub async fn set_public_ports(
+        &self,
+        http: Option<u16>,
+        https: Option<u16>,
+    ) -> Result<bool, String> {
+        self.state.native_client_id()?;
+        crate::graphql::resolvers::settings::state::apply_user_patch(
+            crate::graphql::resolvers::settings::state::UserPatchEnv::from_server(&self.state),
+            plain_rs::prefs::user::UserSettingsPatch {
+                http_port: http.map(i32::from),
+                https_port: https.map(i32::from),
+                ..Default::default()
+            },
+        )
+        .await
+        .map_err(|error| error.message)
+    }
+
+    #[cfg(feature = "http_transport")]
+    async fn configured_public_identity(&self) -> Result<(u16, u16, Vec<u8>, Vec<u8>), String> {
+        let settings = plain_rs::prefs::user::snapshot(&self.state.prefs)
+            .map_err(|error| error.to_string())?;
+        let http = u16::try_from(settings.http_port).map_err(|error| error.to_string())?;
+        let https = u16::try_from(settings.https_port).map_err(|error| error.to_string())?;
+        let path = self.state.directory.join("tls-identity.json");
+        let (cert, key) =
+            tokio::task::spawn_blocking(move || crate::http::tls_identity::identity(&path))
+                .await
+                .map_err(|error| error.to_string())??;
+        Ok((http, https, cert, key))
+    }
+
+    #[cfg(feature = "http_transport")]
+    pub async fn start_configured_public(&self) -> Result<(u16, u16), String> {
+        let _core = self.state.shutdown.lock().await;
+        self.state.native_client_id()?;
+        let (http, https, cert, key) = self.configured_public_identity().await?;
+        self.start_public_locked(http, https, cert, key).await
+    }
+
+    #[cfg(feature = "http_transport")]
+    pub async fn restart_public(&self) -> Result<(u16, u16), String> {
+        let _core = self.state.shutdown.lock().await;
+        self.state.native_client_id()?;
+        let (http, https, cert, key) = self.configured_public_identity().await?;
+        let receiver_running = self.state.dlna.is_running();
+        {
+            let mut guard = self.state.public_server.lock().await;
+            crate::assembly::lifecycle::stop_locked(&self.state, &mut guard).await;
+        }
+        let ports = self.start_public_locked(http, https, cert, key).await?;
+        if receiver_running {
+            crate::services::casting::receiver::control::execute(
+                &self.state,
+                crate::services::casting::receiver::control::Request::Start { port: ports.0 },
+            )
+            .await?;
+        }
+        self.state
+            .mdns
+            .update_hostname(&self.state)
+            .await
+            .map_err(|error| error.to_string())?;
+        Ok(ports)
+    }
+
     #[cfg(feature = "http_transport")]
     pub async fn stop_public(&self) {
+        let _core = self.state.shutdown.lock().await;
+        self.stop_public_locked().await;
+    }
+
+    #[cfg(feature = "http_transport")]
+    async fn stop_public_locked(&self) {
         let mut guard = self.state.public_server.lock().await;
         crate::assembly::lifecycle::stop_locked(&self.state, &mut guard).await;
     }
     #[cfg(feature = "http_transport")]
     pub async fn http_ports(&self) -> Option<(u16, u16)> {
-        self.state
-            .public_server
-            .lock()
-            .await
-            .as_ref()
-            .map(|server| (server.listeners.http_port, server.listeners.https_port))
+        self.state.public_ports().await
     }
     #[cfg(feature = "http_transport")]
     pub async fn public_generation(&self) -> Option<u64> {
@@ -723,7 +826,7 @@ impl ContentServer {
             return;
         }
         #[cfg(feature = "http_transport")]
-        self.stop_public().await;
+        self.stop_public_locked().await;
         #[cfg(feature = "http_transport")]
         self.state.shared_batches.shutdown(&self.state.host).await;
         self.state.download_runtime.shutdown().await;

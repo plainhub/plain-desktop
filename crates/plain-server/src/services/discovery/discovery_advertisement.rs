@@ -54,7 +54,7 @@ pub(crate) async fn execute(state: &ServerState, request: Request) -> Result<Val
     }
     let settings = plain_rs::prefs::user::snapshot(&state.prefs)?;
     let name = settings.device_name;
-    let port = settings.https_port as u16;
+    let port = state.public_ports().await.map(|ports| ports.1).unwrap_or(0);
     let reply = advertisement::reply(&id, &name, port, facts)?;
     match request {
         Request::Reply {} => Ok(serde_json::to_value(reply)?),

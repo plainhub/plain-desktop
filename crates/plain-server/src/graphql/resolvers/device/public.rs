@@ -246,11 +246,19 @@ impl DeviceQuery {
                 permissions.push(permission);
             }
         }
+        let (http_port, https_port) = match ctx.data_opt::<crate::assembly::server::ServerState>() {
+            Some(state) => state
+                .public_ports()
+                .await
+                .map(|(http, https)| (i32::from(http), i32::from(https)))
+                .unwrap_or((0, 0)),
+            None => (user.http_port, user.https_port),
+        };
         Ok(App {
             client_id: system.client_id,
             url_token: system.url_token,
-            http_port: user.http_port,
-            https_port: user.https_port,
+            http_port,
+            https_port,
             app_dir: facts.app_dir,
             device_name: user.device_name,
             device_type: device_type(&facts.device_type),

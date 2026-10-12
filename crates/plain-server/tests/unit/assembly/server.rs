@@ -120,3 +120,38 @@ async fn app_and_remote_access_share_listeners_without_background_service() {
     );
     server.shutdown().await;
 }
+
+#[tokio::test]
+async fn configured_public_uses_core_settings_and_keeps_listeners_on_tls_preflight_error() {
+    let directory = tempfile::tempdir().unwrap();
+    let core = crate::assembly::server::ContentServer::open(directory.path()).unwrap();
+    assert!(core.set_public_ports(Some(0), Some(0)).await.unwrap());
+    assert_eq!(
+        core.runtime_state()
+            .prefs
+            .get_user::<i32>("http_port")
+            .unwrap(),
+        Some(0)
+    );
+    assert_eq!(
+        core.runtime_state()
+            .prefs
+            .get_user::<i32>("https_port")
+            .unwrap(),
+        Some(0)
+    );
+    let ports = core.start_configured_public().await.unwrap();
+    assert_ne!(ports.0, 0);
+    assert_ne!(ports.1, 0);
+    assert_eq!(core.http_ports().await, Some(ports));
+    assert!(core.task.is_none());
+    std::fs::write(directory.path().join("tls-identity.json"), "{}").unwrap();
+    assert!(core.restart_public().await.is_err());
+    assert_eq!(core.http_ports().await, Some(ports));
+    core.stop_core().await;
+    assert_eq!(core.http_ports().await, None);
+    assert!(core.native_url_token().is_err());
+    assert!(core.set_public_ports(Some(8080), None).await.is_err());
+    assert!(core.start_configured_public().await.is_err());
+    assert!(core.restart_public().await.is_err());
+}
