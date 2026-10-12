@@ -29,22 +29,33 @@ impl HostEvents {
     pub fn capabilities(&self) -> Value {
         json!({"textTypes":HOST_TEXT_TYPES,"binaryTypes":HOST_BINARY_TYPES})
     }
+    pub async fn wait_disconnected(&self) {
+        let mut stop = self.state.stop.clone();
+        let mut connection = self.state.host.connection_changes();
+        if *stop.borrow() || !self.state.host.is_current(self.generation) {
+            return;
+        }
+        tokio::select! {
+            _ = stop.changed() => {},
+            _ = connection.changed() => {},
+        }
+    }
     pub async fn next_request(&self) -> Option<Value> {
         let mut requests = self.requests.lock().await;
-        let mut stop = self.state.stop.clone();
-        if *stop.borrow() || !self.state.host.is_current(self.generation) {
-            return None;
+        tokio::select! {
+            biased;
+            _ = self.wait_disconnected() => None,
+            value = requests.recv() => value,
         }
-        tokio::select! { _ = stop.changed() => None, value = requests.recv() => value }
     }
     pub async fn next_event(&self) -> Option<Value> {
         let mut events = self.events.lock().await;
-        let mut stop = self.state.stop.clone();
         loop {
-            if *stop.borrow() || !self.state.host.is_current(self.generation) {
-                return None;
-            }
-            let event = tokio::select! { _ = stop.changed() => return None, value = events.recv() => value };
+            let event = tokio::select! {
+                biased;
+                _ = self.wait_disconnected() => return None,
+                value = events.recv() => value,
+            };
             match event {
                 Ok(event) if event.is_host_event() => continue,
                 Ok(event) if event.binary_payload.is_some() => continue,

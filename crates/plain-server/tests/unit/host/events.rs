@@ -118,3 +118,57 @@ async fn listener_failure_survives_event_queue_overflow() {
     assert_eq!(payload["generation"], 7);
     server.shutdown().await;
 }
+
+#[tokio::test]
+async fn replacing_a_host_wakes_a_waiting_event_receiver() {
+    let dir = tempfile::tempdir().unwrap();
+    let server = server(&dir);
+    let original = server.host_events();
+    let mut waiting = Box::pin(original.next_event());
+    std::future::poll_fn(|context| {
+        assert!(std::future::Future::poll(waiting.as_mut(), context).is_pending());
+        std::task::Poll::Ready(())
+    })
+    .await;
+    let replacement = server.host_events();
+    std::future::poll_fn(|context| {
+        assert!(matches!(
+            std::future::Future::poll(waiting.as_mut(), context),
+            std::task::Poll::Ready(None)
+        ));
+        std::task::Poll::Ready(())
+    })
+    .await;
+    drop(waiting);
+    drop(original);
+    assert!(
+        server
+            .runtime_state()
+            .host
+            .is_current(replacement.generation)
+    );
+    server.shutdown().await;
+}
+
+#[tokio::test]
+async fn replaced_hosts_discard_requests_and_events_already_in_the_queue() {
+    let dir = tempfile::tempdir().unwrap();
+    let server = server(&dir);
+    let original = server.host_events();
+    server
+        .runtime_state()
+        .events
+        .send(WsEvent::broadcast("CONTENT_CHANGED", "{}".into()))
+        .unwrap();
+    let replacement = server.host_events();
+    assert!(original.next_request().await.is_none());
+    assert!(original.next_event().await.is_none());
+    original.wait_disconnected().await;
+    assert!(
+        server
+            .runtime_state()
+            .host
+            .is_current(replacement.generation)
+    );
+    server.shutdown().await;
+}
