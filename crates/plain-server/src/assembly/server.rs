@@ -876,6 +876,10 @@ impl ContentServer {
             log::error!("Media scan cancellation failed: {error}");
         }
         let _ = self.stop.send(true);
+        #[cfg(feature = "media")]
+        if let Err(error) = self.state.media_scans.wait_background().await {
+            log::error!("Media scan task shutdown failed: {error}");
+        }
         #[cfg(feature = "http_transport")]
         self.state.mdns.close(&self.state.host).await;
     }

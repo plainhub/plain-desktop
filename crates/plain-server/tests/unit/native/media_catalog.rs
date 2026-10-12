@@ -628,3 +628,51 @@ async fn source_directory_scan_keeps_one_session_across_roots_and_partial_failur
     );
     core.stop_core().await;
 }
+
+#[cfg(feature = "media")]
+#[tokio::test]
+async fn background_source_scan_is_busy_before_authorization_and_core_stop_joins_it() {
+    let directory = directory_scan_fixture();
+    let root = directory.path().join("library");
+    std::fs::create_dir_all(&root).unwrap();
+    std::fs::write(root.join("document.txt"), b"document").unwrap();
+    let core =
+        crate::assembly::server::ContentServer::open(&directory.path().join("core")).unwrap();
+    let catalog = core.native_media_catalog().unwrap();
+    catalog
+        .configure_scan_directories(&directory.path().join("cache"), None)
+        .unwrap();
+    catalog
+        .set_source_directories(&[root.to_str().unwrap().to_owned()])
+        .unwrap();
+    let host = core.runtime_state().host.clone();
+    let (generation, mut requests) = host.connect();
+    let started = catalog.start_source_scan("/").unwrap();
+    assert!(catalog.start_source_scan("/").is_err());
+    let request = requests.recv().await.unwrap();
+    assert_eq!(request["method"], "fileTaskAuthorize");
+    assert_eq!(catalog.file_scan_status().unwrap().unwrap().id, started.id);
+    core.stop_core().await;
+    assert_eq!(
+        core.runtime_state()
+            .media_scans
+            .snapshot()
+            .unwrap()
+            .unwrap()
+            .status,
+        crate::services::files::media_scans::Status::Cancelled
+    );
+    let _ = host.reply(
+        generation,
+        serde_json::json!({"id":request["id"],"result":true}),
+    );
+    assert_eq!(
+        crate::services::files::media_catalog::count(
+            &core.runtime_state().db,
+            plain_rs::enums::DataType::Doc,
+            ""
+        )
+        .unwrap(),
+        0
+    );
+}

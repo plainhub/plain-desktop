@@ -154,3 +154,31 @@ async fn cancelling_or_closing_a_paused_scan_wakes_it_without_a_write() {
         assert_eq!(session.finish(Ok(())).unwrap().status, Status::Cancelled);
     }
 }
+
+#[tokio::test]
+async fn background_session_is_reserved_before_running_and_shutdown_joins_it() {
+    let scans = Arc::new(MediaScans::default());
+    let session = scans.begin_discovery().unwrap();
+    let (started, running) = tokio::sync::oneshot::channel();
+    let snapshot = scans
+        .spawn(
+            &tokio::runtime::Handle::current(),
+            session,
+            move |session| {
+                Box::pin(async move {
+                    started.send(()).unwrap();
+                    let mut cancel = session.cancel.clone();
+                    wait_stop(&mut cancel).await;
+                    session.finish(Err("cancelled".into())).unwrap();
+                })
+            },
+        )
+        .unwrap();
+    assert_eq!(snapshot.status, Status::Running);
+    assert!(scans.begin_discovery().is_err());
+    running.await.unwrap();
+    scans.close().unwrap();
+    scans.wait_background().await.unwrap();
+    assert_eq!(scans.snapshot().unwrap().unwrap().status, Status::Cancelled);
+    assert!(scans.begin_discovery().is_err());
+}

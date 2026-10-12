@@ -35,6 +35,7 @@ struct State {
     job: Option<Job>,
     closed: bool,
     policy: Option<Arc<super::media_scan_policy::Policy>>,
+    task: Option<tokio::task::JoinHandle<()>>,
 }
 
 #[derive(Default)]
@@ -86,6 +87,46 @@ impl MediaScans {
             id,
             cancel: receiver,
         })
+    }
+
+    pub(crate) fn spawn<F>(
+        &self,
+        runtime: &tokio::runtime::Handle,
+        session: Session,
+        run: impl FnOnce(Session) -> F,
+    ) -> Result<Snapshot, String>
+    where
+        F: std::future::Future<Output = ()> + Send + 'static,
+    {
+        let mut guard = self
+            .state
+            .lock()
+            .map_err(|_| "Media scan state unavailable")?;
+        if guard.closed {
+            return Err("Rust core stopped".into());
+        }
+        let snapshot = guard
+            .job
+            .as_ref()
+            .filter(|job| job.snapshot.id == session.id)
+            .ok_or("Media scan replaced")?
+            .snapshot
+            .clone();
+        guard.task = Some(runtime.spawn(run(session)));
+        Ok(snapshot)
+    }
+
+    pub(crate) async fn wait_background(&self) -> Result<(), String> {
+        let task = self
+            .state
+            .lock()
+            .map_err(|_| "Media scan state unavailable")?
+            .task
+            .take();
+        if let Some(task) = task {
+            task.await.map_err(|error| error.to_string())?;
+        }
+        Ok(())
     }
 
     pub(crate) fn configure(&self, policy: super::media_scan_policy::Policy) -> Result<(), String> {

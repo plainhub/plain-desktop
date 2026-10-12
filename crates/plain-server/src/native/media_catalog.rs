@@ -207,16 +207,44 @@ impl NativeMediaCatalog {
         &self,
         root: &str,
     ) -> Result<crate::services::files::media_scans::Snapshot, String> {
+        self.scan_directories(self.source_references(root)?).await
+    }
+
+    #[cfg(feature = "media")]
+    fn source_references(&self, root: &str) -> Result<Vec<String>, String> {
         let sources = self.source_directories()?;
-        let references = plain_media::scan::selected_roots(root.to_owned(), &sources)
+        plain_media::scan::selected_roots(root.to_owned(), &sources)
             .into_iter()
             .map(|path| {
                 path.into_os_string()
                     .into_string()
                     .map_err(|_| "Invalid media directory path encoding".to_string())
             })
-            .collect::<Result<Vec<_>, _>>()?;
-        self.scan_directories(references).await
+            .collect::<Result<Vec<_>, _>>()
+    }
+
+    #[cfg(feature = "media")]
+    pub fn start_source_scan(
+        &self,
+        root: &str,
+    ) -> Result<crate::services::files::media_scans::Snapshot, String> {
+        let runtime = tokio::runtime::Handle::try_current().map_err(|error| error.to_string())?;
+        let references = self.source_references(root)?;
+        let policy = self.state.media_scans.policy()?;
+        let session = self.state.media_scans.begin_discovery()?;
+        let catalog = self.clone();
+        self.state
+            .media_scans
+            .spawn(&runtime, session, move |session| {
+                Box::pin(async move {
+                    if let Err(error) = catalog
+                        .scan_directory_session(references, policy, session)
+                        .await
+                    {
+                        log::error!("Media scan task failed: {error}");
+                    }
+                })
+            })
     }
 
     #[cfg(feature = "media")]
@@ -227,6 +255,17 @@ impl NativeMediaCatalog {
         self.state.native_client_id()?;
         let policy = self.state.media_scans.policy()?;
         let session = self.state.media_scans.begin_discovery()?;
+        self.scan_directory_session(references, policy, session)
+            .await
+    }
+
+    #[cfg(feature = "media")]
+    async fn scan_directory_session(
+        &self,
+        references: Vec<String>,
+        policy: std::sync::Arc<crate::services::files::media_scan_policy::Policy>,
+        session: crate::services::files::media_scans::Session,
+    ) -> Result<crate::services::files::media_scans::Snapshot, String> {
         let mut cancel = session.cancel.clone();
         let mut stop = self.state.stop.clone();
         let worker_cancel = cancel.clone();
