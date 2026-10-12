@@ -74,6 +74,7 @@ pub(crate) struct ServerState {
     pub(crate) directory: std::path::PathBuf,
     pub(crate) token: Arc<str>,
     pub(crate) events: broadcast::Sender<WsEvent>,
+    pub(crate) shutdown: Arc<tokio::sync::Mutex<()>>,
     pub(crate) stop: watch::Receiver<bool>,
     pub(crate) bridge: Arc<crate::host::resources::NativeResources>,
 }
@@ -127,6 +128,7 @@ impl ContentServer {
             self.graphql_executor(),
             self.state.events.clone(),
             client_id,
+            self.state.stop.clone(),
         ))
     }
 
@@ -383,6 +385,7 @@ impl ContentServer {
             web_root: Arc::new(std::sync::RwLock::new(None)),
             token: Arc::from(token.as_str()),
             events,
+            shutdown: Arc::new(tokio::sync::Mutex::new(())),
             stop: receiver.clone(),
             bridge: bridge.clone(),
         };
@@ -633,6 +636,8 @@ impl ContentServer {
         cert: Vec<u8>,
         key: Vec<u8>,
     ) -> Result<(u16, u16), String> {
+        let _core = self.state.shutdown.lock().await;
+        self.state.native_client_id()?;
         let mut guard = self.state.public_server.lock().await;
         if guard.is_some() {
             return Err("Public HTTP server is already running".into());
@@ -705,7 +710,11 @@ impl ContentServer {
             *guard = (!root.is_empty()).then(|| PathBuf::from(root));
         }
     }
-    pub async fn shutdown(mut self) {
+    pub async fn stop_core(&self) {
+        let _shutdown = self.state.shutdown.lock().await;
+        if *self.state.stop.borrow() {
+            return;
+        }
         #[cfg(feature = "http_transport")]
         self.stop_public().await;
         #[cfg(feature = "http_transport")]
@@ -724,6 +733,10 @@ impl ContentServer {
         let _ = self.stop.send(true);
         #[cfg(feature = "http_transport")]
         self.state.mdns.close(&self.state.host).await;
+    }
+
+    pub async fn shutdown(mut self) {
+        self.stop_core().await;
         if let Some(task) = &mut self.task {
             let _ = task.await;
         }
