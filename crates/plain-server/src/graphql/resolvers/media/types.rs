@@ -19,6 +19,15 @@ pub enum MediaDataType {
 }
 
 impl MediaDataType {
+    pub(crate) fn as_str(self) -> &'static str {
+        match self {
+            Self::AUDIO => "AUDIO",
+            Self::VIDEO => "VIDEO",
+            Self::IMAGE => "IMAGE",
+            Self::DOC => "DOC",
+        }
+    }
+
     pub fn data_type(self) -> DataType {
         match self {
             MediaDataType::DOC => DataType::Doc,

@@ -367,10 +367,10 @@ async fn an_empty_page_skips_the_tag_lookup() {
 
 #[test]
 fn the_contract_kind_names_are_what_the_platform_expects() {
-    assert_eq!(MediaDataType::Audio.as_str(), "AUDIO");
-    assert_eq!(MediaDataType::Video.as_str(), "VIDEO");
-    assert_eq!(MediaDataType::Image.as_str(), "IMAGE");
-    assert_eq!(MediaDataType::Doc.as_str(), "DOC");
+    assert_eq!(MediaDataType::AUDIO.as_str(), "AUDIO");
+    assert_eq!(MediaDataType::VIDEO.as_str(), "VIDEO");
+    assert_eq!(MediaDataType::IMAGE.as_str(), "IMAGE");
+    assert_eq!(MediaDataType::DOC.as_str(), "DOC");
 }
 
 #[tokio::test]

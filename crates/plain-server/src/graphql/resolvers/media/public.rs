@@ -17,44 +17,14 @@ use crate::graphql::types::facts::rows;
 use crate::graphql::types::facts::text;
 use crate::host::bridge::Host;
 use crate::http::auth::public_gate;
-use async_graphql::{Context, Enum, Object, SimpleObject};
+use async_graphql::{Context, Object};
 use chrono::{DateTime, Utc};
 use serde_json::{Value, json};
 use std::{collections::HashMap, sync::Arc};
 
 pub(crate) const STORAGE: &str = "WRITE_EXTERNAL_STORAGE";
 
-/// The library kind a client is asking about. The names are the contract's,
-/// which is also what the platform's `DataType` enum uses — the mapping is
-/// the identity, so there is nothing to translate.
-#[derive(Enum, Copy, Clone, Eq, PartialEq, Debug)]
-pub enum MediaDataType {
-    Audio,
-    Video,
-    Image,
-    Doc,
-}
-
-impl MediaDataType {
-    fn as_str(self) -> &'static str {
-        match self {
-            MediaDataType::Audio => "AUDIO",
-            MediaDataType::Video => "VIDEO",
-            MediaDataType::Image => "IMAGE",
-            MediaDataType::Doc => "DOC",
-        }
-    }
-}
-
-#[derive(SimpleObject, Clone, Debug)]
-pub struct MediaBucket {
-    pub id: async_graphql::ID,
-    pub name: String,
-    #[graphql(name = "itemCount")]
-    pub item_count: i32,
-    #[graphql(name = "topItemPaths")]
-    pub top_item_paths: Vec<String>,
-}
+pub use super::types::{MediaBucket, MediaDataType};
 
 /// The fields every library row shares. Kept as a helper rather than a
 /// GraphQL interface: the contract declares `MediaItem` as an interface, but
