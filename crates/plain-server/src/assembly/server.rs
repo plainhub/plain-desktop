@@ -227,6 +227,10 @@ impl ContentServer {
         ))
     }
 
+    pub fn data_directory(&self) -> &Path {
+        &self.state.directory
+    }
+
     pub fn host_events(&self) -> crate::host::events::HostEvents {
         crate::host::events::HostEvents::new(self.state.clone())
     }
