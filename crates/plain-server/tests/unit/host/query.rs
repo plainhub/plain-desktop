@@ -14,41 +14,25 @@ fn plan_ok(
         .expect("every field in this test is one the provider knows")
 }
 #[test]
-fn provider_plans_bind_text_ids_and_only_closed_comparisons() {
-    let fields =
-        search_dsl::parse("text:'50%_\\\\' ids:1,2 type:3 duration:>=60 start_time:>2026-10-05");
-    let result = plan_ok(
-        Provider::Call,
-        &fields,
-        &json!({"2026-10-05":1234}),
-        None,
-        false,
-    );
-    assert!(result.clauses.iter().any(|s| s == "duration >= ?"));
-    assert!(result.clauses.iter().any(|s| s == "date > ?"));
-    assert_eq!(result.args.last().unwrap(), "1234");
-    assert!(!result.clauses.join(" ").contains("50"));
-    assert!(result.args[0].contains("\\%\\_"));
-    let malicious = vec![FilterField {
-        name: "duration".into(),
-        op: "OR 1=1".into(),
-        value: "1".into(),
-    }];
-    assert!(
-        plan_ok(Provider::Call, &malicious, &Value::Null, None, false)
-            .clauses
-            .is_empty()
-    );
-}
-#[test]
-fn contact_plans_keep_name_rows_and_empty_tag_ids_match_nothing() {
-    let dir = tempfile::tempdir().unwrap();
-    let db = Db::open(&dir.path().join("db")).unwrap();
-    let parsed = fields(&db, "tag_id:absent").unwrap();
-    let result = plan_ok(Provider::Contact, &parsed, &Value::Null, None, false);
-    assert_eq!(result.args, vec!["vnd.android.cursor.item/name"]);
-    assert_eq!(result.ids_column.as_deref(), Some("raw_contact_id"));
-    assert_eq!(result.ids, vec!["invalid_ids"]);
+fn the_shared_planner_refuses_the_providers_the_mobile_one_owns() {
+    // `provider_query` routes Call and Contact to `mobile::query::plan` under
+    // the `mobile` feature, so this planner must refuse their vocabulary
+    // rather than half-implementing it.
+    for provider in [Provider::Call, Provider::Contact] {
+        for query in ["id:1", "text:1", "ids:1"] {
+            assert!(
+                plan(
+                    provider,
+                    &search_dsl::parse(query),
+                    &Value::Null,
+                    None,
+                    false
+                )
+                .is_err(),
+                "{provider:?} must not plan `{query}` here"
+            );
+        }
+    }
 }
 
 #[test]
@@ -277,14 +261,6 @@ fn every_field_the_web_client_can_emit_is_still_accepted() {
             ],
             "docs view",
         ),
-        // buildNextCallsQ.
-        (
-            Provider::Call,
-            &["text", "type", "duration", "start_time"],
-            "calls view",
-        ),
-        // The contacts view sends query:""; these two exist for other callers.
-        (Provider::Contact, &["text", "ids", "id"], "contacts view"),
     ];
 
     for (provider, names, origin) in cases {
@@ -339,19 +315,6 @@ fn media_trash_rides_the_query_argument_and_builds_no_clause() {
             );
         }
     }
-
-    // Contact and Call are not media stores and have no trash to ask for.
-    assert!(
-        plan_ok(
-            Provider::Contact,
-            &search_dsl::parse("trash:true"),
-            &Value::Null,
-            None,
-            false
-        )
-        .trash
-        .is_none()
-    );
 }
 
 /// A field the provider has never heard of is refused by name. Dropping it
@@ -360,8 +323,6 @@ fn media_trash_rides_the_query_argument_and_builds_no_clause() {
 #[test]
 fn unknown_fields_are_refused_instead_of_dropped() {
     for provider in [
-        Provider::Call,
-        Provider::Contact,
         Provider::File,
         Provider::Doc,
         Provider::Audio,
@@ -385,38 +346,10 @@ fn unknown_fields_are_refused_instead_of_dropped() {
             "{provider:?} should name the field, said: {err}"
         );
     }
-    // `id` is one provider's field and no other's.
-    assert!(
-        plan(
-            Provider::Contact,
-            &search_dsl::parse("id:1"),
-            &Value::Null,
-            None,
-            false
-        )
-        .is_ok()
-    );
-    assert!(
-        plan(
-            Provider::Call,
-            &search_dsl::parse("id:1"),
-            &Value::Null,
-            None,
-            false
-        )
-        .is_err(),
-        "Contact's `id` must not leak into another provider's vocabulary"
-    );
     // The whole-table sentinel and the no-op flags still pass on every
     // provider: rejecting them would break queries that work today.
     for query in ["all:true", "trash:false", "show_hidden:true"] {
-        for provider in [
-            Provider::File,
-            Provider::Doc,
-            Provider::Call,
-            Provider::Contact,
-            Provider::Audio,
-        ] {
+        for provider in [Provider::File, Provider::Doc, Provider::Audio] {
             plan(
                 provider,
                 &search_dsl::parse(query),
@@ -453,8 +386,6 @@ async fn a_query_that_builds_no_clause_is_the_one_the_destructive_path_refuses()
         // The complement of the trashed set is the whole table.
         (Provider::Audio, "trash:false"),
         (Provider::Image, "trash:false"),
-        (Provider::Call, "trash:false"),
-        (Provider::Call, "show_hidden:false"),
     ] {
         let parsed = fields(&db, query).unwrap();
         assert!(
@@ -474,11 +405,8 @@ async fn a_query_that_builds_no_clause_is_the_one_the_destructive_path_refuses()
 
     for (provider, query) in [
         (Provider::Audio, "text:x"),
-        (Provider::Call, "type:1"),
-        (Provider::Call, "text:123"),
         // Always narrowed by a clause of the provider's own, so the guard can
         // never fire for them however the query is spelled.
-        (Provider::Contact, "trash:false"),
         (Provider::Doc, "trash:false"),
         (Provider::File, "trash:false"),
     ] {

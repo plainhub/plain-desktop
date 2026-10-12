@@ -65,3 +65,7 @@ pub(crate) async fn require_narrowing(
     )
     .await
 }
+
+#[cfg(test)]
+#[path = "../../tests/unit/mobile/query.rs"]
+mod tests;
