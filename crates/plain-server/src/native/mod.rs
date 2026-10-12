@@ -24,3 +24,6 @@ pub mod peers;
 
 #[cfg(feature = "core")]
 pub mod dlna;
+
+#[cfg(feature = "core")]
+pub mod discovery;

@@ -106,69 +106,34 @@ pub async fn mdns_activity(
         .map_err(|e| e.to_string())
 }
 
-/// Triggers an immediate one-shot mDNS PTR browse. The resident listener
-/// refreshes a paired peer's IP/port, healing a stale WS dial on the next
-/// reconnect.
 #[tauri::command]
-pub async fn mdns_browse(state: tauri::State<'_, NearbyDiscoverManager>) -> Result<(), String> {
-    let mgr = state.inner().clone();
-    tauri::async_runtime::spawn_blocking(move || mgr.browse())
-        .await
-        .map_err(|e| e.to_string())
+pub async fn mdns_browse(core: tauri::State<'_, Arc<ContentServer>>) -> Result<(), String> {
+    core.native_discovery()?.browse().await
 }
 
-/// Starts periodic mDNS browsing (idempotent). Returns whether THIS call
-/// started it, so the page can stop it on exit only when it started it —
-/// mirrors `MdnsDebugPage.startedByPage`.
 #[tauri::command]
-pub async fn mdns_start_browse(
-    state: tauri::State<'_, NearbyDiscoverManager>,
-) -> Result<bool, String> {
-    let mgr = state.inner().clone();
-    tauri::async_runtime::spawn_blocking(move || mgr.start_discovery())
-        .await
-        .map_err(|e| e.to_string())
+pub async fn mdns_start_browse(core: tauri::State<'_, Arc<ContentServer>>) -> Result<bool, String> {
+    core.native_discovery()?.start_browse().await
 }
 
-/// Stops periodic mDNS browsing started by `mdns_start_browse`.
 #[tauri::command]
-pub async fn mdns_stop_browse(
-    state: tauri::State<'_, NearbyDiscoverManager>,
-) -> Result<bool, String> {
-    let mgr = state.inner().clone();
-    tauri::async_runtime::spawn_blocking(move || mgr.stop_discovery())
-        .await
-        .map_err(|e| e.to_string())
+pub async fn mdns_stop_browse(core: tauri::State<'_, Arc<ContentServer>>) -> Result<bool, String> {
+    core.native_discovery()?.stop_browse().await
 }
 
-/// Current mDNS hostname — mirrors plain-app's `TempData.mdnsHostname`.
 #[tauri::command]
 pub async fn mdns_get_hostname(
-    state: tauri::State<'_, NearbyDiscoverManager>,
+    core: tauri::State<'_, Arc<ContentServer>>,
 ) -> Result<String, String> {
-    let mgr = state.inner().clone();
-    tauri::async_runtime::spawn_blocking(move || mgr.mdns_hostname())
-        .await
-        .map_err(|e| e.to_string())
+    core.native_discovery()?.hostname()
 }
 
-/// Persists and applies a new mDNS hostname. Validation mirrors plain-app's
-/// `MdnsAndPortEditDialog`: non-blank with a `.local` suffix.
 #[tauri::command]
 pub async fn mdns_set_hostname(
-    prefs: tauri::State<'_, std::sync::Arc<crate::prefs::Prefs>>,
-    state: tauri::State<'_, NearbyDiscoverManager>,
+    core: tauri::State<'_, Arc<ContentServer>>,
     hostname: String,
 ) -> Result<(), String> {
-    let hostname = hostname.trim().to_string();
-    if hostname.is_empty() || !hostname.ends_with(".local") {
-        return Err("mdns hostname must end with .local".to_string());
-    }
-    let mgr = state.inner().clone();
-    let prefs = prefs.inner().clone();
-    tauri::async_runtime::spawn_blocking(move || mgr.set_mdns_hostname(&prefs, &hostname))
-        .await
-        .map_err(|e| e.to_string())
+    core.native_discovery()?.set_hostname(&hostname).await
 }
 
 // ── Windows Firewall repair (LAN/mDNS discovery) ─────────────────────────────

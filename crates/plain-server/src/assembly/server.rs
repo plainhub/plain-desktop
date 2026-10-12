@@ -227,6 +227,13 @@ impl ContentServer {
         ))
     }
 
+    pub fn native_discovery(&self) -> Result<crate::native::discovery::NativeDiscovery, String> {
+        self.state.native_client_id()?;
+        Ok(crate::native::discovery::NativeDiscovery::new(
+            self.state.clone(),
+        ))
+    }
+
     pub fn data_directory(&self) -> &Path {
         &self.state.directory
     }

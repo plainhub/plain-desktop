@@ -16,6 +16,16 @@ impl Runtime {
 
     async fn dispatch(&self, method: &str, _params: Value) -> Result<Value, String> {
         match method {
+            "discoveryFacts" => {
+                let settings: plain_rs::prefs::user::UserSettings =
+                    serde_json::from_str(&self.core.user_settings_json()?)
+                        .map_err(|error| error.to_string())?;
+                let facts = super::native::discovery::discovery_facts(
+                    settings.device_name,
+                    plain_server::platform::system::version::full_version(),
+                )?;
+                serde_json::to_value(facts).map_err(|error| error.to_string())
+            }
             SYSTEM_APP_FACTS => serde_json::to_value(super::native::app::app_facts(
                 self.core.data_directory(),
                 self.capabilities.clone(),

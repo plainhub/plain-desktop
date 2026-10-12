@@ -107,7 +107,12 @@ impl Runtime {
             let Some(session) = guard.as_ref() else {
                 return Ok(());
             };
-            *session.hostname.write().unwrap() = hostname;
+            let mut current = session.hostname.write().unwrap();
+            if *current != hostname {
+                *current = hostname;
+                session.browser.clear_instances();
+                session.browser.send_ptr_query();
+            }
         }
         self.execute(state, Request::Update {}).await?;
         Ok(())

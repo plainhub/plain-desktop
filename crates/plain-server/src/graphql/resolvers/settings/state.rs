@@ -84,18 +84,15 @@ impl PreferencesMutation {
         let prefs = prefs(ctx)?;
         let command: plain_rs::prefs::system::Command =
             serde_json::from_value(serde_json::to_value(input)?)?;
-        let hostname_changed = matches!(
-            &command,
-            plain_rs::prefs::system::Command::SetMdnsHostname { .. }
-        );
-        let changed = command.apply(prefs)?;
-        notify(ctx, changed);
         #[cfg(feature = "core")]
-        if hostname_changed {
+        if let plain_rs::prefs::system::Command::SetMdnsHostname { hostname } = &command {
             if let Some(state) = ctx.data_opt::<crate::assembly::server::ServerState>() {
-                state.mdns.update_hostname(state).await?;
+                let changed = apply_mdns_hostname(state, hostname).await?;
+                return updated(ctx, changed);
             }
         }
+        let changed = command.apply(prefs)?;
+        notify(ctx, changed);
         updated(ctx, changed)
     }
     async fn update_user_settings(
@@ -387,5 +384,23 @@ pub(crate) async fn apply_user_action(
     }
     let after = plain_rs::prefs::user::snapshot(env.prefs)?;
     emit_user_events(env.events, &before, &after)?;
+    Ok(changed)
+}
+
+#[cfg(feature = "core")]
+pub(crate) async fn apply_mdns_hostname(
+    state: &crate::assembly::server::ServerState,
+    hostname: &str,
+) -> Result<bool> {
+    let changed = plain_rs::prefs::system::Command::SetMdnsHostname {
+        hostname: hostname.to_owned(),
+    }
+    .apply(&state.prefs)?;
+    if changed {
+        let _ = state
+            .events
+            .send(WsEvent::broadcast("PREFS_UPDATED", "{}".into()));
+    }
+    state.mdns.update_hostname(state).await?;
     Ok(changed)
 }
