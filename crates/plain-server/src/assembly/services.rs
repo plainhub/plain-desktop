@@ -9,6 +9,7 @@ pub(crate) struct Services {
     pub feeds: Arc<crate::services::feeds::SyncService>,
     pub feed_assets: Arc<crate::services::feeds::FeedAssets>,
     pub image_updates: Arc<plain_rs::media::images::editor::Updates>,
+    pub upload_chunks: Arc<crate::services::files::upload_chunks::UploadChunks>,
     pub uploads: Arc<plain_rs::files::uploads::Runtime>,
 }
 impl Services {
@@ -24,9 +25,9 @@ impl Services {
             host.clone(),
             events.clone(),
             prefs.clone(),
-            directory,
+            directory.clone(),
         );
-        Self::with_shared(db, host, events, prefs, shared)
+        Self::with_shared(db, host, events, prefs, directory, shared)
     }
 
     pub(crate) fn shared(
@@ -61,6 +62,7 @@ impl Services {
         host: Arc<crate::host::bridge::Host>,
         events: tokio::sync::broadcast::Sender<plain_rs::events::WsEvent>,
         prefs: Arc<plain_rs::prefs::Prefs>,
+        directory: std::path::PathBuf,
         shared: crate::assembly::shared_services::SharedServices,
     ) -> Self {
         let audio = Arc::new(crate::services::audio::host::Audio::new(
@@ -88,6 +90,9 @@ impl Services {
             events,
         ));
         Self {
+            upload_chunks: Arc::new(crate::services::files::upload_chunks::UploadChunks::new(
+                directory.join("uploads"),
+            )),
             media_actions,
             files,
             audio,

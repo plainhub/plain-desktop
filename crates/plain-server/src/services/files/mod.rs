@@ -18,3 +18,6 @@ pub mod writes;
 
 #[cfg(feature = "host-api")]
 pub mod media_actions;
+
+#[cfg(feature = "host-api")]
+pub mod upload_chunks;

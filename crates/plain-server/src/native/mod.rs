@@ -9,3 +9,6 @@ pub mod resource_stream;
 
 #[cfg(feature = "host-api")]
 pub mod file_tasks;
+
+#[cfg(feature = "host-api")]
+pub mod uploads;

@@ -118,6 +118,7 @@ pub(crate) fn build_with_services(
         .data(services.image_updates)
         .data(services.feeds)
         .data(services.feed_assets)
+        .data(services.upload_chunks)
         .data(services.uploads)
         .data(prefs)
         .finish()

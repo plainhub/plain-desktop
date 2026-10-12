@@ -167,16 +167,11 @@ fn now_millis() -> u128 {
 }
 
 pub(crate) async fn upload_tmp_dir(state: &ServerState) -> anyhow::Result<String> {
-    let facts = state
-        .host
-        .call("uploadTmpDirFacts", json!({}))
-        .await
-        .map_err(anyhow::Error::msg)?;
-    facts["path"]
-        .as_str()
-        .map(str::to_owned)
-        .filter(|path| !path.is_empty())
-        .ok_or_else(|| anyhow::anyhow!("upload temp directory is unavailable"))
+    Ok(state
+        .upload_chunks
+        .directory()
+        .to_string_lossy()
+        .into_owned())
 }
 
 pub(crate) async fn upload(State(state): State<ServerState>, request: Request) -> Response {

@@ -184,6 +184,7 @@ pub(crate) fn build_with_runtime(
     let builder = Schema::build(Query::default(), Mutation::default(), EmptySubscription)
         .register_output_type::<crate::graphql::resolvers::media::item::MediaItem>()
         .data(crate::graphql::resolvers::tags::loader::new(db.clone()))
+        .data(services.upload_chunks)
         .data(services.uploads)
         .data(host.clone())
         .data(services.media_actions)

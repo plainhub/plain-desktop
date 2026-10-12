@@ -421,20 +421,15 @@ fn prefs<'a>(ctx: &'a Context<'_>) -> &'a Arc<plain_rs::prefs::Prefs> {
     ctx.data_unchecked::<Arc<plain_rs::prefs::Prefs>>()
 }
 
-async fn host_call(ctx: &Context<'_>, method: &str, params: Value) -> async_graphql::Result<Value> {
-    ctx.data_unchecked::<Arc<Host>>()
-        .call(method, params)
-        .await
-        .map_err(async_graphql::Error::new)
-}
-
 #[cfg(test)]
 #[path = "../../../../tests/unit/graphql/resolvers/files/operations.rs"]
 mod tests;
 
 async fn upload_base(ctx: &Context<'_>) -> async_graphql::Result<std::path::PathBuf> {
-    let facts = host_call(ctx, "uploadTmpDirFacts", json!({})).await?;
-    Ok(std::path::PathBuf::from(text(&facts, "path")))
+    Ok(ctx
+        .data::<Arc<crate::services::files::upload_chunks::UploadChunks>>()?
+        .directory()
+        .to_path_buf())
 }
 async fn start_merge(
     ctx: &Context<'_>,
