@@ -146,7 +146,9 @@ fn text_events_are_encrypted_with_the_url_token() {
         "a text frame must not stay readable on the wire"
     );
     assert!(
-        !frame.windows(9).any(|window| window == b"CHAT_MESS".get(..6).unwrap_or(&[])),
+        !frame
+            .windows(9)
+            .any(|window| window == b"CHAT_MESS".get(..6).unwrap_or(&[])),
         "the event name must be the only plaintext part of the frame"
     );
 }
