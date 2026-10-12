@@ -6,6 +6,8 @@ use std::{
 };
 use tokio::sync::{Notify, Semaphore, mpsc, oneshot, watch};
 
+pub(crate) const REQUEST_CAPACITY: usize = 32;
+
 type Reply = Result<Value, String>;
 #[derive(Default)]
 struct State {
@@ -26,7 +28,7 @@ impl Default for Host {
         Self {
             state: Arc::new(Mutex::new(State::default())),
             ready: Notify::new(),
-            capacity: Semaphore::new(32),
+            capacity: Semaphore::new(REQUEST_CAPACITY),
             connection: watch::channel(0).0,
         }
     }
@@ -55,7 +57,7 @@ impl Host {
         self.state.lock().unwrap().sender.is_some()
     }
     pub fn connect(&self) -> (u64, mpsc::Receiver<Value>) {
-        let (sender, receiver) = mpsc::channel(32);
+        let (sender, receiver) = mpsc::channel(REQUEST_CAPACITY);
         let mut state = self.state.lock().unwrap();
         for (_, reply) in state.pending.drain() {
             let _ = reply.send(Err("host connection replaced".into()));

@@ -9,6 +9,14 @@ pub struct HostEvents {
     requests: Mutex<mpsc::Receiver<Value>>,
     events: Mutex<broadcast::Receiver<WsEvent>>,
 }
+struct ServingSession<'a>(&'a HostEvents);
+
+impl Drop for ServingSession<'_> {
+    fn drop(&mut self) {
+        self.0.state.host.disconnect(self.0.generation);
+    }
+}
+
 impl HostEvents {
     pub(crate) fn new(state: ServerState) -> Self {
         let events = state.events.subscribe();
@@ -73,6 +81,69 @@ impl HostEvents {
             }
         }
     }
+    pub async fn serve<Requests, Events, Pending>(
+        self: std::sync::Arc<Self>,
+        requests: Requests,
+        events: Events,
+    ) -> Result<(), String>
+    where
+        Requests: Fn(String, Value) -> Pending,
+        Pending: std::future::Future<Output = Result<Value, String>> + Send + 'static,
+        Events: Fn(Value) -> Result<(), String>,
+    {
+        let _session = ServingSession(&self);
+        self.serve_connected(requests, events).await
+    }
+
+    async fn serve_connected<Requests, Events, Pending>(
+        &self,
+        requests: Requests,
+        events: Events,
+    ) -> Result<(), String>
+    where
+        Requests: Fn(String, Value) -> Pending,
+        Pending: std::future::Future<Output = Result<Value, String>> + Send + 'static,
+        Events: Fn(Value) -> Result<(), String>,
+    {
+        let mut workers = tokio::task::JoinSet::new();
+        loop {
+            tokio::select! {
+                biased;
+                _ = self.wait_disconnected() => break,
+                completed = workers.join_next(), if !workers.is_empty() => {
+                    let (id, result) = completed
+                        .ok_or("host worker unavailable")?
+                        .map_err(|error| format!("host worker failed: {error}"))?;
+                    let reply = match result {
+                        Ok(result) => json!({"id": id, "result": result}),
+                        Err(error) => json!({"id": id, "error": error}),
+                    };
+                    self.reply(reply)?;
+                },
+                event = self.next_event() => {
+                    match event {
+                        Some(event) => events(event)?,
+                        None => break,
+                    }
+                },
+                request = self.next_request(), if workers.len() < crate::host::bridge::REQUEST_CAPACITY => {
+                    let Some(request) = request else { break };
+                    let id = request.get("id").and_then(Value::as_u64)
+                        .ok_or("invalid host request ID")?;
+                    let method = request.get("method").and_then(Value::as_str)
+                        .ok_or("invalid host request method")?.to_owned();
+                    let params = request.get("params").cloned()
+                        .ok_or("missing host request parameters")?;
+                    let pending = requests(method, params);
+                    workers.spawn(async move { (id, pending.await) });
+                },
+            }
+        }
+        workers.abort_all();
+        while workers.join_next().await.is_some() {}
+        Ok(())
+    }
+
     pub fn reply(&self, value: Value) -> Result<(), String> {
         self.state.host.reply(self.generation, value)
     }
@@ -141,3 +212,7 @@ impl TestHost {
         )
     }
 }
+
+#[cfg(test)]
+#[path = "../../tests/unit/host/events_runtime.rs"]
+mod runtime_tests;
