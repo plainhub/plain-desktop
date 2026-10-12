@@ -21,3 +21,6 @@ pub mod media_actions;
 
 #[cfg(feature = "core")]
 pub mod upload_chunks;
+
+#[cfg(feature = "core")]
+pub mod archives;

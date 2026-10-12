@@ -12,3 +12,6 @@ pub mod file_tasks;
 
 #[cfg(feature = "core")]
 pub mod uploads;
+
+#[cfg(feature = "core")]
+pub mod archives;

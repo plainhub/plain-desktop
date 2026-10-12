@@ -40,6 +40,7 @@ pub(crate) struct ServerState {
     pub(crate) guest_replay: Arc<crate::http::auth::replay::Replay>,
     pub(crate) main_replay: Arc<crate::http::auth::replay::Replay>,
     pub(crate) peer_schema: crate::graphql::schemas::peer_host::PeerSchema,
+    pub(crate) archives: Arc<crate::services::files::archives::Archives>,
     pub(crate) upload_chunks: Arc<crate::services::files::upload_chunks::UploadChunks>,
     pub(crate) files: Arc<crate::services::files::file_tasks::FileTasks>,
     pub(crate) host: Arc<crate::host::bridge::Host>,
@@ -142,6 +143,15 @@ impl ContentServer {
         self.state.native_client_id()?;
         Ok(crate::native::uploads::NativeUploads::new(
             self.state.upload_chunks.clone(),
+            self.state.stop.clone(),
+        ))
+    }
+
+    pub fn native_archives(&self) -> Result<crate::native::archives::NativeArchives, String> {
+        self.state.native_client_id()?;
+        Ok(crate::native::archives::NativeArchives::new(
+            self.state.archives.clone(),
+            self.state.host.clone(),
             self.state.stop.clone(),
         ))
     }
@@ -332,6 +342,7 @@ impl ContentServer {
             ble_scan: Arc::new(crate::services::discovery::ble_scan::Runtime::default()),
             pairing: Arc::new(plain_rs::peers::pairing::sessions::Sessions::default()),
             dlna,
+            archives: services.archives,
             upload_chunks: services.upload_chunks,
             files: services.files,
             audio: services.audio,

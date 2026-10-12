@@ -15,9 +15,8 @@ use axum::{
 use serde::Deserialize;
 use serde_json::Value;
 use std::{
-    io::{Read, Seek, SeekFrom, Write},
+    io::{Read, Write},
     path::{Path, PathBuf},
-    sync::Arc,
 };
 
 const ZIP_SEPARATOR: &str = "!zip!/";
@@ -172,61 +171,31 @@ impl Drop for Staging {
     }
 }
 
-fn build_archive(
-    directory: &Path,
-    items: Vec<(PathBuf, String)>,
-) -> anyhow::Result<(std::fs::File, PathBuf)> {
-    anyhow::ensure!(!items.is_empty(), "nothing to zip");
-    std::fs::create_dir_all(directory)?;
-    let path = directory.join(format!("web-zip-{}.tmp", uuid::Uuid::new_v4()));
-    let file = std::fs::File::create(&path)?;
-    let mut writer = zip::ZipWriter::new(file);
-    let options = zip::write::SimpleFileOptions::default()
-        .compression_method(zip::CompressionMethod::Deflated);
-    let mut buffer = vec![0; 64 * 1024];
-    for (source, entry_name) in items {
-        let mut reader = std::fs::File::open(&source)?;
-        writer.start_file(entry_name, options)?;
-        loop {
-            let read = reader.read(&mut buffer)?;
-            if read == 0 {
-                break;
-            }
-            writer.write_all(&buffer[..read])?;
-        }
-    }
-    let mut file = writer.finish()?;
-    file.seek(SeekFrom::Start(0))?;
-    Ok((file, path))
-}
-
-fn stream_archive(
+async fn stream_archive(
     state: &ServerState,
     items: Vec<(PathBuf, String)>,
     name: &str,
     staging: Vec<PathBuf>,
+    permit: tokio::sync::OwnedSemaphorePermit,
 ) -> Response {
     let _guard = Staging { paths: staging };
-    let (file, _staged_path) = match build_archive(&state.directory, items) {
-        Ok(pair) => pair,
-        Err(error) => return plain(StatusCode::BAD_REQUEST, error.to_string()),
+    let reader = match state
+        .archives
+        .build(items, permit, state.stop.clone())
+        .await
+    {
+        Ok(reader) => reader,
+        Err(error) => return plain(StatusCode::BAD_REQUEST, error),
     };
     let encoded = url_escape(name);
     let disposition = format!("attachment;filename=\"{encoded}\";filename*=utf-8''\"{encoded}\"");
-    let length = file.metadata().map(|meta| meta.len()).unwrap_or_default();
-    let _cleanup = _guard;
-    let source = tokio::fs::File::from_std(file);
-    let stream = futures_util::stream::try_unfold(source, |mut file| async move {
-        use tokio::io::AsyncReadExt;
-        let mut buffer = vec![0u8; 64 * 1024];
-        let read = file.read(&mut buffer).await?;
-        if read == 0 {
-            return Ok::<_, std::io::Error>(None);
-        }
-        Ok::<_, std::io::Error>(Some((
-            axum::body::Bytes::from(buffer[..read].to_vec()),
-            file,
-        )))
+    let length = reader.size;
+    let stream = futures_util::stream::try_unfold(reader, |mut reader| async move {
+        reader
+            .read()
+            .await
+            .map(|chunk| chunk.map(|bytes| (axum::body::Bytes::from(bytes), reader)))
+            .map_err(std::io::Error::other)
     });
     Response::builder()
         .status(StatusCode::OK)
@@ -236,8 +205,11 @@ fn stream_archive(
         .body(Body::from_stream(stream))
         .unwrap_or_else(|_| StatusCode::INTERNAL_SERVER_ERROR.into_response())
 }
-
-async fn zip_dir(state: &ServerState, params: &Params) -> Response {
+async fn zip_dir(
+    state: &ServerState,
+    params: &Params,
+    permit: tokio::sync::OwnedSemaphorePermit,
+) -> Response {
     if params.id.is_empty() {
         return plain(StatusCode::BAD_REQUEST, "");
     }
@@ -263,7 +235,7 @@ async fn zip_dir(state: &ServerState, params: &Params) -> Response {
                 .map(|value| value.to_string_lossy().to_string())
                 .unwrap_or_default()
         );
-        return stream_archive(state, items, &name, Vec::new());
+        return stream_archive(state, items, &name, Vec::new(), permit).await;
     }
     if !desktop_access_allowed(state) {
         return plain(StatusCode::FORBIDDEN, "");
@@ -313,7 +285,7 @@ async fn zip_dir(state: &ServerState, params: &Params) -> Response {
         } else {
             json_name
         };
-        return stream_archive(state, items, &name, staging);
+        return stream_archive(state, items, &name, staging, permit).await;
     }
     let root = PathBuf::from(&path);
     if !root.is_dir() {
@@ -332,10 +304,14 @@ async fn zip_dir(state: &ServerState, params: &Params) -> Response {
     } else {
         json_name
     };
-    stream_archive(state, items, &name, Vec::new())
+    stream_archive(state, items, &name, Vec::new(), permit).await
 }
 
-async fn zip_files(state: &ServerState, params: &Params) -> Response {
+async fn zip_files(
+    state: &ServerState,
+    params: &Params,
+    permit: tokio::sync::OwnedSemaphorePermit,
+) -> Response {
     if !desktop_access_allowed(state) {
         return plain(StatusCode::FORBIDDEN, "");
     }
@@ -398,38 +374,27 @@ async fn zip_files(state: &ServerState, params: &Params) -> Response {
     } else {
         request.name
     };
-    stream_archive(state, items, &name, Vec::new())
-}
-
-fn zip_gate() -> &'static Arc<tokio::sync::Semaphore> {
-    static GATE: std::sync::OnceLock<Arc<tokio::sync::Semaphore>> = std::sync::OnceLock::new();
-    GATE.get_or_init(|| Arc::new(tokio::sync::Semaphore::new(1)))
-}
-
-/// One archive at a time: the web UI can fire several downloads on a double
-/// click and a phone cannot stream more than one of them concurrently.
-fn acquire_gate() -> Option<tokio::sync::OwnedSemaphorePermit> {
-    zip_gate().clone().try_acquire_owned().ok()
+    stream_archive(state, items, &name, Vec::new(), permit).await
 }
 
 pub(crate) async fn dir(
     State(state): State<ServerState>,
     Query(params): Query<Params>,
 ) -> Response {
-    let Some(_permit) = acquire_gate() else {
+    let Some(permit) = state.archives.acquire() else {
         return plain(StatusCode::TOO_MANY_REQUESTS, "");
     };
-    zip_dir(&state, &params).await
+    zip_dir(&state, &params, permit).await
 }
 
 pub(crate) async fn files(
     State(state): State<ServerState>,
     Query(params): Query<Params>,
 ) -> Response {
-    let Some(_permit) = acquire_gate() else {
+    let Some(permit) = state.archives.acquire() else {
         return plain(StatusCode::TOO_MANY_REQUESTS, "");
     };
-    zip_files(&state, &params).await
+    zip_files(&state, &params, permit).await
 }
 
 #[cfg(test)]

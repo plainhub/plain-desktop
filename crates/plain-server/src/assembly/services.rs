@@ -1,6 +1,7 @@
 use std::sync::Arc;
 #[derive(Clone)]
 pub(crate) struct Services {
+    pub archives: Arc<crate::services::files::archives::Archives>,
     pub app_files: Arc<plain_rs::files::app_files::FileStore>,
     pub shares: Arc<plain_rs::files::shares::Service>,
     pub media_actions: Arc<crate::services::files::media_actions::MediaActions>,
@@ -94,6 +95,9 @@ impl Services {
             events,
         ));
         Self {
+            archives: Arc::new(crate::services::files::archives::Archives::new(
+                directory.join("archives"),
+            )),
             app_files,
             shares,
             upload_chunks: Arc::new(crate::services::files::upload_chunks::UploadChunks::new(
