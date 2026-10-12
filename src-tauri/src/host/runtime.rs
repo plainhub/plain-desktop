@@ -24,6 +24,9 @@ impl Runtime {
 
     async fn dispatch(&self, method: &str, params: Value) -> Result<Value, String> {
         match method {
+            "systemFileResource" => {
+                plain_server::host::file_resource::facts(self.core.data_directory(), params)
+            }
             "mdnsMulticast" => {
                 let result = self
                     .multicast

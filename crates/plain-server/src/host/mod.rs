@@ -22,3 +22,6 @@ pub mod platform;
 
 #[cfg(feature = "core")]
 pub mod multicast;
+
+#[cfg(feature = "core")]
+pub mod file_resource;
