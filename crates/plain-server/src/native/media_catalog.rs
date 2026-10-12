@@ -210,6 +210,94 @@ impl NativeMediaCatalog {
         self.scan_directories(vec![reference.to_owned()]).await
     }
 
+    /// Watch the configured source roots so a file that appears, changes or
+    /// leaves keeps the catalog current without a full rescan.
+    ///
+    /// The watcher is held by the core; `stop_core` releases it. Re-watching
+    /// the same roots replaces the previous watch rather than stacking a
+    /// second one.
+    #[cfg(feature = "media")]
+    pub fn watch_source_directories(&self) -> Result<bool, String> {
+        self.state.native_client_id()?;
+        let policy = self.state.media_scans.policy()?;
+        let directory = self
+            .state
+            .directory
+            .canonicalize()
+            .map_err(|error| error.to_string())?;
+        let roots = self
+            .source_directories()?
+            .into_iter()
+            .map(std::path::PathBuf::from)
+            .filter(|root| root.is_dir())
+            .collect::<Vec<_>>();
+        if roots.is_empty() {
+            return Ok(false);
+        }
+        let state = self.state.clone();
+        let catalog_state = self.state.clone();
+        let handle = crate::services::files::media_watch::start(&roots, move |path, kind| {
+            // `notify` delivers on its own thread, so the work moves onto the
+            // runtime rather than blocking the watcher.
+            let runtime = match tokio::runtime::Handle::try_current() {
+                Ok(runtime) => runtime,
+                Err(_) => return,
+            };
+            let state = state.clone();
+            let path = path.to_path_buf();
+            let kind = kind.clone();
+            let cache = policy.cache_directory.clone();
+            let excluded_roots = policy.excluded_roots.clone();
+            // The closure is `Fn`, so each delivery takes its own copies.
+            let directory = directory.clone();
+            let catalog_state = catalog_state.clone();
+            runtime.spawn(async move {
+                let excluded = plain_media::scan::is_media_excluded_at(
+                    &path.to_string_lossy(),
+                    &directory,
+                    &cache,
+                    &excluded_roots,
+                );
+                let effect =
+                    crate::services::files::media_watch::effect_for(&path, &kind, excluded);
+                let catalog = crate::native::media_catalog::NativeMediaCatalog::new(catalog_state);
+                match effect {
+                    crate::services::files::media_watch::Effect::Index => {
+                        if let Err(error) = catalog.scan_completed_files(
+                            serde_json::json!({"paths":[path.to_string_lossy()]}),
+                        ) {
+                            log::debug!("media watch index failed: {error}");
+                        }
+                    }
+                    crate::services::files::media_watch::Effect::Forget => {
+                        let name = path.to_string_lossy().into_owned();
+                        if let Err(error) = state.db.forget_media_file(&name) {
+                            log::debug!("media watch forget failed: {error}");
+                        }
+                    }
+                    crate::services::files::media_watch::Effect::RescanSubtree => {
+                        if let Err(error) = catalog.scan_directory(&path.to_string_lossy()).await {
+                            log::debug!("media watch rescan failed: {error}");
+                        }
+                    }
+                    crate::services::files::media_watch::Effect::Ignore => {}
+                }
+            });
+        })
+        .map_err(|error| error.to_string())?;
+        let mut slot = self
+            .state
+            .media_watch
+            .lock()
+            .map_err(|_| "media watch unavailable")?;
+        if slot.is_some() {
+            // Replacing drops the previous watcher, which stops the old one.
+            *slot = None;
+        }
+        *slot = Some(handle);
+        Ok(true)
+    }
+
     #[cfg(feature = "media")]
     pub async fn scan_source_directories(
         &self,

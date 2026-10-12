@@ -45,6 +45,12 @@ pub(crate) struct ServerState {
     pub(crate) files: Arc<crate::services::files::file_tasks::FileTasks>,
     #[cfg(feature = "media")]
     pub(crate) media_scans: Arc<crate::services::files::media_scans::MediaScans>,
+    /// The live media watcher. Held so `stop_core` can release it; the
+    /// catalog replaces it rather than stacking a second watch.
+    #[cfg(feature = "media")]
+    pub(crate) media_watch: std::sync::Arc<
+        std::sync::Mutex<Option<crate::services::files::media_watch::WatcherHandle>>,
+    >,
     pub(crate) host: Arc<crate::host::bridge::Host>,
     pub(crate) thumbnails: Arc<crate::services::images::thumbnails::Thumbnails>,
     pub(crate) db: Arc<Db>,
@@ -392,6 +398,8 @@ impl ContentServer {
             media_scans: Arc::new(crate::services::files::media_scans::MediaScans::new(
                 events.clone(),
             )),
+            #[cfg(feature = "media")]
+            media_watch: std::sync::Arc::new(std::sync::Mutex::new(None)),
             #[cfg(feature = "http_transport")]
             public_server: Arc::new(tokio::sync::Mutex::new(None)),
             #[cfg(feature = "http_transport")]
@@ -879,8 +887,15 @@ impl ContentServer {
                 .await;
         }
         #[cfg(feature = "media")]
-        if let Err(error) = self.state.media_scans.close() {
-            log::error!("Media scan cancellation failed: {error}");
+        {
+            // The watcher writes into the catalog, so it has to stop before
+            // the scan state it feeds is closed.
+            if let Ok(mut slot) = self.state.media_watch.lock() {
+                slot.take();
+            }
+            if let Err(error) = self.state.media_scans.close() {
+                log::error!("Media scan cancellation failed: {error}");
+            }
         }
         let _ = self.stop.send(true);
         #[cfg(feature = "media")]

@@ -702,3 +702,46 @@ async fn action_id_requests_are_typed_and_stop_checked() {
             .is_err()
     );
 }
+
+/// The watcher writes into the catalog, so it must not outlive the core
+/// that owns it: after `stop_core` no filesystem event can reach the store.
+#[tokio::test]
+async fn the_watcher_stops_with_the_core_and_rejects_after_it() {
+    let directory = tempfile::tempdir().unwrap();
+    let core = crate::assembly::server::ContentServer::open(&directory.path()).unwrap();
+    let source = directory.path().join("media");
+    std::fs::create_dir_all(&source).unwrap();
+    let catalog = core.native_media_catalog().unwrap();
+    catalog
+        .set_source_directories(&[source.to_string_lossy().into_owned()])
+        .unwrap();
+    // The scan policy is what decides what counts as media, so the watcher
+    // cannot start before it is configured.
+    assert!(
+        catalog.watch_source_directories().is_err(),
+        "watching before the scan policy exists has nothing to exclude against"
+    );
+    catalog
+        .configure_scan_directories(&directory.path().join("cache"), None)
+        .unwrap();
+    assert!(catalog.watch_source_directories().unwrap());
+    assert!(
+        core.runtime_state().media_watch.lock().unwrap().is_some(),
+        "a configured source directory must be watched"
+    );
+    // Re-watching replaces rather than stacking a second one.
+    assert!(catalog.watch_source_directories().unwrap());
+
+    core.stop_core().await;
+    assert!(
+        core.runtime_state().media_watch.lock().unwrap().is_none(),
+        "the watcher has to be released with the core"
+    );
+    assert!(catalog.watch_source_directories().is_err());
+    assert!(
+        catalog
+            .scan_completed_files(serde_json::json!({"paths":[]}))
+            .is_err(),
+        "a stopped core must refuse catalog writes"
+    );
+}
