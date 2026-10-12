@@ -1,10 +1,3 @@
-//! Public `/graphql` clipboard roots.
-//!
-//! The app's own clipboard view ([`crate::graphql::resolvers::clipboard::host`]) is not
-//! reusable here: the public roots are gated on the `CLIPBOARD` web
-//! permission and clamp the page window, while the app talks to itself
-//! without a gate.
-
 use crate::graphql::resolvers::clipboard::host::ClipboardItem;
 use crate::graphql::types::ActionResult;
 use crate::host::bridge::Host;
@@ -31,12 +24,13 @@ impl ClipboardQuery {
         limit: i32,
     ) -> async_graphql::Result<Vec<ClipboardItem>> {
         enabled(ctx)?;
+        let (limit, offset) = if public_gate::is_local(ctx) {
+            (limit, offset)
+        } else {
+            (limit.clamp(1, MAX_LIMIT), offset.max(0))
+        };
         ctx.data::<Arc<Db>>()?
-            .clipboard_page(
-                &query,
-                limit.clamp(1, MAX_LIMIT).into(),
-                offset.max(0).into(),
-            )?
+            .clipboard_page(&query, limit.into(), offset.into())?
             .into_iter()
             .map(ClipboardItem::try_from)
             .collect()

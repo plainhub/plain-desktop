@@ -46,31 +46,9 @@ pub struct ClipboardRecordResult {
 }
 
 #[derive(Default)]
-pub struct ClipboardQuery;
+pub struct ClipboardHostMutation;
 #[Object]
-impl ClipboardQuery {
-    async fn clipboard_items(
-        &self,
-        ctx: &Context<'_>,
-        query: String,
-        offset: i32,
-        limit: i32,
-    ) -> Result<Vec<ClipboardItem>> {
-        ctx.data::<Arc<Db>>()?
-            .clipboard_page(&query, limit.into(), offset.into())?
-            .into_iter()
-            .map(ClipboardItem::try_from)
-            .collect()
-    }
-    async fn clipboard_item_count(&self, ctx: &Context<'_>, query: String) -> Result<i32> {
-        Ok(ctx.data::<Arc<Db>>()?.clipboard_count(&query)?.try_into()?)
-    }
-}
-
-#[derive(Default)]
-pub struct ClipboardMutation;
-#[Object]
-impl ClipboardMutation {
+impl ClipboardHostMutation {
     async fn record_clipboard(
         &self,
         ctx: &Context<'_>,
@@ -87,19 +65,6 @@ impl ClipboardMutation {
         Ok(ClipboardRecordResult {
             inserted,
             item: item.try_into()?,
-        })
-    }
-    async fn delete_clipboard_items(
-        &self,
-        ctx: &Context<'_>,
-        query: String,
-    ) -> Result<ActionResult> {
-        Ok(ActionResult {
-            affected_count: ctx
-                .data::<Arc<Db>>()?
-                .clipboard_delete_query(&query)
-                .map_err(async_graphql::Error::new)?
-                .try_into()?,
         })
     }
     async fn delete_clipboard_items_by_ids(
