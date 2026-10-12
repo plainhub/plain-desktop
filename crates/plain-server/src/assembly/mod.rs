@@ -29,3 +29,9 @@ pub mod server;
 
 #[cfg(feature = "host-api")]
 pub mod services;
+
+#[cfg(any(feature = "api", feature = "host-api"))]
+pub(crate) mod shared_services;
+
+#[cfg(feature = "host-api")]
+pub(crate) mod core_dependencies;

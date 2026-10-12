@@ -19,34 +19,23 @@ impl Services {
         prefs: Arc<plain_rs::prefs::Prefs>,
         directory: std::path::PathBuf,
     ) -> Self {
-        let audio = Arc::new(crate::services::audio::host::Audio::new(
-            db.clone(),
-            host.clone(),
-        ));
-        let index = Arc::new(crate::services::images::index::ImageIndex::new(
-            db.clone(),
-            host.clone(),
-        ));
-        let files = Arc::new(crate::services::files::file_tasks::FileTasks::new(
+        let shared = Self::shared(
             db.clone(),
             host.clone(),
             events.clone(),
-            audio.clone(),
-            index.clone(),
             prefs.clone(),
-        ));
-        let pomodoro =
-            crate::services::pomodoro::Service::new(db.clone(), prefs.clone(), events.clone());
-        let feed_assets = Arc::new(crate::services::feeds::FeedAssets {
-            db: db.clone(),
             directory,
-        });
-        let feeds = crate::services::feeds::SyncService::new(
-            db.clone(),
-            events.clone(),
-            Some(feed_assets.clone()),
         );
-        let image_updates = plain_rs::media::images::editor::Updates::new(events.clone());
+        Self::with_shared(db, host, events, prefs, shared)
+    }
+
+    pub(crate) fn shared(
+        db: Arc<plain_rs::db::Db>,
+        host: Arc<crate::host::bridge::Host>,
+        events: tokio::sync::broadcast::Sender<plain_rs::events::WsEvent>,
+        prefs: Arc<plain_rs::prefs::Prefs>,
+        directory: std::path::PathBuf,
+    ) -> crate::assembly::shared_services::SharedServices {
         let uploads = Arc::new(plain_rs::files::uploads::Runtime::with_completion({
             let host = host.clone();
             move |path| {
@@ -64,6 +53,32 @@ impl Services {
                 })
             }
         }));
+        crate::assembly::shared_services::SharedServices::new(db, prefs, events, directory, uploads)
+    }
+
+    pub(crate) fn with_shared(
+        db: Arc<plain_rs::db::Db>,
+        host: Arc<crate::host::bridge::Host>,
+        events: tokio::sync::broadcast::Sender<plain_rs::events::WsEvent>,
+        prefs: Arc<plain_rs::prefs::Prefs>,
+        shared: crate::assembly::shared_services::SharedServices,
+    ) -> Self {
+        let audio = Arc::new(crate::services::audio::host::Audio::new(
+            db.clone(),
+            host.clone(),
+        ));
+        let index = Arc::new(crate::services::images::index::ImageIndex::new(
+            db.clone(),
+            host.clone(),
+        ));
+        let files = Arc::new(crate::services::files::file_tasks::FileTasks::new(
+            db.clone(),
+            host.clone(),
+            events.clone(),
+            audio.clone(),
+            index.clone(),
+            prefs.clone(),
+        ));
         let media_actions = Arc::new(crate::services::files::media_actions::MediaActions::new(
             db,
             host,
@@ -77,11 +92,11 @@ impl Services {
             files,
             audio,
             index,
-            pomodoro,
-            feeds,
-            feed_assets,
-            image_updates,
-            uploads,
+            pomodoro: shared.pomodoro,
+            feeds: shared.feeds,
+            feed_assets: shared.feed_assets,
+            image_updates: shared.image_updates,
+            uploads: shared.uploads,
         }
     }
 }

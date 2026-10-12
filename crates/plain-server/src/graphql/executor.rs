@@ -28,9 +28,9 @@ impl RequestContext {
     #[cfg(feature = "host-api")]
     pub(crate) fn local(state: ServerState) -> Self {
         Self {
-            state: Some(state),
             #[cfg(feature = "api")]
             desktop: None,
+            state: Some(state),
             notify_changes: true,
             origin: RequestOrigin::Local,
         }
@@ -38,9 +38,9 @@ impl RequestContext {
     #[cfg(feature = "host-api")]
     pub(crate) fn remote(state: Option<ServerState>) -> Self {
         Self {
-            state,
             #[cfg(feature = "api")]
             desktop: None,
+            state,
             notify_changes: false,
             origin: RequestOrigin::Remote,
         }
@@ -90,6 +90,13 @@ pub async fn execute_graphql<
             .data(context.event_tx.clone())
             .data(context.db.clone()),
         None => request,
+    };
+    #[cfg(feature = "api")]
+    let request = match context.desktop.as_ref() {
+        Some(context) if origin == RequestOrigin::Local => {
+            request.data(context.identity.client_id.clone())
+        }
+        _ => request,
     };
     let response = schema.execute(request).await;
     if changed && response.errors.is_empty() {

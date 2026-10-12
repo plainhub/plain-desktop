@@ -1,34 +1,39 @@
-use crate::assembly::context::AppCtx;
-use crate::graphql::executor::{RequestContext, RequestOrigin, execute_graphql};
-use crate::graphql::schemas::desktop::ApiSchema;
+use crate::graphql::executor::GraphqlExecutor;
 use async_graphql::{Request, Response};
-use std::sync::Arc;
+use plain_rs::events::WsEvent;
+use tokio::sync::broadcast;
 
 #[derive(Clone)]
-pub struct DesktopGraphqlExecutor {
-    schema: Arc<ApiSchema>,
-    context: Arc<AppCtx>,
+pub struct NativeGraphqlExecutor {
+    executor: GraphqlExecutor,
+    events: broadcast::Sender<WsEvent>,
+    client_id: String,
 }
 
-impl DesktopGraphqlExecutor {
-    pub fn new(schema: Arc<ApiSchema>, context: Arc<AppCtx>) -> Self {
-        Self { schema, context }
+impl NativeGraphqlExecutor {
+    pub(crate) fn new(
+        executor: GraphqlExecutor,
+        events: broadcast::Sender<WsEvent>,
+        client_id: String,
+    ) -> Self {
+        Self {
+            executor,
+            events,
+            client_id,
+        }
     }
 
-    pub fn subscribe_events(&self) -> tokio::sync::broadcast::Receiver<plain_rs::events::WsEvent> {
-        self.context.event_tx.subscribe()
+    pub fn subscribe_events(&self) -> broadcast::Receiver<WsEvent> {
+        self.events.subscribe()
     }
 
     pub fn client_id(&self) -> &str {
-        &self.context.identity.client_id
+        &self.client_id
     }
 
     pub async fn execute(&self, request: Request) -> Response {
-        execute_graphql(
-            self.schema.as_ref(),
-            request.data(self.context.identity.client_id.clone()),
-            RequestContext::desktop(self.context.clone(), RequestOrigin::Local),
-        )
-        .await
+        self.executor
+            .execute(request.data(self.client_id.clone()), false)
+            .await
     }
 }

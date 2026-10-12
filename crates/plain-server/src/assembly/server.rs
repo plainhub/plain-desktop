@@ -108,6 +108,21 @@ impl ContentServer {
         crate::services::peers::peer_status_controller::Controller::new(self.state.clone())
     }
 
+    pub fn native_graphql(&self) -> Result<crate::native::graphql::NativeGraphqlExecutor, String> {
+        let client_id = self
+            .state
+            .prefs
+            .get_or(plain_rs::prefs::system::keys::CLIENT_ID, String::new());
+        if client_id.is_empty() {
+            return Err("native client identity unavailable".into());
+        }
+        Ok(crate::native::graphql::NativeGraphqlExecutor::new(
+            self.graphql_executor(),
+            self.state.events.clone(),
+            client_id,
+        ))
+    }
+
     pub fn graphql_executor(&self) -> crate::graphql::executor::GraphqlExecutor {
         crate::graphql::executor::GraphqlExecutor::new(self.state.clone())
     }
@@ -165,23 +180,49 @@ impl ContentServer {
         token: &str,
         prefs: Arc<plain_rs::prefs::Prefs>,
     ) -> Result<(ServerState, watch::Sender<bool>, watch::Receiver<bool>), String> {
-        if plain_rs::utils::base64::base64_decode(token).len() != 32 {
-            return Err("token must contain 32 random bytes".into());
-        }
+        crate::assembly::core_dependencies::CoreDependencies::validate_token(token)?;
         let db = Arc::new(Db::open(path).map_err(|e| e.to_string())?);
         let (events, _) = broadcast::channel(256);
+        Self::build_state_with(crate::assembly::core_dependencies::CoreDependencies::new(
+            db,
+            prefs,
+            path.parent().unwrap_or(Path::new(".")).to_path_buf(),
+            token.to_owned(),
+            events,
+            Arc::new(crate::host::bridge::Host::default()),
+        ))
+    }
+
+    fn build_state_with(
+        dependencies: crate::assembly::core_dependencies::CoreDependencies,
+    ) -> Result<(ServerState, watch::Sender<bool>, watch::Receiver<bool>), String> {
+        let crate::assembly::core_dependencies::CoreDependencies {
+            db,
+            prefs,
+            directory,
+            token,
+            events,
+            host,
+        } = dependencies;
+        crate::assembly::core_dependencies::CoreDependencies::validate_token(&token)?;
+        plain_rs::prefs::identity::ensure_identity(&prefs);
         let (stop, receiver) = watch::channel(false);
         let lan =
             Arc::new(crate::services::peers::peer_lan::Lan::new().map_err(|e| e.to_string())?);
-        let host = Arc::new(crate::host::bridge::Host::default());
-        let services = crate::assembly::services::Services::new(
+        let shared = crate::assembly::services::Services::shared(
             db.clone(),
             host.clone(),
             events.clone(),
             prefs.clone(),
-            path.parent().unwrap_or(Path::new(".")).to_path_buf(),
+            directory.clone(),
         );
-        let directory = path.parent().unwrap_or(Path::new(".")).to_path_buf();
+        let services = crate::assembly::services::Services::with_shared(
+            db.clone(),
+            host.clone(),
+            events.clone(),
+            prefs.clone(),
+            shared,
+        );
         let schema = schema::build_with_services(
             db.clone(),
             events.clone(),
@@ -210,7 +251,7 @@ impl ContentServer {
             events.clone(),
             prefs.clone(),
             db.clone(),
-            directory,
+            directory.clone(),
             services.clone(),
             image_models.clone(),
             #[cfg(feature = "mobile")]
@@ -221,13 +262,13 @@ impl ContentServer {
             Arc::new(plain_rs::chat::attachments::attachment_imports::Imports::default());
         let downloads = Arc::new(plain_rs::chat::attachments::download_queue::Queue::new(
             (*db).clone(),
-            path.parent().unwrap_or(Path::new(".")).to_path_buf(),
+            directory.clone(),
             attachments.clone(),
         ));
         let preview_events = events.clone();
         let previews = Arc::new(crate::services::link_preview::Schedule::new(
             (*db).clone(),
-            path.parent().unwrap_or(Path::new(".")).to_path_buf(),
+            directory.clone(),
             Arc::new(move |row| {
                 let _ = preview_events.send(WsEvent::broadcast(
                     plain_rs::chat::events::WS_MESSAGE_UPDATED,
@@ -236,6 +277,7 @@ impl ContentServer {
             }),
             receiver.clone(),
         ));
+        let dlna = Arc::new(crate::services::casting::receiver::receiver_engine::DlnaEngine::new());
         let state = ServerState {
             #[cfg(feature = "http_transport")]
             public_server: Arc::new(tokio::sync::Mutex::new(None)),
@@ -267,7 +309,7 @@ impl ContentServer {
             ble_scans: Arc::new(plain_rs::discovery::nearby_scan::Scans::default()),
             ble_scan: Arc::new(crate::services::discovery::ble_scan::Runtime::default()),
             pairing: Arc::new(plain_rs::peers::pairing::sessions::Sessions::default()),
-            dlna: Arc::new(crate::services::casting::receiver::receiver_engine::DlnaEngine::new()),
+            dlna,
             files: services.files,
             audio: services.audio,
             host,
@@ -281,12 +323,12 @@ impl ContentServer {
             login_attempts: Arc::new(std::sync::Mutex::new(
                 crate::http::auth::ws_login::LoginAttempts::default(),
             )),
-            directory: path.parent().unwrap_or(Path::new(".")).to_path_buf(),
+            directory: directory.clone(),
             #[cfg(feature = "http_transport")]
             build_debug: Arc::new(std::sync::atomic::AtomicBool::new(false)),
             #[cfg(feature = "http_transport")]
             web_root: Arc::new(std::sync::RwLock::new(None)),
-            token: Arc::from(token),
+            token: Arc::from(token.as_str()),
             events,
             stop: receiver.clone(),
             bridge: bridge.clone(),

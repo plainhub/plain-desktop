@@ -124,22 +124,18 @@ impl AppCtx {
             shell.app_version(),
         );
         let token = chat.service.token.clone();
+        let shared = crate::assembly::shared_services::SharedServices::new(
+            db.clone(),
+            prefs.clone(),
+            event_tx.clone(),
+            data_dir.clone(),
+            Arc::new(plain_rs::files::uploads::Runtime::default()),
+        );
         Ok(Arc::new(Self {
-            uploads: Arc::new(plain_rs::files::uploads::Runtime::default()),
-            image_updates: plain_rs::media::images::editor::Updates::new(event_tx.clone()),
-            pomodoro: crate::services::pomodoro::Service::new(
-                db.clone(),
-                prefs.clone(),
-                event_tx.clone(),
-            ),
-            feed_sync: crate::services::feeds::SyncService::new(
-                db.clone(),
-                event_tx.clone(),
-                Some(Arc::new(crate::services::feeds::FeedAssets {
-                    db: db.clone(),
-                    directory: data_dir.clone(),
-                })),
-            ),
+            uploads: shared.uploads,
+            image_updates: shared.image_updates,
+            pomodoro: shared.pomodoro,
+            feed_sync: shared.feeds,
             db,
             prefs,
             identity,

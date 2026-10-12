@@ -1,4 +1,4 @@
-#[cfg(feature = "api")]
+#[cfg(feature = "host-api")]
 pub mod graphql;
 
 #[cfg(feature = "api")]
