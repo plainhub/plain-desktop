@@ -41,34 +41,18 @@ async fn http_mutations_own_identity_pending_members_and_owner_policy() {
     let (_dir, server) = fixture();
     let state = server.runtime_state();
     let client = reqwest::Client::new();
-    let url = format!("http://127.0.0.1:{}/chat/channel", server.port);
-    assert_eq!(
-        client
-            .post(&url)
-            .header("content-type", "application/json")
-            .body(json!({"action":"create","name":"fixture"}).to_string())
-            .send()
-            .await
-            .unwrap()
-            .status(),
-        401
-    );
-    let result: Value = serde_json::from_str(
-        &client
-            .post(&url)
-            .bearer_auth(plain_rs::utils::base64::base64_encode(&[3; 32]))
-            .header("content-type", "application/json")
-            .body(json!({"action":"create","name":" fixture "}).to_string())
-            .send()
-            .await
-            .unwrap()
-            .text()
-            .await
-            .unwrap(),
+    // The channel surface is GraphQL-only now; the runtime takes the actor
+    // from the core identity rather than a request header.
+    let result = execute(
+        &state,
+        Request::Create {
+            name: " fixture ".into(),
+        },
     )
+    .await
     .unwrap();
-    let id = result["result"]["channel"]["id"].as_str().unwrap();
-    assert_eq!(result["result"]["channel"]["owner_id"], "actor");
+    let id = result["channel"]["id"].as_str().unwrap();
+    assert_eq!(result["channel"]["owner_id"], "actor");
     execute(
         &state,
         Request::Rename {
