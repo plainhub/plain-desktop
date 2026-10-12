@@ -1,5 +1,6 @@
 use std::sync::Arc;
 
+use plain_rs::enums::DataType;
 use plain_server::assembly::server::ContentServer;
 use plain_server::host::platform::{SYSTEM_APP_FACTS, SYSTEM_APP_UPDATE_FACTS, SYSTEM_DISKS_FACTS};
 use serde_json::Value;
@@ -72,6 +73,7 @@ impl Runtime {
             "systemFileResource" => {
                 plain_server::host::file_resource::facts(self.core.data_directory(), params)
             }
+            "scanFilesFacts" => scan_files_facts(&self.core, params).await,
             "mdnsMulticast" => {
                 let result = self
                     .multicast
@@ -140,4 +142,34 @@ impl Runtime {
             .await;
         result
     }
+}
+
+fn infer_data_type(path: &str) -> Option<DataType> {
+    let name = std::path::Path::new(path)
+        .file_name()
+        .and_then(|value| value.to_str())
+        .unwrap_or(path);
+    match plain_media::scan::infer_type(name) {
+        "audio" => Some(DataType::Audio),
+        "video" => Some(DataType::Video),
+        "image" => Some(DataType::Image),
+        "doc" => Some(DataType::Doc),
+        _ => None,
+    }
+}
+
+async fn scan_files_facts(core: &Arc<ContentServer>, params: Value) -> Result<Value, String> {
+    let paths: Vec<String> =
+        serde_json::from_value(params).map_err(|error| format!("scanFilesFacts paths: {error}"))?;
+    let catalog = core.native_media_catalog()?;
+    let mut scanned = 0usize;
+    for path in paths {
+        let Some(data_type) = infer_data_type(&path) else {
+            continue;
+        };
+        if catalog.scan_file(data_type, &path).await.is_ok() {
+            scanned += 1;
+        }
+    }
+    Ok(Value::Bool(scanned > 0))
 }
