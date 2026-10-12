@@ -18,7 +18,7 @@ fn tmp_prefs(tag: &str) -> Prefs {
 fn enabled_defaults_false_and_roundtrips() {
     let prefs = tmp_prefs("enabled");
     assert!(!enabled(&prefs));
-    set_enabled(&prefs, true);
+    set_enabled(&prefs, true).unwrap();
     assert!(enabled(&prefs));
     assert!(
         Prefs::load(prefs.path())

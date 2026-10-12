@@ -21,3 +21,6 @@ pub mod pairing;
 
 #[cfg(feature = "core")]
 pub mod peers;
+
+#[cfg(feature = "core")]
+pub mod dlna;

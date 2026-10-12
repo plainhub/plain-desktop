@@ -13,8 +13,8 @@ pub fn enabled(prefs: &Prefs) -> bool {
     prefs.get_user_or("dlna", false)
 }
 
-pub fn set_enabled(prefs: &Prefs, enabled: bool) {
-    let _ = prefs.set_user("dlna", enabled);
+pub fn set_enabled(prefs: &Prefs, enabled: bool) -> Result<(), crate::prefs::PrefsError> {
+    prefs.set_user("dlna", enabled)
 }
 
 /// Decode an `ip|name` sender entry persisted by the allowed/denied

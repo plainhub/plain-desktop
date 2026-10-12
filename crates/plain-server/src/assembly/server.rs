@@ -208,6 +208,13 @@ impl ContentServer {
             .await
     }
 
+    pub fn native_dlna(&self) -> Result<crate::native::dlna::NativeDlnaReceiver, String> {
+        self.state.native_client_id()?;
+        Ok(crate::native::dlna::NativeDlnaReceiver::new(
+            self.state.clone(),
+        ))
+    }
+
     pub fn native_peers(&self) -> Result<crate::native::peers::NativePeers, String> {
         self.state.native_client_id()?;
         Ok(crate::native::peers::NativePeers::new(self.state.clone()))
@@ -651,7 +658,7 @@ impl ContentServer {
         server.port = server.start_public(http, https, cert, key).await?.0;
         Ok(server)
     }
-    #[cfg(all(test, feature = "http_transport"))]
+    #[cfg(test)]
     pub(crate) fn runtime_state(&self) -> ServerState {
         self.state.clone()
     }
