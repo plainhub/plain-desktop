@@ -62,6 +62,22 @@ impl NativePeers {
         self.state.db.update_peer_name(id, name)
     }
 
+    /// Where a peer's service currently answers, or `None` when the row has
+    /// no usable address yet. The peer proxy resolves a request by this id,
+    /// so an unpaired peer with no address must not be dialed.
+    pub fn address(&self, id: &str) -> Result<Option<String>, String> {
+        self.state.native_client_id()?;
+        let peer = plain_rs::db::chat_store::peers::get(&self.state.db, id)
+            .map_err(|error| error.to_string())?
+            .filter(|peer| peer.is_paired() || !peer.token.is_empty());
+        Ok(peer.and_then(|peer| {
+            if peer.ip.is_empty() || peer.port == 0 {
+                return None;
+            }
+            Some(format!("{}:{}", peer.best_ip(), peer.port))
+        }))
+    }
+
     pub fn logged_in(&self) -> Result<Vec<LoginPeer>, String> {
         self.state.native_client_id()?;
         let mut rows = plain_rs::db::chat_store::peers::all(&self.state.db)
