@@ -56,8 +56,8 @@ fn document_filters_and_explicit_trash_selection_use_current_catalog() {
     let db = Db::open(&directory.path().join("plain.db")).unwrap();
     let created = db
         .record_media_files(&[
-            file(DataType::Doc, "/docs/one.pdf", "one.pdf", 30),
-            file(DataType::Doc, "/docs/two.txt", "two.txt", 10),
+            file(DataType::Doc, "/docs/one.pdf", "Document title", 30),
+            file(DataType::Doc, "/docs/two.txt", "Another title", 10),
         ])
         .unwrap();
     assert_eq!(count(&db, DataType::Doc, "ext:pdf").unwrap(), 1);

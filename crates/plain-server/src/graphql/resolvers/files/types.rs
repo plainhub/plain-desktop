@@ -117,7 +117,8 @@ pub struct FileInfo {
     pub data: Option<MediaFileInfo>,
 }
 
-#[derive(Enum, Copy, Clone, Eq, PartialEq, Debug)]
+#[derive(Enum, Copy, Clone, Eq, PartialEq, Debug, serde::Deserialize)]
+#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 pub enum FileSortBy {
     DateAsc,
     DateDesc,

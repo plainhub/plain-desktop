@@ -36,7 +36,7 @@ fn selection(db: &Db, data_type: DataType, text: &str) -> Result<(String, Vec<Va
             args.extend(plan.ids.into_iter().map(Value::Text));
         }
     }
-    let sql = "WITH selected AS (SELECT *,id AS _id,path AS _data,title AS _display_name,size_bytes AS _size FROM media_files WHERE data_type=?)";
+    let sql = "WITH selected AS (SELECT *,id AS _id,path AS _data,file_name AS _display_name,size_bytes AS _size FROM media_files WHERE data_type=?)";
     Ok((
         format!(
             "{sql} SELECT {{columns}} FROM selected WHERE {}",
@@ -60,8 +60,10 @@ pub(crate) fn rows(
         FileSortBy::DateDesc => "updated_at DESC,id",
         FileSortBy::SizeAsc => "size_bytes ASC,id",
         FileSortBy::SizeDesc => "size_bytes DESC,id",
-        FileSortBy::NameAsc => "title COLLATE NOCASE ASC,id",
-        FileSortBy::NameDesc => "title COLLATE NOCASE DESC,id",
+        FileSortBy::NameAsc if data_type == DataType::Audio => "title COLLATE NOCASE ASC,id",
+        FileSortBy::NameAsc => "file_name COLLATE NOCASE ASC,id",
+        FileSortBy::NameDesc if data_type == DataType::Audio => "title COLLATE NOCASE DESC,id",
+        FileSortBy::NameDesc => "file_name COLLATE NOCASE DESC,id",
         FileSortBy::TakenAtDesc => "taken_at DESC,updated_at DESC,id",
     };
     args.extend([

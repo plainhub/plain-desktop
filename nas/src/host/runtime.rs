@@ -21,6 +21,16 @@ impl Runtime {
 
     async fn dispatch(&self, method: &str, params: Value) -> Result<Value, String> {
         match method {
+            "systemMediaRows" => {
+                let core = self.core.clone();
+                let rows = tokio::task::spawn_blocking(move || {
+                    core.native_media_catalog()?.rows_facts(params)
+                })
+                .await
+                .map_err(|error| error.to_string())??;
+                Ok(Value::Array(rows))
+            }
+
             "systemMediaCount" => {
                 let core = self.core.clone();
                 let count = tokio::task::spawn_blocking(move || {

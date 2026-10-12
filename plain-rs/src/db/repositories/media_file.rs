@@ -45,10 +45,10 @@ impl Db {
             for file in files {
                 let data_type = kind(file.data_type)?;
                 tx.execute(
-                    "INSERT INTO media_files(id,data_type,path,title,artist,bucket_id,size_bytes,duration_ms,album_file_id,width,height,rotation,taken_at,created_at,updated_at,mime_type)
-                     VALUES(?1,?2,?3,?4,?5,?6,?7,?8,?9,?10,?11,?12,?13,?14,?15,?16)
-                     ON CONFLICT(data_type,path) DO UPDATE SET title=excluded.title,artist=excluded.artist,bucket_id=excluded.bucket_id,size_bytes=excluded.size_bytes,duration_ms=excluded.duration_ms,album_file_id=excluded.album_file_id,width=excluded.width,height=excluded.height,rotation=excluded.rotation,taken_at=excluded.taken_at,updated_at=excluded.updated_at,mime_type=excluded.mime_type",
-                    params![uuid::Uuid::new_v4().to_string(),data_type,file.path,file.title,file.artist,file.bucket_id,file.size_bytes,file.duration_ms,file.album_file_id,file.width,file.height,file.rotation,file.taken_at,file.created_at,file.updated_at,crate::utils::mime::mime_from_ext(&file.path)],
+                    "INSERT INTO media_files(id,data_type,path,title,artist,bucket_id,size_bytes,duration_ms,album_file_id,width,height,rotation,taken_at,created_at,updated_at,mime_type,file_name)
+                     VALUES(?1,?2,?3,?4,?5,?6,?7,?8,?9,?10,?11,?12,?13,?14,?15,?16,?17)
+                     ON CONFLICT(data_type,path) DO UPDATE SET title=excluded.title,artist=excluded.artist,bucket_id=excluded.bucket_id,size_bytes=excluded.size_bytes,duration_ms=excluded.duration_ms,album_file_id=excluded.album_file_id,width=excluded.width,height=excluded.height,rotation=excluded.rotation,taken_at=excluded.taken_at,updated_at=excluded.updated_at,mime_type=excluded.mime_type,file_name=excluded.file_name",
+                    params![uuid::Uuid::new_v4().to_string(),data_type,file.path,file.title,file.artist,file.bucket_id,file.size_bytes,file.duration_ms,file.album_file_id,file.width,file.height,file.rotation,file.taken_at,file.created_at,file.updated_at,crate::utils::mime::mime_from_ext(&file.path),std::path::Path::new(&file.path).file_name().and_then(|name|name.to_str()).unwrap_or(&file.path)],
                 )?;
                 rows.push(tx.query_row(&format!("SELECT {COLUMNS} FROM media_files WHERE data_type=?1 AND path=?2"),params![data_type,file.path],from_row)?);
             }

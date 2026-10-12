@@ -9,6 +9,16 @@ struct CountRequest {
     query: String,
 }
 
+#[derive(serde::Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+struct RowsRequest {
+    data_type: DataType,
+    query: String,
+    sort_by: crate::graphql::resolvers::files::types::FileSortBy,
+    limit: u32,
+    offset: u32,
+}
+
 #[derive(Clone)]
 pub struct NativeMediaCatalog {
     state: ServerState,
@@ -17,6 +27,26 @@ pub struct NativeMediaCatalog {
 impl NativeMediaCatalog {
     pub(crate) fn new(state: ServerState) -> Self {
         Self { state }
+    }
+
+    #[cfg(feature = "media")]
+    pub async fn scan_file(
+        &self,
+        data_type: DataType,
+        reference: &str,
+    ) -> Result<MediaFileRow, String> {
+        let path =
+            crate::services::files::file_access::resolve_native(&self.state, reference).await?;
+        let metadata = tokio::task::spawn_blocking(move || {
+            plain_media::metadata::file_facts::read_file_metadata(&path, data_type)
+                .map_err(|error| error.to_string())
+        })
+        .await
+        .map_err(|error| error.to_string())??;
+        self.record_files(&[metadata])?
+            .into_iter()
+            .next()
+            .ok_or_else(|| "Missing recorded media file".into())
     }
 
     pub fn record_files(&self, files: &[MediaFileMetadata]) -> Result<Vec<MediaFileRow>, String> {
@@ -66,6 +96,21 @@ impl NativeMediaCatalog {
             offset,
         )
         .map_err(|error| error.to_string())
+    }
+
+    pub fn rows_facts(&self, params: serde_json::Value) -> Result<Vec<serde_json::Value>, String> {
+        let request: RowsRequest =
+            serde_json::from_value(params).map_err(|error| error.to_string())?;
+        self.search(
+            request.data_type,
+            &request.query,
+            request.sort_by,
+            request.limit,
+            request.offset,
+        )?
+        .iter()
+        .map(crate::services::files::media_catalog_facts::row_facts)
+        .collect()
     }
 
     pub fn count_facts(&self, params: serde_json::Value) -> Result<i64, String> {
