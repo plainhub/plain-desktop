@@ -16,6 +16,33 @@ pub struct MediaFileMetadata {
     pub updated_at: String,
 }
 
+#[derive(Clone, Copy, Debug, Default)]
+pub struct MediaFileMetadataAvailability {
+    pub tags: bool,
+    pub duration: bool,
+    pub dimensions: bool,
+    pub rotation: bool,
+    pub taken_at: bool,
+    pub album_file_id: bool,
+}
+
+impl MediaFileMetadataAvailability {
+    pub const ALL: Self = Self {
+        tags: true,
+        duration: true,
+        dimensions: true,
+        rotation: true,
+        taken_at: true,
+        album_file_id: true,
+    };
+}
+
+#[derive(Clone, Debug)]
+pub struct MediaFileMetadataRead {
+    pub metadata: MediaFileMetadata,
+    pub available: MediaFileMetadataAvailability,
+}
+
 #[derive(Clone, Debug, PartialEq, serde::Serialize)]
 pub struct MediaFileRow {
     pub id: String,

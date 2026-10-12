@@ -101,3 +101,51 @@ async fn authorized_file_metadata_reaches_catalog_and_existing_facts_projection(
             .is_err()
     );
 }
+
+#[cfg(feature = "media")]
+#[tokio::test]
+async fn rescan_with_failed_probe_retains_current_known_metadata_after_authorization() {
+    let directory = tempfile::tempdir().unwrap();
+    let path = directory.path().join("damaged.mp3");
+    std::fs::write(&path, b"unrecognized audio bytes").unwrap();
+    let core = crate::assembly::server::ContentServer::open(directory.path()).unwrap();
+    let catalog = core.native_media_catalog().unwrap();
+    let mut known = plain_media::metadata::file_facts::read_file_metadata(
+        &path,
+        plain_rs::enums::DataType::Audio,
+    )
+    .unwrap();
+    known.title = "Known title".into();
+    known.artist = "Known artist".into();
+    known.duration_ms = 1500;
+    known.album_file_id = "known-album".into();
+    known.size_bytes = 999;
+    let original = catalog.record_files(&[known]).unwrap().remove(0);
+    let host = core.runtime_state().host.clone();
+    let (generation, mut requests) = host.connect();
+    let authorization = tokio::spawn(async move {
+        let request = requests.recv().await.unwrap();
+        assert_eq!(request["params"]["operation"], "read");
+        host.reply(
+            generation,
+            serde_json::json!({"id":request["id"],"result":true}),
+        )
+        .unwrap();
+    });
+    let updated = catalog
+        .scan_file(plain_rs::enums::DataType::Audio, path.to_str().unwrap())
+        .await
+        .unwrap();
+    assert_eq!(updated.id, original.id);
+    assert_eq!(updated.title, original.title);
+    assert_eq!(updated.artist, original.artist);
+    assert_eq!(updated.duration_ms, original.duration_ms);
+    assert_eq!(updated.album_file_id, original.album_file_id);
+    assert_eq!(
+        updated.size_bytes,
+        std::fs::metadata(path).unwrap().len() as i64
+    );
+    authorization.await.unwrap();
+    core.stop_core().await;
+    assert!(catalog.record_file_reads(&[]).is_err());
+}

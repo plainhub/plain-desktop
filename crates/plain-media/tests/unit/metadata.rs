@@ -149,3 +149,20 @@ fn probe_media_missing_file_is_all_zeros() {
         (0, "", "")
     );
 }
+
+#[test]
+fn container_zero_duration_is_available_while_probe_failure_is_unknown() {
+    let directory = tempfile::tempdir().unwrap();
+    let path = directory.path().join("zero.m4a");
+    let moov = box_bytes(b"moov", &box_bytes(b"mvhd", &mvhd_payload_v0(1000, 0)));
+    std::fs::write(&path, moov).unwrap();
+    let zero = probe_media(path.to_str().unwrap(), "audio");
+    assert_eq!(zero.duration_secs, 0);
+    assert!(zero.duration_available);
+    let missing = probe_media(
+        directory.path().join("missing.m4a").to_str().unwrap(),
+        "audio",
+    );
+    assert_eq!(missing.duration_secs, 0);
+    assert!(!missing.duration_available);
+}

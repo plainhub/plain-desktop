@@ -15,7 +15,7 @@
 //! a valid HEIC/AVIF still produces a row instead of leaving the scan.
 
 use anyhow::{Context, Result, bail};
-use plain_rs::db::MediaFileMetadata;
+use plain_rs::db::{MediaFileMetadata, MediaFileMetadataAvailability, MediaFileMetadataRead};
 use plain_rs::enums::DataType;
 use std::fs::{File, Metadata};
 use std::io::Read;
@@ -30,6 +30,13 @@ const EXIF_HEAD_BYTES: u64 = 128 * 1024;
 /// `data_type` must be one the media index covers (audio / video / image /
 /// doc, as `DataType::media_type_str` names them).
 pub fn read_file_metadata(path: &Path, data_type: DataType) -> Result<MediaFileMetadata> {
+    Ok(read_file_metadata_with_availability(path, data_type)?.metadata)
+}
+
+pub fn read_file_metadata_with_availability(
+    path: &Path,
+    data_type: DataType,
+) -> Result<MediaFileMetadataRead> {
     let kind = data_type
         .media_type_str()
         .with_context(|| format!("{data_type:?} is not a media data type"))?;
@@ -60,27 +67,37 @@ pub fn read_file_metadata(path: &Path, data_type: DataType) -> Result<MediaFileM
     let duration_ms = i64::from(probed.duration_secs)
         .checked_mul(1000)
         .context("duration in milliseconds does not fit the row")?;
-    let (width, height, rotation, taken_at) = image_facts(&canonical, kind);
-
-    Ok(MediaFileMetadata {
-        data_type,
-        title: if probed.title.is_empty() {
-            file_stem(&path_str)
-        } else {
-            probed.title
+    let (width, height, rotation) = image_facts(&canonical, kind);
+    let available = MediaFileMetadataAvailability {
+        tags: kind != "audio" || probed.parsed,
+        duration: !matches!(kind, "audio" | "video") || probed.duration_available,
+        dimensions: width > 0 && height > 0,
+        rotation: width > 0 && height > 0 && rotation.is_some(),
+        taken_at: false,
+        album_file_id: false,
+    };
+    Ok(MediaFileMetadataRead {
+        available,
+        metadata: MediaFileMetadata {
+            data_type,
+            title: if probed.title.is_empty() {
+                file_stem(&path_str)
+            } else {
+                probed.title
+            },
+            artist: probed.artist,
+            path: path_str,
+            bucket_id,
+            size_bytes,
+            duration_ms,
+            album_file_id: String::new(),
+            width,
+            height,
+            rotation: rotation.unwrap_or_default(),
+            taken_at: None,
+            created_at: created_at_of(birth_time(&meta), modified),
+            updated_at: row_timestamp(modified),
         },
-        artist: probed.artist,
-        path: path_str,
-        bucket_id,
-        size_bytes,
-        duration_ms,
-        album_file_id: String::new(),
-        width,
-        height,
-        rotation,
-        taken_at,
-        created_at: created_at_of(birth_time(&meta), modified),
-        updated_at: row_timestamp(modified),
     })
 }
 
@@ -138,9 +155,9 @@ fn birth_time(meta: &Metadata) -> Option<SystemTime> {
 
 /// Pixel and orientation facts. Every kind but image, and every format the
 /// enabled `image` features cannot decode, reads as unknown (0/0/0/none).
-fn image_facts(path: &Path, kind: &str) -> (i32, i32, i32, Option<String>) {
+fn image_facts(path: &Path, kind: &str) -> (i32, i32, Option<i32>) {
     if kind != "image" {
-        return (0, 0, 0, None);
+        return (0, 0, None);
     }
     let dimensions = image::ImageReader::open(path)
         .ok()
@@ -152,26 +169,26 @@ fn image_facts(path: &Path, kind: &str) -> (i32, i32, i32, Option<String>) {
         ),
         None => (0, 0),
     };
-    (width, height, jpeg_rotation(path), None)
+    (width, height, jpeg_rotation(path))
 }
 
 /// Clockwise rotation the EXIF orientation tag asks for. The mirrored
 /// orientations (2/4/5/7) have no rotation-only equivalent and read as 0.
-fn jpeg_rotation(path: &Path) -> i32 {
+fn jpeg_rotation(path: &Path) -> Option<i32> {
     let mut head = Vec::new();
     if File::open(path)
         .and_then(|file| file.take(EXIF_HEAD_BYTES).read_to_end(&mut head))
         .is_err()
         || !head.starts_with(&[0xFF, 0xD8])
     {
-        return 0;
+        return None;
     }
-    match crate::previews::images::exif::orientation(&head) {
-        Some(3) => 180,
-        Some(6) => 90,
-        Some(8) => 270,
+    Some(match crate::previews::images::exif::orientation(&head)? {
+        3 => 180,
+        6 => 90,
+        8 => 270,
         _ => 0,
-    }
+    })
 }
 
 #[cfg(test)]

@@ -44,12 +44,14 @@ impl NativeMediaCatalog {
         let path =
             crate::services::files::file_access::resolve_native(&self.state, reference).await?;
         let metadata = tokio::task::spawn_blocking(move || {
-            plain_media::metadata::file_facts::read_file_metadata(&path, data_type)
-                .map_err(|error| error.to_string())
+            plain_media::metadata::file_facts::read_file_metadata_with_availability(
+                &path, data_type,
+            )
+            .map_err(|error| error.to_string())
         })
         .await
         .map_err(|error| error.to_string())??;
-        self.record_files(&[metadata])?
+        self.record_file_reads(&[metadata])?
             .into_iter()
             .next()
             .ok_or_else(|| "Missing recorded media file".into())
@@ -60,6 +62,17 @@ impl NativeMediaCatalog {
         self.state
             .db
             .record_media_files(files)
+            .map_err(|error| error.to_string())
+    }
+
+    pub fn record_file_reads(
+        &self,
+        files: &[plain_rs::db::MediaFileMetadataRead],
+    ) -> Result<Vec<MediaFileRow>, String> {
+        self.state.native_client_id()?;
+        self.state
+            .db
+            .record_media_file_reads(files)
             .map_err(|error| error.to_string())
     }
 

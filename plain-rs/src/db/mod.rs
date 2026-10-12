@@ -114,7 +114,9 @@ mod chat_tests;
 mod library_tests;
 
 #[cfg(feature = "library")]
-pub use models::{MediaFileMetadata, MediaFileRow};
+pub use models::{
+    MediaFileMetadata, MediaFileMetadataAvailability, MediaFileMetadataRead, MediaFileRow,
+};
 
 #[cfg(feature = "library")]
 pub use repositories::media_file;

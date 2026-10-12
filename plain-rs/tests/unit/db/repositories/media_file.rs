@@ -74,3 +74,100 @@ fn batches_rollback_on_invalid_metadata_and_domains_are_separate() {
     );
     assert!(db.media_file_count(DataType::Note).is_err());
 }
+
+#[test]
+fn unavailable_probe_fields_preserve_current_metadata_but_successful_empty_values_clear_it() {
+    let directory = tempfile::tempdir().unwrap();
+    let db = Db::open(&directory.path().join("plain.db")).unwrap();
+    let mut known = metadata("/photos/one.jpg");
+    known.artist = "Artist".into();
+    known.duration_ms = 12_000;
+    known.album_file_id = "album".into();
+    known.rotation = 90;
+    known.taken_at = Some("2026-10-11T00:00:00Z".into());
+    let original = db.record_media_files(&[known.clone()]).unwrap().remove(0);
+    let mut unknown = metadata(&known.path);
+    unknown.title = "Filename fallback".into();
+    unknown.artist.clear();
+    unknown.duration_ms = 0;
+    unknown.album_file_id.clear();
+    unknown.width = 0;
+    unknown.height = 0;
+    unknown.rotation = 0;
+    unknown.taken_at = None;
+    unknown.size_bytes = 20;
+    let preserved = db
+        .record_media_file_reads(&[MediaFileMetadataRead {
+            metadata: unknown.clone(),
+            available: Default::default(),
+        }])
+        .unwrap()
+        .remove(0);
+    assert_eq!(preserved.id, original.id);
+    assert_eq!(preserved.title, known.title);
+    assert_eq!(preserved.artist, known.artist);
+    assert_eq!(preserved.duration_ms, known.duration_ms);
+    assert_eq!(preserved.album_file_id, known.album_file_id);
+    assert_eq!(
+        (preserved.width, preserved.height, preserved.rotation),
+        (known.width, known.height, known.rotation)
+    );
+    assert_eq!(preserved.taken_at, known.taken_at);
+    assert_eq!(preserved.size_bytes, 20);
+    let cleared = db
+        .record_media_file_reads(&[MediaFileMetadataRead {
+            metadata: unknown,
+            available: MediaFileMetadataAvailability::ALL,
+        }])
+        .unwrap()
+        .remove(0);
+    assert_eq!(cleared.title, "Filename fallback");
+    assert!(cleared.artist.is_empty());
+    assert_eq!(cleared.duration_ms, 0);
+    assert!(cleared.album_file_id.is_empty());
+    assert_eq!((cleared.width, cleared.height, cleared.rotation), (0, 0, 0));
+    assert_eq!(cleared.taken_at, None);
+    assert_eq!(cleared.id, original.id);
+}
+
+#[test]
+fn availability_aware_batches_are_atomic_and_new_unknown_files_are_not_hidden() {
+    let directory = tempfile::tempdir().unwrap();
+    let db = Db::open(&directory.path().join("plain.db")).unwrap();
+    let original = db
+        .record_media_files(&[metadata("/photos/one.jpg")])
+        .unwrap()
+        .remove(0);
+    let mut updated = metadata("/photos/one.jpg");
+    updated.title = "Replacement".into();
+    let mut invalid = metadata("/photos/two.jpg");
+    invalid.size_bytes = -1;
+    assert!(
+        db.record_media_file_reads(&[
+            MediaFileMetadataRead {
+                metadata: updated,
+                available: MediaFileMetadataAvailability::ALL
+            },
+            MediaFileMetadataRead {
+                metadata: invalid,
+                available: Default::default()
+            },
+        ])
+        .is_err()
+    );
+    assert_eq!(
+        db.media_file_by_path(DataType::Image, "/photos/one.jpg")
+            .unwrap()
+            .unwrap(),
+        original
+    );
+    let inserted = db
+        .record_media_file_reads(&[MediaFileMetadataRead {
+            metadata: metadata("/photos/new.heic"),
+            available: Default::default(),
+        }])
+        .unwrap()
+        .remove(0);
+    assert_eq!(inserted.path, "/photos/new.heic");
+    assert_eq!(db.media_file_count(DataType::Image).unwrap(), 2);
+}

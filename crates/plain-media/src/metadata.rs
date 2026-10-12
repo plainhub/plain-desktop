@@ -22,6 +22,7 @@ use std::path::Path;
 /// Everything one probe pass can fill on a media row.
 pub struct ProbedMeta {
     pub duration_secs: u32,
+    pub duration_available: bool,
     pub artist: String,
     pub title: String,
     /// lofty parsed the file, so the fields above describe its actual
@@ -41,12 +42,14 @@ pub fn probe_media(path: &str, kind: &str) -> ProbedMeta {
         return match probe_duration_secs(path) {
             Some(d) => ProbedMeta {
                 duration_secs: d,
+                duration_available: true,
                 artist: String::new(),
                 title: String::new(),
                 parsed: true,
             },
             None => ProbedMeta {
                 duration_secs: 0,
+                duration_available: false,
                 artist: String::new(),
                 title: String::new(),
                 parsed: false,
@@ -66,6 +69,7 @@ pub fn probe_media(path: &str, kind: &str) -> ProbedMeta {
             let (artist, title) = tag_strings(&f);
             ProbedMeta {
                 duration_secs,
+                duration_available: true,
                 artist,
                 title,
                 parsed: true,
@@ -75,12 +79,13 @@ pub fn probe_media(path: &str, kind: &str) -> ProbedMeta {
             // Unreadable as far as lofty is concerned. The container walk
             // may still answer duration for the MP4 family; tags unknown.
             let duration_secs = if is_mp4_family(&ext) {
-                mp4_duration_secs(path).unwrap_or(0)
+                mp4_duration_secs(path)
             } else {
-                0
+                None
             };
             ProbedMeta {
-                duration_secs,
+                duration_secs: duration_secs.unwrap_or_default(),
+                duration_available: duration_secs.is_some(),
                 artist: String::new(),
                 title: String::new(),
                 parsed: false,

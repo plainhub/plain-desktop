@@ -325,3 +325,33 @@ fn reading_facts_writes_nothing_and_repeats_identically() {
         "no file was created or touched"
     );
 }
+
+#[test]
+fn probe_availability_keeps_unknown_distinct_from_valid_untagged_audio() {
+    let directory = tempfile::tempdir().unwrap();
+    let damaged = directory.path().join("damaged.mp3");
+    std::fs::write(&damaged, b"unrecognized audio bytes").unwrap();
+    let unknown = read_file_metadata_with_availability(&damaged, DataType::Audio).unwrap();
+    assert!(!unknown.available.tags);
+    assert!(!unknown.available.duration);
+    assert!(!unknown.available.album_file_id);
+    let untagged =
+        read_file_metadata_with_availability(&fixture("audio-untagged.mp3"), DataType::Audio)
+            .unwrap();
+    assert!(untagged.available.tags);
+    assert!(untagged.available.duration);
+    assert!(untagged.metadata.artist.is_empty());
+}
+
+#[test]
+fn unsupported_image_metadata_stays_visible_without_reporting_unknown_fields_as_available() {
+    let directory = tempfile::tempdir().unwrap();
+    let path = directory.path().join("unknown.heic");
+    std::fs::write(&path, b"unsupported image header").unwrap();
+    let facts = read_file_metadata_with_availability(&path, DataType::Image).unwrap();
+    assert_eq!(facts.metadata.data_type, DataType::Image);
+    assert!(facts.available.tags);
+    assert!(!facts.available.dimensions);
+    assert!(!facts.available.rotation);
+    assert!(!facts.available.taken_at);
+}
