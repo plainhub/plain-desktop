@@ -54,6 +54,23 @@ impl NativeDiscovery {
         Ok(self.state.mdns.browser_activity())
     }
 
+    /// Announce this device on the LAN so peers can find it. Without this
+    /// the app is reachable but invisible, which is the failure the old
+    /// bootstrap's unconditional `discover_manager.start()` hid.
+    pub async fn publish(&self) -> Result<(), String> {
+        let _shutdown = self.state.shutdown.lock().await;
+        self.state.native_client_id()?;
+        self.state
+            .mdns
+            .execute(
+                &self.state,
+                crate::services::discovery::mdns_runtime::Request::Publish {},
+            )
+            .await
+            .map_err(|error| error.to_string())?;
+        Ok(())
+    }
+
     pub async fn browse(&self) -> Result<(), String> {
         let _shutdown = self.state.shutdown.lock().await;
         self.state.native_client_id()?;

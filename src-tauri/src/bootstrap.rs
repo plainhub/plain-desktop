@@ -266,6 +266,19 @@ pub fn run() {
             }) {
                 panic!("start the public listener failed: {error}");
             }
+
+            // Announce on the LAN after the listener is up, so peers can
+            // actually reach the address the announcement carries.
+            tauri::async_runtime::spawn(async move {
+                match core.native_discovery() {
+                    Ok(discovery) => {
+                        if let Err(error) = discovery.publish().await {
+                            log::warn!("mDNS announcement failed: {error}");
+                        }
+                    }
+                    Err(error) => log::warn!("discovery unavailable: {error}"),
+                }
+            });
             let (event_tx, _) = tokio::sync::broadcast::channel(1024);
             plain_server::http::server::events::spawn_media_event_bridge(event_tx.clone());
             Ok(())
