@@ -444,3 +444,80 @@ async fn directory_scan_cancellation_releases_a_bounded_producer_without_committ
     assert_eq!(catalog.count(plain_rs::enums::DataType::Doc).unwrap(), 0);
     core.stop_core().await;
 }
+
+#[cfg(feature = "media")]
+#[tokio::test]
+async fn completion_scan_uses_the_object_protocol_and_os_reads_without_host_reentry() {
+    let directory = directory_scan_fixture();
+    let core =
+        crate::assembly::server::ContentServer::open(&directory.path().join("core")).unwrap();
+    let catalog = core.native_media_catalog().unwrap();
+    catalog
+        .configure_scan_directories(&directory.path().join("cache"), None)
+        .unwrap();
+    let path = directory.path().join("completed.txt");
+    std::fs::write(&path, b"completed file").unwrap();
+    assert!(!core.runtime_state().host.connected());
+    assert!(
+        catalog
+            .scan_completed_files(serde_json::json!({"paths":[path]}))
+            .unwrap()
+    );
+    assert_eq!(catalog.count(plain_rs::enums::DataType::Doc).unwrap(), 1);
+    assert!(
+        catalog
+            .scan_completed_files(serde_json::json!([path]))
+            .is_err()
+    );
+    assert!(
+        catalog
+            .scan_completed_files(serde_json::json!({"paths":[path],"extra":true}))
+            .is_err()
+    );
+    assert!(
+        catalog
+            .scan_completed_files(serde_json::json!({"paths":[]}))
+            .unwrap()
+    );
+    let opaque = directory.path().join("file.bin");
+    std::fs::write(&opaque, b"opaque").unwrap();
+    assert!(
+        catalog
+            .scan_completed_files(serde_json::json!({"paths":[opaque]}))
+            .unwrap()
+    );
+    assert_eq!(catalog.count(plain_rs::enums::DataType::Doc).unwrap(), 1);
+    core.stop_core().await;
+    assert!(
+        catalog
+            .scan_completed_files(serde_json::json!({"paths":[]}))
+            .is_err()
+    );
+}
+
+#[cfg(feature = "media")]
+#[tokio::test]
+async fn completion_scan_reports_read_failures_instead_of_partial_success() {
+    let directory = directory_scan_fixture();
+    let core =
+        crate::assembly::server::ContentServer::open(&directory.path().join("core")).unwrap();
+    let catalog = core.native_media_catalog().unwrap();
+    catalog
+        .configure_scan_directories(&directory.path().join("cache"), None)
+        .unwrap();
+    let path = directory.path().join("completed.txt");
+    std::fs::write(&path, b"completed file").unwrap();
+    let missing = directory.path().join("missing.txt");
+    assert!(
+        catalog
+            .scan_completed_files(serde_json::json!({"paths":[path,missing]}))
+            .is_err()
+    );
+    assert_eq!(catalog.count(plain_rs::enums::DataType::Doc).unwrap(), 0);
+    assert!(
+        catalog
+            .scan_completed_files(serde_json::json!({"paths":["relative.txt"]}))
+            .is_err()
+    );
+    core.stop_core().await;
+}

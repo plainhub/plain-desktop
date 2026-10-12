@@ -129,40 +129,12 @@ fn created_at_of(birth: Option<SystemTime>, modified: SystemTime) -> String {
     birth.map_or_else(|| row_timestamp(modified), row_timestamp)
 }
 
-/// Birth time in unix seconds, `None` where the OS records none (the
-/// unix branch reads 0 on filesystems without it, the Windows FILETIME is
-/// rebased on the same epoch as `catalog::uuid`).
 fn birth_unix_secs(meta: &Metadata) -> Option<i64> {
-    #[cfg(target_os = "macos")]
-    let secs = {
-        use std::os::darwin::fs::MetadataExt;
-        meta.st_birthtime()
-    };
-    #[cfg(any(
-        target_os = "freebsd",
-        target_os = "netbsd",
-        target_os = "openbsd",
-        target_os = "dragonfly",
-        target_os = "cygwin"
-    ))]
-    let secs = {
-        use std::os::unix::fs::MetadataExt;
-        meta.st_birthtime()
-    };
-    #[cfg(target_os = "linux")]
-    let secs = {
-        use std::os::linux::fs::MetadataExt;
-        meta.st_birthtime()
-    };
-    #[cfg(windows)]
-    let secs = {
-        use std::os::windows::fs::MetadataExt;
-        let file_time = meta.creation_time();
-        (file_time.saturating_sub(116_444_736_000_000_000) / 10_000_000) as i64
-    };
-    #[cfg(not(any(unix, windows)))]
-    let secs = 0;
-    (secs > 0).then_some(secs)
+    meta.created()
+        .ok()
+        .and_then(|created| created.duration_since(SystemTime::UNIX_EPOCH).ok())
+        .and_then(|duration| i64::try_from(duration.as_secs()).ok())
+        .filter(|seconds| *seconds > 0)
 }
 
 fn birth_time(meta: &Metadata) -> Option<SystemTime> {

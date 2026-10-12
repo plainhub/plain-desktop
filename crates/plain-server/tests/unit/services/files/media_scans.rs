@@ -75,3 +75,29 @@ fn directory_discovery_does_not_publish_a_guessed_total() {
     assert_eq!(result.total_files, Some(1));
     assert_eq!(result.processed_files, 1);
 }
+
+#[test]
+fn completion_records_share_the_close_barrier_without_occupying_the_directory_job() {
+    let scans = Arc::new(MediaScans::default());
+    let directory = scans.begin_discovery().unwrap();
+    let writes = AtomicUsize::new(0);
+    scans
+        .record_completion(|| {
+            writes.fetch_add(1, Ordering::SeqCst);
+            Ok(())
+        })
+        .unwrap();
+    assert_eq!(scans.snapshot().unwrap().unwrap().status, Status::Running);
+    assert_eq!(scans.snapshot().unwrap().unwrap().processed_files, 0);
+    scans.close().unwrap();
+    assert!(
+        scans
+            .record_completion(|| {
+                writes.fetch_add(1, Ordering::SeqCst);
+                Ok(())
+            })
+            .is_err()
+    );
+    assert_eq!(writes.load(Ordering::SeqCst), 1);
+    drop(directory);
+}

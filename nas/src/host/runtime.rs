@@ -21,6 +21,15 @@ impl Runtime {
 
     async fn dispatch(&self, method: &str, params: Value) -> Result<Value, String> {
         match method {
+            "scanFilesFacts" => {
+                let core = self.core.clone();
+                let completed = tokio::task::spawn_blocking(move || {
+                    core.native_media_catalog()?.scan_completed_files(params)
+                })
+                .await
+                .map_err(|error| error.to_string())??;
+                Ok(Value::Bool(completed))
+            }
             "systemPermissionFacts" => {
                 let app = super::native::app::app_facts(
                     self.core.data_directory(),

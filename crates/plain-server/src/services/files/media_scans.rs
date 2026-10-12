@@ -111,6 +111,22 @@ impl MediaScans {
             .ok_or_else(|| "Media scan directories not configured".into())
     }
 
+    pub(crate) fn record_completion<T>(
+        &self,
+        record: impl FnOnce() -> Result<T, String>,
+    ) -> Result<T, String> {
+        let guard = self
+            .state
+            .lock()
+            .map_err(|_| "Media scan state unavailable")?;
+        if guard.closed {
+            return Err("Rust core stopped".into());
+        }
+        let result = record();
+        drop(guard);
+        result
+    }
+
     pub(crate) fn snapshot(&self) -> Result<Option<Snapshot>, String> {
         Ok(self
             .state

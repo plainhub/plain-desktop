@@ -25,6 +25,13 @@ struct BucketRequest {
     data_type: DataType,
 }
 
+#[cfg(feature = "media")]
+#[derive(serde::Deserialize)]
+#[serde(deny_unknown_fields)]
+struct CompletedFilesRequest {
+    paths: Vec<String>,
+}
+
 #[derive(Clone)]
 pub struct NativeMediaCatalog {
     state: ServerState,
@@ -96,6 +103,67 @@ impl NativeMediaCatalog {
             Ok(())
         }.await;
         session.finish(result)
+    }
+
+    #[cfg(feature = "media")]
+    pub fn scan_completed_files(&self, params: serde_json::Value) -> Result<bool, String> {
+        self.state.native_client_id()?;
+        let request: CompletedFilesRequest =
+            serde_json::from_value(params).map_err(|error| error.to_string())?;
+        let mut files = Vec::new();
+        if !request.paths.is_empty() {
+            crate::host::file_resource::authorize_read(
+                serde_json::json!({"operation":"read","paths":request.paths}),
+            )?;
+            let policy = self.state.media_scans.policy()?;
+            let directory = self
+                .state
+                .directory
+                .canonicalize()
+                .map_err(|error| error.to_string())?;
+            for path in request.paths {
+                let path = std::path::Path::new(&path)
+                    .canonicalize()
+                    .map_err(|error| error.to_string())?;
+                if !path.is_file() {
+                    return Err("Regular completed file required".into());
+                }
+                let name = path
+                    .to_str()
+                    .ok_or("Invalid completed file path encoding")?;
+                if plain_media::scan::is_media_excluded_at(
+                    name,
+                    &directory,
+                    &policy.cache_directory,
+                    &policy.excluded_roots,
+                ) {
+                    continue;
+                }
+                let kind = plain_media::scan::infer_type(name);
+                let Some(data_type) = [
+                    DataType::Audio,
+                    DataType::Video,
+                    DataType::Image,
+                    DataType::Doc,
+                ]
+                .into_iter()
+                .find(|data_type| data_type.media_type_str() == Some(kind)) else {
+                    continue;
+                };
+                let read = plain_media::metadata::file_facts::read_file_metadata_with_availability(
+                    &path, data_type,
+                )
+                .map_err(|error| error.to_string())?;
+                if data_type == DataType::Doc && read.metadata.size_bytes == 0 {
+                    continue;
+                }
+                files.push(read);
+            }
+        }
+        self.state
+            .media_scans
+            .record_completion(|| self.record_file_reads(&files))?;
+        Ok(true)
     }
 
     #[cfg(feature = "media")]

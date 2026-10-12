@@ -194,3 +194,48 @@ async fn bucket_dispatch_uses_the_same_core_catalog_as_rows_and_count() {
             .is_err()
     );
 }
+
+#[tokio::test]
+async fn completion_callback_dispatch_never_waits_for_another_host_request() {
+    let home = std::env::var_os("HOME")
+        .map(std::path::PathBuf::from)
+        .unwrap_or_else(|| std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")));
+    let directory = Directory(home.join(plain_rs::utils::short_uuid::short_uuid()));
+    std::fs::create_dir(&directory.0).unwrap();
+    let core = Arc::new(ContentServer::open(&directory.0.as_path().join("core")).unwrap());
+    core.native_media_catalog()
+        .unwrap()
+        .configure_scan_directories(&directory.0.as_path().join("cache"), None)
+        .unwrap();
+    let path = directory.0.as_path().join("completed.txt");
+    std::fs::write(&path, b"completed file").unwrap();
+    let runtime = Arc::new(Runtime::new(core.clone(), vec![]));
+    let mut calls = tokio::task::JoinSet::new();
+    for _ in 0..32 {
+        let runtime = runtime.clone();
+        let path = path.clone();
+        calls.spawn(async move {
+            runtime
+                .dispatch("scanFilesFacts", serde_json::json!({"paths":[path]}))
+                .await
+        });
+    }
+    while let Some(result) = calls.join_next().await {
+        assert_eq!(result.unwrap().unwrap(), serde_json::json!(true));
+    }
+    assert_eq!(
+        core.native_media_catalog()
+            .unwrap()
+            .count(plain_rs::enums::DataType::Doc)
+            .unwrap(),
+        1
+    );
+    let missing = directory.0.as_path().join("missing.txt");
+    assert!(
+        runtime
+            .dispatch("scanFilesFacts", serde_json::json!({"paths":[missing]}))
+            .await
+            .is_err()
+    );
+    core.stop_core().await;
+}
