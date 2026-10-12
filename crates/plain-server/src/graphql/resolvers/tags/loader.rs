@@ -1,4 +1,4 @@
-use super::types::Tag;
+use super::domain_types::Tag;
 use async_graphql::{
     Context,
     dataloader::{DataLoader, Loader},
@@ -58,6 +58,7 @@ impl Loader<TagKey> for TagsLoader {
                         .push(Tag {
                             id: tag.id.clone().into(),
                             name: tag.name.clone(),
+                            r#type: tag.kind,
                             count: tag.count,
                         });
                 }

@@ -4,13 +4,8 @@
 //! platform — except resolving a query DSL into the keys a relation attaches
 //! to, which for the media kinds is a media-store lookup.
 //!
-//! The contract's `Tag` has no numeric kind field (the list it came from
-//! implies it), while [`crate::graphql::resolvers::tags::domain_types::Tag`] carries one for the
-//! desktop. Both want the GraphQL name `Tag` and async-graphql refuses the
-//! duplicate, so this module uses [`crate::graphql::resolvers::tags::types::Tag`].
-
+use crate::graphql::resolvers::tags::domain_types::Tag;
 use crate::graphql::resolvers::tags::domain_types::TagRelation;
-use crate::graphql::resolvers::tags::types::Tag;
 use crate::graphql::types::Long;
 use crate::host::bridge::Host;
 use async_graphql::{Context, Enum, InputObject, Object};
@@ -329,6 +324,7 @@ fn tag(row: &TagRow) -> Tag {
     Tag {
         id: async_graphql::ID::from(row.id.clone()),
         name: row.name.clone(),
+        r#type: row.kind,
         count: row.count,
     }
 }

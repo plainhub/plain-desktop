@@ -8,7 +8,7 @@
 //! an explicit browse still errors out, because a silently empty page and a
 //! denied page mean different things to the caller.
 
-use crate::graphql::resolvers::tags::types::Tag;
+use crate::graphql::resolvers::tags::domain_types::Tag;
 use crate::graphql::types::Instant;
 use crate::graphql::types::Long;
 use crate::graphql::types::facts::flag;

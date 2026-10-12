@@ -38,8 +38,8 @@ use crate::graphql::resolvers::files::public::FilesQuery;
 use crate::graphql::resolvers::images::public_index::ImageIndexMutation;
 use crate::graphql::resolvers::images::public_index::ImageIndexQuery;
 use crate::graphql::resolvers::media::public::MediaQuery;
-use crate::graphql::resolvers::notes::public::NotesMutation;
-use crate::graphql::resolvers::notes::public::NotesQuery;
+use crate::graphql::resolvers::notes::note::NoteMutation;
+use crate::graphql::resolvers::notes::note::NoteQuery;
 use crate::graphql::resolvers::notifications::public::NotificationsMutation;
 use crate::graphql::resolvers::notifications::public::NotificationsQuery;
 use crate::graphql::resolvers::peers::public::PeersMutation;
@@ -57,22 +57,6 @@ use plain_rs::db::Db;
 use plain_rs::prefs::Prefs;
 use std::sync::Arc;
 
-// Roots that already serve contract fields for the app's own API are
-// mounted here unchanged rather than reimplemented: for these the contract
-// and the host schema were byte-identical, so a second copy would only be a
-// place for the two to drift.
-//
-// Deliberately *not* among them:
-//   - `tags`, `favoriteFolders` and the clipboard trio — both sides define
-//     them, and the host copies return the app's wider types (an ungated
-//     clipboard), so the contract wins.
-//   - the note and feed roots — `Note.tags` is the app's `Tag`, which
-//     carries a numeric kind the contract does not have, so mounting them
-//     would put two `Tag` types in one registry. Those get public roots.
-//
-// This is a plain comment, not a doc comment on purpose: async-graphql
-// turns `///` on the root object into the published `Query` description,
-// and a note about which roots are reused is not part of the contract.
 #[derive(MergedObject, Default)]
 pub struct Query(
     crate::graphql::resolvers::app::platform::PlatformQuery,
@@ -82,7 +66,7 @@ pub struct Query(
     crate::graphql::resolvers::bookmarks::bookmark::BookmarkQuery,
     crate::graphql::resolvers::pomodoro::pomodoro::PomodoroQuery,
     crate::graphql::resolvers::images::image_editor_project::ImageEditorProjectQuery,
-    NotesQuery,
+    NoteQuery,
     FeedsQuery,
     AudioQuery,
     ChatQuery,
@@ -110,7 +94,7 @@ pub struct Mutation(
     crate::graphql::resolvers::bookmarks::bookmark::BookmarkMutation,
     crate::graphql::resolvers::pomodoro::pomodoro::PomodoroMutation,
     crate::graphql::resolvers::images::image_editor_project::ImageEditorProjectMutation,
-    NotesMutation,
+    NoteMutation,
     FeedsMutation,
     AudioMutation,
     ChatMutation,
@@ -182,7 +166,6 @@ pub(crate) fn build_with_runtime(
 ) -> PublicSchema {
     let builder = Schema::build(Query::default(), Mutation::default(), EmptySubscription)
         .register_output_type::<crate::graphql::resolvers::media::item::MediaItem>()
-        .data(crate::graphql::resolvers::tags::loader::new(db.clone()))
         .data(models);
     let builder = services.configure_schema(builder, db, host, prefs, events);
     #[cfg(feature = "mobile")]

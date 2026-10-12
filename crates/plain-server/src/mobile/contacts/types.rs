@@ -5,7 +5,7 @@
 //! not recognise reads back as `CUSTOM` — the label (or `customProtocol`)
 //! string then carries the user-visible value, matching Android's own
 //! convention.
-use crate::graphql::resolvers::tags::types::Tag;
+use crate::graphql::resolvers::tags::domain_types::Tag;
 
 use crate::graphql::types::Instant;
 use async_graphql::{Enum, ID, InputObject, SimpleObject};

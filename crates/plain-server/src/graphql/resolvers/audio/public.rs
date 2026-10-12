@@ -7,7 +7,7 @@
 //! two. What stays on the platform is genuinely platform work: enumerating
 //! MediaStore, reading a file's metadata and lyrics, and driving the player.
 
-use crate::graphql::resolvers::tags::types::Tag;
+use crate::graphql::resolvers::tags::domain_types::Tag;
 use crate::graphql::types::Instant;
 use crate::graphql::types::Long;
 use crate::host::bridge::Host;

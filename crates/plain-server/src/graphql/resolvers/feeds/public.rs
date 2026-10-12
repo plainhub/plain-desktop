@@ -17,7 +17,7 @@
 use crate::graphql::resolvers::feeds::feed::Feed;
 use crate::graphql::resolvers::feeds::feed::FeedEntryCount;
 use crate::graphql::resolvers::feeds::feed::FeedError;
-use crate::graphql::resolvers::tags::types::Tag;
+use crate::graphql::resolvers::tags::domain_types::Tag;
 use crate::graphql::types::ActionResult;
 use crate::graphql::types::Instant;
 use crate::services::feeds;

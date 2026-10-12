@@ -26,6 +26,20 @@ pub struct Note {
 #[ComplexObject]
 impl Note {
     async fn tags(&self, ctx: &Context<'_>) -> GqlResult<Vec<Tag>> {
+        #[cfg(feature = "core")]
+        if ctx
+            .data_opt::<async_graphql::dataloader::DataLoader<
+                crate::graphql::resolvers::tags::loader::TagsLoader,
+            >>()
+            .is_some()
+        {
+            return crate::graphql::resolvers::tags::loader::load(
+                ctx,
+                DataType::Note,
+                self.id.as_str(),
+            )
+            .await;
+        }
         content_common::tags(ctx, self.id.as_str(), DataType::Note.kind())
     }
 }
@@ -136,6 +150,6 @@ impl NoteMutation {
     }
 }
 
-#[cfg(all(test, feature = "api"))]
+#[cfg(test)]
 #[path = "../../../../tests/unit/graphql/resolvers/notes/note.rs"]
 mod tests;

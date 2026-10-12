@@ -3,7 +3,7 @@
 //! Reads reuse the same provider search the contact roots use, so a call and
 //! a contact from the same query DSL behave alike.
 
-use crate::graphql::resolvers::tags::types::Tag;
+use crate::graphql::resolvers::tags::domain_types::Tag;
 use crate::graphql::types::ActionResult;
 use crate::graphql::types::facts::host_json;
 use crate::graphql::types::facts::instant;

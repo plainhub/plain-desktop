@@ -210,11 +210,9 @@ fn public_schema_exposes_the_contract_it_has_to_serve() {
         sdl.contains("replyActions: [String!]!"),
         "replyActions renamed"
     );
-    // The contract's Tag carries no numeric kind — that is the `tags(type:)`
-    // filter — so it must not be the app's wider content_types::Tag.
     assert!(
-        sdl.contains("type Tag {\n\tid: ID!\n\tname: String!\n\tcount: Int!\n}"),
-        "Tag shape drifted from the contract:\n{}",
+        sdl.contains("type Tag {\n\tid: ID!\n\tname: String!\n\ttype: Int!\n\tcount: Int!\n}"),
+        "shared Tag shape drifted:\n{}",
         sdl.split("type Tag {")
             .nth(1)
             .map(|rest| format!("type Tag {{{rest}"))

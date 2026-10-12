@@ -127,6 +127,7 @@ impl Services {
         events: tokio::sync::broadcast::Sender<plain_rs::events::WsEvent>,
     ) -> async_graphql::SchemaBuilder<Q, M, S> {
         builder
+            .data(crate::graphql::resolvers::tags::loader::new(db.clone()))
             .data(db)
             .data(host)
             .data(prefs)

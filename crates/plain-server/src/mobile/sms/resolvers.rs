@@ -7,7 +7,7 @@
 //! plain-app degrades every read to an empty list or 0 when the client was
 //! not granted READ_SMS — it never errors — so the gate follows that.
 
-use crate::graphql::resolvers::tags::types::Tag;
+use crate::graphql::resolvers::tags::domain_types::Tag;
 use crate::graphql::types::ActionResult;
 use crate::graphql::types::facts::flag;
 use crate::graphql::types::facts::instant;
