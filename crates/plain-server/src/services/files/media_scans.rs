@@ -340,7 +340,6 @@ impl Session {
         }
         if matches!(job.snapshot.status, Status::Cancelled | Status::Failed) {
             let _ = job.cancel.send(true);
-            job.activity.send_replace(());
         }
         job.activity.send_replace(());
         Ok(job.snapshot.clone())
