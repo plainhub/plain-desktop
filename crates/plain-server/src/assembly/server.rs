@@ -109,18 +109,33 @@ impl ContentServer {
     }
 
     pub fn native_graphql(&self) -> Result<crate::native::graphql::NativeGraphqlExecutor, String> {
-        let client_id = self
-            .state
-            .prefs
-            .get_or(plain_rs::prefs::system::keys::CLIENT_ID, String::new());
-        if client_id.is_empty() {
-            return Err("native client identity unavailable".into());
-        }
+        let client_id = self.native_client_id()?;
         Ok(crate::native::graphql::NativeGraphqlExecutor::new(
             self.graphql_executor(),
             self.state.events.clone(),
             client_id,
         ))
+    }
+
+    pub fn native_file_tasks(&self) -> Result<crate::native::file_tasks::NativeFileTasks, String> {
+        Ok(crate::native::file_tasks::NativeFileTasks::new(
+            self.state.files.clone(),
+            self.state.host.clone(),
+            self.native_client_id()?,
+            self.state.stop.clone(),
+        ))
+    }
+
+    fn native_client_id(&self) -> Result<String, String> {
+        if *self.state.stop.borrow() || self.state.stop.has_changed().is_err() {
+            return Err("Rust core stopped".into());
+        }
+        self.state
+            .prefs
+            .get::<String>(plain_rs::prefs::system::keys::CLIENT_ID)
+            .map_err(|error| error.to_string())?
+            .filter(|id| !id.is_empty())
+            .ok_or_else(|| "native client identity unavailable".into())
     }
 
     pub fn graphql_executor(&self) -> crate::graphql::executor::GraphqlExecutor {
