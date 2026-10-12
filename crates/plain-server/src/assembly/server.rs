@@ -311,6 +311,11 @@ impl ContentServer {
         } = dependencies;
         crate::assembly::core_dependencies::CoreDependencies::validate_token(&token)?;
         plain_rs::prefs::identity::ensure_identity(&prefs);
+        // The mDNS runtime reads the hostname rather than deriving one, so a
+        // core that never seeds it cannot answer a pairing or advertisement
+        // request. The legacy `AppCtx::assemble` already did this; the core
+        // needs the same identity floor.
+        plain_rs::prefs::ensure_mdns_hostname(&prefs);
         let (stop, receiver) = watch::channel(false);
         let lan =
             Arc::new(crate::services::peers::peer_lan::Lan::new().map_err(|e| e.to_string())?);
