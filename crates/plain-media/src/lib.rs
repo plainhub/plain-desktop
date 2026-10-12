@@ -8,6 +8,7 @@
 pub mod catalog;
 pub mod config;
 pub mod events;
+pub mod file_walk;
 pub mod index;
 pub mod metadata;
 pub mod scan;
