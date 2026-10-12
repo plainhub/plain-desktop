@@ -203,124 +203,71 @@ pub fn run() {
                 .path()
                 .app_log_dir()
                 .unwrap_or_else(|_| data_dir.join("logs"));
-            let db_path = data_dir.join("plain.db");
-            let db = match plain_rs::db::Db::open(&db_path) {
-                Ok(d) => Arc::new(d),
-                Err(e) => panic!("local_db open failed: {e}"),
-            };
-            let identity = Arc::new(crate::prefs::ensure_identity(&prefs));
-            let chat_state = Arc::new(plain_server::services::chat::desktop::ChatState::new(
-                &db,
-                &identity,
-                identity.device_name.clone(),
-                crate::prefs::ensure_url_token(&prefs),
-                data_dir.clone(),
-            ));
-            app.handle().manage(chat_state.clone());
-            let (event_tx, _) = tokio::sync::broadcast::channel(1024);
-            tauri::async_runtime::block_on(async {
-                chat_state.spawn_event_bridges(event_tx.clone(), {
-                    let handle = app.handle().clone();
-                    move |event: &plain_rs::peers::pairing::PairingEvent| {
-                        use tauri::Emitter;
-                        let _ = handle.emit("pairing-event", event.clone());
-                    }
-                });
-            });
-            plain_server::http::server::events::spawn_media_event_bridge(event_tx.clone());
-            let ctx = plain_server::assembly::context::AppCtx::assemble(
-                data_dir.clone(),
-                data_dir.join("cache"),
-                log_dir,
-                prefs.clone(),
-                chat_state.clone(),
-                event_tx.clone(),
-                Arc::new(crate::host::device::DesktopShell(app.handle().clone())),
-                0,
-                0,
-            )
-            .expect("assemble local API context");
-            let media_roots: Vec<std::path::PathBuf> = plain_rs::prefs::media::source_directories(&prefs)?
-                .into_iter()
-                .map(std::path::PathBuf::from)
-                .filter(|path| path.is_dir())
-                .collect();
-            if !media_roots.is_empty() {
-                if let Ok(watcher) = plain_media::watch::start_watching(ctx.media.db.clone(), &media_roots) {
-                    app.handle().manage(std::sync::Mutex::new(watcher));
-                }
-                let needs_initial_scan = media_sources_changed
-                    || ctx.media.db.scan_prefix(b"media:uuid:").next().is_none();
-                let media_db = ctx.media.db.clone();
-                let data_dir_for_index = data_dir.clone();
-                tauri::async_runtime::spawn(async move {
-                    let db_for_index = media_db.clone();
-                    let roots_for_index = media_roots.clone();
-                    let _ = tauri::async_runtime::spawn_blocking(move || {
-                        plain_media::watch::build_missing_indexes(
-                            &data_dir_for_index,
-                            &db_for_index,
-                            &roots_for_index,
-                        );
-                    }).await;
-                    if needs_initial_scan {
-                        if let Err(error) = plain_media::scan::start_walk_and_scan_paths(
-                            media_db,
-                            media_roots,
-                            std::path::PathBuf::from("/"),
-                        ).await {
-                            log::error!("initial media scan failed: {error}");
-                        }
-                    }
-                });
-            }
-            let peer_status = ctx.peer_status.clone();
-            let discover_mgr = ctx.discover_manager.clone();
-            let dlna_engine = ctx.dlna_engine.clone();
-            chat_state.attach_discovery(discover_mgr.clone());
-            let peer_resolver: plain_server::http::proxy::local::PeerResolver = {
-                let mgr = discover_mgr.clone();
-                Arc::new(move |id: &str| mgr.peer_address(id))
-            };
-            let state = plain_server::http::server::ServerState::new(
-                Arc::new(plain_server::graphql::schemas::desktop::build_schema()),
-                Arc::new(plain_server::graphql::schemas::peer::build_schema()),
-                ctx,
-                plain_server::http::server::ServerSettings {
-                    auth: plain_server::http::server::AuthPolicy::LocalToken,
-                    cors: plain_server::http::routes::local::cors::CorsPolicy::permissive_default(),
-                    serve_spa: false,
-                },
+            let _ = log_dir;
+            let core = Arc::new(
+                plain_server::assembly::server::ContentServer::open(&data_dir)
+                    .expect("open the shared core"),
             );
+            app.handle().manage(core.clone());
+
+            // The catalog needs its scan policy before anything indexes, and
+            // the watcher needs the policy to decide what counts as media.
+            if let Ok(catalog) = core.native_media_catalog() {
+                if let Err(error) =
+                    catalog.configure_scan_directories(&data_dir.join("cache"), None)
+                {
+                    log::warn!("media scan configuration failed: {error}");
+                }
+                if media_sources_changed {
+                    tauri::async_runtime::block_on(async {
+                        if let Err(error) = catalog.scan_source_directories("/").await {
+                            log::warn!("initial media scan failed: {error}");
+                        }
+                    });
+                }
+                if let Err(error) = catalog.watch_source_directories() {
+                    log::warn!("media watch did not start: {error}");
+                }
+            }
+
+            // The peer proxy dials by client id; the core owns the lookup.
+            let peer_resolver: plain_server::http::proxy::local::PeerResolver = {
+                let core = core.clone();
+                Arc::new(move |id: &str| {
+                    core.native_peers()
+                        .ok()
+                        .and_then(|peers| peers.address(id).ok().flatten())
+                })
+            };
             app.handle().manage(tauri::async_runtime::block_on(async {
                 plain_server::http::proxy::local::HttpProxyState::start(peer_resolver)
             }));
-            let local_server_state = tauri::async_runtime::block_on(async {
-                plain_server::http::server::runtime::ServerRuntime::start(state).await
-            });
-            app.handle().manage(dlna_engine.clone());
-            // Start the DLNA renderer at startup when the toggle is on.
-            if plain_rs::prefs::dlna::enabled(&prefs) {
-                let engine = dlna_engine.clone();
-                let port = local_server_state.port();
-                tauri::async_runtime::spawn(async move {
-                    engine.start(port).await;
-                });
-            }
-            peer_status.set_event_tx(event_tx.clone());
-            discover_mgr.set_event_tx(event_tx);
-            discover_mgr.set_shell(std::sync::Arc::new(crate::host::device::DesktopShell(
+
+            // The host bridge answers the core's platform requests and
+            // forwards its events to the webview. It has to be running
+            // before anything asks the core for a platform fact.
+            let capabilities = crate::host::device::desktop_capabilities()
+                .iter()
+                .map(|value| (*value).to_owned())
+                .collect();
+            let host_bridge = std::sync::Arc::new(crate::host::runtime::Runtime::new(
+                core.clone(),
                 app.handle().clone(),
-            )));
-            discover_mgr.start();
-            peer_status.set_discover_manager(discover_mgr.clone());
-            // setup runs on the main thread, outside the tokio runtime —
-            // start() reaches tokio::spawn via open_socket for connectable peers.
-            tauri::async_runtime::block_on(async {
-                peer_status.start();
+                capabilities,
+            ));
+            tauri::async_runtime::spawn(async move {
+                if let Err(error) = host_bridge.run().await {
+                    log::error!("host bridge stopped: {error}");
+                }
             });
-            app.handle().manage(discover_mgr);
-            app.handle().manage(local_server_state);
+
+            if let Err(error) = tauri::async_runtime::block_on(async {
+                core.start_configured_public().await
+            }) {
+                panic!("start the public listener failed: {error}");
+            }
+            let (event_tx, _) = tokio::sync::broadcast::channel(1024);
+            plain_server::http::server::events::spawn_media_event_bridge(event_tx.clone());
             Ok(())
         })
         .on_page_load(|webview, payload| {
