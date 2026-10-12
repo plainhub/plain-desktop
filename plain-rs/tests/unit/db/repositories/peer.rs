@@ -134,7 +134,7 @@ fn logout_peer_clears_token_and_drops_from_login_list() {
     .expect("login peer");
     assert_eq!(db.get_login_peers().len(), 1);
 
-    db.logout_peer("p1");
+    db.logout_peer("p1").unwrap();
 
     let peer = db
         .get_peer_by_id("p1")
@@ -158,7 +158,7 @@ fn update_peer_name_renames_only() {
     )
     .expect("login peer");
 
-    db.update_peer_name("p1", "new-name");
+    db.update_peer_name("p1", "new-name").unwrap();
 
     let peer = db.get_peer_by_id("p1").expect("peer exists");
     assert_eq!(peer.name, "new-name");

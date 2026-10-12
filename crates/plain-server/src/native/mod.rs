@@ -18,3 +18,6 @@ pub mod archives;
 
 #[cfg(feature = "core")]
 pub mod pairing;
+
+#[cfg(feature = "core")]
+pub mod peers;

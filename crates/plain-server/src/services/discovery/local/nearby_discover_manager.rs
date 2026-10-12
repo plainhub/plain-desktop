@@ -64,15 +64,7 @@ pub struct DiscoveredDevice {
     pub discovery_methods: Vec<String>,
 }
 
-fn split_host(host: &str) -> (String, u16) {
-    match host.rsplit_once(':') {
-        Some((ip, port)) => match port.parse::<u16>() {
-            Ok(p) => (ip.to_string(), p),
-            Err(_) => (host.to_string(), 8443),
-        },
-        None => (host.to_string(), 8443),
-    }
-}
+use plain_rs::utils::http_url::split_peer_host as split_host;
 
 #[derive(Clone)]
 pub struct NearbyDiscoverManager {
@@ -521,11 +513,15 @@ impl NearbyDiscoverManager {
     }
 
     pub fn logout_peer(&self, id: &str) {
-        self.db.logout_peer(id);
+        if let Err(error) = self.db.logout_peer(id) {
+            log::error!("logout_peer failed: {error}");
+        }
     }
 
     pub fn update_peer_name(&self, id: &str, name: &str) {
-        self.db.update_peer_name(id, name);
+        if let Err(error) = self.db.update_peer_name(id, name) {
+            log::error!("update_peer_name failed: {error}");
+        }
     }
 
     /// Peers with an active login token — the device-switcher list.

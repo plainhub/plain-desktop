@@ -361,3 +361,13 @@ mod tests {
         );
     }
 }
+
+pub fn split_peer_host(host: &str) -> (String, u16) {
+    match host.rsplit_once(':') {
+        Some((ip, port)) => match port.parse::<u16>() {
+            Ok(port) => (ip.to_owned(), port),
+            Err(_) => (host.to_owned(), 8443),
+        },
+        None => (host.to_owned(), 8443),
+    }
+}

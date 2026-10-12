@@ -208,6 +208,11 @@ impl ContentServer {
             .await
     }
 
+    pub fn native_peers(&self) -> Result<crate::native::peers::NativePeers, String> {
+        self.state.native_client_id()?;
+        Ok(crate::native::peers::NativePeers::new(self.state.clone()))
+    }
+
     pub fn native_pairing(&self) -> Result<crate::native::pairing::NativePairing, String> {
         self.state.native_client_id()?;
         Ok(crate::native::pairing::NativePairing::new(

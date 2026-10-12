@@ -138,24 +138,26 @@ impl Db {
         Ok(())
     }
 
-    pub fn logout_peer(&self, id: &str) {
+    pub fn logout_peer(&self, id: &str) -> Result<(), String> {
         let now = now_iso();
         let conn = self.0.lock().unwrap();
-        if let Err(e) = conn.execute(
+        conn.execute(
             "UPDATE peers SET token='', updated_at=?1 WHERE id=?2",
             params![now, id],
-        ) {
-            log::error!("logout_peer failed id={} err={e}", id);
-        }
+        )
+        .map_err(|error| error.to_string())?;
+        Ok(())
     }
 
-    pub fn update_peer_name(&self, id: &str, name: &str) {
+    pub fn update_peer_name(&self, id: &str, name: &str) -> Result<(), String> {
         let now = now_iso();
         let conn = self.0.lock().unwrap();
-        let _ = conn.execute(
+        conn.execute(
             "UPDATE peers SET name=?1, updated_at=?2 WHERE id=?3",
             params![name, now, id],
-        );
+        )
+        .map_err(|error| error.to_string())?;
+        Ok(())
     }
 
     /// Peers with an active login token (the device-switcher list).
