@@ -256,10 +256,191 @@ async fn aborted_scan_future_releases_the_shared_job_and_failed_scans_report_par
         .await
         .unwrap();
     assert_eq!(result.status, Status::Failed);
-    assert_eq!(result.total_files, 2);
+    assert_eq!(result.total_files, Some(2));
     assert_eq!(result.processed_files, 1);
     assert!(result.error.is_some());
     assert_eq!(catalog.count(plain_rs::enums::DataType::Doc).unwrap(), 1);
     authorization.await.unwrap();
+    core.stop_core().await;
+}
+
+#[cfg(feature = "media")]
+fn directory_scan_fixture() -> tempfile::TempDir {
+    let home = std::env::var_os(if cfg!(windows) { "USERPROFILE" } else { "HOME" })
+        .map(std::path::PathBuf::from)
+        .unwrap_or_else(|| std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")));
+    tempfile::Builder::new()
+        .prefix("media-scan-")
+        .tempdir_in(home)
+        .unwrap()
+}
+
+#[cfg(feature = "media")]
+#[tokio::test]
+async fn directory_scan_uses_core_policy_real_walker_and_existing_catalog() {
+    use crate::services::files::media_scans::Status;
+    let directory = directory_scan_fixture();
+    let root = directory.path().join("library");
+    let cache = root.join("cache");
+    let excluded = root.join("excluded");
+    let data = root.join("core");
+    for folder in [
+        &root,
+        &cache,
+        &excluded,
+        &root.join("nested"),
+        &root.join(".hidden"),
+        &root.join("marked"),
+    ] {
+        std::fs::create_dir_all(folder).unwrap();
+    }
+    for name in [
+        "one.txt",
+        "nested/two.txt",
+        "photo.heic",
+        "cache/cache.txt",
+        "excluded/excluded.txt",
+        ".hidden/hidden.txt",
+        "marked/marked.txt",
+    ] {
+        std::fs::write(root.join(name), b"media facts").unwrap();
+    }
+    std::fs::write(root.join("empty.txt"), b"").unwrap();
+    std::fs::write(root.join("marked/.nomedia"), b"").unwrap();
+    let config = directory.path().join("config.toml");
+    std::fs::write(
+        &config,
+        format!("[media_scan]\nexcluded_dirs = {}\n", excluded.display()),
+    )
+    .unwrap();
+    let core = crate::assembly::server::ContentServer::open(&data).unwrap();
+    std::fs::write(data.join("internal.txt"), b"internal").unwrap();
+    let catalog = core.native_media_catalog().unwrap();
+    assert!(
+        catalog
+            .scan_directory(root.to_str().unwrap())
+            .await
+            .is_err()
+    );
+    catalog
+        .configure_scan_directories(&cache, Some(&config))
+        .unwrap();
+    let host = core.runtime_state().host.clone();
+    let (generation, mut requests) = host.connect();
+    let (done, mut finish) = tokio::sync::oneshot::channel::<()>();
+    let authorize = tokio::spawn(async move {
+        loop {
+            tokio::select! {
+                _ = &mut finish => break,
+                request=requests.recv() => {
+                    let request=request.unwrap();
+                    assert_eq!(request["method"],"fileTaskAuthorize");
+                    assert_eq!(request["params"]["operation"],"read");
+                    host.reply(generation,serde_json::json!({"id":request["id"],"result":true})).unwrap();
+                },
+            }
+        }
+    });
+    let result = catalog
+        .scan_directory(root.to_str().unwrap())
+        .await
+        .unwrap();
+    done.send(()).unwrap();
+    authorize.await.unwrap();
+    assert_eq!(result.status, Status::Completed);
+    assert_eq!(result.total_files, Some(3));
+    assert_eq!(result.processed_files, 3);
+    assert_eq!(catalog.count(plain_rs::enums::DataType::Doc).unwrap(), 2);
+    assert_eq!(catalog.count(plain_rs::enums::DataType::Image).unwrap(), 1);
+    assert!(
+        catalog
+            .by_path(
+                plain_rs::enums::DataType::Doc,
+                cache.join("cache.txt").to_str().unwrap()
+            )
+            .unwrap()
+            .is_none()
+    );
+    core.stop_core().await;
+}
+
+#[cfg(feature = "media")]
+#[tokio::test]
+async fn directory_scan_cancels_during_root_authorization_without_discovery_or_writes() {
+    use crate::services::files::media_scans::Status;
+    let directory = tempfile::tempdir().unwrap();
+    let core =
+        crate::assembly::server::ContentServer::open(&directory.path().join("core")).unwrap();
+    let catalog = core.native_media_catalog().unwrap();
+    catalog
+        .configure_scan_directories(&directory.path().join("cache"), None)
+        .unwrap();
+    let host = core.runtime_state().host.clone();
+    let (_generation, mut requests) = host.connect();
+    let worker = tokio::spawn({
+        let catalog = catalog.clone();
+        let root = directory.path().to_str().unwrap().to_owned();
+        async move { catalog.scan_directory(&root).await }
+    });
+    requests.recv().await.unwrap();
+    assert_eq!(
+        catalog.file_scan_status().unwrap().unwrap().total_files,
+        None
+    );
+    assert!(
+        catalog
+            .configure_scan_directories(&directory.path().join("other-cache"), None)
+            .is_err()
+    );
+    catalog.cancel_file_scan().unwrap();
+    let result = worker.await.unwrap().unwrap();
+    assert_eq!(result.status, Status::Cancelled);
+    assert_eq!(result.processed_files, 0);
+    assert_eq!(catalog.count(plain_rs::enums::DataType::Doc).unwrap(), 0);
+    core.stop_core().await;
+}
+
+#[cfg(feature = "media")]
+#[tokio::test]
+async fn directory_scan_cancellation_releases_a_bounded_producer_without_committing_pending_files()
+{
+    use crate::services::files::media_scans::Status;
+    let directory = directory_scan_fixture();
+    let root = directory.path().join("files");
+    std::fs::create_dir(&root).unwrap();
+    for index in 0..96 {
+        std::fs::write(root.join(format!("{index}.txt")), b"data").unwrap();
+    }
+    let core =
+        crate::assembly::server::ContentServer::open(&directory.path().join("core")).unwrap();
+    let catalog = core.native_media_catalog().unwrap();
+    catalog
+        .configure_scan_directories(&directory.path().join("cache"), None)
+        .unwrap();
+    let host = core.runtime_state().host.clone();
+    let (generation, mut requests) = host.connect();
+    let worker = tokio::spawn({
+        let catalog = catalog.clone();
+        let root = root.to_str().unwrap().to_owned();
+        async move { catalog.scan_directory(&root).await }
+    });
+    let request = requests.recv().await.unwrap();
+    host.reply(
+        generation,
+        serde_json::json!({"id":request["id"],"result":true}),
+    )
+    .unwrap();
+    let pending = requests.recv().await.unwrap();
+    catalog.cancel_file_scan().unwrap();
+    let result = worker.await.unwrap().unwrap();
+    assert_eq!(result.status, Status::Cancelled);
+    assert_eq!(result.processed_files, 0);
+    assert_eq!(result.total_files, None);
+    host.reply(
+        generation,
+        serde_json::json!({"id":pending["id"],"result":true}),
+    )
+    .unwrap();
+    assert_eq!(catalog.count(plain_rs::enums::DataType::Doc).unwrap(), 0);
     core.stop_core().await;
 }

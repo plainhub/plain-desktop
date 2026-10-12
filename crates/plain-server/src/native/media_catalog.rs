@@ -99,6 +99,136 @@ impl NativeMediaCatalog {
     }
 
     #[cfg(feature = "media")]
+    pub fn configure_scan_directories(
+        &self,
+        cache_directory: &std::path::Path,
+        config_file: Option<&std::path::Path>,
+    ) -> Result<(), String> {
+        self.state.native_client_id()?;
+        self.state
+            .media_scans
+            .configure(crate::services::files::media_scan_policy::Policy::load(
+                cache_directory,
+                config_file,
+            )?)
+    }
+
+    #[cfg(feature = "media")]
+    pub async fn scan_directory(
+        &self,
+        reference: &str,
+    ) -> Result<crate::services::files::media_scans::Snapshot, String> {
+        self.state.native_client_id()?;
+        let policy = self.state.media_scans.policy()?;
+        let session = self.state.media_scans.begin_discovery()?;
+        let mut cancel = session.cancel.clone();
+        let mut stop = self.state.stop.clone();
+        let worker_cancel = cancel.clone();
+        let worker_stop = stop.clone();
+        let result = async {
+            let root =
+                crate::services::files::file_access::resolve_native(&self.state, reference).await?;
+            let canonical_root = tokio::fs::canonicalize(&root)
+                .await
+                .map_err(|error| error.to_string())?;
+            if !tokio::fs::symlink_metadata(&root)
+                .await
+                .map_err(|error| error.to_string())?
+                .file_type()
+                .is_dir()
+            {
+                return Err("Real media scan directory required".into());
+            }
+            let (send, mut receive) =
+                tokio::sync::mpsc::channel::<(DataType, std::path::PathBuf)>(32);
+            let directory = tokio::fs::canonicalize(&self.state.directory)
+                .await
+                .map_err(|error| error.to_string())?;
+            let cancelled = worker_cancel.clone();
+            let stopped = worker_stop.clone();
+            let producer_root = canonical_root.clone();
+            let producer = tokio::task::spawn_blocking(move || -> Result<usize, String> {
+                let mut discovered = 0;
+                plain_media::file_walk::walk_files(
+                    &producer_root,
+                    |path| {
+                        path.to_str().is_some_and(|path| {
+                            plain_media::scan::is_media_excluded_at(
+                                path,
+                                &directory,
+                                &policy.cache_directory,
+                                &policy.excluded_roots,
+                            )
+                        })
+                    },
+                    || {
+                        *cancelled.borrow()
+                            || cancelled.has_changed().is_err()
+                            || *stopped.borrow()
+                            || stopped.has_changed().is_err()
+                    },
+                    |path| {
+                        let name = path
+                            .to_str()
+                            .ok_or_else(|| anyhow::anyhow!("Invalid media file path encoding"))?;
+                        let kind = plain_media::scan::infer_type(name);
+                        if let Some(data_type) = [
+                            DataType::Audio,
+                            DataType::Video,
+                            DataType::Image,
+                            DataType::Doc,
+                        ]
+                        .into_iter()
+                        .find(|data_type| data_type.media_type_str() == Some(kind))
+                        {
+                            if data_type == DataType::Doc && std::fs::metadata(path)?.len() == 0 {
+                                return Ok(());
+                            }
+                            send.blocking_send((data_type, path.to_owned()))
+                                .map_err(|_| anyhow::anyhow!("Media scan receiver closed"))?;
+                            discovered += 1;
+                        }
+                        Ok(())
+                    },
+                )
+                .map_err(|error| error.to_string())?;
+                Ok(discovered)
+            });
+            while let Some((data_type, path)) = receive.recv().await {
+                let actual = tokio::fs::canonicalize(&path)
+                    .await
+                    .map_err(|error| error.to_string())?;
+                if !actual.starts_with(&canonical_root) {
+                    return Err("Media file escaped scan directory".into());
+                }
+                let metadata = self
+                    .read_file(
+                        data_type,
+                        actual.to_str().ok_or("Invalid media file path encoding")?,
+                    )
+                    .await?;
+                if !std::path::Path::new(&metadata.metadata.path).starts_with(&canonical_root) {
+                    return Err("Media file escaped scan directory".into());
+                }
+                session.record(|| self.record_file_reads(&[metadata]))?;
+            }
+            let total = producer.await.map_err(|error| error.to_string())??;
+            session.discovered(total)?;
+            Ok(())
+        };
+        let result = tokio::select! {
+            biased;
+            _ = crate::services::files::media_scans::wait_stop(&mut cancel) => Err("Media scan cancelled".into()),
+            _ = crate::services::files::media_scans::wait_stop(&mut stop) => {
+                self.state.media_scans.cancel()?;
+                Err("Rust core stopped".into())
+            },
+            result = result => result,
+        };
+        session.finish(result)
+    }
+
+    #[cfg(feature = "media")]
     pub fn cancel_file_scan(
         &self,
     ) -> Result<Option<crate::services::files::media_scans::Snapshot>, String> {

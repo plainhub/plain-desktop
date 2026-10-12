@@ -18,7 +18,7 @@ pub enum Status {
 pub struct Snapshot {
     pub id: String,
     pub status: Status,
-    pub total_files: usize,
+    pub total_files: Option<usize>,
     pub processed_files: usize,
     pub error: Option<String>,
 }
@@ -32,6 +32,7 @@ struct Job {
 struct State {
     job: Option<Job>,
     closed: bool,
+    policy: Option<Arc<super::media_scan_policy::Policy>>,
 }
 
 #[derive(Default)]
@@ -41,6 +42,14 @@ pub(crate) struct MediaScans {
 
 impl MediaScans {
     pub(crate) fn begin(self: &Arc<Self>, total_files: usize) -> Result<Session, String> {
+        self.begin_with_total(Some(total_files))
+    }
+
+    pub(crate) fn begin_discovery(self: &Arc<Self>) -> Result<Session, String> {
+        self.begin_with_total(None)
+    }
+
+    fn begin_with_total(self: &Arc<Self>, total_files: Option<usize>) -> Result<Session, String> {
         let mut guard = self
             .state
             .lock()
@@ -72,6 +81,34 @@ impl MediaScans {
             id,
             cancel: receiver,
         })
+    }
+
+    pub(crate) fn configure(&self, policy: super::media_scan_policy::Policy) -> Result<(), String> {
+        let mut guard = self
+            .state
+            .lock()
+            .map_err(|_| "Media scan state unavailable")?;
+        if guard.closed {
+            return Err("Rust core stopped".into());
+        }
+        if guard
+            .job
+            .as_ref()
+            .is_some_and(|job| matches!(job.snapshot.status, Status::Running | Status::Cancelling))
+        {
+            return Err("Media scan already running".into());
+        }
+        guard.policy = Some(Arc::new(policy));
+        Ok(())
+    }
+
+    pub(crate) fn policy(&self) -> Result<Arc<super::media_scan_policy::Policy>, String> {
+        self.state
+            .lock()
+            .map_err(|_| "Media scan state unavailable")?
+            .policy
+            .clone()
+            .ok_or_else(|| "Media scan directories not configured".into())
     }
 
     pub(crate) fn snapshot(&self) -> Result<Option<Snapshot>, String> {
@@ -142,6 +179,24 @@ impl Session {
         Ok(value)
     }
 
+    pub(crate) fn discovered(&self, total_files: usize) -> Result<(), String> {
+        let mut guard = self
+            .scans
+            .state
+            .lock()
+            .map_err(|_| "Media scan state unavailable")?;
+        let job = guard
+            .job
+            .as_mut()
+            .filter(|job| job.snapshot.id == self.id)
+            .ok_or("Media scan replaced")?;
+        if job.snapshot.status != Status::Running {
+            return Err("Media scan cancelled".into());
+        }
+        job.snapshot.total_files = Some(total_files);
+        Ok(())
+    }
+
     pub(crate) fn finish(&self, result: Result<(), String>) -> Result<Snapshot, String> {
         let mut guard = self
             .scans
@@ -163,6 +218,9 @@ impl Session {
                     job.snapshot.error = Some(error);
                 }
             }
+        }
+        if matches!(job.snapshot.status, Status::Cancelled | Status::Failed) {
+            let _ = job.cancel.send(true);
         }
         Ok(job.snapshot.clone())
     }

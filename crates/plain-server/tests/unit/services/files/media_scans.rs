@@ -42,6 +42,7 @@ fn failed_and_completed_jobs_are_distinct_and_close_prevents_new_commits_or_scan
     failed.record(|| Ok(())).unwrap();
     let snapshot = failed.finish(Err("probe failed".into())).unwrap();
     assert_eq!(snapshot.status, Status::Failed);
+    assert!(*failed.cancel.borrow());
     assert_eq!(snapshot.error.as_deref(), Some("probe failed"));
     assert_eq!(snapshot.processed_files, 1);
     let completed = scans.begin(0).unwrap();
@@ -61,4 +62,16 @@ async fn wait_stop_observes_existing_cancellation_and_closed_channels() {
     drop(closed);
     wait_stop(&mut receiver).await;
     drop(sender);
+}
+
+#[test]
+fn directory_discovery_does_not_publish_a_guessed_total() {
+    let scans = Arc::new(MediaScans::default());
+    let session = scans.begin_discovery().unwrap();
+    assert_eq!(scans.snapshot().unwrap().unwrap().total_files, None);
+    session.record(|| Ok(())).unwrap();
+    session.discovered(1).unwrap();
+    let result = session.finish(Ok(())).unwrap();
+    assert_eq!(result.total_files, Some(1));
+    assert_eq!(result.processed_files, 1);
 }
