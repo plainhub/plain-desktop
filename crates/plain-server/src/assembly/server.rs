@@ -133,6 +133,16 @@ impl ContentServer {
         crate::services::casting::receiver::control::Controller::new(self.state.clone())
     }
 
+    pub fn dlna_engine(
+        &self,
+    ) -> std::sync::Arc<crate::services::casting::receiver::receiver_engine::DlnaEngine> {
+        self.state.dlna.clone()
+    }
+
+    pub fn peer_status(&self) -> std::sync::Arc<crate::services::peers::peer_status::Runtime> {
+        self.state.peer_status.clone()
+    }
+
     pub fn peer_status_controller(
         &self,
     ) -> crate::services::peers::peer_status_controller::Controller {
