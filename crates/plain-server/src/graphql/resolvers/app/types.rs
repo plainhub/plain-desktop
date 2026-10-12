@@ -29,7 +29,7 @@ pub enum Capability {
 impl Capability {
     /// Unknown members parse to `None` rather than to a capability the
     /// client would render as a section it cannot drive.
-    pub(crate) fn parse(value: &str) -> Option<Self> {
+    pub fn parse(value: &str) -> Option<Self> {
         Some(match value {
             "MEDIA_TRASH" => Self::MediaTrash,
             "MIRROR_AUDIO" => Self::MirrorAudio,
