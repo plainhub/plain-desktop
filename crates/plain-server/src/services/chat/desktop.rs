@@ -434,10 +434,6 @@ fn forward_pairing_event_to_ws(
     let _ = ws_event_tx.send(WsEvent::broadcast(event_type, payload));
 }
 
-#[cfg(test)]
-#[path = "../../../tests/unit/services/chat/desktop.rs"]
-mod tests;
-
 #[cfg(all(test, feature = "system"))]
 #[path = "../../../tests/unit/services/chat/desktop.rs"]
-mod nas_tests;
+mod tests;

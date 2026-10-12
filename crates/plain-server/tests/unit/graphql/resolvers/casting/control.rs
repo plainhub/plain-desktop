@@ -442,14 +442,14 @@ async fn receiver_name_uses_platform_default_and_core_setting() {
     let (_dir, server) = fixture();
     let state = server.runtime_state();
     state.prefs.set_user("device_name", "").unwrap();
-    assert_eq!(device_name(state).await.unwrap(), "Test Phone");
+    assert_eq!(device_name(&state).await.unwrap(), "Test Phone");
     state
         .prefs
         .set_user("device_name", "Shared Renderer")
         .unwrap();
-    assert_eq!(device_name(state).await.unwrap(), "Shared Renderer");
+    assert_eq!(device_name(&state).await.unwrap(), "Shared Renderer");
     let (_generation, _requests) = state.host.connect();
-    assert_eq!(device_name(state).await.unwrap(), "Shared Renderer");
+    assert_eq!(device_name(&state).await.unwrap(), "Shared Renderer");
 }
 
 #[tokio::test]
@@ -467,6 +467,6 @@ async fn receiver_name_rejects_missing_platform_name() {
         )
         .unwrap();
     });
-    assert!(device_name(state).await.is_err());
+    assert!(device_name(&state).await.is_err());
     reply.await.unwrap();
 }

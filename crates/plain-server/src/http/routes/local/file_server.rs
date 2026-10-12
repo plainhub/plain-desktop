@@ -636,10 +636,6 @@ async fn serve_pdf_preview(
     }
 }
 
-#[cfg(test)]
-#[path = "../../../../tests/unit/http/routes/local/file_server.rs"]
-mod tests;
-
 #[cfg(all(test, feature = "system"))]
 #[path = "../../../../tests/unit/http/routes/local/file_server.rs"]
-mod nas_tests;
+mod tests;

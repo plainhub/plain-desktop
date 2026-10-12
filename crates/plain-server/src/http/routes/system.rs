@@ -89,6 +89,6 @@ pub(crate) async fn call(
             .into_response(),
     }
 }
-#[cfg(test)]
+#[cfg(all(test, feature = "mobile"))]
 #[path = "../../../tests/unit/http/routes/system.rs"]
 mod tests;

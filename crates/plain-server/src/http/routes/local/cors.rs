@@ -204,6 +204,6 @@ pub fn layer(policy: &CorsPolicy) -> CorsLayer {
         .max_age(std::time::Duration::from_secs(86400))
 }
 
-#[cfg(test)]
+#[cfg(all(test, feature = "system"))]
 #[path = "../../../../tests/unit/http/routes/local/cors.rs"]
 mod tests;

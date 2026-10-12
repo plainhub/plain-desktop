@@ -295,10 +295,6 @@ fn strip_replay_wrapper(body: &[u8]) -> String {
     json.to_string()
 }
 
-#[cfg(test)]
-#[path = "../../../../tests/unit/http/routes/local/handlers.rs"]
-mod tests;
-
 #[cfg(all(test, feature = "system"))]
 #[path = "../../../../tests/unit/http/routes/local/handlers.rs"]
-mod chat_peer_nas_tests;
+mod tests;
