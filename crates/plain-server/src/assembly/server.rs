@@ -43,6 +43,8 @@ pub(crate) struct ServerState {
     pub(crate) archives: Arc<crate::services::files::archives::Archives>,
     pub(crate) upload_chunks: Arc<crate::services::files::upload_chunks::UploadChunks>,
     pub(crate) files: Arc<crate::services::files::file_tasks::FileTasks>,
+    #[cfg(feature = "media")]
+    pub(crate) media_scans: Arc<crate::services::files::media_scans::MediaScans>,
     pub(crate) host: Arc<crate::host::bridge::Host>,
     pub(crate) thumbnails: Arc<crate::services::images::thumbnails::Thumbnails>,
     pub(crate) db: Arc<Db>,
@@ -371,6 +373,8 @@ impl ContentServer {
         ));
         let dlna = Arc::new(crate::services::casting::receiver::receiver_engine::DlnaEngine::new());
         let state = ServerState {
+            #[cfg(feature = "media")]
+            media_scans: Arc::new(Default::default()),
             #[cfg(feature = "http_transport")]
             public_server: Arc::new(tokio::sync::Mutex::new(None)),
             #[cfg(feature = "http_transport")]
@@ -856,6 +860,10 @@ impl ContentServer {
                 .host
                 .call("peerTransportSocketCloseAll", serde_json::json!({}))
                 .await;
+        }
+        #[cfg(feature = "media")]
+        if let Err(error) = self.state.media_scans.close() {
+            log::error!("Media scan cancellation failed: {error}");
         }
         let _ = self.stop.send(true);
         #[cfg(feature = "http_transport")]

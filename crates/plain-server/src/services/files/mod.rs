@@ -30,3 +30,6 @@ pub(crate) mod media_catalog;
 
 #[cfg(feature = "core")]
 pub(crate) mod media_catalog_facts;
+
+#[cfg(all(feature = "core", feature = "media"))]
+pub mod media_scans;

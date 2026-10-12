@@ -41,6 +41,19 @@ impl NativeMediaCatalog {
         data_type: DataType,
         reference: &str,
     ) -> Result<MediaFileRow, String> {
+        let metadata = self.read_file(data_type, reference).await?;
+        self.record_file_reads(&[metadata])?
+            .into_iter()
+            .next()
+            .ok_or_else(|| "Missing recorded media file".into())
+    }
+
+    #[cfg(feature = "media")]
+    async fn read_file(
+        &self,
+        data_type: DataType,
+        reference: &str,
+    ) -> Result<plain_rs::db::MediaFileMetadataRead, String> {
         let path =
             crate::services::files::file_access::resolve_native(&self.state, reference).await?;
         let metadata = tokio::task::spawn_blocking(move || {
@@ -51,10 +64,54 @@ impl NativeMediaCatalog {
         })
         .await
         .map_err(|error| error.to_string())??;
-        self.record_file_reads(&[metadata])?
-            .into_iter()
-            .next()
-            .ok_or_else(|| "Missing recorded media file".into())
+        Ok(metadata)
+    }
+
+    #[cfg(feature = "media")]
+    pub async fn scan_files(
+        &self,
+        data_type: DataType,
+        references: Vec<String>,
+    ) -> Result<crate::services::files::media_scans::Snapshot, String> {
+        self.state.native_client_id()?;
+        data_type
+            .media_type_str()
+            .ok_or("Unsupported media catalog type")?;
+        let session = self.state.media_scans.begin(references.len())?;
+        let mut cancel = session.cancel.clone();
+        let mut stop = self.state.stop.clone();
+        let result = async {
+            for reference in references {
+                let metadata = tokio::select! {
+                    biased;
+                    _ = crate::services::files::media_scans::wait_stop(&mut cancel) => return Err("Media scan cancelled".into()),
+                    _ = crate::services::files::media_scans::wait_stop(&mut stop) => {
+                        self.state.media_scans.cancel()?;
+                        return Err("Rust core stopped".into());
+                    },
+                    metadata = self.read_file(data_type, &reference) => metadata?,
+                };
+                session.record(|| self.record_file_reads(&[metadata]))?;
+            }
+            Ok(())
+        }.await;
+        session.finish(result)
+    }
+
+    #[cfg(feature = "media")]
+    pub fn cancel_file_scan(
+        &self,
+    ) -> Result<Option<crate::services::files::media_scans::Snapshot>, String> {
+        self.state.native_client_id()?;
+        self.state.media_scans.cancel()
+    }
+
+    #[cfg(feature = "media")]
+    pub fn file_scan_status(
+        &self,
+    ) -> Result<Option<crate::services::files::media_scans::Snapshot>, String> {
+        self.state.native_client_id()?;
+        self.state.media_scans.snapshot()
     }
 
     pub fn record_files(&self, files: &[MediaFileMetadata]) -> Result<Vec<MediaFileRow>, String> {

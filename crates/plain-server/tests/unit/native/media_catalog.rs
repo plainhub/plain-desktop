@@ -149,3 +149,117 @@ async fn rescan_with_failed_probe_retains_current_known_metadata_after_authoriza
     core.stop_core().await;
     assert!(catalog.record_file_reads(&[]).is_err());
 }
+
+#[cfg(feature = "media")]
+#[tokio::test]
+async fn file_scan_cancel_aborts_pending_authorization_and_keeps_catalog_unchanged() {
+    use crate::services::files::media_scans::Status;
+    let directory = tempfile::tempdir().unwrap();
+    let path = directory.path().join("report.txt");
+    std::fs::write(&path, "document").unwrap();
+    let core = crate::assembly::server::ContentServer::open(directory.path()).unwrap();
+    let catalog = core.native_media_catalog().unwrap();
+    let host = core.runtime_state().host.clone();
+    let (generation, mut requests) = host.connect();
+    let worker = tokio::spawn({
+        let catalog = catalog.clone();
+        let path = path.clone();
+        async move {
+            catalog
+                .scan_files(
+                    plain_rs::enums::DataType::Doc,
+                    vec![path.to_str().unwrap().into()],
+                )
+                .await
+        }
+    });
+    let request = requests.recv().await.unwrap();
+    assert_eq!(
+        catalog.file_scan_status().unwrap().unwrap().status,
+        Status::Running
+    );
+    assert!(
+        catalog
+            .scan_files(plain_rs::enums::DataType::Doc, vec![])
+            .await
+            .is_err()
+    );
+    assert_eq!(
+        catalog.cancel_file_scan().unwrap().unwrap().status,
+        Status::Cancelling
+    );
+    let result = worker.await.unwrap().unwrap();
+    assert_eq!(result.status, Status::Cancelled);
+    assert_eq!(result.processed_files, 0);
+    host.reply(
+        generation,
+        serde_json::json!({"id":request["id"],"result":true}),
+    )
+    .unwrap();
+    assert_eq!(catalog.count(plain_rs::enums::DataType::Doc).unwrap(), 0);
+    assert_eq!(
+        catalog
+            .scan_files(plain_rs::enums::DataType::Doc, vec![])
+            .await
+            .unwrap()
+            .status,
+        Status::Completed
+    );
+    core.stop_core().await;
+    assert!(catalog.file_scan_status().is_err());
+    assert!(core.runtime_state().media_scans.begin(1).is_err());
+}
+
+#[cfg(feature = "media")]
+#[tokio::test]
+async fn aborted_scan_future_releases_the_shared_job_and_failed_scans_report_partial_progress() {
+    use crate::services::files::media_scans::Status;
+    let directory = tempfile::tempdir().unwrap();
+    let path = directory.path().join("report.txt");
+    std::fs::write(&path, "document").unwrap();
+    let core = crate::assembly::server::ContentServer::open(directory.path()).unwrap();
+    let catalog = core.native_media_catalog().unwrap();
+    let host = core.runtime_state().host.clone();
+    let (generation, mut requests) = host.connect();
+    let worker = tokio::spawn({
+        let catalog = catalog.clone();
+        let path = path.clone();
+        async move {
+            catalog
+                .scan_files(
+                    plain_rs::enums::DataType::Doc,
+                    vec![path.to_str().unwrap().into()],
+                )
+                .await
+        }
+    });
+    requests.recv().await.unwrap();
+    worker.abort();
+    assert!(worker.await.unwrap_err().is_cancelled());
+    assert_eq!(
+        catalog.file_scan_status().unwrap().unwrap().status,
+        Status::Cancelled
+    );
+    let authorization = tokio::spawn(async move {
+        let request = requests.recv().await.unwrap();
+        host.reply(
+            generation,
+            serde_json::json!({"id":request["id"],"result":true}),
+        )
+        .unwrap();
+    });
+    let result = catalog
+        .scan_files(
+            plain_rs::enums::DataType::Doc,
+            vec![path.to_str().unwrap().into(), "invalid-reference".into()],
+        )
+        .await
+        .unwrap();
+    assert_eq!(result.status, Status::Failed);
+    assert_eq!(result.total_files, 2);
+    assert_eq!(result.processed_files, 1);
+    assert!(result.error.is_some());
+    assert_eq!(catalog.count(plain_rs::enums::DataType::Doc).unwrap(), 1);
+    authorization.await.unwrap();
+    core.stop_core().await;
+}
