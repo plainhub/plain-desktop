@@ -106,25 +106,6 @@ pub struct AudioPlaylist {
 }
 
 #[derive(SimpleObject, Clone, Debug)]
-pub struct AudioPlaylistItem {
-    pub id: async_graphql::ID,
-    #[graphql(name = "playlistId")]
-    pub playlist_id: async_graphql::ID,
-    #[graphql(name = "audioPath")]
-    pub audio_path: String,
-    pub title: String,
-    pub artist: String,
-    #[graphql(name = "albumId")]
-    pub album_id: Option<async_graphql::ID>,
-    #[graphql(name = "durationMs")]
-    pub duration_ms: Long,
-    #[graphql(name = "sortOrder")]
-    pub sort_order: Long,
-    #[graphql(name = "addedAt")]
-    pub added_at: Instant,
-}
-
-#[derive(SimpleObject, Clone, Debug)]
 pub struct AudioPlayback {
     /// Null while the player is idle — the queue stores an empty string as
     /// "no current track", and the contract says `null`, not `""`.
@@ -260,10 +241,12 @@ impl AudioQuery {
         let fetched = audio(ctx)?
             .run(move |db, _| {
                 domain::playlist_by_id(db, &key)?
-                    .map(|row| Ok::<(Playlist, usize), plain_rs::error::DomainError>((
-                        row,
-                        domain::playlist_item_count(db, &key)?,
-                    )))
+                    .map(|row| {
+                        Ok::<(Playlist, usize), plain_rs::error::DomainError>((
+                            row,
+                            domain::playlist_item_count(db, &key)?,
+                        ))
+                    })
                     .transpose()
             })
             .await?;
@@ -277,7 +260,7 @@ impl AudioQuery {
         query: String,
         offset: i32,
         limit: i32,
-    ) -> async_graphql::Result<Vec<AudioPlaylistItem>> {
+    ) -> async_graphql::Result<Vec<AudioItem>> {
         Ok(audio(ctx)?
             .run(move |db, _| {
                 domain::playlist_item_records_page(
@@ -291,7 +274,7 @@ impl AudioQuery {
             .await?
             .into_iter()
             .map(playlist_item)
-            .collect::<async_graphql::Result<Vec<_>>>()?)
+            .collect())
     }
 
     async fn audio_playlist_item_count(
@@ -629,18 +612,14 @@ fn album_id_option(value: String) -> Option<async_graphql::ID> {
     }
 }
 
-fn playlist_item(row: plain_rs::db::PlaylistItem) -> async_graphql::Result<AudioPlaylistItem> {
-    Ok(AudioPlaylistItem {
-        id: row.id.into(),
-        playlist_id: row.playlist_id.into(),
-        audio_path: row.audio_path,
+fn playlist_item(row: plain_rs::db::PlaylistItem) -> AudioItem {
+    AudioItem {
         title: row.title,
         artist: row.artist,
         album_id: album_id_option(row.album_id),
+        path: row.audio_path,
         duration_ms: Long(row.duration_ms),
-        sort_order: Long(row.sort_order),
-        added_at: crate::graphql::resolvers::common::content_common::instant(&row.added_at)?,
-    })
+    }
 }
 
 fn track(value: &Value) -> AudioTrack {

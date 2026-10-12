@@ -372,3 +372,36 @@ fn the_contract_kind_names_are_what_the_platform_expects() {
     assert_eq!(MediaDataType::Image.as_str(), "IMAGE");
     assert_eq!(MediaDataType::Doc.as_str(), "DOC");
 }
+
+#[tokio::test]
+async fn all_media_lists_accept_the_original_shared_interface_fragment() {
+    let (_dir, schema) = fixture_with(GRANTED, true, |method, _| match method {
+        "systemMediaRows" => json!([{
+            "id":"media-1", "title":"Media", "artist":"Artist", "path":"/media/file",
+            "size":2048, "durationMs":1000, "bucketId":"bucket-1",
+            "createdAt":"2026-01-02T03:04:05Z", "updatedAt":"2026-02-03T04:05:06Z"
+        }]),
+        other => panic!("unexpected host call {other}"),
+    });
+    let response = schema
+        .execute(
+            r#"
+        query {
+            audios(query: "", offset: 0, limit: 1, sortBy: DATE_DESC) { ...OriginalMedia }
+            images(query: "", offset: 0, limit: 1, sortBy: DATE_DESC) { ...OriginalMedia }
+            videos(query: "", offset: 0, limit: 1, sortBy: DATE_DESC) { ...OriginalMedia }
+            docs(query: "", offset: 0, limit: 1, sortBy: DATE_DESC) { ...OriginalMedia }
+        }
+        fragment OriginalMedia on MediaItem { id title path size bucketId createdAt updatedAt }
+    "#,
+        )
+        .await;
+    assert!(response.errors.is_empty(), "{:?}", response.errors);
+    let data = response.data.into_json().unwrap();
+    for field in ["audios", "images", "videos", "docs"] {
+        assert_eq!(data[field][0]["id"], "media-1", "{field}: {data}");
+        assert_eq!(data[field][0]["path"], "/media/file");
+        assert_eq!(data[field][0]["size"], 2048);
+        assert_eq!(data[field][0].as_object().unwrap().len(), 7);
+    }
+}

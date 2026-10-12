@@ -51,7 +51,7 @@ type AppFile {
 	updatedAt: Instant!
 }
 
-type Audio {
+type Audio implements MediaItem {
 	id: ID!
 	title: String!
 	artist: String!
@@ -113,18 +113,6 @@ type AudioPlaylist {
 	itemCount: Int!
 	createdAt: Instant!
 	updatedAt: Instant!
-}
-
-type AudioPlaylistItem {
-	id: ID!
-	playlistId: ID!
-	audioPath: String!
-	title: String!
-	artist: String!
-	albumId: ID
-	durationMs: Long!
-	sortOrder: Long!
-	addedAt: Instant!
 }
 
 type Bookmark {
@@ -534,7 +522,7 @@ type DisplayInfo {
 	density: Float!
 }
 
-type Doc {
+type Doc implements MediaItem {
 	id: ID!
 	title: String!
 	path: String!
@@ -677,7 +665,7 @@ enum ImProtocol {
 	NETMEETING
 }
 
-type Image {
+type Image implements MediaItem {
 	id: ID!
 	title: String!
 	path: String!
@@ -786,6 +774,16 @@ enum MediaDataType {
 }
 
 union MediaFileInfo = ImageFileInfo | AudioFileInfo | VideoFileInfo
+
+interface MediaItem {
+	id: ID!
+	title: String!
+	path: String!
+	size: Long!
+	bucketId: ID!
+	createdAt: Instant!
+	updatedAt: Instant!
+}
 
 enum MediaPlayMode {
 	REPEAT
@@ -1388,7 +1386,7 @@ type Query {
 	audioQueueItemCount: Int!
 	audioPlaylists: [AudioPlaylist!]!
 	audioPlaylist(id: ID!): AudioPlaylist
-	audioPlaylistItems(id: ID!, query: String!, offset: Int!, limit: Int!): [AudioPlaylistItem!]!
+	audioPlaylistItems(id: ID!, query: String!, offset: Int!, limit: Int!): [AudioItem!]!
 	audioPlaylistItemCount(id: ID!): Int!
 	audioPlayHistory(query: String!, offset: Int!, limit: Int!): [AudioPlayHistory!]!
 	"""
@@ -1807,7 +1805,7 @@ input UserSettingsInput {
 	packageSortBy: Int
 }
 
-type Video {
+type Video implements MediaItem {
 	id: ID!
 	title: String!
 	path: String!

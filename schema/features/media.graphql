@@ -1,7 +1,7 @@
 """
 Audio (media index).
 """
-type Audio {
+type Audio implements MediaItem {
 	id: ID!
 	title: String!
 	artist: String!
@@ -46,7 +46,7 @@ enum DataType {
 	DOC
 }
 
-type Doc {
+type Doc implements MediaItem {
 	id: ID!
 	title: String!
 	path: String!
@@ -128,7 +128,7 @@ enum FileTaskType {
 	MOVE
 }
 
-type Image {
+type Image implements MediaItem {
 	id: ID!
 	title: String!
 	path: String!
@@ -177,6 +177,16 @@ type MediaBucket {
 	name: String!
 	itemCount: Int!
 	topItemPaths: [String!]!
+}
+
+interface MediaItem {
+	id: ID!
+	title: String!
+	path: String!
+	size: Long!
+	bucketId: ID!
+	createdAt: Instant!
+	updatedAt: Instant!
 }
 
 type MediaMutationRoot {
@@ -501,7 +511,7 @@ enum TrashedFileType {
 	DIR
 }
 
-type Video {
+type Video implements MediaItem {
 	id: ID!
 	title: String!
 	path: String!

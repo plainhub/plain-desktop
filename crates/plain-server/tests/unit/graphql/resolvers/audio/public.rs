@@ -564,3 +564,30 @@ async fn a_library_row_keeps_the_album_art_reference() {
     assert_eq!(row["isFavorite"], true);
     assert_eq!(row["tags"].as_array().map(Vec::len), Some(0));
 }
+
+#[tokio::test]
+async fn playlist_items_accept_the_original_audio_item_fragment_and_path() {
+    let (_dir, schema) = fixture();
+    let db = database(&schema);
+    let playlist = domain::create_playlist(db, "Original contract").unwrap();
+    domain::add_playlist_items(
+        db,
+        &playlist.id,
+        &[
+            track("/music/first.mp3", "First", "Artist"),
+            track("/music/second.mp3", "Second", "Artist"),
+        ],
+    )
+    .unwrap();
+    let response = schema.execute(format!(r#"
+        query {{ audioPlaylistItems(id: "{}", query: "", offset: 1, limit: 1) {{ ...OriginalTrack }} }}
+        fragment OriginalTrack on AudioItem {{ __typename title artist path durationMs }}
+    "#, playlist.id)).await;
+    assert!(response.errors.is_empty(), "{:?}", response.errors);
+    assert_eq!(
+        response.data.into_json().unwrap()["audioPlaylistItems"],
+        json!([
+            {"__typename":"AudioItem", "title":"Second", "artist":"Artist", "path":"/music/second.mp3", "durationMs":1000}
+        ])
+    );
+}

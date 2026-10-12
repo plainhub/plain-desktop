@@ -67,10 +67,14 @@ fn feature_sdl() -> Vec<(&'static str, String)> {
         ),
         (
             "media",
-            sdl_of(
+            Schema::build(
                 crate::graphql::resolvers::media::desktop::MediaQueryRoot,
                 crate::graphql::resolvers::media::desktop::MediaMutationRoot,
-            ),
+                EmptySubscription,
+            )
+            .register_output_type::<crate::graphql::resolvers::media::desktop_item::MediaItem>()
+            .finish()
+            .sdl(),
         ),
         ("note", sdl_of(NoteQuery, NoteMutation)),
         ("pomodoro", sdl_of(PomodoroQuery, PomodoroMutation)),
@@ -252,5 +256,31 @@ fn export_split_schema_sdl() {
     std::fs::create_dir_all(&dir).expect("create schema/features directory");
     for (file, body) in split_sdl() {
         std::fs::write(dir.join(file), body).expect("write feature SDL");
+    }
+}
+
+#[test]
+fn media_types_preserve_the_shared_interface() {
+    let sdl = build_schema().sdl();
+    for name in ["Audio", "Image", "Video", "Doc"] {
+        assert!(sdl.contains(&format!("type {name} implements MediaItem {{")));
+    }
+    let interface = sdl
+        .split("interface MediaItem {")
+        .nth(1)
+        .unwrap()
+        .split('}')
+        .next()
+        .unwrap();
+    for field in [
+        "id: ID!",
+        "title: String!",
+        "path: String!",
+        "size: Long!",
+        "bucketId: ID!",
+        "createdAt: Instant!",
+        "updatedAt: Instant!",
+    ] {
+        assert!(interface.contains(field), "missing {field}");
     }
 }

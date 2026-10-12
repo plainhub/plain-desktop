@@ -1,4 +1,4 @@
-use crate::graphql::resolvers::audio::public::{AudioItem, AudioPlaylist, AudioPlaylistItem};
+use crate::graphql::resolvers::audio::public::AudioItem;
 use crate::graphql::types::{Instant, Long};
 use crate::services::audio::host::Audio;
 use async_graphql::{Context, ID, InputObject, Object, SimpleObject};

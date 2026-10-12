@@ -82,6 +82,21 @@ describe('parseSchema', () => {
     expect(sdl.types.has('QueryRoot')).toBe(true)
   })
 
+  it('preserves the media interface and original playlist item contract in the public SDL', () => {
+    const sdl = parseSchema(readFileSync(join(process.cwd(), 'schema/schema.graphql'), 'utf8'))
+    expect(sdl.types.get('MediaItem')!.fields.map((field) => field.name)).toEqual(['id', 'title', 'path', 'size', 'bucketId', 'createdAt', 'updatedAt'])
+    for (const name of ['Audio', 'Image', 'Video', 'Doc']) {
+      expect(sdl.types.get(name)!.interfaces).toContain('MediaItem')
+    }
+    expect(sdl.types.get('AudioItem')!.fields.map((field) => field.name)).toContain('path')
+    expect(sdl.types.has('AudioPlaylistItem')).toBe(false)
+    expect(sdl.types.get('QueryRoot')!.fields.find((field) => field.name === 'audioPlaylistItems')!.type).toEqual({
+      ofType: 'list',
+      inner: { ofType: 'named', name: 'AudioItem', nonNull: true },
+      nonNull: true,
+    })
+  })
+
   it('reports the line of a syntax error', () => {
     expect(() => parseSchema('type Broken {\n  field: !!\n}')).toThrow(GraphQLSyntaxError)
     try {

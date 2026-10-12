@@ -165,7 +165,7 @@ fn public_schema_exposes_the_contract_it_has_to_serve() {
         "audioPlayback: AudioPlayback!",
         "audioPlaylists: [AudioPlaylist!]!",
         "audioPlaylist(id: ID!): AudioPlaylist",
-        "audioPlaylistItems(id: ID!, query: String!, offset: Int!, limit: Int!): [AudioPlaylistItem!]!",
+        "audioPlaylistItems(id: ID!, query: String!, offset: Int!, limit: Int!): [AudioItem!]!",
         "audioPlaylistItemCount(id: ID!): Int!",
         "audioPlayHistory(query: String!, offset: Int!, limit: Int!): [AudioPlayHistory!]!",
         "playAudio(path: String!): AudioItem!",

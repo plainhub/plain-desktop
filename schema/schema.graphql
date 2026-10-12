@@ -61,7 +61,7 @@ type AppUpdate {
 """
 Audio (media index).
 """
-type Audio {
+type Audio implements MediaItem {
 	id: ID!
 	title: String!
 	artist: String!
@@ -401,7 +401,7 @@ type DlnaRenderer {
 	location: String!
 }
 
-type Doc {
+type Doc implements MediaItem {
 	id: ID!
 	title: String!
 	path: String!
@@ -552,7 +552,7 @@ enum FileTaskType {
 	MOVE
 }
 
-type Image {
+type Image implements MediaItem {
 	id: ID!
 	title: String!
 	path: String!
@@ -674,6 +674,16 @@ enum MediaDataType {
 Polymorphic media-metadata payload — clients select via `... on XFileInfo`.
 """
 union MediaFileInfo = ImageFileInfo | VideoFileInfo | AudioFileInfo
+
+interface MediaItem {
+	id: ID!
+	title: String!
+	path: String!
+	size: Long!
+	bucketId: ID!
+	createdAt: Instant!
+	updatedAt: Instant!
+}
 
 """
 Audio playback repeat mode, mirroring the plain-app `MediaPlayMode` enum.
@@ -1754,7 +1764,7 @@ input UserSettingsInput {
 	packageSortBy: Int
 }
 
-type Video {
+type Video implements MediaItem {
 	id: ID!
 	title: String!
 	path: String!

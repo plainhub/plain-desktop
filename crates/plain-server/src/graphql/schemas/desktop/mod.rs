@@ -95,6 +95,7 @@ pub fn build_schema() -> ApiSchema {
         MutationRoot::default(),
         EmptySubscription,
     )
+    .register_output_type::<crate::graphql::resolvers::media::desktop_item::MediaItem>()
     .finish()
 }
 
