@@ -164,7 +164,6 @@ pub fn build(
         events,
         prefs,
         db,
-        directory,
         services,
         models,
         #[cfg(feature = "mobile")]
@@ -176,7 +175,6 @@ pub(crate) fn build_with_runtime(
     events: tokio::sync::broadcast::Sender<plain_rs::events::WsEvent>,
     prefs: Arc<Prefs>,
     db: Arc<Db>,
-    directory: std::path::PathBuf,
     services: crate::assembly::services::Services,
     models: Arc<crate::services::images::models::Runtime>,
     #[cfg(feature = "mobile")] mobile: Arc<crate::mobile::Runtime>,
@@ -184,25 +182,8 @@ pub(crate) fn build_with_runtime(
     let builder = Schema::build(Query::default(), Mutation::default(), EmptySubscription)
         .register_output_type::<crate::graphql::resolvers::media::item::MediaItem>()
         .data(crate::graphql::resolvers::tags::loader::new(db.clone()))
-        .data(services.upload_chunks)
-        .data(services.uploads)
-        .data(host.clone())
-        .data(services.media_actions)
-        .data(services.files)
-        .data(services.audio)
-        .data(services.index)
-        .data(models)
-        .data(events.clone())
-        .data(plain_rs::files::app_files::FileStore::new(
-            db.clone(),
-            directory.clone(),
-        ))
-        .data(services.pomodoro)
-        .data(services.image_updates)
-        .data(services.feeds)
-        .data(services.feed_assets)
-        .data(prefs)
-        .data(db);
+        .data(models);
+    let builder = services.configure_schema(builder, db, host, prefs, events);
     #[cfg(feature = "mobile")]
     let builder = crate::mobile::graphql::configure(builder, mobile);
     builder.finish()

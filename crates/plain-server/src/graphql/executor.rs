@@ -163,6 +163,13 @@ impl GraphqlExecutor {
         Self { state }
     }
     pub async fn execute(&self, request: Request, host_api: bool) -> Response {
+        let client_id = match self.state.native_client_id() {
+            Ok(client_id) => client_id,
+            Err(error) => {
+                return Response::from_errors(vec![async_graphql::ServerError::new(error, None)]);
+            }
+        };
+        let request = request.data(client_id);
         let context = RequestContext::local(self.state.clone());
         if host_api {
             execute_graphql(&self.state.schema, request, context).await

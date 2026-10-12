@@ -88,39 +88,23 @@ pub(crate) fn build_with_host(
         prefs.clone(),
         directory.clone(),
     );
-    build_with_services(db, events, prefs, directory, host, services)
+    build_with_services(db, events, prefs, host, services)
 }
 pub(crate) fn build_with_services(
     db: std::sync::Arc<plain_rs::db::Db>,
     events: tokio::sync::broadcast::Sender<plain_rs::events::WsEvent>,
     prefs: std::sync::Arc<plain_rs::prefs::Prefs>,
-    directory: std::path::PathBuf,
     host: std::sync::Arc<crate::host::bridge::Host>,
     services: crate::assembly::services::Services,
 ) -> ContentSchema {
-    Schema::build(Query::default(), Mutation::default(), EmptySubscription)
-        .data(services.media_actions)
-        .data(services.files)
-        .data(services.audio)
-        .data(services.index)
-        .data(host)
-        .data(db.clone())
-        .data(plain_rs::files::shares::Service::new(
-            db.clone(),
-            prefs.clone(),
-        ))
-        .data(plain_rs::files::app_files::FileStore::new(
-            db.clone(),
-            directory.clone(),
-        ))
-        .data(services.pomodoro)
-        .data(events)
-        .data(services.image_updates)
-        .data(services.feeds)
-        .data(services.feed_assets)
-        .data(services.upload_chunks)
-        .data(services.uploads)
-        .data(prefs)
+    services
+        .configure_schema(
+            Schema::build(Query::default(), Mutation::default(), EmptySubscription),
+            db,
+            host,
+            prefs,
+            events,
+        )
         .finish()
 }
 

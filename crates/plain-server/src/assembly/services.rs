@@ -1,6 +1,8 @@
 use std::sync::Arc;
 #[derive(Clone)]
 pub(crate) struct Services {
+    pub app_files: Arc<plain_rs::files::app_files::FileStore>,
+    pub shares: Arc<plain_rs::files::shares::Service>,
     pub media_actions: Arc<crate::services::files::media_actions::MediaActions>,
     pub files: Arc<crate::services::files::file_tasks::FileTasks>,
     pub audio: Arc<crate::services::audio::host::Audio>,
@@ -81,6 +83,8 @@ impl Services {
             index.clone(),
             prefs.clone(),
         ));
+        let app_files = plain_rs::files::app_files::FileStore::new(db.clone(), directory.clone());
+        let shares = plain_rs::files::shares::Service::new(db.clone(), prefs.clone());
         let media_actions = Arc::new(crate::services::files::media_actions::MediaActions::new(
             db,
             host,
@@ -90,6 +94,8 @@ impl Services {
             events,
         ));
         Self {
+            app_files,
+            shares,
             upload_chunks: Arc::new(crate::services::files::upload_chunks::UploadChunks::new(
                 directory.join("uploads"),
             )),
@@ -103,5 +109,35 @@ impl Services {
             image_updates: shared.image_updates,
             uploads: shared.uploads,
         }
+    }
+    pub(crate) fn configure_schema<
+        Q: async_graphql::ObjectType + 'static,
+        M: async_graphql::ObjectType + 'static,
+        S: async_graphql::SubscriptionType + 'static,
+    >(
+        self,
+        builder: async_graphql::SchemaBuilder<Q, M, S>,
+        db: Arc<plain_rs::db::Db>,
+        host: Arc<crate::host::bridge::Host>,
+        prefs: Arc<plain_rs::prefs::Prefs>,
+        events: tokio::sync::broadcast::Sender<plain_rs::events::WsEvent>,
+    ) -> async_graphql::SchemaBuilder<Q, M, S> {
+        builder
+            .data(db)
+            .data(host)
+            .data(prefs)
+            .data(events)
+            .data(self.app_files)
+            .data(self.shares)
+            .data(self.media_actions)
+            .data(self.files)
+            .data(self.audio)
+            .data(self.index)
+            .data(self.pomodoro)
+            .data(self.image_updates)
+            .data(self.feeds)
+            .data(self.feed_assets)
+            .data(self.upload_chunks)
+            .data(self.uploads)
     }
 }

@@ -77,6 +77,17 @@ pub(crate) struct ServerState {
     pub(crate) bridge: Arc<crate::host::resources::NativeResources>,
 }
 impl ServerState {
+    pub(crate) fn native_client_id(&self) -> Result<String, String> {
+        if *self.stop.borrow() || self.stop.has_changed().is_err() {
+            return Err("Rust core stopped".into());
+        }
+        self.prefs
+            .get::<String>(plain_rs::prefs::system::keys::CLIENT_ID)
+            .map_err(|error| error.to_string())?
+            .filter(|id| !id.is_empty())
+            .ok_or_else(|| "native client identity unavailable".into())
+    }
+
     pub(crate) fn authenticated(&self, headers: &HeaderMap) -> bool {
         let candidate = headers
             .get("authorization")
@@ -110,7 +121,7 @@ impl ContentServer {
     }
 
     pub fn native_graphql(&self) -> Result<crate::native::graphql::NativeGraphqlExecutor, String> {
-        let client_id = self.native_client_id()?;
+        let client_id = self.state.native_client_id()?;
         Ok(crate::native::graphql::NativeGraphqlExecutor::new(
             self.graphql_executor(),
             self.state.events.clone(),
@@ -122,29 +133,17 @@ impl ContentServer {
         Ok(crate::native::file_tasks::NativeFileTasks::new(
             self.state.files.clone(),
             self.state.host.clone(),
-            self.native_client_id()?,
+            self.state.native_client_id()?,
             self.state.stop.clone(),
         ))
     }
 
     pub fn native_uploads(&self) -> Result<crate::native::uploads::NativeUploads, String> {
-        self.native_client_id()?;
+        self.state.native_client_id()?;
         Ok(crate::native::uploads::NativeUploads::new(
             self.state.upload_chunks.clone(),
             self.state.stop.clone(),
         ))
-    }
-
-    fn native_client_id(&self) -> Result<String, String> {
-        if *self.state.stop.borrow() || self.state.stop.has_changed().is_err() {
-            return Err("Rust core stopped".into());
-        }
-        self.state
-            .prefs
-            .get::<String>(plain_rs::prefs::system::keys::CLIENT_ID)
-            .map_err(|error| error.to_string())?
-            .filter(|id| !id.is_empty())
-            .ok_or_else(|| "native client identity unavailable".into())
     }
 
     pub fn graphql_executor(&self) -> crate::graphql::executor::GraphqlExecutor {
@@ -252,7 +251,6 @@ impl ContentServer {
             db.clone(),
             events.clone(),
             prefs.clone(),
-            directory.clone(),
             host.clone(),
             services.clone(),
         );
@@ -276,7 +274,6 @@ impl ContentServer {
             events.clone(),
             prefs.clone(),
             db.clone(),
-            directory.clone(),
             services.clone(),
             image_models.clone(),
             #[cfg(feature = "mobile")]
