@@ -40,6 +40,7 @@ async fn authorized_file_metadata_reaches_catalog_and_existing_facts_projection(
         for allow in [true, false] {
             let request = requests.recv().await.unwrap();
             assert_eq!(request["method"], "fileTaskAuthorize");
+            assert_eq!(request["params"]["operation"], "read");
             host.reply(
                 generation,
                 serde_json::json!({"id":request["id"],"result":allow}),

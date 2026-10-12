@@ -46,14 +46,7 @@ pub(crate) async fn execute(host: &Host, request: Request) -> Result<Value, Stri
 }
 
 async fn authorize(host: &Host, path: &str) -> Result<(), String> {
-    let value = host
-        .call("fileTaskAuthorize", json!({"paths":[path]}))
-        .await?;
-    if value.as_bool() == Some(true) {
-        Ok(())
-    } else {
-        Err("invalid file host receipt".into())
-    }
+    crate::services::files::file_access::authorize_read(host, path).await
 }
 
 /// A single path stat behind the same authorization receipt. `None` covers

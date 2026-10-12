@@ -24,6 +24,14 @@ impl Runtime {
 
     async fn dispatch(&self, method: &str, params: Value) -> Result<Value, String> {
         match method {
+            "fileTaskAuthorize" => {
+                let allowed = tokio::task::spawn_blocking(move || {
+                    plain_server::host::file_resource::authorize_read(params)
+                })
+                .await
+                .map_err(|error| error.to_string())??;
+                Ok(Value::Bool(allowed))
+            }
             "systemMediaRows" => {
                 let core = self.core.clone();
                 let rows = tokio::task::spawn_blocking(move || {

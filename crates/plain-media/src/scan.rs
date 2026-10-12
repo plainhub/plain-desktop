@@ -137,7 +137,7 @@ pub fn is_media_excluded(path: &str) -> bool {
     )
 }
 
-fn is_media_excluded_at(
+pub fn is_media_excluded_at(
     path: &str,
     data_dir: &Path,
     cache_dir: &Path,

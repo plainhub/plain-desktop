@@ -8,6 +8,19 @@ pub(crate) async fn receipt(host: &Host, method: &str, path: &str) -> Result<(),
     Ok(())
 }
 
+pub(crate) async fn authorize_read(host: &Host, path: &str) -> Result<(), String> {
+    let value = host
+        .call(
+            "fileTaskAuthorize",
+            json!({"operation":"read","paths":[path]}),
+        )
+        .await?;
+    if value.as_bool() != Some(true) {
+        return Err("invalid file host receipt".into());
+    }
+    Ok(())
+}
+
 pub(crate) async fn resolve_native(
     state: &crate::assembly::server::ServerState,
     reference: &str,
@@ -20,9 +33,8 @@ pub(crate) async fn resolve_native(
     if !path.is_absolute() {
         return Err("absolute native file path required".into());
     }
-    receipt(
+    authorize_read(
         &state.host,
-        "fileTaskAuthorize",
         path.to_str().ok_or("invalid file path encoding")?,
     )
     .await?;

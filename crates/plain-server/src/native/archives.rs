@@ -47,9 +47,8 @@ impl NativeArchives {
             {
                 return Err("invalid archive entry".into());
             }
-            crate::services::files::file_access::receipt(
+            crate::services::files::file_access::authorize_read(
                 &self.host,
-                "fileTaskAuthorize",
                 entry.path.to_str().ok_or("invalid file path encoding")?,
             )
             .await?;

@@ -67,3 +67,48 @@ async fn native_app_query_uses_registered_facts_without_public_listener() {
     core.stop_core().await;
     runner.await.unwrap().unwrap();
 }
+
+#[tokio::test]
+async fn native_file_resolution_uses_actual_os_read_authorization() {
+    let directory = Directory::new();
+    let path = directory.0.join("readable.txt");
+    std::fs::write(&path, "actual bytes").unwrap();
+    let core = Arc::new(ContentServer::open(&directory.0).unwrap());
+    let runtime = Arc::new(Runtime::new(core.clone(), vec![]));
+    assert!(
+        runtime
+            .dispatch("fileTaskAuthorize", serde_json::json!({"paths":[path]}))
+            .await
+            .is_err()
+    );
+    assert!(
+        runtime
+            .dispatch(
+                "fileTaskAuthorize",
+                serde_json::json!({"operation":"write","paths":[path]})
+            )
+            .await
+            .is_err()
+    );
+    let runner = tokio::spawn(runtime.run());
+    assert_eq!(
+        core.resolve_native_file(path.to_str().unwrap())
+            .await
+            .unwrap(),
+        path
+    );
+    let missing = directory.0.join("missing.txt");
+    assert!(
+        core.resolve_native_file(missing.to_str().unwrap())
+            .await
+            .is_err()
+    );
+    assert_eq!(std::fs::read(&path).unwrap(), b"actual bytes");
+    core.stop_core().await;
+    runner.await.unwrap().unwrap();
+    assert!(
+        core.resolve_native_file(path.to_str().unwrap())
+            .await
+            .is_err()
+    );
+}
