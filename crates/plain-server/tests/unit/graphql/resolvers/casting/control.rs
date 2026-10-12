@@ -360,3 +360,78 @@ async fn public_dlna_reads_the_native_players_reported_position() {
         "{body}"
     );
 }
+
+#[tokio::test]
+async fn a_body_at_the_cap_is_read_and_one_byte_over_is_not() {
+    let at_cap =
+        axum::body::Body::from_stream(futures_util::stream::iter(vec![Ok::<_, std::io::Error>(
+            vec![0u8; MAX_BODY],
+        )]));
+    assert_eq!(read_body(at_cap, MAX_BODY).await.unwrap().len(), MAX_BODY);
+
+    let over =
+        axum::body::Body::from_stream(futures_util::stream::iter(vec![Ok::<_, std::io::Error>(
+            vec![0u8; MAX_BODY + 1],
+        )]));
+    assert_eq!(read_body(over, MAX_BODY).await, Err(BodyFailure::TooLarge));
+}
+
+#[tokio::test]
+async fn a_body_that_fails_mid_read_is_reported_as_unreadable() {
+    let stream = futures_util::stream::iter(vec![
+        Ok(vec![1u8, 2, 3]),
+        Err(std::io::Error::other("peer reset")),
+    ]);
+    assert_eq!(
+        read_body(axum::body::Body::from_stream(stream), MAX_BODY).await,
+        Err(BodyFailure::Unreadable)
+    );
+}
+
+#[tokio::test]
+async fn the_two_body_faults_answer_differently() {
+    assert_eq!(
+        StatusCode::from(BodyFailure::TooLarge),
+        StatusCode::PAYLOAD_TOO_LARGE
+    );
+    assert_eq!(
+        StatusCode::from(BodyFailure::Unreadable),
+        StatusCode::BAD_REQUEST
+    );
+}
+
+#[cfg(feature = "http_transport")]
+#[tokio::test]
+async fn an_oversized_control_request_never_reaches_the_protocol() {
+    let (dir, server, port) = public_fixture().await;
+    let state = server.runtime_state();
+    state.prefs.set_user("service", true).unwrap();
+    state.prefs.set_user("dlna", true).unwrap();
+
+    let soap = format!(
+        r#"<?xml version="1.0"?><s:Envelope xmlns:s="http://schemas.xmlsoap.org/soap/envelope/"><s:Body><u:SetAVTransportURI xmlns:u="urn:schemas-upnp-org:service:AVTransport:1"><InstanceID>0</InstanceID><CurrentURI>http://example/{}</CurrentURI><CurrentURIMetaData/></u:SetAVTransportURI></s:Body></s:Envelope>"#,
+        "a".repeat(MAX_BODY)
+    );
+    assert!(soap.len() > MAX_BODY, "the request must exceed the cap");
+
+    let status = reqwest::Client::new()
+        .post(format!("http://127.0.0.1:{port}/AVTransport/control"))
+        .header("content-type", "text/xml")
+        .header(
+            "soapaction",
+            r#""urn:schemas-upnp-org:service:AVTransport:1#SetAVTransportURI""#,
+        )
+        .body(soap)
+        .send()
+        .await
+        .unwrap()
+        .status();
+    assert_eq!(status, StatusCode::PAYLOAD_TOO_LARGE);
+
+    // Before the cap was enforced the same request arrived as an empty SOAP
+    // body, which the router answered and the command channel carried.
+    let after = state.dlna.snapshot().await;
+    assert!(after.pending_cast_request.is_none());
+    assert!(after.media_uri.is_empty());
+    drop(dir);
+}

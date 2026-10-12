@@ -3,17 +3,50 @@ use crate::services::casting::receiver::control::emit;
 #[cfg(test)]
 use crate::services::casting::receiver::control::snapshot;
 use axum::{
-    body::to_bytes,
     extract::{ConnectInfo, Request as HttpRequest, State},
     http::{HeaderMap, StatusCode},
     response::{IntoResponse, Response},
 };
+use futures_util::StreamExt;
 use serde_json::{Value, json};
 use std::{collections::HashMap, net::SocketAddr};
 
 /// Control points send a small description document; a larger cap than they
 /// need would only widen the surface for a stray LAN client.
 const MAX_BODY: usize = 2 * 1024 * 1024;
+
+/// An over-limit body and a body that failed mid-read are different faults, and
+/// neither may reach the protocol as the empty request it would otherwise look
+/// like.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum BodyFailure {
+    TooLarge,
+    Unreadable,
+}
+
+impl From<BodyFailure> for StatusCode {
+    fn from(failure: BodyFailure) -> Self {
+        match failure {
+            BodyFailure::TooLarge => StatusCode::PAYLOAD_TOO_LARGE,
+            BodyFailure::Unreadable => StatusCode::BAD_REQUEST,
+        }
+    }
+}
+
+/// Reads the body under [MAX_BODY] and reports which limit was hit, which the
+/// buffered extractor cannot: it folds both into one error.
+async fn read_body(body: axum::body::Body, limit: usize) -> Result<Vec<u8>, BodyFailure> {
+    let mut stream = body.into_data_stream();
+    let mut buffer = Vec::new();
+    while let Some(chunk) = stream.next().await {
+        let chunk = chunk.map_err(|_| BodyFailure::Unreadable)?;
+        if buffer.len() + chunk.len() > limit {
+            return Err(BodyFailure::TooLarge);
+        }
+        buffer.extend_from_slice(&chunk);
+    }
+    Ok(buffer)
+}
 
 fn access_allowed(state: &ServerState) -> bool {
     plain_rs::prefs::dlna::enabled(&state.prefs)
@@ -73,7 +106,12 @@ pub(crate) async fn receiver(
         return StatusCode::NOT_FOUND.into_response();
     }
     let (parts, body) = request.into_parts();
-    let bytes = to_bytes(body, MAX_BODY).await.unwrap_or_default();
+    // A body that never arrived intact must not be answered as an empty SOAP
+    // request, and it must not reach the router or the command channel.
+    let bytes = match read_body(body, MAX_BODY).await {
+        Ok(bytes) => bytes,
+        Err(failure) => return StatusCode::from(failure).into_response(),
+    };
     let body = String::from_utf8_lossy(&bytes).to_string();
     let headers = headers_to_map(&parts.headers);
 
