@@ -40,7 +40,7 @@ description = "Shared Plain media scanning, indexing and thumbnails"
 "bytes" = "1"
 "sysinfo" = { "version" = "0.32", "default-features" = false, "features" = ["system", "disk"] }
 "tokio" = { "version" = "1", "default-features" = false, "features" = ["rt", "process", "sync", "time", "fs", "macros", "io-util"] }
-"plain-rs" = { "path" = "../../plain-rs", "default-features" = false, "features" = ["crypto", "prefs", "library", "filesystem", "events"] }
+"plain-rs" = { "path" = "../../plain-rs", default-features = false, "features" = ["crypto", "prefs", "library", "filesystem", "events", "test-seams"] }
 
 [dev-dependencies]
 "reqwest" = { "version" = "0.12", "default-features" = false, "features" = ["rustls-tls"] }
