@@ -36,46 +36,26 @@ async fn public_status_auth_scoped_connections_key_rotation_and_stop_use_rust_wi
         .await
         .unwrap();
     let client = reqwest::Client::new();
-    let local = format!("http://127.0.0.1:{}/chat/peer-status", server.port);
-    assert_eq!(
-        client
-            .post(&local)
-            .header("content-type", "application/json")
-            .body(json!({"action":"snapshot"}).to_string())
-            .send()
+    // The command surface is native-only now: there is no HTTP endpoint to
+    // probe for authentication, so the controller is what has to hold.
+    let controller = server.peer_status_controller();
+    assert!(
+        controller
+            .execute_json(r#"{"action":"nope"}"#)
             .await
-            .unwrap()
-            .status(),
-        401
+            .is_err(),
+        "an unknown command is refused by name"
     );
-    assert_eq!(
-        client
-            .post(&local)
-            .bearer_auth(&token)
-            .header("content-type", "application/json")
-            .body(json!({"action":"snapshot","online":true}).to_string())
-            .send()
+    assert!(
+        controller
+            .execute_json(r#"{"action":"snapshot"}"#)
             .await
-            .unwrap()
-            .status(),
-        422
+            .is_err(),
+        "snapshot is not a controller command"
     );
-    async fn snapshot(client: &reqwest::Client, url: &str, token: &str) -> serde_json::Value {
-        serde_json::from_str::<serde_json::Value>(
-            &client
-                .post(url)
-                .bearer_auth(token)
-                .header("content-type", "application/json")
-                .body(json!({"action":"snapshot"}).to_string())
-                .send()
-                .await
-                .unwrap()
-                .text()
-                .await
-                .unwrap(),
-        )
-        .unwrap()["result"]
-            .clone()
+    fn snapshot(server: &ContentServer) -> serde_json::Value {
+        let state = server.runtime_state();
+        state.peer_status.snapshot(&state.db)
     }
     fn wire(key: &[u8], kp: &[u8], id: &str) -> Vec<u8> {
         plain_rs::peers::status::handshake(key, kp, id).unwrap()
@@ -86,7 +66,7 @@ async fn public_status_auth_scoped_connections_key_rotation_and_stop_use_rust_wi
         .await
         .unwrap();
     assert!(!matches!(bad.next().await,Some(Ok(Message::Text(t))) if t=="ok"));
-    assert_eq!(snapshot(&client, &local, &token).await["online"], json!([]));
+    assert_eq!(snapshot(&server)["online"], json!([]));
     let (mut first, _) = connect_async(&url).await.unwrap();
     first
         .send(Message::Binary(wire(&key, &kp, "peer").into()))
@@ -106,16 +86,13 @@ async fn public_status_auth_scoped_connections_key_rotation_and_stop_use_rust_wi
         "ok"
     );
     first.close(None).await.unwrap();
-    assert_eq!(
-        snapshot(&client, &local, &token).await["online"],
-        json!(["peer"])
-    );
+    assert_eq!(snapshot(&server)["online"], json!(["peer"]));
     let new_key = [9; 32];
     let (new_kp, new_pk) = plain_rs::crypto::ed25519_generate();
     peer.key = plain_rs::utils::base64::base64_encode(&new_key);
     peer.public_key = plain_rs::utils::base64::base64_encode(&new_pk);
     peers::save(&db, &[peer], SaveMode::Update).unwrap();
-    assert_eq!(snapshot(&client, &local, &token).await["online"], json!([]));
+    assert_eq!(snapshot(&server)["online"], json!([]));
     let (mut replacement, _) = connect_async(&url).await.unwrap();
     replacement
         .send(Message::Binary(wire(&new_key, &new_kp, "peer").into()))
@@ -134,10 +111,7 @@ async fn public_status_auth_scoped_connections_key_rotation_and_stop_use_rust_wi
     let _ = tokio::time::timeout(Duration::from_secs(3), second.next())
         .await
         .unwrap();
-    assert_eq!(
-        snapshot(&client, &local, &token).await["online"],
-        json!(["peer"])
-    );
+    assert_eq!(snapshot(&server)["online"], json!(["peer"]));
     let mut stale = server.runtime_state().events.subscribe();
     server.stop_public().await;
     let _ = tokio::time::timeout(Duration::from_secs(3), replacement.next())
@@ -145,7 +119,7 @@ async fn public_status_auth_scoped_connections_key_rotation_and_stop_use_rust_wi
         .unwrap();
     tokio::time::timeout(Duration::from_secs(3), async {
         loop {
-            if snapshot(&client, &local, &token).await["online"] == json!([]) {
+            if snapshot(&server)["online"] == json!([]) {
                 break;
             }
             tokio::time::sleep(Duration::from_millis(10)).await;
@@ -270,16 +244,11 @@ async fn rust_outgoing_reconnects_same_address_without_native_and_stops_without_
     b_peer.status = PeerStatus::Paired;
     peers::save(&a_db, &[b_peer], SaveMode::Update).unwrap();
     wait_online(&a, "b", true).await;
-    let client = reqwest::Client::new();
-    let local = format!("http://127.0.0.1:{}/chat/peer-status", a.port);
-    let command = |action: &str| {
-        client
-            .post(&local)
-            .bearer_auth(&a_token)
-            .header("content-type", "application/json")
-            .body(json!({"action":action}).to_string())
-    };
-    assert_eq!(command("stop").send().await.unwrap().status(), 200);
+    let controller = a.peer_status_controller();
+    assert_eq!(
+        controller.execute_json(r#"{"action":"stop"}"#).await,
+        Ok("null".to_string())
+    );
     wait_online(&a, "b", false).await;
     wait_online(&b, "a", false).await;
     tokio::time::sleep(Duration::from_millis(1100)).await;
@@ -290,10 +259,21 @@ async fn rust_outgoing_reconnects_same_address_without_native_and_stops_without_
             .snapshot(&a.runtime_state().db)["online"],
         json!([])
     );
-    assert_eq!(command("start").send().await.unwrap().status(), 200);
+    assert!(
+        controller
+            .execute_json(r#"{"action":"start"}"#)
+            .await
+            .is_ok()
+    );
     wait_online(&a, "b", true).await;
     a.stop_public().await;
-    assert_eq!(command("start").send().await.unwrap().status(), 400);
+    assert!(
+        controller
+            .execute_json(r#"{"action":"start"}"#)
+            .await
+            .is_err(),
+        "a start without the public listener has nowhere to announce"
+    );
     wait_online(&a, "b", false).await;
     a.shutdown().await;
     b.shutdown().await;
