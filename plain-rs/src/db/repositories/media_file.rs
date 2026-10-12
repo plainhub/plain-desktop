@@ -1,0 +1,103 @@
+use crate::db::{Db, MediaFileMetadata, MediaFileRow};
+use crate::enums::DataType;
+use rusqlite::{OptionalExtension, params};
+
+const COLUMNS: &str = "id,data_type,path,title,artist,bucket_id,size_bytes,duration_ms,album_file_id,width,height,rotation,taken_at,created_at,updated_at,is_favorite,is_trashed,original_path";
+
+fn row(row: &rusqlite::Row<'_>) -> rusqlite::Result<MediaFileRow> {
+    Ok(MediaFileRow {
+        id: row.get(0)?,
+        data_type: row.get(1)?,
+        path: row.get(2)?,
+        title: row.get(3)?,
+        artist: row.get(4)?,
+        bucket_id: row.get(5)?,
+        size_bytes: row.get(6)?,
+        duration_ms: row.get(7)?,
+        album_file_id: row.get(8)?,
+        width: row.get(9)?,
+        height: row.get(10)?,
+        rotation: row.get(11)?,
+        taken_at: row.get(12)?,
+        created_at: row.get(13)?,
+        updated_at: row.get(14)?,
+        is_favorite: row.get(15)?,
+        is_trashed: row.get(16)?,
+        original_path: row.get(17)?,
+    })
+}
+
+fn kind(data_type: DataType) -> rusqlite::Result<i32> {
+    data_type
+        .media_type_str()
+        .ok_or(rusqlite::Error::InvalidQuery)?;
+    Ok(data_type.kind())
+}
+
+impl Db {
+    pub fn record_media_files(
+        &self,
+        files: &[MediaFileMetadata],
+    ) -> rusqlite::Result<Vec<MediaFileRow>> {
+        self.with_conn(|conn| {
+            let tx = conn.unchecked_transaction()?;
+            let mut rows = Vec::with_capacity(files.len());
+            for file in files {
+                let data_type = kind(file.data_type)?;
+                tx.execute(
+                    "INSERT INTO media_files(id,data_type,path,title,artist,bucket_id,size_bytes,duration_ms,album_file_id,width,height,rotation,taken_at,created_at,updated_at)
+                     VALUES(?1,?2,?3,?4,?5,?6,?7,?8,?9,?10,?11,?12,?13,?14,?15)
+                     ON CONFLICT(data_type,path) DO UPDATE SET title=excluded.title,artist=excluded.artist,bucket_id=excluded.bucket_id,size_bytes=excluded.size_bytes,duration_ms=excluded.duration_ms,album_file_id=excluded.album_file_id,width=excluded.width,height=excluded.height,rotation=excluded.rotation,taken_at=excluded.taken_at,updated_at=excluded.updated_at",
+                    params![uuid::Uuid::new_v4().to_string(),data_type,file.path,file.title,file.artist,file.bucket_id,file.size_bytes,file.duration_ms,file.album_file_id,file.width,file.height,file.rotation,file.taken_at,file.created_at,file.updated_at],
+                )?;
+                rows.push(tx.query_row(&format!("SELECT {COLUMNS} FROM media_files WHERE data_type=?1 AND path=?2"),params![data_type,file.path],row)?);
+            }
+            tx.commit()?;
+            Ok(rows)
+        })
+    }
+
+    pub fn media_file_by_path(
+        &self,
+        data_type: DataType,
+        path: &str,
+    ) -> rusqlite::Result<Option<MediaFileRow>> {
+        let data_type = kind(data_type)?;
+        self.with_conn(|conn| {
+            conn.query_row(
+                &format!("SELECT {COLUMNS} FROM media_files WHERE data_type=?1 AND path=?2"),
+                params![data_type, path],
+                row,
+            )
+            .optional()
+        })
+    }
+
+    pub fn media_file_list(
+        &self,
+        data_type: DataType,
+        limit: u32,
+        offset: u32,
+    ) -> rusqlite::Result<Vec<MediaFileRow>> {
+        let data_type = kind(data_type)?;
+        self.with_conn(|conn| {
+            let mut statement = conn.prepare(&format!("SELECT {COLUMNS} FROM media_files WHERE data_type=?1 AND is_trashed=0 ORDER BY updated_at DESC,id LIMIT ?2 OFFSET ?3"))?;
+            statement.query_map(params![data_type,limit,offset],row)?.collect()
+        })
+    }
+
+    pub fn media_file_count(&self, data_type: DataType) -> rusqlite::Result<i64> {
+        let data_type = kind(data_type)?;
+        self.with_conn(|conn| {
+            conn.query_row(
+                "SELECT COUNT(*) FROM media_files WHERE data_type=?1 AND is_trashed=0",
+                [data_type],
+                |row| row.get(0),
+            )
+        })
+    }
+}
+
+#[cfg(test)]
+#[path = "../../../tests/unit/db/repositories/media_file.rs"]
+mod tests;

@@ -234,6 +234,15 @@ impl ContentServer {
         ))
     }
 
+    pub fn native_media_catalog(
+        &self,
+    ) -> Result<crate::native::media_catalog::NativeMediaCatalog, String> {
+        self.state.native_client_id()?;
+        Ok(crate::native::media_catalog::NativeMediaCatalog::new(
+            self.state.clone(),
+        ))
+    }
+
     pub fn data_directory(&self) -> &Path {
         &self.state.directory
     }

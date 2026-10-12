@@ -27,3 +27,6 @@ pub mod dlna;
 
 #[cfg(feature = "core")]
 pub mod discovery;
+
+#[cfg(feature = "core")]
+pub mod media_catalog;

@@ -37,3 +37,6 @@ mod clipboard;
 
 #[cfg(feature = "chat")]
 pub mod chat_store;
+
+#[cfg(feature = "library")]
+pub mod media_file;

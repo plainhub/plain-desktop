@@ -48,3 +48,8 @@ pub use simple::{
 };
 #[cfg(feature = "library")]
 pub use tag::{TagRelationRow, TagRow};
+
+#[cfg(feature = "library")]
+pub mod media_file;
+#[cfg(feature = "library")]
+pub use media_file::{MediaFileMetadata, MediaFileRow};

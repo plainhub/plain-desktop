@@ -23,6 +23,8 @@ mod image_editor_project;
 #[cfg(feature = "library")]
 mod image_embedding;
 #[cfg(feature = "library")]
+mod media_file;
+#[cfg(feature = "library")]
 mod media_item;
 #[cfg(feature = "chat")]
 mod nearby_device;
@@ -66,6 +68,8 @@ pub(crate) fn init(conn: &Connection) -> rusqlite::Result<()> {
     tag::init(conn)?;
     #[cfg(feature = "library")]
     media_item::init(conn)?;
+    #[cfg(feature = "library")]
+    media_file::init(conn)?;
     #[cfg(feature = "library")]
     pomodoro::init(conn)?;
     #[cfg(feature = "library")]

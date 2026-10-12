@@ -112,3 +112,6 @@ mod chat_tests;
 #[cfg(all(test, feature = "library"))]
 #[path = "../../tests/unit/db/mod.rs"]
 mod library_tests;
+
+#[cfg(feature = "library")]
+pub use models::{MediaFileMetadata, MediaFileRow};
