@@ -80,12 +80,17 @@ async fn execute(
         String::from_utf8(body.to_vec()).map_err(|_| StatusCode::BAD_REQUEST)?
     };
 
-    // The body is the contract's own request envelope, so it parses straight
-    // into async-graphql's request type. `client_id` has already done its
-    // job by this point — auth, and the replay guard above.
     crate::http::sessions::host::touch(state, client_id)
         .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
-    let result = run(&state.public, &request, Some(state.clone())).await?;
+    let result = run_with_context(
+        &state.public,
+        &request,
+        crate::graphql::executor::RequestContext::authenticated_remote(
+            state.clone(),
+            client_id.to_owned(),
+        ),
+    )
+    .await?;
     let mut response = if token_mode {
         let encrypted = plain_rs::crypto::xchacha_encrypt_raw(&key, &result)
             .ok_or(StatusCode::INTERNAL_SERVER_ERROR)?;
@@ -118,17 +123,23 @@ pub(crate) async fn run(
     request: &str,
     state: Option<ServerState>,
 ) -> Result<Vec<u8>, StatusCode> {
+    run_with_context(
+        schema,
+        request,
+        crate::graphql::executor::RequestContext::remote(state),
+    )
+    .await
+}
+
+async fn run_with_context(
+    schema: &crate::graphql::schemas::public::PublicSchema,
+    request: &str,
+    context: crate::graphql::executor::RequestContext,
+) -> Result<Vec<u8>, StatusCode> {
     let parsed: async_graphql::Request =
         serde_json::from_str(request).map_err(|_| StatusCode::BAD_REQUEST)?;
-    serde_json::to_vec(
-        &crate::graphql::executor::execute_graphql(
-            schema,
-            parsed,
-            crate::graphql::executor::RequestContext::remote(state),
-        )
-        .await,
-    )
-    .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)
+    serde_json::to_vec(&crate::graphql::executor::execute_graphql(schema, parsed, context).await)
+        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)
 }
 
 pub(crate) async fn call(

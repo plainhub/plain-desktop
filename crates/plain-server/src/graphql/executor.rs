@@ -16,11 +16,23 @@ pub enum RequestOrigin {
     Remote,
 }
 
+#[derive(Clone)]
+pub struct RequestClient {
+    client_id: String,
+}
+
+impl RequestClient {
+    pub fn client_id(&self) -> &str {
+        &self.client_id
+    }
+}
+
 pub struct RequestContext {
     #[cfg(feature = "core")]
     state: Option<ServerState>,
     #[cfg(feature = "api")]
     desktop: Option<std::sync::Arc<crate::assembly::context::AppCtx>>,
+    remote_client_id: Option<String>,
     notify_changes: bool,
     origin: RequestOrigin,
 }
@@ -31,6 +43,7 @@ impl RequestContext {
             #[cfg(feature = "api")]
             desktop: None,
             state: Some(state),
+            remote_client_id: None,
             notify_changes: true,
             origin: RequestOrigin::Local,
         }
@@ -41,9 +54,16 @@ impl RequestContext {
             #[cfg(feature = "api")]
             desktop: None,
             state,
+            remote_client_id: None,
             notify_changes: false,
             origin: RequestOrigin::Remote,
         }
+    }
+    #[cfg(feature = "core")]
+    pub(crate) fn authenticated_remote(state: ServerState, client_id: String) -> Self {
+        let mut context = Self::remote(Some(state));
+        context.remote_client_id = Some(client_id);
+        context
     }
     #[cfg(feature = "api")]
     pub(crate) fn desktop(
@@ -54,6 +74,7 @@ impl RequestContext {
             #[cfg(feature = "core")]
             state: None,
             desktop: Some(context),
+            remote_client_id: None,
             notify_changes: false,
             origin,
         }
@@ -76,7 +97,29 @@ pub async fn execute_graphql<
     let request = request.data(origin);
     #[cfg(feature = "core")]
     let request = match context.state.as_ref() {
-        Some(state) => request.data(state.clone()),
+        Some(state) => {
+            let client_id = if origin == RequestOrigin::Local {
+                match state.native_client_id() {
+                    Ok(client_id) => Some(client_id),
+                    Err(error) => {
+                        return Response::from_errors(vec![async_graphql::ServerError::new(
+                            error, None,
+                        )]);
+                    }
+                }
+            } else {
+                context.remote_client_id.clone()
+            };
+            let request = request.data(state.clone());
+            match client_id {
+                Some(client_id) => request
+                    .data(RequestClient {
+                        client_id: client_id.clone(),
+                    })
+                    .data(client_id),
+                None => request,
+            }
+        }
         None => request,
     };
     #[cfg(feature = "api")]
@@ -163,13 +206,6 @@ impl GraphqlExecutor {
         Self { state }
     }
     pub async fn execute(&self, request: Request, host_api: bool) -> Response {
-        let client_id = match self.state.native_client_id() {
-            Ok(client_id) => client_id,
-            Err(error) => {
-                return Response::from_errors(vec![async_graphql::ServerError::new(error, None)]);
-            }
-        };
-        let request = request.data(client_id);
         let context = RequestContext::local(self.state.clone());
         if host_api {
             execute_graphql(&self.state.schema, request, context).await
