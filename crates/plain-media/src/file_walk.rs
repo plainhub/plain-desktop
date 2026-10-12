@@ -26,6 +26,12 @@ pub fn walk_files(
             root.display()
         ));
     }
+    if !root_meta.is_file() && !root_meta.is_dir() {
+        return Err(anyhow::anyhow!(
+            "file walk root is neither a regular file nor a directory: {}",
+            root.display()
+        ));
+    }
     if excluded(root) {
         return Ok(());
     }
@@ -35,12 +41,6 @@ pub fn walk_files(
         }
         visit(root).with_context(|| format!("cannot visit {}", root.display()))?;
         return Ok(());
-    }
-    if !root_meta.is_dir() {
-        return Err(anyhow::anyhow!(
-            "file walk root is neither a regular file nor a directory: {}",
-            root.display()
-        ));
     }
 
     let mut stack: Vec<PathBuf> = vec![root.to_path_buf()];

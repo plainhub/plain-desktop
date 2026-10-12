@@ -254,3 +254,25 @@ fn a_fifo_is_skipped_silently() {
 
     assert_eq!(visited(root), ["one.txt"]);
 }
+
+#[cfg(unix)]
+#[test]
+fn an_excluded_special_root_is_still_invalid() {
+    let directory = tempfile::tempdir().unwrap();
+    let path = directory.path().join("socket");
+    let _socket = std::os::unix::net::UnixListener::bind(&path).unwrap();
+    let mut visits = 0;
+    assert!(
+        walk_files(
+            &path,
+            |_| true,
+            || false,
+            |_| {
+                visits += 1;
+                Ok(())
+            }
+        )
+        .is_err()
+    );
+    assert_eq!(visits, 0);
+}
