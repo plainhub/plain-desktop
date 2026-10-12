@@ -21,6 +21,13 @@ impl Runtime {
 
     async fn dispatch(&self, method: &str, params: Value) -> Result<Value, String> {
         match method {
+            "systemPermissionFacts" => {
+                let app = super::native::app::app_facts(
+                    self.core.data_directory(),
+                    self.capabilities.clone(),
+                )?;
+                plain_server::host::permission_facts::facts(&app.permissions, params)
+            }
             "fileTaskAuthorize" => {
                 let allowed = tokio::task::spawn_blocking(move || {
                     plain_server::host::file_resource::authorize_read(params)
@@ -29,6 +36,16 @@ impl Runtime {
                 .map_err(|error| error.to_string())??;
                 Ok(Value::Bool(allowed))
             }
+            "systemMediaBucketItemFacts" => {
+                let core = self.core.clone();
+                let rows = tokio::task::spawn_blocking(move || {
+                    core.native_media_catalog()?.bucket_item_facts(params)
+                })
+                .await
+                .map_err(|error| error.to_string())??;
+                Ok(Value::Array(rows))
+            }
+
             "systemMediaRows" => {
                 let core = self.core.clone();
                 let rows = tokio::task::spawn_blocking(move || {

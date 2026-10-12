@@ -112,3 +112,85 @@ async fn native_file_resolution_uses_actual_os_read_authorization() {
             .is_err()
     );
 }
+
+#[tokio::test]
+async fn bucket_dispatch_uses_the_same_core_catalog_as_rows_and_count() {
+    let directory = Directory::new();
+    let core = Arc::new(ContentServer::open(&directory.0).unwrap());
+    let path = directory.0.join("report.txt");
+    core.native_media_catalog()
+        .unwrap()
+        .record_files(&[plain_rs::db::MediaFileMetadata {
+            data_type: plain_rs::enums::DataType::Doc,
+            path: path.to_str().unwrap().into(),
+            title: "Document title".into(),
+            artist: String::new(),
+            bucket_id: directory.0.to_str().unwrap().into(),
+            size_bytes: 12,
+            duration_ms: 0,
+            album_file_id: String::new(),
+            width: 0,
+            height: 0,
+            rotation: 0,
+            taken_at: None,
+            created_at: "2026-10-13 00:00:00".into(),
+            updated_at: "2026-10-13 00:00:00".into(),
+        }])
+        .unwrap();
+    let runtime = Runtime::new(core.clone(), vec![]);
+    let buckets = runtime
+        .dispatch(
+            "systemMediaBucketItemFacts",
+            serde_json::json!({"dataType":"DOC"}),
+        )
+        .await
+        .unwrap();
+    let count = runtime
+        .dispatch(
+            "systemMediaCount",
+            serde_json::json!({"dataType":"DOC","query":""}),
+        )
+        .await
+        .unwrap();
+    let rows = runtime.dispatch("systemMediaRows",serde_json::json!({"dataType":"DOC","query":"","sortBy":"NAME_ASC","limit":10,"offset":0})).await.unwrap();
+    assert_eq!(count, serde_json::json!(1));
+    assert_eq!(buckets.as_array().unwrap().len(), 1);
+    assert_eq!(buckets[0]["id"], rows[0]["bucketId"]);
+    assert_eq!(buckets[0]["path"], rows[0]["path"]);
+    assert_eq!(buckets[0]["size"], rows[0]["size"]);
+    assert!(
+        runtime
+            .dispatch(
+                "systemMediaBucketItemFacts",
+                serde_json::json!({"dataType":"DOC","query":"trash:true"})
+            )
+            .await
+            .is_err()
+    );
+    let runtime = Arc::new(runtime);
+    let runner = tokio::spawn(runtime.clone().run());
+    let response = core
+        .native_graphql()
+        .unwrap()
+        .execute("query { mediaBuckets(type: DOC) { id name itemCount topItemPaths } }".into())
+        .await;
+    assert!(response.errors.is_empty(), "{:?}", response.errors);
+    let data = response.data.into_json().unwrap();
+    assert_eq!(data["mediaBuckets"][0]["id"], directory.0.to_str().unwrap());
+    assert_eq!(data["mediaBuckets"][0]["itemCount"], 1);
+    assert_eq!(
+        data["mediaBuckets"][0]["topItemPaths"],
+        serde_json::json!([path])
+    );
+    core.stop_core().await;
+    runner.await.unwrap().unwrap();
+    assert!(
+        runtime
+            .dispatch(
+                "systemMediaBucketItemFacts",
+                serde_json::json!({"dataType":"DOC"})
+            )
+            .await
+            .is_err()
+    );
+}

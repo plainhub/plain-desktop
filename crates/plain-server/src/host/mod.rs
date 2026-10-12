@@ -25,3 +25,6 @@ pub mod multicast;
 
 #[cfg(feature = "core")]
 pub mod file_resource;
+
+#[cfg(feature = "core")]
+pub mod permission_facts;

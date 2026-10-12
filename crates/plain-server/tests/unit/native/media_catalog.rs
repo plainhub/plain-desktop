@@ -11,7 +11,28 @@ async fn catalog_is_created_from_core_and_stopped_handles_reject_access() {
             .unwrap()
             .is_empty()
     );
+    assert!(
+        catalog
+            .bucket_item_facts(serde_json::json!({"dataType":"IMAGE"}))
+            .unwrap()
+            .is_empty()
+    );
+    assert!(
+        catalog
+            .bucket_item_facts(serde_json::json!({"dataType":"CONTACT"}))
+            .is_err()
+    );
+    assert!(
+        catalog
+            .bucket_item_facts(serde_json::json!({"dataType":"IMAGE","extra":true}))
+            .is_err()
+    );
     core.stop_core().await;
+    assert!(
+        catalog
+            .bucket_item_facts(serde_json::json!({"dataType":"IMAGE"}))
+            .is_err()
+    );
     assert!(core.native_media_catalog().is_err());
     assert!(catalog.count(plain_rs::enums::DataType::Image).is_err());
     assert!(

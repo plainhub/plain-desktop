@@ -96,6 +96,32 @@ pub(crate) fn count(db: &Db, data_type: DataType, query: &str) -> Result<i64> {
     })?)
 }
 
+pub(crate) fn bucket_item_facts(db: &Db, data_type: DataType) -> Result<Vec<serde_json::Value>> {
+    let (sql, args) = selection(db, data_type, "")?;
+    let sql = format!(
+        "{} ORDER BY updated_at DESC,id",
+        sql.replace("{columns}", "bucket_id,path,size_bytes")
+    );
+    Ok(db.with_conn(|conn| {
+        let mut statement = conn.prepare(&sql)?;
+        statement
+            .query_map(params_from_iter(args.iter()), |row| {
+                let id: String = row.get(0)?;
+                let path: String = row.get(1)?;
+                let size: i64 = row.get(2)?;
+                let name = std::path::Path::new(&path)
+                    .parent()
+                    .and_then(|parent| parent.file_name())
+                    .and_then(|name| name.to_str())
+                    .unwrap_or(&id);
+                Ok(serde_json::json!({
+                    "id":id,"name":name,"size":size,"path":path,"sortName":name
+                }))
+            })?
+            .collect::<rusqlite::Result<Vec<_>>>()
+    })?)
+}
+
 #[cfg(test)]
 #[path = "../../../tests/unit/services/files/media_catalog.rs"]
 mod tests;

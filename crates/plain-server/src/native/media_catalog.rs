@@ -19,6 +19,12 @@ struct RowsRequest {
     offset: u32,
 }
 
+#[derive(serde::Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+struct BucketRequest {
+    data_type: DataType,
+}
+
 #[derive(Clone)]
 pub struct NativeMediaCatalog {
     state: ServerState,
@@ -111,6 +117,17 @@ impl NativeMediaCatalog {
         .iter()
         .map(crate::services::files::media_catalog_facts::row_facts)
         .collect()
+    }
+
+    pub fn bucket_item_facts(
+        &self,
+        params: serde_json::Value,
+    ) -> Result<Vec<serde_json::Value>, String> {
+        self.state.native_client_id()?;
+        let request: BucketRequest =
+            serde_json::from_value(params).map_err(|error| error.to_string())?;
+        crate::services::files::media_catalog::bucket_item_facts(&self.state.db, request.data_type)
+            .map_err(|error| error.to_string())
     }
 
     pub fn count_facts(&self, params: serde_json::Value) -> Result<i64, String> {
