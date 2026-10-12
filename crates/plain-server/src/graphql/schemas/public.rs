@@ -61,6 +61,7 @@ use std::sync::Arc;
 
 #[derive(MergedObject, Default)]
 pub struct Query(
+    #[cfg(feature = "media")] crate::graphql::resolvers::media::scan::MediaScanPublicQuery,
     crate::graphql::resolvers::app::platform::PlatformQuery,
     crate::graphql::resolvers::settings::state::PreferencesQuery,
     MobileQueryImpl,
@@ -92,6 +93,7 @@ pub struct Query(
 
 #[derive(MergedObject, Default)]
 pub struct Mutation(
+    #[cfg(feature = "media")] crate::graphql::resolvers::media::scan::MediaScanPublicMutation,
     crate::graphql::resolvers::settings::state::PreferencesMutation,
     MobileMutationImpl,
     crate::graphql::resolvers::bookmarks::bookmark::BookmarkMutation,

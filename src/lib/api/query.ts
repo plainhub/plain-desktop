@@ -435,6 +435,7 @@ export const scanProgressGQL = `
       pending
       total
       state
+      error
     }
   }
 `
