@@ -14,7 +14,7 @@ description = "Shared Plain server assembly and desktop/mobile adapters"
 "prefs" = ["plain-rs/prefs"]
 "sqlite_browse" = ["plain-rs/sqlite_browse"]
 "default" = ["crypto"]
-"media" = ["dep:plain-media", "library"]
+"media" = ["dep:plain-media", "dep:notify", "library"]
 "media_gql" = ["media", "library", "dep:async-graphql", "plain-rs/graphql"]
 "image-inference" = ["dep:plain-inference"]
 "http_transport" = ["dep:serde_json", "dep:reqwest", "reqwest/rustls-tls", "dep:axum", "dep:axum-server", "dep:rustls", "dep:rustls-pemfile", "tokio/net", "tokio/rt", "tokio/sync", "tokio/time", "plain-rs/tls"]
@@ -67,6 +67,7 @@ parking_lot = "0.12"
 "tempfile" = { "version" = "3", "optional" = true }
 "plain-rs" = { "path" = "../../plain-rs", "default-features" = false }
 "plain-media" = { "path" = "../plain-media", "optional" = true }
+"notify" = { "version" = "7", "optional" = true }
 "plain-inference" = { "path" = "../plain-inference", "optional" = true }
 
 [dev-dependencies]

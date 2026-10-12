@@ -33,6 +33,8 @@ pub(crate) mod media_catalog_facts;
 
 #[cfg(all(feature = "core", feature = "media"))]
 pub mod media_scans;
+#[cfg(feature = "media")]
+pub mod media_watch;
 
 #[cfg(all(feature = "core", feature = "media"))]
 pub(crate) mod media_scan_policy;

@@ -5566,6 +5566,7 @@ dependencies = [
  "log",
  "native-tls",
  "nix",
+ "notify",
  "parking_lot",
  "plain-inference",
  "plain-media",
