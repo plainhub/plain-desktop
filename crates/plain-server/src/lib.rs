@@ -8,6 +8,8 @@ pub mod assembly;
 pub mod graphql;
 pub mod http;
 pub mod platform;
+#[cfg(any(feature = "api", feature = "host-api"))]
+pub mod native;
 pub mod services;
 
 /// Test fixtures whose dir must outlive the helper that created it

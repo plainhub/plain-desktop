@@ -58,15 +58,17 @@ pub(crate) fn is_enabled(prefs: &Prefs, permissions: &[&str]) -> bool {
 /// the app could not reuse these fields for its own data once it stops calling
 /// over loopback HTTP. The origin comes from the adapter that received the
 /// request, so a remote caller cannot claim to be local.
+pub(crate) fn is_local(ctx: &Context<'_>) -> bool {
+    ctx.data_opt::<crate::graphql::executor::RequestOrigin>()
+        .is_some_and(|origin| *origin == crate::graphql::executor::RequestOrigin::Local)
+}
+
 pub(crate) fn require(
     ctx: &async_graphql::Context<'_>,
     prefs: &Prefs,
     permissions: &[&str],
 ) -> async_graphql::Result<()> {
-    if ctx
-        .data_opt::<crate::graphql::executor::RequestOrigin>()
-        .is_some_and(|origin| *origin == crate::graphql::executor::RequestOrigin::Local)
-    {
+    if is_local(ctx) {
         return Ok(());
     }
     if is_enabled(prefs, permissions) {
@@ -83,7 +85,7 @@ pub(crate) async fn require_granted(
     ctx: &Context<'_>,
     permissions: &[&str],
 ) -> anyhow::Result<bool> {
-    if !is_enabled(ctx.data_unchecked::<Arc<Prefs>>(), permissions) {
+    if !is_local(ctx) && !is_enabled(ctx.data_unchecked::<Arc<Prefs>>(), permissions) {
         return Ok(false);
     }
     granted(

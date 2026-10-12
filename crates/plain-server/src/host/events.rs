@@ -65,6 +65,20 @@ impl HostEvents {
     pub fn reply(&self, value: Value) -> Result<(), String> {
         self.state.host.reply(self.generation, value)
     }
+    pub fn attach_resource(
+        &self,
+        id: &str,
+    ) -> Result<crate::native::resource_stream::NativeResourceStream, String> {
+        self.state.bridge.attach_native(id, self.generation)
+    }
+
+    pub fn submit_thumbnail(&self, token: &str, bytes: Vec<u8>) -> Result<(), String> {
+        if !self.state.host.is_current(self.generation) {
+            return Err("host disconnected".into());
+        }
+        self.state.thumbnails.submit(token, bytes)
+    }
+
     pub fn publish_text(&self, kind: &str, payload: String) -> Result<(), String> {
         self.publish(WsEvent::host_text(kind, payload))
     }

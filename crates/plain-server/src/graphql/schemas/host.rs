@@ -86,6 +86,7 @@ pub(crate) fn build_with_host(
         host.clone(),
         events.clone(),
         prefs.clone(),
+        directory.clone(),
     );
     build_with_services(db, events, prefs, directory, host, services)
 }
@@ -112,28 +113,13 @@ pub(crate) fn build_with_services(
             db.clone(),
             directory.clone(),
         ))
-        .data(crate::services::pomodoro::Service::new(
-            db.clone(),
-            prefs.clone(),
-            events.clone(),
-        ))
-        .data(events.clone())
-        .data(plain_rs::media::images::editor::Updates::new(
-            events.clone(),
-        ))
+        .data(services.pomodoro)
+        .data(events)
+        .data(services.image_updates)
+        .data(services.feeds)
+        .data(services.feed_assets)
+        .data(services.uploads)
         .data(prefs)
-        .data(crate::services::feeds::SyncService::new(
-            db.clone(),
-            events,
-            Some(std::sync::Arc::new(crate::services::feeds::FeedAssets {
-                db: db.clone(),
-                directory: directory.clone(),
-            })),
-        ))
-        .data(std::sync::Arc::new(crate::services::feeds::FeedAssets {
-            db,
-            directory,
-        }))
         .finish()
 }
 

@@ -1,5 +1,7 @@
+#[cfg(feature = "host-api")]
 use crate::assembly::server::ServerState;
 use async_graphql::{ObjectType, Request, Response, Schema, SubscriptionType};
+#[cfg(feature = "host-api")]
 use plain_rs::events::WsEvent;
 
 /// Where a GraphQL request came from, injected by the adapter that received
@@ -15,23 +17,45 @@ pub enum RequestOrigin {
 }
 
 pub struct RequestContext {
+    #[cfg(feature = "host-api")]
     state: Option<ServerState>,
+    #[cfg(feature = "api")]
+    desktop: Option<std::sync::Arc<crate::assembly::context::AppCtx>>,
     notify_changes: bool,
     origin: RequestOrigin,
 }
 impl RequestContext {
+    #[cfg(feature = "host-api")]
     pub(crate) fn local(state: ServerState) -> Self {
         Self {
             state: Some(state),
+            #[cfg(feature = "api")]
+            desktop: None,
             notify_changes: true,
             origin: RequestOrigin::Local,
         }
     }
+    #[cfg(feature = "host-api")]
     pub(crate) fn remote(state: Option<ServerState>) -> Self {
         Self {
             state,
+            #[cfg(feature = "api")]
+            desktop: None,
             notify_changes: false,
             origin: RequestOrigin::Remote,
+        }
+    }
+    #[cfg(feature = "api")]
+    pub(crate) fn desktop(
+        context: std::sync::Arc<crate::assembly::context::AppCtx>,
+        origin: RequestOrigin,
+    ) -> Self {
+        Self {
+            #[cfg(feature = "host-api")]
+            state: None,
+            desktop: Some(context),
+            notify_changes: false,
+            origin,
         }
     }
     pub(crate) fn origin(&self) -> RequestOrigin {
@@ -49,12 +73,27 @@ pub async fn execute_graphql<
 ) -> Response {
     let changed = context.notify_changes && content_changes(&request);
     let origin = context.origin();
+    let request = request.data(origin);
+    #[cfg(feature = "host-api")]
     let request = match context.state.as_ref() {
-        Some(state) => request.data(state.clone()).data(origin),
-        None => request.data(origin),
+        Some(state) => request.data(state.clone()),
+        None => request,
+    };
+    #[cfg(feature = "api")]
+    let request = match context.desktop.as_ref() {
+        Some(context) => request
+            .data(context.clone())
+            .data(context.media.db.clone())
+            .data(context.prefs.clone())
+            .data(context.pomodoro.clone())
+            .data(context.image_updates.clone())
+            .data(context.event_tx.clone())
+            .data(context.db.clone()),
+        None => request,
     };
     let response = schema.execute(request).await;
     if changed && response.errors.is_empty() {
+        #[cfg(feature = "host-api")]
         if let Some(state) = context.state {
             let _ = state
                 .events
@@ -106,10 +145,12 @@ pub(crate) fn content_changes(request: &Request) -> bool {
         })
 }
 
+#[cfg(feature = "host-api")]
 #[derive(Clone)]
 pub struct GraphqlExecutor {
     state: ServerState,
 }
+#[cfg(feature = "host-api")]
 impl GraphqlExecutor {
     pub(crate) fn new(state: ServerState) -> Self {
         Self { state }
@@ -124,6 +165,6 @@ impl GraphqlExecutor {
     }
 }
 
-#[cfg(test)]
+#[cfg(all(test, feature = "host-api"))]
 #[path = "../../tests/unit/graphql/executor.rs"]
 mod tests;

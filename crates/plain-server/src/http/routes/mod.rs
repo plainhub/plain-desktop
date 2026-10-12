@@ -36,3 +36,6 @@ pub mod discovery;
 
 #[cfg(feature = "api")]
 pub mod peer_graphql;
+
+#[cfg(feature = "host-api")]
+pub(crate) mod public;

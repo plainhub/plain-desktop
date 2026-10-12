@@ -159,7 +159,7 @@ pub(crate) async fn dispatch(
     #[cfg(not(feature = "http_transport"))]
     let _ = remote_host;
     use tower::ServiceExt;
-    let response = crate::assembly::server::peer_router(state)
+    let response = crate::http::routes::public::peer_router(state)
         .oneshot(req)
         .await?;
     let status = response.status().as_u16();

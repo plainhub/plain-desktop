@@ -133,6 +133,15 @@ pub(crate) async fn output(
 }
 
 impl Thumbnails {
+    pub(crate) fn submit(&self, token: &str, bytes: Vec<u8>) -> Result<(), String> {
+        if bytes.is_empty() || bytes.len() > 32 * 1024 * 1024 {
+            return Err("invalid thumbnail output size".into());
+        }
+        self.outputs.lock().unwrap().remove(token)
+            .ok_or("thumbnail output expired")?
+            .send(bytes).map_err(|_| "thumbnail output cancelled".into())
+    }
+
     async fn get(
         &self,
         state: &ServerState,

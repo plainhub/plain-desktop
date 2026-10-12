@@ -4,7 +4,7 @@ use std::{
     sync::{Arc, Mutex},
     time::Duration,
 };
-use tokio::sync::{Notify, Semaphore, mpsc, oneshot};
+use tokio::sync::{Notify, Semaphore, mpsc, oneshot, watch};
 
 type Reply = Result<Value, String>;
 #[derive(Default)]
@@ -19,6 +19,7 @@ pub struct Host {
     state: Arc<Mutex<State>>,
     ready: Notify,
     capacity: Semaphore,
+    connection: watch::Sender<u64>,
 }
 impl Default for Host {
     fn default() -> Self {
@@ -26,6 +27,7 @@ impl Default for Host {
             state: Arc::new(Mutex::new(State::default())),
             ready: Notify::new(),
             capacity: Semaphore::new(32),
+            connection: watch::channel(0).0,
         }
     }
 }
@@ -41,6 +43,9 @@ impl Drop for Pending {
 impl Host {
     pub(crate) fn needs_socket_cleanup(&self) -> bool {
         self.state.lock().unwrap().peer_sockets
+    }
+    pub(crate) fn connection_changes(&self) -> watch::Receiver<u64> {
+        self.connection.subscribe()
     }
     pub(crate) fn generation(&self) -> Option<u64> {
         let state = self.state.lock().unwrap();
@@ -59,6 +64,7 @@ impl Host {
         state.sender = Some(sender);
         state.peer_sockets = false;
         let generation = state.generation;
+        self.connection.send_replace(generation);
         drop(state);
         self.ready.notify_waiters();
         (generation, receiver)
@@ -73,6 +79,7 @@ impl Host {
             return;
         }
         state.sender = None;
+        self.connection.send_replace(generation);
         for (_, reply) in state.pending.drain() {
             let _ = reply.send(Err("host disconnected".into()));
         }

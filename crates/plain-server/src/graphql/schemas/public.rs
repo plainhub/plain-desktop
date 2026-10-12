@@ -142,6 +142,7 @@ pub fn build(
         host.clone(),
         events.clone(),
         prefs.clone(),
+        directory.clone(),
     );
     let models = crate::services::images::models::Runtime::new(
         directory.clone(),
@@ -183,25 +184,7 @@ pub(crate) fn build_with_runtime(
     let builder = Schema::build(Query::default(), Mutation::default(), EmptySubscription)
         .register_output_type::<crate::graphql::resolvers::media::item::MediaItem>()
         .data(crate::graphql::resolvers::tags::loader::new(db.clone()))
-        .data(Arc::new(
-            plain_rs::files::uploads::Runtime::with_completion({
-                let host = host.clone();
-                move |path| {
-                    let host = host.clone();
-                    Box::pin(async move {
-                        if let Err(error) = host
-                            .call(
-                                "scanFilesFacts",
-                                serde_json::json!({"paths": [path.to_string_lossy()]}),
-                            )
-                            .await
-                        {
-                            log::warn!("Merged upload media scan failed: {error}");
-                        }
-                    })
-                }
-            }),
-        ))
+        .data(services.uploads)
         .data(host.clone())
         .data(services.media_actions)
         .data(services.files)
@@ -213,32 +196,12 @@ pub(crate) fn build_with_runtime(
             db.clone(),
             directory.clone(),
         ))
-        // Both constructors already hand back an `Arc`, and the resolvers ask
-        // for `Arc<Service>` / `Arc<SyncService>` — wrapping again here
-        // registered `Arc<Arc<_>>` and every pomodoro and feed-sync call
-        // failed with "Data ... does not exist".
-        .data(crate::services::pomodoro::Service::new(
-            db.clone(),
-            prefs.clone(),
-            events.clone(),
-        ))
-        .data(plain_rs::media::images::editor::Updates::new(
-            events.clone(),
-        ))
-        .data(crate::services::feeds::SyncService::new(
-            db.clone(),
-            events,
-            Some(Arc::new(crate::services::feeds::FeedAssets {
-                db: db.clone(),
-                directory: directory.clone(),
-            })),
-        ))
+        .data(services.pomodoro)
+        .data(services.image_updates)
+        .data(services.feeds)
+        .data(services.feed_assets)
         .data(prefs)
-        .data(db.clone())
-        .data(Arc::new(crate::services::feeds::FeedAssets {
-            db,
-            directory,
-        }));
+        .data(db);
     #[cfg(feature = "mobile")]
     let builder = crate::mobile::graphql::configure(builder, mobile);
     builder.finish()

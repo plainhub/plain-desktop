@@ -19,16 +19,15 @@ pub async fn execute_graphql(
             .unwrap_or_else(|_| json!({ "data": null }));
         }
     };
-    let request = request
-        .data(ctx.clone())
-        .data(cid)
-        .data(ctx.media.db.clone())
-        .data(ctx.prefs.clone())
-        .data(ctx.pomodoro.clone())
-        .data(ctx.image_updates.clone())
-        .data(ctx.event_tx.clone())
-        .data(ctx.db.clone());
-    let response = schema.execute(request).await;
+    let response = crate::graphql::executor::execute_graphql(
+        schema,
+        request.data(cid),
+        crate::graphql::executor::RequestContext::desktop(
+            ctx,
+            crate::graphql::executor::RequestOrigin::Remote,
+        ),
+    )
+    .await;
 
     serde_json::to_value(response).unwrap_or_else(|_| json!({ "data": null }))
 }

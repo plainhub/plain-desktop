@@ -73,7 +73,6 @@ pub(crate) struct ServerState {
     pub(crate) token: Arc<str>,
     pub(crate) events: broadcast::Sender<WsEvent>,
     pub(crate) stop: watch::Receiver<bool>,
-    #[cfg(feature = "http_transport")]
     pub(crate) bridge: Arc<crate::host::resources::NativeResources>,
 }
 impl ServerState {
@@ -112,6 +111,19 @@ impl ContentServer {
     pub fn graphql_executor(&self) -> crate::graphql::executor::GraphqlExecutor {
         crate::graphql::executor::GraphqlExecutor::new(self.state.clone())
     }
+    pub async fn read_resource(
+        &self,
+        path: &str,
+    ) -> Result<crate::host::resources::NativeResourceReader, String> {
+        let path = crate::host::filesystem::resolve(&self.state, path)
+            .await
+            .map_err(|error| error.to_string())?;
+        self.state
+            .bridge
+            .read_native(&path, self.state.stop.clone())
+            .await
+    }
+
     pub fn host_events(&self) -> crate::host::events::HostEvents {
         crate::host::events::HostEvents::new(self.state.clone())
     }
@@ -148,19 +160,11 @@ impl ContentServer {
             .map_err(|error| error.message)
     }
 
-    fn build(
+    fn build_state(
         path: &Path,
         token: &str,
         prefs: Arc<plain_rs::prefs::Prefs>,
-    ) -> Result<
-        (
-            ServerState,
-            Router,
-            watch::Sender<bool>,
-            watch::Receiver<bool>,
-        ),
-        String,
-    > {
+    ) -> Result<(ServerState, watch::Sender<bool>, watch::Receiver<bool>), String> {
         if plain_rs::utils::base64::base64_decode(token).len() != 32 {
             return Err("token must contain 32 random bytes".into());
         }
@@ -175,6 +179,7 @@ impl ContentServer {
             host.clone(),
             events.clone(),
             prefs.clone(),
+            path.parent().unwrap_or(Path::new(".")).to_path_buf(),
         );
         let directory = path.parent().unwrap_or(Path::new(".")).to_path_buf();
         let schema = schema::build_with_services(
@@ -211,7 +216,6 @@ impl ContentServer {
             #[cfg(feature = "mobile")]
             mobile.clone(),
         );
-        #[cfg(feature = "http_transport")]
         let bridge = Arc::new(crate::host::resources::NativeResources::new(host.clone()));
         let attachments =
             Arc::new(plain_rs::chat::attachments::attachment_imports::Imports::default());
@@ -278,12 +282,13 @@ impl ContentServer {
                 crate::http::auth::ws_login::LoginAttempts::default(),
             )),
             directory: path.parent().unwrap_or(Path::new(".")).to_path_buf(),
+            #[cfg(feature = "http_transport")]
             build_debug: Arc::new(std::sync::atomic::AtomicBool::new(false)),
+            #[cfg(feature = "http_transport")]
             web_root: Arc::new(std::sync::RwLock::new(None)),
             token: Arc::from(token),
             events,
             stop: receiver.clone(),
-            #[cfg(feature = "http_transport")]
             bridge: bridge.clone(),
         };
         #[cfg(feature = "http_transport")]
@@ -314,6 +319,23 @@ impl ContentServer {
             }
             mdns.close(&mdns_host).await;
         });
+        Ok((state, stop, receiver))
+    }
+
+    fn build(
+        path: &Path,
+        token: &str,
+        prefs: Arc<plain_rs::prefs::Prefs>,
+    ) -> Result<
+        (
+            ServerState,
+            Router,
+            watch::Sender<bool>,
+            watch::Receiver<bool>,
+        ),
+        String,
+    > {
+        let (state, stop, receiver) = Self::build_state(path, token, prefs)?;
         let router = Router::new()
             .route("/graphql", post(graphql))
             .route("/health", get(health))
@@ -413,6 +435,22 @@ impl ContentServer {
         let router = router.merge(crate::mobile::http::routes(state.clone()));
         Ok((state, router, stop, receiver))
     }
+    pub fn start_core(
+        path: &Path,
+        token: &str,
+        prefs: Arc<plain_rs::prefs::Prefs>,
+    ) -> Result<Self, String> {
+        let (state, stop, _) = Self::build_state(path, token, prefs)?;
+        Ok(Self {
+            port: 0,
+            state,
+            task: None,
+            stop,
+            #[cfg(feature = "http_transport")]
+            local_router: None,
+        })
+    }
+
     pub fn start(
         path: &Path,
         token: &str,
@@ -481,60 +519,8 @@ impl ContentServer {
             return Err("Public HTTP server is already running".into());
         }
         let (stop, receiver) = watch::channel(false);
-        let peer_router = peer_routes(self.state.clone());
-        let status_router = Router::new()
-            .route("/status", get(crate::services::peers::peer_status::public))
-            .with_state(crate::services::peers::peer_status::PublicState {
-                state: self.state.clone(),
-                stop: receiver.clone(),
-            });
-        let nearby_router = Router::new()
-            .route("/nearby", post(crate::http::routes::discovery::call))
-            .with_state(self.state.clone());
-        let main_graphql_router = Router::new()
-            .route("/graphql", post(crate::http::routes::graphql::call))
-            .route("/health", get(crate::http::routes::graphql::health))
-            .route("/proxyfs", get(crate::http::proxy::host::call))
-            .route("/zip/dir", get(crate::http::routes::zip::dir))
-            .route("/zip/files", get(crate::http::routes::zip::files))
-            .route(
-                "/upload",
-                post(crate::graphql::resolvers::uploads::public::upload)
-                    .layer(DefaultBodyLimit::max(15 * 60 * 1000 * 1000)),
-            )
-            .route(
-                "/upload_chunk",
-                post(crate::graphql::resolvers::uploads::public::upload_chunk)
-                    .layer(DefaultBodyLimit::max(15 * 60 * 1000 * 1000)),
-            )
-            .route("/", get(crate::http::websocket::host::upgrade))
-            .route(
-                "/media/:id",
-                get(crate::services::casting::cast_runtime::media),
-            )
-            .route(
-                "/callback/cast",
-                axum::routing::any(crate::services::casting::cast_runtime::callback),
-            )
-            .route("/init", post(crate::http::routes::graphql::init))
-            .route("/shutdown", get(crate::http::routes::graphql::shutdown))
-            .layer(DefaultBodyLimit::max(32 * 1024 * 1024))
-            .with_state(self.state.clone());
-        let router = Router::new()
-            .fallback(crate::http::routes::static_host::fallback)
-            .layer(DefaultBodyLimit::max(64 * 1024 * 1024 * 1024))
-            .with_state(self.state.clone())
-            .merge(peer_router)
-            .merge(status_router)
-            .merge(nearby_router)
-            .merge(main_graphql_router)
-            .merge(crate::graphql::resolvers::casting::control::router(
-                self.state.clone(),
-            ))
-            .layer(axum::middleware::from_fn_with_state(
-                self.state.clone(),
-                crate::http::routes::cors_host::apply,
-            ));
+        let router =
+            crate::http::routes::public::build_router(self.state.clone(), receiver.clone());
         let router = if let Some(local) = &self.local_router {
             unified_router(self.state.clone(), local.clone(), router)
         } else {
@@ -635,23 +621,6 @@ impl Drop for ContentServer {
             guard.take();
         }
     }
-}
-fn peer_routes(state: ServerState) -> Router {
-    Router::new()
-        .route(
-            "/peer_graphql",
-            post(crate::graphql::schemas::peer_host::public),
-        )
-        .route(
-            "/guest_graphql",
-            post(crate::http::auth::guest_graphql::public),
-        )
-        .route("/fs", get(crate::services::peers::peer_files::file))
-        .layer(DefaultBodyLimit::max(32 * 1024 * 1024))
-        .with_state(state)
-}
-pub(crate) fn peer_router(state: ServerState) -> Router {
-    peer_routes(state)
 }
 async fn health(State(s): State<ServerState>, headers: HeaderMap) -> impl IntoResponse {
     if s.authenticated(&headers) {

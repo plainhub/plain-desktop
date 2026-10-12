@@ -95,7 +95,9 @@ impl ClipboardMutation {
 
 fn enabled(ctx: &Context<'_>) -> async_graphql::Result<()> {
     // plain-app's clipboard roots raise their own error here, not `no_permission`.
-    if public_gate::is_enabled(ctx.data_unchecked::<Arc<Prefs>>(), &[PERMISSION]) {
+    if public_gate::is_local(ctx)
+        || public_gate::is_enabled(ctx.data_unchecked::<Arc<Prefs>>(), &[PERMISSION])
+    {
         Ok(())
     } else {
         Err(async_graphql::Error::new("clipboard_sync_disabled"))

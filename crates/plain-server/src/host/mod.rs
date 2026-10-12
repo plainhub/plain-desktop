@@ -5,7 +5,7 @@ pub mod query;
 #[cfg(feature = "host-api")]
 pub mod bridge;
 
-#[cfg(all(feature = "host-api", feature = "http_transport"))]
+#[cfg(feature = "host-api")]
 pub mod resources;
 
 #[cfg(feature = "host-api")]
