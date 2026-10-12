@@ -6,12 +6,12 @@ const RELEASES_URL: &str = "https://api.github.com/repos/plainhub/plain-desktop/
 #[derive(Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct UpdateCheck {
-    current_version: String,
-    latest_version: String,
-    has_update: bool,
-    release_name: String,
-    release_url: String,
-    published_at: String,
+    pub current_version: String,
+    pub latest_version: String,
+    pub has_update: bool,
+    pub release_name: String,
+    pub release_url: String,
+    pub published_at: String,
 }
 
 #[tauri::command]

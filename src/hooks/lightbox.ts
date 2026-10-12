@@ -4,7 +4,8 @@ import { useImage, useMouse, useTouch } from '@/components/lightbox/utils/hooks'
 import type { ISource, IImgWrapperState, IndexChangeActions } from '@/components/lightbox/types'
 import { isVideo, isImage, isAudio, isSvg, isHeic } from '@/lib/file'
 import { browserSupportsHevc, ensurePlayableVideoUrl } from '@/lib/video-codec'
-import { getFileUrlByPath } from '@/lib/api/file'
+import { resolveFileUrlByPath } from '@/lib/api/file'
+import { isNativeResourceUrl } from '@/hooks/native-resource-url'
 import { useTempStore } from '@/stores/temp'
 import { storeToRefs } from 'pinia'
 import { useMainStore } from '@/stores/main'
@@ -209,6 +210,11 @@ export function useLightboxTransform(
 // The single source of truth for which URL a source displays at, given the quality
 // setting. Shared by the preloader and the visible <img> so they always agree.
 export function getImageDisplayUrl(source: ISource, quality: 'fast' | 'original'): string {
+  // A native resource URL serves the original file; the server-side
+  // thumbnail query has no native equivalent.
+  if (isNativeResourceUrl(source.src)) {
+    return source.src
+  }
   const useOriginal = !isHeic(source.name) && (isSvg(source.name) || source.viewOriginImage || quality === 'original')
   return useOriginal ? source.src : source.src + '&w=1024&h=1024&cc=false'
 }
@@ -268,10 +274,10 @@ export function useLightboxNavigation(
     }
   }
 
-  const preloadSource = (source: ISource | undefined) => {
+  const preloadSource = async (source: ISource | undefined) => {
     if (!source) return
     if (!source.src) {
-      source.src = getFileUrlByPath(tempStore.urlTokenKey, source.path)
+      source.src = await resolveFileUrlByPath(tempStore.urlTokenKey, source.path, source.size)
     }
     if (!source.src) return
 
@@ -318,7 +324,7 @@ export function useLightboxNavigation(
           continue
         }
         if (idx === newIndex) continue
-        preloadSource(sources[idx])
+        void preloadSource(sources[idx])
       }
     }
 
@@ -348,7 +354,7 @@ export function useLightboxNavigation(
 
     const s = tempStore.lightbox.sources[newIndex]
     if (!s.src) {
-      s.src = getFileUrlByPath(tempStore.urlTokenKey, s.path)
+      s.src = await resolveFileUrlByPath(tempStore.urlTokenKey, s.path, s.size)
     }
 
     // Resolve the playback URL before mounting the <video>: on browsers

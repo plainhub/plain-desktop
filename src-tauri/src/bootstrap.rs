@@ -25,6 +25,7 @@ pub fn run() {
     } else {
         builder
     };
+    let builder = crate::native_resource_protocol::with_native_resource_protocol(builder);
     let app = builder
         .plugin(
             tauri_plugin_log::Builder::default()
@@ -52,6 +53,8 @@ pub fn run() {
         .plugin(tauri_plugin_clipboard_manager::init())
         .manage(crate::commands::media_preview_pool::MediaPreviewState::default())
         .manage(crate::commands::screen_capture::runtime::ScreenCaptureRuntime::default())
+        .manage(crate::commands::native::uploads::UploadWriters::default())
+        .manage(crate::commands::native::archives::ArchiveReaders::default())
         .setup(|app| {
             // The unified preferences store — created before anything
             // reads a preference (shortcut registration below reads
@@ -496,6 +499,29 @@ pub fn run() {
             crate::commands::dlna::dlna_reject_cast,
             crate::commands::dlna::dlna_senders,
             crate::commands::dlna::dlna_remove_sender,
+            crate::commands::native::graphql::native_graphql,
+            crate::commands::native::events::native_events,
+            crate::commands::native::resources::native_resource_open,
+            crate::commands::native::resources::native_resource_close,
+            crate::commands::native::resources::native_resource_close_owner,
+            crate::commands::native::uploads::native_upload_chunks,
+            crate::commands::native::uploads::native_upload_chunk_open,
+            crate::commands::native::uploads::native_upload_chunk_write,
+            crate::commands::native::uploads::native_upload_chunk_finish,
+            crate::commands::native::uploads::native_upload_chunk_abort,
+            crate::commands::native::uploads::native_upload_chunks_abort_owner,
+            crate::commands::native::archives::native_archive_open,
+            crate::commands::native::archives::native_archive_read,
+            crate::commands::native::archives::native_archive_close,
+            crate::commands::native::archives::native_archive_close_owner,
+            crate::commands::native::file_tasks::native_file_create_directory,
+            crate::commands::native::file_tasks::native_file_create_file,
+            crate::commands::native::file_tasks::native_file_write_text,
+            crate::commands::native::file_tasks::native_file_copy,
+            crate::commands::native::file_tasks::native_file_move,
+            crate::commands::native::file_tasks::native_file_tasks_list,
+            crate::commands::native::file_tasks::native_file_task_recover,
+            crate::commands::native::file_tasks::native_file_task_remove,
         ])
         .build(tauri::generate_context!())
         .expect("error while building tauri application");

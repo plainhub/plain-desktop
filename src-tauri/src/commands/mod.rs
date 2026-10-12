@@ -6,6 +6,7 @@ pub mod macos_dock;
 #[cfg(target_os = "macos")]
 pub mod macos_menu;
 pub mod media_preview_pool;
+pub mod native;
 pub mod notification;
 pub mod pairing;
 pub mod prefs;

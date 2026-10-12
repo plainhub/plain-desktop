@@ -1,5 +1,6 @@
 import type { IUploadItem } from '@/stores/temp'
 import emitter from '@/plugins/eventbus'
+import { invoke } from '@tauri-apps/api/core'
 import { sha256 } from '@noble/hashes/sha2.js'
 import { bytesToHex } from '@noble/hashes/utils.js'
 import { getApiBaseUrl, getLocalToken, proxyUrlFor } from '../api/api'
@@ -12,7 +13,7 @@ import { requestMerge } from './merge-async'
 import { setUploadStatus, setUploadUploadedSize } from './batch-progress'
 import { getCurrentAuthToken } from '../device/current'
 import { get as prefsGet } from '../prefs'
-import { isLocalMode } from '../device/local-mode'
+import { isLocalMode, isLocalModeAllowed } from '../device/local-mode'
 
 const CHUNK_SIZE = 10 * 1024 * 1024 // 10MB — fewer chunks, lower HTTP overhead; per-chunk retry cost acceptable on weak networks
 const PARALLEL_CHUNKS = 3 // Upload 3 chunks in parallel per file
@@ -45,6 +46,60 @@ export function getUploadUrl() {
 
 export function getUploadChunkUrl() {
   return proxyUrlFor(getApiBaseUrl(), '/upload_chunk')
+}
+
+const NATIVE_WRITE_BYTES = 64 * 1024
+
+// Chunk bytes go to this machine's own core as raw IPC payloads; every
+// other target keeps the multipart POST. Chunk bookkeeping (ids, retry,
+// resume, merge) is identical on both paths.
+function isNativeUploadTarget(): boolean {
+  return isLocalModeAllowed()
+}
+
+async function nativeUploadedChunks(fileId: string): Promise<string[]> {
+  return invoke<string[]>('native_upload_chunks', { fileId })
+}
+
+async function nativeWriteChunk(upload: IUploadItem, chunkData: IUploadChunk, onProgress: (bytes: number) => void): Promise<boolean> {
+  const fileId = upload.fileId || ''
+  let handle = ''
+  try {
+    handle = await invoke<string>('native_upload_chunk_open', {
+      fileId,
+      index: chunkData.index,
+      size: chunkData.chunk.size,
+    })
+  } catch (error: any) {
+    console.warn(`Chunk ${chunkData.index} native open failed:`, error?.message ?? error)
+    return false
+  }
+
+  let sent = 0
+  try {
+    const bytes = new Uint8Array(await chunkData.chunk.arrayBuffer())
+    for (let offset = 0; offset < bytes.length; offset += NATIVE_WRITE_BYTES) {
+      if (upload.status === 'paused' || upload.status === 'canceled') {
+        return false
+      }
+      const slice = bytes.subarray(offset, Math.min(offset + NATIVE_WRITE_BYTES, bytes.length))
+      await invoke('native_upload_chunk_write', slice, {
+        headers: { 'x-plain-upload-handle': handle },
+      })
+      sent += slice.length
+      onProgress(sent)
+    }
+    await invoke<number>('native_upload_chunk_finish', { handle })
+    handle = ''
+    return true
+  } catch (error: any) {
+    console.warn(`Chunk ${chunkData.index} native write failed:`, error?.message ?? error)
+    return false
+  } finally {
+    if (handle) {
+      await invoke('native_upload_chunk_abort', { handle }).catch(() => {})
+    }
+  }
 }
 
 interface IUploadChunk {
@@ -426,7 +481,7 @@ async function getUploadedChunks(fileId: string, fileSize: number, totalChunks: 
   try {
     // A false timeout here degrades to re-uploading every chunk, so give the
     // query a much wider budget than the 30s default.
-    const result = await gqlFetch(uploadedChunksGQL, { fileId }, { timeout: 120_000 })
+    const result = isNativeUploadTarget() ? { data: { uploadedChunks: await nativeUploadedChunks(fileId) } } : await gqlFetch(uploadedChunksGQL, { fileId }, { timeout: 120_000 })
     const raw: string[] = result.data?.uploadedChunks ? [...result.data.uploadedChunks] : []
     if (raw.length === 0) return []
 
@@ -533,6 +588,10 @@ async function waitWithPauseCheck(upload: IUploadItem, delay: number): Promise<v
 }
 
 async function uploadChunk(upload: IUploadItem, chunkData: IUploadChunk & { start: number; end: number }, key: Uint8Array, onProgress: (bytes: number) => void): Promise<boolean> {
+  return isNativeUploadTarget() ? nativeWriteChunk(upload, chunkData, onProgress) : uploadChunkHttp(upload, chunkData, key, onProgress)
+}
+
+async function uploadChunkHttp(upload: IUploadItem, chunkData: IUploadChunk & { start: number; end: number }, key: Uint8Array, onProgress: (bytes: number) => void): Promise<boolean> {
   return new Promise((resolve) => {
     const data = new FormData()
     const info = JSON.stringify({

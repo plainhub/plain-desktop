@@ -8,8 +8,14 @@
 //! temp file, the received size is verified against `info.size`, and the final
 //! placement is an atomic rename so a cancelled upload never leaves a partial
 //! file at the destination.
+//!
+//! A chunk that declares `size > 0` is written through the shared
+//! `UploadChunks` writer, which owns the temp file and the atomic placement. A
+//! chunk with no declared size keeps the legacy streaming path, because the
+//! shared writer cannot finish an unknown-length chunk.
 
 use crate::assembly::server::ServerState;
+use crate::services::files::upload_chunks::{MAX_UPLOAD_WRITE_BYTES, UploadChunk};
 use axum::{
     extract::{FromRequest, Multipart, Request, State},
     http::{HeaderMap, StatusCode, header},
@@ -157,6 +163,41 @@ async fn stream_to_file(
 
 fn temp_name(prefix: &str, millis: u128) -> String {
     format!(".{prefix}_{millis}_{}", std::process::id())
+}
+
+/// A declared-length chunk goes through the shared writer, whose `Drop`
+/// unlinks the temp file on every early return.
+async fn store_chunk(
+    state: &ServerState,
+    field: &mut axum::extract::multipart::Field<'_>,
+    info: &ChunkInfo,
+) -> Result<i64, String> {
+    let declared = info.size as u64;
+    let mut chunk = state
+        .upload_chunks
+        .open_chunk(&info.file_id, info.index, declared, state.stop.clone())
+        .await?;
+    let mut written = 0u64;
+    loop {
+        let bytes = match field.chunk().await {
+            Ok(Some(bytes)) => bytes,
+            Ok(None) => break,
+            Err(error) => return Err(error.to_string()),
+        };
+        for slice in bytes.chunks(MAX_UPLOAD_WRITE_BYTES) {
+            chunk.write(slice).await?;
+            written += slice.len() as u64;
+        }
+    }
+    match chunk.finish().await {
+        Ok(saved) => Ok(saved as i64),
+        // Short writes keep the wording the HTTP clients already match on.
+        Err(error) if written != declared => Err(format!(
+            "Chunk {} final size mismatch: expected {}, saved {written}",
+            info.index, info.size
+        )),
+        Err(error) => Err(error),
+    }
 }
 
 fn now_millis() -> u128 {
@@ -375,12 +416,22 @@ pub(crate) async fn upload_chunk(State(state): State<ServerState>, request: Requ
                     ));
                     break;
                 };
-                if current.file_id.is_empty() || current.index < 0 {
+                if current.file_id.is_empty() || current.index < 0 || current.size < 0 {
                     failure = Some(plain(
                         StatusCode::BAD_REQUEST,
                         "fileId or index is missing or invalid",
                     ));
                     break;
+                }
+                if current.size > 0 {
+                    match store_chunk(&state, &mut field, &current).await {
+                        Ok(saved) => saved_size = saved,
+                        Err(error) => {
+                            failure = Some(plain(StatusCode::BAD_REQUEST, error));
+                            break;
+                        }
+                    }
+                    continue;
                 }
                 let base = match upload_tmp_dir(&state).await {
                     Ok(base) => match plain_rs::files::uploads::chunk_path(
@@ -405,18 +456,7 @@ pub(crate) async fn upload_chunk(State(state): State<ServerState>, request: Requ
                     std::process::id() as u128,
                 ));
                 match stream_to_file(&mut field, &temp).await {
-                    Ok(written) => {
-                        if current.size > 0 && written != current.size as u64 {
-                            let _ = tokio::fs::remove_file(&temp).await;
-                            failure = Some(plain(
-                                StatusCode::BAD_REQUEST,
-                                format!(
-                                    "Chunk {} size mismatch: expected {}, received {written}",
-                                    current.index, current.size
-                                ),
-                            ));
-                            break;
-                        }
+                    Ok(_) => {
                         let _ = tokio::fs::remove_file(&chunk).await;
                         if tokio::fs::rename(&temp, &chunk).await.is_err() {
                             // Some Android filesystems report a failed rename
@@ -443,17 +483,6 @@ pub(crate) async fn upload_chunk(State(state): State<ServerState>, request: Requ
                                 Ok(meta) => meta.len() as i64,
                                 Err(_) => 0,
                             };
-                        }
-                        if current.size > 0 && saved_size != current.size {
-                            let _ = tokio::fs::remove_file(&chunk).await;
-                            failure = Some(plain(
-                                StatusCode::BAD_REQUEST,
-                                format!(
-                                    "Chunk {} final size mismatch: expected {}, saved {saved_size}",
-                                    current.index, current.size
-                                ),
-                            ));
-                            break;
                         }
                     }
                     Err(error) => {

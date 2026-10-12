@@ -1,4 +1,5 @@
 import { getCurrentDeviceHost } from '../device/current'
+import { isLocalModeAllowed } from '../device/local-mode'
 import { get as prefsGet } from '../prefs'
 import { isMacPlatform } from '../platform'
 import { DeviceType } from '../status'
@@ -148,6 +149,15 @@ export function getPhoneIp(): string {
   } catch {
     return getApiHost().split(':')[0]
   }
+}
+
+// ─── Target selection ─────────────────────────────────────────────────────────
+
+/** The single place that decides where a request goes: this machine's own
+ *  shared core over the native Tauri transport, or a bound device over HTTP.
+ *  Every transport layer branches on this and nothing else. */
+export function isNativeTarget(): boolean {
+  return isLocalModeAllowed()
 }
 
 // ─── Request headers ──────────────────────────────────────────────────────────

@@ -65,7 +65,18 @@ export function useMediaPage(options: MediaPageOptions) {
   const { view: viewBucket } = useBuckets(dataType)
 
   const sel = useSelectable(items)
-  const { downloadItems: downloadItemsZip } = useDownloadItems(urlTokenKey, dataType, sel.clearSelection, () => generateDownloadFileName(options.downloadName))
+  const { downloadItems: downloadItemsZip } = useDownloadItems(
+    urlTokenKey,
+    dataType,
+    sel.clearSelection,
+    () => generateDownloadFileName(options.downloadName),
+    (realAllChecked, ids) => {
+      if (realAllChecked) {
+        return null
+      }
+      return items.value.filter((it: any) => ids.includes(it.id)).map((it: any) => ({ path: it.path, name: it.name || it.path.split('/').pop() || '' }))
+    }
+  )
   const { downloadFile } = useDownload(urlTokenKey)
 
   function downloadItems(realAllChecked: boolean, ids: string[], query: string) {
@@ -77,7 +88,7 @@ export function useMediaPage(options: MediaPageOptions) {
         return
       }
     }
-    downloadItemsZip(realAllChecked, ids, query)
+    void downloadItemsZip(realAllChecked, ids, query)
   }
 
   async function downloadItemsEach(ids: string[]) {

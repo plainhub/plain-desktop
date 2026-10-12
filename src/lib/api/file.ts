@@ -5,6 +5,7 @@ import { getApiBaseUrl, getProxyUrl } from './api'
 import { chachaEncrypt, bitArrayToBase64 } from './crypto'
 import toast, { toastWithAction } from '@/components/toaster'
 import { downloadToDir, downloadAs as downloadAsTo, revealInFolder } from '@/lib/download-dir'
+import { nativeResourceUrl } from '@/hooks/native-resource-url'
 
 declare global {
   interface Window {
@@ -23,6 +24,21 @@ export function getFileUrl(id: string, query: string = '') {
   }
 
   return getProxyUrl(`/fs?id=${encodeURIComponent(id)}${query}`)
+}
+
+/**
+ * The URL a local file's bytes actually come from.
+ *
+ * On this machine's own core the bytes come from an opaque native resource
+ * handle; every other target keeps the existing `/fs` URL. Returns '' when
+ * no URL could be resolved, which is what the callers already handle for
+ * an unresolvable id.
+ */
+export async function resolveFileUrlByPath(key: Uint8Array | null, path: string, size?: number): Promise<string> {
+  if (!path || !key) {
+    return ''
+  }
+  return (await nativeResourceUrl(path, size)) || getFileUrl(getFileId(key, path))
 }
 
 export function getFileUrlByPath(key: Uint8Array | null, path: string) {
@@ -99,6 +115,11 @@ async function saveToFile(url: string, name: string) {
   } catch (error) {
     await handleSaveError(error)
   }
+}
+
+/** Report a file this app already wrote to disk (native archive download). */
+export function notifySavedFile(path: string) {
+  notifyDownloaded(path)
 }
 
 // Desktop "Save As…": native save dialog (defaults to Downloads/name),

@@ -1,9 +1,10 @@
-import { getApiBaseUrl, getApiHeaders, getLocalToken } from './api'
+import { getApiBaseUrl, getApiHeaders, getLocalToken, isNativeTarget } from './api'
 import { chachaEncrypt, chachaDecrypt, arrayBufferToBitArray, bitArrayToUint8Array } from './crypto'
 import { tokenToKey } from './file'
 import { wrapWithReplayProtection } from './time-sync'
 import { getCurrentAuthToken, clearCurrentSession } from '../device/current'
 import { httpRequest } from './http'
+import { nativeGraphql } from './native-client'
 import { isLocalMode } from '../device/local-mode'
 import type { GqlOperationName, GqlResultType, GqlVariablesType } from './graphql/operations'
 
@@ -142,7 +143,31 @@ export async function encryptedGqlPost<T = any>(
   }
 }
 
+/** Runs the document against this machine's own shared Rust core. No URL, no
+ *  session token and no encryption: the core holds the trusted local identity. */
+async function nativeGqlFetch<T = any>(query: string, variables?: Record<string, any>, timeout: number = TIMEOUT): Promise<GqlResult<T>> {
+  const op = operationName(query)
+  if (window.__PLAIN_LOG__) {
+    console.info(`[gql] → ${op} @native ${JSON.stringify({ query, variables })}`)
+  }
+
+  const startTime = performance.now()
+  try {
+    const result = await nativeGraphql<GqlResult<T>>({ query, variables }, timeout)
+    if (window.__PLAIN_LOG__) {
+      console.info(`[gql] ← ${op} (${Math.round(performance.now() - startTime)}ms) ${JSON.stringify(result)}`)
+    }
+    return result
+  } catch (e: any) {
+    const message = e?.message || 'native_error'
+    if (window.__PLAIN_LOG__) console.warn(`[gql] ✗ ${op} @native ${message}`)
+    throw new GqlError(message)
+  }
+}
+
 async function doGqlFetch<T = any>(query: string, variables?: Record<string, any>, timeout: number = TIMEOUT): Promise<GqlResult<T>> {
+  if (isNativeTarget()) return nativeGqlFetch<T>(query, variables, timeout)
+
   const url = `${getApiBaseUrl()}/graphql`
   const token = isLocalMode() ? getLocalToken() : getCurrentAuthToken()
   try {

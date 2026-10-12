@@ -4,6 +4,7 @@ use anyhow::Result;
 
 mod cli;
 mod crypto;
+mod host;
 mod prefs;
 mod read_password;
 mod version;

@@ -2,6 +2,7 @@ mod bootstrap;
 mod capture;
 mod commands;
 mod host;
+mod native_resource_protocol;
 mod prefs;
 mod utils;
 

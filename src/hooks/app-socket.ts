@@ -4,7 +4,7 @@ import { listen } from '@tauri-apps/api/event'
 import { invoke } from '@tauri-apps/api/core'
 import emitter from '@/plugins/eventbus'
 import toast from '@/components/toaster'
-import { getWebSocketBaseUrl, getLocalToken } from '@/lib/api/api'
+import { getWebSocketBaseUrl, getLocalToken, isNativeTarget } from '@/lib/api/api'
 import { preloadLoginPeers } from '@/lib/device/login-peers'
 import { chachaDecrypt, chachaEncrypt, chachaEncryptBytes, bitArrayToUint8Array } from '@/lib/api/crypto'
 import { parseWebSocketData } from '@/lib/api/sjcl-arraybuffer'
@@ -14,6 +14,7 @@ import { getRemoteClientId } from '@/lib/device/client-id'
 import { getCurrentAuthToken } from '@/lib/device/current'
 import { isLocalMode } from '@/lib/device/local-mode'
 import { openSocket } from '@/lib/api/http'
+import { subscribeNativeEvents, type NativeEventStream } from '@/lib/api/native-events'
 import { get as prefsGet, set as prefsSet } from '@/lib/prefs'
 
 const RAW_BINARY_EVENTS = new Set(['SCREEN_MIRROR_VIDEO', 'SCREEN_MIRROR_AUDIO', 'IMAGE_EDITOR_UPDATE'])
@@ -60,6 +61,7 @@ export function useAppSocket() {
   let clearStatusTimer: ReturnType<typeof setTimeout> | undefined
   let ws: WebSocket
   let retryTime = 1000
+  let nativeStream: NativeEventStream | null = null
 
   const closeTapPhone = () => {
     tapPhoneMessage.value = ''
@@ -78,7 +80,66 @@ export function useAppSocket() {
     })
   }
 
+  /** Decodes one event frame and dispatches it. Both transports deliver the
+   *  same bytes, so the socket and the native core stream share this path. */
+  function dispatchFrame(buffer: ArrayBuffer, key: Uint8Array) {
+    try {
+      const r = parseWebSocketData(buffer)
+      const type = r.type
+      if (RAW_BINARY_EVENTS.has(r.type)) {
+        emitter.emit(type as any, r.data)
+      } else {
+        const json = chachaDecrypt(key, r.data)
+        const data = json ? JSON.parse(json) : null
+        // Enabled automatically in dev mode (see main.ts)
+        if (window.__PLAIN_LOG__) console.log(`[ws event] ${type}`, data)
+        emitter.emit(type as any, data)
+      }
+    } catch (ex) {
+      console.error(ex)
+    }
+  }
+
+  function handleOpen() {
+    emitter.emit('app_socket_connection_changed', true)
+    retryTime = 1000
+    if (clearStatusTimer) clearTimeout(clearStatusTimer)
+    clearStatusTimer = setTimeout(() => {
+      wsStatus.value = ''
+    }, 2000)
+  }
+
+  function handleDrop() {
+    if (clearStatusTimer) {
+      clearTimeout(clearStatusTimer)
+      clearStatusTimer = undefined
+    }
+    wsStatus.value = 'closed'
+    triggerMdnsBrowse()
+    retryConnect()
+  }
+
+  /** Local target: the shared Rust core's own event feed, not a socket. */
+  function connectNative() {
+    const token = getLocalToken()
+    if (!token) return
+    const key = tokenToKey(token)
+    nativeStream?.close()
+    nativeStream = subscribeNativeEvents(
+      (frame) => dispatchFrame(frame, key),
+      () => {
+        nativeStream = null
+        handleDrop()
+      }
+    )
+    handleOpen()
+  }
+
   async function connect() {
+    if (isNativeTarget()) {
+      connectNative()
+      return
+    }
     const clientId = prefsGet('client_id', '')
     const localMode = isLocalMode()
     const token = localMode ? getLocalToken() : getCurrentAuthToken()
@@ -91,43 +152,17 @@ export function useAppSocket() {
       const wsUrl = `${getWebSocketBaseUrl()}?cid=${clientId}`
       ws = openSocket(wsUrl, localMode ? '' : getRemoteClientId())
       ws.onopen = async () => {
-        emitter.emit('app_socket_connection_changed', true)
-        retryTime = 1000
+        handleOpen()
         ws.send(bitArrayToUint8Array(chachaEncrypt(key, new Date().getTime().toString())))
         // Control frames may only follow the registration frame
         bindControlChannel(ws, key)
-        if (clearStatusTimer) clearTimeout(clearStatusTimer)
-        clearStatusTimer = setTimeout(() => {
-          wsStatus.value = ''
-        }, 2000)
       }
       ws.onmessage = async (event: MessageEvent) => {
-        const buffer = await event.data.arrayBuffer()
-        try {
-          const r = parseWebSocketData(buffer)
-          const type = r.type
-          if (RAW_BINARY_EVENTS.has(r.type)) {
-            emitter.emit(type as any, r.data)
-          } else {
-            const json = chachaDecrypt(key, r.data)
-            const data = json ? JSON.parse(json) : null
-            // Enabled automatically in dev mode (see main.ts)
-            if (window.__PLAIN_LOG__) console.log(`[ws event] ${type}`, data)
-            emitter.emit(type as any, data)
-          }
-        } catch (ex) {
-          console.error(ex)
-        }
+        dispatchFrame(await event.data.arrayBuffer(), key)
       }
       ws.onclose = () => {
-        if (clearStatusTimer) {
-          clearTimeout(clearStatusTimer)
-          clearStatusTimer = undefined
-        }
         unbindControlChannel(ws)
-        wsStatus.value = 'closed'
-        triggerMdnsBrowse()
-        retryConnect()
+        handleDrop()
       }
       ws.onerror = () => {
         wsStatus.value = 'error'

@@ -1,4 +1,10 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
+
+const nativeResourceUrl = vi.fn()
+vi.mock('@/hooks/native-resource-url', () => ({
+  nativeResourceUrl: (...args: unknown[]) => nativeResourceUrl(...args),
+}))
+
 import {
   notId,
   getFileUrl,
@@ -7,6 +13,7 @@ import {
   encryptUrlParams,
   getPeerProxyUrl,
   getFinalPath,
+  resolveFileUrlByPath,
   download,
 } from '@/lib/api/file'
 import { hashToKey } from '@/lib/api/crypto'
@@ -213,5 +220,36 @@ describe('download', () => {
     appendSpy.mockRestore()
     removeSpy.mockRestore()
     vi.restoreAllMocks()
+  })
+})
+
+describe('resolveFileUrlByPath', () => {
+  const key = new Uint8Array([1, 2, 3, 4])
+
+  beforeEach(() => {
+    nativeResourceUrl.mockReset()
+  })
+
+  it('returns the native resource url when this machine owns the file', async () => {
+    nativeResourceUrl.mockResolvedValue('plain-resource://file/h1')
+    await expect(resolveFileUrlByPath(key, '/data/a.jpg')).resolves.toBe('plain-resource://file/h1')
+    expect(nativeResourceUrl).toHaveBeenCalledWith('/data/a.jpg', undefined)
+  })
+
+  it('passes the size through so oversized files keep their existing transport', async () => {
+    nativeResourceUrl.mockResolvedValue('')
+    await resolveFileUrlByPath(key, '/data/big.mp4', 1024)
+    expect(nativeResourceUrl).toHaveBeenCalledWith('/data/big.mp4', 1024)
+  })
+
+  it('falls back to the existing /fs url for remote targets', async () => {
+    nativeResourceUrl.mockResolvedValue('')
+    await expect(resolveFileUrlByPath(key, '/data/a.jpg')).resolves.toMatch(/\/fs\?id=/)
+  })
+
+  it('returns empty without a key or path', async () => {
+    await expect(resolveFileUrlByPath(null, '/data/a.jpg')).resolves.toBe('')
+    await expect(resolveFileUrlByPath(key, '')).resolves.toBe('')
+    expect(nativeResourceUrl).not.toHaveBeenCalled()
   })
 })
