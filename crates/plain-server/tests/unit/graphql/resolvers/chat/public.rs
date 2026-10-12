@@ -485,17 +485,17 @@ async fn channel_snapshot_recovers_current_public_list_without_emitting_another_
     let mut events = state.events.subscribe();
     let client = reqwest::Client::new();
     let response = client
-        .post(format!("http://127.0.0.1:{}/chat/channel", server.port))
+        .post(format!("http://127.0.0.1:{}/graphql", server.port))
         .bearer_auth(plain_rs::utils::base64::base64_encode(&[3; 32]))
         .header("Content-Type", "application/json")
-        .body(json!({"action":"snapshot"}).to_string())
+        .body(json!({"query":"{ chatChannels { id name } }"}).to_string())
         .send()
         .await
         .unwrap();
     assert_eq!(response.status(), 200);
     let snapshot: Value = serde_json::from_str(&response.text().await.unwrap()).unwrap();
-    assert_eq!(snapshot["result"]["channels"][0]["id"], channel.id);
-    assert!(snapshot["result"]["channels"][0].get("key").is_none());
+    assert_eq!(snapshot["data"]["chatChannels"][0]["id"], channel.id);
+    assert!(snapshot["data"]["chatChannels"][0].get("key").is_none());
     assert!(events.try_recv().is_err());
     server.shutdown().await;
 }

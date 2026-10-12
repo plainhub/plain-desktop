@@ -19,7 +19,6 @@ pub(crate) struct TagsLoader {
 }
 
 pub(crate) fn new(db: Arc<Db>) -> DataLoader<TagsLoader> {
-    // No cross-request cache: edits must be visible to the next selection.
     DataLoader::new(
         TagsLoader {
             db,

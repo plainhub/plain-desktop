@@ -48,35 +48,6 @@ enum AudioCommand {
 	SET_SPEED
 }
 
-type AudioHostHistory {
-	path: String!
-	title: String!
-	artist: String!
-	durationMs: Long!
-	playCount: Long!
-	playedAt: Instant!
-}
-
-type AudioHostPlaylist {
-	id: ID!
-	name: String!
-	itemCount: Int!
-	createdAt: Instant!
-	updatedAt: Instant!
-}
-
-type AudioHostPlaylistItem {
-	id: ID!
-	playlistId: ID!
-	audioPath: String!
-	title: String!
-	artist: String!
-	albumId: ID!
-	durationMs: Long!
-	sortOrder: Long!
-	addedAt: Instant!
-}
-
 type AudioHostSource {
 	source: String!
 	playlistId: ID!
@@ -85,7 +56,7 @@ type AudioHostSource {
 	sortBy: String!
 }
 
-type AudioHostTrack {
+input AudioHostTrackInput {
 	path: String!
 	title: String!
 	artist: String!
@@ -93,11 +64,15 @@ type AudioHostTrack {
 	durationMs: Long!
 }
 
-input AudioHostTrackInput {
-	path: String!
+type AudioItem {
 	title: String!
 	artist: String!
-	albumId: ID!
+	"""
+	Album id from the platform catalog, null when the track carries no
+	album metadata.
+	"""
+	albumId: ID
+	path: String!
 	durationMs: Long!
 }
 
@@ -479,12 +454,9 @@ type Mutation {
 	audioHostRemovePaths(paths: [String!]!): Boolean!
 	audioHostSetCurrent(path: String!): Boolean!
 	audioHostOnPlaying(path: String!, title: String!, artist: String!, durationMs: Long!): Boolean!
-	audioHostSetPlaylistSource(id: ID!, startPath: String): AudioHostTrack
-	audioHostSetLibrarySource(startPath: String, shuffle: Boolean!, sortBy: String!): AudioHostTrack
-	audioHostResolveNext(isNext: Boolean!, shuffle: Boolean!): AudioHostTrack
-	audioHostCreatePlaylist(name: String!): AudioHostPlaylist!
-	audioHostRenamePlaylist(id: ID!, name: String!): Boolean!
-	audioHostDeletePlaylist(id: ID!): Boolean!
+	audioHostSetPlaylistSource(id: ID!, startPath: String): AudioItem
+	audioHostSetLibrarySource(startPath: String, shuffle: Boolean!, sortBy: String!): AudioItem
+	audioHostResolveNext(isNext: Boolean!, shuffle: Boolean!): AudioItem
 	audioHostAddPlaylistItems(id: ID!, items: [AudioHostTrackInput!]!): Int!
 	audioHostRemovePlaylistItems(id: ID!, paths: [String!]!): Boolean!
 	audioHostRecordHistory(path: String!, title: String!, artist: String!, durationMs: Long!): Boolean!
@@ -664,13 +636,6 @@ type Query {
 	fileHostTasks(clientId: String!, query: String!, offset: Int!, limit: Int!): [FileHostTask!]!
 	audioSource: AudioHostSource!
 	audioQueuedPaths: [String!]!
-	audioHostQueueItems(query: String!, offset: Int!, limit: Int!): [AudioHostTrack!]!
-	audioHostQueueCount: Int!
-	audioHostPlaylists: [AudioHostPlaylist!]!
-	audioHostPlaylist(id: ID!): AudioHostPlaylist
-	audioHostPlaylistItems(id: ID!, query: String!, offset: Int!, limit: Int!): [AudioHostPlaylistItem!]!
-	audioHostPlaylistItemCount(id: ID!): Int!
-	audioHostHistory(query: String!, offset: Int!, limit: Int!): [AudioHostHistory!]!
 	audioArtistPlayCounts: [AudioArtistPlayCount!]!
 	audioPlayback: AudioPlayback!
 	videoPlayProgress(mediaId: ID!): VideoPlayProgress
