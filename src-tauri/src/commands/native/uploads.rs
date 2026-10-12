@@ -61,7 +61,7 @@ impl UploadWriters {
         Ok(slot)
     }
 
-    fn take(&self, owner: &str, handle: &str) -> Result<UploadChunk, String> {
+    async fn take(&self, owner: &str, handle: &str) -> Result<UploadChunk, String> {
         let slot = self.owned(owner, handle)?;
         if slot.closed.load(Ordering::SeqCst) {
             return Err("upload chunk canceled".into());
@@ -147,7 +147,7 @@ pub async fn native_upload_chunk_finish<R: Runtime>(
     writers: State<'_, UploadWriters>,
     handle: String,
 ) -> Result<u64, String> {
-    let writer = writers.take(window.label(), &handle)?;
+    let writer = writers.take(window.label(), &handle).await?;
     writers.discard(window.label(), &handle);
     writer.finish().await
 }

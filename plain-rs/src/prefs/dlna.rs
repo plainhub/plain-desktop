@@ -13,7 +13,7 @@ pub fn enabled(prefs: &Prefs) -> bool {
     prefs.get_user_or("dlna", false)
 }
 
-pub fn set_enabled(prefs: &Prefs, enabled: bool) -> Result<(), crate::prefs::PrefsError> {
+pub fn set_enabled(prefs: &Prefs, enabled: bool) -> Result<bool, crate::prefs::PrefsError> {
     prefs.set_user("dlna", enabled)
 }
 

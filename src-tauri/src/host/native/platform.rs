@@ -13,7 +13,7 @@ pub fn disks() -> Result<DisksFacts, String> {
 
 /// A readable OS that reports no disk is an empty list, not a failure.
 fn disks_facts(disks: Result<Vec<DiskFacts>, String>) -> Result<DisksFacts, String> {
-    disks.map(DisksFacts { disks })
+    disks.map(|disks| DisksFacts { disks })
 }
 
 pub async fn app_update(app: &tauri::AppHandle) -> Result<AppUpdateFacts, String> {

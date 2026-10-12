@@ -76,9 +76,10 @@ impl ResourceRegistry {
                 size: info.size,
             },
         );
+        let url = resource_url(&info.id);
         Ok(OpenedResource {
             id: info.id,
-            url: resource_url(&info.id),
+            url,
             name: info.name,
             mime: info.mime,
             size: info.size,
@@ -310,7 +311,7 @@ pub fn with_native_resource_protocol<R: Runtime>(builder: tauri::Builder<R>) -> 
                 let handler = handler.clone();
                 let label = context.webview_label().to_string();
                 tauri::async_runtime::spawn(async move {
-                    serve(&handler, &label, request, responder).await;
+                    serve::<R>(&handler, &label, request, responder).await;
                 });
             },
         )

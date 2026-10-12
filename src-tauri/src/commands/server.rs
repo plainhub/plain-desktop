@@ -8,13 +8,15 @@ pub fn http_proxy_port(state: tauri::State<'_, HttpProxyState>) -> u16 {
 }
 
 #[tauri::command]
-pub async fn local_server_port(core: tauri::State<'_, Arc<ContentServer>>) -> u16 {
-    core.http_ports().await.map(|ports| ports.0).unwrap_or(0)
+pub async fn local_server_port(core: tauri::State<'_, Arc<ContentServer>>) -> Result<u16, String> {
+    Ok(core.http_ports().await.map(|ports| ports.0).unwrap_or(0))
 }
 
 #[tauri::command]
-pub async fn local_server_https_port(core: tauri::State<'_, Arc<ContentServer>>) -> u16 {
-    core.http_ports().await.map(|ports| ports.1).unwrap_or(0)
+pub async fn local_server_https_port(
+    core: tauri::State<'_, Arc<ContentServer>>,
+) -> Result<u16, String> {
+    Ok(core.http_ports().await.map(|ports| ports.1).unwrap_or(0))
 }
 
 #[tauri::command]

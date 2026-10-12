@@ -133,10 +133,26 @@ fn created_at_of(birth: Option<SystemTime>, modified: SystemTime) -> String {
 /// unix branch reads 0 on filesystems without it, the Windows FILETIME is
 /// rebased on the same epoch as `catalog::uuid`).
 fn birth_unix_secs(meta: &Metadata) -> Option<i64> {
-    #[cfg(unix)]
+    #[cfg(target_os = "macos")]
+    let secs = {
+        use std::os::darwin::fs::MetadataExt;
+        meta.st_birthtime()
+    };
+    #[cfg(any(
+        target_os = "freebsd",
+        target_os = "netbsd",
+        target_os = "openbsd",
+        target_os = "dragonfly",
+        target_os = "cygwin"
+    ))]
     let secs = {
         use std::os::unix::fs::MetadataExt;
-        meta.birthtime()
+        meta.st_birthtime()
+    };
+    #[cfg(target_os = "linux")]
+    let secs = {
+        use std::os::linux::fs::MetadataExt;
+        meta.st_birthtime()
     };
     #[cfg(windows)]
     let secs = {

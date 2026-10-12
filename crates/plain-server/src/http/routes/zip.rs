@@ -9,7 +9,7 @@ use crate::assembly::server::ServerState;
 use axum::{
     body::Body,
     extract::{Query, State},
-    http::{header, StatusCode},
+    http::{StatusCode, header},
     response::{IntoResponse, Response},
 };
 use serde::Deserialize;
@@ -282,7 +282,7 @@ async fn zip_dir(
                 return plain(
                     StatusCode::INTERNAL_SERVER_ERROR,
                     "Failed to stage the archive",
-                )
+                );
             }
         };
         let mut items = Vec::new();
@@ -302,7 +302,7 @@ async fn zip_dir(
         } else {
             json_name
         };
-        return stream_archive(state, items, &name, staging, permit).await;
+        return stream_archive(state, items, &name, Some(staging), permit).await;
     }
     let root = PathBuf::from(&path);
     if !root.is_dir() {
