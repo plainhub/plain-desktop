@@ -159,6 +159,25 @@ impl ContentServer {
     pub fn graphql_executor(&self) -> crate::graphql::executor::GraphqlExecutor {
         crate::graphql::executor::GraphqlExecutor::new(self.state.clone())
     }
+    pub async fn resolve_native_file(&self, reference: &str) -> Result<PathBuf, String> {
+        self.state.native_client_id()?;
+        let path = crate::host::filesystem::resolve(&self.state, reference)
+            .await
+            .map_err(|error| error.to_string())?;
+        let path = PathBuf::from(path);
+        if !path.is_absolute() {
+            return Err("absolute native file path required".into());
+        }
+        crate::services::files::file_access::receipt(
+            &self.state.host,
+            "fileTaskAuthorize",
+            path.to_str().ok_or("invalid file path encoding")?,
+        )
+        .await?;
+        self.state.native_client_id()?;
+        Ok(path)
+    }
+
     pub async fn read_resource(
         &self,
         path: &str,
