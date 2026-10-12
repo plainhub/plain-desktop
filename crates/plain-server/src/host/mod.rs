@@ -19,3 +19,6 @@ pub mod events;
 
 #[cfg(feature = "core")]
 pub mod platform;
+
+#[cfg(feature = "core")]
+pub mod multicast;

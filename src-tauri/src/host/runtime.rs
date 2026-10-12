@@ -9,6 +9,7 @@ pub struct Runtime {
     core: Arc<ContentServer>,
     app: tauri::AppHandle,
     capabilities: Vec<String>,
+    multicast: std::sync::Mutex<plain_server::host::multicast::MulticastLeases>,
 }
 
 impl Runtime {
@@ -17,11 +18,21 @@ impl Runtime {
             core,
             app,
             capabilities,
+            multicast: Default::default(),
         }
     }
 
-    async fn dispatch(&self, method: &str, _params: Value) -> Result<Value, String> {
+    async fn dispatch(&self, method: &str, params: Value) -> Result<Value, String> {
         match method {
+            "mdnsMulticast" => {
+                let result = self
+                    .multicast
+                    .lock()
+                    .map_err(|_| "multicast lease state unavailable")?
+                    .without_platform_lock(params)?;
+                Ok(Value::Bool(result))
+            }
+
             "discoveryFacts" => {
                 let settings: plain_rs::prefs::user::UserSettings =
                     serde_json::from_str(&self.core.user_settings_json()?)
@@ -52,30 +63,33 @@ impl Runtime {
     }
 
     pub async fn run(self: Arc<Self>) -> Result<(), String> {
+        let _multicast = plain_server::host::multicast::MulticastSession::new(&self.multicast);
         let session = Arc::new(self.core.host_events());
         let requests = self.clone();
-        session
+        let result = session
             .serve(
                 move |method, params| {
                     let requests = requests.clone();
                     async move { requests.dispatch(&method, params).await }
                 },
-                move |event| {
-                    let kind = event
-                        .get("type")
-                        .and_then(Value::as_str)
-                        .ok_or("missing host event type")?;
-                    let payload = event
-                        .get("payload")
-                        .and_then(Value::as_str)
-                        .ok_or("missing host event payload")?;
-                    let payload = serde_json::from_str::<Value>(payload)
-                        .unwrap_or_else(|_| Value::String(payload.to_owned()));
-                    self.app
-                        .emit(kind, payload)
-                        .map_err(|error| error.to_string())
+                {
+                    let app = self.app.clone();
+                    move |event| {
+                        let kind = event
+                            .get("type")
+                            .and_then(Value::as_str)
+                            .ok_or("missing host event type")?;
+                        let payload = event
+                            .get("payload")
+                            .and_then(Value::as_str)
+                            .ok_or("missing host event payload")?;
+                        let payload = serde_json::from_str::<Value>(payload)
+                            .unwrap_or_else(|_| Value::String(payload.to_owned()));
+                        app.emit(kind, payload).map_err(|error| error.to_string())
+                    }
                 },
             )
-            .await
+            .await;
+        result
     }
 }

@@ -7,15 +7,29 @@ use serde_json::Value;
 pub struct Runtime {
     core: Arc<ContentServer>,
     capabilities: Vec<String>,
+    multicast: std::sync::Mutex<plain_server::host::multicast::MulticastLeases>,
 }
 
 impl Runtime {
     pub fn new(core: Arc<ContentServer>, capabilities: Vec<String>) -> Self {
-        Self { core, capabilities }
+        Self {
+            core,
+            capabilities,
+            multicast: Default::default(),
+        }
     }
 
-    async fn dispatch(&self, method: &str, _params: Value) -> Result<Value, String> {
+    async fn dispatch(&self, method: &str, params: Value) -> Result<Value, String> {
         match method {
+            "mdnsMulticast" => {
+                let result = self
+                    .multicast
+                    .lock()
+                    .map_err(|_| "multicast lease state unavailable")?
+                    .without_platform_lock(params)?;
+                Ok(Value::Bool(result))
+            }
+
             "discoveryFacts" => {
                 let settings: plain_rs::prefs::user::UserSettings =
                     serde_json::from_str(&self.core.user_settings_json()?)
@@ -48,9 +62,10 @@ impl Runtime {
     }
 
     pub async fn run(self: Arc<Self>) -> Result<(), String> {
+        let _multicast = plain_server::host::multicast::MulticastSession::new(&self.multicast);
         let session = Arc::new(self.core.host_events());
         let requests = self.clone();
-        session
+        let result = session
             .serve(
                 move |method, params| {
                     let requests = requests.clone();
@@ -69,7 +84,8 @@ impl Runtime {
                     Ok(())
                 },
             )
-            .await
+            .await;
+        result
     }
 }
 
