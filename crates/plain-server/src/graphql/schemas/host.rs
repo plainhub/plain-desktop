@@ -8,6 +8,7 @@ use crate::graphql::resolvers::pomodoro::pomodoro;
 use async_graphql::{EmptySubscription, MergedObject, Schema};
 #[derive(MergedObject, Default)]
 pub struct Query(
+    #[cfg(feature = "media")] crate::graphql::resolvers::media::scan::MediaScanQuery,
     crate::graphql::resolvers::discovery::host::DiscoveryHostQuery,
     crate::graphql::resolvers::chat::public::ChatQuery,
     crate::graphql::resolvers::chat::host::ChatHostQuery,
@@ -36,6 +37,7 @@ pub struct Query(
 );
 #[derive(MergedObject, Default)]
 pub struct Mutation(
+    #[cfg(feature = "media")] crate::graphql::resolvers::media::scan::MediaScanMutation,
     crate::graphql::resolvers::discovery::host::DiscoveryHostMutation,
     crate::graphql::resolvers::chat::public::ChatMutation,
     crate::graphql::resolvers::chat::host::ChatHostMutation,

@@ -10,7 +10,7 @@ pub mod aux;
 #[cfg(feature = "core")]
 pub mod public;
 
-#[cfg(feature = "api")]
+#[cfg(any(feature = "api", feature = "core"))]
 pub mod types;
 
 #[cfg(feature = "core")]
@@ -18,3 +18,6 @@ pub mod item;
 
 #[cfg(feature = "api")]
 pub mod desktop_item;
+
+#[cfg(all(feature = "core", feature = "media"))]
+pub mod scan;

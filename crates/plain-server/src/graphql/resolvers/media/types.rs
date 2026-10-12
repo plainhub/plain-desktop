@@ -1,7 +1,3 @@
-use crate::graphql::resolvers::audio::desktop_types::Audio;
-use crate::graphql::resolvers::docs::types::Doc;
-use crate::graphql::resolvers::images::types::Image;
-use crate::graphql::resolvers::videos::types::Video;
 use async_graphql::Enum;
 use async_graphql::ID;
 use async_graphql::SimpleObject;
@@ -47,14 +43,16 @@ pub enum ScanState {
     RUNNING,
     PAUSED,
     STOPPED,
+    FAILED,
 }
 
 #[derive(SimpleObject, Clone, Debug)]
 pub struct ScanProgress {
     pub indexed: i32,
-    pub pending: i32,
-    pub total: i32,
+    pub pending: Option<i32>,
+    pub total: Option<i32>,
     pub state: ScanState,
+    pub error: Option<String>,
 }
 
 #[derive(SimpleObject, Clone, Debug)]

@@ -230,9 +230,10 @@ impl MediaQueryRoot {
         let (indexed, total, state) = scan::scanner().get_progress();
         Ok(ScanProgress {
             indexed: count_to_i32(indexed),
-            pending: count_to_i32((total - indexed).max(0)),
-            total: count_to_i32(total),
+            pending: Some(count_to_i32((total - indexed).max(0))),
+            total: Some(count_to_i32(total)),
             state: scan_state_to_gql(state),
+            error: None,
         })
     }
 
