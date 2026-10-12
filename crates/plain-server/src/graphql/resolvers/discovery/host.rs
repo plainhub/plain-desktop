@@ -12,6 +12,13 @@ impl DiscoveryHostQuery {
         let state = ctx.data::<ServerState>()?;
         nearby_snapshot(state)
     }
+
+    /// Whether the manual discovery scan loop is running. The nearby page
+    /// polls this and restarts the scan when another client stopped it.
+    async fn is_discovering(&self, ctx: &Context<'_>) -> bool {
+        ctx.data::<ServerState>()
+            .is_ok_and(|state| state.mdns.manual_scanning())
+    }
 }
 
 #[derive(Default)]
@@ -33,9 +40,7 @@ impl DiscoveryHostMutation {
 
     async fn stop_discovery(&self, ctx: &Context<'_>) -> async_graphql::Result<bool> {
         let state = ctx.data::<ServerState>()?;
-        let active = state.mdns.snapshot()["manualScanning"]
-            .as_bool()
-            .ok_or_else(|| async_graphql::Error::new("invalid discovery state"))?;
+        let active = state.mdns.manual_scanning();
         state
             .mdns
             .execute(

@@ -324,10 +324,10 @@ async fn require_narrowing_media(
     query: &str,
 ) -> async_graphql::Result<()> {
     let provider = match r#type {
-        MediaDataType::Audio => Provider::Audio,
-        MediaDataType::Video => Provider::Video,
-        MediaDataType::Image => Provider::Image,
-        MediaDataType::Doc => Provider::Doc,
+        MediaDataType::AUDIO => Provider::Audio,
+        MediaDataType::VIDEO => Provider::Video,
+        MediaDataType::IMAGE => Provider::Image,
+        MediaDataType::DOC => Provider::Doc,
     };
     provider_plan::require_narrowing(
         ctx.data_unchecked::<Arc<Db>>(),
@@ -380,10 +380,10 @@ async fn media_action(
         _ => return Err("invalid media action".into()),
     };
     let data_type = match r#type {
-        MediaDataType::Audio => plain_rs::enums::DataType::Audio,
-        MediaDataType::Video => plain_rs::enums::DataType::Video,
-        MediaDataType::Image => plain_rs::enums::DataType::Image,
-        MediaDataType::Doc => plain_rs::enums::DataType::Doc,
+        MediaDataType::AUDIO => plain_rs::enums::DataType::Audio,
+        MediaDataType::VIDEO => plain_rs::enums::DataType::Video,
+        MediaDataType::IMAGE => plain_rs::enums::DataType::Image,
+        MediaDataType::DOC => plain_rs::enums::DataType::Doc,
     };
     ctx.data::<Arc<crate::services::files::media_actions::MediaActions>>()?
         .run_query(data_type, action, query, dest.as_str().unwrap_or_default())

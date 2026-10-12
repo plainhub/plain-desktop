@@ -51,6 +51,13 @@ type AppFile {
 	updatedAt: Instant!
 }
 
+type AppUpdate {
+	currentVersion: String!
+	latestVersion: String
+	hasUpdate: Boolean!
+	url: String
+}
+
 type Audio implements MediaItem {
 	id: ID!
 	title: String!
@@ -194,6 +201,8 @@ enum Capability {
 	NOTIFICATIONS
 	CLIPBOARD
 	POMODORO
+	LAN_SHARE
+	DISK_MANAGER
 }
 
 type Certificate {
@@ -423,9 +432,10 @@ input ContactWebsiteInput {
 }
 
 """
-The contract's content kinds. The numeric values are plain-app's
-`DataType` ordinals and are what the tag tables store, so they are the
-contract's order rather than a free choice.
+Taggable data domains — the plain-app `DataType` wire enum
+(`shared/src/commonMain/kotlin/com/ismartcoding/plain/enums/DataType.kt`).
+GraphQL-arg and tag-column domain; `kind()` is the ordinal stored in
+the shared library db `type` column.
 """
 enum DataType {
 	DEFAULT
@@ -516,6 +526,15 @@ enum DiscoveryMethod {
 	QR
 }
 
+type Disk {
+	id: ID!
+	name: String!
+	path: String!
+	sizeBytes: Long!
+	removable: Boolean!
+	model: String
+}
+
 type DisplayInfo {
 	width: Int!
 	height: Int!
@@ -580,7 +599,6 @@ type Feed {
 }
 
 type FeedEntry {
-	feedId: ID!
 	id: ID!
 	title: String!
 	url: String!
@@ -588,13 +606,14 @@ type FeedEntry {
 	description: String!
 	author: String!
 	content: String!
+	feedId: ID!
 	rawId: String!
 	read: Boolean!
 	publishedAt: Instant!
 	createdAt: Instant!
 	updatedAt: Instant!
-	feed: Feed
 	tags: [Tag!]!
+	feed: Feed
 }
 
 type FeedEntryCount {
@@ -762,9 +781,8 @@ type MediaBucket {
 }
 
 """
-The library kind a client is asking about. The names are the contract's,
-which is also what the platform's `DataType` enum uses — the mapping is
-the identity, so there is nothing to translate.
+Media-library item kinds accepted by media item actions and buckets
+(plain-app `MediaDataType`).
 """
 enum MediaDataType {
 	AUDIO
@@ -890,19 +908,10 @@ type Mutation {
 	saveFeedEntriesToNotes(query: String!): [ID!]!
 	trashNotes(query: String!): ActionResult!
 	restoreNotes(query: String!): ActionResult!
-	"""
-	A blank query would match every note, and a bulk delete is not
-	something a client should be able to aim at the whole library by
-	accident — refused before the store is touched.
-	"""
 	deleteNotes(query: String!): ActionResult!
 	exportNotes(query: String!): String!
 	updateFeedUrl(id: ID!, url: String!): Feed!
 	markFeedEntriesRead(query: String!, read: Boolean!): ActionResult!
-	"""
-	Starts the sync and returns immediately; the web client watches the
-	websocket for `FEEDS_FETCHED` rather than blocking on this call.
-	"""
 	syncFeeds(id: ID): Boolean!
 	updateFeed(id: ID!, name: String!, fetchContent: Boolean!): Feed!
 	createFeed(url: String!, fetchContent: Boolean!): Feed!
@@ -910,10 +919,6 @@ type Mutation {
 	exportFeeds: String!
 	deleteFeed(id: ID!): Boolean!
 	syncFeedEntryContent(id: ID!): FeedEntry!
-	"""
-	Blank query refused for the same reason as `deleteNotes`: a bulk
-	delete must never be aimable at the whole library by accident.
-	"""
 	deleteFeedEntries(query: String!): ActionResult!
 	"""
 	Marks the track current without touching the queue, which is what a
@@ -1014,15 +1019,17 @@ type Mutation {
 	openAccessibilitySettings: Boolean!
 	openWebSettings(feature: WebSettingsFeature): Boolean!
 	"""
-	Each mutation returns the whole updated list, so a client never has
-	to guess what the operation did to the rows it did not touch.
+	Register a favorite folder and return the whole list.
 	"""
 	addFavoriteFolder(rootPath: String!, fullPath: String!): [FavoriteFolder!]!
 	"""
-	An unknown `fullPath` is not an error: the folder was already gone,
-	and returning the current list is the honest answer either way.
+	Remove the favorite folder identified by `fullPath` and return the
+	whole list.
 	"""
 	removeFavoriteFolder(fullPath: String!): [FavoriteFolder!]!
+	"""
+	Set the favorite folder's display alias and return the whole list.
+	"""
 	setFavoriteFolderAlias(fullPath: String!, alias: String!): [FavoriteFolder!]!
 	createTag(type: DataType!, name: String!): Tag!
 	updateTag(id: ID!, name: String!): Tag!
@@ -1327,6 +1334,8 @@ enum PostalType {
 }
 
 type Query {
+	disks: [Disk!]!
+	appUpdate: AppUpdate!
 	systemSettings: SystemSettings!
 	userSettings: UserSettings!
 	verifyAdbToken(token: String!): Boolean!
@@ -1471,11 +1480,7 @@ type Query {
 	"""
 	pathKind(path: String!): PathKind
 	"""
-	Bookmarked directories. These live in the Rust SQLite
-	`favorite_folders` table, so this reads the store directly instead
-	of asking the platform to refresh — going through the host would
-	re-enter this very root once `main_graphql` serves the public
-	schema.
+	List all favorite folders.
 	"""
 	favoriteFolders: [FavoriteFolder!]!
 	mediaBuckets(type: MediaDataType!): [MediaBucket!]!
@@ -1674,6 +1679,12 @@ input SystemSettingsInput {
 type Tag {
 	id: ID!
 	name: String!
+	"""
+	Numeric tag kind — the ordinal of the tag's `DataType`
+	(DEFAULT=0, AUDIO=1, VIDEO=2, IMAGE=3, …). The NAS only has data
+	for the media kinds; the Int is frozen phone contract.
+	"""
+	type: Int!
 	count: Int!
 }
 

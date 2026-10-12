@@ -210,8 +210,33 @@ fn public_schema_exposes_the_contract_it_has_to_serve() {
         sdl.contains("replyActions: [String!]!"),
         "replyActions renamed"
     );
-    assert!(
-        sdl.contains("type Tag {\n\tid: ID!\n\tname: String!\n\ttype: Int!\n\tcount: Int!\n}"),
+    let tag_body = sdl
+        .split("type Tag {")
+        .nth(1)
+        .and_then(|rest| rest.split_once('}'))
+        .map(|(body, _)| body)
+        .unwrap_or_default();
+    let mut tag_fields = Vec::new();
+    let mut in_description = false;
+    for line in tag_body.lines() {
+        let line = line.trim();
+        if in_description {
+            if line.ends_with("\"\"\"") {
+                in_description = false;
+            }
+            continue;
+        }
+        if line == "\"\"\"" {
+            in_description = true;
+            continue;
+        }
+        if !line.is_empty() {
+            tag_fields.push(line);
+        }
+    }
+    assert_eq!(
+        tag_fields,
+        ["id: ID!", "name: String!", "type: Int!", "count: Int!"],
         "shared Tag shape drifted:\n{}",
         sdl.split("type Tag {")
             .nth(1)

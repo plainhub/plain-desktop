@@ -402,6 +402,8 @@ type MediaHostDuration {
 }
 
 type Mutation {
+	startDiscovery: [NearbyDevice!]!
+	stopDiscovery: Boolean!
 	"""
 	Send a chat message. `target` is the chat target id — a bare peer id
 	(an optional `peer:` prefix is accepted), or a `channel:<id>`
@@ -524,8 +526,19 @@ type Mutation {
 	imageHostStartIndex(force: Boolean!): ImageHostIndexStatus!
 	imageHostIndexSelected(ids: [ID!]!): ImageHostIndexStatus!
 	imageHostCancelIndex: ImageHostIndexStatus!
-	recordClipboard(input: ClipboardRecordInput!): ClipboardRecordResult!
+	"""
+	Write text into the system clipboard on behalf of the calling client.
+	The write is recorded with the caller as source; the local watcher
+	sees it but skips re-broadcasting (hash dedup), so there is no loop.
+	"""
+	setClipboard(text: String!): Boolean!
+	"""
+	Delete clipboard history entries matching the query DSL (`ids:` /
+	`text:`; a bare word is a text LIKE). A blank query is rejected —
+	send `all:true` to target everything.
+	"""
 	deleteClipboardItems(query: String!): ActionResult!
+	recordClipboard(input: ClipboardRecordInput!): ClipboardRecordResult!
 	deleteClipboardItemsByIds(ids: [ID!]!): ActionResult!
 	addBookmarks(urls: [String!]!, groupId: ID!): [Bookmark!]!
 	updateBookmark(id: ID!, input: BookmarkInput!): Bookmark!
@@ -545,6 +558,20 @@ type Mutation {
 	saveImageEditorProject(id: ID!, input: ImageEditorProjectInput!): ImageEditorProject!
 	deleteImageEditorProject(id: ID!): Boolean!
 	broadcastImageEditorUpdate(id: ID!, update: String!): Boolean!
+}
+
+type NearbyDevice {
+	id: String!
+	name: String!
+	ips: [String!]!
+	port: Int!
+	deviceType: String!
+	version: String!
+	platform: String!
+	lastSeen: String!
+	discoveryMethods: [String!]!
+	bestIp: String!
+	status: String!
 }
 
 type Note {
@@ -609,6 +636,12 @@ type PomodoroToday {
 }
 
 type Query {
+	nearbyDevices: [NearbyDevice!]!
+	"""
+	Whether the manual discovery scan loop is running. The nearby page
+	polls this and restarts the scan when another client stopped it.
+	"""
+	isDiscovering: Boolean!
 	"""
 	Latest-first page of one conversation, returned oldest-to-newest so
 	clients can render directly. `target` is the chat target id: a bare
@@ -680,6 +713,9 @@ type Query {
 	imageHostEmbeddingCount: Long!
 	imageHostSearch(embeddingBase64: String!, maxResults: Int!): [ImageHostSearchResult!]!
 	imageHostIndexStatus: ImageHostIndexStatus!
+	"""
+	Paged clipboard history, newest first.
+	"""
 	clipboardItems(query: String!, offset: Int!, limit: Int!): [ClipboardItem!]!
 	clipboardItemCount(query: String!): Int!
 	bookmarks: [Bookmark!]!

@@ -131,6 +131,31 @@ impl Runtime {
             session.browser.send_ptr_query();
         }
     }
+    /// Typed browser snapshot for the shell's mDNS debug surface. The JSON
+    /// snapshot carries the same rows, but a shell rendering a service table
+    /// should not have to re-project them out of a dynamic value.
+    pub(crate) fn browser_snapshot(
+        &self,
+    ) -> Vec<plain_rs::protocols::mdns::service_browser::MdnsServiceSnapshot> {
+        self.session
+            .lock()
+            .unwrap()
+            .as_ref()
+            .map(|session| session.browser.snapshot())
+            .unwrap_or_default()
+    }
+
+    /// Whether the manual scan loop the discovery UI drives is running. This
+    /// is the value behind the `isDiscovering` query, not the host
+    /// responder's own running flag.
+    pub(crate) fn manual_scanning(&self) -> bool {
+        self.session
+            .lock()
+            .unwrap()
+            .as_ref()
+            .is_some_and(|session| session.manual_scanning)
+    }
+
     pub(crate) fn snapshot(&self) -> Value {
         let guard = self.session.lock().unwrap();
         let session = guard.as_ref();

@@ -46,3 +46,25 @@ async fn nearby_snapshot_is_native_private_and_does_not_start_discovery() {
         .await;
     assert!(!response.errors.is_empty());
 }
+
+#[tokio::test]
+async fn is_discovering_reports_the_manual_scan_loop() {
+    let directory = tempfile::tempdir().unwrap();
+    let core = crate::assembly::server::ContentServer::open(directory.path()).unwrap();
+    let native = core.native_graphql().unwrap();
+    let selection = "{ isDiscovering }";
+    let response = native
+        .execute_private(async_graphql::Request::new(selection))
+        .await;
+    assert!(response.errors.is_empty(), "{:?}", response.errors);
+    assert_eq!(
+        response.data.into_json().unwrap()["isDiscovering"],
+        serde_json::json!(false),
+        "a core that never started the scan loop reports no discovery"
+    );
+    assert!(
+        !core.runtime_state().mdns.manual_scanning(),
+        "reading the query must not start the scan loop"
+    );
+    core.stop_core().await;
+}
