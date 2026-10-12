@@ -327,3 +327,46 @@ async fn renaming_the_device_forwards_the_new_name() {
     assert_eq!(data["updateDeviceName"], true);
     assert_eq!(data["relaunchApp"], true);
 }
+
+#[tokio::test]
+async fn local_app_permissions_use_os_grants_without_web_opt_in() {
+    let (_dir, schema) = fixture(|method, _| match method {
+        "systemAppFacts" => json!({
+            "appDir": "/app", "deviceType": "PHONE", "capabilities": [],
+            "buildChannel": "GITHUB", "permissions": ["READ_SMS", "READ_CONTACTS", "RECORD_AUDIO", "UNKNOWN"],
+            "downloadsDir": "/downloads", "debug": false,
+        }),
+        other => panic!("unexpected host call {other}"),
+    });
+    let query = "{ app { permissions } }";
+    for (origin, expected) in [
+        (
+            crate::graphql::executor::RequestOrigin::Local,
+            json!(["READ_SMS", "READ_CONTACTS", "RECORD_AUDIO"]),
+        ),
+        (
+            crate::graphql::executor::RequestOrigin::Remote,
+            json!(["READ_SMS", "RECORD_AUDIO"]),
+        ),
+    ] {
+        let response = schema
+            .execute(async_graphql::Request::new(query).data(origin))
+            .await;
+        assert!(response.errors.is_empty(), "{:?}", response.errors);
+        assert_eq!(
+            response.data.into_json().unwrap()["app"]["permissions"],
+            expected
+        );
+    }
+}
+
+#[tokio::test]
+async fn incomplete_app_facts_fail_instead_of_inventing_platform_values() {
+    let (_dir, schema) = fixture(|method, _| match method {
+        "systemAppFacts" => json!({ "permissions": [] }),
+        other => panic!("unexpected host call {other}"),
+    });
+    let response = schema.execute("{ app { deviceType debug } }").await;
+    assert_eq!(response.errors.len(), 1);
+    assert!(response.errors[0].message.starts_with("invalid app facts:"));
+}

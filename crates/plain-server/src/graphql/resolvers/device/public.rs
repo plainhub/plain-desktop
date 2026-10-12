@@ -224,14 +224,18 @@ impl DeviceQuery {
     /// Everything a client needs to reach this device: its identity, the
     /// port it listens on and the token that authorises it.
     async fn app(&self, ctx: &Context<'_>) -> async_graphql::Result<App> {
-        let facts = host_call(ctx, "systemAppFacts", json!({})).await?;
+        let facts: crate::host::platform::AppFacts = serde_json::from_value(
+            host_call(ctx, crate::host::platform::SYSTEM_APP_FACTS, json!({})).await?,
+        )
+        .map_err(|error| async_graphql::Error::new(format!("invalid app facts: {error}")))?;
         let prefs = ctx.data::<Arc<plain_rs::prefs::Prefs>>()?;
         let user = plain_rs::prefs::user::snapshot(prefs)?;
         let system = plain_rs::prefs::system::snapshot(prefs)?;
-        let grants = crate::graphql::types::facts::strings(&facts, "permissions");
+        let grants = &facts.permissions;
+        let local = crate::http::auth::public_gate::is_local(ctx);
         let mut permissions: Vec<_> = grants
             .iter()
-            .filter(|name| system.api_permissions.contains(name))
+            .filter(|name| local || system.api_permissions.contains(name))
             .filter_map(|name| Permission::parse(name))
             .collect();
         for (name, permission) in [
@@ -247,18 +251,19 @@ impl DeviceQuery {
             url_token: system.url_token,
             http_port: user.http_port,
             https_port: user.https_port,
-            app_dir: text(&facts, "appDir"),
+            app_dir: facts.app_dir,
             device_name: user.device_name,
-            device_type: device_type(&text(&facts, "deviceType")),
-            capabilities: crate::graphql::types::facts::strings(&facts, "capabilities")
+            device_type: device_type(&facts.device_type),
+            capabilities: facts
+                .capabilities
                 .iter()
                 .filter_map(|value| Capability::parse(value))
                 .collect(),
-            build_channel: app_channel(&text(&facts, "buildChannel")),
+            build_channel: app_channel(&facts.build_channel),
             permissions,
-            downloads_dir: text(&facts, "downloadsDir"),
+            downloads_dir: facts.downloads_dir,
             developer_mode: user.developer_mode,
-            debug: flag(&facts, "debug"),
+            debug: facts.debug,
         })
     }
 
