@@ -33,6 +33,27 @@ impl NativeDiscovery {
         Ok(())
     }
 
+    /// Every `_plainapp._tcp.local` instance either browser saw. On macOS
+    /// that includes the system DNS-SD browser, so the debug page shows
+    /// what discovery can actually reach.
+    pub async fn snapshot(
+        &self,
+    ) -> Result<Vec<plain_rs::protocols::mdns::service_browser::MdnsServiceSnapshot>, String> {
+        let _shutdown = self.state.shutdown.lock().await;
+        self.state.native_client_id()?;
+        Ok(self.state.mdns.browser_snapshot())
+    }
+
+    /// The system browser's recent activity, for the debug page. Empty on
+    /// the platforms without one.
+    pub async fn activity(
+        &self,
+    ) -> Result<Vec<crate::services::discovery::local::MdnsActivity>, String> {
+        let _shutdown = self.state.shutdown.lock().await;
+        self.state.native_client_id()?;
+        Ok(self.state.mdns.browser_activity())
+    }
+
     pub async fn browse(&self) -> Result<(), String> {
         let _shutdown = self.state.shutdown.lock().await;
         self.state.native_client_id()?;

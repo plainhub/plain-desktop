@@ -9,8 +9,6 @@ use plain_server::native::peers::{LoginPeer, RemoteLogin};
 #[allow(unused_imports)]
 pub use plain_server::services::discovery::local::MdnsActivity;
 pub use plain_server::services::discovery::local::MdnsFirewallStatus;
-pub use plain_server::services::discovery::local::NearbyDiscoverManager;
-pub use plain_server::services::discovery::local::PeerStatusManager;
 pub use plain_server::services::discovery::local::firewall;
 pub use plain_server::services::discovery::local::macos_dns_sd;
 use std::sync::Arc;
@@ -88,22 +86,18 @@ pub async fn update_peer_name(
 /// instance (raw wire data as parsed) — mirrors `MdnsServiceBrowser.snapshot`.
 #[tauri::command]
 pub async fn mdns_snapshot(
-    state: tauri::State<'_, NearbyDiscoverManager>,
+    core: tauri::State<'_, Arc<ContentServer>>,
 ) -> Result<Vec<plain_rs::protocols::mdns::service_browser::MdnsServiceSnapshot>, String> {
-    let mgr = state.inner().clone();
-    tauri::async_runtime::spawn_blocking(move || mgr.mdns_snapshot())
-        .await
-        .map_err(|e| e.to_string())
+    let core = core.inner().clone();
+    core.native_discovery()?.snapshot().await
 }
 
 #[tauri::command]
 pub async fn mdns_activity(
-    state: tauri::State<'_, NearbyDiscoverManager>,
+    core: tauri::State<'_, Arc<ContentServer>>,
 ) -> Result<Vec<MdnsActivity>, String> {
-    let mgr = state.inner().clone();
-    tauri::async_runtime::spawn_blocking(move || mgr.mdns_activity())
-        .await
-        .map_err(|e| e.to_string())
+    let core = core.inner().clone();
+    core.native_discovery()?.activity().await
 }
 
 #[tauri::command]

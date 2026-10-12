@@ -19,6 +19,10 @@ const WS_MDNS_UPDATED: &'static str = "MDNS_UPDATED";
 static OWNER: tokio::sync::Mutex<Option<String>> = tokio::sync::Mutex::const_new(None);
 struct Session {
     browser: MdnsServiceBrowser,
+    /// macOS only. The system DNS-SD browser sees devices the sandboxed
+    /// browser cannot, which is what nearby discovery is for.
+    #[cfg(target_os = "macos")]
+    system_browser: crate::services::discovery::local::macos_dns_sd::MacDnsSdBrowser,
     hostname: Arc<RwLock<String>>,
     scanning: Arc<AtomicBool>,
     context: Context,
@@ -134,15 +138,35 @@ impl Runtime {
     /// Typed browser snapshot for the shell's mDNS debug surface. The JSON
     /// snapshot carries the same rows, but a shell rendering a service table
     /// should not have to re-project them out of a dynamic value.
+    /// The union the shell's mDNS debug page renders: the sandboxed browser
+    /// plus, on macOS, the system one. A device either browser saw has to
+    /// appear here or the page under-reports what discovery is doing.
     pub(crate) fn browser_snapshot(
         &self,
     ) -> Vec<plain_rs::protocols::mdns::service_browser::MdnsServiceSnapshot> {
-        self.session
-            .lock()
-            .unwrap()
-            .as_ref()
-            .map(|session| session.browser.snapshot())
-            .unwrap_or_default()
+        let guard = self.session.lock().unwrap();
+        let Some(session) = guard.as_ref() else {
+            return Vec::new();
+        };
+        let mut values = session.browser.snapshot();
+        #[cfg(target_os = "macos")]
+        values.extend(session.system_browser.snapshot());
+        values
+    }
+
+    pub(crate) fn browser_activity(&self) -> Vec<crate::services::discovery::local::MdnsActivity> {
+        let guard = self.session.lock().unwrap();
+        let Some(session) = guard.as_ref() else {
+            return Vec::new();
+        };
+        #[cfg(target_os = "macos")]
+        {
+            session.system_browser.activity()
+        }
+        #[cfg(not(target_os = "macos"))]
+        {
+            Vec::new()
+        }
     }
 
     /// Whether the manual scan loop the discovery UI drives is running. This
@@ -204,6 +228,12 @@ impl Runtime {
         let status_db = state.db.clone();
         let status_events = state.events.clone();
         let visible = scanning.clone();
+        let system_observer = observer.clone();
+        let system_visible = visible.clone();
+        let system_weak = weak.clone();
+        let system_events = status_events.clone();
+        let system_status = status.clone();
+        let system_db = status_db.clone();
         let browser = MdnsServiceBrowser::new(id, hostname.clone(), move |found| {
             let Some(runtime) = weak.upgrade() else {
                 return;
@@ -262,8 +292,70 @@ impl Runtime {
         );
         browser.seed_known_addrs(&addrs);
         browser.install_listener();
+        // The system browser reports the same device shape as the sandboxed
+        // one, so it feeds the same observer and the same event stream.
+        #[cfg(target_os = "macos")]
+        let system_browser = {
+            let system_browser =
+                crate::services::discovery::local::macos_dns_sd::MacDnsSdBrowser::new(
+                    move |found| {
+                        let Some(runtime) = system_weak.upgrade() else {
+                            return;
+                        };
+                        if runtime.session.lock().unwrap().is_none() {
+                            return;
+                        }
+                        let id = found.id.clone();
+                        let device = plain_rs::discovery::nearby_devices::Device {
+                            id: found.id,
+                            name: found.name,
+                            ips: found.ips,
+                            port: found.port,
+                            device_type: serde_json::from_value(json!(found.device_type))
+                                .unwrap_or(plain_rs::chat::enums::DeviceType::Other)
+                                .as_str()
+                                .into(),
+                            version: found.version,
+                            platform: found.platform,
+                            last_seen: plain_rs::db::now_iso(),
+                            discovery_methods: vec!["DNS_SD".into()],
+                        };
+                        match system_observer.seen(
+                            device,
+                            system_visible.load(Ordering::SeqCst),
+                            true,
+                        ) {
+                            Ok(true) => {
+                                if system_visible.load(Ordering::SeqCst)
+                                    && system_status
+                                        .connections
+                                        .hint(&system_db, &id)
+                                        .unwrap_or(false)
+                                {
+                                    let _ =
+                                        system_events.send(plain_rs::events::WsEvent::broadcast(
+                                            plain_rs::chat::events::WS_PEER_STATUS_UPDATED,
+                                            json!({"id":id,"online":true}).to_string(),
+                                        ));
+                                }
+                                runtime.emit(
+                                    &system_observer,
+                                    Some(&id),
+                                    system_visible.load(Ordering::SeqCst),
+                                );
+                            }
+                            Ok(false) => {}
+                            Err(error) => log::warn!("system DNS-SD observation: {error}"),
+                        }
+                    },
+                );
+            system_browser.start();
+            system_browser
+        };
         *self.session.lock().unwrap() = Some(Session {
             browser,
+            #[cfg(target_os = "macos")]
+            system_browser,
             hostname: hostname.clone(),
             scanning,
             context,
