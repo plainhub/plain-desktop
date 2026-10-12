@@ -9,7 +9,7 @@ use crate::assembly::server::ServerState;
 use axum::{
     body::Body,
     extract::{Query, State},
-    http::{StatusCode, header},
+    http::{header, StatusCode},
     response::{IntoResponse, Response},
 };
 use serde::Deserialize;
@@ -21,6 +21,8 @@ use std::{
 
 const ZIP_SEPARATOR: &str = "!zip!/";
 const MAX_ENTRIES: usize = 100_000;
+
+static NEXT_STAGING: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
 
 #[derive(Deserialize)]
 pub(crate) struct Params {
@@ -121,6 +123,7 @@ fn walk_directory(
 fn collect_archive_entries(
     archive: &Path,
     inner: &str,
+    staging: &Staging,
     out: &mut Vec<(PathBuf, String)>,
 ) -> anyhow::Result<()> {
     let file = std::fs::File::open(archive)?;
@@ -141,12 +144,7 @@ fn collect_archive_entries(
         if relative.is_empty() || relative.contains("..") || out.len() >= MAX_ENTRIES {
             continue;
         }
-        let staging = std::env::temp_dir().join(format!(
-            "plain-zip-entry-{}-{}",
-            std::process::id(),
-            out.len()
-        ));
-        let mut target = std::fs::File::create(&staging)?;
+        let mut target = std::fs::File::create(staging.entry_path(out.len()))?;
         let mut buffer = vec![0; 64 * 1024];
         loop {
             let read = entry.read(&mut buffer)?;
@@ -155,19 +153,33 @@ fn collect_archive_entries(
             }
             target.write_all(&buffer[..read])?;
         }
-        out.push((staging, relative));
+        out.push((staging.entry_path(out.len()), relative));
     }
     Ok(())
 }
 
+/// Extracted entries of one request, deleted with the directory when it ends.
 struct Staging {
-    paths: Vec<PathBuf>,
+    directory: PathBuf,
 }
+
+impl Staging {
+    fn create() -> std::io::Result<Self> {
+        let sequence = NEXT_STAGING.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+        let directory =
+            std::env::temp_dir().join(format!("plain-zip-{}-{sequence}", std::process::id()));
+        std::fs::create_dir_all(&directory)?;
+        Ok(Self { directory })
+    }
+
+    fn entry_path(&self, index: usize) -> PathBuf {
+        self.directory.join(format!("{index}.entry"))
+    }
+}
+
 impl Drop for Staging {
     fn drop(&mut self) {
-        for path in &self.paths {
-            let _ = std::fs::remove_file(path);
-        }
+        let _ = std::fs::remove_dir_all(&self.directory);
     }
 }
 
@@ -175,10 +187,10 @@ async fn stream_archive(
     state: &ServerState,
     items: Vec<(PathBuf, String)>,
     name: &str,
-    staging: Vec<PathBuf>,
+    staging: Option<Staging>,
     permit: tokio::sync::OwnedSemaphorePermit,
 ) -> Response {
-    let _guard = Staging { paths: staging };
+    let _staging = staging;
     let reader = match state
         .archives
         .build(items, permit, state.stop.clone())
@@ -235,7 +247,7 @@ async fn zip_dir(
                 .map(|value| value.to_string_lossy().to_string())
                 .unwrap_or_default()
         );
-        return stream_archive(state, items, &name, Vec::new(), permit).await;
+        return stream_archive(state, items, &name, None, permit).await;
     }
     if !desktop_access_allowed(state) {
         return plain(StatusCode::FORBIDDEN, "");
@@ -264,13 +276,18 @@ async fn zip_dir(
         return plain(StatusCode::BAD_REQUEST, "");
     }
     if let Some((archive, inner)) = split_zip_path(&path) {
+        let staging = match Staging::create() {
+            Ok(staging) => staging,
+            Err(_) => {
+                return plain(
+                    StatusCode::INTERNAL_SERVER_ERROR,
+                    "Failed to stage the archive",
+                )
+            }
+        };
         let mut items = Vec::new();
-        let mut staging = Vec::new();
-        if collect_archive_entries(&archive, &inner, &mut items).is_err() {
+        if collect_archive_entries(&archive, &inner, &staging, &mut items).is_err() {
             return plain(StatusCode::BAD_REQUEST, "Failed to read the archive");
-        }
-        for (item_path, _) in &items {
-            staging.push(item_path.clone());
         }
         let folder = if inner.is_empty() {
             archive
@@ -304,7 +321,7 @@ async fn zip_dir(
     } else {
         json_name
     };
-    stream_archive(state, items, &name, Vec::new(), permit).await
+    stream_archive(state, items, &name, None, permit).await
 }
 
 async fn zip_files(
@@ -374,7 +391,7 @@ async fn zip_files(
     } else {
         request.name
     };
-    stream_archive(state, items, &name, Vec::new(), permit).await
+    stream_archive(state, items, &name, None, permit).await
 }
 
 pub(crate) async fn dir(

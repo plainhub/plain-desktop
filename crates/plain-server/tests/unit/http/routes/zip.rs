@@ -53,3 +53,118 @@ fn zip_files_requests_default_every_field() {
     assert!(request.id.is_empty());
     assert!(request.name.is_empty());
 }
+
+fn write_archive(path: &Path, files: &[(&str, &[u8])]) {
+    let mut writer = zip::ZipWriter::new(std::fs::File::create(path).unwrap());
+    let options = zip::write::SimpleFileOptions::default()
+        .compression_method(zip::CompressionMethod::Deflated);
+    for (name, body) in files {
+        writer.start_file(*name, options).unwrap();
+        writer.write_all(body).unwrap();
+    }
+    writer.finish().unwrap();
+}
+
+fn scratch(name: &str) -> PathBuf {
+    let dir = std::env::temp_dir().join(format!(
+        "plain_zip_test_{}_{}_{}",
+        name,
+        std::process::id(),
+        NEXT_STAGING.fetch_add(1, std::sync::atomic::Ordering::Relaxed)
+    ));
+    std::fs::create_dir_all(&dir).unwrap();
+    dir
+}
+
+#[test]
+fn every_request_stages_into_its_own_directory() {
+    let first = Staging::create().unwrap();
+    let second = Staging::create().unwrap();
+    assert_ne!(
+        first.directory, second.directory,
+        "two requests must not share one staging directory"
+    );
+
+    std::fs::write(first.entry_path(0), b"first").unwrap();
+    std::fs::write(second.entry_path(0), b"second").unwrap();
+
+    assert_eq!(std::fs::read(first.entry_path(0)).unwrap(), b"first");
+    assert_eq!(
+        std::fs::read(second.entry_path(0)).unwrap(),
+        b"second",
+        "a concurrent zip must not overwrite another request's entry"
+    );
+}
+
+#[test]
+fn a_request_with_many_entries_keeps_them_apart() {
+    let staging = Staging::create().unwrap();
+    std::fs::write(staging.entry_path(0), b"one").unwrap();
+    std::fs::write(staging.entry_path(1), b"two").unwrap();
+
+    assert_ne!(staging.entry_path(0), staging.entry_path(1));
+    assert_eq!(std::fs::read(staging.entry_path(1)).unwrap(), b"two");
+}
+
+#[test]
+fn staged_entries_disappear_when_the_request_ends() {
+    let staging = Staging::create().unwrap();
+    std::fs::write(staging.entry_path(0), b"payload").unwrap();
+    let directory = staging.directory.clone();
+    assert!(directory.is_dir());
+
+    drop(staging);
+
+    assert!(
+        !directory.exists(),
+        "the staging directory outlived the request"
+    );
+}
+
+#[test]
+fn archive_entries_are_extracted_into_the_request_directory() {
+    let dir = scratch("extract");
+    let archive = dir.join("pack.zip");
+    write_archive(&archive, &[("a.txt", b"alpha"), ("sub/b.txt", b"beta")]);
+    let staging = Staging::create().unwrap();
+    let mut items = Vec::new();
+
+    collect_archive_entries(&archive, "", &staging, &mut items).unwrap();
+
+    assert_eq!(items.len(), 2);
+    let mut names: Vec<String> = items.iter().map(|(_, name)| name.clone()).collect();
+    names.sort();
+    assert_eq!(names, vec!["a.txt", "sub/b.txt"]);
+    for (path, _) in &items {
+        assert_eq!(
+            path.parent(),
+            Some(staging.directory.as_path()),
+            "entries must live inside this request's staging directory"
+        );
+        assert!(path.is_file());
+    }
+    assert_eq!(std::fs::read(&items[0].0).unwrap(), b"alpha");
+    assert_eq!(std::fs::read(&items[1].0).unwrap(), b"beta");
+    std::fs::remove_dir_all(&dir).ok();
+}
+
+#[test]
+fn an_unreadable_archive_leaves_no_staged_files_behind() {
+    let dir = scratch("broken");
+    let archive = dir.join("broken.zip");
+    std::fs::write(&archive, b"not a zip at all").unwrap();
+    let staging = Staging::create().unwrap();
+    let directory = staging.directory.clone();
+    let mut items = Vec::new();
+
+    let failed = collect_archive_entries(&archive, "", &staging, &mut items).is_err();
+
+    assert!(failed);
+    assert!(items.is_empty());
+    drop(staging);
+    assert!(
+        !directory.exists(),
+        "a failed request must not leave staging files behind"
+    );
+    std::fs::remove_dir_all(&dir).ok();
+}
