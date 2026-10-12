@@ -10,7 +10,6 @@ use tokio::sync::broadcast::Receiver;
 #[tauri::command]
 pub async fn native_events(
     core: tauri::State<'_, Arc<ContentServer>>,
-    prefs: tauri::State<'_, Arc<crate::prefs::Prefs>>,
     on_event: Channel<InvokeResponseBody>,
 ) -> Result<(), String> {
     let executor = core.native_graphql()?;
@@ -18,8 +17,7 @@ pub async fn native_events(
     let cid = executor.client_id().to_owned();
 
     // Encrypting text payloads keeps every frame byte-identical to the local chat socket's.
-    let key =
-        plain_rs::utils::base64::base64_decode(&crate::prefs::ensure_url_token(prefs.inner()));
+    let key = plain_rs::utils::base64::base64_decode(&core.native_url_token()?);
     if key.len() != 32 {
         return Err("local event token unavailable".into());
     }
