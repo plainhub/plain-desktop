@@ -140,3 +140,147 @@ fn video_cleanup_keeps_other_types_and_move_keeps_user_tags() {
     })
     .unwrap();
 }
+
+fn catalog_file(path: &str) -> crate::db::MediaFileMetadata {
+    crate::db::MediaFileMetadata {
+        data_type: DataType::Doc,
+        path: path.into(),
+        title: "document".into(),
+        artist: String::new(),
+        bucket_id: "/library".into(),
+        size_bytes: 10,
+        duration_ms: 0,
+        album_file_id: String::new(),
+        width: 0,
+        height: 0,
+        rotation: 0,
+        taken_at: None,
+        created_at: "created".into(),
+        updated_at: "updated".into(),
+    }
+}
+
+#[test]
+fn confirmed_actions_preserve_catalog_identity_and_restore_the_original_path() {
+    let db = test_db("catalog_action_state");
+    let original = db
+        .record_media_files(&[catalog_file("/library/document.txt")])
+        .unwrap()
+        .remove(0);
+    db.with_conn(|conn| {
+        conn.execute(
+            "UPDATE media_files SET is_favorite=1 WHERE id=?1",
+            [&original.id],
+        )
+    })
+    .unwrap();
+    let mut receipt = item(&original.id, &original.path);
+    receipt.destination_path = "/.plain-trash/document.txt".into();
+    cleanup(&db, DataType::Doc, Action::Trash, &[receipt.clone()]).unwrap();
+    let trash = db
+        .media_file_by_path(DataType::Doc, &receipt.destination_path)
+        .unwrap()
+        .unwrap();
+    assert!(trash.is_trashed);
+    assert!(trash.is_favorite);
+    assert_eq!(trash.id, original.id);
+    assert_eq!(trash.original_path, Some(original.path.clone()));
+    cleanup(
+        &db,
+        DataType::Doc,
+        Action::Restore,
+        &[item(&trash.id, &trash.path)],
+    )
+    .unwrap();
+    let restored = db
+        .media_file_by_path(DataType::Doc, &original.path)
+        .unwrap()
+        .unwrap();
+    assert!(!restored.is_trashed);
+    assert_eq!(restored.original_path, None);
+    assert_eq!(restored.created_at, original.created_at);
+    receipt.path = restored.path;
+    receipt.destination_path = "/other/renamed.pdf".into();
+    cleanup(&db, DataType::Doc, Action::Move, &[receipt.clone()]).unwrap();
+    let moved = db
+        .media_file_by_path(DataType::Doc, &receipt.destination_path)
+        .unwrap()
+        .unwrap();
+    assert_eq!(moved.id, original.id);
+    assert_eq!(moved.bucket_id, "/other");
+    assert!(moved.is_favorite);
+    cleanup(
+        &db,
+        DataType::Doc,
+        Action::Delete,
+        &[item(&moved.id, &moved.path)],
+    )
+    .unwrap();
+    assert!(
+        db.media_file_by_path(DataType::Doc, &moved.path)
+            .unwrap()
+            .is_none()
+    );
+}
+
+#[test]
+fn stale_receipts_and_catalog_sql_failures_do_not_commit_partial_updates() {
+    let db = test_db("catalog_action_atomic");
+    let files = db
+        .record_media_files(&[
+            catalog_file("/library/one.txt"),
+            catalog_file("/library/two.txt"),
+        ])
+        .unwrap();
+    assert!(
+        cleanup(
+            &db,
+            DataType::Doc,
+            Action::Delete,
+            &[item(&files[0].id, "/wrong/path")]
+        )
+        .is_err()
+    );
+    let mut first = item(&files[0].id, &files[0].path);
+    first.destination_path = "/.plain-trash/first.txt".into();
+    assert!(
+        cleanup(
+            &db,
+            DataType::Doc,
+            Action::Trash,
+            &[first, item(&files[1].id, "/wrong/path")]
+        )
+        .is_err()
+    );
+    assert!(
+        !db.media_file_by_path(DataType::Doc, &files[0].path)
+            .unwrap()
+            .unwrap()
+            .is_trashed
+    );
+    db.with_conn(|conn| conn.execute_batch("CREATE TRIGGER reject_catalog_delete BEFORE DELETE ON media_files BEGIN SELECT RAISE(ABORT,'synthetic failure'); END;")).unwrap();
+    assert!(
+        cleanup(
+            &db,
+            DataType::Doc,
+            Action::Delete,
+            &[item(&files[0].id, &files[0].path)]
+        )
+        .is_err()
+    );
+    assert!(
+        db.media_file_by_path(DataType::Doc, &files[0].path)
+            .unwrap()
+            .is_some()
+    );
+    db.with_conn(|conn| conn.execute_batch("DROP TRIGGER reject_catalog_delete;"))
+        .unwrap();
+    let mut conflict = item(&files[0].id, &files[0].path);
+    conflict.destination_path = files[1].path.clone();
+    assert!(cleanup(&db, DataType::Doc, Action::Move, &[conflict]).is_err());
+    assert!(
+        db.media_file_by_path(DataType::Doc, &files[0].path)
+            .unwrap()
+            .is_some()
+    );
+}
