@@ -270,3 +270,4 @@ fn tag_strings(tagged_file: &lofty::file::TaggedFile) -> (String, String) {
 mod tests;
 
 pub mod audio;
+pub mod file_facts;

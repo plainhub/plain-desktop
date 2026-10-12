@@ -1,0 +1,174 @@
+//! Per-file metadata facts read straight from the OS: canonical path,
+//! bucket, size, timestamps, probe results and image dimensions.
+//!
+//! Read-only by construction — stat, one tag/container probe and one image
+//! header read. No catalog, prefs, KV, index, watch or cache write, and no
+//! id / favorite / trash / original-path field: those belong to the core
+//! catalog that persists these rows.
+//!
+//! Error vs unknown: a path that cannot be resolved, is not a regular file,
+//! is not expressible as UTF-8, or cannot be stat'ed or timestamped is an
+//! `Err` — never a fabricated row. A fact the OS simply does not carry
+//! (EXIF capture time, EXIF orientation outside JPEG, pixel dimensions of a
+//! format the enabled `image` features cannot decode) is not an error: it
+//! follows the existing unknown convention, `0` / `None` / empty string, so
+//! a valid HEIC/AVIF still produces a row instead of leaving the scan.
+
+use anyhow::{Context, Result, bail};
+use chrono::{DateTime, Utc};
+use plain_rs::db::MediaFileMetadata;
+use plain_rs::enums::DataType;
+use std::fs::{File, Metadata};
+use std::io::Read;
+use std::path::Path;
+use std::time::{Duration, SystemTime};
+
+/// Leading window the JPEG APP1/EXIF segment lives in.
+const EXIF_HEAD_BYTES: u64 = 128 * 1024;
+
+/// Read the metadata of one media file into the row the catalog stores.
+///
+/// `data_type` must be one the media index covers (audio / video / image /
+/// doc, as `DataType::media_type_str` names them).
+pub fn read_file_metadata(path: &Path, data_type: DataType) -> Result<MediaFileMetadata> {
+    let kind = data_type
+        .media_type_str()
+        .with_context(|| format!("{data_type:?} is not a media data type"))?;
+    let canonical = path
+        .canonicalize()
+        .with_context(|| format!("cannot resolve media path {}", path.display()))?;
+    let meta = std::fs::metadata(&canonical)
+        .with_context(|| format!("cannot stat {}", canonical.display()))?;
+    if !meta.is_file() {
+        bail!("{} is not a regular file", canonical.display());
+    }
+    let path_str = canonical
+        .to_str()
+        .with_context(|| format!("{} is not valid UTF-8", canonical.display()))?
+        .to_string();
+    let bucket_id = canonical
+        .parent()
+        .and_then(|p| p.to_str())
+        .with_context(|| format!("{path_str} has no parent directory"))?
+        .to_string();
+    let size_bytes = i64::try_from(meta.len())
+        .with_context(|| format!("{path_str} is larger than the row can store"))?;
+    let modified = meta
+        .modified()
+        .with_context(|| format!("{path_str} has no readable modified time"))?;
+
+    let probed = super::probe_media(&path_str, kind);
+    let duration_ms = i64::from(probed.duration_secs)
+        .checked_mul(1000)
+        .context("duration in milliseconds does not fit the row")?;
+    let (width, height, rotation, taken_at) = image_facts(&canonical, kind);
+
+    Ok(MediaFileMetadata {
+        data_type,
+        title: if probed.title.is_empty() {
+            file_stem(&path_str)
+        } else {
+            probed.title
+        },
+        artist: probed.artist,
+        path: path_str,
+        bucket_id,
+        size_bytes,
+        duration_ms,
+        album_file_id: String::new(),
+        width,
+        height,
+        rotation,
+        taken_at,
+        created_at: created_at_of(birth_time(&meta), modified),
+        updated_at: rfc3339_utc(modified),
+    })
+}
+
+/// File name without its extension, the title fallback a tagless file has
+/// no better answer for.
+fn file_stem(path: &str) -> String {
+    Path::new(path)
+        .file_stem()
+        .and_then(|s| s.to_str())
+        .unwrap_or(path)
+        .to_string()
+}
+
+/// UTC RFC3339 rendering of a filesystem timestamp.
+fn rfc3339_utc(at: SystemTime) -> String {
+    let at: DateTime<Utc> = at.into();
+    at.to_rfc3339()
+}
+
+/// Creation time, falling back to modified time on the filesystems that
+/// record no birth time.
+fn created_at_of(birth: Option<SystemTime>, modified: SystemTime) -> String {
+    birth.map_or_else(|| rfc3339_utc(modified), rfc3339_utc)
+}
+
+/// Birth time in unix seconds, `None` where the OS records none (the
+/// unix branch reads 0 on filesystems without it, the Windows FILETIME is
+/// rebased on the same epoch as `catalog::uuid`).
+fn birth_unix_secs(meta: &Metadata) -> Option<i64> {
+    #[cfg(unix)]
+    let secs = {
+        use std::os::unix::fs::MetadataExt;
+        meta.birthtime()
+    };
+    #[cfg(windows)]
+    let secs = {
+        use std::os::windows::fs::MetadataExt;
+        let file_time = meta.creation_time();
+        (file_time.saturating_sub(116_444_736_000_000_000) / 10_000_000) as i64
+    };
+    #[cfg(not(any(unix, windows)))]
+    let secs = 0;
+    (secs > 0).then_some(secs)
+}
+
+fn birth_time(meta: &Metadata) -> Option<SystemTime> {
+    birth_unix_secs(meta).map(|secs| SystemTime::UNIX_EPOCH + Duration::from_secs(secs as u64))
+}
+
+/// Pixel and orientation facts. Every kind but image, and every format the
+/// enabled `image` features cannot decode, reads as unknown (0/0/0/none).
+fn image_facts(path: &Path, kind: &str) -> (i32, i32, i32, Option<String>) {
+    if kind != "image" {
+        return (0, 0, 0, None);
+    }
+    let dimensions = image::ImageReader::open(path)
+        .ok()
+        .and_then(|reader| reader.into_dimensions().ok());
+    let (width, height) = match dimensions {
+        Some((w, h)) => (
+            i32::try_from(w).unwrap_or_default(),
+            i32::try_from(h).unwrap_or_default(),
+        ),
+        None => (0, 0),
+    };
+    (width, height, jpeg_rotation(path), None)
+}
+
+/// Clockwise rotation the EXIF orientation tag asks for. The mirrored
+/// orientations (2/4/5/7) have no rotation-only equivalent and read as 0.
+fn jpeg_rotation(path: &Path) -> i32 {
+    let mut head = Vec::new();
+    if File::open(path)
+        .and_then(|file| file.take(EXIF_HEAD_BYTES).read_to_end(&mut head))
+        .is_err()
+        || !head.starts_with(&[0xFF, 0xD8])
+    {
+        return 0;
+    }
+    match crate::previews::images::exif::orientation(&head) {
+        Some(3) => 180,
+        Some(6) => 90,
+        Some(8) => 270,
+        _ => 0,
+    }
+}
+
+#[cfg(test)]
+#[path = "../../tests/unit/metadata/file_facts.rs"]
+mod tests;
