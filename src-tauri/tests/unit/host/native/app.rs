@@ -11,7 +11,9 @@ fn app_dir_is_the_files_directory_below_the_data_directory() {
 
 #[test]
 fn a_relative_data_directory_is_rejected() {
-    let error = app_facts(Path::new("data/plain"), Vec::new()).expect_err("relative directory");
+    let Err(error) = app_facts(Path::new("data/plain"), Vec::new()) else {
+        panic!("a relative data directory must be rejected");
+    };
     assert!(error.contains("absolute"), "{error}");
 }
 

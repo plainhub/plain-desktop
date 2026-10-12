@@ -100,8 +100,11 @@ fn events_addressed_to_this_client_are_delivered() {
     let event = WsEvent::targeted("CHAT_MESSAGE", "{}".to_string(), CID);
 
     assert_eq!(
-        encode_event(&event, CID, &KEY),
-        ws_frame::encode("CHAT_MESSAGE", b"{}", &KEY)
+        ws_frame::decode(
+            &encode_event(&event, CID, &KEY).expect("an encodable frame"),
+            &KEY
+        ),
+        Some(("CHAT_MESSAGE".to_string(), b"{}".to_vec()))
     );
 }
 
@@ -110,8 +113,11 @@ fn broadcast_events_reach_every_client() {
     let event = text_event("broadcast");
 
     assert_eq!(
-        encode_event(&event, "window-chat", &KEY),
-        ws_frame::encode("CHAT_MESSAGE", b"broadcast", &KEY)
+        ws_frame::decode(
+            &encode_event(&event, "window-chat", &KEY).expect("an encodable frame"),
+            &KEY
+        ),
+        Some(("CHAT_MESSAGE".to_string(), b"broadcast".to_vec()))
     );
 }
 
@@ -130,10 +136,17 @@ fn text_events_are_encrypted_with_the_url_token() {
     let event = text_event("{\"id\":1}");
     let frame = encode_event(&event, CID, &KEY).expect("an encodable frame");
 
-    assert_eq!(frame, ws_frame::encode("CHAT_MESSAGE", b"{\"id\":1}", &KEY));
+    assert_eq!(
+        ws_frame::decode(&frame, &KEY),
+        Some(("CHAT_MESSAGE".to_string(), b"{\"id\":1}".to_vec()))
+    );
     assert_ne!(
         frame,
-        ws_frame::encode_raw("CHAT_MESSAGE", b"{\"id\":1}"),
+        ws_frame::encode_raw("CHAT_MESSAGE", b"{\"id\":1}").expect("a raw frame"),
         "a text frame must not stay readable on the wire"
+    );
+    assert!(
+        !frame.windows(9).any(|window| window == b"CHAT_MESS".get(..6).unwrap_or(&[])),
+        "the event name must be the only plaintext part of the frame"
     );
 }

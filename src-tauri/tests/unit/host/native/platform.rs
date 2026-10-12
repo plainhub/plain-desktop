@@ -94,8 +94,12 @@ fn reported_disks_are_backed_by_a_real_device() {
             disk.path
         );
         assert!(!disk.name.is_empty());
-        assert!(!facts.disks.iter().any(|other| other.path == disk.path));
     }
+    let mut paths: Vec<&str> = facts.disks.iter().map(|disk| disk.path.as_str()).collect();
+    paths.sort_unstable();
+    let count = paths.len();
+    paths.dedup();
+    assert_eq!(paths.len(), count, "the same mount point is listed twice");
 }
 
 #[test]
@@ -107,8 +111,9 @@ fn a_readable_host_without_disks_is_an_empty_list() {
 
 #[test]
 fn an_unreadable_host_reports_the_operating_system_error() {
-    let error = disks_facts(Err("cannot read /proc/self/mounts".to_string()))
-        .expect_err("a failed read must not look like an empty host");
+    let Err(error) = disks_facts(Err("cannot read /proc/self/mounts".to_string())) else {
+        panic!("a failed read must not look like an empty host");
+    };
 
     assert_eq!(error, "cannot read /proc/self/mounts");
 }

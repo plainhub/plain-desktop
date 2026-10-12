@@ -45,6 +45,7 @@ where
 {
     loop {
         let received = tokio::select! {
+            biased;
             () = wait_stopped() => return None,
             received = events.recv() => received,
         };
