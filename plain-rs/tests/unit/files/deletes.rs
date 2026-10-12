@@ -219,3 +219,75 @@ fn directory_prefix_uses_the_same_separator_as_native_canonical_paths() {
     assert_eq!(directory_prefix(r"C:\root"), r"C:\root\");
     assert_eq!(directory_prefix("C:/root"), "C:/root/");
 }
+
+/// A watcher sees the file leave the filesystem and reports the one path.
+/// Everything keyed to that row has to go with it, or the catalog keeps
+/// offering media that no longer exists.
+#[test]
+fn forgetting_a_path_drops_the_row_and_its_associated_state() {
+    let db = Db::open(std::path::Path::new(":memory:")).unwrap();
+    db.record_media_files(&[
+        catalog_file(DataType::Video, "/root/gone.mp4"),
+        catalog_file(DataType::Video, "/root/kept.mp4"),
+    ])
+    .unwrap();
+    let gone = db
+        .media_file_by_path(DataType::Video, "/root/gone.mp4")
+        .unwrap()
+        .unwrap();
+    db.with_conn(|c| -> rusqlite::Result<()> {
+        c.execute(
+            "INSERT INTO tag_relations(tag_id,key,type,created_at,size,title) VALUES('media',?1,2,'first',1,'title')",
+            [&gone.id],
+        )?;
+        c.execute(
+            "INSERT INTO video_play_progress(media_id,position_ms,updated_at) VALUES(?1,123,'first')",
+            [&gone.id],
+        )?;
+        c.execute(
+            "INSERT INTO image_embeddings(id,path,embedding,created_at,updated_at) VALUES(?1,?2,x'3f800000','first','first')",
+            params![&gone.id, &gone.path],
+        )?;
+        Ok(())
+    })
+    .unwrap();
+
+    assert_eq!(db.forget_media_file("/root/gone.mp4").unwrap(), 1);
+    assert!(
+        db.media_file_by_path(DataType::Video, "/root/gone.mp4")
+            .unwrap()
+            .is_none()
+    );
+    assert!(
+        db.media_file_by_path(DataType::Video, "/root/kept.mp4")
+            .unwrap()
+            .is_some(),
+        "forgetting one path must not touch a sibling"
+    );
+    db.with_conn(|c| -> rusqlite::Result<()> {
+        let tags: i64 = c.query_row(
+            "SELECT COUNT(*) FROM tag_relations WHERE key=?1",
+            [&gone.id],
+            |row| row.get(0),
+        )?;
+        let progress: i64 = c.query_row(
+            "SELECT COUNT(*) FROM video_play_progress WHERE media_id=?1",
+            [&gone.id],
+            |row| row.get(0),
+        )?;
+        let embeddings: i64 = c.query_row(
+            "SELECT COUNT(*) FROM image_embeddings WHERE id=?1",
+            [&gone.id],
+            |row| row.get(0),
+        )?;
+        assert_eq!((tags, progress, embeddings), (0, 0, 0));
+        Ok(())
+    })
+    .unwrap();
+
+    assert_eq!(
+        db.forget_media_file("/root/absent.mp4").unwrap(),
+        0,
+        "a path that was never catalogued is not an error"
+    );
+}

@@ -93,6 +93,41 @@ impl Db {
         })
     }
 
+    /// Forget one catalogued path and everything keyed to it. A filesystem
+    /// watcher reports the file is gone; without this the row and its
+    /// tag, duration and embedding rows would outlive it.
+    pub fn forget_media_file(&self, path: &str) -> rusqlite::Result<usize> {
+        self.with_conn(|conn| {
+            let tx = conn.unchecked_transaction()?;
+            let mut statement = tx.prepare("SELECT data_type,id FROM media_files WHERE path=?1")?;
+            let rows = statement
+                .query_map([path], |row| {
+                    Ok((row.get::<_, i64>(0)?, row.get::<_, String>(1)?))
+                })?
+                .collect::<rusqlite::Result<Vec<_>>>()?;
+            drop(statement);
+            for (data_type, id) in &rows {
+                tx.execute(
+                    "DELETE FROM tag_relations WHERE type=?1 AND key=?2",
+                    params![data_type, id],
+                )?;
+                tx.execute("DELETE FROM image_embeddings WHERE id=?1", params![id])?;
+                // Playback position is keyed by the video's own id.
+                tx.execute(
+                    "DELETE FROM video_play_progress WHERE media_id=?1",
+                    params![id],
+                )?;
+            }
+            tx.execute(
+                "DELETE FROM media_item WHERE media_id=?1",
+                params![rows.first().map(|(_, id)| id.clone())],
+            )?;
+            let removed = tx.execute("DELETE FROM media_files WHERE path=?1", params![path])?;
+            tx.commit()?;
+            Ok(removed)
+        })
+    }
+
     pub fn media_file_list(
         &self,
         data_type: DataType,
