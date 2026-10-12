@@ -64,19 +64,19 @@ fn headers_to_map(headers: &HeaderMap) -> HashMap<String, String> {
         .collect()
 }
 
-async fn device_name(state: &ServerState) -> String {
-    state
-        .host
-        .call("systemCastAddressFacts", json!({}))
-        .await
-        .ok()
-        .and_then(|value| {
-            value
-                .get("senderName")
-                .and_then(Value::as_str)
-                .map(String::from)
-        })
-        .unwrap_or_default()
+async fn device_name(state: &ServerState) -> Result<String, String> {
+    let settings =
+        plain_rs::prefs::user::snapshot(&state.prefs).map_err(|error| error.to_string())?;
+    if !settings.device_name.is_empty() {
+        return Ok(settings.device_name);
+    }
+    let facts = state.host.call("systemCastAddressFacts", json!({})).await?;
+    facts
+        .get("defaultDeviceName")
+        .and_then(Value::as_str)
+        .filter(|name| !name.is_empty())
+        .map(String::from)
+        .ok_or_else(|| "Missing cast device name".to_string())
 }
 
 /// The address the SSDP LOCATION points at and the device description
@@ -122,6 +122,14 @@ pub(crate) async fn receiver(
     // forged `c-ip` would otherwise be able to impersonate a trusted sender.
     let sender_ip = peer.ip().to_string();
 
+    let name = match device_name(&state).await {
+        Ok(name) => name,
+        Err(error) => {
+            log::error!("DLNA device name failed: {error}");
+            return StatusCode::INTERNAL_SERVER_ERROR.into_response();
+        }
+    };
+
     let response = crate::services::casting::receiver::http_router::route(
         &state.dlna.state,
         parts.method.as_str(),
@@ -129,7 +137,7 @@ pub(crate) async fn receiver(
         &headers,
         &body,
         state.dlna.device_uuid(),
-        &device_name(&state).await,
+        &name,
         &local_ip(),
         &sender_ip,
         // The channel exists from construction: these routes answer as soon

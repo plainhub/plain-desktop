@@ -124,6 +124,7 @@ async fn receiver_paths_answer_only_while_the_toggle_and_service_are_on() {
         "expected a device description, got {body}"
     );
     assert!(body.contains(server.runtime_state().dlna.device_uuid()));
+    assert!(body.contains("Test Phone"));
 
     // The service description documents are static and served the same way.
     for path in ["/AVTransport/scpd.xml", "/RenderingControl/scpd.xml"] {
@@ -434,4 +435,38 @@ async fn an_oversized_control_request_never_reaches_the_protocol() {
     assert!(after.pending_cast_request.is_none());
     assert!(after.media_uri.is_empty());
     drop(dir);
+}
+
+#[tokio::test]
+async fn receiver_name_uses_platform_default_and_core_setting() {
+    let (_dir, server) = fixture();
+    let state = server.runtime_state();
+    state.prefs.set_user("device_name", "").unwrap();
+    assert_eq!(device_name(state).await.unwrap(), "Test Phone");
+    state
+        .prefs
+        .set_user("device_name", "Shared Renderer")
+        .unwrap();
+    assert_eq!(device_name(state).await.unwrap(), "Shared Renderer");
+    let (_generation, _requests) = state.host.connect();
+    assert_eq!(device_name(state).await.unwrap(), "Shared Renderer");
+}
+
+#[tokio::test]
+async fn receiver_name_rejects_missing_platform_name() {
+    let (_dir, server) = fixture();
+    let state = server.runtime_state();
+    state.prefs.set_user("device_name", "").unwrap();
+    let host = state.host.clone();
+    let (generation, mut requests) = host.connect();
+    let reply = tokio::spawn(async move {
+        let request = requests.recv().await.unwrap();
+        host.reply(
+            generation,
+            json!({"id":request["id"],"result":{"ip":"127.0.0.1"}}),
+        )
+        .unwrap();
+    });
+    assert!(device_name(state).await.is_err());
+    reply.await.unwrap();
 }
