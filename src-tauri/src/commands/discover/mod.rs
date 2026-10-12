@@ -4,7 +4,8 @@
 pub(crate) use plain_rs::protocols::mdns::host_responder::get_best_ip as discover_get_best_ip;
 pub(crate) use plain_rs::protocols::mdns::host_responder::local_ipv4_strs as discover_local_ipv4_strs;
 use plain_server::assembly::enums::DeviceType;
-use plain_server::graphql::resolvers::peers::types::Peer;
+use plain_server::assembly::server::ContentServer;
+use plain_server::native::peers::{LoginPeer, RemoteLogin};
 #[allow(unused_imports)]
 pub use plain_server::services::discovery::local::MdnsActivity;
 pub use plain_server::services::discovery::local::MdnsFirewallStatus;
@@ -12,6 +13,7 @@ pub use plain_server::services::discovery::local::NearbyDiscoverManager;
 pub use plain_server::services::discovery::local::PeerStatusManager;
 pub use plain_server::services::discovery::local::firewall;
 pub use plain_server::services::discovery::local::macos_dns_sd;
+use std::sync::Arc;
 
 // ── Remote-device login sessions (peers.token) ───────────────────────────────
 
@@ -19,7 +21,7 @@ pub use plain_server::services::discovery::local::macos_dns_sd;
 #[tauri::command]
 #[allow(clippy::too_many_arguments)]
 pub async fn login_peer(
-    state: tauri::State<'_, NearbyDiscoverManager>,
+    core: tauri::State<'_, Arc<ContentServer>>,
     id: String,
     name: String,
     host: String,
@@ -28,17 +30,17 @@ pub async fn login_peer(
     signaturePublicKey: String,
     chatKey: Option<String>,
 ) -> Result<(), String> {
-    let mgr = state.inner().clone();
+    let core = core.inner().clone();
     tauri::async_runtime::spawn_blocking(move || {
-        mgr.login_peer(
-            &id,
-            &name,
-            &host,
-            deviceType.into(),
-            &token,
-            &signaturePublicKey,
-            chatKey.as_deref().unwrap_or(""),
-        )
+        core.native_peers()?.login(RemoteLogin {
+            id,
+            name,
+            host,
+            device_type: deviceType.into(),
+            token,
+            signature_public_key: signaturePublicKey,
+            chat_key: chatKey.unwrap_or_default(),
+        })
     })
     .await
     .map_err(|e| e.to_string())?
@@ -47,37 +49,37 @@ pub async fn login_peer(
 /// Clears the login token of a peer (logout / forget device).
 #[tauri::command]
 pub async fn logout_peer(
-    state: tauri::State<'_, NearbyDiscoverManager>,
+    core: tauri::State<'_, Arc<ContentServer>>,
     id: String,
 ) -> Result<(), String> {
-    let mgr = state.inner().clone();
-    tauri::async_runtime::spawn_blocking(move || mgr.logout_peer(&id))
+    let core = core.inner().clone();
+    tauri::async_runtime::spawn_blocking(move || core.native_peers()?.logout(&id))
         .await
-        .map_err(|e| e.to_string())
+        .map_err(|e| e.to_string())?
 }
 
 /// All peers with an active login token.
 #[tauri::command]
 pub async fn list_login_peers(
-    state: tauri::State<'_, NearbyDiscoverManager>,
-) -> Result<Vec<Peer>, String> {
-    let mgr = state.inner().clone();
-    tauri::async_runtime::spawn_blocking(move || mgr.login_peers())
+    core: tauri::State<'_, Arc<ContentServer>>,
+) -> Result<Vec<LoginPeer>, String> {
+    let core = core.inner().clone();
+    tauri::async_runtime::spawn_blocking(move || core.native_peers()?.logged_in())
         .await
-        .map_err(|e| e.to_string())
+        .map_err(|e| e.to_string())?
 }
 
 /// Updates a peer's display name.
 #[tauri::command]
 pub async fn update_peer_name(
-    state: tauri::State<'_, NearbyDiscoverManager>,
+    core: tauri::State<'_, Arc<ContentServer>>,
     id: String,
     name: String,
 ) -> Result<(), String> {
-    let mgr = state.inner().clone();
-    tauri::async_runtime::spawn_blocking(move || mgr.update_peer_name(&id, &name))
+    let core = core.inner().clone();
+    tauri::async_runtime::spawn_blocking(move || core.native_peers()?.update_name(&id, &name))
         .await
-        .map_err(|e| e.to_string())
+        .map_err(|e| e.to_string())?
 }
 
 // ── mDNS debug surface — mirrors plain-app's MdnsDebugPage + WebAddressBar ───
