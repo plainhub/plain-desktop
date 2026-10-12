@@ -28,8 +28,8 @@ use crate::graphql::resolvers::database::public::DbMutation;
 use crate::graphql::resolvers::database::public::DbQuery;
 use crate::graphql::resolvers::device::public::DeviceMutation;
 use crate::graphql::resolvers::device::public::DeviceQuery;
-use crate::graphql::resolvers::feeds::public::FeedsMutation;
-use crate::graphql::resolvers::feeds::public::FeedsQuery;
+use crate::graphql::resolvers::feeds::feed::FeedMutation;
+use crate::graphql::resolvers::feeds::feed::FeedQuery;
 use crate::graphql::resolvers::files::operations::FileOpsMutation;
 use crate::graphql::resolvers::files::operations::MediaActionMutation;
 use crate::graphql::resolvers::files::operations::UploadQuery;
@@ -67,7 +67,7 @@ pub struct Query(
     crate::graphql::resolvers::pomodoro::pomodoro::PomodoroQuery,
     crate::graphql::resolvers::images::image_editor_project::ImageEditorProjectQuery,
     NoteQuery,
-    FeedsQuery,
+    FeedQuery,
     AudioQuery,
     ChatQuery,
     PeersQuery,
@@ -95,7 +95,7 @@ pub struct Mutation(
     crate::graphql::resolvers::pomodoro::pomodoro::PomodoroMutation,
     crate::graphql::resolvers::images::image_editor_project::ImageEditorProjectMutation,
     NoteMutation,
-    FeedsMutation,
+    FeedMutation,
     AudioMutation,
     ChatMutation,
     PeersMutation,

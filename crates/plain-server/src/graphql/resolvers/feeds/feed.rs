@@ -12,8 +12,6 @@ use plain_rs::db::Db;
 use plain_rs::db::notes_feeds::FeedEntryRow;
 use plain_rs::db::notes_feeds::FeedRow;
 use plain_rs::enums::DataType;
-use plain_rs::events::WsEvent;
-use tokio::sync::broadcast;
 
 type GqlResult<T> = async_graphql::Result<T>;
 
@@ -57,6 +55,20 @@ pub struct FeedEntry {
 #[ComplexObject]
 impl FeedEntry {
     async fn tags(&self, ctx: &Context<'_>) -> GqlResult<Vec<Tag>> {
+        #[cfg(feature = "core")]
+        if ctx
+            .data_opt::<async_graphql::dataloader::DataLoader<
+                crate::graphql::resolvers::tags::loader::TagsLoader,
+            >>()
+            .is_some()
+        {
+            return crate::graphql::resolvers::tags::loader::load(
+                ctx,
+                DataType::FeedEntry,
+                self.id.as_str(),
+            )
+            .await;
+        }
         content_common::tags(ctx, self.id.as_str(), DataType::FeedEntry.kind())
     }
 
@@ -105,7 +117,7 @@ fn entry_model(ctx: &Context<'_>, row: FeedEntryRow) -> GqlResult<FeedEntry> {
         feed_id: ID(row.feed_id),
         title: row.title,
         url: row.url,
-        image: image_id(ctx, &row.image)?,
+        image: entry_image(ctx, &row.image)?,
         description: row.description,
         author: row.author,
         content: row.content,
@@ -192,9 +204,6 @@ impl FeedMutation {
     }
 
     async fn sync_feeds(&self, ctx: &Context<'_>, id: Option<ID>) -> GqlResult<bool> {
-        let db = ctx.data::<Arc<Db>>()?.clone();
-        let events = event_sender(ctx)?;
-        let _ = (db, events);
         sync_service(ctx)?.queue(id.map(|id| id.to_string()));
         Ok(true)
     }
@@ -219,8 +228,6 @@ impl FeedMutation {
         fetch_content: bool,
     ) -> GqlResult<Feed> {
         let db = ctx.data::<Arc<Db>>()?.clone();
-        let events = event_sender(ctx)?;
-        let _ = events;
         let feed = feeds::create_without_sync(&db, &url, fetch_content).await?;
         sync_service(ctx)?.queue(Some(feed.id.clone()));
         feed_model(ctx, feed)
@@ -295,20 +302,9 @@ impl FeedMutation {
     }
 }
 
-#[cfg(all(test, feature = "api"))]
+#[cfg(test)]
 #[path = "../../../../tests/unit/graphql/resolvers/feeds/feed.rs"]
 mod tests;
-
-fn event_sender(ctx: &Context<'_>) -> GqlResult<broadcast::Sender<WsEvent>> {
-    if let Some(events) = ctx.data_opt::<broadcast::Sender<WsEvent>>() {
-        return Ok(events.clone());
-    }
-    #[cfg(feature = "api")]
-    if let Some(app) = ctx.data_opt::<Arc<AppCtx>>() {
-        return Ok(app.event_tx.clone());
-    }
-    Err(async_graphql::Error::new("feed event sender unavailable"))
-}
 
 fn sync_service(ctx: &Context<'_>) -> GqlResult<Arc<feeds::SyncService>> {
     if let Some(service) = ctx.data_opt::<Arc<feeds::SyncService>>() {
@@ -321,25 +317,18 @@ fn sync_service(ctx: &Context<'_>) -> GqlResult<Arc<feeds::SyncService>> {
     Err(async_graphql::Error::new("feed sync service unavailable"))
 }
 
-fn image_id(ctx: &Context<'_>, uri: &str) -> GqlResult<String> {
-    if uri.is_empty() || uri.starts_with("http://") || uri.starts_with("https://") {
-        return Ok(uri.into());
-    }
-    if let Some(prefs) = ctx.data_opt::<Arc<plain_rs::prefs::Prefs>>() {
-        return plain_rs::crypto::xchacha_encrypt(
-            &plain_rs::prefs::ensure_url_token(prefs),
-            uri.as_bytes(),
-        )
-        .map(|b| plain_rs::utils::base64::base64_encode(&b))
-        .ok_or_else(|| "invalid file token".into());
-    }
+fn entry_image(ctx: &Context<'_>, uri: &str) -> GqlResult<String> {
     #[cfg(feature = "api")]
     if let Some(app) = ctx.data_opt::<Arc<AppCtx>>() {
+        if uri.is_empty() || uri.starts_with("http://") || uri.starts_with("https://") {
+            return Ok(uri.into());
+        }
         return plain_rs::crypto::xchacha_encrypt(&app.token, uri.as_bytes())
-            .map(|b| plain_rs::utils::base64::base64_encode(&b))
+            .map(|bytes| plain_rs::utils::base64::base64_encode(&bytes))
             .ok_or_else(|| "invalid file token".into());
     }
-    Err("file token unavailable".into())
+    let _ = ctx;
+    Ok(uri.into())
 }
 
 fn feed_assets(ctx: &Context<'_>) -> Option<Arc<feeds::FeedAssets>> {
