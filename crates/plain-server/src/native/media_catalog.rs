@@ -42,6 +42,18 @@ impl NativeMediaCatalog {
         Self { state }
     }
 
+    pub fn source_directories(&self) -> Result<Vec<String>, String> {
+        self.state.native_client_id()?;
+        plain_rs::prefs::media::source_directories(&self.state.prefs)
+            .map_err(|error| error.to_string())
+    }
+
+    pub fn set_source_directories(&self, directories: &[String]) -> Result<(), String> {
+        self.state.native_client_id()?;
+        plain_rs::prefs::media::set_source_directories(&self.state.prefs, directories)
+            .map_err(|error| error.to_string())
+    }
+
     #[cfg(feature = "media")]
     pub async fn scan_file(
         &self,

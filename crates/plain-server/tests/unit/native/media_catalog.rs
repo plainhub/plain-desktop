@@ -521,3 +521,21 @@ async fn completion_scan_reports_read_failures_instead_of_partial_success() {
     );
     core.stop_core().await;
 }
+
+#[tokio::test]
+async fn source_directories_share_core_preferences_and_reject_stopped_handles() {
+    let directory = tempfile::tempdir().unwrap();
+    let core = crate::assembly::server::ContentServer::open(directory.path()).unwrap();
+    let catalog = core.native_media_catalog().unwrap();
+    let clone = catalog.clone();
+    let sources = vec!["/media/a".to_string(), "/media/a".to_string()];
+    catalog.set_source_directories(&sources).unwrap();
+    assert_eq!(clone.source_directories().unwrap(), sources);
+    assert_eq!(
+        plain_rs::prefs::media::source_directories(&core.runtime_state().prefs).unwrap(),
+        sources
+    );
+    core.stop_core().await;
+    assert!(catalog.source_directories().is_err());
+    assert!(catalog.set_source_directories(&[]).is_err());
+}

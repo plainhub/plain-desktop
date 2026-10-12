@@ -251,7 +251,8 @@ impl MediaMutationRoot {
         let db = ctx.data::<Arc<Db>>()?;
         let source_dirs = ctx
             .data_opt::<Arc<Prefs>>()
-            .map(|prefs| kv::media_source::get(prefs))
+            .map(|prefs| plain_rs::prefs::media::source_directories(prefs))
+            .transpose()?
             .unwrap_or_default();
         let roots = scan::selected_roots(root.clone(), &source_dirs);
         scan::start_walk_and_scan_paths(db.clone(), roots, std::path::PathBuf::from(root)).await?;
@@ -289,7 +290,8 @@ impl MediaMutationRoot {
         let db = ctx.data::<Arc<Db>>()?.clone();
         let source_dirs = ctx
             .data_opt::<Arc<Prefs>>()
-            .map(|prefs| kv::media_source::get(prefs))
+            .map(|prefs| plain_rs::prefs::media::source_directories(prefs))
+            .transpose()?
             .unwrap_or_default();
         scan::rebuild_index(db, root, &source_dirs).await;
         Ok(true)
@@ -303,7 +305,7 @@ impl MediaMutationRoot {
         dirs: Vec<String>,
     ) -> FieldResult<bool> {
         let prefs = ctx.data::<Arc<Prefs>>()?;
-        kv::media_source::set(prefs, &dirs)?;
+        plain_rs::prefs::media::set_source_directories(prefs, &dirs)?;
         Ok(true)
     }
 

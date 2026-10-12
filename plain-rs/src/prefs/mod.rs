@@ -14,6 +14,7 @@
 
 pub mod dlna;
 pub mod identity;
+pub mod media;
 pub mod server;
 pub mod system;
 pub mod user;

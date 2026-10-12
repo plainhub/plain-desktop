@@ -69,7 +69,7 @@ pub fn run() {
                 plain_rs::prefs::Prefs::load(&plain_rs::prefs::default_path(&data_dir))
                     .expect("preference files load"),
             );
-            let saved_roots = plain_media::storage::kv::media_source::get(&prefs);
+            let saved_roots = plain_rs::prefs::media::source_directories(&prefs)?;
             let mut root_candidates: Vec<std::path::PathBuf> = saved_roots
                 .iter()
                 .map(std::path::PathBuf::from)
@@ -124,7 +124,7 @@ pub fn run() {
                 .collect();
             let media_sources_changed = roots != saved_roots;
             if media_sources_changed {
-                if let Err(error) = plain_media::storage::kv::media_source::set(&prefs, &roots) {
+                if let Err(error) = plain_rs::prefs::media::set_source_directories(&prefs, &roots) {
                     log::warn!("media source initialization failed: {error}");
                 }
             }
@@ -240,7 +240,7 @@ pub fn run() {
                 0,
             )
             .expect("assemble local API context");
-            let media_roots: Vec<std::path::PathBuf> = plain_media::storage::kv::media_source::get(&prefs)
+            let media_roots: Vec<std::path::PathBuf> = plain_rs::prefs::media::source_directories(&prefs)?
                 .into_iter()
                 .map(std::path::PathBuf::from)
                 .filter(|path| path.is_dir())

@@ -255,7 +255,7 @@ impl MediaQueryRoot {
     /// The source directories the media scanner indexes.
     async fn media_source_dirs(&self, ctx: &Context<'_>) -> FieldResult<Vec<String>> {
         let prefs = ctx.data::<Arc<Prefs>>()?;
-        Ok(kv::media_source::get(prefs))
+        Ok(plain_rs::prefs::media::source_directories(prefs)?)
     }
 
     /// Whether the path exists. Blank and '.' paths are `false`; stat
