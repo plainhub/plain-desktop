@@ -7,13 +7,13 @@ pub mod desktop;
 #[cfg(feature = "api")]
 pub mod pairing;
 
-#[cfg(feature = "host-api")]
+#[cfg(feature = "core")]
 pub mod public;
 
-#[cfg(feature = "host-api")]
+#[cfg(feature = "core")]
 pub mod query;
 
-#[cfg(feature = "host-api")]
+#[cfg(feature = "core")]
 pub mod actions;
 
 #[cfg(feature = "api")]

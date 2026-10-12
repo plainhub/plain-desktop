@@ -1,13 +1,13 @@
 #[cfg(feature = "api")]
 pub mod desktop;
 
-#[cfg(feature = "host-api")]
+#[cfg(feature = "core")]
 pub mod host;
 
-#[cfg(feature = "host-api")]
+#[cfg(feature = "core")]
 pub mod playback;
 
-#[cfg(feature = "host-api")]
+#[cfg(feature = "core")]
 pub mod public;
 
 #[cfg(feature = "api")]

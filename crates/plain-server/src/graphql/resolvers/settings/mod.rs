@@ -1,7 +1,7 @@
 #[cfg(feature = "api")]
 pub mod desktop;
 
-#[cfg(feature = "host-api")]
+#[cfg(feature = "core")]
 pub mod public;
 
 mod models;

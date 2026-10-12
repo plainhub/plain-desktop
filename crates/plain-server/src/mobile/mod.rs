@@ -1,4 +1,4 @@
-#[cfg(feature = "host-api")]
+#[cfg(feature = "core")]
 pub mod deletes;
 
 pub mod contacts;

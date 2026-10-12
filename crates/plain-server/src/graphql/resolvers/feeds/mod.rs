@@ -1,5 +1,5 @@
-#[cfg(any(feature = "api", feature = "host-api"))]
+#[cfg(any(feature = "api", feature = "core"))]
 pub mod feed;
 
-#[cfg(feature = "host-api")]
+#[cfg(feature = "core")]
 pub mod public;

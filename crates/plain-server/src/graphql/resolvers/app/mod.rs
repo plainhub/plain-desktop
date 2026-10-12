@@ -10,7 +10,7 @@ pub mod capability;
 #[cfg(feature = "api")]
 pub mod capability_types;
 
-#[cfg(any(feature = "api", feature = "host-api"))]
+#[cfg(any(feature = "api", feature = "core"))]
 pub mod types;
 
 #[cfg(feature = "api")]

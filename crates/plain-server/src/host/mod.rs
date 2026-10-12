@@ -1,18 +1,18 @@
-#[cfg(feature = "host-api")]
+#[cfg(feature = "core")]
 pub mod query;
 
-#[cfg(feature = "host-api")]
-#[cfg(feature = "host-api")]
+#[cfg(feature = "core")]
+#[cfg(feature = "core")]
 pub mod bridge;
 
-#[cfg(feature = "host-api")]
+#[cfg(feature = "core")]
 pub mod resources;
 
-#[cfg(feature = "host-api")]
+#[cfg(feature = "core")]
 pub mod image_index;
 
-#[cfg(feature = "host-api")]
+#[cfg(feature = "core")]
 pub mod filesystem;
 
-#[cfg(feature = "host-api")]
+#[cfg(feature = "core")]
 pub mod events;

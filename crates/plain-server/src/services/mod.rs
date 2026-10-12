@@ -1,8 +1,8 @@
-#[cfg(any(feature = "api", feature = "host-api"))]
+#[cfg(any(feature = "api", feature = "core"))]
 pub mod feeds;
-#[cfg(any(feature = "api", feature = "host-api"))]
+#[cfg(any(feature = "api", feature = "core"))]
 pub mod link_preview;
-#[cfg(any(feature = "api", feature = "host-api"))]
+#[cfg(any(feature = "api", feature = "core"))]
 pub mod pomodoro;
 
 pub mod discovery;

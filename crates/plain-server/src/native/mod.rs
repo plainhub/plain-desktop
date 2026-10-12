@@ -1,14 +1,14 @@
-#[cfg(feature = "host-api")]
+#[cfg(feature = "core")]
 pub mod graphql;
 
-#[cfg(feature = "api")]
+#[cfg(any(feature = "api", feature = "core"))]
 pub mod resources;
 
-#[cfg(feature = "host-api")]
+#[cfg(feature = "core")]
 pub mod resource_stream;
 
-#[cfg(feature = "host-api")]
+#[cfg(feature = "core")]
 pub mod file_tasks;
 
-#[cfg(feature = "host-api")]
+#[cfg(feature = "core")]
 pub mod uploads;

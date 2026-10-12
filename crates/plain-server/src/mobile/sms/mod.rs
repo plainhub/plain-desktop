@@ -1,14 +1,14 @@
-#[cfg(feature = "host-api")]
+#[cfg(feature = "core")]
 pub mod mms;
 
-#[cfg(feature = "host-api")]
+#[cfg(feature = "core")]
 pub mod resolvers;
 
-#[cfg(feature = "host-api")]
+#[cfg(feature = "core")]
 pub mod query;
 
-#[cfg(feature = "host-api")]
+#[cfg(feature = "core")]
 pub mod send;
 
-#[cfg(feature = "host-api")]
+#[cfg(feature = "core")]
 pub mod state;

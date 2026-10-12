@@ -130,7 +130,7 @@ xmlns:s=\"http://schemas.xmlsoap.org/soap/envelope/\">\
     )
 }
 
-#[cfg(feature = "host-api")]
+#[cfg(feature = "core")]
 pub async fn soap_response(
     dev: &DiscoveredDevice,
     action: &str,
@@ -167,13 +167,13 @@ pub async fn soap_response(
     }
     String::from_utf8(bytes).map_err(|e| e.to_string())
 }
-#[cfg(feature = "host-api")]
+#[cfg(feature = "core")]
 pub struct Subscription {
     pub sid: String,
     pub renew_after: std::time::Duration,
 }
 
-#[cfg(feature = "host-api")]
+#[cfg(feature = "core")]
 pub async fn subscription(
     dev: &DiscoveredDevice,
     callback: Option<&str>,

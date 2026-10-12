@@ -1,16 +1,16 @@
-#[cfg(any(feature = "api", feature = "host-api"))]
+#[cfg(any(feature = "api", feature = "core"))]
 pub mod image_editor_project;
 
-#[cfg(feature = "host-api")]
+#[cfg(feature = "core")]
 pub mod editor_host;
 
-#[cfg(feature = "host-api")]
+#[cfg(feature = "core")]
 pub mod host_index;
 
-#[cfg(feature = "host-api")]
+#[cfg(feature = "core")]
 pub mod public_index;
 
-#[cfg(feature = "host-api")]
+#[cfg(feature = "core")]
 pub mod public;
 
 #[cfg(feature = "api")]

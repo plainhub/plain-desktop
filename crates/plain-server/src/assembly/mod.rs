@@ -21,17 +21,17 @@ pub use plain_rs::prefs::identity::AppIdentity;
 pub use plain_rs::prefs::identity::default_device_name;
 pub use plain_rs::prefs::identity::generate_identity;
 
-#[cfg(all(feature = "host-api", feature = "http_transport"))]
+#[cfg(all(feature = "core", feature = "http_transport"))]
 pub mod lifecycle;
 
-#[cfg(feature = "host-api")]
+#[cfg(feature = "core")]
 pub mod server;
 
-#[cfg(feature = "host-api")]
+#[cfg(feature = "core")]
 pub mod services;
 
-#[cfg(any(feature = "api", feature = "host-api"))]
+#[cfg(any(feature = "api", feature = "core"))]
 pub(crate) mod shared_services;
 
-#[cfg(feature = "host-api")]
+#[cfg(feature = "core")]
 pub(crate) mod core_dependencies;

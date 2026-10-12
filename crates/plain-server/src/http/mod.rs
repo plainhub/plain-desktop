@@ -5,7 +5,7 @@ pub mod server;
 #[cfg(feature = "http_transport")]
 pub mod tls_identity;
 
-#[cfg(all(feature = "host-api", feature = "http_transport"))]
+#[cfg(all(feature = "core", feature = "http_transport"))]
 pub mod tls_identity_host;
 
 pub mod proxy;

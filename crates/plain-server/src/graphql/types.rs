@@ -70,5 +70,5 @@ pub struct KeyValuePair {
     pub value: String,
 }
 
-#[cfg(feature = "host-api")]
+#[cfg(feature = "core")]
 pub mod facts;

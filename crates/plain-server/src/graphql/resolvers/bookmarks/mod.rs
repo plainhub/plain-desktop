@@ -1,8 +1,8 @@
-#[cfg(any(feature = "api", feature = "host-api"))]
+#[cfg(any(feature = "api", feature = "core"))]
 pub mod bookmark;
 
-#[cfg(any(feature = "api", feature = "host-api"))]
+#[cfg(any(feature = "api", feature = "core"))]
 pub mod bookmark_types;
 
-#[cfg(feature = "host-api")]
+#[cfg(feature = "core")]
 pub mod metadata;

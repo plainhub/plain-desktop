@@ -1,8 +1,8 @@
-#[cfg(feature = "host-api")]
+#[cfg(feature = "core")]
 pub mod write;
 
-#[cfg(feature = "host-api")]
+#[cfg(feature = "core")]
 pub mod types;
 
-#[cfg(feature = "host-api")]
+#[cfg(feature = "core")]
 pub mod resolvers;

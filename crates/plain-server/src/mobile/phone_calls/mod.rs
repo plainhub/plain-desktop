@@ -1,5 +1,5 @@
-#[cfg(feature = "host-api")]
+#[cfg(feature = "core")]
 pub mod geo;
 
-#[cfg(feature = "host-api")]
+#[cfg(feature = "core")]
 pub mod resolvers;

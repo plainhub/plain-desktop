@@ -1,11 +1,11 @@
-#[cfg(feature = "host-api")]
+#[cfg(feature = "core")]
 pub mod index;
 
-#[cfg(feature = "host-api")]
+#[cfg(feature = "core")]
 pub mod models;
 
-#[cfg(feature = "host-api")]
+#[cfg(feature = "core")]
 pub mod search;
 
-#[cfg(feature = "host-api")]
+#[cfg(feature = "core")]
 pub mod thumbnails;

@@ -1,11 +1,11 @@
-#[cfg(feature = "host-api")]
+#[cfg(feature = "core")]
 pub mod public_gate;
 
-#[cfg(feature = "host-api")]
+#[cfg(feature = "core")]
 pub mod replay;
 
-#[cfg(feature = "host-api")]
+#[cfg(feature = "core")]
 pub mod ws_login;
 
-#[cfg(feature = "host-api")]
+#[cfg(feature = "core")]
 pub mod guest_graphql;

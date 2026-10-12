@@ -19,7 +19,7 @@ use std::{
     sync::{Arc, Mutex},
 };
 use tokio::sync::broadcast;
-#[cfg(feature = "host-api")]
+#[cfg(feature = "core")]
 pub mod deletion_recovery;
 pub struct FileTasks {
     deletion_lock: tokio::sync::Mutex<()>,
@@ -309,5 +309,5 @@ impl NativeHooks {
 #[path = "../../../tests/unit/services/files/file_tasks.rs"]
 mod tests;
 
-#[cfg(feature = "host-api")]
+#[cfg(feature = "core")]
 pub mod mutations;

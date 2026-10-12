@@ -1,5 +1,5 @@
-#[cfg(feature = "host-api")]
+#[cfg(feature = "core")]
 pub mod host;
 
-#[cfg(feature = "host-api")]
+#[cfg(feature = "core")]
 pub mod library;

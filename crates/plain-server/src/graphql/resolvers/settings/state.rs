@@ -90,7 +90,7 @@ impl PreferencesMutation {
         );
         let changed = command.apply(prefs)?;
         notify(ctx, changed);
-        #[cfg(feature = "host-api")]
+        #[cfg(feature = "core")]
         if hostname_changed {
             if let Some(state) = ctx.data_opt::<crate::assembly::server::ServerState>() {
                 state.mdns.update_hostname(state).await?;
@@ -283,7 +283,7 @@ fn updated(ctx: &Context<'_>, changed: bool) -> Result<SettingsUpdate> {
     })
 }
 
-#[cfg(all(test, feature = "host-api", feature = "http_transport"))]
+#[cfg(all(test, feature = "core", feature = "http_transport"))]
 #[path = "../../../../tests/unit/graphql/resolvers/settings/http.rs"]
 mod http_tests;
 
@@ -303,7 +303,7 @@ pub(crate) struct UserPatchEnv<'a> {
     prefs: &'a Arc<Prefs>,
     events: Option<&'a broadcast::Sender<WsEvent>>,
     /// Host (mobile/JNI) side: mDNS advertisement and desktop-access teardown.
-    #[cfg(feature = "host-api")]
+    #[cfg(feature = "core")]
     server: Option<&'a crate::assembly::server::ServerState>,
     /// Desktop side: nearby-discover and chat identity follow a rename.
     #[cfg(feature = "api")]
@@ -315,7 +315,7 @@ impl<'a> UserPatchEnv<'a> {
         Ok(Self {
             prefs: prefs(ctx)?,
             events: events(ctx),
-            #[cfg(feature = "host-api")]
+            #[cfg(feature = "core")]
             server: ctx.data_opt::<crate::assembly::server::ServerState>(),
             #[cfg(feature = "api")]
             app: ctx.data_opt::<Arc<crate::assembly::context::AppCtx>>(),
@@ -325,7 +325,7 @@ impl<'a> UserPatchEnv<'a> {
     /// `graphql/executor` puts this same `ServerState` into every local
     /// request context, so a local resolver and the native caller observe
     /// identical handles.
-    #[cfg(feature = "host-api")]
+    #[cfg(feature = "core")]
     pub(crate) fn from_server(state: &'a crate::assembly::server::ServerState) -> Self {
         Self {
             prefs: &state.prefs,
@@ -351,14 +351,14 @@ pub(crate) async fn apply_user_patch(
     }
     // One read after the write feeds every effect below.
     let after = plain_rs::prefs::user::snapshot(env.prefs)?;
-    #[cfg(feature = "host-api")]
+    #[cfg(feature = "core")]
     if before.desktop_access && !after.desktop_access {
         if let Some(state) = env.server {
             state.main_ws.close_client(state, None);
         }
     }
     if before.device_name != after.device_name {
-        #[cfg(feature = "host-api")]
+        #[cfg(feature = "core")]
         if let Some(state) = env.server {
             state.mdns.update_hostname(state).await?;
         }

@@ -1,7 +1,7 @@
-#[cfg(feature = "host-api")]
+#[cfg(feature = "core")]
 pub mod progress;
 
-#[cfg(feature = "host-api")]
+#[cfg(feature = "core")]
 pub mod public;
 
 #[cfg(feature = "api")]

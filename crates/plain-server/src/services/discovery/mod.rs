@@ -4,32 +4,32 @@ pub mod desktop;
 #[cfg(feature = "api")]
 pub mod local;
 
-#[cfg(feature = "host-api")]
+#[cfg(feature = "core")]
 pub mod ble_http;
 
-#[cfg(feature = "host-api")]
+#[cfg(feature = "core")]
 pub mod ble_pairing;
 
-#[cfg(feature = "host-api")]
+#[cfg(feature = "core")]
 pub mod ble_scan;
 
-#[cfg(feature = "host-api")]
+#[cfg(feature = "core")]
 pub mod discovery_advertisement;
 
-#[cfg(feature = "host-api")]
+#[cfg(feature = "core")]
 pub mod mdns_runtime;
 
-#[cfg(feature = "host-api")]
+#[cfg(feature = "core")]
 pub mod nearby_devices;
 
-#[cfg(feature = "host-api")]
+#[cfg(feature = "core")]
 pub mod nearby_http;
 
-#[cfg(feature = "host-api")]
+#[cfg(feature = "core")]
 pub mod pairing;
 
-#[cfg(feature = "host-api")]
+#[cfg(feature = "core")]
 pub mod pairing_runtime;
 
-#[cfg(feature = "host-api")]
+#[cfg(feature = "core")]
 pub mod pairing_timeout;

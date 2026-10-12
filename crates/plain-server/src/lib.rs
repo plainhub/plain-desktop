@@ -3,12 +3,12 @@
 // limit overflows long before the roots themselves do.
 #![recursion_limit = "512"]
 
-#[cfg(any(feature = "api", feature = "host-api"))]
+#[cfg(any(feature = "api", feature = "core"))]
 pub mod assembly;
 pub mod graphql;
 pub mod http;
 pub mod platform;
-#[cfg(any(feature = "api", feature = "host-api"))]
+#[cfg(any(feature = "api", feature = "core"))]
 pub mod native;
 pub mod services;
 
@@ -42,5 +42,5 @@ pub(crate) mod test_tempdirs {
 #[cfg(feature = "mobile")]
 pub mod mobile;
 
-#[cfg(feature = "host-api")]
+#[cfg(feature = "core")]
 pub mod host;

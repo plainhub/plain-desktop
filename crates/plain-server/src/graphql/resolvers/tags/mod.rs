@@ -1,17 +1,17 @@
-#[cfg(feature = "host-api")]
+#[cfg(feature = "core")]
 pub mod host;
 
-#[cfg(feature = "host-api")]
+#[cfg(feature = "core")]
 pub mod access;
 
-#[cfg(feature = "host-api")]
+#[cfg(feature = "core")]
 pub mod public;
 
-#[cfg(feature = "host-api")]
+#[cfg(feature = "core")]
 pub mod types;
 
-#[cfg(any(feature = "api", feature = "host-api"))]
+#[cfg(any(feature = "api", feature = "core"))]
 pub mod domain_types;
 
-#[cfg(feature = "host-api")]
+#[cfg(feature = "core")]
 pub(crate) mod loader;
