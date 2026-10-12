@@ -518,13 +518,14 @@ export interface IImageSearchStatus {
  * Media-index scan lifecycle (plain-nas `scanProgress.state` and the
  * `media_scan_progress` WS payload share the same values).
  */
-export type ScanState = 'IDLE' | 'RUNNING' | 'PAUSED' | 'STOPPED'
+export type ScanState = 'IDLE' | 'RUNNING' | 'PAUSED' | 'STOPPED' | 'FAILED'
 
 export interface IScanProgress {
   indexed: number
-  pending: number
-  total: number
+  pending: number | null
+  total: number | null
   state: ScanState
+  error?: string | null
 }
 
 export interface IApp {

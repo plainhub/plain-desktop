@@ -182,3 +182,33 @@ async fn background_session_is_reserved_before_running_and_shutdown_joins_it() {
     assert_eq!(scans.snapshot().unwrap().unwrap().status, Status::Cancelled);
     assert!(scans.begin_discovery().is_err());
 }
+
+#[test]
+fn core_scan_events_report_real_lifecycle_and_unknown_totals() {
+    let (events, mut received) = tokio::sync::broadcast::channel(32);
+    let scans = Arc::new(MediaScans::new(events));
+    let session = scans.begin_discovery().unwrap();
+    let event = received.try_recv().unwrap();
+    assert_eq!(event.event_type, plain_rs::events::MEDIA_SCAN_PROGRESS);
+    let first: serde_json::Value = serde_json::from_str(&event.payload).unwrap();
+    assert_eq!(first["state"], "RUNNING");
+    assert_eq!(first["total"], serde_json::Value::Null);
+    assert_eq!(first["pending"], serde_json::Value::Null);
+    scans.pause().unwrap();
+    let paused: serde_json::Value =
+        serde_json::from_str(&received.try_recv().unwrap().payload).unwrap();
+    assert_eq!(paused["state"], "PAUSED");
+    assert_eq!(paused["id"], first["id"]);
+    scans.resume().unwrap();
+    assert!(received.try_recv().is_ok());
+    session.record(|| Ok(())).unwrap();
+    let progress: serde_json::Value =
+        serde_json::from_str(&received.try_recv().unwrap().payload).unwrap();
+    assert_eq!(progress["indexed"], 1);
+    session.finish(Err("probe failed".into())).unwrap();
+    let failed: serde_json::Value =
+        serde_json::from_str(&received.try_recv().unwrap().payload).unwrap();
+    assert_eq!(failed["state"], "FAILED");
+    assert_eq!(failed["error"], "probe failed");
+    assert_eq!(failed["total"], serde_json::Value::Null);
+}

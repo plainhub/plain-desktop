@@ -41,9 +41,42 @@ struct State {
 #[derive(Default)]
 pub(crate) struct MediaScans {
     state: Mutex<State>,
+    events: Option<tokio::sync::broadcast::Sender<plain_rs::events::WsEvent>>,
 }
 
 impl MediaScans {
+    pub(crate) fn new(events: tokio::sync::broadcast::Sender<plain_rs::events::WsEvent>) -> Self {
+        Self {
+            state: Mutex::new(State::default()),
+            events: Some(events),
+        }
+    }
+
+    fn publish(&self, snapshot: &Snapshot) {
+        let Some(events) = &self.events else {
+            return;
+        };
+        let state = match snapshot.status {
+            Status::Running => "RUNNING",
+            Status::Paused => "PAUSED",
+            Status::Cancelling | Status::Cancelled => "STOPPED",
+            Status::Completed => "IDLE",
+            Status::Failed => "FAILED",
+        };
+        let payload = serde_json::json!({
+            "id": snapshot.id,
+            "indexed": snapshot.processed_files,
+            "pending": snapshot.total_files.map(|total| total.saturating_sub(snapshot.processed_files)),
+            "total": snapshot.total_files,
+            "state": state,
+            "error": snapshot.error,
+        });
+        let _ = events.send(plain_rs::events::WsEvent::broadcast(
+            plain_rs::events::MEDIA_SCAN_PROGRESS,
+            payload.to_string(),
+        ));
+    }
+
     pub(crate) fn begin(self: &Arc<Self>, total_files: usize) -> Result<Session, String> {
         self.begin_with_total(Some(total_files))
     }
@@ -82,6 +115,9 @@ impl MediaScans {
             cancel,
             activity,
         });
+        if let Some(job) = &guard.job {
+            self.publish(&job.snapshot);
+        }
         Ok(Session {
             scans: self.clone(),
             id,
@@ -210,6 +246,9 @@ impl MediaScans {
             };
             job.activity.send_replace(());
         }
+        if let Some(job) = &guard.job {
+            self.publish(&job.snapshot);
+        }
         Ok(guard.job.as_ref().map(|job| job.snapshot.clone()))
     }
 
@@ -225,6 +264,9 @@ impl MediaScans {
             let _ = job.cancel.send(true);
             job.activity.send_replace(());
         }
+        if let Some(job) = &guard.job {
+            self.publish(&job.snapshot);
+        }
         Ok(guard.job.as_ref().map(|job| job.snapshot.clone()))
     }
     pub(crate) fn close(&self) -> Result<(), String> {
@@ -239,6 +281,9 @@ impl MediaScans {
             job.snapshot.status = Status::Cancelling;
             let _ = job.cancel.send(true);
             job.activity.send_replace(());
+        }
+        if let Some(job) = &guard.job {
+            self.publish(&job.snapshot);
         }
         Ok(())
     }
@@ -304,6 +349,7 @@ impl Session {
                     Status::Running => {
                         let value = record.take().ok_or("Media scan record unavailable")?()?;
                         job.snapshot.processed_files += 1;
+                        self.scans.publish(&job.snapshot);
                         return Ok(value);
                     }
                     Status::Paused => job.activity.subscribe(),
@@ -336,6 +382,7 @@ impl Session {
         }
         let value = record()?;
         job.snapshot.processed_files += 1;
+        self.scans.publish(&job.snapshot);
         Ok(value)
     }
 
@@ -354,6 +401,7 @@ impl Session {
             return Err("Media scan cancelled".into());
         }
         job.snapshot.total_files = Some(total_files);
+        self.scans.publish(&job.snapshot);
         Ok(())
     }
 
@@ -383,6 +431,7 @@ impl Session {
             let _ = job.cancel.send(true);
         }
         job.activity.send_replace(());
+        self.scans.publish(&job.snapshot);
         Ok(job.snapshot.clone())
     }
 }
@@ -399,6 +448,7 @@ impl Drop for Session {
             let _ = job.cancel.send(true);
             job.activity.send_replace(());
             job.snapshot.status = Status::Cancelled;
+            self.scans.publish(&job.snapshot);
         }
     }
 }

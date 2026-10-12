@@ -384,7 +384,9 @@ impl ContentServer {
         let dlna = Arc::new(crate::services::casting::receiver::receiver_engine::DlnaEngine::new());
         let state = ServerState {
             #[cfg(feature = "media")]
-            media_scans: Arc::new(Default::default()),
+            media_scans: Arc::new(crate::services::files::media_scans::MediaScans::new(
+                events.clone(),
+            )),
             #[cfg(feature = "http_transport")]
             public_server: Arc::new(tokio::sync::Mutex::new(None)),
             #[cfg(feature = "http_transport")]

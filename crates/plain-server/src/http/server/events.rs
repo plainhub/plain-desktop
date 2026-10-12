@@ -4,7 +4,7 @@ use crate::assembly::context::WsEvent;
 use plain_media::events as eventbus;
 use plain_media::events::EventBus;
 
-pub const WS_MEDIA_SCAN_PROGRESS: &'static str = "MEDIA_SCAN_PROGRESS";
+use plain_rs::events::MEDIA_SCAN_PROGRESS;
 pub const WS_FILE_TASK_PROGRESS: &'static str = "FILE_TASK_PROGRESS";
 pub const WS_DLNA_RENDERER_FOUND: &'static str = "DLNA_RENDERER_FOUND";
 pub const WS_DLNA_DISCOVERY_DONE: &'static str = "DLNA_DISCOVERY_DONE";
@@ -20,10 +20,7 @@ pub fn spawn_media_event_bridge(event_tx: broadcast::Sender<WsEvent>) {
         EventBus::global().subscribe(
             eventbus::EVENT_MEDIA_SCAN_PROGRESS,
             move |payload: serde_json::Value| {
-                let _ = tx.send(WsEvent::broadcast(
-                    WS_MEDIA_SCAN_PROGRESS,
-                    payload.to_string(),
-                ));
+                let _ = tx.send(WsEvent::broadcast(MEDIA_SCAN_PROGRESS, payload.to_string()));
             },
         );
     }

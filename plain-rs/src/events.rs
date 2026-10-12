@@ -1,4 +1,5 @@
 pub const HTTP_SERVER_FAILED: &str = "HTTP_SERVER_FAILED";
+pub const MEDIA_SCAN_PROGRESS: &str = "MEDIA_SCAN_PROGRESS";
 pub const MEDIA_ACTION_FINISHED: &str = "MEDIA_ACTION_FINISHED";
 
 #[derive(Clone, Debug)]

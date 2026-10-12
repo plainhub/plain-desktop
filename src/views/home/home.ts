@@ -135,7 +135,7 @@ export function useScanAction() {
   })
 
   const onScanProgress = (p: IScanProgress) => {
-    if (p) scanProgress.value = { indexed: p.indexed, pending: p.pending, total: p.total, state: p.state }
+    if (p) scanProgress.value = { indexed: p.indexed, pending: p.pending, total: p.total, state: p.state, error: p.error }
   }
   emitter.on('MEDIA_SCAN_PROGRESS', onScanProgress)
   onUnmounted(() => emitter.off('MEDIA_SCAN_PROGRESS', onScanProgress))
@@ -148,14 +148,13 @@ export function useScanAction() {
     return Math.min(100, Math.max(0, Math.round((indexed / total) * 100)))
   })
 
-  // Backend walks the whole tree to count files before indexing starts
-  // (total still 0) — show a dedicated label instead of a stuck 0%.
-  const counting = computed(() => scanProgress.value.state === 'RUNNING' && scanProgress.value.total === 0)
+  const counting = computed(() => scanProgress.value.state === 'RUNNING' && (scanProgress.value.total === null || scanProgress.value.total === 0))
 
   const stateLabel = computed(() => {
     if (scanProgress.value.state === 'RUNNING') return counting.value ? t('counting_files') : t('building_file_index')
     if (scanProgress.value.state === 'PAUSED') return t('paused')
     if (scanProgress.value.state === 'STOPPED') return t('stopped')
+    if (scanProgress.value.state === 'FAILED') return scanProgress.value.error ?? ''
     return ''
   })
 
