@@ -28,9 +28,20 @@ impl Archives {
         permit: OwnedSemaphorePermit,
         stop: watch::Receiver<bool>,
     ) -> Result<ArchiveReader, String> {
+        self.build_with_inputs(items, permit, stop, ()).await
+    }
+
+    pub(crate) async fn build_with_inputs<Inputs: Send + 'static>(
+        &self,
+        items: Vec<(PathBuf, String)>,
+        permit: OwnedSemaphorePermit,
+        stop: watch::Receiver<bool>,
+        input_guard: Inputs,
+    ) -> Result<ArchiveReader, String> {
         ensure_running(&stop)?;
         let directory = self.directory.clone();
         let (file, staging, size, permit) = tokio::task::spawn_blocking(move || {
+            let _input_guard = input_guard;
             let _permit = permit;
             let (file, staging) = build_archive(&directory, items)?;
             let size = file.metadata()?.len();
