@@ -676,3 +676,29 @@ async fn background_source_scan_is_busy_before_authorization_and_core_stop_joins
         0
     );
 }
+
+#[tokio::test]
+async fn action_id_requests_are_typed_and_stop_checked() {
+    let directory = tempfile::tempdir().unwrap();
+    let core = crate::assembly::server::ContentServer::open(directory.path()).unwrap();
+    let catalog = core.native_media_catalog().unwrap();
+    assert!(
+        catalog
+            .ids_facts(serde_json::json!({"dataType":"DOC","query":"","fromTrash":false}))
+            .unwrap()
+            .is_empty()
+    );
+    for params in [
+        serde_json::json!({"dataType":"DOC","query":""}),
+        serde_json::json!({"dataType":"DOC","query":"","fromTrash":"false"}),
+        serde_json::json!({"dataType":"DOC","query":"","fromTrash":false,"extra":true}),
+    ] {
+        assert!(catalog.ids_facts(params).is_err());
+    }
+    core.stop_core().await;
+    assert!(
+        catalog
+            .ids_facts(serde_json::json!({"dataType":"DOC","query":"","fromTrash":false}))
+            .is_err()
+    );
+}

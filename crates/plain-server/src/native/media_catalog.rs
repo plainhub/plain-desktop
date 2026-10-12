@@ -11,6 +11,14 @@ struct CountRequest {
 
 #[derive(serde::Deserialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
+struct IdsRequest {
+    data_type: DataType,
+    query: String,
+    from_trash: bool,
+}
+
+#[derive(serde::Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
 struct RowsRequest {
     data_type: DataType,
     query: String,
@@ -503,6 +511,19 @@ impl NativeMediaCatalog {
             serde_json::from_value(params).map_err(|error| error.to_string())?;
         crate::services::files::media_catalog::bucket_item_facts(&self.state.db, request.data_type)
             .map_err(|error| error.to_string())
+    }
+
+    pub fn ids_facts(&self, params: serde_json::Value) -> Result<Vec<String>, String> {
+        self.state.native_client_id()?;
+        let request: IdsRequest =
+            serde_json::from_value(params).map_err(|error| error.to_string())?;
+        crate::services::files::media_catalog::ids(
+            &self.state.db,
+            request.data_type,
+            &request.query,
+            request.from_trash,
+        )
+        .map_err(|error| error.to_string())
     }
 
     pub fn count_facts(&self, params: serde_json::Value) -> Result<i64, String> {

@@ -147,3 +147,37 @@ fn document_bucket_items_keep_the_same_nonempty_document_filter_as_rows() {
     assert_eq!(items[0]["path"], "/docs/readme.txt");
     assert_eq!(items.len() as i64, count(&db, DataType::Doc, "").unwrap());
 }
+
+#[test]
+fn action_ids_share_filters_and_explicit_from_trash_overrides_the_query_mode() {
+    let directory = tempfile::tempdir().unwrap();
+    let db = Db::open(&directory.path().join("plain.db")).unwrap();
+    let created = db
+        .record_media_files(&[
+            file(DataType::Doc, "/docs/one.pdf", "one", 20),
+            file(DataType::Doc, "/docs/two.pdf", "two", 20),
+            file(DataType::Doc, "/docs/three.txt", "three", 20),
+        ])
+        .unwrap();
+    db.with_conn(|conn| {
+        conn.execute(
+            "UPDATE media_files SET is_trashed=1 WHERE id=?1",
+            [&created[0].id],
+        )
+    })
+    .unwrap();
+    assert_eq!(
+        ids(&db, DataType::Doc, "ext:pdf", false).unwrap(),
+        vec![created[1].id.clone()]
+    );
+    assert_eq!(
+        ids(&db, DataType::Doc, "trash:false ext:pdf", true).unwrap(),
+        vec![created[0].id.clone()]
+    );
+    assert_eq!(
+        ids(&db, DataType::Doc, "trash:true ext:pdf", false).unwrap(),
+        vec![created[0].id.clone()]
+    );
+    assert!(ids(&db, DataType::Contact, "", false).is_err());
+    assert!(ids(&db, DataType::Doc, "unknown:filter", false).is_err());
+}

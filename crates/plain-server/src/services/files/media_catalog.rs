@@ -6,6 +6,15 @@ use plain_rs::enums::DataType;
 use rusqlite::{params_from_iter, types::Value};
 
 fn selection(db: &Db, data_type: DataType, text: &str) -> Result<(String, Vec<Value>)> {
+    selection_with_trash(db, data_type, text, false)
+}
+
+fn selection_with_trash(
+    db: &Db,
+    data_type: DataType,
+    text: &str,
+    from_trash: bool,
+) -> Result<(String, Vec<Value>)> {
     let provider = match data_type {
         DataType::Audio => Provider::Audio,
         DataType::Video => Provider::Video,
@@ -23,7 +32,7 @@ fn selection(db: &Db, data_type: DataType, text: &str) -> Result<(String, Vec<Va
     )?;
     let mut args = vec![
         Value::Integer(i64::from(data_type.kind())),
-        Value::Integer(i64::from(plan.trash.unwrap_or(false))),
+        Value::Integer(i64::from(from_trash || plan.trash.unwrap_or(false))),
     ];
     args.extend(plan.args.into_iter().map(Value::Text));
     let mut clauses = vec!["is_trashed=?".to_string()];
@@ -93,6 +102,25 @@ pub(crate) fn count(db: &Db, data_type: DataType, query: &str) -> Result<i64> {
             params_from_iter(args.iter()),
             |row| row.get(0),
         )
+    })?)
+}
+
+pub(crate) fn ids(
+    db: &Db,
+    data_type: DataType,
+    query: &str,
+    from_trash: bool,
+) -> Result<Vec<String>> {
+    let (sql, args) = selection_with_trash(db, data_type, query, from_trash)?;
+    let sql = format!(
+        "{} ORDER BY updated_at DESC,id",
+        sql.replace("{columns}", "id")
+    );
+    Ok(db.with_conn(|conn| {
+        let mut statement = conn.prepare(&sql)?;
+        statement
+            .query_map(params_from_iter(args.iter()), |row| row.get(0))?
+            .collect::<rusqlite::Result<Vec<_>>>()
     })?)
 }
 
