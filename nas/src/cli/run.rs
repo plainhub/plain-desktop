@@ -9,7 +9,7 @@ use tokio::signal::unix::{SignalKind, signal};
 use plain_server::assembly::context::AppCtx;
 use plain_server::assembly::context::ShellHooks;
 use plain_server::graphql::resolvers::app::capability_types;
-use plain_server::graphql::resolvers::app::desktop_types::Capability;
+use plain_server::graphql::resolvers::app::types::Capability;
 use plain_server::http::server::AuthPolicy;
 use plain_server::http::server::ServerSettings;
 use plain_server::http::server::ServerState;

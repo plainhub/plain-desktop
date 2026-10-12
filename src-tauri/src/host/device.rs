@@ -3,7 +3,7 @@
 //! `plain_rs::prefs::Prefs`; nothing here touches storage anymore.
 
 use plain_server::assembly::ShellHooks;
-use plain_server::graphql::resolvers::app::desktop_types::Capability;
+use plain_server::graphql::resolvers::app::types::Capability;
 
 pub struct DesktopShell(pub tauri::AppHandle);
 

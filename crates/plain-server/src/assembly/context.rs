@@ -168,7 +168,7 @@ pub trait ShellHooks: Send + Sync {
     fn app_version(&self) -> String {
         String::new()
     }
-    fn capabilities(&self) -> Vec<crate::graphql::resolvers::app::desktop_types::Capability> {
+    fn capabilities(&self) -> Vec<crate::graphql::resolvers::app::types::Capability> {
         Vec::new()
     }
     fn disks(&self) -> anyhow::Result<Vec<crate::graphql::resolvers::app::capability_types::Disk>> {

@@ -16,3 +16,6 @@ pub mod filesystem;
 
 #[cfg(feature = "core")]
 pub mod events;
+
+#[cfg(feature = "core")]
+pub mod platform;

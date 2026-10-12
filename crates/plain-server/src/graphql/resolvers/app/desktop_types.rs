@@ -1,40 +1,13 @@
 use crate::assembly::enums::AppChannelType;
 use crate::assembly::enums::DeviceType;
+use crate::graphql::resolvers::app::types::Capability;
 use crate::graphql::resolvers::device::permissions::Permission;
-use async_graphql::Enum;
 use async_graphql::SimpleObject;
 
 #[derive(SimpleObject)]
 pub struct KeyValuePair {
     pub key: String,
     pub value: String,
-}
-
-/// Optional capabilities the server declares about itself; the web client
-/// gates UI on these instead of sniffing OS versions. Mirrors plain-app
-/// `Capability`.
-#[derive(Enum, Copy, Clone, Eq, PartialEq)]
-#[graphql(rename_items = "SCREAMING_SNAKE_CASE")]
-pub enum Capability {
-    MediaTrash,
-    MirrorAudio,
-    DocPreview,
-    ImageSearch,
-    MediaScan,
-    Sms,
-    Calls,
-    CallPhone,
-    Contacts,
-    Packages,
-    Notes,
-    Feeds,
-    ScreenMirror,
-    ImageEditor,
-    Notifications,
-    Clipboard,
-    Pomodoro,
-    LanShare,
-    DiskManager,
 }
 
 #[derive(SimpleObject)]

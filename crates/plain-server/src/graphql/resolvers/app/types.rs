@@ -22,6 +22,8 @@ pub enum Capability {
     Notifications,
     Clipboard,
     Pomodoro,
+    LanShare,
+    DiskManager,
 }
 
 impl Capability {
@@ -46,6 +48,8 @@ impl Capability {
             "NOTIFICATIONS" => Self::Notifications,
             "CLIPBOARD" => Self::Clipboard,
             "POMODORO" => Self::Pomodoro,
+            "LAN_SHARE" => Self::LanShare,
+            "DISK_MANAGER" => Self::DiskManager,
             _ => return None,
         })
     }

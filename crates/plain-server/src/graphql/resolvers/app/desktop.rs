@@ -5,7 +5,7 @@ use crate::assembly::context::AppCtx;
 use crate::assembly::enums::AppChannelType;
 use crate::assembly::enums::Permission;
 use crate::graphql::resolvers::app::desktop_types::App;
-use crate::graphql::resolvers::app::desktop_types::Capability;
+use crate::graphql::resolvers::app::types::Capability;
 use crate::graphql::resolvers::device::desktop_types::DeviceInfo;
 use crate::graphql::resolvers::device::desktop_types::DevicePlatform;
 use crate::graphql::resolvers::device::desktop_types::DeviceStatus;
