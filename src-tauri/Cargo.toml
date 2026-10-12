@@ -31,7 +31,7 @@ tauri-plugin-fs = "2"
 tauri-plugin-global-shortcut = "=2.3.2"
 tauri-plugin-clipboard-manager = "=2.3.3"
 # Shared server assembly, with core and media dependencies.
-plain_server = { path = "../crates/plain-server", package = "plain-server", features = ["api"] }
+plain_server = { path = "../crates/plain-server", package = "plain-server", features = ["api", "core"] }
 
 rand = "0.8"
 
