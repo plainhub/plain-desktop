@@ -1,11 +1,12 @@
 //! Tauri commands for desktop native file resources.
 //!
-//! A window asks for a handle by path; the handle lives in that window's
-//! own registry slot and is only reachable through the opaque-id
+//! A window asks for a handle by reference; the handle lives in that
+//! window's own registry slot and is only reachable through the opaque-id
 //! [`crate::native_resource_protocol`] URL scheme.
 
-use std::path::PathBuf;
+use std::sync::Arc;
 
+use plain_server::assembly::server::ContentServer;
 use tauri::{Runtime, State, WebviewWindow};
 
 use crate::native_resource_protocol::{OpenedResource, ResourceRegistry};
@@ -13,20 +14,18 @@ use crate::native_resource_protocol::{OpenedResource, ResourceRegistry};
 /// Open `path` as a handle owned by the calling window and return the
 /// protocol URL that reads it. The URL carries only the opaque id.
 ///
-/// Only an absolute on-disk path is accepted. `fid:` and `app://`
-/// references need the shared core's resolver, which the core does not
-/// expose to the shell yet; those keep their existing transport.
+/// `path` is a reference the shared core understands: a plaintext absolute
+/// path, a `fid:` file id or an `app://` path. Resolution and authorization
+/// belong to the core, which also refuses references once it has stopped.
 #[tauri::command]
 pub async fn native_resource_open<R: Runtime>(
     window: WebviewWindow<R>,
+    core: tauri::State<'_, Arc<ContentServer>>,
     registry: State<'_, ResourceRegistry>,
     path: String,
 ) -> Result<OpenedResource, String> {
-    let path = PathBuf::from(path);
-    if !path.is_absolute() {
-        return Err("native resource requires an absolute path".into());
-    }
-    registry.open(window.label(), &path).await
+    let resolved = core.resolve_native_file(&path).await?;
+    registry.open(window.label(), &resolved).await
 }
 
 #[tauri::command]

@@ -30,15 +30,22 @@ export function getFileUrl(id: string, query: string = '') {
  * The URL a local file's bytes actually come from.
  *
  * On this machine's own core the bytes come from an opaque native resource
- * handle; every other target keeps the existing `/fs` URL. Returns '' when
- * no URL could be resolved, which is what the callers already handle for
- * an unresolvable id.
+ * handle, which needs no session key; every other target keeps the existing
+ * `/fs` URL built from that session's key. A reference the local core
+ * refuses surfaces as an error instead of falling through to `/fs`.
  */
-export async function resolveFileUrlByPath(key: Uint8Array | null, path: string, size?: number): Promise<string> {
-  if (!path || !key) {
+export async function resolveFileUrlByPath(key: Uint8Array | null, path: string, size?: number, query: string = ''): Promise<string> {
+  if (!path) {
     return ''
   }
-  return (await nativeResourceUrl(path, size)) || getFileUrl(getFileId(key, path))
+  const native = await nativeResourceUrl(path, size)
+  if (native) {
+    return native
+  }
+  if (!key) {
+    return ''
+  }
+  return getFileUrl(getFileId(key, path), query)
 }
 
 export function getFileUrlByPath(key: Uint8Array | null, path: string) {

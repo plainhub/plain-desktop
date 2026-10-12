@@ -20,6 +20,14 @@ export function isNativeResourceUrl(url: string): boolean {
 }
 
 /**
+ * A reference the webview can load on its own. Feeds keep remote artwork as
+ * an external link; everything else is a core reference.
+ */
+export function isExternalReference(reference: string): boolean {
+  return /^https?:\/\//i.test(reference)
+}
+
+/**
  * Tauri 2 has no streaming protocol response, so a single read is buffered
  * in full. Files larger than this window keep their existing transport
  * rather than being refused mid-playback; the Rust side applies the same
@@ -27,22 +35,20 @@ export function isNativeResourceUrl(url: string): boolean {
  */
 export const MAX_NATIVE_RESPONSE_BYTES = 32 * 1024 * 1024
 
-// `fid:` and `app://` are shared-core references, not on-disk paths; they
-// need the core's resolver, so they keep their existing transport.
-function isAbsolutePath(path: string): boolean {
-  return path.startsWith('/') || /^[a-zA-Z]:[\\/]/.test(path)
-}
-
 /**
- * Resolve a file path to this machine's native resource URL.
+ * Resolve a file reference to this machine's native resource URL.
  *
- * Returns '' when the app is not talking to its own core (remote target or
- * web build), when the path is a shared-core reference, or when the file is
- * too large for the protocol's response window — so callers keep their
- * existing URL path untouched.
+ * The reference is whatever the shared core understands — a plaintext
+ * absolute path, a `fid:` file id or an `app://` path — and the core both
+ * resolves and authorizes it, so an unsupported or unauthorized reference
+ * fails here instead of quietly falling back to another transport.
+ *
+ * Returns '' only when this app is not talking to its own core (remote
+ * target or web build) or when the file is too large for the protocol's
+ * response window; both are transport decisions, not reference failures.
  */
 export async function nativeResourceUrl(path: string, size?: number): Promise<string> {
-  if (!path || !isLocalModeAllowed() || !isAbsolutePath(path)) {
+  if (!path || !isLocalModeAllowed()) {
     return ''
   }
   if (typeof size === 'number' && size > MAX_NATIVE_RESPONSE_BYTES) {

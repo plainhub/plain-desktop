@@ -54,7 +54,7 @@ pub struct ResourceRegistry {
 }
 
 impl ResourceRegistry {
-    pub fn open(&self, owner: &str, path: &Path) -> Result<OpenedResource, String> {
+    pub async fn open(&self, owner: &str, path: &Path) -> Result<OpenedResource, String> {
         let store = {
             let mut stores = self.stores.lock().unwrap();
             stores

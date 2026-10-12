@@ -49,7 +49,7 @@
             <item-tags :tags="item.tags" :type="dataType" :only-links="true" />
           </template>
           <template #end>
-            <img v-if="item.image" class="image" :src="getFileUrl(item.image, '&w=512&h=512')" />
+            <img v-if="item.image" class="image" :src="imageUrl(item.image)" />
           </template>
         </Sidebar2ListItem>
       </template>
@@ -62,14 +62,18 @@
 </template>
 
 <script setup lang="ts">
-import { inject } from 'vue'
+import { inject, onBeforeUnmount, ref, watch } from 'vue'
 import { formatTimeAgo, formatDateTime } from '@/lib/format'
-import { getFileUrl } from '@/lib/api/file'
+import { resolveFileUrlByPath } from '@/lib/api/file'
+import type { IFeedEntry } from '@/lib/interfaces'
+import { closeNativeResources, isExternalReference } from '@/hooks/native-resource-url'
+import { useTempStore } from '@/stores/temp'
 import VirtualList from '@/components/virtualscroll'
 import { useFeedEntriesData } from './hooks/useFeedEntriesData'
 import { useFeedEntriesActions } from './hooks/useFeedEntriesActions'
 
 const isPhone = inject('isPhone')
+const tempStore = useTempStore()
 
 const {
   items, filter, q, tags, feedsMap, feedsSyncing,
@@ -85,4 +89,49 @@ const {
   deleteItems, confirmingDelete, deleteCount, deleteLoading, doDeleteItems, cancelDeleteItems, saveFeedsToNotes, savingNotes, syncFeeds,
   viewUrl, view, viewFeed,
 } = useFeedEntriesActions({ selectedIds, realAllChecked, q, total, tags, items, clearSelection, fetch })
+
+const imageUrls = ref<Record<string, string>>({})
+const openReferences = ref<string[]>([])
+let refreshToken = 0
+
+function imageUrl(reference: string) {
+  return imageUrls.value[reference] ?? ''
+}
+
+async function refreshImages(entries: IFeedEntry[]) {
+  const token = ++refreshToken
+  const wanted = [...new Set(entries.map((entry) => entry.image).filter((reference) => !!reference))]
+  const stale = openReferences.value.filter((reference) => !wanted.includes(reference))
+  const resolved: Record<string, string> = {}
+  const opened: string[] = []
+  await Promise.all(wanted.map(async (reference) => {
+    if (isExternalReference(reference)) {
+      resolved[reference] = reference
+      return
+    }
+    const url = await resolveFileUrlByPath(tempStore.urlTokenKey, reference, undefined, '&w=512&h=512')
+    resolved[reference] = url
+    if (url.startsWith('plain-resource://')) {
+      opened.push(reference)
+    }
+  }))
+  if (token !== refreshToken) {
+    return
+  }
+  imageUrls.value = resolved
+  openReferences.value = opened
+  if (stale.length) {
+    await closeNativeResources(stale)
+  }
+}
+
+watch(items, (entries) => void refreshImages(entries), { immediate: true })
+
+onBeforeUnmount(() => {
+  const stale = openReferences.value
+  openReferences.value = []
+  if (stale.length) {
+    void closeNativeResources(stale)
+  }
+})
 </script>

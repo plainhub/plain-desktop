@@ -247,9 +247,21 @@ describe('resolveFileUrlByPath', () => {
     await expect(resolveFileUrlByPath(key, '/data/a.jpg')).resolves.toMatch(/\/fs\?id=/)
   })
 
-  it('returns empty without a key or path', async () => {
+  it('resolves a core reference without a session key', async () => {
+    nativeResourceUrl.mockResolvedValue('plain-resource://file/h1')
+    await expect(resolveFileUrlByPath(null, 'fid:abc123.jpg')).resolves.toBe('plain-resource://file/h1')
+    expect(nativeResourceUrl).toHaveBeenCalledWith('fid:abc123.jpg', undefined)
+  })
+
+  it('keeps the thumbnail query on the session transport', async () => {
+    nativeResourceUrl.mockResolvedValue('')
+    await expect(resolveFileUrlByPath(key, '/data/a.jpg', undefined, '&w=512&h=512')).resolves.toMatch(/w=512&h=512/)
+  })
+
+  it('returns empty without a native handle, a key or a path', async () => {
+    nativeResourceUrl.mockResolvedValue('')
     await expect(resolveFileUrlByPath(null, '/data/a.jpg')).resolves.toBe('')
     await expect(resolveFileUrlByPath(key, '')).resolves.toBe('')
-    expect(nativeResourceUrl).not.toHaveBeenCalled()
+    expect(nativeResourceUrl).toHaveBeenCalledTimes(1)
   })
 })

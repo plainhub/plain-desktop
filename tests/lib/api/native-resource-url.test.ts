@@ -8,7 +8,7 @@ vi.mock('@/lib/device/local-mode', () => ({
   isLocalModeAllowed: () => localAllowed,
 }))
 
-import { closeNativeResource, isNativeResourceUrl, MAX_NATIVE_RESPONSE_BYTES, nativeResourceUrl } from '@/hooks/native-resource-url'
+import { closeNativeResource, isExternalReference, isNativeResourceUrl, MAX_NATIVE_RESPONSE_BYTES, nativeResourceUrl } from '@/hooks/native-resource-url'
 
 function reset() {
   invoke.mockReset()
@@ -50,11 +50,17 @@ describe('nativeResourceUrl', () => {
     expect(invoke).not.toHaveBeenCalled()
   })
 
-  it('keeps shared-core references on their existing transport', async () => {
-    await expect(nativeResourceUrl('fid:abc123.jpg')).resolves.toBe('')
-    await expect(nativeResourceUrl('app://photos/a.jpg')).resolves.toBe('')
-    await expect(nativeResourceUrl('relative/a.jpg')).resolves.toBe('')
-    expect(invoke).not.toHaveBeenCalled()
+  it('hands shared-core references to the core', async () => {
+    invoke.mockResolvedValue({ id: 'h1', url: 'plain-resource://file/h1', name: 'a.jpg', mime: 'image/jpeg', size: 10 })
+    await expect(nativeResourceUrl('fid:abc123.jpg')).resolves.toBe('plain-resource://file/h1')
+    await expect(nativeResourceUrl('app://photos/a.jpg')).resolves.toBe('plain-resource://file/h1')
+    expect(invoke).toHaveBeenCalledWith('native_resource_open', { path: 'fid:abc123.jpg' })
+    expect(invoke).toHaveBeenCalledWith('native_resource_open', { path: 'app://photos/a.jpg' })
+  })
+
+  it('fails when the core refuses a reference', async () => {
+    invoke.mockRejectedValue('file is not authorized')
+    await expect(nativeResourceUrl('fid:denied.jpg')).rejects.toBe('file is not authorized')
   })
 
   it('accepts absolute windows paths', async () => {
@@ -106,5 +112,18 @@ describe('isNativeResourceUrl', () => {
     expect(isNativeResourceUrl('plain-resource://file/abc')).toBe(true)
     expect(isNativeResourceUrl('http://localhost:8080/fs?id=abc')).toBe(false)
     expect(isNativeResourceUrl('blob:http://localhost/abc')).toBe(false)
+  })
+})
+
+describe('isExternalReference', () => {
+  it('treats web artwork as an external link', () => {
+    expect(isExternalReference('https://cdn.example.com/a.jpg')).toBe(true)
+    expect(isExternalReference('http://cdn.example.com/a.jpg')).toBe(true)
+  })
+
+  it('treats every core reference as the core owns it', () => {
+    expect(isExternalReference('fid:abc123.jpg')).toBe(false)
+    expect(isExternalReference('app://photos/a.jpg')).toBe(false)
+    expect(isExternalReference('/data/a.jpg')).toBe(false)
   })
 })
