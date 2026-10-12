@@ -8,11 +8,12 @@ struct MountEntry {
 }
 
 pub fn disks() -> Result<DisksFacts, String> {
-    let disks = collect_disks()?;
-    if disks.is_empty() {
-        return Err("the operating system reported no block-backed disk".to_string());
-    }
-    Ok(DisksFacts { disks })
+    disks_facts(collect_disks())
+}
+
+/// A readable OS that reports no disk is an empty list, not a failure.
+fn disks_facts(disks: Result<Vec<DiskFacts>, String>) -> Result<DisksFacts, String> {
+    disks.map(DisksFacts { disks })
 }
 
 pub async fn app_update(app: &tauri::AppHandle) -> Result<AppUpdateFacts, String> {

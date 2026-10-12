@@ -1,9 +1,46 @@
 use super::*;
 
 #[test]
-fn app_update_reports_the_package_version_without_inventing_an_update() {
-    let facts = app_update().expect("the package version is always available");
-    assert_eq!(facts.current_version, crate::version::VERSION);
+fn a_readable_host_without_disks_is_an_empty_list() {
+    let facts = disks_facts(Ok(Vec::new())).expect("an empty read is not a failure");
+
+    assert!(facts.disks.is_empty());
+}
+
+#[test]
+fn a_failed_read_is_reported_with_its_own_error() {
+    let error = disks_facts(Err("lsblk spawn: no such file".to_string()))
+        .expect_err("a failed read must not look like an empty host");
+
+    assert_eq!(error, "lsblk spawn: no such file");
+}
+
+#[test]
+fn a_newer_release_is_carried_into_the_shared_facts() {
+    let facts = update_facts(AppUpdate {
+        current_version: "0.1.12".to_string(),
+        latest_version: Some("0.2.0".to_string()),
+        has_update: true,
+        url: Some("https://example.invalid/releases/0.2.0".to_string()),
+    });
+    assert_eq!(facts.current_version, "0.1.12");
+    assert_eq!(facts.latest_version.as_deref(), Some("0.2.0"));
+    assert!(facts.has_update);
+    assert_eq!(
+        facts.url.as_deref(),
+        Some("https://example.invalid/releases/0.2.0")
+    );
+}
+
+#[test]
+fn an_unreachable_release_lookup_invents_no_update() {
+    let facts = update_facts(AppUpdate {
+        current_version: "0.1.12".to_string(),
+        latest_version: None,
+        has_update: false,
+        url: None,
+    });
+    assert_eq!(facts.current_version, "0.1.12");
     assert!(facts.latest_version.is_none());
     assert!(!facts.has_update);
     assert!(facts.url.is_none());
@@ -47,7 +84,6 @@ fn disks_either_reports_real_devices_or_an_error() {
     match disks() {
         Err(_) => {}
         Ok(facts) => {
-            assert!(!facts.disks.is_empty());
             for disk in &facts.disks {
                 assert!(!disk.id.is_empty(), "a disk without an id is not a fact");
                 assert!(disk.path.starts_with("/dev/"), "path {}", disk.path);

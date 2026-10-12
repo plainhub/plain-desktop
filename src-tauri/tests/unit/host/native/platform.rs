@@ -82,7 +82,6 @@ fn reported_disks_are_backed_by_a_real_device() {
     let Ok(facts) = disks() else {
         return;
     };
-    assert!(!facts.disks.is_empty());
     for disk in &facts.disks {
         assert!(
             disk.id.starts_with("/dev/"),
@@ -97,4 +96,19 @@ fn reported_disks_are_backed_by_a_real_device() {
         assert!(!disk.name.is_empty());
         assert!(!facts.disks.iter().any(|other| other.path == disk.path));
     }
+}
+
+#[test]
+fn a_readable_host_without_disks_is_an_empty_list() {
+    let facts = disks_facts(Ok(Vec::new())).expect("an empty read is not a failure");
+
+    assert!(facts.disks.is_empty());
+}
+
+#[test]
+fn an_unreadable_host_reports_the_operating_system_error() {
+    let error = disks_facts(Err("cannot read /proc/self/mounts".to_string()))
+        .expect_err("a failed read must not look like an empty host");
+
+    assert_eq!(error, "cannot read /proc/self/mounts");
 }

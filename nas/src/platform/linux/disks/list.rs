@@ -3,13 +3,13 @@
 //! hidden, stable `disk:`/`diskbyid:` IDs, sysfs fallbacks for model and
 //! removable flags.
 
-use crate::platform::linux::disks::blockdev::LsblkDevice;
 use crate::platform::linux::disks::blockdev::disk_id_from_name;
 use crate::platform::linux::disks::blockdev::is_device_removable;
 use crate::platform::linux::disks::blockdev::is_user_visible_disk_name;
 use crate::platform::linux::disks::blockdev::parse_boolish;
 use crate::platform::linux::disks::blockdev::read_sys_block_model;
 use crate::platform::linux::disks::blockdev::run_lsblk;
+use crate::platform::linux::disks::blockdev::LsblkDevice;
 use serde::Serialize;
 
 #[derive(Debug, Serialize, Default)]
@@ -22,12 +22,16 @@ pub struct Disk {
     pub model: Option<String>,
 }
 
+/// Whole disks as the OS reports them; an unreadable `lsblk` is an error,
+/// a readable one with no user-visible disk is an empty list.
+pub fn read_disks() -> Result<Vec<Disk>, String> {
+    let devs = run_lsblk(&["NAME", "PATH", "TYPE", "MODEL", "SIZE", "RM"])
+        .map_err(|error| error.to_string())?;
+    Ok(disks_from_lsblk(&devs))
+}
+
 pub fn list_disks() -> Vec<Disk> {
-    let devs = match run_lsblk(&["NAME", "PATH", "TYPE", "MODEL", "SIZE", "RM"]) {
-        Ok(v) => v,
-        Err(_) => return vec![],
-    };
-    disks_from_lsblk(&devs)
+    read_disks().unwrap_or_default()
 }
 
 /// Pure mapping from an `lsblk` tree to user-visible whole disks — Go

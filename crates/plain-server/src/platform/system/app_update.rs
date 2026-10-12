@@ -2,7 +2,7 @@ use parking_lot::Mutex;
 use serde::Deserialize;
 use std::time::{Duration, Instant};
 
-const GITHUB_URL: &str = "https://api.github.com/repos/plainhub/plain-desktop`/releases/latest";
+const GITHUB_URL: &str = "https://api.github.com/repos/plainhub/plain-desktop/releases/latest";
 const CACHE_TTL: Duration = Duration::from_secs(10 * 60);
 const HTTP_TIMEOUT: Duration = Duration::from_secs(5);
 
