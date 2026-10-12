@@ -141,9 +141,6 @@ type AudioQuery {
 	audioPlayHistory(query: String!, offset: Int!, limit: Int!): [AudioPlayHistory!]!
 }
 
-"""
-Audio playback repeat mode, mirroring the plain-app `MediaPlayMode` enum.
-"""
 enum MediaPlayMode {
 	REPEAT
 	REPEAT_ONE

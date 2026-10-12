@@ -101,6 +101,7 @@ impl NativeMediaCatalog {
         let mut stop = self.state.stop.clone();
         let result = async {
             for reference in references {
+                session.wait_running().await?;
                 let metadata = tokio::select! {
                     biased;
                     _ = crate::services::files::media_scans::wait_stop(&mut cancel) => return Err("Media scan cancelled".into()),
@@ -110,7 +111,7 @@ impl NativeMediaCatalog {
                     },
                     metadata = self.read_file(data_type, &reference) => metadata?,
                 };
-                session.record(|| self.record_file_reads(&[metadata]))?;
+                session.record_when_running(|| self.record_file_reads(&[metadata])).await?;
             }
             Ok(())
         }.await;
@@ -233,6 +234,7 @@ impl NativeMediaCatalog {
         let result = async {
             let mut total_files = 0usize;
             for reference in references {
+                session.wait_running().await?;
                 let root =
                     crate::services::files::file_access::resolve_native(&self.state, &reference)
                         .await?;
@@ -305,6 +307,7 @@ impl NativeMediaCatalog {
                     Ok(discovered)
                 });
                 while let Some((data_type, path)) = receive.recv().await {
+                    session.wait_running().await?;
                     let actual = tokio::fs::canonicalize(&path)
                         .await
                         .map_err(|error| error.to_string())?;
@@ -320,7 +323,9 @@ impl NativeMediaCatalog {
                     if !std::path::Path::new(&metadata.metadata.path).starts_with(&canonical_root) {
                         return Err("Media file escaped scan directory".into());
                     }
-                    session.record(|| self.record_file_reads(&[metadata]))?;
+                    session
+                        .record_when_running(|| self.record_file_reads(&[metadata]))
+                        .await?;
                 }
                 let total = producer.await.map_err(|error| error.to_string())??;
 
@@ -341,6 +346,22 @@ impl NativeMediaCatalog {
             result = result => result,
         };
         session.finish(result)
+    }
+
+    #[cfg(feature = "media")]
+    pub fn pause_file_scan(
+        &self,
+    ) -> Result<Option<crate::services::files::media_scans::Snapshot>, String> {
+        self.state.native_client_id()?;
+        self.state.media_scans.pause()
+    }
+
+    #[cfg(feature = "media")]
+    pub fn resume_file_scan(
+        &self,
+    ) -> Result<Option<crate::services::files::media_scans::Snapshot>, String> {
+        self.state.native_client_id()?;
+        self.state.media_scans.resume()
     }
 
     #[cfg(feature = "media")]

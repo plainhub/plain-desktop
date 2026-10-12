@@ -279,21 +279,13 @@ async fn a_blank_media_query_is_refused_before_the_platform() {
     }
 }
 
-fn upload_fixture() -> (
-    tempfile::TempDir,
-    tempfile::TempDir,
-    PublicSchema,
-    std::path::PathBuf,
-) {
-    let temp = tempfile::tempdir().unwrap();
-    let base = temp.path().join("chunks");
-    let path = base.clone();
-    let (dir, schema) = fixture_with("[]", move |method, _| match method {
-        "uploadTmpDirFacts" => json!({"path":path}),
+fn upload_fixture() -> (tempfile::TempDir, PublicSchema, std::path::PathBuf) {
+    let (dir, schema) = fixture_with("[]", |method, _| match method {
         "scanFilesFacts" => json!(true),
         other => panic!("Unexpected platform primitive: {other}"),
     });
-    (temp, dir, schema, base)
+    let base = dir.path().join("uploads");
+    (dir, schema, base)
 }
 async fn merge_status(schema: &PublicSchema, id: &str) -> Value {
     let response = schema
@@ -320,7 +312,7 @@ async fn wait_merge(schema: &PublicSchema, id: &str) -> Value {
 }
 #[tokio::test]
 async fn graphql_uploads_list_merge_and_recover_the_same_rust_job() {
-    let (temp, _dir, schema, base) = upload_fixture();
+    let (temp, schema, base) = upload_fixture();
     let chunks = base.join("abc");
     tokio::fs::create_dir_all(&chunks).await.unwrap();
     tokio::fs::write(chunks.join("chunk_1"), b"def")
@@ -358,7 +350,7 @@ async fn graphql_uploads_list_merge_and_recover_the_same_rust_job() {
 }
 #[tokio::test]
 async fn graphql_failed_merge_keeps_error_and_no_value() {
-    let (temp, _dir, schema, base) = upload_fixture();
+    let (temp, schema, base) = upload_fixture();
     let chunks = base.join("abc");
     tokio::fs::create_dir_all(&chunks).await.unwrap();
     tokio::fs::write(chunks.join("chunk_0"), b"abc")
@@ -379,7 +371,7 @@ async fn graphql_failed_merge_keeps_error_and_no_value() {
 }
 #[tokio::test]
 async fn graphql_app_file_merge_imports_into_the_rust_store() {
-    let (_temp, _dir, schema, base) = upload_fixture();
+    let (_temp, schema, base) = upload_fixture();
     let chunks = base.join("abc");
     tokio::fs::create_dir_all(&chunks).await.unwrap();
     tokio::fs::write(chunks.join("chunk_0"), b"image")

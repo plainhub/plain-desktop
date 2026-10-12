@@ -50,9 +50,9 @@ type AppQuery {
 }
 
 """
-Optional capabilities the server declares about itself; the web client
-gates UI on these instead of sniffing OS versions. Mirrors plain-app
-`Capability`.
+Optional device features. A client hides a whole section when its
+capability is absent, which is why this is a list rather than a set of
+booleans on the app root.
 """
 enum Capability {
 	MEDIA_TRASH

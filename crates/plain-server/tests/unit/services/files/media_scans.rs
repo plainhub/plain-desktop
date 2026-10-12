@@ -101,3 +101,56 @@ fn completion_records_share_the_close_barrier_without_occupying_the_directory_jo
     assert_eq!(writes.load(Ordering::SeqCst), 1);
     drop(directory);
 }
+
+#[tokio::test]
+async fn pause_is_a_commit_barrier_and_resume_keeps_the_same_session() {
+    use std::future::Future;
+    use std::task::{Context, Poll, Waker};
+    let scans = Arc::new(MediaScans::default());
+    let session = scans.begin(1).unwrap();
+    let id = scans.pause().unwrap().unwrap().id;
+    assert_eq!(scans.snapshot().unwrap().unwrap().status, Status::Paused);
+    assert!(scans.begin(1).is_err());
+    let writes = AtomicUsize::new(0);
+    let mut record = Box::pin(session.record_when_running(|| {
+        writes.fetch_add(1, Ordering::SeqCst);
+        Ok(())
+    }));
+    let mut context = Context::from_waker(Waker::noop());
+    assert!(matches!(record.as_mut().poll(&mut context), Poll::Pending));
+    assert_eq!(writes.load(Ordering::SeqCst), 0);
+    assert_eq!(scans.resume().unwrap().unwrap().id, id);
+    record.await.unwrap();
+    assert_eq!(writes.load(Ordering::SeqCst), 1);
+    let completed = session.finish(Ok(())).unwrap();
+    assert_eq!(completed.id, id);
+    assert_eq!(completed.processed_files, 1);
+    assert_eq!(completed.status, Status::Completed);
+    assert_eq!(scans.resume().unwrap().unwrap().status, Status::Completed);
+}
+
+#[tokio::test]
+async fn cancelling_or_closing_a_paused_scan_wakes_it_without_a_write() {
+    use std::future::Future;
+    use std::task::{Context, Poll, Waker};
+    for close in [false, true] {
+        let scans = Arc::new(MediaScans::default());
+        let session = scans.begin(1).unwrap();
+        scans.pause().unwrap();
+        let writes = AtomicUsize::new(0);
+        let mut record = Box::pin(session.record_when_running(|| {
+            writes.fetch_add(1, Ordering::SeqCst);
+            Ok(())
+        }));
+        let mut context = Context::from_waker(Waker::noop());
+        assert!(matches!(record.as_mut().poll(&mut context), Poll::Pending));
+        if close {
+            scans.close().unwrap();
+        } else {
+            scans.cancel().unwrap();
+        }
+        assert!(record.await.is_err());
+        assert_eq!(writes.load(Ordering::SeqCst), 0);
+        assert_eq!(session.finish(Ok(())).unwrap().status, Status::Cancelled);
+    }
+}

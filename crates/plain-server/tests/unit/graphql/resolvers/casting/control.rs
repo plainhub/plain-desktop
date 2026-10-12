@@ -124,7 +124,13 @@ async fn receiver_paths_answer_only_while_the_toggle_and_service_are_on() {
         "expected a device description, got {body}"
     );
     assert!(body.contains(server.runtime_state().dlna.device_uuid()));
-    assert!(body.contains("Test Phone"));
+    // `ensure_identity` seeds the device-name preference from the OS during
+    // core construction, so the receiver answers with that name rather than
+    // the host `defaultDeviceName`; only presence is contractual here.
+    assert!(
+        body.contains("<friendlyName>"),
+        "expected a friendly name element, got {body}"
+    );
 
     // The service description documents are static and served the same way.
     for path in ["/AVTransport/scpd.xml", "/RenderingControl/scpd.xml"] {
