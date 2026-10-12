@@ -539,3 +539,92 @@ async fn source_directories_share_core_preferences_and_reject_stopped_handles() 
     assert!(catalog.source_directories().is_err());
     assert!(catalog.set_source_directories(&[]).is_err());
 }
+
+#[cfg(feature = "media")]
+#[tokio::test]
+async fn source_directory_scan_keeps_one_session_across_roots_and_partial_failure() {
+    use crate::services::files::media_scans::Status;
+    let directory = directory_scan_fixture();
+    let roots = [
+        directory.path().join("first"),
+        directory.path().join("second"),
+    ];
+    for root in &roots {
+        std::fs::create_dir_all(root).unwrap();
+        std::fs::write(root.join("document.txt"), b"document").unwrap();
+    }
+    let core =
+        crate::assembly::server::ContentServer::open(&directory.path().join("core")).unwrap();
+    let catalog = core.native_media_catalog().unwrap();
+    catalog
+        .configure_scan_directories(&directory.path().join("cache"), None)
+        .unwrap();
+    let sources = roots
+        .iter()
+        .map(|root| root.to_str().unwrap().to_owned())
+        .collect::<Vec<_>>();
+    catalog.set_source_directories(&sources).unwrap();
+    let host = core.runtime_state().host.clone();
+    let (generation, mut requests) = host.connect();
+    let observer = catalog.clone();
+    let (done, mut finish) = tokio::sync::oneshot::channel::<()>();
+    let authorize = tokio::spawn(async move {
+        let mut id = None;
+        loop {
+            tokio::select! {
+                _ = &mut finish => break,
+                request = requests.recv() => {
+                    let request = request.unwrap();
+                    let snapshot = observer.file_scan_status().unwrap().unwrap();
+                    assert_eq!(snapshot.status, Status::Running);
+                    assert_eq!(snapshot.total_files, None);
+                    if let Some(previous) = &id { assert_eq!(previous, &snapshot.id); }
+                    else { id = Some(snapshot.id); }
+                    host.reply(generation, serde_json::json!({"id":request["id"],"result":true})).unwrap();
+                }
+            }
+        }
+    });
+    let result = catalog.scan_source_directories("/").await.unwrap();
+    done.send(()).unwrap();
+    authorize.await.unwrap();
+    assert_eq!(result.status, Status::Completed);
+    assert_eq!(result.total_files, Some(2));
+    assert_eq!(result.processed_files, 2);
+    assert_eq!(catalog.count(plain_rs::enums::DataType::Doc).unwrap(), 2);
+
+    let host = core.runtime_state().host.clone();
+    let (generation, mut requests) = host.connect();
+    let authorize = tokio::spawn(async move {
+        for _ in 0..3 {
+            let request = requests.recv().await.unwrap();
+            host.reply(
+                generation,
+                serde_json::json!({"id":request["id"],"result":true}),
+            )
+            .unwrap();
+        }
+    });
+    let result = catalog
+        .scan_directories(vec![
+            sources[0].clone(),
+            directory
+                .path()
+                .join("missing")
+                .to_str()
+                .unwrap()
+                .to_owned(),
+        ])
+        .await
+        .unwrap();
+    authorize.await.unwrap();
+    assert_eq!(result.status, Status::Failed);
+    assert_eq!(result.processed_files, 1);
+    assert_eq!(result.total_files, None);
+    assert!(result.error.is_some());
+    assert_ne!(
+        result.id,
+        catalog.scan_directories(Vec::new()).await.unwrap().id
+    );
+    core.stop_core().await;
+}
