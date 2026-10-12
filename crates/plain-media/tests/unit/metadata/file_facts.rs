@@ -1,9 +1,9 @@
 //! Unit tests for `src/metadata/file_facts.rs` — moved out-of-line;
 //! compiled as the `tests` child module via `#[cfg(test)] #[path]` there.
 use super::*;
-use chrono::{DateTime, Utc};
 use plain_rs::db::MediaFileMetadata;
 use plain_rs::enums::DataType;
+use plain_rs::utils::dbtime::iso_from_unix_millis;
 use std::path::{Path, PathBuf};
 use std::time::{Duration, SystemTime};
 
@@ -15,10 +15,14 @@ fn fixture(name: &str) -> PathBuf {
     .join(name)
 }
 
-fn parse_utc(value: &str) -> DateTime<Utc> {
-    DateTime::parse_from_rfc3339(value)
+/// The row format is the fixed-width `...Z` text the catalog sorts on, so a
+/// rendered timestamp must equal `dbtime`'s own rendering of the same instant.
+fn dbtime_of(at: SystemTime) -> String {
+    let millis = at
+        .duration_since(SystemTime::UNIX_EPOCH)
         .unwrap()
-        .with_timezone(&Utc)
+        .as_millis() as i64;
+    iso_from_unix_millis(millis)
 }
 
 /// Directory contents with size and mtime, so a side effect anywhere in the
@@ -114,20 +118,19 @@ fn audio_row_carries_probe_tags_and_real_stat_facts() {
 }
 
 #[test]
-fn timestamps_are_utc_rfc3339_of_the_stat_times() {
+fn timestamps_use_the_dbtime_row_format() {
     let path = fixture("v-prog-gray.jpg");
     let meta = std::fs::metadata(&path).unwrap();
-    let modified = DateTime::<Utc>::from(meta.modified().unwrap());
+    let modified = meta.modified().unwrap();
 
     let m = read_file_metadata(&path, DataType::Image).unwrap();
 
-    assert_eq!(parse_utc(&m.updated_at), modified);
-    assert!(m.updated_at.ends_with("+00:00"), "{}", m.updated_at);
-    assert!(m.created_at.ends_with("+00:00"), "{}", m.created_at);
-    let born = birth_unix_secs(&meta).map(|secs| {
-        DateTime::<Utc>::from(SystemTime::UNIX_EPOCH + Duration::from_secs(secs as u64))
-    });
-    assert_eq!(parse_utc(&m.created_at), born.unwrap_or(modified));
+    assert_eq!(m.updated_at, dbtime_of(modified));
+    assert!(m.updated_at.ends_with('Z'), "{}", m.updated_at);
+    assert!(m.created_at.ends_with('Z'), "{}", m.created_at);
+    let born = birth_unix_secs(&meta)
+        .map(|secs| SystemTime::UNIX_EPOCH + Duration::from_secs(secs as u64));
+    assert_eq!(m.created_at, dbtime_of(born.unwrap_or(modified)));
 }
 
 #[test]
@@ -135,15 +138,20 @@ fn created_at_falls_back_to_modified_when_the_os_records_no_birth_time() {
     let modified = SystemTime::UNIX_EPOCH + Duration::from_secs(1_700_000_000);
     let born = SystemTime::UNIX_EPOCH + Duration::from_secs(1_600_000_000);
 
-    assert_eq!(created_at_of(None, modified), "2023-11-14T22:13:20+00:00");
+    assert_eq!(created_at_of(None, modified), "2023-11-14T22:13:20Z");
+    assert_eq!(created_at_of(Some(born), modified), "2020-09-13T12:26:40Z");
     assert_eq!(
-        created_at_of(Some(born), modified),
-        "2020-09-13T12:26:40+00:00"
+        row_timestamp(SystemTime::UNIX_EPOCH),
+        "1970-01-01T00:00:00Z"
     );
-    assert_eq!(
-        rfc3339_utc(SystemTime::UNIX_EPOCH),
-        "1970-01-01T00:00:00+00:00"
-    );
+}
+
+#[test]
+fn timestamps_sort_chronologically_as_text() {
+    let base = SystemTime::UNIX_EPOCH + Duration::from_secs(1_700_000_000);
+    let later = base + Duration::from_secs(1);
+
+    assert!(row_timestamp(base) < row_timestamp(later));
 }
 
 // ---------------------------------------------------------------------------

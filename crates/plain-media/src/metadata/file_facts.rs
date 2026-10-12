@@ -15,7 +15,6 @@
 //! a valid HEIC/AVIF still produces a row instead of leaving the scan.
 
 use anyhow::{Context, Result, bail};
-use chrono::{DateTime, Utc};
 use plain_rs::db::MediaFileMetadata;
 use plain_rs::enums::DataType;
 use std::fs::{File, Metadata};
@@ -81,7 +80,7 @@ pub fn read_file_metadata(path: &Path, data_type: DataType) -> Result<MediaFileM
         rotation,
         taken_at,
         created_at: created_at_of(birth_time(&meta), modified),
-        updated_at: rfc3339_utc(modified),
+        updated_at: row_timestamp(modified),
     })
 }
 
@@ -95,16 +94,22 @@ fn file_stem(path: &str) -> String {
         .to_string()
 }
 
-/// UTC RFC3339 rendering of a filesystem timestamp.
-fn rfc3339_utc(at: SystemTime) -> String {
-    let at: DateTime<Utc> = at.into();
-    at.to_rfc3339()
+/// UTC timestamp in the row format the rest of the database uses: the
+/// catalog sorts `created_at`, `updated_at` and `taken_at` by their text
+/// value, so the fixed-width `...Z` rendering of `dbtime` is what keeps
+/// lexicographic order equal to chronological order inside a column.
+fn row_timestamp(at: SystemTime) -> String {
+    let millis = at
+        .duration_since(SystemTime::UNIX_EPOCH)
+        .map(|since| i64::try_from(since.as_millis()).unwrap_or(i64::MAX))
+        .unwrap_or_default();
+    plain_rs::utils::dbtime::iso_from_unix_millis(millis)
 }
 
 /// Creation time, falling back to modified time on the filesystems that
 /// record no birth time.
 fn created_at_of(birth: Option<SystemTime>, modified: SystemTime) -> String {
-    birth.map_or_else(|| rfc3339_utc(modified), rfc3339_utc)
+    birth.map_or_else(|| row_timestamp(modified), row_timestamp)
 }
 
 /// Birth time in unix seconds, `None` where the OS records none (the
