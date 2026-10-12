@@ -28,12 +28,14 @@ use crate::graphql::resolvers::database::public::DbMutation;
 use crate::graphql::resolvers::database::public::DbQuery;
 use crate::graphql::resolvers::device::public::DeviceMutation;
 use crate::graphql::resolvers::device::public::DeviceQuery;
+use crate::graphql::resolvers::favorites::favorite_folder::{
+    FavoriteFolderMutation, FavoriteFolderQuery,
+};
 use crate::graphql::resolvers::feeds::feed::FeedMutation;
 use crate::graphql::resolvers::feeds::feed::FeedQuery;
 use crate::graphql::resolvers::files::operations::FileOpsMutation;
 use crate::graphql::resolvers::files::operations::MediaActionMutation;
 use crate::graphql::resolvers::files::operations::UploadQuery;
-use crate::graphql::resolvers::files::public::FavoritesMutation;
 use crate::graphql::resolvers::files::public::FilesQuery;
 use crate::graphql::resolvers::images::public_index::ImageIndexMutation;
 use crate::graphql::resolvers::images::public_index::ImageIndexQuery;
@@ -76,6 +78,7 @@ pub struct Query(
     ScreenMirrorQuery,
     ImageIndexQuery,
     FilesQuery,
+    FavoriteFolderQuery,
     MediaQuery,
     ImagesQuery,
     VideosQuery,
@@ -104,7 +107,7 @@ pub struct Mutation(
     ScreenMirrorMutation,
     ImageIndexMutation,
     SettingsMutation,
-    FavoritesMutation,
+    FavoriteFolderMutation,
     TagsMutation,
     PrefsMutation,
     DbMutation,

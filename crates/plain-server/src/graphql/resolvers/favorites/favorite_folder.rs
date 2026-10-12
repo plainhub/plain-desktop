@@ -45,8 +45,8 @@ impl FavoriteFolderMutation {
     async fn add_favorite_folder(
         &self,
         ctx: &Context<'_>,
-        #[graphql(name = "rootPath")] root_path: String,
-        #[graphql(name = "fullPath")] full_path: String,
+        root_path: String,
+        full_path: String,
     ) -> Result<Vec<FavoriteFolder>> {
         let db = ctx.data::<Arc<Db>>()?;
         favorite_folders::add_full_path(db, &root_path, &full_path)?;
@@ -58,7 +58,7 @@ impl FavoriteFolderMutation {
     async fn remove_favorite_folder(
         &self,
         ctx: &Context<'_>,
-        #[graphql(name = "fullPath")] full_path: String,
+        full_path: String,
     ) -> Result<Vec<FavoriteFolder>> {
         let db = ctx.data::<Arc<Db>>()?;
         if let Some(f) = favorite_folders::find_by_full_path(db, &full_path)? {
@@ -71,7 +71,7 @@ impl FavoriteFolderMutation {
     async fn set_favorite_folder_alias(
         &self,
         ctx: &Context<'_>,
-        #[graphql(name = "fullPath")] full_path: String,
+        full_path: String,
         alias: String,
     ) -> Result<Vec<FavoriteFolder>> {
         let db = ctx.data::<Arc<Db>>()?;

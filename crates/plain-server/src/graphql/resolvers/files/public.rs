@@ -7,7 +7,6 @@
 //! genuinely cannot know reach for the host: which volumes are mounted,
 //! what "recent" means on this platform, and image/video/audio metadata.
 
-use crate::graphql::resolvers::favorites::types::FavoriteFolder;
 use crate::graphql::resolvers::files::types::AudioFileInfo;
 use crate::graphql::resolvers::files::types::DriveType;
 use crate::graphql::resolvers::files::types::File;
@@ -31,7 +30,6 @@ use crate::http::auth::public_gate;
 use crate::http::routes::file_reads;
 use async_graphql::{Context, Enum, Object};
 use chrono::{DateTime, Utc};
-use plain_rs::db::Db;
 use plain_rs::files::filesystem::SortBy;
 use plain_rs::files::filesystem::browse::Request;
 use serde_json::{Value, json};
@@ -176,83 +174,6 @@ impl FilesQuery {
                 }
             }))
     }
-
-    /// Bookmarked directories. These live in the Rust SQLite
-    /// `favorite_folders` table, so this reads the store directly instead
-    /// of asking the platform to refresh — going through the host would
-    /// re-enter this very root once `main_graphql` serves the public
-    /// schema.
-    async fn favorite_folders(
-        &self,
-        ctx: &Context<'_>,
-    ) -> async_graphql::Result<Vec<FavoriteFolder>> {
-        favorite_folders(ctx).await
-    }
-}
-
-#[derive(Default)]
-pub struct FavoritesMutation;
-
-#[Object]
-impl FavoritesMutation {
-    /// Each mutation returns the whole updated list, so a client never has
-    /// to guess what the operation did to the rows it did not touch.
-    async fn add_favorite_folder(
-        &self,
-        ctx: &Context<'_>,
-        root_path: String,
-        full_path: String,
-    ) -> async_graphql::Result<Vec<FavoriteFolder>> {
-        plain_rs::favorites::add_full_path(db(ctx), &root_path, &full_path)
-            .map_err(|error| async_graphql::Error::new(error.to_string()))?;
-        favorite_folders(ctx).await
-    }
-
-    /// An unknown `fullPath` is not an error: the folder was already gone,
-    /// and returning the current list is the honest answer either way.
-    async fn remove_favorite_folder(
-        &self,
-        ctx: &Context<'_>,
-        full_path: String,
-    ) -> async_graphql::Result<Vec<FavoriteFolder>> {
-        let db = db(ctx);
-        if let Some(folder) = plain_rs::favorites::find_by_full_path(db, &full_path)
-            .map_err(|error| async_graphql::Error::new(error.to_string()))?
-        {
-            plain_rs::favorites::remove(db, &folder.root_path, &folder.relative_path)
-                .map_err(|error| async_graphql::Error::new(error.to_string()))?;
-        }
-        favorite_folders(ctx).await
-    }
-
-    async fn set_favorite_folder_alias(
-        &self,
-        ctx: &Context<'_>,
-        full_path: String,
-        alias: String,
-    ) -> async_graphql::Result<Vec<FavoriteFolder>> {
-        let db = db(ctx);
-        if let Some(folder) = plain_rs::favorites::find_by_full_path(db, &full_path)
-            .map_err(|error| async_graphql::Error::new(error.to_string()))?
-        {
-            plain_rs::favorites::set_alias(db, &folder.root_path, &folder.relative_path, &alias)
-                .map_err(|error| async_graphql::Error::new(error.to_string()))?;
-        }
-        favorite_folders(ctx).await
-    }
-}
-
-async fn favorite_folders(ctx: &Context<'_>) -> async_graphql::Result<Vec<FavoriteFolder>> {
-    let db = db(ctx);
-    Ok(plain_rs::favorites::list(db)
-        .map_err(|error| async_graphql::Error::new(error.to_string()))?
-        .iter()
-        .map(|folder| FavoriteFolder {
-            root_path: folder.root_path.clone(),
-            full_path: plain_rs::favorites::full_path_of(folder),
-            alias: folder.alias.clone(),
-        })
-        .collect())
 }
 
 #[derive(Enum, Copy, Clone, Eq, PartialEq, Debug)]
@@ -417,10 +338,6 @@ fn host<'a>(ctx: &'a Context<'_>) -> &'a Arc<Host> {
 
 fn prefs<'a>(ctx: &'a Context<'_>) -> &'a Arc<plain_rs::prefs::Prefs> {
     ctx.data_unchecked::<Arc<plain_rs::prefs::Prefs>>()
-}
-
-fn db<'a>(ctx: &'a Context<'_>) -> &'a Arc<Db> {
-    ctx.data_unchecked::<Arc<Db>>()
 }
 
 async fn host_call(ctx: &Context<'_>, method: &str, params: Value) -> async_graphql::Result<Value> {
