@@ -27,9 +27,9 @@ use crate::graphql::resolvers::media::public::media_count;
 use crate::graphql::resolvers::media::public::media_rows;
 use crate::graphql::resolvers::media::public::prefs;
 use crate::graphql::resolvers::media::public::row;
-use crate::graphql::resolvers::media::public::tags_for;
 
 #[derive(SimpleObject, Clone, Debug)]
+#[graphql(complex)]
 pub struct Doc {
     pub id: async_graphql::ID,
     pub title: String,
@@ -42,7 +42,18 @@ pub struct Doc {
     pub created_at: Instant,
     #[graphql(name = "updatedAt")]
     pub updated_at: Instant,
-    pub tags: Vec<Tag>,
+}
+
+#[async_graphql::ComplexObject]
+impl Doc {
+    async fn tags(&self, ctx: &async_graphql::Context<'_>) -> async_graphql::Result<Vec<Tag>> {
+        crate::graphql::resolvers::tags::loader::load(
+            ctx,
+            plain_rs::enums::DataType::Doc,
+            self.id.as_str(),
+        )
+        .await
+    }
 }
 
 #[derive(SimpleObject, Clone, Debug)]
@@ -81,7 +92,6 @@ impl DocsQuery {
             }),
         )
         .await?;
-        let tags = tags_for(ctx, "DOC", &items).await?;
         Ok(rows(&items, |item| {
             let row = row(item);
             Doc {
@@ -98,10 +108,6 @@ impl DocsQuery {
                 bucket_id: row.bucket_id,
                 created_at: row.created_at,
                 updated_at: row.updated_at,
-                tags: tags
-                    .get(&id(item, "id").to_string())
-                    .cloned()
-                    .unwrap_or_default(),
             }
         }))
     }

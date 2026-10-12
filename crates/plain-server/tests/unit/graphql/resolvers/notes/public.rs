@@ -2,6 +2,7 @@ use super::*;
 use crate::graphql::schemas::public::PublicSchema;
 use crate::host::bridge::Host;
 use plain_rs::db::Db;
+use plain_rs::enums::DataType;
 use plain_rs::prefs::Prefs;
 use serde_json::{Value, json};
 use std::sync::Arc;
@@ -290,4 +291,73 @@ async fn updating_a_note_replaces_both_fields() {
     .await;
     assert_eq!(updated["data"]["updateNote"]["title"], "Final");
     assert_eq!(updated["data"]["updateNote"]["content"], "v2");
+}
+
+#[tokio::test]
+async fn unselected_tags_do_not_query_the_tag_store() {
+    let (_dir, schema) = fixture();
+    let library = database(&schema);
+    plain_rs::notes::create(library, "Plain note", "").unwrap();
+    library
+        .with_conn(|conn| conn.execute_batch("DROP TABLE tag_relations; DROP TABLE tags;"))
+        .unwrap();
+    let plain = schema
+        .execute(r#"{ notes(query: "", offset: 0, limit: 10) { id title } }"#)
+        .await;
+    assert!(plain.errors.is_empty(), "{:?}", plain.errors);
+    let tagged = schema
+        .execute(r#"{ notes(query: "", offset: 0, limit: 10) { id tags { id } } }"#)
+        .await;
+    assert!(
+        !tagged.errors.is_empty(),
+        "selected tags must reach the tag store"
+    );
+}
+
+#[tokio::test]
+async fn selected_tags_batch_a_page_and_observe_later_edits() {
+    use crate::graphql::resolvers::tags::loader::TagsLoader;
+    use async_graphql::dataloader::DataLoader;
+    use std::sync::atomic::Ordering;
+
+    let (_dir, schema) = fixture();
+    let library = database(&schema);
+    let tag = plain_rs::tags::create_tag(library, DataType::Note.kind(), "urgent").unwrap();
+    for title in ["First", "Second", "Third"] {
+        let note = plain_rs::notes::create(library, title, "").unwrap();
+        plain_rs::tags::add_relations(library, &[(tag.id.clone(), note.id)]).unwrap();
+    }
+    let loader = schema.data::<DataLoader<TagsLoader>>().unwrap().loader();
+    let plain = schema
+        .execute(r#"{ notes(query: "", offset: 0, limit: 10) { id } }"#)
+        .await;
+    assert!(plain.errors.is_empty(), "{:?}", plain.errors);
+    assert_eq!(loader.loads.load(Ordering::Relaxed), 0);
+
+    let selection = r#"{ notes(query: "", offset: 0, limit: 10) { id tags { name } } }"#;
+    let tagged = schema.execute(selection).await;
+    assert!(tagged.errors.is_empty(), "{:?}", tagged.errors);
+    let items = tagged.data.into_json().unwrap();
+    assert_eq!(items["notes"].as_array().unwrap().len(), 3);
+    assert!(
+        items["notes"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .all(|note| note["tags"][0]["name"] == "urgent")
+    );
+    assert_eq!(loader.loads.load(Ordering::Relaxed), 1);
+
+    plain_rs::tags::update_tag(library, &tag.id, "updated").unwrap();
+    let changed = schema.execute(selection).await;
+    assert!(changed.errors.is_empty(), "{:?}", changed.errors);
+    let items = changed.data.into_json().unwrap();
+    assert!(
+        items["notes"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .all(|note| note["tags"][0]["name"] == "updated")
+    );
+    assert_eq!(loader.loads.load(Ordering::Relaxed), 2);
 }

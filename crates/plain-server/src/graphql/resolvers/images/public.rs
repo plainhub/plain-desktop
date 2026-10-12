@@ -25,10 +25,10 @@ use std::{collections::HashMap, path::Path, sync::Arc};
 use crate::graphql::resolvers::media::public::STORAGE;
 use crate::graphql::resolvers::media::public::prefs;
 use crate::graphql::resolvers::media::public::row;
-use crate::graphql::resolvers::media::public::tags_for;
 use crate::graphql::resolvers::media::public::text_field;
 
 #[derive(SimpleObject, Clone, Debug)]
+#[graphql(complex)]
 pub struct Image {
     pub id: async_graphql::ID,
     pub title: String,
@@ -44,7 +44,18 @@ pub struct Image {
     pub taken_at: Option<Instant>,
     #[graphql(name = "isFavorite")]
     pub is_favorite: bool,
-    pub tags: Vec<Tag>,
+}
+
+#[async_graphql::ComplexObject]
+impl Image {
+    async fn tags(&self, ctx: &async_graphql::Context<'_>) -> async_graphql::Result<Vec<Tag>> {
+        crate::graphql::resolvers::tags::loader::load(
+            ctx,
+            plain_rs::enums::DataType::Image,
+            self.id.as_str(),
+        )
+        .await
+    }
 }
 
 #[derive(Default)]
@@ -88,7 +99,6 @@ impl ImagesQuery {
             .await
             .map_err(async_graphql::Error::new)?,
         );
-        let tags = tags_for(ctx, "IMAGE", &items).await?;
         Ok(rows(&items, |item| {
             let row = row(item);
             Image {
@@ -101,10 +111,6 @@ impl ImagesQuery {
                 updated_at: row.updated_at,
                 taken_at: optional_instant(item, "takenAt"),
                 is_favorite: flag(item, "isFavorite"),
-                tags: tags
-                    .get(&id(item, "id").to_string())
-                    .cloned()
-                    .unwrap_or_default(),
             }
         }))
     }

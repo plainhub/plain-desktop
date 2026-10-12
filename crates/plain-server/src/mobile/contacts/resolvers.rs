@@ -3,7 +3,6 @@
 //! The search DSL stays owned by Rust: the host turns the query into the
 //! same `WHERE` clause the app's own contact provider view uses.
 
-use crate::graphql::resolvers::tags::types::Tag;
 use crate::graphql::types::ActionResult;
 use crate::graphql::types::facts::host_json;
 use crate::graphql::types::facts::instant;
@@ -16,8 +15,6 @@ use crate::mobile::contacts::types::*;
 use crate::mobile::contacts::write as contact_write;
 use crate::mobile::contacts::write::Action;
 use async_graphql::{Context, ID, Object};
-use plain_rs::db::Db;
-use plain_rs::enums::DataType;
 use plain_rs::prefs::Prefs;
 use serde_json::{Value, json};
 use std::sync::Arc;
@@ -44,8 +41,7 @@ impl ContactsQuery {
             json!({"query": query, "offset": offset, "limit": limit}),
         )
         .await?;
-        let db = ctx.data_unchecked::<Arc<Db>>();
-        Ok(facts.iter().map(|fact| contact(db, fact)).collect())
+        Ok(facts.iter().map(|fact| contact(fact)).collect())
     }
 
     /// plain-app degrades this to 0 rather than erroring when the web client
@@ -262,21 +258,12 @@ async fn reload(ctx: &Context<'_>, id: &str, phase: &str) -> async_graphql::Resu
         .iter()
         .find(|fact| text(fact, "id") == id)
         .ok_or_else(|| async_graphql::Error::new(format!("Contact {id} not found {phase}")))?;
-    Ok(contact(ctx.data_unchecked::<Arc<Db>>(), fact))
+    Ok(contact(fact))
 }
 
-fn contact(db: &Arc<Db>, fact: &Value) -> Contact {
+fn contact(fact: &Value) -> Contact {
     let id = text(fact, "id");
     Contact {
-        tags: plain_rs::db::tag::tags_for_key_of_kind(db, &id, DataType::Contact.kind())
-            .unwrap_or_default()
-            .into_iter()
-            .map(|tag| Tag {
-                id: ID::from(tag.id),
-                name: tag.name,
-                count: tag.count,
-            })
-            .collect(),
         id: ID::from(id),
         prefix: text(fact, "prefix"),
         first_name: text(fact, "firstName"),

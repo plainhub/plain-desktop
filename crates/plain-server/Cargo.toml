@@ -59,7 +59,7 @@ parking_lot = "0.12"
 "rusqlite" = { "version" = "0.32", "features" = ["bundled"], "optional" = true }
 "regex" = { "version" = "1", "optional" = true }
 "tokio" = { "version" = "1", "default-features" = false, "features" = ["io-util"] }
-"async-graphql" = { "version" = "7", "default-features" = false, "optional" = true }
+"async-graphql" = { "version" = "7", "default-features" = false, "features" = ["dataloader"], "optional" = true }
 "image" = { "version" = "0.25", "default-features" = false, "features" = ["jpeg", "png", "webp", "gif"], "optional" = true }
 "socket2" = { "version" = "0.5", "features" = ["all"] }
 "sysinfo" = { "version" = "0.32", "default-features" = false, "features" = ["system", "disk"], "optional" = true }

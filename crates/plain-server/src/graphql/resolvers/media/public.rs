@@ -8,7 +8,6 @@
 //! an explicit browse still errors out, because a silently empty page and a
 //! denied page mean different things to the caller.
 
-use crate::graphql::resolvers::tags::types::Tag;
 use crate::graphql::types::Instant;
 use crate::graphql::types::Long;
 use crate::graphql::types::facts::id;
@@ -202,45 +201,6 @@ pub(crate) async fn media_count(
     )
     .await?;
     Ok(count.as_i64().unwrap_or_default() as i32)
-}
-
-/// Tags are per-row, so they are fetched once for the page and keyed by the
-/// media id. The platform answers from the same Rust store the roots read
-/// from, so the ids have to survive the round trip unchanged.
-pub(crate) async fn tags_for(
-    ctx: &Context<'_>,
-    data_type: &str,
-    items: &Value,
-) -> async_graphql::Result<HashMap<String, Vec<Tag>>> {
-    let keys: Vec<String> = rows(items, |item| id(item, "id").to_string())
-        .into_iter()
-        .filter(|key| !key.is_empty())
-        .collect();
-    if keys.is_empty() {
-        return Ok(Default::default());
-    }
-    let kind = match data_type {
-        "AUDIO" => plain_rs::enums::DataType::Audio,
-        "VIDEO" => plain_rs::enums::DataType::Video,
-        "IMAGE" => plain_rs::enums::DataType::Image,
-        "DOC" => plain_rs::enums::DataType::Doc,
-        _ => return Err("unsupported media type".into()),
-    }
-    .kind();
-    let db = ctx.data::<Arc<plain_rs::db::Db>>()?;
-    let rows = plain_rs::tags::tags_by_type(db, kind)?;
-    let by_id: HashMap<_, _> = rows.into_iter().map(|tag| (tag.id.clone(), tag)).collect();
-    let mut tags: HashMap<String, Vec<Tag>> = HashMap::new();
-    for relation in plain_rs::tags::relations_for_keys_of_kind(db, &keys, kind)? {
-        if let Some(tag) = by_id.get(&relation.tag_id) {
-            tags.entry(relation.key).or_default().push(Tag {
-                id: tag.id.clone().into(),
-                name: tag.name.clone(),
-                count: tag.count,
-            });
-        }
-    }
-    Ok(tags)
 }
 
 pub(crate) fn instant(value: &Value, key: &str) -> Instant {

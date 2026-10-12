@@ -17,7 +17,6 @@
 use crate::graphql::resolvers::feeds::feed::Feed;
 use crate::graphql::resolvers::feeds::feed::FeedEntryCount;
 use crate::graphql::resolvers::feeds::feed::FeedError;
-use crate::graphql::resolvers::notes::public::tags_by_key;
 use crate::graphql::resolvers::tags::types::Tag;
 use crate::graphql::types::ActionResult;
 use crate::graphql::types::Instant;
@@ -26,10 +25,10 @@ use async_graphql::{Context, Object, SimpleObject};
 use plain_rs::db::Db;
 use plain_rs::db::notes_feeds::FeedEntryRow;
 use plain_rs::db::notes_feeds::FeedRow;
-use plain_rs::enums::DataType;
 use std::sync::Arc;
 
 #[derive(SimpleObject, Clone)]
+#[graphql(complex)]
 pub struct FeedEntry {
     #[graphql(name = "feedId")]
     pub feed_id: async_graphql::ID,
@@ -49,8 +48,19 @@ pub struct FeedEntry {
     pub created_at: Instant,
     #[graphql(name = "updatedAt")]
     pub updated_at: Instant,
-    pub tags: Vec<Tag>,
     pub feed: Option<Feed>,
+}
+
+#[async_graphql::ComplexObject]
+impl FeedEntry {
+    async fn tags(&self, ctx: &async_graphql::Context<'_>) -> async_graphql::Result<Vec<Tag>> {
+        crate::graphql::resolvers::tags::loader::load(
+            ctx,
+            plain_rs::enums::DataType::FeedEntry,
+            self.id.as_str(),
+        )
+        .await
+    }
 }
 
 #[derive(Default)]
@@ -110,7 +120,7 @@ impl FeedsQuery {
         let Some(row) = plain_rs::feeds::entry_get(library, id.as_str())? else {
             return Ok(None);
         };
-        Ok(Some(entry(library, row, Vec::new()).await?))
+        Ok(Some(entry(library, row).await?))
     }
 
     async fn feed_entries(
@@ -122,15 +132,9 @@ impl FeedsQuery {
     ) -> async_graphql::Result<Vec<FeedEntry>> {
         let library = db(ctx)?;
         let rows = plain_rs::feeds::search(library, &query, limit, offset)?;
-        let tags = tags_by_key(
-            library,
-            &rows.iter().map(|row| row.id.clone()).collect::<Vec<_>>(),
-            DataType::FeedEntry,
-        )?;
         let mut out = Vec::with_capacity(rows.len());
         for row in rows {
-            let tagged = tags.get(&row.id).cloned().unwrap_or_default();
-            out.push(entry(library, row, tagged).await?);
+            out.push(entry(library, row).await?);
         }
         Ok(out)
     }
@@ -248,9 +252,7 @@ impl FeedsMutation {
         let row =
             feeds::sync_entry_content_with_assets(library, id.as_str(), assets(ctx).as_deref())
                 .await?;
-        let mut tags = tags_by_key(library, &[row.id.clone()], DataType::FeedEntry)?;
-        let tagged = tags.remove(&row.id).unwrap_or_default();
-        entry(library, row, tagged).await
+        entry(library, row).await
     }
 
     /// Blank query refused for the same reason as `deleteNotes`: a bulk
@@ -301,11 +303,7 @@ fn feed_model(row: FeedRow) -> Feed {
     }
 }
 
-async fn entry(
-    library: &Arc<Db>,
-    row: FeedEntryRow,
-    tags: Vec<Tag>,
-) -> async_graphql::Result<FeedEntry> {
+async fn entry(library: &Arc<Db>, row: FeedEntryRow) -> async_graphql::Result<FeedEntry> {
     Ok(FeedEntry {
         feed_id: row.feed_id.clone().into(),
         id: row.id.clone().into(),
@@ -320,7 +318,6 @@ async fn entry(
         published_at: crate::graphql::types::facts::stored_instant(&row.published_at),
         created_at: crate::graphql::types::facts::stored_instant(&row.created_at),
         updated_at: crate::graphql::types::facts::stored_instant(&row.updated_at),
-        tags,
         feed: match plain_rs::feeds::get(library, &row.feed_id)? {
             Some(row) => Some(feed_model(row)),
             None => None,

@@ -72,7 +72,7 @@ data_kind!(PhoneType {
     OtherFax = 13,
     Radio = 14,
     Telex = 15,
-    TtyDdd = 16,
+    TtyTdd = 16,
     WorkMobile = 17,
     WorkPager = 18,
     Assistant = 19,
@@ -187,6 +187,7 @@ pub struct ContactSource {
 /// `tags(type:)` filter instead — so it is not `content_types::Tag`.
 
 #[derive(SimpleObject, Clone, Debug)]
+#[graphql(complex)]
 pub struct Contact {
     pub id: ID,
     pub prefix: String,
@@ -219,7 +220,18 @@ pub struct Contact {
     pub ringtone: String,
     #[graphql(name = "updatedAt")]
     pub updated_at: Instant,
-    pub tags: Vec<Tag>,
+}
+
+#[async_graphql::ComplexObject]
+impl Contact {
+    async fn tags(&self, ctx: &async_graphql::Context<'_>) -> async_graphql::Result<Vec<Tag>> {
+        crate::graphql::resolvers::tags::loader::load(
+            ctx,
+            plain_rs::enums::DataType::Contact,
+            self.id.as_str(),
+        )
+        .await
+    }
 }
 
 #[derive(InputObject, Clone, Debug)]

@@ -12,3 +12,6 @@ pub mod types;
 
 #[cfg(any(feature = "api", feature = "host-api"))]
 pub mod domain_types;
+
+#[cfg(feature = "host-api")]
+pub(crate) mod loader;

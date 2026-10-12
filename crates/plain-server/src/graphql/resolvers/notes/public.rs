@@ -13,13 +13,11 @@ use crate::graphql::types::facts::stored_instant;
 use async_graphql::{Context, InputObject, Object, SimpleObject};
 use plain_rs::db::Db;
 use plain_rs::db::notes_feeds::NoteRow;
-use plain_rs::enums::DataType;
 use plain_rs::notes;
-use plain_rs::tags;
-use std::collections::{HashMap, HashSet};
 use std::sync::Arc;
 
 #[derive(SimpleObject, Clone, Debug)]
+#[graphql(complex)]
 pub struct Note {
     pub id: async_graphql::ID,
     pub title: String,
@@ -30,7 +28,18 @@ pub struct Note {
     pub created_at: Instant,
     #[graphql(name = "updatedAt")]
     pub updated_at: Instant,
-    pub tags: Vec<Tag>,
+}
+
+#[async_graphql::ComplexObject]
+impl Note {
+    async fn tags(&self, ctx: &async_graphql::Context<'_>) -> async_graphql::Result<Vec<Tag>> {
+        crate::graphql::resolvers::tags::loader::load(
+            ctx,
+            plain_rs::enums::DataType::Note,
+            self.id.as_str(),
+        )
+        .await
+    }
 }
 
 #[derive(InputObject, Clone, Debug)]
@@ -57,9 +66,7 @@ impl NotesQuery {
         let Some(row) = notes::get(library, id.as_str())? else {
             return Ok(None);
         };
-        let mut tags = tags_by_key(library, &[row.id.clone()], DataType::Note)?;
-        let tagged = tags.remove(&row.id).unwrap_or_default();
-        Ok(Some(note(row, tagged)))
+        Ok(Some(note(row)))
     }
 
     async fn notes(
@@ -71,18 +78,7 @@ impl NotesQuery {
     ) -> async_graphql::Result<Vec<Note>> {
         let library = db(ctx)?;
         let rows = notes::search(library, &query, limit, offset)?;
-        let tags = tags_by_key(
-            library,
-            &rows.iter().map(|row| row.id.clone()).collect::<Vec<_>>(),
-            DataType::Note,
-        )?;
-        Ok(rows
-            .into_iter()
-            .map(|row| {
-                let tagged = tags.get(&row.id).cloned().unwrap_or_default();
-                note(row, tagged)
-            })
-            .collect())
+        Ok(rows.into_iter().map(|row| note(row)).collect())
     }
 }
 
@@ -98,9 +94,7 @@ impl NotesMutation {
     ) -> async_graphql::Result<Note> {
         let library = db(ctx)?;
         let row = notes::create(library, &input.title, &input.content)?;
-        let mut tags = tags_by_key(library, &[row.id.clone()], DataType::Note)?;
-        let tagged = tags.remove(&row.id).unwrap_or_default();
-        Ok(note(row, tagged))
+        Ok(note(row))
     }
 
     async fn update_note(
@@ -111,9 +105,7 @@ impl NotesMutation {
     ) -> async_graphql::Result<Note> {
         let library = db(ctx)?;
         let row = notes::update(library, id.as_str(), &input.title, &input.content)?;
-        let mut tags = tags_by_key(library, &[row.id.clone()], DataType::Note)?;
-        let tagged = tags.remove(&row.id).unwrap_or_default();
-        Ok(note(row, tagged))
+        Ok(note(row))
     }
 
     async fn save_feed_entries_to_notes(
@@ -172,7 +164,7 @@ impl NotesMutation {
     }
 }
 
-fn note(row: NoteRow, tags: Vec<Tag>) -> Note {
+fn note(row: NoteRow) -> Note {
     Note {
         id: row.id.into(),
         title: row.title,
@@ -180,43 +172,7 @@ fn note(row: NoteRow, tags: Vec<Tag>) -> Note {
         deleted_at: row.deleted_at.as_deref().map(stored_instant),
         created_at: stored_instant(&row.created_at),
         updated_at: stored_instant(&row.updated_at),
-        tags,
     }
-}
-
-/// Tags for a whole page, keyed by note id. The relations come back in one
-/// query and the distinct tag ids are then looked up individually, which is
-/// bounded by how many distinct tags a page uses rather than by its length.
-pub(crate) fn tags_by_key(
-    library: &Arc<Db>,
-    keys: &[String],
-    kind: DataType,
-) -> async_graphql::Result<HashMap<String, Vec<Tag>>> {
-    if keys.is_empty() {
-        return Ok(HashMap::new());
-    }
-    let relations = tags::relations_for_keys_of_kind(library, keys, kind.kind())?;
-    let distinct: HashSet<String> = relations.iter().map(|row| row.tag_id.clone()).collect();
-    let mut by_id: HashMap<String, Tag> = HashMap::new();
-    for id in distinct {
-        if let Some(row) = tags::tag_by_id(library, &id)? {
-            by_id.insert(
-                row.id.clone(),
-                Tag {
-                    id: row.id.into(),
-                    name: row.name,
-                    count: row.count,
-                },
-            );
-        }
-    }
-    let mut by_key: HashMap<String, Vec<Tag>> = HashMap::new();
-    for relation in relations {
-        if let Some(tag) = by_id.get(&relation.tag_id) {
-            by_key.entry(relation.key).or_default().push(tag.clone());
-        }
-    }
-    Ok(by_key)
 }
 
 fn db<'a>(ctx: &'a Context<'_>) -> async_graphql::Result<&'a Arc<Db>> {

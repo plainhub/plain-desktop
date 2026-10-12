@@ -15,7 +15,6 @@ use crate::host::query::Provider;
 use crate::http::auth::public_gate;
 use async_graphql::{Context, Enum, ID, Object, SimpleObject};
 use plain_rs::db::Db;
-use plain_rs::enums::DataType;
 use plain_rs::prefs::Prefs;
 use serde_json::Value;
 use std::sync::Arc;
@@ -61,6 +60,7 @@ pub struct PhoneGeo {
 }
 
 #[derive(SimpleObject, Clone, Debug)]
+#[graphql(complex)]
 pub struct Call {
     pub id: ID,
     pub number: String,
@@ -75,7 +75,18 @@ pub struct Call {
     #[graphql(name = "accountId")]
     pub account_id: ID,
     pub geo: Option<PhoneGeo>,
-    pub tags: Vec<Tag>,
+}
+
+#[async_graphql::ComplexObject]
+impl Call {
+    async fn tags(&self, ctx: &async_graphql::Context<'_>) -> async_graphql::Result<Vec<Tag>> {
+        crate::graphql::resolvers::tags::loader::load(
+            ctx,
+            plain_rs::enums::DataType::Call,
+            self.id.as_str(),
+        )
+        .await
+    }
 }
 
 #[derive(Default)]
@@ -97,7 +108,6 @@ impl CallsQuery {
             serde_json::json!({"query": query, "offset": offset, "limit": limit}),
         )
         .await?;
-        let db = ctx.data_unchecked::<Arc<Db>>();
         let host = ctx.data_unchecked::<Arc<Host>>();
         let locale = host
             .call("systemPhoneLocaleFacts", serde_json::json!({}))
@@ -110,7 +120,7 @@ impl CallsQuery {
         let prefs = ctx.data_unchecked::<Arc<Prefs>>();
         let mut calls = Vec::with_capacity(facts.len());
         for fact in &facts {
-            let mut row = call(db, fact);
+            let mut row = call(fact);
             let path = text(fact, "photoUri");
             row.photo_id = if path.is_empty()
                 || path.to_ascii_lowercase().starts_with("http://")
@@ -213,18 +223,9 @@ impl CallsMutation {
     }
 }
 
-fn call(db: &Arc<Db>, fact: &Value) -> Call {
+fn call(fact: &Value) -> Call {
     let id = text(fact, "id");
     Call {
-        tags: plain_rs::db::tag::tags_for_key_of_kind(db, &id, DataType::Call.kind())
-            .unwrap_or_default()
-            .into_iter()
-            .map(|tag| Tag {
-                id: ID::from(tag.id),
-                name: tag.name,
-                count: tag.count,
-            })
-            .collect(),
         id: ID::from(id),
         number: text(fact, "number"),
         name: text(fact, "name"),

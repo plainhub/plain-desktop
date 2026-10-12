@@ -67,7 +67,7 @@ pub struct PairingDeviceInput {
     pub version: String,
     pub platform: String,
     #[graphql(name = "lastSeen")]
-    pub last_seen: String,
+    pub last_seen: crate::graphql::types::Instant,
     #[graphql(name = "discoveryMethods")]
     pub discovery_methods: Vec<DiscoveryMethod>,
 }

@@ -82,6 +82,7 @@ async fn query(schema: &PublicSchema, document: &str) -> Value {
 
 fn fixture() -> (tempfile::TempDir, PublicSchema) {
     fixture_with(|method, _| match method {
+        "peerTransportCapabilities" => json!([]),
         "systemSimFacts" => json!([
             { "id": "sim-0", "label": "SIM 1", "number": "+15550100", "subscriptionId": 1 },
         ]),
@@ -210,4 +211,25 @@ async fn unsupported_transport_does_not_call_native_pairing() {
         events.recv().await.unwrap().event_type,
         plain_rs::chat::events::WS_PAIRING_FAILED
     );
+}
+
+#[tokio::test]
+async fn pairing_rejects_an_invalid_last_seen_instant() {
+    let (_dir, schema) = fixture();
+    let result = query(
+        &schema,
+        r#"mutation { pairDevice(input: {
+        id: "peer-invalid", name: "Tablet", ips: [], port: 4321,
+        deviceType: TABLET, version: "1", platform: "android",
+        lastSeen: "invalid-time", discoveryMethods: [LAN]
+    }) }"#,
+    )
+    .await;
+    assert!(
+        result["errors"]
+            .as_array()
+            .is_some_and(|errors| !errors.is_empty()),
+        "{result}"
+    );
+    assert!(result["errors"].to_string().contains("Instant"), "{result}");
 }

@@ -22,7 +22,6 @@ use crate::mobile::sms::send as sms_send;
 use crate::mobile::sms::state as sms_state;
 use async_graphql::{Context, Enum, ID, Object, SimpleObject};
 use plain_rs::db::Db;
-use plain_rs::enums::DataType;
 use plain_rs::prefs::Prefs;
 use serde_json::Value;
 use std::sync::Arc;
@@ -64,6 +63,7 @@ pub struct SmsAttachment {
 }
 
 #[derive(SimpleObject, Clone, Debug)]
+#[graphql(complex)]
 pub struct Sms {
     pub id: ID,
     pub body: String,
@@ -81,7 +81,18 @@ pub struct Sms {
     #[graphql(name = "isMms")]
     pub is_mms: bool,
     pub attachments: Vec<SmsAttachment>,
-    pub tags: Vec<Tag>,
+}
+
+#[async_graphql::ComplexObject]
+impl Sms {
+    async fn tags(&self, ctx: &async_graphql::Context<'_>) -> async_graphql::Result<Vec<Tag>> {
+        crate::graphql::resolvers::tags::loader::load(
+            ctx,
+            plain_rs::enums::DataType::Sms,
+            self.id.as_str(),
+        )
+        .await
+    }
 }
 
 #[derive(SimpleObject, Clone, Debug)]
@@ -132,10 +143,9 @@ impl SmsQuery {
         )
         .await
         .map_err(|error| async_graphql::Error::new(error.to_string()))?;
-        let db = ctx.data_unchecked::<Arc<Db>>();
         Ok(receipt["items"]
             .as_array()
-            .map(|items| items.iter().map(|item| message(db, item)).collect())
+            .map(|items| items.iter().map(|item| message(item)).collect())
             .unwrap_or_default())
     }
 
@@ -385,10 +395,9 @@ async fn bulk(
     })
 }
 
-fn message(db: &Arc<Db>, item: &Value) -> Sms {
+fn message(item: &Value) -> Sms {
     let id = text(item, "id");
     Sms {
-        tags: tags(db, &id),
         id: ID::from(id),
         body: text(item, "body"),
         address: text(item, "address"),
@@ -417,18 +426,6 @@ fn conversation(item: &Value) -> SmsConversation {
         read: flag(item, "read"),
         addresses: strings(item, "addresses"),
     }
-}
-
-pub(crate) fn tags(db: &Arc<Db>, id: &str) -> Vec<Tag> {
-    plain_rs::db::tag::tags_for_key_of_kind(db, id, DataType::Sms.kind())
-        .unwrap_or_default()
-        .into_iter()
-        .map(|tag| Tag {
-            id: ID::from(tag.id),
-            name: tag.name,
-            count: tag.count,
-        })
-        .collect()
 }
 
 #[cfg(test)]
