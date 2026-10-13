@@ -187,7 +187,9 @@ async fn run(mut socket: WebSocket, mut state: ServerState, params: Params, ip: 
                         }
                     }
                 }
-                let plain = crate::http::sessions::host::key(&state.db, &params.cid).ok().flatten().and_then(|key| plain_rs::crypto::xchacha_decrypt_raw(&key,&frame));
+                let key = crate::http::sessions::host::local_key(&state, &params.cid)
+                    .or_else(|| crate::http::sessions::host::key(&state.db, &params.cid).ok().flatten());
+                let plain = key.and_then(|key| plain_rs::crypto::xchacha_decrypt_raw(&key,&frame));
                 let Some(plain) = plain else { let _ = socket.send(close(1013,"invalid_request")).await; break; };
                 if !registered {
                     registered = true;
@@ -246,12 +248,19 @@ async fn run(mut socket: WebSocket, mut state: ServerState, params: Params, ip: 
     }
     let _ = tokio::time::timeout(Duration::from_secs(1), socket.close()).await;
 }
-fn notify_login_request(state: &ServerState, client_id: &str, client_ip: &str, request_id: &str, request: &Value) {
+fn notify_login_request(
+    state: &ServerState,
+    client_id: &str,
+    client_ip: &str,
+    request_id: &str,
+    request: &Value,
+) {
     let mut request = request.clone();
     request["password"] = json!("");
     let _ = state.events.send(plain_rs::events::WsEvent::broadcast(
         "WEB_LOGIN_REQUESTED",
-        json!({"clientId":client_id,"clientIp":client_ip,"requestId":request_id,"request":request}).to_string(),
+        json!({"clientId":client_id,"clientIp":client_ip,"requestId":request_id,"request":request})
+            .to_string(),
     ));
 }
 

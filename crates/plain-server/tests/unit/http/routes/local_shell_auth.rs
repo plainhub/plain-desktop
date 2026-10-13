@@ -53,3 +53,55 @@ async fn the_shells_own_request_is_answered_without_any_login() {
     );
     core.stop_core().await;
 }
+
+/// The shell's event socket carries only `cid` and one chacha frame built
+/// from the local URL token. It must be admitted, or the UI never hears
+/// about anything again after a reload.
+#[tokio::test]
+async fn the_shells_event_socket_is_admitted_on_its_client_id() {
+    let dir = tempfile::tempdir().unwrap();
+    let core = crate::assembly::server::ContentServer::open(dir.path()).unwrap();
+    let client_id = core.native_graphql().unwrap().client_id().to_owned();
+    let cert = rcgen::generate_simple_self_signed(vec!["localhost".into()]).unwrap();
+    let (http, _) = core
+        .start_public(
+            0,
+            0,
+            cert.cert.pem().into_bytes(),
+            cert.key_pair.serialize_pem().into_bytes(),
+        )
+        .await
+        .unwrap();
+    let url = format!("ws://127.0.0.1:{http}/?cid={client_id}");
+    let (mut socket, response) = tokio_tungstenite::connect_async(url)
+        .await
+        .expect("the shell socket must connect");
+    assert_eq!(
+        response.status().as_u16(),
+        101,
+        "the socket upgrade must be accepted"
+    );
+    // The shell encrypts its frames with the local URL token, exactly as
+    // `app-socket.ts` does after the socket opens.
+    use futures_util::SinkExt;
+    let key = plain_rs::utils::base64::base64_decode(&core.native_url_token().unwrap());
+    let frame = plain_rs::crypto::xchacha_encrypt_raw(&key, b"1700000000000").unwrap();
+    socket
+        .send(tokio_tungstenite::tungstenite::Message::Binary(
+            frame.into(),
+        ))
+        .await
+        .unwrap();
+    // A frame the server could decrypt keeps the socket open; an unreadable
+    // one closes it.
+    let stayed_open = tokio::time::timeout(
+        std::time::Duration::from_millis(200),
+        futures_util::StreamExt::next(&mut socket),
+    )
+    .await;
+    assert!(
+        stayed_open.is_err(),
+        "the socket was closed after a valid frame: {stayed_open:?}"
+    );
+    core.stop_core().await;
+}

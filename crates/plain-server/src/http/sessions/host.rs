@@ -32,11 +32,27 @@ pub(crate) enum Request {
     },
 }
 
+/// The key a remote client's frames are encrypted with: its session token.
 pub(crate) fn key(db: &Db, client_id: &str) -> anyhow::Result<Option<Vec<u8>>> {
     Ok(db.session_get(client_id)?.and_then(|row| {
         let key = plain_rs::utils::base64::base64_decode(&row.token);
         (key.len() == 32).then_some(key)
     }))
+}
+
+/// The key the core's own shell uses. It has no session — it never logged
+/// in — so it encrypts with the local URL token, the same one
+/// `local_server_token` hands the webview.
+pub(crate) fn local_key(state: &ServerState, client_id: &str) -> Option<Vec<u8>> {
+    if state.native_client_id().ok().as_deref() != Some(client_id) {
+        return None;
+    }
+    let token = state
+        .prefs
+        .get::<String>(plain_rs::prefs::system::keys::URL_TOKEN)
+        .ok()??;
+    let key = plain_rs::utils::base64::base64_decode(&token);
+    (key.len() == 32).then_some(key)
 }
 
 pub(crate) fn touch(state: &ServerState, client_id: &str) -> anyhow::Result<()> {
