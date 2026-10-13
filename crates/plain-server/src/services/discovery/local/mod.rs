@@ -4,11 +4,15 @@
 
 pub mod firewall;
 pub mod macos_dns_sd;
+#[cfg(feature = "api")]
 pub mod nearby_discover_manager;
+#[cfg(feature = "api")]
 pub mod peer_status_manager;
 
 pub use firewall::MdnsFirewallStatus;
+#[cfg(feature = "api")]
 pub use nearby_discover_manager::NearbyDiscoverManager;
+#[cfg(feature = "api")]
 pub use peer_status_manager::PeerStatusManager;
 
 /// One mDNS debug-activity entry (mirrors plain-app's MdnsDebugPage feed).

@@ -1,7 +1,7 @@
 #[cfg(feature = "system")]
 pub mod desktop;
 
-#[cfg(feature = "api")]
+#[cfg(any(feature = "api", feature = "core"))]
 pub mod local;
 
 #[cfg(feature = "core")]

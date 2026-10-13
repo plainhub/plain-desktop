@@ -8,10 +8,12 @@
 pub mod context;
 #[cfg(feature = "api")]
 pub mod db;
-#[cfg(feature = "api")]
+#[cfg(any(feature = "api", feature = "core"))]
 pub mod enums;
 #[cfg(feature = "api")]
 pub mod executor;
+
+pub mod events;
 
 #[cfg(feature = "api")]
 pub use context::ShellHooks;

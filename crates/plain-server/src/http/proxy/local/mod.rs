@@ -34,7 +34,7 @@ use tokio::net::TcpStream;
 
 #[cfg(test)]
 mod tests;
-#[cfg(feature = "api")]
+#[cfg(any(feature = "api", feature = "core"))]
 pub mod utils;
 
 use plain_rs::utils::http::CORS;

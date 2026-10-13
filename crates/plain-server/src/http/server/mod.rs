@@ -1,4 +1,4 @@
-#[cfg(feature = "api")]
+#[cfg(any(feature = "api", feature = "core"))]
 pub mod events;
 #[cfg(feature = "api")]
 pub mod models;
@@ -9,25 +9,40 @@ pub mod tls;
 #[cfg(feature = "api")]
 pub mod websocket;
 
+#[cfg(feature = "api")]
 pub use crate::http::routes::local::cors::CorsPolicy;
+#[cfg(feature = "api")]
 use axum::Router;
+#[cfg(feature = "api")]
 use axum::extract::DefaultBodyLimit;
+#[cfg(feature = "api")]
 use axum::routing::{get, post};
 #[cfg(all(test, feature = "system"))]
 pub(crate) use models::test_support;
+#[cfg(feature = "api")]
 pub use models::{AuthPolicy, ServerSettings, ServerState};
 
+#[cfg(feature = "api")]
 use crate::http::routes::local::auth;
+#[cfg(feature = "api")]
 use crate::http::routes::local::cors;
+#[cfg(feature = "api")]
 use crate::http::routes::local::file_server;
+#[cfg(feature = "api")]
 use crate::http::routes::local::handlers;
+#[cfg(feature = "api")]
 use crate::http::routes::local::proxy_file;
+#[cfg(feature = "api")]
 use crate::http::routes::local::static_files;
+#[cfg(feature = "api")]
 use crate::http::routes::local::upload;
+#[cfg(feature = "api")]
 use crate::http::routes::local::zip;
 
+#[cfg(feature = "api")]
 pub const MAX_UPLOAD_BODY_BYTES: usize = 64 * 1024 * 1024 * 1024;
 
+#[cfg(feature = "api")]
 pub fn build_router(state: ServerState) -> Router {
     let mut router = Router::new()
         .route("/health", get(handlers::health))

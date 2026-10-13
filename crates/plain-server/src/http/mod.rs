@@ -1,6 +1,6 @@
 #[cfg(feature = "http_transport")]
 pub mod listeners;
-#[cfg(feature = "api")]
+#[cfg(any(feature = "api", feature = "core"))]
 pub mod server;
 #[cfg(feature = "http_transport")]
 pub mod tls_identity;

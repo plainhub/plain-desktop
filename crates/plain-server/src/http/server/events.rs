@@ -1,6 +1,6 @@
 use tokio::sync::broadcast;
 
-use crate::assembly::context::WsEvent;
+use crate::assembly::events::WsEvent;
 use plain_media::events as eventbus;
 use plain_media::events::EventBus;
 
