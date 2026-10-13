@@ -360,3 +360,41 @@ async fn init_answers_the_shells_encrypted_request() {
     );
     core.stop_core().await;
 }
+
+/// The shell lists its upload chunks over GraphQL (the bytes themselves go
+/// through the native writer). That listing must not need a session.
+#[tokio::test]
+async fn a_local_upload_chunk_listing_is_answered_by_the_core() {
+    let dir = tempfile::tempdir().unwrap();
+    let core = crate::assembly::server::ContentServer::open(dir.path()).unwrap();
+    let cert = rcgen::generate_simple_self_signed(vec!["localhost".into()]).unwrap();
+    let (http, _) = core
+        .start_public(
+            0,
+            0,
+            cert.cert.pem().into_bytes(),
+            cert.key_pair.serialize_pem().into_bytes(),
+        )
+        .await
+        .unwrap();
+    let client_id = core.native_graphql().unwrap().client_id().to_owned();
+    let response = reqwest::Client::new()
+        .post(format!("http://127.0.0.1:{http}/graphql"))
+        .header("content-type", "application/json")
+        .header("c-id", &client_id)
+        .body(
+            serde_json::json!({
+                "query": r#"{ uploadedChunks(fileId: "local-upload") }"#
+            })
+            .to_string(),
+        )
+        .send()
+        .await
+        .unwrap();
+    let status = response.status();
+    let body = response.text().await.unwrap();
+    assert_eq!(status.as_u16(), 200, "refused: {body}");
+    assert!(!body.contains("errors"), "{body}");
+    assert!(body.contains("uploadedChunks"), "{body}");
+    core.stop_core().await;
+}
