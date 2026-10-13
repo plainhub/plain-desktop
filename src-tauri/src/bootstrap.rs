@@ -270,8 +270,6 @@ pub fn run() {
                     Err(error) => log::warn!("discovery unavailable: {error}"),
                 }
             });
-            let (event_tx, _) = tokio::sync::broadcast::channel(1024);
-            plain_server::http::server::events::spawn_media_event_bridge(event_tx.clone());
             Ok(())
         })
         .on_page_load(|webview, payload| {
