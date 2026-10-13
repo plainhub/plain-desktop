@@ -20,6 +20,45 @@ pub struct PlatformQuery;
 
 #[Object]
 impl PlatformQuery {
+    async fn audit_events(
+        &self,
+        ctx: &Context<'_>,
+        query: String,
+        offset: i32,
+        limit: i32,
+    ) -> Result<Vec<crate::graphql::resolvers::app::capability_types::AuditEvent>> {
+        use crate::graphql::resolvers::app::capability_types::{AuditEvent, AuditEventType};
+        let state = ctx.data::<ServerState>()?;
+        let needle = plain_rs::utils::search_dsl::parse(&query)
+            .into_iter()
+            .find(|field| field.name == "text")
+            .map(|field| field.value)
+            .unwrap_or_default();
+        let rows = state.db.audit_events(
+            offset.max(0) as usize,
+            limit.max(0) as usize,
+            (!needle.trim().is_empty()).then_some(needle.as_str()),
+        )?;
+        rows.into_iter()
+            .filter_map(|row| {
+                let kind = AuditEventType::from_kind(&row.r#type)?;
+                Some(
+                    chrono::DateTime::parse_from_rfc3339(&row.created_at)
+                        .map(|at| AuditEvent {
+                            id: row.id.into(),
+                            r#type: kind,
+                            message: row.message,
+                            client_id: row.client_id,
+                            created_at: crate::graphql::types::Instant(
+                                at.with_timezone(&chrono::Utc),
+                            ),
+                        })
+                        .map_err(|error| async_graphql::Error::new(error.to_string())),
+                )
+            })
+            .collect()
+    }
+
     async fn samba_settings(&self, ctx: &Context<'_>) -> Result<SambaSettings> {
         let state = ctx.data::<ServerState>()?;
         let settings = plain_rs::prefs::samba::get_samba_settings(&state.prefs)?;

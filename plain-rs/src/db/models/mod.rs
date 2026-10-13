@@ -2,6 +2,8 @@
 mod app_file;
 #[cfg(feature = "library")]
 pub mod audio_queue;
+#[cfg(feature = "library")]
+mod audit_event;
 #[cfg(feature = "chat")]
 pub mod bookmark;
 #[cfg(feature = "sqlite_browse")]
@@ -55,3 +57,6 @@ pub mod media_file;
 pub use media_file::{
     MediaFileMetadata, MediaFileMetadataAvailability, MediaFileMetadataRead, MediaFileRow,
 };
+
+#[cfg(feature = "library")]
+pub use audit_event::AuditEventRow;

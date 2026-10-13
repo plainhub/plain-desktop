@@ -53,3 +53,29 @@ async fn public_samba_settings_and_mutation_use_core_preferences_and_explicit_ho
     provider.await.unwrap();
     core.stop_core().await;
 }
+
+#[tokio::test]
+async fn public_audit_events_read_the_core_database_without_host_or_legacy_store() {
+    let directory = tempfile::tempdir().unwrap();
+    let core = crate::assembly::server::ContentServer::open(directory.path()).unwrap();
+    let state = core.runtime_state();
+    let id = state.db.audit_event_add("login", "ÄBC", "client").unwrap();
+    let result = core.native_graphql().unwrap().execute(async_graphql::Request::new(
+        r#"{ auditEvents(query:"text:äbc",offset:0,limit:10) { id type message clientId createdAt } }"#
+    )).await;
+    assert!(result.errors.is_empty(), "{:?}", result.errors);
+    assert_eq!(result.data.into_json().unwrap()["auditEvents"][0]["id"], id);
+    state
+        .db
+        .with_conn(|conn| conn.execute_batch("DROP TABLE audit_events"))
+        .unwrap();
+    let result = core
+        .native_graphql()
+        .unwrap()
+        .execute(async_graphql::Request::new(
+            r#"{ auditEvents(query:"",offset:0,limit:10) { id } }"#,
+        ))
+        .await;
+    assert!(!result.errors.is_empty());
+    core.stop_core().await;
+}

@@ -33,10 +33,10 @@ pub use repositories::{bookmark, chat_store};
 pub use crate::sqlite_browse::TableColumnMeta;
 #[cfg(feature = "library")]
 pub use models::{
-    ArchivedConversationRow, ClipboardRow, FavoriteFolderRow, HISTORY_KEEP, ImageEmbeddingRow,
-    MediaItemRow, PlayHistory, Playlist, PlaylistItem, PomodoroItemRow, QueueItem, QueueSource,
-    QueueSourceKind, SessionRow, ShareRow, TagRelationRow, TagRow, TrashedMessageRow,
-    VideoPlayProgressRow,
+    ArchivedConversationRow, AuditEventRow, ClipboardRow, FavoriteFolderRow, HISTORY_KEEP,
+    ImageEmbeddingRow, MediaItemRow, PlayHistory, Playlist, PlaylistItem, PomodoroItemRow,
+    QueueItem, QueueSource, QueueSourceKind, SessionRow, ShareRow, TagRelationRow, TagRow,
+    TrashedMessageRow, VideoPlayProgressRow,
 };
 #[cfg(feature = "chat")]
 pub use models::{DAppFile, DChannel, DChat, DNearbyDeviceCache, DPeer};

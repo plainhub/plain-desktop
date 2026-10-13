@@ -2,6 +2,8 @@
 mod app_file;
 #[cfg(feature = "library")]
 pub mod audio_queue;
+#[cfg(feature = "library")]
+mod audit_event;
 #[cfg(feature = "chat")]
 pub mod bookmark;
 #[cfg(feature = "sqlite_browse")]

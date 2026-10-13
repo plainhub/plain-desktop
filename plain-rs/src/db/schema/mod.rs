@@ -1,3 +1,5 @@
+#[cfg(feature = "library")]
+mod audit_event;
 use rusqlite::Connection;
 
 #[cfg(feature = "chat")]
@@ -46,6 +48,8 @@ mod trashed_sms;
 mod video_play_progress;
 
 pub(crate) fn init(conn: &Connection) -> rusqlite::Result<()> {
+    #[cfg(feature = "library")]
+    audit_event::init(conn)?;
     #[cfg(feature = "library")]
     archived_conversation::init(conn)?;
     #[cfg(feature = "chat")]
