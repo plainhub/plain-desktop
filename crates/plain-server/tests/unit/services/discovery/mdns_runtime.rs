@@ -18,6 +18,18 @@ async fn authenticated_runtime_preserves_radio_modes_and_releases_global_owner()
     )
     .unwrap();
     let state = server.runtime_state();
+    // The advertised port is the live public listener's, so the test has to
+    // start one — announcing port 0 is refused by contract.
+    let cert = rcgen::generate_simple_self_signed(vec!["localhost".into()]).unwrap();
+    server
+        .start_public(
+            0,
+            0,
+            cert.cert.pem().into_bytes(),
+            cert.key_pair.serialize_pem().into_bytes(),
+        )
+        .await
+        .unwrap();
     let (generation, mut rx) = state.host.connect();
     let allowed = Arc::new(AtomicBool::new(false));
     let permission = allowed.clone();
@@ -44,53 +56,22 @@ async fn authenticated_runtime_preserves_radio_modes_and_releases_global_owner()
                 .unwrap();
         }
     });
-    let client = reqwest::Client::new();
-    let url = format!("http://127.0.0.1:{}/chat/mdns", server.port);
-    assert_eq!(
-        client
-            .post(&url)
-            .header("content-type", "application/json")
-            .body(json!({"action":"snapshot"}).to_string())
-            .send()
-            .await
-            .unwrap()
-            .status(),
-        401
-    );
-    assert_eq!(
-        client
-            .post(&url)
-            .bearer_auth(&token)
-            .header("content-type", "application/json")
-            .body(json!({"action":"start","hostname":"spoofed"}).to_string())
-            .send()
-            .await
-            .unwrap()
-            .status(),
-        422
-    );
-    let call = |action| {
-        client
-            .post(&url)
-            .bearer_auth(&token)
-            .header("content-type", "application/json")
-            .body(json!({"action":action}).to_string())
-    };
-    assert_eq!(call("start").send().await.unwrap().status(), 400);
-    assert!(!state.mdns.snapshot()["receiver"].as_bool().unwrap());
-    assert!(!acquired.load(Ordering::SeqCst));
+    // The desktop reaches mDNS through the native controller, not an HTTP
+    // route: the public router never had one and `/chat/mdns` only exists on
+    // the legacy listener this test no longer drives.
+    let discovery = crate::native::discovery::NativeDiscovery::new(state.clone());
     allowed.store(true, Ordering::SeqCst);
     state
         .nearby_devices
         .scanning_modes(None, Some(true), vec![])
         .unwrap();
-    let start: Value = parse(call("start").send().await.unwrap()).await;
-    assert_eq!(start["result"]["receiver"], true);
-    assert_eq!(start["result"]["scanning"], true);
+    let start: Value = execute(&state, Request::Start {}).await;
+    assert_eq!(start["receiver"], true);
+    assert_eq!(start["scanning"], true);
     assert!(acquired.load(Ordering::SeqCst));
     allowed.store(false, Ordering::SeqCst);
-    let stop: Value = parse(call("stop").send().await.unwrap()).await;
-    assert_eq!(stop["result"]["scanning"], false);
+    let stop: Value = execute(&state, Request::Stop {}).await;
+    assert_eq!(stop["scanning"], false);
     assert!(
         state.nearby_devices.active(),
         "Stopping LAN must preserve active BLE"
@@ -101,11 +82,11 @@ async fn authenticated_runtime_preserves_radio_modes_and_releases_global_owner()
         .unwrap();
     assert!(!state.nearby_devices.active());
     allowed.store(true, Ordering::SeqCst);
-    let published: Value = parse(call("publish").send().await.unwrap()).await;
-    assert_eq!(published["result"]["published"], true);
+    let published: Value = execute(&state, Request::Publish {}).await;
+    assert_eq!(published["published"], true);
     prefs.set("mdns_hostname", "fixture-new.local").unwrap();
-    let updated: Value = parse(call("update").send().await.unwrap()).await;
-    assert_eq!(updated["result"]["published"], true);
+    let updated: Value = execute(&state, Request::Update {}).await;
+    assert_eq!(updated["published"], true);
     assert_eq!(
         *state
             .mdns
@@ -120,27 +101,26 @@ async fn authenticated_runtime_preserves_radio_modes_and_releases_global_owner()
         "fixture-new.local"
     );
     allowed.store(false, Ordering::SeqCst);
-    let withdrawn: Value = parse(call("unpublish").send().await.unwrap()).await;
-    assert_eq!(withdrawn["result"]["published"], false);
-    let updated: Value = parse(call("update").send().await.unwrap()).await;
+    let withdrawn: Value = execute(&state, Request::Unpublish {}).await;
+    assert_eq!(withdrawn["published"], false);
+    let updated: Value = execute(&state, Request::Update {}).await;
     assert_eq!(
-        updated["result"]["published"], false,
+        updated["published"], false,
         "Update cannot republish an inactive service"
     );
     allowed.store(true, Ordering::SeqCst);
     let debug_a = uuid::Uuid::new_v4();
     let debug_b = uuid::Uuid::new_v4();
     let token_string = token.clone();
-    let debug_call = |action, token: uuid::Uuid| {
-        client
-            .post(&url)
-            .bearer_auth(&token_string)
-            .header("content-type", "application/json")
-            .body(json!({"action":action,"token":token.to_string()}).to_string())
-    };
-    let debug = parse(debug_call("debugStart", debug_a).send().await.unwrap()).await;
-    assert_eq!(debug["result"]["scanning"], true);
-    assert_eq!(debug["result"]["capturing"], true);
+    let debug = execute(
+        &state,
+        Request::DebugStart {
+            token: debug_a.to_string(),
+        },
+    )
+    .await;
+    assert_eq!(debug["scanning"], true);
+    assert_eq!(debug["capturing"], true);
     let sender = std::net::UdpSocket::bind("127.0.0.1:0").unwrap();
     let receiver = std::net::UdpSocket::bind("127.0.0.1:0").unwrap();
     receiver
@@ -173,29 +153,59 @@ async fn authenticated_runtime_preserves_radio_modes_and_releases_global_owner()
                 .unwrap()
                 .contains("_plainapp._tcp.local")
     }));
-    parse(debug_call("debugStart", debug_b).send().await.unwrap()).await;
-    parse(call("stop").send().await.unwrap()).await;
+    execute(
+        &state,
+        Request::DebugStart {
+            token: debug_b.to_string(),
+        },
+    )
+    .await;
+    execute(&state, Request::Stop {}).await;
     assert_eq!(
         state.mdns.snapshot()["scanning"],
         true,
         "Debug leases must keep scanning independently of manual stop"
     );
-    parse(debug_call("debugStop", debug_a).send().await.unwrap()).await;
+    execute(
+        &state,
+        Request::DebugStop {
+            token: debug_a.to_string(),
+        },
+    )
+    .await;
     assert_eq!(state.mdns.snapshot()["scanning"], true);
-    parse(debug_call("debugStop", debug_b).send().await.unwrap()).await;
+    execute(
+        &state,
+        Request::DebugStop {
+            token: debug_b.to_string(),
+        },
+    )
+    .await;
     assert_eq!(state.mdns.snapshot()["scanning"], false);
     assert_eq!(state.mdns.snapshot()["capturing"], false);
     assert_eq!(state.mdns.snapshot()["packetsIn"], json!([]));
     assert_eq!(state.mdns.snapshot()["packetsOut"], json!([]));
-    parse(call("start").send().await.unwrap()).await;
-    parse(debug_call("debugStart", debug_a).send().await.unwrap()).await;
-    parse(debug_call("debugStop", debug_a).send().await.unwrap()).await;
+    execute(&state, Request::Start {}).await;
+    execute(
+        &state,
+        Request::DebugStart {
+            token: debug_a.to_string(),
+        },
+    )
+    .await;
+    execute(
+        &state,
+        Request::DebugStop {
+            token: debug_a.to_string(),
+        },
+    )
+    .await;
     assert_eq!(
         state.mdns.snapshot()["scanning"],
         true,
         "Debug page disposal must preserve manual discovery"
     );
-    parse(call("stop").send().await.unwrap()).await;
+    execute(&state, Request::Stop {}).await;
     state.host.disconnect(generation);
     responder.abort();
     acquired.store(false, Ordering::SeqCst);
@@ -234,7 +244,10 @@ async fn authenticated_runtime_preserves_radio_modes_and_releases_global_owner()
     responder.abort();
 }
 
-async fn parse(response: reqwest::Response) -> Value {
-    assert!(response.status().is_success());
-    serde_json::from_str(&response.text().await.unwrap()).unwrap()
+async fn execute(state: &ServerState, request: Request) -> Value {
+    state
+        .mdns
+        .execute(state, request)
+        .await
+        .unwrap_or_else(|error| panic!("mDNS request failed: {error}"))
 }
