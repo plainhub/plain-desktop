@@ -105,3 +105,45 @@ async fn the_shells_event_socket_is_admitted_on_its_client_id() {
     );
     core.stop_core().await;
 }
+
+/// Local file bytes come from an opaque native handle rather than `/fs`,
+/// so opening one must work without any session on the core.
+#[tokio::test]
+async fn a_local_file_resolves_to_a_native_handle_without_a_session() {
+    let dir = tempfile::tempdir().unwrap();
+    let core = crate::assembly::server::ContentServer::open(dir.path()).unwrap();
+    let path = dir.path().join("note.txt");
+    std::fs::write(&path, b"local bytes").unwrap();
+    // Path resolution asks the platform where its own directories are; the
+    // bootstrap supplies that through the host bridge.
+    let state = core.runtime_state();
+    let host = state.host.clone();
+    let (generation, mut requests) = host.connect();
+    let data_dir = dir.path().to_path_buf();
+    tokio::spawn(async move {
+        while let Some(request) = requests.recv().await {
+            let reply = if request["method"] == "fileTaskAuthorize" {
+                serde_json::json!(true)
+            } else if request["method"] == "systemFileResource" {
+                match request["params"]["operation"].as_str().unwrap_or_default() {
+                    "appDir" => serde_json::json!(data_dir.to_str().unwrap()),
+                    "mime" => serde_json::json!("text/plain"),
+                    _ => serde_json::Value::Null,
+                }
+            } else {
+                serde_json::json!({})
+            };
+            let _ = host.reply(
+                generation,
+                serde_json::json!({"id":request["id"],"result":reply}),
+            );
+        }
+    });
+    let resolved = core
+        .resolve_native_file(&path.to_string_lossy())
+        .await
+        .expect("the core resolves its own files without a session");
+    assert!(resolved.is_absolute());
+    assert_eq!(std::fs::read(&resolved).unwrap(), b"local bytes");
+    core.stop_core().await;
+}
