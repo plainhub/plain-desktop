@@ -25,6 +25,36 @@ fn valid_custom_bearer(value: &str, session_token: &str) -> bool {
             == 1
 }
 
+/// Answer a development request: the literal client id `dev`, plaintext in
+/// and out. Mirrors the NAS dev branch the legacy router provided, so the
+/// NAS keeps this entry point after moving to the public router.
+async fn run_development(state: &ServerState, body: Bytes) -> Result<Response, StatusCode> {
+    let request = String::from_utf8(body.to_vec()).map_err(|_| StatusCode::BAD_REQUEST)?;
+    let result = run_with_context(
+        &state.public,
+        &request,
+        crate::graphql::executor::RequestContext::authenticated_remote(
+            state.clone(),
+            "dev".to_owned(),
+        ),
+    )
+    .await?;
+    Ok(result.into_response())
+}
+
+/// Does this `Authorization` header present the NAS development token?
+/// An unset token never matches, and the comparison is constant time so a
+/// wrong guess cannot learn the real one from response timing.
+pub(crate) fn dev_bearer_matches(state: &ServerState, authorization: &str) -> Result<bool, ()> {
+    let expected = state.dev_token.lock().map_err(|_| ())?;
+    if expected.is_empty() {
+        return Ok(false);
+    }
+    Ok(authorization
+        .strip_prefix("Bearer ")
+        .is_some_and(|token| token.as_bytes().ct_eq(expected.as_bytes()).into()))
+}
+
 async fn execute(
     state: &ServerState,
     headers: &HeaderMap,
@@ -40,6 +70,19 @@ async fn execute(
     if !state.prefs.get_user_or("desktop_access", true) {
         return Err(StatusCode::NOT_FOUND);
     }
+    // The NAS development bearer. It stands in for a session so the NAS
+    // can be driven before setup, and it answers in plaintext for the same
+    // reason — no session key to encrypt with.
+    let dev_bearer = match authorization {
+        Some(value) => {
+            dev_bearer_matches(state, value).map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?
+        }
+        None => false,
+    };
+    if dev_bearer && !client_id.is_empty() {
+        return run_development(&state, body).await;
+    }
+
     if client_id.is_empty() {
         return Err(StatusCode::UNAUTHORIZED);
     }

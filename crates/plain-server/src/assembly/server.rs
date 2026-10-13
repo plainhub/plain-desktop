@@ -81,6 +81,10 @@ pub(crate) struct ServerState {
     pub(crate) login_attempts: Arc<std::sync::Mutex<crate::http::auth::ws_login::LoginAttempts>>,
     pub(crate) directory: std::path::PathBuf,
     pub(crate) token: Arc<str>,
+    /// The NAS development bearer. Empty unless the NAS sets one; when it
+    /// is set, `/graphql` also accepts it without a session and answers in
+    /// plaintext. Uploads and the WebSocket never take this path.
+    pub(crate) dev_token: std::sync::Arc<std::sync::Mutex<Arc<str>>>,
     pub(crate) events: broadcast::Sender<WsEvent>,
     pub(crate) shutdown: Arc<tokio::sync::Mutex<()>>,
     pub(crate) stop: watch::Receiver<bool>,
@@ -452,6 +456,7 @@ impl ContentServer {
             #[cfg(feature = "http_transport")]
             web_root: Arc::new(std::sync::RwLock::new(None)),
             token: Arc::from(token.as_str()),
+            dev_token: std::sync::Arc::new(std::sync::Mutex::new(Arc::from(""))),
             events,
             shutdown: Arc::new(tokio::sync::Mutex::new(())),
             stop: receiver.clone(),
@@ -751,6 +756,12 @@ impl ContentServer {
         crate::assembly::lifecycle::monitor(self.state.clone(), failure, receiver, generation);
         Ok(ports)
     }
+    /// Install the NAS development bearer. Empty clears it, and an empty
+    /// token never authenticates anything.
+    pub fn set_dev_token(&self, token: &str) {
+        *self.state.dev_token.lock().unwrap() = Arc::from(token);
+    }
+
     pub fn native_url_token(&self) -> Result<String, String> {
         self.state.native_client_id()?;
         self.state

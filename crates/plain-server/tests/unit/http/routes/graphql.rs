@@ -122,3 +122,30 @@ async fn an_unknown_field_is_reported_as_a_graphql_error() {
         "{result}"
     );
 }
+
+/// The NAS can be driven before setup with a configured bearer. It must
+/// stay narrow: exact token only, nothing when unset, and plaintext both
+/// ways because there is no session key to encrypt with.
+#[tokio::test]
+async fn the_development_bearer_only_admits_the_exact_configured_token() {
+    let directory = tempfile::tempdir().unwrap();
+    let core = crate::assembly::server::ContentServer::open(directory.path()).unwrap();
+
+    // Unset: no bearer of any kind opens the development path.
+    assert!(core.runtime_state().dev_token.lock().unwrap().is_empty());
+    assert!(!dev_bearer_matches(&core.runtime_state(), "Bearer anything").unwrap());
+
+    core.set_dev_token("nas-dev");
+    let state = core.runtime_state();
+    assert!(dev_bearer_matches(&state, "Bearer nas-dev").unwrap());
+    assert!(!dev_bearer_matches(&state, "Bearer wrong").unwrap());
+    assert!(!dev_bearer_matches(&state, "Bearer ").unwrap());
+    // A prefix of the real token is not the token, and the scheme is required.
+    assert!(!dev_bearer_matches(&state, "Bearer nas-de").unwrap());
+    assert!(!dev_bearer_matches(&state, "nas-dev").unwrap());
+
+    // Clearing it takes the entry point away again.
+    core.set_dev_token("");
+    assert!(!dev_bearer_matches(&state, "Bearer nas-dev").unwrap());
+    core.stop_core().await;
+}
