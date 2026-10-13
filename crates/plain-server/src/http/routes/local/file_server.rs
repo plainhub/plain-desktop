@@ -39,8 +39,8 @@ use tokio::io::{AsyncReadExt, AsyncSeekExt};
 
 use crate::assembly::context::AppCtx;
 use crate::http::routes::local::response::respond;
-use crate::http::routes::local::uri::parse_decrypted_id;
-use crate::http::routes::local::uri::resolve_uri;
+use crate::files::uri::parse_decrypted_id;
+use crate::files::uri::resolve_uri;
 use crate::http::server::ServerState;
 use plain_rs::crypto::xchacha_decrypt;
 use plain_rs::mime::mime_from_ext;

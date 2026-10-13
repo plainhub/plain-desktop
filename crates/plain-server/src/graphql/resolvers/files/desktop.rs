@@ -35,7 +35,7 @@ use crate::graphql::resolvers::files::desktop_types::MediaFileInfo;
 use crate::graphql::resolvers::files::desktop_types::Mount;
 use crate::graphql::resolvers::files::desktop_types::VideoFileInfo;
 use crate::graphql::types::Long;
-use crate::http::routes::local::uri::resolve_uri;
+use crate::files::uri::resolve_uri;
 
 #[derive(Default)]
 pub struct FileInfoQuery;

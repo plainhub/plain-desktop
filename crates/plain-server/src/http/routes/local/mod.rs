@@ -21,8 +21,6 @@ pub mod static_files;
 #[cfg(feature = "api")]
 pub mod upload;
 #[cfg(feature = "api")]
-pub mod uri;
-#[cfg(feature = "api")]
 pub mod zip;
 
 #[cfg(test)]
