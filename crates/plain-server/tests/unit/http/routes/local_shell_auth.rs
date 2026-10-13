@@ -103,6 +103,45 @@ async fn the_shells_event_socket_is_admitted_on_its_client_id() {
         stayed_open.is_err(),
         "the socket was closed after a valid frame: {stayed_open:?}"
     );
+    // Events must come back readable with the same local token. Checking
+    // only that the socket stays open would miss a server that admits the
+    // shell and then cannot encrypt anything it sends.
+    tokio::time::sleep(std::time::Duration::from_millis(150)).await;
+    // Registration asks the platform to confirm, so the host has to answer
+    // before the socket starts forwarding events.
+    let host = core.runtime_state().host.clone();
+    let (generation, mut requests) = host.connect();
+    tokio::spawn(async move {
+        while let Some(request) = requests.recv().await {
+            let _ = host.reply(
+                generation,
+                serde_json::json!({"id":request["id"],"result":true}),
+            );
+        }
+    });
+    core.runtime_state()
+        .events
+        .send(plain_rs::events::WsEvent::broadcast(
+            "CHAT_MESSAGE",
+            serde_json::json!({"probe":true}).to_string(),
+        ))
+        .expect("the core broadcasts");
+    let outbound = tokio::time::timeout(
+        std::time::Duration::from_secs(2),
+        futures_util::StreamExt::next(&mut socket),
+    )
+    .await
+    .expect("the shell must receive events")
+    .expect("a frame")
+    .expect("a readable frame");
+    let payload = match &outbound {
+        tokio_tungstenite::tungstenite::Message::Binary(bytes) => bytes,
+        other => panic!("expected a binary frame, got {other:?}"),
+    };
+    let (name, body) = plain_rs::protocols::websocket::decode(payload, &key)
+        .expect("the outbound frame must decrypt with the local token");
+    assert_eq!(name, "CHAT_MESSAGE");
+    assert!(String::from_utf8_lossy(&body).contains("probe"), "{body:?}");
     core.stop_core().await;
 }
 
