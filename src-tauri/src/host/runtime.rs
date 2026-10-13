@@ -142,9 +142,16 @@ impl Runtime {
         }
     }
 
-    pub async fn run(self: Arc<Self>) -> Result<(), String> {
-        let _multicast = plain_server::host::multicast::MulticastSession::new(&self.multicast);
+    pub fn start(self: Arc<Self>) -> tokio::task::JoinHandle<Result<(), String>> {
         let session = Arc::new(self.core.host_events());
+        tokio::spawn(self.run(session))
+    }
+
+    async fn run(
+        self: Arc<Self>,
+        session: Arc<plain_server::host::events::HostEvents>,
+    ) -> Result<(), String> {
+        let _multicast = plain_server::host::multicast::MulticastSession::new(&self.multicast);
         let requests = self.clone();
         let result = session
             .serve(

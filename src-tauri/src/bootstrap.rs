@@ -203,26 +203,6 @@ pub fn run() {
                 .app_log_dir()
                 .unwrap_or_else(|_| data_dir.join("logs"));
             let _ = log_dir;
-            // The catalog needs its scan policy before anything indexes, and
-            // the watcher needs the policy to decide what counts as media.
-            if let Ok(catalog) = core.native_media_catalog() {
-                if let Err(error) =
-                    catalog.configure_scan_directories(&data_dir.join("cache"), None)
-                {
-                    log::warn!("media scan configuration failed: {error}");
-                }
-                if media_sources_changed {
-                    tauri::async_runtime::block_on(async {
-                        if let Err(error) = catalog.scan_source_directories("/").await {
-                            log::warn!("initial media scan failed: {error}");
-                        }
-                    });
-                }
-                if let Err(error) = catalog.watch_source_directories() {
-                    log::warn!("media watch did not start: {error}");
-                }
-            }
-
             // The peer proxy dials by client id; the core owns the lookup.
             let peer_resolver: plain_server::http::proxy::local::PeerResolver = {
                 let core = core.clone();
@@ -236,9 +216,6 @@ pub fn run() {
                 plain_server::http::proxy::local::HttpProxyState::start(peer_resolver)
             }));
 
-            // The host bridge answers the core's platform requests and
-            // forwards its events to the webview. It has to be running
-            // before anything asks the core for a platform fact.
             let capabilities = crate::host::device::desktop_capabilities()
                 .iter()
                 .map(|value| (*value).to_owned())
@@ -248,11 +225,32 @@ pub fn run() {
                 app.handle().clone(),
                 capabilities,
             ));
+            let host_task = tauri::async_runtime::block_on(async { host_bridge.start() });
             tauri::async_runtime::spawn(async move {
-                if let Err(error) = host_bridge.run().await {
-                    log::error!("host bridge stopped: {error}");
+                match host_task.await {
+                    Ok(Ok(())) => {},
+                    Ok(Err(error)) => log::error!("host bridge stopped: {error}"),
+                    Err(error) => log::error!("host bridge task failed: {error}"),
                 }
             });
+
+            if let Ok(catalog) = core.native_media_catalog() {
+                if let Err(error) =
+                    catalog.configure_scan_directories(&data_dir.join("cache"), None)
+                {
+                    log::warn!("media scan configuration failed: {error}");
+                }
+                if media_sources_changed {
+                    if let Err(error) = tauri::async_runtime::block_on(async {
+                        catalog.start_source_scan("/")
+                    }) {
+                        log::warn!("initial media scan did not start: {error}");
+                    }
+                }
+                if let Err(error) = catalog.watch_source_directories() {
+                    log::warn!("media watch did not start: {error}");
+                }
+            }
 
             if let Err(error) = tauri::async_runtime::block_on(async {
                 core.start_configured_public().await
