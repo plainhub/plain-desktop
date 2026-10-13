@@ -682,7 +682,31 @@ impl NativeMediaCatalog {
                     if !metadata.file_type().is_file() {
                         return Err("Regular media file required".into());
                     }
-                    std::fs::remove_file(&path).map_err(|error| error.to_string())
+                    std::fs::remove_file(&path).map_err(|error| error.to_string())?;
+                    let kind = [
+                        DataType::Audio,
+                        DataType::Video,
+                        DataType::Image,
+                        DataType::Doc,
+                    ]
+                    .into_iter()
+                    .find(|kind| kind.kind() == request.data_type)
+                    .ok_or("Invalid media delete type")?;
+                    let receipt = Item {
+                        id: id.clone(),
+                        path: path.clone(),
+                        destination_path: String::new(),
+                    };
+                    plain_rs::media::actions::cleanup(
+                        &self.state.db,
+                        kind,
+                        Action::Delete,
+                        &[receipt],
+                    )
+                    .map(|_| ())
+                    .map_err(|error| {
+                        format!("Media file removed but catalog cleanup failed: {error}")
+                    })
                 })?;
                 Ok(path)
             })();
@@ -697,6 +721,12 @@ impl NativeMediaCatalog {
                     outcome.failed_ids.push(id);
                 }
             }
+        }
+        if !outcome.successful.is_empty() {
+            let _ = self.state.events.send(plain_rs::events::WsEvent::broadcast(
+                "CONTENT_CHANGED",
+                "{}".into(),
+            ));
         }
         Ok(outcome)
     }

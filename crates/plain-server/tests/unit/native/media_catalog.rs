@@ -803,6 +803,12 @@ async fn media_delete_returns_actual_os_receipts_and_keeps_failed_selection() {
     assert_eq!(outcome.failed_ids, vec![rows[1].id.clone()]);
     assert!(!paths[0].exists());
     assert!(paths[1].exists());
+    assert!(
+        catalog
+            .by_path(plain_rs::enums::DataType::Doc, paths[0].to_str().unwrap())
+            .unwrap()
+            .is_none()
+    );
     cleanup(
         &core.runtime_state().db,
         plain_rs::enums::DataType::Doc,
