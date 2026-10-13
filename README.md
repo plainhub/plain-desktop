@@ -48,19 +48,13 @@ QQ Group: 812409393
 
 ## Work on plain-core
 
-Keep [plain-core](https://github.com/plainhub/plain-core) next to this repository. Run from this repository root:
+Keep [plain-core](https://github.com/plainhub/plain-core) next to this repository. Run from this repository root.
 
-```sh
-./scripts/core local
+```bash
+./scripts/core local        # Use local plain-core
+./scripts/core local --off  # Stop using local paths
+./scripts/core update       # Lock this project to the latest remote commit
 ```
-
-Use local plain-core changes and build normally; no push is needed. To stop using the local checkout: `./scripts/core local --off`.
-
-```sh
-./scripts/core update
-```
-
-Stop using local paths and lock this project to the latest commit on GitHub's plain-core/main. Commit the updated `Cargo.lock`.
 
 ## Run
 
