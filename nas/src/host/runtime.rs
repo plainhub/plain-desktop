@@ -21,6 +21,44 @@ impl Runtime {
 
     async fn dispatch(&self, method: &str, params: Value) -> Result<Value, String> {
         match method {
+            plain_server::host::platform::SYSTEM_SAMBA_SERVICE_FACTS => {
+                let facts = tokio::task::spawn_blocking(|| {
+                    let status = crate::platform::linux::samba::get_service_status();
+                    plain_server::host::platform::SambaServiceFacts {
+                        name: status.name,
+                        active: status.active,
+                        enabled: status.enabled,
+                    }
+                })
+                .await
+                .map_err(|error| error.to_string())?;
+                serde_json::to_value(facts).map_err(|error| error.to_string())
+            }
+            plain_server::host::platform::SYSTEM_SAMBA_APPLY => {
+                let request: plain_server::host::platform::SambaApplyRequest =
+                    serde_json::from_value(params).map_err(|error| error.to_string())?;
+                let core = self.core.clone();
+                tokio::task::spawn_blocking(move || {
+                    crate::platform::linux::samba::apply(core.preferences()?, &request.settings, "")
+                        .map(|_| Value::Bool(true))
+                        .map_err(|error| error.to_string())
+                })
+                .await
+                .map_err(|error| error.to_string())?
+            }
+            plain_server::host::platform::SYSTEM_SAMBA_PASSWORD => {
+                let request: plain_server::host::platform::SambaPasswordRequest =
+                    serde_json::from_value(params).map_err(|error| error.to_string())?;
+                let core = self.core.clone();
+                tokio::task::spawn_blocking(move || {
+                    core.preferences()?;
+                    crate::platform::linux::samba::set_user_password(&request.password)
+                        .map(|_| Value::Bool(true))
+                        .map_err(|error| error.to_string())
+                })
+                .await
+                .map_err(|error| error.to_string())?
+            }
             plain_server::host::platform::SYSTEM_MOUNT_FACTS => {
                 let core = self.core.clone();
                 tokio::task::spawn_blocking(move || {

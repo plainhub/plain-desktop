@@ -93,6 +93,7 @@ pub struct Query(
 
 #[derive(MergedObject, Default)]
 pub struct Mutation(
+    crate::graphql::resolvers::app::platform::PlatformMutation,
     #[cfg(feature = "media")] crate::graphql::resolvers::media::scan::MediaScanPublicMutation,
     crate::graphql::resolvers::settings::state::PreferencesMutation,
     MobileMutationImpl,

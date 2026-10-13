@@ -1,8 +1,16 @@
+use crate::assembly::server::ServerState;
 use crate::graphql::resolvers::app::capability_types::{AppUpdate, Disk};
+use crate::graphql::resolvers::app::capability_types::{
+    SambaSettings, SambaSettingsInput, SambaShare, SambaShareAuth,
+};
 use crate::graphql::types::Long;
 use crate::host::bridge::Host;
 use crate::host::platform::{
     AppUpdateFacts, DisksFacts, SYSTEM_APP_UPDATE_FACTS, SYSTEM_DISKS_FACTS,
+};
+use crate::host::platform::{
+    SYSTEM_SAMBA_APPLY, SYSTEM_SAMBA_PASSWORD, SYSTEM_SAMBA_SERVICE_FACTS, SambaApplyRequest,
+    SambaPasswordRequest, SambaServiceFacts,
 };
 use async_graphql::{Context, Object, Result};
 use std::sync::Arc;
@@ -12,6 +20,13 @@ pub struct PlatformQuery;
 
 #[Object]
 impl PlatformQuery {
+    async fn samba_settings(&self, ctx: &Context<'_>) -> Result<SambaSettings> {
+        let state = ctx.data::<ServerState>()?;
+        let settings = plain_rs::prefs::samba::get_samba_settings(&state.prefs)?;
+        let service = samba_service(ctx).await?;
+        Ok(samba_facts(settings, service))
+    }
+
     async fn disks(&self, ctx: &Context<'_>) -> Result<Vec<Disk>> {
         let value = ctx
             .data::<Arc<Host>>()?
@@ -50,3 +65,127 @@ impl PlatformQuery {
         })
     }
 }
+
+async fn samba_service(ctx: &Context<'_>) -> Result<SambaServiceFacts> {
+    let value = ctx
+        .data::<Arc<Host>>()?
+        .call(SYSTEM_SAMBA_SERVICE_FACTS, serde_json::json!({}))
+        .await
+        .map_err(async_graphql::Error::new)?;
+    Ok(serde_json::from_value(value)?)
+}
+
+fn samba_facts(
+    settings: plain_rs::prefs::samba::SambaSettings,
+    service: SambaServiceFacts,
+) -> SambaSettings {
+    let (service_name, service_active, service_enabled) = if service.name.is_empty() {
+        (
+            settings.service_name,
+            settings.service_active,
+            settings.service_enabled,
+        )
+    } else {
+        (service.name, service.active, service.enabled)
+    };
+    SambaSettings {
+        enabled: settings.enabled,
+        username: settings.username,
+        has_password: settings.has_password,
+        shares: settings
+            .shares
+            .into_iter()
+            .map(|share| SambaShare {
+                name: share.name,
+                share_path: share.share_path,
+                read_only: share.read_only,
+                auth: match share.auth {
+                    plain_rs::prefs::samba::SambaShareAuth::Guest => SambaShareAuth::GUEST,
+                    plain_rs::prefs::samba::SambaShareAuth::Password => SambaShareAuth::PASSWORD,
+                },
+            })
+            .collect(),
+        service_name,
+        service_active,
+        service_enabled,
+    }
+}
+
+async fn samba_apply(
+    ctx: &Context<'_>,
+    settings: plain_rs::prefs::samba::SambaSettings,
+) -> Result<()> {
+    let value = ctx
+        .data::<Arc<Host>>()?
+        .call(
+            SYSTEM_SAMBA_APPLY,
+            serde_json::to_value(SambaApplyRequest { settings })?,
+        )
+        .await
+        .map_err(async_graphql::Error::new)?;
+    if value != serde_json::Value::Bool(true) {
+        return Err("Samba apply failed".into());
+    }
+    Ok(())
+}
+
+#[derive(Default)]
+pub struct PlatformMutation;
+
+#[Object]
+impl PlatformMutation {
+    async fn set_samba_settings(
+        &self,
+        ctx: &Context<'_>,
+        input: SambaSettingsInput,
+    ) -> Result<bool> {
+        let state = ctx.data::<ServerState>()?;
+        samba_service(ctx).await?;
+        let shares = input
+            .shares
+            .into_iter()
+            .map(|share| plain_rs::prefs::samba::SambaShare {
+                name: share.name,
+                share_path: share.share_path,
+                read_only: share.read_only,
+                auth: match share.auth {
+                    SambaShareAuth::GUEST => plain_rs::prefs::samba::SambaShareAuth::Guest,
+                    SambaShareAuth::PASSWORD => plain_rs::prefs::samba::SambaShareAuth::Password,
+                },
+            })
+            .collect();
+        let settings = plain_rs::prefs::samba::configure(&state.prefs, input.enabled, shares)
+            .map_err(|error| async_graphql::Error::new(error.to_string()))?;
+        samba_apply(ctx, settings).await?;
+        Ok(true)
+    }
+
+    async fn set_samba_user_password(&self, ctx: &Context<'_>, password: String) -> Result<bool> {
+        if password.trim().is_empty() {
+            return Err("password required".into());
+        }
+        let state = ctx.data::<ServerState>()?;
+        let mut settings = plain_rs::prefs::samba::get_samba_settings(&state.prefs)?;
+        let value = ctx
+            .data::<Arc<Host>>()?
+            .call(
+                SYSTEM_SAMBA_PASSWORD,
+                serde_json::to_value(SambaPasswordRequest { password })?,
+            )
+            .await
+            .map_err(async_graphql::Error::new)?;
+        if value != serde_json::Value::Bool(true) {
+            return Err("Samba password update failed".into());
+        }
+        settings.has_password = true;
+        plain_rs::prefs::samba::set_samba_settings(&state.prefs, &settings)?;
+        if settings.enabled {
+            samba_apply(ctx, settings).await?;
+        }
+        Ok(true)
+    }
+}
+
+#[cfg(test)]
+#[path = "../../../../tests/unit/graphql/resolvers/app/platform.rs"]
+mod tests;
