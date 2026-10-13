@@ -193,9 +193,9 @@ input BookmarkInput {
 }
 
 """
-Optional capabilities the server declares about itself; the web client
-gates UI on these instead of sniffing OS versions. Mirrors plain-app
-`Capability`.
+Optional device features. A client hides a whole section when its
+capability is absent, which is why this is a list rather than a set of
+booleans on the app root.
 """
 enum Capability {
 	MEDIA_TRASH
@@ -685,9 +685,6 @@ interface MediaItem {
 	updatedAt: Instant!
 }
 
-"""
-Audio playback repeat mode, mirroring the plain-app `MediaPlayMode` enum.
-"""
 enum MediaPlayMode {
 	REPEAT
 	REPEAT_ONE
@@ -1506,9 +1503,10 @@ input SambaShareInput {
 
 type ScanProgress {
 	indexed: Int!
-	pending: Int!
-	total: Int!
+	pending: Int
+	total: Int
 	state: ScanState!
+	error: String
 }
 
 """
@@ -1520,6 +1518,7 @@ enum ScanState {
 	RUNNING
 	PAUSED
 	STOPPED
+	FAILED
 }
 
 type Session {

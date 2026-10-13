@@ -402,6 +402,11 @@ type MediaHostDuration {
 }
 
 type Mutation {
+	startMediaScan(root: String!): Boolean!
+	pauseMediaScan: Boolean!
+	resumeMediaScan: Boolean!
+	stopMediaScan: Boolean!
+	setMediaSourceDirs(dirs: [String!]!): Boolean!
 	startDiscovery: [NearbyDevice!]!
 	stopDiscovery: Boolean!
 	"""
@@ -636,6 +641,8 @@ type PomodoroToday {
 }
 
 type Query {
+	scanProgress: ScanProgress!
+	mediaSourceDirs: [String!]!
 	nearbyDevices: [NearbyDevice!]!
 	"""
 	Whether the manual discovery scan loop is running. The nearby page
@@ -734,6 +741,26 @@ type Root {
 	virtualPath: String!
 	realPath: String!
 	isDir: Boolean!
+}
+
+type ScanProgress {
+	indexed: Int!
+	pending: Int
+	total: Int
+	state: ScanState!
+	error: String
+}
+
+"""
+Media-index scan lifecycle, shared by `scanProgress.state` and the
+`media:scan:progress` WS payload (same values on both wires).
+"""
+enum ScanState {
+	IDLE
+	RUNNING
+	PAUSED
+	STOPPED
+	FAILED
 }
 
 type SettingsUpdate {

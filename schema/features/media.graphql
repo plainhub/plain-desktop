@@ -444,9 +444,10 @@ enum PathKind {
 
 type ScanProgress {
 	indexed: Int!
-	pending: Int!
-	total: Int!
+	pending: Int
+	total: Int
 	state: ScanState!
+	error: String
 }
 
 """
@@ -458,6 +459,7 @@ enum ScanState {
 	RUNNING
 	PAUSED
 	STOPPED
+	FAILED
 }
 
 """

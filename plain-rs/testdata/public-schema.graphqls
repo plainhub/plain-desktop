@@ -845,6 +845,11 @@ type Mount {
 }
 
 type Mutation {
+	startMediaScan(root: String!): Boolean!
+	pauseMediaScan: Boolean!
+	resumeMediaScan: Boolean!
+	stopMediaScan: Boolean!
+	setMediaSourceDirs(dirs: [String!]!): Boolean!
 	setSystemPref(key: String!, value: JSON!): ActionResult!
 	removeSystemPref(key: String!): ActionResult!
 	updateSystemSettings(input: SystemSettingsInput!): SettingsUpdate!
@@ -1334,6 +1339,8 @@ enum PostalType {
 }
 
 type Query {
+	scanProgress: ScanProgress!
+	mediaSourceDirs: [String!]!
 	disks: [Disk!]!
 	appUpdate: AppUpdate!
 	systemSettings: SystemSettings!
@@ -1547,6 +1554,26 @@ type Query {
 	than a snapshot the caller would have to re-read.
 	"""
 	isDiscovering: Boolean!
+}
+
+type ScanProgress {
+	indexed: Int!
+	pending: Int
+	total: Int
+	state: ScanState!
+	error: String
+}
+
+"""
+Media-index scan lifecycle, shared by `scanProgress.state` and the
+`media:scan:progress` WS payload (same values on both wires).
+"""
+enum ScanState {
+	IDLE
+	RUNNING
+	PAUSED
+	STOPPED
+	FAILED
 }
 
 enum ScreenMirrorMode {
