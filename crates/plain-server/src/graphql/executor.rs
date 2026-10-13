@@ -59,6 +59,15 @@ impl RequestContext {
             origin: RequestOrigin::Remote,
         }
     }
+    /// The core's own shell, identified by its own client id. Same trust as
+    /// the native bridge: real OS grants, no web permission lookup.
+    #[cfg(feature = "core")]
+    pub(crate) fn authenticated_local(state: ServerState, client_id: String) -> Self {
+        let mut context = Self::remote(Some(state));
+        context.remote_client_id = Some(client_id);
+        context.origin = RequestOrigin::Local;
+        context
+    }
     #[cfg(feature = "core")]
     pub(crate) fn authenticated_remote(state: ServerState, client_id: String) -> Self {
         let mut context = Self::remote(Some(state));

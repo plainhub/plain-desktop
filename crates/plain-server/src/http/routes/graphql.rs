@@ -55,6 +55,22 @@ pub(crate) fn dev_bearer_matches(state: &ServerState, authorization: &str) -> Re
         .is_some_and(|token| token.as_bytes().ct_eq(expected.as_bytes()).into()))
 }
 
+/// Answer the core's own shell. There is no session and therefore no session
+/// key, so the body travels in plaintext on the loopback listener.
+async fn run_local(state: &ServerState, body: Bytes) -> Result<Response, StatusCode> {
+    let request = String::from_utf8(body.to_vec()).map_err(|_| StatusCode::BAD_REQUEST)?;
+    let client_id = state
+        .native_client_id()
+        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+    let result = run_with_context(
+        &state.public,
+        &request,
+        crate::graphql::executor::RequestContext::authenticated_local(state.clone(), client_id),
+    )
+    .await?;
+    Ok(result.into_response())
+}
+
 async fn execute(
     state: &ServerState,
     headers: &HeaderMap,
@@ -81,6 +97,13 @@ async fn execute(
     };
     if dev_bearer && !client_id.is_empty() {
         return run_development(&state, body).await;
+    }
+
+    // The shell talks to its own core as itself: its `c-id` is the core's
+    // own client id, and no login ever created a session for it. Remote
+    // callers still need one.
+    if client_id == state.native_client_id().unwrap_or_default() {
+        return run_local(&state, body).await;
     }
 
     if client_id.is_empty() {

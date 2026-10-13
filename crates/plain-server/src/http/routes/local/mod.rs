@@ -24,3 +24,7 @@ pub mod upload;
 pub mod uri;
 #[cfg(feature = "api")]
 pub mod zip;
+
+#[cfg(test)]
+#[path = "../../../../tests/unit/http/routes/local_shell_auth.rs"]
+mod shell_auth_tests;
