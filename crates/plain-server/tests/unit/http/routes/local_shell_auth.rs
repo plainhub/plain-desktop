@@ -398,3 +398,54 @@ async fn a_local_upload_chunk_listing_is_answered_by_the_core() {
     assert!(body.contains("uploadedChunks"), "{body}");
     core.stop_core().await;
 }
+
+/// The shell drives the DLNA receiver through the core, and the bootstrap
+/// enables it the same way. Enabling needs a live public port, so the core
+/// must refuse rather than half-start when there is none.
+#[tokio::test]
+async fn dlna_state_follows_the_public_listener() {
+    let dir = tempfile::tempdir().unwrap();
+    let core = crate::assembly::server::ContentServer::open(dir.path()).unwrap();
+    let dlna = core.native_dlna().unwrap();
+    assert_eq!(
+        dlna.snapshot().await.unwrap()["isRunning"],
+        false,
+        "a core without a listener does not run a receiver"
+    );
+    assert!(
+        dlna.set_enabled(true).await.is_err(),
+        "enabling without a listener has no port to advertise"
+    );
+
+    let cert = rcgen::generate_simple_self_signed(vec!["localhost".into()]).unwrap();
+    let (http, _) = core
+        .start_public(
+            0,
+            0,
+            cert.cert.pem().into_bytes(),
+            cert.key_pair.serialize_pem().into_bytes(),
+        )
+        .await
+        .unwrap();
+    let host = core.runtime_state().host.clone();
+    let (generation, mut requests) = host.connect();
+    tokio::spawn(async move {
+        while let Some(request) = requests.recv().await {
+            let reply = serde_json::json!(request["params"]["acquire"].as_bool().unwrap_or(true));
+            let _ = host.reply(
+                generation,
+                serde_json::json!({"id":request["id"],"result":reply}),
+            );
+        }
+    });
+    dlna.set_enabled(true).await.unwrap();
+    let snapshot = dlna.snapshot().await.unwrap();
+    assert_eq!(snapshot["enabled"], true);
+    assert_eq!(
+        snapshot["port"], http,
+        "the receiver advertises the listener's port"
+    );
+    dlna.set_enabled(false).await.unwrap();
+    assert_eq!(dlna.snapshot().await.unwrap()["enabled"], false);
+    core.stop_core().await;
+}
