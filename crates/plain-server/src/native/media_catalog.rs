@@ -697,14 +697,15 @@ impl NativeMediaCatalog {
                         path: path.clone(),
                         destination_path: String::new(),
                     };
-                    plain_rs::media::actions::cleanup(
-                        &self.state.db,
-                        kind,
-                        Action::Delete,
-                        &[receipt],
-                    )
-                    .map(|_| ())
-                    .map_err(|error| {
+                    let cleanup = |db: &plain_rs::db::Db| {
+                        plain_rs::media::actions::cleanup(db, kind, Action::Delete, &[receipt])
+                    };
+                    let result = if kind == DataType::Image {
+                        self.state.image_index.update_cache(cleanup)
+                    } else {
+                        cleanup(&self.state.db)
+                    };
+                    result.map(|_| ()).map_err(|error| {
                         format!("Media file removed but catalog cleanup failed: {error}")
                     })
                 })?;

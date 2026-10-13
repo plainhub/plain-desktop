@@ -73,6 +73,7 @@ pub(crate) struct ServerState {
     pub(crate) prefs: Arc<plain_rs::prefs::Prefs>,
     pub(crate) dlna: Arc<crate::services::casting::receiver::receiver_engine::DlnaEngine>,
     pub(crate) image_models: Arc<crate::services::images::models::Runtime>,
+    pub(crate) image_index: Arc<crate::services::images::index::ImageIndex>,
     #[cfg(feature = "mobile")]
     pub(crate) mobile: Arc<crate::mobile::Runtime>,
     pub(crate) cast: Arc<crate::services::casting::dlna_sender_runtime::Runtime>,
@@ -448,6 +449,7 @@ impl ContentServer {
             archives: services.archives,
             upload_chunks: services.upload_chunks,
             files: services.files,
+            image_index: services.index.clone(),
             audio: services.audio,
             host,
             db,

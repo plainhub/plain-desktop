@@ -832,3 +832,47 @@ async fn media_delete_returns_actual_os_receipts_and_keeps_failed_selection() {
     core.stop_core().await;
     assert!(catalog.delete_action_files(serde_json::json!({"type":24,"action":"DELETE","ids":[],"fromTrash":false,"destDir":""})).is_err());
 }
+
+#[cfg(feature = "media")]
+#[tokio::test]
+async fn image_delete_updates_index_before_any_parent_consumes_the_receipt() {
+    let directory = tempfile::tempdir().unwrap();
+    let path = directory.path().join("photo.jpg");
+    std::fs::write(&path, b"image").unwrap();
+    let core =
+        crate::assembly::server::ContentServer::open(&directory.path().join("core")).unwrap();
+    let catalog = core.native_media_catalog().unwrap();
+    let rows = catalog
+        .record_files(&[plain_rs::db::MediaFileMetadata {
+            data_type: plain_rs::enums::DataType::Image,
+            path: path.to_str().unwrap().into(),
+            title: "photo".into(),
+            artist: String::new(),
+            bucket_id: directory.path().to_str().unwrap().into(),
+            size_bytes: 5,
+            duration_ms: 0,
+            album_file_id: String::new(),
+            width: 0,
+            height: 0,
+            rotation: 0,
+            taken_at: None,
+            created_at: "created".into(),
+            updated_at: "updated".into(),
+        }])
+        .unwrap();
+    let index = core.runtime_state().image_index.clone();
+    let version = index.status().version;
+    let outcome = catalog
+        .delete_action_files(serde_json::json!({
+            "type":plain_rs::enums::DataType::Image.kind(),"action":"DELETE",
+            "ids":[rows[0].id],"fromTrash":false,"destDir":""
+        }))
+        .unwrap();
+    assert!(outcome.failed_ids.is_empty());
+    assert_eq!(outcome.successful.len(), 1);
+    assert!(!path.exists());
+    assert_eq!(catalog.count(plain_rs::enums::DataType::Image).unwrap(), 0);
+    assert!(index.status().version > version);
+    assert_eq!(index.status().indexed_images, 0);
+    core.stop_core().await;
+}
