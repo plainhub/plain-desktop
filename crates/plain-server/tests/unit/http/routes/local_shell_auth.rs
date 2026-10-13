@@ -264,3 +264,60 @@ async fn a_local_media_list_is_answered_by_the_core() {
     assert!(body.contains("\"audios\""), "{body}");
     core.stop_core().await;
 }
+
+/// `/init` hands the shell its signature key, and decrypts the request with
+/// the same local token as everything else. Without that the shell has no key
+/// to talk to peers with.
+#[tokio::test]
+async fn init_answers_the_shells_encrypted_request() {
+    let dir = tempfile::tempdir().unwrap();
+    let core = crate::assembly::server::ContentServer::open(dir.path()).unwrap();
+    let state = core.runtime_state();
+    let host = state.host.clone();
+    let (generation, mut requests) = host.connect();
+    let data_dir = dir.path().to_path_buf();
+    tokio::spawn(async move {
+        while let Some(request) = requests.recv().await {
+            let reply = match request["method"].as_str().unwrap_or_default() {
+                "systemFileResource" => serde_json::json!(data_dir.to_str().unwrap()),
+                other => panic!("unexpected host method {other}"),
+            };
+            let _ = host.reply(
+                generation,
+                serde_json::json!({"id":request["id"],"result":reply}),
+            );
+        }
+    });
+    let cert = rcgen::generate_simple_self_signed(vec!["localhost".into()]).unwrap();
+    let (http, _) = core
+        .start_public(
+            0,
+            0,
+            cert.cert.pem().into_bytes(),
+            cert.key_pair.serialize_pem().into_bytes(),
+        )
+        .await
+        .unwrap();
+    let client_id = core.native_graphql().unwrap().client_id().to_owned();
+    let key = plain_rs::utils::base64::base64_decode(&core.native_url_token().unwrap());
+    let body = plain_rs::crypto::xchacha_encrypt_raw(&key, b"{}").unwrap();
+    let response = reqwest::Client::new()
+        .post(format!("http://127.0.0.1:{http}/init"))
+        .header("content-type", "application/json")
+        .header("c-id", &client_id)
+        .body(body)
+        .send()
+        .await
+        .unwrap();
+    let status = response.status();
+    let body = response.text().await.unwrap();
+    assert_eq!(status.as_u16(), 200, "refused: {body}");
+    let value: serde_json::Value = serde_json::from_str(&body).unwrap();
+    assert!(
+        value["signaturePublicKey"]
+            .as_str()
+            .is_some_and(|key| !key.is_empty()),
+        "the shell needs a signature key: {body}"
+    );
+    core.stop_core().await;
+}

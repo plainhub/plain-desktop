@@ -273,10 +273,13 @@ pub(crate) async fn init(
     if !state.prefs.get_user_or("desktop_access", true) {
         return StatusCode::NOT_FOUND.into_response();
     }
-    let key = match crate::http::sessions::host::key(&state.db, client_id) {
-        Ok(key) => key,
-        Err(_) => return StatusCode::INTERNAL_SERVER_ERROR.into_response(),
-    };
+    // The shell decrypts `/init` with the local URL token, like every other
+    // local request.
+    let key = crate::http::sessions::host::local_key(&state, client_id).or(
+        crate::http::sessions::host::key(&state.db, client_id)
+            .ok()
+            .flatten(),
+    );
     let authenticated = key
         .as_ref()
         .is_some_and(|key| plain_rs::crypto::xchacha_decrypt_raw(key, &body).is_some());
