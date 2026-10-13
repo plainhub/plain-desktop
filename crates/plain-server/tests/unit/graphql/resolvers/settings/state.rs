@@ -60,3 +60,24 @@ async fn system_commands_validate_and_do_not_return_private_keys() {
             .is_empty()
     );
 }
+
+#[tokio::test]
+async fn runtime_system_preferences_validate_before_publishing() {
+    let (_dir, schema, mut events) = fixture();
+    for (key, value) in [("log_level", "\"debug\""), ("dev_token", "\"development\"")] {
+        let document = format!(
+            "mutation {{ setSystemPref(key: \"{key}\", value: {value}) {{ affectedCount }} }}"
+        );
+        let response = schema.execute(document).await;
+        assert!(response.errors.is_empty(), "{:?}", response.errors);
+        assert_eq!(events.try_recv().unwrap().event_type, "PREFS_UPDATED");
+        assert!(events.try_recv().is_err());
+    }
+    for document in [
+        "mutation { setSystemPref(key: \"log_level\", value: \"invalid\") { affectedCount } }",
+        "mutation { setSystemPref(key: \"dev_token\", value: 1) { affectedCount } }",
+    ] {
+        assert!(!schema.execute(document).await.errors.is_empty());
+        assert!(events.try_recv().is_err());
+    }
+}

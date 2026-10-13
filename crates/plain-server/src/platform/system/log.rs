@@ -32,7 +32,6 @@
 use std::io::{Read, Seek, SeekFrom, Write};
 use std::path::{Path, PathBuf};
 use std::sync::Mutex;
-use std::sync::atomic::{AtomicUsize, Ordering};
 
 /// Log level. Ordered: Trace < Debug < Info < Warn < Error.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
@@ -75,8 +74,6 @@ impl Level {
     }
 }
 
-static LEVEL: AtomicUsize = AtomicUsize::new(2 /* Level::Info */);
-
 /// Initialise the logger and the global level from a string. `RUST_LOG`
 /// overrides the explicit `level` argument. Installing the logger a
 /// second time (tests) keeps the first installation.
@@ -87,26 +84,21 @@ pub fn init(level: &str) {
     };
     let _ = log::set_logger(&NAS_LOGGER);
     log::set_max_level(level.to_filter());
-    LEVEL.store(level as usize, Ordering::Relaxed);
 }
 
 #[inline]
 pub fn enabled(level: Level) -> bool {
-    // `LEVEL` is the minimum severity to show: anything at or above it
-    // (Info ≤ Warn ≤ Error) is emitted, anything more verbose is not.
-    // The old `<=` comparison was inverted — it showed trace/debug while
-    // silently swallowing warn/error at the default `info` level.
-    level as usize >= LEVEL.load(Ordering::Relaxed)
+    level.to_filter() <= log::max_level()
 }
 
 /// Current level. Tests save/restore it around level-sensitive assertions.
 #[cfg_attr(not(test), allow(dead_code))]
 pub fn level() -> Level {
-    match LEVEL.load(Ordering::Relaxed) {
-        0 => Level::Trace,
-        1 => Level::Debug,
-        2 => Level::Info,
-        3 => Level::Warn,
+    match log::max_level() {
+        log::LevelFilter::Trace => Level::Trace,
+        log::LevelFilter::Debug => Level::Debug,
+        log::LevelFilter::Info => Level::Info,
+        log::LevelFilter::Warn => Level::Warn,
         _ => Level::Error,
     }
 }
@@ -117,7 +109,6 @@ pub fn level() -> Level {
 #[cfg_attr(not(test), allow(dead_code))]
 pub fn set_level(level: Level) {
     log::set_max_level(level.to_filter());
-    LEVEL.store(level as usize, Ordering::Relaxed);
 }
 
 fn write_log(level: Level, body: &str) {

@@ -315,24 +315,11 @@ impl ChatState {
     ) -> anyhow::Result<Self> {
         let db = Db::open(&data_dir.join("plain.db"))?;
         let token = plain_media::storage::kv::UrlToken::new(prefs).ensure()?;
-        let keypair = plain_media::storage::kv::SignatureKey::new(prefs).ensure_keypair()?;
-        let display_name = {
-            let name = plain_media::storage::kv::device_display_name(prefs);
-            if name.is_empty() {
-                let host = plain_rs::utils::hostname::get();
-                if host.is_empty() {
-                    "NAS".to_string()
-                } else {
-                    host
-                }
-            } else {
-                name
-            }
-        };
+        let stored = plain_rs::prefs::ensure_identity(prefs);
         let identity = Arc::new(ChatIdentity::new(
-            plain_media::storage::kv::server_client_id(prefs),
-            display_name,
-            plain_rs::utils::base64::base64_encode(&keypair),
+            stored.client_id,
+            stored.device_name,
+            stored.ed25519_keypair,
         ));
         let hooks = Arc::new(NasChatHooks::default());
         let mut state = Self::with_options(ChatOptions {

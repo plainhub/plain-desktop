@@ -142,7 +142,7 @@ pub async fn auth_handler(
     let _ = EventLog::new(&state.ctx.media.db).add("login", &client_name, &client_id);
 
     let nas_id = match &state.settings.auth {
-        AuthPolicy::Session { device_id, .. } => device_id.clone(),
+        AuthPolicy::Session => state.ctx.identity.client_id.clone(),
         AuthPolicy::LocalToken => String::new(),
     };
     let resp = AuthResponse {

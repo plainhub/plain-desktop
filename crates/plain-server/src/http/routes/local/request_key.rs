@@ -8,7 +8,7 @@
 //! * Nas host: the `c-id` header selects a session from the fjall
 //!   `SessionStore`; the session token (base64 of 32 bytes) is the
 //!   per-client key — [`RequestKey::Raw`]. With no `c-id`,
-//!   `/graphql` additionally accepts the config `auth.dev_token`
+//!   `/graphql` additionally accepts the system preference `dev_token`
 //!   bearer (dev mode, plaintext JSON responses) —
 //!   [`RequestKey::DevBearer`].
 
@@ -50,7 +50,7 @@ pub enum RequestKeyError {
     SessionNotFound,
     /// Nas dev branch: no `Authorization` header at all.
     DevHeaderMissing,
-    /// Nas dev branch: bearer token != config `auth.dev_token`.
+    /// Nas dev branch: bearer token != system preference `dev_token`.
     DevTokenInvalid,
     /// Nas: the session token is not a decodable 32-byte key.
     BadSessionToken,
@@ -81,12 +81,8 @@ pub fn resolve_request_key(
         .unwrap_or("")
         .to_string();
 
-    if let AuthPolicy::Session { dev_token, .. } = &state.settings.auth {
+    if let AuthPolicy::Session = &state.settings.auth {
         if cid.is_empty() {
-            // Dev mode: trust the bearer token from config. In dev mode
-            // we use the literal header value `dev` as the client id so
-            // resolvers that need a client_id (file tasks, etc.) still
-            // work. Mirrors Go `requireAuth`'s dev branch.
             if !allow_dev_bearer {
                 return Err(RequestKeyError::MissingCid);
             }
@@ -98,6 +94,8 @@ pub fn resolve_request_key(
                 return Err(RequestKeyError::DevHeaderMissing);
             }
             let token = auth_header.strip_prefix("Bearer ").unwrap_or("");
+            let dev_token = plain_rs::prefs::system::dev_token(&state.ctx.prefs)
+                .map_err(|_| RequestKeyError::DevTokenInvalid)?;
             if token.is_empty() || token != dev_token {
                 return Err(RequestKeyError::DevTokenInvalid);
             }

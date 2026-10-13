@@ -78,8 +78,73 @@ pub fn bootstrap(prefs: &Prefs) -> Result<()> {
         if !map.contains_key(AUTH_TWO_FACTOR) {
             put(map, AUTH_TWO_FACTOR, true)?;
         }
+        runtime_defaults(map)?;
         Ok(())
     })
+}
+
+fn runtime_defaults(map: &mut Map<String, Value>) -> Result<()> {
+    if !map.contains_key(DEV_TOKEN) {
+        put(map, DEV_TOKEN, "")?;
+    }
+    if !map.contains_key(LOG_LEVEL) {
+        put(map, LOG_LEVEL, "info")?;
+    }
+    Ok(())
+}
+
+pub fn bootstrap_runtime(prefs: &Prefs) -> Result<()> {
+    prefs.update_system(runtime_defaults)
+}
+
+pub fn dev_token(prefs: &Prefs) -> Result<String> {
+    Ok(prefs.get(DEV_TOKEN)?.unwrap_or_default())
+}
+
+pub fn log_level(prefs: &Prefs) -> anyhow::Result<log::LevelFilter> {
+    let value = prefs
+        .get::<String>(LOG_LEVEL)?
+        .unwrap_or_else(|| "info".into());
+    parse_log_level(&value)
+}
+
+fn parse_log_level(value: &str) -> anyhow::Result<log::LevelFilter> {
+    match value {
+        "trace" => Ok(log::LevelFilter::Trace),
+        "debug" => Ok(log::LevelFilter::Debug),
+        "info" => Ok(log::LevelFilter::Info),
+        "warn" => Ok(log::LevelFilter::Warn),
+        "error" => Ok(log::LevelFilter::Error),
+        _ => anyhow::bail!("Invalid log level"),
+    }
+}
+
+pub fn set_entry(prefs: &Prefs, key: &str, value: Value) -> anyhow::Result<bool> {
+    let level = match key {
+        LOG_LEVEL => Some(parse_log_level(
+            value
+                .as_str()
+                .ok_or_else(|| anyhow::anyhow!("Invalid log level"))?,
+        )?),
+        DEV_TOKEN => {
+            anyhow::ensure!(value.is_string(), "Invalid development token");
+            None
+        }
+        _ => None,
+    };
+    let changed = prefs.set(key, value)?;
+    if let Some(level) = level {
+        log::set_max_level(level);
+    }
+    Ok(changed)
+}
+
+pub fn remove_entry(prefs: &Prefs, key: &str) -> Result<bool> {
+    let changed = prefs.remove(key)?;
+    if key == LOG_LEVEL {
+        log::set_max_level(log::LevelFilter::Info);
+    }
+    Ok(changed)
 }
 
 pub fn ensure_signing_keypair(prefs: &Prefs) -> anyhow::Result<Vec<u8>> {

@@ -15,10 +15,7 @@ pub struct ServerState {
 
 pub enum AuthPolicy {
     LocalToken,
-    Session {
-        dev_token: String,
-        device_id: String,
-    },
+    Session,
 }
 
 pub struct ServerSettings {
@@ -76,9 +73,6 @@ pub(crate) mod test_support {
             crate::services::chat::desktop::ChatState::nas_init(&data_dir, &prefs)
                 .expect("chat init"),
         );
-        let config = Arc::new(plain_media::config::Config::parse(
-            "[server]\nhttp_port = 8080\n",
-        ));
         let (event_tx, _) = tokio::sync::broadcast::channel(64);
         let ctx = crate::assembly::context::AppCtx::assemble(
             data_dir.clone(),
@@ -100,10 +94,7 @@ pub(crate) mod test_support {
             Arc::new(crate::graphql::schemas::peer::build_schema()),
             ctx,
             ServerSettings {
-                auth: AuthPolicy::Session {
-                    dev_token: config.get_string("auth.dev_token"),
-                    device_id: config.get_string("nas.id"),
-                },
+                auth: AuthPolicy::Session,
                 cors: cors::CorsPolicy::default(),
                 serve_spa: true,
             },

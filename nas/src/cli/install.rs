@@ -1,7 +1,3 @@
-//! `plainnas install` - writes `/etc/plainnas/config.toml`, the
-//! systemd unit, and installs the OS-level dependencies
-//! (ffmpeg, samba + samba-vfs-modules, avahi).
-
 #[path = "install/deps.rs"]
 mod deps;
 #[path = "install/packages.rs"]
@@ -9,11 +5,9 @@ mod packages;
 #[path = "install/ui.rs"]
 mod ui;
 
-use anyhow::{Context, Result};
-use plain_server::platform::system::consts::AppPaths;
-use std::path::Path;
+use anyhow::Result;
 
-pub fn run(paths: &AppPaths, with_libreoffice: bool) -> Result<()> {
+pub fn run(with_libreoffice: bool) -> Result<()> {
     if !nix::unistd::Uid::current().is_root() {
         eprintln!("This command requires root privileges. Please run with sudo.");
         std::process::exit(1);
@@ -28,30 +22,12 @@ pub fn run(paths: &AppPaths, with_libreoffice: bool) -> Result<()> {
         deps::install_libre_office();
     }
 
-    // 2. Write config + systemd unit.
-    if let Some(parent) = paths.config_path.parent() {
-        std::fs::create_dir_all(parent).context("mkdir /etc/plainnas")?;
-    }
-    let config = include_str!("../cmd/install/config.toml");
-    let config = config.replace(
-        "__WITH_LO__",
-        if with_libreoffice { "true" } else { "false" },
-    );
-    write_if_absent(&paths.config_path, &config)?;
-    write_systemd_unit(paths)?;
-    println!("plain-nas install: wrote {}", paths.config_path.display());
+    write_systemd_unit()?;
+    println!("plain-nas install: done");
     Ok(())
 }
 
-fn write_if_absent(path: &Path, content: &str) -> Result<()> {
-    if path.exists() {
-        return Ok(());
-    }
-    std::fs::write(path, content).with_context(|| format!("write {}", path.display()))?;
-    Ok(())
-}
-
-fn write_systemd_unit(_paths: &AppPaths) -> Result<()> {
+fn write_systemd_unit() -> Result<()> {
     let unit_path = std::path::Path::new("/etc/systemd/system/plain-nas.service");
     if unit_path.exists() {
         return Ok(());

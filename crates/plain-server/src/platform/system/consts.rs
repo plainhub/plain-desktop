@@ -6,7 +6,6 @@ use std::path::PathBuf;
 pub struct AppPaths {
     pub data_dir: PathBuf,
     pub cache_dir: PathBuf,
-    pub config_path: PathBuf,
     pub tls_cert: PathBuf,
     pub tls_key: PathBuf,
 }
@@ -40,9 +39,6 @@ impl AppPaths {
         let cache_dir = std::env::var("PLAIN_NAS_CACHE_DIR")
             .map(PathBuf::from)
             .unwrap_or_else(|_| home_cache_dir());
-        let config_path = std::env::var("PLAIN_NAS_CONFIG")
-            .map(PathBuf::from)
-            .unwrap_or_else(|_| PathBuf::from(ETC_MAIN_CONFIG));
         let tls_cert = std::env::var("PLAIN_NAS_TLS_CERT")
             .map(PathBuf::from)
             .unwrap_or_else(|_| PathBuf::from(ETC_TLS_SERVER_PEM));
@@ -52,7 +48,6 @@ impl AppPaths {
         Self {
             data_dir,
             cache_dir,
-            config_path,
             tls_cert,
             tls_key,
         }
@@ -65,7 +60,6 @@ fn home_cache_dir() -> PathBuf {
     PathBuf::from(home).join(".plainnas").join("cache")
 }
 
-pub const ETC_MAIN_CONFIG: &str = "/etc/plainnas/config.toml";
 pub const ETC_TLS_SERVER_PEM: &str = "/etc/plainnas/tls.pem";
 pub const ETC_TLS_SERVER_KEY: &str = "/etc/plainnas/tls.key";
 

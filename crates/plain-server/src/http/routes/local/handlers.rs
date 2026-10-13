@@ -49,7 +49,7 @@ pub async fn init(
     headers: axum::http::HeaderMap,
     body: Bytes,
 ) -> Response {
-    if matches!(state.settings.auth, AuthPolicy::Session { .. }) {
+    if matches!(state.settings.auth, AuthPolicy::Session) {
         return crate::http::routes::local::auth::init_session(&state, &headers).await;
     }
     let _ = headers;

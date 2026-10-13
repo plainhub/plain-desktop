@@ -11,3 +11,5 @@ pub const ONBOARDING_COMPLETED: &str = "onboarding_completed";
 pub const CLIENT_ID: &str = "client_id";
 pub const MDNS_HOSTNAME: &str = "mdns_hostname";
 pub const SIGNATURE_KEY_PAIR: &str = "signature_key_pair";
+pub const DEV_TOKEN: &str = "dev_token";
+pub const LOG_LEVEL: &str = "log_level";

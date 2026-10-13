@@ -146,3 +146,19 @@ async fn nearby_client_handles_probe_accept_reject_timeout_and_offline() {
     server.shutdown().await;
     assert!(!probe("127.0.0.1", port).await.unwrap());
 }
+
+#[tokio::test]
+async fn occupied_ports_fall_back_for_both_listeners() {
+    let occupied_http = std::net::TcpListener::bind("0.0.0.0:0").unwrap();
+    let occupied_https = std::net::TcpListener::bind("0.0.0.0:0").unwrap();
+    let http = occupied_http.local_addr().unwrap().port();
+    let https = occupied_https.local_addr().unwrap().port();
+    let (cert, key) = certificate();
+    let listeners = HttpListeners::start(Router::new(), http, https, cert, key)
+        .await
+        .unwrap();
+    assert_ne!(listeners.http_port, http);
+    assert_ne!(listeners.https_port, https);
+    listeners.check_health().await.unwrap();
+    listeners.shutdown().await;
+}

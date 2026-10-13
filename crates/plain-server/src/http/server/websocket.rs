@@ -64,7 +64,7 @@ pub async fn chat_socket_cid(socket: WebSocket, cid: String, state: ServerState)
     // this cid, the desktop URL token.
     let key = if matches!(
         state.settings.auth,
-        crate::http::server::AuthPolicy::Session { .. }
+        crate::http::server::AuthPolicy::Session
     ) {
         let session = plain_media::storage::kv::SessionStore::new(&state.ctx.media.db).get(&cid);
         match session.and_then(|s| plain_media::storage::kv::token_key(&s.token).ok()) {

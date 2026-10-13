@@ -46,7 +46,7 @@ async fn run_development(state: &ServerState, body: Bytes) -> Result<Response, S
 /// An unset token never matches, and the comparison is constant time so a
 /// wrong guess cannot learn the real one from response timing.
 pub(crate) fn dev_bearer_matches(state: &ServerState, authorization: &str) -> Result<bool, ()> {
-    let expected = state.dev_token.lock().map_err(|_| ())?;
+    let expected = plain_rs::prefs::system::dev_token(&state.prefs).map_err(|_| ())?;
     if expected.is_empty() {
         return Ok(false);
     }

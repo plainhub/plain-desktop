@@ -62,7 +62,7 @@ impl PreferencesMutation {
         value: Json<Value>,
     ) -> Result<ActionResult> {
         validate_dynamic_key(&key)?;
-        let changed = prefs(ctx)?.set(&key, value.0)?;
+        let changed = plain_rs::prefs::system::set_entry(prefs(ctx)?, &key, value.0)?;
         notify(ctx, changed);
         Ok(ActionResult {
             affected_count: i32::from(changed),
@@ -70,7 +70,7 @@ impl PreferencesMutation {
     }
     async fn remove_system_pref(&self, ctx: &Context<'_>, key: String) -> Result<ActionResult> {
         validate_dynamic_key(&key)?;
-        let changed = prefs(ctx)?.remove(&key)?;
+        let changed = plain_rs::prefs::system::remove_entry(prefs(ctx)?, &key)?;
         notify(ctx, changed);
         Ok(ActionResult {
             affected_count: i32::from(changed),

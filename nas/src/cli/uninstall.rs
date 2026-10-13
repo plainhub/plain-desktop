@@ -8,7 +8,6 @@ pub fn run(paths: &AppPaths, keep_config: bool, keep_data: bool) -> Result<()> {
         std::process::exit(1);
     }
     if !keep_config {
-        let _ = std::fs::remove_file(&paths.config_path);
         let _ = std::fs::remove_file(&paths.tls_cert);
         let _ = std::fs::remove_file(&paths.tls_key);
     }

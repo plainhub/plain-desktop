@@ -19,9 +19,7 @@ pub fn run() -> Result<()> {
     let paths = AppPaths::detect();
 
     match cli.command {
-        crate::cli::Cmd::Install { with_libreoffice } => {
-            crate::cli::install::run(&paths, with_libreoffice)
-        }
+        crate::cli::Cmd::Install { with_libreoffice } => crate::cli::install::run(with_libreoffice),
         crate::cli::Cmd::Uninstall {
             keep_config,
             keep_data,

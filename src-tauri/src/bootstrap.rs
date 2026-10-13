@@ -29,15 +29,7 @@ pub fn run() {
     let app = builder
         .plugin(
             tauri_plugin_log::Builder::default()
-                .level(if cfg!(debug_assertions) {
-                    log::LevelFilter::Debug
-                } else {
-                    log::LevelFilter::Info
-                })
-                .level_for("tungstenite", log::LevelFilter::Warn)
-                .level_for("tantivy", log::LevelFilter::Warn)
-                .level_for("fjall", log::LevelFilter::Warn)
-                .level_for("lsm_tree", log::LevelFilter::Warn)
+                .level(log::LevelFilter::Trace)
                 .targets([
                     tauri_plugin_log::Target::new(tauri_plugin_log::TargetKind::Stdout),
                     tauri_plugin_log::Target::new(tauri_plugin_log::TargetKind::LogDir {

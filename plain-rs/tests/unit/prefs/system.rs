@@ -89,3 +89,33 @@ fn update_patch_preserves_other_fields_and_write_failure_does_not_publish_state(
     assert!(Command::ResetPassword.apply(&prefs).is_err());
     assert_eq!(before, prefs.entries());
 }
+
+#[test]
+fn runtime_preferences_use_shared_defaults_and_persist_only_system_values() {
+    let (dir, prefs) = fixture();
+    bootstrap_runtime(&prefs).unwrap();
+    assert_eq!(dev_token(&prefs).unwrap(), "");
+    assert_eq!(log_level(&prefs).unwrap(), log::LevelFilter::Info);
+    assert_eq!(
+        prefs.get::<String>(LOG_LEVEL).unwrap().as_deref(),
+        Some("info")
+    );
+    set_entry(&prefs, DEV_TOKEN, serde_json::json!("development")).unwrap();
+    set_entry(&prefs, LOG_LEVEL, serde_json::json!("warn")).unwrap();
+    bootstrap_runtime(&prefs).unwrap();
+    let reloaded = Prefs::load(&dir.path().join("system_prefs.json")).unwrap();
+    assert_eq!(dev_token(&reloaded).unwrap(), "development");
+    assert_eq!(log_level(&reloaded).unwrap(), log::LevelFilter::Warn);
+    assert!(reloaded.user_entries().is_empty());
+    for value in [
+        serde_json::json!("invalid"),
+        serde_json::json!(1),
+        serde_json::json!(null),
+    ] {
+        assert!(set_entry(&prefs, LOG_LEVEL, value).is_err());
+    }
+    assert!(set_entry(&prefs, DEV_TOKEN, serde_json::json!(true)).is_err());
+    assert_eq!(log_level(&prefs).unwrap(), log::LevelFilter::Warn);
+    remove_entry(&prefs, LOG_LEVEL).unwrap();
+    assert_eq!(log_level(&prefs).unwrap(), log::LevelFilter::Info);
+}

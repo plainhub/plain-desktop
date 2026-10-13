@@ -85,3 +85,15 @@ fn service_token_is_the_fs_url_token() {
     assert_eq!(state.service.token, url_token);
     let _ = std::fs::remove_dir_all(&dir);
 }
+
+#[test]
+fn nas_identity_matches_shared_persisted_identity() {
+    let directory = tempfile::tempdir().unwrap();
+    let prefs =
+        plain_rs::prefs::Prefs::load(&plain_rs::prefs::default_path(directory.path())).unwrap();
+    let stored = plain_rs::prefs::ensure_identity(&prefs);
+    let state = ChatState::nas_init(directory.path(), &prefs).unwrap();
+    assert_eq!(state.identity.client_id, stored.client_id);
+    assert_eq!(state.identity.device_name(), stored.device_name);
+    assert_eq!(state.identity.ed25519_keypair, stored.ed25519_keypair);
+}

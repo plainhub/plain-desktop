@@ -14,14 +14,16 @@ pub(crate) fn set(
         if let Some(changed) = plain_rs::prefs::user::set_entry(prefs, key, value.clone())
             .map_err(|e| e.to_string())?
         {
-            Ok(changed)
+            changed
         } else {
-            prefs.set_user(key, &value)
+            prefs
+                .set_user(key, &value)
+                .map_err(|error| error.to_string())?
         }
     } else {
-        prefs.set(key, &value)
-    }
-    .map_err(|e| e.to_string())?;
+        plain_rs::prefs::system::set_entry(prefs, key, value.clone())
+            .map_err(|error| error.to_string())?
+    };
     if changed {
         let _ = events.send(WsEvent::broadcast("PREFS_UPDATED", "{}".into()));
         if user {
@@ -54,7 +56,7 @@ pub(crate) fn remove(
     let changed = if user {
         prefs.remove_user(key)
     } else {
-        prefs.remove(key)
+        plain_rs::prefs::system::remove_entry(prefs, key)
     }
     .map_err(|e| e.to_string())?;
     if changed {

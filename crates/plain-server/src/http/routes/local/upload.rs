@@ -49,7 +49,7 @@ fn plain(_state: &ServerState, status: u16, body: String) -> Response {
 fn upload_key(state: &ServerState, headers: &HeaderMap) -> Result<(RequestKey, String), Response> {
     match resolve_request_key(state, headers, false) {
         Ok((key, cid)) => {
-            if matches!(state.settings.auth, AuthPolicy::Session { .. }) {
+            if matches!(state.settings.auth, AuthPolicy::Session) {
                 return Ok((key, cid));
             }
             // Desktop upload contract (`Upload.kt` against

@@ -261,24 +261,12 @@ pub async fn run(paths: &AppPaths) -> Result<()> {
     // before anything (scan exclusions, thumb cache) probes them.
     plain_media::storage::paths::set(paths.data_dir.clone(), paths.cache_dir.clone());
 
-    let cfg = Config::load(&paths.config_path);
-    // Extra media-scan exclusions (comma-separated absolute paths), merged
-    // with the built-in system/build-dir defaults.
-    let extra: Vec<String> = cfg
-        .get_string("media_scan.excluded_dirs")
-        .split(',')
-        .map(str::trim)
-        .filter(|s| s.starts_with('/'))
-        .map(str::to_string)
-        .collect();
-    plain_media::scan::set_extra_excluded_roots(extra);
     plain_rs::tls::ensure_self_signed_pem(
         &paths.tls_cert,
         &paths.tls_key,
         &["plainnas.local".to_string(), "localhost".to_string()],
     )
     .context("ensure self-signed cert")?;
-    let cfg_arc = Arc::new(cfg);
 
     // Preferences (`<data_dir>/system_prefs.json` and `user_prefs.json`);
     // the fjall store holds media rows only.
@@ -286,6 +274,8 @@ pub async fn run(paths: &AppPaths) -> Result<()> {
         crate::prefs::Prefs::load(&crate::prefs::default_path(&paths.data_dir))
             .context("load prefs")?,
     );
+    plain_rs::prefs::system::bootstrap_runtime(&prefs)?;
+    log::set_max_level(plain_rs::prefs::system::log_level(&prefs)?);
     crate::prefs::set_global(prefs.clone());
 
     // On-disk log (`<data_dir>/logs/latest.log`) — the surface behind the
@@ -327,14 +317,8 @@ pub async fn run(paths: &AppPaths) -> Result<()> {
 
     // The shared resolver context — one assembly, one fjall handle for
     // the whole process (media rows, sessions, events, trash).
-    let http_port: u16 = cfg_arc
-        .get_string("server.http_port")
-        .parse()
-        .unwrap_or(8080);
-    let https_port: u16 = cfg_arc
-        .get_string("server.https_port")
-        .parse()
-        .unwrap_or(8443);
+    let http_port = plain_rs::prefs::server::http_port(&prefs);
+    let https_port = plain_rs::prefs::server::https_port(&prefs);
     let ctx = AppCtx::assemble(
         paths.data_dir.clone(),
         paths.cache_dir.clone(),
@@ -349,22 +333,18 @@ pub async fn run(paths: &AppPaths) -> Result<()> {
     .context("assemble app ctx")?;
     let db = ctx.media.db.clone();
 
-    // Thumbnail engine budgets ([thumbnails] mem_budget_mb / lru_mb) and
-    // the background prefetcher ([thumbnails] prefetch / prefetch_per_sec).
-    plain_media::previews::images::init_from_config(&cfg_arc);
-    plain_media::previews::images::prefetch::init_from_config(&cfg_arc, db.clone(), prefs.clone());
+    let config = Config::default();
+    plain_media::previews::images::init_from_config(&config);
+    plain_media::previews::images::prefetch::init_from_config(&config, db.clone(), prefs.clone());
 
-    let cors_policy = plain_server::http::routes::local::cors::CorsPolicy::from_config(&cfg_arc);
+    let cors_policy = plain_server::http::routes::local::cors::CorsPolicy::permissive_default();
     let schema = plain_server::graphql::schemas::desktop::build_schema();
     let state = ServerState::new(
         Arc::new(schema),
         Arc::new(plain_server::graphql::schemas::peer::build_schema()),
-        ctx,
+        ctx.clone(),
         ServerSettings {
-            auth: AuthPolicy::Session {
-                dev_token: cfg_arc.get_string("auth.dev_token"),
-                device_id: cfg_arc.get_string("nas.id"),
-            },
+            auth: AuthPolicy::Session,
             cors: cors_policy,
             serve_spa: true,
         },
@@ -391,65 +371,39 @@ pub async fn run(paths: &AppPaths) -> Result<()> {
         plain_media::watch::build_missing_indexes(&heal_data_dir, &heal_db, &roots);
     }));
 
-    let mut handles = Vec::new();
-
-    // HTTPS listener via axum-server (handles rustls + axum body bridging).
-    if !cfg_arc.get_string("server.https_port").is_empty() {
-        let app = app.clone();
-        let cert = paths.tls_cert.clone();
-        let key = paths.tls_key.clone();
-        handles.push(tokio::spawn(async move {
-            let cfg = match axum_server::tls_rustls::RustlsConfig::from_pem_file(cert, key).await {
-                Ok(c) => c,
-                Err(e) => {
-                    log::error!("tls config: {e}");
-                    return;
-                }
-            };
-            // The HTTPS port is what LAN peers dial — advertise it on
-            // mDNS once it is about to bind (phones then discover this
-            // NAS for pairing).
-            if let Some(d) = chat_discovery.as_ref() {
-                d.set_https_port(https_port);
-            }
-            let addr = std::net::SocketAddr::from(([0, 0, 0, 0], https_port));
-            log::info!("HTTPS server starting on :{https_port}");
-            if let Err(e) = axum_server::bind_rustls(addr, cfg)
-                .serve(app.into_make_service_with_connect_info::<std::net::SocketAddr>())
-                .await
-            {
-                log::error!("https server error: {e}");
-            }
-        }));
+    let listeners = plain_server::http::listeners::HttpListeners::start(
+        app,
+        http_port,
+        https_port,
+        std::fs::read(&paths.tls_cert)?,
+        std::fs::read(&paths.tls_key)?,
+    )
+    .await
+    .map_err(anyhow::Error::msg)?;
+    ctx.port
+        .store(listeners.http_port, std::sync::atomic::Ordering::Relaxed);
+    ctx.https_port
+        .store(listeners.https_port, std::sync::atomic::Ordering::Relaxed);
+    if let Some(discovery) = chat_discovery.as_ref() {
+        discovery.set_https_port(listeners.https_port);
     }
-
-    // HTTP listener.
-    if !cfg_arc.get_string("server.http_port").is_empty() {
-        let app = app.clone();
-        handles.push(tokio::spawn(async move {
-            let listener = match tokio::net::TcpListener::bind(("0.0.0.0", http_port)).await {
-                Ok(l) => l,
-                Err(e) => {
-                    log::error!("http bind failed: {e}");
-                    return;
-                }
-            };
-            log::info!("HTTP server starting on :{http_port}");
-            if let Err(e) = axum::serve(listener, app).await {
-                log::error!("http server error: {e}");
-            }
-        }));
-    }
+    ctx.discover_manager.set_https_port(listeners.https_port);
+    log::info!("HTTP server listening on :{}", listeners.http_port);
+    log::info!("HTTPS server listening on :{}", listeners.https_port);
+    let mut failure = listeners.failures();
 
     let mut sigterm = signal(SignalKind::terminate())?;
     let mut sigint = signal(SignalKind::interrupt())?;
     tokio::select! {
         _ = sigterm.recv() => log::info!("SIGTERM received, shutting down"),
         _ = sigint.recv()  => log::info!("SIGINT received, shutting down"),
+        _ = failure.changed() => {
+            let error = failure.borrow().clone().unwrap_or_else(|| "HTTP listener stopped".into());
+            listeners.shutdown().await;
+            anyhow::bail!(error);
+        }
     }
-    for h in handles {
-        h.abort();
-    }
+    listeners.shutdown().await;
 
     // Flush the database on a blocking thread with a timeout so we don't hang forever.
     let db_clone = db.clone();

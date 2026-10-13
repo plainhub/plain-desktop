@@ -132,10 +132,17 @@ async fn the_development_bearer_only_admits_the_exact_configured_token() {
     let core = crate::assembly::server::ContentServer::open(directory.path()).unwrap();
 
     // Unset: no bearer of any kind opens the development path.
-    assert!(core.runtime_state().dev_token.lock().unwrap().is_empty());
+    assert!(
+        plain_rs::prefs::system::dev_token(&core.shared_preferences().unwrap())
+            .unwrap()
+            .is_empty()
+    );
     assert!(!dev_bearer_matches(&core.runtime_state(), "Bearer anything").unwrap());
 
-    core.set_dev_token("nas-dev");
+    let prefs = core.shared_preferences().unwrap();
+    prefs
+        .set(plain_rs::prefs::system::keys::DEV_TOKEN, "nas-dev")
+        .unwrap();
     let state = core.runtime_state();
     assert!(dev_bearer_matches(&state, "Bearer nas-dev").unwrap());
     assert!(!dev_bearer_matches(&state, "Bearer wrong").unwrap());
@@ -145,7 +152,9 @@ async fn the_development_bearer_only_admits_the_exact_configured_token() {
     assert!(!dev_bearer_matches(&state, "nas-dev").unwrap());
 
     // Clearing it takes the entry point away again.
-    core.set_dev_token("");
+    prefs
+        .remove(plain_rs::prefs::system::keys::DEV_TOKEN)
+        .unwrap();
     assert!(!dev_bearer_matches(&state, "Bearer nas-dev").unwrap());
     core.stop_core().await;
 }
