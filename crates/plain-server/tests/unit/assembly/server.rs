@@ -155,3 +155,22 @@ async fn configured_public_uses_core_settings_and_keeps_listeners_on_tls_preflig
     assert!(core.start_configured_public().await.is_err());
     assert!(core.restart_public().await.is_err());
 }
+
+#[cfg(feature = "core")]
+#[tokio::test]
+async fn shell_preferences_share_the_core_owner() {
+    let directory = tempfile::tempdir().unwrap();
+    let core = ContentServer::open(directory.path()).unwrap();
+    let shell = core.shared_preferences().unwrap();
+    assert!(Arc::ptr_eq(&shell, &core.state.prefs));
+    shell.set_user("device_name", "Shared device").unwrap();
+    assert_eq!(
+        core.preferences()
+            .unwrap()
+            .get_user::<String>("device_name")
+            .unwrap(),
+        Some("Shared device".into())
+    );
+    core.stop_core().await;
+    assert!(core.shared_preferences().is_err());
+}

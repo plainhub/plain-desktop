@@ -143,6 +143,11 @@ impl ContentServer {
         crate::services::casting::receiver::control::Controller::new(self.state.clone())
     }
 
+    pub fn shared_preferences(&self) -> Result<Arc<plain_rs::prefs::Prefs>, String> {
+        self.state.native_client_id()?;
+        Ok(self.state.prefs.clone())
+    }
+
     pub fn preferences(&self) -> Result<&plain_rs::prefs::Prefs, String> {
         self.state.native_client_id()?;
         Ok(&self.state.prefs)

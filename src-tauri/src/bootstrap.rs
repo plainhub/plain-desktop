@@ -56,19 +56,18 @@ pub fn run() {
         .manage(crate::commands::native::uploads::UploadWriters::default())
         .manage(crate::commands::native::archives::ArchiveReaders::default())
         .setup(|app| {
-            // The unified preferences store — created before anything
-            // reads a preference (shortcut registration below reads
-            // `capture_shortcut`). One Arc per process, shared with the
-            // local API server; system and user settings use separate
-            // files under the app data directory.
             let data_dir = app
                 .path()
                 .app_data_dir()
                 .unwrap_or_else(|_| std::path::PathBuf::from("."));
-            let prefs = Arc::new(
-                plain_rs::prefs::Prefs::load(&plain_rs::prefs::default_path(&data_dir))
-                    .expect("preference files load"),
+            let core = Arc::new(
+                tauri::async_runtime::block_on(async {
+                    plain_server::assembly::server::ContentServer::open(&data_dir)
+                })
+                .expect("open the shared core"),
             );
+            app.handle().manage(core.clone());
+            let prefs = core.shared_preferences()?;
             let saved_roots = plain_rs::prefs::media::source_directories(&prefs)?;
             let mut root_candidates: Vec<std::path::PathBuf> = saved_roots
                 .iter()
@@ -204,14 +203,6 @@ pub fn run() {
                 .app_log_dir()
                 .unwrap_or_else(|_| data_dir.join("logs"));
             let _ = log_dir;
-            let core = Arc::new(
-                tauri::async_runtime::block_on(async {
-                    plain_server::assembly::server::ContentServer::open(&data_dir)
-                })
-                .expect("open the shared core"),
-            );
-            app.handle().manage(core.clone());
-
             // The catalog needs its scan policy before anything indexes, and
             // the watcher needs the policy to decide what counts as media.
             if let Ok(catalog) = core.native_media_catalog() {
