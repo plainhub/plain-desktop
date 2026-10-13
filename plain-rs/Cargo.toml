@@ -30,7 +30,13 @@ description = "Shared Plain protocol, crypto, persistence and domain primitives"
 # which `#[cfg(test)]` cannot reach.
 "test-seams" = ["dep:tempfile"]
 
+"storage-platform" = ["dep:anyhow", "dep:sysinfo"]
+"unix-platform" = ["dep:anyhow"]
+"linux-system" = ["dep:anyhow"]
+"linux-platform" = ["linux-system", "dep:nix", "prefs", "filesystem", "storage-platform", "unix-platform", "tokio/process", "tokio/macros", "tokio/io-util"]
+
 [dependencies]
+"sysinfo" = { version = "0.32", default-features = false, features = ["disk"], optional = true }
 "tempfile" = { "version" = "3", "optional" = true }
 "reqwest" = { version = "0.12", default-features = false, features = ["stream"], optional = true }
 "chacha20poly1305" = { "version" = "0.10", "optional" = true }
@@ -69,3 +75,6 @@ jni = { "version" = "0.22", "optional" = true }
 [[example]]
 name = "discover_probe"
 required-features = ["mdns"]
+
+[target.'cfg(target_os = "linux")'.dependencies]
+nix = { version = "0.28", features = ["mount", "fs"], optional = true }

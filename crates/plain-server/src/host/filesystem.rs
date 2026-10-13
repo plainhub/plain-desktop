@@ -317,6 +317,48 @@ pub(crate) async fn serve(
     if meta.is_dir() {
         return Ok(StatusCode::BAD_REQUEST.into_response());
     }
+    #[cfg(feature = "media")]
+    {
+        let range = request
+            .headers
+            .get(header::RANGE)
+            .and_then(|value| value.to_str().ok())
+            .unwrap_or_default();
+        let starts_view = range.is_empty()
+            || matches!(
+                plain_rs::utils::http::parse_range_header(range, u64::MAX),
+                plain_rs::utils::http::RangeParse::Full
+                    | plain_rs::utils::http::RangeParse::Partial(0, _)
+            );
+        let thumbnail = query(request, "w").and_then(|value| value.parse::<u32>().ok());
+        if starts_view && thumbnail.is_none_or(|width| width > 200) {
+            plain_media::storage::kv::recent::add_recent_file(&state.prefs, path);
+        }
+    }
+    #[cfg(feature = "media")]
+    if !download && query(request, "preview").as_deref() == Some("pdf") {
+        let modified = meta
+            .modified()?
+            .duration_since(std::time::UNIX_EPOCH)?
+            .as_secs() as i64;
+        let pdf = plain_media::previews::docs::get_or_create_pdf_preview(
+            &state.directory,
+            path,
+            modified,
+            meta.len() as i64,
+        )
+        .await?;
+        let filename = Path::new(if name.is_empty() { path } else { name })
+            .file_stem()
+            .and_then(|name| name.to_str())
+            .unwrap_or("document");
+        return Ok(secure(
+            crate::http::routes::files::stream_file(&pdf, "application/pdf", &request.headers)
+                .await,
+            Some(&format!("{filename}.pdf")),
+            false,
+        ));
+    }
     let filename = if name.is_empty() {
         path.rsplit('/').next().unwrap_or_default()
     } else {

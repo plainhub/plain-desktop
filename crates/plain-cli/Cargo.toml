@@ -1,0 +1,17 @@
+[package]
+name = "plainapp"
+version = "0.1.0"
+edition = "2024"
+rust-version = "1.96"
+default-run = "plainapp"
+
+[[bin]]
+name = "plainapp"
+path = "src/main.rs"
+
+[dependencies]
+plain-rs = { path = "../../plain-rs", default-features = false, features = ["linux-platform"] }
+plain_server = { path = "../plain-server", package = "plain-server", features = ["nas"] }
+tokio = { version = "1", default-features = false, features = ["rt-multi-thread", "net", "signal", "time", "macros"] }
+clap = { version = "4", features = ["derive"] }
+anyhow = "1"

@@ -5,6 +5,11 @@ description = "PlainApp Desktop"
 authors = ["iSmartCoding"]
 edition = "2024"
 rust-version = "1.96"
+default-run = "plainapp-desktop"
+
+[[bin]]
+name = "plainapp-desktop"
+path = "src/main.rs"
 
 [lib]
 name = "plainapp_lib"

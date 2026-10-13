@@ -137,12 +137,16 @@ impl Thumbnails {
         if bytes.is_empty() || bytes.len() > 32 * 1024 * 1024 {
             return Err("invalid thumbnail output size".into());
         }
-        self.outputs.lock().unwrap().remove(token)
+        self.outputs
+            .lock()
+            .unwrap()
+            .remove(token)
             .ok_or("thumbnail output expired")?
-            .send(bytes).map_err(|_| "thumbnail output cancelled".into())
+            .send(bytes)
+            .map_err(|_| "thumbnail output cancelled".into())
     }
 
-    async fn get(
+    pub(crate) async fn get(
         &self,
         state: &ServerState,
         mut request: Request,

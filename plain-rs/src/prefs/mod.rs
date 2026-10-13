@@ -17,6 +17,7 @@ pub mod identity;
 pub mod media;
 pub mod samba;
 pub mod server;
+pub mod storage;
 pub mod system;
 pub mod user;
 

@@ -5,10 +5,10 @@ use serde_json::Value;
 
 #[derive(Deserialize)]
 #[serde(deny_unknown_fields)]
-struct Request {
-    operation: String,
-    path: String,
-    params: Value,
+pub(crate) struct Request {
+    pub(crate) operation: String,
+    pub(crate) path: String,
+    pub(crate) params: Value,
 }
 
 #[derive(Deserialize)]

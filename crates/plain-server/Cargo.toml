@@ -23,7 +23,9 @@ description = "Shared Plain server assembly and desktop/mobile adapters"
 "host-api" = ["core"]
 "mounts" = ["dep:sysinfo", "dep:serde_json"]
 "mobile" = ["core"]
-"system" = ["api", "dep:nix", "dep:ureq", "dep:http"]
+"system" = ["plain-rs/linux-system", "api", "dep:nix", "dep:ureq", "dep:http"]
+
+"nas" = ["core", "http_transport", "media", "system", "plain-rs/linux-platform"]
 
 [dependencies]
 parking_lot = "0.12"

@@ -244,17 +244,19 @@ impl NativeMediaCatalog {
             .filter(|root| root.is_dir())
             .collect::<Vec<_>>();
         if roots.is_empty() {
+            self.state
+                .media_watch
+                .lock()
+                .map_err(|_| "Media watcher unavailable")?
+                .take();
             return Ok(false);
         }
+        let runtime = tokio::runtime::Handle::try_current().map_err(|error| error.to_string())?;
         let state = self.state.clone();
         let catalog_state = self.state.clone();
         let handle = crate::services::files::media_watch::start(&roots, move |path, kind| {
             // `notify` delivers on its own thread, so the work moves onto the
             // runtime rather than blocking the watcher.
-            let runtime = match tokio::runtime::Handle::try_current() {
-                Ok(runtime) => runtime,
-                Err(_) => return,
-            };
             let state = state.clone();
             let path = path.to_path_buf();
             let kind = kind.clone();

@@ -25,6 +25,13 @@ pub mod tls;
 pub mod sqlite_browse {
     pub use crate::db::browse::*;
 }
+#[cfg(any(
+    feature = "linux-platform",
+    feature = "linux-system",
+    feature = "unix-platform",
+    feature = "storage-platform"
+))]
+pub mod platform;
 pub mod utils;
 #[cfg(feature = "crypto")]
 pub use crate::crypto::*;
@@ -97,3 +104,5 @@ pub mod transport;
 
 #[cfg(feature = "feeds")]
 pub mod feeds;
+
+pub use utils::hostname::platform_hostname;

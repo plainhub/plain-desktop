@@ -18,7 +18,7 @@ done
 
 is_app_bin=false
 case "$out" in
-  */target/debug/deps/PlainApp-*) is_app_bin=true ;;
+  */target/debug/deps/plainapp_desktop-*) is_app_bin=true ;;
 esac
 
 if [ "$is_app_bin" = true ]; then

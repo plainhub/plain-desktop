@@ -876,3 +876,42 @@ async fn image_delete_updates_index_before_any_parent_consumes_the_receipt() {
     assert_eq!(index.status().indexed_images, 0);
     core.stop_core().await;
 }
+
+#[tokio::test]
+async fn filesystem_watch_events_from_an_os_thread_update_the_shared_catalog() {
+    let directory = tempfile::tempdir().unwrap();
+    let source = tempfile::Builder::new()
+        .prefix("watch-source-")
+        .tempdir_in(std::env::current_dir().unwrap())
+        .unwrap();
+    let core = crate::assembly::server::ContentServer::open(directory.path()).unwrap();
+    let catalog = core.native_media_catalog().unwrap();
+    catalog
+        .configure_scan_directories(&directory.path().join("cache"), None)
+        .unwrap();
+    catalog
+        .set_source_directories(&[source.path().to_string_lossy().into_owned()])
+        .unwrap();
+    catalog.watch_source_directories().unwrap();
+    let path = source.path().join("photo.png");
+    image::RgbImage::new(1, 1).save(&path).unwrap();
+    let path = path.to_string_lossy().into_owned();
+    let observed = tokio::time::timeout(std::time::Duration::from_secs(10), async {
+        loop {
+            if catalog
+                .by_path(plain_rs::enums::DataType::Image, &path)
+                .unwrap()
+                .is_some()
+            {
+                break;
+            }
+            tokio::time::sleep(std::time::Duration::from_millis(25)).await;
+        }
+    })
+    .await;
+    core.stop_core().await;
+    assert!(
+        observed.is_ok(),
+        "OS watcher events must reach the owning Tokio runtime"
+    );
+}

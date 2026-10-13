@@ -26,3 +26,22 @@ fn rejects_truncated_and_overflowing_der() {
         assert!(tlv(&mut input, 0x30).is_err());
     }
 }
+
+#[test]
+fn configured_pem_identity_is_shared_by_restart_and_certificate_rotation() {
+    let directory = tempfile::tempdir().unwrap();
+    let certificate = directory.path().join("cert.pem");
+    let key = directory.path().join("key.pem");
+    let source = IdentitySource::Pem {
+        certificate: certificate.clone(),
+        key: key.clone(),
+    };
+    let first = source.identity().unwrap();
+    assert_eq!(source.identity().unwrap(), first);
+    source.action(r#"{"action":"generate"}"#).unwrap();
+    let rotated = source.identity().unwrap();
+    assert_ne!(rotated.0, first.0);
+    assert_eq!(rotated.0, std::fs::read(certificate).unwrap());
+    assert_eq!(rotated.1, std::fs::read(key).unwrap());
+    assert!(!directory.path().join("tls-identity.json").exists());
+}

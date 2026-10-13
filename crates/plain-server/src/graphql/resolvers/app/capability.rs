@@ -225,25 +225,7 @@ fn gql_error(error: impl std::fmt::Display) -> async_graphql::Error {
     async_graphql::Error::new(error.to_string())
 }
 
-fn sanitize_hostname(input: &str) -> String {
-    let value = input.trim().to_lowercase().replace(['_', ' ', '.'], "-");
-    let mut result = String::with_capacity(value.len());
-    let mut dash = false;
-    for ch in value.chars() {
-        if ch.is_ascii_alphanumeric() {
-            result.push(ch);
-            dash = false;
-        } else if ch == '-' && !dash && !result.is_empty() {
-            result.push('-');
-            dash = true;
-        }
-    }
-    while result.ends_with('-') {
-        result.pop();
-    }
-    result.truncate(result.len().min(63));
-    result
-}
+use plain_rs::platform_hostname as sanitize_hostname;
 
 #[cfg(test)]
 #[path = "../../../../tests/unit/graphql/resolvers/app/capability.rs"]

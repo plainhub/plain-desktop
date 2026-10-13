@@ -37,6 +37,7 @@ pub fn read_file_metadata_with_availability(
     path: &Path,
     data_type: DataType,
 ) -> Result<MediaFileMetadataRead> {
+    path.to_str().context("media path is not valid UTF-8")?;
     let kind = data_type
         .media_type_str()
         .with_context(|| format!("{data_type:?} is not a media data type"))?;

@@ -15,16 +15,13 @@ pub(crate) async fn call(
     if !state.authenticated(&headers) {
         return StatusCode::UNAUTHORIZED.into_response();
     }
-    let Some(directory) = state.prefs.path().parent() else {
-        return (
-            StatusCode::INTERNAL_SERVER_ERROR,
-            Json(json!({"error": "Missing TLS directory"})),
-        )
-            .into_response();
+    let identity = match state.tls_identity.read() {
+        Ok(identity) => identity.clone(),
+        Err(_) => return StatusCode::INTERNAL_SERVER_ERROR.into_response(),
     };
-    let path = directory.join("tls-identity.json");
     let result = tokio::task::spawn_blocking(move || {
-        crate::http::tls_identity::action(&path, &command.to_string())
+        identity
+            .action(&command.to_string())
             .and_then(|body| serde_json::from_str::<Value>(&body).map_err(|e| e.to_string()))
     })
     .await;

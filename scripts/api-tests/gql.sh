@@ -4,10 +4,10 @@
 # 用法 (仓库根目录):
 #   1. 启动服务:
 #        RUST_LOG=info PLAIN_NAS_ALLOW_NONROOT=1 \
-#          PLAIN_NAS_DATA_DIR=./nas/tmp-data \
-#          cargo run -p plainnas -- run &
+#          PLAIN_NAS_DATA_DIR=./crates/plain-cli/tmp-data \
+#          cargo run -p plainapp -- run &
 #   2. 跑测试:
-#        ./nas/scripts/api-tests/gql.sh
+#        ./scripts/api-tests/gql.sh
 #
 # 所有调用走 dev 模式 (Authorization: Bearer dev)。
 # 输出按"测试名 / query / data"格式打印。

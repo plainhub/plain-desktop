@@ -31,6 +31,8 @@ pub(crate) struct ServerState {
     pub(crate) build_debug: Arc<std::sync::atomic::AtomicBool>,
     #[cfg(feature = "http_transport")]
     pub(crate) web_root: Arc<std::sync::RwLock<Option<PathBuf>>>,
+    #[cfg(feature = "http_transport")]
+    pub(crate) tls_identity: Arc<std::sync::RwLock<crate::http::tls_identity::IdentitySource>>,
     pub(crate) schema: ContentSchema,
     /// The contract schema the public `/graphql` executes. Built once next
     /// to the app's own schema so both share one host and one database.
@@ -82,6 +84,7 @@ pub(crate) struct ServerState {
     pub(crate) login_attempts: Arc<std::sync::Mutex<crate::http::auth::ws_login::LoginAttempts>>,
     pub(crate) directory: std::path::PathBuf,
     pub(crate) token: Arc<str>,
+    pub(crate) temporary_values: Arc<std::sync::Mutex<std::collections::HashMap<String, String>>>,
     pub(crate) events: broadcast::Sender<WsEvent>,
     pub(crate) shutdown: Arc<tokio::sync::Mutex<()>>,
     pub(crate) stop: watch::Receiver<bool>,
@@ -132,6 +135,21 @@ pub struct ContentServer {
     stop: watch::Sender<bool>,
 }
 impl ContentServer {
+    pub(crate) fn set_temporary_value(&self, key: String, value: String) -> Result<(), String> {
+        self.state.native_client_id()?;
+        self.state
+            .temporary_values
+            .lock()
+            .map_err(|_| "Temporary values unavailable")?
+            .insert(key, value);
+        Ok(())
+    }
+
+    #[cfg(feature = "nas")]
+    pub(crate) fn nas_state(&self) -> &ServerState {
+        &self.state
+    }
+
     pub fn web_login_confirmation(&self) -> crate::http::auth::ws_login::Confirmation {
         crate::http::auth::ws_login::Confirmation::new(self.state.clone())
     }
@@ -467,7 +485,14 @@ impl ContentServer {
             build_debug: Arc::new(std::sync::atomic::AtomicBool::new(false)),
             #[cfg(feature = "http_transport")]
             web_root: Arc::new(std::sync::RwLock::new(None)),
+            #[cfg(feature = "http_transport")]
+            tls_identity: Arc::new(std::sync::RwLock::new(
+                crate::http::tls_identity::IdentitySource::Json(
+                    directory.join("tls-identity.json"),
+                ),
+            )),
             token: Arc::from(token.as_str()),
+            temporary_values: Default::default(),
             events,
             shutdown: Arc::new(tokio::sync::Mutex::new(())),
             stop: receiver.clone(),
@@ -801,11 +826,15 @@ impl ContentServer {
             .map_err(|error| error.to_string())?;
         let http = u16::try_from(settings.http_port).map_err(|error| error.to_string())?;
         let https = u16::try_from(settings.https_port).map_err(|error| error.to_string())?;
-        let path = self.state.directory.join("tls-identity.json");
-        let (cert, key) =
-            tokio::task::spawn_blocking(move || crate::http::tls_identity::identity(&path))
-                .await
-                .map_err(|error| error.to_string())??;
+        let identity = self
+            .state
+            .tls_identity
+            .read()
+            .map_err(|_| "TLS identity configuration unavailable")?
+            .clone();
+        let (cert, key) = tokio::task::spawn_blocking(move || identity.identity())
+            .await
+            .map_err(|error| error.to_string())??;
         Ok((http, https, cert, key))
     }
 

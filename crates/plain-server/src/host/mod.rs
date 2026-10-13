@@ -20,6 +20,9 @@ pub mod events;
 #[cfg(feature = "core")]
 pub mod platform;
 
+#[cfg(all(feature = "nas", unix))]
+pub mod nas;
+
 #[cfg(feature = "core")]
 pub mod multicast;
 

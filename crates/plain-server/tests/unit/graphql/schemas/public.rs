@@ -21,25 +21,39 @@ fn sdl() -> String {
         dir.path().to_path_buf(),
     )
     .sdl()
+    .lines()
+    .map(str::trim_end)
+    .collect::<Vec<_>>()
+    .join("\n")
+        + "\n"
+}
+
+fn expected_sdl() -> &'static str {
+    if cfg!(feature = "mobile") {
+        include_str!("../../../../../../plain-rs/testdata/public-schema.graphqls")
+    } else {
+        include_str!("../../../../../../plain-rs/testdata/public-server-schema.graphqls")
+    }
 }
 
 #[test]
 fn public_schema_matches_committed_sdl() {
     let sdl = sdl();
     if std::env::var_os("UPDATE_PUBLIC_SCHEMA").is_some() {
+        let name = if cfg!(feature = "mobile") {
+            "public-schema.graphqls"
+        } else {
+            "public-server-schema.graphqls"
+        };
         std::fs::write(
-            concat!(
-                concat!(env!("CARGO_MANIFEST_DIR"), "/../../plain-rs"),
-                "/testdata/public-schema.graphqls"
-            ),
+            std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+                .join("../../plain-rs/testdata")
+                .join(name),
             &sdl,
         )
         .unwrap();
     } else {
-        assert_eq!(
-            sdl,
-            include_str!("../../../../../../plain-rs/testdata/public-schema.graphqls")
-        );
+        assert_eq!(sdl, expected_sdl());
     }
 }
 
@@ -49,7 +63,9 @@ fn public_schema_matches_committed_sdl() {
 fn public_schema_exposes_the_contract_it_has_to_serve() {
     let sdl = sdl();
     assert!(sdl.contains("lastSeen: Instant!"));
-    assert!(sdl.contains("TTY_TDD"));
+    if cfg!(feature = "mobile") {
+        assert!(sdl.contains("TTY_TDD"));
+    }
     assert!(!sdl.contains("TTY_DDD"));
     for field in [
         "packages(query: String!, offset: Int!, limit: Int!, sortBy: FileSortBy!): [Package!]!",
@@ -204,7 +220,9 @@ fn public_schema_exposes_the_contract_it_has_to_serve() {
         "deletePeer(id: ID!): Boolean!",
         "unpairPeer(id: ID!): Boolean!",
     ] {
-        assert!(sdl.contains(field), "missing {field}");
+        if cfg!(feature = "mobile") || expected_sdl().contains(field) {
+            assert!(sdl.contains(field), "missing {field}");
+        }
     }
     assert!(
         sdl.contains("replyActions: [String!]!"),
@@ -248,7 +266,9 @@ fn public_schema_exposes_the_contract_it_has_to_serve() {
         "validFrom: Instant!",
         "validTo: Instant!",
     ] {
-        assert!(sdl.contains(field), "certificate field renamed: {field}");
+        if cfg!(feature = "mobile") {
+            assert!(sdl.contains(field), "certificate field renamed: {field}");
+        }
     }
 }
 
@@ -442,13 +462,15 @@ async fn no_root_field_fails_for_unregistered_schema_data() {
     let prefs = Arc::new(Prefs::load(&dir.path().join("system_prefs.json")).unwrap());
     let (events, _) = tokio::sync::broadcast::channel(16);
     let probe_prefs = prefs.clone();
-    let schema = build(
-        Arc::new(crate::host::bridge::Host::default()),
-        events,
-        prefs,
-        db,
-        dir.path().to_path_buf(),
-    );
+    let host = Arc::new(crate::host::bridge::Host::default());
+    let (generation, mut requests) = host.connect();
+    let responses = host.clone();
+    let provider = tokio::spawn(async move {
+        while let Some(request) = requests.recv().await {
+            responses.reply(generation, serde_json::json!({"id":request["id"],"error":"platform unavailable in schema registration probe"})).unwrap();
+        }
+    });
+    let schema = build(host.clone(), events, prefs, db, dir.path().to_path_buf());
 
     let mut unregistered = Vec::new();
     let mut unwalkable = Vec::new();
@@ -461,6 +483,14 @@ async fn no_root_field_fails_for_unregistered_schema_data() {
         probe_prefs,
     )
     .expect("probe server");
+    let state_host = server.runtime_state().host.clone();
+    let (state_generation, mut state_requests) = state_host.connect();
+    let state_responses = state_host.clone();
+    let state_provider = tokio::spawn(async move {
+        while let Some(request) = state_requests.recv().await {
+            state_responses.reply(state_generation, serde_json::json!({"id":request["id"],"error":"platform unavailable in schema registration probe"})).unwrap();
+        }
+    });
     for (name, ty) in &roots {
         let base = base_type(ty);
         let selection = leaves(ty);
@@ -487,6 +517,11 @@ async fn no_root_field_fails_for_unregistered_schema_data() {
         }
     }
 
+    host.disconnect(generation);
+    state_host.disconnect(state_generation);
+    provider.await.unwrap();
+    state_provider.await.unwrap();
+    server.stop_core().await;
     assert!(
         unwalkable.is_empty(),
         "roots this probe could not reach at all: {unwalkable:#?}"

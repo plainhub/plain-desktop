@@ -263,9 +263,8 @@ fn paths_that_are_not_utf8_are_errors() {
 
     let dir = tempfile::tempdir().unwrap();
     let path = dir.path().join(OsStr::from_bytes(b"bad-\xFF-name.jpg"));
-    std::fs::write(&path, b"x").unwrap();
-
-    assert!(read_file_metadata(&path, DataType::Image).is_err());
+    let error = read_file_metadata(&path, DataType::Image).unwrap_err();
+    assert!(error.to_string().contains("not valid UTF-8"));
 }
 
 #[cfg(unix)]

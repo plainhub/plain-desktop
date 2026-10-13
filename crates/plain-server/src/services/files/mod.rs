@@ -41,3 +41,6 @@ pub(crate) mod media_scan_policy;
 
 #[cfg(any(feature = "api", feature = "mounts"))]
 pub mod mounts;
+
+#[cfg(feature = "core")]
+pub(crate) mod zip_entries;

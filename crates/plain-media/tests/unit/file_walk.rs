@@ -141,7 +141,11 @@ fn a_visit_error_stops_the_walk_and_surfaces() {
     )
     .unwrap_err();
 
-    assert!(error.to_string().contains("visit refused"));
+    assert!(
+        error
+            .chain()
+            .any(|cause| cause.to_string().contains("visit refused"))
+    );
     assert_eq!(seen, vec![root.join("boom.txt")]);
 }
 

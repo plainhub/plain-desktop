@@ -1,12 +1,3 @@
-//! Public `/graphql` device, app and log roots.
-//!
-//! Everything here is platform state the Rust side cannot see: the
-//! hardware report, the running app's own configuration, the logcat buffer
-//! and the mDNS advertiser's status. The roots exist to project that into
-//! the contract shape and to carry the one rule the platform relies on the
-//! caller to enforce — a blank log query must not silently become "give me
-//! everything".
-
 use crate::graphql::resolvers::app::types::Capability;
 use crate::graphql::resolvers::device::permissions::Permission;
 use crate::graphql::types::Instant;

@@ -173,6 +173,66 @@ pub struct PlatformMutation;
 
 #[Object]
 impl PlatformMutation {
+    async fn format_disk(&self, ctx: &Context<'_>, path: String) -> Result<bool> {
+        let state = ctx.data::<ServerState>()?;
+        let request = crate::host::platform::DiskFormatRequest {
+            path,
+            client_id: ctx.data_opt::<String>().cloned().unwrap_or_default(),
+        };
+        let value = state
+            .host
+            .call_wait(
+                crate::host::platform::SYSTEM_DISK_FORMAT,
+                serde_json::to_value(request)?,
+            )
+            .await
+            .map_err(async_graphql::Error::new)?;
+        if value != serde_json::Value::Bool(true) {
+            return Err("Disk format failed".into());
+        }
+        Ok(true)
+    }
+
+    async fn set_hostname(&self, ctx: &Context<'_>, name: String) -> Result<bool> {
+        let name = plain_rs::platform_hostname(&name);
+        if name.is_empty() {
+            return Err("device_name_invalid".into());
+        }
+        let state = ctx.data::<ServerState>()?;
+        let value = state
+            .host
+            .call(
+                crate::host::platform::SYSTEM_HOSTNAME_SET,
+                serde_json::to_value(crate::host::platform::HostnameRequest {
+                    name: name.clone(),
+                })?,
+            )
+            .await
+            .map_err(async_graphql::Error::new)?;
+        if value != serde_json::Value::Bool(true) {
+            return Err("Hostname update failed".into());
+        }
+        state.db.audit_event_add(
+            "set_hostname",
+            &name,
+            ctx.data_opt::<String>()
+                .map(String::as_str)
+                .unwrap_or_default(),
+        )?;
+        Ok(true)
+    }
+
+    async fn set_mount_alias(
+        &self,
+        ctx: &Context<'_>,
+        id: async_graphql::ID,
+        alias: String,
+    ) -> Result<bool> {
+        let state = ctx.data::<ServerState>()?;
+        plain_rs::prefs::storage::set_alias(&state.prefs, id.as_str(), &alias)?;
+        Ok(true)
+    }
+
     async fn set_samba_settings(
         &self,
         ctx: &Context<'_>,
