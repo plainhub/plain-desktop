@@ -62,7 +62,7 @@ jobs:
         run: yarn typecheck
 
       - name: Setup Rust
-        uses: dtolnay/rust-toolchain@1.96.0
+        uses: dtolnay/rust-toolchain@1.99.0
 
       - name: Select Xcode with macOS 15 SDK
         if: matrix.platform == 'macos'
