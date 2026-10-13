@@ -15,7 +15,7 @@ fn main() {
         .map(|d| d.as_secs().to_string())
         .unwrap_or_else(|_| "unknown".to_string());
 
-    println!("cargo:rustc-env=PLAIN_NAS_GIT_COMMIT={}", commit);
-    println!("cargo:rustc-env=PLAIN_NAS_BUILD_TIME={}", build_time);
+    println!("cargo:rustc-env=PLAINAPP_GIT_COMMIT={}", commit);
+    println!("cargo:rustc-env=PLAINAPP_BUILD_TIME={}", build_time);
     println!("cargo:rerun-if-changed=build.rs");
 }

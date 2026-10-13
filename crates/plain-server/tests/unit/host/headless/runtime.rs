@@ -29,7 +29,7 @@ async fn app_facts_use_core_directory_and_unregistered_methods_fail() {
         facts["appDir"],
         directory.0.join("files").to_string_lossy().as_ref()
     );
-    assert_eq!(facts["deviceType"], "NAS");
+    assert_eq!(facts["deviceType"], "COMPUTER");
     assert_eq!(facts["capabilities"], serde_json::json!(["MEDIA_SCAN"]));
     assert!(
         runtime
@@ -57,7 +57,7 @@ async fn native_app_query_uses_registered_facts_without_public_listener() {
         data["app"]["appDir"],
         directory.0.join("files").to_string_lossy().as_ref()
     );
-    assert_eq!(data["app"]["deviceType"], "NAS");
+    assert_eq!(data["app"]["deviceType"], "COMPUTER");
     assert_eq!(
         data["app"]["capabilities"],
         serde_json::json!(["MEDIA_SCAN"])
@@ -241,7 +241,7 @@ async fn completion_callback_dispatch_never_waits_for_another_host_request() {
 }
 
 #[tokio::test]
-async fn device_and_log_queries_use_the_nas_provider_without_a_legacy_context() {
+async fn device_and_log_queries_use_the_headless_server_provider_without_a_legacy_context() {
     let directory = Directory::new();
     let logs = directory.0.join("logs");
     std::fs::create_dir_all(&logs).unwrap();
@@ -280,7 +280,7 @@ async fn thumbnails_and_regular_file_probes_use_the_shared_media_engine() {
         .unwrap();
     let runtime = Arc::new(Runtime::new(core.clone(), Vec::new()));
     let runner = tokio::spawn(runtime.clone().run());
-    let state = core.nas_state();
+    let state = core.headless_state();
     let bytes = state
         .thumbnails
         .get(

@@ -145,8 +145,8 @@ impl ContentServer {
         Ok(())
     }
 
-    #[cfg(feature = "nas")]
-    pub(crate) fn nas_state(&self) -> &ServerState {
+    #[cfg(feature = "headless")]
+    pub(crate) fn headless_state(&self) -> &ServerState {
         &self.state
     }
 

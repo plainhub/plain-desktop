@@ -24,9 +24,9 @@ fn capabilities_are_reported_exactly_as_given() {
 }
 
 #[test]
-fn the_nas_app_facts_match_the_public_device_contract() {
+fn the_headless_server_app_facts_match_the_public_device_contract() {
     let facts = facts(Vec::new());
-    assert_eq!(facts.device_type, "NAS");
+    assert_eq!(facts.device_type, "COMPUTER");
     assert_eq!(facts.build_channel, "GITHUB");
     assert_eq!(facts.permissions, ["WRITE_EXTERNAL_STORAGE"]);
     assert_eq!(facts.downloads_dir, "");

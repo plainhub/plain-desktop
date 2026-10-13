@@ -116,7 +116,7 @@ pub async fn thumbnail(core: Arc<ContentServer>, mut params: Value) -> Result<Va
     } else {
         (*bytes).clone()
     };
-    core.nas_state().thumbnails.submit(&token, bytes)?;
+    core.headless_state().thumbnails.submit(&token, bytes)?;
     Ok(Value::Bool(true))
 }
 

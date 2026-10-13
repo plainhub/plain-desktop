@@ -1,5 +1,6 @@
 use super::*;
 
+#[cfg(target_os = "linux")]
 #[test]
 fn a_readable_host_without_disks_is_an_empty_list() {
     let facts = disks_facts(Ok(Vec::new())).expect("an empty read is not a failure");
@@ -7,6 +8,7 @@ fn a_readable_host_without_disks_is_an_empty_list() {
     assert!(facts.disks.is_empty());
 }
 
+#[cfg(target_os = "linux")]
 #[test]
 fn a_failed_read_is_reported_with_its_own_error() {
     let error = disks_facts(Err("lsblk spawn: no such file".to_string()))
@@ -47,6 +49,7 @@ fn an_unreachable_release_lookup_invents_no_update() {
     assert!(facts.url.is_none());
 }
 
+#[cfg(target_os = "linux")]
 #[test]
 fn maps_the_platform_disk_onto_the_shared_fact_shape() {
     let disk = Disk {
@@ -66,6 +69,7 @@ fn maps_the_platform_disk_onto_the_shared_fact_shape() {
     assert_eq!(facts.model.as_deref(), Some("Samsung SSD 870 EVO"));
 }
 
+#[cfg(target_os = "linux")]
 #[test]
 fn a_disk_without_a_known_model_stays_unknown() {
     let facts = to_facts(Disk {
@@ -80,6 +84,7 @@ fn a_disk_without_a_known_model_stays_unknown() {
     assert_eq!(facts.size_bytes, 0);
 }
 
+#[cfg(target_os = "linux")]
 #[test]
 fn disks_either_reports_real_devices_or_an_error() {
     match disks() {

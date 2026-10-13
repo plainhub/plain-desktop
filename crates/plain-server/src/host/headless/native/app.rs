@@ -3,7 +3,7 @@ use std::path::Path;
 use crate::host::platform::AppFacts;
 
 const STORAGE: &str = "WRITE_EXTERNAL_STORAGE";
-const DEVICE_TYPE: &str = "NAS";
+const DEVICE_TYPE: &str = "COMPUTER";
 const BUILD_CHANNEL: &str = "GITHUB";
 
 pub fn app_facts(data_directory: &Path, capabilities: Vec<String>) -> Result<AppFacts, String> {
@@ -25,5 +25,5 @@ pub fn app_facts(data_directory: &Path, capabilities: Vec<String>) -> Result<App
 }
 
 #[cfg(test)]
-#[path = "../../../../tests/unit/host/nas/native/app.rs"]
+#[path = "../../../../tests/unit/host/headless/native/app.rs"]
 mod tests;

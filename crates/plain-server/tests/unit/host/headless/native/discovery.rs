@@ -2,13 +2,13 @@ use super::*;
 use plain_rs::chat::enums::DeviceType;
 
 #[test]
-fn the_nas_announces_itself_as_a_nas_under_the_given_name() {
+fn the_headless_server_announces_itself_as_a_nas_under_the_given_name() {
     let facts = discovery_facts("Attic NAS".to_string(), "0.1.12".to_string())
         .expect("reading this host's own facts must not fail");
 
     assert_eq!(facts.name, "Attic NAS");
     assert_eq!(facts.version, "0.1.12");
-    assert_eq!(facts.device_type, DeviceType::Nas);
+    assert_eq!(facts.device_type, DeviceType::Computer);
 }
 
 #[test]
@@ -34,7 +34,7 @@ fn every_advertised_address_is_a_real_local_ipv4() {
 }
 
 #[test]
-fn wifi_aware_is_reported_absent_because_the_nas_has_no_adapter() {
+fn wifi_aware_is_reported_absent_because_the_headless_server_has_no_adapter() {
     let facts = discovery_facts("Attic NAS".to_string(), "0.1.12".to_string())
         .expect("reading this host's own facts must not fail");
 

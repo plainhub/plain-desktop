@@ -1,5 +1,3 @@
-//! Application-wide constants and runtime paths.
-
 use std::path::PathBuf;
 
 #[derive(Clone)]
@@ -11,13 +9,6 @@ pub struct AppPaths {
 }
 
 impl AppPaths {
-    /// Test seam: pin `PLAIN_NAS_DATA_DIR` for the whole test binary to a
-    /// fixed, never-deleted directory. Tests that pointed this var at a
-    /// per-test `TempDir` poisoned the process-global media search index:
-    /// whichever value the env var held when `search_index::global()` first
-    /// initialized rooted the index there, and the owning test's `TempDir`
-    /// cleanup then deleted the index directory out from under every later
-    /// test (empty search results / IO errors).
     #[doc(hidden)]
     pub fn pin_test_data_dir() -> PathBuf {
         static PINNED: std::sync::OnceLock<PathBuf> = std::sync::OnceLock::new();
@@ -25,7 +16,6 @@ impl AppPaths {
             .get_or_init(|| {
                 let dir = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("target/test-data-dir");
                 std::fs::create_dir_all(&dir).expect("mkdir target/test-data-dir");
-                // SAFETY: test-only; writes the same value on every call.
                 unsafe { std::env::set_var("PLAIN_NAS_DATA_DIR", &dir) };
                 dir
             })
@@ -33,34 +23,34 @@ impl AppPaths {
     }
 
     pub fn detect() -> Self {
-        let data_dir = std::env::var("PLAIN_NAS_DATA_DIR")
-            .map(PathBuf::from)
-            .unwrap_or_else(|_| PathBuf::from(DATA_DIR));
-        let cache_dir = std::env::var("PLAIN_NAS_CACHE_DIR")
-            .map(PathBuf::from)
-            .unwrap_or_else(|_| home_cache_dir());
-        let tls_cert = std::env::var("PLAIN_NAS_TLS_CERT")
-            .map(PathBuf::from)
-            .unwrap_or_else(|_| PathBuf::from(ETC_TLS_SERVER_PEM));
-        let tls_key = std::env::var("PLAIN_NAS_TLS_KEY")
-            .map(PathBuf::from)
-            .unwrap_or_else(|_| PathBuf::from(ETC_TLS_SERVER_KEY));
+        Self::detect_with_data_directory(None)
+    }
+
+    pub fn detect_with_data_directory(directory: Option<PathBuf>) -> Self {
+        let base = home_directory()
+            .unwrap_or_else(std::env::temp_dir)
+            .join(".plainapp");
+        let data_dir = directory
+            .or_else(|| configured_path("PLAINAPP_DATA_DIR", "PLAIN_NAS_DATA_DIR"))
+            .unwrap_or_else(|| base.join("data"));
         Self {
+            cache_dir: configured_path("PLAINAPP_CACHE_DIR", "PLAIN_NAS_CACHE_DIR")
+                .unwrap_or_else(|| base.join("cache")),
+            tls_cert: configured_path("PLAINAPP_TLS_CERT", "PLAIN_NAS_TLS_CERT")
+                .unwrap_or_else(|| data_dir.join("tls.pem")),
+            tls_key: configured_path("PLAINAPP_TLS_KEY", "PLAIN_NAS_TLS_KEY")
+                .unwrap_or_else(|| data_dir.join("tls.key")),
             data_dir,
-            cache_dir,
-            tls_cert,
-            tls_key,
         }
     }
 }
 
-/// Default cache directory: `~/.plainnas/cache`
-fn home_cache_dir() -> PathBuf {
-    let home = std::env::var("HOME").unwrap_or_else(|_| "/root".to_string());
-    PathBuf::from(home).join(".plainnas").join("cache")
+fn configured_path(name: &str, previous: &str) -> Option<PathBuf> {
+    std::env::var_os(name)
+        .or_else(|| std::env::var_os(previous))
+        .map(PathBuf::from)
 }
 
-pub const ETC_TLS_SERVER_PEM: &str = "/etc/plainnas/tls.pem";
-pub const ETC_TLS_SERVER_KEY: &str = "/etc/plainnas/tls.key";
-
-pub static DATA_DIR: &str = "/var/lib/plainnas";
+pub fn home_directory() -> Option<PathBuf> {
+    std::env::var_os(if cfg!(windows) { "USERPROFILE" } else { "HOME" }).map(PathBuf::from)
+}

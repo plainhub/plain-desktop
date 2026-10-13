@@ -5565,7 +5565,6 @@ dependencies = [
  "libc",
  "log",
  "native-tls",
- "nix",
  "notify",
  "parking_lot",
  "plain-inference",
@@ -5604,6 +5603,7 @@ dependencies = [
  "clap",
  "plain-rs",
  "plain-server",
+ "tempfile",
  "tokio",
 ]
 

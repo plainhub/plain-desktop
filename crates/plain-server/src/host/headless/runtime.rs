@@ -4,6 +4,9 @@ use crate::assembly::server::ContentServer;
 use crate::host::platform::{SYSTEM_APP_FACTS, SYSTEM_APP_UPDATE_FACTS, SYSTEM_DISKS_FACTS};
 use serde_json::Value;
 
+#[cfg(target_os = "linux")]
+mod linux;
+
 pub struct Runtime {
     core: Arc<ContentServer>,
     capabilities: Vec<String>,
@@ -20,6 +23,10 @@ impl Runtime {
     }
 
     async fn dispatch(&self, method: &str, params: Value) -> Result<Value, String> {
+        #[cfg(target_os = "linux")]
+        if linux::handles(method) {
+            return linux::dispatch(&self.core, method, params).await;
+        }
         match method {
             "systemSetTempValue" => {
                 let key = params["key"]
@@ -106,93 +113,10 @@ impl Runtime {
                     .map_err(|error| error.to_string())?;
                 Ok(Value::Bool(true))
             }
-            "systemRelaunchApp" => {
-                tokio::task::spawn_blocking(plain_rs::platform::linux::install::service::restart)
+            crate::host::platform::SYSTEM_MOUNT_FACTS => {
+                tokio::task::spawn_blocking(crate::services::files::mounts::facts)
                     .await
                     .map_err(|error| error.to_string())?
-                    .map_err(|error| error.to_string())?;
-                Ok(Value::Bool(true))
-            }
-            crate::host::platform::SYSTEM_HOSTNAME_SET => {
-                let request: crate::host::platform::HostnameRequest =
-                    serde_json::from_value(params).map_err(|error| error.to_string())?;
-                tokio::task::spawn_blocking(move || {
-                    plain_rs::platform::linux::hostname::set(&request.name)
-                })
-                .await
-                .map_err(|error| error.to_string())?
-                .map_err(|error| error.to_string())?;
-                Ok(Value::Bool(true))
-            }
-            crate::host::platform::SYSTEM_DISK_FORMAT => {
-                let request: crate::host::platform::DiskFormatRequest =
-                    serde_json::from_value(params).map_err(|error| error.to_string())?;
-                let core = self.core.clone();
-                tokio::task::spawn_blocking(move || {
-                    let prefs = core.shared_preferences()?;
-                    let events = crate::assembly::nas::event_sink(&core)?;
-                    let db = core.nas_state().db.clone();
-                    let result = plain_rs::platform::linux::disks::format::format_disk_single_partition(&prefs, &request.path, |mount| {
-                        let _ = db.audit_event_add("unmount", mount, &request.client_id);
-                    }, &events);
-                    let _ = db.audit_event_add(if result.is_ok() { "format_disk" } else { "format_disk_failed" }, &request.path, &request.client_id);
-                    let _ = core.nas_state().events.send(plain_rs::events::WsEvent::broadcast("DISK_FORMAT_DONE", serde_json::json!({"path":request.path,"ok":result.is_ok(),"error":result.as_ref().err().map(ToString::to_string)}).to_string()));
-                    result.map(|_| Value::Bool(true)).map_err(|error| error.to_string())
-                }).await.map_err(|error| error.to_string())?
-            }
-            crate::host::platform::SYSTEM_SAMBA_SERVICE_FACTS => {
-                let facts = tokio::task::spawn_blocking(|| {
-                    let status = plain_rs::platform::linux::samba::get_service_status();
-                    crate::host::platform::SambaServiceFacts {
-                        name: status.name,
-                        active: status.active,
-                        enabled: status.enabled,
-                    }
-                })
-                .await
-                .map_err(|error| error.to_string())?;
-                serde_json::to_value(facts).map_err(|error| error.to_string())
-            }
-            crate::host::platform::SYSTEM_SAMBA_APPLY => {
-                let request: crate::host::platform::SambaApplyRequest =
-                    serde_json::from_value(params).map_err(|error| error.to_string())?;
-                let core = self.core.clone();
-                tokio::task::spawn_blocking(move || {
-                    plain_rs::platform::linux::samba::apply(
-                        core.preferences()?,
-                        &request.settings,
-                        "",
-                    )
-                    .map(|_| Value::Bool(true))
-                    .map_err(|error| error.to_string())
-                })
-                .await
-                .map_err(|error| error.to_string())?
-            }
-            crate::host::platform::SYSTEM_SAMBA_PASSWORD => {
-                let request: crate::host::platform::SambaPasswordRequest =
-                    serde_json::from_value(params).map_err(|error| error.to_string())?;
-                let core = self.core.clone();
-                tokio::task::spawn_blocking(move || {
-                    core.preferences()?;
-                    plain_rs::platform::linux::samba::set_user_password(&request.password)
-                        .map(|_| Value::Bool(true))
-                        .map_err(|error| error.to_string())
-                })
-                .await
-                .map_err(|error| error.to_string())?
-            }
-            crate::host::platform::SYSTEM_MOUNT_FACTS => {
-                let core = self.core.clone();
-                tokio::task::spawn_blocking(move || {
-                    let mounts = plain_rs::platform::linux::mounts::list::list_mounts(core.preferences()?);
-                    Ok(serde_json::Value::Array(mounts.into_iter().map(|mount| serde_json::json!({
-                        "id":mount.id,"name":mount.name,"path":mount.path,"mountPoint":mount.mount_point,
-                        "fsType":mount.fs_type,"totalBytes":mount.total_bytes,"usedBytes":mount.used_bytes,
-                        "freeBytes":mount.free_bytes,"remote":mount.remote,"alias":mount.alias,"driveType":mount.drive_type,
-                        "diskId":mount.disk_id,"partitionNum":mount.partition_num,"label":mount.label,"uuid":mount.uuid,
-                    })).collect()))
-                }).await.map_err(|error|error.to_string())?
             }
             "scanFilesFacts" => {
                 let core = self.core.clone();
@@ -280,7 +204,7 @@ impl Runtime {
                 .map_err(|error| error.to_string())??;
                 Ok(Value::String(
                     self.core
-                        .nas_state()
+                        .headless_state()
                         .media_scans
                         .policy()?
                         .cache_directory
@@ -337,7 +261,7 @@ impl Runtime {
                     .map_err(|error| error.to_string())??;
                 serde_json::to_value(facts).map_err(|error| error.to_string())
             }
-            _ => Err(format!("Unsupported NAS host method: {method}")),
+            _ => Err(format!("Unsupported headless host method: {method}")),
         }
     }
 
@@ -373,5 +297,5 @@ impl Runtime {
 }
 
 #[cfg(test)]
-#[path = "../../../tests/unit/host/nas/runtime.rs"]
+#[path = "../../../tests/unit/host/headless/runtime.rs"]
 mod tests;

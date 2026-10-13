@@ -13,7 +13,7 @@ description = "Shared Plain server assembly and desktop/mobile adapters"
 "library" = ["plain-rs/library"]
 "prefs" = ["plain-rs/prefs"]
 "sqlite_browse" = ["plain-rs/sqlite_browse"]
-"default" = ["crypto"]
+"default" = ["headless", "mobile"]
 "media" = ["dep:plain-media", "dep:notify", "library"]
 "media_gql" = ["media", "library", "dep:async-graphql", "plain-rs/graphql"]
 "image-inference" = ["dep:plain-inference"]
@@ -23,9 +23,9 @@ description = "Shared Plain server assembly and desktop/mobile adapters"
 "host-api" = ["core"]
 "mounts" = ["dep:sysinfo", "dep:serde_json"]
 "mobile" = ["core"]
-"system" = ["plain-rs/linux-system", "api", "dep:nix", "dep:ureq", "dep:http"]
+"system" = ["api", "dep:ureq", "dep:http"]
 
-"nas" = ["core", "http_transport", "media", "system", "plain-rs/linux-platform"]
+"headless" = ["core", "http_transport", "media", "mounts", "system"]
 
 [dependencies]
 parking_lot = "0.12"
@@ -38,7 +38,6 @@ parking_lot = "0.12"
 "native-tls" = { "version" = "0.2", "optional" = true }
 "reqwest" = { "version" = "0.12", "default-features" = false, "features" = ["stream"], "optional" = true }
 "tokio-tungstenite" = { "version" = "0.30", "default-features" = false, "features" = ["connect"], "optional" = true }
-"nix" = { "version" = "0.28", "features" = ["mount", "fs", "user"], "optional" = true }
 "zip" = { "version" = "2", "default-features" = false, "features" = ["deflate"], "optional" = true }
 "ureq" = { "version" = "2", "default-features" = false, "features" = ["tls"], "optional" = true }
 "tower-http" = { "version" = "0.5", "features" = ["cors", "compression-gzip", "compression-deflate", "trace"], "optional" = true }
@@ -91,3 +90,6 @@ parking_lot = "0.12"
 "tower" = { "version" = "0.5", "features" = ["util"] }
 "tempfile" = "3"
 "tokio-tungstenite" = { "version" = "0.30", "features" = ["connect", "rustls-tls-webpki-roots"] }
+
+[target.'cfg(target_os = "linux")'.dependencies]
+plain-rs = { path = "../../plain-rs", default-features = false, features = ["linux-platform"] }
