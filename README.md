@@ -46,6 +46,30 @@ Discord: https://discord.gg/RQWcS6DEEe
 
 QQ Group: 812409393
 
+## Shared Rust development
+
+Check out [plain-core](https://github.com/plainhub/plain-core) next to this repository. From this repository root:
+
+```sh
+python3 ../plain-core/scripts/core-dependencies.py local --project desktop
+```
+
+Build normally to use local core changes, including uncommitted edits. No core push is needed. Switching uses cached Cargo dependencies; fetch missing dependencies first.
+
+Before committing the lock file or building a release:
+
+```sh
+python3 ../plain-core/scripts/core-dependencies.py pinned --project desktop
+```
+
+To upgrade core, publish its changes first, then update the lock and build/test:
+
+```sh
+python3 ../plain-core/scripts/core-dependencies.py update --project desktop
+```
+
+Commit `Cargo.lock` with the consumer changes. Normal builds keep this locked core commit. See [release steps](https://github.com/plainhub/plain-core#release-and-core-updates) to update both consumers together or select a specific commit.
+
 ## Run
 
 Duplicate `.env.example` file to `.env.local` and update the `VITE_APP_API_HOST`.
