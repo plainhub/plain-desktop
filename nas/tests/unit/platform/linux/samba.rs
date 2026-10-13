@@ -35,7 +35,7 @@ const NO_VFS: VfsCaps = VfsCaps {
 #[test]
 fn default_when_no_record() {
     let prefs = tmp_prefs();
-    let s = get_samba_settings(&prefs);
+    let s = get_samba_settings(&prefs).unwrap();
     assert!(!s.enabled);
     assert!(s.shares.is_empty());
     assert_eq!(s.username, "nas");
@@ -58,7 +58,7 @@ fn round_trip_shares() {
         service_enabled: false,
     };
     set_samba_settings(&prefs, &s).unwrap();
-    let got = get_samba_settings(&prefs);
+    let got = get_samba_settings(&prefs).unwrap();
     assert_eq!(got, s);
 }
 

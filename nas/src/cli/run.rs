@@ -72,7 +72,7 @@ impl ShellHooks for NasShell {
         &self,
         prefs: &plain_rs::prefs::Prefs,
     ) -> Result<capability_types::SambaSettings> {
-        let settings = crate::platform::linux::samba::get_samba_settings(prefs);
+        let settings = crate::platform::linux::samba::get_samba_settings(prefs)?;
         let service = crate::platform::linux::samba::get_service_status();
         let (service_name, service_active, service_enabled) = if service.name.is_empty() {
             (
@@ -115,8 +115,6 @@ impl ShellHooks for NasShell {
         prefs: &plain_rs::prefs::Prefs,
         input: capability_types::SambaSettingsInput,
     ) -> Result<()> {
-        let previous = crate::platform::linux::samba::get_samba_settings(prefs);
-        let mut needs_password = false;
         let shares = input
             .shares
             .into_iter()
@@ -126,7 +124,6 @@ impl ShellHooks for NasShell {
                         crate::platform::linux::samba::SambaShareAuth::Guest
                     }
                     capability_types::SambaShareAuth::PASSWORD => {
-                        needs_password = true;
                         crate::platform::linux::samba::SambaShareAuth::Password
                     }
                 };
@@ -138,19 +135,7 @@ impl ShellHooks for NasShell {
                 }
             })
             .collect();
-        let mut desired = previous.clone();
-        desired.enabled = input.enabled;
-        desired.shares = shares;
-        anyhow::ensure!(
-            !desired.enabled || !desired.shares.is_empty(),
-            "no shares configured"
-        );
-        anyhow::ensure!(
-            !needs_password || previous.has_password,
-            "password required"
-        );
-        crate::platform::linux::samba::set_samba_settings(prefs, &desired)?;
-        let applied = crate::platform::linux::samba::get_samba_settings(prefs);
+        let applied = plain_rs::prefs::samba::configure(prefs, input.enabled, shares)?;
         crate::platform::linux::samba::apply(prefs, &applied, "")?;
         Ok(())
     }
@@ -161,7 +146,7 @@ impl ShellHooks for NasShell {
         password: &str,
     ) -> Result<()> {
         crate::platform::linux::samba::set_user_password(password).map_err(anyhow::Error::msg)?;
-        let mut settings = crate::platform::linux::samba::get_samba_settings(prefs);
+        let mut settings = crate::platform::linux::samba::get_samba_settings(prefs)?;
         settings.has_password = true;
         crate::platform::linux::samba::set_samba_settings(prefs, &settings)?;
         if settings.enabled {
