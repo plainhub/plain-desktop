@@ -13,11 +13,10 @@
     "build:tauri": "tauri build",
     "build:tauri:frontend": "vite build --mode tauri",
     "preview": "vite preview --port 5050",
-    "typecheck": "vue-tsc --noEmit && yarn docs:check",
+    "typecheck": "vue-tsc --noEmit",
     "test": "yarn test:api",
     "test:watch": "yarn workspace @plain/api-test vitest",
     "test:integration": "yarn test:api",
-    "docs:check": "node scripts/gen-db-schema-sql.mjs",
     "test:api": "yarn workspace @plain/api-test test",
     "test:api:typecheck": "yarn workspace @plain/api-test typecheck"
   },

@@ -37,11 +37,7 @@ scripts/i18n-translated.json
 .vitest-attachments/
 tests/**/__screenshots__/
 .harness/
-# Workspace build output (root target/ holds plain-rs, CLI and src-tauri artifacts;
-# some tests also write scratch dirs under <crate>/target/)
 target/
-# Embedded frontend dist generated on demand by the server CLI
-/crates/plain-cli/src/web_dist/
 # Local machine cargo config (mac dev linker for TCC-stable signing); not part of the build
 .cargo/config.toml
 # Local project docs kept out of VCS
@@ -55,3 +51,5 @@ TODO.md
 
 /api-test/targets.local.json
 /api-test/certs/
+
+.cargo/core-dependency-state/

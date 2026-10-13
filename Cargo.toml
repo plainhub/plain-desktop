@@ -1,6 +1,6 @@
 [workspace]
 resolver = "3"
-members = ["plain-rs", "crates/plain-media", "crates/plain-inference", "crates/plain-server", "crates/plain-cli", "src-tauri"]
+members = ["src-tauri"]
 
 # Light optimization for workspace code: the thumbnail engine's hot
 # loops (progressive DC decode, box resample) live in the plain-media
@@ -15,6 +15,18 @@ incremental = false
 # these crates, so they need -O3 for acceptable performance.
 [profile.dev.package."*"]
 opt-level = 3
+
+[profile.dev.package.plain-rs]
+opt-level = 1
+
+[profile.dev.package.plain-server]
+opt-level = 1
+
+[profile.dev.package.plain-media]
+opt-level = 1
+
+[profile.dev.package.plain-inference]
+opt-level = 1
 
 [profile.release]
 opt-level = 3

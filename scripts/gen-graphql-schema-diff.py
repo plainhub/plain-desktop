@@ -7,7 +7,7 @@ from zoneinfo import ZoneInfo
 ROOT = Path(__file__).resolve().parents[1]
 SOURCES = {
     'plain-app': ROOT.parent.joinpath('plain-app/shared/apitest/schema.graphqls'),
-    'plain-desktop': ROOT / 'schema/schema.graphql',
+    'plain-desktop': ROOT.parent / 'plain-core/schema/schema.graphql',
 }
 
 def parse_sdl(path):

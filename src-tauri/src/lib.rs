@@ -1,3 +1,5 @@
+#![recursion_limit = "512"]
+
 mod bootstrap;
 mod capture;
 mod commands;
