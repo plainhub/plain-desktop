@@ -59,6 +59,15 @@ impl Runtime {
                 Ok(Value::Array(rows))
             }
 
+            "mediaAction" => {
+                let core = self.core.clone();
+                let outcome = tokio::task::spawn_blocking(move || {
+                    core.native_media_catalog()?.delete_action_files(params)
+                })
+                .await
+                .map_err(|error| error.to_string())??;
+                serde_json::to_value(outcome).map_err(|error| error.to_string())
+            }
             "systemMediaIdsFacts" => {
                 let core = self.core.clone();
                 let ids = tokio::task::spawn_blocking(move || {

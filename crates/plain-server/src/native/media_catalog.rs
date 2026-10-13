@@ -40,6 +40,18 @@ struct CompletedFilesRequest {
     paths: Vec<String>,
 }
 
+#[cfg(feature = "media")]
+#[derive(serde::Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+struct DeleteActionRequest {
+    #[serde(rename = "type")]
+    data_type: i32,
+    action: plain_rs::media::actions::Action,
+    ids: Vec<String>,
+    from_trash: bool,
+    dest_dir: String,
+}
+
 #[derive(Clone)]
 pub struct NativeMediaCatalog {
     state: ServerState,
@@ -599,6 +611,94 @@ impl NativeMediaCatalog {
             serde_json::from_value(params).map_err(|error| error.to_string())?;
         crate::services::files::media_catalog::bucket_item_facts(&self.state.db, request.data_type)
             .map_err(|error| error.to_string())
+    }
+
+    #[cfg(feature = "media")]
+    pub fn delete_action_files(
+        &self,
+        params: serde_json::Value,
+    ) -> Result<plain_rs::media::actions::Outcome, String> {
+        use plain_rs::media::actions::{Action, Item, Outcome};
+        use rusqlite::OptionalExtension;
+        self.state.native_client_id()?;
+        let request: DeleteActionRequest =
+            serde_json::from_value(params).map_err(|error| error.to_string())?;
+        if request.action != Action::Delete || !request.dest_dir.is_empty() {
+            return Err("Only media delete is implemented by this provider".into());
+        }
+        if ![
+            DataType::Audio,
+            DataType::Video,
+            DataType::Image,
+            DataType::Doc,
+        ]
+        .iter()
+        .any(|kind| kind.kind() == request.data_type)
+            || request.ids.len() > 500
+            || request.ids.iter().any(String::is_empty)
+            || request
+                .ids
+                .iter()
+                .collect::<std::collections::HashSet<_>>()
+                .len()
+                != request.ids.len()
+        {
+            return Err("Invalid media delete selection".into());
+        }
+        let rows = self
+            .state
+            .db
+            .with_conn(|conn| {
+                let mut statement = conn.prepare(
+                    "SELECT path,is_trashed FROM media_files WHERE id=?1 AND data_type=?2",
+                )?;
+                request
+                    .ids
+                    .iter()
+                    .map(|id| {
+                        statement
+                            .query_row(rusqlite::params![id, request.data_type], |row| {
+                                Ok((row.get::<_, String>(0)?, row.get::<_, bool>(1)?))
+                            })
+                            .optional()
+                    })
+                    .collect::<rusqlite::Result<Vec<_>>>()
+            })
+            .map_err(|error| error.to_string())?;
+        let mut outcome = Outcome {
+            successful: Vec::new(),
+            failed_ids: Vec::new(),
+        };
+        for (id, row) in request.ids.into_iter().zip(rows) {
+            let removed = (|| -> Result<String, String> {
+                self.state.native_client_id()?;
+                let (path, trashed) = row.ok_or("Media file not found")?;
+                if trashed != request.from_trash || !std::path::Path::new(&path).is_absolute() {
+                    return Err("Media delete path or trash state mismatch".into());
+                }
+                self.state.media_scans.record_completion(|| {
+                    let metadata =
+                        std::fs::symlink_metadata(&path).map_err(|error| error.to_string())?;
+                    if !metadata.file_type().is_file() {
+                        return Err("Regular media file required".into());
+                    }
+                    std::fs::remove_file(&path).map_err(|error| error.to_string())
+                })?;
+                Ok(path)
+            })();
+            match removed {
+                Ok(path) => outcome.successful.push(Item {
+                    id,
+                    path,
+                    destination_path: String::new(),
+                }),
+                Err(error) => {
+                    log::warn!("Media delete failed for {id}: {error}");
+                    outcome.failed_ids.push(id);
+                }
+            }
+        }
+        Ok(outcome)
     }
 
     pub fn ids_facts(&self, params: serde_json::Value) -> Result<Vec<String>, String> {

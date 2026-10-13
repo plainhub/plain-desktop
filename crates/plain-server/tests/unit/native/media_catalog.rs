@@ -745,3 +745,84 @@ async fn the_watcher_stops_with_the_core_and_rejects_after_it() {
         "a stopped core must refuse catalog writes"
     );
 }
+
+#[cfg(feature = "media")]
+#[tokio::test]
+async fn media_delete_returns_actual_os_receipts_and_keeps_failed_selection() {
+    use plain_rs::media::actions::{Action, cleanup, validate};
+    let directory = tempfile::tempdir().unwrap();
+    let core =
+        crate::assembly::server::ContentServer::open(&directory.path().join("core")).unwrap();
+    let catalog = core.native_media_catalog().unwrap();
+    let paths = [
+        directory.path().join("one.txt"),
+        directory.path().join("two.txt"),
+    ];
+    let metadata = paths
+        .iter()
+        .map(|path| {
+            std::fs::write(path, b"document").unwrap();
+            plain_rs::db::MediaFileMetadata {
+                data_type: plain_rs::enums::DataType::Doc,
+                path: path.to_str().unwrap().into(),
+                title: "document".into(),
+                artist: String::new(),
+                bucket_id: directory.path().to_str().unwrap().into(),
+                size_bytes: 8,
+                duration_ms: 0,
+                album_file_id: String::new(),
+                width: 0,
+                height: 0,
+                rotation: 0,
+                taken_at: None,
+                created_at: "created".into(),
+                updated_at: "updated".into(),
+            }
+        })
+        .collect::<Vec<_>>();
+    let rows = catalog.record_files(&metadata).unwrap();
+    core.runtime_state()
+        .db
+        .with_conn(|conn| {
+            conn.execute(
+                "UPDATE media_files SET is_trashed=1 WHERE id=?1",
+                [&rows[1].id],
+            )
+        })
+        .unwrap();
+    let ids = rows.iter().map(|row| row.id.clone()).collect::<Vec<_>>();
+    let outcome = catalog.delete_action_files(serde_json::json!({"type":24,"action":"DELETE","ids":ids,"fromTrash":false,"destDir":""})).unwrap();
+    validate(
+        plain_rs::enums::DataType::Doc,
+        Action::Delete,
+        &ids,
+        &outcome,
+    )
+    .unwrap();
+    assert_eq!(outcome.successful.len(), 1);
+    assert_eq!(outcome.failed_ids, vec![rows[1].id.clone()]);
+    assert!(!paths[0].exists());
+    assert!(paths[1].exists());
+    cleanup(
+        &core.runtime_state().db,
+        plain_rs::enums::DataType::Doc,
+        Action::Delete,
+        &outcome.successful,
+    )
+    .unwrap();
+    assert!(
+        catalog
+            .by_path(plain_rs::enums::DataType::Doc, paths[0].to_str().unwrap())
+            .unwrap()
+            .is_none()
+    );
+    assert!(
+        catalog
+            .by_path(plain_rs::enums::DataType::Doc, paths[1].to_str().unwrap())
+            .unwrap()
+            .is_some()
+    );
+    assert!(catalog.delete_action_files(serde_json::json!({"type":24,"action":"MOVE","ids":[],"fromTrash":false,"destDir":"/other"})).is_err());
+    core.stop_core().await;
+    assert!(catalog.delete_action_files(serde_json::json!({"type":24,"action":"DELETE","ids":[],"fromTrash":false,"destDir":""})).is_err());
+}
