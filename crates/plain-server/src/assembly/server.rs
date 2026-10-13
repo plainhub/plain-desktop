@@ -143,6 +143,11 @@ impl ContentServer {
         crate::services::casting::receiver::control::Controller::new(self.state.clone())
     }
 
+    pub fn preferences(&self) -> Result<&plain_rs::prefs::Prefs, String> {
+        self.state.native_client_id()?;
+        Ok(&self.state.prefs)
+    }
+
     pub fn dlna_engine(
         &self,
     ) -> std::sync::Arc<crate::services::casting::receiver::receiver_engine::DlnaEngine> {

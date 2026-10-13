@@ -1,3 +1,4 @@
+pub const SYSTEM_MOUNT_FACTS: &str = "systemMountFacts";
 #[derive(serde::Serialize, serde::Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct DiskFacts {

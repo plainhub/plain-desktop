@@ -27,6 +27,7 @@ use std::path::Path;
 use async_graphql::{Context, ID, Object, Result as GqlResult};
 
 use crate::assembly::context::AppCtx;
+use crate::files::uri::resolve_uri;
 use crate::graphql::resolvers::files::desktop_types::AudioFileInfo;
 use crate::graphql::resolvers::files::desktop_types::FileInfo;
 use crate::graphql::resolvers::files::desktop_types::ImageFileInfo;
@@ -35,7 +36,6 @@ use crate::graphql::resolvers::files::desktop_types::MediaFileInfo;
 use crate::graphql::resolvers::files::desktop_types::Mount;
 use crate::graphql::resolvers::files::desktop_types::VideoFileInfo;
 use crate::graphql::types::Long;
-use crate::files::uri::resolve_uri;
 
 #[derive(Default)]
 pub struct FileInfoQuery;
@@ -43,34 +43,25 @@ pub struct FileInfoQuery;
 #[Object]
 impl FileInfoQuery {
     async fn mounts(&self) -> Vec<Mount> {
-        let disks = sysinfo::Disks::new_with_refreshed_list();
-        disks
-            .iter()
-            .filter(|disk| should_include_mount(disk.mount_point().to_string_lossy().as_ref()))
-            .map(|disk| {
-                let mount_point = disk.mount_point().to_string_lossy().into_owned();
-                let total_bytes = disk.total_space().min(i64::MAX as u64) as i64;
-                let free_bytes = disk.available_space().min(i64::MAX as u64) as i64;
-                let fs_type = disk.file_system().to_string_lossy().into_owned();
-                let remote = is_remote_filesystem(&fs_type);
-                Mount {
-                    id: ID(mount_point.clone()),
-                    name: disk.name().to_string_lossy().into_owned(),
-                    path: mount_point.clone(),
-                    mount_point: mount_point.clone(),
-                    fs_type,
-                    total_bytes: Long(total_bytes),
-                    used_bytes: Long(total_bytes.saturating_sub(free_bytes)),
-                    free_bytes: Long(free_bytes),
-                    remote,
-                    alias: String::new(),
-                    drive_type: if mount_point.starts_with("/Volumes/") {
-                        crate::assembly::enums::DriveType::UsbStorage
-                    } else {
-                        crate::assembly::enums::DriveType::InternalStorage
-                    },
-                    disk_id: mount_point,
-                }
+        crate::services::files::mounts::list()
+            .into_iter()
+            .map(|facts| Mount {
+                id: ID(facts.id),
+                name: facts.name,
+                path: facts.path,
+                mount_point: facts.mount_point,
+                fs_type: facts.fs_type,
+                total_bytes: Long(facts.total_bytes),
+                used_bytes: Long(facts.used_bytes),
+                free_bytes: Long(facts.free_bytes),
+                remote: facts.remote,
+                alias: facts.alias,
+                drive_type: if facts.drive_type == "USB_STORAGE" {
+                    crate::assembly::enums::DriveType::UsbStorage
+                } else {
+                    crate::assembly::enums::DriveType::InternalStorage
+                },
+                disk_id: facts.disk_id,
             })
             .collect()
     }
@@ -100,21 +91,8 @@ impl FileInfoQuery {
     }
 }
 
-fn should_include_mount(mount_point: &str) -> bool {
-    #[cfg(target_os = "macos")]
-    if mount_point == "/System/Volumes/Data" {
-        return false;
-    }
-    let _ = mount_point;
-    true
-}
-
-fn is_remote_filesystem(fs_type: &str) -> bool {
-    let fs_type = fs_type.to_ascii_lowercase();
-    ["nfs", "smb", "cifs", "sshfs", "webdav"]
-        .iter()
-        .any(|kind| fs_type.contains(kind))
-}
+#[cfg(test)]
+use crate::services::files::mounts::{is_remote_filesystem, should_include_mount};
 
 fn read_file_meta(path: &Path) -> GqlResult<(String, i64)> {
     let meta = std::fs::metadata(path)

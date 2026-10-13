@@ -45,7 +45,7 @@ impl FilesQuery {
     /// Volumes the platform reports. The host builds these because drive
     /// enumeration is platform state; there is nothing to gate.
     async fn mounts(&self, ctx: &Context<'_>) -> async_graphql::Result<Vec<Mount>> {
-        let facts = host_call(ctx, "systemMountFacts", json!({})).await?;
+        let facts = host_call(ctx, crate::host::platform::SYSTEM_MOUNT_FACTS, json!({})).await?;
         Ok(rows(&facts, mount))
     }
 

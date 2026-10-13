@@ -21,6 +21,7 @@ description = "Shared Plain server assembly and desktop/mobile adapters"
 "api" = ["dep:anyhow", "dep:chrono", "dep:rusqlite", "http_transport", "dep:hmac", "dep:sha2_mac", "media_gql", "chat", "library", "prefs", "sqlite_browse", "dep:async-graphql", "dep:axum", "dep:axum-server", "dep:native-tls", "dep:serde_json", "dep:futures-util", "dep:reqwest", "reqwest/native-tls", "dep:regex", "dep:sysinfo", "dep:tokio-tungstenite", "tokio-tungstenite/native-tls", "dep:zip", "dep:tower-http", "tokio/net", "tokio/rt", "tokio/sync", "tokio/time", "tokio/fs", "tokio/macros", "plain-rs/services", "plain-rs/filesystem", "plain-rs/html", "plain-rs/feeds", "plain-rs/tls", "plain-rs/graphql"]
 "core" = ["dep:serde_json", "dep:chrono", "dep:rusqlite", "ble", "crypto", "dep:image", "sqlite_browse", "dep:hyper", "dep:hyper-util", "dep:http-body-util", "dep:tokio-rustls", "dep:tower", "dep:zip", "dep:tokio-tungstenite", "tokio-tungstenite/rustls-tls-webpki-roots", "dep:rustls", "dep:hmac", "dep:sha2_mac", "dep:anyhow", "chat", "library", "dep:regex", "dep:async-graphql", "dep:axum", "dep:reqwest", "reqwest/rustls-tls", "dep:futures-util", "tokio/net", "tokio/rt-multi-thread", "tokio/sync", "tokio/time", "tokio/fs", "tokio/macros", "dep:subtle", "plain-rs/services", "plain-rs/filesystem", "plain-rs/html", "plain-rs/feeds", "plain-rs/tls", "plain-rs/graphql", "image-inference"]
 "host-api" = ["core"]
+"mounts" = ["dep:sysinfo", "dep:serde_json"]
 "mobile" = ["core"]
 "system" = ["api", "dep:nix", "dep:ureq", "dep:http"]
 

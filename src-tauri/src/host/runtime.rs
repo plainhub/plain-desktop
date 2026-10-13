@@ -24,6 +24,11 @@ impl Runtime {
 
     async fn dispatch(&self, method: &str, params: Value) -> Result<Value, String> {
         match method {
+            plain_server::host::platform::SYSTEM_MOUNT_FACTS => {
+                tokio::task::spawn_blocking(plain_server::services::files::mounts::facts)
+                    .await
+                    .map_err(|error| error.to_string())?
+            }
             "systemPermissionFacts" => {
                 let app = super::native::app::app_facts(
                     self.core.data_directory(),
