@@ -99,9 +99,7 @@ impl NativeDiscovery {
     pub async fn stop_browse(&self) -> Result<bool, String> {
         let _shutdown = self.state.shutdown.lock().await;
         self.state.native_client_id()?;
-        let active = self.state.mdns.snapshot()["manualScanning"]
-            .as_bool()
-            .ok_or_else(|| "Invalid discovery state".to_string())?;
+        let active = self.state.mdns.manual_scanning();
         self.state
             .mdns
             .execute(&self.state, Request::Stop {})
