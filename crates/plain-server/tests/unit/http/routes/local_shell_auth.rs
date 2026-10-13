@@ -207,3 +207,60 @@ async fn a_local_trash_reaches_the_operation_instead_of_failing_on_context() {
     assert!(body.contains("affectedCount"), "{body}");
     core.stop_core().await;
 }
+
+/// The media library is the largest surface the shell reads. Its resolvers
+/// ask for the library databases by type, so the core context has to
+/// supply them or every list in the UI comes back empty.
+#[tokio::test]
+async fn a_local_media_list_is_answered_by_the_core() {
+    let dir = tempfile::tempdir().unwrap();
+    let core = crate::assembly::server::ContentServer::open(dir.path()).unwrap();
+    let state = core.runtime_state();
+    let host = state.host.clone();
+    let (generation, mut requests) = host.connect();
+    let data_dir = dir.path().to_path_buf();
+    tokio::spawn(async move {
+        while let Some(request) = requests.recv().await {
+            let reply = match request["method"].as_str().unwrap_or_default() {
+                "fileTaskAuthorize" => serde_json::json!(true),
+                "fileTaskMediaSnapshot" | "systemMediaIdsFacts" | "systemMediaRows" => {
+                    serde_json::json!([])
+                }
+                "systemFileResource" => serde_json::json!(data_dir.to_str().unwrap()),
+                other => panic!("unexpected host method {other}"),
+            };
+            let _ = host.reply(
+                generation,
+                serde_json::json!({"id":request["id"],"result":reply}),
+            );
+        }
+    });
+    let cert = rcgen::generate_simple_self_signed(vec!["localhost".into()]).unwrap();
+    let (http, _) = core
+        .start_public(
+            0,
+            0,
+            cert.cert.pem().into_bytes(),
+            cert.key_pair.serialize_pem().into_bytes(),
+        )
+        .await
+        .unwrap();
+    let client_id = core.native_graphql().unwrap().client_id().to_owned();
+    let response = reqwest::Client::new()
+        .post(format!("http://127.0.0.1:{http}/graphql"))
+        .header("content-type", "application/json")
+        .header("c-id", &client_id)
+        .body(serde_json::json!({
+            "query": r#"{ audios(query: "", offset: 0, limit: 5, sortBy: DATE_DESC) { id path title } }"#
+        })
+        .to_string())
+        .send()
+        .await
+        .unwrap();
+    let status = response.status();
+    let body = response.text().await.unwrap();
+    assert_eq!(status.as_u16(), 200, "refused: {body}");
+    assert!(!body.contains("errors"), "{body}");
+    assert!(body.contains("\"audios\""), "{body}");
+    core.stop_core().await;
+}
