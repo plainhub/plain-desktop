@@ -205,8 +205,10 @@ pub fn run() {
                 .unwrap_or_else(|_| data_dir.join("logs"));
             let _ = log_dir;
             let core = Arc::new(
-                plain_server::assembly::server::ContentServer::open(&data_dir)
-                    .expect("open the shared core"),
+                tauri::async_runtime::block_on(async {
+                    plain_server::assembly::server::ContentServer::open(&data_dir)
+                })
+                .expect("open the shared core"),
             );
             app.handle().manage(core.clone());
 
