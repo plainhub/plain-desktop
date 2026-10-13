@@ -51,3 +51,7 @@ TODO.md
 .workbuddy
 .trae
 .ai
+/api-test/reports/
+
+/api-test/targets.local.json
+/api-test/certs/

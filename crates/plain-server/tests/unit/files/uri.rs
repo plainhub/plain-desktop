@@ -2,23 +2,30 @@ use super::*;
 
 #[test]
 fn parse_decrypted_id_plain_path() {
-    let (p, n) = parse_decrypted_id("fid:abc123def456.jpg");
-    assert_eq!(p, "fid:abc123def456.jpg");
-    assert!(n.is_empty());
+    let id = parse_decrypted_id("fid:abc123def456.jpg");
+    assert_eq!(id.path, "fid:abc123def456.jpg");
+    assert!(id.name.is_empty());
 }
 
 #[test]
 fn parse_decrypted_id_json_form() {
-    let (p, n) = parse_decrypted_id(r#"{"path":"fid:abc.jpg","mediaId":"m1","name":"cat.jpg"}"#);
-    assert_eq!(p, "fid:abc.jpg");
-    assert_eq!(n, "cat.jpg");
+    let id = parse_decrypted_id(r#"{"path":"fid:abc.jpg","name":"cat.jpg"}"#);
+    assert_eq!(id.path, "fid:abc.jpg");
+    assert_eq!(id.name, "cat.jpg");
+}
+
+#[test]
+fn parse_decrypted_id_json_without_name() {
+    let id = parse_decrypted_id(r#"{"path":"fid:abc.jpg"}"#);
+    assert_eq!(id.path, "fid:abc.jpg");
+    assert!(id.name.is_empty());
 }
 
 #[test]
 fn parse_decrypted_id_malformed_json_falls_back() {
-    let (p, n) = parse_decrypted_id("{not json");
-    assert_eq!(p, "{not json");
-    assert!(n.is_empty());
+    let id = parse_decrypted_id("{not json");
+    assert_eq!(id.path, "{not json");
+    assert!(id.name.is_empty());
 }
 
 #[test]

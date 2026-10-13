@@ -1,0 +1,20 @@
+[
+  {
+    "name": "desktop",
+    "url": "https://desktop.example.test:8443",
+    "clientId": "api-test-desktop",
+    "keyEnv": "DESKTOP_API_KEY"
+  },
+  {
+    "name": "mobile",
+    "url": "https://mobile.example.test:8443",
+    "clientId": "api-test-mobile",
+    "keyEnv": "MOBILE_API_KEY"
+  },
+  {
+    "name": "nas",
+    "url": "https://nas.example.test:8443",
+    "clientId": "api-test-nas",
+    "keyEnv": "NAS_API_KEY"
+  }
+]

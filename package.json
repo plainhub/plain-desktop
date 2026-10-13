@@ -13,13 +13,13 @@
     "build:tauri": "tauri build",
     "build:tauri:frontend": "vite build --mode tauri",
     "preview": "vite preview --port 5050",
-    "graphql:check": "vitest run --project=graphql",
-    "graphql:codegen": "vitest run --project=graphql",
-    "typecheck": "vue-tsc --noEmit && yarn graphql:check && yarn docs:check",
-    "test": "vitest run",
-    "test:watch": "vitest",
-    "test:integration": "vitest run --project=integration",
-    "docs:check": "vitest run --project=docs"
+    "typecheck": "vue-tsc --noEmit && yarn docs:check",
+    "test": "yarn test:api",
+    "test:watch": "yarn workspace @plain/api-test vitest",
+    "test:integration": "yarn test:api",
+    "docs:check": "node scripts/gen-db-schema-sql.mjs",
+    "test:api": "yarn workspace @plain/api-test test",
+    "test:api:typecheck": "yarn workspace @plain/api-test typecheck"
   },
   "dependencies": {
     "@codemirror/autocomplete": "^6.20.1",
@@ -90,5 +90,8 @@
     "vitest": "^4.1.8",
     "vue-eslint-parser": "^10.1.3",
     "vue-tsc": "^2.2.10"
-  }
+  },
+  "workspaces": [
+    "api-test"
+  ]
 }

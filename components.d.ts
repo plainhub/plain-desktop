@@ -14,6 +14,7 @@ declare module 'vue' {
     AddFeedModal: typeof import('./src/components/AddFeedModal.vue')['default']
     AIImageSearchModal: typeof import('./src/components/ai/AIImageSearchModal.vue')['default']
     AISearchActiveView: typeof import('./src/components/ai/AISearchActiveView.vue')['default']
+    AISearchModelImport: typeof import('./src/components/ai/AISearchModelImport.vue')['default']
     AISearchSetupView: typeof import('./src/components/ai/AISearchSetupView.vue')['default']
     AllCheckedAlert: typeof import('./src/components/AllCheckedAlert.vue')['default']
     AppActionButtons: typeof import('./src/views/apps/AppActionButtons.vue')['default']

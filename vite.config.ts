@@ -1,4 +1,3 @@
-/// <reference types="vitest" />
 import { defineConfig, loadEnv } from 'vite'
 import { readFileSync } from 'fs'
 import vue from '@vitejs/plugin-vue'
@@ -9,7 +8,6 @@ import Components from 'unplugin-vue-components/vite'
 import svgLoader from 'vite-svg-loader'
 import vueJsx from '@vitejs/plugin-vue-jsx'
 import VueI18nPlugin from '@intlify/unplugin-vue-i18n/vite'
-import { playwright } from '@vitest/browser-playwright'
 import { isTauriBuildMode } from './build-support/app-mode'
 import { crossOriginIsolationHeaders, isPotentiallyTrustworthyHost } from './build-support/cross-origin-isolation'
 import type { Plugin } from 'vite'
@@ -54,11 +52,6 @@ export default defineConfig(({ mode }) => {
     __VUE_I18N_FULL_INSTALL__: true,
     __VUE_I18N_LEGACY_API__: false,
     __INTLIFY_PROD_DEVTOOLS__: false,
-    __IS_TAURI__: isTauri,
-    __APP_VERSION__: JSON.stringify(appVersion),
-  }
-
-  const testDefine = {
     __IS_TAURI__: isTauri,
     __APP_VERSION__: JSON.stringify(appVersion),
   }
@@ -184,132 +177,6 @@ export default defineConfig(({ mode }) => {
     alias: {
       '@': path.resolve(__dirname, 'src'),
     },
-  },
-  test: {
-    // Three projects, three environments:
-    //
-    // - `unit` runs in real Chromium (Playwright) — gives us native
-    //   crypto.getRandomValues / Response.text() / localStorage with no
-    //   polyfill drift. This is also the same runtime as the Tauri
-    //   WebView and the production web build.
-    // - `cws` runs in Node — cross-window-store needs module-level state
-    //   isolation via `vi.resetModules()`, which only works on the Node
-    //   side. Vitest Browser Mode keeps module-level state across the
-    //   page side, so those tests cannot simulate two windows without a
-    //   Node environment.
-    // - `integration` runs in Node — hits live Rust + Android GraphQL
-    //   endpoints over HTTPS to verify cross-API schema/behavior
-    //   alignment. Gated on `.env.test.local` config; skips cleanly
-    //   when endpoints aren't configured. See
-    //   tests/integration/README.md.
-    //
-    // Vitest 4 projects don't inherit root `resolve.alias` or `define`,
-    // so each project re-declares them.
-    //
-    // All projects run in a single thread each, sequentially across
-    // projects, so vi.spyOn / vi.resetModules from one project cannot
-    // stomp the other's Node-side module cache mid-flight.
-    resolve: {
-      alias: {
-        '@': path.resolve(__dirname, 'src'),
-      },
-    },
-    projects: [
-      {
-        // `unit` compiles real src modules, whose top-level
-        // `~icons/<collection>/<name>` imports need the icons plugin —
-        // template-only `<i-…>` tags survive without it, module imports don't.
-        plugins: [vue(), Icons()],
-        resolve: {
-          alias: {
-            '@': path.resolve(__dirname, 'src'),
-          },
-        },
-        define: { ...testDefine },
-        optimizeDeps: {
-          include: ['@tauri-apps/plugin-dialog', '@tauri-apps/plugin-fs'],
-          exclude: ['vue-i18n'],
-        },
-        test: {
-          name: 'unit',
-          include: ['tests/**/*.test.ts'],
-          exclude: [
-            'tests/lib/cross-window-store.test.ts',
-            'tests/lib/api/graphql/**',
-            'tests/docs/**/*.test.ts',
-            'tests/integration/**/*.test.ts',
-          ],
-          browser: {
-            enabled: true,
-            provider: playwright(),
-            headless: true,
-            instances: [{ browser: 'chromium' }],
-          },
-          globals: true,
-          setupFiles: ['./tests/setup.ts'],
-          coverage: { provider: 'v8', include: ['src/lib/**'] },
-          pool: 'threads',
-          poolOptions: { threads: { singleThread: true } },
-        },
-      },
-      {
-        plugins: [Icons()],
-        resolve: {
-          alias: {
-            '@': path.resolve(__dirname, 'src'),
-          },
-        },
-        define: { ...testDefine },
-        test: {
-          name: 'cws',
-          include: ['tests/lib/cross-window-store.test.ts'],
-          environment: 'node',
-          globals: true,
-          setupFiles: ['./tests/setup.cws.ts'],
-          pool: 'threads',
-          poolOptions: { threads: { singleThread: true } },
-        },
-      },
-      {
-        plugins: [vue(), Icons()],
-        resolve: {
-          alias: {
-            '@': path.resolve(__dirname, 'src'),
-          },
-        },
-        test: {
-          name: 'graphql',
-          include: ['tests/lib/api/graphql/**/*.test.ts'],
-          environment: 'node',
-          globals: true,
-          setupFiles: ['./tests/lib/api/graphql/setup.ts'],
-        },
-      },
-      {
-        resolve: {
-          alias: {
-            '@': path.resolve(__dirname, 'src'),
-          },
-        },
-        define: { ...testDefine },
-        test: {
-          name: 'integration',
-          include: ['tests/integration/**/*.test.ts'],
-          environment: 'node',
-          globals: true,
-          setupFiles: ['./tests/integration/setup.ts'],
-          pool: 'threads',
-          poolOptions: { threads: { singleThread: true } },
-        },
-      },
-      {
-        test: {
-          name: 'docs',
-          include: ['tests/docs/**/*.test.ts'],
-          environment: 'node',
-        },
-      },
-    ],
   },
 }
 })

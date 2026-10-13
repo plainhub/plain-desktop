@@ -10,7 +10,7 @@
 //!      the nas host, a 401 on the desktop host (each host's previous
 //!      contract).
 //!   3. Parse the decrypted payload: either a JSON object
-//!      `{"path":"…","mediaId":"…","name":"…"}` or a plain URI string
+//!      `{"path":"…","name":"…"}` or a plain URI string
 //!      such as `fid:{sha256}.{ext}` / `app://…` / absolute path.
 //!   4. Resolve to a real on-disk path. For `fid:` the resolution is
 //!      `{data_dir}/files/{aa}/{bb}/{hash}.{ext}` — matches what
@@ -39,7 +39,7 @@ use tokio::io::{AsyncReadExt, AsyncSeekExt};
 
 use crate::assembly::context::AppCtx;
 use crate::http::routes::local::response::respond;
-use crate::files::uri::parse_decrypted_id;
+use crate::files::uri::{DecryptedId, parse_decrypted_id};
 use crate::files::uri::resolve_uri;
 use crate::http::server::ServerState;
 use plain_rs::crypto::xchacha_decrypt;
@@ -111,7 +111,10 @@ pub async fn serve_file(
 
     // 3-4. Parse + resolve to a real path (JSON form, fid:, app://,
     //      absolute or data-dir-relative).
-    let (path, json_name) = parse_decrypted_id(&plaintext);
+    let DecryptedId {
+        path,
+        name: json_name,
+    } = parse_decrypted_id(&plaintext);
     let resolved = resolve_uri(&path, &ctx.data_dir);
 
     // 5. Sanity-check the file is on disk and is a file.

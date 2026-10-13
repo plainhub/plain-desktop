@@ -2,27 +2,36 @@ use std::path::{Path, PathBuf};
 
 use plain_rs::chat::attachments::app_file_store;
 
-/// Parse the plaintext payload of an `/fs` `id` param. Returns
-/// `(path, json_name)`. The path may be a `fid:` URI, an `app://`
-/// URI, a relative path, or an absolute filesystem path.
-pub fn parse_decrypted_id(plaintext: &str) -> (String, String) {
+/// Decrypted `/fs` `id` payload.
+#[derive(Debug, PartialEq, Eq)]
+pub struct DecryptedId {
+    /// A `fid:` URI, an `app://` URI, a relative path, or an absolute
+    /// filesystem path.
+    pub path: String,
+    /// Optional display name; empty when the id carries none.
+    pub name: String,
+}
+
+#[derive(serde::Deserialize)]
+struct JsonId {
+    #[serde(default)]
+    path: String,
+    #[serde(default)]
+    name: String,
+}
+
+/// Parse the plaintext payload of an `/fs` `id` param: either a JSON
+/// object `{"path":"…","name":"…"}` or a bare path/URI string.
+pub fn parse_decrypted_id(plaintext: &str) -> DecryptedId {
     if plaintext.starts_with('{') {
-        // JSON object form: {"path":"…","mediaId":"…","name":"…"}
-        if let Ok(v) = serde_json::from_str::<serde_json::Value>(plaintext) {
-            let p = v
-                .get("path")
-                .and_then(|x| x.as_str())
-                .unwrap_or("")
-                .to_string();
-            let n = v
-                .get("name")
-                .and_then(|x| x.as_str())
-                .unwrap_or("")
-                .to_string();
-            return (p, n);
+        if let Ok(JsonId { path, name }) = serde_json::from_str(plaintext) {
+            return DecryptedId { path, name };
         }
     }
-    (plaintext.to_string(), String::new())
+    DecryptedId {
+        path: plaintext.to_string(),
+        name: String::new(),
+    }
 }
 
 /// Resolve a virtual URI string to a real on-disk path under
