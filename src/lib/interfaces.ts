@@ -325,7 +325,7 @@ export interface IPeer {
   ip: string
   status: PeerStatus
   online?: boolean
-  port: number
+  port: number | null
   deviceType: DeviceType
   createdAt: string
   updatedAt: string

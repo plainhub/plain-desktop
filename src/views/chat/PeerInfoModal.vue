@@ -4,7 +4,7 @@
     <template #content>
       <ul v-if="peer" class="card list-items">
         <v-list-item :title="$t('ip_address')" :value="peer ? getPeerIp(peer) : ''" />
-        <v-list-item :title="$t('port')" :value="String(peer.port)" />
+        <v-list-item :title="$t('port')" :value="peer.port == null ? '' : String(peer.port)" />
         <v-list-item :title="$t('device_type')" :value="deviceTypeText" />
         <v-list-item v-if="statusText" :title="$t('status')">
           <template #value>

@@ -23,7 +23,7 @@ export function getPeerIp(p: { ip: string }): string {
 }
 
 export function peerHost(p: IPeer): string {
-  return `${getPeerIp(p)}:${p.port}`
+  return p.port && getPeerIp(p) ? `${getPeerIp(p)}:${p.port}` : ''
 }
 
 /**

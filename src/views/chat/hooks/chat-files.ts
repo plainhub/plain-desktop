@@ -13,7 +13,7 @@ import { useOpenMedia } from '@/hooks/open-media'
 import { useRevealFile } from './reveal-file'
 import { chatFileDurationMs } from '../chat-file-duration'
 
-export function useChatFiles(props: { data: any; downloadInfo: any; peer: { ip: string; port: number } | null }) {
+export function useChatFiles(props: { data: any; downloadInfo: any; peer: { ip: string; port: number | null } | null }) {
   const tempStore = useTempStore()
   const mainStore = useMainStore()
   const router = useRouter()

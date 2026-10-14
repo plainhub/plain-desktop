@@ -461,7 +461,6 @@ pub fn run() {
             crate::commands::native::file_tasks::native_file_copy,
             crate::commands::native::file_tasks::native_file_move,
             crate::commands::native::file_tasks::native_file_tasks_list,
-            crate::commands::native::file_tasks::native_file_task_recover,
             crate::commands::native::file_tasks::native_file_task_remove,
         ])
         .build(tauri::generate_context!())

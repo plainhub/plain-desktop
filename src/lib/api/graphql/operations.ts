@@ -1539,7 +1539,7 @@ export interface GqlOperations {
         ip: string
         status: 'PAIRED' | 'UNPAIRED' | 'CHANNEL'
         online: boolean
-        port: number
+        port: number | null
         deviceType: 'PHONE' | 'TABLET' | 'COMPUTER' | 'TV' | 'NAS' | 'OTHER'
         createdAt: string
         updatedAt: string

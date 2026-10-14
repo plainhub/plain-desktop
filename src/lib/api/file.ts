@@ -181,7 +181,7 @@ export function encryptUrlParams(key: Uint8Array | null, params: string) {
  */
 export function getPeerProxyUrl(
   urlTokenKey: Uint8Array | null,
-  peer: { ip: string; port: number },
+  peer: { ip: string; port: number | null },
   peerFileId: string,
   query: string = '',
 ): string {
