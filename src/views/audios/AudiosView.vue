@@ -139,7 +139,7 @@ const {
   uploadDir, uploadDirEditable, editUploadDir,
 } = mp
 
-const isAudioPlaying = (item: IAudioWithFileId) => audioPlaying.value && audioPlayback.value.currentPath === item.path
+const isAudioPlaying = (item: IAudioWithFileId) => audioPlaying.value && audioPlayback.value.mediaId === item.id
 const effectiveQ = computed(() => {
   const dirs = mainStoreLocal.excludedDirs
   if (!dirs.length) return q.value

@@ -556,7 +556,8 @@ export const audioQueueGQL = `
     total: audioQueueItemCount
     playback: audioPlayback {
       mode
-      currentPath
+      mediaId
+      path
       isPlaying
       positionMs
     }

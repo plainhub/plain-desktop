@@ -240,8 +240,18 @@ export const moveFileGQL = `
 `
 
 export const playAudioGQL = `
-  mutation playAudio($path: String!) {
-    playAudio(path: $path) {
+  mutation playAudio($mediaId: ID!) {
+    playAudio(mediaId: $mediaId) {
+      ...AudioItemFragment
+    }
+  }
+  ${audioItemFragment}
+`
+
+export const enqueueAndPlayAudioGQL = `
+  mutation enqueueAndPlayAudio($mediaId: ID!, $query: String!) {
+    addAudioToQueue(query: $query)
+    playAudio(mediaId: $mediaId) {
       ...AudioItemFragment
     }
   }
@@ -255,14 +265,14 @@ export const updateAudioPlayModeGQL = `
 `
 
 export const removeAudioFromQueueGQL = `
-  mutation removeAudioFromQueue($path: String!) {
-    removeAudioFromQueue(path: $path)
+  mutation removeAudioFromQueue($mediaId: ID!) {
+    removeAudioFromQueue(mediaId: $mediaId)
   }
 `
 
-export const addAudiosToQueueGQL = `
-  mutation addAudiosToQueue($query: String!) {
-    addAudiosToQueue(query: $query)
+export const addAudioToQueueGQL = `
+  mutation addAudioToQueue($query: String!) {
+    addAudioToQueue(query: $query)
   }
 `
 
@@ -273,8 +283,8 @@ export const clearAudioQueueGQL = `
 `
 
 export const reorderAudioQueueGQL = `
-  mutation reorderAudioQueue($paths: [String!]!) {
-    reorderAudioQueue(paths: $paths)
+  mutation reorderAudioQueue($mediaIds: [ID!]!) {
+    reorderAudioQueue(mediaIds: $mediaIds)
   }
 `
 

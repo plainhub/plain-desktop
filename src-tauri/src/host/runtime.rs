@@ -54,6 +54,10 @@ impl Runtime {
                 Ok(Value::Array(rows))
             }
 
+            method if plain_server::native::audio::handles(method) => {
+                self.core.native_audio()?.handle(method, params).await
+            }
+
             "systemMediaRows" => {
                 let core = self.core.clone();
                 let rows = tokio::task::spawn_blocking(move || {

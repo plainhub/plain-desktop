@@ -40,6 +40,7 @@ export interface Fragment_AudioFragment {
 }
 
 export interface Fragment_AudioItemFragment {
+  mediaId?: string
   title: string
   artist: string
   path: string
@@ -593,7 +594,17 @@ export interface GqlOperations {
       playAudio: Fragment_AudioItemFragment
     }
     variables: {
-      path: string
+      mediaId: string
+    }
+  }
+  enqueueAndPlayAudioGQL: {
+    result: {
+      addAudioToQueue: boolean
+      playAudio: Fragment_AudioItemFragment
+    }
+    variables: {
+      mediaId: string
+      query: string
     }
   }
   updateAudioPlayModeGQL: {
@@ -609,12 +620,12 @@ export interface GqlOperations {
       removeAudioFromQueue: boolean
     }
     variables: {
-      path: string
+      mediaId: string
     }
   }
-  addAudiosToQueueGQL: {
+  addAudioToQueueGQL: {
     result: {
-      addAudiosToQueue: boolean
+      addAudioToQueue: boolean
     }
     variables: {
       query: string
@@ -631,7 +642,7 @@ export interface GqlOperations {
       reorderAudioQueue: boolean
     }
     variables: {
-      paths: Array<string>
+      mediaIds: Array<string>
     }
   }
   deleteMediaItemsGQL: {
@@ -1851,7 +1862,8 @@ export interface GqlOperations {
       total: number
       playback: {
         mode: 'REPEAT' | 'REPEAT_ONE' | 'SHUFFLE'
-        currentPath?: string
+        mediaId?: string
+        path?: string
         isPlaying: boolean
         positionMs: number
       }

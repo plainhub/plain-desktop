@@ -269,6 +269,7 @@ export interface IDocExtGroup {
 }
 
 export interface IAudioItem {
+  mediaId: string | null
   title: string
   artist: string
   path: string

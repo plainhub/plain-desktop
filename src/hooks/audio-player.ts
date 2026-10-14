@@ -3,25 +3,16 @@ import { useTempStore } from '@/stores/temp'
 import { storeToRefs } from 'pinia'
 import type { IAudioItem } from '@/lib/interfaces'
 import { getFileUrlByPath } from '@/lib/api/file'
-import { initMutation, playAudioGQL, updateAudioPlayModeGQL, removeAudioFromQueueGQL, clearAudioQueueGQL, reorderAudioQueueGQL } from '@/lib/api/mutation'
-import { sample } from '@/lib/array'
+import { initMutation, playAudioGQL, updateAudioPlayModeGQL, removeAudioFromQueueGQL, clearAudioQueueGQL, reorderAudioQueueGQL, enqueueAndPlayAudioGQL } from '@/lib/api/mutation'
 import { audioPlayback, useAudioPlaylistStore } from '@/hooks/audio-playlist-store'
 import emitter from '@/plugins/eventbus'
 
-/**
- * `playAudio` against the phone: the returned track is the server truth for
- * `playback.currentPath`. The mutation only marks the current track — it never
- * mutates the queue, so the queue order is stable across plays. `onApplied`
- * runs once the local state is synced (play the element, notify other
- * components, …). Flows that play a track outside the queue must combine
- * addAudiosToQueue with playAudio in one document.
- */
-export function usePlayAudio(onApplied: () => void) {
+export function usePlayAudio(onApplied: () => void, enqueue = false) {
   const store = useAudioPlaylistStore()
-  const { mutate: play, loading, onDone } = initMutation({ document: playAudioGQL })
+  const { mutate: play, loading, onDone } = initMutation({ document: enqueue ? enqueueAndPlayAudioGQL : playAudioGQL })
   onDone((r: any) => {
     const path = r?.data?.playAudio?.path
-    if (path) audioPlayback.value = { ...audioPlayback.value, currentPath: path }
+    if (path) audioPlayback.value = { ...audioPlayback.value, mediaId: r.data.playAudio.mediaId, path: path }
     void store.refetch()
     onApplied()
   })
@@ -31,12 +22,12 @@ export function usePlayAudio(onApplied: () => void) {
 export function useAudioPlaylist(audioRef: Ref<HTMLAudioElement | undefined>) {
   const { app, urlTokenKey, audioPlaying } = storeToRefs(useTempStore())
   const store = useAudioPlaylistStore()
-
-  // A view of the phone playback queue; mutations go through GraphQL, then refetch.
   const audios = computed<IAudioItem[]>(() => store.items.value)
   const playlistAudios = computed<IAudioItem[]>({
     get: () => audios.value,
-    set: (value) => { store.items.value = value },
+    set: (value) => {
+      store.items.value = value
+    },
   })
 
   const current = ref<IAudioItem | undefined>()
@@ -84,63 +75,85 @@ export function useAudioPlaylist(audioRef: Ref<HTMLAudioElement | undefined>) {
   }
 
   async function setCurrent() {
-    const c = audioPlayback.value.currentPath
+    const c = audioPlayback.value.path
     src.value = c ? getFileUrlByPath(urlTokenKey.value, c) : ''
-    current.value = audios.value.find((it) => it.path == c)
+    current.value = audios.value.find((it) => it.mediaId === audioPlayback.value.mediaId)
     updateMediaSessionMetadata()
   }
   setCurrent()
-  watch(() => audioPlayback.value.currentPath, setCurrent)
+  watch(() => audioPlayback.value.path, setCurrent)
   watch(audios, setCurrent)
-
-  // Mutations
-  const { play } = usePlayAudio(() => { void nextTick(() => _play()) })
+  const { play } = usePlayAudio(() => {
+    void nextTick(() => _play())
+  })
   const { mutate: clear, loading: clearLoading, onDone: onClearDone } = initMutation({ document: clearAudioQueueGQL })
   const { mutate: updatePlayMode } = initMutation({ document: updateAudioPlayModeGQL })
   const { mutate: reorderAudioQueue } = initMutation({ document: reorderAudioQueueGQL })
   const { mutate: deleteAudio } = initMutation({ document: removeAudioFromQueueGQL })
 
   onClearDone(() => {
-    audioPlayback.value = { ...audioPlayback.value, currentPath: null, isPlaying: false, positionMs: 0 }
+    audioPlayback.value = { ...audioPlayback.value, mediaId: null, path: null, isPlaying: false, positionMs: 0 }
     store.reset()
   })
 
-  function _play() { audioRef.value?.play() }
-
-  // Navigation
-  function playRandom() {
-    const c = sample(audios.value)
-    if (c) play({ path: c.path })
+  function _play() {
+    audioRef.value?.play()
+  }
+  async function loadThrough(index: number) {
+    while (audios.value.length <= index && audios.value.length < store.total.value) {
+      const before = audios.value.length
+      await store.loadMore()
+      if (audios.value.length <= before) return false
+    }
+    return true
   }
 
-  function _playPrev() {
-    const index = audios.value.findIndex((it) => it.path === current.value?.path)
-    const c = index <= 0 ? audios.value[audios.value.length - 1] : audios.value[index - 1]
-    if (c) play({ path: c.path })
+  async function currentIndex() {
+    const id = audioPlayback.value.mediaId
+    if (!id) return -1
+    let index = audios.value.findIndex((item) => item.mediaId === id)
+    while (index < 0 && audios.value.length < store.total.value) {
+      const before = audios.value.length
+      await store.loadMore()
+      if (audios.value.length <= before) return null
+      index = audios.value.findIndex((item) => item.mediaId === id)
+    }
+    return index
   }
 
-  function _playNext() {
-    const index = audios.value.findIndex((it) => it.path === current.value?.path)
-    const c = index + 1 >= audios.value.length ? audios.value[0] : audios.value[index + 1]
-    if (c) play({ path: c.path })
+  async function playAt(index: number) {
+    if (!(await loadThrough(index))) return
+    const item = audios.value[index]
+    if (item?.mediaId) play({ mediaId: item.mediaId })
   }
 
-  function playPrev() {
-    if (!audios.value.length) return
-    audioPlayback.value.mode === 'SHUFFLE' ? playRandom() : _playPrev()
+  async function playRandom() {
+    if (store.total.value) await playAt(Math.floor(Math.random() * store.total.value))
   }
 
-  function playNext() {
-    if (!audios.value.length) return
-    audioPlayback.value.mode === 'SHUFFLE' ? playRandom() : _playNext()
+  async function playSequential(next: boolean) {
+    if (!store.total.value) return
+    const index = await currentIndex()
+    if (index === null) return
+    const target = next ? (index + 1) % store.total.value : index <= 0 ? store.total.value - 1 : index - 1
+    await playAt(target)
+  }
+
+  async function playPrev() {
+    if (audioPlayback.value.mode === 'SHUFFLE') await playRandom()
+    else await playSequential(false)
+  }
+
+  async function playNext() {
+    if (audioPlayback.value.mode === 'SHUFFLE') await playRandom()
+    else await playSequential(true)
   }
 
   function onEnded() {
-    if (!audios.value.length) return
-    const mode = audioPlayback.value.mode
-    if (mode === 'REPEAT') _playNext()
-    else if (mode === 'REPEAT_ONE') audioRef.value?.play()
-    else playRandom()
+    if (audioPlayback.value.mode === 'REPEAT_ONE') {
+      if (audioRef.value) audioRef.value.currentTime = 0
+      void audioRef.value?.play()
+    } else void playNext()
   }
 
   function changeMode() {
@@ -151,16 +164,24 @@ export function useAudioPlaylist(audioRef: Ref<HTMLAudioElement | undefined>) {
   }
 
   function playItem(item: IAudioItem) {
-    play({ path: item.path })
+    play({ mediaId: item.mediaId })
   }
 
-  function deleteItem(item: IAudioItem) {
-    deleteAudio({ path: item.path })
-    store.removeLocal(item.path)
+  async function deleteItem(item: IAudioItem) {
+    if (!item.mediaId) return
+    const result = await deleteAudio({ mediaId: item.mediaId })
+    if (!result) return
+    store.removeLocal(item.mediaId)
+    if (audioPlayback.value.mediaId === item.mediaId) {
+      audioRef.value?.pause()
+      audioPlayback.value = { ...audioPlayback.value, mediaId: null, path: null, isPlaying: false, positionMs: 0 }
+    }
+    await store.refetch()
   }
 
-  function onReorder() {
-    reorderAudioQueue({ paths: playlistAudios.value.map((item) => item.path) })
+  async function onReorder() {
+    const result = await reorderAudioQueue({ mediaIds: playlistAudios.value.map((item) => item.mediaId) })
+    if (!result) await store.refetch()
   }
 
   function clearPlaylist() {
@@ -175,7 +196,9 @@ export function useAudioPlaylist(audioRef: Ref<HTMLAudioElement | undefined>) {
     audioPlaying.value = false
     updateMediaSessionPlaybackState()
   }
-  const doPlayAudio = () => { void nextTick(() => _play()) }
+  const doPlayAudio = () => {
+    void nextTick(() => _play())
+  }
   const pauseAudio = () => audioRef.value?.pause()
 
   onMounted(() => {
@@ -200,6 +223,9 @@ export function useAudioPlaylist(audioRef: Ref<HTMLAudioElement | undefined>) {
     playback: audioPlayback,
     audios,
     playlistAudios,
+    queueTotal: store.total,
+    queueLoading: store.loading,
+    loadMore: store.loadMore,
     current,
     src,
     clearLoading,

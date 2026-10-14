@@ -95,7 +95,7 @@ export function useMainView() {
   const refetchAppHandler = () => refetchApp()
   const mediaItemsActionedHandler = (event: IMediaItemsActionedEvent) => {
     // The phone prunes deleted/trashed audios out of its playback queue, so
-    // audio actions refresh the queue mirror (playback.currentPath is unaffected).
+    // audio actions refresh the queue mirror (playback.path is unaffected).
     if (event.type === 'AUDIO') void audioPlaylist.refetch()
   }
   const deviceNameUpdatedHandler = (name: string) => {

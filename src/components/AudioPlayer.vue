@@ -25,26 +25,29 @@
         </v-icon-button>
       </div>
       <section ref="listEl" class="list-items">
-          <div 
-            v-for="(item, index) in playlistAudios" 
-            :key="item.path"
-            class="item" 
-            :class="{ selected: item.path === current?.path, dragging: fromIndex === index }" 
-            :style="itemStyle(index)"
-            @click.stop="onItemClick(item)" 
-            @mousedown="fixUserSelect"
-            @pointerdown="start($event, index)"
-          >
-            <div class="item-number">{{ index + 1 }}</div>
-            <div class="content">
-              <div class="title">{{ item.title }}</div>
-              <div class="subtitle">{{ item.artist }} {{ formatDurationMs(item.durationMs) }}</div>
-            </div>
-            <button v-tooltip="$t('remove_from_playlist')" class="btn-icon icon" @click.stop="deleteItem(item)">
-              <i-material-symbols:playlist-remove class="playlist-remove-icon" />
-            </button>
+        <div
+          v-for="(item, index) in playlistAudios"
+          :key="item.mediaId ?? item.path"
+          class="item"
+          :class="{ selected: item.mediaId === current?.mediaId, dragging: fromIndex === index }"
+          :style="itemStyle(index)"
+          @click.stop="onItemClick(item)"
+          @mousedown="fixUserSelect"
+          @pointerdown="start($event, index)"
+        >
+          <div class="item-number">{{ index + 1 }}</div>
+          <div class="content">
+            <div class="title">{{ item.title }}</div>
+            <div class="subtitle">{{ item.artist }} {{ formatDurationMs(item.durationMs) }}</div>
           </div>
+          <button v-tooltip="$t('remove_from_playlist')" class="btn-icon icon" @click.stop="deleteItem(item)">
+            <i-material-symbols:playlist-remove class="playlist-remove-icon" />
+          </button>
+        </div>
       </section>
+      <v-outlined-button v-if="audios.length < queueTotal" :loading="queueLoading" @click="loadMore">
+        {{ $t('load_more') }}
+      </v-outlined-button>
     </div>
   </div>
 </template>
@@ -61,22 +64,8 @@ import { useDragSort } from '@/hooks/use-drag-sort'
 const store = useMainStore()
 const audioRef = ref<HTMLAudioElement>()
 
-const {
-  playback,
-  audios,
-  playlistAudios,
-  current,
-  src,
-  clearLoading,
-  onEnded,
-  playPrev,
-  playNext,
-  changeMode,
-  playItem,
-  deleteItem,
-  clearPlaylist,
-  onReorder,
-} = useAudioPlaylist(audioRef)
+const { playback, audios, playlistAudios, queueTotal, queueLoading, loadMore, current, src, clearLoading, onEnded, playPrev, playNext, changeMode, playItem, deleteItem, clearPlaylist, onReorder } =
+  useAudioPlaylist(audioRef)
 
 const listEl = ref<HTMLElement>()
 
@@ -104,7 +93,7 @@ function onItemClick(item: IAudioItem) {
   display: grid;
   grid-template-areas: 'number content icon';
   grid-template-columns: auto 1fr auto;
-  gap: 12px;
+  gap: 16px;
   align-items: center;
   padding: 8px 16px;
   transition: transform 0.2s ease;

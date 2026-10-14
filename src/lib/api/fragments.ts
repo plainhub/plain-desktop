@@ -15,6 +15,7 @@ export const tagSubFragment = `
 
 export const audioItemFragment = `
   fragment AudioItemFragment on AudioItem {
+    mediaId
     title
     artist
     path
