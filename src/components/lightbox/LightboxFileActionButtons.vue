@@ -4,7 +4,7 @@
       <template v-if="!readOnly && !current?.isFromChat && !inZip">
         <template v-if="canTrash">
           <template v-if="isTrashed">
-            <v-outlined-button @click.stop="confirming = true">
+            <v-outlined-button v-if="canDelete" @click.stop="confirming = true">
               <i-material-symbols:delete-forever-outline-rounded />
               {{ $t('delete') }}
             </v-outlined-button>
@@ -18,18 +18,18 @@
               <i-material-symbols:delete-outline-rounded />
               {{ $t('move_to_trash') }}
             </v-outlined-button>
-            <v-outlined-button @click.stop="$emit('rename-file')">
+            <v-outlined-button v-if="canMove" @click.stop="$emit('rename-file')">
               <i-material-symbols:edit-outline-rounded />
               {{ $t('rename') }}
             </v-outlined-button>
           </template>
         </template>
         <template v-else>
-          <v-outlined-button @click.stop="confirming = true">
+          <v-outlined-button v-if="canDelete" @click.stop="confirming = true">
             <i-material-symbols:delete-forever-outline-rounded />
             {{ $t('delete') }}
           </v-outlined-button>
-          <v-outlined-button @click.stop="$emit('rename-file')">
+          <v-outlined-button v-if="canMove" @click.stop="$emit('rename-file')">
             <i-material-symbols:edit-outline-rounded />
             {{ $t('rename') }}
           </v-outlined-button>
@@ -71,7 +71,7 @@ function onConfirmDelete() {
   confirming.value = false
 }
 
-const { isTrashed, canTrash } = useFileTrashState(() => props.current)
+const { isTrashed, canTrash, canDelete, canMove } = useFileTrashState(() => props.current)
 
 const { trash, trashLoading } = useMediaTrash()
 const { record } = useOrganizeUndo()

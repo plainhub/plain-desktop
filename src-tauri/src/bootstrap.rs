@@ -190,11 +190,8 @@ pub fn run() {
                 crate::commands::screen_capture::selftest::schedule_trigger(app.handle().clone());
             }
 
-            let log_dir = app
-                .path()
-                .app_log_dir()
-                .unwrap_or_else(|_| data_dir.join("logs"));
-            let _ = log_dir;
+            let log_dir = app.path().app_log_dir()?;
+            core.set_log_file(&log_dir.join("plain.log"))?;
             // The peer proxy dials by client id; the core owns the lookup.
             let peer_resolver: plain_server::http::proxy::local::PeerResolver = {
                 let core = core.clone();

@@ -2,10 +2,10 @@
   <div class="actions">
     <template v-if="filter.trash">
       <template v-if="!confirming">
-        <v-icon-button v-tooltip="$t('delete')" class="sm" @click.stop="confirming = true">
+        <v-icon-button v-if="hasMediaDelete(app)" v-tooltip="$t('delete')" class="sm" @click.stop="confirming = true">
           <i-material-symbols:delete-forever-outline-rounded />
         </v-icon-button>
-        <v-icon-button v-tooltip="$t('restore')" class="sm" :loading="restoreLoading(`ids:${item.id}`)" @click.stop="restore(dataType, `ids:${item.id}`)">
+        <v-icon-button v-if="hasMediaTrash(app)" v-tooltip="$t('restore')" class="sm" :loading="restoreLoading(`ids:${item.id}`)" @click.stop="restore(dataType, `ids:${item.id}`)">
           <i-material-symbols:restore-from-trash-outline-rounded />
         </v-icon-button>
         <v-icon-button v-tooltip="$t('download')" class="sm" @click.stop="$emit('download-file', item.path)">
@@ -24,7 +24,7 @@
       >
         <i-material-symbols:delete-outline-rounded />
       </v-icon-button>
-      <v-icon-button v-else v-tooltip="$t('delete')" class="sm" @click.stop="$emit('delete-item', item)">
+      <v-icon-button v-else-if="hasMediaDelete(app)" v-tooltip="$t('delete')" class="sm" @click.stop="$emit('delete-item', item)">
         <i-material-symbols:delete-forever-outline-rounded />
       </v-icon-button>
       <v-icon-button v-tooltip="$t('download')" class="sm" @click.stop="$emit('download-file', item.path)">
@@ -78,7 +78,7 @@
 import { ref } from 'vue'
 import type { IDoc, IFilter, IApp, ITag } from '@/lib/interfaces'
 import { DataType } from '@/lib/data'
-import { hasMediaTrash } from '@/lib/feature'
+import { hasMediaTrash, hasMediaDelete } from '@/lib/feature'
 import { formatFileSize, formatDateTimeFull } from '@/lib/format'
 
 const props = defineProps<{

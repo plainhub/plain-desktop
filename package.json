@@ -18,7 +18,9 @@
     "test:watch": "yarn workspace @plain/api-test vitest",
     "test:integration": "yarn test:api",
     "test:api": "yarn workspace @plain/api-test test",
-    "test:api:typecheck": "yarn workspace @plain/api-test typecheck"
+    "test:api:typecheck": "yarn workspace @plain/api-test typecheck",
+    "graphql:codegen": "node scripts/graphql-codegen.mjs",
+    "graphql:check": "node scripts/graphql-codegen.mjs --check"
   },
   "dependencies": {
     "@codemirror/autocomplete": "^6.20.1",

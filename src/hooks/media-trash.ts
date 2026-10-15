@@ -3,7 +3,7 @@ import { DataType } from '@/lib/data'
 import emitter from '@/plugins/eventbus'
 
 import { reactive, computed, type Ref } from 'vue'
-import { hasMediaTrash } from '@/lib/feature'
+import { hasMediaTrash, hasMediaDelete, hasMediaMove } from '@/lib/feature'
 import { storeToRefs } from 'pinia'
 import { useTempStore } from '@/stores/temp'
 import type { ISource } from '@/components/lightbox/types'
@@ -74,14 +74,13 @@ export function useFileTrashState(current: (() => ISource | undefined) | Ref<ISo
     return path.includes('.trashed-') || path.includes('/.plain-trash/')
   })
 
-  const canTrash = computed(() => {
-    const currentValue = typeof current === 'function' ? current() : current.value
-    const mediaTypes = [DataType.VIDEO, DataType.AUDIO, DataType.IMAGE]
-    return !!currentValue?.type && mediaTypes.includes(currentValue.type as DataType) && hasMediaTrash(app.value)
+  const isMedia = computed(() => {
+    const value = typeof current === 'function' ? current() : current.value
+    return !!value?.type && [DataType.VIDEO, DataType.AUDIO, DataType.IMAGE, DataType.DOC].includes(value.type as DataType)
   })
+  const canTrash = computed(() => isMedia.value && hasMediaTrash(app.value))
+  const canDelete = computed(() => !isMedia.value || hasMediaDelete(app.value))
+  const canMove = computed(() => !isMedia.value || hasMediaMove(app.value))
 
-  return {
-    isTrashed,
-    canTrash
-  }
+  return { isTrashed, canTrash, canDelete, canMove }
 }

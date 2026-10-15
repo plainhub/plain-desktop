@@ -6,13 +6,13 @@
       <span v-else>{{ $t(pageTitle) }} ({{ total.toLocaleString() }})</span>
       <template v-if="checked">
         <template v-if="filterTrash">
-          <bulk-delete-button :confirming="confirmingDelete" :count="deleteCount" :loading="deleteLoading" @click="$emit('delete')" @confirm="$emit('confirm')" @cancel="$emit('cancel')" />
-          <v-icon-button v-tooltip="$t('restore')" :loading="restoreQueryLoading" @click.stop="$emit('restore')"><i-material-symbols:restore-from-trash-outline-rounded /></v-icon-button>
+          <bulk-delete-button v-if="canDelete" :confirming="confirmingDelete" :count="deleteCount" :loading="deleteLoading" @click="$emit('delete')" @confirm="$emit('confirm')" @cancel="$emit('cancel')" />
+          <v-icon-button v-if="canTrash" v-tooltip="$t('restore')" :loading="restoreQueryLoading" @click.stop="$emit('restore')"><i-material-symbols:restore-from-trash-outline-rounded /></v-icon-button>
           <bulk-download-button :single="realAllChecked || selectedCount === 1" @download="$emit('download')" @download-each="$emit('download-each')" @download-zip="$emit('download-zip')" />
         </template>
         <template v-else>
             <v-icon-button v-if="canTrash" v-tooltip="$t('move_to_trash')" :loading="trashQueryLoading" @click.stop="$emit('trash')"><i-material-symbols:delete-outline-rounded /></v-icon-button>
-            <bulk-delete-button v-else :confirming="confirmingDelete" :count="deleteCount" :loading="deleteLoading" @click="$emit('delete')" @confirm="$emit('confirm')" @cancel="$emit('cancel')" />
+            <bulk-delete-button v-else-if="canDelete" :confirming="confirmingDelete" :count="deleteCount" :loading="deleteLoading" @click="$emit('delete')" @confirm="$emit('confirm')" @cancel="$emit('cancel')" />
             <slot name="tag-action">
               <v-icon-button v-tooltip="$t('add_to_tags')" @click.stop="$emit('addToTags')"><i-material-symbols:label-outline-rounded /></v-icon-button>
             </slot>
@@ -44,6 +44,7 @@ defineProps<{
   total: number
   filterTrash: boolean
   canTrash: boolean
+  canDelete: boolean
   restoreQueryLoading: boolean
   trashQueryLoading: boolean
   limit: number

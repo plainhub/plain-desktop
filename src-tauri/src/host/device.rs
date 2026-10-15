@@ -5,8 +5,18 @@
 /// What this shell can actually drive, in the wire form the schema parses.
 /// The host bridge reports the same list, so the UI must not see a section
 /// from one surface and not the other.
-pub fn desktop_capabilities() -> &'static [&'static str] {
-    &["DOC_PREVIEW", "IMAGE_EDITOR", "NOTIFICATIONS"]
+pub fn desktop_capabilities() -> Vec<&'static str> {
+    let mut capabilities = vec![
+        "DOC_PREVIEW",
+        "IMAGE_EDITOR",
+        "NOTIFICATIONS",
+        "NOTES",
+        "FEEDS",
+        "POMODORO",
+        "APP_UPDATES",
+    ];
+    capabilities.extend(plain_server::services::files::media_action_io::capabilities());
+    capabilities
 }
 
 #[cfg(test)]

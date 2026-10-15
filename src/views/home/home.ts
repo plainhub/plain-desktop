@@ -31,8 +31,6 @@ export function useHomeData() {
   const { counter, app: appState } = storeToRefs(tempStore)
   const mounts = ref<IStorageMount[]>([])
 
-  // The device type is only known after the first `app` query, so start with
-  // a mounts-only probe and rebuild the document once it is known.
   initQuery({
     handle: (data: IHomeStats, error: string) => {
       if (error) {
@@ -119,9 +117,6 @@ export function usePhoneAction() {
   }
 }
 
-// Media-index scan panel on the home files card (plain-nas only): the
-// `scanProgress` query seeds the initial state and the `media_scan_progress`
-// WS push keeps it live; plus the pause/resume/stop/rebuild controls.
 export function useScanAction() {
   const { t } = useI18n()
   const scanProgress = ref<IScanProgress>({ indexed: 0, pending: 0, total: 0, state: 'IDLE' })

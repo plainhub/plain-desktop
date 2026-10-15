@@ -5,6 +5,7 @@
     :all-checked="allChecked" :checked="checked" :real-all-checked="realAllChecked" :total="total"
     :filter-trash="!!filter.trash"
     :can-trash="hasMediaTrash(app)"
+    :can-delete="hasMediaDelete(app)"
     :restore-query-loading="restoreLoading(getQuery())" :trash-query-loading="trashLoading(getQuery())"
     :limit="limit" :all-checked-alert-visible="allCheckedAlertVisible"
     :show-secondary="isPhone && !checked"
@@ -20,7 +21,7 @@
       <BulkTagDropdown :type="dataType" :tags="tags" :items="items" :selected-ids="selectedIds" :real-all-checked="realAllChecked" :q="q" />
     </template>
     <template #extra-actions>
-      <v-icon-button v-if="!filter.trash" v-tooltip="$t('move_to_folder')" :loading="moveLoading" @click.stop="onMoveClick(dataType, selectedIds, realAllChecked, getQuery())">
+      <v-icon-button v-if="!filter.trash && hasMediaMove(app)" v-tooltip="$t('move_to_folder')" :loading="moveLoading" @click.stop="onMoveClick(dataType, selectedIds, realAllChecked, getQuery())">
         <i-material-symbols:drive-file-move-outline-rounded />
       </v-icon-button>
     </template>
@@ -118,7 +119,7 @@ import type { IVideo, IVideoItem } from '@/lib/interfaces'
 import type { ISource } from '@/components/lightbox/types'
 import { DataType, Capability } from '@/lib/data'
 import { getSortItems, getVideoGroupByItems, isVideo } from '@/lib/file'
-import { hasFeature, hasMediaTrash } from '@/lib/feature'
+import { hasFeature, hasMediaTrash, hasMediaDelete, hasMediaMove } from '@/lib/feature'
 import { storeToRefs } from 'pinia'
 import { useMainStore } from '@/stores/main'
 import { useGroupedScroll, type MediaGroup } from '@/hooks/grouped-scroll'

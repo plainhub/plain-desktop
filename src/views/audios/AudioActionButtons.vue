@@ -2,10 +2,10 @@
   <div class="actions">
     <template v-if="!confirming">
       <template v-if="filter.trash">
-        <v-icon-button v-tooltip="$t('delete')" class="sm" @click.stop="confirming = true">
+        <v-icon-button v-if="hasMediaDelete(app)" v-tooltip="$t('delete')" class="sm" @click.stop="confirming = true">
             <i-material-symbols:delete-forever-outline-rounded />
         </v-icon-button>
-        <v-icon-button v-tooltip="$t('restore')" class="sm" :loading="restoreLoading(`ids:${item.id}`)" @click.stop="restore(dataType, `ids:${item.id}`)">
+        <v-icon-button v-if="hasMediaTrash(app)" v-tooltip="$t('restore')" class="sm" :loading="restoreLoading(`ids:${item.id}`)" @click.stop="restore(dataType, `ids:${item.id}`)">
             <i-material-symbols:restore-from-trash-outline-rounded />
         </v-icon-button>
         <v-icon-button v-tooltip="$t('download')" class="sm" @click.stop="downloadFile(item.path, getFileName(item.path).replace(' ', '-'))">
@@ -22,7 +22,7 @@
         >
           <i-material-symbols:delete-outline-rounded />
         </v-icon-button>
-        <v-icon-button v-else v-tooltip="$t('delete')" class="sm" @click.stop="confirming = true">
+        <v-icon-button v-else-if="hasMediaDelete(app)" v-tooltip="$t('delete')" class="sm" @click.stop="confirming = true">
           <i-material-symbols:delete-forever-outline-rounded />
         </v-icon-button>
         <v-icon-button v-tooltip="$t('download')" class="sm" @click.stop="downloadFile(item.path, getFileName(item.path).replace(' ', '-'))">
@@ -56,7 +56,7 @@ import { ref } from 'vue'
 import type { IAudio, IFilter, ITag } from '@/lib/interfaces'
 import { DataType } from '@/lib/data'
 import { getFileName } from '@/lib/api/file'
-import { hasMediaTrash } from '@/lib/feature'
+import { hasMediaTrash, hasMediaDelete } from '@/lib/feature'
 import { useI18n } from 'vue-i18n'
 
 const { t: $t } = useI18n()

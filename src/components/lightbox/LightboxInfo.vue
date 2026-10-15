@@ -87,12 +87,12 @@ const props = defineProps({
 
 const emit = defineEmits(['rename-file', 'delete-file', 'refetch-info', 'update:image-quality'])
 
-const { isTrashed, canTrash } = useFileTrashState(() => props.current)
+const { isTrashed, canTrash, canDelete, canMove } = useFileTrashState(() => props.current)
 const { trash } = useMediaTrash()
 const { record } = useOrganizeUndo()
 const inZip = computed(() => isZipPath(props.current?.path ?? ''))
 const showMoveToFolders = computed(
-  () => !props.readOnly && !inZip.value && props.current?.type === DataType.IMAGE && !isTrashed.value,
+  () => canMove.value && !props.readOnly && !inZip.value && props.current?.type === DataType.IMAGE && !isTrashed.value,
 )
 
 function onMoved() {
@@ -107,7 +107,7 @@ function handleKeyDown(event: KeyboardEvent) {
     if (canTrash.value) {
       if (isTrashed.value) {
         // Already in trash, permanently delete
-        emit('delete-file')
+        if (canDelete.value) emit('delete-file')
       } else {
         // Not in trash, move to trash
         if (props.current?.data?.id && props.current.type) {
@@ -117,7 +117,7 @@ function handleKeyDown(event: KeyboardEvent) {
       }
     } else {
       // Can't trash, directly delete
-      emit('delete-file')
+      if (canDelete.value) emit('delete-file')
     }
   }
 }

@@ -9,8 +9,8 @@
         <div class="bar" :style="{ width: percent + '%' }"></div>
       </div>
       <div v-if="!counting" class="muted">
-        {{ scanProgress.indexed.toLocaleString() }} / {{ scanProgress.total.toLocaleString() }}
-        <span v-if="scanProgress.pending > 0"> · {{ $t('pending') }} {{ scanProgress.pending.toLocaleString() }}</span>
+        {{ scanProgress.indexed.toLocaleString() }}<template v-if="scanProgress.total !== null"> / {{ scanProgress.total.toLocaleString() }}</template>
+        <span v-if="scanProgress.pending !== null && scanProgress.pending > 0"> · {{ $t('pending') }} {{ scanProgress.pending.toLocaleString() }}</span>
       </div>
     </template>
 
@@ -40,14 +40,14 @@ const {
 .scan-panel {
   width: 100%;
   max-width: 320px;
-  margin-top: 10px;
+  margin-top: 8px;
 
   .scan-row {
     display: flex;
     justify-content: center;
     align-items: center;
     gap: 8px;
-    margin-bottom: 6px;
+    margin-bottom: 8px;
   }
 
   .muted {
@@ -79,7 +79,7 @@ const {
     display: flex;
     justify-content: center;
     gap: 8px;
-    margin-top: 10px;
+    margin-top: 8px;
     flex-wrap: wrap;
   }
 }

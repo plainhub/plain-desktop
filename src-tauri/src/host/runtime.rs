@@ -24,6 +24,9 @@ impl Runtime {
 
     async fn dispatch(&self, method: &str, params: Value) -> Result<Value, String> {
         match method {
+            "systemCapabilities" => {
+                serde_json::to_value(&self.capabilities).map_err(|error| error.to_string())
+            }
             plain_server::host::platform::SYSTEM_MOUNT_FACTS => {
                 tokio::task::spawn_blocking(plain_server::services::files::mounts::facts)
                     .await
@@ -44,70 +47,10 @@ impl Runtime {
                 .map_err(|error| error.to_string())??;
                 Ok(Value::Bool(allowed))
             }
-            "systemMediaBucketItemFacts" => {
-                let core = self.core.clone();
-                let rows = tokio::task::spawn_blocking(move || {
-                    core.native_media_catalog()?.bucket_item_facts(params)
-                })
-                .await
-                .map_err(|error| error.to_string())??;
-                Ok(Value::Array(rows))
-            }
-
             method if plain_server::native::audio::handles(method) => {
                 self.core.native_audio()?.handle(method, params).await
             }
 
-            "systemMediaRows" => {
-                let core = self.core.clone();
-                let rows = tokio::task::spawn_blocking(move || {
-                    core.native_media_catalog()?.rows_facts(params)
-                })
-                .await
-                .map_err(|error| error.to_string())??;
-                Ok(Value::Array(rows))
-            }
-
-            "mediaAction" => {
-                let core = self.core.clone();
-                let outcome = tokio::task::spawn_blocking(move || {
-                    core.native_media_catalog()?.delete_action_files(params)
-                })
-                .await
-                .map_err(|error| error.to_string())??;
-                serde_json::to_value(outcome).map_err(|error| error.to_string())
-            }
-            "systemMediaIdsFacts" => {
-                let core = self.core.clone();
-                let ids = tokio::task::spawn_blocking(move || {
-                    core.native_media_catalog()?.ids_facts(params)
-                })
-                .await
-                .map_err(|error| error.to_string())??;
-                Ok(serde_json::json!(ids))
-            }
-            "systemMediaCount" => {
-                let core = self.core.clone();
-                let count = tokio::task::spawn_blocking(move || {
-                    core.native_media_catalog()?.count_facts(params)
-                })
-                .await
-                .map_err(|error| error.to_string())??;
-                Ok(serde_json::json!(count))
-            }
-
-            "systemFileResource" => {
-                plain_server::host::file_resource::facts(self.core.data_directory(), params)
-            }
-            "scanFilesFacts" => {
-                let core = self.core.clone();
-                let completed = tokio::task::spawn_blocking(move || {
-                    core.native_media_catalog()?.scan_completed_files(params)
-                })
-                .await
-                .map_err(|error| error.to_string())??;
-                Ok(Value::Bool(completed))
-            }
             "mdnsMulticast" => {
                 let result = self
                     .multicast

@@ -337,52 +337,7 @@ export const contactsGQL = `
   ${contactFragment}
 `
 
-/** Count fields keyed by the home card count key. Servers differ: plain-nas
- *  only implements audio/image/video counts, the phone has the rest. */
-export type HomeStatKey =
-  | 'audios'
-  | 'images'
-  | 'videos'
-  | 'docs'
-  | 'packages'
-  | 'notes'
-  | 'feedEntries'
-  | 'messages'
-  | 'calls'
-  | 'contacts'
-
-const HOME_STATS_COUNT_FIELDS: Record<HomeStatKey, string> = {
-  audios: 'audioCount(query: $mediaQuery)',
-  images: 'imageCount(query: $mediaQuery)',
-  videos: 'videoCount(query: $mediaQuery)',
-  docs: 'docCount(query: "")',
-  packages: 'packageCount(query: "")',
-  notes: 'noteCount(query: "")',
-  feedEntries: 'feedEntryCount(query: "")',
-  messages: 'smsCount(query: "")',
-  calls: 'callCount(query: "")',
-  contacts: 'contactCount(query: "")',
-}
-
-/** Build the home stats query requesting only `countKeys` (plus mounts).
- *  Without keys this is a mounts-only probe, useful before the device type
- *  is known. */
-export function homeStatsGQL(countKeys: readonly HomeStatKey[] = []): string {
-  const fields = countKeys.map((key) => HOME_STATS_COUNT_FIELDS[key]).join('\n    ')
-  return `
-  query homeStats($mediaQuery: String!) {
-    ${fields}
-    mounts {
-      id
-      path
-      mountPoint
-      totalBytes
-      freeBytes
-      driveType
-    }
-  }
-`
-}
+export { homeStatsGQL, type HomeStatKey } from './home-stats'
 
 export const contactSourcesGQL = `
   query {

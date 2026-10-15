@@ -5,6 +5,7 @@
     :all-checked="allChecked" :checked="checked" :real-all-checked="realAllChecked" :total="total"
     :filter-trash="!!filter.trash"
     :can-trash="hasMediaTrash(app)"
+    :can-delete="hasMediaDelete(app)"
     :restore-query-loading="restoreLoading(getQuery())" :trash-query-loading="trashLoading(getQuery())"
     :limit="limit" :all-checked-alert-visible="allCheckedAlertVisible"
     :show-secondary="false"
@@ -23,7 +24,7 @@
       <v-icon-button v-tooltip="$t('add_to_playlist')" @click.stop="addItemsToPlaylist($event, selectedIds, realAllChecked, q)">
         <i-material-symbols:playlist-add />
       </v-icon-button>
-      <v-icon-button v-if="!filter.trash" v-tooltip="$t('move_to_folder')" :loading="moveLoading" @click.stop="onMoveClick(dataType, selectedIds, realAllChecked, getQuery())">
+      <v-icon-button v-if="!filter.trash && hasMediaMove(app)" v-tooltip="$t('move_to_folder')" :loading="moveLoading" @click.stop="onMoveClick(dataType, selectedIds, realAllChecked, getQuery())">
         <i-material-symbols:drive-file-move-outline-rounded />
       </v-icon-button>
     </template>
@@ -65,7 +66,7 @@ import { audiosGQL, initLazyQuery } from '@/lib/api/query'
 import type { IAudio, IAudioWithFileId } from '@/lib/interfaces'
 import { DataType, Capability } from '@/lib/data'
 import { getSortItems, isAudio } from '@/lib/file'
-import { hasFeature, hasMediaTrash } from '@/lib/feature'
+import { hasFeature, hasMediaTrash, hasMediaDelete, hasMediaMove } from '@/lib/feature'
 import { getFileId } from '@/lib/api/file'
 import { storeToRefs } from 'pinia'
 import { useMainStore } from '@/stores/main'

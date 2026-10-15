@@ -1,11 +1,11 @@
-import {
-  type DocumentIR,
-  type FragmentDef,
-  type SchemaIR,
-  type Selection,
-  type TypeDef,
-  type TypeRef,
-  type ValueNode,
+import type {
+  DocumentIR,
+  FragmentDef,
+  SchemaIR,
+  Selection,
+  TypeDef,
+  TypeRef,
+  ValueNode,
 } from './parser'
 
 export const BUILTIN_SCALARS = new Set(['Int', 'Float', 'String', 'Boolean', 'ID'])

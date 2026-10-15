@@ -14,6 +14,11 @@ export enum DataType {
 // String values match the server's Capability GraphQL enum items.
 export enum Capability {
   MEDIA_TRASH = 'MEDIA_TRASH',
+  MEDIA_DELETE = 'MEDIA_DELETE',
+  MEDIA_MOVE = 'MEDIA_MOVE',
+  MEDIA_FAVORITE = 'MEDIA_FAVORITE',
+  APP_UPDATES = 'APP_UPDATES',
+  DONATION = 'DONATION',
   MIRROR_AUDIO = 'MIRROR_AUDIO',
   DOC_PREVIEW = 'DOC_PREVIEW',
   IMAGE_SEARCH = 'IMAGE_SEARCH',
