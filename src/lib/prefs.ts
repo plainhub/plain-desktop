@@ -1,27 +1,32 @@
-/**
- * Unified preferences store.
- *
- * On Tauri: backed by the Rust-side plain-rs Prefs engine
- * (`<app_data_dir>/system_prefs.json` — the system store also used by
- * the local API server) through the `prefs_*` IPC commands.
- *   - Call `preload()` once during app bootstrap (before mounting) to
- *     populate the in-memory cache. Subsequent `get()` calls are
- *     synchronous.
- *   - `set()` updates the cache immediately and fire-and-forgets the
- *     async save.
- *
- * On web: backed by localStorage (unchanged behaviour).
- */
-import { invoke } from '@tauri-apps/api/core'
+import { nativeGraphql } from '@/lib/api/native-client'
 
 let cache: Map<string, unknown> = new Map()
+let writes: Promise<void> = Promise.resolve()
+
+async function localData<T>(query: string, variables?: Record<string, unknown>): Promise<T> {
+  const result = await nativeGraphql<{ data?: T; errors?: { message: string }[] }>({ query, variables }, 30000)
+  if (result.errors?.length) throw new Error(result.errors[0].message)
+  if (!result.data) throw new Error('Missing preference response')
+  return result.data
+}
+
+function persist(query: string, variables: Record<string, unknown>): Promise<void> {
+  const current = writes.then(async () => {
+    const data = await localData<{ result?: { affectedCount: number } }>(query, variables)
+    if (typeof data.result?.affectedCount !== 'number') throw new Error('Invalid preference write response')
+  })
+  writes = current.catch((error) => { console.error('Unable to save preferences', error) })
+  return current
+}
 
 export async function preload(): Promise<void> {
   if (!__IS_TAURI__) return
-  const entries = (await invoke('prefs_get_all')) as Array<[string, unknown]>
-  for (const [k, v] of entries) {
-    cache.set(k, v)
+  await writes
+  const data = await localData<{ systemPrefs: Record<string, unknown> }>('{ systemPrefs }')
+  if (!data.systemPrefs || typeof data.systemPrefs !== 'object' || Array.isArray(data.systemPrefs)) {
+    throw new Error('Invalid preference snapshot')
   }
+  cache = new Map(Object.entries(data.systemPrefs))
 }
 
 export function get<T>(key: string, fallback: T): T {
@@ -38,33 +43,24 @@ export function get<T>(key: string, fallback: T): T {
   }
 }
 
-export function set(key: string, value: unknown): void {
+export function set(key: string, value: unknown): Promise<void> {
   if (__IS_TAURI__) {
     cache.set(key, value)
-    invoke('prefs_set', { key, value }).catch(() => {})
-    return
+    return persist('mutation($key: String!, $value: JSON!) { result: setSystemPref(key: $key, value: $value) { affectedCount } }', { key, value })
   }
-  if (typeof value === 'string') {
-    localStorage.setItem(key, value)
-  } else {
-    localStorage.setItem(key, JSON.stringify(value))
-  }
+  localStorage.setItem(key, typeof value === 'string' ? value : JSON.stringify(value))
+  return Promise.resolve()
 }
 
-export function remove(key: string): void {
+export function remove(key: string): Promise<void> {
   if (__IS_TAURI__) {
     cache.delete(key)
-    invoke('prefs_remove', { key }).catch(() => {})
-    return
+    return persist('mutation($key: String!) { result: removeSystemPref(key: $key) { affectedCount } }', { key })
   }
   localStorage.removeItem(key)
+  return Promise.resolve()
 }
 
-export function clear(): void {
-  if (__IS_TAURI__) {
-    cache.clear()
-    invoke('prefs_clear').catch(() => {})
-    return
-  }
+export function clearWebPreferences(): void {
   localStorage.clear()
 }

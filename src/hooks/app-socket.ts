@@ -1,10 +1,10 @@
 import { onMounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { listen } from '@tauri-apps/api/event'
-import { invoke } from '@tauri-apps/api/core'
+import { gqlFetch } from '@/lib/api/gql-client'
 import emitter from '@/plugins/eventbus'
 import toast from '@/components/toaster'
-import { getWebSocketBaseUrl, getLocalToken, isNativeTarget } from '@/lib/api/api'
+import { getWebSocketBaseUrl, getLocalToken, isNativeTarget, setLocalServerPort, setLocalServerHttpsPort } from '@/lib/api/api'
 import { preloadLoginPeers } from '@/lib/device/login-peers'
 import { chachaDecrypt, chachaEncrypt, chachaEncryptBytes, bitArrayToUint8Array } from '@/lib/api/crypto'
 import { parseWebSocketData } from '@/lib/api/sjcl-arraybuffer'
@@ -74,8 +74,8 @@ export function useAppSocket() {
    * resolution reads that fresh host on the next connect().
    */
   const triggerMdnsBrowse = () => {
-    if (!__IS_TAURI__) return
-    invoke('mdns_browse').catch(() => {
+    if (!isLocalMode()) return
+    gqlFetch('mutation { browseMdns { revision } }').catch(() => {
       // ignore — browse is best-effort; retry will proceed without it
     })
   }
@@ -191,6 +191,11 @@ export function useAppSocket() {
   }
 
   onMounted(() => {
+    emitter.on('HTTP_SERVER_STARTED', (started) => {
+      setLocalServerPort(started.httpPort)
+      setLocalServerHttpsPort(started.httpsPort)
+      emitter.emit('refetch_app')
+    })
     emitter.on('toast', (r: string) => toast(t(r), 'error'))
     emitter.on('tap_phone', (r: string) => {
       tapPhoneMessage.value = r

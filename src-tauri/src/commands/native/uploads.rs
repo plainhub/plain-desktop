@@ -91,16 +91,6 @@ fn uploads(core: &ContentServer) -> Result<NativeUploads, String> {
     core.native_uploads()
 }
 
-/// Chunk entries already stored for `fileId`, as the shared core lists
-/// them. Resuming an interrupted upload reads this before writing.
-#[tauri::command]
-pub async fn native_upload_chunks(
-    core: State<'_, Arc<ContentServer>>,
-    file_id: String,
-) -> Result<Vec<String>, String> {
-    uploads(&core)?.uploaded_chunks(&file_id).await
-}
-
 #[tauri::command]
 pub async fn native_upload_chunk_open<R: Runtime>(
     core: State<'_, Arc<ContentServer>>,

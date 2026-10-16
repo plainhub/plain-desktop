@@ -48,13 +48,12 @@ pub fn run() {
         .manage(crate::commands::native::uploads::UploadWriters::default())
         .manage(crate::commands::native::archives::ArchiveReaders::default())
         .setup(|app| {
-            let data_dir = app
-                .path()
-                .app_data_dir()
-                .unwrap_or_else(|_| std::path::PathBuf::from("."));
+            plain_server::platform::version::set_version(&app.package_info().version.to_string());
+            let data_dir = app.path().app_data_dir()?;
+            let cache_dir = app.path().app_cache_dir()?;
             let core = Arc::new(
                 tauri::async_runtime::block_on(async {
-                    plain_server::assembly::server::ContentServer::open(&data_dir)
+                    plain_server::assembly::server::ContentServer::open_with_cache(&data_dir, &cache_dir)
                 })
                 .expect("open the shared core"),
             );
@@ -193,14 +192,7 @@ pub fn run() {
             let log_dir = app.path().app_log_dir()?;
             core.set_log_file(&log_dir.join("plain.log"))?;
             // The peer proxy dials by client id; the core owns the lookup.
-            let peer_resolver: plain_server::http::proxy::local::PeerResolver = {
-                let core = core.clone();
-                Arc::new(move |id: &str| {
-                    core.native_peers()
-                        .ok()
-                        .and_then(|peers| peers.address(id).ok().flatten())
-                })
-            };
+            let peer_resolver = core.peer_proxy_resolver();
             app.handle().manage(tauri::async_runtime::block_on(async {
                 plain_server::http::proxy::local::HttpProxyState::start(peer_resolver)
             }));
@@ -225,7 +217,7 @@ pub fn run() {
 
             if let Ok(catalog) = core.native_media_catalog() {
                 if let Err(error) =
-                    catalog.configure_scan_directories(&data_dir.join("cache"), None)
+                    catalog.configure_scan_directories( None)
                 {
                     log::warn!("media scan configuration failed: {error}");
                 }
@@ -250,14 +242,12 @@ pub fn run() {
             // Announce on the LAN after the listener is up, so peers can
             // actually reach the address the announcement carries.
             tauri::async_runtime::spawn(async move {
-                match core.native_discovery() {
-                    Ok(discovery) => {
-                        if let Err(error) = discovery.publish().await {
-                            log::warn!("mDNS announcement failed: {error}");
-                        }
-                    }
-                    Err(error) => log::warn!("discovery unavailable: {error}"),
-                }
+                let result = match core.native_graphql() {
+                    Ok(executor) => executor.execute(serde_json::from_value(serde_json::json!({"query":"mutation { publishMdns { published } }"})).expect("valid publication request")).await,
+                    Err(error) => { log::warn!("Discovery unavailable: {error}"); return; }
+                };
+                if let Some(error) = result.errors.first() { log::warn!("mDNS announcement failed: {}", error.message); }
+
             });
             Ok(())
         })
@@ -362,21 +352,6 @@ pub fn run() {
             }
         })
         .invoke_handler(tauri::generate_handler![
-            crate::commands::prefs::prefs_get_all,
-            crate::commands::prefs::prefs_set,
-            crate::commands::prefs::prefs_remove,
-            crate::commands::prefs::prefs_clear,
-            crate::commands::discover::login_peer,
-            crate::commands::discover::logout_peer,
-            crate::commands::discover::list_login_peers,
-            crate::commands::discover::update_peer_name,
-            crate::commands::discover::mdns_snapshot,
-            crate::commands::discover::mdns_activity,
-            crate::commands::discover::mdns_browse,
-            crate::commands::discover::mdns_start_browse,
-            crate::commands::discover::mdns_stop_browse,
-            crate::commands::discover::mdns_get_hostname,
-            crate::commands::discover::mdns_set_hostname,
             crate::commands::discover::mdns_firewall_status,
             crate::commands::discover::fix_mdns_firewall,
             crate::commands::notification::send_macos_notification,
@@ -388,10 +363,10 @@ pub fn run() {
             crate::commands::window::set_window_device_name,
             crate::commands::media_preview_pool::media_preview_init,
             crate::commands::media_preview_pool::media_preview_activate,
-            crate::commands::reveal::reveal_chat_file,
-            crate::commands::reveal::save_chat_file_as,
+            crate::commands::reveal::reveal_file,
+            crate::commands::reveal::save_file_as,
             crate::commands::reveal::save_text_file_as,
-            crate::commands::reveal::copy_chat_file_to_clipboard,
+            crate::commands::reveal::copy_file_to_clipboard,
             crate::commands::screen_capture::commands::screen_capture_register_target,
             crate::commands::screen_capture::commands::screen_capture_unregister_target,
             crate::commands::screen_capture::commands::screen_capture_start,
@@ -419,30 +394,11 @@ pub fn run() {
             crate::commands::screen_capture::commands::screen_capture_cancel,
             crate::commands::screen_capture::commands::screen_capture_unavailable,
             crate::commands::server::http_proxy_port,
-            crate::commands::server::local_server_port,
-            crate::commands::server::local_server_https_port,
-            crate::commands::server::local_server_token,
-            crate::commands::server::local_ipv4_strs,
-            crate::commands::server::set_http_port,
-            crate::commands::server::set_https_port,
-            crate::commands::server::restart_server,
-            crate::commands::pairing::pair_device,
-            crate::commands::pairing::respond_pair_device,
-            crate::commands::pairing::cancel_pair_device,
-            crate::commands::pairing::get_device_identity,
-            crate::commands::pairing::set_device_name,
-            crate::commands::dlna::dlna_state,
-            crate::commands::dlna::dlna_set_enabled,
-            crate::commands::dlna::dlna_accept_cast,
-            crate::commands::dlna::dlna_reject_cast,
-            crate::commands::dlna::dlna_senders,
-            crate::commands::dlna::dlna_remove_sender,
             crate::commands::native::graphql::native_graphql,
             crate::commands::native::events::native_events,
             crate::commands::native::resources::native_resource_open,
             crate::commands::native::resources::native_resource_close,
             crate::commands::native::resources::native_resource_close_owner,
-            crate::commands::native::uploads::native_upload_chunks,
             crate::commands::native::uploads::native_upload_chunk_open,
             crate::commands::native::uploads::native_upload_chunk_write,
             crate::commands::native::uploads::native_upload_chunk_finish,
@@ -452,13 +408,6 @@ pub fn run() {
             crate::commands::native::archives::native_archive_read,
             crate::commands::native::archives::native_archive_close,
             crate::commands::native::archives::native_archive_close_owner,
-            crate::commands::native::file_tasks::native_file_create_directory,
-            crate::commands::native::file_tasks::native_file_create_file,
-            crate::commands::native::file_tasks::native_file_write_text,
-            crate::commands::native::file_tasks::native_file_copy,
-            crate::commands::native::file_tasks::native_file_move,
-            crate::commands::native::file_tasks::native_file_tasks_list,
-            crate::commands::native::file_tasks::native_file_task_remove,
         ])
         .build(tauri::generate_context!())
         .expect("error while building tauri application");

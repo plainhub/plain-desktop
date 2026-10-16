@@ -1,7 +1,7 @@
 use std::sync::Arc;
 
 use plain_server::assembly::server::ContentServer;
-use plain_server::host::platform::{SYSTEM_APP_FACTS, SYSTEM_APP_UPDATE_FACTS, SYSTEM_DISKS_FACTS};
+use plain_server::host::platform::{SYSTEM_APP_UPDATE_FACTS, SYSTEM_DISKS_FACTS};
 use serde_json::Value;
 use tauri::Emitter;
 
@@ -32,13 +32,10 @@ impl Runtime {
                     .await
                     .map_err(|error| error.to_string())?
             }
-            "systemPermissionFacts" => {
-                let app = super::native::app::app_facts(
-                    self.core.data_directory(),
-                    self.capabilities.clone(),
-                )?;
-                plain_server::host::permission_facts::facts(&app.permissions, params)
-            }
+            "systemPermissionFacts" => plain_server::host::permission_facts::facts(
+                &["WRITE_EXTERNAL_STORAGE".to_owned()],
+                params,
+            ),
             "fileTaskAuthorize" => {
                 let allowed = tokio::task::spawn_blocking(move || {
                     plain_server::host::file_resource::authorize_read(params)
@@ -60,21 +57,6 @@ impl Runtime {
                 Ok(Value::Bool(result))
             }
 
-            "discoveryFacts" => {
-                let settings: plain_rs::prefs::user::UserSettings =
-                    serde_json::from_str(&self.core.user_settings_json()?)
-                        .map_err(|error| error.to_string())?;
-                let facts = super::native::discovery::discovery_facts(
-                    settings.device_name,
-                    self.app.package_info().version.to_string(),
-                )?;
-                serde_json::to_value(facts).map_err(|error| error.to_string())
-            }
-            SYSTEM_APP_FACTS => serde_json::to_value(super::native::app::app_facts(
-                self.core.data_directory(),
-                self.capabilities.clone(),
-            )?)
-            .map_err(|error| error.to_string()),
             SYSTEM_DISKS_FACTS => {
                 let facts = tokio::task::spawn_blocking(super::native::platform::disks)
                     .await

@@ -1,18 +1,18 @@
 use std::path::{Path, PathBuf};
 
-use tauri::{AppHandle, Manager};
+use tauri::AppHandle;
 use tauri_plugin_dialog::DialogExt;
 
-/// Resolve a chat file URI (`fid:`, `app://`, relative or absolute path)
-/// to a local on-disk path, returning `None` when the file does not exist.
-fn local_file_path(uri: &str, data_dir: &Path) -> Option<PathBuf> {
-    let path = plain_server::files::uri::resolve_uri(uri, data_dir);
-    path.is_file().then_some(path)
-}
-
-fn resolve_existing(app: &AppHandle, uri: &str) -> Result<PathBuf, String> {
-    let data_dir = app.path().app_data_dir().map_err(|e| e.to_string())?;
-    local_file_path(uri, &data_dir).ok_or_else(|| format!("File not found: {uri}"))
+fn existing_file(path: &str) -> Result<PathBuf, String> {
+    let path = Path::new(path);
+    if !path.is_absolute() {
+        return Err("Absolute file path required".into());
+    }
+    let path = std::fs::canonicalize(path).map_err(|error| error.to_string())?;
+    if !path.is_file() {
+        return Err("Regular file required".into());
+    }
+    Ok(path)
 }
 
 fn display_name(path: &Path) -> String {
@@ -21,21 +21,19 @@ fn display_name(path: &Path) -> String {
         .unwrap_or_else(|| "file".to_string())
 }
 
-/// Reveal a chat file in the platform file manager (Finder on macOS).
 #[tauri::command]
-pub fn reveal_chat_file(app: AppHandle, uri: String) -> Result<(), String> {
-    let path = resolve_existing(&app, &uri)?;
+pub fn reveal_file(path: String) -> Result<(), String> {
+    let path = existing_file(&path)?;
     tauri_plugin_opener::reveal_item_in_dir(path).map_err(|e| e.to_string())
 }
 
-/// Save a chat file to a user-chosen destination via the native save dialog.
 #[tauri::command]
-pub async fn save_chat_file_as(
+pub async fn save_file_as(
     app: AppHandle,
-    uri: String,
+    path: String,
     name: Option<String>,
 ) -> Result<(), String> {
-    let src = resolve_existing(&app, &uri)?;
+    let src = existing_file(&path)?;
     let default_name = name
         .map(|n| n.trim().to_string())
         .filter(|n| !n.is_empty())
@@ -47,10 +45,14 @@ pub async fn save_chat_file_as(
         .blocking_save_file();
     let Some(target) = target else { return Ok(()) };
     let dest = target.into_path().map_err(|e| e.to_string())?;
-    if dest == src {
+    copy_to(&src, &dest)
+}
+
+fn copy_to(source: &Path, destination: &Path) -> Result<(), String> {
+    if destination == source || std::fs::canonicalize(destination).ok().as_deref() == Some(source) {
         return Ok(());
     }
-    std::fs::copy(&src, &dest).map_err(|e| e.to_string())?;
+    std::fs::copy(source, destination).map_err(|error| error.to_string())?;
     Ok(())
 }
 
@@ -80,17 +82,14 @@ pub async fn save_text_file_as(
     Ok(())
 }
 
-/// Copy a chat file to the system clipboard so it can be pasted into
-/// Finder or other apps.
 #[tauri::command]
-pub fn copy_chat_file_to_clipboard(app: AppHandle, uri: String) -> Result<(), String> {
-    let path = resolve_existing(&app, &uri)?;
-    copy_file_to_clipboard(&path)
+pub fn copy_file_to_clipboard(path: String) -> Result<(), String> {
+    write_file_clipboard(&existing_file(&path)?)
 }
 
 /// Finder-style file copy: write the file URL as `NSPasteboardTypeFileURL`.
 #[cfg(target_os = "macos")]
-fn copy_file_to_clipboard(path: &Path) -> Result<(), String> {
+fn write_file_clipboard(path: &Path) -> Result<(), String> {
     use objc2_app_kit::{NSPasteboard, NSPasteboardTypeFileURL};
     use objc2_foundation::{NSData, NSString, NSURL};
 
@@ -111,40 +110,10 @@ fn copy_file_to_clipboard(path: &Path) -> Result<(), String> {
 }
 
 #[cfg(not(target_os = "macos"))]
-fn copy_file_to_clipboard(_path: &Path) -> Result<(), String> {
+fn write_file_clipboard(_path: &Path) -> Result<(), String> {
     Err("Copy to clipboard is only supported on macOS".to_string())
 }
 
 #[cfg(test)]
-mod tests {
-    use super::*;
-
-    fn temp_root(tag: &str) -> PathBuf {
-        let dir = std::env::temp_dir().join(format!("plain_reveal_{}_{}", std::process::id(), tag));
-        std::fs::create_dir_all(&dir).unwrap();
-        dir
-    }
-
-    #[test]
-    fn existing_fid_file_resolves() {
-        let dir = temp_root("exists");
-        std::fs::create_dir_all(dir.join("files/ab/cd")).unwrap();
-        let f = dir.join("files/ab/cd/abcdef.jpg");
-        std::fs::write(&f, b"x").unwrap();
-        assert_eq!(local_file_path("fid:abcdef.jpg", &dir), Some(f));
-    }
-
-    #[test]
-    fn missing_file_returns_none() {
-        let dir = temp_root("missing");
-        assert_eq!(local_file_path("fid:abcdef.jpg", &dir), None);
-        assert_eq!(local_file_path("app://Pictures/test.png", &dir), None);
-    }
-
-    #[test]
-    fn display_name_prefers_file_name() {
-        assert_eq!(display_name(Path::new("/data/files/cat.jpg")), "cat.jpg");
-        assert_eq!(display_name(Path::new("file.txt")), "file.txt");
-        assert_eq!(display_name(Path::new("/")), "file");
-    }
-}
+#[path = "../../tests/unit/commands/reveal.rs"]
+mod tests;

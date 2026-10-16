@@ -1,11 +1,7 @@
-import { invoke } from '@tauri-apps/api/core'
+import { gqlFetch } from '@/lib/api/gql-client'
+import { isLocalMode } from '@/lib/device/local-mode'
+import { loadDeviceIdentity, type DeviceIdentity } from '@/lib/device/identity'
 import { ref } from 'vue'
-
-export interface DeviceIdentity {
-  clientId: string
-  deviceName: string
-  publicKey: string
-}
 
 export function useDeviceIdentity() {
   const identity = ref<DeviceIdentity | null>(null)
@@ -13,27 +9,28 @@ export function useDeviceIdentity() {
   const saving = ref(false)
 
   async function load() {
-    if (!__IS_TAURI__) return
+    if (!isLocalMode()) return
     loading.value = true
     try {
-      identity.value = await invoke<DeviceIdentity>('get_device_identity')
+      identity.value = await loadDeviceIdentity()
     } catch (e) {
-      console.error('get_device_identity failed', e)
+      console.error('Device identity query failed', e)
     } finally {
       loading.value = false
     }
   }
 
   async function saveName(name: string) {
-    if (!__IS_TAURI__) return
+    if (!isLocalMode()) return
     saving.value = true
     try {
-      await invoke('set_device_name', { name })
+      const result = await gqlFetch('mutation($name: String!) { updateDeviceName(name: $name) }', { name })
+      if (result.errors?.length) throw new Error(result.errors[0].message)
       if (identity.value) {
         identity.value = { ...identity.value, deviceName: name }
       }
     } catch (e) {
-      console.error('set_device_name failed', e)
+      console.error('Device name update failed', e)
     } finally {
       saving.value = false
     }

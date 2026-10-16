@@ -69,7 +69,7 @@ import { useI18n } from 'vue-i18n'
 import { useMainStore } from '@/stores/main'
 import { useTempStore } from '@/stores/temp'
 import { storeToRefs } from 'pinia'
-import { clear as prefsClear } from '@/lib/prefs'
+import { clearWebPreferences as prefsClear } from '@/lib/prefs'
 import { useLocaleSwitch } from '@/composables/useLocaleSwitch'
 
 const props = defineProps({

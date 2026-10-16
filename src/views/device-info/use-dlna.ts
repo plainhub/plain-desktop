@@ -1,10 +1,9 @@
 import { ref } from 'vue'
-import { invoke } from '@tauri-apps/api/core'
+import { gqlFetch } from '@/lib/api/gql-client'
+import { isLocalMode } from '@/lib/device/local-mode'
 
 export type DlnaMediaType = 'VIDEO' | 'AUDIO' | 'IMAGE' | 'UNKNOWN'
 
-// Mirrors plain-app's `DlnaRendererState` snapshotted by the Rust
-// `dlna_state` command. `playbackState` is a string like "PLAYING".
 export interface DlnaStateSnapshot {
   enabled: boolean
   isRunning: boolean
@@ -30,49 +29,34 @@ export interface PendingCastRequest {
   albumArtUri: string
 }
 
-export interface DlnaSenders {
-  allowed: string[]
-  denied: string[]
-}
-
-// Mirrors plain-app's `TempData.dlnaEnabled` + the receiver engine state.
-// The desktop keeps DLNA running only while the toggle is on; toggling here
-// persists the preference and starts/stops the Rust renderer engine.
 export function useDlna() {
   const snapshot = ref<DlnaStateSnapshot | null>(null)
   const loading = ref(false)
 
   async function load() {
-    if (!__IS_TAURI__) return
+    if (!isLocalMode()) return
     try {
-      snapshot.value = await invoke<DlnaStateSnapshot>('dlna_state')
+      const result = await gqlFetch<{ dlnaReceiver: DlnaStateSnapshot }>('query { dlnaReceiver }')
+      if (result.errors?.length) throw new Error(result.errors[0].message)
+      snapshot.value = result.data?.dlnaReceiver ?? null
     } catch (e) {
-      console.error('dlna_state failed', e)
+      console.error('DLNA receiver query failed', e)
     }
   }
 
   async function setEnabled(enabled: boolean) {
-    if (!__IS_TAURI__) return
+    if (!isLocalMode()) return
     loading.value = true
     try {
-      await invoke('dlna_set_enabled', { enabled })
+      const result = await gqlFetch('mutation($input: DlnaReceiverInput!) { controlDlnaReceiver(input: $input) }', { input: { action: 'SET_ENABLED', enabled } })
+      if (result.errors?.length) throw new Error(result.errors[0].message)
       await load()
     } catch (e) {
-      console.error('dlna_set_enabled failed', e)
+      console.error('DLNA receiver control failed', e)
     } finally {
       loading.value = false
     }
   }
 
-  async function loadSenders(): Promise<DlnaSenders> {
-    if (!__IS_TAURI__) return { allowed: [], denied: [] }
-    try {
-      return await invoke<DlnaSenders>('dlna_senders')
-    } catch (e) {
-      console.error('dlna_senders failed', e)
-      return { allowed: [], denied: [] }
-    }
-  }
-
-  return { snapshot, loading, load, setEnabled, loadSenders }
+  return { snapshot, loading, load, setEnabled }
 }

@@ -1,4 +1,5 @@
-import { invoke } from '@tauri-apps/api/core'
+import { gqlFetch } from '@/lib/api/gql-client'
+import { isLocalMode } from '@/lib/device/local-mode'
 import { qrCodeSvg } from '@/lib/qr'
 import type { PairingRequest } from '@/lib/pairing-types'
 
@@ -16,23 +17,12 @@ export interface QrPairedDevice {
   deviceType: string
 }
 
-export function buildQrPairPayload(
-  identity: { clientId: string; deviceName: string },
-  ips: string[],
-  port: number,
-): string {
-  return `plainapp://pair?v=1&id=${identity.clientId}&name=${encodeURIComponent(identity.deviceName)}&ips=${ips.join(',')}&port=${port}`
-}
-
 export async function loadQrPairingCode(): Promise<QrPairingCode | null> {
-  if (!__IS_TAURI__) return null
+  if (!isLocalMode()) return null
   try {
-    const [identity, ips, port] = await Promise.all([
-      invoke<{ clientId: string; deviceName: string }>('get_device_identity'),
-      invoke<string[]>('local_ipv4_strs'),
-      invoke<number>('local_server_https_port'),
-    ])
-    const payload = buildQrPairPayload(identity, ips.filter((v) => v && !v.startsWith('127.')), port)
+    const result = await gqlFetch<{ pairingCode: string }>('query { pairingCode }', undefined, { fresh: true })
+    if (result.errors?.length) throw new Error(result.errors[0].message)
+    const payload = result.data.pairingCode
     return { payload, svg: qrCodeSvg(payload, { border: 2 }) }
   } catch (e) {
     console.error('load qr pairing code failed', e)
@@ -49,6 +39,6 @@ export function qrPairedDevice(request: PairingRequest): QrPairedDevice {
     ip,
     port: request.port,
     host: ip ? `${ip}:${request.port}` : '',
-    deviceType: request.deviceType || 'PHONE',
+    deviceType: request.deviceType || 'OTHER',
   }
 }

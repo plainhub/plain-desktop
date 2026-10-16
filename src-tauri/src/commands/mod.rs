@@ -1,6 +1,5 @@
 #[path = "discover/mod.rs"]
 pub mod discover;
-pub mod dlna;
 #[cfg(target_os = "macos")]
 pub mod macos_dock;
 #[cfg(target_os = "macos")]
@@ -8,8 +7,6 @@ pub mod macos_menu;
 pub mod media_preview_pool;
 pub mod native;
 pub mod notification;
-pub mod pairing;
-pub mod prefs;
 pub mod reveal;
 pub mod screen_capture;
 pub mod server;

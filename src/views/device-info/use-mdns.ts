@@ -1,5 +1,6 @@
 import { ref } from 'vue'
-import { invoke, isTauri } from '@tauri-apps/api/core'
+import { gqlFetch } from '@/lib/api/gql-client'
+import { isLocalMode } from '@/lib/device/local-mode'
 import toast from '@/components/toaster'
 import { useI18n } from 'vue-i18n'
 
@@ -34,13 +35,16 @@ export function useMdns() {
   const paused = ref(false)
   const saving = ref(false)
   const hostnameInvalid = ref(false)
-  let startedByPage = false
+  let sessionToken: string | undefined
+  let generation = 0
   let browsing = false
   let timer: ReturnType<typeof setInterval> | undefined
 
   async function loadHostname() {
-    if (!isTauri()) return
-    hostname.value = await invoke<string>('mdns_get_hostname')
+    if (!isLocalMode()) return
+    const result = await gqlFetch<{ systemSettings: { mdnsHostname: string } }>('query { systemSettings { mdnsHostname } }')
+    if (result.errors?.length) throw new Error(result.errors[0].message)
+    hostname.value = result.data.systemSettings.mdnsHostname
   }
 
   // Mirrors plain-app's MdnsAndPortEditDialog validation: non-blank and
@@ -51,7 +55,8 @@ export function useMdns() {
     if (hostnameInvalid.value) return false
     saving.value = true
     try {
-      await invoke('mdns_set_hostname', { hostname: h })
+      const result = await gqlFetch('mutation($input: SystemSettingsInput!) { updateSystemSettings(input: $input) { result { affectedCount } } }', { input: { action: 'SET_MDNS_HOSTNAME', hostname: h } })
+      if (result.errors?.length) throw new Error(result.errors[0].message)
       hostname.value = h
       toast(t('saved'))
       await refreshSnapshot()
@@ -67,49 +72,58 @@ export function useMdns() {
 
   async function refreshSnapshot() {
     try {
-      const [devices, events] = await Promise.all([
-        invoke<MdnsServiceSnapshot[]>('mdns_snapshot'),
-        invoke<MdnsActivity[]>('mdns_activity'),
-      ])
-      snapshots.value = devices
-      activity.value = events
+      const result = await gqlFetch<{ mdnsDebug: { services: MdnsServiceSnapshot[]; activity: MdnsActivity[] } }>(
+        'query { mdnsDebug { services { serviceType instanceName instanceFqdn hostname port txtRecords ips ipv6 complete } activity { time event detail } } }',
+        undefined, { fresh: true },
+      )
+      if (result.errors?.length) throw new Error(result.errors[0].message)
+      snapshots.value = result.data.mdnsDebug.services
+      activity.value = result.data.mdnsDebug.activity
     } catch (e) {
-      console.error('mdns_snapshot failed', e)
+      console.error('mDNS debug query failed', e)
     }
   }
 
+  async function release(token: string) {
+    const result = await gqlFetch('mutation($token: String!) { releaseMdnsDebugSession(token: $token) { debugSessionCount } }', { token })
+    if (result.errors?.length) throw new Error(result.errors[0].message)
+  }
+
   async function startBrowsing() {
-    if (!isTauri()) return
+    if (!isLocalMode() || browsing) return
     browsing = true
+    const current = ++generation
+    const token = crypto.randomUUID()
     try {
-      const started = await invoke<boolean>('mdns_start_browse')
-      if (!browsing) {
-        if (started) await invoke('mdns_stop_browse')
+      const result = await gqlFetch('mutation($token: String!) { acquireMdnsDebugSession(token: $token) { debugSessionCount } }', { token })
+      if (result.errors?.length) throw new Error(result.errors[0].message)
+      if (!browsing || generation !== current) {
+        await release(token)
         return
       }
-      startedByPage = started
+      sessionToken = token
       await refreshSnapshot()
-      if (browsing) {
+      if (browsing && generation === current) {
         timer = setInterval(() => {
           if (!paused.value) refreshSnapshot()
         }, 2000)
       }
     } catch (e) {
-      browsing = false
-      console.error('mdns_start_browse failed', e)
+      if (generation === current) browsing = false
+      console.error('mDNS debug session failed', e)
     }
   }
 
   function stopBrowsing() {
     browsing = false
+    generation++
     if (timer) {
       clearInterval(timer)
       timer = undefined
     }
-    if (startedByPage) {
-      startedByPage = false
-      invoke('mdns_stop_browse').catch((e) => console.error('mdns_stop_browse failed', e))
-    }
+    const token = sessionToken
+    sessionToken = undefined
+    if (token) release(token).catch((error) => console.error('mDNS debug session release failed', error))
   }
 
   return {

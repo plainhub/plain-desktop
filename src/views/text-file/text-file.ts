@@ -2,6 +2,7 @@ import { ref, computed, watch, onMounted, onBeforeUnmount } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { invoke } from '@tauri-apps/api/core'
+import { revealLocalFile } from '@/lib/native-file-actions'
 import { useTempStore } from '@/stores/temp'
 import { storeToRefs } from 'pinia'
 import { useMarkdown } from '@/hooks/markdown'
@@ -12,6 +13,7 @@ import { appGQL } from '@/lib/api/query'
 import { tokenToKey } from '@/lib/api/file'
 import { chachaDecrypt } from '@/lib/api/crypto'
 import { isLocalMode } from '@/lib/device/local-mode'
+import { hasFileReveal } from '@/lib/feature'
 import { getCurrentAuthToken } from '@/lib/device/current'
 
 const isTauri = __IS_TAURI__
@@ -81,7 +83,7 @@ export function useTextFile() {
   })
   const canEdit = computed(() => isLoggedIn.value && !!decryptedPath.value)
   const showInFinder = computed(() =>
-    isTauri && isLocalMode() && !!decryptedPath.value && !decryptedPath.value.startsWith('fsid:')
+    hasFileReveal(app.value) && isLocalMode() && !!decryptedPath.value && !decryptedPath.value.startsWith('fsid:')
   )
 
   // Mutation
@@ -172,7 +174,7 @@ export function useTextFile() {
   const openViewer = () => { router.push({ name: 'text-file', query: { id: fileId.value } }) }
 
   const revealInFinder = () => {
-    invoke('reveal_chat_file', { uri: decryptedPath.value }).catch((err) => console.error('reveal_chat_file failed', err))
+    revealLocalFile(decryptedPath.value).catch((err) => console.error('reveal file failed', err))
   }
 
   const downloadFile = () => {

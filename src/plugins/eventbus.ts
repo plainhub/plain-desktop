@@ -1,9 +1,11 @@
 import type { IItemTagsUpdatedEvent, IItemsTagsUpdatedEvent, IFileDeletedEvent, IFileRenamedEvent, IMediaItemsActionedEvent, INotesActionedEvent, ISmsChangedEvent, ISmsSendResultEvent, IMmsSendResultEvent, IUploadMergeResultEvent, IScanProgress } from '@/lib/interfaces'
+import type { HttpServerStarted } from '@/lib/api/local-server'
 import type { PairingRequest, PairingResult } from '@/lib/pairing-types'
 import type { IUploadItem } from '@/stores/temp'
 import type { ScreenMirrorVideoCodec } from '@/views/screen-mirror/screen-mirror-pipeline'
 
 type Events = {
+  HTTP_SERVER_STARTED: HttpServerStarted
   upload_task_done: IUploadItem
   upload_progress: IUploadItem
   UPLOAD_MERGE_RESULT: IUploadMergeResultEvent

@@ -14,6 +14,7 @@ import { applyUrlClientId } from '@/lib/device/client-id'
 import { preloadLoginPeers } from '@/lib/device/login-peers'
 import { applyMenuLabels } from '@/lib/app-menu'
 import { preventUnhandledFileDrop } from '@/lib/file-drop'
+import { readLocalServer } from '@/lib/api/local-server'
 
 if (!__IS_TAURI__) {
   // Web: prefs are synchronous (localStorage) — safe to apply immediately.
@@ -31,13 +32,8 @@ export async function bootstrapFullApp(): Promise<void> {
   if (__IS_TAURI__) {
     document.documentElement.classList.add('tauri')
     preventUnhandledFileDrop()
-    // Load all prefs from the Rust-side prefs engine into memory FIRST so synchronous
-    // readers (i18n, stores) see the persisted values without hitting localStorage.
     await preloadPrefs()
-    // Ensure client_id exists in prefs for Tauri mode.
-    if (!prefsGet('client_id', '')) {
-      prefsSet('client_id', shortUUID())
-    }
+    if (!prefsGet('client_id', '')) throw new Error('Missing core client identity')
     // Pull `?__cid=` (set by `openWindow` when spawning child windows) into
     // sessionStorage. Must run AFTER preloadPrefs(): the local-vs-device
     // check compares the cid against the persisted desktop client_id, which
@@ -49,9 +45,11 @@ export async function bootstrapFullApp(): Promise<void> {
     const { invoke } = await import('@tauri-apps/api/core')
     await Promise.all([
       invoke<number>('http_proxy_port').then(setHttpProxyPort),
-      invoke<number>('local_server_port').then(setLocalServerPort),
-      invoke<number>('local_server_https_port').then(setLocalServerHttpsPort),
-      invoke<string>('local_server_token').then(setLocalServerToken),
+      readLocalServer().then((server) => {
+        setLocalServerPort(server.httpPort)
+        setLocalServerHttpsPort(server.httpsPort)
+        setLocalServerToken(server.urlToken)
+      }),
       preloadLoginPeers(),
     ])
   }

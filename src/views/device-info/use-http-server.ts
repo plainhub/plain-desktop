@@ -1,5 +1,5 @@
 import { ref, computed } from 'vue'
-import { invoke } from '@tauri-apps/api/core'
+import { readLocalAddresses, restartLocalServer } from '@/lib/api/local-server'
 import { useTempStore } from '@/stores/temp'
 import { storeToRefs } from 'pinia'
 import toast from '@/components/toaster'
@@ -33,9 +33,9 @@ export function useHttpServer() {
   async function loadIps() {
     if (!__IS_TAURI__) return
     try {
-      ips.value = await invoke<string[]>('local_ipv4_strs')
+      ips.value = await readLocalAddresses()
     } catch (e) {
-      console.error('local_ipv4_strs failed', e)
+      console.error('network addresses failed', e)
     }
   }
 
@@ -43,15 +43,10 @@ export function useHttpServer() {
     if (!__IS_TAURI__) return false
     saving.value = true
     try {
-      const cmd = kind === 'http' ? 'set_http_port' : 'set_https_port'
-      await invoke(cmd, { port })
-      await invoke('restart_server')
-      const [httpPort, httpsPort] = await Promise.all([
-        invoke<number>('local_server_port'),
-        invoke<number>('local_server_https_port'),
-      ])
-      setLocalServerPort(httpPort)
-      setLocalServerHttpsPort(httpsPort)
+      const server = await restartLocalServer(kind, port)
+      setLocalServerPort(server.httpPort)
+      setLocalServerHttpsPort(server.httpsPort)
+      if (server.error) throw new Error(server.error)
       emitter.emit('refetch_app')
       toast(t('saved'))
       return true

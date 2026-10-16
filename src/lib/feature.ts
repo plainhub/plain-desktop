@@ -13,3 +13,12 @@ export const hasMediaDelete = (app: { capabilities?: string[] } | undefined) =>
 
 export const hasMediaMove = (app: { capabilities?: string[] } | undefined) =>
   hasFeature(Capability.MEDIA_MOVE, app?.capabilities)
+
+export const hasFileExport = (app: { capabilities?: string[] } | undefined) =>
+  hasFeature(Capability.FILE_EXPORT, app?.capabilities)
+
+export const hasFileReveal = (app: { capabilities?: string[] } | undefined) =>
+  hasFeature(Capability.FILE_REVEAL, app?.capabilities)
+
+export const hasFileClipboard = (app: { capabilities?: string[] } | undefined) =>
+  hasFeature(Capability.FILE_CLIPBOARD, app?.capabilities)

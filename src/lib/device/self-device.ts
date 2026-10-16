@@ -1,5 +1,6 @@
-import { invoke } from '@tauri-apps/api/core'
-import { DeviceType } from '@/lib/status'
+import { gqlFetch } from '@/lib/api/gql-client'
+import { isLocalMode } from '@/lib/device/local-mode'
+import type { DeviceType } from '@/lib/status'
 
 export interface SelfDevice {
   id: string
@@ -12,22 +13,23 @@ export interface SelfDevice {
 }
 
 export async function loadSelfDevice(): Promise<SelfDevice | null> {
-  if (!__IS_TAURI__) return null
+  if (!isLocalMode()) return null
   try {
-    const [identity, ips, port] = await Promise.all([
-      invoke<{ clientId: string; deviceName: string; publicKey: string }>('get_device_identity'),
-      invoke<string[]>('local_ipv4_strs'),
-      invoke<number>('local_server_https_port'),
-    ])
+    const result = await gqlFetch<{ discoveryReply: { id: string; name: string; ips: string[]; port: number; deviceType: DeviceType }; systemSettings: { signaturePublicKey: string } }>(
+      'query { discoveryReply { id name ips port deviceType } systemSettings { signaturePublicKey } }',
+    )
+    if (result.errors?.length) throw new Error(result.errors[0].message)
+    const reply = result.data.discoveryReply
+    const { ips, port } = reply
     const ip = ips.find((v) => !v.startsWith('127.')) || ips[0] || ''
     return {
-      id: identity.clientId,
-      name: identity.deviceName || '',
+      id: reply.id,
+      name: reply.name || '',
       host: ip ? `${ip}:${port}` : '',
-      deviceType: DeviceType.COMPUTER,
+      deviceType: reply.deviceType,
       ips,
       port,
-      publicKey: identity.publicKey,
+      publicKey: result.data.systemSettings.signaturePublicKey,
     }
   } catch (e) {
     console.error('load self device failed', e)

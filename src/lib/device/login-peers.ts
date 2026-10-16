@@ -1,9 +1,15 @@
 import { ref } from 'vue'
-import { invoke } from '@tauri-apps/api/core'
+import { nativeGraphql } from '@/lib/api/native-client'
 import type { IPeer } from '@/lib/interfaces'
 import { DeviceType } from '@/lib/status'
 
 const AUTH_TOKEN_KEY = 'auth_token'
+
+async function localData<T>(query: string, variables?: Record<string, unknown>): Promise<T> {
+  const result = await nativeGraphql<{ data: T; errors?: { message: string }[] }>({ query, variables }, 30000)
+  if (result.errors?.length) throw new Error(result.errors[0].message)
+  return result.data
+}
 
 export type LoginPeer = IPeer & { token: string; publicKey: string }
 
@@ -38,7 +44,10 @@ export const loginPeers = ref<LoginPeer[]>([])
 export async function preloadLoginPeers(): Promise<void> {
   if (!__IS_TAURI__) return
   try {
-    loginPeers.value = await invoke<LoginPeer[]>('list_login_peers')
+    const result = await localData<{ loggedInPeers: { peer: Omit<LoginPeer, 'online'>; online: boolean }[] }>(
+      'query { loggedInPeers { peer { id name ip status port deviceType token publicKey createdAt updatedAt } online } }',
+    )
+    loginPeers.value = result.loggedInPeers.map(({ peer, online }) => ({ ...peer, online }))
   } catch (e) {
     console.error('list_login_peers failed', e)
   }
@@ -56,7 +65,7 @@ export async function saveLoginPeer(input: SaveLoginPeerInput): Promise<void> {
     localStorage.setItem(AUTH_TOKEN_KEY, input.token)
     return
   }
-  await invoke('login_peer', {
+  await localData('mutation($input: PeerLoginInput!) { loginPeer(input: $input) }', { input: {
     id: input.clientId,
     name: input.name,
     host: input.host,
@@ -64,7 +73,7 @@ export async function saveLoginPeer(input: SaveLoginPeerInput): Promise<void> {
     token: input.token,
     signaturePublicKey: input.signaturePublicKey,
     chatKey: input.chatKey,
-  })
+  } })
   await preloadLoginPeers()
 }
 
@@ -75,7 +84,7 @@ export async function clearLoginPeer(clientId: string): Promise<void> {
     localStorage.removeItem(AUTH_TOKEN_KEY)
     return
   }
-  await invoke('logout_peer', { id: clientId })
+  await localData('mutation($id: ID!) { logoutPeer(id: $id) }', { id: clientId })
   await preloadLoginPeers()
 }
 
@@ -84,6 +93,6 @@ export async function updateLoginPeerName(clientId: string, name: string): Promi
   if (!__IS_TAURI__ || !name) return
   const peer = findLoginPeer(clientId)
   if (!peer || peer.name === name) return
-  await invoke('update_peer_name', { id: clientId, name })
+  await localData('mutation($id: ID!, $name: String!) { updatePeerName(id: $id, name: $name) }', { id: clientId, name })
   peer.name = name
 }

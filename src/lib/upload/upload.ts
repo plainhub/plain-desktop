@@ -57,10 +57,6 @@ function isNativeUploadTarget(): boolean {
   return isLocalModeAllowed()
 }
 
-async function nativeUploadedChunks(fileId: string): Promise<string[]> {
-  return invoke<string[]>('native_upload_chunks', { fileId })
-}
-
 async function nativeWriteChunk(upload: IUploadItem, chunkData: IUploadChunk, onProgress: (bytes: number) => void): Promise<boolean> {
   const fileId = upload.fileId || ''
   let handle = ''
@@ -481,7 +477,7 @@ async function getUploadedChunks(fileId: string, fileSize: number, totalChunks: 
   try {
     // A false timeout here degrades to re-uploading every chunk, so give the
     // query a much wider budget than the 30s default.
-    const result = isNativeUploadTarget() ? { data: { uploadedChunks: await nativeUploadedChunks(fileId) } } : await gqlFetch(uploadedChunksGQL, { fileId }, { timeout: 120_000 })
+    const result = await gqlFetch(uploadedChunksGQL, { fileId }, { timeout: 120_000 })
     const raw: string[] = result.data?.uploadedChunks ? [...result.data.uploadedChunks] : []
     if (raw.length === 0) return []
 
