@@ -7,6 +7,7 @@ pub fn desktop_capabilities() -> Vec<&'static str> {
         "NOTIFICATIONS",
         "NOTES",
         "FEEDS",
+        "BACKGROUND_TIMER",
         "POMODORO",
         "APP_UPDATES",
     ];

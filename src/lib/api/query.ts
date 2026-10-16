@@ -990,3 +990,9 @@ export const isDiscoveringGQL = `
     isDiscovering
   }
 `
+
+export const appUpdateGQL = `
+  query appUpdate {
+    appUpdate { currentVersion latestVersion hasUpdate url releaseName publishedAt }
+  }
+`

@@ -40,20 +40,20 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
-import { invoke, isTauri } from '@tauri-apps/api/core'
+import { ref, onMounted, watch } from 'vue'
+import { storeToRefs } from 'pinia'
+import { useTempStore } from '@/stores/temp'
+import { Capability } from '@/lib/data'
+import { hasFeature } from '@/lib/feature'
+import { gqlFetchOp } from '@/lib/api/gql-client'
+import type { GqlResultType } from '@/lib/api/graphql/operations'
+import { appUpdateGQL } from '@/lib/api/query'
 import { openUrl } from '@/lib/browser'
 import { copyTextToClipboard } from '@/lib/clipboard'
 
-interface UpdateCheck {
-  currentVersion: string
-  latestVersion: string
-  hasUpdate: boolean
-  releaseName: string
-  releaseUrl: string
-  publishedAt: string
-}
+type UpdateCheck = GqlResultType<'appUpdateGQL'>['appUpdate']
 
+const { app } = storeToRefs(useTempStore())
 const version = __APP_VERSION__
 const status = ref<'loading' | 'success' | 'error' | ''>('')
 const result = ref<UpdateCheck | null>(null)
@@ -85,14 +85,13 @@ const statusClass = () => {
 }
 
 async function runCheck() {
-  // The update check is a Tauri command. In a browser `window.__TAURI_INTERNALS__`
-  // is undefined, so calling invoke throws a TypeError that the global error
-  // boundary turns into a full-page error screen over an otherwise fine page.
-  if (!isTauri()) return
+  if (!hasFeature(Capability.APP_UPDATES, app.value?.capabilities)) return
   status.value = 'loading'
   error.value = ''
   try {
-    result.value = await invoke<UpdateCheck>('check_for_updates', {})
+    const response = await gqlFetchOp('appUpdateGQL', appUpdateGQL, undefined)
+    if (response.errors?.length) throw new Error(response.errors[0].message)
+    result.value = response.data.appUpdate
     status.value = 'success'
   } catch (e) {
     status.value = 'error'
@@ -101,13 +100,16 @@ async function runCheck() {
 }
 
 function goToRelease() {
-  if (result.value?.releaseUrl) openUrl(result.value.releaseUrl)
+  if (result.value?.url) openUrl(result.value.url)
 }
 
 onMounted(() => {
   buildInfo()
-  runCheck()
 })
+
+watch(() => hasFeature(Capability.APP_UPDATES, app.value?.capabilities), (supported) => {
+  if (supported) runCheck()
+}, { immediate: true })
 </script>
 
 <style scoped>

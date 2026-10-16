@@ -57,25 +57,6 @@ fn the_root_volume_is_named_after_its_device() {
     assert_eq!(disk_name(&usb), "usb archive");
 }
 
-#[test]
-fn maps_the_existing_update_check_into_shared_facts() {
-    let check = UpdateCheck {
-        current_version: "0.1.12".to_string(),
-        latest_version: "0.2.0".to_string(),
-        has_update: true,
-        release_name: "Desktop 0.2.0".to_string(),
-        release_url: "https://example.invalid/releases/0.2.0".to_string(),
-        published_at: "2026-01-01T00:00:00Z".to_string(),
-    };
-    let facts = update_facts("0.1.12".to_string(), check);
-    assert_eq!(facts.current_version, "0.1.12");
-    assert_eq!(facts.latest_version.as_deref(), Some("0.2.0"));
-    assert!(facts.has_update);
-    assert_eq!(
-        facts.url.as_deref(),
-        Some("https://example.invalid/releases/0.2.0")
-    );
-}
 
 #[test]
 fn reported_disks_are_backed_by_a_real_device() {

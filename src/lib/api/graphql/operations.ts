@@ -16,7 +16,7 @@ export interface Fragment_AppFragment {
   appDir: string
   deviceName: string
   deviceType: 'COMPUTER' | 'PHONE' | 'TABLET' | 'TV' | 'NAS' | 'OTHER'
-  capabilities: Array<'FILE_EXPORT' | 'FILE_REVEAL' | 'FILE_CLIPBOARD' | 'APP_RELAUNCH' | 'MEDIA_TRASH' | 'MEDIA_DELETE' | 'MEDIA_MOVE' | 'MEDIA_FAVORITE' | 'VIDEO_REMUX' | 'VIDEO_TRANSCODE' | 'VIDEO_3GP_CONVERT' | 'APP_UPDATES' | 'DONATION' | 'MIRROR_AUDIO' | 'DOC_PREVIEW' | 'IMAGE_SEARCH' | 'MEDIA_SCAN' | 'SMS' | 'CALLS' | 'CALL_PHONE' | 'CONTACTS' | 'PACKAGES' | 'NOTES' | 'FEEDS' | 'SCREEN_MIRROR' | 'IMAGE_EDITOR' | 'NOTIFICATIONS' | 'CLIPBOARD' | 'POMODORO' | 'LAN_SHARE' | 'DISK_MANAGER'>
+  capabilities: Array<'BACKGROUND_TIMER' | 'BACKGROUND_WAKE' | 'FILE_EXPORT' | 'FILE_REVEAL' | 'FILE_CLIPBOARD' | 'APP_RELAUNCH' | 'MEDIA_TRASH' | 'MEDIA_DELETE' | 'MEDIA_MOVE' | 'MEDIA_FAVORITE' | 'VIDEO_REMUX' | 'VIDEO_TRANSCODE' | 'VIDEO_3GP_CONVERT' | 'APP_UPDATES' | 'DONATION' | 'MIRROR_AUDIO' | 'DOC_PREVIEW' | 'IMAGE_SEARCH' | 'MEDIA_SCAN' | 'SMS' | 'CALLS' | 'CALL_PHONE' | 'CONTACTS' | 'PACKAGES' | 'NOTES' | 'FEEDS' | 'SCREEN_MIRROR' | 'IMAGE_EDITOR' | 'NOTIFICATIONS' | 'CLIPBOARD' | 'POMODORO' | 'LAN_SHARE' | 'DISK_MANAGER'>
   buildChannel: 'GITHUB' | 'GOOGLE' | 'FDROID'
   permissions: Array<'WRITE_EXTERNAL_STORAGE' | 'READ_SMS' | 'SEND_SMS' | 'READ_CONTACTS' | 'WRITE_CONTACTS' | 'READ_CALL_LOG' | 'WRITE_CALL_LOG' | 'CALL_PHONE' | 'POST_NOTIFICATIONS' | 'NEARBY_WIFI_DEVICES' | 'ACCESS_FINE_LOCATION' | 'CAMERA' | 'SYSTEM_ALERT_WINDOW' | 'RECORD_AUDIO' | 'READ_MEDIA_IMAGES' | 'READ_MEDIA_VIDEOS' | 'READ_MEDIA_AUDIO' | 'NOTIFICATION_LISTENER' | 'READ_PHONE_STATE' | 'READ_PHONE_NUMBERS' | 'SCHEDULE_EXACT_ALARM' | 'QUERY_ALL_PACKAGES' | 'ADB' | 'CLIPBOARD'>
   downloadsDir: string
@@ -484,6 +484,19 @@ export interface GqlOperations {
       offset: number
       limit: number
     }
+  }
+  appUpdateGQL: {
+    result: {
+      appUpdate: {
+        currentVersion: string
+        latestVersion?: string
+        hasUpdate: boolean
+        url?: string
+        releaseName: string
+        publishedAt?: string
+      }
+    }
+    variables: undefined
   }
   archivedSmsConversationsGQL: {
     result: {

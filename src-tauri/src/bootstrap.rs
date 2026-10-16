@@ -355,7 +355,6 @@ pub fn run() {
             crate::commands::discover::mdns_firewall_status,
             crate::commands::discover::fix_mdns_firewall,
             crate::commands::notification::send_macos_notification,
-            crate::commands::updater::check_for_updates,
             #[cfg(target_os = "macos")]
             crate::commands::macos_menu::set_menu_locale,
             crate::commands::window::open_window,

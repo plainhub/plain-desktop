@@ -1,7 +1,7 @@
 use std::sync::Arc;
 
 use plain_server::assembly::server::ContentServer;
-use plain_server::host::platform::{SYSTEM_APP_UPDATE_FACTS, SYSTEM_DISKS_FACTS};
+use plain_server::host::platform::SYSTEM_DISKS_FACTS;
 use serde_json::Value;
 use tauri::Emitter;
 
@@ -63,10 +63,7 @@ impl Runtime {
                     .map_err(|error| error.to_string())??;
                 serde_json::to_value(facts).map_err(|error| error.to_string())
             }
-            SYSTEM_APP_UPDATE_FACTS => {
-                let facts = super::native::platform::app_update(&self.app).await?;
-                serde_json::to_value(facts).map_err(|error| error.to_string())
-            }
+
             _ => Err(format!("Unsupported desktop host method: {method}")),
         }
     }

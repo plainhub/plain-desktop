@@ -1,6 +1,4 @@
-use plain_server::host::platform::{AppUpdateFacts, DiskFacts, DisksFacts};
-
-use crate::commands::updater::UpdateCheck;
+use plain_server::host::platform::{DiskFacts, DisksFacts};
 
 struct MountEntry {
     device: String,
@@ -14,21 +12,6 @@ pub fn disks() -> Result<DisksFacts, String> {
 /// A readable OS that reports no disk is an empty list, not a failure.
 fn disks_facts(disks: Result<Vec<DiskFacts>, String>) -> Result<DisksFacts, String> {
     disks.map(|disks| DisksFacts { disks })
-}
-
-pub async fn app_update(app: &tauri::AppHandle) -> Result<AppUpdateFacts, String> {
-    let current_version = app.package_info().version.to_string();
-    let check = crate::commands::updater::check_for_updates(app.clone()).await?;
-    Ok(update_facts(current_version, check))
-}
-
-fn update_facts(current_version: String, check: UpdateCheck) -> AppUpdateFacts {
-    AppUpdateFacts {
-        current_version,
-        latest_version: Some(check.latest_version),
-        has_update: check.has_update,
-        url: Some(check.release_url),
-    }
 }
 
 #[cfg_attr(not(any(target_os = "linux", target_os = "macos")), allow(dead_code))]

@@ -13,6 +13,8 @@ export enum DataType {
 
 // String values match the server's Capability GraphQL enum items.
 export enum Capability {
+  BACKGROUND_TIMER = 'BACKGROUND_TIMER',
+  BACKGROUND_WAKE = 'BACKGROUND_WAKE',
   FILE_EXPORT = 'FILE_EXPORT',
   FILE_REVEAL = 'FILE_REVEAL',
   FILE_CLIPBOARD = 'FILE_CLIPBOARD',
