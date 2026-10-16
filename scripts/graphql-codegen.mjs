@@ -1,4 +1,5 @@
 import { readFile, writeFile, readdir } from 'node:fs/promises'
+import { readApiSchema } from '../../plain-core/scripts/read-api-schema.mjs'
 import { fileURLToPath } from 'node:url'
 import { extractDocuments } from '../src/lib/api/graphql/extract.ts'
 import { parseDocument, parseSchema } from '../src/lib/api/graphql/parser.ts'
@@ -19,7 +20,7 @@ await scan()
 const extracted = extractDocuments(files)
 const errors = [...extracted.errors]
 for (const warning of extracted.warnings.filter((item) => item.file !== 'lib/api/home-stats.ts' || !['fields', 'variables'].includes(item.expr))) errors.push(`${warning.file}:${warning.line}: unresolved ${warning.expr}`)
-const schema = parseSchema(await readFile(new URL('../../plain-core/plain-rs/testdata/public-schema.graphqls', import.meta.url), 'utf8'))
+const schema = parseSchema(readApiSchema())
 const documents = []
 const keys = new Map()
 const mainDocuments = extracted.docs.filter((doc) => doc.file !== 'lib/api/guest.ts')

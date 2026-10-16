@@ -1,10 +1,10 @@
-import { readFileSync } from 'node:fs'
+import { readApiSchema } from '../../../plain-core/scripts/read-api-schema.mjs'
 import { describe, expect, it } from 'vitest'
 import { homeStatsGQL, HOME_STATS_COUNT_FIELDS, type HomeStatKey } from '../../src/lib/api/home-stats'
 import { parseDocument, parseSchema } from '../../src/lib/api/graphql/parser'
 import { validateDocument } from '../../src/lib/api/graphql/schema'
 
-const schema = parseSchema(readFileSync(new URL('../../../plain-core/plain-rs/testdata/public-schema.graphqls', import.meta.url), 'utf8'))
+const schema = parseSchema(readApiSchema())
 
 describe('capability-selected home counts', () => {
   it('requests exactly the selected fields and declares the media filter only when used', () => {
