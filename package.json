@@ -14,11 +14,8 @@
     "build:tauri:frontend": "vite build --mode tauri",
     "preview": "vite preview --port 5050",
     "typecheck": "vue-tsc --noEmit",
-    "test": "yarn test:api",
-    "test:watch": "yarn workspace @plain/api-test vitest",
-    "test:integration": "yarn test:api",
-    "test:api": "yarn workspace @plain/api-test test",
-    "test:api:typecheck": "yarn workspace @plain/api-test typecheck",
+    "test": "vitest run",
+    "test:watch": "vitest",
     "graphql:codegen": "node scripts/graphql-codegen.mjs",
     "graphql:check": "node scripts/graphql-codegen.mjs --check"
   },
@@ -91,8 +88,5 @@
     "vitest": "^4.1.8",
     "vue-eslint-parser": "^10.1.3",
     "vue-tsc": "^2.2.10"
-  },
-  "workspaces": [
-    "api-test"
-  ]
+  }
 }

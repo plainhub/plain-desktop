@@ -4,7 +4,7 @@ const { native, remote } = vi.hoisted(() => ({ native: vi.fn(), remote: vi.fn() 
 vi.mock('@/lib/api/native-client', () => ({ nativeGraphql: native }))
 vi.mock('@/lib/api/gql-client', () => ({ gqlFetch: remote }))
 
-import { readLocalAddresses, readLocalServer, restartLocalServer } from '../../../src/lib/api/local-server'
+import { readLocalAddresses, readLocalServer, restartLocalServer } from '../../src/lib/api/local-server'
 
 const pending = { revision: 1, restarting: true, httpPort: 8080, httpsPort: 8443, error: '' }
 
@@ -16,11 +16,11 @@ afterEach(() => {
 
 it('reads live listener ports, resource token and addresses from the local main schema', async () => {
   native.mockResolvedValueOnce({ data: { app: { httpPort: 8180, httpsPort: 8543, urlToken: 'local-token' } } })
-    .mockResolvedValueOnce({ data: { discoveryReply: { ips: ['192.0.2.1'] } } })
+    .mockResolvedValueOnce({ data: { app: { network: { ipv4Addresses: ['192.0.2.1'] } } } })
   expect(await readLocalServer()).toEqual({ httpPort: 8180, httpsPort: 8543, urlToken: 'local-token' })
   expect(await readLocalAddresses()).toEqual(['192.0.2.1'])
   expect(native.mock.calls[0][0].query).toContain('app { httpPort httpsPort urlToken }')
-  expect(native.mock.calls[1][0].query).toContain('discoveryReply { ips }')
+  expect(native.mock.calls[1][0].query).toContain('app { network { ipv4Addresses } }')
   expect(remote).not.toHaveBeenCalled()
 })
 

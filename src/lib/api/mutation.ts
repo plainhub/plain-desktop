@@ -40,6 +40,7 @@ export function initMutation(params: InitMutationParams, handleError = true) {
       for (const cb of doneCallbacks) cb(r)
       return r
     } catch (e: any) {
+      if (e instanceof GqlError && e.cancelled) return undefined
       const message = e instanceof GqlError ? e.message : 'network_error'
       if (handleError) emitter.emit('toast', message)
       for (const cb of errorCallbacks) cb(e)
@@ -93,6 +94,15 @@ export const updateDeviceNameGQL = `
 `
 
 // --- GraphQL Mutation Definitions ---
+
+export const forwardChatItemsGQL = `
+  mutation forwardChatItems($id: ID!, $targets: [String!]!) {
+    forwardChatItems(id: $id, targets: $targets) {
+      ...ChatItemFragment
+    }
+  }
+  ${chatItemFragment}
+`
 
 export const sendChatItemGQL = `
   mutation sendChatItem($target: String!, $content: String!) {
@@ -236,6 +246,12 @@ export const copyFileGQL = `
 export const moveFileGQL = `
   mutation moveFile($src: String!, $dst: String!, $overwrite: Boolean!) {
     moveFile(src: $src, dst: $dst, overwrite: $overwrite)
+  }
+`
+
+export const reportAudioPlaybackGQL = `
+  mutation reportAudioPlayback($path: String!, $revision: Long!, $positionMs: Long!, $started: Boolean!) {
+    reportAudioPlayback(path: $path, revision: $revision, positionMs: $positionMs, started: $started)
   }
 `
 
@@ -889,15 +905,15 @@ export const deleteDbTableRowsGQL = `
   }
 `
 
-export const startDiscoveryGQL = `
-  mutation {
-    startDiscovery
+export const acquireDiscoveryGQL = `
+  mutation AcquireDiscovery($token: ID!) {
+    acquireDiscovery(token: $token)
   }
 `
 
-export const stopDiscoveryGQL = `
-  mutation {
-    stopDiscovery
+export const releaseDiscoveryGQL = `
+  mutation ReleaseDiscovery($token: ID!) {
+    releaseDiscovery(token: $token)
   }
 `
 
@@ -975,4 +991,20 @@ export const setSambaUserPasswordGQL = `
   mutation setSambaUserPassword($password: String!) {
     setSambaUserPassword(password: $password)
   }
+`
+
+export const advanceAudioSelectionGQL = `
+  mutation advanceAudioSelection($action: AudioSelectionAction!, $expectedPath: String!, $expectedRevision: Long!) {
+    advanceAudioSelection(action: $action, expectedPath: $expectedPath, expectedRevision: $expectedRevision) {
+      track { ...AudioItemFragment }
+      path
+      positionMs
+      revision
+    }
+  }
+  ${audioItemFragment}
+`
+
+export const cycleAudioPlayModeGQL = `
+  mutation cycleAudioPlayMode { cycleAudioPlayMode }
 `

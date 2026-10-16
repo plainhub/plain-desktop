@@ -45,6 +45,7 @@ pub fn run() {
         .plugin(tauri_plugin_clipboard_manager::init())
         .manage(crate::commands::media_preview_pool::MediaPreviewState::default())
         .manage(crate::commands::screen_capture::runtime::ScreenCaptureRuntime::default())
+        .manage(crate::commands::native::views::NativeViews::default())
         .manage(crate::commands::native::uploads::UploadWriters::default())
         .manage(crate::commands::native::archives::ArchiveReaders::default())
         .setup(|app| {
@@ -267,6 +268,7 @@ pub fn run() {
                     .flatten();
             let result = match payload.event() {
                 tauri::webview::PageLoadEvent::Started => {
+                    crate::commands::native::views::page_changed(&app, webview.label(), true);
                     if crate::commands::screen_capture::runtime::is_overlay_window_label(webview.label()) {
                         log::info!(
                             "screen capture overlay page load started generation={overlay_generation:?}"
@@ -312,6 +314,7 @@ pub fn run() {
                 );
             }
             if let tauri::WindowEvent::Destroyed = event {
+                crate::commands::native::views::page_changed(window.app_handle(), window.label(), false);
                 crate::commands::screen_capture::commands::on_window_destroyed(
                     window.app_handle(),
                     window.label(),
@@ -393,6 +396,7 @@ pub fn run() {
             crate::commands::screen_capture::commands::screen_capture_cancel,
             crate::commands::screen_capture::commands::screen_capture_unavailable,
             crate::commands::server::http_proxy_port,
+            crate::commands::native::graphql::native_view_scope,
             crate::commands::native::graphql::native_graphql,
             crate::commands::native::events::native_events,
             crate::commands::native::resources::native_resource_open,

@@ -41,6 +41,7 @@ export function useDocsActions(
     openModal(DeleteFileConfirm, {
       files: [{ path: item.path, name: item.title }] as unknown as IFile[],
       onDone: () => { arrayRemove(items.value, (it: IDoc) => it.id === item.id) },
+      onError: fetch,
     })
   }
 

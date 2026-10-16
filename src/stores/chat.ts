@@ -106,6 +106,10 @@ export const useChatStore = defineStore('chat', () => {
     setCached<IChatChannel[]>('chat:channels', channelCacher.channels.value)
   })
 
+  emitter.on('PEER_UPDATED', () => {
+    void peerCacher.load().then(() => setCached<IPeer[]>('chat:peers', peersCacheValue()))
+  })
+
   emitter.on('PEER_STATUS_UPDATED', (data) => {
     if (!data?.id) return
     peerCacher.setOnline(data.id, !!data.online)

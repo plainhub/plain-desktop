@@ -86,6 +86,7 @@ export function initQuery<TResult = any>(params: InitQueryParams<TResult>) {
         params.handle(r.data, '')
       }
     } catch (e: any) {
+      if (e instanceof GqlError && e.cancelled) return
       params.handle(undefined as any, getErrorMessage(e))
     } finally {
       loading.value = false
@@ -155,6 +156,7 @@ export function initLazyQuery<TResult = any>(params: InitQueryParams<TResult>) {
         params.handle(r.data, '', context)
       }
     } catch (e: any) {
+      if (e instanceof GqlError && e.cancelled) return
       if (!options.latest || latestRequestId === latestSequence) {
         params.handle(undefined as any, getErrorMessage(e), context)
       }
@@ -510,6 +512,7 @@ export const audioQueueGQL = `
     }
     total: audioQueueItemCount
     playback: audioPlayback {
+      revision
       mode
       mediaId
       path
@@ -994,5 +997,11 @@ export const isDiscoveringGQL = `
 export const appUpdateGQL = `
   query appUpdate {
     appUpdate { currentVersion latestVersion hasUpdate url releaseName publishedAt }
+  }
+`
+
+export const nearbyDevicesGQL = `
+  query NearbyDevices {
+    nearbyDevices { id name ips port deviceType version platform lastSeen status discoveryMethods }
   }
 `

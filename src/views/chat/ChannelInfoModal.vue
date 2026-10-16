@@ -9,7 +9,7 @@
       <div class="section-title">{{ $t('channel_members') }} ({{ channel.members.length }})</div>
       <ul class="card list-items">
         <ChannelMemberListItem v-for="member in enrichedMembers" :key="member.peerId" :member="member">
-          <template v-if="isOwner && !member.isSelf && member.peerId !== channel.ownerId" #end>
+          <template v-if="channel.actions.canManageMembers && !member.isSelf && member.peerId !== channel.ownerId" #end>
             <v-outlined-button v-if="member.status === MemberStatus.PENDING" :loading="pendingIds.has(member.peerId)" :disabled="pendingIds.has(member.peerId)" @click.stop="cancelInvite(member.peerId)">{{ $t('cancel') }}</v-outlined-button>
             <v-outlined-button
 v-else v-tooltip="$t('remove_member')" 
@@ -19,7 +19,7 @@ v-else v-tooltip="$t('remove_member')"
         </ChannelMemberListItem>
       </ul>
 
-      <template v-if="isOwner && availablePeers.length > 0">
+      <template v-if="channel.actions.canManageMembers && availablePeers.length > 0">
         <div class="section-title">{{ $t('add_member') }}</div>
         <ul class="card list-items">
           <ChannelMemberListItem
@@ -58,7 +58,6 @@ const channel = ref({ ...props.channel })
 const { app } = useTempStore()
 const selfId = app.clientId
 const deviceName = computed(() => app.deviceName || selfId.substring(0, 8))
-const isOwner = computed(() => channel.value.ownerId === selfId)
 const memberIds = computed(() => new Set(channel.value.members.map((m) => m.peerId)))
 const availablePeers = computed(() => props.peers.filter((p) => p.status === PeerStatus.PAIRED && !memberIds.value.has(p.id)))
 

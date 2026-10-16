@@ -23,16 +23,16 @@
           <div class="dropdown-item" @click="emitInfo">
             {{ $t('channel_info') }}
           </div>
-          <div v-if="isOwner" class="dropdown-item" @click="openRename">
+          <div v-if="channel.actions.canRename" class="dropdown-item" @click="openRename">
             {{ $t('rename') }}
           </div>
           <div class="dropdown-item" @click="confirmingClear = true">
             {{ $t('clear_messages') }}
           </div>
-          <div v-if="isOwner || [ChannelStatus.KICKED, ChannelStatus.LEFT].includes(channel.status)" class="dropdown-item" @click="confirmingDelete = true">
+          <div v-if="channel.actions.canDelete" class="dropdown-item" @click="confirmingDelete = true">
             {{ $t('delete_channel') }}
           </div>
-          <div v-else class="dropdown-item" @click="confirmingLeave = true">
+          <div v-if="channel.actions.canLeave" class="dropdown-item" @click="confirmingLeave = true">
             {{ $t('leave_channel') }}
           </div>
         </template>
@@ -67,7 +67,6 @@ import { clearChatMessages, useTasks } from '../hooks/chat'
 import RenameChannelModal from '@/views/chat/RenameChannelModal.vue'
 import type { IChatChannel } from '@/lib/interfaces'
 import { decryptChatId } from '../hooks/chat-route'
-import { ChannelStatus } from '@/lib/status'
 
 const props = defineProps<{
   channel: IChatChannel
@@ -84,7 +83,7 @@ const emit = defineEmits<{
 const router = useRouter()
 const mainStore = useMainStore()
 const chatStore = useChatStore()
-const { urlTokenKey, app } = storeToRefs(useTempStore())
+const { urlTokenKey } = storeToRefs(useTempStore())
 
 const currentChatId = computed(() => {
   if (router.currentRoute.value.path.includes('app-files')) return ''
@@ -104,7 +103,6 @@ const clearLoading = ref(false)
 const confirmingLeave = ref(false)
 const leaveLoading = ref(false)
 const { cancelByChatId } = useTasks()
-const isOwner = computed(() => !!app.value?.clientId && props.channel.ownerId === app.value.clientId)
 
 watch(menuVisible, (v) => {
   if (!v) {

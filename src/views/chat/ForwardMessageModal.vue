@@ -30,10 +30,8 @@
 import { ref, computed } from 'vue'
 import type { PropType } from 'vue'
 import { popModal } from '@/components/modal'
-import { initMutation, sendChatItemGQL } from '@/lib/api/mutation'
+import { initMutation, forwardChatItemsGQL } from '@/lib/api/mutation'
 import { useChatStore } from '@/stores/chat'
-import { messageNeedsDownload } from './hooks/chat-upload'
-import { fetchLatestChatContent } from './hooks/forward-content'
 import type { IChatItem } from '@/lib/interfaces'
 
 const props = defineProps({
@@ -48,7 +46,7 @@ const channelTargets = computed(() => chatStore.joinedChannels.filter((c) => `ch
 const peerTargets = computed(() => chatStore.pairedPeers.filter((p) => `peer:${p.id}` !== props.excludeChatId))
 
 const { mutate } = initMutation({
-  document: sendChatItemGQL,
+  document: forwardChatItemsGQL,
 })
 
 function toggle(id: string) {
@@ -60,14 +58,9 @@ let submitting = false
 async function doForward() {
   if (!selected.value.length || submitting) return
   submitting = true
+  const targets = [...selected.value]
   popModal()
-  let content = props.message.content
-  if (messageNeedsDownload(props.message)) {
-    content = (await fetchLatestChatContent(props.message.id, props.excludeChatId)) ?? content
-  }
-  for (const toId of selected.value) {
-    mutate({ target: toId, content })
-  }
+  await mutate({ id: props.message.id, targets })
 }
 
 function close() {
@@ -93,7 +86,7 @@ function close() {
   align-items: center;
   justify-content: space-between;
   gap: 8px;
-  padding: 4px 4px 4px 12px;
+  padding: 4px 4px 4px 16px;
   border-radius: 8px;
   cursor: pointer;
 

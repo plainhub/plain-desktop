@@ -16,7 +16,7 @@ export interface Fragment_AppFragment {
   appDir: string
   deviceName: string
   deviceType: 'COMPUTER' | 'PHONE' | 'TABLET' | 'TV' | 'NAS' | 'OTHER'
-  capabilities: Array<'BACKGROUND_TIMER' | 'BACKGROUND_WAKE' | 'FILE_EXPORT' | 'FILE_REVEAL' | 'FILE_CLIPBOARD' | 'APP_RELAUNCH' | 'MEDIA_TRASH' | 'MEDIA_DELETE' | 'MEDIA_MOVE' | 'MEDIA_FAVORITE' | 'VIDEO_REMUX' | 'VIDEO_TRANSCODE' | 'VIDEO_3GP_CONVERT' | 'APP_UPDATES' | 'DONATION' | 'MIRROR_AUDIO' | 'DOC_PREVIEW' | 'IMAGE_SEARCH' | 'MEDIA_SCAN' | 'SMS' | 'CALLS' | 'CALL_PHONE' | 'CONTACTS' | 'PACKAGES' | 'NOTES' | 'FEEDS' | 'SCREEN_MIRROR' | 'IMAGE_EDITOR' | 'NOTIFICATIONS' | 'CLIPBOARD' | 'POMODORO' | 'LAN_SHARE' | 'DISK_MANAGER'>
+  capabilities: Array<'PEER_DISCOVERY' | 'BLE_DISCOVERY' | 'WIFI_AWARE' | 'BACKGROUND_SERVICE' | 'LAUNCHER_SHORTCUTS' | 'FILE_BROWSER' | 'IMAGE_LIBRARY' | 'AUDIO_LIBRARY' | 'VIDEO_LIBRARY' | 'DOCUMENT_LIBRARY' | 'SOUND_METER' | 'BACKGROUND_TIMER' | 'BACKGROUND_WAKE' | 'FILE_EXPORT' | 'FILE_REVEAL' | 'FILE_CLIPBOARD' | 'APP_RELAUNCH' | 'MEDIA_TRASH' | 'MEDIA_DELETE' | 'MEDIA_MOVE' | 'MEDIA_FAVORITE' | 'VIDEO_REMUX' | 'VIDEO_TRANSCODE' | 'VIDEO_3GP_CONVERT' | 'APP_UPDATES' | 'DONATION' | 'MIRROR_AUDIO' | 'DOC_PREVIEW' | 'IMAGE_SEARCH' | 'MEDIA_SCAN' | 'SMS' | 'CALLS' | 'CALL_PHONE' | 'CONTACTS' | 'PACKAGES' | 'NOTES' | 'FEEDS' | 'SCREEN_MIRROR' | 'IMAGE_EDITOR' | 'NOTIFICATIONS' | 'CLIPBOARD' | 'POMODORO' | 'LAN_SHARE' | 'DISK_MANAGER'>
   buildChannel: 'GITHUB' | 'GOOGLE' | 'FDROID'
   permissions: Array<'WRITE_EXTERNAL_STORAGE' | 'READ_SMS' | 'SEND_SMS' | 'READ_CONTACTS' | 'WRITE_CONTACTS' | 'READ_CALL_LOG' | 'WRITE_CALL_LOG' | 'CALL_PHONE' | 'POST_NOTIFICATIONS' | 'NEARBY_WIFI_DEVICES' | 'ACCESS_FINE_LOCATION' | 'CAMERA' | 'SYSTEM_ALERT_WINDOW' | 'RECORD_AUDIO' | 'READ_MEDIA_IMAGES' | 'READ_MEDIA_VIDEOS' | 'READ_MEDIA_AUDIO' | 'NOTIFICATION_LISTENER' | 'READ_PHONE_STATE' | 'READ_PHONE_NUMBERS' | 'SCHEDULE_EXACT_ALARM' | 'QUERY_ALL_PACKAGES' | 'ADB' | 'CLIPBOARD'>
   downloadsDir: string
@@ -89,6 +89,13 @@ export interface Fragment_CallFragment {
 }
 
 export interface Fragment_ChatChannelFragment {
+  actions: {
+    isOwner: boolean
+    canRename: boolean
+    canManageMembers: boolean
+    canLeave: boolean
+    canDelete: boolean
+  }
   id: string
   name: string
   ownerId: string
@@ -393,6 +400,14 @@ export interface GqlOperations {
       id: string
     }
   }
+  acquireDiscoveryGQL: {
+    result: {
+      acquireDiscovery: boolean
+    }
+    variables: {
+      token: string
+    }
+  }
   addAudioToQueueGQL: {
     result: {
       addAudioToQueue: boolean
@@ -439,6 +454,21 @@ export interface GqlOperations {
       type: 'DEFAULT' | 'AUDIO' | 'VIDEO' | 'IMAGE' | 'SMS' | 'CONTACT' | 'NOTE' | 'FEED_ENTRY' | 'CALL' | 'PACKAGE' | 'FILE' | 'APP_FILE' | 'DOC'
       tagIds: Array<string>
       query: string
+    }
+  }
+  advanceAudioSelectionGQL: {
+    result: {
+      advanceAudioSelection?: {
+        track?: Fragment_AudioItemFragment
+        path: string
+        positionMs: number
+        revision: number
+      }
+    }
+    variables: {
+      action: 'NEXT' | 'PREVIOUS' | 'COMPLETED'
+      expectedPath: string
+      expectedRevision: number
     }
   }
   allContactsGQL: {
@@ -532,6 +562,7 @@ export interface GqlOperations {
       items: Array<Fragment_AudioItemFragment>
       total: number
       playback: {
+        revision: number
         mode: 'REPEAT' | 'REPEAT_ONE' | 'SHUFFLE'
         mediaId?: string
         path?: string
@@ -774,6 +805,12 @@ export interface GqlOperations {
       type: 'DEFAULT' | 'AUDIO' | 'VIDEO' | 'IMAGE' | 'SMS' | 'CONTACT' | 'NOTE' | 'FEED_ENTRY' | 'CALL' | 'PACKAGE' | 'FILE' | 'APP_FILE' | 'DOC'
       name: string
     }
+  }
+  cycleAudioPlayModeGQL: {
+    result: {
+      cycleAudioPlayMode: 'REPEAT' | 'REPEAT_ONE' | 'SHUFFLE'
+    }
+    variables: undefined
   }
   dbPathGQL: {
     result: {
@@ -1293,6 +1330,15 @@ export interface GqlOperations {
       path: string
     }
   }
+  forwardChatItemsGQL: {
+    result: {
+      forwardChatItems: Array<Fragment_ChatItemFragment>
+    }
+    variables: {
+      id: string
+      targets: Array<string>
+    }
+  }
   GET_QUERY: {
     result: {
       imageEditorProject?: {
@@ -1540,6 +1586,23 @@ export interface GqlOperations {
       destDir: string
     }
   }
+  nearbyDevicesGQL: {
+    result: {
+      nearbyDevices: Array<{
+        id: string
+        name: string
+        ips: Array<string>
+        port: number
+        deviceType: string
+        version: string
+        platform: string
+        lastSeen: string
+        status: string
+        discoveryMethods: Array<string>
+      }>
+    }
+    variables: undefined
+  }
   noteCountGQL: {
     result: {
       total: number
@@ -1768,6 +1831,14 @@ export interface GqlOperations {
     }
     variables: undefined
   }
+  releaseDiscoveryGQL: {
+    result: {
+      releaseDiscovery: boolean
+    }
+    variables: {
+      token: string
+    }
+  }
   removeAudioFromQueueGQL: {
     result: {
       removeAudioFromQueue: boolean
@@ -1840,6 +1911,17 @@ export interface GqlOperations {
       id: string
       actionIndex: number
       text: string
+    }
+  }
+  reportAudioPlaybackGQL: {
+    result: {
+      reportAudioPlayback: boolean
+    }
+    variables: {
+      path: string
+      revision: number
+      positionMs: number
+      started: boolean
     }
   }
   requestScreenMirrorAudioGQL: {
@@ -2177,12 +2259,6 @@ export interface GqlOperations {
       query: string
     }
   }
-  startDiscoveryGQL: {
-    result: {
-      startDiscovery: boolean
-    }
-    variables: undefined
-  }
   startImageIndexGQL: {
     result: {
       startImageIndex: boolean
@@ -2206,12 +2282,6 @@ export interface GqlOperations {
     variables: {
       audio: boolean
     }
-  }
-  stopDiscoveryGQL: {
-    result: {
-      stopDiscovery: boolean
-    }
-    variables: undefined
   }
   stopMediaScanGQL: {
     result: {

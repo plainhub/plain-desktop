@@ -1,4 +1,4 @@
-import { ref, computed } from 'vue'
+import { ref, computed, onUnmounted } from 'vue'
 import { readLocalAddresses, restartLocalServer } from '@/lib/api/local-server'
 import { useTempStore } from '@/stores/temp'
 import { storeToRefs } from 'pinia'
@@ -38,6 +38,9 @@ export function useHttpServer() {
       console.error('network addresses failed', e)
     }
   }
+
+  emitter.on('NETWORK_CHANGED', loadIps)
+  onUnmounted(() => emitter.off('NETWORK_CHANGED', loadIps))
 
   async function savePort(kind: 'http' | 'https', port: number): Promise<boolean> {
     if (!__IS_TAURI__) return false

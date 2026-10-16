@@ -15,7 +15,7 @@ afterEach(() => {
 })
 
 it('preloads synchronous readers from the local main schema', async () => {
-  const prefs = await import('../../../src/lib/prefs')
+  const prefs = await import('../../src/lib/prefs')
   native.mockResolvedValue({ data: { systemPrefs: { client_id: 'local-core', locale: 'fr', 'main_state:peer': { selected: 'files' } } } })
   await prefs.preload()
   expect(native.mock.calls[0][0].query).toBe('{ systemPrefs }')
@@ -27,7 +27,7 @@ it('preloads synchronous readers from the local main schema', async () => {
 })
 
 it('serializes optimistic writes and deletes through existing main mutations', async () => {
-  const prefs = await import('../../../src/lib/prefs')
+  const prefs = await import('../../src/lib/prefs')
   let complete!: (value: unknown) => void
   native.mockImplementationOnce(() => new Promise((resolve) => { complete = resolve }))
     .mockResolvedValue({ data: { result: { affectedCount: 1 } } })
@@ -47,7 +47,7 @@ it('serializes optimistic writes and deletes through existing main mutations', a
 })
 
 it('reports rejected writes and continues processing later writes', async () => {
-  const prefs = await import('../../../src/lib/prefs')
+  const prefs = await import('../../src/lib/prefs')
   const report = vi.spyOn(console, 'error').mockImplementation(() => {})
   native.mockResolvedValueOnce({ errors: [{ message: 'no_permission' }] })
     .mockResolvedValueOnce({ data: { result: { affectedCount: 1 } } })
@@ -61,7 +61,7 @@ it('reports rejected writes and continues processing later writes', async () => 
 })
 
 it('rejects unreadable startup snapshots instead of inventing a local identity', async () => {
-  const prefs = await import('../../../src/lib/prefs')
+  const prefs = await import('../../src/lib/prefs')
   for (const response of [{ errors: [{ message: 'no_permission' }] }, {}, { data: {} }, { data: { systemPrefs: [] } }]) {
     native.mockResolvedValueOnce(response)
     await expect(prefs.preload()).rejects.toThrow()
@@ -78,7 +78,7 @@ it('keeps browser storage and logout independent of the native core', async () =
     removeItem: (key: string) => storage.delete(key),
     clear: () => storage.clear(),
   })
-  const prefs = await import('../../../src/lib/prefs')
+  const prefs = await import('../../src/lib/prefs')
   await prefs.preload()
   await prefs.set('locale', 'fr')
   await prefs.set('main_state:peer', { selected: 'files' })

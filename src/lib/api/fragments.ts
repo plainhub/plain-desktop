@@ -446,6 +446,7 @@ export const chatChannelMemberFragment = `
 
 export const chatChannelFragment = `
   fragment ChatChannelFragment on ChatChannel {
+    actions { isOwner canRename canManageMembers canLeave canDelete }
     id
     name
     ownerId

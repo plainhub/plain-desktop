@@ -1,4 +1,4 @@
-import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
+import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { useI18n } from 'vue-i18n'
 import toast from '@/components/toaster'
 import type { PomodoroSettings } from '@/types/pomodoro'
@@ -19,12 +19,10 @@ const STATE_MAP: Record<string, 'work' | 'shortBreak' | 'longBreak'> = {
 export function usePomodoro() {
   const { t } = useI18n()
 
-  // Mutations
   const { mutate: startPomodoroMutation } = initMutation({ document: startPomodoroGQL })
   const { mutate: stopPomodoroMutation } = initMutation({ document: stopPomodoroGQL })
   const { mutate: pausePomodoroMutation } = initMutation({ document: pausePomodoroGQL })
 
-  // State
   const settings = ref<PomodoroSettings>({
     workDurationMin: 25,
     shortBreakDurationMin: 5,
@@ -41,62 +39,38 @@ export function usePomodoro() {
   const currentRound = ref(1)
   const completedToday = ref(0)
 
-  let timer: ReturnType<typeof setInterval> | null = null
+  function applySnapshot(today: any) {
+    if (!today) return
+    completedToday.value = today.completedCount
+    currentRound.value = today.currentRound
+    timeLeft.value = today.timeLeftSec
+    totalTime.value = today.totalTimeSec
+    isRunning.value = today.isRunning
+    isPaused.value = today.isPaused
+    currentPhase.value = STATE_MAP[today.state] || 'work'
+  }
 
-  // Timer core
-  function initTimer(phase: 'work' | 'shortBreak' | 'longBreak') {
-    currentPhase.value = phase
-    const durations = {
-      work: settings.value.workDurationMin,
-      shortBreak: settings.value.shortBreakDurationMin,
-      longBreak: settings.value.longBreakDurationMin,
+  async function command(action: () => Promise<unknown>) {
+    try {
+      await action()
+      await refetch()
+    } catch (error) {
+      console.error('Pomodoro command failed:', error)
     }
-    timeLeft.value = durations[phase] * 60
-    totalTime.value = durations[phase] * 60
-  }
-
-  function setTimerState(running: boolean, paused: boolean) {
-    isRunning.value = running
-    isPaused.value = paused
-    if (!running) clearTimer()
-  }
-
-  function clearTimer() {
-    if (timer) {
-      clearInterval(timer)
-      timer = null
-    }
-  }
-
-  function startTimerInterval() {
-    clearTimer()
-    timer = setInterval(() => {
-      if (timeLeft.value > 0) {
-        timeLeft.value--
-      } else {
-        timerComplete()
-      }
-    }, 1000)
   }
 
   function startTimer() {
-    if (timeLeft.value === 0) initTimer('work')
-    setTimerState(true, false)
-    startPomodoroMutation({ durationSec: timeLeft.value }).catch((e) => console.error('Failed to start pomodoro:', e))
-    startTimerInterval()
+    return command(() => startPomodoroMutation({ durationSec: timeLeft.value }))
   }
 
   function pauseTimer() {
-    setTimerState(false, true)
-    pausePomodoroMutation().catch((e) => console.error('Failed to pause pomodoro:', e))
+    return command(() => pausePomodoroMutation())
   }
 
   const resumeTimer = startTimer
 
   function stopTimer() {
-    setTimerState(false, false)
-    stopPomodoroMutation().catch((e) => console.error('Failed to stop pomodoro:', e))
-    initTimer(currentPhase.value)
+    return command(() => stopPomodoroMutation())
   }
 
   function handleClick(event: MouseEvent) {
@@ -109,111 +83,55 @@ export function usePomodoro() {
     let angle = Math.atan2(event.clientX - centerX, -(event.clientY - centerY))
     if (angle < 0) angle += 2 * Math.PI
     const elapsedTime = Math.round((angle / (2 * Math.PI)) * totalTime.value)
-    timeLeft.value = Math.max(0, totalTime.value - elapsedTime)
-    setTimerState(true, false)
-    startPomodoroMutation({ durationSec: timeLeft.value }).catch((e) => console.error('Failed to update pomodoro progress:', e))
-    startTimerInterval()
+    const seconds = Math.max(1, totalTime.value - elapsedTime)
+    void command(() => startPomodoroMutation({ durationSec: seconds }))
   }
 
-  function showNotification() {
-    const title = currentPhase.value === 'work' ? t('work_completed') : t('break_completed')
-    const body = currentPhase.value === 'work' ? t('time_for_break') : t('time_for_work')
+  function showNotification(completedState: string) {
+    const title = completedState === 'WORK' ? t('work_completed') : t('break_completed')
+    const body = completedState === 'WORK' ? t('time_for_break') : t('time_for_work')
     showDesktopNotification({ title, body, icon: '/favicon.ico' }).catch(() => {
       toast(`${title} - ${body}`)
     })
   }
 
-  function timerComplete() {
-    setTimerState(false, false)
-    if (settings.value.playSoundOnComplete) playNotificationSound()
-    if (settings.value.showNotification) showNotification()
-
-    if (currentPhase.value === 'work') {
-      completedToday.value++
-      if (currentRound.value >= settings.value.pomodorosBeforeLongBreak) {
-        initTimer('longBreak')
-        currentRound.value = 1
-        if (!settings.value.showNotification) toast(t('long_break_time'))
-      } else {
-        initTimer('shortBreak')
-        currentRound.value++
-        if (!settings.value.showNotification) toast(t('short_break_time'))
-      }
-    } else {
-      initTimer('work')
-      if (!settings.value.showNotification) toast(t('work_time_start'))
-    }
-  }
-
-  // WebSocket handlers
   function handlePomodoroAction(data: any) {
-    if (!data) return
-    if (data.timeLeftSec !== undefined) timeLeft.value = data.timeLeftSec
-    if (data.totalTimeSec !== undefined) totalTime.value = data.totalTimeSec
-    if (data.completedCount !== undefined) completedToday.value = data.completedCount
-    if (data.round !== undefined) currentRound.value = data.round
-    if (data.state !== undefined) currentPhase.value = STATE_MAP[data.state] || 'work'
-
-    switch (data.action) {
-      case 'start':
-        isRunning.value = true
-        isPaused.value = false
-        if (timeLeft.value > 0) startTimerInterval()
-        break
-      case 'pause':
-        isRunning.value = false
-        isPaused.value = true
-        clearTimer()
-        break
-      case 'stop':
-        isRunning.value = false
-        isPaused.value = false
-        clearTimer()
-        break
+    if (!data?.today) return
+    applySnapshot(data.today)
+    if (!data.completedState) return
+    if (settings.value.playSoundOnComplete) playNotificationSound()
+    if (settings.value.showNotification) {
+      showNotification(data.completedState)
+    } else {
+      const message = currentPhase.value === 'longBreak' ? 'long_break_time'
+        : currentPhase.value === 'shortBreak' ? 'short_break_time' : 'work_time_start'
+      toast(t(message))
     }
   }
 
-  function handlePomodoroSettingsUpdate(data: any) {
-    if (!data) return
-    settings.value = { ...settings.value, ...data }
-    if (!isRunning.value && !isPaused.value && timeLeft.value === totalTime.value) {
-      initTimer(currentPhase.value)
-    }
+  function handlePomodoroSettingsUpdate() {
+    void refetch()
   }
 
-  // Data loading
-  initQuery({
+  function handleConnectionChanged(connected: boolean) {
+    if (connected) void refetch()
+  }
+
+  const { refetch } = initQuery({
     document: pomodoroTodayAndSettingsGQL,
     handle: (data: any, error: string) => {
-      if (error) {
-        return
-      }
-      if (!data) return
-
-      const { pomodoroSettings, pomodoroToday } = data
-      if (pomodoroSettings) settings.value = pomodoroSettings
-
-      if (pomodoroToday && pomodoroToday.totalTimeSec > 0) {
-        completedToday.value = pomodoroToday.completedCount || 0
-        currentRound.value = pomodoroToday.currentRound || 1
-        timeLeft.value = pomodoroToday.timeLeftSec || 0
-        totalTime.value = pomodoroToday.totalTimeSec
-        isRunning.value = pomodoroToday.isRunning || false
-        isPaused.value = pomodoroToday.isPaused || false
-        if (pomodoroToday.state) currentPhase.value = STATE_MAP[pomodoroToday.state] || 'work'
-        if (isRunning.value && !isPaused.value && timeLeft.value > 0) startTimerInterval()
-      }
+      if (error || !data) return
+      if (data.pomodoroSettings) settings.value = data.pomodoroSettings
+      applySnapshot(data.pomodoroToday)
     },
   })
 
-  // Computed
   const circumference = 2 * Math.PI * 110
   const strokeDashoffset = computed(() => {
     const progress = totalTime.value > 0 ? (totalTime.value - timeLeft.value) / totalTime.value : 0
     return circumference * (1 - progress)
   })
 
-  // Helpers
   function formatTime(seconds: number): string {
     const mins = Math.floor(seconds / 60)
     const secs = seconds % 60
@@ -225,7 +143,6 @@ export function usePomodoro() {
     return t(map[currentPhase.value] || '')
   }
 
-  // Lifecycle
   function requestNotificationPermission() {
     // Tauri (WKWebView) blocks Notification.requestPermission() outside a user
     // gesture. macOS native notifications do not require browser permission.
@@ -237,20 +154,16 @@ export function usePomodoro() {
 
   onMounted(() => {
     requestNotificationPermission()
-    if (totalTime.value === 0) initTimer('work')
     emitter.on('POMODORO_ACTION', handlePomodoroAction)
     emitter.on('POMODORO_SETTINGS_UPDATE', handlePomodoroSettingsUpdate)
+    emitter.on('app_socket_connection_changed', handleConnectionChanged)
   })
 
   onUnmounted(() => {
-    clearTimer()
     emitter.off('POMODORO_ACTION', handlePomodoroAction)
     emitter.off('POMODORO_SETTINGS_UPDATE', handlePomodoroSettingsUpdate)
+    emitter.off('app_socket_connection_changed', handleConnectionChanged)
   })
-
-  watch(settings, () => {
-    if (!isRunning.value && !isPaused.value && timeLeft.value === 0) initTimer('work')
-  }, { deep: true })
 
   return {
     settings,

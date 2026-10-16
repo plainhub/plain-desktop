@@ -5,7 +5,7 @@ vi.mock('@/lib/api/native-client', () => ({ nativeGraphql: native }))
 vi.mock('@tauri-apps/api/core', () => ({ invoke }))
 vi.mock('@/lib/api/gql-client', () => ({ gqlFetch: remote }))
 
-import { revealLocalFile, saveLocalFileAs, copyLocalFile } from '../../../src/lib/native-file-actions'
+import { revealLocalFile, saveLocalFileAs, copyLocalFile } from '../../src/lib/native-file-actions'
 
 beforeEach(() => vi.resetAllMocks())
 afterEach(() => vi.restoreAllMocks())

@@ -7,7 +7,7 @@
       <div class="title">{{ current?.title ?? $t('audio_player') }}</div>
     </div>
     <div class="quick-content-body">
-      <audio ref="audioRef" class="audio" controls :src="src" @ended="onEnded" />
+      <audio ref="audioRef" class="audio" controls :src="src" />
       <div v-if="audios.length" class="buttons">
         <button class="btn-icon" @click.stop="playPrev">
           <i-material-symbols:skip-previous-outline-rounded />
@@ -64,7 +64,7 @@ import { useDragSort } from '@/hooks/use-drag-sort'
 const store = useMainStore()
 const audioRef = ref<HTMLAudioElement>()
 
-const { playback, audios, playlistAudios, queueTotal, queueLoading, loadMore, current, src, clearLoading, onEnded, playPrev, playNext, changeMode, playItem, deleteItem, clearPlaylist, onReorder } =
+const { playback, audios, playlistAudios, queueTotal, queueLoading, loadMore, current, src, clearLoading, playPrev, playNext, changeMode, playItem, deleteItem, clearPlaylist, onReorder } =
   useAudioPlaylist(audioRef)
 
 const listEl = ref<HTMLElement>()

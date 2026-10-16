@@ -15,18 +15,19 @@ export interface SelfDevice {
 export async function loadSelfDevice(): Promise<SelfDevice | null> {
   if (!isLocalMode()) return null
   try {
-    const result = await gqlFetch<{ discoveryReply: { id: string; name: string; ips: string[]; port: number; deviceType: DeviceType }; systemSettings: { signaturePublicKey: string } }>(
-      'query { discoveryReply { id name ips port deviceType } systemSettings { signaturePublicKey } }',
+    const result = await gqlFetch<{ app: { clientId: string; deviceName: string; httpsPort: number; deviceType: DeviceType; network: { ipv4Addresses: string[]; primaryIpv4: string } }; systemSettings: { signaturePublicKey: string } }>(
+      'query { app { clientId deviceName httpsPort deviceType network { ipv4Addresses primaryIpv4 } } systemSettings { signaturePublicKey } }',
     )
     if (result.errors?.length) throw new Error(result.errors[0].message)
-    const reply = result.data.discoveryReply
-    const { ips, port } = reply
-    const ip = ips.find((v) => !v.startsWith('127.')) || ips[0] || ''
+    const app = result.data.app
+    const ips = app.network.ipv4Addresses
+    const port = app.httpsPort
+    const ip = app.network.primaryIpv4
     return {
-      id: reply.id,
-      name: reply.name || '',
+      id: app.clientId,
+      name: app.deviceName || '',
       host: ip ? `${ip}:${port}` : '',
-      deviceType: reply.deviceType,
+      deviceType: app.deviceType,
       ips,
       port,
       publicKey: result.data.systemSettings.signaturePublicKey,

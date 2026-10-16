@@ -1,11 +1,11 @@
 import { afterEach, beforeEach, expect, it, vi } from 'vitest'
-import { DeviceType } from '../../../src/lib/status'
+import { DeviceType } from '../../src/lib/status'
 
 const { native, remote } = vi.hoisted(() => ({ native: vi.fn(), remote: vi.fn() }))
 vi.mock('@/lib/api/native-client', () => ({ nativeGraphql: native }))
 vi.mock('@/lib/api/gql-client', () => ({ gqlFetch: remote }))
 
-import { loginPeers, saveLoginPeer, clearLoginPeer, updateLoginPeerName } from '../../../src/lib/device/login-peers'
+import { loginPeers, saveLoginPeer, clearLoginPeer, updateLoginPeerName } from '../../src/lib/device/login-peers'
 
 beforeEach(() => {
   vi.resetAllMocks()

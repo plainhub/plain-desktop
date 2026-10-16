@@ -1,5 +1,11 @@
 pub fn desktop_capabilities() -> Vec<&'static str> {
     let mut capabilities = vec![
+        "PEER_DISCOVERY",
+        "FILE_BROWSER",
+        "IMAGE_LIBRARY",
+        "AUDIO_LIBRARY",
+        "VIDEO_LIBRARY",
+        "DOCUMENT_LIBRARY",
         "FILE_EXPORT",
         "FILE_REVEAL",
         "DOC_PREVIEW",

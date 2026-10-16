@@ -3,18 +3,20 @@ import { useTempStore } from '@/stores/temp'
 import { storeToRefs } from 'pinia'
 import type { IAudioItem } from '@/lib/interfaces'
 import { getFileUrlByPath } from '@/lib/api/file'
-import { initMutation, playAudioGQL, updateAudioPlayModeGQL, removeAudioFromQueueGQL, clearAudioQueueGQL, reorderAudioQueueGQL, enqueueAndPlayAudioGQL } from '@/lib/api/mutation'
+import { initMutation, playAudioGQL, reportAudioPlaybackGQL, advanceAudioSelectionGQL, cycleAudioPlayModeGQL, removeAudioFromQueueGQL, clearAudioQueueGQL, reorderAudioQueueGQL, enqueueAndPlayAudioGQL } from '@/lib/api/mutation'
 import { audioPlayback, useAudioPlaylistStore } from '@/hooks/audio-playlist-store'
 import emitter from '@/plugins/eventbus'
+import { getGraphqlContextKey } from '@/lib/api/gql-client'
 
 export function usePlayAudio(onApplied: () => void, enqueue = false) {
   const store = useAudioPlaylistStore()
   const { mutate: play, loading, onDone } = initMutation({ document: enqueue ? enqueueAndPlayAudioGQL : playAudioGQL })
-  onDone((r: any) => {
+  onDone(async (r: any) => {
+    const context = getGraphqlContextKey()
     const path = r?.data?.playAudio?.path
     if (path) audioPlayback.value = { ...audioPlayback.value, mediaId: r.data.playAudio.mediaId, path: path }
-    void store.refetch()
-    onApplied()
+    await store.refetch()
+    if (context === getGraphqlContextKey()) onApplied()
   })
   return { play, loading }
 }
@@ -77,7 +79,9 @@ export function useAudioPlaylist(audioRef: Ref<HTMLAudioElement | undefined>) {
   async function setCurrent() {
     const c = audioPlayback.value.path
     src.value = c ? getFileUrlByPath(urlTokenKey.value, c) : ''
-    current.value = audios.value.find((it) => it.mediaId === audioPlayback.value.mediaId)
+    const item = audios.value.find((it) => it.mediaId === audioPlayback.value.mediaId)
+    if (item) current.value = item
+    else if (current.value?.path !== c) current.value = undefined
     updateMediaSessionMetadata()
   }
   setCurrent()
@@ -87,7 +91,12 @@ export function useAudioPlaylist(audioRef: Ref<HTMLAudioElement | undefined>) {
     void nextTick(() => _play())
   })
   const { mutate: clear, loading: clearLoading, onDone: onClearDone } = initMutation({ document: clearAudioQueueGQL })
-  const { mutate: updatePlayMode } = initMutation({ document: updateAudioPlayModeGQL })
+  const { mutate: cycleMode, onDone: onModeChanged } = initMutation({ document: cycleAudioPlayModeGQL })
+  const { mutate: advanceSelection } = initMutation({ document: advanceAudioSelectionGQL })
+  const { mutate: reportPlayback } = initMutation({ document: reportAudioPlaybackGQL }, false)
+  onModeChanged((result: any) => {
+    audioPlayback.value = { ...audioPlayback.value, mode: result.data.cycleAudioPlayMode }
+  })
   const { mutate: reorderAudioQueue } = initMutation({ document: reorderAudioQueueGQL })
   const { mutate: deleteAudio } = initMutation({ document: removeAudioFromQueueGQL })
 
@@ -96,71 +105,107 @@ export function useAudioPlaylist(audioRef: Ref<HTMLAudioElement | undefined>) {
     store.reset()
   })
 
+  let disposed = false
+  let pendingCommand = Promise.resolve()
+  let releasePlayback: (() => void) | undefined
+  let playingToken: object | undefined
+
+  function bindPlayback() {
+    releasePlayback?.()
+    releasePlayback = undefined
+    const element = audioRef.value
+    if (!element) return
+    const context = getGraphqlContextKey()
+    const expected = { path: audioPlayback.value.path || '', revision: audioPlayback.value.revision }
+    const token = {}
+    playingToken = token
+    let timer: ReturnType<typeof setInterval> | undefined
+    let reporting: Promise<void> | undefined
+    let rejected = false
+    let samplePending = false
+    let startPending = false
+    const active = () => !disposed && !rejected && playingToken === token && context === getGraphqlContextKey() &&
+      audioPlayback.value.path === expected.path && audioPlayback.value.revision === expected.revision &&
+      (!element.currentSrc || element.currentSrc === element.src)
+    const sample = (started = false): Promise<void> => {
+      startPending ||= started
+      samplePending = true
+      if (!active() || !expected.path) return Promise.resolve()
+      if (!reporting) {
+        reporting = (async () => {
+          while (samplePending && active()) {
+            samplePending = false
+            const started = startPending
+            const positionMs = Number.isFinite(element.currentTime) ? Math.max(0, Math.trunc(element.currentTime * 1000)) : 0
+            const result = await reportPlayback({ path: expected.path, revision: expected.revision, positionMs, started })
+            if (result?.data?.reportAudioPlayback === false) { rejected = true; stopTimer() }
+            if (started && result?.data?.reportAudioPlayback === true) startPending = false
+          }
+        })().finally(() => { reporting = undefined })
+      }
+      return reporting
+    }
+    const stopTimer = () => { if (timer !== undefined) clearInterval(timer); timer = undefined }
+    const playing = () => {
+      if (!active()) return
+      const started = sample(true)
+      pendingCommand = Promise.all([pendingCommand, started]).then(() => {}).catch(() => {})
+      stopTimer()
+      timer = setInterval(() => { if (active()) void sample(); else stopTimer() }, 1000)
+    }
+    const pause = () => { stopTimer(); void sample() }
+    const ended = () => {
+      stopTimer()
+      if (active() && element.ended) return advance('COMPLETED', expected)
+    }
+    element.addEventListener('playing', playing)
+    element.addEventListener('pause', pause)
+    element.addEventListener('ended', ended, { once: true })
+    releasePlayback = () => {
+      stopTimer()
+      if (playingToken === token) playingToken = undefined
+      element.removeEventListener('playing', playing)
+      element.removeEventListener('pause', pause)
+      element.removeEventListener('ended', ended)
+    }
+  }
+
   function _play() {
-    audioRef.value?.play()
-  }
-  async function loadThrough(index: number) {
-    while (audios.value.length <= index && audios.value.length < store.total.value) {
-      const before = audios.value.length
-      await store.loadMore()
-      if (audios.value.length <= before) return false
-    }
-    return true
+    if (disposed) return
+    bindPlayback()
+    void audioRef.value?.play().catch((error: Error) => emitter.emit('toast', error.message))
   }
 
-  async function currentIndex() {
-    const id = audioPlayback.value.mediaId
-    if (!id) return -1
-    let index = audios.value.findIndex((item) => item.mediaId === id)
-    while (index < 0 && audios.value.length < store.total.value) {
-      const before = audios.value.length
-      await store.loadMore()
-      if (audios.value.length <= before) return null
-      index = audios.value.findIndex((item) => item.mediaId === id)
-    }
-    return index
+  function advance(action: 'NEXT' | 'PREVIOUS' | 'COMPLETED', expected?: { path: string; revision: number }) {
+    const context = getGraphqlContextKey()
+    const command = pendingCommand.then(async () => {
+      if (disposed || context !== getGraphqlContextKey()) return
+      const snapshot = expected || { path: audioPlayback.value.path || '', revision: audioPlayback.value.revision }
+      const result = await advanceSelection({ action, expectedPath: snapshot.path, expectedRevision: snapshot.revision })
+      if (!result || disposed || context !== getGraphqlContextKey()) return
+      const selection = result.data?.advanceAudioSelection
+      if (!selection) { await store.refetch(); return }
+      const track = selection.track as IAudioItem | null
+      audioPlayback.value = { ...audioPlayback.value, mediaId: track?.mediaId ?? null,
+        path: track?.path ?? null, revision: selection.revision, positionMs: selection.positionMs }
+      current.value = track || undefined
+      if (!track) { audioRef.value?.pause(); return }
+      await nextTick()
+      if (disposed || context !== getGraphqlContextKey()) return
+      if (audioRef.value) audioRef.value.currentTime = selection.positionMs / 1000
+      _play()
+    })
+    pendingCommand = command.catch(() => {})
+    return command
   }
 
-  async function playAt(index: number) {
-    if (!(await loadThrough(index))) return
-    const item = audios.value[index]
-    if (item?.mediaId) play({ mediaId: item.mediaId })
-  }
-
-  async function playRandom() {
-    if (store.total.value) await playAt(Math.floor(Math.random() * store.total.value))
-  }
-
-  async function playSequential(next: boolean) {
-    if (!store.total.value) return
-    const index = await currentIndex()
-    if (index === null) return
-    const target = next ? (index + 1) % store.total.value : index <= 0 ? store.total.value - 1 : index - 1
-    await playAt(target)
-  }
-
-  async function playPrev() {
-    if (audioPlayback.value.mode === 'SHUFFLE') await playRandom()
-    else await playSequential(false)
-  }
-
-  async function playNext() {
-    if (audioPlayback.value.mode === 'SHUFFLE') await playRandom()
-    else await playSequential(true)
-  }
-
-  function onEnded() {
-    if (audioPlayback.value.mode === 'REPEAT_ONE') {
-      if (audioRef.value) audioRef.value.currentTime = 0
-      void audioRef.value?.play()
-    } else void playNext()
-  }
-
+  function playPrev() { return advance('PREVIOUS') }
+  function playNext() { return advance('NEXT') }
   function changeMode() {
-    const modeOrder = { REPEAT: 'REPEAT_ONE', REPEAT_ONE: 'SHUFFLE', SHUFFLE: 'REPEAT' } as const
-    const mode = modeOrder[audioPlayback.value.mode as keyof typeof modeOrder] || 'REPEAT'
-    updatePlayMode({ mode })
-    audioPlayback.value = { ...audioPlayback.value, mode }
+    const context = getGraphqlContextKey()
+    const command = pendingCommand.then(async () => { if (!disposed && context === getGraphqlContextKey()) await cycleMode() })
+    pendingCommand = command.catch(() => {})
+    return command
   }
 
   function playItem(item: IAudioItem) {
@@ -189,6 +234,7 @@ export function useAudioPlaylist(audioRef: Ref<HTMLAudioElement | undefined>) {
   }
 
   const onPlay = () => {
+    bindPlayback()
     audioPlaying.value = true
     updateMediaSessionPlaybackState()
   }
@@ -211,6 +257,9 @@ export function useAudioPlaylist(audioRef: Ref<HTMLAudioElement | undefined>) {
   })
 
   onUnmounted(() => {
+    disposed = true
+    playingToken = undefined
+    releasePlayback?.()
     emitter.off('do_play_audio', doPlayAudio)
     emitter.off('pause_audio', pauseAudio)
     audioRef.value?.removeEventListener('pause', onPause)
@@ -229,7 +278,6 @@ export function useAudioPlaylist(audioRef: Ref<HTMLAudioElement | undefined>) {
     current,
     src,
     clearLoading,
-    onEnded,
     playPrev,
     playNext,
     changeMode,

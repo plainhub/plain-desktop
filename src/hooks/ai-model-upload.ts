@@ -1,3 +1,4 @@
+import { wrapWithReplayProtection } from '@/lib/api/time-sync'
 import { ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { getUploadUrl } from '@/lib/upload/upload'
@@ -104,7 +105,7 @@ async function validateFiles(files: FileList): Promise<File[] | null> {
 function uploadSingleFile(file: File, dir: string, key: Uint8Array, clientId: string, onProgress: (loaded: number) => void): Promise<void> {
   return new Promise((resolve, reject) => {
     const info = JSON.stringify({ dir, replace: true, isAppFile: false, size: file.size })
-    const encrypted = bitArrayToUint8Array(chachaEncrypt(key, info))
+    const encrypted = bitArrayToUint8Array(chachaEncrypt(key, wrapWithReplayProtection(info)))
     const form = new FormData()
     form.append('info', new Blob([encrypted.buffer as ArrayBuffer]))
     form.append('file', file, file.name)

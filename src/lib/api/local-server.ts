@@ -36,9 +36,9 @@ export async function readLocalServer(): Promise<LocalServer> {
 }
 
 export async function readLocalAddresses(): Promise<string[]> {
-  const data = await localData<{ discoveryReply: { ips: string[] } }>('{ discoveryReply { ips } }')
-  if (!Array.isArray(data.discoveryReply?.ips)) throw new Error('Invalid network response')
-  return data.discoveryReply.ips
+  const data = await localData<{ app: { network: { ipv4Addresses: string[] } } }>('{ app { network { ipv4Addresses } } }')
+  if (!Array.isArray(data.app?.network?.ipv4Addresses)) throw new Error('Invalid network response')
+  return data.app.network.ipv4Addresses
 }
 
 function validPort(value: number): boolean {

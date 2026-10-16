@@ -23,6 +23,10 @@ const props = defineProps({
     type: Function as PropType<(file: IFile[]) => void>,
     required: true,
   },
+  onError: {
+    type: Function as PropType<() => void>,
+    required: true,
+  },
   files: {
     type: Array as PropType<Array<IFile>>,
     required: true,
@@ -33,6 +37,7 @@ const {
   mutate,
   loading,
   onDone: onDeleteFilesDone,
+  onError: onDeleteFilesError,
 } = initMutation({
   document: deleteFilesGQL,
 })
@@ -40,6 +45,8 @@ const {
 function doDelete() {
   mutate({ paths: props.files.map((it) => it.path) })
 }
+
+onDeleteFilesError(() => props.onError())
 
 onDeleteFilesDone(() => {
   props.onDone(props.files)

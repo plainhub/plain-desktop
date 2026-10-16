@@ -92,7 +92,7 @@ export function useFilesActions(opts: UseFilesActionsOptions) {
   }
 
   const { mutate: deleteFilesMutate, loading: deleteLoading } = initMutation({ document: deleteFilesGQL }, false)
-  const { deletingIds, collapsingIds, bulkDeleting, isDeleting, startDelete } = useFilesDelete({ t, mutate: deleteFilesMutate, onDeleted })
+  const { deletingIds, collapsingIds, bulkDeleting, isDeleting, startDelete } = useFilesDelete({ t, mutate: deleteFilesMutate, onDeleted, refresh: () => { fetch(); refetchMounts() } })
   const pendingDeleteFiles = ref<IFile[]>([])
   const confirmingDelete = ref(false)
   const deleteCount = ref(0)

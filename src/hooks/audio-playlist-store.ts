@@ -15,10 +15,11 @@ export interface IAudioPlayback {
   path: string | null
   isPlaying: boolean
   positionMs: number
+  revision: number
 }
 
 function idleAudioPlayback(): IAudioPlayback {
-  return { mediaId: null, mode: 'REPEAT', path: null, isPlaying: false, positionMs: 0 }
+  return { mediaId: null, mode: 'REPEAT', path: null, isPlaying: false, positionMs: 0, revision: 0 }
 }
 
 export const audioPlayback = ref<IAudioPlayback>(idleAudioPlayback())

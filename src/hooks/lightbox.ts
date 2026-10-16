@@ -453,6 +453,7 @@ export function useLightboxFileActions(
     } else {
       openModal(DeleteFileConfirm, {
         files: [item],
+        onError: refetchInfo,
         onDone: () => {
           emitter.emit('file_deleted', { item })
         },

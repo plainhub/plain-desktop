@@ -14,15 +14,12 @@ import { getRemoteClientId } from '@/lib/device/client-id'
 import { getCurrentAuthToken } from '@/lib/device/current'
 import { isLocalMode } from '@/lib/device/local-mode'
 import { openSocket } from '@/lib/api/http'
+import { encodeSocketPayload } from '@/lib/api/websocket-frame'
 import { subscribeNativeEvents, type NativeEventStream } from '@/lib/api/native-events'
 import { get as prefsGet, set as prefsSet } from '@/lib/prefs'
 
 const RAW_BINARY_EVENTS = new Set(['SCREEN_MIRROR_VIDEO', 'SCREEN_MIRROR_AUDIO', 'IMAGE_EDITOR_UPDATE'])
 
-// Upstream control channel on the live app socket. Post-registration frames
-// are ChaCha20-encrypted with the same key as the registration frame; the
-// phone branches on the decrypted payload's first byte (0x54 = binary touch
-// frame, otherwise JSON control input). See shared WebSocketRoutes.kt.
 let controlSocket: WebSocket | null = null
 let controlKey: Uint8Array | null = null
 
@@ -42,7 +39,7 @@ function unbindControlChannel(ws: WebSocket) {
 export function sendAppWsBytes(plain: Uint8Array): boolean {
   const key = controlKey
   if (!controlSocket || !key) return false
-  controlSocket.send(chachaEncryptBytes(key, plain))
+  controlSocket.send(chachaEncryptBytes(key, encodeSocketPayload(plain)))
   return true
 }
 

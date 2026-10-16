@@ -8,6 +8,7 @@ interface UseFilesDeleteOptions {
   t: (key: string, args?: any) => string
   mutate: (variables?: any) => Promise<any>
   onDeleted: (files: IFile[]) => void
+  refresh: () => void
 }
 
 export function useFilesDelete(opts: UseFilesDeleteOptions) {
@@ -40,6 +41,7 @@ export function useFilesDelete(opts: UseFilesDeleteOptions) {
       toast(files.length > 1 ? opts.t('deleted_n_items', { n: files.length }) : opts.t('deleted'))
     } else {
       deletingIds.value = deletingIds.value.filter((id) => !ids.includes(id))
+      opts.refresh()
       toast(opts.t('delete_failed_name', { name: files.map((f) => f.name).join(', ') }), 'error')
     }
   }

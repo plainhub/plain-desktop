@@ -5,6 +5,7 @@ import type { IUploadItem } from '@/stores/temp'
 import type { ScreenMirrorVideoCodec } from '@/views/screen-mirror/screen-mirror-pipeline'
 
 type Events = {
+  NETWORK_CHANGED: Record<string, never>
   HTTP_SERVER_STARTED: HttpServerStarted
   upload_task_done: IUploadItem
   upload_progress: IUploadItem
@@ -45,6 +46,7 @@ type Events = {
   BOOKMARK_UPDATED: any
   DOWNLOAD_PROGRESS: any[]
   CHANNELS_UPDATED: any[]
+  PEER_UPDATED: { id: string }
   PEER_STATUS_UPDATED: { id: string, online: boolean }
   CHANNEL_INVITE_RECEIVED: { channelId: string, channelName: string, fromId: string, fromName: string }
   DEVICE_NAME_UPDATED: string

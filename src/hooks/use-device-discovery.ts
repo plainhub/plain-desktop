@@ -1,7 +1,8 @@
 import { ref } from 'vue'
-import { initMutation, startDiscoveryGQL, stopDiscoveryGQL } from '@/lib/api/mutation'
-import { gqlFetchOp } from '@/lib/api/gql-client'
-import { isDiscoveringGQL } from '@/lib/api/query'
+import { acquireDiscoveryGQL, releaseDiscoveryGQL } from '@/lib/api/mutation'
+import { bindGraphqlClient } from '@/lib/api/gql-client'
+import { nearbyDevicesGQL } from '@/lib/api/query'
+import { randomUUID } from '@/lib/strutil'
 import emitter from '@/plugins/eventbus'
 import type { PairingResult } from '@/lib/pairing-types'
 import { useChatStore } from '@/stores/chat'
@@ -33,36 +34,8 @@ export enum DiscoveryStatus {
 const devices = ref<DiscoveredDevice[]>([])
 const status = ref<DiscoveryStatus>(DiscoveryStatus.IDLE)
 
-let activeCount = 0
+const activeSessions = new Set<() => Promise<void>>()
 let listenerInitialized = false
-let pollTimer: ReturnType<typeof setInterval> | null = null
-
-// The server-side scan can be torn down behind our back — e.g. the app closes
-// its own nearby page and stops discovery for every connected client. Poll
-// while a page is watching and re-issue startDiscovery when it went down.
-async function checkAndEnsureDiscovering() {
-  if (activeCount === 0) return
-  try {
-    const r = await gqlFetchOp('isDiscoveringGQL', isDiscoveringGQL, undefined)
-    if (!r.errors && r.data?.isDiscovering !== true) {
-      await startMutate()
-    }
-  } catch {
-    // ignore polling errors
-  }
-}
-
-function startPolling() {
-  if (pollTimer !== null) return
-  pollTimer = setInterval(checkAndEnsureDiscovering, 5_000)
-}
-
-function stopPolling() {
-  if (pollTimer !== null) {
-    clearInterval(pollTimer)
-    pollTimer = null
-  }
-}
 
 function ensureListener() {
   if (listenerInitialized) return
@@ -77,7 +50,7 @@ function ensureListener() {
   })
 
   emitter.on('app_socket_connection_changed', (connected) => {
-    if (connected && activeCount > 0) void startMutate()
+    if (connected) for (const acquire of activeSessions) void acquire()
   })
 
   emitter.on('NEARBY_DISCOVERY_STARTED', () => {
@@ -118,9 +91,6 @@ function ensureListener() {
   })
 }
 
-const { mutate: startMutate } = initMutation({ document: startDiscoveryGQL }, false)
-const { mutate: stopMutate } = initMutation({ document: stopDiscoveryGQL }, false)
-
 /** Insert or refresh a device in the discovery list. Also used by the
  * QR-pairing fallback, whose paired devices never passed through mDNS. */
 export function upsertDiscoveredDevice(device: DiscoveredDevice) {
@@ -138,26 +108,74 @@ export function upsertDiscoveredDevice(device: DiscoveredDevice) {
 export function useDeviceDiscovery() {
   ensureListener()
 
-  async function start() {
-    activeCount += 1
-    status.value = DiscoveryStatus.SEARCHING
-    await startMutate()
-    startPolling()
+  let request: ReturnType<typeof bindGraphqlClient> | null = null
+  let token: string | null = null
+  let active = false
+  let pending = Promise.resolve()
+
+  async function discoveryRequest(client: ReturnType<typeof bindGraphqlClient>, document: string, token: string): Promise<void> {
+    const result = await client(document, { token })
+    if (result.errors?.length) throw new Error(result.errors[0].message)
   }
 
-  async function stop() {
-    if (activeCount === 0) return
-    activeCount -= 1
-    if (activeCount > 0) return
-    stopPolling()
-    await stopMutate()
-    status.value = DiscoveryStatus.IDLE
-    devices.value = []
+  async function refreshDevices(client: ReturnType<typeof bindGraphqlClient>, current: string): Promise<void> {
+    const result = await client<{ nearbyDevices: DiscoveredDevice[] }>(nearbyDevicesGQL)
+    if (result.errors?.length) throw new Error(result.errors[0].message)
+    if (active && token === current) devices.value = result.data.nearbyDevices
+  }
+
+  function enqueue(operation: () => Promise<void>): Promise<void> {
+    const result = pending.then(operation)
+    pending = result.catch(() => {})
+    return result
+  }
+
+  async function acquire(): Promise<void> {
+    const current = token
+    const client = request
+    if (!active || !current || !client) return
+    await enqueue(async () => {
+      if (!active || token !== current) return
+      try {
+        await discoveryRequest(client, acquireDiscoveryGQL, current)
+        if (active && token === current) await refreshDevices(client, current)
+      } catch (error) {
+        if (active) status.value = DiscoveryStatus.NETWORK_ERROR
+        console.error('discovery acquisition failed', error)
+      }
+    })
+  }
+
+  async function start(): Promise<void> {
+    if (active) return
+    request = bindGraphqlClient()
+    token = randomUUID()
+    active = true
+    activeSessions.add(acquire)
+    status.value = DiscoveryStatus.SEARCHING
+    await acquire()
+  }
+
+  async function stop(): Promise<void> {
+    const current = token
+    const client = request
+    if (!active || !current || !client) return
+    active = false
+    token = null
+    activeSessions.delete(acquire)
+    await enqueue(async () => {
+      try { await discoveryRequest(client, releaseDiscoveryGQL, current) }
+      catch (error) { console.error('discovery release failed', error) }
+    })
+    if (activeSessions.size === 0) {
+      status.value = DiscoveryStatus.IDLE
+      devices.value = []
+    }
   }
 
   function retry() {
     status.value = DiscoveryStatus.SEARCHING
-    void startMutate()
+    return active ? acquire() : start()
   }
 
   async function openLanPermissionSettings() {

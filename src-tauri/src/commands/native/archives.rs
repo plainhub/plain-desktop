@@ -1,15 +1,3 @@
-//! Tauri commands for native archive generation.
-//!
-//! Only an already authorized list of real files is accepted: the shared
-//! core authorizes every entry through the same `fileTaskAuthorize`
-//! receipt the public ZIP handler uses and rejects anything that is not an
-//! absolute regular file. Directories, URIs and virtual zips have no
-//! native entry point and keep their existing selection flow.
-//!
-//! The reader must be released on EOF, failure, cancellation and window
-//! teardown; dropping it closes the archive file and removes the staged
-//! temporary file.
-
 use std::collections::HashMap;
 use std::sync::Arc;
 

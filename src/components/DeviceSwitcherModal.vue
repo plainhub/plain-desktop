@@ -168,8 +168,6 @@ const desktopClientId = getDesktopClientId()
 const newDevices = computed(() =>
   devices.value.filter(
     (d) =>
-      d.deviceType !== 'COMPUTER' &&
-      d.platform !== 'ios' &&
       d.id !== desktopClientId &&
       !sessions.value.some((s) => d.ips.some((ip) => peerHost(s) === `${ip}:${d.port}`)),
   ),

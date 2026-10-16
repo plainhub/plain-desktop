@@ -3,6 +3,7 @@ import { chachaEncrypt, chachaDecrypt, arrayBufferToBitArray, bitArrayToUint8Arr
 import { tokenToKey } from './file'
 import { wrapWithReplayProtection } from './time-sync'
 import { getCurrentAuthToken, clearCurrentSession } from '../device/current'
+import { getActiveClientId } from '../device/client-id'
 import { httpRequest } from './http'
 import { nativeGraphql } from './native-client'
 import { isLocalMode } from '../device/local-mode'
@@ -27,8 +28,6 @@ export interface GqlResult<T = any> {
   errors?: Array<{ message: string; path?: string[] }>
 }
 
-// Deduplicate concurrent identical requests (same query + variables).
-// If an identical request is already in-flight, callers share the same promise.
 const pendingRequests = new Map<string, Promise<GqlResult<any>>>()
 
 export interface GqlFetchOptions {
@@ -37,18 +36,38 @@ export interface GqlFetchOptions {
   timeout?: number
 }
 
+function graphqlContext() {
+  const native = isNativeTarget()
+  return {
+    native,
+    clientId: getActiveClientId(),
+    url: native ? '' : `${getApiBaseUrl()}/graphql`,
+    token: native ? '' : isLocalMode() ? getLocalToken() : getCurrentAuthToken(),
+    headers: { ...getApiHeaders() },
+  }
+}
+
+export function getGraphqlContextKey(): string {
+  return JSON.stringify(graphqlContext())
+}
+
 export async function gqlFetch<T = any>(
   query: string,
   variables?: Record<string, any>,
   options: GqlFetchOptions = {},
 ): Promise<GqlResult<T>> {
-  const dedupeKey = JSON.stringify({ query, variables })
+  const context = graphqlContext()
+  const contextKey = JSON.stringify(context)
+  const dedupeKey = JSON.stringify({ context, query, variables })
   if (options.dedupe !== false && !options.fresh) {
     const pending = pendingRequests.get(dedupeKey)
     if (pending) return pending as Promise<GqlResult<T>>
   }
 
-  const promise = doGqlFetch<T>(query, variables, options.timeout)
+  const promise = doGqlFetch<T>(context, query, variables, options.timeout).then((result) => {
+    if (contextKey !== getGraphqlContextKey()) throw new GqlError('request_context_changed', undefined, true)
+    return result
+  })
   if (options.dedupe !== false) pendingRequests.set(dedupeKey, promise)
   try {
     return await promise
@@ -81,6 +100,7 @@ export async function encryptedGqlPost<T = any>(
   query: string,
   variables?: Record<string, any>,
   timeout: number = TIMEOUT,
+  headers: Record<string, string> = getApiHeaders(),
 ): Promise<GqlResult<T>> {
   const key = tokenToKey(token)
   const json = JSON.stringify({ query, variables })
@@ -108,7 +128,7 @@ export async function encryptedGqlPost<T = any>(
   try {
     const response = await httpRequest(url, {
       method: 'POST',
-      headers: getApiHeaders(),
+      headers,
       body,
       signal: controller.signal,
     })
@@ -165,17 +185,15 @@ async function nativeGqlFetch<T = any>(query: string, variables?: Record<string,
   }
 }
 
-async function doGqlFetch<T = any>(query: string, variables?: Record<string, any>, timeout: number = TIMEOUT): Promise<GqlResult<T>> {
-  if (isNativeTarget()) return nativeGqlFetch<T>(query, variables, timeout)
+async function doGqlFetch<T = any>(context: ReturnType<typeof graphqlContext>, query: string, variables?: Record<string, any>, timeout: number = TIMEOUT): Promise<GqlResult<T>> {
+  if (context.native) return nativeGqlFetch<T>(query, variables, timeout)
 
-  const url = `${getApiBaseUrl()}/graphql`
-  const token = isLocalMode() ? getLocalToken() : getCurrentAuthToken()
   try {
-    return await encryptedGqlPost<T>(url, token, query, variables, timeout)
+    return await encryptedGqlPost<T>(context.url, context.token, query, variables, timeout, context.headers)
   } catch (e) {
     // Web-mode 401: drop the stored session and hard-reload. Tauri is
     // excluded — local mode has no device session, so a reload would loop.
-    if (e instanceof GqlError && e.status === 401 && !__IS_TAURI__) {
+    if (e instanceof GqlError && e.status === 401 && !__IS_TAURI__ && JSON.stringify(context) === getGraphqlContextKey()) {
       clearCurrentSession()
       window.location.reload()
     }
@@ -183,10 +201,17 @@ async function doGqlFetch<T = any>(query: string, variables?: Record<string, any
   }
 }
 
+export function bindGraphqlClient() {
+  const context = graphqlContext()
+  return <T = any>(query: string, variables?: Record<string, any>, timeout = TIMEOUT): Promise<GqlResult<T>> =>
+    context.native ? nativeGqlFetch<T>(query, variables, timeout) : encryptedGqlPost<T>(context.url, context.token, query, variables, timeout, context.headers)
+}
+
 export class GqlError extends Error {
   constructor(
     message: string,
     public status?: number,
+    public cancelled = false,
   ) {
     super(message)
     this.name = 'GqlError'

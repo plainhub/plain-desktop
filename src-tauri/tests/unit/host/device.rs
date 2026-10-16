@@ -23,3 +23,12 @@ fn file_action_support_matches_the_implemented_os_primitives() {
         cfg!(target_os = "macos")
     );
 }
+
+#[test]
+fn discovery_is_supported_independently_of_optional_file_sharing_services() {
+    let capabilities = desktop_capabilities();
+    assert!(capabilities.contains(&"PEER_DISCOVERY"));
+    assert!(capabilities.contains(&"FILE_BROWSER"));
+    assert!(!capabilities.contains(&"BACKGROUND_SERVICE"));
+    assert!(!capabilities.contains(&"LAUNCHER_SHORTCUTS"));
+}

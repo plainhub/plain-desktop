@@ -1,3 +1,4 @@
+import { wrapWithReplayProtection } from '../api/time-sync'
 import type { IUploadItem } from '@/stores/temp'
 import emitter from '@/plugins/eventbus'
 import { invoke } from '@tauri-apps/api/core'
@@ -212,7 +213,7 @@ export async function upload(upload: IUploadItem, replace: boolean) {
 async function uploadDirect(upload: IUploadItem, replace: boolean, key: Uint8Array) {
   try {
     const data = new FormData()
-    const v = bitArrayToUint8Array(chachaEncrypt(key, JSON.stringify({ dir: upload.dir, replace, isAppFile: upload.isAppFile ?? false, size: upload.file.size })))
+    const v = bitArrayToUint8Array(chachaEncrypt(key, wrapWithReplayProtection(JSON.stringify({ dir: upload.dir, replace, isAppFile: upload.isAppFile ?? false, size: upload.file.size }))))
     data.append('info', new Blob([v]))
     // Explicitly pass the base filename to prevent browsers from including
     // webkitRelativePath in the Content-Disposition filename parameter.
@@ -595,7 +596,7 @@ async function uploadChunkHttp(upload: IUploadItem, chunkData: IUploadChunk & { 
       index: chunkData.index,
       size: chunkData.chunk.size,
     })
-    const v = bitArrayToUint8Array(chachaEncrypt(key, info))
+    const v = bitArrayToUint8Array(chachaEncrypt(key, wrapWithReplayProtection(info)))
     data.append('info', new Blob([v]))
     data.append('file', chunkData.chunk, upload.file.name)
 

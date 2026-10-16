@@ -337,7 +337,16 @@ export interface IChatChannelMember {
   status: MemberStatus
 }
 
+export interface IChatChannelActions {
+  isOwner: boolean
+  canRename: boolean
+  canManageMembers: boolean
+  canLeave: boolean
+  canDelete: boolean
+}
+
 export interface IChatChannel {
+  actions: IChatChannelActions
   id: string
   name: string
   ownerId: string
