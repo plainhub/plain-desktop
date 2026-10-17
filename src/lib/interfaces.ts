@@ -300,10 +300,8 @@ export interface IDropdownItem {
   click: () => void
 }
 
-export interface ITagRelationStub {
+export interface ITagRelationItem {
   key: string
-  title: string
-  size: number
 }
 
 export interface IChatItem extends IData {
@@ -445,7 +443,7 @@ export interface IFileRenamedEvent {
 }
 
 export interface IItemTagsUpdatedEvent {
-  item: ITagRelationStub
+  item: ITagRelationItem
   type: string
 }
 

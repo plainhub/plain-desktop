@@ -28,7 +28,7 @@
         <v-icon-button v-tooltip="$t('download')" class="sm" @click.stop="downloadFile(item.path, getFileName(item.path).replace(' ', '-'))">
           <i-material-symbols:download-rounded />
         </v-icon-button>
-        <TagRelationsDropdown :type="dataType" :tags="tags" :item="{ key: item.id, title: item.title, size: item.size }" :selected="item.tags" />
+        <TagRelationsDropdown :type="dataType" :tags="tags" :item="{ key: item.id }" :selected="item.tags" />
         <v-icon-button v-if="isInPlaylist(item) && !animatingIds.includes(item.id)" v-tooltip="$t('remove_from_playlist')" class="sm" @click.stop.prevent="handleRemoveFromPlaylist($event, item)">
           <i-material-symbols:playlist-remove class="playlist-remove-icon" />
         </v-icon-button>

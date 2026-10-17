@@ -7,7 +7,7 @@
       <v-icon-button v-tooltip="$t('make_a_phone_call')" :loading="callLoading && callId === item.id" @click.stop="call">
         <i-material-symbols:call-outline-rounded />
       </v-icon-button>
-      <TagRelationsDropdown :type="dataType" :tags="tags" :item="{ key: item.id, title: item.number, size: 0 }" :selected="item.tags" />
+      <TagRelationsDropdown :type="dataType" :tags="tags" :item="{ key: item.id }" :selected="item.tags" />
     </template>
     <inline-delete-confirm v-else :name="item.number" @confirm="onConfirmDelete" @cancel="confirming = false" />
   </div>

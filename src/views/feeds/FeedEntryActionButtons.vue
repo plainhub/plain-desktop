@@ -1,6 +1,6 @@
 <template>
   <div class="action-buttons">
-    <TagRelationsDropdown :type="dataType" :tags="tags" :item="{ key: entry.id, title: '', size: 0 }" :selected="entry.tags ?? []" />
+    <TagRelationsDropdown :type="dataType" :tags="tags" :item="{ key: entry.id }" :selected="entry.tags ?? []" />
     <v-icon-button v-tooltip="$t('sync_content')" :loading="syncContentLoading" @click.prevent="$emit('syncContent')">
       <i-material-symbols:sync-rounded />
     </v-icon-button>

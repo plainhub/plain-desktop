@@ -7,7 +7,7 @@
       <v-icon-button v-tooltip="$t('edit')" @click.stop="edit">
         <i-material-symbols:edit />
       </v-icon-button>
-      <TagRelationsDropdown :type="dataType" :tags="tags" :item="{ key: item.id, title: '', size: 0 }" :selected="item.tags" />
+      <TagRelationsDropdown :type="dataType" :tags="tags" :item="{ key: item.id }" :selected="item.tags" />
     </template>
     <inline-delete-confirm v-else :name="getContactFullName(item)" @confirm="onConfirmDelete" @cancel="confirming = false" />
   </div>

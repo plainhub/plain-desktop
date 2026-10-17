@@ -14,7 +14,7 @@
         <item-tags :tags="note?.tags" :type="dataType" :only-links="true" />
         <note-mode-toggle :mode="viewMode" @update:mode="setViewMode" />
         <template v-if="id">
-          <TagRelationsDropdown :type="dataType" :tags="tags ?? []" :item="{ key: note?.id ?? '', title: '', size: 0 }" :selected="note?.tags ?? []" />
+          <TagRelationsDropdown :type="dataType" :tags="tags ?? []" :item="{ key: note?.id ?? '' }" :selected="note?.tags ?? []" />
           <v-icon-button v-tooltip="$t('print')" @click.prevent="print">
             <i-material-symbols:print-outline-rounded />
           </v-icon-button>

@@ -39,13 +39,13 @@
 <script setup lang="ts">
 import { computed, ref, type PropType } from 'vue'
 import { initMutation, updateTagRelationsGQL, createTagGQL } from '@/lib/api/mutation'
-import type { ITag, ITagRelationStub } from '@/lib/interfaces'
+import type { ITag, ITagRelationItem } from '@/lib/interfaces'
 import emitter from '@/plugins/eventbus'
 
 const props = defineProps({
   type: { type: String, required: true },
   tags: { type: Array as PropType<ITag[]>, default: () => [] },
-  item: { type: Object as PropType<ITagRelationStub>, required: true },
+  item: { type: Object as PropType<ITagRelationItem>, required: true },
   selected: { type: Array as PropType<ITag[]>, default: () => [] },
 })
 
@@ -77,7 +77,7 @@ function toggleTag(tag: ITag) {
   mutate({
     type: props.type,
     addTagIds: selected ? [] : [tag.id],
-    item: props.item,
+    keys: [props.item.key],
     removeTagIds: selected ? [tag.id] : [],
   })
 }
@@ -93,7 +93,7 @@ function createAndAdd() {
     mutate({
       type: props.type,
       addTagIds: [newTag.id],
-      item: props.item,
+      keys: [props.item.key],
       removeTagIds: [],
     })
     query.value = ''

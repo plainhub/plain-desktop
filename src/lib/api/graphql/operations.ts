@@ -2498,7 +2498,7 @@ export interface GqlOperations {
     }
     variables: {
       type: 'DEFAULT' | 'AUDIO' | 'VIDEO' | 'IMAGE' | 'SMS' | 'CONTACT' | 'NOTE' | 'FEED_ENTRY' | 'CALL' | 'PACKAGE' | 'FILE' | 'APP_FILE' | 'DOC'
-      item: unknown
+      keys: Array<string>
       addTagIds: Array<string>
       removeTagIds: Array<string>
     }

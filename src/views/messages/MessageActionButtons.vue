@@ -1,6 +1,6 @@
 <template>
   <div class="actions">
-    <TagRelationsDropdown :type="dataType" :tags="tags" :item="{ key: item.id, title: '', size: 0 }" :selected="item.tags ?? []" />
+    <TagRelationsDropdown :type="dataType" :tags="tags" :item="{ key: item.id }" :selected="item.tags ?? []" />
     <v-icon-button v-tooltip="$t('send_sms')" @click.stop="sendSms">
       <i-material-symbols:sms-outline-rounded />
     </v-icon-button>

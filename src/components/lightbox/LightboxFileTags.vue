@@ -5,7 +5,7 @@
       <TagRelationsDropdown
         :type="current.type"
         :tags="tagsForType"
-        :item="{ key: current.data?.id ?? '', title: current.data?.title ?? '', size: current.data?.size ?? 0 }"
+        :item="{ key: current.data?.id ?? '' }"
         :selected="selectedTags"
       />
     </template>

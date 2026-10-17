@@ -9,7 +9,7 @@
         v-if="!isDraftOrPending"
         :type="type"
         :tags="tags"
-        :item="{ key: item.id, title: '', size: 0 }"
+        :item="{ key: item.id }"
         :selected="item.tags ?? []"
       />
       <v-icon-button
