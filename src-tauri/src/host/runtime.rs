@@ -27,11 +27,6 @@ impl Runtime {
             "systemCapabilities" => {
                 serde_json::to_value(&self.capabilities).map_err(|error| error.to_string())
             }
-            plain_server::host::platform::SYSTEM_MOUNT_FACTS => {
-                tokio::task::spawn_blocking(plain_server::services::files::mounts::facts)
-                    .await
-                    .map_err(|error| error.to_string())?
-            }
             "systemPermissionFacts" => plain_server::host::permission_facts::facts(
                 &["WRITE_EXTERNAL_STORAGE".to_owned()],
                 params,
