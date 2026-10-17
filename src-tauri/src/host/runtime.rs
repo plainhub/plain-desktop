@@ -1,7 +1,6 @@
 use std::sync::Arc;
 
 use plain_server::assembly::server::ContentServer;
-use plain_server::host::platform::SYSTEM_DISKS_FACTS;
 use serde_json::Value;
 use tauri::Emitter;
 
@@ -42,13 +41,6 @@ impl Runtime {
                     .map_err(|_| "multicast lease state unavailable")?
                     .without_platform_lock(params)?;
                 Ok(Value::Bool(result))
-            }
-
-            SYSTEM_DISKS_FACTS => {
-                let facts = tokio::task::spawn_blocking(super::native::platform::disks)
-                    .await
-                    .map_err(|error| error.to_string())??;
-                serde_json::to_value(facts).map_err(|error| error.to_string())
             }
 
             _ => Err(format!("Unsupported desktop host method: {method}")),
