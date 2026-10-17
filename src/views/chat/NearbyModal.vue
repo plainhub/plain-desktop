@@ -7,7 +7,7 @@
       </template>
       <template v-else>
         <v-icon-button :aria-label="$t('back')" @click="backToDevices"><i-material-symbols:arrow-back-rounded /></v-icon-button>
-        <span>{{ step === 'mode' ? $t('pairing_with', { name: selectedDevice?.name }) : $t('log_in') + ' ' + selectedDevice?.name }}</span>
+        <span>{{ $t('pairing_with', { name: selectedDevice?.name }) }}</span>
       </template>
     </template>
     <template #content>
@@ -147,9 +147,11 @@ async function confirmPair(mode: 'chat' | 'control') {
   const device = selectedDevice.value
   if (!device) return
   if (mode === 'control') {
-    const host = device.ips[0] ? `${device.ips[0]}:${device.port}` : ''
+    const ip = device.bestIp || device.ips[0]
+    const host = ip ? `${ip.includes(':') ? `[${ip}]` : ip}:${device.port}` : ''
     if (!host) return
     loginDevice.value = {
+      id: device.id,
       name: device.name,
       host,
       deviceType: device.deviceType as DeviceType,
@@ -163,18 +165,10 @@ async function confirmPair(mode: 'chat' | 'control') {
 
 async function startPair(d: DiscoveredDevice) {
   deviceStates.set(d.id, DeviceState.PAIRING)
-  const sent = await pairDevice({
-    id: d.id,
-    name: d.name,
-    ips: d.ips,
-    port: d.port,
-    deviceType: d.deviceType,
-    version: d.version,
-    platform: d.platform,
-    lastSeen: d.lastSeen,
-    discoveryMethods: d.discoveryMethods,
-  })
-  if (sent) d.status = 'PAIRING'
+  const previous = d.status
+  d.status = 'PAIRING'
+  const sent = await pairDevice({ id: d.id })
+  if (!sent) d.status = previous
   deviceStates.delete(d.id)
 }
 

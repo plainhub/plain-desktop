@@ -5,6 +5,7 @@ import {
   respondToPairingGQL,
 } from '@/lib/api/mutation'
 import type { PairingRequest } from '@/lib/pairing-types'
+import { getGraphqlContextKey } from '@/lib/api/gql-client'
 import { reactive } from 'vue'
 
 export type { PairingRequest }
@@ -37,25 +38,25 @@ export async function denyPairing(request: PairingRequest) {
   await respondToPairingMutate({ input: request, accepted: false })
 }
 
-export interface PairingDeviceInput {
-  id: string
-  name: string
-  ips: string[]
-  port: number
-  deviceType: string
-  version: string
-  platform: string
-  lastSeen: string
-  discoveryMethods: string[]
-}
+export interface PairingDeviceInput { id: string; host?: string }
 
 export function useDevicePairing() {
+  const generations = new Map<string, string>()
+  const key = (id: string) => `${getGraphqlContextKey()}|${id}`
   async function pairDevice(device: PairingDeviceInput) {
-    return (await pairDeviceMutate({ input: device })) != null
+    const contextKey = key(device.id)
+    const result = await pairDeviceMutate({ input: device })
+    if (result?.data?.pairDevice) generations.set(contextKey, result.data.pairDevice.generation)
+    return result != null
   }
 
   async function cancelPairing(deviceId: string) {
-    await cancelPairingMutate({ deviceId })
+    let generation = generations.get(key(deviceId))
+    if (!generation) {
+      const { data } = await import('@/lib/api/gql-client').then(({ gqlFetch }) => gqlFetch('{ pairingStates { deviceId generation phase } }'))
+      generation = data?.pairingStates?.find((s: { deviceId: string; phase: string }) => s.deviceId === deviceId && !['SUCCEEDED', 'FAILED', 'CANCELLED'].includes(s.phase))?.generation
+    }
+    if (generation) await cancelPairingMutate({ generation })
   }
 
   return {

@@ -1,7 +1,6 @@
 import { ref } from 'vue'
 import { nativeGraphql } from '@/lib/api/native-client'
 import type { IPeer } from '@/lib/interfaces'
-import { DeviceType } from '@/lib/status'
 
 const AUTH_TOKEN_KEY = 'auth_token'
 
@@ -11,17 +10,7 @@ async function localData<T>(query: string, variables?: Record<string, unknown>):
   return result.data
 }
 
-export type LoginPeer = IPeer & { token: string; publicKey: string }
-
-export interface SaveLoginPeerInput {
-  clientId: string
-  name: string
-  host: string
-  deviceType: DeviceType
-  token: string
-  signaturePublicKey: string
-  chatKey?: string
-}
+export type LoginPeer = IPeer & { token: string; publicKey: string; address?: { bestIp: string; baseUrl: string } }
 
 /** First IP from a comma-separated address list. */
 export function getPeerIp(p: { ip: string }): string {
@@ -29,7 +18,8 @@ export function getPeerIp(p: { ip: string }): string {
 }
 
 export function peerHost(p: IPeer): string {
-  return p.port && getPeerIp(p) ? `${getPeerIp(p)}:${p.port}` : ''
+  const ip = getPeerIp(p)
+  return p.port && ip ? `${ip.includes(':') ? `[${ip}]` : ip}:${p.port}` : ''
 }
 
 /**
@@ -44,10 +34,10 @@ export const loginPeers = ref<LoginPeer[]>([])
 export async function preloadLoginPeers(): Promise<void> {
   if (!__IS_TAURI__) return
   try {
-    const result = await localData<{ loggedInPeers: { peer: Omit<LoginPeer, 'online'>; online: boolean }[] }>(
-      'query { loggedInPeers { peer { id name ip status port deviceType token publicKey createdAt updatedAt } online } }',
+    const result = await localData<{ peers: LoginPeer[] }>(
+      'query { peers { id name ip status port deviceType token publicKey createdAt updatedAt online address { bestIp baseUrl } } }',
     )
-    loginPeers.value = result.loggedInPeers.map(({ peer, online }) => ({ ...peer, online }))
+    loginPeers.value = result.peers.filter((peer) => !!peer.token).sort((a, b) => b.createdAt.localeCompare(a.createdAt) || a.id.localeCompare(b.id))
   } catch (e) {
     console.error('list_login_peers failed', e)
   }
@@ -57,24 +47,8 @@ export function findLoginPeer(clientId: string): LoginPeer | undefined {
   return loginPeers.value.find((p) => p.id === clientId)
 }
 
-/** Records a successful login: creates/refreshes the peer row with the
- *  token and optional chat key. Web mode stores the
- *  token in localStorage instead. */
-export async function saveLoginPeer(input: SaveLoginPeerInput): Promise<void> {
-  if (!__IS_TAURI__) {
-    localStorage.setItem(AUTH_TOKEN_KEY, input.token)
-    return
-  }
-  await localData('mutation($input: PeerLoginInput!) { loginPeer(input: $input) }', { input: {
-    id: input.clientId,
-    name: input.name,
-    host: input.host,
-    deviceType: input.deviceType,
-    token: input.token,
-    signaturePublicKey: input.signaturePublicKey,
-    chatKey: input.chatKey,
-  } })
-  await preloadLoginPeers()
+export function saveBrowserSession(token: string): void {
+  localStorage.setItem(AUTH_TOKEN_KEY, token)
 }
 
 /** Clears the login token (logout / forget device). The peer row itself is

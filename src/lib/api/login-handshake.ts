@@ -98,12 +98,10 @@ export function performLoginHandshake(params: LoginHandshakeParams): Promise<Log
     ws.onopen = async () => {
       const ua = await getAccurateAgent()
       if (params.signal?.aborted) return
-      const browserName = __IS_TAURI__ ? 'PlainApp' : ua.browser.name
-      const browserVersion = __IS_TAURI__ ? '' : ua.browser.version
       const enc = chachaEncrypt(key, JSON.stringify({
         password: passwordHash,
-        browserName,
-        browserVersion,
+        browserName: ua.browser.name,
+        browserVersion: ua.browser.version,
         osName: ua.os.name,
         osVersion: ua.os.version,
         isMobile: ua.isMobile,

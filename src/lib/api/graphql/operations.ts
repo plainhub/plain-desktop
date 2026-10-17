@@ -655,7 +655,7 @@ export interface GqlOperations {
       cancelPairing: boolean
     }
     variables: {
-      deviceId: string
+      generation: string
     }
   }
   chatChannelsGQL: {
@@ -792,6 +792,20 @@ export interface GqlOperations {
   createNoteGQL: {
     result: {
       createNote: Fragment_NoteFragment
+    }
+    variables: {
+      input: unknown
+    }
+  }
+  createPairing: {
+    result: {
+      pairDevice: {
+        deviceId?: string
+        generation: string
+        mode: 'CHAT' | 'MANAGE'
+        phase: string
+        error?: string
+      }
     }
     variables: {
       input: unknown
@@ -1592,6 +1606,7 @@ export interface GqlOperations {
         id: string
         name: string
         ips: Array<string>
+        bestIp: string
         port: number
         deviceType: string
         version: string
@@ -1599,6 +1614,13 @@ export interface GqlOperations {
         lastSeen: string
         status: string
         discoveryMethods: Array<string>
+      }>
+      pairingStates: Array<{
+        deviceId?: string
+        generation: string
+        mode: 'CHAT' | 'MANAGE'
+        phase: string
+        error?: string
       }>
     }
     variables: undefined
@@ -1689,7 +1711,13 @@ export interface GqlOperations {
   }
   pairDeviceGQL: {
     result: {
-      pairDevice: boolean
+      pairDevice: {
+        deviceId?: string
+        generation: string
+        mode: 'CHAT' | 'MANAGE'
+        phase: string
+        error?: string
+      }
     }
     variables: {
       input: unknown

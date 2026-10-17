@@ -919,13 +919,13 @@ export const releaseDiscoveryGQL = `
 
 export const pairDeviceGQL = `
   mutation pairDevice($input: PairingDeviceInput!) {
-    pairDevice(input: $input)
+    pairDevice(input: $input) { deviceId generation mode phase error }
   }
 `
 
 export const cancelPairingGQL = `
-  mutation cancelPairing($deviceId: ID!) {
-    cancelPairing(deviceId: $deviceId)
+  mutation cancelPairing($generation: String!) {
+    cancelPairing(generation: $generation)
   }
 `
 

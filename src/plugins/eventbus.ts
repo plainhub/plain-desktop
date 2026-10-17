@@ -61,6 +61,7 @@ type Events = {
   PAIRING_FAILED: PairingResult
   PAIRING_CANCELED: PairingResult
   PAIRING_STARTED: PairingResult
+  PAIRING_STATE_CHANGED: import('@/lib/device/pairing').PairingState
   NEARBY_DEVICE_FOUND: any
   NEARBY_DEVICE_UNREACHABLE: { id: string }
   NEARBY_DISCOVERY_STARTED: undefined

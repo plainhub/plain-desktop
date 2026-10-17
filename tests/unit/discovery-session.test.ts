@@ -7,7 +7,7 @@ vi.mock('@/lib/api/gql-client', () => ({ bindGraphqlClient: fixture.bind }))
 vi.mock('@/lib/api/mutation', () => ({ acquireDiscoveryGQL: 'acquireDiscovery', releaseDiscoveryGQL: 'releaseDiscovery' }))
 vi.mock('@/lib/api/query', () => ({ nearbyDevicesGQL: 'nearbyDevices' }))
 vi.mock('@/plugins/eventbus', () => ({ default: { on: (name: string, handler: (...args: any[]) => void) => fixture.listeners.set(name, handler) } }))
-vi.mock('@/stores/chat', () => ({ useChatStore: () => ({ fetchPeers: vi.fn() }) }))
+vi.mock('@/stores/chat', () => ({ useChatStore: () => ({ fetchPeers: vi.fn(), findPeer: () => null }) }))
 vi.mock('@/lib/status', () => ({ PeerStatus: { PAIRED: 'PAIRED', UNPAIRED: 'UNPAIRED' } }))
 vi.mock('@/lib/strutil', () => ({ randomUUID: () => `view-${++fixture.nextId}` }))
 
@@ -71,4 +71,18 @@ it('reconnect restores only active views without an interval that resurrects clo
   await vi.waitFor(() => expect(fixture.request.mock.calls.filter(([document]) => document === 'acquireDiscovery')).toHaveLength(3))
   expect(fixture.request.mock.calls.filter(([document]) => document === 'acquireDiscovery').at(-1)![1].token).toBe('view-2')
   await second.stop()
+})
+
+it('restores pending pairing from the same discovery snapshot and projects terminal states', async () => {
+  const device = { id: 'peer', name: 'Fixture', status: 'UNPAIRED' }
+  fixture.request.mockImplementation(async (document: string) => ({ data: document === 'nearbyDevices' ? { nearbyDevices: [device], pairingStates: [{ deviceId: 'peer', generation: 'current', mode: 'CHAT', phase: 'PAIRING', error: null }] } : {} }))
+  const { useDeviceDiscovery } = await import('../../src/hooks/use-device-discovery')
+  const view = useDeviceDiscovery()
+  await view.start()
+  expect(view.devices.value[0].status).toBe('PAIRING')
+  fixture.listeners.get('PAIRING_FAILED')!({ deviceId: 'peer' })
+  expect(view.devices.value[0].status).toBe('PAIRING')
+  fixture.listeners.get('PAIRING_STATE_CHANGED')!({ deviceId: 'peer', generation: 'current', mode: 'CHAT', phase: 'FAILED', error: 'failed' })
+  expect(view.devices.value[0].status).toBe('UNPAIRED')
+  await view.stop()
 })

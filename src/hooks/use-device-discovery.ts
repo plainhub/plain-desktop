@@ -6,6 +6,7 @@ import { randomUUID } from '@/lib/strutil'
 import emitter from '@/plugins/eventbus'
 import type { PairingResult } from '@/lib/pairing-types'
 import { useChatStore } from '@/stores/chat'
+import type { PairingState } from '@/lib/device/pairing'
 import { PeerStatus } from '@/lib/status'
 
 export type DiscoveryDeviceStatus = 'PAIRING' | 'UNPAIRING' | PeerStatus
@@ -14,6 +15,7 @@ export interface DiscoveredDevice {
   id: string
   name: string
   ips: string[]
+  bestIp?: string
   port: number
   deviceType: string
   version: string
@@ -36,6 +38,23 @@ const status = ref<DiscoveryStatus>(DiscoveryStatus.IDLE)
 
 const activeSessions = new Set<() => Promise<void>>()
 let listenerInitialized = false
+
+const pairingStates = new Map<string, PairingState>()
+const terminalPairing = new Set(['SUCCEEDED', 'FAILED', 'CANCELLED'])
+
+function applyPairingState(state: PairingState) {
+  if (!state.deviceId) return
+  const device = devices.value.find((d) => d.id === state.deviceId)
+  if (!device) return
+  pairingStates.set(state.deviceId, state)
+  device.status = state.phase === 'SUCCEEDED' ? PeerStatus.PAIRED : terminalPairing.has(state.phase) ? useChatStore().findPeer(state.deviceId)?.status ?? PeerStatus.UNPAIRED : 'PAIRING'
+}
+function restoreDeviceStatus(deviceId: string) {
+  const state = pairingStates.get(deviceId)
+  if (state && !terminalPairing.has(state.phase)) return
+  const device = devices.value.find((d) => d.id === deviceId)
+  if (device) device.status = useChatStore().findPeer(deviceId)?.status ?? PeerStatus.UNPAIRED
+}
 
 function ensureListener() {
   if (listenerInitialized) return
@@ -69,19 +88,10 @@ function ensureListener() {
     useChatStore().fetchPeers()
   })
 
-  emitter.on('PAIRING_FAILED', (result: PairingResult) => {
-    const device = devices.value.find((d) => d.id === result.deviceId)
-    if (device) {
-      device.status = PeerStatus.UNPAIRED
-    }
-  })
+  emitter.on('PAIRING_STATE_CHANGED', applyPairingState)
+  emitter.on('PAIRING_FAILED', (result: PairingResult) => restoreDeviceStatus(result.deviceId))
   
-  emitter.on('PAIRING_CANCELED', (result: PairingResult) => {
-    const device = devices.value.find((d) => d.id === result.deviceId)
-    if (device) {
-      device.status = PeerStatus.UNPAIRED
-    }
-  })
+  emitter.on('PAIRING_CANCELED', (result: PairingResult) => restoreDeviceStatus(result.deviceId))
 
   emitter.on('PAIRING_STARTED', (result: PairingResult) => {
     const device = devices.value.find((d) => d.id === result.deviceId)
@@ -119,9 +129,13 @@ export function useDeviceDiscovery() {
   }
 
   async function refreshDevices(client: ReturnType<typeof bindGraphqlClient>, current: string): Promise<void> {
-    const result = await client<{ nearbyDevices: DiscoveredDevice[] }>(nearbyDevicesGQL)
+    const result = await client<{ nearbyDevices: DiscoveredDevice[]; pairingStates?: PairingState[] }>(nearbyDevicesGQL)
     if (result.errors?.length) throw new Error(result.errors[0].message)
-    if (active && token === current) devices.value = result.data.nearbyDevices
+    if (active && token === current) {
+      devices.value = result.data.nearbyDevices
+      pairingStates.clear()
+      for (const state of result.data.pairingStates ?? []) applyPairingState(state)
+    }
   }
 
   function enqueue(operation: () => Promise<void>): Promise<void> {
@@ -170,6 +184,7 @@ export function useDeviceDiscovery() {
     if (activeSessions.size === 0) {
       status.value = DiscoveryStatus.IDLE
       devices.value = []
+      pairingStates.clear()
     }
   }
 

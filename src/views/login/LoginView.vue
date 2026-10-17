@@ -15,7 +15,7 @@ import { DeviceType } from '@/lib/status'
 const loginFormRef = ref<InstanceType<typeof LoginForm> | null>(null)
 
 onMounted(() => {
-  setPendingLoginDevice({
+  if (!__IS_TAURI__) setPendingLoginDevice({
     name: window.location.host,
     host: window.location.host,
     deviceType: DeviceType.OTHER,
@@ -34,6 +34,7 @@ async function initializeLoginForm() {
   if (!loginFormRef.value) {
     throw new Error('login_form_not_ready')
   }
+  if (__IS_TAURI__) { await loginFormRef.value.initializeNative(); return }
   const result = await requestInit()
   if (result.data?.needsSetup) {
     goToSetup(); return

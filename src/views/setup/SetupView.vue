@@ -51,18 +51,22 @@
   </AuthShell>
 </template>
 <script setup lang="ts">
-import { nextTick, onMounted, ref, watch } from 'vue'
+import { nextTick, onMounted, onBeforeUnmount, ref, watch } from 'vue'
 import router from '@/plugins/router'
 import AuthShell from '@/components/AuthShell.vue'
 import { sha512 } from '@/lib/api/crypto'
 import { setPendingLoginDevice, getPendingLoginDevice, clearPendingLoginDevice, getApiHost, getApiBaseUrl } from '@/lib/api/api'
 import { requestInit } from '@/lib/api/init'
-import { findLoginPeer, saveLoginPeer } from '@/lib/device/login-peers'
+import { findLoginPeer, saveBrowserSession, preloadLoginPeers } from '@/lib/device/login-peers'
 import { getRemoteClientId, setRemoteClientId } from '@/lib/device/client-id'
+import { createPairing } from '@/lib/device/pairing'
 import { performLoginHandshake } from '@/lib/api/login-handshake'
 import { httpRequest } from '@/lib/api/http'
 import { get as prefsGet } from '@/lib/prefs'
 import { DeviceType } from '@/lib/status'
+
+let activePairing: ReturnType<typeof createPairing> | null = null
+onBeforeUnmount(() => activePairing?.dispose())
 
 const showError = ref(false)
 const error = ref('')
@@ -143,21 +147,35 @@ async function onSubmit() {
   }
 
   try {
-    const { clientId, token, signaturePublicKey } = await performLoginHandshake({
-      passwordHash: hash,
-      clientId: myClientId,
-      storedSignaturePublicKey: findLoginPeer(getRemoteClientId())?.publicKey,
-      initSignaturePublicKey: lastInitSignaturePublicKey,
-    })
-
-    const pendingLoginDevice = getPendingLoginDevice()
-    const host = pendingLoginDevice?.host || window.location.host || ''
-    const deviceType = pendingLoginDevice?.deviceType || DeviceType.OTHER
-    if (host && clientId) {
-      await saveLoginPeer({ clientId, name: '', host, token, signaturePublicKey, deviceType })
+    if (__IS_TAURI__) {
+      const pairing = createPairing()
+      activePairing = pairing
+      try {
+        const pending = getPendingLoginDevice()
+        await pairing.start({ id: pending?.id, host: pending?.host || getApiHost(), mode: 'MANAGE', password: password.value })
+        let stopWatching = () => {}
+        const completion = new Promise<string>((resolve, reject) => {
+          const update = (state: typeof pairing.state.value) => {
+            if (state?.phase === 'SUCCEEDED' && state.deviceId) resolve(state.deviceId)
+            if (state?.phase === 'FAILED' || state?.phase === 'CANCELLED') reject(new Error(state.error || 'failed'))
+          }
+          stopWatching = watch(pairing.state, update)
+          update(pairing.state.value)
+        })
+        const clientId = await completion.finally(() => stopWatching())
+        await preloadLoginPeers()
+        setRemoteClientId(clientId)
+      } finally { pairing.dispose(); activePairing = null }
+    } else {
+      const { clientId, token } = await performLoginHandshake({
+        passwordHash: hash,
+        clientId: myClientId,
+        initSignaturePublicKey: lastInitSignaturePublicKey,
+      })
+      saveBrowserSession(token)
       setRemoteClientId(clientId)
-      clearPendingLoginDevice()
     }
+    clearPendingLoginDevice()
     const r = router.currentRoute.value.query['redirect']
     window.location.href = typeof r === 'string' && r.startsWith('/') && !r.startsWith('//') ? r : '/'
   } catch (e) {

@@ -5,6 +5,7 @@
       v-else
       ref="loginFormRef"
       :redirect-on-success="false"
+      pairing
       :peer="peer"
       @success="onSuccess"
       @cancel="emit('cancel')"
@@ -36,6 +37,7 @@ onMounted(async () => {
   setPendingLoginDevice(props.device)
   await nextTick()
   try {
+    if (__IS_TAURI__) { await loginFormRef.value?.initializeNative(); return }
     if (props.pairChat) {
       const self = await loadSelfDevice()
       if (!self?.id || !self.publicKey || !self.port) throw new Error('local pairing identity unavailable')

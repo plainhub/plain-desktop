@@ -18,7 +18,7 @@
       @keydown.enter="onSubmit"
     />
     <v-filled-button v-if="!webAccessDisabled" :disabled="isSubmitting" :loading="isSubmitting">
-      {{ $t(isSubmitting ? 'logging_in' : 'log_in') }}
+      {{ $t(pairing ? 'pair' : isSubmitting ? 'logging_in' : 'log_in') }}
     </v-filled-button>
   </form>
   <div v-show="showConfirm">
@@ -46,9 +46,11 @@ type InitOptions = {
 
 const props = withDefaults(defineProps<{
   redirectOnSuccess?: boolean
+  pairing?: boolean
   peer?: LoginHandshakeParams['peer']
 }>(), {
   redirectOnSuccess: true,
+  pairing: false,
   peer: undefined,
 })
 
@@ -59,7 +61,7 @@ const emit = defineEmits<{
 
 const {
   showError, webAccessDisabled, showConfirm, error, showPasswordInput,
-  password, passwordError, isSubmitting, onSubmit, cancel, t, applyInitResult,
+  password, passwordError, isSubmitting, onSubmit, cancel, t, applyInitResult, initializeNative, dispose,
 } = useLogin({
   redirectOnSuccess: props.redirectOnSuccess,
   onSuccess: async () => emit('success'),
@@ -78,9 +80,9 @@ function onCancel() {
   emit('cancel')
 }
 
-onBeforeUnmount(cancel)
+onBeforeUnmount(dispose)
 
-defineExpose({ init })
+defineExpose({ init, initializeNative })
 </script>
 
 <style scoped lang="scss">

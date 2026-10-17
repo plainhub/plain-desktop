@@ -1,4 +1,4 @@
-import { getCurrentDeviceHost } from '../device/current'
+import { getCurrentDeviceHost, getCurrentDeviceBaseUrl } from '../device/current'
 import { isLocalModeAllowed } from '../device/local-mode'
 import { get as prefsGet } from '../prefs'
 import { isMacPlatform } from '../platform'
@@ -6,6 +6,7 @@ import { DeviceType } from '../status'
 import { applyScheme } from '../url'
 
 export interface PendingLoginDevice {
+  id?: string
   name: string
   host: string
   deviceType: DeviceType
@@ -117,6 +118,8 @@ export function getApiHost() {
 }
 
 export function getApiBaseUrl() {
+  const saved = !_pendingLoginDevice && getCurrentDeviceBaseUrl()
+  if (saved) return saved
   if (__IS_TAURI__ && _localServerPort && !(_pendingLoginDevice || getCurrentDeviceHost())) {
     return `http://localhost:${_localServerPort}`
   }
@@ -131,6 +134,8 @@ export function getApiBaseUrl() {
 }
 
 export function getWebSocketBaseUrl() {
+  const saved = !_pendingLoginDevice && getCurrentDeviceBaseUrl()
+  if (saved) return saved.replace(/^http/, 'ws')
   if (__IS_TAURI__ && _localServerPort && !(_pendingLoginDevice || getCurrentDeviceHost())) {
     return `ws://localhost:${_localServerPort}`
   }

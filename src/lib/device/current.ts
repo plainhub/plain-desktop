@@ -16,6 +16,10 @@ export function getCurrentDeviceHost(): string {
   return peer ? peerHost(peer) : ''
 }
 
+export function getCurrentDeviceBaseUrl(): string {
+  return __IS_TAURI__ ? findLoginPeer(getRemoteClientId())?.address?.baseUrl || '' : ''
+}
+
 /** Current login token: Tauri reads it from the peers table mirror,
  *  web reads the single `auth_token` from localStorage. */
 export function getCurrentAuthToken(): string {
