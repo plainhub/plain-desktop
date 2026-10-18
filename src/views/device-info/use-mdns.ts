@@ -1,3 +1,4 @@
+import { readNativeSystemSettings } from '@/lib/device/native-settings'
 import { ref } from 'vue'
 import { gqlFetch } from '@/lib/api/gql-client'
 import { isLocalMode } from '@/lib/device/local-mode'
@@ -42,9 +43,7 @@ export function useMdns() {
 
   async function loadHostname() {
     if (!isLocalMode()) return
-    const result = await gqlFetch<{ systemSettings: { mdnsHostname: string } }>('query { systemSettings { mdnsHostname } }')
-    if (result.errors?.length) throw new Error(result.errors[0].message)
-    hostname.value = result.data.systemSettings.mdnsHostname
+    if (__IS_TAURI__) hostname.value = (await readNativeSystemSettings()).mdnsHostname
   }
 
   // Mirrors plain-app's MdnsAndPortEditDialog validation: non-blank and

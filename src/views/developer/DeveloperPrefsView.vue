@@ -7,6 +7,7 @@
   <div class="scroll-content">
     <div class="button-group tab-group" role="tablist" aria-label="Preferences">
       <button
+        v-if="nativePreferences"
         type="button"
         role="tab"
         :aria-selected="activeTab === 'system'"
@@ -45,12 +46,16 @@
 </template>
 
 <script setup lang="ts">
-import { computed, ref, onActivated, onDeactivated } from 'vue'
+import { computed, ref, onActivated, onDeactivated, watch } from 'vue'
 import { storeToRefs } from 'pinia'
 import { useTempStore } from '@/stores/temp'
-import { initQuery, prefsGQL } from '@/lib/api/query'
+import { initQuery, userPrefsGQL } from '@/lib/api/query'
 import { initMutation, removeUserPrefGQL } from '@/lib/api/mutation'
 import DevDataTable from './DevDataTable.vue'
+import { invoke } from '@tauri-apps/api/core'
+import { isLocalMode } from '@/lib/device/local-mode'
+
+const nativePreferences = __IS_TAURI__ && isLocalMode()
 
 const isActive = ref(false)
 onActivated(() => { isActive.value = true })
@@ -69,13 +74,17 @@ const userEntries = ref<KeyValuePair[]>([])
 const entries = computed(() => activeTab.value === 'system' ? systemEntries.value : userEntries.value)
 const deletingKey = ref('')
 const { loading, refetch } = initQuery({
-  handle(data: { systemPrefs: Record<string, unknown>; userPrefs: Record<string, unknown> }, error: string) {
+  handle(data: { userPrefs: Record<string, unknown> }, error: string) {
     if (!error) {
-      systemEntries.value = toEntries(data?.systemPrefs)
       userEntries.value = toEntries(data?.userPrefs)
     }
   },
-  document: prefsGQL,
+  document: userPrefsGQL,
+})
+
+watch([isActive, activeTab], async ([active, tab]) => {
+  if (!active || tab !== 'system' || !nativePreferences) return
+  systemEntries.value = toEntries(await invoke<Record<string, unknown>>('native_system_preferences'))
 })
 
 const { mutate: deleteMutate } = initMutation({ document: removeUserPrefGQL })

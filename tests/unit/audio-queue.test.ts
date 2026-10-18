@@ -91,7 +91,7 @@ vi.mock('@/lib/api/mutation', () => ({
   enqueueAndPlayAudioGQL: 'enqueue-play',
   advanceAudioSelectionGQL: 'advance',
   reportAudioPlaybackGQL: 'report',
-  cycleAudioPlayModeGQL: 'cycle',
+  updateAudioPlayModeGQL: 'mode',
   removeAudioFromQueueGQL: 'remove',
   clearAudioQueueGQL: 'clear',
   reorderAudioQueueGQL: 'reorder',
@@ -102,7 +102,7 @@ vi.mock('@/lib/api/mutation', () => ({
         commands.push({ document, variables })
         const result = document === 'advance' ? await selectionResults.shift() : document === 'report'
           ? (reportResults.length ? await reportResults.shift() : { data: { reportAudioPlayback: true } })
-          : { data: { cycleAudioPlayMode: 'SHUFFLE' } }
+          : { data: { updateAudioPlayMode: true } }
         for (const callback of callbacks) callback(result)
         return result
       }),
@@ -164,8 +164,8 @@ it('delegates next and previous across unloaded pages without fetching them', as
     expect(player.current.value?.mediaId).toBe('449')
     expect(fetch).toHaveBeenCalledTimes(pageRequests)
     await player.changeMode()
-    expect(commands.at(-1)?.document).toBe('cycle')
-    expect(audioPlayback.value.mode).toBe('SHUFFLE')
+    expect(commands.at(-1)).toEqual({ document: 'mode', variables: { mode: 'REPEAT_ONE' } })
+    expect(audioPlayback.value.mode).toBe('REPEAT_ONE')
   } finally {
     app.unmount()
   }

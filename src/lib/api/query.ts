@@ -931,13 +931,6 @@ export const userPrefsGQL = `
   }
 `
 
-export const prefsGQL = `
-  query {
-    systemPrefs
-    userPrefs
-  }
-`
-
 export const dbTablesGQL = `
   query {
     dbTables

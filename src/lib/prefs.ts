@@ -1,3 +1,4 @@
+import { invoke } from '@tauri-apps/api/core'
 import { nativeGraphql } from '@/lib/api/native-client'
 
 let cache: Map<string, unknown> = new Map()
@@ -22,11 +23,11 @@ function persist(query: string, variables: Record<string, unknown>): Promise<voi
 export async function preload(): Promise<void> {
   if (!__IS_TAURI__) return
   await writes
-  const data = await localData<{ systemPrefs: Record<string, unknown> }>('{ systemPrefs }')
-  if (!data.systemPrefs || typeof data.systemPrefs !== 'object' || Array.isArray(data.systemPrefs)) {
+  const snapshot = await invoke<Record<string, unknown>>('native_system_preferences')
+  if (!snapshot || typeof snapshot !== 'object' || Array.isArray(snapshot)) {
     throw new Error('Invalid preference snapshot')
   }
-  cache = new Map(Object.entries(data.systemPrefs))
+  cache = new Map(Object.entries(snapshot))
 }
 
 export function get<T>(key: string, fallback: T): T {

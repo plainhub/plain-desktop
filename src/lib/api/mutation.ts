@@ -998,7 +998,3 @@ export const advanceAudioSelectionGQL = `
   }
   ${audioItemFragment}
 `
-
-export const cycleAudioPlayModeGQL = `
-  mutation cycleAudioPlayMode { cycleAudioPlayMode }
-`

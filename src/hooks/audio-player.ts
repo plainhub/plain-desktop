@@ -3,7 +3,7 @@ import { useTempStore } from '@/stores/temp'
 import { storeToRefs } from 'pinia'
 import type { IAudioItem } from '@/lib/interfaces'
 import { getFileUrlByPath } from '@/lib/api/file'
-import { initMutation, playAudioGQL, reportAudioPlaybackGQL, advanceAudioSelectionGQL, cycleAudioPlayModeGQL, removeAudioFromQueueGQL, clearAudioQueueGQL, reorderAudioQueueGQL, enqueueAndPlayAudioGQL } from '@/lib/api/mutation'
+import { initMutation, playAudioGQL, reportAudioPlaybackGQL, advanceAudioSelectionGQL, updateAudioPlayModeGQL, removeAudioFromQueueGQL, clearAudioQueueGQL, reorderAudioQueueGQL, enqueueAndPlayAudioGQL } from '@/lib/api/mutation'
 import { audioPlayback, useAudioPlaylistStore } from '@/hooks/audio-playlist-store'
 import emitter from '@/plugins/eventbus'
 import { getGraphqlContextKey } from '@/lib/api/gql-client'
@@ -91,12 +91,9 @@ export function useAudioPlaylist(audioRef: Ref<HTMLAudioElement | undefined>) {
     void nextTick(() => _play())
   })
   const { mutate: clear, loading: clearLoading, onDone: onClearDone } = initMutation({ document: clearAudioQueueGQL })
-  const { mutate: cycleMode, onDone: onModeChanged } = initMutation({ document: cycleAudioPlayModeGQL })
+  const { mutate: updateMode } = initMutation({ document: updateAudioPlayModeGQL })
   const { mutate: advanceSelection } = initMutation({ document: advanceAudioSelectionGQL })
   const { mutate: reportPlayback } = initMutation({ document: reportAudioPlaybackGQL }, false)
-  onModeChanged((result: any) => {
-    audioPlayback.value = { ...audioPlayback.value, mode: result.data.cycleAudioPlayMode }
-  })
   const { mutate: reorderAudioQueue } = initMutation({ document: reorderAudioQueueGQL })
   const { mutate: deleteAudio } = initMutation({ document: removeAudioFromQueueGQL })
 
@@ -203,7 +200,15 @@ export function useAudioPlaylist(audioRef: Ref<HTMLAudioElement | undefined>) {
   function playNext() { return advance('NEXT') }
   function changeMode() {
     const context = getGraphqlContextKey()
-    const command = pendingCommand.then(async () => { if (!disposed && context === getGraphqlContextKey()) await cycleMode() })
+    const command = pendingCommand.then(async () => {
+      if (disposed || context !== getGraphqlContextKey()) return
+      const modes = ['REPEAT', 'REPEAT_ONE', 'SHUFFLE'] as const
+      const mode = modes[(modes.findIndex((mode) => mode === audioPlayback.value.mode) + 1) % modes.length]
+      const result = await updateMode({ mode })
+      if (!disposed && context === getGraphqlContextKey() && result?.data?.updateAudioPlayMode) {
+        audioPlayback.value = { ...audioPlayback.value, mode }
+      }
+    })
     pendingCommand = command.catch(() => {})
     return command
   }

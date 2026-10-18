@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, expect, it, vi } from 'vitest'
 
-const { native, remote } = vi.hoisted(() => ({ native: vi.fn(), remote: vi.fn() }))
+const { native, remote, invoke } = vi.hoisted(() => ({ native: vi.fn(), remote: vi.fn(), invoke: vi.fn() }))
+vi.mock('@tauri-apps/api/core', () => ({ invoke }))
 vi.mock('@/lib/api/native-client', () => ({ nativeGraphql: native }))
 vi.mock('@/lib/api/gql-client', () => ({ gqlFetch: remote }))
 
@@ -14,11 +15,11 @@ afterEach(() => {
   vi.restoreAllMocks()
 })
 
-it('preloads synchronous readers from the local main schema', async () => {
+it('preloads synchronous readers from native preferences', async () => {
   const prefs = await import('../../src/lib/prefs')
-  native.mockResolvedValue({ data: { systemPrefs: { client_id: 'local-core', locale: 'fr', 'main_state:peer': { selected: 'files' } } } })
+  invoke.mockResolvedValue({ client_id: 'local-core', locale: 'fr', 'main_state:peer': { selected: 'files' } })
   await prefs.preload()
-  expect(native.mock.calls[0][0].query).toBe('{ systemPrefs }')
+  expect(invoke).toHaveBeenCalledWith('native_system_preferences')
   expect(prefs.get('client_id', '')).toBe('local-core')
   expect(prefs.get('locale', '')).toBe('fr')
   expect(prefs.get('main_state:peer', null)).toEqual({ selected: 'files' })
@@ -62,8 +63,8 @@ it('reports rejected writes and continues processing later writes', async () => 
 
 it('rejects unreadable startup snapshots instead of inventing a local identity', async () => {
   const prefs = await import('../../src/lib/prefs')
-  for (const response of [{ errors: [{ message: 'no_permission' }] }, {}, { data: {} }, { data: { systemPrefs: [] } }]) {
-    native.mockResolvedValueOnce(response)
+  for (const response of [null, undefined, []]) {
+    invoke.mockResolvedValueOnce(response)
     await expect(prefs.preload()).rejects.toThrow()
   }
   expect(prefs.get('client_id', '')).toBe('')

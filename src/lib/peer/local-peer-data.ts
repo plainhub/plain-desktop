@@ -14,7 +14,6 @@ import { isLocalMode } from '@/lib/device/local-mode'
 import { playNotificationSound } from '@/lib/notification-sound'
 import { showDesktopNotification } from '@/lib/desktop-notification'
 import { removeNotification, upsertNotification } from '@/lib/notification-groups'
-import { startPeerSockets } from './peer-sockets'
 import { useMainStore } from '@/stores/main'
 
 const PEER_NOTIFICATIONS_GQL = `
@@ -154,7 +153,6 @@ export function startLocalPeerData() {
 
   syncGroups()
   watch(loginPeers, syncGroups)
-  startPeerSockets()
   setInterval(() => {
     for (const g of peerNotificationGroups.value) fetchPeerNotifications(g.peerId, true)
   }, REFRESH_INTERVAL)

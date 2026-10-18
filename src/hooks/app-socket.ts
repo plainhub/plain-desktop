@@ -4,6 +4,7 @@ import { listen } from '@tauri-apps/api/event'
 import emitter from '@/plugins/eventbus'
 import toast from '@/components/toaster'
 import { getWebSocketBaseUrl, getLocalToken, isNativeTarget, setLocalServerPort, setLocalServerHttpsPort } from '@/lib/api/api'
+import { projectPeerManagementEvent } from '@/lib/peer/peer-events'
 import { preloadLoginPeers } from '@/lib/device/login-peers'
 import { chachaDecrypt, chachaEncrypt, chachaEncryptBytes, bitArrayToUint8Array } from '@/lib/api/crypto'
 import { parseWebSocketData } from '@/lib/api/sjcl-arraybuffer'
@@ -65,7 +66,7 @@ export function useAppSocket() {
 
   /** Decodes one event frame and dispatches it. Both transports deliver the
    *  same bytes, so the socket and the native core stream share this path. */
-  function dispatchFrame(buffer: ArrayBuffer, key: Uint8Array) {
+  function dispatchFrame(buffer: ArrayBuffer, key: Uint8Array, native = false) {
     try {
       const r = parseWebSocketData(buffer)
       const type = r.type
@@ -74,6 +75,10 @@ export function useAppSocket() {
       } else {
         const json = chachaDecrypt(key, r.data)
         const data = json ? JSON.parse(json) : null
+        if (type === 'PEER_MANAGEMENT_EVENT') {
+          projectPeerManagementEvent(data, native)
+          return
+        }
         // Enabled automatically in dev mode (see main.ts)
         if (window.__PLAIN_LOG__) console.log(`[ws event] ${type}`, data)
         emitter.emit(type as any, data)
@@ -108,7 +113,7 @@ export function useAppSocket() {
     const key = tokenToKey(token)
     nativeStream?.close()
     nativeStream = subscribeNativeEvents(
-      (frame) => dispatchFrame(frame, key),
+      (frame) => dispatchFrame(frame, key, true),
       () => {
         nativeStream = null
         handleDrop()

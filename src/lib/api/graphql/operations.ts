@@ -829,12 +829,6 @@ export interface GqlOperations {
       name: string
     }
   }
-  cycleAudioPlayModeGQL: {
-    result: {
-      cycleAudioPlayMode: 'REPEAT' | 'REPEAT_ONE' | 'SHUFFLE'
-    }
-    variables: undefined
-  }
   dbPathGQL: {
     result: {
       dbPath: string
@@ -1827,13 +1821,6 @@ export interface GqlOperations {
     }
     variables: undefined
   }
-  prefsGQL: {
-    result: {
-      systemPrefs: unknown
-      userPrefs: unknown
-    }
-    variables: undefined
-  }
   rebuildMediaIndexGQL: {
     result: {
       rebuildMediaIndex: boolean
@@ -1974,21 +1961,6 @@ export interface GqlOperations {
     variables: {
       input: unknown
       accepted: boolean
-    }
-  }
-  restartLocalServer: {
-    result: {
-      restartHttpServer: {
-        revision: number
-        restarting: boolean
-        httpPort: number
-        httpsPort: number
-        error: string
-      }
-    }
-    variables: {
-      httpPort: number
-      httpsPort: number
     }
   }
   restoreMediaItemsGQL: {
