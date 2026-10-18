@@ -440,7 +440,7 @@ export function useLightboxFileActions(
   const { t } = useI18n()
   const { downloadFile } = useDownload(urlTokenKey)
   const { deleteItem } = useDeleteItems()
-  const { renameItem, renameDone, renameMutation, renameVariables } = useRename(() => {
+  const { renameItem, renamedPath, renameDone, renameMutation, renameVariables } = useRename(() => {
     refetchInfo()
   })
 
@@ -484,13 +484,13 @@ export function useLightboxFileActions(
       mutation: renameMutation,
       getVariables: renameVariables,
       done: (newName: string) => {
-        renameDone(newName)
-        if (current.value) {
+        if (current.value && renamedPath.value) {
           const oldPath = current.value.path
-          const newPath = oldPath.substring(0, oldPath.lastIndexOf('/') + 1) + newName
+          const newPath = renamedPath.value
           emitter.emit('file_renamed', { oldPath, newPath, item: { ...current.value.data, path: newPath, name: newName } })
           current.value.path = newPath
           current.value.name = newName
+          renameDone(newName)
         }
       },
     })

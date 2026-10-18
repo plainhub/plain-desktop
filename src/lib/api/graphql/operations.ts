@@ -664,6 +664,15 @@ export interface GqlOperations {
     }
     variables: undefined
   }
+  chatConversationsGQL: {
+    result: {
+      chatConversations: Array<{
+        id: string
+        chat: Fragment_ChatItemFragment
+      }>
+    }
+    variables: undefined
+  }
   chatItemGQL: {
     result: {
       chatItem?: Fragment_ChatItemFragment
@@ -1473,12 +1482,6 @@ export interface GqlOperations {
     }
     variables: undefined
   }
-  latestChatItemsGQL: {
-    result: {
-      latestChatItems: Array<Fragment_ChatItemFragment>
-    }
-    variables: undefined
-  }
   leaveChatChannelGQL: {
     result: {
       leaveChatChannel: boolean
@@ -1916,7 +1919,7 @@ export interface GqlOperations {
   }
   renameFileGQL: {
     result: {
-      renameFile: boolean
+      renameFile?: string
     }
     variables: {
       path: string
@@ -1963,15 +1966,6 @@ export interface GqlOperations {
       requestScreenMirrorKeyFrame: boolean
     }
     variables: undefined
-  }
-  respondChannelInviteGQL: {
-    result: {
-      respondChannelInvite: boolean
-    }
-    variables: {
-      id: string
-      accept: boolean
-    }
   }
   respondToPairingGQL: {
     result: {

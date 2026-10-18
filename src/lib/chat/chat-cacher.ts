@@ -1,5 +1,5 @@
 import { ref } from 'vue'
-import { initLazyQuery, latestChatItemsGQL } from '@/lib/api/query'
+import { initLazyQuery, chatConversationsGQL } from '@/lib/api/query'
 import type { IChatItem } from '@/lib/interfaces'
 import { get as prefsGet } from '@/lib/prefs'
 import { peerCacher } from './peer-cacher'
@@ -51,12 +51,12 @@ export function mapChatId(
 class ChatCacher {
   readonly latestChatMap = ref<Record<string, IChatItem>>({})
 
-  private readonly lazy = initLazyQuery<{ latestChatItems: IChatItem[] }>({
+  private readonly lazy = initLazyQuery<{ chatConversations: Array<{ id: string; chat: IChatItem }> }>({
     handle: (data) => {
-      if (!data?.latestChatItems) return
-      this.applyLatest(data.latestChatItems)
+      if (!data?.chatConversations) return
+      this.applyConversations(data.chatConversations)
     },
-    document: latestChatItemsGQL,
+    document: chatConversationsGQL,
     variables: () => ({}),
   })
 
@@ -106,20 +106,12 @@ class ChatCacher {
     }
   }
 
-  private applyLatest(items: IChatItem[]): void {
-    const { peerIds, channelIds } = this.collectIds()
-    const next: Record<string, IChatItem> = {}
-    for (const raw of items) {
-      const item = normalizeChatItem(raw)
-      const chatId = mapChatId(item, peerIds, channelIds)
-      if (!chatId) continue
-      const existing = next[chatId]
-      if (!existing || item.createdAt > existing.createdAt) {
-        next[chatId] = item
-      }
-    }
-    this.latestChatMap.value = next
+  private applyConversations(rows: Array<{ id: string; chat: IChatItem }>): void {
+    this.latestChatMap.value = Object.fromEntries(rows.map(({ id, chat }) => [
+      `${chat.channelId ? 'channel' : 'peer'}:${id}`, normalizeChatItem(chat),
+    ]))
   }
+
 }
 
 export const chatCacher = new ChatCacher()

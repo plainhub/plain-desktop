@@ -38,15 +38,18 @@ export const useCreateDir = (urlTokenKey: Ref<Uint8Array | null>, items: Ref<IFi
 
 export const useRename = (fetch: () => void) => {
   const renameItem = ref<IFile>()
+  const renamedPath = ref<string | null>(null)
   return {
     renameItem,
+    renamedPath,
     renameDone(newName: string) {
       fetch()
     },
     renameMutation() {
-      return initMutation({
-        document: renameFileGQL,
-      })
+      renamedPath.value = null
+      const mutation = initMutation({ document: renameFileGQL })
+      mutation.onDone((result) => { renamedPath.value = result.data?.renameFile ?? null })
+      return mutation
     },
     renameVariables(value: string) {
       return { path: renameItem.value?.path, name: value }

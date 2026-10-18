@@ -21,9 +21,8 @@
 </template>
 
 <script setup lang="ts">
-import { ref } from 'vue'
 import { popModal } from '@/components/modal'
-import { initMutation, respondChannelInviteGQL } from '@/lib/api/mutation'
+import { useChannelInviteResponse } from './channel-invite-response'
 
 interface IChannelInvite {
   channelId: string
@@ -37,37 +36,13 @@ const props = defineProps<{
   onResponded?: (channelId: string, accepted: boolean) => void
 }>()
 
-const loading = ref(false)
-
-const { mutate, onDone, onError } = initMutation({ document: respondChannelInviteGQL })
-
-onDone((r: any) => {
-  const accepted = !!r.data?.respondChannelInvite
-  props.onResponded?.(props.invite.channelId, accepted)
-  popModal()
-})
-
-onError(() => {
-  // Surface the error to the user but keep the modal closed so they can
-  // retry by re-opening the chat view (the channel is persisted locally).
-  popModal()
-})
-
-async function respond(accept: boolean) {
-  if (loading.value) return
-  loading.value = true
-  try {
-    mutate({ id: props.invite.channelId, accept })
-  } catch (e) {
-    loading.value = false
-    throw e
-  }
-}
+const { loading, respond } = useChannelInviteResponse(
+  props.invite.channelId,
+  (id, accepted) => props.onResponded?.(id, accepted),
+  popModal,
+)
 
 function dismiss() {
-  // Dismiss without responding — treat as a temporary deferral. The channel
-  // remains in the local list; the user can re-open it from the sidebar
-  // and respond later (no GraphQL call).
   popModal()
 }
 </script>

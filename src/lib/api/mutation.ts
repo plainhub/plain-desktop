@@ -201,12 +201,6 @@ export const acceptChatChannelInviteGQL = `
   }
 `
 
-export const respondChannelInviteGQL = `
-  mutation respondChannelInvite($id: ID!, $accept: Boolean!) {
-    respondChannelInvite(id: $id, accept: $accept)
-  }
-`
-
 export const declineChatChannelInviteGQL = `
   mutation declineChatChannelInvite($id: ID!) {
     declineChatChannelInvite(id: $id)

@@ -209,10 +209,11 @@ export const peersGQL = `
   }
 `
 
-export const latestChatItemsGQL = `
+export const chatConversationsGQL = `
   query {
-    latestChatItems {
-      ...ChatItemFragment
+    chatConversations {
+      id
+      chat { ...ChatItemFragment }
     }
   }
   ${chatItemFragment}
