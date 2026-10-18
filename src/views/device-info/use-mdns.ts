@@ -55,7 +55,7 @@ export function useMdns() {
     if (hostnameInvalid.value) return false
     saving.value = true
     try {
-      const result = await gqlFetch('mutation($input: SystemSettingsInput!) { updateSystemSettings(input: $input) { result { affectedCount } } }', { input: { action: 'SET_MDNS_HOSTNAME', hostname: h } })
+      const result = await gqlFetch('mutation($key: String!, $value: JSON!) { setSystemPref(key: $key, value: $value) { affectedCount } }', { key: 'mdns_hostname', value: h })
       if (result.errors?.length) throw new Error(result.errors[0].message)
       hostname.value = h
       toast(t('saved'))
