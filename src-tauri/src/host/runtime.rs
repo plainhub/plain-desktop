@@ -3,6 +3,7 @@ use std::sync::Arc;
 use plain_server::assembly::server::ContentServer;
 use serde_json::Value;
 use tauri::Emitter;
+use tauri_plugin_clipboard_manager::ClipboardExt;
 
 pub struct Runtime {
     core: Arc<ContentServer>,
@@ -25,6 +26,15 @@ impl Runtime {
         match method {
             "systemCapabilities" => {
                 serde_json::to_value(&self.capabilities).map_err(|error| error.to_string())
+            }
+            "systemSetClipboard" => {
+                let request: ClipboardText =
+                    serde_json::from_value(params).map_err(|error| error.to_string())?;
+                self.app
+                    .clipboard()
+                    .write_text(request.text)
+                    .map_err(|error| error.to_string())?;
+                Ok(Value::Bool(true))
             }
             "systemPermissionFacts" => plain_server::host::permission_facts::facts(
                 &["WRITE_EXTERNAL_STORAGE".to_owned()],
@@ -84,4 +94,10 @@ impl Runtime {
             .await;
         result
     }
+}
+
+#[derive(serde::Deserialize)]
+#[serde(deny_unknown_fields)]
+struct ClipboardText {
+    text: String,
 }

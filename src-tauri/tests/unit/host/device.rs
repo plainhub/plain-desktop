@@ -32,3 +32,8 @@ fn discovery_is_supported_independently_of_optional_file_sharing_services() {
     assert!(!capabilities.contains(&"BACKGROUND_SERVICE"));
     assert!(!capabilities.contains(&"LAUNCHER_SHORTCUTS"));
 }
+
+#[test]
+fn text_clipboard_is_available_through_the_native_platform_adapter() {
+    assert!(desktop_capabilities().contains(&"CLIPBOARD"));
+}
