@@ -9,6 +9,7 @@ use std::sync::Arc;
 use plain_server::assembly::server::ContentServer;
 use tauri::{Runtime, State, WebviewWindow};
 
+use super::views::NativeViews;
 use crate::native_resource_protocol::{OpenedResource, ResourceRegistry};
 
 /// Open `path` as a handle owned by the calling window and return the
@@ -21,29 +22,30 @@ use crate::native_resource_protocol::{OpenedResource, ResourceRegistry};
 pub async fn native_resource_open<R: Runtime>(
     window: WebviewWindow<R>,
     core: tauri::State<'_, Arc<ContentServer>>,
-    registry: State<'_, ResourceRegistry>,
+    registry: State<'_, Arc<ResourceRegistry>>,
+    views: State<'_, NativeViews>,
     path: String,
 ) -> Result<OpenedResource, String> {
+    let scope = views.scope(window.label());
     let resolved = core.resolve_native_file(&path).await?;
-    registry.open(window.label(), &resolved).await
+    registry.open(&scope, &resolved).await
 }
 
 #[tauri::command]
 pub fn native_resource_close<R: Runtime>(
     window: WebviewWindow<R>,
-    registry: State<'_, ResourceRegistry>,
+    registry: State<'_, Arc<ResourceRegistry>>,
+    views: State<'_, NativeViews>,
     id: String,
 ) -> bool {
-    registry.close(window.label(), &id)
+    registry.close(&views.scope(window.label()), &id)
 }
 
-/// Release every handle the window opened. Codex calls this from the
-/// window's destroy event; the protocol refuses the handles immediately
-/// either way.
 #[tauri::command]
 pub fn native_resource_close_owner<R: Runtime>(
     window: WebviewWindow<R>,
-    registry: State<'_, ResourceRegistry>,
+    registry: State<'_, Arc<ResourceRegistry>>,
+    views: State<'_, NativeViews>,
 ) {
-    registry.close_owner(window.label());
+    registry.close_owner(views.scope(window.label()).id());
 }

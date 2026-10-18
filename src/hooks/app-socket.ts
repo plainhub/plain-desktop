@@ -1,7 +1,6 @@
 import { onMounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { listen } from '@tauri-apps/api/event'
-import { gqlFetch } from '@/lib/api/gql-client'
 import emitter from '@/plugins/eventbus'
 import toast from '@/components/toaster'
 import { getWebSocketBaseUrl, getLocalToken, isNativeTarget, setLocalServerPort, setLocalServerHttpsPort } from '@/lib/api/api'
@@ -64,19 +63,6 @@ export function useAppSocket() {
     tapPhoneMessage.value = ''
   }
 
-  /**
-   * App WS dropped after a successful dial — likely the device changed IPs.
-   * Ask the local mDNS responder for a one-shot browse: the resident listener
-   * refreshes the peer's ip:port in the peers table, and the proxy's `_cid`
-   * resolution reads that fresh host on the next connect().
-   */
-  const triggerMdnsBrowse = () => {
-    if (!isLocalMode()) return
-    gqlFetch('mutation { browseMdns { revision } }').catch(() => {
-      // ignore — browse is best-effort; retry will proceed without it
-    })
-  }
-
   /** Decodes one event frame and dispatches it. Both transports deliver the
    *  same bytes, so the socket and the native core stream share this path. */
   function dispatchFrame(buffer: ArrayBuffer, key: Uint8Array) {
@@ -112,7 +98,6 @@ export function useAppSocket() {
       clearStatusTimer = undefined
     }
     wsStatus.value = 'closed'
-    triggerMdnsBrowse()
     retryConnect()
   }
 
@@ -168,7 +153,6 @@ export function useAppSocket() {
       }
     } catch (ex) {
       console.error(ex)
-      triggerMdnsBrowse()
       retryConnect()
     }
   }

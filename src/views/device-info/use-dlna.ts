@@ -48,7 +48,7 @@ export function useDlna() {
     if (!isLocalMode()) return
     loading.value = true
     try {
-      const result = await gqlFetch('mutation($input: DlnaReceiverInput!) { controlDlnaReceiver(input: $input) }', { input: { action: 'SET_ENABLED', enabled } })
+      const result = await gqlFetch('mutation($key: String!, $value: JSON!) { setUserPref(key: $key, value: $value) }', { key: 'dlna', value: enabled })
       if (result.errors?.length) throw new Error(result.errors[0].message)
       await load()
     } catch (e) {

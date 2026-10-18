@@ -1,6 +1,6 @@
 import type { Component } from 'vue'
-import { AppChannelType } from '@/lib/status'
 import { Capability } from '@/lib/data'
+import { hasFeature } from '@/lib/feature'
 import ILucideFolder from '~icons/lucide/folder'
 import ILucideMusic from '~icons/lucide/music'
 import ILucideImage from '~icons/lucide/image'
@@ -45,17 +45,7 @@ export const ALL_FEATURES: Feature[] = [
 
 export const DEFAULT_RAIL_FEATURES = ['files', 'audios', 'images', 'videos', 'chat']
 
-/** Features hidden on the Google Play channel (store policy). */
-export const GOOGLE_EXCLUDED_FEATURE_IDS = new Set(['apps', 'messages', 'calls'])
-
-/** Features hidden unless debug is enabled. */
-export const DEBUG_EXCLUDED_FEATURE_IDS = new Set(['image_editor'])
-
-/** Availability is driven by the server's declared `app.capabilities` —
- *  capability-gated features stay hidden until the app query resolves. */
-export function getAvailableFeatures(features?: string[], channel?: AppChannelType, debug?: boolean): Feature[] {
+export function getAvailableFeatures(features?: string[]): Feature[] {
   return ALL_FEATURES
-    .filter((f) => !(channel === AppChannelType.GOOGLE && GOOGLE_EXCLUDED_FEATURE_IDS.has(f.id)))
-    .filter((f) => (debug ?? false) || !DEBUG_EXCLUDED_FEATURE_IDS.has(f.id))
-    .filter((f) => !f.capability || !!features?.includes(f.capability))
+    .filter((f) => !f.capability || hasFeature(f.capability, features))
 }

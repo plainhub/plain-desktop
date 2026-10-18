@@ -1,11 +1,10 @@
 import { onUnmounted, ref, type Ref } from 'vue'
-import { invoke } from '@tauri-apps/api/core'
 import { copyFileGQL, createDirGQL, initMutation, moveFileGQL, renameFileGQL } from '@/lib/api/mutation'
 import { enrichFile, isAudio, isImage, isVideo, type IFile } from '@/lib/file'
 import { initQuery, favoriteFoldersGQL, mountsGQL } from '@/lib/api/query'
 import { useI18n } from 'vue-i18n'
 import toast from '@/components/toaster'
-import { download, downloadAs, encryptUrlParams, getFileId, getFileName, getFileUrl, notifySavedFile } from '@/lib/api/file'
+import { download, downloadAs, encryptUrlParams, getFileId, getFileName, getFileUrl } from '@/lib/api/file'
 import type { ISource } from '@/components/lightbox/types'
 import { encodeBase64 } from '@/lib/strutil'
 import { buildQuery, parseQuery, type IFilterField } from '@/lib/search'
@@ -129,49 +128,8 @@ export const useDownload = (urlTokenKey: Ref<Uint8Array | null>) => {
         })
       )
 
-      download(`${getApiBaseUrl()}/zip/files?id=${encodeURIComponent(id)}`, '')
+      download(`${getApiBaseUrl()}/zip/files?id=${encodeURIComponent(id)}`, 'download.zip')
     },
-  }
-}
-
-/**
- * Stream a native archive of already authorized real files into a file on
- * disk. Chunks are written as they arrive, so the archive is never held in
- * memory as a whole.
- *
- * Returns false when the archive could not be produced or written, which is
- * the caller's signal to keep its existing download path.
- */
-async function downloadNativeArchive(files: { path: string; name: string }[], archiveName: string): Promise<boolean> {
-  const { downloadDir } = await import('@tauri-apps/api/path')
-  const { create, exists } = await import('@tauri-apps/plugin-fs')
-  const { uniqueDownloadPath } = await import('@/lib/download-dir')
-  let handle = ''
-  let sink: Awaited<ReturnType<typeof create>> | undefined
-  try {
-    const target = await uniqueDownloadPath(await downloadDir(), archiveName, exists)
-    const opened = await invoke<{ handle: string; size: number }>('native_archive_open', { files })
-    handle = opened.handle
-    sink = await create(target)
-    while (true) {
-      const chunk = await invoke<number[] | null>('native_archive_read', { handle })
-      if (!chunk) {
-        break
-      }
-      await sink.write(Uint8Array.from(chunk))
-    }
-    await sink.close()
-    sink = undefined
-    notifySavedFile(target)
-    return true
-  } catch (error) {
-    console.warn('native archive download failed', error)
-    return false
-  } finally {
-    await sink?.close().catch(() => {})
-    if (handle) {
-      await invoke('native_archive_close', { handle }).catch(() => {})
-    }
   }
 }
 
@@ -290,8 +248,7 @@ export const useDownloadItems = (
   urlTokenKey: Ref<Uint8Array | null>,
   type: string,
   clearSelection: () => void,
-  fileName: string | (() => string),
-  resolveFiles?: (realAllChecked: boolean, ids: string[]) => { path: string; name: string }[] | null
+  fileName: string | (() => string)
 ) => {
   const { t } = useI18n()
 
@@ -308,15 +265,6 @@ export const useDownloadItems = (
 
       // Generate dynamic filename if function is provided
       const finalFileName = typeof fileName === 'function' ? fileName() : fileName
-
-      // A selection the caller already resolved to real paths can go
-      // through the native archive; search-driven selections stay on the
-      // existing entry point, which resolves the query server-side.
-      const files = resolveFiles?.(realAllChecked, ids) ?? null
-      if (files && files.length > 0 && (await downloadNativeArchive(files, finalFileName))) {
-        clearSelection()
-        return
-      }
 
       const id = encryptUrlParams(
         urlTokenKey.value,

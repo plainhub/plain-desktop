@@ -21,6 +21,21 @@ export async function saveLocalFileAs(reference: string, name: string): Promise<
   await invoke('save_file_as', { path: await localPath(reference), name })
 }
 
+export async function saveTextFileAs(name: string, contents: string): Promise<void> {
+  const { save } = await import('@tauri-apps/plugin-dialog')
+  const path = await save({ defaultPath: name.trim() || 'file.txt' })
+  if (!path) return
+  const response = await nativeGraphql<{
+    data?: { writeTextFile: { path: string } | null }
+    errors?: Array<{ message: string }>
+  }>({
+    query: 'mutation($path:String!,$content:String!){writeTextFile(path:$path,content:$content,overwrite:true){path}}',
+    variables: { path, content: contents },
+  }, 30000)
+  if (response.errors?.length) throw new Error(response.errors[0].message)
+  if (!response.data?.writeTextFile?.path) throw new Error('Text export did not produce a file')
+}
+
 export async function copyLocalFile(reference: string): Promise<void> {
   await invoke('copy_file_to_clipboard', { path: await localPath(reference) })
 }

@@ -1,7 +1,6 @@
 import type { Component } from 'vue'
 import ILucidePhoneCall from '~icons/lucide/phone-call'
-import { ALL_FEATURES, DEBUG_EXCLUDED_FEATURE_IDS, GOOGLE_EXCLUDED_FEATURE_IDS, type Feature } from '@/views/app-rail/features'
-import { AppChannelType } from '@/lib/status'
+import { getAvailableFeatures, type Feature } from '@/views/app-rail/features'
 import { Capability } from '@/lib/data'
 import { DEFAULT_HOME_FEATURES, normalizeHomeFeatures } from './feature-list'
 
@@ -52,14 +51,9 @@ const HOME_PANEL_FEATURES: HomePanelFeature[] = [
   { id: 'call_phone', icon: ILucidePhoneCall, titleKey: 'call_phone', sectionType: 'call_phone' },
 ]
 
-/** Availability mirrors the rail: capability-gated features need the
- *  server to declare them in `app.capabilities`. */
-export function getAvailableHomeFeatures(features?: string[], channel?: AppChannelType, debug?: boolean): HomeSectionFeature[] {
-  const routeFeatures = ALL_FEATURES
+export function getAvailableHomeFeatures(features?: string[]): HomeSectionFeature[] {
+  const routeFeatures = getAvailableFeatures(features)
     .filter((feature) => HOME_FEATURE_IDS.has(feature.id))
-    .filter((feature) => !(channel === AppChannelType.GOOGLE && GOOGLE_EXCLUDED_FEATURE_IDS.has(feature.id)))
-    .filter((feature) => (debug ?? false) || !DEBUG_EXCLUDED_FEATURE_IDS.has(feature.id))
-    .filter((feature) => !feature.capability || !!features?.includes(feature.capability))
     .map((feature) => ({
       ...feature,
       sectionType: 'feature' as const,

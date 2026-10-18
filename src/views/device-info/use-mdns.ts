@@ -72,13 +72,13 @@ export function useMdns() {
 
   async function refreshSnapshot() {
     try {
-      const result = await gqlFetch<{ mdnsDebug: { services: MdnsServiceSnapshot[]; activity: MdnsActivity[] } }>(
-        'query { mdnsDebug { services { serviceType instanceName instanceFqdn hostname port txtRecords ips ipv6 complete } activity { time event detail } } }',
+      const result = await gqlFetch<{ mdnsState: { services: MdnsServiceSnapshot[]; activity: MdnsActivity[] } }>(
+        'query { mdnsState { services { serviceType instanceName instanceFqdn hostname port txtRecords ips ipv6 complete } activity { time event detail } } }',
         undefined, { fresh: true },
       )
       if (result.errors?.length) throw new Error(result.errors[0].message)
-      snapshots.value = result.data.mdnsDebug.services
-      activity.value = result.data.mdnsDebug.activity
+      snapshots.value = result.data.mdnsState.services
+      activity.value = result.data.mdnsState.activity
     } catch (e) {
       console.error('mDNS debug query failed', e)
     }

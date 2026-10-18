@@ -22,7 +22,6 @@
         :recording-time="recordingTime"
         :control-enabled="controlEnabled"
         :relaunch-app-loading="relaunchAppLoading"
-        :channel="app.buildChannel"
         :paused="paused"
         :is-fullscreen="isFullscreen"
         :muted="muted"

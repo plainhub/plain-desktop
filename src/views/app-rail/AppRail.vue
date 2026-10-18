@@ -46,7 +46,7 @@ const router = useRouter()
 const tempStore = useTempStore()
 const { app } = storeToRefs(tempStore)
 
-const availableFeatures = computed(() => getAvailableFeatures(app.value?.capabilities, app.value?.buildChannel, app.value?.debug))
+const availableFeatures = computed(() => getAvailableFeatures(app.value?.capabilities))
 
 const railFeatures = computed<Feature[]>(() => {
   const features = store.railFeatures

@@ -12,6 +12,7 @@ import { getVideoData, getImageData, isVideo } from '@/lib/file'
 import { gqlFetch } from '@/lib/api/gql-client'
 import { downloadPeerFileGQL, pauseDownloadGQL, resumeDownloadGQL, retryDownloadGQL } from '@/lib/api/mutation'
 import emitter from '@/plugins/eventbus'
+import { projectChatDownloadProgress, type ChatDownloadProgress } from '../chat-download-progress'
 
 export function messageNeedsDownload(item: IChatItem): boolean {
   const items = item._content?.value?.items
@@ -44,7 +45,7 @@ export function useChatUpload(chatId: ComputedRef<string>, channelId: ComputedRe
   const sendingAgg = reactive<Record<string, { uploaded: number; speed: number }>>({})
   const messageObjectUrls = new Map<string, string[]>()
   const activeMessageIds = new Set<string>()
-  const downloadProgress = reactive<Record<string, { downloaded: number; total: number; speed: number; status: string }>>({})
+  const downloadProgress = reactive<Record<string, ChatDownloadProgress>>(Object.create(null))
 
   function sendingText(messageId: string) {
     const agg = sendingAgg[messageId]
@@ -269,29 +270,10 @@ export function useChatUpload(chatId: ComputedRef<string>, channelId: ComputedRe
     emitter.on('upload_progress', handlers.upload_progress)
 
     handlers.download_progress = (items: any[]) => {
-      const newProgress: Record<string, { downloaded: number; total: number; speed: number; status: string }> = {}
-      for (const item of items) {
-        const msgId = item.messageId
-        if (!newProgress[msgId]) newProgress[msgId] = { downloaded: 0, total: 0, speed: 0, status: 'PENDING' }
-        newProgress[msgId].downloaded += item.downloaded
-        newProgress[msgId].total += item.total
-        newProgress[msgId].speed += item.speed
-        const s = item.status
-        const cur = newProgress[msgId].status
-        if (s === 'DOWNLOADING') newProgress[msgId].status = 'DOWNLOADING'
-        else if (s === 'PAUSED' && cur !== 'DOWNLOADING') newProgress[msgId].status = 'PAUSED'
-        else if (s === 'FAILED' && cur === 'PENDING') newProgress[msgId].status = 'FAILED'
-        else if (s === 'COMPLETED') {
-          newProgress[msgId].status = 'COMPLETED'
-          submittedDownloads.delete(msgId)
-        }
-      }
-      // Drop completed entries so the overlay disappears.
-      for (const key of Object.keys(newProgress)) {
-        if (newProgress[key].status === 'COMPLETED') delete newProgress[key]
-      }
+      const { active, finished } = projectChatDownloadProgress(items, Object.keys(downloadProgress))
+      for (const messageId of finished) submittedDownloads.delete(messageId)
       Object.keys(downloadProgress).forEach((k) => delete downloadProgress[k])
-      Object.assign(downloadProgress, newProgress)
+      Object.assign(downloadProgress, active)
     }
     emitter.on('DOWNLOAD_PROGRESS', handlers.download_progress)
   })

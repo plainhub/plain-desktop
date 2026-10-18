@@ -4,15 +4,8 @@ use tauri::AppHandle;
 use tauri_plugin_dialog::DialogExt;
 
 fn existing_file(path: &str) -> Result<PathBuf, String> {
-    let path = Path::new(path);
-    if !path.is_absolute() {
-        return Err("Absolute file path required".into());
-    }
-    let path = std::fs::canonicalize(path).map_err(|error| error.to_string())?;
-    if !path.is_file() {
-        return Err("Regular file required".into());
-    }
-    Ok(path)
+    plain_rs::files::filesystem::export::existing_file(Path::new(path))
+        .map_err(|error| error.to_string())
 }
 
 fn display_name(path: &Path) -> String {
@@ -45,41 +38,10 @@ pub async fn save_file_as(
         .blocking_save_file();
     let Some(target) = target else { return Ok(()) };
     let dest = target.into_path().map_err(|e| e.to_string())?;
-    copy_to(&src, &dest)
-}
-
-fn copy_to(source: &Path, destination: &Path) -> Result<(), String> {
-    if destination == source || std::fs::canonicalize(destination).ok().as_deref() == Some(source) {
-        return Ok(());
-    }
-    std::fs::copy(source, destination).map_err(|error| error.to_string())?;
-    Ok(())
-}
-
-/// Save in-memory text content to a user-chosen destination via the native
-/// save dialog (WKWebView cannot download blobs, so the webview hands the
-/// already-fetched content over instead).
-#[tauri::command]
-pub async fn save_text_file_as(
-    app: AppHandle,
-    name: String,
-    contents: String,
-) -> Result<(), String> {
-    let default_name = name.trim();
-    let default_name = if default_name.is_empty() {
-        "file.txt"
-    } else {
-        default_name
-    };
-    let target = app
-        .dialog()
-        .file()
-        .set_file_name(default_name)
-        .blocking_save_file();
-    let Some(target) = target else { return Ok(()) };
-    let dest = target.into_path().map_err(|e| e.to_string())?;
-    std::fs::write(&dest, contents).map_err(|e| e.to_string())?;
-    Ok(())
+    tokio::task::spawn_blocking(move || plain_rs::files::filesystem::export::copy_file(&src, &dest))
+        .await
+        .map_err(|error| error.to_string())?
+        .map_err(|error| error.to_string())
 }
 
 #[tauri::command]

@@ -1,19 +1,8 @@
 import { getProxyUrl } from '@/lib/api/api'
+import { nativeGraphql } from '@/lib/api/native-client'
 
 export function joinPath(dir: string, name: string): string {
   return dir.replace(/[\\/]+$/, '') + '/' + name
-}
-
-export async function uniqueDownloadPath(dir: string, name: string, exists: (path: string) => Promise<boolean>): Promise<string> {
-  let path = joinPath(dir, name)
-  if (!(await exists(path))) return path
-  const dot = name.lastIndexOf('.')
-  const base = dot > 0 ? name.slice(0, dot) : name
-  const ext = dot > 0 ? name.slice(dot) : ''
-  for (let i = 2; ; i++) {
-    path = joinPath(dir, `${base} (${i})${ext}`)
-    if (!(await exists(path))) return path
-  }
 }
 
 async function writeDownload(url: string, path: string): Promise<string> {
@@ -30,9 +19,20 @@ async function writeDownload(url: string, path: string): Promise<string> {
 }
 
 export async function downloadToDir(url: string, name: string): Promise<string> {
+  const { pathname, search } = new URL(url)
+  const source = getProxyUrl(pathname + search)
   const { downloadDir } = await import('@tauri-apps/api/path')
-  const { exists } = await import('@tauri-apps/plugin-fs')
-  return writeDownload(url, await uniqueDownloadPath(await downloadDir(), name, exists))
+  const response = await nativeGraphql<{
+    data?: { copyFileToDirectory: string | null }
+    errors?: Array<{ message: string }>
+  }>({
+    query: 'mutation($source:String!,$directory:String!,$name:String!){copyFileToDirectory(src:$source,directory:$directory,name:$name)}',
+    variables: { source, directory: await downloadDir(), name },
+  }, 24 * 60 * 60 * 1000)
+  if (response.errors?.length) throw new Error(response.errors[0].message)
+  const path = response.data?.copyFileToDirectory
+  if (typeof path !== 'string' || !path) throw new Error('Download did not produce a file')
+  return path
 }
 
 export async function downloadAs(url: string, name: string): Promise<string | null> {

@@ -69,13 +69,7 @@ export function useMediaPage(options: MediaPageOptions) {
     urlTokenKey,
     dataType,
     sel.clearSelection,
-    () => generateDownloadFileName(options.downloadName),
-    (realAllChecked, ids) => {
-      if (realAllChecked) {
-        return null
-      }
-      return items.value.filter((it: any) => ids.includes(it.id)).map((it: any) => ({ path: it.path, name: it.name || it.path.split('/').pop() || '' }))
-    }
+    () => generateDownloadFileName(options.downloadName)
   )
   const { downloadFile } = useDownload(urlTokenKey)
 

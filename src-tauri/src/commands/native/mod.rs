@@ -1,4 +1,3 @@
-pub mod archives;
 pub mod events;
 pub mod graphql;
 pub mod resources;

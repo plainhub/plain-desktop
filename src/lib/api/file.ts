@@ -124,11 +124,6 @@ async function saveToFile(url: string, name: string) {
   }
 }
 
-/** Report a file this app already wrote to disk (native archive download). */
-export function notifySavedFile(path: string) {
-  notifyDownloaded(path)
-}
-
 // Desktop "Save As…": native save dialog (defaults to Downloads/name),
 // web falls back to the browser's own download.
 export function downloadAs(url: string, name: string) {

@@ -50,6 +50,14 @@ pub fn page_changed<R: tauri::Runtime>(app: &tauri::AppHandle<R>, label: &str, r
     let Some(previous) = views.replace(label, reset) else {
         return;
     };
+    if let Some(resources) =
+        app.try_state::<Arc<crate::native_resource_protocol::ResourceRegistry>>()
+    {
+        resources.close_owner(previous.id());
+    }
+    if let Some(writers) = app.try_state::<super::uploads::UploadWriters>() {
+        writers.abort_owner(previous.id());
+    }
     let Some(core) = app.try_state::<Arc<ContentServer>>() else {
         return;
     };

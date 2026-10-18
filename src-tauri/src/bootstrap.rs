@@ -47,7 +47,6 @@ pub fn run() {
         .manage(crate::commands::screen_capture::runtime::ScreenCaptureRuntime::default())
         .manage(crate::commands::native::views::NativeViews::default())
         .manage(crate::commands::native::uploads::UploadWriters::default())
-        .manage(crate::commands::native::archives::ArchiveReaders::default())
         .setup(|app| {
             plain_server::platform::version::set_version(&app.package_info().version.to_string());
             let data_dir = app.path().app_data_dir()?;
@@ -86,29 +85,17 @@ pub fn run() {
                     root_candidates.push(cloud);
                 }
             }
-            let mut roots: Vec<std::path::PathBuf> = root_candidates
+            let roots: Vec<std::path::PathBuf> = root_candidates
                 .into_iter()
                 .filter(|path| !path.as_os_str().is_empty())
                 .map(|path| path.canonicalize().unwrap_or(path))
                 .collect();
-            roots.sort_by(|left, right| {
-                left.components()
-                    .count()
-                    .cmp(&right.components().count())
-                    .then_with(|| left.cmp(right))
-            });
-            let mut unique_roots: Vec<std::path::PathBuf> = Vec::new();
-            for root in roots {
-                let separate_cloud_root = cfg!(target_os = "macos")
+            let unique_roots = plain_rs::files::filesystem::roots::prune_nested(roots, |root| {
+                cfg!(target_os = "macos")
                     && root.ends_with(std::path::Path::new(
                         "Library/Mobile Documents/com~apple~CloudDocs",
-                    ));
-                if separate_cloud_root
-                    || !unique_roots.iter().any(|existing| root.starts_with(existing))
-                {
-                    unique_roots.push(root);
-                }
-            }
+                    ))
+            });
             let roots: Vec<String> = unique_roots
                 .into_iter()
                 .map(|path| path.to_string_lossy().into_owned())
@@ -367,7 +354,6 @@ pub fn run() {
             crate::commands::media_preview_pool::media_preview_activate,
             crate::commands::reveal::reveal_file,
             crate::commands::reveal::save_file_as,
-            crate::commands::reveal::save_text_file_as,
             crate::commands::reveal::copy_file_to_clipboard,
             crate::commands::screen_capture::commands::screen_capture_register_target,
             crate::commands::screen_capture::commands::screen_capture_unregister_target,
@@ -407,10 +393,6 @@ pub fn run() {
             crate::commands::native::uploads::native_upload_chunk_finish,
             crate::commands::native::uploads::native_upload_chunk_abort,
             crate::commands::native::uploads::native_upload_chunks_abort_owner,
-            crate::commands::native::archives::native_archive_open,
-            crate::commands::native::archives::native_archive_read,
-            crate::commands::native::archives::native_archive_close,
-            crate::commands::native::archives::native_archive_close_owner,
         ])
         .build(tauri::generate_context!())
         .expect("error while building tauri application");

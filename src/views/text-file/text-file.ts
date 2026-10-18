@@ -1,8 +1,7 @@
 import { ref, computed, watch, onMounted, onBeforeUnmount } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
-import { invoke } from '@tauri-apps/api/core'
-import { revealLocalFile } from '@/lib/native-file-actions'
+import { revealLocalFile, saveTextFileAs } from '@/lib/native-file-actions'
 import { useTempStore } from '@/stores/temp'
 import { storeToRefs } from 'pinia'
 import { useMarkdown } from '@/hooks/markdown'
@@ -182,7 +181,7 @@ export function useTextFile() {
     // WKWebView ignores <a download>, so hand the already-fetched content to
     // the native save dialog instead of creating a blob link.
     if (isTauri) {
-      invoke('save_text_file_as', { name: fileName.value, contents: content.value }).catch((err) => console.error('save_text_file_as failed', err))
+      saveTextFileAs(fileName.value, content.value).catch((err) => console.error('text export failed', err))
       return
     }
     const blob = new Blob([content.value], { type: 'text/plain;charset=utf-8' })

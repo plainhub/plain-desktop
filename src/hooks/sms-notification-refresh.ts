@@ -1,6 +1,4 @@
-import type { INotification } from '@/lib/interfaces'
 import emitter from '@/plugins/eventbus'
-import { shouldTriggerRefresh } from '@/lib/sms-whitelist'
 
 export const SMS_NOTIFICATION_REFRESH_DELAY_MS = 500
 const MAX_REFRESH_DELAY_MS = 2000
@@ -45,11 +43,6 @@ export function createSmsNotificationRefresh(refresh: () => void | Promise<unkno
     }
   }
 
-  function handleNotification(notification: INotification) {
-    if (!shouldTriggerRefresh(notification)) return
-    handleSmsChanged()
-  }
-
   function clearScheduledRefresh() {
     if (timeout) clearTimeout(timeout)
     if (maximumTimeout) clearTimeout(maximumTimeout)
@@ -86,8 +79,6 @@ export function createSmsNotificationRefresh(refresh: () => void | Promise<unkno
   function subscribe() {
     if (subscribed) return
     subscribed = true
-    emitter.on('NOTIFICATION_CREATED', handleNotification)
-    emitter.on('NOTIFICATION_UPDATED', handleNotification)
     emitter.on('SMS_PROVIDER_CHANGED', handleSmsChanged)
     emitter.on('MMS_SENT', handleMmsSent)
     emitter.on('app_socket_connection_changed', handleConnectionChanged)
@@ -103,8 +94,6 @@ export function createSmsNotificationRefresh(refresh: () => void | Promise<unkno
     if (!subscribed) return
     subscribed = false
     refreshQueued = false
-    emitter.off('NOTIFICATION_CREATED', handleNotification)
-    emitter.off('NOTIFICATION_UPDATED', handleNotification)
     emitter.off('SMS_PROVIDER_CHANGED', handleSmsChanged)
     emitter.off('MMS_SENT', handleMmsSent)
     emitter.off('app_socket_connection_changed', handleConnectionChanged)
