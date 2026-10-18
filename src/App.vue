@@ -38,9 +38,6 @@ useDeviceDiscovery()
 // after the user navigates to the chat page. Without this, invites
 // arriving while the user is on another page would be dropped silently.
 useChatStore()
-// Resident local-mode peer data (notification + clipboard aggregation):
-// per-peer fetch + WS for the whole app lifetime, independent of whether a
-// panel is open.
 if (isLocalMode()) {
   startLocalPeerData()
   startLocalClipboardData()

@@ -31,3 +31,15 @@ it('ignores events for removed devices and malformed payloads', () => {
   projectPeerManagementEvent({ peerId: 'removed', type: 'CLIPBOARD_CHANGED', data: { text: 'fixture' } }, true)
   expect(emit).not.toHaveBeenCalled()
 })
+
+it('only projects aggregated notification snapshots from the trusted native stream', async () => {
+  const { projectPeerNotificationEvent } = await import('../../src/lib/peer/peer-events')
+  const snapshot = { revision: 1, groups: [] }
+  projectPeerNotificationEvent(snapshot, false)
+  expect(emit).not.toHaveBeenCalled()
+  for (const value of [null, {}, { revision: -1 }, { revision: Number.NaN }]) projectPeerNotificationEvent(value, true)
+  expect(emit).not.toHaveBeenCalled()
+  projectPeerNotificationEvent(snapshot, true)
+  expect(emit).toHaveBeenCalledWith('peer_notifications_updated', snapshot)
+  expect(peer).not.toHaveBeenCalled()
+})

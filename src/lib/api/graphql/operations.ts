@@ -1751,16 +1751,6 @@ export interface GqlOperations {
       query: string
     }
   }
-  PEER_NOTIFICATIONS_GQL: {
-    result: {
-      notifications: Array<Fragment_NotificationFragment>
-      app: {
-        permissions: Array<'WRITE_EXTERNAL_STORAGE' | 'READ_SMS' | 'SEND_SMS' | 'READ_CONTACTS' | 'WRITE_CONTACTS' | 'READ_CALL_LOG' | 'WRITE_CALL_LOG' | 'CALL_PHONE' | 'POST_NOTIFICATIONS' | 'NEARBY_WIFI_DEVICES' | 'ACCESS_FINE_LOCATION' | 'CAMERA' | 'SYSTEM_ALERT_WINDOW' | 'RECORD_AUDIO' | 'READ_MEDIA_IMAGES' | 'READ_MEDIA_VIDEOS' | 'READ_MEDIA_AUDIO' | 'NOTIFICATION_LISTENER' | 'READ_PHONE_STATE' | 'READ_PHONE_NUMBERS' | 'SCHEDULE_EXACT_ALARM' | 'QUERY_ALL_PACKAGES' | 'ADB' | 'CLIPBOARD'>
-        urlToken: string
-      }
-    }
-    variables: undefined
-  }
   peersGQL: {
     result: {
       peers: Array<{

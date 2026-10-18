@@ -4,7 +4,7 @@ import { listen } from '@tauri-apps/api/event'
 import emitter from '@/plugins/eventbus'
 import toast from '@/components/toaster'
 import { getWebSocketBaseUrl, getLocalToken, isNativeTarget, setLocalServerPort, setLocalServerHttpsPort } from '@/lib/api/api'
-import { projectPeerManagementEvent } from '@/lib/peer/peer-events'
+import { projectPeerManagementEvent, projectPeerNotificationEvent } from '@/lib/peer/peer-events'
 import { preloadLoginPeers } from '@/lib/device/login-peers'
 import { chachaDecrypt, chachaEncrypt, chachaEncryptBytes, bitArrayToUint8Array } from '@/lib/api/crypto'
 import { parseWebSocketData } from '@/lib/api/sjcl-arraybuffer'
@@ -75,6 +75,10 @@ export function useAppSocket() {
       } else {
         const json = chachaDecrypt(key, r.data)
         const data = json ? JSON.parse(json) : null
+        if (type === 'PEER_NOTIFICATIONS_UPDATED') {
+          projectPeerNotificationEvent(data, native)
+          return
+        }
         if (type === 'PEER_MANAGEMENT_EVENT') {
           projectPeerManagementEvent(data, native)
           return

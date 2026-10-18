@@ -67,6 +67,7 @@ type Events = {
   NEARBY_DISCOVERY_STARTED: undefined
   NEARBY_DISCOVERY_STOPPED: { reason?: string } | undefined
   IMAGE_EDITOR_UPDATE: ArrayBuffer
+  peer_notifications_updated: import('@/lib/peer/local-peer-data').PeerNotificationUpdate
   peer_ws_event: { peerId: string, type: string, data: any }
   MEDIA_SCAN_PROGRESS: IScanProgress
   FILE_TASK_PROGRESS: any
