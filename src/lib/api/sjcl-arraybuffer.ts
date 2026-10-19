@@ -9,8 +9,8 @@ export function arrayBufferFromBits(arr: Uint8Array): ArrayBuffer {
   return arr.buffer.slice(arr.byteOffset, arr.byteOffset + arr.byteLength) as ArrayBuffer
 }
 
-export function parseWebSocketData(buffer: ArrayBuffer): { type: string; data: Uint8Array } {
-  const bytes = new Uint8Array(buffer)
+export function parseWebSocketData(buffer: ArrayBuffer | Uint8Array): { type: string; data: Uint8Array } {
+  const bytes = buffer instanceof Uint8Array ? buffer : new Uint8Array(buffer)
   const end = bytes.indexOf(0)
   if (end <= 0) throw new Error('Missing WebSocket event name')
   const type = new TextDecoder('utf-8', { fatal: true }).decode(bytes.subarray(0, end))

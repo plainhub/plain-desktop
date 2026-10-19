@@ -1,6 +1,7 @@
 import { ref } from 'vue'
 import { subscribeNativeEvents } from '@/lib/api/native-events'
 import { parseWebSocketData } from '@/lib/api/sjcl-arraybuffer'
+import { eventAad } from '@/lib/api/websocket-events'
 import { getLocalToken } from '@/lib/api/api'
 import { tokenToKey } from '@/lib/api/file'
 import { chachaDecrypt } from '@/lib/api/crypto'
@@ -44,7 +45,7 @@ export function createPairing() {
   }
   const stream = subscribeNativeEvents((frame) => {
     const event = parseWebSocketData(frame)
-    if (event.type === 'PAIRING_STATE_CHANGED') receive(JSON.parse(chachaDecrypt(tokenToKey(getLocalToken()), event.data)))
+    if (event.type === 'PAIRING_STATE_CHANGED') receive(JSON.parse(chachaDecrypt(tokenToKey(getLocalToken()), event.data, eventAad(event.type))))
   }, () => {
     if (state.value && !terminal.has(state.value.phase)) state.value = { ...state.value, phase: 'FAILED', error: 'failed_connect' }
   })

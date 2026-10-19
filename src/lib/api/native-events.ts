@@ -6,9 +6,6 @@ export interface NativeEventStream {
   close(): void
 }
 
-/** Subscribes to this machine's shared Rust core event feed. Frames are the
- *  same bytes the local chat socket delivered: `EVENT_NAME` + NUL + payload,
- *  with binary payloads left raw and text payloads token-encrypted. */
 export function subscribeNativeEvents(onFrame: (frame: ArrayBuffer) => void, onClosed: () => void): NativeEventStream {
   let closed = false
   const channel = new Channel<ArrayBuffer>()

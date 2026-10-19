@@ -7,6 +7,7 @@ import { projectPeerManagementEvent, projectPeerNotificationEvent } from '@/lib/
 import { subscribeLoginPeerUpdates } from '@/lib/device/login-peers'
 import { chachaDecrypt, chachaEncrypt, chachaEncryptBytes, bitArrayToUint8Array } from '@/lib/api/crypto'
 import { parseWebSocketData } from '@/lib/api/sjcl-arraybuffer'
+import { EventStream, eventAad } from '@/lib/api/websocket-events'
 import { applyDarkClass, changeColor, changeColorMode, getCurrentMode, getLastSavedAutoColorMode, isModeDark } from '@/lib/theme'
 import { tokenToKey } from '@/lib/api/file'
 import { getRemoteClientId } from '@/lib/device/client-id'
@@ -55,7 +56,6 @@ export function useAppSocket() {
   const tapPhoneMessage = ref('')
   let retryConnectTimeout: ReturnType<typeof setTimeout> | undefined
   let clearStatusTimer: ReturnType<typeof setTimeout> | undefined
-  let ws: WebSocket
   let retryTime = 1000
   let nativeStream: NativeEventStream | null = null
   let stopPeerUpdates: (() => void) | undefined
@@ -65,16 +65,13 @@ export function useAppSocket() {
     tapPhoneMessage.value = ''
   }
 
-  /** Decodes one event frame and dispatches it. Both transports deliver the
-   *  same bytes, so the socket and the native core stream share this path. */
-  function dispatchFrame(buffer: ArrayBuffer, key: Uint8Array, native = false) {
+  function dispatchEvent(r: { type: string; data: Uint8Array }, key: Uint8Array, native: boolean) {
     try {
-      const r = parseWebSocketData(buffer)
       const type = r.type
       if (RAW_BINARY_EVENTS.has(r.type)) {
         emitter.emit(type as any, r.data)
       } else {
-        const json = chachaDecrypt(key, r.data)
+        const json = native ? chachaDecrypt(key, r.data, eventAad(type)) : new TextDecoder().decode(r.data)
         const data = json ? JSON.parse(json) : null
         if (type === 'PEER_NOTIFICATIONS_UPDATED') {
           projectPeerNotificationEvent(data, native)
@@ -118,7 +115,9 @@ export function useAppSocket() {
     const key = tokenToKey(token)
     nativeStream?.close()
     nativeStream = subscribeNativeEvents(
-      (frame) => dispatchFrame(frame, key, true),
+      (frame) => {
+        try { dispatchEvent(parseWebSocketData(frame), key, true) } catch (error) { console.error(error) }
+      },
       () => {
         nativeStream = null
         handleDrop()
@@ -142,23 +141,36 @@ export function useAppSocket() {
     try {
       const key = tokenToKey(token)
       const wsUrl = `${getWebSocketBaseUrl()}?cid=${clientId}`
-      ws = openSocket(wsUrl, localMode ? '' : getRemoteClientId())
-      ws.onopen = async () => {
+      const socket = openSocket(wsUrl, localMode ? '' : getRemoteClientId())
+      socket.binaryType = 'arraybuffer'
+      let stream: EventStream | null = null
+      socket.onopen = () => {
+        const registration = bitArrayToUint8Array(chachaEncrypt(key, Date.now().toString()))
+        stream = new EventStream(registration)
         handleOpen()
-        ws.send(bitArrayToUint8Array(chachaEncrypt(key, new Date().getTime().toString())))
-        // Control frames may only follow the registration frame
-        bindControlChannel(ws, key)
+        socket.send(registration)
+        bindControlChannel(socket, key)
       }
-      ws.onmessage = async (event: MessageEvent) => {
-        dispatchFrame(await event.data.arrayBuffer(), key)
+      socket.onmessage = (event: MessageEvent) => {
+        let packet: { type: string; data: Uint8Array }
+        try {
+          if (!stream || !(event.data instanceof ArrayBuffer)) throw new Error('Invalid event frame')
+          packet = stream.decode(event.data, key)
+        } catch (error) {
+          console.error(error)
+          stream = null
+          socket.close(1008, 'invalid_event')
+          return
+        }
+        dispatchEvent(packet, key, false)
       }
-      ws.onclose = () => {
-        unbindControlChannel(ws)
+      socket.onclose = () => {
+        unbindControlChannel(socket)
         handleDrop()
       }
-      ws.onerror = () => {
+      socket.onerror = () => {
         wsStatus.value = 'error'
-        ws.close()
+        socket.close()
         emitter.emit('app_socket_connection_changed', false)
       }
     } catch (ex) {
