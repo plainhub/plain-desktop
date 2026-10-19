@@ -125,7 +125,7 @@ import { useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { useTempStore } from '@/stores/temp'
 import { useMainStore } from '@/stores/main'
-import { findLoginPeer, updateLoginPeerName } from '@/lib/device/login-peers'
+import { findLoginPeer } from '@/lib/device/login-peers'
 import { getRemoteClientId } from '@/lib/device/client-id'
 import { storeToRefs } from 'pinia'
 import { pushModal, openModal } from '@/components/modal'
@@ -293,7 +293,6 @@ function editDeviceName() {
     getVariables: (value: string) => ({ name: value }),
     done: (value: string) => {
       if (app.value) app.value.deviceName = value
-      void updateLoginPeerName(getRemoteClientId(), value)
     },
   })
 }

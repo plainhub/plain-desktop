@@ -1,11 +1,10 @@
-import { onMounted, ref } from 'vue'
+import { onMounted, onUnmounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
-import { listen } from '@tauri-apps/api/event'
 import emitter from '@/plugins/eventbus'
 import toast from '@/components/toaster'
 import { getWebSocketBaseUrl, getLocalToken, isNativeTarget, setLocalServerPort, setLocalServerHttpsPort } from '@/lib/api/api'
 import { projectPeerManagementEvent, projectPeerNotificationEvent } from '@/lib/peer/peer-events'
-import { preloadLoginPeers } from '@/lib/device/login-peers'
+import { subscribeLoginPeerUpdates } from '@/lib/device/login-peers'
 import { chachaDecrypt, chachaEncrypt, chachaEncryptBytes, bitArrayToUint8Array } from '@/lib/api/crypto'
 import { parseWebSocketData } from '@/lib/api/sjcl-arraybuffer'
 import { applyDarkClass, changeColor, changeColorMode, getCurrentMode, getLastSavedAutoColorMode, isModeDark } from '@/lib/theme'
@@ -59,6 +58,8 @@ export function useAppSocket() {
   let ws: WebSocket
   let retryTime = 1000
   let nativeStream: NativeEventStream | null = null
+  let stopPeerUpdates: (() => void) | undefined
+  let disposed = false
 
   const closeTapPhone = () => {
     tapPhoneMessage.value = ''
@@ -205,15 +206,17 @@ export function useAppSocket() {
       console.error(ex)
     }
     if (__IS_TAURI__) {
-      // Rust-side centralized host updates: the resident mDNS listener emits
-      // this (only on real changes) after upserting the peers table. Re-pull
-      // the login-peer mirror so every consumer (API base URL, WS dial,
-      // switcher UI) sees the fresh address.
-      void listen('device-host-changed', () => {
-        void preloadLoginPeers()
-      })
+      void subscribeLoginPeerUpdates().then((stop) => {
+        if (disposed) stop()
+        else stopPeerUpdates = stop
+      }).catch(console.error)
     }
     connect()
+  })
+
+  onUnmounted(() => {
+    disposed = true
+    stopPeerUpdates?.()
   })
 
   return { wsStatus, tapPhoneMessage, closeTapPhone }

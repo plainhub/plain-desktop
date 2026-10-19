@@ -11,8 +11,6 @@ import { useRightSidebarResize } from '@/hooks/sidebar'
 import { getMainStateKey } from '@/lib/device/current'
 import { get as prefsGet, set as prefsSet } from '@/lib/prefs'
 import { debounce } from '@/lib/array'
-import { updateLoginPeerName } from '@/lib/device/login-peers'
-import { getRemoteClientId } from '@/lib/device/client-id'
 import { isLocalMode } from '@/lib/device/local-mode'
 import { hasActiveUploadBatches } from '@/lib/upload/batch-progress'
 import { useAudioPlaylistStore } from '@/hooks/audio-playlist-store'
@@ -73,10 +71,6 @@ export function useMainView() {
         urlTokenKey.value = tokenToKey(newToken)
         if (oldToken !== newToken) window.fileIdMap = new Map<string, string>()
         app.value = data.app
-        // Keep the session name in sync with the device's reported name.
-        if (data.app.deviceName) {
-          void updateLoginPeerName(getRemoteClientId(), data.app.deviceName)
-        }
       }
       appReady.value = true
     },
@@ -94,15 +88,10 @@ export function useMainView() {
 
   const refetchAppHandler = () => refetchApp()
   const mediaItemsActionedHandler = (event: IMediaItemsActionedEvent) => {
-    // The phone prunes deleted/trashed audios out of its playback queue, so
-    // audio actions refresh the queue mirror (playback.path is unaffected).
     if (event.type === 'AUDIO') void audioPlaylist.refetch()
   }
   const deviceNameUpdatedHandler = (name: string) => {
     if (app.value) app.value.deviceName = name
-    if (name) {
-      void updateLoginPeerName(getRemoteClientId(), name)
-    }
   }
 
   const pairingRequestHandler = (request: PairingRequest) => {

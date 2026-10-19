@@ -1,3 +1,4 @@
+import { listen } from '@tauri-apps/api/event'
 import { ref } from 'vue'
 import { nativeGraphql } from '@/lib/api/native-client'
 import type { IPeer } from '@/lib/interfaces'
@@ -12,7 +13,6 @@ async function localData<T>(query: string, variables?: Record<string, unknown>):
 
 export type LoginPeer = IPeer & { token: string; publicKey: string; address?: { bestIp: string; baseUrl: string } }
 
-/** First IP from a comma-separated address list. */
 export function getPeerIp(p: { ip: string }): string {
   return p.ip.split(',')[0]?.trim() || ''
 }
@@ -22,25 +22,39 @@ export function peerHost(p: IPeer): string {
   return p.port && ip ? `${ip.includes(':') ? `[${ip}]` : ip}:${p.port}` : ''
 }
 
-/**
- * Remote devices with an active login token. Tauri: reactive mirror of the
- * peers-table rows (single source of truth — kept fresh by the resident
- * mDNS listener), preloaded at bootstrap so synchronous readers
- * (router guard, `getCurrentAuthToken`) never await an invoke.
- * Web: always empty — the single session token lives in localStorage.
- */
 export const loginPeers = ref<LoginPeer[]>([])
 
-export async function preloadLoginPeers(): Promise<void> {
-  if (!__IS_TAURI__) return
+let refreshing: Promise<void> | undefined
+let refreshPending = false
+
+export function preloadLoginPeers(): Promise<void> {
+  if (!__IS_TAURI__) return Promise.resolve()
+  refreshPending = true
+  if (!refreshing) refreshing = refreshLoginPeers()
+  return refreshing
+}
+
+async function refreshLoginPeers(): Promise<void> {
   try {
-    const result = await localData<{ peers: LoginPeer[] }>(
-      'query { peers { id name ip status port deviceType token publicKey createdAt updatedAt online address { bestIp baseUrl } } }',
-    )
-    loginPeers.value = result.peers.filter((peer) => !!peer.token).sort((a, b) => b.createdAt.localeCompare(a.createdAt) || a.id.localeCompare(b.id))
-  } catch (e) {
-    console.error('list_login_peers failed', e)
+    while (refreshPending) {
+      refreshPending = false
+      try {
+        const result = await localData<{ peers: LoginPeer[] }>('query { peers { id name ip status port deviceType token publicKey createdAt updatedAt online address { bestIp baseUrl } } }')
+        loginPeers.value = result.peers.filter((peer) => !!peer.token).sort((a, b) => b.createdAt.localeCompare(a.createdAt) || a.id.localeCompare(b.id))
+      } catch (error) {
+        console.error('list_login_peers failed', error)
+      }
+    }
+  } finally {
+    refreshing = undefined
   }
+}
+
+export async function subscribeLoginPeerUpdates(): Promise<() => void> {
+  if (!__IS_TAURI__) return () => {}
+  const stop = await listen('PEER_UPDATED', () => preloadLoginPeers())
+  await preloadLoginPeers()
+  return stop
 }
 
 export function findLoginPeer(clientId: string): LoginPeer | undefined {
@@ -60,13 +74,4 @@ export async function clearLoginPeer(clientId: string): Promise<void> {
   }
   await localData('mutation($id: ID!) { logoutPeer(id: $id) }', { id: clientId })
   await preloadLoginPeers()
-}
-
-/** Updates a peer's display name (e.g. from the device's reported name). */
-export async function updateLoginPeerName(clientId: string, name: string): Promise<void> {
-  if (!__IS_TAURI__ || !name) return
-  const peer = findLoginPeer(clientId)
-  if (!peer || peer.name === name) return
-  await localData('mutation($id: ID!, $name: String!) { updatePeerName(id: $id, name: $name) }', { id: clientId, name })
-  peer.name = name
 }
