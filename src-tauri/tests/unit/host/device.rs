@@ -37,3 +37,8 @@ fn discovery_is_supported_independently_of_optional_file_sharing_services() {
 fn text_clipboard_is_available_through_the_native_platform_adapter() {
     assert!(desktop_capabilities().contains(&"CLIPBOARD"));
 }
+
+#[test]
+fn native_media_catalog_scanning_is_available_to_the_main_schema() {
+    assert!(desktop_capabilities().contains(&"MEDIA_SCAN"));
+}

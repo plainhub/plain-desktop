@@ -1,10 +1,10 @@
 <template>
-  <v-icon-button v-if="!inZip" v-tooltip="$t('create_folder')" @click="createDir">
+  <v-icon-button v-if="!inZip" v-tooltip="$t('create_folder')" :aria-label="$t('create_folder')" @click="createDir">
       <i-material-symbols:create-new-folder-outline-rounded />
   </v-icon-button>
   <v-dropdown v-if="!inZip" v-model="uploadMenuVisible">
     <template #trigger>
-      <v-icon-button v-tooltip="$t('upload')">
+      <v-icon-button v-tooltip="$t('upload')" :aria-label="$t('upload')">
           <i-material-symbols:upload-rounded />
       </v-icon-button>
     </template>
@@ -15,15 +15,15 @@
       {{ $t('upload_folder') }}
     </div>
   </v-dropdown>
-  <v-icon-button v-if="canPaste && !inZip" v-tooltip="$t('paste')" :loading="pasting" @click="pasteDir">
+  <v-icon-button v-if="canPaste && !inZip" v-tooltip="$t('paste')" :aria-label="$t('paste')" :loading="pasting" @click="pasteDir">
       <i-material-symbols:content-paste-rounded />
   </v-icon-button>
-  <v-icon-button v-tooltip="$t('refresh')" :loading="refreshing" @click="refreshCurrentDir">
+  <v-icon-button v-tooltip="$t('refresh')" :aria-label="$t('refresh')" :loading="refreshing" @click="refreshCurrentDir">
       <i-material-symbols:refresh-rounded />
   </v-icon-button>
   <v-dropdown v-model="sortMenuVisible">
     <template #trigger>
-      <v-icon-button v-tooltip="$t('sort')" :loading="sorting">
+      <v-icon-button v-tooltip="$t('sort')" :aria-label="$t('sort')" :loading="sorting">
           <i-material-symbols:sort-rounded />
       </v-icon-button>
     </template>
@@ -118,4 +118,4 @@ function refreshCurrentDir() {
 function sort(value: string) {
   emit('sort', value)
 }
-</script> 
+</script>

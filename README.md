@@ -66,6 +66,8 @@ yarn dev
 yarn dev:tauri
 ```
 
+For an independent native instance, set both `PLAINAPP_DATA_DIR` and `PLAINAPP_CACHE_DIR` to absolute storage roots. Shared Rust validates the roots and owns their relative layout. Supplying only one root fails startup. Set `PLAINAPP_PRIVATE_WEBVIEW=1` to use temporary WebView storage for the initial window and all child windows. Custom storage writes logs to standard output and the core's data directory. The [isolated Desktop runner](https://github.com/plainhub/plainapp-test/blob/main/api-test/README.md) provisions disposable roots and tests the real application.
+
 ## Build
 
 ```sh

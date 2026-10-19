@@ -156,3 +156,4 @@ mod tests {
         assert!(keeps_process_alive("media-preview-1"));
     }
 }
+mod startup_options;

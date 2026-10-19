@@ -6,6 +6,7 @@ pub fn desktop_capabilities() -> Vec<&'static str> {
         "AUDIO_LIBRARY",
         "VIDEO_LIBRARY",
         "DOCUMENT_LIBRARY",
+        "MEDIA_SCAN",
         "FILE_EXPORT",
         "FILE_REVEAL",
         "DOC_PREVIEW",

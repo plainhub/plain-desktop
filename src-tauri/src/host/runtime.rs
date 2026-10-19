@@ -27,6 +27,7 @@ impl Runtime {
             "systemCapabilities" => {
                 serde_json::to_value(&self.capabilities).map_err(|error| error.to_string())
             }
+            "peerTransportCapabilities" => Ok(serde_json::json!([])),
             "systemSetClipboard" => {
                 let request: ClipboardText =
                     serde_json::from_value(params).map_err(|error| error.to_string())?;

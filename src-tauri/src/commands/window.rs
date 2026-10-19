@@ -81,6 +81,7 @@ pub fn reopen_main_window(app: &AppHandle) {
             .as_millis()
     );
     let builder = tauri::WebviewWindowBuilder::new(app, &label, tauri::WebviewUrl::App("/".into()))
+        .incognito(crate::startup_options::private_webview(app))
         .title("")
         .min_inner_size(900.0, 600.0)
         .disable_drag_drop_handler()
@@ -190,6 +191,7 @@ pub fn create_window(app: &AppHandle, path: String) {
     // The native drag-drop handler swallows OS drops before the webview sees
     // them, which kills the HTML5 drop zones used to upload files.
     let win = tauri::WebviewWindowBuilder::new(app, &label, url)
+        .incognito(crate::startup_options::private_webview(app))
         .title("")
         .inner_size(1200.0, 800.0)
         .min_inner_size(900.0, 600.0)
@@ -215,6 +217,7 @@ pub fn open_about(app: &AppHandle) {
     #[cfg(not(target_os = "macos"))]
     let title = "About PlainApp".to_string();
     let win = tauri::WebviewWindowBuilder::new(app, label, tauri::WebviewUrl::App("/about".into()))
+        .incognito(crate::startup_options::private_webview(app))
         .title(title)
         .inner_size(400.0, 560.0)
         .resizable(false)
@@ -249,6 +252,7 @@ pub fn new_window(app: &AppHandle) {
     );
     let url = tauri::WebviewUrl::App("/".into());
     let win = tauri::WebviewWindowBuilder::new(app, &label, url)
+        .incognito(crate::startup_options::private_webview(app))
         .title("")
         .inner_size(1200.0, 800.0)
         .min_inner_size(900.0, 600.0)

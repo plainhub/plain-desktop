@@ -37,6 +37,7 @@ fn build_warm(app: &AppHandle) -> tauri::Result<String> {
     // we just don't build a new warm window if one already exists by label.
     let url = WebviewUrl::App(WARM_WARMUP_PATH.into());
     let win = WebviewWindowBuilder::new(app, WARM_LABEL, url)
+        .incognito(crate::startup_options::private_webview(app))
         .title("")
         .inner_size(1200.0, 800.0)
         .min_inner_size(900.0, 600.0)
@@ -117,6 +118,7 @@ pub fn activate(app: &AppHandle, source: serde_json::Value) -> String {
     );
     let url = WebviewUrl::App(visible_path.into());
     let win = WebviewWindowBuilder::new(app, &label, url)
+        .incognito(crate::startup_options::private_webview(app))
         .title("")
         .inner_size(1200.0, 800.0)
         .min_inner_size(900.0, 600.0);

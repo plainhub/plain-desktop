@@ -3,6 +3,23 @@ use tauri::Manager;
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
+    let startup = crate::startup_options::Options::read().expect("invalid startup options");
+    let mut context = tauri::generate_context!();
+    if startup.private_webview {
+        for window in &mut context.config_mut().app.windows {
+            window.incognito = true;
+        }
+    }
+    let mut log_targets = vec![tauri_plugin_log::Target::new(
+        tauri_plugin_log::TargetKind::Stdout,
+    )];
+    if startup.directories.is_none() {
+        log_targets.push(tauri_plugin_log::Target::new(
+            tauri_plugin_log::TargetKind::LogDir {
+                file_name: Some("plain".to_string()),
+            },
+        ));
+    }
     let builder = tauri::Builder::default();
     #[cfg(any(target_os = "windows", target_os = "linux"))]
     let builder = builder.plugin(tauri_plugin_single_instance::init(|app, _args, _cwd| {
@@ -30,12 +47,7 @@ pub fn run() {
         .plugin(
             tauri_plugin_log::Builder::default()
                 .level(log::LevelFilter::Trace)
-                .targets([
-                    tauri_plugin_log::Target::new(tauri_plugin_log::TargetKind::Stdout),
-                    tauri_plugin_log::Target::new(tauri_plugin_log::TargetKind::LogDir {
-                        file_name: Some("plain".to_string()),
-                    }),
-                ])
+                .targets(log_targets)
                 .build(),
         )
         .plugin(tauri_plugin_opener::init())
@@ -47,10 +59,14 @@ pub fn run() {
         .manage(crate::commands::screen_capture::runtime::ScreenCaptureRuntime::default())
         .manage(crate::commands::native::views::NativeViews::default())
         .manage(crate::commands::native::uploads::UploadWriters::default())
+        .manage(startup)
         .setup(|app| {
             plain_server::platform::version::set_version(&app.package_info().version.to_string());
-            let data_dir = app.path().app_data_dir()?;
-            let cache_dir = app.path().app_cache_dir()?;
+            let startup = app.state::<crate::startup_options::Options>().inner().clone();
+            let (data_dir, cache_dir) = match &startup.directories {
+                Some(directories) => (directories.data.clone(), directories.cache.clone()),
+                None => (app.path().app_data_dir()?, app.path().app_cache_dir()?),
+            };
             let core = Arc::new(
                 tauri::async_runtime::block_on(async {
                     plain_server::assembly::server::ContentServer::open_with_cache(&data_dir, &cache_dir)
@@ -177,8 +193,10 @@ pub fn run() {
                 crate::commands::screen_capture::selftest::schedule_trigger(app.handle().clone());
             }
 
-            let log_dir = app.path().app_log_dir()?;
-            core.set_log_file(&log_dir.join("plain.log"))?;
+            if startup.directories.is_none() {
+                let log_dir = app.path().app_log_dir()?;
+                core.set_log_file(&log_dir.join("plain.log"))?;
+            }
             // The peer proxy dials by client id; the core owns the lookup.
             let peer_resolver = core.peer_proxy_resolver();
             app.handle().manage(tauri::async_runtime::block_on(async {
@@ -216,7 +234,9 @@ pub fn run() {
                         log::warn!("initial media scan did not start: {error}");
                     }
                 }
-                if let Err(error) = catalog.watch_source_directories() {
+                if let Err(error) = tauri::async_runtime::block_on(async {
+                    catalog.watch_source_directories()
+                }) {
                     log::warn!("media watch did not start: {error}");
                 }
             }
@@ -227,16 +247,6 @@ pub fn run() {
                 panic!("start the public listener failed: {error}");
             }
 
-            // Announce on the LAN after the listener is up, so peers can
-            // actually reach the address the announcement carries.
-            tauri::async_runtime::spawn(async move {
-                let result = match core.native_graphql() {
-                    Ok(executor) => executor.execute(serde_json::from_value(serde_json::json!({"query":"mutation { publishMdns { published } }"})).expect("valid publication request")).await,
-                    Err(error) => { log::warn!("Discovery unavailable: {error}"); return; }
-                };
-                if let Some(error) = result.errors.first() { log::warn!("mDNS announcement failed: {}", error.message); }
-
-            });
             Ok(())
         })
         .on_page_load(|webview, payload| {
@@ -397,7 +407,7 @@ pub fn run() {
             crate::commands::native::uploads::native_upload_chunk_abort,
             crate::commands::native::uploads::native_upload_chunks_abort_owner,
         ])
-        .build(tauri::generate_context!())
+        .build(context)
         .expect("error while building tauri application");
     app.run(crate::handle_run_event);
 }

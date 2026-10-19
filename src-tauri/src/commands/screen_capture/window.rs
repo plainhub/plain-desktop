@@ -80,6 +80,7 @@ impl<R: Runtime> TauriCaptureWindowPort<R> {
         spec: &OverlayWindowSpec,
     ) -> WebviewWindowBuilder<'a, R, AppHandle<R>> {
         WebviewWindowBuilder::new(app, &spec.label, WebviewUrl::App(spec.route.clone().into()))
+            .incognito(crate::startup_options::private_webview(app))
             .title("")
             .focused(false)
             .focusable(false)

@@ -4,7 +4,7 @@
       {{ title }}
     </template>
     <template #content>
-      <v-text-field ref="inputRef" v-model="name" :placeholder="placeholder" :error="!!errors.name" :error-text="errors.name ? $t(errors.name) : ''" @keyup.enter="doAction" />
+      <v-text-field ref="inputRef" v-model="name" autocapitalize="off" autocorrect="off" :spellcheck="false" :placeholder="placeholder" :error="!!errors.name" :error-text="errors.name ? $t(errors.name) : ''" @keyup.enter="doAction" />
     </template>
     <template #actions>
       <v-outlined-button value="cancel" @click="cancel">{{ $t('cancel') }}</v-outlined-button>
