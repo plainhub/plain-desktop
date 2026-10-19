@@ -67,31 +67,83 @@ impl Runtime {
         session: Arc<plain_server::host::events::HostEvents>,
     ) -> Result<(), String> {
         let _multicast = plain_server::host::multicast::MulticastSession::new(&self.multicast);
+        let (running, stopped) = tokio::sync::watch::channel(true);
         let requests = self.clone();
-        let result = session
-            .serve(
-                move |method, params| {
-                    let requests = requests.clone();
-                    async move { requests.dispatch(&method, params).await }
-                },
-                {
-                    let app = self.app.clone();
-                    move |event| {
-                        let kind = event
-                            .get("type")
-                            .and_then(Value::as_str)
-                            .ok_or("missing host event type")?;
-                        let payload = event
-                            .get("payload")
-                            .and_then(Value::as_str)
-                            .ok_or("missing host event payload")?;
-                        let payload = serde_json::from_str::<Value>(payload)
-                            .unwrap_or_else(|_| Value::String(payload.to_owned()));
-                        app.emit(kind, payload).map_err(|error| error.to_string())
+        let serving_session = session.clone();
+        let serving = async {
+            let result = serving_session
+                .serve(
+                    move |method, params| {
+                        let requests = requests.clone();
+                        async move { requests.dispatch(&method, params).await }
+                    },
+                    {
+                        let app = self.app.clone();
+                        move |event| {
+                            let kind = event
+                                .get("type")
+                                .and_then(Value::as_str)
+                                .ok_or("missing host event type")?;
+                            let payload = event
+                                .get("payload")
+                                .and_then(Value::as_str)
+                                .ok_or("missing host event payload")?;
+                            let payload = serde_json::from_str::<Value>(payload)
+                                .unwrap_or_else(|_| Value::String(payload.to_owned()));
+                            app.emit(kind, payload).map_err(|error| error.to_string())
+                        }
+                    },
+                )
+                .await;
+            running.send_replace(false);
+            result
+        };
+        let observing = super::clipboard::observe(
+            stopped,
+            || {
+                let app = self.app.clone();
+                let prefs = self.core.shared_preferences();
+                let supported = self.capabilities.iter().any(|name| name == "CLIPBOARD");
+                async move {
+                    let permissions: Vec<String> =
+                        prefs?.get_or(plain_rs::prefs::system::keys::API_PERMISSIONS, Vec::new());
+                    if !supported || !permissions.iter().any(|name| name == "CLIPBOARD") {
+                        return Ok(None);
                     }
-                },
-            )
-            .await;
+                    tokio::task::spawn_blocking(move || {
+                        let sensitive = super::clipboard::sensitive();
+                        let text = match app.clipboard().read_text() {
+                            Ok(text) => text,
+                            Err(error) => {
+                                log::debug!("clipboard text unavailable: {error}");
+                                return Ok(None);
+                            }
+                        };
+                        if text.trim().is_empty() || text.encode_utf16().count() > 256 * 1024 {
+                            return Ok(None);
+                        }
+                        Ok(Some(super::clipboard::Sample {
+                            text,
+                            sensitive: sensitive || super::clipboard::sensitive(),
+                        }))
+                    })
+                    .await
+                    .map_err(|error| error.to_string())?
+                }
+            },
+            |sample| {
+                let session = session.clone();
+                async move {
+                    session
+                        .publish_text(
+                            "CLIPBOARD_REPORTED",
+                            serde_json::to_string(&sample).map_err(|error| error.to_string())?,
+                        )
+                        .await
+                }
+            },
+        );
+        let (result, ()) = tokio::join!(serving, observing);
         result
     }
 }
