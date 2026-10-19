@@ -1,5 +1,5 @@
 import { getApiBaseUrl, getApiHeaders, getLocalToken, isNativeTarget } from './api'
-import { chachaEncrypt, chachaDecrypt, arrayBufferToBitArray, bitArrayToUint8Array } from './crypto'
+import { chachaEncrypt, chachaDecrypt, httpResponseAad, arrayBufferToBitArray, bitArrayToUint8Array } from './crypto'
 import { tokenToKey } from './file'
 import { wrapWithReplayProtection } from './time-sync'
 import { getCurrentAuthToken, clearCurrentSession } from '../device/current'
@@ -120,6 +120,7 @@ export async function encryptedGqlPost<T = any>(
 
   const startTime = performance.now()
   const body = bitArrayToUint8Array(chachaEncrypt(key, wrapWithReplayProtection(json)))
+  const responseAad = httpResponseAad('/graphql', body)
   const encryptTime = performance.now()
 
   const controller = new AbortController()
@@ -141,7 +142,7 @@ export async function encryptedGqlPost<T = any>(
 
     const arrayBuffer = await response.arrayBuffer()
     const apiEndTime = performance.now()
-    const text = chachaDecrypt(key, arrayBufferToBitArray(arrayBuffer))
+    const text = chachaDecrypt(key, arrayBufferToBitArray(arrayBuffer), responseAad)
     const decryptEndTime = performance.now()
 
     if (window.__PLAIN_LOG__) {

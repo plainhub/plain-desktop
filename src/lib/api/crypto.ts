@@ -32,14 +32,22 @@ export function chachaEncryptBytes(key: Uint8Array, plaintext: Uint8Array): Uint
   return result
 }
 
-export function chachaDecrypt(key: Uint8Array, data: Uint8Array): string {
+export function chachaDecrypt(key: Uint8Array, data: Uint8Array, aad?: Uint8Array): string {
   const nonce = data.slice(0, 24)
   const ciphertext = data.slice(24)
   const key32 = new Uint8Array(32)
   key32.set(key.slice(0, 32))
-  const cipher = xchacha20poly1305(key32, nonce)
+  const cipher = xchacha20poly1305(key32, nonce, aad)
   const plaintext = cipher.decrypt(ciphertext)
   return new TextDecoder().decode(plaintext)
+}
+
+export function httpResponseAad(endpoint: string, request: Uint8Array): Uint8Array {
+  const prefix = new TextEncoder().encode(`plain-http-response-v1\0${endpoint}\0`)
+  const aad = new Uint8Array(prefix.length + 32)
+  aad.set(prefix)
+  aad.set(sha256(request), prefix.length)
+  return aad
 }
 
 export function arrayBufferToBitArray(buffer: ArrayBuffer): Uint8Array {

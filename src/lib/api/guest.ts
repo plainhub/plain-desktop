@@ -3,6 +3,7 @@ import { httpRequest } from './http'
 import {
   chachaEncrypt,
   chachaDecrypt,
+  httpResponseAad,
   arrayBufferToBitArray,
   bitArrayToUint8Array,
   bitArrayToBase64,
@@ -89,6 +90,7 @@ export async function guestFetch<T = any>(
   const url = `${getApiBaseUrl()}/guest_graphql`
   const payload = wrapWithReplayProtection(JSON.stringify({ query, variables }))
   const body = bitArrayToUint8Array(chachaEncrypt(key, payload))
+  const responseAad = httpResponseAad('/guest_graphql', body)
 
   const controller = new AbortController()
   const timer = setTimeout(() => controller.abort(), TIMEOUT)
@@ -112,7 +114,7 @@ export async function guestFetch<T = any>(
     }
     const arrayBuffer = await response.arrayBuffer()
     const apiEndTime = performance.now()
-    const text = chachaDecrypt(key, arrayBufferToBitArray(arrayBuffer))
+    const text = chachaDecrypt(key, arrayBufferToBitArray(arrayBuffer), responseAad)
     if (window.__PLAIN_LOG__) {
       console.info(`[gql] ← sharedInfo (${Math.round(apiEndTime - startTime)}ms) ${text}`)
     }

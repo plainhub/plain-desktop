@@ -23,6 +23,7 @@ vi.mock('@/lib/api/http', () => ({ httpRequest: vi.fn() }))
 vi.mock('@/lib/api/file', () => ({ tokenToKey: (token: string) => token }))
 vi.mock('@/lib/api/time-sync', () => ({ wrapWithReplayProtection: (value: string) => value }))
 vi.mock('@/lib/api/crypto', () => ({
+  httpResponseAad: (_: unknown, request: unknown) => request,
   chachaEncrypt: (_: unknown, value: string) => new TextEncoder().encode(value),
   chachaDecrypt: (_: unknown, value: ArrayBuffer) => new TextDecoder().decode(value),
   arrayBufferToBitArray: (value: unknown) => value,
