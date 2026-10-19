@@ -3,6 +3,7 @@
     {{ $t('fix_disconnect_tips') }}
   </div>
   <router-view />
+  <WebLoginRequests v-if="nativeApp" />
   <Teleport to="body">
     <modal-container />
     <div v-if="tapPhoneMessage" v-click-away="closeTapPhone" class="tap-phone-container" @click="closeTapPhone">
@@ -27,6 +28,9 @@ import { startLocalClipboardData } from '@/lib/peer/local-clipboard-data'
 import { useDeviceDiscovery } from './hooks/use-device-discovery'
 import { useTempStore } from '@/stores/temp'
 import { storeToRefs } from 'pinia'
+import WebLoginRequests from '@/components/WebLoginRequests.vue'
+
+const nativeApp = __IS_TAURI__
 
 const { wsStatus, tapPhoneMessage, closeTapPhone } = useAppSocket()
 // Initialize the device pairing listener (and global incoming-request modal) early

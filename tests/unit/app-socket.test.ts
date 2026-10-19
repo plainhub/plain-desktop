@@ -5,7 +5,8 @@ import { afterEach, beforeEach, expect, it, vi } from 'vitest'
 const mock = vi.hoisted(() => ({
   mounted: [] as (() => void)[],
   emit: vi.fn(),
-  socket: { binaryType: 'blob', send: vi.fn(), close: vi.fn(), onopen: null as null | (() => void), onmessage: null as null | ((event: MessageEvent) => void) },
+  token: vi.fn(),
+  socket: { binaryType: 'blob', send: vi.fn(), close: vi.fn(), onopen: null as null | (() => void), onclose: null as null | (() => void), onmessage: null as null | ((event: MessageEvent) => void) },
 }))
 vi.mock('vue', async (original) => ({ ...await original<typeof import('vue')>(), onMounted: (fn: () => void) => mock.mounted.push(fn), onUnmounted: () => {} }))
 vi.mock('vue-i18n', () => ({ useI18n: () => ({ t: (value: string) => value }) }))
@@ -17,13 +18,14 @@ vi.mock('@/lib/device/login-peers', () => ({ subscribeLoginPeerUpdates: vi.fn() 
 vi.mock('@/lib/theme', () => ({ applyDarkClass: vi.fn(), changeColor: vi.fn(), changeColorMode: vi.fn(), getCurrentMode: () => 'light', getLastSavedAutoColorMode: () => 'light', isModeDark: () => false }))
 vi.mock('@/lib/api/file', () => ({ tokenToKey: () => new Uint8Array(32).fill(7) }))
 vi.mock('@/lib/device/client-id', () => ({ getRemoteClientId: () => 'peer' }))
-vi.mock('@/lib/device/current', () => ({ getCurrentAuthToken: () => 'fixture' }))
+vi.mock('@/lib/device/current', () => ({ getCurrentAuthToken: mock.token }))
 vi.mock('@/lib/device/local-mode', () => ({ isLocalMode: () => false }))
-vi.mock('@/lib/api/http', () => ({ openSocket: () => mock.socket }))
+vi.mock('@/lib/api/http', () => ({ openSocket: vi.fn(() => mock.socket) }))
 vi.mock('@/lib/api/native-events', () => ({ subscribeNativeEvents: vi.fn() }))
 vi.mock('@/lib/prefs', () => ({ get: (_key: string, fallback: unknown) => fallback, set: vi.fn() }))
 
 import { useAppSocket } from '../../src/hooks/app-socket'
+import { openSocket } from '../../src/lib/api/http'
 import { chachaDecrypt } from '../../src/lib/api/crypto'
 
 function eventFrame(registration: Uint8Array, counter: bigint, payload = '{"probe":true}') {
@@ -40,6 +42,7 @@ function eventFrame(registration: Uint8Array, counter: bigint, payload = '{"prob
 beforeEach(() => {
   vi.clearAllMocks()
   mock.mounted.length = 0
+  mock.token.mockReturnValue('fixture')
   vi.useFakeTimers()
   vi.stubGlobal('document', { title: '' })
   vi.stubGlobal('window', { matchMedia: () => ({ addEventListener: vi.fn() }) })
@@ -86,4 +89,17 @@ it('keeps transport admission separate from an authenticated invalid presentatio
   expect(mock.emit).not.toHaveBeenCalled()
   mock.socket.onmessage!({ data: eventFrame(registration, 1n) } as MessageEvent)
   expect(mock.emit).toHaveBeenCalledExactlyOnceWith('CONTENT_CHANGED', { probe: true })
+})
+
+it('clears the disconnected state and stops retrying when initialization rejects the saved session', async () => {
+  const state = useAppSocket()
+  mock.mounted[0]!()
+  expect(openSocket).toHaveBeenCalledTimes(1)
+  mock.socket.onclose!()
+  expect(state.wsStatus.value).toBe('closed')
+  mock.token.mockReturnValue('')
+  await vi.advanceTimersByTimeAsync(1000)
+  expect(state.wsStatus.value).toBe('')
+  await vi.advanceTimersByTimeAsync(5000)
+  expect(openSocket).toHaveBeenCalledTimes(1)
 })

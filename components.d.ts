@@ -511,5 +511,6 @@ declare module 'vue' {
     VTextButton: typeof import('./src/components/base/VTextButton.vue')['default']
     VTextField: typeof import('./src/components/base/VTextField.vue')['default']
     WebHttpsWarning: typeof import('./src/components/base/WebHttpsWarning.vue')['default']
+    WebLoginRequests: typeof import('./src/components/WebLoginRequests.vue')['default']
   }
 }

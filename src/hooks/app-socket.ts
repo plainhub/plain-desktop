@@ -135,6 +135,7 @@ export function useAppSocket() {
     const localMode = isLocalMode()
     const token = localMode ? getLocalToken() : getCurrentAuthToken()
     if (!token) {
+      wsStatus.value = ''
       return
     }
 

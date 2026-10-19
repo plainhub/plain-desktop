@@ -2,6 +2,15 @@ use plain_server::{assembly::server::ContentServer, native::management::HttpServ
 use std::sync::Arc;
 
 #[tauri::command]
+pub async fn native_confirm_web_login(
+    core: tauri::State<'_, Arc<ContentServer>>,
+    request_id: String,
+    allowed: bool,
+) -> Result<bool, String> {
+    core.native_management()?.confirm_web_login(request_id, allowed).await
+}
+
+#[tauri::command]
 pub async fn native_restart_http_server(
     core: tauri::State<'_, Arc<ContentServer>>,
     http_port: Option<u16>,

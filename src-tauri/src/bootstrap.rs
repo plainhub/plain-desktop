@@ -395,6 +395,7 @@ pub fn run() {
             crate::commands::native::graphql::native_view_scope,
             crate::commands::native::graphql::native_graphql,
             crate::commands::native::management::native_restart_http_server,
+            crate::commands::native::management::native_confirm_web_login,
             crate::commands::native::management::native_system_settings,
             crate::commands::native::management::native_system_preferences,
             crate::commands::native::events::native_events,

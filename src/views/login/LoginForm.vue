@@ -4,6 +4,14 @@
       <i-material-symbols:error-outline-rounded />
       <div class="body">
         {{ error ? $t(error) : '' }}
+        <template v-if="!nativeApp && error === 'login.peer_identity_changed'">
+          <v-text-button v-if="!confirmForget" @click="confirmForget = true">{{ $t('login.forget_identity') }}</v-text-button>
+          <template v-else>
+            <p>{{ $t('login.confirm_forget_identity') }}</p>
+            <v-outlined-button @click="confirmForget = false">{{ $t('cancel') }}</v-outlined-button>
+            <v-filled-button @click="forgetIdentity">{{ $t('confirm') }}</v-filled-button>
+          </template>
+        </template>
       </div>
     </div>
     <v-text-field
@@ -28,6 +36,10 @@
     <div class="tap-phone-text">
       {{ $t('login.to_continue') }}
     </div>
+    <div v-if="verificationCode" class="login-code">
+      <p>{{ $t('login.compare_code') }}</p>
+      <code>{{ verificationCode }}</code>
+    </div>
     <v-outlined-button @click="onCancel">
       {{ $t('cancel') }}
     </v-outlined-button>
@@ -35,7 +47,7 @@
 </template>
 
 <script setup lang="ts">
-import { onBeforeUnmount } from 'vue'
+import { onBeforeUnmount, ref } from 'vue'
 import type { InitResult } from '@/lib/api/init'
 import { useLogin } from './login'
 import type { LoginHandshakeParams } from '@/lib/api/login-handshake'
@@ -43,6 +55,9 @@ import type { LoginHandshakeParams } from '@/lib/api/login-handshake'
 type InitOptions = {
   autoSubmitWhenNoPassword?: boolean
 }
+
+const nativeApp = __IS_TAURI__
+const confirmForget = ref(false)
 
 const props = withDefaults(defineProps<{
   redirectOnSuccess?: boolean
@@ -60,8 +75,8 @@ const emit = defineEmits<{
 }>()
 
 const {
-  showError, webAccessDisabled, showConfirm, error, showPasswordInput,
-  password, passwordError, isSubmitting, onSubmit, cancel, t, applyInitResult, initializeNative, dispose,
+  showError, webAccessDisabled, showConfirm, verificationCode, error, showPasswordInput,
+  password, passwordError, isSubmitting, onSubmit, cancel, forgetIdentity, t, applyInitResult, initializeNative, dispose,
 } = useLogin({
   redirectOnSuccess: props.redirectOnSuccess,
   onSuccess: async () => emit('success'),
@@ -84,6 +99,21 @@ onBeforeUnmount(dispose)
 
 defineExpose({ init, initializeNative })
 </script>
+
+<style scoped>
+.login-code {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin: 16px 0;
+}
+.login-code p {
+  margin: 0;
+}
+.login-code code {
+  overflow-wrap: anywhere;
+}
+</style>
 
 <style scoped lang="scss">
 .v-filled-button,

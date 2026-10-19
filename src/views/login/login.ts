@@ -4,12 +4,12 @@ import router from '@/plugins/router'
 import { sha512 } from '@/lib/api/crypto'
 import { getApiBaseUrl, getPendingLoginDevice, clearPendingLoginDevice } from '@/lib/api/api'
 import type { InitResult } from '@/lib/api/init'
-import { getCurrentAuthToken } from '@/lib/device/current'
-import { findLoginPeer, saveBrowserSession, preloadLoginPeers, peerHost } from '@/lib/device/login-peers'
+import { getCurrentAuthToken, clearCurrentSession } from '@/lib/device/current'
+import { findLoginPeer, saveBrowserSession, saveBrowserIdentity, getBrowserIdentity, forgetBrowserIdentity, preloadLoginPeers, peerHost } from '@/lib/device/login-peers'
 import { DeviceType } from '@/lib/status'
 import { getRemoteClientId, setRemoteClientId } from '@/lib/device/client-id'
 import { httpRequest } from '@/lib/api/http'
-import { performLoginHandshake } from '@/lib/api/login-handshake'
+import { performLoginHandshake, secureLoginTransport } from '@/lib/api/login-handshake'
 import type { LoginHandshakeParams } from '@/lib/api/login-handshake'
 import { createPairing } from '@/lib/device/pairing'
 import { get as prefsGet } from '@/lib/prefs'
@@ -31,6 +31,7 @@ export function useLogin(options: UseLoginOptions = {}) {
   const showError = ref(false)
   const webAccessDisabled = ref(true)
   const showConfirm = ref(false)
+  const verificationCode = ref('')
   const error = ref('')
   const showPasswordInput = ref(false)
   const password = ref('')
@@ -44,6 +45,7 @@ export function useLogin(options: UseLoginOptions = {}) {
   watch(() => pairing?.state.value, async (state) => {
     if (!state || !nativeActive) return
     showConfirm.value = state.phase === 'WAITING_CONFIRMATION'
+    verificationCode.value = state.verificationCode || ''
     showPasswordInput.value = state.phase === 'PASSWORD_REQUIRED' || state.phase === 'FAILED' && state.error === 'invalid_password'
     isSubmitting.value = !['PASSWORD_REQUIRED', 'SUCCEEDED', 'FAILED', 'CANCELLED'].includes(state.phase)
     if (state.phase === 'FAILED') { showError.value = true; error.value = `login.${state.error || 'failed'}` }
@@ -88,26 +90,33 @@ export function useLogin(options: UseLoginOptions = {}) {
     }
     webAccessDisabled.value = false
     const initData = result.data
+    if (!secureLoginTransport()) {
+      showError.value = true; webAccessDisabled.value = true; error.value = 'login.secure_connection_required'; return false
+    }
     if (initData?.signaturePublicKey) {
       lastInitSignaturePublicKey = initData.signaturePublicKey
     }
-    // The server only omits the `password` field when it accepted the token we
-    // presented, so a 200 with no password means we are already authenticated.
-    if (result.status === 200 && initData && !initData.password && getCurrentAuthToken()) {
+    if (result.status !== 200 || !initData || typeof initData.authenticated !== 'boolean' || typeof initData.passwordRequired !== 'boolean') {
+      showError.value = true; webAccessDisabled.value = true; error.value = 'login.failed'; return false
+    }
+    try {
+      const saved = getBrowserIdentity()
+      if (saved && saved.publicKey !== initData.signaturePublicKey) throw 'peer_identity_changed'
+    } catch {
+      showError.value = true; error.value = 'login.peer_identity_changed'; webAccessDisabled.value = true; return false
+    }
+    if (initData.authenticated && getCurrentAuthToken()) {
       void finishLoginSuccess()
       return true
     }
-    if (initData?.password) {
-      password.value = initData.password
-      showPasswordInput.value = false
-    } else {
-      showPasswordInput.value = true
-    }
+    if (!initData.authenticated) clearCurrentSession()
+    password.value = ''
+    showPasswordInput.value = initData.passwordRequired
     return false
   }
 
   async function onSubmit() {
-    if (isSubmitting.value) return
+    if (isSubmitting.value || webAccessDisabled.value) return
     if (pairing) {
       if (showPasswordInput.value && !password.value) { passwordError.value = 'valid.required'; return }
       passwordError.value = ''
@@ -120,24 +129,27 @@ export function useLogin(options: UseLoginOptions = {}) {
       } catch { isSubmitting.value = false; showError.value = true; error.value = 'login.failed' }
       return
     }
-    if (!password.value?.trim()) { passwordError.value = 'valid.required'; return }
+    if (showPasswordInput.value && !password.value?.trim()) { passwordError.value = 'valid.required'; return }
     passwordError.value = ''
     isSubmitting.value = true
     const controller = new AbortController()
     pendingLoginController = controller
     showError.value = false; error.value = ''
 
-    const hash = sha512(password.value)
+    const hash = showPasswordInput.value ? sha512(password.value) : undefined
     const myClientId = prefsGet('client_id', '')
 
     try {
       const pairingPeer = options.peer?.()
-      const { clientId, token, chatPaired } = await performLoginHandshake({
+      const identity = getBrowserIdentity()
+      const { clientId, token, chatPaired, signaturePublicKey } = await performLoginHandshake({
+        passwordRequired: showPasswordInput.value,
         passwordHash: hash,
         clientId: myClientId,
-        storedSignaturePublicKey: findLoginPeer(getRemoteClientId())?.publicKey,
+        storedSignaturePublicKey: identity?.publicKey,
+        expectedDeviceId: identity?.deviceId,
         initSignaturePublicKey: lastInitSignaturePublicKey,
-        onPending: () => { showConfirm.value = true },
+        onPending: (code) => { verificationCode.value = code || ''; showConfirm.value = true },
         signal: controller.signal,
         peer: pairingPeer,
       })
@@ -145,6 +157,7 @@ export function useLogin(options: UseLoginOptions = {}) {
       if (controller.signal.aborted) return
       if (pairingPeer && !chatPaired) throw 'chat_pairing_unavailable'
 
+      saveBrowserIdentity(clientId, signaturePublicKey)
       saveBrowserSession(token)
       setRemoteClientId(clientId)
       clearPendingLoginDevice()
@@ -158,7 +171,7 @@ export function useLogin(options: UseLoginOptions = {}) {
         const hcResp = await httpRequest(hcUrl)
         if (hcResp.status === 200) { error.value = 'failed_connect_ws'; return }
       }
-      error.value = `login.${reason ? reason : 'failed'}`
+      error.value = ['desktop_access_disabled', 'failed_connect_ws'].includes(reason) ? reason : `login.${reason || 'failed'}`
     } finally {
       if (pendingLoginController === controller) pendingLoginController = null
       isSubmitting.value = false
@@ -171,9 +184,16 @@ export function useLogin(options: UseLoginOptions = {}) {
     showConfirm.value = false; showError.value = false; isSubmitting.value = false
   }
 
+  function forgetIdentity() {
+    cancel()
+    forgetBrowserIdentity()
+    clearCurrentSession()
+    window.location.reload()
+  }
+
   return {
-    showError, webAccessDisabled, showConfirm, error, showPasswordInput,
-    password, passwordError, isSubmitting, onSubmit, cancel, t, applyInitResult, initializeNative,
+    showError, webAccessDisabled, showConfirm, verificationCode, error, showPasswordInput,
+    password, passwordError, isSubmitting, onSubmit, cancel, forgetIdentity, t, applyInitResult, initializeNative,
     dispose: () => { nativeActive = false; pairing?.dispose(); pendingLoginController?.abort() },
   }
 }

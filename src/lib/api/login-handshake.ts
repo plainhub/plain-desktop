@@ -3,21 +3,17 @@ import { getWebSocketBaseUrl } from '@/lib/api/api'
 import { getAccurateAgent } from '@/lib/agent/agent'
 import { openSocket } from '@/lib/api/http'
 import { getSyncedTimestamp } from '@/lib/api/time-sync'
+import { startLoginChannel } from './login-channel'
 import type { DeviceType } from '@/lib/status'
 
-/** Window (ms) within which a login response timestamp is considered fresh. */
-const SIGNATURE_FRESHNESS_MS = 5 * 60 * 1000
-
 export interface LoginHandshakeParams {
-  /** SHA-512 hash of the password. */
-  passwordHash: string
+  passwordRequired: boolean
+  passwordHash?: string
   clientId: string
-  /** Server Ed25519 public key previously trusted for this clientId, if any. */
   storedSignaturePublicKey?: string
-  /** Server Ed25519 public key returned by `/init` for this session. */
   initSignaturePublicKey?: string
-  /** Called when the server asks for 2FA confirmation (PENDING). */
-  onPending?: () => void
+  expectedDeviceId?: string
+  onPending?: (verificationCode?: string) => void
   signal?: AbortSignal
   peer?: {
     deviceName: string
@@ -29,125 +25,107 @@ export interface LoginHandshakeParams {
 }
 
 export interface LoginHandshakeResult {
-  /** The server's device clientId (from AuthResponse), used as the session key. */
   clientId: string
   token: string
-  /** The server public key that actually passed verification (trusted). */
   signaturePublicKey: string
   chatPaired: boolean
 }
 
-function buildSignatureData(r: { clientId: string; status: string; ecdhPublicKey: string; timestamp: number; chatPaired?: boolean }): string {
-  return `${r.clientId}|${r.status}|${r.ecdhPublicKey}|${r.timestamp}${r.chatPaired ? '|true' : ''}`
+function loopback(host: string) {
+  return ['localhost', '127.0.0.1', '[::1]'].includes(host)
 }
 
-/**
- * TOFU verification: prefer the stored key; if it fails (app reinstall / key
- * rotation), fall back to the `/init` key. Only reject when both fail.
- */
-function verifyLoginSignature(
-  r: { clientId: string; status: string; ecdhPublicKey: string; timestamp: number; signature: string; chatPaired?: boolean },
-  storedKey: string | undefined,
-  initKey: string | undefined,
-): { verified: boolean; usedKey?: string } {
-  const data = buildSignatureData(r)
-  const tryVerify = (k?: string): boolean => !!k && verifyEd25519Signature(k, data, r.signature)
-
-  if (tryVerify(storedKey)) return { verified: true, usedKey: storedKey }
-  if (tryVerify(initKey)) return { verified: true, usedKey: initKey }
-  return { verified: false }
+export function secureLoginTransport(): boolean {
+  const base = new URL(getWebSocketBaseUrl())
+  return (window.location.protocol === 'https:' || loopback(window.location.hostname)) && (base.protocol === 'wss:' || loopback(base.hostname))
 }
 
-function isFresh(timestamp: number): boolean {
-  return Math.abs(getSyncedTimestamp() - timestamp) <= SIGNATURE_FRESHNESS_MS
-}
-
-/**
- * Perform the WebSocket login handshake: generate a client ECDH key pair,
- * send the encrypted `AuthRequest`, verify the signed response, and derive
- * the session token locally (never transmitted).
- *
- * Resolves with the token on success; rejects with an error message key on
- * any failure (verification, timeout, or connection drop).
- */
 export function performLoginHandshake(params: LoginHandshakeParams): Promise<LoginHandshakeResult> {
-  const { passwordHash, clientId, onPending } = params
   if (params.signal?.aborted) return Promise.reject('cancelled')
-  const key = new Uint8Array(passwordHash.slice(0, 32).split('').map((c) => c.charCodeAt(0)))
-
-  // Generate client ECDH key pair for token exchange
-  const clientKeyPair = generateECDHKeyPair()
-  const clientPubBase64 = bitArrayToBase64(clientKeyPair.publicKey)
+  if (params.storedSignaturePublicKey && params.initSignaturePublicKey && params.storedSignaturePublicKey !== params.initSignaturePublicKey) return Promise.reject('peer_identity_changed')
+  const signatureKey = params.storedSignaturePublicKey || params.initSignaturePublicKey
+  if (!signatureKey) return Promise.reject('signature_verification_failed')
+  const base = new URL(getWebSocketBaseUrl())
+  if (!secureLoginTransport()) return Promise.reject('secure_connection_required')
+  if (params.passwordRequired && !params.passwordHash) return Promise.reject('invalid_password')
+  const passwordKey = params.passwordRequired ? new TextEncoder().encode(params.passwordHash!.slice(0, 32)) : undefined
+  const session = generateECDHKeyPair()
+  const temporary = params.passwordRequired ? undefined : startLoginChannel(params.clientId)
+  let channel: ReturnType<NonNullable<typeof temporary>['accept']> | undefined
+  base.searchParams.set('cid', params.clientId)
+  base.searchParams.set('auth', params.passwordRequired ? '1' : '2')
 
   return new Promise<LoginHandshakeResult>((resolve, reject) => {
-    const wsUrl = `${getWebSocketBaseUrl()}?cid=${clientId}&auth=1`
-    const ws = openSocket(wsUrl)
-    let timeoutId: number | undefined
-    const abort = () => {
-      cleanup()
-      ws.close(3001, 'cancelled')
-      reject('cancelled')
-    }
-    params.signal?.addEventListener('abort', abort, { once: true })
-
+    const ws = openSocket(base.toString())
+    let settled = false
     const cleanup = () => {
       params.signal?.removeEventListener('abort', abort)
-      window.clearTimeout(timeoutId)
+      window.clearTimeout(connectionTimeout)
+      window.clearTimeout(deadline)
     }
-
-    ws.onopen = async () => {
+    const fail = (reason: unknown) => {
+      if (settled) return
+      settled = true
+      cleanup()
+      ws.close(3001, typeof reason === 'string' ? reason : 'invalid_auth_response')
+      reject(typeof reason === 'string' ? reason : 'invalid_auth_response')
+    }
+    const abort = () => fail('cancelled')
+    params.signal?.addEventListener('abort', abort, { once: true })
+    const connectionTimeout = window.setTimeout(() => fail('timeout'), 10000)
+    const deadline = window.setTimeout(() => fail('login_expired'), 300000)
+    const sendRequest = async () => {
       const ua = await getAccurateAgent()
-      if (params.signal?.aborted) return
-      const enc = chachaEncrypt(key, JSON.stringify({
-        password: passwordHash,
+      if (settled) return
+      const request = JSON.stringify({
         browserName: ua.browser.name,
         browserVersion: ua.browser.version,
         osName: ua.os.name,
         osVersion: ua.os.version,
         isMobile: ua.isMobile,
-        ecdhPublicKey: clientPubBase64,
+        ecdhPublicKey: bitArrayToBase64(session.publicKey),
+        ...(params.passwordRequired ? { password: params.passwordHash } : { loginContext: channel!.context }),
         ...(params.peer ? { peer: params.peer } : {}),
-      }))
-      ws.send(bitArrayToUint8Array(enc) as unknown as ArrayBuffer)
+      })
+      const encrypted = channel ? channel.encryptRequest(request) : chachaEncrypt(passwordKey!, request)
+      ws.send(bitArrayToUint8Array(encrypted) as unknown as ArrayBuffer)
     }
-
+    ws.onopen = () => {
+      window.clearTimeout(connectionTimeout)
+      if (temporary) ws.send(JSON.stringify(temporary.hello))
+      else void sendRequest().catch(fail)
+    }
     ws.onmessage = async (event: MessageEvent) => {
-      if (params.signal?.aborted) return
-      const d = chachaDecrypt(key, new Uint8Array(await event.data.arrayBuffer()))
-      const r = JSON.parse(d)
-      if (r.status === 'PENDING') {
-        onPending?.()
-        return
-      }
-
-      // Reject stale responses (replay protection)
-      if (!isFresh(r.timestamp)) {
-        ws.close(3001, 'signature_verification_failed')
-        reject('signature_verification_failed')
-        return
-      }
-
-      const { verified, usedKey } = verifyLoginSignature(r, params.storedSignaturePublicKey, params.initSignaturePublicKey)
-      if (!verified || !usedKey) {
-        ws.close(3001, 'signature_verification_failed')
-        reject('signature_verification_failed')
-        return
-      }
-
-      // Compute ECDH shared key → token (never transmitted)
-      const serverPubBytes = Uint8Array.from(atob(r.ecdhPublicKey), (c) => c.charCodeAt(0))
-      const token = computeECDHSharedKey(clientKeyPair.secretKey, serverPubBytes)
-      ws.close()
-      cleanup()
-      resolve({ clientId: r.clientId, token, signaturePublicKey: usedKey, chatPaired: r.chatPaired === true })
+      if (settled) return
+      try {
+        if (temporary && !channel) {
+          if (typeof event.data !== 'string' || event.data.length > 4096) throw 'invalid_auth_response'
+          channel = temporary.accept(JSON.parse(event.data), signatureKey, params.expectedDeviceId)
+          await sendRequest()
+          return
+        }
+        if (typeof event.data === 'string') throw 'invalid_auth_response'
+        const bytes = event.data instanceof ArrayBuffer ? new Uint8Array(event.data) : new Uint8Array(await event.data.arrayBuffer())
+        if (settled) return
+        const response = JSON.parse(channel ? channel.decryptResponse(bytes) : chachaDecrypt(passwordKey!, bytes))
+        if (response.status === 'PENDING') {
+          params.onPending?.(channel?.verificationCode)
+          return
+        }
+        if (response.status !== 'COMPLETED' || !Number.isSafeInteger(response.timestamp) || Math.abs(getSyncedTimestamp() - response.timestamp) > 300000) throw 'signature_verification_failed'
+        if (!response.clientId || (params.expectedDeviceId && response.clientId !== params.expectedDeviceId)) throw 'peer_identity_changed'
+        if (channel ? response.loginContext !== channel.context : response.loginContext !== undefined) throw 'invalid_auth_response'
+        const signed = `${response.clientId}|${response.status}|${response.ecdhPublicKey}|${response.timestamp}${response.chatPaired ? '|true' : ''}${channel ? `|${channel.context}` : ''}`
+        if (!verifyEd25519Signature(signatureKey, signed, response.signature)) throw 'signature_verification_failed'
+        const serverPublic = Uint8Array.from(atob(response.ecdhPublicKey), (character) => character.charCodeAt(0))
+        const token = computeECDHSharedKey(session.secretKey, serverPublic)
+        settled = true
+        cleanup()
+        ws.close()
+        resolve({ clientId: response.clientId, token, signaturePublicKey: signatureKey, chatPaired: response.chatPaired === true })
+      } catch (error) { fail(error) }
     }
-
-    ws.onclose = (event: CloseEvent) => {
-      cleanup()
-      if (event.reason === 'OK') return
-      reject(event.reason || 'failed')
-    }
-
-    timeoutId = window.setTimeout(() => { if (ws.readyState !== 1) ws.close(3001, 'timeout') }, 5000)
+    ws.onerror = () => fail('failed_connect_ws')
+    ws.onclose = (event: CloseEvent) => fail(event.reason || 'failed')
   })
 }

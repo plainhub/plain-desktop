@@ -14,6 +14,7 @@ export interface PairingState {
   mode: 'CHAT' | 'MANAGE'
   phase: string
   error: string | null
+  verificationCode?: string | null
 }
 export interface PairingInput {
   id?: string
@@ -22,7 +23,7 @@ export interface PairingInput {
   password?: string
   generation?: string
 }
-const fields = `deviceId generation mode phase error`
+const fields = `deviceId generation mode phase error verificationCode`
 const terminal = new Set(['SUCCEEDED', 'FAILED', 'CANCELLED'])
 
 async function execute<T>(query: string, variables?: Record<string, unknown>): Promise<T> {

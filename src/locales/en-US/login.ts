@@ -4,8 +4,20 @@ export default {
   logging_in: 'Logging in',
   connect: 'Connect',
   login: {
-    to_continue: 'Tap the Accept button on your phone to continue.',
-    failed: 'Login failed, please make sure your phone is not in sleep mode.',
+    timeout: 'The login connection timed out. Please try again.',
+    forget_identity: 'Forget saved device identity',
+    confirm_forget_identity: 'Verify the device locally first. Forget its saved identity and session, then sign in again?',
+
+    compare_code: 'Compare this code on both devices before allowing login.',
+    peer_identity_changed: 'This device identity has changed. Verify it locally before pairing again.',
+    secure_connection_required: 'Open this device through its HTTPS address to log in securely.',
+    login_expired: 'This login request expired. Start again.',
+    invalid_auth_response: 'The login response could not be verified.',
+    invalid_login_request: 'This login request is invalid.',
+    approval_title: 'Allow access to this computer?',
+
+    to_continue: 'Accept this request in PlainApp on the other device to continue.',
+    failed: 'Login failed. Keep PlainApp open on the other device and try again.',
     rejected: 'Login request is rejected.',
     invalid_password: 'Wrong password.',
     too_many_login_attempts: 'Too many login attempts. Please try again in 1 minute.',

@@ -4,8 +4,20 @@ export default {
   logging_in: '登录中',
   connect: '连接',
   login: {
-    to_continue: '请在手机上点击允许按钮才能继续操作。',
-    failed: '登录失败，请确认手机没有进入休眠模式。',
+    timeout: '登录连接超时，请重试。',
+    forget_identity: '忘记已保存的设备身份',
+    confirm_forget_identity: '请先在本机核实设备身份。是否忘记已保存的身份和会话，然后重新登录？',
+
+    compare_code: '允许登录前，请核对两台设备显示的匹配码一致。',
+    peer_identity_changed: '此设备的身份已变化，请在本机核实后重新配对。',
+    secure_connection_required: '请通过此设备的 HTTPS 地址打开并登录。',
+    login_expired: '登录请求已过期，请重新开始。',
+    invalid_auth_response: '无法验证登录响应。',
+    invalid_login_request: '登录请求无效。',
+    approval_title: '允许访问本机？',
+
+    to_continue: '请在另一台设备的 PlainApp 中允许此请求。',
+    failed: '登录失败，请保持另一台设备上的 PlainApp 处于打开状态后重试。',
     rejected: '登录请求被拒绝。',
     invalid_password: '密码错误。',
     too_many_login_attempts: '登录尝试次数过多，请在 1 分钟后重试。',

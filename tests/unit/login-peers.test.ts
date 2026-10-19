@@ -6,7 +6,37 @@ vi.mock('@tauri-apps/api/event', () => ({ listen }))
 vi.mock('@/lib/api/native-client', () => ({ nativeGraphql: native }))
 vi.mock('@/lib/api/gql-client', () => ({ gqlFetch: remote }))
 
-import { loginPeers, preloadLoginPeers, clearLoginPeer, subscribeLoginPeerUpdates } from '../../src/lib/device/login-peers'
+import { loginPeers, preloadLoginPeers, clearLoginPeer, subscribeLoginPeerUpdates, getBrowserIdentity, saveBrowserIdentity, forgetBrowserIdentity, saveBrowserSession } from '../../src/lib/device/login-peers'
+
+function browserStorage() {
+  const values = new Map<string, string>()
+  vi.stubGlobal('localStorage', { getItem: (key: string) => values.get(key) ?? null, setItem: (key: string, value: string) => values.set(key, value), removeItem: (key: string) => values.delete(key) })
+  vi.stubGlobal('__IS_TAURI__', false)
+  return values
+}
+
+it('retains the trusted browser identity across logout and changes it only after explicit forgetting', async () => {
+  const values = browserStorage()
+  saveBrowserIdentity('device', 'original-key')
+  saveBrowserSession('session')
+  expect(() => saveBrowserIdentity('device', 'replacement')).toThrow()
+  expect(getBrowserIdentity()).toEqual({ deviceId: 'device', publicKey: 'original-key' })
+  await clearLoginPeer('device')
+  expect(values.has('auth_token')).toBe(false)
+  expect(getBrowserIdentity()).toEqual({ deviceId: 'device', publicKey: 'original-key' })
+  forgetBrowserIdentity()
+  expect(getBrowserIdentity()).toBeUndefined()
+  saveBrowserIdentity('device', 'replacement')
+  expect(getBrowserIdentity()?.publicKey).toBe('replacement')
+})
+
+it('refuses corrupt saved trust rather than accepting a new identity automatically', () => {
+  const values = browserStorage()
+  values.set('login_identity', '{corrupt')
+  expect(getBrowserIdentity).toThrow()
+  expect(() => saveBrowserIdentity('device', 'replacement')).toThrow()
+  expect(values.get('login_identity')).toBe('{corrupt')
+})
 
 beforeEach(() => {
   vi.resetAllMocks()

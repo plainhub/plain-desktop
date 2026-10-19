@@ -168,6 +168,7 @@ async function onSubmit() {
       } finally { pairing.dispose(); activePairing = null }
     } else {
       const { clientId, token } = await performLoginHandshake({
+        passwordRequired: true,
         passwordHash: hash,
         clientId: myClientId,
         initSignaturePublicKey: lastInitSignaturePublicKey,

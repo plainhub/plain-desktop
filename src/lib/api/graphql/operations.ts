@@ -814,6 +814,7 @@ export interface GqlOperations {
         mode: 'CHAT' | 'MANAGE'
         phase: string
         error?: string
+        verificationCode?: string
       }
     }
     variables: {

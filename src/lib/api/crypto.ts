@@ -110,7 +110,8 @@ export function verifyEd25519Signature(
 
 export interface InitResponse {
   signaturePublicKey: string
-  password?: string
+  authenticated: boolean
+  passwordRequired: boolean
   /** Set by plain-nas on first run: no password configured yet, the client
    *  must present a setup flow instead of the login form. */
   needsSetup?: boolean

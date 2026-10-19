@@ -65,6 +65,27 @@ export function saveBrowserSession(token: string): void {
   localStorage.setItem(AUTH_TOKEN_KEY, token)
 }
 
+export function getBrowserIdentity(): { deviceId: string; publicKey: string } | undefined {
+  const saved = localStorage.getItem('login_identity')
+  if (!saved) return
+  try {
+    const identity = JSON.parse(saved)
+    if (typeof identity.deviceId === 'string' && identity.deviceId && typeof identity.publicKey === 'string' && identity.publicKey) return identity
+  } catch {}
+  throw 'peer_identity_changed'
+}
+
+export function saveBrowserIdentity(deviceId: string, publicKey: string): void {
+  const saved = getBrowserIdentity()
+  if (saved && (saved.deviceId !== deviceId || saved.publicKey !== publicKey)) throw 'peer_identity_changed'
+  localStorage.setItem('login_identity', JSON.stringify({ deviceId, publicKey }))
+}
+
+export function forgetBrowserIdentity(): void {
+  localStorage.removeItem('login_identity')
+  localStorage.removeItem(AUTH_TOKEN_KEY)
+}
+
 /** Clears the login token (logout / forget device). The peer row itself is
  *  kept so pairing state survives. Web mode drops the localStorage token. */
 export async function clearLoginPeer(clientId: string): Promise<void> {
