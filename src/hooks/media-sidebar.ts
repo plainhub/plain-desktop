@@ -10,6 +10,7 @@ import { DataType } from '@/lib/data'
 import { initLazyQuery } from '@/lib/api/query'
 import { buildQuery, parseQuery } from '@/lib/search'
 import emitter from '@/plugins/eventbus'
+import { subscribeMediaLibraryUpdates } from '@/lib/media/library-updates'
 
 export function useMediaSidebar(type: DataType, gql: string) {
   const mainStore = useMainStore()
@@ -92,8 +93,15 @@ export function useMediaSidebar(type: DataType, gql: string) {
   }
 
   const mediaItemsActionedHandler = (event: IMediaItemsActionedEvent) => { if (event.type === type) fetch() }
-  onMounted(() => emitter.on('media_items_actioned', mediaItemsActionedHandler))
-  onUnmounted(() => emitter.off('media_items_actioned', mediaItemsActionedHandler))
+  let stopLibraryUpdates: (() => void) | undefined
+  onMounted(() => {
+    emitter.on('media_items_actioned', mediaItemsActionedHandler)
+    stopLibraryUpdates = subscribeMediaLibraryUpdates(type, fetch)
+  })
+  onUnmounted(() => {
+    emitter.off('media_items_actioned', mediaItemsActionedHandler)
+    stopLibraryUpdates?.()
+  })
 
   return { app, total, totalTrash, trash, selectedTagId, selectedBucketId, selectedExt, extGroups, viewAll, viewTrash, viewByExt }
 }

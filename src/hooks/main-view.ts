@@ -17,6 +17,8 @@ import { useAudioPlaylistStore } from '@/hooks/audio-playlist-store'
 import { openModal } from '@/components/modal'
 import type { PairingRequest } from '@/lib/pairing-types'
 import PairingRequestModal from '@/views/chat/PairingRequestModal.vue'
+import { DataType } from '@/lib/data'
+import { subscribeMediaLibraryUpdates } from '@/lib/media/library-updates'
 import { useRemotePrefs } from '@/hooks/remote-prefs'
 
 export function useMainView() {
@@ -86,6 +88,7 @@ export function useMainView() {
   const currentPath = ref(router.currentRoute.value.fullPath)
   watch(() => router.currentRoute.value.fullPath, (v: string) => { currentPath.value = v })
 
+  let stopLibraryUpdates: (() => void) | undefined
   const refetchAppHandler = () => refetchApp()
   const mediaItemsActionedHandler = (event: IMediaItemsActionedEvent) => {
     if (event.type === 'AUDIO') void audioPlaylist.refetch()
@@ -99,6 +102,7 @@ export function useMainView() {
   }
 
   onMounted(() => {
+    stopLibraryUpdates = subscribeMediaLibraryUpdates(DataType.AUDIO, () => { void audioPlaylist.refetch() })
     emitter.on('refetch_app', refetchAppHandler)
     emitter.on('PERMISSIONS_UPDATED', refetchAppHandler)
     emitter.on('media_items_actioned', mediaItemsActionedHandler)
@@ -107,6 +111,7 @@ export function useMainView() {
   })
 
   onUnmounted(() => {
+    stopLibraryUpdates?.()
     emitter.off('refetch_app', refetchAppHandler)
     emitter.off('PERMISSIONS_UPDATED', refetchAppHandler)
     emitter.off('media_items_actioned', mediaItemsActionedHandler)

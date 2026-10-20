@@ -20,6 +20,7 @@ import { type DataType } from '@/lib/data'
 import { getDirFromPath } from '@/lib/file'
 import { generateDownloadFileName } from '@/lib/format'
 import { hasMediaTrash } from '@/lib/feature'
+import { subscribeMediaLibraryUpdates } from '@/lib/media/library-updates'
 import { createUploadRefreshScheduler } from '@/lib/upload/refresh-scheduler'
 
 export interface MediaPageOptions {
@@ -174,6 +175,13 @@ export function useMediaPage(options: MediaPageOptions) {
     options.onBeforeFetch?.()
     doFetch()
   }
+  let stopLibraryUpdates: (() => void) | undefined
+  const libraryUpdated = () => {
+    sel.clearSelection()
+    options.onBeforeFetch?.()
+    fetchBucketsTags()
+    doFetch()
+  }
   const refetchTagsHandler = (type: string) => { if (type === dataType) fetchBucketsTags() }
   const permissionsUpdatedHandler = () => doFetch()
   const uploadRefresh = createUploadRefreshScheduler(() => {
@@ -202,6 +210,8 @@ export function useMediaPage(options: MediaPageOptions) {
     fetchBucketsTags()
     isActive.value = true
     applyRouteQuery()
+    stopLibraryUpdates?.()
+    stopLibraryUpdates = subscribeMediaLibraryUpdates(dataType, libraryUpdated)
     emitter.on('item_tags_updated', itemTagsUpdatedHandler)
     emitter.on('items_tags_updated', itemsTagsUpdatedHandler)
     emitter.on('media_items_actioned', mediaItemsActionedHandler)
@@ -215,6 +225,8 @@ export function useMediaPage(options: MediaPageOptions) {
   onDeactivated(() => {
     isActive.value = false
     uploadRefresh.dispose()
+    stopLibraryUpdates?.()
+    stopLibraryUpdates = undefined
     emitter.off('item_tags_updated', itemTagsUpdatedHandler)
     emitter.off('items_tags_updated', itemsTagsUpdatedHandler)
     emitter.off('media_items_actioned', mediaItemsActionedHandler)

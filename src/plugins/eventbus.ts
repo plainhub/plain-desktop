@@ -69,6 +69,7 @@ type Events = {
   IMAGE_EDITOR_UPDATE: ArrayBuffer
   peer_notifications_updated: import('@/lib/peer/local-peer-data').PeerNotificationUpdate
   peer_ws_event: { peerId: string, type: string, data: any }
+  MEDIA_LIBRARY_UPDATED: { types: number[] }
   MEDIA_SCAN_PROGRESS: IScanProgress
   FILE_TASK_PROGRESS: any
   DLNA_RENDERER_FOUND: any
