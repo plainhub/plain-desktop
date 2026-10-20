@@ -19,14 +19,15 @@ export interface QuickActionsInput {
   hasTasks: boolean
   /** Currently open quick panel; keeps upload visible while selected. */
   quick: string
+  localMode: boolean
   /** Server-declared App.capabilities; undefined until the app query resolves. */
   capabilities?: string[]
 }
 
-export function buildQuickActions({ hasTasks, quick, capabilities }: QuickActionsInput): QuickAction[] {
+export function buildQuickActions({ hasTasks, quick, localMode, capabilities }: QuickActionsInput): QuickAction[] {
   return [
     { id: 'upload', tooltipKey: 'header_actions.uploads', icon: IMaterialSymbolsFormatListNumbered, visible: hasTasks || quick === 'upload' },
-    { id: 'notification', tooltipKey: 'header_actions.notifications', icon: IMaterialSymbolsNotificationsOutlineRounded, visible: hasFeature(Capability.NOTIFICATIONS, capabilities) },
+    { id: 'notification', tooltipKey: 'header_actions.notifications', icon: IMaterialSymbolsNotificationsOutlineRounded, visible: localMode || hasFeature(Capability.NOTIFICATIONS, capabilities) },
     { id: 'clipboard', tooltipKey: 'header_actions.clipboard', icon: IMaterialSymbolsContentPaste, visible: hasFeature(Capability.CLIPBOARD, capabilities) },
     { id: 'audio', tooltipKey: 'playlist', icon: IMaterialSymbolsQueueMusicRounded, visible: true },
     { id: 'pomodoro', tooltipKey: 'pomodoro_timer', icon: IMaterialSymbolsTimerOutline, visible: hasFeature(Capability.POMODORO, capabilities) },

@@ -11,7 +11,6 @@ pub fn desktop_capabilities() -> Vec<&'static str> {
         "FILE_REVEAL",
         "DOC_PREVIEW",
         "IMAGE_EDITOR",
-        "NOTIFICATIONS",
         "CLIPBOARD",
         "NOTES",
         "FEEDS",

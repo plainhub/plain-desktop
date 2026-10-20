@@ -109,10 +109,8 @@ const {
   toggleSidebar, toggleQuick, getSidebar2CacheKey, resizeWidth,
 } = useMainView()
 
-// Quick actions; notification list mirrors the phone's, gated on the
-// server-declared NOTIFICATIONS capability (NAS doesn't declare it).
 const quickActions = computed(() =>
-  buildQuickActions({ hasTasks: hasTasks.value, quick: store.quick, capabilities: app.value?.capabilities }),
+  buildQuickActions({ hasTasks: hasTasks.value, quick: store.quick, localMode, capabilities: app.value?.capabilities }),
 )
 
 // A quick action may only render when its panel is mounted below — the

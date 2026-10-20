@@ -42,3 +42,8 @@ fn text_clipboard_is_available_through_the_native_platform_adapter() {
 fn native_media_catalog_scanning_is_available_to_the_main_schema() {
     assert!(desktop_capabilities().contains(&"MEDIA_SCAN"));
 }
+
+#[test]
+fn local_system_notification_management_is_not_advertised() {
+    assert!(!desktop_capabilities().contains(&"NOTIFICATIONS"));
+}
