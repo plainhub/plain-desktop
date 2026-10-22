@@ -1,3 +1,4 @@
+import { invoke } from '@tauri-apps/api/core'
 import { listen } from '@tauri-apps/api/event'
 import { ref } from 'vue'
 import { nativeGraphql } from '@/lib/api/native-client'
@@ -93,6 +94,6 @@ export async function clearLoginPeer(clientId: string): Promise<void> {
     localStorage.removeItem(AUTH_TOKEN_KEY)
     return
   }
-  await localData('mutation($id: ID!) { logoutPeer(id: $id) }', { id: clientId })
+  await invoke('native_logout_peer', { id: clientId })
   await preloadLoginPeers()
 }

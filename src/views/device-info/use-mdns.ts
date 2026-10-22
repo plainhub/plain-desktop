@@ -1,3 +1,4 @@
+import { invoke } from '@tauri-apps/api/core'
 import { ref } from 'vue'
 import { gqlFetch } from '@/lib/api/gql-client'
 import { isLocalMode } from '@/lib/device/local-mode'
@@ -87,8 +88,7 @@ export function useMdns() {
   }
 
   async function release(token: string) {
-    const result = await gqlFetch('mutation($token: String!) { releaseMdnsDebugSession(token: $token) { debugSessionCount } }', { token })
-    if (result.errors?.length) throw new Error(result.errors[0].message)
+    await invoke('native_release_mdns_debug_session', { token })
   }
 
   async function startBrowsing() {
@@ -97,8 +97,7 @@ export function useMdns() {
     const current = ++generation
     const token = crypto.randomUUID()
     try {
-      const result = await gqlFetch('mutation($token: String!) { acquireMdnsDebugSession(token: $token) { debugSessionCount } }', { token })
-      if (result.errors?.length) throw new Error(result.errors[0].message)
+      await invoke('native_acquire_mdns_debug_session', { token })
       if (!browsing || generation !== current) {
         await release(token)
         return

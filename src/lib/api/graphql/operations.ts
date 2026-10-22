@@ -1812,6 +1812,12 @@ export interface GqlOperations {
     }
     variables: undefined
   }
+  prefsGQL: {
+    result: {
+      prefs: unknown
+    }
+    variables: undefined
+  }
   rebuildMediaIndexGQL: {
     result: {
       rebuildMediaIndex: boolean
@@ -2152,6 +2158,15 @@ export interface GqlOperations {
       alias: string
     }
   }
+  setPrefGQL: {
+    result: {
+      setPref: boolean
+    }
+    variables: {
+      key: string
+      value: unknown
+    }
+  }
   setSambaSettingsGQL: {
     result: {
       setSambaSettings: boolean
@@ -2178,15 +2193,6 @@ export interface GqlOperations {
     variables: {
       key: string
       value: string
-    }
-  }
-  setPrefGQL: {
-    result: {
-      setPref: boolean
-    }
-    variables: {
-      key: string
-      value: unknown
     }
   }
   simsGQL: {
@@ -2495,12 +2501,6 @@ export interface GqlOperations {
     variables: {
       fileId: string
     }
-  }
-  prefsGQL: {
-    result: {
-      prefs: unknown
-    }
-    variables: undefined
   }
   videoCountGQL: {
     result: {

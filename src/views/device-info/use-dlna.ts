@@ -1,3 +1,4 @@
+import { invoke } from '@tauri-apps/api/core'
 import { ref } from 'vue'
 import { gqlFetch } from '@/lib/api/gql-client'
 import { isLocalMode } from '@/lib/device/local-mode'
@@ -36,9 +37,7 @@ export function useDlna() {
   async function load() {
     if (!isLocalMode()) return
     try {
-      const result = await gqlFetch<{ dlnaReceiver: DlnaStateSnapshot }>('query { dlnaReceiver }')
-      if (result.errors?.length) throw new Error(result.errors[0].message)
-      snapshot.value = result.data?.dlnaReceiver ?? null
+      snapshot.value = await invoke<DlnaStateSnapshot>('native_dlna_receiver')
     } catch (e) {
       console.error('DLNA receiver query failed', e)
     }

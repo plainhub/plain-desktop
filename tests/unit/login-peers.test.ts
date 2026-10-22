@@ -1,7 +1,8 @@
 import { afterEach, beforeEach, expect, it, vi } from 'vitest'
 import { DeviceType } from '../../src/lib/status'
 
-const { native, remote, listen } = vi.hoisted(() => ({ native: vi.fn(), remote: vi.fn(), listen: vi.fn() }))
+const { native, remote, listen, invoke } = vi.hoisted(() => ({ native: vi.fn(), remote: vi.fn(), listen: vi.fn(), invoke: vi.fn() }))
+vi.mock('@tauri-apps/api/core', () => ({ invoke }))
 vi.mock('@tauri-apps/api/event', () => ({ listen }))
 vi.mock('@/lib/api/native-client', () => ({ nativeGraphql: native }))
 vi.mock('@/lib/api/gql-client', () => ({ gqlFetch: remote }))
@@ -68,11 +69,12 @@ it('projects management grants from the canonical local peers query', async () =
   expect(remote).not.toHaveBeenCalled()
 })
 
-it('clears sessions through the local main schema independently of the selected remote target', async () => {
+it('clears sessions through local native management independently of the selected remote target', async () => {
   loginPeers.value = [{ id: 'peer', name: 'Old', token: 'token', publicKey: 'signature' } as (typeof loginPeers.value)[number]]
-  native.mockResolvedValueOnce({ data: { logoutPeer: true } }).mockResolvedValueOnce({ data: { peers: [] } })
+  invoke.mockResolvedValueOnce(true)
+  native.mockResolvedValueOnce({ data: { peers: [] } })
   await clearLoginPeer('peer')
-  expect(native.mock.calls[0][0].query).toContain('logoutPeer')
+  expect(invoke).toHaveBeenCalledWith('native_logout_peer', { id: 'peer' })
   expect(loginPeers.value).toEqual([])
   expect(remote).not.toHaveBeenCalled()
 })

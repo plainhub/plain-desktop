@@ -11,41 +11,35 @@ import { revealLocalFile, saveLocalFileAs, saveTextFileAs, copyLocalFile } from 
 beforeEach(() => vi.resetAllMocks())
 afterEach(() => vi.restoreAllMocks())
 
-it('resolves references in the local main schema before invoking OS file actions', async () => {
-  native.mockResolvedValue({ data: { filePaths: ['/data/files/resolved.txt'] } })
+it('resolves references through native Rust before invoking OS file actions', async () => {
+  invoke.mockImplementation(async (command) => command === 'native_file_paths' ? ['/data/files/resolved.txt'] : undefined)
   await revealLocalFile('fid:attachment.txt')
   await saveLocalFileAs('app://notes/report.txt', 'Report.txt')
   await copyLocalFile('file:///data/document%20name.txt')
-  expect(native.mock.calls.map(([body]) => body.variables.paths)).toEqual([
-    ['fid:attachment.txt'], ['app://notes/report.txt'], ['file:///data/document%20name.txt'],
-  ])
-  for (const [body] of native.mock.calls) expect(body.query).toContain('filePaths(paths: $paths)')
   expect(invoke.mock.calls).toEqual([
+    ['native_file_paths', { paths: ['fid:attachment.txt'] }],
     ['reveal_file', { path: '/data/files/resolved.txt' }],
+    ['native_file_paths', { paths: ['app://notes/report.txt'] }],
     ['save_file_as', { path: '/data/files/resolved.txt', name: 'Report.txt' }],
+    ['native_file_paths', { paths: ['file:///data/document%20name.txt'] }],
     ['copy_file_to_clipboard', { path: '/data/files/resolved.txt' }],
   ])
+  expect(native).not.toHaveBeenCalled()
   expect(remote).not.toHaveBeenCalled()
 })
 
-it('never opens an OS dialog or clipboard action after an unresolved or refused reference', async () => {
-  for (const response of [
-    { errors: [{ message: 'no_permission' }] },
-    {},
-    { data: { filePaths: [null] } },
-    { data: { filePaths: [] } },
-    { data: { filePaths: '/invalid-shape' } },
-    { data: { filePaths: [42] } },
-  ]) {
-    native.mockResolvedValueOnce(response)
+it('never invokes an OS file action after an unresolved or refused reference', async () => {
+  for (const response of [undefined, null, [null], [], '/invalid-shape', [42]]) {
+    invoke.mockResolvedValueOnce(response)
     await expect(saveLocalFileAs('fid:missing', 'Missing.txt')).rejects.toThrow()
   }
-  expect(invoke).not.toHaveBeenCalled()
+  invoke.mockRejectedValueOnce(new Error('Read denied'))
+  await expect(saveLocalFileAs('fid:missing', 'Missing.txt')).rejects.toThrow('Read denied')
+  expect(invoke.mock.calls.every(([command]) => command === 'native_file_paths')).toBe(true)
 })
 
 it('propagates OS action failures to the calling UI', async () => {
-  native.mockResolvedValue({ data: { filePaths: ['/data/document.txt'] } })
-  invoke.mockRejectedValue(new Error('File no longer exists'))
+  invoke.mockResolvedValueOnce(['/data/document.txt']).mockRejectedValueOnce(new Error('File no longer exists'))
   await expect(revealLocalFile('fid:document.txt')).rejects.toThrow('File no longer exists')
 })
 
