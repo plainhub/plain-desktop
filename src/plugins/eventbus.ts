@@ -12,6 +12,7 @@ type Events = {
   UPLOAD_MERGE_RESULT: IUploadMergeResultEvent
   refetch_app: undefined
   refetch_favorite_folders: undefined
+  PREFS_UPDATED: undefined
   PERMISSIONS_UPDATED: undefined
   do_play_audio: undefined
   pause_audio: undefined

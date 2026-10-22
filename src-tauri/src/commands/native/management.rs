@@ -26,15 +26,13 @@ pub async fn native_restart_http_server(
 }
 
 #[tauri::command]
-pub fn native_system_settings(
-    core: tauri::State<'_, Arc<ContentServer>>,
-) -> Result<plain_server::native::management::NativeSystemSettings, String> {
-    core.native_management()?.system_settings()
-}
-
-#[tauri::command]
-pub fn native_system_preferences(
+pub fn native_device_identity(
     core: tauri::State<'_, Arc<ContentServer>>,
 ) -> Result<serde_json::Value, String> {
-    core.native_management()?.system_preferences()
+    let snapshot = serde_json::to_value(core.native_management()?.prefs_snapshot()?)
+        .map_err(|error| error.to_string())?;
+    Ok(serde_json::json!({
+        "clientId": snapshot["clientId"],
+        "signaturePublicKey": snapshot["signaturePublicKey"],
+    }))
 }

@@ -1,20 +1,20 @@
 import { promptModal } from '@/components/modal'
 import DirectoryPickerModal from '@/components/DirectoryPickerModal.vue'
-import { get as prefsGet, set as prefsSet } from '@/lib/prefs'
+import { readSavedValue, saveValue } from '@/lib/saved-values'
 
-const RECENT_UPLOAD_DIRS_KEY = 'recent_upload_dirs'
+const RECENT_UPLOAD_DIRS_KEY = 'recent_save_dirs'
 const MAX_RECENT_UPLOAD_DIRS = 8
 
-export function getRecentUploadDirs(): string[] {
-  return prefsGet<string[]>(RECENT_UPLOAD_DIRS_KEY, []).filter(Boolean)
+export async function getRecentUploadDirs(): Promise<string[]> {
+  return (await readSavedValue<string[]>(RECENT_UPLOAD_DIRS_KEY, [])).filter(Boolean)
 }
 
-export function addRecentUploadDir(dir: string): void {
+export async function addRecentUploadDir(dir: string): Promise<void> {
   const v = dir.trim()
   if (!v) return
-  const list = getRecentUploadDirs().filter((d) => d !== v)
+  const list = (await getRecentUploadDirs()).filter((d) => d !== v)
   list.unshift(v)
-  prefsSet(RECENT_UPLOAD_DIRS_KEY, list.slice(0, MAX_RECENT_UPLOAD_DIRS))
+  await saveValue(RECENT_UPLOAD_DIRS_KEY, list.slice(0, MAX_RECENT_UPLOAD_DIRS))
 }
 
 export async function pickUploadDir(options: {
@@ -30,14 +30,14 @@ export async function pickUploadDir(options: {
     title: options.title,
     initialPath: saved || options.initialPath,
     modalId: options.modalId || 'directory-picker',
-    recentDirs: getRecentUploadDirs(),
+    recentDirs: await getRecentUploadDirs(),
   })
 
   if (typeof selected !== 'string') return
   const v = selected.trim()
   if (!v) return
 
-  addRecentUploadDir(v)
+  await addRecentUploadDir(v)
   options.setValue?.(v)
 
   return v

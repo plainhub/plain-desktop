@@ -1,4 +1,4 @@
-import { readNativeSystemSettings } from './native-settings'
+import { readNativeDeviceIdentity } from './native-settings'
 import { requestInit } from '@/lib/api/init'
 import { gqlFetch } from '@/lib/api/gql-client'
 import { isLocalMode } from '@/lib/device/local-mode'
@@ -32,7 +32,7 @@ export async function loadSelfDevice(): Promise<SelfDevice | null> {
       deviceType: app.deviceType,
       ips,
       port,
-      publicKey: (__IS_TAURI__ ? (await readNativeSystemSettings()).signaturePublicKey : (await requestInit()).data?.signaturePublicKey ?? ''),
+      publicKey: (__IS_TAURI__ ? (await readNativeDeviceIdentity()).signaturePublicKey : (await requestInit()).data?.signaturePublicKey ?? ''),
     }
   } catch (e) {
     console.error('load self device failed', e)

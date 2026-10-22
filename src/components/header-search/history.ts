@@ -1,27 +1,22 @@
-import { computed } from 'vue'
-import type { Router } from 'vue-router'
+import { computed, ref } from 'vue'
+import { readSavedValue, saveValue } from '@/lib/saved-values'
 
-export type HistoryByPage = Record<string, string[]>
-
-export function usePerPageSearchHistory(opts: {
-  router: Router
-  mainStore: any
+export function useSearchHistory(opts: {
   max: number
   decodeBase64: (s: string) => string
   formatLabel: (decoded: string) => string
 }) {
-  const pageKey = computed(() => opts.router.currentRoute.value.path || '')
+  const historyQ = ref<string[]>([])
+  let edited = false
+  let writes = Promise.resolve()
+  void readSavedValue<string[]>('recent_searches', []).then((items) => {
+    if (!edited) historyQ.value = items
+  }).catch(console.error)
 
-  const historyQ = computed<string[]>(() => {
-    const all = (opts.mainStore as any).searchHistory as HistoryByPage | undefined
-    return [...((all ?? {})[pageKey.value] ?? [])]
-  })
-
-  function setHistoryForPage(next: string[]) {
-    const all = ({ ...((opts.mainStore as any).searchHistory ?? {}) } as HistoryByPage)
-    if (next.length === 0) delete all[pageKey.value]
-    else all[pageKey.value] = next
-    ;(opts.mainStore as any).searchHistory = all
+  function setHistory(next: string[]) {
+    edited = true
+    historyQ.value = next
+    writes = writes.then(() => saveValue('recent_searches', next)).catch(console.error)
   }
 
   function rememberHistoryDecoded(q: string) {
@@ -30,7 +25,7 @@ export function usePerPageSearchHistory(opts: {
 
     const list = [...(historyQ.value ?? [])]
     const next = [normalized, ...list.filter((it) => it !== normalized)].slice(0, opts.max)
-    setHistoryForPage(next)
+    setHistory(next)
   }
 
   function rememberHistoryBase64(qBase64: string) {
@@ -44,11 +39,11 @@ export function usePerPageSearchHistory(opts: {
 
   function deleteHistoryItem(q: string) {
     if (!q) return
-    setHistoryForPage((historyQ.value ?? []).filter((it) => it !== q))
+    setHistory((historyQ.value ?? []).filter((it) => it !== q))
   }
 
   function clearHistoryForPage() {
-    setHistoryForPage([])
+    setHistory([])
   }
 
   const historyValueOptions = computed(() => {

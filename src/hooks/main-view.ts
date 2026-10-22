@@ -122,19 +122,21 @@ export function useMainView() {
   // Restore persisted state from prefs
   const localState = prefsGet<Record<string, unknown> | null>(getMainStateKey(), null)
   if (localState) {
-    store.$state = { ...store.$state, ...localState }
+    const { chatTexts, searchHistory, ...uiState } = localState
+    store.$state = { ...store.$state, ...uiState }
   }
 
-  const remotePrefsEnabled = useRemotePrefs(store, localState)
+  const remotePrefsEnabled = useRemotePrefs(store)
 
   // High-frequency mutations (e.g. chatTexts keystrokes) must not serialize
   // the whole store and hit the prefs backend on every change — coalesce them.
   const persistState = debounce((state: typeof store.$state) => {
     if (remotePrefsEnabled.value) {
-      const { excludedDirs, railFeatures, homeFeatures, ...localFields } = state
+      const { homeFeatures, chatTexts, searchHistory, ...localFields } = state
       prefsSet(getMainStateKey(), localFields)
     } else {
-      prefsSet(getMainStateKey(), state)
+      const { chatTexts, searchHistory, ...localFields } = state
+      prefsSet(getMainStateKey(), localFields)
     }
   }, 500)
 

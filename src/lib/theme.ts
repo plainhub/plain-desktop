@@ -22,11 +22,12 @@ export function isModeDark(mode: ColorMode, saveAutoMode = true) {
 
 
 export function getCurrentMode(): ColorMode | null {
-  return prefsGet<ColorMode | null>('color-mode', null)
+  const value = prefsGet<number>('dark_theme', 0)
+  return value === 1 ? 'dark' : value === 2 ? 'light' : 'auto'
 }
 
 export function saveColorMode(mode: ColorMode) {
-  prefsSet('color-mode', mode)
+  void prefsSet('dark_theme', mode === 'dark' ? 1 : mode === 'light' ? 2 : 0).catch(console.error)
 }
 
 export function getLastSavedAutoColorMode() {

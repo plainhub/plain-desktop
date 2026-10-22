@@ -925,9 +925,9 @@ export const pomodoroTodayAndSettingsGQL = `
   }
 `
 
-export const userPrefsGQL = `
+export const prefsGQL = `
   query {
-    userPrefs
+    prefs
   }
 `
 

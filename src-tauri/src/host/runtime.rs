@@ -24,6 +24,10 @@ impl Runtime {
 
     async fn dispatch(&self, method: &str, params: Value) -> Result<Value, String> {
         match method {
+            "prefsChanged" => {
+                self.app.emit("prefsChanged", ()).map_err(|error| error.to_string())?;
+                Ok(Value::Null)
+            }
             "systemCapabilities" => {
                 serde_json::to_value(&self.capabilities).map_err(|error| error.to_string())
             }
@@ -60,6 +64,21 @@ impl Runtime {
 
     pub fn start(self: Arc<Self>) -> tokio::task::JoinHandle<Result<(), String>> {
         let session = Arc::new(self.core.host_events());
+        let changes = Arc::new(tokio::sync::Notify::new());
+        let receiver = changes.clone();
+        let observer = session.clone();
+        if let Ok(prefs) = self.core.shared_preferences() {
+            prefs.set_change_hook(Some(Arc::new(move || changes.notify_one())));
+        }
+        tokio::spawn(async move {
+            loop {
+                tokio::select! {
+                    biased;
+                    _ = observer.wait_disconnected() => return,
+                    _ = receiver.notified() => observer.prefs_changed().await,
+                }
+            }
+        });
         tokio::spawn(self.run(session))
     }
 
@@ -107,7 +126,7 @@ impl Runtime {
                 let supported = self.capabilities.iter().any(|name| name == "CLIPBOARD");
                 async move {
                     let permissions: Vec<String> =
-                        prefs?.get_or(plain_rs::prefs::system::keys::API_PERMISSIONS, Vec::new());
+                        prefs?.get_or(plain_rs::prefs::pref_keys::API_PERMISSIONS, Vec::new());
                     if !supported || !permissions.iter().any(|name| name == "CLIPBOARD") {
                         return Ok(None);
                     }

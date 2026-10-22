@@ -1,4 +1,3 @@
-import { readNativeSystemSettings } from '@/lib/device/native-settings'
 import { ref } from 'vue'
 import { gqlFetch } from '@/lib/api/gql-client'
 import { isLocalMode } from '@/lib/device/local-mode'
@@ -43,7 +42,11 @@ export function useMdns() {
 
   async function loadHostname() {
     if (!isLocalMode()) return
-    if (__IS_TAURI__) hostname.value = (await readNativeSystemSettings()).mdnsHostname
+    if (__IS_TAURI__) {
+      const result = await gqlFetch<{ prefs: Record<string, unknown> }>('query { prefs }')
+      if (result.errors?.length) throw new Error(result.errors[0].message)
+      hostname.value = String(result.data.prefs.mdns_hostname ?? '')
+    }
   }
 
   // Mirrors plain-app's MdnsAndPortEditDialog validation: non-blank and
@@ -54,7 +57,7 @@ export function useMdns() {
     if (hostnameInvalid.value) return false
     saving.value = true
     try {
-      const result = await gqlFetch('mutation($key: String!, $value: JSON!) { setSystemPref(key: $key, value: $value) { affectedCount } }', { key: 'mdns_hostname', value: h })
+      const result = await gqlFetch('mutation($key: String!, $value: JSON!) { setPref(key: $key, value: $value) }', { key: 'mdns_hostname', value: h })
       if (result.errors?.length) throw new Error(result.errors[0].message)
       hostname.value = h
       toast(t('saved'))

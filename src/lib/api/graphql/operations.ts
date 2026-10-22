@@ -1887,9 +1887,9 @@ export interface GqlOperations {
       query: string
     }
   }
-  removeUserPrefGQL: {
+  removePrefGQL: {
     result: {
-      removeUserPref: boolean
+      removePref: boolean
     }
     variables: {
       key: string
@@ -2180,9 +2180,9 @@ export interface GqlOperations {
       value: string
     }
   }
-  setUserPrefGQL: {
+  setPrefGQL: {
     result: {
-      setUserPref: boolean
+      setPref: boolean
     }
     variables: {
       key: string
@@ -2496,9 +2496,9 @@ export interface GqlOperations {
       fileId: string
     }
   }
-  userPrefsGQL: {
+  prefsGQL: {
     result: {
-      userPrefs: unknown
+      prefs: unknown
     }
     variables: undefined
   }

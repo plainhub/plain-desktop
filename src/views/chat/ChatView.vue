@@ -39,12 +39,12 @@
 <script setup lang="ts">
 import { ref, computed, nextTick, watch, onActivated, onDeactivated, onUnmounted } from 'vue'
 import { useI18n } from 'vue-i18n'
+import { readSavedValue, saveValue } from '@/lib/saved-values'
 import { formatDate } from '@/lib/format'
 import ChatInput from './ChatInput.vue'
 import ChatMessageItem from './ChatMessageItem.vue'
 import ForwardMessageModal from './ForwardMessageModal.vue'
 import { openModal } from '@/components/modal'
-import { useMainStore } from '@/stores/main'
 import { useChatRouteId } from './hooks/chat-route'
 import { useChatData } from './hooks/chat-data'
 import { useChatMessages } from './hooks/chat-messages'
@@ -55,7 +55,6 @@ import toast from '@/components/toaster'
 import type { ChatCaptureTarget } from '@/lib/screen-capture/tauri-capture-adapter'
 
 const { t } = useI18n()
-const store = useMainStore()
 const { chatId, peerId, channelId, isChannel, appDir, openFolder } = useChatRouteId()
 const { peer, channel, pageTitle, getSenderName } = useChatData(chatId, peerId, isChannel, channelId)
 
@@ -76,10 +75,25 @@ const noticeText = computed(() => {
   return t('channel_left_notice')
 })
 
+const draft = ref('')
+let draftVersion = 0
+let draftWrites = Promise.resolve()
+const draftKey = computed(() => `chat_input_text:${chatId.value}`)
+watch(draftKey, async (key) => {
+  const version = ++draftVersion
+  draft.value = ''
+  try {
+    const value = await readSavedValue(key, '')
+    if (version === draftVersion) draft.value = value
+  } catch (error) { console.error('Unable to load chat draft', error) }
+}, { immediate: true })
 const chatText = computed({
-  get: () => store.chatTexts[chatId.value] ?? '',
-  set: (v: string) => {
-    store.chatTexts[chatId.value] = v
+  get: () => draft.value,
+  set: (value: string) => {
+    ++draftVersion
+    draft.value = value
+    const key = draftKey.value
+    draftWrites = draftWrites.then(() => saveValue(key, value)).catch(console.error)
   },
 })
 

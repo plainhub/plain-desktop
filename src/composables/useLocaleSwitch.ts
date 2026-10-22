@@ -31,7 +31,7 @@ export function useLocaleSwitch() {
     try {
       await Promise.all([loadLocaleMessages(code), setTimeagoLocale(code)])
       locale.value = code
-      prefsSet('locale', code)
+      await prefsSet('locale', code)
       updateDocumentTitle()
       applyMenuLabels()
     } finally {

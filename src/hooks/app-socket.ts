@@ -16,7 +16,8 @@ import { isLocalMode } from '@/lib/device/local-mode'
 import { openSocket } from '@/lib/api/http'
 import { encodeSocketPayload } from '@/lib/api/websocket-frame'
 import { subscribeNativeEvents, type NativeEventStream } from '@/lib/api/native-events'
-import { get as prefsGet, set as prefsSet } from '@/lib/prefs'
+import { get as prefsGet, set as prefsSet, applySnapshot } from '@/lib/prefs'
+import { nativeGraphql } from '@/lib/api/native-client'
 
 const RAW_BINARY_EVENTS = new Set(['SCREEN_MIRROR_VIDEO', 'SCREEN_MIRROR_AUDIO', 'IMAGE_EDITOR_UPDATE'])
 
@@ -60,6 +61,8 @@ export function useAppSocket() {
   let nativeStream: NativeEventStream | null = null
   let stopPeerUpdates: (() => void) | undefined
   let disposed = false
+  let stopPrefsChanges: (() => void) | undefined
+  let prefsRefresh = Promise.resolve()
 
   const closeTapPhone = () => {
     tapPhoneMessage.value = ''
@@ -219,6 +222,14 @@ export function useAppSocket() {
       console.error(ex)
     }
     if (__IS_TAURI__) {
+      void import('@tauri-apps/api/event').then(({ listen }) => listen('prefsChanged', () => {
+        prefsRefresh = prefsRefresh.then(async () => {
+          const result = await nativeGraphql<{ data?: { prefs: Record<string, unknown> }; errors?: { message: string }[] }>({ query: 'query { prefs }' }, 30000)
+          if (result.errors?.length) throw new Error(result.errors[0].message)
+          if (result.data) await applySnapshot(result.data.prefs)
+          if (isLocalMode()) emitter.emit('PREFS_UPDATED')
+        }).catch(console.error)
+      })).then((stop) => { if (disposed) stop(); else stopPrefsChanges = stop }).catch(console.error)
       void subscribeLoginPeerUpdates().then((stop) => {
         if (disposed) stop()
         else stopPeerUpdates = stop
@@ -230,6 +241,7 @@ export function useAppSocket() {
   onUnmounted(() => {
     disposed = true
     stopPeerUpdates?.()
+    stopPrefsChanges?.()
   })
 
   return { wsStatus, tapPhoneMessage, closeTapPhone }

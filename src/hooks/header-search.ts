@@ -11,7 +11,7 @@ import { DataType } from '@/lib/data'
 import { useBucketsTags } from '@/hooks/media'
 import { useTags } from '@/hooks/tags'
 import { feedsGQL, initLazyQuery } from '@/lib/api/query'
-import { usePerPageSearchHistory } from '@/components/header-search/history'
+import { useSearchHistory } from '@/components/header-search/history'
 import { formatHistoryLabel } from '@/components/header-search/formatHistoryLabel'
 import { keyOptionsForGroup, valueOptionsForGroup } from '@/components/header-search/options'
 import { decodedQuery, parseCurrentFields } from '@/components/header-search/q'
@@ -92,8 +92,8 @@ export function useHeaderSearch(props: {
   const currentEncodedQ = computed(() => router.currentRoute.value.query.q?.toString() ?? '')
 
   const { historyQ, historyValueOptions, rememberHistoryDecoded, rememberHistoryBase64, deleteHistoryItem, clearHistoryForPage } =
-    usePerPageSearchHistory({
-      router, mainStore, max: 10, decodeBase64,
+    useSearchHistory({
+      max: 10, decodeBase64,
       formatLabel: (decoded) => formatHistoryLabel({ decoded, group: routeGroup.value, t, mediaBuckets: mediaBuckets.value ?? [], mediaTags: mediaTags.value ?? [], feeds: feeds.value ?? [], messageTags: messageTags.value ?? [] }),
     })
 

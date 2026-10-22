@@ -5,45 +5,56 @@ vi.mock('@tauri-apps/api/core', () => ({ invoke }))
 vi.mock('@/lib/api/native-client', () => ({ nativeGraphql: native }))
 vi.mock('@/lib/api/gql-client', () => ({ gqlFetch: remote }))
 
+let storage: Map<string, string>
 beforeEach(() => {
   vi.resetModules()
   vi.resetAllMocks()
   vi.stubGlobal('__IS_TAURI__', true)
+  storage = new Map()
+  vi.stubGlobal('localStorage', {
+    getItem: (key: string) => storage.get(key) ?? null,
+    setItem: (key: string, value: string) => storage.set(key, value),
+    removeItem: (key: string) => storage.delete(key),
+    clear: () => storage.clear(),
+  })
 })
 afterEach(() => {
   vi.unstubAllGlobals()
   vi.restoreAllMocks()
 })
 
-it('preloads synchronous readers from native preferences', async () => {
+it('loads filtered prefs and obtains core identity through its dedicated native API', async () => {
   const prefs = await import('../../src/lib/prefs')
-  invoke.mockResolvedValue({ client_id: 'local-core', locale: 'fr', 'main_state:peer': { selected: 'files' } })
+  native.mockResolvedValue({ data: { prefs: { locale: 'fr', dark_theme: 1 } } })
+  invoke.mockResolvedValue({ clientId: 'local-core', signaturePublicKey: 'public-key' })
   await prefs.preload()
-  expect(invoke).toHaveBeenCalledWith('native_system_preferences')
+  expect(native).toHaveBeenCalledWith({ query: 'query { prefs }', variables: undefined }, 30000)
+  expect(invoke).toHaveBeenCalledWith('native_device_identity')
   expect(prefs.get('client_id', '')).toBe('local-core')
   expect(prefs.get('locale', '')).toBe('fr')
-  expect(prefs.get('main_state:peer', null)).toEqual({ selected: 'files' })
+  expect(prefs.get('dark_theme', 0)).toBe(1)
   expect(prefs.get('absent', 'fallback')).toBe('fallback')
   expect(remote).not.toHaveBeenCalled()
 })
 
-it('serializes optimistic writes and deletes through existing main mutations', async () => {
+it('serializes preference writes and deletes and publishes only successful results', async () => {
   const prefs = await import('../../src/lib/prefs')
   let complete!: (value: unknown) => void
   native.mockImplementationOnce(() => new Promise((resolve) => { complete = resolve }))
-    .mockResolvedValue({ data: { result: { affectedCount: 1 } } })
-  const first = prefs.set('main_state:peer', { selected: 'chat' })
-  const second = prefs.remove('main_state:peer')
-  expect(prefs.get('main_state:peer', null)).toBeNull()
+    .mockResolvedValue({ data: { result: true } })
+  const first = prefs.set('dark_theme', 1)
+  const second = prefs.remove('dark_theme')
+  expect(prefs.get('dark_theme', 0)).toBe(0)
   await Promise.resolve()
   expect(native).toHaveBeenCalledTimes(1)
-  expect(native.mock.calls[0][0]).toMatchObject({ variables: { key: 'main_state:peer', value: { selected: 'chat' } } })
-  expect(native.mock.calls[0][0].query).toContain('setSystemPref(key: $key, value: $value)')
-  complete({ data: { result: { affectedCount: 1 } } })
+  expect(native.mock.calls[0][0]).toMatchObject({ variables: { key: 'dark_theme', value: 1 } })
+  expect(native.mock.calls[0][0].query).toContain('setPref(key: $key, value: $value)')
+  complete({ data: { result: true } })
   await Promise.all([first, second])
   expect(native).toHaveBeenCalledTimes(2)
-  expect(native.mock.calls[1][0].query).toContain('removeSystemPref(key: $key)')
-  expect(native.mock.calls[1][0].variables).toEqual({ key: 'main_state:peer' })
+  expect(native.mock.calls[1][0].query).toContain('removePref(key: $key)')
+  expect(native.mock.calls[1][0].variables).toEqual({ key: 'dark_theme' })
+  expect(prefs.get('dark_theme', 0)).toBe(0)
   expect(remote).not.toHaveBeenCalled()
 })
 
@@ -51,7 +62,7 @@ it('reports rejected writes and continues processing later writes', async () => 
   const prefs = await import('../../src/lib/prefs')
   const report = vi.spyOn(console, 'error').mockImplementation(() => {})
   native.mockResolvedValueOnce({ errors: [{ message: 'no_permission' }] })
-    .mockResolvedValueOnce({ data: { result: { affectedCount: 1 } } })
+    .mockResolvedValueOnce({ data: { result: true } })
   const first = prefs.set('locale', 'fr')
   const second = prefs.set('locale', 'en')
   await expect(first).rejects.toThrow('no_permission')
@@ -61,33 +72,42 @@ it('reports rejected writes and continues processing later writes', async () => 
   expect(prefs.get('locale', '')).toBe('en')
 })
 
-it('rejects unreadable startup snapshots instead of inventing a local identity', async () => {
+it('rejects unreadable preference snapshots instead of inventing a local identity', async () => {
   const prefs = await import('../../src/lib/prefs')
-  for (const response of [null, undefined, []]) {
-    invoke.mockResolvedValueOnce(response)
-    await expect(prefs.preload()).rejects.toThrow()
+  invoke.mockResolvedValue({ clientId: 'local-core', signaturePublicKey: 'public-key' })
+  for (const snapshot of [null, undefined, []]) {
+    native.mockResolvedValueOnce({ data: { prefs: snapshot } })
+    await expect(prefs.preload()).rejects.toThrow('Invalid preference snapshot')
   }
   expect(prefs.get('client_id', '')).toBe('')
 })
 
-it('keeps browser storage and logout independent of the native core', async () => {
+it('stores frontend-only UI state locally rather than sending arbitrary native pref keys', async () => {
+  const prefs = await import('../../src/lib/prefs')
+  await prefs.set('main_state:peer', { selected: 'files' })
+  expect(prefs.get('main_state:peer', null)).toEqual({ selected: 'files' })
+  await prefs.remove('main_state:peer')
+  expect(prefs.get('main_state:peer', null)).toBeNull()
+  expect(native).not.toHaveBeenCalled()
+  expect(remote).not.toHaveBeenCalled()
+})
+
+it('uses remote prefs for browser settings while logout clears only browser UI storage', async () => {
   vi.stubGlobal('__IS_TAURI__', false)
-  const storage = new Map<string, string>()
-  vi.stubGlobal('localStorage', {
-    getItem: (key: string) => storage.get(key) ?? null,
-    setItem: (key: string, value: string) => storage.set(key, value),
-    removeItem: (key: string) => storage.delete(key),
-    clear: () => storage.clear(),
-  })
+  remote.mockResolvedValue({ data: { result: true } })
   const prefs = await import('../../src/lib/prefs')
   await prefs.preload()
   await prefs.set('locale', 'fr')
   await prefs.set('main_state:peer', { selected: 'files' })
   expect(prefs.get('locale', '')).toBe('fr')
+  expect(storage.has('locale')).toBe(false)
   expect(prefs.get('main_state:peer', null)).toEqual({ selected: 'files' })
+  expect(remote.mock.calls[0][0]).toContain('setPref(key: $key, value: $value)')
   await prefs.remove('locale')
   expect(prefs.get('locale', 'en')).toBe('en')
+  expect(remote.mock.calls[1][0]).toContain('removePref(key: $key)')
   prefs.clearWebPreferences()
   expect(storage.size).toBe(0)
   expect(native).not.toHaveBeenCalled()
+  expect(invoke).not.toHaveBeenCalled()
 })

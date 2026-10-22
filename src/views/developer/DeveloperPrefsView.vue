@@ -5,27 +5,6 @@
     </v-icon-button>
   </Teleport>
   <div class="scroll-content">
-    <div class="button-group tab-group" role="tablist" aria-label="Preferences">
-      <button
-        v-if="nativePreferences"
-        type="button"
-        role="tab"
-        :aria-selected="activeTab === 'system'"
-        :class="{ selected: activeTab === 'system' }"
-        @click="activeTab = 'system'"
-      >
-        {{ $t('device.system') }}
-      </button>
-      <button
-        type="button"
-        role="tab"
-        :aria-selected="activeTab === 'user'"
-        :class="{ selected: activeTab === 'user' }"
-        @click="activeTab = 'user'"
-      >
-        {{ $t('user') }}
-      </button>
-    </div>
     <div v-if="loading" class="state-wrap">
       <v-circular-progress indeterminate />
     </div>
@@ -34,7 +13,7 @@
       :columns="['key', 'value']"
       :rows="entries"
       row-key="key"
-      :debug="app.debug && activeTab === 'user'"
+      :debug="app.debug"
       :deleting-key="deletingKey"
       @delete="deleteEntry"
     />
@@ -46,48 +25,37 @@
 </template>
 
 <script setup lang="ts">
-import { computed, ref, onActivated, onDeactivated, watch } from 'vue'
+import { ref, onActivated, onDeactivated } from 'vue'
 import { storeToRefs } from 'pinia'
 import { useTempStore } from '@/stores/temp'
-import { initQuery, userPrefsGQL } from '@/lib/api/query'
-import { initMutation, removeUserPrefGQL } from '@/lib/api/mutation'
+import { initQuery, prefsGQL } from '@/lib/api/query'
+import { initMutation, removePrefGQL } from '@/lib/api/mutation'
 import DevDataTable from './DevDataTable.vue'
-import { invoke } from '@tauri-apps/api/core'
-import { isLocalMode } from '@/lib/device/local-mode'
 
-const nativePreferences = __IS_TAURI__ && isLocalMode()
 
 const isActive = ref(false)
 onActivated(() => { isActive.value = true })
 onDeactivated(() => { isActive.value = false })
 
 const { app } = storeToRefs(useTempStore())
-const activeTab = ref<'system' | 'user'>('user')
 
 interface KeyValuePair {
   key: string
   value: string
 }
 
-const systemEntries = ref<KeyValuePair[]>([])
-const userEntries = ref<KeyValuePair[]>([])
-const entries = computed(() => activeTab.value === 'system' ? systemEntries.value : userEntries.value)
+const entries = ref<KeyValuePair[]>([])
 const deletingKey = ref('')
 const { loading, refetch } = initQuery({
-  handle(data: { userPrefs: Record<string, unknown> }, error: string) {
+  handle(data: { prefs: Record<string, unknown> }, error: string) {
     if (!error) {
-      userEntries.value = toEntries(data?.userPrefs)
+      entries.value = toEntries(data?.prefs)
     }
   },
-  document: userPrefsGQL,
+  document: prefsGQL,
 })
 
-watch([isActive, activeTab], async ([active, tab]) => {
-  if (!active || tab !== 'system' || !nativePreferences) return
-  systemEntries.value = toEntries(await invoke<Record<string, unknown>>('native_system_preferences'))
-})
-
-const { mutate: deleteMutate } = initMutation({ document: removeUserPrefGQL })
+const { mutate: deleteMutate } = initMutation({ document: removePrefGQL })
 
 async function deleteEntry(key: string) {
   deletingKey.value = key
@@ -108,12 +76,6 @@ function toEntries(prefs: Record<string, unknown> | undefined): KeyValuePair[] {
   flex: 1;
   overflow-y: auto;
   padding: 16px;
-}
-
-.tab-group {
-  width: fit-content;
-  margin-bottom: 16px;
-  background: var(--md-sys-color-surface-container);
 }
 
 .state-wrap {

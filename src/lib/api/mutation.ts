@@ -81,9 +81,9 @@ export const clearAppLogsGQL = `
   }
 `
 
-export const setUserPrefGQL = `
-  mutation setUserPref($key: String!, $value: JSON!) {
-    setUserPref(key: $key, value: $value)
+export const setPrefGQL = `
+  mutation setPref($key: String!, $value: JSON!) {
+    setPref(key: $key, value: $value)
   }
 `
 
@@ -881,9 +881,9 @@ export const deleteFeedEntryGQL = `
   }
 `
 
-export const removeUserPrefGQL = `
-  mutation removeUserPref($key: String!) {
-    removeUserPref(key: $key)
+export const removePrefGQL = `
+  mutation removePref($key: String!) {
+    removePref(key: $key)
   }
 `
 
