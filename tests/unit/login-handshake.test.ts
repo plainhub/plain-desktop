@@ -40,7 +40,7 @@ beforeEach(() => {
   mock.base.mockReturnValue('wss://example.invalid')
   mock.agent.mockResolvedValue({ browser: { name: 'Fixture', version: '1' }, os: { name: 'Fixture', version: '1' }, isMobile: false })
   vi.stubGlobal('window', { location: { protocol: 'https:', hostname: 'example.invalid' }, setTimeout, clearTimeout })
-  vi.mocked(generateECDHKeyPair)
+  vi.mocked(generateECDHKeyPair).mockReset()
     .mockReturnValueOnce({ secretKey: sessionPrivate, publicKey: sessionPublic })
     .mockReturnValueOnce({ secretKey: bytes(vector.clientPrivate), publicKey: bytes(vector.hello.clientPublicKey) })
   vi.spyOn(crypto, 'getRandomValues').mockImplementationOnce((target) => { new Uint8Array(target!.buffer).fill(3); return target })
@@ -61,7 +61,10 @@ function completed(context?: string) {
 
 const params = () => ({ passwordRequired: false, clientId: vector.hello.clientId, initSignaturePublicKey: vector.signingPublicKey, expectedDeviceId: 'fixture-device' })
 
-it('sends only a public hello before encrypting metadata and waits for local approval', async () => {
+it.each(['http:', 'https:'])('completes encrypted approval login over %s without WebCrypto subtle', async (protocol) => {
+  vi.stubGlobal('window', { location: { protocol, hostname: 'example.invalid' }, setTimeout, clearTimeout })
+  mock.base.mockReturnValue(protocol === 'http:' ? 'ws://example.invalid' : 'wss://example.invalid')
+  vi.stubGlobal('crypto', { getRandomValues: crypto.getRandomValues.bind(crypto) })
   const pending = vi.fn()
   const promise = performLoginHandshake({ ...params(), onPending: pending })
   socket.open()
@@ -80,7 +83,10 @@ it('sends only a public hello before encrypting metadata and waits for local app
   expect(vi.getTimerCount()).toBe(0)
 })
 
-it('keeps fixed-password login on its password channel and verifies the signed session exchange', async () => {
+it.each(['http:', 'https:'])('completes fixed-password login over %s without WebCrypto subtle', async (protocol) => {
+  vi.stubGlobal('window', { location: { protocol, hostname: 'example.invalid' }, setTimeout, clearTimeout })
+  mock.base.mockReturnValue(protocol === 'http:' ? 'ws://example.invalid' : 'wss://example.invalid')
+  vi.stubGlobal('crypto', { getRandomValues: crypto.getRandomValues.bind(crypto) })
   const digest = sha512Hex('fixture-password')
   const key = new TextEncoder().encode(digest.slice(0, 32))
   const promise = performLoginHandshake({ ...params(), passwordRequired: true, passwordHash: digest })
@@ -103,13 +109,8 @@ it('rejects a malformed or substituted hello without sending credentials', async
   expect(vi.getTimerCount()).toBe(0)
 })
 
-it('does not replace a stored identity or use an insecure page or API connection', async () => {
+it('does not replace a stored identity', async () => {
   await expect(performLoginHandshake({ ...params(), storedSignaturePublicKey: 'different-key' })).rejects.toBe('peer_identity_changed')
-  vi.stubGlobal('window', { location: { protocol: 'http:', hostname: 'example.invalid' } })
-  await expect(performLoginHandshake(params())).rejects.toBe('secure_connection_required')
-  vi.stubGlobal('window', { location: { protocol: 'https:', hostname: 'example.invalid' } })
-  mock.base.mockReturnValue('ws://example.invalid')
-  await expect(performLoginHandshake(params())).rejects.toBe('secure_connection_required')
   expect(mock.socket).not.toHaveBeenCalled()
 })
 

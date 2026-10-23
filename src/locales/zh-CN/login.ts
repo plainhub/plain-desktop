@@ -10,7 +10,6 @@ export default {
 
     compare_code: '允许登录前，请核对两台设备显示的匹配码一致。',
     peer_identity_changed: '此设备的身份已变化，请在本机核实后重新配对。',
-    secure_connection_required: '请通过此设备的 HTTPS 地址打开并登录。',
     login_expired: '登录请求已过期，请重新开始。',
     invalid_auth_response: '无法验证登录响应。',
     invalid_login_request: '登录请求无效。',

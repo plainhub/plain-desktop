@@ -9,7 +9,7 @@ import { findLoginPeer, saveBrowserSession, saveBrowserIdentity, getBrowserIdent
 import { DeviceType } from '@/lib/status'
 import { getRemoteClientId, setRemoteClientId } from '@/lib/device/client-id'
 import { httpRequest } from '@/lib/api/http'
-import { performLoginHandshake, secureLoginTransport } from '@/lib/api/login-handshake'
+import { performLoginHandshake } from '@/lib/api/login-handshake'
 import type { LoginHandshakeParams } from '@/lib/api/login-handshake'
 import { createPairing } from '@/lib/device/pairing'
 import { get as prefsGet } from '@/lib/prefs'
@@ -90,9 +90,6 @@ export function useLogin(options: UseLoginOptions = {}) {
     }
     webAccessDisabled.value = false
     const initData = result.data
-    if (!secureLoginTransport()) {
-      showError.value = true; webAccessDisabled.value = true; error.value = 'login.secure_connection_required'; return false
-    }
     if (initData?.signaturePublicKey) {
       lastInitSignaturePublicKey = initData.signaturePublicKey
     }

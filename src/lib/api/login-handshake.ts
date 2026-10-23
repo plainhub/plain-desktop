@@ -31,22 +31,12 @@ export interface LoginHandshakeResult {
   chatPaired: boolean
 }
 
-function loopback(host: string) {
-  return ['localhost', '127.0.0.1', '[::1]'].includes(host)
-}
-
-export function secureLoginTransport(): boolean {
-  const base = new URL(getWebSocketBaseUrl())
-  return (window.location.protocol === 'https:' || loopback(window.location.hostname)) && (base.protocol === 'wss:' || loopback(base.hostname))
-}
-
 export function performLoginHandshake(params: LoginHandshakeParams): Promise<LoginHandshakeResult> {
   if (params.signal?.aborted) return Promise.reject('cancelled')
   if (params.storedSignaturePublicKey && params.initSignaturePublicKey && params.storedSignaturePublicKey !== params.initSignaturePublicKey) return Promise.reject('peer_identity_changed')
   const signatureKey = params.storedSignaturePublicKey || params.initSignaturePublicKey
   if (!signatureKey) return Promise.reject('signature_verification_failed')
   const base = new URL(getWebSocketBaseUrl())
-  if (!secureLoginTransport()) return Promise.reject('secure_connection_required')
   if (params.passwordRequired && !params.passwordHash) return Promise.reject('invalid_password')
   const passwordKey = params.passwordRequired ? new TextEncoder().encode(params.passwordHash!.slice(0, 32)) : undefined
   const session = generateECDHKeyPair()

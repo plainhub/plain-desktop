@@ -10,7 +10,6 @@ export default {
 
     compare_code: 'Compare this code on both devices before allowing login.',
     peer_identity_changed: 'This device identity has changed. Verify it locally before pairing again.',
-    secure_connection_required: 'Open this device through its HTTPS address to log in securely.',
     login_expired: 'This login request expired. Start again.',
     invalid_auth_response: 'The login response could not be verified.',
     invalid_login_request: 'This login request is invalid.',
