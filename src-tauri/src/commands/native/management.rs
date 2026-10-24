@@ -31,11 +31,10 @@ pub async fn native_restart_http_server(
 pub fn native_device_identity(
     core: tauri::State<'_, Arc<ContentServer>>,
 ) -> Result<serde_json::Value, String> {
-    let snapshot = serde_json::to_value(core.native_management()?.prefs_snapshot()?)
-        .map_err(|error| error.to_string())?;
+    let preferences = core.native_management()?.get_prefs(&["client_id".into(), "signature_public_key".into()])?;
     Ok(serde_json::json!({
-        "clientId": snapshot["clientId"],
-        "signaturePublicKey": snapshot["signaturePublicKey"],
+        "clientId": preferences["client_id"],
+        "signaturePublicKey": preferences["signature_public_key"],
     }))
 }
 
