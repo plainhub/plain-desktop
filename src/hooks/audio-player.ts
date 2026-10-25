@@ -3,7 +3,7 @@ import { useTempStore } from '@/stores/temp'
 import { storeToRefs } from 'pinia'
 import type { IAudioItem } from '@/lib/interfaces'
 import { getFileUrlByPath } from '@/lib/api/file'
-import { initMutation, playAudioGQL, reportAudioPlaybackGQL, advanceAudioSelectionGQL, updateAudioPlayModeGQL, removeAudioFromQueueGQL, clearAudioQueueGQL, reorderAudioQueueGQL, enqueueAndPlayAudioGQL } from '@/lib/api/mutation'
+import { initMutation, playAudioGQL, recordMediaPlayGQL, saveMediaPlayProgressGQL, advanceAudioSelectionGQL, updateAudioPlayModeGQL, removeAudioFromQueueGQL, clearAudioQueueGQL, reorderAudioQueueGQL, enqueueAndPlayAudioGQL } from '@/lib/api/mutation'
 import { audioPlayback, useAudioPlaylistStore } from '@/hooks/audio-playlist-store'
 import emitter from '@/plugins/eventbus'
 import { getGraphqlContextKey } from '@/lib/api/gql-client'
@@ -93,7 +93,8 @@ export function useAudioPlaylist(audioRef: Ref<HTMLAudioElement | undefined>) {
   const { mutate: clear, loading: clearLoading, onDone: onClearDone } = initMutation({ document: clearAudioQueueGQL })
   const { mutate: updateMode } = initMutation({ document: updateAudioPlayModeGQL })
   const { mutate: advanceSelection } = initMutation({ document: advanceAudioSelectionGQL })
-  const { mutate: reportPlayback } = initMutation({ document: reportAudioPlaybackGQL }, false)
+  const { mutate: recordPlay } = initMutation({ document: recordMediaPlayGQL })
+  const { mutate: saveProgress } = initMutation({ document: saveMediaPlayProgressGQL })
   const { mutate: reorderAudioQueue } = initMutation({ document: reorderAudioQueueGQL })
   const { mutate: deleteAudio } = initMutation({ document: removeAudioFromQueueGQL })
 
@@ -104,63 +105,56 @@ export function useAudioPlaylist(audioRef: Ref<HTMLAudioElement | undefined>) {
 
   let disposed = false
   let pendingCommand = Promise.resolve()
+  let pendingHistory = Promise.resolve()
   let releasePlayback: (() => void) | undefined
-  let playingToken: object | undefined
+  let binding: { element: HTMLAudioElement; context: string; mediaId: string | null; path: string; revision: number } | undefined
 
   function bindPlayback() {
-    releasePlayback?.()
-    releasePlayback = undefined
     const element = audioRef.value
     if (!element) return
     const context = getGraphqlContextKey()
-    const expected = { path: audioPlayback.value.path || '', revision: audioPlayback.value.revision }
-    const token = {}
-    playingToken = token
+    const expected = { element, context, mediaId: audioPlayback.value.mediaId,
+      path: audioPlayback.value.path || '', revision: audioPlayback.value.revision }
+    if (binding?.element === element && binding.context === context && binding.mediaId === expected.mediaId &&
+      binding.path === expected.path && binding.revision === expected.revision) return
+    releasePlayback?.()
+    binding = expected
     let timer: ReturnType<typeof setInterval> | undefined
-    let reporting: Promise<void> | undefined
-    let rejected = false
-    let samplePending = false
-    let startPending = false
-    const active = () => !disposed && !rejected && playingToken === token && context === getGraphqlContextKey() &&
-      audioPlayback.value.path === expected.path && audioPlayback.value.revision === expected.revision &&
+    let started = false
+    const active = () => !disposed && binding === expected && context === getGraphqlContextKey() &&
+      audioPlayback.value.mediaId === expected.mediaId && audioPlayback.value.path === expected.path &&
+      audioPlayback.value.revision === expected.revision &&
       (!element.currentSrc || element.currentSrc === element.src)
-    const sample = (started = false): Promise<void> => {
-      startPending ||= started
-      samplePending = true
-      if (!active() || !expected.path) return Promise.resolve()
-      if (!reporting) {
-        reporting = (async () => {
-          while (samplePending && active()) {
-            samplePending = false
-            const started = startPending
-            const positionMs = Number.isFinite(element.currentTime) ? Math.max(0, Math.trunc(element.currentTime * 1000)) : 0
-            const result = await reportPlayback({ path: expected.path, revision: expected.revision, positionMs, started })
-            if (result?.data?.reportAudioPlayback === false) { rejected = true; stopTimer() }
-            if (started && result?.data?.reportAudioPlayback === true) startPending = false
-          }
-        })().finally(() => { reporting = undefined })
-      }
-      return reporting
+    const save = (record = false) => {
+      if (!active() || !expected.mediaId) return
+      const variables = { mediaId: expected.mediaId, type: 'AUDIO',
+        positionMs: Number.isFinite(element.currentTime) ? Math.max(0, Math.trunc(element.currentTime * 1000)) : 0 }
+      pendingHistory = pendingHistory.then(async () => {
+        if (context === getGraphqlContextKey()) await (record ? recordPlay : saveProgress)(variables)
+      }).catch((error) => emitter.emit('toast', error instanceof Error ? error.message : 'network_error'))
     }
     const stopTimer = () => { if (timer !== undefined) clearInterval(timer); timer = undefined }
     const playing = () => {
       if (!active()) return
-      const started = sample(true)
-      pendingCommand = Promise.all([pendingCommand, started]).then(() => {}).catch(() => {})
+      save(!started)
+      started = true
       stopTimer()
-      timer = setInterval(() => { if (active()) void sample(); else stopTimer() }, 1000)
+      timer = setInterval(() => { if (active()) save(); else stopTimer() }, 1000)
     }
-    const pause = () => { stopTimer(); void sample() }
+    const pause = () => { stopTimer(); if (started) save() }
     const ended = () => {
       stopTimer()
-      if (active() && element.ended) return advance('COMPLETED', expected)
+      if (active() && element.ended) {
+        if (started) save()
+        return advance('COMPLETED', expected)
+      }
     }
     element.addEventListener('playing', playing)
     element.addEventListener('pause', pause)
     element.addEventListener('ended', ended, { once: true })
     releasePlayback = () => {
       stopTimer()
-      if (playingToken === token) playingToken = undefined
+      if (binding === expected) binding = undefined
       element.removeEventListener('playing', playing)
       element.removeEventListener('pause', pause)
       element.removeEventListener('ended', ended)
@@ -192,7 +186,7 @@ export function useAudioPlaylist(audioRef: Ref<HTMLAudioElement | undefined>) {
       if (audioRef.value) audioRef.value.currentTime = selection.positionMs / 1000
       _play()
     })
-    pendingCommand = command.catch(() => {})
+    pendingCommand = command.catch((error) => emitter.emit('toast', error instanceof Error ? error.message : 'network_error'))
     return command
   }
 
@@ -209,7 +203,7 @@ export function useAudioPlaylist(audioRef: Ref<HTMLAudioElement | undefined>) {
         audioPlayback.value = { ...audioPlayback.value, mode }
       }
     })
-    pendingCommand = command.catch(() => {})
+    pendingCommand = command.catch((error) => emitter.emit('toast', error instanceof Error ? error.message : 'network_error'))
     return command
   }
 
@@ -263,7 +257,6 @@ export function useAudioPlaylist(audioRef: Ref<HTMLAudioElement | undefined>) {
 
   onUnmounted(() => {
     disposed = true
-    playingToken = undefined
     releasePlayback?.()
     emitter.off('do_play_audio', doPlayAudio)
     emitter.off('pause_audio', pauseAudio)

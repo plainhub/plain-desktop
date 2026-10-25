@@ -1840,6 +1840,16 @@ export interface GqlOperations {
       id: string
     }
   }
+  recordMediaPlayGQL: {
+    result: {
+      recordMediaPlay: boolean
+    }
+    variables: {
+      mediaId: string
+      type: 'AUDIO' | 'VIDEO' | 'IMAGE' | 'DOC'
+      positionMs: number
+    }
+  }
   relaunchAppGQL: {
     result: {
       relaunchApp: boolean
@@ -1926,17 +1936,6 @@ export interface GqlOperations {
       id: string
       actionIndex: number
       text: string
-    }
-  }
-  reportAudioPlaybackGQL: {
-    result: {
-      reportAudioPlayback: boolean
-    }
-    variables: {
-      path: string
-      revision: number
-      positionMs: number
-      started: boolean
     }
   }
   requestScreenMirrorAudioGQL: {
@@ -2059,6 +2058,16 @@ export interface GqlOperations {
     }
     variables: {
       query: string
+    }
+  }
+  saveMediaPlayProgressGQL: {
+    result: {
+      saveMediaPlayProgress: boolean
+    }
+    variables: {
+      mediaId: string
+      type: 'AUDIO' | 'VIDEO' | 'IMAGE' | 'DOC'
+      positionMs: number
     }
   }
   scanProgressGQL: {

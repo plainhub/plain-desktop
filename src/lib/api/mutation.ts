@@ -243,9 +243,15 @@ export const moveFileGQL = `
   }
 `
 
-export const reportAudioPlaybackGQL = `
-  mutation reportAudioPlayback($path: String!, $revision: Long!, $positionMs: Long!, $started: Boolean!) {
-    reportAudioPlayback(path: $path, revision: $revision, positionMs: $positionMs, started: $started)
+export const recordMediaPlayGQL = `
+  mutation recordMediaPlay($mediaId: ID!, $type: MediaDataType!, $positionMs: Long!) {
+    recordMediaPlay(mediaId: $mediaId, type: $type, positionMs: $positionMs)
+  }
+`
+
+export const saveMediaPlayProgressGQL = `
+  mutation saveMediaPlayProgress($mediaId: ID!, $type: MediaDataType!, $positionMs: Long!) {
+    saveMediaPlayProgress(mediaId: $mediaId, type: $type, positionMs: $positionMs)
   }
 `
 
