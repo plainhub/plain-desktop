@@ -212,7 +212,7 @@ pub fn run() {
                 app.handle().clone(),
                 capabilities,
             ));
-            let host_task = tauri::async_runtime::block_on(async { host_bridge.start() });
+            let host_task = tauri::async_runtime::block_on(async { host_bridge.start() })?;
             tauri::async_runtime::spawn(async move {
                 match host_task.await {
                     Ok(Ok(())) => {},

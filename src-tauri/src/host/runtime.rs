@@ -62,24 +62,30 @@ impl Runtime {
         }
     }
 
-    pub fn start(self: Arc<Self>) -> tokio::task::JoinHandle<Result<(), String>> {
-        let session = Arc::new(self.core.host_events());
+    pub fn start(self: Arc<Self>) -> Result<tokio::task::JoinHandle<Result<(), String>>, String> {
+        let session = Arc::new(self.core.host_events()?);
         let changes = Arc::new(tokio::sync::Notify::new());
         let receiver = changes.clone();
         let observer = session.clone();
-        if let Ok(prefs) = self.core.shared_preferences() {
-            prefs.set_change_hook(Some(Arc::new(move || changes.notify_one())));
-        }
+        self.core.shared_preferences()?.set_change_hook(Some(Arc::new({
+            let changes = changes.clone();
+            move || changes.notify_one()
+        })));
+        changes.notify_one();
         tokio::spawn(async move {
             loop {
                 tokio::select! {
                     biased;
                     _ = observer.wait_disconnected() => return,
-                    _ = receiver.notified() => observer.prefs_changed().await,
+                    _ = receiver.notified() => {
+                        if let Err(error) = observer.prefs_changed().await {
+                            log::error!("Host preferences update failed: {error}");
+                        }
+                    },
                 }
             }
         });
-        tokio::spawn(self.run(session))
+        Ok(tokio::spawn(self.run(session)))
     }
 
     async fn run(
