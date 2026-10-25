@@ -2,6 +2,13 @@ use plain_server::{assembly::server::ContentServer, native::management::HttpServ
 use std::sync::Arc;
 
 #[tauri::command]
+pub async fn native_lan_ipv4_addresses(
+    core: tauri::State<'_, Arc<ContentServer>>,
+) -> Result<Vec<String>, String> {
+    core.native_management()?.lan_ipv4_addresses().await
+}
+
+#[tauri::command]
 pub async fn native_confirm_web_login(
     core: tauri::State<'_, Arc<ContentServer>>,
     request_id: String,

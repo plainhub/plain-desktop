@@ -55,13 +55,14 @@ it('does not check health after native restart fails or returns an incomplete st
   expect(request).not.toHaveBeenCalled()
 })
 
-it('reads live listener ports, resource token and addresses from the local main schema', async () => {
+it('reads listener ports and resource token from the local schema and addresses through native IPC', async () => {
   native.mockResolvedValueOnce({ data: { app: { httpPort: 8180, httpsPort: 8543, urlToken: 'local-token' } } })
-    .mockResolvedValueOnce({ data: { app: { network: { ipv4Addresses: ['192.0.2.1'] } } } })
+  invoke.mockResolvedValueOnce(['192.0.2.1'])
   expect(await readLocalServer()).toEqual({ httpPort: 8180, httpsPort: 8543, urlToken: 'local-token' })
   expect(await readLocalAddresses()).toEqual(['192.0.2.1'])
   expect(native.mock.calls[0][0].query).toContain('app { httpPort httpsPort urlToken }')
-  expect(native.mock.calls[1][0].query).toContain('app { network { ipv4Addresses } }')
+  expect(native).toHaveBeenCalledTimes(1)
+  expect(invoke).toHaveBeenCalledWith('native_lan_ipv4_addresses')
   expect(remote).not.toHaveBeenCalled()
 })
 

@@ -35,10 +35,8 @@ export async function readLocalServer(): Promise<LocalServer> {
   return data.app
 }
 
-export async function readLocalAddresses(): Promise<string[]> {
-  const data = await localData<{ app: { network: { ipv4Addresses: string[] } } }>('{ app { network { ipv4Addresses } } }')
-  if (!Array.isArray(data.app?.network?.ipv4Addresses)) throw new Error('Invalid network response')
-  return data.app.network.ipv4Addresses
+export function readLocalAddresses(): Promise<string[]> {
+  return invoke<string[]>('native_lan_ipv4_addresses')
 }
 
 function validPort(value: number): boolean {
