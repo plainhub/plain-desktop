@@ -67,12 +67,14 @@ import { useTempStore } from '@/stores/temp'
 import { buildUrl } from '@/lib/url'
 import { storeToRefs } from 'pinia'
 import type { ComponentPublicInstance } from 'vue'
-import { computed, onActivated, onDeactivated, ref, watch } from 'vue'
+import { computed, onActivated, onDeactivated, onUnmounted, ref, watch } from 'vue'
 import { useScreenMirrorControl, type ScreenMirrorControlAction } from './screen-mirror-control'
 import { useScreenMirrorMedia } from './screen-mirror-media'
 import { useScreenMirrorService } from './screen-mirror-service'
 import { useScreenMirrorPipeline } from './screen-mirror-pipeline'
 import { useScreenRecording } from './screen-recording'
+import { ScreenMirrorSocket } from './screen-mirror-socket'
+import { isNativeTarget } from '@/lib/api/api'
 
 const { app } = storeToRefs(useTempStore())
 const isActive = ref(false)
@@ -100,7 +102,16 @@ const toggleControl = service.toggleControl
 const relaunchApp = service.relaunchApp
 const start = service.start
 
-const pipeline = useScreenMirrorPipeline(canvasRef, audioRef, service.onStreamReady, service.onDisconnected, service.onScreenMirrorOff)
+const pipeline = useScreenMirrorPipeline(
+  canvasRef,
+  audioRef,
+  service.onStreamReady,
+  () => {
+    cleanup()
+    service.onDisconnected()
+  },
+  service.onScreenMirrorOff
+)
 const paused = pipeline.paused
 const supported = pipeline.supported
 const audioSupported = pipeline.audioSupported
@@ -111,9 +122,30 @@ const useHttpsLink = () => {
   window.open(buildUrl('https', window.location.hostname, app.value.httpsPort), '_blank')
 }
 
-service.setPipeline(pipeline.connect, pipeline.cleanup)
-
+const socket = new ScreenMirrorSocket({
+  onConnected: () => {
+    void pipeline.connect()
+  },
+  onDisconnected: () => {
+    pipeline.cleanup()
+    service.onDisconnected()
+  },
+  onVideo: pipeline.handleVideo,
+  onAudio: pipeline.handleAudio,
+})
 const control = useScreenMirrorControl(canvasRef, service.controlEnabled)
+const cleanup = () => {
+  socket.disconnect()
+  pipeline.cleanup()
+}
+service.setPipeline(() => {
+  if (isNativeTarget()) void pipeline.connect()
+  else socket.connect()
+}, cleanup)
+onUnmounted(() => {
+  cleanup()
+  service.deactivate()
+})
 
 const showLoading = computed(() => service.showLoading.value || service.state.value === 'connecting')
 const mirroring = computed(() => service.state.value === 'streaming')
@@ -167,8 +199,8 @@ watch(controlOverlayRef, (el) => {
 onActivated(() => {
   isActive.value = true
   emitter.on('SCREEN_MIRRORING', service.onScreenMirroring)
-  emitter.on('SCREEN_MIRROR_VIDEO', pipeline.handleVideo)
-  emitter.on('SCREEN_MIRROR_AUDIO', pipeline.handleAudio)
+  if (isNativeTarget()) emitter.on('SCREEN_MIRROR_VIDEO', pipeline.handleVideo)
+  if (isNativeTarget()) emitter.on('SCREEN_MIRROR_AUDIO', pipeline.handleAudio)
   emitter.on('SCREEN_MIRROR_VIDEO_CODEC', pipeline.handleConfig)
   emitter.on('app_socket_connection_changed', service.onSocketReconnect)
   emitter.on('SCREEN_MIRROR_AUDIO_GRANTED', service.onAudioGranted)
@@ -187,7 +219,7 @@ onDeactivated(() => {
   emitter.off('SCREEN_MIRROR_AUDIO_GRANTED', service.onAudioGranted)
   document.removeEventListener('fullscreenchange', media.onFullscreenChange)
   media.detachFullscreenListener()
-  pipeline.cleanup()
+  cleanup()
   service.deactivate()
 })
 </script>

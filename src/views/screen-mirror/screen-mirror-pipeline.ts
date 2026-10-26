@@ -27,7 +27,7 @@ export function useScreenMirrorPipeline(
   audioRef: Ref<HTMLAudioElement | undefined>,
   onFirstFrame: () => void,
   onDisconnected: () => void,
-  onScreenMirrorOff: () => void,
+  onScreenMirrorOff: () => void
 ) {
   const video = new ScreenMirrorVideoPipeline()
   const audio = new ScreenMirrorAudioPipeline()
@@ -35,6 +35,7 @@ export function useScreenMirrorPipeline(
   const audioSupported = ref(isAudioDecodeSupported())
   const paused = ref(false)
   let connected = false
+  let generation = 0
   // Cached codec config so the video decoder can be re-created on error
   // without a round-trip back to GraphQL. The encoder emits an IDR on demand
   // (via requestScreenMirrorKeyFrame mutation), so once we mark the decoder
@@ -54,6 +55,7 @@ export function useScreenMirrorPipeline(
 
   async function connect() {
     cleanup()
+    const current = generation
     // Video-only gate: on WebKit < 26 (e.g. macOS 15 WKWebView) AudioDecoder
     // doesn't exist, but VideoDecoder does — audio absence must not block video.
     if (!isVideoDecodeSupported()) {
@@ -74,6 +76,7 @@ export function useScreenMirrorPipeline(
     // GraphQL field returns null and we abort.
     try {
       const r: any = await gqlFetch(screenMirrorVideoCodecGQL, {})
+      if (current !== generation) return
       const annexB = r?.data?.screenMirrorVideoCodec?.annexB ?? null
       if (!annexB) {
         console.warn('[MirrorPipeline] no screenMirrorVideoCodec from server')
@@ -85,7 +88,9 @@ export function useScreenMirrorPipeline(
       cachedConfig = config
       decoderNeedsReset = false
       video.configure(config)
-      video.setOnError(() => { decoderNeedsReset = true })
+      video.setOnError(() => {
+        decoderNeedsReset = true
+      })
       video.setOnRequestKeyFrame(requestKeyFrame)
       video.setOnFirstFrameRendered(onFirstFrame)
       // Don't decode the stale GraphQL keyframe. The encoder's first IDR is
@@ -105,6 +110,7 @@ export function useScreenMirrorPipeline(
       connected = true
       await requestKeyFrame()
     } catch (e) {
+      if (current !== generation) return
       console.error('[MirrorPipeline] failed to fetch screenMirrorVideoCodec', e)
       onDisconnected()
     }
@@ -133,7 +139,9 @@ export function useScreenMirrorPipeline(
     audio.decode(packet.data, packet.timestamp)
   }
 
-  const togglePlay = () => { paused.value = !paused.value }
+  const togglePlay = () => {
+    paused.value = !paused.value
+  }
 
   const enableAudio = () => audio.enable()
   const isAudioEnabled = () => audio.isEnabled()
@@ -150,9 +158,7 @@ export function useScreenMirrorPipeline(
     // Skip if the config is byte-identical to what the decoder already has —
     // configure() with the same bytes is a no-op but still resets the
     // decoder and costs an IDR to recover.
-    const sameAsCached = cachedConfig
-      && cachedConfig.byteLength === newConfig.byteLength
-      && cachedConfig.every((b, i) => b === newConfig[i])
+    const sameAsCached = cachedConfig && cachedConfig.byteLength === newConfig.byteLength && cachedConfig.every((b, i) => b === newConfig[i])
     if (sameAsCached) return
     cachedConfig = newConfig
     decoderNeedsReset = false
@@ -178,6 +184,7 @@ export function useScreenMirrorPipeline(
   }
 
   function cleanup() {
+    generation++
     video.close()
     audio.close()
     connected = false

@@ -28,6 +28,8 @@ export function useScreenMirrorService() {
   let retryCount = 0
   let retryTimer: ReturnType<typeof setTimeout>
   let relaunchPending = false
+  let active = false
+  let activation = 0
 
   const clearCountdown = () => { clearInterval(countdownTimer); seconds.value = 0 }
   const setPipeline = (connect: () => void, cleanup: () => void) => { connectFn = connect; cleanupFn = cleanup }
@@ -38,8 +40,9 @@ export function useScreenMirrorService() {
   }
 
   // --- State query (lazy: refetched on reactivation) ---
-  const { fetch: fetchState, loading: fetchStateLoading } = initLazyQuery({
-    handle: (data: any, error: string) => {
+  const { fetch: fetchMirrorState, loading: fetchStateLoading } = initLazyQuery({
+    handle: (data: any, error: string, context) => {
+      if (!active || context?.meta !== activation) return
       if (error) {
         toast(t(error), 'error')
         if (state.value === 'streaming' || state.value === 'connecting') state.value = 'failed'
@@ -58,6 +61,8 @@ export function useScreenMirrorService() {
     variables: () => ({}),
     options: { fetchPolicy: 'no-cache' },
   })
+
+  const fetchState = () => { active = true; return fetchMirrorState(undefined, { latest: true, meta: ++activation }) }
 
   // --- Mutations ---
   const { mutate: startMirror, loading: startLoading, onDone: onStartDone, onError: onStartError } = initMutation({ document: startScreenMirrorGQL }, false)
@@ -121,14 +126,14 @@ export function useScreenMirrorService() {
   const showLoading = computed(() => fetchStateLoading.value || startLoading.value || relaunchLoading.value || stopLoading.value)
 
   // --- Pipeline callbacks ---
-  const onStreamReady = () => { state.value = 'streaming'; clearCountdown(); retryCount = 0 }
+  const onStreamReady = () => { state.value = 'streaming'; clearCountdown(); clearTimeout(retryTimer); retryCount = 0 }
   const onDisconnected = () => {
-    if (state.value === 'streaming' && retryCount < 3) {
+    if ((state.value === 'streaming' || state.value === 'connecting') && retryCount < 3) {
       retryCount++; state.value = 'connecting'
       retryTimer = setTimeout(() => connectFn(), retryCount * 1500)
     } else if (state.value !== 'idle') { state.value = 'failed'; retryCount = 0 }
   }
-  const onScreenMirrorOff = () => { fullReset() }
+  const onScreenMirrorOff = () => { cleanupFn(); fullReset() }
 
   // --- Event handlers ---
   const onScreenMirroring = (data: any) => {
@@ -142,7 +147,7 @@ export function useScreenMirrorService() {
     if (state.value === 'streaming' || state.value === 'connecting') return
     clearCountdown(); state.value = 'connecting'; retryCount = 0; connectFn()
   }
-  const deactivate = () => { state.value = 'idle'; clearCountdown(); clearTimeout(retryTimer) }
+  const deactivate = () => { active = false; activation++; state.value = 'idle'; clearCountdown(); clearTimeout(retryTimer) }
   const onSocketReconnect = (c: boolean) => { if (c && relaunchPending) { relaunchPending = false; start() } }
   const onAudioGranted = () => window.location.reload()
 
