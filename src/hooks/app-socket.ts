@@ -6,7 +6,7 @@ import toast from '@/components/toaster'
 import { getWebSocketBaseUrl, getLocalToken, isNativeTarget, setLocalServerPort, setLocalServerHttpsPort } from '@/lib/api/api'
 import { projectPeerNotificationEvent } from '@/lib/peer/peer-events'
 import { subscribeLoginPeerUpdates } from '@/lib/device/login-peers'
-import { chachaDecrypt, chachaEncrypt, chachaEncryptBytes, bitArrayToUint8Array } from '@/lib/api/crypto'
+import { chachaDecrypt, chachaEncrypt, bitArrayToUint8Array } from '@/lib/api/crypto'
 import { parseWebSocketData } from '@/lib/api/sjcl-arraybuffer'
 import { EventStream, eventAad } from '@/lib/api/websocket-events'
 import { applyDarkClass, changeColor, changeColorMode, getCurrentMode, getLastSavedAutoColorMode, isModeDark } from '@/lib/theme'
@@ -15,40 +15,11 @@ import { getRemoteClientId } from '@/lib/device/client-id'
 import { getCurrentAuthToken } from '@/lib/device/current'
 import { isLocalMode } from '@/lib/device/local-mode'
 import { openSocket } from '@/lib/api/http'
-import { encodeSocketPayload } from '@/lib/api/websocket-frame'
 import { subscribeNativeEvents, type NativeEventStream } from '@/lib/api/native-events'
 import { get as prefsGet, set as prefsSet, applySnapshot } from '@/lib/prefs'
 import { nativeGraphql } from '@/lib/api/native-client'
 
 const RAW_BINARY_EVENTS = new Set(['SCREEN_MIRROR_VIDEO', 'SCREEN_MIRROR_AUDIO', 'IMAGE_EDITOR_UPDATE'])
-
-let controlSocket: WebSocket | null = null
-let controlKey: Uint8Array | null = null
-
-function bindControlChannel(ws: WebSocket, key: Uint8Array) {
-  controlSocket = ws
-  controlKey = key
-}
-
-function unbindControlChannel(ws: WebSocket) {
-  if (controlSocket === ws) {
-    controlSocket = null
-    controlKey = null
-  }
-}
-
-/** Send one encrypted binary frame upstream; false when the socket is down. */
-export function sendAppWsBytes(plain: Uint8Array): boolean {
-  const key = controlKey
-  if (!controlSocket || !key) return false
-  controlSocket.send(chachaEncryptBytes(key, encodeSocketPayload(plain)))
-  return true
-}
-
-/** Send one encrypted JSON payload upstream; false when the socket is down. */
-export function sendAppWsJson(payload: unknown): boolean {
-  return sendAppWsBytes(new TextEncoder().encode(JSON.stringify(payload)))
-}
 
 export function useAppSocket() {
   const { t } = useI18n()
@@ -150,7 +121,6 @@ export function useAppSocket() {
         stream = new EventStream(registration)
         handleOpen()
         socket.send(registration)
-        bindControlChannel(socket, key)
       }
       socket.onmessage = (event: MessageEvent) => {
         let packet: { type: string; data: Uint8Array }
@@ -166,7 +136,6 @@ export function useAppSocket() {
         dispatchEvent(packet, key, false)
       }
       socket.onclose = () => {
-        unbindControlChannel(socket)
         handleDrop()
       }
       socket.onerror = () => {

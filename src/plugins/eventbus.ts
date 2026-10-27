@@ -26,6 +26,7 @@ type Events = {
   tap_phone: string
   color_mode_changed: undefined
   app_socket_connection_changed: boolean
+  screen_socket_connection_changed: boolean
   POMODORO_ACTION: any
   POMODORO_SETTINGS_UPDATE: any
   SCREEN_MIRROR_VIDEO: Uint8Array

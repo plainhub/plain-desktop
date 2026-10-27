@@ -36,7 +36,7 @@ export function performLoginHandshake(params: LoginHandshakeParams): Promise<Log
   if (params.storedSignaturePublicKey && params.initSignaturePublicKey && params.storedSignaturePublicKey !== params.initSignaturePublicKey) return Promise.reject('peer_identity_changed')
   const signatureKey = params.storedSignaturePublicKey || params.initSignaturePublicKey
   if (!signatureKey) return Promise.reject('signature_verification_failed')
-  const base = new URL(getWebSocketBaseUrl())
+  const base = new URL('/auth', getWebSocketBaseUrl())
   if (params.passwordRequired && !params.passwordHash) return Promise.reject('invalid_password')
   const passwordKey = params.passwordRequired ? new TextEncoder().encode(params.passwordHash!.slice(0, 32)) : undefined
   const session = generateECDHKeyPair()

@@ -9,7 +9,6 @@
 // streams on disconnect).
 import { onUnmounted, watch, type Ref } from 'vue'
 import emitter from '@/plugins/eventbus'
-import { sendAppWsBytes, sendAppWsJson } from '@/hooks/app-socket'
 import { PinchSynthesizer } from './pinch-synthesizer'
 import {
   createTouchIndicator,
@@ -392,6 +391,8 @@ export class ScreenMirrorControl {
 export function useScreenMirrorControl(
   canvasRef: Ref<HTMLCanvasElement | undefined>,
   enabled: Ref<boolean>,
+  sendBytes: (payload: Uint8Array) => boolean,
+  sendJson: (payload: unknown) => boolean,
 ) {
   let control: ScreenMirrorControl | null = null
   let overlayEl: HTMLElement | null = null
@@ -401,11 +402,11 @@ export function useScreenMirrorControl(
     // {"type":"screenMirrorControl","input":{…}}. WS is the only control
     // channel (the GraphQL mutation was removed); drops are silent because
     // the server resets touch streams on disconnect.
-    sendAppWsJson({ type: 'screenMirrorControl', input: event })
+    sendJson({ type: 'screenMirrorControl', input: event })
   }
 
   const sendSamples = (samples: TouchSample[]) => {
-    sendAppWsBytes(encodeTouchFrame(samples))
+    sendBytes(encodeTouchFrame(samples))
   }
 
   const destroyControl = () => {
@@ -454,7 +455,7 @@ export function useScreenMirrorControl(
   }
 
   const onConnectionChanged = (up: boolean) => {
-    // A dropped app socket kills the sample transport mid-gesture: cancel
+    // A dropped screen socket kills the sample transport mid-gesture: cancel
     // locally (the phone resets its injector on disconnect); re-arm on the
     // next successful dial.
     if (up) {
@@ -465,10 +466,10 @@ export function useScreenMirrorControl(
   }
 
   watch(enabled, (v) => control?.setEnabled(v))
-  emitter.on('app_socket_connection_changed', onConnectionChanged)
+  emitter.on('screen_socket_connection_changed', onConnectionChanged)
 
   onUnmounted(() => {
-    emitter.off('app_socket_connection_changed', onConnectionChanged)
+    emitter.off('screen_socket_connection_changed', onConnectionChanged)
     destroyControl()
   })
 

@@ -125,16 +125,18 @@ const useHttpsLink = () => {
 
 const socket = new ScreenMirrorSocket({
   onConnected: () => {
+    emitter.emit('screen_socket_connection_changed', true)
     void pipeline.connect()
   },
   onDisconnected: () => {
+    emitter.emit('screen_socket_connection_changed', false)
     pipeline.cleanup()
     service.onDisconnected()
   },
   onVideo: pipeline.handleVideo,
   onAudio: pipeline.handleAudio,
 })
-const control = useScreenMirrorControl(canvasRef, service.controlEnabled)
+const control = useScreenMirrorControl(canvasRef, service.controlEnabled, payload => socket.sendBytes(payload), payload => socket.sendJson(payload))
 const cleanup = () => {
   socket.disconnect()
   pipeline.cleanup()

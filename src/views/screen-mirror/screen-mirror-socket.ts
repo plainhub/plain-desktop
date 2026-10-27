@@ -5,7 +5,8 @@ import { isLocalMode } from '@/lib/device/local-mode'
 import { get as prefsGet } from '@/lib/prefs'
 import { openSocket } from '@/lib/api/http'
 import { tokenToKey } from '@/lib/api/file'
-import { chachaEncrypt, bitArrayToUint8Array } from '@/lib/api/crypto'
+import { chachaEncrypt, chachaEncryptBytes, bitArrayToUint8Array } from '@/lib/api/crypto'
+import { encodeSocketPayload } from '@/lib/api/websocket-frame'
 import { EventStream } from '@/lib/api/websocket-events'
 
 interface ScreenMirrorCallbacks {
@@ -17,6 +18,7 @@ interface ScreenMirrorCallbacks {
 
 export class ScreenMirrorSocket {
   private socket: WebSocket | null = null
+  private key: Uint8Array | null = null
 
   constructor(private callbacks: ScreenMirrorCallbacks) {}
 
@@ -47,6 +49,7 @@ export class ScreenMirrorSocket {
       const registration = bitArrayToUint8Array(chachaEncrypt(key, Date.now().toString()))
       stream = new EventStream(registration)
       socket.send(registration)
+      this.key = key
       this.callbacks.onConnected()
     }
     socket.onmessage = (message: MessageEvent) => {
@@ -74,14 +77,26 @@ export class ScreenMirrorSocket {
     socket.onclose = () => {
       if (this.socket !== socket) return
       this.socket = null
+      this.key = null
       this.callbacks.onDisconnected()
     }
     socket.onerror = () => socket.close()
   }
 
+  sendBytes(payload: Uint8Array): boolean {
+    if (!this.socket || !this.key || this.socket.readyState !== WebSocket.OPEN) return false
+    this.socket.send(chachaEncryptBytes(this.key, encodeSocketPayload(payload)))
+    return true
+  }
+
+  sendJson(payload: unknown): boolean {
+    return this.sendBytes(new TextEncoder().encode(JSON.stringify(payload)))
+  }
+
   disconnect() {
     const socket = this.socket
     this.socket = null
+    this.key = null
     socket?.close()
   }
 }

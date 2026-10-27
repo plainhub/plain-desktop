@@ -114,3 +114,18 @@ it('reports a missing session without creating a socket', () => {
   expect(openSocket).not.toHaveBeenCalled()
   expect(callbacks.onDisconnected).toHaveBeenCalledOnce()
 })
+
+it('sends encrypted controls on the screen socket only while connected', () => {
+  const { client, socket, open } = fixture()
+  vi.stubGlobal('WebSocket', { OPEN: 1 })
+  expect(client.sendBytes(new Uint8Array([1]))).toBe(false)
+  open()
+  const payload = new Uint8Array([0x54, 1, 2, 3])
+  expect(client.sendBytes(payload)).toBe(true)
+  const frame = socket.send.mock.calls[1][0] as Uint8Array
+  const plain = xchacha20poly1305(key, frame.slice(0, 24)).decrypt(frame.slice(24))
+  expect(plain.slice(8)).toEqual(payload)
+  client.disconnect()
+  expect(client.sendBytes(payload)).toBe(false)
+  vi.unstubAllGlobals()
+})
