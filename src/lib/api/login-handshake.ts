@@ -91,6 +91,7 @@ export function performLoginHandshake(params: LoginHandshakeParams): Promise<Log
         if (temporary && !channel) {
           if (typeof event.data !== 'string' || event.data.length > 4096) throw 'invalid_auth_response'
           channel = temporary.accept(JSON.parse(event.data), signatureKey, params.expectedDeviceId)
+          ws.send(JSON.stringify(channel.reveal))
           await sendRequest()
           return
         }
