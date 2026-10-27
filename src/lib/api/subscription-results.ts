@@ -8,6 +8,20 @@ type ChatSubscriptionItem = Pick<IChatItem, 'id' | 'fromId' | 'toId' | 'channelI
 }
 
 export interface SubscriptionResults {
+  pomodoroAction: {
+    today: {
+      date: string
+      state: 'WORK' | 'SHORT_BREAK' | 'LONG_BREAK'
+      timeLeftSec: number
+      totalTimeSec: number
+      completedCount: number
+      currentRound: number
+      isRunning: boolean
+      isPaused: boolean
+    }
+    completedState: 'WORK' | 'SHORT_BREAK' | 'LONG_BREAK' | null
+  }
+  pomodoroSettingsChanged: boolean
   imageModelsUpdated: IImageSearchStatus & { version: number }
   peerClipboardChanged: { peerId: string }
   deviceNameUpdated: string

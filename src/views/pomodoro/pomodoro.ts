@@ -7,7 +7,7 @@ import { initQuery } from '@/lib/api/query'
 import { pomodoroTodayAndSettingsGQL } from '@/lib/api/query'
 import { initMutation } from '@/lib/api/mutation'
 import { startPomodoroGQL, stopPomodoroGQL, pausePomodoroGQL } from '@/lib/api/mutation'
-import emitter from '@/plugins/eventbus'
+import { graphqlSubscriptions } from '@/lib/api/subscription-client'
 import { showDesktopNotification } from '@/lib/desktop-notification'
 
 const STATE_MAP: Record<string, 'work' | 'shortBreak' | 'longBreak'> = {
@@ -113,10 +113,6 @@ export function usePomodoro() {
     void refetch()
   }
 
-  function handleConnectionChanged(connected: boolean) {
-    if (connected) void refetch()
-  }
-
   const { refetch } = initQuery({
     document: pomodoroTodayAndSettingsGQL,
     handle: (data: any, error: string) => {
@@ -152,17 +148,17 @@ export function usePomodoro() {
     }
   }
 
+  let stopAction: (() => void) | undefined
+  let stopSettings: (() => void) | undefined
   onMounted(() => {
     requestNotificationPermission()
-    emitter.on('POMODORO_ACTION', handlePomodoroAction)
-    emitter.on('POMODORO_SETTINGS_UPDATE', handlePomodoroSettingsUpdate)
-    emitter.on('app_socket_connection_changed', handleConnectionChanged)
+    stopAction = graphqlSubscriptions.subscribe('pomodoroAction', handlePomodoroAction)
+    stopSettings = graphqlSubscriptions.subscribe('pomodoroSettingsChanged', handlePomodoroSettingsUpdate)
   })
 
   onUnmounted(() => {
-    emitter.off('POMODORO_ACTION', handlePomodoroAction)
-    emitter.off('POMODORO_SETTINGS_UPDATE', handlePomodoroSettingsUpdate)
-    emitter.off('app_socket_connection_changed', handleConnectionChanged)
+    stopAction?.()
+    stopSettings?.()
   })
 
   return {

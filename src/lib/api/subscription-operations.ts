@@ -8,6 +8,8 @@ export interface SubscriptionOperation {
   localOnly?: boolean
 }
 export const subscriptionOperations: readonly SubscriptionOperation[] = [
+  {field: 'pomodoroAction', document: 'subscription { pomodoroAction { today { date state timeLeftSec totalTimeSec completedCount currentRound isRunning isPaused } completedState } }', permissions: []},
+  {field: 'pomodoroSettingsChanged', document: 'subscription { pomodoroSettingsChanged }', permissions: []},
   {field: 'imageModelsUpdated', document: 'subscription { imageModelsUpdated { version status downloadProgress errorMessage modelSize modelDir isIndexing totalImages indexedImages } }', permissions: []},
   {field: 'peerClipboardChanged', document: 'subscription { peerClipboardChanged { peerId } }', permissions: [], localOnly: true},
   {"field": "deviceNameUpdated", "document": "subscription { deviceNameUpdated }", "permissions": []},

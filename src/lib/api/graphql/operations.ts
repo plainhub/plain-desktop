@@ -1990,6 +1990,30 @@ export interface GqlOperations {
       mediaId: string
     }
   }
+  pomodoroActionSubscription: {
+    result: {
+      pomodoroAction: {
+        today: {
+          date: string
+          state: 'WORK' | 'SHORT_BREAK' | 'LONG_BREAK'
+          timeLeftSec: number
+          totalTimeSec: number
+          completedCount: number
+          currentRound: number
+          isRunning: boolean
+          isPaused: boolean
+        }
+        completedState?: 'WORK' | 'SHORT_BREAK' | 'LONG_BREAK'
+      }
+    }
+    variables: undefined
+  }
+  pomodoroSettingsChangedSubscription: {
+    result: {
+      pomodoroSettingsChanged: boolean
+    }
+    variables: undefined
+  }
   pomodoroSettingsGQL: {
     result: {
       pomodoroSettings: {
