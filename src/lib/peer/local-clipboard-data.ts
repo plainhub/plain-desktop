@@ -1,5 +1,5 @@
 import { ref, watch } from 'vue'
-import emitter from '@/plugins/eventbus'
+import { graphqlSubscriptions } from '@/lib/api/subscription-client'
 import type { IClipboardItem } from '@/lib/interfaces'
 import { DeviceType } from '@/lib/status'
 import { clipboardItemFragment } from '@/lib/api/fragments'
@@ -9,8 +9,6 @@ import { findLoginPeer, loginPeers } from '@/lib/device/login-peers'
 import { isLocalMode } from '@/lib/device/local-mode'
 import { get as prefsGet, set as prefsSet } from '@/lib/prefs'
 import { useMainStore } from '@/stores/main'
-
-const CLIPBOARD_EVENT_TYPE = 'CLIPBOARD_CHANGED'
 
 const DIRECTIONS_PREF_KEY = 'clipboard_directions'
 
@@ -117,10 +115,8 @@ function syncGroups() {
   }
 }
 
-/** CLIPBOARD_CHANGED means the phone is broadcasting clipboard changes, so a previously
- *  disabled peer gets its probe re-armed here. */
-export function handlePeerClipboardEvent(peerId: string, type: string) {
-  if (type !== CLIPBOARD_EVENT_TYPE) return
+function refreshChangedPeerClipboard(peerId: string) {
+  if (!isLocalMode()) return
   const group = groupOf(peerId)
   if (!group || !findLoginPeer(peerId)) return
   if (group.clipboardSync === false) group.clipboardSync = null
@@ -133,8 +129,6 @@ export function setPeerClipboardDirection(peerId: string, direction: ClipboardDi
   const group = groupOf(peerId)
   if (!group) return
   group.page = 1
-  // User attention is on this device right now — re-arm the phone-switch probe
-  // the same way CLIPBOARD_CHANGED does.
   group.clipboardSync = null
   fetchPeerClipboard(peerId)
 }
@@ -144,7 +138,10 @@ export function startLocalClipboardData() {
   if (started || !__IS_TAURI__ || !isLocalMode()) return
   started = true
 
-  emitter.on('peer_ws_event', ({ peerId, type }) => handlePeerClipboardEvent(peerId, type))
+  graphqlSubscriptions.subscribe('peerClipboardChanged', ({ peerId }) => refreshChangedPeerClipboard(peerId))
+  graphqlSubscriptions.onAttached(() => {
+    for (const group of peerClipboardGroups.value) refreshChangedPeerClipboard(group.peerId)
+  })
 
   clipboardDirections.value = readDirections()
   syncGroups()

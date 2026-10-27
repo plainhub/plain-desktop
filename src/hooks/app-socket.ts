@@ -1,9 +1,10 @@
+import { graphqlSubscriptions } from '@/lib/api/subscription-client'
 import { onMounted, onUnmounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import emitter from '@/plugins/eventbus'
 import toast from '@/components/toaster'
 import { getWebSocketBaseUrl, getLocalToken, isNativeTarget, setLocalServerPort, setLocalServerHttpsPort } from '@/lib/api/api'
-import { projectPeerManagementEvent, projectPeerNotificationEvent } from '@/lib/peer/peer-events'
+import { projectPeerNotificationEvent } from '@/lib/peer/peer-events'
 import { subscribeLoginPeerUpdates } from '@/lib/device/login-peers'
 import { chachaDecrypt, chachaEncrypt, chachaEncryptBytes, bitArrayToUint8Array } from '@/lib/api/crypto'
 import { parseWebSocketData } from '@/lib/api/sjcl-arraybuffer'
@@ -78,10 +79,6 @@ export function useAppSocket() {
         const data = json ? JSON.parse(json) : null
         if (type === 'PEER_NOTIFICATIONS_UPDATED') {
           projectPeerNotificationEvent(data, native)
-          return
-        }
-        if (type === 'PEER_MANAGEMENT_EVENT') {
-          projectPeerManagementEvent(data, native)
           return
         }
         // Enabled automatically in dev mode (see main.ts)
@@ -197,6 +194,8 @@ export function useAppSocket() {
     }
   }
 
+  const stopSubscriptions: (() => void)[] = []
+  onUnmounted(() => stopSubscriptions.forEach(stop => stop()))
   onMounted(() => {
     emitter.on('HTTP_SERVER_STARTED', (started) => {
       setLocalServerPort(started.httpPort)
@@ -209,9 +208,9 @@ export function useAppSocket() {
     })
     // A permission change on the phone resolves whatever "check phone" flow
     // the banner was pointing at (grant permission / toggle access switch).
-    emitter.on('PERMISSIONS_UPDATED', () => {
+    stopSubscriptions.push(graphqlSubscriptions.subscribe('permissionsUpdated', () => {
       tapPhoneMessage.value = ''
-    })
+    }))
     window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => {
       if (getCurrentMode() !== 'auto') return
       changeColor()

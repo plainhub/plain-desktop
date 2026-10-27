@@ -1,9 +1,11 @@
+import type { SmsSendResult, MmsSendResult } from '@/lib/api/subscription-results'
+import { graphqlSubscriptions } from '@/lib/api/subscription-client'
 import { computed, nextTick, ref, type Ref } from 'vue'
 import toast from '@/components/toaster'
 import { initLazyQuery, smsGQL, type QueryResponseContext } from '@/lib/api/query'
 import { useI18n } from 'vue-i18n'
 import { buildQuery } from '@/lib/search'
-import type { IItemTagsUpdatedEvent, IItemsTagsUpdatedEvent, ISms, ISmsConversation, IMmsSendResultEvent, ISmsSendResultEvent } from '@/lib/interfaces'
+import type { IItemTagsUpdatedEvent, IItemsTagsUpdatedEvent, ISms, ISmsConversation } from '@/lib/interfaces'
 import { useTags } from '@/hooks/tags'
 import { useContactName } from '@/hooks/contacts'
 import { DataType } from '@/lib/data'
@@ -69,6 +71,9 @@ export function useMessageThread(
     ))
     return pending.length ? sortByDate([...base, ...pending]) : base
   })
+
+  let stopMmsSent: (() => void) | undefined
+  let stopPermissionsUpdated: (() => void) | undefined
 
   function scrollToBottom() {
     nextTick(() => { if (chatScrollRef.value) chatScrollRef.value.scrollTop = chatScrollRef.value.scrollHeight })
@@ -196,7 +201,7 @@ export function useMessageThread(
     }
   }
 
-  function handleSmsSendResult(result: ISmsSendResultEvent): { handled: boolean; failed?: ISms } {
+  function handleSmsSendResult(result: SmsSendResult): { handled: boolean; failed?: ISms } {
     const outcome = settlePendingSmsResult(pendingSmsItems.value, result)
     if (!outcome.handled || !result.requestId) return { handled: false }
     if (!outcome.transitioned) return { handled: true }
@@ -245,7 +250,7 @@ export function useMessageThread(
     pendingMmsTimers.delete(pendingId)
   }
 
-  function handleMmsSendResult(result: IMmsSendResultEvent): { handled: boolean; failed?: ISms } {
+  function handleMmsSendResult(result: MmsSendResult): { handled: boolean; failed?: ISms } {
     const settled = settlePendingMms(pendingMmsItems.value, result.pendingId)
     if (!settled.settled) return { handled: false }
     pendingMmsItems.value = settled.pending
@@ -292,16 +297,16 @@ export function useMessageThread(
     loadContacts(force)
     emitter.on('item_tags_updated', onItemTagsUpdated)
     emitter.on('items_tags_updated', onItemsTagsUpdated)
-    emitter.on('MMS_SENT', onMmsSent)
-    emitter.on('PERMISSIONS_UPDATED', onPermissionsUpdated)
+    stopMmsSent = graphqlSubscriptions.subscribe('mmsSent', onMmsSent)
+    stopPermissionsUpdated = graphqlSubscriptions.subscribe('permissionsUpdated', onPermissionsUpdated)
     stateRefresh.subscribe()
   }
 
   function unsubscribe() {
     emitter.off('item_tags_updated', onItemTagsUpdated)
     emitter.off('items_tags_updated', onItemsTagsUpdated)
-    emitter.off('MMS_SENT', onMmsSent)
-    emitter.off('PERMISSIONS_UPDATED', onPermissionsUpdated)
+    stopMmsSent?.()
+    stopPermissionsUpdated?.()
     stateRefresh.unsubscribe()
     cancelRetries()
   }

@@ -52,6 +52,60 @@ pub async fn native_graphql(
     serde_json::to_value(response).map_err(|error| error.to_string())
 }
 
+#[tauri::command]
+pub fn native_subscription_open(
+    window: tauri::WebviewWindow,
+    views: tauri::State<'_, super::views::NativeViews>,
+    core: tauri::State<'_, Arc<ContentServer>>,
+) -> Result<u64, String> {
+    core.native_graphql()?
+        .open_subscriptions(views.scope(window.label()))
+}
+fn subscription_session(
+    window: &tauri::WebviewWindow,
+    views: &super::views::NativeViews,
+    core: &ContentServer,
+    handle: u64,
+) -> Result<Arc<plain_server::graphql::subscriptions::session::Session>, String> {
+    let session = core.native_graphql()?.subscription_session(handle)?;
+    if session.scope_id() != views.scope(window.label()).id() {
+        return Err("Subscription view mismatch".into());
+    }
+    Ok(session)
+}
+#[tauri::command]
+pub fn native_subscription_send(
+    window: tauri::WebviewWindow,
+    views: tauri::State<'_, super::views::NativeViews>,
+    core: tauri::State<'_, Arc<ContentServer>>,
+    handle: u64,
+    message: String,
+) -> Result<(), String> {
+    subscription_session(&window, &views, &core, handle)?.send(&message)
+}
+#[tauri::command]
+pub async fn native_subscription_read(
+    window: tauri::WebviewWindow,
+    views: tauri::State<'_, super::views::NativeViews>,
+    core: tauri::State<'_, Arc<ContentServer>>,
+    handle: u64,
+) -> Result<String, String> {
+    subscription_session(&window, &views, &core, handle)?
+        .read()
+        .await
+}
+#[tauri::command]
+pub fn native_subscription_close(
+    window: tauri::WebviewWindow,
+    views: tauri::State<'_, super::views::NativeViews>,
+    core: tauri::State<'_, Arc<ContentServer>>,
+    handle: u64,
+) -> Result<(), String> {
+    subscription_session(&window, &views, &core, handle)?;
+    core.native_graphql()?.close_subscriptions(handle);
+    Ok(())
+}
+
 #[cfg(test)]
 #[path = "../../../tests/unit/commands/native/graphql.rs"]
 mod tests;

@@ -1,3 +1,4 @@
+import { graphqlSubscriptions } from '@/lib/api/subscription-client'
 import toast from '@/components/toaster'
 import { onActivated, onDeactivated, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
@@ -105,13 +106,14 @@ export function useFilesRecent() {
   const fileDeletedHandler = (event: IFileDeletedEvent) => { arrayRemove(items.value, (it: IFile) => it.id === event.item.id); clearSelection() }
   const fileRenamedHandler = (_event: IFileRenamedEvent) => fetch()
   const permissionsUpdatedHandler = () => fetch()
+  let stopPermissionsUpdated: (() => void) | undefined
 
   onActivated(() => {
     fetch()
     emitter.on('upload_task_done', uploadTaskDoneHandler)
     emitter.on('file_deleted', fileDeletedHandler)
     emitter.on('file_renamed', fileRenamedHandler)
-    emitter.on('PERMISSIONS_UPDATED', permissionsUpdatedHandler)
+    stopPermissionsUpdated = graphqlSubscriptions.subscribe('permissionsUpdated', permissionsUpdatedHandler)
     window.addEventListener('keydown', pageKeyDown)
     window.addEventListener('keyup', pageKeyUp)
   })
@@ -121,7 +123,7 @@ export function useFilesRecent() {
     emitter.off('upload_task_done', uploadTaskDoneHandler)
     emitter.off('file_deleted', fileDeletedHandler)
     emitter.off('file_renamed', fileRenamedHandler)
-    emitter.off('PERMISSIONS_UPDATED', permissionsUpdatedHandler)
+    stopPermissionsUpdated?.()
     window.removeEventListener('keydown', pageKeyDown)
     window.removeEventListener('keyup', pageKeyUp)
   })

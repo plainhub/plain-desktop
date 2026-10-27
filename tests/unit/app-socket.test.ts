@@ -1,3 +1,4 @@
+vi.mock('@/lib/api/subscription-client', () => ({ graphqlSubscriptions: { subscribe: vi.fn(() => vi.fn()) } }))
 import { createHash } from 'node:crypto'
 import { xchacha20poly1305 } from '@noble/ciphers/chacha'
 import { afterEach, beforeEach, expect, it, vi } from 'vitest'

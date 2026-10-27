@@ -1,3 +1,15 @@
+const subscriptionMock = vi.hoisted(() => ({ listeners: new Map<string, Set<(value: any) => void>>() }))
+vi.mock('@/lib/api/subscription-client', () => ({ graphqlSubscriptions: {
+  subscribe: (field: string, callback: (value: any) => void) => {
+    const listeners = subscriptionMock.listeners.get(field) ?? new Set()
+    subscriptionMock.listeners.set(field, listeners)
+    listeners.add(callback)
+    return () => listeners.delete(callback)
+  },
+} }))
+function publish(field: string, value: unknown) {
+  for (const callback of subscriptionMock.listeners.get(field) ?? []) callback(value)
+}
 import { afterEach, beforeEach, expect, it, vi } from 'vitest'
 import { createSmsNotificationRefresh, SMS_NOTIFICATION_REFRESH_DELAY_MS } from '../../src/hooks/sms-notification-refresh'
 import emitter from '../../src/plugins/eventbus'
@@ -29,8 +41,8 @@ it('uses the Rust SMS change hint instead of interpreting notification applicati
   emitter.emit('NOTIFICATION_UPDATED', { appId: 'vendor.mms.app' } as INotification)
   await vi.advanceTimersByTimeAsync(SMS_NOTIFICATION_REFRESH_DELAY_MS)
   expect(refresh).not.toHaveBeenCalled()
-  emitter.emit('SMS_PROVIDER_CHANGED', { uris: [] })
-  emitter.emit('SMS_PROVIDER_CHANGED', { uris: ['content://sms'] })
+  publish('smsProviderChanged', { uris: [] })
+  publish('smsProviderChanged', { uris: ['content://sms'] })
   await vi.advanceTimersByTimeAsync(SMS_NOTIFICATION_REFRESH_DELAY_MS)
   expect(refresh).toHaveBeenCalledTimes(1)
 })
@@ -40,9 +52,9 @@ it('cancels pending UI refresh and unsubscribes from change hints when the view 
   const subscription = createSmsNotificationRefresh(refresh)
   stop = subscription.unsubscribe
   subscription.subscribe()
-  emitter.emit('SMS_PROVIDER_CHANGED', { uris: [] })
+  publish('smsProviderChanged', { uris: [] })
   subscription.unsubscribe()
-  emitter.emit('SMS_PROVIDER_CHANGED', { uris: [] })
+  publish('smsProviderChanged', { uris: [] })
   await vi.advanceTimersByTimeAsync(60_000)
   expect(refresh).not.toHaveBeenCalled()
 })

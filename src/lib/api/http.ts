@@ -28,6 +28,6 @@ export async function httpRequest(url: string, options: HttpRequestOptions = {})
  *  relays frames and re-resolves a `clientId` peer's current `ip:port`
  *  from the peers table right before dialing; loopback sockets (the
  *  desktop's own local server) connect directly. */
-export function openSocket(url: string, clientId = ''): WebSocket {
-  return new WebSocket(proxyWsUrlFor(url, clientId))
+export function openSocket(url: string, clientId = '', protocols?: string | string[]): WebSocket {
+  return new WebSocket(proxyWsUrlFor(url, clientId), protocols)
 }

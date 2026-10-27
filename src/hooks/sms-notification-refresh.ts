@@ -1,3 +1,4 @@
+import { graphqlSubscriptions } from '@/lib/api/subscription-client'
 import emitter from '@/plugins/eventbus'
 
 export const SMS_NOTIFICATION_REFRESH_DELAY_MS = 500
@@ -11,6 +12,9 @@ export function createSmsNotificationRefresh(refresh: () => void | Promise<unkno
   let subscribed = false
   let refreshing = false
   let refreshQueued = false
+
+  let stopMmsSent: (() => void) | undefined
+  let stopSmsProviderChanged: (() => void) | undefined
 
   function finishRefresh() {
     refreshing = false
@@ -79,8 +83,8 @@ export function createSmsNotificationRefresh(refresh: () => void | Promise<unkno
   function subscribe() {
     if (subscribed) return
     subscribed = true
-    emitter.on('SMS_PROVIDER_CHANGED', handleSmsChanged)
-    emitter.on('MMS_SENT', handleMmsSent)
+    stopSmsProviderChanged = graphqlSubscriptions.subscribe('smsProviderChanged', handleSmsChanged)
+    stopMmsSent = graphqlSubscriptions.subscribe('mmsSent', handleMmsSent)
     emitter.on('app_socket_connection_changed', handleConnectionChanged)
     document.addEventListener('visibilitychange', handleResume)
     window.addEventListener('focus', handleResume)
@@ -94,8 +98,8 @@ export function createSmsNotificationRefresh(refresh: () => void | Promise<unkno
     if (!subscribed) return
     subscribed = false
     refreshQueued = false
-    emitter.off('SMS_PROVIDER_CHANGED', handleSmsChanged)
-    emitter.off('MMS_SENT', handleMmsSent)
+    stopSmsProviderChanged?.()
+    stopMmsSent?.()
     emitter.off('app_socket_connection_changed', handleConnectionChanged)
     document.removeEventListener('visibilitychange', handleResume)
     window.removeEventListener('focus', handleResume)

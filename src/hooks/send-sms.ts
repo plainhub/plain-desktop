@@ -1,3 +1,4 @@
+import type { SmsSendResult } from '@/lib/api/subscription-results'
 import { nextTick, onMounted, onUnmounted, ref, computed, reactive, watch } from 'vue'
 import { popModal } from '@/components/modal'
 import { initMutation, sendMmsGQL } from '@/lib/api/mutation'
@@ -7,7 +8,7 @@ import { upload as uploadFile } from '@/lib/upload/upload'
 import { shortUUID } from '@/lib/strutil'
 import { getContactFullName } from '@/lib/contact/format'
 import type { IUploadItem } from '@/stores/temp'
-import type { IContact, ISim, ISmsSendResultEvent } from '@/lib/interfaces'
+import type { IContact, ISim } from '@/lib/interfaces'
 import emitter from '@/plugins/eventbus'
 import { useTempStore } from '@/stores/temp'
 import { useMainStore } from '@/stores/main'
@@ -143,7 +144,7 @@ export function useSendSms(initialNumber: string, initialBody: string) {
     }
   }
 
-  function onSmsSendResult(result: ISmsSendResultEvent): boolean {
+  function onSmsSendResult(result: SmsSendResult): boolean {
     if (!result.requestId || result.requestId !== pendingSmsRequestId) return false
     sendDeadline.settle(result.requestId)
     pendingSmsRequestId = null

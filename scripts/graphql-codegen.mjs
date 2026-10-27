@@ -4,6 +4,7 @@ import { fileURLToPath } from 'node:url'
 import { extractDocuments } from '../src/lib/api/graphql/extract.ts'
 import { parseDocument, parseSchema } from '../src/lib/api/graphql/parser.ts'
 import { validateDocument } from '../src/lib/api/graphql/schema.ts'
+import { subscriptionOperations } from '../src/lib/api/subscription-operations.ts'
 import { homeStatsGQL, HOME_STATS_COUNT_FIELDS } from '../src/lib/api/home-stats.ts'
 import { generateOperationsSource } from '../src/lib/api/graphql/codegen.ts'
 
@@ -24,6 +25,7 @@ const schema = parseSchema(readApiSchema())
 const documents = []
 const keys = new Map()
 const mainDocuments = extracted.docs.filter((doc) => doc.file !== 'lib/api/guest.ts')
+mainDocuments.push(...subscriptionOperations.map(operation => ({ key: `${operation.field}Subscription`, file: 'lib/api/subscription-operations.ts', text: operation.document })))
 mainDocuments.push({ key: 'homeStatsGQL', file: 'lib/api/home-stats.ts', text: homeStatsGQL(Object.keys(HOME_STATS_COUNT_FIELDS)) })
 for (const doc of mainDocuments) {
   const ir = parseDocument(doc.text)

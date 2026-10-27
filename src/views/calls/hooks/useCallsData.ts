@@ -1,3 +1,4 @@
+import { graphqlSubscriptions } from '@/lib/api/subscription-client'
 import { computed, onActivated, onDeactivated, reactive, ref, watch } from 'vue'
 import toast from '@/components/toaster'
 import { callsGQL, initLazyQuery } from '@/lib/api/query'
@@ -92,6 +93,7 @@ export function useCallsData() {
   }
 
   watch(() => route.fullPath, () => { if (isActive.value) applyRouteQuery() })
+  let stopPermissionsUpdated: (() => void) | undefined
 
   onActivated(() => {
     fetchTags()
@@ -100,7 +102,7 @@ export function useCallsData() {
     emitter.on('item_tags_updated', itemTagsUpdatedHandler)
     emitter.on('items_tags_updated', itemsTagsUpdatedHandler)
     emitter.on('refetch_tags', refetchTagsHandler)
-    emitter.on('PERMISSIONS_UPDATED', permissionsUpdatedHandler)
+    stopPermissionsUpdated = graphqlSubscriptions.subscribe('permissionsUpdated', permissionsUpdatedHandler)
     window.addEventListener('keydown', pageKeyDown)
     window.addEventListener('keyup', pageKeyUp)
   })
@@ -110,7 +112,7 @@ export function useCallsData() {
     emitter.off('item_tags_updated', itemTagsUpdatedHandler)
     emitter.off('items_tags_updated', itemsTagsUpdatedHandler)
     emitter.off('refetch_tags', refetchTagsHandler)
-    emitter.off('PERMISSIONS_UPDATED', permissionsUpdatedHandler)
+    stopPermissionsUpdated?.()
     window.removeEventListener('keydown', pageKeyDown)
     window.removeEventListener('keyup', pageKeyUp)
   })

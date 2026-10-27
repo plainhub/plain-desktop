@@ -1,3 +1,4 @@
+import { graphqlSubscriptions } from '@/lib/api/subscription-client'
 import router, { replacePath } from '@/plugins/router'
 import { useMainStore } from '@/stores/main'
 import type { IDropdownItem, IFeed, IFeedEntryCount, IFilter } from '@/lib/interfaces'
@@ -138,14 +139,15 @@ export function useFeedsSidebar() {
     { text: 'import_opml_file', click: importFile },
     { text: 'export_opml_file', click: exportFile },
   ]
+  let stopFeedsFetched: (() => void) | undefined
 
   onMounted(() => {
     emitter.on('feed_entries_deleted', fetch)
-    emitter.on('FEEDS_FETCHED', fetch)
+    stopFeedsFetched = graphqlSubscriptions.subscribe('feedsFetched', fetch)
   })
   onUnmounted(() => {
     emitter.off('feed_entries_deleted', fetch)
-    emitter.off('FEEDS_FETCHED', fetch)
+    stopFeedsFetched?.()
   })
 
   return {

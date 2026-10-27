@@ -147,7 +147,7 @@ export function useScreenMirrorPipeline(
   const isAudioEnabled = () => audio.isEnabled()
   const setAudioMuted = (m: boolean) => audio.setMuted(m)
 
-  function handleConfig(codec: ScreenMirrorVideoCodec) {
+  function handleConfig(codec: ScreenMirrorVideoCodec | null) {
     // Android embeds the new Annex-B SPS+PPS in the event payload, so we
     // can reconfigure the decoder directly without a GraphQL round-trip.
     // Canvas sizing is implicit in renderFrame (frame.displayWidth/Height),

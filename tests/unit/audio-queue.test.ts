@@ -87,6 +87,8 @@ vi.mock('@/stores/temp', async () => {
 })
 vi.mock('@/lib/api/file', () => ({ getFileUrlByPath: (_: unknown, path: string) => path }))
 vi.mock('@/lib/api/mutation', () => ({
+  recordMediaPlayGQL: 'record-media-play',
+  saveMediaPlayProgressGQL: 'save-media-progress',
   playAudioGQL: 'play',
   enqueueAndPlayAudioGQL: 'enqueue-play',
   advanceAudioSelectionGQL: 'advance',
@@ -100,7 +102,7 @@ vi.mock('@/lib/api/mutation', () => ({
     return {
       mutate: vi.fn(async (variables: unknown) => {
         commands.push({ document, variables })
-        const result = document === 'advance' ? await selectionResults.shift() : document === 'report'
+        const result = document === 'advance' ? await selectionResults.shift() : document === 'record-media-play'
           ? (reportResults.length ? await reportResults.shift() : { data: { reportAudioPlayback: true } })
           : { data: { updateAudioPlayMode: true } }
         for (const callback of callbacks) callback(result)
@@ -271,14 +273,14 @@ it('reports actual browser playing rather than play intent and samples progress 
   vi.useFakeTimers()
   const { app, element, playing } = await startBrowserPlayer()
   try {
-    expect(commands.filter((command) => command.document === 'report')).toHaveLength(0)
+    expect(commands.filter((command) => command.document === 'record-media-play')).toHaveLength(0)
     element.currentTime = 0.123
     playing()
     await vi.advanceTimersByTimeAsync(0)
-    expect(commands.at(-1)).toEqual({ document:'report', variables:{ path:'/audio/1', revision:7, positionMs:123, started:true } })
+    expect(commands.at(-1)).toEqual({ document:'record-media-play', variables:{ mediaId:'1', type:'AUDIO', positionMs:123 } })
     element.currentTime = 2.45
     await vi.advanceTimersByTimeAsync(1000)
-    expect(commands.at(-1)).toEqual({ document:'report', variables:{ path:'/audio/1', revision:7, positionMs:2450, started:false } })
+    expect(commands.at(-1)).toEqual({ document:'save-media-progress', variables:{ mediaId:'1', type:'AUDIO', positionMs:2450 } })
   } finally { app.unmount() }
   const count = commands.length
   await vi.advanceTimersByTimeAsync(5000)
@@ -286,57 +288,36 @@ it('reports actual browser playing rather than play intent and samples progress 
   expect(commands).toHaveLength(count)
 })
 
-it('bounds playback reports to one in-flight request and keeps the latest pause sample', async () => {
+it('serializes playback history and records the pause position', async () => {
   vi.useFakeTimers()
   const { app, element, playing, pause } = await startBrowserPlayer()
   try {
     let finish!: (value: unknown) => void
     reportResults.push(new Promise((resolve) => { finish = resolve }))
     playing()
-    await vi.advanceTimersByTimeAsync(5000)
-    expect(commands.filter((command) => command.document === 'report')).toHaveLength(1)
+    await vi.advanceTimersByTimeAsync(0)
     element.currentTime = 3
     pause()
-    finish({ data: { reportAudioPlayback: true } })
+    expect(commands.filter((command) => command.document === 'save-media-progress')).toHaveLength(0)
+    finish({ data: { recordMediaPlay: true } })
     await vi.advanceTimersByTimeAsync(0)
-    expect(commands.filter((command) => command.document === 'report')).toHaveLength(2)
-    expect(commands.at(-1)).toEqual({ document:'report', variables:{ path:'/audio/1', revision:7, positionMs:3000, started:false } })
-    await vi.advanceTimersByTimeAsync(5000)
-    expect(commands.filter((command) => command.document === 'report')).toHaveLength(2)
+    expect(commands.at(-1)).toEqual({ document:'save-media-progress', variables:{ mediaId:'1', type:'AUDIO', positionMs:3000 } })
   } finally { app.unmount() }
 })
 
-it('keeps the actual-start fact before the next selection', async () => {
+it('does not send queued history to a different device', async () => {
   vi.useFakeTimers()
-  const { app, player, playing } = await startBrowserPlayer()
+  const { app, element, playing, pause } = await startBrowserPlayer()
   try {
     let finish!: (value: unknown) => void
     reportResults.push(new Promise((resolve) => { finish = resolve }))
     playing()
-    selectionResults.push({ data: { advanceAudioSelection: { track: tracks(2,1)[0], path:'/audio/2', revision:8, positionMs:0 } } })
-    const next = player.playNext()
-    await Promise.resolve()
-    expect(commands.filter((command) => command.document === 'advance')).toHaveLength(1)
-    finish({ data: { reportAudioPlayback: true } })
-    await next
-    expect(commands.filter((command) => command.document === 'advance')).toHaveLength(2)
-    expect(player.playback.value.revision).toBe(8)
-  } finally { app.unmount() }
-})
-
-it('retries a failed actual-start report but stops sampling a rejected revision', async () => {
-  vi.useFakeTimers()
-  const { app, playing } = await startBrowserPlayer()
-  try {
-    reportResults.push(undefined)
-    playing()
     await vi.advanceTimersByTimeAsync(0)
-    reportResults.push({ data: { reportAudioPlayback: false } })
-    await vi.advanceTimersByTimeAsync(1000)
-    const reports = commands.filter((command) => command.document === 'report')
-    expect(reports).toHaveLength(2)
-    expect(reports.map((report) => (report.variables as any).started)).toEqual([true, true])
-    await vi.advanceTimersByTimeAsync(5000)
-    expect(commands.filter((command) => command.document === 'report')).toHaveLength(2)
+    element.currentTime = 3
+    pause()
+    connectionContext = 'device-b'
+    finish({ data: { recordMediaPlay: true } })
+    await vi.advanceTimersByTimeAsync(0)
+    expect(commands.filter((command) => command.document === 'save-media-progress')).toHaveLength(0)
   } finally { app.unmount() }
 })

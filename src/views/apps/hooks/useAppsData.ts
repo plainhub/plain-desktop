@@ -1,3 +1,4 @@
+import { graphqlSubscriptions } from '@/lib/api/subscription-client'
 import { computed, onActivated, onDeactivated, ref, watch } from 'vue'
 import toast from '@/components/toaster'
 import { packagesGQL, initLazyQuery, packageStatusesGQL } from '@/lib/api/query'
@@ -11,7 +12,6 @@ import type { IPackageItem, IPackage, IPackageStatus } from '@/lib/interfaces'
 import { decodeBase64 } from '@/lib/strutil'
 import { useSelectable } from '@/hooks/list'
 import { useKeyEvents } from '@/hooks/key-events'
-import emitter from '@/plugins/eventbus'
 import { getFileUrlByPath } from '@/lib/api/file'
 
 export function useAppsData() {
@@ -84,8 +84,10 @@ export function useAppsData() {
   watch(() => route.fullPath, () => { applyRouteQuery() })
 
   const permissionsUpdatedHandler = () => { if (isActive.value) fetch() }
-  onActivated(() => emitter.on('PERMISSIONS_UPDATED', permissionsUpdatedHandler))
-  onDeactivated(() => emitter.off('PERMISSIONS_UPDATED', permissionsUpdatedHandler))
+  let stopPermissionsUpdated: (() => void) | undefined
+
+  onActivated(() => stopPermissionsUpdated = graphqlSubscriptions.subscribe('permissionsUpdated', permissionsUpdatedHandler))
+  onDeactivated(() => stopPermissionsUpdated?.())
 
   return {
     items, page, limit, q, loading, fetch, sorting, isActive,

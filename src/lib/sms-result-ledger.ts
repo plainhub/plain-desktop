@@ -1,17 +1,18 @@
-import type { IMmsSendResultEvent, ISmsSendResultEvent } from '@/lib/interfaces'
+import type { SmsSendResult, MmsSendResult } from '@/lib/api/subscription-results'
+import { graphqlSubscriptions } from '@/lib/api/subscription-client'
 import emitter from '@/plugins/eventbus'
 import { SMS_SEND_RESULT_TIMEOUT_MS } from '@/lib/sms-send-deadline'
 
-type SmsHandler = (result: ISmsSendResultEvent) => boolean
-type MmsHandler = (result: IMmsSendResultEvent) => boolean
+type SmsHandler = (result: SmsSendResult) => boolean
+type MmsHandler = (result: MmsSendResult) => boolean
 
 export const SMS_RESULT_LEDGER_TTL_MS = SMS_SEND_RESULT_TIMEOUT_MS + 30000
 const MAX_RESULTS = 500
 
 type LedgerEntry<T> = { result: T; timer: ReturnType<typeof setTimeout> }
 
-const smsResults = new Map<string, LedgerEntry<ISmsSendResultEvent>>()
-const mmsResults = new Map<string, LedgerEntry<IMmsSendResultEvent>>()
+const smsResults = new Map<string, LedgerEntry<SmsSendResult>>()
+const mmsResults = new Map<string, LedgerEntry<MmsSendResult>>()
 const ignoredMmsResults = new Map<string, ReturnType<typeof setTimeout>>()
 const smsHandlers = new Set<SmsHandler>()
 const mmsHandlers = new Set<MmsHandler>()
@@ -36,7 +37,7 @@ function enforceBound<T>(results: Map<string, LedgerEntry<T>>, remove: (id: stri
   }
 }
 
-function recordSmsResult(result: ISmsSendResultEvent) {
+function recordSmsResult(result: SmsSendResult) {
   const requestId = result.requestId!
   deleteSmsResult(requestId)
   smsResults.set(requestId, {
@@ -46,7 +47,7 @@ function recordSmsResult(result: ISmsSendResultEvent) {
   enforceBound(smsResults, deleteSmsResult)
 }
 
-function recordMmsResult(result: IMmsSendResultEvent) {
+function recordMmsResult(result: MmsSendResult) {
   if (ignoredMmsResults.has(result.pendingId)) {
     const timer = ignoredMmsResults.get(result.pendingId)
     if (timer) clearTimeout(timer)
@@ -61,7 +62,7 @@ function recordMmsResult(result: IMmsSendResultEvent) {
   enforceBound(mmsResults, deleteMmsResult)
 }
 
-emitter.on('SMS_SEND_RESULT', (result) => {
+graphqlSubscriptions.subscribe('smsSendResult', (result) => {
   if (!result.requestId) return
   recordSmsResult(result)
   for (const handler of smsHandlers) {
@@ -72,7 +73,7 @@ emitter.on('SMS_SEND_RESULT', (result) => {
   }
 })
 
-emitter.on('MMS_SEND_RESULT', (result) => {
+graphqlSubscriptions.subscribe('mmsSendResult', (result) => {
   recordMmsResult(result)
   // The phone finished the MMS — the "confirm on phone" banner is obsolete.
   emitter.emit('tap_phone', '')
@@ -84,11 +85,9 @@ emitter.on('MMS_SEND_RESULT', (result) => {
   }
 })
 
-// Event 17 is the legacy/success half of the MMS result contract. Recording
-// it here prevents a success from being lost while its route is deactivated.
-emitter.on('MMS_SENT', (pendingId) => {
+graphqlSubscriptions.subscribe('mmsSent', (pendingId) => {
   emitter.emit('tap_phone', '')
-  const result: IMmsSendResultEvent = { pendingId, success: true }
+  const result: MmsSendResult = { pendingId, success: true, resultCode: 0 }
   recordMmsResult(result)
   for (const handler of mmsHandlers) {
     if (handler(result)) {

@@ -1,3 +1,4 @@
+import { graphqlSubscriptions } from '@/lib/api/subscription-client'
 import { computed, inject, onActivated, onDeactivated, reactive, ref, watch, type Ref } from 'vue'
 import { useRoute } from 'vue-router'
 import { storeToRefs } from 'pinia'
@@ -205,6 +206,7 @@ export function useMediaPage(options: MediaPageOptions) {
     doFetch()
   }
   watch(() => route.fullPath, () => { if (isActive.value) applyRouteQuery() })
+  let stopPermissionsUpdated: (() => void) | undefined
 
   onActivated(() => {
     fetchBucketsTags()
@@ -217,7 +219,7 @@ export function useMediaPage(options: MediaPageOptions) {
     emitter.on('media_items_actioned', mediaItemsActionedHandler)
     emitter.on('upload_task_done', uploadTaskDoneHandler)
     emitter.on('refetch_tags', refetchTagsHandler)
-    emitter.on('PERMISSIONS_UPDATED', permissionsUpdatedHandler)
+    stopPermissionsUpdated = graphqlSubscriptions.subscribe('permissionsUpdated', permissionsUpdatedHandler)
     window.addEventListener('keydown', pageKeyDown)
     window.addEventListener('keyup', pageKeyUp)
     if (options.getScrollMode()) options.setupScroll?.()
@@ -232,7 +234,7 @@ export function useMediaPage(options: MediaPageOptions) {
     emitter.off('media_items_actioned', mediaItemsActionedHandler)
     emitter.off('upload_task_done', uploadTaskDoneHandler)
     emitter.off('refetch_tags', refetchTagsHandler)
-    emitter.off('PERMISSIONS_UPDATED', permissionsUpdatedHandler)
+    stopPermissionsUpdated?.()
     window.removeEventListener('keydown', pageKeyDown)
     window.removeEventListener('keyup', pageKeyUp)
     options.teardownScroll?.()

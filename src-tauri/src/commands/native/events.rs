@@ -12,7 +12,7 @@ pub async fn native_events(
 ) -> Result<(), String> {
     let executor = core.native_graphql()?;
     let mut events = executor.subscribe_events(views.scope(window.label()))?;
-    while let Some(frame) = events.next_frame().await? {
+    while let Some(frame) = events.next_ui_frame().await? {
         on_event
             .send(InvokeResponseBody::Raw(frame))
             .map_err(|error| error.to_string())?;

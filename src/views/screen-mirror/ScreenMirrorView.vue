@@ -59,6 +59,7 @@
 </template>
 
 <script setup lang="ts">
+import { graphqlSubscriptions } from '@/lib/api/subscription-client'
 import ScreenMirrorContent from './ScreenMirrorContent.vue'
 import ScreenMirrorHeaderActions from './ScreenMirrorHeaderActions.vue'
 import ScreenMirrorHeaderStart from './ScreenMirrorHeaderStart.vue'
@@ -142,6 +143,10 @@ service.setPipeline(() => {
   if (isNativeTarget()) void pipeline.connect()
   else socket.connect()
 }, cleanup)
+let stopScreenMirrorAudioGranted: (() => void) | undefined
+let stopScreenMirrorState: (() => void) | undefined
+let stopScreenMirrorVideoCodec: (() => void) | undefined
+
 onUnmounted(() => {
   cleanup()
   service.deactivate()
@@ -198,12 +203,12 @@ watch(controlOverlayRef, (el) => {
 
 onActivated(() => {
   isActive.value = true
-  emitter.on('SCREEN_MIRRORING', service.onScreenMirroring)
+  stopScreenMirrorState = graphqlSubscriptions.subscribe('screenMirrorState', service.onScreenMirroring)
   if (isNativeTarget()) emitter.on('SCREEN_MIRROR_VIDEO', pipeline.handleVideo)
   if (isNativeTarget()) emitter.on('SCREEN_MIRROR_AUDIO', pipeline.handleAudio)
-  emitter.on('SCREEN_MIRROR_VIDEO_CODEC', pipeline.handleConfig)
+  stopScreenMirrorVideoCodec = graphqlSubscriptions.subscribe('screenMirrorVideoCodec', pipeline.handleConfig)
   emitter.on('app_socket_connection_changed', service.onSocketReconnect)
-  emitter.on('SCREEN_MIRROR_AUDIO_GRANTED', service.onAudioGranted)
+  stopScreenMirrorAudioGranted = graphqlSubscriptions.subscribe('screenMirrorAudioGranted', service.onAudioGranted)
   document.addEventListener('fullscreenchange', media.onFullscreenChange)
   media.attachFullscreenListener()
   service.fetchState()
@@ -211,12 +216,12 @@ onActivated(() => {
 
 onDeactivated(() => {
   isActive.value = false
-  emitter.off('SCREEN_MIRRORING', service.onScreenMirroring)
+  stopScreenMirrorState?.()
   emitter.off('SCREEN_MIRROR_VIDEO', pipeline.handleVideo)
   emitter.off('SCREEN_MIRROR_AUDIO', pipeline.handleAudio)
-  emitter.off('SCREEN_MIRROR_VIDEO_CODEC', pipeline.handleConfig)
+  stopScreenMirrorVideoCodec?.()
   emitter.off('app_socket_connection_changed', service.onSocketReconnect)
-  emitter.off('SCREEN_MIRROR_AUDIO_GRANTED', service.onAudioGranted)
+  stopScreenMirrorAudioGranted?.()
   document.removeEventListener('fullscreenchange', media.onFullscreenChange)
   media.detachFullscreenListener()
   cleanup()

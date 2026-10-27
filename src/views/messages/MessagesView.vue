@@ -50,6 +50,9 @@
 </template>
 
 <script setup lang="ts">
+import { graphqlSubscriptions } from '@/lib/api/subscription-client'
+import type { SmsSendResult, MmsSendResult } from '@/lib/api/subscription-results'
+
 import { computed, onActivated, onDeactivated, onUnmounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useRoute } from 'vue-router'
@@ -68,8 +71,6 @@ import MessageChatHeader from '@/views/messages/MessageChatHeader.vue'
 import MessageChatList from '@/views/messages/MessageChatList.vue'
 import MessageChatInput from '@/views/messages/MessageChatInput.vue'
 import { useSmsStore } from '@/stores/sms'
-import emitter from '@/plugins/eventbus'
-import type { IMmsSendResultEvent, ISmsSendResultEvent } from '@/lib/interfaces'
 import { resolveConversationSendAddress } from '@/lib/sms-conversation-sync'
 import toast from '@/components/toaster'
 import type { ChatCaptureDestination, ChatCaptureTarget } from '@/lib/screen-capture/tauri-capture-adapter'
@@ -321,13 +322,14 @@ watch([threadId, sendAddress, () => app.value.appDir], () => {
 
 let unsubscribeSmsResults: (() => void) | undefined
 let unsubscribeMmsResults: (() => void) | undefined
+let stopMmsSent: (() => void) | undefined
 
 onActivated(() => {
   isActive.value = true
   unsubscribeSmsResults = subscribeSmsSendResults(onSmsSendResult)
   unsubscribeMmsResults = subscribeMmsSendResults(onMmsSendResult)
   thread.subscribe(true)
-  emitter.on('MMS_SENT', onMmsSent)
+  stopMmsSent = graphqlSubscriptions.subscribe('mmsSent', onMmsSent)
   applyRouteQuery(true)
   captureActivation += 1
   if (__IS_TAURI__ && captureEligible.value) void activateCaptureTarget(captureActivation)
@@ -336,7 +338,7 @@ onActivated(() => {
 onDeactivated(() => {
   isActive.value = false
   thread.unsubscribe()
-  emitter.off('MMS_SENT', onMmsSent)
+  stopMmsSent?.()
   unsubscribeSmsResults?.()
   unsubscribeMmsResults?.()
   unsubscribeSmsResults = undefined
@@ -352,13 +354,13 @@ onUnmounted(() => {
   void captureTargetPromise?.then((target) => target.dispose()).catch(() => {})
 })
 
-function onSmsSendResult(result: ISmsSendResultEvent): boolean {
+function onSmsSendResult(result: SmsSendResult): boolean {
   const outcome = thread.handleSmsSendResult(result)
   if (outcome.failed) send.restoreDraft(outcome.failed.body)
   return outcome.handled
 }
 
-function onMmsSendResult(result: IMmsSendResultEvent): boolean {
+function onMmsSendResult(result: MmsSendResult): boolean {
   const outcome = thread.handleMmsSendResult(result)
   if (outcome.handled) send.settleMms(result.pendingId, result.success)
   return outcome.handled

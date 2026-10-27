@@ -1,4 +1,5 @@
-import { onMounted, ref } from 'vue'
+import { graphqlSubscriptions } from '@/lib/api/subscription-client'
+import { onUnmounted, onMounted, ref } from 'vue'
 import { useTempStore } from '@/stores/temp'
 import { storeToRefs } from 'pinia'
 import { useMainStore } from '@/stores/main'
@@ -6,7 +7,6 @@ import { initQuery, notificationsGQL } from '@/lib/api/query'
 import { initMutation, deleteNotificationsGQL, replyNotificationGQL } from '@/lib/api/mutation'
 import type { INotification } from '@/lib/interfaces'
 import { getFileUrlByPath } from '@/lib/api/file'
-import emitter from '@/plugins/eventbus'
 import { useNotificationWarning } from '@/hooks/notification-warning'
 import { playNotificationSound } from '@/lib/notification-sound'
 import { showDesktopNotification } from '@/lib/desktop-notification'
@@ -59,26 +59,28 @@ export function useNotifications() {
     showDesktopNotification({ title: data.title, body: data.body, icon: data.icon, silent: true })
   }
 
+  const stopSubscriptions: (() => void)[] = []
+  onUnmounted(() => stopSubscriptions.forEach(stop => stop()))
   onMounted(() => {
-    emitter.on('NOTIFICATION_CREATED', async (data: any) => {
-      data.icon = getFileUrlByPath(urlTokenKey.value, 'pkgicon://' + data.appId)
-      notifications.value = [{ ...data }, ...notifications.value]
-      notify(data)
-    })
+    stopSubscriptions.push(graphqlSubscriptions.subscribe('notificationCreated', (data) => {
+      const notification = { ...data, icon: getFileUrlByPath(urlTokenKey.value, 'pkgicon://' + data.appId) }
+      notifications.value = [notification, ...notifications.value]
+      notify(notification)
+    }))
 
-    emitter.on('NOTIFICATION_UPDATED', async (data: any) => {
-      data.icon = getFileUrlByPath(urlTokenKey.value, 'pkgicon://' + data.appId)
-      notifications.value = notifications.value.map((n) => n.id === data.id ? { ...data } : n)
-      notify(data)
-    })
+    stopSubscriptions.push(graphqlSubscriptions.subscribe('notificationUpdated', (data) => {
+      const notification = { ...data, icon: getFileUrlByPath(urlTokenKey.value, 'pkgicon://' + data.appId) }
+      notifications.value = notifications.value.map((n) => n.id === data.id ? notification : n)
+      notify(notification)
+    }))
 
-    emitter.on('NOTIFICATION_DELETED', async (data: any) => {
+    stopSubscriptions.push(graphqlSubscriptions.subscribe('notificationDeleted', (data) => {
       notifications.value = notifications.value.filter((n) => n.id !== data.id)
-    })
+    }))
 
-    emitter.on('NOTIFICATION_REFRESHED', async () => refetch())
+    stopSubscriptions.push(graphqlSubscriptions.subscribe('notificationRefreshed', async () => refetch()))
 
-    emitter.on('PERMISSIONS_UPDATED', async () => refetch())
+    stopSubscriptions.push(graphqlSubscriptions.subscribe('permissionsUpdated', async () => refetch()))
   })
 
   return {

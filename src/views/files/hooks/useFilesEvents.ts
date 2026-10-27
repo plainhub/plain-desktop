@@ -1,3 +1,4 @@
+import { graphqlSubscriptions } from '@/lib/api/subscription-client'
 import { onActivated, onDeactivated, watch, type Ref } from 'vue'
 import emitter from '@/plugins/eventbus'
 import type { IUploadItem } from '@/stores/temp'
@@ -57,6 +58,7 @@ export function useFilesEvents(opts: UseFilesEventsOptions) {
     sorting.value = true
     fetch()
   })
+  let stopPermissionsUpdated: (() => void) | undefined
 
   onActivated(() => {
     isActive.value = true
@@ -65,7 +67,7 @@ export function useFilesEvents(opts: UseFilesEventsOptions) {
     emitter.on('upload_task_done', uploadTaskDoneHandler)
     emitter.on('file_deleted', fileDeletedHandler)
     emitter.on('file_renamed', fileRenamedHandler)
-    emitter.on('PERMISSIONS_UPDATED', permissionsUpdatedHandler)
+    stopPermissionsUpdated = graphqlSubscriptions.subscribe('permissionsUpdated', permissionsUpdatedHandler)
     window.addEventListener('keydown', pageKeyDown)
     window.addEventListener('keyup', pageKeyUp)
   })
@@ -76,7 +78,7 @@ export function useFilesEvents(opts: UseFilesEventsOptions) {
     emitter.off('upload_task_done', uploadTaskDoneHandler)
     emitter.off('file_deleted', fileDeletedHandler)
     emitter.off('file_renamed', fileRenamedHandler)
-    emitter.off('PERMISSIONS_UPDATED', permissionsUpdatedHandler)
+    stopPermissionsUpdated?.()
     window.removeEventListener('keydown', pageKeyDown)
     window.removeEventListener('keyup', pageKeyUp)
   })

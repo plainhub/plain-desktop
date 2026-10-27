@@ -7,8 +7,8 @@ import type { IChatItem } from '@/lib/interfaces'
 import { ChatStatus, MessageType } from '@/lib/status'
 import { shortUUID } from '@/lib/strutil'
 import { useTasks } from './chat'
-import { useChatEvents } from './chat-events'
-import { normalizeChatItem } from './chat-events'
+import { useChatSubscriptions } from './chat-subscriptions'
+import { normalizeChatItem } from './chat-subscriptions'
 
 export function useChatMessages(chatId: ComputedRef<string>, channelId: ComputedRef<string>) {
   const { t } = useI18n()
@@ -142,7 +142,7 @@ export function useChatMessages(chatId: ComputedRef<string>, channelId: Computed
   }
 
   // Real-time event bus handlers for message CRUD
-  useChatEvents(chatId, chatItems, scrollBottom)
+  useChatSubscriptions(chatId, chatItems, scrollBottom)
 
   watch(chatId, () => {
     if (!isMounted) return

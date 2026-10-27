@@ -1,3 +1,4 @@
+import { graphqlSubscriptions } from '@/lib/api/subscription-client'
 import { onActivated, onDeactivated, ref, computed, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import { replacePath } from '@/plugins/router'
@@ -112,20 +113,21 @@ export function useMessagesSidebar() {
   const notificationRefresh = createSmsNotificationRefresh(() => applyRouteQuery(true), () => loadContacts(true))
 
   watch(() => route.query.q, () => { if (isActive.value && !isArchived.value) applyRouteQuery(true) })
+  let stopPermissionsUpdated: (() => void) | undefined
 
   onActivated(() => {
     isActive.value = true
     loadContacts(true)
     applyRouteQuery(true)
     emitter.on('sms_sent' as any, smsSentHandler)
-    emitter.on('PERMISSIONS_UPDATED', permissionsUpdatedHandler)
+    stopPermissionsUpdated = graphqlSubscriptions.subscribe('permissionsUpdated', permissionsUpdatedHandler)
     notificationRefresh.subscribe()
   })
 
   onDeactivated(() => {
     isActive.value = false
     emitter.off('sms_sent' as any, smsSentHandler)
-    emitter.off('PERMISSIONS_UPDATED', permissionsUpdatedHandler)
+    stopPermissionsUpdated?.()
     notificationRefresh.unsubscribe()
     if (smsSentTimer) clearTimeout(smsSentTimer)
     smsSentTimer = undefined

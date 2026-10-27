@@ -594,6 +594,24 @@ export interface GqlOperations {
     }
     variables: undefined
   }
+  bookmarksUpdatedSubscription: {
+    result: {
+      bookmarksUpdated: Array<{
+        id: string
+        url: string
+        title: string
+        faviconPath: string
+        groupId: string
+        pinned: boolean
+        clickCount: number
+        lastClickedAt?: string
+        sortOrder: number
+        createdAt: string
+        updatedAt: string
+      }>
+    }
+    variables: undefined
+  }
   bucketsTagsGQL: {
     result: {
       tags: Array<Fragment_TagFragment>
@@ -701,6 +719,16 @@ export interface GqlOperations {
     }
     variables: undefined
   }
+  clipboardChangedSubscription: {
+    result: {
+      clipboardChanged: {
+        text: string
+        sensitive: boolean
+        time: number
+      }
+    }
+    variables: undefined
+  }
   clipboardItemsGQL: {
     result: {
       clipboardItems: Array<Fragment_ClipboardItemFragment>
@@ -735,6 +763,12 @@ export interface GqlOperations {
         name: string
         type: string
       }>
+    }
+    variables: undefined
+  }
+  contentChangedSubscription: {
+    result: {
+      contentChanged: boolean
     }
     variables: undefined
   }
@@ -1132,6 +1166,12 @@ export interface GqlOperations {
     }
     variables: undefined
   }
+  deviceNameUpdatedSubscription: {
+    result: {
+      deviceNameUpdated: string
+    }
+    variables: undefined
+  }
   deviceStatusGQL: {
     result: {
       deviceStatus: {
@@ -1277,6 +1317,16 @@ export interface GqlOperations {
     variables: {
       id: string
     }
+  }
+  feedsFetchedSubscription: {
+    result: {
+      feedsFetched: {
+        feedId: string
+        error?: string
+        cancelled?: boolean
+      }
+    }
+    variables: undefined
   }
   feedsGQL: {
     result: {
@@ -1511,6 +1561,26 @@ export interface GqlOperations {
       type: 'AUDIO' | 'VIDEO' | 'IMAGE' | 'DOC'
     }
   }
+  mediaLibraryUpdatedSubscription: {
+    result: {
+      mediaLibraryUpdated: {
+        types: Array<number>
+      }
+    }
+    variables: undefined
+  }
+  mediaScanProgressSubscription: {
+    result: {
+      mediaScanProgress: {
+        indexed: number
+        pending?: number
+        total?: number
+        state: 'IDLE' | 'RUNNING' | 'PAUSED' | 'STOPPED' | 'FAILED'
+        error?: string
+      }
+    }
+    variables: undefined
+  }
   mergeAppFileChunksGQL: {
     result: {
       mergeAppFileChunks: {
@@ -1556,6 +1626,60 @@ export interface GqlOperations {
     variables: {
       fileId: string
     }
+  }
+  messagesCreatedSubscription: {
+    result: {
+      messagesCreated: Array<{
+        id: string
+        fromId: string
+        toId: string
+        channelId?: string
+        content: string
+        createdAt: string
+        updatedAt: string
+        status: 'SENT' | 'FAILED' | 'PARTIAL' | 'PENDING'
+        statusData: string
+      }>
+    }
+    variables: undefined
+  }
+  messagesDeletedSubscription: {
+    result: {
+      messagesDeleted: string
+    }
+    variables: undefined
+  }
+  messagesUpdatedSubscription: {
+    result: {
+      messagesUpdated: Array<{
+        id: string
+        fromId: string
+        toId: string
+        channelId?: string
+        content: string
+        createdAt: string
+        updatedAt: string
+        status: 'SENT' | 'FAILED' | 'PARTIAL' | 'PENDING'
+        statusData: string
+      }>
+    }
+    variables: undefined
+  }
+  mmsSendResultSubscription: {
+    result: {
+      mmsSendResult: {
+        pendingId: string
+        success: boolean
+        resultCode?: number
+      }
+    }
+    variables: undefined
+  }
+  mmsSentSubscription: {
+    result: {
+      mmsSent: string
+    }
+    variables: undefined
   }
   mountsGQL: {
     result: {
@@ -1656,9 +1780,69 @@ export interface GqlOperations {
       query: string
     }
   }
+  notificationCreatedSubscription: {
+    result: {
+      notificationCreated: {
+        id: string
+        onlyOnce: boolean
+        isClearable: boolean
+        appId: string
+        appName: string
+        postedAt: string
+        silent: boolean
+        title: string
+        body: string
+        actions: Array<string>
+        replyActions: Array<string>
+      }
+    }
+    variables: undefined
+  }
+  notificationDeletedSubscription: {
+    result: {
+      notificationDeleted: {
+        id: string
+        onlyOnce: boolean
+        isClearable: boolean
+        appId: string
+        appName: string
+        postedAt: string
+        silent: boolean
+        title: string
+        body: string
+        actions: Array<string>
+        replyActions: Array<string>
+      }
+    }
+    variables: undefined
+  }
+  notificationRefreshedSubscription: {
+    result: {
+      notificationRefreshed: boolean
+    }
+    variables: undefined
+  }
   notificationsGQL: {
     result: {
       notifications: Array<Fragment_NotificationFragment>
+    }
+    variables: undefined
+  }
+  notificationUpdatedSubscription: {
+    result: {
+      notificationUpdated: {
+        id: string
+        onlyOnce: boolean
+        isClearable: boolean
+        appId: string
+        appName: string
+        postedAt: string
+        silent: boolean
+        title: string
+        body: string
+        actions: Array<string>
+        replyActions: Array<string>
+      }
     }
     variables: undefined
   }
@@ -1752,6 +1936,14 @@ export interface GqlOperations {
       query: string
     }
   }
+  peerClipboardChangedSubscription: {
+    result: {
+      peerClipboardChanged: {
+        peerId: string
+      }
+    }
+    variables: undefined
+  }
   peersGQL: {
     result: {
       peers: Array<{
@@ -1765,6 +1957,12 @@ export interface GqlOperations {
         createdAt: string
         updatedAt: string
       }>
+    }
+    variables: undefined
+  }
+  permissionsUpdatedSubscription: {
+    result: {
+      permissionsUpdated: boolean
     }
     variables: undefined
   }
@@ -2082,6 +2280,12 @@ export interface GqlOperations {
     }
     variables: undefined
   }
+  screenMirrorAudioGrantedSubscription: {
+    result: {
+      screenMirrorAudioGranted: boolean
+    }
+    variables: undefined
+  }
   screenMirrorControlEnabledGQL: {
     result: {
       screenMirrorControlEnabled: boolean
@@ -2096,11 +2300,27 @@ export interface GqlOperations {
     }
     variables: undefined
   }
+  screenMirrorStateSubscription: {
+    result: {
+      screenMirrorState: {
+        running: boolean
+      }
+    }
+    variables: undefined
+  }
   screenMirrorVideoCodecGQL: {
     result: {
       screenMirrorVideoCodec?: {
         annexB: string
         keyFrame?: string
+      }
+    }
+    variables: undefined
+  }
+  screenMirrorVideoCodecSubscription: {
+    result: {
+      screenMirrorVideoCodec?: {
+        annexB: string
       }
     }
     variables: undefined
@@ -2258,6 +2478,24 @@ export interface GqlOperations {
       limit: number
       query: string
     }
+  }
+  smsProviderChangedSubscription: {
+    result: {
+      smsProviderChanged?: {
+        uris: Array<string>
+      }
+    }
+    variables: undefined
+  }
+  smsSendResultSubscription: {
+    result: {
+      smsSendResult: {
+        requestId?: string
+        success: boolean
+        resultCode?: number
+      }
+    }
+    variables: undefined
   }
   startImageIndexGQL: {
     result: {
@@ -2510,6 +2748,18 @@ export interface GqlOperations {
     variables: {
       fileId: string
     }
+  }
+  uploadMergeResultSubscription: {
+    result: {
+      uploadMergeResult: {
+        fileId: string
+        ok: boolean
+        value?: string
+        mergedSize?: number
+        error?: string
+      }
+    }
+    variables: undefined
   }
   videoCountGQL: {
     result: {

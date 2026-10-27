@@ -1,3 +1,4 @@
+import { graphqlSubscriptions } from '@/lib/api/subscription-client'
 import { onMounted, ref, watch, computed, onUnmounted } from 'vue'
 import { useMainStore } from '@/stores/main'
 import { useRouter } from 'vue-router'
@@ -100,22 +101,24 @@ export function useMainView() {
   const pairingRequestHandler = (request: PairingRequest) => {
     openModal(PairingRequestModal, { request })
   }
+  let stopDeviceNameUpdated: (() => void) | undefined
+  let stopPermissionsUpdated: (() => void) | undefined
 
   onMounted(() => {
     stopLibraryUpdates = subscribeMediaLibraryUpdates(DataType.AUDIO, () => { void audioPlaylist.refetch() })
     emitter.on('refetch_app', refetchAppHandler)
-    emitter.on('PERMISSIONS_UPDATED', refetchAppHandler)
+    stopPermissionsUpdated = graphqlSubscriptions.subscribe('permissionsUpdated', refetchAppHandler)
     emitter.on('media_items_actioned', mediaItemsActionedHandler)
-    emitter.on('DEVICE_NAME_UPDATED', deviceNameUpdatedHandler)
+    stopDeviceNameUpdated = graphqlSubscriptions.subscribe('deviceNameUpdated', deviceNameUpdatedHandler)
     emitter.on('PAIRING_REQUEST_RECEIVED', pairingRequestHandler)
   })
 
   onUnmounted(() => {
     stopLibraryUpdates?.()
     emitter.off('refetch_app', refetchAppHandler)
-    emitter.off('PERMISSIONS_UPDATED', refetchAppHandler)
+    stopPermissionsUpdated?.()
     emitter.off('media_items_actioned', mediaItemsActionedHandler)
-    emitter.off('DEVICE_NAME_UPDATED', deviceNameUpdatedHandler)
+    stopDeviceNameUpdated?.()
     emitter.off('PAIRING_REQUEST_RECEIVED', pairingRequestHandler)
   })
 

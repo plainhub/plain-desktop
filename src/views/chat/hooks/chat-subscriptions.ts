@@ -1,22 +1,23 @@
 import type { ComputedRef, Ref } from 'vue'
 import { onMounted, onUnmounted } from 'vue'
+import type { SubscriptionResults } from '@/lib/api/subscription-results'
 import type { IChatItem } from '@/lib/interfaces'
-import emitter from '@/plugins/eventbus'
+import { graphqlSubscriptions } from '@/lib/api/subscription-client'
 
-/** Replicate Apollo's ChatItem._content field: parse the JSON content string. */
-export function normalizeChatItem(item: any): IChatItem {
+export function normalizeChatItem(item: IChatItem | SubscriptionResults['messagesCreated'][number]): IChatItem {
+  const content = '_content' in item ? item._content : null
   return {
     ...item,
-    _content: item._content ?? (item.content ? JSON.parse(item.content) : null),
+    _content: content ?? (item.content ? JSON.parse(item.content) : null),
     __typename: 'ChatItem',
   }
 }
 
-export function useChatEvents(chatId: ComputedRef<string>, chatItems: Ref<IChatItem[]>, scrollBottom: () => void) {
-  const handlers: Record<string, (...args: any[]) => any> = {}
+export function useChatSubscriptions(chatId: ComputedRef<string>, chatItems: Ref<IChatItem[]>, scrollBottom: () => void) {
+  const stops: (() => void)[] = []
 
   onMounted(() => {
-    handlers.message_created = (data: any[]) => {
+    const onCreated = (data: SubscriptionResults['messagesCreated']) => {
       const peerId = chatId.value.startsWith('peer:') ? chatId.value.slice(5) : ''
       const items = data
         .filter((item) => {
@@ -29,10 +30,9 @@ export function useChatEvents(chatId: ComputedRef<string>, chatItems: Ref<IChatI
       const newItems = items.filter((i) => !existingIds.has(i.id))
       if (newItems.length) { chatItems.value = [...chatItems.value, ...newItems]; scrollBottom() }
     }
-    emitter.on('MESSAGE_CREATED', handlers.message_created)
+    stops.push(graphqlSubscriptions.subscribe('messagesCreated', onCreated))
 
-    handlers.message_deleted = (data: string) => {
-      if (typeof data !== 'string') return
+    const onDeleted = (data: string) => {
       if (data.startsWith('ids=')) {
         const ids = data.slice(4).split(',').filter(Boolean)
         if (!ids.length) return
@@ -42,17 +42,17 @@ export function useChatEvents(chatId: ComputedRef<string>, chatItems: Ref<IChatI
         chatItems.value = []
       }
     }
-    emitter.on('MESSAGE_DELETED', handlers.message_deleted)
+    stops.push(graphqlSubscriptions.subscribe('messagesDeleted', onDeleted))
 
-    handlers.message_updated = (items: any[]) => {
+    const onUpdated = (items: SubscriptionResults['messagesUpdated']) => {
       const updateMap = new Map(items.map((item) => [item.id, normalizeChatItem(item)]))
       chatItems.value = chatItems.value.map((i) => updateMap.has(i.id) ? { ...i, ...updateMap.get(i.id)! } : i)
       if (updateMap.size) scrollBottom()
     }
-    emitter.on('MESSAGE_UPDATED', handlers.message_updated)
+    stops.push(graphqlSubscriptions.subscribe('messagesUpdated', onUpdated))
   })
 
   onUnmounted(() => {
-    Object.entries(handlers).forEach(([event, fn]) => emitter.off(event as any, fn))
+    stops.forEach(stop => stop())
   })
 }

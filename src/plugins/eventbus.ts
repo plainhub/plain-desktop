@@ -1,19 +1,16 @@
-import type { IItemTagsUpdatedEvent, IItemsTagsUpdatedEvent, IFileDeletedEvent, IFileRenamedEvent, IMediaItemsActionedEvent, INotesActionedEvent, ISmsChangedEvent, ISmsSendResultEvent, IMmsSendResultEvent, IUploadMergeResultEvent, IScanProgress } from '@/lib/interfaces'
+import type { IItemTagsUpdatedEvent, IItemsTagsUpdatedEvent, IFileDeletedEvent, IFileRenamedEvent, IMediaItemsActionedEvent, INotesActionedEvent } from '@/lib/interfaces'
 import type { HttpServerStarted } from '@/lib/api/local-server'
 import type { PairingRequest, PairingResult } from '@/lib/pairing-types'
 import type { IUploadItem } from '@/stores/temp'
-import type { ScreenMirrorVideoCodec } from '@/views/screen-mirror/screen-mirror-pipeline'
 
 type Events = {
   NETWORK_CHANGED: Record<string, never>
   HTTP_SERVER_STARTED: HttpServerStarted
   upload_task_done: IUploadItem
   upload_progress: IUploadItem
-  UPLOAD_MERGE_RESULT: IUploadMergeResultEvent
   refetch_app: undefined
   refetch_favorite_folders: undefined
   PREFS_UPDATED: undefined
-  PERMISSIONS_UPDATED: undefined
   do_play_audio: undefined
   pause_audio: undefined
   item_tags_updated: IItemTagsUpdatedEvent
@@ -27,36 +24,19 @@ type Events = {
   file_renamed: IFileRenamedEvent
   toast: string
   tap_phone: string
-  FEEDS_FETCHED: any
-  MESSAGE_CREATED: any
-  MESSAGE_UPDATED: any
-  MESSAGE_DELETED: any
-  NOTIFICATION_CREATED: any
-  NOTIFICATION_UPDATED: any
-  NOTIFICATION_DELETED: any
-  NOTIFICATION_REFRESHED: any
   color_mode_changed: undefined
   app_socket_connection_changed: boolean
   POMODORO_ACTION: any
   POMODORO_SETTINGS_UPDATE: any
-  SCREEN_MIRRORING: string
   SCREEN_MIRROR_VIDEO: Uint8Array
   SCREEN_MIRROR_AUDIO: Uint8Array
-  SCREEN_MIRROR_VIDEO_CODEC: ScreenMirrorVideoCodec
-  SCREEN_MIRROR_AUDIO_GRANTED: boolean
-  BOOKMARK_UPDATED: any
   DOWNLOAD_PROGRESS: any[]
   CHANNELS_UPDATED: any[]
   PEER_UPDATED: { id: string }
   PEER_STATUS_UPDATED: { id: string, online: boolean }
   CHANNEL_INVITE_RECEIVED: { channelId: string, channelName: string, fromId: string, fromName: string }
-  DEVICE_NAME_UPDATED: string
   sms_sent: undefined
   IMAGE_SEARCH_UPDATED: any
-  MMS_SENT: string
-  SMS_PROVIDER_CHANGED: ISmsChangedEvent | null
-  SMS_SEND_RESULT: ISmsSendResultEvent
-  MMS_SEND_RESULT: IMmsSendResultEvent
   PAIRING_REQUEST_RECEIVED: PairingRequest
   PAIRING_SUCCESS: PairingResult
   PAIRING_FAILED: PairingResult
@@ -69,9 +49,6 @@ type Events = {
   NEARBY_DISCOVERY_STOPPED: { reason?: string } | undefined
   IMAGE_EDITOR_UPDATE: ArrayBuffer
   peer_notifications_updated: import('@/lib/peer/local-peer-data').PeerNotificationUpdate
-  peer_ws_event: { peerId: string, type: string, data: any }
-  MEDIA_LIBRARY_UPDATED: { types: number[] }
-  MEDIA_SCAN_PROGRESS: IScanProgress
   FILE_TASK_PROGRESS: any
   DLNA_RENDERER_FOUND: any
   DLNA_DISCOVERY_DONE: any

@@ -1,4 +1,5 @@
-import { ref, watch, nextTick, getCurrentInstance, onActivated, onDeactivated, type Ref } from 'vue'
+import { graphqlSubscriptions } from './subscription-client'
+import { ref, watch, nextTick, getCurrentInstance, onActivated, onDeactivated, onUnmounted, type Ref } from 'vue'
 import { gqlFetch, GqlError } from './gql-client'
 import {
   chatItemFragment,
@@ -71,14 +72,17 @@ export interface QueryResponseContext {
 export function initQuery<TResult = any>(params: InitQueryParams<TResult>) {
   const loading = ref(false)
   const result = ref<TResult>()
+  let snapshotVersion = 0
 
-  async function execute(vars?: Record<string, any>) {
+  async function execute(vars?: Record<string, any>, fresh = false) {
     if (params.enabled && !params.enabled()) return
+    const version = snapshotVersion
     loading.value = true
     try {
       const v = vars ?? resolveVars(params.variables)
       const document = typeof params.document === 'function' ? params.document() : params.document
-      const r = await gqlFetch<TResult>(document, v)
+      const r = await gqlFetch<TResult>(document, v, { fresh })
+      if (version !== snapshotVersion) return
       if (r.errors?.length) {
         params.handle(r.data, r.errors[0].message)
       } else {
@@ -86,10 +90,10 @@ export function initQuery<TResult = any>(params: InitQueryParams<TResult>) {
         params.handle(r.data, '')
       }
     } catch (e: any) {
-      if (e instanceof GqlError && e.cancelled) return
+      if (version !== snapshotVersion || (e instanceof GqlError && e.cancelled)) return
       params.handle(undefined as any, getErrorMessage(e))
     } finally {
-      loading.value = false
+      if (version === snapshotVersion) loading.value = false
     }
   }
 
@@ -123,6 +127,11 @@ export function initQuery<TResult = any>(params: InitQueryParams<TResult>) {
     })
   }
 
+  if (inst) {
+    const resnapshot = () => { if (active) { snapshotVersion++; void execute(undefined, true) } }
+    const stopSubscription = graphqlSubscriptions.onAttached(resnapshot)
+    onUnmounted(stopSubscription)
+  }
   return { loading, result, refetch: execute }
 }
 
@@ -133,8 +142,21 @@ export function initLazyQuery<TResult = any>(params: InitQueryParams<TResult>) {
   let latestSequence = 0
   let activeRegularRequests = 0
   let activeLatestRequest: number | undefined
+  let snapshotVersion = 0
+  let active = true
+  let previous: { variables?: Record<string, any>; options: QueryFetchOptions } | undefined
+  const instance = getCurrentInstance()
+  if (instance) {
+    onActivated(() => { active = true })
+    onDeactivated(() => { active = false })
+    const resnapshot = () => { if (active && previous) { snapshotVersion++; void doFetch(previous.variables, { ...previous.options, latest: true, force: true }) } }
+    const stopSubscription = graphqlSubscriptions.onAttached(resnapshot)
+    onUnmounted(stopSubscription)
+  }
 
   async function doFetch(vars?: Record<string, any>, options: QueryFetchOptions = {}) {
+    const version = snapshotVersion
+    previous = { variables: vars, options }
     const requestId = ++requestSequence
     const latestRequestId = options.latest ? ++latestSequence : undefined
     const resolved = vars ?? resolveVars(params.variables)
@@ -148,7 +170,7 @@ export function initLazyQuery<TResult = any>(params: InitQueryParams<TResult>) {
       const r = options.force
         ? await gqlFetch<TResult>(document, v, { fresh: true })
         : await gqlFetch<TResult>(document, v)
-      if (options.latest && latestRequestId !== latestSequence) return
+      if (version !== snapshotVersion || (options.latest && latestRequestId !== latestSequence)) return
       if (r.errors?.length) {
         params.handle(r.data, r.errors[0].message, context)
       } else {
@@ -156,7 +178,7 @@ export function initLazyQuery<TResult = any>(params: InitQueryParams<TResult>) {
         params.handle(r.data, '', context)
       }
     } catch (e: any) {
-      if (e instanceof GqlError && e.cancelled) return
+      if (version !== snapshotVersion || (e instanceof GqlError && e.cancelled)) return
       if (!options.latest || latestRequestId === latestSequence) {
         params.handle(undefined as any, getErrorMessage(e), context)
       }

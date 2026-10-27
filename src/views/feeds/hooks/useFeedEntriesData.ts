@@ -1,3 +1,4 @@
+import { graphqlSubscriptions } from '@/lib/api/subscription-client'
 import { computed, onActivated, onDeactivated, reactive, ref, watch } from 'vue'
 import toast from '@/components/toaster'
 import { feedsTagsGQL, initLazyQuery } from '@/lib/api/query'
@@ -96,6 +97,7 @@ export function useFeedEntriesData(onDelete: () => void) {
       toast(t('feeds_synced'))
     }
   }
+  let stopFeedsFetched: (() => void) | undefined
 
   onActivated(() => {
     const scroller = document.getElementsByClassName('scroller')?.[0]
@@ -106,7 +108,7 @@ export function useFeedEntriesData(onDelete: () => void) {
     emitter.on('item_tags_updated', itemTagsUpdatedHandler)
     emitter.on('items_tags_updated', itemsTagsUpdatedHandler)
     emitter.on('refetch_tags', refetchTagsHandler)
-    emitter.on('FEEDS_FETCHED', feedsFetchedHandler)
+    stopFeedsFetched = graphqlSubscriptions.subscribe('feedsFetched', feedsFetchedHandler)
     window.addEventListener('keydown', pageKeyDown)
     window.addEventListener('keyup', pageKeyUp)
   })
@@ -118,7 +120,7 @@ export function useFeedEntriesData(onDelete: () => void) {
     emitter.off('item_tags_updated', itemTagsUpdatedHandler)
     emitter.off('items_tags_updated', itemsTagsUpdatedHandler)
     emitter.off('refetch_tags', refetchTagsHandler)
-    emitter.off('FEEDS_FETCHED', feedsFetchedHandler)
+    stopFeedsFetched?.()
     window.removeEventListener('keydown', pageKeyDown)
     window.removeEventListener('keyup', pageKeyUp)
   })

@@ -1,4 +1,5 @@
-import type { ISms, ISmsSendResultEvent } from '@/lib/interfaces'
+import type { SmsSendResult } from '@/lib/api/subscription-results'
+import type { ISms } from '@/lib/interfaces'
 import { createPendingSms } from '@/lib/message-helpers'
 
 const MATCH_WINDOW_MS = 5 * 60 * 1000
@@ -92,7 +93,7 @@ export function failPendingSms(pending: ISms[], requestId: string): { pending: I
 
 export function settlePendingSmsResult(
   pending: ISms[],
-  result: ISmsSendResultEvent,
+  result: SmsSendResult,
 ): { pending: ISms[]; handled: boolean; transitioned?: true; failed?: ISms } {
   const operation = result.requestId
     ? pending.find((item) => item.id === result.requestId)

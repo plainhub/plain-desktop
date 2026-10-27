@@ -1,9 +1,7 @@
-// Async chunk-merge client: `mergeChunks` returns immediately with a
-// MergeTask and the result arrives as WS event `upload_merge_result`
-// (type 38); `mergeStatus` is the polling fallback when the event is lost.
+import type { SubscriptionResults } from '@/lib/api/subscription-results'
+import { graphqlSubscriptions } from '@/lib/api/subscription-client'
 
 import type { IUploadItem } from '@/stores/temp'
-import emitter from '@/plugins/eventbus'
 import { gqlFetch } from '../api/gql-client'
 import { mergeChunksGQL, mergeAppFileChunksGQL } from '../api/mutation'
 import { mergeStatusGQL } from '../api/query'
@@ -66,17 +64,19 @@ function waitForMergeResult(upload: IUploadItem, fileId: string): Promise<IMerge
     // it deterministically; ~mergeRequestTimeout worth of 15s status polls.
     let pollsLeft = Math.max(1, Math.ceil(mergeRequestTimeout(upload.file.size) / WATCHDOG_POLL_MS))
 
+    let stopUploadMergeResult: (() => void) | undefined
+
     const finish = (outcome: IMergeOutcome) => {
       if (settled) return
       settled = true
       if (watchdog) clearTimeout(watchdog)
       if (pauseProbe) clearInterval(pauseProbe)
-      emitter.off('UPLOAD_MERGE_RESULT', onMergeEvent)
+      stopUploadMergeResult?.()
       resolve(outcome)
     }
 
-    function onMergeEvent(payload: { fileId?: string; ok?: boolean; value?: string; mergedSize?: number; error?: string }) {
-      if (!payload || payload.fileId !== fileId) return
+    function onMergeResult(payload: SubscriptionResults['uploadMergeResult']) {
+      if (payload.fileId !== fileId) return
       if (payload.ok) {
         finish({ value: String(payload.value ?? ''), size: Number(payload.mergedSize) || 0 })
       } else {
@@ -84,7 +84,7 @@ function waitForMergeResult(upload: IUploadItem, fileId: string): Promise<IMerge
       }
     }
 
-    emitter.on('UPLOAD_MERGE_RESULT', onMergeEvent)
+    stopUploadMergeResult = graphqlSubscriptions.subscribe('uploadMergeResult', onMergeResult)
 
     pauseProbe = setInterval(() => {
       if (upload.status === 'paused' || upload.status === 'canceled') {

@@ -1,3 +1,4 @@
+import { graphqlSubscriptions } from '@/lib/api/subscription-client'
 import { ref, computed, watch, onUnmounted } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useTempStore } from '@/stores/temp'
@@ -6,7 +7,6 @@ import { useMainStore } from '@/stores/main'
 import { callGQL, initMutation, pauseMediaScanGQL, resumeMediaScanGQL, stopMediaScanGQL, rebuildMediaIndexGQL } from '@/lib/api/mutation'
 import { homeStatsGQL, simsGQL, initQuery, scanProgressGQL, type HomeStatKey } from '@/lib/api/query'
 import toast from '@/components/toaster'
-import emitter from '@/plugins/eventbus'
 import { Capability } from '@/lib/data'
 import type { IHomeStats, IStorageMount, IContact, ISim, IScanProgress } from '@/lib/interfaces'
 import { useContactPicker } from '@/hooks/contact-picker'
@@ -132,8 +132,9 @@ export function useScanAction() {
   const onScanProgress = (p: IScanProgress) => {
     if (p) scanProgress.value = { indexed: p.indexed, pending: p.pending, total: p.total, state: p.state, error: p.error }
   }
-  emitter.on('MEDIA_SCAN_PROGRESS', onScanProgress)
-  onUnmounted(() => emitter.off('MEDIA_SCAN_PROGRESS', onScanProgress))
+  const stopMediaScanProgress = graphqlSubscriptions.subscribe('mediaScanProgress', onScanProgress)
+
+  onUnmounted(stopMediaScanProgress)
 
   const scanActive = computed(() => ['RUNNING', 'PAUSED'].includes(scanProgress.value.state))
 

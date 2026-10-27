@@ -68,23 +68,6 @@ export interface ISmsConversation extends IData {
   read: boolean
 }
 
-export interface ISmsChangedEvent {
-  uris: string[]
-}
-
-export interface ISmsSendResultEvent {
-  clientId?: string | null
-  requestId?: string | null
-  success: boolean
-  resultCode?: number
-}
-
-export interface IMmsSendResultEvent {
-  pendingId: string
-  success: boolean
-  resultCode?: number
-}
-
 export type PhoneType =
   | 'CUSTOM' | 'HOME' | 'MOBILE' | 'WORK' | 'FAX_WORK' | 'FAX_HOME' | 'PAGER'
   | 'OTHER' | 'CALLBACK' | 'CAR' | 'COMPANY_MAIN' | 'ISDN' | 'MAIN' | 'OTHER_FAX'
@@ -555,12 +538,4 @@ export interface IApp {
 export interface IBreadcrumbItem {
   path: string
   name: string
-}
-
-export interface IUploadMergeResultEvent {
-  fileId: string
-  ok: boolean
-  value?: string
-  mergedSize?: number
-  error?: string
 }

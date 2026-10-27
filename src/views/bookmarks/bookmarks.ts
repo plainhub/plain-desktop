@@ -1,3 +1,4 @@
+import { graphqlSubscriptions } from '@/lib/api/subscription-client'
 import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useBookmarksStore, type Bookmark, type BookmarkGroup } from '@/stores/bookmarks'
@@ -14,7 +15,6 @@ import {
 } from '@/lib/api/mutation'
 import { openModal } from '@/components/modal/methods'
 import EditValueModal from '@/components/EditValueModal.vue'
-import emitter from '@/plugins/eventbus'
 import { exportBookmarksHtml, importBookmarksHtml } from '@/lib/bookmarks-format'
 import { openUrl } from '@/lib/browser'
 
@@ -140,18 +140,19 @@ export function useBookmarkOperations() {
   }
 
   // Lifecycle
-  function onWsBookmarkUpdated(items: Bookmark[]) {
+  function applyBookmarks(items: Bookmark[]) {
     items.forEach((b) => bmStore.updateBookmark({ ...b }))
   }
+  let stopBookmarksUpdated: (() => void) | undefined
 
   onMounted(() => {
     loading.value = true
     fetchBookmarks()
-    emitter.on('BOOKMARK_UPDATED', onWsBookmarkUpdated)
+    stopBookmarksUpdated = graphqlSubscriptions.subscribe('bookmarksUpdated', applyBookmarks)
   })
 
   onUnmounted(() => {
-    emitter.off('BOOKMARK_UPDATED', onWsBookmarkUpdated)
+    stopBookmarksUpdated?.()
   })
 
   return {

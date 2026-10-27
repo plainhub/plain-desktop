@@ -1,3 +1,4 @@
+vi.mock('@/lib/api/subscription-client', () => ({ graphqlSubscriptions: { subscribe: vi.fn(() => vi.fn()) } }))
 import { afterEach, expect, it, vi } from 'vitest'
 import { createRenderer, h, KeepAlive, nextTick, ref } from 'vue'
 import { useFilesEvents } from '@/views/files/hooks/useFilesEvents'

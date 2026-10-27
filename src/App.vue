@@ -17,6 +17,7 @@
 <script setup lang="ts">
 import { onMounted, onUnmounted, watch } from 'vue'
 import { useAppSocket } from '@/hooks/app-socket'
+import { useAppSubscriptions } from '@/hooks/app-subscriptions'
 import { openWindow, setWindowDeviceName } from '@/lib/api/tauri-window'
 import { updateDocumentTitle } from '@/plugins/router'
 import { loginPeers, peerHost } from '@/lib/device/login-peers'
@@ -33,6 +34,7 @@ import WebLoginRequests from '@/components/WebLoginRequests.vue'
 const nativeApp = __IS_TAURI__
 
 const { wsStatus, tapPhoneMessage, closeTapPhone } = useAppSocket()
+useAppSubscriptions()
 // Initialize the device pairing listener (and global incoming-request modal) early
 // so pairing requests are handled even if the user never opens the Nearby modal.
 useDeviceDiscovery()

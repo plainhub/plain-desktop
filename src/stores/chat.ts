@@ -1,3 +1,4 @@
+import { graphqlSubscriptions } from '@/lib/api/subscription-client'
 import { chatFileDurationMs } from '@/views/chat/chat-file-duration'
 import { defineStore } from 'pinia'
 import { computed } from 'vue'
@@ -151,24 +152,21 @@ export const useChatStore = defineStore('chat', () => {
     }
   })
 
-  emitter.on('MESSAGE_CREATED', (items: any[]) => {
-    if (!Array.isArray(items)) return
+  graphqlSubscriptions.subscribe('messagesCreated', (items) => {
     items.map(normalizeChatItem).forEach((item) => {
       chatCacher.upsertLatest(item)
     })
     setCached<Record<string, IChatItem>>('chat:latest_items', chatCacher.latestChatMap.value)
   })
 
-  emitter.on('MESSAGE_UPDATED', (items: any[]) => {
-    if (!Array.isArray(items)) return
+  graphqlSubscriptions.subscribe('messagesUpdated', (items) => {
     items.map(normalizeChatItem).forEach((item) => {
       chatCacher.updateLatestIfPresent(item)
     })
     setCached<Record<string, IChatItem>>('chat:latest_items', chatCacher.latestChatMap.value)
   })
 
-  emitter.on('MESSAGE_DELETED', (data: string) => {
-    if (typeof data !== 'string') return
+  graphqlSubscriptions.subscribe('messagesDeleted', (data) => {
     if (data.startsWith('ids=')) {
       const ids = data.slice(4).split(',').filter(Boolean)
       if (!ids.length) return
