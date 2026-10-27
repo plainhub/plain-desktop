@@ -8,6 +8,7 @@ export interface SubscriptionOperation {
   localOnly?: boolean
 }
 export const subscriptionOperations: readonly SubscriptionOperation[] = [
+  {field: 'imageModelsUpdated', document: 'subscription { imageModelsUpdated { version status downloadProgress errorMessage modelSize modelDir isIndexing totalImages indexedImages } }', permissions: []},
   {field: 'peerClipboardChanged', document: 'subscription { peerClipboardChanged { peerId } }', permissions: [], localOnly: true},
   {"field": "deviceNameUpdated", "document": "subscription { deviceNameUpdated }", "permissions": []},
   {"field": "permissionsUpdated", "document": "subscription { permissionsUpdated }", "permissions": []},

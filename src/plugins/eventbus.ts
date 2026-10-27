@@ -37,7 +37,6 @@ type Events = {
   PEER_STATUS_UPDATED: { id: string, online: boolean }
   CHANNEL_INVITE_RECEIVED: { channelId: string, channelName: string, fromId: string, fromName: string }
   sms_sent: undefined
-  IMAGE_SEARCH_UPDATED: any
   PAIRING_REQUEST_RECEIVED: PairingRequest
   PAIRING_SUCCESS: PairingResult
   PAIRING_FAILED: PairingResult

@@ -1,4 +1,4 @@
-import type { IChatItem, INotification, IScanProgress } from '@/lib/interfaces'
+import type { IChatItem, INotification, IScanProgress, IImageSearchStatus } from '@/lib/interfaces'
 import type { Bookmark } from '@/stores/bookmarks'
 
 type ChatSubscriptionItem = Pick<IChatItem, 'id' | 'fromId' | 'toId' | 'channelId' | 'content' | 'createdAt'> & {
@@ -8,6 +8,7 @@ type ChatSubscriptionItem = Pick<IChatItem, 'id' | 'fromId' | 'toId' | 'channelI
 }
 
 export interface SubscriptionResults {
+  imageModelsUpdated: IImageSearchStatus & { version: number }
   peerClipboardChanged: { peerId: string }
   deviceNameUpdated: string
   permissionsUpdated: boolean

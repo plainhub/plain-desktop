@@ -1457,6 +1457,22 @@ export interface GqlOperations {
       query: string
     }
   }
+  imageModelsUpdatedSubscription: {
+    result: {
+      imageModelsUpdated: {
+        version: number
+        status: string
+        downloadProgress: number
+        errorMessage: string
+        modelSize: number
+        modelDir: string
+        isIndexing: boolean
+        totalImages: number
+        indexedImages: number
+      }
+    }
+    variables: undefined
+  }
   imageSearchStatusGQL: {
     result: {
       imageSearchStatus: {

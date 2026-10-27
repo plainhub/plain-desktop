@@ -1,5 +1,5 @@
 import { ref, onUnmounted } from 'vue'
-import emitter from '@/plugins/eventbus'
+import { graphqlSubscriptions } from '@/lib/api/subscription-client'
 import { importImageSearchModelGQL, enableImageSearchGQL, disableImageSearchGQL, cancelImageModelDownloadGQL, startImageIndexGQL, cancelImageIndexGQL, initMutation } from '@/lib/api/mutation'
 import type { IImageSearchStatus } from '@/lib/interfaces'
 
@@ -29,8 +29,8 @@ export function useImageSearchActions() {
     else cancelIndexLoading.value = false
   }
 
-  emitter.on('IMAGE_SEARCH_UPDATED', onStatusUpdated)
-  onUnmounted(() => emitter.off('IMAGE_SEARCH_UPDATED', onStatusUpdated))
+  const stop = graphqlSubscriptions.subscribe('imageModelsUpdated', onStatusUpdated)
+  onUnmounted(stop)
 
   async function dispatch(mutate: (variables: object) => Promise<unknown>, loading: typeof enableLoading, variables: object = {}) {
     loading.value = true

@@ -1,7 +1,7 @@
 import { ref, onUnmounted } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { storeToRefs } from 'pinia'
-import emitter from '@/plugins/eventbus'
+import { graphqlSubscriptions } from '@/lib/api/subscription-client'
 import { imageSearchStatusGQL, initQuery } from '@/lib/api/query'
 import { Capability } from '@/lib/data'
 import { hasFeature } from '@/lib/feature'
@@ -30,8 +30,8 @@ export function useImageSearchStatus() {
     if (data) status.value = { ...data }
   }
 
-  emitter.on('IMAGE_SEARCH_UPDATED', onStatusUpdated)
-  onUnmounted(() => emitter.off('IMAGE_SEARCH_UPDATED', onStatusUpdated))
+  const stop = graphqlSubscriptions.subscribe('imageModelsUpdated', onStatusUpdated)
+  onUnmounted(stop)
 
   return { status }
 }
