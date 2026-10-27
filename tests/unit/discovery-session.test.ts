@@ -1,9 +1,13 @@
 import { beforeEach, afterEach, expect, it, vi } from 'vitest'
 
 const fixture = vi.hoisted(() => ({
-  bind: vi.fn(), request: vi.fn(), listeners: new Map<string, (...args: any[]) => void>(), nextId: 0,
+  bind: vi.fn(), request: vi.fn(), listeners: new Map<string, (...args: any[]) => void>(), subscriptions: new Map<string, (...args: any[]) => void>(), nextId: 0,
 }))
 vi.mock('@/lib/api/gql-client', () => ({ bindGraphqlClient: fixture.bind }))
+vi.mock('@/lib/api/subscription-client', () => ({ graphqlSubscriptions: {
+  subscribe: (name: string, handler: (...args: any[]) => void) => { fixture.subscriptions.set(name, handler); return () => {} },
+  onAttached: (handler: (...args: any[]) => void) => { fixture.subscriptions.set('attached', handler); return () => {} },
+} }))
 vi.mock('@/lib/api/mutation', () => ({ acquireDiscoveryGQL: 'acquireDiscovery', releaseDiscoveryGQL: 'releaseDiscovery' }))
 vi.mock('@/lib/api/query', () => ({ nearbyDevicesGQL: 'nearbyDevices' }))
 vi.mock('@/plugins/eventbus', () => ({ default: { on: (name: string, handler: (...args: any[]) => void) => fixture.listeners.set(name, handler) } }))
@@ -15,8 +19,9 @@ beforeEach(() => {
   vi.resetModules()
   vi.resetAllMocks()
   fixture.listeners.clear()
+  fixture.subscriptions.clear()
   fixture.nextId = 0
-  fixture.request.mockImplementation(async (document: string) => ({ data: document === 'nearbyDevices' ? { nearbyDevices: [] } : {} }))
+  fixture.request.mockImplementation(async (document: string) => ({ data: document === 'nearbyDevices' ? { nearbyDevices: [], mdnsState: { scanning: true, receiver: true } } : {} }))
   fixture.bind.mockReturnValue(fixture.request)
 })
 afterEach(() => vi.useRealTimers())
@@ -45,7 +50,7 @@ it('balances an in-flight old view against its original transport before startin
     if (document === 'acquireDiscovery') await blocked
     return { data: {} }
   })
-  const newClient = vi.fn(async (document: string) => ({ data: document === 'nearbyDevices' ? { nearbyDevices: [] } : {} }))
+  const newClient = vi.fn(async (document: string) => ({ data: document === 'nearbyDevices' ? { nearbyDevices: [], mdnsState: { scanning: true, receiver: true } } : {} }))
   fixture.bind.mockReturnValueOnce(oldClient).mockReturnValueOnce(newClient)
   const { useDeviceDiscovery } = await import('../../src/hooks/use-device-discovery')
   const view = useDeviceDiscovery()
@@ -67,7 +72,7 @@ it('reconnect restores only active views without an interval that resurrects clo
   await first.start()
   await second.start()
   await first.stop()
-  fixture.listeners.get('app_socket_connection_changed')!(true)
+  fixture.subscriptions.get('attached')!()
   await vi.waitFor(() => expect(fixture.request.mock.calls.filter(([document]) => document === 'acquireDiscovery')).toHaveLength(3))
   expect(fixture.request.mock.calls.filter(([document]) => document === 'acquireDiscovery').at(-1)![1].token).toBe('view-2')
   await second.stop()
@@ -75,14 +80,49 @@ it('reconnect restores only active views without an interval that resurrects clo
 
 it('restores pending pairing from the same discovery snapshot and projects terminal states', async () => {
   const device = { id: 'peer', name: 'Fixture', status: 'UNPAIRED' }
-  fixture.request.mockImplementation(async (document: string) => ({ data: document === 'nearbyDevices' ? { nearbyDevices: [device], pairingStates: [{ deviceId: 'peer', generation: 'current', mode: 'CHAT', phase: 'PAIRING', error: null }] } : {} }))
+  fixture.request.mockImplementation(async (document: string) => ({ data: document === 'nearbyDevices' ? { nearbyDevices: [device], mdnsState: { scanning: true, receiver: true }, pairingStates: [{ deviceId: 'peer', generation: 'current', mode: 'CHAT', phase: 'PAIRING', error: null }] } : {} }))
   const { useDeviceDiscovery } = await import('../../src/hooks/use-device-discovery')
   const view = useDeviceDiscovery()
   await view.start()
   expect(view.devices.value[0].status).toBe('PAIRING')
   fixture.listeners.get('PAIRING_FAILED')!({ deviceId: 'peer' })
   expect(view.devices.value[0].status).toBe('PAIRING')
-  fixture.listeners.get('PAIRING_STATE_CHANGED')!({ deviceId: 'peer', generation: 'current', mode: 'CHAT', phase: 'FAILED', error: 'failed' })
-  expect(view.devices.value[0].status).toBe('UNPAIRED')
+  fixture.request.mockImplementation(async (document: string) => ({ data: document === 'nearbyDevices' ? { nearbyDevices: [device], mdnsState: { scanning: true, receiver: true }, pairingStates: [{ deviceId: 'peer', generation: 'current', mode: 'CHAT', phase: 'FAILED', error: 'failed' }] } : {} }))
+  fixture.subscriptions.get('pairingChanged')!(true)
+  await vi.waitFor(() => expect(view.devices.value[0].status).toBe('UNPAIRED'))
+  await view.stop()
+})
+
+it('refreshes the discovery snapshot for subscription events without reacquiring', async () => {
+  const { useDeviceDiscovery, DiscoveryStatus } = await import('../../src/hooks/use-device-discovery')
+  const view = useDeviceDiscovery()
+  await view.start()
+  fixture.request.mockImplementation(async (document: string) => ({ data: document === 'nearbyDevices'
+    ? { nearbyDevices: [{ id: 'found', status: 'UNPAIRED' }], mdnsState: { scanning: true, receiver: true } }
+    : {} }))
+  fixture.subscriptions.get('nearbyDevicesChanged')!(true)
+  await vi.waitFor(() => expect(view.devices.value[0]?.id).toBe('found'))
+  expect(view.status.value).toBe(DiscoveryStatus.OK)
+  expect(fixture.request.mock.calls.filter(([document]) => document === 'acquireDiscovery')).toHaveLength(1)
+  await view.stop()
+})
+
+it('coalesces discovery changes while a snapshot is in flight', async () => {
+  const { useDeviceDiscovery } = await import('../../src/hooks/use-device-discovery')
+  const view = useDeviceDiscovery()
+  await view.start()
+  let finish!: () => void
+  const blocked = new Promise<void>(resolve => { finish = resolve })
+  fixture.request.mockImplementation(async (document: string) => {
+    if (document === 'nearbyDevices') await blocked
+    return { data: document === 'nearbyDevices' ? { nearbyDevices: [], mdnsState: { scanning: true, receiver: true } } : {} }
+  })
+  const changed = fixture.subscriptions.get('nearbyDevicesChanged')!
+  changed(true)
+  await vi.waitFor(() => expect(fixture.request.mock.calls.filter(([document]) => document === 'nearbyDevices')).toHaveLength(2))
+  changed(true)
+  changed(true)
+  finish()
+  await vi.waitFor(() => expect(fixture.request.mock.calls.filter(([document]) => document === 'nearbyDevices')).toHaveLength(3))
   await view.stop()
 })

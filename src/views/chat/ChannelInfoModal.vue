@@ -38,14 +38,14 @@ v-for="peer in availablePeers" :key="peer.id" :member="{ peerId: peer.id, name: 
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, computed, onMounted, onUnmounted } from 'vue'
+import { ref, reactive, computed, watch } from 'vue'
 import type { PropType } from 'vue'
 import type { IChatChannel, IPeer } from '@/lib/interfaces'
 import { MemberStatus, PeerStatus } from '@/lib/status'
 import { popModal } from '@/components/modal'
 import { initMutation, addChatChannelMemberGQL, removeChatChannelMemberGQL } from '@/lib/api/mutation'
 import { useTempStore } from '@/stores/temp'
-import emitter from '@/plugins/eventbus'
+import { useChatStore } from '@/stores/chat'
 import type { IChannelMemberListItem } from './components/ChannelMemberListItem.vue'
 
 const props = defineProps({
@@ -84,13 +84,10 @@ const { mutate: mutateRemoveMember, onDone: onRemoveMemberDone } = initMutation(
 onAddMemberDone((r: any) => { if (r.data?.addChatChannelMember) channel.value = { ...r.data.addChatChannelMember }; props.onMemberUpdated() })
 onRemoveMemberDone((r: any) => { if (r.data?.removeChatChannelMember) channel.value = { ...r.data.removeChatChannelMember }; props.onMemberUpdated() })
 
-function onChannelsUpdated(list: any[]) {
-  const updated = list?.find((c: any) => c.id === channel.value.id)
+const chatStore = useChatStore()
+watch(() => chatStore.findChannel(channel.value.id), (updated) => {
   if (updated) channel.value = { ...updated }
-}
-
-onMounted(() => { emitter.on('CHANNELS_UPDATED', onChannelsUpdated) })
-onUnmounted(() => { emitter.off('CHANNELS_UPDATED', onChannelsUpdated) })
+})
 
 const pendingIds = reactive(new Set<string>())
 

@@ -5,6 +5,7 @@ import { storeToRefs } from 'pinia'
 import toast from '@/components/toaster'
 import { useI18n } from 'vue-i18n'
 import emitter from '@/plugins/eventbus'
+import { graphqlSubscriptions } from '@/lib/api/subscription-client'
 import { setLocalServerPort, setLocalServerHttpsPort } from '@/lib/api/api'
 import { buildUrl } from '@/lib/url'
 import type { VSelectOption } from '@/components/base/VSelect.vue'
@@ -39,8 +40,9 @@ export function useHttpServer() {
     }
   }
 
-  emitter.on('NETWORK_CHANGED', loadIps)
-  onUnmounted(() => emitter.off('NETWORK_CHANGED', loadIps))
+  const stopNetworkChanges = graphqlSubscriptions.subscribe('networkChanged', loadIps)
+  const stopAttached = graphqlSubscriptions.onAttached(() => { void loadIps() })
+  onUnmounted(() => { stopNetworkChanges(); stopAttached() })
 
   async function savePort(kind: 'http' | 'https', port: number): Promise<boolean> {
     if (!__IS_TAURI__) return false

@@ -676,6 +676,24 @@ export interface GqlOperations {
       generation: string
     }
   }
+  channelsChangedSubscription: {
+    result: {
+      channelsChanged: {
+        changed: boolean
+        invite?: {
+          channelId: string
+          channelName: string
+          ownerPeerId: string
+          ownerPeerName: string
+        }
+        cancel?: {
+          channelId: string
+          ownerPeerId: string
+        }
+      }
+    }
+    variables: undefined
+  }
   chatChannelsGQL: {
     result: {
       chatChannels: Array<Fragment_ChatChannelFragment>
@@ -1234,6 +1252,12 @@ export interface GqlOperations {
       peerId: string
     }
   }
+  downloadsChangedSubscription: {
+    result: {
+      downloadsChanged: boolean
+    }
+    variables: undefined
+  }
   enableImageSearchGQL: {
     result: {
       enableImageSearch: boolean
@@ -1564,6 +1588,12 @@ export interface GqlOperations {
     }
     variables: undefined
   }
+  mdnsChangedSubscription: {
+    result: {
+      mdnsChanged: boolean
+    }
+    variables: undefined
+  }
   mediaBucketsGQL: {
     result: {
       mediaBuckets: Array<{
@@ -1738,6 +1768,12 @@ export interface GqlOperations {
       destDir: string
     }
   }
+  nearbyDevicesChangedSubscription: {
+    result: {
+      nearbyDevicesChanged: boolean
+    }
+    variables: undefined
+  }
   nearbyDevicesGQL: {
     result: {
       nearbyDevices: Array<{
@@ -1760,6 +1796,16 @@ export interface GqlOperations {
         phase: string
         error?: string
       }>
+      mdnsState: {
+        scanning: boolean
+        receiver: boolean
+      }
+    }
+    variables: undefined
+  }
+  networkChangedSubscription: {
+    result: {
+      networkChanged: boolean
     }
     variables: undefined
   }
@@ -1921,6 +1967,70 @@ export interface GqlOperations {
       input: unknown
     }
   }
+  pairingCanceledSubscription: {
+    result: {
+      pairingCanceled: {
+        deviceId: string
+        deviceName: string
+        error?: string
+      }
+    }
+    variables: undefined
+  }
+  pairingChangedSubscription: {
+    result: {
+      pairingChanged: boolean
+    }
+    variables: undefined
+  }
+  pairingCompletedSubscription: {
+    result: {
+      pairingCompleted: {
+        deviceId: string
+        deviceName: string
+        ip: string
+      }
+    }
+    variables: undefined
+  }
+  pairingFailedSubscription: {
+    result: {
+      pairingFailed: {
+        deviceId: string
+        deviceName: string
+        error?: string
+      }
+    }
+    variables: undefined
+  }
+  pairingRequestedSubscription: {
+    result: {
+      pairingRequested: {
+        fromId: string
+        fromName: string
+        port: number
+        deviceType: string
+        ecdhPublicKey: string
+        signaturePublicKey: string
+        timestamp: number
+        ips: Array<string>
+        signature: string
+        fromIp: string
+        awareSupported: boolean
+      }
+    }
+    variables: undefined
+  }
+  pairingStartedSubscription: {
+    result: {
+      pairingStarted: {
+        deviceId: string
+        deviceName: string
+        error?: string
+      }
+    }
+    variables: undefined
+  }
   pauseDownloadGQL: {
     result: {
       pauseDownload: boolean
@@ -1957,6 +2067,12 @@ export interface GqlOperations {
       peerClipboardChanged: {
         peerId: string
       }
+    }
+    variables: undefined
+  }
+  peersChangedSubscription: {
+    result: {
+      peersChanged: boolean
     }
     variables: undefined
   }
@@ -2047,6 +2163,12 @@ export interface GqlOperations {
         showNotification: boolean
         playSoundOnComplete: boolean
       }
+    }
+    variables: undefined
+  }
+  preferencesChangedSubscription: {
+    result: {
+      preferencesChanged: boolean
     }
     variables: undefined
   }

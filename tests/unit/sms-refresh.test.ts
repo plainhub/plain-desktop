@@ -6,6 +6,12 @@ vi.mock('@/lib/api/subscription-client', () => ({ graphqlSubscriptions: {
     listeners.add(callback)
     return () => listeners.delete(callback)
   },
+  onAttached: (callback: () => void) => {
+    const listeners = subscriptionMock.listeners.get('attached') ?? new Set()
+    subscriptionMock.listeners.set('attached', listeners)
+    listeners.add(callback)
+    return () => listeners.delete(callback)
+  },
 } }))
 function publish(field: string, value: unknown) {
   for (const callback of subscriptionMock.listeners.get(field) ?? []) callback(value)
@@ -57,4 +63,18 @@ it('cancels pending UI refresh and unsubscribes from change hints when the view 
   publish('smsProviderChanged', { uris: [] })
   await vi.advanceTimersByTimeAsync(60_000)
   expect(refresh).not.toHaveBeenCalled()
+})
+
+it('refreshes and reconnects when the GraphQL subscription reattaches', () => {
+  const refresh = vi.fn()
+  const reconnect = vi.fn()
+  const subscription = createSmsNotificationRefresh(refresh, reconnect)
+  stop = subscription.unsubscribe
+  subscription.subscribe()
+  publish('attached', undefined)
+  expect(refresh).toHaveBeenCalledOnce()
+  expect(reconnect).toHaveBeenCalledOnce()
+  subscription.unsubscribe()
+  publish('attached', undefined)
+  expect(refresh).toHaveBeenCalledOnce()
 })

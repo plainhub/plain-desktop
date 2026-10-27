@@ -4,13 +4,11 @@ import type { PairingRequest, PairingResult } from '@/lib/pairing-types'
 import type { IUploadItem } from '@/stores/temp'
 
 type Events = {
-  NETWORK_CHANGED: Record<string, never>
   HTTP_SERVER_STARTED: HttpServerStarted
   upload_task_done: IUploadItem
   upload_progress: IUploadItem
   refetch_app: undefined
   refetch_favorite_folders: undefined
-  PREFS_UPDATED: undefined
   do_play_audio: undefined
   pause_audio: undefined
   item_tags_updated: IItemTagsUpdatedEvent
@@ -29,10 +27,6 @@ type Events = {
   screen_socket_connection_changed: boolean
   SCREEN_MIRROR_VIDEO: Uint8Array
   SCREEN_MIRROR_AUDIO: Uint8Array
-  DOWNLOAD_PROGRESS: any[]
-  CHANNELS_UPDATED: any[]
-  PEER_UPDATED: { id: string }
-  PEER_STATUS_UPDATED: { id: string, online: boolean }
   CHANNEL_INVITE_RECEIVED: { channelId: string, channelName: string, fromId: string, fromName: string }
   sms_sent: undefined
   PAIRING_REQUEST_RECEIVED: PairingRequest
@@ -40,16 +34,8 @@ type Events = {
   PAIRING_FAILED: PairingResult
   PAIRING_CANCELED: PairingResult
   PAIRING_STARTED: PairingResult
-  PAIRING_STATE_CHANGED: import('@/lib/device/pairing').PairingState
-  NEARBY_DEVICE_FOUND: any
-  NEARBY_DEVICE_UNREACHABLE: { id: string }
-  NEARBY_DISCOVERY_STARTED: undefined
-  NEARBY_DISCOVERY_STOPPED: { reason?: string } | undefined
   IMAGE_EDITOR_UPDATE: ArrayBuffer
   peer_notifications_updated: import('@/lib/peer/local-peer-data').PeerNotificationUpdate
-  FILE_TASK_PROGRESS: any
-  DLNA_RENDERER_FOUND: any
-  DLNA_DISCOVERY_DONE: any
 }
 
 type Handler<T = any> = (event: T) => void

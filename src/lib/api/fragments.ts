@@ -458,5 +458,5 @@ export const chatChannelFragment = `
     createdAt
     updatedAt
   }
-  ${chatChannelMemberFragment}
+${chatChannelMemberFragment}
 `

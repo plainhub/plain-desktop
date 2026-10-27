@@ -100,22 +100,23 @@ export const useChatStore = defineStore('chat', () => {
     }))
   }
 
-  emitter.on('CHANNELS_UPDATED', (data: any[]) => {
-    if (!data) return
-    const list = data.map((c: any) => ({ ...c }) as IChatChannel)
-    channelCacher.replaceChannels(list)
-    setCached<IChatChannel[]>('chat:channels', channelCacher.channels.value)
+  graphqlSubscriptions.subscribe('channelsChanged', (change) => {
+    if (change.changed) void fetchChannels()
+    if (change.invite) {
+      emitter.emit('CHANNEL_INVITE_RECEIVED', {
+        channelId: change.invite.channelId,
+        channelName: change.invite.channelName,
+        fromId: change.invite.ownerPeerId,
+        fromName: change.invite.ownerPeerName,
+      })
+    }
   })
+  graphqlSubscriptions.onAttached(() => { void fetchChannels() })
 
-  emitter.on('PEER_UPDATED', () => {
+  graphqlSubscriptions.subscribe('peersChanged', () => {
     void peerCacher.load().then(() => setCached<IPeer[]>('chat:peers', peersCacheValue()))
   })
-
-  emitter.on('PEER_STATUS_UPDATED', (data) => {
-    if (!data?.id) return
-    peerCacher.setOnline(data.id, !!data.online)
-    setCached<IPeer[]>('chat:peers', peersCacheValue())
-  })
+  graphqlSubscriptions.onAttached(() => { void peerCacher.load().then(() => setCached<IPeer[]>('chat:peers', peersCacheValue())) })
 
   emitter.on('CHANNEL_INVITE_RECEIVED', (data) => {
     if (!data?.channelId) return

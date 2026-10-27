@@ -1,5 +1,4 @@
 import { graphqlSubscriptions } from '@/lib/api/subscription-client'
-import emitter from '@/plugins/eventbus'
 
 export const SMS_NOTIFICATION_REFRESH_DELAY_MS = 500
 const MAX_REFRESH_DELAY_MS = 2000
@@ -15,6 +14,7 @@ export function createSmsNotificationRefresh(refresh: () => void | Promise<unkno
 
   let stopMmsSent: (() => void) | undefined
   let stopSmsProviderChanged: (() => void) | undefined
+  let stopAttached: (() => void) | undefined
 
   function finishRefresh() {
     refreshing = false
@@ -69,11 +69,9 @@ export function createSmsNotificationRefresh(refresh: () => void | Promise<unkno
     if (document.visibilityState === 'visible') handleSmsChanged()
   }
 
-  function handleConnectionChanged(connected: boolean) {
-    if (connected) {
-      refreshOnce()
-      reconnect?.()
-    }
+  function handleConnectionChanged() {
+    refreshOnce()
+    reconnect?.()
   }
 
   function handleMmsSent() {
@@ -85,7 +83,7 @@ export function createSmsNotificationRefresh(refresh: () => void | Promise<unkno
     subscribed = true
     stopSmsProviderChanged = graphqlSubscriptions.subscribe('smsProviderChanged', handleSmsChanged)
     stopMmsSent = graphqlSubscriptions.subscribe('mmsSent', handleMmsSent)
-    emitter.on('app_socket_connection_changed', handleConnectionChanged)
+    stopAttached = graphqlSubscriptions.onAttached(handleConnectionChanged)
     document.addEventListener('visibilitychange', handleResume)
     window.addEventListener('focus', handleResume)
     window.addEventListener('online', handleResume)
@@ -100,7 +98,7 @@ export function createSmsNotificationRefresh(refresh: () => void | Promise<unkno
     refreshQueued = false
     stopSmsProviderChanged?.()
     stopMmsSent?.()
-    emitter.off('app_socket_connection_changed', handleConnectionChanged)
+    stopAttached?.()
     document.removeEventListener('visibilitychange', handleResume)
     window.removeEventListener('focus', handleResume)
     window.removeEventListener('online', handleResume)

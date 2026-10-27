@@ -69,7 +69,8 @@ export function useImageEditorCore() {
   scheduleSaveAdapter = scheduleSave
   clearProjectAdapter = clearProject
 
-  const transport = new EventSyncTransport(() => projectId.value)
+  const transport = new EventSyncTransport(() => projectId.value, () => doc.getStateUpdate())
+  const stopProjectSync = watch(projectId, () => transport.resynchronize())
   const onDocumentUpdate = (update: Uint8Array, origin: unknown) => {
     if (origin === 'remote' || origin === 'load') return
     transport.broadcastUpdate(update)
@@ -124,6 +125,7 @@ export function useImageEditorCore() {
     document.body.style.left = ''
     document.body.style.right = ''
     stopAutosave()
+    stopProjectSync()
     doc.ydoc.off('update', onDocumentUpdate)
     stopTransportUpdates()
     transport.destroy()

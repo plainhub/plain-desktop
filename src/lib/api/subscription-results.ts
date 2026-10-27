@@ -8,6 +8,23 @@ type ChatSubscriptionItem = Pick<IChatItem, 'id' | 'fromId' | 'toId' | 'channelI
 }
 
 export interface SubscriptionResults {
+  networkChanged: boolean
+  pairingChanged: boolean
+  pairingRequested: import('@/lib/pairing-types').PairingRequest
+  pairingStarted: { deviceId: string; deviceName: string; error: string | null }
+  pairingFailed: { deviceId: string; deviceName: string; error: string | null }
+  pairingCanceled: { deviceId: string; deviceName: string; error: string | null }
+  channelsChanged: {
+    changed: boolean
+    invite: { channelId: string; channelName: string; ownerPeerId: string; ownerPeerName: string } | null
+    cancel: { channelId: string; ownerPeerId: string } | null
+  }
+  peersChanged: boolean
+  pairingCompleted: { deviceId: string; deviceName: string; ip: string }
+  downloadsChanged: boolean
+  preferencesChanged: boolean
+  mdnsChanged: boolean
+  nearbyDevicesChanged: boolean
   pomodoroAction: {
     today: {
       date: string

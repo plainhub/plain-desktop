@@ -10,9 +10,10 @@ import { MessageType } from '@/lib/status'
 import { formatFileSize } from '@/lib/format'
 import { getVideoData, getImageData, isVideo } from '@/lib/file'
 import { gqlFetch } from '@/lib/api/gql-client'
+import { graphqlSubscriptions } from '@/lib/api/subscription-client'
 import { downloadPeerFileGQL, pauseDownloadGQL, resumeDownloadGQL, retryDownloadGQL } from '@/lib/api/mutation'
 import emitter from '@/plugins/eventbus'
-import { projectChatDownloadProgress, type ChatDownloadProgress } from '../chat-download-progress'
+import { projectChatDownloadProgress, type ChatDownloadProgress, type ChatDownloadProgressItem } from '../chat-download-progress'
 
 export function messageNeedsDownload(item: IChatItem): boolean {
   const items = item._content?.value?.items
@@ -255,8 +256,38 @@ export function useChatUpload(chatId: ComputedRef<string>, channelId: ComputedRe
 
   // Event bus handlers
   const handlers: Record<string, (...args: any[]) => any> = {}
+  let stopDownloads: (() => void) | undefined
+  let stopDownloadsAttached: (() => void) | undefined
+  let downloadsPending = false
+  let downloadsRefreshing = false
+  let downloadsActive = false
+
+  async function refreshDownloads() {
+    downloadsPending = true
+    if (downloadsRefreshing) return
+    downloadsRefreshing = true
+    try {
+      while (downloadsPending && downloadsActive) {
+        downloadsPending = false
+        const result = await gqlFetch<{ chatDownloadQueue: { tasks: ChatDownloadProgressItem[] } }>(
+          'query ChatDownloadProgress { chatDownloadQueue { tasks { messageId downloaded total speed status } } }',
+          undefined,
+          { fresh: true },
+        )
+        if (result.errors?.length) throw new Error(result.errors[0].message)
+        if (!downloadsActive) return
+        const { active, finished } = projectChatDownloadProgress(result.data.chatDownloadQueue.tasks, Object.keys(downloadProgress))
+        for (const messageId of finished) submittedDownloads.delete(messageId)
+        Object.keys(downloadProgress).forEach((key) => delete downloadProgress[key])
+        Object.assign(downloadProgress, active)
+      }
+    } finally {
+      downloadsRefreshing = false
+    }
+  }
 
   onMounted(() => {
+    downloadsActive = true
     handlers.upload_progress = (u: IUploadItem) => {
       const mid = uploadToMessage.get(u.id)
       if (!mid) return
@@ -269,16 +300,15 @@ export function useChatUpload(chatId: ComputedRef<string>, channelId: ComputedRe
     }
     emitter.on('upload_progress', handlers.upload_progress)
 
-    handlers.download_progress = (items: any[]) => {
-      const { active, finished } = projectChatDownloadProgress(items, Object.keys(downloadProgress))
-      for (const messageId of finished) submittedDownloads.delete(messageId)
-      Object.keys(downloadProgress).forEach((k) => delete downloadProgress[k])
-      Object.assign(downloadProgress, active)
-    }
-    emitter.on('DOWNLOAD_PROGRESS', handlers.download_progress)
+    stopDownloads = graphqlSubscriptions.subscribe('downloadsChanged', refreshDownloads)
+    stopDownloadsAttached = graphqlSubscriptions.onAttached(() => { void refreshDownloads().catch(console.error) })
+    void refreshDownloads().catch(console.error)
   })
 
   onUnmounted(() => {
+    downloadsActive = false
+    stopDownloads?.()
+    stopDownloadsAttached?.()
     Object.entries(handlers).forEach(([event, fn]) => emitter.off(event as any, fn))
     for (const messageId of [...activeMessageIds]) {
       cancelTask(messageId)

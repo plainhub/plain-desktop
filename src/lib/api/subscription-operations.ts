@@ -8,6 +8,19 @@ export interface SubscriptionOperation {
   localOnly?: boolean
 }
 export const subscriptionOperations: readonly SubscriptionOperation[] = [
+  {field: 'networkChanged', document: 'subscription { networkChanged }', permissions: [], localOnly: true},
+  {field: 'pairingChanged', document: 'subscription { pairingChanged }', permissions: []},
+  {field: 'pairingRequested', document: 'subscription { pairingRequested { fromId fromName port deviceType ecdhPublicKey signaturePublicKey timestamp ips signature fromIp awareSupported } }', permissions: []},
+  {field: 'pairingStarted', document: 'subscription { pairingStarted { deviceId deviceName error } }', permissions: []},
+  {field: 'pairingFailed', document: 'subscription { pairingFailed { deviceId deviceName error } }', permissions: []},
+  {field: 'pairingCanceled', document: 'subscription { pairingCanceled { deviceId deviceName error } }', permissions: []},
+  {field: 'channelsChanged', document: 'subscription { channelsChanged { changed invite { channelId channelName ownerPeerId ownerPeerName } cancel { channelId ownerPeerId } } }', permissions: []},
+  {field: 'peersChanged', document: 'subscription { peersChanged }', permissions: []},
+  {field: 'pairingCompleted', document: 'subscription { pairingCompleted { deviceId deviceName ip } }', permissions: []},
+  {field: 'downloadsChanged', document: 'subscription { downloadsChanged }', permissions: []},
+  {field: 'preferencesChanged', document: 'subscription { preferencesChanged }', permissions: []},
+  {field: 'mdnsChanged', document: 'subscription { mdnsChanged }', permissions: []},
+  {field: 'nearbyDevicesChanged', document: 'subscription { nearbyDevicesChanged }', permissions: []},
   {field: 'pomodoroAction', document: 'subscription { pomodoroAction { today { date state timeLeftSec totalTimeSec completedCount currentRound isRunning isPaused } completedState } }', permissions: []},
   {field: 'pomodoroSettingsChanged', document: 'subscription { pomodoroSettingsChanged }', permissions: []},
   {field: 'imageModelsUpdated', document: 'subscription { imageModelsUpdated { version status downloadProgress errorMessage modelSize modelDir isIndexing totalImages indexedImages } }', permissions: []},

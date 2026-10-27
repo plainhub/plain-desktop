@@ -22,6 +22,11 @@ export class SubscriptionClient {
   private consumers = new Map<SubscriptionField, Set<(data: unknown) => void | Promise<unknown>>>()
   private available: readonly SubscriptionOperation[] = []
   private attachments = new Set<() => void>()
+  private connectionListeners = new Set<(connected: boolean | null) => void>()
+  onConnectionChange(listener: (connected: boolean | null) => void): () => void {
+    this.connectionListeners.add(listener)
+    return () => { this.connectionListeners.delete(listener) }
+  }
   subscribe<K extends SubscriptionField>(field: K, next: (data: SubscriptionResults[K]) => void | Promise<unknown>): () => void {
     const consumers = this.consumers.get(field) ?? new Set<(data: unknown) => void | Promise<unknown>>()
     this.consumers.set(field, consumers)
@@ -90,6 +95,7 @@ export class SubscriptionClient {
         opened: () => {
           if (generation !== this.generation) return
           this.acknowledged = true
+          for (const listener of this.connectionListeners) listener(true)
           this.failures = 0
           this.pending.clear()
           this.ids.clear()
@@ -133,6 +139,7 @@ export class SubscriptionClient {
     this.generation++
     this.connection?.close()
     this.acknowledged = false
+    for (const listener of this.connectionListeners) listener(false)
     this.connection = undefined
     this.pending.clear()
     this.ids.clear()
@@ -140,6 +147,7 @@ export class SubscriptionClient {
   }
   stop() {
     this.active = false
+    for (const listener of this.connectionListeners) listener(null)
     this.generation++
     clearTimeout(this.retry)
     this.acknowledged = false

@@ -3,7 +3,7 @@ import { gqlFetch } from '@/lib/api/gql-client'
 import { prefsGQL } from '@/lib/api/query'
 import { setPrefGQL } from '@/lib/api/mutation'
 import { debounce } from '@/lib/array'
-import emitter from '@/plugins/eventbus'
+import { graphqlSubscriptions } from '@/lib/api/subscription-client'
 import { applySnapshot } from '@/lib/prefs'
 import type { useMainStore } from '@/stores/main'
 
@@ -38,7 +38,8 @@ export function useRemotePrefs(store: ReturnType<typeof useMainStore>) {
     }
   }
   void refresh()
-  emitter.on('PREFS_UPDATED', refresh)
-  onUnmounted(() => emitter.off('PREFS_UPDATED', refresh))
+  const stop = graphqlSubscriptions.subscribe('preferencesChanged', refresh)
+  const stopAttached = graphqlSubscriptions.onAttached(refresh)
+  onUnmounted(() => { stop(); stopAttached() })
   return enabled
 }

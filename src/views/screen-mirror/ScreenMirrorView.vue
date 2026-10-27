@@ -148,6 +148,7 @@ service.setPipeline(() => {
 let stopScreenMirrorAudioGranted: (() => void) | undefined
 let stopScreenMirrorState: (() => void) | undefined
 let stopScreenMirrorVideoCodec: (() => void) | undefined
+let stopSubscriptionAttached: (() => void) | undefined
 
 onUnmounted(() => {
   cleanup()
@@ -209,7 +210,7 @@ onActivated(() => {
   if (isNativeTarget()) emitter.on('SCREEN_MIRROR_VIDEO', pipeline.handleVideo)
   if (isNativeTarget()) emitter.on('SCREEN_MIRROR_AUDIO', pipeline.handleAudio)
   stopScreenMirrorVideoCodec = graphqlSubscriptions.subscribe('screenMirrorVideoCodec', pipeline.handleConfig)
-  emitter.on('app_socket_connection_changed', service.onSocketReconnect)
+  stopSubscriptionAttached = graphqlSubscriptions.onAttached(() => service.onSocketReconnect(true))
   stopScreenMirrorAudioGranted = graphqlSubscriptions.subscribe('screenMirrorAudioGranted', service.onAudioGranted)
   document.addEventListener('fullscreenchange', media.onFullscreenChange)
   media.attachFullscreenListener()
@@ -222,7 +223,7 @@ onDeactivated(() => {
   emitter.off('SCREEN_MIRROR_VIDEO', pipeline.handleVideo)
   emitter.off('SCREEN_MIRROR_AUDIO', pipeline.handleAudio)
   stopScreenMirrorVideoCodec?.()
-  emitter.off('app_socket_connection_changed', service.onSocketReconnect)
+  stopSubscriptionAttached?.()
   stopScreenMirrorAudioGranted?.()
   document.removeEventListener('fullscreenchange', media.onFullscreenChange)
   media.detachFullscreenListener()
