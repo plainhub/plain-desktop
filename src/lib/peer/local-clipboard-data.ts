@@ -1,3 +1,4 @@
+import { isLocalMode } from '@/lib/device/local-mode'
 import { ref, watch } from 'vue'
 import { Channel, invoke } from '@tauri-apps/api/core'
 import type { IClipboardItem } from '@/lib/interfaces'
@@ -6,8 +7,7 @@ import { clipboardItemFragment } from '@/lib/api/fragments'
 import { deleteClipboardItemsGQL } from '@/lib/api/mutation'
 import { gqlFetchPeer } from '@/lib/api/peer-client'
 import { findLoginPeer, loginPeers } from '@/lib/device/login-peers'
-import { isLocalMode } from '@/lib/device/local-mode'
-import { get as prefsGet, set as prefsSet } from '@/lib/prefs'
+import { get as prefsGet, set as prefsSet } from '@/lib/prefs/core'
 import { useMainStore } from '@/stores/main'
 
 const DIRECTIONS_PREF_KEY = 'clipboard_directions'
@@ -135,7 +135,7 @@ export function setPeerClipboardDirection(peerId: string, direction: ClipboardDi
 
 /** Idempotent bootstrap — call once from the app root in local mode. */
 export function startLocalClipboardData() {
-  if (started || !__IS_TAURI__ || !isLocalMode()) return
+  if (started || !isLocalMode()) return
   started = true
 
   void (async () => {

@@ -1,4 +1,5 @@
-import { getApiBaseUrl, getApiHeaders, getLocalToken, isNativeTarget } from './api'
+import { isLocalMode } from '@/lib/device/local-mode'
+import { getApiBaseUrl, getApiHeaders } from './api'
 import { chachaEncrypt, chachaDecrypt, httpResponseAad, arrayBufferToBitArray, bitArrayToUint8Array } from './crypto'
 import { tokenToKey } from './file'
 import { wrapWithReplayProtection } from './time-sync'
@@ -6,7 +7,6 @@ import { getCurrentAuthToken, clearCurrentSession } from '../device/current'
 import { getActiveClientId } from '../device/client-id'
 import { httpRequest } from './http'
 import { nativeGraphql } from './native-client'
-import { isLocalMode } from '../device/local-mode'
 import type { GqlOperationName, GqlResultType, GqlVariablesType } from './graphql/operations'
 
 const TIMEOUT = 30000
@@ -37,12 +37,12 @@ export interface GqlFetchOptions {
 }
 
 function graphqlContext() {
-  const native = isNativeTarget()
+  const native = isLocalMode()
   return {
     native,
     clientId: getActiveClientId(),
     url: native ? '' : `${getApiBaseUrl()}/graphql`,
-    token: native ? '' : isLocalMode() ? getLocalToken() : getCurrentAuthToken(),
+    token: native ? '' : getCurrentAuthToken(),
     headers: { ...getApiHeaders() },
   }
 }
@@ -192,10 +192,8 @@ async function doGqlFetch<T = any>(context: ReturnType<typeof graphqlContext>, q
   try {
     return await encryptedGqlPost<T>(context.url, context.token, query, variables, timeout, context.headers)
   } catch (e) {
-    // Web-mode 401: drop the stored session and hard-reload. Tauri is
-    // excluded — local mode has no device session, so a reload would loop.
-    if (e instanceof GqlError && e.status === 401 && !__IS_TAURI__ && JSON.stringify(context) === getGraphqlContextKey()) {
-      clearCurrentSession()
+    if (e instanceof GqlError && e.status === 401 && !context.native && JSON.stringify(context) === getGraphqlContextKey()) {
+      await clearCurrentSession()
       window.location.reload()
     }
     throw e

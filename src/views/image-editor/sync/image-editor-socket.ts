@@ -1,12 +1,11 @@
+import { isLocalMode } from '@/lib/device/local-mode'
 import { getLocalToken, getWebSocketBaseUrl } from '@/lib/api/api'
 import { chachaEncrypt, bitArrayToUint8Array } from '@/lib/api/crypto'
 import { tokenToKey } from '@/lib/api/file'
 import { openSocket } from '@/lib/api/http'
 import { EventStream } from '@/lib/api/websocket-events'
-import { getRemoteClientId } from '@/lib/device/client-id'
+import { getRemoteClientId, getDesktopClientId } from '@/lib/device/client-id'
 import { getCurrentAuthToken } from '@/lib/device/current'
-import { isLocalMode } from '@/lib/device/local-mode'
-import { get as prefsGet } from '@/lib/prefs'
 
 export class ImageEditorSocket {
   private socket: WebSocket | null = null
@@ -27,7 +26,7 @@ export class ImageEditorSocket {
     if (!token) return
     const key = tokenToKey(token)
     const url = new URL('/image_editor', getWebSocketBaseUrl())
-    url.searchParams.set('cid', prefsGet('client_id', ''))
+    url.searchParams.set('cid', getDesktopClientId())
     let socket: WebSocket
     try {
       socket = openSocket(url.toString(), local ? '' : getRemoteClientId())

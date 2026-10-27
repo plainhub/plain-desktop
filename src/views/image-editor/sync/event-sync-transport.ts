@@ -1,6 +1,6 @@
+import { isLocalMode } from '@/lib/device/local-mode'
 import * as Y from 'yjs'
 import emitter from '@/plugins/eventbus'
-import { isNativeTarget } from '@/lib/api/api'
 import { gqlFetch } from '@/lib/api/gql-client'
 import { arrayBufferToBase64 } from '@/lib/strutil'
 import { ImageEditorSocket } from './image-editor-socket'
@@ -37,7 +37,7 @@ export class EventSyncTransport implements SyncTransport {
   async connect(): Promise<void> {
     if (this.connectedState) return
     this.connectedState = true
-    if (isNativeTarget()) {
+    if (isLocalMode()) {
       emitter.on('IMAGE_EDITOR_UPDATE', this.onNativeUpdate)
       emitter.on('app_socket_connection_changed', this.onNativeConnection)
       this.synchronize()

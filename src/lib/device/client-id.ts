@@ -1,7 +1,19 @@
-import { get as prefsGet } from '@/lib/prefs'
+import { get as browserGet, set as browserSet } from '@/lib/prefs/browser'
+import { readNativeDeviceIdentity } from './native-settings'
+import { shortUUID } from '@/lib/strutil'
 
 const REMOTE_KEY = '__bound_client_id__'
 const WINDOW_ID_KEY = '__window_id__'
+
+let desktopClientId = ''
+
+export function ensureBrowserClientId(): void {
+  if (!browserGet('client_id', '')) browserSet('client_id', shortUUID())
+}
+
+export async function preloadClientIdentity(): Promise<void> {
+  desktopClientId = (await readNativeDeviceIdentity()).clientId
+}
 
 let cachedRemote: string | null | undefined
 let cachedWindowId: string | null
@@ -24,7 +36,7 @@ function writeSession(key: string, value: string): void {
 }
 
 export function getDesktopClientId(): string {
-  return prefsGet('client_id', '')
+  return __IS_TAURI__ ? desktopClientId : browserGet('client_id', '')
 }
 
 export function getRemoteClientId(): string {
@@ -46,10 +58,6 @@ export function clearRemoteClientId(): void {
 
 export function getActiveClientId(): string {
   return getRemoteClientId() || getDesktopClientId()
-}
-
-export function isLocalMode(): boolean {
-  return __IS_TAURI__ && !getRemoteClientId()
 }
 
 export function isLocalClientId(id: string): boolean {

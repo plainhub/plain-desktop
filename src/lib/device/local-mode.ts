@@ -1,7 +1,5 @@
-import { isLocalMode as _isLocalMode } from './current'
+import { getRemoteClientId } from './client-id'
 
-export { isLocalMode } from './current'
-
-export function isLocalModeAllowed(): boolean {
-  return __IS_TAURI__ && _isLocalMode()
+export function isLocalMode(): boolean {
+  return __IS_TAURI__ && !getRemoteClientId()
 }

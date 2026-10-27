@@ -1,8 +1,7 @@
+import { isLocalMode } from '@/lib/device/local-mode'
 import { getWebSocketBaseUrl, getLocalToken } from '@/lib/api/api'
 import { getCurrentAuthToken } from '@/lib/device/current'
-import { getRemoteClientId } from '@/lib/device/client-id'
-import { isLocalMode } from '@/lib/device/local-mode'
-import { get as prefsGet } from '@/lib/prefs'
+import { getRemoteClientId, getDesktopClientId } from '@/lib/device/client-id'
 import { openSocket } from '@/lib/api/http'
 import { tokenToKey } from '@/lib/api/file'
 import { chachaEncrypt, chachaEncryptBytes, bitArrayToUint8Array } from '@/lib/api/crypto'
@@ -32,7 +31,7 @@ export class ScreenMirrorSocket {
     }
     const key = tokenToKey(token)
     const url = new URL('/screen', getWebSocketBaseUrl())
-    url.searchParams.set('cid', prefsGet('client_id', ''))
+    url.searchParams.set('cid', getDesktopClientId())
     let socket: WebSocket
     try {
       socket = openSocket(url.toString(), local ? '' : getRemoteClientId())

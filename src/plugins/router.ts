@@ -1,9 +1,9 @@
+import { isLocalMode } from '@/lib/device/local-mode'
 import { createRouter, createWebHistory } from 'vue-router'
 import MainView from '@/views/MainView.vue'
 import type { MainState } from '@/stores/main'
 import i18n from '@/plugins/i18n'
 import { getCurrentAuthToken } from '@/lib/device/current'
-import { isLocalMode, isLocalModeAllowed } from '@/lib/device/local-mode'
 import { useMainStore } from '@/stores/main'
 import { useTempStore } from '@/stores/temp'
 import { findLoginPeer } from '@/lib/device/login-peers'
@@ -327,7 +327,7 @@ router.beforeEach(async (to, from) => {
   if (scrollTop !== undefined) {
     scrollTops.set(from.fullPath, scrollTop)
   }
-  const canAccess = getCurrentAuthToken() || isLocalModeAllowed()
+  const canAccess = getCurrentAuthToken() || isLocalMode()
 
   if (to.meta.requiresAuth && !canAccess) {
     return {

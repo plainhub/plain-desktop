@@ -139,6 +139,7 @@
 </template>
 
 <script setup lang="ts">
+import { isLocalMode } from '@/lib/device/local-mode'
 import { computed, onMounted, onUnmounted, ref } from 'vue'
 import { popModal } from './modal/methods'
 import DeviceDiscoveryStatus from './DeviceDiscoveryStatus.vue'
@@ -149,10 +150,9 @@ import { loginPeers, clearLoginPeer, peerHost, type LoginPeer } from '@/lib/devi
 import { sortByName } from '@/lib/array'
 import type { PendingLoginDevice } from '@/lib/api/api'
 import { DeviceType } from '@/lib/status'
-import { isLocalMode } from '@/lib/device/local-mode'
 import { getDesktopClientId, getRemoteClientId, setRemoteClientId, clearRemoteClientId } from '@/lib/device/client-id'
 import { loadSelfDevice, type SelfDevice } from '@/lib/device/self-device'
-import { remove as prefsRemove } from '@/lib/prefs'
+import { remove as prefsRemove } from '@/lib/prefs/browser'
 
 const { devices, status, start, stop, retry, openLanPermissionSettings } = useDeviceDiscovery()
 

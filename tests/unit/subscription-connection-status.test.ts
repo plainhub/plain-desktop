@@ -1,7 +1,7 @@
 import { expect, it, vi } from 'vitest'
 
 const mock = vi.hoisted(() => ({ callbacks: null as any, close: vi.fn() }))
-vi.mock('@/lib/api/api', () => ({ isNativeTarget: () => false }))
+vi.mock('@/lib/device/local-mode', () => ({ isLocalMode: () => false }))
 vi.mock('@/lib/api/subscription-connection', () => ({ openSubscriptionConnection: (callbacks: unknown) => {
   mock.callbacks = callbacks
   return { send: vi.fn(), close: mock.close }

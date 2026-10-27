@@ -58,11 +58,10 @@ import { sha512 } from '@/lib/api/crypto'
 import { setPendingLoginDevice, getPendingLoginDevice, clearPendingLoginDevice, getApiHost, getApiBaseUrl } from '@/lib/api/api'
 import { requestInit } from '@/lib/api/init'
 import { findLoginPeer, saveBrowserSession, preloadLoginPeers } from '@/lib/device/login-peers'
-import { getRemoteClientId, setRemoteClientId } from '@/lib/device/client-id'
+import { getRemoteClientId, setRemoteClientId, getDesktopClientId } from '@/lib/device/client-id'
 import { createPairing } from '@/lib/device/pairing'
 import { performLoginHandshake } from '@/lib/api/login-handshake'
 import { httpRequest } from '@/lib/api/http'
-import { get as prefsGet } from '@/lib/prefs'
 import { DeviceType } from '@/lib/status'
 
 let activePairing: ReturnType<typeof createPairing> | null = null
@@ -127,7 +126,7 @@ async function onSubmit() {
   showError.value = false; error.value = ''
 
   const hash = sha512(password.value)
-  const myClientId = prefsGet('client_id', '')
+  const myClientId = getDesktopClientId()
 
   // An uninitialized NAS stores the password via the documented REST call;
   // the handshake afterwards proves it and derives the session token.

@@ -1,7 +1,7 @@
 import { ref } from 'vue'
 import { initLazyQuery, chatConversationsGQL } from '@/lib/api/query'
 import type { IChatItem } from '@/lib/interfaces'
-import { get as prefsGet } from '@/lib/prefs'
+import { getDesktopClientId } from '@/lib/device/client-id'
 import { peerCacher } from './peer-cacher'
 import { channelCacher } from './channel-cacher'
 
@@ -20,7 +20,7 @@ export function normalizeChatItem(item: any): IChatItem {
 }
 
 export function getLocalClientId(): string {
-  return prefsGet('client_id', '')
+  return getDesktopClientId()
 }
 
 export function isLocalEndpoint(id: string, localClientId: string): boolean {

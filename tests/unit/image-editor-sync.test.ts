@@ -2,7 +2,7 @@ import { afterEach, expect, it, vi } from 'vitest'
 import * as Y from 'yjs'
 
 const mock = vi.hoisted(() => ({ listeners: new Map<string, Set<(value: any) => void>>(), dropChunk: false, failures: 0 }))
-vi.mock('@/lib/api/api', () => ({ isNativeTarget: () => true }))
+vi.mock('@/lib/device/local-mode', () => ({ isLocalMode: () => true }))
 vi.mock('@/plugins/eventbus', () => ({
   default: {
     on(name: string, handler: (value: any) => void) {

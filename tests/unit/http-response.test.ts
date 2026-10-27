@@ -11,13 +11,12 @@ vi.mock('@/lib/api/api', () => ({
   getApiBaseUrl: () => 'https://fixture.test',
   getApiHeaders: () => ({ 'c-id': 'fixture' }),
   getLocalToken: () => '',
-  isNativeTarget: () => false,
   getProxyUrl: (path: string) => path,
 }))
 vi.mock('@/lib/api/http', () => ({ httpRequest: vi.fn() }))
 vi.mock('@/lib/api/file', () => ({ tokenToKey: (token: string) => Buffer.from(token, 'base64') }))
 vi.mock('@/lib/api/time-sync', () => ({ wrapWithReplayProtection: (json: string) => `${Date.now()}|${randomUUID()}|${json}` }))
-vi.mock('@/lib/device/current', () => ({ getCurrentAuthToken: () => '', clearCurrentSession: vi.fn() }))
+vi.mock('@/lib/device/current', () => ({ getCurrentAuthToken: () => '', clearCurrentSession: vi.fn().mockResolvedValue(undefined) }))
 vi.mock('@/lib/device/client-id', () => ({ getActiveClientId: () => 'fixture' }))
 vi.mock('@/lib/device/local-mode', () => ({ isLocalMode: () => false }))
 vi.mock('@/lib/api/native-client', () => ({ nativeGraphql: vi.fn() }))

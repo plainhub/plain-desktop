@@ -8,7 +8,7 @@ import { nextTick, onMounted, ref } from 'vue'
 import router from '@/plugins/router'
 import AuthShell from '@/components/AuthShell.vue'
 import LoginForm from './LoginForm.vue'
-import { setPendingLoginDevice } from '@/lib/api/api'
+import { getApiHost, setPendingLoginDevice } from '@/lib/api/api'
 import { requestInit } from '@/lib/api/init'
 import { DeviceType } from '@/lib/status'
 
@@ -17,7 +17,7 @@ const loginFormRef = ref<InstanceType<typeof LoginForm> | null>(null)
 onMounted(() => {
   if (!__IS_TAURI__) setPendingLoginDevice({
     name: window.location.host,
-    host: window.location.host,
+    host: getApiHost(),
     deviceType: DeviceType.OTHER,
   })
   initializeLoginForm().catch(() => {})

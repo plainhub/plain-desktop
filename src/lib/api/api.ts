@@ -1,6 +1,6 @@
+import { isLocalMode } from '@/lib/device/local-mode'
 import { getCurrentDeviceHost, getCurrentDeviceBaseUrl } from '../device/current'
-import { isLocalModeAllowed } from '../device/local-mode'
-import { get as prefsGet } from '../prefs'
+import { getDesktopClientId } from '@/lib/device/client-id'
 import { isMacPlatform } from '../platform'
 import { DeviceType } from '../status'
 import { applyScheme } from '../url'
@@ -110,42 +110,22 @@ export function getProxyUrl(path: string): string {
 }
 
 export function getApiHost() {
-  if (__IS_TAURI__) {
-    const h = _pendingLoginDevice?.host || getCurrentDeviceHost()
-    if (h) return h
-  }
-  return import.meta.env.VITE_APP_API_HOST || window.location.host
+  return _pendingLoginDevice?.host || getCurrentDeviceHost() || import.meta.env.VITE_APP_API_HOST || window.location.host
 }
 
 export function getApiBaseUrl() {
   const saved = !_pendingLoginDevice && getCurrentDeviceBaseUrl()
   if (saved) return saved
-  if (__IS_TAURI__ && _localServerPort && !(_pendingLoginDevice || getCurrentDeviceHost())) {
+  if (isLocalMode() && !_pendingLoginDevice && _localServerPort) {
     return `http://localhost:${_localServerPort}`
   }
-  if (__IS_TAURI__ && (_pendingLoginDevice || getCurrentDeviceHost())) {
-    return deviceBaseUrl(getApiHost())
-  }
-  // Web dev usually serves the app over plain http (localhost) while the
-  // device API listens on a TLS *43 port — follow the API port, not the page.
-  const scheme =
-    window.location.protocol === 'https:' || isSecurePort(getApiHost()) ? 'https' : 'http'
-  return applyScheme(scheme, getApiHost())
+  const host = getApiHost()
+  const scheme = window.location.protocol === 'https:' || isSecurePort(host) ? 'https' : 'http'
+  return applyScheme(scheme, host)
 }
 
 export function getWebSocketBaseUrl() {
-  const saved = !_pendingLoginDevice && getCurrentDeviceBaseUrl()
-  if (saved) return saved.replace(/^http/, 'ws')
-  if (__IS_TAURI__ && _localServerPort && !(_pendingLoginDevice || getCurrentDeviceHost())) {
-    return `ws://localhost:${_localServerPort}`
-  }
-  if (__IS_TAURI__ && (_pendingLoginDevice || getCurrentDeviceHost())) {
-    const p = isSecurePort(getApiHost()) ? 'wss' : 'ws'
-    return `${p}://${getApiHost()}`
-  }
-  const secure = window.location.protocol === 'https:' || isSecurePort(getApiHost())
-  // All backends serve the WebSocket endpoint at `/` (plain-app contract).
-  return `${secure ? 'wss' : 'ws'}://${getApiHost()}`
+  return getApiBaseUrl().replace(/^http/, 'ws')
 }
 
 export function getPhoneIp(): string {
@@ -154,15 +134,6 @@ export function getPhoneIp(): string {
   } catch {
     return getApiHost().split(':')[0]
   }
-}
-
-// ─── Target selection ─────────────────────────────────────────────────────────
-
-/** The single place that decides where a request goes: this machine's own
- *  shared core over the native Tauri transport, or a bound device over HTTP.
- *  Every transport layer branches on this and nothing else. */
-export function isNativeTarget(): boolean {
-  return isLocalModeAllowed()
 }
 
 // ─── Request headers ──────────────────────────────────────────────────────────
@@ -181,7 +152,7 @@ function clientPlatform(): string {
 export function getApiHeaders() {
   const headers: Record<string, string> = {
     'Content-Type': 'multipart/form-data',
-    'c-id': prefsGet('client_id', ''),
+    'c-id': getDesktopClientId(),
     'c-platform': clientPlatform(),
   }
   if (__APP_VERSION__) headers['c-version'] = __APP_VERSION__

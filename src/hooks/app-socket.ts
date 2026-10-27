@@ -1,15 +1,16 @@
+import { isLocalMode } from '@/lib/device/local-mode'
 import { graphqlSubscriptions } from '@/lib/api/subscription-client'
 import { onMounted, onUnmounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import emitter from '@/plugins/eventbus'
 import toast from '@/components/toaster'
-import { getLocalToken, isNativeTarget, setLocalServerPort, setLocalServerHttpsPort } from '@/lib/api/api'
+import { getLocalToken, setLocalServerPort, setLocalServerHttpsPort } from '@/lib/api/api'
 import { subscribeLoginPeerUpdates } from '@/lib/device/login-peers'
 import { parseWebSocketData } from '@/lib/api/sjcl-arraybuffer'
-import { applyDarkClass, changeColor, changeColorMode, getCurrentMode, getLastSavedAutoColorMode, isModeDark } from '@/lib/theme'
+import { changeColor, getCurrentMode } from '@/lib/theme'
 import { subscribeNativeEvents, type NativeEventStream } from '@/lib/api/native-events'
-import { applySnapshot } from '@/lib/prefs'
-import { nativeGraphql } from '@/lib/api/native-client'
+import { preload as preloadPrefs } from '@/lib/prefs/core'
+import { apply as applyAppearance } from '@/lib/prefs/appearance'
 import { readLocalServer } from '@/lib/api/local-server'
 
 const RAW_BINARY_EVENTS = new Set(['SCREEN_MIRROR_VIDEO', 'SCREEN_MIRROR_AUDIO', 'IMAGE_EDITOR_UPDATE'])
@@ -84,14 +85,6 @@ export function useAppSocket() {
     retryTime += 1000
   }
 
-  function initializeTheme() {
-    applyDarkClass(isModeDark(getCurrentMode() || 'auto', false))
-    if (getCurrentMode() === 'auto') {
-      const actual = isModeDark('auto', false) ? 'dark' : 'light'
-      if (actual !== getLastSavedAutoColorMode()) changeColorMode('auto')
-    }
-  }
-
   const stopSubscriptions: (() => void)[] = []
   onUnmounted(() => stopSubscriptions.forEach(stop => stop()))
   onMounted(() => {
@@ -116,7 +109,7 @@ export function useAppSocket() {
       changeColor()
     })
     try {
-      initializeTheme()
+      changeColor()
     } catch (ex) {
       console.error(ex)
     }
@@ -148,9 +141,9 @@ export function useAppSocket() {
       })().catch(console.error)
       void import('@tauri-apps/api/event').then(({ listen }) => listen('prefsChanged', () => {
         prefsRefresh = prefsRefresh.then(async () => {
-          const result = await nativeGraphql<{ data?: { prefs: Record<string, unknown> }; errors?: { message: string }[] }>({ query: 'query { prefs }' }, 30000)
-          if (result.errors?.length) throw new Error(result.errors[0].message)
-          if (result.data) await applySnapshot(result.data.prefs)
+          if (!isLocalMode()) return
+          await preloadPrefs()
+          await applyAppearance()
         }).catch(console.error)
       })).then((stop) => { if (disposed) stop(); else stopPrefsChanges = stop }).catch(console.error)
       void subscribeLoginPeerUpdates().then((stop) => {
@@ -158,7 +151,7 @@ export function useAppSocket() {
         else stopPeerUpdates = stop
       }).catch(console.error)
     }
-    if (isNativeTarget()) connectNative()
+    if (isLocalMode()) connectNative()
     else stopConnection = graphqlSubscriptions.onConnectionChange((connected) => {
       if (connected === null) wsStatus.value = ''
       else if (connected) handleOpen()

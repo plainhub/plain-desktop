@@ -1,5 +1,5 @@
 import { createI18n } from 'vue-i18n'
-import { get as prefsGet } from '@/lib/prefs'
+import { get as prefsGet } from '@/lib/prefs/appearance'
 import en_US from '@/locales/en-US'
 
 const FALLBACK_LOCALE: string = 'en-US'
@@ -41,7 +41,7 @@ export const SUPPORTED_LOCALES: Array<{ code: string; name: string }> = [
 ].filter((l) => LOCALE_DIRS.includes(l.code))
 
 const initialLocale = (() => {
-  const persisted = prefsGet<string>('locale', '')
+  const persisted = prefsGet('locale', '')
   if (persisted && LOCALE_DIRS.includes(persisted)) return persisted
   const nav = typeof navigator !== 'undefined' ? navigator.language : ''
   if (nav && LOCALE_DIRS.includes(nav)) return nav
@@ -100,7 +100,7 @@ export function isLocaleLoaded(locale: string): boolean {
 }
 
 export function syncLocaleFromPrefs(): string {
-  const persisted = prefsGet<string>('locale', '')
+  const persisted = prefsGet('locale', '')
   if (persisted && LOCALE_DIRS.includes(persisted)) {
     if (i18n.global.locale.value !== persisted) {
       i18n.global.locale.value = persisted

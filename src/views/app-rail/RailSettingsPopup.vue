@@ -135,7 +135,8 @@ import { hasFeature } from '@/lib/feature'
 import { isMacPlatform } from '@/lib/platform'
 import { openAboutWindow } from '@/lib/api/tauri-window'
 import { clearCurrentSession } from '@/lib/device/current'
-import { clearWebPreferences as prefsClear } from '@/lib/prefs'
+import { clear as clearBrowserPreferences } from '@/lib/prefs/browser'
+import { APPEARANCE_KEYS } from '@/lib/prefs/appearance'
 import { useLocaleSwitch } from '@/composables/useLocaleSwitch'
 import ThemeChanger from '@/components/ThemeChanger.vue'
 import CustomizeUIModal from './CustomizeUIModal.vue'
@@ -238,10 +239,10 @@ function onLangClick(code: string) {
   void handleLocaleSwitch(code)
 }
 
-function logout() {
+async function logout() {
   open.value = false
-  clearCurrentSession()
-  prefsClear()
+  await clearCurrentSession()
+  clearBrowserPreferences(APPEARANCE_KEYS)
   window.location.reload()
 }
 

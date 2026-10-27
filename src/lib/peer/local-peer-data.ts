@@ -1,3 +1,4 @@
+import { isLocalMode } from '@/lib/device/local-mode'
 import { computed, ref } from 'vue'
 import { Channel, invoke } from '@tauri-apps/api/core'
 import { storeToRefs } from 'pinia'
@@ -8,7 +9,6 @@ import { deleteNotificationsGQL, replyNotificationGQL } from '@/lib/api/mutation
 import { gqlFetchPeer } from '@/lib/api/peer-client'
 import { proxyHttpUrl } from '@/lib/api/api'
 import { findLoginPeer } from '@/lib/device/login-peers'
-import { isLocalMode } from '@/lib/device/local-mode'
 import { playNotificationSound } from '@/lib/notification-sound'
 import { showDesktopNotification } from '@/lib/desktop-notification'
 import { useMainStore } from '@/stores/main'
@@ -80,7 +80,7 @@ export function applyPeerNotificationUpdate(update: PeerNotificationUpdate): INo
 }
 
 export function startLocalPeerData() {
-  if (started || !__IS_TAURI__ || !isLocalMode()) return
+  if (started || !isLocalMode()) return
   started = true
   const { notificationVolume } = storeToRefs(useMainStore())
   function showAlerts(items: INotification[]) {

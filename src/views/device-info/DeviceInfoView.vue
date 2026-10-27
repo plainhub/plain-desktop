@@ -171,6 +171,7 @@
 </template>
 
 <script setup lang="ts">
+import { isLocalMode } from '@/lib/device/local-mode'
 import { ref, onActivated, onDeactivated, computed } from 'vue'
 import { formatDateTime, formatDateTimeFull } from '@/lib/format'
 import { openModal } from '@/components/modal'
@@ -178,7 +179,6 @@ import { useDeviceInfo } from './device-info'
 import { useHttpServer } from './use-http-server'
 import { useMdns } from './use-mdns'
 import { useDlna } from './use-dlna'
-import { isLocalMode } from '@/lib/device/client-id'
 import MdnsDebugModal from './MdnsDebugModal.vue'
 import MdnsHostnameDialog from './MdnsHostnameDialog.vue'
 import PortEditDialog from './PortEditDialog.vue'

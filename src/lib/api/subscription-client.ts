@@ -1,4 +1,4 @@
-import { isNativeTarget } from './api'
+import { isLocalMode } from '@/lib/device/local-mode'
 import { openSubscriptionConnection, type SubscriptionConnection } from './subscription-connection'
 import type { SubscriptionOperation } from './subscription-operations'
 import type { SubscriptionField, SubscriptionResults } from './subscription-results'
@@ -143,7 +143,7 @@ export class SubscriptionClient {
     this.connection = undefined
     this.pending.clear()
     this.ids.clear()
-    if (this.active && (resynchronize || !isNativeTarget())) this.retry = setTimeout(() => this.connect(), Math.min(5000, ++this.failures * 1000))
+    if (this.active && (resynchronize || !isLocalMode())) this.retry = setTimeout(() => this.connect(), Math.min(5000, ++this.failures * 1000))
   }
   stop() {
     this.active = false

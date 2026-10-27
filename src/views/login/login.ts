@@ -7,12 +7,11 @@ import type { InitResult } from '@/lib/api/init'
 import { getCurrentAuthToken, clearCurrentSession } from '@/lib/device/current'
 import { findLoginPeer, saveBrowserSession, saveBrowserIdentity, getBrowserIdentity, forgetBrowserIdentity, preloadLoginPeers, peerHost } from '@/lib/device/login-peers'
 import { DeviceType } from '@/lib/status'
-import { getRemoteClientId, setRemoteClientId } from '@/lib/device/client-id'
+import { getRemoteClientId, setRemoteClientId, getDesktopClientId } from '@/lib/device/client-id'
 import { httpRequest } from '@/lib/api/http'
 import { performLoginHandshake } from '@/lib/api/login-handshake'
 import type { LoginHandshakeParams } from '@/lib/api/login-handshake'
 import { createPairing } from '@/lib/device/pairing'
-import { get as prefsGet } from '@/lib/prefs'
 
 type UseLoginOptions = {
   redirectOnSuccess?: boolean
@@ -106,7 +105,7 @@ export function useLogin(options: UseLoginOptions = {}) {
       void finishLoginSuccess()
       return true
     }
-    if (!initData.authenticated) clearCurrentSession()
+    if (!initData.authenticated) void clearCurrentSession().catch(console.error)
     password.value = ''
     showPasswordInput.value = initData.passwordRequired
     return false
@@ -134,7 +133,7 @@ export function useLogin(options: UseLoginOptions = {}) {
     showError.value = false; error.value = ''
 
     const hash = showPasswordInput.value ? sha512(password.value) : undefined
-    const myClientId = prefsGet('client_id', '')
+    const myClientId = getDesktopClientId()
 
     try {
       const pairingPeer = options.peer?.()
@@ -181,10 +180,10 @@ export function useLogin(options: UseLoginOptions = {}) {
     showConfirm.value = false; showError.value = false; isSubmitting.value = false
   }
 
-  function forgetIdentity() {
+  async function forgetIdentity() {
     cancel()
     forgetBrowserIdentity()
-    clearCurrentSession()
+    await clearCurrentSession()
     window.location.reload()
   }
 

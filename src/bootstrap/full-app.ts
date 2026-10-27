@@ -1,3 +1,4 @@
+import { isLocalMode } from '@/lib/device/local-mode'
 import { createApp } from 'vue'
 import App from '@/App.vue'
 import router from '@/plugins/router'
@@ -6,11 +7,10 @@ import { createPinia } from 'pinia'
 import VueClickAway from '@/plugins/clickaway'
 import VueTooltip from '@/plugins/tooltip'
 import VueRipple from '@/plugins/ripple'
-import { shortUUID } from '@/lib/strutil'
 import { getIsPhone, getIsTablet } from '@/hooks/device'
 import { setHttpProxyPort, setLocalServerPort, setLocalServerToken, setLocalServerHttpsPort } from '@/lib/api/api'
-import { preload as preloadPrefs, get as prefsGet, set as prefsSet } from '@/lib/prefs'
-import { applyUrlClientId } from '@/lib/device/client-id'
+import { preload as preloadPrefs } from '@/lib/prefs/core'
+import { applyUrlClientId, ensureBrowserClientId, getDesktopClientId, preloadClientIdentity } from '@/lib/device/client-id'
 import { preloadLoginPeers } from '@/lib/device/login-peers'
 import { applyMenuLabels } from '@/lib/app-menu'
 import { preventUnhandledFileDrop } from '@/lib/file-drop'
@@ -22,25 +22,16 @@ if (!__IS_TAURI__) {
   // before anything else reads the clientId. Idempotent.
   applyUrlClientId()
   import('@/registerServiceWorker')
-  // Web mode: ensure client_id exists in localStorage on startup
-  if (!prefsGet('client_id', '')) {
-    prefsSet('client_id', shortUUID())
-  }
+  ensureBrowserClientId()
 }
 
 export async function bootstrapFullApp(): Promise<void> {
   if (__IS_TAURI__) {
     document.documentElement.classList.add('tauri')
     preventUnhandledFileDrop()
-    await preloadPrefs()
-    if (!prefsGet('client_id', '')) throw new Error('Missing core client identity')
-    // Pull `?__cid=` (set by `openWindow` when spawning child windows) into
-    // sessionStorage. Must run AFTER preloadPrefs(): the local-vs-device
-    // check compares the cid against the persisted desktop client_id, which
-    // reads as empty before the prefs cache is populated — a child window
-    // would then drop its device binding and fall back to the local server
-    // (e.g. /fs requests hit http://localhost:<port> and fail with 401).
-    // Idempotent.
+    await preloadClientIdentity()
+    if (!getDesktopClientId()) throw new Error('Missing core client identity')
+    // Resolve child-window device bindings only after loading the local client identity.
     applyUrlClientId()
     const { invoke } = await import('@tauri-apps/api/core')
     await Promise.all([
@@ -52,6 +43,7 @@ export async function bootstrapFullApp(): Promise<void> {
       }),
       preloadLoginPeers(),
     ])
+    if (isLocalMode()) await preloadPrefs()
   }
 
   // Dynamically import i18n AFTER prefs are loaded so createI18n() reads

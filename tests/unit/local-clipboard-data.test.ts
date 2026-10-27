@@ -9,7 +9,7 @@ vi.mock('@tauri-apps/api/core', () => ({
 vi.mock('@/lib/api/peer-client', () => ({ gqlFetchPeer: fetchPeer }))
 vi.mock('@/lib/api/gql-client', () => ({ gqlFetch: vi.fn(), GqlError: class extends Error {} }))
 vi.mock('@/lib/clipboard', () => ({ copyTextToClipboard: copy }))
-vi.mock('@/lib/prefs', () => ({ get: (_key: string, fallback: unknown) => fallback, set: save }))
+vi.mock('@/lib/prefs/core', () => ({ get: (_key: string, fallback: unknown) => fallback, set: save }))
 vi.mock('@/lib/device/login-peers', () => ({ findLoginPeer: () => ({ id: 'peer' }), loginPeers: { value: [] } }))
 vi.mock('@/lib/device/local-mode', () => ({ isLocalMode: () => true }))
 vi.mock('@/stores/main', () => ({ useMainStore: () => ({ pageSize: 50 }) }))

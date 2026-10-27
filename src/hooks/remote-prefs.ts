@@ -4,7 +4,8 @@ import { prefsGQL } from '@/lib/api/query'
 import { setPrefGQL } from '@/lib/api/mutation'
 import { debounce } from '@/lib/array'
 import { graphqlSubscriptions } from '@/lib/api/subscription-client'
-import { applySnapshot } from '@/lib/prefs'
+import { applySnapshot } from '@/lib/prefs/core'
+import { apply as applyAppearance } from '@/lib/prefs/appearance'
 import type { useMainStore } from '@/stores/main'
 
 export function useRemotePrefs(store: ReturnType<typeof useMainStore>) {
@@ -25,7 +26,7 @@ export function useRemotePrefs(store: ReturnType<typeof useMainStore>) {
     try {
       const result = await gqlFetch<{ prefs: Record<string, unknown> }>(prefsGQL, undefined, { fresh: true })
       if (result.errors?.length) throw new Error(result.errors[0].message)
-      if (!__IS_TAURI__) await applySnapshot(result.data.prefs)
+      applySnapshot(result.data.prefs)
       const value = result.data.prefs.desktop_home_features
       if (Array.isArray(value) && value.every((item) => typeof item === 'string')) {
         applying = true
@@ -33,6 +34,7 @@ export function useRemotePrefs(store: ReturnType<typeof useMainStore>) {
         applying = false
       }
       enabled.value = true
+      if (__IS_TAURI__) await applyAppearance()
     } catch (error) {
       console.warn('Failed to load preferences', error)
     }

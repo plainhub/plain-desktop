@@ -1,3 +1,4 @@
+import { isLocalMode } from '@/lib/device/local-mode'
 import { wrapWithReplayProtection } from '../api/time-sync'
 import type { IUploadItem } from '@/stores/temp'
 import emitter from '@/plugins/eventbus'
@@ -13,8 +14,7 @@ import { gqlFetch } from '../api/gql-client'
 import { requestMerge } from './merge-async'
 import { setUploadStatus, setUploadUploadedSize } from './batch-progress'
 import { getCurrentAuthToken } from '../device/current'
-import { get as prefsGet } from '../prefs'
-import { isLocalMode, isLocalModeAllowed } from '../device/local-mode'
+import { getDesktopClientId } from '@/lib/device/client-id'
 
 const CHUNK_SIZE = 10 * 1024 * 1024 // 10MB — fewer chunks, lower HTTP overhead; per-chunk retry cost acceptable on weak networks
 const PARALLEL_CHUNKS = 3 // Upload 3 chunks in parallel per file
@@ -50,13 +50,6 @@ export function getUploadChunkUrl() {
 }
 
 const NATIVE_WRITE_BYTES = 64 * 1024
-
-// Chunk bytes go to this machine's own core as raw IPC payloads; every
-// other target keeps the multipart POST. Chunk bookkeeping (ids, retry,
-// resume, merge) is identical on both paths.
-function isNativeUploadTarget(): boolean {
-  return isLocalModeAllowed()
-}
 
 async function nativeWriteChunk(upload: IUploadItem, chunkData: IUploadChunk, onProgress: (bytes: number) => void): Promise<boolean> {
   const fileId = upload.fileId || ''
@@ -282,7 +275,7 @@ async function uploadDirect(upload: IUploadItem, replace: boolean, key: Uint8Arr
 
       try {
         xhr.open('POST', getUploadUrl(), true)
-        xhr.setRequestHeader('c-id', prefsGet('client_id', ''))
+        xhr.setRequestHeader('c-id', getDesktopClientId())
         upload.xhr = xhr
         xhr.send(data)
       } catch (ex: any) {
@@ -585,7 +578,7 @@ async function waitWithPauseCheck(upload: IUploadItem, delay: number): Promise<v
 }
 
 async function uploadChunk(upload: IUploadItem, chunkData: IUploadChunk & { start: number; end: number }, key: Uint8Array, onProgress: (bytes: number) => void): Promise<boolean> {
-  return isNativeUploadTarget() ? nativeWriteChunk(upload, chunkData, onProgress) : uploadChunkHttp(upload, chunkData, key, onProgress)
+  return isLocalMode() ? nativeWriteChunk(upload, chunkData, onProgress) : uploadChunkHttp(upload, chunkData, key, onProgress)
 }
 
 async function uploadChunkHttp(upload: IUploadItem, chunkData: IUploadChunk & { start: number; end: number }, key: Uint8Array, onProgress: (bytes: number) => void): Promise<boolean> {
@@ -658,7 +651,7 @@ async function uploadChunkHttp(upload: IUploadItem, chunkData: IUploadChunk & { 
 
     try {
       xhr.open('POST', getUploadChunkUrl(), true)
-      xhr.setRequestHeader('c-id', prefsGet('client_id', ''))
+      xhr.setRequestHeader('c-id', getDesktopClientId())
       // Track this XHR in the set BEFORE sending, so pause can abort it
       if (!upload.xhrs) upload.xhrs = new Set()
       upload.xhrs.add(xhr)

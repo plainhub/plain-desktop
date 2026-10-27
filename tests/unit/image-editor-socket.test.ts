@@ -5,9 +5,8 @@ import { afterEach, expect, it, vi } from 'vitest'
 const mock = vi.hoisted(() => ({ sockets: [] as any[] }))
 vi.mock('@/lib/api/api', () => ({ getWebSocketBaseUrl: () => 'wss://example.test', getLocalToken: () => '' }))
 vi.mock('@/lib/device/current', () => ({ getCurrentAuthToken: () => 'token' }))
-vi.mock('@/lib/device/client-id', () => ({ getRemoteClientId: () => 'peer' }))
+vi.mock('@/lib/device/client-id', () => ({ getRemoteClientId: () => 'peer', getDesktopClientId: () => 'browser' }))
 vi.mock('@/lib/device/local-mode', () => ({ isLocalMode: () => false }))
-vi.mock('@/lib/prefs', () => ({ get: () => 'browser' }))
 vi.mock('@/lib/api/file', () => ({ tokenToKey: () => new Uint8Array(32).fill(7) }))
 vi.mock('@/lib/api/http', () => ({ openSocket: vi.fn(() => {
   const socket = { send: vi.fn(), close: vi.fn() }

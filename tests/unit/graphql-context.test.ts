@@ -9,12 +9,11 @@ import emitter from '@/plugins/eventbus'
 
 const target = vi.hoisted(() => ({ native: true, client: 'device-a', url: 'https://device-a.test', token: 'session-a', header: 'client-a' }))
 vi.mock('@/lib/api/api', () => ({
-  isNativeTarget: () => target.native,
   getApiBaseUrl: () => target.url,
   getApiHeaders: () => ({ 'c-id': target.header }),
   getLocalToken: () => target.token,
 }))
-vi.mock('@/lib/device/current', () => ({ getCurrentAuthToken: () => target.token, clearCurrentSession: vi.fn() }))
+vi.mock('@/lib/device/current', () => ({ getCurrentAuthToken: () => target.token, clearCurrentSession: vi.fn().mockResolvedValue(undefined) }))
 vi.mock('@/lib/device/client-id', () => ({ getActiveClientId: () => target.client }))
 vi.mock('@/lib/device/local-mode', () => ({ isLocalMode: () => target.native }))
 vi.mock('@/plugins/eventbus', () => ({ default: { emit: vi.fn() } }))
@@ -153,4 +152,43 @@ it('does not deliver stale data or errors to query projections', async () => {
   expect(handle).not.toHaveBeenCalled()
   expect(query.result.value).toBeUndefined()
   expect(query.loading.value).toBe(false)
+})
+
+it.each([false, true])('routes a remote request over HTTP regardless of Desktop build flag %s', async (desktop) => {
+  vi.stubGlobal('__IS_TAURI__', desktop)
+  target.native = false
+  vi.mocked(httpRequest).mockResolvedValueOnce(response({ prefs: { locale: 'fr' } }))
+  expect((await gqlFetch('query { prefs }')).data).toEqual({ prefs: { locale: 'fr' } })
+  expect(httpRequest).toHaveBeenCalledTimes(1)
+  expect(nativeGraphql).not.toHaveBeenCalled()
+})
+
+it('waits for current Desktop remote-session cleanup before reloading', async () => {
+  vi.stubGlobal('__IS_TAURI__', true)
+  target.native = false
+  const cleared = deferred<void>()
+  vi.mocked(clearCurrentSession).mockReturnValueOnce(cleared.promise)
+  vi.mocked(httpRequest).mockResolvedValueOnce(response(null, 401))
+  const failure = expect(gqlFetch('query { prefs }')).rejects.toThrow('unauthorized')
+  await vi.waitFor(() => expect(clearCurrentSession).toHaveBeenCalledTimes(1))
+  expect(window.location.reload).not.toHaveBeenCalled()
+  cleared.resolve()
+  await failure
+  expect(window.location.reload).toHaveBeenCalledTimes(1)
+})
+
+it('routes Core preference writes to the selected local or remote target', async () => {
+  vi.stubGlobal('__IS_TAURI__', true)
+  const core = await import('@/lib/prefs/core')
+  vi.mocked(nativeGraphql).mockResolvedValueOnce({ data: { result: true } })
+  await core.set('locale', 'fr')
+  expect(nativeGraphql).toHaveBeenCalledTimes(1)
+  expect(httpRequest).not.toHaveBeenCalled()
+  target.native = false
+  target.client = 'remote'
+  vi.mocked(httpRequest).mockResolvedValueOnce(response({ result: true }))
+  await core.set('locale', 'ja')
+  expect(nativeGraphql).toHaveBeenCalledTimes(1)
+  expect(httpRequest).toHaveBeenCalledTimes(1)
+  expect(core.get('locale', '')).toBe('ja')
 })

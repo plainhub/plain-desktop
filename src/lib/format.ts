@@ -1,6 +1,6 @@
 import { format as timeagoFormat, getMessages } from './timeago'
 import type { TimeagoStyle } from './timeago'
-import { get as prefsGet } from '@/lib/prefs'
+import { get as prefsGet } from '@/lib/prefs/appearance'
 
 function getLocale(): string {
   const locale = prefsGet('locale', navigator.language ?? 'en-US')

@@ -1,3 +1,4 @@
+import { isLocalMode } from '@/lib/device/local-mode'
 import { ref, computed, onUnmounted } from 'vue'
 import { readLocalAddresses, restartLocalServer } from '@/lib/api/local-server'
 import { useTempStore } from '@/stores/temp'
@@ -32,7 +33,7 @@ export function useHttpServer() {
   const saving = ref(false)
 
   async function loadIps() {
-    if (!__IS_TAURI__) return
+    if (!isLocalMode()) return
     try {
       ips.value = await readLocalAddresses()
     } catch (e) {
@@ -42,7 +43,7 @@ export function useHttpServer() {
 
   let disposed = false
   let registration: number | undefined
-  if (__IS_TAURI__) {
+  if (isLocalMode()) {
     const channel = new Channel<Record<string, never>>()
     channel.onmessage = () => { void loadIps() }
     void invoke<number>('native_register_network_changes', { channel }).then((id) => {
@@ -57,7 +58,7 @@ export function useHttpServer() {
   })
 
   async function savePort(kind: 'http' | 'https', port: number): Promise<boolean> {
-    if (!__IS_TAURI__) return false
+    if (!isLocalMode()) return false
     saving.value = true
     try {
       const server = await restartLocalServer(kind, port)

@@ -1,9 +1,8 @@
-import { invoke } from '@tauri-apps/api/core'
-import { getWebSocketBaseUrl, getLocalToken, isNativeTarget } from './api'
-import { getCurrentAuthToken } from '@/lib/device/current'
-import { getRemoteClientId } from '@/lib/device/client-id'
 import { isLocalMode } from '@/lib/device/local-mode'
-import { get as prefsGet } from '@/lib/prefs'
+import { invoke } from '@tauri-apps/api/core'
+import { getWebSocketBaseUrl } from './api'
+import { getCurrentAuthToken } from '@/lib/device/current'
+import { getRemoteClientId, getDesktopClientId } from '@/lib/device/client-id'
 import { tokenToKey } from './file'
 import { openSocket } from './http'
 import { GraphqlSubscriptionCrypto } from './graphql-subscription-crypto'
@@ -11,15 +10,15 @@ import { GraphqlSubscriptionCrypto } from './graphql-subscription-crypto'
 export interface SubscriptionConnection { send(message: unknown): void; close(): void }
 interface Callbacks { opened(): void; message(message: unknown): void; dropped(error: unknown): void }
 export function openSubscriptionConnection(callbacks: Callbacks): SubscriptionConnection {
-  return isNativeTarget() ? openNative(callbacks) : openNetwork(callbacks)
+  return isLocalMode() ? openNative(callbacks) : openNetwork(callbacks)
 }
 function openNetwork(callbacks: Callbacks): SubscriptionConnection {
   const url = new URL('/graphql', getWebSocketBaseUrl())
-  const client = prefsGet('client_id', '')
-  const token = isLocalMode() ? getLocalToken() : getCurrentAuthToken()
+  const client = getDesktopClientId()
+  const token = getCurrentAuthToken()
   if (!token) throw new Error('Subscription session missing')
   url.searchParams.set('cid', client)
-  const socket = openSocket(url.toString(), isLocalMode() ? '' : getRemoteClientId(), 'plain-graphql-ws-v1')
+  const socket = openSocket(url.toString(), getRemoteClientId(), 'plain-graphql-ws-v1')
   socket.binaryType = 'arraybuffer'
   let active = true
   let acknowledged = false

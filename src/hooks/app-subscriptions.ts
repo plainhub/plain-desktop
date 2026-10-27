@@ -1,8 +1,7 @@
+import { isLocalMode } from '@/lib/device/local-mode'
 import { onMounted, onUnmounted, watch } from 'vue'
 import { useTempStore } from '@/stores/temp'
 import { getGraphqlContextKey } from '@/lib/api/gql-client'
-import { isNativeTarget, getLocalToken } from '@/lib/api/api'
-import { isLocalMode } from '@/lib/device/local-mode'
 import { getCurrentAuthToken } from '@/lib/device/current'
 import { graphqlSubscriptions as client } from '@/lib/api/subscription-client'
 import { subscriptionOperations } from '@/lib/api/subscription-operations'
@@ -13,7 +12,7 @@ export function useAppSubscriptions() {
   onMounted(() => {
     stop = watch(() => ({
       context: getGraphqlContextKey(),
-      authenticated: isNativeTarget() || Boolean(isLocalMode() ? getLocalToken() : getCurrentAuthToken()),
+      authenticated: isLocalMode() || Boolean(getCurrentAuthToken()),
       capabilities: store.app.capabilities ?? [],
       permissions: store.app.permissions ?? [],
     }), (now, previous) => {

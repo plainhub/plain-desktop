@@ -1,7 +1,7 @@
+import { isLocalMode } from '@/lib/device/local-mode'
 import { invoke } from '@tauri-apps/api/core'
 import { ref } from 'vue'
 import { gqlFetch } from '@/lib/api/gql-client'
-import { isLocalMode } from '@/lib/device/local-mode'
 import toast from '@/components/toaster'
 import { useI18n } from 'vue-i18n'
 
@@ -43,11 +43,9 @@ export function useMdns() {
 
   async function loadHostname() {
     if (!isLocalMode()) return
-    if (__IS_TAURI__) {
-      const result = await gqlFetch<{ prefs: Record<string, unknown> }>('query { prefs }')
-      if (result.errors?.length) throw new Error(result.errors[0].message)
-      hostname.value = String(result.data.prefs.mdns_hostname ?? '')
-    }
+    const result = await gqlFetch<{ prefs: Record<string, unknown> }>('query { prefs }')
+    if (result.errors?.length) throw new Error(result.errors[0].message)
+    hostname.value = String(result.data.prefs.mdns_hostname ?? '')
   }
 
   // Mirrors plain-app's MdnsAndPortEditDialog validation: non-blank and

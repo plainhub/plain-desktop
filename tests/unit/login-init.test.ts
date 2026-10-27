@@ -3,13 +3,12 @@ const mock = vi.hoisted(() => ({ token: vi.fn(), identity: vi.fn() }))
 vi.mock('vue-i18n', () => ({ useI18n: () => ({ t: (key: string) => key }) }))
 vi.mock('@/plugins/router', () => ({ default: {} }))
 vi.mock('@/lib/api/api', () => ({ getApiBaseUrl: vi.fn(), getPendingLoginDevice: vi.fn(), clearPendingLoginDevice: vi.fn() }))
-vi.mock('@/lib/device/current', () => ({ getCurrentAuthToken: mock.token, clearCurrentSession: vi.fn() }))
+vi.mock('@/lib/device/current', () => ({ getCurrentAuthToken: mock.token, clearCurrentSession: vi.fn().mockResolvedValue(undefined) }))
 vi.mock('@/lib/device/login-peers', () => ({ getBrowserIdentity: mock.identity, forgetBrowserIdentity: vi.fn(), findLoginPeer: vi.fn(), saveBrowserIdentity: vi.fn(), saveBrowserSession: vi.fn(), preloadLoginPeers: vi.fn(), peerHost: vi.fn() }))
-vi.mock('@/lib/device/client-id', () => ({ getRemoteClientId: vi.fn(), setRemoteClientId: vi.fn() }))
+vi.mock('@/lib/device/client-id', () => ({ getDesktopClientId: vi.fn(), getRemoteClientId: vi.fn(), setRemoteClientId: vi.fn() }))
 vi.mock('@/lib/api/http', () => ({ httpRequest: vi.fn() }))
 vi.mock('@/lib/api/login-handshake', () => ({ performLoginHandshake: vi.fn() }))
 vi.mock('@/lib/device/pairing', () => ({ createPairing: vi.fn() }))
-vi.mock('@/lib/prefs', () => ({ get: vi.fn() }))
 import { clearCurrentSession } from '../../src/lib/device/current'
 import { useLogin } from '../../src/views/login/login'
 

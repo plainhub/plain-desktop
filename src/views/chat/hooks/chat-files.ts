@@ -1,3 +1,4 @@
+import { isLocalMode } from '@/lib/device/local-mode'
 import { computed, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { storeToRefs } from 'pinia'
@@ -8,7 +9,6 @@ import { useTempStore } from '@/stores/temp'
 import { useMainStore } from '@/stores/main'
 import { openUrl } from '@/lib/browser'
 import { openWindow } from '@/lib/api/tauri-window'
-import { isLocalMode } from '@/lib/device/local-mode'
 import { useOpenMedia } from '@/hooks/open-media'
 import { useRevealFile } from './reveal-file'
 import { chatFileDurationMs } from '../chat-file-duration'
@@ -107,7 +107,7 @@ export function useChatFiles(props: { data: any; downloadInfo: any; peer: { ip: 
     } else {
       // Unopenable files (zip, apk, …): in local mode the file is on this
       // machine — reveal it instead of downloading it again.
-      if (__IS_TAURI__ && isLocalMode() && item.path && !item.path.startsWith('fsid:')) {
+      if (isLocalMode() && item.path && !item.path.startsWith('fsid:')) {
         revealFile(item.path)
         return
       }

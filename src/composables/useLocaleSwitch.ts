@@ -2,7 +2,7 @@ import { computed, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { loadLocaleMessages, SUPPORTED_LOCALES } from '@/plugins/i18n'
 import { setLocale as setTimeagoLocale } from '@/lib/timeago'
-import { set as prefsSet } from '@/lib/prefs'
+import { set as prefsSet } from '@/lib/prefs/appearance'
 import { applyMenuLabels } from '@/lib/app-menu'
 import { updateDocumentTitle } from '@/plugins/router'
 

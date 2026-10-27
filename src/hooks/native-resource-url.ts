@@ -1,5 +1,5 @@
+import { isLocalMode } from '@/lib/device/local-mode'
 import { invoke } from '@tauri-apps/api/core'
-import { isLocalModeAllowed } from '@/lib/device/local-mode'
 
 export interface INativeResource {
   id: string
@@ -48,7 +48,7 @@ export const MAX_NATIVE_RESPONSE_BYTES = 32 * 1024 * 1024
  * response window; both are transport decisions, not reference failures.
  */
 export async function nativeResourceUrl(path: string, size?: number): Promise<string> {
-  if (!path || !isLocalModeAllowed()) {
+  if (!path || !isLocalMode()) {
     return ''
   }
   if (typeof size === 'number' && size > MAX_NATIVE_RESPONSE_BYTES) {
