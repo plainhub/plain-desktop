@@ -1,49 +1,73 @@
-import { afterEach, beforeEach, expect, it, vi } from 'vitest'
-import { randomBytes } from 'node:crypto'
-import { xchacha20poly1305 } from '@noble/ciphers/chacha'
-import { eventAad } from '../../src/lib/api/websocket-events'
+import { beforeEach, expect, it, vi } from 'vitest'
 
-const { subscribe, invoke } = vi.hoisted(() => ({ subscribe: vi.fn(), invoke: vi.fn() }))
-vi.mock('@/lib/api/native-events', () => ({ subscribeNativeEvents: subscribe }))
-vi.mock('@tauri-apps/api/core', () => ({ invoke }))
-vi.mock('@/lib/api/api', () => ({ getLocalToken: () => btoa(String.fromCharCode(...new Uint8Array(32).fill(8))) }))
-vi.mock('@/lib/api/file', () => ({ tokenToKey: () => new Uint8Array(32).fill(8) }))
-import { subscribeWebLoginRequests, decideWebLogin } from '../../src/lib/device/web-login-requests'
+const { invoke, snapshot, handlers } = vi.hoisted(() => ({
+  invoke: vi.fn(),
+  snapshot: vi.fn(),
+  handlers: new Map<string, (event: { payload: any }) => void>(),
+}))
+vi.mock('@tauri-apps/api/core', () => ({
+  invoke,
+  Channel: class { onmessage?: (payload: any) => void },
+}))
 
-const request = { requestId: 'request', clientId: 'browser', clientIp: '127.0.0.1', request: { browserName: 'Fixture', browserVersion: '1', osName: 'Fixture', osVersion: '1', verificationCode: '01234567 89abcdef 01234567 89abcdef' } }
-
-beforeEach(() => { vi.clearAllMocks(); vi.stubGlobal('__IS_TAURI__', true) })
-afterEach(() => vi.unstubAllGlobals())
-
-it('receives approval prompts only from authenticated local native event frames', () => {
-  const receive = vi.fn()
-  const dismiss = vi.fn()
-  subscribeWebLoginRequests(receive, vi.fn(), dismiss)
-  const callback = subscribe.mock.calls[0][0] as (frame: Uint8Array) => void
-  const event = 'WEB_LOGIN_REQUESTED'
-  const encrypt = (key: number) => {
-    const nonce = randomBytes(24)
-    return new Uint8Array([...nonce, ...xchacha20poly1305(new Uint8Array(32).fill(key), nonce, eventAad(event)).encrypt(new TextEncoder().encode(JSON.stringify(request)))])
-  }
-  const payload = encrypt(8)
-  callback(new Uint8Array([...new TextEncoder().encode(`${event}\0`), ...payload]))
-  expect(receive).toHaveBeenCalledExactlyOnceWith(request)
-  callback(new Uint8Array([...new TextEncoder().encode('PAIRING_STATE_CHANGED\0'), ...payload]))
-  expect(receive).toHaveBeenCalledTimes(1)
-  const closedNonce = randomBytes(24)
-  const closed = xchacha20poly1305(new Uint8Array(32).fill(8), closedNonce, eventAad('WEB_LOGIN_CLOSED')).encrypt(new TextEncoder().encode(JSON.stringify({ requestId: 'request' })))
-  callback(new Uint8Array([...new TextEncoder().encode('WEB_LOGIN_CLOSED\0'), ...closedNonce, ...closed]))
-  expect(dismiss).toHaveBeenCalledExactlyOnceWith('request')
-  const forged = encrypt(9)
-  expect(() => callback(new Uint8Array([...new TextEncoder().encode(`${event}\0`), ...forged]))).toThrow()
-  expect(receive).toHaveBeenCalledTimes(1)
+beforeEach(() => {
+  vi.resetModules()
+  vi.clearAllMocks()
+  handlers.clear()
+  vi.stubGlobal('__IS_TAURI__', true)
+  snapshot.mockResolvedValue({ requests: [], nextAfter: null })
+  invoke.mockImplementation(async (name, args) => {
+    if (name === 'native_register_login_callbacks') {
+      handlers.set('systemWebLoginRequested', ({ payload }) => args.requested.onmessage(payload))
+      handlers.set('systemWebLoginClosed', ({ payload }) => args.closed.onmessage(payload))
+      handlers.set('systemWebLoginSnapshot', ({ payload }) => args.snapshot.onmessage(payload))
+      return 1
+    }
+    if (name === 'native_web_login_requests') return snapshot()
+    return true
+  })
 })
 
-it('uses the local named confirmation command and refuses a Web event subscription', async () => {
+it('restores pending logins and replays callbacks received during the snapshot', async () => {
+  let resolveSnapshot!: (value: unknown) => void
+  snapshot.mockReturnValue(new Promise((resolve) => { resolveSnapshot = resolve }))
+  const receive = vi.fn()
+  const dismiss = vi.fn()
+  const { subscribeWebLoginRequests } = await import('../../src/lib/device/web-login-requests')
+  const stream = subscribeWebLoginRequests(receive, vi.fn(), dismiss)
+  await vi.waitFor(() => expect(invoke).toHaveBeenCalledWith('native_web_login_requests', { after: null }))
+  handlers.get('systemWebLoginClosed')!({ payload: { requestId: 'old' } })
+  handlers.get('systemWebLoginRequested')!({ payload: { requestId: 'new', clientId: 'client', request: {} } })
+  resolveSnapshot({ requests: [{ requestId: 'old', clientId: 'client', clientIp: '', browserName: '', browserVersion: '', osName: '', osVersion: '' }], nextAfter: null })
+  await vi.waitFor(() => expect(receive).toHaveBeenCalledTimes(2))
+  expect(dismiss).toHaveBeenCalledWith('old')
+  expect(receive.mock.calls[1][0].requestId).toBe('new')
+  expect(receive.mock.invocationCallOrder[0]).toBeLessThan(dismiss.mock.invocationCallOrder[0])
+  expect(dismiss.mock.invocationCallOrder[0]).toBeLessThan(receive.mock.invocationCallOrder[1])
+  stream.close()
+  expect(invoke).toHaveBeenCalledWith('native_unregister_login_callbacks', { id: 1 })
+})
+
+it('uses the native confirmation command and rejects use in a web target', async () => {
   invoke.mockResolvedValue(true)
+  const { subscribeWebLoginRequests, decideWebLogin } = await import('../../src/lib/device/web-login-requests')
   await expect(decideWebLogin('request', false)).resolves.toBe(true)
-  expect(invoke).toHaveBeenCalledExactlyOnceWith('native_confirm_web_login', { requestId: 'request', allowed: false })
+  expect(invoke).toHaveBeenCalledWith('native_confirm_web_login', { requestId: 'request', allowed: false })
   vi.stubGlobal('__IS_TAURI__', false)
   expect(() => subscribeWebLoginRequests(vi.fn(), vi.fn(), vi.fn())).toThrow('native_only')
-  expect(subscribe).not.toHaveBeenCalled()
+})
+
+it('replaces stale prompts when the host reconnects', async () => {
+  snapshot.mockResolvedValue({ requests: [], nextAfter: null })
+  const receive = vi.fn()
+  const clear = vi.fn()
+  const { subscribeWebLoginRequests } = await import('../../src/lib/device/web-login-requests')
+  const stream = subscribeWebLoginRequests(receive, clear, vi.fn())
+  await vi.waitFor(() => expect(invoke).toHaveBeenCalled())
+  await vi.waitFor(() => expect(handlers.has('systemWebLoginRequested')).toBe(true))
+  handlers.get('systemWebLoginSnapshot')!({ payload: { requests: [{ requestId: 'restored', clientId: 'browser', clientIp: '', request: {} }] } })
+  await vi.waitFor(() => expect(receive).toHaveBeenCalledTimes(1))
+  expect(clear).toHaveBeenCalledTimes(1)
+  expect(receive.mock.calls[0][0].requestId).toBe('restored')
+  stream.close()
 })

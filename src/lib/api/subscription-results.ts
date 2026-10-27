@@ -8,7 +8,6 @@ type ChatSubscriptionItem = Pick<IChatItem, 'id' | 'fromId' | 'toId' | 'channelI
 }
 
 export interface SubscriptionResults {
-  networkChanged: boolean
   pairingChanged: boolean
   pairingRequested: import('@/lib/pairing-types').PairingRequest
   pairingStarted: { deviceId: string; deviceName: string; error: string | null }
@@ -40,7 +39,6 @@ export interface SubscriptionResults {
   }
   pomodoroSettingsChanged: boolean
   imageModelsUpdated: IImageSearchStatus & { version: number }
-  peerClipboardChanged: { peerId: string }
   deviceNameUpdated: string
   permissionsUpdated: boolean
   contentChanged: boolean

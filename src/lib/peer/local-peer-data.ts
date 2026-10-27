@@ -1,4 +1,5 @@
 import { computed, ref } from 'vue'
+import { Channel, invoke } from '@tauri-apps/api/core'
 import { storeToRefs } from 'pinia'
 import emitter from '@/plugins/eventbus'
 import type { INotification } from '@/lib/interfaces'
@@ -36,6 +37,7 @@ export type PeerNotificationUpdate = {
 const groups = ref<PeerNotificationGroup[]>([])
 export const peerNotificationGroups = computed(() => groups.value.filter((group) => group.capabilities === null || group.capabilities.includes('NOTIFICATIONS')))
 let revision = -1
+let alertsRevision = -1
 let started = false
 
 function displayItem(item: INotification): INotification {
@@ -46,8 +48,19 @@ function displayGroup(group: PeerNotificationGroup): PeerNotificationGroup {
   return { ...group, items: group.items.map(displayItem) }
 }
 
+function takeAlerts(update: PeerNotificationUpdate): INotification[] {
+  if (!update.alerts?.length || update.revision <= alertsRevision) return []
+  alertsRevision = update.revision
+  return update.alerts.map(displayItem)
+}
+
 export function applyPeerNotificationUpdate(update: PeerNotificationUpdate): INotification[] {
-  if (!Number.isSafeInteger(update.revision) || update.revision < 0 || update.revision <= revision) return []
+  if (!Number.isSafeInteger(update.revision) || update.revision < 0 || update.revision < revision) return []
+  if (update.revision === revision) {
+    if (!update.groups) return []
+    groups.value = update.groups.map(displayGroup)
+    return takeAlerts(update)
+  }
   if (update.groups) {
     groups.value = update.groups.map(displayGroup)
   } else if (typeof update.peerId === 'string' && (update.group === null || update.group?.peerId === update.peerId)) {
@@ -63,20 +76,45 @@ export function applyPeerNotificationUpdate(update: PeerNotificationUpdate): INo
     return []
   }
   revision = update.revision
-  return update.groups ? [] : (update.alerts ?? []).map(displayItem)
+  return takeAlerts(update)
 }
 
 export function startLocalPeerData() {
   if (started || !__IS_TAURI__ || !isLocalMode()) return
   started = true
   const { notificationVolume } = storeToRefs(useMainStore())
-  emitter.on('peer_notifications_updated', (update) => {
-    for (const item of applyPeerNotificationUpdate(update)) {
+  function showAlerts(items: INotification[]) {
+    for (const item of items) {
       if (notificationVolume.value > 0) playNotificationSound(notificationVolume.value)
       void showDesktopNotification({ title: item.title, body: item.body, icon: item.icon, silent: true })
     }
+  }
+  function apply(update: PeerNotificationUpdate) {
+    showAlerts(applyPeerNotificationUpdate(update))
     if (update.permissionsChanged) emitter.emit('tap_phone', '')
-  })
+  }
+  void (async () => {
+    let initialized = false
+    const buffered: PeerNotificationUpdate[] = []
+    const channel = new Channel<PeerNotificationUpdate>()
+    channel.onmessage = (payload) => {
+      if (initialized) apply(payload)
+      else buffered.push(payload)
+    }
+    const id = await invoke<number>('native_register_peer_notifications', { channel })
+    window.addEventListener('beforeunload', () => {
+      void invoke('native_unregister_peer_notifications', { id }).catch(console.error)
+    }, { once: true })
+    const snapshot = await invoke<PeerNotificationUpdate>('native_peer_notifications')
+    apply(snapshot)
+    for (const update of buffered) {
+      if (update.revision <= snapshot.revision) {
+        showAlerts(takeAlerts(update))
+        if (update.permissionsChanged) emitter.emit('tap_phone', '')
+      } else apply(update)
+    }
+    initialized = true
+  })().catch((error) => console.error('Peer notifications initialization failed', error))
 }
 
 export function dropPeerNotifications(peerId: string, ids: string[]) {

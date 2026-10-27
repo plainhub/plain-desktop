@@ -1,10 +1,8 @@
 import type { IItemTagsUpdatedEvent, IItemsTagsUpdatedEvent, IFileDeletedEvent, IFileRenamedEvent, IMediaItemsActionedEvent, INotesActionedEvent } from '@/lib/interfaces'
-import type { HttpServerStarted } from '@/lib/api/local-server'
 import type { PairingRequest, PairingResult } from '@/lib/pairing-types'
 import type { IUploadItem } from '@/stores/temp'
 
 type Events = {
-  HTTP_SERVER_STARTED: HttpServerStarted
   upload_task_done: IUploadItem
   upload_progress: IUploadItem
   refetch_app: undefined
@@ -35,7 +33,6 @@ type Events = {
   PAIRING_CANCELED: PairingResult
   PAIRING_STARTED: PairingResult
   IMAGE_EDITOR_UPDATE: ArrayBuffer
-  peer_notifications_updated: import('@/lib/peer/local-peer-data').PeerNotificationUpdate
 }
 
 type Handler<T = any> = (event: T) => void

@@ -20,7 +20,6 @@ export function useAppSubscriptions() {
       if (!now.authenticated) { client.stop(); return }
       if (previous && now.context !== previous.context) client.stop()
       client.setOperations(subscriptionOperations.filter(operation =>
-        (!operation.localOnly || isNativeTarget()) &&
         (!operation.capability || now.capabilities.some(capability => capability === operation.capability)) &&
         operation.permissions.every(permission => now.permissions.some(grant => grant === permission)),
       ))

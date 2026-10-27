@@ -5,10 +5,8 @@ export interface SubscriptionOperation {
   document: string
   permissions: readonly string[]
   capability?: string
-  localOnly?: boolean
 }
 export const subscriptionOperations: readonly SubscriptionOperation[] = [
-  {field: 'networkChanged', document: 'subscription { networkChanged }', permissions: [], localOnly: true},
   {field: 'pairingChanged', document: 'subscription { pairingChanged }', permissions: []},
   {field: 'pairingRequested', document: 'subscription { pairingRequested { fromId fromName port deviceType ecdhPublicKey signaturePublicKey timestamp ips signature fromIp awareSupported } }', permissions: []},
   {field: 'pairingStarted', document: 'subscription { pairingStarted { deviceId deviceName error } }', permissions: []},
@@ -24,7 +22,6 @@ export const subscriptionOperations: readonly SubscriptionOperation[] = [
   {field: 'pomodoroAction', document: 'subscription { pomodoroAction { today { date state timeLeftSec totalTimeSec completedCount currentRound isRunning isPaused } completedState } }', permissions: []},
   {field: 'pomodoroSettingsChanged', document: 'subscription { pomodoroSettingsChanged }', permissions: []},
   {field: 'imageModelsUpdated', document: 'subscription { imageModelsUpdated { version status downloadProgress errorMessage modelSize modelDir isIndexing totalImages indexedImages } }', permissions: []},
-  {field: 'peerClipboardChanged', document: 'subscription { peerClipboardChanged { peerId } }', permissions: [], localOnly: true},
   {"field": "deviceNameUpdated", "document": "subscription { deviceNameUpdated }", "permissions": []},
   {"field": "permissionsUpdated", "document": "subscription { permissionsUpdated }", "permissions": []},
   {"field": "contentChanged", "document": "subscription { contentChanged }", "permissions": []},

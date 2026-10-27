@@ -1803,12 +1803,6 @@ export interface GqlOperations {
     }
     variables: undefined
   }
-  networkChangedSubscription: {
-    result: {
-      networkChanged: boolean
-    }
-    variables: undefined
-  }
   noteCountGQL: {
     result: {
       total: number
@@ -2061,14 +2055,6 @@ export interface GqlOperations {
       limit: number
       query: string
     }
-  }
-  peerClipboardChangedSubscription: {
-    result: {
-      peerClipboardChanged: {
-        peerId: string
-      }
-    }
-    variables: undefined
   }
   peersChangedSubscription: {
     result: {

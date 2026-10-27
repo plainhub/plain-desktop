@@ -1,5 +1,5 @@
 import { ref, watch } from 'vue'
-import { graphqlSubscriptions } from '@/lib/api/subscription-client'
+import { Channel, invoke } from '@tauri-apps/api/core'
 import type { IClipboardItem } from '@/lib/interfaces'
 import { DeviceType } from '@/lib/status'
 import { clipboardItemFragment } from '@/lib/api/fragments'
@@ -138,10 +138,18 @@ export function startLocalClipboardData() {
   if (started || !__IS_TAURI__ || !isLocalMode()) return
   started = true
 
-  graphqlSubscriptions.subscribe('peerClipboardChanged', ({ peerId }) => refreshChangedPeerClipboard(peerId))
-  graphqlSubscriptions.onAttached(() => {
+  void (async () => {
+    const channel = new Channel<{ peerIds: string[]; refreshAll: boolean }>()
+    channel.onmessage = ({ peerIds, refreshAll }) => {
+      const ids = refreshAll ? peerClipboardGroups.value.map((group) => group.peerId) : peerIds
+      for (const id of ids) refreshChangedPeerClipboard(id)
+    }
+    const id = await invoke<number>('native_register_peer_clipboard', { channel })
+    window.addEventListener('beforeunload', () => {
+      void invoke('native_unregister_peer_clipboard', { id }).catch(console.error)
+    }, { once: true })
     for (const group of peerClipboardGroups.value) refreshChangedPeerClipboard(group.peerId)
-  })
+  })().catch((error) => console.error('Peer clipboard initialization failed', error))
 
   clipboardDirections.value = readDirections()
   syncGroups()

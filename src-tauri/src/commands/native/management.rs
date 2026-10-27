@@ -20,6 +20,21 @@ pub async fn native_confirm_web_login(
 }
 
 #[tauri::command]
+pub fn native_web_login_requests(
+    core: tauri::State<'_, Arc<ContentServer>>,
+    after: Option<String>,
+) -> Result<plain_server::native::management::NativeWebLoginRequests, String> {
+    core.native_management()?.web_login_requests(after)
+}
+
+#[tauri::command]
+pub fn native_peer_notifications(
+    core: tauri::State<'_, Arc<ContentServer>>,
+) -> Result<serde_json::Value, String> {
+    core.native_management()?.peer_notifications()
+}
+
+#[tauri::command]
 pub async fn native_restart_http_server(
     core: tauri::State<'_, Arc<ContentServer>>,
     http_port: Option<u16>,

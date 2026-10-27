@@ -5,7 +5,7 @@ import { storeToRefs } from 'pinia'
 import toast from '@/components/toaster'
 import { useI18n } from 'vue-i18n'
 import emitter from '@/plugins/eventbus'
-import { graphqlSubscriptions } from '@/lib/api/subscription-client'
+import { Channel, invoke } from '@tauri-apps/api/core'
 import { setLocalServerPort, setLocalServerHttpsPort } from '@/lib/api/api'
 import { buildUrl } from '@/lib/url'
 import type { VSelectOption } from '@/components/base/VSelect.vue'
@@ -40,9 +40,21 @@ export function useHttpServer() {
     }
   }
 
-  const stopNetworkChanges = graphqlSubscriptions.subscribe('networkChanged', loadIps)
-  const stopAttached = graphqlSubscriptions.onAttached(() => { void loadIps() })
-  onUnmounted(() => { stopNetworkChanges(); stopAttached() })
+  let disposed = false
+  let registration: number | undefined
+  if (__IS_TAURI__) {
+    const channel = new Channel<Record<string, never>>()
+    channel.onmessage = () => { void loadIps() }
+    void invoke<number>('native_register_network_changes', { channel }).then((id) => {
+      if (disposed) return invoke('native_unregister_network_changes', { id })
+      registration = id
+      return loadIps()
+    }).catch((error) => console.error('Network changes registration failed', error))
+  }
+  onUnmounted(() => {
+    disposed = true
+    if (registration !== undefined) void invoke('native_unregister_network_changes', { id: registration }).catch(console.error)
+  })
 
   async function savePort(kind: 'http' | 'https', port: number): Promise<boolean> {
     if (!__IS_TAURI__) return false

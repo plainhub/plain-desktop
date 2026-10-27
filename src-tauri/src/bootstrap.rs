@@ -58,6 +58,7 @@ pub fn run() {
         .manage(crate::commands::media_preview_pool::MediaPreviewState::default())
         .manage(crate::commands::screen_capture::runtime::ScreenCaptureRuntime::default())
         .manage(crate::commands::native::views::NativeViews::default())
+        .manage(crate::commands::native::callbacks::HostCallbacks::default())
         .manage(crate::commands::native::uploads::UploadWriters::default())
         .manage(startup)
         .setup(|app| {
@@ -401,6 +402,18 @@ pub fn run() {
             crate::commands::native::management::native_restart_http_server,
             crate::commands::native::management::native_lan_ipv4_addresses,
             crate::commands::native::management::native_confirm_web_login,
+            crate::commands::native::management::native_web_login_requests,
+            crate::commands::native::management::native_peer_notifications,
+            crate::commands::native::callbacks::native_register_login_callbacks,
+            crate::commands::native::callbacks::native_unregister_login_callbacks,
+            crate::commands::native::callbacks::native_register_peer_notifications,
+            crate::commands::native::callbacks::native_unregister_peer_notifications,
+            crate::commands::native::callbacks::native_register_peer_clipboard,
+            crate::commands::native::callbacks::native_unregister_peer_clipboard,
+            crate::commands::native::callbacks::native_register_network_changes,
+            crate::commands::native::callbacks::native_unregister_network_changes,
+            crate::commands::native::callbacks::native_register_http_status,
+            crate::commands::native::callbacks::native_unregister_http_status,
             crate::commands::native::management::native_device_identity,
             crate::commands::native::management::native_file_paths,
             crate::commands::native::management::native_pairing_code,

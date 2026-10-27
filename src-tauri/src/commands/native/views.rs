@@ -44,6 +44,9 @@ impl NativeViews {
 }
 
 pub fn page_changed<R: tauri::Runtime>(app: &tauri::AppHandle<R>, label: &str, reset: bool) {
+    if let Some(callbacks) = app.try_state::<super::callbacks::HostCallbacks>() {
+        callbacks.remove_view(label);
+    }
     let Some(views) = app.try_state::<NativeViews>() else {
         return;
     };

@@ -4,16 +4,13 @@ import { useI18n } from 'vue-i18n'
 import emitter from '@/plugins/eventbus'
 import toast from '@/components/toaster'
 import { getLocalToken, isNativeTarget, setLocalServerPort, setLocalServerHttpsPort } from '@/lib/api/api'
-import { projectPeerNotificationEvent } from '@/lib/peer/peer-events'
 import { subscribeLoginPeerUpdates } from '@/lib/device/login-peers'
-import { chachaDecrypt } from '@/lib/api/crypto'
 import { parseWebSocketData } from '@/lib/api/sjcl-arraybuffer'
-import { eventAad } from '@/lib/api/websocket-events'
 import { applyDarkClass, changeColor, changeColorMode, getCurrentMode, getLastSavedAutoColorMode, isModeDark } from '@/lib/theme'
-import { tokenToKey } from '@/lib/api/file'
 import { subscribeNativeEvents, type NativeEventStream } from '@/lib/api/native-events'
 import { applySnapshot } from '@/lib/prefs'
 import { nativeGraphql } from '@/lib/api/native-client'
+import { readLocalServer } from '@/lib/api/local-server'
 
 const RAW_BINARY_EVENTS = new Set(['SCREEN_MIRROR_VIDEO', 'SCREEN_MIRROR_AUDIO', 'IMAGE_EDITOR_UPDATE'])
 
@@ -30,6 +27,7 @@ export function useAppSocket() {
   let stopPeerUpdates: (() => void) | undefined
   let disposed = false
   let stopPrefsChanges: (() => void) | undefined
+  let stopHttpStatus: (() => void) | undefined
   let stopConnection: (() => void) | undefined
   let prefsRefresh = Promise.resolve()
 
@@ -37,25 +35,8 @@ export function useAppSocket() {
     tapPhoneMessage.value = ''
   }
 
-  function dispatchEvent(r: { type: string; data: Uint8Array }, key: Uint8Array) {
-    try {
-      const type = r.type
-      if (RAW_BINARY_EVENTS.has(r.type)) {
-        emitter.emit(type as any, r.data)
-      } else {
-        const json = chachaDecrypt(key, r.data, eventAad(type))
-        const data = json ? JSON.parse(json) : null
-        if (type === 'PEER_NOTIFICATIONS_UPDATED') {
-          projectPeerNotificationEvent(data, true)
-          return
-        }
-        // Enabled automatically in dev mode (see main.ts)
-        if (window.__PLAIN_LOG__) console.log(`[ws event] ${type}`, data)
-        emitter.emit(type as any, data)
-      }
-    } catch (ex) {
-      console.error(ex)
-    }
+  function dispatchEvent(frame: { type: string; data: Uint8Array }) {
+    if (RAW_BINARY_EVENTS.has(frame.type)) emitter.emit(frame.type as any, frame.data)
   }
 
   function handleOpen(native = false) {
@@ -84,11 +65,10 @@ export function useAppSocket() {
   function connectNative() {
     const token = getLocalToken()
     if (!token) return
-    const key = tokenToKey(token)
     nativeStream?.close()
     nativeStream = subscribeNativeEvents(
       (frame) => {
-        try { dispatchEvent(parseWebSocketData(frame), key) } catch (error) { console.error(error) }
+        try { dispatchEvent(parseWebSocketData(frame)) } catch (error) { console.error(error) }
       },
       () => {
         nativeStream = null
@@ -115,11 +95,6 @@ export function useAppSocket() {
   const stopSubscriptions: (() => void)[] = []
   onUnmounted(() => stopSubscriptions.forEach(stop => stop()))
   onMounted(() => {
-    emitter.on('HTTP_SERVER_STARTED', (started) => {
-      setLocalServerPort(started.httpPort)
-      setLocalServerHttpsPort(started.httpsPort)
-      emitter.emit('refetch_app')
-    })
     emitter.on('toast', (r: string) => toast(t(r), 'error'))
     emitter.on('tap_phone', (r: string) => {
       tapPhoneMessage.value = r
@@ -146,6 +121,31 @@ export function useAppSocket() {
       console.error(ex)
     }
     if (__IS_TAURI__) {
+      void (async () => {
+        const { Channel, invoke } = await import('@tauri-apps/api/core')
+        const apply = (ports: { httpPort: number; httpsPort: number }) => {
+          setLocalServerPort(ports.httpPort)
+          setLocalServerHttpsPort(ports.httpsPort)
+          emitter.emit('refetch_app')
+        }
+        let ready = false
+        const buffered: Array<{ httpPort: number; httpsPort: number }> = []
+        const channel = new Channel<{ state: string; httpPort: number; httpsPort: number }>()
+        channel.onmessage = (payload) => {
+          if (payload.state !== 'started') return
+          if (ready) apply(payload)
+          else buffered.push(payload)
+        }
+        const id = await invoke<number>('native_register_http_status', { channel })
+        const stop = () => { void invoke('native_unregister_http_status', { id }).catch(console.error) }
+        if (disposed) { stop(); return }
+        stopHttpStatus = stop
+        const current = await readLocalServer()
+        if (disposed) return
+        apply(current)
+        buffered.forEach(apply)
+        ready = true
+      })().catch(console.error)
       void import('@tauri-apps/api/event').then(({ listen }) => listen('prefsChanged', () => {
         prefsRefresh = prefsRefresh.then(async () => {
           const result = await nativeGraphql<{ data?: { prefs: Record<string, unknown> }; errors?: { message: string }[] }>({ query: 'query { prefs }' }, 30000)
@@ -174,6 +174,7 @@ export function useAppSocket() {
     stopConnection?.()
     stopPeerUpdates?.()
     stopPrefsChanges?.()
+    stopHttpStatus?.()
   })
 
   return { wsStatus, tapPhoneMessage, closeTapPhone }

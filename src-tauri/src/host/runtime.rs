@@ -2,7 +2,7 @@ use std::sync::Arc;
 
 use plain_server::assembly::server::ContentServer;
 use serde_json::Value;
-use tauri::Emitter;
+use tauri::{Emitter, Manager};
 use tauri_plugin_clipboard_manager::ClipboardExt;
 
 pub struct Runtime {
@@ -24,6 +24,11 @@ impl Runtime {
 
     async fn dispatch(&self, method: &str, params: Value) -> Result<Value, String> {
         match method {
+            "systemWebLoginRequested" | "systemWebLoginClosed" | "systemWebLoginSnapshot" | "peerNotificationsChanged" | "peerClipboardChanged" | "networkInterfacesChanged" | "httpServerStatusChanged" => {
+                self.app.state::<crate::commands::native::callbacks::HostCallbacks>().deliver(method, &params)?;
+                Ok(Value::Null)
+            }
+            "systemWebLoginCompleted" | "systemWebActivity" | "onlineClientsChanged" | "clipboardHistoryRefresh" | "dlnaRendererChanged" | "dlnaRendererRefresh" | "sharedFolderDownloadsRefresh" | "peerTransportsChanged" | "appUpdateDownloadChanged" | "dlnaSenderChanged" | "feedSyncChanged" | "audioPlaybackRefresh" | "audioLibraryRefresh" | "pairingSucceeded" => Ok(Value::Null),
             "prefsChanged" => {
                 self.app.emit("prefsChanged", ()).map_err(|error| error.to_string())?;
                 Ok(Value::Null)
@@ -102,22 +107,6 @@ impl Runtime {
                     move |method, params| {
                         let requests = requests.clone();
                         async move { requests.dispatch(&method, params).await }
-                    },
-                    {
-                        let app = self.app.clone();
-                        move |event| {
-                            let kind = event
-                                .get("type")
-                                .and_then(Value::as_str)
-                                .ok_or("missing host event type")?;
-                            let payload = event
-                                .get("payload")
-                                .and_then(Value::as_str)
-                                .ok_or("missing host event payload")?;
-                            let payload = serde_json::from_str::<Value>(payload)
-                                .unwrap_or_else(|_| Value::String(payload.to_owned()));
-                            app.emit(kind, payload).map_err(|error| error.to_string())
-                        }
                     },
                 )
                 .await;
