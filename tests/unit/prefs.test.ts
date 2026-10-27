@@ -4,6 +4,7 @@ const { native, remote, invoke } = vi.hoisted(() => ({ native: vi.fn(), remote: 
 vi.mock('@tauri-apps/api/core', () => ({ invoke }))
 vi.mock('@/lib/api/native-client', () => ({ nativeGraphql: native }))
 vi.mock('@/lib/api/gql-client', () => ({ gqlFetch: remote }))
+vi.mock('@/plugins/i18n', () => ({ loadLocaleMessages: vi.fn(), syncLocaleFromPrefs: vi.fn() }))
 
 let storage: Map<string, string>
 beforeEach(() => {
@@ -21,6 +22,27 @@ beforeEach(() => {
 afterEach(() => {
   vi.unstubAllGlobals()
   vi.restoreAllMocks()
+})
+
+it.each([
+  ['USE_DEVICE_THEME', 'auto'],
+  ['ON', 'dark'],
+  ['OFF', 'light'],
+])('applies the Rust theme name %s on desktop and web', async (value, mode) => {
+  const prefs = await import('../../src/lib/prefs')
+  const theme = await import('../../src/lib/theme')
+  native.mockResolvedValue({ data: { prefs: { dark_theme: value } } })
+  invoke.mockResolvedValue({ clientId: 'local-core', signaturePublicKey: 'public-key' })
+  await prefs.preload()
+  expect(theme.getCurrentMode()).toBe(mode)
+
+  vi.stubGlobal('__IS_TAURI__', false)
+  const classList = { add: vi.fn(), remove: vi.fn() }
+  vi.stubGlobal('document', { documentElement: { classList } })
+  vi.stubGlobal('window', { matchMedia: () => ({ matches: false }) })
+  await prefs.applySnapshot({ dark_theme: value })
+  expect(theme.getCurrentMode()).toBe(mode)
+  expect(mode === 'dark' ? classList.add : classList.remove).toHaveBeenCalledWith('dark')
 })
 
 it('loads filtered prefs and obtains core identity through its dedicated native API', async () => {
