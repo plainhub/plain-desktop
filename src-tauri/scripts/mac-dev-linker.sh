@@ -4,7 +4,7 @@
 # and a stable identifier so the TCC screen-recording grant survives rebuilds
 # (an ad-hoc identity changes cdhash on every relink; a certificate identity
 # does not). Machines without the certificate — CI, other developers — keep
-# the stock ad-hoc behavior and just print a notice.
+# the stock ad-hoc behavior.
 set -u
 
 out=""
@@ -35,14 +35,17 @@ if [ "$is_app_bin" = true ]; then
   identity=$(security find-identity -v -p codesigning 2>/dev/null \
     | awk 'match($0, /".*"/) { print substr($0, RSTART + 1, RLENGTH - 2); exit }')
   if [ -z "$identity" ]; then
-    echo "mac-dev-linker: no Apple Development identity found; PlainApp stays ad-hoc" >&2
     exit 0
   fi
-  if codesign --force --sign "$identity" \
-      --identifier com.ismartcoding.plain.desktop.dev "$out" >&2; then
-    echo "mac-dev-linker: signed PlainApp (stable TCC identity)" >&2
-  else
-    echo "mac-dev-linker: codesign failed (keychain locked?); continuing ad-hoc" >&2
+  signing_output=$(codesign --force --sign "$identity" \
+      --identifier com.ismartcoding.plain.desktop.dev "$out" 2>&1)
+  status=$?
+  if [ "$status" -ne 0 ]; then
+    printf '%s\n' "$signing_output" >&2
+    exit "$status"
+  fi
+  if [ -n "$signing_output" ] && [ "$signing_output" != "$out: replacing existing signature" ]; then
+    printf '%s\n' "$signing_output" >&2
   fi
 fi
 exit 0

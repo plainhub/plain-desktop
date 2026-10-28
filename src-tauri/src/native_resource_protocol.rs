@@ -66,10 +66,6 @@ pub fn resource_url(id: &str) -> String {
     format!("{RESOURCE_SCHEME}://{RESOURCE_HOST}/{id}")
 }
 
-pub fn is_resource_url(url: &str) -> bool {
-    url.starts_with(&format!("{RESOURCE_SCHEME}://"))
-}
-
 /// The opaque handle id is the last path segment of the request URI; the
 /// scheme and host are fixed and carry no caller-controlled input.
 fn requested_id(request: &Request<Vec<u8>>) -> Option<String> {

@@ -8,9 +8,6 @@ mod native_resource_protocol;
 mod prefs;
 mod utils;
 
-use std::sync::Arc;
-use tauri::Manager;
-
 const _: &[u8] = include_bytes!("../icons/icon.icns");
 
 pub use bootstrap::run;
