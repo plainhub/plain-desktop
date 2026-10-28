@@ -53,7 +53,7 @@ pub async fn native_graphql(
 }
 
 #[tauri::command]
-pub fn native_subscription_open(
+pub async fn native_subscription_open(
     window: tauri::WebviewWindow,
     views: tauri::State<'_, super::views::NativeViews>,
     core: tauri::State<'_, Arc<ContentServer>>,
@@ -74,7 +74,7 @@ fn subscription_session(
     Ok(session)
 }
 #[tauri::command]
-pub fn native_subscription_send(
+pub async fn native_subscription_send(
     window: tauri::WebviewWindow,
     views: tauri::State<'_, super::views::NativeViews>,
     core: tauri::State<'_, Arc<ContentServer>>,
@@ -95,7 +95,7 @@ pub async fn native_subscription_read(
         .await
 }
 #[tauri::command]
-pub fn native_subscription_close(
+pub async fn native_subscription_close(
     window: tauri::WebviewWindow,
     views: tauri::State<'_, super::views::NativeViews>,
     core: tauri::State<'_, Arc<ContentServer>>,
