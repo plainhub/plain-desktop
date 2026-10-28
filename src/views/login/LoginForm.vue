@@ -37,8 +37,8 @@
       {{ $t('login.to_continue') }}
     </div>
     <div v-if="verificationCode" class="login-code">
-      <p>{{ $t('login.compare_code') }}</p>
       <code>{{ verificationCode }}</code>
+      <p>{{ $t('login.compare_code') }}</p>
     </div>
     <v-outlined-button @click="onCancel">
       {{ $t('cancel') }}
@@ -104,14 +104,27 @@ defineExpose({ init, initializeNative })
 .login-code {
   display: flex;
   flex-direction: column;
+  align-items: center;
   gap: 8px;
   margin: 16px 0;
+  padding: 16px;
+  border-radius: 16px;
+  background: var(--md-sys-color-surface-container-low);
+  text-align: center;
 }
 .login-code p {
   margin: 0;
+  color: var(--md-sys-color-on-surface-variant);
+  font-size: 0.875rem;
+  line-height: 1.5;
 }
 .login-code code {
-  overflow-wrap: anywhere;
+  color: var(--md-sys-color-on-surface);
+  font-size: clamp(1.5rem, 6vw, 2rem);
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.04em;
+  white-space: nowrap;
 }
 </style>
 
