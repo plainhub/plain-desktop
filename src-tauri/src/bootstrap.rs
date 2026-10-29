@@ -337,15 +337,15 @@ pub fn run() {
                 #[cfg(any(target_os = "windows", target_os = "linux"))]
                 {
                     let destroyed_label = window.label();
-                    if should_check_app_exit_after_destroy(destroyed_label) {
+                    if crate::should_check_app_exit_after_destroy(destroyed_label) {
                         let app = window.app_handle();
                         let remaining = app
                             .webview_windows()
                             .into_iter()
                             .filter(|(label, _)| {
-                                label != destroyed_label && keeps_process_alive(label)
+                                label != destroyed_label && crate::keeps_process_alive(label)
                             });
-                        if !any_window_visible(remaining.map(|(_, w)| w.is_visible().ok())) {
+                        if !crate::any_window_visible(remaining.map(|(_, w)| w.is_visible().ok())) {
                             app.exit(0);
                         }
                     }

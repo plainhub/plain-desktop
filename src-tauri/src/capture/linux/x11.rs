@@ -105,15 +105,15 @@ impl Capture for X11Capture {
                             x: i32::from(x),
                             y: i32::from(y),
                         },
-                        physical_size: crate::capture::linux::super::PhysicalSize {
+                        physical_size: crate::capture::PhysicalSize {
                             width: u32::from(width),
                             height: u32::from(height),
                         },
-                        logical_origin: crate::capture::linux::super::LogicalPoint {
+                        logical_origin: crate::capture::LogicalPoint {
                             x: f64::from(x),
                             y: f64::from(y),
                         },
-                        logical_size: crate::capture::linux::super::LogicalSize {
+                        logical_size: crate::capture::LogicalSize {
                             width: f64::from(width),
                             height: f64::from(height),
                         },
@@ -157,7 +157,7 @@ impl Capture for X11Capture {
         exclude_window_ids: &[u64],
     ) -> Result<Frame, CaptureError> {
         let _ = exclude_window_ids;
-        crate::capture::linux::super::preflight_capture_permission()?;
+        crate::capture::preflight_capture_permission()?;
         let (_, x, y, width, height) = self.display_entry(display)?;
 
         let image = self
