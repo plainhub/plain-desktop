@@ -66,7 +66,7 @@ fn subscription_session(
     views: &super::views::NativeViews,
     core: &ContentServer,
     handle: u64,
-) -> Result<Arc<plain_server::graphql::subscriptions::session::Session>, String> {
+) -> Result<plain_server::graphql::subscriptions::session::SubscriptionSession, String> {
     let session = core.native_graphql()?.subscription_session(handle)?;
     if session.scope_id() != views.scope(window.label()).id() {
         return Err("Subscription view mismatch".into());
