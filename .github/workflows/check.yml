@@ -14,8 +14,8 @@ permissions:
 
 jobs:
   frontend-check:
-    name: frontend capture checks
-    runs-on: ubuntu-latest
+    name: frontend checks
+    runs-on: ubuntu-24.04
     defaults:
       run:
         working-directory: plain-desktop
@@ -72,39 +72,11 @@ jobs:
       - name: Build Tauri frontend
         run: VITE_APP_MODE=tauri yarn build
 
-      # The focused unit project runs in real Chromium. Install it only after
-      # the cheaper static/build gates pass so failures there do not trigger an
-      # unnecessary browser and system-package installation.
-      - name: Install Chromium
-        run: yarn playwright install --with-deps chromium
+      - name: Run frontend unit tests (web)
+        run: yarn test
 
-      - name: Run screen capture tests (web)
-        run: >-
-          yarn test
-          --project=unit
-          tests/lib/screen-capture
-          tests/lib/upload/upload-queue.test.ts
-          tests/views/screen-capture
-          tests/views/chat/chat-input-capture.test.ts
-          tests/views/chat/chat-upload-destination.test.ts
-          tests/views/chat/chat-tasks.test.ts
-          tests/views/image-editor/annotation-session.test.ts
-
-      - name: Run SMS synchronization regressions
-        run: >-
-          yarn test
-          --project=unit
-          tests/hooks/message-thread.test.ts
-          tests/lib/sms-notification-refresh.test.ts
-          tests/stores/sms.test.ts
-          tests/lib/sms-state-sync.test.ts
-          tests/lib/message-helpers.test.ts
-
-      - name: Run Tauri capture component test
-        run: >-
-          VITE_APP_MODE=tauri yarn test
-          --project=unit
-          tests/views/chat/chat-input-capture.test.ts
+      - name: Run frontend unit tests (Tauri)
+        run: VITE_APP_MODE=tauri yarn test
 
   cargo-check:
     name: cargo check (${{ matrix.platform }})
