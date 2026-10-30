@@ -1,6 +1,6 @@
 import { readFile, writeFile, readdir } from 'node:fs/promises'
 import { readApiSchema } from '../../plain-core/scripts/read-api-schema.mjs'
-import { fileURLToPath } from 'node:url'
+import { fileURLToPath, URL } from 'node:url'
 import { extractDocuments } from '../src/lib/api/graphql/extract.ts'
 import { parseDocument, parseSchema } from '../src/lib/api/graphql/parser.ts'
 import { validateDocument } from '../src/lib/api/graphql/schema.ts'

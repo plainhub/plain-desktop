@@ -218,7 +218,7 @@ export const useDelete = (gql: string, done: () => void) => {
     deleteCount,
     deleteLoading,
     deleteItems: (selectedIds: string[], realAllChecked: boolean, total: number, query: string) => {
-      let q = query
+      let q: string
       if (!realAllChecked) {
         if (selectedIds.length === 0) {
           toast(t('select_first'), 'error')

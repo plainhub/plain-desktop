@@ -52,3 +52,20 @@ it('the deadline includes handshake time instead of restarting the timeout at di
   expect(fixture.invoke.mock.calls[1][1].body.extensions.nativeDeadlineMs).toBe(1500)
   expect(vi.getTimerCount()).toBe(0)
 })
+
+it.each([new Error('native_failure'), 'native_failure'])('preserves the original native rejection as its cause: %s', async (cause) => {
+  fixture.invoke.mockImplementation((command: string) => command === 'native_view_scope'
+    ? Promise.resolve('document')
+    : Promise.reject(cause))
+  const { nativeGraphql } = await import('../../src/lib/api/native-client')
+  await expect(nativeGraphql({ query: '{ app { name } }' }, 500)).rejects.toMatchObject({ message: 'native_failure', cause })
+  expect(vi.getTimerCount()).toBe(0)
+})
+
+it('preserves an existing timeout error without wrapping it', async () => {
+  const error = new Error('connection_timeout')
+  fixture.invoke.mockRejectedValue(error)
+  const { nativeGraphql } = await import('../../src/lib/api/native-client')
+  await expect(nativeGraphql({ query: '{ app { name } }' }, 500)).rejects.toBe(error)
+  expect(vi.getTimerCount()).toBe(0)
+})

@@ -72,7 +72,9 @@ export function getBrowserIdentity(): { deviceId: string; publicKey: string } | 
   try {
     const identity = JSON.parse(saved)
     if (typeof identity.deviceId === 'string' && identity.deviceId && typeof identity.publicKey === 'string' && identity.publicKey) return identity
-  } catch {}
+  } catch {
+    throw 'peer_identity_changed'
+  }
   throw 'peer_identity_changed'
 }
 

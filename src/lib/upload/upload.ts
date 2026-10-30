@@ -53,7 +53,7 @@ const NATIVE_WRITE_BYTES = 64 * 1024
 
 async function nativeWriteChunk(upload: IUploadItem, chunkData: IUploadChunk, onProgress: (bytes: number) => void): Promise<boolean> {
   const fileId = upload.fileId || ''
-  let handle = ''
+  let handle: string
   try {
     handle = await invoke<string>('native_upload_chunk_open', {
       fileId,

@@ -197,14 +197,12 @@ export default class Virtual {
     }
 
     let low = 0
-    let middle = 0
-    let middleOffset = 0
     let high = this.param.uniqueIds.length
 
     while (low <= high) {
       // this.__bsearchCalls++
-      middle = low + Math.floor((high - low) / 2)
-      middleOffset = this.getIndexOffset(middle)
+      const middle = low + Math.floor((high - low) / 2)
+      const middleOffset = this.getIndexOffset(middle)
 
       if (middleOffset === offset) {
         return middle
@@ -215,7 +213,7 @@ export default class Virtual {
       }
     }
 
-    return low > 0 ? --low : 0
+    return low > 0 ? low - 1 : 0
   }
 
   // return a scroll offset from given index, can efficiency be improved more here?
@@ -226,10 +224,9 @@ export default class Virtual {
     }
 
     let offset = 0
-    let indexSize = 0
     for (let index = 0; index < givenIndex; index++) {
       // this.__getIndexOffsetCalls++
-      indexSize = this.sizes.get(this.param.uniqueIds[index]) ?? 0
+      const indexSize = this.sizes.get(this.param.uniqueIds[index]) ?? 0
       offset = offset + (typeof indexSize === 'number' ? indexSize : this.getEstimateSize())
     }
 

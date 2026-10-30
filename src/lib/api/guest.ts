@@ -123,7 +123,7 @@ export async function guestFetch<T = any>(
     if (window.__PLAIN_LOG__) {
       console.warn(`[gql] ✗ sharedInfo ${e.message || e.name}`)
     }
-    if (e.name === 'AbortError') throw new Error('connection_timeout')
+    if (e.name === 'AbortError') throw new Error('connection_timeout', { cause: e })
     throw e
   } finally {
     clearTimeout(timer)

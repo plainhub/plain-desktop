@@ -14,6 +14,7 @@
  * Output:
  *   plain-app/shared/src/commonTest/resources/web-crypto-vectors.json
  */
+import { TextEncoder } from 'node:util'
 import { p256 } from '@noble/curves/nist.js'
 import { ed25519 } from '@noble/curves/ed25519.js'
 import { sha256 } from '@noble/hashes/sha2.js'

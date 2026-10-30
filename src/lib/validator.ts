@@ -23,8 +23,8 @@ export function isIPWithOptionalPort(v: string): boolean {
       return true
     }
 
-    let ip = ''
-    let port = ''
+    let ip: string
+    let port: string
     if (v.includes(']:') && v.startsWith('[')) {
       const split = v.split(']:')
       ip = split[0].replace(/^\[+/, '')
@@ -70,8 +70,8 @@ export function isNetWithOptionalPort(v: string): boolean {
       return true
     }
 
-    let ip = ''
-    let port = ''
+    let ip: string
+    let port: string
     if (v.includes(']:') && v.startsWith('[')) {
       const split = v.split(']:')
       ip = split[0].replace(/^\[+/, '')

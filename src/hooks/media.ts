@@ -38,7 +38,7 @@ export const useDeleteItems = () => {
     deleteCount,
     deleteLoading,
     deleteItems: (type: string, ids: string[], realAllChecked: boolean, total: number, query: string) => {
-      let q = query
+      let q: string
       if (!realAllChecked) {
         if (ids.length === 0) {
           toast(t('select_first'), 'error')
@@ -85,7 +85,7 @@ export const useMoveItems = () => {
   return {
     moveLoading,
     moveItems: (type: string, ids: string[], realAllChecked: boolean, query: string) => {
-      let q = query
+      let q: string
       if (!realAllChecked) {
         if (ids.length === 0) {
           toast(t('select_first'), 'error')

@@ -28,7 +28,7 @@ export async function nativeGraphql<T = any>(body: NativeGraphqlBody, timeout: n
     return await Promise.race([execute(), expiry])
   } catch (e: any) {
     if (e?.message === 'connection_timeout') throw e
-    throw new Error(typeof e === 'string' ? e : e?.message || 'native_error')
+    throw new Error(typeof e === 'string' ? e : e?.message || 'native_error', { cause: e })
   } finally {
     clearTimeout(timer)
   }

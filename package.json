@@ -57,7 +57,7 @@
     "yjs": "^13.6.31"
   },
   "devDependencies": {
-    "@eslint/js": "9.39.4",
+    "@eslint/js": "10.0.1",
     "@iconify-json/lucide": "^1.2.104",
     "@iconify-json/material-symbols": "^1.2.69",
     "@intlify/unplugin-vue-i18n": "^11.2.5",
@@ -69,7 +69,7 @@
     "@vitejs/plugin-vue": "^6.0.1",
     "@vitejs/plugin-vue-jsx": "^5.1.1",
     "@vue/tsconfig": "^0.7.0",
-    "eslint": "^9.28.0",
+    "eslint": "10.13.0",
     "eslint-config-prettier": "10.1.8",
     "eslint-plugin-vue": "^10.1.0",
     "prettier": "^3.5.3",

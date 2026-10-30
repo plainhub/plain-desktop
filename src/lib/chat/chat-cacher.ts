@@ -6,7 +6,7 @@ import { peerCacher } from './peer-cacher'
 import { channelCacher } from './channel-cacher'
 
 export function normalizeChatItem(item: any): IChatItem {
-  let parsedContent = null
+  let parsedContent: IChatItem['_content']
   try {
     parsedContent = item?._content ?? (item?.content ? JSON.parse(item.content) : null)
   } catch {
