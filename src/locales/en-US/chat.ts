@@ -1,4 +1,5 @@
 export default {
+  pairing_compare_code: 'Compare this code on both devices before allowing pairing.',
   show_in_finder: 'Show in Finder',
   save_as: 'Save As…',
   image: 'Image',

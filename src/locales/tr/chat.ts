@@ -1,4 +1,5 @@
 export default {
+  pairing_compare_code: 'Eşleştirmeye izin vermeden önce bu kodu her iki cihazda karşılaştırın.',
   show_in_finder: "Finder'da Göster",
   save_as: 'Farklı Kaydet…',
   image: 'Resim',

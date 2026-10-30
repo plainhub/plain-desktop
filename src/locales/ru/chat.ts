@@ -1,4 +1,5 @@
 export default {
+  pairing_compare_code: 'Прежде чем разрешить сопряжение, сравните этот код на обоих устройствах.',
   show_in_finder: 'Показать в Finder',
   save_as: 'Сохранить как…',
   image: 'Изображение',

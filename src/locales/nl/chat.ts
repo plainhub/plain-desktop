@@ -1,4 +1,5 @@
 export default {
+  pairing_compare_code: 'Vergelijk deze code op beide apparaten voordat je koppelen toestaat.',
   show_in_finder: 'Toon in Finder',
   save_as: 'Opslaan als…',
   image: 'Afbeelding',

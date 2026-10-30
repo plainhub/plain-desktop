@@ -34,7 +34,7 @@ v-if="d.discoveryMethods.includes('BLE')" v-tooltip="$t('discovered_via_bluetoot
 v-if="d.discoveryMethods.includes('LAN')" v-tooltip="$t('discovered_via_lan')"
               class="discovery-icon" />
             <span v-if="d.status === 'PAIRING'" v-tooltip="$t('waiting_for_confirmation')" class="status-badge warn">{{
-              $t('pending') }}</span>
+              $t('waiting_for_confirmation') }}</span>
           </template>
           <template #start>
             <v-dropdown v-model="infoOpen[d.id]">
@@ -64,6 +64,10 @@ v-else :loading="deviceStates.get(d.id) === DeviceState.PAIRING"
         </VListItem>
       </ul>
 
+      <div v-for="[id, code] in verificationCodes" :key="id" class="pairing-verification">
+        <p>{{ discoveredDevices.find(device => device.id === id)?.name }} · {{ $t('waiting_for_confirmation') }}</p>
+        <RequestVerificationCode :code="code" :hint="$t('pairing_compare_code')" />
+      </div>
       <QrPairPanel
         v-if="step === 'discover'"
         v-model:open="qrOpen"
@@ -78,6 +82,7 @@ v-else :loading="deviceStates.get(d.id) === DeviceState.PAIRING"
 </template>
 
 <script setup lang="ts">
+import RequestVerificationCode from '@/components/RequestVerificationCode.vue'
 import { onBeforeUnmount, onMounted, ref } from 'vue'
 import { popModal } from '@/components/modal'
 import MdnsFirewallFix from '@/components/MdnsFirewallFix.vue'
@@ -102,6 +107,7 @@ const {
 } = useDeviceDiscovery()
 const {
   deviceStates,
+  verificationCodes,
   pairDevice,
   cancelPairing,
 } = useDevicePairing()
@@ -234,4 +240,8 @@ onBeforeUnmount(() => {
   color: var(--md-sys-color-on-surface-variant);
   flex-shrink: 0;
 }
+</style>
+
+<style scoped>
+.pairing-verification { margin-top: 16px; }
 </style>

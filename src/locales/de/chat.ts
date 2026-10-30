@@ -1,4 +1,5 @@
 export default {
+  pairing_compare_code: 'Vergleiche diesen Code auf beiden Geräten, bevor du die Kopplung erlaubst.',
   show_in_finder: 'Im Finder anzeigen',
   save_as: 'Speichern unter…',
   image: 'Bild',

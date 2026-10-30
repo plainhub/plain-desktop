@@ -7,8 +7,7 @@
         <v-list-item :title="$t('os')" :value="`${current.request.osName} ${current.request.osVersion}`" />
         <v-list-item :title="$t('ip_address')" :value="current.clientIp" />
       </ul>
-      <p v-if="current.request.verificationCode">{{ $t('login.compare_code') }}</p>
-      <code v-if="current.request.verificationCode">{{ current.request.verificationCode }}</code>
+      <RequestVerificationCode v-if="current.request.verificationCode" :code="current.request.verificationCode" :hint="$t('login.compare_code')" />
       <p v-if="error" role="alert">{{ error }}</p>
     </template>
     <template #actions>
@@ -19,6 +18,7 @@
 </template>
 
 <script setup lang="ts">
+import RequestVerificationCode from '@/components/RequestVerificationCode.vue'
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { subscribeWebLoginRequests, decideWebLogin, type WebLoginRequest } from '@/lib/device/web-login-requests'

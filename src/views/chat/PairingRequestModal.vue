@@ -13,6 +13,7 @@
         <p class="pairing-hint">
           {{ $t('pairing_request_hint') }}
         </p>
+        <RequestVerificationCode v-if="request.verificationCode" :code="request.verificationCode" :hint="$t('pairing_compare_code')" />
         <ul class="card list-items">
           <v-list-item :title="$t('ip_address')" :value="displayIp">
           </v-list-item>
@@ -41,6 +42,7 @@
 </template>
 
 <script setup lang="ts">
+import RequestVerificationCode from '@/components/RequestVerificationCode.vue'
 import { computed, onBeforeUnmount, ref } from 'vue'
 import type { PropType } from 'vue'
 import { popModal } from '@/components/modal'

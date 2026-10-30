@@ -1,4 +1,5 @@
 export default {
+  pairing_compare_code: 'So sánh mã này trên cả hai thiết bị trước khi cho phép ghép đôi.',
   show_in_finder: 'Hiển thị trong Finder',
   save_as: 'Lưu thành…',
   image: 'Ảnh',

@@ -8,7 +8,7 @@ export interface SubscriptionOperation {
 }
 export const subscriptionOperations: readonly SubscriptionOperation[] = [
   {field: 'pairingChanged', document: 'subscription { pairingChanged }', permissions: []},
-  {field: 'pairingRequested', document: 'subscription { pairingRequested { fromId fromName port deviceType ecdhPublicKey signaturePublicKey timestamp ips signature fromIp awareSupported } }', permissions: []},
+  {field: 'pairingRequested', document: 'subscription { pairingRequested { fromId fromName port deviceType ecdhPublicKey signaturePublicKey timestamp ips signature fromIp awareSupported verificationCode } }', permissions: []},
   {field: 'pairingStarted', document: 'subscription { pairingStarted { deviceId deviceName error } }', permissions: []},
   {field: 'pairingFailed', document: 'subscription { pairingFailed { deviceId deviceName error } }', permissions: []},
   {field: 'pairingCanceled', document: 'subscription { pairingCanceled { deviceId deviceName error } }', permissions: []},

@@ -1,4 +1,5 @@
 export default {
+  pairing_compare_code: 'পেয়ারিংয়ের অনুমতি দেওয়ার আগে উভয় ডিভাইসে এই কোডটি মিলিয়ে নিন।',
   show_in_finder: 'Finder-এ দেখান',
   save_as: 'নতুন নামে সংরক্ষণ করুন…',
   image: 'ছবি',

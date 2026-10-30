@@ -1,4 +1,5 @@
 export default {
+  pairing_compare_code: 'ペア設定を許可する前に、両方のデバイスのコードが一致することを確認してください。',
   show_in_finder: 'Finder で表示',
   save_as: '名前を付けて保存…',
   image: '画像',

@@ -4,9 +4,11 @@ import {
   pairDeviceGQL,
   respondToPairingGQL,
 } from '@/lib/api/mutation'
+import type { PairingState } from '@/lib/device/pairing'
 import type { PairingRequest } from '@/lib/pairing-types'
-import { getGraphqlContextKey } from '@/lib/api/gql-client'
-import { reactive } from 'vue'
+import { getGraphqlContextKey, gqlFetch } from '@/lib/api/gql-client'
+import { onBeforeUnmount, onMounted, reactive, ref } from 'vue'
+import { graphqlSubscriptions } from '@/lib/api/subscription-client'
 
 export type { PairingRequest }
 export enum PairingStatus {
@@ -31,16 +33,38 @@ const { mutate: cancelPairingMutate } = initMutation({ document: cancelPairingGQ
 const { mutate: respondToPairingMutate } = initMutation({ document: respondToPairingGQL }, false)
 
 export async function allowPairing(request: PairingRequest) {
-  await respondToPairingMutate({ input: request, accepted: true })
+  const { verificationCode: _, ...input } = request
+  await respondToPairingMutate({ input, accepted: true })
 }
 
 export async function denyPairing(request: PairingRequest) {
-  await respondToPairingMutate({ input: request, accepted: false })
+  const { verificationCode: _, ...input } = request
+  await respondToPairingMutate({ input, accepted: false })
 }
 
 export interface PairingDeviceInput { id: string; host?: string }
 
 export function useDevicePairing() {
+  const verificationCodes = ref<Map<string, string>>(new Map())
+  async function refreshVerificationCodes() {
+    const { data } = await gqlFetch<{ pairingStates: Pick<PairingState, 'deviceId' | 'phase' | 'verificationCode'>[] }>('{ pairingStates { deviceId phase verificationCode } }')
+    const codes = new Map<string, string>()
+    for (const state of data?.pairingStates ?? []) {
+      if (state.deviceId && state.verificationCode && !['SUCCEEDED', 'FAILED', 'CANCELLED'].includes(state.phase)) {
+        codes.set(state.deviceId, state.verificationCode)
+      }
+    }
+    verificationCodes.value = codes
+  }
+  const refresh = () => { void refreshVerificationCodes().catch(error => console.error('Pairing verification refresh failed', error)) }
+  let stopChanges: (() => void) | undefined
+  let stopAttached: (() => void) | undefined
+  onMounted(() => {
+    stopChanges = graphqlSubscriptions.subscribe('pairingChanged', refresh)
+    stopAttached = graphqlSubscriptions.onAttached(refresh)
+    refresh()
+  })
+  onBeforeUnmount(() => { stopChanges?.(); stopAttached?.() })
   const generations = new Map<string, string>()
   const key = (id: string) => `${getGraphqlContextKey()}|${id}`
   async function pairDevice(device: PairingDeviceInput) {
@@ -63,5 +87,6 @@ export function useDevicePairing() {
     pairDevice,
     cancelPairing,
     deviceStates,
+    verificationCodes,
   }
 }

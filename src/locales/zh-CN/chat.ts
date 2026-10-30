@@ -1,4 +1,5 @@
 export default {
+  pairing_compare_code: '允许配对前，请核对两台设备显示的匹配码一致。',
   show_in_finder: '在 Finder 中显示',
   save_as: '另存为…',
   image: '图片',

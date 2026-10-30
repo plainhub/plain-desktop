@@ -1,4 +1,5 @@
 export default {
+  pairing_compare_code: '페어링을 허용하기 전에 두 기기에 표시된 코드가 같은지 확인하세요.',
   show_in_finder: 'Finder에서 보기',
   save_as: '다른 이름으로 저장…',
   image: '이미지',

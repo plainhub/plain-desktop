@@ -1,4 +1,5 @@
 export default {
+  pairing_compare_code: 'Comparez ce code sur les deux appareils avant d’autoriser l’association.',
   show_in_finder: 'Montrer dans le Finder',
   save_as: 'Enregistrer sous…',
   image: 'Image',

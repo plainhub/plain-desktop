@@ -2011,6 +2011,7 @@ export interface GqlOperations {
         signature: string
         fromIp: string
         awareSupported: boolean
+        verificationCode: string
       }
     }
     variables: undefined

@@ -434,6 +434,7 @@ declare module 'vue' {
     QrPairPanel: typeof import('./src/components/QrPairPanel.vue')['default']
     RailSettingsPopup: typeof import('./src/views/app-rail/RailSettingsPopup.vue')['default']
     RenameChannelModal: typeof import('./src/views/chat/RenameChannelModal.vue')['default']
+    RequestVerificationCode: typeof import('./src/components/RequestVerificationCode.vue')['default']
     RouterLink: typeof import('vue-router')['RouterLink']
     RouterView: typeof import('vue-router')['RouterView']
     SaveFormatButton: typeof import('./src/views/image-editor/components/SaveFormatButton.vue')['default']
