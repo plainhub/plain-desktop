@@ -47,6 +47,7 @@ pub fn run() {
         .plugin(
             tauri_plugin_log::Builder::default()
                 .level(log::LevelFilter::Trace)
+                .filter(plain_server::platform::system::log::metadata_enabled)
                 .targets(log_targets)
                 .build(),
         )

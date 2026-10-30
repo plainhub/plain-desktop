@@ -4881,7 +4881,7 @@ checksum = "f6b464fbc74e149a392436b17d523f769e057cb6877f6a5c4618bc6f11800548"
 [[package]]
 name = "plain-inference"
 version = "0.1.0"
-source = "git+https://github.com/plainhub/plain-core.git?branch=main#47d2a2df65aea8b86eef6ff6af874554dc21eda0"
+source = "git+https://github.com/plainhub/plain-core.git?branch=main#1e8c7f9f42994ac0e3987fbb39329e47ef2c48d9"
 dependencies = [
  "cc",
  "image",
@@ -4895,7 +4895,7 @@ dependencies = [
 [[package]]
 name = "plain-media"
 version = "0.1.0"
-source = "git+https://github.com/plainhub/plain-core.git?branch=main#47d2a2df65aea8b86eef6ff6af874554dc21eda0"
+source = "git+https://github.com/plainhub/plain-core.git?branch=main#1e8c7f9f42994ac0e3987fbb39329e47ef2c48d9"
 dependencies = [
  "anyhow",
  "fast_image_resize",
@@ -4915,7 +4915,7 @@ dependencies = [
 [[package]]
 name = "plain-rs"
 version = "0.1.0"
-source = "git+https://github.com/plainhub/plain-core.git?branch=main#47d2a2df65aea8b86eef6ff6af874554dc21eda0"
+source = "git+https://github.com/plainhub/plain-core.git?branch=main#1e8c7f9f42994ac0e3987fbb39329e47ef2c48d9"
 dependencies = [
  "anyhow",
  "async-graphql",
@@ -4959,7 +4959,7 @@ dependencies = [
 [[package]]
 name = "plain-server"
 version = "0.1.0"
-source = "git+https://github.com/plainhub/plain-core.git?branch=main#47d2a2df65aea8b86eef6ff6af874554dc21eda0"
+source = "git+https://github.com/plainhub/plain-core.git?branch=main#1e8c7f9f42994ac0e3987fbb39329e47ef2c48d9"
 dependencies = [
  "anyhow",
  "async-graphql",
