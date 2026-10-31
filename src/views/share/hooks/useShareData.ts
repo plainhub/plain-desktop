@@ -33,7 +33,7 @@ export function useShareData(sharedId: Ref<string>, sharedToken: Ref<string>) {
   const errorTitle = computed(() => t(`share_error_${errorCode.value}_title`))
   const errorTip = computed(() => t(`share_error_${errorCode.value}_tip`))
 
-  async function load(virtualPath: string) {
+  async function load(relativePath: string) {
     if (!key.value) {
       errorCode.value = 'invalid_link'
       state.value = 'error'
@@ -45,7 +45,7 @@ export function useShareData(sharedId: Ref<string>, sharedToken: Ref<string>) {
         sharedId.value,
         key.value,
         sharedInfoGQL,
-        { virtualPath: virtualPath || null },
+        { relativePath: relativePath || null },
       )
       console.log('[ShareView] sharedInfo:', JSON.stringify(result.data, null, 2))
       if (result.errors?.length) {

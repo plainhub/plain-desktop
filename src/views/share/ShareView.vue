@@ -39,15 +39,15 @@
           <p>{{ $t('share_empty_tip') }}</p>
         </div>
         <div v-else class="file-list">
-          <div v-for="entry in entries" :key="entry.virtualPath" class="file-item" @click="onItemClick(entry)">
+          <div v-for="entry in entries" :key="entry.relativePath" class="file-item" @click="onItemClick(entry)">
             <div class="image">
               <FileThumb
                 :is-dir="entry.isDir"
                 :thumb-url="entry.hasThumb ? thumbSrc(entry) : ''"
                 :extension="entryExt(entry)"
-                :thumb-error="thumbErrorIds.includes(entry.virtualPath)"
+                :thumb-error="thumbErrorIds.includes(entry.relativePath)"
                 :ext-error="extErrorIds.includes(entryExt(entry))"
-                :on-thumb-error="() => onThumbError(entry.virtualPath)"
+                :on-thumb-error="() => onThumbError(entry.relativePath)"
                 :on-ext-error="() => onExtError(entryExt(entry))"
               />
             </div>

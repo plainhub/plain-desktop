@@ -102,7 +102,7 @@ export const useDownload = (urlTokenKey: Ref<Uint8Array | null>) => {
     async downloadFile(path: string, fileName?: string) {
       const name = fileName || getFileName(path)
       const id = fileName
-        ? getFileId(urlTokenKey.value, JSON.stringify({ path, name: fileName }))
+        ? getFileId(urlTokenKey.value, path)
         : getFileId(urlTokenKey.value, path)
       const url = `${getApiBaseUrl()}/fs?id=${encodeURIComponent(id)}&dl=1`
       download(url, name)
@@ -114,7 +114,7 @@ export const useDownload = (urlTokenKey: Ref<Uint8Array | null>) => {
     },
     async downloadDir(path: string, fileName?: string) {
       const name = fileName || `${getFileName(path.replace(/\/+$/, ''))}.zip`
-      const id = getFileId(urlTokenKey.value, JSON.stringify({ path, name }))
+      const id = getFileId(urlTokenKey.value, path)
       const url = `${getApiBaseUrl()}/zip/dir?id=${encodeURIComponent(id)}`
       download(url, name)
     },

@@ -82,7 +82,7 @@ const thumbUrl = computed(() => {
 
 function handleDownload() {
   const path = `fid:${getAppFileFid(props.item)}`
-  const fileId = getFileId(urlTokenKey.value, JSON.stringify({ path, name: props.item.fileName }))
+  const fileId = getFileId(urlTokenKey.value, path)
   const url = `${getApiBaseUrl()}/fs?id=${encodeURIComponent(fileId)}&dl=1`
   download(url, props.item.fileName)
 }

@@ -1,3 +1,4 @@
+import { resourceId } from './resource-link'
 import { getApiBaseUrl, getProxyUrl } from './api'
 import { httpRequest } from './http'
 import {
@@ -6,7 +7,6 @@ import {
   httpResponseAad,
   arrayBufferToBitArray,
   bitArrayToUint8Array,
-  bitArrayToBase64,
 } from './crypto'
 import { wrapWithReplayProtection } from './time-sync'
 
@@ -17,7 +17,7 @@ import { wrapWithReplayProtection } from './time-sync'
  * - `POST /guest_graphql` — request body is ChaCha20-encrypted with the
  *   link's `shared_token` (from the URL fragment), `c-id` carries the public
  *   `shared_id`. Exposes only the `sharedInfo` query.
- * - `GET /fs` — file bytes; the `id` query param is `{sharedId, virtualPath}`
+ * - `GET /fs` — file bytes; the `id` query param is `{sharedId, relativePath}`
  *   ChaCha20-encrypted with the share's dedicated `url_token`, and `sid`
  *   carries the `shared_id`.
  * - `GET /zip/dir` — download a shared directory as a zip (same auth).
@@ -29,7 +29,7 @@ const TIMEOUT = 30000
 
 export interface SharedFile {
   name: string
-  virtualPath: string
+  relativePath: string
   isDir: boolean
   size: number
   mimeType: string
@@ -62,8 +62,8 @@ export function sharedTokenToKey(token: string): Uint8Array {
 }
 
 export const sharedInfoGQL = `
-  query sharedInfo($virtualPath: String) {
-    sharedInfo(virtualPath: $virtualPath) {
+  query sharedInfo($relativePath: String) {
+    sharedInfo(relativePath: $relativePath) {
       name
       readOnly
       requiresPassword
@@ -71,7 +71,7 @@ export const sharedInfoGQL = `
       urlToken
       entries {
         name
-        virtualPath
+        relativePath
         isDir
         size
         mimeType
@@ -131,16 +131,16 @@ export async function guestFetch<T = any>(
 }
 
 /**
- * Encrypt the `{sharedId, virtualPath}` payload into the guest file id.
+ * Encrypt the `{sharedId, relativePath}` payload into the guest file id.
  */
-export function getSharedFileId(urlToken: string, sharedId: string, virtualPath: string): string {
+export function getSharedFileId(urlToken: string, sharedId: string, relativePath: string): string {
   const key = Uint8Array.from(atob(urlToken), (c) => c.charCodeAt(0))
-  return bitArrayToBase64(chachaEncrypt(key, JSON.stringify({ sharedId, virtualPath })))
+  return resourceId(key, { mode: 's', id: sharedId }, { type: 'SHARED_FILE', id: relativePath })
 }
 
 /** The `id=…&sid=…` query string shared by guest `/fs` and `/zip/dir`. */
-function sharedFileQuery(urlToken: string, sharedId: string, virtualPath: string): string {
-  return `id=${encodeURIComponent(getSharedFileId(urlToken, sharedId, virtualPath))}&sid=${encodeURIComponent(sharedId)}`
+function sharedFileQuery(urlToken: string, sharedId: string, relativePath: string): string {
+  return `id=${encodeURIComponent(getSharedFileId(urlToken, sharedId, relativePath))}`
 }
 
 /**
@@ -150,15 +150,15 @@ function sharedFileQuery(urlToken: string, sharedId: string, virtualPath: string
 export function getSharedFileUrl(
   urlToken: string,
   sharedId: string,
-  virtualPath: string,
+  relativePath: string,
   query: string = '',
 ): string {
-  return getProxyUrl(`/fs?${sharedFileQuery(urlToken, sharedId, virtualPath)}${query}`)
+  return getProxyUrl(`/fs?${sharedFileQuery(urlToken, sharedId, relativePath)}${query}`)
 }
 
 /**
  * Build a `/zip/dir` URL that downloads a shared directory as a zip.
  */
-export function getSharedDirUrl(urlToken: string, sharedId: string, virtualPath: string): string {
-  return getProxyUrl(`/zip/dir?${sharedFileQuery(urlToken, sharedId, virtualPath)}`)
+export function getSharedDirUrl(urlToken: string, sharedId: string, relativePath: string): string {
+  return getProxyUrl(`/zip/dir?${sharedFileQuery(urlToken, sharedId, relativePath)}`)
 }

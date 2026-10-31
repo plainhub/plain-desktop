@@ -1,8 +1,9 @@
 import { arrayBufferToHex } from '../strutil'
 import { buildUrl } from '../url'
 import { getPeerIp } from '../device/login-peers'
-import { getApiBaseUrl, getProxyUrl } from './api'
-import { chachaEncrypt, bitArrayToBase64 } from './crypto'
+import { getApiBaseUrl, getProxyUrl, getApiHeaders } from './api'
+import { encryptResourcePayload, resourceId, type Resource, type ResourceScope } from './resource-link'
+import { isLocalMode } from '../device/local-mode'
 import toast, { toastWithAction } from '@/components/toaster'
 import { downloadToDir, downloadAs as downloadAsTo, revealInFolder } from '@/lib/download-dir'
 import { nativeResourceUrl } from '@/hooks/native-resource-url'
@@ -160,13 +161,12 @@ export function tokenToKey(token: string): Uint8Array {
   return Uint8Array.from(atob(token), (c) => c.charCodeAt(0))
 }
 
-export function encryptUrlParams(key: Uint8Array | null, params: string) {
+export function encryptUrlParams(key: Uint8Array | null, params: string, purpose = 'zip-files') {
   if (!key) {
     return ''
   }
 
-  const enc = chachaEncrypt(key, params)
-  return bitArrayToBase64(enc)
+  return encryptResourcePayload(key, currentResourceScope(), purpose, params)
 }
 
 /**
@@ -184,7 +184,7 @@ export function getPeerProxyUrl(
     return ''
   }
   const peerUrl = buildUrl('https', getPeerIp(peer), peer.port, `/fs?id=${encodeURIComponent(peerFileId)}${query}`)
-  const encrypted = encryptUrlParams(urlTokenKey, peerUrl)
+  const encrypted = encryptUrlParams(urlTokenKey, peerUrl, 'proxyfs')
   return `${getApiBaseUrl()}/proxyfs?id=${encodeURIComponent(encrypted)}`
 }
 
@@ -199,6 +199,10 @@ export function getFinalPath(appDir: string, path: string) {
   return path
 }
 
+function currentResourceScope(): ResourceScope {
+  return isLocalMode() ? { mode: 'g' } : { mode: 'c', id: getApiHeaders()['c-id'] }
+}
+
 export function getFileId(key: Uint8Array | null, path: string, mediaId: string = '') {
   if (!path || !key) {
     return ''
@@ -209,14 +213,20 @@ export function getFileId(key: Uint8Array | null, path: string, mediaId: string 
     return path
   }
 
-  const fileIdMap = window.fileIdMap || new Map<string, string>()
-  if (fileIdMap.has(path)) {
-    return fileIdMap.get(path) ?? ''
-  }
-
-  const enc = chachaEncrypt(key, mediaId ? JSON.stringify({ path, mediaId }) : path)
-  const id = bitArrayToBase64(enc)
-  fileIdMap.set(path, id)
+  const scope = currentResourceScope()
+  const resource: Resource = mediaId
+    ? { type: 'MEDIA', id: mediaId }
+    : path.startsWith('fid:')
+      ? { type: 'APP_FILE', id: path.slice(4) }
+      : path.startsWith('pkgicon://')
+        ? { type: 'PACKAGE_ICON', id: path.slice(10) }
+        : { type: 'FILE', id: path }
+  const cacheKey = JSON.stringify([scope, Array.from(key), resource])
+  const fileIdMap = window.fileIdMap || (window.fileIdMap = new Map<string, string>())
+  const cached = fileIdMap.get(cacheKey)
+  if (cached) return cached
+  const id = resourceId(key, scope, resource)
+  fileIdMap.set(cacheKey, id)
   return id
 }
 

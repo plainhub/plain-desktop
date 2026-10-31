@@ -28,7 +28,7 @@ export function useChatFiles(props: { data: any; downloadInfo: any; peer: { ip: 
   // Chat file ids are client-derived: encrypt `JSON.stringify({path, name})`
   // with the urlToken — the same payload the server's /fs decrypts.
   function chatFileId(f: { uri: string; fileName?: string }) {
-    return getFileId(urlTokenKey.value, JSON.stringify({ path: f.uri, name: f.fileName ?? '' }))
+    return getFileId(urlTokenKey.value, f.uri)
   }
 
   const items = computed<ISource[]>(() => {
@@ -86,7 +86,7 @@ export function useChatFiles(props: { data: any; downloadInfo: any; peer: { ip: 
     if (isTextFile(item.name) && item.fileId) {
       let textFileId = item.fileId
       if (isAppFile(item.path) && urlTokenKey.value) {
-        textFileId = getFileId(urlTokenKey.value, JSON.stringify({ path: item.path, name: item.name }))
+        textFileId = getFileId(urlTokenKey.value, item.path)
       }
       const path = `/text-file?id=${encodeURIComponent(textFileId)}`
       if (__IS_TAURI__) {

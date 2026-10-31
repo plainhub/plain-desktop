@@ -109,7 +109,7 @@ function getAppFileUrl(item: IAppFile) {
 
 function getAppFileDownloadUrl(item: IAppFile) {
   const path = `fid:${getAppFileFid(item)}`
-  const fileId = getFileId(urlTokenKey.value, JSON.stringify({ path, name: item.fileName }))
+  const fileId = getFileId(urlTokenKey.value, path)
   return `${getApiBaseUrl()}/fs?id=${encodeURIComponent(fileId)}&dl=1`
 }
 

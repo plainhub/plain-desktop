@@ -1,6 +1,6 @@
 import { computed, ref } from 'vue'
 
-export function useShareNavigation(load: (virtualPath: string) => void) {
+export function useShareNavigation(load: (relativePath: string) => void) {
   const currentPath = ref('')
 
   const breadcrumbs = computed(() => {

@@ -19,7 +19,7 @@ export function useShareActions(
   const { open: openMedia } = useOpenMedia()
 
   function fileUrl(entry: SharedFile, query: string = ''): string {
-    return getSharedFileUrl(info.value!.urlToken, sharedId.value, entry.virtualPath, query)
+    return getSharedFileUrl(info.value!.urlToken, sharedId.value, entry.relativePath, query)
   }
 
   function entryExt(entry: SharedFile): string {
@@ -27,11 +27,11 @@ export function useShareActions(
   }
 
   function thumbSrc(entry: SharedFile): string {
-    return getSharedFileUrl(info.value!.urlToken, sharedId.value, entry.virtualPath, '&w=96&h=96')
+    return getSharedFileUrl(info.value!.urlToken, sharedId.value, entry.relativePath, '&w=96&h=96')
   }
 
-  function onThumbError(virtualPath: string) {
-    thumbErrorIds.value.push(virtualPath)
+  function onThumbError(relativePath: string) {
+    thumbErrorIds.value.push(relativePath)
   }
 
   function onExtError(ext: string) {
@@ -39,12 +39,12 @@ export function useShareActions(
   }
 
   function toSource(entry: SharedFile): ISource {
-    return { src: fileUrl(entry), path: entry.virtualPath, name: entry.name, size: entry.size, durationMs: 0 }
+    return { src: fileUrl(entry), path: entry.relativePath, name: entry.name, size: entry.size, durationMs: 0 }
   }
 
   function downloadEntry(entry: SharedFile) {
     const url = entry.isDir
-      ? getSharedDirUrl(info.value!.urlToken, sharedId.value, entry.virtualPath)
+      ? getSharedDirUrl(info.value!.urlToken, sharedId.value, entry.relativePath)
       : fileUrl(entry, '&dl=1')
     download(url, entry.isDir ? `${entry.name}.zip` : entry.name)
   }
@@ -52,19 +52,19 @@ export function useShareActions(
   const { openFile } = useFileOpen<SharedFile>({
     items: entries,
     openTextFile: (entry) => {
-      const fileId = getSharedFileId(info.value!.urlToken, sharedId.value, entry.virtualPath)
+      const fileId = getSharedFileId(info.value!.urlToken, sharedId.value, entry.relativePath)
       openUrl(`/text-file?id=${encodeURIComponent(fileId)}&sid=${encodeURIComponent(sharedId.value)}`)
     },
     openBrowserFile: (entry) => window.open(fileUrl(entry), '_blank', 'noopener'),
     viewMedia: (list, f) => {
       const media = list.filter((it) => !it.isDir && canView(it.name)).map(toSource)
-      openMedia(Math.max(0, media.findIndex((s) => s.path === f.virtualPath)), media, true)
+      openMedia(Math.max(0, media.findIndex((s) => s.path === f.relativePath)), media, true)
     },
     download: downloadEntry,
   })
 
   function onItemClick(entry: SharedFile) {
-    if (entry.isDir) navigateTo(entry.virtualPath)
+    if (entry.isDir) navigateTo(entry.relativePath)
     else openFile(entry)
   }
 
