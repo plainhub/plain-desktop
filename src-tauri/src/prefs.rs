@@ -1,4 +1,4 @@
-pub use plain_rs::prefs::Prefs;
+pub use plain_rs::features::prefs::Prefs;
 
 pub fn get_capture_shortcut(prefs: &Prefs) -> Option<String> {
     let value: String = prefs.get_or("capture_shortcut", String::new());

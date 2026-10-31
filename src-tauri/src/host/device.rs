@@ -20,7 +20,7 @@ pub fn desktop_capabilities() -> Vec<&'static str> {
     ];
     #[cfg(target_os = "macos")]
     capabilities.push("FILE_CLIPBOARD");
-    capabilities.extend(plain_rs::services::files::media_action_io::capabilities());
+    capabilities.extend(plain_rs::features::services::files::media_action_io::capabilities());
     capabilities
 }
 

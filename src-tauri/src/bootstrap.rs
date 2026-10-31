@@ -47,7 +47,7 @@ pub fn run() {
         .plugin(
             tauri_plugin_log::Builder::default()
                 .level(log::LevelFilter::Trace)
-                .filter(plain_rs::platform::system::log::metadata_enabled)
+                .filter(plain_rs::libs::platform::system::log::metadata_enabled)
                 .targets(log_targets)
                 .build(),
         )
@@ -63,7 +63,7 @@ pub fn run() {
         .manage(crate::commands::native::uploads::UploadWriters::default())
         .manage(startup)
         .setup(|app| {
-            plain_rs::platform::version::set_version(&app.package_info().version.to_string());
+            plain_rs::libs::platform::version::set_version(&app.package_info().version.to_string());
             let startup = app.state::<crate::startup_options::Options>().inner().clone();
             let (data_dir, cache_dir) = match &startup.directories {
                 Some(directories) => (directories.data.clone(), directories.cache.clone()),
@@ -77,7 +77,7 @@ pub fn run() {
             );
             app.handle().manage(core.clone());
             let prefs = core.shared_preferences()?;
-            let saved_roots = plain_rs::prefs::media::source_directories(&prefs)?;
+            let saved_roots = plain_rs::features::prefs::media::source_directories(&prefs)?;
             let mut root_candidates: Vec<std::path::PathBuf> = saved_roots
                 .iter()
                 .map(std::path::PathBuf::from)
@@ -108,7 +108,7 @@ pub fn run() {
                 .filter(|path| !path.as_os_str().is_empty())
                 .map(|path| path.canonicalize().unwrap_or(path))
                 .collect();
-            let unique_roots = plain_rs::files::filesystem::roots::prune_nested(roots, |root| {
+            let unique_roots = plain_rs::libs::filesystem::roots::prune_nested(roots, |root| {
                 cfg!(target_os = "macos")
                     && root.ends_with(std::path::Path::new(
                         "Library/Mobile Documents/com~apple~CloudDocs",
@@ -120,7 +120,7 @@ pub fn run() {
                 .collect();
             let media_sources_changed = roots != saved_roots;
             if media_sources_changed {
-                if let Err(error) = plain_rs::prefs::media::set_source_directories(&prefs, &roots) {
+                if let Err(error) = plain_rs::features::prefs::media::set_source_directories(&prefs, &roots) {
                     log::warn!("media source initialization failed: {error}");
                 }
             }

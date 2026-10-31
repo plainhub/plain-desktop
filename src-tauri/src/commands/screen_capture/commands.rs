@@ -1,10 +1,7 @@
 use rand::{RngCore, rngs::OsRng};
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
-use tauri::{
-    AppHandle, Manager, Runtime, State, WebviewWindow,
-    ipc::{Request, Response},
-};
+use tauri::{AppHandle, Manager, Runtime, State, WebviewWindow, ipc::{Request, Response}};
 
 use crate::capture::CaptureError;
 use crate::capture::CaptureErrorCode;

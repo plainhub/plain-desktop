@@ -1,8 +1,5 @@
 use plain_server::server::ContentServer;
-use std::{
-    sync::Arc,
-    time::{Duration, SystemTime, UNIX_EPOCH},
-};
+use std::{sync::Arc, time::{Duration, SystemTime, UNIX_EPOCH}};
 
 #[tauri::command]
 pub fn native_view_scope(

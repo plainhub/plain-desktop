@@ -4,20 +4,9 @@
 //! coordinator receives only one tightly packed RGBA frame and an unambiguous
 //! monitor match; it never needs to know about compositor stream metadata.
 
-use std::{
-    cell::RefCell,
-    os::fd::OwnedFd,
-    rc::Rc,
-    time::{Duration, Instant},
-};
+use std::{cell::RefCell, os::fd::OwnedFd, rc::Rc, time::{Duration, Instant}};
 
-use ashpd::desktop::{
-    PersistMode, ResponseError, Session,
-    screencast::{
-        CursorMode, Screencast, SelectSourcesOptions, SourceType, StartCastOptions,
-        Stream as ScreencastStream,
-    },
-};
+use ashpd::desktop::{PersistMode, ResponseError, Session, screencast::{CursorMode, Screencast, SelectSourcesOptions, SourceType, StartCastOptions, Stream as ScreencastStream}};
 use pipewire as pw;
 use pw::{properties::properties, spa};
 

@@ -4,7 +4,7 @@ use tauri::AppHandle;
 use tauri_plugin_dialog::DialogExt;
 
 fn existing_file(path: &str) -> Result<PathBuf, String> {
-    plain_rs::files::filesystem::export::existing_file(Path::new(path))
+    plain_rs::libs::filesystem::export::existing_file(Path::new(path))
         .map_err(|error| error.to_string())
 }
 
@@ -38,7 +38,7 @@ pub async fn save_file_as(
         .blocking_save_file();
     let Some(target) = target else { return Ok(()) };
     let dest = target.into_path().map_err(|e| e.to_string())?;
-    tokio::task::spawn_blocking(move || plain_rs::files::filesystem::export::copy_file(&src, &dest))
+    tokio::task::spawn_blocking(move || plain_rs::libs::filesystem::export::copy_file(&src, &dest))
         .await
         .map_err(|error| error.to_string())?
         .map_err(|error| error.to_string())

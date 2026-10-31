@@ -1,11 +1,5 @@
 use serde_json::Value;
-use std::{
-    collections::HashMap,
-    sync::{
-        Mutex,
-        atomic::{AtomicU64, Ordering},
-    },
-};
+use std::{collections::HashMap, sync::{Mutex, atomic::{AtomicU64, Ordering}}};
 use tauri::{State, WebviewWindow, ipc::Channel};
 
 struct LoginCallbacks {

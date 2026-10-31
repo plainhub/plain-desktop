@@ -4879,61 +4879,37 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "f6b464fbc74e149a392436b17d523f769e057cb6877f6a5c4618bc6f11800548"
 
 [[package]]
-name = "plain-inference"
-version = "0.1.0"
-source = "git+https://github.com/plainhub/plain-core.git?branch=main#b6e3c0371d97528d6cdcf92a22e4db76fec2b4d6"
-dependencies = [
- "cc",
- "image",
- "log",
- "serde",
- "serde_json",
- "sha2 0.10.9",
- "tokenizers",
-]
-
-[[package]]
-name = "plain-media"
-version = "0.1.0"
-source = "git+https://github.com/plainhub/plain-core.git?branch=main#b6e3c0371d97528d6cdcf92a22e4db76fec2b4d6"
-dependencies = [
- "anyhow",
- "fast_image_resize",
- "image",
- "jpeg-decoder",
- "libc",
- "log",
- "parking_lot",
- "plain-rs",
- "rusty_h264-common",
- "rusty_h264-decoder",
- "serde_json",
- "tempfile",
- "tokio",
-]
-
-[[package]]
 name = "plain-rs"
 version = "0.1.0"
-source = "git+https://github.com/plainhub/plain-core.git?branch=main#b6e3c0371d97528d6cdcf92a22e4db76fec2b4d6"
+source = "git+https://github.com/plainhub/plain-core.git?branch=main#60f751fc8e946d9e72c83425b5b7989a0caa482f"
 dependencies = [
  "anyhow",
  "async-graphql",
  "bytes",
  "cbc",
+ "cc",
  "chacha20poly1305",
  "chrono",
  "der 0.8.2",
  "des",
  "ed25519-dalek",
+ "fast_image_resize",
  "flate2",
  "futures-core",
+ "futures-util",
  "hmac",
+ "http",
+ "hyper",
+ "hyper-util",
+ "image",
+ "jpeg-decoder",
  "kamadak-exif",
  "libc",
  "lofty",
  "log",
+ "notify",
  "p256",
+ "parking_lot",
  "pkcs12",
  "pkcs5",
  "pkcs8 0.11.0",
@@ -4943,6 +4919,9 @@ dependencies = [
  "regex",
  "reqwest 0.12.28",
  "rusqlite",
+ "rustls",
+ "rusty_h264-common",
+ "rusty_h264-decoder",
  "serde",
  "serde_json",
  "sha1 0.11.0",
@@ -4951,54 +4930,38 @@ dependencies = [
  "socket2 0.5.10",
  "sysinfo",
  "tempfile",
+ "tokenizers",
  "tokio",
+ "tokio-rustls",
+ "tokio-tungstenite 0.30.0",
  "uuid",
  "x509-parser",
+ "zip",
 ]
 
 [[package]]
 name = "plain-server"
 version = "0.1.0"
-source = "git+https://github.com/plainhub/plain-core.git?branch=main#b6e3c0371d97528d6cdcf92a22e4db76fec2b4d6"
+source = "git+https://github.com/plainhub/plain-core.git?branch=main#60f751fc8e946d9e72c83425b5b7989a0caa482f"
 dependencies = [
  "anyhow",
  "async-graphql",
  "axum",
  "axum-server",
- "bytes",
  "chrono",
  "futures-util",
- "hmac",
- "http",
- "hyper",
- "hyper-util",
- "image",
- "libc",
  "log",
- "notify",
- "parking_lot",
- "plain-inference",
- "plain-media",
  "plain-rs",
- "rand 0.8.8",
- "regex",
  "reqwest 0.12.28",
  "rusqlite",
- "rustls",
  "serde",
  "serde_json",
  "sha2 0.10.9",
- "sha2 0.11.0",
- "socket2 0.5.10",
  "subtle",
- "sysinfo",
- "tempfile",
  "tokio",
- "tokio-rustls",
  "tokio-tungstenite 0.30.0",
  "tower",
  "uuid",
- "zip",
 ]
 
 [[package]]

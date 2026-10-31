@@ -1,7 +1,7 @@
 use std::sync::Mutex;
 use tauri::{AppHandle, Manager, WebviewUrl, WebviewWindowBuilder};
 
-use plain_rs::query::url_encode;
+use plain_rs::libs::utils::query::url_encode;
 
 use crate::commands::webview_creation;
 

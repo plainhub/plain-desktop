@@ -11,15 +11,9 @@ use std::sync::{Arc, Condvar, Mutex};
 use block2::RcBlock;
 use objc2::rc::Retained;
 use objc2::{AllocAnyThread, Message};
-use objc2_core_graphics::{
-    CGDataProvider, CGDirectDisplayID, CGDisplayBounds, CGDisplayIsActive, CGError, CGEvent,
-    CGGetActiveDisplayList, CGGetDisplaysWithPoint, CGImage, CGPreflightScreenCaptureAccess,
-    CGRequestScreenCaptureAccess,
-};
+use objc2_core_graphics::{CGDataProvider, CGDirectDisplayID, CGDisplayBounds, CGDisplayIsActive, CGError, CGEvent, CGGetActiveDisplayList, CGGetDisplaysWithPoint, CGImage, CGPreflightScreenCaptureAccess, CGRequestScreenCaptureAccess};
 use objc2_foundation::{NSArray, NSError};
-use objc2_screen_capture_kit::{
-    SCContentFilter, SCDisplay, SCScreenshotManager, SCShareableContent, SCStreamConfiguration,
-};
+use objc2_screen_capture_kit::{SCContentFilter, SCDisplay, SCScreenshotManager, SCShareableContent, SCStreamConfiguration};
 
 use crate::capture::Capture;
 use crate::capture::CaptureError;

@@ -9,7 +9,7 @@ pub struct Runtime {
     core: Arc<ContentServer>,
     app: tauri::AppHandle,
     capabilities: Vec<String>,
-    multicast: std::sync::Mutex<plain_rs::host::multicast::MulticastLeases>,
+    multicast: std::sync::Mutex<plain_rs::libs::host::multicast::MulticastLeases>,
 }
 
 impl Runtime {
@@ -46,7 +46,7 @@ impl Runtime {
                     .map_err(|error| error.to_string())?;
                 Ok(Value::Bool(true))
             }
-            "systemPermissionFacts" => plain_rs::host::permission_facts::facts(
+            "systemPermissionFacts" => plain_rs::libs::host::permission_facts::facts(
                 &["WRITE_EXTERNAL_STORAGE".to_owned()],
                 params,
             ),
@@ -97,7 +97,7 @@ impl Runtime {
         self: Arc<Self>,
         session: Arc<plain_server::host::events::HostEvents>,
     ) -> Result<(), String> {
-        let _multicast = plain_rs::host::multicast::MulticastSession::new(&self.multicast);
+        let _multicast = plain_rs::libs::host::multicast::MulticastSession::new(&self.multicast);
         let (running, stopped) = tokio::sync::watch::channel(true);
         let requests = self.clone();
         let serving_session = session.clone();
@@ -121,7 +121,7 @@ impl Runtime {
                 let supported = self.capabilities.iter().any(|name| name == "CLIPBOARD");
                 async move {
                     let permissions: Vec<String> =
-                        prefs?.get_or(plain_rs::prefs::pref_keys::API_PERMISSIONS, Vec::new());
+                        prefs?.get_or(plain_rs::features::prefs::pref_keys::API_PERMISSIONS, Vec::new());
                     if !supported || !permissions.iter().any(|name| name == "CLIPBOARD") {
                         return Ok(None);
                     }

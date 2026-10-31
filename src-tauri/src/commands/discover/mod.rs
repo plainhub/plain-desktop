@@ -1,5 +1,5 @@
-pub use plain_rs::services::discovery::local::MdnsFirewallStatus;
-pub use plain_rs::services::discovery::local::firewall;
+pub use plain_rs::libs::platform::discovery::MdnsFirewallStatus;
+pub use plain_rs::libs::platform::discovery::firewall;
 
 /// Read-only firewall state for the current exe. No admin token required.
 #[tauri::command]
