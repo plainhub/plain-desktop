@@ -1798,7 +1798,6 @@ export interface GqlOperations {
       }>
       mdnsState: {
         scanning: boolean
-        receiver: boolean
       }
     }
     variables: undefined

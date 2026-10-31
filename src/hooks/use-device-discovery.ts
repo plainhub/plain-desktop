@@ -117,7 +117,7 @@ export function useDeviceDiscovery() {
   }
 
   async function refreshDevices(client: ReturnType<typeof bindGraphqlClient>, current: string): Promise<void> {
-    const result = await client<{ nearbyDevices: DiscoveredDevice[]; pairingStates?: PairingState[]; mdnsState: { scanning: boolean; receiver: boolean } }>(nearbyDevicesGQL)
+    const result = await client<{ nearbyDevices: DiscoveredDevice[]; pairingStates?: PairingState[]; mdnsState: { scanning: boolean } }>(nearbyDevicesGQL)
     if (result.errors?.length) throw new Error(result.errors[0].message)
     if (active && token === current) {
       devices.value = result.data.nearbyDevices

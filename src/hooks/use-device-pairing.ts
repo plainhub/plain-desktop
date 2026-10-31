@@ -30,7 +30,7 @@ export enum DeviceState {
 const deviceStates = reactive(new Map<string, DeviceState>())
 const { mutate: pairDeviceMutate } = initMutation({ document: pairDeviceGQL }, false)
 const { mutate: cancelPairingMutate } = initMutation({ document: cancelPairingGQL }, false)
-const { mutate: respondToPairingMutate } = initMutation({ document: respondToPairingGQL }, false)
+const { mutate: respondToPairingMutate } = initMutation({ document: respondToPairingGQL })
 
 export async function allowPairing(request: PairingRequest) {
   const { verificationCode: _, ...input } = request
