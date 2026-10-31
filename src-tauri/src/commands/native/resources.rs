@@ -6,7 +6,7 @@
 
 use std::sync::Arc;
 
-use plain_server::assembly::server::ContentServer;
+use plain_server::server::ContentServer;
 use tauri::{Runtime, State, WebviewWindow};
 
 use super::views::NativeViews;

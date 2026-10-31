@@ -12,7 +12,7 @@ use std::path::Path;
 use std::sync::Arc;
 
 use plain_rs::utils::http::{RangeParse, content_disposition, parse_range_header};
-use plain_server::native::graphql::NativeRequestScope;
+use plain_rs::host::request_scope::NativeRequestScope;
 pub use plain_server::native::resources::MAX_RESOURCE_RESPONSE_BYTES as MAX_RESPONSE_BYTES;
 use plain_server::native::resources::{NativeResourceRegistry, ResourceAccessError};
 use serde::Serialize;

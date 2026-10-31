@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use plain_server::assembly::server::ContentServer;
+use plain_server::server::ContentServer;
 use serde_json::Value;
 use tauri::{Emitter, Manager};
 use tauri_plugin_clipboard_manager::ClipboardExt;
@@ -9,7 +9,7 @@ pub struct Runtime {
     core: Arc<ContentServer>,
     app: tauri::AppHandle,
     capabilities: Vec<String>,
-    multicast: std::sync::Mutex<plain_server::host::multicast::MulticastLeases>,
+    multicast: std::sync::Mutex<plain_rs::host::multicast::MulticastLeases>,
 }
 
 impl Runtime {
@@ -46,7 +46,7 @@ impl Runtime {
                     .map_err(|error| error.to_string())?;
                 Ok(Value::Bool(true))
             }
-            "systemPermissionFacts" => plain_server::host::permission_facts::facts(
+            "systemPermissionFacts" => plain_rs::host::permission_facts::facts(
                 &["WRITE_EXTERNAL_STORAGE".to_owned()],
                 params,
             ),
@@ -97,7 +97,7 @@ impl Runtime {
         self: Arc<Self>,
         session: Arc<plain_server::host::events::HostEvents>,
     ) -> Result<(), String> {
-        let _multicast = plain_server::host::multicast::MulticastSession::new(&self.multicast);
+        let _multicast = plain_rs::host::multicast::MulticastSession::new(&self.multicast);
         let (running, stopped) = tokio::sync::watch::channel(true);
         let requests = self.clone();
         let serving_session = session.clone();

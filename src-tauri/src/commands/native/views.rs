@@ -1,4 +1,5 @@
-use plain_server::{assembly::server::ContentServer, native::graphql::NativeRequestScope};
+use plain_server::server::ContentServer;
+use plain_rs::host::request_scope::NativeRequestScope;
 use std::{
     collections::HashMap,
     sync::{Arc, Mutex},

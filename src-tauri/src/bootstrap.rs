@@ -47,7 +47,7 @@ pub fn run() {
         .plugin(
             tauri_plugin_log::Builder::default()
                 .level(log::LevelFilter::Trace)
-                .filter(plain_server::platform::system::log::metadata_enabled)
+                .filter(plain_rs::platform::system::log::metadata_enabled)
                 .targets(log_targets)
                 .build(),
         )
@@ -63,7 +63,7 @@ pub fn run() {
         .manage(crate::commands::native::uploads::UploadWriters::default())
         .manage(startup)
         .setup(|app| {
-            plain_server::platform::version::set_version(&app.package_info().version.to_string());
+            plain_rs::platform::version::set_version(&app.package_info().version.to_string());
             let startup = app.state::<crate::startup_options::Options>().inner().clone();
             let (data_dir, cache_dir) = match &startup.directories {
                 Some(directories) => (directories.data.clone(), directories.cache.clone()),
@@ -71,7 +71,7 @@ pub fn run() {
             };
             let core = Arc::new(
                 tauri::async_runtime::block_on(async {
-                    plain_server::assembly::server::ContentServer::open_with_cache(&data_dir, &cache_dir)
+                    plain_server::server::ContentServer::open_with_cache(&data_dir, &cache_dir)
                 })
                 .expect("open the shared core"),
             );

@@ -1,4 +1,4 @@
-use plain_server::assembly::server::ContentServer;
+use plain_server::server::ContentServer;
 use std::{
     sync::Arc,
     time::{Duration, SystemTime, UNIX_EPOCH},

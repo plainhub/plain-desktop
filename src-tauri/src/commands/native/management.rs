@@ -1,4 +1,5 @@
-use plain_server::{assembly::server::ContentServer, native::management::HttpServerState};
+use plain_server::server::ContentServer;
+use plain_server::native::management::HttpServerState;
 use std::sync::Arc;
 
 #[tauri::command]

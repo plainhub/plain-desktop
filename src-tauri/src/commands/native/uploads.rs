@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use plain_server::assembly::server::ContentServer;
+use plain_server::server::ContentServer;
 pub use plain_server::native::uploads::UploadWriters;
 use tauri::{Runtime, State, WebviewWindow};
 
