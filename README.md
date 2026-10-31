@@ -56,6 +56,8 @@ Keep [plain-core](https://github.com/plainhub/plain-core) next to this repositor
 ./scripts/core update       # Lock this project to the latest remote commit
 ```
 
+Before publishing Rust consumer changes, publish Core first, run `./scripts/core update`, and commit `Cargo.lock` with the consumer source. With local overrides disabled, run `cargo test --workspace --locked`. Frontend changes also require `yarn typecheck`, `yarn test`, and the web/Tauri builds from `.github/workflows/check.yml`. A macOS check does not verify Linux or Windows; confirm the affected CI jobs before accepting cross-platform changes.
+
 ## Run
 
 Duplicate `.env.example` file to `.env.local` and update the `VITE_APP_API_HOST`.

@@ -116,15 +116,15 @@ jobs:
           echo 'CXX=g++-14' >> "$GITHUB_ENV"
 
       - name: Run cargo check
-        run: cargo check --manifest-path src-tauri/Cargo.toml
+        run: cargo check --manifest-path src-tauri/Cargo.toml --locked
 
       - name: Assert the capture layer stays Tauri-free
         shell: bash
         run: '! grep -rn "tauri" src-tauri/src/capture/'
 
       - name: Run screen capture Rust tests
-        run: 'cargo test --manifest-path src-tauri/Cargo.toml --lib commands::screen_capture::'
+        run: 'cargo test --manifest-path src-tauri/Cargo.toml --locked --lib commands::screen_capture::'
 
       - name: Run full Rust test suite
         if: matrix.platform == 'linux'
-        run: cargo test --manifest-path src-tauri/Cargo.toml --lib
+        run: cargo test --manifest-path src-tauri/Cargo.toml --locked --lib
