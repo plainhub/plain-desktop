@@ -3,8 +3,8 @@ resolver = "3"
 members = ["src-tauri"]
 
 # Light optimization for workspace code: the thumbnail engine's hot
-# loops (progressive DC decode, box resample) live in the plain-media
-# crate and are 5-10x slower at opt-level 0 — dev instances must not
+# loops (progressive DC decode, box resample) live in plain-rs's media
+# module and are 5-10x slower at opt-level 0 — dev instances must not
 # look broken.
 [profile.dev]
 opt-level = 1
@@ -20,12 +20,6 @@ opt-level = 3
 opt-level = 1
 
 [profile.dev.package.plain-server]
-opt-level = 1
-
-[profile.dev.package.plain-media]
-opt-level = 1
-
-[profile.dev.package.plain-inference]
 opt-level = 1
 
 [profile.release]

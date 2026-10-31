@@ -34,7 +34,7 @@ tauri-plugin-fs = "2"
 tauri-plugin-global-shortcut = "=2.3.2"
 tauri-plugin-clipboard-manager = "=2.3.3"
 # Shared server assembly, with core and media dependencies.
-plain_server = { git = "https://github.com/plainhub/plain-core.git", branch = "main", package = "plain-server", features = ["core", "media", "http_transport", "mounts"] }
+plain_server = { git = "https://github.com/plainhub/plain-core.git", branch = "main", package = "plain-server", features = ["core", "media", "http_transport"] }
 
 rand = "0.8"
 
