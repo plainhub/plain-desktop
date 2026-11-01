@@ -21,8 +21,6 @@ export type MainState = {
   homeFeatures: string[]
   uploadDirs: Record<string, string>
   excludedDirs: string[]
-  indexDirectories: string[]
-  fileIndexDefaults: { scanDirectories: string[]; excludedDirectories: string[]; excludedNames: string[] }
   fileShowHidden: boolean
   chatTexts: Record<string, string>
   quick: string
@@ -67,8 +65,6 @@ export const useMainStore = defineStore('main', {
       homeFeatures: [...DEFAULT_HOME_FEATURES],
       uploadDirs: {} as Record<string, string>,
       excludedDirs: [] as string[],
-      indexDirectories: [],
-      fileIndexDefaults: { scanDirectories: [], excludedDirectories: [], excludedNames: [] },
       fileShowHidden: false,
       chatTexts: {},
       quick: '',

@@ -1,6 +1,4 @@
 <template>
-  <FileIndexStatus v-if="indexed" />
-  <div v-else-if="searchStatus !== 'idle'" class="directory-search-status"><span>{{ $t(`directory_search_${searchStatus}`) }}</span><v-outlined-button v-if="searchStatus === 'running'" @click="cancel">{{ $t('cancel') }}</v-outlined-button></div>
   <div class="top-app-bar">
     <v-checkbox touch-target="wrapper" :checked="allChecked" :indeterminate="!allChecked && checked" @change="toggleAllChecked" />
     <div class="title">
@@ -9,12 +7,12 @@
       <div v-else ref="breadcrumbEl" class="breadcrumb">
         <template v-for="(item, index) in breadcrumbPaths" :key="item.path">
           <template v-if="index === 0">
-            <span v-if="item.path === filter.parent" v-tooltip="getPageStats()">{{ item.name }} ({{ total }})</span>
-            <a v-else v-tooltip="getPageStats()" href="#" @click.stop.prevent="navigateToDir(item.path)">{{ item.name }}</a>
+            <span v-if="item.path === filter.parent" v-tooltip="pageDetails">{{ indexed ? $t('indexed_files') : item.name }} ({{ total }})<span v-if="searchState" class="search-state"> · {{ searchState }}</span></span>
+            <a v-else v-tooltip="pageDetails" href="#" @click.stop.prevent="navigateToDir(item.path)">{{ item.name }}</a>
           </template>
           <template v-else>
             <span class="sep">/</span>
-            <span v-if="item.path === filter.parent">{{ item.name }} ({{ total }})</span>
+            <span v-if="item.path === filter.parent" v-tooltip="pageDetails">{{ item.name }} ({{ total }})<span v-if="searchState" class="search-state"> · {{ searchState }}</span></span>
             <a v-else href="#" @click.stop.prevent="navigateToDir(item.path)">{{ item.name }}</a>
           </template>
         </template>
@@ -64,7 +62,6 @@
 </template>
 
 <script setup lang="ts">
-import FileIndexStatus from './FileIndexStatus.vue'
 import { computed, inject, nextTick, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { storeToRefs } from 'pinia'
@@ -87,6 +84,7 @@ import { useFilesBreadcrumb } from './hooks/useFilesBreadcrumb'
 import { useFilesActions } from './hooks/useFilesActions'
 import { useFilesNavigation } from './hooks/useFilesNavigation'
 import { useFilesEvents } from './hooks/useFilesEvents'
+import { useFileIndexStatus } from './hooks/useFileIndexStatus'
 
 const isPhone = inject('isPhone') as boolean
 const { t } = useI18n()
@@ -127,6 +125,21 @@ const onExtensionImageError = (id: string) => { extensionImageErrorIds.value.pus
 
 // --- Breadcrumb ---
 const { breadcrumbPaths, getPageStats } = useFilesBreadcrumb(filter, rootDir, mounts, t)
+const { progress: indexProgress, error: indexError } = useFileIndexStatus(computed(() => indexed.value && isActive.value))
+const searchState = computed(() => {
+  if (!indexed.value) return searchStatus.value === 'idle' ? '' : t(`directory_search_${searchStatus.value}`)
+  if (indexError.value || indexProgress.value?.sources.some(source => source.state === 'failed')) return t('index_state_failed')
+  return t(`index_state_${indexProgress.value?.status ?? 'pending'}`)
+})
+const pageDetails = computed(() => {
+  const details = [getPageStats()]
+  if (indexed.value) {
+    details.push(t('index_search_scope_hint'))
+    if (indexProgress.value) details.push(...indexProgress.value.sources.map(source => `${source.path} · ${t(`index_source_${source.state}`)}${source.error ? ` · ${source.error}` : ''}`))
+    if (indexError.value || indexProgress.value?.error) details.push(indexError.value || indexProgress.value?.error || '')
+  } else if (searchStatus.value !== 'idle') details.push(t('directory_search_scope_hint'))
+  return details.filter(Boolean).join('\n')
+})
 const breadcrumbEl = ref<HTMLElement | null>(null)
 watch(breadcrumbPaths, () => {
   nextTick(() => {
@@ -164,7 +177,10 @@ useFilesEvents({
 
 // --- Toolbar helpers ---
 function sort(value: string) { if (fileSortBy.value !== value) { sorting.value = true; fileSortBy.value = value } }
-function refreshCurrentDir() { refreshing.value = true; fetch() }
+function refreshCurrentDir() {
+  if (searchStatus.value === 'running') { cancel(); return }
+  refreshing.value = true; fetch()
+}
 function openKeyboardShortcuts() { openModal(KeyboardShortcutsModal, { title: t('keyboard_shortcuts'), shortcuts: filesKeyboardShortcuts }) }
 function uploadFilesClick(dir: string) { uploadFiles(dir) }
 function uploadDirClick(dir: string) { uploadDir(dir) }
@@ -178,6 +194,7 @@ const actionButtonProps = computed(() => ({
   canPaste: canPaste(),
   pasting: pasting.value,
   refreshing: refreshing.value,
+  searching: searchStatus.value === 'running',
   sorting: sorting.value,
   sortItems,
   fileSortBy: fileSortBy.value,
@@ -194,7 +211,7 @@ const actionButtonProps = computed(() => ({
 </script>
 
 <style lang="scss" scoped>
-.directory-search-status { display: flex; align-items: center; gap: 8px; padding: 0 16px 8px; }
+.search-state { color: var(--md-sys-color-on-surface-variant); font-size: 0.875rem; font-weight: 400; }
 
 .breadcrumb {
   display: flex;

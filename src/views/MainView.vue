@@ -21,7 +21,7 @@ v-if="hasLeftSidebar" v-tooltip="$t(store.miniSidebar ? 'open' : 'close')"
         </section>
         <section class="end">
           <div id="header-end-slot"></div>
-          <HeaderSearch v-if="showHeaderSearch" :placeholder="$t('search')" />
+          <HeaderSearch v-if="showHeaderSearch" :placeholder="$route.meta.group === 'files' ? '' : $t('search')" />
         </section>
       </header>
       <app-rail />

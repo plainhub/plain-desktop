@@ -18,8 +18,9 @@
   <v-icon-button v-if="canPaste && !inZip" v-tooltip="$t('paste')" :aria-label="$t('paste')" :loading="pasting" @click="pasteDir">
       <i-material-symbols:content-paste-rounded />
   </v-icon-button>
-  <v-icon-button v-tooltip="$t('refresh')" :aria-label="$t('refresh')" :loading="refreshing" @click="refreshCurrentDir">
-      <i-material-symbols:refresh-rounded />
+  <v-icon-button v-tooltip="$t(searching ? 'stop_search' : 'refresh')" :aria-label="$t(searching ? 'stop_search' : 'refresh')" :loading="refreshing && !searching" @click="refreshCurrentDir">
+      <i-material-symbols:stop-rounded v-if="searching" />
+      <i-material-symbols:refresh-rounded v-else />
   </v-icon-button>
   <v-dropdown v-model="sortMenuVisible">
     <template #trigger>
@@ -59,6 +60,7 @@ const props = defineProps({
     type: Boolean,
     required: true,
   },
+  searching: { type: Boolean, default: false },
   sorting: {
     type: Boolean,
     required: true,

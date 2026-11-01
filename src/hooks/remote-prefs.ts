@@ -34,8 +34,6 @@ export function useRemotePrefs(store: ReturnType<typeof useMainStore>) {
         applying = false
       }
       store.excludedDirs = result.data.prefs.file_index_excluded_dirs as string[] ?? []
-      store.indexDirectories = result.data.prefs.media_source_dirs as string[] ?? []
-      store.fileIndexDefaults = result.data.prefs.file_index_defaults as typeof store.fileIndexDefaults ?? { scanDirectories: [], excludedDirectories: [], excludedNames: [] }
       enabled.value = true
       if (__IS_TAURI__) await applyAppearance()
     } catch (error) {

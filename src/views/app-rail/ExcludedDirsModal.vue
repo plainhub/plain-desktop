@@ -1,59 +1,153 @@
 <template>
   <v-modal @close="close">
-    <template #headline>{{ $t('file_index_scope') }}</template>
+    <template #headline>{{ $t('exclude_directories') }}</template>
     <template #content>
-      <div class="index-scope">
-        <p>{{ $t('excluded_dirs_hint') }}</p>
-        <FileIndexStatus />
-        <IndexDirectoriesSection :title="$t('index_default_directories')" :paths="store.fileIndexDefaults.scanDirectories" />
-        <IndexDirectoriesSection :title="$t('index_added_directories')" :paths="store.indexDirectories" editable :busy="busy" @add="pick(false)" @remove="save(false, store.indexDirectories.filter((path) => path !== $event))" />
-        <IndexDirectoriesSection :title="$t('index_default_exclusions')" :paths="[...store.fileIndexDefaults.excludedDirectories, ...store.fileIndexDefaults.excludedNames]" />
-        <IndexDirectoriesSection :title="$t('exclude_directories')" :paths="store.excludedDirs" editable :busy="busy" @add="pick(true)" @remove="save(true, store.excludedDirs.filter((path) => path !== $event))" />
+      <div class="excluded-dirs">
+        <p class="hint">{{ $t('excluded_dirs_hint') }}</p>
+        <p v-if="store.excludedDirs.length === 0" class="empty-hint">{{ $t('no_excluded_dirs') }}</p>
+        <div v-for="dir in store.excludedDirs" :key="dir" class="dir-row">
+          <i-lucide:folder-minus class="dir-icon" />
+          <span class="dir-path">{{ dir }}</span>
+          <button class="remove-btn" :aria-label="$t('remove')" @click="removeDir(dir)">
+            <i-lucide:x />
+          </button>
+        </div>
+        <button class="add-btn" @click="addDir">
+          <i-lucide:plus />
+          <span>{{ $t('add_excluded_dir') }}</span>
+        </button>
       </div>
     </template>
-    <template #actions><v-outlined-button :disabled="busy" @click="close">{{ $t('close') }}</v-outlined-button></template>
+    <template #actions>
+      <v-outlined-button @click="close">{{ $t('close') }}</v-outlined-button>
+    </template>
   </v-modal>
 </template>
 
 <script setup lang="ts">
-import { ref } from 'vue'
 import { popModal, promptModal } from '@/components/modal'
 import { useMainStore } from '@/stores/main'
 import * as prefs from '@/lib/prefs/core'
 import toast from '@/components/toaster'
 import DirectoryPickerModal from '@/components/DirectoryPickerModal.vue'
-import FileIndexStatus from '@/views/files/FileIndexStatus.vue'
-import IndexDirectoriesSection from './IndexDirectoriesSection.vue'
 
 const store = useMainStore()
-const busy = ref(false)
 
-async function save(excluded: boolean, paths: string[]) {
-  busy.value = true
+async function save(paths: string[]) {
   try {
-    await prefs.set(excluded ? 'file_index_excluded_dirs' : 'media_source_dirs', paths)
-    if (excluded) store.excludedDirs = paths
-    else store.indexDirectories = paths
+    await prefs.set('file_index_excluded_dirs', paths)
+    store.excludedDirs = paths
   } catch (error) {
     toast(error instanceof Error ? error.message : String(error), 'error')
-  } finally {
-    busy.value = false
   }
 }
 
-async function pick(excluded: boolean) {
-  const selected = await promptModal<string>(DirectoryPickerModal, {
-    title: '', description: '', initialPath: '', modalId: 'index-directory-picker',
-  })
-  if (typeof selected !== 'string' || !selected.trim()) return
-  const paths = excluded ? store.excludedDirs : store.indexDirectories
-  if (!paths.includes(selected)) await save(excluded, [...paths, selected])
+function removeDir(dir: string) {
+  return save(store.excludedDirs.filter((d) => d !== dir))
 }
 
-function close() { popModal() }
+async function addDir() {
+  const selected = await promptModal<string>(DirectoryPickerModal, {
+    title: '',
+    description: '',
+    initialPath: '',
+    modalId: 'excluded-dir-picker',
+  })
+  if (typeof selected === 'string' && selected.trim()) {
+    const normalized = selected.trim().endsWith('/') ? selected.trim() : selected.trim() + '/'
+    if (!store.excludedDirs.includes(normalized)) {
+      await save([...store.excludedDirs, normalized])
+    }
+  }
+}
+
+function close() {
+  popModal()
+}
 </script>
 
-<style scoped>
-.index-scope { display: flex; flex-direction: column; gap: 24px; min-width: 320px; }
-p { margin: 0; }
+<style lang="scss" scoped>
+.excluded-dirs {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 320px;
+}
+
+.hint {
+  font-size: 0.875rem;
+  color: var(--md-sys-color-outline);
+  margin: 0 0 8px;
+}
+
+.empty-hint {
+  font-size: 0.875rem;
+  color: var(--md-sys-color-outline);
+  margin: 0 0 8px;
+}
+
+.dir-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 16px;
+  border-radius: 8px;
+  background: var(--md-sys-color-surface-container);
+
+  &:hover { background: var(--md-sys-color-surface-container-high); }
+}
+
+.dir-icon {
+  width: 16px;
+  height: 16px;
+  flex-shrink: 0;
+  color: var(--md-sys-color-on-surface-variant);
+}
+
+.dir-path {
+  flex: 1;
+  font-size: 0.875rem;
+  font-family: monospace;
+  color: var(--md-sys-color-on-surface);
+  word-break: break-all;
+}
+
+.remove-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  border: none;
+  background: transparent;
+  color: var(--md-sys-color-on-surface-variant);
+  cursor: pointer;
+  flex-shrink: 0;
+
+  &:hover {
+    background: color-mix(in srgb, var(--md-sys-color-error) 12%, transparent);
+    color: var(--md-sys-color-error);
+  }
+}
+
+.add-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 16px;
+  border-radius: 20px;
+  border: none;
+  background: color-mix(in srgb, var(--md-sys-color-primary) 10%, transparent);
+  color: var(--md-sys-color-primary);
+  font-size: 0.875rem;
+  font-weight: 500;
+  cursor: pointer;
+  margin-top: 4px;
+  transition: background 0.15s;
+
+  &:hover { background: color-mix(in srgb, var(--md-sys-color-primary) 18%, transparent); }
+
+  svg { width: 16px; height: 16px; }
+}
 </style>

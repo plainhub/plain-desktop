@@ -1,11 +1,14 @@
 export default {
-  index_no_directories: '尚未配置目录',
+  stop_search: '停止搜索',
+  directory_search_hint: '搜索此目录及其子目录',
+  index_search_hint: '搜索已索引文件',
+  indexed_files: '已索引文件',
+  directory_search_scope_hint: '搜索当前目录及其子目录，包括未被索引的文件。',
   directory_search_running: '正在搜索',
   directory_search_completed: '搜索完成',
   directory_search_incomplete: '搜索已停止，结果尚不完整',
 
   index_search_scope_hint: '搜索覆盖扫描范围内已建立的索引；排除目录和未扫描目录不在结果中。',
-  index_coverage: '扫描覆盖情况',
   index_state_pending: '尚未扫描',
   index_state_running: '正在建立索引',
   index_state_paused: '已暂停',
@@ -19,10 +22,6 @@ export default {
   index_source_excluded: '已排除',
   index_source_failed: '不可访问或扫描未完成',
 
-  file_index_scope: '文件索引范围',
-  index_default_directories: '默认扫描目录',
-  index_added_directories: '额外扫描目录',
-  index_default_exclusions: '默认排除目录',
 
   app_name: 'PlainApp',
   or: '或',

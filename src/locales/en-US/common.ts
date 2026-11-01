@@ -1,11 +1,14 @@
 export default {
-  index_no_directories: 'No directories configured',
+  stop_search: 'Stop search',
+  directory_search_hint: 'Search this directory and its subdirectories',
+  index_search_hint: 'Search indexed files',
+  indexed_files: 'Indexed files',
+  directory_search_scope_hint: 'Searches this directory and its subdirectories, including files outside the index.',
   directory_search_running: 'Searching',
   directory_search_completed: 'Search complete',
   directory_search_incomplete: 'Search stopped; results are incomplete',
 
   index_search_scope_hint: 'Search covers indexed scan directories. Excluded and unscanned directories are outside these results.',
-  index_coverage: 'Scan coverage',
   index_state_pending: 'Not scanned',
   index_state_running: 'Indexing',
   index_state_paused: 'Paused',
@@ -19,10 +22,6 @@ export default {
   index_source_excluded: 'Excluded',
   index_source_failed: 'Unavailable or incomplete',
 
-  file_index_scope: 'File index scope',
-  index_default_directories: 'Default scan directories',
-  index_added_directories: 'Additional scan directories',
-  index_default_exclusions: 'Default exclusions',
 
   app_name: 'PlainApp',
   or: 'or',

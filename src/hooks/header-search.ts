@@ -62,7 +62,7 @@ export function useHeaderSearch(props: {
   const showCallsFilters = computed(() => routeGroup.value === 'calls')
   const showFeedsFilters = computed(() => routeGroup.value === 'feeds')
 
-  const resolvedPlaceholder = computed(() => props.placeholder || t('search_hint'))
+  const resolvedPlaceholder = computed(() => props.placeholder || t(showFilesFilters.value ? (filesLocalFilter.parent || filesLocalFilter.rootPath ? 'directory_search_hint' : 'index_search_hint') : 'search_hint'))
 
   // Data fetching
   const { tags: audioTags, buckets: audioBuckets, fetch: fetchAudioBucketsTags } = useBucketsTags(DataType.AUDIO)
