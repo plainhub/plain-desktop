@@ -1,6 +1,6 @@
 <template>
   <FileIndexStatus v-if="indexed" />
-  <div v-else class="directory-search"><HeaderSearch kind="files" :placeholder="$t('directory_search_hint')" :enable-slash-focus="false" :file-filter="filter" :get-file-url="getUrl" :navigate-to-dir="navigateToDir" /><span v-if="searchStatus !== 'idle'">{{ $t(`directory_search_${searchStatus}`) }}</span><v-outlined-button v-if="searchStatus === 'running'" @click="cancel">{{ $t('cancel') }}</v-outlined-button></div>
+  <div v-else-if="searchStatus !== 'idle'" class="directory-search-status"><span>{{ $t(`directory_search_${searchStatus}`) }}</span><v-outlined-button v-if="searchStatus === 'running'" @click="cancel">{{ $t('cancel') }}</v-outlined-button></div>
   <div class="top-app-bar">
     <v-checkbox touch-target="wrapper" :checked="allChecked" :indeterminate="!allChecked && checked" @change="toggleAllChecked" />
     <div class="title">
@@ -64,7 +64,6 @@
 </template>
 
 <script setup lang="ts">
-import HeaderSearch from '@/components/HeaderSearch.vue'
 import FileIndexStatus from './FileIndexStatus.vue'
 import { computed, inject, nextTick, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
@@ -136,7 +135,7 @@ watch(breadcrumbPaths, () => {
 }, { immediate: true })
 
 // --- Navigation ---
-const { getUrl, navigateToDir, toggleShowHidden, clickItem, viewItem } = useFilesNavigation({
+const { navigateToDir, toggleShowHidden, clickItem, viewItem } = useFilesNavigation({
   filter, rootDir, urlTokenKey, buildQ, clearSelection, view, downloadFile, items,
 })
 
@@ -195,7 +194,7 @@ const actionButtonProps = computed(() => ({
 </script>
 
 <style lang="scss" scoped>
-.directory-search { display: flex; align-items: center; gap: 8px; padding: 0 16px 8px; }
+.directory-search-status { display: flex; align-items: center; gap: 8px; padding: 0 16px 8px; }
 
 .breadcrumb {
   display: flex;

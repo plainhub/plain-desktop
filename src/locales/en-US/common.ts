@@ -4,7 +4,6 @@ export default {
   directory_search_completed: 'Search complete',
   directory_search_incomplete: 'Search stopped; results are incomplete',
 
-  directory_search_hint: 'Search this directory and its subdirectories',
   index_search_scope_hint: 'Search covers indexed scan directories. Excluded and unscanned directories are outside these results.',
   index_coverage: 'Scan coverage',
   index_state_pending: 'Not scanned',

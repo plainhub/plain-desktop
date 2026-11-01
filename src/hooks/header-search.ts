@@ -154,7 +154,7 @@ export function useHeaderSearch(props: {
     if (kind.value === 'global') {
       if (showMediaFilters.value) { replaceCurrentRouteQ(buildNextMediaQ(currentEncodedQ.value, { ...mediaLocalFilter, text: text.value })); return }
       if (showAppsFilters.value) { replaceCurrentRouteQ(buildNextMediaQ(currentEncodedQ.value, { tagIds: [], type: mediaLocalFilter.type, text: text.value })); return }
-      if (showFilesFilters.value) { replaceCurrentRouteQ(buildFilesQ({ ...filesLocalFilter, parent: '', rootPath: '', text: text.value })); return }
+      if (showFilesFilters.value) { replaceCurrentRouteQ(buildFilesQ({ ...filesLocalFilter, text: text.value })); return }
       if (showDocsFilters.value) { replaceCurrentRouteQ(buildNextDocsQ(currentEncodedQ.value, filesLocalFilter.fileSize, docsExt.value, text.value)); return }
       if (showMessagesFilters.value) { replaceCurrentRouteQ(buildNextMessagesQ(currentEncodedQ.value, mediaLocalFilter.type, mediaLocalFilter.tagIds ?? [], text.value)); return }
       if (showCallsFilters.value) { replaceCurrentRouteQ(buildNextCallsQ(currentEncodedQ.value, mediaLocalFilter.type, callsLocal.duration, callsLocal.startTime, text.value)); return }

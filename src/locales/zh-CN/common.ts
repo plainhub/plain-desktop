@@ -4,7 +4,6 @@ export default {
   directory_search_completed: '搜索完成',
   directory_search_incomplete: '搜索已停止，结果尚不完整',
 
-  directory_search_hint: '在此目录及子目录中搜索',
   index_search_scope_hint: '搜索覆盖扫描范围内已建立的索引；排除目录和未扫描目录不在结果中。',
   index_coverage: '扫描覆盖情况',
   index_state_pending: '尚未扫描',
