@@ -232,7 +232,10 @@ function formatDisk(d: IDisk) {
 
 <style scoped>
 .dm {
-  min-width: min(960px, 92vw);
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  width: min(960px, calc(90vw - 48px));
 }
 
 .dm-error {
@@ -247,13 +250,14 @@ function formatDisk(d: IDisk) {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 12px;
+  flex-wrap: wrap;
+  gap: 16px;
 }
 
 .dm-card-title-main {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 8px;
   min-width: 0;
   flex-wrap: wrap;
 }
@@ -269,7 +273,7 @@ function formatDisk(d: IDisk) {
 
 .dm-chip {
   font-size: 12px;
-  padding: 2px 8px;
+  padding: 4px 8px;
   border-radius: 999px;
   border: 1px solid var(--md-sys-color-outline-variant);
   color: var(--md-sys-color-on-surface-variant);
@@ -281,8 +285,13 @@ function formatDisk(d: IDisk) {
   padding: 0;
 }
 
+.dm-volumes .volumes {
+  grid-template-columns: repeat(auto-fit, minmax(min(240px, 100%), 1fr));
+  gap: 16px;
+}
+
 .dm-hint {
-  margin-top: 6px;
+  margin-top: 8px;
 }
 
 .dm-format {
@@ -291,7 +300,7 @@ function formatDisk(d: IDisk) {
 
 .dm-help-pop {
   max-width: min(520px, 80vw);
-  padding: 12px 14px;
+  padding: 16px;
   display: flex;
   flex-direction: column;
   gap: 8px;
@@ -305,8 +314,8 @@ function formatDisk(d: IDisk) {
   .meta {
     margin: 0;
     display: grid;
-    grid-template-columns: 140px 1fr;
-    gap: 4px 12px;
+    grid-template-columns: 144px 1fr;
+    gap: 4px 16px;
 
     dt {
       color: var(--md-sys-color-on-surface-variant);

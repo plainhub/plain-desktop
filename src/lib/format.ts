@@ -106,18 +106,18 @@ export function formatUsedTotalBytes(usedBytes: number, totalBytes: number, si =
   }
 
   // Pick a unit based on the total, then reuse it for the used figure.
-  let u = -1
+  let u = 0
   let scaledTotal = totalBytes
   do {
     scaledTotal /= thresh
     ++u
-  } while (Math.abs(scaledTotal) >= thresh && u < 7)
+  } while (Math.abs(scaledTotal) >= thresh && u < 8)
 
   const dp = Math.abs(scaledTotal) >= 100 ? 0 : 1
   const unit = (si
     ? ['B', 'kB', 'MB', 'GB', 'TB', 'PB', 'EB', 'ZB', 'YB']
     : ['B', 'KiB', 'MiB', 'GiB', 'TiB', 'PiB', 'EiB', 'ZiB', 'YiB'])[u]
-  const factor = thresh ** (u + 1)
+  const factor = thresh ** u
   return `${(usedBytes / factor).toFixed(dp)} ${unit} / ${(totalBytes / factor).toFixed(dp)} ${unit}`
 }
 
