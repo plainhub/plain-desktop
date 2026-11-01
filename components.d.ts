@@ -462,6 +462,7 @@ declare module 'vue' {
     SmsReviewModal: typeof import('./src/views/messages/SmsReviewModal.vue')['default']
     SplitPanels: typeof import('./src/views/text-file/SplitPanels.vue')['default']
     StatusBar: typeof import('./src/views/text-file/StatusBar.vue')['default']
+    SystemFilesHeader: typeof import('./src/views/files/SystemFilesHeader.vue')['default']
     TagFilter: typeof import('./src/components/TagFilter.vue')['default']
     TagRelationsDropdown: typeof import('./src/components/TagRelationsDropdown.vue')['default']
     TauriTabBar: typeof import('./src/components/TauriTabBar.vue')['default']

@@ -226,7 +226,7 @@ export default class Virtual {
     let offset = 0
     for (let index = 0; index < givenIndex; index++) {
       // this.__getIndexOffsetCalls++
-      const indexSize = this.sizes.get(this.param.uniqueIds[index]) ?? 0
+      const indexSize = this.sizes.get(this.param.uniqueIds[index])
       offset = offset + (typeof indexSize === 'number' ? indexSize : this.getEstimateSize())
     }
 

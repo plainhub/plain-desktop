@@ -1,4 +1,5 @@
 export default {
+  system_and_apps: 'System & apps',
   upload_failed: 'Upload failed',
   release_to_send_files: 'Release to send the files',
   storage: 'Storage',

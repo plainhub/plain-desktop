@@ -21,7 +21,6 @@ if (!__IS_TAURI__) {
   // Pull `?__cid=` (set when spawning child windows) into sessionStorage
   // before anything else reads the clientId. Idempotent.
   applyUrlClientId()
-  import('@/registerServiceWorker')
   ensureBrowserClientId()
 }
 

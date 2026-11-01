@@ -56,8 +56,9 @@ export function useFilesActions(opts: UseFilesActionsOptions) {
   addFavDone(() => emitter.emit('refetch_favorite_folders'))
 
   const onDeleted = (files: IFile[]) => {
+    const previousCount = items.value.length
     files.forEach((f) => { arrayRemove(items.value, (it: IFile) => it.id === f.id) })
-    total.value = items.value.length
+    total.value -= previousCount - items.value.length
     clearSelection()
     refetchMounts()
   }

@@ -1037,6 +1037,7 @@ export const fileSearchResultsGQL = `
     fileSearchResults(root: $root, query: $query, offset: $offset, limit: $limit, sortBy: $sortBy) {
       items { ...FileFragment }
       count
+      offset
       complete
     }
   }

@@ -52,3 +52,13 @@ it('uses configured browser API hosts and preserves HTTPS on custom ports', () =
   window.location.protocol = 'https:'
   expect(getWebSocketBaseUrl()).toBe('wss://web.example:8080')
 })
+
+it('keeps production browser requests on the current origin despite development environment files', () => {
+  target.local = false
+  vi.stubGlobal('__IS_TAURI__', false)
+  vi.stubEnv('DEV', false)
+  vi.stubEnv('VITE_APP_API_HOST', 'development.example:8080')
+  window.location.protocol = 'https:'
+  expect(getApiBaseUrl()).toBe('https://web.example:8080')
+  expect(getWebSocketBaseUrl()).toBe('wss://web.example:8080')
+})

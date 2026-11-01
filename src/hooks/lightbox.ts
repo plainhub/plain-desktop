@@ -471,6 +471,7 @@ export function useLightboxFileActions(
       name: getFileName(current.value.path),
       size: current.value.size || 0,
       isDir: false,
+      isSystem: false,
       extension: '',
       fileId: '',
       updatedAt: '',

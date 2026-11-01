@@ -176,24 +176,6 @@ pub fn run() {
                 }
             });
 
-            if let Ok(catalog) = core.native_media_catalog() {
-                if let Err(error) =
-                    catalog.configure_scan_directories( None)
-                {
-                    log::warn!("media scan configuration failed: {error}");
-                }
-                if let Err(error) = tauri::async_runtime::block_on(async {
-                    catalog.start_source_scan("/")
-                }) {
-                    log::warn!("initial media scan did not start: {error}");
-                }
-                if let Err(error) = tauri::async_runtime::block_on(async {
-                    catalog.watch_source_directories()
-                }) {
-                    log::warn!("media watch did not start: {error}");
-                }
-            }
-
             if let Err(error) = tauri::async_runtime::block_on(async {
                 core.start_configured_public().await
             }) {

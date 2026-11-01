@@ -35,7 +35,6 @@ export function useFilesData() {
   const firstInit = ref(true)
   const isActive = ref(false)
   const page = ref(1)
-  const limit = 10000
   const rootDir = computed(() => filter.rootPath)
   const indexed = computed(() => !filter.parent && !filter.rootPath)
 
@@ -70,6 +69,7 @@ export function useFilesData() {
     const current = sequence
     searchStatus.value = 'idle'
     loading.value = true
+    const limit = indexed.value || filter.text || q.value.includes('file_size:') ? 1000 : 10000
     const variables = vars ?? {
       ...(indexed.value ? {} : { root: rootDir.value }),
       offset: (page.value - 1) * limit, limit,

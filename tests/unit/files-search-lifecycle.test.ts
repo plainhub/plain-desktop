@@ -47,6 +47,7 @@ it('cancels traversal, settles refresh controls and rejects late results', async
   data.refreshing.value = true
   await data.fetch()
   const stream = state.streams[0]
+  expect(stream.variables.limit).toBe(1000)
   expect(data.loading.value).toBe(true)
   data.cancel()
   expect(stream.cancel).toHaveBeenCalledOnce()

@@ -1,9 +1,11 @@
-import { ref } from 'vue'
+import { computed, ref } from 'vue'
 
+const windowHeight = ref(window.innerHeight)
 const isPhone = ref(window.innerWidth <= 480)
 const isTablet = ref(window.innerWidth <= 768)
 
 function update() {
+  windowHeight.value = window.innerHeight
   isPhone.value = window.innerWidth <= 480
   isTablet.value = window.innerWidth <= 768
 }
@@ -16,4 +18,8 @@ export function getIsTablet() {
 
 export function getIsPhone() {
   return isPhone
+}
+
+export function useVirtualRowCount(estimatedRowHeight: number) {
+  return computed(() => Math.max(1, Math.ceil(windowHeight.value / estimatedRowHeight)) * 3)
 }

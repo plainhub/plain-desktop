@@ -267,6 +267,7 @@ export interface Fragment_FeedFragment {
 }
 
 export interface Fragment_FileFragment {
+  isSystem: boolean
   path: string
   isDir: boolean
   createdAt?: string
@@ -1407,6 +1408,7 @@ export interface GqlOperations {
       fileSearchResults: {
         items: Array<Fragment_FileFragment>
         count: number
+        offset: number
         complete: boolean
       }
     }

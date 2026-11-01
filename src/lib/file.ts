@@ -11,6 +11,7 @@ export interface IFile extends IData {
   path: string
   name: string
   isDir: boolean
+  isSystem: boolean
   updatedAt: string
   createdAt: string
   extension: string
@@ -189,12 +190,13 @@ export function getDirFromPath(path: string) {
   return index === -1 ? '' : path.substring(0, index)
 }
 
-export function enrichFile(item: Pick<IFile, 'path' | 'isDir' | 'updatedAt' | 'size'> & { createdAt?: string }) {
+export function enrichFile(item: Pick<IFile, 'path' | 'isDir' | 'updatedAt' | 'size'> & { createdAt?: string; isSystem?: boolean }) {
   const name = getFileName(item.path.replace(/\/+$/, ''))
   const extension = item.isDir ? '' : getFileExtension(name)
   return {
     ...item,
     id: item.path,
+    isSystem: item.isSystem ?? false,
     name,
     fileId: '',
     createdAt: item.createdAt ?? '',

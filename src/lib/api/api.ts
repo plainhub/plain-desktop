@@ -110,7 +110,7 @@ export function getProxyUrl(path: string): string {
 }
 
 export function getApiHost() {
-  return _pendingLoginDevice?.host || getCurrentDeviceHost() || import.meta.env.VITE_APP_API_HOST || window.location.host
+  return _pendingLoginDevice?.host || getCurrentDeviceHost() || (import.meta.env.DEV ? import.meta.env.VITE_APP_API_HOST : '') || window.location.host
 }
 
 export function getApiBaseUrl() {

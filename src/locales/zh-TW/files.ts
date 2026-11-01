@@ -1,4 +1,5 @@
 export default {
+  system_and_apps: '系統與應用程式',
   upload_failed: '上傳失敗',
   release_to_send_files: '放開以傳送檔案',
   storage: '儲存空間',

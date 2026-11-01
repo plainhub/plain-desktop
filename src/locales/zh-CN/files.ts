@@ -1,4 +1,5 @@
 export default {
+  system_and_apps: '系统与应用',
   upload_failed: '上传失败',
   release_to_send_files: '松手以发送文件',
   storage: '存储',

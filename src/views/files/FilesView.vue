@@ -7,12 +7,12 @@
       <div v-else ref="breadcrumbEl" class="breadcrumb">
         <template v-for="(item, index) in breadcrumbPaths" :key="item.path">
           <template v-if="index === 0">
-            <span v-if="item.path === filter.parent" v-tooltip="pageDetails">{{ indexed ? $t('indexed_files') : item.name }} ({{ total }})<span v-if="searchState" class="search-state"> · {{ searchState }}</span></span>
+            <span v-if="item.path === filter.parent" v-tooltip="pageDetails">{{ indexed ? $t('indexed_files') : item.name }} ({{ regularTotal }})<span v-if="searchState" class="search-state"> · {{ searchState }}</span></span>
             <a v-else v-tooltip="pageDetails" href="#" @click.stop.prevent="navigateToDir(item.path)">{{ item.name }}</a>
           </template>
           <template v-else>
             <span class="sep">/</span>
-            <span v-if="item.path === filter.parent" v-tooltip="pageDetails">{{ item.name }} ({{ total }})<span v-if="searchState" class="search-state"> · {{ searchState }}</span></span>
+            <span v-if="item.path === filter.parent" v-tooltip="pageDetails">{{ item.name }} ({{ regularTotal }})<span v-if="searchState" class="search-state"> · {{ searchState }}</span></span>
             <a v-else href="#" @click.stop.prevent="navigateToDir(item.path)">{{ item.name }}</a>
           </template>
         </template>
@@ -40,8 +40,12 @@
   </div>
   <div class="scroller-wrapper" @dragover.stop.prevent="fileDragEnter">
     <div v-show="dropping" class="drag-mask" @drop.stop.prevent="dropFiles2" @dragleave.stop.prevent="fileDragLeave">{{ $t('release_to_send_files') }}</div>
-    <VirtualList v-if="items.length > 0" class="scroller main-list" :data-key="'id'" :data-sources="items" :estimate-size="80">
+    <VirtualList v-if="items.length > 0" class="scroller main-list" :class="{ 'system-files-list': systemItems.length > 0 }" :data-key="'id'" :data-sources="visibleItems" :estimate-size="80" :keeps="renderedRows">
+      <template v-if="systemItems.length" #header>
+        <SystemFilesHeader :count="systemItems.length" :expanded="systemExpanded" @toggle="systemExpanded = !systemExpanded" />
+      </template>
       <template #item="{ index, item }">
+        <div :class="{ 'system-file-row': systemItems.length && item.isSystem, 'system-file-last': systemItems.length && index === systemItems.length - 1 }">
         <FileListItem
 :item="item" :index="index" :selected-ids="selectedIds" :shift-effecting-ids="shiftEffectingIds"
           :should-select="shouldSelect" :is-phone="isPhone" :image-error-ids="imageErrorIds"
@@ -53,6 +57,7 @@
           @upload-dir="uploadDirClick" @delete-item="deleteItem" @duplicate-item="duplicateItem" @cut-item="cutItem"
           @copy-item="copyItem" @paste-item="pasteItem" @copy-link="copyLinkItem" @rename-item="renameItemClick"
           @add-to-favorites="addToFavoritesClick" />
+        </div>
       </template>
     </VirtualList>
     <NoDataPlaceholder v-if="!loading && items.length === 0" :loading="loading" :permissions="app.permissions" permission="WRITE_EXTERNAL_STORAGE" />
@@ -79,14 +84,18 @@ import KeyboardShortcutsModal from '@/components/KeyboardShortcutsModal.vue'
 import { filesKeyboardShortcuts } from '@/lib/shortcuts/files'
 import type { ISource } from '@/components/lightbox/types'
 import VirtualList from '@/components/virtualscroll'
+import { useVirtualRowCount } from '@/hooks/device'
 import { useFilesData } from './hooks/useFilesData'
 import { useFilesBreadcrumb } from './hooks/useFilesBreadcrumb'
 import { useFilesActions } from './hooks/useFilesActions'
 import { useFilesNavigation } from './hooks/useFilesNavigation'
 import { useFilesEvents } from './hooks/useFilesEvents'
 import { useFileIndexStatus } from './hooks/useFileIndexStatus'
+import { useSystemFiles } from './hooks/useSystemFiles'
+import SystemFilesHeader from './SystemFilesHeader.vue'
 
 const isPhone = inject('isPhone') as boolean
+const renderedRows = useVirtualRowCount(80)
 const { t } = useI18n()
 const tempStore = useTempStore()
 const { app, urlTokenKey, uploads } = storeToRefs(tempStore)
@@ -97,10 +106,17 @@ const sources = ref([])
 // --- Data & fetch ---
 const { filter, q, items, loading, firstInit, refreshing, sorting, isActive, rootDir, indexed, fileSortBy, totalRef, buildQ, applyRouteQuery, fetch, route, cancel, searchStatus } = useFilesData()
 
+const { expanded: systemExpanded, visibleItems, systemItems } = useSystemFiles(
+  items, () => filter.parent,
+  () => !indexed.value && !filter.text && !q.value.includes('file_size:') && !filter.parent.includes('!zip!/'),
+)
+const regularTotal = computed(() => Math.max(0, totalRef.value - systemItems.value.length))
+
 // --- Selection ---
 const { selectedIds, allChecked, realAllChecked, clearSelection, toggleAllChecked, toggleSelect, total, checked, shiftEffectingIds, handleItemClick, handleMouseOver, selectAll, shouldSelect } =
-  useSelectable(items)
-watch(totalRef, (v) => { total.value = v }, { immediate: true })
+  useSelectable(visibleItems)
+watch(() => systemItems.value.length ? visibleItems.value.length : totalRef.value, (v) => { total.value = v }, { immediate: true })
+watch(systemExpanded, clearSelection)
 
 // --- Shared hooks ---
 const { dropping, fileDragEnter, fileDragLeave, dropFiles } = useDragDropUpload(uploads)
@@ -149,7 +165,7 @@ watch(breadcrumbPaths, () => {
 
 // --- Navigation ---
 const { navigateToDir, toggleShowHidden, clickItem, viewItem } = useFilesNavigation({
-  filter, rootDir, urlTokenKey, buildQ, clearSelection, view, downloadFile, items,
+  filter, rootDir, urlTokenKey, buildQ, clearSelection, view, downloadFile, items: visibleItems,
 })
 
 // --- Actions ---
@@ -161,7 +177,7 @@ const {
   duplicateItem, cutItem, copyItem, pasteItem, copyLinkItem, renameItemClick, createDir,
   addToFavoritesClick, onDeleted,
 } = useFilesActions({
-  items, total, selectedIds, clearSelection, filter, rootDir, urlTokenKey, t,
+  items, total: totalRef, selectedIds, clearSelection, filter, rootDir, urlTokenKey, t,
   fetch, refetchMounts, copy, cut, paste, downloadFile, downloadDir, downloadFiles,
   createPath, createVariables, createMutation, renameItem, renameMutation, renameVariables, renameDone,
 })
@@ -232,4 +248,25 @@ const actionButtonProps = computed(() => ({
   }
 }
 
+</style>
+
+<style scoped>
+.system-files-list {
+  gap: 0;
+}
+.system-file-row {
+  margin-inline: 16px;
+  background: var(--md-sys-color-surface-container);
+}
+.system-file-row :deep(.selectable-card),
+.system-file-row :deep(.list-item-phone) {
+  margin-inline: 0;
+  margin-bottom: 0;
+  border-radius: 0;
+}
+.system-file-last {
+  border-radius: 0 0 8px 8px;
+  margin-bottom: 8px;
+  overflow: hidden;
+}
 </style>

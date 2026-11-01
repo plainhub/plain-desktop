@@ -11,6 +11,7 @@ export function searchFiles(
 ): () => void {
   let connection: SubscriptionConnection | undefined
   let active = true
+  let items: Page['items'] = []
   function stop() {
     active = false
     connection?.close()
@@ -37,7 +38,18 @@ export function searchFiles(
         } else if (message.type === 'next' && message.payload && !Array.isArray(message.payload)) {
           if (message.payload.errors?.length) { fail(new Error(message.payload.errors[0].message)); return }
           const page = message.payload.data?.fileSearchResults
-          if (page) { next(page); if (page.complete) stop() }
+          if (page) {
+            const offset = Number(page.offset)
+            if (offset === 0) items = []
+            if (offset !== items.length) { fail(new Error('File search batch out of order')); return }
+            items.push(...page.items)
+            const expected = Math.min(Math.max(0, Number(page.count) - variables.offset), variables.limit)
+            if (items.length === expected) {
+              next({ ...page, items })
+              items = []
+              if (page.complete) stop()
+            } else if (page.complete || items.length > expected) fail(new Error('File search batch is incomplete'))
+          }
         } else if (message.type === 'complete') {
           if (active) fail(new Error('File search ended before completion'))
         }

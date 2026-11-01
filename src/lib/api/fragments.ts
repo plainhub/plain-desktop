@@ -178,6 +178,7 @@ export const callFragment = `
 
 export const fileFragment = `
   fragment FileFragment on File {
+    isSystem
     path
     isDir
     createdAt

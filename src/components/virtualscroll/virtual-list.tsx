@@ -46,6 +46,7 @@ export default defineComponent({
       () => props.keeps,
       (newValue) => {
         virtual.updateParam('keeps', newValue)
+        virtual.updateParam('buffer', Math.round(newValue / 3))
         virtual.handleSlotSizeChange()
       }
     )
