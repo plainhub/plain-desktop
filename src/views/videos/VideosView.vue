@@ -178,12 +178,7 @@ watch(() => mainStore.videosScrollPaging, () => { page.value = 1; items.value = 
 
 const onImageError = (id: string) => { imageErrorIds.value.push(id) }
 
-const effectiveQ = computed(() => {
-  const dirs = mainStore.excludedDirs
-  if (!dirs.length) return q.value
-  const dirParts = dirs.map((d) => (d.includes(' ') ? `excluded_dir:"${d}"` : `excluded_dir:${d}`))
-  return [q.value, ...dirParts].filter(Boolean).join(' ')
-})
+const effectiveQ = computed(() => q.value)
 
 const { loading, fetch } = initLazyQuery({
   handle: async (data: { videos: IVideo[]; videoCount: number }, error: string) => {

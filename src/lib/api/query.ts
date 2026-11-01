@@ -1023,3 +1023,22 @@ export const nearbyDevicesGQL = `
     mdnsState { scanning }
   }
 `
+
+export const indexedFilesGQL = `
+  query indexedFiles($query: String!, $offset: Int!, $limit: Int!, $sortBy: FileSortBy!) {
+    files: indexedFiles(query: $query, offset: $offset, limit: $limit, sortBy: $sortBy) { ...FileFragment }
+    count: indexedFileCount(query: $query)
+  }
+  ${fileFragment}
+`
+
+export const fileSearchResultsGQL = `
+  subscription fileSearchResults($root: String!, $query: String!, $offset: Int!, $limit: Int!, $sortBy: FileSortBy!) {
+    fileSearchResults(root: $root, query: $query, offset: $offset, limit: $limit, sortBy: $sortBy) {
+      items { ...FileFragment }
+      count
+      complete
+    }
+  }
+  ${fileFragment}
+`

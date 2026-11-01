@@ -27,7 +27,6 @@ export function useHomeData() {
   const { t } = useI18n()
   const mainStore = useMainStore()
   const tempStore = useTempStore()
-  const { excludedDirs } = storeToRefs(mainStore)
   const { counter, app: appState } = storeToRefs(tempStore)
   const mounts = ref<IStorageMount[]>([])
 
@@ -63,10 +62,7 @@ export function useHomeData() {
         : []
       return homeStatsGQL(keys)
     },
-    variables: () => {
-      const parts = excludedDirs.value.map((d) => (d.includes(' ') ? `excluded_dir:"${d}"` : `excluded_dir:${d}`))
-      return { mediaQuery: parts.join(' ') }
-    },
+    variables: () => ({ mediaQuery: '' }),
   })
 
   return { mounts }

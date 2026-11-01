@@ -77,53 +77,6 @@ pub fn run() {
             );
             app.handle().manage(core.clone());
             let prefs = core.shared_preferences()?;
-            let saved_roots = plain_rs::features::prefs::media::source_directories(&prefs)?;
-            let mut root_candidates: Vec<std::path::PathBuf> = saved_roots
-                .iter()
-                .map(std::path::PathBuf::from)
-                .collect();
-            root_candidates.extend(
-                [
-                    app.path().home_dir(),
-                    app.path().desktop_dir(),
-                    app.path().document_dir(),
-                    app.path().download_dir(),
-                    app.path().audio_dir(),
-                    app.path().picture_dir(),
-                    app.path().video_dir(),
-                ]
-                .into_iter()
-                .flatten()
-                .filter(|path| path.is_dir()),
-            );
-            #[cfg(target_os = "macos")]
-            if let Ok(home) = app.path().home_dir() {
-                let cloud = home.join("Library/Mobile Documents/com~apple~CloudDocs");
-                if cloud.is_dir() {
-                    root_candidates.push(cloud);
-                }
-            }
-            let roots: Vec<std::path::PathBuf> = root_candidates
-                .into_iter()
-                .filter(|path| !path.as_os_str().is_empty())
-                .map(|path| path.canonicalize().unwrap_or(path))
-                .collect();
-            let unique_roots = plain_rs::libs::filesystem::roots::prune_nested(roots, |root| {
-                cfg!(target_os = "macos")
-                    && root.ends_with(std::path::Path::new(
-                        "Library/Mobile Documents/com~apple~CloudDocs",
-                    ))
-            });
-            let roots: Vec<String> = unique_roots
-                .into_iter()
-                .map(|path| path.to_string_lossy().into_owned())
-                .collect();
-            let media_sources_changed = roots != saved_roots;
-            if media_sources_changed {
-                if let Err(error) = plain_rs::features::prefs::media::set_source_directories(&prefs, &roots) {
-                    log::warn!("media source initialization failed: {error}");
-                }
-            }
             app.handle().manage(prefs.clone());
 
             #[cfg(target_os = "macos")]
@@ -229,12 +182,10 @@ pub fn run() {
                 {
                     log::warn!("media scan configuration failed: {error}");
                 }
-                if media_sources_changed {
-                    if let Err(error) = tauri::async_runtime::block_on(async {
-                        catalog.start_source_scan("/")
-                    }) {
-                        log::warn!("initial media scan did not start: {error}");
-                    }
+                if let Err(error) = tauri::async_runtime::block_on(async {
+                    catalog.start_source_scan("/")
+                }) {
+                    log::warn!("initial media scan did not start: {error}");
                 }
                 if let Err(error) = tauri::async_runtime::block_on(async {
                     catalog.watch_source_directories()

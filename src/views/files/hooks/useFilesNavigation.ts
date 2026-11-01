@@ -63,5 +63,5 @@ export function useFilesNavigation(opts: UseFilesNavigationOptions) {
     openFile(item)
   }
 
-  return { navigateToDir, toggleShowHidden, clickItem, viewItem }
+  return { getUrl, navigateToDir, toggleShowHidden, clickItem, viewItem }
 }

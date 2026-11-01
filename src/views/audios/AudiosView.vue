@@ -141,12 +141,7 @@ const {
 } = mp
 
 const isAudioPlaying = (item: IAudioWithFileId) => audioPlaying.value && audioPlayback.value.mediaId === item.id
-const effectiveQ = computed(() => {
-  const dirs = mainStoreLocal.excludedDirs
-  if (!dirs.length) return q.value
-  const dirParts = dirs.map((d) => (d.includes(' ') ? `excluded_dir:"${d}"` : `excluded_dir:${d}`))
-  return [q.value, ...dirParts].filter(Boolean).join(' ')
-})
+const effectiveQ = computed(() => q.value)
 const { play, playPath, loading: playLoading, pause } = useAudioPlayer()
 const { moveLoading, onMoveClick } = useMoveToFolder('move-audios-picker')
 const { addItemsToPlaylist, addToPlaylist, removeFromPlaylist, isInPlaylist } = useAddToPlaylist(items, clearSelection)

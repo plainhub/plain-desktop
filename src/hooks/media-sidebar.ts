@@ -53,11 +53,7 @@ export function useMediaSidebar(type: DataType, gql: string) {
       else if (type === DataType.DOC) { counter.value.docs = data.total; counter.value.docsTrash = data.trash; counter.value.docExtGroups = data.extGroups ?? [] }
     },
     document: gql,
-    variables: () => {
-      const dirs = mainStore.excludedDirs
-      const dirParts = dirs.map((d) => (d.includes(' ') ? `excluded_dir:"${d}"` : `excluded_dir:${d}`))
-      return { query: dirParts.join(' ') }
-    },
+    variables: () => ({ query: '' }),
   })
 
   function updateActive() {

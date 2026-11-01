@@ -189,7 +189,7 @@ export function getDirFromPath(path: string) {
   return index === -1 ? '' : path.substring(0, index)
 }
 
-export function enrichFile(item: IFile) {
+export function enrichFile(item: Pick<IFile, 'path' | 'isDir' | 'updatedAt' | 'size'> & { createdAt?: string }) {
   const name = getFileName(item.path.replace(/\/+$/, ''))
   const extension = item.isDir ? '' : getFileExtension(name)
   return {
@@ -197,6 +197,7 @@ export function enrichFile(item: IFile) {
     id: item.path,
     name,
     fileId: '',
+    createdAt: item.createdAt ?? '',
     extension,
   }
 }

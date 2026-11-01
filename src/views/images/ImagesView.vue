@@ -171,12 +171,7 @@ const toggleGroupByText = (group: MediaGroup<IImageItem>) => setGroupChecked(gro
 watch(() => mainStore.imagesGroupBy, () => { page.value = 1; noMore.value = false; items.value = []; fetch() })
 watch(() => mainStore.imagesScrollPaging, () => { page.value = 1; items.value = []; fetch() })
 
-const effectiveQ = computed(() => {
-  const dirs = mainStore.excludedDirs
-  if (!dirs.length) return q.value
-  const dirParts = dirs.map((d) => (d.includes(' ') ? `excluded_dir:"${d}"` : `excluded_dir:${d}`))
-  return [q.value, ...dirParts].filter(Boolean).join(' ')
-})
+const effectiveQ = computed(() => q.value)
 
 const { loading, fetch } = initLazyQuery({
   handle: async (data: { images: IImage[]; imageCount: number }, error: string) => {

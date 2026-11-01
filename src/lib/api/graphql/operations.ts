@@ -1402,6 +1402,22 @@ export interface GqlOperations {
       fileName: string
     }
   }
+  fileSearchResultsGQL: {
+    result: {
+      fileSearchResults: {
+        items: Array<Fragment_FileFragment>
+        count: number
+        complete: boolean
+      }
+    }
+    variables: {
+      root: string
+      query: string
+      offset: number
+      limit: number
+      sortBy: 'DATE_ASC' | 'DATE_DESC' | 'SIZE_ASC' | 'SIZE_DESC' | 'NAME_ASC' | 'NAME_DESC' | 'TAKEN_AT_DESC'
+    }
+  }
   filesGQL: {
     result: {
       files: Array<Fragment_FileFragment>
@@ -1537,6 +1553,18 @@ export interface GqlOperations {
       importImageSearchModel: boolean
     }
     variables: undefined
+  }
+  indexedFilesGQL: {
+    result: {
+      files: Array<Fragment_FileFragment>
+      count: number
+    }
+    variables: {
+      query: string
+      offset: number
+      limit: number
+      sortBy: 'DATE_ASC' | 'DATE_DESC' | 'SIZE_ASC' | 'SIZE_DESC' | 'NAME_ASC' | 'NAME_DESC' | 'TAKEN_AT_DESC'
+    }
   }
   installPackageGQL: {
     result: {

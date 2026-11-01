@@ -1,14 +1,17 @@
-import { computed, reactive, ref, type Ref } from 'vue'
+import { computed, reactive, ref, onDeactivated, onUnmounted, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { storeToRefs } from 'pinia'
 import { useMainStore } from '@/stores/main'
 import { type IFile, enrichFile } from '@/lib/file'
 import { useSearch } from '@/hooks/files'
-import { filesGQL, initLazyQuery } from '@/lib/api/query'
+import { filesGQL, indexedFilesGQL } from '@/lib/api/query'
 import { useRoute } from 'vue-router'
 import { decodeBase64 } from '@/lib/strutil'
 import type { IFileFilter } from '@/lib/interfaces'
 import toast from '@/components/toaster'
+import { gqlFetch, GqlError, getGraphqlContextKey } from '@/lib/api/gql-client'
+import { searchFiles } from '@/lib/api/file-search'
+import { graphqlSubscriptions } from '@/lib/api/subscription-client'
 
 export function useFilesData() {
   const { t } = useI18n()
@@ -34,6 +37,7 @@ export function useFilesData() {
   const page = ref(1)
   const limit = 10000
   const rootDir = computed(() => filter.rootPath)
+  const indexed = computed(() => !filter.parent && !filter.rootPath)
 
   function applyRouteQuery() {
     page.value = parseInt(route.query.page?.toString() ?? '1')
@@ -45,40 +49,79 @@ export function useFilesData() {
 
   const totalRef = ref(0)
 
-  const { loading, fetch } = initLazyQuery({
-    handle: async (data: any, error: string) => {
-      firstInit.value = false
-      refreshing.value = false
-      sorting.value = false
-      if (error) {
-        toast(t(error), 'error')
-      } else {
-        const dirs = mainStore.excludedDirs
-        const list: IFile[] = []
-        for (const item of data.files) {
-          const f = enrichFile(item)
-          if (dirs.length && dirs.some((d) => f.path.startsWith(d))) continue
-          list.push(f)
-        }
-        items.value = list
-        totalRef.value = list.length
-      }
-    },
-    document: filesGQL,
-    variables: () => ({
-      root: rootDir.value,
-      offset: (page.value - 1) * limit,
-      limit,
-      query: q.value,
-      sortBy: fileSortBy.value,
-    }),
-    options: { fetchPolicy: 'cache-and-network' },
+  const loading = ref(false)
+  const searchStatus = ref<'idle' | 'running' | 'completed' | 'incomplete'>('idle')
+  let stopSearch: (() => void) | undefined
+  let sequence = 0
+  function cancel() {
+    sequence++
+    if (searchStatus.value === 'running') { searchStatus.value = 'incomplete'; settled() }
+    stopSearch?.()
+    stopSearch = undefined
+    loading.value = false
+  }
+  function settled() {
+    firstInit.value = false
+    refreshing.value = false
+    sorting.value = false
+  }
+  async function fetch(vars?: Record<string, any>, options?: { latest?: boolean; force?: boolean }) {
+    cancel()
+    const current = sequence
+    searchStatus.value = 'idle'
+    loading.value = true
+    const variables = vars ?? {
+      ...(indexed.value ? {} : { root: rootDir.value }),
+      offset: (page.value - 1) * limit, limit,
+      query: q.value, sortBy: fileSortBy.value,
+    }
+    if (!indexed.value && (filter.text || q.value.includes('file_size:')) && !(filter.parent || rootDir.value).includes('!zip!/')) {
+      searchStatus.value = 'running'
+      items.value = []
+      totalRef.value = 0
+      stopSearch = searchFiles(variables as Parameters<typeof searchFiles>[0], result => {
+        if (current !== sequence) return
+        items.value = result.items.map(enrichFile)
+        totalRef.value = Number(result.count)
+        loading.value = !result.complete
+        searchStatus.value = result.complete ? 'completed' : 'running'
+        settled()
+      }, error => {
+        if (current !== sequence) return
+        loading.value = false
+        searchStatus.value = 'incomplete'
+        settled()
+        toast(t(error.message), 'error')
+      })
+      return
+    }
+    try {
+      const result = await gqlFetch(indexed.value ? indexedFilesGQL : filesGQL, variables, { fresh: options?.force })
+      if (current !== sequence) return
+      if (result.errors?.length) throw new Error(result.errors[0].message)
+      items.value = result.data.files.map(enrichFile)
+      totalRef.value = Number(result.data.count ?? items.value.length)
+    } catch (error) {
+      if (current === sequence && !(error instanceof GqlError && error.cancelled)) toast(t(error instanceof Error ? error.message : String(error)), 'error')
+    } finally {
+      if (current === sequence) { loading.value = false; settled() }
+    }
+  }
+  const stopAttached = graphqlSubscriptions.onAttached(() => { if (isActive.value) void fetch() })
+  watch(isActive, active => { if (!active) cancel() })
+  watch(getGraphqlContextKey, () => {
+    cancel()
+    items.value = []
+    totalRef.value = 0
+    if (isActive.value) void fetch()
   })
+  onDeactivated(cancel)
+  onUnmounted(() => { cancel(); stopAttached() })
 
   return {
     filter, q, items, loading, firstInit, refreshing, sorting,
-    isActive, rootDir, fileSortBy, totalRef,
-    parseQ, buildQ, applyRouteQuery, fetch, route,
+    isActive, rootDir, indexed, fileSortBy, totalRef,
+    parseQ, buildQ, applyRouteQuery, fetch, route, cancel, searchStatus,
   }
 }
 
