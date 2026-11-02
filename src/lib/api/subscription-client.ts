@@ -120,7 +120,9 @@ export class SubscriptionClient {
       if (!Array.isArray(message.payload)) throw new Error('Invalid subscription error')
       console.error('GraphQL subscription failed', operation.field, message.payload)
       if (message.payload.some(error => error.message === 'resync_required')) {
-        this.dropped(new Error('Subscription resynchronization required'), true)
+        this.ids.delete(message.id)
+        this.pending.delete(message.id)
+        this.send(operation)
         return
       }
       this.ids.delete(message.id)
@@ -134,7 +136,7 @@ export class SubscriptionClient {
     const waiting = this.pending.delete(id)
     if (waiting && this.pending.size === 0) this.ready()
   }
-  private dropped(error: unknown, resynchronize = false) {
+  private dropped(error: unknown) {
     console.error(error)
     this.generation++
     this.connection?.close()
@@ -143,7 +145,7 @@ export class SubscriptionClient {
     this.connection = undefined
     this.pending.clear()
     this.ids.clear()
-    if (this.active && (resynchronize || !isLocalMode())) this.retry = setTimeout(() => this.connect(), Math.min(5000, ++this.failures * 1000))
+    if (this.active && !isLocalMode()) this.retry = setTimeout(() => this.connect(), Math.min(5000, ++this.failures * 1000))
   }
   stop() {
     this.active = false

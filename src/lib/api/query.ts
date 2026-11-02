@@ -69,20 +69,45 @@ export interface QueryResponseContext {
   meta?: unknown
 }
 
+function queryRequests() {
+  const pending = new Set<AbortController>()
+  let active = true
+  const cancel = () => {
+    active = false
+    for (const controller of pending) controller.abort()
+    pending.clear()
+  }
+  if (getCurrentInstance()) {
+    onActivated(() => { active = true })
+    onDeactivated(cancel)
+    onUnmounted(cancel)
+  }
+  return {
+    get active() { return active },
+    start() { const controller = new AbortController(); pending.add(controller); return controller },
+    finish(controller: AbortController) { pending.delete(controller) },
+  }
+}
+
 export function initQuery<TResult = any>(params: InitQueryParams<TResult>) {
   const loading = ref(false)
   const result = ref<TResult>()
   let snapshotVersion = 0
+  const requests = queryRequests()
 
+  let current: AbortController | undefined
   async function execute(vars?: Record<string, any>, fresh = false) {
-    if (params.enabled && !params.enabled()) return
+    if (!requests.active || (params.enabled && !params.enabled())) return
+    current?.abort()
+    const controller = requests.start()
+    current = controller
     const version = snapshotVersion
     loading.value = true
     try {
       const v = vars ?? resolveVars(params.variables)
       const document = typeof params.document === 'function' ? params.document() : params.document
-      const r = await gqlFetch<TResult>(document, v, { fresh })
-      if (version !== snapshotVersion) return
+      const r = await gqlFetch<TResult>(document, v, { fresh, signal: controller.signal })
+      if (controller.signal.aborted || version !== snapshotVersion) return
       if (r.errors?.length) {
         params.handle(r.data, r.errors[0].message)
       } else {
@@ -90,10 +115,11 @@ export function initQuery<TResult = any>(params: InitQueryParams<TResult>) {
         params.handle(r.data, '')
       }
     } catch (e: any) {
-      if (version !== snapshotVersion || (e instanceof GqlError && e.cancelled)) return
+      if (controller.signal.aborted || version !== snapshotVersion || (e instanceof GqlError && e.cancelled)) return
       params.handle(undefined as any, getErrorMessage(e))
     } finally {
-      if (version === snapshotVersion) loading.value = false
+      requests.finish(controller)
+      if (current === controller) loading.value = false
     }
   }
 
@@ -102,33 +128,28 @@ export function initQuery<TResult = any>(params: InitQueryParams<TResult>) {
   // Guard watcher so deactivated keep-alive instances don't fire queries
   // when the shared reactive route changes.
   // nextTick defers execution until after KeepAlive lifecycle hooks complete.
-  let active = true
   const inst = getCurrentInstance()
-  if (inst) {
-    onDeactivated(() => { active = false })
-    onActivated(() => { active = true })
-  }
   if (typeof params.variables === 'function') {
     watch(params.variables, async () => {
       await nextTick()
-      if (active) execute()
+      if (requests.active) execute()
     }, { deep: true })
   }
   if (typeof params.document === 'function') {
     watch(params.document, async () => {
       await nextTick()
-      if (active) execute()
+      if (requests.active) execute()
     })
   }
   if (params.enabled) {
     watch(params.enabled, async (now, was) => {
       await nextTick()
-      if (active && now && !was) execute()
+      if (requests.active && now && !was) execute()
     })
   }
 
   if (inst) {
-    const resnapshot = () => { if (active) { snapshotVersion++; void execute(undefined, true) } }
+    const resnapshot = () => { if (requests.active) { snapshotVersion++; void execute(undefined, true) } }
     const stopSubscription = graphqlSubscriptions.onAttached(resnapshot)
     onUnmounted(stopSubscription)
   }
@@ -143,18 +164,21 @@ export function initLazyQuery<TResult = any>(params: InitQueryParams<TResult>) {
   let activeRegularRequests = 0
   let activeLatestRequest: number | undefined
   let snapshotVersion = 0
-  let active = true
+  const requests = queryRequests()
+  let latest: AbortController | undefined
   let previous: { variables?: Record<string, any>; options: QueryFetchOptions } | undefined
   const instance = getCurrentInstance()
   if (instance) {
-    onActivated(() => { active = true })
-    onDeactivated(() => { active = false })
-    const resnapshot = () => { if (active && previous) { snapshotVersion++; void doFetch(previous.variables, { ...previous.options, latest: true, force: true }) } }
+    const resnapshot = () => { if (requests.active && previous) { snapshotVersion++; void doFetch(previous.variables, { ...previous.options, latest: true, force: true }) } }
     const stopSubscription = graphqlSubscriptions.onAttached(resnapshot)
     onUnmounted(stopSubscription)
   }
 
   async function doFetch(vars?: Record<string, any>, options: QueryFetchOptions = {}) {
+    if (!requests.active) return
+    if (options.latest) latest?.abort()
+    const controller = requests.start()
+    if (options.latest) latest = controller
     const version = snapshotVersion
     previous = { variables: vars, options }
     const requestId = ++requestSequence
@@ -168,9 +192,9 @@ export function initLazyQuery<TResult = any>(params: InitQueryParams<TResult>) {
     try {
       const document = typeof params.document === 'function' ? params.document() : params.document
       const r = options.force
-        ? await gqlFetch<TResult>(document, v, { fresh: true })
-        : await gqlFetch<TResult>(document, v)
-      if (version !== snapshotVersion || (options.latest && latestRequestId !== latestSequence)) return
+        ? await gqlFetch<TResult>(document, v, { fresh: true, signal: controller.signal })
+        : await gqlFetch<TResult>(document, v, { signal: controller.signal })
+      if (controller.signal.aborted || version !== snapshotVersion || (options.latest && latestRequestId !== latestSequence)) return
       if (r.errors?.length) {
         params.handle(r.data, r.errors[0].message, context)
       } else {
@@ -178,11 +202,12 @@ export function initLazyQuery<TResult = any>(params: InitQueryParams<TResult>) {
         params.handle(r.data, '', context)
       }
     } catch (e: any) {
-      if (version !== snapshotVersion || (e instanceof GqlError && e.cancelled)) return
+      if (controller.signal.aborted || version !== snapshotVersion || (e instanceof GqlError && e.cancelled)) return
       if (!options.latest || latestRequestId === latestSequence) {
         params.handle(undefined as any, getErrorMessage(e), context)
       }
     } finally {
+      requests.finish(controller)
       if (options.latest) {
         if (activeLatestRequest === requestId) activeLatestRequest = undefined
       } else {

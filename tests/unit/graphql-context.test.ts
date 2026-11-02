@@ -192,3 +192,43 @@ it('routes Core preference writes to the selected local or remote target', async
   expect(httpRequest).toHaveBeenCalledTimes(1)
   expect(core.get('locale', '')).toBe('ja')
 })
+
+it('cancels 300 old-page queries and lets the next page load without waiting for them', async () => {
+  const { createRenderer } = await import('vue')
+  target.native = false
+  const replies: Array<ReturnType<typeof deferred<any>>> = []
+  const signals: AbortSignal[] = []
+  vi.mocked(httpRequest).mockImplementation((_url, options) => {
+    const reply = deferred<any>()
+    replies.push(reply)
+    signals.push(options!.signal!)
+    options!.signal!.addEventListener('abort', () => reply.resolve(Promise.reject(new DOMException('Aborted', 'AbortError'))), { once: true })
+    return reply.promise
+  })
+  const renderer = createRenderer<any, any>({
+    insert: vi.fn(), remove: vi.fn(), createElement: () => ({}), createText: () => ({}), createComment: () => ({}),
+    setText: vi.fn(), setElementText: vi.fn(), parentNode: () => null, nextSibling: () => null, patchProp: vi.fn(),
+  })
+  let query!: ReturnType<typeof initLazyQuery>
+  const handle = vi.fn()
+  const app = renderer.createApp({ setup() { query = initLazyQuery({ document: 'query OldPage($offset: Int!) { noteCount }', handle }); return () => null } })
+  app.mount({})
+  const requests = Array.from({ length: 300 }, (_, offset) => query.fetch({ offset }))
+  try {
+    expect(vi.mocked(httpRequest).mock.calls.length).toBeLessThanOrEqual(8)
+    app.unmount()
+    await Promise.all(requests)
+    expect(signals.every(signal => signal.aborted)).toBe(true)
+    expect(handle).not.toHaveBeenCalled()
+    expect(query.loading.value).toBe(false)
+    vi.mocked(httpRequest).mockResolvedValue(response({ noteCount: 7 }))
+    const next = initLazyQuery({ document: 'query NewPage { noteCount }', handle })
+    await next.fetch()
+    expect(next.result.value).toEqual({ noteCount: 7 })
+    expect(handle).toHaveBeenCalledOnce()
+  } finally {
+    app.unmount()
+    replies.forEach(reply => reply.resolve(response({ noteCount: 99 })))
+    await Promise.all(requests)
+  }
+})
