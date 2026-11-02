@@ -13,7 +13,7 @@
     </div>
     <div class="image">
       <img v-if="imageErrorIds.includes(item.id)" :src="`/ficons/${getFileExtension(item.path)}.svg`" class="svg" />
-      <img v-else class="image-thumb" :src="getFileUrl(item.fileId, '&w=512&h=512')" loading="lazy" @error="onImageError(item.id)" />
+      <img v-else class="image-thumb" :src="getFileUrl(item.fileId, '&w=512&h=512&v=' + encodeURIComponent(item.updatedAt))" loading="lazy" @error="onImageError(item.id)" />
     </div>
     <div class="title">{{ item.title }}</div>
     <div class="subtitle">
@@ -67,7 +67,7 @@
     <template #image>
       <div class="image">
         <img v-if="imageErrorIds.includes(item.id)" :src="`/ficons/${getFileExtension(item.path)}.svg`" class="svg" />
-        <img v-else class="image-thumb" :src="getFileUrl(item.fileId, '&w=512&h=512')" loading="lazy" @error="onImageError(item.id)" />
+        <img v-else class="image-thumb" :src="getFileUrl(item.fileId, '&w=512&h=512&v=' + encodeURIComponent(item.updatedAt))" loading="lazy" @error="onImageError(item.id)" />
       </div>
     </template>
 

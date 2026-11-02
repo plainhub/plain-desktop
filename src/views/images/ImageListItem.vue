@@ -11,7 +11,7 @@
       <v-checkbox v-else class="checkbox" touch-target="wrapper" :checked="selectedIds.includes(item.id)" @click.stop="toggleSelect($event, item, index)" />
       <span class="number"><field-id :id="index + 1" :raw="item" /></span>
     </div>
-    <img class="image" :src="getFileUrl(item.fileId, '&w=512&h=512')" loading="lazy" onerror="this.src='/broken-image.png'" />
+    <img class="image" :src="getFileUrl(item.fileId, '&w=512&h=512&v=' + encodeURIComponent(item.updatedAt))" loading="lazy" onerror="this.src='/broken-image.png'" />
     <div class="title">{{ getFileName(item.path) }}</div>
     <div class="subtitle">
       <span>{{ formatFileSize(item.size) }}</span>
@@ -51,7 +51,7 @@
   >
     <template #image>
       <div class="image">
-        <img class="image-thumb" :src="getFileUrl(item.fileId, '&w=512&h=512')" loading="lazy" onerror="this.src='/broken-image.png'" />
+        <img class="image-thumb" :src="getFileUrl(item.fileId, '&w=512&h=512&v=' + encodeURIComponent(item.updatedAt))" loading="lazy" onerror="this.src='/broken-image.png'" />
       </div>
     </template>
 

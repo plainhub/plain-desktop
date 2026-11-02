@@ -8,9 +8,7 @@ import { getActiveClientId } from '../device/client-id'
 import { httpRequest } from './http'
 import { nativeGraphql } from './native-client'
 import type { GqlOperationName, GqlResultType, GqlVariablesType } from './graphql/operations'
-import { RequestQueue } from './request-queue'
 
-const requests = new RequestQueue(8)
 const TIMEOUT = 30000
 
 /** Operation label for the [gql] log lines: the operation's own name when it
@@ -36,7 +34,6 @@ export interface GqlFetchOptions {
   dedupe?: boolean
   fresh?: boolean
   timeout?: number
-  signal?: AbortSignal
 }
 
 function graphqlContext() {
@@ -62,24 +59,16 @@ export async function gqlFetch<T = any>(
   const context = graphqlContext()
   const contextKey = JSON.stringify(context)
   const dedupeKey = JSON.stringify({ context, query, variables })
-  if (!options.signal && options.dedupe !== false && !options.fresh) {
+  if (options.dedupe !== false && !options.fresh) {
     const pending = pendingRequests.get(dedupeKey)
     if (pending) return pending as Promise<GqlResult<T>>
   }
 
-  const execute = async () => {
-    if (contextKey !== getGraphqlContextKey()) throw new GqlError('request_context_changed', undefined, true)
-    return doGqlFetch<T>(context, query, variables, options.timeout, options.signal)
-  }
-  const promise = (context.native ? execute() : requests.run(execute, options.signal)).catch(error => {
-    if (options.signal?.aborted) throw new GqlError('request_cancelled', undefined, true)
-    throw error
-  }).then((result) => {
-    if (options.signal?.aborted) throw new GqlError('request_cancelled', undefined, true)
+  const promise = doGqlFetch<T>(context, query, variables, options.timeout).then((result) => {
     if (contextKey !== getGraphqlContextKey()) throw new GqlError('request_context_changed', undefined, true)
     return result
   })
-  if (!options.signal && options.dedupe !== false) pendingRequests.set(dedupeKey, promise)
+  if (options.dedupe !== false) pendingRequests.set(dedupeKey, promise)
   try {
     return await promise
   } finally {
@@ -112,7 +101,6 @@ export async function encryptedGqlPost<T = any>(
   variables?: Record<string, any>,
   timeout: number = TIMEOUT,
   headers: Record<string, string> = getApiHeaders(),
-  signal?: AbortSignal,
 ): Promise<GqlResult<T>> {
   const key = tokenToKey(token)
   const json = JSON.stringify({ query, variables })
@@ -143,7 +131,7 @@ export async function encryptedGqlPost<T = any>(
       method: 'POST',
       headers,
       body,
-      signal: signal ? AbortSignal.any([signal, controller.signal]) : controller.signal,
+      signal: controller.signal,
     })
 
     if (response.status === 401) {
@@ -169,7 +157,6 @@ export async function encryptedGqlPost<T = any>(
       console.warn(`[gql] ✗ ${op} @${host} ${e instanceof GqlError ? `${e.message} (${e.status ?? 'network'})` : e.name || e.message}`)
     }
     if (e instanceof GqlError) throw e
-    if (signal?.aborted) throw new GqlError('request_cancelled', undefined, true)
     if (e.name === 'AbortError') throw new GqlError('connection_timeout')
     throw new GqlError(e.message || 'network_error')
   } finally {
@@ -199,11 +186,11 @@ async function nativeGqlFetch<T = any>(query: string, variables?: Record<string,
   }
 }
 
-async function doGqlFetch<T = any>(context: ReturnType<typeof graphqlContext>, query: string, variables?: Record<string, any>, timeout: number = TIMEOUT, signal?: AbortSignal): Promise<GqlResult<T>> {
+async function doGqlFetch<T = any>(context: ReturnType<typeof graphqlContext>, query: string, variables?: Record<string, any>, timeout: number = TIMEOUT): Promise<GqlResult<T>> {
   if (context.native) return nativeGqlFetch<T>(query, variables, timeout)
 
   try {
-    return await encryptedGqlPost<T>(context.url, context.token, query, variables, timeout, context.headers, signal)
+    return await encryptedGqlPost<T>(context.url, context.token, query, variables, timeout, context.headers)
   } catch (e) {
     if (e instanceof GqlError && e.status === 401 && !context.native && JSON.stringify(context) === getGraphqlContextKey()) {
       await clearCurrentSession()
