@@ -1,6 +1,7 @@
 import { afterEach, expect, it, vi } from 'vitest'
 vi.mock('@/lib/api/http', () => ({ httpRequest: vi.fn() }))
 import { httpRequest } from '../../src/lib/api/http'
+import { sha512 } from '../../src/lib/api/crypto'
 import { secureSetupUrl, setupPassword } from '../../src/lib/api/password-setup'
 
 afterEach(() => vi.resetAllMocks())
@@ -16,13 +17,13 @@ it('never sends a password over HTTP', async () => {
   expect(httpRequest).not.toHaveBeenCalled()
 })
 
-it('sends the original credential as JSON over TLS for the existing password handshake', async () => {
+it('sends only the password digest over TLS without knowing the server salt', async () => {
   vi.mocked(httpRequest).mockResolvedValue(new Response(null, { status: 204 }))
   await setupPassword('https://device.example:8443', 'browser', 'owned-password')
   const [url, options] = vi.mocked(httpRequest).mock.calls[0]!
   expect(url).toBe('https://device.example:8443/auth/setup')
   expect(options?.headers).toEqual({ 'c-id': 'browser', 'Content-Type': 'application/json' })
-  expect(JSON.parse(new TextDecoder().decode(options?.body!))).toEqual({ password: 'owned-password' })
+  expect(JSON.parse(new TextDecoder().decode(options?.body!))).toEqual({ passwordHash: sha512('owned-password') })
 })
 
 it('reports replacement rejection and transport failures', async () => {

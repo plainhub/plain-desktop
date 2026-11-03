@@ -175,7 +175,7 @@ it.each(['http:', 'https:'])(
 )
 
 it.each(['http:', 'https:'])(
-  'completes double-encrypted password login over %s',
+  'sends only the password digest through the signed temporary channel over %s',
   async (protocol) => {
     vi.stubGlobal('window', {
       location: { protocol, hostname: 'example.invalid' },
@@ -206,25 +206,20 @@ it.each(['http:', 'https:'])(
     expect(() =>
       xchacha20poly1305(passwordKey, encrypted.slice(0, 24)).decrypt(encrypted.slice(24))
     ).toThrow()
-    const inner = xchacha20poly1305(
+    const plaintext = xchacha20poly1305(
       bytes(passwordVector.requestKey),
       encrypted.slice(0, 24)
     ).decrypt(encrypted.slice(24))
-    const plaintext = xchacha20poly1305(passwordKey, inner.slice(0, 24)).decrypt(inner.slice(24))
     expect(JSON.parse(new TextDecoder().decode(plaintext))).toMatchObject({
       password: digest,
       loginContext: passwordVector.context,
       ecdhPublicKey: Buffer.from(sessionPublic).toString('base64'),
     })
 
-    await socket.message(new Blob([bytes(passwordVector.responseFrame)]))
-    expect(pending).toHaveBeenCalledExactlyOnceWith()
-    const completion = await frame(passwordKey, completed(passwordVector.context)).arrayBuffer()
-    const nonce = new Uint8Array(24).fill(12)
-    const ciphertext = xchacha20poly1305(bytes(passwordVector.responseKey), nonce).encrypt(
-      new Uint8Array(completion)
-    )
-    await socket.message(new Blob([nonce, ciphertext]))
+    expect(new TextDecoder().decode(plaintext)).not.toContain('fixture-password')
+    await socket.message(frame(bytes(passwordVector.responseKey), { status: 'PENDING' }))
+    expect(pending).toHaveBeenCalledExactlyOnceWith(undefined)
+    await socket.message(frame(bytes(passwordVector.responseKey), completed(passwordVector.context)))
     await expect(promise).resolves.toMatchObject({
       token: computeECDHSharedKey(sessionPrivate, bytes(vector.hello.serverPublicKey)),
     })
@@ -316,7 +311,7 @@ it.each([false, true])(
     await socket.message(JSON.stringify(challenge))
     await vi.advanceTimersByTimeAsync(299000)
     const pending = passwordRequired
-      ? new Blob([bytes(passwordVector.responseFrame)])
+      ? frame(bytes(passwordVector.responseKey), { status: 'PENDING' })
       : frame(bytes(vector.responseKey), { status: 'PENDING' })
     await socket.message(pending)
     await vi.advanceTimersByTimeAsync(1000)

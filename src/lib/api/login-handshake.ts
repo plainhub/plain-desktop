@@ -5,7 +5,6 @@ import { openLoginSocket } from './login-socket'
 import type { LoginSocket } from './login-socket'
 import { startLoginKeyExchange } from './login-channel'
 import type { LoginKeys } from './login-channel'
-import { createPasswordEncryption } from './password-login'
 import { completeLogin, receiveLoginResult } from './login-result'
 import type { LoginHandshakeResult } from './login-result'
 import type { DeviceType } from '@/lib/status'
@@ -49,38 +48,6 @@ async function createLoginRequest(
     ...(password !== undefined ? { password } : {}),
     ...(params.peer ? { peer: params.peer } : {}),
   })
-}
-
-async function passwordLogin(
-  socket: LoginSocket,
-  params: LoginHandshakeParams,
-  session: ECDHKeyPair,
-  keys: LoginKeys
-) {
-  const encryption = createPasswordEncryption(keys, params.passwordHash!)
-  const request = await socket.waitFor(
-    createLoginRequest(params, session, keys, params.passwordHash)
-  )
-  socket.send(encryption.encryptRequest(request))
-
-  return receiveLoginResult(socket, encryption.decryptResponse, () => params.onPending?.())
-}
-
-async function deviceConfirmationLogin(
-  socket: LoginSocket,
-  params: LoginHandshakeParams,
-  session: ECDHKeyPair,
-  keys: LoginKeys
-) {
-  const request = await socket.waitFor(createLoginRequest(params, session, keys))
-  const bytes = new TextEncoder().encode(request)
-  socket.send(keys.encryptRequest(bytes))
-
-  return receiveLoginResult(
-    socket,
-    (frame) => new TextDecoder().decode(keys.decryptResponse(frame)),
-    () => params.onPending?.(keys.verificationCode)
-  )
 }
 
 function verifyDeviceIdentity(params: LoginHandshakeParams): string {
@@ -131,12 +98,15 @@ export async function performLoginHandshake(
   try {
     const keys = await exchangeLoginKeys(socket, params, signatureKey)
 
-    let response
-    if (params.passwordRequired) {
-      response = await passwordLogin(socket, params, session, keys)
-    } else {
-      response = await deviceConfirmationLogin(socket, params, session, keys)
-    }
+    const request = await socket.waitFor(createLoginRequest(
+      params, session, keys, params.passwordRequired ? params.passwordHash : undefined
+    ))
+    socket.send(keys.encryptRequest(new TextEncoder().encode(request)))
+    const response = await receiveLoginResult(
+      socket,
+      (frame) => new TextDecoder().decode(keys.decryptResponse(frame)),
+      () => params.onPending?.(params.passwordRequired ? undefined : keys.verificationCode)
+    )
     const result = completeLogin(
       response,
       signatureKey,

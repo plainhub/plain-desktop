@@ -1,4 +1,5 @@
 import { httpRequest } from './http'
+import { sha512 } from './crypto'
 
 export function secureSetupUrl(pageUrl: string, port: number): string {
   if (!Number.isInteger(port) || port < 1 || port > 65535) throw new Error('Invalid HTTPS port')
@@ -11,10 +12,11 @@ export function secureSetupUrl(pageUrl: string, port: number): string {
 export async function setupPassword(baseUrl: string, clientId: string, password: string): Promise<void> {
   const url = new URL('/auth/setup', baseUrl)
   if (url.protocol !== 'https:') throw new Error('Password setup requires HTTPS')
+  if (!password.trim() || new TextEncoder().encode(password).length > 1024) throw new Error('Invalid password')
   const response = await httpRequest(url.href, {
     method: 'POST',
     headers: { 'c-id': clientId, 'Content-Type': 'application/json' },
-    body: new TextEncoder().encode(JSON.stringify({ password })),
+    body: new TextEncoder().encode(JSON.stringify({ passwordHash: sha512(password) })),
   })
   if (!response.ok) throw new Error('Password setup failed')
 }
