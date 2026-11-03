@@ -109,7 +109,7 @@ async function refreshImages(entries: IFeedEntry[]) {
       resolved[reference] = reference
       return
     }
-    const url = await resolveFileUrlByPath(tempStore.urlTokenKey, reference, undefined, '&w=512&h=512')
+    const url = await resolveFileUrlByPath(tempStore.urlTokenKey, reference, undefined, '&s=sm')
     resolved[reference] = url
     if (url.startsWith('plain-resource://')) {
       opened.push(reference)

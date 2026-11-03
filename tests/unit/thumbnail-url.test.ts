@@ -11,7 +11,7 @@ it('changes file thumbnail URLs when the image modification timestamp changes', 
   const before = fileThumbUrl(null, image)
   const after = fileThumbUrl(null, { ...image, updatedAt: '2026-01-01T00:00:00.002Z' })
   expect(after).not.toBe(before)
-  expect(after).toContain('&w=50&h=50&v=2026-01-01T00%3A00%3A00.002Z')
+  expect(after).toContain('&s=sm&v=2026-01-01T00%3A00%3A00.002Z')
   expect(fileThumbUrl(null, { ...image, isDir: true })).toBe('')
   expect(fileThumbUrl(null, { ...image, name: 'document.txt' })).toBe('')
 })

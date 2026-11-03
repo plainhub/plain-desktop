@@ -145,7 +145,7 @@ function sharedFileQuery(urlToken: string, sharedId: string, relativePath: strin
 
 /**
  * Build a `/fs` URL for a shared file. `query` may add thumbnail params
- * (`&w=80&h=80`) or force download (`&dl=1`).
+ * (`&s=sm`) or force download (`&dl=1`).
  */
 export function getSharedFileUrl(
   urlToken: string,

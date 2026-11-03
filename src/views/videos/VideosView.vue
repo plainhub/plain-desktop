@@ -62,7 +62,7 @@
             @toggle-select="toggleSelect($event, item, idx)" @view="view(idx)">
             <template #thumbnail>
               <img v-if="imageErrorIdSet.has(item.id)" :src="`/ficons/${getFileExtension(item.path)}.svg`" class="image svg" />
-              <img v-else class="image image-thumb" :src="getFileUrl(item.fileId, '&w=512&h=512&v=' + encodeURIComponent(item.updatedAt))" loading="lazy" @error="onImageError(item.id)" />
+              <img v-else class="image image-thumb" :src="getFileUrl(item.fileId, '&s=sm&v=' + encodeURIComponent(item.updatedAt))" loading="lazy" @error="onImageError(item.id)" />
             </template>
             <template #info-right>{{ formatDurationMs(item.durationMs) }}</template>
           </MediaGridItem>
@@ -81,7 +81,7 @@
         @toggle-select="toggleSelect($event, item, i)" @view="view(i)">
         <template #thumbnail>
           <img v-if="imageErrorIdSet.has(item.id)" :src="`/ficons/${getFileExtension(item.path)}.svg`" class="image svg" />
-          <img v-else class="image image-thumb" :src="getFileUrl(item.fileId, '&w=512&h=512&v=' + encodeURIComponent(item.updatedAt))" loading="lazy" @error="onImageError(item.id)" />
+          <img v-else class="image image-thumb" :src="getFileUrl(item.fileId, '&s=sm&v=' + encodeURIComponent(item.updatedAt))" loading="lazy" @error="onImageError(item.id)" />
         </template>
         <template #info-right>{{ ['SIZE_ASC', 'SIZE_DESC'].includes(videoSortBy) ? formatFileSize(item.size) : formatDurationMs(item.durationMs) }}</template>
       </MediaGridItem>

@@ -48,7 +48,7 @@ function getPreview(source: ISource) {
   // so always route peer files through /proxyfs (which forwards to the
   // peer's /fs), not just while a download is in progress.
   if (props.peer && source.path.startsWith('fsid:')) {
-    return getPeerProxyUrl(tempStore.urlTokenKey, props.peer, source.path.slice(4), '&w=512&h=512')
+    return getPeerProxyUrl(tempStore.urlTokenKey, props.peer, source.path.slice(4), '&s=sm')
   }
 
   if (props.downloadInfo && isActiveStatus(props.downloadInfo.status)) {
@@ -59,7 +59,7 @@ function getPreview(source: ISource) {
     return source.src
   }
 
-  return `${source.src}&w=512&h=512`
+  return `${source.src}&s=sm`
 }
 
 const sources = computed(() => {
@@ -77,7 +77,7 @@ const sources = computed(() => {
     // needs `w/h` to convert HEIC (Pixel) into a browser-displayable JPEG.
     // GIFs keep the original (no resize) to preserve animation.
     const src = peer && peerFileId
-      ? getPeerProxyUrl(tempStore.urlTokenKey, peer, peerFileId, isGif ? '' : '&w=1024&h=1024&cc=false')
+      ? getPeerProxyUrl(tempStore.urlTokenKey, peer, peerFileId, isGif ? '' : '&s=lg')
       : getFileUrl(getFileId(tempStore.urlTokenKey, file.uri))
     items.push({
       path: file.uri,

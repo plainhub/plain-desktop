@@ -27,7 +27,7 @@ export function useShareActions(
   }
 
   function thumbSrc(entry: SharedFile): string {
-    return getSharedFileUrl(info.value!.urlToken, sharedId.value, entry.relativePath, '&w=96&h=96')
+    return getSharedFileUrl(info.value!.urlToken, sharedId.value, entry.relativePath, '&s=sm')
   }
 
   function onThumbError(relativePath: string) {

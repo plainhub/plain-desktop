@@ -36,7 +36,7 @@ export function useChatFiles(props: { data: any; downloadInfo: any; peer: { ip: 
       // Received from a peer (`fsid:`): route through /proxyfs with the
       // resize/conversion query baked in (see ChatImages.vue for details).
       const src = peer && peerFileId
-        ? getPeerProxyUrl(tempStore.urlTokenKey, peer, peerFileId, isGif ? '' : '&w=1024&h=1024&cc=false')
+        ? getPeerProxyUrl(tempStore.urlTokenKey, peer, peerFileId, isGif ? '' : '&s=lg')
         : getFileUrl(fileId)
       return {
         path: f.uri, src,
@@ -57,12 +57,12 @@ export function useChatFiles(props: { data: any; downloadInfo: any; peer: { ip: 
       // Received from a peer: `fsid:` URIs live on the peer — route through
       // /proxyfs (the local /fs cannot resolve `fsid:`).
       if (props.peer && item.path.startsWith('fsid:')) {
-        return getPeerProxyUrl(tempStore.urlTokenKey, props.peer, item.path.slice(4), '&w=50&h=50')
+        return getPeerProxyUrl(tempStore.urlTokenKey, props.peer, item.path.slice(4), '&s=sm')
       }
       if (isActiveDl.value) {
         return ''
       }
-      return item.src.startsWith('blob:') ? item.src : `${item.src}&w=50&h=50`
+      return item.src.startsWith('blob:') ? item.src : `${item.src}&s=sm`
     }
     const ext = item.extension
     if (ext && !iconErrors.value.includes(item.name)) return `/ficons/${ext}.svg`

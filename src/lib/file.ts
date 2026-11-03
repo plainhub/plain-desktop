@@ -212,7 +212,7 @@ export function enrichFile(item: Pick<IFile, 'path' | 'isDir' | 'updatedAt' | 's
  */
 export function fileThumbUrl(urlTokenKey: Uint8Array | null, item: Pick<IFile, 'path' | 'name' | 'isDir' | 'updatedAt'>): string {
   if (item.isDir || !(isImage(item.name) || isVideo(item.name))) return ''
-  return getFileUrl(getFileId(urlTokenKey, item.path), '&w=50&h=50&v=' + encodeURIComponent(item.updatedAt))
+  return getFileUrl(getFileId(urlTokenKey, item.path), '&s=sm&v=' + encodeURIComponent(item.updatedAt))
 }
 
 export const ZIP_SEPARATOR = '!zip!/'

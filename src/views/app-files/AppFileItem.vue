@@ -77,7 +77,7 @@ const ext = computed(() => getFileExtension(props.item.fileName))
 const canThumb = computed(() => isImage(props.item.fileName) || isVideo(props.item.fileName))
 const thumbUrl = computed(() => {
   const fileId = getFileId(urlTokenKey.value, `fid:${getAppFileFid(props.item)}`)
-  return getFileUrl(fileId, '&w=50&h=50')
+  return getFileUrl(fileId, '&s=sm')
 })
 
 function handleDownload() {
