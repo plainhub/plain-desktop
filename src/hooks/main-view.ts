@@ -133,7 +133,7 @@ export function useMainView() {
 
   // High-frequency mutations (e.g. chatTexts keystrokes) must not serialize
   // the whole store and hit the prefs backend on every change — coalesce them.
-  const persistState = debounce((state: typeof store.$state) => {
+  const saveState = (state: typeof store.$state) => {
     if (remotePrefsEnabled.value) {
       const { homeFeatures, chatTexts, searchHistory, ...localFields } = state
       prefsSet(getMainStateKey(), localFields)
@@ -141,7 +141,11 @@ export function useMainView() {
       const { chatTexts, searchHistory, ...localFields } = state
       prefsSet(getMainStateKey(), localFields)
     }
-  }, 500)
+  }
+  const persistState = debounce(saveState, 500)
+  const saveBeforeExit = () => saveState(store.$state)
+  window.addEventListener('pagehide', saveBeforeExit)
+  onUnmounted(() => window.removeEventListener('pagehide', saveBeforeExit))
 
   watch(store.$state, (state) => {
     persistState(state)

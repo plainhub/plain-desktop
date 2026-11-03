@@ -237,9 +237,12 @@ export const copyFileGQL = `
   }
 `
 
-export const moveFileGQL = `
-  mutation moveFile($src: String!, $dst: String!, $overwrite: Boolean!) {
-    moveFile(src: $src, dst: $dst, overwrite: $overwrite)
+export const createFileTaskGQL = `
+  mutation createFileTask($type: FileTaskType!, $title: String!, $ops: [FileTaskOpInput!]!) {
+    createFileTask(type: $type, title: $title, ops: $ops, waitForCompletion: true) {
+      status
+      error
+    }
   }
 `
 

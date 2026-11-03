@@ -1,12 +1,12 @@
 import { computed, ref, watch, type Ref } from 'vue'
 import type { IFile } from '@/lib/file'
 
-export function useSystemFiles(items: Ref<IFile[]>, directory: () => string, enabled: () => boolean) {
+export function useSystemFiles<T extends Pick<IFile, 'isSystem'>>(items: Ref<T[]>, directory: () => string, enabled: () => boolean) {
   const expanded = ref(false)
   const groups = computed(() => {
-    if (!enabled()) return { regular: items.value, system: [] as IFile[] }
-    const regular: IFile[] = []
-    const system: IFile[] = []
+    if (!enabled()) return { regular: items.value, system: [] as T[] }
+    const regular: T[] = []
+    const system: T[] = []
     for (const item of items.value) (item.isSystem ? system : regular).push(item)
     return { regular, system }
   })

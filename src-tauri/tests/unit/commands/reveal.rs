@@ -5,7 +5,7 @@ impl Directory {
     fn new() -> Self {
         let root = std::env::temp_dir().join(format!(
             "plain-file-actions-{}",
-            plain_rs::libs::utils::short_uuid::short_uuid()
+            plain_libs::utils::short_uuid::short_uuid()
         ));
         std::fs::create_dir_all(&root).unwrap();
         Self(root)

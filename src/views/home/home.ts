@@ -126,7 +126,9 @@ export function useScanAction() {
   })
 
   const onScanProgress = (p: IScanProgress) => {
-    if (p) scanProgress.value = { indexed: p.indexed, pending: p.pending, total: p.total, state: p.state, error: p.error }
+    scanProgress.value = { indexed: p.indexed, pending: p.pending, total: p.total, state: p.state, error: p.error }
+    if (p.state === 'IDLE') toast(t('index_state_completed'))
+    if (p.state === 'FAILED') toast(p.error || t('error'), 'error')
   }
   const stopMediaScanProgress = graphqlSubscriptions.subscribe('mediaScanProgress', onScanProgress)
 
@@ -153,7 +155,7 @@ export function useScanAction() {
   const showPause = computed(() => scanProgress.value.state === 'RUNNING')
   const showResume = computed(() => scanProgress.value.state === 'PAUSED')
   const showStop = computed(() => scanActive.value)
-  const showRebuild = computed(() => ['IDLE', 'STOPPED'].includes(scanProgress.value.state))
+  const showRebuild = computed(() => ['IDLE', 'STOPPED', 'FAILED'].includes(scanProgress.value.state))
 
   const { mutate: pauseScanMutation } = initMutation({ document: pauseMediaScanGQL })
   const { mutate: resumeScanMutation } = initMutation({ document: resumeMediaScanGQL })

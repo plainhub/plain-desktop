@@ -21,25 +21,6 @@ export function sortMounts(mounts: IStorageMount[]): IStorageMount[] {
   })
 }
 
-export function buildUsbIndexMap(mounts: IStorageMount[]): Map<string, number> {
-  const usbPoints = mounts
-    .filter((m) => m.driveType === DriveType.USB_STORAGE)
-    .map((m) => m.mountPoint)
-    .filter(Boolean)
-  return new Map(usbPoints.map((p, i) => [p, i + 1]))
-}
-
-export function mountTitle(m: IStorageMount, usbIndexMap: Map<string, number>, t: ComposerTranslation): string {
-  if (m.driveType === DriveType.INTERNAL_STORAGE) return t('internal_storage')
-  if (m.driveType === DriveType.APP) return t('app_data')
-  if (m.driveType === DriveType.SDCARD) return t('sdcard')
-  if (m.driveType === DriveType.USB_STORAGE) {
-    const idx = usbIndexMap.get(m.mountPoint) ?? 1
-    return `${t('usb_storage')} ${idx}`
-  }
-  return m.name || m.mountPoint
-}
-
 export function storageUsedPercent(freeBytes: number, totalBytes: number): number {
   if (totalBytes <= 0) return 0
   const usedBytes = Math.max(0, totalBytes - freeBytes)

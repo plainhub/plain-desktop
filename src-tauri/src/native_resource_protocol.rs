@@ -11,8 +11,10 @@
 use std::path::Path;
 use std::sync::Arc;
 
-use plain_rs::libs::utils::http::{RangeParse, content_disposition, parse_range_header};
-use plain_rs::libs::host::request_scope::NativeRequestScope;
+use plain_libs::utils::http::RangeParse;
+use plain_libs::utils::http::content_disposition;
+use plain_libs::utils::http::parse_range_header;
+use plain_rs::infrastructure::host::request_scope::NativeRequestScope;
 pub use plain_server::native::resources::MAX_RESOURCE_RESPONSE_BYTES as MAX_RESPONSE_BYTES;
 use plain_server::native::resources::{NativeResourceRegistry, ResourceAccessError};
 use serde::Serialize;

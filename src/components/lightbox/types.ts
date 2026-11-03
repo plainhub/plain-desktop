@@ -39,6 +39,7 @@ export interface ISource {
   name: string
   size: number
   durationMs: number
+  updatedAt?: string
   type?: DataType
   fileId?: string
   extension?: string

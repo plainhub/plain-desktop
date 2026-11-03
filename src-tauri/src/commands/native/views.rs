@@ -1,6 +1,9 @@
+use plain_rs::infrastructure::host::request_scope::NativeRequestScope;
 use plain_server::server::ContentServer;
-use plain_rs::libs::host::request_scope::NativeRequestScope;
-use std::{collections::HashMap, sync::{Arc, Mutex}};
+use std::{
+    collections::HashMap,
+    sync::{Arc, Mutex},
+};
 use tauri::Manager;
 
 #[derive(Default)]

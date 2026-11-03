@@ -1,10 +1,10 @@
 <template>
   <div class="scan-panel">
+    <div v-if="stateLabel" class="scan-row">
+      <span>{{ stateLabel }}</span>
+      <span v-if="scanActive && percent > 0" class="muted">{{ percent }}%</span>
+    </div>
     <template v-if="scanActive">
-      <div class="scan-row">
-        <span v-if="stateLabel">{{ stateLabel }}</span>
-        <span v-if="percent > 0" class="muted">{{ percent }}%</span>
-      </div>
       <div class="progress">
         <div class="bar" :style="{ width: percent + '%' }"></div>
       </div>

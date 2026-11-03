@@ -1,5 +1,5 @@
 <template>
-  <section class="info">
+  <section class="info" @wheel.stop>
     <div class="info-header">
       <div class="info-title">
         <LightboxQualityDropdown

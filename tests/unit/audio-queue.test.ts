@@ -3,7 +3,7 @@ import { gqlFetch } from '@/lib/api/gql-client'
 import { audioPlayback, resetAudioPlaylistForTests, useAudioPlaylistStore } from '@/hooks/audio-playlist-store'
 
 vi.mock('@/lib/api/gql-client', () => ({ gqlFetch: vi.fn(), getGraphqlContextKey: () => connectionContext }))
-vi.mock('@/lib/api/query', () => ({ audioQueueGQL: 'audio queue' }))
+vi.mock('@/lib/api/query', () => ({ audioQueueGQL: 'audio queue', mediaPlayHistoryGQL: 'media history' }))
 
 let connectionContext = 'device-a'
 const fetch = vi.mocked(gqlFetch)
@@ -104,6 +104,7 @@ vi.mock('@/lib/api/mutation', () => ({
         commands.push({ document, variables })
         const result = document === 'advance' ? await selectionResults.shift() : document === 'record-media-play'
           ? (reportResults.length ? await reportResults.shift() : { data: { reportAudioPlayback: true } })
+          : document === 'play' ? { data: { playAudio: { mediaId: '1', path: '/audio/1' } } }
           : { data: { updateAudioPlayMode: true } }
         for (const callback of callbacks) callback(result)
         return result
@@ -319,5 +320,45 @@ it('does not send queued history to a different device', async () => {
     finish({ data: { recordMediaPlay: true } })
     await vi.advanceTimersByTimeAsync(0)
     expect(commands.filter((command) => command.document === 'save-media-progress')).toHaveLength(0)
+  } finally { app.unmount() }
+})
+
+
+it.each(['restored', 'reselected', 'played', 'disposed'] as const)('restores the initial browser audio position only while %s selection remains current', async scenario => {
+  let finish!: (value: unknown) => void
+  const playback = { mediaId: '1', path: '/audio/1', mode: 'REPEAT', isPlaying: false, positionMs: 0, revision: 7 }
+  fetch.mockImplementation(async document => document === 'media history'
+    ? await new Promise(resolve => { finish = resolve })
+    : { data: { total: 1, items: tracks(1, 1), playback } })
+  const element = mediaElement()
+  const { app } = await mountPlayer(element as unknown as HTMLAudioElement)
+  try {
+    await vi.waitFor(() => expect(audioPlayback.value.path).toBe('/audio/1'))
+    const loaded = element.addEventListener.mock.calls.find(([type]) => type === 'loadedmetadata')?.[1]
+    expect(loaded).toBeTypeOf('function')
+    const restoring = loaded!()
+    await vi.waitFor(() => expect(finish).toBeTypeOf('function'))
+    if (scenario === 'reselected') audioPlayback.value = { ...audioPlayback.value, revision: 8 }
+    if (scenario === 'played') element.addEventListener.mock.calls.find(([type]) => type === 'play')![1]()
+    if (scenario === 'disposed') app.unmount()
+    finish({ data: { mediaPlayHistory: [{ positionMs: 30500 }] } })
+    await restoring
+    await vi.waitFor(() => expect(element.currentTime).toBe(scenario === 'restored' ? 30.5 : 0))
+    expect(element.play).not.toHaveBeenCalled()
+    expect(commands).toHaveLength(0)
+  } finally { if (app._instance) app.unmount() }
+})
+
+it('starts an explicitly reselected audio at the authoritative selection position, not its restored browser history', async () => {
+  const playback = { mediaId: '1', path: '/audio/1', mode: 'REPEAT', isPlaying: false, positionMs: 0, revision: 7 }
+  fetch.mockResolvedValue({ data: { total: 1, items: tracks(1, 1), playback } })
+  const element = mediaElement()
+  const { app, player } = await mountPlayer(element as unknown as HTMLAudioElement)
+  try {
+    await vi.waitFor(() => expect(audioPlayback.value.path).toBe('/audio/1'))
+    element.currentTime = 30.5
+    player.playItem(tracks(1, 1)[0]!)
+    await vi.waitFor(() => expect(element.play).toHaveBeenCalledOnce())
+    expect(element.currentTime).toBe(0)
   } finally { app.unmount() }
 })

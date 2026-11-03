@@ -851,6 +851,19 @@ export interface GqlOperations {
       fetchContent: boolean
     }
   }
+  createFileTaskGQL: {
+    result: {
+      createFileTask: {
+        status: 'QUEUED' | 'RUNNING' | 'DONE' | 'ERROR'
+        error: string
+      }
+    }
+    variables: {
+      type: 'COPY' | 'MOVE'
+      title: string
+      ops: Array<unknown>
+    }
+  }
   createNoteGQL: {
     result: {
       createNote: Fragment_NoteFragment
@@ -1645,6 +1658,18 @@ export interface GqlOperations {
     }
     variables: undefined
   }
+  mediaPlayHistoryGQL: {
+    result: {
+      mediaPlayHistory: Array<{
+        positionMs: number
+      }>
+    }
+    variables: {
+      query: string
+      offset: number
+      limit: number
+    }
+  }
   mediaScanProgressSubscription: {
     result: {
       mediaScanProgress: {
@@ -1772,19 +1797,11 @@ export interface GqlOperations {
         alias: string
         driveType: 'INTERNAL_STORAGE' | 'SDCARD' | 'USB_STORAGE' | 'APP'
         diskId: string
+        label: string
+        diskModel: string
       }>
     }
     variables: undefined
-  }
-  moveFileGQL: {
-    result: {
-      moveFile: boolean
-    }
-    variables: {
-      src: string
-      dst: string
-      overwrite: boolean
-    }
   }
   moveMediaItemsGQL: {
     result: {

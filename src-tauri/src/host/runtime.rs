@@ -9,7 +9,7 @@ pub struct Runtime {
     core: Arc<ContentServer>,
     app: tauri::AppHandle,
     capabilities: Vec<String>,
-    multicast: std::sync::Mutex<plain_rs::libs::host::multicast::MulticastLeases>,
+    multicast: std::sync::Mutex<plain_rs::infrastructure::host::multicast::MulticastLeases>,
 }
 
 impl Runtime {
@@ -24,13 +24,36 @@ impl Runtime {
 
     async fn dispatch(&self, method: &str, params: Value) -> Result<Value, String> {
         match method {
-            "systemWebLoginRequested" | "systemWebLoginClosed" | "systemWebLoginSnapshot" | "peerNotificationsChanged" | "peerClipboardChanged" | "networkInterfacesChanged" | "httpServerStatusChanged" => {
-                self.app.state::<crate::commands::native::callbacks::HostCallbacks>().deliver(method, &params)?;
+            "systemWebLoginRequested"
+            | "systemWebLoginClosed"
+            | "systemWebLoginSnapshot"
+            | "peerNotificationsChanged"
+            | "peerClipboardChanged"
+            | "networkInterfacesChanged"
+            | "httpServerStatusChanged" => {
+                self.app
+                    .state::<crate::commands::native::callbacks::HostCallbacks>()
+                    .deliver(method, &params)?;
                 Ok(Value::Null)
             }
-            "systemWebLoginCompleted" | "systemWebActivity" | "onlineClientsChanged" | "clipboardHistoryRefresh" | "dlnaRendererChanged" | "dlnaRendererRefresh" | "sharedFolderDownloadsRefresh" | "peerTransportsChanged" | "appUpdateDownloadChanged" | "dlnaSenderChanged" | "feedSyncChanged" | "audioPlaybackRefresh" | "audioLibraryRefresh" | "pairingSucceeded" => Ok(Value::Null),
+            "systemWebLoginCompleted"
+            | "systemWebActivity"
+            | "onlineClientsChanged"
+            | "clipboardHistoryRefresh"
+            | "dlnaRendererChanged"
+            | "dlnaRendererRefresh"
+            | "sharedFolderDownloadsRefresh"
+            | "peerTransportsChanged"
+            | "appUpdateDownloadChanged"
+            | "dlnaSenderChanged"
+            | "feedSyncChanged"
+            | "audioPlaybackRefresh"
+            | "audioLibraryRefresh"
+            | "pairingSucceeded" => Ok(Value::Null),
             "prefsChanged" => {
-                self.app.emit("prefsChanged", ()).map_err(|error| error.to_string())?;
+                self.app
+                    .emit("prefsChanged", ())
+                    .map_err(|error| error.to_string())?;
                 Ok(Value::Null)
             }
             "systemCapabilities" => {
@@ -46,7 +69,7 @@ impl Runtime {
                     .map_err(|error| error.to_string())?;
                 Ok(Value::Bool(true))
             }
-            "systemPermissionFacts" => plain_rs::libs::host::permission_facts::facts(
+            "systemPermissionFacts" => plain_rs::infrastructure::host::permission_facts::facts(
                 &["WRITE_EXTERNAL_STORAGE".to_owned()],
                 params,
             ),
@@ -72,10 +95,12 @@ impl Runtime {
         let changes = Arc::new(tokio::sync::Notify::new());
         let receiver = changes.clone();
         let observer = session.clone();
-        self.core.shared_preferences()?.set_change_hook(Some(Arc::new({
-            let changes = changes.clone();
-            move || changes.notify_one()
-        })));
+        self.core
+            .shared_preferences()?
+            .set_change_hook(Some(Arc::new({
+                let changes = changes.clone();
+                move || changes.notify_one()
+            })));
         changes.notify_one();
         tokio::spawn(async move {
             loop {
@@ -97,18 +122,17 @@ impl Runtime {
         self: Arc<Self>,
         session: Arc<plain_server::host::events::HostEvents>,
     ) -> Result<(), String> {
-        let _multicast = plain_rs::libs::host::multicast::MulticastSession::new(&self.multicast);
+        let _multicast =
+            plain_rs::infrastructure::host::multicast::MulticastSession::new(&self.multicast);
         let (running, stopped) = tokio::sync::watch::channel(true);
         let requests = self.clone();
         let serving_session = session.clone();
         let serving = async {
             let result = serving_session
-                .serve(
-                    move |method, params| {
-                        let requests = requests.clone();
-                        async move { requests.dispatch(&method, params).await }
-                    },
-                )
+                .serve(move |method, params| {
+                    let requests = requests.clone();
+                    async move { requests.dispatch(&method, params).await }
+                })
                 .await;
             running.send_replace(false);
             result
@@ -120,8 +144,10 @@ impl Runtime {
                 let prefs = self.core.shared_preferences();
                 let supported = self.capabilities.iter().any(|name| name == "CLIPBOARD");
                 async move {
-                    let permissions: Vec<String> =
-                        prefs?.get_or(plain_rs::features::prefs::pref_keys::API_PERMISSIONS, Vec::new());
+                    let permissions: Vec<String> = prefs?.get_or(
+                        plain_rs::features::prefs::pref_keys::API_PERMISSIONS,
+                        Vec::new(),
+                    );
                     if !supported || !permissions.iter().any(|name| name == "CLIPBOARD") {
                         return Ok(None);
                     }

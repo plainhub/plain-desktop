@@ -3,9 +3,13 @@ import { useRoute } from 'vue-router'
 import { storeToRefs } from 'pinia'
 import { useTempStore } from '@/stores/temp'
 import { useMainStore } from '@/stores/main'
-import { chachaDecrypt } from '@/lib/api/crypto'
+import { bitArrayToBase64, chachaDecrypt, chachaEncrypt } from '@/lib/api/crypto'
 import { tokenToKey } from '@/lib/api/file'
 import { replacePath } from '@/plugins/router'
+
+export function encryptChatId(id: string, key: Uint8Array | null): string {
+  return key ? bitArrayToBase64(chachaEncrypt(key, id)) : ''
+}
 
 export function decryptChatId(rawId: string, key: Uint8Array | null): string {
   if (!rawId || !key) return 'peer:local'

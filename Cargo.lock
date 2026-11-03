@@ -3,12 +3,6 @@
 version = 4
 
 [[package]]
-name = "Inflector"
-version = "0.11.4"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "fe438c63458706e03479442743baae6c88256498e6431708f6dfc520a26515d3"
-
-[[package]]
 name = "PlainApp"
 version = "0.1.12"
 dependencies = [
@@ -26,6 +20,7 @@ dependencies = [
  "objc2-foundation",
  "objc2-screen-capture-kit",
  "pipewire",
+ "plain-libs",
  "plain-rs",
  "plain-server",
  "rand 0.8.8",
@@ -363,19 +358,16 @@ dependencies = [
 
 [[package]]
 name = "async-graphql"
-version = "7.2.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "1057a9f7ccf2404d94571dec3451ade1cb524790df6f1ada0d19c2a49f6b0f40"
+version = "8.0.0-rc.5"
+source = "git+https://github.com/plainhub/plain-core.git?branch=main#9b42591dd8197c107f9ce2852cf96d7a86b7a5a8"
 dependencies = [
  "async-graphql-derive",
  "async-graphql-parser",
  "async-graphql-value",
- "async-io",
  "async-trait",
  "asynk-strim",
  "base64 0.22.1",
  "bytes",
- "fnv",
  "futures-channel",
  "futures-util",
  "http",
@@ -386,22 +378,25 @@ dependencies = [
  "num-traits",
  "pin-project-lite",
  "regex",
+ "rustc-hash",
+ "scc",
  "serde",
  "serde_json",
  "serde_urlencoded",
  "static_assertions_next",
  "thiserror 2.0.21",
+ "tokio",
 ]
 
 [[package]]
 name = "async-graphql-derive"
-version = "7.2.1"
+version = "8.0.0-rc.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "2e6cbeadc8515e66450fba0985ce722192e28443697799988265d86304d7cc68"
+checksum = "cdaa2cb6cc70518033cf543e6b735ed03daa71c1ec81eac5ad09fa05e61faa9f"
 dependencies = [
- "Inflector",
  "async-graphql-parser",
  "darling 0.23.0",
+ "heck 0.5.0",
  "proc-macro-crate 3.5.0",
  "proc-macro2",
  "quote",
@@ -412,9 +407,9 @@ dependencies = [
 
 [[package]]
 name = "async-graphql-parser"
-version = "7.2.1"
+version = "8.0.0-rc.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e64ef70f77a1c689111e52076da1cd18f91834bcb847de0a9171f83624b07fbf"
+checksum = "3ae405016a111a09cd484a973024dcc139ac398a89cb1f4602bebab817298276"
 dependencies = [
  "async-graphql-value",
  "pest",
@@ -424,9 +419,9 @@ dependencies = [
 
 [[package]]
 name = "async-graphql-value"
-version = "7.2.1"
+version = "8.0.0-rc.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "3e3ef112905abea9dea592fc868a6873b10ebd3f983e83308f995d6284e9ba41"
+checksum = "15eb1573843563b4518cc43001002512c206d119974b17476a3cbf62d9a1ae61"
 dependencies = [
  "bytes",
  "indexmap 2.14.2",
@@ -1422,7 +1417,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "d045de693cb712d0b22c6a64be5b953f67b3ce00ab5ad3dd5d8b441886ab8e1a"
 dependencies = [
  "quote",
- "syn 2.0.119",
+ "syn 3.0.6",
 ]
 
 [[package]]
@@ -4687,6 +4682,7 @@ checksum = "112d82ceb8c5bf524d9af484d4e4970c9fd5a0cc15ba14ad93dccd28873b0629"
 dependencies = [
  "digest 0.11.3",
  "hmac",
+ "sha2 0.11.0",
 ]
 
 [[package]]
@@ -4879,12 +4875,11 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "f6b464fbc74e149a392436b17d523f769e057cb6877f6a5c4618bc6f11800548"
 
 [[package]]
-name = "plain-rs"
+name = "plain-libs"
 version = "0.1.0"
-source = "git+https://github.com/plainhub/plain-core.git?branch=main#73b0fec75e96bec5ca74fa3e61bacef334754468"
+source = "git+https://github.com/plainhub/plain-core.git?branch=main#9b42591dd8197c107f9ce2852cf96d7a86b7a5a8"
 dependencies = [
  "anyhow",
- "async-graphql",
  "bytes",
  "cbc",
  "cc",
@@ -4896,20 +4891,15 @@ dependencies = [
  "fast_image_resize",
  "flate2",
  "futures-core",
- "futures-util",
  "hmac",
- "http",
- "hyper",
- "hyper-util",
  "image",
  "jpeg-decoder",
  "kamadak-exif",
  "libc",
  "lofty",
  "log",
- "notify",
  "p256",
- "parking_lot",
+ "pbkdf2",
  "pkcs12",
  "pkcs5",
  "pkcs8 0.11.0",
@@ -4919,7 +4909,6 @@ dependencies = [
  "regex",
  "reqwest 0.12.28",
  "rusqlite",
- "rustls",
  "rusty_h264-common",
  "rusty_h264-decoder",
  "serde",
@@ -4927,22 +4916,59 @@ dependencies = [
  "sha1 0.11.0",
  "sha2 0.10.9",
  "sha2 0.11.0",
- "socket2 0.5.10",
  "sysinfo",
  "tempfile",
  "tokenizers",
  "tokio",
- "tokio-rustls",
- "tokio-tungstenite 0.30.0",
  "uuid",
  "x509-parser",
  "zip",
 ]
 
 [[package]]
+name = "plain-rs"
+version = "0.1.0"
+source = "git+https://github.com/plainhub/plain-core.git?branch=main#9b42591dd8197c107f9ce2852cf96d7a86b7a5a8"
+dependencies = [
+ "anyhow",
+ "async-graphql",
+ "bytes",
+ "chrono",
+ "futures-core",
+ "futures-util",
+ "hmac",
+ "http",
+ "hyper",
+ "hyper-util",
+ "image",
+ "libc",
+ "log",
+ "notify",
+ "parking_lot",
+ "plain-libs",
+ "rand 0.8.8",
+ "regex",
+ "reqwest 0.12.28",
+ "rusqlite",
+ "rustls",
+ "serde",
+ "serde_json",
+ "sha2 0.10.9",
+ "sha2 0.11.0",
+ "socket2 0.5.10",
+ "sysinfo",
+ "tempfile",
+ "tokio",
+ "tokio-rustls",
+ "tokio-tungstenite 0.30.0",
+ "uuid",
+ "zip",
+]
+
+[[package]]
 name = "plain-server"
 version = "0.1.0"
-source = "git+https://github.com/plainhub/plain-core.git?branch=main#73b0fec75e96bec5ca74fa3e61bacef334754468"
+source = "git+https://github.com/plainhub/plain-core.git?branch=main#9b42591dd8197c107f9ce2852cf96d7a86b7a5a8"
 dependencies = [
  "anyhow",
  "async-graphql",
@@ -4951,6 +4977,7 @@ dependencies = [
  "chrono",
  "futures-util",
  "log",
+ "plain-libs",
  "plain-rs",
  "reqwest 0.12.28",
  "rusqlite",
@@ -5847,6 +5874,12 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "9774ba4a74de5f7b1c1451ed6cd5285a32eddb5cccb8cc655a4e50009e06477f"
 
 [[package]]
+name = "saa"
+version = "5.6.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "bd85992a680de788217d9c70b74aa7685b108cf1aba02f728fb27f1b27199ad1"
+
+[[package]]
 name = "safe_arch"
 version = "0.7.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -5872,6 +5905,16 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "93fc1dc3aaa9bfed95e02e6eadabb4baf7e3078b0bd1b4d7b6b0b68378900502"
 dependencies = [
  "winapi-util",
+]
+
+[[package]]
+name = "scc"
+version = "3.8.8"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "5d5f8ca67c4f6208caf824037a6a9df0211b4e0937fccc4f543441f294d04511"
+dependencies = [
+ "saa",
+ "sdd",
 ]
 
 [[package]]
@@ -5941,6 +5984,15 @@ dependencies = [
  "pbkdf2",
  "salsa20",
  "sha2 0.11.0",
+]
+
+[[package]]
+name = "sdd"
+version = "4.8.11"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "a31877eee03686b905845993b5d9809a220c9dd5a10e9d6021d7ca67384c9070"
+dependencies = [
+ "saa",
 ]
 
 [[package]]
@@ -6458,18 +6510,18 @@ checksum = "7da8b5736845d9f2fcb837ea5d9e2628564b3b043a70948a3f0b778838c5fb4f"
 
 [[package]]
 name = "strum"
-version = "0.27.2"
+version = "0.28.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "af23d6f6c1a224baef9d3f61e287d2761385a5b88fdab4eb4c6f11aeb54c4bcf"
+checksum = "9628de9b8791db39ceda2b119bbe13134770b56c138ec1d3af810d045c04f9bd"
 dependencies = [
  "strum_macros",
 ]
 
 [[package]]
 name = "strum_macros"
-version = "0.27.2"
+version = "0.28.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "7695ce3845ea4b33927c055a39dc438a45b059f7c1b3d91d38d10355fb8cbca7"
+checksum = "ab85eea0270ee17587ed4156089e10b9e6880ee688791d45a905f5b1ca36f664"
 dependencies = [
  "heck 0.5.0",
  "proc-macro2",
@@ -7056,7 +7108,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "32497e9a4c7b38532efcdebeef879707aa9f794296a4f0244f6f69e9bc8574bd"
 dependencies = [
  "fastrand",
- "getrandom 0.3.4",
+ "getrandom 0.4.3",
  "once_cell",
  "rustix",
  "windows-sys 0.60.2",

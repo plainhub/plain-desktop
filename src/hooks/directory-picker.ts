@@ -3,6 +3,7 @@ import toast from '@/components/toaster'
 import { useI18n } from 'vue-i18n'
 import { filesGQL, initLazyQuery, initQuery, mountsGQL } from '@/lib/api/query'
 import type { IStorageMount } from '@/lib/interfaces'
+import type { IFile } from '@/lib/file'
 import { getFileName } from '@/lib/api/file'
 import { compareLocale } from '@/lib/array'
 
@@ -13,7 +14,7 @@ export function useDirectoryPicker(initialPath: string) {
   const loadingMounts = ref(true)
   const rootPath = ref('')
   const relativePath = ref('')
-  const dirItems = ref<string[]>([])
+  const dirItems = ref<Pick<IFile, 'path' | 'isDir' | 'isSystem'>[]>([])
 
   const normalizedInitialPath = computed(() => {
     const p = String(initialPath || '').trim()
@@ -78,12 +79,12 @@ export function useDirectoryPicker(initialPath: string) {
     },
   })
 
-  const { loading: listing, fetch: fetchDirs } = initLazyQuery<{ files: Array<{ path: string; isDir: boolean }> }>({
+  const { loading: listing, fetch: fetchDirs } = initLazyQuery<{ files: Pick<IFile, 'path' | 'isDir' | 'isSystem'>[] }>({
     document: filesGQL,
     variables: () => ({ root: currentDir.value, offset: 0, limit: 10000, query: '', sortBy: 'NAME_ASC' }),
     handle: (data, error) => {
       if (error) { dirItems.value = []; toast(t(error), 'error'); return }
-      dirItems.value = (data?.files ?? []).filter((f) => f.isDir).map((f) => f.path)
+      dirItems.value = (data?.files ?? []).filter((f) => f.isDir)
     },
   })
 

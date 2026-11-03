@@ -8,7 +8,7 @@
         <VolumeCard
           v-for="v in sortedVolumes"
           :key="v.id"
-          :title="mountTitle(v)"
+          :title="getStorageVolumeTitle(v, t)"
           :used-percent="mountUsedPercent(v)"
           :count="mountCount(v)"
           :show-progress="Number(v.totalBytes || 0) > 0"
@@ -38,16 +38,22 @@
 
         <div v-show="!listing && dirItems.length === 0" class="empty-row">{{ t('no_data') }}</div>
 
+        <SystemFilesHeader
+          v-if="systemItems.length"
+          :count="systemItems.length"
+          :expanded="systemExpanded"
+          @toggle="systemExpanded = !systemExpanded"
+        />
         <button
-          v-for="d in dirItems"
-          :key="d"
+          v-for="d in visibleItems"
+          :key="d.path"
           class="dir-row"
-          @click="emit('enterDir', d)"
+          @click="emit('enterDir', d.path)"
         >
           <span class="dir-icon">
             <i-material-symbols:folder-rounded />
           </span>
-          <span class="dir-name">{{ dirName(d) }}</span>
+          <span class="dir-name">{{ dirName(d.path) }}</span>
         </button>
       </div>
     </section>
@@ -55,11 +61,15 @@
 </template>
 
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, toRef } from 'vue'
 import { useI18n } from 'vue-i18n'
 import VolumeCard from '@/components/storage/VolumeCard.vue'
 import type { IStorageMount } from '@/lib/interfaces'
-import { sortMounts, buildUsbIndexMap, mountTitle as getMountTitle, storageUsedPercent, storageCountText } from '@/lib/storage'
+import type { IFile } from '@/lib/file'
+import SystemFilesHeader from '@/views/files/SystemFilesHeader.vue'
+import { useSystemFiles } from '@/views/files/hooks/useSystemFiles'
+import { getStorageVolumeTitle } from '@/lib/volumes'
+import { sortMounts, storageUsedPercent, storageCountText } from '@/lib/storage'
 
 const { t } = useI18n()
 
@@ -70,7 +80,7 @@ const props = defineProps<{
   currentDir: string
   canGoUp: boolean
   listing: boolean
-  dirItems: string[]
+  dirItems: Pick<IFile, 'path' | 'isSystem'>[]
   dirName: (path: string) => string
   browserMinHeightPx?: number
   listMinHeightPx?: number
@@ -82,13 +92,11 @@ const emit = defineEmits<{
   (e: 'enterDir', absPath: string): void
 }>()
 
+const { expanded: systemExpanded, visibleItems, systemItems } = useSystemFiles(
+  toRef(props, 'dirItems'), () => props.currentDir, () => true,
+)
+
 const sortedVolumes = computed(() => sortMounts(props.volumes))
-const usbIndexMap = computed(() => buildUsbIndexMap(props.volumes))
-
-function mountTitle(m: IStorageMount): string {
-  return getMountTitle(m, usbIndexMap.value, t)
-}
-
 function mountUsedPercent(m: IStorageMount): number {
   return storageUsedPercent(Number(m.freeBytes || 0), Number(m.totalBytes || 0))
 }

@@ -62,12 +62,6 @@ function getPreview(source: ISource) {
   return `${source.src}&w=512&h=512`
 }
 
-// Chat file ids are client-derived: encrypt `JSON.stringify({path, name})`
-// with the urlToken — the same payload the server's /fs decrypts.
-function chatFileId(file: { uri: string; fileName?: string }) {
-  return getFileId(tempStore.urlTokenKey, JSON.stringify({ path: file.uri, name: file.fileName ?? '' }))
-}
-
 const sources = computed(() => {
   const data = props.data
   const files = data?._content?.value?.items ?? []
@@ -84,7 +78,7 @@ const sources = computed(() => {
     // GIFs keep the original (no resize) to preserve animation.
     const src = peer && peerFileId
       ? getPeerProxyUrl(tempStore.urlTokenKey, peer, peerFileId, isGif ? '' : '&w=1024&h=1024&cc=false')
-      : getFileUrl(chatFileId(file))
+      : getFileUrl(getFileId(tempStore.urlTokenKey, file.uri))
     items.push({
       path: file.uri,
       src,

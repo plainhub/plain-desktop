@@ -47,7 +47,7 @@ pub fn run() {
         .plugin(
             tauri_plugin_log::Builder::default()
                 .level(log::LevelFilter::Trace)
-                .filter(plain_rs::libs::platform::system::log::metadata_enabled)
+                .filter(plain_rs::infrastructure::platform::system::log::metadata_enabled)
                 .targets(log_targets)
                 .build(),
         )
@@ -63,7 +63,7 @@ pub fn run() {
         .manage(crate::commands::native::uploads::UploadWriters::default())
         .manage(startup)
         .setup(|app| {
-            plain_rs::libs::platform::version::set_version(&app.package_info().version.to_string());
+            plain_rs::infrastructure::platform::version::set_version(&app.package_info().version.to_string());
             let startup = app.state::<crate::startup_options::Options>().inner().clone();
             let (data_dir, cache_dir) = match &startup.directories {
                 Some(directories) => (directories.data.clone(), directories.cache.clone()),

@@ -1,30 +1,31 @@
+import { formatFileSize } from '@/lib/format'
+import { DriveType } from '@/lib/status'
 import type { IStorageMount } from '@/lib/interfaces'
 
 export type TranslateFn = (key: string, params?: Record<string, any>) => string
 
-/** Base display title for a NAS volume/partition, ignoring the alias.
- *  Port of old_web `getStorageVolumeBaseTitle`. */
-export function getStorageVolumeBaseTitle(v: IStorageMount, t: TranslateFn): string {
+export function getStorageVolumeTitle(v: IStorageMount, t: TranslateFn): string {
+  const alias = String(v.alias ?? '').trim()
+  if (alias) return alias
   const mountPoint = String(v?.mountPoint ?? '').trim()
-  // For the root mount we show a localized name.
-  if (mountPoint === '/') return t('internal_storage')
-
   const path = String(v?.path ?? '').trim()
   const label = String(v?.label ?? '').trim()
   if (label) return label
+  if (mountPoint === '/') return t('internal_storage')
 
   const fs = String(v?.fsType ?? '').trim().toLowerCase()
   const size = Number(v?.totalBytes ?? 0)
   if (fs === 'vfat' && size > 0 && size < 2 * 1000 * 1000 * 1000) return t('efi_partition')
 
   if (typeof v?.partitionNum === 'number') return t('partition_x', { n: v.partitionNum })
-  return String(v?.name ?? '').trim() || path
-}
-
-/** Display title with the user alias taking precedence. */
-export function getStorageVolumeTitle(v: IStorageMount, t: TranslateFn): string {
-  const alias = String(v?.alias ?? '').trim()
-  return alias ? alias : getStorageVolumeBaseTitle(v, t)
+  const model = String(v.diskModel ?? '').trim()
+  if (model) return size > 0 ? `${model} (${formatFileSize(size)})` : model
+  const name = String(v.name ?? '').trim()
+  if (name) return name
+  if (v.driveType === DriveType.APP) return t('app_data')
+  if (v.driveType === DriveType.SDCARD) return t('sdcard')
+  if (v.driveType === DriveType.INTERNAL_STORAGE) return t('internal_storage')
+  return mountPoint || path || t('usb_storage')
 }
 
 function isInternalStorageVolume(v: IStorageMount): boolean {

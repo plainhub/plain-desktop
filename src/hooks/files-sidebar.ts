@@ -10,7 +10,8 @@ import { initMutation, removeFavoriteFolderGQL, setFavoriteFolderAliasGQL } from
 import toast from '@/components/toaster'
 import emitter from '@/plugins/eventbus'
 import { useMounts, useFavoriteFolders } from '@/hooks/files'
-import { sortMounts, buildUsbIndexMap, mountTitle as getMountTitle, storageUsedPercent, storageCountText } from '@/lib/storage'
+import { getStorageVolumeTitle } from '@/lib/volumes'
+import { sortMounts, storageUsedPercent, storageCountText } from '@/lib/storage'
 import { openModal } from '@/components/modal'
 import EditValueModal from '@/components/EditValueModal.vue'
 
@@ -85,9 +86,8 @@ export function useFilesSidebar() {
   function generateFavoriteDisplayTitle(favoriteFolder: IFavoriteFolder): string {
     const alias = (favoriteFolder.alias || '').trim()
     if (alias) return alias
-    const usbIndexByMountPoint = buildUsbIndexMap(mounts.value)
     const m = mounts.value.find((it) => it.mountPoint === favoriteFolder.rootPath)
-    const rootName = m ? getMountTitle(m, usbIndexByMountPoint, t) : favoriteFolder.rootPath
+    const rootName = m ? getStorageVolumeTitle(m, t) : favoriteFolder.rootPath
     const relativePath = favoriteFolder.fullPath.startsWith(favoriteFolder.rootPath)
       ? favoriteFolder.fullPath.substring(favoriteFolder.rootPath.length).replace(/^\//, '')
       : favoriteFolder.fullPath.split('/').pop() || ''
@@ -108,7 +108,6 @@ export function useFilesSidebar() {
     const longestMatchPath = recent.value ? '' : findLongestMatch(parent.value)
     const result: LinkItem[] = [{ rootPath: '', fullPath: '', type: 'RECENTS', title: t('recents'), isChecked: recent.value, isFavoriteFolder: false }]
 
-    const usbIndexByMountPoint = buildUsbIndexMap(mounts.value)
     sortMounts(mounts.value).forEach((m) => {
       const mp = m.mountPoint
       if (!mp) return
@@ -116,7 +115,7 @@ export function useFilesSidebar() {
       const free = Number(m.freeBytes || 0)
       result.push({
         rootPath: mp, fullPath: mp, type: m.driveType || '',
-        title: getMountTitle(m, usbIndexByMountPoint, t),
+        title: getStorageVolumeTitle(m, t),
         isChecked: longestMatchPath === mp, isFavoriteFolder: false,
         count: storageCountText(free, total, t),
         usedPercent: storageUsedPercent(free, total),

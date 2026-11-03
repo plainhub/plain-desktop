@@ -3,9 +3,10 @@ import { useTempStore } from '@/stores/temp'
 import { storeToRefs } from 'pinia'
 import type { IAudioItem } from '@/lib/interfaces'
 import { getFileUrlByPath } from '@/lib/api/file'
-import { initMutation, playAudioGQL, recordMediaPlayGQL, saveMediaPlayProgressGQL, advanceAudioSelectionGQL, updateAudioPlayModeGQL, removeAudioFromQueueGQL, clearAudioQueueGQL, reorderAudioQueueGQL, enqueueAndPlayAudioGQL } from '@/lib/api/mutation'
+import { initMutation, playAudioGQL, advanceAudioSelectionGQL, updateAudioPlayModeGQL, removeAudioFromQueueGQL, clearAudioQueueGQL, reorderAudioQueueGQL, enqueueAndPlayAudioGQL } from '@/lib/api/mutation'
 import { audioPlayback, useAudioPlaylistStore } from '@/hooks/audio-playlist-store'
 import emitter from '@/plugins/eventbus'
+import { useMediaPlayHistory } from './media-play-history'
 import { getGraphqlContextKey } from '@/lib/api/gql-client'
 
 export function usePlayAudio(onApplied: () => void, enqueue = false) {
@@ -88,13 +89,12 @@ export function useAudioPlaylist(audioRef: Ref<HTMLAudioElement | undefined>) {
   watch(() => audioPlayback.value.path, setCurrent)
   watch(audios, setCurrent)
   const { play } = usePlayAudio(() => {
-    void nextTick(() => _play())
+    void nextTick(() => _play(audioPlayback.value.positionMs))
   })
   const { mutate: clear, loading: clearLoading, onDone: onClearDone } = initMutation({ document: clearAudioQueueGQL })
   const { mutate: updateMode } = initMutation({ document: updateAudioPlayModeGQL })
   const { mutate: advanceSelection } = initMutation({ document: advanceAudioSelectionGQL })
-  const { mutate: recordPlay } = initMutation({ document: recordMediaPlayGQL })
-  const { mutate: saveProgress } = initMutation({ document: saveMediaPlayProgressGQL })
+  const history = useMediaPlayHistory()
   const { mutate: reorderAudioQueue } = initMutation({ document: reorderAudioQueueGQL })
   const { mutate: deleteAudio } = initMutation({ document: removeAudioFromQueueGQL })
 
@@ -103,9 +103,9 @@ export function useAudioPlaylist(audioRef: Ref<HTMLAudioElement | undefined>) {
     store.reset()
   })
 
+  let restoreInitialPosition = true
   let disposed = false
   let pendingCommand = Promise.resolve()
-  let pendingHistory = Promise.resolve()
   let releasePlayback: (() => void) | undefined
   let binding: { element: HTMLAudioElement; context: string; mediaId: string | null; path: string; revision: number } | undefined
 
@@ -119,50 +119,20 @@ export function useAudioPlaylist(audioRef: Ref<HTMLAudioElement | undefined>) {
       binding.path === expected.path && binding.revision === expected.revision) return
     releasePlayback?.()
     binding = expected
-    let timer: ReturnType<typeof setInterval> | undefined
-    let started = false
-    const active = () => !disposed && binding === expected && context === getGraphqlContextKey() &&
+    const active = () => !disposed && binding === expected &&
       audioPlayback.value.mediaId === expected.mediaId && audioPlayback.value.path === expected.path &&
-      audioPlayback.value.revision === expected.revision &&
-      (!element.currentSrc || element.currentSrc === element.src)
-    const save = (record = false) => {
-      if (!active() || !expected.mediaId) return
-      const variables = { mediaId: expected.mediaId, type: 'AUDIO',
-        positionMs: Number.isFinite(element.currentTime) ? Math.max(0, Math.trunc(element.currentTime * 1000)) : 0 }
-      pendingHistory = pendingHistory.then(async () => {
-        if (context === getGraphqlContextKey()) await (record ? recordPlay : saveProgress)(variables)
-      }).catch((error) => emitter.emit('toast', error instanceof Error ? error.message : 'network_error'))
-    }
-    const stopTimer = () => { if (timer !== undefined) clearInterval(timer); timer = undefined }
-    const playing = () => {
-      if (!active()) return
-      save(!started)
-      started = true
-      stopTimer()
-      timer = setInterval(() => { if (active()) save(); else stopTimer() }, 1000)
-    }
-    const pause = () => { stopTimer(); if (started) save() }
-    const ended = () => {
-      stopTimer()
-      if (active() && element.ended) {
-        if (started) save()
-        return advance('COMPLETED', expected)
-      }
-    }
-    element.addEventListener('playing', playing)
-    element.addEventListener('pause', pause)
-    element.addEventListener('ended', ended, { once: true })
+      audioPlayback.value.revision === expected.revision
+    const release = history.bind(element, { mediaId: expected.mediaId, type: 'AUDIO' }, active, () => advance('COMPLETED', expected))
     releasePlayback = () => {
-      stopTimer()
+      release()
       if (binding === expected) binding = undefined
-      element.removeEventListener('playing', playing)
-      element.removeEventListener('pause', pause)
-      element.removeEventListener('ended', ended)
     }
   }
 
-  function _play() {
+  function _play(positionMs?: number) {
     if (disposed) return
+    restoreInitialPosition = false
+    if (audioRef.value && positionMs !== undefined) audioRef.value.currentTime = positionMs / 1000
     bindPlayback()
     void audioRef.value?.play().catch((error: Error) => emitter.emit('toast', error.message))
   }
@@ -183,8 +153,7 @@ export function useAudioPlaylist(audioRef: Ref<HTMLAudioElement | undefined>) {
       if (!track) { audioRef.value?.pause(); return }
       await nextTick()
       if (disposed || context !== getGraphqlContextKey()) return
-      if (audioRef.value) audioRef.value.currentTime = selection.positionMs / 1000
-      _play()
+      _play(selection.positionMs)
     })
     pendingCommand = command.catch((error) => emitter.emit('toast', error instanceof Error ? error.message : 'network_error'))
     return command
@@ -232,7 +201,19 @@ export function useAudioPlaylist(audioRef: Ref<HTMLAudioElement | undefined>) {
     void clear()
   }
 
+  const onLoadedMetadata = async () => {
+    const element = audioRef.value
+    if (!element || !restoreInitialPosition) return
+    const { mediaId, path, revision } = audioPlayback.value
+    try {
+      await history.restorePosition(element, { mediaId, type: 'AUDIO' }, () => !disposed && restoreInitialPosition &&
+        audioPlayback.value.mediaId === mediaId && audioPlayback.value.path === path && audioPlayback.value.revision === revision)
+    } catch (error) {
+      emitter.emit('toast', error instanceof Error ? error.message : 'network_error')
+    }
+  }
   const onPlay = () => {
+    restoreInitialPosition = false
     bindPlayback()
     audioPlaying.value = true
     updateMediaSessionPlaybackState()
@@ -242,7 +223,7 @@ export function useAudioPlaylist(audioRef: Ref<HTMLAudioElement | undefined>) {
     updateMediaSessionPlaybackState()
   }
   const doPlayAudio = () => {
-    void nextTick(() => _play())
+    void nextTick(() => _play(audioPlayback.value.positionMs))
   }
   const pauseAudio = () => audioRef.value?.pause()
 
@@ -251,6 +232,7 @@ export function useAudioPlaylist(audioRef: Ref<HTMLAudioElement | undefined>) {
     setupMediaSessionActions()
     emitter.on('do_play_audio', doPlayAudio)
     emitter.on('pause_audio', pauseAudio)
+    audioRef.value?.addEventListener('loadedmetadata', onLoadedMetadata)
     audioRef.value?.addEventListener('pause', onPause)
     audioRef.value?.addEventListener('play', onPlay)
   })
@@ -260,6 +242,7 @@ export function useAudioPlaylist(audioRef: Ref<HTMLAudioElement | undefined>) {
     releasePlayback?.()
     emitter.off('do_play_audio', doPlayAudio)
     emitter.off('pause_audio', pauseAudio)
+    audioRef.value?.removeEventListener('loadedmetadata', onLoadedMetadata)
     audioRef.value?.removeEventListener('pause', onPause)
     audioRef.value?.removeEventListener('play', onPlay)
     clearMediaSessionActions()

@@ -457,6 +457,7 @@ export interface IStorageMount {
   alias: string
   driveType: DriveType
   diskId: string
+  diskModel: string
   /** Partition-only metadata (NAS `mounts` also returns unmounted
    *  partitions; volumes have no `path` from the server). */
   partitionNum?: number | null

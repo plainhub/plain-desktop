@@ -473,6 +473,8 @@ export const mountsGQL = `
       alias
       driveType
       diskId
+      label
+      diskModel
     }
   }
 `
@@ -526,6 +528,14 @@ export const appGQL = `
     }
   }
   ${appFragment}
+`
+
+export const mediaPlayHistoryGQL = `
+  query mediaPlayHistory($query: String!, $offset: Int!, $limit: Int!) {
+    mediaPlayHistory(query: $query, offset: $offset, limit: $limit) {
+      positionMs
+    }
+  }
 `
 
 export const audioQueueGQL = `

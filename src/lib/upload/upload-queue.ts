@@ -1,5 +1,6 @@
 import type { IUploadItem } from '@/stores/temp'
-import { upload } from './upload'
+import { upload, discardUploadChunks } from './upload'
+import { GqlError } from '../api/gql-client'
 import { isTransientUploadError } from './errors'
 import { resetUploadProgress, setUploadStatus } from './batch-progress'
 import emitter from '@/plugins/eventbus'
@@ -105,6 +106,7 @@ class UploadQueue {
     this.queue = this.queue.filter((t) => t.id !== taskId)
     setUploadStatus(task.upload, 'canceled')
     this.rejectTask(task, new Error('Upload canceled'))
+    this.discardChunks([task])
     this.processQueue()
     return true
   }
@@ -185,6 +187,7 @@ class UploadQueue {
     }
     if (removed.size === 0) return
     this.queue = this.queue.filter((t) => !removed.has(t))
+    this.discardChunks(removed)
     this.processQueue()
   }
 
@@ -202,14 +205,17 @@ class UploadQueue {
   }
 
   private tasksByBatch(batchId: string): ManagedUploadTask[] {
-    const out: ManagedUploadTask[] = []
-    for (const task of this.queue) {
-      if (this.keyOfTask(task) === batchId) out.push(task)
+    return this.queue.filter(task => this.keyOfTask(task) === batchId)
+  }
+
+  private discardChunks(tasks: Iterable<ManagedUploadTask>): void {
+    const fileIds = new Set<string>()
+    for (const task of tasks) if (task.upload.fileId) fileIds.add(task.upload.fileId)
+    for (const fileId of fileIds) {
+      void discardUploadChunks(fileId, () => this.queue.some(task => task.upload.fileId === fileId)).catch(error => {
+        emitter.emit('toast', error instanceof GqlError ? error.message : 'network_error')
+      })
     }
-    for (const task of this.running.values()) {
-      if (this.keyOfTask(task) === batchId) out.push(task)
-    }
-    return out
   }
 
   private abortTaskXhrs(task: ManagedUploadTask): void {
@@ -317,7 +323,10 @@ class UploadQueue {
           emitter.emit('toast', 'upload_auto_paused')
         }
         this.rejectTask(task, new Error(task.upload.error || 'Upload failed'))
-        if (task.evictOnFailure) this.queue = this.queue.filter((candidate) => candidate !== task)
+        if (task.evictOnFailure) {
+          this.queue = this.queue.filter((candidate) => candidate !== task)
+          this.discardChunks([task])
+        }
         this.emitSafely('upload_progress', task.upload)
       }
       this.processQueue()

@@ -39,7 +39,7 @@
 <script setup lang="ts">
 import { ref, computed, nextTick, watch, onActivated, onDeactivated, onUnmounted } from 'vue'
 import { useI18n } from 'vue-i18n'
-import { readSavedValue, saveValue } from '@/lib/saved-values'
+import { useChatDraft } from './hooks/chat-draft'
 import { formatDate } from '@/lib/format'
 import ChatInput from './ChatInput.vue'
 import ChatMessageItem from './ChatMessageItem.vue'
@@ -75,27 +75,7 @@ const noticeText = computed(() => {
   return t('channel_left_notice')
 })
 
-const draft = ref('')
-let draftVersion = 0
-let draftWrites = Promise.resolve()
-const draftKey = computed(() => `chat_input_text:${chatId.value}`)
-watch(draftKey, async (key) => {
-  const version = ++draftVersion
-  draft.value = ''
-  try {
-    const value = await readSavedValue(key, '')
-    if (version === draftVersion) draft.value = value
-  } catch (error) { console.error('Unable to load chat draft', error) }
-}, { immediate: true })
-const chatText = computed({
-  get: () => draft.value,
-  set: (value: string) => {
-    ++draftVersion
-    draft.value = value
-    const key = draftKey.value
-    draftWrites = draftWrites.then(() => saveValue(key, value)).catch(console.error)
-  },
-})
+const chatText = useChatDraft(chatId)
 
 const { chatItems, loading, sendLoading, deleteLoading, scrollContainer, scrollBottom, send, retryMessage, deleteMessage, refetch } = useChatMessages(chatId, channelId)
 

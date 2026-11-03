@@ -28,7 +28,14 @@ export function useShareData(sharedId: Ref<string>, sharedToken: Ref<string>) {
   const info = ref<SharedInfo | null>(null)
   const entries = ref<SharedFile[]>([])
 
-  const key = computed(() => (sharedToken.value ? sharedTokenToKey(sharedToken.value) : null))
+  const key = computed(() => {
+    try {
+      const value = sharedTokenToKey(sharedToken.value)
+      return value.length === 32 ? value : null
+    } catch {
+      return null
+    }
+  })
   const shareTitle = computed(() => info.value?.name || t('shared_files'))
   const errorTitle = computed(() => t(`share_error_${errorCode.value}_title`))
   const errorTip = computed(() => t(`share_error_${errorCode.value}_tip`))
@@ -47,7 +54,6 @@ export function useShareData(sharedId: Ref<string>, sharedToken: Ref<string>) {
         sharedInfoGQL,
         { relativePath: relativePath || null },
       )
-      console.log('[ShareView] sharedInfo:', JSON.stringify(result.data, null, 2))
       if (result.errors?.length) {
         errorCode.value = mapGraphqlError(result.errors[0].message)
         state.value = 'error'

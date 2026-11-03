@@ -1,6 +1,5 @@
 import { computed, type Ref } from 'vue'
-import { buildUsbIndexMap, mountTitle } from '@/lib/storage'
-import type { ComposerTranslation } from 'vue-i18n'
+import { getStorageVolumeTitle } from '@/lib/volumes'
 import { formatFileSize } from '@/lib/format'
 import { getFileName } from '@/lib/api/file'
 import { isZipPath, getZipFilePath, getZipInternalPath, ZIP_SEPARATOR } from '@/lib/file'
@@ -14,15 +13,7 @@ export function useFilesBreadcrumb(
 ) {
   function getPageTitle() {
     const mount = mounts.value.find((m) => m.mountPoint === filter.rootPath)
-    if (mount) return mountTitle(mount, buildUsbIndexMap(mounts.value), t as ComposerTranslation)
-    if (filter.type === 'SDCARD') return t('sdcard')
-    if (filter.type === 'APP') return t('app_data')
-    if (filter.type === 'USB_STORAGE') {
-      const usbRoots = mounts.value.filter((m: IStorageMount) => m.driveType === 'USB_STORAGE').map((m: IStorageMount) => m.mountPoint)
-      const usbIndex = usbRoots.indexOf(filter.rootPath)
-      return `${t('usb_storage')} ${usbIndex !== -1 ? usbIndex + 1 : 1}`
-    }
-    return t('internal_storage')
+    return mount ? getStorageVolumeTitle(mount, t) : filter.rootPath
   }
 
   function getPageStats() {

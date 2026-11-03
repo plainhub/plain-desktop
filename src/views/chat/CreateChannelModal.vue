@@ -19,7 +19,7 @@ import { popModal } from '@/components/modal'
 import { initMutation, createChatChannelGQL } from '@/lib/api/mutation'
 import { useChatStore } from '@/stores/chat'
 import { useTempStore } from '@/stores/temp'
-import { getFileId } from '@/lib/api/file'
+import { encryptChatId } from './hooks/chat-route'
 import type { IChatChannel } from '@/lib/interfaces'
 
 const router = useRouter()
@@ -36,7 +36,7 @@ onDone((r: any) => {
   if (!chatStore.channels.some((c) => c.id === channel.id)) {
     chatStore.updateChannel(channel)
   }
-  const routeId = getFileId(urlTokenKey.value, `channel:${channel.id}`)
+  const routeId = encryptChatId(`channel:${channel.id}`, urlTokenKey.value)
   router.push(`/chat?id=${encodeURIComponent(routeId)}`)
   popModal()
 })

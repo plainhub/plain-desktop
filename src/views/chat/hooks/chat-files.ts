@@ -25,12 +25,6 @@ export function useChatFiles(props: { data: any; downloadInfo: any; peer: { ip: 
   const { open: openMedia } = useOpenMedia()
   const { revealFile } = useRevealFile()
 
-  // Chat file ids are client-derived: encrypt `JSON.stringify({path, name})`
-  // with the urlToken — the same payload the server's /fs decrypts.
-  function chatFileId(f: { uri: string; fileName?: string }) {
-    return getFileId(urlTokenKey.value, f.uri)
-  }
-
   const items = computed<ISource[]>(() => {
     const files = props.data?._content?.value?.items ?? []
     const peer = props.peer
@@ -38,16 +32,17 @@ export function useChatFiles(props: { data: any; downloadInfo: any; peer: { ip: 
       const uri = f.uri
       const peerFileId = typeof uri === 'string' && uri.startsWith('fsid:') ? uri.slice(4) : ''
       const isGif = typeof uri === 'string' && uri.endsWith('.gif')
+      const fileId = getFileId(urlTokenKey.value, uri)
       // Received from a peer (`fsid:`): route through /proxyfs with the
       // resize/conversion query baked in (see ChatImages.vue for details).
       const src = peer && peerFileId
         ? getPeerProxyUrl(tempStore.urlTokenKey, peer, peerFileId, isGif ? '' : '&w=1024&h=1024&cc=false')
-        : getFileUrl(chatFileId(f))
+        : getFileUrl(fileId)
       return {
         path: f.uri, src,
         viewOriginImage: isGif,
         name: getFileName(f.fileName ?? f.uri), durationMs: chatFileDurationMs(f), size: f.size,
-        fileId: chatFileId(f), thumbnail: f.thumbnail, extension: getFileExtension(f.uri),
+        fileId, thumbnail: f.thumbnail, extension: getFileExtension(f.uri),
         summary: f.summary || undefined, isFromChat: true,
       }
     })

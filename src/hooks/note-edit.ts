@@ -43,9 +43,10 @@ export function useNoteEdit() {
 
   const { render } = useMarkdown(app, urlTokenKey)
 
-  const { mutate: save, onDone: saveDone } = initMutation({ document: id.value ? updateNoteGQL : createNoteGQL })
+  const { mutate: save, onDone: saveDone } = initMutation({ get document() { return id.value ? updateNoteGQL : createNoteGQL } })
   saveDone((r: any) => {
     note.value = r.data.updateNote ?? r.data.createNote
+    notSaved.value = note.value?.content !== content.value
     emitter.emit('notes_actioned', { action: 'save', note: note.value })
     if (!id.value && note.value?.id) {
       id.value = note.value.id
@@ -53,9 +54,12 @@ export function useNoteEdit() {
     }
   })
 
+  let saving = Promise.resolve()
   const saveContent = debounce(() => {
-    notSaved.value = false
-    save({ ...(id.value ? { id: id.value } : {}), input: { content: content.value, title: getMarkdownTitle(content.value) } })
+    saving = saving.then(async () => {
+      if (note.value?.content === content.value) return
+      await save({ ...(id.value ? { id: id.value } : {}), input: { content: content.value, title: getMarkdownTitle(content.value) } })
+    })
   }, 500)
 
   // Registered once here (component scope, auto-stopped on unmount).

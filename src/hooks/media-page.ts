@@ -205,7 +205,9 @@ export function useMediaPage(options: MediaPageOptions) {
     options.onBeforeFetch?.()
     doFetch()
   }
-  watch(() => route.fullPath, () => { if (isActive.value) applyRouteQuery() })
+  watch(() => route.path === `/${routePath}` ? route.fullPath : null, (path) => {
+    if (isActive.value && path !== null) applyRouteQuery()
+  })
   let stopPermissionsUpdated: (() => void) | undefined
 
   onActivated(() => {

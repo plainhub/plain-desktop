@@ -10,7 +10,7 @@ import { chachaEncrypt, bitArrayToUint8Array } from '../api/crypto'
 import { tokenToKey } from '../api/file'
 import { uploadedChunksGQL } from '../api/query'
 import { deleteChunksGQL } from '../api/mutation'
-import { gqlFetch } from '../api/gql-client'
+import { gqlFetch, GqlError } from '../api/gql-client'
 import { requestMerge } from './merge-async'
 import { setUploadStatus, setUploadUploadedSize } from './batch-progress'
 import { getCurrentAuthToken } from '../device/current'
@@ -170,6 +170,14 @@ async function runExclusively<T>(fileId: string, action: () => Promise<T>): Prom
   }
 }
 
+export function discardUploadChunks(fileId: string, hasOtherOwner: () => boolean): Promise<void> {
+  return runExclusively(fileId, async () => {
+    if (hasOtherOwner()) return
+    const result = await gqlFetch(deleteChunksGQL, { fileId })
+    if (result.errors?.length) throw new GqlError(result.errors[0].message)
+  })
+}
+
 // mergeChunks gained a totalSize argument in app 3.3.22. Servers before that
 // rejected the whole mutation over the unknown argument, but version-gating on
 // the app query is unreliable (deployed servers reported the version code as a
@@ -302,7 +310,7 @@ async function uploadWithChunks(upload: IUploadItem, replace: boolean, key: Uint
 
 async function uploadChunkedFile(upload: IUploadItem, fileId: string, replace: boolean, key: Uint8Array) {
   try {
-    if (upload.status === 'paused') {
+    if (upload.status === 'paused' || upload.status === 'canceled') {
       return { error: 'Upload paused' }
     }
 
@@ -311,7 +319,7 @@ async function uploadChunkedFile(upload: IUploadItem, fileId: string, replace: b
 
     // Query uploaded chunks with sizes for verification
     const verifiedChunks = await getUploadedChunks(fileId, upload.file.size, totalChunks)
-    if (upload.status === 'paused') {
+    if (upload.status === 'paused' || upload.status === 'canceled') {
       return { error: 'Upload paused' }
     }
 

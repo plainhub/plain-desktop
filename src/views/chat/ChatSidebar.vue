@@ -59,10 +59,9 @@ import { computed, onActivated, onDeactivated, onMounted, ref } from 'vue'
 import { storeToRefs } from 'pinia'
 import { useRouter } from 'vue-router'
 import { openModal } from '@/components/modal'
-import { getFileId } from '@/lib/api/file'
 import { getPeerIp } from '@/lib/device/login-peers'
 import { replacePath } from '@/plugins/router'
-import { decryptChatId } from './hooks/chat-route'
+import { decryptChatId, encryptChatId } from './hooks/chat-route'
 import { useChatStore } from '@/stores/chat'
 import { useMainStore } from '@/stores/main'
 import { useTempStore } from '@/stores/temp'
@@ -99,11 +98,11 @@ function isChannelActive(channelId: string) {
 }
 
 function getPeerChatRouteId(peerId: string) {
-  return getFileId(urlTokenKey.value, `peer:${peerId}`)
+  return encryptChatId(`peer:${peerId}`, urlTokenKey.value)
 }
 
 function getChannelChatRouteId(channelId: string) {
-  return getFileId(urlTokenKey.value, `channel:${channelId}`)
+  return encryptChatId(`channel:${channelId}`, urlTokenKey.value)
 }
 
 function openChat(id: string) {

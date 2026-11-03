@@ -10,7 +10,7 @@
           :organize-count="organizeCount"
           :info-visible="lightboxInfoVisible"
           @close="onCloseDialog"
-          @download="onDownload"
+          @download="downloadFile"
           @zoom-in="zoomIn"
           @zoom-out="zoomOut"
           @resize="resize"
@@ -35,7 +35,7 @@
             {{ $t('load_failed', { name: current?.name }) }}
           </div>
           <div v-if="current && isVideo(current.name)" v-show="!status.loading && !status.loadError" class="v-video-wrapper" @click.self="onBackdropClick">
-            <video ref="video" controls autoplay="true" :src="current.playbackUrl || current.src" @error="onError" @canplay="onLoad" @playing="onPlaying" @pause="onPause" @volumechange="onVolumeChange" />
+            <video ref="video" controls :src="current.playbackUrl || current.src" @loadedmetadata="onVideoLoaded" @error="onError" @playing="onPlaying" @pause="onPause" @volumechange="onVolumeChange" />
           </div>
           <div v-else-if="current && isAudio(current.name)" v-show="!status.loading && !status.loadError" class="v-audio-wrapper" @click.self="onBackdropClick">
             <div style="padding: 50px">
@@ -132,7 +132,6 @@
 import { computed, inject, toRef, onMounted, onUnmounted } from 'vue'
 import { preventDefault } from './utils/index'
 import { isVideo, isImage, isAudio, isSvg } from '@/lib/file'
-import { getFileName } from '@/lib/api/file'
 import { openMediaInWindow } from '@/lib/api/tauri-window'
 import {
   useLightboxState,
@@ -210,14 +209,7 @@ async function onCloseDialog() {
 }
 
 const { downloadFile, deleteFile, renameFile, handleActionSuccess } =
-  useLightboxFileActions(current, fileInfo, tagsMap, urlTokenKey, refetchInfo, isPhone, lightboxInfoVisible)
-
-function onDownload() {
-  const s = current.value
-  if (!s?.path) return
-  const fileName = (s.name ? s.name : getFileName(s.path)).replace(' ', '-')
-  downloadFile(s.path, fileName)
-}
+  useLightboxFileActions(current, refetchInfo, isPhone, lightboxInfoVisible)
 
 // HEIC always needs server-side conversion, so it must keep the resize query even in "original" mode.
 const imgSrc = computed(() => {
@@ -226,7 +218,7 @@ const imgSrc = computed(() => {
   return getImageDisplayUrl(s, imageViewQuality.value)
 })
 
-const { onLoad, onError, onPlaying, onPause, onVolumeChange } =
+const { onLoad, onVideoLoaded, onError, onPlaying, onPause, onVolumeChange } =
   useLightboxEvents(tempStore, current, video, status, imgState, imgIndex, setImgSize, refetchInfo, updateViewOriginImageState, closeDialog, onNext, onPrev, changeIndex, emit as (event: string, ...args: any[]) => void, toRef(props, 'popup'))
 
 function onBackdropClick() {

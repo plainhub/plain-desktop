@@ -1,5 +1,7 @@
 import { afterEach, beforeEach, expect, it, vi } from 'vitest'
+import { ref } from 'vue'
 
+vi.mock('vue-i18n', () => ({ useI18n: () => ({ t: (key: string) => key }) }))
 const request = vi.hoisted(() => vi.fn())
 vi.mock('@/lib/api/http', () => ({ httpRequest: request }))
 vi.mock('@/lib/api/api', () => ({ getApiBaseUrl: () => 'https://example.test', getProxyUrl: (url: string) => url }))
@@ -14,6 +16,7 @@ vi.mock('@/lib/api/crypto', () => ({
 vi.mock('@/lib/api/time-sync', () => ({ wrapWithReplayProtection: (value: string) => value }))
 
 import { guestFetch } from '@/lib/api/guest'
+import { useShareData } from '@/views/share/hooks/useShareData'
 
 beforeEach(() => {
   vi.resetAllMocks()
@@ -39,4 +42,23 @@ it('preserves other guest request errors and clears the timer', async () => {
   request.mockRejectedValue(error)
   await expect(guestFetch('share', new Uint8Array(32), '{ sharedInfo { name } }')).rejects.toBe(error)
   expect(vi.getTimerCount()).toBe(0)
+})
+
+it.each(['', '%%invalid%%', btoa('x'.repeat(31)), btoa('x'.repeat(33))])('rejects a malformed share token before any request (%s)', async token => {
+  const share = useShareData(ref('owned-share'), ref(token))
+  await expect(share.load('')).resolves.toBeUndefined()
+  expect(share.state.value).toBe('error')
+  expect(share.errorCode.value).toBe('invalid_link')
+  expect(share.entries.value).toEqual([])
+  expect(request).not.toHaveBeenCalled()
+})
+
+it('preserves the unauthorized state for a well-formed but rejected share key', async () => {
+  request.mockResolvedValue(new Response('', { status: 401 }))
+  const share = useShareData(ref('owned-share'), ref(btoa('x'.repeat(32))))
+  await share.load('')
+  expect(share.state.value).toBe('error')
+  expect(share.errorCode.value).toBe('unauthorized')
+  expect(share.entries.value).toEqual([])
+  expect(request).toHaveBeenCalledTimes(1)
 })

@@ -14,8 +14,9 @@ import { openModal } from '@/components/modal'
 import { useI18n } from 'vue-i18n'
 import type { IItemTagsUpdatedEvent, IFileDeletedEvent, IFileRenamedEvent, ITag, IMediaItemsActionedEvent } from '@/lib/interfaces'
 import emitter from '@/plugins/eventbus'
-import { useDownload, useRename } from '@/hooks/files'
-import { getFileName } from '@/lib/api/file'
+import { useMediaPlayHistory } from './media-play-history'
+import { useRename } from '@/hooks/files'
+import { download, getFileName } from '@/lib/api/file'
 import { useDeleteItems } from '@/hooks/media'
 import { DataType } from '@/lib/data'
 import { arrayRemove } from '@/lib/array'
@@ -354,7 +355,7 @@ export function useLightboxNavigation(
 
     const s = tempStore.lightbox.sources[newIndex]
     if (!s.src) {
-      s.src = await resolveFileUrlByPath(tempStore.urlTokenKey, s.path, s.size)
+      s.src = await resolveFileUrlByPath(tempStore.urlTokenKey, s.path, s.size, s.updatedAt ? '&v=' + encodeURIComponent(s.updatedAt) : '')
     }
 
     // Resolve the playback URL before mounting the <video>: on browsers
@@ -430,19 +431,21 @@ export function useLightboxNavigation(
 
 export function useLightboxFileActions(
   current: Ref<ISource | undefined>,
-  fileInfo: Ref<any>,
-  tagsMap: Map<string, ITag[]>,
-  urlTokenKey: Ref<Uint8Array | null>,
   refetchInfo: () => void,
   isPhone: boolean,
   lightboxInfoVisible: Ref<boolean>,
 ) {
   const { t } = useI18n()
-  const { downloadFile } = useDownload(urlTokenKey)
   const { deleteItem } = useDeleteItems()
   const { renameItem, renamedPath, renameDone, renameMutation, renameVariables } = useRename(() => {
     refetchInfo()
   })
+
+  function downloadFile() {
+    const source = current.value
+    if (!source) return
+    download(source.src, (source.name || getFileName(source.path)).replace(' ', '-'))
+  }
 
   function deleteFile() {
     const mediaTypes = [DataType.VIDEO, DataType.AUDIO, DataType.IMAGE]
@@ -524,6 +527,38 @@ export function useLightboxEvents(
   popup: Ref<boolean> = ref(false),
 ) {
   let isVideoPlaying = true
+  let videoLoad = 0
+  let releaseVideo: (() => void) | undefined
+  const history = useMediaPlayHistory()
+
+  const onVideoLoaded = async (event: Event) => {
+    const element = event.currentTarget as HTMLVideoElement
+    const source = current.value
+    if (!source) return
+    const load = ++videoLoad
+    releaseVideo?.()
+    releaseVideo = undefined
+    const active = () => load === videoLoad && tempStore.lightbox.visible && current.value === source && video.value === element
+    const mediaId = source.type === DataType.VIDEO ? source.data?.id : undefined
+    try {
+      const release = await history.restoreAndPlay(element, mediaId ? { mediaId, type: 'VIDEO' } : undefined, active)
+      if (active()) releaseVideo = release
+      else release?.()
+    } catch (error) {
+      if (!active()) return
+      status.loading = false
+      status.loadError = true
+      emitter.emit('toast', error instanceof Error ? error.message : 'network_error')
+    }
+  }
+
+  watch(() => tempStore.lightbox.visible, visible => {
+    if (!visible) {
+      videoLoad++
+      releaseVideo?.()
+      releaseVideo = undefined
+    }
+  })
 
   const onLoad = () => {
     status.loading = false
@@ -539,7 +574,7 @@ export function useLightboxEvents(
     emit('on-error', e)
   }
 
-  const onPlaying = () => { isVideoPlaying = true; video.value?.blur() }
+  const onPlaying = () => { status.loading = false; isVideoPlaying = true; video.value?.blur() }
   const onPause = () => { isVideoPlaying = false; video.value?.blur() }
   const onVolumeChange = () => { video.value?.blur() }
 
@@ -638,6 +673,8 @@ export function useLightboxEvents(
   })
 
   onBeforeUnmount(() => {
+    videoLoad++
+    releaseVideo?.()
     off(window, 'keydown', onKeyPress)
     off(window, 'resize', onWindowResize)
     emitter.off('item_tags_updated', itemTagsUpdatedHandler)
@@ -646,7 +683,7 @@ export function useLightboxEvents(
     emitter.off('file_renamed', fileRenamedHandler)
   })
 
-  return { onLoad, onError, onPlaying, onPause, onVolumeChange }
+  return { onLoad, onVideoLoaded, onError, onPlaying, onPause, onVolumeChange }
 }
 
 export function useLightboxMouseTouch(

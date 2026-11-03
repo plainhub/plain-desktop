@@ -180,7 +180,7 @@ export function useChatUpload(chatId: ComputedRef<string>, channelId: ComputedRe
 
   async function sendLongMessageAsFile(message: string) {
     const file = new File([message], `message-${Date.now()}.txt`, { type: 'text/plain' })
-    const summaryText = message.substring(0, 250).trim()
+    const summaryText = message.substring(0, 250).replace(/[\uD800-\uDBFF]$/, '').trim()
     const summary = summaryText.lastIndexOf(' ') > 230 ? summaryText.substring(0, summaryText.lastIndexOf(' ')) + '...' : summaryText + '...'
     await handleContentUpload([file], MessageType.FILES, currentDestination(), { summary })
     chatText.value = ''

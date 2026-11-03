@@ -1,10 +1,11 @@
 import { onUnmounted, ref, type Ref } from 'vue'
-import { copyFileGQL, createDirGQL, initMutation, moveFileGQL, renameFileGQL } from '@/lib/api/mutation'
+import { createFileTaskGQL, createDirGQL, initMutation, renameFileGQL } from '@/lib/api/mutation'
+import type { GqlResultType, GqlVariablesType } from '@/lib/api/graphql/operations'
 import { enrichFile, isAudio, isImage, isVideo, type IFile } from '@/lib/file'
 import { initQuery, favoriteFoldersGQL, mountsGQL } from '@/lib/api/query'
 import { useI18n } from 'vue-i18n'
 import toast from '@/components/toaster'
-import { download, downloadAs, encryptUrlParams, getFileId, getFileName, getFileUrl } from '@/lib/api/file'
+import { download, downloadAs, encryptUrlParams, getFileId, getFileName } from '@/lib/api/file'
 import type { ISource } from '@/components/lightbox/types'
 import { encodeBase64 } from '@/lib/strutil'
 import { buildQuery, parseQuery, type IFilterField } from '@/lib/search'
@@ -140,11 +141,12 @@ export const useView = (sources: Ref<ISource[]>, ivView: (sources: ISource[], i:
         .filter((it) => isImage(it.name) || isVideo(it.name) || isAudio(it.name))
         .map((it) => ({
           path: it.path,
-          src: it.fileId ? getFileUrl(it.fileId) : '',
+          src: '',
           name: getFileName(it.path),
           size: it.size,
+          updatedAt: it.updatedAt,
           durationMs: 0,
-          data: f,
+          data: it,
         }))
       const index = sources.value.findIndex((it: ISource) => it.path === f.path)
       ivView(sources.value, index)
@@ -153,56 +155,11 @@ export const useView = (sources: Ref<ISource[]>, ivView: (sources: ISource[], i:
 }
 
 export const useCopyPaste = (items: Ref<IFile[]>, isCut: Ref<boolean>, selectedFiles: Ref<IFile[]>, refetchFiles: () => void, refetchStats: () => void) => {
-  const dstDir = ref<string>()
-
-  const {
-    mutate: copyMutate,
-    loading: copyLoading,
-    onDone: copyDone,
-    onError: copyError,
-  } = initMutation({
-    document: copyFileGQL,
-  })
-
-  const {
-    mutate: cutMutate,
-    loading: cutLoading,
-    onDone: cutDone,
-    onError: cutError,
-  } = initMutation({
-    document: moveFileGQL,
-  })
-
+  const { mutate, loading } = initMutation({ document: createFileTaskGQL })
   const { t } = useI18n()
 
-  const onError = (error: any) => {
-    toast(t(error?.message ?? 'error'))
-  }
-
-  copyError(onError)
-  cutError(onError)
-
-  const onDone = () => {
-    if (isCut.value) {
-      for (const file of selectedFiles.value) {
-        arrayRemove(items.value, (it: IFile) => it.path === file.path)
-      }
-    }
-
-    selectedFiles.value = []
-
-    // have to delay 1s to make sure the api return latest data.
-    setTimeout(() => {
-      refetchFiles()
-      refetchStats()
-    }, 500)
-  }
-
-  copyDone(onDone)
-  cutDone(onDone)
-
   return {
-    loading: copyLoading || cutLoading,
+    loading,
     canPaste() {
       return selectedFiles.value.length > 0
     },
@@ -214,20 +171,22 @@ export const useCopyPaste = (items: Ref<IFile[]>, isCut: Ref<boolean>, selectedF
       selectedFiles.value = items.value.filter((it) => ids.includes(it.id))
       isCut.value = true
     },
-    paste(dir: string) {
-      dstDir.value = dir
-      for (const file of selectedFiles.value) {
-        const a = {
-          src: file.path,
-          dst: dir + '/' + file.name,
-          overwrite: false,
-        }
-        if (isCut.value) {
-          cutMutate(a)
-        } else {
-          copyMutate(a)
-        }
+    async paste(dir: string) {
+      const selection = selectedFiles.value
+      if (!selection.length) return
+      const type = isCut.value ? 'MOVE' : 'COPY'
+      const variables: GqlVariablesType<'createFileTaskGQL'> = {
+        type, title: type,
+        ops: selection.map(file => ({ src: file.path, dst: dir + '/' + file.name, overwrite: false })),
       }
+      const result: { data: GqlResultType<'createFileTaskGQL'> } | undefined = await mutate(variables)
+      if (result?.data.createFileTask.status === 'ERROR') {
+        toast(t(result.data.createFileTask.error))
+      } else if (result && selectedFiles.value === selection) {
+        selectedFiles.value = []
+      }
+      refetchFiles()
+      refetchStats()
     },
   }
 }
