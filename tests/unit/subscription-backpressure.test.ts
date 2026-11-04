@@ -7,6 +7,26 @@ vi.mock('@/lib/api/subscription-connection', () => ({ openSubscriptionConnection
 } }))
 import { SubscriptionClient } from '@/lib/api/subscription-client'
 afterEach(() => { vi.restoreAllMocks(); vi.clearAllMocks() })
+it('does not reattach existing consumers when another operation starts on the same connection', () => {
+  const client = new SubscriptionClient()
+  client.setOperations([
+    { field: 'contentChanged', document: 'subscription { contentChanged }', permissions: [] },
+    { field: 'mediaLibraryUpdated', document: 'subscription { mediaLibraryUpdated { types } }', permissions: [] },
+  ])
+  const attached = vi.fn()
+  client.onAttached(attached)
+  client.subscribe('contentChanged', vi.fn())
+  client.start()
+  mock.callbacks.opened()
+  const first = mock.send.mock.calls.at(-1)![0]
+  mock.callbacks.message({ id: first.id, type: 'next', payload: { extensions: { subscriptionReady: true } } })
+  expect(attached).toHaveBeenCalledTimes(1)
+  client.subscribe('mediaLibraryUpdated', vi.fn())
+  const second = mock.send.mock.calls.at(-1)![0]
+  mock.callbacks.message({ id: second.id, type: 'next', payload: { extensions: { subscriptionReady: true } } })
+  expect(attached).toHaveBeenCalledTimes(1)
+  client.stop()
+})
 it('resynchronizes only the lagged operation and preserves the socket and other consumers', () => {
   vi.spyOn(console, 'error').mockImplementation(() => {})
   const client = new SubscriptionClient()

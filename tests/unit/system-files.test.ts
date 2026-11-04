@@ -38,3 +38,22 @@ it('groups system entries only during browsing and keeps collapsed entries out o
   expect(group.visibleItems.value.map(item => item.id)).toEqual(['bin'])
   scope.stop()
 })
+
+it('retains the saved expansion across directory changes and remounts', async () => {
+  const saved = ref(false)
+  const directory = ref('/')
+  const files = ref([{ id: 'sys', isSystem: true }] as IFile[])
+  const scope = effectScope()
+  const group = scope.run(() => useSystemFiles(files, () => directory.value, () => true, saved))!
+  group.expanded.value = true
+  directory.value = '/other'
+  await nextTick()
+  expect(group.visibleItems.value.map(item => item.id)).toEqual(['sys'])
+  scope.stop()
+  const nextScope = effectScope()
+  const remounted = nextScope.run(() => useSystemFiles(files, () => directory.value, () => true, saved))!
+  expect(remounted.expanded.value).toBe(true)
+  remounted.expanded.value = false
+  expect(saved.value).toBe(false)
+  nextScope.stop()
+})

@@ -1,15 +1,12 @@
 import 'katex/dist/katex.min.css'
 import MarkdownIt from 'markdown-it'
-import subscript from 'markdown-it-sub'
-import superscript from 'markdown-it-sup'
+import { markdownInlineFormats } from '@/lib/markdown-inline-formats'
 import footnote from 'markdown-it-footnote'
 import deflist from 'markdown-it-deflist'
 import abbreviation from 'markdown-it-abbr'
-import insert from 'markdown-it-ins'
-import mark from 'markdown-it-mark'
 import texmath from 'markdown-it-texmath'
 import katex from 'katex'
-import tasklists from 'markdown-it-task-lists'
+import { markdownTaskLists } from '@/lib/markdown-task-lists'
 import type { Ref } from 'vue'
 import { parseDocument } from 'htmlparser2'
 import { getFileUrlByPath } from '@/lib/api/file'
@@ -72,10 +69,10 @@ async function replaceNodes(nodes: Array<any>, replace: (link: string) => string
 
 export const useMarkdown = (app: Ref<{ appDir: string }>, urlTokenKey: Ref<Uint8Array | null>) => {
   const md = new MarkdownIt()
-    .use(subscript).use(superscript).use(footnote).use(deflist)
-    .use(abbreviation).use(insert).use(mark)
+    .use(markdownInlineFormats).use(footnote).use(deflist)
+    .use(abbreviation)
     .use(texmath, { engine: katex as any, delimiters: 'dollars', katexOptions: { throwOnError: false, output: 'html', errorColor: '#cc0000' } })
-    .use(tasklists, { enabled: true })
+    .use(markdownTaskLists)
   md.set({ html: true, xhtmlOut: true, breaks: true, linkify: true, typographer: true, highlight: highlightCode })
 
   const replace = (link: string) => {
@@ -106,10 +103,10 @@ export const useMarkdown = (app: Ref<{ appDir: string }>, urlTokenKey: Ref<Uint8
  */
 export const useSafeMarkdown = (app: Ref<{ appDir: string }>, urlTokenKey: Ref<Uint8Array | null>) => {
   const md = new MarkdownIt()
-    .use(subscript).use(superscript).use(footnote).use(deflist)
-    .use(abbreviation).use(insert).use(mark)
+    .use(markdownInlineFormats).use(footnote).use(deflist)
+    .use(abbreviation)
     .use(texmath, { engine: katex as any, delimiters: 'dollars', katexOptions: { throwOnError: false, output: 'html', errorColor: '#cc0000' } })
-    .use(tasklists, { enabled: true })
+    .use(markdownTaskLists)
   // html: false — strips raw HTML from external feed content, blocking XSS
   md.set({ html: false, xhtmlOut: true, breaks: true, linkify: true, typographer: true, highlight: highlightCode })
 

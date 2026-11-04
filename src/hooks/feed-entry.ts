@@ -59,9 +59,9 @@ export function useFeedEntry() {
   })
 
   const { mutate: syncFeedEntryContent, loading: syncContentLoading, onDone: syncContentDone } = initMutation({ document: syncFeedEntryContentGQL })
-  syncContentDone(async (r: any) => {
+  syncContentDone(async (r: { data: { syncFeedEntryContent: IFeedEntryDetail } }) => {
     entry.value = r.data.syncFeedEntryContent
-    markdown.value = await render(r.data.syncFeedContent.content || r.data.syncFeedContent.description)
+    markdown.value = await render(entry.value.content || entry.value.description)
   })
 
   const syncContent = () => syncFeedEntryContent({ id: id.value })

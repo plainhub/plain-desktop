@@ -750,6 +750,14 @@ export const pausePomodoroGQL = `
   }
 `
 
+export const logoutGQL = `mutation logout { logout }`
+
+export const importBookmarksGQL = `
+  mutation importBookmarks($content: String!) {
+    importBookmarks(content: $content) { affectedCount }
+  }
+`
+
 export const addBookmarksGQL = `
   mutation addBookmarks($urls: [String!]!, $groupId: ID!) {
     addBookmarks(urls: $urls, groupId: $groupId) {

@@ -5,7 +5,7 @@ import { useFilesEvents } from '@/views/files/hooks/useFilesEvents'
 
 afterEach(() => vi.unstubAllGlobals())
 
-it('does not replace the file filter or fetch when navigation leaves the file page before deactivation', async () => {
+it('fetches changed file routes only when their keyed page activates', async () => {
   vi.stubGlobal('window', { addEventListener: vi.fn(), removeEventListener: vi.fn() })
   const renderer = createRenderer<any, any>({
     insert: vi.fn(), remove: vi.fn(), createElement: () => ({}), createText: () => ({}), createComment: () => ({}),
@@ -25,9 +25,15 @@ it('does not replace the file filter or fetch when navigation leaves the file pa
       return () => null
     },
   }
-  const app = renderer.createApp({ render: () => h(KeepAlive, null, () => h(FilePage)) })
+  const app = renderer.createApp({ render: () => h(KeepAlive, null, () => route.value === null ? h('div') : h(FilePage, { key: route.value })) })
   app.mount({})
   try {
+    expect(fetch).toHaveBeenCalledTimes(1)
+    fetch.mockClear()
+    applyRouteQuery.mockClear()
+    route.value = '/files?q=second-owned-directory'
+    await nextTick()
+    expect(applyRouteQuery).toHaveBeenCalledTimes(1)
     expect(fetch).toHaveBeenCalledTimes(1)
     fetch.mockClear()
     applyRouteQuery.mockClear()

@@ -129,7 +129,7 @@ const mp = useMediaPage({
   dataType: DataType.DOC, routePath: 'docs',
   items, sortByRef: docSortBy, fileFilter: isDoc,
   downloadName: 'docs', uploadModalId: 'upload-directory-picker-docs', uploadStorageKey: 'docs',
-  doFetch: () => fetch(), getScrollMode: () => scrollMode.value,
+  doFetch: (options) => fetch(undefined, options), getScrollMode: () => scrollMode.value,
   setupScroll: () => setTimeout(setupSentinelObserver, 100),
   teardownScroll: () => { observer?.disconnect(); observer = null },
   onSort: () => { noMore.value = false },

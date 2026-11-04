@@ -72,6 +72,7 @@ import { useI18n } from 'vue-i18n'
 import { storeToRefs } from 'pinia'
 import { useTempStore } from '@/stores/temp'
 import { useFilesStore } from '@/stores/files'
+import { useMainStore } from '@/stores/main'
 import { getSortItems, isZipPath } from '@/lib/file'
 import NoDataPlaceholder from '@/components/NoDataPlaceholder.vue'
 import { useCreateDir, useRename, useMounts, useDownload, useView, useCopyPaste } from '@/hooks/files'
@@ -100,6 +101,7 @@ const { t } = useI18n()
 const tempStore = useTempStore()
 const { app, urlTokenKey, uploads } = storeToRefs(tempStore)
 const { selectedFiles, isCut } = storeToRefs(useFilesStore())
+const { systemFilesExpanded } = storeToRefs(useMainStore())
 const sortItems = getSortItems()
 const sources = ref([])
 
@@ -109,6 +111,7 @@ const { filter, q, items, loading, firstInit, refreshing, sorting, isActive, roo
 const { expanded: systemExpanded, visibleItems, systemItems } = useSystemFiles(
   items, () => filter.parent,
   () => !indexed.value && !filter.text && !q.value.includes('file_size:') && !filter.parent.includes('!zip!/'),
+  systemFilesExpanded,
 )
 const regularTotal = computed(() => Math.max(0, totalRef.value - systemItems.value.length))
 

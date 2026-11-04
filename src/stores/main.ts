@@ -22,6 +22,7 @@ export type MainState = {
   uploadDirs: Record<string, string>
   excludedDirs: string[]
   fileShowHidden: boolean
+  systemFilesExpanded: boolean
   chatTexts: Record<string, string>
   quick: string
   quickContentWidth: number
@@ -66,6 +67,7 @@ export const useMainStore = defineStore('main', {
       uploadDirs: {} as Record<string, string>,
       excludedDirs: [] as string[],
       fileShowHidden: false,
+      systemFilesExpanded: false,
       chatTexts: {},
       quick: '',
       quickContentWidth: 400,

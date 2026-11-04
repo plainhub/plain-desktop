@@ -225,3 +225,20 @@ it('keeps 300 in-flight queries running when their page unmounts', async () => {
     await Promise.all(requests)
   }
 })
+
+it('replaces a pending media snapshot after a library change without restoring the old rows', async () => {
+  const old = deferred<any>()
+  const current = deferred<any>()
+  vi.mocked(nativeGraphql).mockReturnValueOnce(old.promise).mockReturnValueOnce(current.promise)
+  const handle = vi.fn()
+  const query = initLazyQuery({ document: 'query { audios { id } }', handle })
+  const first = query.fetch()
+  const refresh = query.fetch(undefined, { force: true, latest: true })
+  expect(nativeGraphql).toHaveBeenCalledTimes(2)
+  current.resolve({ data: { audios: [{ id: 'preserved' }] } })
+  await refresh
+  old.resolve({ data: { audios: [{ id: 'preserved' }, { id: 'deleted' }] } })
+  await first
+  expect(handle).toHaveBeenCalledExactlyOnceWith({ audios: [{ id: 'preserved' }] }, '', expect.any(Object))
+  expect(query.result.value).toEqual({ audios: [{ id: 'preserved' }] })
+})

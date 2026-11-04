@@ -1,6 +1,6 @@
 import { expect, it, vi } from 'vitest'
 import { xchacha20poly1305 } from '@noble/ciphers/chacha'
-import { encryptResourcePayload, resourceId } from '@/lib/api/resource-link'
+import { encryptResourcePayload, resourceId, filePathFromResourceId } from '@/lib/api/resource-link'
 
 vi.mock('@noble/ciphers/webcrypto', () => ({ randomBytes: (length: number) => Uint8Array.from({ length }, (_, index) => index) }))
 
@@ -29,4 +29,24 @@ it('keeps session, global, share and endpoint contexts separate', () => {
   expect(() => resourceId(key, { mode: 'g' }, { type: 'SHARED_FILE', id: 'file' })).toThrow()
   expect(() => resourceId(key, { mode: 's', id: 'share' }, { type: 'FILE', id: '/file' })).toThrow()
   expect(encryptResourcePayload(key, { mode: 'g' }, 'proxyfs', '/file')).not.toBe(encryptResourcePayload(key, { mode: 'g' }, 'zip-files', '/file'))
+})
+
+it.each([{ mode: 'g' } as const, { mode: 'c', id: '客户.with.dots' } as const])('decodes the current authenticated file resource ($mode)', scope => {
+  const key = new Uint8Array(32).fill(7)
+  const path = '/files/中文 note.txt'
+  const id = resourceId(key, scope, { type: 'FILE', id: path })
+  expect(filePathFromResourceId(key, id)).toBe(path)
+  expect(() => filePathFromResourceId(new Uint8Array(32).fill(8), id)).toThrow()
+  expect(() => filePathFromResourceId(key, id.replace(/^g\./, 'c.owner.').replace(/^c\.客户.with.dots\./, 'c.another.'))).toThrow()
+})
+
+it('rejects non-file resources, shared links, malformed envelopes and unauthenticated legacy payloads', () => {
+  const key = new Uint8Array(32).fill(7)
+  for (const id of [
+    resourceId(key, { mode: 'c', id: 'owner' }, { type: 'APP_FILE', id: 'hash' }),
+    resourceId(key, { mode: 's', id: 'share' }, { type: 'SHARED_FILE', id: 'note.txt' }),
+    encryptResourcePayload(key, { mode: 'g' }, 'fs', JSON.stringify({ path: '/legacy' })),
+    encryptResourcePayload(key, { mode: 'g' }, 'proxyfs', JSON.stringify({ type: 'FILE', id: '/wrong-purpose' })),
+    'c..payload', 'g..payload', 'g.invalid+payload', 'plain-legacy-base64',
+  ]) expect(() => filePathFromResourceId(key, id)).toThrow()
 })

@@ -137,7 +137,7 @@ const mp = useMediaPage({
   dataType: DataType.IMAGE, routePath: 'images',
   items, sortByRef: imageSortBy, fileFilter: isImage,
   downloadName: 'images', uploadModalId: 'upload-directory-picker-images', uploadStorageKey: 'images',
-  doFetch: () => fetch(), getScrollMode: () => scrollMode.value,
+  doFetch: (options) => fetch(undefined, options), getScrollMode: () => scrollMode.value,
   setupScroll: () => setTimeout(setupSentinelObserver, 100), teardownScroll: () => teardownObserver(),
   onSort: () => { noMore.value = false },
   onBeforeFetch: () => { if (scrollMode.value) { mp.page.value = 1; noMore.value = false; items.value = [] } },

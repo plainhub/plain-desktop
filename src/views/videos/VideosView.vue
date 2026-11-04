@@ -143,7 +143,7 @@ const mp = useMediaPage({
   dataType: DataType.VIDEO, routePath: 'videos',
   items, sortByRef: videoSortBy, fileFilter: isVideo,
   downloadName: 'videos', uploadModalId: 'upload-directory-picker-videos', uploadStorageKey: 'videos',
-  doFetch: () => fetch(), getScrollMode: () => scrollMode.value,
+  doFetch: (options) => fetch(undefined, options), getScrollMode: () => scrollMode.value,
   setupScroll: () => setTimeout(setupSentinelObserver, 100), teardownScroll: () => teardownObserver(),
   onSort: () => { noMore.value = false },
 })

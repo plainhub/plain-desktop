@@ -1,7 +1,8 @@
 import { type Ref } from 'vue'
 import { canOpenInBrowser, canView, isTextFile } from '@/lib/file'
 
-export interface UseFileOpenOptions<T extends { name: string }> {
+export interface UseFileOpenOptions<T> {
+  getName: (item: T) => string
   items: Ref<T[]>
   openTextFile?: (item: T) => void
   openBrowserFile: (item: T) => void
@@ -9,15 +10,16 @@ export interface UseFileOpenOptions<T extends { name: string }> {
   download: (item: T) => void
 }
 
-export function useFileOpen<T extends { name: string }>(opts: UseFileOpenOptions<T>) {
-  const { items, openTextFile, openBrowserFile, viewMedia, download } = opts
+export function useFileOpen<T>(opts: UseFileOpenOptions<T>) {
+  const { items, getName, openTextFile, openBrowserFile, viewMedia, download } = opts
 
   function openFile(item: T) {
-    if (isTextFile(item.name) && openTextFile) {
+    const name = getName(item)
+    if (isTextFile(name) && openTextFile) {
       openTextFile(item)
-    } else if (canOpenInBrowser(item.name)) {
+    } else if (canOpenInBrowser(name)) {
       openBrowserFile(item)
-    } else if (canView(item.name)) {
+    } else if (canView(name)) {
       viewMedia(items.value, item)
     } else {
       download(item)

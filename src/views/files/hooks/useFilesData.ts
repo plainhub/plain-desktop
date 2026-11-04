@@ -107,7 +107,7 @@ export function useFilesData() {
       if (current === sequence) { loading.value = false; settled() }
     }
   }
-  const stopAttached = graphqlSubscriptions.onAttached(() => { if (isActive.value) void fetch() })
+  const stopAttached = graphqlSubscriptions.onAttached(() => { if (isActive.value && searchStatus.value === 'idle') void fetch() })
   watch(isActive, active => { if (!active) cancel() })
   watch(getGraphqlContextKey, () => {
     cancel()

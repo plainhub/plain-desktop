@@ -29,8 +29,9 @@ const props = defineProps({
   placeholder: { type: String, default: '' },
   value: { type: String, default: '' },
   mutation: { type: Function, required: true },
+  validate: { type: Function as PropType<(value: string) => string> },
   done: {
-    type: Function as PropType<(value: string) => void>,
+    type: Function as PropType<(value: string) => boolean | void>,
     default: () => {},
   },
 })
@@ -62,13 +63,13 @@ onMounted(async () => {
 
 function doAction() {
   if (!name.value?.trim()) { errors.name = 'valid.required'; return }
-  errors.name = ''
+  errors.name = props.validate?.(name.value) ?? ''
+  if (errors.name) return
   mutate(props.getVariables(name.value))
 }
 
 onDone(() => {
-  props.done?.call(undefined, name.value!)
-  popModal()
+  if (props.done(name.value) !== false) popModal()
 })
 </script>
 <style scoped lang="scss">

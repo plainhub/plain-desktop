@@ -66,7 +66,7 @@ export function useFeedEntriesActions(opts: UseFeedEntriesActionsOptions) {
 
   function syncFeeds() {
     feedsSyncing.value = true
-    doSyncFeeds({ id: '' })
+    doSyncFeeds({ id: null })
   }
 
   const { mutate: doDeleteEntry, onDone: onDeleteEntryDone } = initMutation({ document: deleteFeedEntryGQL })

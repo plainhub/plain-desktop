@@ -47,12 +47,6 @@ export function useFilesEvents(opts: UseFilesEventsOptions) {
   const fileRenamedHandler = (_: IFileRenamedEvent) => { fetch() }
   const permissionsUpdatedHandler = () => { fetch() }
 
-  watch(routeFullPath, (path) => {
-    if (!isActive.value || path === null) return
-    applyRouteQuery()
-    fetch()
-  })
-
   watch(fileSortBy, () => {
     if (!isActive.value || routeFullPath() === null) return
     sorting.value = true

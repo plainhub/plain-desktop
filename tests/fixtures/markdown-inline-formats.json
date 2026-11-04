@@ -1,0 +1,274 @@
+[
+  {
+    "source": "Before ~text~ after",
+    "html": "<p>Before <sub>text</sub> after</p>\n"
+  },
+  {
+    "source": "[~text~](https://example.test/)",
+    "html": "<p><a href=\"https://example.test/\"><sub>text</sub></a></p>\n"
+  },
+  {
+    "source": "Before ~中文~ after",
+    "html": "<p>Before <sub>中文</sub> after</p>\n"
+  },
+  {
+    "source": "Before ~a b~ after",
+    "html": "<p>Before ~a b~ after</p>\n"
+  },
+  {
+    "source": "Before ~a\\ b~ after",
+    "html": "<p>Before <sub>a b</sub> after</p>\n"
+  },
+  {
+    "source": "Before ~a\nb~ after",
+    "html": "<p>Before ~a<br />\nb~ after</p>\n"
+  },
+  {
+    "source": "Before ~a\\\nb~ after",
+    "html": "<p>Before <sub>a\\\nb</sub> after</p>\n"
+  },
+  {
+    "source": "Before ~a\\_b~ after",
+    "html": "<p>Before <sub>a_b</sub> after</p>\n"
+  },
+  {
+    "source": "Before ~a\\zb~ after",
+    "html": "<p>Before <sub>a\\zb</sub> after</p>\n"
+  },
+  {
+    "source": "Before ~a\\&b~ after",
+    "html": "<p>Before <sub>a&amp;b</sub> after</p>\n"
+  },
+  {
+    "source": "Before ~&amp;~ after",
+    "html": "<p>Before <sub>&amp;amp;</sub> after</p>\n"
+  },
+  {
+    "source": "Before ~<script>probe()</script>~ after",
+    "html": "<p>Before <sub>&lt;script&gt;probe()&lt;/script&gt;</sub> after</p>\n"
+  },
+  {
+    "source": "Before ~`code`~ after",
+    "html": "<p>Before <sub>`code`</sub> after</p>\n"
+  },
+  {
+    "source": "Before ~*bold*~ after",
+    "html": "<p>Before <sub>*bold*</sub> after</p>\n"
+  },
+  {
+    "source": "Before ~[link](https://example.test/)~ after",
+    "html": "<p>Before <sub>[link](<a href=\"https://example.test/\">https://example.test/</a>)</sub> after</p>\n"
+  },
+  {
+    "source": "Before ^text^ after",
+    "html": "<p>Before <sup>text</sup> after</p>\n"
+  },
+  {
+    "source": "[^text^](https://example.test/)",
+    "html": "<p><a href=\"https://example.test/\"><sup>text</sup></a></p>\n"
+  },
+  {
+    "source": "Before ^中文^ after",
+    "html": "<p>Before <sup>中文</sup> after</p>\n"
+  },
+  {
+    "source": "Before ^a b^ after",
+    "html": "<p>Before ^a b^ after</p>\n"
+  },
+  {
+    "source": "Before ^a\\ b^ after",
+    "html": "<p>Before <sup>a b</sup> after</p>\n"
+  },
+  {
+    "source": "Before ^a\nb^ after",
+    "html": "<p>Before ^a<br />\nb^ after</p>\n"
+  },
+  {
+    "source": "Before ^a\\\nb^ after",
+    "html": "<p>Before <sup>a\\\nb</sup> after</p>\n"
+  },
+  {
+    "source": "Before ^a\\_b^ after",
+    "html": "<p>Before <sup>a_b</sup> after</p>\n"
+  },
+  {
+    "source": "Before ^a\\zb^ after",
+    "html": "<p>Before <sup>a\\zb</sup> after</p>\n"
+  },
+  {
+    "source": "Before ^a\\&b^ after",
+    "html": "<p>Before <sup>a&amp;b</sup> after</p>\n"
+  },
+  {
+    "source": "Before ^&amp;^ after",
+    "html": "<p>Before <sup>&amp;amp;</sup> after</p>\n"
+  },
+  {
+    "source": "Before ^<script>probe()</script>^ after",
+    "html": "<p>Before <sup>&lt;script&gt;probe()&lt;/script&gt;</sup> after</p>\n"
+  },
+  {
+    "source": "Before ^`code`^ after",
+    "html": "<p>Before <sup>`code`</sup> after</p>\n"
+  },
+  {
+    "source": "Before ^*bold*^ after",
+    "html": "<p>Before <sup>*bold*</sup> after</p>\n"
+  },
+  {
+    "source": "Before ^[link](https://example.test/)^ after",
+    "html": "<p>Before <sup>[link](<a href=\"https://example.test/\">https://example.test/</a>)</sup> after</p>\n"
+  },
+  {
+    "source": "Before ++text++ after",
+    "html": "<p>Before <ins>text</ins> after</p>\n"
+  },
+  {
+    "source": "[++text++](https://example.test/)",
+    "html": "<p><a href=\"https://example.test/\"><ins>text</ins></a></p>\n"
+  },
+  {
+    "source": "Before ++中文++ after",
+    "html": "<p>Before <ins>中文</ins> after</p>\n"
+  },
+  {
+    "source": "Before ++a b++ after",
+    "html": "<p>Before <ins>a b</ins> after</p>\n"
+  },
+  {
+    "source": "Before ++a\\ b++ after",
+    "html": "<p>Before <ins>a\\ b</ins> after</p>\n"
+  },
+  {
+    "source": "Before ++a\nb++ after",
+    "html": "<p>Before <ins>a<br />\nb</ins> after</p>\n"
+  },
+  {
+    "source": "Before ++a\\\nb++ after",
+    "html": "<p>Before <ins>a<br />\nb</ins> after</p>\n"
+  },
+  {
+    "source": "Before ++a\\_b++ after",
+    "html": "<p>Before <ins>a_b</ins> after</p>\n"
+  },
+  {
+    "source": "Before ++a\\zb++ after",
+    "html": "<p>Before <ins>a\\zb</ins> after</p>\n"
+  },
+  {
+    "source": "Before ++a\\&b++ after",
+    "html": "<p>Before <ins>a&amp;b</ins> after</p>\n"
+  },
+  {
+    "source": "Before ++&amp;++ after",
+    "html": "<p>Before <ins>&amp;</ins> after</p>\n"
+  },
+  {
+    "source": "Before ++<script>probe()</script>++ after",
+    "html": "<p>Before <ins>&lt;script&gt;probe()&lt;/script&gt;</ins> after</p>\n"
+  },
+  {
+    "source": "Before ++`code`++ after",
+    "html": "<p>Before <ins><code>code</code></ins> after</p>\n"
+  },
+  {
+    "source": "Before ++*bold*++ after",
+    "html": "<p>Before <ins><em>bold</em></ins> after</p>\n"
+  },
+  {
+    "source": "Before ++[link](https://example.test/)++ after",
+    "html": "<p>Before <ins><a href=\"https://example.test/\">link</a></ins> after</p>\n"
+  },
+  {
+    "source": "++text++++",
+    "html": "<p><ins>text</ins>++</p>\n"
+  },
+  {
+    "source": "++++text++",
+    "html": "<p>++<ins>text</ins></p>\n"
+  },
+  {
+    "source": "Before ==text== after",
+    "html": "<p>Before <mark>text</mark> after</p>\n"
+  },
+  {
+    "source": "[==text==](https://example.test/)",
+    "html": "<p><a href=\"https://example.test/\"><mark>text</mark></a></p>\n"
+  },
+  {
+    "source": "Before ==中文== after",
+    "html": "<p>Before <mark>中文</mark> after</p>\n"
+  },
+  {
+    "source": "Before ==a b== after",
+    "html": "<p>Before <mark>a b</mark> after</p>\n"
+  },
+  {
+    "source": "Before ==a\\ b== after",
+    "html": "<p>Before <mark>a\\ b</mark> after</p>\n"
+  },
+  {
+    "source": "Before ==a\nb== after",
+    "html": "<p>Before <mark>a<br />\nb</mark> after</p>\n"
+  },
+  {
+    "source": "Before ==a\\\nb== after",
+    "html": "<p>Before <mark>a<br />\nb</mark> after</p>\n"
+  },
+  {
+    "source": "Before ==a\\_b== after",
+    "html": "<p>Before <mark>a_b</mark> after</p>\n"
+  },
+  {
+    "source": "Before ==a\\zb== after",
+    "html": "<p>Before <mark>a\\zb</mark> after</p>\n"
+  },
+  {
+    "source": "Before ==a\\&b== after",
+    "html": "<p>Before <mark>a&amp;b</mark> after</p>\n"
+  },
+  {
+    "source": "Before ==&amp;== after",
+    "html": "<p>Before <mark>&amp;</mark> after</p>\n"
+  },
+  {
+    "source": "Before ==<script>probe()</script>== after",
+    "html": "<p>Before <mark>&lt;script&gt;probe()&lt;/script&gt;</mark> after</p>\n"
+  },
+  {
+    "source": "Before ==`code`== after",
+    "html": "<p>Before <mark><code>code</code></mark> after</p>\n"
+  },
+  {
+    "source": "Before ==*bold*== after",
+    "html": "<p>Before <mark><em>bold</em></mark> after</p>\n"
+  },
+  {
+    "source": "Before ==[link](https://example.test/)== after",
+    "html": "<p>Before <mark><a href=\"https://example.test/\">link</a></mark> after</p>\n"
+  },
+  {
+    "source": "==text====",
+    "html": "<p><mark>text</mark>==</p>\n"
+  },
+  {
+    "source": "====text==",
+    "html": "<p>==<mark>text</mark></p>\n"
+  },
+  {
+    "source": "++before ==text== after++",
+    "html": "<p><ins>before <mark>text</mark> after</ins></p>\n"
+  },
+  {
+    "source": "==before ++text++ after==",
+    "html": "<p><mark>before <ins>text</ins> after</mark></p>\n"
+  },
+  {
+    "source": "**before ~text~ after**",
+    "html": "<p><strong>before <sub>text</sub> after</strong></p>\n"
+  },
+  {
+    "source": "**before ^text^ after**",
+    "html": "<p><strong>before <sup>text</sup> after</strong></p>\n"
+  }
+]

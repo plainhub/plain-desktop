@@ -51,6 +51,7 @@ export function useFilesRecent() {
 
   const { openFile } = useFileOpen<IFile>({
     items,
+    getName: (item) => item.name,
     openTextFile: (item) => {
       const fileId = getFileId(urlTokenKey.value, item.path)
       openUrl(`/text-file?id=${encodeURIComponent(fileId)}`)

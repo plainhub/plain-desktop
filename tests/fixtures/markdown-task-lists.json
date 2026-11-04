@@ -1,0 +1,332 @@
+[
+  {
+    "source": "- [ ] word",
+    "html": false,
+    "expected": "<ul class=\"contains-task-list\">\n<li class=\"task-list-item enabled\"><input class=\"task-list-item-checkbox\" type=\"checkbox\"> word</li>\n</ul>\n"
+  },
+  {
+    "source": "- Parent\n  - [ ] word",
+    "html": false,
+    "expected": "<ul>\n<li>Parent\n<ul class=\"contains-task-list\">\n<li class=\"task-list-item enabled\"><input class=\"task-list-item-checkbox\" type=\"checkbox\"> word</li>\n</ul>\n</li>\n</ul>\n"
+  },
+  {
+    "source": "- [ ] word\n\n  Second paragraph.",
+    "html": false,
+    "expected": "<ul class=\"contains-task-list\">\n<li class=\"task-list-item enabled\">\n<p><input class=\"task-list-item-checkbox\" type=\"checkbox\"> word</p>\n<p>Second paragraph.</p>\n</li>\n</ul>\n"
+  },
+  {
+    "source": "- [ ] **bold**",
+    "html": false,
+    "expected": "<ul class=\"contains-task-list\">\n<li class=\"task-list-item enabled\"><input class=\"task-list-item-checkbox\" type=\"checkbox\"> <strong>bold</strong></li>\n</ul>\n"
+  },
+  {
+    "source": "- [ ] <img src=x onerror=probe()>",
+    "html": false,
+    "expected": "<ul class=\"contains-task-list\">\n<li class=\"task-list-item enabled\"><input class=\"task-list-item-checkbox\" type=\"checkbox\"> &lt;img src=x onerror=probe()&gt;</li>\n</ul>\n"
+  },
+  {
+    "source": "- [ ] [link](https://example.test/)",
+    "html": false,
+    "expected": "<ul class=\"contains-task-list\">\n<li class=\"task-list-item enabled\"><input class=\"task-list-item-checkbox\" type=\"checkbox\"> <a href=\"https://example.test/\">link</a></li>\n</ul>\n"
+  },
+  {
+    "source": "- [x] word",
+    "html": false,
+    "expected": "<ul class=\"contains-task-list\">\n<li class=\"task-list-item enabled\"><input class=\"task-list-item-checkbox\" checked type=\"checkbox\"> word</li>\n</ul>\n"
+  },
+  {
+    "source": "> - [x] word",
+    "html": false,
+    "expected": "<blockquote>\n<ul class=\"contains-task-list\">\n<li class=\"task-list-item enabled\"><input class=\"task-list-item-checkbox\" checked type=\"checkbox\"> word</li>\n</ul>\n</blockquote>\n"
+  },
+  {
+    "source": "- Parent\n  - [x] word",
+    "html": false,
+    "expected": "<ul>\n<li>Parent\n<ul class=\"contains-task-list\">\n<li class=\"task-list-item enabled\"><input class=\"task-list-item-checkbox\" checked type=\"checkbox\"> word</li>\n</ul>\n</li>\n</ul>\n"
+  },
+  {
+    "source": "- [x] word\n\n  Second paragraph.",
+    "html": false,
+    "expected": "<ul class=\"contains-task-list\">\n<li class=\"task-list-item enabled\">\n<p><input class=\"task-list-item-checkbox\" checked type=\"checkbox\"> word</p>\n<p>Second paragraph.</p>\n</li>\n</ul>\n"
+  },
+  {
+    "source": "- [x] word\n  - [x] Child",
+    "html": false,
+    "expected": "<ul class=\"contains-task-list\">\n<li class=\"task-list-item enabled\"><input class=\"task-list-item-checkbox\" checked type=\"checkbox\"> word\n<ul class=\"contains-task-list\">\n<li class=\"task-list-item enabled\"><input class=\"task-list-item-checkbox\" checked type=\"checkbox\"> Child</li>\n</ul>\n</li>\n</ul>\n"
+  },
+  {
+    "source": "- [x] **bold**",
+    "html": false,
+    "expected": "<ul class=\"contains-task-list\">\n<li class=\"task-list-item enabled\"><input class=\"task-list-item-checkbox\" checked type=\"checkbox\"> <strong>bold</strong></li>\n</ul>\n"
+  },
+  {
+    "source": "- [x] <img src=x onerror=probe()>",
+    "html": false,
+    "expected": "<ul class=\"contains-task-list\">\n<li class=\"task-list-item enabled\"><input class=\"task-list-item-checkbox\" checked type=\"checkbox\"> &lt;img src=x onerror=probe()&gt;</li>\n</ul>\n"
+  },
+  {
+    "source": "- [x] [link](https://example.test/)",
+    "html": false,
+    "expected": "<ul class=\"contains-task-list\">\n<li class=\"task-list-item enabled\"><input class=\"task-list-item-checkbox\" checked type=\"checkbox\"> <a href=\"https://example.test/\">link</a></li>\n</ul>\n"
+  },
+  {
+    "source": "- [X] word",
+    "html": false,
+    "expected": "<ul class=\"contains-task-list\">\n<li class=\"task-list-item enabled\"><input class=\"task-list-item-checkbox\" checked type=\"checkbox\"> word</li>\n</ul>\n"
+  },
+  {
+    "source": "- [X] **bold**",
+    "html": false,
+    "expected": "<ul class=\"contains-task-list\">\n<li class=\"task-list-item enabled\"><input class=\"task-list-item-checkbox\" checked type=\"checkbox\"> <strong>bold</strong></li>\n</ul>\n"
+  },
+  {
+    "source": "- [X] <img src=x onerror=probe()>",
+    "html": false,
+    "expected": "<ul class=\"contains-task-list\">\n<li class=\"task-list-item enabled\"><input class=\"task-list-item-checkbox\" checked type=\"checkbox\"> &lt;img src=x onerror=probe()&gt;</li>\n</ul>\n"
+  },
+  {
+    "source": "- [X] [link](https://example.test/)",
+    "html": false,
+    "expected": "<ul class=\"contains-task-list\">\n<li class=\"task-list-item enabled\"><input class=\"task-list-item-checkbox\" checked type=\"checkbox\"> <a href=\"https://example.test/\">link</a></li>\n</ul>\n"
+  },
+  {
+    "source": "- [x]word",
+    "html": false,
+    "expected": "<ul>\n<li>[x]word</li>\n</ul>\n"
+  },
+  {
+    "source": "- [x]**bold**",
+    "html": false,
+    "expected": "<ul>\n<li>[x]<strong>bold</strong></li>\n</ul>\n"
+  },
+  {
+    "source": "- [x]<img src=x onerror=probe()>",
+    "html": false,
+    "expected": "<ul>\n<li>[x]&lt;img src=x onerror=probe()&gt;</li>\n</ul>\n"
+  },
+  {
+    "source": "- [x][link](https://example.test/)",
+    "html": false,
+    "expected": "<ul>\n<li>[x]<a href=\"https://example.test/\">link</a></li>\n</ul>\n"
+  },
+  {
+    "source": "- [x]\tword",
+    "html": false,
+    "expected": "<ul>\n<li>[x]\tword</li>\n</ul>\n"
+  },
+  {
+    "source": "- [x]\t**bold**",
+    "html": false,
+    "expected": "<ul>\n<li>[x]\t<strong>bold</strong></li>\n</ul>\n"
+  },
+  {
+    "source": "- [x]\t<img src=x onerror=probe()>",
+    "html": false,
+    "expected": "<ul>\n<li>[x]\t&lt;img src=x onerror=probe()&gt;</li>\n</ul>\n"
+  },
+  {
+    "source": "- [x]\t[link](https://example.test/)",
+    "html": false,
+    "expected": "<ul>\n<li>[x]\t<a href=\"https://example.test/\">link</a></li>\n</ul>\n"
+  },
+  {
+    "source": "- [y] word",
+    "html": false,
+    "expected": "<ul>\n<li>[y] word</li>\n</ul>\n"
+  },
+  {
+    "source": "- [y] **bold**",
+    "html": false,
+    "expected": "<ul>\n<li>[y] <strong>bold</strong></li>\n</ul>\n"
+  },
+  {
+    "source": "- [y] <img src=x onerror=probe()>",
+    "html": false,
+    "expected": "<ul>\n<li>[y] &lt;img src=x onerror=probe()&gt;</li>\n</ul>\n"
+  },
+  {
+    "source": "- [y] [link](https://example.test/)",
+    "html": false,
+    "expected": "<ul>\n<li>[y] <a href=\"https://example.test/\">link</a></li>\n</ul>\n"
+  },
+  {
+    "source": "* [x] word",
+    "html": false,
+    "expected": "<ul class=\"contains-task-list\">\n<li class=\"task-list-item enabled\"><input class=\"task-list-item-checkbox\" checked type=\"checkbox\"> word</li>\n</ul>\n"
+  },
+  {
+    "source": "> * [x] word",
+    "html": false,
+    "expected": "<blockquote>\n<ul class=\"contains-task-list\">\n<li class=\"task-list-item enabled\"><input class=\"task-list-item-checkbox\" checked type=\"checkbox\"> word</li>\n</ul>\n</blockquote>\n"
+  },
+  {
+    "source": "- Parent\n  * [x] word",
+    "html": false,
+    "expected": "<ul>\n<li>Parent\n<ul class=\"contains-task-list\">\n<li class=\"task-list-item enabled\"><input class=\"task-list-item-checkbox\" checked type=\"checkbox\"> word</li>\n</ul>\n</li>\n</ul>\n"
+  },
+  {
+    "source": "+ [x] word",
+    "html": false,
+    "expected": "<ul class=\"contains-task-list\">\n<li class=\"task-list-item enabled\"><input class=\"task-list-item-checkbox\" checked type=\"checkbox\"> word</li>\n</ul>\n"
+  },
+  {
+    "source": "> + [x] word",
+    "html": false,
+    "expected": "<blockquote>\n<ul class=\"contains-task-list\">\n<li class=\"task-list-item enabled\"><input class=\"task-list-item-checkbox\" checked type=\"checkbox\"> word</li>\n</ul>\n</blockquote>\n"
+  },
+  {
+    "source": "- Parent\n  + [x] word",
+    "html": false,
+    "expected": "<ul>\n<li>Parent\n<ul class=\"contains-task-list\">\n<li class=\"task-list-item enabled\"><input class=\"task-list-item-checkbox\" checked type=\"checkbox\"> word</li>\n</ul>\n</li>\n</ul>\n"
+  },
+  {
+    "source": "1. [x] word",
+    "html": false,
+    "expected": "<ol class=\"contains-task-list\">\n<li class=\"task-list-item enabled\"><input class=\"task-list-item-checkbox\" checked type=\"checkbox\"> word</li>\n</ol>\n"
+  },
+  {
+    "source": "> 1. [x] word",
+    "html": false,
+    "expected": "<blockquote>\n<ol class=\"contains-task-list\">\n<li class=\"task-list-item enabled\"><input class=\"task-list-item-checkbox\" checked type=\"checkbox\"> word</li>\n</ol>\n</blockquote>\n"
+  },
+  {
+    "source": "- Parent\n  1. [x] word",
+    "html": false,
+    "expected": "<ul>\n<li>Parent\n<ol class=\"contains-task-list\">\n<li class=\"task-list-item enabled\"><input class=\"task-list-item-checkbox\" checked type=\"checkbox\"> word</li>\n</ol>\n</li>\n</ul>\n"
+  },
+  {
+    "source": "1) [x] word",
+    "html": false,
+    "expected": "<ol class=\"contains-task-list\">\n<li class=\"task-list-item enabled\"><input class=\"task-list-item-checkbox\" checked type=\"checkbox\"> word</li>\n</ol>\n"
+  },
+  {
+    "source": "> 1) [x] word",
+    "html": false,
+    "expected": "<blockquote>\n<ol class=\"contains-task-list\">\n<li class=\"task-list-item enabled\"><input class=\"task-list-item-checkbox\" checked type=\"checkbox\"> word</li>\n</ol>\n</blockquote>\n"
+  },
+  {
+    "source": "- Parent\n  1) [x] word",
+    "html": false,
+    "expected": "<ul>\n<li>Parent\n<ol class=\"contains-task-list\">\n<li class=\"task-list-item enabled\"><input class=\"task-list-item-checkbox\" checked type=\"checkbox\"> word</li>\n</ol>\n</li>\n</ul>\n"
+  },
+  {
+    "source": "- [ ] word",
+    "html": true,
+    "expected": "<ul class=\"contains-task-list\">\n<li class=\"task-list-item enabled\"><input class=\"task-list-item-checkbox\" type=\"checkbox\"> word</li>\n</ul>\n"
+  },
+  {
+    "source": "- [ ] **bold**",
+    "html": true,
+    "expected": "<ul class=\"contains-task-list\">\n<li class=\"task-list-item enabled\"><input class=\"task-list-item-checkbox\" type=\"checkbox\"> <strong>bold</strong></li>\n</ul>\n"
+  },
+  {
+    "source": "- [ ] <img src=x onerror=probe()>",
+    "html": true,
+    "expected": "<ul class=\"contains-task-list\">\n<li class=\"task-list-item enabled\"><input class=\"task-list-item-checkbox\" type=\"checkbox\"> <img src=\"x\" onerror=\"probe()\"></li>\n</ul>\n"
+  },
+  {
+    "source": "- [ ] [link](https://example.test/)",
+    "html": true,
+    "expected": "<ul class=\"contains-task-list\">\n<li class=\"task-list-item enabled\"><input class=\"task-list-item-checkbox\" type=\"checkbox\"> <a href=\"https://example.test/\">link</a></li>\n</ul>\n"
+  },
+  {
+    "source": "- [x] word",
+    "html": true,
+    "expected": "<ul class=\"contains-task-list\">\n<li class=\"task-list-item enabled\"><input class=\"task-list-item-checkbox\" checked type=\"checkbox\"> word</li>\n</ul>\n"
+  },
+  {
+    "source": "- [x] **bold**",
+    "html": true,
+    "expected": "<ul class=\"contains-task-list\">\n<li class=\"task-list-item enabled\"><input class=\"task-list-item-checkbox\" checked type=\"checkbox\"> <strong>bold</strong></li>\n</ul>\n"
+  },
+  {
+    "source": "- [x] <img src=x onerror=probe()>",
+    "html": true,
+    "expected": "<ul class=\"contains-task-list\">\n<li class=\"task-list-item enabled\"><input class=\"task-list-item-checkbox\" checked type=\"checkbox\"> <img src=\"x\" onerror=\"probe()\"></li>\n</ul>\n"
+  },
+  {
+    "source": "- [x] [link](https://example.test/)",
+    "html": true,
+    "expected": "<ul class=\"contains-task-list\">\n<li class=\"task-list-item enabled\"><input class=\"task-list-item-checkbox\" checked type=\"checkbox\"> <a href=\"https://example.test/\">link</a></li>\n</ul>\n"
+  },
+  {
+    "source": "- [X] word",
+    "html": true,
+    "expected": "<ul class=\"contains-task-list\">\n<li class=\"task-list-item enabled\"><input class=\"task-list-item-checkbox\" checked type=\"checkbox\"> word</li>\n</ul>\n"
+  },
+  {
+    "source": "- [X] **bold**",
+    "html": true,
+    "expected": "<ul class=\"contains-task-list\">\n<li class=\"task-list-item enabled\"><input class=\"task-list-item-checkbox\" checked type=\"checkbox\"> <strong>bold</strong></li>\n</ul>\n"
+  },
+  {
+    "source": "- [X] <img src=x onerror=probe()>",
+    "html": true,
+    "expected": "<ul class=\"contains-task-list\">\n<li class=\"task-list-item enabled\"><input class=\"task-list-item-checkbox\" checked type=\"checkbox\"> <img src=\"x\" onerror=\"probe()\"></li>\n</ul>\n"
+  },
+  {
+    "source": "- [X] [link](https://example.test/)",
+    "html": true,
+    "expected": "<ul class=\"contains-task-list\">\n<li class=\"task-list-item enabled\"><input class=\"task-list-item-checkbox\" checked type=\"checkbox\"> <a href=\"https://example.test/\">link</a></li>\n</ul>\n"
+  },
+  {
+    "source": "- [x]word",
+    "html": true,
+    "expected": "<ul>\n<li>[x]word</li>\n</ul>\n"
+  },
+  {
+    "source": "- [x]**bold**",
+    "html": true,
+    "expected": "<ul>\n<li>[x]<strong>bold</strong></li>\n</ul>\n"
+  },
+  {
+    "source": "- [x]<img src=x onerror=probe()>",
+    "html": true,
+    "expected": "<ul>\n<li>[x]<img src=\"x\" onerror=\"probe()\"></li>\n</ul>\n"
+  },
+  {
+    "source": "- [x][link](https://example.test/)",
+    "html": true,
+    "expected": "<ul>\n<li>[x]<a href=\"https://example.test/\">link</a></li>\n</ul>\n"
+  },
+  {
+    "source": "- [x]\tword",
+    "html": true,
+    "expected": "<ul>\n<li>[x]\tword</li>\n</ul>\n"
+  },
+  {
+    "source": "- [x]\t**bold**",
+    "html": true,
+    "expected": "<ul>\n<li>[x]\t<strong>bold</strong></li>\n</ul>\n"
+  },
+  {
+    "source": "- [x]\t<img src=x onerror=probe()>",
+    "html": true,
+    "expected": "<ul>\n<li>[x]\t<img src=\"x\" onerror=\"probe()\"></li>\n</ul>\n"
+  },
+  {
+    "source": "- [x]\t[link](https://example.test/)",
+    "html": true,
+    "expected": "<ul>\n<li>[x]\t<a href=\"https://example.test/\">link</a></li>\n</ul>\n"
+  },
+  {
+    "source": "- [y] word",
+    "html": true,
+    "expected": "<ul>\n<li>[y] word</li>\n</ul>\n"
+  },
+  {
+    "source": "- [y] **bold**",
+    "html": true,
+    "expected": "<ul>\n<li>[y] <strong>bold</strong></li>\n</ul>\n"
+  },
+  {
+    "source": "- [y] <img src=x onerror=probe()>",
+    "html": true,
+    "expected": "<ul>\n<li>[y] <img src=\"x\" onerror=\"probe()\"></li>\n</ul>\n"
+  },
+  {
+    "source": "- [y] [link](https://example.test/)",
+    "html": true,
+    "expected": "<ul>\n<li>[y] <a href=\"https://example.test/\">link</a></li>\n</ul>\n"
+  }
+]

@@ -2,7 +2,7 @@ import { computed, ref, reactive, watch, onMounted, onBeforeUnmount, type Ref } 
 import { on, off, isArray } from '@/components/lightbox/utils/index'
 import { useImage, useMouse, useTouch } from '@/components/lightbox/utils/hooks'
 import type { ISource, IImgWrapperState, IndexChangeActions } from '@/components/lightbox/types'
-import { isVideo, isImage, isAudio, isSvg, isHeic } from '@/lib/file'
+import { isVideo, isImage, isAudio, isSvg, isHeic, fileNameError } from '@/lib/file'
 import { browserSupportsHevc, ensurePlayableVideoUrl } from '@/lib/video-codec'
 import { resolveFileUrlByPath } from '@/lib/api/file'
 import { isNativeResourceUrl } from '@/hooks/native-resource-url'
@@ -485,6 +485,7 @@ export function useLightboxFileActions(
       title: t('rename'),
       placeholder: t('name'),
       value: getFileName(current.value.path),
+      validate: fileNameError,
       mutation: renameMutation,
       getVariables: renameVariables,
       done: (newName: string) => {
@@ -494,8 +495,8 @@ export function useLightboxFileActions(
           emitter.emit('file_renamed', { oldPath, newPath, item: { ...current.value.data, path: newPath, name: newName } })
           current.value.path = newPath
           current.value.name = newName
-          renameDone(newName)
         }
+        return renameDone(newName)
       },
     })
   }

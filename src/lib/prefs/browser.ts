@@ -24,3 +24,10 @@ export function clear(keep: readonly string[] = []): void {
     if (value !== null) localStorage.setItem(key, value)
   }
 }
+
+export let loggingOut = false
+
+export function clearForLogout(): void {
+  loggingOut = true
+  clear()
+}

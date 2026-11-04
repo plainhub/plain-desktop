@@ -11,7 +11,7 @@ vi.mock('@/plugins/eventbus', () => ({ default: { emit: vi.fn() } }))
 vi.mock('@/lib/api/gql-client', () => ({ gqlFetch: vi.fn(), GqlError: class extends Error {} }))
 import { gqlFetch } from '@/lib/api/gql-client'
 import toast from '@/components/toaster'
-import { useCopyPaste, useView } from '@/hooks/files'
+import { useCopyPaste, useView, useRename } from '@/hooks/files'
 import type { ISource } from '@/components/lightbox/types'
 
 const sources = [{ id: 'one', path: '/source/one', name: 'one' }, { id: 'two', path: '/source/two', name: 'two' }] as IFile[]
@@ -94,4 +94,19 @@ it('keeps each preview source attached to its own file and modification timestam
     files.map(item => ({ path: item.path, updatedAt: item.updatedAt, itemPath: item.path }))
   )
   expect(open).toHaveBeenCalledWith(previews.value, 0)
+})
+
+it.each([null, '/source/renamed.txt'])('accepts successful rename paths and rejects null results (%s)', async result => {
+  const refresh = vi.fn()
+  const view = useRename(refresh)
+  vi.mocked(gqlFetch).mockResolvedValue({ data: { renameFile: result } })
+  await view.renameMutation().mutate({ path: '/source/one', name: 'renamed.txt' })
+  expect(view.renameDone('renamed.txt')).toBe(result !== null)
+  if (result) {
+    expect(refresh).toHaveBeenCalledOnce()
+    expect(toast).not.toHaveBeenCalled()
+  } else {
+    expect(refresh).not.toHaveBeenCalled()
+    expect(toast).toHaveBeenCalledExactlyOnceWith('rename_failed', 'error')
+  }
 })

@@ -83,6 +83,7 @@ export default {
   fullscreen: '全屏',
   exit_fullscreen: '退出全屏',
   invalid_file_path: '无效的文件路径',
+  rename_failed: '重命名失败，请检查目标是否已存在。',
   delete_file: '删除文件',
   file_types: '文件类型',
   supports_online_preview: '支持在线预览',

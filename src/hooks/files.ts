@@ -37,13 +37,19 @@ export const useCreateDir = (urlTokenKey: Ref<Uint8Array | null>, items: Ref<IFi
 }
 
 export const useRename = (fetch: () => void) => {
+  const { t } = useI18n()
   const renameItem = ref<IFile>()
   const renamedPath = ref<string | null>(null)
   return {
     renameItem,
     renamedPath,
     renameDone(newName: string) {
+      if (!renamedPath.value) {
+        toast(t('rename_failed'), 'error')
+        return false
+      }
       fetch()
+      return true
     },
     renameMutation() {
       renamedPath.value = null

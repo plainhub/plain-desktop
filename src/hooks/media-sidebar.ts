@@ -92,7 +92,7 @@ export function useMediaSidebar(type: DataType, gql: string) {
   let stopLibraryUpdates: (() => void) | undefined
   onMounted(() => {
     emitter.on('media_items_actioned', mediaItemsActionedHandler)
-    stopLibraryUpdates = subscribeMediaLibraryUpdates(type, fetch)
+    stopLibraryUpdates = subscribeMediaLibraryUpdates(type, () => { void fetch(undefined, { force: true, latest: true }) })
   })
   onUnmounted(() => {
     emitter.off('media_items_actioned', mediaItemsActionedHandler)

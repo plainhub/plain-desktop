@@ -10,7 +10,7 @@ import { initMutation, runMutation, writeTextFileGQL } from '@/lib/api/mutation'
 import { gqlFetch } from '@/lib/api/gql-client'
 import { appGQL } from '@/lib/api/query'
 import { tokenToKey } from '@/lib/api/file'
-import { chachaDecrypt } from '@/lib/api/crypto'
+import { filePathFromResourceId } from '@/lib/api/resource-link'
 import { isLocalMode } from '@/lib/device/local-mode'
 import { hasFileReveal } from '@/lib/feature'
 import { getCurrentAuthToken } from '@/lib/device/current'
@@ -109,12 +109,7 @@ export function useTextFile() {
   function tryDecryptPathFromID(id: string) {
     try {
       if (!id || !urlTokenKey.value) return ''
-      const bits = tokenToKey(id)
-      const decrypted = chachaDecrypt(urlTokenKey.value, bits)
-      if (decrypted.startsWith('{')) {
-        try { return JSON.parse(decrypted).path || '' } catch { return '' }
-      }
-      return decrypted
+      return filePathFromResourceId(urlTokenKey.value, id)
     } catch { return '' }
   }
 

@@ -11,7 +11,7 @@ import { tokenToKey } from '@/lib/api/file'
 import type { IApp, IMediaItemsActionedEvent } from '@/lib/interfaces'
 import { useRightSidebarResize } from '@/hooks/sidebar'
 import { getMainStateKey } from '@/lib/device/current'
-import { get as prefsGet, set as prefsSet } from '@/lib/prefs/browser'
+import { get as prefsGet, set as prefsSet, loggingOut } from '@/lib/prefs/browser'
 import { debounce } from '@/lib/array'
 import { hasActiveUploadBatches } from '@/lib/upload/batch-progress'
 import { useAudioPlaylistStore } from '@/hooks/audio-playlist-store'
@@ -134,6 +134,7 @@ export function useMainView() {
   // High-frequency mutations (e.g. chatTexts keystrokes) must not serialize
   // the whole store and hit the prefs backend on every change — coalesce them.
   const saveState = (state: typeof store.$state) => {
+    if (loggingOut) return
     if (remotePrefsEnabled.value) {
       const { homeFeatures, chatTexts, searchHistory, ...localFields } = state
       prefsSet(getMainStateKey(), localFields)

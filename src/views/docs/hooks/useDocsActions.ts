@@ -2,7 +2,7 @@ import { type Ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import type { IDoc } from '@/lib/interfaces'
 import type { IFile } from '@/lib/file'
-import { isTextFile, canOpenInBrowser } from '@/lib/file'
+import { useFileOpen } from '@/hooks/file-open'
 import { openModal } from '@/components/modal'
 import EditValueModal from '@/components/EditValueModal.vue'
 import DeleteFileConfirm from '@/components/DeleteFileConfirm.vue'
@@ -25,17 +25,17 @@ export function useDocsActions(
   const { mutate: copyMutate, onDone: copyDone } = initMutation({ document: copyFileGQL })
   copyDone(() => fetch())
 
-  function openFile(item: IDoc) {
-    if (isTextFile(item.title)) {
+  const { openFile } = useFileOpen<IDoc>({
+    items,
+    getName: (item) => item.title,
+    openTextFile: (item) => {
       const fileId = getFileId(urlTokenKey.value, item.path)
       openUrl(`/text-file?id=${encodeURIComponent(fileId)}`)
-    } else if (canOpenInBrowser(item.title)) {
-      const url = getFileUrlByPath(urlTokenKey.value, item.path)
-      if (url) openUrl(url)
-    } else {
-      downloadFile(item.path, item.title)
-    }
-  }
+    },
+    openBrowserFile: (item) => openUrl(getFileUrlByPath(urlTokenKey.value, item.path)),
+    viewMedia: (_, item) => downloadFile(item.path, item.title),
+    download: (item) => downloadFile(item.path, item.title),
+  })
 
   function deleteItem(item: IDoc) {
     openModal(DeleteFileConfirm, {

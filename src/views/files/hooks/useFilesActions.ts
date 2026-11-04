@@ -1,5 +1,5 @@
 import { ref, type Ref, type ComputedRef } from 'vue'
-import type { IFile } from '@/lib/file'
+import { fileNameError, type IFile } from '@/lib/file'
 import type { IFileFilter } from '@/lib/interfaces'
 import { openModal } from '@/components/modal'
 import EditValueModal from '@/components/EditValueModal.vue'
@@ -35,7 +35,7 @@ interface UseFilesActionsOptions {
   renameItem: Ref<IFile | undefined>
   renameMutation: () => any
   renameVariables: (value: string) => any
-  renameDone: (newName: string) => void
+  renameDone: (newName: string) => boolean
 }
 
 export function useFilesActions(opts: UseFilesActionsOptions) {
@@ -135,6 +135,7 @@ export function useFilesActions(opts: UseFilesActionsOptions) {
     renameItem.value = item
     openModal(EditValueModal, {
       title: t('rename'), placeholder: t('name'), value: item.name,
+      validate: fileNameError,
       mutation: renameMutation, getVariables: renameVariables, done: renameDone,
     })
   }
@@ -143,6 +144,7 @@ export function useFilesActions(opts: UseFilesActionsOptions) {
     createPath.value = filter.parent
     openModal(EditValueModal, {
       title: t('create_folder'), placeholder: t('name'),
+      validate: fileNameError,
       mutation: createMutation, getVariables: createVariables,
     })
   }

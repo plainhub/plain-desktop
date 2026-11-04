@@ -1,7 +1,7 @@
 import { afterEach, expect, it, vi } from 'vitest'
 import { createRenderer, nextTick } from 'vue'
 
-const state = vi.hoisted(() => ({ streams: [] as any[], context: undefined as any }))
+const state = vi.hoisted(() => ({ streams: [] as any[], context: undefined as any, attached: undefined as undefined | (() => void) }))
 vi.mock('vue-i18n', () => ({ useI18n: () => ({ t: (key: string) => key }) }))
 vi.mock('pinia', () => ({ storeToRefs: (store: unknown) => store }))
 vi.mock('@/stores/main', async () => {
@@ -17,7 +17,10 @@ vi.mock('@/lib/api/gql-client', async () => {
   state.context = ref('first')
   return { gqlFetch: vi.fn(), GqlError: class extends Error {}, getGraphqlContextKey: () => state.context.value }
 })
-vi.mock('@/lib/api/subscription-client', () => ({ graphqlSubscriptions: { onAttached: () => () => {} } }))
+vi.mock('@/lib/api/subscription-client', () => ({ graphqlSubscriptions: { onAttached: (callback: () => void) => {
+  state.attached = callback
+  return () => { state.attached = undefined }
+} } }))
 vi.mock('@/lib/api/file-search', () => ({ searchFiles: (variables: unknown, next: unknown, failed: unknown) => {
   const cancel = vi.fn()
   state.streams.push({ variables, next, failed, cancel })
@@ -41,6 +44,20 @@ function mount() {
   return data
 }
 const page = { items: [{ path: '/documents/needle.txt' }], count: 1, complete: false }
+
+it.each(['running', 'completed', 'incomplete'] as const)('does not restart an independent %s search when shared subscriptions reattach', async status => {
+  const data = mount()
+  data.isActive.value = true
+  await data.fetch()
+  const stream = state.streams[0]
+  if (status === 'completed') stream.next({ ...page, complete: true })
+  if (status === 'incomplete') data.cancel()
+  const cancellations = stream.cancel.mock.calls.length
+  state.attached!()
+  expect(state.streams).toHaveLength(1)
+  expect(stream.cancel).toHaveBeenCalledTimes(cancellations)
+  expect(data.searchStatus.value).toBe(status)
+})
 
 it('cancels traversal, settles refresh controls and rejects late results', async () => {
   const data = mount()

@@ -5,7 +5,7 @@ import { useBookmarksStore, type Bookmark, type BookmarkGroup } from '@/stores/b
 import { initLazyQuery, bookmarksGQL } from '@/lib/api/query'
 import { initMutation } from '@/lib/api/mutation'
 import {
-  addBookmarksGQL,
+  importBookmarksGQL,
   updateBookmarkGQL,
   deleteBookmarksGQL,
   recordBookmarkClickGQL,
@@ -26,7 +26,7 @@ export function useBookmarkOperations() {
 
   // Mutations
   const { mutate: mutateRecordClick } = initMutation({ document: recordBookmarkClickGQL })
-  const { mutate: mutateAddBookmarks } = initMutation({ document: addBookmarksGQL })
+  const { mutate: mutateImportBookmarks } = initMutation({ document: importBookmarksGQL })
   const { mutate: mutateUpdateBookmark } = initMutation({ document: updateBookmarkGQL })
   const { mutate: mutateDeleteBookmarks } = initMutation({ document: deleteBookmarksGQL })
   const { mutate: mutateUpdateGroup } = initMutation({ document: updateBookmarkGroupGQL })
@@ -128,14 +128,9 @@ export function useBookmarkOperations() {
   }
 
   function doImport() {
-    importBookmarksHtml({
-      addBookmarks: async (urls, groupId) => {
-        const r = await mutateAddBookmarks({ urls, groupId })
-        const added = r?.data?.addBookmarks?.map((b: any) => ({ ...b })) ?? []
-        if (added.length) bmStore.addBookmarks(added)
-        return added
-      },
-      findGroupByName: (name) => bmStore.groups.find((g) => g.name === name),
+    importBookmarksHtml(async (content) => {
+      const r = await mutateImportBookmarks({ content })
+      if (r?.data) reloadBookmarks()
     })
   }
 

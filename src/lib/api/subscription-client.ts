@@ -14,6 +14,7 @@ export class SubscriptionClient {
   private ids = new Map<string, string>()
   private sequence = 0
   private pending = new Set<string>()
+  private attaching = false
   private acknowledged = false
   private active = false
   private retry: ReturnType<typeof setTimeout> | undefined
@@ -89,6 +90,7 @@ export class SubscriptionClient {
   }
   private connect() {
     if (!this.active) return
+    this.attaching = true
     const generation = ++this.generation
     try {
       this.connection = openSubscriptionConnection({
@@ -122,6 +124,7 @@ export class SubscriptionClient {
       if (message.payload.some(error => error.message === 'resync_required')) {
         this.ids.delete(message.id)
         this.pending.delete(message.id)
+        this.attaching = true
         this.send(operation)
         return
       }
@@ -134,7 +137,10 @@ export class SubscriptionClient {
   }
   private settled(id: string) {
     const waiting = this.pending.delete(id)
-    if (waiting && this.pending.size === 0) this.ready()
+    if (waiting && this.pending.size === 0 && this.attaching) {
+      this.attaching = false
+      this.ready()
+    }
   }
   private dropped(error: unknown) {
     console.error(error)
@@ -149,6 +155,7 @@ export class SubscriptionClient {
   }
   stop() {
     this.active = false
+    this.attaching = false
     for (const listener of this.connectionListeners) listener(null)
     this.generation++
     clearTimeout(this.retry)

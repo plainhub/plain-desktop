@@ -23,6 +23,7 @@ import { generateDownloadFileName } from '@/lib/format'
 import { hasMediaTrash } from '@/lib/feature'
 import { subscribeMediaLibraryUpdates } from '@/lib/media/library-updates'
 import { createUploadRefreshScheduler } from '@/lib/upload/refresh-scheduler'
+import type { QueryFetchOptions } from '@/lib/api/query'
 
 export interface MediaPageOptions {
   dataType: DataType
@@ -33,7 +34,7 @@ export interface MediaPageOptions {
   downloadName: string
   uploadModalId: string
   uploadStorageKey: string
-  doFetch: () => void
+  doFetch: (options?: QueryFetchOptions) => void
   getScrollMode: () => boolean
   setupScroll?: () => void
   teardownScroll?: () => void
@@ -180,8 +181,8 @@ export function useMediaPage(options: MediaPageOptions) {
   const libraryUpdated = () => {
     sel.clearSelection()
     options.onBeforeFetch?.()
-    fetchBucketsTags()
-    doFetch()
+    fetchBucketsTags(undefined, { force: true, latest: true })
+    doFetch({ force: true, latest: true })
   }
   const refetchTagsHandler = (type: string) => { if (type === dataType) fetchBucketsTags() }
   const permissionsUpdatedHandler = () => doFetch()

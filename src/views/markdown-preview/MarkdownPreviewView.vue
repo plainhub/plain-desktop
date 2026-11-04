@@ -13,16 +13,13 @@
 import { computed } from 'vue'
 import 'katex/dist/katex.min.css'
 import MarkdownIt from 'markdown-it'
-import subscript from 'markdown-it-sub'
-import superscript from 'markdown-it-sup'
+import { markdownInlineFormats } from '@/lib/markdown-inline-formats'
 import footnote from 'markdown-it-footnote'
 import deflist from 'markdown-it-deflist'
 import abbreviation from 'markdown-it-abbr'
-import insert from 'markdown-it-ins'
-import mark from 'markdown-it-mark'
 import texmath from 'markdown-it-texmath'
 import katex from 'katex'
-import tasklists from 'markdown-it-task-lists'
+import { markdownTaskLists } from '@/lib/markdown-task-lists'
 
 const md = new MarkdownIt({
   html: true,
@@ -31,15 +28,12 @@ const md = new MarkdownIt({
   linkify: true,
   typographer: true,
 })
-  .use(subscript)
-  .use(superscript)
+  .use(markdownInlineFormats)
   .use(footnote)
   .use(deflist)
   .use(abbreviation)
-  .use(insert)
-  .use(mark)
   .use(texmath, { engine: katex, delimiters: 'dollars', katexOptions: { output: 'html' } })
-  .use(tasklists, { enabled: true })
+  .use(markdownTaskLists)
 
 const SAMPLE_MARKDOWN = `# Heading 1
 

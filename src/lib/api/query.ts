@@ -149,13 +149,13 @@ export function initLazyQuery<TResult = any>(params: InitQueryParams<TResult>) {
   if (instance) {
     onActivated(() => { active = true })
     onDeactivated(() => { active = false })
-    const resnapshot = () => { if (active && previous) { snapshotVersion++; void doFetch(previous.variables, { ...previous.options, latest: true, force: true }) } }
+    const resnapshot = () => { if (active && previous) void doFetch(previous.variables, { ...previous.options, latest: true, force: true }) }
     const stopSubscription = graphqlSubscriptions.onAttached(resnapshot)
     onUnmounted(stopSubscription)
   }
 
   async function doFetch(vars?: Record<string, any>, options: QueryFetchOptions = {}) {
-    const version = snapshotVersion
+    const version = options.force ? ++snapshotVersion : snapshotVersion
     previous = { variables: vars, options }
     const requestId = ++requestSequence
     const latestRequestId = options.latest ? ++latestSequence : undefined

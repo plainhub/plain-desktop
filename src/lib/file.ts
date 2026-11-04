@@ -1,6 +1,10 @@
 import { getFileId, getFileName, getFileExtension, getFileUrl } from './api/file'
 import type { IData } from './interfaces'
 
+export function fileNameError(name: string): string {
+  return name === '.' || name === '..' || /[/\\]/.test(name) ? 'invalid_file_path' : ''
+}
+
 const photoExtensions = ['.jpg', '.png', '.jpeg', '.bmp', '.webp', '.heic', '.heif', '.apng', '.avif', '.gif', '.tiff', '.tif', '.svg']
 const videoExtensions = ['.mp4', '.mkv', '.webm', '.avi', '.3gp', '.mov', '.m4v', '.3gpp']
 const audioExtensions = ['.mp3', '.wav', '.wma', '.ogg', '.m4a', '.opus', '.flac', '.aac']

@@ -51,6 +51,7 @@ export function useShareActions(
 
   const { openFile } = useFileOpen<SharedFile>({
     items: entries,
+    getName: (item) => item.name,
     openTextFile: (entry) => {
       const fileId = getSharedFileId(info.value!.urlToken, sharedId.value, entry.relativePath)
       openUrl(`/text-file?id=${encodeURIComponent(fileId)}&sid=${encodeURIComponent(sharedId.value)}`)

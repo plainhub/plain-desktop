@@ -83,6 +83,7 @@ export default {
   fullscreen: 'Fullscreen',
   exit_fullscreen: 'Exit fullscreen',
   invalid_file_path: 'Invalid file path',
+  rename_failed: 'Rename failed. Check whether the destination already exists.',
   delete_file: 'Delete file',
   file_types: 'File types',
   supports_online_preview: 'Supports online preview',

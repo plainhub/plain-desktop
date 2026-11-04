@@ -120,7 +120,7 @@ const mp = useMediaPage({
   dataType: DataType.AUDIO, routePath: 'audios',
   items, sortByRef: audioSortBy, fileFilter: isAudio,
   downloadName: 'audios', uploadModalId: 'upload-directory-picker-audios', uploadStorageKey: 'audios',
-  doFetch: () => fetch(), getScrollMode: () => scrollMode.value,
+  doFetch: (options) => fetch(undefined, options), getScrollMode: () => scrollMode.value,
   setupScroll: () => setTimeout(setupSentinelObserver, 100),
   teardownScroll: () => { observer?.disconnect(); observer = null },
   onSort: () => { 
