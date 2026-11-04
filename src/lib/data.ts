@@ -13,8 +13,7 @@ export enum DataType {
 
 // String values match the server's Capability GraphQL enum items.
 export enum Capability {
-  PEER_DISCOVERY = 'PEER_DISCOVERY',
-  BLE_DISCOVERY = 'BLE_DISCOVERY',
+  BLE = 'BLE',
   WIFI_AWARE = 'WIFI_AWARE',
   BACKGROUND_SERVICE = 'BACKGROUND_SERVICE',
   LAUNCHER_SHORTCUTS = 'LAUNCHER_SHORTCUTS',
