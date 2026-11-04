@@ -60,7 +60,7 @@ export function getAvailableHomeFeatures(features?: string[]): HomeSectionFeatur
       countKey: HOME_FEATURE_COUNT_KEYS[feature.id],
     }))
 
-  const hasCallPhone = !!features?.includes(Capability.CALL_PHONE)
+  const hasCallPhone = !!features?.includes(Capability.TELEPHONY)
   const featureMap = new Map<string, HomeSectionFeature>([
     ...routeFeatures.map((feature) => [feature.id, feature] as const),
     ...(hasCallPhone ? HOME_PANEL_FEATURES.map((feature) => [feature.id, feature] as const) : []),

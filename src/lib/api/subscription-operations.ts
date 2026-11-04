@@ -40,9 +40,9 @@ export const subscriptionOperations: readonly SubscriptionOperation[] = [
   {"field": "bookmarksUpdated", "document": "subscription { bookmarksUpdated { id url title faviconPath groupId pinned clickCount lastClickedAt sortOrder createdAt updatedAt } }", "permissions": []},
   {"field": "feedsFetched", "document": "subscription { feedsFetched { feedId error cancelled } }", "permissions": []},
   {"field": "uploadMergeResult", "document": "subscription { uploadMergeResult { fileId ok value mergedSize error } }", "permissions": ["WRITE_EXTERNAL_STORAGE"]},
-  {"field": "smsProviderChanged", "document": "subscription { smsProviderChanged { uris } }", "permissions": ["READ_SMS"], "capability": "SMS"},
-  {"field": "smsSendResult", "document": "subscription { smsSendResult { requestId success resultCode } }", "permissions": ["SEND_SMS"], "capability": "SMS"},
-  {"field": "mmsSendResult", "document": "subscription { mmsSendResult { pendingId success resultCode } }", "permissions": ["SEND_SMS"], "capability": "SMS"},
-  {"field": "mmsSent", "document": "subscription { mmsSent }", "permissions": ["SEND_SMS"], "capability": "SMS"},
+  {"field": "smsProviderChanged", "document": "subscription { smsProviderChanged { uris } }", "permissions": ["READ_SMS"], "capability": "TELEPHONY"},
+  {"field": "smsSendResult", "document": "subscription { smsSendResult { requestId success resultCode } }", "permissions": ["SEND_SMS"], "capability": "TELEPHONY"},
+  {"field": "mmsSendResult", "document": "subscription { mmsSendResult { pendingId success resultCode } }", "permissions": ["SEND_SMS"], "capability": "TELEPHONY"},
+  {"field": "mmsSent", "document": "subscription { mmsSent }", "permissions": ["SEND_SMS"], "capability": "TELEPHONY"},
   {"field": "clipboardChanged", "document": "subscription { clipboardChanged { text sensitive time } }", "permissions": ["CLIPBOARD"], "capability": "CLIPBOARD"},
 ]

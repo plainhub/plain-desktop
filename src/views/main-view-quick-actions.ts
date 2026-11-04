@@ -30,7 +30,7 @@ export function buildQuickActions({ hasTasks, quick, localMode, capabilities }: 
     { id: 'notification', tooltipKey: 'header_actions.notifications', icon: IMaterialSymbolsNotificationsOutlineRounded, visible: localMode || hasFeature(Capability.NOTIFICATIONS, capabilities) },
     { id: 'clipboard', tooltipKey: 'header_actions.clipboard', icon: IMaterialSymbolsContentPaste, visible: hasFeature(Capability.CLIPBOARD, capabilities) },
     { id: 'audio', tooltipKey: 'playlist', icon: IMaterialSymbolsQueueMusicRounded, visible: true },
-    { id: 'pomodoro', tooltipKey: 'pomodoro_timer', icon: IMaterialSymbolsTimerOutline, visible: hasFeature(Capability.POMODORO, capabilities) },
+    { id: 'pomodoro', tooltipKey: 'pomodoro_timer', icon: IMaterialSymbolsTimerOutline, visible: true },
     { id: 'bookmark', tooltipKey: 'bookmarks', icon: ILucideBookmark, visible: true },
   ].filter((action) => action.visible)
 }

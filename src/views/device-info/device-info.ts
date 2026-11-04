@@ -112,7 +112,7 @@ export function useDeviceInfo() {
       appendPhoneNumber()
     },
     document: simsGQL,
-    enabled: () => hasFeature(Capability.SMS, app.value?.capabilities),
+    enabled: () => hasFeature(Capability.TELEPHONY, app.value?.capabilities),
   })
 
   async function refetch() {

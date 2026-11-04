@@ -11,10 +11,7 @@ pub fn desktop_capabilities() -> Vec<&'static str> {
         "DOC_PREVIEW",
         "IMAGE_EDITOR",
         "CLIPBOARD",
-        "NOTES",
-        "FEEDS",
         "BACKGROUND_TIMER",
-        "POMODORO",
         "APP_UPDATES",
     ];
     #[cfg(target_os = "macos")]

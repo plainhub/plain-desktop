@@ -13,7 +13,13 @@ import { buildQuickActions } from '../../src/views/main-view-quick-actions'
 const notificationVisible = (localMode: boolean, capabilities?: string[]) =>
   buildQuickActions({ hasTasks: false, quick: '', localMode, capabilities }).some(action => action.id === 'notification')
 
-describe('notification quick panel', () => {
+describe('quick panel availability', () => {
+  it('always offers the shared pomodoro feature without host capabilities', () => {
+    for (const capabilities of [undefined, []]) {
+      expect(buildQuickActions({ hasTasks: false, quick: '', localMode: false, capabilities }).some(action => action.id === 'pomodoro')).toBe(true)
+    }
+  })
+
   it('keeps paired phone notifications accessible without advertising local system notification support', () => {
     expect(notificationVisible(true, [])).toBe(true)
     expect(notificationVisible(true)).toBe(true)

@@ -15,11 +15,9 @@ import { useContactPicker } from '@/hooks/contact-picker'
 // counts every server serves.
 const STAT_CAPABILITY: Partial<Record<HomeStatKey, string>> = {
   packages: Capability.PACKAGES,
-  notes: Capability.NOTES,
-  feedEntries: Capability.FEEDS,
-  messages: Capability.SMS,
-  calls: Capability.CALLS,
-  contacts: Capability.CONTACTS,
+  messages: Capability.TELEPHONY,
+  calls: Capability.TELEPHONY,
+  contacts: Capability.TELEPHONY,
 }
 const ALL_HOME_STAT_KEYS: HomeStatKey[] = ['audios', 'images', 'videos', 'docs', 'packages', 'notes', 'feedEntries', 'messages', 'calls', 'contacts']
 
