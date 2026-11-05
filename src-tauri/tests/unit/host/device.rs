@@ -25,9 +25,17 @@ fn file_action_support_matches_the_implemented_os_primitives() {
 }
 
 #[test]
-fn desktop_advertises_implemented_file_and_background_primitives() {
+fn desktop_does_not_advertise_base_file_or_media_capabilities() {
     let capabilities = desktop_capabilities();
-    assert!(capabilities.contains(&"FILE_BROWSER"));
+    for name in [
+        "FILE_BROWSER",
+        "IMAGE_LIBRARY",
+        "AUDIO_LIBRARY",
+        "VIDEO_LIBRARY",
+        "DOCUMENT_LIBRARY",
+    ] {
+        assert!(!capabilities.contains(&name));
+    }
     assert!(!capabilities.contains(&"BACKGROUND_SERVICE"));
     assert!(!capabilities.contains(&"LAUNCHER_SHORTCUTS"));
 }
