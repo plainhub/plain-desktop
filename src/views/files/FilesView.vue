@@ -147,14 +147,15 @@ const { breadcrumbPaths, getPageStats } = useFilesBreadcrumb(filter, rootDir, mo
 const { progress: indexProgress, error: indexError } = useFileIndexStatus(computed(() => indexed.value && isActive.value))
 const searchState = computed(() => {
   if (!indexed.value) return searchStatus.value === 'idle' ? '' : t(`directory_search_${searchStatus.value}`)
-  if (indexError.value || indexProgress.value?.sources.some(source => source.state === 'failed')) return t('index_state_failed')
-  return t(`index_state_${indexProgress.value?.status ?? 'pending'}`)
+  if (indexError.value) return t('index_state_failed')
+  const state = indexProgress.value?.state
+  const status = { IDLE: 'completed', RUNNING: 'running', PAUSED: 'paused', STOPPED: 'cancelled', FAILED: 'failed' } as const
+  return t(`index_state_${state ? status[state] : 'pending'}`)
 })
 const pageDetails = computed(() => {
   const details = [getPageStats()]
   if (indexed.value) {
     details.push(t('index_search_scope_hint'))
-    if (indexProgress.value) details.push(...indexProgress.value.sources.map(source => `${source.path} · ${t(`index_source_${source.state}`)}${source.error ? ` · ${source.error}` : ''}`))
     if (indexError.value || indexProgress.value?.error) details.push(indexError.value || indexProgress.value?.error || '')
   } else if (searchStatus.value !== 'idle') details.push(t('directory_search_scope_hint'))
   return details.filter(Boolean).join('\n')

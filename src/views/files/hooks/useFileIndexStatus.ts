@@ -1,13 +1,11 @@
 import { ref, watch, onUnmounted, type Ref } from 'vue'
 import { gqlFetch, getGraphqlContextKey } from '@/lib/api/gql-client'
-import { prefsGQL } from '@/lib/api/query'
+import { scanProgressGQL } from '@/lib/api/query'
 import { graphqlSubscriptions } from '@/lib/api/subscription-client'
-
-interface Coverage { path: string; state: 'pending' | 'scanning' | 'completed' | 'excluded' | 'failed'; error: string | null }
-interface Progress { status: 'running' | 'paused' | 'cancelling' | 'cancelled' | 'completed' | 'failed'; processedFiles: number; sources: Coverage[]; error: string | null }
+import type { IScanProgress } from '@/lib/interfaces'
 
 export function useFileIndexStatus(enabled: Ref<boolean>) {
-  const progress = ref<Progress | null>(null)
+  const progress = ref<IScanProgress | null>(null)
   const error = ref('')
   let generation = 0
   let pending = 0
@@ -18,14 +16,14 @@ export function useFileIndexStatus(enabled: Ref<boolean>) {
     if (!enabled.value || pending === current) return
     pending = current
     try {
-      const response = await gqlFetch<{ prefs: { file_index_progress: Progress | null } }>(prefsGQL, undefined, { fresh: true })
+      const response = await gqlFetch<{ scanProgress: IScanProgress }>(scanProgressGQL, undefined, { fresh: true })
       if (response.errors?.length) throw new Error(response.errors[0].message)
-      if (current === generation) { progress.value = response.data.prefs.file_index_progress; error.value = '' }
+      if (current === generation) { progress.value = response.data.scanProgress; error.value = '' }
     } catch (cause) {
       if (current === generation) error.value = cause instanceof Error ? cause.message : String(cause)
     } finally {
       if (pending === current) pending = 0
-      if (current === generation && enabled.value && progress.value?.status === 'running') schedule(5000)
+      if (current === generation && enabled.value && progress.value?.state === 'RUNNING') schedule(5000)
     }
   }
   function schedule(delay: number) {
