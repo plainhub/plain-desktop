@@ -925,6 +925,7 @@ export interface GqlOperations {
   dbTableInfoGQL: {
     result: {
       dbTableInfo: {
+        createSql: string
         idKey: string
       }
     }

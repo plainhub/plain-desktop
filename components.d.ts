@@ -79,6 +79,7 @@ declare module 'vue' {
     DangerAction: typeof import('./src/components/base/DangerAction.vue')['default']
     DeleteFileConfirm: typeof import('./src/components/DeleteFileConfirm.vue')['default']
     DevDataTable: typeof import('./src/views/developer/DevDataTable.vue')['default']
+    DeveloperDatabaseSidebar: typeof import('./src/views/developer/DeveloperDatabaseSidebar.vue')['default']
     DeveloperDatabaseView: typeof import('./src/views/developer/DeveloperDatabaseView.vue')['default']
     DeveloperLogsView: typeof import('./src/views/developer/DeveloperLogsView.vue')['default']
     DeveloperPrefsView: typeof import('./src/views/developer/DeveloperPrefsView.vue')['default']

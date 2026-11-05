@@ -17,50 +17,48 @@
       <i-material-symbols:refresh-rounded />
     </v-icon-button>
   </Teleport>
-  <div v-if="tablesLoading && tables.length === 0" class="state-wrap">
-    <v-circular-progress indeterminate />
-  </div>
-  <template v-else-if="tables.length > 0">
-    <div class="tabs-wrap">
-      <v-chip-set>
-        <v-filter-chip
-          v-for="t in tables"
-          :key="t"
-          :label="t"
-          :selected="activeTable === t"
-          @click="selectTable(t)"
-        />
-      </v-chip-set>
-    </div>
-
-    <div class="scroll-content">
-      <div v-if="(rowsLoading || columnsLoading) && columns.length === 0" class="state-wrap">
+  <div class="database-layout">
+    <DeveloperDatabaseSidebar
+      :tables="tables"
+      :active-table="activeTable"
+      :loading="tablesLoading"
+      @select="selectTable"
+    />
+    <section class="database-content">
+      <div v-if="tablesLoading && tables.length === 0" class="state-wrap">
         <v-circular-progress indeterminate />
       </div>
-      <template v-else-if="columns.length > 0">
-        <dev-data-table
-          :columns="columns"
-          :rows="rows"
-          :row-key="idKey"
-          :debug="app.debug"
-          :deleting-key="deletingId"
-          @delete="deleteRow"
-        />
-        <v-pagination v-if="totalCount > PAGE_SIZE" :page="currentPage" :go="gotoPage" :total="totalCount" :limit="PAGE_SIZE" :page-size="PAGE_SIZE" />
-        <div v-if="rows.length === 0" class="state-wrap">
-          <i-lucide:database class="state-icon" />
-          <span class="state-text">{{ $t('no_data') }}</span>
+      <template v-else-if="tables.length > 0">
+        <div class="scroll-content">
+          <div v-if="(rowsLoading || columnsLoading) && columns.length === 0" class="state-wrap">
+            <v-circular-progress indeterminate />
+          </div>
+          <template v-else-if="columns.length > 0">
+            <dev-data-table
+              :columns="columns"
+              :rows="rows"
+              :row-key="idKey"
+              :debug="app.debug"
+              :deleting-key="deletingId"
+              @delete="deleteRow"
+            />
+            <v-pagination v-if="totalCount > PAGE_SIZE" :page="currentPage" :go="gotoPage" :total="totalCount" :limit="PAGE_SIZE" :page-size="PAGE_SIZE" />
+            <div v-if="rows.length === 0" class="state-wrap">
+              <i-lucide:database class="state-icon" />
+              <span class="state-text">{{ $t('no_data') }}</span>
+            </div>
+          </template>
+          <div v-else class="state-wrap">
+            <i-lucide:database class="state-icon" />
+            <span class="state-text">{{ $t('no_data') }}</span>
+          </div>
         </div>
       </template>
       <div v-else class="state-wrap">
         <i-lucide:database class="state-icon" />
         <span class="state-text">{{ $t('no_data') }}</span>
       </div>
-    </div>
-  </template>
-  <div v-else class="state-wrap">
-    <i-lucide:database class="state-icon" />
-    <span class="state-text">{{ $t('no_data') }}</span>
+    </section>
   </div>
 </template>
 
@@ -71,6 +69,7 @@ import { useTempStore } from '@/stores/temp'
 import { initQuery, initLazyQuery, dbTablesGQL, dbTableRowCountGQL, dbTableRowsGQL, dbTableInfoGQL, dbTableColumnsGQL, dbPathGQL } from '@/lib/api/query'
 import { initMutation, deleteDbTableRowsGQL } from '@/lib/api/mutation'
 import DevDataTable from './DevDataTable.vue'
+import DeveloperDatabaseSidebar from './DeveloperDatabaseSidebar.vue'
 
 const PAGE_SIZE = 50
 
@@ -111,8 +110,8 @@ const { loading: tablesLoading, refetch: refetchTables } = initQuery({
   handle(data: { dbTables: string[] }, error: string) {
     if (!error) {
       tables.value = data?.dbTables ?? []
-      if (tables.value.length > 0 && !activeTable.value) {
-        activeTable.value = tables.value[0]
+      if (!tables.value.includes(activeTable.value)) {
+        selectTable(tables.value[0] ?? '')
       }
     }
   },
@@ -153,10 +152,10 @@ const { loading: columnsLoading, fetch: fetchColumns } = initLazyQuery({
 
 function loadTable(table: string) {
   if (!table) return
-  fetchTableInfo({ table })
-  fetchCount({ table })
-  fetchColumns({ table })
-  fetchRows({ table, offset: offset.value, limit: PAGE_SIZE })
+  fetchTableInfo({ table }, { latest: true })
+  fetchCount({ table }, { latest: true })
+  fetchColumns({ table }, { latest: true })
+  fetchRows({ table, offset: offset.value, limit: PAGE_SIZE }, { latest: true })
 }
 
 async function refreshData() {
@@ -170,6 +169,8 @@ function selectTable(table: string) {
   offset.value = 0
   rows.value = []
   infoColumns.value = []
+  totalCount.value = 0
+  idKey.value = 'id'
 }
 
 watch(activeTable, (t) => {
@@ -193,9 +194,18 @@ async function deleteRow(id: string) {
 </script>
 
 <style lang="scss" scoped>
-.tabs-wrap {
-  padding: 8px 16px 0;
-  overflow-x: auto;
+.database-layout {
+  display: flex;
+  flex: 1;
+  min-height: 0;
+}
+
+.database-content {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-width: 0;
+  min-height: 0;
 }
 
 .scroll-content {
@@ -204,7 +214,7 @@ async function deleteRow(id: string) {
   padding: 16px;
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 16px;
 }
 
 .state-wrap {
@@ -212,7 +222,7 @@ async function deleteRow(id: string) {
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 12px;
+  gap: 16px;
   height: 200px;
   color: var(--md-sys-color-on-surface-variant);
 

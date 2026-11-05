@@ -984,6 +984,7 @@ export const dbTableRowsGQL = `
 export const dbTableInfoGQL = `
   query DbTableInfo($table: String!) {
     dbTableInfo(table: $table) {
+      createSql
       idKey
     }
   }
