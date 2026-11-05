@@ -4,7 +4,7 @@ import emitter from '@/plugins/eventbus'
 import type { IUploadItem } from '@/stores/temp'
 import type { IFile } from '@/lib/file'
 import type { IFileDeletedEvent, IFileRenamedEvent } from '@/lib/interfaces'
-import { createUploadRefreshScheduler } from '@/lib/upload/refresh-scheduler'
+import { createRefreshScheduler } from '@/lib/refresh-scheduler'
 
 interface UseFilesEventsOptions {
   isActive: Ref<boolean>
@@ -35,7 +35,7 @@ export function useFilesEvents(opts: UseFilesEventsOptions) {
 
   // Refreshing once per completed file is quadratic for large directory
   // uploads — coalesce into a rare refresh and drop stale responses.
-  const uploadRefresh = createUploadRefreshScheduler(() => {
+  const uploadRefresh = createRefreshScheduler(() => {
     fetch(undefined, { latest: true })
     refetchMounts()
   })

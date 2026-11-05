@@ -16,7 +16,7 @@ import { initLazyQuery, recentFilesGQL } from '@/lib/api/query'
 import emitter from '@/plugins/eventbus'
 import type { IFileDeletedEvent, IFileRenamedEvent } from '@/lib/interfaces'
 import { arrayRemove } from '@/lib/array'
-import { createUploadRefreshScheduler } from '@/lib/upload/refresh-scheduler'
+import { createRefreshScheduler } from '@/lib/refresh-scheduler'
 import { getIsPhone } from '@/hooks/device'
 import { useOpenMedia } from '@/hooks/open-media'
 import { useFileOpen } from '@/hooks/file-open'
@@ -102,8 +102,8 @@ export function useFilesRecent() {
     setTempValue({ key: generateRecordId(), value: JSON.stringify(selectedIds.value.map((it: string) => ({ path: it }))) })
   }
 
-  const uploadRefresh = createUploadRefreshScheduler(() => fetch())
-  const uploadTaskDoneHandler = (r: IUploadItem) => uploadRefresh.onUploadDone(r)
+  const uploadRefresh = createRefreshScheduler(() => fetch())
+  const uploadTaskDoneHandler = (r: IUploadItem) => { if (r.status === 'done') uploadRefresh.schedule() }
   const fileDeletedHandler = (event: IFileDeletedEvent) => { arrayRemove(items.value, (it: IFile) => it.id === event.item.id); clearSelection() }
   const fileRenamedHandler = (_event: IFileRenamedEvent) => fetch()
   const accessUpdatedHandler = () => fetch()

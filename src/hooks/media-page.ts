@@ -22,7 +22,7 @@ import { getDirFromPath } from '@/lib/file'
 import { generateDownloadFileName } from '@/lib/format'
 import { hasMediaTrash } from '@/lib/feature'
 import { subscribeMediaLibraryUpdates } from '@/lib/media/library-updates'
-import { createUploadRefreshScheduler } from '@/lib/upload/refresh-scheduler'
+import { createRefreshScheduler } from '@/lib/refresh-scheduler'
 import type { QueryFetchOptions } from '@/lib/api/query'
 
 export interface MediaPageOptions {
@@ -186,7 +186,7 @@ export function useMediaPage(options: MediaPageOptions) {
   }
   const refetchTagsHandler = (type: string) => { if (type === dataType) fetchBucketsTags() }
   const accessUpdatedHandler = () => doFetch()
-  const uploadRefresh = createUploadRefreshScheduler(() => {
+  const uploadRefresh = createRefreshScheduler(() => {
     doFetch()
     emitter.emit('media_items_actioned', { type: dataType, action: 'upload', query: '' })
   })

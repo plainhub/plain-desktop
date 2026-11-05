@@ -47,11 +47,11 @@ v-for="(item, i) in items" :key="item.id" :item="item" :index="i" :is-phone="isP
         :add-to-playlist="handleAddToPlaylist" :play="play" :pause="pause"
         :is-audio-playing="isAudioPlaying" :is-in-playlist="isInPlaylist"
         :restore-loading="restoreLoading" :trash-loading="trashLoading" />
-      <template v-if="loading && items.length === 0">
+      <template v-if="loading && !loaded && items.length === 0">
         <AudioSkeletonItem v-for="i in 20" :key="i" :index="i" :is-phone="isPhone" />
       </template>
     </div>
-    <NoDataPlaceholder v-if="!loading && items.length === 0" :loading="loading" :access="app.access" feature="AUDIO" />
+    <NoDataPlaceholder v-if="(loaded || !loading) && items.length === 0" :loading="loading && !loaded" :access="app.access" feature="AUDIO" />
     <v-pagination v-if="!scrollMode && total > limit" :page="page" :go="gotoPage" :total="total" :limit="limit" :page-size="limit" :on-change-page-size="onChangePageSize" />
     <div v-if="scrollMode" ref="sentinel" class="scroll-sentinel"></div>
     <input ref="fileInput" style="display: none" type="file" accept="audio/*" multiple @change="uploadChanged" />
@@ -87,6 +87,7 @@ const tempStoreLocal = useTempStore()
 const { audioSortBy, audiosScrollPaging } = storeToRefs(mainStoreLocal)
 const { audioPlaying } = storeToRefs(tempStoreLocal)
 const items = ref<IAudioWithFileId[]>([])
+const loaded = ref(false)
 const sortItems = getSortItems()
 const imageErrorIds = ref<string[]>([])
 const animatingIds = ref<string[]>([])
@@ -120,7 +121,12 @@ const mp = useMediaPage({
   dataType: DataType.AUDIO, routePath: 'audios',
   items, sortByRef: audioSortBy, fileFilter: isAudio,
   downloadName: 'audios', uploadModalId: 'upload-directory-picker-audios', uploadStorageKey: 'audios',
-  doFetch: (options) => fetch(undefined, options), getScrollMode: () => scrollMode.value,
+  doFetch: (options) => {
+    const variables = scrollMode.value && options?.force
+      ? { offset: 0, limit: mp.page.value * mp.limit.value, query: effectiveQ.value, sortBy: audioSortBy.value }
+      : undefined
+    void fetch(variables, options)
+  }, getScrollMode: () => scrollMode.value,
   setupScroll: () => setTimeout(setupSentinelObserver, 100),
   teardownScroll: () => { observer?.disconnect(); observer = null },
   onSort: () => { 
@@ -157,14 +163,15 @@ function handleAddToPlaylist(e: MouseEvent, item: IAudioWithFileId) {
 }
 
 const { loading, fetch } = initLazyQuery({
-  handle: (data: { items: IAudio[]; total: number }, error: string) => {
+  handle: (data: { items: IAudio[]; total: number }, error: string, context) => {
+    loaded.value = true
     mp.sorting.value = false
     if (error) { toast(mp.q.value, 'error') } else if (data) {
       const raw = data.items.map((it) => ({ ...it, fileId: getFileId(urlTokenKey.value, it.path, it.id) }))
-      if (scrollMode.value && page.value > 1) { items.value = items.value.concat(raw) }
+      if (scrollMode.value && Number(context?.variables?.offset ?? 0) > 0) { items.value = items.value.concat(raw) }
       else { items.value = raw }
       total.value = data.total
-      if (scrollMode.value) { noMore.value = data.items.length < limit.value }
+      if (scrollMode.value) { noMore.value = data.items.length < Number(context?.variables?.limit ?? limit.value) }
     }
   },
   document: audiosGQL,
