@@ -45,62 +45,45 @@
       </div>
       <div v-if="localMode">
         <section class="card">
-          <h5 class="card-title">{{ $t('http_server') }}</h5>
-          <div class="card-body">
-            <div class="key-value">
-              <div class="key">{{ $t('status') }}</div>
-              <div class="value">
-                <span class="running-dot"></span>{{ $t('running') }}
-              </div>
-            </div>
-            <div class="key-value">
-              <div class="key">{{ $t('http_port') }}</div>
-              <div class="value">
-                {{ httpPort }}
-                <v-icon-button @click="openPortDialog('http')">
+          <header class="server-header">
+            <h5 class="card-title">{{ $t('http_server') }}</h5>
+            <span class="server-status"><span class="running-dot" aria-hidden="true"></span>{{ $t('running') }}</span>
+          </header>
+          <div class="card-body server-content">
+            <div class="server-setting">
+              <span>{{ $t('mdns_hostname') }}</span>
+              <div class="server-value">
+                <span>{{ mdnsHostname }}</span>
+                <v-icon-button :aria-label="$t('edit') + ': ' + $t('mdns_hostname')" v-tooltip="$t('edit')" @click="openMdnsDialog">
                   <i-material-symbols:edit-rounded />
                 </v-icon-button>
               </div>
             </div>
-            <div class="key-value">
-              <div class="key">{{ $t('https_port') }}</div>
-              <div class="value">
-                {{ httpsPort }}
-                <v-icon-button @click="openPortDialog('https')">
-                  <i-material-symbols:edit-rounded />
-                </v-icon-button>
+            <section v-for="group in serverProtocols" :key="group.kind" :aria-label="group.label" class="server-protocol">
+              <div class="server-setting">
+                <h6>{{ group.label }}</h6>
+                <v-text-button type="button" :aria-label="$t('edit_port') + ': ' + group.label + ' ' + group.port" @click="openPortDialog(group.kind)">
+                  {{ $t('port') }} {{ group.port }}
+                  <i-material-symbols:edit-rounded aria-hidden="true" />
+                </v-text-button>
               </div>
-            </div>
-            <div class="key-value">
-              <div class="key">{{ $t('mdns_hostname') }}</div>
-              <div class="value">
-                {{ mdnsHostname }}
-                <v-icon-button @click="openMdnsDialog">
-                  <i-material-symbols:edit-rounded />
-                </v-icon-button>
-                <v-icon-button v-tooltip="$t('mdns_debug')" @click="openMdnsDebug">
-                  <i-material-symbols:bug-report-rounded />
-                </v-icon-button>
+              <div v-for="addr in group.addresses" :key="addr" class="server-address">
+                <code>{{ addr }}</code>
+                <v-copy-button class="server-copy" :text="addr" :aria-label="$t('copy') + ': ' + addr" v-tooltip="$t('copy')" />
               </div>
-            </div>
-            <div v-if="httpAddresses.length" class="key-value">
-              <div class="key">{{ $t('http_addresses') }}</div>
-              <div class="value">
-                <div v-for="addr in httpAddresses" :key="addr" class="address-row">{{ addr }}</div>
-              </div>
-            </div>
-            <div v-if="httpsAddresses.length" class="key-value">
-              <div class="key">{{ $t('https_addresses') }}</div>
-              <div class="value">
-                <div v-for="addr in httpsAddresses" :key="addr" class="address-row">{{ addr }}</div>
-              </div>
+            </section>
+            <div class="server-actions">
+              <v-text-button type="button" @click="openMdnsDebug">
+                <template #icon><i-material-symbols:bug-report-rounded aria-hidden="true" /></template>
+                {{ $t('mdns_debug') }}
+              </v-text-button>
             </div>
           </div>
         </section>
       </div>
       <div>
         <section class="card">
-          <h5 class="card-title">{{ $t('device') }}</h5>
+          <h5 class="card-title">{{ $t('device_info') }}</h5>
           <div class="card-body">
             <div v-for="(item, index) in basicInfos" :key="index" class="key-value">
               <div class="key">{{ $t(item.label) }}</div>
@@ -110,17 +93,6 @@
                 </template>
                 <template v-else>{{ item.value }}</template>
               </div>
-            </div>
-          </div>
-        </section>
-      </div>
-      <div>
-        <section class="card">
-          <h5 class="card-title">{{ $t('system') }}</h5>
-          <div class="card-body">
-            <div v-for="(item, index) in systemInfos" :key="index" class="key-value">
-              <div class="key">{{ $t(item.label) }}</div>
-              <div class="value">{{ item.value }}</div>
             </div>
           </div>
         </section>
@@ -188,12 +160,17 @@ onActivated(() => { isActive.value = true })
 onDeactivated(() => { isActive.value = false })
 const localMode = isLocalMode()
 
-const { basicInfos, systemInfos, hardwareInfos, platformInfos, statusInfos, loading, refetch } = useDeviceInfo()
+const { basicInfos, hardwareInfos, platformInfos, statusInfos, loading, refetch } = useDeviceInfo()
 
 const {
   httpPort, httpsPort, httpAddresses, httpsAddresses,
   httpPortOptions, httpsPortOptions, loadIps, savePort,
 } = useHttpServer()
+
+const serverProtocols = computed(() => [
+  { kind: 'http' as const, label: 'HTTP', port: httpPort.value, addresses: httpAddresses.value },
+  { kind: 'https' as const, label: 'HTTPS', port: httpsPort.value, addresses: httpsAddresses.value },
+])
 
 const {
   hostname: mdnsHostname,
@@ -266,12 +243,112 @@ onActivated(() => {
   vertical-align: middle;
 }
 
-.address-row {
-  font-family: monospace;
-  font-size: 0.875rem;
-  word-break: break-all;
+.server-header,
+.server-setting,
+.server-address {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px 16px;
 }
 
+.server-header,
+.server-setting {
+  flex-wrap: wrap;
+}
+
+.server-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 16px;
+  font-size: 0.875rem;
+}
+
+.server-status .running-dot {
+  margin: 0;
+}
+
+.server-content {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.server-value {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+  min-width: 0;
+  margin-inline-start: auto;
+}
+
+.server-value > span {
+  overflow-wrap: anywhere;
+}
+
+.server-value .btn-icon {
+  flex-shrink: 0;
+}
+
+.server-setting .v-text-button {
+  margin-inline-start: auto;
+  font-variant-numeric: tabular-nums;
+}
+
+.server-protocol h6 {
+  margin: 0;
+  font-size: 0.875rem;
+  font-weight: 600;
+}
+
+.server-address {
+  padding-block: 8px;
+}
+
+.server-address code {
+  min-width: 0;
+  font-family: monospace;
+  font-size: 0.8125rem;
+  overflow-wrap: anywhere;
+}
+
+.server-copy.v-copy-button {
+  flex-shrink: 0;
+  width: 32px;
+  height: 32px;
+}
+
+.server-copy :deep(svg) {
+  width: 16px;
+  height: 16px;
+}
+
+.server-actions {
+  display: flex;
+  justify-content: flex-end;
+}
+
+.server-content button:focus-visible {
+  outline: 2px solid var(--md-sys-color-primary);
+  outline-offset: 2px;
+}
+
+@media (max-width: 480px) {
+  .grids {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+@media (pointer: coarse) {
+  .server-copy.v-copy-button,
+  .server-value .btn-icon,
+  .server-content .v-text-button {
+    min-width: 48px;
+    min-height: 48px;
+  }
+}
 .feat-switch {
   cursor: pointer;
   flex-shrink: 0;

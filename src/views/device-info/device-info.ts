@@ -8,6 +8,7 @@ import { Capability } from '@/lib/data'
 import { hasFeature } from '@/lib/feature'
 import { useTempStore } from '@/stores/temp'
 import type { ISim } from '@/lib/interfaces'
+import type { Fragment_DeviceInfoFragment } from '@/lib/api/graphql/operations'
 
 interface InfoItem { label: string; value: any; isTime?: boolean }
 
@@ -19,7 +20,6 @@ export function useDeviceInfo() {
   const { t } = useI18n()
   const { app } = storeToRefs(useTempStore())
   const basicInfos = ref<InfoItem[]>([])
-  const systemInfos = ref<InfoItem[]>([])
   const hardwareInfos = ref<InfoItem[]>([])
   const platformInfos = ref<InfoItem[]>([])
   const statusInfos = ref<InfoItem[]>([])
@@ -38,23 +38,24 @@ export function useDeviceInfo() {
   const { loading, refetch: refetchInfo } = initQuery({
     handle: (data: any, error: string) => {
       if (error) { toast(t(error), 'error'); return }
-      const d = data.deviceInfo
+      const d: Fragment_DeviceInfoFragment = data.deviceInfo
+      const platformNames = { ANDROID: 'Android', IOS: 'iOS', MACOS: 'macOS', WINDOWS: 'Windows', LINUX: 'Linux' }
+      const systemName = d.osName === 'Darwin' ? platformNames[d.platform] : d.osName || platformNames[d.platform]
+      const kernel = d.osName === 'Darwin' && d.kernelVersion ? `Darwin ${d.kernelVersion}` : d.kernelVersion
+      const appVersion = d.appVersion && d.appBuildNumber && d.appBuildNumber !== d.appVersion
+        ? `${d.appVersion} (${d.appBuildNumber})`
+        : d.appVersion
 
       basicInfos.value = [
         { label: 'device_name', value: d.name },
-        { label: 'platform', value: d.platform },
+        { label: 'system', value: [systemName, d.osVersion].filter(Boolean).join(' ') },
+        { label: 'kernel', value: kernel },
+        { label: 'app_version', value: appVersion },
         { label: 'manufacturer', value: d.manufacturer },
         { label: 'model', value: d.model },
         { label: 'language', value: d.language },
-        { label: 'app_version', value: d.appVersion ? (d.appBuildNumber ? `${d.appVersion} (${d.appBuildNumber})` : d.appVersion) : '' },
       ].filter((it) => it.value)
       appendPhoneNumber()
-
-      systemInfos.value = [
-        { label: 'os_name', value: d.osName },
-        { label: 'os_version', value: d.osVersion },
-        { label: 'kernel', value: d.kernelVersion },
-      ].filter((it) => it.value)
 
       const disp = d.display
       hardwareInfos.value = [
@@ -119,5 +120,5 @@ export function useDeviceInfo() {
     await Promise.all([refetchInfo(), refetchSims()])
   }
 
-  return { basicInfos, systemInfos, hardwareInfos, platformInfos, statusInfos, loading, refetch }
+  return { basicInfos, hardwareInfos, platformInfos, statusInfos, loading, refetch }
 }
