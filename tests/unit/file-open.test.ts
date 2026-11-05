@@ -1,6 +1,19 @@
 import { expect, it, vi } from 'vitest'
 import { ref } from 'vue'
 import { useFileOpen } from '@/hooks/file-open'
+import { isImage } from '@/lib/file'
+
+it('recognizes ICO files as images and opens them in the media viewer', () => {
+  const media = vi.fn(), download = vi.fn()
+  const items = ref([{ title: 'favicon.ico' }, { title: 'ICON.ICO' }])
+  const { openFile } = useFileOpen({ items, getName: item => item.title, openBrowserFile: vi.fn(), viewMedia: media, download })
+  for (const item of items.value) {
+    expect(isImage(item.title)).toBe(true)
+    openFile(item)
+    expect(media).toHaveBeenLastCalledWith(items.value, item)
+  }
+  expect(download).not.toHaveBeenCalled()
+})
 
 it('opens document titles with the same preview dispatch as files', () => {
   const text = vi.fn(), browser = vi.fn(), media = vi.fn(), download = vi.fn()
