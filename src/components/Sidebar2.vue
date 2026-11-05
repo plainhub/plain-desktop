@@ -24,7 +24,8 @@ const { resizeWidth } = useLeftSidebarResize(
   position: relative;
   display: flex;
   flex-direction: column;
-  height: calc(100vh - var(--pl-top-app-bar-height));
+  height: 100%;
+  min-height: 0;
 
   &.sidebar2-full {
     flex: 1;

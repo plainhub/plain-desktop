@@ -1,7 +1,7 @@
 <template>
   <Sidebar2 class="database-sidebar" detail>
     <div class="tables-heading">{{ $t('page_title.database') }} ({{ tables.length }})</div>
-    <div class="tables-list">
+    <div class="tables-list scroller">
       <v-circular-progress v-if="loading && tables.length === 0" indeterminate />
       <div v-for="table in tables" :key="table" class="table-item selectable-card" :class="{ selected: activeTable === table }">
         <button class="table-name" :aria-pressed="activeTable === table" @click="$emit('select', table)">{{ table }}</button>
@@ -64,8 +64,6 @@ onDeactivated(() => { helpTable.value = '' })
 }
 
 .tables-list {
-  overflow-y: auto;
-  min-height: 0;
   padding: 0 16px 16px;
 }
 
