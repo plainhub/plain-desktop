@@ -58,8 +58,9 @@ it('renders the scanner failure in the existing status row after the scan stops'
 
 it.each([
   { state: 'RUNNING', indexed: 1234, total: null, pending: null, label: 'building_file_index', count: '1,234' },
-  { state: 'RUNNING', indexed: 0, total: null, pending: null, label: 'counting_files', count: '0' },
+  { state: 'RUNNING', indexed: 0, total: null, pending: null, label: 'counting_files', count: null },
   { state: 'PAUSED', indexed: 1234, total: null, pending: null, label: 'paused', count: '1,234' },
+  { state: 'PAUSED', indexed: 0, total: null, pending: null, label: 'paused', count: null },
   { state: 'RUNNING', indexed: 1234, total: 2000, pending: 766, label: 'building_file_index', count: '1,234 / 2,000' },
   { state: 'RUNNING', indexed: 0, total: 2, pending: 2, label: 'building_file_index', count: '0 / 2' },
   { state: 'RUNNING', indexed: 0, total: 0, pending: 0, label: 'building_file_index', count: '0 / 0' },
@@ -74,7 +75,8 @@ it.each([
   try {
     const html = await renderToString(app)
     expect(html).toContain(label)
-    expect(html.replace(/<!--.*?-->/g, '').replace(/\s+/g, ' ')).toContain(count)
+    if (count === null) expect(html).not.toContain('class="muted"')
+    else expect(html.replace(/<!--.*?-->/g, '').replace(/\s+/g, ' ')).toContain(count)
     if (label !== 'counting_files') expect(html).not.toContain('counting_files')
     if (progress.total === null) {
       expect(html).not.toMatch(/>\d+%</)

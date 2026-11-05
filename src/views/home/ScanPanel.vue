@@ -8,7 +8,7 @@
       <div class="progress">
         <div class="bar" :style="{ width: percent + '%' }"></div>
       </div>
-      <div class="muted">
+      <div v-if="scanProgress.total !== null || scanProgress.indexed > 0" class="muted">
         {{ scanProgress.indexed.toLocaleString() }}<template v-if="scanProgress.total !== null"> / {{ scanProgress.total.toLocaleString() }}</template>
         <span v-if="scanProgress.pending !== null && scanProgress.pending > 0"> · {{ $t('pending') }} {{ scanProgress.pending.toLocaleString() }}</span>
       </div>
