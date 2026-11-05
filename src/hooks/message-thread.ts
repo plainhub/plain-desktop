@@ -23,7 +23,7 @@ import {
   visiblePendingSms,
 } from '@/lib/sms-state-sync'
 import { getConversationAddresses } from '@/lib/contact/name-resolution'
-import { shortUUID } from '@/lib/strutil'
+import { generateRecordId } from '@/lib/record-id.generated'
 import { createKeyedSmsSendDeadlines, SMS_SEND_RESULT_TIMEOUT_MS } from '@/lib/sms-send-deadline'
 import { takeMmsSendResult, takeSmsSendResult } from '@/lib/sms-result-ledger'
 
@@ -181,7 +181,7 @@ export function useMessageThread(
     timers.add(timer)
   }
 
-  function setPendingSms(body: string, address: string, requestId = `pending_sms_${shortUUID()}`) {
+  function setPendingSms(body: string, address: string, requestId = `pending_sms_${generateRecordId()}`) {
     pendingSmsItems.value = addPendingSms(
       pendingSmsItems.value,
       requestId,
@@ -298,7 +298,7 @@ export function useMessageThread(
     emitter.on('item_tags_updated', onItemTagsUpdated)
     emitter.on('items_tags_updated', onItemsTagsUpdated)
     stopMmsSent = graphqlSubscriptions.subscribe('mmsSent', onMmsSent)
-    stopPermissionsUpdated = graphqlSubscriptions.subscribe('permissionsUpdated', onPermissionsUpdated)
+    stopPermissionsUpdated = graphqlSubscriptions.subscribe('accessUpdated', onPermissionsUpdated)
     stateRefresh.subscribe()
   }
 

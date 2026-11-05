@@ -109,7 +109,7 @@ export function useMessagesSidebar() {
     if (smsSentTimer) clearTimeout(smsSentTimer)
     smsSentTimer = setTimeout(() => { smsSentTimer = undefined; applyRouteQuery(true) }, 1500)
   }
-  const permissionsUpdatedHandler = () => applyRouteQuery(true)
+  const accessUpdatedHandler = () => applyRouteQuery(true)
   const notificationRefresh = createSmsNotificationRefresh(() => applyRouteQuery(true), () => loadContacts(true))
 
   watch(() => route.query.q, () => { if (isActive.value && !isArchived.value) applyRouteQuery(true) })
@@ -120,7 +120,7 @@ export function useMessagesSidebar() {
     loadContacts(true)
     applyRouteQuery(true)
     emitter.on('sms_sent' as any, smsSentHandler)
-    stopPermissionsUpdated = graphqlSubscriptions.subscribe('permissionsUpdated', permissionsUpdatedHandler)
+    stopPermissionsUpdated = graphqlSubscriptions.subscribe('accessUpdated', accessUpdatedHandler)
     notificationRefresh.subscribe()
   })
 

@@ -16,9 +16,9 @@ export interface Fragment_AppFragment {
   appDir: string
   deviceName: string
   deviceType: 'COMPUTER' | 'PHONE' | 'TABLET' | 'TV' | 'NAS' | 'OTHER'
-  capabilities: Array<'BLE' | 'WIFI_AWARE' | 'BACKGROUND_SERVICE' | 'LAUNCHER_SHORTCUTS' | 'FILE_BROWSER' | 'IMAGE_LIBRARY' | 'AUDIO_LIBRARY' | 'VIDEO_LIBRARY' | 'DOCUMENT_LIBRARY' | 'SOUND_METER' | 'BACKGROUND_TIMER' | 'BACKGROUND_WAKE' | 'FILE_EXPORT' | 'FILE_REVEAL' | 'FILE_CLIPBOARD' | 'APP_RELAUNCH' | 'MEDIA_TRASH' | 'MEDIA_DELETE' | 'MEDIA_MOVE' | 'MEDIA_FAVORITE' | 'VIDEO_REMUX' | 'VIDEO_TRANSCODE' | 'APP_UPDATES' | 'MIRROR_AUDIO' | 'DOC_PREVIEW' | 'IMAGE_SEARCH' | 'MEDIA_SCAN' | 'TELEPHONY' | 'PACKAGES' | 'SCREEN_MIRROR' | 'IMAGE_EDITOR' | 'NOTIFICATIONS' | 'CLIPBOARD' | 'LAN_SHARE' | 'DISK_MANAGER'>
+  capabilities: Array<'ADB' | 'DIRECTORY_ACCESS' | 'BLE' | 'WIFI_AWARE' | 'BACKGROUND_SERVICE' | 'LAUNCHER_SHORTCUTS' | 'SOUND_METER' | 'BACKGROUND_TIMER' | 'BACKGROUND_WAKE' | 'FILE_EXPORT' | 'FILE_REVEAL' | 'FILE_CLIPBOARD' | 'APP_RELAUNCH' | 'MEDIA_TRASH' | 'MEDIA_DELETE' | 'MEDIA_MOVE' | 'MEDIA_FAVORITE' | 'VIDEO_REMUX' | 'VIDEO_TRANSCODE' | 'APP_UPDATES' | 'MIRROR_AUDIO' | 'DOC_PREVIEW' | 'IMAGE_SEARCH' | 'MEDIA_SCAN' | 'TELEPHONY' | 'PACKAGES' | 'SCREEN_MIRROR' | 'IMAGE_EDITOR' | 'NOTIFICATIONS' | 'CLIPBOARD' | 'LAN_SHARE' | 'DISK_MANAGER'>
   buildChannel: 'GITHUB' | 'GOOGLE' | 'FDROID'
-  permissions: Array<'WRITE_EXTERNAL_STORAGE' | 'READ_SMS' | 'SEND_SMS' | 'READ_CONTACTS' | 'WRITE_CONTACTS' | 'READ_CALL_LOG' | 'WRITE_CALL_LOG' | 'CALL_PHONE' | 'POST_NOTIFICATIONS' | 'NEARBY_WIFI_DEVICES' | 'ACCESS_FINE_LOCATION' | 'CAMERA' | 'SYSTEM_ALERT_WINDOW' | 'RECORD_AUDIO' | 'READ_MEDIA_IMAGES' | 'READ_MEDIA_VIDEOS' | 'READ_MEDIA_AUDIO' | 'NOTIFICATION_LISTENER' | 'READ_PHONE_STATE' | 'READ_PHONE_NUMBERS' | 'SCHEDULE_EXACT_ALARM' | 'QUERY_ALL_PACKAGES' | 'ADB' | 'CLIPBOARD'>
+  access: Array<'IMAGES' | 'VIDEOS' | 'AUDIO' | 'DOCS' | 'FILES' | 'CONTACTS' | 'SMS' | 'CALL_LOGS' | 'CALL_PHONE' | 'PHONE_NUMBER' | 'APPS' | 'NOTIFICATIONS' | 'CLIPBOARD' | 'ADB'>
   downloadsDir: string
   developerMode: boolean
   debug: boolean
@@ -400,6 +400,12 @@ export interface GqlOperations {
     variables: {
       id: string
     }
+  }
+  accessUpdatedSubscription: {
+    result: {
+      accessUpdated: boolean
+    }
+    variables: undefined
   }
   acquireDiscoveryGQL: {
     result: {
@@ -1970,14 +1976,6 @@ export interface GqlOperations {
     }
     variables: undefined
   }
-  openWebSettingsGQL: {
-    result: {
-      openWebSettings: boolean
-    }
-    variables: {
-      feature: 'FILES' | 'CONTACTS' | 'SMS' | 'CALL_LOGS' | 'CALL_PHONE' | 'PHONE_NUMBER' | 'APPS' | 'NOTIFICATIONS' | 'CLIPBOARD'
-    }
-  }
   packageCountGQL: {
     result: {
       total: number
@@ -2138,12 +2136,6 @@ export interface GqlOperations {
         createdAt: string
         updatedAt: string
       }>
-    }
-    variables: undefined
-  }
-  permissionsUpdatedSubscription: {
-    result: {
-      permissionsUpdated: boolean
     }
     variables: undefined
   }
@@ -2345,6 +2337,14 @@ export interface GqlOperations {
       id: string
       actionIndex: number
       text: string
+    }
+  }
+  requestAccessGQL: {
+    result: {
+      requestAccess: boolean
+    }
+    variables: {
+      feature: 'IMAGES' | 'VIDEOS' | 'AUDIO' | 'DOCS' | 'FILES' | 'CONTACTS' | 'SMS' | 'CALL_LOGS' | 'CALL_PHONE' | 'PHONE_NUMBER' | 'APPS' | 'NOTIFICATIONS' | 'CLIPBOARD' | 'ADB'
     }
   }
   requestScreenMirrorAudioGQL: {

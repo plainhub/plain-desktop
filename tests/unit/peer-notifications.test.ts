@@ -63,7 +63,7 @@ function group(peerId: string) {
     loading: false,
     loaded: true,
     capabilities: ['NOTIFICATIONS'],
-    permissions: ['NOTIFICATION_LISTENER'],
+    access: ['NOTIFICATIONS'],
     items: [item('old')],
   } as any
 }

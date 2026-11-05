@@ -539,9 +539,9 @@ export const openAccessibilitySettingsGQL = `
   }
 `
 
-export const openWebSettingsGQL = `
-  mutation openWebSettings($feature: WebSettingsFeature) {
-    openWebSettings(feature: $feature)
+export const requestAccessGQL = `
+  mutation requestAccess($feature: AccessFeature!) {
+    requestAccess(feature: $feature)
   }
 `
 

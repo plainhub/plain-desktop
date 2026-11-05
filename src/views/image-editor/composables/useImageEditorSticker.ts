@@ -2,7 +2,7 @@ import type { Ref } from 'vue'
 import type { EditorLayer, CanvasSize, StickerLayer } from '@/views/image-editor/utils/types'
 import { measureStickerSize } from '@/views/image-editor/utils/editor-draw-layers'
 import type { ImageEditorDoc } from './useImageEditorDoc'
-import { shortUUID } from '@/lib/strutil'
+import { generateRecordId } from '@/lib/record-id.generated'
 
 const STICKER_COLORS = ['#fef08a', '#bbf7d0', '#bfdbfe', '#fbcfe8', '#fde68a']
 let _stickerColorIdx = 0
@@ -19,7 +19,7 @@ export function useImageEditorSticker(
     const color = STICKER_COLORS[_stickerColorIdx % STICKER_COLORS.length]!
     _stickerColorIdx++
     return {
-      id: shortUUID(), type: 'sticker', visible: true,
+      id: generateRecordId(), type: 'sticker', visible: true,
       name: nextLayerName('Note'),
       x, y,
       w: canvasSize.value.width * 0.18,

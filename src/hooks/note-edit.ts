@@ -14,7 +14,7 @@ import { useTempStore } from '@/stores/temp'
 import { storeToRefs } from 'pinia'
 import emitter from '@/plugins/eventbus'
 import { upload as uploadFile } from '@/lib/upload/upload'
-import { shortUUID } from '@/lib/strutil'
+import { generateRecordId } from '@/lib/record-id.generated'
 import { getMarkdownTitle } from '@/lib/strutil'
 import type { IUploadItem } from '@/stores/temp'
 
@@ -117,9 +117,9 @@ export function useNoteEdit() {
     try {
       for (const file of files) {
         const ext = file.name.split('.').pop() || 'png'
-        const fileName = `${shortUUID()}.${ext}`
+        const fileName = `${generateRecordId()}.${ext}`
         const item: IUploadItem = {
-          id: shortUUID(),
+          id: generateRecordId(),
           dir: '',
           fileName,
           file,

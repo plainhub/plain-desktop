@@ -87,7 +87,7 @@
     </VirtualList>
 
     <template v-if="!loading && conversations.length === 0">
-      <NoDataPlaceholder :loading="loading" :permissions="app.permissions" permission="READ_SMS" />
+      <NoDataPlaceholder :loading="loading" :access="app.access" feature="SMS" />
     </template>
   </Sidebar2>
 </template>

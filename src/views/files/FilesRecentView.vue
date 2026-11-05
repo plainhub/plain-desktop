@@ -32,7 +32,7 @@
       />
     </template>
   </VirtualList>
-  <NoDataPlaceholder v-if="!loading && items.length === 0" :loading="loading" :permissions="app.permissions" permission="WRITE_EXTERNAL_STORAGE" />
+  <NoDataPlaceholder v-if="!loading && items.length === 0" :loading="loading" :access="app.access" feature="FILES" />
 </template>
 
 <script setup lang="ts">

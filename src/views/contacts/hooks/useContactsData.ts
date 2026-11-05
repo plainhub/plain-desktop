@@ -94,7 +94,7 @@ export function useContactsData() {
     if (event.type === dataType) { fetch() }
   }
   const refetchTagsHandler = (type: string) => { if (type === dataType) fetchTags() }
-  const permissionsUpdatedHandler = () => fetch()
+  const accessUpdatedHandler = () => fetch()
 
   function applyRouteQuery() {
     const nextPage = parseInt(route.query.page?.toString() ?? '1')
@@ -114,7 +114,7 @@ export function useContactsData() {
     emitter.on('item_tags_updated', itemTagsUpdatedHandler)
     emitter.on('items_tags_updated', itemsTagsUpdatedHandler)
     emitter.on('refetch_tags', refetchTagsHandler)
-    stopPermissionsUpdated = graphqlSubscriptions.subscribe('permissionsUpdated', permissionsUpdatedHandler)
+    stopPermissionsUpdated = graphqlSubscriptions.subscribe('accessUpdated', accessUpdatedHandler)
     window.addEventListener('keydown', pageKeyDown)
     window.addEventListener('keyup', pageKeyUp)
   })

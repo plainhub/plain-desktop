@@ -14,13 +14,13 @@ export function useAppSubscriptions() {
       context: getGraphqlContextKey(),
       authenticated: isLocalMode() || Boolean(getCurrentAuthToken()),
       capabilities: store.app.capabilities ?? [],
-      permissions: store.app.permissions ?? [],
+      access: store.app.access ?? [],
     }), (now, previous) => {
       if (!now.authenticated) { client.stop(); return }
       if (previous && now.context !== previous.context) client.stop()
       client.setOperations(subscriptionOperations.filter(operation =>
         (!operation.capability || now.capabilities.some(capability => capability === operation.capability)) &&
-        operation.permissions.every(permission => now.permissions.some(grant => grant === permission)),
+        (!operation.access.length || operation.access.some(feature => now.access.includes(feature))),
       ))
       if (!previous || !previous.authenticated || now.context !== previous.context) client.start()
     }, { immediate: true, deep: true })

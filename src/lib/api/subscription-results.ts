@@ -40,7 +40,7 @@ export interface SubscriptionResults {
   pomodoroSettingsChanged: boolean
   imageModelsUpdated: IImageSearchStatus & { version: number }
   deviceNameUpdated: string
-  permissionsUpdated: boolean
+  accessUpdated: boolean
   contentChanged: boolean
   screenMirrorState: { running: boolean }
   screenMirrorVideoCodec: { annexB: string } | null

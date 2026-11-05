@@ -1,4 +1,6 @@
-export function noDataKey(loading: boolean, permissions: string[] = [], permission = '', online = true): string {
+import type { AccessFeature } from '@/lib/interfaces'
+
+export function noDataKey(loading: boolean, access: readonly AccessFeature[] = [], feature: AccessFeature | '' = '', online = true): string {
   if (loading) {
     return 'loading'
   }
@@ -7,7 +9,7 @@ export function noDataKey(loading: boolean, permissions: string[] = [], permissi
     return 'offline'
   }
 
-  if (permission && !permissions.includes(permission)) {
+  if (feature && !access.includes(feature)) {
     return 'no_permission'
   }
 

@@ -10,7 +10,7 @@ import emitter from '@/plugins/eventbus'
  */
 export const useSmsDeleteAvailable = () => {
   const { app } = storeToRefs(useTempStore())
-  const available = computed(() => app.value?.permissions?.includes('ADB') === true)
+  const available = computed(() => app.value?.access?.includes('ADB') === true)
 
   return { available }
 }

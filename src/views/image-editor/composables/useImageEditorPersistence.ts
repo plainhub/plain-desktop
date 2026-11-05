@@ -1,7 +1,7 @@
 import { ref, type Ref } from 'vue'
 import type { ImageEditorDoc } from './useImageEditorDoc'
 import type { ProjectStore, ProjectSummary } from '../store/project-store'
-import { shortUUID } from '@/lib/strutil'
+import { generateRecordId } from '@/lib/record-id.generated'
 
 export type { ProjectSummary }
 
@@ -40,7 +40,7 @@ export function useImageEditorPersistence(
     if (projectId.value) return projectId.value
     const urlId = getIdFromUrl()
     if (urlId) { projectId.value = urlId; return urlId }
-    const newId = shortUUID()
+    const newId = generateRecordId()
     projectId.value = newId
     setIdInUrl(newId)
     return newId

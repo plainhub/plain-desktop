@@ -2,7 +2,7 @@ import { afterEach, beforeEach, expect, it, vi } from 'vitest'
 
 const mock = vi.hoisted(() => ({ native: vi.fn(), uuid: vi.fn() }))
 vi.mock('@/lib/device/native-settings', () => ({ readNativeDeviceIdentity: mock.native }))
-vi.mock('@/lib/strutil', () => ({ shortUUID: mock.uuid }))
+vi.mock('@/lib/device/client-identity.generated', () => ({ generateClientId: mock.uuid }))
 let storage: Map<string, string>
 beforeEach(() => {
   vi.resetModules()

@@ -3,7 +3,7 @@ import { fileNameError, type IFile } from '@/lib/file'
 import type { IFileFilter } from '@/lib/interfaces'
 import { openModal } from '@/components/modal'
 import EditValueModal from '@/components/EditValueModal.vue'
-import { shortUUID } from '@/lib/strutil'
+import { generateRecordId } from '@/lib/record-id.generated'
 import { getFileUrlByPath } from '@/lib/api/file'
 import { initMutation, setTempValueGQL, addFavoriteFolderGQL, deleteFilesGQL } from '@/lib/api/mutation'
 import { useFilesDelete } from './useFilesDelete'
@@ -89,7 +89,7 @@ export function useFilesActions(opts: UseFilesActionsOptions) {
 
   const downloadZipItems = () => {
     if (!getSelectedItems()) return
-    setTempValue({ key: shortUUID(), value: JSON.stringify(selectedIds.value.map((p) => ({ path: p }))) })
+    setTempValue({ key: generateRecordId(), value: JSON.stringify(selectedIds.value.map((p) => ({ path: p }))) })
   }
 
   const { mutate: deleteFilesMutate, loading: deleteLoading } = initMutation({ document: deleteFilesGQL }, false)

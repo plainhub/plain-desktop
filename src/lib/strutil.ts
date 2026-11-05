@@ -1,5 +1,3 @@
-const flickrBase58 = '123456789abcdefghijkmnopqrstuvwxyzABCDEFGHJKLMNPQRSTUVWXYZ'
-
 export const randomUUID = () => {
   const b = crypto.getRandomValues(new Uint8Array(16))
 
@@ -12,12 +10,6 @@ export const randomUUID = () => {
 
   // Return the string created by extracting substrings from the given result
   return `${uuid.substring(0, 8)}-${uuid.substring(8, 12)}-${uuid.substring(12, 16)}-${uuid.substring(16, 20)}-${uuid.substring(20)}`
-}
-
-export const shortUUID = () => {
-  const translated = anyBase('0123456789abcdef', flickrBase58, randomUUID().toLowerCase().replace(/-/g, ''))
-  const shortIdLength = Math.ceil(Math.log(2 ** 128) / Math.log(flickrBase58.length))
-  return translated.padStart(shortIdLength, flickrBase58[0])
 }
 
 export const bytesToHex = (b: Uint8Array): string => {
@@ -72,42 +64,6 @@ export function decodeBase64(str: string): string {
   } catch (err) {
     return str
   }
-}
-
-function anyBase(srcAlphabet: string, dstAlphabet: string, number: string) {
-  const numberMap = []
-  const fromBase = srcAlphabet.length
-  const toBase = dstAlphabet.length
-  let i,
-    divide,
-    newlen,
-    length = number.length,
-    result = ''
-
-  if (srcAlphabet === dstAlphabet) {
-    return number
-  }
-
-  for (i = 0; i < length; i++) {
-    numberMap[i] = srcAlphabet.indexOf(number[i])
-  }
-  do {
-    divide = 0
-    newlen = 0
-    for (i = 0; i < length; i++) {
-      divide = divide * fromBase + numberMap[i]
-      if (divide >= toBase) {
-        numberMap[newlen++] = parseInt((divide / toBase).toString(), 10)
-        divide = divide % toBase
-      } else if (newlen > 0) {
-        numberMap[newlen++] = 0
-      }
-    }
-    length = newlen
-    result = dstAlphabet.slice(divide, divide + 1).concat(result)
-  } while (newlen !== 0)
-
-  return result
 }
 
 const URL_REGEX = /(\b(((https?|ftp):\/\/)|www.)[A-Z0-9+&@#\/%?=~_|!:,.;-]*[-A-Z0-9+&@#\/%=~_|])/gim

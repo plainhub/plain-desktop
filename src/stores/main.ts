@@ -1,6 +1,6 @@
 import { defineStore } from 'pinia'
 import { DEFAULT_HOME_FEATURES } from '@/views/home/features'
-import { shortUUID } from '@/lib/strutil'
+import { generateRecordId } from '@/lib/record-id.generated'
 
 const DEFAULT_RAIL_FEATURES = ['files', 'audios', 'images', 'videos', 'chat']
 
@@ -127,7 +127,7 @@ export const useMainStore = defineStore('main', {
         existing.title = title
         this.activeTabId = existing.id
       } else {
-        const id = shortUUID()
+        const id = generateRecordId()
         this.tabs.push({ id, title, path, group, closeable: true })
         this.activeTabId = id
       }
@@ -145,7 +145,7 @@ export const useMainStore = defineStore('main', {
         this.activeTabId = existing.id
         return
       }
-      const id = shortUUID()
+      const id = generateRecordId()
       this.tabs.push({ id, title, path, group: null, closeable: true })
       this.activeTabId = id
     },

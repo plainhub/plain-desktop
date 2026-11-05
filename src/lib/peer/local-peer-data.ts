@@ -1,3 +1,4 @@
+import type { AccessFeature } from '@/lib/interfaces'
 import { isLocalMode } from '@/lib/device/local-mode'
 import { computed, ref } from 'vue'
 import { Channel, invoke } from '@tauri-apps/api/core'
@@ -21,7 +22,7 @@ export interface PeerNotificationGroup {
   loading: boolean
   loaded: boolean
   capabilities: string[] | null
-  permissions: string[]
+  access: AccessFeature[]
   items: INotification[]
 }
 
@@ -31,7 +32,7 @@ export type PeerNotificationUpdate = {
   peerId?: string
   group?: PeerNotificationGroup | null
   alerts?: INotification[]
-  permissionsChanged?: boolean
+  accessChanged?: boolean
 }
 
 const groups = ref<PeerNotificationGroup[]>([])
@@ -91,7 +92,7 @@ export function startLocalPeerData() {
   }
   function apply(update: PeerNotificationUpdate) {
     showAlerts(applyPeerNotificationUpdate(update))
-    if (update.permissionsChanged) emitter.emit('tap_phone', '')
+    if (update.accessChanged) emitter.emit('tap_phone', '')
   }
   void (async () => {
     let initialized = false
@@ -110,7 +111,7 @@ export function startLocalPeerData() {
     for (const update of buffered) {
       if (update.revision <= snapshot.revision) {
         showAlerts(takeAlerts(update))
-        if (update.permissionsChanged) emitter.emit('tap_phone', '')
+        if (update.accessChanged) emitter.emit('tap_phone', '')
       } else apply(update)
     }
     initialized = true

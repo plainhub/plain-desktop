@@ -6,7 +6,7 @@
         :audio-requesting="audioRequesting"
         :audio-supported="audioSupported"
         :features="app.capabilities"
-        :permissions="app.permissions"
+        :audio-ready="service.audioReady.value"
         @request-audio-permission="requestAudioPermission"
       />
     </Teleport>

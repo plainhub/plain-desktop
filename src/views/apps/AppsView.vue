@@ -51,7 +51,7 @@
         <AppSkeletonItem v-for="i in 20" :key="i" :index="i" :is-phone="isPhone" />
       </template>
     </div>
-    <NoDataPlaceholder v-if="!loading && items.length === 0" :loading="loading" :permissions="app.permissions" permission="QUERY_ALL_PACKAGES" />
+    <NoDataPlaceholder v-if="!loading && items.length === 0" :loading="loading" :access="app.access" feature="APPS" />
     <v-pagination v-if="total > limit" :page="page" :go="gotoPage" :total="total" :limit="limit" :page-size="limit" :on-change-page-size="onChangePageSize" />
     <input ref="fileInput" style="display: none" type="file" accept=".apk,.apkm,.apks,.xapk" multiple @change="uploadChanged" />
   </div>

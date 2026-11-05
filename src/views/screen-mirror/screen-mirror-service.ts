@@ -21,6 +21,7 @@ export function useScreenMirrorService() {
   const qualityMode = ref('HD')
   const controlEnabled = ref(false)
   const audioRequesting = ref(false)
+  const audioReady = ref(false)
   let accessibilityEnabled = false
   let countdownTimer: ReturnType<typeof setInterval>
   let connectFn: () => void = () => {}
@@ -97,7 +98,8 @@ export function useScreenMirrorService() {
     requestAudio()
   }
   onAudioDone((r: any) => {
-    if (r?.data?.requestScreenMirrorAudio) { audioRequesting.value = false; tapPhone(''); emitter.emit('refetch_app') }
+    audioRequesting.value = false
+    if (r?.data?.requestScreenMirrorAudio) { audioReady.value = true; tapPhone(''); emitter.emit('refetch_app') }
   })
   onAudioError((e: GqlError) => { audioRequesting.value = false; tapPhone(''); toast(t(e.message), 'error') })
 
@@ -152,7 +154,7 @@ export function useScreenMirrorService() {
   const onAudioGranted = () => window.location.reload()
 
   return {
-    state, seconds, qualityMode, controlEnabled, audioRequesting,
+    state, seconds, qualityMode, controlEnabled, audioRequesting, audioReady,
     showLoading, relaunchLoading, stopLoading, setPipeline, fetchState, start, stop,
     setQualityMode, requestAudioPermission, relaunchApp, toggleControl,
     onStreamReady, onDisconnected, onScreenMirrorOff, onScreenMirroring, onSocketReconnect, onAudioGranted, deactivate,

@@ -3,7 +3,7 @@ import type {
   EditorLayer, EditorTool, CanvasSize, EditorTextLayer, EditorImageLayer,
 } from '@/views/image-editor/utils/types'
 import type { ImageEditorDoc } from './useImageEditorDoc'
-import { shortUUID } from '@/lib/strutil'
+import { generateRecordId } from '@/lib/record-id.generated'
 
 let _layerCounter = 0
 export function resetLayerCounter() { _layerCounter = 0 }
@@ -23,7 +23,7 @@ export function useImageEditorLayers(
 ) {
   function createRichTextLayer(x: number, y: number, text = 'Text', name = nextLayerName('Text')): EditorTextLayer {
     return {
-      id: shortUUID(), type: 'text', visible: true, name,
+      id: generateRecordId(), type: 'text', visible: true, name,
       x, y, text,
       fontSize: activeFontSize.value, color: activeColor.value,
       fontFamily: 'Inter, sans-serif', fontWeight: 'bold', fontStyle: 'normal',
@@ -68,7 +68,7 @@ export function useImageEditorLayers(
     const w = Math.round(img.naturalWidth * scale)
     const h = Math.round(img.naturalHeight * scale)
     const layer: EditorImageLayer = {
-      id: shortUUID(), type: 'image', visible: true, name: nextLayerName('Image'),
+      id: generateRecordId(), type: 'image', visible: true, name: nextLayerName('Image'),
       x: canvasSize.value.width / 2, y: canvasSize.value.height / 2,
       w, h, opacity: 1, rotation: 0,
     }
@@ -94,7 +94,7 @@ export function useImageEditorLayers(
   }
 
   function createLayerFromDrag(tool: EditorTool, start: { x: number; y: number }, end: { x: number; y: number }): EditorLayer {
-    const id = shortUUID()
+    const id = generateRecordId()
     switch (tool) {
       case 'arrow':
         return { id, type: 'arrow', visible: true, name: nextLayerName('Arrow'), x1: start.x, y1: start.y, x2: end.x, y2: end.y, color: activeColor.value, lineWidth: activeLineWidth.value, rotation: 0 }

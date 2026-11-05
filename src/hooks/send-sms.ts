@@ -5,7 +5,7 @@ import { initMutation, sendMmsGQL } from '@/lib/api/mutation'
 import { initQuery, simsGQL } from '@/lib/api/query'
 import tapPhone from '@/plugins/tapphone'
 import { upload as uploadFile } from '@/lib/upload/upload'
-import { shortUUID } from '@/lib/strutil'
+import { generateRecordId } from '@/lib/record-id.generated'
 import { getContactFullName } from '@/lib/contact/format'
 import type { IUploadItem } from '@/stores/temp'
 import type { IContact, ISim } from '@/lib/interfaces'
@@ -78,7 +78,7 @@ export function useSendSms(initialNumber: string, initialBody: string) {
     const paths: string[] = []
     const mmsDir = `${app.value.appDir}/mms_tmp`
     for (const file of pendingFiles.value) {
-      const item: IUploadItem = { id: shortUUID(), dir: mmsDir, fileName: file.name, file, status: 'pending', uploadedSize: 0, error: '', isAppFile: false }
+      const item: IUploadItem = { id: generateRecordId(), dir: mmsDir, fileName: file.name, file, status: 'pending', uploadedSize: 0, error: '', isAppFile: false }
       const result = await uploadFile(item, false) as { fileName?: string; error?: string } | undefined
       if (result && result.fileName) paths.push(`${mmsDir}/${result.fileName}`)
       else throw new Error(t('upload_failed'))
@@ -115,7 +115,7 @@ export function useSendSms(initialNumber: string, initialBody: string) {
       } catch (e: any) { toast(e.message || t('upload_failed'), 'error') } finally { mmsUploading.value = false }
     } else if (numberOk && bodyOk) {
       if (selectedSimId.value >= 0 && !sims.value.some((sim) => sim.subscriptionId === selectedSimId.value)) return
-      const requestId = `pending_sms_${shortUUID()}`
+      const requestId = `pending_sms_${generateRecordId()}`
       pendingSmsRequestId = requestId
       loading.value = true
       const outcome = await sendSmsWithCompatibility({

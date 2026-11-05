@@ -94,7 +94,7 @@ export function useAppSocket() {
     })
     // A permission change on the phone resolves whatever "check phone" flow
     // the banner was pointing at (grant permission / toggle access switch).
-    stopSubscriptions.push(graphqlSubscriptions.subscribe('permissionsUpdated', () => {
+    stopSubscriptions.push(graphqlSubscriptions.subscribe('accessUpdated', () => {
       tapPhoneMessage.value = ''
     }))
     stopSubscriptions.push(graphqlSubscriptions.subscribe('pairingCompleted', (result) => {

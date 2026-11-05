@@ -1,6 +1,6 @@
 import { get as browserGet, set as browserSet } from '@/lib/prefs/browser'
 import { readNativeDeviceIdentity } from './native-settings'
-import { shortUUID } from '@/lib/strutil'
+import { generateClientId } from './client-identity.generated'
 
 const REMOTE_KEY = '__bound_client_id__'
 const WINDOW_ID_KEY = '__window_id__'
@@ -8,7 +8,7 @@ const WINDOW_ID_KEY = '__window_id__'
 let desktopClientId = ''
 
 export function ensureBrowserClientId(): void {
-  if (!browserGet('client_id', '')) browserSet('client_id', shortUUID())
+  if (!browserGet('client_id', '')) browserSet('client_id', generateClientId())
 }
 
 export async function preloadClientIdentity(): Promise<void> {

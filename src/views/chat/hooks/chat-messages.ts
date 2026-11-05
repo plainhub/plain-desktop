@@ -5,7 +5,7 @@ import { sendChatItemGQL, deleteChatItemGQL, retryChatItemGQL, initMutation } fr
 import toast from '@/components/toaster'
 import type { IChatItem } from '@/lib/interfaces'
 import { ChatStatus, MessageType } from '@/lib/status'
-import { shortUUID } from '@/lib/strutil'
+import { generateRecordId } from '@/lib/record-id.generated'
 import { useTasks } from './chat'
 import { useChatSubscriptions } from './chat-subscriptions'
 import { normalizeChatItem } from './chat-subscriptions'
@@ -87,7 +87,7 @@ export function useChatMessages(chatId: ComputedRef<string>, channelId: Computed
 
   function send(chatText: Ref<string>) {
     if (!chatText.value) return
-    const tempId = 'new_' + shortUUID()
+    const tempId = 'new_' + generateRecordId()
     const tempItem: IChatItem = {
       id: tempId, fromId: 'me', toId: chatId.value, channelId: channelId.value,
       createdAt: new Date().toISOString(),

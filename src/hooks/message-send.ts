@@ -4,7 +4,7 @@ import { useI18n } from 'vue-i18n'
 import { initMutation, sendMmsGQL, callGQL } from '@/lib/api/mutation'
 import { initQuery, simsGQL } from '@/lib/api/query'
 import { upload as uploadFile } from '@/lib/upload/upload'
-import { shortUUID } from '@/lib/strutil'
+import { generateRecordId } from '@/lib/record-id.generated'
 import tapPhone from '@/plugins/tapphone'
 import type { IUploadItem } from '@/stores/temp'
 import type { ISim } from '@/lib/interfaces'
@@ -95,7 +95,7 @@ export function useMessageSend(
     const mmsDir = `${appDir()}/mms_tmp`
     for (const file of files) {
       const item: IUploadItem = {
-        id: shortUUID(),
+        id: generateRecordId(),
         dir: mmsDir,
         fileName: file.name,
         file,

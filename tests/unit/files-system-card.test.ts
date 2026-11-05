@@ -5,9 +5,18 @@ import { renderToString } from 'vue/server-renderer'
 const state = vi.hoisted(() => ({ data: undefined as any, events: undefined as any }))
 vi.mock('vue-i18n', () => ({ useI18n: () => ({ t: (key: string) => key }) }))
 vi.mock('pinia', () => ({ storeToRefs: (value: unknown) => value }))
+vi.mock('@/stores/main', async () => {
+  const { ref } = await import('vue')
+  return { useMainStore: () => ({ systemFilesExpanded: ref(false) }) }
+})
+vi.mock('@/stores/main', async () => {
+  const { reactive } = await import('vue')
+  const store = reactive({ systemFilesExpanded: false })
+  return { useMainStore: () => store }
+})
 vi.mock('@/stores/temp', async () => {
   const { ref } = await import('vue')
-  return { useTempStore: () => ({ app: ref({ permissions: ['WRITE_EXTERNAL_STORAGE'] }), urlTokenKey: ref(null), uploads: ref([]) }) }
+  return { useTempStore: () => ({ app: ref({ access: ['FILES'] }), urlTokenKey: ref(null), uploads: ref([]) }) }
 })
 vi.mock('@/stores/files', async () => {
   const { ref } = await import('vue')

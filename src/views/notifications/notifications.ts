@@ -80,7 +80,7 @@ export function useNotifications() {
 
     stopSubscriptions.push(graphqlSubscriptions.subscribe('notificationRefreshed', async () => refetch()))
 
-    stopSubscriptions.push(graphqlSubscriptions.subscribe('permissionsUpdated', async () => refetch()))
+    stopSubscriptions.push(graphqlSubscriptions.subscribe('accessUpdated', async () => refetch()))
   })
 
   return {

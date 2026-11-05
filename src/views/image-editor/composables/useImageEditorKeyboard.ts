@@ -2,7 +2,7 @@ import { onMounted, onUnmounted, nextTick, type Ref } from 'vue'
 import type { EditorLayer } from '@/views/image-editor/utils/types'
 import { isEditorTextLayer, isEditorImageLayer } from '@/views/image-editor/utils/types'
 import type { ImageEditorDoc } from './useImageEditorDoc'
-import { shortUUID } from '@/lib/strutil'
+import { generateRecordId } from '@/lib/record-id.generated'
 import { copyTextToClipboard } from '@/lib/clipboard'
 
 interface KeyboardCallbacks {
@@ -79,7 +79,7 @@ export function useImageEditorKeyboard(
       e.preventDefault()
       ops.pushUndo()
       const clone = JSON.parse(JSON.stringify(clipboardLayer)) as EditorLayer
-      clone.id = shortUUID()
+      clone.id = generateRecordId()
       if ('x' in clone) (clone as any).x += 20
       if ('y' in clone) (clone as any).y += 20
       if ('x1' in clone) { (clone as any).x1 += 20; (clone as any).y1 += 20; (clone as any).x2 += 20; (clone as any).y2 += 20 }

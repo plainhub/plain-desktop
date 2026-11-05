@@ -10,8 +10,8 @@ afterEach(() => { vi.restoreAllMocks(); vi.clearAllMocks() })
 it('does not reattach existing consumers when another operation starts on the same connection', () => {
   const client = new SubscriptionClient()
   client.setOperations([
-    { field: 'contentChanged', document: 'subscription { contentChanged }', permissions: [] },
-    { field: 'mediaLibraryUpdated', document: 'subscription { mediaLibraryUpdated { types } }', permissions: [] },
+    { field: 'contentChanged', document: 'subscription { contentChanged }', access: [] },
+    { field: 'mediaLibraryUpdated', document: 'subscription { mediaLibraryUpdated { types } }', access: [] },
   ])
   const attached = vi.fn()
   client.onAttached(attached)
@@ -31,8 +31,8 @@ it('resynchronizes only the lagged operation and preserves the socket and other 
   vi.spyOn(console, 'error').mockImplementation(() => {})
   const client = new SubscriptionClient()
   client.setOperations([
-    { field: 'contentChanged', document: 'subscription { contentChanged }', permissions: [] },
-    { field: 'mediaLibraryUpdated', document: 'subscription { mediaLibraryUpdated { types } }', permissions: [] },
+    { field: 'contentChanged', document: 'subscription { contentChanged }', access: [] },
+    { field: 'mediaLibraryUpdated', document: 'subscription { mediaLibraryUpdated { types } }', access: [] },
   ])
   const content = vi.fn(), media = vi.fn(), attached = vi.fn(), status = vi.fn()
   client.subscribe('contentChanged', content)

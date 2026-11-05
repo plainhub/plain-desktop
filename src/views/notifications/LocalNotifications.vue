@@ -37,7 +37,7 @@
               @delete="deleteItem(g.peerId, item.id)"
             />
           </div>
-          <NoDataPlaceholder v-else :loading="g.loading" :online="g.online" :peer-id="g.peerId" :permissions="g.permissions" permission="NOTIFICATION_LISTENER" />
+          <NoDataPlaceholder v-else :loading="g.loading" :online="g.online" :peer-id="g.peerId" :access="g.access" feature="NOTIFICATIONS" />
       </notification-group>
       <NoDataPlaceholder v-if="!groups.length" :loading="groups.some((g) => g.loading)" />
     </div>

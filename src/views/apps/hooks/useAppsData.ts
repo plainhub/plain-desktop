@@ -83,10 +83,10 @@ export function useAppsData() {
 
   watch(() => route.fullPath, () => { applyRouteQuery() })
 
-  const permissionsUpdatedHandler = () => { if (isActive.value) fetch() }
+  const accessUpdatedHandler = () => { if (isActive.value) fetch() }
   let stopPermissionsUpdated: (() => void) | undefined
 
-  onActivated(() => stopPermissionsUpdated = graphqlSubscriptions.subscribe('permissionsUpdated', permissionsUpdatedHandler))
+  onActivated(() => stopPermissionsUpdated = graphqlSubscriptions.subscribe('accessUpdated', accessUpdatedHandler))
   onDeactivated(() => stopPermissionsUpdated?.())
 
   return {

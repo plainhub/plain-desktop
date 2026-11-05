@@ -4,7 +4,7 @@ import { getEditorLayerBounds, getEditorRasterSize, hitTestLayer, isEditorTextLa
 import { drawHoverRect, drawSelectionRect } from '@/views/image-editor/utils/renderer'
 import { updateLayerFromDrag } from '@/views/image-editor/utils/drag-helpers'
 import { drawCenterCrosshair, drawDistanceGuides } from '@/views/image-editor/utils/overlay-guides'
-import { shortUUID } from '@/lib/strutil'
+import { generateRecordId } from '@/lib/record-id.generated'
 import { PixiEditorRenderer } from '../pixi/PixiEditorRenderer'
 import { useEditorCrop } from './useEditorCrop'
 import { useEditorImage } from './useEditorImage'
@@ -380,7 +380,7 @@ export function useAnnotationSession(options: AnnotationSessionOptions = {}) {
       isDrawing.value = true
       drawStart.value = position
       previewLayer.value = {
-        id: shortUUID(),
+        id: generateRecordId(),
         type: 'freehand',
         visible: true,
         name: nextLayerName('Brush'),

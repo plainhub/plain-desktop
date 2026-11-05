@@ -1,11 +1,7 @@
 import { ref, type Ref } from 'vue'
 import { type IUploadItem } from '@/stores/temp'
-import { shortUUID } from '@/lib/strutil'
+import { generateRecordId } from '@/lib/record-id.generated'
 
-// shortUUID costs ~30µs per call (randomUUID + per-digit base58 rewrite) —
-// 17k directory selections blocked the main thread for half a second just
-// generating ids. Upload item ids only need to be unique within this window
-// session, so a monotonic counter is enough.
 let uploadItemSeq = 0
 
 function createUploadItem(file: File, dir: string, batchId: string, baseDir?: string, relativePath?: string): IUploadItem {
@@ -46,7 +42,7 @@ export const useFileUpload = (uploads: Ref<IUploadItem[]>) => {
       if (!files) {
         return
       }
-      const batchId = shortUUID()
+      const batchId = generateRecordId()
       const items = []
       for (let i = 0; i < files.length; i++) {
         const file = files[i]
@@ -138,7 +134,7 @@ export const useDragDropUpload = (uploads: Ref<IUploadItem[]>) => {
         return
       }
 
-      const batchId = shortUUID()
+      const batchId = generateRecordId()
 
       const uploadItems = []
       for (const fileItem of validFileItems) {
@@ -158,7 +154,7 @@ export const useDragDropUpload = (uploads: Ref<IUploadItem[]>) => {
 export const useChatFilesUpload = () => {
   return {
     getUploads(baseDir: string, files: File[]): IUploadItem[] {
-      const batchId = shortUUID()
+      const batchId = generateRecordId()
       const items = []
       for (let i = 0; i < files.length; i++) {
         const file = files[i]
@@ -175,7 +171,7 @@ export const pasteToUpload = (e: ClipboardEvent, dir: string, uploads: Ref<IUplo
     return
   }
 
-  const batchId = shortUUID()
+  const batchId = generateRecordId()
 
   const files: IUploadItem[] = []
   for (const item of items) {

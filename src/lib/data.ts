@@ -13,6 +13,8 @@ export enum DataType {
 
 // String values match the server's Capability GraphQL enum items.
 export enum Capability {
+  ADB = 'ADB',
+  DIRECTORY_ACCESS = 'DIRECTORY_ACCESS',
   BLE = 'BLE',
   WIFI_AWARE = 'WIFI_AWARE',
   BACKGROUND_SERVICE = 'BACKGROUND_SERVICE',

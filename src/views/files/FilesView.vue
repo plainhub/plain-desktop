@@ -60,7 +60,7 @@
         </div>
       </template>
     </VirtualList>
-    <NoDataPlaceholder v-if="!loading && items.length === 0" :loading="loading" :permissions="app.permissions" permission="WRITE_EXTERNAL_STORAGE" />
+    <NoDataPlaceholder v-if="!loading && items.length === 0" :loading="loading" :access="app.access" feature="FILES" />
     <input ref="fileInput" style="display: none" type="file" multiple @change="uploadChanged" />
     <input ref="dirFileInput" style="display: none" type="file" multiple webkitdirectory mozdirectory directory @change="dirUploadChanged" />
   </div>

@@ -54,7 +54,7 @@
         <ContactSkeletonItem v-for="i in 20" :key="i" :index="i" :is-phone="isPhone" />
       </template>
     </div>
-    <NoDataPlaceholder v-if="!loading && items.length === 0" :loading="loading" :permissions="app.permissions" permission="WRITE_CONTACTS" />
+    <NoDataPlaceholder v-if="!loading && items.length === 0" :loading="loading" :access="app.access" feature="CONTACTS" />
     <v-pagination v-if="total > limit" :page="page" :go="gotoPage" :total="total" :limit="limit" :page-size="limit" :on-change-page-size="onChangePageSize" />
   </div>
 </template>

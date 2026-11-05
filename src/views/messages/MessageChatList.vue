@@ -14,13 +14,13 @@
         <MessageChatBubble :item="item" :tags="tags" :type="type" :url-token-key="urlTokenKey" @trash="(item: ISms) => $emit('trash', item)" />
       </div>
     </template>
-    <NoDataPlaceholder v-if="!detailLoading && items.length === 0" :loading="loading" :permissions="permissions" permission="READ_SMS" />
+    <NoDataPlaceholder v-if="!detailLoading && items.length === 0" :loading="loading" :access="access" feature="SMS" />
   </div>
 </template>
 
 <script setup lang="ts">
 import { useI18n } from 'vue-i18n'
-import type { ISms, ITag } from '@/lib/interfaces'
+import type { AccessFeature, ISms, ITag } from '@/lib/interfaces'
 import { formatDateTime } from '@/lib/format'
 import NoDataPlaceholder from '@/components/NoDataPlaceholder.vue'
 import MessageChatBubble from './MessageChatBubble.vue'
@@ -30,7 +30,7 @@ const props = defineProps<{
   detailLoading: boolean
   loading: boolean
   loadingMore: boolean
-  permissions: string[]
+  access: AccessFeature[]
   urlTokenKey: Uint8Array | null
   tags: ITag[]
   type: string

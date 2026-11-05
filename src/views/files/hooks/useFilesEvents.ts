@@ -45,7 +45,7 @@ export function useFilesEvents(opts: UseFilesEventsOptions) {
 
   const fileDeletedHandler = (event: IFileDeletedEvent) => { onDeleted([event.item]) }
   const fileRenamedHandler = (_: IFileRenamedEvent) => { fetch() }
-  const permissionsUpdatedHandler = () => { fetch() }
+  const accessUpdatedHandler = () => { fetch() }
 
   watch(fileSortBy, () => {
     if (!isActive.value || routeFullPath() === null) return
@@ -61,7 +61,7 @@ export function useFilesEvents(opts: UseFilesEventsOptions) {
     emitter.on('upload_task_done', uploadTaskDoneHandler)
     emitter.on('file_deleted', fileDeletedHandler)
     emitter.on('file_renamed', fileRenamedHandler)
-    stopPermissionsUpdated = graphqlSubscriptions.subscribe('permissionsUpdated', permissionsUpdatedHandler)
+    stopPermissionsUpdated = graphqlSubscriptions.subscribe('accessUpdated', accessUpdatedHandler)
     window.addEventListener('keydown', pageKeyDown)
     window.addEventListener('keyup', pageKeyUp)
   })

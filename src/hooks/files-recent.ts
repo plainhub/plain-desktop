@@ -7,7 +7,7 @@ import { type IFile, enrichFile } from '@/lib/file'
 import { getFileUrlByPath, getFileId } from '@/lib/api/file'
 import { useDownload, useView } from '@/hooks/files'
 import { useTempStore, type IUploadItem } from '@/stores/temp'
-import { shortUUID } from '@/lib/strutil'
+import { generateRecordId } from '@/lib/record-id.generated'
 import { initMutation, setTempValueGQL } from '@/lib/api/mutation'
 import type { ISource } from '@/components/lightbox/types'
 import { useSelectable } from '@/hooks/list'
@@ -99,14 +99,14 @@ export function useFilesRecent() {
 
   const downloadZipItems = () => {
     if (!getSelectedItems()) return
-    setTempValue({ key: shortUUID(), value: JSON.stringify(selectedIds.value.map((it: string) => ({ path: it }))) })
+    setTempValue({ key: generateRecordId(), value: JSON.stringify(selectedIds.value.map((it: string) => ({ path: it }))) })
   }
 
   const uploadRefresh = createUploadRefreshScheduler(() => fetch())
   const uploadTaskDoneHandler = (r: IUploadItem) => uploadRefresh.onUploadDone(r)
   const fileDeletedHandler = (event: IFileDeletedEvent) => { arrayRemove(items.value, (it: IFile) => it.id === event.item.id); clearSelection() }
   const fileRenamedHandler = (_event: IFileRenamedEvent) => fetch()
-  const permissionsUpdatedHandler = () => fetch()
+  const accessUpdatedHandler = () => fetch()
   let stopPermissionsUpdated: (() => void) | undefined
 
   onActivated(() => {
@@ -114,7 +114,7 @@ export function useFilesRecent() {
     emitter.on('upload_task_done', uploadTaskDoneHandler)
     emitter.on('file_deleted', fileDeletedHandler)
     emitter.on('file_renamed', fileRenamedHandler)
-    stopPermissionsUpdated = graphqlSubscriptions.subscribe('permissionsUpdated', permissionsUpdatedHandler)
+    stopPermissionsUpdated = graphqlSubscriptions.subscribe('accessUpdated', accessUpdatedHandler)
     window.addEventListener('keydown', pageKeyDown)
     window.addEventListener('keyup', pageKeyUp)
   })

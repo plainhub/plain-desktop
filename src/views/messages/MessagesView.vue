@@ -3,7 +3,7 @@
     <MessageChatHeader
       :name="thread.contactName.value"
       :address="thread.contactAddress.value"
-      :show-notification-warning="!app.permissions.includes('NOTIFICATION_LISTENER')"
+      :show-notification-warning="!app.access.includes('NOTIFICATIONS')"
       @back="backToList"
       @export="openExport"
       @call="send.callContact"
@@ -16,7 +16,7 @@
       :detail-loading="thread.detailLoading.value"
       :loading="thread.loading.value"
       :loading-more="thread.loadingMore.value"
-      :permissions="app.permissions"
+      :access="app.access"
       :url-token-key="urlTokenKey"
       :tags="thread.tags.value"
       :type="DataType.SMS"

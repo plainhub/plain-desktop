@@ -52,7 +52,7 @@
           @delete="deleteItem(item)"
         />
       </section>
-      <NoDataPlaceholder v-else :loading="loading" :permissions="app.permissions" permission="NOTIFICATION_LISTENER" />
+      <NoDataPlaceholder v-else :loading="loading" :access="app.access" feature="NOTIFICATIONS" />
     </div>
   </div>
 </template>

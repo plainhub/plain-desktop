@@ -1,5 +1,5 @@
 import { defineStore } from 'pinia'
-import { shortUUID } from '@/lib/strutil'
+import { generateRecordId } from '@/lib/record-id.generated'
 
 export interface AppTab {
   id: string
@@ -26,7 +26,7 @@ export const useTabsStore = defineStore('tabs', {
         existing.title = title
         this.activeTabId = existing.id
       } else {
-        const id = shortUUID()
+        const id = generateRecordId()
         this.tabs.push({ id, title, path, group })
         this.activeTabId = id
       }
@@ -45,7 +45,7 @@ export const useTabsStore = defineStore('tabs', {
         this.activeTabId = existing.id
         return
       }
-      const id = shortUUID()
+      const id = generateRecordId()
       this.tabs.push({ id, title, path, group: null })
       this.activeTabId = id
     },

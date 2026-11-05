@@ -185,7 +185,7 @@ export function useMediaPage(options: MediaPageOptions) {
     doFetch({ force: true, latest: true })
   }
   const refetchTagsHandler = (type: string) => { if (type === dataType) fetchBucketsTags() }
-  const permissionsUpdatedHandler = () => doFetch()
+  const accessUpdatedHandler = () => doFetch()
   const uploadRefresh = createUploadRefreshScheduler(() => {
     doFetch()
     emitter.emit('media_items_actioned', { type: dataType, action: 'upload', query: '' })
@@ -222,7 +222,7 @@ export function useMediaPage(options: MediaPageOptions) {
     emitter.on('media_items_actioned', mediaItemsActionedHandler)
     emitter.on('upload_task_done', uploadTaskDoneHandler)
     emitter.on('refetch_tags', refetchTagsHandler)
-    stopPermissionsUpdated = graphqlSubscriptions.subscribe('permissionsUpdated', permissionsUpdatedHandler)
+    stopPermissionsUpdated = graphqlSubscriptions.subscribe('accessUpdated', accessUpdatedHandler)
     window.addEventListener('keydown', pageKeyDown)
     window.addEventListener('keyup', pageKeyUp)
     if (options.getScrollMode()) options.setupScroll?.()

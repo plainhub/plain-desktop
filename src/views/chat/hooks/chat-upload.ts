@@ -5,7 +5,7 @@ import type { IUploadItem } from '@/stores/temp'
 import { useChatFilesUpload } from '@/hooks/upload'
 import { useTasks } from './chat'
 import { normalizeChatItem } from './chat-subscriptions'
-import { shortUUID } from '@/lib/strutil'
+import { generateRecordId } from '@/lib/record-id.generated'
 import { MessageType } from '@/lib/status'
 import { formatFileSize } from '@/lib/format'
 import { getVideoData, getImageData, isVideo } from '@/lib/file'
@@ -131,7 +131,7 @@ export function useChatUpload(chatId: ComputedRef<string>, channelId: ComputedRe
     })
     const _content = { type: contentType, value: { items: valueItems } }
     const item: IChatItem = {
-      id: 'new_' + shortUUID(),
+      id: 'new_' + generateRecordId(),
       fromId: 'me',
       toId: frozenDestination.chatId,
       channelId: frozenDestination.channelId,

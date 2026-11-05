@@ -95,7 +95,7 @@ v-for="(item, i) in items" :key="item.id" :item="item" :index="i" :is-phone="isP
       <image-video-list-skeleton v-if="loading && items.length === 0" :limit="limit" :is-phone="isPhone" />
     </div>
 
-    <NoDataPlaceholder v-if="!loading && items.length === 0" :loading="loading" :permissions="app.permissions" permission="WRITE_EXTERNAL_STORAGE" />
+    <NoDataPlaceholder v-if="!loading && items.length === 0" :loading="loading" :access="app.access" feature="IMAGES" />
     <v-pagination v-if="!scrollMode && total > limit" :page="page" :go="gotoPage" :total="total" :limit="limit" :page-size="limit" :on-change-page-size="onChangePageSize" />
     <div v-if="scrollMode" ref="sentinel" class="scroll-sentinel"><v-circular-progress v-if="loading && items.length > 0" indeterminate class="sm" /></div>
     <input ref="fileInput" style="display: none" type="file" accept="image/*" multiple @change="uploadChanged" />

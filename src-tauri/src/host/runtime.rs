@@ -68,10 +68,9 @@ impl Runtime {
                     .map_err(|error| error.to_string())?;
                 Ok(Value::Bool(true))
             }
-            "systemPermissionFacts" => plain_rs::infrastructure::host::permission_facts::facts(
-                &["WRITE_EXTERNAL_STORAGE".to_owned()],
-                params,
-            ),
+            "systemRequestAccess" => Ok(serde_json::json!(false)),
+            "systemAccessFacts" => plain_rs::infrastructure::host::access_facts::facts(
+                &plain_rs::features::access::AccessFeature::FILE_FEATURES, params),
             method if plain_server::native::audio::handles(method) => {
                 self.core.native_audio()?.handle(method, params).await
             }

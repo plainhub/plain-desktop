@@ -34,7 +34,7 @@ export const appFragment = `
     deviceType
     capabilities
     buildChannel
-    permissions
+    access
     downloadsDir
     developerMode
     debug
