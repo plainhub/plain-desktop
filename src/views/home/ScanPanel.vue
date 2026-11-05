@@ -2,13 +2,13 @@
   <div class="scan-panel">
     <div v-if="stateLabel" class="scan-row">
       <span>{{ stateLabel }}</span>
-      <span v-if="scanActive && percent > 0" class="muted">{{ percent }}%</span>
+      <span v-if="scanActive && scanProgress.total !== null && scanProgress.total > 0" class="muted">{{ percent }}%</span>
     </div>
     <template v-if="scanActive">
       <div class="progress">
         <div class="bar" :style="{ width: percent + '%' }"></div>
       </div>
-      <div v-if="!counting" class="muted">
+      <div class="muted">
         {{ scanProgress.indexed.toLocaleString() }}<template v-if="scanProgress.total !== null"> / {{ scanProgress.total.toLocaleString() }}</template>
         <span v-if="scanProgress.pending !== null && scanProgress.pending > 0"> · {{ $t('pending') }} {{ scanProgress.pending.toLocaleString() }}</span>
       </div>
@@ -30,7 +30,7 @@
 import { useScanAction } from './home'
 
 const {
-  scanProgress, scanActive, percent, stateLabel, counting,
+  scanProgress, scanActive, percent, stateLabel,
   showPause, showResume, showStop, showRebuild, rebuildIndexLoading,
   pauseScan, resumeScan, stopScan, rebuildIndex,
 } = useScanAction()

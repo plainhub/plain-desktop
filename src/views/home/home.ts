@@ -140,10 +140,10 @@ export function useScanAction() {
     return Math.min(100, Math.max(0, Math.round((indexed / total) * 100)))
   })
 
-  const counting = computed(() => scanProgress.value.state === 'RUNNING' && (scanProgress.value.total === null || scanProgress.value.total === 0))
-
   const stateLabel = computed(() => {
-    if (scanProgress.value.state === 'RUNNING') return counting.value ? t('counting_files') : t('building_file_index')
+    if (scanProgress.value.state === 'RUNNING') {
+      return t(scanProgress.value.total === null && scanProgress.value.indexed === 0 ? 'counting_files' : 'building_file_index')
+    }
     if (scanProgress.value.state === 'PAUSED') return t('paused')
     if (scanProgress.value.state === 'STOPPED') return t('stopped')
     if (scanProgress.value.state === 'FAILED') return scanProgress.value.error ?? ''
@@ -166,7 +166,7 @@ export function useScanAction() {
   async function rebuildIndex() { await rebuildIndexMutation({ root: '/' }) }
 
   return {
-    scanProgress, scanActive, percent, stateLabel, counting,
+    scanProgress, scanActive, percent, stateLabel,
     showPause, showResume, showStop, showRebuild, rebuildIndexLoading,
     pauseScan, resumeScan, stopScan, rebuildIndex,
   }
