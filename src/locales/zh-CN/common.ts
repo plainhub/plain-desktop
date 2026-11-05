@@ -155,7 +155,7 @@ export default {
     docs: '文档',
     chat: '聊天',
     local_chat: '本机聊天',
-    developer: '开发者',
+    settings: '设置',
     image_editor: '图片编辑器',
   },
   developer: {
@@ -163,7 +163,6 @@ export default {
     prefs: '偏好设置',
     database: '数据库',
     logs: '日志',
-    developer_mode: '开发者模式',
     clear_logs: '清空日志',
     key: '键',
     value: '值',

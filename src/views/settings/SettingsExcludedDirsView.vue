@@ -1,31 +1,26 @@
 <template>
-  <v-modal @close="close">
-    <template #headline>{{ $t('exclude_directories') }}</template>
-    <template #content>
-      <div class="excluded-dirs">
-        <p class="hint">{{ $t('excluded_dirs_hint') }}</p>
-        <p v-if="store.excludedDirs.length === 0" class="empty-hint">{{ $t('no_excluded_dirs') }}</p>
-        <div v-for="dir in store.excludedDirs" :key="dir" class="dir-row">
-          <i-lucide:folder-minus class="dir-icon" />
-          <span class="dir-path">{{ dir }}</span>
-          <button class="remove-btn" :aria-label="$t('remove')" @click="removeDir(dir)">
-            <i-lucide:x />
-          </button>
-        </div>
-        <button class="add-btn" @click="addDir">
-          <i-lucide:plus />
-          <span>{{ $t('add_excluded_dir') }}</span>
+  <div class="scroll-content">
+    <h2>{{ $t('exclude_directories') }}</h2>
+    <div class="excluded-dirs">
+      <p class="hint">{{ $t('excluded_dirs_hint') }}</p>
+      <p v-if="store.excludedDirs.length === 0" class="empty-hint">{{ $t('no_excluded_dirs') }}</p>
+      <div v-for="dir in store.excludedDirs" :key="dir" class="dir-row">
+        <i-lucide:folder-minus class="dir-icon" />
+        <span class="dir-path">{{ dir }}</span>
+        <button class="remove-btn" :aria-label="$t('remove')" @click="removeDir(dir)">
+          <i-lucide:x />
         </button>
       </div>
-    </template>
-    <template #actions>
-      <v-outlined-button @click="close">{{ $t('close') }}</v-outlined-button>
-    </template>
-  </v-modal>
+      <button class="add-btn" @click="addDir">
+        <i-lucide:plus />
+        <span>{{ $t('add_excluded_dir') }}</span>
+      </button>
+    </div>
+  </div>
 </template>
 
 <script setup lang="ts">
-import { popModal, promptModal } from '@/components/modal'
+import { promptModal } from '@/components/modal'
 import { useMainStore } from '@/stores/main'
 import * as prefs from '@/lib/prefs/core'
 import toast from '@/components/toaster'
@@ -60,18 +55,24 @@ async function addDir() {
     }
   }
 }
-
-function close() {
-  popModal()
-}
 </script>
 
 <style lang="scss" scoped>
+.scroll-content {
+  flex: 1;
+  overflow-y: auto;
+  padding: 16px;
+}
+
+h2 {
+  margin: 0 0 16px;
+  font-size: 1.25rem;
+}
+
 .excluded-dirs {
   display: flex;
   flex-direction: column;
   gap: 4px;
-  min-width: 320px;
 }
 
 .hint {
@@ -132,6 +133,7 @@ function close() {
 }
 
 .add-btn {
+  align-self: flex-start;
   display: inline-flex;
   align-items: center;
   gap: 8px;

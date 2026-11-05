@@ -78,24 +78,14 @@
 
     <div class="popup-divider"></div>
 
-    <div class="dropdown-item" @click="openCustomizeUI">
-      <i-lucide:layout-list class="feature-icon" />
-      <span>{{ $t('customize_ui') }}</span>
-    </div>
-
-    <div v-if="hasMediaScan" class="dropdown-item" @click="openExcludedDirs">
-      <i-lucide:folder-minus class="feature-icon" />
-      <span>{{ $t('exclude_directories') }}</span>
-    </div>
-
     <router-link v-if="hasLanShare" to="/settings/lan-share" class="dropdown-item" @click="open = false">
       <i-lucide:hard-drive class="feature-icon" />
       <span>{{ $t('lan_share') }}</span>
     </router-link>
 
-    <router-link to="/developer" class="dropdown-item" @click="open = false">
-      <i-lucide:code-2 class="feature-icon" />
-      <span>{{ $t('developer.developer_mode') }}</span>
+    <router-link to="/settings" class="dropdown-item" @click="open = false">
+      <i-lucide:settings-2 class="feature-icon" />
+      <span>{{ $t('settings') }}</span>
     </router-link>
 
     <template v-if="popupFeatures.length">
@@ -137,8 +127,6 @@ import { openAboutWindow } from '@/lib/api/tauri-window'
 import { useBrowserLogout } from '@/composables/useBrowserLogout'
 import { useLocaleSwitch } from '@/composables/useLocaleSwitch'
 import ThemeChanger from '@/components/ThemeChanger.vue'
-import CustomizeUIModal from './CustomizeUIModal.vue'
-import ExcludedDirsModal from './ExcludedDirsModal.vue'
 import DeviceSwitcherModal from '@/components/DeviceSwitcherModal.vue'
 import EditValueModal from '@/components/EditValueModal.vue'
 import { initMutation, updateDeviceNameGQL } from '@/lib/api/mutation'
@@ -256,17 +244,6 @@ const popupFeatures = computed<Feature[]>(() => {
 // capability (a loaded samba unit) — the entry keys on app.capabilities,
 // never on the device type.
 const hasLanShare = computed(() => hasFeature(Capability.LAN_SHARE, app.value?.capabilities))
-const hasMediaScan = computed(() => hasFeature(Capability.MEDIA_SCAN, app.value?.capabilities))
-
-function openCustomizeUI() {
-  open.value = false
-  pushModal(CustomizeUIModal)
-}
-
-function openExcludedDirs() {
-  open.value = false
-  pushModal(ExcludedDirsModal)
-}
 
 function openDeviceSwitcher() {
   open.value = false

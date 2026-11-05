@@ -195,40 +195,56 @@ const router = createRouter({
           meta: { group: 'chat', className: 'chat' },
         },
         {
-          path: 'developer',
-          redirect: '/developer/device-info',
+          path: 'settings',
+          redirect: '/settings/device-info',
         },
         {
-          path: 'developer/prefs',
+          path: 'settings/prefs',
           components: {
             default: () => import('@/views/developer/DeveloperPrefsView.vue'),
-            LeftSidebar: () => import('@/views/developer/DeveloperSidebar.vue'),
+            LeftSidebar: () => import('@/views/settings/SettingsSidebar.vue'),
           },
-          meta: { group: 'developer' },
+          meta: { group: 'settings' },
         },
         {
-          path: 'developer/database',
+          path: 'settings/database',
           components: {
             default: () => import('@/views/developer/DeveloperDatabaseView.vue'),
-            LeftSidebar: () => import('@/views/developer/DeveloperSidebar.vue'),
+            LeftSidebar: () => import('@/views/settings/SettingsSidebar.vue'),
           },
-          meta: { group: 'developer' },
+          meta: { group: 'settings' },
         },
         {
-          path: 'developer/logs',
+          path: 'settings/logs',
           components: {
             default: () => import('@/views/developer/DeveloperLogsView.vue'),
-            LeftSidebar: () => import('@/views/developer/DeveloperSidebar.vue'),
+            LeftSidebar: () => import('@/views/settings/SettingsSidebar.vue'),
           },
-          meta: { group: 'developer' },
+          meta: { group: 'settings' },
         },
         {
-          path: 'developer/device-info',
+          path: 'settings/device-info',
           components: {
             default: () => import('@/views/device-info/DeviceInfoView.vue'),
-            LeftSidebar: () => import('@/views/developer/DeveloperSidebar.vue'),
+            LeftSidebar: () => import('@/views/settings/SettingsSidebar.vue'),
           },
-          meta: { group: 'developer' },
+          meta: { group: 'settings' },
+        },
+        {
+          path: 'settings/excluded-dirs',
+          components: {
+            default: () => import('@/views/settings/SettingsExcludedDirsView.vue'),
+            LeftSidebar: () => import('@/views/settings/SettingsSidebar.vue'),
+          },
+          meta: { group: 'settings' },
+        },
+        {
+          path: 'settings/customize-ui',
+          components: {
+            default: () => import('@/views/settings/SettingsCustomizeUIView.vue'),
+            LeftSidebar: () => import('@/views/settings/SettingsSidebar.vue'),
+          },
+          meta: { group: 'settings' },
         },
         {
           path: 'image-editor',

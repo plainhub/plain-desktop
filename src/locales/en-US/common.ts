@@ -165,7 +165,7 @@ export default {
     docs: 'Docs',
     chat: 'Chat',
     local_chat: 'Local chat',
-    developer: 'Developer',
+    settings: 'Settings',
     image_editor: 'Image Editor',
   },
   developer: {
@@ -173,7 +173,6 @@ export default {
     prefs: 'Preferences',
     database: 'Database',
     logs: 'Logs',
-    developer_mode: 'Developer Mode',
     clear_logs: 'Clear logs',
     key: 'Key',
     value: 'Value',
