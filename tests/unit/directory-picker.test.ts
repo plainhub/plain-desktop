@@ -9,7 +9,7 @@ vi.mock('@/lib/api/file', () => ({ getFileName: (path: string) => path.split('/'
 vi.mock('@/lib/api/query', async () => {
   const { ref } = await import('vue')
   return {
-    mountsGQL: 'mounts', filesGQL: 'files',
+    mountsGQL: 'mounts', directoryEntriesGQL: 'directoryEntries',
     initQuery: (options: unknown) => { query.mounts = options; return { refetch: query.refetch } },
     initLazyQuery: (options: unknown) => {
       query.files = options
@@ -18,7 +18,7 @@ vi.mock('@/lib/api/query', async () => {
     },
   }
 })
-import { useDirectoryPicker } from '@/hooks/directory-picker'
+import { useDirectoryPicker, type DirectoryPickerVolume } from '@/hooks/directory-picker'
 
 const mounts = [
   { id: 'root', mountPoint: '/', name: 'System disk' },
@@ -32,8 +32,22 @@ beforeEach(() => {
   query.fetch.mockImplementation(async () => { query.loading.value = true })
 })
 afterEach(() => scope.stop())
-function create(initialPath = '') { return scope.run(() => useDirectoryPicker(initialPath))! }
+function create(initialPath = '', volume?: DirectoryPickerVolume) { return scope.run(() => useDirectoryPicker(initialPath, volume))! }
 async function loadMounts() { query.mounts.handle({ mounts }, ''); await nextTick() }
+
+it('opens a specified volume directly without loading the volume list and stays inside its root', async () => {
+  const picker = create('/media/archive/Reports', { mountPoint: '/media/archive', name: 'Archive' })
+  expect(query.mounts.enabled()).toBe(false)
+  expect(picker.loadingMounts.value).toBe(false)
+  expect(picker.rootPath.value).toBe('/media/archive')
+  expect(picker.currentDir.value).toBe('/media/archive/Reports')
+  expect(query.files.variables().root).toBe('/media/archive/Reports')
+  picker.enterDir(picker.rootPath.value)
+  expect(picker.currentDir.value).toBe('/media/archive')
+  picker.selectDirectory('/media/archive-old/Reports')
+  expect(picker.currentDir.value).toBe('/media/archive')
+  expect(query.refetch).not.toHaveBeenCalled()
+})
 
 it('loads the root directory after initial mount selection even though the displayed path was already root', async () => {
   const picker = create()
@@ -42,8 +56,8 @@ it('loads the root directory after initial mount selection even though the displ
   await loadMounts()
   expect(picker.rootPath.value).toBe('/')
   expect(query.files.variables().root).toBe('/')
+  expect(query.files.document).toBe('directoryEntries')
   expect(query.fetch).toHaveBeenCalledExactlyOnceWith(undefined, { latest: true })
-  expect(picker.canGoUp.value).toBe(false)
 })
 
 it('selects the deepest matching volume for an initial directory and keeps absolute return paths', async () => {
@@ -51,9 +65,8 @@ it('selects the deepest matching volume for an initial directory and keeps absol
   await loadMounts()
   expect(picker.rootPath.value).toBe('/media/archive/photos')
   expect(picker.currentDir.value).toBe('/media/archive/photos/Trips')
-  picker.goUp()
+  picker.enterDir(picker.rootPath.value)
   expect(picker.currentDir.value).toBe('/media/archive/photos')
-  expect(picker.canGoUp.value).toBe(false)
 })
 
 it('opens a recent directory on another volume without submitting or keeping the previous volume path', async () => {
@@ -64,7 +77,6 @@ it('opens a recent directory on another volume without submitting or keeping the
   expect(picker.currentDir.value).toBe('/media/archive/Reports')
   picker.selectRoot('/')
   expect(picker.currentDir.value).toBe('/')
-  expect(picker.canGoUp.value).toBe(false)
   picker.selectDirectory('/media/archive-old/Reports')
   expect(picker.rootPath.value).toBe('/')
   expect(picker.currentDir.value).toBe('/media/archive-old/Reports')

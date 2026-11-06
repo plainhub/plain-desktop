@@ -9,7 +9,6 @@ export default {
   folder_picker_hint: 'Abra uma pasta e clique em “Selecionar esta pasta”.',
   folder_picker_current: 'Seleção atual',
   select_this_folder: 'Selecionar esta pasta',
-  parent_folder: 'Subir um nível',
   folder_picker_empty: 'Sem subpastas. Pode selecionar esta pasta.',
   create_folder: 'Criar pasta',
   upload_files: 'Carregar arquivos',

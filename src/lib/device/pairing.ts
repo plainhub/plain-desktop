@@ -2,11 +2,13 @@ import { ref } from 'vue'
 import { nativeGraphql } from '@/lib/api/native-client'
 import { graphqlSubscriptions } from '@/lib/api/subscription-client'
 
+export type PairingPhase = 'STARTING' | 'PASSWORD_REQUIRED' | 'AUTHENTICATING' | 'PAIRING' | 'WAITING_CONFIRMATION' | 'COMMITTING' | 'SUCCEEDED' | 'FAILED' | 'CANCELLED'
+
 export interface PairingState {
   deviceId: string | null
   generation: string
   mode: 'CHAT' | 'MANAGE'
-  phase: string
+  phase: PairingPhase
   error: string | null
   verificationCode?: string | null
 }

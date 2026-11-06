@@ -29,7 +29,7 @@ export function useHomeData() {
   const { counter, app: appState } = storeToRefs(tempStore)
   const mounts = ref<IStorageMount[]>([])
 
-  initQuery({
+  const { refetch } = initQuery({
     handle: (data: IHomeStats, error: string) => {
       if (error) {
         toast(t(error), 'error')
@@ -63,6 +63,11 @@ export function useHomeData() {
     },
     variables: () => ({ mediaQuery: '' }),
   })
+
+  const stopScanProgress = graphqlSubscriptions.subscribe('mediaScanProgress', (progress) => {
+    if (progress.state === 'IDLE') return refetch(undefined, true)
+  })
+  onUnmounted(stopScanProgress)
 
   return { mounts }
 }

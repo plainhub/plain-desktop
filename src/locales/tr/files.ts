@@ -9,7 +9,6 @@ export default {
   folder_picker_hint: 'Bir klasör açın ve “Bu klasörü seç” düğmesine tıklayın.',
   folder_picker_current: 'Geçerli seçim',
   select_this_folder: 'Bu klasörü seç',
-  parent_folder: 'Bir üst düzey',
   folder_picker_empty: 'Alt klasör yok. Bu klasörü seçebilirsiniz.',
   create_folder: 'Klasör oluştur',
   upload_files: 'Dosyaları yükle',

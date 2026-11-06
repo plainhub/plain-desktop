@@ -4,19 +4,12 @@
     <div class="title">
       <span v-if="bulkDeleting">{{ $t('deleting') }}</span>
       <span v-else-if="selectedIds.length">{{ $t('x_selected', { count: realAllChecked ? total.toLocaleString() : selectedIds.length.toLocaleString() }) }}</span>
-      <div v-else ref="breadcrumbEl" class="breadcrumb">
-        <template v-for="(item, index) in breadcrumbPaths" :key="item.path">
-          <template v-if="index === 0">
-            <span v-if="item.path === filter.parent" v-tooltip="pageDetails">{{ indexed ? $t('indexed_files') : item.name }} ({{ regularTotal }})<span v-if="searchState" class="search-state"> · {{ searchState }}</span></span>
-            <a v-else v-tooltip="pageDetails" href="#" @click.stop.prevent="navigateToDir(item.path)">{{ item.name }}</a>
-          </template>
-          <template v-else>
-            <span class="sep">/</span>
-            <span v-if="item.path === filter.parent" v-tooltip="pageDetails">{{ item.name }} ({{ regularTotal }})<span v-if="searchState" class="search-state"> · {{ searchState }}</span></span>
-            <a v-else href="#" @click.stop.prevent="navigateToDir(item.path)">{{ item.name }}</a>
-          </template>
+      <VBreadcrumb v-else :items="breadcrumbPaths" :label="$t('current_path')" :tooltip="(item, index) => index === 0 || item.path === filter.parent ? pageDetails : ''" @navigate="navigateToDir">
+        <template v-if="indexed && filter.parent === rootDir" #name>{{ $t('indexed_files') }}</template>
+        <template #suffix="{ current }">
+          <template v-if="current"> ({{ regularTotal }})<span v-if="searchState" class="search-state"> · {{ searchState }}</span></template>
         </template>
-      </div>
+      </VBreadcrumb>
       <template v-if="checked">
         <v-icon-button v-if="!inZip" v-tooltip="$t('copy')" @click.stop="copyItems"><i-material-symbols:content-copy-outline-rounded /></v-icon-button>
         <v-icon-button v-if="!inZip" v-tooltip="$t('cut')" @click.stop="cutItems"><i-material-symbols:content-cut-rounded /></v-icon-button>
@@ -67,7 +60,8 @@
 </template>
 
 <script setup lang="ts">
-import { computed, inject, nextTick, ref, watch } from 'vue'
+import { computed, inject, ref, watch } from 'vue'
+import VBreadcrumb from '@/components/base/VBreadcrumb.vue'
 import { useI18n } from 'vue-i18n'
 import { storeToRefs } from 'pinia'
 import { useTempStore } from '@/stores/temp'
@@ -160,12 +154,6 @@ const pageDetails = computed(() => {
   } else if (searchStatus.value !== 'idle') details.push(t('directory_search_scope_hint'))
   return details.filter(Boolean).join('\n')
 })
-const breadcrumbEl = ref<HTMLElement | null>(null)
-watch(breadcrumbPaths, () => {
-  nextTick(() => {
-    if (breadcrumbEl.value) breadcrumbEl.value.scrollLeft = breadcrumbEl.value.scrollWidth
-  })
-}, { immediate: true })
 
 // --- Navigation ---
 const { navigateToDir, toggleShowHidden, clickItem, viewItem } = useFilesNavigation({
@@ -232,25 +220,6 @@ const actionButtonProps = computed(() => ({
 
 <style lang="scss" scoped>
 .search-state { color: var(--md-sys-color-on-surface-variant); font-size: 0.875rem; font-weight: 400; }
-
-.breadcrumb {
-  display: flex;
-  align-items: center;
-  overflow-x: auto;
-  flex-wrap: nowrap;
-  scrollbar-width: none; // Firefox
-  &::-webkit-scrollbar { display: none; } // Chrome/Safari
-
-  .sep {
-    flex-shrink: 0;
-    margin-inline: 4px;
-  }
-
-  a, span:not(.sep) {
-    white-space: nowrap;
-    flex-shrink: 0;
-  }
-}
 
 </style>
 

@@ -149,7 +149,6 @@ import { useDeviceDiscovery, DiscoveryStatus, type DiscoveredDevice } from '@/ho
 import { loginPeers, clearLoginPeer, peerHost, type LoginPeer } from '@/lib/device/login-peers'
 import { sortByName } from '@/lib/array'
 import type { PendingLoginDevice } from '@/lib/api/api'
-import { DeviceType } from '@/lib/status'
 import { getDesktopClientId, getRemoteClientId, setRemoteClientId, clearRemoteClientId } from '@/lib/device/client-id'
 import { loadSelfDevice, type SelfDevice } from '@/lib/device/self-device'
 import { remove as prefsRemove } from '@/lib/prefs/browser'
@@ -212,7 +211,7 @@ function remove(s: LoginPeer) {
 function startLogin(d: DiscoveredDevice) {
   const host = d.ips[0] ? `${d.ips[0]}:${d.port}` : ''
   if (!host) return
-  loginDevice.value = { name: d.name, host, deviceType: d.deviceType as DeviceType }
+  loginDevice.value = { name: d.name, host, deviceType: d.deviceType }
 }
 
 function cancelLoginStep() {

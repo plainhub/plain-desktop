@@ -9,7 +9,6 @@ export default {
   folder_picker_hint: 'கோப்புறையைத் திறந்து, “இந்தக் கோப்புறையைத் தேர்ந்தெடு” என்பதை அழுத்தவும்.',
   folder_picker_current: 'தற்போதைய தேர்வு',
   select_this_folder: 'இந்தக் கோப்புறையைத் தேர்ந்தெடு',
-  parent_folder: 'ஒரு நிலை மேலே',
   folder_picker_empty: 'துணைக் கோப்புறைகள் இல்லை. இந்தக் கோப்புறையைத் தேர்ந்தெடுக்கலாம்.',
   create_folder: 'கோப்பகம் உருவாக்கு',
   upload_files: 'கோப்புகளை பதிவேற்று',

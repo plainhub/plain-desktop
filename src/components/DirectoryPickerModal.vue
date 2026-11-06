@@ -6,24 +6,23 @@
 
     <template #content>
       <div class="picker">
-        <p class="hint">{{ description || $t('folder_picker_hint') }}</p>
+        <p class="subtle">{{ description || $t('folder_picker_hint') }}</p>
         <DirectoryBrowser
           :volumes="volumes"
+          :volume="volume"
           :loading-mounts="loadingMounts"
           :active-root="rootPath"
           :current-dir="currentDir"
-          :can-go-up="canGoUp"
           :listing="listing"
           :listing-error="listingError"
           :dir-items="dirItems"
           :dir-name="dirName"
           @select-root="selectRoot"
-          @go-up="goUp"
           @enter-dir="enterDir"
           @reload="reload"
         />
         <div v-if="recentDirs.length" class="recents">
-          <div class="recents-label">{{ $t('recent_folders') }}</div>
+          <div class="subtle">{{ $t('recent_folders') }}</div>
           <v-text-button v-for="d in recentDirs" :key="d" class="recent-item" :disabled="loadingMounts" @click="selectDirectory(d)">
             <template #icon><i-material-symbols:folder-outline-rounded /></template>
             <span class="recent-path">{{ d }}</span>
@@ -44,20 +43,27 @@
 <script setup lang="ts">
 import { Modal, popModal } from '@/components/modal'
 import DirectoryBrowser from '@/components/DirectoryBrowser.vue'
-import { useDirectoryPicker } from '@/hooks/directory-picker'
+import { useDirectoryPicker, type DirectoryPickerVolume } from '@/hooks/directory-picker'
 
-const props = defineProps({
-  title: { type: String, default: '' },
-  description: { type: String, default: '' },
-  initialPath: { type: String, default: '' },
-  recentDirs: { type: Array as () => string[], default: () => [] },
+const props = withDefaults(defineProps<{
+  title?: string
+  description?: string
+  initialPath?: string
+  recentDirs?: string[]
+  volume?: DirectoryPickerVolume
+}>(), {
+  title: '',
+  description: '',
+  initialPath: '',
+  recentDirs: () => [],
+  volume: undefined,
 })
 
 const emit = defineEmits<{
   (e: typeof Modal.EVENT_PROMPT, path: string): void
 }>()
 
-const { volumes, loadingMounts, rootPath, currentDir, canGoUp, listing, listingError, dirItems, selectRoot, selectDirectory, enterDir, goUp, dirName, reload } = useDirectoryPicker(props.initialPath)
+const { volumes, loadingMounts, rootPath, currentDir, listing, listingError, dirItems, selectRoot, selectDirectory, enterDir, dirName, reload } = useDirectoryPicker(props.initialPath, props.volume)
 
 function chooseCurrent() { emit(Modal.EVENT_PROMPT, currentDir.value) }
 function cancel() { popModal() }
@@ -70,20 +76,10 @@ function cancel() { popModal() }
   gap: 16px;
 }
 
-.hint {
-  margin: 0;
-  color: var(--md-sys-color-on-surface-variant);
-}
-
 .recents {
   display: flex;
   flex-direction: column;
   gap: 4px;
-}
-
-.recents-label {
-  font-size: 12px;
-  color: var(--md-sys-color-on-surface-variant);
 }
 
 .recent-item {
@@ -96,6 +92,5 @@ function cancel() { popModal() }
 
 .recent-path {
   overflow-wrap: anywhere;
-  font-size: 13px;
 }
 </style>

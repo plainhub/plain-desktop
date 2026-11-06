@@ -9,7 +9,6 @@ export default {
   folder_picker_hint: 'Apri una cartella, poi fai clic su «Seleziona questa cartella».',
   folder_picker_current: 'Selezione attuale',
   select_this_folder: 'Seleziona questa cartella',
-  parent_folder: 'Livello superiore',
   folder_picker_empty: 'Nessuna sottocartella. Puoi selezionare questa cartella.',
   create_folder: 'Crea cartella',
   upload_files: 'Carica file',

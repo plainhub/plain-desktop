@@ -1,18 +1,20 @@
 import { computed, ref, watch } from 'vue'
 import toast from '@/components/toaster'
 import { useI18n } from 'vue-i18n'
-import { filesGQL, initLazyQuery, initQuery, mountsGQL } from '@/lib/api/query'
+import { directoryEntriesGQL, initLazyQuery, initQuery, mountsGQL } from '@/lib/api/query'
 import type { IStorageMount } from '@/lib/interfaces'
 import type { IFile } from '@/lib/file'
 import { getFileName } from '@/lib/api/file'
 import { compareLocale } from '@/lib/array'
 
-export function useDirectoryPicker(initialPath: string) {
+export type DirectoryPickerVolume = Pick<IStorageMount, 'mountPoint' | 'name'>
+
+export function useDirectoryPicker(initialPath: string, volume?: DirectoryPickerVolume) {
   const { t } = useI18n()
 
   const volumes = ref<IStorageMount[]>([])
-  const loadingMounts = ref(true)
-  const rootPath = ref('')
+  const loadingMounts = ref(!volume)
+  const rootPath = ref(volume?.mountPoint || '')
   const relativePath = ref('')
   const dirItems = ref<Pick<IFile, 'path' | 'isDir' | 'isSystem'>[]>([])
   const listingError = ref('')
@@ -30,15 +32,13 @@ export function useDirectoryPicker(initialPath: string) {
     return `${root}/${rel}`.replace(/\/+/g, '/').replace(/\/+$/g, '')
   })
 
-  const canGoUp = computed(() => !!rootPath.value && (relativePath.value || '').trim() !== '')
-
   function selectRoot(mountPoint: string) { rootPath.value = mountPoint || '/'; relativePath.value = '' }
 
   function selectDirectory(absPath: string) {
     const dir = absPath.trim().replace(/\/+$/g, '') || '/'
     let best = ''
-    for (const volume of volumes.value) {
-      const mount = String(volume.mountPoint || '').trim()
+    for (const candidate of volume ? [volume] : volumes.value) {
+      const mount = String(candidate.mountPoint || '').trim()
       if (mount && (dir === mount || dir.startsWith(mount === '/' ? '/' : mount + '/')) && mount.length > best.length) best = mount
     }
     if (!best) { toast(t('invalid_file_path'), 'error'); return }
@@ -56,16 +56,11 @@ export function useDirectoryPicker(initialPath: string) {
 
   function enterDir(absPath: string) { relativePath.value = normalizeRelativeFromAbs(absPath) }
 
-  function goUp() {
-    const rel = (relativePath.value || '').replace(/\/+$/g, '')
-    const idx = rel.lastIndexOf('/')
-    relativePath.value = idx <= 0 ? '' : rel.slice(0, idx)
-  }
-
   function dirName(path: string) { return getFileName(path) || path }
 
   const { refetch: fetchMounts } = initQuery<{ mounts: IStorageMount[] }>({
     document: mountsGQL,
+    enabled: () => !volume,
     handle: (data, error) => {
       loadingMounts.value = false
       listingError.value = error
@@ -83,7 +78,7 @@ export function useDirectoryPicker(initialPath: string) {
   })
 
   const { loading: listing, fetch: fetchDirs } = initLazyQuery<{ files: Pick<IFile, 'path' | 'isDir' | 'isSystem'>[] }>({
-    document: filesGQL,
+    document: directoryEntriesGQL,
     variables: () => ({ root: currentDir.value, offset: 0, limit: 10000, query: '', sortBy: 'NAME_ASC' }),
     handle: (data, error) => {
       listingError.value = error
@@ -100,7 +95,8 @@ export function useDirectoryPicker(initialPath: string) {
     return fetchMounts()
   }
 
+  if (volume && normalizedInitialPath.value) selectDirectory(normalizedInitialPath.value)
   watch([rootPath, relativePath], () => { if (rootPath.value) void reload() }, { immediate: true })
 
-  return { volumes, loadingMounts, rootPath, currentDir, canGoUp, listing, listingError, dirItems, selectRoot, selectDirectory, enterDir, goUp, dirName, reload }
+  return { volumes, loadingMounts, rootPath, currentDir, listing, listingError, dirItems, selectRoot, selectDirectory, enterDir, dirName, reload }
 }

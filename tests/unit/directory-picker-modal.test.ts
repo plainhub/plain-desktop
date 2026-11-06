@@ -8,6 +8,8 @@ import VFilledButton from '@/components/base/VFilledButton.vue'
 import VModal from '@/components/base/VModal.vue'
 import VCircularProgress from '@/components/base/VCircularProgress.vue'
 import { popModal } from '@/components/modal'
+import type { DirectoryPickerVolume } from '@/hooks/directory-picker'
+import tooltip from '@/plugins/tooltip'
 
 const mock = vi.hoisted(() => ({ picker: null as any }))
 vi.mock('@/hooks/directory-picker', () => ({ useDirectoryPicker: () => mock.picker }))
@@ -22,22 +24,23 @@ beforeEach(() => {
       { id: 'archive', label: 'Archive', mountPoint: '/media/archive', totalBytes: 0 },
     ]),
     loadingMounts: ref(false), rootPath: ref('/media/archive'), currentDir: ref('/media/archive/Reports'),
-    canGoUp: ref(true), listing: ref(false), listingError: ref(''),
+    listing: ref(false), listingError: ref(''),
     dirItems: ref([{ path: '/media/archive/Reports/Invoices', isSystem: false }]),
     dirName: (path: string) => path.split('/').pop(),
-    selectRoot: vi.fn(), selectDirectory: vi.fn(), enterDir: vi.fn(), goUp: vi.fn(), reload: vi.fn(),
+    selectRoot: vi.fn(), selectDirectory: vi.fn(), enterDir: vi.fn(), reload: vi.fn(),
   }
 })
 
-async function view(recentDirs: string[] = []) {
+async function view(recentDirs: string[] = [], volume?: DirectoryPickerVolume) {
   let bindings!: { chooseCurrent(): void; cancel(): void; selectDirectory(path: string): void }
   const selected = vi.fn()
   const component = DirectoryPickerModal as any
   const app = createSSRApp({ ...component, setup(props: unknown, context: unknown) {
     bindings = component.setup(props, context)
     return bindings
-  } }, { recentDirs, onPrompt: selected })
+  } }, { recentDirs, volume, onPrompt: selected })
   app.config.globalProperties.$t = (key: string) => key
+  app.use(tooltip)
   app.component('VModal', VModal)
   app.component('VListItem', VListItem)
   app.component('VTextButton', VTextButton)
@@ -52,12 +55,15 @@ async function view(recentDirs: string[] = []) {
 it('shows named volumes and one complete current selection with one explicit confirmation action', async () => {
   const { html } = await view()
   expect(html).toContain('System disk')
-  expect(html).toContain('Archive / Reports')
+  expect(html).toContain('Archive')
+  expect(html).toContain('Reports')
+  expect(html).toContain('aria-current="page"')
   expect(html).toContain('folder_picker_current')
   expect(html.match(/value="ok"/g)).toHaveLength(1)
   expect(html).toContain('select_this_folder')
   expect(html).toContain('folder_picker_hint')
   expect(html).not.toContain('picker-current__value')
+  expect(html).not.toContain('parent_folder')
 })
 
 it('emits the unchanged absolute directory only when the user confirms', async () => {
@@ -65,6 +71,16 @@ it('emits the unchanged absolute directory only when the user confirms', async (
   expect(selected).not.toHaveBeenCalled()
   bindings.chooseCurrent()
   expect(selected).toHaveBeenCalledExactlyOnceWith('/media/archive/Reports')
+})
+
+it('shows only the specified volume path without presenting a volume list', async () => {
+  const { html } = await view([], { mountPoint: '/media/archive', name: 'Archive' })
+  expect(html).toContain('Archive')
+  expect(html).toContain('Reports')
+  expect(html).toContain('aria-current="page"')
+  expect(html).not.toContain('System disk')
+  expect(html).not.toContain('browser-sidebar')
+  expect(html).not.toContain('aria-pressed')
 })
 
 it('opens recent directories for review before confirmation and preserves cancellation', async () => {
@@ -95,15 +111,24 @@ it.each(['mounts', 'directory', 'failure'])('disables confirmation during %s and
   }
 })
 
-it('labels a volume root with its disk name and keeps system directories accessible', async () => {
+it('labels the volume root and displays ordinary folders without the system-and-apps group', async () => {
   mock.picker.rootPath.value = '/'
   mock.picker.currentDir.value = '/'
-  mock.picker.canGoUp.value = false
+  mock.picker.dirItems.value = [{ path: '/System', isSystem: true }, { path: '/Users', isSystem: false }]
+  const { html } = await view()
+  expect(html).toContain('System disk')
+  expect(html).toContain('aria-current="page"')
+  expect(html).toContain('Users')
+  expect(html).not.toContain('system_and_apps')
+  expect(html).not.toContain('title="System"')
+  expect(html).not.toContain('aria-expanded')
+})
+
+it('shows the empty-folder guidance when only system directories remain', async () => {
   mock.picker.dirItems.value = [{ path: '/System', isSystem: true }]
   const { html } = await view()
-  expect(html).toMatch(/class="path"[^>]*>System disk</)
-  expect(html).toContain('system_and_apps')
-  expect(html).toContain('aria-expanded="false"')
+  expect(html).toContain('folder_picker_empty')
+  expect(html).not.toContain('system_and_apps')
 })
 
 it('explains that a folder without children can still be selected', async () => {

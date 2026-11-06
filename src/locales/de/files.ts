@@ -9,7 +9,6 @@ export default {
   folder_picker_hint: 'Öffne einen Ordner und klicke auf „Diesen Ordner auswählen“.',
   folder_picker_current: 'Aktuelle Auswahl',
   select_this_folder: 'Diesen Ordner auswählen',
-  parent_folder: 'Eine Ebene höher',
   folder_picker_empty: 'Keine Unterordner. Du kannst diesen Ordner auswählen.',
   create_folder: 'Ordner erstellen',
   upload_files: 'Dateien hochladen',

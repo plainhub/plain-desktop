@@ -9,7 +9,6 @@ export default {
   folder_picker_hint: 'フォルダーを開き、「このフォルダーを選択」を押してください。',
   folder_picker_current: '現在の選択',
   select_this_folder: 'このフォルダーを選択',
-  parent_folder: 'ひとつ上へ',
   folder_picker_empty: 'サブフォルダーはありません。このフォルダーを選択できます。',
   create_folder: 'フォルダーを作成',
   upload_files: 'ファイルをアップロード',

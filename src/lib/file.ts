@@ -1,5 +1,5 @@
 import { getFileId, getFileName, getFileExtension, getFileUrl } from './api/file'
-import type { IData } from './interfaces'
+import type { IData, IBreadcrumbItem } from './interfaces'
 
 export function fileNameError(name: string): string {
   return name === '.' || name === '..' || /[/\\]/.test(name) ? 'invalid_file_path' : ''
@@ -199,6 +199,17 @@ export async function getImageData(file: File): Promise<{ src: string; width: nu
 export function getDirFromPath(path: string) {
   const index = path.lastIndexOf('/')
   return index === -1 ? '' : path.substring(0, index)
+}
+
+export function getDirectoryBreadcrumbs(path: string, rootPath: string, rootName: string): IBreadcrumbItem[] {
+  const items: IBreadcrumbItem[] = []
+  let current = path
+  while (current && current !== rootPath) {
+    items.unshift({ path: current, name: getFileName(current) })
+    current = getDirFromPath(current)
+  }
+  items.unshift({ path: rootPath, name: rootName })
+  return items
 }
 
 export function enrichFile(item: Pick<IFile, 'path' | 'isDir' | 'updatedAt' | 'size'> & { createdAt?: string; isSystem?: boolean }) {

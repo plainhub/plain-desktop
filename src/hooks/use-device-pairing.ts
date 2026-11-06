@@ -78,7 +78,7 @@ export function useDevicePairing() {
     let generation = generations.get(key(deviceId))
     if (!generation) {
       const { data } = await import('@/lib/api/gql-client').then(({ gqlFetch }) => gqlFetch('{ pairingStates { deviceId generation phase } }'))
-      generation = data?.pairingStates?.find((s: { deviceId: string; phase: string }) => s.deviceId === deviceId && !['SUCCEEDED', 'FAILED', 'CANCELLED'].includes(s.phase))?.generation
+      generation = data?.pairingStates?.find((s: Pick<PairingState, 'deviceId' | 'phase'>) => s.deviceId === deviceId && !['SUCCEEDED', 'FAILED', 'CANCELLED'].includes(s.phase))?.generation
     }
     if (generation) await cancelPairingMutate({ generation })
   }

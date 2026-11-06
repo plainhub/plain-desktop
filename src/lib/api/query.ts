@@ -449,6 +449,16 @@ export const filesGQL = `
   ${fileFragment}
 `
 
+export const directoryEntriesGQL = `
+  query directoryEntries($root: String!, $offset: Int!, $limit: Int!, $query: String!, $sortBy: FileSortBy!) {
+    files(root: $root, query: $query, offset: $offset, limit: $limit, sortBy: $sortBy) {
+      path
+      isDir
+      isSystem
+    }
+  }
+`
+
 export const recentFilesGQL = `
   query recentFiles {
     recentFiles {

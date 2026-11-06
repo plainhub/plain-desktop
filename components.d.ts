@@ -489,6 +489,7 @@ declare module 'vue' {
     UxMarkdownEditor: typeof import('./src/views/ux/UxMarkdownEditor.vue')['default']
     UxOverlays: typeof import('./src/views/ux/UxOverlays.vue')['default']
     UxView: typeof import('./src/views/ux/UxView.vue')['default']
+    VBreadcrumb: typeof import('./src/components/base/VBreadcrumb.vue')['default']
     VCheckbox: typeof import('./src/components/base/VCheckbox.vue')['default']
     VCheckCircle: typeof import('./src/components/base/VCheckCircle.vue')['default']
     VChipSelect: typeof import('./src/components/base/VChipSelect.vue')['default']

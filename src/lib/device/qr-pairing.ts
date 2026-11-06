@@ -1,3 +1,4 @@
+import { DeviceType } from '@/lib/status'
 import { invoke } from '@tauri-apps/api/core'
 import { isLocalMode } from '@/lib/device/local-mode'
 import { qrCodeSvg } from '@/lib/qr'
@@ -14,7 +15,7 @@ export interface QrPairedDevice {
   ip: string
   port: number
   host: string
-  deviceType: string
+  deviceType: DeviceType
 }
 
 export async function loadQrPairingCode(): Promise<QrPairingCode | null> {
@@ -37,6 +38,6 @@ export function qrPairedDevice(request: PairingRequest): QrPairedDevice {
     ip,
     port: request.port,
     host: ip ? `${ip}:${request.port}` : '',
-    deviceType: request.deviceType || 'OTHER',
+    deviceType: request.deviceType || DeviceType.OTHER,
   }
 }

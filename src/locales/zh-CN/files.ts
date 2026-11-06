@@ -10,7 +10,6 @@ export default {
   folder_picker_hint: '点击文件夹进入，选好后点击“选择此文件夹”。',
   folder_picker_current: '当前选择',
   select_this_folder: '选择此文件夹',
-  parent_folder: '上一级',
   folder_picker_empty: '没有子文件夹，可直接选择此文件夹。',
   create_folder: '创建目录',
   upload_files: '上传文件',

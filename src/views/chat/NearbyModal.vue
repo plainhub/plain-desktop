@@ -94,7 +94,6 @@ import { useDevicePairing, DeviceState } from '@/hooks/use-device-pairing'
 import { unpairPeerGQL, initMutation } from '@/lib/api/mutation'
 import type { QrPairedDevice } from '@/lib/device/qr-pairing'
 import type { PendingLoginDevice } from '@/lib/api/api'
-import { DeviceType } from '@/lib/status'
 import { useChatStore } from '@/stores/chat'
 import { PeerStatus } from '@/lib/status'
 
@@ -160,7 +159,7 @@ async function confirmPair(mode: 'chat' | 'control') {
       id: device.id,
       name: device.name,
       host,
-      deviceType: device.deviceType as DeviceType,
+      deviceType: device.deviceType,
     }
     step.value = 'login'
     return

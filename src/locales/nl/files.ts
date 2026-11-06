@@ -9,7 +9,6 @@ export default {
   folder_picker_hint: 'Open een map en klik op ‘Deze map selecteren’.',
   folder_picker_current: 'Huidige selectie',
   select_this_folder: 'Deze map selecteren',
-  parent_folder: 'Eén niveau omhoog',
   folder_picker_empty: 'Geen submappen. Je kunt deze map selecteren.',
   create_folder: 'Map aanmaken',
   upload_files: 'Bestanden uploaden',

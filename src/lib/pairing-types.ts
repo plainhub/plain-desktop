@@ -1,9 +1,11 @@
+import type { DeviceType } from '@/lib/status'
+
 export interface PairingRequest {
   verificationCode?: string
   fromId: string
   fromName: string
   port: number
-  deviceType: string
+  deviceType: DeviceType
   ecdhPublicKey: string
   signaturePublicKey: string
   timestamp: number

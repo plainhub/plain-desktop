@@ -9,7 +9,6 @@ export default {
   folder_picker_hint: 'Ouvrez un dossier, puis cliquez sur « Choisir ce dossier ».',
   folder_picker_current: 'Sélection actuelle',
   select_this_folder: 'Choisir ce dossier',
-  parent_folder: 'Dossier parent',
   folder_picker_empty: 'Aucun sous-dossier. Vous pouvez choisir ce dossier.',
   create_folder: 'Créer un dossier',
   upload_files: 'Télécharger des fichiers',

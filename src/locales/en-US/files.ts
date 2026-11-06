@@ -10,7 +10,6 @@ export default {
   folder_picker_hint: 'Open a folder, then click “Select this folder” to finish.',
   folder_picker_current: 'Current selection',
   select_this_folder: 'Select this folder',
-  parent_folder: 'Up one level',
   folder_picker_empty: 'No subfolders. You can select this folder.',
   create_folder: 'Create folder',
   upload_files: 'Upload files',

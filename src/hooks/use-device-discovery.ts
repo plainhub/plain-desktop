@@ -8,7 +8,9 @@ import emitter from '@/plugins/eventbus'
 import type { PairingResult } from '@/lib/pairing-types'
 import { useChatStore } from '@/stores/chat'
 import type { PairingState } from '@/lib/device/pairing'
-import { PeerStatus } from '@/lib/status'
+import { DeviceType, PeerStatus } from '@/lib/status'
+
+export type DiscoveryMethod = 'LAN' | 'DNS_SD' | 'BLE' | 'QR'
 
 export type DiscoveryDeviceStatus = 'PAIRING' | 'UNPAIRING' | PeerStatus
 
@@ -18,12 +20,12 @@ export interface DiscoveredDevice {
   ips: string[]
   bestIp?: string
   port: number
-  deviceType: string
+  deviceType: DeviceType
   version: string
   platform: string
   lastSeen: string
   status: DiscoveryDeviceStatus
-  discoveryMethods: string[]
+  discoveryMethods: DiscoveryMethod[]
 }
 
 export enum DiscoveryStatus {

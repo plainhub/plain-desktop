@@ -9,7 +9,6 @@ export default {
   folder_picker_hint: 'Mở một thư mục, rồi nhấn “Chọn thư mục này”.',
   folder_picker_current: 'Lựa chọn hiện tại',
   select_this_folder: 'Chọn thư mục này',
-  parent_folder: 'Lên một cấp',
   folder_picker_empty: 'Không có thư mục con. Bạn có thể chọn thư mục này.',
   create_folder: 'Tạo thư mục',
   upload_files: 'Tải lên tệp',

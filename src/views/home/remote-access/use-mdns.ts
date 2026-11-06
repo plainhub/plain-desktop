@@ -15,7 +15,7 @@ export interface MdnsServiceSnapshot {
   port: number
   txtRecords: string[]
   ips: string[]
-  ipv6: string[]
+  ip6s: string[]
   complete: boolean
 }
 
@@ -55,7 +55,7 @@ export function useMdns() {
   async function refreshSnapshot() {
     try {
       const result = await gqlFetch<{ mdnsState: { services: MdnsServiceSnapshot[]; activity: MdnsActivity[] } }>(
-        'query { mdnsState { services { serviceType instanceName instanceFqdn hostname port txtRecords ips ipv6 complete } activity { time event detail } } }',
+        'query { mdnsState { services { serviceType instanceName instanceFqdn hostname port txtRecords ips ip6s complete } activity { time event detail } } }',
         undefined,
         { fresh: true }
       )

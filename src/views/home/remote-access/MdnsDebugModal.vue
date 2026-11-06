@@ -30,7 +30,7 @@
         </div>
         <div class="key-value">
           <div class="key">{{ $t('mdns_ips') }}</div>
-          <div class="value">{{ [...s.ips, ...s.ipv6].join(', ') || $t('not_available') }}</div>
+          <div class="value">{{ [...s.ips, ...s.ip6s].join(', ') || $t('not_available') }}</div>
         </div>
         <div class="key-value">
           <div class="key">{{ $t('mdns_txt') }}</div>

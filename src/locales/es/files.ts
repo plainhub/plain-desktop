@@ -9,7 +9,6 @@ export default {
   folder_picker_hint: 'Abre una carpeta y pulsa «Seleccionar esta carpeta».',
   folder_picker_current: 'Selección actual',
   select_this_folder: 'Seleccionar esta carpeta',
-  parent_folder: 'Subir un nivel',
   folder_picker_empty: 'No hay subcarpetas. Puedes seleccionar esta carpeta.',
   create_folder: 'Crear carpeta',
   upload_files: 'Cargar archivos',

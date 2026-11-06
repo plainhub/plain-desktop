@@ -9,7 +9,6 @@ export default {
   folder_picker_hint: 'একটি ফোল্ডার খুলুন, তারপর “এই ফোল্ডারটি বেছে নিন” চাপুন।',
   folder_picker_current: 'বর্তমান নির্বাচন',
   select_this_folder: 'এই ফোল্ডারটি বেছে নিন',
-  parent_folder: 'এক স্তর উপরে',
   folder_picker_empty: 'কোনো সাবফোল্ডার নেই। এই ফোল্ডারটি বেছে নিতে পারেন।',
   create_folder: 'ফোল্ডার তৈরি করুন',
   upload_files: 'ফাইল আপলোড করুন',

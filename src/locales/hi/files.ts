@@ -9,7 +9,6 @@ export default {
   folder_picker_hint: 'फ़ोल्डर खोलें, फिर “यह फ़ोल्डर चुनें” पर क्लिक करें।',
   folder_picker_current: 'वर्तमान चयन',
   select_this_folder: 'यह फ़ोल्डर चुनें',
-  parent_folder: 'एक स्तर ऊपर',
   folder_picker_empty: 'कोई सबफ़ोल्डर नहीं है। आप यह फ़ोल्डर चुन सकते हैं।',
   create_folder: 'क्रिएट फोल्डर',
   upload_files: 'अपलोड फाइल्स',

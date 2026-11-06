@@ -884,7 +884,7 @@ export interface GqlOperations {
         deviceId?: string
         generation: string
         mode: 'CHAT' | 'MANAGE'
-        phase: string
+        phase: 'STARTING' | 'PASSWORD_REQUIRED' | 'AUTHENTICATING' | 'PAIRING' | 'WAITING_CONFIRMATION' | 'COMMITTING' | 'SUCCEEDED' | 'FAILED' | 'CANCELLED'
         error?: string
         verificationCode?: string
       }
@@ -1220,6 +1220,22 @@ export interface GqlOperations {
     }
     variables: undefined
   }
+  directoryEntriesGQL: {
+    result: {
+      files: Array<{
+        path: string
+        isDir: boolean
+        isSystem: boolean
+      }>
+    }
+    variables: {
+      root: string
+      offset: number
+      limit: number
+      query: string
+      sortBy: 'DATE_ASC' | 'DATE_DESC' | 'SIZE_ASC' | 'SIZE_DESC' | 'NAME_ASC' | 'NAME_DESC' | 'TAKEN_AT_DESC'
+    }
+  }
   disableImageSearchGQL: {
     result: {
       disableImageSearch: boolean
@@ -1545,7 +1561,7 @@ export interface GqlOperations {
     result: {
       imageModelsUpdated: {
         version: number
-        status: string
+        status: 'UNAVAILABLE' | 'DOWNLOADING' | 'LOADING' | 'READY' | 'ERROR'
         downloadProgress: number
         errorMessage: string
         modelSize: number
@@ -1874,18 +1890,18 @@ export interface GqlOperations {
         ips: Array<string>
         bestIp: string
         port: number
-        deviceType: string
+        deviceType: 'COMPUTER' | 'PHONE' | 'TABLET' | 'TV' | 'NAS' | 'OTHER'
         version: string
         platform: string
         lastSeen: string
-        status: string
-        discoveryMethods: Array<string>
+        status: 'PAIRED' | 'UNPAIRED' | 'CHANNEL'
+        discoveryMethods: Array<'LAN' | 'DNS_SD' | 'BLE' | 'QR'>
       }>
       pairingStates: Array<{
         deviceId?: string
         generation: string
         mode: 'CHAT' | 'MANAGE'
-        phase: string
+        phase: 'STARTING' | 'PASSWORD_REQUIRED' | 'AUTHENTICATING' | 'PAIRING' | 'WAITING_CONFIRMATION' | 'COMMITTING' | 'SUCCEEDED' | 'FAILED' | 'CANCELLED'
         error?: string
       }>
       mdnsState: {
@@ -2036,7 +2052,7 @@ export interface GqlOperations {
         deviceId?: string
         generation: string
         mode: 'CHAT' | 'MANAGE'
-        phase: string
+        phase: 'STARTING' | 'PASSWORD_REQUIRED' | 'AUTHENTICATING' | 'PAIRING' | 'WAITING_CONFIRMATION' | 'COMMITTING' | 'SUCCEEDED' | 'FAILED' | 'CANCELLED'
         error?: string
       }
     }
@@ -2086,7 +2102,7 @@ export interface GqlOperations {
         fromId: string
         fromName: string
         port: number
-        deviceType: string
+        deviceType: 'COMPUTER' | 'PHONE' | 'TABLET' | 'TV' | 'NAS' | 'OTHER'
         ecdhPublicKey: string
         signaturePublicKey: string
         timestamp: number

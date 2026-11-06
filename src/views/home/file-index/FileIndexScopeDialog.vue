@@ -1,15 +1,12 @@
 <template>
   <v-modal @close="cancel">
-    <template #headline>{{ $t('file_index.scope') }}</template>
+    <template #headline>{{ $t('file_index.scope') }} · {{ volumeName }}</template>
     <template #content>
       <div class="scope-content">
-        <select v-model="selectedId" :disabled="saving" :aria-label="$t('file_index.volume')">
-          <option v-for="item in volumes" :key="item.id" :value="item.id">{{ volumeName(item) }}</option>
-        </select>
         <div class="modes" role="group" :aria-label="$t('file_index.mode')">
           <button v-for="mode in modes" :key="mode.value" :aria-pressed="draft.indexMode === mode.value" :disabled="saving" @click="draft.indexMode = mode.value">{{ $t(mode.label) }}</button>
         </div>
-        <p class="hint">{{ $t(`file_index.${draft.indexMode === 'ALLOWLIST' ? 'allow_hint' : draft.indexMode === 'BLOCKLIST' ? 'block_hint' : 'disabled_hint'}`) }}</p>
+        <p class="subtle">{{ $t(`file_index.${draft.indexMode === 'ALLOWLIST' ? 'allow_hint' : draft.indexMode === 'BLOCKLIST' ? 'block_hint' : 'disabled_hint'}`) }}</p>
         <template v-if="draft.indexMode !== 'DISABLED'">
           <div v-for="path in activeDirs" :key="path" class="directory-row">
             <span>{{ path }}</span>
@@ -29,7 +26,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, ref, watch } from 'vue'
+import { computed, ref } from 'vue'
 import { closeById, modalQueue, promptModal } from '@/components/modal'
 import FileIndexDefaults from './FileIndexDefaults.vue'
 import type { FileIndexDefaults as DefaultRules } from '@/lib/api/file-index'
@@ -37,11 +34,10 @@ import DirectoryPickerModal from '@/components/DirectoryPickerModal.vue'
 import { bindGraphqlClient } from '@/lib/api/gql-client'
 import { saveFileIndexVolume, type FileIndexVolume, type IndexMode } from '@/lib/api/file-index'
 
-const props = defineProps<{ modalId: string; volumes: FileIndexVolume[]; defaults: DefaultRules; initialId: string; volumeName: (volume: FileIndexVolume) => string; onSaved: () => unknown }>()
+const props = defineProps<{ modalId: string; volume: FileIndexVolume; defaults: DefaultRules; volumeName: string; onSaved: () => unknown }>()
 const modalId = Number(props.modalId.replace(/\D/g, ''))
 const request = bindGraphqlClient()
-const selectedId = ref(props.initialId)
-const draft = ref<FileIndexVolume>(copy(props.volumes.find((item) => item.id === props.initialId)!))
+const draft = ref<FileIndexVolume>(copy(props.volume))
 const saving = ref(false)
 const error = ref('')
 const modes: { value: IndexMode; label: string }[] = [
@@ -50,10 +46,6 @@ const modes: { value: IndexMode; label: string }[] = [
   { value: 'DISABLED', label: 'file_index.disabled' },
 ]
 const activeDirs = computed(() => (draft.value.indexMode === 'ALLOWLIST' ? draft.value.includedDirs : draft.value.excludedDirs))
-watch(selectedId, (id) => {
-  draft.value = copy(props.volumes.find((item) => item.id === id)!)
-  error.value = ''
-})
 
 function copy(volume: FileIndexVolume): FileIndexVolume {
   return { ...volume, indexMode: volume.indexMode === 'UNCONFIGURED' ? 'BLOCKLIST' : volume.indexMode, includedDirs: [...volume.includedDirs], excludedDirs: [...volume.excludedDirs] }
@@ -65,7 +57,10 @@ function remove(path: string) {
 }
 
 async function add() {
-  const path = await promptModal<string>(DirectoryPickerModal, { title: '', description: '', initialPath: draft.value.path })
+  const path = await promptModal<string>(DirectoryPickerModal, {
+    initialPath: draft.value.path,
+    volume: { mountPoint: props.volume.path, name: props.volumeName },
+  })
   if (typeof path === 'string' && !activeDirs.value.includes(path)) activeDirs.value.push(path)
 }
 
@@ -94,15 +89,6 @@ async function save() {
   flex-direction: column;
   gap: 8px;
 }
-select {
-  padding: 8px;
-  border: 0;
-  border-radius: 8px;
-  background: var(--md-sys-color-surface-container-high);
-  color: var(--md-sys-color-on-surface);
-  font: inherit;
-  max-width: 100%;
-}
 .modes {
   display: flex;
   flex-wrap: wrap;
@@ -121,11 +107,6 @@ select {
 .modes button[aria-pressed='true'] {
   background: var(--md-sys-color-secondary-container);
   color: var(--md-sys-color-on-secondary-container);
-}
-.hint {
-  margin: 0;
-  color: var(--md-sys-color-on-surface-variant);
-  font-size: 0.875rem;
 }
 .directory-row {
   display: flex;

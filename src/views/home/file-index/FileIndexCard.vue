@@ -19,9 +19,9 @@
         >{{ scanProgress.indexed.toLocaleString() }}<template v-if="scanProgress.total !== null && scanProgress.total > 0"> / {{ scanProgress.total.toLocaleString() }}</template></span
       >
     </div>
-    <div v-if="visibleVolumes.length" class="volume-cards">
+    <div v-if="volumes.length" class="volume-cards">
       <FileIndexVolumeCard
-        v-for="volume in visibleVolumes"
+        v-for="volume in volumes"
         :key="volume.id"
         :volume="volume"
         :title="volumeName(volume)"
@@ -31,7 +31,6 @@
         @scan="rebuildVolume(volume.id)"
       />
     </div>
-    <v-text-button v-if="volumes.length > 3" @click="edit()">{{ $t('file_index.all_volumes', { count: volumes.length }) }}</v-text-button>
     <div v-if="loadError" class="load-error">
       <p role="alert">{{ loadError }}</p>
       <v-text-button @click="reload">{{ $t('retry') }}</v-text-button>
@@ -59,7 +58,6 @@ const { t } = useI18n()
 const volumes = ref<FileIndexVolume[]>([])
 const loadError = ref('')
 const defaults = ref<FileIndexDefaults>()
-const visibleVolumes = computed(() => volumes.value.slice(0, 3))
 const hasIndexScope = computed(() => volumes.value.some(canScanVolume))
 const { loading, refetch: fetch } = initQuery({
   document: fileIndexVolumesGQL,
@@ -108,9 +106,10 @@ function volumeName(volume: FileIndexVolume) {
   return volume.isAvailable ? name : `${name} · ${t('offline')}`
 }
 
-function edit(id = volumes.value[0]?.id) {
-  if (!id || !defaults.value) return
-  pushModal(FileIndexScopeDialog, { volumes: volumes.value, initialId: id, defaults: defaults.value, volumeName, onSaved: reload })
+function edit(id: string) {
+  const volume = volumes.value.find((item) => item.id === id)
+  if (!volume || !defaults.value) return
+  pushModal(FileIndexScopeDialog, { volume, defaults: defaults.value, volumeName: volumeName(volume), onSaved: reload })
 }
 </script>
 

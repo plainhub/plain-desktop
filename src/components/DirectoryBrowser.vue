@@ -1,6 +1,6 @@
 <template>
   <div class="browser">
-    <aside class="browser-sidebar">
+    <aside v-if="!volume" class="browser-sidebar">
       <div v-if="loadingMounts" class="volumes-loading">
         <v-circular-progress indeterminate class="sm" />
       </div>
@@ -20,24 +20,19 @@
           @keydown.enter.prevent="emit('selectRoot', v.mountPoint || '/')"
           @keydown.space.prevent="emit('selectRoot', v.mountPoint || '/')"
         >
-          <template #start><i-lucide:hard-drive /></template>
+          <template #start><i-lucide:hard-drive width="20" height="20" /></template>
           <template v-if="String(v.mountPoint || '') === activeRoot" #end>
-            <i-material-symbols:check-rounded />
+            <i-material-symbols:check-rounded width="16" height="16" />
           </template>
         </v-list-item>
       </ul>
     </aside>
 
     <section class="browser-main">
-      <div class="toolbar">
-        <v-text-button :disabled="!canGoUp" @click="emit('goUp')">
-          <i-material-symbols:arrow-back-rounded />
-          {{ t('parent_folder') }}
-        </v-text-button>
-        <div class="selection" aria-live="polite">
-          <span class="selection-label">{{ t('folder_picker_current') }}</span>
-          <span class="path" :title="currentDir">{{ loadingMounts ? t('loading') : selectionPath }}</span>
-        </div>
+      <div class="selection" aria-live="polite">
+        <span class="subtle">{{ t('folder_picker_current') }}</span>
+        <span v-if="loadingMounts">{{ t('loading') }}</span>
+        <VBreadcrumb v-else :items="breadcrumbs" :label="t('current_path')" wrap @navigate="emit('enterDir', $event)" />
       </div>
 
       <div class="list" :aria-busy="listing || loadingMounts">
@@ -49,50 +44,47 @@
           <span>{{ t(listingError) }}</span>
           <v-text-button @click="emit('reload')">{{ t('retry') }}</v-text-button>
         </div>
-        <div v-else-if="dirItems.length === 0" class="empty-row">{{ t('folder_picker_empty') }}</div>
-        <template v-else>
-          <SystemFilesHeader
-            v-if="systemItems.length"
-            :count="systemItems.length"
-            :expanded="systemExpanded"
-            @toggle="systemExpanded = !systemExpanded"
-          />
-          <button
-            v-for="d in visibleItems"
+        <div v-else-if="selectableDirs.length === 0" class="empty-row">{{ t('folder_picker_empty') }}</div>
+        <ul v-else class="directory-list">
+          <v-list-item
+            v-for="d in selectableDirs"
             :key="d.path"
-            class="dir-row"
+            class="directory-item"
+            :title="dirName(d.path)"
+            clickable
+            role="button"
+            tabindex="0"
             @click="emit('enterDir', d.path)"
+            @keydown.enter.prevent="emit('enterDir', d.path)"
+            @keydown.space.prevent="emit('enterDir', d.path)"
           >
-            <span class="dir-icon">
-              <i-material-symbols:folder-rounded />
-            </span>
-            <span class="dir-name">{{ dirName(d.path) }}</span>
-            <i-material-symbols:chevron-right-rounded class="dir-chevron" />
-          </button>
-        </template>
+            <template #start><i-material-symbols:folder-rounded width="20" height="20" /></template>
+            <template #end><i-material-symbols:chevron-right-rounded width="16" height="16" /></template>
+          </v-list-item>
+        </ul>
       </div>
     </section>
   </div>
 </template>
 
 <script setup lang="ts">
-import { computed, toRef } from 'vue'
+import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 import type { IStorageMount } from '@/lib/interfaces'
-import type { IFile } from '@/lib/file'
-import SystemFilesHeader from '@/views/files/SystemFilesHeader.vue'
-import { useSystemFiles } from '@/views/files/hooks/useSystemFiles'
+import { getDirectoryBreadcrumbs, type IFile } from '@/lib/file'
+import VBreadcrumb from '@/components/base/VBreadcrumb.vue'
 import { getStorageVolumeTitle } from '@/lib/volumes'
 import { sortMounts, storageCountText } from '@/lib/storage'
+import type { DirectoryPickerVolume } from '@/hooks/directory-picker'
 
 const { t } = useI18n()
 
 const props = defineProps<{
   volumes: IStorageMount[]
+  volume?: DirectoryPickerVolume
   loadingMounts?: boolean
   activeRoot: string
   currentDir: string
-  canGoUp: boolean
   listing: boolean
   listingError?: string
   dirItems: Pick<IFile, 'path' | 'isSystem'>[]
@@ -101,22 +93,21 @@ const props = defineProps<{
 
 const emit = defineEmits<{
   (e: 'selectRoot', mountPoint: string): void
-  (e: 'goUp'): void
   (e: 'enterDir', absPath: string): void
   (e: 'reload'): void
 }>()
 
-const { expanded: systemExpanded, visibleItems, systemItems } = useSystemFiles(
-  toRef(props, 'dirItems'), () => props.currentDir, () => true,
-)
-
+const selectableDirs = computed(() => props.dirItems.filter((directory) => !directory.isSystem))
 const sortedVolumes = computed(() => sortMounts(props.volumes))
-const selectionPath = computed(() => {
-  const volume = props.volumes.find((v) => String(v.mountPoint || '') === props.activeRoot)
-  if (!volume) return props.activeRoot ? props.currentDir : '—'
-  const title = getStorageVolumeTitle(volume, t)
-  const relative = props.currentDir.slice(props.activeRoot.length).replace(/^\/+/, '')
-  return relative ? `${title} / ${relative}` : title
+const breadcrumbs = computed(() => {
+  let title: string
+  if (props.volume) title = props.volume.name
+  else {
+    const volume = props.volumes.find((v) => String(v.mountPoint || '') === props.activeRoot)
+    if (!volume) return [{ path: props.currentDir, name: props.activeRoot ? props.currentDir : '—' }]
+    title = getStorageVolumeTitle(volume, t)
+  }
+  return getDirectoryBreadcrumbs(props.currentDir, props.activeRoot, title)
 })
 
 function mountCount(m: IStorageMount): string {
@@ -143,14 +134,19 @@ function mountCount(m: IStorageMount): string {
   gap: 8px;
   display: flex;
   flex-direction: column;
+}
+
+.browser-volumes,
+.directory-list {
   margin: 0;
   padding: 0;
   list-style: none;
 }
 
-.volume-item {
+.volume-item,
+.directory-item {
   gap: 8px;
-  border-radius: 12px;
+  border-radius: var(--pl-shape-m);
 }
 
 .volume-item :deep(.body) {
@@ -177,31 +173,13 @@ function mountCount(m: IStorageMount): string {
   flex-direction: column;
 }
 
-.toolbar {
-  display: flex;
-  align-items: flex-start;
-  flex-direction: column;
-  gap: 8px;
-  padding: 8px 16px 16px;
-}
-
 .selection {
   display: flex;
   flex-direction: column;
   gap: 4px;
   min-width: 0;
   width: 100%;
-}
-
-.selection-label {
-  font-size: 0.75rem;
-  color: var(--md-sys-color-on-surface-variant);
-}
-
-.path {
-  font-weight: 500;
-  color: var(--md-sys-color-on-surface);
-  overflow-wrap: anywhere;
+  padding: 16px;
 }
 
 .list {
@@ -219,46 +197,6 @@ function mountCount(m: IStorageMount): string {
   gap: 8px;
   padding: 16px;
   color: var(--md-sys-color-on-surface-variant);
-}
-
-.dir-row {
-  width: 100%;
-  display: grid;
-  grid-template-columns: 24px minmax(0, 1fr) 24px;
-  align-items: center;
-  min-height: 48px;
-  gap: 8px;
-  padding: 8px;
-  border: 0;
-  background: transparent;
-  border-radius: 8px;
-  cursor: pointer;
-  text-align: left;
-  color: var(--md-sys-color-on-surface-variant);
-}
-
-.dir-row:hover {
-  background: color-mix(in srgb, var(--md-sys-color-primary) 6%, transparent);
-}
-
-.dir-icon {
-  width: 24px;
-  height: 24px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.dir-name {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  color: var(--md-sys-color-on-surface);
-}
-
-.dir-chevron {
-  width: 24px;
-  height: 24px;
 }
 
 @media (min-width: 704px) {

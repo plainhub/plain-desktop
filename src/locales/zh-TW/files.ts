@@ -10,7 +10,6 @@ export default {
   folder_picker_hint: '點擊資料夾進入，選好後點擊「選擇此資料夾」。',
   folder_picker_current: '目前選擇',
   select_this_folder: '選擇此資料夾',
-  parent_folder: '上一層',
   folder_picker_empty: '沒有子資料夾，可直接選擇此資料夾。',
   create_folder: '建立資料夾',
   upload_files: '上傳檔案',

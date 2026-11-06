@@ -5,14 +5,7 @@
         <v-icon-button v-if="currentPath" v-tooltip="$t('back')" @click="goUp">
           <i-material-symbols:arrow-back-rounded />
         </v-icon-button>
-        <div class="breadcrumb">
-          <a href="#" @click.prevent="navigateTo('')">{{ shareTitle }}</a>
-          <template v-for="(crumb, i) in breadcrumbs" :key="i">
-            <span class="sep">/</span>
-            <a v-if="i < breadcrumbs.length - 1" href="#" @click.prevent="navigateTo(crumb.path)">{{ crumb.name }}</a>
-            <span v-else class="crumb-current">{{ crumb.name }}</span>
-          </template>
-        </div>
+        <VBreadcrumb :items="[{ path: '', name: shareTitle }, ...breadcrumbs]" :label="$t('current_path')" @navigate="navigateTo" />
         <span v-if="info?.readOnly" class="status-badge">{{ $t('share_read_only') }}</span>
       </div>
       <div v-if="info?.expiresAt" class="actions">
@@ -72,6 +65,7 @@
 
 <script setup lang="ts">
 import { computed, onMounted, watch } from 'vue'
+import VBreadcrumb from '@/components/base/VBreadcrumb.vue'
 import { useRoute } from 'vue-router'
 import { formatFileSize, formatDateTime } from '@/lib/format'
 import { useShareData } from './hooks/useShareData'
@@ -107,34 +101,6 @@ watch(() => [sharedId.value, sharedToken.value], () => load(currentPath.value))
 
   .title {
     min-width: 0;
-  }
-
-  .breadcrumb {
-    display: flex;
-    align-items: center;
-    overflow-x: auto;
-    flex-wrap: nowrap;
-    white-space: nowrap;
-    scrollbar-width: none;
-
-    &::-webkit-scrollbar {
-      display: none;
-    }
-
-    .sep {
-      margin-inline: 4px;
-      color: var(--md-sys-color-on-surface-variant);
-    }
-
-    a {
-      color: var(--md-sys-color-primary);
-      text-decoration: none;
-    }
-
-    .crumb-current {
-      color: var(--md-sys-color-on-surface);
-      font-weight: 500;
-    }
   }
 
   .status-badge {

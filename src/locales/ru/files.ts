@@ -9,7 +9,6 @@ export default {
   folder_picker_hint: 'Откройте папку и нажмите «Выбрать эту папку».',
   folder_picker_current: 'Текущий выбор',
   select_this_folder: 'Выбрать эту папку',
-  parent_folder: 'На уровень выше',
   folder_picker_empty: 'Нет вложенных папок. Можно выбрать эту папку.',
   create_folder: 'Создать папку',
   upload_files: 'Загрузить файлы',
