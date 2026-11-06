@@ -25,12 +25,12 @@ it('uses the local shared Rust copy and returns its actual collision-safe path w
   fixture.native.mockResolvedValue({ data: { copyFileToDirectory: '/downloads/report (1).txt' } })
   const fetch = vi.spyOn(globalThis, 'fetch')
   try {
-    expect(await downloadToDir('https://device.invalid/fs?id=encrypted%2Bvalue&dl=1', 'report.txt'))
+    expect(await downloadToDir('https://device.invalid/fs?id=encrypted%2Bvalue&action=download', 'report.txt'))
       .toBe('/downloads/report (1).txt')
-    expect(fixture.proxy).toHaveBeenCalledWith('/fs?id=encrypted%2Bvalue&dl=1')
+    expect(fixture.proxy).toHaveBeenCalledWith('/fs?id=encrypted%2Bvalue&action=download')
     expect(fixture.native).toHaveBeenCalledTimes(1)
     expect(fixture.native.mock.calls[0][0].variables).toEqual({
-      source: 'http://localhost:3210/fs?id=encrypted%2Bvalue&dl=1',
+      source: 'http://localhost:3210/fs?id=encrypted%2Bvalue&action=download',
       directory: '/downloads',
       name: 'report.txt',
     })

@@ -1,3 +1,5 @@
+import { isOfficeFile } from '@/lib/file'
+
 export type FileKind = 'json' | 'xml' | 'md' | 'doc' | 'txt'
 
 export const BIG_FILE_BYTES = 8 * 1024 * 1024
@@ -6,12 +8,13 @@ const KIND_BY_EXT: Record<string, FileKind> = {}
 for (const ext of ['json']) KIND_BY_EXT[ext] = 'json'
 for (const ext of ['xml']) KIND_BY_EXT[ext] = 'xml'
 for (const ext of ['md', 'markdown']) KIND_BY_EXT[ext] = 'md'
-for (const ext of ['doc', 'docx', 'rtf', 'odt', 'pages']) KIND_BY_EXT[ext] = 'doc'
 
-export function fileKindOf(fileName: string): FileKind {
+export function fileKindOf(fileName: string, mimeType = ''): FileKind {
+  if (isOfficeFile(fileName)) return 'doc'
   const name = (fileName || '').toLowerCase()
   const idx = name.lastIndexOf('.')
   const ext = idx <= 0 ? '' : name.substring(idx + 1)
+  if (mimeType === 'text/markdown' && KIND_BY_EXT[ext] !== 'md') return 'doc'
   return KIND_BY_EXT[ext] || 'txt'
 }
 

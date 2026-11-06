@@ -34,7 +34,7 @@ import {
 
 function getErrorMessage(e: any): string {
   if (e instanceof GqlError) {
-    if (e.status === 403) return 'desktop_access_disabled'
+    if (e.status === 403) return 'remote_access_disabled'
     return e.message
   }
   return 'network_error'

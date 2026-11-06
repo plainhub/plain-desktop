@@ -1,5 +1,5 @@
 <template>
-  <v-icon-button v-if="hasFeature(Capability.IMAGE_SEARCH, app.capabilities)" v-tooltip="$t('ai.image_search')" @click="modalOpen = true">
+  <v-icon-button v-tooltip="$t('ai.image_search')" @click="modalOpen = true">
     <i-lucide:brain />
     <span v-if="status?.status === ImageSearchStatusType.READY" class="ai-dot" />
   </v-icon-button>
@@ -8,15 +8,10 @@
 
 <script setup lang="ts">
 import { ref } from 'vue'
-import { storeToRefs } from 'pinia'
 import { useImageSearchStatus } from '@/hooks/ai/use-image-search-status'
 import { ImageSearchStatusType } from '@/lib/status'
-import { Capability } from '@/lib/data'
-import { hasFeature } from '@/lib/feature'
 import AIImageSearchModal from './AIImageSearchModal.vue'
-import { useTempStore } from '@/stores/temp'
 
-const { app } = storeToRefs(useTempStore())
 const modalOpen = ref(false)
 const { status } = useImageSearchStatus()
 </script>

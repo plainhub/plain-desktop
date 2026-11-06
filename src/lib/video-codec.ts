@@ -1,3 +1,5 @@
+import { FileAction, withFileAction } from './api/file-action'
+
 // HEVC (H.265) playback capability probing and fallback URL negotiation.
 //
 // Chromium browsers do not bundle an HEVC decoder: whether they can play one
@@ -7,10 +9,6 @@
 // User-Agent.
 
 export const HEVC_HELP_URL = 'https://plainapp.app/docs/hevc'
-
-function withQuery(url: string, query: string): string {
-  return url + (url.includes('?') ? '&' : '?') + query
-}
 
 let hevcSupported: boolean | null = null
 
@@ -26,13 +24,13 @@ export function browserSupportsHevc(): boolean {
 
 const codecCache = new Map<string, string>()
 
-/** Ask the server (`probe=1`) which codec the video track uses. */
+/** Ask the server (`action=probe`) which codec the video track uses. */
 async function fetchVideoCodec(src: string): Promise<string> {
   const cached = codecCache.get(src)
   if (cached !== undefined) return cached
   let codec = ''
   try {
-    const res = await fetch(withQuery(src, 'probe=1'))
+    const res = await fetch(withFileAction(src, FileAction.Probe))
     if (res.ok) codec = ((await res.json()) as { codec?: string }).codec ?? ''
   } catch {
     // A failed probe falls back to the original URL; the <video> error path
@@ -45,14 +43,14 @@ async function fetchVideoCodec(src: string): Promise<string> {
 /**
  * Resolve the URL a video should actually load. On browsers without HEVC
  * support, HEVC sources are transparently switched to the server's
- * transcoded (`tr=1`) H.264 stream; `transcoded` tells the UI to show the
+ * transcoded (`action=transcode`) H.264 stream; `transcoded` tells the UI to show the
  * "converting…" hint.
  */
 export async function ensurePlayableVideoUrl(src: string): Promise<{ url: string; transcoded: boolean }> {
   if (browserSupportsHevc()) return { url: src, transcoded: false }
   const codec = await fetchVideoCodec(src)
   if (codec === 'hvc1' || codec === 'hev1') {
-    return { url: withQuery(src, 'tr=1'), transcoded: true }
+    return { url: withFileAction(src, FileAction.Transcode), transcoded: true }
   }
   return { url: src, transcoded: false }
 }

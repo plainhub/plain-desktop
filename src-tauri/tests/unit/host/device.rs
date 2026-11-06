@@ -14,17 +14,6 @@ fn every_declared_capability_is_unique_and_understood_by_the_main_schema() {
 }
 
 #[test]
-fn file_action_support_matches_the_implemented_os_primitives() {
-    let capabilities = desktop_capabilities();
-    assert!(capabilities.contains(&"FILE_EXPORT"));
-    assert!(capabilities.contains(&"FILE_REVEAL"));
-    assert_eq!(
-        capabilities.contains(&"FILE_CLIPBOARD"),
-        cfg!(target_os = "macos")
-    );
-}
-
-#[test]
 fn desktop_does_not_advertise_base_file_or_media_capabilities() {
     let capabilities = desktop_capabilities();
     for name in [
@@ -36,7 +25,6 @@ fn desktop_does_not_advertise_base_file_or_media_capabilities() {
     ] {
         assert!(!capabilities.contains(&name));
     }
-    assert!(!capabilities.contains(&"BACKGROUND_SERVICE"));
     assert!(!capabilities.contains(&"LAUNCHER_SHORTCUTS"));
 }
 

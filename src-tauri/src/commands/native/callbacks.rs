@@ -1,5 +1,11 @@
 use serde_json::Value;
-use std::{collections::HashMap, sync::{Mutex, atomic::{AtomicU64, Ordering}}};
+use std::{
+    collections::HashMap,
+    sync::{
+        Mutex,
+        atomic::{AtomicU64, Ordering},
+    },
+};
 use tauri::{State, WebviewWindow, ipc::Channel};
 
 struct LoginCallbacks {
@@ -9,13 +15,42 @@ struct LoginCallbacks {
     snapshot: Channel<Value>,
 }
 
-fn send(channel: &Channel<Value>, params: &Value) -> bool {
+fn send<T: serde::Serialize + Clone>(channel: &Channel<T>, params: &T) -> bool {
     match channel.send(params.clone()) {
         Ok(()) => true,
         Err(error) => {
             log::warn!("Native host callback delivery failed: {error}");
             false
         }
+    }
+}
+
+#[derive(Clone, serde::Deserialize, serde::Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct OnlineClientsSnapshot {
+    client_ids: Vec<String>,
+}
+
+#[derive(Default)]
+struct OnlineClientCallbacks {
+    snapshot: Option<OnlineClientsSnapshot>,
+    views: HashMap<String, (u64, Channel<OnlineClientsSnapshot>)>,
+}
+
+impl OnlineClientCallbacks {
+    fn register(
+        &mut self,
+        label: String,
+        id: u64,
+        channel: Channel<OnlineClientsSnapshot>,
+    ) -> Result<(), String> {
+        if let Some(snapshot) = &self.snapshot
+            && !send(&channel, snapshot)
+        {
+            return Err("Online clients callback delivery failed".into());
+        }
+        self.views.insert(label, (id, channel));
+        Ok(())
     }
 }
 
@@ -27,6 +62,7 @@ pub struct HostCallbacks {
     http_status: Mutex<HashMap<String, (u64, Channel<Value>)>>,
     clipboard: Mutex<HashMap<String, (u64, Channel<Value>)>>,
     network: Mutex<HashMap<String, (u64, Channel<Value>)>>,
+    online_clients: Mutex<OnlineClientCallbacks>,
 }
 
 impl HostCallbacks {
@@ -40,6 +76,7 @@ impl HostCallbacks {
         self.http_status.lock().unwrap().remove(label);
         self.clipboard.lock().unwrap().remove(label);
         self.network.lock().unwrap().remove(label);
+        self.online_clients.lock().unwrap().views.remove(label);
     }
 
     pub fn deliver(&self, method: &str, params: &Value) -> Result<(), String> {
@@ -60,11 +97,26 @@ impl HostCallbacks {
                     .unwrap()
                     .retain(|_, (_, channel)| send(channel, params));
             }
+            "onlineClientsChanged" => {
+                let snapshot: OnlineClientsSnapshot =
+                    serde_json::from_value(params.clone()).map_err(|error| error.to_string())?;
+                let mut active = self.online_clients.lock().unwrap();
+                active.snapshot = Some(snapshot.clone());
+                active
+                    .views
+                    .retain(|_, (_, channel)| send(channel, &snapshot));
+            }
             "networkInterfacesChanged" => {
-                self.network.lock().unwrap().retain(|_, (_, channel)| send(channel, params));
+                self.network
+                    .lock()
+                    .unwrap()
+                    .retain(|_, (_, channel)| send(channel, params));
             }
             "peerClipboardChanged" => {
-                self.clipboard.lock().unwrap().retain(|_, (_, channel)| send(channel, params));
+                self.clipboard
+                    .lock()
+                    .unwrap()
+                    .retain(|_, (_, channel)| send(channel, params));
             }
             "httpServerStatusChanged" => {
                 self.http_status
@@ -181,7 +233,11 @@ pub fn native_register_peer_clipboard(
     channel: Channel<Value>,
 ) -> u64 {
     let id = callbacks.id();
-    callbacks.clipboard.lock().unwrap().insert(window.label().into(), (id, channel));
+    callbacks
+        .clipboard
+        .lock()
+        .unwrap()
+        .insert(window.label().into(), (id, channel));
     id
 }
 
@@ -192,7 +248,10 @@ pub fn native_unregister_peer_clipboard(
     id: u64,
 ) {
     let mut active = callbacks.clipboard.lock().unwrap();
-    if active.get(window.label()).is_some_and(|entry| entry.0 == id) {
+    if active
+        .get(window.label())
+        .is_some_and(|entry| entry.0 == id)
+    {
         active.remove(window.label());
     }
 }
@@ -204,7 +263,11 @@ pub fn native_register_network_changes(
     channel: Channel<Value>,
 ) -> u64 {
     let id = callbacks.id();
-    callbacks.network.lock().unwrap().insert(window.label().into(), (id, channel));
+    callbacks
+        .network
+        .lock()
+        .unwrap()
+        .insert(window.label().into(), (id, channel));
     id
 }
 
@@ -215,8 +278,42 @@ pub fn native_unregister_network_changes(
     id: u64,
 ) {
     let mut active = callbacks.network.lock().unwrap();
-    if active.get(window.label()).is_some_and(|entry| entry.0 == id) {
+    if active
+        .get(window.label())
+        .is_some_and(|entry| entry.0 == id)
+    {
         active.remove(window.label());
+    }
+}
+
+#[tauri::command]
+pub fn native_register_online_clients(
+    window: WebviewWindow,
+    callbacks: State<'_, HostCallbacks>,
+    channel: Channel<OnlineClientsSnapshot>,
+) -> Result<u64, String> {
+    let id = callbacks.id();
+    callbacks
+        .online_clients
+        .lock()
+        .unwrap()
+        .register(window.label().into(), id, channel)?;
+    Ok(id)
+}
+
+#[tauri::command]
+pub fn native_unregister_online_clients(
+    window: WebviewWindow,
+    callbacks: State<'_, HostCallbacks>,
+    id: u64,
+) {
+    let mut active = callbacks.online_clients.lock().unwrap();
+    if active
+        .views
+        .get(window.label())
+        .is_some_and(|entry| entry.0 == id)
+    {
+        active.views.remove(window.label());
     }
 }
 

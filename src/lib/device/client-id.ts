@@ -1,4 +1,4 @@
-import { get as browserGet, set as browserSet } from '@/lib/prefs/browser'
+import { clear as browserClear, get as browserGet, set as browserSet } from '@/lib/prefs/browser'
 import { readNativeDeviceIdentity } from './native-settings'
 import { generateClientId } from './client-identity.generated'
 
@@ -7,8 +7,13 @@ const WINDOW_ID_KEY = '__window_id__'
 
 let desktopClientId = ''
 
-export function ensureBrowserClientId(): void {
-  if (!browserGet('client_id', '')) browserSet('client_id', generateClientId())
+export function ensureBrowserClientId(): boolean {
+  const clientId = browserGet('client_id', '')
+  if (clientId.length === 36 && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(clientId)) return true
+  browserClear()
+  clearRemoteClientId()
+  browserSet('client_id', generateClientId())
+  return false
 }
 
 export async function preloadClientIdentity(): Promise<void> {

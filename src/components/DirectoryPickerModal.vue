@@ -1,22 +1,12 @@
 <template>
-  <v-modal @close="cancel">
+  <v-modal width="min(800px, calc(100vw - 32px))" @close="cancel">
     <template #headline>
       {{ title || $t('select_folder') }}
     </template>
 
     <template #content>
       <div class="picker">
-        <div class="hint">
-          <span class="picker-current__label">{{ $t('current_path') }}:</span>
-          <span class="mono picker-current__value">{{ currentDir || '-' }}</span>
-        </div>
-        <div v-if="recentDirs.length" class="recents">
-          <div class="recents-label">{{ $t('recent_folders') }}</div>
-          <div v-for="d in recentDirs" :key="d" class="recent-item" :title="d" @click="chooseRecent(d)">
-            <i-material-symbols:folder-outline-rounded />
-            <span class="mono recent-path">{{ d }}</span>
-          </div>
-        </div>
+        <p class="hint">{{ description || $t('folder_picker_hint') }}</p>
         <DirectoryBrowser
           :volumes="volumes"
           :loading-mounts="loadingMounts"
@@ -24,26 +14,29 @@
           :current-dir="currentDir"
           :can-go-up="canGoUp"
           :listing="listing"
+          :listing-error="listingError"
           :dir-items="dirItems"
           :dir-name="dirName"
-          :browser-min-height-px="320"
-          :list-min-height-px="220"
           @select-root="selectRoot"
           @go-up="goUp"
           @enter-dir="enterDir"
-        >
-          <template #toolbar-actions>
-            <v-icon-button v-tooltip="$t('ok')" @click.stop="chooseCurrent">
-              <i-material-symbols:check-rounded />
-            </v-icon-button>
-          </template>
-        </DirectoryBrowser>
+          @reload="reload"
+        />
+        <div v-if="recentDirs.length" class="recents">
+          <div class="recents-label">{{ $t('recent_folders') }}</div>
+          <v-text-button v-for="d in recentDirs" :key="d" class="recent-item" :disabled="loadingMounts" @click="selectDirectory(d)">
+            <template #icon><i-material-symbols:folder-outline-rounded /></template>
+            <span class="recent-path">{{ d }}</span>
+          </v-text-button>
+        </div>
       </div>
     </template>
 
     <template #actions>
-      <v-outlined-button value="cancel" @click="cancel">{{ $t('cancel') }}</v-outlined-button>
-      <v-filled-button value="ok" @click="chooseCurrent">{{ $t('confirm') }}</v-filled-button>
+      <v-text-button value="cancel" @click="cancel">{{ $t('cancel') }}</v-text-button>
+      <v-filled-button :disabled="loadingMounts || listing || !!listingError || !rootPath" value="ok" @click="chooseCurrent">
+        {{ $t('select_this_folder') }}
+      </v-filled-button>
     </template>
   </v-modal>
 </template>
@@ -64,10 +57,9 @@ const emit = defineEmits<{
   (e: typeof Modal.EVENT_PROMPT, path: string): void
 }>()
 
-const { volumes, loadingMounts, rootPath, currentDir, canGoUp, listing, dirItems, selectRoot, enterDir, goUp, dirName } = useDirectoryPicker(props.initialPath)
+const { volumes, loadingMounts, rootPath, currentDir, canGoUp, listing, listingError, dirItems, selectRoot, selectDirectory, enterDir, goUp, dirName, reload } = useDirectoryPicker(props.initialPath)
 
 function chooseCurrent() { emit(Modal.EVENT_PROMPT, currentDir.value) }
-function chooseRecent(dir: string) { emit(Modal.EVENT_PROMPT, dir) }
 function cancel() { popModal() }
 </script>
 
@@ -75,20 +67,12 @@ function cancel() { popModal() }
 .picker {
   display: flex;
   flex-direction: column;
-  gap: 12px;
-  min-width: min(960px, 90vw);
+  gap: 16px;
 }
 
-.picker-current__label {
+.hint {
+  margin: 0;
   color: var(--md-sys-color-on-surface-variant);
-  margin-inline-end: 4px;
-}
-
-.picker-current__value {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  max-width: 100%;
 }
 
 .recents {
@@ -103,29 +87,15 @@ function cancel() { popModal() }
 }
 
 .recent-item {
-  display: flex;
-  align-items: center;
+  justify-content: flex-start;
   gap: 8px;
-  padding: 8px 12px;
-  border-radius: 8px;
-  cursor: pointer;
-
-  &:hover {
-    background: var(--md-sys-color-surface-variant);
-  }
-
-  svg {
-    width: 20px;
-    height: 20px;
-    flex-shrink: 0;
-    color: var(--md-sys-color-on-surface-variant);
-  }
+  height: auto;
+  min-height: 32px;
+  text-align: start;
 }
 
 .recent-path {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  overflow-wrap: anywhere;
   font-size: 13px;
 }
 </style>

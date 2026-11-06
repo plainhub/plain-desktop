@@ -45,13 +45,24 @@ pub async fn save_file_as(
 }
 
 #[tauri::command]
-pub fn copy_file_to_clipboard(path: String) -> Result<(), String> {
-    write_file_clipboard(&existing_file(&path)?)
+pub async fn copy_file_to_clipboard(
+    window: tauri::WebviewWindow,
+    path: String,
+) -> Result<(), String> {
+    let path = existing_file(&path)?;
+    let (sender, receiver) = tokio::sync::oneshot::channel();
+    let native_window = window.clone();
+    window
+        .run_on_main_thread(move || {
+            let _ = sender.send(write_file_clipboard(&path, &native_window));
+        })
+        .map_err(|error| error.to_string())?;
+    receiver.await.map_err(|error| error.to_string())?
 }
 
 /// Finder-style file copy: write the file URL as `NSPasteboardTypeFileURL`.
 #[cfg(target_os = "macos")]
-fn write_file_clipboard(path: &Path) -> Result<(), String> {
+fn write_file_clipboard(path: &Path, _window: &tauri::WebviewWindow) -> Result<(), String> {
     use objc2_app_kit::{NSPasteboard, NSPasteboardTypeFileURL};
     use objc2_foundation::{NSData, NSString, NSURL};
 
@@ -71,9 +82,43 @@ fn write_file_clipboard(path: &Path) -> Result<(), String> {
     Ok(())
 }
 
-#[cfg(not(target_os = "macos"))]
-fn write_file_clipboard(_path: &Path) -> Result<(), String> {
-    Err("Copy to clipboard is only supported on macOS".to_string())
+#[cfg(target_os = "linux")]
+fn write_file_clipboard(path: &Path, _window: &tauri::WebviewWindow) -> Result<(), String> {
+    use gtk::gio::prelude::FileExt;
+
+    let display = gtk::gdk::Display::default().ok_or("Desktop display is unavailable")?;
+    let clipboard = gtk::Clipboard::default(&display).ok_or("Desktop clipboard is unavailable")?;
+    let uri = gtk::gio::File::for_path(path).uri();
+    let targets = [
+        gtk::TargetEntry::new("text/uri-list", gtk::TargetFlags::empty(), 0),
+        gtk::TargetEntry::new("x-special/gnome-copied-files", gtk::TargetFlags::empty(), 1),
+        gtk::TargetEntry::new(
+            "application/x-kde-cutselection",
+            gtk::TargetFlags::empty(),
+            2,
+        ),
+    ];
+    if !clipboard.set_with_data(&targets, move |_, selection, format| {
+        let data = match format {
+            1 => format!("copy\n{uri}"),
+            2 => "0".to_string(),
+            _ => format!("{uri}\r\n"),
+        };
+        selection.set(&selection.target(), 8, data.as_bytes());
+    }) {
+        return Err("Failed to write files to the desktop clipboard".to_string());
+    }
+    Ok(())
+}
+
+#[cfg(target_os = "windows")]
+#[path = "file_clipboard_windows.rs"]
+mod file_clipboard_windows;
+
+#[cfg(target_os = "windows")]
+fn write_file_clipboard(path: &Path, window: &tauri::WebviewWindow) -> Result<(), String> {
+    let owner = window.hwnd().map_err(|error| error.to_string())?;
+    file_clipboard_windows::write(path, owner.0.cast())
 }
 
 #[cfg(test)]

@@ -16,15 +16,14 @@ import { applyMenuLabels } from '@/lib/app-menu'
 import { preventUnhandledFileDrop } from '@/lib/file-drop'
 import { readLocalServer } from '@/lib/api/local-server'
 
-if (!__IS_TAURI__) {
-  // Web: prefs are synchronous (localStorage) — safe to apply immediately.
-  // Pull `?__cid=` (set when spawning child windows) into sessionStorage
-  // before anything else reads the clientId. Idempotent.
-  applyUrlClientId()
-  ensureBrowserClientId()
-}
-
 export async function bootstrapFullApp(): Promise<void> {
+  if (!__IS_TAURI__) {
+    if (!ensureBrowserClientId()) {
+      window.location.replace('/login')
+      return
+    }
+    applyUrlClientId()
+  }
   if (__IS_TAURI__) {
     document.documentElement.classList.add('tauri')
     preventUnhandledFileDrop()

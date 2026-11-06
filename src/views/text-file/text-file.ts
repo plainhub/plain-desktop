@@ -1,18 +1,18 @@
+import { FileAction } from '@/lib/api/file-action'
 import { ref, computed, watch, onMounted, onBeforeUnmount } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { revealLocalFile, saveTextFileAs } from '@/lib/native-file-actions'
 import { useTempStore } from '@/stores/temp'
 import { storeToRefs } from 'pinia'
-import { useMarkdown } from '@/hooks/markdown'
-import { getProxyUrl } from '@/lib/api/api'
+import { useMarkdown, useSafeMarkdown } from '@/hooks/markdown'
+import { fileKindOf } from './file-kind'
 import { initMutation, runMutation, writeTextFileGQL } from '@/lib/api/mutation'
 import { gqlFetch } from '@/lib/api/gql-client'
 import { appGQL } from '@/lib/api/query'
-import { tokenToKey } from '@/lib/api/file'
+import { download, getFileUrl, tokenToKey } from '@/lib/api/file'
 import { filePathFromResourceId } from '@/lib/api/resource-link'
 import { isLocalMode } from '@/lib/device/local-mode'
-import { hasFileReveal } from '@/lib/feature'
 import { getCurrentAuthToken } from '@/lib/device/current'
 
 const isTauri = __IS_TAURI__
@@ -36,6 +36,7 @@ export function useTextFile() {
   const content = ref('')
   const draft = ref('')
   const fileName = ref('')
+  const mimeType = ref('')
   const fileSize = ref(0)
   const lastModified = ref('')
   const renderedMarkdown = ref('')
@@ -43,6 +44,8 @@ export function useTextFile() {
   let savedPulseTimer: number | null = null
 
   const { render } = useMarkdown(app, urlTokenKey)
+  const { render: renderDocument } = useSafeMarkdown(app, urlTokenKey)
+  const isDocumentFile = computed(() => fileKindOf(fileName.value, mimeType.value) === 'doc')
 
   // Computed
   const isMarkdownFile = computed(() => {
@@ -80,9 +83,9 @@ export function useTextFile() {
     if (showSavedPulse.value) return t('saved')
     return ''
   })
-  const canEdit = computed(() => isLoggedIn.value && !!decryptedPath.value)
+  const canEdit = computed(() => isLoggedIn.value && !!decryptedPath.value && !isDocumentFile.value)
   const showInFinder = computed(() =>
-    hasFileReveal(app.value) && isLocalMode() && !!decryptedPath.value && !decryptedPath.value.startsWith('fsid:')
+    isLocalMode() && !!decryptedPath.value && !decryptedPath.value.startsWith('fsid:')
   )
 
   // Mutation
@@ -119,7 +122,9 @@ export function useTextFile() {
     renderedMarkdown.value = ''
     void resetViewMode
 
-    if (isMarkdownFile.value) {
+    if (isDocumentFile.value) {
+      renderedMarkdown.value = await renderDocument(textContent)
+    } else if (isMarkdownFile.value) {
       try { renderedMarkdown.value = await render(textContent) } catch { /* fallback to raw */ }
     }
   }
@@ -131,11 +136,7 @@ export function useTextFile() {
       const id = route.query.id as string
       if (!id) { error.value = t('invalid_file_id'); return }
 
-      // Shared-link (guest) files are served from `/fs` with `sid`.
-      const sid = route.query.sid as string
-      const url = sid
-        ? getProxyUrl(`/fs?id=${encodeURIComponent(id)}&sid=${encodeURIComponent(sid)}`)
-        : getProxyUrl(`/fs?id=${encodeURIComponent(id)}`)
+      const url = getFileUrl(id)
 
       // Route through the local HTTP reverse proxy (getProxyUrl) so Tauri
       // can accept the device's self-signed HTTPS cert — a direct fetch to
@@ -149,6 +150,7 @@ export function useTextFile() {
         return
       }
 
+      mimeType.value = (response.headers.get('content-type') || '').split(';')[0].trim().toLowerCase()
       const cd = response.headers.get('content-disposition')
       if (cd) {
         const match = cd.match(/filename="?([^"]+)"?/)
@@ -172,6 +174,10 @@ export function useTextFile() {
   }
 
   const downloadFile = () => {
+    if (isDocumentFile.value) {
+      download(getFileUrl(fileId.value, '', FileAction.Download), fileName.value)
+      return
+    }
     if (!content.value || !fileName.value) return
     // WKWebView ignores <a download>, so hand the already-fetched content to
     // the native save dialog instead of creating a blob link.
@@ -210,6 +216,7 @@ export function useTextFile() {
   watch(() => fileId.value, async (id) => {
     decryptedPath.value = ''
     fileName.value = ''
+    mimeType.value = ''
     if (!id) return
     if (!route.query.sid) {
       await ensureUrlTokenKey()
@@ -227,7 +234,7 @@ export function useTextFile() {
   watch([fileName, dirty, isEditing], () => { document.title = displayTitle.value })
 
   return {
-    loading, error, content, draft, fileName, fileSize, lastModified,
+    loading, error, content, draft, fileName, mimeType, fileSize, lastModified,
     renderedMarkdown, saving,
     isMarkdownFile, language,
     isEditing, dirty, displayTitle, statusText, canEdit, showSavedPulse, showInFinder,

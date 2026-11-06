@@ -1,5 +1,7 @@
 <template>
   <div class="grids">
+    <RemoteAccessCard v-if="localMode" />
+    <FileIndexCard v-if="hasFeature(Capability.MEDIA_SCAN, app.capabilities)" :mounts="mounts" />
     <template v-for="item in homeFeatureCards" :key="item.id">
       <FeatureCard v-if="item.sectionType === 'feature'" :to="item.to" :title="$t(item.titleKey)" :count="item.count">
         <template #icon>
@@ -8,8 +10,6 @@
         <div v-if="item.showStorageInfo && counter.total >= 0" class="storage-info">
           {{ $t('storage_free_total', { free: formatFileSize(counter.free), total: formatFileSize(counter.total) }) }}
         </div>
-
-        <ScanPanel v-if="hasFeature(Capability.MEDIA_SCAN, app.capabilities) && item.showStorageInfo" />
       </FeatureCard>
 
       <CallPhoneCard v-else />
@@ -29,10 +29,13 @@ import { useHomeData } from './home'
 import { useHomeFeatureCards } from './useHomeFeatureCards'
 import CallPhoneCard from './CallPhoneCard.vue'
 import FeatureCard from './FeatureCard.vue'
-import ScanPanel from './ScanPanel.vue'
+import FileIndexCard from './file-index/FileIndexCard.vue'
+import RemoteAccessCard from './remote-access/RemoteAccessCard.vue'
+import { isLocalMode } from '@/lib/device/local-mode'
 import { Capability } from '@/lib/data'
 import { hasFeature } from '@/lib/feature'
 
+const localMode = isLocalMode()
 const { app, counter } = storeToRefs(useTempStore())
 
 const { mounts } = useHomeData()

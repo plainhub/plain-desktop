@@ -20,7 +20,6 @@ export type MainState = {
   railFeatures: string[]
   homeFeatures: string[]
   uploadDirs: Record<string, string>
-  excludedDirs: string[]
   fileShowHidden: boolean
   systemFilesExpanded: boolean
   chatTexts: Record<string, string>
@@ -65,7 +64,6 @@ export const useMainStore = defineStore('main', {
       railFeatures: [...DEFAULT_RAIL_FEATURES],
       homeFeatures: [...DEFAULT_HOME_FEATURES],
       uploadDirs: {} as Record<string, string>,
-      excludedDirs: [] as string[],
       fileShowHidden: false,
       systemFilesExpanded: false,
       chatTexts: {},

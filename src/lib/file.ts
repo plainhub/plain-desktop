@@ -61,7 +61,14 @@ export function isAudio(name: string) {
   return audioExtensions.some((it) => v.endsWith(it))
 }
 
-const docExtensions = ['.doc', '.docx', '.xls', '.xlsx', '.ppt', '.pptx', '.pdf', '.txt', '.md', '.csv', '.json', '.xml', '.js', '.ts', '.py', '.java', '.kt', '.swift', '.c', '.cpp', '.h', '.cs', '.go', '.rs', '.rb', '.sh', '.yaml', '.yml', '.toml', '.ini', '.cfg', '.log']
+const officeExtensions = ['.doc', '.docx', '.xls', '.xlsx', '.ppt', '.pptx']
+
+export function isOfficeFile(name: string) {
+  const value = name.toLowerCase()
+  return officeExtensions.some((extension) => value.endsWith(extension))
+}
+
+const docExtensions = [...officeExtensions, '.pdf', '.txt', '.md', '.csv', '.json', '.xml', '.js', '.ts', '.py', '.java', '.kt', '.swift', '.c', '.cpp', '.h', '.cs', '.go', '.rs', '.rb', '.sh', '.yaml', '.yml', '.toml', '.ini', '.cfg', '.log']
 
 export function isDoc(name: string) {
   const v = name.toLowerCase()
@@ -216,7 +223,7 @@ export function enrichFile(item: Pick<IFile, 'path' | 'isDir' | 'updatedAt' | 's
  */
 export function fileThumbUrl(urlTokenKey: Uint8Array | null, item: Pick<IFile, 'path' | 'name' | 'isDir' | 'updatedAt'>): string {
   if (item.isDir || !(isImage(item.name) || isVideo(item.name))) return ''
-  return getFileUrl(getFileId(urlTokenKey, item.path), '&s=sm&v=' + encodeURIComponent(item.updatedAt))
+  return getFileUrl(getFileId(urlTokenKey, item.path), '&size=sm&v=' + encodeURIComponent(item.updatedAt))
 }
 
 export const ZIP_SEPARATOR = '!zip!/'

@@ -30,14 +30,14 @@ impl Runtime {
             | "peerNotificationsChanged"
             | "peerClipboardChanged"
             | "networkInterfacesChanged"
-            | "httpServerStatusChanged" => {
+            | "httpServerStatusChanged"
+            | "onlineClientsChanged" => {
                 self.app
                     .state::<crate::commands::native::callbacks::HostCallbacks>()
                     .deliver(method, &params)?;
                 Ok(Value::Null)
             }
             "systemWebLoginCompleted"
-            | "onlineClientsChanged"
             | "clipboardHistoryRefresh"
             | "dlnaRendererChanged"
             | "dlnaRendererRefresh"
@@ -70,7 +70,9 @@ impl Runtime {
             }
             "systemRequestAccess" => Ok(serde_json::json!(false)),
             "systemAccessFacts" => plain_rs::infrastructure::host::access_facts::facts(
-                &plain_rs::features::access::AccessFeature::FILE_FEATURES, params),
+                &plain_rs::features::access::AccessFeature::FILE_FEATURES,
+                params,
+            ),
             method if plain_server::native::audio::handles(method) => {
                 self.core.native_audio()?.handle(method, params).await
             }

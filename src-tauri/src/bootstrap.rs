@@ -346,6 +346,8 @@ pub fn run() {
             crate::commands::native::callbacks::native_unregister_peer_clipboard,
             crate::commands::native::callbacks::native_register_network_changes,
             crate::commands::native::callbacks::native_unregister_network_changes,
+            crate::commands::native::callbacks::native_register_online_clients,
+            crate::commands::native::callbacks::native_unregister_online_clients,
             crate::commands::native::callbacks::native_register_http_status,
             crate::commands::native::callbacks::native_unregister_http_status,
             crate::commands::native::management::native_device_identity,

@@ -48,7 +48,7 @@ function getPreview(source: ISource) {
   // so always route peer files through /proxyfs (which forwards to the
   // peer's /fs), not just while a download is in progress.
   if (props.peer && source.path.startsWith('fsid:')) {
-    return getPeerProxyUrl(tempStore.urlTokenKey, props.peer, source.path.slice(4), '&s=sm')
+    return getPeerProxyUrl(tempStore.urlTokenKey, props.peer, source.path.slice(4), '&size=sm')
   }
 
   if (props.downloadInfo && isActiveStatus(props.downloadInfo.status)) {
@@ -59,7 +59,7 @@ function getPreview(source: ISource) {
     return source.src
   }
 
-  return `${source.src}&s=sm`
+  return `${source.src}&size=sm`
 }
 
 const sources = computed(() => {
@@ -71,13 +71,8 @@ const sources = computed(() => {
     const uri = file.uri
     const peerFileId = typeof uri === 'string' && uri.startsWith('fsid:') ? uri.slice(4) : ''
     const isGif = typeof uri === 'string' && uri.endsWith('.gif')
-    // Received from a peer (`fsid:`): the file lives on the peer, so route
-    // through /proxyfs. Bake the resize/conversion query into the encrypted
-    // id — /proxyfs ignores query params on the outer URL, and the peer's /fs
-    // needs `w/h` to convert HEIC (Pixel) into a browser-displayable JPEG.
-    // GIFs keep the original (no resize) to preserve animation.
     const src = peer && peerFileId
-      ? getPeerProxyUrl(tempStore.urlTokenKey, peer, peerFileId, isGif ? '' : '&s=lg')
+      ? getPeerProxyUrl(tempStore.urlTokenKey, peer, peerFileId, isGif ? '' : '&size=lg')
       : getFileUrl(getFileId(tempStore.urlTokenKey, file.uri))
     items.push({
       path: file.uri,

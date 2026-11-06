@@ -12,9 +12,6 @@
       <i-material-symbols:check-circle-rounded />
       {{ $t('xml_valid') }}
     </span>
-    <span v-else-if="kind === 'doc'" class="verdict muted">
-      {{ $t('doc_preview_hint') }}
-    </span>
     <span v-else class="verdict ok">
       <i-material-symbols:check-circle-rounded />
       {{ $t('viewer_ready') }}

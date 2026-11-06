@@ -15,6 +15,7 @@ export function useDirectoryPicker(initialPath: string) {
   const rootPath = ref('')
   const relativePath = ref('')
   const dirItems = ref<Pick<IFile, 'path' | 'isDir' | 'isSystem'>[]>([])
+  const listingError = ref('')
 
   const normalizedInitialPath = computed(() => {
     const p = String(initialPath || '').trim()
@@ -32,6 +33,18 @@ export function useDirectoryPicker(initialPath: string) {
   const canGoUp = computed(() => !!rootPath.value && (relativePath.value || '').trim() !== '')
 
   function selectRoot(mountPoint: string) { rootPath.value = mountPoint || '/'; relativePath.value = '' }
+
+  function selectDirectory(absPath: string) {
+    const dir = absPath.trim().replace(/\/+$/g, '') || '/'
+    let best = ''
+    for (const volume of volumes.value) {
+      const mount = String(volume.mountPoint || '').trim()
+      if (mount && (dir === mount || dir.startsWith(mount === '/' ? '/' : mount + '/')) && mount.length > best.length) best = mount
+    }
+    if (!best) { toast(t('invalid_file_path'), 'error'); return }
+    rootPath.value = best
+    relativePath.value = normalizeRelativeFromAbs(dir)
+  }
 
   function normalizeRelativeFromAbs(absPath: string) {
     const root = rootPath.value || ''
@@ -51,30 +64,20 @@ export function useDirectoryPicker(initialPath: string) {
 
   function dirName(path: string) { return getFileName(path) || path }
 
-  initQuery<{ mounts: IStorageMount[] }>({
+  const { refetch: fetchMounts } = initQuery<{ mounts: IStorageMount[] }>({
     document: mountsGQL,
     handle: (data, error) => {
       loadingMounts.value = false
-      if (error) { toast(t(error), 'error'); return }
+      listingError.value = error
+      if (error) return
       volumes.value = [...(data?.mounts ?? [])].sort((a, b) => {
         const am = String(a?.mountPoint ?? ''), bm = String(b?.mountPoint ?? '')
         if (am === '/') return -1; if (bm === '/') return 1
         return compareLocale(am, bm, { numeric: true })
       })
-      if (!rootPath.value) { rootPath.value = volumes.value[0]?.mountPoint || '/'; relativePath.value = '' }
-
-      const init = normalizedInitialPath.value
-      if (init) {
-        const mountPoints = volumes.value.map((v) => String(v.mountPoint || '').trim()).filter(Boolean)
-        let best = ''
-        for (const m of mountPoints) {
-          if (m === '/' && init.startsWith('/')) { if (best.length < 1) best = '/'; continue }
-          if (m !== '/' && (init === m || init.startsWith(m + '/'))) { if (m.length > best.length) best = m }
-        }
-        if (best) {
-          rootPath.value = best
-          relativePath.value = best === '/' ? init.replace(/^\/+/, '') : init.slice(best.length).replace(/^\/+/, '')
-        }
+      if (!rootPath.value) {
+        selectRoot(volumes.value[0]?.mountPoint || '/')
+        if (normalizedInitialPath.value) selectDirectory(normalizedInitialPath.value)
       }
     },
   })
@@ -83,12 +86,21 @@ export function useDirectoryPicker(initialPath: string) {
     document: filesGQL,
     variables: () => ({ root: currentDir.value, offset: 0, limit: 10000, query: '', sortBy: 'NAME_ASC' }),
     handle: (data, error) => {
-      if (error) { dirItems.value = []; toast(t(error), 'error'); return }
+      listingError.value = error
+      if (error) { dirItems.value = []; return }
       dirItems.value = (data?.files ?? []).filter((f) => f.isDir)
     },
   })
 
-  watch([rootPath, relativePath], () => { if (rootPath.value) fetchDirs() }, { immediate: true })
+  function reload() {
+    dirItems.value = []
+    listingError.value = ''
+    if (rootPath.value) return fetchDirs(undefined, { latest: true })
+    loadingMounts.value = true
+    return fetchMounts()
+  }
 
-  return { volumes, loadingMounts, rootPath, currentDir, canGoUp, listing, dirItems, selectRoot, enterDir, goUp, dirName }
+  watch([rootPath, relativePath], () => { if (rootPath.value) void reload() }, { immediate: true })
+
+  return { volumes, loadingMounts, rootPath, currentDir, canGoUp, listing, listingError, dirItems, selectRoot, selectDirectory, enterDir, goUp, dirName, reload }
 }

@@ -1,3 +1,4 @@
+import { FileAction, fileQuery, withFileAction } from './file-action'
 import { arrayBufferToHex } from '../strutil'
 import { buildUrl } from '../url'
 import { getPeerIp } from '../device/login-peers'
@@ -19,12 +20,12 @@ export function notId(id: string) {
   return l.startsWith('https://') || l.startsWith('http://') || l.startsWith('blob:')
 }
 
-export function getFileUrl(id: string, query: string = '') {
+export function getFileUrl(id: string, query: string = '', action: FileAction = FileAction.Preview) {
   if (notId(id)) {
     return id
   }
 
-  return getProxyUrl(`/fs?id=${encodeURIComponent(id)}${query}`)
+  return getProxyUrl(`/fs?id=${encodeURIComponent(id)}${fileQuery(action, query)}`)
 }
 
 /**
@@ -59,6 +60,7 @@ export function getFileUrlByPath(key: Uint8Array | null, path: string) {
 const _recentDownloads = new Set<string>()
 
 export function download(url: string, name: string) {
+  url = withFileAction(url, FileAction.Download)
   // Prevent duplicate downloads triggered by rapid double-clicks.
   if (_recentDownloads.has(url)) {
     return
@@ -128,6 +130,7 @@ async function saveToFile(url: string, name: string) {
 // Desktop "Save As…": native save dialog (defaults to Downloads/name),
 // web falls back to the browser's own download.
 export function downloadAs(url: string, name: string) {
+  url = withFileAction(url, FileAction.Download)
   if (!__IS_TAURI__ || url.startsWith('blob:')) {
     download(url, name)
     return
@@ -183,9 +186,9 @@ export function getPeerProxyUrl(
   if (!urlTokenKey || !peer?.ip || !peer?.port || !peerFileId) {
     return ''
   }
-  const peerUrl = buildUrl('https', getPeerIp(peer), peer.port, `/fs?id=${encodeURIComponent(peerFileId)}${query}`)
+  const peerUrl = buildUrl('https', getPeerIp(peer), peer.port, `/fs?id=${encodeURIComponent(peerFileId)}`)
   const encrypted = encryptUrlParams(urlTokenKey, peerUrl, 'proxyfs')
-  return `${getApiBaseUrl()}/proxyfs?id=${encodeURIComponent(encrypted)}`
+  return `${getApiBaseUrl()}/proxyfs?id=${encodeURIComponent(encrypted)}${fileQuery(FileAction.Preview, query)}`
 }
 
 export function getFinalPath(appDir: string, path: string) {

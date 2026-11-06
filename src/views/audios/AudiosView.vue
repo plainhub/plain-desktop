@@ -177,7 +177,6 @@ const { loading, fetch } = initLazyQuery({
   document: audiosGQL,
   variables: () => ({ offset: (page.value - 1) * limit.value, limit: limit.value, query: effectiveQ.value, sortBy: audioSortBy.value }),
 })
-watch(() => mainStoreLocal.excludedDirs, () => { page.value = 1; noMore.value = false; items.value = []; fetch() }, { deep: true })
 
 const actionsProps = useMediaPageActions({
   filterTrash: computed(() => !!filter.trash),

@@ -8,9 +8,10 @@ export type ViewerMode = 'source' | 'split' | 'tree'
 
 export function useViewer(opts: {
   fileName: Ref<string>
+  mimeType?: Ref<string>
   content: Ref<string>
 }) {
-  const kind = computed(() => fileKindOf(opts.fileName.value))
+  const kind = computed(() => fileKindOf(opts.fileName.value, opts.mimeType?.value))
   const structured = computed(() => isStructuredKind(kind.value))
 
   const sizeBytes = computed(() => {

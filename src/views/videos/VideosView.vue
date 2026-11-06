@@ -62,7 +62,7 @@
             @toggle-select="toggleSelect($event, item, idx)" @view="view(idx)">
             <template #thumbnail>
               <img v-if="imageErrorIdSet.has(item.id)" :src="`/ficons/${getFileExtension(item.path)}.svg`" class="image svg" />
-              <img v-else class="image image-thumb" :src="getFileUrl(item.fileId, '&s=sm&v=' + encodeURIComponent(item.updatedAt))" loading="lazy" @error="onImageError(item.id)" />
+              <img v-else class="image image-thumb" :src="getFileUrl(item.fileId, '&size=sm&v=' + encodeURIComponent(item.updatedAt))" loading="lazy" @error="onImageError(item.id)" />
             </template>
             <template #info-right>{{ formatDurationMs(item.durationMs) }}</template>
           </MediaGridItem>
@@ -81,7 +81,7 @@
         @toggle-select="toggleSelect($event, item, i)" @view="view(i)">
         <template #thumbnail>
           <img v-if="imageErrorIdSet.has(item.id)" :src="`/ficons/${getFileExtension(item.path)}.svg`" class="image svg" />
-          <img v-else class="image image-thumb" :src="getFileUrl(item.fileId, '&s=sm&v=' + encodeURIComponent(item.updatedAt))" loading="lazy" @error="onImageError(item.id)" />
+          <img v-else class="image image-thumb" :src="getFileUrl(item.fileId, '&size=sm&v=' + encodeURIComponent(item.updatedAt))" loading="lazy" @error="onImageError(item.id)" />
         </template>
         <template #info-right>{{ ['SIZE_ASC', 'SIZE_DESC'].includes(videoSortBy) ? formatFileSize(item.size) : formatDurationMs(item.durationMs) }}</template>
       </MediaGridItem>
@@ -198,7 +198,6 @@ const { loading, fetch } = initLazyQuery({
   document: videosGQL,
   variables: () => ({ offset: (page.value - 1) * limit.value, limit: limit.value, query: effectiveQ.value, sortBy: effectiveIsGroupMode.value ? 'TAKEN_AT_DESC' : videoSortBy.value }),
 })
-watch(() => mainStore.excludedDirs, () => { page.value = 1; noMore.value = false; items.value = []; fetch() }, { deep: true })
 
 const sources = computed<ISource[]>(() => items.value.map((it: IVideoItem) => ({
   src: getFileUrl(it.fileId), name: getFileName(it.path), durationMs: it.durationMs, size: it.size, path: it.path, data: it, type: dataType,

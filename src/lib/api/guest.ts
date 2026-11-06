@@ -1,3 +1,4 @@
+import { FileAction, fileQuery } from './file-action'
 import { resourceId } from './resource-link'
 import { getApiBaseUrl, getProxyUrl } from './api'
 import { httpRequest } from './http'
@@ -18,8 +19,7 @@ import { wrapWithReplayProtection } from './time-sync'
  *   link's `shared_token` (from the URL fragment), `c-id` carries the public
  *   `shared_id`. Exposes only the `sharedInfo` query.
  * - `GET /fs` — file bytes; the `id` query param is `{sharedId, relativePath}`
- *   ChaCha20-encrypted with the share's dedicated `url_token`, and `sid`
- *   carries the `shared_id`.
+ *   authenticated with the share's dedicated `url_token`; the ID includes the share identity.
  * - `GET /zip/dir` — download a shared directory as a zip (same auth).
  *
  * Everything is isolated from the main desktop session (different key + id).
@@ -138,22 +138,23 @@ export function getSharedFileId(urlToken: string, sharedId: string, relativePath
   return resourceId(key, { mode: 's', id: sharedId }, { type: 'SHARED_FILE', id: relativePath })
 }
 
-/** The `id=…&sid=…` query string shared by guest `/fs` and `/zip/dir`. */
+/** The resource ID carries the share identity for `/fs` and `/zip/dir`. */
 function sharedFileQuery(urlToken: string, sharedId: string, relativePath: string): string {
   return `id=${encodeURIComponent(getSharedFileId(urlToken, sharedId, relativePath))}`
 }
 
 /**
  * Build a `/fs` URL for a shared file. `query` may add thumbnail params
- * (`&s=sm`) or force download (`&dl=1`).
+ * (`&size=sm`) or force download (`&action=download`).
  */
 export function getSharedFileUrl(
   urlToken: string,
   sharedId: string,
   relativePath: string,
   query: string = '',
+  action: FileAction = FileAction.Preview,
 ): string {
-  return getProxyUrl(`/fs?${sharedFileQuery(urlToken, sharedId, relativePath)}${query}`)
+  return getProxyUrl(`/fs?${sharedFileQuery(urlToken, sharedId, relativePath)}${fileQuery(action, query)}`)
 }
 
 /**

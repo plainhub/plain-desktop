@@ -45,6 +45,8 @@
 </template>
 
 <script setup lang="ts">
+import { FileAction } from '@/lib/api/file-action'
+
 import { ref, computed } from 'vue'
 import { storeToRefs } from 'pinia'
 import { useTempStore } from '@/stores/temp'
@@ -52,7 +54,6 @@ import type { IAppFile } from './useAppFilesData'
 import { getAppFileFid } from './useAppFilesData'
 import { formatFileSize, formatDateTime, formatTimeAgo } from '@/lib/format'
 import { getFileUrl, getFileId, getFileExtension, download } from '@/lib/api/file'
-import { getApiBaseUrl } from '@/lib/api/api'
 import FieldId from '@/components/FieldId.vue'
 import { isImage, isVideo } from '@/lib/file'
 
@@ -77,13 +78,13 @@ const ext = computed(() => getFileExtension(props.item.fileName))
 const canThumb = computed(() => isImage(props.item.fileName) || isVideo(props.item.fileName))
 const thumbUrl = computed(() => {
   const fileId = getFileId(urlTokenKey.value, `fid:${getAppFileFid(props.item)}`)
-  return getFileUrl(fileId, '&s=sm')
+  return getFileUrl(fileId, '&size=sm')
 })
 
 function handleDownload() {
   const path = `fid:${getAppFileFid(props.item)}`
   const fileId = getFileId(urlTokenKey.value, path)
-  const url = `${getApiBaseUrl()}/fs?id=${encodeURIComponent(fileId)}&dl=1`
+  const url = getFileUrl(fileId, '', FileAction.Download)
   download(url, props.item.fileName)
 }
 </script>

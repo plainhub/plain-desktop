@@ -20,6 +20,7 @@ export default [
       '.pnp.*',
       'components.d.ts',
       // Tauri (Rust) build artifacts - not part of the JS/TS codebase
+      'target/**',
       'src-tauri/target/**',
       'src-tauri/gen/**',
       // i18n pipeline intermediates

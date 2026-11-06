@@ -34,7 +34,7 @@ const store = useMainStore()
 const { app } = storeToRefs(useTempStore())
 const activeTab = ref<UITab>('sidebar')
 
-const sidebarFeatures = computed(() => getAvailableFeatures(app.value?.capabilities))
+const sidebarFeatures = computed(() => getAvailableFeatures(app.value?.capabilities, app.value?.debug))
 const homeFeatures = computed(() => getAvailableHomeFeatures(app.value?.capabilities))
 
 const activeFeatures = computed(() =>

@@ -1,3 +1,4 @@
+import { FileAction } from '@/lib/api/file-action'
 import { ref, type Ref } from 'vue'
 import { download, getFileExtension } from '@/lib/api/file'
 import { canView } from '@/lib/file'
@@ -27,7 +28,7 @@ export function useShareActions(
   }
 
   function thumbSrc(entry: SharedFile): string {
-    return getSharedFileUrl(info.value!.urlToken, sharedId.value, entry.relativePath, '&s=sm')
+    return getSharedFileUrl(info.value!.urlToken, sharedId.value, entry.relativePath, '&size=sm')
   }
 
   function onThumbError(relativePath: string) {
@@ -45,7 +46,7 @@ export function useShareActions(
   function downloadEntry(entry: SharedFile) {
     const url = entry.isDir
       ? getSharedDirUrl(info.value!.urlToken, sharedId.value, entry.relativePath)
-      : fileUrl(entry, '&dl=1')
+      : getSharedFileUrl(info.value!.urlToken, sharedId.value, entry.relativePath, '', FileAction.Download)
     download(url, entry.isDir ? `${entry.name}.zip` : entry.name)
   }
 

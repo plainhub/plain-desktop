@@ -174,15 +174,7 @@
 
         <ViewerPanel v-else-if="kind === 'doc'" :title="$t('doc_preview_title')" class="solo-panel">
           <template #icon><i-lucide-file-text /></template>
-          <div class="panel-placeholder tall">
-            <i-lucide-file-text />
-            <span class="placeholder-title">{{ $t('doc_preview_title') }}</span>
-            <span class="placeholder-hint">{{ $t('doc_preview_hint') }}</span>
-            <v-outlined-button class="placeholder-btn" @click="downloadFile">
-              <i-lucide-download />
-              {{ $t('download') }}
-            </v-outlined-button>
-          </div>
+          <div class="md-container" v-html="renderedMarkdown"></div>
         </ViewerPanel>
       </main>
 
@@ -219,7 +211,7 @@ const isTauri = __IS_TAURI__
 const isFullscreen = ref(false)
 
 const {
-  loading, error, content, draft, fileName, lastModified,
+  loading, error, content, draft, fileName, mimeType, lastModified,
   renderedMarkdown, saving,
   language,
   isEditing, dirty, displayTitle, statusText, canEdit, showInFinder,
@@ -227,7 +219,7 @@ const {
   downloadFile, revealInFinder, save, isLoggedIn,
 } = useTextFile()
 
-const viewer = useViewer({ fileName, content })
+const viewer = useViewer({ fileName, mimeType, content })
 const {
   kind, structured, big, sizeBytes,
   jsonInvalid, errorPos, fixable, xmlTree,

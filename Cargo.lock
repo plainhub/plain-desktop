@@ -7,17 +7,15 @@ name = "PlainApp"
 version = "0.1.12"
 dependencies = [
  "ashpd",
- "block2",
- "dispatch2",
+ "block2 0.6.2 (registry+https://github.com/rust-lang/crates.io-index)",
  "futures-util",
  "gtk",
  "image",
- "libc",
  "log",
- "objc2",
+ "objc2 0.6.4",
  "objc2-app-kit",
  "objc2-core-graphics",
- "objc2-foundation",
+ "objc2-foundation 0.3.2 (registry+https://github.com/rust-lang/crates.io-index)",
  "objc2-screen-capture-kit",
  "pipewire",
  "plain-libs",
@@ -103,7 +101,7 @@ dependencies = [
  "once_cell",
  "serde",
  "version_check",
- "zerocopy",
+ "zerocopy 0.8.59",
 ]
 
 [[package]]
@@ -211,14 +209,14 @@ dependencies = [
  "clipboard-win",
  "image",
  "log",
- "objc2",
+ "objc2 0.6.4",
  "objc2-app-kit",
- "objc2-core-foundation",
+ "objc2-core-foundation 0.3.2 (registry+https://github.com/rust-lang/crates.io-index)",
  "objc2-core-graphics",
- "objc2-foundation",
+ "objc2-foundation 0.3.2 (registry+https://github.com/rust-lang/crates.io-index)",
  "parking_lot",
  "percent-encoding",
- "windows-sys 0.59.0",
+ "windows-sys 0.60.2",
  "wl-clipboard-rs",
  "x11rb",
 ]
@@ -311,6 +309,11 @@ dependencies = [
  "quote",
  "syn 2.0.119",
 ]
+
+[[package]]
+name = "assert_matches"
+version = "1.5.0"
+source = "git+https://github.com/plainhub/plain-core.git?branch=main#05c207cd9185e01ec4354b4561802572e8eaa18e"
 
 [[package]]
 name = "async-broadcast"
@@ -481,6 +484,24 @@ name = "atomic-waker"
 version = "1.1.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "1505bd5d3d116872e7271a6d4e16d81d0c8570876c8de68093a09ac269d8aac0"
+
+[[package]]
+name = "atomig"
+version = "0.4.3"
+source = "git+https://github.com/plainhub/plain-core.git?branch=main#05c207cd9185e01ec4354b4561802572e8eaa18e"
+dependencies = [
+ "atomig-macro",
+]
+
+[[package]]
+name = "atomig-macro"
+version = "0.4.0"
+source = "git+https://github.com/plainhub/plain-core.git?branch=main#05c207cd9185e01ec4354b4561802572e8eaa18e"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "syn 2.0.119",
+]
 
 [[package]]
 name = "autocfg"
@@ -743,7 +764,15 @@ version = "0.6.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "cdeb9d870516001442e364c5220d3574d2da8dc765554b4a617230d33fa58ef5"
 dependencies = [
- "objc2",
+ "objc2 0.6.4",
+]
+
+[[package]]
+name = "block2"
+version = "0.6.2"
+source = "git+https://github.com/plainhub/plain-core.git?branch=main#05c207cd9185e01ec4354b4561802572e8eaa18e"
+dependencies = [
+ "objc2 0.6.5",
 ]
 
 [[package]]
@@ -946,6 +975,17 @@ name = "cfb"
 version = "0.14.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "a347dcabdae9c31b0825fd6a8bed285ec9c2acb89c47827126d52fa4f59cece3"
+dependencies = [
+ "fnv",
+ "uuid",
+ "web-time",
+]
+
+[[package]]
+name = "cfb"
+version = "0.15.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "0f13298d9178622b7916ec5d01d470425c04273c8ed07e87b1c38b34c4f4612b"
 dependencies = [
  "fnv",
  "uuid",
@@ -1710,7 +1750,7 @@ dependencies = [
  "libc",
  "option-ext",
  "redox_users",
- "windows-sys 0.59.0",
+ "windows-sys 0.60.2",
 ]
 
 [[package]]
@@ -1720,9 +1760,17 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "1e0e367e4e7da84520dedcac1901e4da967309406d1e51017ae1abfb97adbd38"
 dependencies = [
  "bitflags 2.13.2",
- "block2",
+ "block2 0.6.2 (registry+https://github.com/rust-lang/crates.io-index)",
  "libc",
- "objc2",
+ "objc2 0.6.4",
+]
+
+[[package]]
+name = "dispatch2"
+version = "0.3.1"
+source = "git+https://github.com/plainhub/plain-core.git?branch=main#05c207cd9185e01ec4354b4561802572e8eaa18e"
+dependencies = [
+ "objc2 0.6.5",
 ]
 
 [[package]]
@@ -2006,7 +2054,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "39cab71617ae0d63f51a36d69f866391735b51691dbda63cf6f96d042b63efeb"
 dependencies = [
  "libc",
- "windows-sys 0.59.0",
+ "windows-sys 0.60.2",
 ]
 
 [[package]]
@@ -2104,9 +2152,27 @@ checksum = "da7c62ceae207dd37ea5b845da6a0696c799f85e97da1ab5b7910be3c1c80223"
 
 [[package]]
 name = "fax"
+version = "0.2.6"
+source = "git+https://github.com/plainhub/plain-core.git?branch=main#05c207cd9185e01ec4354b4561802572e8eaa18e"
+dependencies = [
+ "fax_derive",
+]
+
+[[package]]
+name = "fax"
 version = "0.2.7"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "caf1079563223d5d59d83c85886a56e586cfd5c1a26292e971a0fa266531ac5a"
+
+[[package]]
+name = "fax_derive"
+version = "0.2.0"
+source = "git+https://github.com/plainhub/plain-core.git?branch=main#05c207cd9185e01ec4354b4561802572e8eaa18e"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "syn 2.0.119",
+]
 
 [[package]]
 name = "fdeflate"
@@ -2616,7 +2682,7 @@ checksum = "8c386b0a4a70cb2d39fffd74480f985b6f0bfbcb934b6a6b6b7e630e448f242e"
 dependencies = [
  "crossbeam-channel",
  "keyboard-types 0.7.0",
- "objc2",
+ "objc2 0.6.4",
  "objc2-app-kit",
  "once_cell",
  "serde",
@@ -2727,7 +2793,7 @@ checksum = "6ea2d84b969582b4b1864a92dc5d27cd2b77b622a8d79306834f1be5ba20d84b"
 dependencies = [
  "cfg-if",
  "crunchy",
- "zerocopy",
+ "zerocopy 0.8.59",
 ]
 
 [[package]]
@@ -2774,6 +2840,11 @@ name = "heck"
 version = "0.5.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "2304e00983f87ffb38b55b444b5e3b60a884b5d30c0fca7d82fe33449bbe55ea"
+
+[[package]]
+name = "heic-rs"
+version = "0.1.4"
+source = "git+https://github.com/plainhub/plain-core.git?branch=main#05c207cd9185e01ec4354b4561802572e8eaa18e"
 
 [[package]]
 name = "hermit-abi"
@@ -2945,7 +3016,7 @@ dependencies = [
  "js-sys",
  "log",
  "wasm-bindgen",
- "windows-core 0.62.2",
+ "windows-core 0.61.2",
 ]
 
 [[package]]
@@ -3094,7 +3165,7 @@ dependencies = [
  "png 0.18.1",
  "ravif",
  "rayon",
- "tiff",
+ "tiff 0.11.3 (registry+https://github.com/rust-lang/crates.io-index)",
  "zune-core",
  "zune-jpeg",
 ]
@@ -3144,7 +3215,7 @@ version = "0.22.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "f4200d433cbd5178df7797c9c2e75b348b728e39631cf14520d1e2fc424201f4"
 dependencies = [
- "cfb",
+ "cfb 0.14.0",
 ]
 
 [[package]]
@@ -3685,8 +3756,8 @@ checksum = "fd604973958ddcc11b561193c0fb96ba146506ef2f231ef2e7c35fd2cbc9beca"
 dependencies = [
  "cc",
  "log",
- "objc2",
- "objc2-foundation",
+ "objc2 0.6.4",
+ "objc2-foundation 0.3.2 (registry+https://github.com/rust-lang/crates.io-index)",
  "time",
  "uuid",
 ]
@@ -3835,15 +3906,15 @@ dependencies = [
  "dpi",
  "gtk",
  "keyboard-types 0.8.3",
- "objc2",
+ "objc2 0.6.4",
  "objc2-app-kit",
- "objc2-core-foundation",
- "objc2-foundation",
+ "objc2-core-foundation 0.3.2 (registry+https://github.com/rust-lang/crates.io-index)",
+ "objc2-foundation 0.3.2 (registry+https://github.com/rust-lang/crates.io-index)",
  "once_cell",
  "png 0.18.1",
  "serde",
  "thiserror 2.0.21",
- "windows-sys 0.61.2",
+ "windows-sys 0.60.2",
 ]
 
 [[package]]
@@ -4105,8 +4176,16 @@ version = "0.6.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "3a12a8ed07aefc768292f076dc3ac8c48f3781c8f2d5851dd3d98950e8c5a89f"
 dependencies = [
- "objc2-encode",
+ "objc2-encode 4.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "objc2-exception-helper",
+]
+
+[[package]]
+name = "objc2"
+version = "0.6.5"
+source = "git+https://github.com/plainhub/plain-core.git?branch=main#05c207cd9185e01ec4354b4561802572e8eaa18e"
+dependencies = [
+ "objc2-encode 4.1.0 (git+https://github.com/plainhub/plain-core.git?branch=main)",
 ]
 
 [[package]]
@@ -4116,17 +4195,17 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "d49e936b501e5c5bf01fda3a9452ff86dc3ea98ad5f283e1455153142d97518c"
 dependencies = [
  "bitflags 2.13.2",
- "block2",
+ "block2 0.6.2 (registry+https://github.com/rust-lang/crates.io-index)",
  "libc",
- "objc2",
+ "objc2 0.6.4",
  "objc2-cloud-kit",
  "objc2-core-data",
- "objc2-core-foundation",
+ "objc2-core-foundation 0.3.2 (registry+https://github.com/rust-lang/crates.io-index)",
  "objc2-core-graphics",
  "objc2-core-image",
  "objc2-core-text",
- "objc2-core-video",
- "objc2-foundation",
+ "objc2-core-video 0.3.2 (registry+https://github.com/rust-lang/crates.io-index)",
+ "objc2-foundation 0.3.2 (registry+https://github.com/rust-lang/crates.io-index)",
  "objc2-quartz-core",
 ]
 
@@ -4136,8 +4215,23 @@ version = "0.3.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "478ae33fcac9df0a18db8302387c666b8ef08a3e2d62b510ca4fc278a384b6c0"
 dependencies = [
- "objc2",
- "objc2-foundation",
+ "objc2 0.6.4",
+ "objc2-foundation 0.3.2 (registry+https://github.com/rust-lang/crates.io-index)",
+]
+
+[[package]]
+name = "objc2-av-foundation"
+version = "0.3.2"
+source = "git+https://github.com/plainhub/plain-core.git?branch=main#05c207cd9185e01ec4354b4561802572e8eaa18e"
+dependencies = [
+ "bitflags 2.13.2",
+ "block2 0.6.2 (git+https://github.com/plainhub/plain-core.git?branch=main)",
+ "dispatch2 0.3.1 (git+https://github.com/plainhub/plain-core.git?branch=main)",
+ "objc2 0.6.5",
+ "objc2-core-foundation 0.3.2 (git+https://github.com/plainhub/plain-core.git?branch=main)",
+ "objc2-core-media 0.3.2 (git+https://github.com/plainhub/plain-core.git?branch=main)",
+ "objc2-core-video 0.3.2 (git+https://github.com/plainhub/plain-core.git?branch=main)",
+ "objc2-foundation 0.3.2 (git+https://github.com/plainhub/plain-core.git?branch=main)",
 ]
 
 [[package]]
@@ -4147,8 +4241,8 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "73ad74d880bb43877038da939b7427bba67e9dd42004a18b809ba7d87cee241c"
 dependencies = [
  "bitflags 2.13.2",
- "objc2",
- "objc2-foundation",
+ "objc2 0.6.4",
+ "objc2-foundation 0.3.2 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 
 [[package]]
@@ -4157,10 +4251,10 @@ version = "0.3.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "e1eebcea8b0dbff5f7c8504f3107c68fc061a3eb44932051c8cf8a68d969c3b2"
 dependencies = [
- "dispatch2",
- "objc2",
+ "dispatch2 0.3.1 (registry+https://github.com/rust-lang/crates.io-index)",
+ "objc2 0.6.4",
  "objc2-core-audio-types",
- "objc2-core-foundation",
+ "objc2-core-foundation 0.3.2 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 
 [[package]]
@@ -4170,7 +4264,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "5a89f2ec274a0cf4a32642b2991e8b351a404d290da87bb6a9a9d8632490bd1c"
 dependencies = [
  "bitflags 2.13.2",
- "objc2",
+ "objc2 0.6.4",
 ]
 
 [[package]]
@@ -4180,8 +4274,8 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "0b402a653efbb5e82ce4df10683b6b28027616a2715e90009947d50b8dd298fa"
 dependencies = [
  "bitflags 2.13.2",
- "objc2",
- "objc2-foundation",
+ "objc2 0.6.4",
+ "objc2-foundation 0.3.2 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 
 [[package]]
@@ -4191,8 +4285,17 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "2a180dd8642fa45cdb7dd721cd4c11b1cadd4929ce112ebd8b9f5803cc79d536"
 dependencies = [
  "bitflags 2.13.2",
- "dispatch2",
- "objc2",
+ "dispatch2 0.3.1 (registry+https://github.com/rust-lang/crates.io-index)",
+ "objc2 0.6.4",
+]
+
+[[package]]
+name = "objc2-core-foundation"
+version = "0.3.2"
+source = "git+https://github.com/plainhub/plain-core.git?branch=main#05c207cd9185e01ec4354b4561802572e8eaa18e"
+dependencies = [
+ "bitflags 2.13.2",
+ "objc2 0.6.5",
 ]
 
 [[package]]
@@ -4202,11 +4305,11 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "e022c9d066895efa1345f8e33e584b9f958da2fd4cd116792e15e07e4720a807"
 dependencies = [
  "bitflags 2.13.2",
- "block2",
- "dispatch2",
+ "block2 0.6.2 (registry+https://github.com/rust-lang/crates.io-index)",
+ "dispatch2 0.3.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "libc",
- "objc2",
- "objc2-core-foundation",
+ "objc2 0.6.4",
+ "objc2-core-foundation 0.3.2 (registry+https://github.com/rust-lang/crates.io-index)",
  "objc2-io-surface",
  "objc2-metal",
 ]
@@ -4217,8 +4320,8 @@ version = "0.3.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "e5d563b38d2b97209f8e861173de434bd0214cf020e3423a52624cd1d989f006"
 dependencies = [
- "objc2",
- "objc2-foundation",
+ "objc2 0.6.4",
+ "objc2-foundation 0.3.2 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 
 [[package]]
@@ -4227,8 +4330,8 @@ version = "0.3.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "ca347214e24bc973fc025fd0d36ebb179ff30536ed1f80252706db19ee452009"
 dependencies = [
- "objc2",
- "objc2-foundation",
+ "objc2 0.6.4",
+ "objc2-foundation 0.3.2 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 
 [[package]]
@@ -4238,12 +4341,22 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "05ec576860167a15dd9fce7fbee7512beb4e31f532159d3482d1f9c6caedf31d"
 dependencies = [
  "bitflags 2.13.2",
- "dispatch2",
- "objc2",
+ "dispatch2 0.3.1 (registry+https://github.com/rust-lang/crates.io-index)",
+ "objc2 0.6.4",
  "objc2-core-audio",
  "objc2-core-audio-types",
- "objc2-core-foundation",
- "objc2-core-video",
+ "objc2-core-foundation 0.3.2 (registry+https://github.com/rust-lang/crates.io-index)",
+ "objc2-core-video 0.3.2 (registry+https://github.com/rust-lang/crates.io-index)",
+]
+
+[[package]]
+name = "objc2-core-media"
+version = "0.3.2"
+source = "git+https://github.com/plainhub/plain-core.git?branch=main#05c207cd9185e01ec4354b4561802572e8eaa18e"
+dependencies = [
+ "bitflags 2.13.2",
+ "objc2 0.6.5",
+ "objc2-core-foundation 0.3.2 (git+https://github.com/plainhub/plain-core.git?branch=main)",
 ]
 
 [[package]]
@@ -4253,8 +4366,8 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "0cde0dfb48d25d2b4862161a4d5fcc0e3c24367869ad306b0c9ec0073bfed92d"
 dependencies = [
  "bitflags 2.13.2",
- "objc2",
- "objc2-core-foundation",
+ "objc2 0.6.4",
+ "objc2-core-foundation 0.3.2 (registry+https://github.com/rust-lang/crates.io-index)",
  "objc2-core-graphics",
 ]
 
@@ -4265,10 +4378,20 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "d425caf1df73233f29fd8a5c3e5edbc30d2d4307870f802d18f00d83dc5141a6"
 dependencies = [
  "bitflags 2.13.2",
- "objc2",
- "objc2-core-foundation",
+ "objc2 0.6.4",
+ "objc2-core-foundation 0.3.2 (registry+https://github.com/rust-lang/crates.io-index)",
  "objc2-core-graphics",
  "objc2-io-surface",
+]
+
+[[package]]
+name = "objc2-core-video"
+version = "0.3.2"
+source = "git+https://github.com/plainhub/plain-core.git?branch=main#05c207cd9185e01ec4354b4561802572e8eaa18e"
+dependencies = [
+ "bitflags 2.13.2",
+ "objc2 0.6.5",
+ "objc2-core-foundation 0.3.2 (git+https://github.com/plainhub/plain-core.git?branch=main)",
 ]
 
 [[package]]
@@ -4276,6 +4399,11 @@ name = "objc2-encode"
 version = "4.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "ef25abbcd74fb2609453eb695bd2f860d389e457f67dc17cafc8b8cbc89d0c33"
+
+[[package]]
+name = "objc2-encode"
+version = "4.1.0"
+source = "git+https://github.com/plainhub/plain-core.git?branch=main#05c207cd9185e01ec4354b4561802572e8eaa18e"
 
 [[package]]
 name = "objc2-exception-helper"
@@ -4293,10 +4421,19 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "e3e0adef53c21f888deb4fa59fc59f7eb17404926ee8a6f59f5df0fd7f9f3272"
 dependencies = [
  "bitflags 2.13.2",
- "block2",
+ "block2 0.6.2 (registry+https://github.com/rust-lang/crates.io-index)",
  "libc",
- "objc2",
- "objc2-core-foundation",
+ "objc2 0.6.4",
+ "objc2-core-foundation 0.3.2 (registry+https://github.com/rust-lang/crates.io-index)",
+]
+
+[[package]]
+name = "objc2-foundation"
+version = "0.3.2"
+source = "git+https://github.com/plainhub/plain-core.git?branch=main#05c207cd9185e01ec4354b4561802572e8eaa18e"
+dependencies = [
+ "bitflags 2.13.2",
+ "objc2 0.6.5",
 ]
 
 [[package]]
@@ -4306,8 +4443,8 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "180788110936d59bab6bd83b6060ffdfffb3b922ba1396b312ae795e1de9d81d"
 dependencies = [
  "bitflags 2.13.2",
- "objc2",
- "objc2-core-foundation",
+ "objc2 0.6.4",
+ "objc2-core-foundation 0.3.2 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 
 [[package]]
@@ -4317,8 +4454,8 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "a0125f776a10d00af4152d74616409f0d4a2053a6f57fa5b7d6aa2854ac04794"
 dependencies = [
  "bitflags 2.13.2",
- "objc2",
- "objc2-foundation",
+ "objc2 0.6.4",
+ "objc2-foundation 0.3.2 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 
 [[package]]
@@ -4328,9 +4465,9 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "96c1358452b371bf9f104e21ec536d37a650eb10f7ee379fff67d2e08d537f1f"
 dependencies = [
  "bitflags 2.13.2",
- "objc2",
- "objc2-core-foundation",
- "objc2-foundation",
+ "objc2 0.6.4",
+ "objc2-core-foundation 0.3.2 (registry+https://github.com/rust-lang/crates.io-index)",
+ "objc2-foundation 0.3.2 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 
 [[package]]
@@ -4340,15 +4477,15 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "74b7c5390f477482f001bc354d6571a70db7e4f8d5288e860c45521fbce11394"
 dependencies = [
  "bitflags 2.13.2",
- "block2",
- "dispatch2",
+ "block2 0.6.2 (registry+https://github.com/rust-lang/crates.io-index)",
+ "dispatch2 0.3.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "libc",
- "objc2",
- "objc2-av-foundation",
- "objc2-core-foundation",
+ "objc2 0.6.4",
+ "objc2-av-foundation 0.3.2 (registry+https://github.com/rust-lang/crates.io-index)",
+ "objc2-core-foundation 0.3.2 (registry+https://github.com/rust-lang/crates.io-index)",
  "objc2-core-graphics",
- "objc2-core-media",
- "objc2-foundation",
+ "objc2-core-media 0.3.2 (registry+https://github.com/rust-lang/crates.io-index)",
+ "objc2-foundation 0.3.2 (registry+https://github.com/rust-lang/crates.io-index)",
  "objc2-uniform-type-identifiers",
 ]
 
@@ -4359,16 +4496,16 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "d87d638e33c06f577498cbcc50491496a3ed4246998a7fbba7ccb98b1e7eab22"
 dependencies = [
  "bitflags 2.13.2",
- "block2",
- "objc2",
+ "block2 0.6.2 (registry+https://github.com/rust-lang/crates.io-index)",
+ "objc2 0.6.4",
  "objc2-cloud-kit",
  "objc2-core-data",
- "objc2-core-foundation",
+ "objc2-core-foundation 0.3.2 (registry+https://github.com/rust-lang/crates.io-index)",
  "objc2-core-graphics",
  "objc2-core-image",
  "objc2-core-location",
  "objc2-core-text",
- "objc2-foundation",
+ "objc2-foundation 0.3.2 (registry+https://github.com/rust-lang/crates.io-index)",
  "objc2-quartz-core",
  "objc2-user-notifications",
 ]
@@ -4379,8 +4516,8 @@ version = "0.3.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "7902ac02859fc1f7045f8b598c63f1ae0cc7efeaa06a9bc9f3d9a3c955974fa4"
 dependencies = [
- "objc2",
- "objc2-foundation",
+ "objc2 0.6.4",
+ "objc2-foundation 0.3.2 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 
 [[package]]
@@ -4389,8 +4526,8 @@ version = "0.3.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "9df9128cbbfef73cda168416ccf7f837b62737d748333bfe9ab71c245d76613e"
 dependencies = [
- "objc2",
- "objc2-foundation",
+ "objc2 0.6.4",
+ "objc2-foundation 0.3.2 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 
 [[package]]
@@ -4400,11 +4537,11 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "b2e5aaab980c433cf470df9d7af96a7b46a9d892d521a2cbbb2f8a4c16751e7f"
 dependencies = [
  "bitflags 2.13.2",
- "block2",
- "objc2",
+ "block2 0.6.2 (registry+https://github.com/rust-lang/crates.io-index)",
+ "objc2 0.6.4",
  "objc2-app-kit",
- "objc2-core-foundation",
- "objc2-foundation",
+ "objc2-core-foundation 0.3.2 (registry+https://github.com/rust-lang/crates.io-index)",
+ "objc2-foundation 0.3.2 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 
 [[package]]
@@ -4763,7 +4900,7 @@ checksum = "f6b464fbc74e149a392436b17d523f769e057cb6877f6a5c4618bc6f11800548"
 [[package]]
 name = "plain-graphql"
 version = "0.1.0"
-source = "git+https://github.com/plainhub/plain-core.git?branch=main#9db1ffb812ff134f9e5440477d8a1bad0cba5d56"
+source = "git+https://github.com/plainhub/plain-core.git?branch=main#05c207cd9185e01ec4354b4561802572e8eaa18e"
 dependencies = [
  "asynk-strim",
  "bytes",
@@ -4780,7 +4917,7 @@ dependencies = [
 [[package]]
 name = "plain-graphql-macros"
 version = "0.1.0"
-source = "git+https://github.com/plainhub/plain-core.git?branch=main#9db1ffb812ff134f9e5440477d8a1bad0cba5d56"
+source = "git+https://github.com/plainhub/plain-core.git?branch=main#05c207cd9185e01ec4354b4561802572e8eaa18e"
 dependencies = [
  "darling 0.23.0",
  "heck 0.5.0",
@@ -4794,7 +4931,7 @@ dependencies = [
 [[package]]
 name = "plain-libs"
 version = "0.1.0"
-source = "git+https://github.com/plainhub/plain-core.git?branch=main#9db1ffb812ff134f9e5440477d8a1bad0cba5d56"
+source = "git+https://github.com/plainhub/plain-core.git?branch=main#05c207cd9185e01ec4354b4561802572e8eaa18e"
 dependencies = [
  "anyhow",
  "bytes",
@@ -4809,6 +4946,7 @@ dependencies = [
  "fast_image_resize",
  "flate2",
  "futures-core",
+ "heic-rs",
  "hmac",
  "image",
  "jpeg-decoder",
@@ -4821,6 +4959,7 @@ dependencies = [
  "pkcs5",
  "pkcs8 0.11.0",
  "rand 0.8.8",
+ "rav1d",
  "rc2",
  "rcgen",
  "regex",
@@ -4834,6 +4973,7 @@ dependencies = [
  "sha2 0.10.9",
  "sha2 0.11.0",
  "tempfile",
+ "tiff 0.11.3 (git+https://github.com/plainhub/plain-core.git?branch=main)",
  "tokenizers",
  "tokio",
  "x509-parser",
@@ -4843,11 +4983,13 @@ dependencies = [
 [[package]]
 name = "plain-rs"
 version = "0.1.0"
-source = "git+https://github.com/plainhub/plain-core.git?branch=main#9db1ffb812ff134f9e5440477d8a1bad0cba5d56"
+source = "git+https://github.com/plainhub/plain-core.git?branch=main#05c207cd9185e01ec4354b4561802572e8eaa18e"
 dependencies = [
  "anyhow",
+ "block2 0.6.2 (git+https://github.com/plainhub/plain-core.git?branch=main)",
  "bytes",
  "chrono",
+ "dispatch2 0.3.1 (git+https://github.com/plainhub/plain-core.git?branch=main)",
  "futures-core",
  "futures-util",
  "hmac",
@@ -4858,6 +5000,12 @@ dependencies = [
  "libc",
  "log",
  "notify",
+ "objc2 0.6.5",
+ "objc2-av-foundation 0.3.2 (git+https://github.com/plainhub/plain-core.git?branch=main)",
+ "objc2-core-foundation 0.3.2 (git+https://github.com/plainhub/plain-core.git?branch=main)",
+ "objc2-core-media 0.3.2 (git+https://github.com/plainhub/plain-core.git?branch=main)",
+ "objc2-core-video 0.3.2 (git+https://github.com/plainhub/plain-core.git?branch=main)",
+ "objc2-foundation 0.3.2 (git+https://github.com/plainhub/plain-core.git?branch=main)",
  "parking_lot",
  "plain-graphql",
  "plain-libs",
@@ -4876,14 +5024,16 @@ dependencies = [
  "tokio",
  "tokio-rustls",
  "tokio-tungstenite 0.30.0",
+ "undoc",
  "uuid",
+ "windows 0.57.0 (git+https://github.com/plainhub/plain-core.git?branch=main)",
  "zip",
 ]
 
 [[package]]
 name = "plain-server"
 version = "0.1.0"
-source = "git+https://github.com/plainhub/plain-core.git?branch=main#9db1ffb812ff134f9e5440477d8a1bad0cba5d56"
+source = "git+https://github.com/plainhub/plain-core.git?branch=main#05c207cd9185e01ec4354b4561802572e8eaa18e"
 dependencies = [
  "anyhow",
  "axum",
@@ -5017,7 +5167,7 @@ version = "0.2.21"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "85eae3c4ed2f50dcfe72643da4befc30deadb458a9b590d720cde2f2b1e97da9"
 dependencies = [
- "zerocopy",
+ "zerocopy 0.8.59",
 ]
 
 [[package]]
@@ -5249,7 +5399,7 @@ dependencies = [
  "once_cell",
  "socket2 0.6.5",
  "tracing",
- "windows-sys 0.59.0",
+ "windows-sys 0.60.2",
 ]
 
 [[package]]
@@ -5356,6 +5506,24 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "caa0f4137e1c0a72f4c651489402276c8e8e1cf081f3b0ba156d2cbeef09e86a"
 dependencies = [
  "rand_core 0.10.1",
+]
+
+[[package]]
+name = "rav1d"
+version = "1.1.0"
+source = "git+https://github.com/plainhub/plain-core.git?branch=main#05c207cd9185e01ec4354b4561802572e8eaa18e"
+dependencies = [
+ "assert_matches",
+ "atomig",
+ "bitflags 2.13.2",
+ "cfg-if",
+ "libc",
+ "parking_lot",
+ "paste",
+ "raw-cpuid",
+ "strum",
+ "to_method",
+ "zerocopy 0.7.35",
 ]
 
 [[package]]
@@ -5631,17 +5799,17 @@ version = "0.16.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "a15ad77d9e70a92437d8f74c35d99b4e4691128df018833e99f90bcd36152672"
 dependencies = [
- "block2",
- "dispatch2",
+ "block2 0.6.2 (registry+https://github.com/rust-lang/crates.io-index)",
+ "dispatch2 0.3.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "glib-sys",
  "gobject-sys",
  "gtk-sys",
  "js-sys",
  "log",
- "objc2",
+ "objc2 0.6.4",
  "objc2-app-kit",
- "objc2-core-foundation",
- "objc2-foundation",
+ "objc2-core-foundation 0.3.2 (registry+https://github.com/rust-lang/crates.io-index)",
+ "objc2-foundation 0.3.2 (registry+https://github.com/rust-lang/crates.io-index)",
  "raw-window-handle",
  "wasm-bindgen",
  "wasm-bindgen-futures",
@@ -5717,7 +5885,7 @@ dependencies = [
  "errno",
  "libc",
  "linux-raw-sys",
- "windows-sys 0.59.0",
+ "windows-sys 0.60.2",
 ]
 
 [[package]]
@@ -6270,7 +6438,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "c3d1e2c7f27f8d4cb10542a02c49005dbd6e93095799d6f3be745fae9f8fedd4"
 dependencies = [
  "libc",
- "windows-sys 0.61.2",
+ "windows-sys 0.60.2",
 ]
 
 [[package]]
@@ -6282,10 +6450,10 @@ dependencies = [
  "bytemuck",
  "js-sys",
  "ndk",
- "objc2",
- "objc2-core-foundation",
+ "objc2 0.6.4",
+ "objc2-core-foundation 0.3.2 (registry+https://github.com/rust-lang/crates.io-index)",
  "objc2-core-graphics",
- "objc2-foundation",
+ "objc2-foundation 0.3.2 (registry+https://github.com/rust-lang/crates.io-index)",
  "objc2-quartz-core",
  "raw-window-handle",
  "redox_syscall",
@@ -6375,7 +6543,7 @@ dependencies = [
  "cfg-if",
  "libc",
  "psm",
- "windows-sys 0.61.2",
+ "windows-sys 0.60.2",
 ]
 
 [[package]]
@@ -6419,6 +6587,24 @@ name = "strsim"
 version = "0.11.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "7da8b5736845d9f2fcb837ea5d9e2628564b3b043a70948a3f0b778838c5fb4f"
+
+[[package]]
+name = "strum"
+version = "0.26.3"
+source = "git+https://github.com/plainhub/plain-core.git?branch=main#05c207cd9185e01ec4354b4561802572e8eaa18e"
+dependencies = [
+ "strum_macros",
+]
+
+[[package]]
+name = "strum_macros"
+version = "0.26.4"
+source = "git+https://github.com/plainhub/plain-core.git?branch=main#05c207cd9185e01ec4354b4561802572e8eaa18e"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "syn 2.0.119",
+]
 
 [[package]]
 name = "subtle"
@@ -6510,7 +6696,7 @@ dependencies = [
  "libc",
  "memchr",
  "ntapi",
- "windows 0.57.0",
+ "windows 0.57.0 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 
 [[package]]
@@ -6546,12 +6732,12 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "f37f381f4e048e6cdf038b5705f8cf14ad108279d46eb968140a7b291aba9400"
 dependencies = [
  "bitflags 2.13.2",
- "block2",
+ "block2 0.6.2 (registry+https://github.com/rust-lang/crates.io-index)",
  "core-foundation",
  "core-graphics",
  "crossbeam-channel",
  "dbus",
- "dispatch2",
+ "dispatch2 0.3.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "dlopen2",
  "dpi",
  "gdkwayland-sys",
@@ -6563,9 +6749,9 @@ dependencies = [
  "ndk",
  "ndk-context",
  "ndk-sys",
- "objc2",
+ "objc2 0.6.4",
  "objc2-app-kit",
- "objc2-foundation",
+ "objc2-foundation 0.3.2 (registry+https://github.com/rust-lang/crates.io-index)",
  "objc2-ui-kit",
  "parking_lot",
  "percent-encoding",
@@ -6624,9 +6810,9 @@ dependencies = [
  "log",
  "mime",
  "muda",
- "objc2",
+ "objc2 0.6.4",
  "objc2-app-kit",
- "objc2-foundation",
+ "objc2-foundation 0.3.2 (registry+https://github.com/rust-lang/crates.io-index)",
  "objc2-ui-kit",
  "objc2-web-kit",
  "percent-encoding",
@@ -6774,7 +6960,7 @@ dependencies = [
  "dunce",
  "glob",
  "log",
- "objc2-foundation",
+ "objc2-foundation 0.3.2 (registry+https://github.com/rust-lang/crates.io-index)",
  "percent-encoding",
  "schemars 0.8.22",
  "serde",
@@ -6812,8 +6998,8 @@ dependencies = [
  "android_logger",
  "fern",
  "log",
- "objc2",
- "objc2-foundation",
+ "objc2 0.6.4",
+ "objc2-foundation 0.3.2 (registry+https://github.com/rust-lang/crates.io-index)",
  "serde",
  "serde_json",
  "serde_repr",
@@ -6852,7 +7038,7 @@ dependencies = [
  "dunce",
  "glob",
  "objc2-app-kit",
- "objc2-foundation",
+ "objc2-foundation 0.3.2 (registry+https://github.com/rust-lang/crates.io-index)",
  "open",
  "schemars 0.8.22",
  "serde",
@@ -6892,7 +7078,7 @@ dependencies = [
  "gtk",
  "http",
  "jni",
- "objc2",
+ "objc2 0.6.4",
  "objc2-ui-kit",
  "objc2-web-kit",
  "raw-window-handle",
@@ -6916,7 +7102,7 @@ dependencies = [
  "http",
  "jni",
  "log",
- "objc2",
+ "objc2 0.6.4",
  "objc2-app-kit",
  "once_cell",
  "percent-encoding",
@@ -7002,7 +7188,7 @@ dependencies = [
  "getrandom 0.4.3",
  "once_cell",
  "rustix",
- "windows-sys 0.59.0",
+ "windows-sys 0.60.2",
 ]
 
 [[package]]
@@ -7060,7 +7246,20 @@ version = "0.11.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "b63feaf3343d35b6ca4d50483f94843803b0f51634937cc2ec519fc32232bc52"
 dependencies = [
- "fax",
+ "fax 0.2.7",
+ "flate2",
+ "half",
+ "quick-error",
+ "weezl",
+ "zune-jpeg",
+]
+
+[[package]]
+name = "tiff"
+version = "0.11.3"
+source = "git+https://github.com/plainhub/plain-core.git?branch=main#05c207cd9185e01ec4354b4561802572e8eaa18e"
+dependencies = [
+ "fax 0.2.6",
  "flate2",
  "half",
  "quick-error",
@@ -7115,6 +7314,11 @@ name = "tinyvec"
 version = "1.13.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "fd3ca314f692efd6c868f8408f53fe444634a845f96c028b97d35f6a1f79f0ee"
+
+[[package]]
+name = "to_method"
+version = "1.1.0"
+source = "git+https://github.com/plainhub/plain-core.git?branch=main#05c207cd9185e01ec4354b4561802572e8eaa18e"
 
 [[package]]
 name = "tokenizers"
@@ -7411,16 +7615,16 @@ dependencies = [
  "dirs",
  "libappindicator",
  "muda",
- "objc2",
+ "objc2 0.6.4",
  "objc2-app-kit",
- "objc2-core-foundation",
+ "objc2-core-foundation 0.3.2 (registry+https://github.com/rust-lang/crates.io-index)",
  "objc2-core-graphics",
- "objc2-foundation",
+ "objc2-foundation 0.3.2 (registry+https://github.com/rust-lang/crates.io-index)",
  "once_cell",
  "png 0.18.1",
  "serde",
  "thiserror 2.0.21",
- "windows-sys 0.61.2",
+ "windows-sys 0.60.2",
 ]
 
 [[package]]
@@ -7508,7 +7712,23 @@ checksum = "f2f6fb2847f6742cd76af783a2a2c49e9375d0a111c7bef6f71cd9e738c72d6e"
 dependencies = [
  "memoffset",
  "tempfile",
- "windows-sys 0.61.2",
+ "windows-sys 0.60.2",
+]
+
+[[package]]
+name = "undoc"
+version = "0.27.3"
+source = "git+https://github.com/plainhub/plain-core.git?branch=main#05c207cd9185e01ec4354b4561802572e8eaa18e"
+dependencies = [
+ "cfb 0.15.0",
+ "encoding_rs",
+ "flate2",
+ "quick-xml 0.42.0",
+ "serde",
+ "thiserror 2.0.21",
+ "unicode-normalization",
+ "unicode-width",
+ "zip",
 ]
 
 [[package]]
@@ -7516,6 +7736,15 @@ name = "unicode-ident"
 version = "1.0.26"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "d245f478577f809a851594d02313b640fb437e0bb33866753cff937863096954"
+
+[[package]]
+name = "unicode-normalization"
+version = "0.1.26"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "75cd3fb03d5288b3ba9a1ee103ac7e9cbb59f0b03d64f8ddfcc04dd42758a85d"
+dependencies = [
+ "tinyvec",
+]
 
 [[package]]
 name = "unicode-normalization-alignments"
@@ -7534,9 +7763,9 @@ checksum = "c6f5d3c3b1bf09027a88a6bc961fc00497d651009560b5463668dc81b0fa87a8"
 
 [[package]]
 name = "unicode-width"
-version = "0.2.2"
+version = "0.2.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b4ac048d71ede7ee76d585517add45da530660ef4390e49b098733c6e897f254"
+checksum = "ca718471876992059f251e33aafc334346ada08042b7661dd1fe313a9bced557"
 
 [[package]]
 name = "unicode_categories"
@@ -8020,7 +8249,7 @@ version = "0.1.11"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "c2a7b1c03c876122aa43f3020e6c3c3ee5c05081c9a00739faf7503aeba10d22"
 dependencies = [
- "windows-sys 0.59.0",
+ "windows-sys 0.60.2",
 ]
 
 [[package]]
@@ -8035,13 +8264,13 @@ version = "0.8.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "111e51caca442cafd9bab396628ac4d814880eaea4e63dfd76a12e9f342b5580"
 dependencies = [
- "objc2",
+ "objc2 0.6.4",
  "objc2-app-kit",
- "objc2-core-foundation",
- "objc2-foundation",
+ "objc2-core-foundation 0.3.2 (registry+https://github.com/rust-lang/crates.io-index)",
+ "objc2-foundation 0.3.2 (registry+https://github.com/rust-lang/crates.io-index)",
  "objc2-quartz-core",
  "raw-window-handle",
- "windows-sys 0.61.2",
+ "windows-sys 0.60.2",
  "windows-version",
 ]
 
@@ -8050,6 +8279,15 @@ name = "windows"
 version = "0.57.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "12342cb4d8e3b046f3d80effd474a7a02447231330ef77d71daa6fbc40681143"
+dependencies = [
+ "windows-core 0.57.0",
+ "windows-targets 0.52.6",
+]
+
+[[package]]
+name = "windows"
+version = "0.57.0"
+source = "git+https://github.com/plainhub/plain-core.git?branch=main#05c207cd9185e01ec4354b4561802572e8eaa18e"
 dependencies = [
  "windows-core 0.57.0",
  "windows-targets 0.52.6",
@@ -8614,7 +8852,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "a819957a01b3119af85e638a38d242af76dbc87d130dca67bfd0441072e21ff0"
 dependencies = [
  "base64 0.22.1",
- "block2",
+ "block2 0.6.2 (registry+https://github.com/rust-lang/crates.io-index)",
  "cookie",
  "crossbeam-channel",
  "dirs",
@@ -8628,10 +8866,10 @@ dependencies = [
  "jni",
  "libc",
  "ndk",
- "objc2",
+ "objc2 0.6.4",
  "objc2-app-kit",
- "objc2-core-foundation",
- "objc2-foundation",
+ "objc2-core-foundation 0.3.2 (registry+https://github.com/rust-lang/crates.io-index)",
+ "objc2-foundation 0.3.2 (registry+https://github.com/rust-lang/crates.io-index)",
  "objc2-ui-kit",
  "objc2-web-kit",
  "once_cell",
@@ -8834,11 +9072,30 @@ dependencies = [
 
 [[package]]
 name = "zerocopy"
+version = "0.7.35"
+source = "git+https://github.com/plainhub/plain-core.git?branch=main#05c207cd9185e01ec4354b4561802572e8eaa18e"
+dependencies = [
+ "byteorder",
+ "zerocopy-derive 0.7.35",
+]
+
+[[package]]
+name = "zerocopy"
 version = "0.8.59"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "6df92bf3d9227be3d53173901ddbffac2babc27ae50f397776ffd6dc33f800cb"
 dependencies = [
- "zerocopy-derive",
+ "zerocopy-derive 0.8.59",
+]
+
+[[package]]
+name = "zerocopy-derive"
+version = "0.7.35"
+source = "git+https://github.com/plainhub/plain-core.git?branch=main#05c207cd9185e01ec4354b4561802572e8eaa18e"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "syn 2.0.119",
 ]
 
 [[package]]

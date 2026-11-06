@@ -1,3 +1,4 @@
+import { rebuildFileIndexVolumeGQL } from '@/lib/api/file-index'
 import { graphqlSubscriptions } from '@/lib/api/subscription-client'
 import { ref, computed, watch, onUnmounted } from 'vue'
 import { useI18n } from 'vue-i18n'
@@ -125,7 +126,6 @@ export function useScanAction() {
 
   const onScanProgress = (p: IScanProgress) => {
     scanProgress.value = { indexed: p.indexed, pending: p.pending, total: p.total, state: p.state, error: p.error }
-    if (p.state === 'IDLE') toast(t('index_state_completed'))
     if (p.state === 'FAILED') toast(p.error || t('error'), 'error')
   }
   const stopMediaScanProgress = graphqlSubscriptions.subscribe('mediaScanProgress', onScanProgress)
@@ -160,6 +160,9 @@ export function useScanAction() {
   const { mutate: stopScanMutation } = initMutation({ document: stopMediaScanGQL })
   const { mutate: rebuildIndexMutation, loading: rebuildIndexLoading } = initMutation({ document: rebuildMediaIndexGQL })
 
+  const { mutate: rebuildVolumeMutation, loading: rebuildVolumeLoading } = initMutation({ document: rebuildFileIndexVolumeGQL })
+  async function rebuildVolume(id: string) { await rebuildVolumeMutation({ id }) }
+
   async function pauseScan() { await pauseScanMutation() }
   async function resumeScan() { await resumeScanMutation() }
   async function stopScan() { await stopScanMutation() }
@@ -168,6 +171,6 @@ export function useScanAction() {
   return {
     scanProgress, scanActive, percent, stateLabel,
     showPause, showResume, showStop, showRebuild, rebuildIndexLoading,
-    pauseScan, resumeScan, stopScan, rebuildIndex,
+    pauseScan, resumeScan, stopScan, rebuildIndex, rebuildVolume, rebuildVolumeLoading,
   }
 }

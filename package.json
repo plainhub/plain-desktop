@@ -11,6 +11,7 @@
     "dev:tauri": "tauri dev",
     "dev:tauri:frontend": "vite --mode tauri",
     "build:tauri": "tauri build",
+    "build:tauri:preview": "tauri build --debug",
     "build:tauri:frontend": "vite build --mode tauri",
     "preview": "vite preview --port 5050",
     "typecheck": "vue-tsc --noEmit",

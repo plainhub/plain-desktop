@@ -137,7 +137,7 @@ export async function encryptedGqlPost<T = any>(
     if (response.status === 401) {
       throw new GqlError('unauthorized', 401)
     } else if (response.status === 403) {
-      throw new GqlError('desktop_access_disabled', 403)
+      throw new GqlError('remote_access_disabled', 403)
     }
 
     const arrayBuffer = await response.arrayBuffer()

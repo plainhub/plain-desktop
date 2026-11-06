@@ -11,7 +11,7 @@ const ERROR_KEYS: Record<string, string> = {
   connection_timeout: 'connection_timeout',
   network_error: 'network_error',
   'Network error': 'network_error',
-  desktop_access_disabled: 'desktop_access_disabled',
+  remote_access_disabled: 'remote_access_disabled',
   unauthorized: 'upload_unauthorized',
   'Failed to merge chunks': 'upload_merge_failed',
 }

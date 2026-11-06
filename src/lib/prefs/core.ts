@@ -1,13 +1,14 @@
+import { shallowReactive } from 'vue'
 import { bindGraphqlClient, getGraphqlContextKey, gqlFetch } from '@/lib/api/gql-client'
 
-let cache = new Map<string, unknown>()
+let cache = shallowReactive(new Map<string, unknown>())
 let cacheContext: string | undefined
 let writes: Promise<void> = Promise.resolve()
 
 function currentCache(): Map<string, unknown> {
   const context = getGraphqlContextKey()
   if (context !== cacheContext) {
-    cache = new Map()
+    cache = shallowReactive(new Map())
     cacheContext = context
   }
   return cache

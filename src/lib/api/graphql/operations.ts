@@ -16,7 +16,7 @@ export interface Fragment_AppFragment {
   appDir: string
   deviceName: string
   deviceType: 'COMPUTER' | 'PHONE' | 'TABLET' | 'TV' | 'NAS' | 'OTHER'
-  capabilities: Array<'ADB' | 'DIRECTORY_ACCESS' | 'BLE' | 'WIFI_AWARE' | 'BACKGROUND_SERVICE' | 'SOUND_METER' | 'BACKGROUND_TIMER' | 'BACKGROUND_WAKE' | 'FILE_EXPORT' | 'FILE_REVEAL' | 'FILE_CLIPBOARD' | 'APP_RELAUNCH' | 'MEDIA_TRASH' | 'MEDIA_DELETE' | 'MEDIA_MOVE' | 'MEDIA_FAVORITE' | 'VIDEO_REMUX' | 'VIDEO_TRANSCODE' | 'APP_UPDATES' | 'MIRROR_AUDIO' | 'DOC_PREVIEW' | 'IMAGE_SEARCH' | 'MEDIA_SCAN' | 'TELEPHONY' | 'PACKAGES' | 'SCREEN_MIRROR' | 'IMAGE_EDITOR' | 'NOTIFICATIONS' | 'CLIPBOARD' | 'LAN_SHARE' | 'DISK_MANAGER'>
+  capabilities: Array<'ADB' | 'BLE' | 'WIFI_AWARE' | 'APP_RELAUNCH' | 'MEDIA_TRASH' | 'MEDIA_DELETE' | 'MEDIA_MOVE' | 'MEDIA_FAVORITE' | 'VIDEO_REMUX' | 'VIDEO_TRANSCODE' | 'APP_UPDATES' | 'MIRROR_AUDIO' | 'MEDIA_SCAN' | 'TELEPHONY' | 'PACKAGES' | 'SCREEN_MIRROR' | 'NOTIFICATIONS' | 'CLIPBOARD' | 'SMB_SERVER' | 'DISK_MANAGER'>
   buildChannel: 'GITHUB' | 'GOOGLE' | 'FDROID'
   access: Array<'IMAGES' | 'VIDEOS' | 'AUDIO' | 'DOCS' | 'FILES' | 'CONTACTS' | 'SMS' | 'CALL_LOGS' | 'CALL_PHONE' | 'PHONE_NUMBER' | 'APPS' | 'NOTIFICATIONS' | 'CLIPBOARD' | 'ADB'>
   downloadsDir: string
@@ -1388,6 +1388,25 @@ export interface GqlOperations {
       type: 'DEFAULT' | 'AUDIO' | 'VIDEO' | 'IMAGE' | 'SMS' | 'CONTACT' | 'NOTE' | 'FEED_ENTRY' | 'CALL' | 'PACKAGE' | 'FILE' | 'APP_FILE' | 'DOC'
     }
   }
+  fileIndexVolumesGQL: {
+    result: {
+      fileIndexVolumes: Array<{
+        id: string
+        path: string
+        isAvailable: boolean
+        indexMode: 'UNCONFIGURED' | 'DISABLED' | 'ALLOWLIST' | 'BLOCKLIST'
+        includedDirs: Array<string>
+        excludedDirs: Array<string>
+      }>
+      fileIndexDefaults: {
+        excludedDirs: Array<string>
+        excludedNames: Array<string>
+        excludedPackages: Array<string>
+        excludedUserLibraries: boolean
+      }
+    }
+    variables: undefined
+  }
   fileInfoGQL: {
     result: {
       fileInfo: {
@@ -1499,6 +1518,9 @@ export interface GqlOperations {
       contactCount: number
       mounts: Array<{
         id: string
+        name: string
+        alias: string
+        label: string
         path: string
         mountPoint: string
         totalBytes: number
@@ -2220,6 +2242,14 @@ export interface GqlOperations {
     }
     variables: undefined
   }
+  rebuildFileIndexVolumeGQL: {
+    result: {
+      rebuildFileIndexVolume: boolean
+    }
+    variables: {
+      id: string
+    }
+  }
   rebuildMediaIndexGQL: {
     result: {
       rebuildMediaIndex: boolean
@@ -2597,6 +2627,17 @@ export interface GqlOperations {
     variables: {
       fullPath: string
       alias: string
+    }
+  }
+  setFileIndexVolumeGQL: {
+    result: {
+      setFileIndexVolume: boolean
+    }
+    variables: {
+      id: string
+      indexMode: 'UNCONFIGURED' | 'DISABLED' | 'ALLOWLIST' | 'BLOCKLIST'
+      includedDirs: Array<string>
+      excludedDirs: Array<string>
     }
   }
   setPrefGQL: {

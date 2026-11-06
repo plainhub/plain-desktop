@@ -1,16 +1,5 @@
 pub fn desktop_capabilities() -> Vec<&'static str> {
-    let mut capabilities = vec![
-        "MEDIA_SCAN",
-        "FILE_EXPORT",
-        "FILE_REVEAL",
-        "DOC_PREVIEW",
-        "IMAGE_EDITOR",
-        "CLIPBOARD",
-        "BACKGROUND_TIMER",
-        "APP_UPDATES",
-    ];
-    #[cfg(target_os = "macos")]
-    capabilities.push("FILE_CLIPBOARD");
+    let mut capabilities = vec!["MEDIA_SCAN", "CLIPBOARD", "APP_UPDATES"];
     capabilities.extend(plain_rs::features::services::files::media_action_io::capabilities());
     capabilities
 }

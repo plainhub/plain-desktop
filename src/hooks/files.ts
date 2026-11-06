@@ -1,3 +1,4 @@
+import { FileAction } from '@/lib/api/file-action'
 import { onUnmounted, ref, type Ref } from 'vue'
 import { createFileTaskGQL, createDirGQL, initMutation, renameFileGQL } from '@/lib/api/mutation'
 import type { GqlResultType, GqlVariablesType } from '@/lib/api/graphql/operations'
@@ -5,7 +6,7 @@ import { enrichFile, isAudio, isImage, isVideo, type IFile } from '@/lib/file'
 import { initQuery, favoriteFoldersGQL, mountsGQL } from '@/lib/api/query'
 import { useI18n } from 'vue-i18n'
 import toast from '@/components/toaster'
-import { download, downloadAs, encryptUrlParams, getFileId, getFileName } from '@/lib/api/file'
+import { download, downloadAs, encryptUrlParams, getFileId, getFileName, getFileUrl } from '@/lib/api/file'
 import type { ISource } from '@/components/lightbox/types'
 import { encodeBase64 } from '@/lib/strutil'
 import { buildQuery, parseQuery, type IFilterField } from '@/lib/search'
@@ -111,12 +112,12 @@ export const useDownload = (urlTokenKey: Ref<Uint8Array | null>) => {
       const id = fileName
         ? getFileId(urlTokenKey.value, path)
         : getFileId(urlTokenKey.value, path)
-      const url = `${getApiBaseUrl()}/fs?id=${encodeURIComponent(id)}&dl=1`
+      const url = getFileUrl(id, '', FileAction.Download)
       download(url, name)
     },
     async downloadFileAs(path: string) {
       const id = getFileId(urlTokenKey.value, path)
-      const url = `${getApiBaseUrl()}/fs?id=${encodeURIComponent(id)}&dl=1`
+      const url = getFileUrl(id, '', FileAction.Download)
       downloadAs(url, getFileName(path))
     },
     async downloadDir(path: string, fileName?: string) {

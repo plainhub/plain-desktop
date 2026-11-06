@@ -15,10 +15,7 @@
       <div class="feat-order">{{ item.enabled ? idx + 1 : '—' }}</div>
       <component :is="item.feature.icon" class="feat-icon" />
       <span class="feat-name">{{ $t(item.feature.titleKey) }}</span>
-      <label class="feat-switch" :class="{ disabled: item.enabled && enabledIds.length === 1 }">
-        <input type="checkbox" :checked="item.enabled" :disabled="item.enabled && enabledIds.length === 1" @change="toggle(item.feature.id)" />
-        <span class="switch-track"></span>
-      </label>
+      <v-switch :label="$t(item.feature.titleKey)" :checked="item.enabled" :disabled="item.enabled && enabledIds.length === 1" @change="toggle(item.feature.id)" />
     </div>
   </div>
 </template>

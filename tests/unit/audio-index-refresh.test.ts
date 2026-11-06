@@ -31,7 +31,7 @@ vi.mock('@/views/audios/AudioListItem.vue', () => ({ default: defineComponent({ 
 vi.mock('@/views/audios/AudioSkeletonItem.vue', () => ({ default: defineComponent({ render: () => h('div', { class: 'skeleton' }) }) }))
 import AudiosView from '@/views/audios/AudiosView.vue'
 async function render(beforeRender?: () => void) {
-  state.store = reactive({ audioSortBy: 'DATE_DESC', audiosScrollPaging: true, excludedDirs: [] })
+  state.store = reactive({ audioSortBy: 'DATE_DESC', audiosScrollPaging: true })
   state.page = ref(1)
   state.loading = ref(true)
   state.fetch.mockReset()

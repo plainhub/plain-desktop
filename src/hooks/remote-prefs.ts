@@ -33,7 +33,6 @@ export function useRemotePrefs(store: ReturnType<typeof useMainStore>) {
         store.homeFeatures = value
         applying = false
       }
-      store.excludedDirs = result.data.prefs.file_index_excluded_dirs as string[] ?? []
       enabled.value = true
       if (__IS_TAURI__) await applyAppearance()
     } catch (error) {

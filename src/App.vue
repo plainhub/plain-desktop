@@ -30,8 +30,10 @@ import { useDeviceDiscovery } from './hooks/use-device-discovery'
 import { useTempStore } from '@/stores/temp'
 import { storeToRefs } from 'pinia'
 import WebLoginRequests from '@/components/WebLoginRequests.vue'
+import { useFileIndexSetupPrompt } from '@/hooks/file-index-setup'
 
 const nativeApp = __IS_TAURI__
+if (nativeApp) useFileIndexSetupPrompt()
 
 const { wsStatus, tapPhoneMessage, closeTapPhone } = useAppSocket()
 useAppSubscriptions()

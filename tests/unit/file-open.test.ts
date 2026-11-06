@@ -25,3 +25,13 @@ it('opens document titles with the same preview dispatch as files', () => {
   expect(download).toHaveBeenCalledExactlyOnceWith(items.value[2])
   expect(media).not.toHaveBeenCalled()
 })
+
+it('opens Office documents through the text viewer without a capability gate', () => {
+  const items = ref(['report.DOC', 'report.docx', 'sheet.xls', 'sheet.xlsx', 'slides.ppt', 'slides.pptx'].map(title => ({ title })))
+  const text = vi.fn(), browser = vi.fn(), media = vi.fn(), download = vi.fn()
+  const { openFile } = useFileOpen({ items, getName: item => item.title, openTextFile: text, openBrowserFile: browser, viewMedia: media, download })
+  items.value.forEach(openFile)
+  expect(text.mock.calls.map(([item]) => item)).toEqual(items.value)
+  expect(browser).not.toHaveBeenCalled()
+  expect(download).not.toHaveBeenCalled()
+})

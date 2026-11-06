@@ -40,12 +40,13 @@ export const ALL_FEATURES: Feature[] = [
   { id: 'calls', group: 'calls', defaultPath: '/calls', icon: IMaterialSymbolsCallLogOutlineRounded, titleKey: 'page_title.calls', capability: Capability.TELEPHONY },
   { id: 'contacts', group: 'contacts', defaultPath: '/contacts', icon: ILucideContactRound, titleKey: 'page_title.contacts', capability: Capability.TELEPHONY },
   { id: 'screen_mirror', group: 'screen_mirror', defaultPath: '/screen-mirror', icon: IMaterialSymbolsScreenRecordRounded, titleKey: 'page_title.screen_mirror', capability: Capability.SCREEN_MIRROR },
-  { id: 'image_editor', group: 'image_editor', defaultPath: '/image-editor', icon: ILucidePalette, titleKey: 'page_title.image_editor', capability: Capability.IMAGE_EDITOR },
+  { id: 'image_editor', group: 'image_editor', defaultPath: '/image-editor', icon: ILucidePalette, titleKey: 'page_title.image_editor' },
 ]
 
 export const DEFAULT_RAIL_FEATURES = ['files', 'audios', 'images', 'videos', 'chat']
 
-export function getAvailableFeatures(features?: string[]): Feature[] {
+export function getAvailableFeatures(features?: string[], debug = false): Feature[] {
   return ALL_FEATURES
+    .filter((f) => f.id !== 'image_editor' || debug)
     .filter((f) => !f.capability || hasFeature(f.capability, features))
 }

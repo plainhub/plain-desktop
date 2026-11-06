@@ -11,7 +11,8 @@ export function getStorageVolumeTitle(v: IStorageMount, t: TranslateFn): string 
   const path = String(v?.path ?? '').trim()
   const label = String(v?.label ?? '').trim()
   if (label) return label
-  if (mountPoint === '/') return t('internal_storage')
+  const name = String(v.name ?? '').trim()
+  if (mountPoint === '/') return name && name !== '/' ? name : t('internal_storage')
 
   const fs = String(v?.fsType ?? '').trim().toLowerCase()
   const size = Number(v?.totalBytes ?? 0)
@@ -20,7 +21,6 @@ export function getStorageVolumeTitle(v: IStorageMount, t: TranslateFn): string 
   if (typeof v?.partitionNum === 'number') return t('partition_x', { n: v.partitionNum })
   const model = String(v.diskModel ?? '').trim()
   if (model) return size > 0 ? `${model} (${formatFileSize(size)})` : model
-  const name = String(v.name ?? '').trim()
   if (name) return name
   if (v.driveType === DriveType.APP) return t('app_data')
   if (v.driveType === DriveType.SDCARD) return t('sdcard')

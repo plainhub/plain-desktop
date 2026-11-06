@@ -49,7 +49,7 @@ const directive: Directive = {
       if (tooltipElement) {
         const tooltipRect = tooltipElement.getBoundingClientRect()
         tooltipElement.style.top = rect.bottom + 8 + 'px'
-        tooltipElement.style.left = rect.left - Math.abs(rect.width - tooltipRect.width) / 2 + 'px'
+        tooltipElement.style.left = rect.left + (rect.width - tooltipRect.width) / 2 + 'px'
         tooltipElement.style.visibility = 'visible'
       }
     }

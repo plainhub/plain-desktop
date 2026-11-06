@@ -26,7 +26,7 @@ const { urlTokenKey } = storeToRefs(tempStore)
 const thumbs = computed(() => props.items?.slice(0, 4) ?? [])
 
 function thumbUrl(path: string): string {
-  return getFileUrl(getFileId(urlTokenKey.value, path), '&s=sm')
+  return getFileUrl(getFileId(urlTokenKey.value, path), '&size=sm')
 }
 </script>
 

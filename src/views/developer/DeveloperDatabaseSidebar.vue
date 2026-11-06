@@ -1,6 +1,6 @@
 <template>
   <Sidebar2 class="database-sidebar" detail>
-    <div class="tables-heading">{{ $t('page_title.database') }} ({{ tables.length }})</div>
+    <div class="tables-heading">{{ $t('developer.database') }} ({{ tables.length }})</div>
     <div class="tables-list scroller">
       <v-circular-progress v-if="loading && tables.length === 0" indeterminate />
       <div v-for="table in tables" :key="table" class="table-item selectable-card" :class="{ selected: activeTable === table }">

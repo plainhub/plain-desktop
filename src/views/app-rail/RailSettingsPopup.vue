@@ -78,7 +78,7 @@
 
     <div class="popup-divider"></div>
 
-    <router-link v-if="hasLanShare" to="/settings/lan-share" class="dropdown-item" @click="open = false">
+    <router-link v-if="hasSmbServer" to="/settings/lan-share" class="dropdown-item" @click="open = false">
       <i-lucide:hard-drive class="feature-icon" />
       <span>{{ $t('lan_share') }}</span>
     </router-link>
@@ -236,14 +236,11 @@ onUnmounted(() => {
 })
 
 const popupFeatures = computed<Feature[]>(() => {
-  const available = getAvailableFeatures(app.value?.capabilities)
+  const available = getAvailableFeatures(app.value?.capabilities, app.value?.debug)
   return available.filter((f) => !store.railFeatures.includes(f.id))
 })
 
-// LAN share settings exist only when the server declares the LAN_SHARE
-// capability (a loaded samba unit) — the entry keys on app.capabilities,
-// never on the device type.
-const hasLanShare = computed(() => hasFeature(Capability.LAN_SHARE, app.value?.capabilities))
+const hasSmbServer = computed(() => hasFeature(Capability.SMB_SERVER, app.value?.capabilities))
 
 function openDeviceSwitcher() {
   open.value = false

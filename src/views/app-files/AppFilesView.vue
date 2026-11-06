@@ -38,11 +38,12 @@
 </template>
 
 <script setup lang="ts">
+import { FileAction } from '@/lib/api/file-action'
+
 import { inject, ref, watch, onActivated, onDeactivated } from 'vue'
 import { storeToRefs } from 'pinia'
 import { useTempStore } from '@/stores/temp'
 import { getFileUrl, getFileId, download } from '@/lib/api/file'
-import { getApiBaseUrl } from '@/lib/api/api'
 import { isTextFile, canOpenInBrowser, canView } from '@/lib/file'
 import { openUrl } from '@/lib/browser'
 import { noDataKey } from '@/lib/list'
@@ -110,7 +111,7 @@ function getAppFileUrl(item: IAppFile) {
 function getAppFileDownloadUrl(item: IAppFile) {
   const path = `fid:${getAppFileFid(item)}`
   const fileId = getFileId(urlTokenKey.value, path)
-  return `${getApiBaseUrl()}/fs?id=${encodeURIComponent(fileId)}&dl=1`
+  return getFileUrl(fileId, '', FileAction.Download)
 }
 
 function clickItem(item: IAppFile) {

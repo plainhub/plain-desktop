@@ -11,10 +11,6 @@ import { setLocalServerPort, setLocalServerHttpsPort } from '@/lib/api/api'
 import { buildUrl } from '@/lib/url'
 import type { VSelectOption } from '@/components/base/VSelect.vue'
 
-// Mirrors plain-app's `web/HttpServerPorts.kt` — fixed port candidates
-// the user can pick from in the edit dialog. The server tries each in
-// order and falls back to an OS-assigned port only when every candidate
-// is taken.
 const HTTP_PORTS = [8080, 8180, 8280, 8380, 8480, 8580, 8680, 8780, 8880, 8980, 80]
 const HTTPS_PORTS = [8043, 8143, 8243, 8343, 8443, 8543, 8643, 8743, 8843, 8943, 443]
 
@@ -30,28 +26,50 @@ export function useHttpServer() {
   const { t } = useI18n()
   const { app } = storeToRefs(useTempStore())
   const ips = ref<string[]>([])
-  const saving = ref(false)
+  const loadingIps = ref(true)
+  const addressError = ref(false)
+  let disposed = false
+  let registration: number | undefined
 
   async function loadIps() {
-    if (!isLocalMode()) return
+    if (!isLocalMode() || disposed) return
+    loadingIps.value = true
     try {
       ips.value = await readLocalAddresses()
+      addressError.value = false
     } catch (e) {
+      addressError.value = true
       console.error('network addresses failed', e)
+    } finally {
+      loadingIps.value = false
     }
   }
 
-  let disposed = false
-  let registration: number | undefined
-  if (isLocalMode()) {
-    const channel = new Channel<Record<string, never>>()
-    channel.onmessage = () => { void loadIps() }
-    void invoke<number>('native_register_network_changes', { channel }).then((id) => {
-      if (disposed) return invoke('native_unregister_network_changes', { id })
-      registration = id
-      return loadIps()
-    }).catch((error) => console.error('Network changes registration failed', error))
+  async function refreshAddresses() {
+    if (!isLocalMode() || disposed) return
+    loadingIps.value = true
+    try {
+      if (registration === undefined) {
+        const channel = new Channel<Record<string, never>>()
+        channel.onmessage = () => {
+          void loadIps()
+        }
+        const id = await invoke<number>('native_register_network_changes', { channel })
+        if (disposed) {
+          await invoke('native_unregister_network_changes', { id })
+          return
+        }
+        registration = id
+      }
+      await loadIps()
+    } catch (error) {
+      addressError.value = true
+      console.error('Network changes registration failed', error)
+    } finally {
+      loadingIps.value = false
+    }
   }
+  void refreshAddresses()
   onUnmounted(() => {
     disposed = true
     if (registration !== undefined) void invoke('native_unregister_network_changes', { id: registration }).catch(console.error)
@@ -59,7 +77,6 @@ export function useHttpServer() {
 
   async function savePort(kind: 'http' | 'https', port: number): Promise<boolean> {
     if (!isLocalMode()) return false
-    saving.value = true
     try {
       const server = await restartLocalServer(kind, port)
       setLocalServerPort(server.httpPort)
@@ -72,8 +89,6 @@ export function useHttpServer() {
       console.error('save port failed', e)
       toast(t('failed'), 'error')
       return false
-    } finally {
-      saving.value = false
     }
   }
 
@@ -81,15 +96,20 @@ export function useHttpServer() {
   const httpsPort = computed(() => app.value?.httpsPort ?? 0)
   const httpPortOptions = computed(() => portOptions(HTTP_PORTS, httpPort.value))
   const httpsPortOptions = computed(() => portOptions(HTTPS_PORTS, httpsPort.value))
-  const httpAddresses = computed(() =>
-    ips.value.map((ip) => buildUrl('http', ip, httpPort.value))
-  )
-  const httpsAddresses = computed(() =>
-    ips.value.map((ip) => buildUrl('https', ip, httpsPort.value))
-  )
+  const httpAddresses = computed(() => ips.value.map((ip) => buildUrl('http', ip, httpPort.value)))
+  const httpsAddresses = computed(() => ips.value.map((ip) => buildUrl('https', ip, httpsPort.value)))
 
   return {
-    ips, httpPort, httpsPort, httpAddresses, httpsAddresses,
-    httpPortOptions, httpsPortOptions, loadIps, savePort,
+    ips,
+    httpPort,
+    httpsPort,
+    httpAddresses,
+    httpsAddresses,
+    loadingIps,
+    addressError,
+    httpPortOptions,
+    httpsPortOptions,
+    loadIps: refreshAddresses,
+    savePort,
   }
 }

@@ -217,7 +217,7 @@ export function getImageDisplayUrl(source: ISource, quality: 'fast' | 'original'
     return source.src
   }
   const useOriginal = !isHeic(source.name) && (isSvg(source.name) || source.viewOriginImage || quality === 'original')
-  return useOriginal ? source.src : source.src + '&s=lg'
+  return useOriginal ? source.src : source.src + '&size=lg'
 }
 
 export function useLightboxNavigation(

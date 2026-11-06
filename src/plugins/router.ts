@@ -231,14 +231,6 @@ const router = createRouter({
           meta: { group: 'settings' },
         },
         {
-          path: 'settings/excluded-dirs',
-          components: {
-            default: () => import('@/views/settings/SettingsExcludedDirsView.vue'),
-            LeftSidebar: () => import('@/views/settings/SettingsSidebar.vue'),
-          },
-          meta: { group: 'settings' },
-        },
-        {
           path: 'settings/customize-ui',
           components: {
             default: () => import('@/views/settings/SettingsCustomizeUIView.vue'),

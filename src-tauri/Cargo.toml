@@ -13,7 +13,7 @@ path = "src/main.rs"
 
 [lib]
 name = "plainapp_lib"
-crate-type = ["staticlib", "cdylib", "rlib"]
+crate-type = ["rlib"]
 
 [build-dependencies]
 tauri-build = { version = "2", features = [] }
@@ -44,7 +44,6 @@ rand = "0.8"
 image = { version = "0.25", default-features = false, features = ["png"] }
 
 [target.'cfg(target_os = "macos")'.dependencies]
-libc = "0.2"
 objc2 = "0.6"
 objc2-app-kit = { version = "0.3", features = ["NSApplication", "NSMenu", "NSMenuItem", "NSPasteboard", "NSScreen", "NSWindow"] }
 objc2-foundation = { version = "0.3", features = ["NSArray", "NSError", "NSString", "NSURL"] }
@@ -53,7 +52,6 @@ objc2-core-graphics = { version = "0.3", features = ["CGColorSpace", "CGContext"
 # SCScreenshotManager path). Same objc2 generation as the other bindings.
 objc2-screen-capture-kit = { version = "0.3.2", features = ["SCShareableContent", "SCStream", "SCScreenshotManager", "block2", "objc2-core-graphics"] }
 block2 = "0.6"
-dispatch2 = "0.3"
 
 # Official single-instance guard: a second launch focuses the running app
 # instead of spawning another process that walks the local-server port range.

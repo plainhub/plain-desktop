@@ -1,6 +1,7 @@
 .grids {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  grid-auto-rows: minmax(max-content, auto);
   gap: 16px;
   overflow-y: auto;
   padding: 16px;
@@ -75,5 +76,17 @@
     grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
     gap: 12px;
     padding: 12px;
+  }
+}
+
+.remote-access-card {
+  grid-column: span 2;
+  align-self: start;
+  min-width: 0;
+}
+
+@media (max-width: 480px) {
+  .remote-access-card {
+    grid-column: 1 / -1;
   }
 }

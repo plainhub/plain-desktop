@@ -85,7 +85,7 @@ export function useLogin(options: UseLoginOptions = {}) {
    *  the stored token was accepted and the login already completed. */
   function applyInitResult(result: InitResult): boolean {
     if (result.status === 403) {
-      showError.value = true; webAccessDisabled.value = true; error.value = 'desktop_access_disabled'; return false
+      showError.value = true; webAccessDisabled.value = true; error.value = 'remote_access_disabled'; return false
     }
     webAccessDisabled.value = false
     const initData = result.data
@@ -167,7 +167,7 @@ export function useLogin(options: UseLoginOptions = {}) {
         const hcResp = await httpRequest(hcUrl)
         if (hcResp.status === 200) { error.value = 'failed_connect_ws'; return }
       }
-      error.value = ['desktop_access_disabled', 'failed_connect_ws'].includes(reason) ? reason : `login.${reason || 'failed'}`
+      error.value = ['remote_access_disabled', 'failed_connect_ws'].includes(reason) ? reason : `login.${reason || 'failed'}`
     } finally {
       if (pendingLoginController === controller) pendingLoginController = null
       isSubmitting.value = false

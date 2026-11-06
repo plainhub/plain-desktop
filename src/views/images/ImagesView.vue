@@ -61,7 +61,7 @@
             :selected="selectedIdSet.has(item.id)" :shift-selected="shiftEffectingIdSet.has(item.id)" :should-select="shouldSelect" :data-type="dataType"
             @item-click="(e) => handleItemClick(e, item, idx, view)" @item-mouse-enter="(e) => handleMouseOverMode(e, idx)"
             @toggle-select="(e) => toggleSelect(e, item, idx)" @view="view(idx)">
-            <template #thumbnail><img class="image-thumb image" :src="getFileUrl(item.fileId, '&s=sm&v=' + encodeURIComponent(item.updatedAt))" loading="lazy" onerror="this.src='/broken-image.png'" /></template>
+            <template #thumbnail><img class="image-thumb image" :src="getFileUrl(item.fileId, '&size=sm&v=' + encodeURIComponent(item.updatedAt))" loading="lazy" onerror="this.src='/broken-image.png'" /></template>
             <template #info-right>{{ formatFileSize(item.size) }}</template>
           </MediaGridItem>
           <!-- eslint-enable vue/valid-v-memo -->
@@ -77,7 +77,7 @@
         :selected="selectedIdSet.has(item.id)" :shift-selected="shiftEffectingIdSet.has(item.id)" :should-select="shouldSelect" :data-type="dataType"
         @item-click="(e) => handleItemClick(e, item, i, view)" @item-mouse-enter="(e) => handleMouseOverMode(e, i)"
         @toggle-select="(e) => toggleSelect(e, item, i)" @view="view(i)">
-        <template #thumbnail><img class="image-thumb image" :src="getFileUrl(item.fileId, '&s=sm&v=' + encodeURIComponent(item.updatedAt))" loading="lazy" onerror="this.src='/broken-image.png'" /></template>
+        <template #thumbnail><img class="image-thumb image" :src="getFileUrl(item.fileId, '&size=sm&v=' + encodeURIComponent(item.updatedAt))" loading="lazy" onerror="this.src='/broken-image.png'" /></template>
         <template #info-right>{{ formatFileSize(item.size) }}</template>
       </MediaGridItem>
       <template v-if="loading && items.length === 0"><section v-for="i in limit" :key="i" class="skeleton-image media-item"></section></template>
@@ -189,7 +189,6 @@ const { loading, fetch } = initLazyQuery({
   document: imagesGQL,
   variables: () => ({ offset: (page.value - 1) * limit.value, limit: limit.value, query: effectiveQ.value, sortBy: effectiveIsGroupMode.value ? 'TAKEN_AT_DESC' : imageSortBy.value }),
 })
-watch(() => mainStore.excludedDirs, () => { page.value = 1; noMore.value = false; items.value = []; fetch() }, { deep: true })
 
 const { moveLoading, onMoveClick } = useMoveToFolder('move-images-picker')
 

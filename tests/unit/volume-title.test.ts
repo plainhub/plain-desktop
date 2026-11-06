@@ -15,8 +15,15 @@ it('prefers the volume label and then the user alias', () => {
 })
 it('preserves platform volume names and the unnamed root title', () => {
   expect(getStorageVolumeTitle({ ...volume, diskModel: '', name: 'External Media' }, t)).toBe('External Media')
-  expect(getStorageVolumeTitle({ ...volume, mountPoint: '/' }, t)).toBe('internal_storage')
+  expect(getStorageVolumeTitle({ ...volume, mountPoint: '/', name: '/' }, t)).toBe('internal_storage')
 })
 it('does not append an empty capacity to the model', () => {
   expect(getStorageVolumeTitle({ ...volume, totalBytes: 0 }, t)).toBe('Example Drive')
+})
+
+it('uses the system volume name for the root drive', () => {
+  const root = { mountPoint: '/', name: 'System Drive' } as IStorageMount
+  expect(getStorageVolumeTitle(root, t)).toBe('System Drive')
+  expect(getStorageVolumeTitle({ ...root, name: '/' }, t)).toBe('internal_storage')
+  expect(getStorageVolumeTitle({ ...root, name: '' }, t)).toBe('internal_storage')
 })

@@ -4,7 +4,7 @@ members = ["src-tauri"]
 
 [profile.dev]
 debug = "line-tables-only"
-opt-level = 1
+opt-level = 0
 incremental = true
 
 [profile.dev.package."*"]
@@ -17,11 +17,11 @@ opt-level = 1
 
 [profile.dev.package.plain-rs]
 debug = "line-tables-only"
-opt-level = 1
+opt-level = 0
 
 [profile.dev.package.plain-server]
 debug = "line-tables-only"
-opt-level = 1
+opt-level = 0
 
 [profile.release]
 opt-level = 3

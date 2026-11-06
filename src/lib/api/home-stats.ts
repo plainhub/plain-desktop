@@ -31,6 +31,9 @@ export function homeStatsGQL(countKeys: readonly HomeStatKey[] = []): string {
     ${fields}
     mounts {
       id
+      name
+      alias
+      label
       path
       mountPoint
       totalBytes

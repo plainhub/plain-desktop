@@ -1,60 +1,75 @@
 <template>
-  <div class="browser" :style="browserStyle">
+  <div class="browser">
     <aside class="browser-sidebar">
       <div v-if="loadingMounts" class="volumes-loading">
         <v-circular-progress indeterminate class="sm" />
       </div>
-      <div v-else class="browser-volumes">
-        <VolumeCard
+      <ul v-else class="browser-volumes" :aria-label="t('volumes')">
+        <v-list-item
           v-for="v in sortedVolumes"
           :key="v.id"
+          class="volume-item"
+          role="button"
+          tabindex="0"
+          clickable
           :title="getStorageVolumeTitle(v, t)"
-          :used-percent="mountUsedPercent(v)"
-          :count="mountCount(v)"
-          :show-progress="Number(v.totalBytes || 0) > 0"
-          :data="v"
+          :subtitle="mountCount(v)"
           :active="String(v.mountPoint || '') === activeRoot"
+          :aria-pressed="String(v.mountPoint || '') === activeRoot"
           @click="emit('selectRoot', v.mountPoint || '/')"
-        />
-      </div>
+          @keydown.enter.prevent="emit('selectRoot', v.mountPoint || '/')"
+          @keydown.space.prevent="emit('selectRoot', v.mountPoint || '/')"
+        >
+          <template #start><i-lucide:hard-drive /></template>
+          <template v-if="String(v.mountPoint || '') === activeRoot" #end>
+            <i-material-symbols:check-rounded />
+          </template>
+        </v-list-item>
+      </ul>
     </aside>
 
     <section class="browser-main">
       <div class="toolbar">
-        <v-icon-button v-if="canGoUp" v-tooltip="t('back')" @click.stop="emit('goUp')">
+        <v-text-button :disabled="!canGoUp" @click="emit('goUp')">
           <i-material-symbols:arrow-back-rounded />
-        </v-icon-button>
-        <div class="path">{{ currentDir }}</div>
-        <slot name="toolbar-actions" />
+          {{ t('parent_folder') }}
+        </v-text-button>
+        <div class="selection" aria-live="polite">
+          <span class="selection-label">{{ t('folder_picker_current') }}</span>
+          <span class="path" :title="currentDir">{{ loadingMounts ? t('loading') : selectionPath }}</span>
+        </div>
       </div>
 
-      <div class="list" :class="{ loading: listing }" :style="listStyle">
-        <div v-show="listing" class="loading-overlay" aria-live="polite" aria-busy="true">
-          <div class="loading-row">
-            <v-circular-progress indeterminate class="sm" />
-            <span>{{ t('loading') }}</span>
-          </div>
+      <div class="list" :aria-busy="listing || loadingMounts">
+        <div v-if="listing || loadingMounts" class="loading-row" role="status">
+          <v-circular-progress indeterminate class="sm" />
+          <span>{{ t('loading') }}</span>
         </div>
-
-        <div v-show="!listing && dirItems.length === 0" class="empty-row">{{ t('no_data') }}</div>
-
-        <SystemFilesHeader
-          v-if="systemItems.length"
-          :count="systemItems.length"
-          :expanded="systemExpanded"
-          @toggle="systemExpanded = !systemExpanded"
-        />
-        <button
-          v-for="d in visibleItems"
-          :key="d.path"
-          class="dir-row"
-          @click="emit('enterDir', d.path)"
-        >
-          <span class="dir-icon">
-            <i-material-symbols:folder-rounded />
-          </span>
-          <span class="dir-name">{{ dirName(d.path) }}</span>
-        </button>
+        <div v-else-if="listingError" class="empty-row" role="alert">
+          <span>{{ t(listingError) }}</span>
+          <v-text-button @click="emit('reload')">{{ t('retry') }}</v-text-button>
+        </div>
+        <div v-else-if="dirItems.length === 0" class="empty-row">{{ t('folder_picker_empty') }}</div>
+        <template v-else>
+          <SystemFilesHeader
+            v-if="systemItems.length"
+            :count="systemItems.length"
+            :expanded="systemExpanded"
+            @toggle="systemExpanded = !systemExpanded"
+          />
+          <button
+            v-for="d in visibleItems"
+            :key="d.path"
+            class="dir-row"
+            @click="emit('enterDir', d.path)"
+          >
+            <span class="dir-icon">
+              <i-material-symbols:folder-rounded />
+            </span>
+            <span class="dir-name">{{ dirName(d.path) }}</span>
+            <i-material-symbols:chevron-right-rounded class="dir-chevron" />
+          </button>
+        </template>
       </div>
     </section>
   </div>
@@ -63,13 +78,12 @@
 <script setup lang="ts">
 import { computed, toRef } from 'vue'
 import { useI18n } from 'vue-i18n'
-import VolumeCard from '@/components/storage/VolumeCard.vue'
 import type { IStorageMount } from '@/lib/interfaces'
 import type { IFile } from '@/lib/file'
 import SystemFilesHeader from '@/views/files/SystemFilesHeader.vue'
 import { useSystemFiles } from '@/views/files/hooks/useSystemFiles'
 import { getStorageVolumeTitle } from '@/lib/volumes'
-import { sortMounts, storageUsedPercent, storageCountText } from '@/lib/storage'
+import { sortMounts, storageCountText } from '@/lib/storage'
 
 const { t } = useI18n()
 
@@ -80,16 +94,16 @@ const props = defineProps<{
   currentDir: string
   canGoUp: boolean
   listing: boolean
+  listingError?: string
   dirItems: Pick<IFile, 'path' | 'isSystem'>[]
   dirName: (path: string) => string
-  browserMinHeightPx?: number
-  listMinHeightPx?: number
 }>()
 
 const emit = defineEmits<{
   (e: 'selectRoot', mountPoint: string): void
   (e: 'goUp'): void
   (e: 'enterDir', absPath: string): void
+  (e: 'reload'): void
 }>()
 
 const { expanded: systemExpanded, visibleItems, systemItems } = useSystemFiles(
@@ -97,30 +111,25 @@ const { expanded: systemExpanded, visibleItems, systemItems } = useSystemFiles(
 )
 
 const sortedVolumes = computed(() => sortMounts(props.volumes))
-function mountUsedPercent(m: IStorageMount): number {
-  return storageUsedPercent(Number(m.freeBytes || 0), Number(m.totalBytes || 0))
-}
+const selectionPath = computed(() => {
+  const volume = props.volumes.find((v) => String(v.mountPoint || '') === props.activeRoot)
+  if (!volume) return props.activeRoot ? props.currentDir : '—'
+  const title = getStorageVolumeTitle(volume, t)
+  const relative = props.currentDir.slice(props.activeRoot.length).replace(/^\/+/, '')
+  return relative ? `${title} / ${relative}` : title
+})
 
 function mountCount(m: IStorageMount): string {
   return storageCountText(Number(m.freeBytes || 0), Number(m.totalBytes || 0), t)
 }
-
-const browserStyle = computed(() => {
-  const minH = Number(props.browserMinHeightPx ?? 260)
-  return minH ? { minHeight: `${minH}px` } : undefined
-})
-
-const listStyle = computed(() => {
-  const minH = Number(props.listMinHeightPx ?? 160)
-  return minH ? { minHeight: `${minH}px` } : undefined
-})
 </script>
 
 <style scoped>
 .browser {
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 16px;
+  min-height: 304px;
 }
 
 .volumes-loading {
@@ -134,6 +143,24 @@ const listStyle = computed(() => {
   gap: 8px;
   display: flex;
   flex-direction: column;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.volume-item {
+  gap: 8px;
+  border-radius: 12px;
+}
+
+.volume-item :deep(.body) {
+  gap: 4px;
+}
+.volume-item :deep(.title),
+.volume-item :deep(.subtitle) {
+  display: block;
+  white-space: normal;
+  overflow-wrap: anywhere;
 }
 
 .browser-sidebar {
@@ -143,8 +170,7 @@ const listStyle = computed(() => {
 }
 
 .browser-main {
-  border: 1px solid var(--md-sys-color-outline-variant);
-  border-radius: 12px;
+  border-radius: 16px;
   background: var(--md-sys-color-surface-container-low);
   overflow: hidden;
   display: flex;
@@ -153,42 +179,36 @@ const listStyle = computed(() => {
 
 .toolbar {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
+  flex-direction: column;
   gap: 8px;
-  padding: 4px 16px;
-  border-bottom: 1px solid var(--md-sys-color-outline-variant);
-  background: var(--md-sys-color-surface-container-low);
+  padding: 8px 16px 16px;
+}
+
+.selection {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+  width: 100%;
+}
+
+.selection-label {
+  font-size: 0.75rem;
+  color: var(--md-sys-color-on-surface-variant);
 }
 
 .path {
-  flex: 1;
-  font-weight: 600;
+  font-weight: 500;
   color: var(--md-sys-color-on-surface);
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  overflow-wrap: anywhere;
 }
 
 .list {
-  position: relative;
+  min-height: 192px;
   padding: 8px;
   overflow: auto;
   flex: 1;
-}
-
-.loading-overlay {
-  position: absolute;
-  inset: 0;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background: color-mix(in srgb, var(--md-sys-color-surface-container-low) 65%, transparent);
-  backdrop-filter: blur(2px);
-  pointer-events: none;
-}
-
-.list.loading .dir-row {
-  pointer-events: none;
 }
 
 .loading-row,
@@ -197,19 +217,21 @@ const listStyle = computed(() => {
   align-items: center;
   justify-content: center;
   gap: 8px;
-  padding: 12px;
+  padding: 16px;
   color: var(--md-sys-color-on-surface-variant);
 }
 
 .dir-row {
   width: 100%;
   display: grid;
-  grid-template-columns: 28px 1fr;
+  grid-template-columns: 24px minmax(0, 1fr) 24px;
   align-items: center;
-  min-height: 42px;
+  min-height: 48px;
+  gap: 8px;
+  padding: 8px;
   border: 0;
   background: transparent;
-  border-radius: 10px;
+  border-radius: 8px;
   cursor: pointer;
   text-align: left;
   color: var(--md-sys-color-on-surface-variant);
@@ -220,8 +242,8 @@ const listStyle = computed(() => {
 }
 
 .dir-icon {
-  width: 28px;
-  height: 28px;
+  width: 24px;
+  height: 24px;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -234,19 +256,26 @@ const listStyle = computed(() => {
   color: var(--md-sys-color-on-surface);
 }
 
-@media (min-width: 980px) {
+.dir-chevron {
+  width: 24px;
+  height: 24px;
+}
+
+@media (min-width: 704px) {
   .browser {
     flex-direction: row;
     align-items: stretch;
   }
 
   .browser-sidebar {
-    width: 320px;
+    width: 200px;
+    flex-shrink: 0;
     max-height: none;
   }
 
   .browser-main {
     flex: 1;
+    min-width: 0;
   }
 }
 </style>
