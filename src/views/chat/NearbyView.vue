@@ -1,18 +1,24 @@
 <template>
   <v-modal width="560px" @close="handleClose">
     <template #headline>
-      <template v-if="step === 'discover'">{{ $t('nearby_devices') }}</template>
+      <template v-if="removeTarget">{{ $t('device_discovery.unpair_confirm', { name: removeTarget.name }) }}</template>
+      <template v-else-if="step === 'discover'">{{ $t('nearby_devices') }}</template>
       <template v-else>
         <v-icon-button :aria-label="$t('back')" @click="backToDevices"><i-material-symbols:arrow-back-rounded /></v-icon-button>
         <span>{{ $t('pairing_with', { name: selectedDevice?.name }) }}</span>
       </template>
     </template>
     <template #content>
-      <NearbyPairOptions v-if="step === 'mode'" @cancel="backToDevices" @confirm="confirmPair" />
+      <template v-if="removeTarget">
+        <div>{{ $t('device_discovery.unpair_hint') }}</div>
+        <div v-if="removeTarget.id === currentClientId">{{ $t('device_discovery.unpair_current_hint') }}</div>
+        <div v-if="error" class="nearby-error" role="alert">{{ $t(error) }}</div>
+      </template>
+      <NearbyPairOptions v-else-if="step === 'mode'" @cancel="backToDevices" @confirm="confirmPair" />
       <DiscoveredDeviceLogin v-else-if="step === 'login' && loginDevice" :device="loginDevice" :subscriptions="subscriptions" pair-chat @success="onLoginSuccess" @cancel="backToDevices" />
       <div v-else class="nearby-sections">
         <section>
-          <h3 class="section-title">{{ $t('device_discovery.logged_in_devices') }}</h3>
+          <h3 class="section-title">{{ $t('paired_devices') }}</h3>
           <ul class="card list-items">
             <VListItem v-if="selfDevice" :title="selfDevice.name" :subtitle="selfDevice.ips.join(', ')">
               <template #start><PeerIcon :device-type="selfDevice.deviceType" /></template>
@@ -32,12 +38,10 @@
               :current="peer.id === currentClientId"
               :full-control="!!findLoginPeer(peer.id)"
               :pairing="activePairId === peer.id || deviceById.get(peer.id)?.status === 'PAIRING'"
-              :loading="removingId === peer.id"
-              :disabled="!!activePairId || !!removingId"
+              :disabled="!!activePairId"
               @connect="connectPeer(peer, $event)"
               @cancel="cancelPair(peer.id)"
-              @unpair="unpair(peer)"
-              @forget="forget(peer)"
+              @remove="confirmRemoval(peer)"
             />
           </ul>
         </section>
@@ -50,7 +54,7 @@
               :key="device.id"
               :device="device"
               :pairing="activePairId === device.id || device.status === 'PAIRING'"
-              :disabled="!!activePairId || !!removingId"
+              :disabled="!!activePairId"
               @connect="selectDevice(device)"
               @cancel="cancelPair(device.id)"
             />
@@ -66,9 +70,13 @@
         </div>
       </div>
     </template>
-    <template v-if="step === 'discover'" #actions
-      ><v-outlined-button @click="handleClose">{{ $t('close') }}</v-outlined-button></template
-    >
+    <template v-if="removeTarget || step === 'discover'" #actions>
+      <template v-if="removeTarget">
+        <v-text-button :disabled="removing" @click="handleClose">{{ $t('cancel') }}</v-text-button>
+        <v-filled-button class="danger" :loading="removing" @click="removeDevice(removeTarget)">{{ $t('unpair') }}</v-filled-button>
+      </template>
+      <v-outlined-button v-else @click="handleClose">{{ $t('close') }}</v-outlined-button>
+    </template>
   </v-modal>
 </template>
 
@@ -92,7 +100,7 @@ import type { PendingLoginDevice } from '@/lib/api/api'
 import type { IPeer } from '@/lib/interfaces'
 import { nearbyGroups } from '@/lib/device/nearby'
 import { createPairing } from '@/lib/device/pairing'
-import { clearLoginPeer, preloadLoginPeers, findLoginPeer, loginPeers } from '@/lib/device/login-peers'
+import { preloadLoginPeers, findLoginPeer, loginPeers } from '@/lib/device/login-peers'
 import { loadSelfDevice, type SelfDevice } from '@/lib/device/self-device'
 import { clearRemoteClientId, getRemoteClientId, setRemoteClientId } from '@/lib/device/client-id'
 import { isLocalMode } from '@/lib/device/local-mode'
@@ -108,7 +116,8 @@ const selectedDevice = ref<DiscoveredDevice | null>(null)
 const loginDevice = ref<PendingLoginDevice | null>(null)
 const step = ref<'discover' | 'mode' | 'login'>('discover')
 const activePairId = ref('')
-const removingId = ref('')
+const removeTarget = ref<IPeer | null>(null)
+const removing = ref(false)
 const error = ref('')
 const currentClientId = computed(() => getRemoteClientId())
 const localMode = computed(() => isLocalMode())
@@ -212,29 +221,27 @@ function switchToLocal() {
   clearRemoteClientId()
   window.location.href = '/'
 }
-async function unpair(peer: IPeer) {
-  removingId.value = peer.id
+function confirmRemoval(peer: IPeer) {
+  error.value = ''
+  removeTarget.value = peer
+}
+async function removeDevice(peer: IPeer) {
+  removing.value = true
+  error.value = ''
   try {
     const result = await request<{ unpairPeer: boolean }>(unpairPeerGQL, { id: peer.id })
     if (result.errors?.length) throw new Error(result.errors[0].message)
-    if (result.data.unpairPeer) {
+    if (!result.data.unpairPeer) throw new Error('Device removal failed')
+    prefsRemove(`main_state:${peer.id}`)
+    if (peer.id === getRemoteClientId()) switchToLocal()
+    else {
       await loadPeers()
-      if (peer.id === getRemoteClientId()) switchToLocal()
+      removeTarget.value = null
     }
   } catch (reason) {
     reportFailure(reason)
   } finally {
-    removingId.value = ''
-  }
-}
-async function forget(peer: IPeer) {
-  try {
-    await clearLoginPeer(peer.id)
-    prefsRemove(`main_state:${peer.id}`)
-    if (peer.id === getRemoteClientId()) switchToLocal()
-    else await loadPeers()
-  } catch (reason) {
-    reportFailure(reason)
+    removing.value = false
   }
 }
 async function refresh() {
@@ -246,6 +253,13 @@ async function refresh() {
   }
 }
 async function handleClose() {
+  if (removeTarget.value) {
+    if (!removing.value) {
+      removeTarget.value = null
+      error.value = ''
+    }
+    return
+  }
   if (step.value !== 'discover') {
     backToDevices()
     return

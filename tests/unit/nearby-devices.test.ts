@@ -10,7 +10,7 @@ function peer(id: string, paired = true): IPeer {
 function device(id: string, remoteAccess?: boolean): DiscoveredDevice {
   return { id, name: id, ips: ['192.0.2.10'], port: 8443, deviceType: DeviceType.PHONE, version: '', platform: '', lastSeen: '', status: PeerStatus.UNPAIRED, discoveryMethods: ['LAN'], remoteAccess }
 }
-it('keeps offline chat and management peers in My devices and deduplicates discoveries by identity', () => {
+it('keeps offline chat and management peers in Paired devices and deduplicates discoveries by identity', () => {
   const chat = peer('chat'),
     managed = peer('managed')
   const result = nearbyGroups([chat, managed, peer('new', false), peer('self')], [device('chat'), device('managed'), device('new'), device('self')], 'self')

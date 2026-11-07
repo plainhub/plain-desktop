@@ -16,7 +16,6 @@
       <v-outlined-button
         v-else-if="!current"
         :disabled="disabled || (action === 'control' && (!peer?.online || device?.remoteAccess !== true)) || (action === 'switch' && (!peer?.online || device?.remoteAccess === false))"
-        :loading="loading"
         @click="emit('connect', action)"
         >{{ $t(actionLabel) }}</v-outlined-button
       >
@@ -24,8 +23,7 @@
     <template v-if="peer" #actions>
       <v-icon-button :id="menuId" :aria-label="$t('actions')" @click.stop="menuOpen = true"><i-material-symbols:more-vert /></v-icon-button>
       <v-dropdown-menu v-model="menuOpen" :anchor="menuId">
-        <div class="dropdown-item" @click="unpair">{{ $t('unpair') }}</div>
-        <div v-if="fullControl" class="dropdown-item" @click="forget">{{ $t('delete') }}</div>
+        <div class="dropdown-item" @click="remove">{{ $t('unpair') }}</div>
       </v-dropdown-menu>
     </template>
   </VListItem>
@@ -42,11 +40,10 @@ const props = defineProps<
     fullControl?: boolean
     current?: boolean
     pairing?: boolean
-    loading?: boolean
     disabled?: boolean
   }
 >()
-const emit = defineEmits<{ connect: [action: ReturnType<typeof nearbyPairAction>]; cancel: []; unpair: []; forget: [] }>()
+const emit = defineEmits<{ connect: [action: ReturnType<typeof nearbyPairAction>]; cancel: []; remove: [] }>()
 const identity = computed(() => (props.peer ?? props.device)!)
 const ip = computed(() => props.device?.bestIp || props.device?.ips.join(', ') || props.peer?.ip || '')
 const action = computed(() => nearbyPairAction(props.peer, props.device, props.fullControl))
@@ -54,12 +51,8 @@ const actionLabel = computed(() => ({ switch: 'switch', control: 'pairing_full_c
 const menuId = computed(() => `nearby-actions-${identity.value.id}`)
 const infoOpen = ref(false)
 const menuOpen = ref(false)
-function unpair() {
+function remove() {
   menuOpen.value = false
-  emit('unpair')
-}
-function forget() {
-  menuOpen.value = false
-  emit('forget')
+  emit('remove')
 }
 </script>
