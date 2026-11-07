@@ -22,7 +22,7 @@
           v-tooltip="$t('device_discovery.change_device')"
           class="switch-device-btn"
           :aria-label="$t('device_discovery.change_device')"
-          @click="openDeviceSwitcher"
+          @click="openNearbyDevices"
         >
           <i-lucide:arrow-left-right />
         </button>
@@ -127,7 +127,7 @@ import { openAboutWindow } from '@/lib/api/tauri-window'
 import { useBrowserLogout } from '@/composables/useBrowserLogout'
 import { useLocaleSwitch } from '@/composables/useLocaleSwitch'
 import ThemeChanger from '@/components/ThemeChanger.vue'
-import DeviceSwitcherModal from '@/components/DeviceSwitcherModal.vue'
+import NearbyView from '@/views/chat/NearbyView.vue'
 import EditValueModal from '@/components/EditValueModal.vue'
 import { initMutation, updateDeviceNameGQL } from '@/lib/api/mutation'
 import { initQuery, deviceStatusGQL } from '@/lib/api/query'
@@ -242,9 +242,9 @@ const popupFeatures = computed<Feature[]>(() => {
 
 const hasSmbServer = computed(() => hasFeature(Capability.SMB_SERVER, app.value?.capabilities))
 
-function openDeviceSwitcher() {
+function openNearbyDevices() {
   open.value = false
-  pushModal(DeviceSwitcherModal)
+  pushModal(NearbyView)
 }
 
 function openAbout() {

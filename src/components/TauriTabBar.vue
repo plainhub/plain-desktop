@@ -42,7 +42,7 @@
           >
             {{ session.name || peerHost(session) }}
           </div>
-          <div class="dropdown-item" @click="openDeviceSwitcher">
+          <div class="dropdown-item" @click="openNearbyDevices">
             {{ $t('manage_devices') }}
           </div>
         </v-dropdown>
@@ -71,7 +71,7 @@ import { getRemoteClientId, setRemoteClientId, clearRemoteClientId } from '@/lib
 import { useTempStore } from '@/stores/temp'
 import { storeToRefs } from 'pinia'
 import { pushModal } from '@/components/modal'
-import DeviceSwitcherModal from '@/components/DeviceSwitcherModal.vue'
+import NearbyView from '@/views/chat/NearbyView.vue'
 import i18n from '@/plugins/i18n'
 import { loadSelfDevice, type SelfDevice } from '@/lib/device/self-device'
 import { contextmenu } from '@/components/contextmenu'
@@ -167,9 +167,9 @@ async function loadSelf() {
   selfDevice.value = await loadSelfDevice()
 }
 
-function openDeviceSwitcher() {
+function openNearbyDevices() {
   homeDeviceMenuOpen.value = false
-  pushModal(DeviceSwitcherModal)
+  pushModal(NearbyView)
 }
 
 function handleOpenTab(e: Event) {

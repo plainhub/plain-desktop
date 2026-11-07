@@ -25,9 +25,9 @@
       :error-text="passwordError ? $t(passwordError) : ''"
       @keydown.enter="onSubmit"
     />
-    <v-filled-button v-if="!webAccessDisabled" :disabled="isSubmitting" :loading="isSubmitting">
+    <component :is="pairing ? VOutlinedButton : VFilledButton" v-if="!webAccessDisabled" :disabled="isSubmitting" :loading="isSubmitting">
       {{ $t(pairing ? 'pair' : isSubmitting ? 'logging_in' : 'log_in') }}
-    </v-filled-button>
+    </component>
   </form>
   <div v-show="showConfirm">
     <div class="tap-phone">
@@ -44,9 +44,12 @@
 </template>
 
 <script setup lang="ts">
+import VOutlinedButton from '@/components/base/VOutlinedButton.vue'
+import VFilledButton from '@/components/base/VFilledButton.vue'
 import RequestVerificationCode from '@/components/RequestVerificationCode.vue'
 import { onBeforeUnmount, ref } from 'vue'
 import type { InitResult } from '@/lib/api/init'
+import type { SubscriptionClient } from '@/lib/api/subscription-client'
 import { useLogin } from './login'
 import type { LoginHandshakeParams } from '@/lib/api/login-handshake'
 
@@ -61,10 +64,12 @@ const props = withDefaults(defineProps<{
   redirectOnSuccess?: boolean
   pairing?: boolean
   peer?: LoginHandshakeParams['peer']
+  subscriptions?: SubscriptionClient
 }>(), {
   redirectOnSuccess: true,
   pairing: false,
   peer: undefined,
+  subscriptions: undefined,
 })
 
 const emit = defineEmits<{
@@ -79,6 +84,7 @@ const {
   redirectOnSuccess: props.redirectOnSuccess,
   onSuccess: async () => emit('success'),
   peer: () => props.peer,
+  subscriptions: props.subscriptions,
 })
 
 async function init(result: InitResult, options: InitOptions = {}) {

@@ -166,7 +166,7 @@ export async function encryptedGqlPost<T = any>(
 
 /** Runs the document against this machine's own shared Rust core. No URL, no
  *  session token and no encryption: the core holds the trusted local identity. */
-async function nativeGqlFetch<T = any>(query: string, variables?: Record<string, any>, timeout: number = TIMEOUT): Promise<GqlResult<T>> {
+export async function nativeGqlFetch<T = any>(query: string, variables?: Record<string, any>, timeout: number = TIMEOUT): Promise<GqlResult<T>> {
   const op = operationName(query)
   if (window.__PLAIN_LOG__) {
     console.info(`[gql] → ${op} @native ${JSON.stringify({ query, variables })}`)

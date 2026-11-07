@@ -1,18 +1,10 @@
 <template>
   <SidebarListItem :title="peer.name" :subtitle="subtitle" :active="active" :force-actions="menuVisible" @click="emit('click')">
     <template #start>
-      <span class="icon" aria-hidden="true">
-        <v-dropdown v-model="infoOpen">
-          <template #trigger>
-            <DeviceTypeIcon :device-type="peer.deviceType" />
-          </template>
-          <pre class="view-raw">{{ peer }}</pre>
-        </v-dropdown>
-        <span v-if="isLoginPeer" v-tooltip="$t('login_device_hint')" class="login-badge">
-          <i-material-symbols:key-rounded />
-        </span>
-        <span v-if="online" class="dot online-dot" />
-      </span>
+      <v-dropdown v-model="infoOpen">
+        <template #trigger><PeerIcon :device-type="peer.deviceType" :online="online" :full-control="isLoginPeer" /></template>
+        <pre class="view-raw">{{ peer }}</pre>
+      </v-dropdown>
     </template>
 
     <template #end>
@@ -48,6 +40,7 @@
 </template>
 
 <script setup lang="ts">
+import type { IPeer } from '@/lib/interfaces'
 import { computed, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { storeToRefs } from 'pinia'
@@ -62,7 +55,7 @@ import { formatDateTime, formatTimeAgo } from '@/lib/format'
 import { decryptChatId } from '../hooks/chat-route'
 
 const props = defineProps<{
-  peer: { id: string; name: string; deviceType: string }
+  peer: Pick<IPeer, 'id' | 'name' | 'deviceType'>
   subtitle?: string
   active?: boolean
   online?: boolean
@@ -141,47 +134,3 @@ async function doClear() {
   chatStore.fetchLatestChatItems()
 }
 </script>
-
-<style lang="scss" scoped>
-.icon {
-  position: relative;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 24px;
-  height: 24px;
-}
-
-.dot {
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-  background: #4CAF50;
-}
-
-.online-dot {
-  position: absolute;
-  right: -1px;
-  bottom: -1px;
-}
-
-.login-badge {
-  position: absolute;
-  top: -4px;
-  right: -4px;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 12px;
-  height: 12px;
-  border-radius: 50%;
-  background: var(--md-sys-color-primary);
-  color: var(--md-sys-color-on-primary);
-  box-shadow: 0 0 0 2px var(--md-sys-color-surface);
-
-  svg {
-    width: 8px;
-    height: 8px;
-  }
-}
-</style>

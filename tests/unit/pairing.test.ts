@@ -58,3 +58,13 @@ it('cancels the returned generation when the view closes before initiation retur
   await start
   expect(mock.native.mock.lastCall?.[0].variables).toEqual({ generation: 'first' })
 })
+
+it('cancels a visible restored request by its current generation without cancelling another device', async () => {
+  const pairing = createPairing()
+  await pairing.start({ id: 'peer', mode: 'MANAGE' })
+  snapshot = [initial, { ...initial, deviceId: 'restored', generation: 'restored-generation', phase: 'WAITING_CONFIRMATION' }]
+  await pairing.cancel('restored')
+  expect(mock.native.mock.lastCall?.[0].variables).toEqual({ generation: 'restored-generation' })
+  expect(pairing.state.value?.generation).toBe('first')
+  pairing.dispose()
+})

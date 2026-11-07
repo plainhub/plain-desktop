@@ -17,7 +17,7 @@
     </label>
     <div class="pair-actions">
       <v-outlined-button @click="emit('cancel')">{{ $t('cancel') }}</v-outlined-button>
-      <v-filled-button @click="emit('confirm', mode)">{{ $t('pairing_start') }}</v-filled-button>
+      <v-outlined-button @click="emit('confirm', mode)">{{ $t('pairing_start') }}</v-outlined-button>
     </div>
   </div>
 </template>
@@ -33,7 +33,7 @@ const mode = ref<'chat' | 'control'>('control')
 .pair-options {
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 16px;
 
   p {
     margin: 0 0 4px;
@@ -43,14 +43,12 @@ const mode = ref<'chat' | 'control'>('control')
 .pair-option {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 16px;
   padding: 16px;
-  border: 1px solid var(--md-sys-color-outline-variant);
   border-radius: 12px;
   cursor: pointer;
 
   &.selected {
-    border-color: var(--md-sys-color-primary);
     background: var(--md-sys-color-primary-container);
   }
 
@@ -73,6 +71,6 @@ const mode = ref<'chat' | 'control'>('control')
   display: flex;
   justify-content: flex-end;
   gap: 8px;
-  margin-top: 12px;
+  margin-top: 16px;
 }
 </style>

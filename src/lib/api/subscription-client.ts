@@ -9,6 +9,7 @@ interface Message {
   payload?: { data?: Record<string, unknown>; errors?: { message: string }[]; extensions?: { subscriptionReady?: boolean } } | { message: string }[]
 }
 export class SubscriptionClient {
+  constructor(private readonly openConnection = openSubscriptionConnection) {}
   private connection: SubscriptionConnection | undefined
   private operations = new Map<string, SubscriptionOperation>()
   private ids = new Map<string, string>()
@@ -93,7 +94,7 @@ export class SubscriptionClient {
     this.attaching = true
     const generation = ++this.generation
     try {
-      this.connection = openSubscriptionConnection({
+      this.connection = this.openConnection({
         opened: () => {
           if (generation !== this.generation) return
           this.acknowledged = true

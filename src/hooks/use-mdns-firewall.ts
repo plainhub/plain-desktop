@@ -12,8 +12,6 @@ export interface MdnsFirewallStatus {
   exePath: string
 }
 
-// Module-level state shared by every mount (NearbyModal, DeviceSwitcherModal)
-// so a check/fix started in one modal is not repeated in the other.
 const state = ref<MdnsFirewallState>('idle')
 const exePath = ref('')
 let probing = false

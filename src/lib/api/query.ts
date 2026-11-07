@@ -1039,8 +1039,8 @@ export const appUpdateGQL = `
 
 export const nearbyDevicesGQL = `
   query NearbyDevices {
-    nearbyDevices { id name ips bestIp port deviceType version platform lastSeen status discoveryMethods }
-    pairingStates { deviceId generation mode phase error }
+    nearbyDevices { id name ips bestIp port deviceType version platform lastSeen status discoveryMethods remoteAccess }
+    pairingStates { deviceId generation mode phase error verificationCode }
     mdnsState { scanning }
   }
 `

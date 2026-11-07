@@ -11,12 +11,14 @@ import { getRemoteClientId, setRemoteClientId, getDesktopClientId } from '@/lib/
 import { httpRequest } from '@/lib/api/http'
 import { performLoginHandshake } from '@/lib/api/login-handshake'
 import type { LoginHandshakeParams } from '@/lib/api/login-handshake'
+import type { SubscriptionClient } from '@/lib/api/subscription-client'
 import { createPairing } from '@/lib/device/pairing'
 
 type UseLoginOptions = {
   redirectOnSuccess?: boolean
   onSuccess?: () => void | Promise<void>
   peer?: () => LoginHandshakeParams['peer']
+  subscriptions?: SubscriptionClient
 }
 
 function getSafeRedirect(redirect: unknown): string {
@@ -39,7 +41,7 @@ export function useLogin(options: UseLoginOptions = {}) {
   const redirectOnSuccess = options.redirectOnSuccess !== false
   let lastInitSignaturePublicKey = ''
   let pendingLoginController: AbortController | null = null
-  const pairing = __IS_TAURI__ ? createPairing() : null
+  const pairing = __IS_TAURI__ ? createPairing(options.subscriptions) : null
   let nativeActive = true
   watch(() => pairing?.state.value, async (state) => {
     if (!state || !nativeActive) return

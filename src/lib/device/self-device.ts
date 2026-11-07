@@ -1,6 +1,6 @@
 import { readNativeDeviceIdentity } from './native-settings'
 import { readLocalAddresses } from '@/lib/api/local-server'
-import { gqlFetch } from '@/lib/api/gql-client'
+import { gqlFetch, type bindGraphqlClient } from '@/lib/api/gql-client'
 import { isLocalMode } from '@/lib/device/local-mode'
 import type { DeviceType } from '@/lib/status'
 
@@ -14,10 +14,10 @@ export interface SelfDevice {
   publicKey: string
 }
 
-export async function loadSelfDevice(): Promise<SelfDevice | null> {
-  if (!isLocalMode()) return null
+export async function loadSelfDevice(request?: ReturnType<typeof bindGraphqlClient>): Promise<SelfDevice | null> {
+  if (!request && !isLocalMode()) return null
   try {
-    const result = await gqlFetch<{ app: { clientId: string; deviceName: string; httpsPort: number; deviceType: DeviceType } }>(
+    const result = await (request ?? gqlFetch)<{ app: { clientId: string; deviceName: string; httpsPort: number; deviceType: DeviceType } }>(
       'query { app { clientId deviceName httpsPort deviceType } }',
     )
     if (result.errors?.length) throw new Error(result.errors[0].message)

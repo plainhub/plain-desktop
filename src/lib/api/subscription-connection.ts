@@ -79,7 +79,7 @@ function openNetwork(callbacks: Callbacks): SubscriptionConnection {
   socket.onclose = () => fail(new Error('Subscription connection closed'))
   return connection
 }
-function openNative(callbacks: Callbacks): SubscriptionConnection {
+export function openNative(callbacks: Callbacks): SubscriptionConnection {
   let active = true
   let handle: number | undefined
   let writes = Promise.resolve()

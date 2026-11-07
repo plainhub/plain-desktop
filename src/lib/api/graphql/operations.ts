@@ -878,21 +878,6 @@ export interface GqlOperations {
       input: unknown
     }
   }
-  createPairing: {
-    result: {
-      pairDevice: {
-        deviceId?: string
-        generation: string
-        mode: 'CHAT' | 'MANAGE'
-        phase: 'STARTING' | 'PASSWORD_REQUIRED' | 'AUTHENTICATING' | 'PAIRING' | 'WAITING_CONFIRMATION' | 'COMMITTING' | 'SUCCEEDED' | 'FAILED' | 'CANCELLED'
-        error?: string
-        verificationCode?: string
-      }
-    }
-    variables: {
-      input: unknown
-    }
-  }
   createTagGQL: {
     result: {
       createTag: Fragment_TagFragment
@@ -1309,6 +1294,21 @@ export interface GqlOperations {
     variables: {
       mediaId: string
       query: string
+    }
+  }
+  execute: {
+    result: {
+      pairDevice: {
+        deviceId?: string
+        generation: string
+        mode: 'CHAT' | 'MANAGE'
+        phase: 'STARTING' | 'PASSWORD_REQUIRED' | 'AUTHENTICATING' | 'PAIRING' | 'WAITING_CONFIRMATION' | 'COMMITTING' | 'SUCCEEDED' | 'FAILED' | 'CANCELLED'
+        error?: string
+        verificationCode?: string
+      }
+    }
+    variables: {
+      input: unknown
     }
   }
   exportFeedsGQL: {
@@ -1896,6 +1896,7 @@ export interface GqlOperations {
         lastSeen: string
         status: 'PAIRED' | 'UNPAIRED' | 'CHANNEL'
         discoveryMethods: Array<'LAN' | 'DNS_SD' | 'BLE' | 'QR'>
+        remoteAccess?: boolean
       }>
       pairingStates: Array<{
         deviceId?: string
@@ -1903,6 +1904,7 @@ export interface GqlOperations {
         mode: 'CHAT' | 'MANAGE'
         phase: 'STARTING' | 'PASSWORD_REQUIRED' | 'AUTHENTICATING' | 'PAIRING' | 'WAITING_CONFIRMATION' | 'COMMITTING' | 'SUCCEEDED' | 'FAILED' | 'CANCELLED'
         error?: string
+        verificationCode?: string
       }>
       mdnsState: {
         scanning: boolean

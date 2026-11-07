@@ -69,7 +69,7 @@ import SidebarChannelListItem from './components/SidebarChannelListItem.vue'
 import SidebarPeerListItem from './components/SidebarPeerListItem.vue'
 import SidebarLocalListItem from './components/SidebarLocalListItem.vue'
 import CreateChannelModal from './CreateChannelModal.vue'
-import NearbyModal from './NearbyModal.vue'
+import NearbyView from './NearbyView.vue'
 import PeerInfoModal from './PeerInfoModal.vue'
 import ChannelInfoModal from './ChannelInfoModal.vue'
 
@@ -144,7 +144,7 @@ function openCreateChannel() {
 }
 
 async function openNearby() {
-  openModal(NearbyModal)
+  openModal(NearbyView)
 }
 
 const actionItems = computed(() => [

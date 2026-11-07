@@ -1,4 +1,4 @@
-import { ref } from 'vue'
+import { reactive, ref } from 'vue'
 import { acquireDiscoveryGQL, releaseDiscoveryGQL } from '@/lib/api/mutation'
 import { bindGraphqlClient } from '@/lib/api/gql-client'
 import { graphqlSubscriptions } from '@/lib/api/subscription-client'
@@ -20,6 +20,7 @@ export interface DiscoveredDevice {
   ips: string[]
   bestIp?: string
   port: number
+  remoteAccess?: boolean | null
   deviceType: DeviceType
   version: string
   platform: string
@@ -42,14 +43,14 @@ const status = ref<DiscoveryStatus>(DiscoveryStatus.IDLE)
 const activeSessions = new Set<{ acquire: () => Promise<void>; refresh: () => Promise<void> }>()
 let listenerInitialized = false
 
-const pairingStates = new Map<string, PairingState>()
+const pairingStates = reactive(new Map<string, PairingState>())
 const terminalPairing = new Set(['SUCCEEDED', 'FAILED', 'CANCELLED'])
 
 function applyPairingState(state: PairingState) {
   if (!state.deviceId) return
+  pairingStates.set(state.deviceId, state)
   const device = devices.value.find((d) => d.id === state.deviceId)
   if (!device) return
-  pairingStates.set(state.deviceId, state)
   device.status = state.phase === 'SUCCEEDED' ? PeerStatus.PAIRED : terminalPairing.has(state.phase) ? useChatStore().findPeer(state.deviceId)?.status ?? PeerStatus.UNPAIRED : 'PAIRING'
 }
 function restoreDeviceStatus(deviceId: string) {
@@ -62,12 +63,6 @@ function restoreDeviceStatus(deviceId: string) {
 function ensureListener() {
   if (listenerInitialized) return
   listenerInitialized = true
-
-  const refresh = () => { for (const session of activeSessions) void session.refresh() }
-  graphqlSubscriptions.subscribe('nearbyDevicesChanged', refresh)
-  graphqlSubscriptions.subscribe('mdnsChanged', refresh)
-  graphqlSubscriptions.subscribe('pairingChanged', refresh)
-  graphqlSubscriptions.onAttached(() => { for (const session of activeSessions) void session.acquire() })
 
   emitter.on('PAIRING_SUCCESS', (result: PairingResult) => {
     const device = devices.value.find((d) => d.id === result.deviceId)
@@ -103,7 +98,7 @@ export function upsertDiscoveredDevice(device: DiscoveredDevice) {
   status.value = DiscoveryStatus.OK
 }
 
-export function useDeviceDiscovery() {
+export function useDeviceDiscovery(bindClient = bindGraphqlClient, subscriptions = graphqlSubscriptions) {
   ensureListener()
 
   let request: ReturnType<typeof bindGraphqlClient> | null = null
@@ -175,13 +170,20 @@ export function useDeviceDiscovery() {
   }
 
   const session = { acquire, refresh }
+  let stopSubscriptions: (() => void)[] = []
 
   async function start(): Promise<void> {
     if (active) return
-    request = bindGraphqlClient()
+    request = bindClient()
     token = randomUUID()
     active = true
     activeSessions.add(session)
+    stopSubscriptions = [
+      subscriptions.subscribe('nearbyDevicesChanged', refresh),
+      subscriptions.subscribe('mdnsChanged', refresh),
+      subscriptions.subscribe('pairingChanged', refresh),
+      subscriptions.onAttached(() => { void acquire() }),
+    ]
     status.value = DiscoveryStatus.SEARCHING
     await acquire()
   }
@@ -193,6 +195,8 @@ export function useDeviceDiscovery() {
     active = false
     token = null
     activeSessions.delete(session)
+    stopSubscriptions.forEach(stop => stop())
+    stopSubscriptions = []
     await enqueue(async () => {
       try { await discoveryRequest(client, releaseDiscoveryGQL, current) }
       catch (error) { console.error('discovery release failed', error) }
@@ -221,5 +225,5 @@ export function useDeviceDiscovery() {
     window.location.href = 'x-apple.systempreferences:'
   }
 
-  return { devices, status, start, stop, retry, openLanPermissionSettings }
+  return { devices, pairingStates, status, start, stop, retry, openLanPermissionSettings }
 }

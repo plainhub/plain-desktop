@@ -7,6 +7,7 @@
       :redirect-on-success="false"
       pairing
       :peer="peer"
+      :subscriptions="subscriptions"
       @success="onSuccess"
       @cancel="emit('cancel')"
     />
@@ -14,6 +15,7 @@
 </template>
 
 <script setup lang="ts">
+import type { SubscriptionClient } from '@/lib/api/subscription-client'
 import { nextTick, onBeforeUnmount, onMounted, ref } from 'vue'
 import LoginForm from './LoginForm.vue'
 import { clearPendingLoginDevice, setPendingLoginDevice, type PendingLoginDevice } from '@/lib/api/api'
@@ -22,7 +24,7 @@ import { clearRemoteClientId, getRemoteClientId, setRemoteClientId } from '@/lib
 import { loadSelfDevice } from '@/lib/device/self-device'
 import type { LoginHandshakeParams } from '@/lib/api/login-handshake'
 
-const props = defineProps<{ device: PendingLoginDevice; pairChat?: boolean }>()
+const props = defineProps<{ device: PendingLoginDevice; pairChat?: boolean; subscriptions?: SubscriptionClient }>()
 const emit = defineEmits<{ success: []; cancel: [] }>()
 
 const loginFormRef = ref<InstanceType<typeof LoginForm> | null>(null)
