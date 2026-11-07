@@ -283,7 +283,6 @@ declare module 'vue' {
     'IMaterialSymbols:expandMoreRounded': typeof import('~icons/material-symbols/expand-more-rounded')['default']
     'IMaterialSymbols:exportNotesOutlineRounded': typeof import('~icons/material-symbols/export-notes-outline-rounded')['default']
     'IMaterialSymbols:fiberManualRecord': typeof import('~icons/material-symbols/fiber-manual-record')['default']
-    'IMaterialSymbols:folderOpenRounded': typeof import('~icons/material-symbols/folder-open-rounded')['default']
     'IMaterialSymbols:folderOutlineRounded': typeof import('~icons/material-symbols/folder-outline-rounded')['default']
     'IMaterialSymbols:folderRounded': typeof import('~icons/material-symbols/folder-rounded')['default']
     'IMaterialSymbols:folderSharedRounded': typeof import('~icons/material-symbols/folder-shared-rounded')['default']
