@@ -23,7 +23,7 @@ export const fileIndexVolumesGQL = `query {
   fileIndexDefaults { excludedDirs excludedNames excludedPackages excludedUserLibraries }
 }`
 
-const setFileIndexVolumeGQL = `mutation($id: String!, $indexMode: IndexMode!, $includedDirs: [String!]!, $excludedDirs: [String!]!) {
+const setFileIndexVolumeGQL = `mutation($id: ID!, $indexMode: IndexMode!, $includedDirs: [String!]!, $excludedDirs: [String!]!) {
   setFileIndexVolume(id: $id, indexMode: $indexMode, includedDirs: $includedDirs, excludedDirs: $excludedDirs)
 }`
 
@@ -34,7 +34,7 @@ export async function saveFileIndexVolume(volume: FileIndexVolume, request = bin
   if (!result.data.setFileIndexVolume) throw new Error('Index configuration write refused')
 }
 
-export const rebuildFileIndexVolumeGQL = `mutation($id: String!) {
+export const rebuildFileIndexVolumeGQL = `mutation($id: ID!) {
   rebuildFileIndexVolume(id: $id)
 }`
 
