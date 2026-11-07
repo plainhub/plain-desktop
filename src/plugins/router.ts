@@ -254,12 +254,6 @@ const router = createRouter({
           },
           meta: { group: 'image_editor' },
         },
-        {
-          // NAS-only: SMB (samba) share management (old-web LAN share page).
-          path: 'settings/lan-share',
-          component: () => import('@/views/settings/SettingsLanShareView.vue'),
-          meta: { group: 'settings', requiresAuth: true },
-        },
       ],
     },
     {

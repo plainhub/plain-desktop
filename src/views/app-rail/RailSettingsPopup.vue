@@ -78,11 +78,6 @@
 
     <div class="popup-divider"></div>
 
-    <router-link v-if="hasSmbServer" to="/settings/lan-share" class="dropdown-item" @click="open = false">
-      <i-lucide:hard-drive class="feature-icon" />
-      <span>{{ $t('lan_share') }}</span>
-    </router-link>
-
     <router-link to="/settings" class="dropdown-item" @click="open = false">
       <i-lucide:settings-2 class="feature-icon" />
       <span>{{ $t('settings') }}</span>
@@ -120,8 +115,6 @@ import { getRemoteClientId } from '@/lib/device/client-id'
 import { storeToRefs } from 'pinia'
 import { pushModal, openModal } from '@/components/modal'
 import { getAvailableFeatures, type Feature } from './features'
-import { Capability } from '@/lib/data'
-import { hasFeature } from '@/lib/feature'
 import { isMacPlatform } from '@/lib/platform'
 import { openAboutWindow } from '@/lib/api/tauri-window'
 import { useBrowserLogout } from '@/composables/useBrowserLogout'
@@ -239,8 +232,6 @@ const popupFeatures = computed<Feature[]>(() => {
   const available = getAvailableFeatures(app.value?.capabilities, app.value?.debug)
   return available.filter((f) => !store.railFeatures.includes(f.id))
 })
-
-const hasSmbServer = computed(() => hasFeature(Capability.SMB_SERVER, app.value?.capabilities))
 
 function openNearbyDevices() {
   open.value = false

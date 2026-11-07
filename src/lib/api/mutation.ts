@@ -992,18 +992,6 @@ export const formatDiskGQL = `
   }
 `
 
-export const setSambaSettingsGQL = `
-  mutation setSambaSettings($input: SambaSettingsInput!) {
-    setSambaSettings(input: $input)
-  }
-`
-
-export const setSambaUserPasswordGQL = `
-  mutation setSambaUserPassword($password: String!) {
-    setSambaUserPassword(password: $password)
-  }
-`
-
 export const advanceAudioSelectionGQL = `
   mutation advanceAudioSelection($action: AudioSelectionAction!, $expectedPath: String!, $expectedRevision: Long!) {
     advanceAudioSelection(action: $action, expectedPath: $expectedPath, expectedRevision: $expectedRevision) {

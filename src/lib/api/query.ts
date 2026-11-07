@@ -502,25 +502,6 @@ export const disksGQL = `
   }
 `
 
-export const sambaSettingsGQL = `
-  query {
-    sambaSettings {
-      enabled
-      username
-      hasPassword
-      shares {
-        name
-        sharePath
-        auth
-        readOnly
-      }
-      serviceName
-      serviceActive
-      serviceEnabled
-    }
-  }
-`
-
 export const favoriteFoldersGQL = `
   query {
     favoriteFolders {
