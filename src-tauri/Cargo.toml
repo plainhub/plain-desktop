@@ -29,7 +29,6 @@ futures-util = { version = "0.3", default-features = false, features = ["sink", 
 tokio = { version = "1", features = ["sync", "macros", "net"] }
 tauri-plugin-opener = "2.5.4"
 tauri-plugin-notification = "2.3.3"
-tauri-plugin-log = "2"
 tauri-plugin-dialog = "2"
 tauri-plugin-fs = "2"
 tauri-plugin-global-shortcut = "=2.3.2"

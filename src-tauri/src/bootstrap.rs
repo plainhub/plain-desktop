@@ -1,24 +1,16 @@
+use plain_rs::infrastructure::platform::system::log as app_log;
 use std::sync::Arc;
 use tauri::Manager;
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     let startup = crate::startup_options::Options::read().expect("invalid startup options");
+    app_log::init("trace").expect("initialize the shared logger");
     let mut context = tauri::generate_context!();
     if startup.private_webview {
         for window in &mut context.config_mut().app.windows {
             window.incognito = true;
         }
-    }
-    let mut log_targets = vec![tauri_plugin_log::Target::new(
-        tauri_plugin_log::TargetKind::Stdout,
-    )];
-    if startup.directories.is_none() {
-        log_targets.push(tauri_plugin_log::Target::new(
-            tauri_plugin_log::TargetKind::LogDir {
-                file_name: Some("plain".to_string()),
-            },
-        ));
     }
     let builder = tauri::Builder::default();
     #[cfg(any(target_os = "windows", target_os = "linux"))]
@@ -44,13 +36,6 @@ pub fn run() {
     };
     let builder = crate::native_resource_protocol::with_native_resource_protocol(builder);
     let app = builder
-        .plugin(
-            tauri_plugin_log::Builder::default()
-                .level(log::LevelFilter::Trace)
-                .filter(plain_rs::infrastructure::platform::system::log::metadata_enabled)
-                .targets(log_targets)
-                .build(),
-        )
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_notification::init())
         .plugin(tauri_plugin_dialog::init())
@@ -65,6 +50,13 @@ pub fn run() {
         .setup(|app| {
             plain_rs::infrastructure::platform::version::set_version(&app.package_info().version.to_string());
             let startup = app.state::<crate::startup_options::Options>().inner().clone();
+            let log_file = if startup.directories.is_none() {
+                let path = app.path().app_log_dir()?.join("plain.log");
+                app_log::set_file(&path)?;
+                Some(path)
+            } else {
+                None
+            };
             let (data_dir, cache_dir) = match &startup.directories {
                 Some(directories) => (directories.data.clone(), directories.cache.clone()),
                 None => (app.path().app_data_dir()?, app.path().app_cache_dir()?),
@@ -75,6 +67,9 @@ pub fn run() {
                 })
                 .expect("open the shared core"),
             );
+            if let Some(path) = log_file {
+                core.set_log_file(&path)?;
+            }
             app.handle().manage(core.clone());
             let prefs = core.shared_preferences()?;
             app.handle().manage(prefs.clone());
@@ -148,10 +143,6 @@ pub fn run() {
                 crate::commands::screen_capture::selftest::schedule_trigger(app.handle().clone());
             }
 
-            if startup.directories.is_none() {
-                let log_dir = app.path().app_log_dir()?;
-                core.set_log_file(&log_dir.join("plain.log"))?;
-            }
             // The peer proxy dials by client id; the core owns the lookup.
             let peer_resolver = core.peer_proxy_resolver();
             app.handle().manage(tauri::async_runtime::block_on(async {
