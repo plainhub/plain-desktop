@@ -10,7 +10,7 @@ export default {
     media_only: 'Index des fichiers uniquement',
     media_hint: 'Les fichiers exclus de la reconnaissance multimédia, notamment sous .nomedia ou dans les paquets ci-dessous, peuvent rester des fichiers ordinaires.',
     rules_priority: 'Les deux modes respectent ces exclusions par défaut.',
-    unconfigured: 'Non configuré',
+    create: 'Créer l’index',
     title: 'Index des fichiers',
     scope: 'Périmètre',
     volume: 'Volume',

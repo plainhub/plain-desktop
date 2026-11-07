@@ -10,7 +10,7 @@ export default {
     media_only: 'Solo indice dei file',
     media_hint: 'I file esclusi dal riconoscimento multimediale, ad esempio sotto .nomedia o nei pacchetti seguenti, possono apparire come file normali.',
     rules_priority: 'Entrambe le modalità rispettano queste esclusioni predefinite.',
-    unconfigured: 'Non configurato',
+    create: 'Crea indice',
     title: 'Indice dei file',
     scope: 'Ambito indice',
     volume: 'Volume',

@@ -10,7 +10,7 @@ export default {
     media_only: 'Nur Dateiindex',
     media_hint: 'Von der Medienerkennung ausgeschlossene Dateien, etwa unter .nomedia oder in folgenden Paketen, können als gewöhnliche Dateien erscheinen.',
     rules_priority: 'Beide Listenmodi beachten diese Standardausschlüsse.',
-    unconfigured: 'Nicht konfiguriert',
+    create: 'Index erstellen',
     title: 'Dateiindex',
     scope: 'Indexbereich',
     volume: 'Volume',

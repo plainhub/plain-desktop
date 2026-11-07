@@ -6,7 +6,7 @@
         <v-icon-button v-if="showPause" v-tooltip="$t('pause')" :aria-label="$t('pause')" @click="pauseScan"><i-material-symbols:pause-rounded /></v-icon-button>
         <v-icon-button v-if="showResume" v-tooltip="$t('resume')" :aria-label="$t('resume')" @click="resumeScan"><i-material-symbols:play-arrow-rounded /></v-icon-button>
         <v-icon-button v-if="showStop" v-tooltip="$t('stop')" :aria-label="$t('stop')" @click="stopScan"><i-material-symbols:stop-rounded /></v-icon-button>
-        <v-text-button v-if="volumes.length > 1 && (showRebuild || rebuildIndexLoading)" :loading="rebuildIndexLoading" :disabled="!hasIndexScope || rebuildVolumeLoading" @click="rebuildIndex">{{
+        <v-text-button v-if="volumes.length > 1 && (rebuildIndexLoading || (hasIndexScope && showRebuild))" :loading="rebuildIndexLoading" :disabled="rebuildVolumeLoading" @click="rebuildIndex">{{
           $t('rebuild_index')
         }}</v-text-button>
       </div>
@@ -26,7 +26,7 @@
         :volume="volume"
         :title="volumeName(volume)"
         :mount="mounts.find((mount) => mount.mountPoint === volume.path)"
-        :scan-disabled="scanActive || rebuildVolumeLoading || rebuildIndexLoading || !canScanVolume(volume)"
+        :scan-disabled="scanActive || rebuildVolumeLoading || rebuildIndexLoading"
         @settings="edit(volume.id)"
         @scan="rebuildVolume(volume.id)"
       />

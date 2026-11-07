@@ -10,7 +10,7 @@ export default {
     media_only: 'Alleen bestandsindex',
     media_hint: 'Bestanden uitgesloten van mediaherkenning, zoals onder .nomedia of in onderstaande pakketten, kunnen als gewone bestanden verschijnen.',
     rules_priority: 'Beide modi respecteren deze standaarduitsluitingen.',
-    unconfigured: 'Niet ingesteld',
+    create: 'Index maken',
     title: 'Bestandsindex',
     scope: 'Indexbereik',
     volume: 'Volume',

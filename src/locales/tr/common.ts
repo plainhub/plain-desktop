@@ -10,7 +10,7 @@ export default {
     media_only: 'Yalnızca dosya dizini',
     media_hint: 'Medya tanımadan hariç tutulan dosyalar (.nomedia altındakiler veya aşağıdaki paketler) normal dosya olarak listelenebilir.',
     rules_priority: 'Her iki mod da varsayılan hariç tutma kurallarına uyar.',
-    unconfigured: 'Yapılandırılmadı',
+    create: 'Dizin oluştur',
     title: 'Dosya dizini',
     scope: 'Dizin kapsamı',
     volume: 'Birim',

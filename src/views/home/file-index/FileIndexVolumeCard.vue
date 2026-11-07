@@ -11,11 +11,16 @@
       {{ $t('storage_free_total', { free: formatFileSize(mount.freeBytes), total: formatFileSize(mount.totalBytes) }) }}
     </p>
     <footer>
-      <p class="mode">
-        {{ $t(modeKey) }}<template v-if="volume.indexMode === 'ALLOWLIST'"> · {{ volume.includedDirs.length }}</template>
-        <template v-else-if="volume.indexMode === 'BLOCKLIST'"> · {{ volume.excludedDirs.length }}</template>
-      </p>
-      <v-text-button :disabled="scanDisabled" @click="$emit('scan')">{{ $t('rebuild_index') }}</v-text-button>
+      <v-text-button v-if="volume.indexMode === 'UNCONFIGURED'" :disabled="scanDisabled || !volume.isAvailable" @click="$emit('settings')">
+        {{ $t('file_index.create') }}
+      </v-text-button>
+      <template v-else>
+        <p class="mode">
+          {{ $t(modeKey) }}<template v-if="volume.indexMode === 'ALLOWLIST'"> · {{ volume.includedDirs.length }}</template>
+          <template v-else-if="volume.indexMode === 'BLOCKLIST'"> · {{ volume.excludedDirs.length }}</template>
+        </p>
+        <v-text-button :disabled="scanDisabled || !canScanVolume(volume)" @click="$emit('scan')">{{ $t('rebuild_index') }}</v-text-button>
+      </template>
     </footer>
   </article>
 </template>
@@ -23,14 +28,14 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import { formatFileSize } from '@/lib/format'
-import type { FileIndexVolume } from '@/lib/api/file-index'
+import { canScanVolume, type FileIndexVolume } from '@/lib/api/file-index'
 import type { IStorageMount } from '@/lib/interfaces'
 
 const props = defineProps<{ volume: FileIndexVolume; title: string; mount?: IStorageMount; scanDisabled: boolean }>()
 defineEmits<{ settings: []; scan: [] }>()
 const modeKey = computed(
   () =>
-    `file_index.${props.volume.indexMode === 'UNCONFIGURED' ? 'unconfigured' : props.volume.indexMode === 'ALLOWLIST' ? 'allowlist' : props.volume.indexMode === 'BLOCKLIST' ? 'blocklist' : 'disabled'}`
+    `file_index.${props.volume.indexMode === 'ALLOWLIST' ? 'allowlist' : props.volume.indexMode === 'BLOCKLIST' ? 'blocklist' : 'disabled'}`
 )
 </script>
 
@@ -68,11 +73,12 @@ p {
 footer {
   display: flex;
   align-items: center;
-  justify-content: space-between;
+  justify-content: flex-end;
   gap: 8px;
 }
 footer p {
   margin: 0;
+  margin-inline-end: auto;
 }
 .capacity,
 .unavailable {

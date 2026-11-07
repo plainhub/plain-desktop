@@ -10,7 +10,7 @@ export default {
     media_only: 'Chỉ mục tệp',
     media_hint: 'Tệp bị loại khỏi nhận dạng đa phương tiện, như dưới .nomedia hoặc trong các gói bên dưới, vẫn có thể xuất hiện như tệp thường.',
     rules_priority: 'Cả hai chế độ đều tuân theo quy tắc loại trừ mặc định.',
-    unconfigured: 'Chưa cấu hình',
+    create: 'Tạo chỉ mục',
     title: 'Chỉ mục tệp',
     scope: 'Phạm vi chỉ mục',
     volume: 'Ổ đĩa',

@@ -20,7 +20,7 @@
     </template>
     <template #actions>
       <v-text-button :disabled="saving" @click="cancel">{{ $t('cancel') }}</v-text-button>
-      <v-filled-button :loading="saving" @click="save">{{ $t('save') }}</v-filled-button>
+      <v-filled-button :loading="saving" @click="save">{{ $t(volume.indexMode === 'UNCONFIGURED' && canScanVolume(draft) ? 'file_index.create' : 'save') }}</v-filled-button>
     </template>
   </v-modal>
 </template>
@@ -32,7 +32,7 @@ import FileIndexDefaults from './FileIndexDefaults.vue'
 import type { FileIndexDefaults as DefaultRules } from '@/lib/api/file-index'
 import DirectoryPickerModal from '@/components/DirectoryPickerModal.vue'
 import { bindGraphqlClient } from '@/lib/api/gql-client'
-import { saveFileIndexVolume, type FileIndexVolume, type IndexMode } from '@/lib/api/file-index'
+import { canScanVolume, saveFileIndexVolume, type FileIndexVolume, type IndexMode } from '@/lib/api/file-index'
 
 const props = defineProps<{ modalId: string; volume: FileIndexVolume; defaults: DefaultRules; volumeName: string; onSaved: () => unknown }>()
 const modalId = Number(props.modalId.replace(/\D/g, ''))

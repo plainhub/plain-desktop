@@ -1,7 +1,7 @@
 import { expect, it, vi } from 'vitest'
 import { createRenderer, createSSRApp, h, ref, ssrContextKey } from 'vue'
 import { renderToString } from 'vue/server-renderer'
-const state = vi.hoisted(() => ({ library: (_value: any) => {}, reload: vi.fn(), progress: (_value: any) => {}, toast: vi.fn(), mutation: vi.fn(), initial: null as any, volumes: [] as any[] }))
+const state = vi.hoisted(() => ({ library: (_value: any) => {}, reload: vi.fn(), progress: (_value: any) => {}, toast: vi.fn(), mutation: vi.fn(), pushModal: vi.fn(), initial: null as any, volumes: [] as any[] }))
 vi.mock('@/lib/api/time-sync', () => ({ wrapWithReplayProtection: (value: string) => value }))
 vi.mock('vue-i18n', () => ({ useI18n: () => ({ t: (key: string) => key }) }))
 vi.mock('@/stores/main', () => ({ useMainStore: vi.fn() }))
@@ -36,6 +36,7 @@ vi.mock('@/lib/api/subscription-client', () => ({
   },
 }))
 vi.mock('@/components/toaster', () => ({ default: state.toast }))
+vi.mock('@/components/modal', () => ({ pushModal: state.pushModal }))
 import { useScanAction } from '@/views/home/home'
 
 it('keeps completion silent and exposes failures with a retry without inventing a running timer', () => {
@@ -228,21 +229,41 @@ it('coalesces library invalidations and cancels pending refreshes on unmount', a
   }
 })
 
-it.each([1, 2])('shows idle state only on volume cards and offers global rebuild for %i drives', async (count) => {
+it.each([
+  [1, 0],
+  [3, 0],
+  [3, 1],
+])('offers the appropriate index action with %i volumes and %i configured', async (count, configured) => {
   const { default: FileIndexCard } = await import('@/views/home/file-index/FileIndexCard.vue')
+  const { default: FileIndexScopeDialog } = await import('@/views/home/file-index/FileIndexScopeDialog.vue')
   state.initial = { state: 'IDLE', indexed: 0, total: 0, pending: 0 }
-  state.volumes = Array.from({ length: count }, (_, id) => ({ id: String(id), path: `/drive-${id}`, isAvailable: true, indexMode: 'UNCONFIGURED', includedDirs: [], excludedDirs: [] }))
+  state.volumes = Array.from({ length: count }, (_, id) => ({
+    id: String(id), path: `/drive-${id}`, isAvailable: true, indexMode: id < configured ? 'BLOCKLIST' : 'UNCONFIGURED', includedDirs: [], excludedDirs: [],
+  }))
+  state.pushModal.mockClear()
+  state.mutation.mockClear()
+  const createActions: (() => void)[] = []
   const app = createSSRApp(FileIndexCard, { mounts: [] })
   app.config.globalProperties.$t = (key: string) => key
-  const Button = { setup: (_props: unknown, { slots }: any) => () => h('button', slots.default?.()) }
+  const Button = {
+    setup: (_props: unknown, { attrs, slots }: any) => {
+      const content = slots.default?.()
+      if (content?.[0]?.children === 'file_index.create' && !attrs.disabled) createActions.push(attrs.onClick)
+      return () => h('button', content)
+    },
+  }
   app.component('VTextButton', Button)
   app.component('VIconButton', Button)
   app.directive('tooltip', {})
   try {
     const html = await renderToString(app)
     expect(html).not.toContain('class="summary"')
-    expect(html.match(/file_index.unconfigured/g)?.length ?? 0).toBe(count)
-    expect(html.match(/rebuild_index/g)?.length ?? 0).toBe(count + (count > 1 ? 1 : 0))
+    expect(html).not.toContain('file_index.unconfigured')
+    expect(createActions).toHaveLength(count - configured)
+    expect(html.match(/rebuild_index/g)?.length ?? 0).toBe(configured ? configured + 1 : 0)
+    createActions[0]()
+    expect(state.pushModal).toHaveBeenCalledExactlyOnceWith(FileIndexScopeDialog, expect.objectContaining({ volume: state.volumes[configured] }))
+    expect(state.mutation).not.toHaveBeenCalled()
   } finally {
     state.initial = null
     state.volumes = []

@@ -10,7 +10,7 @@ export default {
     media_only: '只建立文件索引',
     media_hint: '.nomedia 目录和以下应用包中的文件不做媒体识别，仍可建立文件索引。',
     rules_priority: '白名单和黑名单都按以上规则扫描。',
-    unconfigured: '未配置',
+    create: '创建索引',
     title: '文件索引',
     scope: '索引范围',
     volume: '卷',

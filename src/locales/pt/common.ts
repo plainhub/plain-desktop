@@ -10,7 +10,7 @@ export default {
     media_only: 'Apenas índice de arquivos',
     media_hint: 'Arquivos excluídos do reconhecimento de mídia, como em .nomedia ou nos pacotes abaixo, ainda podem aparecer como arquivos comuns.',
     rules_priority: 'Ambos os modos respeitam estas exclusões padrão.',
-    unconfigured: 'Não configurado',
+    create: 'Criar índice',
     title: 'Índice de arquivos',
     scope: 'Escopo do índice',
     volume: 'Volume',

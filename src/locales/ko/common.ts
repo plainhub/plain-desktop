@@ -10,7 +10,7 @@ export default {
     media_only: '파일 색인만',
     media_hint: '미디어 인식에서 제외된 파일(.nomedia 폴더 또는 아래 패키지 등)도 일반 파일로 색인될 수 있습니다.',
     rules_priority: '두 모드 모두 기본 제외 규칙을 따릅니다.',
-    unconfigured: '미설정',
+    create: '색인 만들기',
     title: '파일 색인',
     scope: '색인 범위',
     volume: '볼륨',

@@ -10,7 +10,7 @@ export default {
     media_only: '只建立檔案索引',
     media_hint: '.nomedia 目錄和以下應用程式套件中的檔案不做媒體辨識，仍可建立檔案索引。',
     rules_priority: '白名單和黑名單都按以上規則掃描。',
-    unconfigured: '未設定',
+    create: '建立索引',
     title: '檔案索引',
     scope: '索引範圍',
     volume: '卷宗',

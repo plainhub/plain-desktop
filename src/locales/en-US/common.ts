@@ -10,7 +10,7 @@ export default {
     media_only: 'File index only',
     media_hint: 'Files in .nomedia folders and these app packages can be indexed without media recognition.',
     rules_priority: 'These rules apply to both allowlist and blocklist modes.',
-    unconfigured: 'Not configured',
+    create: 'Create index',
     title: 'File index',
     scope: 'Index scope',
     volume: 'Volume',

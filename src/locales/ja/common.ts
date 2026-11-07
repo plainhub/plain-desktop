@@ -10,7 +10,7 @@ export default {
     media_only: 'ファイル索引のみ',
     media_hint: 'メディア認識から除外されたファイル（.nomedia配下や以下のパッケージ内など）も通常ファイルとして索引される場合があります。',
     rules_priority: 'どちらのリストモードも既定の除外規則に従います。',
-    unconfigured: '未設定',
+    create: 'インデックスを作成',
     title: 'ファイル索引',
     scope: '索引の範囲',
     volume: 'ボリューム',
