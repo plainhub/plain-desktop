@@ -44,10 +44,6 @@ export interface CaptureMessages {
   }
 }
 
-// `screen_capture.ui.*` is read via the real app-wide translation system's
-// `$t()` by components outside the overlay (ChatInput.vue, CaptureShortcutModal.vue),
-// so it stays in `src/locales/<locale>/screen-capture.ts` where the locale build
-// plugin precompiles it. See `./locales/README.md` for the full split rationale.
 export interface CaptureUiMessages {
   menuA11y: string
   shortcutSettings: string

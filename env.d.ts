@@ -6,6 +6,11 @@ declare module '~icons/*' {
   const component: FunctionalComponent<SVGAttributes>
   export default component
 }
+declare module '*.svg?component' {
+  import type { DefineComponent } from 'vue'
+  const component: DefineComponent
+  export default component
+}
 interface ImportMetaEnv {
   readonly VITE_APP_API_HOST: string
 }

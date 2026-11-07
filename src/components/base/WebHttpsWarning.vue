@@ -5,8 +5,8 @@
 
 <script setup lang="ts">
 import { ref, onMounted, onUnmounted } from 'vue'
-import WebHttpsWarningLight from '@/assets/web-https-warning.svg'
-import WebHttpsWarningDark from '@/assets/web-https-warning-dark.svg'
+import WebHttpsWarningLight from '@/assets/web-https-warning.svg?component'
+import WebHttpsWarningDark from '@/assets/web-https-warning-dark.svg?component'
 import emitter from '@/plugins/eventbus'
 
 const isDark = ref(document.documentElement.classList.contains('dark'))

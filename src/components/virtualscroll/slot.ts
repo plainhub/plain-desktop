@@ -1,4 +1,4 @@
-import { defineComponent, ref } from "vue"
+import { defineComponent, h, ref } from "vue"
 import { SlotProps } from "./props"
 import { useResizeChange } from "./item"
 
@@ -13,11 +13,7 @@ export const VSlot = defineComponent({
     return () => {
       const { uniqueKey } = props
 
-      return (
-        <div ref={rootRef} key={uniqueKey}>
-          {slots.default?.()}
-        </div>
-      )
+      return h('div', { ref: rootRef, key: uniqueKey }, slots.default?.())
     }
   },
 })

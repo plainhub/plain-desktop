@@ -5,8 +5,8 @@
 
 <script setup lang="ts">
 import { ref, onMounted, onUnmounted } from 'vue'
-import TouchPhoneLight from '@/assets/touch-phone.svg'
-import TouchPhoneDark from '@/assets/touch-phone-dark.svg'
+import TouchPhoneLight from '@/assets/touch-phone.svg?component'
+import TouchPhoneDark from '@/assets/touch-phone-dark.svg?component'
 import emitter from '@/plugins/eventbus'
 
 const isDark = ref(document.documentElement.classList.contains('dark'))

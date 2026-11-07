@@ -1,4 +1,4 @@
-import { computed, defineComponent, onMounted, onUnmounted, onUpdated, ref, type Ref } from 'vue'
+import { computed, defineComponent, h, onMounted, onUnmounted, onUpdated, ref, type Ref } from 'vue'
 import { ItemProps } from './props'
 
 export const useResizeChange = (props: any, rootRef: Ref<HTMLElement | null>, emit: any) => {
@@ -47,11 +47,7 @@ export const Item = defineComponent({
     return () => {
       const { component, index, source, uniqueKey } = props
 
-      return (
-        <div key={uniqueKey} ref={rootRef}>
-          {component!({ index, item: source })}
-        </div>
-      )
+      return h('div', { key: uniqueKey, ref: rootRef }, component!({ index, item: source }))
     }
   },
 })

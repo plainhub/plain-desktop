@@ -6,11 +6,9 @@ import path from 'path'
 import Icons from 'unplugin-icons/vite'
 import IconsResolver from 'unplugin-icons/resolver'
 import Components from 'unplugin-vue-components/vite'
-import svgLoader from 'vite-svg-loader'
-import vueJsx from '@vitejs/plugin-vue-jsx'
-import VueI18nPlugin from '@intlify/unplugin-vue-i18n/vite'
 import { isTauriBuildMode } from './build-support/app-mode'
 import { crossOriginIsolationHeaders, isPotentiallyTrustworthyHost } from './build-support/cross-origin-isolation'
+import { svgComponents } from './build-support/svg-components'
 import type { Plugin } from 'vite'
 
 const INVALID_CHAR_REGEX = /[_\x00-\x1F\x7F<>*#"{}|^[\]`;?:&=+$,]/g
@@ -86,8 +84,8 @@ export default defineConfig(({ mode }) => {
     // when a markdown view opens. It is ~640 kB unminified / ~204 kB gzipped,
     // so raise the default 500 kB warning threshold to fit it without noise.
     chunkSizeWarningLimit: 700,
-    // Disable the per-plugin build-time diagnostic — unplugin-icons,
-    // unplugin-vue-components, and vite-svg-loader are JS-side plugins by
+    // Disable the per-plugin build-time diagnostic — unplugin-icons and
+    // unplugin-vue-components are JS-side plugins by
     // design and dominate wall time on this project. The diagnostic is
     // useful when chasing regressions in native plugins, not here.
     //
@@ -152,27 +150,12 @@ export default defineConfig(({ mode }) => {
         },
       },
     }),
-    vueJsx(),
-    svgLoader(),
+    svgComponents(),
     Components({
       resolvers: [IconsResolver()],
       dirs: ['src/components', 'src/views'],
     }),
     Icons(),
-    // Pre-compile locale messages at build time so the production bundle can
-    // use the runtime-only vue-i18n build (drops @intlify/message-compiler
-    // from the entry chunk). `timeago.ts` stays raw — lib/timeago reads it
-    // as plain strings; `index.ts` composes the feature modules at runtime
-    // and needs no compilation itself. Test projects don't inherit this
-    // plugin, so vitest keeps runtime compilation.
-    //
-    // The capture overlay's own message set lives in `views/screen-capture/locales/`
-    // (see the README there), so it's outside this include glob and never precompiled.
-    VueI18nPlugin({
-      include: [path.resolve(__dirname, './src/locales/**/*.ts')],
-      exclude: ['**/timeago.ts', '**/locales/**/index.ts'],
-      runtimeOnly: true,
-    }),
   ],
   define: sharedDefine,
   resolve: {

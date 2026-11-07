@@ -1,4 +1,4 @@
-import { defineComponent, onActivated, onBeforeMount, onMounted, onUnmounted, ref, watch } from 'vue'
+import { defineComponent, h, onActivated, onBeforeMount, onMounted, onUnmounted, ref, watch } from 'vue'
 import Virtual from './virtual'
 import { Item } from './item'
 import { VSlot } from './slot'
@@ -172,7 +172,10 @@ export default defineComponent({
         if (dataSource) {
           const uniqueKey = typeof dataKey === 'function' ? dataKey(dataSource) : (dataSource as any)[dataKey as string]
           if (typeof uniqueKey === 'string' || typeof uniqueKey === 'number') {
-            slots.push(<Item index={index} event={EVENT_TYPE.ITEM} horizontal={isHorizontal} uniqueKey={uniqueKey} source={dataSource} component={itemSlot} onItemResize={onItemResized} />)
+            slots.push(h(Item, {
+              index, event: EVENT_TYPE.ITEM, horizontal: isHorizontal, uniqueKey,
+              source: dataSource, component: itemSlot, onItemResize: onItemResized,
+            }))
           } else {
             console.warn(`Cannot get the data-key '${dataKey}' from data-sources.`)
           }
@@ -293,33 +296,18 @@ export default defineComponent({
       }
       const { header, footer, item } = slots
 
-      return (
-        <div ref={root} onScroll={!pageMode ? onScroll : undefined}>
-          {header && (
-            <VSlot class="header" event={EVENT_TYPE.SLOT} uniqueKey={SLOT_TYPE.HEADER} onSlotResize={onSlotResized}>
-              {header()}
-            </VSlot>
-          )}
-
-          <div class="wrap" style={paddingStyle}>
-            {getRenderSlots(item)}
-          </div>
-
-          {footer && (
-            <VSlot class="footer" event={EVENT_TYPE.SLOT} uniqueKey={SLOT_TYPE.FOOTER} onSlotResize={onSlotResized}>
-              {footer()}
-            </VSlot>
-          )}
-
-          <div
-            ref={shepherd}
-            style={{
-              width: isHorizontal ? '0px' : '100%',
-              height: isHorizontal ? '100%' : '0px',
-            }}
-          />
-        </div>
-      )
+      return h('div', { ref: root, onScroll: pageMode ? undefined : onScroll }, [
+        header ? h(VSlot, { class: 'header', event: EVENT_TYPE.SLOT, uniqueKey: SLOT_TYPE.HEADER, onSlotResize: onSlotResized }, { default: header }) : null,
+        h('div', { class: 'wrap', style: paddingStyle }, getRenderSlots(item)),
+        footer ? h(VSlot, { class: 'footer', event: EVENT_TYPE.SLOT, uniqueKey: SLOT_TYPE.FOOTER, onSlotResize: onSlotResized }, { default: footer }) : null,
+        h('div', {
+          ref: shepherd,
+          style: {
+            width: isHorizontal ? '0px' : '100%',
+            height: isHorizontal ? '100%' : '0px',
+          },
+        }),
+      ])
     }
   },
 })
