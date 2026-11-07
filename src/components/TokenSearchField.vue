@@ -1,5 +1,6 @@
 <template>
   <div ref="rootRef" class="token-field" :class="{ focused: isFocused }" @mousedown="onMouseDownRoot">
+    <slot name="start" />
     <div
       ref="editableRef"
       class="editable"

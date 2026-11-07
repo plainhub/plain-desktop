@@ -20,4 +20,12 @@ export default {
   search_file_size_less_than_100kb: '100KB altı',
   search_filter_by_ext: 'Dosya uzantısına göre filtrele',
   search_no_results: 'Sonuç yok',
+  global_search: 'Genel arama',
+  global_search_results: 'Arama sonuçları ({count})',
+  global_search_all_devices: 'Tüm cihazlar',
+  global_search_devices: 'Cihazlar: {count}',
+  global_search_enter_query: 'Aramak için bir anahtar kelime girin',
+  global_search_select_devices: 'En az bir cihaz seçin',
+  global_search_no_access: 'Bu içeriğe erişim yok',
+  global_search_failed: 'Arama başarısız oldu',
 }

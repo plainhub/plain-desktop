@@ -1,6 +1,6 @@
 import { chachaDecrypt, chachaEncryptBytes } from './crypto'
 
-export type Resource = { type: 'MEDIA' | 'APP_FILE' | 'FILE' | 'PACKAGE_ICON' | 'SHARED_FILE'; id: string }
+export type Resource = { type: 'MEDIA' | 'FOREGROUND_MEDIA_THUMBNAIL' | 'APP_FILE' | 'FILE' | 'PACKAGE_ICON' | 'SHARED_FILE'; id: string }
 export type ResourceScope = { mode: 'c' | 's'; id: string } | { mode: 'g' }
 
 export function encryptResourcePayload(key: Uint8Array, scope: ResourceScope, purpose: string, plain: string): string {
@@ -15,7 +15,8 @@ export function encryptResourcePayload(key: Uint8Array, scope: ResourceScope, pu
 }
 
 export function resourceId(key: Uint8Array, scope: ResourceScope, resource: Resource): string {
-  if (!resource.id || (scope.mode === 's') !== (resource.type === 'SHARED_FILE')) throw new Error('Invalid resource scope')
+  if (!resource.id || (scope.mode === 's') !== (resource.type === 'SHARED_FILE')
+    || (resource.type === 'FOREGROUND_MEDIA_THUMBNAIL' && scope.mode !== 'g')) throw new Error('Invalid resource scope')
   return encryptResourcePayload(key, scope, 'fs', JSON.stringify(resource))
 }
 

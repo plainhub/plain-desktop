@@ -11,6 +11,7 @@
       </v-icon-button>
       <div class="name-block">
         <span v-if="!isTauri" class="file-name">{{ current.name }}</span>
+        <span v-if="current.deviceName" class="subtle">{{ current.deviceName }}</span>
         <span v-if="transcoded && isVideo(current.name)" class="codec-tip">
           {{ $t('video_transcode_tip') }}
           <a :href="hevcHelpUrl" target="_blank" rel="noopener" class="codec-tip-link">{{ $t('video_transcode_help') }}</a>
@@ -31,7 +32,7 @@
         <v-icon-button v-tooltip="$t('back')" class="close-btn" @click="$emit('close')">
           <i-material-symbols:arrow-back-rounded />
         </v-icon-button>
-        <v-icon-button v-tooltip="$t('open_in_window')" @click="$emit('open-in-window')">
+        <v-icon-button v-tooltip="$t('open_in_window')" :disabled="readOnly" @click="$emit('open-in-window')">
           <i-material-symbols:open-in-new-rounded />
         </v-icon-button>
       </template>

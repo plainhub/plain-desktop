@@ -3,16 +3,15 @@ import { encryptedGqlPost, type GqlResult } from './gql-client'
 import type { LoginPeer } from '../device/login-peers'
 import { peerHost } from '../device/login-peers'
 
-/**
- * POSTs a GraphQL request to a login peer's own server, encrypted with that
- * peer's login token. Local mode only — the desktop server has no proxy for
- * peer features, so the client reaches each device directly through the
- * local reverse proxy (which accepts the devices' self-signed certificates).
- */
+export function getPeerBaseUrl(peer: LoginPeer): string {
+  return peer.address?.baseUrl || deviceBaseUrl(peerHost(peer))
+}
+
+// Uses the peer's own authenticated session, independently of the selected device.
 export async function gqlFetchPeer<T = any>(
   peer: LoginPeer,
   query: string,
   variables?: Record<string, any>,
 ): Promise<GqlResult<T>> {
-  return encryptedGqlPost<T>(`${deviceBaseUrl(peerHost(peer))}/graphql`, peer.token, query, variables)
+  return encryptedGqlPost<T>(`${getPeerBaseUrl(peer)}/graphql`, peer.token, query, variables)
 }

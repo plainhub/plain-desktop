@@ -20,4 +20,12 @@ export default {
   search_file_size_less_than_100kb: '১০০KB-এর কম',
   search_filter_by_ext: 'ফাইল এক্সটেনশন দিয়ে ফিল্টার করুন',
   search_no_results: 'কোন ফলাফল নেই',
+  global_search: 'সকল ডিভাইসে অনুসন্ধান',
+  global_search_results: 'অনুসন্ধানের ফলাফল ({count})',
+  global_search_all_devices: 'সব ডিভাইস',
+  global_search_devices: 'ডিভাইস: {count}',
+  global_search_enter_query: 'অনুসন্ধানের জন্য শব্দ লিখুন',
+  global_search_select_devices: 'অন্তত একটি ডিভাইস নির্বাচন করুন',
+  global_search_no_access: 'এই বিষয়বস্তুতে প্রবেশাধিকার নেই',
+  global_search_failed: 'অনুসন্ধান ব্যর্থ হয়েছে',
 }

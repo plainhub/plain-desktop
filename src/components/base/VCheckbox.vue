@@ -4,6 +4,7 @@
       ref="inputRef"
       class="checkbox-input"
       type="checkbox"
+      :aria-label="label"
       :checked="isChecked"
       :indeterminate="indeterminate"
       @change="handleChange"
@@ -24,6 +25,7 @@
 import { ref, computed, watch } from 'vue'
 
 interface Props {
+  label?: string
   checked?: boolean
   modelValue?: boolean
   indeterminate?: boolean
@@ -31,6 +33,7 @@ interface Props {
 }
 
 const props = withDefaults(defineProps<Props>(), {
+  label: undefined,
   checked: false,
   modelValue: false,
   indeterminate: false,
@@ -163,4 +166,4 @@ defineExpose({
     border-color: rgba(255, 255, 255, 0.38);
   }
 }
-</style> 
+</style>

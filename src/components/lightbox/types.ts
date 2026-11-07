@@ -37,6 +37,7 @@ export interface ISource {
   viewOriginImage?: boolean
   path: string // file path
   name: string
+  deviceName?: string
   size: number
   durationMs: number
   updatedAt?: string

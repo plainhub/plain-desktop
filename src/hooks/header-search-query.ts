@@ -58,7 +58,7 @@ export function useHeaderSearchQuery() {
   }
 
   function buildNextFeedsQ(currentEncodedQ: string, feedId: string | undefined, textValue: string) {
-    const fields = parseCurrentFields(currentEncodedQ).filter((f) => !['text', 'feed_id', 'today', 'tag_id'].includes(f.name))
+    const fields = parseCurrentFields(currentEncodedQ).filter((f) => !['text', 'feed_id'].includes(f.name))
     if (feedId) fields.push({ name: 'feed_id', op: '', value: feedId })
     const v = textValue.trim()
     if (v) fields.push({ name: 'text', op: '', value: v })

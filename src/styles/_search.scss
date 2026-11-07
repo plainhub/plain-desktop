@@ -19,10 +19,23 @@
     border-width: 2px;
   }
 
+  .leading,
+  .trailing {
+    flex-shrink: 0;
+    margin-block: auto;
+  }
+
+  .leading {
+    margin-inline-start: 4px;
+  }
+
   .trailing {
     margin-inline-end: 6px;
     margin-inline-start: 6px;
-    margin-block: auto;
+  }
+
+  .leading + .editable {
+    padding-inline-start: 8px;
   }
 
   .editable {
@@ -56,10 +69,6 @@
     content: attr(data-placeholder);
     color: var(--md-sys-color-on-surface-variant);
     pointer-events: none;
-    position: absolute;
-    left: 16px; 
-    top: 50%;
-    transform: translateY(-50%);
   }
 
   .token {

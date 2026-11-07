@@ -20,4 +20,12 @@ export default {
   search_file_size_less_than_100kb: '100KB-ஐ விட சிறியது',
   search_filter_by_ext: 'கோப்பு நீட்டிப்பால் வடிகட்டு',
   search_no_results: 'முடிவுகள் இல்லை',
+  global_search: 'பொதுத் தேடல்',
+  global_search_results: 'தேடல் முடிவுகள் ({count})',
+  global_search_all_devices: 'அனைத்து சாதனங்களும்',
+  global_search_devices: 'சாதனங்கள்: {count}',
+  global_search_enter_query: 'தேட ஒரு சொல்லை உள்ளிடவும்',
+  global_search_select_devices: 'குறைந்தது ஒரு சாதனத்தைத் தேர்ந்தெடுக்கவும்',
+  global_search_no_access: 'இந்த உள்ளடக்கத்தை அணுக முடியவில்லை',
+  global_search_failed: 'தேடல் தோல்வியடைந்தது',
 }

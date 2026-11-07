@@ -20,4 +20,12 @@ export default {
   search_file_size_less_than_100kb: '小于 100KB',
   search_filter_by_ext: '按文件扩展名过滤',
   search_no_results: '没有结果',
+  global_search: '全局搜索',
+  global_search_results: '搜索结果（{count}）',
+  global_search_all_devices: '全部设备',
+  global_search_devices: '{count} 台设备',
+  global_search_enter_query: '输入关键词开始搜索',
+  global_search_select_devices: '请至少选择一台设备',
+  global_search_no_access: '无权搜索此内容',
+  global_search_failed: '搜索失败',
 }

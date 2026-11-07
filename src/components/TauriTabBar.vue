@@ -102,7 +102,7 @@ onMounted(() => {
   // Sync current route on first mount (e.g. page reload)
   const group = (route.meta?.group as string) || ''
   if (group && group !== 'home') {
-    const titleKey = `page_title.${group}`
+    const titleKey = group === 'search' ? 'search' : `page_title.${group}`
     const resolved = String((i18n.global as any).t(titleKey))
     mainStore.syncRouteTab(group, resolved !== titleKey ? resolved : group, route.fullPath)
   }

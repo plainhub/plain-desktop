@@ -20,4 +20,12 @@ export default {
   search_file_size_less_than_100kb: '100KB 미만',
   search_filter_by_ext: '파일 확장자로 필터',
   search_no_results: '결과 없음',
+  global_search: '전체 검색',
+  global_search_results: '검색 결과 ({count})',
+  global_search_all_devices: '모든 기기',
+  global_search_devices: '기기: {count}',
+  global_search_enter_query: '검색어를 입력하세요',
+  global_search_select_devices: '기기를 하나 이상 선택하세요',
+  global_search_no_access: '이 콘텐츠를 검색할 권한이 없습니다',
+  global_search_failed: '검색 실패',
 }

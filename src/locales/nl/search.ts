@@ -20,4 +20,12 @@ export default {
   search_file_size_less_than_100kb: 'Kleiner dan 100KB',
   search_filter_by_ext: 'Filteren op bestandsextensie',
   search_no_results: 'Geen resultaten',
+  global_search: 'Globaal zoeken',
+  global_search_results: 'Zoekresultaten ({count})',
+  global_search_all_devices: 'Alle apparaten',
+  global_search_devices: 'Apparaten: {count}',
+  global_search_enter_query: 'Voer een zoekterm in',
+  global_search_select_devices: 'Selecteer ten minste één apparaat',
+  global_search_no_access: 'Geen toegang tot deze inhoud',
+  global_search_failed: 'Zoeken mislukt',
 }

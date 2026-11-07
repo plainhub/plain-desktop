@@ -61,6 +61,13 @@ export function useHeaderSearch(props: {
   const showMessagesFilters = computed(() => routeGroup.value === 'messages')
   const showCallsFilters = computed(() => routeGroup.value === 'calls')
   const showFeedsFilters = computed(() => routeGroup.value === 'feeds')
+  const hasPageFilters = computed(() => {
+    if (showMediaFilters.value) return Boolean(mediaLocalFilter.bucketId || mediaLocalFilter.tagIds?.length || mediaLocalFilter.type || mediaLocalFilter.trash)
+    if (showDocsFilters.value) return Boolean(docsExt.value || filesLocalFilter.fileSize || mediaLocalFilter.trash)
+    if (showFeedsFilters.value) return Boolean(mediaLocalFilter.feedId || mediaLocalFilter.tagIds?.length || mediaLocalFilter.today)
+    if (routeGroup.value === 'notes') return Boolean(mediaLocalFilter.tagIds?.length || mediaLocalFilter.trash)
+    return false
+  })
 
   const resolvedPlaceholder = computed(() => props.placeholder || t(showFilesFilters.value ? (filesLocalFilter.parent || filesLocalFilter.rootPath ? 'directory_search_hint' : 'index_search_hint') : 'search_hint'))
 
@@ -199,7 +206,7 @@ export function useHeaderSearch(props: {
   onUnmounted(() => window.removeEventListener('keydown', onGlobalKeydown))
 
   return {
-    inputRef, text, uiTokens, resolvedPlaceholder, keyOptions, valueOptions,
+    inputRef, text, uiTokens, resolvedPlaceholder, keyOptions, valueOptions, hasPageFilters,
     onFreeTextChange, onUiTokensChange, submitFromHeader, applyHistoryQ, deleteHistoryItem, clearHistoryForPage,
   }
 }

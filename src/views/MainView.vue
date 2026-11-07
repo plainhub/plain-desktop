@@ -12,16 +12,22 @@
       <header id="header">
         <section class="start">
           <v-icon-button
-v-if="hasLeftSidebar" v-tooltip="$t(store.miniSidebar ? 'open' : 'close')"
-            class="sidebar-toggle" @click.prevent="toggleSidebar">
-            <i-material-symbols:left-panel-open-outline-rounded v-if="store.miniSidebar" />
+            v-if="hasLeftSidebar || globalSearch" v-tooltip="$t(sidebarCollapsed ? 'open' : 'close')"
+            :aria-label="$t(sidebarCollapsed ? 'open' : 'close')" :aria-expanded="!sidebarCollapsed"
+            class="sidebar-toggle" @click.prevent="globalSearch ? searchSidebarCollapsed = !searchSidebarCollapsed : toggleSidebar()">
+            <i-material-symbols:left-panel-open-outline-rounded v-if="sidebarCollapsed" />
             <i-material-symbols:left-panel-close-outline-rounded v-else />
           </v-icon-button>
           <div id="header-start-slot"></div>
         </section>
         <section class="end">
           <div id="header-end-slot"></div>
-          <HeaderSearch v-if="showHeaderSearch" :placeholder="$route.meta.group === 'files' ? '' : $t('search')" />
+          <HeaderSearch
+            v-if="showHeaderSearch || appReady"
+            :global-search="globalSearch" :global-keyword="globalKeyword" :global-only="globalSearchOnly" :enable-global-search="enableGlobalSearch"
+            :placeholder="$route.meta.group === 'files' ? '' : $t('search')" @global-search="submitGlobalSearch">
+            <template #start><SearchDeviceDropdown :search="search" /></template>
+          </HeaderSearch>
         </section>
       </header>
       <app-rail />
@@ -34,8 +40,8 @@ v-if="hasLeftSidebar" v-tooltip="$t(store.miniSidebar ? 'open' : 'close')"
         </router-view>
         <!-- Mobile sidebar backdrop -->
         <div
-v-if="hasLeftSidebar && appReady" class="sidebar-backdrop"
-          :class="{ visible: !store.miniSidebar && isTablet }" @click="store.miniSidebar = true"></div>
+          v-if="hasLeftSidebar && appReady" class="sidebar-backdrop"
+          :class="{ visible: !sidebarCollapsed && isTablet }" @click="globalSearch ? searchSidebarCollapsed = true : store.miniSidebar = true"></div>
         <main v-if="appReady" class="main" :class="'main-' + ($route.meta.className || 'default')">
           <router-view v-slot="{ Component }" name="LeftSidebar2">
             <keep-alive :max="12">
@@ -43,7 +49,7 @@ v-if="hasLeftSidebar && appReady" class="sidebar-backdrop"
             </keep-alive>
           </router-view>
           <router-view v-slot="{ Component }">
-            <keep-alive exclude="NoteEditView" :max="10">
+            <keep-alive exclude="NoteEditView,GlobalSearchView" :max="10">
               <component :is="Component" :key="$route.fullPath" />
             </keep-alive>
           </router-view>
@@ -90,8 +96,11 @@ v-if="hasLeftSidebar && appReady" class="sidebar-backdrop"
 </template>
 
 <script setup lang="ts">
-import { computed, inject } from 'vue'
+import { computed, inject, provide, ref, watch } from 'vue'
+import { useI18n } from 'vue-i18n'
+import { useRoute, useRouter } from 'vue-router'
 import HeaderSearch from '@/components/HeaderSearch.vue'
+import SearchDeviceDropdown from '@/views/search/SearchDeviceDropdown.vue'
 import BookmarkList from '@/views/bookmarks/BookmarkList.vue'
 import PNotifications from '@/views/notifications/PNotifications.vue'
 import LocalNotifications from '@/views/notifications/LocalNotifications.vue'
@@ -99,6 +108,8 @@ import PClipboard from '@/views/clipboard/PClipboard.vue'
 import PomodoroTimer from '@/views/pomodoro/PomodoroTimer.vue'
 import { buildQuickActions } from '@/views/main-view-quick-actions'
 import { useMainView } from '@/hooks/main-view'
+import { globalSearchKey, useGlobalSearch } from '@/hooks/global-search'
+import { searchDomains } from '@/lib/api/global-search'
 
 const isTablet = inject('isTablet')
 const isTauri = __IS_TAURI__
@@ -108,6 +119,49 @@ const {
   hasTasks, hasActiveUploads, hasLeftSidebar, showHeaderSearch, localMode,
   toggleSidebar, toggleQuick, getSidebar2CacheKey, resizeWidth,
 } = useMainView()
+
+const { t } = useI18n()
+const route = useRoute()
+const router = useRouter()
+const search = useGlobalSearch(app, () => t('device_discovery.local'))
+const globalSearch = computed(() => route.name === 'search')
+const globalKeyword = computed(() => globalSearch.value && typeof route.query.keyword === 'string' ? route.query.keyword : '')
+const pageSearchDomain = computed(() => searchDomains.find((domain) => domain === route.meta.group))
+const globalSearchOnly = computed(() => globalSearch.value || route.meta.group === 'home' || !showHeaderSearch.value)
+const enableGlobalSearch = computed(() => appReady.value && (globalSearchOnly.value || pageSearchDomain.value !== undefined))
+const searchSidebarCollapsed = ref(false)
+const sidebarCollapsed = computed(() => globalSearch.value ? searchSidebarCollapsed.value : store.miniSidebar)
+provide(globalSearchKey, { search, sidebarCollapsed: searchSidebarCollapsed })
+
+let pendingSearch: { path: string } | undefined
+function submitGlobalSearch(text: string) {
+  const keyword = text.trim()
+  if (!keyword && !globalSearch.value) return
+  const location = { name: 'search', query: globalSearch.value
+    ? { ...route.query, keyword: keyword || undefined }
+    : { keyword, type: pageSearchDomain.value } }
+  const pending = { path: router.resolve(location).fullPath }
+  if (pending.path === route.fullPath) {
+    search.submit(keyword, true)
+    return
+  }
+  pendingSearch = pending
+  void (globalSearch.value ? router.replace(location) : router.push(location)).finally(() => {
+    if (pendingSearch === pending) pendingSearch = undefined
+  })
+}
+
+watch(globalSearch, (active, previous) => {
+  if (active) searchSidebarCollapsed.value = store.miniSidebar
+  else if (previous) search.reset()
+}, { immediate: true })
+
+watch([globalSearch, globalKeyword, () => route.query.type], ([active, keyword, type]) => {
+  if (!active) return
+  search.domain.value = searchDomains.find((domain) => domain === type) ?? 'all'
+  const foreground = pendingSearch?.path === route.fullPath
+  if (foreground || search.request.value?.text !== keyword) search.submit(keyword, foreground)
+}, { immediate: true })
 
 const quickActions = computed(() =>
   buildQuickActions({ hasTasks: hasTasks.value, quick: store.quick, localMode, capabilities: app.value?.capabilities }),

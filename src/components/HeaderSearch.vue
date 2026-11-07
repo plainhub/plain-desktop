@@ -3,20 +3,25 @@
   <div class="header-search">
     <TokenSearchField
       ref="inputRef"
+      :key="String(globalSearch)"
       class="header-search-field"
-      :text="text"
-      :tokens="uiTokens"
+      :text="globalSearch ? globalText : text"
+      :tokens="globalSearch ? [] : uiTokens"
       enter-submits
       :placeholder="resolvedPlaceholder"
-      :key-options="keyOptions"
-      :value-options="valueOptions"
-      @update:text="onFreeTextChange"
-      @update:tokens="onUiTokensChange"
-      @enter="submitFromHeader"
+      :key-options="globalSearch || globalOnly ? [] : keyOptions"
+      :value-options="globalSearch || globalOnly ? {} : valueOptions"
+      @update:text="globalSearch ? globalText = $event : onFreeTextChange($event)"
+      @update:tokens="!globalSearch && onUiTokensChange($event)"
+      @enter="submit"
       @history:select="applyHistoryQ"
       @history:delete="deleteHistoryItem"
       @history:clear="clearHistoryForPage"
-    />
+    >
+      <template v-if="globalSearch || (enableGlobalSearch && (globalOnly || !hasPageFilters))" #start>
+        <slot name="start" />
+      </template>
+    </TokenSearchField>
   </div>
 </template>
 
@@ -24,12 +29,17 @@
 import type { IBucket, IFeed, IFilter, IFileFilter, ITag, IType } from '@/lib/interfaces'
 import TokenSearchField from '@/components/TokenSearchField.vue'
 import { useHeaderSearch } from '@/hooks/header-search'
+import { nextTick, ref, watch } from 'vue'
 
 type Kind = 'global' | 'media' | 'files'
 
 const props = withDefaults(
   defineProps<{
     kind?: Kind
+    globalSearch?: boolean
+    globalKeyword?: string
+    globalOnly?: boolean
+    enableGlobalSearch?: boolean
     placeholder?: string
     enableSlashFocus?: boolean
     targetPath?: string
@@ -46,6 +56,7 @@ const props = withDefaults(
   }>(),
   {
     kind: 'global',
+    globalKeyword: '',
     placeholder: '',
     enableSlashFocus: true,
     targetPath: '',
@@ -61,11 +72,29 @@ const props = withDefaults(
     navigateToDir: () => {},
   },
 )
+const globalText = ref('')
+const emit = defineEmits<{ 'global-search': [text: string] }>()
 
 const {
-  inputRef, text, uiTokens, resolvedPlaceholder, keyOptions, valueOptions,
+  inputRef, text, uiTokens, resolvedPlaceholder, keyOptions, valueOptions, hasPageFilters,
   onFreeTextChange, onUiTokensChange, submitFromHeader, applyHistoryQ, deleteHistoryItem, clearHistoryForPage,
 } = useHeaderSearch(props)
+
+function submit() {
+  if (props.globalSearch) {
+    emit('global-search', globalText.value)
+  } else if (props.enableGlobalSearch && (props.globalOnly || (!hasPageFilters.value && text.value.trim()))) {
+    globalText.value = text.value
+    emit('global-search', globalText.value)
+  } else if (!props.globalOnly) {
+    submitFromHeader()
+  }
+}
+
+watch(() => props.globalKeyword, (keyword) => { globalText.value = keyword }, { immediate: true })
+watch(() => props.globalSearch, (active) => {
+  if (active) void nextTick(() => inputRef.value?.focus())
+}, { immediate: true })
 
 defineExpose({ focus: () => inputRef.value?.focus() })
 </script>

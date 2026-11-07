@@ -20,4 +20,12 @@ export default {
   search_file_size_less_than_100kb: '小於 100KB',
   search_filter_by_ext: '依副檔名篩選',
   search_no_results: '沒有結果',
+  global_search: '全域搜尋',
+  global_search_results: '搜尋結果（{count}）',
+  global_search_all_devices: '所有裝置',
+  global_search_devices: '{count} 台裝置',
+  global_search_enter_query: '輸入關鍵字開始搜尋',
+  global_search_select_devices: '請至少選擇一台裝置',
+  global_search_no_access: '無權搜尋此內容',
+  global_search_failed: '搜尋失敗',
 }

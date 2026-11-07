@@ -34,6 +34,15 @@ const router = createRouter({
           meta: { group: 'home' },
         },
         {
+          name: 'search',
+          path: 'search',
+          components: {
+            default: () => import('@/views/search/GlobalSearchView.vue'),
+            LeftSidebar: () => import('@/views/search/GlobalSearchSidebar.vue'),
+          },
+          meta: { group: 'search' },
+        },
+        {
           path: 'messages',
           components: {
             LeftSidebar: () => import('@/views/messages/MessagesSidebar.vue'),
@@ -366,7 +375,7 @@ router.beforeEach(async (to, from) => {
 
 export function updateDocumentTitle(): void {
   const group = (router.currentRoute.value.meta.group as string) || ''
-  const titleKey = `page_title.${group}`
+  const titleKey = group === 'search' ? 'search' : `page_title.${group}`
   const title = group ? String((i18n.global as any).t(titleKey)) : ''
   const base = title && title !== titleKey ? `${title} - PlainApp` : 'PlainApp'
   const deviceName = useTempStore().app?.deviceName
@@ -383,7 +392,7 @@ router.afterEach((to, from) => {
   if (__IS_TAURI__) {
     const mainStore = useMainStore()
     const group = (to.meta.group as string) || ''
-    const titleKey = `page_title.${group}`
+    const titleKey = group === 'search' ? 'search' : `page_title.${group}`
     const title = group ? String((i18n.global as any).t(titleKey)) : ''
     if (group && group !== 'home') {
       mainStore.syncRouteTab(group, title && title !== titleKey ? title : group, to.fullPath)

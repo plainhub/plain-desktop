@@ -20,4 +20,12 @@ export default {
   search_file_size_less_than_100kb: 'Меньше 100 КБ',
   search_filter_by_ext: 'Фильтр по расширению файла',
   search_no_results: 'Нет результатов',
+  global_search: 'Глобальный поиск',
+  global_search_results: 'Результаты поиска ({count})',
+  global_search_all_devices: 'Все устройства',
+  global_search_devices: 'Устройства: {count}',
+  global_search_enter_query: 'Введите поисковый запрос',
+  global_search_select_devices: 'Выберите хотя бы одно устройство',
+  global_search_no_access: 'Нет доступа к этому содержимому',
+  global_search_failed: 'Не удалось выполнить поиск',
 }

@@ -20,4 +20,12 @@ export default {
   search_file_size_less_than_100kb: '100KB से कम',
   search_filter_by_ext: 'फ़ाइल एक्सटेंशन द्वारा फ़िल्टर करें',
   search_no_results: 'कोई परिणाम नहीं',
+  global_search: 'सभी डिवाइस में खोजें',
+  global_search_results: 'खोज परिणाम ({count})',
+  global_search_all_devices: 'सभी डिवाइस',
+  global_search_devices: 'डिवाइस: {count}',
+  global_search_enter_query: 'खोजने के लिए शब्द लिखें',
+  global_search_select_devices: 'कम से कम एक डिवाइस चुनें',
+  global_search_no_access: 'इस सामग्री तक पहुँच नहीं है',
+  global_search_failed: 'खोज विफल रही',
 }

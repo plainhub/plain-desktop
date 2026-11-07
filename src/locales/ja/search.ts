@@ -20,4 +20,12 @@ export default {
   search_file_size_less_than_100kb: '100KB未満',
   search_filter_by_ext: 'ファイル拡張子でフィルタ',
   search_no_results: '結果なし',
+  global_search: 'グローバル検索',
+  global_search_results: '検索結果（{count}）',
+  global_search_all_devices: 'すべてのデバイス',
+  global_search_devices: 'デバイス：{count}',
+  global_search_enter_query: '検索キーワードを入力',
+  global_search_select_devices: 'デバイスを1台以上選択',
+  global_search_no_access: 'このコンテンツを検索する権限がありません',
+  global_search_failed: '検索に失敗しました',
 }

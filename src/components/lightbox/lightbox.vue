@@ -227,7 +227,7 @@ function onBackdropClick() {
 }
 
 async function onOpenInWindow() {
-  if (props.popup || !__IS_TAURI__ || !current.value) return
+  if (props.popup || !__IS_TAURI__ || readOnly.value || !current.value) return
   const source = current.value
   closeDialog()
   await openMediaInWindow(source)

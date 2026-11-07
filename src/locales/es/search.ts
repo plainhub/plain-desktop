@@ -20,4 +20,12 @@ export default {
   search_file_size_less_than_100kb: 'Menor que 100KB',
   search_filter_by_ext: 'Filtrar por extensión de archivo',
   search_no_results: 'Sin resultados',
+  global_search: 'Búsqueda global',
+  global_search_results: 'Resultados de búsqueda ({count})',
+  global_search_all_devices: 'Todos los dispositivos',
+  global_search_devices: 'Dispositivos: {count}',
+  global_search_enter_query: 'Introduce un término de búsqueda',
+  global_search_select_devices: 'Selecciona al menos un dispositivo',
+  global_search_no_access: 'Sin acceso a este contenido',
+  global_search_failed: 'Error en la búsqueda',
 }

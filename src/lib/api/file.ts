@@ -206,7 +206,7 @@ function currentResourceScope(): ResourceScope {
   return isLocalMode() ? { mode: 'g' } : { mode: 'c', id: getApiHeaders()['c-id'] }
 }
 
-export function getFileId(key: Uint8Array | null, path: string, mediaId: string = '') {
+export function getFileId(key: Uint8Array | null, path: string, mediaId: string = '', scope?: ResourceScope, foregroundThumbnail = false) {
   if (!path || !key) {
     return ''
   }
@@ -216,19 +216,19 @@ export function getFileId(key: Uint8Array | null, path: string, mediaId: string 
     return path
   }
 
-  const scope = currentResourceScope()
+  const resourceScope = scope ?? currentResourceScope()
   const resource: Resource = mediaId
-    ? { type: 'MEDIA', id: mediaId }
+    ? { type: foregroundThumbnail ? 'FOREGROUND_MEDIA_THUMBNAIL' : 'MEDIA', id: mediaId }
     : path.startsWith('fid:')
       ? { type: 'APP_FILE', id: path.slice(4) }
       : path.startsWith('pkgicon://')
         ? { type: 'PACKAGE_ICON', id: path.slice(10) }
         : { type: 'FILE', id: path }
-  const cacheKey = JSON.stringify([scope, Array.from(key), resource])
+  const cacheKey = JSON.stringify([resourceScope, Array.from(key), resource])
   const fileIdMap = window.fileIdMap || (window.fileIdMap = new Map<string, string>())
   const cached = fileIdMap.get(cacheKey)
   if (cached) return cached
-  const id = resourceId(key, scope, resource)
+  const id = resourceId(key, resourceScope, resource)
   fileIdMap.set(cacheKey, id)
   return id
 }

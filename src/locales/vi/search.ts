@@ -20,4 +20,12 @@ export default {
   search_file_size_less_than_100kb: 'Nhỏ hơn 100KB',
   search_filter_by_ext: 'Lọc theo phần mở rộng tệp',
   search_no_results: 'Không có kết quả',
+  global_search: 'Tìm kiếm toàn cục',
+  global_search_results: 'Kết quả tìm kiếm ({count})',
+  global_search_all_devices: 'Tất cả thiết bị',
+  global_search_devices: 'Thiết bị: {count}',
+  global_search_enter_query: 'Nhập từ khóa để tìm kiếm',
+  global_search_select_devices: 'Chọn ít nhất một thiết bị',
+  global_search_no_access: 'Không có quyền truy cập nội dung này',
+  global_search_failed: 'Tìm kiếm thất bại',
 }
