@@ -1,7 +1,8 @@
 import { expect, it, vi } from 'vitest'
-import { createRenderer, createSSRApp, h, ref } from 'vue'
+import { createRenderer, createSSRApp, h, ref, ssrContextKey } from 'vue'
 import { renderToString } from 'vue/server-renderer'
 const state = vi.hoisted(() => ({ library: (_value: any) => {}, reload: vi.fn(), progress: (_value: any) => {}, toast: vi.fn(), mutation: vi.fn(), initial: null as any, volumes: [] as any[] }))
+vi.mock('@/lib/api/time-sync', () => ({ wrapWithReplayProtection: (value: string) => value }))
 vi.mock('vue-i18n', () => ({ useI18n: () => ({ t: (key: string) => key }) }))
 vi.mock('@/stores/main', () => ({ useMainStore: vi.fn() }))
 vi.mock('@/stores/temp', () => ({ useTempStore: vi.fn() }))
@@ -57,6 +58,7 @@ it('keeps completion silent and exposes failures with a retry without inventing 
       return () => h('div')
     },
   })
+  app.provide(ssrContextKey, { modules: new Set() })
   app.mount({})
   try {
     expect(state.toast).not.toHaveBeenCalled()
@@ -112,7 +114,7 @@ it.each([
   { state: 'PAUSED', indexed: 0, total: null, pending: null, label: 'paused', count: null },
   { state: 'RUNNING', indexed: 1234, total: 2000, pending: 766, label: 'building_file_index', count: '1,234 / 2,000' },
   { state: 'RUNNING', indexed: 0, total: 2, pending: 2, label: 'building_file_index', count: '0 / 2' },
-  { state: 'RUNNING', indexed: 0, total: 0, pending: 0, label: 'building_file_index', count: '0 / 0' },
+  { state: 'RUNNING', indexed: 0, total: 0, pending: 0, label: 'building_file_index', count: null },
 ])('shows processed files for $state with total $total', async ({ label, count, ...progress }) => {
   const { default: FileIndexCard } = await import('@/views/home/file-index/FileIndexCard.vue')
   state.initial = progress
@@ -209,6 +211,7 @@ it('coalesces library invalidations and cancels pending refreshes on unmount', a
   app.component('VIconButton', Button)
   app.component('VTextButton', Button)
   app.directive('tooltip', {})
+  app.provide(ssrContextKey, { modules: new Set() })
   app.mount({})
   try {
     for (let i = 0; i < 100; i++) state.library({ types: [1, 2, 3] })

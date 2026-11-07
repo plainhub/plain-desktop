@@ -12,6 +12,7 @@ import type { DirectoryPickerVolume } from '@/hooks/directory-picker'
 import tooltip from '@/plugins/tooltip'
 
 const mock = vi.hoisted(() => ({ picker: null as any }))
+vi.mock('@/lib/api/time-sync', () => ({ wrapWithReplayProtection: (value: string) => value }))
 vi.mock('@/hooks/directory-picker', () => ({ useDirectoryPicker: () => mock.picker }))
 vi.mock('vue-i18n', () => ({ useI18n: () => ({ t: (key: string) => key }) }))
 vi.mock('@/components/modal', () => ({ Modal: { EVENT_PROMPT: 'prompt' }, popModal: vi.fn() }))

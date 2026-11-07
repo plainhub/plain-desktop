@@ -9,11 +9,6 @@ vi.mock('@/stores/main', async () => {
   const { ref } = await import('vue')
   return { useMainStore: () => ({ systemFilesExpanded: ref(false) }) }
 })
-vi.mock('@/stores/main', async () => {
-  const { reactive } = await import('vue')
-  const store = reactive({ systemFilesExpanded: false })
-  return { useMainStore: () => store }
-})
 vi.mock('@/stores/temp', async () => {
   const { ref } = await import('vue')
   return { useTempStore: () => ({ app: ref({ access: ['FILES'] }), urlTokenKey: ref(null), uploads: ref([]) }) }
@@ -105,13 +100,13 @@ async function render() {
 }
 
 it('keeps the ordinary count correct after deleting ordinary and system entries', async () => {
-  expect(await render()).toContain('Storage (2)')
+  expect((await render()).replace(/<[^>]*>/g, '')).toContain('Storage (2)')
   state.events.onDeleted([state.data.items.value[1]])
   expect(state.data.totalRef.value).toBe(2)
-  expect(await render()).toContain('Storage (1)')
+  expect((await render()).replace(/<[^>]*>/g, '')).toContain('Storage (1)')
   state.events.onDeleted([state.data.items.value[0]])
   const html = await render()
-  expect(html).toContain('Storage (1)')
+  expect(html.replace(/<[^>]*>/g, '')).toContain('Storage (1)')
   expect(html).not.toContain('systems:')
   expect(html).toContain('file="/data"')
 })
@@ -121,7 +116,7 @@ it('preserves the full result count when only part of the directory is loaded', 
   state.data.totalRef.value = 10003
   state.events.onDeleted([state.data.items.value[1]])
   expect(state.data.totalRef.value).toBe(10002)
-  expect(await render()).toContain('Storage (10001)')
+  expect((await render()).replace(/<[^>]*>/g, '')).toContain('Storage (10001)')
   state.events.onDeleted([{ id: '/unrelated', path: '/unrelated' }])
   expect(state.data.totalRef.value).toBe(10002)
 })

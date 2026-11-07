@@ -17,7 +17,7 @@ it('recognizes ICO files as images and opens them in the media viewer', () => {
 
 it('opens document titles with the same preview dispatch as files', () => {
   const text = vi.fn(), browser = vi.fn(), media = vi.fn(), download = vi.fn()
-  const items = ref([{ title: 'notes.txt' }, { title: 'paper.pdf' }, { title: 'sheet.xlsx' }])
+  const items = ref([{ title: 'notes.txt' }, { title: 'paper.pdf' }, { title: 'archive.bin' }])
   const { openFile } = useFileOpen({ items, getName: item => item.title, openTextFile: text, openBrowserFile: browser, viewMedia: media, download })
   items.value.forEach(openFile)
   expect(text).toHaveBeenCalledExactlyOnceWith(items.value[0])

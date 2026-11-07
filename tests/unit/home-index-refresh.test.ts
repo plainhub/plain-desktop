@@ -23,6 +23,7 @@ vi.mock('@/lib/api/file-index', () => ({ rebuildFileIndexVolumeGQL: '' }))
 vi.mock('@/lib/api/mutation', () => ({
   callGQL: '', initMutation: vi.fn(), pauseMediaScanGQL: '', resumeMediaScanGQL: '', stopMediaScanGQL: '', rebuildMediaIndexGQL: '',
 }))
+vi.mock('pinia', async () => ({ storeToRefs: (await import('vue')).toRefs }))
 vi.mock('@/stores/temp', () => ({ useTempStore: () => state.store }))
 vi.mock('@/stores/main', () => ({ useMainStore: () => ({}) }))
 vi.mock('@/hooks/contact-picker', () => ({ useContactPicker: vi.fn() }))

@@ -36,7 +36,8 @@ async function addresses(enabled = true) {
   app.component('VTextButton', ButtonStub)
   app.component('VIconButton', ButtonStub)
   app.component('VCopyButton', ButtonStub)
-  return { state, html: await renderToString(app) }
+  const html = await renderToString(app)
+  return { state, html }
 }
 
 it('switches protocol and keeps the selected host for displayed URLs and QR content', async () => {
