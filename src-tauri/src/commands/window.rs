@@ -1,7 +1,7 @@
 use std::sync::atomic::{AtomicU32, Ordering};
 #[cfg(target_os = "macos")]
 use std::sync::{Mutex, OnceLock};
-use tauri::{AppHandle, Manager, PhysicalPosition};
+use tauri::{AppHandle, Manager, PhysicalPosition, WebviewWindow, WebviewWindowBuilder, Wry};
 
 use crate::commands::webview_creation;
 
@@ -95,30 +95,36 @@ pub fn reopen_main_window(app: &AppHandle) {
     }
 }
 
-/// Place a freshly built window diagonally offset from the current focused
-/// window (macOS-style cascade) so it stays near its parent. Successive
-/// opens step further down-right and wrap after `WINDOW_CASCADE_STEPS`.
-/// The new window itself is excluded from the focus search — on some
-/// platforms it may already be focused by the time this runs.
-/// Falls back to the platform default position (i.e. no-op) when there is
-/// no focused window or its outer geometry can't be read — we never want
-/// to fail a window open because the cascade placement didn't work.
-pub fn cascade_from_focused(app: &AppHandle, win: &tauri::WebviewWindow) {
-    let windows = app.webview_windows();
-    let Some(focused) = windows
+fn focused_position(app: &AppHandle) -> Option<PhysicalPosition<i32>> {
+    app.webview_windows()
         .values()
-        .find(|w| w.label() != win.label() && w.is_focused().unwrap_or(false))
-    else {
-        return;
-    };
-    let Ok(origin) = focused.outer_position() else {
-        return;
-    };
-    let step = CASCADE_STEP.fetch_add(1, Ordering::Relaxed);
-    let new_pos = cascaded_position(origin, step);
-    if let Err(e) = win.set_position(new_pos) {
-        log::warn!("cascade_from_focused: set_position failed: {e}");
+        .find(|win| win.is_focused().unwrap_or(false))?
+        .outer_position()
+        .ok()
+}
+
+pub(super) fn place_cascaded(win: &WebviewWindow, origin: Option<PhysicalPosition<i32>>) {
+    if let Some(origin) = origin {
+        let step = CASCADE_STEP.fetch_add(1, Ordering::Relaxed);
+        if let Err(e) = win.set_position(cascaded_position(origin, step)) {
+            log::warn!("window cascade placement failed: {e}");
+        }
     }
+}
+
+pub(super) fn build_cascaded(
+    builder: WebviewWindowBuilder<'_, Wry, AppHandle>,
+    origin: Option<PhysicalPosition<i32>>,
+) -> tauri::Result<WebviewWindow> {
+    let Some(origin) = origin else {
+        return webview_creation::serialized(|| builder.build());
+    };
+    // Set physical coordinates before showing the window, including on scaled displays.
+    let win = webview_creation::serialized(|| builder.visible(false).focused(false).build())?;
+    place_cascaded(&win, Some(origin));
+    win.show()?;
+    let _ = win.set_focus();
+    Ok(win)
 }
 
 fn cascaded_position(origin: PhysicalPosition<i32>, step: u32) -> PhysicalPosition<i32> {
@@ -172,6 +178,10 @@ mod tests {
 
 /// Core logic — usable from both the Tauri command and the native menu handler.
 pub fn create_window(app: &AppHandle, path: String) {
+    create_window_from(app, path, focused_position(app));
+}
+
+fn create_window_from(app: &AppHandle, path: String, origin: Option<PhysicalPosition<i32>>) {
     // Reuse an existing window with the same path if one is already open.
     for win in app.webview_windows().values() {
         if win.url().map(|u| u.path() == path).unwrap_or(false) {
@@ -180,6 +190,10 @@ pub fn create_window(app: &AppHandle, path: String) {
         }
     }
 
+    build_app_window(app, path, origin);
+}
+
+fn build_app_window(app: &AppHandle, path: String, origin: Option<PhysicalPosition<i32>>) {
     let label = format!(
         "window-{}",
         std::time::SystemTime::now()
@@ -198,9 +212,8 @@ pub fn create_window(app: &AppHandle, path: String) {
         .disable_drag_drop_handler();
     #[cfg(target_os = "macos")]
     let win = win.title_bar_style(tauri::TitleBarStyle::Overlay);
-    match webview_creation::serialized(|| win.build()) {
-        Ok(win) => cascade_from_focused(app, &win),
-        Err(e) => log::error!("open_window failed: {e}"),
+    if let Err(e) = build_cascaded(win, origin) {
+        log::error!("open_window failed: {e}");
     }
 }
 
@@ -243,25 +256,7 @@ pub async fn open_about_window(app: AppHandle) {
 /// Always creates a new window at "/" without checking for an existing one.
 /// Used by the macOS dock "New Window" action.
 pub fn new_window(app: &AppHandle) {
-    let label = format!(
-        "window-{}",
-        std::time::SystemTime::now()
-            .duration_since(std::time::UNIX_EPOCH)
-            .unwrap_or_default()
-            .as_millis()
-    );
-    let url = tauri::WebviewUrl::App("/".into());
-    let win = tauri::WebviewWindowBuilder::new(app, &label, url)
-        .incognito(crate::startup_options::private_webview(app))
-        .title("")
-        .inner_size(1200.0, 800.0)
-        .min_inner_size(900.0, 600.0)
-        .disable_drag_drop_handler();
-    #[cfg(target_os = "macos")]
-    let win = win.title_bar_style(tauri::TitleBarStyle::Overlay);
-    if let Err(e) = win.build() {
-        log::error!("new_window failed: {e}");
-    }
+    build_app_window(app, "/".into(), focused_position(app));
 }
 
 /// Open a new app window at the given path (e.g. "/messages").
@@ -269,9 +264,11 @@ pub fn new_window(app: &AppHandle) {
 /// Must stay async: sync commands run on the main thread, where
 /// WebviewWindowBuilder::build() deadlocks on Windows (WebView2).
 #[tauri::command]
-pub async fn open_window(app: AppHandle, path: String) {
-    if let Err(error) =
-        tauri::async_runtime::spawn_blocking(move || create_window(&app, path)).await
+pub async fn open_window(window: WebviewWindow, path: String) {
+    if let Err(error) = tauri::async_runtime::spawn_blocking(move || {
+        create_window_from(window.app_handle(), path, window.outer_position().ok());
+    })
+    .await
     {
         log::error!("open_window worker failed: {error}");
     }

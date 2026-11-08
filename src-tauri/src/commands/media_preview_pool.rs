@@ -1,9 +1,9 @@
 use std::sync::Mutex;
-use tauri::{AppHandle, Manager, WebviewUrl, WebviewWindowBuilder};
+use tauri::{AppHandle, Manager, PhysicalPosition, WebviewUrl, WebviewWindow, WebviewWindowBuilder};
 
 use plain_libs::utils::query::url_encode;
 
-use crate::commands::webview_creation;
+use crate::commands::{webview_creation, window};
 
 const WARM_LABEL: &str = "media-preview-warm";
 const WARM_WARMUP_PATH: &str = "/media-preview?__warm__=1";
@@ -44,8 +44,7 @@ fn build_warm(app: &AppHandle) -> tauri::Result<String> {
         .visible(false);
     #[cfg(target_os = "macos")]
     let win = win.title_bar_style(tauri::TitleBarStyle::Overlay);
-    let win = webview_creation::serialized(|| win.build())?;
-    crate::commands::window::cascade_from_focused(app, &win);
+    webview_creation::serialized(|| win.build())?;
     log::info!("media_preview: built warm window");
     Ok(WARM_LABEL.to_string())
 }
@@ -89,7 +88,11 @@ fn build_query(source: &serde_json::Value) -> String {
     }
 }
 
-pub fn activate(app: &AppHandle, source: serde_json::Value) -> String {
+fn activate(
+    app: &AppHandle,
+    source: serde_json::Value,
+    origin: Option<PhysicalPosition<i32>>,
+) -> String {
     let query = build_query(&source);
     let visible_path = format!("/media-preview{}", query);
     let state = app.state::<MediaPreviewState>();
@@ -98,6 +101,7 @@ pub fn activate(app: &AppHandle, source: serde_json::Value) -> String {
     if let Some(warm) = app.get_webview_window(WARM_LABEL)
         && !warm.is_visible().unwrap_or(false)
     {
+        window::place_cascaded(&warm, origin);
         navigate_and_show(&warm, &visible_path);
         if let Ok(mut g) = state.warm_label.lock() {
             *g = Some(WARM_LABEL.to_string());
@@ -124,9 +128,8 @@ pub fn activate(app: &AppHandle, source: serde_json::Value) -> String {
         .min_inner_size(900.0, 600.0);
     #[cfg(target_os = "macos")]
     let win = win.title_bar_style(tauri::TitleBarStyle::Overlay);
-    match webview_creation::serialized(|| win.build()) {
-        Ok(win) => {
-            crate::commands::window::cascade_from_focused(app, &win);
+    match window::build_cascaded(win, origin) {
+        Ok(_) => {
             if let Ok(mut g) = state.warm_label.lock() {
                 *g = Some(label.clone());
             }
@@ -199,12 +202,14 @@ pub async fn media_preview_init(app: AppHandle) {
 
 #[tauri::command]
 pub async fn media_preview_activate(
-    app: AppHandle,
+    window: WebviewWindow,
     source: serde_json::Value,
 ) -> Result<String, String> {
-    tauri::async_runtime::spawn_blocking(move || activate(&app, source))
-        .await
-        .map_err(|e| e.to_string())
+    tauri::async_runtime::spawn_blocking(move || {
+        activate(window.app_handle(), source, window.outer_position().ok())
+    })
+    .await
+    .map_err(|e| e.to_string())
 }
 
 #[cfg(test)]
