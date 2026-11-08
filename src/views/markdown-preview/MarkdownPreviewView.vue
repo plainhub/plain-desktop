@@ -11,29 +11,9 @@
 
 <script setup lang="ts">
 import { computed } from 'vue'
-import 'katex/dist/katex.min.css'
-import MarkdownIt from 'markdown-it'
-import { markdownInlineFormats } from '@/lib/markdown-inline-formats'
-import footnote from 'markdown-it-footnote'
-import deflist from 'markdown-it-deflist'
-import abbreviation from 'markdown-it-abbr'
-import texmath from 'markdown-it-texmath'
-import katex from 'katex'
-import { markdownTaskLists } from '@/lib/markdown-task-lists'
+import { createMarkdown } from '@/lib/markdown-renderer'
 
-const md = new MarkdownIt({
-  html: true,
-  xhtmlOut: true,
-  breaks: true,
-  linkify: true,
-  typographer: true,
-})
-  .use(markdownInlineFormats)
-  .use(footnote)
-  .use(deflist)
-  .use(abbreviation)
-  .use(texmath, { engine: katex, delimiters: 'dollars', katexOptions: { output: 'html' } })
-  .use(markdownTaskLists)
+const md = createMarkdown(true)
 
 const SAMPLE_MARKDOWN = `# Heading 1
 

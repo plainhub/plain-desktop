@@ -1,0 +1,23 @@
+[
+  {
+    "name": "markdown-it-abbr",
+    "version": "1.0.4",
+    "repository": "https://github.com/markdown-it/markdown-it-abbr",
+    "revision": "cc1dc5ca200339d25ea303098b2c20423e700239",
+    "integrity": "sha512-ZeA4Z4SaBbYysZap5iZcxKmlPL6bYA8grqhzJIHB1ikn7njnzaP8uwbtuXc4YXD5LicI4/2Xmc0VwmSiFV04gg=="
+  },
+  {
+    "name": "markdown-it-deflist",
+    "version": "2.1.0",
+    "repository": "https://github.com/markdown-it/markdown-it-deflist",
+    "revision": "ebcff63893fff471982581ae47462325e3f14900",
+    "integrity": "sha512-3OuqoRUlSxJiuQYu0cWTLHNhhq2xtoSFqsZK8plANg91+RJQU1ziQ6lA2LzmFAEes18uPBsHZpcX6We5l76Nzg=="
+  },
+  {
+    "name": "markdown-it-footnote",
+    "version": "3.0.3",
+    "repository": "https://github.com/markdown-it/markdown-it-footnote",
+    "revision": "337dcc79dfe8b2cb98c32000d8b24691de66105b",
+    "integrity": "sha512-YZMSuCGVZAjzKMn+xqIco9d1cLGxbELHZ9do/TSYVzraooV8ypsppKNmUJ0fVH5ljkCInQAtFpm8Rb3eXSrt5w=="
+  }
+]

@@ -1,12 +1,4 @@
-import 'katex/dist/katex.min.css'
-import MarkdownIt from 'markdown-it'
-import { markdownInlineFormats } from '@/lib/markdown-inline-formats'
-import footnote from 'markdown-it-footnote'
-import deflist from 'markdown-it-deflist'
-import abbreviation from 'markdown-it-abbr'
-import texmath from 'markdown-it-texmath'
-import katex from 'katex'
-import { markdownTaskLists } from '@/lib/markdown-task-lists'
+import { createMarkdown } from '@/lib/markdown-renderer'
 import type { Ref } from 'vue'
 import { parseDocument } from 'htmlparser2'
 import { getFileUrlByPath } from '@/lib/api/file'
@@ -67,13 +59,8 @@ async function replaceNodes(nodes: Array<any>, replace: (link: string) => string
   }
 }
 
-export const useMarkdown = (app: Ref<{ appDir: string }>, urlTokenKey: Ref<Uint8Array | null>) => {
-  const md = new MarkdownIt()
-    .use(markdownInlineFormats).use(footnote).use(deflist)
-    .use(abbreviation)
-    .use(texmath, { engine: katex as any, delimiters: 'dollars', katexOptions: { throwOnError: false, output: 'html', errorColor: '#cc0000' } })
-    .use(markdownTaskLists)
-  md.set({ html: true, xhtmlOut: true, breaks: true, linkify: true, typographer: true, highlight: highlightCode })
+function useMarkdownRenderer(app: Ref<{ appDir: string }>, urlTokenKey: Ref<Uint8Array | null>, html: boolean) {
+  const md = createMarkdown(html, { throwOnError: false, errorColor: '#cc0000' }, highlightCode)
 
   const replace = (link: string) => {
     if (link.startsWith('app://')) {
@@ -96,38 +83,10 @@ export const useMarkdown = (app: Ref<{ appDir: string }>, urlTokenKey: Ref<Uint8
   }
 }
 
-/**
- * Safe variant for untrusted external content (e.g. RSS feed entries).
- * Raw HTML pass-through is disabled (html: false) to prevent XSS.
- * All other markdown features are enabled.
- */
-export const useSafeMarkdown = (app: Ref<{ appDir: string }>, urlTokenKey: Ref<Uint8Array | null>) => {
-  const md = new MarkdownIt()
-    .use(markdownInlineFormats).use(footnote).use(deflist)
-    .use(abbreviation)
-    .use(texmath, { engine: katex as any, delimiters: 'dollars', katexOptions: { throwOnError: false, output: 'html', errorColor: '#cc0000' } })
-    .use(markdownTaskLists)
-  // html: false — strips raw HTML from external feed content, blocking XSS
-  md.set({ html: false, xhtmlOut: true, breaks: true, linkify: true, typographer: true, highlight: highlightCode })
-
-  const replace = (link: string) => {
-    if (link.startsWith('app://')) {
-      return getFileUrlByPath(urlTokenKey.value, app.value.appDir + '/' + link.replace('app://', ''))
-    }
-    if (link.startsWith('fid:')) {
-      return getFileUrlByPath(urlTokenKey.value, link)
-    }
-    return link
-  }
-
-  return {
-    render: async (source: string) => {
-      await preloadCodeLanguages(source)
-      const dom = parseDocument(md.render(source), { recognizeCDATA: true, recognizeSelfClosing: true })
-      assignHeadingIds(dom.children)
-      await replaceNodes(dom.children, replace)
-      return renderNodes(dom.children)
-    },
-  }
+export function useMarkdown(app: Ref<{ appDir: string }>, urlTokenKey: Ref<Uint8Array | null>) {
+  return useMarkdownRenderer(app, urlTokenKey, true)
 }
 
+export function useSafeMarkdown(app: Ref<{ appDir: string }>, urlTokenKey: Ref<Uint8Array | null>) {
+  return useMarkdownRenderer(app, urlTokenKey, false)
+}

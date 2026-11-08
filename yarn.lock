@@ -3093,27 +3093,6 @@ __metadata:
   languageName: node
   linkType: hard
 
-"markdown-it-abbr@npm:^1.0.4":
-  version: 1.0.4
-  resolution: "markdown-it-abbr@npm:1.0.4"
-  checksum: 10/ee7d5ec4a99f17433f0071c9a8e16e8b79e3dd8ce89618a6d6e3aa1d04120965906d17e4cba1de5b29b3d1938b04d33693b936df0dd6fc1f093177b9625b95de
-  languageName: node
-  linkType: hard
-
-"markdown-it-deflist@npm:^2.1.0":
-  version: 2.1.0
-  resolution: "markdown-it-deflist@npm:2.1.0"
-  checksum: 10/e563e67e8e8dca73cb08545421517e835ce1393a071f20cec40783b9d4209d6cb71e0a4595662955545959cb920f3953ee0f69217f5b0cce1a48dca79ff886a5
-  languageName: node
-  linkType: hard
-
-"markdown-it-footnote@npm:^3.0.3":
-  version: 3.0.3
-  resolution: "markdown-it-footnote@npm:3.0.3"
-  checksum: 10/0e319295da1f7ad3d970e931f46c53f94beba313516df5d5da8cf9d6039a1c6fab1e4993e8f32b516d55b58d2e2c6d071090a97f46e734aaffbe8443ce54f7a5
-  languageName: node
-  linkType: hard
-
 "markdown-it-texmath@npm:^1.0.0":
   version: 1.0.0
   resolution: "markdown-it-texmath@npm:1.0.0"
@@ -3499,9 +3478,6 @@ __metadata:
     htmlparser2: "npm:^8.0.1"
     katex: "npm:0.18.2"
     markdown-it: "npm:14.3.3"
-    markdown-it-abbr: "npm:^1.0.4"
-    markdown-it-deflist: "npm:^2.1.0"
-    markdown-it-footnote: "npm:^3.0.3"
     markdown-it-texmath: "npm:^1.0.0"
     pinia: "npm:^3.0.2"
     pixi.js: "npm:^8"
