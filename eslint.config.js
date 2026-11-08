@@ -1,6 +1,5 @@
 import js from '@eslint/js'
 import pluginVue from 'eslint-plugin-vue'
-import tseslint from '@typescript-eslint/eslint-plugin'
 import tsparser from '@typescript-eslint/parser'
 import vueParser from 'vue-eslint-parser'
 
@@ -103,9 +102,6 @@ export default [
         extraFileExtensions: ['.vue'],
       },
     },
-    plugins: {
-      '@typescript-eslint': tseslint,
-    },
     rules: {
       'vue/no-deprecated-slot-attribute': 'off',
       'no-control-regex': 'off',
@@ -113,7 +109,6 @@ export default [
       'no-irregular-whitespace': 'off', // Too many false positives in this codebase
       'no-useless-escape': 'off', // Too many false positives in Monaco Editor and other libs
       'no-unused-vars': 'off', // Let TypeScript handle this
-      '@typescript-eslint/no-unused-vars': 'off', // Too noisy for this codebase
       'no-undef': 'off', // TypeScript handles this better
       'getter-return': 'off', // TypeScript handles this
       'no-case-declarations': 'off',
