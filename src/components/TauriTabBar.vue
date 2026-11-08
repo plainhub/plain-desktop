@@ -31,7 +31,7 @@
             </button>
           </template>
           <div class="dropdown-item" @click="switchToLocal">
-            <span>{{ selfDevice?.name }}</span>
+            <span>{{ localDeviceName }}</span>
             <span class="status-badge on">{{ $t('device_discovery.local') }}</span>
           </div>
           <div
@@ -61,7 +61,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, onUnmounted, ref } from 'vue'
+import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { useMainStore } from '@/stores/main'
 import type { AppTab } from '@/stores/main'
@@ -73,7 +73,8 @@ import { storeToRefs } from 'pinia'
 import { pushModal } from '@/components/modal'
 import NearbyView from '@/views/chat/NearbyView.vue'
 import i18n from '@/plugins/i18n'
-import { loadSelfDevice, type SelfDevice } from '@/lib/device/self-device'
+import { nativeGqlFetch } from '@/lib/api/gql-client'
+import { isLocalMode } from '@/lib/device/local-mode'
 import { contextmenu } from '@/components/contextmenu'
 
 const router = useRouter()
@@ -81,7 +82,9 @@ const route = useRoute()
 const mainStore = useMainStore()
 const { app } = storeToRefs(useTempStore())
 const homeDeviceMenuOpen = ref(false)
-const selfDevice = ref<SelfDevice | null>(null)
+const localMode = isLocalMode()
+const nativeDeviceName = ref('')
+const localDeviceName = computed(() => localMode ? app.value?.deviceName : nativeDeviceName.value)
 
 const currentSession = computed(() => findLoginPeer(getRemoteClientId()))
 
@@ -98,7 +101,6 @@ const switchableSessions = computed(() => sortByName(loginPeers.value, (p) => p.
 
 onMounted(() => {
   window.addEventListener('tauri-open-tab', handleOpenTab)
-  void loadSelf()
   // Sync current route on first mount (e.g. page reload)
   const group = (route.meta?.group as string) || ''
   if (group && group !== 'home') {
@@ -163,9 +165,18 @@ function switchToLocal() {
   window.location.href = '/'
 }
 
-async function loadSelf() {
-  selfDevice.value = await loadSelfDevice()
-}
+watch(homeDeviceMenuOpen, async (open, _, onCleanup) => {
+  if (!open || localMode) return
+  let active = true
+  onCleanup(() => { active = false })
+  try {
+    const result = await nativeGqlFetch<{ app: { deviceName: string } }>('query { app { deviceName } }')
+    if (result.errors?.length) throw new Error(result.errors[0].message)
+    if (active) nativeDeviceName.value = result.data.app.deviceName
+  } catch (error) {
+    console.error('Failed to load local device name', error)
+  }
+})
 
 function openNearbyDevices() {
   homeDeviceMenuOpen.value = false
