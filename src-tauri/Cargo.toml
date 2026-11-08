@@ -25,7 +25,6 @@ tauri = { version = "2", features = ["devtools"] }
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 log = "0.4"
-futures-util = { version = "0.3", default-features = false, features = ["sink", "std"] }
 tokio = { version = "1", features = ["sync", "macros", "net"] }
 tauri-plugin-opener = "2.5.4"
 tauri-plugin-notification = "2.3.3"
@@ -41,12 +40,10 @@ image = { version = "0.25", default-features = false, features = ["png"] }
 
 [target.'cfg(target_os = "macos")'.dependencies]
 objc2 = "0.6"
-objc2-app-kit = { version = "0.3", features = ["NSApplication", "NSMenu", "NSMenuItem", "NSPasteboard", "NSScreen", "NSWindow"] }
+objc2-app-kit = { version = "0.3", default-features = false, features = ["std", "NSApplication", "NSImage", "NSMenu", "NSMenuItem", "NSPasteboard", "NSPasteboardItem", "NSScreen", "NSWindow"] }
 objc2-foundation = { version = "0.3", features = ["NSArray", "NSError", "NSString", "NSURL"] }
-objc2-core-graphics = { version = "0.3", features = ["CGColorSpace", "CGContext"] }
-# ScreenCaptureKit bindings for the plain-capture stack (single-frame
-# SCScreenshotManager path). Same objc2 generation as the other bindings.
-objc2-screen-capture-kit = { version = "0.3.2", features = ["SCShareableContent", "SCStream", "SCScreenshotManager", "block2", "objc2-core-graphics"] }
+objc2-core-graphics = { version = "0.3", default-features = false, features = ["std", "CGDataProvider", "CGDirectDisplay", "CGDisplayConfiguration", "CGError", "CGEvent", "CGEventSource", "CGEventTypes", "CGImage", "CGWindow", "libc", "objc2"] }
+objc2-screen-capture-kit = { version = "0.3.2", default-features = false, features = ["std", "SCShareableContent", "SCStream", "SCScreenshotManager", "block2", "objc2-core-graphics"] }
 block2 = "0.6"
 
 # Official single-instance guard: a second launch focuses the running app
@@ -82,6 +79,7 @@ windows = { version = "0.61", features = [
 # through the desktop portal and kept behind the capture platform adapter.
 # plain-capture X11 backend uses the pure-Rust protocol implementation.
 [target.'cfg(target_os = "linux")'.dependencies]
+futures-util = { version = "0.3", default-features = false, features = ["std"] }
 rustix = { version = "=1.1.5", features = ["event", "fs"] }
 wayland-client = "=0.31.15"
 wayland-protocols = { version = "=0.32.13", features = ["client", "staging"] }
