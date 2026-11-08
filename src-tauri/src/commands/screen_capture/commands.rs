@@ -1,4 +1,3 @@
-use rand::{RngCore, rngs::OsRng};
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
 use tauri::{AppHandle, Manager, Runtime, State, WebviewWindow, ipc::{Request, Response}};
@@ -986,15 +985,8 @@ fn new_capture_delivery_lease_id() -> String {
 
 fn new_random_id(prefix: &str) -> String {
     let mut bytes = [0_u8; 16];
-    OsRng.fill_bytes(&mut bytes);
-    let mut encoded = String::with_capacity(prefix.len() + 1 + bytes.len() * 2);
-    encoded.push_str(prefix);
-    encoded.push('-');
-    for byte in bytes {
-        use std::fmt::Write;
-        write!(&mut encoded, "{byte:02x}").expect("writing to String is infallible");
-    }
-    encoded
+    plain_libs::crypto::gen_random(&mut bytes);
+    format!("{prefix}-{}", plain_libs::utils::hex::bytes_to_hex(&bytes))
 }
 
 fn required_header<'a>(request: &'a Request<'_>, name: &str) -> Result<&'a str, CaptureError> {

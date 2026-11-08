@@ -21,7 +21,6 @@ dependencies = [
  "plain-libs",
  "plain-rs",
  "plain-server",
- "rand 0.8.8",
  "serde",
  "serde_json",
  "tauri",
