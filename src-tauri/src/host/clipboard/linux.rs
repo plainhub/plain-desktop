@@ -1,7 +1,7 @@
-use std::{io::Read, sync::Mutex};
+use std::sync::Mutex;
 
-use wl_clipboard_rs::{copy, paste, utils::is_primary_selection_supported};
-
+#[path = "linux/wayland.rs"]
+mod wayland;
 #[path = "linux/x11.rs"]
 mod x11;
 
@@ -9,7 +9,7 @@ type ClipboardResult<T> = Result<T, Box<dyn std::error::Error + Send + Sync>>;
 const MAX_TEXT_BYTES: usize = 4 * super::MAX_TEXT_UNITS;
 
 enum Backend {
-    Wayland,
+    Wayland(wayland::Clipboard),
     X11(x11::Clipboard),
 }
 
@@ -22,16 +22,16 @@ pub(crate) struct LinuxClipboard(Result<Mutex<Option<Backend>>, String>);
 
 impl LinuxClipboard {
     pub(crate) fn new() -> Self {
-        let wayland = std::env::var_os("WAYLAND_DISPLAY").is_some()
-            && match is_primary_selection_supported() {
-                Ok(_) => true,
+        let wayland =
+            std::env::var_os("WAYLAND_DISPLAY").and_then(|_| match wayland::Clipboard::new() {
+                Ok(clipboard) => Some(clipboard),
                 Err(error) => {
                     log::debug!("Wayland clipboard data control unavailable: {error}");
-                    false
+                    None
                 }
-            };
-        let backend = if wayland {
-            Ok(Backend::Wayland)
+            });
+        let backend = if let Some(clipboard) = wayland {
+            Ok(Backend::Wayland(clipboard))
         } else {
             x11::Clipboard::new().map(Backend::X11)
         };
@@ -49,39 +49,24 @@ impl LinuxClipboard {
         }
     }
 
-    fn with<T>(&self, operation: impl FnOnce(&Backend) -> ClipboardResult<T>) -> Result<T, String> {
-        let backend = self
+    fn with<T>(
+        &self,
+        operation: impl FnOnce(&mut Backend) -> ClipboardResult<T>,
+    ) -> Result<T, String> {
+        let mut backend = self
             .0
             .as_ref()
             .map_err(Clone::clone)?
             .lock()
             .map_err(|_| "Desktop clipboard state unavailable")?;
-        operation(backend.as_ref().ok_or("Desktop clipboard has shut down")?)
+        operation(backend.as_mut().ok_or("Desktop clipboard has shut down")?)
             .map_err(|error| error.to_string())
     }
 
     pub(super) fn read_text(&self) -> Result<Option<String>, String> {
         self.with(|backend| match backend {
             Backend::X11(clipboard) => clipboard.read_text(),
-            Backend::Wayland => {
-                match paste::get_contents(
-                    paste::ClipboardType::Regular,
-                    paste::Seat::Unspecified,
-                    paste::MimeType::Text,
-                ) {
-                    Ok((pipe, _)) => {
-                        let mut text = Vec::new();
-                        pipe.take((MAX_TEXT_BYTES + 1) as u64)
-                            .read_to_end(&mut text)?;
-                        if text.len() > MAX_TEXT_BYTES {
-                            return Ok(None);
-                        }
-                        Ok(Some(String::from_utf8(text)?))
-                    }
-                    Err(paste::Error::ClipboardEmpty | paste::Error::NoMimeType) => Ok(None),
-                    Err(error) => Err(error.into()),
-                }
-            }
+            Backend::Wayland(clipboard) => clipboard.read_text(),
         })
     }
 
@@ -96,14 +81,7 @@ impl LinuxClipboard {
     fn write(&self, content: Content) -> Result<(), String> {
         self.with(|backend| match backend {
             Backend::X11(clipboard) => clipboard.write(content),
-            Backend::Wayland => {
-                let (bytes, mime) = match content {
-                    Content::Text(text) => (text.into_bytes(), copy::MimeType::Text),
-                    Content::Png(png) => (png, copy::MimeType::Specific("image/png".into())),
-                };
-                copy::Options::new().copy(copy::Source::Bytes(bytes.into_boxed_slice()), mime)?;
-                Ok(())
-            }
+            Backend::Wayland(clipboard) => clipboard.write(content),
         })
     }
 }

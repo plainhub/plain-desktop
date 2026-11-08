@@ -82,7 +82,10 @@ windows = { version = "0.61", features = [
 # through the desktop portal and kept behind the capture platform adapter.
 # plain-capture X11 backend uses the pure-Rust protocol implementation.
 [target.'cfg(target_os = "linux")'.dependencies]
-wl-clipboard-rs = "=0.9.3"
+rustix = { version = "=1.1.5", features = ["event", "fs"] }
+wayland-client = "=0.31.15"
+wayland-protocols = { version = "=0.32.13", features = ["client", "staging"] }
+wayland-protocols-wlr = { version = "=0.3.12", features = ["client"] }
 x11rb = { version = "0.13", features = ["randr"] }
 ashpd = { version = "=0.13.13", default-features = false, features = ["global_shortcuts", "screencast", "tokio"] }
 gtk = "0.18.2"
