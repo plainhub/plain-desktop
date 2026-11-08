@@ -49,8 +49,8 @@ export function deviceBaseUrl(host: string): string {
 
 const proxyTargets = new Map<string, string>()
 
-function proxyPath(path: string, base: string, peerId = '', socket = false): string {
-  const descriptor = JSON.stringify({ base, peerId })
+function proxyPath(path: string, base: string, socket = false): string {
+  const descriptor = JSON.stringify({ base })
   let target = proxyTargets.get(descriptor)
   if (!target) {
     const key = Uint8Array.from(atob(getNativeFileUrlToken()), byte => byte.charCodeAt(0))
@@ -85,8 +85,9 @@ export function proxyWsUrlFor(url: string, clientId = ''): string {
   if (!__IS_TAURI__) return url
   const u = new URL(url)
   if (u.hostname === 'localhost' || u.hostname === '127.0.0.1' || u.hostname === '[::1]') return url
-  const base = u.origin.replace(/^ws(s?):/, 'http$1:')
-  return proxyPath(u.pathname + u.search, base, clientId, true)
+  const path = u.pathname + u.search
+  if (clientId) return localProxyUrl(clientId, path, true)
+  return proxyPath(path, u.origin.replace(/^ws(s?):/, 'http$1:'), true)
 }
 
 export function getProxyUrl(path: string): string {
