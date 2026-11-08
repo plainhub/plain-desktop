@@ -112,14 +112,7 @@ fn write_file_clipboard(path: &Path, _window: &tauri::WebviewWindow) -> Result<(
 }
 
 #[cfg(target_os = "windows")]
-#[path = "file_clipboard_windows.rs"]
-mod file_clipboard_windows;
-
-#[cfg(target_os = "windows")]
-fn write_file_clipboard(path: &Path, window: &tauri::WebviewWindow) -> Result<(), String> {
-    let owner = window.hwnd().map_err(|error| error.to_string())?;
-    file_clipboard_windows::write(path, owner.0.cast())
-}
+use crate::host::clipboard::write_file as write_file_clipboard;
 
 #[cfg(test)]
 #[path = "../../tests/unit/commands/reveal.rs"]

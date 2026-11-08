@@ -682,24 +682,27 @@ pub async fn screen_capture_save_result(
 }
 
 #[tauri::command]
-pub fn screen_capture_copy_result(
+pub async fn screen_capture_copy_result(
     window: WebviewWindow,
-    runtime: State<'_, ScreenCaptureRuntime>,
     session_id: String,
     result_id: String,
     overlay_generation: u64,
 ) -> Result<(), CaptureError> {
-    let app = window.app_handle().clone();
-    let windows = TauriCaptureWindowPort::new(app.clone());
-    let exports = TauriCaptureExportPort::new(app);
-    runtime.copy_result(
-        window.label(),
-        &session_id,
-        &result_id,
-        overlay_generation,
-        &exports,
-        &windows,
-    )
+    tokio::task::spawn_blocking(move || {
+        let app = window.app_handle();
+        let windows = TauriCaptureWindowPort::new(app.clone());
+        let exports = TauriCaptureExportPort::new(app.clone());
+        app.state::<ScreenCaptureRuntime>().copy_result(
+            window.label(),
+            &session_id,
+            &result_id,
+            overlay_generation,
+            &exports,
+            &windows,
+        )
+    })
+    .await
+    .map_err(|error| CaptureError::new(CaptureErrorCode::ClipboardFailed, error.to_string()))?
 }
 
 #[tauri::command]

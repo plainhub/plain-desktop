@@ -3,7 +3,6 @@ use std::sync::Arc;
 use plain_server::server::ContentServer;
 use serde_json::Value;
 use tauri::{Emitter, Manager};
-use tauri_plugin_clipboard_manager::ClipboardExt;
 
 pub struct Runtime {
     core: Arc<ContentServer>,
@@ -62,10 +61,10 @@ impl Runtime {
             "systemSetClipboard" => {
                 let request: ClipboardText =
                     serde_json::from_value(params).map_err(|error| error.to_string())?;
-                self.app
-                    .clipboard()
-                    .write_text(request.text)
-                    .map_err(|error| error.to_string())?;
+                let app = self.app.clone();
+                tokio::task::spawn_blocking(move || super::clipboard::write_text(&app, &request.text))
+                    .await
+                    .map_err(|error| error.to_string())??;
                 Ok(Value::Bool(true))
             }
             "systemRequestAccess" => Ok(serde_json::json!(false)),
@@ -152,21 +151,13 @@ impl Runtime {
                         return Ok(None);
                     }
                     tokio::task::spawn_blocking(move || {
-                        let sensitive = super::clipboard::sensitive();
-                        let text = match app.clipboard().read_text() {
-                            Ok(text) => text,
+                        match super::clipboard::read(&app) {
+                            Ok(sample) => Ok(sample),
                             Err(error) => {
                                 log::debug!("clipboard text unavailable: {error}");
-                                return Ok(None);
+                                Ok(None)
                             }
-                        };
-                        if text.trim().is_empty() || text.encode_utf16().count() > 256 * 1024 {
-                            return Ok(None);
                         }
-                        Ok(Some(super::clipboard::Sample {
-                            text,
-                            sensitive: sensitive || super::clipboard::sensitive(),
-                        }))
                     })
                     .await
                     .map_err(|error| error.to_string())?

@@ -1,8 +1,7 @@
 use std::path::{Path, PathBuf};
 
 use serde::Serialize;
-use tauri::{AppHandle, Runtime, image::Image};
-use tauri_plugin_clipboard_manager::ClipboardExt;
+use tauri::{AppHandle, Runtime};
 use tauri_plugin_dialog::DialogExt;
 
 use crate::commands::screen_capture::contract::CaptureError;
@@ -108,9 +107,8 @@ impl<R: Runtime> CaptureExportPort for TauriCaptureExportPort<R> {
                 "decoded clipboard image dimensions do not match the capture result",
             ));
         }
-        let rgba = decoded.into_rgba8();
-        let image = Image::new_owned(rgba.into_raw(), width, height);
-        self.app.clipboard().write_image(&image).map_err(|_| {
+        crate::host::clipboard::write_image(&self.app, png, decoded).map_err(|error| {
+            log::debug!("capture clipboard write failed: {error}");
             CaptureError::new(
                 CaptureErrorCode::ClipboardFailed,
                 "could not write the capture to the system clipboard",

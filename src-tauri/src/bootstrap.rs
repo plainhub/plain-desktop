@@ -40,7 +40,6 @@ pub fn run() {
         .plugin(tauri_plugin_notification::init())
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_fs::init())
-        .plugin(tauri_plugin_clipboard_manager::init())
         .manage(crate::commands::media_preview_pool::MediaPreviewState::default())
         .manage(crate::commands::screen_capture::runtime::ScreenCaptureRuntime::default())
         .manage(crate::commands::native::views::NativeViews::default())
@@ -48,6 +47,9 @@ pub fn run() {
         .manage(crate::commands::native::uploads::UploadWriters::default())
         .manage(startup)
         .setup(|app| {
+            #[cfg(target_os = "linux")]
+            app.manage(crate::host::clipboard::LinuxClipboard::new());
+
             plain_rs::infrastructure::platform::version::set_version(&app.package_info().version.to_string());
             let startup = app.state::<crate::startup_options::Options>().inner().clone();
             let log_file = if startup.directories.is_none() {

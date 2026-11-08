@@ -1,5 +1,21 @@
 use std::future::Future;
+use tauri::AppHandle;
+#[cfg(any(target_os = "linux", target_os = "windows"))]
+use tauri::Manager;
 use tokio::sync::watch;
+
+#[cfg(any(target_os = "windows", test))]
+mod dib;
+#[cfg(target_os = "linux")]
+mod linux;
+#[cfg(target_os = "linux")]
+pub(crate) use linux::LinuxClipboard;
+#[cfg(target_os = "macos")]
+mod macos;
+#[cfg(target_os = "windows")]
+mod windows;
+
+const MAX_TEXT_UNITS: usize = 256 * 1024;
 
 #[derive(Clone, PartialEq, Eq, serde::Serialize)]
 pub(super) struct Sample {
@@ -7,21 +23,73 @@ pub(super) struct Sample {
     pub sensitive: bool,
 }
 
-pub(super) fn sensitive() -> bool {
+pub(super) fn read<R: tauri::Runtime>(_app: &AppHandle<R>) -> Result<Option<Sample>, String> {
     #[cfg(target_os = "macos")]
+    let sample = macos::read();
+    #[cfg(target_os = "linux")]
+    let text = _app.state::<LinuxClipboard>().read_text()?;
+    #[cfg(target_os = "windows")]
+    let text = windows::read_text().map_err(|error| error.to_string())?;
+    #[cfg(any(target_os = "linux", target_os = "windows"))]
+    let sample = text.map(|text| Sample {
+        text,
+        sensitive: false,
+    });
+
+    Ok(sample.filter(|sample| {
+        !sample.text.trim().is_empty() && sample.text.encode_utf16().count() <= MAX_TEXT_UNITS
+    }))
+}
+
+pub(super) fn write_text<R: tauri::Runtime>(_app: &AppHandle<R>, text: &str) -> Result<(), String> {
+    #[cfg(target_os = "macos")]
+    return macos::write_text(text);
+    #[cfg(target_os = "linux")]
+    return _app.state::<LinuxClipboard>().write_text(text);
+    #[cfg(target_os = "windows")]
+    return windows::write_text(window_owner(_app)?, text).map_err(|error| error.to_string());
+}
+
+pub(crate) fn write_image<R: tauri::Runtime>(
+    _app: &AppHandle<R>,
+    _png: &[u8],
+    _decoded: image::DynamicImage,
+) -> Result<(), String> {
+    #[cfg(target_os = "macos")]
+    return macos::write_png(_png);
+    #[cfg(target_os = "linux")]
+    return _app
+        .state::<LinuxClipboard>()
+        .write_image(_decoded.into_rgba8());
+    #[cfg(target_os = "windows")]
     {
-        objc2_app_kit::NSPasteboard::generalPasteboard()
-            .types()
-            .is_some_and(|types| {
-                types
-                    .iter()
-                    .any(|name| name.to_string() == "org.nspasteboard.ConcealedType")
-            })
+        let rgba = _decoded.into_rgba8();
+        windows::write_image(
+            window_owner(_app)?,
+            _png,
+            rgba.width(),
+            rgba.height(),
+            rgba.as_raw(),
+        )
     }
-    #[cfg(not(target_os = "macos"))]
-    {
-        false
-    }
+}
+
+#[cfg(target_os = "windows")]
+fn window_owner<R: tauri::Runtime>(app: &AppHandle<R>) -> Result<*mut std::ffi::c_void, String> {
+    app.webview_windows()
+        .into_values()
+        .find_map(|window| window.hwnd().ok())
+        .map(|owner| owner.0.cast())
+        .ok_or_else(|| "Desktop clipboard owner window is unavailable".to_string())
+}
+
+#[cfg(target_os = "windows")]
+pub(crate) fn write_file(
+    path: &std::path::Path,
+    window: &tauri::WebviewWindow,
+) -> Result<(), String> {
+    let owner = window.hwnd().map_err(|error| error.to_string())?;
+    windows::write_file(owner.0.cast(), path).map_err(|error| error.to_string())
 }
 
 pub(super) async fn observe<Read, Reading, Publish, Publishing>(

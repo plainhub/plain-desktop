@@ -6,6 +6,7 @@ version = 4
 name = "PlainApp"
 version = "0.1.12"
 dependencies = [
+ "arboard",
  "ashpd",
  "block2 0.6.2 (registry+https://github.com/rust-lang/crates.io-index)",
  "futures-util",
@@ -25,7 +26,6 @@ dependencies = [
  "serde_json",
  "tauri",
  "tauri-build",
- "tauri-plugin-clipboard-manager",
  "tauri-plugin-dialog",
  "tauri-plugin-fs",
  "tauri-plugin-global-shortcut",
@@ -6868,21 +6868,6 @@ dependencies = [
  "serde_json",
  "tauri-utils",
  "walkdir",
-]
-
-[[package]]
-name = "tauri-plugin-clipboard-manager"
-version = "2.3.3"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "4136fb69d967753d000423d7e5f863f89bf949efbdfbecb43a580426a01a0194"
-dependencies = [
- "arboard",
- "log",
- "serde",
- "serde_json",
- "tauri",
- "tauri-plugin",
- "thiserror 2.0.21",
 ]
 
 [[package]]

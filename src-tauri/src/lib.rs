@@ -26,7 +26,15 @@ fn handle_run_event(app: &tauri::AppHandle, event: tauri::RunEvent) {
     }
 }
 
-#[cfg(not(target_os = "macos"))]
+#[cfg(target_os = "linux")]
+fn handle_run_event(app: &tauri::AppHandle, event: tauri::RunEvent) {
+    use tauri::Manager;
+    if let tauri::RunEvent::Exit = event {
+        app.state::<host::clipboard::LinuxClipboard>().shutdown();
+    }
+}
+
+#[cfg(not(any(target_os = "macos", target_os = "linux")))]
 fn handle_run_event(_app: &tauri::AppHandle, _event: tauri::RunEvent) {}
 
 /// Whether any window is (or may be) visible — an `Err` from `is_visible`
