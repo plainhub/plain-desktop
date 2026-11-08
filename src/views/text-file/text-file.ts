@@ -12,6 +12,7 @@ import { gqlFetch } from '@/lib/api/gql-client'
 import { appGQL } from '@/lib/api/query'
 import { download, getFileUrl, tokenToKey } from '@/lib/api/file'
 import { filePathFromResourceId } from '@/lib/api/resource-link'
+import { managedFileUrl } from '@/lib/api/managed-proxy'
 import { isLocalMode } from '@/lib/device/local-mode'
 import { getCurrentAuthToken } from '@/lib/device/current'
 
@@ -70,6 +71,10 @@ export function useTextFile() {
   const language = computed(() => LANG_MAP[extension.value] || 'plaintext')
 
   const fileId = computed(() => String(route.query.id ?? '').trim())
+  const managedMedia = computed(() => {
+    const { peer, media } = route.query
+    return !isTauri && typeof peer === 'string' && peer && typeof media === 'string' && media ? { peer, media } : undefined
+  })
   const decryptedPath = ref('')
   const isEditing = computed(() => route.name === 'text-edit')
   const dirty = computed(() => draft.value !== content.value)
@@ -133,10 +138,14 @@ export function useTextFile() {
     try {
       loading.value = true
       error.value = ''
-      const id = route.query.id as string
-      if (!id) { error.value = t('invalid_file_id'); return }
-
-      const url = getFileUrl(id)
+      const managed = managedMedia.value
+      if (!fileId.value && !managed) { error.value = t('invalid_file_id'); return }
+      if (managed) await ensureUrlTokenKey()
+      const key = urlTokenKey.value
+      if (managed && !key) { error.value = t('access_denied'); return }
+      const url = managed && key
+        ? managedFileUrl(managed.peer, key, { type: 'MEDIA', id: managed.media })
+        : getFileUrl(fileId.value)
 
       // Route through the local HTTP reverse proxy (getProxyUrl) so Tauri
       // can accept the device's self-signed HTTPS cert — a direct fetch to
@@ -174,6 +183,11 @@ export function useTextFile() {
   }
 
   const downloadFile = () => {
+    const managed = managedMedia.value
+    if (managed && urlTokenKey.value) {
+      download(managedFileUrl(managed.peer, urlTokenKey.value, { type: 'MEDIA', id: managed.media }, FileAction.Download), fileName.value)
+      return
+    }
     if (isDocumentFile.value) {
       download(getFileUrl(fileId.value, '', FileAction.Download), fileName.value)
       return
@@ -213,12 +227,12 @@ export function useTextFile() {
   }
 
   // Lifecycle
-  watch(() => fileId.value, async (id) => {
+  watch([fileId, managedMedia], async ([id, managed]) => {
     decryptedPath.value = ''
     fileName.value = ''
     mimeType.value = ''
-    if (!id) return
-    if (!route.query.sid) {
+    if (!id && !managed) return
+    if (!managed && !route.query.sid) {
       await ensureUrlTokenKey()
       decryptedPath.value = tryDecryptPathFromID(id)
       fileName.value = fileNameFromDecryptedPath(decryptedPath.value)

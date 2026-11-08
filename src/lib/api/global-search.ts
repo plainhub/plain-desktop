@@ -3,6 +3,7 @@ import { FileAction, fileQuery } from './file-action'
 import { getFileId, tokenToKey } from './file'
 import { gqlFetch, nativeGqlFetch, type GqlResult } from './gql-client'
 import { gqlFetchPeer, getPeerBaseUrl } from './peer-client'
+import { managedFileUrl, managedGraphql } from './managed-proxy'
 import { appGQL, docsGQL, feedEntriesGQL, imagesGQL, notesGQL, videosGQL } from './query'
 import type { GqlResultType, GqlVariablesType } from './graphql/operations'
 import { buildTextFilter } from '@/lib/search'
@@ -27,12 +28,13 @@ export type SearchDevice = { id: string; name: string } & (
   | { target: 'current' }
   | { target: 'local' }
   | { target: 'peer'; peer: LoginPeer }
+  | { target: 'managed'; online: boolean }
 )
 
 const access: Record<FileSearchHit['domain'], AccessFeature> = { images: 'IMAGES', videos: 'VIDEOS', docs: 'DOCS' }
 export const searchPageSize = 24
 
-export async function loadSearchClient(device: SearchDevice, foreground = false) {
+export async function loadSearchClient(device: SearchDevice, foreground = false, sessionUrlToken = '') {
   const local = device.target === 'local' || (device.target === 'current' && isLocalMode())
   const scope = local ? { mode: 'g' as const } : { mode: 'c' as const, id: getApiHeaders()['c-id'] }
   const base = device.target === 'peer' ? getPeerBaseUrl(device.peer)
@@ -40,19 +42,27 @@ export async function loadSearchClient(device: SearchDevice, foreground = false)
   async function execute<T>(document: string, variables?: Record<string, unknown>): Promise<T> {
     let result: GqlResult<T>
     if (device.target === 'peer') result = await gqlFetchPeer<T>(device.peer, document, variables)
+    else if (device.target === 'managed') result = await managedGraphql<T>(device.id, document, variables)
     else if (device.target === 'local') result = await nativeGqlFetch<T>(document, variables)
     else result = await gqlFetch<T>(document, variables)
     if (result.errors?.length) throw new Error(result.errors[0].message)
     return result.data
   }
-  const { app } = await execute<GqlResultType<'appGQL'>>(appGQL)
-  const key = tokenToKey(app.urlToken)
+  const managed = device.target === 'managed'
+  const { app } = await execute<GqlResultType<'appGQL'>>(managed ? '{ app { deviceName access } }' : appGQL)
+  const key = tokenToKey(managed ? sessionUrlToken : app.urlToken)
   const fileId = (hit: FileSearchHit, foregroundThumbnail = false) =>
     getFileId(key, hit.item.path, hit.domain === 'docs' ? '' : hit.item.id, scope, foregroundThumbnail)
   const fileUrl = (id: string, query = '') => proxyUrlFor(base, `/fs?id=${encodeURIComponent(id)}${fileQuery(FileAction.Preview, query)}`)
+  const url = (hit: FileSearchHit, action = FileAction.Preview, query = '') => managed
+    ? managedFileUrl(device.id, key, { type: 'MEDIA', id: hit.item.id }, action, query)
+    : fileUrl(fileId(hit), query)
+  const thumbnails = new WeakMap<FileSearchHit['item'], string>()
   return {
     name: app.deviceName || device.name,
-    canSearch: (domain: SearchDomain) => domain === 'feeds' || domain === 'notes' || app.access.includes(access[domain]),
+    canSearch: (domain: SearchDomain) => domain === 'feeds' || domain === 'notes'
+      ? !managed
+      : app.access.includes(access[domain]),
     async page(domain: SearchDomain, text: string, offset: number): Promise<{ hits: SearchHit[]; total: number }> {
       const query = buildTextFilter(text)
       const paging = { offset, limit: searchPageSize }
@@ -77,10 +87,15 @@ export async function loadSearchClient(device: SearchDevice, foreground = false)
       return { hits: data.items.map((item) => ({ domain, item })), total: data.total }
     },
     fileId: (hit: FileSearchHit) => fileId(hit),
-    url: (hit: FileSearchHit) => fileUrl(fileId(hit)),
+    url,
     thumbnailUrl(hit: FileSearchHit) {
-      const id = fileId(hit, __IS_TAURI__ && local && foreground && hit.domain === 'videos')
-      return fileUrl(id, '&size=sm&v=' + encodeURIComponent(hit.item.updatedAt))
+      const cached = managed ? thumbnails.get(hit.item) : undefined
+      if (cached) return cached
+      const query = '&size=sm&v=' + encodeURIComponent(hit.item.updatedAt)
+      const thumbnail = managed ? url(hit, FileAction.Preview, query)
+        : fileUrl(fileId(hit, __IS_TAURI__ && local && foreground && hit.domain === 'videos'), query)
+      if (managed) thumbnails.set(hit.item, thumbnail)
+      return thumbnail
     },
   }
 }

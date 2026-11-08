@@ -73,6 +73,7 @@ import { useOpenMedia } from '@/hooks/open-media'
 import { globalSearchKey, searchGroupTotal, type SearchGroup } from '@/hooks/global-search'
 import type { SearchHit } from '@/lib/api/global-search'
 import { download, getFileName } from '@/lib/api/file'
+import { FileAction } from '@/lib/api/file-action'
 import { openUrl } from '@/lib/browser'
 import { openWindow } from '@/lib/api/tauri-window'
 import { DataType } from '@/lib/data'
@@ -102,10 +103,14 @@ function open(group: SearchGroup, hit: SearchHit) {
   }
   const name = getFileName(hit.item.path) || hit.item.title
   if (hit.domain === 'docs') {
-    if (group.device.target === 'current' && (isTextFile(name) || isOfficeFile(name))) {
+    const textPreview = isTextFile(name) || isOfficeFile(name)
+    if (group.device.target === 'managed' && textPreview) {
+      const query = { peer: group.device.id, media: hit.item.id }
+      void openUrl(router.resolve({ name: 'text-file', query }).href)
+    } else if (group.device.target === 'current' && textPreview) {
       void openUrl(`/text-file?id=${encodeURIComponent(client.fileId(hit))}`)
     } else if (canOpenInBrowser(name)) void openUrl(client.url(hit))
-    else download(client.url(hit), name)
+    else download(client.url(hit, FileAction.Download), name)
     return
   }
   const media = group.pages.flatMap((page) => page.hits).filter((item) => item.domain === 'images' || item.domain === 'videos')

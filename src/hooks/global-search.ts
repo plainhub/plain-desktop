@@ -2,7 +2,8 @@ import { computed, ref, shallowRef, watch, type InjectionKey, type Ref } from 'v
 import type { IApp } from '@/lib/interfaces'
 import { getDesktopClientId, getRemoteClientId } from '@/lib/device/client-id'
 import { loginPeers } from '@/lib/device/login-peers'
-import { GqlError } from '@/lib/api/gql-client'
+import { getCurrentAuthToken } from '@/lib/device/current'
+import { gqlFetch, GqlError } from '@/lib/api/gql-client'
 import { loadSearchClient, searchDomains, type SearchDevice, type SearchDomain, type SearchHit } from '@/lib/api/global-search'
 
 type Client = Awaited<ReturnType<typeof loadSearchClient>>
@@ -23,6 +24,21 @@ export function useGlobalSearch(app: Ref<IApp>, localName: () => string) {
   const request = shallowRef<{ text: string; foreground: boolean }>()
   const selected = ref<string[] | null>(null)
   const groups = ref<SearchGroup[]>([])
+  const managedDevices = shallowRef<SearchDevice[]>([])
+  if (!__IS_TAURI__) watch(() => app.value?.clientId, async (id, _, onCleanup) => {
+    managedDevices.value = []
+    if (!id || !getCurrentAuthToken()) return
+    let active = true
+    onCleanup(() => { active = false })
+    try {
+      const result = await gqlFetch<{ peers: { id: string; name: string; online: boolean; managed: boolean }[] }>(
+        '{ peers { id name online managed } }',
+      )
+      if (active && result.data?.peers) managedDevices.value = result.data.peers
+        .filter((peer) => peer.managed && peer.id !== id)
+        .map(({ id, name, online }) => ({ id, name, online, target: 'managed' }))
+    } catch { /* Local search is available independently of peer discovery. */ }
+  }, { immediate: true })
   const devices = computed<SearchDevice[]>(() => {
     if (!app.value?.clientId) return []
     const current: SearchDevice = { id: app.value.clientId, name: app.value.deviceName, target: 'current' }
@@ -35,7 +51,7 @@ export function useGlobalSearch(app: Ref<IApp>, localName: () => string) {
     for (const peer of loginPeers.value) {
       if (peer.id !== current.id && peer.id !== remoteId) sources.push({ id: peer.id, name: peer.name, target: 'peer', peer })
     }
-    return sources
+    return [...sources, ...managedDevices.value]
   })
   const targets = computed(() => devices.value.length <= 1
     ? devices.value
@@ -70,7 +86,7 @@ export function useGlobalSearch(app: Ref<IApp>, localName: () => string) {
   async function loadDevice(group: SearchGroup, query: NonNullable<typeof request.value>, domains: readonly SearchDomain[]) {
     group.status = 'loading'
     try {
-      group.client = await loadSearchClient(group.device, query.foreground)
+      group.client = await loadSearchClient(group.device, query.foreground, app.value.urlToken)
       if (!groups.value.includes(group)) return
       group.pages = domains.filter(group.client.canSearch).map((domain) => ({ domain, hits: [], total: 0, loading: false, failed: false }))
       if (!group.pages.length) {
@@ -82,15 +98,29 @@ export function useGlobalSearch(app: Ref<IApp>, localName: () => string) {
     } catch (error) {
       if (error instanceof GqlError && (error.status === 401 || error.status === 403)) group.status = 'denied'
       else if (error instanceof GqlError && !error.status && group.device.target === 'peer' && group.device.peer.online === false) group.status = 'offline'
+      else if (group.device.target === 'managed' && !group.device.online) group.status = 'offline'
       else group.status = 'failed'
     }
   }
 
-  watch([request, domain, targets], ([query, type, devices]) => {
-    groups.value = query ? devices.map((device) => ({ device, status: 'loading', pages: [] })) : []
-    if (!query) return
+  watch([request, domain, targets], ([query, type, devices], [previousQuery, previousType]) => {
+    if (!query) { groups.value = []; return }
+    const existing = new Map(query === previousQuery && type === previousType
+      ? groups.value.map((group) => [group.device.id, group] as const)
+      : [])
+    groups.value = devices.map((device) => {
+      const group = existing.get(device.id)
+      if (group?.device.target === device.target && device.target !== 'peer') {
+        group.device = device
+        return group
+      }
+      existing.delete(device.id)
+      return { device, status: 'loading', pages: [] }
+    })
     const domains = type === 'all' ? searchDomains : [type]
-    for (const group of groups.value) void loadDevice(group, query, domains)
+    for (const group of groups.value) {
+      if (!existing.has(group.device.id)) void loadDevice(group, query, domains)
+    }
   })
 
   return {

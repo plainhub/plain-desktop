@@ -3,13 +3,15 @@ import { effectScope, nextTick, ref } from 'vue'
 import { useGlobalSearch } from '@/hooks/global-search'
 import { loadSearchClient } from '@/lib/api/global-search'
 import { GqlError } from '@/lib/api/gql-client'
+import { FileAction } from '@/lib/api/file-action'
 import { appGQL, docsGQL, feedEntriesGQL, imagesGQL, notesGQL, videosGQL } from '@/lib/api/query'
 import { filePathFromResourceId } from '@/lib/api/resource-link'
 import { chachaDecrypt } from '@/lib/api/crypto'
 import { loginPeers, type LoginPeer } from '@/lib/device/login-peers'
 import type { IApp } from '@/lib/interfaces'
+import type { GqlResultType } from '@/lib/api/graphql/operations'
 
-const transport = vi.hoisted(() => ({ current: vi.fn(), local: vi.fn(), remote: vi.fn(), remoteId: '' }))
+const transport = vi.hoisted(() => ({ current: vi.fn(), local: vi.fn(), remote: vi.fn(), remoteId: '', authToken: '' }))
 vi.mock('@/lib/api/gql-client', () => ({
   gqlFetch: transport.current, nativeGqlFetch: transport.local, encryptedGqlPost: transport.remote,
   GqlError: class extends Error { constructor(message: string, readonly status?: number) { super(message) } },
@@ -25,6 +27,7 @@ vi.mock('@/lib/api/api', () => ({
 }))
 vi.mock('@/lib/device/client-id', () => ({ getDesktopClientId: () => 'local', getRemoteClientId: () => transport.remoteId }))
 vi.mock('@/lib/device/local-mode', () => ({ isLocalMode: () => false }))
+vi.mock('@/lib/device/current', () => ({ getCurrentAuthToken: () => transport.authToken }))
 vi.mock('@/lib/device/login-peers', async () => ({
   loginPeers: (await import('vue')).ref([]),
   peerHost: (peer: LoginPeer) => `${peer.ip}:${peer.port}`,
@@ -45,7 +48,9 @@ let scope: ReturnType<typeof effectScope>
 beforeEach(() => {
   vi.resetAllMocks()
   vi.stubGlobal('window', { fileIdMap: new Map() })
+  vi.stubGlobal('__IS_TAURI__', false)
   transport.remoteId = ''
+  transport.authToken = ''
   loginPeers.value = []
   scope = effectScope()
 })
@@ -102,6 +107,44 @@ it('seals foreground thumbnail intent only for an explicitly submitted local vid
   expect(readType(remote.thumbnailUrl(hit))).toBe('MEDIA')
   vi.stubGlobal('__IS_TAURI__', false)
   expect(readType(explicit.thumbnailUrl(hit))).toBe('MEDIA')
+})
+
+it('routes managed search through the current origin and reuses session-scoped thumbnail URLs', async () => {
+  transport.authToken = 'browser-session'
+  transport.remote.mockResolvedValue({ data: { app: { deviceName: 'Managed', access: ['DOCS'] } } })
+  const client = await loadSearchClient({ id: 'managed', name: 'Managed', target: 'managed', online: true }, false, app.urlToken)
+  expect(transport.remote).toHaveBeenCalledWith('https://current.example.test/proxy/managed/graphql', 'browser-session', '{ app { deviceName access } }', undefined)
+  const hit = { domain: 'docs' as const, item: { ...doc, updatedAt: '2026-01-01' } as GqlResultType<'docsGQL'>['items'][number] }
+  const thumbnail = client.thumbnailUrl(hit)
+  expect(client.thumbnailUrl(hit)).toBe(thumbnail)
+  const download = new URL(client.url(hit, FileAction.Download))
+  expect(download.pathname).toBe('/proxy/managed/fs')
+  expect(download.searchParams.get('action')).toBe('download')
+  const [mode, owner, encoded] = download.searchParams.get('id')!.split('.')
+  const bytes = Uint8Array.from(atob(encoded.replace(/-/g, '+').replace(/_/g, '/')), (char) => char.charCodeAt(0))
+  const aad = (action: string) => new TextEncoder().encode(`plain-managed:managed:fs:${action}-v1\0${mode}\0${owner}`)
+  expect(JSON.parse(chachaDecrypt(key, bytes, aad('download')))).toEqual({ type: 'MEDIA', id: doc.id })
+  expect(() => chachaDecrypt(key, bytes, aad('preview'))).toThrow()
+})
+
+it('adds managed results without restarting the current search when device discovery finishes', async () => {
+  transport.authToken = 'browser-session'
+  const discovery = Promise.withResolvers<{ data: { peers: { id: string; name: string; managed: boolean; online: boolean }[] } }>()
+  transport.current.mockImplementation((query: string) => {
+    if (query === '{ peers { id name online managed } }') return discovery.promise
+    return Promise.resolve({ data: query === appGQL ? { app } : { items: [doc], total: 1 } })
+  })
+  transport.remote.mockImplementation((_url: string, _token: string, query: string) => Promise.resolve({
+    data: query === docsGQL ? { items: [doc], total: 1 } : { app },
+  }))
+  const search = scope.run(() => useGlobalSearch(ref({ ...current, urlToken: app.urlToken }), () => 'Local'))!
+  search.domain.value = 'docs'
+  search.submit('result')
+  await vi.waitFor(() => expect(search.total.value).toBe(1))
+  discovery.resolve({ data: { peers: [{ id: 'managed', name: 'Archive', managed: true, online: true }] } })
+  await vi.waitFor(() => expect(search.total.value).toBe(2))
+  expect(transport.current.mock.calls.filter(([query]) => query === docsGQL)).toHaveLength(1)
+  expect(transport.remote.mock.calls.every(([url]) => url === 'https://current.example.test/proxy/managed/graphql')).toBe(true)
 })
 
 it('keeps failures isolated by device and searches notes and feeds with authorized file types', async () => {
