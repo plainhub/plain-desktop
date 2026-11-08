@@ -36,7 +36,7 @@ export async function downloadToDir(url: string, name: string): Promise<string> 
 }
 
 export async function downloadAs(url: string, name: string): Promise<string | null> {
-  const { save } = await import('@tauri-apps/plugin-dialog')
+  const { save } = await import('@/lib/tauri-plugins')
   const { downloadDir } = await import('@tauri-apps/api/path')
   const path = await save({ defaultPath: joinPath(await downloadDir(), name) })
   if (!path) return null
@@ -44,6 +44,6 @@ export async function downloadAs(url: string, name: string): Promise<string | nu
 }
 
 export async function revealInFolder(path: string): Promise<void> {
-  const { revealItemInDir } = await import('@tauri-apps/plugin-opener')
+  const { revealItemInDir } = await import('@/lib/tauri-plugins')
   await revealItemInDir(path)
 }

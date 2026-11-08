@@ -4,7 +4,7 @@ const { native, invoke, remote, save } = vi.hoisted(() => ({ native: vi.fn(), in
 vi.mock('@/lib/api/native-client', () => ({ nativeGraphql: native }))
 vi.mock('@tauri-apps/api/core', () => ({ invoke }))
 vi.mock('@/lib/api/gql-client', () => ({ gqlFetch: remote }))
-vi.mock('@tauri-apps/plugin-dialog', () => ({ save }))
+vi.mock('@/lib/tauri-plugins', () => ({ save }))
 
 import { revealLocalFile, saveLocalFileAs, saveTextFileAs, copyLocalFile } from '../../src/lib/native-file-actions'
 

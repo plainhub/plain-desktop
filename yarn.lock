@@ -5,13 +5,6 @@ __metadata:
   version: 10
   cacheKey: 10
 
-"@babel/helper-string-parser@npm:^7.27.1":
-  version: 7.27.1
-  resolution: "@babel/helper-string-parser@npm:7.27.1"
-  checksum: 10/0ae29cc2005084abdae2966afdb86ed14d41c9c37db02c3693d5022fba9f5d59b011d039380b8e537c34daf117c549f52b452398f576e908fb9db3c7abbb3a00
-  languageName: node
-  linkType: hard
-
 "@babel/helper-string-parser@npm:^7.29.7":
   version: 7.29.7
   resolution: "@babel/helper-string-parser@npm:7.29.7"
@@ -19,28 +12,10 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@babel/helper-validator-identifier@npm:^7.28.5":
-  version: 7.28.5
-  resolution: "@babel/helper-validator-identifier@npm:7.28.5"
-  checksum: 10/8e5d9b0133702cfacc7f368bf792f0f8ac0483794877c6dca5fcb73810ee138e27527701826fb58a40a004f3a5ec0a2f3c3dd5e326d262530b119918f3132ba7
-  languageName: node
-  linkType: hard
-
 "@babel/helper-validator-identifier@npm:^7.29.7":
   version: 7.29.7
   resolution: "@babel/helper-validator-identifier@npm:7.29.7"
   checksum: 10/2efa42701eb05babf26dff3332109c9e5e1a3400a71fb9e68ee27af28235036a2a72c2494c04bdab3f909075f42a58b2e8271074372bc7f8e79ec02bd364d7a7
-  languageName: node
-  linkType: hard
-
-"@babel/parser@npm:^7.29.2":
-  version: 7.29.2
-  resolution: "@babel/parser@npm:7.29.2"
-  dependencies:
-    "@babel/types": "npm:^7.29.0"
-  bin:
-    parser: ./bin/babel-parser.js
-  checksum: 10/45d050bf75aa5194b3255f156173e8553d615ff5a2434674cc4a10cdc7c261931befb8618c996a1c449b87f0ef32a3407879af2ac967d95dc7b4fdbae7037efa
   languageName: node
   linkType: hard
 
@@ -52,16 +27,6 @@ __metadata:
   bin:
     parser: ./bin/babel-parser.js
   checksum: 10/dbd14ebbba0fa3019acd2712b0db3ffd594d0850d4fc487667287b5702893f54a7911570ea842f0cff4dc492a2412e3287dfabfe00c6b78efa7becb1255f3f86
-  languageName: node
-  linkType: hard
-
-"@babel/types@npm:^7.29.0":
-  version: 7.29.0
-  resolution: "@babel/types@npm:7.29.0"
-  dependencies:
-    "@babel/helper-string-parser": "npm:^7.27.1"
-    "@babel/helper-validator-identifier": "npm:^7.28.5"
-  checksum: 10/bfc2b211210f3894dcd7e6a33b2d1c32c93495dc1e36b547376aa33441abe551ab4bc1640d4154ee2acd8e46d3bbc925c7224caae02fcaf0e6a771e97fccc661
   languageName: node
   linkType: hard
 
@@ -1364,39 +1329,12 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@tauri-apps/plugin-dialog@npm:^2.8.0":
-  version: 2.8.0
-  resolution: "@tauri-apps/plugin-dialog@npm:2.8.0"
-  dependencies:
-    "@tauri-apps/api": "npm:^2.12.0"
-  checksum: 10/5cf305dbc9a1d2ac8f01ee3532454b76c5108806d1e254cd09ca8e7ec26aa0816bf300051b1add80cab1a5702b2e06a531df7ef2e234ed66cafe74e1bc83fb65
-  languageName: node
-  linkType: hard
-
 "@tauri-apps/plugin-fs@npm:^2.6.0":
   version: 2.6.0
   resolution: "@tauri-apps/plugin-fs@npm:2.6.0"
   dependencies:
     "@tauri-apps/api": "npm:^2.12.0"
   checksum: 10/8b3de89e54f88a8cbab1181fd6de2b064f88756e3ad43c30f8a30fc4e3d0a224be2d1c0e48ca91d626b3f4582173e28d789c90a17506d242571e33a5566c0e2e
-  languageName: node
-  linkType: hard
-
-"@tauri-apps/plugin-notification@npm:^2.5.0":
-  version: 2.5.0
-  resolution: "@tauri-apps/plugin-notification@npm:2.5.0"
-  dependencies:
-    "@tauri-apps/api": "npm:^2.12.0"
-  checksum: 10/735a323009164d7bccae54d09ff2b10c8d6ee3adb2881bcc4267515489ce1e8e7d5c2f66dd13eeeb5399388f4466d9f49a31e6acb7e6c1b1edf214832accc525
-  languageName: node
-  linkType: hard
-
-"@tauri-apps/plugin-opener@npm:^2.6.0":
-  version: 2.6.0
-  resolution: "@tauri-apps/plugin-opener@npm:2.6.0"
-  dependencies:
-    "@tauri-apps/api": "npm:^2.12.0"
-  checksum: 10/bc65713b12dd769c9b7f339b003a978f926758e6282c883b1a5f7d76b23eba321d692da95f62ff253a12e938fb4e3c765b7a29165e64ebd08dccc6263a68214c
   languageName: node
   linkType: hard
 
@@ -1719,19 +1657,6 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@vue/compiler-core@npm:3.5.33":
-  version: 3.5.33
-  resolution: "@vue/compiler-core@npm:3.5.33"
-  dependencies:
-    "@babel/parser": "npm:^7.29.2"
-    "@vue/shared": "npm:3.5.33"
-    entities: "npm:^7.0.1"
-    estree-walker: "npm:^2.0.2"
-    source-map-js: "npm:^1.2.1"
-  checksum: 10/ffbbbaa1e78d2be56f6903d332dd9c662150fd5c291cbc6f8bdf6635efe85fcca4d870aa12b91c39f5010af8d084e650eded7f4dbd3a5ae86f8414a69dcdc1a9
-  languageName: node
-  linkType: hard
-
 "@vue/compiler-core@npm:3.5.42":
   version: 3.5.42
   resolution: "@vue/compiler-core@npm:3.5.42"
@@ -1745,23 +1670,13 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@vue/compiler-dom@npm:3.5.42":
+"@vue/compiler-dom@npm:3.5.42, @vue/compiler-dom@npm:^3.5.0":
   version: 3.5.42
   resolution: "@vue/compiler-dom@npm:3.5.42"
   dependencies:
     "@vue/compiler-core": "npm:3.5.42"
     "@vue/shared": "npm:3.5.42"
   checksum: 10/d48772a2a6d21996a8e4a00756d6335ff7ab7cce722ca8ed8c8acacb6a5670c9747deb5cc822f0cbabe437c5b635dc3cf6ccc88700fe3e2fc4cdf11a6474292f
-  languageName: node
-  linkType: hard
-
-"@vue/compiler-dom@npm:^3.5.0":
-  version: 3.5.33
-  resolution: "@vue/compiler-dom@npm:3.5.33"
-  dependencies:
-    "@vue/compiler-core": "npm:3.5.33"
-    "@vue/shared": "npm:3.5.33"
-  checksum: 10/15b9766f78ea079d25ddc699ba1bb923156b3e995e736b6391919dd820c30d4edd206ad7ffebbed4afe0409b5b60d3a803c0d9a11a2523c30bed5c1ccfc65fe2
   languageName: node
   linkType: hard
 
@@ -1905,32 +1820,10 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@vue/shared@npm:3.5.33, @vue/shared@npm:^3.5.0":
-  version: 3.5.33
-  resolution: "@vue/shared@npm:3.5.33"
-  checksum: 10/8aa38a5c9625716d2a111f75ce05e0e98b67fbc0ad38895910f7624b1cad1882fb258ff9241c302bc570d105811bae3c962d64309194ad34f3433177c6be056a
-  languageName: node
-  linkType: hard
-
-"@vue/shared@npm:3.5.42":
+"@vue/shared@npm:3.5.42, @vue/shared@npm:^3.5.0":
   version: 3.5.42
   resolution: "@vue/shared@npm:3.5.42"
   checksum: 10/0562ab1715688dbdfc06e57714a18e44229ef2e407330b6f76adae6e7d3b85eeb8a89acdd005022d173d4ebfdb327575cf20887b212e794f129c372450338946
-  languageName: node
-  linkType: hard
-
-"@vue/tsconfig@npm:^0.7.0":
-  version: 0.7.0
-  resolution: "@vue/tsconfig@npm:0.7.0"
-  peerDependencies:
-    typescript: 5.x
-    vue: ^3.4.0
-  peerDependenciesMeta:
-    typescript:
-      optional: true
-    vue:
-      optional: true
-  checksum: 10/29b5dd11cc179de707dfd549d0e80e220f4a0f6f7d90b9a52769bc655e599b9166b28af1218819245fbdd30a74d80fdd484538cdda6876d9d369ae623f234834
   languageName: node
   linkType: hard
 
@@ -2255,17 +2148,6 @@ __metadata:
   version: 4.0.0
   resolution: "escape-string-regexp@npm:4.0.0"
   checksum: 10/98b48897d93060f2322108bf29db0feba7dd774be96cd069458d1453347b25ce8682ecc39859d4bca2203cc0ab19c237bcc71755eff49a0f8d90beadeeba5cc5
-  languageName: node
-  linkType: hard
-
-"eslint-config-prettier@npm:10.1.8":
-  version: 10.1.8
-  resolution: "eslint-config-prettier@npm:10.1.8"
-  peerDependencies:
-    eslint: ">=7.0.0"
-  bin:
-    eslint-config-prettier: bin/cli.js
-  checksum: 10/03f8e6ea1a6a9b8f9eeaf7c8c52a96499ec4b275b9ded33331a6cc738ed1d56de734097dbd0091f136f0e84bc197388bd8ec22a52a4658105883f8c8b7d8921a
   languageName: node
   linkType: hard
 
@@ -2899,13 +2781,6 @@ __metadata:
   languageName: node
   linkType: hard
 
-"markdown-it-texmath@npm:^1.0.0":
-  version: 1.0.0
-  resolution: "markdown-it-texmath@npm:1.0.0"
-  checksum: 10/10400b61ac25e1ca6688adaa940022f90451e4bcfb2df71d3a1c08515a66ebfaeb885e62871d9a87751eea36f898f96989dd400d94cf2e2b03b8770e8426c618
-  languageName: node
-  linkType: hard
-
 "markdown-it@npm:14.3.3":
   version: 14.3.3
   resolution: "markdown-it@npm:14.3.3"
@@ -3212,25 +3087,18 @@ __metadata:
     "@noble/hashes": "npm:^2.0.1"
     "@tauri-apps/api": "npm:^2.12.0"
     "@tauri-apps/cli": "npm:^2"
-    "@tauri-apps/plugin-dialog": "npm:^2.8.0"
     "@tauri-apps/plugin-fs": "npm:^2.6.0"
-    "@tauri-apps/plugin-notification": "npm:^2.5.0"
-    "@tauri-apps/plugin-opener": "npm:^2.6.0"
     "@types/node": "npm:^22.15.29"
     "@typescript-eslint/eslint-plugin": "npm:^8.33.0"
     "@typescript-eslint/parser": "npm:^8.33.0"
     "@vitejs/plugin-vue": "npm:^6.0.1"
-    "@vue/tsconfig": "npm:^0.7.0"
     eslint: "npm:10.13.0"
-    eslint-config-prettier: "npm:10.1.8"
     eslint-plugin-vue: "npm:^10.1.0"
     htmlparser2: "npm:^8.0.1"
     katex: "npm:0.18.2"
     markdown-it: "npm:14.3.3"
-    markdown-it-texmath: "npm:^1.0.0"
     pinia: "npm:^3.0.2"
     pixi.js: "npm:^8"
-    prettier: "npm:^3.5.3"
     sass: "npm:^1.89.1"
     typescript: "npm:~5.8.3"
     vite: "npm:8.1.6"
@@ -3269,15 +3137,6 @@ __metadata:
   version: 1.2.1
   resolution: "prelude-ls@npm:1.2.1"
   checksum: 10/0b9d2c76801ca652a7f64892dd37b7e3fab149a37d2424920099bf894acccc62abb4424af2155ab36dea8744843060a2d8ddc983518d0b1e22265a22324b72ed
-  languageName: node
-  linkType: hard
-
-"prettier@npm:^3.5.3":
-  version: 3.8.3
-  resolution: "prettier@npm:3.8.3"
-  bin:
-    prettier: bin/prettier.cjs
-  checksum: 10/4b3b12cbb29e4c96bed936e5d070167552500c18d37676fb3e0caae6199c42860662608e4dc116230698f6e2bb0267ef2548158224c92d40f188d309d72fdd6f
   languageName: node
   linkType: hard
 

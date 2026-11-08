@@ -19,5 +19,12 @@
     "repository": "https://github.com/markdown-it/markdown-it-footnote",
     "revision": "337dcc79dfe8b2cb98c32000d8b24691de66105b",
     "integrity": "sha512-YZMSuCGVZAjzKMn+xqIco9d1cLGxbELHZ9do/TSYVzraooV8ypsppKNmUJ0fVH5ljkCInQAtFpm8Rb3eXSrt5w=="
+  },
+  {
+    "name": "markdown-it-texmath",
+    "version": "1.0.0",
+    "repository": "https://github.com/goessner/markdown-it-texmath",
+    "revision": "1513a2041af4ce5e48a7e5a086e77ec536da9f79",
+    "integrity": "sha512-4hhkiX8/gus+6e53PLCUmUrsa6ZWGgJW2XCW6O0ASvZUiezIK900ZicinTDtG3kAO2kon7oUA/ReWmpW2FByxg=="
   }
 ]

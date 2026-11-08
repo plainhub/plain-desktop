@@ -19,7 +19,6 @@ interface ImportMeta {
 }
 
 declare module 'markdown-it'
-declare module 'markdown-it-texmath'
 
 interface Navigator {
   readonly userAgentData?: {

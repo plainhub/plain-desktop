@@ -54,6 +54,16 @@ it('preserves inline and display math in safe Markdown', async () => {
   expect(classes).toContain('katex-display')
 })
 
+it('escapes math equation labels and preserves literal replacement markers', async () => {
+  const renderer = useSafeMarkdown(ref({ appDir: '/library' }), ref(null))
+  const html = await renderer.render('> $$x\n> +y$$ (<img/onerror=probe>)\n\n$$z$$ (tag$&)')
+  const tags = elements(html)
+  expect(tags.filter((node) => node.name === 'section' && node.attribs.class === 'eqno')).toHaveLength(2)
+  expect(tags.some((node) => node.name === 'img')).toBe(false)
+  expect(html).toContain('&lt;img/onerror=probe&gt;')
+  expect(html).toContain('tag$&amp;')
+})
+
 it('renders invalid formulas without throwing or dropping the remaining text', async () => {
   const renderer = useSafeMarkdown(ref({ appDir: '/library' }), ref(null))
   const html = await renderer.render('$\\unknownSecurityCommand{x}$\n\nStill readable.')

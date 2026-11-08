@@ -1,12 +1,13 @@
 {
-  "extends": "@vue/tsconfig/tsconfig.dom.json",
+  "extends": "./build-support/tsconfig.base.json",
   "include": ["env.d.ts", "src/**/*", "src/**/*.vue"],
   "compilerOptions": {
     "baseUrl": ".",
     "paths": {
       "@/*": ["./src/*"]
     },
-    "lib": ["ESNext", "dom", "dom.iterable"]
+    "lib": ["ESNext", "dom", "dom.iterable"],
+    "types": []
   },
   "plugins": [
     {

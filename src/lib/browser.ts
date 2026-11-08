@@ -5,7 +5,7 @@
  */
 export async function openUrl(url: string): Promise<void> {
   if (__IS_TAURI__ && /^https?:\/\//i.test(url)) {
-    const { openUrl: tauriOpenUrl } = await import('@tauri-apps/plugin-opener')
+    const { openUrl: tauriOpenUrl } = await import('@/lib/tauri-plugins')
     await tauriOpenUrl(url)
   } else {
     window.open(url, '_blank')

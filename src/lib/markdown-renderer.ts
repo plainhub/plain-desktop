@@ -1,8 +1,6 @@
 import 'katex/dist/katex.min.css'
-import katex from 'katex'
 import MarkdownIt from 'markdown-it'
-import texmath from 'markdown-it-texmath'
-import { abbreviations, definitionLists, footnotes } from './markdown-extensions/index.mjs'
+import { abbreviations, definitionLists, footnotes, math } from './markdown-extensions/index.mjs'
 import { markdownInlineFormats } from './markdown-inline-formats'
 import { markdownTaskLists } from './markdown-task-lists'
 
@@ -16,6 +14,6 @@ export function createMarkdown(
     .use(footnotes)
     .use(definitionLists)
     .use(abbreviations)
-    .use(texmath, { engine: katex, delimiters: 'dollars', katexOptions: { ...katexOptions, output: 'html', trust: false } })
+    .use(math, katexOptions)
     .use(markdownTaskLists)
 }

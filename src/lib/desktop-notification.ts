@@ -7,7 +7,7 @@ export type DesktopNotificationOptions = {
 
 export async function showDesktopNotification(options: DesktopNotificationOptions) {
   if (__IS_TAURI__) {
-    const { isPermissionGranted, requestPermission, sendNotification } = await import('@tauri-apps/plugin-notification')
+    const { isPermissionGranted, requestPermission } = await import('@/lib/tauri-plugins')
     let granted = await isPermissionGranted()
     if (!granted) {
       const permission = await requestPermission()
@@ -21,18 +21,13 @@ export async function showDesktopNotification(options: DesktopNotificationOption
         await invoke('send_macos_notification', { options })
         return
       } catch {
-        // Fall through to sendNotification below if the macOS-specific
+        // Fall through to the Tauri notification API if the macOS-specific
         // Tauri command isn't available in this build (e.g. dev mode
         // running the web bundle without the Tauri runtime wired up).
       }
     }
 
-    await sendNotification({
-      title: options.title,
-      body: options.body,
-      icon: options.icon,
-      silent: options.silent,
-    })
+    new window.Notification(options.title, options)
     return
   }
 

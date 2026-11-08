@@ -732,3 +732,5 @@ export function footnotes(md) {
   md.inline.ruler.after('footnote_inline', 'footnote_ref', footnote_ref);
   md.core.ruler.after('inline', 'footnote_tail', footnote_tail);
 };
+
+export { math } from './math.mjs'

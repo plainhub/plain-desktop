@@ -3,7 +3,6 @@ import pluginVue from 'eslint-plugin-vue'
 import tseslint from '@typescript-eslint/eslint-plugin'
 import tsparser from '@typescript-eslint/parser'
 import vueParser from 'vue-eslint-parser'
-import prettier from 'eslint-config-prettier'
 
 export default [
   {
@@ -178,5 +177,21 @@ export default [
       },
     },
   },
-  prettier,
+  {
+    rules: {
+      'no-unexpected-multiline': 'off',
+      'vue/html-closing-bracket-newline': 'off',
+      'vue/html-closing-bracket-spacing': 'off',
+      'vue/html-end-tags': 'off',
+      'vue/html-indent': 'off',
+      'vue/html-quotes': 'off',
+      'vue/html-self-closing': 'off',
+      'vue/max-attributes-per-line': 'off',
+      'vue/multiline-html-element-content-newline': 'off',
+      'vue/mustache-interpolation-spacing': 'off',
+      'vue/no-multi-spaces': 'off',
+      'vue/no-spaces-around-equal-signs-in-attribute': 'off',
+      'vue/singleline-html-element-content-newline': 'off',
+    },
+  },
 ]

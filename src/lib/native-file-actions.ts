@@ -17,7 +17,7 @@ export async function saveLocalFileAs(reference: string, name: string): Promise<
 }
 
 export async function saveTextFileAs(name: string, contents: string): Promise<void> {
-  const { save } = await import('@tauri-apps/plugin-dialog')
+  const { save } = await import('@/lib/tauri-plugins')
   const path = await save({ defaultPath: name.trim() || 'file.txt' })
   if (!path) return
   const response = await nativeGraphql<{

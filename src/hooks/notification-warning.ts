@@ -19,7 +19,7 @@ const notificationPermission = ref<PermissionState>(
 
 // In Tauri mode, check native permission state asynchronously on module load.
 if (__IS_TAURI__) {
-  import('@tauri-apps/plugin-notification').then(({ isPermissionGranted }) => {
+  import('@/lib/tauri-plugins').then(({ isPermissionGranted }) => {
     isPermissionGranted().then((granted) => {
       // isPermissionGranted returns false both for 'default' and 'denied'.
       // We only update to 'granted' here; 'denied' is set after an explicit request.
@@ -56,7 +56,7 @@ export function useNotificationWarning(options?: { showToast?: boolean }) {
 
   // Open macOS System Settings > Notifications.
   const openSystemNotificationSettings = () => {
-    import('@tauri-apps/plugin-opener').then(({ openUrl }) => {
+    import('@/lib/tauri-plugins').then(({ openUrl }) => {
       openUrl('x-apple.systempreferences:com.apple.preference.notifications')
         .catch(() => openUrl('x-apple.systempreferences:'))
     })
@@ -69,7 +69,7 @@ export function useNotificationWarning(options?: { showToast?: boolean }) {
         openSystemNotificationSettings()
         return
       }
-      import('@tauri-apps/plugin-notification').then(({ requestPermission }) => {
+      import('@/lib/tauri-plugins').then(({ requestPermission }) => {
         requestPermission().then((result) => {
           notificationPermission.value = result as PermissionState
           if (result === 'granted' && options?.showToast) {

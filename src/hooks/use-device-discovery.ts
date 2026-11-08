@@ -215,7 +215,7 @@ export function useDeviceDiscovery(bindClient = bindGraphqlClient, subscriptions
 
   async function openLanPermissionSettings() {
     if (__IS_TAURI__) {
-      const { openUrl } = await import('@tauri-apps/plugin-opener')
+      const { openUrl } = await import('@/lib/tauri-plugins')
       await openUrl('x-apple.systempreferences:').catch(async () => {
         await openUrl('https://support.apple.com/guide/mac-help/mchla4f49138/mac')
       })

@@ -241,7 +241,7 @@ function mimeFromName(name: string): string {
 }
 
 async function pickImagesViaTauri() {
-  const { open } = await import('@tauri-apps/plugin-dialog')
+  const { open } = await import('@/lib/tauri-plugins')
   const { readFile } = await import('@tauri-apps/plugin-fs')
   const selected = await open({
     multiple: true,
