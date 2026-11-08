@@ -38,7 +38,6 @@
     "@tauri-apps/plugin-notification": "^2.5.0",
     "@tauri-apps/plugin-opener": "^2.6.0",
     "htmlparser2": "^8.0.1",
-    "jszip": "^3.10.1",
     "katex": "0.18.2",
     "markdown-it": "14.3.3",
     "markdown-it-abbr": "^1.0.4",

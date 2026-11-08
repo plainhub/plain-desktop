@@ -7,7 +7,9 @@ import router, { replacePath } from '@/plugins/router'
 import { useMainStore } from '@/stores/main'
 import { DataType } from '@/lib/data'
 import type { Ref } from 'vue'
-import JSZip from 'jszip'
+import { download } from '@/lib/api/file'
+import toast from '@/components/toaster'
+import { ZipWriter } from '@/lib/zip-writer'
 
 interface UseNotesActionsOptions {
   items: Ref<INote[]>
@@ -24,28 +26,8 @@ export function useNotesActions(opts: UseNotesActionsOptions) {
   const mainStore = useMainStore()
   const dataType = DataType.NOTE
 
-  const { mutate: exportNotes, onDone: onExported } = initMutation({
+  const { mutate: exportNotes } = initMutation({
     document: exportNotesGQL,
-  })
-
-  onExported(async (r: any) => {
-    const jsonStr = r.data.exportNotes
-    const notes: INote[] = JSON.parse(jsonStr)
-    const zip = new JSZip()
-    for (const note of notes) {
-      const safeName = (note.title || 'untitled').replace(/[/\\:*?"<>|]/g, '_').substring(0, 100)
-      const fileName = `${safeName}.md`
-      zip.file(fileName, note.content || '')
-    }
-    const blob = await zip.generateAsync({ type: 'blob' })
-    const url = URL.createObjectURL(blob)
-    const link = document.createElement('a')
-    link.href = url
-    link.download = 'notes.zip'
-    document.body.appendChild(link)
-    link.click()
-    document.body.removeChild(link)
-    URL.revokeObjectURL(url)
   })
 
   const { deleteItems, confirmingDelete, deleteCount, deleteLoading, doDeleteItems, cancelDeleteItems } = useDelete(deleteNotesGQL, () => {
@@ -60,8 +42,21 @@ export function useNotesActions(opts: UseNotesActionsOptions) {
     return realAllChecked.value ? q.value : `ids:${selectedIds.value.join(',')}`
   }
 
-  function exportNotes2() {
-    exportNotes({ query: getQuery() })
+  async function exportNotes2() {
+    const result = await exportNotes({ query: getQuery() })
+    if (!result) return
+    try {
+      const notes: INote[] = JSON.parse(result.data.exportNotes)
+      const zip = new ZipWriter()
+      for (const note of notes) {
+        zip.addFile([`${(note.title || 'untitled').substring(0, 100)}.md`], note.content || '')
+      }
+      const url = URL.createObjectURL(await zip.generate())
+      download(url, 'notes.zip')
+      setTimeout(() => URL.revokeObjectURL(url), 2000)
+    } catch (error) {
+      toast(error instanceof Error ? error.message : 'failed', 'error')
+    }
   }
 
   const { mutate: doDeleteNote, onDone: onDeleteNoteDone } = initMutation({ document: deleteNoteGQL })
