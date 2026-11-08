@@ -1,0 +1,26 @@
+[
+  {
+    "package": "@iconify-json/lucide",
+    "version": "1.2.104",
+    "archive": "https://registry.npmjs.org/@iconify-json/lucide/-/lucide-1.2.104.tgz",
+    "integrity": "sha512-Vh4VPA/UNFhSPzEdDnSuOPA1xO6b/kI1w4SLBEiKnsFYPWimq2tVDynMgKnwddz6iZpuZfZU4PXR6kn0hJayKw==",
+    "yarn-cache-sha512": "6136368353e2a29552ed543e71d02ff46bed48405f739f90be41d05925f6320e3aee933f079ff63d4da0aac6b11e53f775a495990b1670546e235b58ed8be4d2",
+    "upstream": "https://github.com/lucide-icons/lucide",
+    "license": "ISC",
+    "license-blob": "https://api.github.com/repos/lucide-icons/lucide/git/blobs/718bb3f0e44153809972abed31839375804bf652",
+    "icons": 90,
+    "license-file": "public/licenses/lucide.txt"
+  },
+  {
+    "package": "@iconify-json/material-symbols",
+    "version": "1.2.69",
+    "archive": "https://registry.npmjs.org/@iconify-json/material-symbols/-/material-symbols-1.2.69.tgz",
+    "integrity": "sha512-N5n1p1vXsSJag9RmorZAwN5f5rs0lJfYa5xKs1FGKNV9DerVlMqG4nCYOoCb7XjwWWT1o+1Dc9Uu/cmDtCnb8Q==",
+    "yarn-cache-sha512": "7c1c4b3eb9bbd715caf8257b8828a64ea060c2bc0e16aeaaed68ec320ca5d2a7bc366f5cb968167b6163f70cae3c19bd1d5069684a7b9a1823b4390e6c03581f",
+    "upstream": "https://github.com/google/material-design-icons",
+    "license": "Apache-2.0",
+    "license-blob": "https://api.github.com/repos/google/material-design-icons/git/blobs/7a4a3ea2424c09fbe48d455aed1eaa94d9124835",
+    "icons": 129,
+    "license-file": "public/licenses/material-symbols.txt"
+  }
+]

@@ -3,12 +3,10 @@ import { fileIconAssets } from './build-support/file-icons'
 import { readFileSync } from 'fs'
 import vue from '@vitejs/plugin-vue'
 import path from 'path'
-import Icons from 'unplugin-icons/vite'
-import IconsResolver from 'unplugin-icons/resolver'
-import Components from 'unplugin-vue-components/vite'
 import { isTauriBuildMode } from './build-support/app-mode'
 import { crossOriginIsolationHeaders, isPotentiallyTrustworthyHost } from './build-support/cross-origin-isolation'
 import { svgComponents } from './build-support/svg-components'
+import { componentImports } from './build-support/component-imports'
 import type { Plugin } from 'vite'
 
 const INVALID_CHAR_REGEX = /[_\x00-\x1F\x7F<>*#"{}|^[\]`;?:&=+$,]/g
@@ -84,11 +82,6 @@ export default defineConfig(({ mode }) => {
     // when a markdown view opens. It is ~640 kB unminified / ~204 kB gzipped,
     // so raise the default 500 kB warning threshold to fit it without noise.
     chunkSizeWarningLimit: 700,
-    // Disable the per-plugin build-time diagnostic — unplugin-icons and
-    // unplugin-vue-components are JS-side plugins by
-    // design and dominate wall time on this project. The diagnostic is
-    // useful when chasing regressions in native plugins, not here.
-    //
     // Also disable the "ineffective dynamic import" check. `main.ts`
     // intentionally dynamic-imports `src/plugins/i18n.ts` to defer module
     // evaluation until `preloadPrefs()` has run (Tauri mode reads locale
@@ -151,11 +144,7 @@ export default defineConfig(({ mode }) => {
       },
     }),
     svgComponents(),
-    Components({
-      resolvers: [IconsResolver()],
-      dirs: ['src/components', 'src/views'],
-    }),
-    Icons(),
+    componentImports(),
   ],
   define: sharedDefine,
   resolve: {
