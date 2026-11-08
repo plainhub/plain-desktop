@@ -3,6 +3,7 @@ import { invoke } from '@tauri-apps/api/core'
 export interface NativeDeviceIdentity {
   clientId: string
   signaturePublicKey: string
+  fileUrlToken: string
 }
 
 export function readNativeDeviceIdentity(): Promise<NativeDeviceIdentity> {

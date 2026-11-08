@@ -74,6 +74,8 @@ import { globalSearchKey, searchGroupTotal, type SearchGroup } from '@/hooks/glo
 import type { SearchHit } from '@/lib/api/global-search'
 import { download, getFileName } from '@/lib/api/file'
 import { FileAction } from '@/lib/api/file-action'
+import { getTextFileId } from '@/lib/api/text-file'
+import { isLocalMode } from '@/lib/device/local-mode'
 import { openUrl } from '@/lib/browser'
 import { openWindow } from '@/lib/api/tauri-window'
 import { DataType } from '@/lib/data'
@@ -107,8 +109,12 @@ function open(group: SearchGroup, hit: SearchHit) {
     if (group.device.target === 'managed' && textPreview) {
       const query = { peer: group.device.id, media: hit.item.id }
       void openUrl(router.resolve({ name: 'text-file', query }).href)
-    } else if (group.device.target === 'current' && textPreview) {
-      void openUrl(`/text-file?id=${encodeURIComponent(client.fileId(hit))}`)
+    } else if (textPreview && (group.device.target === 'current' || group.device.target === 'local')) {
+      const local = group.device.target === 'local' || isLocalMode()
+      const id = local ? getTextFileId(null, hit.item.path, true) : client.fileId(hit)
+      const url = `/text-file?id=${encodeURIComponent(id)}`
+      if (local) void openWindow(url, '')
+      else void openUrl(url)
     } else if (canOpenInBrowser(name)) void openUrl(client.url(hit))
     else download(client.url(hit, FileAction.Download), name)
     return

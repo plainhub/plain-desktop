@@ -8,7 +8,8 @@ import EditValueModal from '@/components/EditValueModal.vue'
 import DeleteFileConfirm from '@/components/DeleteFileConfirm.vue'
 import { initMutation, renameFileGQL, copyFileGQL } from '@/lib/api/mutation'
 import { useDownload } from '@/hooks/files'
-import { getFileUrlByPath, getFileId } from '@/lib/api/file'
+import { getFileUrlByPath, getFileName } from '@/lib/api/file'
+import { getTextFileId } from '@/lib/api/text-file'
 import { arrayRemove } from '@/lib/array'
 import { openUrl } from '@/lib/browser'
 
@@ -27,9 +28,9 @@ export function useDocsActions(
 
   const { openFile } = useFileOpen<IDoc>({
     items,
-    getName: (item) => item.title,
+    getName: (item) => getFileName(item.path),
     openTextFile: (item) => {
-      const fileId = getFileId(urlTokenKey.value, item.path)
+      const fileId = getTextFileId(urlTokenKey.value, item.path)
       openUrl(`/text-file?id=${encodeURIComponent(fileId)}`)
     },
     openBrowserFile: (item) => openUrl(getFileUrlByPath(urlTokenKey.value, item.path)),

@@ -4,7 +4,8 @@ import { onActivated, onDeactivated, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { storeToRefs } from 'pinia'
 import { type IFile, enrichFile } from '@/lib/file'
-import { getFileUrlByPath, getFileId } from '@/lib/api/file'
+import { getFileUrlByPath } from '@/lib/api/file'
+import { getTextFileId } from '@/lib/api/text-file'
 import { useDownload, useView } from '@/hooks/files'
 import { useTempStore, type IUploadItem } from '@/stores/temp'
 import { generateRecordId } from '@/lib/record-id.generated'
@@ -53,7 +54,7 @@ export function useFilesRecent() {
     items,
     getName: (item) => item.name,
     openTextFile: (item) => {
-      const fileId = getFileId(urlTokenKey.value, item.path)
+      const fileId = getTextFileId(urlTokenKey.value, item.path)
       openUrl(`/text-file?id=${encodeURIComponent(fileId)}`)
     },
     openBrowserFile: (item) => window.open(getFileUrlByPath(urlTokenKey.value, item.path), '_blank'),

@@ -2,7 +2,7 @@ import { FileAction } from '@/lib/api/file-action'
 import { ref, computed, watch, onMounted, onBeforeUnmount } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
-import { revealLocalFile, saveTextFileAs } from '@/lib/native-file-actions'
+import { revealLocalFile, saveLocalFileAs, saveTextFileAs } from '@/lib/native-file-actions'
 import { useTempStore } from '@/stores/temp'
 import { storeToRefs } from 'pinia'
 import { useMarkdown, useSafeMarkdown } from '@/hooks/markdown'
@@ -15,8 +15,16 @@ import { filePathFromResourceId } from '@/lib/api/resource-link'
 import { managedFileUrl } from '@/lib/api/managed-proxy'
 import { isLocalMode } from '@/lib/device/local-mode'
 import { getCurrentAuthToken } from '@/lib/device/current'
+import { getNativeFileUrlToken } from '@/lib/device/client-id'
+import { invoke } from '@tauri-apps/api/core'
 
 const isTauri = __IS_TAURI__
+
+interface NativePreview {
+  status: number
+  headers: Record<string, string>
+  content: string
+}
 
 export function fileNameFromDecryptedPath(path: string): string {
   if (!path || /^(fid:|app:\/\/|https?:\/\/|\{)/.test(path)) return ''
@@ -116,8 +124,8 @@ export function useTextFile() {
 
   function tryDecryptPathFromID(id: string) {
     try {
-      if (!id || !urlTokenKey.value) return ''
-      return filePathFromResourceId(urlTokenKey.value, id)
+      const key = isLocalMode() && id.startsWith('c.') ? tokenToKey(getNativeFileUrlToken()) : urlTokenKey.value
+      return key ? filePathFromResourceId(key, id) : ''
     } catch { return '' }
   }
 
@@ -130,6 +138,7 @@ export function useTextFile() {
     if (isDocumentFile.value) {
       renderedMarkdown.value = await renderDocument(textContent)
     } else if (isMarkdownFile.value) {
+      if (isLocalMode() && !route.query.sid) await ensureUrlTokenKey()
       try { renderedMarkdown.value = await render(textContent) } catch { /* fallback to raw */ }
     }
   }
@@ -143,34 +152,34 @@ export function useTextFile() {
       if (managed) await ensureUrlTokenKey()
       const key = urlTokenKey.value
       if (managed && !key) { error.value = t('access_denied'); return }
-      const url = managed && key
+      const id = fileId.value
+      const native = isLocalMode() && !route.query.sid && /^(c|g)\./.test(id)
+        ? await invoke<NativePreview>('native_file_preview', { id })
+        : undefined
+      const response = native ?? await fetch(managed && key
         ? managedFileUrl(managed.peer, key, { type: 'MEDIA', id: managed.media })
-        : getFileUrl(fileId.value)
-
-      // Route through the local HTTP reverse proxy (getProxyUrl) so Tauri
-      // can accept the device's self-signed HTTPS cert — a direct fetch to
-      // https://<device>/fs fails cert validation. Matches how chat images
-      // are loaded (getFileUrl → getProxyUrl).
-      const response = await fetch(url)
-      if (!response.ok) {
-        error.value = response.status === 404 ? t('file_not_found')
-          : response.status === 403 ? t('access_denied')
+        : getFileUrl(id))
+      const { status } = response
+      if (status < 200 || status >= 300) {
+        error.value = status === 404 ? t('file_not_found')
+          : status === 403 ? t('access_denied')
           : t('failed_to_load_file')
         return
       }
 
-      mimeType.value = (response.headers.get('content-type') || '').split(';')[0].trim().toLowerCase()
-      const cd = response.headers.get('content-disposition')
+      const headers = new Headers(response.headers)
+      mimeType.value = (headers.get('content-type') || '').split(';')[0].trim().toLowerCase()
+      const cd = headers.get('content-disposition')
       if (cd) {
         const match = cd.match(/filename="?([^"]+)"?/)
         if (match) try { fileName.value = decodeURIComponent(match[1]).replace(/[/\\:*?"<>|]+/g, '_') } catch { /* ignore */ }
       }
-      const cl = response.headers.get('content-length')
+      const cl = headers.get('content-length')
       if (cl) fileSize.value = parseInt(cl)
-      const lm = response.headers.get('last-modified')
+      const lm = headers.get('last-modified')
       if (lm) lastModified.value = lm
 
-      await applyTextContent(await response.text(), true)
+      await applyTextContent('content' in response ? response.content : await response.text(), true)
     } catch { error.value = t('network_error') } finally { loading.value = false }
   }
 
@@ -189,6 +198,10 @@ export function useTextFile() {
       return
     }
     if (isDocumentFile.value) {
+      if (isLocalMode() && decryptedPath.value) {
+        saveLocalFileAs(decryptedPath.value, fileName.value).catch((err) => console.error('document export failed', err))
+        return
+      }
       download(getFileUrl(fileId.value, '', FileAction.Download), fileName.value)
       return
     }
@@ -233,7 +246,7 @@ export function useTextFile() {
     mimeType.value = ''
     if (!id && !managed) return
     if (!managed && !route.query.sid) {
-      await ensureUrlTokenKey()
+      if (!isLocalMode() || !id.startsWith('c.')) await ensureUrlTokenKey()
       decryptedPath.value = tryDecryptPathFromID(id)
       fileName.value = fileNameFromDecryptedPath(decryptedPath.value)
     }

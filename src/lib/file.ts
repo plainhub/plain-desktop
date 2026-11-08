@@ -68,6 +68,10 @@ export function isOfficeFile(name: string) {
   return officeExtensions.some((extension) => value.endsWith(extension))
 }
 
+export function canOpenInTextViewer(name: string) {
+  return isTextFile(name) || isOfficeFile(name)
+}
+
 const docExtensions = [...officeExtensions, '.pdf', '.txt', '.md', '.csv', '.json', '.xml', '.js', '.ts', '.py', '.java', '.kt', '.swift', '.c', '.cpp', '.h', '.cs', '.go', '.rs', '.rb', '.sh', '.yaml', '.yml', '.toml', '.ini', '.cfg', '.log']
 
 export function isDoc(name: string) {

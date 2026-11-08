@@ -12,6 +12,14 @@ use tauri::{Runtime, State, WebviewWindow};
 use super::views::NativeViews;
 use crate::native_resource_protocol::{OpenedResource, ResourceRegistry};
 
+#[tauri::command]
+pub async fn native_file_preview(
+    core: State<'_, Arc<ContentServer>>,
+    id: String,
+) -> Result<plain_server::native::resources::FilePreview, String> {
+    core.preview_native_file(id).await
+}
+
 /// Open `path` as a handle owned by the calling window and return the
 /// protocol URL that reads it. The URL carries only the opaque id.
 ///

@@ -44,6 +44,7 @@ import { inject, ref, watch, onActivated, onDeactivated } from 'vue'
 import { storeToRefs } from 'pinia'
 import { useTempStore } from '@/stores/temp'
 import { getFileUrl, getFileId, download } from '@/lib/api/file'
+import { getTextFileId } from '@/lib/api/text-file'
 import { isTextFile, canOpenInBrowser, canView } from '@/lib/file'
 import { openUrl } from '@/lib/browser'
 import { noDataKey } from '@/lib/list'
@@ -117,7 +118,7 @@ function getAppFileDownloadUrl(item: IAppFile) {
 function clickItem(item: IAppFile) {
   const name = item.fileName
   if (isTextFile(name)) {
-    const fileId = getFileId(urlTokenKey.value, `fid:${getAppFileFid(item)}`)
+    const fileId = getTextFileId(urlTokenKey.value, `fid:${getAppFileFid(item)}`)
     openUrl(`/text-file?id=${encodeURIComponent(fileId)}`)
   } else if (canOpenInBrowser(name)) {
     openUrl(getAppFileUrl(item))

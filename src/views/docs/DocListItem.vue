@@ -17,7 +17,7 @@
 
     <div class="title">
       {{ item.title }}
-      <OnlinePreviewIcon :name="item.title" />
+      <OnlinePreviewIcon :name="getFileName(item.path)" />
     </div>
 
     <div class="subtitle">
@@ -51,6 +51,7 @@
 import type { IDoc, IFilter, IApp, IBucket, ITag } from '@/lib/interfaces'
 import { DataType } from '@/lib/data'
 import { formatFileSize, formatDateTimeFull, formatTimeAgo } from '@/lib/format'
+import { getFileName } from '@/lib/api/file'
 import DocActionButtons from './DocActionButtons.vue'
 import OnlinePreviewIcon from '@/components/OnlinePreviewIcon.vue'
 import { useMainStore } from '@/stores/main'

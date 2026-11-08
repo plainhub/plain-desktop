@@ -352,6 +352,7 @@ pub fn run() {
             crate::commands::native::management::native_release_mdns_debug_session,
             crate::commands::native::events::native_events,
             crate::commands::native::resources::native_resource_open,
+            crate::commands::native::resources::native_file_preview,
             crate::commands::native::resources::native_resource_close,
             crate::commands::native::resources::native_resource_close_owner,
             crate::commands::native::uploads::native_upload_chunk_open,

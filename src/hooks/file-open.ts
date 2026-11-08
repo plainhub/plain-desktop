@@ -1,5 +1,5 @@
 import { type Ref } from 'vue'
-import { canOpenInBrowser, canView, isTextFile, isOfficeFile } from '@/lib/file'
+import { canOpenInBrowser, canOpenInTextViewer, canView } from '@/lib/file'
 
 export interface UseFileOpenOptions<T> {
   getName: (item: T) => string
@@ -15,7 +15,7 @@ export function useFileOpen<T>(opts: UseFileOpenOptions<T>) {
 
   function openFile(item: T) {
     const name = getName(item)
-    if ((isTextFile(name) || isOfficeFile(name)) && openTextFile) {
+    if (canOpenInTextViewer(name) && openTextFile) {
       openTextFile(item)
     } else if (canOpenInBrowser(name)) {
       openBrowserFile(item)

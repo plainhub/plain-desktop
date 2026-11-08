@@ -1,6 +1,7 @@
 import { type Ref, type ComputedRef } from 'vue'
 import { type IFile, isZipFile, joinZipPath } from '@/lib/file'
-import { getFileUrlByPath, getFileId } from '@/lib/api/file'
+import { getFileUrlByPath } from '@/lib/api/file'
+import { getTextFileId } from '@/lib/api/text-file'
 import type { IFileFilter } from '@/lib/interfaces'
 import { useMainStore } from '@/stores/main'
 import { replacePath } from '@/plugins/router'
@@ -43,7 +44,7 @@ export function useFilesNavigation(opts: UseFilesNavigationOptions) {
     items,
     getName: (item) => item.name,
     openTextFile: (item) => {
-      const fileId = getFileId(urlTokenKey.value, item.path)
+      const fileId = getTextFileId(urlTokenKey.value, item.path)
       openUrl(`/text-file?id=${encodeURIComponent(fileId)}`)
     },
     openBrowserFile: (item) => openUrl(getFileUrlByPath(urlTokenKey.value, item.path)),

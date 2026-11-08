@@ -3,12 +3,12 @@ import { computed, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { storeToRefs } from 'pinia'
 import { getFileName, getFileUrl, getFileExtension, getPeerProxyUrl, getFileId } from '@/lib/api/file'
+import { getTextFileId } from '@/lib/api/text-file'
 import type { ISource } from '@/components/lightbox/types'
 import { isVideo, isImage, isAudio, isTextFile, canOpenInBrowser, isAppFile } from '@/lib/file'
 import { useTempStore } from '@/stores/temp'
 import { useMainStore } from '@/stores/main'
 import { openUrl } from '@/lib/browser'
-import { openWindow } from '@/lib/api/tauri-window'
 import { useOpenMedia } from '@/hooks/open-media'
 import { useRevealFile } from './reveal-file'
 import { chatFileDurationMs } from '../chat-file-duration'
@@ -81,13 +81,9 @@ export function useChatFiles(props: { data: any; downloadInfo: any; peer: { ip: 
     if (isTextFile(item.name) && item.fileId) {
       let textFileId = item.fileId
       if (isAppFile(item.path) && urlTokenKey.value) {
-        textFileId = getFileId(urlTokenKey.value, item.path)
+        textFileId = getTextFileId(urlTokenKey.value, item.path)
       }
       const path = `/text-file?id=${encodeURIComponent(textFileId)}`
-      if (__IS_TAURI__) {
-        openWindow(path)
-        return
-      }
       openUrl(path)
     } else if (canOpenInBrowser(item.name)) {
       openUrl(item.src)

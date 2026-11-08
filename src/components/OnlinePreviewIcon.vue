@@ -8,7 +8,7 @@
 
 <script setup lang="ts">
 import { computed } from 'vue'
-import { canOpenInBrowser, isTextFile } from '@/lib/file'
+import { canOpenInBrowser, canOpenInTextViewer } from '@/lib/file'
 
 const props = withDefaults(
   defineProps<{
@@ -18,5 +18,5 @@ const props = withDefaults(
   { isDir: false },
 )
 
-const isPreviewable = computed(() => !props.isDir && (isTextFile(props.name) || canOpenInBrowser(props.name)))
+const isPreviewable = computed(() => !props.isDir && (canOpenInTextViewer(props.name) || canOpenInBrowser(props.name)))
 </script>
