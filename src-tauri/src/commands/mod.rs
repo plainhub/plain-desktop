@@ -9,6 +9,5 @@ pub mod native;
 pub mod notification;
 pub mod reveal;
 pub mod screen_capture;
-pub mod server;
 pub mod webview_creation;
 pub mod window;

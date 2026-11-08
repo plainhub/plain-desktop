@@ -21,6 +21,7 @@ vi.mock('@/lib/api/api', () => ({
   getApiBaseUrl: () => 'https://current.example.test',
   getApiHeaders: () => ({ 'c-id': 'search-client' }),
   getLocalServerPort: () => 8080,
+  nativePeerGraphqlUrl: (peerId: string) => `http://127.0.0.1:8080/proxy/${peerId}/graphql`,
   getProxyUrl: (path: string) => path,
   proxyUrlFor: (base: string, path: string) => base + path,
   deviceBaseUrl: (host: string) => `https://${host}`,
@@ -61,6 +62,7 @@ afterEach(() => {
 })
 
 it('queries the authorized peer and seals preview URLs with that device’s session credential', async () => {
+  vi.stubGlobal('__IS_TAURI__', true)
   transport.remote.mockResolvedValueOnce({ data: { app } }).mockResolvedValueOnce({ data: { items: [doc], total: 32 } })
   const client = await loadSearchClient({ id: peer.id, name: peer.name, target: 'peer', peer })
   expect(client.canSearch('images')).toBe(false)
@@ -68,8 +70,8 @@ it('queries the authorized peer and seals preview URLs with that device’s sess
   const { hits, total } = await client.page('docs', 'Trip: notes', 24)
   expect(total).toBe(32)
   expect(transport.current).not.toHaveBeenCalled()
-  expect(transport.remote).toHaveBeenNthCalledWith(1, 'https://archive.example.test/graphql', 'peer-login', appGQL, undefined)
-  expect(transport.remote).toHaveBeenNthCalledWith(2, 'https://archive.example.test/graphql', 'peer-login', docsGQL, {
+  expect(transport.remote).toHaveBeenNthCalledWith(1, 'http://127.0.0.1:8080/proxy/peer/graphql', 'peer-login', appGQL, undefined)
+  expect(transport.remote).toHaveBeenNthCalledWith(2, 'http://127.0.0.1:8080/proxy/peer/graphql', 'peer-login', docsGQL, {
     query: 'text:Trip:\\ notes trash:false', offset: 24, limit: 24, sortBy: 'DATE_DESC',
   })
   const hit = hits[0]

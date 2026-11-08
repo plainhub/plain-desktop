@@ -8,8 +8,12 @@ it('builds lowercase operation parameters and preserves preview options', () => 
   expect(query.get('v')).toBe('updated')
 })
 
-it.each(['/fs', '/proxyfs'])('downloads original bytes through %s and removes thumbnail sizing', (path) => {
-  const url = new URL(withFileAction(`${path}?id=encrypted%2Bvalue&action=preview&size=sm`, FileAction.Download), 'http://localhost')
+it.each([
+  ['/fs', false],
+  ['/proxy/c.self.ticket/fs', false],
+  ['/proxy/peer/fs', true],
+])('downloads original bytes through %s and removes thumbnail sizing', (path, chat) => {
+  const url = new URL(withFileAction(`${path}?id=encrypted%2Bvalue&action=preview&size=sm`, FileAction.Download, chat), 'http://localhost')
   expect(url.searchParams.get('id')).toBe('encrypted+value')
   expect(url.searchParams.getAll('action')).toEqual(['download'])
   expect(url.searchParams.has('size')).toBe(false)
@@ -21,4 +25,9 @@ it('replaces the preview operation when probing and transcoding', () => {
     expect(url.searchParams.getAll('action')).toEqual([action])
   }
   expect(withFileAction('blob:recording', FileAction.Download)).toBe('blob:recording')
+})
+
+it('keeps the action bound to an encrypted managed file URL', () => {
+  const url = 'https://device.invalid/proxy/peer/fs?id=opaque&action=preview'
+  expect(withFileAction(url, FileAction.Download)).toBe(url)
 })

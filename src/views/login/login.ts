@@ -10,15 +10,15 @@ import { DeviceType } from '@/lib/status'
 import { getRemoteClientId, setRemoteClientId, getDesktopClientId } from '@/lib/device/client-id'
 import { httpRequest } from '@/lib/api/http'
 import { performLoginHandshake } from '@/lib/api/login-handshake'
-import type { LoginHandshakeParams } from '@/lib/api/login-handshake'
+import { bindGraphqlClient } from '@/lib/api/gql-client'
 import type { SubscriptionClient } from '@/lib/api/subscription-client'
 import { createPairing } from '@/lib/device/pairing'
 
 type UseLoginOptions = {
   redirectOnSuccess?: boolean
   onSuccess?: () => void | Promise<void>
-  peer?: () => LoginHandshakeParams['peer']
   subscriptions?: SubscriptionClient
+  managedDeviceId?: string
 }
 
 function getSafeRedirect(redirect: unknown): string {
@@ -41,7 +41,10 @@ export function useLogin(options: UseLoginOptions = {}) {
   const redirectOnSuccess = options.redirectOnSuccess !== false
   let lastInitSignaturePublicKey = ''
   let pendingLoginController: AbortController | null = null
-  const pairing = __IS_TAURI__ ? createPairing(options.subscriptions) : null
+  const managedDeviceId = options.managedDeviceId
+  const pairing = __IS_TAURI__ || managedDeviceId
+    ? createPairing(options.subscriptions, managedDeviceId ? bindGraphqlClient() : undefined)
+    : null
   let nativeActive = true
   watch(() => pairing?.state.value, async (state) => {
     if (!state || !nativeActive) return
@@ -51,15 +54,17 @@ export function useLogin(options: UseLoginOptions = {}) {
     isSubmitting.value = !['PASSWORD_REQUIRED', 'SUCCEEDED', 'FAILED', 'CANCELLED'].includes(state.phase)
     if (state.phase === 'FAILED') { showError.value = true; error.value = `login.${state.error || 'failed'}` }
     if (state.phase === 'SUCCEEDED' && state.deviceId) {
-      await preloadLoginPeers()
-      if (!nativeActive) return
-      setRemoteClientId(state.deviceId)
-      clearPendingLoginDevice()
+      if (!managedDeviceId) {
+        await preloadLoginPeers()
+        if (!nativeActive) return
+        setRemoteClientId(state.deviceId)
+        clearPendingLoginDevice()
+      }
       await finishLoginSuccess()
     }
   })
 
-  async function initializeNative(submittedPassword?: string) {
+  async function startPairing(submittedPassword?: string) {
     if (!pairing) return
     webAccessDisabled.value = false
     isSubmitting.value = true
@@ -68,6 +73,10 @@ export function useLogin(options: UseLoginOptions = {}) {
     const pending = getPendingLoginDevice()
     const current = findLoginPeer(getRemoteClientId())
     try {
+      if (managedDeviceId) {
+        await pairing.start({ id: managedDeviceId, mode: 'MANAGE', password: submittedPassword })
+        return
+      }
       await pairing.start({ id: pending?.id || current?.id, host: pending?.id ? pending.host : pending ? getApiBaseUrl() : current?.address?.baseUrl || (current ? peerHost(current) : undefined), mode: 'MANAGE', password: submittedPassword })
     } catch (e) { isSubmitting.value = false; showError.value = true; error.value = 'login.failed' }
   }
@@ -122,7 +131,7 @@ export function useLogin(options: UseLoginOptions = {}) {
       isSubmitting.value = true
       try {
         if (pairing.state.value?.phase === 'PASSWORD_REQUIRED') await pairing.submit(password.value)
-        else await initializeNative(showPasswordInput.value ? password.value : undefined)
+        else await startPairing(showPasswordInput.value ? password.value : undefined)
         password.value = ''
       } catch { isSubmitting.value = false; showError.value = true; error.value = 'login.failed' }
       return
@@ -138,9 +147,8 @@ export function useLogin(options: UseLoginOptions = {}) {
     const myClientId = getDesktopClientId()
 
     try {
-      const pairingPeer = options.peer?.()
       const identity = getBrowserIdentity()
-      const { clientId, token, chatPaired, signaturePublicKey } = await performLoginHandshake({
+      const { clientId, token, signaturePublicKey } = await performLoginHandshake({
         passwordRequired: showPasswordInput.value,
         passwordHash: hash,
         clientId: myClientId,
@@ -149,12 +157,9 @@ export function useLogin(options: UseLoginOptions = {}) {
         initSignaturePublicKey: lastInitSignaturePublicKey,
         onPending: (code) => { verificationCode.value = code || ''; showConfirm.value = true },
         signal: controller.signal,
-        peer: pairingPeer,
       })
 
       if (controller.signal.aborted) return
-      if (pairingPeer && !chatPaired) throw 'chat_pairing_unavailable'
-
       saveBrowserIdentity(clientId, signaturePublicKey)
       saveBrowserSession(token)
       setRemoteClientId(clientId)
@@ -191,7 +196,7 @@ export function useLogin(options: UseLoginOptions = {}) {
 
   return {
     showError, webAccessDisabled, showConfirm, verificationCode, error, showPasswordInput,
-    password, passwordError, isSubmitting, onSubmit, cancel, forgetIdentity, t, applyInitResult, initializeNative,
+    password, passwordError, isSubmitting, onSubmit, cancel, forgetIdentity, t, applyInitResult, startPairing,
     dispose: () => { nativeActive = false; pairing?.dispose(); pendingLoginController?.abort() },
   }
 }

@@ -34,7 +34,7 @@ async function initializeLoginForm() {
   if (!loginFormRef.value) {
     throw new Error('login_form_not_ready')
   }
-  if (__IS_TAURI__) { await loginFormRef.value.initializeNative(); return }
+  if (__IS_TAURI__) { await loginFormRef.value.startPairing(); return }
   const result = await requestInit()
   if (result.data?.needsSetup) {
     goToSetup(); return

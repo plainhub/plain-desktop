@@ -10,6 +10,7 @@ import emitter from '@/plugins/eventbus'
 const target = vi.hoisted(() => ({ native: true, client: 'device-a', url: 'https://device-a.test', token: 'session-a', header: 'client-a' }))
 vi.mock('@/lib/api/api', () => ({
   getApiBaseUrl: () => target.url,
+  nativePeerGraphqlUrl: (peerId: string) => `http://127.0.0.1:8280/proxy/${peerId}/graphql`,
   getApiHeaders: () => ({ 'c-id': target.header }),
   getLocalToken: () => target.token,
 }))
@@ -161,6 +162,16 @@ it.each([false, true])('routes a remote request over HTTP regardless of Desktop 
   expect((await gqlFetch('query { prefs }')).data).toEqual({ prefs: { locale: 'fr' } })
   expect(httpRequest).toHaveBeenCalledTimes(1)
   expect(nativeGraphql).not.toHaveBeenCalled()
+})
+
+it('sends the desktop client ID in c-id and routes the selected GraphQL peer by path', async () => {
+  vi.stubGlobal('__IS_TAURI__', true)
+  target.native = false
+  target.client = 'device-b'
+  vi.mocked(httpRequest).mockResolvedValueOnce(response({ app: { clientId: 'device-b' } }))
+  await gqlFetch('query { app { clientId } }')
+  expect(httpRequest).toHaveBeenCalledExactlyOnceWith('http://127.0.0.1:8280/proxy/device-b/graphql',
+    expect.objectContaining({ method: 'POST', headers: { 'c-id': 'client-a' } }))
 })
 
 it('waits for current Desktop remote-session cleanup before reloading', async () => {

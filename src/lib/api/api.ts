@@ -1,9 +1,10 @@
 import { isLocalMode } from '@/lib/device/local-mode'
 import { getCurrentDeviceHost, getCurrentDeviceBaseUrl } from '../device/current'
-import { getDesktopClientId } from '@/lib/device/client-id'
+import { getDesktopClientId, getNativeFileUrlToken } from '@/lib/device/client-id'
 import { isMacPlatform } from '../platform'
 import { DeviceType } from '../status'
-import { applyScheme } from '../url'
+import { applyScheme, peerProxyPath } from '../url'
+import { encryptResourcePayload } from './resource-link'
 
 export interface PendingLoginDevice {
   id?: string
@@ -21,12 +22,6 @@ let _pendingLoginDevice: PendingLoginDevice | null = null
 export function setPendingLoginDevice(device: PendingLoginDevice): void { _pendingLoginDevice = device }
 export function clearPendingLoginDevice(): void { _pendingLoginDevice = null }
 export function getPendingLoginDevice(): PendingLoginDevice | null { return _pendingLoginDevice }
-
-// Port of the local HTTP reverse proxy (Tauri only). Initialized at app start via
-// invoke('http_proxy_port'). Used by file uploads so XHR progress events work and
-// WKWebView doesn't reject the self-signed device certificate.
-let _httpProxyPort = 0
-export function setHttpProxyPort(port: number): void { _httpProxyPort = port }
 
 let _localServerPort = 0
 export function setLocalServerPort(port: number): void { _localServerPort = port }
@@ -52,57 +47,46 @@ export function deviceBaseUrl(host: string): string {
   return applyScheme(isSecurePort(host) ? 'https' : 'http', host)
 }
 
-/** Assemble a loopback proxy URL from a request path and target base. */
-function proxyPath(port: number, path: string, pt: string): string {
-  const sep = path.includes('?') ? '&' : '?'
-  return `http://127.0.0.1:${port}${path}${sep}_pt=${encodeURIComponent(pt)}`
+const proxyTargets = new Map<string, string>()
+
+function proxyPath(path: string, base: string, peerId = '', socket = false): string {
+  const descriptor = JSON.stringify({ base, peerId })
+  let target = proxyTargets.get(descriptor)
+  if (!target) {
+    const key = Uint8Array.from(atob(getNativeFileUrlToken()), byte => byte.charCodeAt(0))
+    target = encryptResourcePayload(key, { mode: 'c', id: getDesktopClientId() }, 'native-proxy', descriptor)
+    if (proxyTargets.size >= 64) proxyTargets.clear()
+    proxyTargets.set(descriptor, target)
+  }
+  return localProxyUrl(target, path, socket)
 }
 
-/** Routes a browser-initiated path through the local HTTP reverse proxy when
- *  the target base is a self-signed HTTPS device (Tauri only); the proxy
- *  learns the target from the `_pt` query param. */
+function localProxyUrl(target: string, path: string, socket = false): string {
+  return `${socket ? 'ws' : 'http'}://127.0.0.1:${_localServerPort}${peerProxyPath(target, path)}`
+}
+
+export function nativePeerGraphqlUrl(peerId: string): string {
+  return localProxyUrl(peerId, '/graphql')
+}
+
 export function proxyUrlFor(base: string, path: string): string {
-  if (__IS_TAURI__ && base.startsWith('https://')) {
-    return proxyPath(_httpProxyPort, path, base)
-  }
-  return `${base}${path}`
+  return __IS_TAURI__ && base.startsWith('https://')
+    ? proxyPath(path, new URL(base).origin)
+    : `${base}${path}`
 }
 
-/** Pure URL rewrite for `httpRequest`: an https device URL becomes a plain
- *  loopback URL the webview fetch can dial (self-signed certs are the
- *  proxy's problem, not the webview's). */
-export function buildProxyHttpUrl(port: number, url: string): string {
-  const slash = url.indexOf('/', 8)
-  return slash === -1
-    ? proxyPath(port, '/', url)
-    : proxyPath(port, url.slice(slash), url.slice(0, slash))
-}
-
-/** `httpRequest`'s transport gate: only Tauri builds need the rewrite. */
 export function proxyHttpUrl(url: string): string {
-  return __IS_TAURI__ && url.startsWith('https://') ? buildProxyHttpUrl(_httpProxyPort, url) : url
+  if (!__IS_TAURI__ || !url.startsWith('https://')) return url
+  const { origin, pathname, search } = new URL(url)
+  return proxyPath(pathname + search, origin)
 }
 
-/** Pure URL rewrite for `openSocket`: a device ws(s):// URL becomes a
- *  loopback ws:// URL; the `_cid` names a paired peer whose current
- *  `ip:port` the proxy re-resolves from the peers table right before
- *  dialing. Loopback targets (the desktop's own local server) stay
- *  direct — no proxy hop for local-mode sockets. */
-export function buildProxyWsUrl(port: number, url: string, clientId = ''): string {
-  const u = new URL(url)
-  if (u.hostname === 'localhost' || u.hostname === '127.0.0.1' || u.hostname === '[::1]') {
-    return url
-  }
-  const scheme = u.protocol === 'wss:' ? 'wss' : 'ws'
-  const cid = clientId ? `&_cid=${encodeURIComponent(clientId)}` : ''
-  const sep = u.search ? '&' : '?'
-  const pathname = u.pathname || '/'
-  return `ws://127.0.0.1:${port}${pathname}${u.search}${sep}_pt=${encodeURIComponent(`${scheme}://${u.host}`)}${cid}`
-}
-
-/** `openSocket`'s transport gate: only Tauri builds need the rewrite. */
 export function proxyWsUrlFor(url: string, clientId = ''): string {
-  return __IS_TAURI__ ? buildProxyWsUrl(_httpProxyPort, url, clientId) : url
+  if (!__IS_TAURI__) return url
+  const u = new URL(url)
+  if (u.hostname === 'localhost' || u.hostname === '127.0.0.1' || u.hostname === '[::1]') return url
+  const base = u.origin.replace(/^ws(s?):/, 'http$1:')
+  return proxyPath(u.pathname + u.search, base, clientId, true)
 }
 
 export function getProxyUrl(path: string): string {

@@ -1,4 +1,4 @@
-import { deviceBaseUrl } from './api'
+import { deviceBaseUrl, nativePeerGraphqlUrl } from './api'
 import { encryptedGqlPost, type GqlResult } from './gql-client'
 import type { LoginPeer } from '../device/login-peers'
 import { peerHost } from '../device/login-peers'
@@ -13,5 +13,6 @@ export async function gqlFetchPeer<T = any>(
   query: string,
   variables?: Record<string, any>,
 ): Promise<GqlResult<T>> {
-  return encryptedGqlPost<T>(`${getPeerBaseUrl(peer)}/graphql`, peer.token, query, variables)
+  const url = __IS_TAURI__ ? nativePeerGraphqlUrl(peer.id) : `${getPeerBaseUrl(peer)}/graphql`
+  return encryptedGqlPost<T>(url, peer.token, query, variables)
 }

@@ -29,7 +29,7 @@ import { useChatFiles } from './hooks/chat-files'
 const props = defineProps({
   data: { type: Object, default: () => ({}) },
   downloadInfo: { type: Object as () => { downloaded: number; total: number; speed: number; status: string } | null, default: null },
-  peer: { type: Object as () => { ip: string; port: number } | null, default: null },
+  peer: { type: Object as () => { id: string } | null, default: null },
 })
 
 const emit = defineEmits<{ 'download-action': [action: 'pause' | 'resume' | 'retry'] }>()

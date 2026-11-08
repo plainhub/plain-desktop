@@ -145,12 +145,6 @@ pub fn run() {
                 crate::commands::screen_capture::selftest::schedule_trigger(app.handle().clone());
             }
 
-            // The peer proxy dials by client id; the core owns the lookup.
-            let peer_resolver = core.peer_proxy_resolver();
-            app.handle().manage(tauri::async_runtime::block_on(async {
-                plain_server::http::proxy::local::HttpProxyState::start(peer_resolver)
-            }));
-
             let capabilities = crate::host::device::desktop_capabilities()
                 .iter()
                 .map(|value| (*value).to_owned())
@@ -319,7 +313,6 @@ pub fn run() {
             crate::commands::screen_capture::commands::screen_capture_fail,
             crate::commands::screen_capture::commands::screen_capture_cancel,
             crate::commands::screen_capture::commands::screen_capture_unavailable,
-            crate::commands::server::http_proxy_port,
             crate::commands::native::graphql::native_view_scope,
             crate::commands::native::graphql::native_graphql,
             crate::commands::native::graphql::native_subscription_open,

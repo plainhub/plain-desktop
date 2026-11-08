@@ -40,7 +40,7 @@ function releaseChunkSlot() {
 }
 
 // Uploads go through XHR (progress events), so the self-signed-cert
-// workaround is the `_pt`-tagged local proxy URL.
+// workaround is the local `/proxy` URL.
 export function getUploadUrl() {
   return proxyUrlFor(getApiBaseUrl(), '/upload')
 }

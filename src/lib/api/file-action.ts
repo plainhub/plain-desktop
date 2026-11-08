@@ -11,10 +11,18 @@ export function fileQuery(action: FileAction, query = ''): string {
   return '&' + parameters.toString()
 }
 
-export function withFileAction(url: string, action: FileAction): string {
+export function withFileAction(url: string, action: FileAction, chat = false): string {
   const parsed = new URL(url, 'http://localhost')
-  if (parsed.pathname !== '/fs' && parsed.pathname !== '/proxyfs') return url
+  const resource = parsed.pathname.replace(/^\/proxy\/c\.[^/]+/, '')
+  if (resource !== '/fs' && !(chat && /^\/proxy\/[^/]+\/fs$/.test(resource))) return url
   parsed.searchParams.set('action', action)
   if (action !== FileAction.Preview) parsed.searchParams.delete('size')
   return /^https?:\/\//.test(url) ? parsed.toString() : parsed.pathname + parsed.search + parsed.hash
+}
+
+export function chatAttachmentThumbnail(url: string): string {
+  if (!url) return ''
+  const parsed = new URL(url)
+  parsed.searchParams.set('size', 'sm')
+  return parsed.toString()
 }

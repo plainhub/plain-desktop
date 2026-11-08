@@ -13,3 +13,7 @@ export function applyScheme(scheme: string, hostWithPort: string): string {
   if (m && isDefaultPort(scheme, Number(m[2]))) return `${scheme}://${m[1]}`
   return `${scheme}://${hostWithPort}`
 }
+
+export function peerProxyPath(peerId: string, path: string): string {
+  return `/proxy/${encodeURIComponent(peerId)}/${path.replace(/^\//, '')}`
+}

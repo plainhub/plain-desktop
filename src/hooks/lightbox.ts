@@ -362,7 +362,7 @@ export function useLightboxNavigation(
     // without an HEVC decoder, HEVC sources switch to the server-transcoded
     // H.264 stream here (one cached probe round-trip, tens of ms).
     if (isVideo(s.name) && s.src && !s.playbackUrl) {
-      const { url, transcoded } = await ensurePlayableVideoUrl(s.src)
+      const { url, transcoded } = await ensurePlayableVideoUrl(s.src, s.isFromChat)
       s.playbackUrl = url
       s.transcoded = transcoded
     }
@@ -444,7 +444,7 @@ export function useLightboxFileActions(
   function downloadFile() {
     const source = current.value
     if (!source) return
-    download(source.src, (source.name || getFileName(source.path)).replace(' ', '-'))
+    download(source.src, (source.name || getFileName(source.path)).replace(' ', '-'), source.isFromChat)
   }
 
   function deleteFile() {

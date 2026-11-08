@@ -30,17 +30,17 @@ export class GraphqlSubscriptionCrypto {
   private binding: Uint8Array | undefined
   private sent = 0n
   private received = 0n
-  constructor(private client: string, private key: Uint8Array) {
+  constructor(private client: string, private key: Uint8Array, private handshakePath = '/graphql') {
     const clientNonce = [...randomBytes(32)].map(value => value.toString(16).padStart(2, '0')).join('')
     const plain = utf8.encode(JSON.stringify({ timestampMillis: getSyncedTimestamp(), clientNonce }))
-    const cipher = seal(key, plain, fields([utf8.encode('plain-graphql-init-v1'), utf8.encode('/graphql'), utf8.encode(client)]))
+    const cipher = seal(key, plain, fields([utf8.encode('plain-graphql-init-v1'), utf8.encode(handshakePath), utf8.encode(client)]))
     this.registration = new Uint8Array(1 + cipher.length)
     this.registration[0] = 1
     this.registration.set(cipher, 1)
   }
   acknowledge(frame: Uint8Array) {
     if (frame[0] !== 1 || this.binding) throw new Error('Invalid subscription acknowledgement')
-    const aad = fields([utf8.encode('plain-graphql-ack-v1'), utf8.encode('/graphql'), utf8.encode(this.client), sha256(this.registration)])
+    const aad = fields([utf8.encode('plain-graphql-ack-v1'), utf8.encode(this.handshakePath), utf8.encode(this.client), sha256(this.registration)])
     const ack: { serverNonce: string } = JSON.parse(new TextDecoder().decode(open(this.key, frame.subarray(1), aad)))
     if (!/^[0-9a-f]{64}$/.test(ack.serverNonce)) throw new Error('Invalid subscription server nonce')
     this.binding = sha256(fields([this.registration, frame]))

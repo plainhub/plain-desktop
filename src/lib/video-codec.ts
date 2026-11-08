@@ -25,12 +25,12 @@ export function browserSupportsHevc(): boolean {
 const codecCache = new Map<string, string>()
 
 /** Ask the server (`action=probe`) which codec the video track uses. */
-async function fetchVideoCodec(src: string): Promise<string> {
+async function fetchVideoCodec(src: string, chat: boolean): Promise<string> {
   const cached = codecCache.get(src)
   if (cached !== undefined) return cached
   let codec = ''
   try {
-    const res = await fetch(withFileAction(src, FileAction.Probe))
+    const res = await fetch(withFileAction(src, FileAction.Probe, chat))
     if (res.ok) codec = ((await res.json()) as { codec?: string }).codec ?? ''
   } catch {
     // A failed probe falls back to the original URL; the <video> error path
@@ -46,11 +46,11 @@ async function fetchVideoCodec(src: string): Promise<string> {
  * transcoded (`action=transcode`) H.264 stream; `transcoded` tells the UI to show the
  * "converting…" hint.
  */
-export async function ensurePlayableVideoUrl(src: string): Promise<{ url: string; transcoded: boolean }> {
+export async function ensurePlayableVideoUrl(src: string, chat = false): Promise<{ url: string; transcoded: boolean }> {
   if (browserSupportsHevc()) return { url: src, transcoded: false }
-  const codec = await fetchVideoCodec(src)
+  const codec = await fetchVideoCodec(src, chat)
   if (codec === 'hvc1' || codec === 'hev1') {
-    return { url: withFileAction(src, FileAction.Transcode), transcoded: true }
+    return { url: withFileAction(src, FileAction.Transcode, chat), transcoded: true }
   }
   return { url: src, transcoded: false }
 }

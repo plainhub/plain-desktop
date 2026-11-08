@@ -6,7 +6,7 @@ import { getRemoteClientId, getDesktopClientId } from '@/lib/device/client-id'
 import { tokenToKey } from './file'
 import { openSocket } from './http'
 import { GraphqlSubscriptionCrypto } from './graphql-subscription-crypto'
-import { managedPath } from './managed-proxy'
+import { peerProxyPath } from '../url'
 
 export interface SubscriptionConnection { send(message: unknown): void; close(): void }
 interface Callbacks { opened(): void; message(message: unknown): void; dropped(error: unknown): void }
@@ -14,7 +14,7 @@ export function openSubscriptionConnection(callbacks: Callbacks, peerId?: string
   return !peerId && isLocalMode() ? openNative(callbacks) : openNetwork(callbacks, peerId)
 }
 function openNetwork(callbacks: Callbacks, peerId?: string): SubscriptionConnection {
-  const url = new URL(peerId ? managedPath(peerId, 'graphql') : '/graphql', getWebSocketBaseUrl())
+  const url = new URL(peerId ? peerProxyPath(peerId, 'graphql') : '/graphql', getWebSocketBaseUrl())
   const client = getDesktopClientId()
   const token = getCurrentAuthToken()
   if (!token) throw new Error('Subscription session missing')

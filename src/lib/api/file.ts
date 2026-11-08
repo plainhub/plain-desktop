@@ -1,8 +1,7 @@
 import { FileAction, fileQuery, withFileAction } from './file-action'
 import { arrayBufferToHex } from '../strutil'
-import { buildUrl } from '../url'
-import { getPeerIp } from '../device/login-peers'
-import { getApiBaseUrl, getProxyUrl, getApiHeaders } from './api'
+import { getProxyUrl, getApiHeaders } from './api'
+import { getNativeFileUrlToken } from '@/lib/device/client-id'
 import { encryptResourcePayload, resourceId, type Resource, type ResourceScope } from './resource-link'
 import { isLocalMode } from '../device/local-mode'
 import toast, { toastWithAction } from '@/components/toaster'
@@ -59,8 +58,8 @@ export function getFileUrlByPath(key: Uint8Array | null, path: string) {
 
 const _recentDownloads = new Set<string>()
 
-export function download(url: string, name: string) {
-  url = withFileAction(url, FileAction.Download)
+export function download(url: string, name: string, chat = false) {
+  url = withFileAction(url, FileAction.Download, chat)
   // Prevent duplicate downloads triggered by rapid double-clicks.
   if (_recentDownloads.has(url)) {
     return
@@ -172,23 +171,22 @@ export function encryptUrlParams(key: Uint8Array | null, params: string, purpose
   return encryptResourcePayload(key, currentResourceScope(), purpose, params)
 }
 
-/**
- * Build a /proxyfs URL that proxies a peer's file through the local app server.
- * Avoids CORS issues when the peer uses a self-signed HTTPS certificate.
- * @param peerFileId - the raw peer-side encrypted file ID (from `fsid:<id>` URI)
- */
-export function getPeerProxyUrl(
-  urlTokenKey: Uint8Array | null,
-  peer: { ip: string; port: number | null },
-  peerFileId: string,
-  query: string = '',
+export function getChatFileId(key: Uint8Array | null, path: string): string {
+  if (!path.startsWith('fid:') || !isLocalMode()) return getFileId(key, path)
+  return getFileId(tokenToKey(getNativeFileUrlToken()), path, '', { mode: 'c', id: getApiHeaders()['c-id'] })
+}
+
+export function getChatAttachmentUrl(
+  sessionKey: Uint8Array | null,
+  peerId: string,
+  reference: string,
+  query = '',
 ): string {
-  if (!urlTokenKey || !peer?.ip || !peer?.port || !peerFileId) {
-    return ''
-  }
-  const peerUrl = buildUrl('https', getPeerIp(peer), peer.port, `/fs?id=${encodeURIComponent(peerFileId)}`)
-  const encrypted = encryptUrlParams(urlTokenKey, peerUrl, 'proxyfs')
-  return `${getApiBaseUrl()}/proxyfs?id=${encodeURIComponent(encrypted)}${fileQuery(FileAction.Preview, query)}`
+  const key = isLocalMode() ? tokenToKey(getNativeFileUrlToken()) : sessionKey
+  if (!key || !peerId || !reference.startsWith('fsid:')) return ''
+  const scope = { mode: 'c' as const, id: getApiHeaders()['c-id'] }
+  const id = encryptResourcePayload(key, scope, `chat-attachment:${peerId}`, reference)
+  return getProxyUrl(`/proxy/${encodeURIComponent(peerId)}/fs?id=${encodeURIComponent(id)}${fileQuery(FileAction.Preview, query)}`)
 }
 
 export function getFinalPath(appDir: string, path: string) {

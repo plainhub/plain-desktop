@@ -51,7 +51,6 @@ import { onBeforeUnmount, ref } from 'vue'
 import type { InitResult } from '@/lib/api/init'
 import type { SubscriptionClient } from '@/lib/api/subscription-client'
 import { useLogin } from './login'
-import type { LoginHandshakeParams } from '@/lib/api/login-handshake'
 
 type InitOptions = {
   autoSubmitWhenNoPassword?: boolean
@@ -63,12 +62,11 @@ const confirmForget = ref(false)
 const props = withDefaults(defineProps<{
   redirectOnSuccess?: boolean
   pairing?: boolean
-  peer?: LoginHandshakeParams['peer']
   subscriptions?: SubscriptionClient
+  managedDeviceId?: string
 }>(), {
   redirectOnSuccess: true,
   pairing: false,
-  peer: undefined,
   subscriptions: undefined,
 })
 
@@ -79,12 +77,12 @@ const emit = defineEmits<{
 
 const {
   showError, webAccessDisabled, showConfirm, verificationCode, error, showPasswordInput,
-  password, passwordError, isSubmitting, onSubmit, cancel, forgetIdentity, t, applyInitResult, initializeNative, dispose,
+  password, passwordError, isSubmitting, onSubmit, cancel, forgetIdentity, t, applyInitResult, startPairing, dispose,
 } = useLogin({
   redirectOnSuccess: props.redirectOnSuccess,
   onSuccess: async () => emit('success'),
-  peer: () => props.peer,
   subscriptions: props.subscriptions,
+  managedDeviceId: props.managedDeviceId,
 })
 
 async function init(result: InitResult, options: InitOptions = {}) {
@@ -101,7 +99,7 @@ function onCancel() {
 
 onBeforeUnmount(dispose)
 
-defineExpose({ init, initializeNative })
+defineExpose({ init, startPairing })
 </script>
 
 <style scoped lang="scss">

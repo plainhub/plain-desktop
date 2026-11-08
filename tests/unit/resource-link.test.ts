@@ -28,7 +28,7 @@ it('keeps session, global, share and endpoint contexts separate', () => {
   expect(share.startsWith('s.share.with.dots.')).toBe(true)
   expect(() => resourceId(key, { mode: 'g' }, { type: 'SHARED_FILE', id: 'file' })).toThrow()
   expect(() => resourceId(key, { mode: 's', id: 'share' }, { type: 'FILE', id: '/file' })).toThrow()
-  expect(encryptResourcePayload(key, { mode: 'g' }, 'proxyfs', '/file')).not.toBe(encryptResourcePayload(key, { mode: 'g' }, 'zip-files', '/file'))
+  expect(encryptResourcePayload(key, { mode: 'g' }, 'chat-attachment:fixture', '/file')).not.toBe(encryptResourcePayload(key, { mode: 'g' }, 'zip-files', '/file'))
 })
 
 it.each([{ mode: 'g' } as const, { mode: 'c', id: '客户.with.dots' } as const])('decodes the current authenticated file resource ($mode)', scope => {
@@ -46,7 +46,7 @@ it('rejects non-file resources, shared links, malformed envelopes and unauthenti
     resourceId(key, { mode: 'c', id: 'owner' }, { type: 'APP_FILE', id: 'hash' }),
     resourceId(key, { mode: 's', id: 'share' }, { type: 'SHARED_FILE', id: 'note.txt' }),
     encryptResourcePayload(key, { mode: 'g' }, 'fs', JSON.stringify({ path: '/legacy' })),
-    encryptResourcePayload(key, { mode: 'g' }, 'proxyfs', JSON.stringify({ type: 'FILE', id: '/wrong-purpose' })),
+    encryptResourcePayload(key, { mode: 'g' }, 'chat-attachment:fixture', JSON.stringify({ type: 'FILE', id: '/wrong-purpose' })),
     'c..payload', 'g..payload', 'g.invalid+payload', 'plain-legacy-base64',
   ]) expect(() => filePathFromResourceId(key, id)).toThrow()
 })

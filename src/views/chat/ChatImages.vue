@@ -9,7 +9,8 @@
 </template>
 
 <script setup lang="ts">
-import { getFileName, getFileUrl, getPeerProxyUrl, getFileId } from '@/lib/api/file'
+import { chatAttachmentThumbnail } from '@/lib/api/file-action'
+import { getFileName, getFileUrl, getChatAttachmentUrl, getChatFileId } from '@/lib/api/file'
 import { isVideo } from '@/lib/file'
 import { computed } from 'vue'
 import type { ISource } from '@/components/lightbox/types'
@@ -23,7 +24,7 @@ const tempStore = useTempStore()
 const props = defineProps({
   data: { type: Object, required: true },
   downloadInfo: { type: Object as () => { downloaded: number; total: number; speed: number; status: string } | null, default: null },
-  peer: { type: Object as () => { ip: string; port: number } | null, default: null },
+  peer: { type: Object as () => { id: string } | null, default: null },
 })
 
 const emit = defineEmits<{ 'download-action': [action: 'pause' | 'resume' | 'retry'] }>()
@@ -43,13 +44,7 @@ function getPreview(source: ISource) {
     return source.thumbnail
   }
 
-  // Received from a peer: the URI is `fsid:<peer-encrypted-id>` and the
-  // file lives on the peer. The local /fs endpoint cannot resolve `fsid:`,
-  // so always route peer files through /proxyfs (which forwards to the
-  // peer's /fs), not just while a download is in progress.
-  if (props.peer && source.path.startsWith('fsid:')) {
-    return getPeerProxyUrl(tempStore.urlTokenKey, props.peer, source.path.slice(4), '&size=sm')
-  }
+  if (source.path.startsWith('fsid:')) return chatAttachmentThumbnail(source.src)
 
   if (props.downloadInfo && isActiveStatus(props.downloadInfo.status)) {
     return ''
@@ -69,11 +64,11 @@ const sources = computed(() => {
   const items: ISource[] = []
   files.forEach((file: any) => {
     const uri = file.uri
-    const peerFileId = typeof uri === 'string' && uri.startsWith('fsid:') ? uri.slice(4) : ''
+    const remote = typeof uri === 'string' && uri.startsWith('fsid:')
     const isGif = typeof uri === 'string' && uri.endsWith('.gif')
-    const src = peer && peerFileId
-      ? getPeerProxyUrl(tempStore.urlTokenKey, peer, peerFileId, isGif ? '' : '&size=lg')
-      : getFileUrl(getFileId(tempStore.urlTokenKey, file.uri))
+    const src = peer && remote
+      ? getChatAttachmentUrl(tempStore.urlTokenKey, peer.id, uri, isGif ? '' : '&size=lg')
+      : getFileUrl(getChatFileId(tempStore.urlTokenKey, uri))
     items.push({
       path: file.uri,
       src,

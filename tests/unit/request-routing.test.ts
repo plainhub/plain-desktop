@@ -1,11 +1,11 @@
 import { afterEach, beforeEach, expect, it, vi } from 'vitest'
-import { getApiBaseUrl, getWebSocketBaseUrl, setLocalServerPort, setPendingLoginDevice, clearPendingLoginDevice } from '@/lib/api/api'
+import { getApiBaseUrl, getWebSocketBaseUrl, nativePeerGraphqlUrl, proxyHttpUrl, proxyWsUrlFor, setLocalServerPort, setPendingLoginDevice, clearPendingLoginDevice } from '@/lib/api/api'
 import { DeviceType } from '@/lib/status'
 
 const target = vi.hoisted(() => ({ local: true, host: '', base: '' }))
 vi.mock('@/lib/device/local-mode', () => ({ isLocalMode: () => target.local }))
 vi.mock('@/lib/device/current', () => ({ getCurrentDeviceHost: () => target.host, getCurrentDeviceBaseUrl: () => target.base }))
-vi.mock('@/lib/device/client-id', () => ({ getDesktopClientId: () => 'self' }))
+vi.mock('@/lib/device/client-id', () => ({ getDesktopClientId: () => 'self', getNativeFileUrlToken: () => Buffer.alloc(32, 7).toString('base64') }))
 
 beforeEach(() => {
   Object.assign(target, { local: true, host: '', base: '' })
@@ -61,4 +61,22 @@ it('keeps production browser requests on the current origin despite development 
   window.location.protocol = 'https:'
   expect(getApiBaseUrl()).toBe('https://web.example:8080')
   expect(getWebSocketBaseUrl()).toBe('wss://web.example:8080')
+})
+
+it('uses the existing Core listener for native HTTP and the first auth WebSocket', () => {
+  const init = new URL(proxyHttpUrl('https://device.example:8443/init?value=a%2Bb'))
+  const auth = new URL(proxyWsUrlFor('wss://device.example:8443/auth?cid=desktop&auth=2'))
+  expect(init.origin).toBe('http://127.0.0.1:8180')
+  expect(auth.origin).toBe('ws://127.0.0.1:8180')
+  expect(init.pathname).toMatch(/^\/proxy\/c\.self\.[\w-]+\/init$/)
+  expect(auth.pathname).toBe(init.pathname.replace(/init$/, 'auth'))
+  expect(init.search).toBe('?value=a%2Bb')
+  expect(auth.search).toBe('?cid=desktop&auth=2')
+  expect(proxyWsUrlFor('ws://localhost:8180/graphql')).toBe('ws://localhost:8180/graphql')
+})
+
+it('routes Desktop GraphQL by peer ID without putting the desktop ID in the URL', () => {
+  const url = nativePeerGraphqlUrl('device-b')
+  expect(url).toBe('http://127.0.0.1:8180/proxy/device-b/graphql')
+  expect(proxyHttpUrl(url)).toBe(url)
 })

@@ -15,7 +15,7 @@
         <div v-if="error" class="nearby-error" role="alert">{{ $t(error) }}</div>
       </template>
       <NearbyPairOptions v-else-if="step === 'mode'" @cancel="backToDevices" @confirm="confirmPair" />
-      <DiscoveredDeviceLogin v-else-if="step === 'login' && loginDevice" :device="loginDevice" :subscriptions="subscriptions" pair-chat @success="onLoginSuccess" @cancel="backToDevices" />
+      <DiscoveredDeviceLogin v-else-if="step === 'login' && loginDevice" :device="loginDevice" :subscriptions="subscriptions" @success="onLoginSuccess" @cancel="backToDevices" />
       <div v-else class="nearby-sections">
         <section>
           <h3 class="section-title">{{ $t('paired_devices') }}</h3>
@@ -113,7 +113,7 @@ const pairing = createPairing(subscriptions, request)
 const peers = ref<IPeer[]>([])
 const selfDevice = ref<SelfDevice | null>(null)
 const selectedDevice = ref<DiscoveredDevice | null>(null)
-const loginDevice = ref<PendingLoginDevice | null>(null)
+const loginDevice = ref<(PendingLoginDevice & { id: string }) | null>(null)
 const step = ref<'discover' | 'mode' | 'login'>('discover')
 const activePairId = ref('')
 const removeTarget = ref<IPeer | null>(null)

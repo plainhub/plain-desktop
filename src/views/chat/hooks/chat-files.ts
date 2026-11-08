@@ -1,22 +1,19 @@
+import { chatAttachmentThumbnail } from '@/lib/api/file-action'
 import { isLocalMode } from '@/lib/device/local-mode'
 import { computed, ref } from 'vue'
-import { useRouter } from 'vue-router'
 import { storeToRefs } from 'pinia'
-import { getFileName, getFileUrl, getFileExtension, getPeerProxyUrl, getFileId } from '@/lib/api/file'
+import { getFileName, getFileUrl, getFileExtension, getChatAttachmentUrl, getChatFileId } from '@/lib/api/file'
 import { getTextFileId } from '@/lib/api/text-file'
 import type { ISource } from '@/components/lightbox/types'
 import { isVideo, isImage, isAudio, isTextFile, canOpenInBrowser, isAppFile } from '@/lib/file'
 import { useTempStore } from '@/stores/temp'
-import { useMainStore } from '@/stores/main'
 import { openUrl } from '@/lib/browser'
 import { useOpenMedia } from '@/hooks/open-media'
 import { useRevealFile } from './reveal-file'
 import { chatFileDurationMs } from '../chat-file-duration'
 
-export function useChatFiles(props: { data: any; downloadInfo: any; peer: { ip: string; port: number | null } | null }) {
+export function useChatFiles(props: { data: any; downloadInfo: any; peer: { id: string } | null }) {
   const tempStore = useTempStore()
-  const mainStore = useMainStore()
-  const router = useRouter()
   const { urlTokenKey } = storeToRefs(tempStore)
 
   const activeAudioSrc = ref<string | null>(null)
@@ -26,17 +23,16 @@ export function useChatFiles(props: { data: any; downloadInfo: any; peer: { ip: 
   const { revealFile } = useRevealFile()
 
   const items = computed<ISource[]>(() => {
-    const files = props.data?._content?.value?.items ?? []
+    const data = props.data
+    const files = data?._content?.value?.items ?? []
     const peer = props.peer
     return files.map((f: any) => {
       const uri = f.uri
-      const peerFileId = typeof uri === 'string' && uri.startsWith('fsid:') ? uri.slice(4) : ''
+      const remote = typeof uri === 'string' && uri.startsWith('fsid:')
       const isGif = typeof uri === 'string' && uri.endsWith('.gif')
-      const fileId = getFileId(urlTokenKey.value, uri)
-      // Received from a peer (`fsid:`): route through /proxyfs with the
-      // resize/conversion query baked in (see ChatImages.vue for details).
-      const src = peer && peerFileId
-        ? getPeerProxyUrl(tempStore.urlTokenKey, peer, peerFileId, isGif ? '' : '&size=lg')
+      const fileId = remote ? '' : getChatFileId(urlTokenKey.value, uri)
+      const src = peer && remote
+        ? getChatAttachmentUrl(urlTokenKey.value, peer.id, uri, isGif ? '' : '&size=lg')
         : getFileUrl(fileId)
       return {
         path: f.uri, src,
@@ -54,11 +50,7 @@ export function useChatFiles(props: { data: any; downloadInfo: any; peer: { ip: 
   function getThumb(item: ISource) {
     if (isImage(item.name) || isVideo(item.name)) {
       if (item.thumbnail) return item.thumbnail
-      // Received from a peer: `fsid:` URIs live on the peer — route through
-      // /proxyfs (the local /fs cannot resolve `fsid:`).
-      if (props.peer && item.path.startsWith('fsid:')) {
-        return getPeerProxyUrl(tempStore.urlTokenKey, props.peer, item.path.slice(4), '&size=sm')
-      }
+      if (item.path.startsWith('fsid:')) return chatAttachmentThumbnail(item.src)
       if (isActiveDl.value) {
         return ''
       }

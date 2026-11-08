@@ -1,5 +1,5 @@
 import { isLocalMode } from '@/lib/device/local-mode'
-import { getApiBaseUrl, getApiHeaders } from './api'
+import { getApiBaseUrl, getApiHeaders, nativePeerGraphqlUrl } from './api'
 import { chachaEncrypt, chachaDecrypt, httpResponseAad, arrayBufferToBitArray, bitArrayToUint8Array } from './crypto'
 import { tokenToKey } from './file'
 import { wrapWithReplayProtection } from './time-sync'
@@ -38,10 +38,11 @@ export interface GqlFetchOptions {
 
 function graphqlContext() {
   const native = isLocalMode()
+  const clientId = getActiveClientId()
   return {
     native,
-    clientId: getActiveClientId(),
-    url: native ? '' : `${getApiBaseUrl()}/graphql`,
+    clientId,
+    url: native ? '' : __IS_TAURI__ ? nativePeerGraphqlUrl(clientId) : `${getApiBaseUrl()}/graphql`,
     token: native ? '' : getCurrentAuthToken(),
     headers: { ...getApiHeaders() },
   }

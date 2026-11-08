@@ -3,10 +3,12 @@ import { afterEach, beforeEach, expect, it, vi } from 'vitest'
 import { p256 } from '@noble/curves/nist.js'
 import { ed25519 } from '@noble/curves/ed25519.js'
 import { xchacha20poly1305 } from '@noble/ciphers/chacha'
+import { sha256 } from '@noble/hashes/sha2.js'
 import { sha512Hex } from '../../src/lib/api/sha512'
 
 const mock = vi.hoisted(() => ({ socket: vi.fn(), agent: vi.fn(), base: vi.fn() }))
 vi.mock('@/lib/api/api', () => ({ getWebSocketBaseUrl: mock.base }))
+vi.mock('@/lib/device/current', () => ({ getCurrentAuthToken: () => Buffer.alloc(32, 5).toString('base64') }))
 vi.mock('@/lib/api/http', () => ({ openSocket: mock.socket }))
 vi.mock('@/lib/agent/agent', () => ({ getAccurateAgent: mock.agent }))
 vi.mock('@/lib/api/time-sync', () => ({ getSyncedTimestamp: () => 1000 }))
@@ -15,6 +17,7 @@ vi.mock('@/lib/api/crypto', async (original) => ({
   generateECDHKeyPair: vi.fn(),
 }))
 import { computeECDHSharedKey, generateECDHKeyPair } from '../../src/lib/api/crypto'
+import { openLoginSocket } from '../../src/lib/api/login-socket'
 import { performLoginHandshake } from '../../src/lib/api/login-handshake'
 
 const vector = JSON.parse(
@@ -346,4 +349,37 @@ it('does not send credentials when cancelled during client metadata lookup', asy
   await rejection
   expect(socket.send).toHaveBeenCalledTimes(2)
   expect(vi.getTimerCount()).toBe(0)
+})
+
+it('authenticates to A before delivering B login frames on the existing proxy URL', async () => {
+  const path = '/proxy/device-b/auth?cid=fixture-browser&auth=1'
+  const url = `wss://example.invalid${path}`
+  const opening = openLoginSocket(url)
+  await socket.open()
+  const init = socket.send.mock.calls[0][0] as Uint8Array
+  const utf8 = new TextEncoder()
+  const fields = (values: Uint8Array[]) => Buffer.concat(values.flatMap(value => {
+    const length = Buffer.alloc(4)
+    length.writeUInt32BE(value.length)
+    return [length, value]
+  }))
+  const key = new Uint8Array(32).fill(5)
+  const initAad = fields(['plain-graphql-init-v1', path, 'fixture-browser'].map(value => utf8.encode(value)))
+  expect(JSON.parse(new TextDecoder().decode(xchacha20poly1305(key, init.subarray(1, 25), initAad).decrypt(init.subarray(25))))).toMatchObject({ timestampMillis: 1000 })
+  const ackAad = fields([...['plain-graphql-ack-v1', path, 'fixture-browser'].map(value => utf8.encode(value)), sha256(init)])
+  const nonce = new Uint8Array(24).fill(9)
+  const ack = xchacha20poly1305(key, nonce, ackAad).encrypt(utf8.encode(JSON.stringify({ serverNonce: 'a'.repeat(64) })))
+  await socket.message(new Blob([new Uint8Array([1, ...nonce, ...ack])]))
+  const connection = await opening
+  connection.send('client hello')
+  await socket.message('signed B hello')
+  expect(await connection.receiveText()).toBe('signed B hello')
+  expect(mock.socket).toHaveBeenCalledWith(url)
+  connection.close()
+})
+
+it('keeps the A session handshake on the current API origin', async () => {
+  await expect(openLoginSocket('wss://other.invalid/proxy/device-b/auth?cid=fixture-browser&auth=1'))
+    .rejects.toBe('proxy_auth_failed')
+  expect(mock.socket).not.toHaveBeenCalled()
 })

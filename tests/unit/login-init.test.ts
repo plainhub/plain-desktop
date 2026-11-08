@@ -1,4 +1,5 @@
 import { afterEach, beforeEach, expect, it, vi } from 'vitest'
+import { nextTick, ref } from 'vue'
 const mock = vi.hoisted(() => ({ token: vi.fn(), identity: vi.fn() }))
 vi.mock('vue-i18n', () => ({ useI18n: () => ({ t: (key: string) => key }) }))
 vi.mock('@/plugins/router', () => ({ default: {} }))
@@ -9,6 +10,10 @@ vi.mock('@/lib/device/client-id', () => ({ getDesktopClientId: vi.fn(), getRemot
 vi.mock('@/lib/api/http', () => ({ httpRequest: vi.fn() }))
 vi.mock('@/lib/api/login-handshake', () => ({ performLoginHandshake: vi.fn() }))
 vi.mock('@/lib/device/pairing', () => ({ createPairing: vi.fn() }))
+vi.mock('@/lib/api/gql-client', () => ({ bindGraphqlClient: vi.fn() }))
+import { createPairing, type PairingState } from '@/lib/device/pairing'
+import { setRemoteClientId } from '@/lib/device/client-id'
+import { saveBrowserSession } from '@/lib/device/login-peers'
 import { clearCurrentSession } from '../../src/lib/device/current'
 import { useLogin } from '../../src/views/login/login'
 
@@ -56,4 +61,22 @@ it('rejects changed identities before auto-login', () => {
   expect(login.error.value).toBe('login.peer_identity_changed')
   expect(login.webAccessDisabled.value).toBe(true)
   expect(success).not.toHaveBeenCalled()
+})
+
+it('starts B management through Core and keeps the Web session on A', async () => {
+  const state = ref<PairingState | null>(null)
+  const start = vi.fn(async () => {
+    state.value = { deviceId: 'device-b', generation: 'fixture', mode: 'MANAGE', phase: 'SUCCEEDED', error: null }
+  })
+  vi.mocked(createPairing).mockReturnValue({
+    state, start, submit: vi.fn(), cancel: vi.fn(), dispose: vi.fn(),
+  })
+  const success = vi.fn()
+  const login = useLogin({ redirectOnSuccess: false, onSuccess: success, managedDeviceId: 'device-b' })
+  await login.startPairing()
+  await nextTick()
+  expect(start).toHaveBeenCalledWith({ id: 'device-b', mode: 'MANAGE', password: undefined })
+  expect(success).toHaveBeenCalledOnce()
+  expect(setRemoteClientId).not.toHaveBeenCalled()
+  expect(saveBrowserSession).not.toHaveBeenCalled()
 })
