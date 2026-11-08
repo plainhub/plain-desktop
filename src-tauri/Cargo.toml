@@ -51,11 +51,9 @@ block2 = "0.6"
 [target.'cfg(any(target_os = "windows", target_os = "linux"))'.dependencies]
 tauri-plugin-single-instance = "2"
 
-# plain-capture Windows backend: Windows Graphics Capture + enumeration,
-# through Microsoft's official windows-rs bindings. Same 0.61 line tauri
-# already pulls in, so the crate unifies.
+# Match Tauri's Windows bindings for capture and monitor enumeration.
 [target.'cfg(target_os = "windows")'.dependencies]
-windows = { version = "0.61", features = [
+windows = { version = "=0.62.2", features = [
     "Foundation",
     "Graphics",
     "Graphics_Capture",
