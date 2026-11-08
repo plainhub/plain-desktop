@@ -58,9 +58,7 @@ pub(crate) fn write_image<R: tauri::Runtime>(
     #[cfg(target_os = "macos")]
     return macos::write_png(_png);
     #[cfg(target_os = "linux")]
-    return _app
-        .state::<LinuxClipboard>()
-        .write_image(_decoded.into_rgba8());
+    return _app.state::<LinuxClipboard>().write_png(_png);
     #[cfg(target_os = "windows")]
     {
         let rgba = _decoded.into_rgba8();

@@ -6,7 +6,6 @@ version = 4
 name = "PlainApp"
 version = "0.1.12"
 dependencies = [
- "arboard",
  "ashpd",
  "block2 0.6.2 (registry+https://github.com/rust-lang/crates.io-index)",
  "futures-util",
@@ -34,6 +33,7 @@ dependencies = [
  "tauri-plugin-single-instance",
  "tokio",
  "windows 0.61.3",
+ "wl-clipboard-rs",
  "x11rb",
 ]
 
@@ -180,27 +180,6 @@ name = "arbitrary"
 version = "1.4.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "c3d036a3c4ab069c7b410a2ce876bd74808d2d0888a82667669f8e783a898bf1"
-
-[[package]]
-name = "arboard"
-version = "3.6.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "0348a1c054491f4bfe6ab86a7b6ab1e44e45d899005de92f58b3df180b36ddaf"
-dependencies = [
- "clipboard-win",
- "image",
- "log",
- "objc2 0.6.4",
- "objc2-app-kit",
- "objc2-core-foundation 0.3.2 (registry+https://github.com/rust-lang/crates.io-index)",
- "objc2-core-graphics",
- "objc2-foundation 0.3.2 (registry+https://github.com/rust-lang/crates.io-index)",
- "parking_lot",
- "percent-encoding",
- "windows-sys 0.60.2",
- "wl-clipboard-rs",
- "x11rb",
-]
 
 [[package]]
 name = "arc-swap"
@@ -1085,15 +1064,6 @@ dependencies = [
  "glob",
  "libc",
  "libloading 0.8.9",
-]
-
-[[package]]
-name = "clipboard-win"
-version = "5.4.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "bde03770d3df201d4fb868f2c9c59e66a3e4e2bd06692a0fe701e7103c7e84d4"
-dependencies = [
- "error-code",
 ]
 
 [[package]]
@@ -2029,12 +1999,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "error-code"
-version = "3.4.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "0b5343afd4a8365a643ac588dab4cf234a190c7f6c88c9f6dd6ffe00837661b7"
-
-[[package]]
 name = "esaxx-rs"
 version = "0.1.10"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2128,12 +2092,6 @@ source = "git+https://github.com/plainhub/plain-core.git?branch=main#05c207cd918
 dependencies = [
  "fax_derive",
 ]
-
-[[package]]
-name = "fax"
-version = "0.2.7"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "caf1079563223d5d59d83c85886a56e586cfd5c1a26292e971a0fa266531ac5a"
 
 [[package]]
 name = "fax_derive"
@@ -3127,7 +3085,6 @@ dependencies = [
  "png 0.18.1",
  "ravif",
  "rayon",
- "tiff 0.11.3 (registry+https://github.com/rust-lang/crates.io-index)",
  "zune-core",
  "zune-jpeg",
 ]
@@ -4926,7 +4883,7 @@ dependencies = [
  "sha2 0.10.9",
  "sha2 0.11.0",
  "tempfile",
- "tiff 0.11.3 (git+https://github.com/plainhub/plain-core.git?branch=main)",
+ "tiff",
  "tokenizers",
  "tokio",
  "x509-parser",
@@ -7160,23 +7117,9 @@ dependencies = [
 [[package]]
 name = "tiff"
 version = "0.11.3"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b63feaf3343d35b6ca4d50483f94843803b0f51634937cc2ec519fc32232bc52"
-dependencies = [
- "fax 0.2.7",
- "flate2",
- "half",
- "quick-error",
- "weezl",
- "zune-jpeg",
-]
-
-[[package]]
-name = "tiff"
-version = "0.11.3"
 source = "git+https://github.com/plainhub/plain-core.git?branch=main#05c207cd9185e01ec4354b4561802572e8eaa18e"
 dependencies = [
- "fax 0.2.6",
+ "fax",
  "flate2",
  "half",
  "quick-error",
