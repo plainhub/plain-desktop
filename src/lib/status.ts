@@ -38,11 +38,6 @@ export enum DeviceType {
   OTHER = 'OTHER',
 }
 
-export enum SessionType {
-  WEB = 'WEB',
-  CUSTOM = 'CUSTOM',
-}
-
 export enum PackageType {
   SYSTEM = 'SYSTEM',
   USER = 'USER',

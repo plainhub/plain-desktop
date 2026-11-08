@@ -3,7 +3,7 @@
     <template #headline>{{ $t('login.approval_title') }}</template>
     <template #content>
       <ul class="card list-items">
-        <v-list-item :title="$t('browser')" :value="`${current.request.browserName} ${current.request.browserVersion}`" />
+        <v-list-item :title="$t('browser')" :value="`${current.request.appName} ${current.request.appVersion}`" />
         <v-list-item :title="$t('os')" :value="`${current.request.osName} ${current.request.osVersion}`" />
         <v-list-item :title="$t('ip_address')" :value="current.clientIp" />
       </ul>

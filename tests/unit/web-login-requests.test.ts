@@ -38,7 +38,7 @@ it('restores pending logins and replays callbacks received during the snapshot',
   await vi.waitFor(() => expect(invoke).toHaveBeenCalledWith('native_web_login_requests', { after: null }))
   handlers.get('systemWebLoginClosed')!({ payload: { requestId: 'old' } })
   handlers.get('systemWebLoginRequested')!({ payload: { requestId: 'new', clientId: 'client', request: {} } })
-  resolveSnapshot({ requests: [{ requestId: 'old', clientId: 'client', clientIp: '', browserName: '', browserVersion: '', osName: '', osVersion: '' }], nextAfter: null })
+  resolveSnapshot({ requests: [{ requestId: 'old', clientId: 'client', clientIp: '', appName: '', appVersion: '', osName: '', osVersion: '' }], nextAfter: null })
   await vi.waitFor(() => expect(receive).toHaveBeenCalledTimes(2))
   expect(dismiss).toHaveBeenCalledWith('old')
   expect(receive.mock.calls[1][0].requestId).toBe('new')

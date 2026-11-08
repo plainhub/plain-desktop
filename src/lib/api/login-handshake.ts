@@ -38,8 +38,8 @@ async function createLoginRequest(
 ) {
   const agent = await getAccurateAgent()
   return JSON.stringify({
-    browserName: agent.browser.name,
-    browserVersion: agent.browser.version,
+    appName: agent.browser.name,
+    appVersion: agent.browser.version,
     osName: agent.os.name,
     osVersion: agent.os.version,
     isMobile: agent.isMobile,

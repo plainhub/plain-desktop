@@ -157,7 +157,8 @@ it.each(['http:', 'https:'])(
     )
     expect(decoded).toMatchObject({
       loginContext: vector.context,
-      browserName: 'Fixture',
+      appName: 'Fixture',
+      appVersion: '1',
       ecdhPublicKey: Buffer.from(sessionPublic).toString('base64'),
     })
     expect(decoded).not.toHaveProperty('password')

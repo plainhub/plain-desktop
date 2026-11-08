@@ -5,8 +5,8 @@ export interface WebLoginRequest {
   clientId: string
   clientIp: string
   request: {
-    browserName: string
-    browserVersion: string
+    appName: string
+    appVersion: string
     osName: string
     osVersion: string
     verificationCode?: string
@@ -18,8 +18,8 @@ type LoginSnapshot = {
     requestId: string
     clientId: string
     clientIp: string
-    browserName: string
-    browserVersion: string
+    appName: string
+    appVersion: string
     osName: string
     osVersion: string
     verificationCode?: string | null
@@ -64,8 +64,8 @@ export function subscribeWebLoginRequests(receive: (request: WebLoginRequest) =>
           clientId: request.clientId,
           clientIp: request.clientIp,
           request: {
-            browserName: request.browserName,
-            browserVersion: request.browserVersion,
+            appName: request.appName,
+            appVersion: request.appVersion,
             osName: request.osName,
             osVersion: request.osVersion,
             verificationCode: request.verificationCode ?? undefined,
