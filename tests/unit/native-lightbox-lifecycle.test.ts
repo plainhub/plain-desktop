@@ -8,10 +8,15 @@ vi.mock('@/lib/api/native-client', () => ({ nativeViewScope: async () => 'docume
 vi.mock('@/lib/device/local-mode', () => ({ isLocalMode: () => true }))
 vi.mock('@/lib/device/client-id', () => ({ getRemoteClientId: () => '' }))
 vi.mock('@/lib/device/login-peers', () => ({ getLoginPeerRevision: () => 0 }))
-vi.mock('@/lib/api/file', () => ({
-  resolveFileUrlByPath: async (owner: any, _key: unknown, path: string, size: number, query: string) => owner.url(path, size, query),
-  download: vi.fn(), getFileName: (path: string) => path.split('/').pop(),
+vi.mock('@/lib/api/file', async importOriginal => ({
+  ...await importOriginal<typeof import('@/lib/api/file')>(), download: vi.fn(),
 }))
+vi.mock('@/lib/api/api', () => ({
+  getProxyUrl: (path: string) => `http://127.0.0.1:8910${path}`,
+  getApiHeaders: () => ({ 'c-id': 'fixture' }), getUrlToken: vi.fn(),
+}))
+vi.mock('@/components/toaster', () => ({ default: vi.fn(), toastWithAction: vi.fn() }))
+vi.mock('@/lib/download-dir', () => ({ downloadToDir: vi.fn(), downloadAs: vi.fn(), revealInFolder: vi.fn() }))
 vi.mock('@/stores/temp', () => ({ useTempStore: () => fixture.store }))
 vi.mock('@/stores/main', () => ({ useMainStore: vi.fn() }))
 vi.mock('@/lib/api/query', () => ({ initLazyQuery: vi.fn(), fileInfoGQL: '', tagRelationsGQL: '', tagsGQL: '' }))
@@ -40,7 +45,7 @@ const videos: any[] = []
 const live = new Set<string>()
 function source(index: number): ISource { return { path: `/images/${caseId}/${index}.png`, src: '', name: `${index}.png`, size: 4, durationMs: 0, updatedAt: 'version' } }
 function mount(count = 100) {
-  fixture.store = reactive({ urlTokenKey: null, lightbox: { visible: true, index: -1, sources: Array.from({ length: count }, (_, i) => source(i)) } })
+  fixture.store = reactive({ urlTokenKey: new Uint8Array(32).fill(7), lightbox: { visible: true, index: -1, sources: Array.from({ length: count }, (_, i) => source(i)) } })
   const app = renderer.createApp(defineComponent({
     setup() {
       status = reactive({ loading: false, loadError: false, dragging: false, gesturing: false })
@@ -57,6 +62,7 @@ async function flush() { for (let i = 0; i < 16; i++) await nextTick() }
 beforeEach(() => {
   caseId++; id = 0; live.clear(); vi.clearAllMocks()
   vi.stubGlobal('__IS_TAURI__', true)
+  vi.stubGlobal('window', { fileIdMap: new Map() })
   images.length = 0; videos.length = 0
   vi.stubGlobal('Image', class { src = ''; onload = null; onerror = null; constructor() { images.push(this) }; removeAttribute() { this.src = '' } })
   vi.stubGlobal('document', { createElement: () => {
@@ -175,10 +181,12 @@ it('detaches ready video preload elements and deferred preload watchers when clo
   fixture.store.lightbox.sources[0] = { ...source(0), path: '/current.mp4', name: 'current.mp4' }
   fixture.store.lightbox.sources[1] = { ...source(1), path: '/next.mp4', name: 'next.mp4' }
   await nav.changeIndex(0); await flush()
-  expect(live.size).toBe(1)
+  expect(live.size).toBe(0)
+  expect(fixture.store.lightbox.sources[0].src).toMatch(/^http:/)
   status.loading = false; await flush()
-  expect(live.size).toBe(3)
+  expect(live.size).toBe(1)
   expect(videos).toHaveLength(1)
+  expect(videos[0].src).toMatch(/^http:/)
   videos[0].listeners.get('canplay')()
   nav.closeDialog(); await flush()
   expect(live.size).toBe(0)

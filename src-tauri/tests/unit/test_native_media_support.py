@@ -1,6 +1,7 @@
 import os
 from pathlib import Path
 import struct
+import subprocess
 import sys
 import tempfile
 import unittest
@@ -16,6 +17,99 @@ import runner
 
 
 class NativeMediaSupportTests(unittest.TestCase):
+    def test_page_transport_and_async_media_contracts(self):
+        script = r'''
+const assert = require('node:assert/strict');
+const fs = require('node:fs');
+const vm = require('node:vm');
+const source = fs.readFileSync(process.argv[1], 'utf8').replace('FIXTURE_URLS', '{"unitOnly":true}');
+const sleep = ms => new Promise(resolve => setTimeout(resolve, ms));
+function setup(invoke) {
+  const context = { window: { __TAURI_INTERNALS__: { invoke } }, TextEncoder, DOMException,
+    location: { href: 'tauri://localhost/native-media-test.html' }, performance,
+    HTMLMediaElement: { NETWORK_EMPTY: 0, HAVE_NOTHING: 0 }, setTimeout, clearTimeout,
+    document: new Proxy({}, { set() { throw Error('Title transport must not be used'); } }) };
+  vm.runInNewContext(source, context);
+  return { api: context.window.__plainNativeTestSupport, state: context.window.__plainTransportState };
+}
+function video(deliverFrames = true, distinct = true) {
+  const callbacks = new Map();
+  let next = 0, quality = 100;
+  const media = { tagName: 'VIDEO', currentTime: 58, paused: true,
+    getVideoPlaybackQuality: () => ({ totalVideoFrames: quality }),
+    requestVideoFrameCallback(fn) { callbacks.set(++next, fn); return next; },
+    cancelVideoFrameCallback(id) { callbacks.delete(id); },
+    pause() { this.paused = true; },
+    play() {
+      this.paused = false;
+      const frame = (time, count) => {
+        quality = count;
+        if (!deliverFrames) return;
+        const entry = callbacks.entries().next().value;
+        if (entry) { callbacks.delete(entry[0]); entry[1](performance.now(), { mediaTime: time, presentedFrames: count }); }
+      };
+      setTimeout(() => { this.currentTime = 58.4; frame(58.05, 1); }, 5);
+      setTimeout(() => frame(distinct ? 58.35 : 58.05, 2), 25);
+      return Promise.resolve();
+    }
+  };
+  return media;
+}
+(async () => {
+  const calls = [];
+  let acknowledge;
+  const transport = setup(async (name, { packet }) => {
+    assert.equal(name, 'native_media_report');
+    calls.push(JSON.parse(JSON.stringify(packet)));
+    if (calls.length === 1) return new Promise(resolve => { acknowledge = resolve; });
+    return packet.sequence;
+  });
+  const first = transport.api.transmit('result', { detail: 'x'.repeat(3000) });
+  const second = transport.api.transmit('result', { detail: 'y'.repeat(3000) });
+  await sleep(0);
+  assert.equal(calls.length, 1, 'Only one acknowledgement may be in flight');
+  assert.equal(transport.state().pending, 2);
+  assert.equal(transport.state().acknowledged, 0);
+  acknowledge(1);
+  assert.equal(await first, true);
+  assert.equal(await second, true);
+  assert.deepEqual(calls.map(call => call.sequence), [1, 2]);
+  assert.equal(transport.state().pending, 0);
+  assert.equal(transport.state().failure, null);
+  assert.equal(transport.state().acknowledged, transport.state().sequence);
+  assert.equal(calls[1].payload.detail.length, 3000, 'Reports above title length must remain intact');
+  const oversize = setup(async () => { throw Error('Oversized packet was transmitted'); });
+  assert.equal(await oversize.api.transmit('result', { detail: 'x'.repeat(16384) }), false);
+  assert.match(oversize.state().failure, /bound/);
+  const wrongAck = setup(async () => 0);
+  assert.equal(await wrongAck.api.transmit('event', {}), false);
+  assert.match(wrongAck.state().failure, /sequence/);
+  const overflow = setup(async (_, { packet }) => packet.sequence);
+  await Promise.all(Array.from({ length: 257 }, () => overflow.api.transmit('diagnostic', {})));
+  assert.match(overflow.state().failure, /bound/);
+  const ordered = setup(async (_, { packet }) => packet.sequence);
+  for (let i = 0; i < 512; i++) assert.equal(await ordered.api.transmit('diagnostic', {}), true);
+  assert.equal(await ordered.api.transmit('diagnostic', {}), false);
+  const api = setup(async (_, { packet }) => packet.sequence).api;
+  const rendered = await api.advance(video(), 200);
+  assert.equal(rendered.quality_before, 100);
+  assert.equal(rendered.quality_after, 2, 'A seek-reset counter is not a no-frame failure');
+  assert.equal(rendered.video_callbacks, 2);
+  assert.ok(rendered.last_frame.media_time > rendered.first_frame.media_time);
+  await assert.rejects(api.advance(video(false), 40), /actual video frames/);
+  await assert.rejects(api.advance(video(true, false), 40), /actual video frames/);
+  const unsupported = video(); delete unsupported.requestVideoFrameCallback;
+  await assert.rejects(api.advance(unsupported, 40), /callbacks unavailable/);
+  const media = { networkState: 3, readyState: 0, currentSrc: '', hasAttribute: () => false };
+  setTimeout(() => { media.networkState = 0; }, 20);
+  assert.equal((await api.released(media, 100)).network_state, 0);
+  await assert.rejects(api.released({ ...media, networkState: 3 }, 30), /retained/);
+  await assert.rejects(api.released({ ...media, currentSrc: 'still-present' }, 30), /retained/);
+  console.log('Transport ordering/bounds and asynchronous media helper contracts passed; not native GUI acceptance');
+})().catch(error => { console.error(error); process.exitCode = 1; });
+'''
+        subprocess.run(['node', '-e', script, str(SUPPORT / 'page.js')], check=True, timeout=10)
+
     def test_non_linux_refuses_before_any_process_or_root_creation(self):
         with patch.object(runner.sys, 'platform', 'darwin'), patch.object(runner.tempfile, 'mkdtemp') as create, \
                 patch.object(runner.subprocess, 'Popen') as launch:
@@ -96,7 +190,7 @@ class NativeMediaSupportTests(unittest.TestCase):
             self.assertGreater(result['audio.wav']['sample_bytes'], 32 * 1024 * 1024)
             self.assertEqual(result['small-video.webm']['duration'], 8)
             self.assertLess(result['small-video.webm']['size'], 32 * 1024 * 1024)
-            self.assertEqual(result['small-video.webm']['expected_route'], 'production-native-scheme')
+            self.assertEqual(result['small-video.webm']['expected_route'], 'production-core-http-fs')
             self.assertEqual(result['video.webm']['expected_route'], 'production-core-http-fs')
             self.assertEqual(result['image.png']['expected_route'], 'production-native-scheme')
             self.assertEqual((result['image.png']['width'], result['image.png']['height']), (32, 24))

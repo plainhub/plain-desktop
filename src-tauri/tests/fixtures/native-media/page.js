@@ -1,27 +1,52 @@
 (() => {
 if (window.__plainNativeMediaTest) return;
 window.__plainNativeMediaTest = true;
-const reports = [];
 const urls = FIXTURE_URLS;
 let sequence = 0;
-function emit(stage) {
-  document.title = 'plain-event:' + JSON.stringify({
-    stage, sequence: ++sequence, origin: window.origin, href: location.href, reports
-  });
-}
+let packetSequence = 0;
+let pending = 0;
+let acknowledged = 0;
+let transportFailure = null;
+let delivery = Promise.resolve();
 function errorText(error) {
   if (error instanceof DOMException) return error.name;
   return String(error).replace(/https?:\/\/[^\s"'<>]+/g, '[HTTP resource]');
 }
+function transmit(kind, payload) {
+  if (transportFailure) return Promise.resolve(false);
+  const packet = { sequence: ++packetSequence, kind, payload };
+  if (packetSequence > 512 || pending >= 256 || new TextEncoder().encode(JSON.stringify(packet)).length > 16384) {
+    transportFailure = 'Report transport bound exceeded';
+    return Promise.resolve(false);
+  }
+  pending++;
+  delivery = delivery.then(async () => {
+    try {
+      if (transportFailure) return false;
+      const ack = await within(window.__TAURI_INTERNALS__.invoke('native_media_report', { packet }), 'Report acknowledgement', 12000);
+      check(ack === packet.sequence, 'Report acknowledgement sequence differs');
+      acknowledged = ack;
+      return true;
+    } catch (error) { transportFailure = errorText(error); return false; }
+    finally { pending--; }
+  });
+  return delivery;
+}
+window.__plainTransportState = () => ({ failure: transportFailure, pending, sequence: packetSequence, acknowledged });
+async function emit(stage) {
+  await delivery;
+  check(!transportFailure && pending === 0, 'Report transport did not become idle');
+  check(await transmit('event', {
+    stage, sequence: ++sequence, origin: window.origin, href: location.href,
+    transport: { pending, failure: transportFailure, prior_sequence: packetSequence }
+  }), 'Stage acknowledgement failed');
+}
 function diagnostic(stage, detail = {}) {
-  document.title = 'plain-diagnostic:' + JSON.stringify({
-    stage, detail, reports, origin: window.origin,
+  return transmit('diagnostic', {
+    stage, detail, origin: window.origin,
     document_url: location.href === 'tauri://localhost/native-media-test.html' ? location.href : '[Unexpected document URL omitted]'
   });
 }
-window.addEventListener('error', event => diagnostic('script-error', { error: errorText(event.error || event.message) }));
-window.addEventListener('unhandledrejection', event => diagnostic('unhandled-rejection', { error: errorText(event.reason) }));
-diagnostic('script-started');
 function mediaStage(result, stage) {
   result.stages.push(stage);
   diagnostic('media-stage', { fixture: result.fixture, route: result.route, stage });
@@ -44,20 +69,59 @@ function event(media, name, action) {
     try { action(); } catch (error) { finish(error); }
   });
 }
-async function advance(media) {
+async function within(promise, name, timeout = 12000) {
+  let timer;
+  try {
+    return await Promise.race([promise, new Promise((_, reject) => {
+      timer = setTimeout(() => reject(Error('Timeout: ' + name)), timeout);
+    })]);
+  } finally { clearTimeout(timer); }
+}
+async function waitFor(predicate, message, timeout = 12000) {
+  const deadline = performance.now() + timeout;
+  while (!predicate() && performance.now() < deadline) await delay(10);
+  check(predicate(), message);
+}
+async function advance(media, timeout = 12000) {
   const before = media.currentTime;
-  const frames = media.tagName === 'VIDEO' ? media.getVideoPlaybackQuality().totalVideoFrames : 0;
-  await media.play();
-  const deadline = performance.now() + 12000;
-  while (media.currentTime < before + .3 && performance.now() < deadline) await delay(50);
-  check(media.currentTime >= before + .3, 'Playback time did not advance');
-  if (media.tagName === 'VIDEO') {
-    check(media.getVideoPlaybackQuality().totalVideoFrames > frames, 'No decoded video frames');
+  const video = media.tagName === 'VIDEO';
+  const qualityBefore = video ? media.getVideoPlaybackQuality().totalVideoFrames : null;
+  let first = null, last = null, callbacks = 0, callbackId = null, running = true;
+  if (video) {
+    check(typeof media.requestVideoFrameCallback === 'function', 'Native video frame callbacks unavailable');
+    const frame = (_, metadata) => {
+      if (!running) return;
+      const sample = { media_time: metadata.mediaTime, presented_frames: metadata.presentedFrames };
+      first ||= sample;
+      last = sample;
+      callbacks++;
+      callbackId = media.requestVideoFrameCallback(frame);
+    };
+    callbackId = media.requestVideoFrameCallback(frame);
   }
-  media.pause();
-  const paused = media.currentTime;
-  await delay(250);
-  check(media.paused && Math.abs(media.currentTime - paused) < .1, 'Pause did not hold position');
+  try {
+    await within(media.play(), 'Media play', timeout);
+    await waitFor(() => media.currentTime >= before + .3 && (!video ||
+      (callbacks >= 2 && last.media_time > first.media_time && last.media_time >= before + .2)),
+      'Playback time or actual video frames did not advance', timeout);
+    const evidence = { before_time: before, after_time: media.currentTime, video_callbacks: callbacks,
+      first_frame: first, last_frame: last, quality_before: qualityBefore,
+      quality_after: video ? media.getVideoPlaybackQuality().totalVideoFrames : null };
+    media.pause();
+    const paused = media.currentTime;
+    await delay(250);
+    check(media.paused && Math.abs(media.currentTime - paused) < .1, 'Pause did not hold position');
+    return evidence;
+  } finally {
+    running = false;
+    if (callbackId !== null) media.cancelVideoFrameCallback(callbackId);
+  }
+}
+async function released(media, timeout = 12000) {
+  await waitFor(() => media.networkState === HTMLMediaElement.NETWORK_EMPTY &&
+    media.readyState === HTMLMediaElement.HAVE_NOTHING && media.currentSrc === '' &&
+    !media.hasAttribute('src'), 'Cancel retained a media resource', timeout);
+  return { network_state: media.networkState, ready_state: media.readyState, current_src_empty: media.currentSrc === '' };
 }
 async function playback(fixture) {
   const {kind, url, duration, route, name} = fixture;
@@ -67,31 +131,32 @@ async function playback(fixture) {
   media.preload = 'metadata';
   if (kind === 'video') { media.width = 320; media.height = 240; }
   document.body.append(media);
-  const result = { kind, fixture: name, route, verification_method: 'real-webview-media-events', status: 'failed', stages: [] };
+  const result = { kind, fixture: name, route, verification_method: 'real-webview-media-events', status: 'failed', stages: [], playback_evidence: [] };
   diagnostic('media-started', { fixture: name, route });
   try {
     await event(media, 'loadedmetadata', () => { media.src = url; media.load(); });
     check(Math.abs(media.duration - duration) < .25, 'Unexpected media duration');
     mediaStage(result, 'metadata');
-    await advance(media);
+    result.playback_evidence.push(await advance(media));
     mediaStage(result, 'play-pause');
     for (const target of [duration * .92, duration * .1]) {
       await event(media, 'seeked', () => { media.currentTime = target; });
       check(Math.abs(media.currentTime - target) < .3, 'Wrong seek position');
-      await advance(media);
+      result.playback_evidence.push(await advance(media));
       mediaStage(result, 'seek-play-pause:' + target);
     }
     media.pause();
     await event(media, 'emptied', () => { media.removeAttribute('src'); media.load(); });
-    check(media.networkState === HTMLMediaElement.NETWORK_EMPTY, 'Cancel retained a media resource');
+    result.cancel_after_emptied = { network_state: media.networkState, ready_state: media.readyState };
+    result.cancel_settled = await released(media);
     mediaStage(result, 'cancel');
     await event(media, 'loadedmetadata', () => { media.src = url; media.load(); });
-    await advance(media);
+    result.playback_evidence.push(await advance(media));
     mediaStage(result, 'reload-play');
     result.status = 'passed';
   } catch (error) { result.error = errorText(error); }
   finally { media.pause(); media.removeAttribute('src'); media.load(); media.remove(); }
-  reports.push(result);
+  check(await transmit('result', result), 'Result acknowledgement failed');
   diagnostic('media-completed', { fixture: name, status: result.status });
 }
 async function imageLoad(fixture, retain) {
@@ -111,7 +176,7 @@ async function imageLoad(fixture, retain) {
     result.status = 'passed';
   } catch (error) { result.error = errorText(error); }
   finally { if (!retain) { image.removeAttribute('src'); image.remove(); } }
-  reports.push(result);
+  check(await transmit('result', result), 'Result acknowledgement failed');
   diagnostic('image-completed', { status: result.status, retain });
 }
 async function deniedImage(url, stage) {
@@ -129,27 +194,32 @@ async function deniedImage(url, stage) {
     result.status = 'passed';
   } catch (error) { result.error = errorText(error); }
   finally { image.removeAttribute('src'); image.remove(); }
-  reports.push(result);
+  check(await transmit('result', result), 'Result acknowledgement failed');
 }
 function failed(error) { diagnostic('script-failed', { error: errorText(error) }); }
 window.afterOwnerWarm = () => (async () => {
   await deniedImage(urls.foreign, 'foreign-owner');
-  emit('foreign-denied');
+  await emit('foreign-denied');
 })().catch(failed);
 window.afterOwnerClose = () => (async () => {
   await deniedImage(urls.foreign, 'closed-owner');
   await imageLoad(urls.image, false);
-  emit('foreign-complete');
+  await emit('foreign-complete');
 })().catch(failed);
+window.__plainNativeTestSupport = { transmit, advance, released, waitFor };
+if (urls.unitOnly) return;
+window.addEventListener('error', event => diagnostic('script-error', { error: errorText(event.error || event.message) }));
+window.addEventListener('unhandledrejection', event => diagnostic('unhandled-rejection', { error: errorText(event.reason) }));
+diagnostic('script-started');
 (async () => {
   check(window.origin === 'tauri://localhost', 'Test document must have the nonopaque Tauri App origin');
   check(location.href === 'tauri://localhost/native-media-test.html', 'Unexpected test document URL');
   if (urls.foreign) {
-    emit('foreign-ready');
+    await emit('foreign-ready');
   } else {
     for (const fixture of urls.media) await playback(fixture);
     await imageLoad(urls.image, true);
-    emit('owner-ready');
+    await emit('owner-ready');
   }
 })().catch(failed);
 })();

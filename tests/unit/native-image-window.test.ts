@@ -175,3 +175,13 @@ it('does not report a failed editor load after cancellation by unmount', async (
   expect(fixture.load).not.toHaveBeenCalled()
   expect(fixture.image.mock.calls[0][1].aborted).toBe(true)
 })
+
+it.each(['clip.mp4', 'clip.mp3'])('keeps the HTTP media source for %s in the destination preview window', async name => {
+  const src = `http://127.0.0.1:8910/proxy/peer/fs?id=sealed&action=preview`
+  window.location.search = `?src=${encodeURIComponent(src)}&path=${encodeURIComponent('/peer/' + name)}&name=${name}&__cid=peer`
+  mount(MediaPreviewView)
+  await flush()
+  expect(fixture.open).not.toHaveBeenCalled()
+  expect(fixture.store.lightbox.sources).toEqual([expect.objectContaining({ src, path: '/peer/' + name, name })])
+  expect(fixture.title).toHaveBeenCalledExactlyOnceWith(name)
+})

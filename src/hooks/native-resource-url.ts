@@ -131,7 +131,8 @@ export function createNativeResourceOwner(): NativeResourceOwner {
             const mime = resource.mime.split(';')[0].trim().toLowerCase()
             const image = ['image/jpeg', 'image/png', 'image/gif', 'image/webp', 'image/bmp', 'image/avif', 'image/x-icon'].includes(mime)
             const inline = resource.inlineAllowed && (context.target.kind === 'local' ? !mime.startsWith('image/') || image : image)
-            if (!inline || resource.size > MAX_NATIVE_RESPONSE_BYTES) {
+            // Native media schemes are not portable across WebViews; audio and video use Core HTTP.
+            if (mime.startsWith('audio/') || mime.startsWith('video/') || !inline || resource.size > MAX_NATIVE_RESPONSE_BYTES) {
               await closeEntry(opened)
               forgetEntry(opened)
               return ''

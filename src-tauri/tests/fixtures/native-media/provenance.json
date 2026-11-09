@@ -56,7 +56,7 @@
   },
   "acceptance_routes": {
     "large_video_and_audio": "Production Core loopback /fs HTTP streaming",
-    "small_video_and_audio": "Production native resource scheme",
+    "small_video_and_audio": "Production Core loopback /fs HTTP streaming, matching the all-platform media route",
     "large_native_scheme": "Unsupported; existing 413 unit boundary retained",
     "image_owner_isolation": "Production native resource scheme; independent 32x24 RGB PNG generated with Python standard-library zlib and CRC32"
   },
@@ -96,11 +96,33 @@
     ],
     "cache_policy": "The harness does not clear caches, change resource URLs, override request cache policy, or modify response headers. Production PNG success and denial responses must carry Cache-Control: no-store. The owner image remains attached until owner destruction.",
     "observations": "Global monotonic request, response and controller-stage sequences; request and response Cache-Control; Content-Type; actual page origins",
-    "limits": "Shared profile and origin do not establish renderer sharing or a cache hit. An image error without the matching production status fails. Existing media routes and playback assertions remain unchanged.",
+    "limits": "Shared profile and origin do not establish renderer sharing or a cache hit. An image error without the matching production status fails. All four media cases use the production HTTP route and retain strict playback, decoded-frame, seek and cancellation assertions.",
     "sources": [
       "https://github.com/WebKit/WebKit/blob/webkitgtk-2.52.6/Source/WebCore/page/SecurityOriginData.cpp#L189",
       "https://github.com/WebKit/WebKit/blob/webkitgtk-2.52.6/Source/WebCore/loader/cache/MemoryCache.cpp"
     ],
-    "startup_diagnostics": "Page-load started/finished, script evaluation submission, JavaScript startup/media/image stages, global errors/rejections, and the existing WebKit web-process-terminated signal are recorded. Timeout results retain completed production HTTP route probes and received page evidence."
+    "startup_diagnostics": "Page-load started/finished, script submission, JavaScript startup/media/image stages, errors/rejections and WebKit process termination are retained in Rust. JavaScript uses an acknowledged, sequential test-only Tauri command; titles carry no data. Bounded eval queries read the final transport state and failure diagnostics as native objects serialized once by Tauri.",
+    "window_layout": "The two visible child-owned windows use nonoverlapping 480x480 layouts inside the private 1024x768 Xvfb surface. Actual geometry/visibility are recorded and checked; no host display or throttling setting is changed."
+  },
+  "report_transport": {
+    "method": "Test-builder-only native_media_report command with typed packets and sequential acknowledgements",
+    "limits": {
+      "packet_bytes": 16384,
+      "packets_per_window": 512,
+      "pending_javascript_packets": 256
+    },
+    "validation": "Actual requesting WebView label and exact Tauri App URL; strict packet sequence; Rust receipt evidence; rejected/overflowed/missing reports fail",
+    "permissions": "No production command, capability, dependency or ACL configuration change; local App-origin custom commands are allowed by the existing Tauri application without an app ACL manifest",
+    "regression_scope": "Pure-script helper tests cover long reports, acknowledgement ordering/mismatch, queue and message bounds, asynchronous cancellation states, seek-reset quality counters and missing/stale video frames. They are not native GUI acceptance.",
+    "completion": "Before destroying the owner and after Core shutdown for the foreign window, a bounded query requires pending=0, acknowledged=sequence and failure=null. The final settling interval consumes diagnostics; fatal events received during shutdown also fail the result."
+  },
+  "video_frame_evidence": {
+    "method": "requestVideoFrameCallback must provide at least two actual callbacks with increasing mediaTime while playback time advances; no time-only fallback",
+    "quality_counter": "Recorded diagnostically; not assumed monotonic across GStreamer seek/flush",
+    "source": "https://github.com/WebKit/WebKit/blob/webkitgtk-2.52.6/Source/WebCore/html/HTMLVideoElement.cpp#L737"
+  },
+  "cancel_evidence": {
+    "method": "After emptied, bounded wait requires NETWORK_EMPTY, HAVE_NOTHING, no currentSrc and no src attribute; transient and settled states recorded",
+    "source": "https://github.com/WebKit/WebKit/blob/webkitgtk-2.52.6/Source/WebCore/html/HTMLMediaElement.cpp#L1627"
   }
 }

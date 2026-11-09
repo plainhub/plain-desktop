@@ -102,8 +102,8 @@ def generate(root):
         if large and (len(data) <= 32 * 1024 * 1024 or item['sample_bytes'] <= 32 * 1024 * 1024):
             raise ValueError('Large fixture must contain more than 32 MiB of actual coded samples')
         if not large and not 0 < len(data) <= 32 * 1024 * 1024:
-            raise ValueError('Native-scheme fixture must fit the production response limit')
-        item['expected_route'] = 'production-core-http-fs' if large else 'production-native-scheme'
+            raise ValueError('Small fixture must remain within 32 MiB')
+        item['expected_route'] = 'production-native-scheme' if name == 'image.png' else 'production-core-http-fs'
         item.update(size=len(data), sha256=hashlib.sha256(data).hexdigest())
     (root / 'fixtures.json').write_text(json.dumps(result, indent=2) + '\n')
     return result

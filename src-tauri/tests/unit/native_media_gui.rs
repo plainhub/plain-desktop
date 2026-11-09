@@ -51,7 +51,143 @@ struct PageEvent {
     sequence: u64,
     origin: String,
     href: String,
-    reports: Vec<Value>,
+    transport: TransportState,
+}
+
+#[derive(serde::Deserialize, serde::Serialize)]
+struct TransportState {
+    pending: u64,
+    failure: Option<String>,
+    prior_sequence: u64,
+}
+
+#[derive(serde::Deserialize, serde::Serialize)]
+struct ReportPacket {
+    sequence: u64,
+    kind: String,
+    payload: Value,
+}
+
+struct ReportSink {
+    sender: mpsc::Sender<(String, String)>,
+    sequences: Mutex<std::collections::HashMap<String, u64>>,
+}
+
+#[tauri::command]
+fn native_media_report(
+    webview: tauri::Webview,
+    packet: ReportPacket,
+    sink: tauri::State<'_, ReportSink>,
+) -> Result<u64, String> {
+    let label = webview.label();
+    let validated = (|| {
+        if !matches!(label, "media-owner" | "media-foreign")
+            || webview
+                .url()
+                .map_err(|_| "Report document unavailable")?
+                .as_str()
+                != SHELL_URL
+        {
+            return Err("Report sender is not an owned test document".to_string());
+        }
+        if !matches!(packet.kind.as_str(), "event" | "diagnostic" | "result")
+            || serde_json::to_vec(&packet)
+                .map_err(|_| "Invalid report packet")?
+                .len()
+                > 16384
+        {
+            return Err("Report type or size is invalid".to_string());
+        }
+        let mut sequences = sink
+            .sequences
+            .lock()
+            .map_err(|_| "Report sequence state unavailable")?;
+        let previous = sequences.entry(label.to_string()).or_default();
+        if packet.sequence != *previous + 1 || packet.sequence > 512 {
+            return Err("Report sequence or count is invalid".to_string());
+        }
+        sink.sender
+            .send((
+                label.to_string(),
+                format!(
+                    "plain-packet:{}",
+                    serde_json::to_string(&packet).map_err(|_| "Invalid report packet")?
+                ),
+            ))
+            .map_err(|_| "Report receiver stopped")?;
+        *previous = packet.sequence;
+        Ok(packet.sequence)
+    })();
+    if let Err(error) = &validated {
+        let _ = sink
+            .sender
+            .send((label.to_string(), format!("plain-harness-error:{error}")));
+    }
+    validated
+}
+
+fn retain_diagnostic(label: &str, message: &str, events: &mut Vec<Value>) -> Result<(), String> {
+    let packet = message
+        .strip_prefix("plain-packet:")
+        .map(serde_json::from_str::<ReportPacket>)
+        .transpose()
+        .map_err(|_| "Malformed terminal report packet")?;
+    let diagnostic = if let Some(packet) = packet {
+        events.push(json!({"sequence":next_sequence(), "window":label, "packet_sequence":packet.sequence, "packet_kind":packet.kind}));
+        if packet.kind != "diagnostic" {
+            return Err("Unexpected report after reporting completed".into());
+        }
+        packet.payload
+    } else if let Some(payload) = message.strip_prefix("plain-diagnostic:") {
+        serde_json::from_str(payload).map_err(|_| "Malformed native diagnostic")?
+    } else {
+        events.push(json!({"sequence":next_sequence(), "window":label, "error":message}));
+        return Err("Native report transport or evaluation failed".into());
+    };
+    let fatal = matches!(
+        diagnostic["stage"].as_str(),
+        Some("script-error" | "script-failed" | "unhandled-rejection" | "web-process-terminated")
+    );
+    events.push(json!({"sequence":next_sequence(), "window":label, "diagnostic":diagnostic}));
+    if fatal {
+        Err("Native page or WebProcess failed; see retained diagnostics".into())
+    } else {
+        Ok(())
+    }
+}
+
+fn report_transport_idle(window: &tauri::WebviewWindow) -> Result<Value, String> {
+    let deadline = std::time::Instant::now() + Duration::from_secs(3);
+    loop {
+        let (sender, receiver) = mpsc::channel();
+        window
+            .eval_with_callback("window.__plainTransportState()", move |result| {
+                let _ = sender.send(result);
+            })
+            .map_err(|_| "Report transport query could not be scheduled")?;
+        let raw = receiver
+            .recv_timeout(deadline.saturating_duration_since(std::time::Instant::now()))
+            .map_err(|_| "Report transport query timed out")?;
+        if raw.len() > 16384 {
+            return Err("Report transport query exceeded its bound".into());
+        }
+        let state: Value = serde_json::from_str(&raw)
+            .map_err(|_| "Report transport query was not a native JSON object")?;
+        if state["failure"] != Value::Null
+            || state["pending"].as_u64().is_none()
+            || state["acknowledged"].as_u64().is_none()
+            || state["sequence"].as_u64().is_none()
+        {
+            return Err(format!("Report transport failed: {state}"));
+        }
+        if state["pending"] == 0 && state["acknowledged"] == state["sequence"] {
+            return Ok(state);
+        }
+        if std::time::Instant::now() >= deadline {
+            return Err(format!("Final report acknowledgement is missing: {state}"));
+        }
+        std::thread::sleep(Duration::from_millis(20));
+    }
 }
 
 fn next_sequence() -> u64 {
@@ -284,7 +420,7 @@ async fn probe_http_media(url: &str, path: &Path) -> Result<Value, String> {
 
 async fn http_fixture(
     root: &Path,
-) -> Result<(plain_server::server::ContentServer, [String; 2], Value), String> {
+) -> Result<(plain_server::server::ContentServer, [String; 4], Value), String> {
     use plain_rs::features::files::resource_link::{self, Resource, Scope};
     let data = root.join("data/core");
     let cache = plain_rs::infrastructure::cache_paths::system::resolve(&data)?;
@@ -318,7 +454,12 @@ async fn http_fixture(
                 core.port
             ))
         };
-        let urls = [url("video.webm")?, url("audio.wav")?];
+        let urls = [
+            url("video.webm")?,
+            url("audio.wav")?,
+            url("small-video.webm")?,
+            url("control.wav")?,
+        ];
         let mut probes = Vec::new();
         for (name, url) in ["video.webm", "audio.wav"].into_iter().zip(&urls) {
             probes.push(probe_http_media(url, &root.join(name)).await?);
@@ -350,6 +491,8 @@ fn native_media_child() {
     drop(context.set_assets(Box::new(HarnessAssets)));
     let app = with_native_resource_protocol(tauri::Builder::default().any_thread())
         .manage(NativeViews::default())
+        .manage(ReportSink { sender: messages.clone(), sequences: Mutex::new(std::collections::HashMap::new()) })
+        .invoke_handler(tauri::generate_handler![native_media_report])
         .on_window_event(|window, event| {
             if matches!(event, tauri::WindowEvent::Destroyed) {
                 crate::commands::native::views::page_changed(window.app_handle(), window.label(), false);
@@ -360,10 +503,6 @@ fn native_media_child() {
             let views = app.state::<NativeViews>();
             let owner = views.scope("media-owner");
             let foreign = views.scope("media-foreign");
-            let video = tauri::async_runtime::block_on(registry.open(&owner, &root.join("small-video.webm")))
-                .map_err(std::io::Error::other)?;
-            let audio = tauri::async_runtime::block_on(registry.open(&owner, &root.join("control.wav")))
-                .map_err(std::io::Error::other)?;
             let image = tauri::async_runtime::block_on(registry.open(&owner, &root.join("image.png")))
                 .map_err(std::io::Error::other)?;
             let control_image = tauri::async_runtime::block_on(registry.open(&foreign, &root.join("image.png")))
@@ -376,8 +515,8 @@ fn native_media_child() {
             let media = json!([
                 spec("video.webm", "video", &http_urls[0]),
                 spec("audio.wav", "audio", &http_urls[1]),
-                spec("small-video.webm", "video", &video.url),
-                spec("control.wav", "audio", &audio.url),
+                spec("small-video.webm", "video", &http_urls[2]),
+                spec("control.wav", "audio", &http_urls[3]),
             ]);
             let image_spec = |url: &str| json!({"url":url, "width":fixture_info["image.png"]["width"],
                 "height":fixture_info["image.png"]["height"]});
@@ -386,7 +525,6 @@ fn native_media_child() {
                 ("media-foreign", json!({"foreign":image.url, "image":image_spec(&control_image.url)})),
             ] {
                 let script = page_script(urls);
-                let sender = messages.clone();
                 let errors = messages.clone();
                 let process_events = messages.clone();
                 let window = WebviewWindowBuilder::new(app, label, WebviewUrl::App(SHELL_PATH.into()))
@@ -412,12 +550,17 @@ fn native_media_child() {
                         }
                     })
                     .data_directory(root.join("data/webview-profile"))
+                    .inner_size(480.0, 480.0)
+                    .position(if label == "media-owner" { 8.0 } else { 520.0 }, 32.0)
+                    .visible(true)
+                    .focused(label == "media-owner")
                     .disable_drag_drop_handler()
                     .on_permission_request(|_, _| tauri::webview::PermissionResponse::Deny)
-                    .on_document_title_changed(move |window, title| {
-                        let _ = sender.send((window.label().to_string(), title));
-                    })
                     .build()?;
+                let _ = messages.send((label.to_string(), format!("plain-diagnostic:{}", json!({
+                    "stage":"window-created", "visible":window.is_visible()?,
+                    "outer_position":window.outer_position()?, "outer_size":window.outer_size()?, "inner_size":window.inner_size()?
+                }))));
                 window.with_webview(move |webview| {
                     use gtk::prelude::ObjectExt;
                     let terminated = process_events.clone();
@@ -434,35 +577,51 @@ fn native_media_child() {
             let owner_id = owner.id().to_string();
             let foreign_id = foreign.id().to_string();
             std::thread::spawn(move || {
-                let mut reports = serde_json::Map::new();
+                let mut reports = serde_json::Map::from_iter([(String::from("media-owner"), json!([])), (String::from("media-foreign"), json!([]))]);
                 let mut events = Vec::new();
+                let mut transport_states = serde_json::Map::new();
                 let outcome = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
                     let mut page_sequences = std::collections::HashMap::<String, u64>::new();
+                    let mut packet_sequences = std::collections::HashMap::<String, u64>::new();
                     let mut origins = serde_json::Map::new();
                     let mut owner_ready = false;
                     let mut foreign_ready = false;
                     let mut foreign_started = None;
                     let mut foreign_denied = false;
                     let mut owner_closed = None;
+                    let mut foreign_complete = false;
                     let deadline = std::time::Instant::now() + Duration::from_secs(180);
-                    while reports.len() < 2 {
+                    while !foreign_complete {
                         let remaining = deadline.saturating_duration_since(std::time::Instant::now());
-                        let (label, title) = received.recv_timeout(remaining).expect("Native media event watchdog expired");
-                        if let Some(error) = title.strip_prefix("plain-harness-error:") {
+                        let (label, mut message) = received.recv_timeout(remaining).expect("Native media event watchdog expired");
+                        if let Some(payload) = message.strip_prefix("plain-packet:") {
+                            let packet: ReportPacket = serde_json::from_str(payload).unwrap();
+                            packet_sequences.insert(label.clone(), packet.sequence);
+                            events.push(json!({"sequence":next_sequence(), "window":label, "packet_sequence":packet.sequence, "packet_kind":packet.kind}));
+                            message = format!("plain-{}:{}", packet.kind, packet.payload);
+                        }
+                        if let Some(payload) = message.strip_prefix("plain-result:") {
+                            let result: Value = serde_json::from_str(payload).unwrap();
+                            let received_reports = reports.get_mut(&label).unwrap().as_array_mut().unwrap();
+                            assert!(received_reports.len() < if label == "media-owner" { 5 } else { 3 }, "Too many media results");
+                            received_reports.push(result);
+                            continue;
+                        }
+                        if let Some(error) = message.strip_prefix("plain-harness-error:") {
                             events.push(json!({"sequence":next_sequence(), "window":label, "stage":"script-evaluation-failed", "error":error}));
                             panic!("Native test script failed in {label}: {error}");
                         }
-                        if let Some(payload) = title.strip_prefix("plain-diagnostic:") {
-                            let diagnostic: Value = serde_json::from_str(payload).unwrap();
-                            let fatal = matches!(diagnostic["stage"].as_str(), Some("script-error" | "script-failed" | "unhandled-rejection" | "web-process-terminated"));
-                            events.push(json!({"sequence":next_sequence(), "window":label, "diagnostic":diagnostic}));
-                            assert!(!fatal, "Native page or WebProcess failed; see retained diagnostics");
+                        if message.starts_with("plain-diagnostic:") {
+                            retain_diagnostic(&label, &message, &mut events).unwrap();
                             continue;
                         }
-                        let Some(payload) = title.strip_prefix("plain-event:") else { continue; };
+                        let Some(payload) = message.strip_prefix("plain-event:") else { continue; };
                         let event: PageEvent = serde_json::from_str(payload).unwrap();
                         assert_eq!(event.origin, "tauri://localhost", "Test document origin is opaque or unexpected");
                         assert_eq!(event.href, SHELL_URL);
+                        assert_eq!(event.transport.pending, 0);
+                        assert!(event.transport.failure.is_none());
+                        assert_eq!(event.transport.prior_sequence + 1, packet_sequences[&label]);
                         let sequence = page_sequences.entry(label.clone()).or_default();
                         assert_eq!(event.sequence, *sequence + 1, "Page event sequence changed");
                         *sequence = event.sequence;
@@ -471,24 +630,39 @@ fn native_media_child() {
                         match (label.as_str(), event.stage.as_str()) {
                             ("media-owner", "owner-ready") => {
                                 assert!(!owner_ready);
-                                assert_eq!(event.reports.len(), 5);
-                                let decoded = event.reports.last().unwrap();
+                                let owner_window = handle.get_webview_window("media-owner").unwrap();
+                                let foreign_window = handle.get_webview_window("media-foreign").unwrap();
+                                let owner_position = owner_window.outer_position().unwrap();
+                                let foreign_position = foreign_window.outer_position().unwrap();
+                                let owner_size = owner_window.outer_size().unwrap();
+                                let foreign_size = foreign_window.outer_size().unwrap();
+                                assert!(owner_window.is_visible().unwrap() && foreign_window.is_visible().unwrap());
+                                assert!(i64::from(owner_position.x) + i64::from(owner_size.width) <= i64::from(foreign_position.x), "Owned test windows overlap");
+                                for (position, size) in [(owner_position, owner_size), (foreign_position, foreign_size)] {
+                                    assert!(position.x >= 0 && position.y >= 0 && i64::from(position.x) + i64::from(size.width) <= 1024
+                                        && i64::from(position.y) + i64::from(size.height) <= 768, "Owned test window escaped the Xvfb surface");
+                                }
+                                events.push(json!({"sequence":next_sequence(), "stage":"window-layout-verified", "visible":true, "nonoverlapping":true,
+                                    "owner_position":owner_position, "owner_size":owner_size, "foreign_position":foreign_position, "foreign_size":foreign_size}));
+                                let received_reports = reports[&label].as_array().unwrap();
+                                assert_eq!(received_reports.len(), 5);
+                                let decoded = received_reports.last().unwrap();
                                 assert_eq!(decoded["kind"], "image");
                                 assert_eq!(decoded["status"], "passed", "Owner image must decode before foreign access");
                                 assert_eq!(decoded["retained"], true);
-                                reports.insert(label.clone(), json!(event.reports));
                                 owner_ready = true;
                             }
                             ("media-foreign", "foreign-ready") => {
                                 assert!(!foreign_ready);
-                                assert!(event.reports.is_empty(), "Foreign window requested resources before owner readiness");
+                                assert!(reports[&label].as_array().unwrap().is_empty(), "Foreign window requested resources before owner readiness");
                                 foreign_ready = true;
                             }
                             ("media-foreign", "foreign-denied") => {
                                 assert!(!foreign_denied);
-                                assert_eq!(event.reports.len(), 1);
-                                assert_eq!(event.reports[0]["kind"], "foreign-owner");
-                                assert_eq!(event.reports[0]["status"], "passed", "Foreign image unexpectedly loaded");
+                                let received_reports = reports[&label].as_array().unwrap();
+                                assert_eq!(received_reports.len(), 1);
+                                assert_eq!(received_reports[0]["kind"], "foreign-owner");
+                                assert_eq!(received_reports[0]["status"], "passed", "Foreign image unexpectedly loaded");
                                 let records = REQUESTS.get().unwrap().lock().unwrap().clone();
                                 assert!(response_after(&records, &foreign_id, &image.url, 403, foreign_started.unwrap()).is_some(),
                                     "Image error without a production 403 is not authorization evidence");
@@ -496,10 +670,11 @@ fn native_media_child() {
                             }
                             ("media-foreign", "foreign-complete") => {
                                 assert!(owner_closed.is_some());
-                                assert_eq!(event.reports.len(), 3);
-                                assert_eq!(event.reports[1]["kind"], "closed-owner");
-                                assert_eq!(event.reports[2]["kind"], "image");
-                                reports.insert(label.clone(), json!(event.reports));
+                                let received_reports = reports[&label].as_array().unwrap();
+                                assert_eq!(received_reports.len(), 3);
+                                assert_eq!(received_reports[1]["kind"], "closed-owner");
+                                assert_eq!(received_reports[2]["kind"], "image");
+                                foreign_complete = true;
                             }
                             _ => panic!("Unexpected native acceptance stage"),
                         }
@@ -516,6 +691,8 @@ fn native_media_child() {
                             handle.get_webview_window("media-foreign").unwrap().eval("window.afterOwnerWarm()").unwrap();
                         }
                         if foreign_denied && owner_closed.is_none() {
+                            let state = report_transport_idle(&handle.get_webview_window("media-owner").unwrap()).unwrap();
+                            transport_states.insert("media-owner".into(), state);
                             events.push(json!({"sequence":next_sequence(), "stage":"owner-close-requested"}));
                             handle.get_webview_window("media-owner").unwrap().destroy().unwrap();
                             let limit = std::time::Instant::now() + Duration::from_secs(10);
@@ -529,9 +706,16 @@ fn native_media_child() {
                             handle.get_webview_window("media-foreign").unwrap().eval("window.afterOwnerClose()").unwrap();
                         }
                     }
-                    std::thread::sleep(Duration::from_millis(500));
                     let settled = REQUESTS.get().unwrap().lock().unwrap().len();
-                    std::thread::sleep(Duration::from_secs(1));
+                    let settling_deadline = std::time::Instant::now() + Duration::from_millis(1500);
+                    loop {
+                        let remaining = settling_deadline.saturating_duration_since(std::time::Instant::now());
+                        match received.recv_timeout(remaining) {
+                            Ok((label, message)) => retain_diagnostic(&label, &message, &mut events).unwrap(),
+                            Err(mpsc::RecvTimeoutError::Timeout) => break,
+                            Err(mpsc::RecvTimeoutError::Disconnected) => panic!("Report channel stopped before cleanup"),
+                        }
+                    }
                     let records = REQUESTS.get().unwrap().lock().unwrap().clone();
                     let complete = reports.get("media-owner").and_then(Value::as_array).is_some_and(|v| v.len() == 5)
                         && reports.get("media-foreign").and_then(Value::as_array).is_some_and(|v| v.len() == 3);
@@ -549,14 +733,14 @@ fn native_media_child() {
                         let Some((range, total)) = value.split_once('/') else { return false; };
                         let Some((start, end)) = range.split_once('-') else { return false; };
                         let (Ok(start), Ok(end), Ok(total)) = (start.parse::<u64>(), end.parse::<u64>(), total.parse::<u64>()) else { return false; };
-                        let expected = [&video, &audio, &image, &control_image].into_iter()
+                        let expected = [&image, &control_image].into_iter()
                             .find(|resource| r["url"] == resource.url).map(|resource| resource.size);
                         start <= end && end < total && Some(total) == expected && end - start + 1 == bytes
                     }));
                     let passed = cases_passed && forbidden.is_some() && revoked.is_some() && control.is_some()
                         && png_no_store && bounded_responses && records.len() == settled;
                     json!({"status": if passed {"passed"} else {"failed"}, "reports": reports,
-                        "events":events, "page_origins":origins,
+                        "events":events, "page_origins":origins, "report_transport":transport_states,
                         "shared_profile":"owned data/webview-profile", "same_nonopaque_origin":true,
                         "http_route_probes":http_probes,
                         "native_scheme":{"verification_method":"production-scheme-observer", "requests":records,
@@ -568,7 +752,7 @@ fn native_media_child() {
                             "bounded_exact_range_lengths":bounded_responses,
                             "requests_stopped_after_cancel":records.len() == settled},
                         "large_media_route":"production-core-http-fs",
-                        "small_media_route":"production-native-scheme",
+                        "small_media_route":"production-core-http-fs",
                         "large_native_scheme_playback":"unsupported; existing non-Range 413 unit boundary retained",
                         "webview_http_headers_observed":false,
                         "inflight_read_cancellation":"not exposed by the current Tauri responder"})
@@ -579,12 +763,47 @@ fn native_media_child() {
                         "http_route_probes":http_probes,
                         "requests":REQUESTS.get().unwrap().lock().unwrap().clone()})
                 });
+                if value["status"] != "passed" {
+                    let mut transport = serde_json::Map::new();
+                    for label in ["media-owner", "media-foreign"] {
+                        let Some(window) = handle.get_webview_window(label) else { continue; };
+                        let (sender, receiver) = mpsc::channel();
+                        let scheduled = window.eval_with_callback(
+                            "window.__plainTransportState ? window.__plainTransportState() : { failure: 'report script unavailable' }",
+                            move |result| { let _ = sender.send(result); });
+                        let state = if scheduled.is_err() { json!({"failure":"diagnostic evaluation unavailable"}) }
+                            else { match receiver.recv_timeout(Duration::from_secs(2)) {
+                                Ok(raw) if raw.len() <= 16384 => serde_json::from_str(&raw).unwrap_or_else(|_| json!({"failure":"diagnostic result was not JSON"})),
+                                _ => json!({"failure":"diagnostic result missing or oversized"}),
+                            }};
+                        transport.insert(label.to_string(), state);
+                    }
+                    value["report_transport"] = json!(transport);
+                }
                 let port = core.port;
                 let stopped = tauri::async_runtime::block_on(async {
                     tokio::time::timeout(Duration::from_secs(30), core.shutdown()).await.is_ok()
                 });
                 let listener_closed = std::net::TcpStream::connect_timeout(
                     &std::net::SocketAddr::from(([127, 0, 0, 1], port)), Duration::from_millis(250)).is_err();
+                if value["status"] == "passed" {
+                    match handle.get_webview_window("media-foreign")
+                        .ok_or_else(|| "Final report window is missing".to_string())
+                        .and_then(|window| report_transport_idle(&window)) {
+                        Ok(state) => { value["report_transport"]["media-foreign"] = state; }
+                        Err(error) => {
+                            value["status"] = json!("failed");
+                            value["report_transport_error"] = json!(error);
+                        }
+                    }
+                }
+                for (label, message) in received.try_iter() {
+                    if let Err(error) = retain_diagnostic(&label, &message, &mut events) {
+                        value["status"] = json!("failed");
+                        value["late_report_error"] = json!(error);
+                    }
+                }
+                value["events"] = json!(events);
                 value["core_shutdown"] = json!({"completed":stopped, "loopback_listener_closed":listener_closed});
                 if !stopped || !listener_closed { value["status"] = json!("failed"); }
                 fs::write(output_root.join("native-results.json"), serde_json::to_vec_pretty(&value).unwrap()).unwrap();
