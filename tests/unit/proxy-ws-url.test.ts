@@ -21,10 +21,8 @@ it('routes a known peer socket by peer id and keeps the client id in the query',
     .toBe('ws://127.0.0.1:8280/proxy/peer-1/screen?cid=desktop')
 })
 
-it('keeps sockets without a peer id on the encrypted target ticket', () => {
-  const url = new URL(proxyWsUrlFor('wss://device.example.test:8443/auth?cid=login&auth=1'))
-  expect(url.pathname).toMatch(/^\/proxy\/c\.[^/]+\/auth$/)
-  expect(url.search).toBe('?cid=login&auth=1')
+it('leaves sockets without a peer id untouched', () => {
+  expect(proxyWsUrlFor('wss://device.example.test:8443/auth?cid=login&auth=1')).toBe('wss://device.example.test:8443/auth?cid=login&auth=1')
 })
 
 it('connects loopback sockets directly', () => {

@@ -49,7 +49,7 @@ export function deviceBaseUrl(host: string): string {
 
 const proxyTargets = new Map<string, string>()
 
-function proxyPath(path: string, base: string, socket = false): string {
+function proxyPath(path: string, base: string): string {
   const descriptor = JSON.stringify({ base })
   let target = proxyTargets.get(descriptor)
   if (!target) {
@@ -58,7 +58,7 @@ function proxyPath(path: string, base: string, socket = false): string {
     if (proxyTargets.size >= 64) proxyTargets.clear()
     proxyTargets.set(descriptor, target)
   }
-  return localProxyUrl(target, path, socket)
+  return localProxyUrl(target, path)
 }
 
 function localProxyUrl(target: string, path: string, socket = false): string {
@@ -85,9 +85,7 @@ export function proxyWsUrlFor(url: string, clientId = ''): string {
   if (!__IS_TAURI__) return url
   const u = new URL(url)
   if (u.hostname === 'localhost' || u.hostname === '127.0.0.1' || u.hostname === '[::1]') return url
-  const path = u.pathname + u.search
-  if (clientId) return localProxyUrl(clientId, path, true)
-  return proxyPath(path, u.origin.replace(/^ws(s?):/, 'http$1:'), true)
+  return clientId ? localProxyUrl(clientId, u.pathname + u.search, true) : url
 }
 
 export function getProxyUrl(path: string): string {
