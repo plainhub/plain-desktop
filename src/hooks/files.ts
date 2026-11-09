@@ -1,4 +1,7 @@
 import { FileAction } from '@/lib/api/file-action'
+import { getRemoteClientId } from '@/lib/device/client-id'
+import { isLocalMode } from '@/lib/device/local-mode'
+import type { NativeTarget } from '@/lib/api/native-client'
 import { onUnmounted, ref, type Ref } from 'vue'
 import { createFileTaskGQL, createDirGQL, initMutation, renameFileGQL } from '@/lib/api/mutation'
 import type { GqlResultType, GqlVariablesType } from '@/lib/api/graphql/operations'
@@ -113,12 +116,14 @@ export const useDownload = (urlTokenKey: Ref<Uint8Array | null>) => {
         ? getFileId(urlTokenKey.value, path)
         : getFileId(urlTokenKey.value, path)
       const url = getFileUrl(id, '', FileAction.Download)
-      download(url, name)
+      const target: NativeTarget = isLocalMode() ? { kind: 'local' } : { kind: 'peer', peerId: getRemoteClientId() }
+      download(url, name, false, { path, target })
     },
     async downloadFileAs(path: string) {
       const id = getFileId(urlTokenKey.value, path)
       const url = getFileUrl(id, '', FileAction.Download)
-      downloadAs(url, getFileName(path))
+      const target: NativeTarget = isLocalMode() ? { kind: 'local' } : { kind: 'peer', peerId: getRemoteClientId() }
+      downloadAs(url, getFileName(path), { path, target })
     },
     async downloadDir(path: string, fileName?: string) {
       const name = fileName || `${getFileName(path.replace(/\/+$/, ''))}.zip`

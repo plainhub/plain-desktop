@@ -22,7 +22,6 @@ vi.mock('@/lib/api/api', () => ({ getUrlToken: () => 'fixture', setLocalServerPo
 vi.mock('@/lib/device/login-peers', () => ({ subscribeLoginPeerUpdates: vi.fn() }))
 vi.mock('@/lib/theme', () => ({ changeColor: vi.fn(), getCurrentMode: () => 'light' }))
 vi.mock('@/lib/api/file', () => ({ tokenToKey: () => new Uint8Array(32) }))
-vi.mock('@/lib/api/native-events', () => ({ subscribeNativeEvents: vi.fn() }))
 vi.mock('@/lib/prefs/core', () => ({ preload: vi.fn() }))
 vi.mock('@/lib/prefs/appearance', () => ({ apply: vi.fn() }))
 vi.mock('@/lib/device/local-mode', () => ({ isLocalMode: () => false }))

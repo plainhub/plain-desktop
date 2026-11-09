@@ -2,18 +2,6 @@ import { afterEach, expect, it, vi } from 'vitest'
 import * as Y from 'yjs'
 
 const mock = vi.hoisted(() => ({ listeners: new Map<string, Set<(value: any) => void>>(), dropChunk: false, failures: 0 }))
-vi.mock('@/lib/device/local-mode', () => ({ isLocalMode: () => true }))
-vi.mock('@/plugins/eventbus', () => ({
-  default: {
-    on(name: string, handler: (value: any) => void) {
-      const listeners = mock.listeners.get(name) ?? new Set()
-      listeners.add(handler)
-      mock.listeners.set(name, listeners)
-    },
-    off(name: string, handler: (value: any) => void) { mock.listeners.get(name)?.delete(handler) },
-    emit(name: string, value: any) { mock.listeners.get(name)?.forEach(handler => handler(value)) },
-  },
-}))
 vi.mock('@/lib/api/gql-client', () => ({
   async gqlFetch(_query: string, variables: { id: string; update: string }) {
     if (mock.failures > 0) { mock.failures--; throw new Error('connection lost') }
@@ -28,7 +16,16 @@ vi.mock('@/lib/api/gql-client', () => ({
     return { data: {} }
   },
 }))
-vi.mock('@/views/image-editor/sync/image-editor-socket', () => ({ ImageEditorSocket: class {} }))
+vi.mock('@/views/image-editor/sync/image-editor-socket', () => ({ ImageEditorSocket: class {
+  constructor(private ready: () => void, private receive: (data: Uint8Array) => void) {}
+  connect() {
+    const listeners = mock.listeners.get('IMAGE_EDITOR_UPDATE') ?? new Set()
+    listeners.add(this.receive)
+    mock.listeners.set('IMAGE_EDITOR_UPDATE', listeners)
+    this.ready()
+  }
+  disconnect() { mock.listeners.get('IMAGE_EDITOR_UPDATE')?.delete(this.receive) }
+} }))
 
 import { EventSyncTransport } from '../../src/views/image-editor/sync/event-sync-transport'
 

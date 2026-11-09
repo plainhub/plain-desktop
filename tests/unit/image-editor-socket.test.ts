@@ -1,6 +1,6 @@
 import { createHash } from 'node:crypto'
 import { xchacha20poly1305 } from '@noble/ciphers/chacha'
-import { afterEach, expect, it, vi } from 'vitest'
+import { beforeEach, afterEach, expect, it, vi } from 'vitest'
 
 const mock = vi.hoisted(() => ({ sockets: [] as any[] }))
 vi.mock('@/lib/api/api', () => ({ getWebSocketBaseUrl: () => 'wss://example.test', getUrlToken: () => '' }))
@@ -26,7 +26,8 @@ function frame(registration: Uint8Array, counter: bigint, name: string, data: Ui
   return new Uint8Array(Buffer.concat([Buffer.from(name + '\0'), sequence, nonce, encrypted])).buffer
 }
 
-afterEach(() => { vi.restoreAllMocks(); vi.useRealTimers(); mock.sockets.length = 0 })
+beforeEach(() => vi.stubGlobal('__IS_TAURI__', false))
+afterEach(() => { vi.unstubAllGlobals(); vi.restoreAllMocks(); vi.useRealTimers(); mock.sockets.length = 0 })
 
 it('waits for authenticated readiness, receives updates, rejects replay and reconnects', () => {
   vi.useFakeTimers()

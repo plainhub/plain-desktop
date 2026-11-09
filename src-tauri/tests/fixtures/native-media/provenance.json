@@ -1,0 +1,86 @@
+{
+  "purpose": "Independently generated synthetic VP8 keyframes for large native media transport tests",
+  "generator": "ffmpeg 9.0.1, existing installation; no downloaded or user-provided media",
+  "command": [
+    "ffmpeg",
+    "-nostdin",
+    "-v",
+    "error",
+    "-f",
+    "lavfi",
+    "-i",
+    "testsrc2=size=320x240:rate=12,noise=alls=80:allf=u:all_seed=42",
+    "-frames:v",
+    "2",
+    "-an",
+    "-c:v",
+    "libvpx",
+    "-g",
+    "1",
+    "-qmin",
+    "4",
+    "-qmax",
+    "4",
+    "-b:v",
+    "12M",
+    "-threads",
+    "1",
+    "-f",
+    "ivf",
+    "keyframes.ivf"
+  ],
+  "sha256": "f4895ad906550955bc4f114727839d6a39dab99c2d6dfa2bbeeaf96ccb586369",
+  "expanded_video": {
+    "bytes": 54462637,
+    "coded_sample_bytes": 54425472,
+    "seconds": 64,
+    "frames": 768,
+    "frame_rate": 12
+  },
+  "verified": [
+    "ffprobe codec VP8, duration 64s, 320x240, 12fps",
+    "ffmpeg decoded all 768 frames without error",
+    "ffmpeg seek to 58s decoded two distinct frames"
+  ],
+  "validation_scope": "Fixture validity only. This does not establish Tauri or WebKit native playback acceptance.",
+  "small_video": {
+    "size": 6808261,
+    "sample_bytes": 6803184,
+    "duration": 8.0,
+    "frames": 96,
+    "sha256": "ace494c849fb2cadf713fb10def140145d7bd80ceb451bac4c3019ebee20f46b",
+    "validation": [
+      "full 96-frame decode passed",
+      "7.4s seek decoded two distinct frames"
+    ]
+  },
+  "acceptance_routes": {
+    "large_video_and_audio": "Production Core loopback /fs HTTP streaming",
+    "small_video_and_audio": "Production native resource scheme",
+    "large_native_scheme": "Unsupported; existing 413 unit boundary retained"
+  },
+  "http_range_evidence": "Independent Rust HTTP client probes the production route. WebView HTTP request headers are not observed.",
+  "headless_audio": {
+    "method": "In the isolated child only, set existing hardware Audio/Sink and device-provider ranks to zero. GStreamer autoaudiosink selects its clock-synchronized coreelements fakesink when no hardware candidates remain.",
+    "not_used": [
+      "generic fakesink rank promotion",
+      "invented WEBKIT_GST_AUDIO_SINK variable",
+      "new bad-plugin installation",
+      "host audio server or physical speaker"
+    ],
+    "baseline_ci_packages": {
+      "libwebkit2gtk-4.1-0": "2.52.6-0ubuntu0.24.04.1",
+      "gstreamer1.0-plugins-base": "1.24.2-1ubuntu0.5",
+      "gstreamer1.0-plugins-good": "1.24.2-1ubuntu1.8"
+    },
+    "baseline_job": "https://github.com/plainhub/plain-desktop/actions/runs/42594707394/job/129084419586",
+    "sources": [
+      "https://github.com/GStreamer/gstreamer/blob/1.24.2/subprojects/gst-plugins-good/gst/autodetect/gstautodetect.c#L329",
+      "https://github.com/GStreamer/gstreamer/blob/1.24.2/subprojects/gstreamer/libs/gst/base/gstbasesink.c#L3951",
+      "https://github.com/WebKit/WebKit/blob/main/Source/WebCore/platform/graphics/gstreamer/GStreamerCommon.cpp",
+      "https://github.com/WebKit/WebKit/blob/main/Tools/Scripts/webkitpy/port/glib.py"
+    ],
+    "required_runtime_evidence": "Actual fake-audio-sink rendered-buffer debug record plus successful real WebView media time/decode assertions. Environment variables alone do not establish success.",
+    "validation_scope": "Media decoding and playback timing, not physical speaker output. Runtime package versions are recorded separately on each run."
+  }
+}

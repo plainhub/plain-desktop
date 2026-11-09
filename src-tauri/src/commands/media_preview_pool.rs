@@ -1,5 +1,7 @@
 use std::sync::Mutex;
-use tauri::{AppHandle, Manager, PhysicalPosition, WebviewUrl, WebviewWindow, WebviewWindowBuilder};
+use tauri::{
+    AppHandle, Manager, PhysicalPosition, WebviewUrl, WebviewWindow, WebviewWindowBuilder,
+};
 
 use plain_libs::utils::query::url_encode;
 
@@ -71,6 +73,7 @@ fn build_query(source: &serde_json::Value) -> String {
         }
     };
 
+    push_str("__cid", &mut params);
     push_str("src", &mut params);
     push_str("path", &mut params);
     push_str("name", &mut params);

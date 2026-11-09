@@ -209,7 +209,7 @@ impl Selection {
 }
 
 fn decode_text(encoding: Atom, bytes: Vec<u8>) -> ClipboardResult<String> {
-    if encoding == AtomEnum::STRING.into() {
+    if encoding == Atom::from(AtomEnum::STRING) {
         Ok(bytes.into_iter().map(char::from).collect())
     } else {
         Ok(String::from_utf8(bytes)?)

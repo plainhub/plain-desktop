@@ -41,12 +41,13 @@ function fixture() {
   return { client, socket, callbacks, open }
 }
 beforeEach(() => {
+  vi.stubGlobal('__IS_TAURI__', false)
   vi.clearAllMocks()
   mock.sockets.length = 0
   mock.token = 'fixture'
   vi.spyOn(console, 'error').mockImplementation(() => {})
 })
-afterEach(() => vi.restoreAllMocks())
+afterEach(() => { vi.restoreAllMocks(); vi.unstubAllGlobals() })
 
 it('opens only one screen socket and registers with a fresh timestamp when it opens', () => {
   const { client, socket, callbacks, open } = fixture()

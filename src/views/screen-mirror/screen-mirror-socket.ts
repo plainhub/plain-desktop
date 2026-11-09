@@ -1,3 +1,4 @@
+import { openNativeSocket, type NativeSocketConnection } from '@/lib/api/native-socket'
 import { isLocalMode } from '@/lib/device/local-mode'
 import { getWebSocketBaseUrl, getUrlToken } from '@/lib/api/api'
 import { getCurrentAuthToken } from '@/lib/device/current'
@@ -17,12 +18,33 @@ interface ScreenMirrorCallbacks {
 
 export class ScreenMirrorSocket {
   private socket: WebSocket | null = null
+  private native: NativeSocketConnection | null = null
   private key: Uint8Array | null = null
 
   constructor(private callbacks: ScreenMirrorCallbacks) {}
 
   connect() {
-    if (this.socket) return
+    if (this.socket || this.native) return
+    if (__IS_TAURI__) {
+      const native = openNativeSocket('screen', {
+        opened: () => { if (this.native === native) this.callbacks.onConnected() },
+        message: (kind, payload) => {
+          if (this.native !== native) return
+          try {
+            if (kind === 'video') this.callbacks.onVideo(payload)
+            else this.callbacks.onAudio(payload)
+          } catch (error) { console.error(error) }
+        },
+        dropped: error => {
+          if (this.native !== native) return
+          console.error(error)
+          this.native = null
+          this.callbacks.onDisconnected()
+        },
+      })
+      this.native = native
+      return
+    }
     const local = isLocalMode()
     const token = local ? getUrlToken() : getCurrentAuthToken()
     if (!token) {
@@ -83,6 +105,7 @@ export class ScreenMirrorSocket {
   }
 
   sendBytes(payload: Uint8Array): boolean {
+    if (this.native) return this.native.send(payload)
     if (!this.socket || !this.key || this.socket.readyState !== WebSocket.OPEN) return false
     this.socket.send(chachaEncryptBytes(this.key, encodeSocketPayload(payload)))
     return true
@@ -93,6 +116,8 @@ export class ScreenMirrorSocket {
   }
 
   disconnect() {
+    this.native?.close()
+    this.native = null
     const socket = this.socket
     this.socket = null
     this.key = null

@@ -1,10 +1,18 @@
 import { getProxyUrl } from '@/lib/api/api'
-import { nativeGraphql } from '@/lib/api/native-client'
-import { isNativeResourceUrl } from '@/hooks/native-resource-url'
-import { resolveLocalFilePath, saveLocalFileAs } from '@/lib/native-file-actions'
+import { nativeGraphql, nativeViewScope, type NativeTarget } from '@/lib/api/native-client'
+import { invoke } from '@tauri-apps/api/core'
+import { isNativeResourceUrl, nativeResourceReference } from '@/hooks/native-resource-url'
 
 export function joinPath(dir: string, name: string): string {
   return dir.replace(/[\\/]+$/, '') + '/' + name
+}
+
+export type DownloadReference = string | { path: string; target: NativeTarget }
+
+function resourceSource(url: string, reference?: DownloadReference): { path: string; target: NativeTarget } | null {
+  if (isNativeResourceUrl(url)) return nativeResourceReference(url)
+  if (!reference || typeof reference === 'string' || /^(https?:|blob:|fsid:|content:|ph:)/i.test(reference.path)) return null
+  return reference
 }
 
 async function writeDownload(url: string, path: string): Promise<string> {
@@ -20,16 +28,17 @@ async function writeDownload(url: string, path: string): Promise<string> {
   return path
 }
 
-export async function downloadToDir(url: string, name: string, reference?: string): Promise<string> {
-  let source: string
-  if (isNativeResourceUrl(url)) {
-    if (!reference || isNativeResourceUrl(reference)) throw new Error('Native download requires the original file reference')
-    source = await resolveLocalFilePath(reference)
-  } else {
+export async function downloadToDir(url: string, name: string, reference?: DownloadReference): Promise<string> {
+  const resource = resourceSource(url, reference)
+  const source = resource ? '' : (() => {
     const { pathname, search } = new URL(url)
-    source = getProxyUrl(pathname + search)
-  }
+    return getProxyUrl(pathname + search)
+  })()
   const { downloadDir } = await import('@tauri-apps/api/path')
+  if (resource) {
+    const scope = await nativeViewScope()
+    return invoke<string>('native_resource_download', { ...resource, scope, directory: await downloadDir(), name })
+  }
   const response = await nativeGraphql<{
     data?: { copyFileToDirectory: string | null }
     errors?: Array<{ message: string }>
@@ -43,12 +52,10 @@ export async function downloadToDir(url: string, name: string, reference?: strin
   return path
 }
 
-export async function downloadAs(url: string, name: string, reference?: string): Promise<string | null> {
-  if (isNativeResourceUrl(url)) {
-    if (!reference || isNativeResourceUrl(reference)) throw new Error('Native download requires the original file reference')
-    await saveLocalFileAs(reference, name)
-    // The existing native dialog command does not return the selected destination.
-    return null
+export async function downloadAs(url: string, name: string, reference?: DownloadReference): Promise<string | null> {
+  const resource = resourceSource(url, reference)
+  if (resource) {
+    return invoke<string | null>('native_resource_save_as', { ...resource, scope: await nativeViewScope(), name })
   }
   const { save } = await import('@/lib/tauri-plugins')
   const { downloadDir } = await import('@tauri-apps/api/path')

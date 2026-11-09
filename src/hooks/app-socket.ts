@@ -4,16 +4,13 @@ import { onMounted, onUnmounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import emitter from '@/plugins/eventbus'
 import toast from '@/components/toaster'
-import { getUrlToken, setLocalServerPort, setLocalServerHttpsPort } from '@/lib/api/api'
+import { setLocalServerPort, setLocalServerHttpsPort } from '@/lib/api/api'
 import { subscribeLoginPeerUpdates } from '@/lib/device/login-peers'
-import { parseWebSocketData } from '@/lib/api/sjcl-arraybuffer'
 import { changeColor, getCurrentMode } from '@/lib/theme'
-import { subscribeNativeEvents, type NativeEventStream } from '@/lib/api/native-events'
 import { preload as preloadPrefs } from '@/lib/prefs/core'
 import { apply as applyAppearance } from '@/lib/prefs/appearance'
 import { readLocalServer } from '@/lib/api/local-server'
 
-const RAW_BINARY_EVENTS = new Set(['SCREEN_MIRROR_VIDEO', 'SCREEN_MIRROR_AUDIO', 'IMAGE_EDITOR_UPDATE'])
 
 export function useAppSocket() {
   const { t } = useI18n()
@@ -21,10 +18,7 @@ export function useAppSocket() {
 
   const wsStatus = ref('')
   const tapPhoneMessage = ref('')
-  let retryConnectTimeout: ReturnType<typeof setTimeout> | undefined
   let clearStatusTimer: ReturnType<typeof setTimeout> | undefined
-  let retryTime = 1000
-  let nativeStream: NativeEventStream | null = null
   let stopPeerUpdates: (() => void) | undefined
   let disposed = false
   let stopPrefsChanges: (() => void) | undefined
@@ -36,13 +30,7 @@ export function useAppSocket() {
     tapPhoneMessage.value = ''
   }
 
-  function dispatchEvent(frame: { type: string; data: Uint8Array }) {
-    if (RAW_BINARY_EVENTS.has(frame.type)) emitter.emit(frame.type as any, frame.data)
-  }
-
-  function handleOpen(native = false) {
-    if (native) emitter.emit('app_socket_connection_changed', true)
-    retryTime = 1000
+  function handleOpen() {
     if (clearStatusTimer) clearTimeout(clearStatusTimer)
     clearStatusTimer = setTimeout(() => {
       wsStatus.value = ''
@@ -55,34 +43,6 @@ export function useAppSocket() {
       clearStatusTimer = undefined
     }
     wsStatus.value = 'closed'
-  }
-
-  function handleDrop() {
-    setDisconnected()
-    retryConnect()
-  }
-
-  /** Local target: the shared Rust core's own event feed, not a socket. */
-  function connectNative() {
-    const token = getUrlToken()
-    if (!token) return
-    nativeStream?.close()
-    nativeStream = subscribeNativeEvents(
-      (frame) => {
-        try { dispatchEvent(parseWebSocketData(frame)) } catch (error) { console.error(error) }
-      },
-      () => {
-        nativeStream = null
-        handleDrop()
-      }
-    )
-    handleOpen(true)
-  }
-
-  function retryConnect() {
-    if (retryConnectTimeout) clearTimeout(retryConnectTimeout)
-    retryConnectTimeout = setTimeout(() => connectNative(), Math.min(5000, retryTime))
-    retryTime += 1000
   }
 
   const stopSubscriptions: (() => void)[] = []
@@ -151,8 +111,7 @@ export function useAppSocket() {
         else stopPeerUpdates = stop
       }).catch(console.error)
     }
-    if (isLocalMode()) connectNative()
-    else stopConnection = graphqlSubscriptions.onConnectionChange((connected) => {
+    stopConnection = graphqlSubscriptions.onConnectionChange((connected) => {
       if (connected === null) wsStatus.value = ''
       else if (connected) handleOpen()
       else setDisconnected()
@@ -161,9 +120,7 @@ export function useAppSocket() {
 
   onUnmounted(() => {
     disposed = true
-    clearTimeout(retryConnectTimeout)
     clearTimeout(clearStatusTimer)
-    nativeStream?.close()
     stopConnection?.()
     stopPeerUpdates?.()
     stopPrefsChanges?.()

@@ -4,6 +4,9 @@ mod bootstrap;
 mod capture;
 mod commands;
 mod host;
+#[cfg(all(test, target_os = "linux"))]
+#[path = "../tests/unit/native_media_gui.rs"]
+mod native_media_gui;
 mod native_resource_protocol;
 mod prefs;
 mod utils;

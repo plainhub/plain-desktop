@@ -93,6 +93,8 @@ const {
 const imageUrls = ref<Record<string, string>>({})
 const openReferences = ref<string[]>([])
 let refreshToken = 0
+let wantedReferences = new Set<string>()
+const pendingReferences = new Map<number, string[]>()
 
 function imageUrl(reference: string) {
   return imageUrls.value[reference] ?? ''
@@ -101,7 +103,11 @@ function imageUrl(reference: string) {
 async function refreshImages(entries: IFeedEntry[]) {
   const token = ++refreshToken
   const wanted = [...new Set(entries.map((entry) => entry.image).filter((reference) => !!reference))]
-  const stale = openReferences.value.filter((reference) => !wanted.includes(reference))
+  wantedReferences = new Set(wanted)
+  const stale = [...new Set([...openReferences.value, ...[...pendingReferences.values()].flat()])]
+    .filter((reference) => !wantedReferences.has(reference))
+  pendingReferences.set(token, wanted)
+  if (stale.length) void closeNativeResources(stale)
   const resolved: Record<string, string> = {}
   const opened: string[] = []
   await Promise.all(wanted.map(async (reference) => {
@@ -109,26 +115,30 @@ async function refreshImages(entries: IFeedEntry[]) {
       resolved[reference] = reference
       return
     }
-    const url = await resolveFileUrlByPath(tempStore.urlTokenKey, reference, undefined, '&size=sm')
-    resolved[reference] = url
-    if (isNativeResourceUrl(url)) {
-      opened.push(reference)
+    try {
+      const url = await resolveFileUrlByPath(tempStore.urlTokenKey, reference, undefined, '&size=sm')
+      resolved[reference] = url
+      if (isNativeResourceUrl(url)) opened.push(reference)
+    } catch (error) {
+      if (token === refreshToken) console.warn('[FeedsSidebar2] Failed to load image', error)
     }
   }))
+  pendingReferences.delete(token)
   if (token !== refreshToken) {
+    const obsolete = opened.filter((reference) => !wantedReferences.has(reference))
+    if (obsolete.length) await closeNativeResources(obsolete)
     return
   }
   imageUrls.value = resolved
   openReferences.value = opened
-  if (stale.length) {
-    await closeNativeResources(stale)
-  }
 }
 
 watch(items, (entries) => void refreshImages(entries), { immediate: true })
 
 onBeforeUnmount(() => {
-  const stale = openReferences.value
+  refreshToken++
+  wantedReferences.clear()
+  const stale = [...new Set([...openReferences.value, ...[...pendingReferences.values()].flat()])]
   openReferences.value = []
   if (stale.length) {
     void closeNativeResources(stale)

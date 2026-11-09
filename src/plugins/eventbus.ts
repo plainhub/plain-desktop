@@ -21,10 +21,7 @@ type Events = {
   toast: string
   tap_phone: string
   color_mode_changed: undefined
-  app_socket_connection_changed: boolean
   screen_socket_connection_changed: boolean
-  SCREEN_MIRROR_VIDEO: Uint8Array
-  SCREEN_MIRROR_AUDIO: Uint8Array
   CHANNEL_INVITE_RECEIVED: { channelId: string, channelName: string, fromId: string, fromName: string }
   sms_sent: undefined
   PAIRING_REQUEST_RECEIVED: PairingRequest
@@ -32,7 +29,6 @@ type Events = {
   PAIRING_FAILED: PairingResult
   PAIRING_CANCELED: PairingResult
   PAIRING_STARTED: PairingResult
-  IMAGE_EDITOR_UPDATE: ArrayBuffer
 }
 
 type Handler<T = any> = (event: T) => void

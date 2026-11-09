@@ -138,3 +138,119 @@ async fn empty_resources_and_unsupported_methods_do_not_invent_bytes() {
         StatusCode::METHOD_NOT_ALLOWED
     );
 }
+
+#[tokio::test]
+async fn active_documents_are_not_served_as_native_pages() {
+    for extension in ["html", "svg", "xml"] {
+        let fixture = Fixture::new(b"<html><script>window.test=true</script></html>");
+        let path = fixture.0.with_extension(extension);
+        std::fs::rename(&fixture.0, &path).unwrap();
+        let fixture = Fixture(path);
+        let registry = ResourceRegistry::default();
+        let scope = NativeRequestScope::default();
+        let opened = registry.open(&scope, &fixture.0).await.unwrap();
+        assert!(!opened.inline_allowed);
+        let response =
+            resource_response(&registry, &scope, request(&opened.url, Method::GET, None)).await;
+        assert_eq!(response.status(), StatusCode::UNSUPPORTED_MEDIA_TYPE);
+        assert!(response.body().is_empty());
+        assert!(
+            !response
+                .headers()
+                .contains_key(header::CONTENT_SECURITY_POLICY)
+        );
+    }
+}
+
+#[tokio::test]
+async fn raw_ipc_reads_are_bounded_and_owner_checked_without_turning_svg_into_a_page() {
+    let fixture = Fixture::new(b"0123456789");
+    let registry = ResourceRegistry::default();
+    let scope = NativeRequestScope::default();
+    let opened = registry.open(&scope, &fixture.0).await.unwrap();
+    assert_eq!(
+        registry.read(&scope, &opened.id, 2, 4).await.unwrap(),
+        b"2345"
+    );
+    assert!(registry.read(&scope, &opened.id, 0, 65537).await.is_err());
+    assert!(registry.read(&scope, &opened.id, 0, 0).await.is_err());
+    assert!(
+        registry
+            .read(&NativeRequestScope::default(), &opened.id, 0, 1)
+            .await
+            .is_err()
+    );
+    registry.close(&scope, &opened.id);
+    assert!(registry.read(&scope, &opened.id, 0, 1).await.is_err());
+}
+
+#[tokio::test]
+async fn oversized_explicit_ranges_return_a_truthful_bounded_subset() {
+    let fixture = Fixture::new(b"1234");
+    let size = MAX_RESPONSE_BYTES + 17;
+    std::fs::OpenOptions::new()
+        .write(true)
+        .open(&fixture.0)
+        .unwrap()
+        .set_len(size)
+        .unwrap();
+    let registry = ResourceRegistry::default();
+    let scope = NativeRequestScope::default();
+    let opened = registry.open(&scope, &fixture.0).await.unwrap();
+    for range in ["bytes=2-".to_owned(), format!("bytes=2-{}", size - 1)] {
+        let response = resource_response(
+            &registry,
+            &scope,
+            request(&opened.url, Method::GET, Some(&range)),
+        )
+        .await;
+        assert_eq!(response.status(), StatusCode::PARTIAL_CONTENT);
+        assert_eq!(
+            response.headers()[header::CONTENT_RANGE],
+            format!("bytes 2-{}/{size}", MAX_RESPONSE_BYTES + 1)
+        );
+        assert_eq!(
+            response.headers()[header::CONTENT_LENGTH],
+            MAX_RESPONSE_BYTES.to_string()
+        );
+        assert_eq!(response.body().len() as u64, MAX_RESPONSE_BYTES);
+        assert_eq!(&response.body()[..2], b"34");
+        assert!(response.body()[2..].iter().all(|byte| *byte == 0));
+    }
+    let tail = resource_response(
+        &registry,
+        &scope,
+        request(
+            &opened.url,
+            Method::GET,
+            Some(&format!("bytes={}-", MAX_RESPONSE_BYTES + 2)),
+        ),
+    )
+    .await;
+    assert_eq!(tail.status(), StatusCode::PARTIAL_CONTENT);
+    assert_eq!(
+        tail.headers()[header::CONTENT_RANGE],
+        format!("bytes {}-{}/{size}", MAX_RESPONSE_BYTES + 2, size - 1)
+    );
+    assert_eq!(tail.body().len(), 15);
+    let full = resource_response(&registry, &scope, request(&opened.url, Method::GET, None)).await;
+    assert_eq!(full.status(), StatusCode::PAYLOAD_TOO_LARGE);
+    assert!(full.body().is_empty());
+}
+
+#[tokio::test]
+async fn a_transient_read_failure_does_not_retire_a_cached_resource_url() {
+    let fixture = Fixture::new(b"0123456789");
+    let registry = ResourceRegistry::default();
+    let scope = NativeRequestScope::default();
+    let opened = registry.open(&scope, &fixture.0).await.unwrap();
+    std::fs::write(&fixture.0, b"short").unwrap();
+    let failed =
+        resource_response(&registry, &scope, request(&opened.url, Method::GET, None)).await;
+    assert_eq!(failed.status(), StatusCode::BAD_GATEWAY);
+    assert!(failed.body().is_empty());
+    std::fs::write(&fixture.0, b"0123456789").unwrap();
+    let retry = resource_response(&registry, &scope, request(&opened.url, Method::GET, None)).await;
+    assert_eq!(retry.status(), StatusCode::OK);
+    assert_eq!(retry.body(), b"0123456789");
+}

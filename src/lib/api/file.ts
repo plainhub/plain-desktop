@@ -4,7 +4,7 @@ import { getProxyUrl, getApiHeaders, getUrlToken } from './api'
 import { encryptResourcePayload, resourceId, type Resource, type ResourceScope } from './resource-link'
 import { isLocalMode } from '../device/local-mode'
 import toast, { toastWithAction } from '@/components/toaster'
-import { downloadToDir, downloadAs as downloadAsTo, revealInFolder } from '@/lib/download-dir'
+import { downloadToDir, downloadAs as downloadAsTo, revealInFolder, type DownloadReference } from '@/lib/download-dir'
 import { nativeResourceUrl } from '@/hooks/native-resource-url'
 
 declare global {
@@ -26,19 +26,12 @@ export function getFileUrl(id: string, query: string = '', action: FileAction = 
   return getProxyUrl(`/fs?id=${encodeURIComponent(id)}${fileQuery(action, query)}`)
 }
 
-/**
- * The URL a local file's bytes actually come from.
- *
- * On this machine's own core the bytes come from an opaque native resource
- * handle, which needs no session key; every other target keeps the existing
- * `/fs` URL built from that session's key. A reference the local core
- * refuses surfaces as an error instead of falling through to `/fs`.
- */
+// Reference failures remain errors; an empty native URL selects an unmigrated preview transport.
 export async function resolveFileUrlByPath(key: Uint8Array | null, path: string, size?: number, query: string = ''): Promise<string> {
   if (!path) {
     return ''
   }
-  const native = await nativeResourceUrl(path, size)
+  const native = await nativeResourceUrl(path, size, query)
   if (native) {
     return native
   }
@@ -57,7 +50,7 @@ export function getFileUrlByPath(key: Uint8Array | null, path: string) {
 
 const _recentDownloads = new Set<string>()
 
-export function download(url: string, name: string, chat = false, reference?: string) {
+export function download(url: string, name: string, chat = false, reference?: DownloadReference) {
   url = withFileAction(url, FileAction.Download, chat)
   // Prevent duplicate downloads triggered by rapid double-clicks.
   if (_recentDownloads.has(url)) {
@@ -117,7 +110,7 @@ async function handleSaveError(error: unknown) {
   toast(i18n.global.t('download_failed'), 'error')
 }
 
-async function saveToFile(url: string, name: string, reference?: string) {
+async function saveToFile(url: string, name: string, reference?: DownloadReference) {
   try {
     notifyDownloaded(await downloadToDir(url, name, reference))
   } catch (error) {
@@ -127,7 +120,7 @@ async function saveToFile(url: string, name: string, reference?: string) {
 
 // Desktop "Save As…": native save dialog (defaults to Downloads/name),
 // web falls back to the browser's own download.
-export function downloadAs(url: string, name: string, reference?: string) {
+export function downloadAs(url: string, name: string, reference?: DownloadReference) {
   url = withFileAction(url, FileAction.Download)
   if (!__IS_TAURI__ || url.startsWith('blob:')) {
     download(url, name)

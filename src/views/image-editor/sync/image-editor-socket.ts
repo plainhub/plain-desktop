@@ -1,3 +1,4 @@
+import { openNativeSocket, type NativeSocketConnection } from '@/lib/api/native-socket'
 import { isLocalMode } from '@/lib/device/local-mode'
 import { getUrlToken, getWebSocketBaseUrl } from '@/lib/api/api'
 import { chachaEncrypt, bitArrayToUint8Array } from '@/lib/api/crypto'
@@ -9,6 +10,7 @@ import { getCurrentAuthToken } from '@/lib/device/current'
 
 export class ImageEditorSocket {
   private socket: WebSocket | null = null
+  private native: NativeSocketConnection | null = null
   private retry: ReturnType<typeof setTimeout> | undefined
   private stopped = true
 
@@ -20,7 +22,24 @@ export class ImageEditorSocket {
   }
 
   private open() {
-    if (this.stopped || this.socket) return
+    if (this.stopped || this.socket || this.native) return
+    if (__IS_TAURI__) {
+      const native = openNativeSocket('imageEditor', {
+        message: (kind, payload) => {
+          if (this.native !== native) return
+          if (kind === 'imageEditorReady') this.onReady()
+          else this.onUpdate(payload)
+        },
+        dropped: error => {
+          if (this.native !== native) return
+          console.error(error)
+          this.native = null
+          this.scheduleRetry()
+        },
+      })
+      this.native = native
+      return
+    }
     const local = isLocalMode()
     const token = local ? getUrlToken() : getCurrentAuthToken()
     if (!token) return
@@ -71,6 +90,8 @@ export class ImageEditorSocket {
 
   disconnect() {
     this.stopped = true
+    this.native?.close()
+    this.native = null
     clearTimeout(this.retry)
     const socket = this.socket
     this.socket = null

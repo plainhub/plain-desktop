@@ -14,7 +14,7 @@ import { useRoute } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import toast from '@/components/toaster'
 import ImageEditor from '@/views/image-editor/components/ImageEditor.vue'
-import { nativeResourceUrl, closeNativeResource, isNativeResourceUrl } from '@/hooks/native-resource-url'
+import { nativeResourceImage, isNativeResourceUrl } from '@/hooks/native-resource-url'
 
 const route = useRoute()
 const { t } = useI18n()
@@ -22,11 +22,17 @@ const editorRef = ref<InstanceType<typeof ImageEditor> | null>(null)
 const loading = ref(false)
 const loadingText = ref('')
 let active = true
-let openedReference = ''
+const imageRequest = new AbortController()
+let imageUrl = ''
+const releaseImageUrl = () => {
+  if (imageUrl) URL.revokeObjectURL(imageUrl)
+  imageUrl = ''
+}
 
 onBeforeUnmount(() => {
   active = false
-  if (openedReference) void closeNativeResource(openedReference)
+  imageRequest.abort()
+  releaseImageUrl()
 })
 
 onMounted(async () => {
@@ -44,19 +50,19 @@ onMounted(async () => {
     loading.value = true
     try {
       if (isNativeResourceUrl(reference)) throw new Error('Native editing requires the original file reference')
-      openedReference = reference
       loadingText.value = 'Loading image…'
-      const url = await nativeResourceUrl(reference)
-      if (!url) throw new Error('Native editing is unavailable in this window')
-      if (active) await editorRef.value?.loadImageFromUrl(url)
+      const image = await nativeResourceImage(reference, imageRequest.signal)
+      if (active) {
+        imageUrl = URL.createObjectURL(image)
+        await editorRef.value?.loadImageFromUrl(imageUrl)
+      }
     } catch (error) {
       if (active) {
         console.warn('[ImageEditorView] Failed to load native image', error)
         toast(t('failed_to_load_file'), 'error')
       }
     } finally {
-      if (openedReference) await closeNativeResource(openedReference)
-      openedReference = ''
+      releaseImageUrl()
       loading.value = false
     }
     return

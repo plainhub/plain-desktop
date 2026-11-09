@@ -8,6 +8,7 @@
 //! checked against the requesting webview label, so one window can never
 //! read another window's handles.
 
+#[cfg(test)]
 use std::path::Path;
 use std::sync::Arc;
 
@@ -32,6 +33,7 @@ pub struct OpenedResource {
     pub name: String,
     pub mime: String,
     pub size: u64,
+    pub inline_allowed: bool,
 }
 
 #[derive(Default)]
@@ -40,6 +42,7 @@ pub struct ResourceRegistry {
 }
 
 impl ResourceRegistry {
+    #[cfg(test)]
     pub async fn open(
         &self,
         scope: &NativeRequestScope,
@@ -52,7 +55,66 @@ impl ResourceRegistry {
             name: info.name,
             mime: info.mime,
             size: info.size,
+            inline_allowed: info.inline_allowed,
         })
+    }
+
+    pub async fn open_reference(
+        &self,
+        resources: &plain_server::native::resources::NativeResources,
+        scope: &NativeRequestScope,
+        reference: &str,
+        thumbnail: Option<plain_rs::features::services::files::content::Size>,
+    ) -> Result<OpenedResource, String> {
+        let info = resources
+            .open(&self.resources, scope, reference, thumbnail)
+            .await?;
+        Ok(OpenedResource {
+            url: resource_url(&info.id),
+            id: info.id,
+            name: info.name,
+            mime: info.mime,
+            size: info.size,
+            inline_allowed: info.inline_allowed,
+        })
+    }
+
+    pub async fn open_peer_reference(
+        &self,
+        resources: &plain_server::native::resources::NativeResources,
+        scope: &NativeRequestScope,
+        peer_id: &str,
+        reference: &str,
+        thumbnail: Option<plain_rs::features::services::files::content::Size>,
+    ) -> Result<OpenedResource, String> {
+        let info = resources
+            .open_peer(&self.resources, scope, peer_id, reference, thumbnail)
+            .await?;
+        Ok(OpenedResource {
+            url: resource_url(&info.id),
+            id: info.id,
+            name: info.name,
+            mime: info.mime,
+            size: info.size,
+            inline_allowed: info.inline_allowed,
+        })
+    }
+
+    pub async fn read(
+        &self,
+        scope: &NativeRequestScope,
+        id: &str,
+        offset: u64,
+        length: u64,
+    ) -> Result<Vec<u8>, String> {
+        if length == 0 || length > plain_server::native::resources::MAX_RESOURCE_READ_BYTES as u64 {
+            return Err("Invalid resource read length".into());
+        }
+        self.resources
+            .get(scope, id)
+            .map_err(|_| "resource unavailable")?
+            .read_range(offset, length)
+            .await
     }
 
     pub fn close(&self, scope: &NativeRequestScope, id: &str) -> bool {
@@ -122,7 +184,12 @@ pub async fn serve(
     request: Request<Vec<u8>>,
     responder: UriSchemeResponder,
 ) {
-    responder.respond(resource_response(registry, scope, request).await);
+    #[cfg(all(test, target_os = "linux"))]
+    let observation = crate::native_media_gui::record_request(scope.id(), &request);
+    let response = resource_response(registry, scope, request).await;
+    #[cfg(all(test, target_os = "linux"))]
+    crate::native_media_gui::record_response(observation, &response);
+    responder.respond(response);
 }
 
 async fn resource_response(
@@ -147,6 +214,9 @@ async fn resource_response(
             return error_response(status);
         }
     };
+    if !resource.info.inline_allowed {
+        return error_response(StatusCode::UNSUPPORTED_MEDIA_TYPE);
+    }
     let size = resource.info.size;
 
     let range = if head {
@@ -158,7 +228,7 @@ async fn resource_response(
             .and_then(|value| value.to_str().ok())
             .unwrap_or("")
     };
-    let (start, end, partial) = match parse_range_header(range, size) {
+    let (start, mut end, partial) = match parse_range_header(range, size) {
         RangeParse::Full => (0, size.saturating_sub(1), false),
         RangeParse::Partial(start, end) => (start, end, true),
         RangeParse::Unsatisfiable => {
@@ -172,6 +242,9 @@ async fn resource_response(
                 .expect("static unsatisfiable response");
         }
     };
+    if partial && end - start + 1 > MAX_RESPONSE_BYTES {
+        end = start + MAX_RESPONSE_BYTES - 1;
+    }
     let length = if size == 0 { 0 } else { end - start + 1 };
     if !head && length > MAX_RESPONSE_BYTES {
         return error_response(StatusCode::PAYLOAD_TOO_LARGE);
@@ -183,8 +256,7 @@ async fn resource_response(
         match resource.read_range(start, length).await {
             Ok(bytes) => bytes,
             Err(_) => {
-                registry.close(scope, &id);
-                return error_response(StatusCode::NOT_FOUND);
+                return error_response(StatusCode::BAD_GATEWAY);
             }
         }
     };

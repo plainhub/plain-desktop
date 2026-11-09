@@ -1,8 +1,8 @@
 pub mod callbacks;
-pub mod events;
 pub mod graphql;
 pub mod management;
 pub mod resources;
+pub mod sockets;
 pub mod uploads;
 pub mod views;
 

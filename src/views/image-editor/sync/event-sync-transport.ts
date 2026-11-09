@@ -1,6 +1,4 @@
-import { isLocalMode } from '@/lib/device/local-mode'
 import * as Y from 'yjs'
-import emitter from '@/plugins/eventbus'
 import { gqlFetch } from '@/lib/api/gql-client'
 import { arrayBufferToBase64 } from '@/lib/strutil'
 import { ImageEditorSocket } from './image-editor-socket'
@@ -37,18 +35,9 @@ export class EventSyncTransport implements SyncTransport {
   async connect(): Promise<void> {
     if (this.connectedState) return
     this.connectedState = true
-    if (isLocalMode()) {
-      emitter.on('IMAGE_EDITOR_UPDATE', this.onNativeUpdate)
-      emitter.on('app_socket_connection_changed', this.onNativeConnection)
-      this.synchronize()
-    } else {
-      this.socket = new ImageEditorSocket(() => this.synchronize(), data => this.receive(data))
-      this.socket.connect()
-    }
+    this.socket = new ImageEditorSocket(() => this.synchronize(), data => this.receive(data))
+    this.socket.connect()
   }
-
-  private onNativeUpdate = (data: ArrayBuffer | Uint8Array) => this.receive(new Uint8Array(data))
-  private onNativeConnection = (connected: boolean) => { if (connected) this.synchronize() }
 
   private synchronize() {
     this.enqueue(new Uint8Array([0]))
@@ -117,8 +106,6 @@ export class EventSyncTransport implements SyncTransport {
     this.connectedState = false
     this.socket?.disconnect()
     this.socket = undefined
-    emitter.off('IMAGE_EDITOR_UPDATE', this.onNativeUpdate)
-    emitter.off('app_socket_connection_changed', this.onNativeConnection)
     clearTimeout(this.broadcastTimer)
     clearTimeout(this.syncRetry)
     this.broadcastTimer = undefined

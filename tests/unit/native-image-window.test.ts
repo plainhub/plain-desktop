@@ -4,7 +4,7 @@ import { createRenderer, defineComponent, nextTick, ssrContextKey } from 'vue'
 import { compileScript, compileTemplate, parse } from 'vue/compiler-sfc'
 
 const fixture = vi.hoisted(() => ({
-  query: {} as Record<string, string>, open: vi.fn(), close: vi.fn(), load: vi.fn(), loadFile: vi.fn(), blank: vi.fn(), title: vi.fn(), toast: vi.fn(),
+  image: vi.fn(), createUrl: vi.fn(), revokeUrl: vi.fn(), query: {} as Record<string, string>, open: vi.fn(), close: vi.fn(), load: vi.fn(), loadFile: vi.fn(), blank: vi.fn(), title: vi.fn(), toast: vi.fn(),
   store: { lightbox: { sources: [] as unknown[], index: -1, visible: false, readOnly: false } },
 }))
 vi.mock('vue-i18n', () => ({ useI18n: () => ({ t: (key: string) => key }) }))
@@ -12,6 +12,7 @@ vi.mock('@/components/toaster', () => ({ default: fixture.toast }))
 vi.mock('vue-router', () => ({ useRoute: () => ({ get query() { return fixture.query } }) }))
 vi.mock('@/hooks/native-resource-url', () => ({
   nativeResourceUrl: fixture.open,
+  nativeResourceImage: fixture.image,
   closeNativeResource: fixture.close,
   isNativeResourceUrl: (url: string) => /^(plain-resource:\/\/file\/|https?:\/\/plain-resource\.file\/)/.test(url),
 }))
@@ -59,6 +60,10 @@ beforeEach(() => {
   fixture.query = {}
   fixture.store.lightbox = { sources: [], index: -1, visible: false, readOnly: false }
   fixture.open.mockResolvedValue('plain-resource://file/new-owner')
+  fixture.image.mockResolvedValue(new Blob(['image'], { type: 'image/png' }))
+  fixture.createUrl.mockReturnValue('blob:editor-image')
+  vi.spyOn(URL, 'createObjectURL').mockImplementation(fixture.createUrl)
+  vi.spyOn(URL, 'revokeObjectURL').mockImplementation(fixture.revokeUrl)
   fixture.close.mockResolvedValue(undefined)
   fixture.load.mockResolvedValue(undefined)
   vi.stubGlobal('__IS_TAURI__', true)
@@ -72,24 +77,24 @@ afterEach(() => {
   vi.unstubAllGlobals()
 })
 
-it('reopens and directly loads an editor reference in the new owner, then closes only that handle', async () => {
+it('loads bounded IPC image bytes through a Blob URL and revokes the URL after decoding', async () => {
   fixture.query = { reference: 'fid:original-image', name: 'image.png' }
   mount(ImageEditorView)
   await flush()
-  expect(fixture.open).toHaveBeenCalledExactlyOnceWith('fid:original-image')
-  expect(fixture.load).toHaveBeenCalledExactlyOnceWith('plain-resource://file/new-owner')
-  expect(fixture.close).toHaveBeenCalledExactlyOnceWith('fid:original-image')
+  expect(fixture.image).toHaveBeenCalledExactlyOnceWith('fid:original-image', expect.any(AbortSignal))
+  expect(fixture.load).toHaveBeenCalledExactlyOnceWith('blob:editor-image')
+  expect(fixture.revokeUrl).toHaveBeenCalledExactlyOnceWith('blob:editor-image')
   expect(fetch).not.toHaveBeenCalled()
   expect(fixture.loadFile).not.toHaveBeenCalled()
 })
 
-it.each(['unavailable', 'CORS refused'])('closes the editor handle without HTTP fallback when native loading is %s', async (reason) => {
+it.each(['unavailable', 'decode failed'])('does not fall back to HTTP when IPC image loading is %s', async (reason) => {
   fixture.query = { reference: 'app://image.png' }
-  if (reason === 'unavailable') fixture.open.mockResolvedValue('')
+  if (reason === 'unavailable') fixture.image.mockRejectedValue(new Error(reason))
   else fixture.load.mockRejectedValue(new Error(reason))
   mount(ImageEditorView)
   await flush()
-  expect(fixture.close).toHaveBeenCalledExactlyOnceWith('app://image.png')
+  expect(fixture.revokeUrl).toHaveBeenCalledTimes(reason === 'unavailable' ? 0 : 1)
   expect(fetch).not.toHaveBeenCalled()
   expect(fixture.loadFile).not.toHaveBeenCalled()
   expect(console.warn).toHaveBeenCalledWith('[ImageEditorView] Failed to load native image', expect.any(Error))
@@ -161,7 +166,7 @@ it('reports an invalid native reference without opening or closing a foreign han
 it('does not report a failed editor load after cancellation by unmount', async () => {
   fixture.query = { reference: 'fid:original-image' }
   let fail!: (error: Error) => void
-  fixture.open.mockImplementation(() => new Promise<string>((_, reject) => { fail = reject }))
+  fixture.image.mockImplementation(() => new Promise<Blob>((_, reject) => { fail = reject }))
   mount(ImageEditorView)
   await flush()
   unmount?.(); unmount = undefined
@@ -169,5 +174,5 @@ it('does not report a failed editor load after cancellation by unmount', async (
   await flush()
   expect(fixture.toast).not.toHaveBeenCalled()
   expect(fixture.load).not.toHaveBeenCalled()
-  expect(fixture.close).toHaveBeenCalledWith('fid:original-image')
+  expect(fixture.image.mock.calls[0][1].aborted).toBe(true)
 })

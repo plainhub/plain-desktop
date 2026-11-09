@@ -59,7 +59,6 @@
 </template>
 
 <script setup lang="ts">
-import { isLocalMode } from '@/lib/device/local-mode'
 import { graphqlSubscriptions } from '@/lib/api/subscription-client'
 import ScreenMirrorContent from './ScreenMirrorContent.vue'
 import ScreenMirrorHeaderActions from './ScreenMirrorHeaderActions.vue'
@@ -141,10 +140,7 @@ const cleanup = () => {
   socket.disconnect()
   pipeline.cleanup()
 }
-service.setPipeline(() => {
-  if (isLocalMode()) void pipeline.connect()
-  else socket.connect()
-}, cleanup)
+service.setPipeline(() => socket.connect(), cleanup)
 let stopScreenMirrorAudioGranted: (() => void) | undefined
 let stopScreenMirrorState: (() => void) | undefined
 let stopScreenMirrorVideoCodec: (() => void) | undefined
@@ -207,8 +203,6 @@ watch(controlOverlayRef, (el) => {
 onActivated(() => {
   isActive.value = true
   stopScreenMirrorState = graphqlSubscriptions.subscribe('screenMirrorState', service.onScreenMirroring)
-  if (isLocalMode()) emitter.on('SCREEN_MIRROR_VIDEO', pipeline.handleVideo)
-  if (isLocalMode()) emitter.on('SCREEN_MIRROR_AUDIO', pipeline.handleAudio)
   stopScreenMirrorVideoCodec = graphqlSubscriptions.subscribe('screenMirrorVideoCodec', pipeline.handleConfig)
   stopSubscriptionAttached = graphqlSubscriptions.onAttached(() => service.onSocketReconnect(true))
   stopScreenMirrorAudioGranted = graphqlSubscriptions.subscribe('screenMirrorAudioGranted', service.onAudioGranted)
@@ -220,8 +214,6 @@ onActivated(() => {
 onDeactivated(() => {
   isActive.value = false
   stopScreenMirrorState?.()
-  emitter.off('SCREEN_MIRROR_VIDEO', pipeline.handleVideo)
-  emitter.off('SCREEN_MIRROR_AUDIO', pipeline.handleAudio)
   stopScreenMirrorVideoCodec?.()
   stopSubscriptionAttached?.()
   stopScreenMirrorAudioGranted?.()
