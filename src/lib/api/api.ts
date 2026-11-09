@@ -1,6 +1,6 @@
 import { isLocalMode } from '@/lib/device/local-mode'
 import { getCurrentDeviceHost, getCurrentDeviceBaseUrl } from '../device/current'
-import { getDesktopClientId, getNativeFileUrlToken } from '@/lib/device/client-id'
+import { getDesktopClientId } from '@/lib/device/client-id'
 import { isMacPlatform } from '../platform'
 import { DeviceType } from '../status'
 import { applyScheme, peerProxyPath } from '../url'
@@ -53,7 +53,7 @@ function proxyPath(path: string, base: string): string {
   const descriptor = JSON.stringify({ base })
   let target = proxyTargets.get(descriptor)
   if (!target) {
-    const key = Uint8Array.from(atob(getNativeFileUrlToken()), byte => byte.charCodeAt(0))
+    const key = Uint8Array.from(atob(_localToken), byte => byte.charCodeAt(0))
     target = encryptResourcePayload(key, { mode: 'c', id: getDesktopClientId() }, 'native-proxy', descriptor)
     if (proxyTargets.size >= 64) proxyTargets.clear()
     proxyTargets.set(descriptor, target)

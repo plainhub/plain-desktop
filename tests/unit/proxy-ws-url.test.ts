@@ -2,7 +2,6 @@ import { afterEach, beforeEach, expect, it, vi } from 'vitest'
 
 vi.mock('@/lib/device/client-id', () => ({
   getDesktopClientId: () => 'desktop',
-  getNativeFileUrlToken: () => btoa('k'.repeat(32)),
 }))
 vi.mock('@/lib/device/local-mode', () => ({ isLocalMode: () => false }))
 vi.mock('@/lib/device/current', () => ({ getCurrentDeviceHost: () => '', getCurrentDeviceBaseUrl: () => '' }))

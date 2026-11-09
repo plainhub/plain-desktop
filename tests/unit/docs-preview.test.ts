@@ -5,6 +5,7 @@ import { compileScript, compileTemplate, parse } from 'vue/compiler-sfc'
 import { DataType } from '@/lib/data'
 import type { IApp, IDoc } from '@/lib/interfaces'
 import { openWindow } from '@/lib/api/tauri-window'
+import { setLocalServerToken } from '@/lib/api/api'
 import { openUrl } from '@/lib/browser'
 import { openUrl as openExternalUrl } from '@/lib/tauri-plugins'
 import OnlinePreviewIcon from '@/components/OnlinePreviewIcon.vue'
@@ -16,7 +17,7 @@ import { useDocsActions } from '@/views/docs/hooks/useDocsActions'
 const downloadFile = vi.hoisted(() => vi.fn())
 vi.mock('@/hooks/files', () => ({ useDownload: () => ({ downloadFile }) }))
 vi.mock('@/lib/api/tauri-window', () => ({ openWindow: vi.fn() }))
-vi.mock('@/lib/device/client-id', () => ({ getDesktopClientId: () => 'fixture-desktop', getNativeFileUrlToken: () => 'native-session' }))
+vi.mock('@/lib/device/client-id', () => ({ getDesktopClientId: () => 'fixture-desktop' }))
 vi.mock('@/lib/device/local-mode', () => ({ isLocalMode: () => true }))
 vi.mock('@/lib/tauri-plugins', () => ({ openUrl: vi.fn() }))
 vi.mock('@/lib/format', () => ({
@@ -62,6 +63,8 @@ for (const [component, source, filename] of [
   })
   component.render = new Function('Vue', template.code)(Vue)
 }
+
+setLocalServerToken('native-session')
 
 afterEach(() => vi.unstubAllGlobals())
 

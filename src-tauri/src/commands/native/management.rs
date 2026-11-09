@@ -58,7 +58,6 @@ pub fn native_device_identity(
     Ok(serde_json::json!({
         "clientId": preferences["client_id"],
         "signaturePublicKey": preferences["signature_public_key"],
-        "fileUrlToken": core.native_file_url_token(),
     }))
 }
 

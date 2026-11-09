@@ -6,7 +6,6 @@ const REMOTE_KEY = '__bound_client_id__'
 const WINDOW_ID_KEY = '__window_id__'
 
 let desktopClientId = ''
-let nativeFileUrlToken = ''
 
 export function ensureBrowserClientId(): boolean {
   const clientId = browserGet('client_id', '')
@@ -20,10 +19,7 @@ export function ensureBrowserClientId(): boolean {
 export async function preloadClientIdentity(): Promise<void> {
   const identity = await readNativeDeviceIdentity()
   desktopClientId = identity.clientId
-  nativeFileUrlToken = identity.fileUrlToken
 }
-
-export function getNativeFileUrlToken(): string { return nativeFileUrlToken }
 
 let cachedRemote: string | null | undefined
 let cachedWindowId: string | null
