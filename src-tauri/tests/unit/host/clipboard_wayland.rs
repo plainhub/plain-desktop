@@ -131,8 +131,9 @@ impl Compositor {
 
     fn sync(&mut self) {
         let callback = word(&self.request(1, 0), 0);
-        self.event(callback, 0, &words(&[0]));
-        self.event(1, 1, &words(&[callback]));
+        // Send done and delete_id together before the client can finish the roundtrip and disconnect.
+        let events = words(&[callback, 12 << 16, 0, 1, (12 << 16) | 1, callback]);
+        self.socket.write_all(&events).unwrap();
     }
 
     fn wait_for_disconnect(&mut self) {

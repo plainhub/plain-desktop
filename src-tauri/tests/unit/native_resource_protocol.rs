@@ -99,6 +99,7 @@ async fn large_resources_expose_head_and_bounded_ranges_without_reading_a_full_r
     assert!(!head.headers().contains_key(header::CONTENT_RANGE));
     let full = resource_response(&registry, &scope, request(&opened.url, Method::GET, None)).await;
     assert_eq!(full.status(), StatusCode::PAYLOAD_TOO_LARGE);
+    assert_eq!(full.headers()[header::CACHE_CONTROL], "no-store");
     assert!(full.body().is_empty());
     let bounded = resource_response(
         &registry,
@@ -153,6 +154,7 @@ async fn active_documents_are_not_served_as_native_pages() {
         let response =
             resource_response(&registry, &scope, request(&opened.url, Method::GET, None)).await;
         assert_eq!(response.status(), StatusCode::UNSUPPORTED_MEDIA_TYPE);
+        assert_eq!(response.headers()[header::CACHE_CONTROL], "no-store");
         assert!(response.body().is_empty());
         assert!(
             !response
@@ -235,6 +237,7 @@ async fn oversized_explicit_ranges_return_a_truthful_bounded_subset() {
     assert_eq!(tail.body().len(), 15);
     let full = resource_response(&registry, &scope, request(&opened.url, Method::GET, None)).await;
     assert_eq!(full.status(), StatusCode::PAYLOAD_TOO_LARGE);
+    assert_eq!(full.headers()[header::CACHE_CONTROL], "no-store");
     assert!(full.body().is_empty());
 }
 
@@ -248,9 +251,47 @@ async fn a_transient_read_failure_does_not_retire_a_cached_resource_url() {
     let failed =
         resource_response(&registry, &scope, request(&opened.url, Method::GET, None)).await;
     assert_eq!(failed.status(), StatusCode::BAD_GATEWAY);
+    assert_eq!(failed.headers()[header::CACHE_CONTROL], "no-store");
     assert!(failed.body().is_empty());
     std::fs::write(&fixture.0, b"0123456789").unwrap();
     let retry = resource_response(&registry, &scope, request(&opened.url, Method::GET, None)).await;
     assert_eq!(retry.status(), StatusCode::OK);
     assert_eq!(retry.body(), b"0123456789");
+}
+
+#[tokio::test]
+async fn scoped_responses_cannot_be_reused_by_a_shared_webview_cache() {
+    let fixture = Fixture::new(b"0123456789");
+    let registry = ResourceRegistry::default();
+    let scope = NativeRequestScope::default();
+    let opened = registry.open(&scope, &fixture.0).await.unwrap();
+    for (method, range, expected) in [
+        (Method::GET, None, StatusCode::OK),
+        (Method::HEAD, None, StatusCode::OK),
+        (Method::GET, Some("bytes=2-5"), StatusCode::PARTIAL_CONTENT),
+        (
+            Method::GET,
+            Some("bytes=10-"),
+            StatusCode::RANGE_NOT_SATISFIABLE,
+        ),
+        (Method::POST, None, StatusCode::METHOD_NOT_ALLOWED),
+    ] {
+        let response =
+            resource_response(&registry, &scope, request(&opened.url, method, range)).await;
+        assert_eq!(response.status(), expected);
+        assert_eq!(
+            response.headers().get(header::CACHE_CONTROL),
+            Some(&HeaderValue::from_static("no-store"))
+        );
+    }
+    let other = NativeRequestScope::default();
+    let denied =
+        resource_response(&registry, &other, request(&opened.url, Method::GET, None)).await;
+    assert_eq!(denied.status(), StatusCode::FORBIDDEN);
+    assert_eq!(denied.headers()[header::CACHE_CONTROL], "no-store");
+    scope.close();
+    let closed =
+        resource_response(&registry, &scope, request(&opened.url, Method::GET, None)).await;
+    assert_eq!(closed.status(), StatusCode::NOT_FOUND);
+    assert_eq!(closed.headers()[header::CACHE_CONTROL], "no-store");
 }

@@ -4,6 +4,7 @@ import struct
 import sys
 import tempfile
 import unittest
+import zlib
 from unittest.mock import patch
 
 
@@ -52,6 +53,29 @@ class NativeMediaSupportTests(unittest.TestCase):
             with self.assertRaisesRegex(ValueError, 'identity changed'):
                 generate.video(Path('/not-written'))
 
+    def test_png_contains_independent_pixels_and_valid_chunks(self):
+        with tempfile.TemporaryDirectory() as root:
+            path = Path(root) / 'image.png'
+            info = generate.image(path)
+            data = path.read_bytes()
+            self.assertEqual(data[:8], b'\x89PNG\r\n\x1a\n')
+            chunks, cursor = {}, 8
+            while cursor < len(data):
+                size = struct.unpack_from('>I', data, cursor)[0]
+                kind = data[cursor + 4:cursor + 8]
+                payload = data[cursor + 8:cursor + 8 + size]
+                self.assertEqual(struct.unpack_from('>I', data, cursor + 8 + size)[0],
+                                 zlib.crc32(kind + payload))
+                chunks[kind] = payload
+                cursor += size + 12
+            self.assertEqual(list(chunks), [b'IHDR', b'IDAT', b'IEND'])
+            self.assertEqual(struct.unpack('>IIBBBBB', chunks[b'IHDR']), (32, 24, 8, 2, 0, 0, 0))
+            pixels = zlib.decompress(chunks[b'IDAT'])
+            self.assertEqual(len(pixels), (32 * 3 + 1) * 24)
+            self.assertEqual(pixels[:7], b'\x00\x00\x00\x00\x07\x00\x04')
+            self.assertEqual(pixels[-3:], bytes((217, 207, 216)))
+            self.assertEqual(info['sample_bytes'], 32 * 24 * 3)
+
     def test_audio_evidence_requires_rendered_buffers_not_a_placeholder(self):
         self.assertFalse(runner.audio_evidence('created <fake-audio-sink>')['selection_observed'])
         self.assertFalse(runner.audio_evidence('<pulsesink> rendering object 0x123')['selection_observed'])
@@ -74,6 +98,8 @@ class NativeMediaSupportTests(unittest.TestCase):
             self.assertLess(result['small-video.webm']['size'], 32 * 1024 * 1024)
             self.assertEqual(result['small-video.webm']['expected_route'], 'production-native-scheme')
             self.assertEqual(result['video.webm']['expected_route'], 'production-core-http-fs')
+            self.assertEqual(result['image.png']['expected_route'], 'production-native-scheme')
+            self.assertEqual((result['image.png']['width'], result['image.png']['height']), (32, 24))
             self.assertEqual((Path(root) / 'control.wav').stat().st_size, 4 * 48000 * 4 + 44)
 
 

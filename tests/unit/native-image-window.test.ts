@@ -11,9 +11,8 @@ vi.mock('vue-i18n', () => ({ useI18n: () => ({ t: (key: string) => key }) }))
 vi.mock('@/components/toaster', () => ({ default: fixture.toast }))
 vi.mock('vue-router', () => ({ useRoute: () => ({ get query() { return fixture.query } }) }))
 vi.mock('@/hooks/native-resource-url', () => ({
-  nativeResourceUrl: fixture.open,
+  createNativeResourceOwner: () => ({ url: fixture.open, dispose: fixture.close }),
   nativeResourceImage: fixture.image,
-  closeNativeResource: fixture.close,
   isNativeResourceUrl: (url: string) => /^(plain-resource:\/\/file\/|https?:\/\/plain-resource\.file\/)/.test(url),
 }))
 vi.mock('@/lib/api/tauri-window', () => ({ setWindowDeviceName: fixture.title }))
@@ -129,7 +128,7 @@ it('reopens a path-only native preview in the destination owner', async () => {
   expect(fixture.store.lightbox.sources).toEqual([expect.objectContaining({ src: 'plain-resource://file/new-owner', path: 'fid:image', size: 4 })])
   expect(fixture.title).toHaveBeenCalledExactlyOnceWith('image.png')
   unmount?.(); unmount = undefined
-  expect(fixture.close).toHaveBeenCalledExactlyOnceWith('fid:image')
+  expect(fixture.close).toHaveBeenCalledExactlyOnceWith()
 })
 
 it('does not reopen external preview paths as local files', async () => {
@@ -149,7 +148,7 @@ it('does not install a pending native preview after destination unmount', async 
   finish('plain-resource://file/new-owner')
   await flush()
   expect(fixture.store.lightbox.sources).toEqual([])
-  expect(fixture.close).toHaveBeenCalledExactlyOnceWith('fid:image')
+  expect(fixture.close).toHaveBeenCalledExactlyOnceWith()
   expect(fixture.title).not.toHaveBeenCalled()
 })
 

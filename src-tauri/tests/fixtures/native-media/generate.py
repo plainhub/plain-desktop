@@ -3,6 +3,7 @@ import json
 from pathlib import Path
 import struct
 import wave
+import zlib
 
 
 SEED_SHA256 = 'f4895ad906550955bc4f114727839d6a39dab99c2d6dfa2bbeeaf96ccb586369'
@@ -14,6 +15,20 @@ def element(tag, value):
 
 def uint(tag, value):
     return element(tag, value.to_bytes(8, 'big'))
+
+
+def image(path):
+    width, height = 32, 24
+    samples = b''.join(b'\x00' + bytes(value for x in range(width)
+                                     for value in (x * 7, y * 9, (x + y) * 4)) for y in range(height))
+
+    def chunk(kind, data):
+        return struct.pack('>I', len(data)) + kind + data + struct.pack('>I', zlib.crc32(kind + data))
+
+    path.write_bytes(b'\x89PNG\r\n\x1a\n' +
+                     chunk(b'IHDR', struct.pack('>IIBBBBB', width, height, 8, 2, 0, 0, 0)) +
+                     chunk(b'IDAT', zlib.compress(samples)) + chunk(b'IEND', b''))
+    return {'width': width, 'height': height, 'sample_bytes': width * height * 3}
 
 
 def video(path, count=768):
@@ -67,7 +82,8 @@ def video(path, count=768):
 def generate(root):
     root = Path(root)
     result = {'video.webm': video(root / 'video.webm'),
-              'small-video.webm': video(root / 'small-video.webm', 96)}
+              'small-video.webm': video(root / 'small-video.webm', 96),
+              'image.png': image(root / 'image.png')}
     with wave.open(str(root / 'audio.wav'), 'wb') as wav:
         wav.setparams((2, 2, 48000, 0, 'NONE', 'not compressed'))
         # Distinct PCM samples keep the fixture independent of the media decoder.

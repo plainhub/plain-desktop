@@ -9,12 +9,12 @@ import { useI18n } from 'vue-i18n'
 import toast from '@/components/toaster'
 import type { ISource } from '@/components/lightbox/types'
 import { setWindowDeviceName } from '@/lib/api/tauri-window'
-import { nativeResourceUrl, closeNativeResource, isNativeResourceUrl } from '@/hooks/native-resource-url'
+import { createNativeResourceOwner, isNativeResourceUrl } from '@/hooks/native-resource-url'
 
 const tempStore = useTempStore()
 const { t } = useI18n()
 let active = true
-let openedReference = ''
+const resources = createNativeResourceOwner()
 
 async function parseSource(): Promise<ISource | null> {
   const params = new URLSearchParams(window.location.search)
@@ -24,8 +24,7 @@ async function parseSource(): Promise<ISource | null> {
   if (!src && !path) return null
   if (!src || isNativeResourceUrl(src)) {
     if (!path || isNativeResourceUrl(path)) throw new Error('Native preview requires the original file reference')
-    openedReference = path
-    src = await nativeResourceUrl(path)
+    src = await resources.url(path)
     if (!src) throw new Error('Native preview is unavailable in this window')
     if (!active) return null
   }
@@ -60,7 +59,7 @@ onMounted(async () => {
     tempStore.lightbox = { sources: [source], index: 0, visible: true, readOnly: false }
     if (inTauri()) await setWindowDeviceName(source.name || 'Preview')
   } catch (error) {
-    if (openedReference) await closeNativeResource(openedReference)
+    await resources.dispose()
     if (active) {
       console.warn('Media preview could not be opened', error)
       toast(t('failed_to_load_file'), 'error')
@@ -70,7 +69,7 @@ onMounted(async () => {
 
 onBeforeUnmount(() => {
   active = false
-  if (openedReference) void closeNativeResource(openedReference)
+  void resources.dispose()
   if (tempStore.lightbox.sources.length === 1) {
     tempStore.lightbox = { sources: [], visible: false, index: -1, readOnly: false }
   }

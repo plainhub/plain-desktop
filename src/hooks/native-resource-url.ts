@@ -13,14 +13,29 @@ export interface INativeResource {
   inlineAllowed: boolean
 }
 
-// Handles stay open while a view may still show the file and are closed
-// when that view drops them. The core evicts a handle when its window goes
-// away, so a stale entry here can never keep a file open.
-const handles = new Map<string, { path: string; target: NativeTarget; resource: INativeResource; scope: string }>()
-const pending = new Map<string, { path: string; promise: Promise<string> }>()
+interface ResourceOwnerState {
+  active: boolean
+  entries: Set<ResourceEntry>
+}
+interface ResourceEntry {
+  key: string
+  path: string
+  target: NativeTarget
+  owners: Set<ResourceOwnerState>
+  promise: Promise<string>
+  resource?: INativeResource
+  scope?: string
+}
+const handles = new Map<string, ResourceEntry>()
+
+export interface NativeResourceOwner {
+  url(path: string, size?: number, query?: string): Promise<string>
+  retain(url: string): void
+  dispose(): Promise<void>
+}
 
 export function nativeResourceReference(url: string): { path: string; target: NativeTarget } {
-  const entry = [...handles.values()].find(entry => entry.resource.url === url)
+  const entry = [...handles.values()].find(entry => entry.resource?.url === url)
   if (!entry) throw new Error('Native resource is no longer available')
   return { path: entry.path, target: entry.target }
 }
@@ -57,75 +72,98 @@ export function isExternalReference(reference: string): boolean {
  */
 export const MAX_NATIVE_RESPONSE_BYTES = 32 * 1024 * 1024
 
-// Only verified bounded resource types use the native scheme; other previews retain HTTP.
-export async function nativeResourceUrl(path: string, size?: number, query = ''): Promise<string> {
-  if (!path || !__IS_TAURI__ || /^(https?:|blob:|content:|ph:|fsid:)/i.test(path)) {
-    return ''
+async function closeEntry(entry: ResourceEntry): Promise<void> {
+  if (handles.get(entry.key) === entry) handles.delete(entry.key)
+  if (!entry.resource || !entry.scope) return
+  const resource = entry.resource
+  entry.resource = undefined
+  try {
+    await invoke('native_resource_close', { id: resource.id, scope: entry.scope })
+  } catch (error) {
+    console.warn('native resource close failed', error)
   }
-  const parameters = new URLSearchParams(query.replace(/^[?&]/, ''))
-  const thumbnail = parameters.get('size') ?? undefined
-  if (thumbnail !== undefined && thumbnail !== 'sm' && thumbnail !== 'lg') throw new Error('Invalid thumbnail size')
-  if ([...parameters.keys()].some(key => key !== 'size' && key !== 'v')) throw new Error('Unsupported native resource parameter')
-  if (!thumbnail && typeof size === 'number' && size > MAX_NATIVE_RESPONSE_BYTES) return ''
-  const context = resourceContext()
-  if (context.target.kind === 'peer' && !context.target.peerId) throw new Error('native_peer_id_missing')
-  const contextKey = JSON.stringify(context)
-  const key = JSON.stringify([context, path, thumbnail, parameters.get('v')])
-  const cached = handles.get(key)
-  if (cached) {
-    return cached.resource.url
-  }
-  const running = pending.get(key)
-  if (running) {
-    return running.promise
-  }
-  const opened: Promise<string> = (async () => {
-    const scope = await nativeViewScope()
-    const checkCurrent = () => {
-      if (pending.get(key)?.promise !== opened) throw new Error('resource_closed')
-      if (JSON.stringify(resourceContext()) !== contextKey) throw new Error('request_context_changed')
-    }
-    checkCurrent()
-    const resource = await invoke<INativeResource>('native_resource_open', { path, scope, thumbnail, target: context.target })
-    try {
-      checkCurrent()
-    } catch (error) {
-      await invoke('native_resource_close', { id: resource.id, scope })
-      throw error
-    }
-    const mime = resource.mime.split(';')[0].trim().toLowerCase()
-    const image = ['image/jpeg', 'image/png', 'image/gif', 'image/webp', 'image/bmp', 'image/avif', 'image/x-icon'].includes(mime)
-    const inline = resource.inlineAllowed && (context.target.kind === 'local' ? !mime.startsWith('image/') || image : image)
-    if (!inline || resource.size > MAX_NATIVE_RESPONSE_BYTES) {
-      await invoke('native_resource_close', { id: resource.id, scope })
-      return ''
-    }
-    handles.set(key, { path, target: context.target, resource, scope })
-    return resource.url
-  })().finally(() => {
-    if (pending.get(key)?.promise === opened) pending.delete(key)
-  })
-  pending.set(key, { path, promise: opened })
-  return opened
 }
 
-export async function closeNativeResource(path: string): Promise<void> {
-  for (const [key, entry] of pending) {
-    if (entry.path === path) pending.delete(key)
-  }
-  const closing = [...handles].filter(([, entry]) => entry.path === path)
-  await Promise.all(closing.map(async ([key, cached]) => {
-    handles.delete(key)
-    try {
-      await invoke('native_resource_close', { id: cached.resource.id, scope: cached.scope })
-    } catch (error) {
-      console.warn('native resource close failed', error)
-    }
-  }))
+function forgetEntry(entry: ResourceEntry) {
+  if (handles.get(entry.key) === entry) handles.delete(entry.key)
+  for (const owner of entry.owners) owner.entries.delete(entry)
+  entry.owners.clear()
 }
 
-export async function closeNativeResources(paths: Iterable<string>): Promise<void> {
-  await Promise.all([...paths].map((path) => closeNativeResource(path)))
+export function createNativeResourceOwner(): NativeResourceOwner {
+  const owner: ResourceOwnerState = { active: true, entries: new Set() }
+  const checkOpen = () => { if (!owner.active) throw new Error('resource_closed') }
+  const retain = (entry: ResourceEntry) => {
+    checkOpen()
+    owner.entries.add(entry)
+    entry.owners.add(owner)
+  }
+  return {
+    async url(path, size, query = '') {
+      checkOpen()
+      if (!path || !__IS_TAURI__ || /^(https?:|blob:|content:|ph:|fsid:)/i.test(path)) return ''
+      const parameters = new URLSearchParams(query.replace(/^[?&]/, ''))
+      const thumbnail = parameters.get('size') ?? undefined
+      if (thumbnail !== undefined && thumbnail !== 'sm' && thumbnail !== 'lg') throw new Error('Invalid thumbnail size')
+      if ([...parameters.keys()].some(key => key !== 'size' && key !== 'v')) throw new Error('Unsupported native resource parameter')
+      if (!thumbnail && typeof size === 'number' && size > MAX_NATIVE_RESPONSE_BYTES) return ''
+      const context = resourceContext()
+      if (context.target.kind === 'peer' && !context.target.peerId) throw new Error('native_peer_id_missing')
+      const contextKey = JSON.stringify(context)
+      const key = JSON.stringify([context, path, thumbnail, parameters.get('v')])
+      let entry = handles.get(key)
+      if (!entry) {
+        entry = { key, path, target: context.target, owners: new Set(), promise: Promise.resolve('') }
+        handles.set(key, entry)
+        retain(entry)
+        const opened = entry
+        opened.promise = (async () => {
+          const checkCurrent = () => {
+            if (!opened.owners.size || handles.get(key) !== opened) throw new Error('resource_closed')
+            if (JSON.stringify(resourceContext()) !== contextKey) throw new Error('request_context_changed')
+          }
+          try {
+            opened.scope = await nativeViewScope()
+            checkCurrent()
+            opened.resource = await invoke<INativeResource>('native_resource_open', { path, scope: opened.scope, thumbnail, target: context.target })
+            checkCurrent()
+            const resource = opened.resource
+            const mime = resource.mime.split(';')[0].trim().toLowerCase()
+            const image = ['image/jpeg', 'image/png', 'image/gif', 'image/webp', 'image/bmp', 'image/avif', 'image/x-icon'].includes(mime)
+            const inline = resource.inlineAllowed && (context.target.kind === 'local' ? !mime.startsWith('image/') || image : image)
+            if (!inline || resource.size > MAX_NATIVE_RESPONSE_BYTES) {
+              await closeEntry(opened)
+              forgetEntry(opened)
+              return ''
+            }
+            return resource.url
+          } catch (error) {
+            await closeEntry(opened)
+            forgetEntry(opened)
+            throw error
+          }
+        })()
+      } else retain(entry)
+      const url = await entry.promise
+      checkOpen()
+      return url
+    },
+    retain(url) {
+      const entry = [...handles.values()].find(entry => entry.resource?.url === url)
+      if (!entry) throw new Error('Native resource is no longer available')
+      retain(entry)
+    },
+    async dispose() {
+      owner.active = false
+      const closing: Promise<void>[] = []
+      for (const entry of owner.entries) {
+        entry.owners.delete(owner)
+        if (!entry.owners.size) closing.push(closeEntry(entry))
+      }
+      owner.entries.clear()
+      await Promise.all(closing)
+    },
+  }
 }
 
 export async function nativeResourceImage(path: string, signal: AbortSignal): Promise<Blob> {

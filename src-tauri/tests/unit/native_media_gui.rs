@@ -2,16 +2,80 @@ use crate::commands::native::views::NativeViews;
 use crate::native_resource_protocol::{ResourceRegistry, with_native_resource_protocol};
 use serde_json::{Value, json};
 use std::{
+    borrow::Cow,
     fs,
     io::{Read, Seek, SeekFrom, Write},
     path::{Path, PathBuf},
     process::Command,
-    sync::{Arc, Mutex, OnceLock, mpsc},
+    sync::{
+        Arc, Mutex, OnceLock,
+        atomic::{AtomicU64, Ordering},
+        mpsc,
+    },
     time::Duration,
 };
 use tauri::{Manager, WebviewUrl, WebviewWindowBuilder};
 
 static REQUESTS: OnceLock<Mutex<Vec<Value>>> = OnceLock::new();
+static SEQUENCE: AtomicU64 = AtomicU64::new(0);
+const SHELL_PATH: &str = "/native-media-test.html";
+const SHELL_URL: &str = "tauri://localhost/native-media-test.html";
+const SHELL_HTML: &[u8] =
+    b"<!doctype html><html><head><meta charset=\"utf-8\"></head><body></body></html>";
+
+struct HarnessAssets;
+
+impl tauri::Assets<tauri::Wry> for HarnessAssets {
+    fn get(&self, key: &tauri::utils::assets::AssetKey) -> Option<Cow<'_, [u8]>> {
+        (key.as_ref() == SHELL_PATH).then_some(Cow::Borrowed(SHELL_HTML))
+    }
+
+    fn iter(&self) -> Box<tauri::utils::assets::AssetsIter<'_>> {
+        Box::new(std::iter::once((
+            Cow::Borrowed(SHELL_PATH),
+            Cow::Borrowed(SHELL_HTML),
+        )))
+    }
+
+    fn csp_hashes(
+        &self,
+        _: &tauri::utils::assets::AssetKey,
+    ) -> Box<dyn Iterator<Item = tauri::utils::assets::CspHash<'_>> + '_> {
+        Box::new(std::iter::empty())
+    }
+}
+
+#[derive(serde::Deserialize, serde::Serialize)]
+struct PageEvent {
+    stage: String,
+    sequence: u64,
+    origin: String,
+    href: String,
+    reports: Vec<Value>,
+}
+
+fn next_sequence() -> u64 {
+    SEQUENCE.fetch_add(1, Ordering::SeqCst) + 1
+}
+
+fn response_after(
+    records: &[Value],
+    scope: &str,
+    url: &str,
+    status: u16,
+    after: u64,
+) -> Option<u64> {
+    records.iter().find_map(|record| {
+        (record["scope"] == scope
+            && record["url"] == url
+            && record["status"] == status
+            && record["sequence"]
+                .as_u64()
+                .is_some_and(|sequence| sequence > after))
+        .then(|| record["response_sequence"].as_u64())
+        .flatten()
+    })
+}
 
 pub(crate) fn record_request(
     scope: &str,
@@ -19,8 +83,9 @@ pub(crate) fn record_request(
 ) -> Option<usize> {
     let mut records = REQUESTS.get()?.lock().unwrap();
     let id = records.len();
-    records.push(json!({"scope": scope, "url": request.uri().to_string(),
+    records.push(json!({"sequence": next_sequence(), "scope": scope, "url": request.uri().to_string(),
         "method": request.method().as_str(),
+        "request_cache_control": request.headers().get("cache-control").and_then(|v| v.to_str().ok()),
         "range": request.headers().get("range").and_then(|v| v.to_str().ok())}));
     Some(id)
 }
@@ -28,8 +93,21 @@ pub(crate) fn record_request(
 pub(crate) fn record_response(id: Option<usize>, response: &tauri::http::Response<Vec<u8>>) {
     if let Some(id) = id {
         let mut records = REQUESTS.get().unwrap().lock().unwrap();
+        records[id]["response_sequence"] = json!(next_sequence());
         records[id]["status"] = json!(response.status().as_u16());
         records[id]["bytes"] = json!(response.body().len());
+        records[id]["response_cache_control"] = json!(
+            response
+                .headers()
+                .get("cache-control")
+                .and_then(|v| v.to_str().ok())
+        );
+        records[id]["content_type"] = json!(
+            response
+                .headers()
+                .get("content-type")
+                .and_then(|v| v.to_str().ok())
+        );
         records[id]["content_range"] = json!(
             response
                 .headers()
@@ -269,6 +347,7 @@ fn native_media_child() {
     let mut context = tauri::generate_context!();
     context.config_mut().app.windows.clear();
     context.config_mut().build.dev_url = None;
+    drop(context.set_assets(Box::new(HarnessAssets)));
     let app = with_native_resource_protocol(tauri::Builder::default().any_thread())
         .manage(NativeViews::default())
         .on_window_event(|window, event| {
@@ -285,7 +364,9 @@ fn native_media_child() {
                 .map_err(std::io::Error::other)?;
             let audio = tauri::async_runtime::block_on(registry.open(&owner, &root.join("control.wav")))
                 .map_err(std::io::Error::other)?;
-            let control = tauri::async_runtime::block_on(registry.open(&foreign, &root.join("control.wav")))
+            let image = tauri::async_runtime::block_on(registry.open(&owner, &root.join("image.png")))
+                .map_err(std::io::Error::other)?;
+            let control_image = tauri::async_runtime::block_on(registry.open(&foreign, &root.join("image.png")))
                 .map_err(std::io::Error::other)?;
             let (core, http_urls, http_probes) = tauri::async_runtime::block_on(http_fixture(&root))
                 .map_err(std::io::Error::other)?;
@@ -298,15 +379,25 @@ fn native_media_child() {
                 spec("small-video.webm", "video", &video.url),
                 spec("control.wav", "audio", &audio.url),
             ]);
+            let image_spec = |url: &str| json!({"url":url, "width":fixture_info["image.png"]["width"],
+                "height":fixture_info["image.png"]["height"]});
             for (label, urls) in [
-                ("media-owner", json!({"media":media})),
-                ("media-foreign", json!({"foreign":video.url, "control":spec("control.wav", "audio", &control.url)})),
+                ("media-owner", json!({"media":media, "image":image_spec(&image.url)})),
+                ("media-foreign", json!({"foreign":image.url, "image":image_spec(&control_image.url)})),
             ] {
                 let script = page_script(urls);
                 let sender = messages.clone();
                 let errors = messages.clone();
-                WebviewWindowBuilder::new(app, label, WebviewUrl::External("about:blank".parse()?))
+                let process_events = messages.clone();
+                let window = WebviewWindowBuilder::new(app, label, WebviewUrl::App(SHELL_PATH.into()))
                     .on_page_load(move |window, payload| {
+                        let stage = match payload.event() {
+                            tauri::webview::PageLoadEvent::Started => "page-load-started",
+                            tauri::webview::PageLoadEvent::Finished => "page-load-finished",
+                        };
+                        let document_url = if payload.url().as_str() == SHELL_URL { SHELL_URL } else { "[Unexpected document URL omitted]" };
+                        let _ = errors.send((window.label().to_string(), format!("plain-diagnostic:{}",
+                            json!({"stage":stage, "document_url":document_url}))));
                         if matches!(payload.event(), tauri::webview::PageLoadEvent::Finished) {
                             if let Err(error) = window.eval(&script) {
                                 let error = error.to_string();
@@ -314,57 +405,143 @@ fn native_media_child() {
                                     "Test script evaluation failed; resource URL omitted"
                                 } else { &error };
                                 let _ = errors.send((window.label().to_string(), format!("plain-harness-error:{detail}")));
+                            } else {
+                                let _ = errors.send((window.label().to_string(), format!("plain-diagnostic:{}",
+                                    json!({"stage":"script-evaluation-submitted"}))));
                             }
                         }
                     })
-                    .data_directory(root.join("data").join(label))
+                    .data_directory(root.join("data/webview-profile"))
                     .disable_drag_drop_handler()
                     .on_permission_request(|_, _| tauri::webview::PermissionResponse::Deny)
                     .on_document_title_changed(move |window, title| {
                         let _ = sender.send((window.label().to_string(), title));
                     })
                     .build()?;
+                window.with_webview(move |webview| {
+                    use gtk::prelude::ObjectExt;
+                    let terminated = process_events.clone();
+                    webview.inner().connect_local("web-process-terminated", false, move |values| {
+                        let _ = terminated.send((label.to_string(), format!("plain-diagnostic:{}",
+                            json!({"stage":"web-process-terminated", "reason":format!("{:?}", values.get(1))}))));
+                        None
+                    });
+                    let _ = process_events.send((label.to_string(), format!("plain-diagnostic:{}",
+                        json!({"stage":"web-process-observer-attached"}))));
+                })?;
             }
             let handle = app.handle().clone();
             let owner_id = owner.id().to_string();
             let foreign_id = foreign.id().to_string();
             std::thread::spawn(move || {
+                let mut reports = serde_json::Map::new();
+                let mut events = Vec::new();
                 let outcome = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
-                    let mut reports = serde_json::Map::new();
-                    let mut owner_done = false;
+                    let mut page_sequences = std::collections::HashMap::<String, u64>::new();
+                    let mut origins = serde_json::Map::new();
+                    let mut owner_ready = false;
                     let mut foreign_ready = false;
-                    let mut close_sent = false;
+                    let mut foreign_started = None;
+                    let mut foreign_denied = false;
+                    let mut owner_closed = None;
                     let deadline = std::time::Instant::now() + Duration::from_secs(180);
                     while reports.len() < 2 {
                         let remaining = deadline.saturating_duration_since(std::time::Instant::now());
                         let (label, title) = received.recv_timeout(remaining).expect("Native media event watchdog expired");
                         if let Some(error) = title.strip_prefix("plain-harness-error:") {
+                            events.push(json!({"sequence":next_sequence(), "window":label, "stage":"script-evaluation-failed", "error":error}));
                             panic!("Native test script failed in {label}: {error}");
                         }
-                        if let Some(value) = title.strip_prefix("plain-result:") {
-                            reports.insert(label.clone(), serde_json::from_str::<Value>(value).unwrap());
-                            owner_done |= label == "media-owner";
+                        if let Some(payload) = title.strip_prefix("plain-diagnostic:") {
+                            let diagnostic: Value = serde_json::from_str(payload).unwrap();
+                            let fatal = matches!(diagnostic["stage"].as_str(), Some("script-error" | "script-failed" | "unhandled-rejection" | "web-process-terminated"));
+                            events.push(json!({"sequence":next_sequence(), "window":label, "diagnostic":diagnostic}));
+                            assert!(!fatal, "Native page or WebProcess failed; see retained diagnostics");
+                            continue;
                         }
-                        foreign_ready |= title.starts_with("plain-foreign-ready:");
-                        if owner_done && foreign_ready && !close_sent {
+                        let Some(payload) = title.strip_prefix("plain-event:") else { continue; };
+                        let event: PageEvent = serde_json::from_str(payload).unwrap();
+                        assert_eq!(event.origin, "tauri://localhost", "Test document origin is opaque or unexpected");
+                        assert_eq!(event.href, SHELL_URL);
+                        let sequence = page_sequences.entry(label.clone()).or_default();
+                        assert_eq!(event.sequence, *sequence + 1, "Page event sequence changed");
+                        *sequence = event.sequence;
+                        origins.insert(label.clone(), json!(event.origin));
+                        events.push(json!({"sequence":next_sequence(), "window":label, "page":event}));
+                        match (label.as_str(), event.stage.as_str()) {
+                            ("media-owner", "owner-ready") => {
+                                assert!(!owner_ready);
+                                assert_eq!(event.reports.len(), 5);
+                                let decoded = event.reports.last().unwrap();
+                                assert_eq!(decoded["kind"], "image");
+                                assert_eq!(decoded["status"], "passed", "Owner image must decode before foreign access");
+                                assert_eq!(decoded["retained"], true);
+                                reports.insert(label.clone(), json!(event.reports));
+                                owner_ready = true;
+                            }
+                            ("media-foreign", "foreign-ready") => {
+                                assert!(!foreign_ready);
+                                assert!(event.reports.is_empty(), "Foreign window requested resources before owner readiness");
+                                foreign_ready = true;
+                            }
+                            ("media-foreign", "foreign-denied") => {
+                                assert!(!foreign_denied);
+                                assert_eq!(event.reports.len(), 1);
+                                assert_eq!(event.reports[0]["kind"], "foreign-owner");
+                                assert_eq!(event.reports[0]["status"], "passed", "Foreign image unexpectedly loaded");
+                                let records = REQUESTS.get().unwrap().lock().unwrap().clone();
+                                assert!(response_after(&records, &foreign_id, &image.url, 403, foreign_started.unwrap()).is_some(),
+                                    "Image error without a production 403 is not authorization evidence");
+                                foreign_denied = true;
+                            }
+                            ("media-foreign", "foreign-complete") => {
+                                assert!(owner_closed.is_some());
+                                assert_eq!(event.reports.len(), 3);
+                                assert_eq!(event.reports[1]["kind"], "closed-owner");
+                                assert_eq!(event.reports[2]["kind"], "image");
+                                reports.insert(label.clone(), json!(event.reports));
+                            }
+                            _ => panic!("Unexpected native acceptance stage"),
+                        }
+                        if owner_ready && foreign_ready && foreign_started.is_none() {
+                            let records = REQUESTS.get().unwrap().lock().unwrap().clone();
+                            let owner_response = response_after(&records, &owner_id, &image.url, 200, 0)
+                                .expect("Owner decode lacks a production 200 response");
+                            assert!(records.iter().any(|record| record["response_sequence"] == owner_response
+                                && record["bytes"] == image.size && record["content_type"] == "image/png"));
+                            let sequence = next_sequence();
+                            assert!(owner_response < sequence);
+                            events.push(json!({"sequence":sequence, "stage":"foreign-request-start", "owner_response_sequence":owner_response}));
+                            foreign_started = Some(sequence);
+                            handle.get_webview_window("media-foreign").unwrap().eval("window.afterOwnerWarm()").unwrap();
+                        }
+                        if foreign_denied && owner_closed.is_none() {
+                            events.push(json!({"sequence":next_sequence(), "stage":"owner-close-requested"}));
                             handle.get_webview_window("media-owner").unwrap().destroy().unwrap();
                             let limit = std::time::Instant::now() + Duration::from_secs(10);
                             while !owner.is_closed() && std::time::Instant::now() < limit {
                                 std::thread::sleep(Duration::from_millis(20));
                             }
                             assert!(owner.is_closed(), "Destroyed WebView scope remained open");
+                            let sequence = next_sequence();
+                            owner_closed = Some(sequence);
+                            events.push(json!({"sequence":sequence, "stage":"owner-closed"}));
                             handle.get_webview_window("media-foreign").unwrap().eval("window.afterOwnerClose()").unwrap();
-                            close_sent = true;
                         }
                     }
                     std::thread::sleep(Duration::from_millis(500));
                     let settled = REQUESTS.get().unwrap().lock().unwrap().len();
                     std::thread::sleep(Duration::from_secs(1));
                     let records = REQUESTS.get().unwrap().lock().unwrap().clone();
-                    let complete = reports.get("media-owner").and_then(Value::as_array).is_some_and(|v| v.len() == 4)
+                    let complete = reports.get("media-owner").and_then(Value::as_array).is_some_and(|v| v.len() == 5)
                         && reports.get("media-foreign").and_then(Value::as_array).is_some_and(|v| v.len() == 3);
-                    let media_passed = complete && reports.values().flat_map(|v| v.as_array().unwrap()).all(|v| v["status"] == "passed");
-                    let denied = |status| records.iter().any(|r| r["scope"] == foreign_id && r["url"] == video.url && r["status"] == status);
+                    let cases_passed = complete && reports.values().flat_map(|v| v.as_array().unwrap()).all(|v| v["status"] == "passed");
+                    let forbidden = response_after(&records, &foreign_id, &image.url, 403, foreign_started.unwrap());
+                    let revoked = response_after(&records, &foreign_id, &image.url, 404, owner_closed.unwrap());
+                    let control = response_after(&records, &foreign_id, &control_image.url, 200, revoked.unwrap_or(u64::MAX));
+                    let png_no_store = records.iter()
+                        .filter(|record| record["url"] == image.url || record["url"] == control_image.url)
+                        .all(|record| record["response_cache_control"] == "no-store");
                     let bounded_responses = records.iter().all(|r| r["bytes"].as_u64().is_some_and(|bytes| {
                         if bytes > crate::native_resource_protocol::MAX_RESPONSE_BYTES { return false; }
                         if r["status"] != 206 { return true; }
@@ -372,25 +549,35 @@ fn native_media_child() {
                         let Some((range, total)) = value.split_once('/') else { return false; };
                         let Some((start, end)) = range.split_once('-') else { return false; };
                         let (Ok(start), Ok(end), Ok(total)) = (start.parse::<u64>(), end.parse::<u64>(), total.parse::<u64>()) else { return false; };
-                        let expected = if r["url"] == video.url { video.size } else if r["url"] == audio.url { audio.size } else { total };
-                        start <= end && end < total && total == expected && end - start + 1 == bytes
+                        let expected = [&video, &audio, &image, &control_image].into_iter()
+                            .find(|resource| r["url"] == resource.url).map(|resource| resource.size);
+                        start <= end && end < total && Some(total) == expected && end - start + 1 == bytes
                     }));
-                    let passed = media_passed && denied(403) && denied(404)
-                        && bounded_responses && records.len() == settled;
+                    let passed = cases_passed && forbidden.is_some() && revoked.is_some() && control.is_some()
+                        && png_no_store && bounded_responses && records.len() == settled;
                     json!({"status": if passed {"passed"} else {"failed"}, "reports": reports,
+                        "events":events, "page_origins":origins,
+                        "shared_profile":"owned data/webview-profile", "same_nonopaque_origin":true,
                         "http_route_probes":http_probes,
                         "native_scheme":{"verification_method":"production-scheme-observer", "requests":records,
-                            "foreign_handle_denied":denied(403), "closed_owner_denied":denied(404),
+                            "foreign_handle_denied":forbidden.is_some(), "closed_owner_denied":revoked.is_some(),
+                            "foreign_owned_image_survived":control.is_some(),
+                            "png_responses_no_store":png_no_store,
+                            "cache_hit_observed":Value::Null,
+                            "cache_scope":"same profile/origin; owner decoded before foreign request; renderer sharing and cache hits are not directly observed",
                             "bounded_exact_range_lengths":bounded_responses,
                             "requests_stopped_after_cancel":records.len() == settled},
                         "large_media_route":"production-core-http-fs",
+                        "small_media_route":"production-native-scheme",
                         "large_native_scheme_playback":"unsupported; existing non-Range 413 unit boundary retained",
                         "webview_http_headers_observed":false,
                         "inflight_read_cancellation":"not exposed by the current Tauri responder"})
                 }));
                 let mut value = outcome.unwrap_or_else(|panic| {
                     let error = panic.downcast_ref::<String>().cloned().or_else(|| panic.downcast_ref::<&str>().map(|s| s.to_string())).unwrap_or_else(|| "Native controller panic".into());
-                    json!({"status":"failed", "error":error, "requests":REQUESTS.get().unwrap().lock().unwrap().clone()})
+                    json!({"status":"failed", "error":error, "reports":reports, "events":events,
+                        "http_route_probes":http_probes,
+                        "requests":REQUESTS.get().unwrap().lock().unwrap().clone()})
                 });
                 let port = core.port;
                 let stopped = tauri::async_runtime::block_on(async {

@@ -57,7 +57,8 @@
   "acceptance_routes": {
     "large_video_and_audio": "Production Core loopback /fs HTTP streaming",
     "small_video_and_audio": "Production native resource scheme",
-    "large_native_scheme": "Unsupported; existing 413 unit boundary retained"
+    "large_native_scheme": "Unsupported; existing 413 unit boundary retained",
+    "image_owner_isolation": "Production native resource scheme; independent 32x24 RGB PNG generated with Python standard-library zlib and CRC32"
   },
   "http_range_evidence": "Independent Rust HTTP client probes the production route. WebView HTTP request headers are not observed.",
   "headless_audio": {
@@ -82,5 +83,24 @@
     ],
     "required_runtime_evidence": "Actual fake-audio-sink rendered-buffer debug record plus successful real WebView media time/decode assertions. Environment variables alone do not establish success.",
     "validation_scope": "Media decoding and playback timing, not physical speaker output. Runtime package versions are recorded separately on each run."
+  },
+  "window_isolation": {
+    "document": "A test-only Assets provider supplies one static empty HTML document through the existing Tauri App protocol; the production resource protocol still rejects HTML",
+    "profile": "Both windows use the same disposable child-owned profile and must report the same nonopaque tauri://localhost origin",
+    "order": [
+      "owner PNG load/decode and completed production 200",
+      "foreign exact URL image error and production 403",
+      "destroy owner and confirm scope closure",
+      "foreign exact URL image error and production 404",
+      "foreign-owned PNG load/decode and production 200"
+    ],
+    "cache_policy": "The harness does not clear caches, change resource URLs, override request cache policy, or modify response headers. Production PNG success and denial responses must carry Cache-Control: no-store. The owner image remains attached until owner destruction.",
+    "observations": "Global monotonic request, response and controller-stage sequences; request and response Cache-Control; Content-Type; actual page origins",
+    "limits": "Shared profile and origin do not establish renderer sharing or a cache hit. An image error without the matching production status fails. Existing media routes and playback assertions remain unchanged.",
+    "sources": [
+      "https://github.com/WebKit/WebKit/blob/webkitgtk-2.52.6/Source/WebCore/page/SecurityOriginData.cpp#L189",
+      "https://github.com/WebKit/WebKit/blob/webkitgtk-2.52.6/Source/WebCore/loader/cache/MemoryCache.cpp"
+    ],
+    "startup_diagnostics": "Page-load started/finished, script evaluation submission, JavaScript startup/media/image stages, global errors/rejections, and the existing WebKit web-process-terminated signal are recorded. Timeout results retain completed production HTTP route probes and received page evidence."
   }
 }

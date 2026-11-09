@@ -5,7 +5,7 @@ import type { ISource, IImgWrapperState, IndexChangeActions } from '@/components
 import { isVideo, isImage, isAudio, isSvg, isHeic, fileNameError } from '@/lib/file'
 import { browserSupportsHevc, ensurePlayableVideoUrl } from '@/lib/video-codec'
 import { resolveFileUrlByPath } from '@/lib/api/file'
-import { isNativeResourceUrl } from '@/hooks/native-resource-url'
+import { createNativeResourceOwner, isNativeResourceUrl, type NativeResourceOwner } from '@/hooks/native-resource-url'
 import { useTempStore } from '@/stores/temp'
 import { storeToRefs } from 'pinia'
 import { useMainStore } from '@/stores/main'
@@ -246,160 +246,206 @@ export function useLightboxNavigation(
     status.loading = !keepImageVisible
   }
 
+  let generation = 0
+  let stopPreloadWatch: (() => void) | undefined
+  const bindings = new Map<ISource, { owner: NativeResourceOwner; promise: Promise<string>; assigned?: string }>()
+  const decodedUrls = new Set<string>()
+  const readyVideoUrls = new Set<string>()
+  const preloads = new Map<string, () => void>()
+
+  const release = (source: ISource) => {
+    const binding = bindings.get(source)
+    if (!binding) return
+    bindings.delete(source)
+    void binding.owner.dispose()
+    if (binding.assigned && isNativeResourceUrl(binding.assigned)) {
+      if (source.src === binding.assigned) source.src = ''
+      if (source.playbackUrl === binding.assigned) {
+        source.playbackUrl = undefined
+        source.transcoded = undefined
+      }
+    }
+  }
+
+  const trimPreloads = () => {
+    const retained = new Set([...bindings.keys()].map(source => isImage(source.name)
+      ? getImageDisplayUrl(source, imageViewQuality.value) : source.src))
+    for (const [url, dispose] of preloads) {
+      if (retained.has(url)) continue
+      preloads.delete(url)
+      decodedUrls.delete(url)
+      readyVideoUrls.delete(url)
+      dispose()
+    }
+  }
+
+  const retainSources = (sources: Set<ISource>) => {
+    for (const source of bindings.keys()) if (!sources.has(source)) release(source)
+    trimPreloads()
+  }
+
+  const clearResources = () => {
+    generation++
+    stopPreloadWatch?.()
+    stopPreloadWatch = undefined
+    retainSources(new Set())
+    current.value = undefined
+  }
+
   const closeDialog = () => {
+    clearResources()
     tempStore.lightbox.visible = false
     tempStore.lightbox.index = -1
     imgIndex.value = 0
   }
 
-  const preloadedUrls = new Set<string>()
-  // URLs whose bytes have been fetched AND fully decoded, so swapping the visible
-  // <img> to one of these is guaranteed to paint immediately with no blank frame.
-  const decodedUrls = new Set<string>()
-  // Video URLs whose preloaded element has reached CAN_PLAY, so the current
-  // <video> can swap to them without a loading flash.
-  const readyVideoUrls = new Set<string>()
-  const preloadedVideoEls: { url: string; el: HTMLVideoElement }[] = []
-
-  // Detach the source of not-yet-ready preload elements so their in-flight
-  // downloads stop competing with the currently loading video for uplink.
-  const abortInFlightVideoPreloads = () => {
-    for (let i = preloadedVideoEls.length - 1; i >= 0; i--) {
-      const item = preloadedVideoEls[i]
-      if (readyVideoUrls.has(item.url)) continue
-      item.el.removeAttribute('src')
-      item.el.load()
-      preloadedVideoEls.splice(i, 1)
-      // Allow preloading this URL again later.
-      preloadedUrls.delete(item.url)
-    }
-  }
-
-  const preloadSource = async (source: ISource | undefined) => {
-    if (!source) return
-    if (!source.src) {
-      source.src = await resolveFileUrlByPath(tempStore.urlTokenKey, source.path, source.size)
-    }
-    if (!source.src) return
-
-    if (isImage(source.name)) {
-      const url = getImageDisplayUrl(source, imageViewQuality.value)
-      if (preloadedUrls.has(url)) return
-      preloadedUrls.add(url)
-      const img = new Image()
-      img.onload = () => {
-        const markDecoded = () => decodedUrls.add(url)
-        if (img.decode) img.decode().then(markDecoded).catch(markDecoded)
-        else markDecoded()
+  const resolveSource = (source: ISource) => {
+    const existing = bindings.get(source)
+    if (existing) return existing.promise
+    const owner = createNativeResourceOwner()
+    const binding = { owner, promise: Promise.resolve(''), assigned: undefined as string | undefined }
+    bindings.set(source, binding)
+    binding.promise = (async () => {
+      if (source.src) {
+        if (isNativeResourceUrl(source.src)) owner.retain(source.src)
+        return source.src
       }
-      img.src = url
-    } else if (isVideo(source.name)) {
-      // On browsers without HEVC support, neighbour preloads are useless:
-      // undecodable HEVC would only warm an audio-only path, and preloading
-      // the transcoded URL would trigger expensive server transcodes.
-      if (!browserSupportsHevc()) return
-      if (preloadedUrls.has(source.src)) return
-      preloadedUrls.add(source.src)
-      const videoEl = document.createElement('video')
-      videoEl.preload = 'auto'
-      videoEl.muted = true
-      videoEl.src = source.src
-      videoEl.load()
-      videoEl.addEventListener('canplay', () => readyVideoUrls.add(source.src))
-      preloadedVideoEls.push({ url: source.src, el: videoEl })
-    }
+      const url = await resolveFileUrlByPath(owner, tempStore.urlTokenKey, source.path, source.size, source.updatedAt ? '&v=' + encodeURIComponent(source.updatedAt) : '')
+      if (bindings.get(source) !== binding) throw new Error('resource_closed')
+      source.src = url
+      binding.assigned = url
+      return url
+    })().catch(error => {
+      if (bindings.get(source) === binding) {
+        release(source)
+        trimPreloads()
+        if (tempStore.lightbox.visible) console.warn('Lightbox resource failed', error)
+      }
+      throw error
+    })
+    return binding.promise
   }
 
-  const preloadAdjacentImages = (newIndex: number) => {
-    const { sources } = tempStore.lightbox
-    const total = sources.length
-    if (total < 2) return
-
-    // Preload the 3 sources most likely to be viewed next: the next two and the previous one.
-    const startVideoPreloads = () => {
-      for (const offset of [1, 2, -1]) {
-        let idx = newIndex + offset
-        if (loop.value) {
-          idx = ((idx % total) + total) % total
-        } else if (idx < 0 || idx >= total) {
-          continue
+  const preloadSource = async (source: ISource) => {
+    const pending = resolveSource(source)
+    try {
+      await pending
+      if (!bindings.has(source) || !tempStore.lightbox.visible || !source.src) return
+      const url = isImage(source.name) ? getImageDisplayUrl(source, imageViewQuality.value) : source.src
+      if (preloads.has(url)) return
+      if (isImage(source.name)) {
+        const img = new Image()
+        const dispose = () => { img.onload = null; img.onerror = null; img.removeAttribute('src') }
+        preloads.set(url, dispose)
+        img.onload = () => {
+          const markDecoded = () => { if (preloads.get(url) === dispose) decodedUrls.add(url) }
+          if (img.decode) img.decode().then(markDecoded).catch(markDecoded)
+          else markDecoded()
         }
-        if (idx === newIndex) continue
-        void preloadSource(sources[idx])
+        img.src = url
+      } else if (isVideo(source.name)) {
+        const videoEl = document.createElement('video')
+        const ready = () => { if (preloads.has(url)) readyVideoUrls.add(url) }
+        preloads.set(url, () => {
+          videoEl.removeEventListener('canplay', ready)
+          videoEl.removeAttribute('src')
+          videoEl.load()
+        })
+        videoEl.preload = 'auto'
+        videoEl.muted = true
+        videoEl.addEventListener('canplay', ready)
+        videoEl.src = url
+        videoEl.load()
       }
+    } catch (error) {
+      if (bindings.get(source)?.promise === pending && tempStore.lightbox.visible) console.warn('Lightbox preload failed', error)
     }
-
-    // While the current video is still loading it owns the uplink: abort
-    // in-flight neighbour preloads and defer new ones until it can play.
-    const currentSource = sources[newIndex]
-    if (currentSource && isVideo(currentSource.name) && status.loading) {
-      abortInFlightVideoPreloads()
-      const stop = watch(
-        () => status.loading,
-        (loading) => {
-          if (loading) return
-          stop()
-          if (imgIndex.value === newIndex) startVideoPreloads()
-        },
-        { immediate: true },
-      )
-      return
-    }
-
-    startVideoPreloads()
   }
 
+  const neighbours = (sources: ISource[], index: number) => {
+    const selected = new Set<ISource>()
+    if (sources.length < 2) return selected
+    for (const offset of [1, 2, -1]) {
+      let next = index + offset
+      if (loop.value) next = ((next % sources.length) + sources.length) % sources.length
+      const source = sources[next]
+      if (!source || next === index) continue
+      if (isImage(source.name) || (isVideo(source.name) && browserSupportsHevc())) selected.add(source)
+    }
+    return selected
+  }
 
   const changeIndex = async (newIndex: number, actions?: IndexChangeActions) => {
+    const sources = tempStore.lightbox.sources
+    const source = sources[newIndex]
+    if (!source || !tempStore.lightbox.visible) return
+    const change = ++generation
+    stopPreloadWatch?.()
+    stopPreloadWatch = undefined
+    const active = () => change === generation && tempStore.lightbox.visible && tempStore.lightbox.sources === sources
     const oldIndex = imgIndex.value
-
-    const s = tempStore.lightbox.sources[newIndex]
-    if (!s.src) {
-      s.src = await resolveFileUrlByPath(tempStore.urlTokenKey, s.path, s.size, s.updatedAt ? '&v=' + encodeURIComponent(s.updatedAt) : '')
-    }
-
-    // Resolve the playback URL before mounting the <video>: on browsers
-    // without an HEVC decoder, HEVC sources switch to the server-transcoded
-    // H.264 stream here (one cached probe round-trip, tens of ms).
-    if (isVideo(s.name) && s.src && !s.playbackUrl) {
-      const { url, transcoded } = await ensurePlayableVideoUrl(s.src, s.isFromChat)
-      s.playbackUrl = url
-      s.transcoded = transcoded
-    }
-
-    // If the target image was already preloaded and fully decoded, keep it visible
-    // throughout the swap instead of hiding it while "loading" — avoids a flash.
-    const alreadyDecoded =
-      (isImage(s.name) && decodedUrls.has(getImageDisplayUrl(s, imageViewQuality.value))) ||
-      (isVideo(s.name) && readyVideoUrls.has(s.src))
-    reset(alreadyDecoded)
-
-    imgIndex.value = newIndex
-    current.value = tempStore.lightbox.sources[imgIndex.value]
-    setTimeout(() => {
-      const type = current.value?.type ?? ''
-      if (type && !tagsMap.has(type)) loadTags()
-      // Read-only guest lightboxes (shared links) have no authenticated
-      // session; firing fileInfo would 401 and reload the whole page.
-      if (!tempStore.lightbox.readOnly) {
-        loadInfo()
-        loadItemTags()
+    const adjacent = neighbours(sources, newIndex)
+    const wanted = new Set([source, ...adjacent])
+    if (current.value) wanted.add(current.value)
+    retainSources(wanted)
+    try {
+      await resolveSource(source)
+      if (!active()) return
+      if (isVideo(source.name) && source.src && !source.playbackUrl) {
+        const { url, transcoded } = await ensurePlayableVideoUrl(source.src, source.isFromChat)
+        if (!active()) return
+        source.playbackUrl = url
+        source.transcoded = transcoded
       }
-    }, 0)
-
-    preloadAdjacentImages(newIndex)
-
-    if (oldIndex === newIndex) return
-
-    if (actions) {
-      if (isArray(actions)) {
-        actions.forEach((action) => emit(action, oldIndex, newIndex))
-      } else {
-        emit(actions, oldIndex, newIndex)
+      const alreadyDecoded = (isImage(source.name) && decodedUrls.has(getImageDisplayUrl(source, imageViewQuality.value))) ||
+        (isVideo(source.name) && readyVideoUrls.has(source.src))
+      reset(alreadyDecoded)
+      imgIndex.value = newIndex
+      current.value = source
+      setTimeout(() => {
+        if (!active()) return
+        const type = source.type ?? ''
+        if (type && !tagsMap.has(type)) loadTags()
+        if (!tempStore.lightbox.readOnly) { loadInfo(); loadItemTags() }
+      }, 0)
+      const preload = () => {
+        if (!active()) return
+        retainSources(new Set([source, ...adjacent]))
+        for (const neighbour of adjacent) void preloadSource(neighbour)
       }
+      if (isVideo(source.name) && status.loading) {
+        retainSources(new Set([source]))
+        stopPreloadWatch = watch(() => status.loading, loading => {
+          if (loading) return
+          stopPreloadWatch?.()
+          stopPreloadWatch = undefined
+          preload()
+        })
+      } else preload()
+      if (oldIndex !== newIndex) {
+        if (actions) {
+          if (isArray(actions)) actions.forEach(action => emit(action, oldIndex, newIndex))
+          else emit(actions, oldIndex, newIndex)
+        }
+        emit('on-index-change', oldIndex, newIndex)
+      }
+    } catch (error) {
+      if (!active()) return
+      release(source)
+      trimPreloads()
+      status.loading = false
+      status.loadError = true
+      emit('on-error', error)
     }
-    emit('on-index-change', oldIndex, newIndex)
   }
+
+  watch(() => [tempStore.lightbox.sources, tempStore.lightbox.index, tempStore.lightbox.visible] as const,
+    ([sources, index, visible], previous) => {
+      if (!visible) { clearResources(); return }
+      if (previous && sources !== previous[0]) clearResources()
+      if (index >= 0 && index < sources.length) void changeIndex(index)
+    }, { immediate: true })
+  onBeforeUnmount(clearResources)
 
   const onNext = () => {
     const total = tempStore.lightbox.sources.length
@@ -653,15 +699,6 @@ export function useLightboxEvents(
       }
     }
   }
-
-  // Watchers
-  watch(
-    () => tempStore.lightbox.index,
-    (newIndex) => {
-      if (newIndex < 0 || newIndex >= tempStore.lightbox.sources.length) return
-      changeIndex(newIndex)
-    },
-  )
 
   // Lifecycle
   onMounted(() => {

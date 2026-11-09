@@ -230,7 +230,7 @@ def run(binary, test):
                     path = root / name
                     if path.exists():
                         shutil.rmtree(path)
-                for name in ['video.webm', 'small-video.webm', 'audio.wav', 'control.wav', 'authority']:
+                for name in ['video.webm', 'small-video.webm', 'audio.wav', 'control.wav', 'image.png', 'authority']:
                     (root / name).unlink(missing_ok=True)
                 if 'display' in locals() and Path('/tmp/.X11-unix/X' + display).exists():
                     raise RuntimeError('Owned Xvfb socket survived cleanup')

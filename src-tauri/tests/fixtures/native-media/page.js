@@ -3,9 +3,28 @@ if (window.__plainNativeMediaTest) return;
 window.__plainNativeMediaTest = true;
 const reports = [];
 const urls = FIXTURE_URLS;
+let sequence = 0;
+function emit(stage) {
+  document.title = 'plain-event:' + JSON.stringify({
+    stage, sequence: ++sequence, origin: window.origin, href: location.href, reports
+  });
+}
 function errorText(error) {
   if (error instanceof DOMException) return error.name;
   return String(error).replace(/https?:\/\/[^\s"'<>]+/g, '[HTTP resource]');
+}
+function diagnostic(stage, detail = {}) {
+  document.title = 'plain-diagnostic:' + JSON.stringify({
+    stage, detail, reports, origin: window.origin,
+    document_url: location.href === 'tauri://localhost/native-media-test.html' ? location.href : '[Unexpected document URL omitted]'
+  });
+}
+window.addEventListener('error', event => diagnostic('script-error', { error: errorText(event.error || event.message) }));
+window.addEventListener('unhandledrejection', event => diagnostic('unhandled-rejection', { error: errorText(event.reason) }));
+diagnostic('script-started');
+function mediaStage(result, stage) {
+  result.stages.push(stage);
+  diagnostic('media-stage', { fixture: result.fixture, route: result.route, stage });
 }
 function check(value, message) { if (!value) throw Error(message); }
 function delay(ms) { return new Promise(resolve => setTimeout(resolve, ms)); }
@@ -13,7 +32,7 @@ function event(media, name, action) {
   return new Promise((resolve, reject) => {
     const timer = setTimeout(() => finish(Error('Timeout: ' + name)), 12000);
     const ok = () => finish();
-    const bad = () => finish(Error('Media error code ' + media.error?.code));
+    const bad = () => finish(Error(media.tagName === 'IMG' ? 'Image load failed' : 'Media error code ' + media.error?.code));
     function finish(error) {
       clearTimeout(timer);
       media.removeEventListener(name, ok);
@@ -49,62 +68,88 @@ async function playback(fixture) {
   if (kind === 'video') { media.width = 320; media.height = 240; }
   document.body.append(media);
   const result = { kind, fixture: name, route, verification_method: 'real-webview-media-events', status: 'failed', stages: [] };
+  diagnostic('media-started', { fixture: name, route });
   try {
     await event(media, 'loadedmetadata', () => { media.src = url; media.load(); });
     check(Math.abs(media.duration - duration) < .25, 'Unexpected media duration');
-    result.stages.push('metadata');
+    mediaStage(result, 'metadata');
     await advance(media);
-    result.stages.push('play-pause');
+    mediaStage(result, 'play-pause');
     for (const target of [duration * .92, duration * .1]) {
       await event(media, 'seeked', () => { media.currentTime = target; });
       check(Math.abs(media.currentTime - target) < .3, 'Wrong seek position');
       await advance(media);
-      result.stages.push('seek-play-pause:' + target);
+      mediaStage(result, 'seek-play-pause:' + target);
     }
     media.pause();
     await event(media, 'emptied', () => { media.removeAttribute('src'); media.load(); });
     check(media.networkState === HTMLMediaElement.NETWORK_EMPTY, 'Cancel retained a media resource');
-    result.stages.push('cancel');
+    mediaStage(result, 'cancel');
     await event(media, 'loadedmetadata', () => { media.src = url; media.load(); });
     await advance(media);
-    result.stages.push('reload-play');
+    mediaStage(result, 'reload-play');
     result.status = 'passed';
   } catch (error) { result.error = errorText(error); }
   finally { media.pause(); media.removeAttribute('src'); media.load(); media.remove(); }
   reports.push(result);
+  diagnostic('media-completed', { fixture: name, status: result.status });
 }
-async function denied(url, stage) {
-  const media = document.createElement('video');
-  media.muted = true;
-  media.volume = 0;
-  document.body.append(media);
-  const result = { kind: stage, route: 'production-native-scheme', verification_method: 'real-webview-media-error-and-rust-status', status: 'failed' };
+async function imageLoad(fixture, retain) {
+  const image = document.createElement('img');
+  document.body.append(image);
+  const result = { kind: 'image', fixture: 'image.png', route: 'production-native-scheme',
+    verification_method: 'real-webview-image-load-and-decode', status: 'failed' };
+  diagnostic('image-started', { retain });
+  try {
+    await event(image, 'load', () => { image.src = fixture.url; });
+    await image.decode();
+    check(image.naturalWidth === fixture.width && image.naturalHeight === fixture.height,
+      'Unexpected decoded image dimensions');
+    result.width = image.naturalWidth;
+    result.height = image.naturalHeight;
+    result.retained = retain;
+    result.status = 'passed';
+  } catch (error) { result.error = errorText(error); }
+  finally { if (!retain) { image.removeAttribute('src'); image.remove(); } }
+  reports.push(result);
+  diagnostic('image-completed', { status: result.status, retain });
+}
+async function deniedImage(url, stage) {
+  const image = document.createElement('img');
+  document.body.append(image);
+  const result = { kind: stage, fixture: 'image.png', route: 'production-native-scheme',
+    verification_method: 'real-webview-image-error-and-rust-status', status: 'failed' };
   try {
     await new Promise((resolve, reject) => {
       const timer = setTimeout(() => reject(Error('Denied resource did not report an error')), 12000);
-      media.onerror = () => { clearTimeout(timer); resolve(); };
-      media.onloadedmetadata = () => { clearTimeout(timer); reject(Error('Foreign resource metadata leaked')); };
-      media.src = url; media.load();
+      image.onerror = () => { clearTimeout(timer); resolve(); };
+      image.onload = () => { clearTimeout(timer); reject(Error('Foreign image decoded')); };
+      image.src = url;
     });
     result.status = 'passed';
   } catch (error) { result.error = errorText(error); }
-  finally { media.removeAttribute('src'); media.load(); media.remove(); }
+  finally { image.removeAttribute('src'); image.remove(); }
   reports.push(result);
 }
-window.afterOwnerClose = async () => {
-  await denied(urls.foreign, 'closed-owner');
-  await playback(urls.control);
-  document.title = 'plain-result:' + JSON.stringify(reports);
-};
+function failed(error) { diagnostic('script-failed', { error: errorText(error) }); }
+window.afterOwnerWarm = () => (async () => {
+  await deniedImage(urls.foreign, 'foreign-owner');
+  emit('foreign-denied');
+})().catch(failed);
+window.afterOwnerClose = () => (async () => {
+  await deniedImage(urls.foreign, 'closed-owner');
+  await imageLoad(urls.image, false);
+  emit('foreign-complete');
+})().catch(failed);
 (async () => {
+  check(window.origin === 'tauri://localhost', 'Test document must have the nonopaque Tauri App origin');
+  check(location.href === 'tauri://localhost/native-media-test.html', 'Unexpected test document URL');
   if (urls.foreign) {
-    await denied(urls.foreign, 'foreign-owner');
-    document.title = 'plain-foreign-ready:' + JSON.stringify(reports);
+    emit('foreign-ready');
   } else {
     for (const fixture of urls.media) await playback(fixture);
-    document.title = 'plain-result:' + JSON.stringify(reports);
+    await imageLoad(urls.image, true);
+    emit('owner-ready');
   }
-})().catch(error => {
-  document.title = 'plain-harness-error:' + errorText(error);
-});
+})().catch(failed);
 })();

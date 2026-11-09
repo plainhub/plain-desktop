@@ -66,7 +66,7 @@ import { inject, onBeforeUnmount, ref, watch } from 'vue'
 import { formatTimeAgo, formatDateTime } from '@/lib/format'
 import { resolveFileUrlByPath } from '@/lib/api/file'
 import type { IFeedEntry } from '@/lib/interfaces'
-import { closeNativeResources, isExternalReference, isNativeResourceUrl } from '@/hooks/native-resource-url'
+import { createNativeResourceOwner, isExternalReference, type NativeResourceOwner } from '@/hooks/native-resource-url'
 import { useTempStore } from '@/stores/temp'
 import VirtualList from '@/components/virtualscroll'
 import { useFeedEntriesData } from './hooks/useFeedEntriesData'
@@ -91,10 +91,8 @@ const {
 } = useFeedEntriesActions({ selectedIds, realAllChecked, q, total, tags, items, clearSelection, fetch })
 
 const imageUrls = ref<Record<string, string>>({})
-const openReferences = ref<string[]>([])
+const resources = new Map<string, { owner: NativeResourceOwner; url: Promise<string> }>()
 let refreshToken = 0
-let wantedReferences = new Set<string>()
-const pendingReferences = new Map<number, string[]>()
 
 function imageUrl(reference: string) {
   return imageUrls.value[reference] ?? ''
@@ -103,45 +101,39 @@ function imageUrl(reference: string) {
 async function refreshImages(entries: IFeedEntry[]) {
   const token = ++refreshToken
   const wanted = [...new Set(entries.map((entry) => entry.image).filter((reference) => !!reference))]
-  wantedReferences = new Set(wanted)
-  const stale = [...new Set([...openReferences.value, ...[...pendingReferences.values()].flat()])]
-    .filter((reference) => !wantedReferences.has(reference))
-  pendingReferences.set(token, wanted)
-  if (stale.length) void closeNativeResources(stale)
+  const previous = [...resources.values()]
+  resources.clear()
+  for (const reference of wanted) {
+    if (isExternalReference(reference)) continue
+    const owner = createNativeResourceOwner()
+    resources.set(reference, { owner, url: resolveFileUrlByPath(owner, tempStore.urlTokenKey, reference, undefined, '&size=sm') })
+  }
+  for (const resource of previous) void resource.owner.dispose()
   const resolved: Record<string, string> = {}
-  const opened: string[] = []
   await Promise.all(wanted.map(async (reference) => {
     if (isExternalReference(reference)) {
       resolved[reference] = reference
       return
     }
+    const resource = resources.get(reference)!
     try {
-      const url = await resolveFileUrlByPath(tempStore.urlTokenKey, reference, undefined, '&size=sm')
-      resolved[reference] = url
-      if (isNativeResourceUrl(url)) opened.push(reference)
+      resolved[reference] = await resource.url
     } catch (error) {
+      if (resources.get(reference) === resource) {
+        resources.delete(reference)
+        void resource.owner.dispose()
+      }
       if (token === refreshToken) console.warn('[FeedsSidebar2] Failed to load image', error)
     }
   }))
-  pendingReferences.delete(token)
-  if (token !== refreshToken) {
-    const obsolete = opened.filter((reference) => !wantedReferences.has(reference))
-    if (obsolete.length) await closeNativeResources(obsolete)
-    return
-  }
-  imageUrls.value = resolved
-  openReferences.value = opened
+  if (token === refreshToken) imageUrls.value = resolved
 }
 
 watch(items, (entries) => void refreshImages(entries), { immediate: true })
 
 onBeforeUnmount(() => {
   refreshToken++
-  wantedReferences.clear()
-  const stale = [...new Set([...openReferences.value, ...[...pendingReferences.values()].flat()])]
-  openReferences.value = []
-  if (stale.length) {
-    void closeNativeResources(stale)
-  }
+  for (const resource of resources.values()) void resource.owner.dispose()
+  resources.clear()
 })
 </script>

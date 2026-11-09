@@ -172,6 +172,7 @@ fn header_value(value: &str) -> HeaderValue {
 
 fn error_response(status: StatusCode) -> Response<Vec<u8>> {
     Response::builder()
+        .header(header::CACHE_CONTROL, "no-store")
         .status(status)
         .header(header::CONTENT_LENGTH, 0)
         .body(Vec::new())
@@ -233,6 +234,7 @@ async fn resource_response(
         RangeParse::Partial(start, end) => (start, end, true),
         RangeParse::Unsatisfiable => {
             let mut response = Response::builder()
+                .header(header::CACHE_CONTROL, "no-store")
                 .status(StatusCode::RANGE_NOT_SATISFIABLE)
                 .header(header::CONTENT_LENGTH, 0)
                 .header(header::CONTENT_RANGE, format!("bytes */{size}"));
@@ -261,6 +263,7 @@ async fn resource_response(
         }
     };
     let mut response = Response::builder()
+        .header(header::CACHE_CONTROL, "no-store")
         .status(if partial {
             StatusCode::PARTIAL_CONTENT
         } else {

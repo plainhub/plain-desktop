@@ -5,7 +5,7 @@ import { encryptResourcePayload, resourceId, type Resource, type ResourceScope }
 import { isLocalMode } from '../device/local-mode'
 import toast, { toastWithAction } from '@/components/toaster'
 import { downloadToDir, downloadAs as downloadAsTo, revealInFolder, type DownloadReference } from '@/lib/download-dir'
-import { nativeResourceUrl } from '@/hooks/native-resource-url'
+import type { NativeResourceOwner } from '@/hooks/native-resource-url'
 
 declare global {
   interface Window {
@@ -27,11 +27,11 @@ export function getFileUrl(id: string, query: string = '', action: FileAction = 
 }
 
 // Reference failures remain errors; an empty native URL selects an unmigrated preview transport.
-export async function resolveFileUrlByPath(key: Uint8Array | null, path: string, size?: number, query: string = ''): Promise<string> {
+export async function resolveFileUrlByPath(owner: NativeResourceOwner, key: Uint8Array | null, path: string, size?: number, query: string = ''): Promise<string> {
   if (!path) {
     return ''
   }
-  const native = await nativeResourceUrl(path, size, query)
+  const native = await owner.url(path, size, query)
   if (native) {
     return native
   }
