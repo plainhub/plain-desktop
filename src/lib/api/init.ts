@@ -11,9 +11,7 @@ export interface InitResult {
   data?: InitResponse
 }
 
-/** POST /init — the only pre-login API. Optionally presents the stored
- *  token encrypted as an auto-login probe. Callers own the response
- *  triage (needsSetup routing, auto-auth, form state). */
+// Presents the stored token encrypted as an auto-login probe.
 export async function requestInit(): Promise<InitResult> {
   const headers = getApiHeaders() as Record<string, string>
   let body: Uint8Array | undefined

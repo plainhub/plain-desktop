@@ -114,6 +114,4 @@ export interface InitResponse {
   signaturePublicKey: string
   authenticated: boolean
   passwordRequired: boolean
-  needsSetup?: boolean
-  setupHttpsPort?: number
 }

@@ -91,9 +91,7 @@ export function useLogin(options: UseLoginOptions = {}) {
     }
   }
 
-  /** Absorbs an /init result that the VIEW fetched — the request and the
-   *  needsSetup routing live in LoginView, never here. Returns true when
-   *  the stored token was accepted and the login already completed. */
+  // Returns true when the stored token was accepted and login completed.
   function applyInitResult(result: InitResult): boolean {
     if (result.status === 403) {
       showError.value = true; webAccessDisabled.value = true; error.value = 'remote_access_disabled'; return false

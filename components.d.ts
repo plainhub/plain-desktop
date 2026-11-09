@@ -450,7 +450,6 @@ declare module 'vue' {
     SessionListItem: typeof import('./src/views/login/SessionListItem.vue')['default']
     SettingsCustomizeUIView: typeof import('./src/views/settings/SettingsCustomizeUIView.vue')['default']
     SettingsSidebar: typeof import('./src/views/settings/SettingsSidebar.vue')['default']
-    SetupView: typeof import('./src/views/setup/SetupView.vue')['default']
     ShareView: typeof import('./src/views/share/ShareView.vue')['default']
     Sidebar2: typeof import('./src/components/Sidebar2.vue')['default']
     Sidebar2ItemSkeleton: typeof import('./src/components/Sidebar2ItemSkeleton.vue')['default']
