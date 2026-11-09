@@ -6,6 +6,7 @@ import secrets
 import selectors
 import shutil
 import signal
+import stat
 import struct
 import subprocess
 import sys
@@ -121,6 +122,89 @@ def stop(process):
     raise RuntimeError('Owned GUI process group survived cleanup')
 
 
+def directory_identity(path):
+    info = path.lstat()
+    if not stat.S_ISDIR(info.st_mode) or info.st_uid != os.getuid() or info.st_mode & 0o777 != 0o700:
+        raise RuntimeError('Owned cleanup directory identity or permissions changed')
+    return info.st_dev, info.st_ino
+
+
+def verify_directory_identities(root, identities):
+    for name, expected in identities.items():
+        if directory_identity(root / name) != expected:
+            raise RuntimeError('Owned cleanup directory inode changed')
+
+
+def owned_mounts(root):
+    result = []
+    for line in Path('/proc/self/mountinfo').read_text().splitlines():
+        before, after = line.split(' - ', 1)
+        fields, filesystem = before.split(), after.split()
+        mountpoint = Path(re.sub(r'\\(040|011|012|134)', lambda match: chr(int(match[1], 8)), fields[4]))
+        if mountpoint == root or root in mountpoint.parents:
+            result.append({'id': int(fields[0]), 'device': fields[2], 'root': fields[3],
+                           'mountpoint': str(mountpoint), 'type': filesystem[0],
+                           'source': filesystem[1], 'options': filesystem[2].split(',')})
+    return result
+
+
+def installed_fusermount():
+    version, architecture = None, None
+    for block in Path('/var/lib/dpkg/status').read_text().split('\n\n'):
+        fields = dict(line.split(': ', 1) for line in block.splitlines() if ': ' in line and not line.startswith(' '))
+        if fields.get('Package') == 'fuse3' and fields.get('Status') == 'install ok installed':
+            version, architecture = fields.get('Version'), fields.get('Architecture')
+    found = shutil.which('fusermount3')
+    if not version or not found:
+        raise RuntimeError('Owned portal cleanup requires an already installed fuse3/fusermount3')
+    executable = Path(found).resolve(strict=True)
+    manifests = [Path('/var/lib/dpkg/info/fuse3.list'), Path('/var/lib/dpkg/info/fuse3:' + str(architecture) + '.list')]
+    packaged = any(executable == Path(item).resolve() for manifest in manifests if manifest.is_file()
+                   for item in manifest.read_text().splitlines() if item.endswith('/fusermount3'))
+    info = executable.stat()
+    if not packaged or not stat.S_ISREG(info.st_mode) or info.st_uid != 0 or info.st_mode & 0o022 or not os.access(executable, os.X_OK):
+        raise RuntimeError('Owned portal cleanup executable is not a verified installed fuse3 file')
+    return str(executable), version
+
+
+def cleanup_portal_mount(root, identities, evidence):
+    if sys.platform != 'linux':
+        raise RuntimeError('Owned portal cleanup requires the admitted Linux runner')
+    verify_directory_identities(root, identities)
+    mounts = owned_mounts(root)
+    evidence.update(before=mounts, action='none', verified_absent=False)
+    if mounts:
+        target = root / 'runtime/doc'
+        if 'runtime' not in identities or len(mounts) != 1:
+            raise RuntimeError('Unknown or nested mount prevents owned cleanup')
+        mount = mounts[0]
+        if (mount['mountpoint'] != str(target) or mount['root'] != '/' or mount['type'] != 'fuse.portal'
+                or mount['source'] != 'portal'
+                or [item for item in mount['options'] if item.startswith('user_id=')] != [f'user_id={os.getuid()}']):
+            raise RuntimeError('Portal mount path, filesystem or UID does not match owned cleanup')
+        executable, version = installed_fusermount()
+        current = owned_mounts(root)
+        if current and current != mounts:
+            raise RuntimeError('Portal mount identity changed before unmount')
+        if current:
+            verify_directory_identities(root, identities)
+            evidence.update(action='normal-unmount', tool=executable, package='fuse3', version=version)
+            try:
+                result = subprocess.run([executable, '-u', '--', str(target)], capture_output=True, text=True,
+                                        timeout=10, env={'PATH': '/usr/bin:/bin', 'LANG': 'C'})
+            finally:
+                evidence['after'] = owned_mounts(root)
+            evidence['returncode'] = result.returncode
+            if result.returncode:
+                raise RuntimeError('Owned portal normal unmount failed: ' + redacted_log(result.stderr)[:500])
+    if 'after' not in evidence:
+        evidence['after'] = owned_mounts(root)
+    if evidence['after']:
+        raise RuntimeError('Mount survived owned portal cleanup')
+    verify_directory_identities(root, identities)
+    evidence['verified_absent'] = True
+
+
 def audio_configuration():
     multiarch = sysconfig.get_config_var('MULTIARCH')
     if not multiarch:
@@ -149,13 +233,16 @@ def redacted_log(log):
 
 def run(binary, test):
     tools = admit()
-    root = Path(tempfile.mkdtemp(prefix='plain-native-media-'))
+    root = Path(tempfile.mkdtemp(prefix='plain-native-media-')).resolve(strict=True)
+    identities = {'': directory_identity(root)}
     children, logs = [], []
     report = {'status': 'failed', 'root': str(root), 'tools': tools, 'peak_tree_rss_bytes': 0,
               'sample_interval_seconds': .05, 'memory_method': 'sum RSS of observed owned process tree; shared pages may be counted twice',
               'processes': {}, 'cleanup': False, 'memory_sample_count': 0, 'first_tree_rss_bytes': None}
     error = None
     try:
+        if owned_mounts(root):
+            raise RuntimeError('Fresh owned root already contains a mount')
         packages = ['xvfb', 'dbus-daemon', 'python3', 'libwebkit2gtk-4.1-0', 'libjavascriptcoregtk-4.1-0',
                     'gstreamer1.0-plugins-good', 'gstreamer1.0-plugins-base', 'libgstreamer1.0-0', 'gstreamer1.0-libav']
         report['packages'] = {}
@@ -169,6 +256,7 @@ def run(binary, test):
         report['fixtures'] = generate(root)
         for name in ['home', 'runtime', 'config', 'cache', 'data']:
             (root / name).mkdir(mode=0o700)
+            identities[name] = directory_identity(root / name)
         allowed = ['PATH', 'LD_LIBRARY_PATH', 'LANG', 'LC_ALL', 'TZ', 'GITHUB_ACTIONS', 'GITHUB_REPOSITORY',
                    'GITHUB_WORKSPACE', 'GITHUB_RUN_ID', 'GITHUB_SHA', 'RUNNER_ENVIRONMENT', 'RUNNER_OS']
         env = {key: os.environ[key] for key in allowed if key in os.environ}
@@ -257,10 +345,19 @@ def run(binary, test):
         # Retain only evidence; disposable media and application state are removed after process cleanup.
         if not failures:
             try:
+                report['mount_cleanup'] = {}
+                cleanup_portal_mount(root, identities, report['mount_cleanup'])
                 for name in ['home', 'runtime', 'config', 'cache', 'data']:
+                    verify_directory_identities(root, identities)
+                    if owned_mounts(root):
+                        raise RuntimeError('Unexpected mount prevents owned directory removal')
                     path = root / name
-                    if path.exists():
+                    if name in identities:
                         shutil.rmtree(path)
+                        del identities[name]
+                    elif path.exists() or path.is_symlink():
+                        raise RuntimeError('Owned cleanup directory lacks its creation identity')
+                verify_directory_identities(root, identities)
                 for name in ['video.webm', 'small-video.webm', 'audio.wav', 'control.wav', 'image.png', 'authority']:
                     (root / name).unlink(missing_ok=True)
                 if 'display' in locals() and Path('/tmp/.X11-unix/X' + display).exists():

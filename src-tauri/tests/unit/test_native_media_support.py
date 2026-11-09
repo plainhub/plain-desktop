@@ -1,3 +1,7 @@
+import contextlib
+import errno
+import io
+import json
 import os
 from pathlib import Path
 import struct
@@ -6,7 +10,7 @@ import sys
 import tempfile
 import unittest
 import zlib
-from unittest.mock import patch
+from unittest.mock import MagicMock, patch
 
 
 SUPPORT = Path(__file__).resolve().parents[1] / 'fixtures/native-media'
@@ -160,6 +164,215 @@ function video(deliverFrames = true, distinct = true) {
 })().catch(error => { console.error(error); process.exitCode = 1; });
 '''
         subprocess.run(['node', '-e', script, str(SUPPORT / 'page.js')], check=True, timeout=10)
+
+    def test_disconnected_owned_portal_is_unmounted_before_directory_removal(self):
+        self._run_owned_portal_cleanup()
+
+    def test_runner_rejects_directory_changes_during_unmount(self):
+        for name in ['', 'home', 'runtime', 'config', 'cache', 'data']:
+            for change in ['replace', 'permissions']:
+                with self.subTest(directory=name, change=change):
+                    self._run_owned_portal_cleanup(('unmount', name, change))
+
+    def test_runner_rechecks_remaining_directories_before_removal(self):
+        for name in ['', 'runtime', 'config', 'cache', 'data']:
+            for change in ['replace', 'permissions']:
+                with self.subTest(directory=name, change=change):
+                    self._run_owned_portal_cleanup(('after-home-removal', name, change))
+
+    def _run_owned_portal_cleanup(self, mutation=None):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory).resolve() / 'owned'
+            root.mkdir(mode=0o700)
+            mounted = False
+            original_read = Path.read_text
+            original_remove = runner.shutil.rmtree
+            children = [MagicMock(pid=101), MagicMock(pid=102), MagicMock(pid=103, returncode=0)]
+            children[0].poll.return_value = children[1].poll.return_value = None
+            children[-1].poll.side_effect = [None, 0]
+
+            def change_directory(stage):
+                if mutation is None or mutation[0] != stage:
+                    return
+                path = root / mutation[1]
+                if mutation[2] == 'replace':
+                    path.rename(path.with_name('retired-' + path.name))
+                    path.mkdir(mode=0o700)
+                else:
+                    path.chmod(0o755)
+                (path / 'retained.txt').write_text('Replacement must not be removed')
+
+            def read(path, *args, **kwargs):
+                if str(path) == '/proc/self/mountinfo':
+                    if mounted:
+                        return f'77 25 0:66 / {root}/runtime/doc rw - fuse.portal portal rw,user_id={os.getuid()}\n'
+                    return ''
+                if str(path) in ['/var/lib/dpkg/status', '/etc/os-release']:
+                    return ''
+                return original_read(path, *args, **kwargs)
+
+            def remove(path, *args, **kwargs):
+                if Path(path) == root / 'runtime' and mounted:
+                    raise OSError(errno.ENOTCONN, 'Transport endpoint is not connected', 'doc')
+                result = original_remove(path, *args, **kwargs)
+                if Path(path) == root / 'home':
+                    change_directory('after-home-removal')
+                return result
+
+            def unmount(args, **kwargs):
+                nonlocal mounted
+                self.assertEqual(args, ['/usr/bin/fusermount3', '-u', '--', str(root / 'runtime/doc')])
+                self.assertTrue(mounted)
+                mounted = False
+                change_directory('unmount')
+                return subprocess.CompletedProcess(args, 0, '', '')
+
+            def fixtures(_):
+                nonlocal mounted
+                mounted = True
+                (root / 'native-results.json').write_text(json.dumps({'status': 'passed'}))
+                return {}
+
+            with patch.object(runner, 'admit', return_value={'Xvfb': '/usr/bin/Xvfb', 'dbus-daemon': '/usr/bin/dbus-daemon'}), \
+                    patch.object(runner.sys, 'platform', 'linux'), \
+                    patch.object(runner.tempfile, 'mkdtemp', return_value=str(root)), \
+                    patch.object(runner, 'generate', side_effect=fixtures), \
+                    patch.object(runner, 'audio_configuration', return_value=('', [])), \
+                    patch.object(runner, 'audio_evidence', return_value={'selection_observed': True}), \
+                    patch.object(runner, 'line', side_effect=['12345', 'unix:path=' + str(root / 'runtime/bus')]), \
+                    patch.object(runner, 'stop'), patch.object(runner.time, 'sleep'), \
+                    patch.object(runner, 'processes', return_value={103: {'parent': 0, 'start': 1, 'rss': 1, 'name': 'WebKit-test'}}), \
+                    patch.object(runner, 'installed_fusermount', create=True, return_value=('/usr/bin/fusermount3', '3.14.0')), \
+                    patch.object(runner.subprocess, 'Popen', side_effect=children), \
+                    patch.object(runner.subprocess, 'run', side_effect=unmount) as invoked, \
+                    patch.object(Path, 'read_text', read), patch.object(Path, 'is_socket', return_value=True), \
+                    patch.object(runner.shutil, 'rmtree', side_effect=remove), \
+                    contextlib.redirect_stdout(io.StringIO()):
+                result = runner.run(sys.executable, 'owned-test')
+            report = json.loads((root / 'report.json').read_text())
+            if mutation:
+                self.assertFalse(report['cleanup'], report)
+                self.assertEqual(result, 1)
+                self.assertRegex(' '.join(report['cleanup_errors']), 'inode changed|identity or permissions')
+                self.assertEqual((root / mutation[1] / 'retained.txt').read_text(), 'Replacement must not be removed')
+                if mutation[0] == 'unmount':
+                    self.assertFalse(report['mount_cleanup']['verified_absent'])
+            else:
+                self.assertTrue(report['cleanup'], report['cleanup_errors'])
+                self.assertEqual(result, 0, report.get('error'))
+                self.assertFalse((root / 'runtime').exists())
+            invoked.assert_called_once()
+
+    def test_mountinfo_decodes_owned_paths_and_keeps_mount_identity(self):
+        root = Path('/tmp/owned space\\name\tline\nend')
+        escaped = str(root).replace('\\', r'\134').replace(' ', r'\040').replace('\t', r'\011').replace('\n', r'\012')
+        text = f'77 25 0:66 / {escaped}/runtime/doc rw,nosuid shared:8 - fuse.portal portal rw,user_id=1001\n'
+        text += '88 25 0:67 / /tmp/other/runtime/doc rw - fuse.portal portal rw,user_id=1001\n'
+        with patch.object(Path, 'read_text', return_value=text):
+            mounts = runner.owned_mounts(root)
+        self.assertEqual(len(mounts), 1)
+        self.assertEqual(mounts[0]['mountpoint'], str(root / 'runtime/doc'))
+        self.assertEqual(mounts[0]['id'], 77)
+        self.assertEqual(mounts[0]['device'], '0:66')
+        self.assertEqual(mounts[0]['type'], 'fuse.portal')
+
+    def test_portal_cleanup_rejects_unknown_mounts_and_changed_directory(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory).resolve()
+            (root / 'runtime').mkdir(mode=0o700)
+            identities = {'': runner.directory_identity(root), 'runtime': runner.directory_identity(root / 'runtime')}
+            mount = {'id': 77, 'device': '0:66', 'root': '/', 'mountpoint': str(root / 'runtime/doc'),
+                     'type': 'fuse.portal', 'source': 'portal', 'options': ['rw', f'user_id={os.getuid()}']}
+            invalid = [[{**mount, 'type': 'fuse.other'}], [{**mount, 'source': 'other'}],
+                       [{**mount, 'root': '/elsewhere'}], [{**mount, 'options': ['user_id=999999']}],
+                       [{**mount, 'mountpoint': str(root / 'data/unknown')}],
+                       [mount, {**mount, 'id': 78, 'mountpoint': str(root / 'runtime/doc/nested')}]]
+            with patch.object(runner.sys, 'platform', 'linux'), patch.object(runner, 'installed_fusermount') as tool, \
+                    patch.object(runner.subprocess, 'run') as invoke:
+                for mounts in invalid:
+                    with self.subTest(mounts=mounts), patch.object(runner, 'owned_mounts', return_value=mounts):
+                        with self.assertRaisesRegex(RuntimeError, 'mount'):
+                            runner.cleanup_portal_mount(root, identities, {})
+                (root / 'runtime').rename(root / 'previous-runtime')
+                (root / 'runtime').mkdir(mode=0o700)
+                with self.assertRaisesRegex(RuntimeError, 'inode changed'):
+                    runner.cleanup_portal_mount(root, identities, {})
+                tool.assert_not_called()
+                invoke.assert_not_called()
+            (root / 'runtime').rmdir()
+            (root / 'runtime').symlink_to(root / 'previous-runtime', target_is_directory=True)
+            with self.assertRaisesRegex(RuntimeError, 'identity or permissions'):
+                runner.directory_identity(root / 'runtime')
+
+    def test_portal_cleanup_keeps_tool_failure_mount_survival_and_races_failed(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory).resolve()
+            (root / 'runtime').mkdir(mode=0o700)
+            identities = {'': runner.directory_identity(root), 'runtime': runner.directory_identity(root / 'runtime')}
+            mount = {'id': 77, 'device': '0:66', 'root': '/', 'mountpoint': str(root / 'runtime/doc'),
+                     'type': 'fuse.portal', 'source': 'portal', 'options': [f'user_id={os.getuid()}']}
+            with patch.object(runner.sys, 'platform', 'linux'), \
+                    patch.object(runner, 'installed_fusermount', return_value=('/usr/bin/fusermount3', '3.14.0')):
+                cases = [([[mount], [mount], [mount]], 1, 'normal unmount failed'),
+                         ([[mount], [mount], [mount]], 0, 'Mount survived'),
+                         ([[mount], [{**mount, 'id': 78}]], 0, 'identity changed')]
+                for scans, code, message in cases:
+                    evidence = {}
+                    with self.subTest(message=message), patch.object(runner, 'owned_mounts', side_effect=scans), \
+                            patch.object(runner.subprocess, 'run', return_value=subprocess.CompletedProcess([], code, '', 'busy')) as invoke:
+                        with self.assertRaisesRegex(RuntimeError, message):
+                            runner.cleanup_portal_mount(root, identities, evidence)
+                        self.assertFalse(evidence['verified_absent'])
+                        self.assertEqual(invoke.call_count, 0 if message == 'identity changed' else 1)
+                with patch.object(runner, 'owned_mounts', return_value=[mount]), \
+                        patch.object(runner.subprocess, 'run', side_effect=subprocess.TimeoutExpired('fusermount3', 10)):
+                    with self.assertRaises(subprocess.TimeoutExpired):
+                        runner.cleanup_portal_mount(root, identities, {})
+                with patch.object(runner, 'owned_mounts', side_effect=[[mount], [], []]), \
+                        patch.object(runner.subprocess, 'run') as invoke:
+                    evidence = {}
+                    runner.cleanup_portal_mount(root, identities, evidence)
+                    self.assertTrue(evidence['verified_absent'])
+                    self.assertEqual(evidence['action'], 'none')
+                    invoke.assert_not_called()
+                with patch.object(runner, 'owned_mounts', side_effect=[[], []]), \
+                        patch.object(runner, 'installed_fusermount') as tool:
+                    runner.cleanup_portal_mount(root, identities, {})
+                    tool.assert_not_called()
+
+    def test_fusermount_must_be_installed_packaged_and_resolves_usrmerge(self):
+        from types import SimpleNamespace
+        status = 'Package: fuse3\nStatus: install ok installed\nVersion: 3.14.0-5build1\nArchitecture: amd64\n'
+        manifest = '/bin/fusermount3\n'
+
+        def read(path, *args, **kwargs):
+            return status if str(path) == '/var/lib/dpkg/status' else manifest
+
+        def resolve(path, *args, **kwargs):
+            return Path('/usr/bin/fusermount3') if str(path) == '/bin/fusermount3' else path
+
+        with patch.object(Path, 'read_text', read), patch.object(Path, 'resolve', resolve), \
+                patch.object(Path, 'is_file', return_value=True), \
+                patch.object(Path, 'stat', return_value=SimpleNamespace(st_mode=0o100755, st_uid=0)), \
+                patch.object(runner.os, 'access', return_value=True), \
+                patch.object(runner.shutil, 'which', return_value='/usr/bin/fusermount3'):
+            self.assertEqual(runner.installed_fusermount(), ('/usr/bin/fusermount3', '3.14.0-5build1'))
+            manifest = '/usr/local/bin/fusermount3\n'
+            with self.assertRaisesRegex(RuntimeError, 'verified installed'):
+                runner.installed_fusermount()
+            manifest = '/bin/fusermount3\n'
+            with patch.object(Path, 'stat', return_value=SimpleNamespace(st_mode=0o100777, st_uid=0)):
+                with self.assertRaisesRegex(RuntimeError, 'verified installed'):
+                    runner.installed_fusermount()
+            with patch.object(Path, 'stat', return_value=SimpleNamespace(st_mode=0o100755, st_uid=1001)):
+                with self.assertRaisesRegex(RuntimeError, 'verified installed'):
+                    runner.installed_fusermount()
+            with patch.object(runner.shutil, 'which', return_value=None):
+                with self.assertRaisesRegex(RuntimeError, 'already installed'):
+                    runner.installed_fusermount()
+            status = ''
+            with self.assertRaisesRegex(RuntimeError, 'already installed'):
+                runner.installed_fusermount()
 
     def test_non_linux_refuses_before_any_process_or_root_creation(self):
         with patch.object(runner.sys, 'platform', 'darwin'), patch.object(runner.tempfile, 'mkdtemp') as create, \

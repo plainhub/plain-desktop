@@ -134,6 +134,17 @@
     "method": "Observe media events and periodic state samples concurrently with the unchanged 12-second play-promise guard. Pending promise, actual progress and final state survive failure; progress does not substitute for promise fulfillment.",
     "limits": "Each observation retains first/latest 40 events and 16 state samples with counts. Each time-range list retains at most four ranges. Detailed observations use separate existing diagnostic packets; final results retain compact playback summaries.",
     "pipeline": "Enable the existing webkitmediaplayer debug category only in the owned child. Retain first 8/latest 24 relevant state lines and first 16 seek lines per pipeline, at most 12 pipelines and 480 characters per line, with URL redaction. Synthetic element IDs correlate fixtures with pipeline names.",
-    "unresolved": "Large WAV seek play-promise timeout needs real pipeline evidence; no increased timeout, retry, preload change or route change is applied."
+    "unresolved": "WebKitGTK 2.52.6 shows HAVE_CURRENT_DATA with advancing playback and a pending play promise after a fully buffered large-WAV seek. Upstream WebKit commit 4b5c9db84aa6c27101aaf186531e4f0ebe191a77 matches this state defect but has not been validated here on a fixed engine; no increased timeout, retry, preload change or route change is applied."
+  },
+  "owned_portal_cleanup": {
+    "cause": "A private-session document portal may leave its FUSE mount disconnected while terminating; recursive deletion must not traverse it.",
+    "ownership": "Capture owned root and all five disposable directories' device and inode at creation; require the same directories, current UID and 0700 before and after unmount and before each recursive removal. Retire identities only after successful removal. Parse escaped mountinfo paths and mount IDs; accept only exact runtime/doc with root /, fuse.portal, source portal and current user_id. Unknown or nested owned-root mounts fail.",
+    "method": "After stopping owned process groups, use only an already installed, root-owned fuse3 package executable, verified against dpkg status/file lists with usrmerge resolution. Run fusermount3 -u -- on that exact path, without sudo, force or lazy flags; rescan and require mount absence before any recursive removal. Replacement or permission changes during unmount or between directory removals keep cleanup failed and preserve the changed directory.",
+    "limits": "Missing tools, altered identities, unmount errors/timeouts and surviving mounts remain failures. Pure mock regressions do not establish native cleanup success.",
+    "sources": [
+      "https://github.com/flatpak/xdg-desktop-portal/blob/1.18.4/document-portal/document-portal-fuse.c#L3298",
+      "https://github.com/flatpak/xdg-desktop-portal/blob/1.18.4/document-portal/document-portal-fuse.c#L3470",
+      "https://github.com/libfuse/libfuse/blob/fuse-3.14.0/util/fusermount.c#L1259"
+    ]
   }
 }
