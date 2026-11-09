@@ -1,12 +1,10 @@
-import { wrapWithReplayProtection } from '@/lib/api/time-sync'
 import { ref } from 'vue'
 import { useI18n } from 'vue-i18n'
-import { getUploadUrl } from '@/lib/upload/upload'
-import { chachaEncrypt, bitArrayToUint8Array } from '@/lib/api/crypto'
-import { tokenToKey } from '@/lib/api/file'
 import toast from '@/components/toaster'
-import { getCurrentAuthToken } from '@/lib/device/current'
-import { getDesktopClientId } from '@/lib/device/client-id'
+import type { IUploadItem } from '@/stores/temp'
+import { addUploadTaskAndWait, removeUpload } from '@/lib/upload/upload-queue'
+import { getUploadContext } from '@/lib/upload/context'
+import emitter from '@/plugins/eventbus'
 
 let uploadGeneration = 0
 
@@ -15,7 +13,7 @@ const uploading = ref(false)
 const uploadStatus = ref('')
 const uploadProgress = ref(0)
 const uploadDone = ref(false)
-let currentXhr: XMLHttpRequest | null = null
+let currentUpload: IUploadItem | null = null
 
 export function useAIModelUpload() {
   const { t } = useI18n()
@@ -24,6 +22,11 @@ export function useAIModelUpload() {
     if (uploading.value) return
     const generation = ++uploadGeneration
     uploading.value = true
+    const items = new Map(Array.from(files, (file, index) => {
+      const item: IUploadItem = { id: `model-${generation}-${index}`, file, fileName: file.name, dir: modelDir, status: 'created', uploadedSize: 0, error: '' }
+      getUploadContext(item)
+      return [file, item] as const
+    }))
     const valid = await validateFiles(files)
     if (generation !== uploadGeneration) return
     if (!valid) {
@@ -34,18 +37,20 @@ export function useAIModelUpload() {
     uploadDone.value = false
     uploading.value = true
     uploadProgress.value = 0
-    const token = getCurrentAuthToken()
-    const key = tokenToKey(token)
-    const clientId = getDesktopClientId()
     const totalBytes = valid.reduce((s, f) => s + f.size, 0)
     let completedBytes = 0
+    const onProgress = (item: IUploadItem) => {
+      if (generation !== uploadGeneration || item !== currentUpload) return
+      uploadProgress.value = Math.min(Math.round(((completedBytes + item.uploadedSize) / totalBytes) * 100), 99)
+    }
+    emitter.on('upload_progress', onProgress)
     try {
       for (const file of valid) {
         if (generation !== uploadGeneration) throw new Error('Upload cancelled')
         uploadStatus.value = t('ai.uploading', { name: file.name })
-        await uploadSingleFile(file, modelDir, key, clientId, (loaded) => {
-          uploadProgress.value = Math.min(Math.round(((completedBytes + loaded) / totalBytes) * 100), 99)
-        })
+        currentUpload = items.get(file)!
+        await addUploadTaskAndWait(currentUpload, true)
+        if (generation !== uploadGeneration) return
         completedBytes += file.size
         uploadProgress.value = Math.round((completedBytes / totalBytes) * 100)
       }
@@ -54,21 +59,22 @@ export function useAIModelUpload() {
       uploadStatus.value = t('ai.upload_done')
       uploadDone.value = true
     } catch (e: any) {
-      if (e.message !== 'Upload cancelled') {
+      if (generation === uploadGeneration) {
         toast(t('ai.upload_failed', { error: e.message || 'Unknown error' }), 'error')
       }
     } finally {
+      emitter.off('upload_progress', onProgress)
       if (generation === uploadGeneration) {
         uploading.value = false
-        currentXhr = null
+        currentUpload = null
       }
     }
   }
 
   function cancelUpload() {
     uploadGeneration++
-    currentXhr?.abort()
-    currentXhr = null
+    if (currentUpload) removeUpload(currentUpload.id)
+    currentUpload = null
     uploading.value = false
     uploadStatus.value = ''
     uploadProgress.value = 0
@@ -100,41 +106,4 @@ async function validateFiles(files: FileList): Promise<File[] | null> {
   } catch {
     return null
   }
-}
-
-function uploadSingleFile(file: File, dir: string, key: Uint8Array, clientId: string, onProgress: (loaded: number) => void): Promise<void> {
-  return new Promise((resolve, reject) => {
-    const info = JSON.stringify({ dir, replace: true, isAppFile: false, size: file.size })
-    const encrypted = bitArrayToUint8Array(chachaEncrypt(key, wrapWithReplayProtection(info)))
-    const form = new FormData()
-    form.append('info', new Blob([encrypted.buffer as ArrayBuffer]))
-    form.append('file', file, file.name)
-    const xhr = new XMLHttpRequest()
-    currentXhr = xhr
-    xhr.upload.addEventListener('progress', (e) => {
-      if (e.lengthComputable) onProgress(e.loaded)
-    })
-    xhr.onreadystatechange = () => {
-      if (xhr.readyState === 4) {
-        currentXhr = null
-        if (xhr.status === 201) resolve()
-        else reject(new Error(xhr.responseText || `HTTP ${xhr.status}`))
-      }
-    }
-    xhr.onerror = () => {
-      currentXhr = null
-      reject(new Error('Network error'))
-    }
-    xhr.ontimeout = () => {
-      currentXhr = null
-      reject(new Error('Upload timed out'))
-    }
-    xhr.onabort = () => {
-      currentXhr = null
-      reject(new Error('Upload cancelled'))
-    }
-    xhr.open('POST', getUploadUrl(), true)
-    xhr.setRequestHeader('c-id', clientId)
-    xhr.send(form)
-  })
 }

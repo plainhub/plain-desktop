@@ -21,7 +21,6 @@ vi.mock('@/lib/api/api', () => ({
   getApiBaseUrl: () => 'https://current.example.test',
   getApiHeaders: () => ({ 'c-id': 'search-client' }),
   getLocalServerPort: () => 8080,
-  nativePeerGraphqlUrl: (peerId: string) => `http://127.0.0.1:8080/proxy/${peerId}/graphql`,
   getProxyUrl: (path: string) => path,
   proxyUrlFor: (base: string, path: string) => base + path,
   deviceBaseUrl: (host: string) => `https://${host}`,
@@ -63,17 +62,18 @@ afterEach(() => {
 
 it('queries the authorized peer and seals preview URLs with that device’s session credential', async () => {
   vi.stubGlobal('__IS_TAURI__', true)
-  transport.remote.mockResolvedValueOnce({ data: { app } }).mockResolvedValueOnce({ data: { items: [doc], total: 32 } })
+  transport.local.mockResolvedValueOnce({ data: { app } }).mockResolvedValueOnce({ data: { items: [doc], total: 32 } })
   const client = await loadSearchClient({ id: peer.id, name: peer.name, target: 'peer', peer })
   expect(client.canSearch('images')).toBe(false)
   expect(client.canSearch('docs')).toBe(true)
   const { hits, total } = await client.page('docs', 'Trip: notes', 24)
   expect(total).toBe(32)
   expect(transport.current).not.toHaveBeenCalled()
-  expect(transport.remote).toHaveBeenNthCalledWith(1, 'http://127.0.0.1:8080/proxy/peer/graphql', 'peer-login', appGQL, undefined)
-  expect(transport.remote).toHaveBeenNthCalledWith(2, 'http://127.0.0.1:8080/proxy/peer/graphql', 'peer-login', docsGQL, {
+  expect(transport.remote).not.toHaveBeenCalled()
+  expect(transport.local).toHaveBeenNthCalledWith(1, appGQL, undefined, undefined, { kind: 'peer', peerId: peer.id })
+  expect(transport.local).toHaveBeenNthCalledWith(2, docsGQL, {
     query: 'text:Trip:\\ notes trash:false', offset: 24, limit: 24, sortBy: 'DATE_DESC',
-  })
+  }, undefined, { kind: 'peer', peerId: peer.id })
   const hit = hits[0]
   if (hit.domain !== 'docs') throw new Error('Expected a document')
   const url = new URL(client.url(hit))
@@ -127,6 +127,14 @@ it('routes managed search through the current origin and reuses session-scoped t
   const aad = (action: string) => new TextEncoder().encode(`plain-managed:managed:fs:${action}-v1\0${mode}\0${owner}`)
   expect(JSON.parse(chachaDecrypt(key, bytes, aad('download')))).toEqual({ type: 'MEDIA', id: doc.id })
   expect(() => chachaDecrypt(key, bytes, aad('preview'))).toThrow()
+})
+
+it('rejects Desktop managed search without using a browser proxy or a different peer target', async () => {
+  vi.stubGlobal('__IS_TAURI__', true)
+  await expect(loadSearchClient({ id: 'managed', name: 'Managed', target: 'managed', online: true }, false, app.urlToken)).rejects.toThrow('Native peer-proxy GraphQL is unsupported')
+  expect(transport.current).not.toHaveBeenCalled()
+  expect(transport.local).not.toHaveBeenCalled()
+  expect(transport.remote).not.toHaveBeenCalled()
 })
 
 it('adds managed results without restarting the current search when device discovery finishes', async () => {

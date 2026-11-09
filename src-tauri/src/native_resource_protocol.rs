@@ -18,7 +18,7 @@ use plain_rs::infrastructure::host::request_scope::NativeRequestScope;
 pub use plain_server::native::resources::MAX_RESOURCE_RESPONSE_BYTES as MAX_RESPONSE_BYTES;
 use plain_server::native::resources::{NativeResourceRegistry, ResourceAccessError};
 use serde::Serialize;
-use tauri::http::{HeaderValue, Request, Response, StatusCode, header};
+use tauri::http::{HeaderValue, Method, Request, Response, StatusCode, header};
 use tauri::{Manager, Runtime, UriSchemeContext, UriSchemeResponder};
 
 pub const RESOURCE_SCHEME: &str = "plain-resource";
@@ -65,7 +65,14 @@ impl ResourceRegistry {
 }
 
 pub fn resource_url(id: &str) -> String {
-    format!("{RESOURCE_SCHEME}://{RESOURCE_HOST}/{id}")
+    #[cfg(target_os = "windows")]
+    {
+        format!("http://{RESOURCE_SCHEME}.{RESOURCE_HOST}/{id}")
+    }
+    #[cfg(not(target_os = "windows"))]
+    {
+        format!("{RESOURCE_SCHEME}://{RESOURCE_HOST}/{id}")
+    }
 }
 
 /// The opaque handle id is the last path segment of the request URI; the
@@ -115,9 +122,20 @@ pub async fn serve(
     request: Request<Vec<u8>>,
     responder: UriSchemeResponder,
 ) {
+    responder.respond(resource_response(registry, scope, request).await);
+}
+
+async fn resource_response(
+    registry: &ResourceRegistry,
+    scope: &NativeRequestScope,
+    request: Request<Vec<u8>>,
+) -> Response<Vec<u8>> {
+    if request.method() != Method::GET && request.method() != Method::HEAD {
+        return error_response(StatusCode::METHOD_NOT_ALLOWED);
+    }
+    let head = request.method() == Method::HEAD;
     let Some(id) = requested_id(&request) else {
-        responder.respond(error_response(StatusCode::NOT_FOUND));
-        return;
+        return error_response(StatusCode::NOT_FOUND);
     };
     let resource = match registry.resources.get(scope, &id) {
         Ok(resource) => resource,
@@ -126,17 +144,20 @@ pub async fn serve(
                 ResourceAccessError::Unavailable => StatusCode::NOT_FOUND,
                 ResourceAccessError::Forbidden => StatusCode::FORBIDDEN,
             };
-            responder.respond(error_response(status));
-            return;
+            return error_response(status);
         }
     };
     let size = resource.info.size;
 
-    let range = request
-        .headers()
-        .get(header::RANGE)
-        .and_then(|value| value.to_str().ok())
-        .unwrap_or("");
+    let range = if head {
+        ""
+    } else {
+        request
+            .headers()
+            .get(header::RANGE)
+            .and_then(|value| value.to_str().ok())
+            .unwrap_or("")
+    };
     let (start, end, partial) = match parse_range_header(range, size) {
         RangeParse::Full => (0, size.saturating_sub(1), false),
         RangeParse::Partial(start, end) => (start, end, true),
@@ -146,26 +167,25 @@ pub async fn serve(
                 .header(header::CONTENT_LENGTH, 0)
                 .header(header::CONTENT_RANGE, format!("bytes */{size}"));
             response = response.header(header::ACCEPT_RANGES, header_value("bytes"));
-            responder.respond(
-                response
-                    .body(Vec::new())
-                    .expect("static unsatisfiable response"),
-            );
-            return;
+            return response
+                .body(Vec::new())
+                .expect("static unsatisfiable response");
         }
     };
     let length = if size == 0 { 0 } else { end - start + 1 };
-    if length > MAX_RESPONSE_BYTES {
-        responder.respond(error_response(StatusCode::PAYLOAD_TOO_LARGE));
-        return;
+    if !head && length > MAX_RESPONSE_BYTES {
+        return error_response(StatusCode::PAYLOAD_TOO_LARGE);
     }
 
-    let bytes = match resource.read_range(start, length).await {
-        Ok(bytes) => bytes,
-        Err(_) => {
-            registry.close(scope, &id);
-            responder.respond(error_response(StatusCode::NOT_FOUND));
-            return;
+    let bytes = if head {
+        Vec::new()
+    } else {
+        match resource.read_range(start, length).await {
+            Ok(bytes) => bytes,
+            Err(_) => {
+                registry.close(scope, &id);
+                return error_response(StatusCode::NOT_FOUND);
+            }
         }
     };
     let mut response = Response::builder()
@@ -175,7 +195,7 @@ pub async fn serve(
             StatusCode::OK
         })
         .header(header::CONTENT_TYPE, header_value(&resource.info.mime))
-        .header(header::CONTENT_LENGTH, bytes.len())
+        .header(header::CONTENT_LENGTH, length)
         .header(header::ACCEPT_RANGES, header_value("bytes"))
         .header(
             header::CONTENT_DISPOSITION,
@@ -187,10 +207,9 @@ pub async fn serve(
             header_value(&format!("bytes {start}-{end}/{size}")),
         );
     }
-    match response.body(bytes) {
-        Ok(response) => responder.respond(response),
-        Err(_) => responder.respond(error_response(StatusCode::INTERNAL_SERVER_ERROR)),
-    }
+    response
+        .body(bytes)
+        .unwrap_or_else(|_| error_response(StatusCode::INTERNAL_SERVER_ERROR))
 }
 
 pub fn with_native_resource_protocol<R: Runtime>(builder: tauri::Builder<R>) -> tauri::Builder<R> {
@@ -216,3 +235,7 @@ pub fn with_native_resource_protocol<R: Runtime>(builder: tauri::Builder<R>) -> 
             },
         )
 }
+
+#[cfg(test)]
+#[path = "../tests/unit/native_resource_protocol.rs"]
+mod tests;

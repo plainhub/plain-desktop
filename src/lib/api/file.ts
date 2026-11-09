@@ -57,7 +57,7 @@ export function getFileUrlByPath(key: Uint8Array | null, path: string) {
 
 const _recentDownloads = new Set<string>()
 
-export function download(url: string, name: string, chat = false) {
+export function download(url: string, name: string, chat = false, reference?: string) {
   url = withFileAction(url, FileAction.Download, chat)
   // Prevent duplicate downloads triggered by rapid double-clicks.
   if (_recentDownloads.has(url)) {
@@ -70,7 +70,7 @@ export function download(url: string, name: string, chat = false) {
   // fetch the bytes and save them into the system Downloads folder.
   // Blob URLs (local recorded media) still work with <a download>.
   if (__IS_TAURI__ && !url.startsWith('blob:')) {
-    void saveToFile(url, name)
+    void saveToFile(url, name, reference)
     return
   }
 
@@ -117,9 +117,9 @@ async function handleSaveError(error: unknown) {
   toast(i18n.global.t('download_failed'), 'error')
 }
 
-async function saveToFile(url: string, name: string) {
+async function saveToFile(url: string, name: string, reference?: string) {
   try {
-    notifyDownloaded(await downloadToDir(url, name))
+    notifyDownloaded(await downloadToDir(url, name, reference))
   } catch (error) {
     await handleSaveError(error)
   }
@@ -127,7 +127,7 @@ async function saveToFile(url: string, name: string) {
 
 // Desktop "Save As…": native save dialog (defaults to Downloads/name),
 // web falls back to the browser's own download.
-export function downloadAs(url: string, name: string) {
+export function downloadAs(url: string, name: string, reference?: string) {
   url = withFileAction(url, FileAction.Download)
   if (!__IS_TAURI__ || url.startsWith('blob:')) {
     download(url, name)
@@ -135,7 +135,7 @@ export function downloadAs(url: string, name: string) {
   }
   void (async () => {
     try {
-      const path = await downloadAsTo(url, name)
+      const path = await downloadAsTo(url, name, reference)
       if (path) notifyDownloaded(path)
     } catch (error) {
       await handleSaveError(error)

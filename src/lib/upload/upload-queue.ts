@@ -4,6 +4,7 @@ import { GqlError } from '../api/gql-client'
 import { isTransientUploadError } from './errors'
 import { resetUploadProgress, setUploadStatus } from './batch-progress'
 import emitter from '@/plugins/eventbus'
+import { getUploadContext, uploadChunkOwner, cancelUploadOperations } from './context'
 
 // Upload queue management interfaces and types
 export interface IUploadTask {
@@ -29,6 +30,7 @@ interface ManagedUploadTask extends IUploadTask {
   rejectCompletion: (error: Error) => void
   completionSettled: boolean
   evictOnFailure: boolean
+  run?: symbol
 }
 
 // Close/refresh prompt for in-flight uploads. Armed on first enqueue so
@@ -65,6 +67,7 @@ class UploadQueue {
   }
 
   private enqueueTask(upload: IUploadItem, replace: boolean, evictOnFailure: boolean): ManagedUploadTask {
+    getUploadContext(upload)
     let resolveCompletion!: () => void
     let rejectCompletion!: (error: Error) => void
     const completion = new Promise<void>((resolve, reject) => {
@@ -209,16 +212,17 @@ class UploadQueue {
   }
 
   private discardChunks(tasks: Iterable<ManagedUploadTask>): void {
-    const fileIds = new Set<string>()
-    for (const task of tasks) if (task.upload.fileId) fileIds.add(task.upload.fileId)
-    for (const fileId of fileIds) {
-      void discardUploadChunks(fileId, () => this.queue.some(task => task.upload.fileId === fileId)).catch(error => {
+    const owners = new Map<string, IUploadItem>()
+    for (const task of tasks) if (task.upload.fileId) owners.set(uploadChunkOwner(task.upload), task.upload)
+    for (const [owner, upload] of owners) {
+      void discardUploadChunks(upload, () => this.queue.some(task => task.upload.fileId && uploadChunkOwner(task.upload) === owner)).catch(error => {
         emitter.emit('toast', error instanceof GqlError ? error.message : 'network_error')
       })
     }
   }
 
   private abortTaskXhrs(task: ManagedUploadTask): void {
+    cancelUploadOperations(task.upload)
     if (task.upload.xhrs) {
       for (const xhr of task.upload.xhrs) {
         try {
@@ -253,6 +257,7 @@ class UploadQueue {
   }
 
   private async executeTask(task: ManagedUploadTask): Promise<void> {
+    const run = task.run = Symbol()
     task.status = 'running'
     setUploadStatus(task.upload, 'uploading')
     task.aborted = false
@@ -265,7 +270,7 @@ class UploadQueue {
         result = (await upload(task.upload, task.replace)) as { error?: string } | undefined
 
         // Check if task was aborted during upload
-        if (task.aborted) {
+        if (task.aborted || task.run !== run) {
           return
         }
 
@@ -279,7 +284,7 @@ class UploadQueue {
         task.upload.error ||= errorText
         if (attempt >= MAX_TASK_ATTEMPTS - 1 || !isTransientUploadError(errorText)) break
 
-        if (!(await this.waitUnlessAborted(task, RETRY_BACKOFF_MS[Math.min(attempt, RETRY_BACKOFF_MS.length - 1)]))) {
+        if (!(await this.waitUnlessAborted(task, run, RETRY_BACKOFF_MS[Math.min(attempt, RETRY_BACKOFF_MS.length - 1)]))) {
           return
         }
         setUploadStatus(task.upload, 'uploading')
@@ -298,7 +303,7 @@ class UploadQueue {
       }
     } catch (error: any) {
       // Check if task was aborted during upload
-      if (task.aborted) {
+      if (task.aborted || task.run !== run) {
         return
       }
 
@@ -306,37 +311,39 @@ class UploadQueue {
       setUploadStatus(task.upload, 'error')
       task.upload.error = error.message || 'Upload failed'
     } finally {
-      this.running.delete(task.id)
-      if (task.status === 'completed') {
-        this.failureStreak = 0
-        // Per-item speeds are point samples; leaving them set after completion
-        // made batch-level throughput sum the whole upload history.
-        task.upload.uploadSpeed = 0
-        this.queue = this.queue.filter((candidate) => candidate !== task)
-        this.resolveTask(task)
-        this.emitSafely('upload_task_done', task.upload)
-      } else if (task.status === 'failed') {
-        task.upload.uploadSpeed = 0
-        if (isTransientUploadError(task.upload.error) && ++this.failureStreak >= AUTO_PAUSE_FAILURE_STREAK) {
+      if (task.run === run) {
+        this.running.delete(task.id)
+        if (task.status === 'completed') {
           this.failureStreak = 0
-          this.pauseAllUploads()
-          emitter.emit('toast', 'upload_auto_paused')
-        }
-        this.rejectTask(task, new Error(task.upload.error || 'Upload failed'))
-        if (task.evictOnFailure) {
+          // Per-item speeds are point samples; leaving them set after completion
+          // made batch-level throughput sum the whole upload history.
+          task.upload.uploadSpeed = 0
           this.queue = this.queue.filter((candidate) => candidate !== task)
-          this.discardChunks([task])
+          this.resolveTask(task)
+          this.emitSafely('upload_task_done', task.upload)
+        } else if (task.status === 'failed') {
+          task.upload.uploadSpeed = 0
+          if (isTransientUploadError(task.upload.error) && ++this.failureStreak >= AUTO_PAUSE_FAILURE_STREAK) {
+            this.failureStreak = 0
+            this.pauseAllUploads()
+            emitter.emit('toast', 'upload_auto_paused')
+          }
+          this.rejectTask(task, new Error(task.upload.error || 'Upload failed'))
+          if (task.evictOnFailure) {
+            this.queue = this.queue.filter((candidate) => candidate !== task)
+            this.discardChunks([task])
+          }
+          this.emitSafely('upload_progress', task.upload)
         }
-        this.emitSafely('upload_progress', task.upload)
+        this.processQueue()
       }
-      this.processQueue()
     }
   }
 
   // Backoff sleep that bails out when the task is paused or removed while
   // waiting, so a paused queue stops immediately instead of after the delay.
   // Timer-only (no Date.now) so fake-timer tests can drive it deterministically.
-  private waitUnlessAborted(task: ManagedUploadTask, delayMs: number): Promise<boolean> {
+  private waitUnlessAborted(task: ManagedUploadTask, run: symbol, delayMs: number): Promise<boolean> {
     return new Promise<boolean>((resolve) => {
       const finish = (result: boolean) => {
         clearInterval(interval)
@@ -344,10 +351,10 @@ class UploadQueue {
         resolve(result)
       }
       const interval = setInterval(() => {
-        if (task.aborted) finish(false)
+        if (task.aborted || task.run !== run) finish(false)
       }, 100)
-      const timeout = setTimeout(() => finish(!task.aborted), delayMs)
-      if (task.aborted) finish(false)
+      const timeout = setTimeout(() => finish(!task.aborted && task.run === run), delayMs)
+      if (task.aborted || task.run !== run) finish(false)
     })
   }
 

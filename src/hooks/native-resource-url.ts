@@ -1,5 +1,6 @@
 import { isLocalMode } from '@/lib/device/local-mode'
 import { invoke } from '@tauri-apps/api/core'
+import { nativeViewScope } from '@/lib/api/native-client'
 
 export interface INativeResource {
   id: string
@@ -12,11 +13,18 @@ export interface INativeResource {
 // Handles stay open while a view may still show the file and are closed
 // when that view drops them. The core evicts a handle when its window goes
 // away, so a stale entry here can never keep a file open.
-const handles = new Map<string, string>()
+const handles = new Map<string, { resource: INativeResource; scope: string }>()
 const pending = new Map<string, Promise<string>>()
 
 export function isNativeResourceUrl(url: string): boolean {
-  return url.startsWith('plain-resource://')
+  try {
+    const parsed = new URL(url)
+    if (parsed.port || parsed.username || parsed.password) return false
+    return (parsed.protocol === 'plain-resource:' && parsed.hostname === 'file')
+      || ((parsed.protocol === 'http:' || parsed.protocol === 'https:') && parsed.hostname === 'plain-resource.file')
+  } catch {
+    return false
+  }
 }
 
 /**
@@ -24,7 +32,7 @@ export function isNativeResourceUrl(url: string): boolean {
  * an external link; everything else is a core reference.
  */
 export function isExternalReference(reference: string): boolean {
-  return /^https?:\/\//i.test(reference)
+  return !isNativeResourceUrl(reference) && /^https?:\/\//i.test(reference)
 }
 
 /**
@@ -56,33 +64,44 @@ export async function nativeResourceUrl(path: string, size?: number): Promise<st
   }
   const cached = handles.get(path)
   if (cached) {
-    return cached
+    return cached.resource.url
   }
   const running = pending.get(path)
   if (running) {
     return running
   }
-  const opened = invoke<INativeResource>('native_resource_open', { path }).then((resource) => {
-    pending.delete(path)
-    handles.set(path, resource.url)
+  const opened: Promise<string> = (async () => {
+    const scope = await nativeViewScope()
+    const checkCurrent = () => {
+      if (pending.get(path) !== opened) throw new Error('resource_closed')
+      if (!isLocalMode()) throw new Error('request_context_changed')
+    }
+    checkCurrent()
+    const resource = await invoke<INativeResource>('native_resource_open', { path, scope })
+    try {
+      checkCurrent()
+    } catch (error) {
+      await invoke('native_resource_close', { id: resource.id, scope })
+      throw error
+    }
+    handles.set(path, { resource, scope })
     return resource.url
+  })().finally(() => {
+    if (pending.get(path) === opened) pending.delete(path)
   })
   pending.set(path, opened)
   return opened
 }
 
 export async function closeNativeResource(path: string): Promise<void> {
+  pending.delete(path)
   const cached = handles.get(path)
   if (!cached) {
     return
   }
   handles.delete(path)
-  const id = cached.slice(cached.lastIndexOf('/') + 1)
-  if (!id) {
-    return
-  }
   try {
-    await invoke('native_resource_close', { id })
+    await invoke('native_resource_close', { id: cached.resource.id, scope: cached.scope })
   } catch (error) {
     console.warn('native resource close failed', error)
   }

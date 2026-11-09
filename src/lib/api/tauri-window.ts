@@ -1,6 +1,7 @@
 import { invoke } from '@tauri-apps/api/core'
 import type { ISource } from '@/components/lightbox/types'
 import { getRemoteClientId } from '@/lib/device/client-id'
+import { isNativeResourceUrl } from '@/hooks/native-resource-url'
 
 /**
  * Open a new app window at the given router path (e.g. "/messages").
@@ -40,5 +41,22 @@ export async function setWindowDeviceName(name: string): Promise<void> {
 
 export async function openMediaInWindow(source: ISource): Promise<void> {
   if (!__IS_TAURI__) return
+  if (isNativeResourceUrl(source.src)) {
+    if (!source.path || isNativeResourceUrl(source.path)) throw new Error('Native preview requires the original file reference')
+    source = { ...source, src: '', playbackUrl: undefined, transcoded: undefined }
+  }
+  if (source.thumbnail && isNativeResourceUrl(source.thumbnail)) source = { ...source, thumbnail: undefined }
   await invoke('media_preview_activate', { source })
+}
+
+export async function openImageEditor(source: Pick<ISource, 'src' | 'path' | 'name'>): Promise<void> {
+  const query = new URLSearchParams({ name: source.name || '' })
+  if (isNativeResourceUrl(source.src)) {
+    if (!source.path || isNativeResourceUrl(source.path)) throw new Error('Native editing requires the original file reference')
+    query.set('reference', source.path)
+    await openWindow(`/image-editor/new?${query}`, '')
+  } else {
+    query.set('src', source.src)
+    window.open(`/image-editor/new?${query}`, '_blank')
+  }
 }

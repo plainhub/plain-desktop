@@ -1,5 +1,10 @@
 use plain_server::server::ContentServer;
-use std::{sync::Arc, time::{Duration, SystemTime, UNIX_EPOCH}};
+use std::{
+    sync::Arc,
+    time::{Duration, SystemTime, UNIX_EPOCH},
+};
+
+use super::NativeTarget;
 
 #[tauri::command]
 pub fn native_view_scope(
@@ -27,6 +32,7 @@ pub async fn native_graphql(
     views: tauri::State<'_, super::views::NativeViews>,
     core: tauri::State<'_, Arc<ContentServer>>,
     body: serde_json::Value,
+    target: NativeTarget,
 ) -> Result<serde_json::Value, String> {
     let id = body
         .pointer("/extensions/nativeScope")
@@ -43,9 +49,18 @@ pub async fn native_graphql(
     )?;
     let executor = core.native_graphql()?;
     let request = serde_json::from_value(body).map_err(|error| error.to_string())?;
-    let response = tokio::time::timeout(remaining, executor.execute_scoped(request, scope))
-        .await
-        .map_err(|_| "connection_timeout".to_owned())?;
+    let response = tokio::time::timeout(remaining, async {
+        match target {
+            NativeTarget::Local {} => Ok(executor.execute_scoped(request, scope).await),
+            NativeTarget::Peer { peer_id } => {
+                executor
+                    .execute_peer_scoped(&peer_id, request, scope, remaining)
+                    .await
+            }
+        }
+    })
+    .await
+    .map_err(|_| "connection_timeout".to_owned())??;
     serde_json::to_value(response).map_err(|error| error.to_string())
 }
 
@@ -54,9 +69,19 @@ pub async fn native_subscription_open(
     window: tauri::WebviewWindow,
     views: tauri::State<'_, super::views::NativeViews>,
     core: tauri::State<'_, Arc<ContentServer>>,
+    scope: String,
+    target: NativeTarget,
 ) -> Result<u64, String> {
-    core.native_graphql()?
-        .open_subscriptions(views.scope(window.label()))
+    let scope = views.existing_scope(window.label(), &scope)?;
+    let executor = core.native_graphql()?;
+    match target {
+        NativeTarget::Local {} => executor.open_subscriptions(scope),
+        NativeTarget::Peer { peer_id } => {
+            executor
+                .open_managed_peer_subscriptions(&peer_id, scope)
+                .await
+        }
+    }
 }
 fn subscription_session(
     window: &tauri::WebviewWindow,
@@ -65,9 +90,9 @@ fn subscription_session(
     handle: u64,
 ) -> Result<plain_server::graphql::subscriptions::session::SubscriptionSession, String> {
     let session = core.native_graphql()?.subscription_session(handle)?;
-    if session.scope_id() != views.scope(window.label()).id() {
-        return Err("Subscription view mismatch".into());
-    }
+    views
+        .existing_scope(window.label(), session.scope_id())
+        .map_err(|_| "Subscription view mismatch")?;
     Ok(session)
 }
 #[tauri::command]

@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, expect, it, vi } from 'vitest'
 import type { IUploadItem } from '@/stores/temp'
 const io = vi.hoisted(() => ({ upload: vi.fn(), discard: vi.fn(), emit: vi.fn() }))
+vi.mock('@/lib/upload/context', () => ({ getUploadContext: vi.fn(), cancelUploadOperations: vi.fn(), uploadChunkOwner: (item: IUploadItem) => item.fileId }))
 vi.mock('@/lib/upload/upload', () => ({ upload: io.upload, discardUploadChunks: io.discard }))
 vi.mock('@/lib/upload/batch-progress', () => ({ setUploadStatus: (item: IUploadItem, status: string) => { item.status = status }, resetUploadProgress: vi.fn() }))
 vi.mock('@/plugins/eventbus', () => ({ default: { emit: io.emit } }))
@@ -30,7 +31,7 @@ it('aborts each removed request once and schedules cleanup once for a shared fil
   expect(abortB).toHaveBeenCalledTimes(1)
   expect(a.status).toBe('canceled'); expect(b.status).toBe('canceled')
   expect(io.discard).toHaveBeenCalledTimes(1)
-  expect(io.discard.mock.calls[0]![0]).toBe(a.fileId)
+  expect(io.discard.mock.calls[0]![0].fileId).toBe(a.fileId)
   expect(io.discard.mock.calls[0]![1]()).toBe(false)
 })
 it('retains chunks referenced by a different paused batch', () => {

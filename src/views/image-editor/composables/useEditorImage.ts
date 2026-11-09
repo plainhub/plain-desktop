@@ -2,6 +2,7 @@ import type { Ref } from 'vue'
 import type { EditorLayer, EditorRasterSource, EditorTool } from '../utils/types'
 import type { ImageEditorDoc } from './useImageEditorDoc'
 import { resetLayerCounter } from './useImageEditorLayers'
+import { isNativeResourceUrl } from '@/hooks/native-resource-url'
 
 export interface EditorImageContext {
   doc: ImageEditorDoc
@@ -58,9 +59,9 @@ export function useEditorImage(ctx: EditorImageContext) {
   function loadImageFromUrl(url: string): Promise<void> {
     return new Promise<void>((resolve, reject) => {
       const img = new Image()
+      const native = isNativeResourceUrl(url)
+      if (native) img.crossOrigin = 'anonymous'
       img.onload = () => {
-        pushUndo()
-        sourceImg.value = img
         let serializedSource: string | undefined
         if (persistSourceImage) {
           serializedSource = url
@@ -70,10 +71,15 @@ export function useEditorImage(ctx: EditorImageContext) {
             tmp.height = img.naturalHeight
             tmp.getContext('2d')!.drawImage(img, 0, 0)
             serializedSource = tmp.toDataURL('image/png')
-          } catch {
-            // Canvas tainted (cross-origin without CORS) — fall back to URL
+          } catch (error) {
+            if (native) {
+              reject(error)
+              return
+            }
           }
         }
+        pushUndo()
+        sourceImg.value = img
         doc.ydoc.transact(() => {
           if (serializedSource) persistSourceImage?.(serializedSource)
           doc.setCanvasSize(img.naturalWidth, img.naturalHeight)

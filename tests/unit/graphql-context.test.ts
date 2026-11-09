@@ -2,20 +2,20 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { bindGraphqlClient, gqlFetch, GqlError } from '@/lib/api/gql-client'
 import { nativeGraphql } from '@/lib/api/native-client'
 import { httpRequest } from '@/lib/api/http'
-import { clearCurrentSession } from '@/lib/device/current'
+import { getCurrentAuthToken, clearCurrentSession } from '@/lib/device/current'
 import { initMutation } from '@/lib/api/mutation'
 import { initLazyQuery } from '@/lib/api/query'
 import emitter from '@/plugins/eventbus'
 
-const target = vi.hoisted(() => ({ native: true, client: 'device-a', url: 'https://device-a.test', token: 'session-a', header: 'client-a' }))
+const target = vi.hoisted(() => ({ native: true, client: 'device-a', url: 'https://device-a.test', token: 'session-a', header: 'client-a', revision: 1 }))
 vi.mock('@/lib/api/api', () => ({
   getApiBaseUrl: () => target.url,
-  nativePeerGraphqlUrl: (peerId: string) => `http://127.0.0.1:8280/proxy/${peerId}/graphql`,
   getApiHeaders: () => ({ 'c-id': target.header }),
   getUrlToken: () => target.token,
 }))
-vi.mock('@/lib/device/current', () => ({ getCurrentAuthToken: () => target.token, clearCurrentSession: vi.fn().mockResolvedValue(undefined) }))
-vi.mock('@/lib/device/client-id', () => ({ getActiveClientId: () => target.client }))
+vi.mock('@/lib/device/current', () => ({ getCurrentAuthToken: vi.fn(() => target.token), clearCurrentSession: vi.fn().mockResolvedValue(undefined) }))
+vi.mock('@/lib/device/login-peers', () => ({ getLoginPeerRevision: () => target.revision }))
+vi.mock('@/lib/device/client-id', () => ({ getActiveClientId: () => target.client, getRemoteClientId: () => target.native ? '' : target.client }))
 vi.mock('@/lib/device/local-mode', () => ({ isLocalMode: () => target.native }))
 vi.mock('@/plugins/eventbus', () => ({ default: { emit: vi.fn() } }))
 vi.mock('@/lib/api/native-client', () => ({ nativeGraphql: vi.fn() }))
@@ -41,9 +41,9 @@ function response(data: unknown, status = 200) {
 }
 
 beforeEach(() => {
-  Object.assign(target, { native: true, client: 'device-a', url: 'https://device-a.test', token: 'session-a', header: 'client-a' })
+  Object.assign(target, { native: true, client: 'device-a', url: 'https://device-a.test', token: 'session-a', header: 'client-a', revision: 1 })
   vi.clearAllMocks()
-  vi.stubGlobal('__IS_TAURI__', false)
+  vi.stubGlobal('__IS_TAURI__', true)
   vi.stubGlobal('window', { __PLAIN_LOG__: false, location: { reload: vi.fn() } })
 })
 afterEach(() => { vi.unstubAllGlobals() })
@@ -73,6 +73,7 @@ describe('GraphQL request ownership', () => {
   })
 
   it('separates sessions and pins outgoing HTTP headers', async () => {
+    vi.stubGlobal('__IS_TAURI__', false)
     target.native = false
     const reply = deferred<Awaited<ReturnType<typeof httpRequest>>>()
     vi.mocked(httpRequest).mockReturnValueOnce(reply.promise)
@@ -89,6 +90,7 @@ describe('GraphQL request ownership', () => {
   })
 
   it('does not clear a new session for an old-session unauthorized response', async () => {
+    vi.stubGlobal('__IS_TAURI__', false)
     target.native = false
     const reply = deferred<Awaited<ReturnType<typeof httpRequest>>>()
     vi.mocked(httpRequest).mockReturnValueOnce(reply.promise)
@@ -102,6 +104,7 @@ describe('GraphQL request ownership', () => {
   })
 
   it('keeps explicit bound cleanup requests on their original device', async () => {
+    vi.stubGlobal('__IS_TAURI__', false)
     target.native = false
     const bound = bindGraphqlClient()
     target.url = 'https://device-b.test'
@@ -155,23 +158,71 @@ it('does not deliver stale data or errors to query projections', async () => {
   expect(query.loading.value).toBe(false)
 })
 
-it.each([false, true])('routes a remote request over HTTP regardless of Desktop build flag %s', async (desktop) => {
-  vi.stubGlobal('__IS_TAURI__', desktop)
+it('keeps browser remote requests on encrypted HTTPS', async () => {
+  vi.stubGlobal('__IS_TAURI__', false)
   target.native = false
   vi.mocked(httpRequest).mockResolvedValueOnce(response({ prefs: { locale: 'fr' } }))
   expect((await gqlFetch('query { prefs }')).data).toEqual({ prefs: { locale: 'fr' } })
-  expect(httpRequest).toHaveBeenCalledTimes(1)
+  expect(httpRequest).toHaveBeenCalledExactlyOnceWith('https://device-a.test/graphql',
+    expect.objectContaining({ method: 'POST', headers: { 'c-id': 'client-a' } }))
   expect(nativeGraphql).not.toHaveBeenCalled()
 })
 
-it('sends the desktop client ID in c-id and routes the selected GraphQL peer by path', async () => {
-  vi.stubGlobal('__IS_TAURI__', true)
+it('routes the selected Desktop peer over IPC without HTTP or credentials', async () => {
   target.native = false
   target.client = 'device-b'
-  vi.mocked(httpRequest).mockResolvedValueOnce(response({ app: { clientId: 'device-b' } }))
+  vi.mocked(nativeGraphql).mockResolvedValueOnce({ data: { app: { clientId: 'device-b' } } })
   await gqlFetch('query { app { clientId } }')
-  expect(httpRequest).toHaveBeenCalledExactlyOnceWith('http://127.0.0.1:8280/proxy/device-b/graphql',
-    expect.objectContaining({ method: 'POST', headers: { 'c-id': 'client-a' } }))
+  expect(nativeGraphql).toHaveBeenCalledExactlyOnceWith({ query: 'query { app { clientId } }', variables: undefined }, 30000, { kind: 'peer', peerId: 'device-b' }, undefined)
+  expect(httpRequest).not.toHaveBeenCalled()
+  expect(getCurrentAuthToken).not.toHaveBeenCalled()
+})
+
+it('keeps bound Desktop cleanup on its original peer after changing the selected target', async () => {
+  target.native = false
+  target.client = 'device-a'
+  const bound = bindGraphqlClient()
+  target.client = 'device-b'
+  vi.mocked(nativeGraphql).mockResolvedValueOnce({ data: { releaseDiscovery: true } })
+  expect((await bound('mutation { releaseDiscovery(token: "scope") }')).data).toEqual({ releaseDiscovery: true })
+  expect(nativeGraphql).toHaveBeenCalledExactlyOnceWith({ query: 'mutation { releaseDiscovery(token: "scope") }', variables: undefined }, 30000, { kind: 'peer', peerId: 'device-a' }, expect.any(Function))
+  expect(httpRequest).not.toHaveBeenCalled()
+})
+
+it('does not deduplicate or deliver responses across Desktop peer changes', async () => {
+  target.native = false
+  const reply = deferred<any>()
+  vi.mocked(nativeGraphql).mockReturnValueOnce(reply.promise)
+  const stale = expect(gqlFetch('query { app { id } }')).rejects.toMatchObject({ message: 'request_context_changed', cancelled: true })
+  target.client = 'device-b'
+  vi.mocked(nativeGraphql).mockResolvedValueOnce({ data: { app: { id: 'b' } } })
+  expect((await gqlFetch('query { app { id } }')).data).toEqual({ app: { id: 'b' } })
+  reply.resolve({ data: { app: { id: 'a' } } })
+  await stale
+  expect(vi.mocked(nativeGraphql).mock.calls.map(([, , destination]) => destination)).toEqual([
+    { kind: 'peer', peerId: 'device-a' }, { kind: 'peer', peerId: 'device-b' },
+  ])
+  expect(httpRequest).not.toHaveBeenCalled()
+})
+
+it('does not clear a replacement Desktop session after an old IPC unauthorized response', async () => {
+  target.native = false
+  let reject!: (reason: Error) => void
+  vi.mocked(nativeGraphql).mockReturnValueOnce(new Promise((_, fail) => { reject = fail }))
+  const failure = expect(gqlFetch('query { prefs }')).rejects.toMatchObject({ message: 'unauthorized', status: 401 })
+  target.token = 'session-b'
+  target.revision++
+  reject(new Error('unauthorized'))
+  await failure
+  expect(clearCurrentSession).not.toHaveBeenCalled()
+  expect(window.location.reload).not.toHaveBeenCalled()
+})
+
+it('preserves remote permission failures without clearing the selected session', async () => {
+  target.native = false
+  vi.mocked(nativeGraphql).mockRejectedValueOnce(new Error('remote_access_disabled'))
+  await expect(gqlFetch('query { prefs }')).rejects.toMatchObject({ message: 'remote_access_disabled', status: 403 })
+  expect(clearCurrentSession).not.toHaveBeenCalled()
 })
 
 it('waits for current Desktop remote-session cleanup before reloading', async () => {
@@ -179,7 +230,7 @@ it('waits for current Desktop remote-session cleanup before reloading', async ()
   target.native = false
   const cleared = deferred<void>()
   vi.mocked(clearCurrentSession).mockReturnValueOnce(cleared.promise)
-  vi.mocked(httpRequest).mockResolvedValueOnce(response(null, 401))
+  vi.mocked(nativeGraphql).mockRejectedValueOnce(new Error('unauthorized'))
   const failure = expect(gqlFetch('query { prefs }')).rejects.toThrow('unauthorized')
   await vi.waitFor(() => expect(clearCurrentSession).toHaveBeenCalledTimes(1))
   expect(window.location.reload).not.toHaveBeenCalled()
@@ -197,14 +248,16 @@ it('routes Core preference writes to the selected local or remote target', async
   expect(httpRequest).not.toHaveBeenCalled()
   target.native = false
   target.client = 'remote'
-  vi.mocked(httpRequest).mockResolvedValueOnce(response({ result: true }))
+  vi.mocked(nativeGraphql).mockResolvedValueOnce({ data: { result: true } })
   await core.set('locale', 'ja')
-  expect(nativeGraphql).toHaveBeenCalledTimes(1)
-  expect(httpRequest).toHaveBeenCalledTimes(1)
+  expect(nativeGraphql).toHaveBeenCalledTimes(2)
+  expect(vi.mocked(nativeGraphql).mock.calls.map(([, , destination]) => destination)).toEqual([{ kind: 'local' }, { kind: 'peer', peerId: 'remote' }])
+  expect(httpRequest).not.toHaveBeenCalled()
   expect(core.get('locale', '')).toBe('ja')
 })
 
 it('keeps 300 in-flight queries running when their page unmounts', async () => {
+  vi.stubGlobal('__IS_TAURI__', false)
   const { createRenderer } = await import('vue')
   target.native = false
   const replies: Array<ReturnType<typeof deferred<any>>> = []

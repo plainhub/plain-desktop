@@ -1,5 +1,5 @@
 import { isLocalMode } from '@/lib/device/local-mode'
-import { openSubscriptionConnection, type SubscriptionConnection } from './subscription-connection'
+import { openSubscriptionConnection, type SubscriptionCallbacks, type SubscriptionConnection } from './subscription-connection'
 import type { SubscriptionOperation } from './subscription-operations'
 import type { SubscriptionField, SubscriptionResults } from './subscription-results'
 
@@ -9,7 +9,7 @@ interface Message {
   payload?: { data?: Record<string, unknown>; errors?: { message: string }[]; extensions?: { subscriptionReady?: boolean } } | { message: string }[]
 }
 export class SubscriptionClient {
-  constructor(private readonly openConnection = openSubscriptionConnection) {}
+  constructor(private readonly openConnection: (callbacks: SubscriptionCallbacks) => SubscriptionConnection = openSubscriptionConnection) {}
   private connection: SubscriptionConnection | undefined
   private operations = new Map<string, SubscriptionOperation>()
   private ids = new Map<string, string>()

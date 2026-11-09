@@ -1,12 +1,13 @@
 import { isLocalMode } from '@/lib/device/local-mode'
-import { getApiBaseUrl, getApiHeaders, nativePeerGraphqlUrl } from './api'
+import { getApiBaseUrl, getApiHeaders } from './api'
 import { chachaEncrypt, chachaDecrypt, httpResponseAad, arrayBufferToBitArray, bitArrayToUint8Array } from './crypto'
 import { tokenToKey } from './file'
 import { wrapWithReplayProtection } from './time-sync'
 import { getCurrentAuthToken, clearCurrentSession } from '../device/current'
-import { getActiveClientId } from '../device/client-id'
+import { getLoginPeerRevision } from '../device/login-peers'
+import { getActiveClientId, getRemoteClientId } from '../device/client-id'
 import { httpRequest } from './http'
-import { nativeGraphql } from './native-client'
+import { nativeGraphql, type NativeTarget } from './native-client'
 import type { GqlOperationName, GqlResultType, GqlVariablesType } from './graphql/operations'
 
 const TIMEOUT = 30000
@@ -37,13 +38,17 @@ export interface GqlFetchOptions {
 }
 
 function graphqlContext() {
-  const native = isLocalMode()
+  const native = __IS_TAURI__
+  const local = isLocalMode()
   const clientId = getActiveClientId()
+  const target: NativeTarget | undefined = native ? local ? { kind: 'local' } : { kind: 'peer', peerId: getRemoteClientId() } : undefined
   return {
     native,
     clientId,
-    url: native ? '' : __IS_TAURI__ ? nativePeerGraphqlUrl(clientId) : `${getApiBaseUrl()}/graphql`,
+    target,
+    url: native ? '' : `${getApiBaseUrl()}/graphql`,
     token: native ? '' : getCurrentAuthToken(),
+    authRevision: target?.kind === 'peer' ? getLoginPeerRevision(target.peerId) : 0,
     headers: { ...getApiHeaders() },
   }
 }
@@ -92,9 +97,7 @@ export async function gqlFetchOp<Name extends GqlOperationName>(
   return gqlFetch<GqlResultType<Name>>(query, variables as Record<string, any> | undefined, options)
 }
 
-/** POSTs one XChaCha20-encrypted GraphQL request to `url` under `token` —
- *  the shared wire protocol for the current server (gqlFetch) and for login
- *  peers reached directly (gqlFetchPeer). */
+// Browser requests share the encrypted protocol for the selected server and direct peers.
 export async function encryptedGqlPost<T = any>(
   url: string,
   token: string,
@@ -165,9 +168,8 @@ export async function encryptedGqlPost<T = any>(
   }
 }
 
-/** Runs the document against this machine's own shared Rust core. No URL, no
- *  session token and no encryption: the core holds the trusted local identity. */
-export async function nativeGqlFetch<T = any>(query: string, variables?: Record<string, any>, timeout: number = TIMEOUT): Promise<GqlResult<T>> {
+// Core resolves the target's identity and credentials; the WebView supplies no URL or key.
+export async function nativeGqlFetch<T = any>(query: string, variables?: Record<string, any>, timeout: number = TIMEOUT, target: NativeTarget = { kind: 'local' }, beforeDispatch?: () => void): Promise<GqlResult<T>> {
   const op = operationName(query)
   if (window.__PLAIN_LOG__) {
     console.info(`[gql] → ${op} @native ${JSON.stringify({ query, variables })}`)
@@ -175,7 +177,7 @@ export async function nativeGqlFetch<T = any>(query: string, variables?: Record<
 
   const startTime = performance.now()
   try {
-    const result = await nativeGraphql<GqlResult<T>>({ query, variables }, timeout)
+    const result = await nativeGraphql<GqlResult<T>>({ query, variables }, timeout, target, beforeDispatch)
     if (window.__PLAIN_LOG__) {
       console.info(`[gql] ← ${op} (${Math.round(performance.now() - startTime)}ms) ${JSON.stringify(result)}`)
     }
@@ -183,17 +185,16 @@ export async function nativeGqlFetch<T = any>(query: string, variables?: Record<
   } catch (e: any) {
     const message = e?.message || 'native_error'
     if (window.__PLAIN_LOG__) console.warn(`[gql] ✗ ${op} @native ${message}`)
-    throw new GqlError(message)
+    throw new GqlError(message, message === 'unauthorized' ? 401 : message === 'remote_access_disabled' ? 403 : undefined, message === 'request_context_changed')
   }
 }
 
 async function doGqlFetch<T = any>(context: ReturnType<typeof graphqlContext>, query: string, variables?: Record<string, any>, timeout: number = TIMEOUT): Promise<GqlResult<T>> {
-  if (context.native) return nativeGqlFetch<T>(query, variables, timeout)
-
   try {
+    if (context.native) return await nativeGqlFetch<T>(query, variables, timeout, context.target)
     return await encryptedGqlPost<T>(context.url, context.token, query, variables, timeout, context.headers)
   } catch (e) {
-    if (e instanceof GqlError && e.status === 401 && !context.native && JSON.stringify(context) === getGraphqlContextKey()) {
+    if (e instanceof GqlError && e.status === 401 && context.target?.kind !== 'local' && JSON.stringify(context) === getGraphqlContextKey()) {
       await clearCurrentSession()
       window.location.reload()
     }
@@ -203,8 +204,12 @@ async function doGqlFetch<T = any>(context: ReturnType<typeof graphqlContext>, q
 
 export function bindGraphqlClient() {
   const context = graphqlContext()
+  const target = context.target
+  const beforeDispatch = target?.kind === 'peer' ? () => {
+    if (context.authRevision !== getLoginPeerRevision(target.peerId)) throw new GqlError('request_context_changed', undefined, true)
+  } : undefined
   return <T = any>(query: string, variables?: Record<string, any>, timeout = TIMEOUT): Promise<GqlResult<T>> =>
-    context.native ? nativeGqlFetch<T>(query, variables, timeout) : encryptedGqlPost<T>(context.url, context.token, query, variables, timeout, context.headers)
+    context.native ? nativeGqlFetch<T>(query, variables, timeout, context.target, beforeDispatch) : encryptedGqlPost<T>(context.url, context.token, query, variables, timeout, context.headers)
 }
 
 export class GqlError extends Error {

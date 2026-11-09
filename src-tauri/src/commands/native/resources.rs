@@ -33,8 +33,9 @@ pub async fn native_resource_open<R: Runtime>(
     registry: State<'_, Arc<ResourceRegistry>>,
     views: State<'_, NativeViews>,
     path: String,
+    scope: String,
 ) -> Result<OpenedResource, String> {
-    let scope = views.scope(window.label());
+    let scope = views.existing_scope(window.label(), &scope)?;
     let resolved = core.resolve_native_file(&path).await?;
     registry.open(&scope, &resolved).await
 }
@@ -45,8 +46,9 @@ pub fn native_resource_close<R: Runtime>(
     registry: State<'_, Arc<ResourceRegistry>>,
     views: State<'_, NativeViews>,
     id: String,
-) -> bool {
-    registry.close(&views.scope(window.label()), &id)
+    scope: String,
+) -> Result<bool, String> {
+    Ok(registry.close(&views.existing_scope(window.label(), &scope)?, &id))
 }
 
 #[tauri::command]
@@ -54,6 +56,8 @@ pub fn native_resource_close_owner<R: Runtime>(
     window: WebviewWindow<R>,
     registry: State<'_, Arc<ResourceRegistry>>,
     views: State<'_, NativeViews>,
-) {
-    registry.close_owner(views.scope(window.label()).id());
+    scope: String,
+) -> Result<(), String> {
+    registry.close_owner(views.existing_scope(window.label(), &scope)?.id());
+    Ok(())
 }

@@ -1,4 +1,5 @@
 import { FileAction, withFileAction } from './api/file-action'
+import { isNativeResourceUrl } from '@/hooks/native-resource-url'
 
 // HEVC (H.265) playback capability probing and fallback URL negotiation.
 //
@@ -47,7 +48,8 @@ async function fetchVideoCodec(src: string, chat: boolean): Promise<string> {
  * "converting…" hint.
  */
 export async function ensurePlayableVideoUrl(src: string, chat = false): Promise<{ url: string; transcoded: boolean }> {
-  if (browserSupportsHevc()) return { url: src, transcoded: false }
+  // Native handles expose bytes, not the HTTP codec probe or transcode actions.
+  if (isNativeResourceUrl(src) || browserSupportsHevc()) return { url: src, transcoded: false }
   const codec = await fetchVideoCodec(src, chat)
   if (codec === 'hvc1' || codec === 'hev1') {
     return { url: withFileAction(src, FileAction.Transcode, chat), transcoded: true }

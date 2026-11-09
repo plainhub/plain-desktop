@@ -1,7 +1,7 @@
 import { invoke } from '@tauri-apps/api/core'
 import { nativeGraphql } from '@/lib/api/native-client'
 
-async function localPath(reference: string): Promise<string> {
+export async function resolveLocalFilePath(reference: string): Promise<string> {
   const paths = await invoke<Array<string | null>>('native_file_paths', { paths: [reference] })
   const path = Array.isArray(paths) ? paths[0] : null
   if (typeof path !== 'string' || !path) throw new Error('File reference could not be resolved')
@@ -9,11 +9,11 @@ async function localPath(reference: string): Promise<string> {
 }
 
 export async function revealLocalFile(reference: string): Promise<void> {
-  await invoke('reveal_file', { path: await localPath(reference) })
+  await invoke('reveal_file', { path: await resolveLocalFilePath(reference) })
 }
 
 export async function saveLocalFileAs(reference: string, name: string): Promise<void> {
-  await invoke('save_file_as', { path: await localPath(reference), name })
+  await invoke('save_file_as', { path: await resolveLocalFilePath(reference), name })
 }
 
 export async function saveTextFileAs(name: string, contents: string): Promise<void> {
@@ -32,5 +32,5 @@ export async function saveTextFileAs(name: string, contents: string): Promise<vo
 }
 
 export async function copyLocalFile(reference: string): Promise<void> {
-  await invoke('copy_file_to_clipboard', { path: await localPath(reference) })
+  await invoke('copy_file_to_clipboard', { path: await resolveLocalFilePath(reference) })
 }

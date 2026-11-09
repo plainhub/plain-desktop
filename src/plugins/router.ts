@@ -347,11 +347,8 @@ router.beforeEach(async (to, from) => {
     }
   }
 
-  // /media-preview is a self-contained popup window — it carries its source
-  // entirely via the `?src=...` query string, so it doesn't need auth.
-  // Guard it against being loaded bare (e.g. user typing the URL) by
-  // bouncing back to home when no source is present.
-  if (to.name === 'media-preview' && !to.query.src) {
+  // Native preview windows reopen their original reference in their own scope.
+  if (to.name === 'media-preview' && !to.query.src && !to.query.path) {
     return { path: '/' }
   }
 

@@ -1,5 +1,7 @@
 import { getProxyUrl } from '@/lib/api/api'
 import { nativeGraphql } from '@/lib/api/native-client'
+import { isNativeResourceUrl } from '@/hooks/native-resource-url'
+import { resolveLocalFilePath, saveLocalFileAs } from '@/lib/native-file-actions'
 
 export function joinPath(dir: string, name: string): string {
   return dir.replace(/[\\/]+$/, '') + '/' + name
@@ -18,9 +20,15 @@ async function writeDownload(url: string, path: string): Promise<string> {
   return path
 }
 
-export async function downloadToDir(url: string, name: string): Promise<string> {
-  const { pathname, search } = new URL(url)
-  const source = getProxyUrl(pathname + search)
+export async function downloadToDir(url: string, name: string, reference?: string): Promise<string> {
+  let source: string
+  if (isNativeResourceUrl(url)) {
+    if (!reference || isNativeResourceUrl(reference)) throw new Error('Native download requires the original file reference')
+    source = await resolveLocalFilePath(reference)
+  } else {
+    const { pathname, search } = new URL(url)
+    source = getProxyUrl(pathname + search)
+  }
   const { downloadDir } = await import('@tauri-apps/api/path')
   const response = await nativeGraphql<{
     data?: { copyFileToDirectory: string | null }
@@ -35,7 +43,13 @@ export async function downloadToDir(url: string, name: string): Promise<string> 
   return path
 }
 
-export async function downloadAs(url: string, name: string): Promise<string | null> {
+export async function downloadAs(url: string, name: string, reference?: string): Promise<string | null> {
+  if (isNativeResourceUrl(url)) {
+    if (!reference || isNativeResourceUrl(reference)) throw new Error('Native download requires the original file reference')
+    await saveLocalFileAs(reference, name)
+    // The existing native dialog command does not return the selected destination.
+    return null
+  }
   const { save } = await import('@/lib/tauri-plugins')
   const { downloadDir } = await import('@tauri-apps/api/path')
   const path = await save({ defaultPath: joinPath(await downloadDir(), name) })

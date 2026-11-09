@@ -66,7 +66,7 @@ import { inject, onBeforeUnmount, ref, watch } from 'vue'
 import { formatTimeAgo, formatDateTime } from '@/lib/format'
 import { resolveFileUrlByPath } from '@/lib/api/file'
 import type { IFeedEntry } from '@/lib/interfaces'
-import { closeNativeResources, isExternalReference } from '@/hooks/native-resource-url'
+import { closeNativeResources, isExternalReference, isNativeResourceUrl } from '@/hooks/native-resource-url'
 import { useTempStore } from '@/stores/temp'
 import VirtualList from '@/components/virtualscroll'
 import { useFeedEntriesData } from './hooks/useFeedEntriesData'
@@ -111,7 +111,7 @@ async function refreshImages(entries: IFeedEntry[]) {
     }
     const url = await resolveFileUrlByPath(tempStore.urlTokenKey, reference, undefined, '&size=sm')
     resolved[reference] = url
-    if (url.startsWith('plain-resource://')) {
+    if (isNativeResourceUrl(url)) {
       opened.push(reference)
     }
   }))

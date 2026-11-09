@@ -1,6 +1,6 @@
 import { invoke } from '@tauri-apps/api/core'
 import { listen } from '@tauri-apps/api/event'
-import { ref } from 'vue'
+import { reactive, ref } from 'vue'
 import { nativeGraphql } from '@/lib/api/native-client'
 import type { IPeer } from '@/lib/interfaces'
 
@@ -24,6 +24,11 @@ export function peerHost(p: IPeer): string {
 }
 
 export const loginPeers = ref<LoginPeer[]>([])
+const authRevisions = reactive(new Map<string, number>())
+
+export function getLoginPeerRevision(peerId: string): number {
+  return authRevisions.get(peerId) ?? 0
+}
 
 let refreshing: Promise<void> | undefined
 let refreshPending = false
@@ -41,7 +46,15 @@ async function refreshLoginPeers(): Promise<void> {
       refreshPending = false
       try {
         const result = await localData<{ peers: LoginPeer[] }>('query { peers { id name ip status port deviceType token publicKey createdAt updatedAt online address { bestIp baseUrl } } }')
-        loginPeers.value = result.peers.filter((peer) => !!peer.token).sort((a, b) => b.createdAt.localeCompare(a.createdAt) || a.id.localeCompare(b.id))
+        const peers = result.peers.filter((peer) => !!peer.token).sort((a, b) => b.createdAt.localeCompare(a.createdAt) || a.id.localeCompare(b.id))
+        const previous = new Map(loginPeers.value.map(peer => [peer.id, peer]))
+        for (const peer of peers) {
+          const old = previous.get(peer.id)
+          if (!old || old.token !== peer.token || old.publicKey !== peer.publicKey) authRevisions.set(peer.id, getLoginPeerRevision(peer.id) + 1)
+          previous.delete(peer.id)
+        }
+        for (const peerId of previous.keys()) authRevisions.set(peerId, getLoginPeerRevision(peerId) + 1)
+        loginPeers.value = peers
       } catch (error) {
         console.error('list_login_peers failed', error)
       }

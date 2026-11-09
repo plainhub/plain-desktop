@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, expect, it, vi } from 'vitest'
-import { getApiBaseUrl, getWebSocketBaseUrl, nativePeerGraphqlUrl, proxyHttpUrl, proxyWsUrlFor, setLocalServerPort, setUrlToken, setPendingLoginDevice, clearPendingLoginDevice } from '@/lib/api/api'
+import { getApiBaseUrl, getWebSocketBaseUrl, proxyHttpUrl, proxyWsUrlFor, setLocalServerPort, setUrlToken, setPendingLoginDevice, clearPendingLoginDevice } from '@/lib/api/api'
 import { DeviceType } from '@/lib/status'
 
 const target = vi.hoisted(() => ({ local: true, host: '', base: '' }))
@@ -70,10 +70,4 @@ it('uses the existing Core listener for native HTTP', () => {
   expect(init.pathname).toMatch(/^\/proxy\/c\.self\.[\w-]+\/init$/)
   expect(init.search).toBe('?value=a%2Bb')
   expect(proxyWsUrlFor('ws://localhost:8180/graphql')).toBe('ws://localhost:8180/graphql')
-})
-
-it('routes Desktop GraphQL by peer ID without putting the desktop ID in the URL', () => {
-  const url = nativePeerGraphqlUrl('device-b')
-  expect(url).toBe('http://127.0.0.1:8180/proxy/device-b/graphql')
-  expect(proxyHttpUrl(url)).toBe(url)
 })

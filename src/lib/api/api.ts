@@ -65,10 +65,6 @@ function localProxyUrl(target: string, path: string, socket = false): string {
   return `${socket ? 'ws' : 'http'}://127.0.0.1:${_localServerPort}${peerProxyPath(target, path)}`
 }
 
-export function nativePeerGraphqlUrl(peerId: string): string {
-  return localProxyUrl(peerId, '/graphql')
-}
-
 export function proxyUrlFor(base: string, path: string): string {
   return __IS_TAURI__ && base.startsWith('https://')
     ? proxyPath(path, new URL(base).origin)

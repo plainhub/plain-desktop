@@ -444,7 +444,7 @@ export function useLightboxFileActions(
   function downloadFile() {
     const source = current.value
     if (!source) return
-    download(source.src, (source.name || getFileName(source.path)).replace(' ', '-'), source.isFromChat)
+    download(source.src, (source.name || getFileName(source.path)).replace(' ', '-'), source.isFromChat, source.path)
   }
 
   function deleteFile() {

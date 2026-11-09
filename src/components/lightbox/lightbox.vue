@@ -130,9 +130,11 @@
 </template>
 <script setup lang="ts">
 import { computed, inject, toRef, onMounted, onUnmounted } from 'vue'
+import { useI18n } from 'vue-i18n'
+import toast from '@/components/toaster'
 import { preventDefault } from './utils/index'
 import { isVideo, isImage, isAudio, isSvg } from '@/lib/file'
-import { openMediaInWindow } from '@/lib/api/tauri-window'
+import { openMediaInWindow, openImageEditor } from '@/lib/api/tauri-window'
 import {
   useLightboxState,
   useLightboxQueries,
@@ -156,6 +158,7 @@ const props = defineProps({
 
 const emit = defineEmits(['on-error', 'on-prev', 'on-next', 'on-prev-click', 'on-next-click', 'on-index-change'])
 
+const { t } = useI18n()
 const isPhone = inject('isPhone') as boolean
 const isTablet = inject('isTablet') as boolean
 
@@ -233,11 +236,14 @@ async function onOpenInWindow() {
   await openMediaInWindow(source)
 }
 
-function onEditImage() {
+async function onEditImage() {
   if (!current.value) return
-  const src = current.value.src
-  const name = current.value.name || ''
-  window.open(`/image-editor/new?src=${encodeURIComponent(src)}&name=${encodeURIComponent(name)}`, '_blank')
+  try {
+    await openImageEditor(current.value)
+  } catch (error) {
+    console.warn('Image editor could not be opened', error)
+    toast(t('failed_to_load_file'), 'error')
+  }
 }
 
 const { onMouseDown, onMouseMove, onMouseUp, onTouchStart, onTouchMove, onTouchEnd } =

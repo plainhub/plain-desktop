@@ -1,20 +1,18 @@
-import { isLocalMode } from '@/lib/device/local-mode'
 import { wrapWithReplayProtection } from '../api/time-sync'
 import type { IUploadItem } from '@/stores/temp'
 import emitter from '@/plugins/eventbus'
 import { invoke } from '@tauri-apps/api/core'
 import { sha256 } from '@noble/hashes/sha2.js'
 import { bytesToHex } from '@noble/hashes/utils.js'
-import { getApiBaseUrl, getUrlToken, proxyUrlFor } from '../api/api'
+import type { NativeTarget } from '../api/native-client'
 import { chachaEncrypt, bitArrayToUint8Array } from '../api/crypto'
 import { tokenToKey } from '../api/file'
 import { uploadedChunksGQL } from '../api/query'
 import { deleteChunksGQL } from '../api/mutation'
-import { gqlFetch, GqlError } from '../api/gql-client'
+import { GqlError } from '../api/gql-client'
 import { requestMerge } from './merge-async'
 import { setUploadStatus, setUploadUploadedSize } from './batch-progress'
-import { getCurrentAuthToken } from '../device/current'
-import { getDesktopClientId } from '@/lib/device/client-id'
+import { assertUploadContext, getUploadContext, getUploadNativeScope, isUploadContextCurrent, isUploadAuthCurrent, uploadChunkOwner, registerUploadCancellation, type WebUploadContext } from './context'
 
 const CHUNK_SIZE = 10 * 1024 * 1024 // 10MB — fewer chunks, lower HTTP overhead; per-chunk retry cost acceptable on weak networks
 const PARALLEL_CHUNKS = 3 // Upload 3 chunks in parallel per file
@@ -26,11 +24,16 @@ const MAX_CONCURRENT_CHUNKS = 4 // Global limit across ALL concurrent file uploa
 // the phone server can be overwhelmed. This caps total in-flight chunk uploads.
 let activeChunkUploads = 0
 
-async function acquireChunkSlot(upload: IUploadItem): Promise<boolean> {
+async function acquireChunkSlot(upload: IUploadItem, signal: AbortSignal): Promise<boolean> {
   while (activeChunkUploads >= MAX_CONCURRENT_CHUNKS) {
+    signal.throwIfAborted()
+    assertUploadContext(upload)
     if (upload.status === 'paused' || upload.status === 'canceled') return false
     await new Promise<void>((resolve) => setTimeout(resolve, 200))
   }
+  signal.throwIfAborted()
+  assertUploadContext(upload)
+  if (upload.status === 'paused' || upload.status === 'canceled') return false
   activeChunkUploads++
   return true
 }
@@ -39,56 +42,67 @@ function releaseChunkSlot() {
   activeChunkUploads = Math.max(0, activeChunkUploads - 1)
 }
 
-// Uploads go through XHR (progress events), so the self-signed-cert
-// workaround is the local `/proxy` URL.
-export function getUploadUrl() {
-  return proxyUrlFor(getApiBaseUrl(), '/upload')
-}
-
-export function getUploadChunkUrl() {
-  return proxyUrlFor(getApiBaseUrl(), '/upload_chunk')
-}
-
 const NATIVE_WRITE_BYTES = 64 * 1024
 
-async function nativeWriteChunk(upload: IUploadItem, chunkData: IUploadChunk, onProgress: (bytes: number) => void): Promise<boolean> {
-  const fileId = upload.fileId || ''
-  let handle: string
+async function nativeWriteChunk(upload: IUploadItem, chunkData: IUploadChunk, target: NativeTarget, signal: AbortSignal, onProgress: (bytes: number) => void): Promise<boolean> {
+  let handle = ''
+  let scope = ''
+  let abort: Promise<unknown> | undefined
+  const abortHandle = () => {
+    if (handle && !abort) abort = invoke('native_upload_chunk_abort', { scope, handle }).catch(() => {})
+  }
+  signal.addEventListener('abort', abortHandle)
   try {
+    signal.throwIfAborted()
+    scope = await getUploadNativeScope(upload)
+    signal.throwIfAborted()
+    assertUploadContext(upload)
+    if (upload.status === 'paused' || upload.status === 'canceled') return false
     handle = await invoke<string>('native_upload_chunk_open', {
-      fileId,
+      scope,
+      target,
+      fileId: upload.fileId || '',
       index: chunkData.index,
       size: chunkData.chunk.size,
     })
-  } catch (error: any) {
-    console.warn(`Chunk ${chunkData.index} native open failed:`, error?.message ?? error)
-    return false
-  }
 
-  let sent = 0
-  try {
-    const bytes = new Uint8Array(await chunkData.chunk.arrayBuffer())
-    for (let offset = 0; offset < bytes.length; offset += NATIVE_WRITE_BYTES) {
-      if (upload.status === 'paused' || upload.status === 'canceled') {
-        return false
-      }
-      const slice = bytes.subarray(offset, Math.min(offset + NATIVE_WRITE_BYTES, bytes.length))
-      await invoke('native_upload_chunk_write', slice, {
-        headers: { 'x-plain-upload-handle': handle },
+    let sent = 0
+    for (let offset = 0; offset < chunkData.chunk.size; offset += NATIVE_WRITE_BYTES) {
+      signal.throwIfAborted()
+      assertUploadContext(upload)
+      if (upload.status === 'paused' || upload.status === 'canceled') return false
+      const end = Math.min(offset + NATIVE_WRITE_BYTES, chunkData.chunk.size)
+      const bytes = new Uint8Array(await chunkData.chunk.slice(offset, end).arrayBuffer())
+      signal.throwIfAborted()
+      assertUploadContext(upload)
+      if (upload.status === 'paused' || upload.status === 'canceled') return false
+      await invoke('native_upload_chunk_write', bytes, {
+        headers: { 'x-plain-upload-handle': handle, 'x-plain-native-scope': scope },
       })
-      sent += slice.length
+      signal.throwIfAborted()
+      assertUploadContext(upload)
+      if (upload.status === 'paused' || upload.status === 'canceled') return false
+      sent += bytes.length
       onProgress(sent)
     }
-    await invoke<number>('native_upload_chunk_finish', { handle })
+    signal.throwIfAborted()
+    assertUploadContext(upload)
+    if (upload.status === 'paused' || upload.status === 'canceled') return false
+    const savedSize = await invoke<number>('native_upload_chunk_finish', { scope, handle })
+    if (savedSize !== chunkData.chunk.size) throw new Error(`Chunk ${chunkData.index} size mismatch: saved=${savedSize}, expected=${chunkData.chunk.size}`)
     handle = ''
-    return true
+    signal.throwIfAborted()
+    assertUploadContext(upload)
+    return upload.status !== 'paused' && upload.status !== 'canceled'
   } catch (error: any) {
+    signal.throwIfAborted()
+    assertUploadContext(upload)
     console.warn(`Chunk ${chunkData.index} native write failed:`, error?.message ?? error)
     return false
   } finally {
-    if (handle) {
-      await invoke('native_upload_chunk_abort', { handle }).catch(() => {})
-    }
+    abortHandle()
+    await abort
+    signal.removeEventListener('abort', abortHandle)
   }
 }
 
@@ -170,10 +184,13 @@ async function runExclusively<T>(fileId: string, action: () => Promise<T>): Prom
   }
 }
 
-export function discardUploadChunks(fileId: string, hasOtherOwner: () => boolean): Promise<void> {
-  return runExclusively(fileId, async () => {
-    if (hasOtherOwner()) return
-    const result = await gqlFetch(deleteChunksGQL, { fileId })
+export function discardUploadChunks(upload: IUploadItem, hasOtherOwner: () => boolean): Promise<void> {
+  const fileId = upload.fileId
+  if (!fileId) return Promise.resolve()
+  const context = getUploadContext(upload)
+  return runExclusively(uploadChunkOwner(upload), async () => {
+    if (hasOtherOwner() || !isUploadAuthCurrent(upload)) return
+    const result = await context.graphql(deleteChunksGQL, { fileId })
     if (result.errors?.length) throw new GqlError(result.errors[0].message)
   })
 }
@@ -185,22 +202,22 @@ export function discardUploadChunks(fileId: string, hasOtherOwner: () => boolean
 // expects a paired app release.
 
 export async function upload(upload: IUploadItem, replace: boolean) {
-  // In local mode the local server is the only client, so it has no
-  // per-session token — the upload `info` part is encrypted with the
-  // local server's URL token (same key the server uses to decrypt).
-  const token = isLocalMode() ? getUrlToken() : getCurrentAuthToken()
-  const key = tokenToKey(token)
+  const context = getUploadContext(upload)
+  const controller = new AbortController()
+  const unregister = registerUploadCancellation(upload, () => controller.abort())
+  const signal = controller.signal
 
   // Initialize upload status
   initializeUpload(upload)
 
   try {
-    if (upload.file.size > CHUNK_SIZE) {
+    assertUploadContext(upload)
+    if (context.native || upload.file.size > CHUNK_SIZE) {
       // Chunked upload with parallel transfers and resume support
-      return await uploadWithChunks(upload, replace, key)
+      return await uploadWithChunks(upload, replace, signal)
     } else {
       // Small files: direct upload (no chunking overhead)
-      return await uploadDirect(upload, replace, key)
+      return await uploadDirect(upload, replace, context)
     }
   } catch (error: any) {
     if (error.name === 'AbortError' || upload.status === 'paused') {
@@ -208,11 +225,14 @@ export async function upload(upload: IUploadItem, replace: boolean) {
       return { error: 'Upload paused' }
     }
     throw error
+  } finally {
+    unregister()
   }
 }
 
-async function uploadDirect(upload: IUploadItem, replace: boolean, key: Uint8Array) {
+async function uploadDirect(upload: IUploadItem, replace: boolean, context: WebUploadContext) {
   try {
+    const key = tokenToKey(context.token)
     const data = new FormData()
     const v = bitArrayToUint8Array(chachaEncrypt(key, wrapWithReplayProtection(JSON.stringify({ dir: upload.dir, replace, isAppFile: upload.isAppFile ?? false, size: upload.file.size }))))
     data.append('info', new Blob([v]))
@@ -223,10 +243,18 @@ async function uploadDirect(upload: IUploadItem, replace: boolean, key: Uint8Arr
 
     return new Promise((resolve, reject) => {
       const xhr = new XMLHttpRequest()
+      const stale = () => {
+        if (isUploadContextCurrent(upload)) return false
+        setUploadStatus(upload, 'error')
+        upload.error = 'request_context_changed'
+        resolve({ error: upload.error })
+        return true
+      }
 
       xhr.upload.addEventListener(
         'progress',
         (e) => {
+          if (stale()) { xhr.abort(); return }
           if (e.lengthComputable) {
             updateUploadProgress(upload, e.loaded)
             emitter.emit('upload_progress', upload)
@@ -238,6 +266,7 @@ async function uploadDirect(upload: IUploadItem, replace: boolean, key: Uint8Arr
       xhr.upload.addEventListener(
         'load',
         () => {
+          if (stale()) return
           setUploadUploadedSize(upload, upload.file.size)
           setUploadStatus(upload, 'saving')
         },
@@ -245,6 +274,7 @@ async function uploadDirect(upload: IUploadItem, replace: boolean, key: Uint8Arr
       )
 
       xhr.onreadystatechange = function () {
+        if (stale()) return
         if (xhr.readyState === 4) {
           if (xhr.status === 201) {
             if (upload.isAppFile) {
@@ -269,6 +299,7 @@ async function uploadDirect(upload: IUploadItem, replace: boolean, key: Uint8Arr
       }
 
       xhr.onerror = () => {
+        if (stale()) return
         setUploadStatus(upload, 'error')
         upload.error = 'Network error'
         resolve({ error: 'Network error' })
@@ -276,14 +307,16 @@ async function uploadDirect(upload: IUploadItem, replace: boolean, key: Uint8Arr
       }
 
       xhr.onabort = () => {
+        if (stale()) return
         console.log('Upload aborted')
         resolve({ error: 'Upload aborted' })
         emitter.emit('upload_progress', upload)
       }
 
       try {
-        xhr.open('POST', getUploadUrl(), true)
-        xhr.setRequestHeader('c-id', getDesktopClientId())
+        assertUploadContext(upload)
+        xhr.open('POST', context.uploadUrl, true)
+        xhr.setRequestHeader('c-id', context.clientId)
         upload.xhr = xhr
         xhr.send(data)
       } catch (ex: any) {
@@ -298,31 +331,36 @@ async function uploadDirect(upload: IUploadItem, replace: boolean, key: Uint8Arr
   }
 }
 
-async function uploadWithChunks(upload: IUploadItem, replace: boolean, key: Uint8Array) {
+async function uploadWithChunks(upload: IUploadItem, replace: boolean, signal: AbortSignal) {
   // Generate file ID
   if (!upload.fileId) {
     upload.fileId = await generateFileId(upload.file)
   }
+  signal.throwIfAborted()
+  assertUploadContext(upload)
   const fileId = upload.fileId
 
-  return runExclusively(fileId, () => uploadChunkedFile(upload, fileId, replace, key))
+  return runExclusively(uploadChunkOwner(upload, fileId), () => uploadChunkedFile(upload, fileId, replace, signal))
 }
 
-async function uploadChunkedFile(upload: IUploadItem, fileId: string, replace: boolean, key: Uint8Array) {
+async function uploadChunkedFile(upload: IUploadItem, fileId: string, replace: boolean, signal: AbortSignal) {
   try {
+    signal.throwIfAborted()
+    assertUploadContext(upload)
     if (upload.status === 'paused' || upload.status === 'canceled') {
       return { error: 'Upload paused' }
     }
 
     upload.isChunked = true
-    const totalChunks = Math.ceil(upload.file.size / CHUNK_SIZE)
+    const totalChunks = Math.max(1, Math.ceil(upload.file.size / CHUNK_SIZE))
 
     // Query uploaded chunks with sizes for verification
-    const verifiedChunks = await getUploadedChunks(fileId, upload.file.size, totalChunks)
+    const verifiedChunks = await getUploadedChunks(upload, fileId, upload.file.size, totalChunks)
     if (upload.status === 'paused' || upload.status === 'canceled') {
       return { error: 'Upload paused' }
     }
 
+    signal.throwIfAborted()
     upload.uploadedChunks = [...verifiedChunks]
 
     // Calculate initial progress from already-uploaded chunks
@@ -367,10 +405,9 @@ async function uploadChunkedFile(upload: IUploadItem, fileId: string, replace: b
         if (myIdx >= pendingIndices.length) return
 
         // Wait for a global chunk upload slot to avoid overwhelming the server
-        if (!(await acquireChunkSlot(upload))) return
+        if (!(await acquireChunkSlot(upload, signal))) return
 
         const chunkIndex = pendingIndices[myIdx]
-        const chunkData = createChunk(upload.file, chunkIndex, CHUNK_SIZE)
 
         const onProgress = (bytes: number) => {
           // Only increase — never decrease. When a chunk retry starts, the
@@ -384,7 +421,10 @@ async function uploadChunkedFile(upload: IUploadItem, fileId: string, replace: b
         }
 
         try {
-          const success = await uploadChunkWithRetry(upload, chunkData, key, onProgress)
+          signal.throwIfAborted()
+          assertUploadContext(upload)
+          const chunkData = createChunk(upload.file, chunkIndex, CHUNK_SIZE)
+          const success = await uploadChunkWithRetry(upload, chunkData, signal, onProgress)
 
           if (!success) {
             if (upload.status === 'paused') return
@@ -413,7 +453,11 @@ async function uploadChunkedFile(upload: IUploadItem, fileId: string, replace: b
     for (let w = 0; w < workers; w++) {
       workerPromises.push(uploadNextChunk())
     }
-    await Promise.all(workerPromises)
+    const outcomes = await Promise.allSettled(workerPromises)
+    const failed = outcomes.find(outcome => outcome.status === 'rejected')
+    if (failed?.status === 'rejected') throw failed.reason
+    signal.throwIfAborted()
+    assertUploadContext(upload)
 
     if (upload.status === 'canceled' || upload.status === 'paused') {
       return { error: 'Upload paused' }
@@ -436,6 +480,8 @@ async function uploadChunkedFile(upload: IUploadItem, fileId: string, replace: b
       ? { fileId, totalChunks, fileName: baseName, totalSize: upload.file.size }
       : { fileId, totalChunks, path: filePath, replace, totalSize: upload.file.size })
 
+    signal.throwIfAborted()
+    assertUploadContext(upload)
     if (upload.status === 'paused' || upload.status === 'canceled') {
       return { error: 'Upload paused' }
     }
@@ -475,11 +521,12 @@ async function uploadChunkedFile(upload: IUploadItem, fileId: string, replace: b
 }
 
 // Get list of uploaded chunks, verified by size
-async function getUploadedChunks(fileId: string, fileSize: number, totalChunks: number): Promise<number[]> {
+async function getUploadedChunks(upload: IUploadItem, fileId: string, fileSize: number, totalChunks: number): Promise<number[]> {
   try {
     // A false timeout here degrades to re-uploading every chunk, so give the
     // query a much wider budget than the 30s default.
-    const result = await gqlFetch(uploadedChunksGQL, { fileId }, { timeout: 120_000 })
+    const result = await getUploadContext(upload).graphql(uploadedChunksGQL, { fileId }, 120_000)
+    assertUploadContext(upload)
     const raw: string[] = result.data?.uploadedChunks ? [...result.data.uploadedChunks] : []
     if (raw.length === 0) return []
 
@@ -510,11 +557,13 @@ async function getUploadedChunks(fileId: string, fileSize: number, totalChunks: 
     // chunk size). Delete them to free disk space and avoid confusion.
     if (verified.length === 0 && mismatchCount > 0) {
       console.warn(`All ${mismatchCount} server chunks are stale for ${fileId}. Deleting.`)
-      await gqlFetch(deleteChunksGQL, { fileId })
+      await getUploadContext(upload).graphql(deleteChunksGQL, { fileId })
+      assertUploadContext(upload)
     }
 
     return verified
   } catch (error) {
+    assertUploadContext(upload)
     console.error('Failed to query uploaded chunks:', error)
     return []
   }
@@ -532,19 +581,23 @@ function createChunk(file: File, index: number, chunkSize: number): IUploadChunk
   }
 }
 
-async function uploadChunkWithRetry(upload: IUploadItem, chunkData: IUploadChunk & { start: number; end: number }, key: Uint8Array, onProgress: (bytes: number) => void, maxRetries: number = 5): Promise<boolean> {
+async function uploadChunkWithRetry(upload: IUploadItem, chunkData: IUploadChunk & { start: number; end: number }, signal: AbortSignal, onProgress: (bytes: number) => void, maxRetries: number = 5): Promise<boolean> {
   for (let attempt = 1; attempt <= maxRetries; attempt++) {
+    signal.throwIfAborted()
+    assertUploadContext(upload)
     if (upload.status === 'canceled' || upload.status === 'paused') {
       return false
     }
 
     try {
-      const success = await uploadChunk(upload, chunkData, key, onProgress)
+      const success = await uploadChunk(upload, chunkData, signal, onProgress)
+      signal.throwIfAborted()
+      assertUploadContext(upload)
       if (success) {
         return true
       }
 
-      if (upload.status === 'paused') {
+      if (upload.status === 'paused' || upload.status === 'canceled') {
         return false
       }
 
@@ -555,17 +608,19 @@ async function uploadChunkWithRetry(upload: IUploadItem, chunkData: IUploadChunk
         // Don't reset onProgress(0) here — it causes the progress bar to go
         // backward while waiting. The retry's XHR progress events will
         // naturally overwrite the old chunk progress value.
-        await waitWithPauseCheck(upload, Math.min(1000 * Math.pow(2, attempt - 1), 10000))
+        await waitWithPauseCheck(upload, signal, Math.min(1000 * Math.pow(2, attempt - 1), 10000))
       }
     } catch (error: any) {
-      if (upload.status === 'paused') {
+      signal.throwIfAborted()
+      assertUploadContext(upload)
+      if (upload.status === 'paused' || upload.status === 'canceled') {
         return false
       }
 
       console.warn(`Chunk ${chunkData.index} upload error on attempt ${attempt}:`, error.message)
 
       if (attempt < maxRetries) {
-        await waitWithPauseCheck(upload, Math.min(1000 * Math.pow(2, attempt - 1), 10000))
+        await waitWithPauseCheck(upload, signal, Math.min(1000 * Math.pow(2, attempt - 1), 10000))
       }
     }
   }
@@ -575,22 +630,28 @@ async function uploadChunkWithRetry(upload: IUploadItem, chunkData: IUploadChunk
 }
 
 // Interruptible wait function
-async function waitWithPauseCheck(upload: IUploadItem, delay: number): Promise<void> {
+async function waitWithPauseCheck(upload: IUploadItem, signal: AbortSignal, delay: number): Promise<void> {
   const startTime = Date.now()
   while (Date.now() - startTime < delay) {
-    if (upload.status === 'paused') {
+    signal.throwIfAborted()
+    assertUploadContext(upload)
+    if (upload.status === 'paused' || upload.status === 'canceled') {
       return
     }
     await new Promise((resolve) => setTimeout(resolve, 100))
   }
 }
 
-async function uploadChunk(upload: IUploadItem, chunkData: IUploadChunk & { start: number; end: number }, key: Uint8Array, onProgress: (bytes: number) => void): Promise<boolean> {
-  return isLocalMode() ? nativeWriteChunk(upload, chunkData, onProgress) : uploadChunkHttp(upload, chunkData, key, onProgress)
+async function uploadChunk(upload: IUploadItem, chunkData: IUploadChunk & { start: number; end: number }, signal: AbortSignal, onProgress: (bytes: number) => void): Promise<boolean> {
+  signal.throwIfAborted()
+  assertUploadContext(upload)
+  const context = getUploadContext(upload)
+  return context.native ? nativeWriteChunk(upload, chunkData, context.target, signal, onProgress) : uploadChunkHttp(upload, chunkData, context, onProgress)
 }
 
-async function uploadChunkHttp(upload: IUploadItem, chunkData: IUploadChunk & { start: number; end: number }, key: Uint8Array, onProgress: (bytes: number) => void): Promise<boolean> {
+async function uploadChunkHttp(upload: IUploadItem, chunkData: IUploadChunk & { start: number; end: number }, context: WebUploadContext, onProgress: (bytes: number) => void): Promise<boolean> {
   return new Promise((resolve) => {
+    const key = tokenToKey(context.token)
     const data = new FormData()
     const info = JSON.stringify({
       fileId: upload.fileId,
@@ -607,6 +668,7 @@ async function uploadChunkHttp(upload: IUploadItem, chunkData: IUploadChunk & { 
     xhr.upload.addEventListener(
       'progress',
       (e) => {
+        if (!isUploadContextCurrent(upload)) { xhr.abort(); return }
         if (e.lengthComputable) {
           if (excludeSize === 0) {
             excludeSize = e.total - chunkData.chunk.size
@@ -622,6 +684,7 @@ async function uploadChunkHttp(upload: IUploadItem, chunkData: IUploadChunk & { 
     xhr.onreadystatechange = function () {
         if (xhr.readyState === 4) {
           upload.xhrs?.delete(xhr)
+          if (!isUploadContextCurrent(upload)) { resolve(false); return }
           if (xhr.status === 201) {
             // Server returns "index:savedSize" — verify
             const resp = xhr.responseText
@@ -658,8 +721,9 @@ async function uploadChunkHttp(upload: IUploadItem, chunkData: IUploadChunk & { 
     }
 
     try {
-      xhr.open('POST', getUploadChunkUrl(), true)
-      xhr.setRequestHeader('c-id', getDesktopClientId())
+      assertUploadContext(upload)
+      xhr.open('POST', context.chunkUrl, true)
+      xhr.setRequestHeader('c-id', context.clientId)
       // Track this XHR in the set BEFORE sending, so pause can abort it
       if (!upload.xhrs) upload.xhrs = new Set()
       upload.xhrs.add(xhr)

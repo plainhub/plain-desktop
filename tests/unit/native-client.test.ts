@@ -13,14 +13,34 @@ afterEach(() => vi.useRealTimers())
 
 it('pins the document scope once and preserves ordinary GraphQL fields and extensions', async () => {
   fixture.invoke.mockImplementation(async (command: string) => command === 'native_view_scope' ? 'document' : { data: { ok: true } })
-  const { nativeGraphql } = await import('../../src/lib/api/native-client')
+  const { nativeGraphql, nativeViewScope } = await import('../../src/lib/api/native-client')
   const body = { query: 'query Read($id: ID!) { node(id: $id) { id } }', variables: { id: 'item' }, operationName: 'Read', extensions: { trace: 'test', nativeScope: 'untrusted' } }
   await nativeGraphql(body, 500)
+  expect(await nativeViewScope()).toBe('document')
   await nativeGraphql({ query: '{ app { name } }' }, 500)
   expect(fixture.invoke.mock.calls.filter(([command]) => command === 'native_view_scope')).toHaveLength(1)
-  expect(fixture.invoke.mock.calls[1]).toEqual(['native_graphql', { body: {
+  expect(fixture.invoke.mock.calls[1]).toEqual(['native_graphql', { target: { kind: 'local' }, body: {
     ...body, extensions: { trace: 'test', nativeScope: 'document', nativeDeadlineMs: 1500 },
   } }])
+  expect(vi.getTimerCount()).toBe(0)
+})
+
+it('dispatches a peer ID with the scoped body without accepting network credentials', async () => {
+  fixture.invoke.mockImplementation(async (command: string) => command === 'native_view_scope' ? 'document' : { data: {} })
+  const { nativeGraphql } = await import('../../src/lib/api/native-client')
+  await nativeGraphql({ query: 'query Read { app { name } }', operationName: 'Read', extensions: { nativeDeadlineMs: 9999 } }, 500, { kind: 'peer', peerId: 'paired-device' })
+  expect(fixture.invoke.mock.calls).toEqual([
+    ['native_view_scope'],
+    ['native_graphql', { target: { kind: 'peer', peerId: 'paired-device' }, body: {
+      query: 'query Read { app { name } }', operationName: 'Read', extensions: { nativeScope: 'document', nativeDeadlineMs: 1500 },
+    } }],
+  ])
+})
+
+it('rejects a missing peer ID without opening a native scope or falling back to local', async () => {
+  const { nativeGraphql } = await import('../../src/lib/api/native-client')
+  await expect(nativeGraphql({ query: '{ app { name } }' }, 500, { kind: 'peer', peerId: '' })).rejects.toThrow('native_peer_id_missing')
+  expect(fixture.invoke).not.toHaveBeenCalled()
   expect(vi.getTimerCount()).toBe(0)
 })
 

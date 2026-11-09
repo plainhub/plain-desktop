@@ -2,7 +2,7 @@ import type { SubscriptionResults } from '@/lib/api/subscription-results'
 import { graphqlSubscriptions } from '@/lib/api/subscription-client'
 
 import type { IUploadItem } from '@/stores/temp'
-import { gqlFetch } from '../api/gql-client'
+import { assertUploadContext, getUploadContext, isUploadContextCurrent } from './context'
 import { mergeChunksGQL, mergeAppFileChunksGQL } from '../api/mutation'
 import { mergeStatusGQL } from '../api/query'
 
@@ -43,7 +43,9 @@ export async function requestMerge(upload: IUploadItem, args: Record<string, unk
   const doc = upload.isAppFile ? mergeAppFileChunksGQL : mergeChunksGQL
   const field = upload.isAppFile ? 'mergeAppFileChunks' : 'mergeChunks'
   try {
-    const result = await gqlFetch(doc, args, { timeout: 30_000 })
+    assertUploadContext(upload)
+    const result = await getUploadContext(upload).graphql(doc, args, 30_000)
+    assertUploadContext(upload)
     if (result.errors?.length) {
       return { error: result.errors[0].message || 'Failed to merge chunks' }
     }
@@ -75,8 +77,14 @@ function waitForMergeResult(upload: IUploadItem, fileId: string): Promise<IMerge
       resolve(outcome)
     }
 
+    const stale = () => {
+      if (isUploadContextCurrent(upload)) return false
+      finish({ error: 'request_context_changed' })
+      return true
+    }
+
     function onMergeResult(payload: SubscriptionResults['uploadMergeResult']) {
-      if (payload.fileId !== fileId) return
+      if (stale() || payload.fileId !== fileId) return
       if (payload.ok) {
         finish({ value: String(payload.value ?? ''), size: Number(payload.mergedSize) || 0 })
       } else {
@@ -87,6 +95,7 @@ function waitForMergeResult(upload: IUploadItem, fileId: string): Promise<IMerge
     stopUploadMergeResult = graphqlSubscriptions.subscribe('uploadMergeResult', onMergeResult)
 
     pauseProbe = setInterval(() => {
+      if (stale()) return
       if (upload.status === 'paused' || upload.status === 'canceled') {
         finish({ error: 'Upload paused' })
       }
@@ -94,8 +103,10 @@ function waitForMergeResult(upload: IUploadItem, fileId: string): Promise<IMerge
 
     const armWatchdog = () => {
       watchdog = setTimeout(async () => {
+        if (settled || stale()) return
         try {
-          const result = await gqlFetch(mergeStatusGQL, { fileId }, { timeout: STATUS_QUERY_TIMEOUT_MS })
+          const result = await getUploadContext(upload).graphql(mergeStatusGQL, { fileId }, STATUS_QUERY_TIMEOUT_MS)
+          if (settled || stale()) return
           const outcome = taskOutcome(result.data?.mergeStatus as IMergeTask)
           if (outcome !== 'pending') {
             return finish(outcome)
@@ -103,6 +114,7 @@ function waitForMergeResult(upload: IUploadItem, fileId: string): Promise<IMerge
         } catch {
           // status query itself failed — try again on the next tick
         }
+        if (settled || stale()) return
         if (--pollsLeft <= 0) {
           return finish({ error: 'connection_timeout' })
         }
