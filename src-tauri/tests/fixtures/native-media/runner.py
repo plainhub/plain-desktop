@@ -17,6 +17,36 @@ sys.dont_write_bytecode = True
 from generate import generate
 
 
+def pipeline_evidence(log):
+    groups = {}
+    omitted = 0
+    for line in log.splitlines():
+        if not re.match(r'^\s*\d+:\d{2}:\d{2}\.\d+', line):
+            continue
+        if not re.search(r'webkitmediaplayer|basesink', line):
+            continue
+        if not re.search(r'\[Seek\]|\[Buffering\]|State Changed|Processing playback|preroll|'
+                         r'Async: State|State: |Playback ended|clock|segment|flush', line, re.I):
+            continue
+        pipeline = re.search(r'<(regular-plain-native-[a-z.-]+-\d+)>', line)
+        key = pipeline.group(1) if pipeline else 'other-owned-pipeline'
+        if key not in groups:
+            if len(groups) == 12:
+                omitted += 1
+                continue
+            groups[key] = {'matched_lines': 0, 'retained_lines': [], 'seek_lines': []}
+        group = groups[key]
+        group['matched_lines'] += 1
+        if len(group['retained_lines']) == 32:
+            del group['retained_lines'][8]
+        safe = redacted_log(line)[:480]
+        group['retained_lines'].append(safe)
+        if '[Seek]' in line and len(group['seek_lines']) < 16:
+            group['seek_lines'].append(safe)
+    return {'pipelines': groups, 'omitted_pipeline_lines': omitted,
+            'method': 'Per pipeline first 8/latest 24 state records plus first 16 seek records; URLs redacted; at most 12 pipelines'}
+
+
 def admit():
     expected = {'GITHUB_ACTIONS': 'true', 'RUNNER_ENVIRONMENT': 'github-hosted',
                 'RUNNER_OS': 'Linux', 'GITHUB_REPOSITORY': 'plainhub/plain-desktop'}
@@ -147,7 +177,7 @@ def run(binary, test):
                    GIO_USE_VFS='local', GTK_USE_PORTAL='0', PULSE_SERVER='unix:' + str(root / 'no-audio'),
                    PLAIN_NATIVE_MEDIA_ROOT=str(root), PLAIN_NATIVE_MEDIA_CHILD='1',
                    GST_PLUGIN_FEATURE_RANK=audio_rank, WEBKIT_GST_MAX_NUMBER_OF_AUDIO_OUTPUT_CHANNELS='2',
-                   GST_DEBUG='autodetect:5,basesink:5', GST_DEBUG_NO_COLOR='1')
+                   GST_DEBUG='autodetect:5,basesink:5,webkitmediaplayer:5', GST_DEBUG_NO_COLOR='1')
         cookie = secrets.token_bytes(16)
         auth = root / 'authority'
         authority(auth, '', cookie)
@@ -202,7 +232,8 @@ def run(binary, test):
             report['peak_tree_rss_bytes'] = max(report['peak_tree_rss_bytes'], rss)
             time.sleep(.05)
         report['native_exit'] = child.returncode
-        report['audio_environment'].update(audio_evidence((root / 'native.log').read_text()))
+        native_log = (root / 'native.log').read_text()
+        report['audio_environment'].update(audio_evidence(native_log))
         if (root / 'native-results.json').is_file():
             report['native'] = json.loads((root / 'native-results.json').read_text())
         if child.returncode != 0 or report.get('native', {}).get('status') != 'passed':
@@ -242,6 +273,8 @@ def run(binary, test):
             report['status'] = 'failed'
         if error:
             report['error'] = error
+        if (root / 'native.log').is_file():
+            report['pipeline_diagnostics'] = pipeline_evidence((root / 'native.log').read_text())
         (root / 'report.json').write_text(json.dumps(report, indent=2) + '\n')
         print('NATIVE_MEDIA_REPORT=' + json.dumps(report), flush=True)
         for name in ['native.log', 'xvfb.log', 'dbus.log']:

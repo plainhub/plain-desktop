@@ -122,7 +122,18 @@
     "source": "https://github.com/WebKit/WebKit/blob/webkitgtk-2.52.6/Source/WebCore/html/HTMLVideoElement.cpp#L737"
   },
   "cancel_evidence": {
-    "method": "After emptied, bounded wait requires NETWORK_EMPTY, HAVE_NOTHING, no currentSrc and no src attribute; transient and settled states recorded",
-    "source": "https://github.com/WebKit/WebKit/blob/webkitgtk-2.52.6/Source/WebCore/html/HTMLMediaElement.cpp#L1627"
+    "method": "After emptied, require NETWORK_EMPTY, HAVE_NOTHING, paused, not seeking, no src/srcObject/source children, empty buffered/seekable ranges, and 300ms without time or new video-frame progress. Reload must still play. Immediate, final and timeout states are retained.",
+    "current_src": "Classify as empty, original fixture, or other without logging the URL. WebKit 2.52.6 retains m_currentSrc when replacing the old player on a no-source load; the string is not a release indicator.",
+    "sources": [
+      "https://github.com/WebKit/WebKit/blob/webkitgtk-2.52.6/Source/WebCore/html/HTMLMediaElement.cpp#L1498",
+      "https://github.com/WebKit/WebKit/blob/webkitgtk-2.52.6/Source/WebCore/html/HTMLMediaElement.cpp#L1627",
+      "https://github.com/WebKit/WebKit/blob/webkitgtk-2.52.6/Source/WebCore/html/HTMLMediaElement.cpp#L8117"
+    ]
+  },
+  "playback_diagnostics": {
+    "method": "Observe media events and periodic state samples concurrently with the unchanged 12-second play-promise guard. Pending promise, actual progress and final state survive failure; progress does not substitute for promise fulfillment.",
+    "limits": "Each observation retains first/latest 40 events and 16 state samples with counts. Each time-range list retains at most four ranges. Detailed observations use separate existing diagnostic packets; final results retain compact playback summaries.",
+    "pipeline": "Enable the existing webkitmediaplayer debug category only in the owned child. Retain first 8/latest 24 relevant state lines and first 16 seek lines per pipeline, at most 12 pipelines and 480 characters per line, with URL redaction. Synthetic element IDs correlate fixtures with pipeline names.",
+    "unresolved": "Large WAV seek play-promise timeout needs real pipeline evidence; no increased timeout, retry, preload change or route change is applied."
   }
 }

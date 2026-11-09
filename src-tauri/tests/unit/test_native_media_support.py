@@ -27,15 +27,20 @@ const sleep = ms => new Promise(resolve => setTimeout(resolve, ms));
 function setup(invoke) {
   const context = { window: { __TAURI_INTERNALS__: { invoke } }, TextEncoder, DOMException,
     location: { href: 'tauri://localhost/native-media-test.html' }, performance,
-    HTMLMediaElement: { NETWORK_EMPTY: 0, HAVE_NOTHING: 0 }, setTimeout, clearTimeout,
+    HTMLMediaElement: { NETWORK_EMPTY: 0, HAVE_NOTHING: 0 }, setTimeout, clearTimeout, setInterval, clearInterval,
     document: new Proxy({}, { set() { throw Error('Title transport must not be used'); } }) };
   vm.runInNewContext(source, context);
   return { api: context.window.__plainNativeTestSupport, state: context.window.__plainTransportState };
 }
+function emptyMedia() {
+  return { tagName: 'AUDIO', networkState: 0, readyState: 0, paused: true, seeking: false, ended: false,
+    currentTime: 0, currentSrc: '', srcObject: null, hasAttribute: () => false, querySelectorAll: () => [],
+    buffered: { length: 0 }, seekable: { length: 0 }, addEventListener() {}, removeEventListener() {} };
+}
 function video(deliverFrames = true, distinct = true) {
   const callbacks = new Map();
   let next = 0, quality = 100;
-  const media = { tagName: 'VIDEO', currentTime: 58, paused: true,
+  const media = { ...emptyMedia(), tagName: 'VIDEO', currentTime: 58, paused: true,
     getVideoPlaybackQuality: () => ({ totalVideoFrames: quality }),
     requestVideoFrameCallback(fn) { callbacks.set(++next, fn); return next; },
     cancelVideoFrameCallback(id) { callbacks.delete(id); },
@@ -100,11 +105,57 @@ function video(deliverFrames = true, distinct = true) {
   await assert.rejects(api.advance(video(true, false), 40), /actual video frames/);
   const unsupported = video(); delete unsupported.requestVideoFrameCallback;
   await assert.rejects(api.advance(unsupported, 40), /callbacks unavailable/);
-  const media = { networkState: 3, readyState: 0, currentSrc: '', hasAttribute: () => false };
+  const pendingObservation = {};
+  let rejectLate;
+  const pending = { ...emptyMedia(), play() { this.currentTime += .5; this.paused = false; return new Promise((_, reject) => { rejectLate = reject; }); } };
+  await assert.rejects(api.advance(pending, 300, pendingObservation), /Timeout: Media play/);
+  assert.equal(pendingObservation.play_promise, 'pending', 'Time advancement does not replace the play promise');
+  assert.equal(pendingObservation.after_time, .5, 'Timeout preserves actual progress');
+  assert.ok(pendingObservation.trace.samples.length > 0, 'Progress is sampled while the promise remains pending');
+  const frozenObservation = JSON.stringify(pendingObservation);
+  rejectLate(Error('cleanup rejected old play promise'));
+  await sleep(0);
+  assert.equal(JSON.stringify(pendingObservation), frozenObservation, 'Late cleanup cannot rewrite timeout evidence');
+  const media = { ...emptyMedia(), networkState: 3, currentSrc: 'old-resource' };
   setTimeout(() => { media.networkState = 0; }, 20);
-  assert.equal((await api.released(media, 100)).network_state, 0);
-  await assert.rejects(api.released({ ...media, networkState: 3 }, 30), /retained/);
-  await assert.rejects(api.released({ ...media, currentSrc: 'still-present' }, 30), /retained/);
+  const cancelled = await api.released(media, 100, 'old-resource', {}, 20);
+  assert.equal(cancelled.final.network_state, 0);
+  assert.equal(cancelled.final.current_src, 'original', 'A stale URL alone is not a loaded resource');
+  const failedCancel = {};
+  await assert.rejects(api.released({ ...media, networkState: 3 }, 30, '', failedCancel, 10), /retained/);
+  assert.equal(failedCancel.final.network_state, 3, 'Timeout preserves the final state');
+  for (const change of [{ paused: false }, { seeking: true }, { srcObject: {} },
+    { hasAttribute: () => true }, { querySelectorAll: () => [{}] },
+    { buffered: { length: 1, start: () => 0, end: () => 1 } },
+    { seekable: { length: 1, start: () => 0, end: () => 1 } }]) {
+    await assert.rejects(api.released({ ...media, ...change }, 15, '', {}, 10), /retained/);
+  }
+  const moving = { ...media }; setTimeout(() => { moving.currentTime = 1; }, 5);
+  await assert.rejects(api.released(moving, 30, '', {}, 15), /continued/);
+  const liveFrame = { ...media, tagName: 'VIDEO',
+    requestVideoFrameCallback(fn) { setTimeout(fn, 5); return 1; }, cancelVideoFrameCallback() {} };
+  await assert.rejects(api.released(liveFrame, 30, '', {}, 15), /continued/);
+  const ranges = { count: 4, ranges: Array.from({ length: 4 }, (_, i) =>
+    [1.2345678901234567 + i, 190.12345678901235 + i]) };
+  const state = { ...rendered.initial, current_time: 210, buffered: ranges, seekable: ranges };
+  const worst = { ...rendered, initial: state, final: state, at_promise_settlement: state,
+    promise_settled_ms: 12000, elapsed_ms: 24000, trace: {
+      events: Array.from({ length: 40 }, () => ({ event: 'canplaythrough', ms: 24000,
+        time: 193.12345678901235, network: 3, ready: 4, paused: false, seeking: false, ended: false })),
+      samples: Array.from({ length: 16 }, () => ({ ms: 24000, time: 193.12345678901235,
+        network: 3, ready: 4, paused: false, seeking: false, ended: false })),
+      event_count: 99999, sample_count: 96, records_truncated: true } };
+  const packetSize = payload => Buffer.byteLength(JSON.stringify({ sequence: 512, kind: 'diagnostic', payload }));
+  const observationBytes = packetSize({ fixture: 'small-video.webm', phase: 'seek:58.88', ...worst });
+  const { trace, ...summary } = worst;
+  const resultBytes = packetSize({ fixture: 'small-video.webm', kind: 'video', route: 'production-core-http-fs',
+    verification_method: 'real-webview-media-events', status: 'failed', stages: ['metadata','play-pause','seek-play-pause:58.88','seek-play-pause:6.4','cancel','reload-play'],
+    playback_evidence: Array.from({ length: 4 }, () => ({ phase: 'seek:58.88', ...summary })),
+    cancel_after_emptied: state, cancel_observation: { initial: state, final: state, stability_ms: 300, new_video_frames: 0 },
+    failure_state: state, error: 'Error: Cancelled media continued to advance' });
+  assert.ok(observationBytes < 16384, 'Maximum observation must fit one packet');
+  assert.ok(resultBytes < 16384, 'Four detailed playback summaries must fit one result packet');
+  console.log('Bounded packet bytes:', observationBytes, resultBytes);
   console.log('Transport ordering/bounds and asynchronous media helper contracts passed; not native GUI acceptance');
 })().catch(error => { console.error(error); process.exitCode = 1; });
 '''
@@ -176,6 +227,21 @@ function video(deliverFrames = true, distinct = true) {
         observed = runner.audio_evidence('<fake-audio-sink> rendering object 0x123')
         self.assertTrue(observed['selection_observed'])
         self.assertEqual(observed['rendered_fake_sink_buffers'], 1)
+
+    def test_pipeline_evidence_survives_json_tail_and_redacts_urls(self):
+        line = '0:00:01.123 123 thread DEBUG webkitmediaplayer player:1 <regular-plain-native-audio-wav-2> [Seek] http://127.0.0.1/fs?id=secret'
+        log = '\n'.join([line] * 100) + '\n' + 'Native result: ' + 'x' * 20000
+        result = runner.pipeline_evidence(log)
+        group = result['pipelines']['regular-plain-native-audio-wav-2']
+        self.assertEqual(group['matched_lines'], 100)
+        self.assertEqual(len(group['retained_lines']), 32)
+        self.assertEqual(len(group['seek_lines']), 16)
+        other = line.replace('audio-wav-2', 'video-webm-4')
+        combined = runner.pipeline_evidence(log + '\n' + '\n'.join([other] * 100))
+        self.assertIn('regular-plain-native-audio-wav-2', combined['pipelines'])
+        self.assertIn('regular-plain-native-video-webm-4', combined['pipelines'])
+        self.assertNotIn('secret', str(result))
+        self.assertNotIn('Native result:', str(result))
 
     def test_http_resource_urls_are_redacted_from_diagnostic_output(self):
         self.assertEqual(runner.redacted_log('failed http://127.0.0.1/fs?id=opaque&action=preview end'),

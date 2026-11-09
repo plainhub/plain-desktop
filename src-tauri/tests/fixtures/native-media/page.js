@@ -82,50 +82,123 @@ async function waitFor(predicate, message, timeout = 12000) {
   while (!predicate() && performance.now() < deadline) await delay(10);
   check(predicate(), message);
 }
-async function advance(media, timeout = 12000) {
+function mediaState(media, original = '') {
+  const ranges = value => ({ count: value.length, ranges: Array.from({ length: Math.min(value.length, 4) },
+    (_, i) => [value.start(i), value.end(i)]) });
+  return { network_state: media.networkState, ready_state: media.readyState, paused: media.paused,
+    seeking: media.seeking, ended: media.ended, current_time: media.currentTime,
+    current_src: media.currentSrc === '' ? 'empty' : media.currentSrc === original ? 'original' : 'other',
+    has_src: media.hasAttribute('src'), has_src_object: media.srcObject !== null,
+    source_children: media.querySelectorAll('source').length,
+    buffered: ranges(media.buffered), seekable: ranges(media.seekable) };
+}
+function observeMedia(media) {
+  const start = performance.now(), events = [], samples = [];
+  let eventCount = 0, sampleCount = 0;
+  const snapshot = () => ({ ms: Math.round(performance.now() - start), time: media.currentTime,
+    network: media.networkState, ready: media.readyState, paused: media.paused,
+    seeking: media.seeking, ended: media.ended });
+  const retain = (list, item, limit) => {
+    if (list.length === limit) list.splice(limit / 2, 1);
+    list.push(item);
+  };
+  const listener = event => { eventCount++; retain(events, { event: event.type, ...snapshot() }, 40); };
+  const names = ['play', 'playing', 'pause', 'waiting', 'stalled', 'seeking', 'seeked',
+    'ended', 'error', 'canplay', 'canplaythrough', 'emptied', 'progress', 'suspend'];
+  for (const name of names) media.addEventListener(name, listener);
+  const timer = setInterval(() => { sampleCount++; retain(samples, snapshot(), 16); }, 250);
+  return { stop() {
+    clearInterval(timer);
+    for (const name of names) media.removeEventListener(name, listener);
+    return { events, samples, event_count: eventCount, sample_count: sampleCount,
+      records_truncated: eventCount > events.length || sampleCount > samples.length };
+  } };
+}
+async function advance(media, timeout = 12000, observation = {}, original = media.currentSrc) {
   const before = media.currentTime;
   const video = media.tagName === 'VIDEO';
   const qualityBefore = video ? media.getVideoPlaybackQuality().totalVideoFrames : null;
+  const started = performance.now(), trace = observeMedia(media);
+  observation.initial = mediaState(media, original);
+  observation.play_promise = 'not-called';
   let first = null, last = null, callbacks = 0, callbackId = null, running = true;
-  if (video) {
-    check(typeof media.requestVideoFrameCallback === 'function', 'Native video frame callbacks unavailable');
-    const frame = (_, metadata) => {
-      if (!running) return;
-      const sample = { media_time: metadata.mediaTime, presented_frames: metadata.presentedFrames };
-      first ||= sample;
-      last = sample;
-      callbacks++;
-      callbackId = media.requestVideoFrameCallback(frame);
-    };
-    callbackId = media.requestVideoFrameCallback(frame);
-  }
   try {
-    await within(media.play(), 'Media play', timeout);
+    if (video) {
+      check(typeof media.requestVideoFrameCallback === 'function', 'Native video frame callbacks unavailable');
+      const frame = (_, metadata) => {
+        if (!running) return;
+        const sample = { media_time: metadata.mediaTime, presented_frames: metadata.presentedFrames };
+        first ||= sample;
+        last = sample;
+        callbacks++;
+        callbackId = media.requestVideoFrameCallback(frame);
+      };
+      callbackId = media.requestVideoFrameCallback(frame);
+    }
+    observation.play_promise = 'pending';
+    const promise = media.play().then(() => {
+      if (running) {
+        observation.play_promise = 'fulfilled';
+        observation.promise_settled_ms = Math.round(performance.now() - started);
+        observation.at_promise_settlement = mediaState(media, original);
+      }
+    }, error => {
+      if (running) {
+        observation.play_promise = 'rejected';
+        observation.promise_error = errorText(error);
+      }
+      throw error;
+    });
+    await within(promise, 'Media play', timeout);
     await waitFor(() => media.currentTime >= before + .3 && (!video ||
       (callbacks >= 2 && last.media_time > first.media_time && last.media_time >= before + .2)),
       'Playback time or actual video frames did not advance', timeout);
-    const evidence = { before_time: before, after_time: media.currentTime, video_callbacks: callbacks,
-      first_frame: first, last_frame: last, quality_before: qualityBefore,
-      quality_after: video ? media.getVideoPlaybackQuality().totalVideoFrames : null };
     media.pause();
     const paused = media.currentTime;
     await delay(250);
     check(media.paused && Math.abs(media.currentTime - paused) < .1, 'Pause did not hold position');
-    return evidence;
   } finally {
     running = false;
     if (callbackId !== null) media.cancelVideoFrameCallback(callbackId);
+    Object.assign(observation, { before_time: before, after_time: media.currentTime, video_callbacks: callbacks,
+      first_frame: first, last_frame: last, quality_before: qualityBefore,
+      quality_after: video ? media.getVideoPlaybackQuality().totalVideoFrames : null,
+      final: mediaState(media, original), elapsed_ms: Math.round(performance.now() - started),
+      trace: trace.stop() });
   }
+  return observation;
 }
-async function released(media, timeout = 12000) {
-  await waitFor(() => media.networkState === HTMLMediaElement.NETWORK_EMPTY &&
-    media.readyState === HTMLMediaElement.HAVE_NOTHING && media.currentSrc === '' &&
-    !media.hasAttribute('src'), 'Cancel retained a media resource', timeout);
-  return { network_state: media.networkState, ready_state: media.readyState, current_src_empty: media.currentSrc === '' };
+function isReleased(state) {
+  return state.network_state === HTMLMediaElement.NETWORK_EMPTY &&
+    state.ready_state === HTMLMediaElement.HAVE_NOTHING && state.paused && !state.seeking &&
+    !state.has_src && !state.has_src_object && state.source_children === 0 &&
+    state.buffered.count === 0 && state.seekable.count === 0;
+}
+async function released(media, timeout = 12000, original = '', observation = {}, stability = 300) {
+  let callbackId = null, callbacks = 0;
+  observation.initial = mediaState(media, original);
+  try {
+    await waitFor(() => isReleased(mediaState(media, original)), 'Cancel retained playable media state', timeout);
+    const before = media.currentTime;
+    observation.stable_before_time = before;
+    if (media.tagName === 'VIDEO') {
+      check(typeof media.requestVideoFrameCallback === 'function', 'Native video frame callbacks unavailable');
+      callbackId = media.requestVideoFrameCallback(() => { callbacks++; });
+    }
+    await delay(stability);
+    check(isReleased(mediaState(media, original)) && Math.abs(media.currentTime - before) < .001 && callbacks === 0,
+      'Cancelled media continued to advance');
+  } finally {
+    if (callbackId !== null) media.cancelVideoFrameCallback(callbackId);
+    Object.assign(observation, { final: mediaState(media, original), new_video_frames: callbacks,
+      stability_ms: stability });
+  }
+  return observation;
 }
 async function playback(fixture) {
   const {kind, url, duration, route, name} = fixture;
   const media = document.createElement(kind);
+  media.id = 'plain-native-' + name.replaceAll('.', '-');
   media.muted = true;
   media.volume = 0;
   media.preload = 'metadata';
@@ -133,28 +206,44 @@ async function playback(fixture) {
   document.body.append(media);
   const result = { kind, fixture: name, route, verification_method: 'real-webview-media-events', status: 'failed', stages: [], playback_evidence: [] };
   diagnostic('media-started', { fixture: name, route });
+  const play = async phase => {
+    const observation = {};
+    try { await advance(media, 12000, observation, url); }
+    finally {
+      const { trace, ...summary } = observation;
+      result.playback_evidence.push({ phase, ...summary });
+      check(await diagnostic('playback-observation', { fixture: name, phase, ...observation }),
+        'Playback diagnostic acknowledgement failed');
+    }
+  };
   try {
     await event(media, 'loadedmetadata', () => { media.src = url; media.load(); });
     check(Math.abs(media.duration - duration) < .25, 'Unexpected media duration');
     mediaStage(result, 'metadata');
-    result.playback_evidence.push(await advance(media));
+    await play('initial');
     mediaStage(result, 'play-pause');
     for (const target of [duration * .92, duration * .1]) {
-      await event(media, 'seeked', () => { media.currentTime = target; });
+      const seeking = observeMedia(media), before = mediaState(media, url);
+      try { await event(media, 'seeked', () => { media.currentTime = target; }); }
+      finally {
+        check(await diagnostic('seek-observation', { fixture: name, target, before,
+          after: mediaState(media, url), trace: seeking.stop() }), 'Seek diagnostic acknowledgement failed');
+      }
       check(Math.abs(media.currentTime - target) < .3, 'Wrong seek position');
-      result.playback_evidence.push(await advance(media));
+      await play('seek:' + target);
       mediaStage(result, 'seek-play-pause:' + target);
     }
     media.pause();
     await event(media, 'emptied', () => { media.removeAttribute('src'); media.load(); });
-    result.cancel_after_emptied = { network_state: media.networkState, ready_state: media.readyState };
-    result.cancel_settled = await released(media);
+    result.cancel_after_emptied = mediaState(media, url);
+    result.cancel_observation = {};
+    await released(media, 12000, url, result.cancel_observation);
     mediaStage(result, 'cancel');
     await event(media, 'loadedmetadata', () => { media.src = url; media.load(); });
-    result.playback_evidence.push(await advance(media));
+    await play('reload');
     mediaStage(result, 'reload-play');
     result.status = 'passed';
-  } catch (error) { result.error = errorText(error); }
+  } catch (error) { result.error = errorText(error); result.failure_state = mediaState(media, url); }
   finally { media.pause(); media.removeAttribute('src'); media.load(); media.remove(); }
   check(await transmit('result', result), 'Result acknowledgement failed');
   diagnostic('media-completed', { fixture: name, status: result.status });
