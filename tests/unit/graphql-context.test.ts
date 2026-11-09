@@ -12,7 +12,7 @@ vi.mock('@/lib/api/api', () => ({
   getApiBaseUrl: () => target.url,
   nativePeerGraphqlUrl: (peerId: string) => `http://127.0.0.1:8280/proxy/${peerId}/graphql`,
   getApiHeaders: () => ({ 'c-id': target.header }),
-  getLocalToken: () => target.token,
+  getUrlToken: () => target.token,
 }))
 vi.mock('@/lib/device/current', () => ({ getCurrentAuthToken: () => target.token, clearCurrentSession: vi.fn().mockResolvedValue(undefined) }))
 vi.mock('@/lib/device/client-id', () => ({ getActiveClientId: () => target.client }))

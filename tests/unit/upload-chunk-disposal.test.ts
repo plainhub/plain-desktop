@@ -3,7 +3,7 @@ import type { IUploadItem } from '@/stores/temp'
 const io = vi.hoisted(() => ({ gql: vi.fn(), emit: vi.fn() }))
 vi.mock('@/lib/device/local-mode', () => ({ isLocalMode: () => false }))
 vi.mock('@/lib/api/time-sync', () => ({ wrapWithReplayProtection: (value: string) => value }))
-vi.mock('@/lib/api/api', () => ({ getApiBaseUrl: vi.fn(), getLocalToken: vi.fn(), proxyUrlFor: vi.fn() }))
+vi.mock('@/lib/api/api', () => ({ getApiBaseUrl: vi.fn(), getUrlToken: vi.fn(), proxyUrlFor: vi.fn() }))
 vi.mock('@/lib/api/crypto', () => ({ chachaEncrypt: vi.fn(), bitArrayToUint8Array: vi.fn() }))
 vi.mock('@/lib/api/file', () => ({ tokenToKey: () => new Uint8Array(32) }))
 vi.mock('@/lib/api/query', () => ({ uploadedChunksGQL: 'query-chunks' }))

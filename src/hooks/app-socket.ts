@@ -4,7 +4,7 @@ import { onMounted, onUnmounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import emitter from '@/plugins/eventbus'
 import toast from '@/components/toaster'
-import { getLocalToken, setLocalServerPort, setLocalServerHttpsPort } from '@/lib/api/api'
+import { getUrlToken, setLocalServerPort, setLocalServerHttpsPort } from '@/lib/api/api'
 import { subscribeLoginPeerUpdates } from '@/lib/device/login-peers'
 import { parseWebSocketData } from '@/lib/api/sjcl-arraybuffer'
 import { changeColor, getCurrentMode } from '@/lib/theme'
@@ -64,7 +64,7 @@ export function useAppSocket() {
 
   /** Local target: the shared Rust core's own event feed, not a socket. */
   function connectNative() {
-    const token = getLocalToken()
+    const token = getUrlToken()
     if (!token) return
     nativeStream?.close()
     nativeStream = subscribeNativeEvents(

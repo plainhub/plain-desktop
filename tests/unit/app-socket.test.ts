@@ -18,7 +18,7 @@ vi.mock('@/lib/api/subscription-client', () => ({ graphqlSubscriptions: {
 } }))
 vi.mock('@/plugins/eventbus', () => ({ default: { emit: mock.emit, on: vi.fn() } }))
 vi.mock('@/components/toaster', () => ({ default: vi.fn() }))
-vi.mock('@/lib/api/api', () => ({ getLocalToken: () => 'fixture', setLocalServerPort: vi.fn(), setLocalServerHttpsPort: vi.fn() }))
+vi.mock('@/lib/api/api', () => ({ getUrlToken: () => 'fixture', setLocalServerPort: vi.fn(), setLocalServerHttpsPort: vi.fn() }))
 vi.mock('@/lib/device/login-peers', () => ({ subscribeLoginPeerUpdates: vi.fn() }))
 vi.mock('@/lib/theme', () => ({ changeColor: vi.fn(), getCurrentMode: () => 'light' }))
 vi.mock('@/lib/api/file', () => ({ tokenToKey: () => new Uint8Array(32) }))

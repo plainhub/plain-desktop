@@ -8,7 +8,7 @@ import VueClickAway from '@/plugins/clickaway'
 import VueTooltip from '@/plugins/tooltip'
 import VueRipple from '@/plugins/ripple'
 import { getIsPhone, getIsTablet } from '@/hooks/device'
-import { setLocalServerPort, setLocalServerToken, setLocalServerHttpsPort } from '@/lib/api/api'
+import { setLocalServerPort, setUrlToken, setLocalServerHttpsPort } from '@/lib/api/api'
 import { preload as preloadPrefs } from '@/lib/prefs/core'
 import { applyUrlClientId, ensureBrowserClientId, getDesktopClientId, preloadClientIdentity } from '@/lib/device/client-id'
 import { preloadLoginPeers } from '@/lib/device/login-peers'
@@ -34,7 +34,7 @@ export async function bootstrapFullApp(): Promise<void> {
     const [server] = await Promise.all([readLocalServer(), preloadLoginPeers()])
     setLocalServerPort(server.httpPort)
     setLocalServerHttpsPort(server.httpsPort)
-    setLocalServerToken(server.urlToken)
+    setUrlToken(server.urlToken)
     if (isLocalMode()) await preloadPrefs()
   }
 

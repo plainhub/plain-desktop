@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, expect, it, vi } from 'vitest'
-import { getApiBaseUrl, getWebSocketBaseUrl, nativePeerGraphqlUrl, proxyHttpUrl, proxyWsUrlFor, setLocalServerPort, setLocalServerToken, setPendingLoginDevice, clearPendingLoginDevice } from '@/lib/api/api'
+import { getApiBaseUrl, getWebSocketBaseUrl, nativePeerGraphqlUrl, proxyHttpUrl, proxyWsUrlFor, setLocalServerPort, setUrlToken, setPendingLoginDevice, clearPendingLoginDevice } from '@/lib/api/api'
 import { DeviceType } from '@/lib/status'
 
 const target = vi.hoisted(() => ({ local: true, host: '', base: '' }))
@@ -14,7 +14,7 @@ beforeEach(() => {
   vi.stubEnv('VITE_APP_API_HOST', '')
   clearPendingLoginDevice()
   setLocalServerPort(8180)
-  setLocalServerToken(Buffer.alloc(32, 7).toString('base64'))
+  setUrlToken(Buffer.alloc(32, 7).toString('base64'))
 })
 afterEach(() => { vi.unstubAllGlobals(); vi.unstubAllEnvs() })
 

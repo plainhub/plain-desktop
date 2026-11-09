@@ -5,7 +5,7 @@ import { compileScript, compileTemplate, parse } from 'vue/compiler-sfc'
 import { DataType } from '@/lib/data'
 import type { IApp, IDoc } from '@/lib/interfaces'
 import { openWindow } from '@/lib/api/tauri-window'
-import { setLocalServerToken } from '@/lib/api/api'
+import { setUrlToken } from '@/lib/api/api'
 import { openUrl } from '@/lib/browser'
 import { openUrl as openExternalUrl } from '@/lib/tauri-plugins'
 import OnlinePreviewIcon from '@/components/OnlinePreviewIcon.vue'
@@ -64,7 +64,7 @@ for (const [component, source, filename] of [
   component.render = new Function('Vue', template.code)(Vue)
 }
 
-setLocalServerToken('native-session')
+setUrlToken('native-session')
 
 afterEach(() => vi.unstubAllGlobals())
 

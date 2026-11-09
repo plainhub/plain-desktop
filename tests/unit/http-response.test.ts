@@ -10,7 +10,7 @@ import { httpRequest } from '../../src/lib/api/http'
 vi.mock('@/lib/api/api', () => ({
   getApiBaseUrl: () => 'https://fixture.test',
   getApiHeaders: () => ({ 'c-id': 'fixture' }),
-  getLocalToken: () => '',
+  getUrlToken: () => '',
   getProxyUrl: (path: string) => path,
 }))
 vi.mock('@/lib/api/http', () => ({ httpRequest: vi.fn() }))

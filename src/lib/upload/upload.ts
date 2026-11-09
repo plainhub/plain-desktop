@@ -5,7 +5,7 @@ import emitter from '@/plugins/eventbus'
 import { invoke } from '@tauri-apps/api/core'
 import { sha256 } from '@noble/hashes/sha2.js'
 import { bytesToHex } from '@noble/hashes/utils.js'
-import { getApiBaseUrl, getLocalToken, proxyUrlFor } from '../api/api'
+import { getApiBaseUrl, getUrlToken, proxyUrlFor } from '../api/api'
 import { chachaEncrypt, bitArrayToUint8Array } from '../api/crypto'
 import { tokenToKey } from '../api/file'
 import { uploadedChunksGQL } from '../api/query'
@@ -188,7 +188,7 @@ export async function upload(upload: IUploadItem, replace: boolean) {
   // In local mode the local server is the only client, so it has no
   // per-session token — the upload `info` part is encrypted with the
   // local server's URL token (same key the server uses to decrypt).
-  const token = isLocalMode() ? getLocalToken() : getCurrentAuthToken()
+  const token = isLocalMode() ? getUrlToken() : getCurrentAuthToken()
   const key = tokenToKey(token)
 
   // Initialize upload status

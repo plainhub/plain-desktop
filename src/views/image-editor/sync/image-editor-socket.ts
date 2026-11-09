@@ -1,5 +1,5 @@
 import { isLocalMode } from '@/lib/device/local-mode'
-import { getLocalToken, getWebSocketBaseUrl } from '@/lib/api/api'
+import { getUrlToken, getWebSocketBaseUrl } from '@/lib/api/api'
 import { chachaEncrypt, bitArrayToUint8Array } from '@/lib/api/crypto'
 import { tokenToKey } from '@/lib/api/file'
 import { openSocket } from '@/lib/api/http'
@@ -22,7 +22,7 @@ export class ImageEditorSocket {
   private open() {
     if (this.stopped || this.socket) return
     const local = isLocalMode()
-    const token = local ? getLocalToken() : getCurrentAuthToken()
+    const token = local ? getUrlToken() : getCurrentAuthToken()
     if (!token) return
     const key = tokenToKey(token)
     const url = new URL('/image_editor', getWebSocketBaseUrl())

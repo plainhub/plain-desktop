@@ -1,6 +1,6 @@
 import { FileAction, fileQuery, withFileAction } from './file-action'
 import { arrayBufferToHex } from '../strutil'
-import { getProxyUrl, getApiHeaders, getLocalToken } from './api'
+import { getProxyUrl, getApiHeaders, getUrlToken } from './api'
 import { encryptResourcePayload, resourceId, type Resource, type ResourceScope } from './resource-link'
 import { isLocalMode } from '../device/local-mode'
 import toast, { toastWithAction } from '@/components/toaster'
@@ -172,7 +172,7 @@ export function encryptUrlParams(key: Uint8Array | null, params: string, purpose
 
 export function getChatFileId(key: Uint8Array | null, path: string): string {
   if (!path.startsWith('fid:') || !isLocalMode()) return getFileId(key, path)
-  return getFileId(tokenToKey(getLocalToken()), path, '', { mode: 'c', id: getApiHeaders()['c-id'] })
+  return getFileId(tokenToKey(getUrlToken()), path, '', { mode: 'c', id: getApiHeaders()['c-id'] })
 }
 
 export function getChatAttachmentUrl(
@@ -181,7 +181,7 @@ export function getChatAttachmentUrl(
   reference: string,
   query = '',
 ): string {
-  const key = isLocalMode() ? tokenToKey(getLocalToken()) : sessionKey
+  const key = isLocalMode() ? tokenToKey(getUrlToken()) : sessionKey
   if (!key || !peerId || !reference.startsWith('fsid:')) return ''
   const scope = { mode: 'c' as const, id: getApiHeaders()['c-id'] }
   const id = encryptResourcePayload(key, scope, `chat-attachment:${peerId}`, reference)

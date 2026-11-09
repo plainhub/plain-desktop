@@ -27,9 +27,9 @@ let _localServerPort = 0
 export function setLocalServerPort(port: number): void { _localServerPort = port }
 export function getLocalServerPort(): number { return _localServerPort }
 
-let _localToken = ''
-export function setLocalServerToken(token: string): void { _localToken = token }
-export function getLocalToken(): string { return _localToken }
+let _urlToken = ''
+export function setUrlToken(token: string): void { _urlToken = token }
+export function getUrlToken(): string { return _urlToken }
 
 let _localServerHttpsPort = 0
 export function setLocalServerHttpsPort(port: number): void { _localServerHttpsPort = port }
@@ -53,7 +53,7 @@ function proxyPath(path: string, base: string): string {
   const descriptor = JSON.stringify({ base })
   let target = proxyTargets.get(descriptor)
   if (!target) {
-    const key = Uint8Array.from(atob(_localToken), byte => byte.charCodeAt(0))
+    const key = Uint8Array.from(atob(_urlToken), byte => byte.charCodeAt(0))
     target = encryptResourcePayload(key, { mode: 'c', id: getDesktopClientId() }, 'native-proxy', descriptor)
     if (proxyTargets.size >= 64) proxyTargets.clear()
     proxyTargets.set(descriptor, target)

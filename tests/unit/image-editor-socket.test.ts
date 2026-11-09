@@ -3,7 +3,7 @@ import { xchacha20poly1305 } from '@noble/ciphers/chacha'
 import { afterEach, expect, it, vi } from 'vitest'
 
 const mock = vi.hoisted(() => ({ sockets: [] as any[] }))
-vi.mock('@/lib/api/api', () => ({ getWebSocketBaseUrl: () => 'wss://example.test', getLocalToken: () => '' }))
+vi.mock('@/lib/api/api', () => ({ getWebSocketBaseUrl: () => 'wss://example.test', getUrlToken: () => '' }))
 vi.mock('@/lib/device/current', () => ({ getCurrentAuthToken: () => 'token' }))
 vi.mock('@/lib/device/client-id', () => ({ getRemoteClientId: () => 'peer', getDesktopClientId: () => 'browser' }))
 vi.mock('@/lib/device/local-mode', () => ({ isLocalMode: () => false }))

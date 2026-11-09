@@ -1,5 +1,5 @@
 import { isLocalMode } from '@/lib/device/local-mode'
-import { getWebSocketBaseUrl, getLocalToken } from '@/lib/api/api'
+import { getWebSocketBaseUrl, getUrlToken } from '@/lib/api/api'
 import { getCurrentAuthToken } from '@/lib/device/current'
 import { getRemoteClientId, getDesktopClientId } from '@/lib/device/client-id'
 import { openSocket } from '@/lib/api/http'
@@ -24,7 +24,7 @@ export class ScreenMirrorSocket {
   connect() {
     if (this.socket) return
     const local = isLocalMode()
-    const token = local ? getLocalToken() : getCurrentAuthToken()
+    const token = local ? getUrlToken() : getCurrentAuthToken()
     if (!token) {
       this.callbacks.onDisconnected()
       return
