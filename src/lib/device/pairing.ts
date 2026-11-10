@@ -3,7 +3,7 @@ import { nativeGraphql } from '@/lib/api/native-client'
 import type { bindGraphqlClient, GqlResult } from '@/lib/api/gql-client'
 import { graphqlSubscriptions } from '@/lib/api/subscription-client'
 
-export type PairingPhase = 'STARTING' | 'PASSWORD_REQUIRED' | 'AUTHENTICATING' | 'PAIRING' | 'WAITING_CONFIRMATION' | 'COMMITTING' | 'SUCCEEDED' | 'FAILED' | 'CANCELLED'
+export type PairingPhase = 'STARTING' | 'PASSWORD_REQUIRED' | 'AUTHENTICATING' | 'PAIRING' | 'TRUST_REQUIRED' | 'WAITING_CONFIRMATION' | 'COMMITTING' | 'SUCCEEDED' | 'FAILED' | 'CANCELLED'
 
 export interface PairingState {
   deviceId: string | null
@@ -12,15 +12,17 @@ export interface PairingState {
   phase: PairingPhase
   error: string | null
   verificationCode?: string | null
+  identityChanged?: boolean
 }
 export interface PairingInput {
   id?: string
   host?: string
   mode?: 'CHAT' | 'MANAGE'
   password?: string
+  confirm?: boolean
   generation?: string
 }
-const fields = `deviceId generation mode phase error verificationCode`
+const fields = `deviceId generation mode phase error verificationCode identityChanged`
 const terminal = new Set(['SUCCEEDED', 'FAILED', 'CANCELLED'])
 
 export function createPairing(subscriptions = graphqlSubscriptions, request?: ReturnType<typeof bindGraphqlClient>) {
@@ -36,7 +38,9 @@ export function createPairing(subscriptions = graphqlSubscriptions, request?: Re
   let disposed = false
   const receive = (value: PairingState) => {
     if (value.generation !== generation || state.value && terminal.has(state.value.phase)) return
-    const phases = ['STARTING', 'PASSWORD_REQUIRED', 'AUTHENTICATING', 'PAIRING', 'WAITING_CONFIRMATION', 'COMMITTING', 'SUCCEEDED', 'FAILED', 'CANCELLED']
+    const phases = value.mode === 'MANAGE'
+      ? ['STARTING', 'PASSWORD_REQUIRED', 'TRUST_REQUIRED', 'AUTHENTICATING', 'WAITING_CONFIRMATION', 'COMMITTING', 'SUCCEEDED', 'FAILED', 'CANCELLED']
+      : ['STARTING', 'PAIRING', 'TRUST_REQUIRED', 'AUTHENTICATING', 'WAITING_CONFIRMATION', 'COMMITTING', 'SUCCEEDED', 'FAILED', 'CANCELLED']
     if (state.value && phases.indexOf(value.phase) >= 0 && phases.indexOf(state.value.phase) > phases.indexOf(value.phase)) return
     state.value = value
   }
@@ -59,6 +63,11 @@ export function createPairing(subscriptions = graphqlSubscriptions, request?: Re
       state.value = result.pairDevice
       refresh()
       if (disposed) await execute('mutation($generation: String!) { cancelPairing(generation: $generation) }', { generation })
+    },
+    async confirm(expectedGeneration: string) {
+      const current = await execute<{ pairingStates: PairingState[] }>(`query { pairingStates { ${fields} } }`)
+      if (!current.pairingStates.some(value => value.generation === expectedGeneration && value.phase === 'TRUST_REQUIRED')) return
+      await execute(`mutation($input: PairingDeviceInput!) { pairDevice(input: $input) { ${fields} } }`, { input: { generation: expectedGeneration, confirm: true } })
     },
     async submit(password: string) {
       if (!generation) return

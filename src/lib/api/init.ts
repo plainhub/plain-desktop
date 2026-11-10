@@ -1,7 +1,7 @@
 import { getCurrentAuthToken } from '../device/current'
-import { randomUUID } from '../strutil'
+import { wrapWithReplayProtection } from './time-sync'
 import { getApiBaseUrl, getApiHeaders } from './api'
-import { chachaEncrypt, bitArrayToUint8Array } from './crypto'
+import { chachaEncrypt, httpRequestAad, bitArrayToUint8Array } from './crypto'
 import type { InitResponse } from './crypto'
 import { tokenToKey } from './file'
 import { httpRequest } from './http'
@@ -18,7 +18,7 @@ export async function requestInit(): Promise<InitResult> {
   const token = getCurrentAuthToken()
   if (token) {
     const key = tokenToKey(token)
-    body = bitArrayToUint8Array(chachaEncrypt(key, randomUUID()))
+    body = bitArrayToUint8Array(chachaEncrypt(key, wrapWithReplayProtection('init'), httpRequestAad('/init')))
   }
   const initUrl = `${getApiBaseUrl()}/init`
   const r = await httpRequest(initUrl, { method: 'POST', headers, body })

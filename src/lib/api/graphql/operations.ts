@@ -1302,9 +1302,10 @@ export interface GqlOperations {
         deviceId?: string
         generation: string
         mode: 'CHAT' | 'MANAGE'
-        phase: 'STARTING' | 'PASSWORD_REQUIRED' | 'AUTHENTICATING' | 'PAIRING' | 'WAITING_CONFIRMATION' | 'COMMITTING' | 'SUCCEEDED' | 'FAILED' | 'CANCELLED'
+        phase: 'STARTING' | 'PASSWORD_REQUIRED' | 'AUTHENTICATING' | 'PAIRING' | 'TRUST_REQUIRED' | 'WAITING_CONFIRMATION' | 'COMMITTING' | 'SUCCEEDED' | 'FAILED' | 'CANCELLED'
         error?: string
         verificationCode?: string
+        identityChanged: boolean
       }
     }
     variables: {
@@ -1885,6 +1886,7 @@ export interface GqlOperations {
   nearbyDevicesGQL: {
     result: {
       nearbyDevices: Array<{
+        signaturePublicKey: string
         id: string
         name: string
         ips: Array<string>
@@ -1902,9 +1904,10 @@ export interface GqlOperations {
         deviceId?: string
         generation: string
         mode: 'CHAT' | 'MANAGE'
-        phase: 'STARTING' | 'PASSWORD_REQUIRED' | 'AUTHENTICATING' | 'PAIRING' | 'WAITING_CONFIRMATION' | 'COMMITTING' | 'SUCCEEDED' | 'FAILED' | 'CANCELLED'
+        phase: 'STARTING' | 'PASSWORD_REQUIRED' | 'AUTHENTICATING' | 'PAIRING' | 'TRUST_REQUIRED' | 'WAITING_CONFIRMATION' | 'COMMITTING' | 'SUCCEEDED' | 'FAILED' | 'CANCELLED'
         error?: string
         verificationCode?: string
+        identityChanged: boolean
       }>
       mdnsState: {
         scanning: boolean
@@ -2054,7 +2057,7 @@ export interface GqlOperations {
         deviceId?: string
         generation: string
         mode: 'CHAT' | 'MANAGE'
-        phase: 'STARTING' | 'PASSWORD_REQUIRED' | 'AUTHENTICATING' | 'PAIRING' | 'WAITING_CONFIRMATION' | 'COMMITTING' | 'SUCCEEDED' | 'FAILED' | 'CANCELLED'
+        phase: 'STARTING' | 'PASSWORD_REQUIRED' | 'AUTHENTICATING' | 'PAIRING' | 'TRUST_REQUIRED' | 'WAITING_CONFIRMATION' | 'COMMITTING' | 'SUCCEEDED' | 'FAILED' | 'CANCELLED'
         error?: string
       }
     }
@@ -2101,6 +2104,8 @@ export interface GqlOperations {
   pairingRequestedSubscription: {
     result: {
       pairingRequested: {
+        toId: string
+        targetPublicKey: string
         fromId: string
         fromName: string
         port: number
@@ -2113,6 +2118,7 @@ export interface GqlOperations {
         fromIp: string
         awareSupported: boolean
         verificationCode: string
+        identityChanged: boolean
       }
     }
     variables: undefined

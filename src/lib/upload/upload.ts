@@ -5,7 +5,7 @@ import { invoke } from '@tauri-apps/api/core'
 import { sha256 } from '@noble/hashes/sha2.js'
 import { bytesToHex } from '@noble/hashes/utils.js'
 import type { NativeTarget } from '../api/native-client'
-import { chachaEncrypt, bitArrayToUint8Array } from '../api/crypto'
+import { chachaEncrypt, httpRequestAad, bitArrayToUint8Array } from '../api/crypto'
 import { tokenToKey } from '../api/file'
 import { uploadedChunksGQL } from '../api/query'
 import { deleteChunksGQL } from '../api/mutation'
@@ -234,7 +234,7 @@ async function uploadDirect(upload: IUploadItem, replace: boolean, context: WebU
   try {
     const key = tokenToKey(context.token)
     const data = new FormData()
-    const v = bitArrayToUint8Array(chachaEncrypt(key, wrapWithReplayProtection(JSON.stringify({ dir: upload.dir, replace, isAppFile: upload.isAppFile ?? false, size: upload.file.size }))))
+    const v = bitArrayToUint8Array(chachaEncrypt(key, wrapWithReplayProtection(JSON.stringify({ dir: upload.dir, replace, isAppFile: upload.isAppFile ?? false, size: upload.file.size })), httpRequestAad('/upload')))
     data.append('info', new Blob([v]))
     // Explicitly pass the base filename to prevent browsers from including
     // webkitRelativePath in the Content-Disposition filename parameter.
@@ -658,7 +658,7 @@ async function uploadChunkHttp(upload: IUploadItem, chunkData: IUploadChunk & { 
       index: chunkData.index,
       size: chunkData.chunk.size,
     })
-    const v = bitArrayToUint8Array(chachaEncrypt(key, wrapWithReplayProtection(info)))
+    const v = bitArrayToUint8Array(chachaEncrypt(key, wrapWithReplayProtection(info), httpRequestAad('/upload_chunk')))
     data.append('info', new Blob([v]))
     data.append('file', chunkData.chunk, upload.file.name)
 

@@ -1,7 +1,10 @@
 import type { DeviceType } from '@/lib/status'
 
 export interface PairingRequest {
+  toId: string
+  targetPublicKey: string
   verificationCode?: string
+  identityChanged?: boolean
   fromId: string
   fromName: string
   port: number

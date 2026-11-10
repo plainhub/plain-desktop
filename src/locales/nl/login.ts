@@ -4,6 +4,7 @@ export default {
   logging_in: 'Inloggen...',
   connect: 'Verbinden',
   login: {
+    secure_login_unavailable: 'Deze browser kan niet veilig inloggen. Werk je browser bij.',
     chat_pairing_unavailable: 'Werk PlainApp op uw telefoon bij om chat en volledige toegang tegelijk te koppelen.',
     to_continue: 'Tik op de Accepteren-knop op je telefoon om door te gaan.',
     failed: 'Inloggen mislukt, zorg ervoor dat je telefoon niet in de slaapstand staat.',

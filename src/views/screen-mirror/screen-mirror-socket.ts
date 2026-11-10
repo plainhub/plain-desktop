@@ -5,7 +5,7 @@ import { getCurrentAuthToken } from '@/lib/device/current'
 import { getRemoteClientId, getDesktopClientId } from '@/lib/device/client-id'
 import { openSocket } from '@/lib/api/http'
 import { tokenToKey } from '@/lib/api/file'
-import { chachaEncrypt, chachaEncryptBytes, bitArrayToUint8Array } from '@/lib/api/crypto'
+import { chachaEncrypt, chachaEncryptBytes, websocketRequestAad, bitArrayToUint8Array } from '@/lib/api/crypto'
 import { encodeSocketPayload } from '@/lib/api/websocket-frame'
 import { EventStream } from '@/lib/api/websocket-events'
 
@@ -20,6 +20,7 @@ export class ScreenMirrorSocket {
   private socket: WebSocket | null = null
   private native: NativeSocketConnection | null = null
   private key: Uint8Array | null = null
+  private controlAad: Uint8Array | null = null
 
   constructor(private callbacks: ScreenMirrorCallbacks) {}
 
@@ -53,7 +54,8 @@ export class ScreenMirrorSocket {
     }
     const key = tokenToKey(token)
     const url = new URL('/screen', getWebSocketBaseUrl())
-    url.searchParams.set('cid', getDesktopClientId())
+    const clientId = getDesktopClientId()
+    url.searchParams.set('cid', clientId)
     let socket: WebSocket
     try {
       socket = openSocket(url.toString(), local ? '' : getRemoteClientId())
@@ -67,10 +69,11 @@ export class ScreenMirrorSocket {
     let stream: EventStream | null = null
     socket.onopen = () => {
       if (this.socket !== socket) return
-      const registration = bitArrayToUint8Array(chachaEncrypt(key, Date.now().toString()))
+      const registration = bitArrayToUint8Array(chachaEncrypt(key, Date.now().toString(), websocketRequestAad('/screen', clientId)))
       stream = new EventStream(registration)
       socket.send(registration)
       this.key = key
+      this.controlAad = websocketRequestAad('/screen', clientId, registration)
       this.callbacks.onConnected()
     }
     socket.onmessage = (message: MessageEvent) => {
@@ -99,6 +102,7 @@ export class ScreenMirrorSocket {
       if (this.socket !== socket) return
       this.socket = null
       this.key = null
+      this.controlAad = null
       this.callbacks.onDisconnected()
     }
     socket.onerror = () => socket.close()
@@ -106,8 +110,8 @@ export class ScreenMirrorSocket {
 
   sendBytes(payload: Uint8Array): boolean {
     if (this.native) return this.native.send(payload)
-    if (!this.socket || !this.key || this.socket.readyState !== WebSocket.OPEN) return false
-    this.socket.send(chachaEncryptBytes(this.key, encodeSocketPayload(payload)))
+    if (!this.socket || !this.key || !this.controlAad || this.socket.readyState !== WebSocket.OPEN) return false
+    this.socket.send(chachaEncryptBytes(this.key, encodeSocketPayload(payload), this.controlAad))
     return true
   }
 
@@ -121,6 +125,7 @@ export class ScreenMirrorSocket {
     const socket = this.socket
     this.socket = null
     this.key = null
+    this.controlAad = null
     socket?.close()
   }
 }

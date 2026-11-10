@@ -1,7 +1,6 @@
 import { ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import router from '@/plugins/router'
-import { sha512 } from '@/lib/api/crypto'
 import { getApiBaseUrl, getPendingLoginDevice, clearPendingLoginDevice } from '@/lib/api/api'
 import type { InitResult } from '@/lib/api/init'
 import { getCurrentAuthToken, clearCurrentSession } from '@/lib/device/current'
@@ -40,6 +39,7 @@ export function useLogin(options: UseLoginOptions = {}) {
   const isSubmitting = ref(false)
   const redirectOnSuccess = options.redirectOnSuccess !== false
   let lastInitSignaturePublicKey = ''
+  let lastInitOpaquePublicKey: string | undefined
   let pendingLoginController: AbortController | null = null
   const managedDeviceId = options.managedDeviceId
   const pairing = __IS_TAURI__ || managedDeviceId
@@ -98,6 +98,7 @@ export function useLogin(options: UseLoginOptions = {}) {
     }
     webAccessDisabled.value = false
     const initData = result.data
+    lastInitOpaquePublicKey = initData?.opaquePublicKey
     if (initData?.signaturePublicKey) {
       lastInitSignaturePublicKey = initData.signaturePublicKey
     }
@@ -106,7 +107,8 @@ export function useLogin(options: UseLoginOptions = {}) {
     }
     try {
       const saved = getBrowserIdentity()
-      if (saved && saved.publicKey !== initData.signaturePublicKey) throw 'peer_identity_changed'
+      if (saved && (saved.publicKey !== initData.signaturePublicKey ||
+        saved.opaquePublicKey && initData.passwordRequired && saved.opaquePublicKey !== initData.opaquePublicKey)) throw 'peer_identity_changed'
     } catch {
       showError.value = true; error.value = 'login.peer_identity_changed'; webAccessDisabled.value = true; return false
     }
@@ -141,14 +143,17 @@ export function useLogin(options: UseLoginOptions = {}) {
     pendingLoginController = controller
     showError.value = false; error.value = ''
 
-    const hash = showPasswordInput.value ? sha512(password.value) : undefined
+    const submittedPassword = showPasswordInput.value ? password.value : undefined
+    password.value = ''
     const myClientId = getDesktopClientId()
 
     try {
       const identity = getBrowserIdentity()
-      const { clientId, token, signaturePublicKey } = await performLoginHandshake({
+      const { clientId, token, signaturePublicKey, opaquePublicKey } = await performLoginHandshake({
         passwordRequired: showPasswordInput.value,
-        passwordHash: hash,
+        password: submittedPassword,
+        initOpaquePublicKey: lastInitOpaquePublicKey,
+        storedOpaquePublicKey: identity?.opaquePublicKey,
         clientId: myClientId,
         storedSignaturePublicKey: identity?.publicKey,
         expectedDeviceId: identity?.deviceId,
@@ -158,7 +163,7 @@ export function useLogin(options: UseLoginOptions = {}) {
       })
 
       if (controller.signal.aborted) return
-      saveBrowserIdentity(clientId, signaturePublicKey)
+      saveBrowserIdentity(clientId, signaturePublicKey, opaquePublicKey)
       saveBrowserSession(token)
       setRemoteClientId(clientId)
       clearPendingLoginDevice()

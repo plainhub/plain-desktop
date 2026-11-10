@@ -1,4 +1,6 @@
 export default {
+  pairing_identity_changed: "De openbare apparaatsleutel is gewijzigd, mogelijk door een herinstallatie. Vergelijk de volledige vingerafdruk voordat je het apparaat vertrouwt.",
+  pairing_trust: "Vertrouwen",
   pairing_compare_code: 'Vergelijk deze code op beide apparaten voordat je koppelen toestaat.',
   show_in_finder: 'Toon in Finder',
   save_as: 'Opslaan als…',

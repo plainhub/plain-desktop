@@ -1,4 +1,6 @@
 export default {
+  pairing_identity_changed: "The device public key has changed. It may have been reinstalled. Compare the full fingerprint before trusting it.",
+  pairing_trust: "Trust",
   pairing_compare_code: 'Compare this code on both devices before allowing pairing.',
   show_in_finder: 'Show in Finder',
   save_as: 'Save As…',

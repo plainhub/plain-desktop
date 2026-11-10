@@ -4,6 +4,7 @@ export default {
   logging_in: 'Giriş yapılıyor',
   connect: 'Bağlan',
   login: {
+    secure_login_unavailable: 'Bu tarayıcı güvenli giriş yapamıyor. Lütfen tarayıcınızı güncelleyin.',
     chat_pairing_unavailable: 'Sohbeti ve tam kontrolü birlikte eşleştirmek için telefonunuzdaki PlainApp uygulamasını güncelleyin.',
     to_continue: 'Devam etmek için telefonunuzda Kabul düğmesine dokunun.',
     failed: 'Giriş başarısız, lütfen telefonunuzun uyku modunda olmadığından emin olun.',

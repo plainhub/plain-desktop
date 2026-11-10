@@ -4,6 +4,7 @@ export default {
   logging_in: '로그인 중',
   connect: '연결',
   login: {
+    secure_login_unavailable: '이 브라우저에서는 안전하게 로그인할 수 없습니다. 브라우저를 업데이트하세요.',
     chat_pairing_unavailable: '채팅과 전체 제어를 함께 페어링하려면 휴대폰의 PlainApp을 업데이트하세요.',
     to_continue: '계속하려면 휴대폰에서 수락 버튼을 탭하세요.',
     failed: '로그인 실패, 휴대폰이 슬립 모드가 아닌지 확인하세요.',

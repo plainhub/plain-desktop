@@ -1,4 +1,6 @@
 export default {
+  pairing_identity_changed: "La chiave pubblica del dispositivo è cambiata, forse dopo una reinstallazione. Confronta tutta la sua impronta prima di considerarlo attendibile.",
+  pairing_trust: "Considera attendibile",
   pairing_compare_code: 'Confronta questo codice su entrambi i dispositivi prima di consentire l’associazione.',
   show_in_finder: 'Mostra nel Finder',
   save_as: 'Salva come…',

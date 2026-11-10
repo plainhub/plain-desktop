@@ -13,7 +13,8 @@
         <p class="pairing-hint">
           {{ $t('pairing_request_hint') }}
         </p>
-        <RequestVerificationCode v-if="request.verificationCode" :code="request.verificationCode" :hint="$t('pairing_compare_code')" />
+        <p v-if="request.identityChanged" role="alert">{{ $t('pairing_identity_changed') }}</p>
+          <RequestVerificationCode v-if="request.verificationCode" :code="request.verificationCode" :hint="$t('pairing_compare_code')" />
         <ul class="card list-items">
           <v-list-item :title="$t('ip_address')" :value="displayIp">
           </v-list-item>
@@ -25,7 +26,7 @@
             :disabled="busy"
             @click="allow"
           >
-            {{ $t('allow') }}
+            {{ $t(request.identityChanged ? 'pairing_trust' : 'allow') }}
           </v-filled-button>
           <v-outlined-button
             class="btn-block danger"

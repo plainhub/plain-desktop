@@ -21,7 +21,7 @@ it('routes a known peer socket by peer id and keeps the client id in the query',
 })
 
 it('leaves sockets without a peer id untouched', () => {
-  expect(proxyWsUrlFor('wss://device.example.test:8443/auth?cid=login&auth=1')).toBe('wss://device.example.test:8443/auth?cid=login&auth=1')
+  expect(proxyWsUrlFor('wss://device.example.test:8443/auth?cid=login')).toBe('wss://device.example.test:8443/auth?cid=login')
 })
 
 it('connects loopback sockets directly', () => {

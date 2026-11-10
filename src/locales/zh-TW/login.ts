@@ -4,6 +4,7 @@ export default {
   logging_in: '登入中',
   connect: '連接',
   login: {
+    secure_login_unavailable: '目前瀏覽器無法安全登入，請更新瀏覽器。',
     to_continue: '在手機上點擊接受按鈕以繼續。',
     failed: '登入失敗，請確保手機未處於睡眠模式。',
     rejected: '登入請求被拒絕。',

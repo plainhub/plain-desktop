@@ -4,6 +4,7 @@ export default {
   logging_in: '登录中',
   connect: '连接',
   login: {
+    secure_login_unavailable: '当前浏览器无法安全登录，请更新浏览器。',
     timeout: '登录连接超时，请重试。',
     forget_identity: '忘记已保存的设备身份',
     confirm_forget_identity: '请先在本机核实设备身份。是否忘记已保存的身份和会话，然后重新登录？',

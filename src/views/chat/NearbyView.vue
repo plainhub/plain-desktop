@@ -62,7 +62,9 @@
         </section>
         <div v-for="state in verificationStates" :key="state.generation" class="pairing-verification">
           <p>{{ deviceById.get(state.deviceId!)?.name ?? peers.find((peer) => peer.id === state.deviceId)?.name }} · {{ $t('waiting_for_confirmation') }}</p>
+          <p v-if="state.identityChanged" role="alert">{{ $t('pairing_identity_changed') }}</p>
           <RequestVerificationCode :code="state.verificationCode!" :hint="$t('pairing_compare_code')" />
+          <v-filled-button v-if="state.phase === 'TRUST_REQUIRED'" @click="pairing.confirm(state.generation).catch(reportFailure)">{{ $t(state.identityChanged ? 'pairing_trust' : 'confirm') }}</v-filled-button>
         </div>
         <div v-if="error" class="nearby-error" role="alert">
           <span>{{ $t(error) }}</span

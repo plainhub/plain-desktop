@@ -16,6 +16,7 @@ vi.mock('@/lib/api/http', () => ({ openSocket: vi.fn(() => {
 
 import { ImageEditorSocket } from '../../src/views/image-editor/sync/image-editor-socket'
 import { openSocket } from '../../src/lib/api/http'
+import { chachaDecrypt, websocketRequestAad } from '../../src/lib/api/crypto'
 
 function frame(registration: Uint8Array, counter: bigint, name: string, data: Uint8Array): ArrayBuffer {
   const sequence = Buffer.alloc(8)
@@ -41,6 +42,11 @@ it('waits for authenticated readiness, receives updates, rejects replay and reco
   socket.onopen()
   expect(ready).not.toHaveBeenCalled()
   const registration = socket.send.mock.calls[0][0]
+  const key = new Uint8Array(32).fill(7)
+  expect(chachaDecrypt(key, registration, websocketRequestAad('/image_editor', 'browser'))).toMatch(/^\d+$/)
+  expect(() => chachaDecrypt(key, registration)).toThrow()
+  expect(() => chachaDecrypt(key, registration, websocketRequestAad('/screen', 'browser'))).toThrow()
+  expect(() => chachaDecrypt(key, registration, websocketRequestAad('/image_editor', 'other-client'))).toThrow()
   socket.onmessage({ data: frame(registration, 0n, 'IMAGE_EDITOR_READY', new Uint8Array()) })
   expect(ready).toHaveBeenCalledOnce()
   const bytes = new Uint8Array([1, 2, 3])

@@ -2,7 +2,7 @@ import { readFileSync } from 'node:fs'
 import { randomBytes, randomUUID } from 'node:crypto'
 import { expect, it, vi, afterEach } from 'vitest'
 import { xchacha20poly1305 } from '@noble/ciphers/chacha'
-import { chachaDecrypt, httpResponseAad } from '../../src/lib/api/crypto'
+import { chachaDecrypt, httpRequestAad, httpResponseAad } from '../../src/lib/api/crypto'
 import { encryptedGqlPost } from '../../src/lib/api/gql-client'
 import { guestFetch } from '../../src/lib/api/guest'
 import { httpRequest } from '../../src/lib/api/http'
@@ -52,6 +52,11 @@ it.each(['/graphql', '/guest_graphql'])('the actual %s client rejects captured a
     expect(new URL(url).pathname).toBe(endpoint)
     const request = options!.body!
     requests.push(request.slice())
+    const payload = chachaDecrypt(key, request, httpRequestAad(endpoint))
+    expect(payload).toContain('query { __typename }')
+    expect(() => chachaDecrypt(key, request)).toThrow()
+    expect(() => chachaDecrypt(key, request, new TextEncoder().encode(`http-request\0GET\0${endpoint}`))).toThrow()
+    expect(() => chachaDecrypt(key, request, httpRequestAad(endpoint === '/graphql' ? '/guest_graphql' : '/graphql'))).toThrow()
     const nonce = randomBytes(24)
     const encrypted = xchacha20poly1305(key, nonce, mode === 'legacy' ? undefined : httpResponseAad(endpoint, request)).encrypt(new TextEncoder().encode('{"data":{"__typename":"Query"}}'))
     const bytes = new Uint8Array(24 + encrypted.length)
@@ -70,4 +75,8 @@ it.each(['/graphql', '/guest_graphql'])('the actual %s client rejects captured a
   mode = 'fresh'
   expect((await call()).data.__typename).toBe('Query')
   expect(Buffer.from(requests[0])).not.toEqual(Buffer.from(requests[1]))
+})
+
+it.each(['/graphql', '/guest_graphql', '/peer_graphql', '/init', '/upload', '/upload_chunk'])('binds %s to the agreed POST request domain', endpoint => {
+  expect(new TextDecoder().decode(httpRequestAad(endpoint))).toBe('http-request\0POST\0' + endpoint)
 })

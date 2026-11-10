@@ -1,12 +1,14 @@
 <template>
   <div class="request-verification-code">
-    <code>{{ code }}</code>
+    <code>{{ displayCode }}</code>
     <p>{{ hint }}</p>
   </div>
 </template>
 
 <script setup lang="ts">
-defineProps<{ code: string; hint: string }>()
+import { computed } from 'vue'
+const props = defineProps<{ code: string; hint: string }>()
+const displayCode = computed(() => /^[0-9a-f]{64}$/i.test(props.code) ? props.code.match(/.{8}/g)!.join(' ') : props.code)
 </script>
 
 <style scoped>

@@ -68,3 +68,15 @@ it('cancels a visible restored request by its current generation without cancell
   expect(pairing.state.value?.generation).toBe('first')
   pairing.dispose()
 })
+
+it('confirms only the visible pending generation and never substitutes a newer attempt', async () => {
+  const pairing = createPairing()
+  snapshot = [{ ...initial, phase: 'TRUST_REQUIRED' }]
+  await pairing.confirm('first')
+  expect(mock.native.mock.lastCall?.[0].variables).toEqual({ input: { generation: 'first', confirm: true } })
+  mock.native.mockClear()
+  snapshot = [{ ...initial, generation: 'newer', phase: 'TRUST_REQUIRED' }]
+  await pairing.confirm('first')
+  expect(mock.native.mock.calls.some(([request]) => request.variables?.input?.confirm)).toBe(false)
+  pairing.dispose()
+})

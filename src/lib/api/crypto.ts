@@ -1,22 +1,11 @@
-import { sha512Hex } from './sha512'
 import { xchacha20poly1305 } from '@noble/ciphers/chacha'
 import { randomBytes } from '@noble/ciphers/webcrypto'
 import { ed25519 } from '@noble/curves/ed25519.js'
 import { p256 } from '@noble/curves/nist.js'
 import { sha256 } from '@noble/hashes/sha2.js'
 
-export function sha512(input: string): string {
-  return sha512Hex(input)
-}
-
-/** Take first 32 ASCII chars of hex hash as a 32-byte key */
-export function hashToKey(hash: string): Uint8Array {
-  const sub = hash.substring(0, 32)
-  return new Uint8Array(sub.split('').map((c) => c.charCodeAt(0)))
-}
-
-export function chachaEncrypt(key: Uint8Array, plaintext: string): Uint8Array {
-  return chachaEncryptBytes(key, new TextEncoder().encode(plaintext))
+export function chachaEncrypt(key: Uint8Array, plaintext: string, aad?: Uint8Array): Uint8Array {
+  return chachaEncryptBytes(key, new TextEncoder().encode(plaintext), aad)
 }
 
 /** Binary variant of chachaEncrypt for binary upstream frames (touch samples). */
@@ -42,6 +31,19 @@ export function chachaDecryptBytes(key: Uint8Array, data: Uint8Array, aad?: Uint
   const key32 = new Uint8Array(32)
   key32.set(key.slice(0, 32))
   return xchacha20poly1305(key32, nonce, aad).decrypt(ciphertext)
+}
+
+export function httpRequestAad(endpoint: string): Uint8Array {
+  return new TextEncoder().encode(`http-request\0POST\0${endpoint}`)
+}
+
+export function websocketRequestAad(path: string, clientId: string, registration?: Uint8Array): Uint8Array {
+  const prefix = new TextEncoder().encode(`ws-request\0${path}\0${clientId}\0${registration ? 'control\0' : 'register'}`)
+  if (!registration) return prefix
+  const aad = new Uint8Array(prefix.length + 32)
+  aad.set(prefix)
+  aad.set(sha256(registration), prefix.length)
+  return aad
 }
 
 export function httpResponseAad(endpoint: string, request: Uint8Array): Uint8Array {
@@ -112,6 +114,7 @@ export function verifyEd25519Signature(
 
 export interface InitResponse {
   signaturePublicKey: string
+  opaquePublicKey?: string
   authenticated: boolean
   passwordRequired: boolean
 }

@@ -18,7 +18,7 @@ vi.mock('@/lib/api/http', () => ({
 
 import { ScreenMirrorSocket } from '../../src/views/screen-mirror/screen-mirror-socket'
 import { openSocket } from '../../src/lib/api/http'
-import { chachaDecrypt } from '../../src/lib/api/crypto'
+import { chachaDecrypt, websocketRequestAad } from '../../src/lib/api/crypto'
 
 const key = new Uint8Array(32).fill(7)
 function frame(registration: Uint8Array, counter: bigint, name: string, data: Uint8Array): ArrayBuffer {
@@ -57,7 +57,9 @@ it('opens only one screen socket and registers with a fresh timestamp when it op
   expect(callbacks.onConnected).not.toHaveBeenCalled()
   const now = vi.spyOn(Date, 'now').mockReturnValue(1700000123456)
   open()
-  expect(chachaDecrypt(key, socket.send.mock.calls[0][0])).toBe('1700000123456')
+  expect(chachaDecrypt(key, socket.send.mock.calls[0][0], websocketRequestAad('/screen', 'browser'))).toBe('1700000123456')
+  expect(() => chachaDecrypt(key, socket.send.mock.calls[0][0])).toThrow()
+  expect(() => chachaDecrypt(key, socket.send.mock.calls[0][0], websocketRequestAad('/image_editor', 'browser'))).toThrow()
   expect(callbacks.onConnected).toHaveBeenCalledOnce()
   now.mockRestore()
 })
@@ -123,9 +125,40 @@ it('sends encrypted controls on the screen socket only while connected', () => {
   const payload = new Uint8Array([0x54, 1, 2, 3])
   expect(client.sendBytes(payload)).toBe(true)
   const frame = socket.send.mock.calls[1][0] as Uint8Array
-  const plain = xchacha20poly1305(key, frame.slice(0, 24)).decrypt(frame.slice(24))
+  const plain = xchacha20poly1305(key, frame.slice(0, 24), websocketRequestAad('/screen', 'browser', socket.send.mock.calls[0][0])).decrypt(frame.slice(24))
   expect(plain.slice(8)).toEqual(payload)
+  for (const aad of [undefined, websocketRequestAad('/image_editor', 'browser', socket.send.mock.calls[0][0]), websocketRequestAad('/screen', 'other-client', socket.send.mock.calls[0][0]), websocketRequestAad('/screen', 'browser', new Uint8Array([1]))]) {
+    expect(() => xchacha20poly1305(key, frame.slice(0, 24), aad).decrypt(frame.slice(24))).toThrow()
+  }
   client.disconnect()
   expect(client.sendBytes(payload)).toBe(false)
   vi.unstubAllGlobals()
+})
+
+it('binds controls to a new registration after reconnecting', () => {
+  vi.stubGlobal('WebSocket', { OPEN: 1 })
+  const { client, socket, open } = fixture()
+  open()
+  const oldRegistration = socket.send.mock.calls[0][0]
+  client.disconnect()
+  client.connect()
+  const next = mock.sockets.at(-1)!
+  next.readyState = 1
+  next.onopen()
+  client.sendBytes(new Uint8Array([1]))
+  const control = next.send.mock.calls[1][0] as Uint8Array
+  const newAad = websocketRequestAad('/screen', 'browser', next.send.mock.calls[0][0])
+  const oldAad = websocketRequestAad('/screen', 'browser', oldRegistration)
+  expect(() => xchacha20poly1305(key, control.slice(0, 24), newAad).decrypt(control.slice(24))).not.toThrow()
+  expect(() => xchacha20poly1305(key, control.slice(0, 24), oldAad).decrypt(control.slice(24))).toThrow()
+  client.disconnect()
+})
+
+it('matches the agreed registration and connection-bound control AAD bytes', () => {
+  const registration = new Uint8Array([1, 2, 3])
+  expect(Buffer.from(websocketRequestAad('/screen', 'browser'))).toEqual(Buffer.from('ws-request\0/screen\0browser\0register'))
+  expect(Buffer.from(websocketRequestAad('/screen', 'browser', registration))).toEqual(Buffer.concat([
+    Buffer.from('ws-request\0/screen\0browser\0control\0'),
+    createHash('sha256').update(registration).digest(),
+  ]))
 })

@@ -13,8 +13,9 @@ vi.mock('@/lib/device/pairing', () => ({ createPairing: vi.fn() }))
 vi.mock('@/lib/api/gql-client', () => ({ bindGraphqlClient: vi.fn() }))
 import { createPairing, type PairingState } from '@/lib/device/pairing'
 import { setRemoteClientId } from '@/lib/device/client-id'
-import { saveBrowserSession } from '@/lib/device/login-peers'
+import { saveBrowserIdentity, saveBrowserSession } from '@/lib/device/login-peers'
 import { clearCurrentSession } from '../../src/lib/device/current'
+import { performLoginHandshake } from '../../src/lib/api/login-handshake'
 import { useLogin } from '../../src/views/login/login'
 
 const data = { signaturePublicKey: 'trusted-key', authenticated: false, passwordRequired: false }
@@ -79,4 +80,27 @@ it('starts B management through Core and keeps the Web session on A', async () =
   expect(success).toHaveBeenCalledOnce()
   expect(setRemoteClientId).not.toHaveBeenCalled()
   expect(saveBrowserSession).not.toHaveBeenCalled()
+})
+
+it('rejects an OPAQUE key change before auto-login', () => {
+  const success = vi.fn()
+  mock.identity.mockReturnValue({ deviceId: 'device', publicKey: data.signaturePublicKey, opaquePublicKey: 'old-key' })
+  const login = useLogin({ redirectOnSuccess: false, onSuccess: success })
+  login.applyInitResult({ status: 200, data: { ...data, passwordRequired: true, authenticated: true, opaquePublicKey: 'new-key' } })
+  expect(login.error.value).toBe('login.peer_identity_changed')
+  expect(login.webAccessDisabled.value).toBe(true)
+  expect(success).not.toHaveBeenCalled()
+})
+
+it('passes the entered password only to the handshake and stores the authenticated pin after success', async () => {
+  const login = useLogin({ redirectOnSuccess: false })
+  login.applyInitResult({ status: 200, data: { ...data, passwordRequired: true, opaquePublicKey: 'init-key' } })
+  expect(saveBrowserIdentity).not.toHaveBeenCalled()
+  login.password.value = 'synthetic password'
+  vi.mocked(performLoginHandshake).mockResolvedValueOnce({ clientId: 'device', token: 'token', signaturePublicKey: data.signaturePublicKey, opaquePublicKey: 'init-key', chatPaired: false })
+  await login.onSubmit()
+  expect(performLoginHandshake).toHaveBeenCalledWith(expect.objectContaining({ password: 'synthetic password', initOpaquePublicKey: 'init-key' }))
+  expect(vi.mocked(performLoginHandshake).mock.calls[0][0]).not.toHaveProperty('passwordHash')
+  expect(login.password.value).toBe('')
+  expect(saveBrowserIdentity).toHaveBeenCalledWith('device', data.signaturePublicKey, 'init-key')
 })

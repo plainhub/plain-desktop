@@ -5,6 +5,7 @@ import { httpRequest } from './http'
 import {
   chachaEncrypt,
   chachaDecrypt,
+  httpRequestAad,
   httpResponseAad,
   arrayBufferToBitArray,
   bitArrayToUint8Array,
@@ -89,7 +90,7 @@ export async function guestFetch<T = any>(
 ): Promise<GuestResult<T>> {
   const url = `${getApiBaseUrl()}/guest_graphql`
   const payload = wrapWithReplayProtection(JSON.stringify({ query, variables }))
-  const body = bitArrayToUint8Array(chachaEncrypt(key, payload))
+  const body = bitArrayToUint8Array(chachaEncrypt(key, payload, httpRequestAad('/guest_graphql')))
   const responseAad = httpResponseAad('/guest_graphql', body)
 
   const controller = new AbortController()

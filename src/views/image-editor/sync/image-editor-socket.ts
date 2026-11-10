@@ -1,7 +1,7 @@
 import { openNativeSocket, type NativeSocketConnection } from '@/lib/api/native-socket'
 import { isLocalMode } from '@/lib/device/local-mode'
 import { getUrlToken, getWebSocketBaseUrl } from '@/lib/api/api'
-import { chachaEncrypt, bitArrayToUint8Array } from '@/lib/api/crypto'
+import { chachaEncrypt, websocketRequestAad, bitArrayToUint8Array } from '@/lib/api/crypto'
 import { tokenToKey } from '@/lib/api/file'
 import { openSocket } from '@/lib/api/http'
 import { EventStream } from '@/lib/api/websocket-events'
@@ -45,7 +45,8 @@ export class ImageEditorSocket {
     if (!token) return
     const key = tokenToKey(token)
     const url = new URL('/image_editor', getWebSocketBaseUrl())
-    url.searchParams.set('cid', getDesktopClientId())
+    const clientId = getDesktopClientId()
+    url.searchParams.set('cid', clientId)
     let socket: WebSocket
     try {
       socket = openSocket(url.toString(), local ? '' : getRemoteClientId())
@@ -59,7 +60,7 @@ export class ImageEditorSocket {
     let stream: EventStream | null = null
     socket.onopen = () => {
       if (this.socket !== socket) return
-      const registration = bitArrayToUint8Array(chachaEncrypt(key, Date.now().toString()))
+      const registration = bitArrayToUint8Array(chachaEncrypt(key, Date.now().toString(), websocketRequestAad('/image_editor', clientId)))
       stream = new EventStream(registration)
       socket.send(registration)
     }

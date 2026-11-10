@@ -33,12 +33,12 @@ const { mutate: cancelPairingMutate } = initMutation({ document: cancelPairingGQ
 const { mutate: respondToPairingMutate } = initMutation({ document: respondToPairingGQL })
 
 export async function allowPairing(request: PairingRequest) {
-  const { verificationCode: _, ...input } = request
+  const { verificationCode: _, identityChanged: _changed, ...input } = request
   await respondToPairingMutate({ input, accepted: true })
 }
 
 export async function denyPairing(request: PairingRequest) {
-  const { verificationCode: _, ...input } = request
+  const { verificationCode: _, identityChanged: _changed, ...input } = request
   await respondToPairingMutate({ input, accepted: false })
 }
 

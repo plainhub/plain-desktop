@@ -117,3 +117,15 @@ it('coalesces changes while a snapshot is pending and never applies an older res
   expect(native).toHaveBeenCalledTimes(2)
   expect(loginPeers.value.map((peer) => peer.id)).toEqual(['new'])
 })
+
+it('retains the authenticated OPAQUE pin and requires explicit forgetting before replacement', () => {
+  browserStorage()
+  saveBrowserIdentity('device', 'signature-key', 'opaque-key')
+  expect(getBrowserIdentity()?.opaquePublicKey).toBe('opaque-key')
+  expect(() => saveBrowserIdentity('device', 'signature-key', 'replacement')).toThrow('peer_identity_changed')
+  saveBrowserIdentity('device', 'signature-key')
+  expect(getBrowserIdentity()?.opaquePublicKey).toBe('opaque-key')
+  forgetBrowserIdentity()
+  saveBrowserIdentity('device', 'signature-key', 'replacement')
+  expect(getBrowserIdentity()?.opaquePublicKey).toBe('replacement')
+})

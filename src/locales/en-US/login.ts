@@ -4,6 +4,7 @@ export default {
   logging_in: 'Logging in',
   connect: 'Connect',
   login: {
+    secure_login_unavailable: 'This browser cannot perform secure login. Please update your browser.',
     timeout: 'The login connection timed out. Please try again.',
     forget_identity: 'Forget saved device identity',
     confirm_forget_identity: 'Verify the device locally first. Forget its saved identity and session, then sign in again?',

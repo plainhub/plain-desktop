@@ -1,4 +1,6 @@
 export default {
+  pairing_identity_changed: "對方公鑰已改變，可能重新安裝了應用程式。請核對完整指紋後再信任。",
+  pairing_trust: "信任",
   pairing_compare_code: '允許配對前，請核對兩台裝置顯示的配對碼一致。',
   show_in_finder: '在 Finder 中顯示',
   save_as: '另存為…',

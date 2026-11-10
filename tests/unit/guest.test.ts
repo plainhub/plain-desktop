@@ -5,7 +5,7 @@ vi.mock('vue-i18n', () => ({ useI18n: () => ({ t: (key: string) => key }) }))
 const request = vi.hoisted(() => vi.fn())
 vi.mock('@/lib/api/http', () => ({ httpRequest: request }))
 vi.mock('@/lib/api/api', () => ({ getApiBaseUrl: () => 'https://example.test', getProxyUrl: (url: string) => url }))
-vi.mock('@/lib/api/crypto', () => ({
+vi.mock('@/lib/api/crypto', () => ({ httpRequestAad: (path: string) => new TextEncoder().encode(`http-request\0POST\0${path}`),
   chachaEncrypt: () => new Uint8Array(),
   chachaDecrypt: vi.fn(),
   httpResponseAad: () => new Uint8Array(),

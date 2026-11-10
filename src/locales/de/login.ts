@@ -4,6 +4,7 @@ export default {
   logging_in: 'Melde mich an',
   connect: 'Verbinden',
   login: {
+    secure_login_unavailable: 'Dieser Browser unterstützt keine sichere Anmeldung. Bitte aktualisiere deinen Browser.',
     chat_pairing_unavailable: 'Aktualisiere PlainApp auf deinem Handy, um Chat und Vollzugriff gemeinsam zu koppeln.',
     to_continue: 'Tippe auf die Akzeptieren-Schaltfläche auf deinem Handy, um fortzufahren.',
     failed: 'Anmeldung fehlgeschlagen, bitte stelle sicher, dass dein Handy nicht im Ruhemodus ist.',

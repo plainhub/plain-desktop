@@ -4,6 +4,7 @@ export default {
   logging_in: 'Iniciando sesión',
   connect: 'Conectar',
   login: {
+    secure_login_unavailable: 'Este navegador no permite un inicio de sesión seguro. Actualiza el navegador.',
     chat_pairing_unavailable: 'Actualiza PlainApp en tu teléfono para vincular el chat y el control total a la vez.',
     to_continue: 'Toca el botón Aceptar en tu teléfono para continuar.',
     failed: 'Fallo al iniciar sesión, asegúrate de que tu teléfono no esté en modo de suspensión.',
