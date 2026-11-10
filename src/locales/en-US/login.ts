@@ -28,10 +28,8 @@ export default {
   device_discovery: {
     qr_pair_title: 'Scan with your phone to connect',
     qr_pair_step1: 'Open "Scan QR code" in PlainApp on your phone',
-    qr_pair_step2: 'Scan the code — your phone connects to this computer directly and starts pairing',
-    qr_pair_step3: 'Confirm the pairing on this computer',
+    qr_pair_step2: 'Scan the code. Your phone sends the pairing response directly.',
     qr_pair_entry: 'Can\'t find your device? Scan to connect',
-    qr_pair_waiting: '{name} is connecting… confirm the request in the popup',
     qr_pair_success: 'Paired successfully!',
     qr_pair_opening_login: 'Paired! Opening sign-in for {name}…',
     searching: 'Searching for nearby PlainApp devices…',

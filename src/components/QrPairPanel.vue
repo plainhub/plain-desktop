@@ -25,22 +25,17 @@
         <div class="qr-code">
           <div v-if="code" class="qr-svg" v-html="code.svg"></div>
           <v-circular-progress v-else indeterminate class="sm" aria-label="loading" />
-          <div v-if="phase !== 'idle'" class="qr-overlay">
-            <v-circular-progress v-if="phase === 'waiting'" indeterminate class="sm" aria-label="waiting" />
-            <i-material-symbols:check-circle-rounded v-else class="qr-ok-icon" />
+          <div v-if="paired" class="qr-overlay">
+            <i-material-symbols:check-circle-rounded class="qr-ok-icon" />
           </div>
         </div>
         <ol class="qr-steps">
           <li>{{ $t('device_discovery.qr_pair_step1') }}</li>
           <li>{{ $t('device_discovery.qr_pair_step2') }}</li>
-          <li>{{ $t('device_discovery.qr_pair_step3') }}</li>
+          <li v-if="code">{{ code.verificationCode }}</li>
         </ol>
       </div>
-      <p v-if="phase === 'waiting'" class="qr-state qr-state--wait">
-        <v-circular-progress indeterminate class="sm" aria-label="pairing" />
-        <span>{{ $t('device_discovery.qr_pair_waiting', { name: paired?.name }) }}</span>
-      </p>
-      <p v-else-if="phase === 'success'" class="qr-state qr-state--ok">
+      <p v-if="paired" class="qr-state qr-state--ok">
         <i-material-symbols:check-circle-rounded />
         <span>{{
           autoLogin && paired
@@ -69,14 +64,14 @@
 
 <script setup lang="ts">
 import { onBeforeUnmount, onMounted, ref, watch } from 'vue'
+import { DeviceType } from '@/lib/status'
 import emitter from '@/plugins/eventbus'
 import {
   loadQrPairingCode,
-  qrPairedDevice,
   type QrPairingCode,
   type QrPairedDevice,
 } from '@/lib/device/qr-pairing'
-import type { PairingRequest, PairingResult } from '@/lib/pairing-types'
+import type { PairingResult } from '@/lib/pairing-types'
 
 const props = defineProps({
   open: { type: Boolean, default: false },
@@ -93,55 +88,36 @@ const emit = defineEmits<{
 }>()
 
 const code = ref<QrPairingCode | null>(null)
-const phase = ref<'idle' | 'waiting' | 'success'>('idle')
 const paired = ref<QrPairedDevice | null>(null)
 const tipsOpen = ref(false)
 
-watch(
-  () => props.open,
-  (open) => {
-    if (!open) tipsOpen.value = false
-  },
-)
-
-async function reload() {
-  code.value = await loadQrPairingCode()
-}
-
-function onRequest(request: PairingRequest) {
-  if (phase.value === 'success') return
-  paired.value = qrPairedDevice(request)
-  phase.value = 'waiting'
-}
-
-function onResult(result: PairingResult, ok: boolean) {
-  if (phase.value !== 'waiting' || result.deviceId !== paired.value?.id) return
-  if (ok) {
-    phase.value = 'success'
-    emit('paired', paired.value)
-  } else {
-    phase.value = 'idle'
+watch(() => props.open, async (open, _, onCleanup) => {
+  let active = true
+  onCleanup(() => { active = false })
+  paired.value = null
+  code.value = null
+  if (!open) {
+    tipsOpen.value = false
+    return
   }
+  const next = await loadQrPairingCode()
+  if (active) code.value = next
+}, { immediate: true })
+
+function onSuccess(result: PairingResult) {
+  const { ip, port, requestId } = result
+  if (!code.value || requestId !== code.value.requestId || !ip || !port) return
+  const host = ip.includes(':') ? `[${ip}]:${port}` : `${ip}:${port}`
+  const device = {
+    id: result.deviceId, name: result.deviceName, ip, port, host,
+    deviceType: result.deviceType ?? DeviceType.OTHER,
+  }
+  paired.value = device
+  emit('paired', device)
 }
 
-const onSuccess = (r: PairingResult) => onResult(r, true)
-const onFailed = (r: PairingResult) => onResult(r, false)
-const onCanceled = (r: PairingResult) => onResult(r, false)
-
-onMounted(() => {
-  void reload()
-  emitter.on('PAIRING_REQUEST_RECEIVED', onRequest)
-  emitter.on('PAIRING_SUCCESS', onSuccess)
-  emitter.on('PAIRING_FAILED', onFailed)
-  emitter.on('PAIRING_CANCELED', onCanceled)
-})
-
-onBeforeUnmount(() => {
-  emitter.off('PAIRING_REQUEST_RECEIVED', onRequest)
-  emitter.off('PAIRING_SUCCESS', onSuccess)
-  emitter.off('PAIRING_FAILED', onFailed)
-  emitter.off('PAIRING_CANCELED', onCanceled)
-})
+onMounted(() => emitter.on('PAIRING_SUCCESS', onSuccess))
+onBeforeUnmount(() => emitter.off('PAIRING_SUCCESS', onSuccess))
 </script>
 
 <style lang="scss" scoped>
@@ -284,11 +260,6 @@ onBeforeUnmount(() => {
   padding: 8px 12px;
   border-radius: 8px;
   font-size: 0.85rem;
-
-  &--wait {
-    background: var(--md-sys-color-tertiary-container);
-    color: var(--md-sys-color-on-tertiary-container);
-  }
 
   &--ok {
     background: var(--md-sys-color-secondary-container);

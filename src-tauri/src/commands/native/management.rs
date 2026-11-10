@@ -72,7 +72,7 @@ pub fn native_file_paths(
 #[tauri::command]
 pub async fn native_pairing_code(
     core: tauri::State<'_, Arc<ContentServer>>,
-) -> Result<String, String> {
+) -> Result<serde_json::Value, String> {
     core.native_management()?.pairing_code().await
 }
 

@@ -28,10 +28,8 @@ export default {
   device_discovery: {
     qr_pair_title: '用手机扫码直连',
     qr_pair_step1: '在手机 PlainApp 打开「扫一扫」',
-    qr_pair_step2: '扫描二维码，手机将直接连接本机并发起配对',
-    qr_pair_step3: '在此电脑上确认配对',
+    qr_pair_step2: '扫描二维码，手机会直接向本机发送配对回复',
     qr_pair_entry: '找不到设备？用手机扫码直连',
-    qr_pair_waiting: '{name} 正在连接…请在弹窗中确认',
     qr_pair_success: '配对成功！',
     qr_pair_opening_login: '配对成功！正在打开 {name} 的登录…',
     searching: '正在搜索附近的 PlainApp 设备…',

@@ -2087,6 +2087,9 @@ export interface GqlOperations {
         deviceId: string
         deviceName: string
         ip: string
+        port?: number
+        deviceType?: 'COMPUTER' | 'PHONE' | 'TABLET' | 'TV' | 'NAS' | 'OTHER'
+        requestId?: string
       }
     }
     variables: undefined

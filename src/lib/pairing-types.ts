@@ -22,6 +22,10 @@ export interface PairingRequest {
 export interface PairingResult {
   deviceId: string
   deviceName: string
+  ip?: string
+  port?: number | null
+  deviceType?: DeviceType | null
+  requestId?: string | null
   /** Empty string for `success` / `cancelled`; human-readable reason for `failed`. */
   error: string
 }

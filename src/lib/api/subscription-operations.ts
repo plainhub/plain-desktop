@@ -15,7 +15,7 @@ export const subscriptionOperations: readonly SubscriptionOperation[] = [
   {field: 'pairingCanceled', document: 'subscription { pairingCanceled { deviceId deviceName error } }', access: []},
   {field: 'channelsChanged', document: 'subscription { channelsChanged { changed invite { channelId channelName ownerPeerId ownerPeerName } cancel { channelId ownerPeerId } } }', access: []},
   {field: 'peersChanged', document: 'subscription { peersChanged }', access: []},
-  {field: 'pairingCompleted', document: 'subscription { pairingCompleted { deviceId deviceName ip } }', access: []},
+  {field: 'pairingCompleted', document: 'subscription { pairingCompleted { deviceId deviceName ip port deviceType requestId } }', access: []},
   {field: 'downloadsChanged', document: 'subscription { downloadsChanged }', access: []},
   {field: 'preferencesChanged', document: 'subscription { preferencesChanged }', access: []},
   {field: 'mdnsChanged', document: 'subscription { mdnsChanged }', access: []},
