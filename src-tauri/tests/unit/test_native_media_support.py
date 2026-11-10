@@ -21,6 +21,157 @@ import runner
 
 
 class NativeMediaSupportTests(unittest.TestCase):
+    @staticmethod
+    def http_line(message, source='webkitwebsrc0', level='DEBUG'):
+        return ('0:00:01.123456789 123 0x456 ' + level +
+                ' webkitwebsrc WebKitWebSourceGStreamer.cpp:1074:responseReceived:<' + source + '> ' + message)
+
+    def test_http_evidence_parses_gstreamer_scalars_without_publishing_other_headers(self):
+        lines = [self.http_line('Posting task to request R1 http://127.0.0.1/fs?id=SECRET requestedPosition=0 stopPosition=18446744073709551615'),
+                 self.http_line(r'Range request: bytes=0-'),
+                 self.http_line(r'R1: Request headers going downstream: request-headers, Range=(string)"bytes\=0-", Authorization=(string)SECRET;'),
+                 self.http_line('R1: Received response: 206'),
+                 self.http_line(r'R1: Response headers going downstream: response-headers, Content-Length=(guint64)40320044, Content-Range=(string)"bytes\ 0-40320043/40320044", Accept-Ranges=(string)bytes, Content-Type=(string)audio/wav, Set-Cookie=(string)"SECRET\,\ value", Location=(string)"http://SECRET";'),
+                 self.http_line('R1: Have 8192 bytes of data', level='LOG'),
+                 self.http_line('R1: Have 4096 bytes of data', level='LOG'),
+                 self.http_line('R1: Load finished. Read position: 40320044', level='LOG')]
+        result = runner.http_evidence(lines)
+        request = result['requests'][0]
+        self.assertEqual(request['request_headers'], {'range': 'bytes=0-'})
+        self.assertEqual(request['response_headers'], {'content-length': 40320044,
+            'content-range': 'bytes 0-40320043/40320044', 'accept-ranges': 'bytes', 'content-type': 'audio/wav'})
+        self.assertEqual(request['received_bytes'], 12288)
+        self.assertEqual(request['read_position'], 40320044)
+        self.assertTrue(request['finished'])
+        self.assertEqual(request['data_records'], 2)
+        self.assertNotIn('SECRET', json.dumps(result))
+        self.assertNotIn('http://', json.dumps(result))
+        self.assertNotIn('authorization', json.dumps(result))
+
+    def test_http_evidence_rejects_ambiguous_structures_and_header_injection(self):
+        values = [r'response-headers, Content-Length=(guint64)12, Content-Length=(guint64)13;',
+                  r'response-headers, Content-Length-SECRET=(guint64)12, X=(string)"unterminated;',
+                  r'response-headers, "Content-Length"=(guint64)12;',
+                  r'response-headers, Content-Length=(guint64)12, X=(string)"SECRET\nwebkitmediaplayer [Buffering]";',
+                  'response-headers, Content-Length=(guint64)12, X=(string)"SECRET\nwebkitmediaplayer [Buffering]";',
+                  r'response-headers, Content-Length=(string)"12SECRET", Content-Type=(string)SECRET/type;',
+                  r'response-headers, Content-Length=(guint64)12, X=(string)"SECRET\"\,\ Content-Length\=999";',
+                  'response-headers, X=(string)' + 'SECRET' * 4000 + ';']
+        for value in values:
+            with self.subTest(value=value[:80]):
+                log = self.http_line('R1: Response headers going downstream: ' + value)
+                result = runner.http_evidence(log.splitlines())
+                self.assertNotIn('SECRET', json.dumps(result))
+                self.assertNotIn('999', json.dumps(result))
+                self.assertFalse(runner.pipeline_evidence(runner.legacy_diagnostic_log(log))['pipelines'])
+                self.assertFalse(runner.audio_evidence(runner.legacy_diagnostic_log(log))['selection_observed'])
+        unknown = runner.http_evidence([self.http_line('R1: Response headers going downstream: unknown SECRET')])
+        self.assertEqual(unknown['requests'][0]['response_headers'], 'unobserved')
+        self.assertFalse(unknown['observed'])
+        self.assertIsNone(unknown['requests'][0]['received_bytes'])
+        self.assertEqual(unknown['unobserved_records'], 1)
+
+    def test_http_evidence_preserves_request_identity_seek_cancel_and_bounds(self):
+        lines = [self.http_line('Posting task to request R1 http://SECRET requestedPosition=10 stopPosition=20'),
+                 self.http_line('Seek segment: (10-20) Position previous to seek: 5'),
+                 self.http_line('R1: Request cancelled: SECRET', level='LOG'),
+                 self.http_line('R1: Have 4 bytes of data', level='LOG', source='another-secret-source'),
+                 self.http_line('R1: Have 3 bytes of data', level='LOG')]
+        result = runner.http_evidence(lines)
+        self.assertEqual([row['received_bytes'] for row in result['requests']], [3, 4])
+        self.assertTrue(result['requests'][0]['cancelled'])
+        self.assertEqual(result['events'][0]['start'], 10)
+        self.assertNotIn('SECRET', json.dumps(result))
+        self.assertNotIn('secret-source', json.dumps(result))
+        bounded = runner.http_evidence([self.http_line(f'R{i}: Received response: 200') for i in range(100)])
+        self.assertEqual(len(bounded['requests']), 64)
+        self.assertEqual(bounded['omitted_records'], 36)
+        sources = runner.http_evidence([self.http_line('R1: Received response: 200', source=f'source{i}') for i in range(25)])
+        self.assertEqual(len(sources['requests']), 16)
+        self.assertEqual(sources['omitted_records'], 9)
+        events = runner.http_evidence([self.http_line('R1: stopping download')] * 200)
+        self.assertEqual(len(events['events']), 128)
+        self.assertEqual(events['omitted_records'], 72)
+
+    def test_http_headers_cannot_enter_legacy_diagnostics_or_audio_evidence(self):
+        injected = self.http_line('R1: Response headers going downstream: response-headers, X=(string)"SECRET webkitmediaplayer basesink [Buffering] <fake-audio-sink> rendering object";')
+        injected += '\nSECRET [Seek] fake-audio-sink rendering object\n' + 'SECRET' * 4000
+        normal = '0:00:01.123 123 0x456 DEBUG webkitmediaplayer file:1:func:<regular-plain-native-audio-wav-2> [Buffering] mode: GST_BUFFERING_DOWNLOAD, status: 100.000000%'
+        normal += '\n0:00:01.124 123 0x456 DEBUG basesink file:1:func:<fake-audio-sink> rendering object 0x123'
+        legacy = runner.legacy_diagnostic_log(injected + '\n' + normal)
+        self.assertNotIn('SECRET', legacy)
+        self.assertTrue(runner.audio_evidence(legacy)['selection_observed'])
+        self.assertIn('regular-plain-native-audio-wav-2', runner.pipeline_evidence(legacy)['pipelines'])
+
+    def test_failed_run_does_not_print_or_retain_raw_header_logs(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory) / 'owned'
+            root.mkdir(mode=0o700)
+            def generated(path):
+                for name in ['native.log', 'dbus.log', 'xvfb.log']:
+                    (path / name).write_text(self.http_line('R1: Response headers going downstream: response-headers, Authorization=(string)SECRET;'))
+                raise RuntimeError('Synthetic setup failure')
+            output = io.StringIO()
+            read_text = Path.read_text
+            def host_text(path, *args, **kwargs):
+                if str(path) in ('/var/lib/dpkg/status', '/etc/os-release'):
+                    return ''
+                return read_text(path, *args, **kwargs)
+            with patch.object(Path, 'read_text', host_text), \
+                 patch.object(runner, 'audio_configuration', return_value=('', [])), \
+                 patch.object(runner, 'admit', return_value={}), \
+                 patch.object(runner.tempfile, 'mkdtemp', return_value=str(root)), \
+                 patch.object(runner, 'owned_mounts', return_value=[]), \
+                 patch.object(runner, 'cleanup_portal_mount'), \
+                 patch.object(runner, 'generate', side_effect=generated) as generate_mock, contextlib.redirect_stdout(output):
+                self.assertEqual(runner.run('/unused', 'unused'), 1)
+                generate_mock.assert_called_once_with(root.resolve())
+            self.assertNotIn('SECRET', output.getvalue())
+            self.assertNotIn('SECRET', (root / 'report.json').read_text())
+            for name in ['native.log', 'dbus.log', 'xvfb.log']:
+                self.assertFalse((root / name).exists())
+
+    def test_buffering_deferral_accepts_only_exact_upstream_trace(self):
+        line = ('0:00:01.123456789 123 0x456 TRACE webkitmediaplayer player.cpp:3036:updateStates:'
+                '<regular-plain-native-audio-wav-2> [Buffering] Delaying m_isBuffering false --> true '
+                'to force the proper change from not buffering to buffering when the async state change completes.')
+        result = runner.buffering_evidence([line] * 40)
+        self.assertEqual(result['matched_records'], 40)
+        self.assertEqual(len(result['events']), 32)
+        self.assertEqual(result['events'][0]['previous'], False)
+        self.assertEqual(result['events'][0]['current'], True)
+        self.assertFalse(runner.buffering_evidence([line + ' SECRET', line.replace('TRACE', 'DEBUG'),
+            self.http_line('R1: Response headers going downstream: ' + line)])['observed'])
+        self.assertNotIn('SECRET', json.dumps(runner.buffering_evidence([line + ' SECRET'])))
+        self.assertEqual(runner.legacy_diagnostic_log(line), '')
+
+    def test_downstream_http_header_logging_and_forged_continuations_are_not_diagnostics(self):
+        downstream = ('0:00:01.123 123 0x456 DEBUG webkitmediaplayer MediaPlayerPrivateGStreamer.cpp:2321:handleMessage:'
+            '<regular-plain-native-audio-wav-2> Processing HTTP headers: http-headers, '
+            'request-headers=(structure)"request-headers, Authorization=(string)SECRET_segment_fake-audio-sink rendering object;";')
+        multiline = ('0:00:01.123 100 0x456 DEBUG webkitwebsrc file:1:f:<webkitwebsrc0> R1: Request cancelled: SECRET\n'
+            '0:00:01.124 100 0x456 DEBUG basesink file:1:f:<fake-audio-sink> [Seek] rendering object SECRET')
+        for log in [downstream, multiline]:
+            safe = runner.legacy_diagnostic_log(log)
+            self.assertEqual(safe, '')
+            self.assertNotIn('SECRET', json.dumps(runner.pipeline_evidence(safe)))
+            self.assertFalse(runner.audio_evidence(safe)['selection_observed'])
+        valid = '0:00:01.124 100 0x456 DEBUG basesink file:1:f:<fake-audio-sink> rendering object 0x123'
+        self.assertTrue(runner.audio_evidence(runner.legacy_diagnostic_log(valid))['selection_observed'])
+        self.assertFalse(runner.audio_evidence(runner.legacy_diagnostic_log(valid + ' SECRET'))['selection_observed'])
+
+    def test_http_source_identity_includes_process_and_unknown_records_are_unobserved(self):
+        lines = [self.http_line('R1: Have 4 bytes of data', level='LOG'),
+                 self.http_line('R1: Have 8 bytes of data', level='LOG').replace(' 123 ', ' 456 ')]
+        result = runner.http_evidence(lines)
+        self.assertEqual([row['received_bytes'] for row in result['requests']], [4, 8])
+        self.assertEqual([row['source'] for row in result['requests']], [1, 2])
+        unknown = runner.http_evidence([self.http_line('R1: unfamiliar SECRET')])
+        self.assertFalse(unknown['observed'])
+        self.assertEqual(unknown['unobserved_records'], 1)
+        self.assertEqual(unknown['requests'], [])
+        self.assertIsNone(runner.http_header_fields('response-headers, Content-Length=(guint64)12, ;', 'response'))
+
     def test_page_transport_and_async_media_contracts(self):
         script = r'''
 const assert = require('node:assert/strict');

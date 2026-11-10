@@ -18,18 +18,66 @@ sys.dont_write_bytecode = True
 from generate import generate
 
 
+def legacy_diagnostic_log(log):
+    state = r'(?:NULL|READY|PAUSED|PLAYING|VOID_PENDING)'
+    media_time = r'\{[-\d./ =]+\}'
+    gst_time = r'-?\d{1,3}:\d{2}:\d{2}\.\d{1,9}'
+    patterns = [
+        r'(?:Async: |Failure: |No preroll: )?State: ' + state + ', pending: ' + state,
+        r'Old state: ' + state + ', new state: ' + state + r' \(requested: ' + state + r'\)',
+        r'Playback state changed from ' + state + ' to ' + state + r'\. Notifying the media player client',
+        r'Network State Changed from (?:Empty|Idle|Loading|Loaded|FormatError|NetworkError|DecodeError) to (?:Empty|Idle|Loading|Loaded|FormatError|NetworkError|DecodeError)',
+        r'Ready State Changed from Have(?:Nothing|Metadata|CurrentData|FutureData|EnoughData) to Have(?:Nothing|Metadata|CurrentData|FutureData|EnoughData)',
+        r'Processing playback request|Playback ended|Flushing video sample |Unhandled GStreamer message type: new-clock',
+        r'\[Buffering\] Complete\.|Async: \[Buffering\] still buffering, so force HaveCurrentData\.',
+        r'\[Buffering\] mode: GST_BUFFERING_(?:STREAM|DOWNLOAD|TIMESHIFT|LIVE), status: \d+\.\d+%',
+        r'\[Buffering\] Updated maxTimeLoaded: ' + media_time,
+        r'\[Buffering\] Pausing (?:stream for buffering\.|stream because of zero playback rate\.|pipeline, resetting buffering level to 0 and forcing m_isBuffering true before seeking on stream mode)',
+        r'\[Buffering\] Restarting playback \(because of buffering or resuming from zero playback rate\)',
+        r'\[Seek\] (?:seek attempt to|seeking to|seeked to|committing pending seek to) ' + media_time + r'(?: failed)?',
+        r'\[Seek\] Performing actual seek to ' + gst_time + r' \(endTime: ' + gst_time + r'\) at rate -?\d+\.\d+',
+        r'\[Seek\] (?:Already at requested position\. Aborting\.|Live stream seek unhandled|m_player is nullptr|A seek is pending already, letting it finish|reset pipeline)',
+        r'\[Seek\] cannot seek, current state change is (?:FAILURE|SUCCESS|ASYNC|NO_PREROLL)',
+    ]
+    sink_patterns = [
+        r'(?:rendering|prerolling) object 0x[0-9a-f]+',
+        r'(?:PAUSED to PLAYING, don\x27t need preroll|PAUSED to READY, don\x27t need_preroll|PLAYING to PAUSED, we are not prerolled)',
+        r'(?:do_sync returned flushing|flushing out data thread, need preroll to TRUE|got preroll lock|preroll failed(?:: flushing)?|preroll interrupted because of flush|unschedule clock|waiting in preroll for flush or PLAYING)',
+        r'have_preroll: [01], EOS: [01] => needs preroll: [01]',
+        r'clock returned \d+, jitter ' + gst_time,
+        r'preroll buffer ' + gst_time,
+        r'using clock and base time ' + gst_time,
+        r'possibly waiting for clock to reach ' + gst_time + ', adjusted ' + gst_time,
+    ]
+    safe = []
+    for line in log.splitlines():
+        if len(line) > 2048:
+            continue
+        match = re.fullmatch(r'\s*(\d{1,3}:\d{2}:\d{2}\.\d{1,9})\s+\d+\s+\S+\s+(?:DEBUG|LOG|INFO|WARN|ERROR)\s+'
+            r'(webkitmediaplayer|basesink)\s+[^<>\r\n]*<([^<>\r\n]+)>\s+([^\r\n]*)', line)
+        if not match:
+            continue
+        timestamp, category, source, message = match.groups()
+        if not any(re.fullmatch(pattern, message) for pattern in (patterns if category == 'webkitmediaplayer' else sink_patterns)):
+            continue
+        if not re.fullmatch(r'regular-plain-native-(?:video-webm|audio-wav|small-video-webm|control-wav)-\d{1,3}', source):
+            source = 'fake-audio-sink' if category == 'basesink' and source == 'fake-audio-sink' else 'other-owned-pipeline'
+        safe.append(f'{timestamp} 0 0x0 DEBUG {category} diagnostic:0:filtered:<{source}> {message}')
+    return '\n'.join(safe)
+
+
 def pipeline_evidence(log):
     groups = {}
     omitted = 0
     for line in log.splitlines():
         if not re.match(r'^\s*\d+:\d{2}:\d{2}\.\d+', line):
             continue
-        if not re.search(r'webkitmediaplayer|basesink', line):
+        if not re.match(r'^\s*\d+:\d{2}:\d{2}\.\d+\s+\d+\s+\S+\s+\S+\s+(?:webkitmediaplayer|basesink)\s', line):
             continue
         if not re.search(r'\[Seek\]|\[Buffering\]|State Changed|Processing playback|preroll|'
                          r'Async: State|State: |Playback ended|clock|segment|flush', line, re.I):
             continue
-        pipeline = re.search(r'<(regular-plain-native-[a-z.-]+-\d+)>', line)
+        pipeline = re.search(r'<(regular-plain-native-(?:video-webm|audio-wav|small-video-webm|control-wav)-\d{1,3})>', line)
         key = pipeline.group(1) if pipeline else 'other-owned-pipeline'
         if key not in groups:
             if len(groups) == 12:
@@ -47,6 +95,178 @@ def pipeline_evidence(log):
     return {'pipelines': groups, 'omitted_pipeline_lines': omitted,
             'method': 'Per pipeline first 8/latest 24 state records plus first 16 seek records; URLs redacted; at most 12 pipelines'}
 
+
+
+# WebKit 2.52.6 WebKitWebSourceGStreamer.cpp: 628-664, 1029-1074, 1200, 1248-1270.
+def http_header_fields(value, kind):
+    prefix = kind + '-headers, '
+    if not value.startswith(prefix) or not value.endswith(';'):
+        return None
+    cursor, end, fields = len(prefix), len(value) - 1, {}
+    while cursor < end:
+        match = re.match(r'([A-Za-z0-9-]+)=\((string|guint64)\)', value[cursor:])
+        if not match:
+            return None
+        name, scalar = match.groups()
+        cursor += match.end()
+        quoted = cursor < end and value[cursor] == '"'
+        if quoted:
+            cursor += 1
+        chars, closed = [], not quoted
+        while cursor < end:
+            char = value[cursor]
+            if char == '\\':
+                cursor += 1
+                if cursor >= end or value[cursor].isalnum() or ord(value[cursor]) < 32:
+                    return None
+                chars.append(value[cursor])
+                cursor += 1
+            elif quoted and char == '"':
+                cursor += 1
+                closed = True
+                break
+            elif not quoted and char == ',':
+                break
+            elif char in '\r\n' or ord(char) < 32:
+                return None
+            else:
+                chars.append(char)
+                cursor += 1
+        if not closed:
+            return None
+        if cursor < end:
+            if value[cursor:cursor + 2] != ', ':
+                return None
+            cursor += 2
+            if cursor == end:
+                return None
+        name = name.lower()
+        if name in fields:
+            return None
+        fields[name] = (scalar, ''.join(chars))
+    return fields
+
+
+def http_evidence(lines):
+    sources, requests, events = {}, {}, []
+    omitted, unobserved = 0, 0
+    current = {}
+    for line in lines:
+        if len(line) > 16384:
+            unobserved += 1
+            continue
+        match = re.fullmatch(r'\s*(\d{1,3}:\d{2}:\d{2}\.\d{1,9})\s+(\d+)\s+\S+\s+(?:DEBUG|LOG|INFO|WARN|ERROR)\s+'
+                             r'webkitwebsrc\s+[^<>\r\n]*<([^<>\r\n]{1,128})>\s+([^\r\n]*)\n?', line)
+        if not match:
+            continue
+        timestamp, pid, source, message = match.groups()
+        source = (pid, source)
+        if source not in sources:
+            if len(sources) >= 16:
+                omitted += 1
+                continue
+            sources[source] = len(sources) + 1
+        source = sources[source]
+        posting = re.fullmatch(r'Posting task to request R(\d{1,10}) .* requestedPosition=(\d{1,20}) stopPosition=(\d{1,20})', message)
+        numbered = re.match(r'R(\d{1,10}): ', message)
+        if posting or numbered:
+            number = int((posting or numbered).group(1))
+        else:
+            number = current.get(source)
+        if number is None:
+            unobserved += 1
+            continue
+        if numbered:
+            message = message[numbered.end():]
+        status = re.fullmatch(r'Received response: ([1-5]\d{2})', message)
+        data = re.fullmatch(r'Have (\d{1,10}) bytes of data', message)
+        finished = re.fullmatch(r'Load finished\. Read position: (\d{1,20})', message)
+        range_value = re.fullmatch(r'Range request: (bytes=\d{1,20}-\d{0,20})', message)
+        seek = re.fullmatch(r'Seek segment: \((\d{1,20})-(\d{1,20})\) Position previous to seek: (\d{1,20})', message)
+        headers = re.fullmatch(r'(Request|Response) headers going downstream: (.*)', message)
+        cancelled = message.startswith('Request cancelled: ')
+        stopped = message in ('stopping download', 'Stopped WebKitWebSrc', 'Unlock', 'Unlock stop')
+        if not (posting or status or data or finished or range_value or seek or headers or cancelled or stopped):
+            unobserved += 1
+            continue
+        if posting or numbered:
+            current[source] = number
+        key = (source, number)
+        if key not in requests:
+            if len(requests) >= 64:
+                omitted += 1
+                continue
+            requests[key] = {'source': source, 'request': number, 'first_time': timestamp, 'received_bytes': None,
+                             'data_records': 0, 'request_headers': 'unobserved', 'response_headers': 'unobserved'}
+        request = requests[key]
+        request['last_time'] = timestamp
+        if posting:
+            request.update(requested_position=int(posting[2]), stop_position=int(posting[3]))
+            continue
+        if status:
+            request['status'] = int(status[1])
+        elif data:
+            request['received_bytes'] = (request['received_bytes'] or 0) + int(data[1])
+            request['data_records'] += 1
+        elif finished:
+            request.update(finished=True, read_position=int(finished[1]))
+        elif cancelled:
+            request['cancelled'] = True
+        elif range_value:
+            request['range'] = range_value[1]
+        elif headers:
+            kind = headers[1].lower()
+            parsed = http_header_fields(headers[2], kind)
+            if parsed is None:
+                unobserved += 1
+                continue
+            safe = {}
+            patterns = {'range': r'bytes=\d{1,20}-\d{0,20}',
+                        'content-length': r'\d{1,20}',
+                        'content-range': r'bytes (?:\d{1,20}-\d{1,20}|\*)/\d{1,20}',
+                        'accept-ranges': r'bytes|none',
+                        'content-type': r'audio/(?:wav|x-wav)|video/webm|application/octet-stream'}
+            for name, (scalar, value) in parsed.items():
+                if name not in patterns or (kind == 'request') != (name == 'range'):
+                    continue
+                if (scalar == 'string' or name == 'content-length') and re.fullmatch(patterns[name], value):
+                    safe[name] = int(value) if name == 'content-length' else value
+                else:
+                    unobserved += 1
+            request[kind + '_headers'] = safe
+        elif seek or stopped:
+            if len(events) < 128:
+                event = {'source': source, 'request': number, 'time': timestamp, 'event': 'seek' if seek else message}
+                if seek:
+                    event.update(start=int(seek[1]), stop=int(seek[2]), previous=int(seek[3]))
+                events.append(event)
+            else:
+                omitted += 1
+    return {'method': 'WebKit webkitwebsrc debug records; strict field allowlist; no raw headers or URLs',
+            'observed': bool(events) or any(row['data_records'] or
+                any(key in row for key in ('status', 'requested_position', 'range', 'finished', 'cancelled')) or
+                isinstance(row['request_headers'], dict) or isinstance(row['response_headers'], dict)
+                for row in requests.values()), 'requests': list(requests.values()), 'events': events,
+            'omitted_records': omitted, 'unobserved_records': unobserved}
+
+
+# WebKit 2.52.6 MediaPlayerPrivateGStreamer.cpp:3036 (updateStates).
+def buffering_evidence(lines):
+    events, total = [], 0
+    for line in lines:
+        if len(line) > 2048:
+            continue
+        match = re.fullmatch(r'\s*(\d+:\d{2}:\d{2}\.\d+)\s+\d+\s+\S+\s+TRACE\s+webkitmediaplayer\s+'
+            r'[^<>\r\n]*<(regular-plain-native-(?:video-webm|audio-wav|small-video-webm|control-wav)-\d{1,3})>\s+'
+            r'\[Buffering\] Delaying m_isBuffering (true|false) --> (true|false) to force the proper change '
+            r'from not buffering to buffering when the async state change completes\.', line)
+        if match:
+            total += 1
+            if len(events) < 32:
+                events.append({'time': match[1], 'pipeline': match[2], 'previous': match[3] == 'true',
+                               'current': match[4] == 'true'})
+    return {'method': 'Exact WebKit updateStates async buffering deferral trace',
+            'observed': total > 0, 'matched_records': total, 'events': events}
 
 def admit():
     expected = {'GITHUB_ACTIONS': 'true', 'RUNNER_ENVIRONMENT': 'github-hosted',
@@ -265,7 +485,7 @@ def run(binary, test):
                    GIO_USE_VFS='local', GTK_USE_PORTAL='0', PULSE_SERVER='unix:' + str(root / 'no-audio'),
                    PLAIN_NATIVE_MEDIA_ROOT=str(root), PLAIN_NATIVE_MEDIA_CHILD='1',
                    GST_PLUGIN_FEATURE_RANK=audio_rank, WEBKIT_GST_MAX_NUMBER_OF_AUDIO_OUTPUT_CHANNELS='2',
-                   GST_DEBUG='autodetect:5,basesink:5,webkitmediaplayer:5', GST_DEBUG_NO_COLOR='1')
+                   GST_DEBUG='autodetect:5,basesink:5,webkitmediaplayer:7,webkitwebsrc:6', GST_DEBUG_NO_COLOR='1')
         cookie = secrets.token_bytes(16)
         auth = root / 'authority'
         authority(auth, '', cookie)
@@ -321,7 +541,7 @@ def run(binary, test):
             time.sleep(.05)
         report['native_exit'] = child.returncode
         native_log = (root / 'native.log').read_text()
-        report['audio_environment'].update(audio_evidence(native_log))
+        report['audio_environment'].update(audio_evidence(legacy_diagnostic_log(native_log)))
         if (root / 'native-results.json').is_file():
             report['native'] = json.loads((root / 'native-results.json').read_text())
         if child.returncode != 0 or report.get('native', {}).get('status') != 'passed':
@@ -371,13 +591,17 @@ def run(binary, test):
         if error:
             report['error'] = error
         if (root / 'native.log').is_file():
-            report['pipeline_diagnostics'] = pipeline_evidence((root / 'native.log').read_text())
+            native_log = (root / 'native.log').read_text()
+            report['pipeline_diagnostics'] = pipeline_evidence(legacy_diagnostic_log(native_log))
+            report['http_diagnostics'] = http_evidence(native_log.splitlines())
+            report['buffering_deferrals'] = buffering_evidence(native_log.splitlines())
         (root / 'report.json').write_text(json.dumps(report, indent=2) + '\n')
         print('NATIVE_MEDIA_REPORT=' + json.dumps(report), flush=True)
         for name in ['native.log', 'xvfb.log', 'dbus.log']:
             path = root / name
             if path.exists():
-                print('=== ' + name + '\n' + redacted_log(path.read_text()[-16000:]), flush=True)
+                if not failures:
+                    path.unlink()
     return 0 if report['status'] == 'passed' else 1
 
 
