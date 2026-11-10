@@ -115,10 +115,6 @@ jobs:
           echo 'CC=gcc-14' >> "$GITHUB_ENV"
           echo 'CXX=g++-14' >> "$GITHUB_ENV"
 
-      - name: Record Linux package versions
-        if: matrix.platform == 'linux'
-        run: dpkg-query -W -f='${Package}\t${Architecture}\t${Version}\t${db:Status-Abbrev}\n'
-
       - name: Run cargo check
         run: cargo check --manifest-path src-tauri/Cargo.toml --locked
 
@@ -132,3 +128,50 @@ jobs:
       - name: Run full Rust test suite
         if: matrix.platform == 'linux'
         run: cargo test --manifest-path src-tauri/Cargo.toml --locked --lib
+
+      - name: Simulate Linux engine build dependencies
+        if: always() && matrix.platform == 'linux'
+        shell: bash
+        run: |
+          for tool in cmake ninja; do
+            if ! command -v "$tool" || ! "$tool" --version; then
+              printf '%s unavailable; build prerequisites remain unverified.\n' "$tool"
+            fi
+          done
+          dpkg-query -W -f='${Package}\t${Architecture}\t${Version}\t${db:Status-Abbrev}\n'
+          python3 - <<'PYTHON'
+          import os
+          import re
+          import shlex
+          import subprocess
+
+          env = {**os.environ, 'LC_ALL': 'C'}
+          seeds = """
+          clang-18 pkgconf python3 perl ruby gperf unifdef dpkg-dev patch
+          libgtk-3-dev libsoup-3.0-dev libgirepository1.0-dev libtasn1-6-dev
+          libwebp-dev libmanette-0.2-dev libxslt1-dev libsecret-1-dev
+          libenchant-2-dev libhyphen-dev liblcms2-dev libsystemd-dev
+          libgstreamer-plugins-base1.0-dev libgstreamer-plugins-bad1.0-dev
+          libseccomp-dev bubblewrap xdg-dbus-proxy
+          """.split()
+          command = ['apt-get', '--simulate', '--no-install-recommends', 'install', *seeds]
+          print(shlex.join(command), flush=True)
+          result = subprocess.run(command, env=env, capture_output=True, text=True)
+          print(result.stdout, end='', flush=True)
+          print(result.stderr, end='', flush=True)
+          result.check_returncode()
+          planned = re.findall(r'^Inst (\S+)(?: \[[^]]+\])? \((\S+)', result.stdout, re.MULTILINE)
+          packages = sorted(set(seeds) | {name for name, _ in planned})
+          subprocess.run(['apt-cache', 'policy', *packages], env=env, check=True)
+          fields = {'Package', 'Architecture', 'Version', 'Source', 'Depends', 'Pre-Depends',
+                    'Provides', 'Breaks', 'Conflicts', 'Replaces', 'Filename', 'Size', 'SHA256'}
+          for name, version in planned:
+              metadata = subprocess.check_output(['apt-cache', 'show', f'{name}={version}'], env=env, text=True)
+              include = False
+              for line in metadata.splitlines():
+                  if not line.startswith((' ', '\t')):
+                      include = line.partition(':')[0] in fields
+                  if include:
+                      print(line)
+              print()
+          PYTHON
