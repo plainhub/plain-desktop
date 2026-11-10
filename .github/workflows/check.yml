@@ -115,6 +115,10 @@ jobs:
           echo 'CC=gcc-14' >> "$GITHUB_ENV"
           echo 'CXX=g++-14' >> "$GITHUB_ENV"
 
+      - name: Record Linux package versions
+        if: matrix.platform == 'linux'
+        run: dpkg-query -W -f='${Package}\t${Architecture}\t${Version}\t${db:Status-Abbrev}\n'
+
       - name: Run cargo check
         run: cargo check --manifest-path src-tauri/Cargo.toml --locked
 
