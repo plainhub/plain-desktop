@@ -1,3 +1,4 @@
+import { setUrlToken } from '@/lib/api/api'
 import { isLocalMode } from '@/lib/device/local-mode'
 import { graphqlSubscriptions } from '@/lib/api/subscription-client'
 import { onMounted, ref, watch, computed, onUnmounted } from 'vue'
@@ -71,9 +72,13 @@ export function useMainView() {
       } else if (data) {
         const oldToken = app.value?.urlToken
         const newToken = data.app.urlToken
+        if (isLocalMode()) setUrlToken(newToken)
         urlTokenKey.value = tokenToKey(newToken)
         if (oldToken !== newToken) window.fileIdMap = new Map<string, string>()
         app.value = data.app
+        if (!data.app.developerMode && router.currentRoute.value.meta.requiresDeveloperMode) {
+          void router.replace('/settings/device-info')
+        }
       }
       appReady.value = true
     },
@@ -90,7 +95,7 @@ export function useMainView() {
   watch(() => router.currentRoute.value.fullPath, (v: string) => { currentPath.value = v })
 
   let stopLibraryUpdates: (() => void) | undefined
-  const refetchAppHandler = () => refetchApp()
+  const refetchAppHandler = () => refetchApp(undefined, true)
   const mediaItemsActionedHandler = (event: IMediaItemsActionedEvent) => {
     if (event.type === 'AUDIO') void audioPlaylist.refetch()
   }
@@ -103,11 +108,13 @@ export function useMainView() {
   }
   let stopDeviceNameUpdated: (() => void) | undefined
   let stopPermissionsUpdated: (() => void) | undefined
+  let stopPreferencesUpdated: (() => void) | undefined
 
   onMounted(() => {
     stopLibraryUpdates = subscribeMediaLibraryUpdates(DataType.AUDIO, () => { void audioPlaylist.refetch() })
     emitter.on('refetch_app', refetchAppHandler)
     stopPermissionsUpdated = graphqlSubscriptions.subscribe('accessUpdated', refetchAppHandler)
+    stopPreferencesUpdated = graphqlSubscriptions.subscribe('preferencesChanged', refetchAppHandler)
     emitter.on('media_items_actioned', mediaItemsActionedHandler)
     stopDeviceNameUpdated = graphqlSubscriptions.subscribe('deviceNameUpdated', deviceNameUpdatedHandler)
     emitter.on('PAIRING_REQUEST_RECEIVED', pairingRequestHandler)
@@ -117,6 +124,7 @@ export function useMainView() {
     stopLibraryUpdates?.()
     emitter.off('refetch_app', refetchAppHandler)
     stopPermissionsUpdated?.()
+    stopPreferencesUpdated?.()
     emitter.off('media_items_actioned', mediaItemsActionedHandler)
     stopDeviceNameUpdated?.()
     emitter.off('PAIRING_REQUEST_RECEIVED', pairingRequestHandler)

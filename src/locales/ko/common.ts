@@ -1,4 +1,8 @@
 export default {
+  http_security_warning: 'HTTP를 통한 파일 업로드와 다운로드는 암호화되지 않습니다. HTTPS를 사용하세요.',
+  http_security_switch: 'HTTPS로 열기',
+  http_security_certificate: '자체 서명 인증서로 인해 브라우저 경고가 표시될 수 있습니다. 연결하기 전에 인증서를 확인하세요.',
+
   file_index: {
     defaults_title: '기본 검색 규칙',
     files_hint: '범위 내 접근 가능한 일반 파일은 알 수 없는 확장자도 색인합니다. 인식된 미디어와 문서는 메타데이터도 추출합니다.',

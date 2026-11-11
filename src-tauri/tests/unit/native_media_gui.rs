@@ -441,7 +441,7 @@ async fn http_fixture(
         let url = |name: &str| -> Result<String, String> {
             let path = root.join(name);
             let id = resource_link::seal(
-                &Scope::Global,
+                &Scope::Session(core.runtime().native_client_id()?),
                 &key,
                 &Resource::reference(
                     path.to_str()

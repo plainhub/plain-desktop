@@ -1,10 +1,10 @@
 import { ref, watch, onUnmounted } from 'vue'
 import { gqlFetch } from '@/lib/api/gql-client'
-import { prefsGQL } from '@/lib/api/query'
 import { setPrefGQL } from '@/lib/api/mutation'
 import { debounce } from '@/lib/array'
 import { graphqlSubscriptions } from '@/lib/api/subscription-client'
-import { applySnapshot } from '@/lib/prefs/core'
+import { applySnapshot, preferenceKeys, preferencesQuery } from '@/lib/prefs/core'
+import { isLocalMode } from '@/lib/device/local-mode'
 import { apply as applyAppearance } from '@/lib/prefs/appearance'
 import type { useMainStore } from '@/stores/main'
 
@@ -24,7 +24,7 @@ export function useRemotePrefs(store: ReturnType<typeof useMainStore>) {
 
   async function refresh() {
     try {
-      const result = await gqlFetch<{ prefs: Record<string, unknown> }>(prefsGQL, undefined, { fresh: true })
+      const result = await gqlFetch<{ prefs: Record<string, unknown> }>(preferencesQuery, { keys: isLocalMode() ? [...preferenceKeys, 'remote_access', 'mdns_hostname'] : preferenceKeys }, { fresh: true })
       if (result.errors?.length) throw new Error(result.errors[0].message)
       applySnapshot(result.data.prefs)
       const value = result.data.prefs.desktop_home_features

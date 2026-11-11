@@ -28,7 +28,10 @@ export function setLocalServerPort(port: number): void { _localServerPort = port
 export function getLocalServerPort(): number { return _localServerPort }
 
 let _urlToken = ''
-export function setUrlToken(token: string): void { _urlToken = token }
+export function setUrlToken(token: string): void {
+  if (_urlToken !== token) proxyTargets.clear()
+  _urlToken = token
+}
 export function getUrlToken(): string { return _urlToken }
 
 let _localServerHttpsPort = 0

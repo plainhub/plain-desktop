@@ -11,8 +11,19 @@ export interface InitResult {
   data?: InitResponse
 }
 
+const pendingInit = new Map<string, Promise<InitResult>>()
+
+export function requestInit(): Promise<InitResult> {
+  const key = JSON.stringify([getApiBaseUrl(), getApiHeaders(), getCurrentAuthToken()])
+  const pending = pendingInit.get(key)
+  if (pending) return pending
+  const request = fetchInit().finally(() => { pendingInit.delete(key) })
+  pendingInit.set(key, request)
+  return request
+}
+
 // Presents the stored token encrypted as an auto-login probe.
-export async function requestInit(): Promise<InitResult> {
+async function fetchInit(): Promise<InitResult> {
   const headers = getApiHeaders() as Record<string, string>
   let body: Uint8Array | undefined
   const token = getCurrentAuthToken()

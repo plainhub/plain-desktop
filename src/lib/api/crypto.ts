@@ -113,6 +113,7 @@ export function verifyEd25519Signature(
 }
 
 export interface InitResponse {
+  httpsPort?: number
   signaturePublicKey: string
   opaquePublicKey?: string
   authenticated: boolean

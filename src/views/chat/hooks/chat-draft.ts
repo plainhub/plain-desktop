@@ -1,5 +1,5 @@
 import { computed, ref, watch, type Ref } from 'vue'
-import { readSavedValue, saveValue } from '@/lib/saved-values'
+import { readKeyValue, setKeyValue } from '@/lib/key-values'
 
 export function useChatDraft(chatId: Ref<string>) {
   const draft = ref('')
@@ -10,7 +10,7 @@ export function useChatDraft(chatId: Ref<string>) {
     const version = ++draftVersion
     draft.value = ''
     try {
-      const value = await readSavedValue(key, '')
+      const value = await readKeyValue(key, '')
       if (version === draftVersion) draft.value = value
     } catch (error) { console.error('Unable to load chat draft', error) }
   }, { immediate: true })
@@ -21,7 +21,7 @@ export function useChatDraft(chatId: Ref<string>) {
       ++draftVersion
       draft.value = value
       const key = draftKey.value
-      draftWrites = draftWrites.then(() => saveValue(key, value)).catch(console.error)
+      draftWrites = draftWrites.then(() => setKeyValue(key, value)).catch(console.error)
     },
   })
 }

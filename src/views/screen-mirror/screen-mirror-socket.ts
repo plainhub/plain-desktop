@@ -1,6 +1,5 @@
 import { openNativeSocket, type NativeSocketConnection } from '@/lib/api/native-socket'
-import { isLocalMode } from '@/lib/device/local-mode'
-import { getWebSocketBaseUrl, getUrlToken } from '@/lib/api/api'
+import { getWebSocketBaseUrl } from '@/lib/api/api'
 import { getCurrentAuthToken } from '@/lib/device/current'
 import { getRemoteClientId, getDesktopClientId } from '@/lib/device/client-id'
 import { openSocket } from '@/lib/api/http'
@@ -46,8 +45,7 @@ export class ScreenMirrorSocket {
       this.native = native
       return
     }
-    const local = isLocalMode()
-    const token = local ? getUrlToken() : getCurrentAuthToken()
+    const token = getCurrentAuthToken()
     if (!token) {
       this.callbacks.onDisconnected()
       return
@@ -58,7 +56,7 @@ export class ScreenMirrorSocket {
     url.searchParams.set('cid', clientId)
     let socket: WebSocket
     try {
-      socket = openSocket(url.toString(), local ? '' : getRemoteClientId())
+      socket = openSocket(url.toString(), getRemoteClientId())
     } catch (error) {
       console.error(error)
       this.callbacks.onDisconnected()

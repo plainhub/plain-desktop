@@ -94,6 +94,7 @@ it('seals foreground thumbnail intent only for an explicitly submitted local vid
   transport.local.mockResolvedValue({ data: { app } })
   transport.remote.mockResolvedValue({ data: { app } })
   const passive = await loadSearchClient(local)
+  expect(new URL(passive.url(hit)).searchParams.get('id')).toMatch(/^c\.search-client\./)
   const explicit = await loadSearchClient(local, true)
   const remote = await loadSearchClient({ id: peer.id, name: peer.name, target: 'peer', peer }, true)
   const readType = (url: string) => {
@@ -244,7 +245,9 @@ it('uses native queries for this computer while the existing remote session rema
   if (hit.domain !== 'docs') throw new Error('Expected a document')
   const url = new URL(group.client!.url(hit))
   expect(url.origin).toBe('http://localhost:8080')
-  expect(url.searchParams.get('id')).toMatch(/^g\./)
+  const id = url.searchParams.get('id')!
+  expect(id).toMatch(/^c\.search-client\./)
+  expect(filePathFromResourceId(key, id)).toBe(doc.path)
 })
 
 it('keeps an explicit device selection and prevents an old query replacing the new result', async () => {

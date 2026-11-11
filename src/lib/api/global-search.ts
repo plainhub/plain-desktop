@@ -36,7 +36,7 @@ export const searchPageSize = 24
 
 export async function loadSearchClient(device: SearchDevice, foreground = false, sessionUrlToken = '') {
   const local = device.target === 'local' || (device.target === 'current' && isLocalMode())
-  const scope = local ? { mode: 'g' as const } : { mode: 'c' as const, id: getApiHeaders()['c-id'] }
+  const scope = { mode: 'c' as const, id: getApiHeaders()['c-id'] }
   const base = device.target === 'peer' ? getPeerBaseUrl(device.peer)
     : device.target === 'local' ? `http://localhost:${getLocalServerPort()}` : getApiBaseUrl()
   async function execute<T>(document: string, variables?: Record<string, unknown>): Promise<T> {

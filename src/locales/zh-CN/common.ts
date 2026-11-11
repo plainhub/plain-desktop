@@ -1,4 +1,8 @@
 export default {
+  http_security_warning: 'HTTP 下文件上传和下载未加密。建议使用 HTTPS。',
+  http_security_switch: '使用 HTTPS',
+  http_security_certificate: '自签名证书可能触发浏览器警告，请先核验证书再连接。',
+
   file_index: {
     defaults_title: '默认扫描规则',
     files_hint: '扫描所选范围内的普通文件，不限文件类型。',

@@ -7,6 +7,7 @@ vi.mock('@/stores/temp', () => ({ useTempStore: () => ({ app: ref(null), urlToke
 vi.mock('pinia', () => ({ storeToRefs: (store: unknown) => store }))
 vi.mock('vue-router', () => ({ useRouter: () => ({ currentRoute: ref({ fullPath: '/', path: '/', query: {}, matched: [] }) }) }))
 vi.mock('@/lib/device/local-mode', () => ({ isLocalMode: () => false }))
+vi.mock('@/lib/api/api', () => ({ setUrlToken: vi.fn() }))
 vi.mock('@/lib/api/subscription-client', () => ({ graphqlSubscriptions: { subscribe: () => vi.fn() } }))
 vi.mock('@/lib/api/query', () => ({ appGQL: '', initQuery: () => ({ refetch: vi.fn() }) }))
 vi.mock('@/lib/api/file', () => ({ tokenToKey: vi.fn() }))

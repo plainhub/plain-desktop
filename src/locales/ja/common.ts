@@ -1,4 +1,8 @@
 export default {
+  http_security_warning: 'HTTP でのファイルのアップロードとダウンロードは暗号化されません。HTTPS をご利用ください。',
+  http_security_switch: 'HTTPS で開く',
+  http_security_certificate: '自己署名証明書によりブラウザーに警告が表示される場合があります。接続前に証明書を確認してください。',
+
   file_index: {
     defaults_title: '既定のスキャン規則',
     files_hint: '範囲内のアクセス可能な通常ファイルは未知の拡張子も索引します。認識されたメディアと文書にはメタデータも追加します。',

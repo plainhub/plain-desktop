@@ -14,9 +14,13 @@ function currentCache(): Map<string, unknown> {
   return cache
 }
 
+export const preferenceKeys = ['locale', 'dark_theme', 'clipboard_directions', 'desktop_home_features']
+
+export const preferencesQuery = 'query($keys: [String!]!) { prefs(keys: $keys) }'
+
 export async function preload(): Promise<void> {
   await writes
-  const result = await gqlFetch<{ prefs: Record<string, unknown> }>('query { prefs }', undefined, { fresh: true })
+  const result = await gqlFetch<{ prefs: Record<string, unknown> }>(preferencesQuery, { keys: [...preferenceKeys, 'remote_access', 'mdns_hostname'] }, { fresh: true })
   if (result.errors?.length) throw new Error(result.errors[0].message)
   const snapshot = result.data.prefs
   if (!snapshot || typeof snapshot !== 'object' || Array.isArray(snapshot)) {

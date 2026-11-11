@@ -1,4 +1,8 @@
 export default {
+  http_security_warning: 'I caricamenti e i download di file tramite HTTP non sono crittografati. Usa HTTPS.',
+  http_security_switch: 'Apri HTTPS',
+  http_security_certificate: 'Un certificato autofirmato può generare un avviso del browser. Verifica il certificato prima di connetterti.',
+
   file_index: {
     defaults_title: 'Regole predefinite',
     files_hint: 'Tutti i file regolari accessibili vengono indicizzati, incluse le estensioni sconosciute. I media e i documenti riconosciuti ricevono anche metadati.',

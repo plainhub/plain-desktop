@@ -1,5 +1,5 @@
 import { computed, ref } from 'vue'
-import { readSavedValue, saveValue } from '@/lib/saved-values'
+import { readKeyValue, setKeyValue } from '@/lib/key-values'
 
 export function useSearchHistory(opts: {
   max: number
@@ -9,14 +9,14 @@ export function useSearchHistory(opts: {
   const historyQ = ref<string[]>([])
   let edited = false
   let writes = Promise.resolve()
-  void readSavedValue<string[]>('recent_searches', []).then((items) => {
+  void readKeyValue<string[]>('recent_searches', []).then((items) => {
     if (!edited) historyQ.value = items
   }).catch(console.error)
 
   function setHistory(next: string[]) {
     edited = true
     historyQ.value = next
-    writes = writes.then(() => saveValue('recent_searches', next)).catch(console.error)
+    writes = writes.then(() => setKeyValue('recent_searches', next)).catch(console.error)
   }
 
   function rememberHistoryDecoded(q: string) {

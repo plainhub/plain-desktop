@@ -71,3 +71,13 @@ it('uses the existing Core listener for native HTTP', () => {
   expect(init.search).toBe('?value=a%2Bb')
   expect(proxyWsUrlFor('ws://localhost:8180/graphql')).toBe('ws://localhost:8180/graphql')
 })
+
+it('replaces cached native resource tickets when its stored session URL credential rotates', () => {
+  const url = 'https://device.example:8443/init'
+  const first = proxyHttpUrl(url)
+  expect(proxyHttpUrl(url)).toBe(first)
+  setUrlToken(Buffer.alloc(32, 8).toString('base64'))
+  const rotated = proxyHttpUrl(url)
+  expect(rotated).not.toBe(first)
+  expect(proxyHttpUrl(url)).toBe(rotated)
+})

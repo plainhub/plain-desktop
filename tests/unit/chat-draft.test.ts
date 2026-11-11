@@ -5,7 +5,7 @@ vi.mock('@/lib/api/gql-client', () => ({ gqlFetch: io.fetch }))
 import { useChatDraft } from '@/views/chat/hooks/chat-draft'
 
 it('persists one input value once and clears it after repeated multiline input notifications', async () => {
-  io.fetch.mockReset().mockImplementation(async (document: string) => ({ data: document.startsWith('query') ? { savedValue: '' } : { setSavedValue: true } }))
+  io.fetch.mockReset().mockImplementation(async (document: string) => ({ data: document.startsWith('query') ? { keyValue: '' } : { setKeyValue: true } }))
   const scope = effectScope()
   try {
     const draft = scope.run(() => useChatDraft(ref('peer:local')))!
@@ -24,7 +24,7 @@ it('persists one input value once and clears it after repeated multiline input n
 
 it('keeps edits over delayed draft reads and writes to the destination captured at each edit', async () => {
   let finish!: (value: unknown) => void
-  io.fetch.mockReset().mockImplementation(async (document: string) => ({ data: document.startsWith('query') ? { savedValue: 'New destination draft' } : { setSavedValue: true } }))
+  io.fetch.mockReset().mockImplementation(async (document: string) => ({ data: document.startsWith('query') ? { keyValue: 'New destination draft' } : { setKeyValue: true } }))
   io.fetch.mockImplementationOnce(() => new Promise(resolve => { finish = resolve }))
   const scope = effectScope()
   try {
@@ -35,12 +35,12 @@ it('keeps edits over delayed draft reads and writes to the destination captured 
     await nextTick()
     await vi.waitFor(() => expect(draft.value).toBe('New destination draft'))
     draft.value = 'Second local edit'
-    finish({ data: { savedValue: 'Stale first draft' } })
+    finish({ data: { keyValue: 'Stale first draft' } })
     await nextTick()
     expect(draft.value).toBe('Second local edit')
     await vi.waitFor(() => expect(io.fetch.mock.calls.filter(([document]) => document.startsWith('mutation')).map(([, variables]) => variables)).toEqual([
       { key: 'chat_input_text:peer:first', value: 'First local edit' },
       { key: 'chat_input_text:peer:second', value: 'Second local edit' },
     ]))
-  } finally { finish?.({ data: { savedValue: '' } }); scope.stop() }
+  } finally { finish?.({ data: { keyValue: '' } }); scope.stop() }
 })

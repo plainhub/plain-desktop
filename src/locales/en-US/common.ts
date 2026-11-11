@@ -1,4 +1,8 @@
 export default {
+  http_security_warning: 'File uploads and downloads over HTTP are not encrypted. Use HTTPS instead.',
+  http_security_switch: 'Open HTTPS',
+  http_security_certificate: 'A self-signed certificate may trigger a browser warning. Verify the certificate before connecting.',
+
   file_index: {
     defaults_title: 'Default scan rules',
     files_hint: 'Scan regular files in the selected folders, regardless of file type.',

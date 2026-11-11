@@ -1,4 +1,8 @@
 export default {
+  http_security_warning: 'HTTP üzerinden dosya yükleme ve indirme şifrelenmez. HTTPS kullanın.',
+  http_security_switch: 'HTTPS ile aç',
+  http_security_certificate: 'Kendinden imzalı bir sertifika tarayıcı uyarısına neden olabilir. Bağlanmadan önce sertifikayı doğrulayın.',
+
   file_index: {
     defaults_title: 'Varsayılan tarama kuralları',
     files_hint: 'Erişilebilir tüm normal dosyalar, bilinmeyen uzantılar dahil dizine eklenir. Tanınan medya ve belgeler için ek meta veriler çıkarılır.',

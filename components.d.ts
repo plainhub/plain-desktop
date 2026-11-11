@@ -133,6 +133,7 @@ declare module 'vue' {
     HeaderActions: typeof import('./src/components/HeaderActions.vue')['default']
     HeaderSearch: typeof import('./src/components/HeaderSearch.vue')['default']
     HomeView: typeof import('./src/views/home/HomeView.vue')['default']
+    HttpSecurityFooter: typeof import('./src/components/HttpSecurityFooter.vue')['default']
     'ILucide:archive': typeof import('~icons/lucide/archive')['default']
     'ILucide:arrowLeftRight': typeof import('~icons/lucide/arrow-left-right')['default']
     'ILucide:bookmark': typeof import('~icons/lucide/bookmark')['default']

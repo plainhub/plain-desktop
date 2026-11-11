@@ -1,4 +1,8 @@
 export default {
+  http_security_warning: 'Tải tệp lên và xuống qua HTTP không được mã hóa. Hãy dùng HTTPS.',
+  http_security_switch: 'Mở bằng HTTPS',
+  http_security_certificate: 'Chứng chỉ tự ký có thể khiến trình duyệt hiện cảnh báo. Hãy xác minh chứng chỉ trước khi kết nối.',
+
   file_index: {
     defaults_title: 'Quy tắc quét mặc định',
     files_hint: 'Lập chỉ mục mọi tệp thường có thể truy cập, kể cả phần mở rộng chưa biết. Trích xuất thêm siêu dữ liệu cho nội dung đa phương tiện và tài liệu được nhận dạng.',

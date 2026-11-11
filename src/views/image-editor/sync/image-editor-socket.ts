@@ -1,6 +1,5 @@
 import { openNativeSocket, type NativeSocketConnection } from '@/lib/api/native-socket'
-import { isLocalMode } from '@/lib/device/local-mode'
-import { getUrlToken, getWebSocketBaseUrl } from '@/lib/api/api'
+import { getWebSocketBaseUrl } from '@/lib/api/api'
 import { chachaEncrypt, websocketRequestAad, bitArrayToUint8Array } from '@/lib/api/crypto'
 import { tokenToKey } from '@/lib/api/file'
 import { openSocket } from '@/lib/api/http'
@@ -40,8 +39,7 @@ export class ImageEditorSocket {
       this.native = native
       return
     }
-    const local = isLocalMode()
-    const token = local ? getUrlToken() : getCurrentAuthToken()
+    const token = getCurrentAuthToken()
     if (!token) return
     const key = tokenToKey(token)
     const url = new URL('/image_editor', getWebSocketBaseUrl())
@@ -49,7 +47,7 @@ export class ImageEditorSocket {
     url.searchParams.set('cid', clientId)
     let socket: WebSocket
     try {
-      socket = openSocket(url.toString(), local ? '' : getRemoteClientId())
+      socket = openSocket(url.toString(), getRemoteClientId())
     } catch (error) {
       console.error(error)
       this.scheduleRetry()

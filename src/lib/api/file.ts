@@ -193,7 +193,7 @@ export function getFinalPath(appDir: string, path: string) {
 }
 
 function currentResourceScope(): ResourceScope {
-  return isLocalMode() ? { mode: 'g' } : { mode: 'c', id: getApiHeaders()['c-id'] }
+  return { mode: 'c', id: getApiHeaders()['c-id'] }
 }
 
 export function getFileId(key: Uint8Array | null, path: string, mediaId: string = '', scope?: ResourceScope, foregroundThumbnail = false) {

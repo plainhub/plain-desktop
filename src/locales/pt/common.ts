@@ -1,4 +1,8 @@
 export default {
+  http_security_warning: 'Os envios e downloads de arquivos por HTTP não são criptografados. Use HTTPS.',
+  http_security_switch: 'Abrir HTTPS',
+  http_security_certificate: 'Um certificado autoassinado pode gerar um aviso no navegador. Verifique o certificado antes de se conectar.',
+
   file_index: {
     defaults_title: 'Regras padrão',
     files_hint: 'Todos os arquivos comuns acessíveis são indexados, inclusive extensões desconhecidas. Mídias e documentos reconhecidos também recebem metadados.',

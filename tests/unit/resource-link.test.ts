@@ -20,24 +20,22 @@ it('uses a single base64url payload and binds the complete variable client ident
   expect(envelope).toBe('c.客户.a/b.AAECAwQFBgcICQoLDA0ODxAREhMUFRYX0zXf_Ip5eZ8HgcgLo8CDjjayGi022EcZnGnY8rWtuv1zWa0R2rowTfBttQ9uc8GObm-lNQ')
 })
 
-it('keeps session, global, share and endpoint contexts separate', () => {
+it('keeps session, share and endpoint contexts separate', () => {
   const key = new Uint8Array(32).fill(7)
-  const global = resourceId(key, { mode: 'g' }, { type: 'FILE', id: '/photos/a.jpg' })
-  expect(global.startsWith('g.')).toBe(true)
   const share = resourceId(key, { mode: 's', id: 'share.with.dots' }, { type: 'SHARED_FILE', id: '旅行/照片.jpg' })
   expect(share.startsWith('s.share.with.dots.')).toBe(true)
-  expect(() => resourceId(key, { mode: 'g' }, { type: 'SHARED_FILE', id: 'file' })).toThrow()
+  expect(() => resourceId(key, { mode: 'c', id: 'owner' }, { type: 'SHARED_FILE', id: 'file' })).toThrow()
   expect(() => resourceId(key, { mode: 's', id: 'share' }, { type: 'FILE', id: '/file' })).toThrow()
-  expect(encryptResourcePayload(key, { mode: 'g' }, 'chat-attachment:fixture', '/file')).not.toBe(encryptResourcePayload(key, { mode: 'g' }, 'zip-files', '/file'))
+  expect(encryptResourcePayload(key, { mode: 'c', id: 'owner' }, 'chat-attachment:fixture', '/file')).not.toBe(encryptResourcePayload(key, { mode: 'c', id: 'owner' }, 'zip-files', '/file'))
 })
 
-it.each([{ mode: 'g' } as const, { mode: 'c', id: '客户.with.dots' } as const])('decodes the current authenticated file resource ($mode)', scope => {
+it.each([{ mode: 'c', id: 'owner' } as const, { mode: 'c', id: '客户.with.dots' } as const])('decodes the current authenticated file resource ($mode)', scope => {
   const key = new Uint8Array(32).fill(7)
   const path = '/files/中文 note.txt'
   const id = resourceId(key, scope, { type: 'FILE', id: path })
   expect(filePathFromResourceId(key, id)).toBe(path)
   expect(() => filePathFromResourceId(new Uint8Array(32).fill(8), id)).toThrow()
-  expect(() => filePathFromResourceId(key, id.replace(/^g\./, 'c.owner.').replace(/^c\.客户.with.dots\./, 'c.another.'))).toThrow()
+  expect(() => filePathFromResourceId(key, id.replace(/^c\.(owner|客户.with.dots)\./, 'c.another.'))).toThrow()
 })
 
 it('rejects non-file resources, shared links, malformed envelopes and unauthenticated legacy payloads', () => {
@@ -45,8 +43,8 @@ it('rejects non-file resources, shared links, malformed envelopes and unauthenti
   for (const id of [
     resourceId(key, { mode: 'c', id: 'owner' }, { type: 'APP_FILE', id: 'hash' }),
     resourceId(key, { mode: 's', id: 'share' }, { type: 'SHARED_FILE', id: 'note.txt' }),
-    encryptResourcePayload(key, { mode: 'g' }, 'fs', JSON.stringify({ path: '/legacy' })),
-    encryptResourcePayload(key, { mode: 'g' }, 'chat-attachment:fixture', JSON.stringify({ type: 'FILE', id: '/wrong-purpose' })),
-    'c..payload', 'g..payload', 'g.invalid+payload', 'plain-legacy-base64',
+    encryptResourcePayload(key, { mode: 'c', id: 'owner' }, 'fs', JSON.stringify({ path: '/legacy' })),
+    encryptResourcePayload(key, { mode: 'c', id: 'owner' }, 'chat-attachment:fixture', JSON.stringify({ type: 'FILE', id: '/wrong-purpose' })),
+    'c..payload', 'c.owner.invalid+payload', 'plain-legacy-base64',
   ]) expect(() => filePathFromResourceId(key, id)).toThrow()
 })

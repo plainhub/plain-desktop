@@ -1,4 +1,8 @@
 export default {
+  http_security_warning: 'Bestanden uploaden en downloaden via HTTP is niet versleuteld. Gebruik HTTPS.',
+  http_security_switch: 'Openen via HTTPS',
+  http_security_certificate: 'Een zelfondertekend certificaat kan een browserwaarschuwing veroorzaken. Controleer het certificaat voordat je verbinding maakt.',
+
   file_index: {
     defaults_title: 'Standaardregels',
     files_hint: 'Alle toegankelijke gewone bestanden worden geïndexeerd, ook onbekende extensies. Herkende media en documenten krijgen extra metadata.',

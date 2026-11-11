@@ -29,3 +29,37 @@ it('keeps unauthenticated initialization available without an encrypted body', a
   expect(state.request.mock.calls[0][1].body).toBeUndefined()
   expect(result.data?.authenticated).toBe(false)
 })
+
+it('shares only concurrent init probes for the same target and session', async () => {
+  let resolve!: (value: unknown) => void
+  state.request.mockImplementationOnce(() => new Promise(done => { resolve = done }))
+  const first = requestInit()
+  expect(requestInit()).toBe(first)
+  state.base = 'https://other.test'
+  await requestInit()
+  expect(state.request).toHaveBeenCalledTimes(2)
+  resolve({ status: 200, text: async () => JSON.stringify({ httpsPort: 9443 }) })
+  expect((await first).data?.httpsPort).toBe(9443)
+  state.base = 'https://fixture.test'
+  await requestInit()
+  expect(state.request).toHaveBeenCalledTimes(3)
+})
+
+it('allows a new init request after a failed probe', async () => {
+  state.request.mockRejectedValueOnce(new Error('offline'))
+  await expect(requestInit()).rejects.toThrow('offline')
+  await expect(requestInit()).resolves.toMatchObject({ status: 200 })
+})
+
+it('does not reuse a pending probe after authentication changes on the same target', async () => {
+  let resolve!: (value: unknown) => void
+  state.request.mockImplementationOnce(() => new Promise(done => { resolve = done }))
+  const authenticated = requestInit()
+  state.token = ''
+  const unauthenticated = requestInit()
+  expect(unauthenticated).not.toBe(authenticated)
+  await unauthenticated
+  expect(state.request.mock.calls[1][1].body).toBeUndefined()
+  resolve({ status: 200, text: async () => '' })
+  await authenticated
+})
