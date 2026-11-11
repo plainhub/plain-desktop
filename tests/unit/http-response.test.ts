@@ -1,5 +1,5 @@
 import { readFileSync } from 'node:fs'
-import { randomBytes, randomUUID } from 'node:crypto'
+import { createHash, randomBytes, randomUUID } from 'node:crypto'
 import { expect, it, vi, afterEach } from 'vitest'
 import { xchacha20poly1305 } from '@noble/ciphers/chacha'
 import { chachaDecrypt, httpRequestAad, httpResponseAad } from '../../src/lib/api/crypto'
@@ -33,12 +33,20 @@ it('matches the shared Rust response framing and rejects response substitution',
     const key = Buffer.from(vector.key, 'base64')
     const request = Buffer.from(vector.request, 'base64')
     const response = Buffer.from(vector.response, 'base64')
-    const aad = httpResponseAad(vector.endpoint, request)
+    const aad = httpResponseAad(request)
     expect(Buffer.from(aad).toString('hex')).toBe(vector.aadHex)
     expect(chachaDecrypt(key, response, aad)).toBe(vector.plaintext)
     expect(() => chachaDecrypt(key, response)).toThrow()
-    expect(() => chachaDecrypt(key, response, httpResponseAad(vector.endpoint, new Uint8Array([1])))).toThrow()
-    expect(() => chachaDecrypt(key, response, httpResponseAad('/other', request))).toThrow()
+    expect(aad.length).toBe(34)
+    expect(Buffer.from(aad)).toEqual(Buffer.concat([Buffer.from([0x72, 0]), createHash('sha256').update(request).digest()]))
+    for (const index of [0, 24, request.length - 1]) {
+      const changed = Uint8Array.from(request)
+      changed[index] ^= 1
+      expect(() => chachaDecrypt(key, response, httpResponseAad(changed))).toThrow()
+    }
+    expect(() => chachaDecrypt(key, response, httpRequestAad(vector.endpoint))).toThrow()
+    const oldAad = Buffer.concat([Buffer.from(`plain-http-response-v1\0${vector.endpoint}\0`), createHash('sha256').update(request).digest()])
+    expect(() => chachaDecrypt(key, response, oldAad)).toThrow()
   }
 })
 
@@ -58,7 +66,11 @@ it.each(['/graphql', '/guest_graphql'])('the actual %s client rejects captured a
     expect(() => chachaDecrypt(key, request, new TextEncoder().encode(`http-request\0GET\0${endpoint}`))).toThrow()
     expect(() => chachaDecrypt(key, request, httpRequestAad(endpoint === '/graphql' ? '/guest_graphql' : '/graphql'))).toThrow()
     const nonce = randomBytes(24)
-    const encrypted = xchacha20poly1305(key, nonce, mode === 'legacy' ? undefined : httpResponseAad(endpoint, request)).encrypt(new TextEncoder().encode('{"data":{"__typename":"Query"}}'))
+    const aad = mode === 'legacy' ? undefined
+      : mode === 'old-aad' ? Buffer.concat([Buffer.from(`plain-http-response-v1\0${endpoint}\0`), createHash('sha256').update(request).digest()])
+      : mode === 'request-aad' ? httpRequestAad(endpoint)
+      : httpResponseAad(request)
+    const encrypted = xchacha20poly1305(key, nonce, aad).encrypt(new TextEncoder().encode('{"data":{"__typename":"Query"}}'))
     const bytes = new Uint8Array(24 + encrypted.length)
     bytes.set(nonce)
     bytes.set(encrypted, 24)
@@ -70,8 +82,10 @@ it.each(['/graphql', '/guest_graphql'])('the actual %s client rejects captured a
   expect((await call()).data.__typename).toBe('Query')
   mode = 'replay'
   await expect(call()).rejects.toThrow()
-  mode = 'legacy'
-  await expect(call()).rejects.toThrow()
+  for (const invalid of ['legacy', 'old-aad', 'request-aad']) {
+    mode = invalid
+    await expect(call()).rejects.toThrow()
+  }
   mode = 'fresh'
   expect((await call()).data.__typename).toBe('Query')
   expect(Buffer.from(requests[0])).not.toEqual(Buffer.from(requests[1]))

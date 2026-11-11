@@ -124,7 +124,7 @@ export async function encryptedGqlPost<T = any>(
 
   const startTime = performance.now()
   const body = bitArrayToUint8Array(chachaEncrypt(key, wrapWithReplayProtection(json), httpRequestAad('/graphql')))
-  const responseAad = httpResponseAad('/graphql', body)
+  const responseAad = httpResponseAad(body)
   const encryptTime = performance.now()
 
   const controller = new AbortController()

@@ -91,7 +91,7 @@ export async function guestFetch<T = any>(
   const url = `${getApiBaseUrl()}/guest_graphql`
   const payload = wrapWithReplayProtection(JSON.stringify({ query, variables }))
   const body = bitArrayToUint8Array(chachaEncrypt(key, payload, httpRequestAad('/guest_graphql')))
-  const responseAad = httpResponseAad('/guest_graphql', body)
+  const responseAad = httpResponseAad(body)
 
   const controller = new AbortController()
   const timer = setTimeout(() => controller.abort(), TIMEOUT)

@@ -18,7 +18,7 @@ vi.mock('@/lib/device/login-peers', () => ({ getLoginPeerRevision: () => 1, peer
 vi.mock('@/lib/api/file', () => ({ tokenToKey: fixture.key }))
 vi.mock('@/lib/api/time-sync', () => ({ wrapWithReplayProtection: (value: string) => value }))
 vi.mock('@/lib/api/crypto', () => ({ httpRequestAad: (path: string) => new TextEncoder().encode(`http-request\0POST\0${path}`),
-  httpResponseAad: (_path: string, request: unknown) => request,
+  httpResponseAad: (request: unknown) => request,
   chachaEncrypt: (_key: string, value: string) => new TextEncoder().encode(value),
   chachaDecrypt: (_key: string, value: ArrayBuffer) => new TextDecoder().decode(value),
   arrayBufferToBitArray: (value: unknown) => value,
