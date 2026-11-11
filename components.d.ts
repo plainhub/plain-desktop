@@ -449,6 +449,7 @@ declare module 'vue' {
     SendSmsModal: typeof import('./src/views/messages/SendSmsModal.vue')['default']
     SessionListItem: typeof import('./src/views/login/SessionListItem.vue')['default']
     SettingsCustomizeUIView: typeof import('./src/views/settings/SettingsCustomizeUIView.vue')['default']
+    SettingsEventsView: typeof import('./src/views/settings/SettingsEventsView.vue')['default']
     SettingsSidebar: typeof import('./src/views/settings/SettingsSidebar.vue')['default']
     ShareView: typeof import('./src/views/share/ShareView.vue')['default']
     Sidebar2: typeof import('./src/components/Sidebar2.vue')['default']

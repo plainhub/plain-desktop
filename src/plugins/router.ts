@@ -213,12 +213,20 @@ const router = createRouter({
             default: () => import('@/views/developer/DeveloperPrefsView.vue'),
             LeftSidebar: () => import('@/views/settings/SettingsSidebar.vue'),
           },
-          meta: { group: 'settings' },
+          meta: { group: 'settings', requiresDeveloperMode: true },
         },
         {
           path: 'settings/database',
           components: {
             default: () => import('@/views/developer/DeveloperDatabaseView.vue'),
+            LeftSidebar: () => import('@/views/settings/SettingsSidebar.vue'),
+          },
+          meta: { group: 'settings', requiresDeveloperMode: true },
+        },
+        {
+          path: 'settings/events',
+          components: {
+            default: () => import('@/views/settings/SettingsEventsView.vue'),
             LeftSidebar: () => import('@/views/settings/SettingsSidebar.vue'),
           },
           meta: { group: 'settings' },
@@ -229,7 +237,7 @@ const router = createRouter({
             default: () => import('@/views/developer/DeveloperLogsView.vue'),
             LeftSidebar: () => import('@/views/settings/SettingsSidebar.vue'),
           },
-          meta: { group: 'settings' },
+          meta: { group: 'settings', requiresDeveloperMode: true },
         },
         {
           path: 'settings/device-info',
@@ -339,6 +347,10 @@ router.beforeEach(async (to, from) => {
       path: '/login',
       query: { redirect: to.fullPath },
     }
+  }
+
+  if (to.meta.requiresDeveloperMode && useTempStore().app?.clientId && !useTempStore().app.developerMode) {
+    return { path: '/settings/device-info' }
   }
 
   // Native preview windows reopen their original reference in their own scope.

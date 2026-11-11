@@ -1,6 +1,6 @@
 <template>
   <div class="text-field-wrapper">
-    <div class="v-text-field" :class="{ 'error': error, 'focused': isFocused, 'filled': modelValue, 'is-textarea': type === 'textarea' }">
+    <div class="v-text-field" :class="{ 'error': error, 'focused': isFocused, 'filled': modelValue, 'is-textarea': type === 'textarea', 'is-filled': variant === 'filled' }">
       <div class="field-container">
         <textarea
           v-if="type === 'textarea'"
@@ -61,6 +61,7 @@
 import { ref, computed } from 'vue'
 
 interface Props {
+  variant?: 'outlined' | 'filled'
   modelValue?: string
   type?: string
   label?: string
@@ -77,6 +78,7 @@ interface Props {
 
 const props = withDefaults(defineProps<Props>(), {
   modelValue: '',
+  variant: 'outlined',
   type: 'text',
   label: '',
   error: false,
@@ -368,6 +370,14 @@ defineExpose({
   svg {
     width: 24px;
     height: 24px;
+  }
+}
+.v-text-field.is-filled {
+  background: var(--md-sys-color-surface-container-highest);
+  border-radius: 8px;
+  .field-outline { border: 0; border-radius: 8px; }
+  &:has(.field-input:focus-visible) .field-outline {
+    outline: 4px solid var(--md-sys-color-primary);
   }
 }
 </style>

@@ -1,0 +1,23 @@
+export default {
+  "events": "事件",
+  "event_client": "用戶端",
+  "events_load_more": "載入更多",
+  "event_type.LOGIN": "登入成功",
+  "event_type.LOGIN_FAILED": "登入失敗",
+  "event_type.LOGOUT": "已退出登入",
+  "event_type.REVOKE": "工作階段已撤銷",
+  "event_type.SET_HOSTNAME": "主機名已更改",
+  "event_type.UPDATE_DEVICE_NAME": "设备名稱已更改",
+  "event_type.MOUNT": "磁碟已掛載",
+  "event_type.MOUNT_FAILED": "磁碟掛載失敗",
+  "event_type.UNMOUNT": "磁碟已卸载",
+  "event_type.FORMAT_DISK": "磁碟已格式化",
+  "event_type.FORMAT_DISK_FAILED": "磁碟格式化失敗",
+  "event_reason.invalid_password": "密碼错误",
+  "event_reason.invalid_login_request": "登入請求無效",
+  "event_reason.remote_access_disabled": "遠端存取已關閉",
+  "event_reason.login_expired": "登入請求已過期",
+  "event_reason.too_many_login_attempts": "登入嘗試過多",
+  "event_reason.rejected": "登入請求已拒绝",
+  "event_reason.cancelled": "登入請求已取消"
+}

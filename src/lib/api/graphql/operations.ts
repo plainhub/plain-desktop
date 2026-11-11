@@ -1313,6 +1313,22 @@ export interface GqlOperations {
       query: string
     }
   }
+  eventsGQL: {
+    result: {
+      events: Array<{
+        id: string
+        type: 'LOGIN' | 'LOGIN_FAILED' | 'LOGOUT' | 'REVOKE' | 'SET_HOSTNAME' | 'UPDATE_DEVICE_NAME' | 'MOUNT' | 'MOUNT_FAILED' | 'UNMOUNT' | 'FORMAT_DISK' | 'FORMAT_DISK_FAILED'
+        message: string
+        clientId?: string
+        createdAt: string
+      }>
+    }
+    variables: {
+      query: string
+      offset: number
+      limit: number
+    }
+  }
   execute: {
     result: {
       pairDevice: {

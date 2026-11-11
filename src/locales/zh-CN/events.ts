@@ -1,0 +1,23 @@
+export default {
+  "events": "事件",
+  "event_client": "客户端",
+  "events_load_more": "加载更多",
+  "event_type.LOGIN": "登录成功",
+  "event_type.LOGIN_FAILED": "登录失败",
+  "event_type.LOGOUT": "已退出登录",
+  "event_type.REVOKE": "会话已撤销",
+  "event_type.SET_HOSTNAME": "主机名已更改",
+  "event_type.UPDATE_DEVICE_NAME": "设备名称已更改",
+  "event_type.MOUNT": "磁盘已挂载",
+  "event_type.MOUNT_FAILED": "磁盘挂载失败",
+  "event_type.UNMOUNT": "磁盘已卸载",
+  "event_type.FORMAT_DISK": "磁盘已格式化",
+  "event_type.FORMAT_DISK_FAILED": "磁盘格式化失败",
+  "event_reason.invalid_password": "密码错误",
+  "event_reason.invalid_login_request": "登录请求无效",
+  "event_reason.remote_access_disabled": "远程访问已关闭",
+  "event_reason.login_expired": "登录请求已过期",
+  "event_reason.too_many_login_attempts": "登录尝试过多",
+  "event_reason.rejected": "登录请求已拒绝",
+  "event_reason.cancelled": "登录请求已取消"
+}
