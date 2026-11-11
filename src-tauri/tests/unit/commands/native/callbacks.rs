@@ -13,7 +13,7 @@ fn callbacks_deliver_only_to_registered_channels_and_remove_closed_views() {
         };
         sink.lock()
             .unwrap()
-            .push(serde_json::from_str(&json).unwrap());
+            .push(plain_libs::serde_json::from_str(&json).unwrap());
         Ok(())
     });
     callbacks
@@ -24,19 +24,19 @@ fn callbacks_deliver_only_to_registered_channels_and_remove_closed_views() {
     callbacks
         .deliver(
             "peerNotificationsChanged",
-            &serde_json::json!({"revision":1}),
+            &plain_libs::serde_json::json!({"revision":1}),
         )
         .unwrap();
     assert_eq!(
         values.lock().unwrap().as_slice(),
-        &[serde_json::json!({"revision":1})]
+        &[plain_libs::serde_json::json!({"revision":1})]
     );
     assert!(callbacks.deliver("unknown", &Value::Null).is_err());
     callbacks.remove_view("view");
     callbacks
         .deliver(
             "peerNotificationsChanged",
-            &serde_json::json!({"revision":2}),
+            &plain_libs::serde_json::json!({"revision":2}),
         )
         .unwrap();
     assert_eq!(values.lock().unwrap().len(), 1);
@@ -57,12 +57,12 @@ fn network_and_clipboard_callbacks_are_scoped_to_the_registered_view() {
             };
             sink.lock()
                 .unwrap()
-                .push(serde_json::from_str(&json).unwrap());
+                .push(plain_libs::serde_json::from_str(&json).unwrap());
             Ok(())
         });
         target.lock().unwrap().insert("view".into(), (1, channel));
         callbacks
-            .deliver(method, &serde_json::json!({"method":method}))
+            .deliver(method, &plain_libs::serde_json::json!({"method":method}))
             .unwrap();
     }
     assert_eq!(values.lock().unwrap().len(), 2);
@@ -82,7 +82,7 @@ fn online_clients_replay_the_latest_snapshot_and_stop_delivery_to_closed_views()
     callbacks
         .deliver(
             "onlineClientsChanged",
-            &serde_json::json!({"clientIds":["client-a"]}),
+            &plain_libs::serde_json::json!({"clientIds":["client-a"]}),
         )
         .unwrap();
     let values = Arc::new(Mutex::new(Vec::<Value>::new()));
@@ -93,7 +93,7 @@ fn online_clients_replay_the_latest_snapshot_and_stop_delivery_to_closed_views()
         };
         sink.lock()
             .unwrap()
-            .push(serde_json::from_str(&json).unwrap());
+            .push(plain_libs::serde_json::from_str(&json).unwrap());
         Ok(())
     });
     callbacks
@@ -104,20 +104,20 @@ fn online_clients_replay_the_latest_snapshot_and_stop_delivery_to_closed_views()
         .unwrap();
     assert_eq!(
         values.lock().unwrap().as_slice(),
-        &[serde_json::json!({"clientIds":["client-a"]})]
+        &[plain_libs::serde_json::json!({"clientIds":["client-a"]})]
     );
     callbacks
-        .deliver("onlineClientsChanged", &serde_json::json!({"clientIds":[]}))
+        .deliver("onlineClientsChanged", &plain_libs::serde_json::json!({"clientIds":[]}))
         .unwrap();
     assert_eq!(
         values.lock().unwrap().last().unwrap(),
-        &serde_json::json!({"clientIds":[]})
+        &plain_libs::serde_json::json!({"clientIds":[]})
     );
     callbacks.remove_view("main");
     callbacks
         .deliver(
             "onlineClientsChanged",
-            &serde_json::json!({"clientIds":["client-b"]}),
+            &plain_libs::serde_json::json!({"clientIds":["client-b"]}),
         )
         .unwrap();
     assert_eq!(values.lock().unwrap().len(), 2);
@@ -133,7 +133,7 @@ fn online_clients_replay_the_latest_snapshot_and_stop_delivery_to_closed_views()
         callbacks
             .deliver(
                 "onlineClientsChanged",
-                &serde_json::json!({"unexpected":true})
+                &plain_libs::serde_json::json!({"unexpected":true})
             )
             .is_err()
     );

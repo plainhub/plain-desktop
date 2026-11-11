@@ -649,13 +649,13 @@ mod tests {
                 height: 4,
             },
         };
-        let json = serde_json::to_string(&rect).expect("serialize");
+        let json = plain_libs::serde_json::to_string(&rect).expect("serialize");
         assert_eq!(
             json,
             r#"{"origin":{"x":-1,"y":2},"size":{"width":3,"height":4}}"#
         );
         assert_eq!(
-            serde_json::from_str::<PhysicalRect>(&json).expect("deserialize"),
+            plain_libs::serde_json::from_str::<PhysicalRect>(&json).expect("deserialize"),
             rect
         );
     }

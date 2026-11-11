@@ -2712,7 +2712,7 @@ mod tests {
     use std::sync::{Arc, Mutex, mpsc};
     use std::time::Duration;
 
-    use serde_json::Value;
+    use plain_libs::serde_json::Value;
 
     use super::CAPTURE_PROTOCOL_VERSION;
     use super::CapturePublishOutcome;
@@ -4128,14 +4128,14 @@ mod tests {
                 .any(|operation| matches!(operation, WindowOperation::Show(_)))
         );
 
-        let json = serde_json::to_value(payload).expect("serialize frame event");
+        let json = plain_libs::serde_json::to_value(payload).expect("serialize frame event");
         let object = json.as_object().expect("event object");
         assert_eq!(object.len(), 4);
         assert_eq!(
             object.get("sessionId"),
             Some(&Value::String("session-1".into()))
         );
-        let encoded = serde_json::to_string(payload).expect("event JSON");
+        let encoded = plain_libs::serde_json::to_string(payload).expect("event JSON");
         assert!(!encoded.contains("window-target"));
         assert!(!encoded.contains("target-secret"));
         assert!(!encoded.contains("bytes"));
@@ -4266,9 +4266,9 @@ mod tests {
         let WindowOperation::EmitStarted(_, payload) = &operations[0] else {
             unreachable!()
         };
-        let encoded = serde_json::to_string(payload).expect("serialize session start");
+        let encoded = plain_libs::serde_json::to_string(payload).expect("serialize session start");
         assert_eq!(
-            serde_json::from_str::<Value>(&encoded)
+            plain_libs::serde_json::from_str::<Value>(&encoded)
                 .unwrap()
                 .as_object()
                 .unwrap()
@@ -5238,7 +5238,7 @@ mod tests {
         let WindowOperation::EmitTargetUnavailable(_, payload) = &operations[0] else {
             unreachable!()
         };
-        let encoded = serde_json::to_string(payload).expect("target event JSON");
+        let encoded = plain_libs::serde_json::to_string(payload).expect("target event JSON");
         assert!(!encoded.contains("target-secret"));
     }
 
@@ -5399,10 +5399,10 @@ mod tests {
         assert_eq!(label, "window-target");
         assert_eq!(payload.target_token, "target-secret");
         assert_eq!(payload.descriptor.result_id, result_id);
-        let object = serde_json::to_value(payload).expect("result JSON");
+        let object = plain_libs::serde_json::to_value(payload).expect("result JSON");
         assert_eq!(object.as_object().expect("result object").len(), 2);
         assert!(
-            !serde_json::to_string(payload)
+            !plain_libs::serde_json::to_string(payload)
                 .unwrap()
                 .contains("overlayGeneration")
         );
@@ -5646,7 +5646,7 @@ mod tests {
         let WindowOperation::EmitOverlayEnded(_, overlay_end) = operations.last().unwrap() else {
             panic!("overlay terminal event must follow cleanup")
         };
-        let encoded = serde_json::to_string(overlay_end).expect("overlay terminal event JSON");
+        let encoded = plain_libs::serde_json::to_string(overlay_end).expect("overlay terminal event JSON");
         assert!(!encoded.contains("target-secret"));
         assert!(!encoded.contains("bytes"));
 

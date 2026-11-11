@@ -1227,7 +1227,7 @@ mod tests {
         let state = coordinator
             .start_from_window("main", composer_request("session-a"), GENERATION)
             .expect("start");
-        let json = serde_json::to_value(state).expect("serialize command state");
+        let json = plain_libs::serde_json::to_value(state).expect("serialize command state");
 
         assert_eq!(json["sessionId"], "session-a");
         assert_eq!(json["phase"], "waiting_for_overlay");

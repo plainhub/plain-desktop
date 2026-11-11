@@ -1,7 +1,7 @@
 use std::sync::Arc;
 
 use plain_server::server::ContentServer;
-use serde_json::Value;
+use plain_libs::serde_json::Value;
 use tauri::{Emitter, Manager};
 
 pub struct Runtime {
@@ -55,19 +55,19 @@ impl Runtime {
                 Ok(Value::Null)
             }
             "systemCapabilities" => {
-                serde_json::to_value(&self.capabilities).map_err(|error| error.to_string())
+                plain_libs::serde_json::to_value(&self.capabilities).map_err(|error| error.to_string())
             }
-            "peerTransportCapabilities" => Ok(serde_json::json!([])),
+            "peerTransportCapabilities" => Ok(plain_libs::serde_json::json!([])),
             "systemSetClipboard" => {
                 let request: ClipboardText =
-                    serde_json::from_value(params).map_err(|error| error.to_string())?;
+                    plain_libs::serde_json::from_value(params).map_err(|error| error.to_string())?;
                 let app = self.app.clone();
                 tokio::task::spawn_blocking(move || super::clipboard::write_text(&app, &request.text))
                     .await
                     .map_err(|error| error.to_string())??;
                 Ok(Value::Bool(true))
             }
-            "systemRequestAccess" => Ok(serde_json::json!(false)),
+            "systemRequestAccess" => Ok(plain_libs::serde_json::json!(false)),
             "systemAccessFacts" => plain_rs::infrastructure::host::access_facts::facts(
                 &plain_rs::features::access::AccessFeature::FILE_FEATURES,
                 params,
@@ -169,7 +169,7 @@ impl Runtime {
                     session
                         .publish_text(
                             "CLIPBOARD_REPORTED",
-                            serde_json::to_string(&sample).map_err(|error| error.to_string())?,
+                            plain_libs::serde_json::to_string(&sample).map_err(|error| error.to_string())?,
                         )
                         .await
                 }

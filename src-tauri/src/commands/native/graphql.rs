@@ -14,10 +14,10 @@ pub fn native_view_scope(
     views.scope(window.label()).id().to_owned()
 }
 
-fn request_deadline(body: &serde_json::Value, now: u64) -> Result<Duration, String> {
+fn request_deadline(body: &plain_libs::serde_json::Value, now: u64) -> Result<Duration, String> {
     let deadline = body
         .pointer("/extensions/nativeDeadlineMs")
-        .and_then(serde_json::Value::as_u64)
+        .and_then(plain_libs::serde_json::Value::as_u64)
         .ok_or("Native request deadline required")?;
     let remaining = deadline
         .checked_sub(now)
@@ -31,12 +31,12 @@ pub async fn native_graphql(
     window: tauri::WebviewWindow,
     views: tauri::State<'_, super::views::NativeViews>,
     core: tauri::State<'_, Arc<ContentServer>>,
-    body: serde_json::Value,
+    body: plain_libs::serde_json::Value,
     target: NativeTarget,
-) -> Result<serde_json::Value, String> {
+) -> Result<plain_libs::serde_json::Value, String> {
     let id = body
         .pointer("/extensions/nativeScope")
-        .and_then(serde_json::Value::as_str)
+        .and_then(plain_libs::serde_json::Value::as_str)
         .ok_or("Native request scope required")?;
     let scope = views.existing_scope(window.label(), id)?;
     let now = SystemTime::now()
@@ -48,7 +48,7 @@ pub async fn native_graphql(
         u64::try_from(now).map_err(|error| error.to_string())?,
     )?;
     let executor = core.native_graphql()?;
-    let request = serde_json::from_value(body).map_err(|error| error.to_string())?;
+    let request = plain_libs::serde_json::from_value(body).map_err(|error| error.to_string())?;
     let response = tokio::time::timeout(remaining, async {
         match target {
             NativeTarget::Local {} => Ok(executor.execute_scoped(request, scope).await),
@@ -61,7 +61,7 @@ pub async fn native_graphql(
     })
     .await
     .map_err(|_| "connection_timeout".to_owned())??;
-    serde_json::to_value(response).map_err(|error| error.to_string())
+    plain_libs::serde_json::to_value(response).map_err(|error| error.to_string())
 }
 
 #[tauri::command]

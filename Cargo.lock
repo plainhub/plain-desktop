@@ -23,7 +23,6 @@ dependencies = [
  "plain-server",
  "rustix",
  "serde",
- "serde_json",
  "tauri",
  "tauri-build",
  "tauri-plugin-dialog",
@@ -340,59 +339,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "f2032f911046de80f0a198e0901378627c33f59ea0ac00e363d481118bd70a53"
 
 [[package]]
-name = "axum"
-version = "0.7.9"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "edca88bc138befd0323b20752846e6587272d3b03b0343c8ea28a6f819e6e71f"
-dependencies = [
- "async-trait",
- "axum-core",
- "bytes",
- "futures-util",
- "http",
- "http-body",
- "http-body-util",
- "hyper",
- "hyper-util",
- "itoa",
- "matchit",
- "memchr",
- "mime",
- "percent-encoding",
- "pin-project-lite",
- "rustversion",
- "serde",
- "serde_json",
- "serde_path_to_error",
- "serde_urlencoded",
- "sync_wrapper",
- "tokio",
- "tower",
- "tower-layer",
- "tower-service",
-]
-
-[[package]]
-name = "axum-core"
-version = "0.4.5"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "09f2bd6146b97ae3359fa0cc6d6b376d9539582c7b4220f041a33ec24c226199"
-dependencies = [
- "async-trait",
- "bytes",
- "futures-util",
- "http",
- "http-body",
- "http-body-util",
- "mime",
- "pin-project-lite",
- "rustversion",
- "sync_wrapper",
- "tower-layer",
- "tower-service",
-]
-
-[[package]]
 name = "base16ct"
 version = "0.2.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -525,7 +471,7 @@ dependencies = [
 [[package]]
 name = "block2"
 version = "0.6.2"
-source = "git+https://github.com/plainhub/plain-core.git?branch=main#2bd3e0a1a07f4d7b403344db67993e42b5e60203"
+source = "git+https://github.com/plainhub/plain-core.git?branch=main#7380c274966548be5b4d315008f85ec854b6dfce"
 dependencies = [
  "objc2 0.6.5",
 ]
@@ -1139,12 +1085,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "data-encoding"
-version = "2.11.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "4583a4551df46e2792f82ceeac45e850d2e2d5debba0b91f102385cda5b11f06"
-
-[[package]]
 name = "dbus"
 version = "0.9.12"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1310,7 +1250,7 @@ dependencies = [
  "libc",
  "option-ext",
  "redox_users",
- "windows-sys 0.59.0",
+ "windows-sys 0.60.2",
 ]
 
 [[package]]
@@ -1328,7 +1268,7 @@ dependencies = [
 [[package]]
 name = "dispatch2"
 version = "0.3.1"
-source = "git+https://github.com/plainhub/plain-core.git?branch=main#2bd3e0a1a07f4d7b403344db67993e42b5e60203"
+source = "git+https://github.com/plainhub/plain-core.git?branch=main#7380c274966548be5b4d315008f85ec854b6dfce"
 dependencies = [
  "objc2 0.6.5",
 ]
@@ -1578,7 +1518,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "39cab71617ae0d63f51a36d69f866391735b51691dbda63cf6f96d042b63efeb"
 dependencies = [
  "libc",
- "windows-sys 0.59.0",
+ "windows-sys 0.60.2",
 ]
 
 [[package]]
@@ -1600,18 +1540,6 @@ dependencies = [
  "event-listener",
  "pin-project-lite",
 ]
-
-[[package]]
-name = "fallible-iterator"
-version = "0.3.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "2acce4a10f12dc2fb14a218589d4f1f62ef011b2d0cc4b3cb1bba8e94da14649"
-
-[[package]]
-name = "fallible-streaming-iterator"
-version = "0.1.9"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "7360491ce676a36bf9bb3c56c1aa791658183a54d2744120f27285738d90465a"
 
 [[package]]
 name = "fastrand"
@@ -2172,25 +2100,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "h2"
-version = "0.4.19"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "ef8e5e5a340588f4452631496976cf8636d4a7ecf600239fdc27615d2530bc16"
-dependencies = [
- "atomic-waker",
- "bytes",
- "fnv",
- "futures-core",
- "futures-sink",
- "http",
- "indexmap 2.14.2",
- "slab",
- "tokio",
- "tokio-util",
- "tracing",
-]
-
-[[package]]
 name = "hashbrown"
 version = "0.12.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2201,18 +2110,6 @@ name = "hashbrown"
 version = "0.17.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "ed5909b6e89a2db4456e54cd5f673791d7eca6732202bbf2a9cc504fe2f9b84a"
-dependencies = [
- "foldhash",
-]
-
-[[package]]
-name = "hashlink"
-version = "0.12.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a596f1b20ed2cc5ecac41a164aaebc7258057060f06c0cf7a2ba3991ee7990fb"
-dependencies = [
- "hashbrown 0.17.1",
-]
 
 [[package]]
 name = "heck"
@@ -2229,7 +2126,7 @@ checksum = "2304e00983f87ffb38b55b444b5e3b60a884b5d30c0fca7d82fe33449bbe55ea"
 [[package]]
 name = "heic-rs"
 version = "0.1.4"
-source = "git+https://github.com/plainhub/plain-core.git?branch=main#2bd3e0a1a07f4d7b403344db67993e42b5e60203"
+source = "git+https://github.com/plainhub/plain-core.git?branch=main#7380c274966548be5b4d315008f85ec854b6dfce"
 
 [[package]]
 name = "hermit-abi"
@@ -2329,12 +2226,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "6dbf3de79e51f3d586ab4cb9d5c3e2c14aa28ed23d180cf89b4df0454a69cc87"
 
 [[package]]
-name = "httpdate"
-version = "1.0.3"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "df3b46402a9d5adb4c86a0cf463f42e19994e3ee891101b1841f30a545cb49a9"
-
-[[package]]
 name = "hybrid-array"
 version = "0.4.15"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2355,31 +2246,14 @@ dependencies = [
  "bytes",
  "futures-channel",
  "futures-core",
- "h2",
  "http",
  "http-body",
  "httparse",
- "httpdate",
  "itoa",
  "pin-project-lite",
  "smallvec",
  "tokio",
  "want",
-]
-
-[[package]]
-name = "hyper-rustls"
-version = "0.27.10"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "dfa8e654703247911e29c23fbeaa261834bd9bb74efba2f9acddc37bfb127f53"
-dependencies = [
- "http",
- "hyper",
- "hyper-util",
- "rustls",
- "tokio",
- "tokio-rustls",
- "tower-service",
 ]
 
 [[package]]
@@ -2988,12 +2862,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "matchit"
-version = "0.7.3"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "0e7465ac9959cc2b1404e8e2367b43684a6d13790fe23056cc8c6c5a6b7bcb94"
-
-[[package]]
 name = "memchr"
 version = "2.8.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3080,7 +2948,7 @@ dependencies = [
  "png 0.18.1",
  "serde",
  "thiserror 2.0.21",
- "windows-sys 0.61.2",
+ "windows-sys 0.60.2",
 ]
 
 [[package]]
@@ -3202,7 +3070,7 @@ dependencies = [
 [[package]]
 name = "objc2"
 version = "0.6.5"
-source = "git+https://github.com/plainhub/plain-core.git?branch=main#2bd3e0a1a07f4d7b403344db67993e42b5e60203"
+source = "git+https://github.com/plainhub/plain-core.git?branch=main#7380c274966548be5b4d315008f85ec854b6dfce"
 dependencies = [
  "objc2-encode 4.1.0 (git+https://github.com/plainhub/plain-core.git?branch=main)",
 ]
@@ -3224,7 +3092,7 @@ dependencies = [
 [[package]]
 name = "objc2-av-foundation"
 version = "0.3.2"
-source = "git+https://github.com/plainhub/plain-core.git?branch=main#2bd3e0a1a07f4d7b403344db67993e42b5e60203"
+source = "git+https://github.com/plainhub/plain-core.git?branch=main#7380c274966548be5b4d315008f85ec854b6dfce"
 dependencies = [
  "bitflags 2.13.2",
  "block2 0.6.2 (git+https://github.com/plainhub/plain-core.git?branch=main)",
@@ -3271,7 +3139,7 @@ dependencies = [
 [[package]]
 name = "objc2-core-foundation"
 version = "0.3.2"
-source = "git+https://github.com/plainhub/plain-core.git?branch=main#2bd3e0a1a07f4d7b403344db67993e42b5e60203"
+source = "git+https://github.com/plainhub/plain-core.git?branch=main#7380c274966548be5b4d315008f85ec854b6dfce"
 dependencies = [
  "bitflags 2.13.2",
  "objc2 0.6.5",
@@ -3314,7 +3182,7 @@ dependencies = [
 [[package]]
 name = "objc2-core-media"
 version = "0.3.2"
-source = "git+https://github.com/plainhub/plain-core.git?branch=main#2bd3e0a1a07f4d7b403344db67993e42b5e60203"
+source = "git+https://github.com/plainhub/plain-core.git?branch=main#7380c274966548be5b4d315008f85ec854b6dfce"
 dependencies = [
  "bitflags 2.13.2",
  "objc2 0.6.5",
@@ -3336,7 +3204,7 @@ dependencies = [
 [[package]]
 name = "objc2-core-video"
 version = "0.3.2"
-source = "git+https://github.com/plainhub/plain-core.git?branch=main#2bd3e0a1a07f4d7b403344db67993e42b5e60203"
+source = "git+https://github.com/plainhub/plain-core.git?branch=main#7380c274966548be5b4d315008f85ec854b6dfce"
 dependencies = [
  "bitflags 2.13.2",
  "objc2 0.6.5",
@@ -3352,7 +3220,7 @@ checksum = "ef25abbcd74fb2609453eb695bd2f860d389e457f67dc17cafc8b8cbc89d0c33"
 [[package]]
 name = "objc2-encode"
 version = "4.1.0"
-source = "git+https://github.com/plainhub/plain-core.git?branch=main#2bd3e0a1a07f4d7b403344db67993e42b5e60203"
+source = "git+https://github.com/plainhub/plain-core.git?branch=main#7380c274966548be5b4d315008f85ec854b6dfce"
 
 [[package]]
 name = "objc2-exception-helper"
@@ -3379,7 +3247,7 @@ dependencies = [
 [[package]]
 name = "objc2-foundation"
 version = "0.3.2"
-source = "git+https://github.com/plainhub/plain-core.git?branch=main#2bd3e0a1a07f4d7b403344db67993e42b5e60203"
+source = "git+https://github.com/plainhub/plain-core.git?branch=main#7380c274966548be5b4d315008f85ec854b6dfce"
 dependencies = [
  "bitflags 2.13.2",
  "objc2 0.6.5",
@@ -3774,21 +3642,19 @@ checksum = "f6b464fbc74e149a392436b17d523f769e057cb6877f6a5c4618bc6f11800548"
 [[package]]
 name = "plain-graphql"
 version = "0.1.0"
-source = "git+https://github.com/plainhub/plain-core.git?branch=main#2bd3e0a1a07f4d7b403344db67993e42b5e60203"
+source = "git+https://github.com/plainhub/plain-core.git?branch=main#7380c274966548be5b4d315008f85ec854b6dfce"
 dependencies = [
  "bytes",
  "futures-util",
- "indexmap 2.14.2",
  "plain-graphql-macros",
  "plain-libs",
  "serde",
- "serde_json",
 ]
 
 [[package]]
 name = "plain-graphql-macros"
 version = "0.1.0"
-source = "git+https://github.com/plainhub/plain-core.git?branch=main#2bd3e0a1a07f4d7b403344db67993e42b5e60203"
+source = "git+https://github.com/plainhub/plain-core.git?branch=main#7380c274966548be5b4d315008f85ec854b6dfce"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -3799,9 +3665,10 @@ dependencies = [
 [[package]]
 name = "plain-libs"
 version = "0.1.0"
-source = "git+https://github.com/plainhub/plain-core.git?branch=main#2bd3e0a1a07f4d7b403344db67993e42b5e60203"
+source = "git+https://github.com/plainhub/plain-core.git?branch=main#7380c274966548be5b4d315008f85ec854b6dfce"
 dependencies = [
- "axum",
+ "async-trait",
+ "atomic-waker",
  "bitflags 2.13.2",
  "bytes",
  "cbc",
@@ -3812,31 +3679,27 @@ dependencies = [
  "des",
  "ed25519-dalek",
  "fnv",
+ "form_urlencoded",
+ "futures-channel",
  "futures-core",
+ "futures-sink",
+ "futures-util",
  "getrandom 0.2.17",
  "getrandom 0.4.3",
  "heic-rs",
  "hkdf 0.12.4",
  "hmac 0.13.0",
- "http",
- "http-body",
- "http-body-util",
- "httparse",
- "hyper",
- "hyper-rustls",
- "hyper-util",
- "indexmap 2.14.2",
  "js-sys",
  "libc",
+ "libsqlite3-sys",
  "log",
- "memchr",
- "mime",
  "mio",
  "num-traits",
  "opaque-ke",
  "p256",
  "pbkdf2",
  "percent-encoding",
+ "pin-project-lite",
  "pkcs12",
  "pkcs5",
  "pkcs8 0.11.0",
@@ -3845,20 +3708,23 @@ dependencies = [
  "rav1d",
  "rc2",
  "ring",
- "rusqlite",
  "rustls",
+ "rustls-pki-types",
  "serde",
- "serde_json",
- "serde_urlencoded",
+ "serde_core",
  "sha1",
  "sha2 0.10.9",
  "sha2 0.11.0",
+ "slab",
  "smallvec",
+ "socket2",
  "thiserror 2.0.21",
  "tokio",
  "tokio-rustls",
- "tokio-tungstenite",
- "tower",
+ "tokio-util",
+ "tower-layer",
+ "tower-service",
+ "tracing",
  "url",
  "wasm-bindgen",
  "webpki-roots",
@@ -3870,7 +3736,7 @@ dependencies = [
 [[package]]
 name = "plain-rs"
 version = "0.1.0"
-source = "git+https://github.com/plainhub/plain-core.git?branch=main#2bd3e0a1a07f4d7b403344db67993e42b5e60203"
+source = "git+https://github.com/plainhub/plain-core.git?branch=main#7380c274966548be5b4d315008f85ec854b6dfce"
 dependencies = [
  "block2 0.6.2 (git+https://github.com/plainhub/plain-core.git?branch=main)",
  "bytes",
@@ -3878,9 +3744,6 @@ dependencies = [
  "futures-core",
  "futures-util",
  "hmac 0.13.0",
- "http",
- "hyper",
- "hyper-util",
  "libc",
  "log",
  "objc2 0.6.5",
@@ -3893,38 +3756,30 @@ dependencies = [
  "plain-graphql",
  "plain-libs",
  "rand 0.10.3",
- "rusqlite",
  "rustls",
  "serde",
- "serde_json",
  "sha2 0.10.9",
  "sha2 0.11.0",
  "socket2",
  "tokio",
  "tokio-rustls",
- "tokio-tungstenite",
  "undoc",
 ]
 
 [[package]]
 name = "plain-server"
 version = "0.1.0"
-source = "git+https://github.com/plainhub/plain-core.git?branch=main#2bd3e0a1a07f4d7b403344db67993e42b5e60203"
+source = "git+https://github.com/plainhub/plain-core.git?branch=main#7380c274966548be5b4d315008f85ec854b6dfce"
 dependencies = [
- "axum",
  "futures-util",
  "log",
  "plain-graphql",
  "plain-libs",
  "plain-rs",
- "rusqlite",
  "serde",
- "serde_json",
  "sha2 0.10.9",
  "subtle",
  "tokio",
- "tokio-tungstenite",
- "tower",
 ]
 
 [[package]]
@@ -4248,7 +4103,7 @@ checksum = "63b8176103e19a2643978565ca18b50549f6101881c443590420e4dc998a3c69"
 [[package]]
 name = "rav1d"
 version = "1.1.0"
-source = "git+https://github.com/plainhub/plain-core.git?branch=main#2bd3e0a1a07f4d7b403344db67993e42b5e60203"
+source = "git+https://github.com/plainhub/plain-core.git?branch=main#7380c274966548be5b4d315008f85ec854b6dfce"
 dependencies = [
  "bitflags 2.13.2",
  "cfg-if",
@@ -4413,20 +4268,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "rusqlite"
-version = "0.41.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "da9bba6f3506135e120a6586df05be18b48d18896600646a4bec8f993d91a594"
-dependencies = [
- "bitflags 2.13.2",
- "fallible-iterator",
- "fallible-streaming-iterator",
- "hashlink",
- "libsqlite3-sys",
- "smallvec",
-]
-
-[[package]]
 name = "rustc-hash"
 version = "2.1.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -4451,7 +4292,7 @@ dependencies = [
  "errno",
  "libc",
  "linux-raw-sys",
- "windows-sys 0.59.0",
+ "windows-sys 0.60.2",
 ]
 
 [[package]]
@@ -4493,12 +4334,6 @@ name = "rustversion"
 version = "1.0.23"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "cf54715a573b99ac80df0bc206da022bcd442c974952c7b9720069370852e21f"
-
-[[package]]
-name = "ryu"
-version = "1.0.23"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "9774ba4a74de5f7b1c1451ed6cd5285a32eddb5cccb8cc655a4e50009e06477f"
 
 [[package]]
 name = "salsa20"
@@ -4711,17 +4546,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "serde_path_to_error"
-version = "0.1.20"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "10a9ff822e371bb5403e391ecd83e182e0e77ba7f6fe0160b795797109d1b457"
-dependencies = [
- "itoa",
- "serde",
- "serde_core",
-]
-
-[[package]]
 name = "serde_repr"
 version = "0.1.21"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -4748,18 +4572,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "6662b5879511e06e8999a8a235d848113e942c9124f211511b16466ee2995f26"
 dependencies = [
  "serde_core",
-]
-
-[[package]]
-name = "serde_urlencoded"
-version = "0.7.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d3491c14715ca2294c4d6a88f15e84739788c1d030eed8c110436aafdaa2f3fd"
-dependencies = [
- "form_urlencoded",
- "itoa",
- "ryu",
- "serde",
 ]
 
 [[package]]
@@ -4941,7 +4753,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "c3d1e2c7f27f8d4cb10542a02c49005dbd6e93095799d6f3be745fae9f8fedd4"
 dependencies = [
  "libc",
- "windows-sys 0.61.2",
+ "windows-sys 0.60.2",
 ]
 
 [[package]]
@@ -5570,7 +5382,7 @@ dependencies = [
  "getrandom 0.3.4",
  "once_cell",
  "rustix",
- "windows-sys 0.59.0",
+ "windows-sys 0.60.2",
 ]
 
 [[package]]
@@ -5704,21 +5516,6 @@ checksum = "b0c85f2c3ef0b1cd58b36682f4b17aaa995f0e5db534d85692b4903abce21f67"
 dependencies = [
  "rustls",
  "tokio",
-]
-
-[[package]]
-name = "tokio-tungstenite"
-version = "0.30.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "17a073bfed563fa236697a068031408a93cd9522e08abf9933ead3e73411bd71"
-dependencies = [
- "futures-util",
- "log",
- "rustls",
- "rustls-pki-types",
- "tokio",
- "tokio-rustls",
- "tungstenite",
 ]
 
 [[package]]
@@ -5926,7 +5723,7 @@ dependencies = [
  "png 0.18.1",
  "serde",
  "thiserror 2.0.21",
- "windows-sys 0.61.2",
+ "windows-sys 0.60.2",
 ]
 
 [[package]]
@@ -5934,24 +5731,6 @@ name = "try-lock"
 version = "0.2.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "e421abadd41a4225275504ea4d6566923418b7f05506fbc9c0fe86ba7396114b"
-
-[[package]]
-name = "tungstenite"
-version = "0.30.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e48ac77174b19c110a50ab2128b24215ac9cb40e0e12e093fb602d175c569d22"
-dependencies = [
- "bytes",
- "data-encoding",
- "http",
- "httparse",
- "log",
- "rand 0.10.3",
- "rustls",
- "rustls-pki-types",
- "sha1",
- "thiserror 2.0.21",
-]
 
 [[package]]
 name = "typeid"
@@ -5973,13 +5752,13 @@ checksum = "f2f6fb2847f6742cd76af783a2a2c49e9375d0a111c7bef6f71cd9e738c72d6e"
 dependencies = [
  "memoffset",
  "tempfile",
- "windows-sys 0.61.2",
+ "windows-sys 0.60.2",
 ]
 
 [[package]]
 name = "undoc"
 version = "0.27.3"
-source = "git+https://github.com/plainhub/plain-core.git?branch=main#2bd3e0a1a07f4d7b403344db67993e42b5e60203"
+source = "git+https://github.com/plainhub/plain-core.git?branch=main#7380c274966548be5b4d315008f85ec854b6dfce"
 dependencies = [
  "plain-libs",
  "serde",
@@ -6443,7 +6222,7 @@ version = "0.1.11"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "c2a7b1c03c876122aa43f3020e6c3c3ee5c05081c9a00739faf7503aeba10d22"
 dependencies = [
- "windows-sys 0.59.0",
+ "windows-sys 0.60.2",
 ]
 
 [[package]]
@@ -6464,7 +6243,7 @@ dependencies = [
  "objc2-foundation 0.3.2 (registry+https://github.com/rust-lang/crates.io-index)",
  "objc2-quartz-core",
  "raw-window-handle",
- "windows-sys 0.61.2",
+ "windows-sys 0.60.2",
  "windows-version",
 ]
 
@@ -7066,7 +6845,7 @@ dependencies = [
 [[package]]
 name = "zerocopy"
 version = "0.7.35"
-source = "git+https://github.com/plainhub/plain-core.git?branch=main#2bd3e0a1a07f4d7b403344db67993e42b5e60203"
+source = "git+https://github.com/plainhub/plain-core.git?branch=main#7380c274966548be5b4d315008f85ec854b6dfce"
 dependencies = [
  "zerocopy-derive 0.7.35",
 ]
@@ -7083,7 +6862,7 @@ dependencies = [
 [[package]]
 name = "zerocopy-derive"
 version = "0.7.35"
-source = "git+https://github.com/plainhub/plain-core.git?branch=main#2bd3e0a1a07f4d7b403344db67993e42b5e60203"
+source = "git+https://github.com/plainhub/plain-core.git?branch=main#7380c274966548be5b4d315008f85ec854b6dfce"
 dependencies = [
  "proc-macro2",
  "quote",

@@ -1,4 +1,4 @@
-use serde_json::Value;
+use plain_libs::serde_json::Value;
 use std::{
     collections::HashMap,
     sync::{
@@ -99,7 +99,7 @@ impl HostCallbacks {
             }
             "onlineClientsChanged" => {
                 let snapshot: OnlineClientsSnapshot =
-                    serde_json::from_value(params.clone()).map_err(|error| error.to_string())?;
+                    plain_libs::serde_json::from_value(params.clone()).map_err(|error| error.to_string())?;
                 let mut active = self.online_clients.lock().unwrap();
                 active.snapshot = Some(snapshot.clone());
                 active

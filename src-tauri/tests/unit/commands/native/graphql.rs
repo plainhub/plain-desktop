@@ -1,5 +1,5 @@
 use super::*;
-use serde_json::json;
+use plain_libs::serde_json::json;
 
 #[test]
 fn deadlines_reject_delayed_requests_and_preserve_remaining_time() {
@@ -23,11 +23,11 @@ fn deadlines_reject_delayed_requests_and_preserve_remaining_time() {
 #[test]
 fn graphql_targets_accept_only_local_or_peer_identity() {
     assert_eq!(
-        serde_json::from_value::<NativeTarget>(json!({"kind":"local"})).unwrap(),
+        plain_libs::serde_json::from_value::<NativeTarget>(json!({"kind":"local"})).unwrap(),
         NativeTarget::Local {}
     );
     assert_eq!(
-        serde_json::from_value::<NativeTarget>(json!({"kind":"peer","peerId":"paired"})).unwrap(),
+        plain_libs::serde_json::from_value::<NativeTarget>(json!({"kind":"peer","peerId":"paired"})).unwrap(),
         NativeTarget::Peer {
             peer_id: "paired".into()
         }
@@ -40,7 +40,7 @@ fn graphql_targets_accept_only_local_or_peer_identity() {
         json!({"kind":"proxy","peerId":"paired","via":"other"}),
     ] {
         assert!(
-            serde_json::from_value::<NativeTarget>(target.clone()).is_err(),
+            plain_libs::serde_json::from_value::<NativeTarget>(target.clone()).is_err(),
             "{target}"
         );
     }

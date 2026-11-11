@@ -31,7 +31,7 @@ pub fn native_web_login_requests(
 #[tauri::command]
 pub fn native_peer_notifications(
     core: tauri::State<'_, Arc<ContentServer>>,
-) -> Result<serde_json::Value, String> {
+) -> Result<plain_libs::serde_json::Value, String> {
     core.native_management()?.peer_notifications()
 }
 
@@ -53,9 +53,9 @@ pub async fn native_restart_http_server(
 #[tauri::command]
 pub fn native_device_identity(
     core: tauri::State<'_, Arc<ContentServer>>,
-) -> Result<serde_json::Value, String> {
+) -> Result<plain_libs::serde_json::Value, String> {
     let preferences = core.native_management()?.get_prefs(&["client_id".into(), "signature_public_key".into()])?;
-    Ok(serde_json::json!({
+    Ok(plain_libs::serde_json::json!({
         "clientId": preferences["client_id"],
         "signaturePublicKey": preferences["signature_public_key"],
     }))
@@ -72,7 +72,7 @@ pub fn native_file_paths(
 #[tauri::command]
 pub async fn native_pairing_code(
     core: tauri::State<'_, Arc<ContentServer>>,
-) -> Result<serde_json::Value, String> {
+) -> Result<plain_libs::serde_json::Value, String> {
     core.native_management()?.pairing_code().await
 }
 
@@ -87,7 +87,7 @@ pub async fn native_logout_peer(
 #[tauri::command]
 pub async fn native_dlna_receiver(
     core: tauri::State<'_, Arc<ContentServer>>,
-) -> Result<serde_json::Value, String> {
+) -> Result<plain_libs::serde_json::Value, String> {
     core.native_management()?.dlna_receiver().await
 }
 
@@ -95,7 +95,7 @@ pub async fn native_dlna_receiver(
 pub async fn native_acquire_mdns_debug_session(
     core: tauri::State<'_, Arc<ContentServer>>,
     token: String,
-) -> Result<serde_json::Value, String> {
+) -> Result<plain_libs::serde_json::Value, String> {
     core.native_management()?
         .acquire_mdns_debug_session(token)
         .await
@@ -105,7 +105,7 @@ pub async fn native_acquire_mdns_debug_session(
 pub async fn native_release_mdns_debug_session(
     core: tauri::State<'_, Arc<ContentServer>>,
     token: String,
-) -> Result<serde_json::Value, String> {
+) -> Result<plain_libs::serde_json::Value, String> {
     core.native_management()?
         .release_mdns_debug_session(token)
         .await

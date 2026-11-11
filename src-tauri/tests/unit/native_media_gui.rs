@@ -1,6 +1,6 @@
 use crate::commands::native::views::NativeViews;
 use crate::native_resource_protocol::{ResourceRegistry, with_native_resource_protocol};
-use serde_json::{Value, json};
+use plain_libs::serde_json::{Value, json};
 use std::{
     borrow::Cow,
     fs,
@@ -91,7 +91,7 @@ fn native_media_report(
             return Err("Report sender is not an owned test document".to_string());
         }
         if !matches!(packet.kind.as_str(), "event" | "diagnostic" | "result")
-            || serde_json::to_vec(&packet)
+            || plain_libs::serde_json::to_vec(&packet)
                 .map_err(|_| "Invalid report packet")?
                 .len()
                 > 16384
@@ -111,7 +111,7 @@ fn native_media_report(
                 label.to_string(),
                 format!(
                     "plain-packet:{}",
-                    serde_json::to_string(&packet).map_err(|_| "Invalid report packet")?
+                    plain_libs::serde_json::to_string(&packet).map_err(|_| "Invalid report packet")?
                 ),
             ))
             .map_err(|_| "Report receiver stopped")?;
@@ -129,7 +129,7 @@ fn native_media_report(
 fn retain_diagnostic(label: &str, message: &str, events: &mut Vec<Value>) -> Result<(), String> {
     let packet = message
         .strip_prefix("plain-packet:")
-        .map(serde_json::from_str::<ReportPacket>)
+        .map(plain_libs::serde_json::from_str::<ReportPacket>)
         .transpose()
         .map_err(|_| "Malformed terminal report packet")?;
     let diagnostic = if let Some(packet) = packet {
@@ -139,7 +139,7 @@ fn retain_diagnostic(label: &str, message: &str, events: &mut Vec<Value>) -> Res
         }
         packet.payload
     } else if let Some(payload) = message.strip_prefix("plain-diagnostic:") {
-        serde_json::from_str(payload).map_err(|_| "Malformed native diagnostic")?
+        plain_libs::serde_json::from_str(payload).map_err(|_| "Malformed native diagnostic")?
     } else {
         events.push(json!({"sequence":next_sequence(), "window":label, "error":message}));
         return Err("Native report transport or evaluation failed".into());
@@ -171,7 +171,7 @@ fn report_transport_idle(window: &tauri::WebviewWindow) -> Result<Value, String>
         if raw.len() > 16384 {
             return Err("Report transport query exceeded its bound".into());
         }
-        let state: Value = serde_json::from_str(&raw)
+        let state: Value = plain_libs::serde_json::from_str(&raw)
             .map_err(|_| "Report transport query was not a native JSON object")?;
         if state["failure"] != Value::Null
             || state["pending"].as_u64().is_none()
@@ -303,7 +303,7 @@ fn child_root() -> PathBuf {
         PathBuf::from(std::env::var_os("PLAIN_NATIVE_MEDIA_ROOT").expect("Owned root missing"));
     assert_eq!(root.canonicalize().unwrap(), root);
     let marker: Value =
-        serde_json::from_slice(&fs::read(root.join("admission.json")).unwrap()).unwrap();
+        plain_libs::serde_json::from_slice(&fs::read(root.join("admission.json")).unwrap()).unwrap();
     assert_eq!(marker["root"].as_str(), root.to_str());
     assert_eq!(
         marker["binary"].as_str(),
@@ -509,7 +509,7 @@ fn native_media_child() {
                 .map_err(std::io::Error::other)?;
             let (core, http_urls, http_probes) = tauri::async_runtime::block_on(http_fixture(&root))
                 .map_err(std::io::Error::other)?;
-            let fixture_info: Value = serde_json::from_slice(&fs::read(root.join("fixtures.json"))?)?;
+            let fixture_info: Value = plain_libs::serde_json::from_slice(&fs::read(root.join("fixtures.json"))?)?;
             let spec = |name: &str, kind: &str, url: &str| json!({"name":name, "kind":kind, "url":url,
                 "duration":fixture_info[name]["duration"], "route":fixture_info[name]["expected_route"]});
             let media = json!([
@@ -577,13 +577,13 @@ fn native_media_child() {
             let owner_id = owner.id().to_string();
             let foreign_id = foreign.id().to_string();
             std::thread::spawn(move || {
-                let mut reports = serde_json::Map::from_iter([(String::from("media-owner"), json!([])), (String::from("media-foreign"), json!([]))]);
+                let mut reports = plain_libs::serde_json::Map::from_iter([(String::from("media-owner"), json!([])), (String::from("media-foreign"), json!([]))]);
                 let mut events = Vec::new();
-                let mut transport_states = serde_json::Map::new();
+                let mut transport_states = plain_libs::serde_json::Map::new();
                 let outcome = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
                     let mut page_sequences = std::collections::HashMap::<String, u64>::new();
                     let mut packet_sequences = std::collections::HashMap::<String, u64>::new();
-                    let mut origins = serde_json::Map::new();
+                    let mut origins = plain_libs::serde_json::Map::new();
                     let mut owner_ready = false;
                     let mut foreign_ready = false;
                     let mut foreign_started = None;
@@ -595,13 +595,13 @@ fn native_media_child() {
                         let remaining = deadline.saturating_duration_since(std::time::Instant::now());
                         let (label, mut message) = received.recv_timeout(remaining).expect("Native media event watchdog expired");
                         if let Some(payload) = message.strip_prefix("plain-packet:") {
-                            let packet: ReportPacket = serde_json::from_str(payload).unwrap();
+                            let packet: ReportPacket = plain_libs::serde_json::from_str(payload).unwrap();
                             packet_sequences.insert(label.clone(), packet.sequence);
                             events.push(json!({"sequence":next_sequence(), "window":label, "packet_sequence":packet.sequence, "packet_kind":packet.kind}));
                             message = format!("plain-{}:{}", packet.kind, packet.payload);
                         }
                         if let Some(payload) = message.strip_prefix("plain-result:") {
-                            let result: Value = serde_json::from_str(payload).unwrap();
+                            let result: Value = plain_libs::serde_json::from_str(payload).unwrap();
                             let received_reports = reports.get_mut(&label).unwrap().as_array_mut().unwrap();
                             assert!(received_reports.len() < if label == "media-owner" { 5 } else { 3 }, "Too many media results");
                             received_reports.push(result);
@@ -616,7 +616,7 @@ fn native_media_child() {
                             continue;
                         }
                         let Some(payload) = message.strip_prefix("plain-event:") else { continue; };
-                        let event: PageEvent = serde_json::from_str(payload).unwrap();
+                        let event: PageEvent = plain_libs::serde_json::from_str(payload).unwrap();
                         assert_eq!(event.origin, "tauri://localhost", "Test document origin is opaque or unexpected");
                         assert_eq!(event.href, SHELL_URL);
                         assert_eq!(event.transport.pending, 0);
@@ -764,7 +764,7 @@ fn native_media_child() {
                         "requests":REQUESTS.get().unwrap().lock().unwrap().clone()})
                 });
                 if value["status"] != "passed" {
-                    let mut transport = serde_json::Map::new();
+                    let mut transport = plain_libs::serde_json::Map::new();
                     for label in ["media-owner", "media-foreign"] {
                         let Some(window) = handle.get_webview_window(label) else { continue; };
                         let (sender, receiver) = mpsc::channel();
@@ -773,7 +773,7 @@ fn native_media_child() {
                             move |result| { let _ = sender.send(result); });
                         let state = if scheduled.is_err() { json!({"failure":"diagnostic evaluation unavailable"}) }
                             else { match receiver.recv_timeout(Duration::from_secs(2)) {
-                                Ok(raw) if raw.len() <= 16384 => serde_json::from_str(&raw).unwrap_or_else(|_| json!({"failure":"diagnostic result was not JSON"})),
+                                Ok(raw) if raw.len() <= 16384 => plain_libs::serde_json::from_str(&raw).unwrap_or_else(|_| json!({"failure":"diagnostic result was not JSON"})),
                                 _ => json!({"failure":"diagnostic result missing or oversized"}),
                             }};
                         transport.insert(label.to_string(), state);
@@ -806,7 +806,7 @@ fn native_media_child() {
                 value["events"] = json!(events);
                 value["core_shutdown"] = json!({"completed":stopped, "loopback_listener_closed":listener_closed});
                 if !stopped || !listener_closed { value["status"] = json!("failed"); }
-                fs::write(output_root.join("native-results.json"), serde_json::to_vec_pretty(&value).unwrap()).unwrap();
+                fs::write(output_root.join("native-results.json"), plain_libs::serde_json::to_vec_pretty(&value).unwrap()).unwrap();
                 let passed = value["status"] == "passed";
                 *final_result.lock().unwrap() = Some(value);
                 handle.exit(if passed { 0 } else { 1 });

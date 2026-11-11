@@ -210,7 +210,7 @@ mod contract_tests {
     #[test]
     fn native_phase_contract_does_not_claim_frontend_annotation_state() {
         let phase = NativeCapturePhase::Active;
-        let json = serde_json::to_string(&phase).expect("serialize native phase");
+        let json = plain_libs::serde_json::to_string(&phase).expect("serialize native phase");
 
         assert_eq!(json, "\"active\"");
         assert!(!json.contains("annotating"));
@@ -684,7 +684,7 @@ mod ipc_tests {
         let raw = InvokeBody::Raw(vec![1, 2, 3, 4]);
         assert_eq!(require_raw_body(&raw).expect("raw body"), &[1, 2, 3, 4]);
 
-        let json = InvokeBody::Json(serde_json::json!({ "bytes": [1, 2, 3, 4] }));
+        let json = InvokeBody::Json([("bytes", vec![1_u8, 2, 3, 4])].into_iter().collect());
         assert_eq!(
             require_raw_body(&json)
                 .expect_err("JSON byte payloads must fail")

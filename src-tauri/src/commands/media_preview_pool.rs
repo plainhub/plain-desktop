@@ -51,7 +51,7 @@ fn build_warm(app: &AppHandle) -> tauri::Result<String> {
     Ok(WARM_LABEL.to_string())
 }
 
-fn build_query(source: &serde_json::Value) -> String {
+fn build_query(source: &plain_libs::serde_json::Value) -> String {
     let mut params: Vec<String> = Vec::new();
     let push_str = |k: &str, params: &mut Vec<String>| {
         if let Some(v) = source.get(k).and_then(|x| x.as_str())
@@ -93,7 +93,7 @@ fn build_query(source: &serde_json::Value) -> String {
 
 fn activate(
     app: &AppHandle,
-    source: serde_json::Value,
+    source: plain_libs::serde_json::Value,
     origin: Option<PhysicalPosition<i32>>,
 ) -> String {
     let query = build_query(&source);
@@ -206,7 +206,7 @@ pub async fn media_preview_init(app: AppHandle) {
 #[tauri::command]
 pub async fn media_preview_activate(
     window: WebviewWindow,
-    source: serde_json::Value,
+    source: plain_libs::serde_json::Value,
 ) -> Result<String, String> {
     tauri::async_runtime::spawn_blocking(move || {
         activate(window.app_handle(), source, window.outer_position().ok())
@@ -218,7 +218,7 @@ pub async fn media_preview_activate(
 #[cfg(test)]
 mod tests {
     use super::build_query;
-    use serde_json::json;
+    use plain_libs::serde_json::json;
 
     // The TS side serializes ISource, whose duration field is `durationMs`
     // (milliseconds). A key mismatch here silently drops the param — that
