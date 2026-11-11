@@ -40,7 +40,7 @@ beforeEach(() => {
   fixture.selected = 'selected-peer'
   fixture.key.mockImplementation((token: string) => token)
   fixture.invoke.mockImplementation(async (command: string) => command === 'native_view_scope' ? 'document' : result)
-  fixture.http.mockResolvedValue({ status: 200, arrayBuffer: async () => new TextEncoder().encode(JSON.stringify(result)).buffer })
+  fixture.http.mockResolvedValue({ status: 200, ok: true, arrayBuffer: async () => new TextEncoder().encode(JSON.stringify(result)).buffer })
 })
 afterEach(() => { vi.useRealTimers(); vi.unstubAllGlobals() })
 
@@ -93,8 +93,10 @@ it('preserves browser direct-peer HTTPS and its request body', async () => {
   vi.stubGlobal('__IS_TAURI__', false)
   expect(await gqlFetchPeer(peer, query, variables)).toEqual(result)
   expect(fixture.http).toHaveBeenCalledExactlyOnceWith('https://direct.example.test/graphql', expect.objectContaining({
-    method: 'POST', headers: { 'c-id': 'self' }, body: new TextEncoder().encode(JSON.stringify({ query, variables })),
+    method: 'POST', headers: { 'c-id': 'self' }, body: expect.any(Uint8Array),
   }))
   expect(fixture.invoke).not.toHaveBeenCalled()
+  const payload = JSON.parse(new TextDecoder().decode(fixture.http.mock.calls[0][1].body))
+  expect(payload).toEqual({ query, variables, requestId: expect.stringMatching(/^00000000-03e8-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/) })
   expect(fixture.key).toHaveBeenCalledExactlyOnceWith('direct-session')
 })

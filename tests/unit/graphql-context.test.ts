@@ -37,7 +37,7 @@ function deferred<T>() {
 }
 
 function response(data: unknown, status = 200) {
-  return { status, arrayBuffer: async () => new TextEncoder().encode(JSON.stringify({ data })).buffer } as unknown as Awaited<ReturnType<typeof httpRequest>>
+  return { status, ok: status >= 200 && status < 300, arrayBuffer: async () => new TextEncoder().encode(JSON.stringify({ data })).buffer } as unknown as Awaited<ReturnType<typeof httpRequest>>
 }
 
 beforeEach(() => {

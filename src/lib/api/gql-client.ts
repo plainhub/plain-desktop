@@ -2,7 +2,7 @@ import { isLocalMode } from '@/lib/device/local-mode'
 import { getApiBaseUrl, getApiHeaders } from './api'
 import { chachaEncrypt, chachaDecrypt, httpRequestAad, httpResponseAad, arrayBufferToBitArray, bitArrayToUint8Array } from './crypto'
 import { tokenToKey } from './file'
-import { wrapWithReplayProtection } from './time-sync'
+import { generateRecordId } from '../record-id.generated'
 import { getCurrentAuthToken, clearCurrentSession } from '../device/current'
 import { getLoginPeerRevision } from '../device/login-peers'
 import { getActiveClientId, getRemoteClientId } from '../device/client-id'
@@ -107,7 +107,7 @@ export async function encryptedGqlPost<T = any>(
   headers: Record<string, string> = getApiHeaders(),
 ): Promise<GqlResult<T>> {
   const key = tokenToKey(token)
-  const json = JSON.stringify({ query, variables })
+  const json = JSON.stringify({ requestId: generateRecordId(), query, variables })
   const op = operationName(query)
   const host = (() => {
     try {
@@ -123,7 +123,7 @@ export async function encryptedGqlPost<T = any>(
   }
 
   const startTime = performance.now()
-  const body = bitArrayToUint8Array(chachaEncrypt(key, wrapWithReplayProtection(json), httpRequestAad('/graphql')))
+  const body = bitArrayToUint8Array(chachaEncrypt(key, json, httpRequestAad('/graphql')))
   const responseAad = httpResponseAad(body)
   const encryptTime = performance.now()
 
@@ -142,6 +142,8 @@ export async function encryptedGqlPost<T = any>(
       throw new GqlError('unauthorized', 401)
     } else if (response.status === 403) {
       throw new GqlError('remote_access_disabled', 403)
+    } else if (!response.ok) {
+      throw new GqlError('network_error', response.status)
     }
 
     const arrayBuffer = await response.arrayBuffer()
