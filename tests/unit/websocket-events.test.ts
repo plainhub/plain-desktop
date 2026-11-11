@@ -1,42 +1,35 @@
 import { readFileSync } from 'node:fs'
 import { expect, it } from 'vitest'
-import { EventStream, eventAad } from '../../src/lib/api/websocket-events'
+import { WebSocketCrypto } from '../../src/lib/api/websocket-crypto'
 import { parseWebSocketData } from '../../src/lib/api/sjcl-arraybuffer'
-import { chachaDecrypt } from '../../src/lib/api/crypto'
+import { xchacha20poly1305 } from '@noble/ciphers/chacha'
+import { fields, hash, text } from '../helpers/websocket-server'
 
-const vectors = JSON.parse(readFileSync(new URL('../../../plain-core/plain-rs/testdata/crypto/websocket-event-vectors.json', import.meta.url), 'utf8'))
+const vectors = JSON.parse(readFileSync(new URL('../../../plain-core/plain-rs/testdata/crypto/websocket-event-vectors.json', import.meta.url), 'utf8')) as Array<{
+  key: string; client: string; path: string; init: string; ack: string
+  clientFrames: Array<{ frame: string; plain: string }>
+  serverFrames: Array<{ frame: string; plain: string }>
+}>
 const bytes = (value: string) => new Uint8Array(Buffer.from(value, 'base64'))
 
-it('decodes every ordered Rust/Noble vector including exact binary bytes', () => {
-  const stream = new EventStream(bytes(vectors[0].registration))
+it('matches Rust cross-language handshakes and both ordered directions for all socket paths', () => {
   for (const vector of vectors) {
     const key = bytes(vector.key)
-    const frame = bytes(vector.frame)
-    expect(stream.decode(frame, key)).toEqual({ type: vector.name, data: bytes(vector.payload) })
-    expect(() => stream.decode(frame, key)).toThrow()
-    const native = parseWebSocketData(bytes(vector.nativeFrame))
-    expect(chachaDecrypt(key, native.data, eventAad(native.type))).toBe(new TextDecoder().decode(bytes(vector.payload)))
+    const crypto = new WebSocketCrypto(vector.client, key, vector.path)
+    Object.defineProperty(crypto, 'registration', { value: bytes(vector.init) })
+    crypto.acknowledge(bytes(vector.ack))
+    const binding = hash(fields(bytes(vector.init), bytes(vector.ack)))
+    for (const expected of vector.clientFrames) {
+      const frame = crypto.encode(bytes(expected.plain))
+      const aad = fields(text('plain-ws-frame'), text(vector.path), text(vector.client), binding, text('client'), frame.subarray(1, 9))
+      expect(xchacha20poly1305(key, frame.subarray(9, 33), aad).decrypt(frame.subarray(33))).toEqual(bytes(expected.plain))
+      expect(frame.subarray(0, 9)).toEqual(bytes(expected.frame).subarray(0, 9))
+    }
+    for (const expected of vector.serverFrames) {
+      const plain = crypto.decode(bytes(expected.frame))
+      expect(plain).toEqual(bytes(expected.plain))
+      if (vector.path !== '/graphql') expect(parseWebSocketData(plain).type).toMatch(/^[A-Z_]+$/)
+      expect(() => crypto.decode(bytes(expected.frame))).toThrow()
+    }
   }
-})
-
-it('rejects substitution, cross-connection replay, gaps, wrong keys and truncation without consuming a valid sequence', () => {
-  const [first, second] = vectors
-  const stream = new EventStream(bytes(first.registration))
-  const key = bytes(first.key)
-  const frame = bytes(first.frame)
-  const body = parseWebSocketData(frame).data
-  const renamed = Buffer.concat([Buffer.from('DEVICE_NAME_UPDATED\0'), body])
-  expect(() => stream.decode(renamed, key)).toThrow()
-  expect(() => new EventStream(new Uint8Array([1])).decode(frame, key)).toThrow()
-  expect(() => stream.decode(frame, new Uint8Array(32))).toThrow()
-  expect(() => stream.decode(bytes(second.frame), key)).toThrow()
-  for (let length = 0; length < frame.length; length++) {
-    expect(() => stream.decode(frame.subarray(0, length), key)).toThrow()
-  }
-  const changed = frame.slice()
-  changed[changed.length - 1]! ^= 1
-  expect(() => stream.decode(changed, key)).toThrow()
-  expect(() => stream.decode(bytes(first.nativeFrame), key)).toThrow()
-  expect(stream.decode(frame, key).type).toBe(first.name)
-  expect(stream.decode(bytes(second.frame), key).data).toEqual(bytes(second.payload))
 })

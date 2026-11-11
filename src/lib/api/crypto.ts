@@ -37,15 +37,6 @@ export function httpRequestAad(endpoint: string): Uint8Array {
   return new TextEncoder().encode(`http-request\0POST\0${endpoint}`)
 }
 
-export function websocketRequestAad(path: string, clientId: string, registration?: Uint8Array): Uint8Array {
-  const prefix = new TextEncoder().encode(`ws-request\0${path}\0${clientId}\0${registration ? 'control\0' : 'register'}`)
-  if (!registration) return prefix
-  const aad = new Uint8Array(prefix.length + 32)
-  aad.set(prefix)
-  aad.set(sha256(registration), prefix.length)
-  return aad
-}
-
 export function httpResponseAad(request: Uint8Array): Uint8Array {
   const prefix = new TextEncoder().encode('r\0')
   const aad = new Uint8Array(prefix.length + 32)

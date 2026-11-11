@@ -1,6 +1,6 @@
 import { openSocket } from './http'
 import { getWebSocketBaseUrl } from './api'
-import { GraphqlSubscriptionCrypto } from './graphql-subscription-crypto'
+import { WebSocketCrypto } from './websocket-crypto'
 import { getCurrentAuthToken } from '@/lib/device/current'
 
 type LoginFrame = string | ArrayBuffer | Blob
@@ -88,12 +88,13 @@ export async function openLoginSocket(url: string, signal?: AbortSignal) {
     try {
       const cid = target.searchParams.get('cid') || ''
       const key = Uint8Array.from(atob(getCurrentAuthToken()), char => char.charCodeAt(0))
-      const crypto = new GraphqlSubscriptionCrypto(cid, key, target.pathname + target.search)
+      const crypto = new WebSocketCrypto(cid, key, target.pathname + target.search)
       socket.send(crypto.registration as ArrayBufferView<ArrayBuffer>)
       const frame = await receive()
       if (typeof frame === 'string') throw new Error('Invalid proxy acknowledgement')
       const bytes = frame instanceof ArrayBuffer ? frame : await frame.arrayBuffer()
       crypto.acknowledge(new Uint8Array(bytes))
+      socket.send(crypto.encode(new Uint8Array()) as ArrayBufferView<ArrayBuffer>)
       window.clearTimeout(connectionTimeout)
     } catch {
       fail('proxy_auth_failed')

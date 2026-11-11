@@ -1,5 +1,3 @@
-import { createHash } from 'node:crypto'
-import { xchacha20poly1305 } from '@noble/ciphers/chacha'
 import { beforeEach, afterEach, expect, it, vi } from 'vitest'
 
 const mock = vi.hoisted(() => ({ sockets: [] as any[], token: 'fixture' }))
@@ -18,60 +16,55 @@ vi.mock('@/lib/api/http', () => ({
 
 import { ScreenMirrorSocket } from '../../src/views/screen-mirror/screen-mirror-socket'
 import { openSocket } from '../../src/lib/api/http'
-import { chachaDecrypt, websocketRequestAad } from '../../src/lib/api/crypto'
+import { server, text } from '../helpers/websocket-server'
 
 const key = new Uint8Array(32).fill(7)
-function frame(registration: Uint8Array, counter: bigint, name: string, data: Uint8Array): ArrayBuffer {
-  const sequence = Buffer.alloc(8)
-  sequence.writeBigUInt64BE(counter)
-  const aad = Buffer.concat([Buffer.from('plain-ws-event-v1\0'), createHash('sha256').update(registration).digest(), sequence, Buffer.from(name)])
-  const nonce = new Uint8Array(24).fill(Number(counter) + 1)
-  const encrypted = xchacha20poly1305(key, nonce, aad).encrypt(data)
-  return new Uint8Array(Buffer.concat([Buffer.from(name + '\0'), sequence, nonce, encrypted])).buffer
-}
 function fixture() {
   const callbacks = { onConnected: vi.fn(), onDisconnected: vi.fn(), onVideo: vi.fn(), onAudio: vi.fn() }
   const client = new ScreenMirrorSocket(callbacks)
   client.connect()
   const socket = mock.sockets.at(-1)!
+  let peer: ReturnType<typeof server>
   const open = () => {
     socket.readyState = 1
     socket.onopen()
+    peer = server(key, socket.send.mock.calls[0][0], '/screen', 'browser')
+    socket.onmessage({ data: peer.ack.buffer })
+    return peer
   }
   return { client, socket, callbacks, open }
 }
 beforeEach(() => {
+  vi.useFakeTimers()
   vi.stubGlobal('__IS_TAURI__', false)
   vi.clearAllMocks()
   mock.sockets.length = 0
   mock.token = 'fixture'
   vi.spyOn(console, 'error').mockImplementation(() => {})
 })
-afterEach(() => { vi.restoreAllMocks(); vi.unstubAllGlobals() })
+afterEach(() => { vi.clearAllTimers(); vi.useRealTimers(); vi.restoreAllMocks(); vi.unstubAllGlobals() })
 
-it('opens only one screen socket and registers with a fresh timestamp when it opens', () => {
-  const { client, socket, callbacks, open } = fixture()
+it('opens once and waits for the authenticated acknowledgement before exposing controls', () => {
+  const { client, socket, callbacks } = fixture()
   client.connect()
   expect(openSocket).toHaveBeenCalledExactlyOnceWith('wss://example.test/screen?cid=browser', 'peer')
   expect(socket.binaryType).toBe('arraybuffer')
+  socket.onopen()
   expect(callbacks.onConnected).not.toHaveBeenCalled()
-  const now = vi.spyOn(Date, 'now').mockReturnValue(1700000123456)
-  open()
-  expect(chachaDecrypt(key, socket.send.mock.calls[0][0], websocketRequestAad('/screen', 'browser'))).toBe('1700000123456')
-  expect(() => chachaDecrypt(key, socket.send.mock.calls[0][0])).toThrow()
-  expect(() => chachaDecrypt(key, socket.send.mock.calls[0][0], websocketRequestAad('/image_editor', 'browser'))).toThrow()
+  const peer = server(key, socket.send.mock.calls[0][0], '/screen', 'browser')
+  expect(peer.init).toEqual({ clientNonce: expect.stringMatching(/^[a-f0-9]{64}$/) })
+  socket.onmessage({ data: peer.ack.buffer })
+  expect(peer.decode(socket.send.mock.calls[1][0])).toEqual(new Uint8Array())
   expect(callbacks.onConnected).toHaveBeenCalledOnce()
-  now.mockRestore()
 })
 
 it('routes authenticated binary video and audio with one ordered stream and rejects replay', () => {
   const { socket, callbacks, open } = fixture()
-  open()
-  const registration = socket.send.mock.calls[0][0]
+  const peer = open()
   const bytes = new Uint8Array([0, 255, 1])
-  socket.onmessage({ data: frame(registration, 0n, 'SCREEN_MIRROR_VIDEO', bytes) })
-  socket.onmessage({ data: frame(registration, 1n, 'SCREEN_MIRROR_AUDIO', bytes) })
-  const last = frame(registration, 1n, 'SCREEN_MIRROR_AUDIO', bytes)
+  socket.onmessage({ data: peer.frame(1n, Buffer.concat([text('SCREEN_MIRROR_VIDEO\0'), bytes])).buffer })
+  socket.onmessage({ data: peer.frame(2n, Buffer.concat([text('SCREEN_MIRROR_AUDIO\0'), bytes])).buffer })
+  const last = peer.frame(2n, Buffer.concat([text('SCREEN_MIRROR_AUDIO\0'), bytes])).buffer
   expect(callbacks.onVideo).toHaveBeenCalledExactlyOnceWith(bytes)
   expect(callbacks.onAudio).toHaveBeenCalledExactlyOnceWith(bytes)
   socket.onmessage({ data: last })
@@ -101,12 +94,13 @@ it('ignores late open, data and close callbacks after leaving or replacing a scr
 it('rejects wrong event kinds and data authenticated for a different connection', () => {
   for (const wrongConnection of [false, true]) {
     const { client, socket, callbacks, open } = fixture()
-    open()
-    const registration = wrongConnection ? new Uint8Array([1, 2, 3]) : socket.send.mock.calls[0][0]
-    socket.onmessage({ data: frame(registration, 0n, wrongConnection ? 'SCREEN_MIRROR_VIDEO' : 'CONTENT_CHANGED', new Uint8Array([1])) })
+    const peer = open()
+    const other = wrongConnection ? server(key, socket.send.mock.calls[0][0], '/screen', 'browser', 5) : peer
+    socket.onmessage({ data: other.frame(1n, text(wrongConnection ? 'SCREEN_MIRROR_VIDEO\0data' : 'CONTENT_CHANGED\0data')).buffer })
     expect(socket.close).toHaveBeenCalledExactlyOnceWith(1008, 'invalid_event')
     expect(callbacks.onVideo).not.toHaveBeenCalled()
-    }
+    client.disconnect()
+  }
 })
 
 it('reports a missing session without creating a socket', () => {
@@ -117,48 +111,61 @@ it('reports a missing session without creating a socket', () => {
   expect(callbacks.onDisconnected).toHaveBeenCalledOnce()
 })
 
-it('sends encrypted controls on the screen socket only while connected', () => {
+it('sends strictly ordered encrypted raw controls after the confirmation', () => {
   const { client, socket, open } = fixture()
   vi.stubGlobal('WebSocket', { OPEN: 1 })
   expect(client.sendBytes(new Uint8Array([1]))).toBe(false)
-  open()
+  const peer = open()
   const payload = new Uint8Array([0x54, 1, 2, 3])
-  expect(client.sendBytes(payload)).toBe(true)
-  const frame = socket.send.mock.calls[1][0] as Uint8Array
-  const plain = xchacha20poly1305(key, frame.slice(0, 24), websocketRequestAad('/screen', 'browser', socket.send.mock.calls[0][0])).decrypt(frame.slice(24))
-  expect(plain.slice(8)).toEqual(payload)
-  for (const aad of [undefined, websocketRequestAad('/image_editor', 'browser', socket.send.mock.calls[0][0]), websocketRequestAad('/screen', 'other-client', socket.send.mock.calls[0][0]), websocketRequestAad('/screen', 'browser', new Uint8Array([1]))]) {
-    expect(() => xchacha20poly1305(key, frame.slice(0, 24), aad).decrypt(frame.slice(24))).toThrow()
+  for (let index = 0; index < 3; index++) {
+    expect(client.sendBytes(payload)).toBe(true)
+    const frame = socket.send.mock.calls[index + 2][0] as Uint8Array
+    expect(new DataView(frame.buffer, frame.byteOffset).getBigUint64(1)).toBe(BigInt(index + 2))
+    expect(peer.decode(frame)).toEqual(payload)
   }
   client.disconnect()
   expect(client.sendBytes(payload)).toBe(false)
-  vi.unstubAllGlobals()
 })
 
-it('binds controls to a new registration after reconnecting', () => {
+it('binds controls to the acknowledged connection after reconnecting', () => {
   vi.stubGlobal('WebSocket', { OPEN: 1 })
-  const { client, socket, open } = fixture()
-  open()
-  const oldRegistration = socket.send.mock.calls[0][0]
+  const { client, open } = fixture()
+  const oldPeer = open()
   client.disconnect()
   client.connect()
   const next = mock.sockets.at(-1)!
   next.readyState = 1
   next.onopen()
+  const peer = server(key, next.send.mock.calls[0][0], '/screen', 'browser')
+  next.onmessage({ data: peer.ack.buffer })
   client.sendBytes(new Uint8Array([1]))
-  const control = next.send.mock.calls[1][0] as Uint8Array
-  const newAad = websocketRequestAad('/screen', 'browser', next.send.mock.calls[0][0])
-  const oldAad = websocketRequestAad('/screen', 'browser', oldRegistration)
-  expect(() => xchacha20poly1305(key, control.slice(0, 24), newAad).decrypt(control.slice(24))).not.toThrow()
-  expect(() => xchacha20poly1305(key, control.slice(0, 24), oldAad).decrypt(control.slice(24))).toThrow()
+  const control = next.send.mock.calls[2][0] as Uint8Array
+  expect(peer.decode(control)).toEqual(new Uint8Array([1]))
+  expect(() => oldPeer.decode(control)).toThrow()
   client.disconnect()
 })
 
-it('matches the agreed registration and connection-bound control AAD bytes', () => {
-  const registration = new Uint8Array([1, 2, 3])
-  expect(Buffer.from(websocketRequestAad('/screen', 'browser'))).toEqual(Buffer.from('ws-request\0/screen\0browser\0register'))
-  expect(Buffer.from(websocketRequestAad('/screen', 'browser', registration))).toEqual(Buffer.concat([
-    Buffer.from('ws-request\0/screen\0browser\0control\0'),
-    createHash('sha256').update(registration).digest(),
-  ]))
+it('closes an unacknowledged handshake and clears the deadline when disconnected', () => {
+  const { client, socket, callbacks } = fixture()
+  socket.onopen()
+  vi.advanceTimersByTime(10000)
+  expect(socket.close).toHaveBeenCalledWith(1008, 'handshake_timeout')
+  expect(callbacks.onConnected).not.toHaveBeenCalled()
+  client.disconnect()
+  client.connect()
+  const next = mock.sockets.at(-1)!
+  client.disconnect()
+  vi.advanceTimersByTime(10000)
+  expect(next.close).toHaveBeenCalledTimes(1)
+})
+
+it('drops controls after a send failure and never reuses its consumed sequence', () => {
+  vi.stubGlobal('WebSocket', { OPEN: 1 })
+  const { client, socket, open } = fixture()
+  open()
+  socket.send.mockImplementationOnce(() => { throw new Error('send failed') })
+  expect(client.sendBytes(new Uint8Array([1]))).toBe(false)
+  expect(client.sendBytes(new Uint8Array([2]))).toBe(false)
+  expect(socket.close).toHaveBeenCalledWith(1008, 'invalid_control')
+  client.disconnect()
 })

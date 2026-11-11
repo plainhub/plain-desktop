@@ -1,5 +1,3 @@
-import { createHash } from 'node:crypto'
-import { xchacha20poly1305 } from '@noble/ciphers/chacha'
 import { beforeEach, afterEach, expect, it, vi } from 'vitest'
 
 const mock = vi.hoisted(() => ({ sockets: [] as any[] }))
@@ -16,16 +14,7 @@ vi.mock('@/lib/api/http', () => ({ openSocket: vi.fn(() => {
 
 import { ImageEditorSocket } from '../../src/views/image-editor/sync/image-editor-socket'
 import { openSocket } from '../../src/lib/api/http'
-import { chachaDecrypt, websocketRequestAad } from '../../src/lib/api/crypto'
-
-function frame(registration: Uint8Array, counter: bigint, name: string, data: Uint8Array): ArrayBuffer {
-  const sequence = Buffer.alloc(8)
-  sequence.writeBigUInt64BE(counter)
-  const aad = Buffer.concat([Buffer.from('plain-ws-event-v1\0'), createHash('sha256').update(registration).digest(), sequence, Buffer.from(name)])
-  const nonce = new Uint8Array(24).fill(Number(counter) + 1)
-  const encrypted = xchacha20poly1305(new Uint8Array(32).fill(7), nonce, aad).encrypt(data)
-  return new Uint8Array(Buffer.concat([Buffer.from(name + '\0'), sequence, nonce, encrypted])).buffer
-}
+import { server, text } from '../helpers/websocket-server'
 
 beforeEach(() => vi.stubGlobal('__IS_TAURI__', false))
 afterEach(() => { vi.unstubAllGlobals(); vi.restoreAllMocks(); vi.useRealTimers(); mock.sockets.length = 0 })
@@ -43,14 +32,15 @@ it('waits for authenticated readiness, receives updates, rejects replay and reco
   expect(ready).not.toHaveBeenCalled()
   const registration = socket.send.mock.calls[0][0]
   const key = new Uint8Array(32).fill(7)
-  expect(chachaDecrypt(key, registration, websocketRequestAad('/image_editor', 'browser'))).toMatch(/^\d+$/)
-  expect(() => chachaDecrypt(key, registration)).toThrow()
-  expect(() => chachaDecrypt(key, registration, websocketRequestAad('/screen', 'browser'))).toThrow()
-  expect(() => chachaDecrypt(key, registration, websocketRequestAad('/image_editor', 'other-client'))).toThrow()
-  socket.onmessage({ data: frame(registration, 0n, 'IMAGE_EDITOR_READY', new Uint8Array()) })
+  const peer = server(key, registration, '/image_editor', 'browser')
+  expect(peer.init).toEqual({ clientNonce: expect.stringMatching(/^[a-f0-9]{64}$/) })
+  socket.onmessage({ data: peer.ack.buffer })
+  expect(peer.decode(socket.send.mock.calls[1][0])).toEqual(new Uint8Array())
+  expect(ready).not.toHaveBeenCalled()
+  socket.onmessage({ data: peer.frame(1n, text('IMAGE_EDITOR_READY\0')).buffer })
   expect(ready).toHaveBeenCalledOnce()
   const bytes = new Uint8Array([1, 2, 3])
-  const event = frame(registration, 1n, 'IMAGE_EDITOR_UPDATE', bytes)
+  const event = peer.frame(2n, Buffer.concat([text('IMAGE_EDITOR_UPDATE\0'), bytes])).buffer
   socket.onmessage({ data: event })
   expect(update).toHaveBeenCalledExactlyOnceWith(bytes)
   socket.onmessage({ data: event })

@@ -229,13 +229,22 @@ it('authenticates to A before delivering B login frames on the existing proxy UR
     return [length, value]
   }))
   const key = new Uint8Array(32).fill(5)
-  const initAad = fields(['plain-graphql-init-v1', path, 'fixture-browser'].map(value => utf8.encode(value)))
-  expect(JSON.parse(new TextDecoder().decode(xchacha20poly1305(key, init.subarray(1, 25), initAad).decrypt(init.subarray(25))))).toMatchObject({ timestampMillis: 1700000000000 })
-  const ackAad = fields([...['plain-graphql-ack-v1', path, 'fixture-browser'].map(value => utf8.encode(value)), sha256(init)])
+  const initAad = fields(['plain-ws-init', path, 'fixture-browser'].map(value => utf8.encode(value)))
+  expect(JSON.parse(new TextDecoder().decode(xchacha20poly1305(key, init.subarray(1, 25), initAad).decrypt(init.subarray(25))))).toEqual({ clientNonce: expect.stringMatching(/^[a-f0-9]{64}$/) })
+  const ackAad = fields([...['plain-ws-ack', path, 'fixture-browser'].map(value => utf8.encode(value)), sha256(init)])
   const nonce = new Uint8Array(24).fill(9)
   const ack = xchacha20poly1305(key, nonce, ackAad).encrypt(utf8.encode(JSON.stringify({ serverNonce: 'a'.repeat(64) })))
   await socket.message(new Blob([new Uint8Array([1, ...nonce, ...ack])]))
   const connection = await opening
+  expect(socket.send).toHaveBeenCalledTimes(2)
+  const confirm = socket.send.mock.calls[1][0] as Uint8Array
+  expect(new DataView(confirm.buffer, confirm.byteOffset).getBigUint64(1)).toBe(1n)
+  const binding = sha256(fields([init, new Uint8Array([1, ...nonce, ...ack])]))
+  const confirmAad = fields([
+    ...['plain-ws-frame', path, 'fixture-browser'].map(value => utf8.encode(value)),
+    binding, utf8.encode('client'), confirm.subarray(1, 9),
+  ])
+  expect(xchacha20poly1305(key, confirm.subarray(9, 33), confirmAad).decrypt(confirm.subarray(33))).toEqual(new Uint8Array())
   connection.send('client hello')
   await socket.message('signed B hello')
   expect(await connection.receiveText()).toBe('signed B hello')

@@ -1,14 +1,15 @@
+import { WebSocketCrypto } from '@/lib/api/websocket-crypto'
+import { parseWebSocketData } from '@/lib/api/sjcl-arraybuffer'
 import { openNativeSocket, type NativeSocketConnection } from '@/lib/api/native-socket'
 import { getWebSocketBaseUrl } from '@/lib/api/api'
-import { chachaEncrypt, websocketRequestAad, bitArrayToUint8Array } from '@/lib/api/crypto'
 import { tokenToKey } from '@/lib/api/file'
 import { openSocket } from '@/lib/api/http'
-import { EventStream } from '@/lib/api/websocket-events'
 import { getRemoteClientId, getDesktopClientId } from '@/lib/device/client-id'
 import { getCurrentAuthToken } from '@/lib/device/current'
 
 export class ImageEditorSocket {
   private socket: WebSocket | null = null
+  private handshakeDeadline: ReturnType<typeof setTimeout> | undefined
   private native: NativeSocketConnection | null = null
   private retry: ReturnType<typeof setTimeout> | undefined
   private stopped = true
@@ -55,28 +56,47 @@ export class ImageEditorSocket {
     }
     this.socket = socket
     socket.binaryType = 'arraybuffer'
-    let stream: EventStream | null = null
+    let crypto: WebSocketCrypto | null = null
+    let acknowledged = false
+    this.handshakeDeadline = setTimeout(() => {
+      if (this.socket !== socket) return
+      crypto = null
+      socket.close(1008, 'handshake_timeout')
+    }, 10000)
     socket.onopen = () => {
       if (this.socket !== socket) return
-      const registration = bitArrayToUint8Array(chachaEncrypt(key, Date.now().toString(), websocketRequestAad('/image_editor', clientId)))
-      stream = new EventStream(registration)
-      socket.send(registration)
+      try {
+        crypto = new WebSocketCrypto(clientId, key, '/image_editor')
+        socket.send(crypto.registration)
+      } catch (error) {
+        console.error(error)
+        socket.close(1008, 'invalid_handshake')
+      }
     }
     socket.onmessage = (message: MessageEvent) => {
       if (this.socket !== socket) return
       try {
-        if (!stream || !(message.data instanceof ArrayBuffer)) throw new Error('Invalid image editor frame')
-        const packet = stream.decode(message.data, key)
+        if (!crypto || !(message.data instanceof ArrayBuffer)) throw new Error('Invalid image editor frame')
+        if (!acknowledged) {
+          crypto.acknowledge(new Uint8Array(message.data))
+          socket.send(crypto.encode(new Uint8Array()))
+          acknowledged = true
+          clearTimeout(this.handshakeDeadline)
+          return
+        }
+        const packet = parseWebSocketData(crypto.decode(new Uint8Array(message.data)))
         if (packet.type === 'IMAGE_EDITOR_READY') this.onReady()
         else if (packet.type === 'IMAGE_EDITOR_UPDATE') this.onUpdate(packet.data)
         else throw new Error('Invalid image editor event')
       } catch (error) {
         console.error(error)
+        crypto = null
         socket.close(1008, 'invalid_event')
       }
     }
     socket.onclose = () => {
       if (this.socket !== socket) return
+      clearTimeout(this.handshakeDeadline)
       this.socket = null
       this.scheduleRetry()
     }
@@ -88,6 +108,7 @@ export class ImageEditorSocket {
   }
 
   disconnect() {
+    clearTimeout(this.handshakeDeadline)
     this.stopped = true
     this.native?.close()
     this.native = null

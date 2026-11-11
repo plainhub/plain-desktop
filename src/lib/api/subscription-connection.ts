@@ -5,7 +5,7 @@ import { getCurrentAuthToken } from '@/lib/device/current'
 import { getRemoteClientId, getDesktopClientId } from '@/lib/device/client-id'
 import { tokenToKey } from './file'
 import { openSocket } from './http'
-import { GraphqlSubscriptionCrypto } from './graphql-subscription-crypto'
+import { WebSocketCrypto } from './websocket-crypto'
 import { peerProxyPath } from '../url'
 import { nativeViewScope, type NativeTarget } from './native-client'
 
@@ -26,7 +26,7 @@ function openNetwork(callbacks: SubscriptionCallbacks, peerId?: string): Subscri
   socket.binaryType = 'arraybuffer'
   let active = true
   let acknowledged = false
-  let crypto: GraphqlSubscriptionCrypto | undefined
+  let crypto: WebSocketCrypto | undefined
   let heartbeat: ReturnType<typeof setInterval> | undefined
   let pong: ReturnType<typeof setTimeout> | undefined
   const deadline = setTimeout(() => fail(new Error('Subscription handshake timeout')), 10000)
@@ -34,7 +34,7 @@ function openNetwork(callbacks: SubscriptionCallbacks, peerId?: string): Subscri
     send(message) {
       try {
         if (!active || !acknowledged || !crypto) throw new Error('Subscription connection unavailable')
-        socket.send(crypto.encode(message))
+        socket.send(crypto.encode(new TextEncoder().encode(JSON.stringify(message))))
       } catch (error) { fail(error) }
     },
     close() {
@@ -54,7 +54,7 @@ function openNetwork(callbacks: SubscriptionCallbacks, peerId?: string): Subscri
   socket.onopen = () => {
     if (!active) return
     try {
-      crypto = new GraphqlSubscriptionCrypto(client, tokenToKey(token))
+      crypto = new WebSocketCrypto(client, tokenToKey(token))
       socket.send(crypto.registration)
     } catch (error) { fail(error) }
   }
@@ -66,13 +66,17 @@ function openNetwork(callbacks: SubscriptionCallbacks, peerId?: string): Subscri
         crypto.acknowledge(new Uint8Array(event.data))
         acknowledged = true
         clearTimeout(deadline)
+        connection.send({ type: 'ping' })
+        if (!active) return
         callbacks.opened()
+        if (!active) return
         heartbeat = setInterval(() => {
           connection.send({ type: 'ping' })
+          if (!active) return
           pong = setTimeout(() => fail(new Error('Subscription heartbeat timeout')), 10000)
         }, 20000)
       } else {
-        const message = crypto.decode(new Uint8Array(event.data))
+        const message = JSON.parse(new TextDecoder().decode(crypto.decode(new Uint8Array(event.data))))
         if (typeof message === 'object' && message !== null && 'type' in message && message.type === 'pong') clearTimeout(pong)
         else callbacks.message(message)
       }

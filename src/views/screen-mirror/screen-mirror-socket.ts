@@ -1,12 +1,11 @@
+import { WebSocketCrypto } from '@/lib/api/websocket-crypto'
+import { parseWebSocketData } from '@/lib/api/sjcl-arraybuffer'
 import { openNativeSocket, type NativeSocketConnection } from '@/lib/api/native-socket'
 import { getWebSocketBaseUrl } from '@/lib/api/api'
 import { getCurrentAuthToken } from '@/lib/device/current'
 import { getRemoteClientId, getDesktopClientId } from '@/lib/device/client-id'
 import { openSocket } from '@/lib/api/http'
 import { tokenToKey } from '@/lib/api/file'
-import { chachaEncrypt, chachaEncryptBytes, websocketRequestAad, bitArrayToUint8Array } from '@/lib/api/crypto'
-import { encodeSocketPayload } from '@/lib/api/websocket-frame'
-import { EventStream } from '@/lib/api/websocket-events'
 
 interface ScreenMirrorCallbacks {
   onConnected(): void
@@ -17,9 +16,9 @@ interface ScreenMirrorCallbacks {
 
 export class ScreenMirrorSocket {
   private socket: WebSocket | null = null
+  private handshakeDeadline: ReturnType<typeof setTimeout> | undefined
   private native: NativeSocketConnection | null = null
-  private key: Uint8Array | null = null
-  private controlAad: Uint8Array | null = null
+  private crypto: WebSocketCrypto | null = null
 
   constructor(private callbacks: ScreenMirrorCallbacks) {}
 
@@ -64,28 +63,46 @@ export class ScreenMirrorSocket {
     }
     this.socket = socket
     socket.binaryType = 'arraybuffer'
-    let stream: EventStream | null = null
+    let crypto: WebSocketCrypto | null = null
+    let acknowledged = false
+    this.handshakeDeadline = setTimeout(() => {
+      if (this.socket !== socket) return
+      crypto = null
+      socket.close(1008, 'handshake_timeout')
+    }, 10000)
     socket.onopen = () => {
       if (this.socket !== socket) return
-      const registration = bitArrayToUint8Array(chachaEncrypt(key, Date.now().toString(), websocketRequestAad('/screen', clientId)))
-      stream = new EventStream(registration)
-      socket.send(registration)
-      this.key = key
-      this.controlAad = websocketRequestAad('/screen', clientId, registration)
-      this.callbacks.onConnected()
+      try {
+        crypto = new WebSocketCrypto(clientId, key, '/screen')
+        socket.send(crypto.registration)
+      } catch (error) {
+        console.error(error)
+        socket.close(1008, 'invalid_handshake')
+      }
     }
     socket.onmessage = (message: MessageEvent) => {
       if (this.socket !== socket) return
       let packet: { type: string; data: Uint8Array }
       try {
-        if (!stream || !(message.data instanceof ArrayBuffer)) throw new Error('Invalid screen frame')
-        packet = stream.decode(message.data, key)
+        if (!crypto || !(message.data instanceof ArrayBuffer)) throw new Error('Invalid screen frame')
+        if (!acknowledged) {
+          crypto.acknowledge(new Uint8Array(message.data))
+          socket.send(crypto.encode(new Uint8Array()))
+          acknowledged = true
+          clearTimeout(this.handshakeDeadline)
+          this.crypto = crypto
+          this.callbacks.onConnected()
+          return
+        }
+        if (this.crypto !== crypto) return
+        packet = parseWebSocketData(crypto.decode(new Uint8Array(message.data)))
         if (!['SCREEN_MIRROR_VIDEO', 'SCREEN_MIRROR_AUDIO'].includes(packet.type)) {
           throw new Error('Invalid screen event')
         }
       } catch (error) {
         console.error(error)
-        stream = null
+        crypto = null
+        this.crypto = null
         socket.close(1008, 'invalid_event')
         return
       }
@@ -98,9 +115,9 @@ export class ScreenMirrorSocket {
     }
     socket.onclose = () => {
       if (this.socket !== socket) return
+      clearTimeout(this.handshakeDeadline)
       this.socket = null
-      this.key = null
-      this.controlAad = null
+      this.crypto = null
       this.callbacks.onDisconnected()
     }
     socket.onerror = () => socket.close()
@@ -108,9 +125,16 @@ export class ScreenMirrorSocket {
 
   sendBytes(payload: Uint8Array): boolean {
     if (this.native) return this.native.send(payload)
-    if (!this.socket || !this.key || !this.controlAad || this.socket.readyState !== WebSocket.OPEN) return false
-    this.socket.send(chachaEncryptBytes(this.key, encodeSocketPayload(payload), this.controlAad))
-    return true
+    if (!this.socket || !this.crypto || this.socket.readyState !== WebSocket.OPEN) return false
+    try {
+      this.socket.send(this.crypto.encode(payload))
+      return true
+    } catch (error) {
+      console.error(error)
+      this.crypto = null
+      this.socket.close(1008, 'invalid_control')
+      return false
+    }
   }
 
   sendJson(payload: unknown): boolean {
@@ -118,12 +142,12 @@ export class ScreenMirrorSocket {
   }
 
   disconnect() {
+    clearTimeout(this.handshakeDeadline)
     this.native?.close()
     this.native = null
     const socket = this.socket
     this.socket = null
-    this.key = null
-    this.controlAad = null
+    this.crypto = null
     socket?.close()
   }
 }
