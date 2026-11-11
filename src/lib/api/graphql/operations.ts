@@ -18,7 +18,7 @@ export interface Fragment_AppFragment {
   deviceType: 'COMPUTER' | 'PHONE' | 'TABLET' | 'TV' | 'NAS' | 'OTHER'
   capabilities: Array<'ADB' | 'BLE' | 'WIFI_AWARE' | 'APP_RELAUNCH' | 'MEDIA_TRASH' | 'MEDIA_DELETE' | 'MEDIA_MOVE' | 'MEDIA_FAVORITE' | 'VIDEO_REMUX' | 'VIDEO_TRANSCODE' | 'APP_UPDATES' | 'MIRROR_AUDIO' | 'MEDIA_SCAN' | 'TELEPHONY' | 'PACKAGES' | 'SCREEN_MIRROR' | 'NOTIFICATIONS' | 'CLIPBOARD' | 'DISK_MANAGER'>
   buildChannel: 'GITHUB' | 'GOOGLE' | 'FDROID'
-  access: Array<'IMAGES' | 'VIDEOS' | 'AUDIO' | 'DOCS' | 'FILES' | 'CONTACTS' | 'SMS' | 'CALL_LOGS' | 'CALL_PHONE' | 'PHONE_NUMBER' | 'APPS' | 'NOTIFICATIONS' | 'CLIPBOARD' | 'ADB'>
+  access: Array<'IMAGES' | 'VIDEOS' | 'AUDIO' | 'DOCS' | 'FILES' | 'CONTACTS' | 'SMS' | 'CALLS' | 'CALL_PHONE' | 'PHONE_NUMBER' | 'APPS' | 'NOTIFICATIONS' | 'CLIPBOARD' | 'ADB'>
   downloadsDir: string
   developerMode: boolean
   debug: boolean
@@ -2402,7 +2402,7 @@ export interface GqlOperations {
       requestAccess: boolean
     }
     variables: {
-      feature: 'IMAGES' | 'VIDEOS' | 'AUDIO' | 'DOCS' | 'FILES' | 'CONTACTS' | 'SMS' | 'CALL_LOGS' | 'CALL_PHONE' | 'PHONE_NUMBER' | 'APPS' | 'NOTIFICATIONS' | 'CLIPBOARD' | 'ADB'
+      feature: 'IMAGES' | 'VIDEOS' | 'AUDIO' | 'DOCS' | 'FILES' | 'CONTACTS' | 'SMS' | 'CALLS' | 'CALL_PHONE' | 'PHONE_NUMBER' | 'APPS' | 'NOTIFICATIONS' | 'CLIPBOARD' | 'ADB'
     }
   }
   requestScreenMirrorAudioGQL: {
