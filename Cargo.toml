@@ -13,7 +13,7 @@ opt-level = 3
 
 [profile.dev.package.plain-libs]
 debug = "line-tables-only"
-opt-level = 1
+opt-level = 3
 
 [profile.dev.package.plain-rs]
 debug = "line-tables-only"
