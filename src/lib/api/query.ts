@@ -28,6 +28,7 @@ import {
   bookmarkFragment,
   bookmarkGroupFragment,
   docFragment,
+  mountFragment,
 } from './fragments'
 
 // --- Query Wrappers ---
@@ -471,22 +472,10 @@ export const recentFilesGQL = `
 export const mountsGQL = `
   query {
     mounts {
-      id
-      name
-      path
-      mountPoint
-      fsType
-      totalBytes
-      usedBytes
-      freeBytes
-      remote
-      alias
-      driveType
-      diskId
-      label
-      diskModel
+      ...MountFragment
     }
   }
+  ${mountFragment}
 `
 
 export const disksGQL = `

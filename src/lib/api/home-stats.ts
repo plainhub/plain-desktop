@@ -1,3 +1,5 @@
+import { mountFragment } from './fragments.ts'
+
 export type HomeStatKey =
   | 'audios'
   | 'images'
@@ -30,16 +32,9 @@ export function homeStatsGQL(countKeys: readonly HomeStatKey[] = []): string {
   query homeStats${variables} {
     ${fields}
     mounts {
-      id
-      name
-      alias
-      label
-      path
-      mountPoint
-      totalBytes
-      freeBytes
-      driveType
+      ...MountFragment
     }
   }
+  ${mountFragment}
 `
 }

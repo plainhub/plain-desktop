@@ -289,6 +289,23 @@ export interface Fragment_ImageFragment {
   tags: Array<Fragment_TagSubFragment>
 }
 
+export interface Fragment_MountFragment {
+  id: string
+  name: string
+  path: string
+  mountPoint: string
+  fsType: string
+  totalBytes: number
+  usedBytes: number
+  freeBytes: number
+  remote: boolean
+  alias: string
+  driveType: 'INTERNAL_STORAGE' | 'SDCARD' | 'USB_STORAGE' | 'APP'
+  diskId: string
+  label: string
+  diskModel: string
+}
+
 export interface Fragment_NoteFragment {
   id: string
   title: string
@@ -1533,17 +1550,7 @@ export interface GqlOperations {
       smsCount: number
       callCount: number
       contactCount: number
-      mounts: Array<{
-        id: string
-        name: string
-        alias: string
-        label: string
-        path: string
-        mountPoint: string
-        totalBytes: number
-        freeBytes: number
-        driveType: 'INTERNAL_STORAGE' | 'SDCARD' | 'USB_STORAGE' | 'APP'
-      }>
+      mounts: Array<Fragment_MountFragment>
     }
     variables: {
       mediaQuery: string
@@ -1846,22 +1853,7 @@ export interface GqlOperations {
   }
   mountsGQL: {
     result: {
-      mounts: Array<{
-        id: string
-        name: string
-        path: string
-        mountPoint: string
-        fsType: string
-        totalBytes: number
-        usedBytes: number
-        freeBytes: number
-        remote: boolean
-        alias: string
-        driveType: 'INTERNAL_STORAGE' | 'SDCARD' | 'USB_STORAGE' | 'APP'
-        diskId: string
-        label: string
-        diskModel: string
-      }>
+      mounts: Array<Fragment_MountFragment>
     }
     variables: undefined
   }

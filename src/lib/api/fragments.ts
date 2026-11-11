@@ -1,3 +1,22 @@
+export const mountFragment = `
+  fragment MountFragment on Mount {
+    id
+    name
+    path
+    mountPoint
+    fsType
+    totalBytes
+    usedBytes
+    freeBytes
+    remote
+    alias
+    driveType
+    diskId
+    label
+    diskModel
+  }
+`
+
 export const tagFragment = `
   fragment TagFragment on Tag {
     id
