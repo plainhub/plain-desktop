@@ -36,7 +36,7 @@ it.each([undefined, 'third-peer'])('preserves browser encrypted subscription rou
   mock.local = false
   const connection = openSubscriptionConnection(callbacks(), peerId)
   const path = peerId ? '/proxy/third-peer/graphql' : '/graphql'
-  expect(mock.openSocket).toHaveBeenCalledExactlyOnceWith(`wss://remote.example:8443${path}?cid=self`, 'remote', 'plain-graphql-ws-v1')
+  expect(mock.openSocket).toHaveBeenCalledExactlyOnceWith(`wss://remote.example:8443${path}?cid=self`, 'remote')
   expect(mock.invoke).not.toHaveBeenCalled()
   expect(mock.scope).not.toHaveBeenCalled()
   connection.close()

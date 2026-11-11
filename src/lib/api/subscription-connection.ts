@@ -22,7 +22,7 @@ function openNetwork(callbacks: SubscriptionCallbacks, peerId?: string): Subscri
   const token = getCurrentAuthToken()
   if (!token) throw new Error('Subscription session missing')
   url.searchParams.set('cid', client)
-  const socket = openSocket(url.toString(), getRemoteClientId(), 'plain-graphql-ws-v1')
+  const socket = openSocket(url.toString(), getRemoteClientId())
   socket.binaryType = 'arraybuffer'
   let active = true
   let acknowledged = false
@@ -53,7 +53,6 @@ function openNetwork(callbacks: SubscriptionCallbacks, peerId?: string): Subscri
   }
   socket.onopen = () => {
     if (!active) return
-    if (socket.protocol !== 'plain-graphql-ws-v1') { fail(new Error('Subscription protocol mismatch')); return }
     try {
       crypto = new GraphqlSubscriptionCrypto(client, tokenToKey(token))
       socket.send(crypto.registration)
