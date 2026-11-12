@@ -12,6 +12,7 @@ debug = false
 opt-level = 3
 
 [profile.dev.package.plain-libs]
+incremental = false
 debug = "line-tables-only"
 opt-level = 3
 
