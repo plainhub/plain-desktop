@@ -1,3 +1,4 @@
+import { SignaturePurpose } from './signature-purpose.generated'
 import { hkdf } from '@noble/hashes/hkdf.js'
 import { sha256 } from '@noble/hashes/sha2.js'
 import {
@@ -42,7 +43,7 @@ export function startLoginKeyExchange(clientId: string) {
         const peerKey = readBase64(response.serverPublicKey, 65)
         readBase64(signaturePublicKey, 32)
         const body = { deviceId: response.deviceId, serverPublicKey: response.serverPublicKey, expiresAt: response.expiresAt }
-        const signed = JSON.stringify(['web-approval', 'responder', response.deviceId, signaturePublicKey, 'initiator', clientId, hello, body])
+        const signed = JSON.stringify([SignaturePurpose.WebApprovalResponse, response.deviceId, signaturePublicKey, clientId, hello, body])
         if (!verifyEd25519Signature(signaturePublicKey, signed, response.signature)) throw 'signature_verification_failed'
         const encoder = new TextEncoder()
         const digest = sha256(encoder.encode(JSON.stringify(['web-approval', clientId, response.deviceId, hello, { ...body, signature: response.signature }])))

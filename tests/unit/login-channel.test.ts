@@ -1,3 +1,4 @@
+import { SignaturePurpose } from '../../src/lib/api/signature-purpose.generated'
 import { readFileSync } from 'node:fs'
 import { afterEach, beforeEach, expect, it, vi } from 'vitest'
 import { xchacha20poly1305 } from '@noble/ciphers/chacha'
@@ -75,4 +76,9 @@ it('clears a cancelled exchange and refuses to reuse it', () => {
   const client = start()
   client.dispose()
   expect(() => client.accept(vector.response, vector.serverIdentity)).toThrow('invalid_auth_response')
+})
+
+it('uses exactly the Rust signature bytes with a leading purpose', () => {
+  const body = { deviceId: vector.response.deviceId, serverPublicKey: vector.response.serverPublicKey, expiresAt: vector.response.expiresAt }
+  expect(JSON.stringify([SignaturePurpose.WebApprovalResponse, vector.response.deviceId, vector.serverIdentity, vector.clientId, vector.request, body])).toBe(vector.signedPayload)
 })
