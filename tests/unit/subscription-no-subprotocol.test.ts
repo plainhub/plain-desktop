@@ -60,7 +60,7 @@ it('keeps the encrypted handshake and messages when no subprotocol is negotiated
   mock.socket.onmessage!({ data: ack } as MessageEvent)
   expect(callbacks.opened).toHaveBeenCalledExactlyOnceWith()
   const binding = hash(fields(init, new Uint8Array(ack)))
-  const message = { type: 'subscribe', id: 'fixture', payload: { query: 'subscription { preferencesChanged }' } }
+  const message = { type: 'subscribe', id: 'fixture', payload: { query: 'subscription { prefsChanged }' } }
   connection.send(message)
   const frame = mock.socket.send.mock.calls[2]![0] as Uint8Array
   expect(Buffer.from(frame.subarray(0, 8)).readBigUInt64BE()).toBe(2n)
@@ -70,7 +70,7 @@ it('keeps the encrypted handshake and messages when no subprotocol is negotiated
   const prefix = Buffer.alloc(8)
   prefix.writeBigUInt64BE(1n)
   const incomingAad = fields(text('plain-ws-frame'), text('/graphql'), text('fixture-client'), binding, text('server'), prefix)
-  const event = { type: 'next', id: 'fixture', payload: { data: { preferencesChanged: true } } }
+  const event = { type: 'next', id: 'fixture', payload: { data: { prefsChanged: true } } }
   mock.socket.onmessage!({ data: serverFrame(prefix, event, incomingAad) } as MessageEvent)
   expect(callbacks.message).toHaveBeenCalledExactlyOnceWith(event)
   expect(callbacks.dropped).not.toHaveBeenCalled()
@@ -126,7 +126,7 @@ it('confirms immediately before opened even with no operations and a delayed fir
   expect(peer.decode(confirm)).toEqual(new Uint8Array())
   vi.advanceTimersByTime(15000)
   expect(mock.socket.send).toHaveBeenCalledTimes(2)
-  const message = { type: 'subscribe', id: 'late', payload: { query: 'subscription { preferencesChanged }' } }
+  const message = { type: 'subscribe', id: 'late', payload: { query: 'subscription { prefsChanged }' } }
   connection.send(message)
   const operation = mock.socket.send.mock.calls[2]![0] as Uint8Array
   expect(new DataView(operation.buffer, operation.byteOffset).getBigUint64(0)).toBe(2n)

@@ -40,7 +40,7 @@ export function useRemotePrefs(store: ReturnType<typeof useMainStore>) {
     }
   }
   void refresh()
-  const stop = graphqlSubscriptions.subscribe('preferencesChanged', refresh)
+  const stop = graphqlSubscriptions.subscribe('prefsChanged', refresh)
   const stopAttached = graphqlSubscriptions.onAttached(refresh)
   onUnmounted(() => { stop(); stopAttached() })
   return enabled

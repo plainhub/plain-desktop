@@ -17,7 +17,7 @@ export const subscriptionOperations: readonly SubscriptionOperation[] = [
   {field: 'peersChanged', document: 'subscription { peersChanged }', access: []},
   {field: 'pairingCompleted', document: 'subscription { pairingCompleted { deviceId deviceName ip port deviceType requestId } }', access: []},
   {field: 'downloadsChanged', document: 'subscription { downloadsChanged }', access: []},
-  {field: 'preferencesChanged', document: 'subscription { preferencesChanged }', access: []},
+  {field: 'prefsChanged', document: 'subscription { prefsChanged }', access: []},
   {field: 'mdnsChanged', document: 'subscription { mdnsChanged }', access: []},
   {field: 'nearbyDevicesChanged', document: 'subscription { nearbyDevicesChanged }', access: []},
   {field: 'pomodoroAction', document: 'subscription { pomodoroAction { today { date state timeLeftSec totalTimeSec completedCount currentRound isRunning isPaused } completedState } }', access: []},

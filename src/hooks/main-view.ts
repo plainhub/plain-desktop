@@ -114,7 +114,7 @@ export function useMainView() {
     stopLibraryUpdates = subscribeMediaLibraryUpdates(DataType.AUDIO, () => { void audioPlaylist.refetch() })
     emitter.on('refetch_app', refetchAppHandler)
     stopPermissionsUpdated = graphqlSubscriptions.subscribe('accessUpdated', refetchAppHandler)
-    stopPreferencesUpdated = graphqlSubscriptions.subscribe('preferencesChanged', refetchAppHandler)
+    stopPreferencesUpdated = graphqlSubscriptions.subscribe('prefsChanged', refetchAppHandler)
     emitter.on('media_items_actioned', mediaItemsActionedHandler)
     stopDeviceNameUpdated = graphqlSubscriptions.subscribe('deviceNameUpdated', deviceNameUpdatedHandler)
     emitter.on('PAIRING_REQUEST_RECEIVED', pairingRequestHandler)

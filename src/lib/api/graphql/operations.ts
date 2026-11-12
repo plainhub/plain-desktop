@@ -2265,9 +2265,9 @@ export interface GqlOperations {
     }
     variables: undefined
   }
-  preferencesChangedSubscription: {
+  prefsChangedSubscription: {
     result: {
-      preferencesChanged: boolean
+      prefsChanged: boolean
     }
     variables: undefined
   }
