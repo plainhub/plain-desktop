@@ -15,7 +15,8 @@ it('uses independent counters starting at one with no clock-dependent registrati
   expect(peer.init).toEqual({ clientNonce: expect.stringMatching(/^[0-9a-f]{64}$/) })
   for (let index = 1n; index <= 3n; index++) {
     const frame = crypto.encode(text('control'))
-    expect(new DataView(frame.buffer).getBigUint64(1)).toBe(index)
+    expect(frame.length).toBe(8 + 24 + text('control').length + 16)
+    expect(new DataView(frame.buffer).getBigUint64(0)).toBe(index)
     expect(peer.decode(frame)).toEqual(text('control'))
   }
   expect(crypto.decode(peer.frame(1n, text('event')))).toEqual(text('event'))
@@ -58,7 +59,7 @@ it('requires handshake and permits the final u64 sequence once without wrapping'
   counters.sent = 0xfffffffffffffffen
   counters.received = 0xfffffffffffffffen
   const frame = crypto.encode(text('last'))
-  expect(new DataView(frame.buffer).getBigUint64(1)).toBe(0xffffffffffffffffn)
+  expect(new DataView(frame.buffer).getBigUint64(0)).toBe(0xffffffffffffffffn)
   expect(peer.decode(frame)).toEqual(text('last'))
   expect(() => crypto.encode(text('overflow'))).toThrow()
   expect(crypto.decode(peer.frame(0xffffffffffffffffn, text('last')))).toEqual(text('last'))

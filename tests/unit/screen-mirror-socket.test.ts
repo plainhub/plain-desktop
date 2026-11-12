@@ -120,7 +120,7 @@ it('sends strictly ordered encrypted raw controls after the confirmation', () =>
   for (let index = 0; index < 3; index++) {
     expect(client.sendBytes(payload)).toBe(true)
     const frame = socket.send.mock.calls[index + 2][0] as Uint8Array
-    expect(new DataView(frame.buffer, frame.byteOffset).getBigUint64(1)).toBe(BigInt(index + 2))
+    expect(new DataView(frame.buffer, frame.byteOffset).getBigUint64(0)).toBe(BigInt(index + 2))
     expect(peer.decode(frame)).toEqual(payload)
   }
   client.disconnect()

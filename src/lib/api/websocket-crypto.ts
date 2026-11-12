@@ -33,14 +33,12 @@ export class WebSocketCrypto {
     const clientNonce = [...randomBytes(32)].map(value => value.toString(16).padStart(2, '0')).join('')
     const plain = utf8.encode(JSON.stringify({ clientNonce }))
     const cipher = seal(key, plain, fields([utf8.encode('plain-ws-init'), utf8.encode(path), utf8.encode(client)]))
-    this.registration = new Uint8Array(1 + cipher.length)
-    this.registration[0] = 1
-    this.registration.set(cipher, 1)
+    this.registration = cipher
   }
   acknowledge(frame: Uint8Array) {
-    if (frame[0] !== 1 || this.binding) throw new Error('Invalid WebSocket acknowledgement')
+    if (this.binding) throw new Error('Invalid WebSocket acknowledgement')
     const aad = fields([utf8.encode('plain-ws-ack'), utf8.encode(this.path), utf8.encode(this.client), sha256(this.registration)])
-    const ack: { serverNonce: string } = JSON.parse(new TextDecoder().decode(open(this.key, frame.subarray(1), aad)))
+    const ack: { serverNonce: string } = JSON.parse(new TextDecoder().decode(open(this.key, frame, aad)))
     if (!/^[0-9a-f]{64}$/.test(ack.serverNonce)) throw new Error('Invalid WebSocket server nonce')
     this.binding = sha256(fields([this.registration, frame]))
   }
@@ -54,18 +52,17 @@ export class WebSocketCrypto {
     if (this.sent === 0xffffffffffffffffn) throw new Error('WebSocket sequence exhausted')
     const sequence = this.sent + 1n
     const cipher = seal(this.key, plain, this.aad('client', sequence))
-    const frame = new Uint8Array(9 + cipher.length)
-    frame[0] = 1
-    new DataView(frame.buffer).setBigUint64(1, sequence, false)
-    frame.set(cipher, 9)
+    const frame = new Uint8Array(8 + cipher.length)
+    new DataView(frame.buffer).setBigUint64(0, sequence, false)
+    frame.set(cipher, 8)
     this.sent = sequence
     return frame
   }
   decode(frame: Uint8Array): Uint8Array {
-    if (frame[0] !== 1 || frame.length < 49) throw new Error('Invalid WebSocket frame')
-    const sequence = new DataView(frame.buffer, frame.byteOffset, frame.byteLength).getBigUint64(1, false)
+    if (frame.length < 48) throw new Error('Invalid WebSocket frame')
+    const sequence = new DataView(frame.buffer, frame.byteOffset, frame.byteLength).getBigUint64(0, false)
     if (this.received === 0xffffffffffffffffn || sequence !== this.received + 1n) throw new Error('Invalid WebSocket sequence')
-    const plain = open(this.key, frame.subarray(9), this.aad('server', sequence))
+    const plain = open(this.key, frame.subarray(8), this.aad('server', sequence))
     this.received = sequence
     return plain
   }

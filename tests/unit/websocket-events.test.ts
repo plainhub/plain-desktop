@@ -21,9 +21,9 @@ it('matches Rust cross-language handshakes and both ordered directions for all s
     const binding = hash(fields(bytes(vector.init), bytes(vector.ack)))
     for (const expected of vector.clientFrames) {
       const frame = crypto.encode(bytes(expected.plain))
-      const aad = fields(text('plain-ws-frame'), text(vector.path), text(vector.client), binding, text('client'), frame.subarray(1, 9))
-      expect(xchacha20poly1305(key, frame.subarray(9, 33), aad).decrypt(frame.subarray(33))).toEqual(bytes(expected.plain))
-      expect(frame.subarray(0, 9)).toEqual(bytes(expected.frame).subarray(0, 9))
+      const aad = fields(text('plain-ws-frame'), text(vector.path), text(vector.client), binding, text('client'), frame.subarray(0, 8))
+      expect(xchacha20poly1305(key, frame.subarray(8, 32), aad).decrypt(frame.subarray(32))).toEqual(bytes(expected.plain))
+      expect(frame.subarray(0, 8)).toEqual(bytes(expected.frame).subarray(0, 8))
     }
     for (const expected of vector.serverFrames) {
       const plain = crypto.decode(bytes(expected.frame))
