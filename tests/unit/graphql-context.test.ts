@@ -22,10 +22,10 @@ vi.mock('@/lib/api/native-client', () => ({ nativeGraphql: vi.fn() }))
 vi.mock('@/lib/api/http', () => ({ httpRequest: vi.fn() }))
 vi.mock('@/lib/api/file', () => ({ tokenToKey: (token: string) => token }))
 vi.mock('@/lib/api/time-sync', () => ({ wrapWithReplayProtection: (value: string) => value }))
-vi.mock('@/lib/api/crypto', () => ({ httpRequestAad: (path: string) => new TextEncoder().encode(`http-request\0POST\0${path}`),
-  httpResponseAad: (request: unknown) => request,
+vi.mock('@/lib/api/crypto', () => ({
+
   chachaEncrypt: (_: unknown, value: string) => new TextEncoder().encode(value),
-  chachaDecrypt: (_: unknown, value: ArrayBuffer) => new TextDecoder().decode(value),
+  decryptGraphqlResponse: (_: unknown, _request: unknown, value: ArrayBuffer) => new TextDecoder().decode(value),
   arrayBufferToBitArray: (value: unknown) => value,
   bitArrayToUint8Array: (value: unknown) => value,
 }))

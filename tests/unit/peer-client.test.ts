@@ -17,10 +17,10 @@ vi.mock('@/lib/device/current', () => ({ getCurrentAuthToken: () => 'selected-se
 vi.mock('@/lib/device/login-peers', () => ({ getLoginPeerRevision: () => 1, peerHost: (peer: LoginPeer) => `${peer.ip}:${peer.port}` }))
 vi.mock('@/lib/api/file', () => ({ tokenToKey: fixture.key }))
 vi.mock('@/lib/api/time-sync', () => ({ wrapWithReplayProtection: (value: string) => value }))
-vi.mock('@/lib/api/crypto', () => ({ httpRequestAad: (path: string) => new TextEncoder().encode(`http-request\0POST\0${path}`),
-  httpResponseAad: (request: unknown) => request,
+vi.mock('@/lib/api/crypto', () => ({
+
   chachaEncrypt: (_key: string, value: string) => new TextEncoder().encode(value),
-  chachaDecrypt: (_key: string, value: ArrayBuffer) => new TextDecoder().decode(value),
+  decryptGraphqlResponse: (_key: string, _request: unknown, value: ArrayBuffer) => new TextDecoder().decode(value),
   arrayBufferToBitArray: (value: unknown) => value,
   bitArrayToUint8Array: (value: unknown) => value,
 }))

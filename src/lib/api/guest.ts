@@ -4,13 +4,9 @@ import { getApiBaseUrl, getProxyUrl } from './api'
 import { httpRequest } from './http'
 import {
   chachaEncrypt,
-  chachaDecrypt,
-  httpRequestAad,
-  httpResponseAad,
-  arrayBufferToBitArray,
-  bitArrayToUint8Array,
+  decryptGraphqlResponse,
 } from './crypto'
-import { wrapWithReplayProtection } from './time-sync'
+import { graphqlRequestPayload } from './graphql-request'
 
 /**
  * Client for the shared-file-link (`/s`) page.
@@ -89,9 +85,8 @@ export async function guestFetch<T = any>(
   variables?: Record<string, any>,
 ): Promise<GuestResult<T>> {
   const url = `${getApiBaseUrl()}/guest_graphql`
-  const payload = wrapWithReplayProtection(JSON.stringify({ query, variables }))
-  const body = bitArrayToUint8Array(chachaEncrypt(key, payload, httpRequestAad('/guest_graphql')))
-  const responseAad = httpResponseAad(body)
+  const payload = graphqlRequestPayload(query, variables)
+  const body = chachaEncrypt(key, payload)
 
   const controller = new AbortController()
   const timer = setTimeout(() => controller.abort(), TIMEOUT)
@@ -115,7 +110,7 @@ export async function guestFetch<T = any>(
     }
     const arrayBuffer = await response.arrayBuffer()
     const apiEndTime = performance.now()
-    const text = chachaDecrypt(key, arrayBufferToBitArray(arrayBuffer), responseAad)
+    const text = decryptGraphqlResponse(key, body, new Uint8Array(arrayBuffer))
     if (window.__PLAIN_LOG__) {
       console.info(`[gql] ← sharedInfo (${Math.round(apiEndTime - startTime)}ms) ${text}`)
     }

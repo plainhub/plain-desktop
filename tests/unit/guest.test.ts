@@ -5,15 +5,14 @@ vi.mock('vue-i18n', () => ({ useI18n: () => ({ t: (key: string) => key }) }))
 const request = vi.hoisted(() => vi.fn())
 vi.mock('@/lib/api/http', () => ({ httpRequest: request }))
 vi.mock('@/lib/api/api', () => ({ getApiBaseUrl: () => 'https://example.test', getProxyUrl: (url: string) => url }))
-vi.mock('@/lib/api/crypto', () => ({ httpRequestAad: (path: string) => new TextEncoder().encode(`http-request\0POST\0${path}`),
+vi.mock('@/lib/api/crypto', () => ({
   chachaEncrypt: () => new Uint8Array(),
-  chachaDecrypt: vi.fn(),
-  httpResponseAad: () => new Uint8Array(),
+  decryptGraphqlResponse: vi.fn(),
+
   arrayBufferToBitArray: vi.fn(),
   bitArrayToUint8Array: (value: Uint8Array) => value,
   bitArrayToBase64: vi.fn(),
 }))
-vi.mock('@/lib/api/time-sync', () => ({ wrapWithReplayProtection: (value: string) => value }))
 
 import { guestFetch } from '@/lib/api/guest'
 import { useShareData } from '@/views/share/hooks/useShareData'

@@ -37,12 +37,13 @@ export function httpRequestAad(endpoint: string): Uint8Array {
   return new TextEncoder().encode(`http-request\0POST\0${endpoint}`)
 }
 
-export function httpResponseAad(request: Uint8Array): Uint8Array {
-  const prefix = new TextEncoder().encode('r\0')
-  const aad = new Uint8Array(prefix.length + 32)
-  aad.set(prefix)
-  aad.set(sha256(request), prefix.length)
-  return aad
+export function decryptGraphqlResponse(key: Uint8Array, request: Uint8Array, response: Uint8Array): string {
+  const body = chachaDecryptBytes(key, response)
+  const hash = sha256(request)
+  if (body.length < 33 || body[0] !== 0 || !hash.every((byte, index) => body[index + 1] === byte)) {
+    throw new Error('Invalid GraphQL response binding')
+  }
+  return new TextDecoder().decode(body.subarray(33))
 }
 
 export function arrayBufferToBitArray(buffer: ArrayBuffer): Uint8Array {
