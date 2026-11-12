@@ -39,7 +39,7 @@ export class WebSocketCrypto {
     if (this.binding) throw new Error('Invalid WebSocket acknowledgement')
     const aad = fields([utf8.encode('plain-ws-ack'), utf8.encode(this.path), utf8.encode(this.client), sha256(this.registration)])
     const ack: { serverNonce: string } = JSON.parse(new TextDecoder().decode(open(this.key, frame, aad)))
-    if (!/^[0-9a-f]{64}$/.test(ack.serverNonce)) throw new Error('Invalid WebSocket server nonce')
+    if (!ack || typeof ack !== 'object' || Object.keys(ack).length !== 1 || typeof ack.serverNonce !== 'string' || !/^[0-9a-f]{64}$/.test(ack.serverNonce)) throw new Error('Invalid WebSocket server nonce')
     this.binding = sha256(fields([this.registration, frame]))
   }
   private aad(direction: 'client' | 'server', sequence: bigint): Uint8Array {

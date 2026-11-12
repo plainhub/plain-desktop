@@ -123,7 +123,7 @@ it('confirms immediately before opened even with no operations and a delayed fir
   expect(callbacks.opened).toHaveBeenCalledOnce()
   const confirm = mock.socket.send.mock.calls[1]![0] as Uint8Array
   expect(new DataView(confirm.buffer, confirm.byteOffset).getBigUint64(0)).toBe(1n)
-  expect(JSON.parse(new TextDecoder().decode(peer.decode(confirm)))).toEqual({ type: 'ping' })
+  expect(peer.decode(confirm)).toEqual(new Uint8Array())
   vi.advanceTimersByTime(15000)
   expect(mock.socket.send).toHaveBeenCalledTimes(2)
   const message = { type: 'subscribe', id: 'late', payload: { query: 'subscription { preferencesChanged }' } }

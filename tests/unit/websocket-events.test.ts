@@ -33,3 +33,24 @@ it('matches Rust cross-language handshakes and both ordered directions for all s
     }
   }
 })
+
+it('matches Rust handshake nonce and object validation vectors', () => {
+  const cases = JSON.parse(readFileSync(new URL('../../../plain-core/plain-rs/testdata/crypto/websocket-handshake-vectors.json', import.meta.url), 'utf8')) as Array<{ name: string; body: unknown; valid: boolean }>
+  for (const path of ['/graphql', '/screen', '/image_editor']) {
+    for (const entry of cases) {
+      const key = new Uint8Array(32).fill(7)
+      const crypto = new WebSocketCrypto('client', key, path)
+      const aad = fields(text('plain-ws-ack'), text(path), text('client'), hash(crypto.registration))
+      const nonce = new Uint8Array(24).fill(42)
+      const cipher = xchacha20poly1305(key, nonce, aad).encrypt(text(JSON.stringify(entry.body)))
+      const ack = new Uint8Array(nonce.length + cipher.length)
+      ack.set(nonce)
+      ack.set(cipher, nonce.length)
+      if (entry.valid) expect(() => crypto.acknowledge(ack), entry.name).not.toThrow()
+      else {
+        expect(() => crypto.acknowledge(ack), entry.name).toThrow()
+        expect(() => crypto.encode(new Uint8Array()), entry.name).toThrow('handshake incomplete')
+      }
+    }
+  }
+})

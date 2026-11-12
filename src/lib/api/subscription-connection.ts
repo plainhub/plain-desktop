@@ -64,9 +64,9 @@ function openNetwork(callbacks: SubscriptionCallbacks, peerId?: string): Subscri
       if (!crypto || !(event.data instanceof ArrayBuffer)) throw new Error('Encrypted subscription frame required')
       if (!acknowledged) {
         crypto.acknowledge(new Uint8Array(event.data))
+        socket.send(crypto.encode(new Uint8Array()))
         acknowledged = true
         clearTimeout(deadline)
-        connection.send({ type: 'ping' })
         if (!active) return
         callbacks.opened()
         if (!active) return
