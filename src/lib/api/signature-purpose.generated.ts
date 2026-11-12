@@ -1,7 +1,7 @@
 // Generated from plain-core SignaturePurpose. Run node scripts/signature-purpose-codegen.mjs --write.
 export enum SignaturePurpose {
   WebApprovalResponse = 'WEB_APPROVAL_RESPONSE',
-  ChatPairRequest = 'CHAT_PAIR_REQUEST',
+  PairRequest = 'PAIR_REQUEST',
   PairingAccept = 'PAIRING_ACCEPT',
   PairingReject = 'PAIRING_REJECT',
   PairCancel = 'PAIR_CANCEL',
