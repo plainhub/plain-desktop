@@ -697,7 +697,7 @@ export interface GqlOperations {
       cancelPairing: boolean
     }
     variables: {
-      generation: string
+      peerId: string
     }
   }
   channelsChangedSubscription: {
@@ -1314,22 +1314,6 @@ export interface GqlOperations {
       limit: number
     }
   }
-  execute: {
-    result: {
-      pairDevice: {
-        deviceId?: string
-        generation: string
-        mode: 'CHAT' | 'MANAGE'
-        phase: 'STARTING' | 'PASSWORD_REQUIRED' | 'AUTHENTICATING' | 'PAIRING' | 'TRUST_REQUIRED' | 'WAITING_CONFIRMATION' | 'COMMITTING' | 'SUCCEEDED' | 'FAILED' | 'CANCELLED'
-        error?: string
-        verificationCode?: string
-        identityChanged: boolean
-      }
-    }
-    variables: {
-      input: unknown
-    }
-  }
   exportFeedsGQL: {
     result: {
       exportFeeds: string
@@ -1893,15 +1877,6 @@ export interface GqlOperations {
         discoveryMethods: Array<'LAN' | 'DNS_SD' | 'BLE' | 'QR'>
         remoteAccess?: boolean
       }>
-      pairingStates: Array<{
-        deviceId?: string
-        generation: string
-        mode: 'CHAT' | 'MANAGE'
-        phase: 'STARTING' | 'PASSWORD_REQUIRED' | 'AUTHENTICATING' | 'PAIRING' | 'TRUST_REQUIRED' | 'WAITING_CONFIRMATION' | 'COMMITTING' | 'SUCCEEDED' | 'FAILED' | 'CANCELLED'
-        error?: string
-        verificationCode?: string
-        identityChanged: boolean
-      }>
       mdnsState: {
         scanning: boolean
       }
@@ -2046,13 +2021,7 @@ export interface GqlOperations {
   }
   pairDeviceGQL: {
     result: {
-      pairDevice: {
-        deviceId?: string
-        generation: string
-        mode: 'CHAT' | 'MANAGE'
-        phase: 'STARTING' | 'PASSWORD_REQUIRED' | 'AUTHENTICATING' | 'PAIRING' | 'TRUST_REQUIRED' | 'WAITING_CONFIRMATION' | 'COMMITTING' | 'SUCCEEDED' | 'FAILED' | 'CANCELLED'
-        error?: string
-      }
+      pairDevice: boolean
     }
     variables: {
       input: unknown
@@ -2065,12 +2034,6 @@ export interface GqlOperations {
         deviceName: string
         error?: string
       }
-    }
-    variables: undefined
-  }
-  pairingChangedSubscription: {
-    result: {
-      pairingChanged: boolean
     }
     variables: undefined
   }
@@ -2100,19 +2063,10 @@ export interface GqlOperations {
   pairingRequestedSubscription: {
     result: {
       pairingRequested: {
-        toId: string
-        targetPublicKey: string
         fromId: string
         fromName: string
-        port: number
-        deviceType: 'COMPUTER' | 'PHONE' | 'TABLET' | 'TV' | 'NAS' | 'OTHER'
-        ecdhPublicKey: string
-        signaturePublicKey: string
-        timestamp: number
-        ips: Array<string>
-        signature: string
         fromIp: string
-        awareSupported: boolean
+        deviceType: 'COMPUTER' | 'PHONE' | 'TABLET' | 'TV' | 'NAS' | 'OTHER'
         verificationCode: string
         identityChanged: boolean
       }
@@ -2125,6 +2079,7 @@ export interface GqlOperations {
         deviceId: string
         deviceName: string
         error?: string
+        verificationCode?: string
       }
     }
     variables: undefined
@@ -2415,7 +2370,7 @@ export interface GqlOperations {
       respondToPairing: boolean
     }
     variables: {
-      input: unknown
+      peerId: string
       accepted: boolean
     }
   }

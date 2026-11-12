@@ -1,93 +1,84 @@
-import { ref } from 'vue'
+import { computed, reactive, ref } from 'vue'
 import { nativeGraphql } from '@/lib/api/native-client'
 import type { bindGraphqlClient, GqlResult } from '@/lib/api/gql-client'
 import { graphqlSubscriptions } from '@/lib/api/subscription-client'
 
-export type PairingPhase = 'STARTING' | 'PASSWORD_REQUIRED' | 'AUTHENTICATING' | 'PAIRING' | 'TRUST_REQUIRED' | 'WAITING_CONFIRMATION' | 'COMMITTING' | 'SUCCEEDED' | 'FAILED' | 'CANCELLED'
-
-export interface PairingState {
-  deviceId: string | null
-  generation: string
-  mode: 'CHAT' | 'MANAGE'
-  phase: PairingPhase
+export interface PairingView {
+  deviceId: string
+  phase: 'PAIRING' | 'PASSWORD_REQUIRED' | 'TRUST_REQUIRED' | 'SUCCEEDED' | 'FAILED' | 'CANCELLED'
   error: string | null
   verificationCode?: string | null
   identityChanged?: boolean
 }
 export interface PairingInput {
-  id?: string
-  host?: string
-  mode?: 'CHAT' | 'MANAGE'
+  peerId: string
+  mode: 'CHAT' | 'MANAGE'
   password?: string
-  confirm?: boolean
-  generation?: string
 }
-const fields = `deviceId generation mode phase error verificationCode identityChanged`
+export const pairingViews = reactive(new Map<string, PairingView>())
 const terminal = new Set(['SUCCEEDED', 'FAILED', 'CANCELLED'])
+export function isPairingActive(peerId: string) {
+  const view = pairingViews.get(peerId)
+  return view !== undefined && !terminal.has(view.phase)
+}
 
 export function createPairing(subscriptions = graphqlSubscriptions, request?: ReturnType<typeof bindGraphqlClient>) {
   async function execute<T>(query: string, variables?: Record<string, unknown>): Promise<T> {
-    const result = request
-      ? await request<T>(query, variables)
+    const result = request ? await request<T>(query, variables)
       : await nativeGraphql<GqlResult<T>>({ query, variables }, 30000)
     if (result.errors?.length) throw new Error(result.errors[0].message)
     return result.data
   }
-  const state = ref<PairingState | null>(null)
-  let generation: string | undefined
+  const peerId = ref<string>()
+  const state = computed(() => peerId.value ? pairingViews.get(peerId.value) ?? null : null)
+  let input: PairingInput | undefined
   let disposed = false
-  const receive = (value: PairingState) => {
-    if (value.generation !== generation || state.value && terminal.has(state.value.phase)) return
-    const phases = value.mode === 'MANAGE'
-      ? ['STARTING', 'PASSWORD_REQUIRED', 'TRUST_REQUIRED', 'AUTHENTICATING', 'WAITING_CONFIRMATION', 'COMMITTING', 'SUCCEEDED', 'FAILED', 'CANCELLED']
-      : ['STARTING', 'PAIRING', 'TRUST_REQUIRED', 'AUTHENTICATING', 'WAITING_CONFIRMATION', 'COMMITTING', 'SUCCEEDED', 'FAILED', 'CANCELLED']
-    if (state.value && phases.indexOf(value.phase) >= 0 && phases.indexOf(state.value.phase) > phases.indexOf(value.phase)) return
-    state.value = value
+  const update = (id: string, patch: Partial<PairingView>) => {
+    if (id !== peerId.value) return
+    const current = pairingViews.get(id)
+    if (current) pairingViews.set(id, { ...current, ...patch })
   }
-  const reconcile = async (connected: boolean) => {
-    if (!connected || !generation || disposed) return
-    const result = await execute<{ pairingStates: PairingState[] }>(`query { pairingStates { ${fields} } }`)
-    const value = result.pairingStates.find((s) => s.generation === generation)
-    if (value) receive(value)
+  const stops = [
+    subscriptions.subscribe('pairingStarted', result => update(result.deviceId, { phase: 'PAIRING', verificationCode: result.verificationCode })),
+    subscriptions.subscribe('pairingRequested', notice => {
+      if (notice.fromId === peerId.value) update(notice.fromId, { phase: 'TRUST_REQUIRED', verificationCode: notice.verificationCode, identityChanged: notice.identityChanged })
+    }),
+    subscriptions.subscribe('pairingCompleted', result => update(result.deviceId, { phase: 'SUCCEEDED' })),
+    subscriptions.subscribe('pairingFailed', result => update(result.deviceId, {
+      phase: result.error === 'password_required' || result.error === 'invalid_password' ? 'PASSWORD_REQUIRED' : 'FAILED', error: result.error,
+    })),
+    subscriptions.subscribe('pairingCanceled', result => update(result.deviceId, { phase: 'CANCELLED' })),
+  ]
+  async function cancel(id = peerId.value) {
+    if (!id) return
+    await execute('mutation($peerId: ID!) { cancelPairing(peerId: $peerId) }', { peerId: id })
+    update(id, { phase: 'CANCELLED' })
   }
-  const refresh = () => { void reconcile(true).catch(error => console.error('Pairing state refresh failed', error)) }
-  const stopChanges = subscriptions.subscribe('pairingChanged', refresh)
-  const stopAttached = subscriptions.onAttached(refresh)
+  async function start(value: PairingInput) {
+    input = value
+    peerId.value = value.peerId
+    pairingViews.set(value.peerId, { deviceId: value.peerId, phase: 'PAIRING', error: null })
+    try {
+      await execute('mutation($input: PairingDeviceInput!) { pairDevice(input: $input) }', { input: value })
+      if (disposed) await cancel(value.peerId)
+    } catch (error) {
+      update(value.peerId, { phase: 'FAILED', error: error instanceof Error ? error.message : String(error) })
+      throw error
+    }
+  }
   return {
-    state,
-    async start(input: PairingInput) {
-      generation = undefined
-      state.value = null
-      const result = await execute<{ pairDevice: PairingState }>(`mutation($input: PairingDeviceInput!) { pairDevice(input: $input) { ${fields} } }`, { input })
-      generation = result.pairDevice.generation
-      state.value = result.pairDevice
-      refresh()
-      if (disposed) await execute('mutation($generation: String!) { cancelPairing(generation: $generation) }', { generation })
+    state, start, cancel,
+    async confirm(id: string) {
+      await execute('mutation($peerId: ID!, $accepted: Boolean!) { respondToPairing(peerId: $peerId, accepted: $accepted) }', { peerId: id, accepted: true })
+      update(id, { phase: 'PAIRING' })
     },
-    async confirm(expectedGeneration: string) {
-      const current = await execute<{ pairingStates: PairingState[] }>(`query { pairingStates { ${fields} } }`)
-      if (!current.pairingStates.some(value => value.generation === expectedGeneration && value.phase === 'TRUST_REQUIRED')) return
-      await execute(`mutation($input: PairingDeviceInput!) { pairDevice(input: $input) { ${fields} } }`, { input: { generation: expectedGeneration, confirm: true } })
-    },
-    async submit(password: string) {
-      if (!generation) return
-      await execute(`mutation($input: PairingDeviceInput!) { pairDevice(input: $input) { ${fields} } }`, { input: { generation, password } })
-    },
-    async cancel(deviceId?: string) {
-      let target = generation
-      if (deviceId && state.value?.deviceId !== deviceId) {
-        const result = await execute<{ pairingStates: PairingState[] }>(`query { pairingStates { ${fields} } }`)
-        target = result.pairingStates.find(value => value.deviceId === deviceId && !terminal.has(value.phase))?.generation
-      } else if (!state.value || terminal.has(state.value.phase)) return
-      if (target) await execute('mutation($generation: String!) { cancelPairing(generation: $generation) }', { generation: target })
-    },
+    async submit(password: string) { if (input) await start({ ...input, password }) },
     dispose() {
       disposed = true
-      const cancel = generation && state.value && !terminal.has(state.value.phase)
-      if (cancel && state.value) state.value = { ...state.value, phase: 'CANCELLED' }
-      stopChanges()
-      stopAttached()
-      if (cancel) void execute('mutation($generation: String!) { cancelPairing(generation: $generation) }', { generation }).catch(() => {})
+      stops.forEach(stop => stop())
+      if (peerId.value && isPairingActive(peerId.value)) {
+        void cancel(peerId.value).catch(error => console.error('Pairing cancellation failed', error))
+      }
     },
   }
 }

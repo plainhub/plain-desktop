@@ -999,7 +999,6 @@ export const appUpdateGQL = `
 export const nearbyDevicesGQL = `
   query NearbyDevices {
     nearbyDevices { signaturePublicKey id name ips bestIp port deviceType version platform lastSeen status discoveryMethods remoteAccess }
-    pairingStates { deviceId generation mode phase error verificationCode identityChanged }
     mdnsState { scanning }
   }
 `

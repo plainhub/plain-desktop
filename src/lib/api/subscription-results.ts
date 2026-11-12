@@ -8,9 +8,8 @@ type ChatSubscriptionItem = Pick<IChatItem, 'id' | 'fromId' | 'toId' | 'channelI
 }
 
 export interface SubscriptionResults {
-  pairingChanged: boolean
   pairingRequested: import('@/lib/pairing-types').PairingRequest
-  pairingStarted: { deviceId: string; deviceName: string; error: string | null }
+  pairingStarted: { deviceId: string; deviceName: string; error: string | null; verificationCode: string | null }
   pairingFailed: { deviceId: string; deviceName: string; error: string | null }
   pairingCanceled: { deviceId: string; deviceName: string; error: string | null }
   channelsChanged: {

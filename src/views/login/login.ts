@@ -4,7 +4,7 @@ import router from '@/plugins/router'
 import { getApiBaseUrl, getPendingLoginDevice, clearPendingLoginDevice } from '@/lib/api/api'
 import type { InitResult } from '@/lib/api/init'
 import { getCurrentAuthToken, clearCurrentSession } from '@/lib/device/current'
-import { findLoginPeer, saveBrowserSession, saveBrowserIdentity, getBrowserIdentity, forgetBrowserIdentity, preloadLoginPeers, peerHost } from '@/lib/device/login-peers'
+import { findLoginPeer, saveBrowserSession, saveBrowserIdentity, getBrowserIdentity, forgetBrowserIdentity, preloadLoginPeers } from '@/lib/device/login-peers'
 import { DeviceType } from '@/lib/status'
 import { getRemoteClientId, setRemoteClientId, getDesktopClientId } from '@/lib/device/client-id'
 import { httpRequest } from '@/lib/api/http'
@@ -48,7 +48,7 @@ export function useLogin(options: UseLoginOptions = {}) {
   let nativeActive = true
   watch(() => pairing?.state.value, async (state) => {
     if (!state || !nativeActive) return
-    showConfirm.value = state.phase === 'WAITING_CONFIRMATION'
+    showConfirm.value = state.phase === 'PAIRING' && !!state.verificationCode
     verificationCode.value = state.verificationCode || ''
     showPasswordInput.value = state.phase === 'PASSWORD_REQUIRED' || state.phase === 'FAILED' && state.error === 'invalid_password'
     isSubmitting.value = !['PASSWORD_REQUIRED', 'SUCCEEDED', 'FAILED', 'CANCELLED'].includes(state.phase)
@@ -74,10 +74,12 @@ export function useLogin(options: UseLoginOptions = {}) {
     const current = findLoginPeer(getRemoteClientId())
     try {
       if (managedDeviceId) {
-        await pairing.start({ id: managedDeviceId, mode: 'MANAGE', password: submittedPassword })
+        await pairing.start({ peerId: managedDeviceId, mode: 'MANAGE', password: submittedPassword })
         return
       }
-      await pairing.start({ id: pending?.id || current?.id, host: pending?.id ? pending.host : pending ? getApiBaseUrl() : current?.address?.baseUrl || (current ? peerHost(current) : undefined), mode: 'MANAGE', password: submittedPassword })
+      const peerId = pending?.id || current?.id
+      if (!peerId) throw new Error('peer_unavailable')
+      await pairing.start({ peerId, mode: 'MANAGE', password: submittedPassword })
     } catch (e) { isSubmitting.value = false; showError.value = true; error.value = 'login.failed' }
   }
 

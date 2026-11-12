@@ -1,13 +1,11 @@
-import { reactive, ref } from 'vue'
+import { ref } from 'vue'
 import { acquireDiscoveryGQL, releaseDiscoveryGQL } from '@/lib/api/mutation'
 import { bindGraphqlClient } from '@/lib/api/gql-client'
 import { graphqlSubscriptions } from '@/lib/api/subscription-client'
 import { nearbyDevicesGQL } from '@/lib/api/query'
 import { randomUUID } from '@/lib/strutil'
-import emitter from '@/plugins/eventbus'
-import type { PairingResult } from '@/lib/pairing-types'
 import { useChatStore } from '@/stores/chat'
-import type { PairingState } from '@/lib/device/pairing'
+import { pairingViews } from '@/lib/device/pairing'
 import { DeviceType, PeerStatus } from '@/lib/status'
 
 export type DiscoveryMethod = 'LAN' | 'DNS_SD' | 'BLE' | 'QR'
@@ -43,63 +41,12 @@ const status = ref<DiscoveryStatus>(DiscoveryStatus.IDLE)
 const activeSessions = new Set<{ acquire: () => Promise<void>; refresh: () => Promise<void> }>()
 let listenerInitialized = false
 
-const pairingStates = reactive(new Map<string, PairingState>())
-const terminalPairing = new Set(['SUCCEEDED', 'FAILED', 'CANCELLED'])
-
-function applyPairingState(state: PairingState) {
-  if (!state.deviceId) return
-  pairingStates.set(state.deviceId, state)
-  const device = devices.value.find((d) => d.id === state.deviceId)
-  if (!device) return
-  device.status = state.phase === 'SUCCEEDED' ? PeerStatus.PAIRED : terminalPairing.has(state.phase) ? useChatStore().findPeer(state.deviceId)?.status ?? PeerStatus.UNPAIRED : 'PAIRING'
-}
 function restoreDeviceStatus(deviceId: string) {
-  const state = pairingStates.get(deviceId)
-  if (state && !terminalPairing.has(state.phase)) return
   const device = devices.value.find((d) => d.id === deviceId)
   if (device) device.status = useChatStore().findPeer(deviceId)?.status ?? PeerStatus.UNPAIRED
 }
 
-function ensureListener() {
-  if (listenerInitialized) return
-  listenerInitialized = true
-
-  emitter.on('PAIRING_SUCCESS', (result: PairingResult) => {
-    const device = devices.value.find((d) => d.id === result.deviceId)
-    if (device) {
-      device.status = PeerStatus.PAIRED
-    }
-    useChatStore().fetchPeers()
-  })
-
-  emitter.on('PAIRING_FAILED', (result: PairingResult) => restoreDeviceStatus(result.deviceId))
-  
-  emitter.on('PAIRING_CANCELED', (result: PairingResult) => restoreDeviceStatus(result.deviceId))
-
-  emitter.on('PAIRING_STARTED', (result: PairingResult) => {
-    const device = devices.value.find((d) => d.id === result.deviceId)
-    if (device) {
-      device.status = 'PAIRING'
-    }
-  })
-}
-
-/** Insert or refresh a device in the discovery list. Also used by the
- * QR-pairing fallback, whose paired devices never passed through mDNS. */
-export function upsertDiscoveredDevice(device: DiscoveredDevice) {
-  const existing = devices.value.findIndex((d) => d.id === device.id)
-  if (existing >= 0) {
-    const next = devices.value.slice()
-    next[existing] = { ...next[existing], ...device }
-    devices.value = next
-  } else {
-    devices.value = [...devices.value, device]
-  }
-  status.value = DiscoveryStatus.OK
-}
-
 export function useDeviceDiscovery(bindClient = bindGraphqlClient, subscriptions = graphqlSubscriptions) {
-  ensureListener()
 
   let request: ReturnType<typeof bindGraphqlClient> | null = null
   let token: string | null = null
@@ -114,15 +61,13 @@ export function useDeviceDiscovery(bindClient = bindGraphqlClient, subscriptions
   }
 
   async function refreshDevices(client: ReturnType<typeof bindGraphqlClient>, current: string): Promise<void> {
-    const result = await client<{ nearbyDevices: DiscoveredDevice[]; pairingStates?: PairingState[]; mdnsState: { scanning: boolean } }>(nearbyDevicesGQL)
+    const result = await client<{ nearbyDevices: DiscoveredDevice[]; mdnsState: { scanning: boolean } }>(nearbyDevicesGQL)
     if (result.errors?.length) throw new Error(result.errors[0].message)
     if (active && token === current) {
       devices.value = result.data.nearbyDevices
       status.value = !result.data.mdnsState.scanning
         ? DiscoveryStatus.IDLE
         : devices.value.length ? DiscoveryStatus.OK : DiscoveryStatus.SEARCHING
-      pairingStates.clear()
-      for (const state of result.data.pairingStates ?? []) applyPairingState(state)
     }
   }
 
@@ -181,7 +126,17 @@ export function useDeviceDiscovery(bindClient = bindGraphqlClient, subscriptions
     stopSubscriptions = [
       subscriptions.subscribe('nearbyDevicesChanged', refresh),
       subscriptions.subscribe('mdnsChanged', refresh),
-      subscriptions.subscribe('pairingChanged', refresh),
+      subscriptions.subscribe('pairingStarted', notice => {
+        const device = devices.value.find(device => device.id === notice.deviceId)
+        if (device) device.status = 'PAIRING'
+      }),
+      subscriptions.subscribe('pairingCompleted', notice => {
+        const device = devices.value.find(device => device.id === notice.deviceId)
+        if (device) device.status = PeerStatus.PAIRED
+        useChatStore().fetchPeers()
+      }),
+      subscriptions.subscribe('pairingFailed', notice => restoreDeviceStatus(notice.deviceId)),
+      subscriptions.subscribe('pairingCanceled', notice => restoreDeviceStatus(notice.deviceId)),
       subscriptions.onAttached(() => { void acquire() }),
     ]
     status.value = DiscoveryStatus.SEARCHING
@@ -204,7 +159,7 @@ export function useDeviceDiscovery(bindClient = bindGraphqlClient, subscriptions
     if (activeSessions.size === 0) {
       status.value = DiscoveryStatus.IDLE
       devices.value = []
-      pairingStates.clear()
+      pairingViews.clear()
     }
   }
 
@@ -225,5 +180,5 @@ export function useDeviceDiscovery(bindClient = bindGraphqlClient, subscriptions
     window.location.href = 'x-apple.systempreferences:'
   }
 
-  return { devices, pairingStates, status, start, stop, retry, openLanPermissionSettings }
+  return { devices, pairingViews, status, start, stop, retry, openLanPermissionSettings }
 }

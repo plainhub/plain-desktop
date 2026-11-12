@@ -48,7 +48,7 @@ vi.mock('@/hooks/use-device-discovery', async () => {
   const { ref } = await import('vue')
   return {
     useDeviceDiscovery: () => ({
-      devices: ref([]), pairingStates: new Map(), start: async () => {}, stop: async () => {},
+      devices: ref([]), pairingViews: new Map(), start: async () => {}, stop: async () => {},
     }),
   }
 })

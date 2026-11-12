@@ -24,8 +24,8 @@ type Events = {
   screen_socket_connection_changed: boolean
   CHANNEL_INVITE_RECEIVED: { channelId: string, channelName: string, fromId: string, fromName: string }
   sms_sent: undefined
-  PAIRING_REQUEST_RECEIVED: PairingRequest
-  PAIRING_SUCCESS: PairingResult
+  PAIRING_REQUESTED: PairingRequest
+  PAIRING_COMPLETED: PairingResult
   PAIRING_FAILED: PairingResult
   PAIRING_CANCELED: PairingResult
   PAIRING_STARTED: PairingResult

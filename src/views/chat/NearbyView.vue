@@ -60,11 +60,11 @@
             />
           </ul>
         </section>
-        <div v-for="state in verificationStates" :key="state.generation" class="pairing-verification">
+        <div v-for="state in verificationStates" :key="state.deviceId" class="pairing-verification">
           <p>{{ deviceById.get(state.deviceId!)?.name ?? peers.find((peer) => peer.id === state.deviceId)?.name }} · {{ $t('waiting_for_confirmation') }}</p>
           <p v-if="state.identityChanged" role="alert">{{ $t('pairing_identity_changed') }}</p>
           <RequestVerificationCode :code="state.verificationCode!" :hint="$t('pairing_compare_code')" />
-          <v-filled-button v-if="state.phase === 'TRUST_REQUIRED'" @click="pairing.confirm(state.generation).catch(reportFailure)">{{ $t(state.identityChanged ? 'pairing_trust' : 'confirm') }}</v-filled-button>
+          <v-filled-button v-if="state.phase === 'TRUST_REQUIRED'" @click="pairing.confirm(state.deviceId).catch(reportFailure)">{{ $t(state.identityChanged ? 'pairing_trust' : 'confirm') }}</v-filled-button>
         </div>
         <div v-if="error" class="nearby-error" role="alert">
           <span>{{ $t(error) }}</span
@@ -110,7 +110,7 @@ import { remove as prefsRemove } from '@/lib/prefs/browser'
 
 const request = __IS_TAURI__ ? nativeGqlFetch : bindGraphqlClient()
 const subscriptions = __IS_TAURI__ ? new SubscriptionClient(openNative) : graphqlSubscriptions
-const { devices, pairingStates, status, retry, start, stop, openLanPermissionSettings } = useDeviceDiscovery(() => request, subscriptions)
+const { devices, pairingViews, status, retry, start, stop, openLanPermissionSettings } = useDeviceDiscovery(() => request, subscriptions)
 const pairing = createPairing(subscriptions, request)
 const peers = ref<IPeer[]>([])
 const selfDevice = ref<SelfDevice | null>(null)
@@ -125,7 +125,7 @@ const currentClientId = computed(() => getRemoteClientId())
 const localMode = computed(() => isLocalMode())
 const deviceById = computed(() => new Map(devices.value.map((device) => [device.id, device])))
 const groups = computed(() => nearbyGroups(peers.value, devices.value, selfDevice.value?.id, new Set(loginPeers.value.map((peer) => peer.id))))
-const verificationStates = computed(() => Array.from(pairingStates.values()).filter((state) => state.verificationCode && !['SUCCEEDED', 'FAILED', 'CANCELLED'].includes(state.phase)))
+const verificationStates = computed(() => Array.from(pairingViews.values()).filter((state) => state.verificationCode && !['SUCCEEDED', 'FAILED', 'CANCELLED'].includes(state.phase)))
 let active = true
 
 async function loadPeers() {
@@ -190,7 +190,7 @@ async function startChat(device: DiscoveredDevice) {
   activePairId.value = device.id
   error.value = ''
   try {
-    await pairing.start({ id: device.id, mode: 'CHAT' })
+    await pairing.start({ peerId: device.id, mode: 'CHAT' })
   } catch (reason) {
     activePairId.value = ''
     reportFailure(reason)

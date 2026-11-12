@@ -8,9 +8,8 @@ export interface SubscriptionOperation {
   capability?: string
 }
 export const subscriptionOperations: readonly SubscriptionOperation[] = [
-  {field: 'pairingChanged', document: 'subscription { pairingChanged }', access: []},
-  {field: 'pairingRequested', document: 'subscription { pairingRequested { toId targetPublicKey fromId fromName port deviceType ecdhPublicKey signaturePublicKey timestamp ips signature fromIp awareSupported verificationCode identityChanged } }', access: []},
-  {field: 'pairingStarted', document: 'subscription { pairingStarted { deviceId deviceName error } }', access: []},
+  {field: 'pairingRequested', document: 'subscription { pairingRequested { fromId fromName fromIp deviceType verificationCode identityChanged } }', access: []},
+  {field: 'pairingStarted', document: 'subscription { pairingStarted { deviceId deviceName error verificationCode } }', access: []},
   {field: 'pairingFailed', document: 'subscription { pairingFailed { deviceId deviceName error } }', access: []},
   {field: 'pairingCanceled', document: 'subscription { pairingCanceled { deviceId deviceName error } }', access: []},
   {field: 'channelsChanged', document: 'subscription { channelsChanged { changed invite { channelId channelName ownerPeerId ownerPeerName } cancel { channelId ownerPeerId } } }', access: []},

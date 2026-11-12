@@ -59,11 +59,7 @@ const allowBusy = ref(false)
 const denyBusy = ref(false)
 const busy = computed(() => allowBusy.value || denyBusy.value)
 
-const displayIp = computed(() => {
-  if (props.request.fromIp) return props.request.fromIp
-  const ips = props.request.ips ?? []
-  return ips[0] ?? ''
-})
+const displayIp = computed(() => props.request.fromIp)
 
 function dismissOnRemoteResult(result: PairingResult) {
   if (busy.value) return
@@ -75,12 +71,12 @@ const handleSuccess = (r: PairingResult) => dismissOnRemoteResult(r)
 const handleFailed = (r: PairingResult) => dismissOnRemoteResult(r)
 const handleCanceled = (r: PairingResult) => dismissOnRemoteResult(r)
 
-emitter.on('PAIRING_SUCCESS', handleSuccess)
+emitter.on('PAIRING_COMPLETED', handleSuccess)
 emitter.on('PAIRING_FAILED', handleFailed)
 emitter.on('PAIRING_CANCELED', handleCanceled)
 
 onBeforeUnmount(() => {
-  emitter.off('PAIRING_SUCCESS', handleSuccess)
+  emitter.off('PAIRING_COMPLETED', handleSuccess)
   emitter.off('PAIRING_FAILED', handleFailed)
   emitter.off('PAIRING_CANCELED', handleCanceled)
 })

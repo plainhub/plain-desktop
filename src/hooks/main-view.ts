@@ -117,7 +117,7 @@ export function useMainView() {
     stopPreferencesUpdated = graphqlSubscriptions.subscribe('prefsChanged', refetchAppHandler)
     emitter.on('media_items_actioned', mediaItemsActionedHandler)
     stopDeviceNameUpdated = graphqlSubscriptions.subscribe('deviceNameUpdated', deviceNameUpdatedHandler)
-    emitter.on('PAIRING_REQUEST_RECEIVED', pairingRequestHandler)
+    emitter.on('PAIRING_REQUESTED', pairingRequestHandler)
   })
 
   onUnmounted(() => {
@@ -127,7 +127,7 @@ export function useMainView() {
     stopPreferencesUpdated?.()
     emitter.off('media_items_actioned', mediaItemsActionedHandler)
     stopDeviceNameUpdated?.()
-    emitter.off('PAIRING_REQUEST_RECEIVED', pairingRequestHandler)
+    emitter.off('PAIRING_REQUESTED', pairingRequestHandler)
   })
 
   // Restore persisted state from prefs

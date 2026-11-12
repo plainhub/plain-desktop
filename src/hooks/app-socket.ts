@@ -1,3 +1,4 @@
+import { isPairingActive } from '@/lib/device/pairing'
 import { isLocalMode } from '@/lib/device/local-mode'
 import { graphqlSubscriptions } from '@/lib/api/subscription-client'
 import { onMounted, onUnmounted, ref } from 'vue'
@@ -58,9 +59,9 @@ export function useAppSocket() {
       tapPhoneMessage.value = ''
     }))
     stopSubscriptions.push(graphqlSubscriptions.subscribe('pairingCompleted', (result) => {
-      emitter.emit('PAIRING_SUCCESS', { ...result, error: '' })
+      emitter.emit('PAIRING_COMPLETED', { ...result, error: '' })
     }))
-    stopSubscriptions.push(graphqlSubscriptions.subscribe('pairingRequested', (request) => emitter.emit('PAIRING_REQUEST_RECEIVED', request)))
+    stopSubscriptions.push(graphqlSubscriptions.subscribe('pairingRequested', (request) => { if (!isPairingActive(request.fromId)) emitter.emit('PAIRING_REQUESTED', request) }))
     stopSubscriptions.push(graphqlSubscriptions.subscribe('pairingStarted', (result) => emitter.emit('PAIRING_STARTED', { ...result, error: result.error ?? '' })))
     stopSubscriptions.push(graphqlSubscriptions.subscribe('pairingFailed', (result) => emitter.emit('PAIRING_FAILED', { ...result, error: result.error ?? '' })))
     stopSubscriptions.push(graphqlSubscriptions.subscribe('pairingCanceled', (result) => emitter.emit('PAIRING_CANCELED', { ...result, error: result.error ?? '' })))

@@ -929,20 +929,20 @@ export const releaseDiscoveryGQL = `
 `
 
 export const pairDeviceGQL = `
-  mutation pairDevice($input: PairingDeviceInput!) {
-    pairDevice(input: $input) { deviceId generation mode phase error }
+  mutation PairDevice($input: PairingDeviceInput!) {
+    pairDevice(input: $input)
   }
 `
 
 export const cancelPairingGQL = `
-  mutation cancelPairing($generation: String!) {
-    cancelPairing(generation: $generation)
+  mutation cancelPairing($peerId: ID!) {
+    cancelPairing(peerId: $peerId)
   }
 `
 
 export const respondToPairingGQL = `
-  mutation respondToPairing($input: PairingRequestInput!, $accepted: Boolean!) {
-    respondToPairing(input: $input, accepted: $accepted)
+  mutation respondToPairing($peerId: ID!, $accepted: Boolean!) {
+    respondToPairing(peerId: $peerId, accepted: $accepted)
   }
 `
 

@@ -116,8 +116,8 @@ function onSuccess(result: PairingResult) {
   emit('paired', device)
 }
 
-onMounted(() => emitter.on('PAIRING_SUCCESS', onSuccess))
-onBeforeUnmount(() => emitter.off('PAIRING_SUCCESS', onSuccess))
+onMounted(() => emitter.on('PAIRING_COMPLETED', onSuccess))
+onBeforeUnmount(() => emitter.off('PAIRING_COMPLETED', onSuccess))
 </script>
 
 <style lang="scss" scoped>

@@ -1,22 +1,12 @@
 import type { DeviceType } from '@/lib/status'
 
 export interface PairingRequest {
-  toId: string
-  targetPublicKey: string
-  verificationCode?: string
-  identityChanged?: boolean
+  verificationCode: string
+  identityChanged: boolean
   fromId: string
   fromName: string
-  port: number
+  fromIp: string
   deviceType: DeviceType
-  ecdhPublicKey: string
-  signaturePublicKey: string
-  timestamp: number
-  ips: string[]
-  signature: string
-  /** Plain-app-only field: the requester's IP. Missing on plain-web's local
-   * Rust server, so we keep it optional for cross-server compatibility. */
-  fromIp?: string
 }
 
 export interface PairingResult {
