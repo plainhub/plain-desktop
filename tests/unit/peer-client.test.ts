@@ -17,7 +17,8 @@ vi.mock('@/lib/device/current', () => ({ getCurrentAuthToken: () => 'selected-se
 vi.mock('@/lib/device/login-peers', () => ({ getLoginPeerRevision: () => 1, peerHost: (peer: LoginPeer) => `${peer.ip}:${peer.port}` }))
 vi.mock('@/lib/api/file', () => ({ tokenToKey: fixture.key }))
 vi.mock('@/lib/api/time-sync', () => ({ wrapWithReplayProtection: (value: string) => value }))
-vi.mock('@/lib/api/crypto', () => ({
+vi.mock('@/lib/api/crypto', async original => ({
+  ...(await original<typeof import('@/lib/api/crypto')>()),
 
   chachaEncrypt: (_key: string, value: string) => new TextEncoder().encode(value),
   decryptGraphqlResponse: (_key: string, _request: unknown, value: ArrayBuffer) => new TextDecoder().decode(value),

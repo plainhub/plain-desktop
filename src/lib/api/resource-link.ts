@@ -1,12 +1,17 @@
+import { ResourcePurpose } from './aad-purpose.generated'
 import { chachaDecrypt, chachaEncryptBytes } from './crypto'
 
 export type Resource = { type: 'MEDIA' | 'FOREGROUND_MEDIA_THUMBNAIL' | 'APP_FILE' | 'FILE' | 'PACKAGE_ICON' | 'SHARED_FILE'; id: string }
 export type ResourceScope = { mode: 'c' | 's'; id: string }
 
-export function encryptResourcePayload(key: Uint8Array, scope: ResourceScope, purpose: string, plain: string): string {
+function resourceAad(scope: ResourceScope, purpose: ResourcePurpose): Uint8Array {
+  return new TextEncoder().encode(`${purpose}\0${scope.mode}\0${scope.id}`)
+}
+
+export function encryptResourcePayload(key: Uint8Array, scope: ResourceScope, purpose: ResourcePurpose, plain: string): string {
   const owner = scope.id
   if (key.length !== 32 || !owner) throw new Error('Invalid resource credential')
-  const aad = new TextEncoder().encode(`plain-${purpose}-v1\0${scope.mode}\0${owner}`)
+  const aad = resourceAad(scope, purpose)
   const bytes = chachaEncryptBytes(key, new TextEncoder().encode(plain), aad)
   const payload = btoa(String.fromCharCode(...bytes)).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '')
   const envelope = `${scope.mode}.${owner}.${payload}`
@@ -16,7 +21,7 @@ export function encryptResourcePayload(key: Uint8Array, scope: ResourceScope, pu
 
 export function resourceId(key: Uint8Array, scope: ResourceScope, resource: Resource): string {
   if (!resource.id || (scope.mode === 's') !== (resource.type === 'SHARED_FILE')) throw new Error('Invalid resource scope')
-  return encryptResourcePayload(key, scope, 'fs', JSON.stringify(resource))
+  return encryptResourcePayload(key, scope, ResourcePurpose.Fs, JSON.stringify(resource))
 }
 
 export function filePathFromResourceId(key: Uint8Array, envelope: string): string {
@@ -27,7 +32,7 @@ export function filePathFromResourceId(key: Uint8Array, envelope: string): strin
   const payload = envelope.slice(separator + 1)
   if (!/^[\w-]+$/.test(payload)) throw new Error('Invalid resource payload')
   const bytes = Uint8Array.from(atob(payload.replace(/-/g, '+').replace(/_/g, '/')), char => char.charCodeAt(0))
-  const aad = new TextEncoder().encode(`plain-fs-v1\0${mode}\0${owner}`)
+  const aad = resourceAad({ mode, id: owner }, ResourcePurpose.Fs)
   const resource = JSON.parse(chachaDecrypt(key, bytes, aad)) as Resource
   if (resource.type !== 'FILE' || typeof resource.id !== 'string' || !resource.id) throw new Error('File resource required')
   return resource.id

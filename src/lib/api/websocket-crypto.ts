@@ -1,3 +1,4 @@
+import { AadPurpose } from './aad-purpose.generated'
 import { xchacha20poly1305 } from '@noble/ciphers/chacha'
 import { randomBytes } from '@noble/ciphers/webcrypto'
 import { sha256 } from '@noble/hashes/sha2.js'
@@ -32,12 +33,12 @@ export class WebSocketCrypto {
   constructor(private client: string, private key: Uint8Array, private path = '/graphql') {
     const clientNonce = [...randomBytes(32)].map(value => value.toString(16).padStart(2, '0')).join('')
     const plain = utf8.encode(JSON.stringify({ clientNonce }))
-    const cipher = seal(key, plain, fields([utf8.encode('plain-ws-init'), utf8.encode(path), utf8.encode(client)]))
+    const cipher = seal(key, plain, fields([utf8.encode(AadPurpose.WsInit), utf8.encode(path), utf8.encode(client)]))
     this.registration = cipher
   }
   acknowledge(frame: Uint8Array) {
     if (this.binding) throw new Error('Invalid WebSocket acknowledgement')
-    const aad = fields([utf8.encode('plain-ws-ack'), utf8.encode(this.path), utf8.encode(this.client), sha256(this.registration)])
+    const aad = fields([utf8.encode(AadPurpose.WsAck), utf8.encode(this.path), utf8.encode(this.client), sha256(this.registration)])
     const ack: { serverNonce: string } = JSON.parse(new TextDecoder().decode(open(this.key, frame, aad)))
     if (!ack || typeof ack !== 'object' || Object.keys(ack).length !== 1 || typeof ack.serverNonce !== 'string' || !/^[0-9a-f]{64}$/.test(ack.serverNonce)) throw new Error('Invalid WebSocket server nonce')
     this.binding = sha256(fields([this.registration, frame]))
@@ -46,7 +47,7 @@ export class WebSocketCrypto {
     if (!this.binding) throw new Error('WebSocket handshake incomplete')
     const counter = new Uint8Array(8)
     new DataView(counter.buffer).setBigUint64(0, sequence, false)
-    return fields([utf8.encode('plain-ws-frame'), utf8.encode(this.path), utf8.encode(this.client), this.binding, utf8.encode(direction), counter])
+    return fields([utf8.encode(AadPurpose.WsFrame), utf8.encode(this.path), utf8.encode(this.client), this.binding, utf8.encode(direction), counter])
   }
   encode(plain: Uint8Array): Uint8Array {
     if (this.sent === 0xffffffffffffffffn) throw new Error('WebSocket sequence exhausted')

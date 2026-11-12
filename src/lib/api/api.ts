@@ -1,3 +1,4 @@
+import { ResourcePurpose } from './aad-purpose.generated'
 import { isLocalMode } from '@/lib/device/local-mode'
 import { getCurrentDeviceHost, getCurrentDeviceBaseUrl } from '../device/current'
 import { getDesktopClientId } from '@/lib/device/client-id'
@@ -57,7 +58,7 @@ function proxyPath(path: string, base: string): string {
   let target = proxyTargets.get(descriptor)
   if (!target) {
     const key = Uint8Array.from(atob(_urlToken), byte => byte.charCodeAt(0))
-    target = encryptResourcePayload(key, { mode: 'c', id: getDesktopClientId() }, 'native-proxy', descriptor)
+    target = encryptResourcePayload(key, { mode: 'c', id: getDesktopClientId() }, ResourcePurpose.Fs, descriptor)
     if (proxyTargets.size >= 64) proxyTargets.clear()
     proxyTargets.set(descriptor, target)
   }

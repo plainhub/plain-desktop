@@ -50,12 +50,12 @@ it('keeps the encrypted handshake and messages when no subprotocol is negotiated
   expect(callbacks.dropped).not.toHaveBeenCalled()
   expect(callbacks.opened).not.toHaveBeenCalled()
   const init = mock.socket.send.mock.calls[0]![0] as Uint8Array
-  const initAad = fields(text('plain-ws-init'), text('/graphql'), text('fixture-client'))
+  const initAad = fields(text('WS_INIT'), text('/graphql'), text('fixture-client'))
   const plain = xchacha20poly1305(key, init.subarray(0, 24), initAad).decrypt(init.subarray(24))
   const registration = JSON.parse(new TextDecoder().decode(plain))
   expect(Object.keys(registration)).toEqual(['clientNonce'])
   expect(registration.clientNonce).toMatch(/^[a-f0-9]{64}$/)
-  const ackAad = fields(text('plain-ws-ack'), text('/graphql'), text('fixture-client'), hash(init))
+  const ackAad = fields(text('WS_ACK'), text('/graphql'), text('fixture-client'), hash(init))
   const ack = serverFrame(new Uint8Array(), { serverNonce: '42'.repeat(32) }, ackAad)
   mock.socket.onmessage!({ data: ack } as MessageEvent)
   expect(callbacks.opened).toHaveBeenCalledExactlyOnceWith()
@@ -64,12 +64,12 @@ it('keeps the encrypted handshake and messages when no subprotocol is negotiated
   connection.send(message)
   const frame = mock.socket.send.mock.calls[2]![0] as Uint8Array
   expect(Buffer.from(frame.subarray(0, 8)).readBigUInt64BE()).toBe(2n)
-  const outgoingAad = fields(text('plain-ws-frame'), text('/graphql'), text('fixture-client'), binding, text('client'), frame.subarray(0, 8))
+  const outgoingAad = fields(text('WS_FRAME'), text('/graphql'), text('fixture-client'), binding, text('client'), frame.subarray(0, 8))
   const outgoing = xchacha20poly1305(key, frame.subarray(8, 32), outgoingAad).decrypt(frame.subarray(32))
   expect(JSON.parse(new TextDecoder().decode(outgoing))).toEqual(message)
   const prefix = Buffer.alloc(8)
   prefix.writeBigUInt64BE(1n)
-  const incomingAad = fields(text('plain-ws-frame'), text('/graphql'), text('fixture-client'), binding, text('server'), prefix)
+  const incomingAad = fields(text('WS_FRAME'), text('/graphql'), text('fixture-client'), binding, text('server'), prefix)
   const event = { type: 'next', id: 'fixture', payload: { data: { prefsChanged: true } } }
   mock.socket.onmessage!({ data: serverFrame(prefix, event, incomingAad) } as MessageEvent)
   expect(callbacks.message).toHaveBeenCalledExactlyOnceWith(event)
@@ -86,7 +86,7 @@ it('does not retain heartbeat timers when opening callbacks close the connection
   const connection = openSubscriptionConnection({ opened: () => connection.close(), message: vi.fn(), dropped: vi.fn() })
   mock.socket.onopen!()
   const init = mock.socket.send.mock.calls[0]![0] as Uint8Array
-  const ackAad = fields(text('plain-ws-ack'), text('/graphql'), text('fixture-client'), hash(init))
+  const ackAad = fields(text('WS_ACK'), text('/graphql'), text('fixture-client'), hash(init))
   mock.socket.onmessage!({ data: serverFrame(new Uint8Array(), { serverNonce: '42'.repeat(32) }, ackAad) } as MessageEvent)
   expect(vi.getTimerCount()).toBe(0)
 })
@@ -99,7 +99,7 @@ it('closes on a failed heartbeat send without starting a pong deadline', () => {
   openSubscriptionConnection({ opened: vi.fn(), message: vi.fn(), dropped })
   mock.socket.onopen!()
   const init = mock.socket.send.mock.calls[0]![0] as Uint8Array
-  const ackAad = fields(text('plain-ws-ack'), text('/graphql'), text('fixture-client'), hash(init))
+  const ackAad = fields(text('WS_ACK'), text('/graphql'), text('fixture-client'), hash(init))
   mock.socket.onmessage!({ data: serverFrame(new Uint8Array(), { serverNonce: '42'.repeat(32) }, ackAad) } as MessageEvent)
   mock.socket.send.mockImplementationOnce(() => { throw new Error('send failed') })
   vi.advanceTimersByTime(20000)

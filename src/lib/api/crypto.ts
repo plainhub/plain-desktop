@@ -1,3 +1,4 @@
+import { AadPurpose } from './aad-purpose.generated'
 import { xchacha20poly1305 } from '@noble/ciphers/chacha'
 import { randomBytes } from '@noble/ciphers/webcrypto'
 import { ed25519 } from '@noble/curves/ed25519.js'
@@ -34,7 +35,7 @@ export function chachaDecryptBytes(key: Uint8Array, data: Uint8Array, aad?: Uint
 }
 
 export function httpRequestAad(endpoint: string): Uint8Array {
-  return new TextEncoder().encode(`http-request\0POST\0${endpoint}`)
+  return new TextEncoder().encode(`${AadPurpose.HttpRequest}\0POST\0${endpoint}`)
 }
 
 export function decryptGraphqlResponse(key: Uint8Array, request: Uint8Array, response: Uint8Array): string {

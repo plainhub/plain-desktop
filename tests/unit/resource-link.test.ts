@@ -1,3 +1,4 @@
+import { ResourcePurpose } from '@/lib/api/aad-purpose.generated'
 import { expect, it, vi } from 'vitest'
 import { xchacha20poly1305 } from '@noble/ciphers/chacha'
 import { encryptResourcePayload, resourceId, filePathFromResourceId } from '@/lib/api/resource-link'
@@ -14,10 +15,10 @@ it('uses a single base64url payload and binds the complete variable client ident
   expect(payload).toMatch(/^[\w-]+$/)
   const binary = Buffer.from(payload, 'base64url')
   expect(binary.length).toBe(24 + new TextEncoder().encode(JSON.stringify(resource)).length + 16)
-  const aad = new TextEncoder().encode(`plain-fs-v1\0c\0${clientId}`)
+  const aad = new TextEncoder().encode(`FS\0c\0${clientId}`)
   expect(new TextDecoder().decode(xchacha20poly1305(key, binary.subarray(0, 24), aad).decrypt(binary.subarray(24)))).toBe(JSON.stringify(resource))
-  expect(() => xchacha20poly1305(key, binary.subarray(0, 24), new TextEncoder().encode('plain-fs-v1\0c\0another')).decrypt(binary.subarray(24))).toThrow()
-  expect(envelope).toBe('c.客户.a/b.AAECAwQFBgcICQoLDA0ODxAREhMUFRYX0zXf_Ip5eZ8HgcgLo8CDjjayGi022EcZnGnY8rWtuv1zWa0R2rowTfBttQ9uc8GObm-lNQ')
+  expect(() => xchacha20poly1305(key, binary.subarray(0, 24), new TextEncoder().encode('FS\0c\0another')).decrypt(binary.subarray(24))).toThrow()
+  expect(envelope).toBe('c.客户.a/b.AAECAwQFBgcICQoLDA0ODxAREhMUFRYX0zXf_Ip5eZ8HgcgLo8CDjjayGi022EcZnGnY8rWtuv1zWa0RVaCDphaOCoK7O_L2pfgvhg')
 })
 
 it('keeps session, share and endpoint contexts separate', () => {
@@ -26,7 +27,7 @@ it('keeps session, share and endpoint contexts separate', () => {
   expect(share.startsWith('s.share.with.dots.')).toBe(true)
   expect(() => resourceId(key, { mode: 'c', id: 'owner' }, { type: 'SHARED_FILE', id: 'file' })).toThrow()
   expect(() => resourceId(key, { mode: 's', id: 'share' }, { type: 'FILE', id: '/file' })).toThrow()
-  expect(encryptResourcePayload(key, { mode: 'c', id: 'owner' }, 'chat-attachment:fixture', '/file')).not.toBe(encryptResourcePayload(key, { mode: 'c', id: 'owner' }, 'zip-files', '/file'))
+  expect(encryptResourcePayload(key, { mode: 'c', id: 'owner' }, ResourcePurpose.Fs, '/file')).not.toBe(encryptResourcePayload(key, { mode: 'c', id: 'owner' }, ResourcePurpose.ZipFiles, '/file'))
 })
 
 it.each([{ mode: 'c', id: 'owner' } as const, { mode: 'c', id: '客户.with.dots' } as const])('decodes the current authenticated file resource ($mode)', scope => {
@@ -43,8 +44,8 @@ it('rejects non-file resources, shared links, malformed envelopes and unauthenti
   for (const id of [
     resourceId(key, { mode: 'c', id: 'owner' }, { type: 'APP_FILE', id: 'hash' }),
     resourceId(key, { mode: 's', id: 'share' }, { type: 'SHARED_FILE', id: 'note.txt' }),
-    encryptResourcePayload(key, { mode: 'c', id: 'owner' }, 'fs', JSON.stringify({ path: '/legacy' })),
-    encryptResourcePayload(key, { mode: 'c', id: 'owner' }, 'chat-attachment:fixture', JSON.stringify({ type: 'FILE', id: '/wrong-purpose' })),
+    encryptResourcePayload(key, { mode: 'c', id: 'owner' }, ResourcePurpose.Fs, JSON.stringify({ path: '/legacy' })),
+    encryptResourcePayload(key, { mode: 'c', id: 'owner' }, ResourcePurpose.ZipFiles, JSON.stringify({ type: 'FILE', id: '/wrong-purpose' })),
     'c..payload', 'c.owner.invalid+payload', 'plain-legacy-base64',
   ]) expect(() => filePathFromResourceId(key, id)).toThrow()
 })

@@ -8,7 +8,7 @@ it('uses the generated Rust signature purposes without duplicate domains', () =>
   expect(new Set(values).size).toBe(values.length)
   expect(values.sort()).toEqual([
     'CHANNEL_MEMBERSHIP',
-    'CHAT_PAIR_REQUEST',
+    'PAIR_REQUEST',
     'PAIRING_ACCEPT',
     'PAIRING_REJECT',
     'PAIR_CANCEL',
@@ -16,6 +16,6 @@ it('uses the generated Rust signature purposes without duplicate domains', () =>
     'PEER_STATUS',
     'PEER_TLS_CERTIFICATE',
     'QR_PAIR_ACCEPT',
-    'WEB_APPROVAL_RESPONSE',
+    'AUTH_SERVER_HELLO',
   ].sort())
 })

@@ -1,3 +1,4 @@
+import { ResourcePurpose } from './aad-purpose.generated'
 import { getApiBaseUrl, getApiHeaders } from './api'
 import { FileAction, fileQuery } from './file-action'
 import { encryptedGqlPost } from './gql-client'
@@ -12,6 +13,6 @@ export function managedGraphql<T>(peerId: string, query: string, variables?: Rec
 
 export function managedFileUrl(peerId: string, key: Uint8Array, resource: Resource, action = FileAction.Preview, query = ''): string {
   const scope = { mode: 'c' as const, id: getApiHeaders()['c-id'] }
-  const id = encryptResourcePayload(key, scope, `managed:${peerId}:fs:${action}`, JSON.stringify(resource))
+  const id = encryptResourcePayload(key, scope, ResourcePurpose.Fs, JSON.stringify(resource))
   return getApiBaseUrl() + peerProxyPath(peerId, `fs?id=${encodeURIComponent(id)}${fileQuery(action, query)}`)
 }

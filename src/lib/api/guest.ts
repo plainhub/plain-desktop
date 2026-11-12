@@ -4,6 +4,7 @@ import { getApiBaseUrl, getProxyUrl } from './api'
 import { httpRequest } from './http'
 import {
   chachaEncrypt,
+  httpRequestAad,
   decryptGraphqlResponse,
 } from './crypto'
 import { graphqlRequestPayload } from './graphql-request'
@@ -86,7 +87,7 @@ export async function guestFetch<T = any>(
 ): Promise<GuestResult<T>> {
   const url = `${getApiBaseUrl()}/guest_graphql`
   const payload = graphqlRequestPayload(query, variables)
-  const body = chachaEncrypt(key, payload)
+  const body = chachaEncrypt(key, payload, httpRequestAad('/guest_graphql'))
 
   const controller = new AbortController()
   const timer = setTimeout(() => controller.abort(), TIMEOUT)

@@ -1,6 +1,6 @@
 import { isLocalMode } from '@/lib/device/local-mode'
 import { getApiBaseUrl, getApiHeaders } from './api'
-import { chachaEncrypt, decryptGraphqlResponse } from './crypto'
+import { chachaEncrypt, httpRequestAad, decryptGraphqlResponse } from './crypto'
 import { tokenToKey } from './file'
 import { graphqlRequestPayload } from './graphql-request'
 import { getCurrentAuthToken, clearCurrentSession } from '../device/current'
@@ -123,7 +123,7 @@ export async function encryptedGqlPost<T = any>(
   }
 
   const startTime = performance.now()
-  const body = chachaEncrypt(key, json)
+  const body = chachaEncrypt(key, json, httpRequestAad('/graphql'))
   const encryptTime = performance.now()
 
   const controller = new AbortController()

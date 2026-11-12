@@ -101,7 +101,7 @@ it('seals foreground thumbnail intent only for an explicitly submitted local vid
     const id = new URL(url).searchParams.get('id')!
     const [mode, ...parts] = id.split('.')
     const bytes = Uint8Array.from(atob(parts.pop()!.replace(/-/g, '+').replace(/_/g, '/')), c => c.charCodeAt(0))
-    const aad = new TextEncoder().encode(`plain-fs-v1\0${mode}\0${parts.join('.')}`)
+    const aad = new TextEncoder().encode(`FS\0${mode}\0${parts.join('.')}`)
     return JSON.parse(chachaDecrypt(key, bytes, aad)).type
   }
   expect(readType(passive.thumbnailUrl(hit))).toBe('MEDIA')
@@ -125,9 +125,8 @@ it('routes managed search through the current origin and reuses session-scoped t
   expect(download.searchParams.get('action')).toBe('download')
   const [mode, owner, encoded] = download.searchParams.get('id')!.split('.')
   const bytes = Uint8Array.from(atob(encoded.replace(/-/g, '+').replace(/_/g, '/')), (char) => char.charCodeAt(0))
-  const aad = (action: string) => new TextEncoder().encode(`plain-managed:managed:fs:${action}-v1\0${mode}\0${owner}`)
-  expect(JSON.parse(chachaDecrypt(key, bytes, aad('download')))).toEqual({ type: 'MEDIA', id: doc.id })
-  expect(() => chachaDecrypt(key, bytes, aad('preview'))).toThrow()
+  const aad = new TextEncoder().encode(`FS\0${mode}\0${owner}`)
+  expect(JSON.parse(chachaDecrypt(key, bytes, aad))).toEqual({ type: 'MEDIA', id: doc.id })
 })
 
 it('rejects Desktop managed search without using a browser proxy or a different peer target', async () => {

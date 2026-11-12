@@ -11,14 +11,14 @@ export function fields(...values: Uint8Array[]): Buffer {
   }))
 }
 export function server(key: Uint8Array, registration: Uint8Array, path: string, client: string, seed = 9) {
-  const initAad = fields(text('plain-ws-init'), text(path), text(client))
+  const initAad = fields(text('WS_INIT'), text(path), text(client))
   const init = JSON.parse(new TextDecoder().decode(xchacha20poly1305(key, registration.subarray(0, 24), initAad).decrypt(registration.subarray(24))))
   const nonce = new Uint8Array(24).fill(seed)
-  const ackAad = fields(text('plain-ws-ack'), text(path), text(client), hash(registration))
+  const ackAad = fields(text('WS_ACK'), text(path), text(client), hash(registration))
   const encrypted = xchacha20poly1305(key, nonce, ackAad).encrypt(text(JSON.stringify({ serverNonce: seed.toString(16).padStart(2, '0').repeat(32) })))
   const ack = Uint8Array.from([...nonce, ...encrypted])
   const binding = hash(fields(registration, ack))
-  const aad = (direction: string, sequence: Uint8Array) => fields(text('plain-ws-frame'), text(path), text(client), binding, text(direction), sequence)
+  const aad = (direction: string, sequence: Uint8Array) => fields(text('WS_FRAME'), text(path), text(client), binding, text(direction), sequence)
   return {
     init, ack,
     frame(sequence: bigint, plain: Uint8Array, direction = 'server') {

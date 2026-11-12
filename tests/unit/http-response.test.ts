@@ -37,7 +37,7 @@ it('matches the shared Rust response framing and rejects response substitution',
     expect(binding.toString('hex')).toBe(vector.bindingHex)
     expect(decryptGraphqlResponse(key, request, response)).toBe(vector.plaintext)
     expect(Buffer.from(chachaDecryptBytes(key, response))).toEqual(Buffer.concat([binding, Buffer.from(vector.plaintext)]))
-    const requestPlain = chachaDecryptBytes(key, request)
+    const requestPlain = chachaDecryptBytes(key, request, httpRequestAad(vector.endpoint))
     expect(new TextDecoder().decode(requestPlain)).toBe(vector.requestPlaintext)
     for (const index of [0, 24, request.length - 1]) {
       const changed = Uint8Array.from(request)
@@ -69,7 +69,7 @@ it.each(['/graphql', '/guest_graphql'])('the actual %s client rejects captured a
     expect(new URL(url).pathname).toBe(endpoint)
     const request = options!.body!
     requests.push(request.slice())
-    const requestPlain = chachaDecryptBytes(key, request)
+    const requestPlain = chachaDecryptBytes(key, request, httpRequestAad(endpoint))
     const payload = new TextDecoder().decode(requestPlain)
     const parsed = JSON.parse(payload)
     expect(Object.keys(parsed).sort()).toEqual(['query', 'requestId', 'variables'])
@@ -78,7 +78,7 @@ it.each(['/graphql', '/guest_graphql'])('the actual %s client rejects captured a
     expect(parsed.requestId).toMatch(/^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/)
     expect(Number.parseInt(parsed.requestId.replaceAll('-', '').slice(0, 12), 16)).toBe(now)
     requestIds.push(parsed.requestId)
-    expect(() => chachaDecrypt(key, request, httpRequestAad(endpoint))).toThrow()
+    expect(() => chachaDecrypt(key, request)).toThrow()
     const nonce = randomBytes(24)
     const binding = Buffer.concat([Buffer.from([0]), createHash('sha256').update(request).digest()])
     const response = Buffer.from('{"data":{"__typename":"Query"}}')
@@ -110,8 +110,8 @@ it.each(['/graphql', '/guest_graphql'])('the actual %s client rejects captured a
   expect(httpRequest).toHaveBeenCalledTimes(6)
 })
 
-it.each(['/init', '/upload', '/upload_chunk'])('binds %s to the agreed POST request domain', endpoint => {
-  expect(new TextDecoder().decode(httpRequestAad(endpoint))).toBe('http-request\0POST\0' + endpoint)
+it.each(['/graphql', '/guest_graphql', '/peer_graphql', '/init', '/upload', '/upload_chunk'])('binds %s to the agreed POST request domain', endpoint => {
+  expect(new TextDecoder().decode(httpRequestAad(endpoint))).toBe('HTTP_REQUEST\0POST\0' + endpoint)
 })
 
 
@@ -126,10 +126,15 @@ it.each([400, 429, 500])('preserves HTTP %s without decrypting or retrying rejec
   expect(httpRequest).toHaveBeenCalledTimes(1)
 })
 
-it('encrypts the exact GraphQL payload without metadata or AAD', () => {
+it.each(['/graphql', '/guest_graphql', '/peer_graphql'])('binds the exact payload to %s without changing its bytes', endpoint => {
   const key = new Uint8Array(32).fill(7)
   const payload = '{"query":"query { __typename }"}'
-  expect(chachaDecrypt(key, chachaEncrypt(key, payload))).toBe(payload)
+  const request = chachaEncrypt(key, payload, httpRequestAad(endpoint))
+  expect(chachaDecrypt(key, request, httpRequestAad(endpoint))).toBe(payload)
+  expect(() => chachaDecrypt(key, request)).toThrow()
+  for (const other of ['/graphql', '/guest_graphql', '/peer_graphql']) {
+    if (other !== endpoint) expect(() => chachaDecrypt(key, request, httpRequestAad(other))).toThrow()
+  }
 })
 
 it.each([false, true])('binds concurrent replies to their own requests (swapped=%s)', async swapped => {

@@ -12,7 +12,7 @@ import { startLoginKeyExchange } from '../../src/lib/api/login-channel'
 const vector = JSON.parse(readFileSync(new URL('../../../plain-core/plain-rs/testdata/crypto/web-approval-vector.json', import.meta.url), 'utf8'))
 const bytes = (value: string) => new Uint8Array(Buffer.from(value, 'base64'))
 const now = vector.response.expiresAt - 300000
-const aad = (response: boolean) => new Uint8Array([...new TextEncoder().encode(response ? 'auth-response' : 'auth-request'), ...Buffer.from(vector.fingerprint, 'hex')])
+const aad = (response: boolean) => new Uint8Array([...new TextEncoder().encode(response ? 'AUTH_RESPONSE' : 'AUTH_REQUEST'), ...Buffer.from(vector.fingerprint, 'hex')])
 const start = () => startLoginKeyExchange(vector.clientId)
 beforeEach(() => {
   vi.mocked(generateECDHKeyPair).mockImplementation(() => ({ secretKey: bytes(vector.clientPrivate), publicKey: bytes(vector.request.publicKey) }))
@@ -80,5 +80,5 @@ it('clears a cancelled exchange and refuses to reuse it', () => {
 
 it('uses exactly the Rust signature bytes with a leading purpose', () => {
   const body = { deviceId: vector.response.deviceId, serverPublicKey: vector.response.serverPublicKey, expiresAt: vector.response.expiresAt }
-  expect(JSON.stringify([SignaturePurpose.WebApprovalResponse, vector.response.deviceId, vector.serverIdentity, vector.clientId, vector.request, body])).toBe(vector.signedPayload)
+  expect(JSON.stringify([SignaturePurpose.AuthServerHello, vector.response.deviceId, vector.serverIdentity, vector.clientId, vector.request, body])).toBe(vector.signedPayload)
 })

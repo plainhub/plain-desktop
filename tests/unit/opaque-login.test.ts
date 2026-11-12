@@ -21,13 +21,13 @@ const ke2 = new Uint8Array(320).fill(2)
 const ke3 = new Uint8Array(64).fill(3)
 const b64 = (bytes: Uint8Array) => Buffer.from(bytes).toString('base64')
 const utf8 = new TextEncoder()
-const context = Buffer.concat([utf8.encode('web-login'), utf8.encode('browser'), signingKey].flatMap(field => {
+const context = Buffer.concat([utf8.encode('LOGIN_PASSWORD'), utf8.encode('browser'), signingKey].flatMap(field => {
   const length = Buffer.alloc(4); length.writeUInt32BE(field.length)
   return [length, field]
 }))
 const hash = sha256(context)
 const key = hkdf(sha256, sessionKey, hash, utf8.encode('api'), 32)
-const aad = (response: boolean) => new Uint8Array([...utf8.encode(response ? 'auth-response' : 'auth-request'), ...hash])
+const aad = (response: boolean) => new Uint8Array([...utf8.encode(response ? 'AUTH_RESPONSE' : 'AUTH_REQUEST'), ...hash])
 const params = () => ({ passwordRequired: true, password: 'synthetic password', clientId: 'browser', initSignaturePublicKey: b64(signingKey), initOpaquePublicKey: b64(opaqueKey), expectedDeviceId: 'device' })
 
 class Socket {

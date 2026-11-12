@@ -81,7 +81,7 @@ afterEach(() => {
 
 function frame(key: Uint8Array, data: object) {
   const nonce = new Uint8Array(24).fill(9)
-  const cipher = xchacha20poly1305(key, nonce, new Uint8Array([...new TextEncoder().encode('auth-response'), ...Buffer.from(vector.fingerprint, 'hex')])).encrypt(
+  const cipher = xchacha20poly1305(key, nonce, new Uint8Array([...new TextEncoder().encode('AUTH_RESPONSE'), ...Buffer.from(vector.fingerprint, 'hex')])).encrypt(
     new TextEncoder().encode(JSON.stringify(data))
   )
   return new Blob([new Uint8Array([...nonce, ...cipher])])
@@ -120,7 +120,7 @@ it.each(['http:', 'https:'])(
     const request = new Uint8Array(socket.send.mock.calls[1][0])
     const decoded = JSON.parse(
       new TextDecoder().decode(
-        xchacha20poly1305(bytes(vector.key), request.slice(0, 24), new Uint8Array([...new TextEncoder().encode('auth-request'), ...Buffer.from(vector.fingerprint, 'hex')])).decrypt(request.slice(24))
+        xchacha20poly1305(bytes(vector.key), request.slice(0, 24), new Uint8Array([...new TextEncoder().encode('AUTH_REQUEST'), ...Buffer.from(vector.fingerprint, 'hex')])).decrypt(request.slice(24))
       )
     )
     expect(decoded).toEqual({
@@ -231,9 +231,9 @@ it('authenticates to A before delivering B login frames on the existing proxy UR
     return [length, value]
   }))
   const key = new Uint8Array(32).fill(5)
-  const initAad = fields(['plain-ws-init', path, 'fixture-browser'].map(value => utf8.encode(value)))
+  const initAad = fields(['WS_INIT', path, 'fixture-browser'].map(value => utf8.encode(value)))
   expect(JSON.parse(new TextDecoder().decode(xchacha20poly1305(key, init.subarray(0, 24), initAad).decrypt(init.subarray(24))))).toEqual({ clientNonce: expect.stringMatching(/^[a-f0-9]{64}$/) })
-  const ackAad = fields([...['plain-ws-ack', path, 'fixture-browser'].map(value => utf8.encode(value)), sha256(init)])
+  const ackAad = fields([...['WS_ACK', path, 'fixture-browser'].map(value => utf8.encode(value)), sha256(init)])
   const nonce = new Uint8Array(24).fill(9)
   const ack = xchacha20poly1305(key, nonce, ackAad).encrypt(utf8.encode(JSON.stringify({ serverNonce: 'a'.repeat(64) })))
   await socket.message(new Blob([new Uint8Array([...nonce, ...ack])]))
@@ -243,7 +243,7 @@ it('authenticates to A before delivering B login frames on the existing proxy UR
   expect(new DataView(confirm.buffer, confirm.byteOffset).getBigUint64(0)).toBe(1n)
   const binding = sha256(fields([init, new Uint8Array([...nonce, ...ack])]))
   const confirmAad = fields([
-    ...['plain-ws-frame', path, 'fixture-browser'].map(value => utf8.encode(value)),
+    ...['WS_FRAME', path, 'fixture-browser'].map(value => utf8.encode(value)),
     binding, utf8.encode('client'), confirm.subarray(0, 8),
   ])
   expect(xchacha20poly1305(key, confirm.subarray(8, 32), confirmAad).decrypt(confirm.subarray(32))).toEqual(new Uint8Array())

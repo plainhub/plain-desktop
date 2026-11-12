@@ -21,7 +21,7 @@ it('matches Rust cross-language handshakes and both ordered directions for all s
     const binding = hash(fields(bytes(vector.init), bytes(vector.ack)))
     for (const expected of vector.clientFrames) {
       const frame = crypto.encode(bytes(expected.plain))
-      const aad = fields(text('plain-ws-frame'), text(vector.path), text(vector.client), binding, text('client'), frame.subarray(0, 8))
+      const aad = fields(text('WS_FRAME'), text(vector.path), text(vector.client), binding, text('client'), frame.subarray(0, 8))
       expect(xchacha20poly1305(key, frame.subarray(8, 32), aad).decrypt(frame.subarray(32))).toEqual(bytes(expected.plain))
       expect(frame.subarray(0, 8)).toEqual(bytes(expected.frame).subarray(0, 8))
     }
@@ -40,7 +40,7 @@ it('matches Rust handshake nonce and object validation vectors', () => {
     for (const entry of cases) {
       const key = new Uint8Array(32).fill(7)
       const crypto = new WebSocketCrypto('client', key, path)
-      const aad = fields(text('plain-ws-ack'), text(path), text('client'), hash(crypto.registration))
+      const aad = fields(text('WS_ACK'), text(path), text('client'), hash(crypto.registration))
       const nonce = new Uint8Array(24).fill(42)
       const cipher = xchacha20poly1305(key, nonce, aad).encrypt(text(JSON.stringify(entry.body)))
       const ack = new Uint8Array(nonce.length + cipher.length)

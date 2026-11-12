@@ -1,3 +1,4 @@
+import { ResourcePurpose } from './aad-purpose.generated'
 import { FileAction, fileQuery, withFileAction } from './file-action'
 import { arrayBufferToHex } from '../strutil'
 import { getProxyUrl, getApiHeaders, getUrlToken } from './api'
@@ -155,12 +156,12 @@ export function tokenToKey(token: string): Uint8Array {
   return Uint8Array.from(atob(token), (c) => c.charCodeAt(0))
 }
 
-export function encryptUrlParams(key: Uint8Array | null, params: string, purpose = 'zip-files') {
+export function encryptUrlParams(key: Uint8Array | null, params: string) {
   if (!key) {
     return ''
   }
 
-  return encryptResourcePayload(key, currentResourceScope(), purpose, params)
+  return encryptResourcePayload(key, currentResourceScope(), ResourcePurpose.ZipFiles, params)
 }
 
 export function getChatFileId(key: Uint8Array | null, path: string): string {
@@ -177,7 +178,7 @@ export function getChatAttachmentUrl(
   const key = isLocalMode() ? tokenToKey(getUrlToken()) : sessionKey
   if (!key || !peerId || !reference.startsWith('fsid:')) return ''
   const scope = { mode: 'c' as const, id: getApiHeaders()['c-id'] }
-  const id = encryptResourcePayload(key, scope, `chat-attachment:${peerId}`, reference)
+  const id = encryptResourcePayload(key, scope, ResourcePurpose.Fs, reference)
   return getProxyUrl(`/proxy/${encodeURIComponent(peerId)}/fs?id=${encodeURIComponent(id)}${fileQuery(FileAction.Preview, query)}`)
 }
 
