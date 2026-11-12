@@ -30,7 +30,7 @@
       </div>
       <template v-else-if="tables.length > 0">
         <div class="scroll-content">
-          <div v-if="(rowsLoading || columnsLoading) && columns.length === 0" class="state-wrap">
+          <div v-if="rowsLoading && columns.length === 0" class="state-wrap">
             <v-circular-progress indeterminate />
           </div>
           <template v-else-if="columns.length > 0">
@@ -66,7 +66,8 @@
 import { ref, computed, watch, onActivated, onDeactivated } from 'vue'
 import { storeToRefs } from 'pinia'
 import { useTempStore } from '@/stores/temp'
-import { initQuery, initLazyQuery, dbTablesGQL, dbTableRowCountGQL, dbTableRowsGQL, dbTableInfoGQL, dbTableColumnsGQL, dbPathGQL } from '@/lib/api/query'
+import { initQuery, initLazyQuery, dbTablesGQL, dbTableRowCountGQL, dbTableRowsGQL, dbPathGQL } from '@/lib/api/query'
+import type { GqlResultType } from '@/lib/api/graphql/operations'
 import { initMutation, deleteDbTableRowsGQL } from '@/lib/api/mutation'
 import DevDataTable from './DevDataTable.vue'
 import DeveloperDatabaseSidebar from './DeveloperDatabaseSidebar.vue'
@@ -79,14 +80,15 @@ onDeactivated(() => { isActive.value = false })
 
 const { app } = storeToRefs(useTempStore())
 
-const tables = ref<string[]>([])
+const tables = ref<GqlResultType<'dbTablesGQL'>['dbTables']>([])
 const activeTable = ref('')
 const rows = ref<Record<string, string | null>[]>([])
 const totalCount = ref(0)
 const offset = ref(0)
 const deletingId = ref('')
-const idKey = ref('id')
-const infoColumns = ref<string[]>([])
+const selectedTable = computed(() => tables.value.find((table) => table.name === activeTable.value))
+const idKey = computed(() => selectedTable.value?.columns.find((column) => column.primaryKey)?.name ?? 'id')
+const infoColumns = computed(() => selectedTable.value?.columns.map((column) => column.name) ?? [])
 const dbPath = ref('')
 const pathOpen = ref(false)
 
@@ -107,11 +109,11 @@ const columns = computed(() =>
 const currentPage = computed(() => Math.floor(offset.value / PAGE_SIZE) + 1)
 
 const { loading: tablesLoading, refetch: refetchTables } = initQuery({
-  handle(data: { dbTables: string[] }, error: string) {
+  handle(data: GqlResultType<'dbTablesGQL'>, error: string) {
     if (!error) {
       tables.value = data?.dbTables ?? []
-      if (!tables.value.includes(activeTable.value)) {
-        selectTable(tables.value[0] ?? '')
+      if (!tables.value.some((table) => table.name === activeTable.value)) {
+        selectTable(tables.value[0]?.name ?? '')
       }
     }
   },
@@ -134,27 +136,9 @@ const { loading: rowsLoading, fetch: fetchRows } = initLazyQuery({
   document: dbTableRowsGQL,
 })
 
-const { fetch: fetchTableInfo } = initLazyQuery({
-  handle(data: { dbTableInfo: { idKey: string } | null }, error: string) {
-    if (!error && data?.dbTableInfo?.idKey) {
-      idKey.value = data.dbTableInfo.idKey
-    }
-  },
-  document: dbTableInfoGQL,
-})
-
-const { loading: columnsLoading, fetch: fetchColumns } = initLazyQuery({
-  handle(data: { dbTableColumns: { name: string }[] }, error: string) {
-    if (!error) infoColumns.value = (data?.dbTableColumns ?? []).map((c) => c.name)
-  },
-  document: dbTableColumnsGQL,
-})
-
 function loadTable(table: string) {
   if (!table) return
-  fetchTableInfo({ table }, { latest: true })
   fetchCount({ table }, { latest: true })
-  fetchColumns({ table }, { latest: true })
   fetchRows({ table, offset: offset.value, limit: PAGE_SIZE }, { latest: true })
 }
 
@@ -168,9 +152,7 @@ function selectTable(table: string) {
   activeTable.value = table
   offset.value = 0
   rows.value = []
-  infoColumns.value = []
   totalCount.value = 0
-  idKey.value = 'id'
 }
 
 watch(activeTable, (t) => {

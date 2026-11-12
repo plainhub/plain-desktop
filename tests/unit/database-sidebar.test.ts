@@ -1,20 +1,16 @@
-import { afterEach, expect, it, vi } from 'vitest'
-import { createSSRApp, h, nextTick } from 'vue'
+import { expect, it } from 'vitest'
+import { createSSRApp, h } from 'vue'
 import { renderToString } from 'vue/server-renderer'
 import DeveloperDatabaseSidebar from '@/views/developer/DeveloperDatabaseSidebar.vue'
 
-const { gqlFetch } = vi.hoisted(() => ({ gqlFetch: vi.fn() }))
-vi.mock('@/lib/api/gql-client', () => ({ gqlFetch, GqlError: class extends Error {} }))
-vi.mock('@/lib/api/subscription-client', () => ({ graphqlSubscriptions: { onAttached: () => () => {} } }))
-afterEach(() => { vi.clearAllMocks() })
-
-async function sidebar() {
+async function sidebar(helpTable = '') {
   const component = DeveloperDatabaseSidebar as any
   let state: any
   const app = createSSRApp({ ...component, setup(props: unknown, context: unknown) {
     state = component.setup(props, context)
+    state.helpTable.value = helpTable
     return state
-  } }, { tables: ['notes', 'feeds'], activeTable: 'notes', loading: false })
+  } }, { tables: [{ name: 'notes', createSql: 'CREATE TABLE notes (id TEXT)', columns: [] }, { name: 'feeds', createSql: sql, columns: [] }], activeTable: 'notes', loading: false })
   app.config.globalProperties.$t = (key: string) => key
   app.directive('tooltip', {})
   for (const name of ['Sidebar2', 'v-icon-button', 'v-filled-button']) {
@@ -41,37 +37,13 @@ const sql = `CREATE TABLE audio_queue_items (
 )`
 
 it('shows the original table SQL including CHECK constraints for an unselected table', async () => {
-  gqlFetch.mockResolvedValueOnce({ data: { dbTableInfo: { idKey: 'file_id', createSql: sql } } })
-  const { state } = await sidebar()
-  state.showTableSchema('feeds')
-  await nextTick()
-  expect(gqlFetch.mock.calls[0][1]).toEqual({ table: 'feeds' })
-  expect(state.helpTable.value).toBe('feeds')
-  expect(state.createSql.value).toBe(sql)
-  expect(state.schemaError.value).toBe('')
+  const { html } = await sidebar('feeds')
+  expect(html).toContain('CHECK(length(file_id)&gt;0)')
+  expect(html).toContain('CHECK(sort_order&gt;=0)')
 })
 
-it('discards older schema responses after switching tables', async () => {
-  let resolveFirst!: (value: unknown) => void
-  gqlFetch.mockImplementationOnce(() => new Promise(resolve => { resolveFirst = resolve }))
-  gqlFetch.mockResolvedValueOnce({ data: { dbTableInfo: { createSql: sql } } })
-  const { state } = await sidebar()
-  state.showTableSchema('notes')
-  state.showTableSchema('feeds')
-  await nextTick()
-  resolveFirst({ data: { dbTableInfo: { createSql: 'outdated SQL' } } })
-  await nextTick()
-  expect(state.createSql.value).toBe(sql)
-})
-
-it('clears previous SQL and shows query errors instead of stale schema', async () => {
-  gqlFetch.mockResolvedValueOnce({ data: { dbTableInfo: { createSql: sql } } })
-  gqlFetch.mockResolvedValueOnce({ errors: [{ message: 'permission_denied' }] })
-  const { state } = await sidebar()
-  state.showTableSchema('notes')
-  await nextTick()
-  state.showTableSchema('feeds')
-  await nextTick()
-  expect(state.createSql.value).toBe('')
-  expect(state.schemaError.value).toBe('permission_denied')
+it('shows only the requested table schema', async () => {
+  const { html } = await sidebar('notes')
+  expect(html).toContain('CREATE TABLE notes (id TEXT)')
+  expect(html).not.toContain('CREATE TABLE audio_queue_items')
 })

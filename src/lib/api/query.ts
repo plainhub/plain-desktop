@@ -945,7 +945,17 @@ export const prefsGQL = `
 
 export const dbTablesGQL = `
   query {
-    dbTables
+    dbTables {
+      name
+      createSql
+      columns {
+        name
+        dataType
+        notNull
+        defaultValue
+        primaryKey
+      }
+    }
   }
 `
 
@@ -958,27 +968,6 @@ export const dbTableRowCountGQL = `
 export const dbTableRowsGQL = `
   query DbTableRows($table: String!, $offset: Int!, $limit: Int!) {
     dbTableRows(table: $table, offset: $offset, limit: $limit)
-  }
-`
-
-export const dbTableInfoGQL = `
-  query DbTableInfo($table: String!) {
-    dbTableInfo(table: $table) {
-      createSql
-      idKey
-    }
-  }
-`
-
-export const dbTableColumnsGQL = `
-  query DbTableColumns($table: String!) {
-    dbTableColumns(table: $table) {
-      name
-      dataType
-      notNull
-      defaultValue
-      primaryKey
-    }
   }
 `
 

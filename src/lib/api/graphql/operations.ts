@@ -910,31 +910,6 @@ export interface GqlOperations {
     }
     variables: undefined
   }
-  dbTableColumnsGQL: {
-    result: {
-      dbTableColumns: Array<{
-        name: string
-        dataType: 'TEXT' | 'INTEGER' | 'REAL' | 'BLOB' | 'NUMERIC' | 'UNKNOWN'
-        notNull: boolean
-        defaultValue?: string
-        primaryKey: boolean
-      }>
-    }
-    variables: {
-      table: string
-    }
-  }
-  dbTableInfoGQL: {
-    result: {
-      dbTableInfo: {
-        createSql: string
-        idKey: string
-      }
-    }
-    variables: {
-      table: string
-    }
-  }
   dbTableRowCountGQL: {
     result: {
       dbTableRowCount: number
@@ -955,7 +930,17 @@ export interface GqlOperations {
   }
   dbTablesGQL: {
     result: {
-      dbTables: Array<string>
+      dbTables: Array<{
+        name: string
+        createSql: string
+        columns: Array<{
+          name: string
+          dataType: 'TEXT' | 'INTEGER' | 'REAL' | 'BLOB' | 'NUMERIC' | 'UNKNOWN'
+          notNull: boolean
+          defaultValue?: string
+          primaryKey: boolean
+        }>
+      }>
     }
     variables: undefined
   }
