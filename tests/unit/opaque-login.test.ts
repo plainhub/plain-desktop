@@ -81,7 +81,7 @@ it('exchanges only binary OPAQUE frames and encrypted metadata, without password
   const request = socket.send.mock.calls[1][0] as Uint8Array
   expect(request.slice(0, 64)).toEqual(ke3)
   const body = JSON.parse(new TextDecoder().decode(xchacha20poly1305(key, request.slice(64, 88), aad(false)).decrypt(request.slice(88))))
-  expect(body).toEqual({ appName: 'Fixture', appVersion: '1', osName: 'Fixture', osVersion: '2', isMobile: false })
+  expect(body).toEqual({ appName: 'Fixture', appVersion: '1', osName: 'Fixture', osVersion: '2' })
   await socket.message(reply({ status: 'COMPLETED', clientId: 'device', chatPaired: false }))
   await expect(promise).resolves.toEqual({ clientId: 'device', token: b64(key), signaturePublicKey: b64(signingKey), opaquePublicKey: b64(opaqueKey), chatPaired: false })
   expect(result.apiKey.every(value => value === 0)).toBe(true)

@@ -123,9 +123,11 @@ it.each(['http:', 'https:'])(
         xchacha20poly1305(bytes(vector.key), request.slice(0, 24), new Uint8Array([...new TextEncoder().encode('auth-request'), ...Buffer.from(vector.fingerprint, 'hex')])).decrypt(request.slice(24))
       )
     )
-    expect(decoded).toMatchObject({
+    expect(decoded).toEqual({
       appName: 'Fixture',
       appVersion: '1',
+      osName: 'Fixture',
+      osVersion: '1',
     })
     expect(decoded).not.toHaveProperty('password')
     await socket.message(frame(bytes(vector.key), { status: 'PENDING' }))

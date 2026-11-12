@@ -37,7 +37,6 @@ async function createLoginMetadata(params: LoginHandshakeParams) {
     appVersion: agent.browser.version,
     osName: agent.os.name,
     osVersion: agent.os.version,
-    isMobile: agent.isMobile,
     ...(params.peer ? { peer: params.peer } : {}),
   }
 }
