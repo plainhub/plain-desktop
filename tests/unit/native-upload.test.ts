@@ -30,8 +30,20 @@ function deferred<T>() {
   const promise = new Promise<T>(done => { resolve = done })
   return { promise, resolve }
 }
+function fixtureBytes(size: number) {
+  const bytes = new Uint8Array(size)
+  for (let i = 0; i < size; i++) bytes[i] = (i * 31 + (i >> 8)) & 255
+  return bytes
+}
+
+it('preserves synthetic fixture bytes at pattern and window boundaries', () => {
+  for (const size of [0, 1, 255, 256, 257, WINDOW - 1, WINDOW, WINDOW + 1]) {
+    expect(fixtureBytes(size)).toEqual(Uint8Array.from({ length: size }, (_, i) => (i * 31 + (i >> 8)) & 255))
+  }
+})
+
 function fixture(size = CHUNK + WINDOW + 17, id = 'file') {
-  const bytes = Uint8Array.from({ length: size }, (_, i) => (i * 31 + (i >> 8)) & 255)
+  const bytes = fixtureBytes(size)
   const file = new File([bytes], 'sample.bin')
   const reads: number[] = []
   const fullRead = vi.fn()
