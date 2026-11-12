@@ -334,6 +334,10 @@ fn png_payload_matches(bytes: &[u8], width: u32, height: u32) -> bool {
         && bytes[16..20] == width.to_be_bytes()
         && bytes[20..24] == height.to_be_bytes();
     header_matches
-        && image::load_from_memory(bytes)
+        && plain_libs::image::load_from_memory_with_format(bytes, plain_libs::image::ImageFormat::Png)
             .is_ok_and(|decoded| decoded.width() == width && decoded.height() == height)
 }
+
+#[cfg(test)]
+#[path = "../../../../tests/unit/commands/screen_capture/buffers.rs"]
+mod shared_image_tests;

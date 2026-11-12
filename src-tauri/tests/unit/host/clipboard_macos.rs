@@ -1,5 +1,5 @@
 use super::*;
-use image::ImageEncoder;
+use plain_libs::image::ImageEncoder;
 
 #[test]
 fn named_pasteboard_preserves_unicode_concealment_and_image() {
@@ -23,8 +23,8 @@ fn named_pasteboard_preserves_unicode_concealment_and_image() {
         assert!(write_png_to(&pasteboard, b"invalid PNG").is_err());
         assert_eq!(read_from(&pasteboard).unwrap().text, text);
         let mut png = Vec::new();
-        image::codecs::png::PngEncoder::new(&mut png)
-            .write_image(&[10, 20, 30, 40], 1, 1, image::ExtendedColorType::Rgba8)
+        plain_libs::image::codecs::png::PngEncoder::new(&mut png)
+            .write_image(&[10, 20, 30, 40], 1, 1, plain_libs::image::ExtendedColorType::Rgba8)
             .unwrap();
         write_png_to(&pasteboard, &png).unwrap();
         assert!(read_from(&pasteboard).is_none());

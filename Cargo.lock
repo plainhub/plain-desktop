@@ -470,7 +470,7 @@ dependencies = [
 [[package]]
 name = "block2"
 version = "0.6.2"
-source = "git+https://github.com/plainhub/plain-core.git?branch=main#b5395f601a5a4563196550af8bcc19cfb0c41037"
+source = "git+https://github.com/plainhub/plain-core.git?branch=main#a3882de2e85b644f294b0ad81c40b35060fb6a6c"
 dependencies = [
  "objc2 0.6.5",
 ]
@@ -1261,7 +1261,7 @@ dependencies = [
 [[package]]
 name = "dispatch2"
 version = "0.3.1"
-source = "git+https://github.com/plainhub/plain-core.git?branch=main#b5395f601a5a4563196550af8bcc19cfb0c41037"
+source = "git+https://github.com/plainhub/plain-core.git?branch=main#a3882de2e85b644f294b0ad81c40b35060fb6a6c"
 dependencies = [
  "objc2 0.6.5",
 ]
@@ -2119,7 +2119,7 @@ checksum = "2304e00983f87ffb38b55b444b5e3b60a884b5d30c0fca7d82fe33449bbe55ea"
 [[package]]
 name = "heic-rs"
 version = "0.1.4"
-source = "git+https://github.com/plainhub/plain-core.git?branch=main#b5395f601a5a4563196550af8bcc19cfb0c41037"
+source = "git+https://github.com/plainhub/plain-core.git?branch=main#a3882de2e85b644f294b0ad81c40b35060fb6a6c"
 
 [[package]]
 name = "hermit-abi"
@@ -3040,7 +3040,7 @@ dependencies = [
 [[package]]
 name = "objc2"
 version = "0.6.5"
-source = "git+https://github.com/plainhub/plain-core.git?branch=main#b5395f601a5a4563196550af8bcc19cfb0c41037"
+source = "git+https://github.com/plainhub/plain-core.git?branch=main#a3882de2e85b644f294b0ad81c40b35060fb6a6c"
 dependencies = [
  "objc2-encode 4.1.0 (git+https://github.com/plainhub/plain-core.git?branch=main)",
 ]
@@ -3062,7 +3062,7 @@ dependencies = [
 [[package]]
 name = "objc2-av-foundation"
 version = "0.3.2"
-source = "git+https://github.com/plainhub/plain-core.git?branch=main#b5395f601a5a4563196550af8bcc19cfb0c41037"
+source = "git+https://github.com/plainhub/plain-core.git?branch=main#a3882de2e85b644f294b0ad81c40b35060fb6a6c"
 dependencies = [
  "bitflags 2.13.2",
  "block2 0.6.2 (git+https://github.com/plainhub/plain-core.git?branch=main)",
@@ -3109,7 +3109,7 @@ dependencies = [
 [[package]]
 name = "objc2-core-foundation"
 version = "0.3.2"
-source = "git+https://github.com/plainhub/plain-core.git?branch=main#b5395f601a5a4563196550af8bcc19cfb0c41037"
+source = "git+https://github.com/plainhub/plain-core.git?branch=main#a3882de2e85b644f294b0ad81c40b35060fb6a6c"
 dependencies = [
  "bitflags 2.13.2",
  "objc2 0.6.5",
@@ -3152,7 +3152,7 @@ dependencies = [
 [[package]]
 name = "objc2-core-media"
 version = "0.3.2"
-source = "git+https://github.com/plainhub/plain-core.git?branch=main#b5395f601a5a4563196550af8bcc19cfb0c41037"
+source = "git+https://github.com/plainhub/plain-core.git?branch=main#a3882de2e85b644f294b0ad81c40b35060fb6a6c"
 dependencies = [
  "bitflags 2.13.2",
  "objc2 0.6.5",
@@ -3174,7 +3174,7 @@ dependencies = [
 [[package]]
 name = "objc2-core-video"
 version = "0.3.2"
-source = "git+https://github.com/plainhub/plain-core.git?branch=main#b5395f601a5a4563196550af8bcc19cfb0c41037"
+source = "git+https://github.com/plainhub/plain-core.git?branch=main#a3882de2e85b644f294b0ad81c40b35060fb6a6c"
 dependencies = [
  "bitflags 2.13.2",
  "objc2 0.6.5",
@@ -3190,7 +3190,7 @@ checksum = "ef25abbcd74fb2609453eb695bd2f860d389e457f67dc17cafc8b8cbc89d0c33"
 [[package]]
 name = "objc2-encode"
 version = "4.1.0"
-source = "git+https://github.com/plainhub/plain-core.git?branch=main#b5395f601a5a4563196550af8bcc19cfb0c41037"
+source = "git+https://github.com/plainhub/plain-core.git?branch=main#a3882de2e85b644f294b0ad81c40b35060fb6a6c"
 
 [[package]]
 name = "objc2-exception-helper"
@@ -3217,7 +3217,7 @@ dependencies = [
 [[package]]
 name = "objc2-foundation"
 version = "0.3.2"
-source = "git+https://github.com/plainhub/plain-core.git?branch=main#b5395f601a5a4563196550af8bcc19cfb0c41037"
+source = "git+https://github.com/plainhub/plain-core.git?branch=main#a3882de2e85b644f294b0ad81c40b35060fb6a6c"
 dependencies = [
  "bitflags 2.13.2",
  "objc2 0.6.5",
@@ -3612,7 +3612,7 @@ checksum = "f6b464fbc74e149a392436b17d523f769e057cb6877f6a5c4618bc6f11800548"
 [[package]]
 name = "plain-graphql"
 version = "0.1.0"
-source = "git+https://github.com/plainhub/plain-core.git?branch=main#b5395f601a5a4563196550af8bcc19cfb0c41037"
+source = "git+https://github.com/plainhub/plain-core.git?branch=main#a3882de2e85b644f294b0ad81c40b35060fb6a6c"
 dependencies = [
  "bytes",
  "futures-util",
@@ -3624,20 +3624,18 @@ dependencies = [
 [[package]]
 name = "plain-graphql-macros"
 version = "0.1.0"
-source = "git+https://github.com/plainhub/plain-core.git?branch=main#b5395f601a5a4563196550af8bcc19cfb0c41037"
+source = "git+https://github.com/plainhub/plain-core.git?branch=main#a3882de2e85b644f294b0ad81c40b35060fb6a6c"
 dependencies = [
  "proc-macro2",
  "quote",
  "syn 2.0.119",
- "thiserror 2.0.21",
 ]
 
 [[package]]
 name = "plain-libs"
 version = "0.1.0"
-source = "git+https://github.com/plainhub/plain-core.git?branch=main#b5395f601a5a4563196550af8bcc19cfb0c41037"
+source = "git+https://github.com/plainhub/plain-core.git?branch=main#a3882de2e85b644f294b0ad81c40b35060fb6a6c"
 dependencies = [
- "async-trait",
  "atomic-waker",
  "bitflags 2.13.2",
  "bytes",
@@ -3648,7 +3646,6 @@ dependencies = [
  "der 0.8.2",
  "des",
  "ed25519-dalek",
- "fnv",
  "form_urlencoded",
  "futures-channel",
  "futures-core",
@@ -3688,12 +3685,9 @@ dependencies = [
  "slab",
  "smallvec",
  "socket2",
- "thiserror 2.0.21",
  "tokio",
  "tokio-rustls",
  "tokio-util",
- "tower-layer",
- "tower-service",
  "tracing",
  "url",
  "wasm-bindgen",
@@ -3706,7 +3700,7 @@ dependencies = [
 [[package]]
 name = "plain-rs"
 version = "0.1.0"
-source = "git+https://github.com/plainhub/plain-core.git?branch=main#b5395f601a5a4563196550af8bcc19cfb0c41037"
+source = "git+https://github.com/plainhub/plain-core.git?branch=main#a3882de2e85b644f294b0ad81c40b35060fb6a6c"
 dependencies = [
  "block2 0.6.2 (git+https://github.com/plainhub/plain-core.git?branch=main)",
  "bytes",
@@ -3739,7 +3733,7 @@ dependencies = [
 [[package]]
 name = "plain-server"
 version = "0.1.0"
-source = "git+https://github.com/plainhub/plain-core.git?branch=main#b5395f601a5a4563196550af8bcc19cfb0c41037"
+source = "git+https://github.com/plainhub/plain-core.git?branch=main#a3882de2e85b644f294b0ad81c40b35060fb6a6c"
 dependencies = [
  "futures-util",
  "log",
@@ -4067,7 +4061,7 @@ checksum = "63b8176103e19a2643978565ca18b50549f6101881c443590420e4dc998a3c69"
 [[package]]
 name = "rav1d"
 version = "1.1.0"
-source = "git+https://github.com/plainhub/plain-core.git?branch=main#b5395f601a5a4563196550af8bcc19cfb0c41037"
+source = "git+https://github.com/plainhub/plain-core.git?branch=main#a3882de2e85b644f294b0ad81c40b35060fb6a6c"
 dependencies = [
  "bitflags 2.13.2",
  "cfg-if",
@@ -5722,11 +5716,10 @@ dependencies = [
 [[package]]
 name = "undoc"
 version = "0.27.3"
-source = "git+https://github.com/plainhub/plain-core.git?branch=main#b5395f601a5a4563196550af8bcc19cfb0c41037"
+source = "git+https://github.com/plainhub/plain-core.git?branch=main#a3882de2e85b644f294b0ad81c40b35060fb6a6c"
 dependencies = [
  "plain-libs",
  "serde",
- "thiserror 2.0.21",
 ]
 
 [[package]]
@@ -6809,7 +6802,7 @@ dependencies = [
 [[package]]
 name = "zerocopy"
 version = "0.7.35"
-source = "git+https://github.com/plainhub/plain-core.git?branch=main#b5395f601a5a4563196550af8bcc19cfb0c41037"
+source = "git+https://github.com/plainhub/plain-core.git?branch=main#a3882de2e85b644f294b0ad81c40b35060fb6a6c"
 dependencies = [
  "zerocopy-derive 0.7.35",
 ]
@@ -6826,7 +6819,7 @@ dependencies = [
 [[package]]
 name = "zerocopy-derive"
 version = "0.7.35"
-source = "git+https://github.com/plainhub/plain-core.git?branch=main#b5395f601a5a4563196550af8bcc19cfb0c41037"
+source = "git+https://github.com/plainhub/plain-core.git?branch=main#a3882de2e85b644f294b0ad81c40b35060fb6a6c"
 dependencies = [
  "proc-macro2",
  "quote",

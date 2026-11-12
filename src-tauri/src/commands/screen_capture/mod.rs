@@ -14,7 +14,7 @@ pub mod window;
 
 #[cfg(test)]
 pub(crate) fn png_fixture(width: u32, height: u32) -> Vec<u8> {
-    use image::{ExtendedColorType, ImageEncoder, codecs::png::PngEncoder};
+    use plain_libs::image::{ExtendedColorType, ImageEncoder, codecs::png::PngEncoder};
 
     let pixels = vec![0x5a; width as usize * height as usize * 4];
     let mut encoded = Vec::new();

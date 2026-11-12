@@ -53,7 +53,7 @@ pub(super) fn write_text<R: tauri::Runtime>(_app: &AppHandle<R>, text: &str) -> 
 pub(crate) fn write_image<R: tauri::Runtime>(
     _app: &AppHandle<R>,
     _png: &[u8],
-    _decoded: image::DynamicImage,
+    _decoded: plain_libs::image::DynamicImage,
 ) -> Result<(), String> {
     #[cfg(target_os = "macos")]
     return macos::write_png(_png);

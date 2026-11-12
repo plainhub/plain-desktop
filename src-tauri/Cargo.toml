@@ -19,7 +19,7 @@ crate-type = ["rlib"]
 tauri-build = { version = "2", features = [] }
 
 [dependencies]
-plain-libs = { git = "https://github.com/plainhub/plain-core.git", branch = "main", default-features = false }
+plain-libs = { git = "https://github.com/plainhub/plain-core.git", branch = "main", default-features = false, features = ["image"] }
 plain-rs = { git = "https://github.com/plainhub/plain-core.git", branch = "main", default-features = false, features = ["crypto", "chat", "library", "prefs", "mdns", "filesystem", "tls"] }
 tauri = { version = "2", features = ["devtools"] }
 serde = { version = "1", features = ["derive"] }
@@ -32,10 +32,6 @@ tauri-plugin-fs = "2"
 tauri-plugin-global-shortcut = "=2.3.2"
 # Shared server assembly, with core and media dependencies.
 plain_server = { git = "https://github.com/plainhub/plain-core.git", branch = "main", package = "plain-server", features = ["core", "media", "http_transport"] }
-
-# PNG encode/decode for capture results and fixtures. Previously reached
-# through xcap's re-export; the capture stack is now self-owned.
-image = { version = "0.25", default-features = false, features = ["png"] }
 
 [target.'cfg(target_os = "macos")'.dependencies]
 objc2 = "0.6"

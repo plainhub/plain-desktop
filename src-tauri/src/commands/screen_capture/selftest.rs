@@ -120,7 +120,7 @@ fn write_frame_png(
     frame: crate::commands::screen_capture::contract::CapturedFrame,
     stem: &str,
 ) -> Result<(), CaptureError> {
-    use image::{ExtendedColorType, ImageEncoder, codecs::png::PngEncoder};
+    use plain_libs::image::{ExtendedColorType, ImageEncoder, codecs::png::PngEncoder};
 
     let width = frame.descriptor().width;
     let height = frame.descriptor().height;
