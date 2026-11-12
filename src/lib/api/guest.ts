@@ -38,7 +38,7 @@ export interface SharedInfo {
   name: string
   readOnly: boolean
   requiresPassword: boolean
-  expiresAt: number | null
+  expiresAt: string | null
   urlToken: string
   entries: SharedFile[]
 }

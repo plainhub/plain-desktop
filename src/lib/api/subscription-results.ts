@@ -61,7 +61,7 @@ export interface SubscriptionResults {
   smsSendResult: { requestId: string | null; success: boolean; resultCode: number | null }
   mmsSendResult: { pendingId: string; success: boolean; resultCode: number | null }
   mmsSent: string
-  clipboardChanged: { text: string; sensitive: boolean; time: number }
+  clipboardChanged: { text: string; sensitive: boolean; time: string }
 }
 export type SubscriptionField = keyof SubscriptionResults
 

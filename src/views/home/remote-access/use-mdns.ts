@@ -20,7 +20,7 @@ export interface MdnsServiceSnapshot {
 }
 
 export interface MdnsActivity {
-  time: number
+  time: string
   event: string
   detail: string
 }

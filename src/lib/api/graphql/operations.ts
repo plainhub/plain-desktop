@@ -766,7 +766,7 @@ export interface GqlOperations {
       clipboardChanged: {
         text: string
         sensitive: boolean
-        time: number
+        time: string
       }
     }
     variables: undefined

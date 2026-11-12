@@ -15,7 +15,8 @@ vi.mock('@/lib/api/crypto', async original => ({
   bitArrayToBase64: vi.fn(),
 }))
 
-import { guestFetch } from '@/lib/api/guest'
+import { guestFetch, type SharedInfo } from '@/lib/api/guest'
+import { decryptGraphqlResponse } from '@/lib/api/crypto'
 import { useShareData } from '@/views/share/hooks/useShareData'
 
 beforeEach(() => {
@@ -61,4 +62,12 @@ it('preserves the unauthorized state for a well-formed but rejected share key', 
   expect(share.errorCode.value).toBe('unauthorized')
   expect(share.entries.value).toEqual([])
   expect(request).toHaveBeenCalledTimes(1)
+})
+
+it.each(['2026-11-12T08:09:10.123Z', null])('preserves nullable RFC3339 share expiry (%s)', async expiresAt => {
+  const info: SharedInfo = { name: 'Fixture', readOnly: true, requiresPassword: false, expiresAt, urlToken: 'fixture', entries: [] }
+  request.mockResolvedValue(new Response(new Uint8Array(40)))
+  vi.mocked(decryptGraphqlResponse).mockReturnValue(JSON.stringify({ data: { sharedInfo: info } }))
+  const result = await guestFetch<{ sharedInfo: SharedInfo }>('share', new Uint8Array(32), '{ sharedInfo { expiresAt } }')
+  expect(result.data.sharedInfo.expiresAt).toBe(expiresAt)
 })
