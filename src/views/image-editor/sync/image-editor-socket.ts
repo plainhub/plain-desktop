@@ -1,15 +1,9 @@
-import { WebSocketCrypto } from '@/lib/api/websocket-crypto'
-import { parseWebSocketData } from '@/lib/api/sjcl-arraybuffer'
+import { BrowserSocket } from '@/lib/api/browser-socket'
 import { openNativeSocket, type NativeSocketConnection } from '@/lib/api/native-socket'
-import { getWebSocketBaseUrl } from '@/lib/api/api'
-import { tokenToKey } from '@/lib/api/file'
-import { openSocket } from '@/lib/api/http'
-import { getRemoteClientId, getDesktopClientId } from '@/lib/device/client-id'
 import { getCurrentAuthToken } from '@/lib/device/current'
 
 export class ImageEditorSocket {
-  private socket: WebSocket | null = null
-  private handshakeDeadline: ReturnType<typeof setTimeout> | undefined
+  private socket: BrowserSocket | null = null
   private native: NativeSocketConnection | null = null
   private retry: ReturnType<typeof setTimeout> | undefined
   private stopped = true
@@ -42,65 +36,21 @@ export class ImageEditorSocket {
     }
     const token = getCurrentAuthToken()
     if (!token) return
-    const key = tokenToKey(token)
-    const url = new URL('/image_editor', getWebSocketBaseUrl())
-    const clientId = getDesktopClientId()
-    url.searchParams.set('cid', clientId)
-    let socket: WebSocket
     try {
-      socket = openSocket(url.toString(), getRemoteClientId())
+      this.socket = new BrowserSocket('/image_editor', token, {
+        disconnected: () => {
+          this.socket = null
+          this.scheduleRetry()
+        },
+        events: {
+          IMAGE_EDITOR_READY: () => this.onReady(),
+          IMAGE_EDITOR_UPDATE: data => this.onUpdate(data),
+        },
+      })
     } catch (error) {
       console.error(error)
       this.scheduleRetry()
-      return
     }
-    this.socket = socket
-    socket.binaryType = 'arraybuffer'
-    let crypto: WebSocketCrypto | null = null
-    let acknowledged = false
-    this.handshakeDeadline = setTimeout(() => {
-      if (this.socket !== socket) return
-      crypto = null
-      socket.close(1008, 'handshake_timeout')
-    }, 10000)
-    socket.onopen = () => {
-      if (this.socket !== socket) return
-      try {
-        crypto = new WebSocketCrypto(clientId, key, '/image_editor')
-        socket.send(crypto.registration)
-      } catch (error) {
-        console.error(error)
-        socket.close(1008, 'invalid_handshake')
-      }
-    }
-    socket.onmessage = (message: MessageEvent) => {
-      if (this.socket !== socket) return
-      try {
-        if (!crypto || !(message.data instanceof ArrayBuffer)) throw new Error('Invalid image editor frame')
-        if (!acknowledged) {
-          crypto.acknowledge(new Uint8Array(message.data))
-          socket.send(crypto.encode(new Uint8Array()))
-          acknowledged = true
-          clearTimeout(this.handshakeDeadline)
-          return
-        }
-        const packet = parseWebSocketData(crypto.decode(new Uint8Array(message.data)))
-        if (packet.type === 'IMAGE_EDITOR_READY') this.onReady()
-        else if (packet.type === 'IMAGE_EDITOR_UPDATE') this.onUpdate(packet.data)
-        else throw new Error('Invalid image editor event')
-      } catch (error) {
-        console.error(error)
-        crypto = null
-        socket.close(1008, 'invalid_event')
-      }
-    }
-    socket.onclose = () => {
-      if (this.socket !== socket) return
-      clearTimeout(this.handshakeDeadline)
-      this.socket = null
-      this.scheduleRetry()
-    }
-    socket.onerror = () => socket.close()
   }
 
   private scheduleRetry() {
@@ -108,7 +58,6 @@ export class ImageEditorSocket {
   }
 
   disconnect() {
-    clearTimeout(this.handshakeDeadline)
     this.stopped = true
     this.native?.close()
     this.native = null
