@@ -17,7 +17,6 @@ export interface Fragment_AppFragment {
   deviceName: string
   deviceType: 'COMPUTER' | 'PHONE' | 'TABLET' | 'TV' | 'NAS' | 'OTHER'
   capabilities: Array<'ADB' | 'BLE' | 'WIFI_AWARE' | 'APP_RELAUNCH' | 'MEDIA_TRASH' | 'MEDIA_DELETE' | 'MEDIA_MOVE' | 'MEDIA_FAVORITE' | 'VIDEO_REMUX' | 'VIDEO_TRANSCODE' | 'APP_UPDATES' | 'MIRROR_AUDIO' | 'MEDIA_SCAN' | 'TELEPHONY' | 'PACKAGES' | 'SCREEN_MIRROR' | 'NOTIFICATIONS' | 'CLIPBOARD' | 'DISK_MANAGER'>
-  buildChannel: 'GITHUB' | 'GOOGLE' | 'FDROID'
   access: Array<'IMAGES' | 'VIDEOS' | 'AUDIO' | 'DOCS' | 'FILES' | 'CONTACTS' | 'SMS' | 'CALLS' | 'CALL_PHONE' | 'PHONE_NUMBER' | 'APPS' | 'NOTIFICATIONS' | 'CLIPBOARD' | 'ADB'>
   downloadsDir: string
   developerMode: boolean
@@ -1854,7 +1853,7 @@ export interface GqlOperations {
         platform: string
         lastSeen: string
         status: 'PAIRED' | 'UNPAIRED' | 'CHANNEL'
-        discoveryMethods: Array<'LAN' | 'DNS_SD' | 'BLE' | 'QR'>
+        discoveryMethods: Array<'LAN' | 'BLE' | 'QR'>
         remoteAccess?: boolean
       }>
       isDiscovering: boolean
@@ -2231,7 +2230,7 @@ export interface GqlOperations {
     }
     variables: {
       mediaId: string
-      type: 'AUDIO' | 'VIDEO' | 'IMAGE' | 'DOC'
+      type: 'AUDIO' | 'VIDEO'
       positionMs: number
     }
   }
@@ -2432,7 +2431,7 @@ export interface GqlOperations {
     }
     variables: {
       mediaId: string
-      type: 'AUDIO' | 'VIDEO' | 'IMAGE' | 'DOC'
+      type: 'AUDIO' | 'VIDEO'
       positionMs: number
     }
   }
@@ -2493,12 +2492,12 @@ export interface GqlOperations {
     }
     variables: undefined
   }
-  sendChatItemGQL: {
+  sendChatItemsGQL: {
     result: {
-      sendChatItem: Array<Fragment_ChatItemFragment>
+      sendChatItems: Array<Fragment_ChatItemFragment>
     }
     variables: {
-      target: string
+      targets: Array<string>
       content: string
     }
   }

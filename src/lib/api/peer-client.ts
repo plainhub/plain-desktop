@@ -1,11 +1,6 @@
-import { deviceBaseUrl } from './api'
 import { encryptedGqlPost, nativeGqlFetch, type GqlResult } from './gql-client'
 import type { LoginPeer } from '../device/login-peers'
-import { peerHost } from '../device/login-peers'
-
-export function getPeerBaseUrl(peer: LoginPeer): string {
-  return peer.address?.baseUrl || deviceBaseUrl(peerHost(peer))
-}
+import { getPeerBaseUrl } from '../device/login-peers'
 
 // Uses the peer's own authenticated session, independently of the selected device.
 export async function gqlFetchPeer<T = any>(

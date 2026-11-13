@@ -12,15 +12,15 @@ async function localData<T>(query: string, variables?: Record<string, unknown>):
   return result.data
 }
 
-export type LoginPeer = IPeer & { token: string; publicKey: string; address?: { bestIp: string; baseUrl: string } }
-
-export function getPeerIp(p: { ip: string }): string {
-  return p.ip.split(',')[0]?.trim() || ''
-}
+export type LoginPeer = IPeer & { token: string; publicKey: string }
 
 export function peerHost(p: IPeer): string {
-  const ip = getPeerIp(p)
+  const ip = p.ip
   return p.port && ip ? `${ip.includes(':') ? `[${ip}]` : ip}:${p.port}` : ''
+}
+
+export function getPeerBaseUrl(peer: IPeer): string {
+  return new URL(`https://${peerHost(peer)}`).origin
 }
 
 export const loginPeers = ref<LoginPeer[]>([])
@@ -45,7 +45,7 @@ async function refreshLoginPeers(): Promise<void> {
     while (refreshPending) {
       refreshPending = false
       try {
-        const result = await localData<{ peers: LoginPeer[] }>('query { peers { id name ip status port deviceType token publicKey createdAt updatedAt online address { bestIp baseUrl } } }')
+        const result = await localData<{ peers: LoginPeer[] }>('query { peers { id name ip status port deviceType token publicKey createdAt updatedAt online } }')
         const peers = result.peers.filter((peer) => !!peer.token).sort((a, b) => b.createdAt.localeCompare(a.createdAt) || a.id.localeCompare(b.id))
         const previous = new Map(loginPeers.value.map(peer => [peer.id, peer]))
         for (const peer of peers) {

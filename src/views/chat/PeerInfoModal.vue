@@ -3,7 +3,7 @@
     <template #headline>{{ $t('device_info') }}</template>
     <template #content>
       <ul v-if="peer" class="card list-items">
-        <v-list-item :title="$t('ip_address')" :value="peer ? getPeerIp(peer) : ''" />
+        <v-list-item :title="$t('ip_address')" :value="peer ? peer.ip : ''" />
         <v-list-item :title="$t('port')" :value="peer.port == null ? '' : String(peer.port)" />
         <v-list-item :title="$t('device_type')" :value="deviceTypeText" />
         <v-list-item v-if="statusText" :title="$t('status')">
@@ -26,7 +26,6 @@ import { useI18n } from 'vue-i18n'
 import type { IPeer } from '@/lib/interfaces'
 import { popModal } from '@/components/modal'
 import { DeviceType, PeerStatus } from '@/lib/status'
-import { getPeerIp } from '@/lib/device/login-peers'
 
 const { t } = useI18n()
 

@@ -76,7 +76,7 @@ it('keeps identical and metadata-only refreshes on the same revision and pending
   io.native.mockImplementationOnce(() => pending.promise)
   const first = gqlFetch('query { result }')
   await preloadLoginPeers()
-  snapshot = [{ ...original, name: 'Renamed', online: true, updatedAt: 'later', address: { bestIp: '192.0.2.1', baseUrl: 'https://peer.test' } }]
+  snapshot = [{ ...original, name: 'Renamed', online: true, updatedAt: 'later' }]
   await preloadLoginPeers()
   const second = gqlFetch('query { result }')
   expect(getLoginPeerRevision('peer')).toBe(before)

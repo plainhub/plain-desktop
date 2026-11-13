@@ -45,7 +45,7 @@ const props = defineProps<
 >()
 const emit = defineEmits<{ connect: [action: ReturnType<typeof nearbyPairAction>]; cancel: []; remove: [] }>()
 const identity = computed(() => (props.peer ?? props.device)!)
-const ip = computed(() => props.device?.bestIp || props.device?.ips.join(', ') || props.peer?.ip || '')
+const ip = computed(() => props.peer ? props.peer.ip : props.device?.bestIp || props.device?.ips.join(', ') || '')
 const action = computed(() => nearbyPairAction(props.peer, props.device, props.fullControl))
 const actionLabel = computed(() => ({ switch: 'switch', control: 'pairing_full_control', pair: 'pair', chat: 'pairing_chat_only' })[action.value])
 const menuId = computed(() => `nearby-actions-${identity.value.id}`)

@@ -14,7 +14,7 @@ vi.mock('@/lib/api/http', () => ({ httpRequest: fixture.http }))
 vi.mock('@/lib/device/local-mode', () => ({ isLocalMode: () => fixture.local }))
 vi.mock('@/lib/device/client-id', () => ({ getActiveClientId: () => fixture.selected || 'self', getRemoteClientId: () => fixture.selected }))
 vi.mock('@/lib/device/current', () => ({ getCurrentAuthToken: () => 'selected-session', clearCurrentSession: vi.fn() }))
-vi.mock('@/lib/device/login-peers', () => ({ getLoginPeerRevision: () => 1, peerHost: (peer: LoginPeer) => `${peer.ip}:${peer.port}` }))
+vi.mock('@/lib/device/login-peers', async original => ({ ...(await original<typeof import('@/lib/device/login-peers')>()), getLoginPeerRevision: () => 1 }))
 vi.mock('@/lib/api/file', () => ({ tokenToKey: fixture.key }))
 vi.mock('@/lib/api/time-sync', () => ({ wrapWithReplayProtection: (value: string) => value }))
 vi.mock('@/lib/api/crypto', async original => ({
@@ -26,7 +26,7 @@ vi.mock('@/lib/api/crypto', async original => ({
   bitArrayToUint8Array: (value: unknown) => value,
 }))
 
-const peer = { id: 'direct-peer', token: 'direct-session', address: { baseUrl: 'https://direct.example.test', bestIp: '' } } as LoginPeer
+const peer = { id: 'direct-peer', token: 'direct-session', ip: 'direct.example.test', port: 443 } as LoginPeer
 const query = 'query Read($id: ID!) { node(id: $id) { id } }'
 const variables = { id: 'item' }
 const result = { data: { node: { id: 'item' } } }

@@ -3,7 +3,7 @@ import {
   getActiveClientId,
   clearRemoteClientId,
 } from '@/lib/device/client-id'
-import { findLoginPeer, clearLoginPeer, peerHost } from '@/lib/device/login-peers'
+import { findLoginPeer, clearLoginPeer, peerHost, getPeerBaseUrl } from '@/lib/device/login-peers'
 
 /** Current remote-device host (`ip:port`). Web mode has no stored host —
  *  requests target `window.location.host` via `getApiHost`'s fallback. */
@@ -13,7 +13,8 @@ export function getCurrentDeviceHost(): string {
 }
 
 export function getCurrentDeviceBaseUrl(): string {
-  return findLoginPeer(getRemoteClientId())?.address?.baseUrl || ''
+  const peer = findLoginPeer(getRemoteClientId())
+  return peer ? getPeerBaseUrl(peer) : ''
 }
 
 /** Current login token: Tauri reads it from the peers table mirror,

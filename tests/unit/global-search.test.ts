@@ -28,16 +28,16 @@ vi.mock('@/lib/api/api', () => ({
 vi.mock('@/lib/device/client-id', () => ({ getDesktopClientId: () => 'local', getRemoteClientId: () => transport.remoteId }))
 vi.mock('@/lib/device/local-mode', () => ({ isLocalMode: () => false }))
 vi.mock('@/lib/device/current', () => ({ getCurrentAuthToken: () => transport.authToken }))
-vi.mock('@/lib/device/login-peers', async () => ({
+vi.mock('@/lib/device/login-peers', async original => ({
+  ...(await original<typeof import('@/lib/device/login-peers')>()),
   loginPeers: (await import('vue')).ref([]),
-  peerHost: (peer: LoginPeer) => `${peer.ip}:${peer.port}`,
 }))
 vi.mock('@/components/toaster', () => ({ default: vi.fn(), toastWithAction: vi.fn() }))
 vi.mock('@/lib/download-dir', () => ({ downloadToDir: vi.fn(), downloadAs: vi.fn(), revealInFolder: vi.fn() }))
 vi.mock('@/hooks/native-resource-url', () => ({ nativeResourceUrl: vi.fn() }))
 
 const peer = {
-  id: 'peer', name: 'Archive', address: { baseUrl: 'https://archive.example.test', bestIp: '' }, token: 'peer-login', online: false,
+  id: 'peer', name: 'Archive', ip: 'archive.example.test', port: 443, token: 'peer-login', online: false,
 } as LoginPeer
 const current = { clientId: 'current', deviceName: 'Current' } as IApp
 const key = new Uint8Array(32).fill(9)
