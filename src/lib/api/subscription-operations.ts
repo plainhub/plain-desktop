@@ -38,7 +38,7 @@ export const subscriptionOperations: readonly SubscriptionOperation[] = [
   {"field": "bookmarksUpdated", "document": "subscription { bookmarksUpdated { id url title faviconPath groupId pinned clickCount lastClickedAt sortOrder createdAt updatedAt } }", "access": []},
   {"field": "feedsFetched", "document": "subscription { feedsFetched { feedId error cancelled } }", "access": []},
   {"field": "uploadMergeResult", "document": "subscription { uploadMergeResult { fileId ok value mergedSize error } }", "access": ["FILES"]},
-  {"field": "smsProviderChanged", "document": "subscription { smsProviderChanged { uris } }", "access": ["SMS"], "capability": "TELEPHONY"},
+  {"field": "smsChanged", "document": "subscription { smsChanged { uris } }", "access": ["SMS"], "capability": "TELEPHONY"},
   {"field": "smsSendResult", "document": "subscription { smsSendResult { requestId success resultCode } }", "access": ["SMS"], "capability": "TELEPHONY"},
   {"field": "mmsSendResult", "document": "subscription { mmsSendResult { pendingId success resultCode } }", "access": ["SMS"], "capability": "TELEPHONY"},
   {"field": "mmsSent", "document": "subscription { mmsSent }", "access": ["SMS"], "capability": "TELEPHONY"},

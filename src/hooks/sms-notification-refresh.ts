@@ -13,7 +13,7 @@ export function createSmsNotificationRefresh(refresh: () => void | Promise<unkno
   let refreshQueued = false
 
   let stopMmsSent: (() => void) | undefined
-  let stopSmsProviderChanged: (() => void) | undefined
+  let stopSmsChanged: (() => void) | undefined
   let stopAttached: (() => void) | undefined
 
   function finishRefresh() {
@@ -81,7 +81,7 @@ export function createSmsNotificationRefresh(refresh: () => void | Promise<unkno
   function subscribe() {
     if (subscribed) return
     subscribed = true
-    stopSmsProviderChanged = graphqlSubscriptions.subscribe('smsProviderChanged', handleSmsChanged)
+    stopSmsChanged = graphqlSubscriptions.subscribe('smsChanged', handleSmsChanged)
     stopMmsSent = graphqlSubscriptions.subscribe('mmsSent', handleMmsSent)
     stopAttached = graphqlSubscriptions.onAttached(handleConnectionChanged)
     document.addEventListener('visibilitychange', handleResume)
@@ -96,7 +96,7 @@ export function createSmsNotificationRefresh(refresh: () => void | Promise<unkno
     if (!subscribed) return
     subscribed = false
     refreshQueued = false
-    stopSmsProviderChanged?.()
+    stopSmsChanged?.()
     stopMmsSent?.()
     stopAttached?.()
     document.removeEventListener('visibilitychange', handleResume)

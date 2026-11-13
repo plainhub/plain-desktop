@@ -2641,9 +2641,9 @@ export interface GqlOperations {
       query: string
     }
   }
-  smsProviderChangedSubscription: {
+  smsChangedSubscription: {
     result: {
-      smsProviderChanged?: {
+      smsChanged?: {
         uris: Array<string>
       }
     }

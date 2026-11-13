@@ -54,7 +54,7 @@ export interface SubscriptionResults {
   bookmarksUpdated: Bookmark[]
   feedsFetched: { feedId: string; error?: string | null; cancelled?: boolean | null }
   uploadMergeResult: { fileId: string; ok: boolean; value: string | null; mergedSize: number | null; error: string | null }
-  smsProviderChanged: { uris: string[] } | null
+  smsChanged: { uris: string[] } | null
   smsSendResult: { requestId: string | null; success: boolean; resultCode: number | null }
   mmsSendResult: { pendingId: string; success: boolean; resultCode: number | null }
   mmsSent: string
