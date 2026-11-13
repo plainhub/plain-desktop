@@ -4,6 +4,10 @@ export default {
   logging_in: '로그인 중',
   connect: '연결',
   login: {
+    saved_identity: '저장된 지문',
+    new_identity: '새 지문',
+    trust_identity: '새 신원 신뢰',
+    internal_error: '기기에서 로그인을 완료하지 못했습니다. 다시 시도하세요.',
     secure_login_unavailable: '이 브라우저에서는 안전하게 로그인할 수 없습니다. 브라우저를 업데이트하세요.',
     chat_pairing_unavailable: '채팅과 전체 제어를 함께 페어링하려면 휴대폰의 PlainApp을 업데이트하세요.',
     to_continue: '계속하려면 휴대폰에서 수락 버튼을 탭하세요.',

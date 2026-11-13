@@ -4,6 +4,10 @@ export default {
   logging_in: '登入中',
   connect: '連接',
   login: {
+    saved_identity: '已儲存的指紋',
+    new_identity: '新的指紋',
+    trust_identity: '信任新身分',
+    internal_error: '裝置無法完成登入，請重試。',
     secure_login_unavailable: '目前瀏覽器無法安全登入，請更新瀏覽器。',
     to_continue: '在手機上點擊接受按鈕以繼續。',
     failed: '登入失敗，請確保手機未處於睡眠模式。',

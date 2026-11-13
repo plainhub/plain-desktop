@@ -50,12 +50,6 @@ export enum DriveType {
   APP = 'APP',
 }
 
-export enum AppChannelType {
-  GITHUB = 'GITHUB',
-  GOOGLE = 'GOOGLE',
-  FDROID = 'FDROID',
-}
-
 export enum ScreenMirrorMode {
   NORMAL = 'NORMAL',
   WIDE = 'WIDE',

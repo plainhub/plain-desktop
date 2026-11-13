@@ -1,7 +1,7 @@
 import { ref, shallowRef, watch, onUnmounted, type ComputedRef, type Ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { initQuery, chatItemsGQL } from '@/lib/api/query'
-import { sendChatItemGQL, deleteChatItemGQL, retryChatItemGQL, initMutation } from '@/lib/api/mutation'
+import { sendChatItemsGQL, deleteChatItemGQL, retryChatItemGQL, initMutation } from '@/lib/api/mutation'
 import toast from '@/components/toaster'
 import type { IChatItem } from '@/lib/interfaces'
 import { ChatStatus, MessageType } from '@/lib/status'
@@ -42,11 +42,11 @@ export function useChatMessages(chatId: ComputedRef<string>, channelId: Computed
   })
 
   const { mutate: sendMutate, loading: sendLoading, onDone: sendDone } = initMutation({
-    document: sendChatItemGQL,
+    document: sendChatItemsGQL,
   }, false)
-  sendDone((r: any) => {
-    if (r?.data?.sendChatItem) {
-      const rawItems: any[] = Array.isArray(r.data.sendChatItem) ? r.data.sendChatItem : [r.data.sendChatItem]
+  sendDone((r) => {
+    const rawItems: IChatItem[] | undefined = r?.data?.sendChatItems
+    if (rawItems) {
       const existingIds = new Set(chatItems.value.map((i) => i.id))
       const newItems = rawItems.map(normalizeChatItem).filter((i) => !existingIds.has(i.id))
       if (newItems.length) {
@@ -69,7 +69,7 @@ export function useChatMessages(chatId: ComputedRef<string>, channelId: Computed
 
   async function doSend(tempId: string, toId: string, content: string) {
     for (let attempt = 1; attempt <= MAX_SEND_ATTEMPTS; attempt++) {
-      const r = await sendMutate({ target: toId, content })
+      const r = await sendMutate({ targets: [toId], content })
       if (r != null) {
         chatItems.value = chatItems.value.filter((i) => i.id !== tempId)
         return

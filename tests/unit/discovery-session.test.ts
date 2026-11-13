@@ -1,7 +1,7 @@
 import { beforeEach, afterEach, expect, it, vi } from 'vitest'
 
 const fixture = vi.hoisted(() => ({
-  bind: vi.fn(), request: vi.fn(), scanning: false, listeners: new Map<string, (...args: any[]) => void>(), devices: [] as Array<{ id: string; status: string }>, subscriptions: new Map<string, (...args: any[]) => void>(),
+  bind: vi.fn(), request: vi.fn(), scanning: false, devices: [] as Array<{ id: string; status: string }>, subscriptions: new Map<string, (...args: any[]) => void>(),
 }))
 vi.mock('@/lib/api/gql-client', () => ({ bindGraphqlClient: fixture.bind }))
 vi.mock('@/lib/api/subscription-client', () => ({ graphqlSubscriptions: {
@@ -10,7 +10,6 @@ vi.mock('@/lib/api/subscription-client', () => ({ graphqlSubscriptions: {
 } }))
 vi.mock('@/lib/api/mutation', () => ({ startDiscoveryGQL: 'startDiscovery', stopDiscoveryGQL: 'stopDiscovery' }))
 vi.mock('@/lib/api/query', () => ({ nearbyDevicesGQL: 'nearbyDevices' }))
-vi.mock('@/plugins/eventbus', () => ({ default: { on: (name: string, handler: (...args: any[]) => void) => fixture.listeners.set(name, handler) } }))
 vi.mock('@/stores/chat', () => ({ useChatStore: () => ({ fetchPeers: vi.fn(), findPeer: () => null }) }))
 vi.mock('@/lib/status', () => ({ PeerStatus: { PAIRED: 'PAIRED', UNPAIRED: 'UNPAIRED' } }))
 
@@ -18,7 +17,6 @@ beforeEach(() => {
   vi.useFakeTimers()
   vi.resetModules()
   vi.resetAllMocks()
-  fixture.listeners.clear()
   fixture.subscriptions.clear()
   fixture.scanning = false
   fixture.devices = []
@@ -99,18 +97,16 @@ it('does not restart after a pending status query returns to a closed page', asy
   expect(vi.getTimerCount()).toBe(0)
 })
 
-it('restores pending pairing from the same discovery snapshot and projects terminal states', async () => {
+it('updates device display from pairing notifications without backend state snapshots', async () => {
   const device = { id: 'peer', name: 'Fixture', status: 'UNPAIRED' }
-  fixture.request.mockImplementation(async (document: string) => ({ data: document === 'nearbyDevices' ? { nearbyDevices: [device], mdnsState: { scanning: true }, pairingStates: [{ deviceId: 'peer', generation: 'current', mode: 'CHAT', phase: 'PAIRING', error: null }] } : {} }))
+  fixture.request.mockImplementation(async (document: string) => ({ data: document === 'nearbyDevices' ? { nearbyDevices: [device], mdnsState: { scanning: true } } : {} }))
   const { useDeviceDiscovery } = await import('../../src/hooks/use-device-discovery')
   const view = useDeviceDiscovery()
   await view.start()
+  fixture.subscriptions.get('pairingStarted')!({ deviceId: 'peer' })
   expect(view.devices.value[0].status).toBe('PAIRING')
-  fixture.listeners.get('PAIRING_FAILED')!({ deviceId: 'peer' })
-  expect(view.devices.value[0].status).toBe('PAIRING')
-  fixture.request.mockImplementation(async (document: string) => ({ data: document === 'nearbyDevices' ? { nearbyDevices: [device], mdnsState: { scanning: true }, pairingStates: [{ deviceId: 'peer', generation: 'current', mode: 'CHAT', phase: 'FAILED', error: 'failed' }] } : {} }))
-  fixture.subscriptions.get('pairingChanged')!(true)
-  await vi.waitFor(() => expect(view.devices.value[0].status).toBe('UNPAIRED'))
+  fixture.subscriptions.get('pairingFailed')!({ deviceId: 'peer' })
+  expect(view.devices.value[0].status).toBe('UNPAIRED')
   await view.stop()
 })
 

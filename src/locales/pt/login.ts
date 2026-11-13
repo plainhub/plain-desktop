@@ -4,6 +4,10 @@ export default {
   logging_in: 'Entrando',
   connect: 'Conectar',
   login: {
+    saved_identity: 'Impressão digital salva',
+    new_identity: 'Nova impressão digital',
+    trust_identity: 'Confiar na nova identidade',
+    internal_error: 'O dispositivo não conseguiu concluir o login. Tente novamente.',
     secure_login_unavailable: 'Este navegador não permite um login seguro. Atualize o navegador.',
     chat_pairing_unavailable: 'Atualize o PlainApp no seu telefone para parear o chat e o controle total de uma só vez.',
     to_continue: 'Toque no botão Aceitar em seu telefone para continuar.',

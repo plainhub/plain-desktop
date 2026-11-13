@@ -4,6 +4,10 @@ export default {
   logging_in: 'Đang đăng nhập',
   connect: 'Kết nối',
   login: {
+    saved_identity: 'Dấu vân tay đã lưu',
+    new_identity: 'Dấu vân tay mới',
+    trust_identity: 'Tin cậy danh tính mới',
+    internal_error: 'Thiết bị không thể hoàn tất đăng nhập. Vui lòng thử lại.',
     secure_login_unavailable: 'Trình duyệt này không thể đăng nhập an toàn. Vui lòng cập nhật trình duyệt.',
     chat_pairing_unavailable: 'Cập nhật PlainApp trên điện thoại để ghép nối trò chuyện và toàn quyền điều khiển cùng lúc.',
     to_continue: 'Chạm vào nút Chấp nhận trên điện thoại của bạn để tiếp tục.',

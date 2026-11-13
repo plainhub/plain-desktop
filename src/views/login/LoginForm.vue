@@ -5,11 +5,23 @@
       <div class="body">
         {{ error ? $t(error) : '' }}
         <template v-if="!nativeApp && error === 'login.peer_identity_changed'">
-          <v-text-button v-if="!confirmForget" @click="confirmForget = true">{{ $t('login.forget_identity') }}</v-text-button>
+          <template v-if="identityChanges.length">
+            <div v-for="change in identityChanges" :key="change.key" class="identity-change">
+              <strong>{{ change.key }} · SHA-256</strong>
+              <span>{{ $t('login.saved_identity') }}</span>
+              <code>{{ change.previous.match(/.{8}/g)?.join(' ') }}</code>
+              <span>{{ $t('login.new_identity') }}</span>
+              <code>{{ change.next.match(/.{8}/g)?.join(' ') }}</code>
+            </div>
+            <v-filled-button type="button" @click="trustIdentity">{{ $t('login.trust_identity') }}</v-filled-button>
+          </template>
           <template v-else>
-            <p>{{ $t('login.confirm_forget_identity') }}</p>
-            <v-outlined-button @click="confirmForget = false">{{ $t('cancel') }}</v-outlined-button>
-            <v-filled-button @click="forgetIdentity">{{ $t('confirm') }}</v-filled-button>
+            <v-text-button v-if="!confirmForget" @click="confirmForget = true">{{ $t('login.forget_identity') }}</v-text-button>
+            <template v-else>
+              <p>{{ $t('login.confirm_forget_identity') }}</p>
+              <v-outlined-button @click="confirmForget = false">{{ $t('cancel') }}</v-outlined-button>
+              <v-filled-button @click="forgetIdentity">{{ $t('confirm') }}</v-filled-button>
+            </template>
           </template>
         </template>
       </div>
@@ -77,7 +89,7 @@ const emit = defineEmits<{
 
 const {
   showError, webAccessDisabled, showConfirm, verificationCode, error, showPasswordInput,
-  password, passwordError, isSubmitting, onSubmit, cancel, forgetIdentity, t, applyInitResult, startPairing, dispose,
+  password, passwordError, isSubmitting, onSubmit, cancel, forgetIdentity, trustIdentity, identityChanges, t, applyInitResult, startPairing, dispose,
 } = useLogin({
   redirectOnSuccess: props.redirectOnSuccess,
   onSuccess: async () => emit('success'),
@@ -126,5 +138,13 @@ defineExpose({ init, startPairing })
 
 .alert-danger {
   margin-block-end: 16px;
+}
+
+.identity-change {
+  display: grid;
+  gap: 8px;
+  margin: 16px 0;
+
+  code { overflow-wrap: anywhere; }
 }
 </style>

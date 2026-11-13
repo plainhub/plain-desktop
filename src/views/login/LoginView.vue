@@ -2,10 +2,12 @@
   <AuthShell>
     <LoginForm ref="loginFormRef" />
   </AuthShell>
+  <HttpSecurityFooter />
 </template>
 <script setup lang="ts">
 import { nextTick, onMounted, ref } from 'vue'
 import AuthShell from '@/components/AuthShell.vue'
+import HttpSecurityFooter from '@/components/HttpSecurityFooter.vue'
 import LoginForm from './LoginForm.vue'
 import { getApiHost, setPendingLoginDevice } from '@/lib/api/api'
 import { requestInit } from '@/lib/api/init'

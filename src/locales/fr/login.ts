@@ -4,6 +4,10 @@ export default {
   logging_in: 'Connexion en cours',
   connect: 'Connecter',
   login: {
+    saved_identity: 'Empreinte enregistrée',
+    new_identity: 'Nouvelle empreinte',
+    trust_identity: 'Faire confiance à la nouvelle identité',
+    internal_error: 'La connexion a échoué sur cet appareil. Réessayez.',
     secure_login_unavailable: 'Ce navigateur ne permet pas une connexion sécurisée. Veuillez le mettre à jour.',
     chat_pairing_unavailable: 'Mettez à jour PlainApp sur votre téléphone pour associer la discussion et le contrôle total en une seule fois.',
     to_continue: 'Appuyez sur le bouton Accepter sur votre téléphone pour continuer.',

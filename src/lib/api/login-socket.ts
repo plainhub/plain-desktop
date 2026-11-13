@@ -1,3 +1,4 @@
+import { loginErrorReason } from './login-error'
 import { openSocket } from './http'
 import { getWebSocketBaseUrl } from './api'
 import { WebSocketCrypto } from './websocket-crypto'
@@ -70,7 +71,7 @@ export async function openLoginSocket(url: string, signal?: AbortSignal) {
     }
   }
   socket.onerror = () => fail('failed_connect_ws')
-  socket.onclose = (event: CloseEvent) => fail(event.reason || 'failed')
+  socket.onclose = (event: CloseEvent) => fail(loginErrorReason(event.reason, 'failed_connect_ws'))
   signal?.addEventListener('abort', abort, { once: true })
   if (signal?.aborted) abort()
   await connected

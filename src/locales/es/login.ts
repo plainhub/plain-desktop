@@ -4,6 +4,10 @@ export default {
   logging_in: 'Iniciando sesión',
   connect: 'Conectar',
   login: {
+    saved_identity: 'Huella guardada',
+    new_identity: 'Nueva huella',
+    trust_identity: 'Confiar en la nueva identidad',
+    internal_error: 'El dispositivo no pudo completar el inicio de sesión. Inténtalo de nuevo.',
     secure_login_unavailable: 'Este navegador no permite un inicio de sesión seguro. Actualiza el navegador.',
     chat_pairing_unavailable: 'Actualiza PlainApp en tu teléfono para vincular el chat y el control total a la vez.',
     to_continue: 'Toca el botón Aceptar en tu teléfono para continuar.',

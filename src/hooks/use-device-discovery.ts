@@ -7,7 +7,7 @@ import { useChatStore } from '@/stores/chat'
 import { pairingViews } from '@/lib/device/pairing'
 import { DeviceType, PeerStatus } from '@/lib/status'
 
-export type DiscoveryMethod = 'LAN' | 'DNS_SD' | 'BLE' | 'QR'
+export type DiscoveryMethod = 'LAN' | 'BLE' | 'QR'
 
 export type DiscoveryDeviceStatus = 'PAIRING' | 'UNPAIRING' | PeerStatus
 

@@ -1,3 +1,4 @@
+import { loginErrorReason } from './login-error'
 import { startOpaqueLogin } from '@/lib/opaque/client'
 import { base64ToArrayBuffer } from '@/lib/strutil'
 import { bitArrayToBase64, chachaDecryptBytes, chachaEncryptBytes } from './crypto'
@@ -54,7 +55,7 @@ export async function performOpaqueLogin(
     return { ...completeLogin(reply, signatureKey, bitArrayToBase64(key), params.expectedDeviceId), opaquePublicKey: params.initOpaquePublicKey }
 
   } catch (error) {
-    const reason = typeof error === 'string' ? error : 'invalid_auth_response'
+    const reason = loginErrorReason(error)
     socket?.close(reason)
     throw reason
   } finally {

@@ -7,7 +7,7 @@ vi.mock('@tauri-apps/api/event', () => ({ listen }))
 vi.mock('@/lib/api/native-client', () => ({ nativeGraphql: native }))
 vi.mock('@/lib/api/gql-client', () => ({ gqlFetch: remote }))
 
-import { loginPeers, preloadLoginPeers, clearLoginPeer, subscribeLoginPeerUpdates, getBrowserIdentity, saveBrowserIdentity, forgetBrowserIdentity, saveBrowserSession } from '../../src/lib/device/login-peers'
+import { loginPeers, preloadLoginPeers, clearLoginPeer, subscribeLoginPeerUpdates, getBrowserIdentity, saveBrowserIdentity, replaceBrowserIdentity, forgetBrowserIdentity, saveBrowserSession } from '../../src/lib/device/login-peers'
 
 function browserStorage() {
   const values = new Map<string, string>()
@@ -128,4 +128,15 @@ it('retains the authenticated OPAQUE pin and requires explicit forgetting before
   forgetBrowserIdentity()
   saveBrowserIdentity('device', 'signature-key', 'replacement')
   expect(getBrowserIdentity()?.opaquePublicKey).toBe('replacement')
+})
+
+it('replaces only the saved identity the user reviewed', () => {
+  browserStorage()
+  const previous = { deviceId: 'device', publicKey: 'old-key' }
+  const next = { deviceId: 'reinstalled-device', publicKey: 'new-key' }
+  saveBrowserIdentity(previous.deviceId, previous.publicKey)
+  expect(() => replaceBrowserIdentity({ ...previous, publicKey: 'other-key' }, next)).toThrow('peer_identity_changed')
+  expect(getBrowserIdentity()).toEqual(previous)
+  replaceBrowserIdentity(previous, next)
+  expect(getBrowserIdentity()).toEqual(next)
 })

@@ -79,7 +79,13 @@ export function saveBrowserSession(token: string): void {
   localStorage.setItem(AUTH_TOKEN_KEY, token)
 }
 
-export function getBrowserIdentity(): { deviceId: string; publicKey: string; opaquePublicKey?: string } | undefined {
+export interface BrowserIdentity {
+  deviceId: string
+  publicKey: string
+  opaquePublicKey?: string
+}
+
+export function getBrowserIdentity(): BrowserIdentity | undefined {
   const saved = localStorage.getItem('login_identity')
   if (!saved) return
   try {
@@ -96,6 +102,12 @@ export function saveBrowserIdentity(deviceId: string, publicKey: string, opaqueP
   if (saved && (saved.deviceId !== deviceId || saved.publicKey !== publicKey)) throw 'peer_identity_changed'
   if (saved?.opaquePublicKey && opaquePublicKey && saved.opaquePublicKey !== opaquePublicKey) throw 'peer_identity_changed'
   localStorage.setItem('login_identity', JSON.stringify({ deviceId, publicKey, opaquePublicKey: opaquePublicKey || saved?.opaquePublicKey }))
+}
+
+export function replaceBrowserIdentity(previous: BrowserIdentity, next: BrowserIdentity): void {
+  const saved = getBrowserIdentity()
+  if (!saved || saved.deviceId !== previous.deviceId || saved.publicKey !== previous.publicKey || saved.opaquePublicKey !== previous.opaquePublicKey) throw 'peer_identity_changed'
+  localStorage.setItem('login_identity', JSON.stringify(next))
 }
 
 export function forgetBrowserIdentity(): void {

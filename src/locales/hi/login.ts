@@ -4,6 +4,10 @@ export default {
   logging_in: 'लॉग इन हो रहा है',
   connect: 'जोड़ें',
   login: {
+    saved_identity: 'सहेजा गया फ़िंगरप्रिंट',
+    new_identity: 'नया फ़िंगरप्रिंट',
+    trust_identity: 'नई पहचान पर भरोसा करें',
+    internal_error: 'डिवाइस लॉगिन पूरा नहीं कर सका। कृपया फिर से कोशिश करें।',
     secure_login_unavailable: 'यह ब्राउज़र सुरक्षित लॉगिन नहीं कर सकता। कृपया अपना ब्राउज़र अपडेट करें।',
     chat_pairing_unavailable: 'चैट और पूर्ण नियंत्रण को एक साथ पेयर करने के लिए फ़ोन पर PlainApp अपडेट करें।',
     to_continue: 'आगे बढ़ने के लिए एक्सेप्ट बटन दबाएं.',

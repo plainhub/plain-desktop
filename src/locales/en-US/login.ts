@@ -4,6 +4,10 @@ export default {
   logging_in: 'Logging in',
   connect: 'Connect',
   login: {
+    saved_identity: 'Saved fingerprint',
+    new_identity: 'New fingerprint',
+    trust_identity: 'Trust new identity',
+    internal_error: 'The device could not complete login. Please try again.',
     secure_login_unavailable: 'This browser cannot perform secure login. Please update your browser.',
     timeout: 'The login connection timed out. Please try again.',
     forget_identity: 'Forget saved device identity',

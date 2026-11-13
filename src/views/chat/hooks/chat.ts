@@ -1,6 +1,6 @@
 // use upload queue instead of calling upload directly
 import { addUploadTaskAndWait, removeUpload } from '@/lib/upload/upload-queue'
-import { deleteChatItemsGQL, sendChatItemGQL, initMutation } from '@/lib/api/mutation'
+import { deleteChatItemsGQL, sendChatItemsGQL, initMutation } from '@/lib/api/mutation'
 import type { IChatItem } from '@/lib/interfaces'
 import type { IUploadItem } from '@/stores/temp'
 import { gqlFetch } from '@/lib/api/gql-client'
@@ -29,7 +29,7 @@ export const useTasks = () => {
       activeTasks.set(item.id, task)
       try {
         // The returned promise is the capture delivery boundary: do not let the
-        // native PNG be acknowledged until every upload and sendChatItem finish.
+        // native PNG be acknowledged until every upload and sendChatItems finish.
         await Promise.all(uploads.map((upload) => addUploadTaskAndWait(upload, false)))
 
         const c = item._content
@@ -47,12 +47,11 @@ export const useTasks = () => {
           }
         })
 
-        const res = await gqlFetch(sendChatItemGQL, { target: toId, content: JSON.stringify({ type: c.type, value: { items } }) })
-        const sent = res?.data?.sendChatItem
-        const rawItems: any[] = Array.isArray(sent) ? sent : sent ? [sent] : []
-        if (!rawItems.length) throw new Error('sendChatItem returned no message')
+        const res = await gqlFetch(sendChatItemsGQL, { targets: [toId], content: JSON.stringify({ type: c.type, value: { items } }) })
+        const sent = res?.data?.sendChatItems?.[0]
+        if (!sent) throw new Error('sendChatItems returned no message')
         try {
-          onSent?.(rawItems[0])
+          onSent?.(sent)
         } catch (error) {
           // The server transaction already succeeded. A local rendering error
           // must not release and redeliver the same native capture.

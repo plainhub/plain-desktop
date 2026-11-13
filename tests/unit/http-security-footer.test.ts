@@ -140,3 +140,10 @@ it.each(SUPPORTED_LOCALES)('provides and renders every footer message in $code w
   expect(spans[1].text).toBe(messages.http_security_certificate)
   app.unmount()
 })
+
+// Keep this notice owned by the login route, not the global application shell.
+it('mounts the HTTP security notice only on the login page', () => {
+  const views = import.meta.glob<string>('../../src/**/*.vue', { eager: true, query: '?raw', import: 'default' })
+  const owners = Object.entries(views).filter(([, source]) => /<HttpSecurityFooter[\s/>]/.test(source)).map(([path]) => path)
+  expect(owners).toEqual(['../../src/views/login/LoginView.vue'])
+})

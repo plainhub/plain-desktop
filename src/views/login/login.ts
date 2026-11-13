@@ -1,13 +1,16 @@
 import { ref, watch } from 'vue'
+import { sha256 } from '@noble/hashes/sha2.js'
+import { base64ToArrayBuffer, bytesToHex } from '@/lib/strutil'
+import type { BrowserIdentity } from '@/lib/device/login-peers'
 import { useI18n } from 'vue-i18n'
 import router from '@/plugins/router'
 import { getApiBaseUrl, getPendingLoginDevice, clearPendingLoginDevice } from '@/lib/api/api'
 import type { InitResult } from '@/lib/api/init'
 import { getCurrentAuthToken, clearCurrentSession } from '@/lib/device/current'
-import { findLoginPeer, saveBrowserSession, saveBrowserIdentity, getBrowserIdentity, forgetBrowserIdentity, preloadLoginPeers } from '@/lib/device/login-peers'
+import { findLoginPeer, saveBrowserSession, saveBrowserIdentity, getBrowserIdentity, replaceBrowserIdentity, forgetBrowserIdentity, preloadLoginPeers } from '@/lib/device/login-peers'
 import { DeviceType } from '@/lib/status'
 import { getRemoteClientId, setRemoteClientId, getDesktopClientId } from '@/lib/device/client-id'
-import { httpRequest } from '@/lib/api/http'
+import { loginErrorMessage } from '@/lib/api/login-error'
 import { performLoginHandshake } from '@/lib/api/login-handshake'
 import { bindGraphqlClient } from '@/lib/api/gql-client'
 import type { SubscriptionClient } from '@/lib/api/subscription-client'
@@ -20,10 +23,13 @@ type UseLoginOptions = {
   managedDeviceId?: string
 }
 
-function getSafeRedirect(redirect: unknown): string {
-  const r = Array.isArray(redirect) ? redirect[0] : redirect
-  if (typeof r === 'string' && r.startsWith('/') && !r.startsWith('//')) return r
-  return '/'
+export function getSafeRedirect(redirect: unknown): string {
+  const value = Array.isArray(redirect) ? redirect[0] : redirect
+  if (typeof value !== 'string' || !value.startsWith('/')) return '/'
+  try {
+    const url = new URL(value, window.location.origin)
+    return url.origin === window.location.origin ? url.pathname + url.search + url.hash : '/'
+  } catch { return '/' }
 }
 
 export function useLogin(options: UseLoginOptions = {}) {
@@ -38,6 +44,9 @@ export function useLogin(options: UseLoginOptions = {}) {
   const passwordError = ref('')
   const isSubmitting = ref(false)
   const redirectOnSuccess = options.redirectOnSuccess !== false
+  const identityChanges = ref<{ key: string; previous: string; next: string }[]>([])
+  let changedIdentity: { previous: BrowserIdentity; publicKey: string; opaquePublicKey?: string } | undefined
+  let trustedIdentity: typeof changedIdentity
   let lastInitSignaturePublicKey = ''
   let lastInitOpaquePublicKey: string | undefined
   let pendingLoginController: AbortController | null = null
@@ -52,7 +61,7 @@ export function useLogin(options: UseLoginOptions = {}) {
     verificationCode.value = state.verificationCode || ''
     showPasswordInput.value = state.phase === 'PASSWORD_REQUIRED' || state.phase === 'FAILED' && state.error === 'invalid_password'
     isSubmitting.value = !['PASSWORD_REQUIRED', 'SUCCEEDED', 'FAILED', 'CANCELLED'].includes(state.phase)
-    if (state.phase === 'FAILED') { showError.value = true; error.value = `login.${state.error || 'failed'}` }
+    if (state.phase === 'FAILED') { showError.value = true; error.value = loginErrorMessage(state.error) }
     if (state.phase === 'SUCCEEDED' && state.deviceId) {
       if (!managedDeviceId) {
         await preloadLoginPeers()
@@ -80,7 +89,7 @@ export function useLogin(options: UseLoginOptions = {}) {
       const peerId = pending?.id || current?.id
       if (!peerId) throw new Error('peer_unavailable')
       await pairing.start({ peerId, mode: 'MANAGE', password: submittedPassword })
-    } catch (e) { isSubmitting.value = false; showError.value = true; error.value = 'login.failed' }
+    } catch (e) { isSubmitting.value = false; showError.value = true; error.value = loginErrorMessage(e) }
   }
 
 
@@ -100,6 +109,8 @@ export function useLogin(options: UseLoginOptions = {}) {
     }
     webAccessDisabled.value = false
     const initData = result.data
+    identityChanges.value = []
+    changedIdentity = undefined
     lastInitOpaquePublicKey = initData?.opaquePublicKey
     if (initData?.signaturePublicKey) {
       lastInitSignaturePublicKey = initData.signaturePublicKey
@@ -107,10 +118,26 @@ export function useLogin(options: UseLoginOptions = {}) {
     if (result.status !== 200 || !initData || typeof initData.authenticated !== 'boolean' || typeof initData.passwordRequired !== 'boolean') {
       showError.value = true; webAccessDisabled.value = true; error.value = 'login.failed'; return false
     }
+    showPasswordInput.value = initData.passwordRequired
     try {
       const saved = getBrowserIdentity()
-      if (saved && (saved.publicKey !== initData.signaturePublicKey ||
-        saved.opaquePublicKey && initData.passwordRequired && saved.opaquePublicKey !== initData.opaquePublicKey)) throw 'peer_identity_changed'
+      const trusted = trustedIdentity || saved
+      if (trusted && (trusted.publicKey !== initData.signaturePublicKey ||
+        trusted.opaquePublicKey && initData.passwordRequired && trusted.opaquePublicKey !== initData.opaquePublicKey)) {
+        trustedIdentity = undefined
+        if (saved) {
+          const fingerprint = (key: string) => bytesToHex(sha256(base64ToArrayBuffer(key)))
+          const changes = [
+            { key: 'Ed25519', previous: saved.publicKey, next: initData.signaturePublicKey },
+            ...(initData.passwordRequired && saved.opaquePublicKey ? [{ key: 'OPAQUE', previous: saved.opaquePublicKey, next: initData.opaquePublicKey || '' }] : []),
+          ].filter(change => change.previous !== change.next)
+          if (changes.every(change => base64ToArrayBuffer(change.next).length === 32)) {
+            identityChanges.value = changes.map(change => ({ key: change.key, previous: fingerprint(change.previous), next: fingerprint(change.next) }))
+            changedIdentity = { previous: saved, publicKey: initData.signaturePublicKey, opaquePublicKey: initData.opaquePublicKey }
+          }
+        }
+        throw 'peer_identity_changed'
+      }
     } catch {
       showError.value = true; error.value = 'login.peer_identity_changed'; webAccessDisabled.value = true; return false
     }
@@ -135,7 +162,7 @@ export function useLogin(options: UseLoginOptions = {}) {
         if (pairing.state.value?.phase === 'PASSWORD_REQUIRED') await pairing.submit(password.value)
         else await startPairing(showPasswordInput.value ? password.value : undefined)
         password.value = ''
-      } catch { isSubmitting.value = false; showError.value = true; error.value = 'login.failed' }
+      } catch (e) { isSubmitting.value = false; showError.value = true; error.value = loginErrorMessage(e) }
       return
     }
     if (showPasswordInput.value && !password.value?.trim()) { passwordError.value = 'valid.required'; return }
@@ -150,36 +177,38 @@ export function useLogin(options: UseLoginOptions = {}) {
     const myClientId = getDesktopClientId()
 
     try {
-      const identity = getBrowserIdentity()
-      const { clientId, token, signaturePublicKey, opaquePublicKey } = await performLoginHandshake({
+      const approved = trustedIdentity
+      const savedIdentity = getBrowserIdentity()
+      const identity = approved || savedIdentity
+      const { deviceId, token, signaturePublicKey, opaquePublicKey } = await performLoginHandshake({
         passwordRequired: showPasswordInput.value,
         password: submittedPassword,
         initOpaquePublicKey: lastInitOpaquePublicKey,
         storedOpaquePublicKey: identity?.opaquePublicKey,
         clientId: myClientId,
         storedSignaturePublicKey: identity?.publicKey,
-        expectedDeviceId: identity?.deviceId,
+        expectedDeviceId: approved ? undefined : savedIdentity?.deviceId,
         initSignaturePublicKey: lastInitSignaturePublicKey,
         onPending: (code) => { verificationCode.value = code || ''; showConfirm.value = true },
         signal: controller.signal,
       })
 
       if (controller.signal.aborted) return
-      saveBrowserIdentity(clientId, signaturePublicKey, opaquePublicKey)
+      if (approved) {
+        if (trustedIdentity !== approved) throw 'peer_identity_changed'
+        replaceBrowserIdentity(approved.previous, { deviceId, publicKey: signaturePublicKey, opaquePublicKey })
+        trustedIdentity = undefined
+      } else {
+        saveBrowserIdentity(deviceId, signaturePublicKey, opaquePublicKey)
+      }
       saveBrowserSession(token)
-      setRemoteClientId(clientId)
+      setRemoteClientId(deviceId)
       clearPendingLoginDevice()
       void finishLoginSuccess()
     } catch (e) {
       if (controller.signal.aborted) return
       showError.value = true; showConfirm.value = false
-      const reason = typeof e === 'string' ? e : ''
-      if (!reason) {
-        const hcUrl = `${getApiBaseUrl()}/health`
-        const hcResp = await httpRequest(hcUrl)
-        if (hcResp.status === 200) { error.value = 'failed_connect_ws'; return }
-      }
-      error.value = ['remote_access_disabled', 'failed_connect_ws'].includes(reason) ? reason : `login.${reason || 'failed'}`
+      error.value = loginErrorMessage(e)
     } finally {
       if (pendingLoginController === controller) pendingLoginController = null
       isSubmitting.value = false
@@ -192,6 +221,17 @@ export function useLogin(options: UseLoginOptions = {}) {
     showConfirm.value = false; showError.value = false; isSubmitting.value = false
   }
 
+  function trustIdentity() {
+    if (!changedIdentity) return
+    cancel()
+    trustedIdentity = changedIdentity
+    changedIdentity = undefined
+    identityChanges.value = []
+    showError.value = false
+    webAccessDisabled.value = false
+    password.value = ''
+  }
+
   async function forgetIdentity() {
     cancel()
     forgetBrowserIdentity()
@@ -201,7 +241,7 @@ export function useLogin(options: UseLoginOptions = {}) {
 
   return {
     showError, webAccessDisabled, showConfirm, verificationCode, error, showPasswordInput,
-    password, passwordError, isSubmitting, onSubmit, cancel, forgetIdentity, t, applyInitResult, startPairing,
+    password, passwordError, isSubmitting, onSubmit, cancel, forgetIdentity, trustIdentity, identityChanges, t, applyInitResult, startPairing,
     dispose: () => { nativeActive = false; pairing?.dispose(); pendingLoginController?.abort() },
   }
 }

@@ -4,6 +4,10 @@ export default {
   logging_in: 'ログイン中',
   connect: '接続',
   login: {
+    saved_identity: '保存済みのフィンガープリント',
+    new_identity: '新しいフィンガープリント',
+    trust_identity: '新しい ID を信頼する',
+    internal_error: 'デバイスがログインを完了できませんでした。再試行してください。',
     secure_login_unavailable: 'このブラウザーでは安全にログインできません。ブラウザーを更新してください。',
     chat_pairing_unavailable: 'チャットとフルアクセスを一度にペアリングするには、スマホの PlainApp を更新してください。',
     to_continue: '続行するには、電話の[受け入れ]ボタンをタップしてください。',

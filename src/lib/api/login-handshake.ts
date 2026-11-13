@@ -1,3 +1,4 @@
+import { loginErrorReason } from './login-error'
 import { getWebSocketBaseUrl } from '@/lib/api/api'
 import { getAccurateAgent } from '@/lib/agent/agent'
 import { openLoginSocket } from './login-socket'
@@ -107,7 +108,7 @@ export async function performLoginHandshake(
     socket.close()
     return result
   } catch (error) {
-    const reason = typeof error === 'string' ? error : 'invalid_auth_response'
+    const reason = loginErrorReason(error)
     socket.close(reason)
     throw reason
   } finally { keys?.dispose() }

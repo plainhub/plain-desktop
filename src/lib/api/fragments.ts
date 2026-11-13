@@ -52,7 +52,6 @@ export const appFragment = `
     deviceName
     deviceType
     capabilities
-    buildChannel
     access
     downloadsDir
     developerMode

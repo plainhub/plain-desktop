@@ -3,7 +3,6 @@
     {{ $t('fix_disconnect_tips') }}
   </div>
   <router-view />
-  <HttpSecurityFooter />
   <WebLoginRequests v-if="nativeApp" />
   <Teleport to="body">
     <modal-container />
@@ -31,7 +30,6 @@ import { useDeviceDiscovery } from './hooks/use-device-discovery'
 import { useTempStore } from '@/stores/temp'
 import { storeToRefs } from 'pinia'
 import WebLoginRequests from '@/components/WebLoginRequests.vue'
-import HttpSecurityFooter from '@/components/HttpSecurityFooter.vue'
 import { useFileIndexSetupPrompt } from '@/hooks/file-index-setup'
 
 const nativeApp = __IS_TAURI__

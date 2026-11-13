@@ -1,7 +1,7 @@
 import type { LoginSocket } from './login-socket'
 
 export interface LoginHandshakeResult {
-  clientId: string
+  deviceId: string
   token: string
   signaturePublicKey: string
   opaquePublicKey?: string
@@ -9,7 +9,7 @@ export interface LoginHandshakeResult {
 }
 
 interface CompletedLoginResponse {
-  clientId: string
+  deviceId: string
   status: 'COMPLETED'
   chatPaired?: boolean
 }
@@ -33,7 +33,7 @@ export function completeLogin(
   token: string,
   expectedDeviceId?: string
 ): LoginHandshakeResult {
-  if (response.status !== 'COMPLETED' || typeof response.clientId !== 'string' || !response.clientId) throw 'invalid_auth_response'
-  if (expectedDeviceId && response.clientId !== expectedDeviceId) throw 'peer_identity_changed'
-  return { clientId: response.clientId, token, signaturePublicKey: signatureKey, chatPaired: response.chatPaired === true }
+  if (response.status !== 'COMPLETED' || typeof response.deviceId !== 'string' || !response.deviceId) throw 'invalid_auth_response'
+  if (expectedDeviceId && response.deviceId !== expectedDeviceId) throw 'peer_identity_changed'
+  return { deviceId: response.deviceId, token, signaturePublicKey: signatureKey, chatPaired: response.chatPaired === true }
 }

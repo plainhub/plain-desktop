@@ -88,7 +88,7 @@ function frame(key: Uint8Array, data: object) {
 }
 
 function completed() {
-  return { clientId: 'fixture-device', status: 'COMPLETED', chatPaired: false }
+  return { deviceId: 'fixture-device', status: 'COMPLETED', chatPaired: false }
 }
 
 const params = () => ({
@@ -135,7 +135,7 @@ it.each(['http:', 'https:'])(
     expect(socket.close).not.toHaveBeenCalled()
     await socket.message(frame(bytes(vector.key), completed()))
     await expect(promise).resolves.toMatchObject({
-      clientId: 'fixture-device',
+      deviceId: 'fixture-device',
       token: vector.key,
       signaturePublicKey: vector.serverIdentity,
     })

@@ -104,9 +104,9 @@ export const forwardChatItemsGQL = `
   ${chatItemFragment}
 `
 
-export const sendChatItemGQL = `
-  mutation sendChatItem($target: String!, $content: String!) {
-    sendChatItem(target: $target, content: $content) {
+export const sendChatItemsGQL = `
+  mutation sendChatItems($targets: [String!]!, $content: String!) {
+    sendChatItems(targets: $targets, content: $content) {
       ...ChatItemFragment
     }
   }
@@ -247,13 +247,13 @@ export const createFileTaskGQL = `
 `
 
 export const recordMediaPlayGQL = `
-  mutation recordMediaPlay($mediaId: ID!, $type: MediaDataType!, $positionMs: Long!) {
+  mutation recordMediaPlay($mediaId: ID!, $type: PlaybackType!, $positionMs: Long!) {
     recordMediaPlay(mediaId: $mediaId, type: $type, positionMs: $positionMs)
   }
 `
 
 export const saveMediaPlayProgressGQL = `
-  mutation saveMediaPlayProgress($mediaId: ID!, $type: MediaDataType!, $positionMs: Long!) {
+  mutation saveMediaPlayProgress($mediaId: ID!, $type: PlaybackType!, $positionMs: Long!) {
     saveMediaPlayProgress(mediaId: $mediaId, type: $type, positionMs: $positionMs)
   }
 `
