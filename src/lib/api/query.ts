@@ -525,13 +525,10 @@ export const audioQueueGQL = `
     }
     total: audioQueueItemCount
     playback: audioPlayback {
-      revision
-      mode
       mediaId
       path
-      isPlaying
-      positionMs
     }
+    prefs(keys: ["audio_play_mode"])
   }
   ${audioItemFragment}
 `

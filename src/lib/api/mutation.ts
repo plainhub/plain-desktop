@@ -258,19 +258,19 @@ export const saveMediaPlayProgressGQL = `
   }
 `
 
-export const playAudioGQL = `
-  mutation playAudio($mediaId: ID!) {
-    playAudio(mediaId: $mediaId) {
+export const selectAudioGQL = `
+  mutation selectAudio($mediaId: ID!) {
+    selectAudio(mediaId: $mediaId) {
       ...AudioItemFragment
     }
   }
   ${audioItemFragment}
 `
 
-export const enqueueAndPlayAudioGQL = `
-  mutation enqueueAndPlayAudio($mediaId: ID!, $query: String!) {
+export const enqueueAndSelectAudioGQL = `
+  mutation enqueueAndSelectAudio($mediaId: ID!, $query: String!) {
     addAudioToQueue(query: $query)
-    playAudio(mediaId: $mediaId) {
+    selectAudio(mediaId: $mediaId) {
       ...AudioItemFragment
     }
   }
@@ -981,16 +981,4 @@ export const formatDiskGQL = `
   mutation formatDisk($path: String!) {
     formatDisk(path: $path)
   }
-`
-
-export const advanceAudioSelectionGQL = `
-  mutation advanceAudioSelection($action: AudioSelectionAction!, $expectedPath: String!, $expectedRevision: Long!) {
-    advanceAudioSelection(action: $action, expectedPath: $expectedPath, expectedRevision: $expectedRevision) {
-      track { ...AudioItemFragment }
-      path
-      positionMs
-      revision
-    }
-  }
-  ${audioItemFragment}
 `

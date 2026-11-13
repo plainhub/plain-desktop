@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { gqlFetch } from '@/lib/api/gql-client'
-import { audioPlayback, resetAudioPlaylistForTests, useAudioPlaylistStore } from '@/hooks/audio-playlist-store'
+import { audioPlayMode, audioPlayback, resetAudioPlaylistForTests, useAudioPlaylistStore } from '@/hooks/audio-playlist-store'
 
 vi.mock('@/lib/api/gql-client', () => ({ gqlFetch: vi.fn(), getGraphqlContextKey: () => connectionContext }))
 vi.mock('@/lib/api/query', () => ({ audioQueueGQL: 'audio queue', mediaPlayHistoryGQL: 'media history' }))
@@ -53,12 +53,13 @@ describe('audio queue pages', () => {
 
   it('keeps the last successful view when fetching fails', async () => {
     const store = useAudioPlaylistStore()
-    fetch.mockResolvedValueOnce({ data: { total: 2, items: tracks(0, 2), playback: { mediaId: '1', path: '/audio/1', mode: 'REPEAT', isPlaying: true, positionMs: 123, revision: 1 } } })
+    fetch.mockResolvedValueOnce({ data: { total: 2, items: tracks(0, 2), playback: { mediaId: '1', path: '/audio/1' }, prefs: { audio_play_mode: 'SHUFFLE' } } })
     await store.ensureLoaded()
     fetch.mockRejectedValueOnce(new Error('offline'))
     await store.refetch()
     expect(store.items.value).toEqual(tracks(0, 2))
     expect(audioPlayback.value.mediaId).toBe('1')
+    expect(audioPlayMode.value).toBe('SHUFFLE')
     expect(store.loading.value).toBe(false)
   })
 
@@ -89,9 +90,8 @@ vi.mock('@/lib/api/file', () => ({ getFileUrlByPath: (_: unknown, path: string) 
 vi.mock('@/lib/api/mutation', () => ({
   recordMediaPlayGQL: 'record-media-play',
   saveMediaPlayProgressGQL: 'save-media-progress',
-  playAudioGQL: 'play',
-  enqueueAndPlayAudioGQL: 'enqueue-play',
-  advanceAudioSelectionGQL: 'advance',
+  selectAudioGQL: 'play',
+  enqueueAndSelectAudioGQL: 'enqueue-play',
   reportAudioPlaybackGQL: 'report',
   updateAudioPlayModeGQL: 'mode',
   removeAudioFromQueueGQL: 'remove',
@@ -102,9 +102,9 @@ vi.mock('@/lib/api/mutation', () => ({
     return {
       mutate: vi.fn(async (variables: unknown) => {
         commands.push({ document, variables })
-        const result = document === 'advance' ? await selectionResults.shift() : document === 'record-media-play'
+        const result = document === 'record-media-play'
           ? (reportResults.length ? await reportResults.shift() : { data: { reportAudioPlayback: true } })
-          : document === 'play' ? { data: { playAudio: { mediaId: '1', path: '/audio/1' } } }
+          : document === 'play' ? (selectionResults.length ? await selectionResults.shift() : { data: { selectAudio: tracks(Number((variables as { mediaId: string }).mediaId), 1)[0] } })
           : { data: { updateAudioPlayMode: true } }
         for (const callback of callbacks) callback(result)
         return result
@@ -145,31 +145,46 @@ async function mountPlayer(element?: HTMLAudioElement) {
   return { app, player }
 }
 
-it('delegates next and previous across unloaded pages without fetching them', async () => {
+it('selects across queue pages and wraps backwards without a dedicated navigation API', async () => {
   fetch.mockImplementation(async (_document, variables: any) => ({
     data: { total: 450, items: tracks(variables.offset, Math.min(variables.limit, 450 - variables.offset)) },
   }))
   await useAudioPlaylistStore().ensureLoaded()
   const { app, player } = await mountPlayer()
   try {
-    commands.length = 0
-    audioPlayback.value = { mediaId: '199', path: '/audio/199', mode: 'REPEAT', isPlaying: false, positionMs: 0, revision: 5 }
-    const pageRequests = fetch.mock.calls.length
-    selectionResults.push({ data: { advanceAudioSelection: { track: tracks(200, 1)[0], path: '/audio/200', revision: 6, positionMs: 0 } } })
+    audioPlayback.value = { mediaId: '199', path: '/audio/199' }
     await player.playNext()
-    expect(commands.at(-1)).toEqual({ document: 'advance', variables: { action: 'NEXT', expectedPath: '/audio/199', expectedRevision: 5 } })
+    expect(commands.at(-1)).toEqual({ document: 'play', variables: { mediaId: '200' } })
     expect(player.current.value?.mediaId).toBe('200')
-    expect(fetch).toHaveBeenCalledTimes(pageRequests)
-    audioPlayback.value = { ...audioPlayback.value, mediaId: '0', path: '/audio/0', revision: 7 }
-    selectionResults.push({ data: { advanceAudioSelection: { track: tracks(449, 1)[0], path: '/audio/449', revision: 8, positionMs: 0 } } })
+    expect(fetch).toHaveBeenCalledWith('audio queue', { offset: 200, limit: 200 })
+    audioPlayback.value = { ...audioPlayback.value, mediaId: '0', path: '/audio/0' }
     await player.playPrev()
-    expect(commands.at(-1)).toEqual({ document: 'advance', variables: { action: 'PREVIOUS', expectedPath: '/audio/0', expectedRevision: 7 } })
+    expect(commands.at(-1)).toEqual({ document: 'play', variables: { mediaId: '449' } })
     expect(player.current.value?.mediaId).toBe('449')
-    expect(fetch).toHaveBeenCalledTimes(pageRequests)
+    expect(fetch).toHaveBeenCalledWith('audio queue', { offset: 400, limit: 200 })
     await player.changeMode()
     expect(commands.at(-1)).toEqual({ document: 'mode', variables: { mode: 'REPEAT_ONE' } })
-    expect(audioPlayback.value.mode).toBe('REPEAT_ONE')
+    expect(audioPlayMode.value).toBe('REPEAT_ONE')
   } finally {
+    app.unmount()
+  }
+})
+
+it('can shuffle into an unloaded page without choosing the current track', async () => {
+  fetch.mockImplementation(async (_document, variables: any) => ({
+    data: { total: 300, items: tracks(variables.offset, Math.min(variables.limit, 300 - variables.offset)) },
+  }))
+  const random = vi.spyOn(Math, 'random').mockReturnValue(0.9)
+  await useAudioPlaylistStore().ensureLoaded()
+  const { app, player } = await mountPlayer()
+  try {
+    audioPlayback.value = { mediaId: '269', path: '/audio/269' }
+    audioPlayMode.value = 'SHUFFLE'
+    await player.playNext()
+    expect(commands).toEqual([{ document: 'play', variables: { mediaId: '270' } }])
+    expect(fetch).toHaveBeenCalledWith('audio queue', { offset: 200, limit: 200 })
+  } finally {
+    random.mockRestore()
     app.unmount()
   }
 })
@@ -182,75 +197,96 @@ function mediaElement() {
   }
 }
 
-it('pins ended callbacks to the played revision and ignores replaced or disposed bindings', async () => {
-  fetch.mockResolvedValue({ data: { total: 0, items: [] } })
+it('discards replaced callbacks and repeats the active track without a selection request', async () => {
+  fetch.mockResolvedValue({ data: { total: 2, items: tracks(1, 2) } })
+  await useAudioPlaylistStore().ensureLoaded()
   const element = mediaElement()
   const { app, player } = await mountPlayer(element as unknown as HTMLAudioElement)
   try {
-    selectionResults.push({ data: { advanceAudioSelection: { track: tracks(1,1)[0], path:'/audio/1', revision:1, positionMs:0 } } })
     await player.playNext()
     const firstEnded = element.addEventListener.mock.calls.filter(([type]) => type === 'ended').at(-1)![1]
-    selectionResults.push({ data: { advanceAudioSelection: { track: tracks(2,1)[0], path:'/audio/2', revision:2, positionMs:0 } } })
     await player.playNext()
+    expect(element.removeEventListener).toHaveBeenCalledWith('ended', firstEnded)
     await firstEnded()
     expect(commands).toHaveLength(2)
+    audioPlayMode.value = 'REPEAT_ONE'
     const currentEnded = element.addEventListener.mock.calls.filter(([type]) => type === 'ended').at(-1)![1]
-    selectionResults.push({ data: { advanceAudioSelection: { track: tracks(2,1)[0], path:'/audio/2', revision:3, positionMs:0 } } })
+    element.currentTime = 4
     await currentEnded()
-    expect(commands.at(-1)).toEqual({ document:'advance',variables:{action:'COMPLETED',expectedPath:'/audio/2',expectedRevision:2} })
-    expect(audioPlayback.value.revision).toBe(3)
+    expect(commands).toHaveLength(2)
+    expect(element.play).toHaveBeenCalledTimes(3)
     expect(element.currentTime).toBe(0)
+    const repeatedEnded = element.addEventListener.mock.calls.filter(([type]) => type === 'ended').at(-1)![1]
+    expect(repeatedEnded).not.toBe(currentEnded)
+    await repeatedEnded()
+    expect(element.play).toHaveBeenCalledTimes(4)
+    expect(commands).toHaveLength(2)
     app.unmount()
-    const count = commands.length
     await currentEnded()
-    expect(commands).toHaveLength(count)
+    expect(commands).toHaveLength(2)
   } finally {
     if (app._instance) app.unmount()
   }
 })
 
-it('does not start browser playback from a response that arrives after unmount', async () => {
-  fetch.mockResolvedValue({ data: { total: 0, items: [] } })
-  let finish!: (value: unknown) => void
-  selectionResults.push(new Promise((resolve) => { finish = resolve }))
+it('keeps an ended listener for the active track when fetching the next page fails', async () => {
+  fetch.mockResolvedValue({ data: { total: 201, items: tracks(0, 200) } })
+  await useAudioPlaylistStore().ensureLoaded()
   const element = mediaElement()
   const { app, player } = await mountPlayer(element as unknown as HTMLAudioElement)
-  const request = player.playNext()
-  await Promise.resolve()
-  app.unmount()
-  finish({ data: { advanceAudioSelection: { track:tracks(1,1)[0],path:'/audio/1',revision:1,positionMs:0 } } })
-  await request
-  expect(element.play).not.toHaveBeenCalled()
-  expect(audioPlayback.value.path).toBeNull()
+  try {
+    player.playItem(tracks(199, 1)[0]!)
+    await vi.waitFor(() => expect(element.play).toHaveBeenCalledOnce())
+    const previous = element.addEventListener.mock.calls.filter(([type]) => type === 'ended').at(-1)![1]
+    fetch.mockRejectedValueOnce(new Error('offline'))
+    await player.playNext()
+    expect(element.removeEventListener).toHaveBeenCalledWith('ended', previous)
+    const current = element.addEventListener.mock.calls.filter(([type]) => type === 'ended').at(-1)![1]
+    expect(current).not.toBe(previous)
+    expect(audioPlayback.value.mediaId).toBe('199')
+    expect(commands).toHaveLength(1)
+  } finally {
+    app.unmount()
+  }
 })
 
-
-it('discards old-device responses and commands queued before the device changed', async () => {
-  fetch.mockResolvedValue({ data: { total: 0, items: [] } })
+it.each(['unmount', 'connection change'] as const)('does not play a pending selection after %s', async (scenario) => {
+  fetch.mockResolvedValue({ data: { total: 2, items: tracks(1, 2) } })
+  await useAudioPlaylistStore().ensureLoaded()
   let finish!: (value: unknown) => void
   selectionResults.push(new Promise((resolve) => { finish = resolve }))
   const element = mediaElement()
   const { app, player } = await mountPlayer(element as unknown as HTMLAudioElement)
   try {
-    const first = player.playNext()
-    await Promise.resolve()
-    const queued = player.playPrev()
-    connectionContext = 'device-b'
-    finish({ data: { advanceAudioSelection: { track: tracks(1,1)[0], path:'/audio/1', revision:1, positionMs:0 } } })
-    await Promise.all([first, queued])
-    expect(commands).toHaveLength(1)
+    const request = player.playNext()
+    await vi.waitFor(() => expect(commands).toHaveLength(1))
+    if (scenario === 'unmount') app.unmount()
+    else connectionContext = 'device-b'
+    finish({ data: { selectAudio: tracks(1, 1)[0] } })
+    await request
     expect(element.play).not.toHaveBeenCalled()
     expect(audioPlayback.value.path).toBeNull()
+  } finally { if (app._instance) app.unmount() }
+})
+
+it('lets an explicit track selection supersede in-flight queue navigation', async () => {
+  const { app, player, element } = await startBrowserPlayer()
+  try {
+    let finish!: (value: unknown) => void
+    selectionResults.push(new Promise((resolve) => { finish = resolve }))
+    const navigation = player.playNext()
+    await vi.waitFor(() => expect(commands).toHaveLength(2))
+    player.playItem(tracks(3, 1)[0]!)
+    finish({ data: { selectAudio: tracks(2, 1)[0] } })
+    await navigation
+    await vi.waitFor(() => expect(audioPlayback.value.mediaId).toBe('3'))
+    expect(element.play).toHaveBeenCalledTimes(2)
   } finally { app.unmount() }
 })
 
 it('ignores an old-device ended callback after switching the connection', async () => {
-  fetch.mockResolvedValue({ data: { total: 0, items: [] } })
-  const element = mediaElement()
-  const { app, player } = await mountPlayer(element as unknown as HTMLAudioElement)
+  const { app, element } = await startBrowserPlayer()
   try {
-    selectionResults.push({ data: { advanceAudioSelection: { track: tracks(1,1)[0], path:'/audio/1', revision:1, positionMs:0 } } })
-    await player.playNext()
     const ended = element.addEventListener.mock.calls.filter(([type]) => type === 'ended').at(-1)![1]
     connectionContext = 'device-b'
     await ended()
@@ -258,12 +294,11 @@ it('ignores an old-device ended callback after switching the connection', async 
   } finally { app.unmount() }
 })
 
-
 async function startBrowserPlayer() {
-  fetch.mockResolvedValue({ data: { total: 0, items: [] } })
+  fetch.mockResolvedValue({ data: { total: 3, items: tracks(1, 3) } })
+  await useAudioPlaylistStore().ensureLoaded()
   const element = mediaElement()
   const mounted = await mountPlayer(element as unknown as HTMLAudioElement)
-  selectionResults.push({ data: { advanceAudioSelection: { track: tracks(1,1)[0], path:'/audio/1', revision:7, positionMs:0 } } })
   await mounted.player.playNext()
   const playing = element.addEventListener.mock.calls.filter(([type]) => type === 'playing').at(-1)![1]
   const pause = element.addEventListener.mock.calls.filter(([type]) => type === 'pause').at(-1)![1]
@@ -326,31 +361,35 @@ it('does not send queued history to a different device', async () => {
 
 it.each(['restored', 'reselected', 'played', 'disposed'] as const)('restores the initial browser audio position only while %s selection remains current', async scenario => {
   let finish!: (value: unknown) => void
-  const playback = { mediaId: '1', path: '/audio/1', mode: 'REPEAT', isPlaying: false, positionMs: 0, revision: 7 }
+  const playback = { mediaId: '1', path: '/audio/1' }
   fetch.mockImplementation(async document => document === 'media history'
     ? await new Promise(resolve => { finish = resolve })
     : { data: { total: 1, items: tracks(1, 1), playback } })
   const element = mediaElement()
-  const { app } = await mountPlayer(element as unknown as HTMLAudioElement)
+  const { app, player } = await mountPlayer(element as unknown as HTMLAudioElement)
   try {
     await vi.waitFor(() => expect(audioPlayback.value.path).toBe('/audio/1'))
     const loaded = element.addEventListener.mock.calls.find(([type]) => type === 'loadedmetadata')?.[1]
     expect(loaded).toBeTypeOf('function')
     const restoring = loaded!()
     await vi.waitFor(() => expect(finish).toBeTypeOf('function'))
-    if (scenario === 'reselected') audioPlayback.value = { ...audioPlayback.value, revision: 8 }
+    if (scenario === 'reselected') {
+      player.playItem(tracks(1, 1)[0]!)
+      await vi.waitFor(() => expect(element.play).toHaveBeenCalledOnce())
+    }
     if (scenario === 'played') element.addEventListener.mock.calls.find(([type]) => type === 'play')![1]()
     if (scenario === 'disposed') app.unmount()
     finish({ data: { mediaPlayHistory: [{ positionMs: 30500 }] } })
     await restoring
     await vi.waitFor(() => expect(element.currentTime).toBe(scenario === 'restored' ? 30.5 : 0))
-    expect(element.play).not.toHaveBeenCalled()
-    expect(commands).toHaveLength(0)
+    const selects = scenario === 'reselected' ? 1 : 0
+    expect(element.play).toHaveBeenCalledTimes(selects)
+    expect(commands).toHaveLength(selects)
   } finally { if (app._instance) app.unmount() }
 })
 
 it('starts an explicitly reselected audio at the authoritative selection position, not its restored browser history', async () => {
-  const playback = { mediaId: '1', path: '/audio/1', mode: 'REPEAT', isPlaying: false, positionMs: 0, revision: 7 }
+  const playback = { mediaId: '1', path: '/audio/1' }
   fetch.mockResolvedValue({ data: { total: 1, items: tracks(1, 1), playback } })
   const element = mediaElement()
   const { app, player } = await mountPlayer(element as unknown as HTMLAudioElement)

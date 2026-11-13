@@ -13,8 +13,8 @@
           <i-material-symbols:skip-previous-outline-rounded />
         </button>
         <button class="btn-icon mode" @click.stop="changeMode">
-          <i-material-symbols:shuffle-outline-rounded v-if="playback?.mode === 'SHUFFLE'" />
-          <i-material-symbols:repeat-rounded v-else-if="playback?.mode === 'REPEAT'" />
+          <i-material-symbols:shuffle-outline-rounded v-if="mode === 'SHUFFLE'" />
+          <i-material-symbols:repeat-rounded v-else-if="mode === 'REPEAT'" />
           <i-material-symbols:repeat-one-rounded v-else />
         </button>
         <button class="btn-icon" @click.stop="playNext">
@@ -64,7 +64,7 @@ import { useDragSort } from '@/hooks/use-drag-sort'
 const store = useMainStore()
 const audioRef = ref<HTMLAudioElement>()
 
-const { playback, audios, playlistAudios, queueTotal, queueLoading, loadMore, current, src, clearLoading, playPrev, playNext, changeMode, playItem, deleteItem, clearPlaylist, onReorder } =
+const { mode, audios, playlistAudios, queueTotal, queueLoading, loadMore, current, src, clearLoading, playPrev, playNext, changeMode, playItem, deleteItem, clearPlaylist, onReorder } =
   useAudioPlaylist(audioRef)
 
 const listEl = ref<HTMLElement>()

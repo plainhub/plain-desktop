@@ -471,21 +471,6 @@ export interface GqlOperations {
       query: string
     }
   }
-  advanceAudioSelectionGQL: {
-    result: {
-      advanceAudioSelection?: {
-        track?: Fragment_AudioItemFragment
-        path: string
-        positionMs: number
-        revision: number
-      }
-    }
-    variables: {
-      action: 'NEXT' | 'PREVIOUS' | 'COMPLETED'
-      expectedPath: string
-      expectedRevision: number
-    }
-  }
   allContactsGQL: {
     result: {
       contacts: Array<Fragment_ContactFragment>
@@ -577,13 +562,10 @@ export interface GqlOperations {
       items: Array<Fragment_AudioItemFragment>
       total: number
       playback: {
-        revision: number
-        mode: 'REPEAT' | 'REPEAT_ONE' | 'SHUFFLE'
         mediaId?: string
         path?: string
-        isPlaying: boolean
-        positionMs: number
       }
+      prefs: unknown
     }
     variables: {
       offset: number
@@ -1279,10 +1261,10 @@ export interface GqlOperations {
     }
     variables: undefined
   }
-  enqueueAndPlayAudioGQL: {
+  enqueueAndSelectAudioGQL: {
     result: {
       addAudioToQueue: boolean
-      playAudio: Fragment_AudioItemFragment
+      selectAudio: Fragment_AudioItemFragment
     }
     variables: {
       mediaId: string
@@ -2098,14 +2080,6 @@ export interface GqlOperations {
     }
     variables: undefined
   }
-  playAudioGQL: {
-    result: {
-      playAudio: Fragment_AudioItemFragment
-    }
-    variables: {
-      mediaId: string
-    }
-  }
   pomodoroActionSubscription: {
     result: {
       pomodoroAction: {
@@ -2475,6 +2449,14 @@ export interface GqlOperations {
       }
     }
     variables: undefined
+  }
+  selectAudioGQL: {
+    result: {
+      selectAudio: Fragment_AudioItemFragment
+    }
+    variables: {
+      mediaId: string
+    }
   }
   sendChatItemsGQL: {
     result: {

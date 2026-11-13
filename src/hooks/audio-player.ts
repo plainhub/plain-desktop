@@ -3,22 +3,37 @@ import { useTempStore } from '@/stores/temp'
 import { storeToRefs } from 'pinia'
 import type { IAudioItem } from '@/lib/interfaces'
 import { getFileUrlByPath } from '@/lib/api/file'
-import { initMutation, playAudioGQL, advanceAudioSelectionGQL, updateAudioPlayModeGQL, removeAudioFromQueueGQL, clearAudioQueueGQL, reorderAudioQueueGQL, enqueueAndPlayAudioGQL } from '@/lib/api/mutation'
-import { audioPlayback, useAudioPlaylistStore } from '@/hooks/audio-playlist-store'
+import { initMutation, selectAudioGQL, updateAudioPlayModeGQL, removeAudioFromQueueGQL, clearAudioQueueGQL, reorderAudioQueueGQL, enqueueAndSelectAudioGQL } from '@/lib/api/mutation'
+import { audioPlayMode, audioPlayback, useAudioPlaylistStore } from '@/hooks/audio-playlist-store'
 import emitter from '@/plugins/eventbus'
 import { useMediaPlayHistory } from './media-play-history'
 import { getGraphqlContextKey } from '@/lib/api/gql-client'
 
-export function usePlayAudio(onApplied: () => void, enqueue = false) {
+let playbackIntent = 0
+let pendingSelection = Promise.resolve()
+
+function beginSelection() {
+  const intent = ++playbackIntent
+  const context = getGraphqlContextKey()
+  return () => intent === playbackIntent && context === getGraphqlContextKey()
+}
+
+export function usePlayAudio(onApplied: (track: IAudioItem) => void, enqueue = false) {
   const store = useAudioPlaylistStore()
-  const { mutate: play, loading, onDone } = initMutation({ document: enqueue ? enqueueAndPlayAudioGQL : playAudioGQL })
-  onDone(async (r: any) => {
-    const context = getGraphqlContextKey()
-    const path = r?.data?.playAudio?.path
-    if (path) audioPlayback.value = { ...audioPlayback.value, mediaId: r.data.playAudio.mediaId, path: path }
-    await store.refetch()
-    if (context === getGraphqlContextKey()) onApplied()
-  })
+  const { mutate, loading } = initMutation({ document: enqueue ? enqueueAndSelectAudioGQL : selectAudioGQL })
+  function play(variables: { mediaId: string; query?: string }, active = beginSelection()) {
+    const command = pendingSelection.then(async () => {
+      if (!active()) return
+      const result = await mutate(variables)
+      const track = result?.data?.selectAudio as IAudioItem | undefined
+      if (!active() || !track) return
+      audioPlayback.value = { mediaId: track.mediaId, path: track.path }
+      onApplied(track)
+      if (enqueue) await store.refetch()
+    })
+    pendingSelection = command.catch((error) => emitter.emit('toast', error instanceof Error ? error.message : 'network_error'))
+    return command
+  }
   return { play, loading }
 }
 
@@ -88,18 +103,22 @@ export function useAudioPlaylist(audioRef: Ref<HTMLAudioElement | undefined>) {
   setCurrent()
   watch(() => audioPlayback.value.path, setCurrent)
   watch(audios, setCurrent)
-  const { play } = usePlayAudio(() => {
-    void nextTick(() => _play(audioPlayback.value.positionMs))
+  const { play } = usePlayAudio((track) => {
+    const intent = playbackIntent
+    const context = getGraphqlContextKey()
+    current.value = track
+    void nextTick(() => {
+      if (intent === playbackIntent && context === getGraphqlContextKey()) _play(0)
+    })
   })
   const { mutate: clear, loading: clearLoading, onDone: onClearDone } = initMutation({ document: clearAudioQueueGQL })
   const { mutate: updateMode } = initMutation({ document: updateAudioPlayModeGQL })
-  const { mutate: advanceSelection } = initMutation({ document: advanceAudioSelectionGQL })
   const history = useMediaPlayHistory()
   const { mutate: reorderAudioQueue } = initMutation({ document: reorderAudioQueueGQL })
   const { mutate: deleteAudio } = initMutation({ document: removeAudioFromQueueGQL })
 
   onClearDone(() => {
-    audioPlayback.value = { ...audioPlayback.value, mediaId: null, path: null, isPlaying: false, positionMs: 0 }
+    audioPlayback.value = { mediaId: null, path: null }
     store.reset()
   })
 
@@ -107,22 +126,21 @@ export function useAudioPlaylist(audioRef: Ref<HTMLAudioElement | undefined>) {
   let disposed = false
   let pendingCommand = Promise.resolve()
   let releasePlayback: (() => void) | undefined
-  let binding: { element: HTMLAudioElement; context: string; mediaId: string | null; path: string; revision: number } | undefined
+  let binding: { element: HTMLAudioElement; context: string; mediaId: string | null; path: string; intent: number } | undefined
 
   function bindPlayback() {
     const element = audioRef.value
     if (!element) return
     const context = getGraphqlContextKey()
     const expected = { element, context, mediaId: audioPlayback.value.mediaId,
-      path: audioPlayback.value.path || '', revision: audioPlayback.value.revision }
+      path: audioPlayback.value.path || '', intent: playbackIntent }
     if (binding?.element === element && binding.context === context && binding.mediaId === expected.mediaId &&
-      binding.path === expected.path && binding.revision === expected.revision) return
+      binding.path === expected.path && binding.intent === expected.intent) return
     releasePlayback?.()
     binding = expected
-    const active = () => !disposed && binding === expected &&
-      audioPlayback.value.mediaId === expected.mediaId && audioPlayback.value.path === expected.path &&
-      audioPlayback.value.revision === expected.revision
-    const release = history.bind(element, { mediaId: expected.mediaId, type: 'AUDIO' }, active, () => advance('COMPLETED', expected))
+    const active = () => !disposed && binding === expected && playbackIntent === expected.intent && context === getGraphqlContextKey() &&
+      audioPlayback.value.mediaId === expected.mediaId && audioPlayback.value.path === expected.path
+    const release = history.bind(element, { mediaId: expected.mediaId, type: 'AUDIO' }, active, onEnded)
     releasePlayback = () => {
       release()
       if (binding === expected) binding = undefined
@@ -137,39 +155,62 @@ export function useAudioPlaylist(audioRef: Ref<HTMLAudioElement | undefined>) {
     void audioRef.value?.play().catch((error: Error) => emitter.emit('toast', error.message))
   }
 
-  function advance(action: 'NEXT' | 'PREVIOUS' | 'COMPLETED', expected?: { path: string; revision: number }) {
-    const context = getGraphqlContextKey()
-    const command = pendingCommand.then(async () => {
-      if (disposed || context !== getGraphqlContextKey()) return
-      const snapshot = expected || { path: audioPlayback.value.path || '', revision: audioPlayback.value.revision }
-      const result = await advanceSelection({ action, expectedPath: snapshot.path, expectedRevision: snapshot.revision })
-      if (!result || disposed || context !== getGraphqlContextKey()) return
-      const selection = result.data?.advanceAudioSelection
-      if (!selection) { await store.refetch(); return }
-      const track = selection.track as IAudioItem | null
-      audioPlayback.value = { ...audioPlayback.value, mediaId: track?.mediaId ?? null,
-        path: track?.path ?? null, revision: selection.revision, positionMs: selection.positionMs }
-      current.value = track || undefined
-      if (!track) { audioRef.value?.pause(); return }
-      await nextTick()
-      if (disposed || context !== getGraphqlContextKey()) return
-      _play(selection.positionMs)
-    })
-    pendingCommand = command.catch((error) => emitter.emit('toast', error instanceof Error ? error.message : 'network_error'))
-    return command
+  async function loadMore(active: () => boolean) {
+    const before = audios.value.length
+    await store.loadMore()
+    return active() && audios.value.length > before
   }
 
-  function playPrev() { return advance('PREVIOUS') }
-  function playNext() { return advance('NEXT') }
+  async function move(next: boolean) {
+    const selection = beginSelection()
+    const active = () => !disposed && selection()
+    releasePlayback?.()
+    try {
+      if (!store.total.value) await store.ensureLoaded()
+      if (!active() || !store.total.value) return
+      const id = audioPlayback.value.mediaId
+      let index = audios.value.findIndex((item) => item.mediaId === id)
+      while (id && index < 0 && audios.value.length < store.total.value) {
+        if (!(await loadMore(active))) return
+        index = audios.value.findIndex((item) => item.mediaId === id)
+      }
+      const total = store.total.value
+      if (!total) return
+      let target: number
+      if (audioPlayMode.value === 'SHUFFLE') {
+        const exclude = total > 1 && index >= 0
+        target = Math.floor(Math.random() * (total - Number(exclude)))
+        if (exclude && target >= index) target++
+      } else {
+        target = next ? (index + 1) % total : index <= 0 ? total - 1 : index - 1
+      }
+      while (audios.value.length <= target && audios.value.length < store.total.value) {
+        if (!(await loadMore(active))) return
+      }
+      const item = audios.value[target]
+      if (active() && item?.mediaId) await play({ mediaId: item.mediaId }, active)
+    } finally {
+      if (active() && audioPlayback.value.path) bindPlayback()
+    }
+  }
+
+  function onEnded() {
+    releasePlayback?.()
+    if (audioPlayMode.value === 'REPEAT_ONE') _play(0)
+    else return move(true)
+  }
+
+  function playPrev() { return move(false) }
+  function playNext() { return move(true) }
   function changeMode() {
     const context = getGraphqlContextKey()
     const command = pendingCommand.then(async () => {
       if (disposed || context !== getGraphqlContextKey()) return
       const modes = ['REPEAT', 'REPEAT_ONE', 'SHUFFLE'] as const
-      const mode = modes[(modes.findIndex((mode) => mode === audioPlayback.value.mode) + 1) % modes.length]
+      const mode = modes[(modes.findIndex((mode) => mode === audioPlayMode.value) + 1) % modes.length]
       const result = await updateMode({ mode })
       if (!disposed && context === getGraphqlContextKey() && result?.data?.updateAudioPlayMode) {
-        audioPlayback.value = { ...audioPlayback.value, mode }
+        audioPlayMode.value = mode!
       }
     })
     pendingCommand = command.catch((error) => emitter.emit('toast', error instanceof Error ? error.message : 'network_error'))
@@ -177,17 +218,25 @@ export function useAudioPlaylist(audioRef: Ref<HTMLAudioElement | undefined>) {
   }
 
   function playItem(item: IAudioItem) {
-    play({ mediaId: item.mediaId })
+    if (!item.mediaId) return
+    const selection = beginSelection()
+    releasePlayback?.()
+    void play({ mediaId: item.mediaId }, () => !disposed && selection())
+      .then(() => { if (!disposed && selection()) bindPlayback() })
   }
 
   async function deleteItem(item: IAudioItem) {
     if (!item.mediaId) return
+    if (audioPlayback.value.mediaId === item.mediaId) {
+      beginSelection()
+      releasePlayback?.()
+    }
     const result = await deleteAudio({ mediaId: item.mediaId })
     if (!result) return
     store.removeLocal(item.mediaId)
     if (audioPlayback.value.mediaId === item.mediaId) {
       audioRef.value?.pause()
-      audioPlayback.value = { ...audioPlayback.value, mediaId: null, path: null, isPlaying: false, positionMs: 0 }
+      audioPlayback.value = { mediaId: null, path: null }
     }
     await store.refetch()
   }
@@ -198,16 +247,19 @@ export function useAudioPlaylist(audioRef: Ref<HTMLAudioElement | undefined>) {
   }
 
   function clearPlaylist() {
+    beginSelection()
+    releasePlayback?.()
     void clear()
   }
 
   const onLoadedMetadata = async () => {
     const element = audioRef.value
     if (!element || !restoreInitialPosition) return
-    const { mediaId, path, revision } = audioPlayback.value
+    const { mediaId, path } = audioPlayback.value
+    const intent = playbackIntent
     try {
       await history.restorePosition(element, { mediaId, type: 'AUDIO' }, () => !disposed && restoreInitialPosition &&
-        audioPlayback.value.mediaId === mediaId && audioPlayback.value.path === path && audioPlayback.value.revision === revision)
+        audioPlayback.value.mediaId === mediaId && audioPlayback.value.path === path && playbackIntent === intent)
     } catch (error) {
       emitter.emit('toast', error instanceof Error ? error.message : 'network_error')
     }
@@ -223,7 +275,11 @@ export function useAudioPlaylist(audioRef: Ref<HTMLAudioElement | undefined>) {
     updateMediaSessionPlaybackState()
   }
   const doPlayAudio = () => {
-    void nextTick(() => _play(audioPlayback.value.positionMs))
+    const intent = playbackIntent
+    const context = getGraphqlContextKey()
+    void nextTick(() => {
+      if (intent === playbackIntent && context === getGraphqlContextKey()) _play(0)
+    })
   }
   const pauseAudio = () => audioRef.value?.pause()
 
@@ -250,7 +306,7 @@ export function useAudioPlaylist(audioRef: Ref<HTMLAudioElement | undefined>) {
 
   return {
     app,
-    playback: audioPlayback,
+    mode: audioPlayMode,
     audios,
     playlistAudios,
     queueTotal: store.total,

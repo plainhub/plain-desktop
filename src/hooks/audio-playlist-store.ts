@@ -1,5 +1,5 @@
 import { ref } from 'vue'
-import { gqlFetch } from '@/lib/api/gql-client'
+import { getGraphqlContextKey, gqlFetch } from '@/lib/api/gql-client'
 import { audioQueueGQL } from '@/lib/api/query'
 import type { IAudioItem } from '@/lib/interfaces'
 
@@ -11,18 +11,16 @@ export const audioPlaylistLoading = ref(false)
 
 export interface IAudioPlayback {
   mediaId: string | null
-  mode: string
   path: string | null
-  isPlaying: boolean
-  positionMs: number
-  revision: number
 }
 
 function idleAudioPlayback(): IAudioPlayback {
-  return { mediaId: null, mode: 'REPEAT', path: null, isPlaying: false, positionMs: 0, revision: 0 }
+  return { mediaId: null, path: null }
 }
 
 export const audioPlayback = ref<IAudioPlayback>(idleAudioPlayback())
+
+export const audioPlayMode = ref<'REPEAT' | 'REPEAT_ONE' | 'SHUFFLE'>('REPEAT')
 
 let fetchSeq = 0
 let initialFetched = false
@@ -31,17 +29,25 @@ interface IAudioQueuePage {
   total: number
   items: IAudioItem[]
   playback?: IAudioPlayback
+  prefs?: { audio_play_mode?: unknown }
 }
 
 async function fetchPage(offset: number, limit = PAGE_SIZE): Promise<boolean> {
+  const context = getGraphqlContextKey()
+  const playback = audioPlayback.value
+  const mode = audioPlayMode.value
   const seq = ++fetchSeq
   audioPlaylistLoading.value = true
   try {
     const r = await gqlFetch<IAudioQueuePage>(audioQueueGQL, { offset, limit })
-    if (seq !== fetchSeq) return false // superseded by a newer fetch
+    if (seq !== fetchSeq || context !== getGraphqlContextKey()) return false
     if (r.errors?.length || !r.data?.items) return false
     const page = r.data
-    if (page.playback) audioPlayback.value = page.playback
+    if (page.playback && audioPlayback.value === playback) audioPlayback.value = page.playback
+    const storedMode = page.prefs?.audio_play_mode
+    if (audioPlayMode.value === mode && page.prefs) {
+      audioPlayMode.value = storedMode === 'SHUFFLE' || storedMode === 'REPEAT_ONE' ? storedMode : 'REPEAT'
+    }
     audioPlaylistTotal.value = page.total
     if (offset === 0) {
       audioPlaylistItems.value = page.items
@@ -106,6 +112,7 @@ export function resetAudioPlaylistForTests() {
   audioPlaylistTotal.value = 0
   audioPlaylistLoading.value = false
   audioPlayback.value = idleAudioPlayback()
+  audioPlayMode.value = 'REPEAT'
   fetchSeq = 0
   initialFetched = false
 }
