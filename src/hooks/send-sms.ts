@@ -1,7 +1,7 @@
 import type { SmsSendResult } from '@/lib/api/subscription-results'
 import { nextTick, onMounted, onUnmounted, ref, computed, reactive, watch } from 'vue'
 import { popModal } from '@/components/modal'
-import { initMutation, sendMmsGQL } from '@/lib/api/mutation'
+import { initMutation, sendSmsGQL } from '@/lib/api/mutation'
 import { initQuery, simsGQL } from '@/lib/api/query'
 import tapPhone from '@/plugins/tapphone'
 import { upload as uploadFile } from '@/lib/upload/upload'
@@ -17,8 +17,8 @@ import toast from '@/components/toaster'
 import { useI18n } from 'vue-i18n'
 import { formatFileSize } from '@/lib/format'
 import { useContactPicker } from '@/hooks/contact-picker'
-import { sendSmsWithCompatibility } from '@/lib/sms-send'
-import { discardMmsSendResult, subscribeSmsSendResults } from '@/lib/sms-result-ledger'
+import { sendSms } from '@/lib/sms-send'
+import { discardSmsSendResult, subscribeSmsSendResults } from '@/lib/sms-result-ledger'
 import { createSmsSendDeadline } from '@/lib/sms-send-deadline'
 
 export const MMS_WARN_SIZE = 300 * 1024
@@ -90,7 +90,7 @@ export function useSendSms(initialNumber: string, initialBody: string) {
   const loading = ref(false)
   let pendingSmsRequestId: string | null = null
   let unsubscribeSmsResults: (() => void) | undefined
-  const { mutate: mutateMms, loading: mmsLoading, onDone: onMmsDone } = initMutation({ document: sendMmsGQL })
+  const { mutate: mutateMms, loading: mmsLoading, onDone: onMmsDone } = initMutation({ document: sendSmsGQL })
   const sendDeadline = createSmsSendDeadline((requestId) => {
     if (pendingSmsRequestId !== requestId) return
     pendingSmsRequestId = null
@@ -111,14 +111,14 @@ export function useSendSms(initialNumber: string, initialBody: string) {
       mmsUploading.value = true
       try {
         const attachmentPaths = await uploadAttachments()
-        mutateMms({ number: number.value, body: body.value || '', attachmentPaths, threadId: '' })
+        mutateMms({ number: number.value, body: body.value || '', attachmentPaths, requestId: generateRecordId() })
       } catch (e: any) { toast(e.message || t('upload_failed'), 'error') } finally { mmsUploading.value = false }
     } else if (numberOk && bodyOk) {
       if (selectedSimId.value >= 0 && !sims.value.some((sim) => sim.subscriptionId === selectedSimId.value)) return
-      const requestId = `pending_sms_${generateRecordId()}`
+      const requestId = generateRecordId()
       pendingSmsRequestId = requestId
       loading.value = true
-      const outcome = await sendSmsWithCompatibility({
+      const outcome = await sendSms({
         number: number.value,
         body: body.value,
         subscriptionId: selectedSimId.value,
@@ -132,15 +132,7 @@ export function useSendSms(initialNumber: string, initialBody: string) {
         toast(t(outcome.error || 'network_error'), 'error')
         return
       }
-      if (outcome.legacy && pendingSmsRequestId === requestId) {
-        sendDeadline.cancel()
-        pendingSmsRequestId = null
-        loading.value = false
-        emitter.emit('sms_sent')
-        popModal()
-      } else if (pendingSmsRequestId === requestId) {
-        sendDeadline.start(requestId)
-      }
+      if (pendingSmsRequestId === requestId) sendDeadline.start(requestId)
     }
   }
 
@@ -159,9 +151,10 @@ export function useSendSms(initialNumber: string, initialBody: string) {
   }
 
   onMmsDone((result) => {
-    const pendingId = result?.data?.sendMms
-    if (typeof pendingId === 'string') discardMmsSendResult(pendingId)
-    tapPhone(t('confirm_mms_on_phone'))
+    const receipt = result?.data?.sendSms
+    const pendingId = receipt?.requestId
+    if (typeof pendingId === 'string') discardSmsSendResult(pendingId)
+    if (receipt?.requiresConfirmation) tapPhone(t('confirm_mms_on_phone'))
     popModal()
   })
 

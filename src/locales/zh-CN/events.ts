@@ -5,7 +5,7 @@ export default {
   "event_type.LOGIN": "登录成功",
   "event_type.LOGIN_FAILED": "登录失败",
   "event_type.LOGOUT": "已退出登录",
-  "event_type.REVOKE": "会话已撤销",
+  "event_type.REVOKE_SESSION": "会话已撤销",
   "event_type.SET_HOSTNAME": "主机名已更改",
   "event_type.UPDATE_DEVICE_NAME": "设备名称已更改",
   "event_type.MOUNT": "磁盘已挂载",

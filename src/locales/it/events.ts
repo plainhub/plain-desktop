@@ -5,7 +5,7 @@ export default {
   "event_type.LOGIN": "Signed in",
   "event_type.LOGIN_FAILED": "Sign-in failed",
   "event_type.LOGOUT": "Signed out",
-  "event_type.REVOKE": "Session revoked",
+  "event_type.REVOKE_SESSION": "Session revoked",
   "event_type.SET_HOSTNAME": "Hostname changed",
   "event_type.UPDATE_DEVICE_NAME": "Device name changed",
   "event_type.MOUNT": "Disk mounted",

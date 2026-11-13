@@ -275,8 +275,8 @@ ${chatChannelFragment}
 `
 
 export const fileInfoGQL = `
-  query ($path: String!, $fileName: String) {
-    fileInfo(path: $path, fileName: $fileName) {
+  query ($path: String!) {
+    fileInfo(path: $path) {
       ... on FileInfo {
         path
         updatedAt

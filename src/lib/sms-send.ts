@@ -1,36 +1,26 @@
 import { gqlFetch, GqlError } from '@/lib/api/gql-client'
-import { sendSmsGQL, sendSmsWithRequestIdGQL } from '@/lib/api/mutation'
+import { sendSmsGQL } from '@/lib/api/mutation'
 
 export interface SmsSendInput {
   number: string
   body: string
-  subscriptionId: number
+  attachmentPaths?: string[]
+  subscriptionId?: number | null
   requestId: string
 }
 
-export interface SmsSendOutcome {
-  ok: boolean
-  error?: string
-  legacy?: boolean
+export interface SmsSendReceipt {
+  requestId: string
+  requiresConfirmation: boolean
 }
 
-function isLegacySchemaError(message: string): boolean {
-  const value = message.toLowerCase()
-  return value.includes('requestid') && (value.includes('unknown argument') || value.includes('validation'))
-}
-
-export async function sendSmsWithCompatibility(input: SmsSendInput): Promise<SmsSendOutcome> {
+export async function sendSms(input: SmsSendInput): Promise<{ ok: boolean; receipt?: SmsSendReceipt; error?: string }> {
   try {
-    const response = await gqlFetch<{ sendSms: boolean }>(sendSmsWithRequestIdGQL, input, { dedupe: false })
+    const response = await gqlFetch<{ sendSms: SmsSendReceipt }>(sendSmsGQL, input, { dedupe: false })
     const error = response.errors?.[0]?.message
-    if (!error) return { ok: response.data?.sendSms === true }
-    if (!isLegacySchemaError(error)) return { ok: false, error }
-
-    const { requestId: _requestId, ...legacyVariables } = input
-    const legacy = await gqlFetch<{ sendSms: boolean }>(sendSmsGQL, legacyVariables, { dedupe: false })
-    const legacyError = legacy.errors?.[0]?.message
-    if (legacyError) return { ok: false, error: legacyError, legacy: true }
-    return { ok: legacy.data?.sendSms === true, legacy: true }
+    if (error) return { ok: false, error }
+    const receipt = response.data?.sendSms
+    return receipt ? { ok: true, receipt } : { ok: false, error: 'network_error' }
   } catch (error: any) {
     return { ok: false, error: error instanceof GqlError ? error.message : (error.message || 'network_error') }
   }

@@ -231,9 +231,9 @@ export const renameFileGQL = `
   }
 `
 
-export const copyFileGQL = `
-  mutation copyFile($src: String!, $dst: String!, $overwrite: Boolean!) {
-    copyFile(src: $src, dst: $dst, overwrite: $overwrite)
+export const copyFileToDirectoryGQL = `
+  mutation copyFileToDirectory($src: String!, $directory: String!, $name: String!) {
+    copyFileToDirectory(src: $src, directory: $directory, name: $name)
   }
 `
 
@@ -592,14 +592,11 @@ export const setClipboardGQL = `
 `
 
 export const sendSmsGQL = `
-  mutation sendSms($number: String!, $body: String!, $subscriptionId: Int!) {
-    sendSms(number: $number, body: $body, subscriptionId: $subscriptionId)
-  }
-`
-
-export const sendSmsWithRequestIdGQL = `
-  mutation sendSms($number: String!, $body: String!, $subscriptionId: Int!, $requestId: String!) {
-    sendSms(number: $number, body: $body, subscriptionId: $subscriptionId, requestId: $requestId)
+  mutation sendSms($number: String!, $body: String!, $attachmentPaths: [String!]! = [], $subscriptionId: Int, $requestId: String!) {
+    sendSms(number: $number, body: $body, attachmentPaths: $attachmentPaths, subscriptionId: $subscriptionId, requestId: $requestId) {
+      requestId
+      requiresConfirmation
+    }
   }
 `
 
@@ -612,12 +609,6 @@ export const archiveSmsConversationGQL = `
 export const unarchiveSmsConversationGQL = `
   mutation unarchiveSmsConversation($id: String!) {
     unarchiveSmsConversation(id: $id)
-  }
-`
-
-export const sendMmsGQL = `
-  mutation sendMms($number: String!, $body: String!, $attachmentPaths: [String!]!, $threadId: ID!) {
-    sendMms(number: $number, body: $body, attachmentPaths: $attachmentPaths, threadId: $threadId)
   }
 `
 

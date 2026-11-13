@@ -1,7 +1,7 @@
-import { computed, ref } from 'vue'
+import { computed, onUnmounted, ref } from 'vue'
 import toast from '@/components/toaster'
 import { useI18n } from 'vue-i18n'
-import { initMutation, sendMmsGQL, callGQL } from '@/lib/api/mutation'
+import { initMutation, sendSmsGQL, callGQL } from '@/lib/api/mutation'
 import { initQuery, simsGQL } from '@/lib/api/query'
 import { upload as uploadFile } from '@/lib/upload/upload'
 import { generateRecordId } from '@/lib/record-id.generated'
@@ -9,21 +9,21 @@ import tapPhone from '@/plugins/tapphone'
 import type { IUploadItem } from '@/stores/temp'
 import type { ISim } from '@/lib/interfaces'
 import { useMainStore } from '@/stores/main'
-import { sendSmsWithCompatibility } from '@/lib/sms-send'
+import { sendSms } from '@/lib/sms-send'
 import emitter from '@/plugins/eventbus'
+import { subscribeSmsSendResults } from '@/lib/sms-result-ledger'
 import { settleMmsDraft } from '@/lib/mms-draft-sync'
 
 const MMS_WARN_SIZE = 300 * 1024
 
 export function useMessageSend(
   appDir: () => string,
-  threadId: () => string,
   getAddress: () => string,
   callbacks: {
     onSmsPending: (body: string, address: string) => string
-    onSmsSent: (requestId: string) => void
+    onSmsAccepted: (requestId: string) => void
     onSmsFailed: (requestId: string) => void
-    onMmsSent: (id: string, body: string, address: string, attachments: { path: string; contentType: string; name: string }[]) => void
+    onMmsPending: (id: string, body: string, address: string, attachments: { path: string; contentType: string; name: string }[]) => void
   },
 ) {
   const { t } = useI18n()
@@ -36,6 +36,11 @@ export function useMessageSend(
   const simsLoaded = ref(false)
   const selectedSimId = ref<number>(mainStore.selectedSimSubscriptionId)
   const sentMmsDrafts = new Map<string, { body: string; files: File[] }>()
+  const stopResults = subscribeSmsSendResults((result) => {
+    if (result.requestId && sentMmsDrafts.has(result.requestId)) emitter.emit('tap_phone', '')
+    return false
+  })
+  onUnmounted(stopResults)
 
   initQuery({
     document: simsGQL,
@@ -61,10 +66,10 @@ export function useMessageSend(
 
   const { mutate: mutateCall } = initMutation({ document: callGQL })
   const smsSending = ref(false)
-  const { mutate: mutateSendMms, loading: mmsSendLoading } = initMutation({ document: sendMmsGQL })
+  const { mutate: mutateSendMessage, loading: messageSendLoading } = initMutation({ document: sendSmsGQL })
   const invalidSelectedSim = computed(() => selectedSimId.value >= 0
     && (!simsLoaded.value || !sims.value.some((sim) => sim.subscriptionId === selectedSimId.value)))
-  const sendLoading = computed(() => smsSending.value || mmsSendLoading.value)
+  const sendLoading = computed(() => smsSending.value || messageSendLoading.value)
   const sendDisabled = computed(() => sendLoading.value
     || mmsUploading.value
     || (pendingFiles.value.length === 0 && invalidSelectedSim.value))
@@ -129,28 +134,28 @@ export function useMessageSend(
       const mmsFiles = [...pendingFiles.value]
       const mmsBody = body
       const mmsAddress = address
-      const mmsThreadId = threadId()
       mmsUploading.value = true
       try {
         const attachmentPaths = await uploadAttachments(mmsFiles)
-        const result = await mutateSendMms({
+        const result = await mutateSendMessage({
           number: mmsAddress,
           body: mmsBody,
           attachmentPaths,
-          threadId: mmsThreadId,
+          requestId: generateRecordId(),
         })
         if (result == null) return false
-        const pendingId: string = result?.data?.sendMms ?? ('pending_mms_' + Date.now())
+        const receipt = result.data.sendSms
+        const pendingId = receipt.requestId
         const pendingAttachments = mmsFiles.map((file) => ({
           path: URL.createObjectURL(file),
           contentType: file.type || 'application/octet-stream',
           name: file.name,
         }))
         sentMmsDrafts.set(pendingId, { body: mmsBody, files: mmsFiles })
-        callbacks.onMmsSent(pendingId, mmsBody, mmsAddress, pendingAttachments)
+        callbacks.onMmsPending(pendingId, mmsBody, mmsAddress, pendingAttachments)
         if (messageBody.value.trim() === mmsBody) messageBody.value = ''
         pendingFiles.value = pendingFiles.value.filter((file) => !mmsFiles.includes(file))
-        tapPhone(t('confirm_mms_on_phone'))
+        if (receipt.requiresConfirmation) tapPhone(t('confirm_mms_on_phone'))
       } catch (e: any) {
         toast(e.message || t('upload_failed'), 'error')
         return false
@@ -162,7 +167,7 @@ export function useMessageSend(
       const requestId = callbacks.onSmsPending(body, address)
       messageBody.value = ''
       smsSending.value = true
-      const outcome = await sendSmsWithCompatibility({
+      const outcome = await sendSms({
         number: address,
         body,
         subscriptionId: selectedSimId.value,
@@ -175,7 +180,7 @@ export function useMessageSend(
         toast(t(outcome.error || 'network_error'), 'error')
         return false
       }
-      callbacks.onSmsSent(requestId)
+      callbacks.onSmsAccepted(requestId)
       emitter.emit('sms_sent')
       return true
     }

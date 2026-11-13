@@ -50,8 +50,7 @@
 </template>
 
 <script setup lang="ts">
-import { graphqlSubscriptions } from '@/lib/api/subscription-client'
-import type { SmsSendResult, MmsSendResult } from '@/lib/api/subscription-results'
+import type { SmsSendResult } from '@/lib/api/subscription-results'
 
 import { computed, onActivated, onDeactivated, onUnmounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
@@ -78,7 +77,7 @@ import { sendCapturedMms, snapshotMessageCaptureDestination } from './message-ca
 import { initLazyQuery, smsConversationsGQL, smsConversationsWithAddressesGQL, type QueryResponseContext } from '@/lib/api/query'
 import { buildQuery } from '@/lib/search'
 import type { ISms, ISmsConversation } from '@/lib/interfaces'
-import { subscribeMmsSendResults, subscribeSmsSendResults, takeMmsSendResult, takeSmsSendResult } from '@/lib/sms-result-ledger'
+import { subscribeSmsSendResults, takeSmsSendResult } from '@/lib/sms-result-ledger'
 
 const mainStore = useMainStore()
 const { t } = useI18n()
@@ -162,18 +161,17 @@ function loadConversationMetadata(tid: string) {
 
 const send = useMessageSend(
   () => app.value.appDir,
-  () => threadId.value,
   () => sendAddress.value,
   {
     onSmsPending: (body, address) => thread.setPendingSms(body, address),
-    onSmsSent: (clientId) => {
+    onSmsAccepted: (clientId) => {
       thread.startPendingSmsDeadline(clientId)
       thread.refetchWithRetry(clientId)
     },
     onSmsFailed: (clientId) => {
       thread.failPending(clientId)
     },
-    onMmsSent: (id, body, address, attachments) => {
+    onMmsPending: (id, body, address, attachments) => {
       thread.setPendingMms(id, body, address, attachments)
       thread.fetch()
     },
@@ -321,15 +319,11 @@ watch([threadId, sendAddress, () => app.value.appDir], () => {
 })
 
 let unsubscribeSmsResults: (() => void) | undefined
-let unsubscribeMmsResults: (() => void) | undefined
-let stopMmsSent: (() => void) | undefined
 
 onActivated(() => {
   isActive.value = true
   unsubscribeSmsResults = subscribeSmsSendResults(onSmsSendResult)
-  unsubscribeMmsResults = subscribeMmsSendResults(onMmsSendResult)
   thread.subscribe(true)
-  stopMmsSent = graphqlSubscriptions.subscribe('mmsSent', onMmsSent)
   applyRouteQuery(true)
   captureActivation += 1
   if (__IS_TAURI__ && captureEligible.value) void activateCaptureTarget(captureActivation)
@@ -338,11 +332,8 @@ onActivated(() => {
 onDeactivated(() => {
   isActive.value = false
   thread.unsubscribe()
-  stopMmsSent?.()
   unsubscribeSmsResults?.()
-  unsubscribeMmsResults?.()
   unsubscribeSmsResults = undefined
-  unsubscribeMmsResults = undefined
   captureActivation += 1
   captureTarget?.deactivate()
 })
@@ -355,19 +346,14 @@ onUnmounted(() => {
 })
 
 function onSmsSendResult(result: SmsSendResult): boolean {
+  const mms = thread.handleMmsResult(result)
+  if (mms.handled && result.requestId) {
+    send.settleMms(result.requestId, result.success)
+    return true
+  }
   const outcome = thread.handleSmsSendResult(result)
   if (outcome.failed) send.restoreDraft(outcome.failed.body)
   return outcome.handled
-}
-
-function onMmsSendResult(result: MmsSendResult): boolean {
-  const outcome = thread.handleMmsSendResult(result)
-  if (outcome.handled) send.settleMms(result.pendingId, result.success)
-  return outcome.handled
-}
-
-function onMmsSent(pendingId: string) {
-  send.settleMms(pendingId, true)
 }
 
 function drainQueuedResults() {
@@ -376,8 +362,8 @@ function drainQueuedResults() {
     if (result) onSmsSendResult(result)
   }
   for (const pending of [...thread.pendingMmsItems.value]) {
-    const result = takeMmsSendResult(pending.id)
-    if (result) onMmsSendResult(result)
+    const result = takeSmsSendResult(pending.id)
+    if (result) onSmsSendResult(result)
   }
 }
 </script>

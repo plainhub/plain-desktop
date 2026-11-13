@@ -179,7 +179,7 @@ export const callFragment = `
     durationSec
     accountId
     startedAt
-    photoId
+    photo
     type
     geo {
       country

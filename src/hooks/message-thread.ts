@@ -1,4 +1,4 @@
-import type { SmsSendResult, MmsSendResult } from '@/lib/api/subscription-results'
+import type { SmsSendResult } from '@/lib/api/subscription-results'
 import { graphqlSubscriptions } from '@/lib/api/subscription-client'
 import { computed, nextTick, ref, type Ref } from 'vue'
 import toast from '@/components/toaster'
@@ -25,7 +25,7 @@ import {
 import { getConversationAddresses } from '@/lib/contact/name-resolution'
 import { generateRecordId } from '@/lib/record-id.generated'
 import { createKeyedSmsSendDeadlines, SMS_SEND_RESULT_TIMEOUT_MS } from '@/lib/sms-send-deadline'
-import { takeMmsSendResult, takeSmsSendResult } from '@/lib/sms-result-ledger'
+import { takeSmsSendResult } from '@/lib/sms-result-ledger'
 
 const PAGE_SIZE = 100
 type ThreadRequestMeta = { threadId: string; mode: 'reset' | 'more'; preservePosition?: boolean }
@@ -72,7 +72,6 @@ export function useMessageThread(
     return pending.length ? sortByDate([...base, ...pending]) : base
   })
 
-  let stopMmsSent: (() => void) | undefined
   let stopPermissionsUpdated: (() => void) | undefined
 
   function scrollToBottom() {
@@ -181,7 +180,7 @@ export function useMessageThread(
     timers.add(timer)
   }
 
-  function setPendingSms(body: string, address: string, requestId = `pending_sms_${generateRecordId()}`) {
+  function setPendingSms(body: string, address: string, requestId = generateRecordId()) {
     pendingSmsItems.value = addPendingSms(
       pendingSmsItems.value,
       requestId,
@@ -233,30 +232,22 @@ export function useMessageThread(
     if (existingTimer) clearTimeout(existingTimer)
     pendingMmsTimers.set(id, setTimeout(() => {
       pendingMmsTimers.delete(id)
-      const queued = takeMmsSendResult(id)
-      const result = queued ?? { pendingId: id, success: false, resultCode: -1001 }
-      const outcome = handleMmsSendResult(result)
+      const queued = takeSmsSendResult(id)
+      const result = queued ?? { requestId: id, success: false, resultCode: -1001 }
+      const outcome = handleMmsResult(result)
       if (outcome.handled) onTerminalMmsResult?.(id, result.success)
     }, SMS_SEND_RESULT_TIMEOUT_MS))
     scrollToBottom()
   }
 
-  function onMmsSent(pendingId: string) {
-    const settled = settlePendingMms(pendingMmsItems.value, pendingId)
-    if (!settled.settled) return
-    pendingMmsItems.value = settled.pending
-    const timer = pendingMmsTimers.get(pendingId)
-    if (timer) clearTimeout(timer)
-    pendingMmsTimers.delete(pendingId)
-  }
-
-  function handleMmsSendResult(result: MmsSendResult): { handled: boolean; failed?: ISms } {
-    const settled = settlePendingMms(pendingMmsItems.value, result.pendingId)
+  function handleMmsResult(result: SmsSendResult): { handled: boolean; failed?: ISms } {
+    if (!result.requestId) return { handled: false }
+    const settled = settlePendingMms(pendingMmsItems.value, result.requestId)
     if (!settled.settled) return { handled: false }
     pendingMmsItems.value = settled.pending
-    const timer = pendingMmsTimers.get(result.pendingId)
+    const timer = pendingMmsTimers.get(result.requestId)
     if (timer) clearTimeout(timer)
-    pendingMmsTimers.delete(result.pendingId)
+    pendingMmsTimers.delete(result.requestId)
     if (!result.success) {
       toast(t('send_failed'), 'error')
       return { handled: true, failed: settled.settled }
@@ -297,7 +288,6 @@ export function useMessageThread(
     loadContacts(force)
     emitter.on('item_tags_updated', onItemTagsUpdated)
     emitter.on('items_tags_updated', onItemsTagsUpdated)
-    stopMmsSent = graphqlSubscriptions.subscribe('mmsSent', onMmsSent)
     stopPermissionsUpdated = graphqlSubscriptions.subscribe('accessUpdated', onPermissionsUpdated)
     stateRefresh.subscribe()
   }
@@ -305,7 +295,6 @@ export function useMessageThread(
   function unsubscribe() {
     emitter.off('item_tags_updated', onItemTagsUpdated)
     emitter.off('items_tags_updated', onItemsTagsUpdated)
-    stopMmsSent?.()
     stopPermissionsUpdated?.()
     stateRefresh.unsubscribe()
     cancelRetries()
@@ -332,7 +321,7 @@ export function useMessageThread(
     startPendingSmsDeadline,
     failPending,
     handleSmsSendResult,
-    handleMmsSendResult,
+    handleMmsResult,
     setPendingMms,
     setTerminalHandlers,
     subscribe,

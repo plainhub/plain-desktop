@@ -119,7 +119,6 @@ export function useLightboxQueries(
     document: fileInfoGQL,
     variables: () => ({
       path: current.value?.path ?? '',
-      fileName: current.value?.name,
     }),
   })
 

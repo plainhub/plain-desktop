@@ -174,7 +174,7 @@ export interface ICall extends IData {
   durationSec: number
   accountId: string
   startedAt: string
-  photoId: string
+  photo: string
   type: CallType
   geo?: ICallGeo
   tags: ITag[]

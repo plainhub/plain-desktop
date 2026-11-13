@@ -40,7 +40,5 @@ export const subscriptionOperations: readonly SubscriptionOperation[] = [
   {"field": "uploadMergeResult", "document": "subscription { uploadMergeResult { fileId ok value mergedSize error } }", "access": ["FILES"]},
   {"field": "smsChanged", "document": "subscription { smsChanged { uris } }", "access": ["SMS"], "capability": "TELEPHONY"},
   {"field": "smsSendResult", "document": "subscription { smsSendResult { requestId success resultCode } }", "access": ["SMS"], "capability": "TELEPHONY"},
-  {"field": "mmsSendResult", "document": "subscription { mmsSendResult { pendingId success resultCode } }", "access": ["SMS"], "capability": "TELEPHONY"},
-  {"field": "mmsSent", "document": "subscription { mmsSent }", "access": ["SMS"], "capability": "TELEPHONY"},
   {"field": "clipboardChanged", "document": "subscription { clipboardChanged { text sensitive time } }", "access": ["CLIPBOARD"], "capability": "CLIPBOARD"},
 ]

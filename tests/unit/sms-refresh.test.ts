@@ -78,3 +78,18 @@ it('refreshes and reconnects when the GraphQL subscription reattaches', () => {
   publish('attached', undefined)
   expect(refresh).toHaveBeenCalledOnce()
 })
+
+it('refreshes for successful SMS and MMS results and ignores failed sends', async () => {
+  const refresh = vi.fn()
+  const subscription = createSmsNotificationRefresh(refresh)
+  stop = subscription.unsubscribe
+  subscription.subscribe()
+  publish('smsSendResult', { requestId: 'failed-send', success: false, resultCode: -1001 })
+  await vi.advanceTimersByTimeAsync(SMS_NOTIFICATION_REFRESH_DELAY_MS)
+  expect(refresh).not.toHaveBeenCalled()
+  for (const [requestId, resultCode] of [['text-send', -1], ['attachment-send', 0]]) {
+    publish('smsSendResult', { requestId, success: true, resultCode })
+    await vi.advanceTimersByTimeAsync(SMS_NOTIFICATION_REFRESH_DELAY_MS)
+  }
+  expect(refresh).toHaveBeenCalledTimes(2)
+})

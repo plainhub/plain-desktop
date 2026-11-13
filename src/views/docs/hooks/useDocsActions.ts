@@ -6,7 +6,7 @@ import { useFileOpen } from '@/hooks/file-open'
 import { openModal } from '@/components/modal'
 import EditValueModal from '@/components/EditValueModal.vue'
 import DeleteFileConfirm from '@/components/DeleteFileConfirm.vue'
-import { initMutation, renameFileGQL, copyFileGQL } from '@/lib/api/mutation'
+import { initMutation, renameFileGQL, copyFileToDirectoryGQL } from '@/lib/api/mutation'
 import { useDownload } from '@/hooks/files'
 import { getFileUrlByPath, getFileName } from '@/lib/api/file'
 import { getTextFileId } from '@/lib/api/text-file'
@@ -23,7 +23,7 @@ export function useDocsActions(
   const { t } = useI18n()
   const { downloadFile } = useDownload(urlTokenKey)
 
-  const { mutate: copyMutate, onDone: copyDone } = initMutation({ document: copyFileGQL })
+  const { mutate: copyMutate, onDone: copyDone } = initMutation({ document: copyFileToDirectoryGQL })
   copyDone(() => fetch())
 
   const { openFile } = useFileOpen<IDoc>({
@@ -58,9 +58,7 @@ export function useDocsActions(
 
   function duplicateItem(item: IDoc) {
     const dir = item.path.substring(0, item.path.lastIndexOf('/'))
-    const ext = item.title.includes('.') ? '.' + item.title.split('.').pop()! : ''
-    const base = item.title.slice(0, item.title.length - ext.length)
-    copyMutate({ src: item.path, dst: `${dir}/${base}_copy${ext}`, overwrite: false })
+    copyMutate({ src: item.path, directory: dir, name: item.title })
   }
 
   return { downloadFile, openFile, deleteItem, renameItem, duplicateItem }

@@ -57,11 +57,8 @@ export interface SubscriptionResults {
   uploadMergeResult: { fileId: string; ok: boolean; value: string | null; mergedSize: number | null; error: string | null }
   smsChanged: { uris: string[] } | null
   smsSendResult: { requestId: string | null; success: boolean; resultCode: number | null }
-  mmsSendResult: { pendingId: string; success: boolean; resultCode: number | null }
-  mmsSent: string
   clipboardChanged: { text: string; sensitive: boolean; time: string }
 }
 export type SubscriptionField = keyof SubscriptionResults
 
 export type SmsSendResult = SubscriptionResults['smsSendResult']
-export type MmsSendResult = SubscriptionResults['mmsSendResult']

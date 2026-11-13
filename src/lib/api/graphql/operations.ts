@@ -76,7 +76,7 @@ export interface Fragment_CallFragment {
   durationSec: number
   accountId: string
   startedAt: string
-  photoId: string
+  photo: string
   type: 'INCOMING' | 'OUTGOING' | 'MISSED' | 'VOICEMAIL' | 'REJECTED' | 'BLOCKED' | 'ANSWERED_EXTERNALLY' | 'UNKNOWN'
   geo?: {
     country: string
@@ -805,14 +805,14 @@ export interface GqlOperations {
     }
     variables: undefined
   }
-  copyFileGQL: {
+  copyFileToDirectoryGQL: {
     result: {
-      copyFile: boolean
+      copyFileToDirectory: string | null
     }
     variables: {
       src: string
-      dst: string
-      overwrite: boolean
+      directory: string
+      name: string
     }
   }
   createBookmarkGroupGQL: {
@@ -1293,7 +1293,7 @@ export interface GqlOperations {
     result: {
       events: Array<{
         id: string
-        type: 'LOGIN' | 'LOGIN_FAILED' | 'LOGOUT' | 'REVOKE' | 'SET_HOSTNAME' | 'UPDATE_DEVICE_NAME' | 'MOUNT' | 'MOUNT_FAILED' | 'UNMOUNT' | 'FORMAT_DISK' | 'FORMAT_DISK_FAILED'
+        type: 'LOGIN' | 'LOGIN_FAILED' | 'LOGOUT' | 'REVOKE_SESSION' | 'SET_HOSTNAME' | 'UPDATE_DEVICE_NAME' | 'MOUNT' | 'MOUNT_FAILED' | 'UNMOUNT' | 'FORMAT_DISK' | 'FORMAT_DISK_FAILED'
         message: string
         clientId?: string
         createdAt: string
@@ -1445,11 +1445,10 @@ export interface GqlOperations {
             longitude: number
           }
         }
-      }
+      } | null
     }
     variables: {
       path: string
-      fileName: string
     }
   }
   fileSearchResultsGQL: {
@@ -1805,22 +1804,7 @@ export interface GqlOperations {
     }
     variables: undefined
   }
-  mmsSendResultSubscription: {
-    result: {
-      mmsSendResult: {
-        pendingId: string
-        success: boolean
-        resultCode?: number
-      }
-    }
-    variables: undefined
-  }
-  mmsSentSubscription: {
-    result: {
-      mmsSent: string
-    }
-    variables: undefined
-  }
+
   mountsGQL: {
     result: {
       mounts: Array<Fragment_MountFragment>
@@ -2501,35 +2485,15 @@ export interface GqlOperations {
       content: string
     }
   }
-  sendMmsGQL: {
-    result: {
-      sendMms: string
-    }
-    variables: {
-      number: string
-      body: string
-      attachmentPaths: Array<string>
-      threadId: string
-    }
-  }
   sendSmsGQL: {
     result: {
-      sendSms: boolean
+      sendSms: { requestId: string; requiresConfirmation: boolean }
     }
     variables: {
       number: string
       body: string
-      subscriptionId: number
-    }
-  }
-  sendSmsWithRequestIdGQL: {
-    result: {
-      sendSms: boolean
-    }
-    variables: {
-      number: string
-      body: string
-      subscriptionId: number
+      attachmentPaths?: Array<string>
+      subscriptionId?: number | null
       requestId: string
     }
   }
