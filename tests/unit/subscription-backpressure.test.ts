@@ -11,7 +11,7 @@ it('does not reattach existing consumers when another operation starts on the sa
   const client = new SubscriptionClient()
   client.setOperations([
     { field: 'contentChanged', document: 'subscription { contentChanged }', access: [] },
-    { field: 'mediaLibraryUpdated', document: 'subscription { mediaLibraryUpdated { types } }', access: [] },
+    { field: 'mediaUpdated', document: 'subscription { mediaUpdated { types } }', access: [] },
   ])
   const attached = vi.fn()
   client.onAttached(attached)
@@ -21,7 +21,7 @@ it('does not reattach existing consumers when another operation starts on the sa
   const first = mock.send.mock.calls.at(-1)![0]
   mock.callbacks.message({ id: first.id, type: 'next', payload: { extensions: { subscriptionReady: true } } })
   expect(attached).toHaveBeenCalledTimes(1)
-  client.subscribe('mediaLibraryUpdated', vi.fn())
+  client.subscribe('mediaUpdated', vi.fn())
   const second = mock.send.mock.calls.at(-1)![0]
   mock.callbacks.message({ id: second.id, type: 'next', payload: { extensions: { subscriptionReady: true } } })
   expect(attached).toHaveBeenCalledTimes(1)
@@ -32,11 +32,11 @@ it('resynchronizes only the lagged operation and preserves the socket and other 
   const client = new SubscriptionClient()
   client.setOperations([
     { field: 'contentChanged', document: 'subscription { contentChanged }', access: [] },
-    { field: 'mediaLibraryUpdated', document: 'subscription { mediaLibraryUpdated { types } }', access: [] },
+    { field: 'mediaUpdated', document: 'subscription { mediaUpdated { types } }', access: [] },
   ])
   const content = vi.fn(), media = vi.fn(), attached = vi.fn(), status = vi.fn()
   client.subscribe('contentChanged', content)
-  const stopMedia = client.subscribe('mediaLibraryUpdated', media)
+  const stopMedia = client.subscribe('mediaUpdated', media)
   client.onAttached(attached)
   client.onConnectionChange(status)
   client.start()
@@ -50,7 +50,7 @@ it('resynchronizes only the lagged operation and preserves the socket and other 
   expect(replacement.type).toBe('subscribe')
   expect(replacement.id).not.toBe(second.id)
   expect(replacement.payload.query).toBe(second.payload.query)
-  mock.callbacks.message({ id: second.id, type: 'next', payload: { data: { mediaLibraryUpdated: { types: [1] } } } })
+  mock.callbacks.message({ id: second.id, type: 'next', payload: { data: { mediaUpdated: { types: ['AUDIO'] } } } })
   expect(media).not.toHaveBeenCalled()
   mock.callbacks.message({ id: first.id, type: 'next', payload: { data: { contentChanged: true } } })
   expect(content).toHaveBeenCalledWith(true)

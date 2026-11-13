@@ -1689,14 +1689,6 @@ export interface GqlOperations {
       type: 'AUDIO' | 'VIDEO' | 'IMAGE' | 'DOC'
     }
   }
-  mediaLibraryUpdatedSubscription: {
-    result: {
-      mediaLibraryUpdated: {
-        types: Array<number>
-      }
-    }
-    variables: undefined
-  }
   mediaPlayHistoryGQL: {
     result: {
       mediaPlayHistory: Array<{
@@ -1717,6 +1709,14 @@ export interface GqlOperations {
         total?: number
         state: 'IDLE' | 'RUNNING' | 'PAUSED' | 'STOPPED' | 'FAILED'
         error?: string
+      }
+    }
+    variables: undefined
+  }
+  mediaUpdatedSubscription: {
+    result: {
+      mediaUpdated: {
+        types: Array<'DEFAULT' | 'AUDIO' | 'VIDEO' | 'IMAGE' | 'SMS' | 'CONTACT' | 'NOTE' | 'FEED_ENTRY' | 'CALL' | 'PACKAGE' | 'FILE' | 'APP_FILE' | 'DOC'>
       }
     }
     variables: undefined

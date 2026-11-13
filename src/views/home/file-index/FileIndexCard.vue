@@ -73,7 +73,7 @@ const { loading, refetch: fetch } = initQuery({
 const refresh = createRefreshScheduler(() => {
   void reload()
 })
-const stop = graphqlSubscriptions.subscribe('mediaLibraryUpdated', refresh.schedule)
+const stop = graphqlSubscriptions.subscribe('mediaUpdated', refresh.schedule)
 onUnmounted(() => {
   stop()
   refresh.dispose()

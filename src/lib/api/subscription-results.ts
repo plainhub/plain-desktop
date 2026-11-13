@@ -1,4 +1,5 @@
 import type { IChatItem, INotification, IScanProgress, IImageSearchStatus } from '@/lib/interfaces'
+import type { GqlResultType } from './graphql/operations'
 import type { Bookmark } from '@/stores/bookmarks'
 
 type ChatSubscriptionItem = Pick<IChatItem, 'id' | 'fromId' | 'toId' | 'channelId' | 'content' | 'createdAt'> & {
@@ -49,7 +50,7 @@ export interface SubscriptionResults {
   messagesCreated: ChatSubscriptionItem[]
   messagesUpdated: ChatSubscriptionItem[]
   messagesDeleted: string
-  mediaLibraryUpdated: { types: number[] }
+  mediaUpdated: GqlResultType<'mediaUpdatedSubscription'>['mediaUpdated']
   mediaScanProgress: IScanProgress
   bookmarksUpdated: Bookmark[]
   feedsFetched: { feedId: string; error?: string | null; cancelled?: boolean | null }

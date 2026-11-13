@@ -29,7 +29,7 @@ vi.mock('@/lib/api/mutation', () => ({
 vi.mock('@/lib/api/subscription-client', () => ({
   graphqlSubscriptions: {
     subscribe: (_field: string, callback: (p: any) => void) => {
-      if (_field === 'mediaLibraryUpdated') state.library = callback
+      if (_field === 'mediaUpdated') state.library = callback
       else state.progress = callback
       return vi.fn()
     },
@@ -215,11 +215,11 @@ it('coalesces library invalidations and cancels pending refreshes on unmount', a
   app.provide(ssrContextKey, { modules: new Set() })
   app.mount({})
   try {
-    for (let i = 0; i < 100; i++) state.library({ types: [1, 2, 3] })
+    for (let i = 0; i < 100; i++) state.library({ types: ['AUDIO', 'VIDEO', 'IMAGE'] })
     expect(state.reload).not.toHaveBeenCalled()
     await vi.advanceTimersByTimeAsync(2000)
     expect(state.reload).toHaveBeenCalledOnce()
-    state.library({ types: [1] })
+    state.library({ types: ['AUDIO'] })
     app.unmount()
     await vi.advanceTimersByTimeAsync(10000)
     expect(state.reload).toHaveBeenCalledOnce()
