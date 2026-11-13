@@ -1840,12 +1840,6 @@ export interface GqlOperations {
       destDir: string
     }
   }
-  nearbyDevicesChangedSubscription: {
-    result: {
-      nearbyDevicesChanged: boolean
-    }
-    variables: undefined
-  }
   nearbyDevicesGQL: {
     result: {
       nearbyDevices: Array<{
@@ -1863,9 +1857,7 @@ export interface GqlOperations {
         discoveryMethods: Array<'LAN' | 'DNS_SD' | 'BLE' | 'QR'>
         remoteAccess?: boolean
       }>
-      mdnsState: {
-        scanning: boolean
-      }
+      isDiscovering: boolean
     }
     variables: undefined
   }

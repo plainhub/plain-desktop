@@ -2,7 +2,7 @@ import { ref } from 'vue'
 import { startDiscoveryGQL, stopDiscoveryGQL } from '@/lib/api/mutation'
 import { bindGraphqlClient } from '@/lib/api/gql-client'
 import { graphqlSubscriptions } from '@/lib/api/subscription-client'
-import { isDiscoveringGQL, nearbyDevicesGQL } from '@/lib/api/query'
+import { nearbyDevicesGQL } from '@/lib/api/query'
 import { useChatStore } from '@/stores/chat'
 import { pairingViews } from '@/lib/device/pairing'
 import { DeviceType, PeerStatus } from '@/lib/status'
@@ -48,23 +48,10 @@ export function useDeviceDiscovery(bindClient = bindGraphqlClient, subscriptions
   let active = false
   let pollTimer: ReturnType<typeof setInterval> | undefined
   let pending = Promise.resolve()
-  let refreshQueued = false
-  let refreshAgain = false
 
   async function discoveryRequest(client: ReturnType<typeof bindGraphqlClient>, document: string): Promise<void> {
     const result = await client(document)
     if (result.errors?.length) throw new Error(result.errors[0].message)
-  }
-
-  async function refreshDevices(client: ReturnType<typeof bindGraphqlClient>): Promise<void> {
-    const result = await client<{ nearbyDevices: DiscoveredDevice[]; mdnsState: { scanning: boolean } }>(nearbyDevicesGQL)
-    if (result.errors?.length) throw new Error(result.errors[0].message)
-    if (active && request === client) {
-      devices.value = result.data.nearbyDevices
-      status.value = !result.data.mdnsState.scanning
-        ? DiscoveryStatus.IDLE
-        : devices.value.length ? DiscoveryStatus.OK : DiscoveryStatus.SEARCHING
-    }
   }
 
   function enqueue(operation: () => Promise<void>): Promise<void> {
@@ -79,9 +66,10 @@ export function useDeviceDiscovery(bindClient = bindGraphqlClient, subscriptions
     await enqueue(async () => {
       if (!active || request !== client) return
       try {
-        const result = await client<{ isDiscovering: boolean }>(isDiscoveringGQL)
+        const result = await client<{ isDiscovering: boolean; nearbyDevices: DiscoveredDevice[] }>(nearbyDevicesGQL)
         if (result.errors?.length) throw new Error(result.errors[0].message)
         if (!active || request !== client) return
+        devices.value = result.data.nearbyDevices
         if (!result.data.isDiscovering) await discoveryRequest(client, startDiscoveryGQL)
         if (active && request === client) status.value = devices.value.length ? DiscoveryStatus.OK : DiscoveryStatus.SEARCHING
       } catch (error) {
@@ -91,26 +79,6 @@ export function useDeviceDiscovery(bindClient = bindGraphqlClient, subscriptions
     })
   }
 
-  async function refresh(): Promise<void> {
-    refreshAgain = true
-    if (refreshQueued) return
-    refreshQueued = true
-    try {
-      while (refreshAgain && active) {
-        refreshAgain = false
-        const client = request
-        if (!client) return
-        await enqueue(async () => {
-          if (!active || request !== client) return
-          try { await refreshDevices(client) }
-          catch (error) { console.error('discovery refresh failed', error) }
-        })
-      }
-    } finally {
-      refreshQueued = false
-    }
-  }
-
   let stopSubscriptions: (() => void)[] = []
 
   async function start(): Promise<void> {
@@ -118,7 +86,6 @@ export function useDeviceDiscovery(bindClient = bindGraphqlClient, subscriptions
     request = bindClient()
     active = true
     stopSubscriptions = [
-      subscriptions.subscribe('nearbyDevicesChanged', refresh),
       subscriptions.subscribe('pairingStarted', notice => {
         const device = devices.value.find(device => device.id === notice.deviceId)
         if (device) device.status = 'PAIRING'
@@ -130,12 +97,11 @@ export function useDeviceDiscovery(bindClient = bindGraphqlClient, subscriptions
       }),
       subscriptions.subscribe('pairingFailed', notice => restoreDeviceStatus(notice.deviceId)),
       subscriptions.subscribe('pairingCanceled', notice => restoreDeviceStatus(notice.deviceId)),
-      subscriptions.onAttached(refresh),
+      subscriptions.onAttached(poll),
     ]
     status.value = DiscoveryStatus.SEARCHING
-    pollTimer = setInterval(() => { void poll() }, 3000)
+    pollTimer = setInterval(() => { void poll() }, 2000)
     await poll()
-    await refresh()
   }
 
   async function stop(): Promise<void> {
