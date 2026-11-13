@@ -424,14 +424,6 @@ export interface GqlOperations {
     }
     variables: undefined
   }
-  acquireDiscoveryGQL: {
-    result: {
-      acquireDiscovery: boolean
-    }
-    variables: {
-      token: string
-    }
-  }
   addAudioToQueueGQL: {
     result: {
       addAudioToQueue: boolean
@@ -1685,12 +1677,6 @@ export interface GqlOperations {
     }
     variables: undefined
   }
-  mdnsChangedSubscription: {
-    result: {
-      mdnsChanged: boolean
-    }
-    variables: undefined
-  }
   mediaBucketsGQL: {
     result: {
       mediaBuckets: Array<{
@@ -2263,14 +2249,6 @@ export interface GqlOperations {
     }
     variables: undefined
   }
-  releaseDiscoveryGQL: {
-    result: {
-      releaseDiscovery: boolean
-    }
-    variables: {
-      token: string
-    }
-  }
   removeAudioFromQueueGQL: {
     result: {
       removeAudioFromQueue: boolean
@@ -2690,6 +2668,12 @@ export interface GqlOperations {
     }
     variables: undefined
   }
+  startDiscoveryGQL: {
+    result: {
+      startDiscovery: boolean
+    }
+    variables: undefined
+  }
   startImageIndexGQL: {
     result: {
       startImageIndex: boolean
@@ -2713,6 +2697,12 @@ export interface GqlOperations {
     variables: {
       audio: boolean
     }
+  }
+  stopDiscoveryGQL: {
+    result: {
+      stopDiscovery: boolean
+    }
+    variables: undefined
   }
   stopMediaScanGQL: {
     result: {

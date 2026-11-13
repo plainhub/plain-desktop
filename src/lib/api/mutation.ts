@@ -916,15 +916,15 @@ export const deleteDbTableRowsGQL = `
   }
 `
 
-export const acquireDiscoveryGQL = `
-  mutation AcquireDiscovery($token: ID!) {
-    acquireDiscovery(token: $token)
+export const startDiscoveryGQL = `
+  mutation StartDiscovery {
+    startDiscovery
   }
 `
 
-export const releaseDiscoveryGQL = `
-  mutation ReleaseDiscovery($token: ID!) {
-    releaseDiscovery(token: $token)
+export const stopDiscoveryGQL = `
+  mutation StopDiscovery {
+    stopDiscovery
   }
 `
 

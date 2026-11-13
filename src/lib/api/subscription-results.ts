@@ -21,7 +21,6 @@ export interface SubscriptionResults {
   pairingCompleted: { deviceId: string; deviceName: string; ip: string; port?: number | null; deviceType?: import('@/lib/status').DeviceType | null; requestId?: string | null }
   downloadsChanged: boolean
   prefsChanged: boolean
-  mdnsChanged: boolean
   nearbyDevicesChanged: boolean
   pomodoroAction: {
     today: {
