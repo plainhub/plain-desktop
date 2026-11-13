@@ -35,7 +35,7 @@ vi.mock('@/lib/api/file', () => ({
   getFileUrlByPath: (_: unknown, path: string) => 'http://127.0.0.1:8080/fs?id=' + encodeURIComponent(path),
 }))
 vi.mock('@/lib/api/mutation', () => ({
-  copyFileGQL: '',
+  copyFileToDirectoryGQL: '',
   renameFileGQL: '',
   initMutation: () => ({ mutate: vi.fn(), onDone: vi.fn() }),
 }))
