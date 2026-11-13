@@ -160,14 +160,14 @@ export const deleteChatChannelGQL = `
 `
 
 export const deletePeerGQL = `
-  mutation deletePeer($id: ID!) {
-    deletePeer(id: $id)
+  mutation deletePeer($peerId: ID!) {
+    deletePeer(peerId: $peerId)
   }
 `
 
 export const unpairPeerGQL = `
-  mutation unpairPeer($id: ID!) {
-    unpairPeer(id: $id)
+  mutation unpairPeer($peerId: ID!) {
+    unpairPeer(peerId: $peerId)
   }
 `
 
@@ -928,9 +928,9 @@ export const releaseDiscoveryGQL = `
   }
 `
 
-export const pairDeviceGQL = `
-  mutation PairDevice($input: PairingDeviceInput!) {
-    pairDevice(input: $input)
+export const pairPeerGQL = `
+  mutation PairDevice($input: PairPeerInput!) {
+    pairPeer(input: $input)
   }
 `
 

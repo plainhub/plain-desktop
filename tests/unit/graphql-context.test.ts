@@ -110,8 +110,8 @@ describe('GraphQL request ownership', () => {
     const bound = bindGraphqlClient()
     target.url = 'https://device-b.test'
     target.token = 'session-b'
-    vi.mocked(httpRequest).mockResolvedValueOnce(response({ releaseDiscovery: true }))
-    expect((await bound('mutation { releaseDiscovery(token: "scope") }')).data).toEqual({ releaseDiscovery: true })
+    vi.mocked(httpRequest).mockResolvedValueOnce(response({ stopDiscovery: true }))
+    expect((await bound('mutation { stopDiscovery }')).data).toEqual({ stopDiscovery: true })
     expect(vi.mocked(httpRequest).mock.calls[0]?.[0]).toBe('https://device-a.test/graphql')
   })
 })
@@ -184,9 +184,9 @@ it('keeps bound Desktop cleanup on its original peer after changing the selected
   target.client = 'device-a'
   const bound = bindGraphqlClient()
   target.client = 'device-b'
-  vi.mocked(nativeGraphql).mockResolvedValueOnce({ data: { releaseDiscovery: true } })
-  expect((await bound('mutation { releaseDiscovery(token: "scope") }')).data).toEqual({ releaseDiscovery: true })
-  expect(nativeGraphql).toHaveBeenCalledExactlyOnceWith({ query: 'mutation { releaseDiscovery(token: "scope") }', variables: undefined }, 30000, { kind: 'peer', peerId: 'device-a' }, expect.any(Function))
+  vi.mocked(nativeGraphql).mockResolvedValueOnce({ data: { stopDiscovery: true } })
+  expect((await bound('mutation { stopDiscovery }')).data).toEqual({ stopDiscovery: true })
+  expect(nativeGraphql).toHaveBeenCalledExactlyOnceWith({ query: 'mutation { stopDiscovery }', variables: undefined }, 30000, { kind: 'peer', peerId: 'device-a' }, expect.any(Function))
   expect(httpRequest).not.toHaveBeenCalled()
 })
 

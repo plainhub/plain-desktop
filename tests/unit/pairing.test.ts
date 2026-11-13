@@ -11,7 +11,7 @@ beforeEach(() => {
   vi.resetAllMocks()
   mock.listeners.clear()
   pairingViews.clear()
-  mock.native.mockResolvedValue({ data: { pairDevice: true, cancelPairing: true, respondToPairing: true } })
+  mock.native.mockResolvedValue({ data: { pairPeer: true, cancelPairing: true, respondToPairing: true } })
 })
 it('sends the peer and required mode and uses notifications instead of state queries', async () => {
   const pairing = createPairing()
@@ -61,7 +61,7 @@ it('cancels by peer when a view closes during initiation', async () => {
   const pairing = createPairing()
   const start = pairing.start({ peerId: 'peer', mode: 'MANAGE' })
   pairing.dispose()
-  resolve({ data: { pairDevice: true } })
+  resolve({ data: { pairPeer: true } })
   await start
   expect(mock.native.mock.lastCall?.[0].variables).toEqual({ peerId: 'peer' })
 })

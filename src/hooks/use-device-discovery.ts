@@ -1,9 +1,8 @@
 import { ref } from 'vue'
-import { acquireDiscoveryGQL, releaseDiscoveryGQL } from '@/lib/api/mutation'
+import { startDiscoveryGQL, stopDiscoveryGQL } from '@/lib/api/mutation'
 import { bindGraphqlClient } from '@/lib/api/gql-client'
 import { graphqlSubscriptions } from '@/lib/api/subscription-client'
 import { nearbyDevicesGQL } from '@/lib/api/query'
-import { randomUUID } from '@/lib/strutil'
 import { useChatStore } from '@/stores/chat'
 import { pairingViews } from '@/lib/device/pairing'
 import { DeviceType, PeerStatus } from '@/lib/status'
@@ -38,7 +37,7 @@ export enum DiscoveryStatus {
 const devices = ref<DiscoveredDevice[]>([])
 const status = ref<DiscoveryStatus>(DiscoveryStatus.IDLE)
 
-const activeSessions = new Set<{ acquire: () => Promise<void>; refresh: () => Promise<void> }>()
+const activeSessions = new Set<{ resume: () => Promise<void>; refresh: () => Promise<void> }>()
 let listenerInitialized = false
 
 function restoreDeviceStatus(deviceId: string) {
@@ -49,25 +48,26 @@ function restoreDeviceStatus(deviceId: string) {
 export function useDeviceDiscovery(bindClient = bindGraphqlClient, subscriptions = graphqlSubscriptions) {
 
   let request: ReturnType<typeof bindGraphqlClient> | null = null
-  let token: string | null = null
   let active = false
   let pending = Promise.resolve()
   let refreshQueued = false
   let refreshAgain = false
 
-  async function discoveryRequest(client: ReturnType<typeof bindGraphqlClient>, document: string, token: string): Promise<void> {
-    const result = await client(document, { token })
+  async function discoveryRequest(client: ReturnType<typeof bindGraphqlClient>, document: string): Promise<void> {
+    const result = await client(document)
     if (result.errors?.length) throw new Error(result.errors[0].message)
   }
 
-  async function refreshDevices(client: ReturnType<typeof bindGraphqlClient>, current: string): Promise<void> {
+  async function refreshDevices(client: ReturnType<typeof bindGraphqlClient>): Promise<void> {
     const result = await client<{ nearbyDevices: DiscoveredDevice[]; mdnsState: { scanning: boolean } }>(nearbyDevicesGQL)
     if (result.errors?.length) throw new Error(result.errors[0].message)
-    if (active && token === current) {
+    if (active && request === client) {
       devices.value = result.data.nearbyDevices
-      status.value = !result.data.mdnsState.scanning
-        ? DiscoveryStatus.IDLE
-        : devices.value.length ? DiscoveryStatus.OK : DiscoveryStatus.SEARCHING
+      if (!result.data.mdnsState.scanning) {
+        await discoveryRequest(client, startDiscoveryGQL)
+        if (!active || request !== client) return
+      }
+      status.value = devices.value.length ? DiscoveryStatus.OK : DiscoveryStatus.SEARCHING
     }
   }
 
@@ -77,18 +77,17 @@ export function useDeviceDiscovery(bindClient = bindGraphqlClient, subscriptions
     return result
   }
 
-  async function acquire(): Promise<void> {
-    const current = token
+  async function resume(): Promise<void> {
     const client = request
-    if (!active || !current || !client) return
+    if (!active || !client) return
     await enqueue(async () => {
-      if (!active || token !== current) return
+      if (!active || request !== client) return
       try {
-        await discoveryRequest(client, acquireDiscoveryGQL, current)
-        if (active && token === current) await refreshDevices(client, current)
+        await discoveryRequest(client, startDiscoveryGQL)
+        if (active && request === client) await refreshDevices(client)
       } catch (error) {
         if (active) status.value = DiscoveryStatus.NETWORK_ERROR
-        console.error('discovery acquisition failed', error)
+        console.error('discovery start failed', error)
       }
     })
   }
@@ -100,12 +99,11 @@ export function useDeviceDiscovery(bindClient = bindGraphqlClient, subscriptions
     try {
       while (refreshAgain && active) {
         refreshAgain = false
-        const current = token
         const client = request
-        if (!current || !client) return
+        if (!client) return
         await enqueue(async () => {
-          if (!active || token !== current) return
-          try { await refreshDevices(client, current) }
+          if (!active || request !== client) return
+          try { await refreshDevices(client) }
           catch (error) { console.error('discovery refresh failed', error) }
         })
       }
@@ -114,13 +112,12 @@ export function useDeviceDiscovery(bindClient = bindGraphqlClient, subscriptions
     }
   }
 
-  const session = { acquire, refresh }
+  const session = { resume, refresh }
   let stopSubscriptions: (() => void)[] = []
 
   async function start(): Promise<void> {
     if (active) return
     request = bindClient()
-    token = randomUUID()
     active = true
     activeSessions.add(session)
     stopSubscriptions = [
@@ -137,24 +134,22 @@ export function useDeviceDiscovery(bindClient = bindGraphqlClient, subscriptions
       }),
       subscriptions.subscribe('pairingFailed', notice => restoreDeviceStatus(notice.deviceId)),
       subscriptions.subscribe('pairingCanceled', notice => restoreDeviceStatus(notice.deviceId)),
-      subscriptions.onAttached(() => { void acquire() }),
+      subscriptions.onAttached(() => { void resume() }),
     ]
     status.value = DiscoveryStatus.SEARCHING
-    await acquire()
+    await resume()
   }
 
   async function stop(): Promise<void> {
-    const current = token
     const client = request
-    if (!active || !current || !client) return
+    if (!active || !client) return
     active = false
-    token = null
     activeSessions.delete(session)
     stopSubscriptions.forEach(stop => stop())
     stopSubscriptions = []
     await enqueue(async () => {
-      try { await discoveryRequest(client, releaseDiscoveryGQL, current) }
-      catch (error) { console.error('discovery release failed', error) }
+      try { await discoveryRequest(client, stopDiscoveryGQL) }
+      catch (error) { console.error('discovery stop failed', error) }
     })
     if (activeSessions.size === 0) {
       status.value = DiscoveryStatus.IDLE
@@ -165,7 +160,7 @@ export function useDeviceDiscovery(bindClient = bindGraphqlClient, subscriptions
 
   function retry() {
     status.value = DiscoveryStatus.SEARCHING
-    return active ? acquire() : start()
+    return active ? resume() : start()
   }
 
   async function openLanPermissionSettings() {

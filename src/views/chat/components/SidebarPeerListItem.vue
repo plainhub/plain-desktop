@@ -110,7 +110,7 @@ function doDelete() {
   if (deleteLoading.value) return
   deleteLoading.value = true
   const wasActive = currentChatId.value === `peer:${props.peer.id}`
-  deletePeer({ id: props.peer.id }).then((result) => {
+  deletePeer({ peerId: props.peer.id }).then((result) => {
     deleteLoading.value = false
     if (!result) return
     chatStore.fetchPeers()

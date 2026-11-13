@@ -59,7 +59,7 @@ export function createPairing(subscriptions = graphqlSubscriptions, request?: Re
     peerId.value = value.peerId
     pairingViews.set(value.peerId, { deviceId: value.peerId, phase: 'PAIRING', error: null })
     try {
-      await execute('mutation($input: PairingDeviceInput!) { pairDevice(input: $input) }', { input: value })
+      await execute('mutation($input: PairPeerInput!) { pairPeer(input: $input) }', { input: value })
       if (disposed) await cancel(value.peerId)
     } catch (error) {
       update(value.peerId, { phase: 'FAILED', error: error instanceof Error ? error.message : String(error) })

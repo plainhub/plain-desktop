@@ -1,7 +1,7 @@
 import {
   cancelPairingGQL,
   initMutation,
-  pairDeviceGQL,
+  pairPeerGQL,
   respondToPairingGQL,
 } from '@/lib/api/mutation'
 import { pairingViews } from '@/lib/device/pairing'
@@ -26,7 +26,7 @@ export enum DeviceState {
   CANCELING,
 }
 const deviceStates = reactive(new Map<string, DeviceState>())
-const { mutate: pairDeviceMutate } = initMutation({ document: pairDeviceGQL }, false)
+const { mutate: pairPeerMutate } = initMutation({ document: pairPeerGQL }, false)
 const { mutate: cancelPairingMutate } = initMutation({ document: cancelPairingGQL }, false)
 const { mutate: respondToPairingMutate } = initMutation({ document: respondToPairingGQL })
 
@@ -38,14 +38,14 @@ export async function denyPairing(request: PairingRequest) {
   await respondToPairingMutate({ peerId: request.fromId, accepted: false })
 }
 
-export interface PairingDeviceInput { peerId: string; mode: 'CHAT' | 'MANAGE'; password?: string }
+export interface PairPeerInput { peerId: string; mode: 'CHAT' | 'MANAGE'; password?: string }
 
 export function useDevicePairing() {
   const verificationCodes = computed(() => new Map(Array.from(pairingViews.values())
     .filter(view => view.verificationCode && !['SUCCEEDED', 'FAILED', 'CANCELLED'].includes(view.phase))
     .map(view => [view.deviceId, view.verificationCode!])))
-  async function pairDevice(device: PairingDeviceInput) {
-    return await pairDeviceMutate({ input: device }) != null
+  async function pairPeer(device: PairPeerInput) {
+    return await pairPeerMutate({ input: device }) != null
   }
 
   async function cancelPairing(peerId: string) {
@@ -53,7 +53,7 @@ export function useDevicePairing() {
   }
 
   return {
-    pairDevice,
+    pairPeer,
     cancelPairing,
     deviceStates,
     verificationCodes,

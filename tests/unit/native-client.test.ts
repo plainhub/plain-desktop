@@ -48,7 +48,7 @@ it('does not issue a mutation when the document handshake completes after its de
   let finish!: (scope: string) => void
   fixture.invoke.mockImplementation(() => new Promise<string>((resolve) => { finish = resolve }))
   const { nativeGraphql } = await import('../../src/lib/api/native-client')
-  const request = nativeGraphql({ query: 'mutation { acquireDiscovery(token: "view") }' }, 500)
+  const request = nativeGraphql({ query: 'mutation { startDiscovery }' }, 500)
   const rejected = expect(request).rejects.toThrow('connection_timeout')
   await vi.advanceTimersByTimeAsync(500)
   await rejected

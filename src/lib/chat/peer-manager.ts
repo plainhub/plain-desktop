@@ -9,7 +9,7 @@ class PeerManager {
   private readonly unpairMut = initMutation({ document: unpairPeerGQL }, false)
 
   async deletePeer(peerId: string): Promise<boolean> {
-    const r = await this.deleteMut.mutate({ id: peerId })
+    const r = await this.deleteMut.mutate({ peerId })
     if (!r) return false
     peerCacher.removePeer(peerId)
     await peerCacher.load()
@@ -18,7 +18,7 @@ class PeerManager {
   }
 
   async markUnpaired(peerId: string): Promise<boolean> {
-    const r = await this.unpairMut.mutate({ id: peerId })
+    const r = await this.unpairMut.mutate({ peerId })
     if (!r) return false
     await peerCacher.load()
     return true

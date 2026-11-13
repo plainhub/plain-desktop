@@ -1164,7 +1164,7 @@ export interface GqlOperations {
       deletePeer: boolean
     }
     variables: {
-      id: string
+      peerId: string
     }
   }
   deleteSmsGQL: {
@@ -2019,14 +2019,6 @@ export interface GqlOperations {
       ids: Array<string>
     }
   }
-  pairDeviceGQL: {
-    result: {
-      pairDevice: boolean
-    }
-    variables: {
-      input: unknown
-    }
-  }
   pairingCanceledSubscription: {
     result: {
       pairingCanceled: {
@@ -2083,6 +2075,14 @@ export interface GqlOperations {
       }
     }
     variables: undefined
+  }
+  pairPeerGQL: {
+    result: {
+      pairPeer: boolean
+    }
+    variables: {
+      input: unknown
+    }
   }
   pauseDownloadGQL: {
     result: {
@@ -2830,7 +2830,7 @@ export interface GqlOperations {
       unpairPeer: boolean
     }
     variables: {
-      id: string
+      peerId: string
     }
   }
   updateAudioPlayModeGQL: {
