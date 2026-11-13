@@ -937,28 +937,26 @@ export const respondToPairingGQL = `
   }
 `
 
-export const downloadPeerFileGQL = `
-  mutation downloadPeerFile($messageId: ID!, $peerId: ID!) {
-    downloadPeerFile(messageId: $messageId, peerId: $peerId)
+export const createDownloadGQL = `
+  mutation createDownload($input: DownloadInput!) {
+    createDownload(input: $input) { id }
   }
 `
 
 export const pauseDownloadGQL = `
-  mutation pauseDownload($messageId: ID!) {
-    pauseDownload(messageId: $messageId)
-  }
+  mutation pauseDownload($id: ID!) { pauseDownload(id: $id) }
 `
-
 export const resumeDownloadGQL = `
-  mutation resumeDownload($messageId: ID!, $peerId: ID!) {
-    resumeDownload(messageId: $messageId, peerId: $peerId)
-  }
+  mutation resumeDownload($id: ID!) { resumeDownload(id: $id) }
 `
-
 export const retryDownloadGQL = `
-  mutation retryDownload($messageId: ID!, $peerId: ID!) {
-    retryDownload(messageId: $messageId, peerId: $peerId)
-  }
+  mutation retryDownload($id: ID!) { retryDownload(id: $id) }
+`
+export const cancelDownloadGQL = `
+  mutation cancelDownload($id: ID!) { cancelDownload(id: $id) }
+`
+export const removeDownloadGQL = `
+  mutation removeDownload($id: ID!) { removeDownload(id: $id) }
 `
 
 export const pauseMediaScanGQL = `

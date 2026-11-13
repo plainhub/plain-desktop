@@ -21,7 +21,7 @@
       <i-material-symbols:pause-rounded v-if="downloadInfo?.status === 'DOWNLOADING'" />
       <i-material-symbols:download-rounded v-else-if="downloadInfo?.status === 'PAUSED'" />
       <i-material-symbols:close-rounded v-else-if="downloadInfo?.status === 'PENDING'" />
-      <i-material-symbols:refresh-rounded v-else-if="downloadInfo?.status === 'FAILED'" />
+      <i-material-symbols:refresh-rounded v-else-if="downloadInfo?.status === 'FAILED' || downloadInfo?.status === 'PARTIAL' || downloadInfo?.status === 'CANCELED'" />
     </span>
   </div>
 </template>
@@ -53,7 +53,7 @@ const props = withDefaults(
 
 const emit = defineEmits<{ action: [action: 'pause' | 'resume' | 'retry'] }>()
 
-const ACTIVE_STATUSES = ['PENDING', 'DOWNLOADING', 'PAUSED', 'FAILED']
+const ACTIVE_STATUSES = ['PENDING', 'DOWNLOADING', 'PAUSED', 'FAILED', 'PARTIAL', 'CANCELED']
 
 const isActive = computed(
   () => !!props.downloadInfo && ACTIVE_STATUSES.includes(props.downloadInfo.status)
@@ -65,7 +65,7 @@ function onClick() {
   const s = props.downloadInfo?.status
   if (s === 'DOWNLOADING' || s === 'PENDING') emit('action', 'pause')
   else if (s === 'PAUSED') emit('action', 'resume')
-  else if (s === 'FAILED') emit('action', 'retry')
+  else if (s === 'FAILED' || s === 'PARTIAL' || s === 'CANCELED') emit('action', 'retry')
 }
 
 // SVG geometry derived from ringSize: use 80 % of ringSize as viewBox, radius = 40 % of viewBox

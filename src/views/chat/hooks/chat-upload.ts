@@ -11,7 +11,7 @@ import { formatFileSize } from '@/lib/format'
 import { getVideoData, getImageData, isVideo } from '@/lib/file'
 import { gqlFetch } from '@/lib/api/gql-client'
 import { graphqlSubscriptions } from '@/lib/api/subscription-client'
-import { downloadPeerFileGQL, pauseDownloadGQL, resumeDownloadGQL, retryDownloadGQL } from '@/lib/api/mutation'
+import { createDownloadGQL, pauseDownloadGQL, resumeDownloadGQL, retryDownloadGQL } from '@/lib/api/mutation'
 import emitter from '@/plugins/eventbus'
 import { projectChatDownloadProgress, type ChatDownloadProgress, type ChatDownloadProgressItem } from '../chat-download-progress'
 
@@ -186,7 +186,6 @@ export function useChatUpload(chatId: ComputedRef<string>, channelId: ComputedRe
     chatText.value = ''
   }
 
-  // --- Peer file download (mirrors plain-app DownloadQueue) ---
   const submittedDownloads = new Set<string>()
 
   function getPeerIdForItem(item: IChatItem): string {
@@ -199,42 +198,34 @@ export function useChatUpload(chatId: ComputedRef<string>, channelId: ComputedRe
     if (!peerId || submittedDownloads.has(messageId)) return
     submittedDownloads.add(messageId)
     try {
-      await gqlFetch(downloadPeerFileGQL, { messageId, peerId })
+      const message = chatItems.value.find((item) => item.id === messageId)
+      const fileIds = message?._content?.value?.items
+        ?.filter((file: any) => typeof file.uri === 'string' && file.uri.startsWith('fsid:'))
+        .map((file: any) => file.id)
+      if (!fileIds?.length) return
+      await Promise.all(fileIds.map(async (fileId: string) => {
+        const result = await gqlFetch(createDownloadGQL, { input: { chat: { messageId, peerId, fileIds: [fileId] } } })
+        if (result.errors?.length) throw new Error(result.errors[0].message)
+      }))
+      await refreshDownloads()
     } catch (e) {
       submittedDownloads.delete(messageId)
+      console.error(e)
     }
   }
 
-  async function pausePeerDownload(messageId: string) {
-    try {
-      await gqlFetch(pauseDownloadGQL, { messageId })
-    } catch {
-      /* */
+  async function controlDownload(messageId: string, action: 'pause' | 'resume' | 'retry') {
+    const taskIds = downloadProgress[messageId]?.taskIds ?? []
+    const document = action === 'pause' ? pauseDownloadGQL : action === 'resume' ? resumeDownloadGQL : retryDownloadGQL
+    for (const id of taskIds) {
+      const result = await gqlFetch(document, { id })
+      if (result.errors?.length) throw new Error(result.errors[0].message)
     }
-  }
-
-  async function resumePeerDownload(messageId: string, peerId: string) {
-    try {
-      await gqlFetch(resumeDownloadGQL, { messageId, peerId })
-    } catch {
-      /* */
-    }
-  }
-
-  async function retryPeerDownload(messageId: string, peerId: string) {
-    try {
-      await gqlFetch(retryDownloadGQL, { messageId, peerId })
-    } catch {
-      /* */
-    }
+    await refreshDownloads()
   }
 
   function handleDownloadAction(messageId: string, action: 'pause' | 'resume' | 'retry') {
-    const item = chatItems.value.find((i) => i.id === messageId)
-    const peerId = item ? getPeerIdForItem(item) : ''
-    if (action === 'pause') pausePeerDownload(messageId)
-    else if (action === 'resume') resumePeerDownload(messageId, peerId)
-    else if (action === 'retry') retryPeerDownload(messageId, peerId)
+    void controlDownload(messageId, action).catch(console.error)
   }
 
   // Auto-trigger download for peer messages with fsid: URIs (mirrors
@@ -269,14 +260,17 @@ export function useChatUpload(chatId: ComputedRef<string>, channelId: ComputedRe
     try {
       while (downloadsPending && downloadsActive) {
         downloadsPending = false
-        const result = await gqlFetch<{ chatDownloadQueue: { tasks: ChatDownloadProgressItem[] } }>(
-          'query ChatDownloadProgress { chatDownloadQueue { tasks { messageId downloaded total speed status } } }',
+        const result = await gqlFetch<{ downloads: Array<{ id: string; downloadedBytes: number; totalBytes: number; bytesPerSecond: number; status: string; source: { __typename: string; messageId?: string } }> }>(
+          'query ChatDownloadProgress { downloads { id downloadedBytes totalBytes bytesPerSecond status source { __typename ... on ChatDownloadSource { messageId } } } }',
           undefined,
           { fresh: true },
         )
         if (result.errors?.length) throw new Error(result.errors[0].message)
         if (!downloadsActive) return
-        const { active, finished } = projectChatDownloadProgress(result.data.chatDownloadQueue.tasks, Object.keys(downloadProgress))
+        const rows: ChatDownloadProgressItem[] = result.data.downloads
+          .filter((task) => task.source.__typename === 'ChatDownloadSource')
+          .map((task) => ({ id: task.id, messageId: task.source.messageId!, downloaded: task.downloadedBytes, total: task.totalBytes, speed: task.bytesPerSecond, status: task.status }))
+        const { active, finished } = projectChatDownloadProgress(rows, Object.keys(downloadProgress))
         for (const messageId of finished) submittedDownloads.delete(messageId)
         Object.keys(downloadProgress).forEach((key) => delete downloadProgress[key])
         Object.assign(downloadProgress, active)

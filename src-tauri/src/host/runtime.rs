@@ -40,7 +40,7 @@ impl Runtime {
             | "clipboardHistoryRefresh"
             | "dlnaRendererChanged"
             | "dlnaRendererRefresh"
-            | "sharedFolderDownloadsRefresh"
+            | "downloadsRefresh"
             | "peerTransportsChanged"
             | "appUpdateDownloadChanged"
             | "dlnaSenderChanged"

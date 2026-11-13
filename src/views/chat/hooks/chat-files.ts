@@ -44,16 +44,10 @@ export function useChatFiles(props: { data: any; downloadInfo: any; peer: { id: 
     })
   })
 
-  const ACTIVE_STATUSES = ['PENDING', 'DOWNLOADING', 'PAUSED', 'FAILED']
-  const isActiveDl = computed(() => !!props.downloadInfo && ACTIVE_STATUSES.includes(props.downloadInfo.status))
-
   function getThumb(item: ISource) {
     if (isImage(item.name) || isVideo(item.name)) {
       if (item.thumbnail) return item.thumbnail
       if (item.path.startsWith('fsid:')) return chatAttachmentThumbnail(item.src)
-      if (isActiveDl.value) {
-        return ''
-      }
       return item.src.startsWith('blob:') ? item.src : `${item.src}&size=sm`
     }
     const ext = item.extension
@@ -66,6 +60,7 @@ export function useChatFiles(props: { data: any; downloadInfo: any; peer: { id: 
   }
 
   function clickItem(item: ISource) {
+    if (item.path.startsWith('fsid:')) return
     if (isAudio(item.name)) {
       activeAudioSrc.value = activeAudioSrc.value === item.src ? null : item.src
       return
@@ -80,7 +75,7 @@ export function useChatFiles(props: { data: any; downloadInfo: any; peer: { id: 
     } else if (canOpenInBrowser(item.name)) {
       openUrl(item.src)
     } else if (isImage(item.name) || isVideo(item.name)) {
-      const viewable = items.value.filter((it) => isImage(it.name) || isVideo(it.name))
+      const viewable = items.value.filter((it) => !it.path.startsWith('fsid:') && (isImage(it.name) || isVideo(it.name)))
       const index = viewable.findIndex((it) => it.src === item.src)
       if (index < 0) {
         openMedia(0, [item])

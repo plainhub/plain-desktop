@@ -24,11 +24,11 @@ it('coalesces progress notifications and applies the latest queue snapshot', asy
   const blocked = new Promise<void>(resolve => { finish = resolve })
   fixture.fetch.mockImplementationOnce(async () => {
     await blocked
-    return { data: { chatDownloadQueue: { tasks: [] } } }
-  }).mockResolvedValue({ data: { chatDownloadQueue: { tasks: [
-    { messageId: 'message', downloaded: 4, total: 10, speed: 1, status: 'DOWNLOADING' },
-  ] } } })
-  const result = useChatUpload(computed(() => 'peer:one'), computed(() => ''), ref(''), () => {}, ref(''), ref([]))
+    return { data: { downloads: [] } }
+  }).mockResolvedValue({ data: { downloads: [
+    { id: 'task', source: { __typename: 'ChatDownloadSource', messageId: 'message' }, downloadedBytes: 4, totalBytes: 10, bytesPerSecond: 1, status: 'DOWNLOADING' },
+  ] } })
+  const result = useChatUpload(computed(() => 'peer:one'), computed(() => ''), '/owned', () => {}, ref(''), ref([]))
   fixture.mounted.forEach(fn => fn())
   const changed = fixture.callbacks.get('changed')!
   changed()

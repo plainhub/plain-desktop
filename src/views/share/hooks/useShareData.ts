@@ -14,6 +14,7 @@ export type ShareErrorCode =
 
 function mapGraphqlError(message: string): ShareErrorCode {
   const m = message.toLowerCase()
+  if (m.includes('password')) return 'password_required'
   if (m.includes('expired') || m.includes('inactive')) return 'expired'
   if (m.includes('not found')) return 'not_found'
   if (m.includes('not allowed')) return 'forbidden'

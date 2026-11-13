@@ -4,7 +4,7 @@ import { renderToString } from 'vue/server-renderer'
 import { xchacha20poly1305 } from '@noble/ciphers/chacha'
 vi.mock('@/stores/temp', () => ({ useTempStore: () => ({ urlTokenKey: new Uint8Array(32).fill(7) }) }))
 vi.mock('@/hooks/open-media', () => ({ useOpenMedia: () => ({ open: vi.fn() }) }))
-vi.mock('@/views/chat/ChatDownloadOverlay.vue', () => ({ default: { render: () => null } }))
+vi.mock('@/views/chat/ChatDownloadOverlay.vue', () => ({ default: { render: () => 'data-download-overlay' } }))
 vi.mock('@/lib/file', () => ({ isVideo: () => false }))
 vi.mock('@/lib/format', () => ({ formatDurationMs: () => '', formatFileSize: () => '' }))
 vi.mock('@/lib/api/api', () => ({ getApiHeaders: () => ({ 'c-id': 'test-client' }), getProxyUrl: (path: string) => 'https://fixture.invalid' + path }))
@@ -43,4 +43,18 @@ it('loads a remote thumbnail using only the encrypted peer file reference', asyn
   const plain = xchacha20poly1305(new Uint8Array(32).fill(7), payload.subarray(0, 24),
     new TextEncoder().encode('FS\0c\0test-client')).decrypt(payload.subarray(24))
   expect(new TextDecoder().decode(plain)).toBe('fsid:peer-resource-id')
+})
+
+it('keeps completed images visible while remaining message attachments need retry', async () => {
+  vi.stubGlobal('window', { fileIdMap: new Map() })
+  const html = await renderToString(createSSRApp(ChatImages, {
+    peer: { id: 'peer-1' },
+    downloadInfo: { downloaded: 10, total: 20, speed: 0, status: 'PARTIAL' },
+    data: { _content: { value: { items: [
+      { uri: 'fid:' + 'a'.repeat(64), fileName: 'complete.png', size: 10 },
+      { uri: 'fsid:remote-resource', fileName: 'remaining.png', size: 10 },
+    ] } } },
+  }))
+  expect(html.match(/class="image-thumb"/g)).toHaveLength(2)
+  expect(html.match(/data-download-overlay/g)).toHaveLength(1)
 })

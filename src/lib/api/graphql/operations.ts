@@ -653,6 +653,14 @@ export interface GqlOperations {
       query: string
     }
   }
+  cancelDownloadGQL: {
+    result: {
+      cancelDownload: boolean
+    }
+    variables: {
+      id: string
+    }
+  }
   cancelImageIndexGQL: {
     result: {
       cancelImageIndex: boolean
@@ -836,6 +844,16 @@ export interface GqlOperations {
     }
     variables: {
       path: string
+    }
+  }
+  createDownloadGQL: {
+    result: {
+      createDownload: {
+        id: string
+      }
+    }
+    variables: {
+      input: unknown
     }
   }
   createFeedGQL: {
@@ -1238,15 +1256,6 @@ export interface GqlOperations {
       limit: number
       query: string
       sortBy: 'DATE_ASC' | 'DATE_DESC' | 'SIZE_ASC' | 'SIZE_DESC' | 'NAME_ASC' | 'NAME_DESC' | 'TAKEN_AT_DESC'
-    }
-  }
-  downloadPeerFileGQL: {
-    result: {
-      downloadPeerFile: boolean
-    }
-    variables: {
-      messageId: string
-      peerId: string
     }
   }
   downloadsChangedSubscription: {
@@ -2032,7 +2041,7 @@ export interface GqlOperations {
       pauseDownload: boolean
     }
     variables: {
-      messageId: string
+      id: string
     }
   }
   pauseMediaScanGQL: {
@@ -2215,6 +2224,14 @@ export interface GqlOperations {
       peerId: string
     }
   }
+  removeDownloadGQL: {
+    result: {
+      removeDownload: boolean
+    }
+    variables: {
+      id: string
+    }
+  }
   removeFavoriteFolderGQL: {
     result: {
       removeFavoriteFolder: Array<{
@@ -2337,8 +2354,7 @@ export interface GqlOperations {
       resumeDownload: boolean
     }
     variables: {
-      messageId: string
-      peerId: string
+      id: string
     }
   }
   resumeMediaScanGQL: {
@@ -2360,8 +2376,7 @@ export interface GqlOperations {
       retryDownload: boolean
     }
     variables: {
-      messageId: string
-      peerId: string
+      id: string
     }
   }
   SAVE_MUTATION: {

@@ -1,9 +1,9 @@
 <template>
   <div class="image-container">
-    <div v-for="(item, i) in sources" :key="i" class="media-item" data-ctx="media" :data-path="item.path" :data-name="item.name" @click="canView ? view(i) : undefined">
+    <div v-for="(item, i) in sources" :key="i" class="media-item" data-ctx="media" :data-path="item.path" :data-name="item.name" @click="view(item)">
       <img v-if="getPreview(item)" class="image-thumb" :src="getPreview(item)" loading="lazy" onerror="this.src='/broken-image.png'" />
       <span class="duration">{{ isVideo(item.name) && item.durationMs > 0 ? formatDurationMs(item.durationMs) : formatFileSize(item.size) }}</span>
-      <ChatDownloadOverlay :download-info="downloadInfo" :ring-size="48" border-radius="6px" @action="onDownloadAction" />
+      <ChatDownloadOverlay v-if="item.path.startsWith('fsid:')" :download-info="downloadInfo" :ring-size="48" border-radius="6px" @action="onDownloadAction" />
     </div>
   </div>
 </template>
@@ -32,23 +32,12 @@ function onDownloadAction(action: 'pause' | 'resume' | 'retry') {
   emit('download-action', action)
 }
 
-const ACTIVE_STATUSES = ['PENDING', 'DOWNLOADING', 'PAUSED', 'FAILED']
-function isActiveStatus(status: string) {
-  return ACTIVE_STATUSES.includes(status)
-}
-
-const canView = computed(() => !props.downloadInfo || !isActiveStatus(props.downloadInfo.status))
-
 function getPreview(source: ISource) {
   if (source.thumbnail) {
     return source.thumbnail
   }
 
   if (source.path.startsWith('fsid:')) return chatAttachmentThumbnail(source.src)
-
-  if (props.downloadInfo && isActiveStatus(props.downloadInfo.status)) {
-    return ''
-  }
 
   if (source.src.startsWith('blob:')) {
     return source.src
@@ -84,7 +73,11 @@ const sources = computed(() => {
   return items
 })
 
-const { open: openMedia } = useOpenMedia(sources)
-function view(index: number) { openMedia(index) }
+const viewable = computed(() => sources.value.filter(item => !item.path.startsWith('fsid:')))
+const { open: openMedia } = useOpenMedia(viewable)
+function view(item: ISource) {
+  const index = viewable.value.indexOf(item)
+  if (index >= 0) openMedia(index)
+}
 </script>
 
