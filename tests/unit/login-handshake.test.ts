@@ -131,7 +131,7 @@ it.each(['http:', 'https:'])(
     })
     expect(decoded).not.toHaveProperty('password')
     await socket.message(frame(bytes(vector.key), { status: 'PENDING' }))
-    expect(pending).toHaveBeenCalledExactlyOnceWith(vector.fingerprint)
+    expect(pending).toHaveBeenCalledExactlyOnceWith('83954721')
     expect(socket.close).not.toHaveBeenCalled()
     await socket.message(frame(bytes(vector.key), completed()))
     await expect(promise).resolves.toMatchObject({
