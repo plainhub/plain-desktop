@@ -276,6 +276,7 @@ fn native_media_admission_and_hosted_acceptance() {
     let script =
         PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures/native-media/runner.py");
     let output = Command::new("python3")
+        .env(crate::host::webview::MEDIA_BACKEND.0, crate::host::webview::MEDIA_BACKEND.1)
         .env("PYTHONDONTWRITEBYTECODE", "1")
         .arg(script)
         .arg(std::env::current_exe().unwrap())

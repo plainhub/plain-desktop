@@ -29,6 +29,7 @@ def legacy_diagnostic_log(log):
         r'Network State Changed from (?:Empty|Idle|Loading|Loaded|FormatError|NetworkError|DecodeError) to (?:Empty|Idle|Loading|Loaded|FormatError|NetworkError|DecodeError)',
         r'Ready State Changed from Have(?:Nothing|Metadata|CurrentData|FutureData|EnoughData) to Have(?:Nothing|Metadata|CurrentData|FutureData|EnoughData)',
         r'Processing playback request|Playback ended|Flushing video sample |Unhandled GStreamer message type: new-clock',
+        r'Using legacy playbin element: (?:true|false)',
         r'\[Buffering\] Complete\.|Async: \[Buffering\] still buffering, so force HaveCurrentData\.',
         r'\[Buffering\] mode: GST_BUFFERING_(?:STREAM|DOWNLOAD|TIMESHIFT|LIVE), status: \d+\.\d+%',
         r'\[Buffering\] Updated maxTimeLoaded: ' + media_time,
@@ -75,7 +76,7 @@ def pipeline_evidence(log):
         if not re.match(r'^\s*\d+:\d{2}:\d{2}\.\d+\s+\d+\s+\S+\s+\S+\s+(?:webkitmediaplayer|basesink)\s', line):
             continue
         if not re.search(r'\[Seek\]|\[Buffering\]|State Changed|Processing playback|preroll|'
-                         r'Async: State|State: |Playback ended|clock|segment|flush', line, re.I):
+                         r'Async: State|State: |Playback ended|clock|segment|flush|Using legacy playbin element', line, re.I):
             continue
         pipeline = re.search(r'<(regular-plain-native-(?:video-webm|audio-wav|small-video-webm|control-wav)-\d{1,3})>', line)
         key = pipeline.group(1) if pipeline else 'other-owned-pipeline'
@@ -85,6 +86,9 @@ def pipeline_evidence(log):
                 continue
             groups[key] = {'matched_lines': 0, 'retained_lines': [], 'seek_lines': []}
         group = groups[key]
+        backend = re.search(r'Using legacy playbin element: (true|false)$', line)
+        if backend:
+            group['legacy_playbin'] = backend[1] == 'true'
         group['matched_lines'] += 1
         if len(group['retained_lines']) == 32:
             del group['retained_lines'][8]
@@ -544,8 +548,15 @@ def run(binary, test):
         report['audio_environment'].update(audio_evidence(legacy_diagnostic_log(native_log)))
         if (root / 'native-results.json').is_file():
             report['native'] = json.loads((root / 'native-results.json').read_text())
+        pipelines = pipeline_evidence(legacy_diagnostic_log(native_log))['pipelines']
+        backends = {name: value['legacy_playbin'] for name, value in pipelines.items() if 'legacy_playbin' in value}
+        report['media_backend'] = {'expected': 'playbin3', 'legacy_playbin_by_pipeline': backends}
         if child.returncode != 0 or report.get('native', {}).get('status') != 'passed':
             raise RuntimeError('Native acceptance failed or lacks a complete result; inspect native.log and structured results')
+        if any(backends.values()) or not all(
+                any(name.startswith('regular-plain-native-' + fixture + '-') for name in backends)
+                for fixture in ['video-webm', 'audio-wav', 'small-video-webm', 'control-wav']):
+            raise RuntimeError('WebKit did not confirm playbin3 for every owned media fixture')
         if not report['audio_environment']['selection_observed']:
             raise RuntimeError('Audio environment verification failed: no rendered fake-audio-sink buffer was observed')
         if not any('WebKit' in name for name in report['processes'].values()):

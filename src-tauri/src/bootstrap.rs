@@ -4,6 +4,8 @@ use tauri::Manager;
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
+    #[cfg(target_os = "linux")]
+    crate::host::webview::configure_media_backend();
     let startup = crate::startup_options::Options::read().expect("invalid startup options");
     app_log::init("trace").expect("initialize the shared logger");
     let mut context = tauri::generate_context!();

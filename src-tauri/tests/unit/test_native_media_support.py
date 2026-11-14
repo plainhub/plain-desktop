@@ -354,6 +354,10 @@ function video(deliverFrames = true, distinct = true) {
                 (path / 'retained.txt').write_text('Replacement must not be removed')
 
             def read(path, *args, **kwargs):
+                if path == root / 'native.log':
+                    return '\n'.join('0:00:01.123 123 thread INFO webkitmediaplayer player:3520:f:'
+                        '<regular-plain-native-' + name + '-0> Using legacy playbin element: false'
+                        for name in ['video-webm', 'audio-wav', 'small-video-webm', 'control-wav'])
                 if str(path) == '/proc/self/mountinfo':
                     if mounted:
                         return f'77 25 0:66 / {root}/runtime/doc rw - fuse.portal portal rw,user_id={os.getuid()}\n'
@@ -591,6 +595,17 @@ function video(deliverFrames = true, distinct = true) {
         observed = runner.audio_evidence('<fake-audio-sink> rendering object 0x123')
         self.assertTrue(observed['selection_observed'])
         self.assertEqual(observed['rendered_fake_sink_buffers'], 1)
+
+    def test_pipeline_backend_evidence_uses_exact_constructed_pipeline_messages(self):
+        for legacy in ['true', 'false']:
+            line = ('0:00:01.123 123 thread INFO webkitmediaplayer player:3520:f:'
+                    '<regular-plain-native-audio-wav-2> Using legacy playbin element: ' + legacy)
+            safe = runner.legacy_diagnostic_log(line)
+            group = runner.pipeline_evidence(safe)['pipelines']['regular-plain-native-audio-wav-2']
+            self.assertEqual(group['legacy_playbin'], legacy == 'true')
+            self.assertEqual(runner.legacy_diagnostic_log(line + ' SECRET'), '')
+            self.assertEqual(runner.legacy_diagnostic_log(line.replace(legacy, 'unknown')), '')
+            self.assertNotIn('SECRET', json.dumps(runner.pipeline_evidence(runner.legacy_diagnostic_log(line + ' SECRET'))))
 
     def test_pipeline_evidence_survives_json_tail_and_redacts_urls(self):
         line = '0:00:01.123 123 thread DEBUG webkitmediaplayer player:1 <regular-plain-native-audio-wav-2> [Seek] http://127.0.0.1/fs?id=secret'
