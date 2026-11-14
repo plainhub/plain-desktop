@@ -37,7 +37,7 @@ export function useMessageSend(
   const selectedSimId = ref<number>(mainStore.selectedSimSubscriptionId)
   const sentMmsDrafts = new Map<string, { body: string; files: File[] }>()
   const stopResults = subscribeSmsSendResults((result) => {
-    if (result.requestId && sentMmsDrafts.has(result.requestId)) emitter.emit('tap_phone', '')
+    if (sentMmsDrafts.has(result.requestId)) emitter.emit('tap_phone', '')
     return false
   })
   onUnmounted(stopResults)

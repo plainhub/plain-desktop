@@ -13,7 +13,7 @@ export default {
   'ai.scanning_subtitle': '正在分析照片以啟用搜尋…',
   'ai.running_title': 'AI 搜尋已就緒',
   'ai.ready_subtitle': '掃描並建立索引後，即可透過描述文字搜尋圖片。',
-  'ai.scan_progress': '掃描進度',
+  'ai.file_index_scan_progress': '掃描進度',
   'ai.model_file': '模型：',
   'ai.indexing_label': '圖片：',
   'ai.indexed_count': '已索引 {count} 張照片',

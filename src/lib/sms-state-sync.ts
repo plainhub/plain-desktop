@@ -95,10 +95,8 @@ export function settlePendingSmsResult(
   pending: ISms[],
   result: SmsSendResult,
 ): { pending: ISms[]; handled: boolean; transitioned?: true; failed?: ISms } {
-  const operation = result.requestId
-    ? pending.find((item) => item.id === result.requestId)
-    : undefined
-  if (!result.requestId || !operation) {
+  const operation = pending.find((item) => item.id === result.requestId)
+  if (!operation) {
     return { pending, handled: false }
   }
   if (isPendingSmsSent(operation)) return { pending, handled: true }

@@ -41,13 +41,14 @@
 <script setup lang="ts">
 import type { PropType } from 'vue'
 import { DataType } from '@/lib/data'
+import type { MediaDataType } from '@/lib/media/library-updates'
 import { hasMediaTrash } from '@/lib/feature'
 import { useMediaSidebar } from '@/hooks/media-sidebar'
 
 const props = defineProps({
-  type: { type: String as PropType<DataType>, required: true },
+  type: { type: String as PropType<Extract<DataType, MediaDataType>>, required: true },
   gql: { type: String, required: true },
 })
 
-const { app, total, totalTrash, trash, selectedTagId, selectedBucketId, selectedExt, extGroups, viewAll, viewTrash, viewByExt } = useMediaSidebar(props.type as DataType, props.gql)
+const { app, total, totalTrash, trash, selectedTagId, selectedBucketId, selectedExt, extGroups, viewAll, viewTrash, viewByExt } = useMediaSidebar(props.type, props.gql)
 </script>

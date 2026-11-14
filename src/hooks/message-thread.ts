@@ -202,7 +202,7 @@ export function useMessageThread(
 
   function handleSmsSendResult(result: SmsSendResult): { handled: boolean; failed?: ISms } {
     const outcome = settlePendingSmsResult(pendingSmsItems.value, result)
-    if (!outcome.handled || !result.requestId) return { handled: false }
+    if (!outcome.handled) return { handled: false }
     if (!outcome.transitioned) return { handled: true }
     pendingSmsItems.value = outcome.pending
     smsDeadlines.settle(result.requestId)
@@ -241,7 +241,6 @@ export function useMessageThread(
   }
 
   function handleMmsResult(result: SmsSendResult): { handled: boolean; failed?: ISms } {
-    if (!result.requestId) return { handled: false }
     const settled = settlePendingMms(pendingMmsItems.value, result.requestId)
     if (!settled.settled) return { handled: false }
     pendingMmsItems.value = settled.pending

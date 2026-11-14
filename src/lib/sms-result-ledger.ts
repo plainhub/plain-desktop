@@ -18,7 +18,6 @@ function deleteResult(requestId: string) {
 
 graphqlSubscriptions.subscribe('smsSendResult', (result) => {
   const requestId = result.requestId
-  if (!requestId) return
   if (ignored.has(requestId)) {
     emitter.emit('tap_phone', '')
     clearTimeout(ignored.get(requestId))

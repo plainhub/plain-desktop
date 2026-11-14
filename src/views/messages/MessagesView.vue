@@ -347,7 +347,7 @@ onUnmounted(() => {
 
 function onSmsSendResult(result: SmsSendResult): boolean {
   const mms = thread.handleMmsResult(result)
-  if (mms.handled && result.requestId) {
+  if (mms.handled) {
     send.settleMms(result.requestId, result.success)
     return true
   }

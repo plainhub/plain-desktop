@@ -13,7 +13,7 @@ export default {
   'ai.scanning_subtitle': 'सर्च चालू करने के लिए आपकी फ़ोटो का विश्लेषण हो रहा है…',
   'ai.running_title': 'AI सर्च तैयार है',
   'ai.ready_subtitle': 'अपनी फ़ोटो स्कैन और इंडेक्स करें ताकि विवरण से खोज सकें।',
-  'ai.scan_progress': 'स्कैन प्रगति',
+  'ai.file_index_scan_progress': 'स्कैन प्रगति',
   'ai.model_file': 'मॉडल:',
   'ai.indexing_label': 'फ़ोटो:',
   'ai.indexed_count': '{count} फ़ोटो इंडेक्स की गई',

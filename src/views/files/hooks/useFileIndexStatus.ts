@@ -1,11 +1,11 @@
 import { ref, watch, onUnmounted, type Ref } from 'vue'
 import { gqlFetch, getGraphqlContextKey } from '@/lib/api/gql-client'
-import { scanProgressGQL } from '@/lib/api/query'
+import { fileIndexScanProgressGQL } from '@/lib/api/query'
 import { graphqlSubscriptions } from '@/lib/api/subscription-client'
-import type { IScanProgress } from '@/lib/interfaces'
+import type { IFileIndexScanProgress } from '@/lib/interfaces'
 
 export function useFileIndexStatus(enabled: Ref<boolean>) {
-  const progress = ref<IScanProgress | null>(null)
+  const progress = ref<IFileIndexScanProgress | null>(null)
   const error = ref('')
   let generation = 0
   let pending = 0
@@ -16,9 +16,9 @@ export function useFileIndexStatus(enabled: Ref<boolean>) {
     if (!enabled.value || pending === current) return
     pending = current
     try {
-      const response = await gqlFetch<{ scanProgress: IScanProgress }>(scanProgressGQL, undefined, { fresh: true })
+      const response = await gqlFetch<{ fileIndexScanProgress: IFileIndexScanProgress }>(fileIndexScanProgressGQL, undefined, { fresh: true })
       if (response.errors?.length) throw new Error(response.errors[0].message)
-      if (current === generation) { progress.value = response.data.scanProgress; error.value = '' }
+      if (current === generation) { progress.value = response.data.fileIndexScanProgress; error.value = '' }
     } catch (cause) {
       if (current === generation) error.value = cause instanceof Error ? cause.message : String(cause)
     } finally {
@@ -36,7 +36,7 @@ export function useFileIndexStatus(enabled: Ref<boolean>) {
     progress.value = null; error.value = ''
     if (enabled.value) void refresh()
   }, { immediate: true })
-  const stop = graphqlSubscriptions.subscribe('mediaScanProgress', () => schedule(1000))
+  const stop = graphqlSubscriptions.subscribe('fileIndexScanProgressUpdated', () => schedule(1000))
   const stopAttached = graphqlSubscriptions.onAttached(() => { void refresh() })
   onUnmounted(() => { generation++; clearTimeout(timer); stop(); stopAttached() })
   return { progress, error }

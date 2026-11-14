@@ -13,10 +13,10 @@
     </header>
     <div v-if="stateLabel" class="summary" aria-live="polite">
       <span
-        >{{ stateLabel }}<template v-if="scanActive && scanProgress.total !== null && scanProgress.total > 0"> · {{ percent }}%</template></span
+        >{{ stateLabel }}<template v-if="scanActive && fileIndexScanProgress.total !== null && fileIndexScanProgress.total > 0"> · {{ percent }}%</template></span
       >
-      <span v-if="scanProgress.indexed > 0 || (scanProgress.total !== null && scanProgress.total > 0)"
-        >{{ scanProgress.indexed.toLocaleString() }}<template v-if="scanProgress.total !== null && scanProgress.total > 0"> / {{ scanProgress.total.toLocaleString() }}</template></span
+      <span v-if="fileIndexScanProgress.indexed > 0 || (fileIndexScanProgress.total !== null && fileIndexScanProgress.total > 0)"
+        >{{ fileIndexScanProgress.indexed.toLocaleString() }}<template v-if="fileIndexScanProgress.total !== null && fileIndexScanProgress.total > 0"> / {{ fileIndexScanProgress.total.toLocaleString() }}</template></span
       >
     </div>
     <div v-if="volumes.length" class="volume-cards">
@@ -79,7 +79,7 @@ onUnmounted(() => {
   refresh.dispose()
 })
 const {
-  scanProgress,
+  fileIndexScanProgress,
   scanActive,
   percent,
   stateLabel,

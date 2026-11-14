@@ -34,7 +34,7 @@ export const subscriptionOperations: readonly SubscriptionOperation[] = [
   {"field": "messagesUpdated", "document": "subscription { messagesUpdated { id fromId toId channelId content createdAt updatedAt status statusData } }", "access": []},
   {"field": "messagesDeleted", "document": "subscription { messagesDeleted }", "access": []},
   {"field": "mediaUpdated", "document": "subscription { mediaUpdated { types } }", "access": ["IMAGES", "VIDEOS", "AUDIO", "DOCS", "FILES"]},
-  {"field": "mediaScanProgress", "document": "subscription { mediaScanProgress { indexed pending total state error } }", "access": ["FILES"]},
+  {"field": "fileIndexScanProgressUpdated", "document": "subscription { fileIndexScanProgressUpdated { indexed pending total state error } }", "access": ["FILES"]},
   {"field": "bookmarksUpdated", "document": "subscription { bookmarksUpdated { id url title faviconPath groupId pinned clickCount lastClickedAt sortOrder createdAt updatedAt } }", "access": []},
   {"field": "feedsFetched", "document": "subscription { feedsFetched { feedId error cancelled } }", "access": []},
   {"field": "uploadMergeResult", "document": "subscription { uploadMergeResult { fileId ok value mergedSize error } }", "access": ["FILES"]},

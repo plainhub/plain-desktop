@@ -13,7 +13,7 @@ export default {
   'ai.scanning_subtitle': 'Đang phân tích ảnh để kích hoạt tìm kiếm…',
   'ai.running_title': 'Tìm kiếm AI đã sẵn sàng',
   'ai.ready_subtitle': 'Quét và lập chỉ mục ảnh để tìm kiếm bằng mô tả.',
-  'ai.scan_progress': 'Tiến trình quét',
+  'ai.file_index_scan_progress': 'Tiến trình quét',
   'ai.model_file': 'Mô hình:',
   'ai.indexing_label': 'Ảnh:',
   'ai.indexed_count': '{count} ảnh đã lập chỉ mục',

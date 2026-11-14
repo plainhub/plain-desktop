@@ -7,7 +7,7 @@ import { Capability } from '@/lib/data'
 import { hasFeature } from '@/lib/feature'
 import { bindGraphqlClient } from '@/lib/api/gql-client'
 import { pushModal } from '@/components/modal'
-import { fileIndexVolumesGQL, saveFileIndexVolume, rebuildFileIndexVolume, type FileIndexVolume } from '@/lib/api/file-index'
+import { fileIndexVolumesGQL, saveFileIndexVolume, rebuildFileIndex, type FileIndexVolume } from '@/lib/api/file-index'
 import FileIndexSetupDialog from '@/components/FileIndexSetupDialog.vue'
 
 export function useFileIndexSetup() {
@@ -22,14 +22,14 @@ export function useFileIndexSetup() {
   }
 
   async function readSetupState(request: ReturnType<typeof bindGraphqlClient>) {
-    const result = await request<{ fileIndexVolumes: FileIndexVolume[]; scanProgress: { state: string } }>(
-      'query { fileIndexVolumes { id path isAvailable indexMode includedDirs excludedDirs } scanProgress { state } }',
+    const result = await request<{ fileIndexVolumes: FileIndexVolume[]; fileIndexScanProgress: { state: string } }>(
+      'query { fileIndexVolumes { id path isAvailable indexMode includedDirs excludedDirs } fileIndexScanProgress { state } }',
       undefined
     )
     if (result.errors?.length) throw new Error(result.errors[0].message)
     const root = result.data.fileIndexVolumes.find((volume) => volume.path === '/')
     if (!root) throw new Error('Primary filesystem volume unavailable')
-    return { root, scanState: result.data.scanProgress.state }
+    return { root, scanState: result.data.fileIndexScanProgress.state }
   }
 
   async function startIndex(request: ReturnType<typeof bindGraphqlClient>) {
@@ -39,7 +39,7 @@ export function useFileIndexSetup() {
       return
     }
     if (['RUNNING', 'PAUSED'].includes(scanState)) return
-    await rebuildFileIndexVolume(root.id, request)
+    await rebuildFileIndex(root.id, request)
   }
 
   async function dismiss(request: ReturnType<typeof bindGraphqlClient>) {

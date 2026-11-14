@@ -13,7 +13,7 @@ export default {
   'ai.scanning_subtitle': 'Deine Fotos werden analysiert, um die Suche zu ermöglichen…',
   'ai.running_title': 'KI-Suche ist bereit',
   'ai.ready_subtitle': 'Scanne und indiziere deine Fotos, damit du sie per Beschreibung suchen kannst.',
-  'ai.scan_progress': 'Scanfortschritt',
+  'ai.file_index_scan_progress': 'Scanfortschritt',
   'ai.model_file': 'Modell:',
   'ai.indexing_label': 'Fotos:',
   'ai.indexed_count': '{count} Fotos indiziert',

@@ -13,7 +13,7 @@ export default {
   'ai.scanning_subtitle': "Je foto's worden geanalyseerd om zoeken mogelijk te maken…",
   'ai.running_title': 'AI-zoekopdracht gereed',
   'ai.ready_subtitle': "Scan en indexeer je foto's zodat je ze kunt zoeken op omschrijving.",
-  'ai.scan_progress': 'Scanvoortgang',
+  'ai.file_index_scan_progress': 'Scanvoortgang',
   'ai.model_file': 'Model:',
   'ai.indexing_label': "Foto's:",
   'ai.indexed_count': "{count} foto's geïndexeerd",

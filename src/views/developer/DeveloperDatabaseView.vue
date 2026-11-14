@@ -128,9 +128,9 @@ const { fetch: fetchCount } = initLazyQuery({
 })
 
 const { loading: rowsLoading, fetch: fetchRows } = initLazyQuery({
-  handle(data: { dbTableRows: string[] }, error: string) {
+  handle(data: { dbTableRows: Record<string, string | null>[] }, error: string) {
     if (!error) {
-      rows.value = (data?.dbTableRows ?? []).map((s) => JSON.parse(s) as Record<string, string | null>)
+      rows.value = data?.dbTableRows ?? []
     }
   },
   document: dbTableRowsGQL,

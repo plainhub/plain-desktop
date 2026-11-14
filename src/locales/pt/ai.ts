@@ -13,7 +13,7 @@ export default {
   'ai.scanning_subtitle': 'Suas fotos estão sendo analisadas para habilitar a pesquisa…',
   'ai.running_title': 'Pesquisa com IA pronta',
   'ai.ready_subtitle': 'Analise e indexe suas fotos para pesquisá-las por descrição.',
-  'ai.scan_progress': 'Progresso da análise',
+  'ai.file_index_scan_progress': 'Progresso da análise',
   'ai.model_file': 'Modelo:',
   'ai.indexing_label': 'Fotos:',
   'ai.indexed_count': '{count} fotos indexadas',

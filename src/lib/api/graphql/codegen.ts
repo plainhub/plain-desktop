@@ -88,8 +88,13 @@ export function generateOperationsSource(
 
 function variablesType(vars: VarDef[], ctx: Ctx): string {
   if (vars.length === 0) return 'undefined'
-  const lines = vars.map((v) => `  ${v.name}: ${tsTypeWithLeaf(v.type, (name) => leafType(name, ctx))}`)
+  const lines = vars.map((v) => `  ${v.name}${v.type.nonNull ? '' : '?'}: ${variableType(v.type, ctx)}`)
   return `{\n${lines.join('\n')}\n}`
+}
+
+function variableType(ref: TypeRef, ctx: Ctx): string {
+  const type = ref.ofType === 'list' ? `Array<${variableType(ref.inner, ctx)}>` : leafType(ref.name, ctx)
+  return ref.nonNull ? type : `${type} | null`
 }
 
 function buildShape(selections: Selection[], parentName: string, ctx: Ctx, depth = 0): Shape {

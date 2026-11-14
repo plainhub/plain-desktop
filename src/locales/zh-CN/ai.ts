@@ -13,7 +13,7 @@ export default {
   'ai.scanning_subtitle': '正在分析照片以启用搜索…',
   'ai.running_title': 'AI 搜索已就绪',
   'ai.ready_subtitle': '扫描并索引照片后，即可通过描述文字搜索图片。',
-  'ai.scan_progress': '扫描进度',
+  'ai.file_index_scan_progress': '扫描进度',
   'ai.model_file': '模型：',
   'ai.indexing_label': '图片：',
   'ai.indexed_count': '已索引 {count} 张照片',

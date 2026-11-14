@@ -13,7 +13,7 @@ export default {
   'ai.scanning_subtitle': 'தேடலை இயக்க உங்கள் புகைப்படங்கள் பகுப்பாய்வு செய்யப்படுகின்றன…',
   'ai.running_title': 'AI தேடல் தயார்',
   'ai.ready_subtitle': 'விவரணம் மூலம் தேட புகைப்படங்களை ஸ்கேன் செய்து அட்டவணைப்படுத்துங்கள்.',
-  'ai.scan_progress': 'ஸ்கேன் முன்னேற்றம்',
+  'ai.file_index_scan_progress': 'ஸ்கேன் முன்னேற்றம்',
   'ai.model_file': 'மாதிரி:',
   'ai.indexing_label': 'புகைப்படங்கள்:',
   'ai.indexed_count': '{count} புகைப்படங்கள் அட்டவணைப்படுத்தப்பட்டன',

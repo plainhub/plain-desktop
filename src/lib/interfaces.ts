@@ -156,9 +156,14 @@ export interface IContact extends IData {
   tags: ITag[]
 }
 
+export type PhoneNumberType =
+  | 'FIXED_LINE' | 'MOBILE' | 'FIXED_LINE_OR_MOBILE' | 'TOLL_FREE'
+  | 'PREMIUM_RATE' | 'SHARED_COST' | 'PERSONAL_NUMBER' | 'VOIP'
+  | 'PAGER' | 'UAN' | 'VOICEMAIL'
+
 export interface ICallGeo {
   country: string
-  numberType: string
+  numberType: PhoneNumberType
   carrier: string
   description: string
 }
@@ -508,17 +513,13 @@ export interface IImageSearchStatus {
   indexedImages: number
 }
 
-/**
- * Media-index scan lifecycle (plain-nas `scanProgress.state` and the
- * `media_scan_progress` WS payload share the same values).
- */
-export type ScanState = 'IDLE' | 'RUNNING' | 'PAUSED' | 'STOPPED' | 'FAILED'
+export type FileIndexScanState = 'IDLE' | 'RUNNING' | 'PAUSED' | 'STOPPED' | 'FAILED'
 
-export interface IScanProgress {
+export interface IFileIndexScanProgress {
   indexed: number
   pending: number | null
   total: number | null
-  state: ScanState
+  state: FileIndexScanState
   error?: string | null
 }
 

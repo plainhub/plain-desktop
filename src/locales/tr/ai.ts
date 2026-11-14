@@ -13,7 +13,7 @@ export default {
   'ai.scanning_subtitle': 'Arama özelliğini etkinleştirmek için fotoğraflarınız analiz ediliyor…',
   'ai.running_title': 'YZ Arama Hazır',
   'ai.ready_subtitle': 'Fotoğraflarınızı tarayıp dizine ekleyerek açıklama ile arama yapabilirsiniz.',
-  'ai.scan_progress': 'Tarama İlerlemesi',
+  'ai.file_index_scan_progress': 'Tarama İlerlemesi',
   'ai.model_file': 'Model:',
   'ai.indexing_label': 'Fotoğraflar:',
   'ai.indexed_count': '{count} fotoğraf dizine eklendi',

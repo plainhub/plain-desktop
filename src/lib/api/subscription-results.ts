@@ -1,4 +1,4 @@
-import type { IChatItem, INotification, IScanProgress, IImageSearchStatus } from '@/lib/interfaces'
+import type { IChatItem, INotification, IFileIndexScanProgress, IImageSearchStatus } from '@/lib/interfaces'
 import type { GqlResultType } from './graphql/operations'
 import type { Bookmark } from '@/stores/bookmarks'
 
@@ -51,12 +51,12 @@ export interface SubscriptionResults {
   messagesUpdated: ChatSubscriptionItem[]
   messagesDeleted: string
   mediaUpdated: GqlResultType<'mediaUpdatedSubscription'>['mediaUpdated']
-  mediaScanProgress: IScanProgress
+  fileIndexScanProgressUpdated: IFileIndexScanProgress
   bookmarksUpdated: Bookmark[]
   feedsFetched: { feedId: string; error?: string | null; cancelled?: boolean | null }
   uploadMergeResult: { fileId: string; ok: boolean; value: string | null; mergedSize: number | null; error: string | null }
   smsChanged: { uris: string[] } | null
-  smsSendResult: { requestId: string | null; success: boolean; resultCode: number | null }
+  smsSendResult: { requestId: string; success: boolean; resultCode: number | null }
   clipboardChanged: { text: string; sensitive: boolean; time: string }
 }
 export type SubscriptionField = keyof SubscriptionResults

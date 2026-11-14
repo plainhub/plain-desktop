@@ -80,7 +80,7 @@ export interface Fragment_CallFragment {
   type: 'INCOMING' | 'OUTGOING' | 'MISSED' | 'VOICEMAIL' | 'REJECTED' | 'BLOCKED' | 'ANSWERED_EXTERNALLY' | 'UNKNOWN'
   geo?: {
     country: string
-    numberType: string
+    numberType: 'FIXED_LINE' | 'MOBILE' | 'FIXED_LINE_OR_MOBILE' | 'TOLL_FREE' | 'PREMIUM_RATE' | 'SHARED_COST' | 'PERSONAL_NUMBER' | 'VOIP' | 'PAGER' | 'UAN' | 'VOICEMAIL'
     carrier: string
     description: string
   }
@@ -797,7 +797,7 @@ export interface GqlOperations {
   }
   copyFileToDirectoryGQL: {
     result: {
-      copyFileToDirectory: string | null
+      copyFileToDirectory?: string
     }
     variables: {
       src: string
@@ -835,7 +835,7 @@ export interface GqlOperations {
     }
     variables: {
       table: string
-      row: string
+      row: unknown
     }
   }
   createDirGQL: {
@@ -911,7 +911,7 @@ export interface GqlOperations {
   }
   dbTableRowsGQL: {
     result: {
-      dbTableRows: Array<string>
+      dbTableRows: Array<unknown>
     }
     variables: {
       table: string
@@ -1284,7 +1284,7 @@ export interface GqlOperations {
     result: {
       events: Array<{
         id: string
-        type: 'LOGIN' | 'LOGIN_FAILED' | 'LOGOUT' | 'REVOKE_SESSION' | 'SET_HOSTNAME' | 'UPDATE_DEVICE_NAME' | 'MOUNT' | 'MOUNT_FAILED' | 'UNMOUNT' | 'FORMAT_DISK' | 'FORMAT_DISK_FAILED'
+        type: 'LOGIN' | 'LOGIN_FAILED' | 'LOGOUT' | 'REVOKE_SESSION' | 'UPDATE_DEVICE_NAME' | 'MOUNT' | 'MOUNT_FAILED' | 'UNMOUNT' | 'FORMAT_DISK' | 'FORMAT_DISK_FAILED'
         message: string
         clientId?: string
         createdAt: string
@@ -1410,7 +1410,7 @@ export interface GqlOperations {
   }
   fileInfoGQL: {
     result: {
-      fileInfo: {
+      fileInfo?: {
         path: string
         updatedAt: string
         size: number
@@ -1436,7 +1436,7 @@ export interface GqlOperations {
             longitude: number
           }
         }
-      } | null
+      }
     }
     variables: {
       path: string
@@ -1691,9 +1691,9 @@ export interface GqlOperations {
       limit: number
     }
   }
-  mediaScanProgressSubscription: {
+  fileIndexScanProgressUpdatedSubscription: {
     result: {
-      mediaScanProgress: {
+      fileIndexScanProgressUpdated: {
         indexed: number
         pending?: number
         total?: number
@@ -1706,7 +1706,7 @@ export interface GqlOperations {
   mediaUpdatedSubscription: {
     result: {
       mediaUpdated: {
-        types: Array<'DEFAULT' | 'AUDIO' | 'VIDEO' | 'IMAGE' | 'SMS' | 'CONTACT' | 'NOTE' | 'FEED_ENTRY' | 'CALL' | 'PACKAGE' | 'FILE' | 'APP_FILE' | 'DOC'>
+        types: Array<'AUDIO' | 'VIDEO' | 'IMAGE' | 'DOC'>
       }
     }
     variables: undefined
@@ -1795,7 +1795,6 @@ export interface GqlOperations {
     }
     variables: undefined
   }
-
   mountsGQL: {
     result: {
       mounts: Array<Fragment_MountFragment>
@@ -2044,9 +2043,9 @@ export interface GqlOperations {
       id: string
     }
   }
-  pauseMediaScanGQL: {
+  pauseFileIndexScanGQL: {
     result: {
-      pauseMediaScan: boolean
+      pauseFileIndexScan: boolean
     }
     variables: undefined
   }
@@ -2161,20 +2160,12 @@ export interface GqlOperations {
     }
     variables: undefined
   }
-  rebuildFileIndexVolumeGQL: {
+  rebuildFileIndexGQL: {
     result: {
-      rebuildFileIndexVolume: boolean
+      rebuildFileIndex: boolean
     }
     variables: {
-      id: string
-    }
-  }
-  rebuildMediaIndexGQL: {
-    result: {
-      rebuildMediaIndex: boolean
-    }
-    variables: {
-      root: string
+      volumeId?: string | null
     }
   }
   recentFilesGQL: {
@@ -2357,9 +2348,9 @@ export interface GqlOperations {
       id: string
     }
   }
-  resumeMediaScanGQL: {
+  resumeFileIndexScanGQL: {
     result: {
-      resumeMediaScan: boolean
+      resumeFileIndexScan: boolean
     }
     variables: undefined
   }
@@ -2408,9 +2399,9 @@ export interface GqlOperations {
       positionMs: number
     }
   }
-  scanProgressGQL: {
+  fileIndexScanProgressGQL: {
     result: {
-      scanProgress: {
+      fileIndexScanProgress: {
         indexed: number
         pending?: number
         total?: number
@@ -2484,13 +2475,16 @@ export interface GqlOperations {
   }
   sendSmsGQL: {
     result: {
-      sendSms: { requestId: string; requiresConfirmation: boolean }
+      sendSms: {
+        requestId: string
+        requiresConfirmation: boolean
+      }
     }
     variables: {
       number: string
       body: string
-      attachmentPaths?: Array<string>
-      subscriptionId?: number | null
+      attachmentPaths: Array<string>
+      subscriptionId: number
       requestId: string
     }
   }
@@ -2558,6 +2552,14 @@ export interface GqlOperations {
     }
     variables: undefined
   }
+  smsChangedSubscription: {
+    result: {
+      smsChanged?: {
+        uris: Array<string>
+      }
+    }
+    variables: undefined
+  }
   smsConversationsGQL: {
     result: {
       smsConversations: Array<Fragment_SmsConversationFragment>
@@ -2602,18 +2604,10 @@ export interface GqlOperations {
       query: string
     }
   }
-  smsChangedSubscription: {
-    result: {
-      smsChanged?: {
-        uris: Array<string>
-      }
-    }
-    variables: undefined
-  }
   smsSendResultSubscription: {
     result: {
       smsSendResult: {
-        requestId?: string
+        requestId: string
         success: boolean
         resultCode?: number
       }
@@ -2656,9 +2650,9 @@ export interface GqlOperations {
     }
     variables: undefined
   }
-  stopMediaScanGQL: {
+  stopFileIndexScanGQL: {
     result: {
-      stopMediaScan: boolean
+      stopFileIndexScan: boolean
     }
     variables: undefined
   }

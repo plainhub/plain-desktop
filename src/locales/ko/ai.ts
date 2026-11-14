@@ -13,7 +13,7 @@ export default {
   'ai.scanning_subtitle': '검색 활성화를 위해 사진을 분석하는 중…',
   'ai.running_title': 'AI 검색 준비 완료',
   'ai.ready_subtitle': '사진을 스캔하고 인덱싱하면 설명으로 검색할 수 있습니다.',
-  'ai.scan_progress': '스캔 진행률',
+  'ai.file_index_scan_progress': '스캔 진행률',
   'ai.model_file': '모델:',
   'ai.indexing_label': '사진:',
   'ai.indexed_count': '{count}장 인덱싱됨',

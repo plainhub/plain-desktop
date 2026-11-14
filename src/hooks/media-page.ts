@@ -21,12 +21,12 @@ import { type DataType } from '@/lib/data'
 import { getDirFromPath } from '@/lib/file'
 import { generateDownloadFileName } from '@/lib/format'
 import { hasMediaTrash } from '@/lib/feature'
-import { subscribeMediaLibraryUpdates } from '@/lib/media/library-updates'
+import { subscribeMediaLibraryUpdates, type MediaDataType } from '@/lib/media/library-updates'
 import { createRefreshScheduler } from '@/lib/refresh-scheduler'
 import type { QueryFetchOptions } from '@/lib/api/query'
 
 export interface MediaPageOptions {
-  dataType: DataType
+  dataType: Extract<DataType, MediaDataType>
   routePath: string
   items: Ref<any[]>
   sortByRef: Ref<string>

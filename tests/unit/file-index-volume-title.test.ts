@@ -21,7 +21,7 @@ vi.mock('@/lib/api/subscription-client', () => ({ graphqlSubscriptions: { subscr
 vi.mock('@/components/modal', () => ({ pushModal: vi.fn() }))
 vi.mock('@/views/home/file-index/FileIndexScopeDialog.vue', () => ({ default: {} }))
 vi.mock('@/views/home/home', () => ({ useScanAction: () => ({
-  scanProgress: ref({ indexed: 0, total: 0 }), scanActive: ref(false), percent: ref(0), stateLabel: ref(''),
+  fileIndexScanProgress: ref({ indexed: 0, total: 0 }), scanActive: ref(false), percent: ref(0), stateLabel: ref(''),
   showPause: ref(false), showResume: ref(false), showStop: ref(false), showRebuild: ref(true),
   rebuildIndexLoading: ref(false), rebuildVolumeLoading: ref(false),
   pauseScan: vi.fn(), resumeScan: vi.fn(), stopScan: vi.fn(), rebuildIndex: vi.fn(), rebuildVolume: vi.fn(),

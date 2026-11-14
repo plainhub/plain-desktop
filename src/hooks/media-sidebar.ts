@@ -10,9 +10,9 @@ import { DataType } from '@/lib/data'
 import { initLazyQuery } from '@/lib/api/query'
 import { buildQuery, parseQuery } from '@/lib/search'
 import emitter from '@/plugins/eventbus'
-import { subscribeMediaLibraryUpdates } from '@/lib/media/library-updates'
+import { subscribeMediaLibraryUpdates, type MediaDataType } from '@/lib/media/library-updates'
 
-export function useMediaSidebar(type: DataType, gql: string) {
+export function useMediaSidebar(type: Extract<DataType, MediaDataType>, gql: string) {
   const mainStore = useMainStore()
   const { counter, app } = storeToRefs(useTempStore())
   const { parseQ } = useSearch()

@@ -13,7 +13,7 @@ export default {
   'ai.scanning_subtitle': 'Analisi delle foto per abilitare la ricerca…',
   'ai.running_title': 'Ricerca IA pronta',
   'ai.ready_subtitle': 'Scansiona e indicizza le tue foto per cercarle tramite descrizione.',
-  'ai.scan_progress': 'Avanzamento scansione',
+  'ai.file_index_scan_progress': 'Avanzamento scansione',
   'ai.model_file': 'Modello:',
   'ai.indexing_label': 'Foto:',
   'ai.indexed_count': '{count} foto indicizzate',

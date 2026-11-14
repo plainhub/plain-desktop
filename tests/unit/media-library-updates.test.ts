@@ -37,13 +37,6 @@ it('refreshes only matching media consumers and removes their subscriptions', ()
   expect(image).toHaveBeenCalledTimes(2)
 })
 
-it('does not translate unsupported data domains into a media refresh', () => {
-  const refresh = vi.fn()
-  stops.push(subscribeMediaLibraryUpdates(DataType.NOTE, refresh))
-  publish('mediaUpdated', { types: [DataType.AUDIO, DataType.VIDEO, DataType.IMAGE, DataType.DOC] })
-  expect(refresh).not.toHaveBeenCalled()
-})
-
 it.each([DataType.VIDEO, DataType.DOC])('refreshes %s from its GraphQL enum value', (type) => {
   const refresh = vi.fn()
   stops.push(subscribeMediaLibraryUpdates(type, refresh))

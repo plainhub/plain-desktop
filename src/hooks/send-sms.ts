@@ -137,7 +137,7 @@ export function useSendSms(initialNumber: string, initialBody: string) {
   }
 
   function onSmsSendResult(result: SmsSendResult): boolean {
-    if (!result.requestId || result.requestId !== pendingSmsRequestId) return false
+    if (result.requestId !== pendingSmsRequestId) return false
     sendDeadline.settle(result.requestId)
     pendingSmsRequestId = null
     loading.value = false

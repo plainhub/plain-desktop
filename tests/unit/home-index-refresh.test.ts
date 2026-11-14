@@ -9,19 +9,19 @@ const state = vi.hoisted(() => ({
   store: undefined as any,
 }))
 vi.mock('@/lib/api/query', () => ({
-  homeStatsGQL: vi.fn(), simsGQL: '', scanProgressGQL: '',
+  homeStatsGQL: vi.fn(), simsGQL: '', fileIndexScanProgressGQL: '',
   initQuery: (query: unknown) => { state.query = query; return { refetch: state.refetch } },
 }))
 vi.mock('@/lib/api/subscription-client', () => ({ graphqlSubscriptions: {
   subscribe: (field: string, callback: unknown) => {
-    expect(field).toBe('mediaScanProgress')
+    expect(field).toBe('fileIndexScanProgressUpdated')
     state.progress = callback
     return state.stop
   },
 } }))
-vi.mock('@/lib/api/file-index', () => ({ rebuildFileIndexVolumeGQL: '' }))
+vi.mock('@/lib/api/file-index', () => ({ rebuildFileIndexGQL: '' }))
 vi.mock('@/lib/api/mutation', () => ({
-  callGQL: '', initMutation: vi.fn(), pauseMediaScanGQL: '', resumeMediaScanGQL: '', stopMediaScanGQL: '', rebuildMediaIndexGQL: '',
+  callGQL: '', initMutation: vi.fn(), pauseFileIndexScanGQL: '', resumeFileIndexScanGQL: '', stopFileIndexScanGQL: '',
 }))
 vi.mock('pinia', async () => ({ storeToRefs: (await import('vue')).toRefs }))
 vi.mock('@/stores/temp', () => ({ useTempStore: () => state.store }))

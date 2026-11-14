@@ -41,7 +41,7 @@ it('shows the explanation without writing configuration or starting another scan
 
 it.each(['RUNNING', 'PAUSED'])('preserves an existing %s scan when continuing', async (state) => {
   const { useFileIndexSetup } = await import('@/hooks/file-index-setup')
-  mock.fetch.mockResolvedValue({ data: { fileIndexVolumes: [{ id: 'root', path: '/', indexMode: 'BLOCKLIST' }], scanProgress: { state } } })
+  mock.fetch.mockResolvedValue({ data: { fileIndexVolumes: [{ id: 'root', path: '/', indexMode: 'BLOCKLIST' }], fileIndexScanProgress: { state } } })
   await useFileIndexSetup().show()
   await mock.modal.mock.calls[0][1].onContinue()
   expect(mock.fetch).toHaveBeenCalledOnce()
@@ -51,11 +51,11 @@ it.each(['RUNNING', 'PAUSED'])('preserves an existing %s scan when continuing', 
 it.each(['IDLE', 'STOPPED', 'FAILED'])('rebuilds the existing volume scope from %s without preference writes', async (state) => {
   const { useFileIndexSetup } = await import('@/hooks/file-index-setup')
   mock.fetch
-    .mockResolvedValueOnce({ data: { fileIndexVolumes: [{ id: 'root', path: '/', indexMode: 'BLOCKLIST' }], scanProgress: { state } } })
-    .mockResolvedValueOnce({ data: { rebuildFileIndexVolume: true } })
+    .mockResolvedValueOnce({ data: { fileIndexVolumes: [{ id: 'root', path: '/', indexMode: 'BLOCKLIST' }], fileIndexScanProgress: { state } } })
+    .mockResolvedValueOnce({ data: { rebuildFileIndex: true } })
   await useFileIndexSetup().show()
   await mock.modal.mock.calls[0][1].onContinue()
-  expect(mock.fetch).toHaveBeenLastCalledWith(expect.stringContaining('rebuildFileIndexVolume'), { id: 'root' })
+  expect(mock.fetch).toHaveBeenLastCalledWith(expect.stringContaining('rebuildFileIndex'), { volumeId: 'root' })
   expect(mock.write).not.toHaveBeenCalled()
 })
 
@@ -84,7 +84,7 @@ it('limits the explanation to local macOS hosts with media scanning', async () =
 it('configures the primary volume with the default blocklist only after continuation', async () => {
   const { useFileIndexSetup } = await import('@/hooks/file-index-setup')
   const root = { id: 'root', path: '/', isAvailable: true, indexMode: 'UNCONFIGURED', includedDirs: [], excludedDirs: [] }
-  mock.fetch.mockResolvedValueOnce({ data: { fileIndexVolumes: [root], scanProgress: { state: 'IDLE' } } }).mockResolvedValueOnce({ data: { setFileIndexVolume: true } })
+  mock.fetch.mockResolvedValueOnce({ data: { fileIndexVolumes: [root], fileIndexScanProgress: { state: 'IDLE' } } }).mockResolvedValueOnce({ data: { setFileIndexVolume: true } })
   const setup = useFileIndexSetup()
   await setup.show()
   expect(mock.fetch).not.toHaveBeenCalled()
@@ -107,7 +107,7 @@ it('reads the primary volume mode for onboarding without a preference sentinel',
 it('remembers do not show again through the existing disabled volume mode', async () => {
   const { useFileIndexSetup } = await import('@/hooks/file-index-setup')
   const root = { id: 'root', path: '/', isAvailable: true, indexMode: 'UNCONFIGURED', includedDirs: ['/kept'], excludedDirs: ['/skipped'] }
-  mock.fetch.mockResolvedValueOnce({ data: { fileIndexVolumes: [root], scanProgress: { state: 'IDLE' } } }).mockResolvedValueOnce({ data: { setFileIndexVolume: true } })
+  mock.fetch.mockResolvedValueOnce({ data: { fileIndexVolumes: [root], fileIndexScanProgress: { state: 'IDLE' } } }).mockResolvedValueOnce({ data: { setFileIndexVolume: true } })
   await useFileIndexSetup().show()
   expect(mock.fetch).not.toHaveBeenCalled()
   await mock.modal.mock.calls[0][1].onDismiss()
@@ -118,7 +118,7 @@ it('remembers do not show again through the existing disabled volume mode', asyn
 
 it.each(['BLOCKLIST', 'ALLOWLIST', 'DISABLED'])('does not overwrite an already configured %s volume when dismissing', async (indexMode) => {
   const { useFileIndexSetup } = await import('@/hooks/file-index-setup')
-  mock.fetch.mockResolvedValueOnce({ data: { fileIndexVolumes: [{ id: 'root', path: '/', indexMode }], scanProgress: { state: 'RUNNING' } } })
+  mock.fetch.mockResolvedValueOnce({ data: { fileIndexVolumes: [{ id: 'root', path: '/', indexMode }], fileIndexScanProgress: { state: 'RUNNING' } } })
   await useFileIndexSetup().show()
   await mock.modal.mock.calls[0][1].onDismiss()
   expect(mock.fetch).toHaveBeenCalledOnce()

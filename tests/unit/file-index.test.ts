@@ -1,5 +1,5 @@
 import { beforeEach, expect, it, vi } from 'vitest'
-import { saveFileIndexVolume, rebuildFileIndexVolume, canScanVolume, type FileIndexVolume } from '@/lib/api/file-index'
+import { saveFileIndexVolume, rebuildFileIndex, canScanVolume, type FileIndexVolume } from '@/lib/api/file-index'
 
 const request = vi.hoisted(() => vi.fn())
 vi.mock('@/lib/api/gql-client', () => ({ bindGraphqlClient: () => request }))
@@ -34,9 +34,9 @@ it('reports refusals and GraphQL failures to the editable dialog', async () => {
 })
 
 it('rebuilds one volume by its stable ID instead of a root-path sentinel', async () => {
-  request.mockResolvedValue({ data: { rebuildFileIndexVolume: true } })
-  await rebuildFileIndexVolume(volume.id)
-  expect(request).toHaveBeenCalledWith(expect.stringContaining('rebuildFileIndexVolume'), { id: volume.id })
+  request.mockResolvedValue({ data: { rebuildFileIndex: true } })
+  await rebuildFileIndex(volume.id)
+  expect(request).toHaveBeenCalledWith(expect.stringContaining('rebuildFileIndex'), { volumeId: volume.id })
 })
 
 it('offers per-volume indexing only for online configured scopes', () => {
@@ -46,4 +46,10 @@ it('offers per-volume indexing only for online configured scopes', () => {
   expect(canScanVolume({ ...volume, indexMode: 'DISABLED' })).toBe(false)
   expect(canScanVolume({ ...volume, indexMode: 'ALLOWLIST', includedDirs: [] })).toBe(false)
   expect(canScanVolume({ ...volume, indexMode: 'ALLOWLIST' })).toBe(true)
+})
+
+it('rebuilds all configured volumes with an explicit null scope', async () => {
+  request.mockResolvedValue({ data: { rebuildFileIndex: true } })
+  await rebuildFileIndex(null)
+  expect(request).toHaveBeenCalledExactlyOnceWith(expect.stringContaining('rebuildFileIndex'), { volumeId: null })
 })

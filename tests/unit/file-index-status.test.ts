@@ -2,7 +2,7 @@ import { afterEach, expect, it, vi } from 'vitest'
 import { createRenderer, nextTick, ref } from 'vue'
 
 const state = vi.hoisted(() => ({ context: undefined as any, event: undefined as any }))
-vi.mock('@/lib/api/query', () => ({ scanProgressGQL: 'scanProgress' }))
+vi.mock('@/lib/api/query', () => ({ fileIndexScanProgressGQL: 'fileIndexScanProgress' }))
 vi.mock('@/lib/api/gql-client', async () => {
   const { ref } = await import('vue')
   state.context = ref('first')
@@ -25,7 +25,7 @@ function mount(enabled: ReturnType<typeof ref<boolean>>) {
   const app = renderer.createApp({ setup() { result = useFileIndexStatus(enabled); return () => null } })
   app.mount({}); unmount = () => app.unmount(); return result
 }
-const response = (state: 'RUNNING' | 'IDLE') => ({ data: { scanProgress: { state, indexed: 5, pending: null, total: null, error: null } } })
+const response = (state: 'RUNNING' | 'IDLE') => ({ data: { fileIndexScanProgress: { state, indexed: 5, pending: null, total: null, error: null } } })
 afterEach(() => { unmount?.(); vi.useRealTimers(); vi.mocked(gqlFetch).mockReset(); state.context.value = 'first' })
 
 it('polls only an active indexed view and coalesces progress events', async () => {
@@ -36,7 +36,7 @@ it('polls only an active indexed view and coalesces progress events', async () =
   expect(gqlFetch).not.toHaveBeenCalled()
   enabled.value = true; await nextTick(); await Promise.resolve()
   expect(gqlFetch).toHaveBeenCalledTimes(1)
-  expect(gqlFetch).toHaveBeenCalledWith('scanProgress', undefined, { fresh: true })
+  expect(gqlFetch).toHaveBeenCalledWith('fileIndexScanProgress', undefined, { fresh: true })
   state.event(); state.event(); await vi.advanceTimersByTimeAsync(5000)
   expect(gqlFetch).toHaveBeenCalledTimes(2)
   enabled.value = false; await nextTick(); await vi.advanceTimersByTimeAsync(10000)
@@ -56,7 +56,7 @@ it('discards a previous device response after switching context', async () => {
 
 it.each(['IDLE', 'PAUSED', 'STOPPED', 'FAILED'] as const)('preserves %s state and does not keep polling', async (scanState) => {
   vi.useFakeTimers()
-  vi.mocked(gqlFetch).mockResolvedValue({ data: { scanProgress: { ...response('IDLE').data.scanProgress, state: scanState, error: scanState === 'FAILED' ? 'Scan failed' : null } } } as any)
+  vi.mocked(gqlFetch).mockResolvedValue({ data: { fileIndexScanProgress: { ...response('IDLE').data.fileIndexScanProgress, state: scanState, error: scanState === 'FAILED' ? 'Scan failed' : null } } } as any)
   const result = mount(ref(true))
   await Promise.resolve(); await Promise.resolve()
   expect(result.progress.value?.state).toBe(scanState)

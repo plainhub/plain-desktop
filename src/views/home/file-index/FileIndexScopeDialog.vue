@@ -32,7 +32,7 @@ import FileIndexDefaults from './FileIndexDefaults.vue'
 import type { FileIndexDefaults as DefaultRules } from '@/lib/api/file-index'
 import DirectoryPickerModal from '@/components/DirectoryPickerModal.vue'
 import { bindGraphqlClient } from '@/lib/api/gql-client'
-import { canScanVolume, saveFileIndexVolume, type FileIndexVolume, type IndexMode } from '@/lib/api/file-index'
+import { canScanVolume, saveFileIndexVolume, type FileIndexVolume, type FileIndexMode } from '@/lib/api/file-index'
 
 const props = defineProps<{ modalId: string; volume: FileIndexVolume; defaults: DefaultRules; volumeName: string; onSaved: () => unknown }>()
 const modalId = Number(props.modalId.replace(/\D/g, ''))
@@ -40,7 +40,7 @@ const request = bindGraphqlClient()
 const draft = ref<FileIndexVolume>(copy(props.volume))
 const saving = ref(false)
 const error = ref('')
-const modes: { value: IndexMode; label: string }[] = [
+const modes: { value: FileIndexMode; label: string }[] = [
   { value: 'ALLOWLIST', label: 'file_index.allowlist' },
   { value: 'BLOCKLIST', label: 'file_index.blocklist' },
   { value: 'DISABLED', label: 'file_index.disabled' },

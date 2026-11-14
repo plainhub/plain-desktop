@@ -1,12 +1,12 @@
 import { bindGraphqlClient } from './gql-client'
 
-export type IndexMode = 'UNCONFIGURED' | 'DISABLED' | 'ALLOWLIST' | 'BLOCKLIST'
+export type FileIndexMode = 'UNCONFIGURED' | 'DISABLED' | 'ALLOWLIST' | 'BLOCKLIST'
 
 export interface FileIndexVolume {
   id: string
   path: string
   isAvailable: boolean
-  indexMode: IndexMode
+  indexMode: FileIndexMode
   includedDirs: string[]
   excludedDirs: string[]
 }
@@ -23,7 +23,7 @@ export const fileIndexVolumesGQL = `query {
   fileIndexDefaults { excludedDirs excludedNames excludedPackages excludedUserLibraries }
 }`
 
-const setFileIndexVolumeGQL = `mutation($id: ID!, $indexMode: IndexMode!, $includedDirs: [String!]!, $excludedDirs: [String!]!) {
+const setFileIndexVolumeGQL = `mutation($id: ID!, $indexMode: FileIndexMode!, $includedDirs: [String!]!, $excludedDirs: [String!]!) {
   setFileIndexVolume(id: $id, indexMode: $indexMode, includedDirs: $includedDirs, excludedDirs: $excludedDirs)
 }`
 
@@ -34,16 +34,16 @@ export async function saveFileIndexVolume(volume: FileIndexVolume, request = bin
   if (!result.data.setFileIndexVolume) throw new Error('Index configuration write refused')
 }
 
-export const rebuildFileIndexVolumeGQL = `mutation($id: ID!) {
-  rebuildFileIndexVolume(id: $id)
+export const rebuildFileIndexGQL = `mutation($volumeId: ID) {
+  rebuildFileIndex(volumeId: $volumeId)
 }`
 
 export function canScanVolume(volume: FileIndexVolume): boolean {
   return volume.isAvailable && (volume.indexMode === 'BLOCKLIST' || (volume.indexMode === 'ALLOWLIST' && volume.includedDirs.length > 0))
 }
 
-export async function rebuildFileIndexVolume(id: string, request = bindGraphqlClient()): Promise<void> {
-  const result = await request<{ rebuildFileIndexVolume: boolean }>(rebuildFileIndexVolumeGQL, { id })
+export async function rebuildFileIndex(volumeId: string | null, request = bindGraphqlClient()): Promise<void> {
+  const result = await request<{ rebuildFileIndex: boolean }>(rebuildFileIndexGQL, { volumeId })
   if (result.errors?.length) throw new Error(result.errors[0].message)
-  if (!result.data.rebuildFileIndexVolume) throw new Error('Volume index rebuild refused')
+  if (!result.data.rebuildFileIndex) throw new Error('File index rebuild refused')
 }

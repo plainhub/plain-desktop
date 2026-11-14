@@ -896,7 +896,7 @@ export const removePrefGQL = `
 `
 
 export const createDbTableRowGQL = `
-  mutation CreateDbTableRow($table: String!, $row: String!) {
+  mutation CreateDbTableRow($table: String!, $row: JSON!) {
     createDbTableRow(table: $table, row: $row)
   }
 `
@@ -959,20 +959,16 @@ export const removeDownloadGQL = `
   mutation removeDownload($id: ID!) { removeDownload(id: $id) }
 `
 
-export const pauseMediaScanGQL = `
-  mutation pauseMediaScan { pauseMediaScan }
+export const pauseFileIndexScanGQL = `
+  mutation pauseFileIndexScan { pauseFileIndexScan }
 `
 
-export const resumeMediaScanGQL = `
-  mutation resumeMediaScan { resumeMediaScan }
+export const resumeFileIndexScanGQL = `
+  mutation resumeFileIndexScan { resumeFileIndexScan }
 `
 
-export const stopMediaScanGQL = `
-  mutation stopMediaScan { stopMediaScan }
-`
-
-export const rebuildMediaIndexGQL = `
-  mutation rebuildMediaIndex($root: String!) { rebuildMediaIndex(root: $root) }
+export const stopFileIndexScanGQL = `
+  mutation stopFileIndexScan { stopFileIndexScan }
 `
 
 export const formatDiskGQL = `

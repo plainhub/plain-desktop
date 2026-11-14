@@ -409,9 +409,9 @@ export const imageSearchStatusGQL = `
   }
 `
 
-export const scanProgressGQL = `
+export const fileIndexScanProgressGQL = `
   query {
-    scanProgress {
+    fileIndexScanProgress {
       indexed
       pending
       total
@@ -523,7 +523,7 @@ export const audioQueueGQL = `
     items: audioQueueItems(query: "", offset: $offset, limit: $limit) {
       ...AudioItemFragment
     }
-    total: audioQueueItemCount
+    total: audioQueueItemCount(query: "")
     playback: audioPlayback {
       mediaId
       path

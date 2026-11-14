@@ -1,15 +1,15 @@
-import { rebuildFileIndexVolumeGQL } from '@/lib/api/file-index'
+import { rebuildFileIndexGQL } from '@/lib/api/file-index'
 import { graphqlSubscriptions } from '@/lib/api/subscription-client'
 import { ref, computed, watch, onUnmounted } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useTempStore } from '@/stores/temp'
 import { storeToRefs } from 'pinia'
 import { useMainStore } from '@/stores/main'
-import { callGQL, initMutation, pauseMediaScanGQL, resumeMediaScanGQL, stopMediaScanGQL, rebuildMediaIndexGQL } from '@/lib/api/mutation'
-import { homeStatsGQL, simsGQL, initQuery, scanProgressGQL, type HomeStatKey } from '@/lib/api/query'
+import { callGQL, initMutation, pauseFileIndexScanGQL, resumeFileIndexScanGQL, stopFileIndexScanGQL } from '@/lib/api/mutation'
+import { homeStatsGQL, simsGQL, initQuery, fileIndexScanProgressGQL, type HomeStatKey } from '@/lib/api/query'
 import toast from '@/components/toaster'
 import { Capability } from '@/lib/data'
-import type { IHomeStats, IStorageMount, IContact, ISim, IScanProgress } from '@/lib/interfaces'
+import type { IHomeStats, IStorageMount, IContact, ISim, IFileIndexScanProgress } from '@/lib/interfaces'
 import { useContactPicker } from '@/hooks/contact-picker'
 
 // Stat keys whose domain needs a declared capability; the rest are media
@@ -64,7 +64,7 @@ export function useHomeData() {
     variables: () => ({ mediaQuery: '' }),
   })
 
-  const stopScanProgress = graphqlSubscriptions.subscribe('mediaScanProgress', (progress) => {
+  const stopScanProgress = graphqlSubscriptions.subscribe('fileIndexScanProgressUpdated', (progress) => {
     if (progress.state === 'IDLE') return refetch(undefined, true)
   })
   onUnmounted(stopScanProgress)
@@ -119,63 +119,62 @@ export function usePhoneAction() {
 
 export function useScanAction() {
   const { t } = useI18n()
-  const scanProgress = ref<IScanProgress>({ indexed: 0, pending: 0, total: 0, state: 'IDLE' })
+  const fileIndexScanProgress = ref<IFileIndexScanProgress>({ indexed: 0, pending: 0, total: 0, state: 'IDLE' })
 
   initQuery({
-    handle: (data: { scanProgress: IScanProgress }, error: string) => {
-      if (!error && data) scanProgress.value = { ...data.scanProgress }
+    handle: (data: { fileIndexScanProgress: IFileIndexScanProgress }, error: string) => {
+      if (!error && data) fileIndexScanProgress.value = { ...data.fileIndexScanProgress }
     },
-    document: scanProgressGQL,
+    document: fileIndexScanProgressGQL,
     variables: null,
   })
 
-  const onScanProgress = (p: IScanProgress) => {
-    scanProgress.value = { indexed: p.indexed, pending: p.pending, total: p.total, state: p.state, error: p.error }
+  const onScanProgress = (p: IFileIndexScanProgress) => {
+    fileIndexScanProgress.value = { indexed: p.indexed, pending: p.pending, total: p.total, state: p.state, error: p.error }
     if (p.state === 'FAILED') toast(p.error || t('error'), 'error')
   }
-  const stopMediaScanProgress = graphqlSubscriptions.subscribe('mediaScanProgress', onScanProgress)
+  const stopFileIndexScanProgress = graphqlSubscriptions.subscribe('fileIndexScanProgressUpdated', onScanProgress)
 
-  onUnmounted(stopMediaScanProgress)
+  onUnmounted(stopFileIndexScanProgress)
 
-  const scanActive = computed(() => ['RUNNING', 'PAUSED'].includes(scanProgress.value.state))
+  const scanActive = computed(() => ['RUNNING', 'PAUSED'].includes(fileIndexScanProgress.value.state))
 
   const percent = computed(() => {
-    const { indexed, total } = scanProgress.value
+    const { indexed, total } = fileIndexScanProgress.value
     if (!total) return 0
     return Math.min(100, Math.max(0, Math.round((indexed / total) * 100)))
   })
 
   const stateLabel = computed(() => {
-    if (scanProgress.value.state === 'RUNNING') {
-      return t(scanProgress.value.total === null && scanProgress.value.indexed === 0 ? 'counting_files' : 'building_file_index')
+    if (fileIndexScanProgress.value.state === 'RUNNING') {
+      return t(fileIndexScanProgress.value.total === null && fileIndexScanProgress.value.indexed === 0 ? 'counting_files' : 'building_file_index')
     }
-    if (scanProgress.value.state === 'PAUSED') return t('paused')
-    if (scanProgress.value.state === 'STOPPED') return t('stopped')
-    if (scanProgress.value.state === 'FAILED') return scanProgress.value.error ?? ''
+    if (fileIndexScanProgress.value.state === 'PAUSED') return t('paused')
+    if (fileIndexScanProgress.value.state === 'STOPPED') return t('stopped')
+    if (fileIndexScanProgress.value.state === 'FAILED') return fileIndexScanProgress.value.error ?? ''
     return ''
   })
 
-  const showPause = computed(() => scanProgress.value.state === 'RUNNING')
-  const showResume = computed(() => scanProgress.value.state === 'PAUSED')
+  const showPause = computed(() => fileIndexScanProgress.value.state === 'RUNNING')
+  const showResume = computed(() => fileIndexScanProgress.value.state === 'PAUSED')
   const showStop = computed(() => scanActive.value)
-  const showRebuild = computed(() => ['IDLE', 'STOPPED', 'FAILED'].includes(scanProgress.value.state))
+  const showRebuild = computed(() => ['IDLE', 'STOPPED', 'FAILED'].includes(fileIndexScanProgress.value.state))
 
-  const { mutate: pauseScanMutation } = initMutation({ document: pauseMediaScanGQL })
-  const { mutate: resumeScanMutation } = initMutation({ document: resumeMediaScanGQL })
-  const { mutate: stopScanMutation } = initMutation({ document: stopMediaScanGQL })
-  const { mutate: rebuildIndexMutation, loading: rebuildIndexLoading } = initMutation({ document: rebuildMediaIndexGQL })
+  const { mutate: pauseScanMutation } = initMutation({ document: pauseFileIndexScanGQL })
+  const { mutate: resumeScanMutation } = initMutation({ document: resumeFileIndexScanGQL })
+  const { mutate: stopScanMutation } = initMutation({ document: stopFileIndexScanGQL })
+  const { mutate: rebuildIndexMutation, loading: rebuildIndexLoading } = initMutation({ document: rebuildFileIndexGQL })
 
-  const { mutate: rebuildVolumeMutation, loading: rebuildVolumeLoading } = initMutation({ document: rebuildFileIndexVolumeGQL })
-  async function rebuildVolume(id: string) { await rebuildVolumeMutation({ id }) }
+  async function rebuildVolume(volumeId: string) { await rebuildIndexMutation({ volumeId }) }
 
   async function pauseScan() { await pauseScanMutation() }
   async function resumeScan() { await resumeScanMutation() }
   async function stopScan() { await stopScanMutation() }
-  async function rebuildIndex() { await rebuildIndexMutation({ root: '/' }) }
+  async function rebuildIndex() { await rebuildIndexMutation({ volumeId: null }) }
 
   return {
-    scanProgress, scanActive, percent, stateLabel,
+    fileIndexScanProgress, scanActive, percent, stateLabel,
     showPause, showResume, showStop, showRebuild, rebuildIndexLoading,
-    pauseScan, resumeScan, stopScan, rebuildIndex, rebuildVolume, rebuildVolumeLoading,
+    pauseScan, resumeScan, stopScan, rebuildIndex, rebuildVolume, rebuildVolumeLoading: rebuildIndexLoading,
   }
 }

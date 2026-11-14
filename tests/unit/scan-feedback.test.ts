@@ -10,21 +10,20 @@ vi.mock('@/hooks/contact-picker', () => ({ useContactPicker: vi.fn() }))
 vi.mock('@/lib/api/query', () => ({
   initQuery: ({ document, handle }: any) => {
     if (document === '') {
-      if (state.initial) handle({ scanProgress: state.initial }, '')
+      if (state.initial) handle({ fileIndexScanProgress: state.initial }, '')
     } else handle({ fileIndexVolumes: state.volumes, fileIndexDefaults: { excludedDirs: [], excludedNames: [], excludedPackages: [], excludedUserLibraries: false } }, '')
     return { loading: ref(false), refetch: document === '' ? vi.fn() : state.reload }
   },
-  scanProgressGQL: '',
+  fileIndexScanProgressGQL: '',
   homeStatsGQL: vi.fn(),
   simsGQL: '',
 }))
 vi.mock('@/lib/api/mutation', () => ({
   initMutation: ({ document }: any) => ({ mutate: () => state.mutation(document), loading: ref(false) }),
   callGQL: '',
-  pauseMediaScanGQL: 'pauseMediaScan',
-  resumeMediaScanGQL: 'resumeMediaScan',
-  stopMediaScanGQL: 'stopMediaScan',
-  rebuildMediaIndexGQL: 'rebuildMediaIndex',
+  pauseFileIndexScanGQL: 'pauseFileIndexScan',
+  resumeFileIndexScanGQL: 'resumeFileIndexScan',
+  stopFileIndexScanGQL: 'stopFileIndexScan',
 }))
 vi.mock('@/lib/api/subscription-client', () => ({
   graphqlSubscriptions: {
@@ -67,11 +66,11 @@ it('keeps completion silent and exposes failures with a retry without inventing 
     expect(scan!.scanActive.value).toBe(true)
     expect(scan!.stateLabel.value).toBe('counting_files')
     state.progress({ state: 'RUNNING', indexed: 1234, total: null, pending: null })
-    expect(scan!.scanProgress.value.indexed).toBe(1234)
+    expect(scan!.fileIndexScanProgress.value.indexed).toBe(1234)
     expect(scan!.percent.value).toBe(0)
     state.progress({ state: 'PAUSED', indexed: 1234, total: null, pending: null })
     expect(scan!.stateLabel.value).toBe('paused')
-    expect(scan!.scanProgress.value.indexed).toBe(1234)
+    expect(scan!.fileIndexScanProgress.value.indexed).toBe(1234)
     state.progress({ state: 'IDLE', indexed: 0, total: 0, pending: 0 })
     expect(state.toast).not.toHaveBeenCalled()
     state.progress({ state: 'FAILED', indexed: 0, total: null, pending: null, error: 'Scan failed' })
@@ -149,7 +148,7 @@ it.each([
   }
 })
 
-it('the Stop handler sends only stopMediaScan when the Rebuild button appears', async () => {
+it('the Stop handler sends only stopFileIndexScan when the Rebuild button appears', async () => {
   const { default: FileIndexCard } = await import('@/views/home/file-index/FileIndexCard.vue')
   state.volumes = [0, 1].map((id) => ({ id: String(id), path: `/drive-${id}`, isAvailable: true, indexMode: 'BLOCKLIST', includedDirs: [], excludedDirs: [] }))
   state.initial = { state: 'RUNNING', indexed: 1, total: 10, pending: 9 }
@@ -178,7 +177,7 @@ it('the Stop handler sends only stopMediaScan when the Rebuild button appears', 
     await stop!.click({})
     state.initial = { state: 'STOPPED', indexed: 1, total: 10, pending: 9 }
     expect(await render()).toContain('rebuild_index')
-    expect(state.mutation).toHaveBeenCalledExactlyOnceWith('stopMediaScan')
+    expect(state.mutation).toHaveBeenCalledExactlyOnceWith('stopFileIndexScan')
   } finally {
     state.initial = null
     state.volumes = []

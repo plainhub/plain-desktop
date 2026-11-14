@@ -13,7 +13,7 @@ export default {
   'ai.scanning_subtitle': 'Анализ фотографий для включения поиска…',
   'ai.running_title': 'Поиск с ИИ готов',
   'ai.ready_subtitle': 'Отсканируйте и проиндексируйте фотографии, чтобы искать их по описанию.',
-  'ai.scan_progress': 'Прогресс сканирования',
+  'ai.file_index_scan_progress': 'Прогресс сканирования',
   'ai.model_file': 'Модель:',
   'ai.indexing_label': 'Фото:',
   'ai.indexed_count': '{count} фото проиндексировано',

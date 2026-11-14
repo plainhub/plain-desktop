@@ -13,7 +13,7 @@ export default {
   'ai.scanning_subtitle': 'অনুসন্ধান সক্রিয় করতে আপনার ছবি বিশ্লেষণ করা হচ্ছে…',
   'ai.running_title': 'AI অনুসন্ধান প্রস্তুত',
   'ai.ready_subtitle': 'বিবরণ দিয়ে অনুসন্ধান করতে আপনার ছবি স্ক্যান ও ইনডেক্স করুন।',
-  'ai.scan_progress': 'স্ক্যান অগ্রগতি',
+  'ai.file_index_scan_progress': 'স্ক্যান অগ্রগতি',
   'ai.model_file': 'মডেল:',
   'ai.indexing_label': 'ছবি:',
   'ai.indexed_count': '{count}টি ছবি ইনডেক্স করা হয়েছে',
