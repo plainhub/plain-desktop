@@ -72,7 +72,7 @@ it('binds the signed expiry and sends no commitment, reveal or nonce fields', ()
   expect(() => client.accept({ ...vector.response, expiresAt: vector.response.expiresAt + 1 }, vector.serverIdentity)).toThrow('signature_verification_failed')
 })
 
-it('clears a cancelled exchange and refuses to reuse it', () => {
+it('clears a canceled exchange and refuses to reuse it', () => {
   const client = start()
   client.dispose()
   expect(() => client.accept(vector.response, vector.serverIdentity)).toThrow('invalid_auth_response')

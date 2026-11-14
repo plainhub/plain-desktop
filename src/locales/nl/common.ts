@@ -81,6 +81,8 @@ export default {
   desktop_notification_permission_grant_message: '1. Klik op het hangslotsymbool in de adresbalk.\n2. Open "Site-instellingen" of "Machtigingen".\n3. Zoek "Meldingen" en wijzig het naar "Toestaan".',
   sort: 'Sorteren',
   sort_by: {
+    title_asc: 'Titel (A tot Z)',
+    title_desc: 'Titel (Z tot A)',
     date_asc: 'Oudste datum eerst',
     date_desc: 'Nieuwste datum eerst',
     size_asc: 'Kleinste eerst',

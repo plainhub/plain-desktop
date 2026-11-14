@@ -117,7 +117,7 @@ it('rejects changed stored OPAQUE pins before starting a connection', async () =
 it('frees pending WASM state on cancellation', async () => {
   const controller = new AbortController()
   const { promise } = await begin({ signal: controller.signal })
-  const rejected = expect(promise).rejects.toBe('cancelled')
+  const rejected = expect(promise).rejects.toBe('canceled')
   controller.abort()
   await rejected
   expect(state.free).toHaveBeenCalledOnce()
@@ -125,12 +125,12 @@ it('frees pending WASM state on cancellation', async () => {
   expect(vi.getTimerCount()).toBe(0)
 })
 
-it('does not send metadata when cancelled during metadata lookup', async () => {
+it('does not send metadata when canceled during metadata lookup', async () => {
   let resolve: (value: object) => void = () => {}
   mock.agent.mockReturnValue(new Promise(done => { resolve = done }))
   const controller = new AbortController()
   const { promise } = await begin({ signal: controller.signal })
-  const rejected = expect(promise).rejects.toBe('cancelled')
+  const rejected = expect(promise).rejects.toBe('canceled')
   await socket.message(ke2)
   controller.abort()
   await rejected

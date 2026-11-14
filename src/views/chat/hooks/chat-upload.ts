@@ -16,7 +16,7 @@ import emitter from '@/plugins/eventbus'
 import { projectChatDownloadProgress, type ChatDownloadProgress, type ChatDownloadProgressItem } from '../chat-download-progress'
 
 export function messageNeedsDownload(item: IChatItem): boolean {
-  const items = item._content?.value?.items
+  const items = 'items' in item.content ? item.content.items : []
   if (!Array.isArray(items)) return false
   return items.some((f: any) => typeof f.uri === 'string' && f.uri.startsWith('fsid:'))
 }
@@ -87,13 +87,15 @@ export function useChatUpload(chatId: ComputedRef<string>, channelId: ComputedRe
     const valueItems: any[] = []
     for (const upload of uploads) {
       const itemProps: any = {
+        id: upload.id,
+        fileName: upload.file.name,
         dir: frozenDestination.appDir,
         uri: upload.fileName || upload.file.name,
         size: upload.file.size,
         durationMs: 0,
         width: 0,
         height: 0,
-        summary: options.summary,
+        summary: options.summary ?? '',
       }
       if (upload.file.type.startsWith('video') || isVideo(upload.file.name)) {
         const v = await getVideoData(upload.file)
@@ -129,15 +131,15 @@ export function useChatUpload(chatId: ComputedRef<string>, channelId: ComputedRe
     valueItems.forEach((item: any, index: number) => {
       if (!item.thumbnail) item.thumbnail = objectUrls[index]
     })
-    const _content = { type: contentType, value: { items: valueItems } }
+    const content: IChatItem['content'] = { __typename: contentType === MessageType.IMAGES ? 'ChatImagesContent' : 'ChatFilesContent', items: valueItems }
     const item: IChatItem = {
       id: 'new_' + generateRecordId(),
       fromId: 'me',
       toId: frozenDestination.chatId,
       channelId: frozenDestination.channelId,
       createdAt: new Date().toISOString(),
-      content: JSON.stringify(_content),
-      _content,
+      content,
+      deliveryResults: [],
       __typename: 'ChatItem',
     }
 
@@ -199,7 +201,7 @@ export function useChatUpload(chatId: ComputedRef<string>, channelId: ComputedRe
     submittedDownloads.add(messageId)
     try {
       const message = chatItems.value.find((item) => item.id === messageId)
-      const fileIds = message?._content?.value?.items
+      const fileIds = (message && 'items' in message.content ? message.content.items : [])
         ?.filter((file: any) => typeof file.uri === 'string' && file.uri.startsWith('fsid:'))
         .map((file: any) => file.id)
       if (!fileIds?.length) return

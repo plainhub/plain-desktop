@@ -187,7 +187,7 @@ async function released(media, timeout = 12000, original = '', observation = {},
     }
     await delay(stability);
     check(isReleased(mediaState(media, original)) && Math.abs(media.currentTime - before) < .001 && callbacks === 0,
-      'Cancelled media continued to advance');
+      'Canceled media continued to advance');
   } finally {
     if (callbackId !== null) media.cancelVideoFrameCallback(callbackId);
     Object.assign(observation, { final: mediaState(media, original), new_video_frames: callbacks,

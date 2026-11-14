@@ -46,7 +46,7 @@ it('keeps a Unicode attachment summary valid at the UTF-16 truncation boundary',
   const draft = ref(text)
   fixture.uploads.mockImplementation((_dir, files: File[]) => files.map((file, index) => ({ id: 'long-' + index, file, uploadedSize: 0, uploadSpeed: 0 })))
   fixture.enqueue.mockImplementation(async (item, uploads) => {
-    const summary = item._content.value.items[0].summary as string
+    const summary = item.content.items[0].summary as string
     expect(summary).toBe(new TextDecoder().decode(new TextEncoder().encode(summary)))
     expect(summary.length).toBeLessThanOrEqual(253)
     expect(text.startsWith(summary.slice(0, -3))).toBe(true)

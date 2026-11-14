@@ -81,6 +81,8 @@ export default {
   desktop_notification_permission_grant_message: '1. Nhấp vào biểu tượng khóa trong thanh địa chỉ.\n2. Mở "Cài đặt trang" hoặc "Quyền hạn."\n3. Tìm "Thông báo" và chuyển nó thành "Cho phép."',
   sort: 'Sắp xếp',
   sort_by: {
+    title_asc: 'Tiêu đề (A–Z)',
+    title_desc: 'Tiêu đề (Z–A)',
     date_asc: 'Ngày cũ nhất trước',
     date_desc: 'Ngày mới nhất trước',
     size_asc: 'Nhỏ nhất trước',

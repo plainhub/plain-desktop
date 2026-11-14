@@ -137,6 +137,7 @@ export interface FieldDef {
   name: string
   args: ArgDef[]
   type: TypeRef
+  hasDefault?: boolean
 }
 
 export type TypeDefKind = 'object' | 'interface' | 'union' | 'enum' | 'input' | 'scalar'
@@ -148,6 +149,7 @@ export interface TypeDef {
   interfaces: string[]
   unionMembers: string[]
   enumValues: string[]
+  oneOf?: boolean
 }
 
 export interface SchemaIR {
@@ -387,10 +389,11 @@ export class Parser {
     return args
   }
 
-  skipDirectives() {
+  skipDirectives(): string[] {
+    const names: string[] = []
     while (this.isPunct('@')) {
       this.take()
-      this.expectName()
+      names.push(this.expectName().value)
       if (this.isPunct('(')) {
         this.take()
         while (!this.tryPunct(')')) {
@@ -404,6 +407,7 @@ export class Parser {
         }
       }
     }
+    return names
   }
 
   parseDocument(): DocumentIR {
@@ -517,8 +521,9 @@ export function parseSchema(src: string): SchemaIR {
         if (!p.isPunct('&')) break
       }
     }
+    const directives = p.skipDirectives()
+    if (kind === 'input' && directives.includes('oneOf')) def.oneOf = true
     if (kind === 'scalar') {
-      p.skipDirectives()
       types.set(name, def)
       continue
     }
@@ -548,12 +553,14 @@ export function parseSchema(src: string): SchemaIR {
       const args = kind === 'input' ? [] : p.parseArgDefs()
       p.expectPunct(':')
       const fieldType = p.parseTypeRef()
+      let hasDefault = false
       if (p.isPunct('=')) {
+        hasDefault = true
         p.take()
         p.parseValue()
       }
       p.skipDirectives()
-      def.fields.push({ name: fieldName, args, type: fieldType })
+      def.fields.push({ name: fieldName, args, type: fieldType, hasDefault })
     }
     types.set(name, def)
   }

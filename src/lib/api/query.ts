@@ -91,7 +91,7 @@ export function initQuery<TResult = any>(params: InitQueryParams<TResult>) {
         params.handle(r.data, '')
       }
     } catch (e: any) {
-      if (version !== snapshotVersion || (e instanceof GqlError && e.cancelled)) return
+      if (version !== snapshotVersion || (e instanceof GqlError && e.canceled)) return
       params.handle(undefined as any, getErrorMessage(e))
     } finally {
       if (version === snapshotVersion) loading.value = false
@@ -179,7 +179,7 @@ export function initLazyQuery<TResult = any>(params: InitQueryParams<TResult>) {
         params.handle(r.data, '', context)
       }
     } catch (e: any) {
-      if (version !== snapshotVersion || (e instanceof GqlError && e.cancelled)) return
+      if (version !== snapshotVersion || (e instanceof GqlError && e.canceled)) return
       if (!options.latest || latestRequestId === latestSequence) {
         params.handle(undefined as any, getErrorMessage(e), context)
       }
@@ -385,7 +385,7 @@ export const callsGQL = `
 `
 
 export const imagesGQL = `
-  query images($offset: Int!, $limit: Int!, $query: String!, $sortBy: FileSortBy!) {
+  query images($offset: Int!, $limit: Int!, $query: String!, $sortBy: ImageSortBy!) {
     images(query: $query, offset: $offset, limit: $limit, sortBy: $sortBy) {
       ...ImageFragment
     }
@@ -422,7 +422,7 @@ export const fileIndexScanProgressGQL = `
 `
 
 export const videosGQL = `
-  query videos($offset: Int!, $limit: Int!, $query: String!, $sortBy: FileSortBy!) {
+  query videos($offset: Int!, $limit: Int!, $query: String!, $sortBy: VideoSortBy!) {
     videos(query: $query, offset: $offset, limit: $limit, sortBy: $sortBy) {
       ...VideoFragment
     }
@@ -432,7 +432,7 @@ export const videosGQL = `
 `
 
 export const audiosGQL = `
-  query audios($offset: Int!, $limit: Int!, $query: String!, $sortBy: FileSortBy!) {
+  query audios($offset: Int!, $limit: Int!, $query: String!, $sortBy: AudioSortBy!) {
     items: audios(query: $query, offset: $offset, limit: $limit, sortBy: $sortBy) {
       ...AudioFragment
     }
@@ -666,7 +666,7 @@ export const audioCountGQL = `
 `
 
 export const docsGQL = `
-  query docs($offset: Int!, $limit: Int!, $query: String!, $sortBy: FileSortBy!) {
+  query docs($offset: Int!, $limit: Int!, $query: String!, $sortBy: DocSortBy!) {
     items: docs(query: $query, offset: $offset, limit: $limit, sortBy: $sortBy) {
       ...DocFragment
     }
@@ -705,7 +705,7 @@ export const feedEntryCountGQL = `
     total: feedEntryCount(query: "")
     today: feedEntryCount(query: "today:true")
     feedEntryCounts {
-      id
+      feedId
       count
     }
   }
@@ -883,7 +883,7 @@ export const dbPathGQL = `
 
 export const uploadedChunksGQL = `
   query uploadedChunks($fileId: String!) {
-    uploadedChunks(fileId: $fileId)
+    uploadedChunks(fileId: $fileId) { index sizeBytes }
   }
 `
 
@@ -1018,4 +1018,16 @@ export const fileSearchResultsGQL = `
     }
   }
   ${fileFragment}
+`
+
+export const exportFeedsGQL = `
+  query exportFeeds {
+    exportFeeds
+  }
+`
+
+export const exportNotesGQL = `
+  query exportNotes($query: String!) {
+    exportNotes(query: $query)
+  }
 `

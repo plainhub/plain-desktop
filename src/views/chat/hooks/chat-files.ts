@@ -24,7 +24,7 @@ export function useChatFiles(props: { data: any; downloadInfo: any; peer: { id: 
 
   const items = computed<ISource[]>(() => {
     const data = props.data
-    const files = data?._content?.value?.items ?? []
+    const files = data?.content?.items ?? []
     const peer = props.peer
     return files.map((f: any) => {
       const uri = f.uri

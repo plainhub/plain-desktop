@@ -3,7 +3,7 @@ import { chatFileDurationMs } from '@/views/chat/chat-file-duration'
 import { defineStore } from 'pinia'
 import { computed } from 'vue'
 import type { IPeer, IChatChannel, IChatItem } from '@/lib/interfaces'
-import { ChannelStatus, MessageType } from '@/lib/status'
+import { ChannelStatus } from '@/lib/status'
 import emitter from '@/plugins/eventbus'
 import { getCached, setCached } from '@/lib/api/cache'
 import { openModal } from '@/components/modal'
@@ -57,15 +57,15 @@ export const useChatStore = defineStore('chat', () => {
   function getLatestChatPreview(chatId: string): string {
     const item = getLatestChat(chatId)
     if (!item) return ''
-    const content = item._content
+    const content = item.content
     const t = i18n.global.t
-    if (content?.type === MessageType.TEXT) {
-      const text = content?.value?.text
+    if (content?.__typename === 'ChatTextContent') {
+      const text = content?.text
       if (text) return text.slice(0, 50)
       return t('message')
     }
-    if (content?.type === MessageType.IMAGES) {
-      const items = content?.value?.items ?? []
+    if (content?.__typename === 'ChatImagesContent') {
+      const items = content?.items ?? []
       const videoCount = items.filter((it: any) => chatFileDurationMs(it) > 0).length
       const imageCount = items.length - videoCount
       if (imageCount > 0 && videoCount > 0) {
@@ -78,11 +78,11 @@ export const useChatStore = defineStore('chat', () => {
       }
       return imageCount > 1 ? `${imageCount} ${t('images')}` : t('image')
     }
-    if (content?.type === MessageType.FILES) {
-      const count = content?.value?.items?.length ?? 0
+    if (content?.__typename === 'ChatFilesContent') {
+      const count = content?.items?.length ?? 0
       return count > 1 ? `${count} ${t('files')}` : t('file')
     }
-    if (content?.type === MessageType.SHARE) {
+    if (content?.__typename === 'ChatShareContent') {
       return t('shared_folder')
     }
     return t('message')

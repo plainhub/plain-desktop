@@ -26,6 +26,7 @@ interface Ctx {
   schema: SchemaIR
   docFragments: Map<string, FragmentDef>
   emittedFragments: Map<string, string>
+  emittedInputs: Map<string, string>
 }
 
 interface Prop {
@@ -50,7 +51,7 @@ export function generateOperationsSource(
       if (!fragments.has(frag.name)) fragments.set(frag.name, frag)
     }
   }
-  const ctx: Ctx = { schema, docFragments: fragments, emittedFragments: new Map() }
+  const ctx: Ctx = { schema, docFragments: fragments, emittedFragments: new Map(), emittedInputs: new Map() }
   const operations: OperationTypes[] = []
   for (const { key, ir } of documents) {
     const op = ir.operations[0]
@@ -70,6 +71,9 @@ export function generateOperationsSource(
     })
   }
   const lines: string[] = [HEADER]
+  for (const [name, type] of [...ctx.emittedInputs.entries()].sort()) {
+    lines.push(`export type Input_${name} = ${type}`, '')
+  }
   for (const [name, type] of [...ctx.emittedFragments.entries()].sort()) {
     lines.push(`export interface Fragment_${name} ${type}`)
     lines.push('')
@@ -93,7 +97,24 @@ function variablesType(vars: VarDef[], ctx: Ctx): string {
 }
 
 function variableType(ref: TypeRef, ctx: Ctx): string {
-  const type = ref.ofType === 'list' ? `Array<${variableType(ref.inner, ctx)}>` : leafType(ref.name, ctx)
+  let type: string
+  if (ref.ofType === 'list') {
+    type = `Array<${variableType(ref.inner, ctx)}>`
+  } else {
+    const input = ctx.schema.types.get(ref.name)
+    if (input?.kind === 'input') {
+      type = `Input_${ref.name}`
+      if (!ctx.emittedInputs.has(ref.name)) {
+        ctx.emittedInputs.set(ref.name, '')
+        const shape = input.oneOf
+          ? input.fields.map(selected => `{ ${input.fields.map(field => field === selected
+              ? `${field.name}: ${variableType({ ...field.type, nonNull: true }, ctx)}`
+              : `${field.name}?: never`).join('; ')} }`).join(' | ')
+          : `{ ${input.fields.map(field => `${field.name}${!field.type.nonNull || field.hasDefault ? '?' : ''}: ${variableType(field.type, ctx)}`).join('; ')} }`
+        ctx.emittedInputs.set(ref.name, shape)
+      }
+    } else type = leafType(ref.name, ctx)
+  }
   return ref.nonNull ? type : `${type} | null`
 }
 
@@ -103,6 +124,10 @@ function buildShape(selections: Selection[], parentName: string, ctx: Ctx, depth
 
   for (const sel of selections) {
     if (sel.kind === 'field') {
+      if (sel.name === '__typename') {
+        shape.props.push({ name: sel.alias ?? sel.name, type: JSON.stringify(parentName), optional: false })
+        continue
+      }
       const field = ctx.schema.types.get(parentName)?.fields.find((f) => f.name === sel.name)
       if (!field) {
         shape.props.push({ name: sel.alias ?? sel.name, type: 'unknown', optional: true })

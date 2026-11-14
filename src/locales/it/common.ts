@@ -83,6 +83,8 @@ export default {
     '1. Fai clic sull\'icona del lucchetto nella barra degli indirizzi.\n2. Apri "Impostazioni sito" o "Permessi".\n3. Trova "Notifiche" e cambialo su "Consenti".',
   sort: 'Ordina',
   sort_by: {
+    title_asc: 'Titolo (A–Z)',
+    title_desc: 'Titolo (Z–A)',
     date_asc: 'Data più antica prima',
     date_desc: 'Data più recente prima',
     size_asc: 'Più piccolo prima',

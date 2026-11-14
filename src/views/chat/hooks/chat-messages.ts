@@ -1,10 +1,11 @@
+import { chatContentInput } from '@/lib/chat/chat-content'
 import { ref, shallowRef, watch, onUnmounted, type ComputedRef, type Ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { initQuery, chatItemsGQL } from '@/lib/api/query'
 import { sendChatItemsGQL, deleteChatItemGQL, retryChatItemGQL, initMutation } from '@/lib/api/mutation'
 import toast from '@/components/toaster'
 import type { IChatItem } from '@/lib/interfaces'
-import { ChatStatus, MessageType } from '@/lib/status'
+import { ChatStatus } from '@/lib/status'
 import { generateRecordId } from '@/lib/record-id.generated'
 import { useTasks } from './chat'
 import { useChatSubscriptions } from './chat-subscriptions'
@@ -45,10 +46,10 @@ export function useChatMessages(chatId: ComputedRef<string>, channelId: Computed
     document: sendChatItemsGQL,
   }, false)
   sendDone((r) => {
-    const rawItems: IChatItem[] | undefined = r?.data?.sendChatItems
+    const rawItems = r?.data?.sendChatItems
     if (rawItems) {
       const existingIds = new Set(chatItems.value.map((i) => i.id))
-      const newItems = rawItems.map(normalizeChatItem).filter((i) => !existingIds.has(i.id))
+      const newItems = rawItems.map(normalizeChatItem).filter((i: IChatItem) => !existingIds.has(i.id))
       if (newItems.length) {
         chatItems.value = [...chatItems.value, ...newItems]
       }
@@ -67,9 +68,9 @@ export function useChatMessages(chatId: ComputedRef<string>, channelId: Computed
 
   const MAX_SEND_ATTEMPTS = 3
 
-  async function doSend(tempId: string, toId: string, content: string) {
+  async function doSend(tempId: string, toId: string, content: IChatItem['content']) {
     for (let attempt = 1; attempt <= MAX_SEND_ATTEMPTS; attempt++) {
-      const r = await sendMutate({ targets: [toId], content })
+      const r = await sendMutate({ targets: [toId], content: chatContentInput(content) })
       if (r != null) {
         chatItems.value = chatItems.value.filter((i) => i.id !== tempId)
         return
@@ -91,8 +92,8 @@ export function useChatMessages(chatId: ComputedRef<string>, channelId: Computed
     const tempItem: IChatItem = {
       id: tempId, fromId: 'me', toId: chatId.value, channelId: channelId.value,
       createdAt: new Date().toISOString(),
-      content: JSON.stringify({ type: MessageType.TEXT, value: { text: chatText.value } }),
-      _content: { type: MessageType.TEXT, value: { text: chatText.value } },
+      content: { __typename: 'ChatTextContent', text: chatText.value, linkPreviews: [] },
+      deliveryResults: [],
       __typename: 'ChatItem',
       status: ChatStatus.PENDING,
     }

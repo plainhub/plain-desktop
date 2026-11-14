@@ -4,7 +4,7 @@ export default {
   send_sms: 'SMS gönder',
   send_mms: 'MMS Gönder',
   confirm_mms_on_phone: 'Lütfen MMS\'i telefonunuzda onaylayın ve gönderin.',
-  mms_cancelled: 'İptal edildi (gönderilmedi)',
+  mms_canceled: 'İptal edildi (gönderilmedi)',
   messages: 'Mesajlar',
   direction: 'Yön',
   attachment: 'ek(s)',

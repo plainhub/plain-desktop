@@ -5,7 +5,7 @@
 //! the overlay acknowledges presentation, re-captures the same display through
 //! the app's own screen-recording permission and writes the pixels to
 //! `/tmp/cap-exp/selfie-*.png`. That frame is ground-truth evidence of whether
-//! the overlay actually composited on screen. The session is then cancelled
+//! the overlay actually composited on screen. The session is then canceled
 //! through the same runtime path as the overlay's Escape key.
 //!
 //! This module is compiled out of release builds (`debug_assertions`) and only
@@ -176,7 +176,7 @@ fn cancel_session<R: Runtime>(
         Some(overlay_generation),
         &windows,
     ) {
-        Ok(()) => log::info!("screen capture self-test cancelled the session"),
+        Ok(()) => log::info!("screen capture self-test canceled the session"),
         Err(error) => log::warn!("screen capture self-test cancel failed: {error}"),
     }
 }

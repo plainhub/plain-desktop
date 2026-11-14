@@ -56,7 +56,7 @@ it('exports captured text with the selected path through the local main schema',
   expect(remote).not.toHaveBeenCalled()
 })
 
-it('does not write when the system save dialog is cancelled', async () => {
+it('does not write when the system save dialog is canceled', async () => {
   save.mockResolvedValue(null)
   await saveTextFileAs('   ', 'unchanged')
   expect(save).toHaveBeenCalledWith({ defaultPath: 'file.txt' })

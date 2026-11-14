@@ -217,7 +217,7 @@ export class GqlError extends Error {
   constructor(
     message: string,
     public status?: number,
-    public cancelled = false,
+    public canceled = false,
   ) {
     super(message)
     this.name = 'GqlError'

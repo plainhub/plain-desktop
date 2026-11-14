@@ -40,7 +40,7 @@ export function initMutation(params: InitMutationParams, handleError = true) {
       for (const cb of doneCallbacks) cb(r)
       return r
     } catch (e: any) {
-      if (e instanceof GqlError && e.cancelled) return undefined
+      if (e instanceof GqlError && e.canceled) return undefined
       const message = e instanceof GqlError ? e.message : 'network_error'
       if (handleError) emitter.emit('toast', message)
       for (const cb of errorCallbacks) cb(e)
@@ -105,7 +105,7 @@ export const forwardChatItemsGQL = `
 `
 
 export const sendChatItemsGQL = `
-  mutation sendChatItems($targets: [String!]!, $content: String!) {
+  mutation sendChatItems($targets: [String!]!, $content: ChatContentInput!) {
     sendChatItems(targets: $targets, content: $content) {
       ...ChatItemFragment
     }
@@ -515,17 +515,7 @@ export const importFeedsGQL = `
   }
 `
 
-export const exportFeedsGQL = `
-  mutation exportFeeds {
-    exportFeeds
-  }
-`
 
-export const exportNotesGQL = `
-  mutation exportNotes($query: String!) {
-    exportNotes(query: $query)
-  }
-`
 
 export const relaunchAppGQL = `
   mutation relaunchApp {

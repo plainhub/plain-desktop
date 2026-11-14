@@ -36,7 +36,7 @@
           <i-material-symbols:check-rounded v-if="!r.error" class="status-icon ok" />
           <i-material-symbols:error-outline-rounded v-else class="status-icon fail" />
           <span class="status-peer-name">{{ r.peerName }}</span>
-          <span v-if="r.error" class="status-peer-error">{{ r.error }}</span>
+          <span v-if="r.error != null" class="status-peer-error">{{ r.error }}</span>
         </div>
       </div>
       <div v-else class="status-error">{{ errorMessage }}</div>
@@ -46,11 +46,11 @@
       </div>
     </v-dropdown-menu>
     <div class="chat-content">
-      <div v-if="data._content.type === MessageType.TEXT">
-        <pre v-html="addLinksToURLs(data._content.value.text)"></pre>
-        <ChatLinkPreviews v-if="data._content.value.linkPreviews?.length" :data="data" />
+      <div v-if="data.content.__typename === 'ChatTextContent'">
+        <pre v-html="addLinksToURLs(data.content.text)"></pre>
+        <ChatLinkPreviews v-if="data.content.linkPreviews?.length" :data="data" />
       </div>
-      <component :is="getComponent(data._content.type)" v-else :data="data" :download-info="downloadInfo" :peer="peer" @download-action="(a: 'pause' | 'resume' | 'retry') => emit('download-action', data.id, a)" />
+      <component :is="getComponent(data.content.__typename)" v-else :data="data" :download-info="downloadInfo" :peer="peer" @download-action="(a: 'pause' | 'resume' | 'retry') => emit('download-action', data.id, a)" />
     </div>
   </div>
 </template>
@@ -73,7 +73,7 @@ import ChatLinkPreviews from './ChatLinkPreviews.vue'
 import ChatFiles from './ChatFiles.vue'
 import ChatShare from './ChatShare.vue'
 import type { IChatItem, IPeer } from '@/lib/interfaces'
-import { ChatStatus, MessageType } from '@/lib/status'
+import { ChatStatus } from '@/lib/status'
 
 const props = defineProps<{
   data: IChatItem
@@ -85,7 +85,7 @@ const props = defineProps<{
   peer: IPeer | null
 }>()
 
-const emit = defineEmits<{ delete: [id: string]; forward: [item: IChatItem]; retry: [id: string, statusData?: string]; 'download-action': [id: string, action: 'pause' | 'resume' | 'retry'] }>()
+const emit = defineEmits<{ delete: [id: string]; forward: [item: IChatItem]; retry: [id: string, deliveryResults?: DeliveryResult[]]; 'download-action': [id: string, action: 'pause' | 'resume' | 'retry'] }>()
 const statusMenuOpen = ref(false)
 const rawOpen = ref(false)
 const { t } = useI18n()
@@ -107,10 +107,11 @@ const showSending = computed(() => {
   return props.data.id.startsWith('new_') && props.data.status !== ChatStatus.FAILED
 })
 
-const isText = computed(() => props.data._content.type === MessageType.TEXT)
+const isText = computed(() => props.data.content.__typename === 'ChatTextContent')
 
 function copyText() {
-  const text = copySelection || (props.data._content.value.text ?? '')
+  const content = props.data.content
+  const text = copySelection || (content.__typename === 'ChatTextContent' ? content.text : '')
   if (text) copyTextToClipboard(text)
 }
 
@@ -159,18 +160,10 @@ interface DeliveryResult {
   error?: string | null
 }
 
-const deliveryResults = computed<DeliveryResult[]>(() => {
-  if (!props.data.statusData) return []
-  try {
-    const sd = JSON.parse(props.data.statusData) as { results?: DeliveryResult[] }
-    return sd.results ?? []
-  } catch {
-    return []
-  }
-})
+const deliveryResults = computed<DeliveryResult[]>(() => props.data.deliveryResults)
 
-const deliveredCount = computed(() => deliveryResults.value.filter((r) => !r.error).length)
-const errorMessage = computed(() => deliveryResults.value[0]?.error || t('send_failed'))
+const deliveredCount = computed(() => deliveryResults.value.filter((r) => r.error == null).length)
+const errorMessage = computed(() => deliveryResults.value.find((r) => r.error != null)?.error ?? t('send_failed'))
 
 function showErrorMenu() {
   document.dispatchEvent(new CustomEvent('dropdown-toggle', { detail: { exclude: document.getElementById(errorAnchorId.value) } }))
@@ -179,9 +172,9 @@ function showErrorMenu() {
 
 function doRetry() {
   statusMenuOpen.value = false
-  emit('retry', props.data.id, props.data.statusData)
+  emit('retry', props.data.id, props.data.deliveryResults)
 }
 
-const componentMap: Record<string, any> = { [MessageType.IMAGES]: ChatImages, [MessageType.FILES]: ChatFiles, [MessageType.SHARE]: ChatShare, linkPreviews: ChatLinkPreviews }
+const componentMap: Record<string, any> = { 'ChatImagesContent': ChatImages, 'ChatFilesContent': ChatFiles, 'ChatShareContent': ChatShare, linkPreviews: ChatLinkPreviews }
 function getComponent(type: string) { return componentMap[type] }
 </script>

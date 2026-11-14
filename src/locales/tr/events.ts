@@ -18,5 +18,5 @@ export default {
   "event_reason.login_expired": "Sign-in request expired",
   "event_reason.too_many_login_attempts": "Too many sign-in attempts",
   "event_reason.rejected": "Sign-in request rejected",
-  "event_reason.cancelled": "Sign-in request cancelled"
+  "event_reason.canceled": "Sign-in request canceled"
 }

@@ -24,7 +24,7 @@ pub enum CaptureCallerRole {
 #[serde(tag = "kind", content = "error", rename_all = "snake_case")]
 pub enum TerminalOutcome {
     Completed,
-    Cancelled,
+    Canceled,
     Failed(CaptureError),
 }
 
@@ -647,7 +647,7 @@ impl CaptureCoordinator {
         if active.phase == NativeCapturePhase::Restoring {
             return active.cleanup();
         }
-        self.enter_terminal(TerminalOutcome::Cancelled)
+        self.enter_terminal(TerminalOutcome::Canceled)
     }
 
     /// Internal failure path for the native coordinator; command handlers must
@@ -1126,20 +1126,20 @@ mod tests {
             .note_overlay_ready(OVERLAY, GENERATION)
             .expect("ready");
         coordinator
-            .start_from_window("main", composer_request("cancelled"), GENERATION)
+            .start_from_window("main", composer_request("canceled"), GENERATION)
             .expect("start");
-        coordinator.begin_capture("cancelled").expect("capture");
+        coordinator.begin_capture("canceled").expect("capture");
         coordinator
-            .store_frame("cancelled", frame("cancelled"))
+            .store_frame("canceled", frame("canceled"))
             .expect("sensitive frame");
         let cleanup = coordinator
-            .cancel_from_window(OVERLAY, "cancelled")
+            .cancel_from_window(OVERLAY, "canceled")
             .expect("overlay cancel");
-        assert_eq!(cleanup.outcome, TerminalOutcome::Cancelled);
+        assert_eq!(cleanup.outcome, TerminalOutcome::Canceled);
         assert_eq!(coordinator.phase(), NativeCapturePhase::Restoring);
         assert!(!coordinator.has_sensitive_buffers());
         coordinator
-            .finish_restoration("cancelled")
+            .finish_restoration("canceled")
             .expect("finish cancel restoration");
 
         advance_to_active(&mut coordinator, "failed");

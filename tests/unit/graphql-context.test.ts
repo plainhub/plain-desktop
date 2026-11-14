@@ -124,7 +124,7 @@ it('marks a discarded response as cancellation rather than a displayed request f
   reply.resolve({ data: { app: { id: 'a' } } })
   const error = await request
   expect(error).toBeInstanceOf(GqlError)
-  expect(error.cancelled).toBe(true)
+  expect(error.canceled).toBe(true)
 })
 
 it('does not run mutation callbacks or show a toast for a discarded response', async () => {
@@ -194,7 +194,7 @@ it('does not deduplicate or deliver responses across Desktop peer changes', asyn
   target.native = false
   const reply = deferred<any>()
   vi.mocked(nativeGraphql).mockReturnValueOnce(reply.promise)
-  const stale = expect(gqlFetch('query { app { id } }')).rejects.toMatchObject({ message: 'request_context_changed', cancelled: true })
+  const stale = expect(gqlFetch('query { app { id } }')).rejects.toMatchObject({ message: 'request_context_changed', canceled: true })
   target.client = 'device-b'
   vi.mocked(nativeGraphql).mockResolvedValueOnce({ data: { app: { id: 'b' } } })
   expect((await gqlFetch('query { app { id } }')).data).toEqual({ app: { id: 'b' } })

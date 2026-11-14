@@ -48,7 +48,7 @@ function getPreview(source: ISource) {
 
 const sources = computed(() => {
   const data = props.data
-  const files = data?._content?.value?.items ?? []
+  const files = data?.content?.items ?? []
   const peer = props.peer
   const items: ISource[] = []
   files.forEach((file: any) => {

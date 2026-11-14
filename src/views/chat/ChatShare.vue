@@ -42,7 +42,7 @@ interface IShareValue {
   expiresAt?: string | number | null
 }
 
-const share = computed<IShareValue>(() => props.data._content?.value ?? ({} as IShareValue))
+const share = computed<IShareValue>(() => props.data.content ?? ({} as IShareValue))
 
 function expiryMs(expiresAt: IShareValue['expiresAt']): number | null {
   if (expiresAt == null || expiresAt === '') return null

@@ -4,7 +4,7 @@ export default {
   confirm_mms_on_phone: 'Per favore, conferma e invia l\'MMS sul tuo telefono.',
   send_sms: 'Invia SMS',
   send_mms: 'Invia MMS',
-  mms_cancelled: 'Annullato (non inviato)',
+  mms_canceled: 'Annullato (non inviato)',
   messages: 'Messaggi',
   direction: 'Direzione',
   attachment: 'allegato(i)',

@@ -5,7 +5,7 @@ import type { Bookmark } from '@/stores/bookmarks'
 type ChatSubscriptionItem = Pick<IChatItem, 'id' | 'fromId' | 'toId' | 'channelId' | 'content' | 'createdAt'> & {
   updatedAt: string
   status: NonNullable<IChatItem['status']>
-  statusData: string
+  deliveryResults: IChatItem['deliveryResults']
 }
 
 export interface SubscriptionResults {
@@ -53,7 +53,7 @@ export interface SubscriptionResults {
   mediaUpdated: GqlResultType<'mediaUpdatedSubscription'>['mediaUpdated']
   fileIndexScanProgressUpdated: IFileIndexScanProgress
   bookmarksUpdated: Bookmark[]
-  feedsFetched: { feedId: string; error?: string | null; cancelled?: boolean | null }
+  feedsFetched: { feedId: string; error?: string | null; canceled?: boolean | null }
   uploadMergeResult: { fileId: string; ok: boolean; value: string | null; mergedSize: number | null; error: string | null }
   smsChanged: { uris: string[] } | null
   smsSendResult: { requestId: string; success: boolean; resultCode: number | null }

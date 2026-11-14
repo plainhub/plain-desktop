@@ -66,9 +66,9 @@ export const chatItemFragment = `
     toId
     channelId
     createdAt
-    content
+    content { ... on ChatTextContent { __typename text linkPreviews { url title description imageUrl imageLocalPath imageWidth imageHeight siteName domain createdAt } } ... on ChatImagesContent { __typename items { id uri size durationMs width height summary fileName } } ... on ChatFilesContent { __typename items { id uri size durationMs width height summary fileName } } ... on ChatShareContent { __typename shareId urlToken peerInfo { id ip port } name itemCount totalSize expiresAt } }
     status
-    statusData
+    deliveryResults { peerId peerName error }
   }
 `
 

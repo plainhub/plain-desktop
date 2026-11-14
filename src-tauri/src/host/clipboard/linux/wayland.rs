@@ -228,7 +228,7 @@ impl Session {
         }
         roundtrip(&self.connection, &mut self.queue, &mut self.state)?;
         if self.state.sources == 0 || self.state.seats.is_empty() {
-            return Err("Wayland compositor cancelled the clipboard source".into());
+            return Err("Wayland compositor canceled the clipboard source".into());
         }
         Ok(())
     }

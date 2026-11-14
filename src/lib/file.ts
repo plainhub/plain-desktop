@@ -92,14 +92,14 @@ export function canOpenInBrowser(name: string) {
   return ['.txt', '.pdf', '.md'].some((it) => name.endsWith(it))
 }
 
-export function getSortItems() {
+export function getSortItems(name: 'name' | 'title' = 'name') {
   return [
-    { label: 'sort_by.date_asc', value: 'DATE_ASC' },
-    { label: 'sort_by.date_desc', value: 'DATE_DESC' },
+    { label: 'sort_by.date_asc', value: 'UPDATED_AT_ASC' },
+    { label: 'sort_by.date_desc', value: 'UPDATED_AT_DESC' },
     { label: 'sort_by.size_asc', value: 'SIZE_ASC' },
     { label: 'sort_by.size_desc', value: 'SIZE_DESC' },
-    { label: 'sort_by.name_asc', value: 'NAME_ASC' },
-    { label: 'sort_by.name_desc', value: 'NAME_DESC' },
+    { label: `sort_by.${name}_asc`, value: `${name.toUpperCase()}_ASC` },
+    { label: `sort_by.${name}_desc`, value: `${name.toUpperCase()}_DESC` },
   ]
 }
 

@@ -17,7 +17,7 @@ export default {
   },
   tools: { rectangle: 'Rechthoek', ellipse: 'Ellips', arrow: 'Pijl', pen: 'Pen', text: 'Tekst', mosaic: 'Mozaïek' },
   actions: { undo: 'Ongedaan maken', redo: 'Opnieuw', save: 'Opslaan', copy: 'Kopiëren', cancel: 'Annuleren', confirm: 'Bevestigen', openChatToSend: 'Open een chat om te verzenden' },
-  status: { saving: 'Opname opslaan…', copying: 'Opname kopiëren…', sending: 'Opname verzenden…', cancelling: 'Opname annuleren…' },
+  status: { saving: 'Opname opslaan…', copying: 'Opname kopiëren…', sending: 'Opname verzenden…', canceling: 'Opname annuleren…' },
   errors: {
     saveFailed: 'De opname kon niet worden opgeslagen. Probeer opnieuw.',
     copyFailed: 'De opname kon niet worden gekopieerd. Probeer opnieuw.',

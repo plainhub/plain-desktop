@@ -17,7 +17,7 @@ export default {
   },
   tools: { rectangle: 'Rectangle', ellipse: 'Ellipse', arrow: 'Flèche', pen: 'Stylo', text: 'Texte', mosaic: 'Mosaïque' },
   actions: { undo: 'Annuler', redo: 'Rétablir', save: 'Enregistrer', copy: 'Copier', cancel: 'Annuler', confirm: 'Confirmer', openChatToSend: 'Ouvrez une discussion pour envoyer' },
-  status: { saving: 'Enregistrement de la capture…', copying: 'Copie de la capture…', sending: 'Envoi de la capture…', cancelling: 'Annulation de la capture…' },
+  status: { saving: 'Enregistrement de la capture…', copying: 'Copie de la capture…', sending: 'Envoi de la capture…', canceling: 'Annulation de la capture…' },
   errors: {
     saveFailed: 'Impossible d’enregistrer la capture. Réessayez.',
     copyFailed: 'Impossible de copier la capture. Réessayez.',

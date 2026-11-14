@@ -17,7 +17,7 @@ export default {
   },
   tools: { rectangle: 'Прямоугольник', ellipse: 'Эллипс', arrow: 'Стрелка', pen: 'Перо', text: 'Текст', mosaic: 'Мозаика' },
   actions: { undo: 'Отменить', redo: 'Повторить', save: 'Сохранить', copy: 'Копировать', cancel: 'Отмена', confirm: 'Подтвердить', openChatToSend: 'Откройте чат для отправки' },
-  status: { saving: 'Сохранение снимка…', copying: 'Копирование снимка…', sending: 'Отправка снимка…', cancelling: 'Отмена снимка…' },
+  status: { saving: 'Сохранение снимка…', copying: 'Копирование снимка…', sending: 'Отправка снимка…', canceling: 'Отмена снимка…' },
   errors: {
     saveFailed: 'Не удалось сохранить снимок. Повторите попытку.',
     copyFailed: 'Не удалось скопировать снимок. Повторите попытку.',

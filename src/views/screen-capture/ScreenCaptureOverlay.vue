@@ -155,7 +155,7 @@ const busyStatus = computed(() => {
     case 'confirm':
       return props.messages.status.sending
     case 'cancel':
-      return props.messages.status.cancelling
+      return props.messages.status.canceling
     default:
       return ''
   }
@@ -269,7 +269,7 @@ function capturePointer(target: HTMLElement, pointerId: number) {
   try {
     target.setPointerCapture(pointerId)
   } catch {
-    // Synthetic events and a pointer already cancelled by the host may not be capturable.
+    // Synthetic events and a pointer already canceled by the host may not be capturable.
   }
 }
 

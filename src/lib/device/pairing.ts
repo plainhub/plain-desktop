@@ -5,7 +5,7 @@ import { graphqlSubscriptions } from '@/lib/api/subscription-client'
 
 export interface PairingView {
   deviceId: string
-  phase: 'PAIRING' | 'PASSWORD_REQUIRED' | 'TRUST_REQUIRED' | 'SUCCEEDED' | 'FAILED' | 'CANCELLED'
+  phase: 'PAIRING' | 'PASSWORD_REQUIRED' | 'TRUST_REQUIRED' | 'SUCCEEDED' | 'FAILED' | 'CANCELED'
   error: string | null
   verificationCode?: string | null
   identityChanged?: boolean
@@ -16,7 +16,7 @@ export interface PairingInput {
   password?: string
 }
 export const pairingViews = reactive(new Map<string, PairingView>())
-const terminal = new Set(['SUCCEEDED', 'FAILED', 'CANCELLED'])
+const terminal = new Set(['SUCCEEDED', 'FAILED', 'CANCELED'])
 export function isPairingActive(peerId: string) {
   const view = pairingViews.get(peerId)
   return view !== undefined && !terminal.has(view.phase)
@@ -47,12 +47,12 @@ export function createPairing(subscriptions = graphqlSubscriptions, request?: Re
     subscriptions.subscribe('pairingFailed', result => update(result.deviceId, {
       phase: result.error === 'password_required' || result.error === 'invalid_password' ? 'PASSWORD_REQUIRED' : 'FAILED', error: result.error,
     })),
-    subscriptions.subscribe('pairingCanceled', result => update(result.deviceId, { phase: 'CANCELLED' })),
+    subscriptions.subscribe('pairingCanceled', result => update(result.deviceId, { phase: 'CANCELED' })),
   ]
   async function cancel(id = peerId.value) {
     if (!id) return
     await execute('mutation($peerId: ID!) { cancelPairing(peerId: $peerId) }', { peerId: id })
-    update(id, { phase: 'CANCELLED' })
+    update(id, { phase: 'CANCELED' })
   }
   async function start(value: PairingInput) {
     input = value

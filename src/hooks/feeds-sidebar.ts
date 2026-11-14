@@ -4,12 +4,13 @@ import { useMainStore } from '@/stores/main'
 import type { IDropdownItem, IFeed, IFeedEntryCount, IFilter } from '@/lib/interfaces'
 import { onMounted, onUnmounted, reactive, ref, watch } from 'vue'
 import AddFeedModal from '@/components/AddFeedModal.vue'
-import { deleteFeedGQL, exportFeedsGQL, importFeedsGQL, initMutation } from '@/lib/api/mutation'
+import { deleteFeedGQL, importFeedsGQL, initMutation } from '@/lib/api/mutation'
 import { downloadFromString } from '@/lib/api/file'
+import { gqlFetch } from '@/lib/api/gql-client'
 import { useI18n } from 'vue-i18n'
 import toast from '@/components/toaster'
 import { openModal } from '@/components/modal'
-import { initQuery, feedsGQL, initLazyQuery, feedEntryCountGQL } from '@/lib/api/query'
+import { exportFeedsGQL, initQuery, feedsGQL, initLazyQuery, feedEntryCountGQL } from '@/lib/api/query'
 import FeedModal from '@/views/feeds/FeedModal.vue'
 import { useFeeds } from '@/hooks/feeds'
 import { decodeBase64 } from '@/lib/strutil'
@@ -45,7 +46,7 @@ export function useFeedsSidebar() {
       if (data) {
         counter.value.feedEntries = data.total
         counter.value.feedEntriesToday = data.today
-        data.feedEntryCounts.forEach((item: IFeedEntryCount) => feedsCount.value.set(item.id, item.count))
+        data.feedEntryCounts.forEach((item: IFeedEntryCount) => feedsCount.value.set(item.feedId, item.count))
       }
     },
     document: feedEntryCountGQL,
@@ -89,14 +90,19 @@ export function useFeedsSidebar() {
 
   function add() { openModal(AddFeedModal, { done: () => refetch() }) }
 
-  const { mutate: exportOPML, onDone: onExported } = initMutation({ document: exportFeedsGQL })
-  onExported((r: any) => downloadFromString(r.data.exportFeeds, 'application/xml', 'feeds.xml'))
-
   const { mutate: importOPML, onDone: onImported } = initMutation({ document: importFeedsGQL })
   onImported(() => { toast(t('imported')); refetch() })
 
   function importFile() { fileInput.value!.value = ''; fileInput.value!.click() }
-  function exportFile() { exportOPML() }
+  async function exportFile() {
+    try {
+      const result = await gqlFetch<{ exportFeeds: string }>(exportFeedsGQL, undefined, { fresh: true })
+      if (result.errors?.length) throw new Error(result.errors[0].message)
+      downloadFromString(result.data.exportFeeds, 'application/xml', 'feeds.xml')
+    } catch (error) {
+      toast(error instanceof Error ? error.message : t('network_error'), 'error')
+    }
+  }
 
   function showFeedMenu(item: IFeed) {
     selectedFeed.value = item

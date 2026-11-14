@@ -94,7 +94,7 @@ pub struct SessionStartedPayload {
 #[serde(rename_all = "snake_case")]
 pub enum SessionEndOutcome {
     Completed,
-    Cancelled,
+    Canceled,
     Saved,
     Copied,
     Failed,
@@ -1365,7 +1365,7 @@ impl ScreenCaptureRuntime {
         let Some(selected_path) = selected_path else {
             self.lock()?
                 .clear_result_export(session_id, result_id, overlay_generation);
-            return Ok(SaveCaptureOutcome::Cancelled);
+            return Ok(SaveCaptureOutcome::Canceled);
         };
         let selected_path = match normalized_png_path(selected_path) {
             Ok(path) => path,
@@ -2553,7 +2553,7 @@ impl RuntimeInner {
     ) -> Result<(), CaptureError> {
         let (outcome, error_code) = match &cleanup.outcome {
             TerminalOutcome::Completed => (SessionEndOutcome::Completed, None),
-            TerminalOutcome::Cancelled => (SessionEndOutcome::Cancelled, None),
+            TerminalOutcome::Canceled => (SessionEndOutcome::Canceled, None),
             TerminalOutcome::Failed(error) => (SessionEndOutcome::Failed, Some(error.code)),
         };
         self.complete_cleanup_with_terminal(cleanup, outcome, error_code, windows)
@@ -3627,7 +3627,7 @@ mod tests {
             tokio::time::timeout(Duration::from_secs(1), &mut acquisition)
                 .await
                 .expect("cancellation stops waiting for backend")
-                .expect("cancelled acquisition is harmless"),
+                .expect("canceled acquisition is harmless"),
             CapturePublishOutcome::Stale
         );
         assert!(release_tx.send(()).is_err(), "backend future was dropped");
@@ -5569,7 +5569,7 @@ mod tests {
         let windows = FakeWindows::with_windows(&["main", "window-target"]);
         let (generation, result_id, bytes) = stored_result(&runtime, &windows, "session-save");
 
-        let cancelled = FakeExports {
+        let canceled = FakeExports {
             selected_path: Ok(None),
             ..FakeExports::successful()
         };
@@ -5580,11 +5580,11 @@ mod tests {
                     "session-save",
                     &result_id,
                     generation,
-                    &cancelled,
+                    &canceled,
                     &windows,
                 )
                 .expect("dialog cancel"),
-            SaveCaptureOutcome::Cancelled
+            SaveCaptureOutcome::Canceled
         );
         assert_eq!(
             runtime.active_phase().unwrap(),

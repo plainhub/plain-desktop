@@ -88,7 +88,7 @@ const { audioSortBy, audiosScrollPaging } = storeToRefs(mainStoreLocal)
 const { audioPlaying } = storeToRefs(tempStoreLocal)
 const items = ref<IAudioWithFileId[]>([])
 const loaded = ref(false)
-const sortItems = getSortItems()
+const sortItems = getSortItems('title')
 const imageErrorIds = ref<string[]>([])
 const animatingIds = ref<string[]>([])
 

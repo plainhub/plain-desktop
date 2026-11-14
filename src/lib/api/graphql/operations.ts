@@ -8,6 +8,54 @@ export type GqlResultType<Name extends GqlOperationName> = GqlOperations[Name]['
 
 export type GqlVariablesType<Name extends GqlOperationName> = GqlOperations[Name]['variables']
 
+export type Input_BookmarkInput = { url: string; title: string; faviconUrl?: string | null; groupId: string; pinned: boolean; sortOrder: number }
+
+export type Input_ChatAttachmentInput = { id: string; uri: string; size: number; durationMs?: number; width?: number; height?: number; summary?: string; fileName?: string }
+
+export type Input_ChatContentInput = { text: Input_ChatTextInput; images?: never; files?: never; share?: never } | { text?: never; images: Input_ChatImagesInput; files?: never; share?: never } | { text?: never; images?: never; files: Input_ChatFilesInput; share?: never } | { text?: never; images?: never; files?: never; share: Input_ChatShareInput }
+
+export type Input_ChatDownloadInput = { messageId: string; peerId: string; fileIds: Array<string> }
+
+export type Input_ChatFilesInput = { items: Array<Input_ChatAttachmentInput> }
+
+export type Input_ChatImagesInput = { items: Array<Input_ChatAttachmentInput> }
+
+export type Input_ChatLinkPreviewInput = { url: string; title?: string | null; description?: string | null; imageUrl?: string | null; imageLocalPath?: string | null; imageWidth?: number; imageHeight?: number; siteName?: string | null; domain?: string | null; createdAt: string }
+
+export type Input_ChatShareInput = { shareId: string; urlToken: string; peerInfo: Input_ChatSharePeerInput; name: string; itemCount?: number; totalSize?: number; expiresAt?: string | null }
+
+export type Input_ChatSharePeerInput = { id: string; ip: string; port: number }
+
+export type Input_ChatTextInput = { text: string; linkPreviews?: Array<Input_ChatLinkPreviewInput> }
+
+export type Input_ContactAddressInput = { value: string; type: 'CUSTOM' | 'HOME' | 'WORK' | 'OTHER'; label: string }
+
+export type Input_ContactEmailInput = { value: string; type: 'CUSTOM' | 'HOME' | 'WORK' | 'OTHER' | 'MOBILE'; label: string }
+
+export type Input_ContactEventInput = { value: string; type: 'CUSTOM' | 'ANNIVERSARY' | 'BIRTHDAY' | 'OTHER'; label: string }
+
+export type Input_ContactImInput = { value: string; protocol: 'CUSTOM' | 'AIM' | 'MSN' | 'YAHOO' | 'SKYPE' | 'QQ' | 'GOOGLE_TALK' | 'ICQ' | 'JABBER' | 'NETMEETING'; customProtocol: string }
+
+export type Input_ContactInput = { prefix: string; firstName: string; middleName: string; lastName: string; suffix: string; nickname: string; phoneNumbers: Array<Input_ContactPhoneInput>; emails: Array<Input_ContactEmailInput>; addresses: Array<Input_ContactAddressInput>; events: Array<Input_ContactEventInput>; source: string; starred: boolean; notes: string; groupIds: Array<string>; organization?: Input_ContactOrganizationInput | null; websites: Array<Input_ContactWebsiteInput>; ims: Array<Input_ContactImInput> }
+
+export type Input_ContactOrganizationInput = { company: string; title: string }
+
+export type Input_ContactPhoneInput = { value: string; type: 'CUSTOM' | 'HOME' | 'MOBILE' | 'WORK' | 'FAX_WORK' | 'FAX_HOME' | 'PAGER' | 'OTHER' | 'CALLBACK' | 'CAR' | 'COMPANY_MAIN' | 'ISDN' | 'MAIN' | 'OTHER_FAX' | 'RADIO' | 'TELEX' | 'TTY_TDD' | 'WORK_MOBILE' | 'WORK_PAGER' | 'ASSISTANT'; label: string }
+
+export type Input_ContactWebsiteInput = { value: string; type: 'CUSTOM' | 'HOMEPAGE' | 'BLOG' | 'FTP' | 'HOME' | 'WORK' | 'OTHER'; label: string }
+
+export type Input_DownloadInput = { resources: Input_ResourceDownloadInput; chat?: never } | { resources?: never; chat: Input_ChatDownloadInput }
+
+export type Input_FileTaskOpInput = { src: string; dst: string; overwrite: boolean }
+
+export type Input_ImageEditorProjectInput = { stateB64: string; thumbnail?: string | null; canvasWidth: number; canvasHeight: number; layerCount: number }
+
+export type Input_NoteInput = { title: string; content: string }
+
+export type Input_PairPeerInput = { peerId: string; mode: 'CHAT' | 'MANAGE'; password?: string | null }
+
+export type Input_ResourceDownloadInput = { urls: Array<string>; targetDir: string; zipName?: string | null }
+
 export interface Fragment_AppFragment {
   clientId: string
   urlToken: string
@@ -116,9 +164,65 @@ export interface Fragment_ChatItemFragment {
   toId: string
   channelId?: string
   createdAt: string
-  content: string
+  content: {
+    __typename: "ChatTextContent"
+    text: string
+    linkPreviews: Array<{
+      url: string
+      title?: string
+      description?: string
+      imageUrl?: string
+      imageLocalPath?: string
+      imageWidth: number
+      imageHeight: number
+      siteName?: string
+      domain?: string
+      createdAt: string
+    }>
+  } | {
+    __typename: "ChatImagesContent"
+    items: Array<{
+      id: string
+      uri: string
+      size: number
+      durationMs: number
+      width: number
+      height: number
+      summary: string
+      fileName: string
+    }>
+  } | {
+    __typename: "ChatFilesContent"
+    items: Array<{
+      id: string
+      uri: string
+      size: number
+      durationMs: number
+      width: number
+      height: number
+      summary: string
+      fileName: string
+    }>
+  } | {
+    __typename: "ChatShareContent"
+    shareId: string
+    urlToken: string
+    peerInfo: {
+      id: string
+      ip: string
+      port: number
+    }
+    name: string
+    itemCount: number
+    totalSize: number
+    expiresAt?: string
+  }
   status: 'SENT' | 'FAILED' | 'PARTIAL' | 'PENDING'
-  statusData: string
+  deliveryResults: Array<{
+    peerId: string
+    peerName: string
+    error?: string
+  }>
 }
 
 export interface Fragment_ClipboardItemFragment {
@@ -581,7 +685,7 @@ export interface GqlOperations {
       offset: number
       limit: number
       query: string
-      sortBy: 'DATE_ASC' | 'DATE_DESC' | 'SIZE_ASC' | 'SIZE_DESC' | 'NAME_ASC' | 'NAME_DESC' | 'TAKEN_AT_DESC'
+      sortBy: 'UPDATED_AT_ASC' | 'UPDATED_AT_DESC' | 'SIZE_ASC' | 'SIZE_DESC' | 'TITLE_ASC' | 'TITLE_DESC'
     }
   }
   bookmarksGQL: {
@@ -797,7 +901,7 @@ export interface GqlOperations {
   }
   copyFileToDirectoryGQL: {
     result: {
-      copyFileToDirectory?: string
+      copyFileToDirectory: string
     }
     variables: {
       src: string
@@ -826,7 +930,7 @@ export interface GqlOperations {
       createContact: Fragment_ContactFragment
     }
     variables: {
-      input: unknown
+      input: Input_ContactInput
     }
   }
   createDbTableRowGQL: {
@@ -853,7 +957,7 @@ export interface GqlOperations {
       }
     }
     variables: {
-      input: unknown
+      input: Input_DownloadInput
     }
   }
   createFeedGQL: {
@@ -875,7 +979,7 @@ export interface GqlOperations {
     variables: {
       type: 'COPY' | 'MOVE'
       title: string
-      ops: Array<unknown>
+      ops: Array<Input_FileTaskOpInput>
     }
   }
   createNoteGQL: {
@@ -883,7 +987,7 @@ export interface GqlOperations {
       createNote: Fragment_NoteFragment
     }
     variables: {
-      input: unknown
+      input: Input_NoteInput
     }
   }
   createTagGQL: {
@@ -1211,7 +1315,7 @@ export interface GqlOperations {
       offset: number
       limit: number
       query: string
-      sortBy: 'DATE_ASC' | 'DATE_DESC' | 'SIZE_ASC' | 'SIZE_DESC' | 'NAME_ASC' | 'NAME_DESC' | 'TAKEN_AT_DESC'
+      sortBy: 'UPDATED_AT_ASC' | 'UPDATED_AT_DESC' | 'SIZE_ASC' | 'SIZE_DESC' | 'NAME_ASC' | 'NAME_DESC'
     }
   }
   disableImageSearchGQL: {
@@ -1255,7 +1359,7 @@ export interface GqlOperations {
       offset: number
       limit: number
       query: string
-      sortBy: 'DATE_ASC' | 'DATE_DESC' | 'SIZE_ASC' | 'SIZE_DESC' | 'NAME_ASC' | 'NAME_DESC' | 'TAKEN_AT_DESC'
+      sortBy: 'UPDATED_AT_ASC' | 'UPDATED_AT_DESC' | 'SIZE_ASC' | 'SIZE_DESC' | 'NAME_ASC' | 'NAME_DESC'
     }
   }
   downloadsChangedSubscription: {
@@ -1348,7 +1452,7 @@ export interface GqlOperations {
       total: number
       today: number
       feedEntryCounts: Array<{
-        id: string
+        feedId: string
         count: number
       }>
     }
@@ -1369,7 +1473,7 @@ export interface GqlOperations {
       feedsFetched: {
         feedId: string
         error?: string
-        cancelled?: boolean
+        canceled?: boolean
       }
     }
     variables: undefined
@@ -1388,6 +1492,30 @@ export interface GqlOperations {
     variables: {
       type: 'DEFAULT' | 'AUDIO' | 'VIDEO' | 'IMAGE' | 'SMS' | 'CONTACT' | 'NOTE' | 'FEED_ENTRY' | 'CALL' | 'PACKAGE' | 'FILE' | 'APP_FILE' | 'DOC'
     }
+  }
+  fileIndexScanProgressGQL: {
+    result: {
+      fileIndexScanProgress: {
+        indexed: number
+        pending?: number
+        total?: number
+        state: 'IDLE' | 'RUNNING' | 'PAUSED' | 'STOPPED' | 'FAILED'
+        error?: string
+      }
+    }
+    variables: undefined
+  }
+  fileIndexScanProgressUpdatedSubscription: {
+    result: {
+      fileIndexScanProgressUpdated: {
+        indexed: number
+        pending?: number
+        total?: number
+        state: 'IDLE' | 'RUNNING' | 'PAUSED' | 'STOPPED' | 'FAILED'
+        error?: string
+      }
+    }
+    variables: undefined
   }
   fileIndexVolumesGQL: {
     result: {
@@ -1456,7 +1584,7 @@ export interface GqlOperations {
       query: string
       offset: number
       limit: number
-      sortBy: 'DATE_ASC' | 'DATE_DESC' | 'SIZE_ASC' | 'SIZE_DESC' | 'NAME_ASC' | 'NAME_DESC' | 'TAKEN_AT_DESC'
+      sortBy: 'UPDATED_AT_ASC' | 'UPDATED_AT_DESC' | 'SIZE_ASC' | 'SIZE_DESC' | 'NAME_ASC' | 'NAME_DESC'
     }
   }
   filesGQL: {
@@ -1468,7 +1596,7 @@ export interface GqlOperations {
       offset: number
       limit: number
       query: string
-      sortBy: 'DATE_ASC' | 'DATE_DESC' | 'SIZE_ASC' | 'SIZE_DESC' | 'NAME_ASC' | 'NAME_DESC' | 'TAKEN_AT_DESC'
+      sortBy: 'UPDATED_AT_ASC' | 'UPDATED_AT_DESC' | 'SIZE_ASC' | 'SIZE_DESC' | 'NAME_ASC' | 'NAME_DESC'
     }
   }
   formatDiskGQL: {
@@ -1571,7 +1699,7 @@ export interface GqlOperations {
       offset: number
       limit: number
       query: string
-      sortBy: 'DATE_ASC' | 'DATE_DESC' | 'SIZE_ASC' | 'SIZE_DESC' | 'NAME_ASC' | 'NAME_DESC' | 'TAKEN_AT_DESC'
+      sortBy: 'UPDATED_AT_ASC' | 'UPDATED_AT_DESC' | 'SIZE_ASC' | 'SIZE_DESC' | 'NAME_ASC' | 'NAME_DESC' | 'TAKEN_AT_DESC'
     }
   }
   importBookmarksGQL: {
@@ -1607,7 +1735,7 @@ export interface GqlOperations {
       query: string
       offset: number
       limit: number
-      sortBy: 'DATE_ASC' | 'DATE_DESC' | 'SIZE_ASC' | 'SIZE_DESC' | 'NAME_ASC' | 'NAME_DESC' | 'TAKEN_AT_DESC'
+      sortBy: 'UPDATED_AT_ASC' | 'UPDATED_AT_DESC' | 'SIZE_ASC' | 'SIZE_DESC' | 'NAME_ASC' | 'NAME_DESC'
     }
   }
   installPackageGQL: {
@@ -1691,18 +1819,6 @@ export interface GqlOperations {
       limit: number
     }
   }
-  fileIndexScanProgressUpdatedSubscription: {
-    result: {
-      fileIndexScanProgressUpdated: {
-        indexed: number
-        pending?: number
-        total?: number
-        state: 'IDLE' | 'RUNNING' | 'PAUSED' | 'STOPPED' | 'FAILED'
-        error?: string
-      }
-    }
-    variables: undefined
-  }
   mediaUpdatedSubscription: {
     result: {
       mediaUpdated: {
@@ -1764,11 +1880,67 @@ export interface GqlOperations {
         fromId: string
         toId: string
         channelId?: string
-        content: string
+        content: {
+          __typename: "ChatTextContent"
+          text: string
+          linkPreviews: Array<{
+            url: string
+            title?: string
+            description?: string
+            imageUrl?: string
+            imageLocalPath?: string
+            imageWidth: number
+            imageHeight: number
+            siteName?: string
+            domain?: string
+            createdAt: string
+          }>
+        } | {
+          __typename: "ChatImagesContent"
+          items: Array<{
+            id: string
+            uri: string
+            size: number
+            durationMs: number
+            width: number
+            height: number
+            summary: string
+            fileName: string
+          }>
+        } | {
+          __typename: "ChatFilesContent"
+          items: Array<{
+            id: string
+            uri: string
+            size: number
+            durationMs: number
+            width: number
+            height: number
+            summary: string
+            fileName: string
+          }>
+        } | {
+          __typename: "ChatShareContent"
+          shareId: string
+          urlToken: string
+          peerInfo: {
+            id: string
+            ip: string
+            port: number
+          }
+          name: string
+          itemCount: number
+          totalSize: number
+          expiresAt?: string
+        }
         createdAt: string
         updatedAt: string
         status: 'SENT' | 'FAILED' | 'PARTIAL' | 'PENDING'
-        statusData: string
+        deliveryResults: Array<{
+          peerId: string
+          peerName: string
+          error?: string
+        }>
       }>
     }
     variables: undefined
@@ -1786,11 +1958,67 @@ export interface GqlOperations {
         fromId: string
         toId: string
         channelId?: string
-        content: string
+        content: {
+          __typename: "ChatTextContent"
+          text: string
+          linkPreviews: Array<{
+            url: string
+            title?: string
+            description?: string
+            imageUrl?: string
+            imageLocalPath?: string
+            imageWidth: number
+            imageHeight: number
+            siteName?: string
+            domain?: string
+            createdAt: string
+          }>
+        } | {
+          __typename: "ChatImagesContent"
+          items: Array<{
+            id: string
+            uri: string
+            size: number
+            durationMs: number
+            width: number
+            height: number
+            summary: string
+            fileName: string
+          }>
+        } | {
+          __typename: "ChatFilesContent"
+          items: Array<{
+            id: string
+            uri: string
+            size: number
+            durationMs: number
+            width: number
+            height: number
+            summary: string
+            fileName: string
+          }>
+        } | {
+          __typename: "ChatShareContent"
+          shareId: string
+          urlToken: string
+          peerInfo: {
+            id: string
+            ip: string
+            port: number
+          }
+          name: string
+          itemCount: number
+          totalSize: number
+          expiresAt?: string
+        }
         createdAt: string
         updatedAt: string
         status: 'SENT' | 'FAILED' | 'PARTIAL' | 'PENDING'
-        statusData: string
+        deliveryResults: Array<{
+          peerId: string
+          peerName: string
+          error?: string
+        }>
       }>
     }
     variables: undefined
@@ -1955,7 +2183,7 @@ export interface GqlOperations {
       offset: number
       limit: number
       query: string
-      sortBy: 'DATE_ASC' | 'DATE_DESC' | 'SIZE_ASC' | 'SIZE_DESC' | 'NAME_ASC' | 'NAME_DESC' | 'TAKEN_AT_DESC'
+      sortBy: 'UPDATED_AT_ASC' | 'UPDATED_AT_DESC' | 'SIZE_ASC' | 'SIZE_DESC' | 'NAME_ASC' | 'NAME_DESC'
     }
   }
   packageStatusesGQL: {
@@ -2032,7 +2260,7 @@ export interface GqlOperations {
       pairPeer: boolean
     }
     variables: {
-      input: unknown
+      input: Input_PairPeerInput
     }
   }
   pauseDownloadGQL: {
@@ -2378,7 +2606,7 @@ export interface GqlOperations {
     }
     variables: {
       id: string
-      input: unknown
+      input: Input_ImageEditorProjectInput
     }
   }
   saveFeedEntriesToNotesGQL: {
@@ -2398,18 +2626,6 @@ export interface GqlOperations {
       type: 'AUDIO' | 'VIDEO'
       positionMs: number
     }
-  }
-  fileIndexScanProgressGQL: {
-    result: {
-      fileIndexScanProgress: {
-        indexed: number
-        pending?: number
-        total?: number
-        state: 'IDLE' | 'RUNNING' | 'PAUSED' | 'STOPPED' | 'FAILED'
-        error?: string
-      }
-    }
-    variables: undefined
   }
   screenMirrorAudioGrantedSubscription: {
     result: {
@@ -2470,7 +2686,7 @@ export interface GqlOperations {
     }
     variables: {
       targets: Array<string>
-      content: string
+      content: Input_ChatContentInput
     }
   }
   sendSmsGQL: {
@@ -2484,7 +2700,7 @@ export interface GqlOperations {
       number: string
       body: string
       attachmentPaths: Array<string>
-      subscriptionId: number
+      subscriptionId?: number | null
       requestId: string
     }
   }
@@ -2625,7 +2841,7 @@ export interface GqlOperations {
       startImageIndex: boolean
     }
     variables: {
-      force: boolean
+      force?: boolean | null
     }
   }
   startPomodoroGQL: {
@@ -2683,7 +2899,7 @@ export interface GqlOperations {
       syncFeeds: boolean
     }
     variables: {
-      id: string
+      id?: string | null
     }
   }
   tagRelationsGQL: {
@@ -2783,7 +2999,7 @@ export interface GqlOperations {
     }
     variables: {
       id: string
-      input: unknown
+      input: Input_BookmarkInput
     }
   }
   updateBookmarkGroupGQL: {
@@ -2812,7 +3028,7 @@ export interface GqlOperations {
     }
     variables: {
       id: string
-      input: unknown
+      input: Input_ContactInput
     }
   }
   updateDeviceNameGQL: {
@@ -2839,7 +3055,7 @@ export interface GqlOperations {
     }
     variables: {
       id: string
-      input: unknown
+      input: Input_NoteInput
     }
   }
   updateScreenMirrorQualityGQL: {
@@ -2872,7 +3088,10 @@ export interface GqlOperations {
   }
   uploadedChunksGQL: {
     result: {
-      uploadedChunks: Array<string>
+      uploadedChunks: Array<{
+        index: number
+        sizeBytes: number
+      }>
     }
     variables: {
       fileId: string
@@ -2908,7 +3127,7 @@ export interface GqlOperations {
       offset: number
       limit: number
       query: string
-      sortBy: 'DATE_ASC' | 'DATE_DESC' | 'SIZE_ASC' | 'SIZE_DESC' | 'NAME_ASC' | 'NAME_DESC' | 'TAKEN_AT_DESC'
+      sortBy: 'UPDATED_AT_ASC' | 'UPDATED_AT_DESC' | 'SIZE_ASC' | 'SIZE_DESC' | 'NAME_ASC' | 'NAME_DESC' | 'TAKEN_AT_DESC'
     }
   }
   writeTextFileGQL: {

@@ -165,10 +165,10 @@ it('does not replace a stored identity', async () => {
 it('cancels a pending connection and clears both deadlines', async () => {
   const controller = new AbortController()
   const promise = performLoginHandshake({ ...params(), signal: controller.signal })
-  const rejection = expect(promise).rejects.toBe('cancelled')
+  const rejection = expect(promise).rejects.toBe('canceled')
   controller.abort()
   await rejection
-  expect(socket.close).toHaveBeenCalledWith(3001, 'cancelled')
+  expect(socket.close).toHaveBeenCalledWith(3001, 'canceled')
   expect(vi.getTimerCount()).toBe(0)
 })
 
@@ -194,7 +194,7 @@ it('does not extend the login deadline after pending replies', async () => {
   expect(vi.getTimerCount()).toBe(0)
 })
 
-it('does not send credentials when cancelled during client metadata lookup', async () => {
+it('does not send credentials when canceled during client metadata lookup', async () => {
   let finishAgent: (agent: unknown) => void = () => {}
   mock.agent.mockReturnValueOnce(
     new Promise((resolve) => {
@@ -206,7 +206,7 @@ it('does not send credentials when cancelled during client metadata lookup', asy
     ...params(),
     signal: controller.signal,
   })
-  const rejection = expect(promise).rejects.toBe('cancelled')
+  const rejection = expect(promise).rejects.toBe('canceled')
   await socket.open()
   await socket.message(JSON.stringify(vector.response))
   controller.abort()

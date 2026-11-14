@@ -74,12 +74,12 @@ class NativeMediaSupportTests(unittest.TestCase):
     def test_http_evidence_preserves_request_identity_seek_cancel_and_bounds(self):
         lines = [self.http_line('Posting task to request R1 http://SECRET requestedPosition=10 stopPosition=20'),
                  self.http_line('Seek segment: (10-20) Position previous to seek: 5'),
-                 self.http_line('R1: Request cancelled: SECRET', level='LOG'),
+                 self.http_line('R1: Request canceled: SECRET', level='LOG'),
                  self.http_line('R1: Have 4 bytes of data', level='LOG', source='another-secret-source'),
                  self.http_line('R1: Have 3 bytes of data', level='LOG')]
         result = runner.http_evidence(lines)
         self.assertEqual([row['received_bytes'] for row in result['requests']], [3, 4])
-        self.assertTrue(result['requests'][0]['cancelled'])
+        self.assertTrue(result['requests'][0]['canceled'])
         self.assertEqual(result['events'][0]['start'], 10)
         self.assertNotIn('SECRET', json.dumps(result))
         self.assertNotIn('secret-source', json.dumps(result))
@@ -149,7 +149,7 @@ class NativeMediaSupportTests(unittest.TestCase):
         downstream = ('0:00:01.123 123 0x456 DEBUG webkitmediaplayer MediaPlayerPrivateGStreamer.cpp:2321:handleMessage:'
             '<regular-plain-native-audio-wav-2> Processing HTTP headers: http-headers, '
             'request-headers=(structure)"request-headers, Authorization=(string)SECRET_segment_fake-audio-sink rendering object;";')
-        multiline = ('0:00:01.123 100 0x456 DEBUG webkitwebsrc file:1:f:<webkitwebsrc0> R1: Request cancelled: SECRET\n'
+        multiline = ('0:00:01.123 100 0x456 DEBUG webkitwebsrc file:1:f:<webkitwebsrc0> R1: Request canceled: SECRET\n'
             '0:00:01.124 100 0x456 DEBUG basesink file:1:f:<fake-audio-sink> [Seek] rendering object SECRET')
         for log in [downstream, multiline]:
             safe = runner.legacy_diagnostic_log(log)
@@ -273,9 +273,9 @@ function video(deliverFrames = true, distinct = true) {
   assert.equal(JSON.stringify(pendingObservation), frozenObservation, 'Late cleanup cannot rewrite timeout evidence');
   const media = { ...emptyMedia(), networkState: 3, currentSrc: 'old-resource' };
   setTimeout(() => { media.networkState = 0; }, 20);
-  const cancelled = await api.released(media, 100, 'old-resource', {}, 20);
-  assert.equal(cancelled.final.network_state, 0);
-  assert.equal(cancelled.final.current_src, 'original', 'A stale URL alone is not a loaded resource');
+  const canceled = await api.released(media, 100, 'old-resource', {}, 20);
+  assert.equal(canceled.final.network_state, 0);
+  assert.equal(canceled.final.current_src, 'original', 'A stale URL alone is not a loaded resource');
   const failedCancel = {};
   await assert.rejects(api.released({ ...media, networkState: 3 }, 30, '', failedCancel, 10), /retained/);
   assert.equal(failedCancel.final.network_state, 3, 'Timeout preserves the final state');
@@ -307,7 +307,7 @@ function video(deliverFrames = true, distinct = true) {
     verification_method: 'real-webview-media-events', status: 'failed', stages: ['metadata','play-pause','seek-play-pause:58.88','seek-play-pause:6.4','cancel','reload-play'],
     playback_evidence: Array.from({ length: 4 }, () => ({ phase: 'seek:58.88', ...summary })),
     cancel_after_emptied: state, cancel_observation: { initial: state, final: state, stability_ms: 300, new_video_frames: 0 },
-    failure_state: state, error: 'Error: Cancelled media continued to advance' });
+    failure_state: state, error: 'Error: Canceled media continued to advance' });
   assert.ok(observationBytes < 16384, 'Maximum observation must fit one packet');
   assert.ok(resultBytes < 16384, 'Four detailed playback summaries must fit one result packet');
   console.log('Bounded packet bytes:', observationBytes, resultBytes);

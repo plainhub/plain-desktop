@@ -83,6 +83,8 @@ export default {
     '1. Haga clic en el icono del candado en la barra de direcciones.\n2. Abra "Configuración del sitio" o "Permisos".\n3. Encuentre "Notificaciones" y cámbielo a "Permitir".',
   sort: 'Ordenar',
   sort_by: {
+    title_asc: 'Título (A a Z)',
+    title_desc: 'Título (Z a A)',
     date_asc: 'Fecha más antigua primero',
     date_desc: 'Fecha más reciente primero',
     size_asc: 'Más pequeño primero',

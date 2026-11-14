@@ -4,7 +4,7 @@ export default {
   confirm_mms_on_phone: '請在手機上確認並傳送多媒體簡訊。',
   send_sms: '發送簡訊',
   send_mms: '傳送多媒體簡訊',
-  mms_cancelled: '已取消（未傳送）',
+  mms_canceled: '已取消（未傳送）',
   messages: '訊息',
   direction: '方向',
   attachment: '個附件',

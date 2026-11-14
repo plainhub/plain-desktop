@@ -21,7 +21,7 @@ export async function performOpaqueLogin(
   url: string,
   metadata: () => Promise<object>
 ): Promise<LoginHandshakeResult> {
-  if (params.signal?.aborted) throw 'cancelled'
+  if (params.signal?.aborted) throw 'canceled'
   const signingKey = publicKey(signatureKey)
   const pinnedKey = publicKey(params.initOpaquePublicKey)
   if (params.storedOpaquePublicKey && params.storedOpaquePublicKey !== params.initOpaquePublicKey) {
@@ -32,7 +32,7 @@ export async function performOpaqueLogin(
   let key: Uint8Array | undefined
   try {
     login = await startOpaqueLogin(params.password!, params.signal)
-    if (params.signal?.aborted) throw 'cancelled'
+    if (params.signal?.aborted) throw 'canceled'
     socket = await openLoginSocket(url, params.signal)
     socket.send(login.request())
     const response = await socket.receiveBytes()

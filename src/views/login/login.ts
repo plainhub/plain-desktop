@@ -60,7 +60,7 @@ export function useLogin(options: UseLoginOptions = {}) {
     showConfirm.value = state.phase === 'PAIRING' && !!state.verificationCode
     verificationCode.value = state.verificationCode || ''
     showPasswordInput.value = state.phase === 'PASSWORD_REQUIRED' || state.phase === 'FAILED' && state.error === 'invalid_password'
-    isSubmitting.value = !['PASSWORD_REQUIRED', 'SUCCEEDED', 'FAILED', 'CANCELLED'].includes(state.phase)
+    isSubmitting.value = !['PASSWORD_REQUIRED', 'SUCCEEDED', 'FAILED', 'CANCELED'].includes(state.phase)
     if (state.phase === 'FAILED') { showError.value = true; error.value = loginErrorMessage(state.error) }
     if (state.phase === 'SUCCEEDED' && state.deviceId) {
       if (!managedDeviceId) {

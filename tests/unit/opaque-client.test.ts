@@ -44,7 +44,7 @@ it('uses a dedicated lazy worker and clears the sender password bytes', async ()
   expect(vi.getTimerCount()).toBe(0)
 })
 
-it.each(['start', 'finish'])('terminates the worker immediately when cancelled during %s', async stage => {
+it.each(['start', 'finish'])('terminates the worker immediately when canceled during %s', async stage => {
   const controller = new AbortController()
   const started = startOpaqueLogin('synthetic password', controller.signal)
   const worker = WorkerMock.instances[0]
@@ -54,7 +54,7 @@ it.each(['start', 'finish'])('terminates the worker immediately when cancelled d
     const login = await started
     operation = login.finish(new Uint8Array([2]), 'browser', new Uint8Array(32))
   }
-  const rejected = expect(operation).rejects.toBe('cancelled')
+  const rejected = expect(operation).rejects.toBe('canceled')
   controller.abort()
   await rejected
   expect(worker.terminate).toHaveBeenCalledOnce()

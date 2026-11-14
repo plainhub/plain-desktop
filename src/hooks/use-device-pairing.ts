@@ -15,7 +15,7 @@ export enum PairingStatus {
   WAITING,
   SUCCESS,
   FAILED,
-  CANCELLED,
+  CANCELED,
 }
 
 export enum DeviceState {
@@ -42,7 +42,7 @@ export interface PairPeerInput { peerId: string; mode: 'CHAT' | 'MANAGE'; passwo
 
 export function useDevicePairing() {
   const verificationCodes = computed(() => new Map(Array.from(pairingViews.values())
-    .filter(view => view.verificationCode && !['SUCCEEDED', 'FAILED', 'CANCELLED'].includes(view.phase))
+    .filter(view => view.verificationCode && !['SUCCEEDED', 'FAILED', 'CANCELED'].includes(view.phase))
     .map(view => [view.deviceId, view.verificationCode!])))
   async function pairPeer(device: PairPeerInput) {
     return await pairPeerMutate({ input: device }) != null

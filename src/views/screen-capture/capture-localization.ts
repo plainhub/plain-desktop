@@ -34,7 +34,7 @@ export interface CaptureMessages {
     saving: string
     copying: string
     sending: string
-    cancelling: string
+    canceling: string
   }
   errors: {
     saveFailed: string

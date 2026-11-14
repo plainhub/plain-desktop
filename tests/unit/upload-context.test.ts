@@ -46,7 +46,7 @@ beforeEach(() => {
   target.key = 'a'; target.native = true
   io.scope.mockResolvedValue('original-document')
   io.invoke.mockImplementation(async command => command === 'native_upload_chunk_open' ? 'original-handle' : command === 'native_upload_chunk_finish' ? 17 : undefined)
-  io.gql.mockImplementation(async (_key, doc) => ({ data: doc === 'query-chunks' ? { uploadedChunks: [`0:${CHUNK}`] } : doc === 'delete-chunks' ? { deleteChunks: true } : { mergeChunks: { status: 'DONE', value: '/owned/sample.bin', mergedSize: CHUNK + 17 } } }))
+  io.gql.mockImplementation(async (_key, doc) => ({ data: doc === 'query-chunks' ? { uploadedChunks: [{ index: 0, sizeBytes: CHUNK }] } : doc === 'delete-chunks' ? { deleteChunks: true } : { mergeChunks: { status: 'DONE', value: '/owned/sample.bin', mergedSize: CHUNK + 17 } } }))
   io.subscribe.mockReturnValue(io.stop)
   vi.spyOn(console, 'warn').mockImplementation(() => {})
 })

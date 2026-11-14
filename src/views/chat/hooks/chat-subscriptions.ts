@@ -4,14 +4,8 @@ import type { SubscriptionResults } from '@/lib/api/subscription-results'
 import type { IChatItem } from '@/lib/interfaces'
 import { graphqlSubscriptions } from '@/lib/api/subscription-client'
 
-export function normalizeChatItem(item: IChatItem | SubscriptionResults['messagesCreated'][number]): IChatItem {
-  const content = '_content' in item ? item._content : null
-  return {
-    ...item,
-    _content: content ?? (item.content ? JSON.parse(item.content) : null),
-    __typename: 'ChatItem',
-  }
-}
+export { normalizeChatItem } from '@/lib/chat/chat-cacher'
+import { normalizeChatItem } from '@/lib/chat/chat-cacher'
 
 export function useChatSubscriptions(chatId: ComputedRef<string>, chatItems: Ref<IChatItem[]>, scrollBottom: () => void) {
   const stops: (() => void)[] = []

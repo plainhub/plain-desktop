@@ -81,6 +81,8 @@ export default {
   desktop_notification_permission_grant_message: '1. 주소 표시줄의 자물쇠 아이콘을 클릭하세요.\n2. "사이트 설정" 또는 "권한"을 엽니다.\n3. "알림"을 찾아 "허용"으로 변경하세요.',
   sort: '정렬',
   sort_by: {
+    title_asc: '제목 (오름차순)',
+    title_desc: '제목 (내림차순)',
     date_asc: '오래된 날짜부터',
     date_desc: '최신 날짜부터',
     size_asc: '가장 작은 순서',

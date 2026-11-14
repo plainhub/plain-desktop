@@ -4,7 +4,7 @@ export default {
   send_sms: 'এসএমএস পাঠান',
   send_mms: 'এমএমএস পাঠান',
   confirm_mms_on_phone: 'অনুগ্রহ করে আপনার ফোনে এমএমএস নিশ্চিত করে পাঠান।',
-  mms_cancelled: 'বাতিল (পাঠানো হয়নি)',
+  mms_canceled: 'বাতিল (পাঠানো হয়নি)',
   messages: 'মেসেজ',
   direction: 'দিক',
   attachment: 'সংযুক্তি',

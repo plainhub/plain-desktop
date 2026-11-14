@@ -6,7 +6,7 @@ export default {
   send_mms: 'Send MMS',
   mms_large_file_warning: 'Video/audio files may be too large for MMS. Most carriers limit MMS to 300 KB–1 MB.',
   mms_image_auto_compress: 'Images will be automatically compressed to fit MMS size limits.',
-  mms_cancelled: 'Cancelled (not sent)',
+  mms_canceled: 'Canceled (not sent)',
   export_sms: 'Export SMS',
   export_format_json: 'JSON',
   export_format_text: 'Text',

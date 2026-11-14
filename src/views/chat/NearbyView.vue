@@ -125,7 +125,7 @@ const currentClientId = computed(() => getRemoteClientId())
 const localMode = computed(() => isLocalMode())
 const deviceById = computed(() => new Map(devices.value.map((device) => [device.id, device])))
 const groups = computed(() => nearbyGroups(peers.value, devices.value, selfDevice.value?.id, new Set(loginPeers.value.map((peer) => peer.id))))
-const verificationStates = computed(() => Array.from(pairingViews.values()).filter((state) => state.verificationCode && !['SUCCEEDED', 'FAILED', 'CANCELLED'].includes(state.phase)))
+const verificationStates = computed(() => Array.from(pairingViews.values()).filter((state) => state.verificationCode && !['SUCCEEDED', 'FAILED', 'CANCELED'].includes(state.phase)))
 let active = true
 
 async function loadPeers() {
@@ -145,7 +145,7 @@ const stopAttached = subscriptions.onAttached(() => {
 watch(pairing.state, async (state) => {
   if (!state) return
   if (state.phase === 'FAILED') error.value = 'pair_failed'
-  if (['SUCCEEDED', 'FAILED', 'CANCELLED'].includes(state.phase)) {
+  if (['SUCCEEDED', 'FAILED', 'CANCELED'].includes(state.phase)) {
     activePairId.value = ''
     if (state.phase === 'SUCCEEDED') {
       try {

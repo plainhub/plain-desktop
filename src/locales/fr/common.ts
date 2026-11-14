@@ -83,6 +83,8 @@ export default {
     '1. Cliquez sur l\'icône du cadenas dans la barre d\'adresse.\n2. Ouvrez "Paramètres du site" ou "Autorisations".\n3. Trouvez "Notifications" et changez-le en "Autoriser".',
   sort: 'Trier',
   sort_by: {
+    title_asc: 'Titre (A à Z)',
+    title_desc: 'Titre (Z à A)',
     date_asc: 'Date la plus ancienne en premier',
     date_desc: 'Date la plus récente en premier',
     size_asc: 'Plus petit en premier',

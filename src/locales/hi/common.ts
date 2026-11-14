@@ -82,6 +82,8 @@ export default {
   desktop_notification_permission_grant_message: '1. पता बार में पैडलॉक आइकन पर क्लिक करें।\n2. "साइट सेटिंग्स" या "अनुमतियाँ" खोलें।\n3. "अधिसूचनाएँ" खोजें और इसे "अनुमति दें" पर बदलें।',
   sort: 'सॉर्ट',
   sort_by: {
+    title_asc: 'शीर्षक (A से Z)',
+    title_desc: 'शीर्षक (Z से A)',
     date_asc: 'सबसे पुरानी तारीख पहले',
     date_desc: 'सबसे नई तारीख पहले',
     size_asc: 'सबसे छोटा पहले',

@@ -45,7 +45,7 @@ const tempStore = useTempStore()
 
 const linkPreviews = computed(() => {
   const data = props.data
-  const previews = data?._content?.value?.linkPreviews ?? []
+  const previews = data?.content?.linkPreviews ?? []
   return previews.map((preview: any) => {
     // Link-preview image ids are client-derived: encrypt the bare
     // imageLocalPath with the urlToken (no JSON wrapping — /fs parity).

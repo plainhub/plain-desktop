@@ -17,7 +17,7 @@ export default {
   },
   tools: { rectangle: '長方形', ellipse: '楕円', arrow: '矢印', pen: 'ペン', text: 'テキスト', mosaic: 'モザイク' },
   actions: { undo: '元に戻す', redo: 'やり直す', save: '保存', copy: 'コピー', cancel: 'キャンセル', confirm: '確定', openChatToSend: '送信するチャットを開いてください' },
-  status: { saving: 'キャプチャを保存中…', copying: 'キャプチャをコピー中…', sending: 'キャプチャを送信中…', cancelling: 'キャプチャをキャンセル中…' },
+  status: { saving: 'キャプチャを保存中…', copying: 'キャプチャをコピー中…', sending: 'キャプチャを送信中…', canceling: 'キャプチャをキャンセル中…' },
   errors: {
     saveFailed: 'キャプチャを保存できませんでした。もう一度お試しください。',
     copyFailed: 'キャプチャをコピーできませんでした。もう一度お試しください。',

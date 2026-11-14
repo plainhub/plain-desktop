@@ -4,7 +4,7 @@ export default {
   confirm_mms_on_phone: '휴대폰에서 MMS를 확인하고 전송해 주세요.',
   send_sms: '문자 보내기',
   send_mms: 'MMS 보내기',
-  mms_cancelled: '취소됨（미전송）',
+  mms_canceled: '취소됨（미전송）',
   messages: '메시지',
   direction: '방향',
   attachment: '개 첨부',

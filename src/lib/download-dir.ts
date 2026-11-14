@@ -40,7 +40,7 @@ export async function downloadToDir(url: string, name: string, reference?: Downl
     return invoke<string>('native_resource_download', { ...resource, scope, directory: await downloadDir(), name })
   }
   const response = await nativeGraphql<{
-    data?: { copyFileToDirectory: string | null }
+    data?: { copyFileToDirectory: string }
     errors?: Array<{ message: string }>
   }>({
     query: 'mutation($source:String!,$directory:String!,$name:String!){copyFileToDirectory(src:$source,directory:$directory,name:$name)}',

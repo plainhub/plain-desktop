@@ -81,6 +81,8 @@ export default {
   desktop_notification_permission_grant_message: '1. ঠিকানা বারে প্যাডলক আইকনে ক্লিক করুন।\n2. "সাইট সেটিংস" বা "অনুমতি" খোলুন।\n3. "বিজ্ঞপ্তি" খুঁজে বের করুন এবং এটি পরিবর্তন করুন "অনুমতি দিন"।',
   sort: 'সাজান',
   sort_by: {
+    title_asc: 'শিরোনাম (A থেকে Z)',
+    title_desc: 'শিরোনাম (Z থেকে A)',
     date_asc: 'নিম্নতম তারিখ আগে',
     date_desc: 'নতুনতম তারিখ আগে',
     size_asc: 'সবচেয়ে ছোট',

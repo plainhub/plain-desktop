@@ -81,6 +81,8 @@ export default {
   desktop_notification_permission_grant_message: '1. Adres çubuğundaki kilit simgesine tıklayın.\n2. "Site ayarları" veya "İzinler"\'i açın.\n3. Bildirimleri bulun ve "İzin Ver" olarak değiştirin.',
   sort: 'Sırala',
   sort_by: {
+    title_asc: 'Başlık (A–Z)',
+    title_desc: 'Başlık (Z–A)',
     date_asc: 'En eski tarih önce',
     date_desc: 'En yeni tarih önce',
     size_asc: 'En küçük önce',

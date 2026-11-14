@@ -4,7 +4,7 @@ export default {
   send_sms: 'SMS அனுப்பு',
   send_mms: 'MMS அனுப்பு',
   confirm_mms_on_phone: 'MMS ஐ உங்கள் கைபேசியில் உறுதிப்படுத்தி அனுப்பவும்.',
-  mms_cancelled: 'ரத்து செய்யப்பட்டது (அனுப்பப்படவில்லை)',
+  mms_canceled: 'ரத்து செய்யப்பட்டது (அனுப்பப்படவில்லை)',
   messages: 'செய்திகள்',
   direction: 'திசை',
   attachment: 'இணைப்பு(கள்)',

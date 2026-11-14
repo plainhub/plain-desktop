@@ -31,7 +31,7 @@ vi.mock('@/views/audios/AudioListItem.vue', () => ({ default: defineComponent({ 
 vi.mock('@/views/audios/AudioSkeletonItem.vue', () => ({ default: defineComponent({ render: () => h('div', { class: 'skeleton' }) }) }))
 import AudiosView from '@/views/audios/AudiosView.vue'
 async function render(beforeRender?: () => void) {
-  state.store = reactive({ audioSortBy: 'DATE_DESC', audiosScrollPaging: true })
+  state.store = reactive({ audioSortBy: 'UPDATED_AT_DESC', audiosScrollPaging: true })
   state.page = ref(1)
   state.loading = ref(true)
   state.fetch.mockReset()
@@ -61,7 +61,7 @@ it('replaces the loaded audio window on index refresh and appends only actual ne
     state.handle({ items: [audio('second')], total: 100 }, '', { variables: { offset: 50, limit: 50 } })
     expect(state.items.value.map((item: any) => item.id)).toEqual(['first', 'second'])
     state.pageOptions.doFetch({ force: true, latest: true })
-    expect(state.fetch).toHaveBeenLastCalledWith({ offset: 0, limit: 100, query: '', sortBy: 'DATE_DESC' }, { force: true, latest: true })
+    expect(state.fetch).toHaveBeenLastCalledWith({ offset: 0, limit: 100, query: '', sortBy: 'UPDATED_AT_DESC' }, { force: true, latest: true })
     expect(state.items.value.map((item: any) => item.id)).toEqual(['first', 'second'])
     state.handle({ items: [audio('first'), audio('new')], total: 2 }, '', { variables: { offset: 0, limit: 100 } })
     expect(state.items.value.map((item: any) => item.id)).toEqual(['first', 'new'])

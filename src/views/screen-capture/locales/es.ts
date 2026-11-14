@@ -17,7 +17,7 @@ export default {
   },
   tools: { rectangle: 'Rectángulo', ellipse: 'Elipse', arrow: 'Flecha', pen: 'Lápiz', text: 'Texto', mosaic: 'Mosaico' },
   actions: { undo: 'Deshacer', redo: 'Rehacer', save: 'Guardar', copy: 'Copiar', cancel: 'Cancelar', confirm: 'Confirmar', openChatToSend: 'Abre un chat para enviar' },
-  status: { saving: 'Guardando captura…', copying: 'Copiando captura…', sending: 'Enviando captura…', cancelling: 'Cancelando captura…' },
+  status: { saving: 'Guardando captura…', copying: 'Copiando captura…', sending: 'Enviando captura…', canceling: 'Cancelando captura…' },
   errors: {
     saveFailed: 'No se pudo guardar la captura. Inténtalo de nuevo.',
     copyFailed: 'No se pudo copiar la captura. Inténtalo de nuevo.',

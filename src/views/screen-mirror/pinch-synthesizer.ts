@@ -142,12 +142,12 @@ export class PinchSynthesizer {
   }
 
   /** End the gesture: lift the fingers (or cancel) and clean up. Idempotent. */
-  end(cancelled: boolean) {
+  end(canceled: boolean) {
     const p = this.state
     if (!p) return
     this.state = null
     window.clearInterval(p.timer)
-    const action = cancelled ? TOUCH_ACTION_CANCEL : TOUCH_ACTION_UP
+    const action = canceled ? TOUCH_ACTION_CANCEL : TOUCH_ACTION_UP
     this.sendSamples([
       { action, pointerId: PINCH_ID_A, x: p.ax - p.radius, y: p.ay, dtMs: 0 },
       { action, pointerId: PINCH_ID_B, x: p.ax + p.radius, y: p.ay, dtMs: 0 },

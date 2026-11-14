@@ -83,6 +83,8 @@ export default {
     '1. Klicken Sie auf das Vorhängeschlosssymbol in der Adressleiste.\n2. Öffnen Sie "Website-Einstellungen" oder "Berechtigungen".\n3. Suchen Sie "Benachrichtigungen" und ändern Sie es auf "Zulassen".',
   sort: 'Sortieren',
   sort_by: {
+    title_asc: 'Titel (A bis Z)',
+    title_desc: 'Titel (Z bis A)',
     date_asc: 'Älteste zuerst',
     date_desc: 'Neueste zuerst',
     size_asc: 'Kleinste zuerst',

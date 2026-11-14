@@ -1,5 +1,5 @@
 const loginErrors = new Set([
-  'cancelled', 'timeout', 'failed_connect_ws', 'proxy_auth_failed',
+  'canceled', 'timeout', 'failed_connect_ws', 'proxy_auth_failed',
   'secure_login_unavailable', 'invalid_auth_response', 'invalid_login_request',
   'invalid_password', 'peer_identity_changed', 'signature_verification_failed',
   'remote_access_disabled', 'login_expired', 'rejected', 'too_many_login_attempts',

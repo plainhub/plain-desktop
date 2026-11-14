@@ -36,7 +36,7 @@ it.each(['audios', 'images', 'videos', 'docs'])('%s does not read a different pa
     setText: vi.fn(), setElementText: vi.fn(), parentNode: () => null, nextSibling: () => null, patchProp: vi.fn(),
   })
   const Page = { setup() {
-    page = useMediaPage({ routePath, items: ref([]), sortByRef: ref('DATE_DESC'), fileFilter: () => true,
+    page = useMediaPage({ routePath, items: ref([]), sortByRef: ref('UPDATED_AT_DESC'), fileFilter: () => true,
       getScrollMode: () => false, doFetch: (options?: unknown) => { requests.push(page?.q.value ?? ''); fetchOptions.push(options) } } as MediaPageOptions)
     return () => null
   } }

@@ -32,11 +32,13 @@ export const useTasks = () => {
         // native PNG be acknowledged until every upload and sendChatItems finish.
         await Promise.all(uploads.map((upload) => addUploadTaskAndWait(upload, false)))
 
-        const c = item._content
-        const items = c.value.items.map((metadata: any, index: number) => {
+        const c = item.content
+        if (c.__typename !== 'ChatImagesContent' && c.__typename !== 'ChatFilesContent') throw new Error('Attachment content required')
+        const items = c.items.map((metadata: any, index: number) => {
           const upload = uploads[index]
           if (!upload?.fileHash) throw new Error(`Upload completed without a file hash: ${upload?.file.name ?? index}`)
           return {
+            id: upload.id,
             uri: 'fid:' + upload.fileHash,
             size: metadata.size,
             durationMs: metadata.durationMs,
@@ -47,7 +49,7 @@ export const useTasks = () => {
           }
         })
 
-        const res = await gqlFetch(sendChatItemsGQL, { targets: [toId], content: JSON.stringify({ type: c.type, value: { items } }) })
+        const res = await gqlFetch(sendChatItemsGQL, { targets: [toId], content: c.__typename === 'ChatImagesContent' ? { images: { items } } : { files: { items } } })
         const sent = res?.data?.sendChatItems?.[0]
         if (!sent) throw new Error('sendChatItems returned no message')
         try {

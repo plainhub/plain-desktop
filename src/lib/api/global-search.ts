@@ -75,7 +75,7 @@ export async function loadSearchClient(device: SearchDevice, foreground = false,
         const data = await execute<GqlResultType<'notesGQL'>>(notesGQL, { ...paging, query: `${query} trash:false` })
         return { hits: data.notes.map((item) => ({ domain, item })), total: data.noteCount }
       }
-      const variables: GqlVariablesType<'imagesGQL'> = { ...paging, query: `${query} trash:false`, sortBy: 'DATE_DESC' }
+      const variables = { ...paging, query: `${query} trash:false`, sortBy: 'UPDATED_AT_DESC' as const }
       if (domain === 'images') {
         const data = await execute<GqlResultType<'imagesGQL'>>(imagesGQL, variables)
         return { hits: data.images.map((item) => ({ domain, item })), total: data.imageCount }

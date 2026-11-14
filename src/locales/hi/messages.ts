@@ -4,7 +4,7 @@ export default {
   send_sms: 'SMS भेजें',
   send_mms: 'MMS भेजें',
   confirm_mms_on_phone: 'कृपया अपने फ़ोन पर MMS की पुष्टि करें और भेजें।',
-  mms_cancelled: 'रद्द (नहीं भेजा गया)',
+  mms_canceled: 'रद्द (नहीं भेजा गया)',
   messages: 'मैसेजेस',
   direction: 'दिशा',
   attachment: 'अटैचमेंट',

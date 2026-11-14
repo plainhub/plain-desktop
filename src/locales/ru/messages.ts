@@ -4,7 +4,7 @@ export default {
   confirm_mms_on_phone: 'Пожалуйста, подтвердите и отправьте MMS на вашем телефоне.',
   send_sms: 'Отправить SMS',
   send_mms: 'Отправить MMS',
-  mms_cancelled: 'Отменено (не отправлено)',
+  mms_canceled: 'Отменено (не отправлено)',
   messages: 'Сообщения',
   direction: 'Направление',
   attachment: 'вложение(я)',

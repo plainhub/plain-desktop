@@ -17,7 +17,7 @@ export default {
   },
   tools: { rectangle: '矩形', ellipse: '椭圆', arrow: '箭头', pen: '画笔', text: '文字', mosaic: '马赛克' },
   actions: { undo: '撤销', redo: '重做', save: '保存', copy: '复制', cancel: '取消', confirm: '确认', openChatToSend: '打开聊天后发送' },
-  status: { saving: '正在保存截图…', copying: '正在复制截图…', sending: '正在发送截图…', cancelling: '正在取消截图…' },
+  status: { saving: '正在保存截图…', copying: '正在复制截图…', sending: '正在发送截图…', canceling: '正在取消截图…' },
   errors: {
     saveFailed: '无法保存截图，请重试。',
     copyFailed: '无法复制截图，请重试。',

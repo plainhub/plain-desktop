@@ -17,7 +17,7 @@ export default {
   },
   tools: { rectangle: '矩形', ellipse: '橢圓', arrow: '箭頭', pen: '畫筆', text: '文字', mosaic: '馬賽克' },
   actions: { undo: '復原', redo: '重做', save: '儲存', copy: '複製', cancel: '取消', confirm: '確認', openChatToSend: '開啟聊天後傳送' },
-  status: { saving: '正在儲存擷取畫面…', copying: '正在複製擷取畫面…', sending: '正在傳送擷取畫面…', cancelling: '正在取消擷取…' },
+  status: { saving: '正在儲存擷取畫面…', copying: '正在複製擷取畫面…', sending: '正在傳送擷取畫面…', canceling: '正在取消擷取…' },
   errors: {
     saveFailed: '無法儲存擷取畫面，請再試一次。',
     copyFailed: '無法複製擷取畫面，請再試一次。',

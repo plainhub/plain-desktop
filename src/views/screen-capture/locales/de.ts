@@ -17,7 +17,7 @@ export default {
   },
   tools: { rectangle: 'Rechteck', ellipse: 'Ellipse', arrow: 'Pfeil', pen: 'Stift', text: 'Text', mosaic: 'Mosaik' },
   actions: { undo: 'Rückgängig', redo: 'Wiederholen', save: 'Speichern', copy: 'Kopieren', cancel: 'Abbrechen', confirm: 'Bestätigen', openChatToSend: 'Zum Senden einen Chat öffnen' },
-  status: { saving: 'Aufnahme wird gespeichert…', copying: 'Aufnahme wird kopiert…', sending: 'Aufnahme wird gesendet…', cancelling: 'Aufnahme wird abgebrochen…' },
+  status: { saving: 'Aufnahme wird gespeichert…', copying: 'Aufnahme wird kopiert…', sending: 'Aufnahme wird gesendet…', canceling: 'Aufnahme wird abgebrochen…' },
   errors: {
     saveFailed: 'Die Aufnahme konnte nicht gespeichert werden. Bitte erneut versuchen.',
     copyFailed: 'Die Aufnahme konnte nicht kopiert werden. Bitte erneut versuchen.',

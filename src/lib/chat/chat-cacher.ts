@@ -5,18 +5,8 @@ import { getDesktopClientId } from '@/lib/device/client-id'
 import { peerCacher } from './peer-cacher'
 import { channelCacher } from './channel-cacher'
 
-export function normalizeChatItem(item: any): IChatItem {
-  let parsedContent: IChatItem['_content']
-  try {
-    parsedContent = item?._content ?? (item?.content ? JSON.parse(item.content) : null)
-  } catch {
-    parsedContent = null
-  }
-  return {
-    ...item,
-    _content: parsedContent,
-    __typename: item?.__typename ?? 'ChatItem',
-  }
+export function normalizeChatItem(item: Omit<IChatItem, '__typename' | 'channelId'> & { channelId?: string | null }): IChatItem {
+  return { ...item, channelId: item.channelId ?? null, __typename: 'ChatItem' }
 }
 
 export function getLocalClientId(): string {

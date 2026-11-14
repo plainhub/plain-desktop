@@ -72,7 +72,7 @@ it('queries the authorized peer and seals preview URLs with that device’s sess
   expect(transport.remote).not.toHaveBeenCalled()
   expect(transport.local).toHaveBeenNthCalledWith(1, appGQL, undefined, undefined, { kind: 'peer', peerId: peer.id })
   expect(transport.local).toHaveBeenNthCalledWith(2, docsGQL, {
-    query: 'text:Trip:\\ notes trash:false', offset: 24, limit: 24, sortBy: 'DATE_DESC',
+    query: 'text:Trip:\\ notes trash:false', offset: 24, limit: 24, sortBy: 'UPDATED_AT_DESC',
   }, undefined, { kind: 'peer', peerId: peer.id })
   const hit = hits[0]
   if (hit.domain !== 'docs') throw new Error('Expected a document')
@@ -172,7 +172,7 @@ it('keeps failures isolated by device and searches notes and feeds with authoriz
   expect(search.groups.value[0].pages.map((page) => [page.domain, page.hits[0].item.id]))
     .toEqual([['docs', 'doc'], ['feeds', 'entry'], ['notes', 'note']])
   expect(transport.current.mock.calls.slice(1)).toEqual([
-    [docsGQL, { query: 'result trash:false', offset: 0, limit: 24, sortBy: 'DATE_DESC' }],
+    [docsGQL, { query: 'result trash:false', offset: 0, limit: 24, sortBy: 'UPDATED_AT_DESC' }],
     [feedEntriesGQL, { query: 'result', offset: 0, limit: 24 }],
     [notesGQL, { query: 'result trash:false', offset: 0, limit: 24 }],
   ])

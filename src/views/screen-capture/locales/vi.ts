@@ -17,7 +17,7 @@ export default {
   },
   tools: { rectangle: 'Hình chữ nhật', ellipse: 'Hình elip', arrow: 'Mũi tên', pen: 'Bút', text: 'Văn bản', mosaic: 'Khảm' },
   actions: { undo: 'Hoàn tác', redo: 'Làm lại', save: 'Lưu', copy: 'Sao chép', cancel: 'Hủy', confirm: 'Xác nhận', openChatToSend: 'Mở cuộc trò chuyện để gửi' },
-  status: { saving: 'Đang lưu ảnh chụp…', copying: 'Đang sao chép ảnh chụp…', sending: 'Đang gửi ảnh chụp…', cancelling: 'Đang hủy ảnh chụp…' },
+  status: { saving: 'Đang lưu ảnh chụp…', copying: 'Đang sao chép ảnh chụp…', sending: 'Đang gửi ảnh chụp…', canceling: 'Đang hủy ảnh chụp…' },
   errors: {
     saveFailed: 'Không thể lưu ảnh chụp. Hãy thử lại.',
     copyFailed: 'Không thể sao chép ảnh chụp. Hãy thử lại.',

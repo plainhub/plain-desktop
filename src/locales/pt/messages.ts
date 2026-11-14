@@ -4,7 +4,7 @@ export default {
   send_sms: 'Enviar SMS',
   send_mms: 'Enviar MMS',
   confirm_mms_on_phone: 'Por favor, confirme e envie a MMS no seu telefone.',
-  mms_cancelled: 'Cancelado (não enviado)',
+  mms_canceled: 'Cancelado (não enviado)',
   messages: 'Mensagens',
   message_type: {
     INBOX: 'Caixa de entrada',

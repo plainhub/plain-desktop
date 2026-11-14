@@ -22,7 +22,7 @@ vi.mock('@/lib/api/file', () => ({
   download: fixture.download,
   getFileUrlByPath: (_key: unknown, path: string) => `https://device.test${path}`,
 }))
-vi.mock('@/lib/api/query', () => ({ smsGQL: 'legacy-sms-query' }))
+vi.mock('@/lib/api/query', async (original) => ({ ...await original<typeof import('@/lib/api/query')>(), smsGQL: 'legacy-sms-query' }))
 vi.mock('@/lib/api/gql-client', () => ({ gqlFetch: fixture.gqlFetch }))
 vi.mock('@/lib/prefs/appearance', () => ({ get: () => 'en-US' }))
 vi.mock('@/hooks/list', () => ({ useDelete: () => ({}) }))
@@ -31,7 +31,7 @@ vi.mock('@/stores/main', () => ({ useMainStore: () => ({}) }))
 vi.mock('@/plugins/router', () => ({ default: {}, replacePath: vi.fn() }))
 
 import { useExportSms } from '@/hooks/export-sms'
-import { exportNotesGQL } from '@/lib/api/mutation'
+import { exportNotesGQL } from '@/lib/api/query'
 import { useNotesActions } from '@/views/notes/hooks/useNotesActions'
 
 async function readZip(blob: Blob) {
@@ -129,7 +129,7 @@ it('rejects an entry count reserved for ZIP64', async () => {
   await expect(zip.generate()).rejects.toThrow('Too many files')
 })
 
-it('exports old-device notes as compressed Markdown without overwriting duplicate titles', async () => {
+it('exports notes as compressed Markdown without overwriting duplicate titles', async () => {
   fixture.gqlFetch.mockResolvedValue({ data: { exportNotes: JSON.stringify([
     { title: '中文/标题', content: 'first' },
     { title: '中文/标题', content: 'second' },
@@ -141,7 +141,7 @@ it('exports old-device notes as compressed Markdown without overwriting duplicat
   })
   await actions.exportNotes2()
 
-  expect(fixture.gqlFetch).toHaveBeenCalledWith(exportNotesGQL, { query: 'ids:one,two' }, { dedupe: false })
+  expect(fixture.gqlFetch).toHaveBeenCalledWith(exportNotesGQL, { query: 'ids:one,two' }, { fresh: true })
   expect(fixture.download).toHaveBeenCalledWith('blob:synthetic-notes', 'notes.zip')
   const entries = await readZip(blobUrl.mock.calls[0][0] as Blob)
   expect(entries.get('中文_标题.md')).toMatchObject({ method: 8, contents: Buffer.from('first') })

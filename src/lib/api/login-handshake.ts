@@ -78,7 +78,7 @@ async function exchangeLoginKeys(
 export async function performLoginHandshake(
   params: LoginHandshakeParams
 ): Promise<LoginHandshakeResult> {
-  if (params.signal?.aborted) throw 'cancelled'
+  if (params.signal?.aborted) throw 'canceled'
   if (params.passwordRequired && !params.password) throw 'invalid_password'
   const signatureKey = verifyDeviceIdentity(params)
   if (params.passwordRequired) {

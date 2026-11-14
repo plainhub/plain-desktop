@@ -43,7 +43,7 @@ export async function openLoginSocket(url: string, signal?: AbortSignal) {
     pendingWork.clear()
     socket.close(3001, reason)
   }
-  const abort = () => fail('cancelled')
+  const abort = () => fail('canceled')
   const connectionTimeout = window.setTimeout(() => fail('timeout'), 10000)
   const deadline = window.setTimeout(() => fail('login_expired'), 300000)
 
@@ -145,7 +145,7 @@ export async function openLoginSocket(url: string, signal?: AbortSignal) {
         return
       }
       if (failure) return
-      failure = 'cancelled'
+      failure = 'canceled'
       cleanup()
       frames.length = 0
       socket.close()

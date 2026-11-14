@@ -10,6 +10,7 @@ import { tokenToKey } from '../api/file'
 import { uploadedChunksGQL } from '../api/query'
 import { deleteChunksGQL } from '../api/mutation'
 import { GqlError } from '../api/gql-client'
+import type { GqlResultType } from '../api/graphql/operations'
 import { requestMerge } from './merge-async'
 import { setUploadStatus, setUploadUploadedSize } from './batch-progress'
 import { assertUploadContext, getUploadContext, getUploadNativeScope, isUploadContextCurrent, isUploadAuthCurrent, uploadChunkOwner, registerUploadCancellation, type WebUploadContext } from './context'
@@ -527,17 +528,14 @@ async function getUploadedChunks(upload: IUploadItem, fileId: string, fileSize: 
     // query a much wider budget than the 30s default.
     const result = await getUploadContext(upload).graphql(uploadedChunksGQL, { fileId }, 120_000)
     assertUploadContext(upload)
-    const raw: string[] = result.data?.uploadedChunks ? [...result.data.uploadedChunks] : []
+    const raw: GqlResultType<'uploadedChunksGQL'>['uploadedChunks'] = result.data?.uploadedChunks ? [...result.data.uploadedChunks] : []
     if (raw.length === 0) return []
 
     const verified: number[] = []
     let mismatchCount = 0
     for (const entry of raw) {
-      // Format: "index:size"
-      const parts = entry.split(':')
-      const index = parseInt(parts[0], 10)
-      const serverSize = parts.length > 1 ? parseInt(parts[1], 10) : -1
-      if (isNaN(index) || index < 0 || index >= totalChunks) {
+      const { index, sizeBytes: serverSize } = entry
+      if (!Number.isInteger(index) || index < 0 || index >= totalChunks) {
         mismatchCount++
         continue
       }
@@ -545,7 +543,7 @@ async function getUploadedChunks(upload: IUploadItem, fileId: string, fileSize: 
       // Calculate expected chunk size
       const chunkStart = index * CHUNK_SIZE
       const expectedSize = Math.min(CHUNK_SIZE, fileSize - chunkStart)
-      if (serverSize > 0 && serverSize !== expectedSize) {
+      if (serverSize !== expectedSize) {
         console.warn(`Chunk ${index} size mismatch: server=${serverSize}, expected=${expectedSize}. Will re-upload.`)
         mismatchCount++
         continue

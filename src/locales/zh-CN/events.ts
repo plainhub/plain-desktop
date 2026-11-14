@@ -18,5 +18,5 @@ export default {
   "event_reason.login_expired": "登录请求已过期",
   "event_reason.too_many_login_attempts": "登录尝试过多",
   "event_reason.rejected": "登录请求已拒绝",
-  "event_reason.cancelled": "登录请求已取消"
+  "event_reason.canceled": "登录请求已取消"
 }

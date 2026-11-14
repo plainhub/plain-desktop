@@ -4,7 +4,7 @@ export default {
   confirm_mms_on_phone: '電話でMMSを確認して送信してください。',
   send_sms: 'SMSを送信',
   send_mms: 'MMS送信',
-  mms_cancelled: 'キャンセル（送信済み）',
+  mms_canceled: 'キャンセル（送信済み）',
   messages: 'メッセージ',
   direction: '方向',
   attachment: '件の添付',

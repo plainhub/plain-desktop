@@ -1,5 +1,6 @@
 import type {
   DocumentIR,
+  FieldDef,
   FragmentDef,
   SchemaIR,
   Selection,
@@ -151,7 +152,9 @@ function validateSelections(selections: Selection[], parent: TypeDef, path: stri
         continue
       }
       const fieldPath = `${path}.${sel.alias ?? sel.name}`
-      const field = parent.fields.find((f) => f.name === sel.name)
+      const field: FieldDef | undefined = sel.name === '__typename'
+        ? { name: '__typename', args: [], type: { ofType: 'named', name: 'String', nonNull: true } }
+        : parent.fields.find((f) => f.name === sel.name)
       if (!field) {
         ctx.errors.push({ path: fieldPath, message: `unknown field '${sel.name}' on type '${parent.name}'` })
         continue

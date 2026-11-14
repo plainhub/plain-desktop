@@ -48,7 +48,7 @@ it.each(['token', 'publicKey', 'remove-readd'])('invalidates and separates same-
   const beforeRevision = getLoginPeerRevision('peer')
   const pending = deferred<any>()
   io.native.mockImplementationOnce(() => pending.promise)
-  const stale = expect(gqlFetch('query { result }')).rejects.toMatchObject({ message: 'request_context_changed', cancelled: true })
+  const stale = expect(gqlFetch('query { result }')).rejects.toMatchObject({ message: 'request_context_changed', canceled: true })
   if (change === 'remove-readd') {
     snapshot = []
     await preloadLoginPeers()

@@ -1,7 +1,7 @@
 import type { Fragment_AppFragment } from './api/graphql/operations'
 export type AccessFeature = Fragment_AppFragment['access'][number]
 import type { IFile } from './file'
-import { ChatStatus, ChannelStatus, ChannelSystemMessageAction, ChannelSystemMessageType, DeviceType, DriveType, ImageSearchStatusType, MemberStatus, PackageType, PeerStatus, ScreenMirrorMode } from './status'
+import { ChannelStatus, ChannelSystemMessageAction, ChannelSystemMessageType, DeviceType, DriveType, ImageSearchStatusType, MemberStatus, PackageType, PeerStatus, ScreenMirrorMode } from './status'
 
 export interface IData {
   id: string
@@ -301,11 +301,10 @@ export interface IChatItem extends IData {
   /** Null for direct messages (channel posts carry the channel id). */
   channelId: string | null
   createdAt: string
-  content: string
-  _content: any
+  content: import('./api/graphql/operations').Fragment_ChatItemFragment['content']
   __typename: string
-  status?: ChatStatus
-  statusData?: string
+  status?: import('./api/graphql/operations').Fragment_ChatItemFragment['status']
+  deliveryResults: Array<{ peerId: string; peerName: string; error?: string | null }>
 }
 
 export interface IPeer {
@@ -346,7 +345,7 @@ export interface IChatChannel {
 }
 
 export interface IFeedEntryCount {
-  id: string
+  feedId: string
   count: number
 }
 

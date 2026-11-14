@@ -14,7 +14,7 @@ export type OpaqueReply =
   | { type: 'error'; reason: string }
 
 export async function startOpaqueLogin(password: string, signal?: AbortSignal) {
-  if (signal?.aborted) throw 'cancelled'
+  if (signal?.aborted) throw 'canceled'
   if (typeof globalThis.crypto?.getRandomValues !== 'function' || typeof Worker !== 'function') throw 'secure_login_unavailable'
   const worker = new Worker(new URL('./worker.ts', import.meta.url), { type: 'module' })
   let failure: string | undefined
@@ -28,7 +28,7 @@ export async function startOpaqueLogin(password: string, signal?: AbortSignal) {
     pending = undefined
     worker.terminate()
   }
-  const abort = () => close('cancelled')
+  const abort = () => close('canceled')
   const deadline = setTimeout(() => close('login_expired'), 300000)
   worker.onmessage = (event: MessageEvent<OpaqueReply>) => {
     if (event.data.type === 'error') { close(event.data.reason); return }
@@ -59,9 +59,9 @@ export async function startOpaqueLogin(password: string, signal?: AbortSignal) {
           const reply = await exchange({ type: 'finish', response, clientId, signingKey })
           if (reply.type !== 'result') throw 'invalid_auth_response'
           return reply.result
-        } finally { close('cancelled') }
+        } finally { close('canceled') }
       },
-      free: () => close('cancelled'),
+      free: () => close('canceled'),
     }
   } catch (error) {
     close(typeof error === 'string' ? error : 'invalid_auth_response')

@@ -81,6 +81,8 @@ export default {
   desktop_notification_permission_grant_message: '1. アドレスバーの南京錠アイコンをクリックします。\n2. "サイト設定"または"権限"を開きます。\n3. "通知"を見つけ、それを"許可"に変更します。',
   sort: '並べ替え',
   sort_by: {
+    title_asc: 'タイトル（昇順）',
+    title_desc: 'タイトル（降順）',
     date_asc: '古い順',
     date_desc: '新しい順',
     size_asc: '小さい順',

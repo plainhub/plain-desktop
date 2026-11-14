@@ -143,7 +143,7 @@ const searchState = computed(() => {
   if (!indexed.value) return searchStatus.value === 'idle' ? '' : t(`directory_search_${searchStatus.value}`)
   if (indexError.value) return t('index_state_failed')
   const state = indexProgress.value?.state
-  const status = { IDLE: 'completed', RUNNING: 'running', PAUSED: 'paused', STOPPED: 'cancelled', FAILED: 'failed' } as const
+  const status = { IDLE: 'completed', RUNNING: 'running', PAUSED: 'paused', STOPPED: 'canceled', FAILED: 'failed' } as const
   return t(`index_state_${state ? status[state] : 'pending'}`)
 })
 const pageDetails = computed(() => {

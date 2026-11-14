@@ -79,7 +79,7 @@ beforeEach(() => {
   io.urlToken.mockReturnValue('url-token')
   io.key.mockReturnValue(new Uint8Array(32))
   io.encrypt.mockImplementation((_: unknown, text: string) => new TextEncoder().encode(text))
-  io.gql.mockResolvedValue({ data: { uploadedChunks: [`0:${CHUNK}`] } })
+  io.gql.mockResolvedValue({ data: { uploadedChunks: [{ index: 0, sizeBytes: CHUNK }] } })
   io.merge.mockResolvedValue({ value: '/owned/sample.bin' })
   io.invoke.mockImplementation(async command => nativeSuccess(command))
   vi.spyOn(console, 'warn').mockImplementation(() => {})
@@ -87,9 +87,17 @@ beforeEach(() => {
 })
 afterEach(() => { vi.restoreAllMocks(); vi.useRealTimers(); vi.unstubAllGlobals() })
 
+it.each([0, 16, 18])('reuploads a chunk whose reported byte size is %s instead of 17', async sizeBytes => {
+  const f = fixture(17)
+  io.gql.mockResolvedValue({ data: { uploadedChunks: [{ index: 0, sizeBytes }] } })
+  await upload(f.item, false)
+  const actual = Buffer.concat(calls('native_upload_chunk_write').map(([, bytes]) => Buffer.from(bytes)))
+  expect(actual.equals(Buffer.from(f.bytes))).toBe(true)
+})
+
 it.each([0, 1])('reads only bounded windows and reconstructs exact bytes for chunk %s', async index => {
   const f = fixture()
-  io.gql.mockResolvedValue({ data: { uploadedChunks: [index === 0 ? `1:${WINDOW + 17}` : `0:${CHUNK}`] } })
+  io.gql.mockResolvedValue({ data: { uploadedChunks: [index === 0 ? { index: 1, sizeBytes: WINDOW + 17 } : { index: 0, sizeBytes: CHUNK }] } })
   let now = 1000
   vi.spyOn(Date, 'now').mockImplementation(() => now += 500)
   await upload(f.item, false)
@@ -195,7 +203,7 @@ it('retains the global four-chunk limit across files and releases canceled slots
   await running
   expect(calls('native_upload_chunk_abort')).toHaveLength(4)
   expect(calls('native_upload_chunk_finish')).toHaveLength(0)
-  io.gql.mockResolvedValue({ data: { uploadedChunks: [`0:${CHUNK}`] } })
+  io.gql.mockResolvedValue({ data: { uploadedChunks: [{ index: 0, sizeBytes: CHUNK }] } })
   await upload(fixture(CHUNK + 17, 'later').item, false)
   expect(calls('native_upload_chunk_finish')).toHaveLength(1)
 })

@@ -17,7 +17,7 @@ export default {
   },
   tools: { rectangle: 'Rectangle', ellipse: 'Ellipse', arrow: 'Arrow', pen: 'Pen', text: 'Text', mosaic: 'Mosaic' },
   actions: { undo: 'Undo', redo: 'Redo', save: 'Save', copy: 'Copy', cancel: 'Cancel', confirm: 'Confirm', openChatToSend: 'Open a chat to send' },
-  status: { saving: 'Saving capture…', copying: 'Copying capture…', sending: 'Sending capture…', cancelling: 'Cancelling capture…' },
+  status: { saving: 'Saving capture…', copying: 'Copying capture…', sending: 'Sending capture…', canceling: 'Canceling capture…' },
   errors: {
     saveFailed: 'Could not save the capture. Try again.',
     copyFailed: 'Could not copy the capture. Try again.',

@@ -35,7 +35,7 @@ export interface CaptureResultAvailable {
   descriptor: CaptureResultDescriptor
 }
 
-export type CaptureSessionOutcome = 'cancelled' | 'saved' | 'copied' | 'failed' | 'completed'
+export type CaptureSessionOutcome = 'canceled' | 'saved' | 'copied' | 'failed' | 'completed'
 export type CaptureNativeErrorCode =
   | 'busy'
   | 'permission_denied'
@@ -280,7 +280,7 @@ function validateSessionEnded(value: unknown): CaptureSessionEnded {
   if (!isRecord(value)) throw new CaptureClientError('invalid_result', 'capture terminal event is invalid')
   requireIdentifier(value.sessionId, 'session id')
   requireIdentifier(value.targetToken, 'target token')
-  if (!['cancelled', 'saved', 'copied', 'failed', 'completed'].includes(value.outcome as string)) {
+  if (!['canceled', 'saved', 'copied', 'failed', 'completed'].includes(value.outcome as string)) {
     throw new CaptureClientError('invalid_result', 'capture terminal outcome is invalid')
   }
   if (value.errorCode !== undefined && (typeof value.errorCode !== 'string' || !NATIVE_ERROR_CODES.has(value.errorCode as CaptureNativeErrorCode))) {

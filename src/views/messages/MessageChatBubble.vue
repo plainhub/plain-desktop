@@ -73,7 +73,7 @@ const pendingFailed = computed(() => {
   return Date.now() - new Date(props.item.sentAt).getTime() > 5 * 60 * 1000
 })
 const pendingStatusKey = computed(() => {
-  if (pendingFailed.value) return 'mms_cancelled'
+  if (pendingFailed.value) return 'mms_canceled'
   if (pendingSmsSent.value) return 'sent'
   return isPending.value ? 'sending' : 'message_type.DRAFT'
 })

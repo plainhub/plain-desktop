@@ -184,9 +184,9 @@ def http_evidence(lines):
         range_value = re.fullmatch(r'Range request: (bytes=\d{1,20}-\d{0,20})', message)
         seek = re.fullmatch(r'Seek segment: \((\d{1,20})-(\d{1,20})\) Position previous to seek: (\d{1,20})', message)
         headers = re.fullmatch(r'(Request|Response) headers going downstream: (.*)', message)
-        cancelled = message.startswith('Request cancelled: ')
+        canceled = message.startswith('Request canceled: ')
         stopped = message in ('stopping download', 'Stopped WebKitWebSrc', 'Unlock', 'Unlock stop')
-        if not (posting or status or data or finished or range_value or seek or headers or cancelled or stopped):
+        if not (posting or status or data or finished or range_value or seek or headers or canceled or stopped):
             unobserved += 1
             continue
         if posting or numbered:
@@ -210,8 +210,8 @@ def http_evidence(lines):
             request['data_records'] += 1
         elif finished:
             request.update(finished=True, read_position=int(finished[1]))
-        elif cancelled:
-            request['cancelled'] = True
+        elif canceled:
+            request['canceled'] = True
         elif range_value:
             request['range'] = range_value[1]
         elif headers:
@@ -244,7 +244,7 @@ def http_evidence(lines):
                 omitted += 1
     return {'method': 'WebKit webkitwebsrc debug records; strict field allowlist; no raw headers or URLs',
             'observed': bool(events) or any(row['data_records'] or
-                any(key in row for key in ('status', 'requested_position', 'range', 'finished', 'cancelled')) or
+                any(key in row for key in ('status', 'requested_position', 'range', 'finished', 'canceled')) or
                 isinstance(row['request_headers'], dict) or isinstance(row['response_headers'], dict)
                 for row in requests.values()), 'requests': list(requests.values()), 'events': events,
             'omitted_records': omitted, 'unobserved_records': unobserved}

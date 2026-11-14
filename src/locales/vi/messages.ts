@@ -4,7 +4,7 @@ export default {
   send_sms: 'Gửi SMS',
   send_mms: 'Gửi MMS',
   confirm_mms_on_phone: 'Vui lòng xác nhận và gửi MMS trên điện thoại của bạn.',
-  mms_cancelled: 'Đã hủy (chưa gửi)',
+  mms_canceled: 'Đã hủy (chưa gửi)',
   messages: 'Tin nhắn',
   direction: 'Hướng',
   attachment: 'tệp đính kèm',

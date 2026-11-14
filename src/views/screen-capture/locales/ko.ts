@@ -17,7 +17,7 @@ export default {
   },
   tools: { rectangle: '사각형', ellipse: '타원', arrow: '화살표', pen: '펜', text: '텍스트', mosaic: '모자이크' },
   actions: { undo: '실행 취소', redo: '다시 실행', save: '저장', copy: '복사', cancel: '취소', confirm: '확인', openChatToSend: '보낼 채팅을 여세요' },
-  status: { saving: '캡처 저장 중…', copying: '캡처 복사 중…', sending: '캡처 전송 중…', cancelling: '캡처 취소 중…' },
+  status: { saving: '캡처 저장 중…', copying: '캡처 복사 중…', sending: '캡처 전송 중…', canceling: '캡처 취소 중…' },
   errors: {
     saveFailed: '캡처를 저장할 수 없습니다. 다시 시도하세요.',
     copyFailed: '캡처를 복사할 수 없습니다. 다시 시도하세요.',

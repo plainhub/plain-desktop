@@ -4,7 +4,7 @@ export default {
   confirm_mms_on_phone: '请在手机上确认并发送彩信。',
   send_sms: '发送短信',
   send_mms: '发送彩信',
-  mms_cancelled: '已取消（未发送）',
+  mms_canceled: '已取消（未发送）',
   mms_large_file_warning: '视频/音频文件可能超出彩信大小限制。大多数运营商限制彩信大小为 300 KB–1 MB。',
   mms_image_auto_compress: '图片将自动压缩以符合彩信大小限制。',
   export_sms: '导出短信',

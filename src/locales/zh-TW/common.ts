@@ -82,6 +82,8 @@ export default {
   desktop_notification_permission_grant_message: '1. 點擊網址列中的鎖圖示。\n2. 開啟「網站設定」或「權限」。\n3. 找到「通知」並將其更改為「允許」。',
   sort: '排序',
   sort_by: {
+    title_asc: '標題（升冪）',
+    title_desc: '標題（降冪）',
     date_asc: '最早日期優先',
     date_desc: '最新日期優先',
     size_asc: '最小優先',

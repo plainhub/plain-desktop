@@ -1,7 +1,9 @@
 import { ref } from 'vue'
 import type { INote } from '@/lib/interfaces'
 import { useDelete } from '@/hooks/list'
-import { deleteNotesGQL, exportNotesGQL, initMutation, deleteNoteGQL } from '@/lib/api/mutation'
+import { deleteNotesGQL, initMutation, deleteNoteGQL } from '@/lib/api/mutation'
+import { exportNotesGQL } from '@/lib/api/query'
+import { gqlFetch } from '@/lib/api/gql-client'
 import { useNotesRestore, useNotesTrash } from '@/hooks/notes'
 import router, { replacePath } from '@/plugins/router'
 import { useMainStore } from '@/stores/main'
@@ -26,10 +28,6 @@ export function useNotesActions(opts: UseNotesActionsOptions) {
   const mainStore = useMainStore()
   const dataType = DataType.NOTE
 
-  const { mutate: exportNotes } = initMutation({
-    document: exportNotesGQL,
-  })
-
   const { deleteItems, confirmingDelete, deleteCount, deleteLoading, doDeleteItems, cancelDeleteItems } = useDelete(deleteNotesGQL, () => {
     clearSelection()
     fetch()
@@ -43,9 +41,9 @@ export function useNotesActions(opts: UseNotesActionsOptions) {
   }
 
   async function exportNotes2() {
-    const result = await exportNotes({ query: getQuery() })
-    if (!result) return
     try {
+      const result = await gqlFetch<{ exportNotes: string }>(exportNotesGQL, { query: getQuery() }, { fresh: true })
+      if (result.errors?.length) throw new Error(result.errors[0].message)
       const notes: INote[] = JSON.parse(result.data.exportNotes)
       const zip = new ZipWriter()
       for (const note of notes) {

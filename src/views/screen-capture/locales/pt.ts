@@ -17,7 +17,7 @@ export default {
   },
   tools: { rectangle: 'Retângulo', ellipse: 'Elipse', arrow: 'Seta', pen: 'Caneta', text: 'Texto', mosaic: 'Mosaico' },
   actions: { undo: 'Desfazer', redo: 'Refazer', save: 'Salvar', copy: 'Copiar', cancel: 'Cancelar', confirm: 'Confirmar', openChatToSend: 'Abra uma conversa para enviar' },
-  status: { saving: 'Salvando captura…', copying: 'Copiando captura…', sending: 'Enviando captura…', cancelling: 'Cancelando captura…' },
+  status: { saving: 'Salvando captura…', copying: 'Copiando captura…', sending: 'Enviando captura…', canceling: 'Cancelando captura…' },
   errors: {
     saveFailed: 'Não foi possível salvar a captura. Tente novamente.',
     copyFailed: 'Não foi possível copiar a captura. Tente novamente.',

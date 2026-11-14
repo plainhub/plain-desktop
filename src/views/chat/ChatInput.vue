@@ -280,7 +280,7 @@ function fileDragEnter(e: DragEvent) {
   }
 }
 
-// dragover must be cancelled for the drop event to fire at all — a textarea
+// dragover must be canceled for the drop event to fire at all — a textarea
 // accepts text drops natively, but not file drops.
 function fileDragOver(e: DragEvent) {
   if (draggingFiles(e)) {

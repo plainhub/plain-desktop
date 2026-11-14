@@ -93,7 +93,7 @@ export default {
   pairing_connecting: 'Sending pair request…',
   pairing_waiting: 'Waiting for response…',
   pairing_timed_out: 'Pairing timed out — the other device did not respond.',
-  pairing_cancelled: 'Pairing cancelled.',
+  pairing_canceled: 'Pairing canceled.',
   found_devices: '{count} device(s) found',
   rescan: 'Rescan',
   pending: 'Pending',

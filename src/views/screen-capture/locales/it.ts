@@ -17,7 +17,7 @@ export default {
   },
   tools: { rectangle: 'Rettangolo', ellipse: 'Ellisse', arrow: 'Freccia', pen: 'Penna', text: 'Testo', mosaic: 'Mosaico' },
   actions: { undo: 'Annulla', redo: 'Ripeti', save: 'Salva', copy: 'Copia', cancel: 'Annulla', confirm: 'Conferma', openChatToSend: 'Apri una chat per inviare' },
-  status: { saving: 'Salvataggio cattura…', copying: 'Copia cattura…', sending: 'Invio cattura…', cancelling: 'Annullamento cattura…' },
+  status: { saving: 'Salvataggio cattura…', copying: 'Copia cattura…', sending: 'Invio cattura…', canceling: 'Annullamento cattura…' },
   errors: {
     saveFailed: 'Impossibile salvare la cattura. Riprova.',
     copyFailed: 'Impossibile copiare la cattura. Riprova.',

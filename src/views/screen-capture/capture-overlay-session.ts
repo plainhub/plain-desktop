@@ -12,7 +12,7 @@ export interface CaptureTargetUnavailable {
 export interface CaptureOverlaySessionEnded {
   sessionId: string
   overlayGeneration: number
-  outcome: 'completed' | 'cancelled' | 'saved' | 'copied' | 'failed'
+  outcome: 'completed' | 'canceled' | 'saved' | 'copied' | 'failed'
 }
 
 export interface CaptureDeliveryFailed {

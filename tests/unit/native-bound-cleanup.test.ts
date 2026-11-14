@@ -49,7 +49,7 @@ it.each(['auth-change', 'selection-change'])('rechecks the original peer after t
   scope.resolve('original-document')
   const error = await outcome
   if (change === 'auth-change') {
-    expect(error).toMatchObject({ message: 'request_context_changed', cancelled: true })
+    expect(error).toMatchObject({ message: 'request_context_changed', canceled: true })
     expect(io.invoke.mock.calls).toEqual([['native_view_scope']])
   } else {
     expect(error).toBeUndefined()

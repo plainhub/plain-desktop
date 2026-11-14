@@ -55,9 +55,9 @@ impl Drop for CaptureAcquisitionLease<'_> {
 }
 
 /// Serialize every blocking native acquisition, including portal PipeWire
-/// consumers that outlive a cancelled async task. This prevents a stale
+/// consumers that outlive a canceled async task. This prevents a stale
 /// backend thread and its replacement from retaining full-screen buffers at
-/// the same time. A timed-out `spawn_blocking` task cannot be cancelled, so
+/// the same time. A timed-out `spawn_blocking` task cannot be canceled, so
 /// its lease remains held by the blocking closure until that backend call
 /// really exits.
 pub fn with_native_acquisition_lease<T>(

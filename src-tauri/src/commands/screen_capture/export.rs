@@ -11,7 +11,7 @@ use crate::commands::screen_capture::contract::CaptureErrorCode;
 #[serde(rename_all = "snake_case")]
 pub enum SaveCaptureOutcome {
     Saved,
-    Cancelled,
+    Canceled,
 }
 
 /// Native export operations are isolated behind this interface so dialog,
@@ -29,7 +29,7 @@ pub fn save_capture_png(
     png: &[u8],
 ) -> Result<SaveCaptureOutcome, CaptureError> {
     let Some(path) = exports.choose_save_path(suggested_filename)? else {
-        return Ok(SaveCaptureOutcome::Cancelled);
+        return Ok(SaveCaptureOutcome::Canceled);
     };
     let path = normalized_png_path(path)?;
     exports.write_png(&path, png)?;
@@ -171,7 +171,7 @@ mod tests {
         let exports = fake(Ok(None));
         assert_eq!(
             save_capture_png(&exports, "capture.png", b"png").expect("cancel outcome"),
-            SaveCaptureOutcome::Cancelled
+            SaveCaptureOutcome::Canceled
         );
         assert!(exports.writes.lock().expect("writes").is_empty());
     }

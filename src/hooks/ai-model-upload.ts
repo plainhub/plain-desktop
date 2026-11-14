@@ -46,7 +46,7 @@ export function useAIModelUpload() {
     emitter.on('upload_progress', onProgress)
     try {
       for (const file of valid) {
-        if (generation !== uploadGeneration) throw new Error('Upload cancelled')
+        if (generation !== uploadGeneration) throw new Error('Upload canceled')
         uploadStatus.value = t('ai.uploading', { name: file.name })
         currentUpload = items.get(file)!
         await addUploadTaskAndWait(currentUpload, true)
@@ -54,7 +54,7 @@ export function useAIModelUpload() {
         completedBytes += file.size
         uploadProgress.value = Math.round((completedBytes / totalBytes) * 100)
       }
-      if (generation !== uploadGeneration) throw new Error('Upload cancelled')
+      if (generation !== uploadGeneration) throw new Error('Upload canceled')
       uploadProgress.value = 100
       uploadStatus.value = t('ai.upload_done')
       uploadDone.value = true

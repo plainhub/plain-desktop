@@ -102,7 +102,7 @@ export function useFilesData() {
       items.value = result.data.files.map(enrichFile)
       totalRef.value = Number(result.data.count ?? items.value.length)
     } catch (error) {
-      if (current === sequence && !(error instanceof GqlError && error.cancelled)) toast(t(error instanceof Error ? error.message : String(error)), 'error')
+      if (current === sequence && !(error instanceof GqlError && error.canceled)) toast(t(error instanceof Error ? error.message : String(error)), 'error')
     } finally {
       if (current === sequence) { loading.value = false; settled() }
     }

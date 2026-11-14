@@ -12,7 +12,7 @@ it('fetches changed file routes only when their keyed page activates', async () 
     setText: vi.fn(), setElementText: vi.fn(), parentNode: () => null, nextSibling: () => null, patchProp: vi.fn(),
   })
   const route = ref<string | null>('/files?q=owned')
-  const sort = ref('DATE_DESC')
+  const sort = ref('UPDATED_AT_DESC')
   const applyRouteQuery = vi.fn()
   const fetch = vi.fn()
   const FilePage = {
