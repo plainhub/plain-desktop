@@ -1,6 +1,6 @@
 export default {
-  http_security_warning: 'Tải tệp lên và xuống qua HTTP không được mã hóa. Hãy dùng HTTPS.',
-  http_security_switch: 'Mở bằng HTTPS',
+  http_security_warning: 'Tải tệp lên và xuống qua HTTP không được mã hóa.',
+  http_security_switch: 'Hãy dùng HTTPS.',
   http_security_certificate: 'Chứng chỉ tự ký có thể khiến trình duyệt hiện cảnh báo. Hãy xác minh chứng chỉ trước khi kết nối.',
 
   file_index: {

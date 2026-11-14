@@ -1,9 +1,12 @@
 <template>
-  <footer v-if="visible" class="http-security-footer">
-    <span>{{ $t('http_security_warning') }}</span>
-    <a v-if="httpsUrl" :href="httpsUrl" rel="noreferrer">{{ $t('http_security_switch') }}</a>
+  <div v-if="visible" class="http-security-notice">
+    <span>
+      {{ $t('http_security_warning') }}
+      <a v-if="httpsUrl" :href="httpsUrl" rel="noreferrer">{{ $t('http_security_switch') }}</a>
+      <template v-else>{{ $t('http_security_switch') }}</template>
+    </span>
     <span v-if="httpsUrl" class="certificate-note">{{ $t('http_security_certificate') }}</span>
-  </footer>
+  </div>
 </template>
 
 <script setup lang="ts">
@@ -31,16 +34,17 @@ onMounted(async () => {
 </script>
 
 <style scoped>
-.http-security-footer {
+.http-security-notice {
   flex-shrink: 0;
   display: flex;
   flex-wrap: wrap;
   align-items: baseline;
   justify-content: center;
   gap: 4px 8px;
-  margin-top: auto;
-  padding: 8px 16px;
-  background: var(--md-sys-color-surface-variant);
+  box-sizing: border-box;
+  width: calc(100% - 32px);
+  max-width: 400px;
+  margin: 16px auto 0;
   color: var(--md-sys-color-on-surface-variant);
   font-size: 0.8rem;
   text-align: center;
@@ -52,7 +56,7 @@ onMounted(async () => {
 }
 
 @media print {
-  .http-security-footer {
+  .http-security-notice {
     display: none;
   }
 }

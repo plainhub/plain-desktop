@@ -2279,7 +2279,16 @@ export interface GqlOperations {
   }
   pausePomodoroGQL: {
     result: {
-      pausePomodoro: boolean
+      pausePomodoro: {
+        date: string
+        completedCount: number
+        currentRound: number
+        timeLeftSec: number
+        totalTimeSec: number
+        isRunning: boolean
+        isPaused: boolean
+        state: 'WORK' | 'SHORT_BREAK' | 'LONG_BREAK'
+      }
     }
     variables: undefined
   }
@@ -2846,7 +2855,16 @@ export interface GqlOperations {
   }
   startPomodoroGQL: {
     result: {
-      startPomodoro: boolean
+      startPomodoro: {
+        date: string
+        completedCount: number
+        currentRound: number
+        timeLeftSec: number
+        totalTimeSec: number
+        isRunning: boolean
+        isPaused: boolean
+        state: 'WORK' | 'SHORT_BREAK' | 'LONG_BREAK'
+      }
     }
     variables: {
       durationSec: number
@@ -2874,7 +2892,16 @@ export interface GqlOperations {
   }
   stopPomodoroGQL: {
     result: {
-      stopPomodoro: boolean
+      stopPomodoro: {
+        date: string
+        completedCount: number
+        currentRound: number
+        timeLeftSec: number
+        totalTimeSec: number
+        isRunning: boolean
+        isPaused: boolean
+        state: 'WORK' | 'SHORT_BREAK' | 'LONG_BREAK'
+      }
     }
     variables: undefined
   }

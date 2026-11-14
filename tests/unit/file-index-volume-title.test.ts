@@ -86,12 +86,11 @@ it.each([
   expect(getStorageVolumeTitle(homeMount, t)).toBe(getStorageVolumeTitle(sidebarMount, t))
 })
 
-it('retains offline volumes and uses the path when mount metadata is absent', async () => {
+it('does not render a historical index volume absent from the file sidebar mounts', async () => {
   state.volumes = [{ id: 'missing', path: '/media/offline', isAvailable: false, indexMode: 'BLOCKLIST', includedDirs: [], excludedDirs: [] }]
   const html = await render([])
-  expect(html).toContain('>/media/offline · offline</h3>')
-  expect(html).toContain('unavailable')
-  expect(html).toContain('disabled')
+  expect(html).not.toContain('/media/offline')
+  expect(html).toContain('no_data')
 })
 
 it('requests the same complete mount data for both surfaces', () => {

@@ -1,6 +1,6 @@
 export default {
-  http_security_warning: 'HTTP 下檔案上傳和下載未加密。建議使用 HTTPS。',
-  http_security_switch: '使用 HTTPS',
+  http_security_warning: 'HTTP 下檔案上傳和下載未加密。',
+  http_security_switch: '建議使用 HTTPS。',
   http_security_certificate: '自簽憑證可能觸發瀏覽器警告，請先確認憑證再連線。',
 
   file_index: {

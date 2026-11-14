@@ -1,6 +1,6 @@
 export default {
-  http_security_warning: 'HTTP でのファイルのアップロードとダウンロードは暗号化されません。HTTPS をご利用ください。',
-  http_security_switch: 'HTTPS で開く',
+  http_security_warning: 'HTTP でのファイルのアップロードとダウンロードは暗号化されません。',
+  http_security_switch: 'HTTPS をご利用ください。',
   http_security_certificate: '自己署名証明書によりブラウザーに警告が表示される場合があります。接続前に証明書を確認してください。',
 
   file_index: {

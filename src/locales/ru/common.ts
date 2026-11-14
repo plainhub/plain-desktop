@@ -1,6 +1,6 @@
 export default {
-  http_security_warning: 'Отправка и скачивание файлов по HTTP не шифруются. Используйте HTTPS.',
-  http_security_switch: 'Открыть HTTPS',
+  http_security_warning: 'Отправка и скачивание файлов по HTTP не шифруются.',
+  http_security_switch: 'Используйте HTTPS.',
   http_security_certificate: 'Самоподписанный сертификат может вызвать предупреждение браузера. Проверьте сертификат перед подключением.',
 
   file_index: {

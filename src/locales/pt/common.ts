@@ -1,6 +1,6 @@
 export default {
-  http_security_warning: 'Os envios e downloads de arquivos por HTTP não são criptografados. Use HTTPS.',
-  http_security_switch: 'Abrir HTTPS',
+  http_security_warning: 'Os envios e downloads de arquivos por HTTP não são criptografados.',
+  http_security_switch: 'Use HTTPS.',
   http_security_certificate: 'Um certificado autoassinado pode gerar um aviso no navegador. Verifique o certificado antes de se conectar.',
 
   file_index: {

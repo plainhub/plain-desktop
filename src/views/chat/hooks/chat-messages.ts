@@ -66,18 +66,11 @@ export function useChatMessages(chatId: ComputedRef<string>, channelId: Computed
 
   const { mutate: retryMutate } = initMutation({ document: retryChatItemGQL })
 
-  const MAX_SEND_ATTEMPTS = 3
-
   async function doSend(tempId: string, toId: string, content: IChatItem['content']) {
-    for (let attempt = 1; attempt <= MAX_SEND_ATTEMPTS; attempt++) {
-      const r = await sendMutate({ targets: [toId], content: chatContentInput(content) })
-      if (r != null) {
-        chatItems.value = chatItems.value.filter((i) => i.id !== tempId)
-        return
-      }
-      if (attempt < MAX_SEND_ATTEMPTS) {
-        await new Promise((resolve) => setTimeout(resolve, attempt * 1000))
-      }
+    const r = await sendMutate({ targets: [toId], content: chatContentInput(content) })
+    if (r != null) {
+      chatItems.value = chatItems.value.filter((i) => i.id !== tempId)
+      return
     }
     const item = chatItems.value.find((i) => i.id === tempId)
     if (item) {
@@ -108,7 +101,7 @@ export function useChatMessages(chatId: ComputedRef<string>, channelId: Computed
     if (!item) return
     chatItems.value = chatItems.value.map((i) => i.id === id ? { ...i, status: ChatStatus.PENDING } : i)
     if (id.startsWith('new_')) {
-      // Network error: item was never saved on server → resend as new message
+      // No confirmed server message ID is available.
       await doSend(id, chatId.value, item.content)
     } else {
       // Delivery failure: item exists on server → retry delivery in-place

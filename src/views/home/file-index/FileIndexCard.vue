@@ -6,7 +6,7 @@
         <v-icon-button v-if="showPause" v-tooltip="$t('pause')" :aria-label="$t('pause')" @click="pauseScan"><i-material-symbols:pause-rounded /></v-icon-button>
         <v-icon-button v-if="showResume" v-tooltip="$t('resume')" :aria-label="$t('resume')" @click="resumeScan"><i-material-symbols:play-arrow-rounded /></v-icon-button>
         <v-icon-button v-if="showStop" v-tooltip="$t('stop')" :aria-label="$t('stop')" @click="stopScan"><i-material-symbols:stop-rounded /></v-icon-button>
-        <v-text-button v-if="volumes.length > 1 && (rebuildIndexLoading || (hasIndexScope && showRebuild))" :loading="rebuildIndexLoading" :disabled="rebuildVolumeLoading" @click="rebuildIndex">{{
+        <v-text-button v-if="mountedVolumes.length > 1 && (rebuildIndexLoading || (hasIndexScope && showRebuild))" :loading="rebuildIndexLoading" :disabled="rebuildVolumeLoading" @click="rebuildIndex">{{
           $t('rebuild_index')
         }}</v-text-button>
       </div>
@@ -19,13 +19,13 @@
         >{{ fileIndexScanProgress.indexed.toLocaleString() }}<template v-if="fileIndexScanProgress.total !== null && fileIndexScanProgress.total > 0"> / {{ fileIndexScanProgress.total.toLocaleString() }}</template></span
       >
     </div>
-    <div v-if="volumes.length" class="volume-cards">
+    <div v-if="mountedVolumes.length" class="volume-cards">
       <FileIndexVolumeCard
-        v-for="volume in volumes"
+        v-for="{ mount, volume } in mountedVolumes"
         :key="volume.id"
         :volume="volume"
-        :title="volumeName(volume)"
-        :mount="mounts.find((mount) => mount.mountPoint === volume.path)"
+        :title="getStorageVolumeTitle(mount, t)"
+        :mount="mount"
         :scan-disabled="scanActive || rebuildVolumeLoading || rebuildIndexLoading"
         @settings="edit(volume.id)"
         @scan="rebuildVolume(volume.id)"
@@ -35,7 +35,7 @@
       <p role="alert">{{ loadError }}</p>
       <v-text-button @click="reload">{{ $t('retry') }}</v-text-button>
     </div>
-    <span v-else-if="!volumes.length" class="empty">{{ $t(loading ? 'loading' : 'no_data') }}</span>
+    <span v-else-if="!mountedVolumes.length" class="empty">{{ $t(loading ? 'loading' : 'no_data') }}</span>
   </section>
 </template>
 
@@ -52,13 +52,15 @@ import { pushModal } from '@/components/modal'
 import { useScanAction } from '../home'
 import FileIndexScopeDialog from './FileIndexScopeDialog.vue'
 import FileIndexVolumeCard from './FileIndexVolumeCard.vue'
+import { mountedIndexVolumes } from './mounted-volumes'
 
 const props = defineProps<{ mounts: IStorageMount[] }>()
 const { t } = useI18n()
 const volumes = ref<FileIndexVolume[]>([])
 const loadError = ref('')
 const defaults = ref<FileIndexDefaults>()
-const hasIndexScope = computed(() => volumes.value.some(canScanVolume))
+const mountedVolumes = computed(() => mountedIndexVolumes(props.mounts, volumes.value))
+const hasIndexScope = computed(() => mountedVolumes.value.some(({ volume }) => canScanVolume(volume)))
 const { loading, refetch: fetch } = initQuery({
   document: fileIndexVolumesGQL,
   variables: null,
@@ -100,16 +102,10 @@ async function reload() {
   await fetch(undefined, true)
 }
 
-function volumeName(volume: FileIndexVolume) {
-  const mount = props.mounts.find((item) => item.mountPoint === volume.path)
-  const name = mount ? getStorageVolumeTitle(mount, t) : volume.path
-  return volume.isAvailable ? name : `${name} · ${t('offline')}`
-}
-
 function edit(id: string) {
-  const volume = volumes.value.find((item) => item.id === id)
-  if (!volume || !defaults.value) return
-  pushModal(FileIndexScopeDialog, { volume, defaults: defaults.value, volumeName: volumeName(volume), onSaved: reload })
+  const entry = mountedVolumes.value.find(({ volume }) => volume.id === id)
+  if (!entry || !defaults.value) return
+  pushModal(FileIndexScopeDialog, { volume: entry.volume, defaults: defaults.value, volumeName: getStorageVolumeTitle(entry.mount, t), onSaved: reload })
 }
 </script>
 

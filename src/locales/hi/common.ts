@@ -1,6 +1,6 @@
 export default {
-  http_security_warning: 'HTTP पर फ़ाइल अपलोड और डाउनलोड एन्क्रिप्ट नहीं होते। HTTPS इस्तेमाल करें।',
-  http_security_switch: 'HTTPS खोलें',
+  http_security_warning: 'HTTP पर फ़ाइल अपलोड और डाउनलोड एन्क्रिप्ट नहीं होते।',
+  http_security_switch: 'HTTPS इस्तेमाल करें।',
   http_security_certificate: 'स्व-हस्ताक्षरित प्रमाणपत्र पर ब्राउज़र चेतावनी दिखा सकता है। कनेक्ट करने से पहले प्रमाणपत्र की जाँच करें।',
 
   file_index: {

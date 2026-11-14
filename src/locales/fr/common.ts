@@ -1,6 +1,6 @@
 export default {
-  http_security_warning: 'Les envois et téléchargements de fichiers via HTTP ne sont pas chiffrés. Utilisez HTTPS.',
-  http_security_switch: 'Ouvrir en HTTPS',
+  http_security_warning: 'Les envois et téléchargements de fichiers via HTTP ne sont pas chiffrés.',
+  http_security_switch: 'Utilisez HTTPS.',
   http_security_certificate: 'Un certificat autosigné peut déclencher un avertissement du navigateur. Vérifiez le certificat avant de vous connecter.',
 
   file_index: {

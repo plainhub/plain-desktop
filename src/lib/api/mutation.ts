@@ -715,19 +715,19 @@ export const deleteChunksGQL = `
 
 export const startPomodoroGQL = `
   mutation startPomodoro($durationSec: Int!) {
-    startPomodoro(durationSec: $durationSec)
+    startPomodoro(durationSec: $durationSec) { date completedCount currentRound timeLeftSec totalTimeSec isRunning isPaused state }
   }
 `
 
 export const stopPomodoroGQL = `
   mutation stopPomodoro {
-    stopPomodoro
+    stopPomodoro { date completedCount currentRound timeLeftSec totalTimeSec isRunning isPaused state }
   }
 `
 
 export const pausePomodoroGQL = `
   mutation pausePomodoro {
-    pausePomodoro
+    pausePomodoro { date completedCount currentRound timeLeftSec totalTimeSec isRunning isPaused state }
   }
 `
 

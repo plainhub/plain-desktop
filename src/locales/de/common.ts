@@ -1,6 +1,6 @@
 export default {
-  http_security_warning: 'Datei-Uploads und -Downloads über HTTP sind nicht verschlüsselt. Verwende HTTPS.',
-  http_security_switch: 'HTTPS öffnen',
+  http_security_warning: 'Datei-Uploads und -Downloads über HTTP sind nicht verschlüsselt.',
+  http_security_switch: 'Verwende HTTPS.',
   http_security_certificate: 'Ein selbstsigniertes Zertifikat kann eine Browserwarnung auslösen. Prüfe das Zertifikat vor dem Verbinden.',
 
   file_index: {

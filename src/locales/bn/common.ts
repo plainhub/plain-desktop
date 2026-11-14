@@ -1,6 +1,6 @@
 export default {
-  http_security_warning: 'HTTP দিয়ে ফাইল আপলোড ও ডাউনলোড এনক্রিপ্ট করা হয় না। HTTPS ব্যবহার করুন।',
-  http_security_switch: 'HTTPS ব্যবহার করুন',
+  http_security_warning: 'HTTP দিয়ে ফাইল আপলোড ও ডাউনলোড এনক্রিপ্ট করা হয় না।',
+  http_security_switch: 'HTTPS ব্যবহার করুন।',
   http_security_certificate: 'স্ব-স্বাক্ষরিত সনদের কারণে ব্রাউজার সতর্কতা দেখাতে পারে। সংযোগের আগে সনদটি যাচাই করুন।',
 
   file_index: {

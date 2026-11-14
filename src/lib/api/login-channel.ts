@@ -11,6 +11,7 @@ import {
   verifyEd25519Signature,
 } from './crypto'
 import { getSyncedTimestamp } from './time-sync'
+import { verificationCode } from './verification-code'
 import { base64ToArrayBuffer } from '@/lib/strutil'
 
 interface ServerHello {
@@ -58,7 +59,7 @@ export function startLoginKeyExchange(clientId: string) {
         return {
           deviceId: response.deviceId,
           token: bitArrayToBase64(key),
-          verificationCode: Array.from(digest, byte => byte.toString(16).padStart(2, '0')).join(''),
+          verificationCode: verificationCode(digest),
           encryptRequest(bytes: Uint8Array) { requireUnexpired(); return chachaEncryptBytes(key, bytes, requestAad) },
           decryptResponse(bytes: Uint8Array) { requireUnexpired(); return chachaDecryptBytes(key, bytes, responseAad) },
           dispose() { key.fill(0) },

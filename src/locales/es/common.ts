@@ -1,6 +1,6 @@
 export default {
-  http_security_warning: 'Las subidas y descargas de archivos por HTTP no están cifradas. Usa HTTPS.',
-  http_security_switch: 'Abrir HTTPS',
+  http_security_warning: 'Las subidas y descargas de archivos por HTTP no están cifradas.',
+  http_security_switch: 'Usa HTTPS.',
   http_security_certificate: 'Un certificado autofirmado puede generar una advertencia del navegador. Verifica el certificado antes de conectarte.',
 
   file_index: {

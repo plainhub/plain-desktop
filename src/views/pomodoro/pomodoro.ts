@@ -52,25 +52,24 @@ export function usePomodoro() {
 
   async function command(action: () => Promise<unknown>) {
     try {
-      await action()
-      await refetch()
+      applySnapshot(await action())
     } catch (error) {
       console.error('Pomodoro command failed:', error)
     }
   }
 
   function startTimer() {
-    return command(() => startPomodoroMutation({ durationSec: timeLeft.value }))
+    return command(async () => (await startPomodoroMutation({ durationSec: timeLeft.value }))?.data?.startPomodoro)
   }
 
   function pauseTimer() {
-    return command(() => pausePomodoroMutation())
+    return command(async () => (await pausePomodoroMutation())?.data?.pausePomodoro)
   }
 
   const resumeTimer = startTimer
 
   function stopTimer() {
-    return command(() => stopPomodoroMutation())
+    return command(async () => (await stopPomodoroMutation())?.data?.stopPomodoro)
   }
 
   function handleClick(event: MouseEvent) {
@@ -84,7 +83,7 @@ export function usePomodoro() {
     if (angle < 0) angle += 2 * Math.PI
     const elapsedTime = Math.round((angle / (2 * Math.PI)) * totalTime.value)
     const seconds = Math.max(1, totalTime.value - elapsedTime)
-    void command(() => startPomodoroMutation({ durationSec: seconds }))
+    void command(async () => (await startPomodoroMutation({ durationSec: seconds }))?.data?.startPomodoro)
   }
 
   function showNotification(completedState: string) {

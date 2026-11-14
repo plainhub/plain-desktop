@@ -162,7 +162,7 @@ it('the Stop handler sends only stopFileIndexScan when the Rebuild button appear
     },
   }
   const render = async () => {
-    const app = createSSRApp(FileIndexCard, { mounts: [] })
+    const app = createSSRApp(FileIndexCard, { mounts: state.volumes.map(({ path }) => ({ mountPoint: path })) })
     app.config.globalProperties.$t = (key: string) => key
     app.component('VIconButton', Button)
     app.component('VTextButton', Button)
@@ -242,7 +242,7 @@ it.each([
   state.pushModal.mockClear()
   state.mutation.mockClear()
   const createActions: (() => void)[] = []
-  const app = createSSRApp(FileIndexCard, { mounts: [] })
+  const app = createSSRApp(FileIndexCard, { mounts: state.volumes.map(({ path }) => ({ mountPoint: path })) })
   app.config.globalProperties.$t = (key: string) => key
   const Button = {
     setup: (_props: unknown, { attrs, slots }: any) => {
