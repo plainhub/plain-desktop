@@ -388,7 +388,8 @@ function video(deliverFrames = true, distinct = true) {
                 (root / 'native-results.json').write_text(json.dumps({'status': 'passed'}))
                 return {}
 
-            with patch.object(runner, 'admit', return_value={'Xvfb': '/usr/bin/Xvfb', 'dbus-daemon': '/usr/bin/dbus-daemon'}), \
+            with patch.dict(os.environ, {'WEBKIT_GST_USE_PLAYBIN3': '1', 'WEBKIT_GST_USE_PLAYBIN3_SECRET': 'generated-neighbor-secret'}), \
+                    patch.object(runner, 'admit', return_value={'Xvfb': '/usr/bin/Xvfb', 'dbus-daemon': '/usr/bin/dbus-daemon'}), \
                     patch.object(runner.sys, 'platform', 'linux'), \
                     patch.object(runner.tempfile, 'mkdtemp', return_value=str(root)), \
                     patch.object(runner, 'generate', side_effect=fixtures), \
@@ -398,12 +399,16 @@ function video(deliverFrames = true, distinct = true) {
                     patch.object(runner, 'stop'), patch.object(runner.time, 'sleep'), \
                     patch.object(runner, 'processes', return_value={103: {'parent': 0, 'start': 1, 'rss': 1, 'name': 'WebKit-test'}}), \
                     patch.object(runner, 'installed_fusermount', create=True, return_value=('/usr/bin/fusermount3', '3.14.0')), \
-                    patch.object(runner.subprocess, 'Popen', side_effect=children), \
+                    patch.object(runner.subprocess, 'Popen', side_effect=children) as launched, \
                     patch.object(runner.subprocess, 'run', side_effect=unmount) as invoked, \
                     patch.object(Path, 'read_text', read), patch.object(Path, 'is_socket', return_value=True), \
                     patch.object(runner.shutil, 'rmtree', side_effect=remove), \
                     contextlib.redirect_stdout(io.StringIO()):
                 result = runner.run(sys.executable, 'owned-test')
+            child = launched.call_args_list[-1]
+            self.assertEqual(child.args[0], [sys.executable, '--exact', 'owned-test', '--ignored', '--nocapture', '--test-threads=1'])
+            self.assertEqual(child.kwargs['env'].get('WEBKIT_GST_USE_PLAYBIN3'), '1')
+            self.assertNotIn('WEBKIT_GST_USE_PLAYBIN3_SECRET', child.kwargs['env'])
             report = json.loads((root / 'report.json').read_text())
             if mutation:
                 self.assertFalse(report['cleanup'], report)

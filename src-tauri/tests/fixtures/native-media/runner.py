@@ -482,7 +482,8 @@ def run(binary, test):
             (root / name).mkdir(mode=0o700)
             identities[name] = directory_identity(root / name)
         allowed = ['PATH', 'LD_LIBRARY_PATH', 'LANG', 'LC_ALL', 'TZ', 'GITHUB_ACTIONS', 'GITHUB_REPOSITORY',
-                   'GITHUB_WORKSPACE', 'GITHUB_RUN_ID', 'GITHUB_SHA', 'RUNNER_ENVIRONMENT', 'RUNNER_OS']
+                   'GITHUB_WORKSPACE', 'GITHUB_RUN_ID', 'GITHUB_SHA', 'RUNNER_ENVIRONMENT', 'RUNNER_OS',
+                   'WEBKIT_GST_USE_PLAYBIN3']
         env = {key: os.environ[key] for key in allowed if key in os.environ}
         env.update(HOME=str(root / 'home'), XDG_RUNTIME_DIR=str(root / 'runtime'), XDG_CONFIG_HOME=str(root / 'config'),
                    XDG_CACHE_HOME=str(root / 'cache'), XDG_DATA_HOME=str(root / 'data'), GDK_BACKEND='x11',
