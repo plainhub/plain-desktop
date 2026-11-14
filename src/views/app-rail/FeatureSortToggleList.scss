@@ -9,10 +9,6 @@
 .feature-row.enabled { cursor: grab; }
 .feature-row.enabled:active { cursor: grabbing; }
 .feature-row.dragging { background: var(--md-sys-color-surface-container); border-radius: 8px; box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15); }
-.feature-row.drag-over::before {
-  content: ''; position: absolute; left: 16px; right: 16px; top: 0; height: 2px;
-  background: var(--md-sys-color-primary); border-radius: 1px;
-}
 
 .feat-order {
   width: 28px; height: 28px; border-radius: 50%;

@@ -8,7 +8,7 @@
       v-for="(item, idx) in displayList"
       :key="item.feature.id"
       class="feature-row"
-      :class="{ enabled: item.enabled, dragging: fromIndex === idx, 'drag-over': toIndex === idx && item.enabled }"
+      :class="{ enabled: item.enabled, dragging: fromIndex === idx }"
       :style="itemStyle(idx)"
       @pointerdown="item.enabled && start($event, idx)"
     >
@@ -58,7 +58,7 @@ const displayList = computed(() => {
 
 const listEl = ref<HTMLElement>()
 
-const { fromIndex, toIndex, itemStyle, start } = useDragSort({
+const { fromIndex, itemStyle, start } = useDragSort({
   containerRef: listEl,
   itemSelector: '.feature-row',
   onEnd(from, to) {
