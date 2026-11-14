@@ -48,8 +48,8 @@ function titles(root: Node): unknown[] {
   return [root.props.title, ...root.children.flatMap(titles)].filter(Boolean)
 }
 
-it('shows developer entries only while the target enables developer mode', async () => {
-  fixture.target = reactive({ app: { developerMode: false } })
+it('shows database and prefs for debug targets and keeps release developer visibility', async () => {
+  fixture.target = reactive({ app: { developerMode: false, debug: false } })
   const app = renderer.createApp(SettingsSidebar)
   app.component('LeftSidebar', { setup: (_, { slots }) => () => h('aside', slots.body?.()) })
   app.component('SidebarListItem', { props: ['title', 'active'], setup: props => () => h('li', { title: props.title }) })
@@ -58,15 +58,17 @@ it('shows developer entries only while the target enables developer mode', async
   const root = node()
   app.mount(root)
   try {
-    for (const enabled of [false, true, false]) {
+    for (const [enabled, debug] of [[false, false], [false, true], [true, false], [false, false]]) {
       fixture.target.app.developerMode = enabled
+      fixture.target.app.debug = debug
       await nextTick()
       const visible = titles(root)
       expect(visible).toContain('device_info')
       expect(visible).toContain('events')
-      for (const entry of ['developer.prefs', 'developer.database', 'developer.logs']) {
-        expect(visible.includes(entry)).toBe(enabled)
+      for (const entry of ['developer.prefs', 'developer.database']) {
+        expect(visible.includes(entry)).toBe(enabled || debug)
       }
+      expect(visible.includes('developer.logs')).toBe(enabled)
     }
   } finally { app.unmount() }
 })

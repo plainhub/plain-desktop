@@ -349,7 +349,7 @@ router.beforeEach(async (to, from) => {
     }
   }
 
-  if (to.meta.requiresDeveloperMode && useTempStore().app?.clientId && !useTempStore().app.developerMode) {
+  if (to.meta.requiresDeveloperMode && useTempStore().app?.clientId && !useTempStore().app.developerMode && !useTempStore().app.debug) {
     return { path: '/settings/device-info' }
   }
 

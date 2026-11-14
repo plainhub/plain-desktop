@@ -22,7 +22,7 @@ import PairingRequestModal from '@/views/chat/PairingRequestModal.vue'
 import { DataType } from '@/lib/data'
 import { subscribeMediaLibraryUpdates } from '@/lib/media/library-updates'
 import { useRemotePrefs } from '@/hooks/remote-prefs'
-import { getImageSortItems } from '@/lib/file'
+import { getImageSortItems, getSortItems } from '@/lib/file'
 
 export function useMainView() {
   const store = useMainStore()
@@ -77,7 +77,7 @@ export function useMainView() {
         urlTokenKey.value = tokenToKey(newToken)
         if (oldToken !== newToken) window.fileIdMap = new Map<string, string>()
         app.value = data.app
-        if (!data.app.developerMode && router.currentRoute.value.meta.requiresDeveloperMode) {
+        if (!data.app.developerMode && !data.app.debug && router.currentRoute.value.meta.requiresDeveloperMode) {
           void router.replace('/settings/device-info')
         }
       }
@@ -137,6 +137,15 @@ export function useMainView() {
     const { chatTexts, searchHistory, ...uiState } = localState
     if (uiState.imageSortBy !== 'TAKEN_AT_DESC' && !getImageSortItems().some(item => item.value === uiState.imageSortBy)) {
       delete uiState.imageSortBy
+    }
+    if (uiState.videoSortBy !== 'TAKEN_AT_DESC' && !getSortItems().some(item => item.value === uiState.videoSortBy)) {
+      delete uiState.videoSortBy
+    }
+    if (!getSortItems('title').some(item => item.value === uiState.audioSortBy)) {
+      delete uiState.audioSortBy
+    }
+    if (!getSortItems().some(item => item.value === uiState.docSortBy)) {
+      delete uiState.docSortBy
     }
     store.$state = { ...store.$state, ...uiState }
   }

@@ -10,12 +10,12 @@
             <i-lucide:smartphone />
           </template>
         </SidebarListItem>
-        <SidebarListItem v-if="tempStore.app?.developerMode" :title="$t('developer.prefs')" :active="activeSection === 'prefs'" @click="navigate('/settings/prefs')">
+        <SidebarListItem v-if="tempStore.app?.debug || tempStore.app?.developerMode" :title="$t('developer.prefs')" :active="activeSection === 'prefs'" @click="navigate('/settings/prefs')">
           <template #start>
             <i-lucide:archive />
           </template>
         </SidebarListItem>
-        <SidebarListItem v-if="tempStore.app?.developerMode" :title="$t('developer.database')" :active="activeSection === 'database'" @click="navigate('/settings/database')">
+        <SidebarListItem v-if="tempStore.app?.debug || tempStore.app?.developerMode" :title="$t('developer.database')" :active="activeSection === 'database'" @click="navigate('/settings/database')">
           <template #start>
             <i-lucide:database />
           </template>

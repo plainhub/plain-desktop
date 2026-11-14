@@ -1,15 +1,15 @@
 import { afterEach, expect, it, vi } from 'vitest'
 import { createRenderer, nextTick, reactive, ref } from 'vue'
 
-const fixture = vi.hoisted(() => ({ store: null as any, remote: null as any }))
+const fixture = vi.hoisted(() => ({ store: null as any, remote: null as any, handle: null as any, replace: vi.fn(), requiresDeveloperMode: false }))
 vi.mock('@/stores/main', () => ({ useMainStore: () => fixture.store }))
 vi.mock('@/stores/temp', () => ({ useTempStore: () => ({ app: ref(null), urlTokenKey: ref(null) }) }))
 vi.mock('pinia', () => ({ storeToRefs: (store: unknown) => store }))
-vi.mock('vue-router', () => ({ useRouter: () => ({ currentRoute: ref({ fullPath: '/', path: '/', query: {}, matched: [] }) }) }))
+vi.mock('vue-router', () => ({ useRouter: () => ({ currentRoute: ref({ fullPath: '/', path: '/', query: {}, matched: [], meta: { requiresDeveloperMode: fixture.requiresDeveloperMode } }), replace: fixture.replace }) }))
 vi.mock('@/lib/device/local-mode', () => ({ isLocalMode: () => false }))
 vi.mock('@/lib/api/api', () => ({ setUrlToken: vi.fn() }))
 vi.mock('@/lib/api/subscription-client', () => ({ graphqlSubscriptions: { subscribe: () => vi.fn() } }))
-vi.mock('@/lib/api/query', () => ({ appGQL: '', initQuery: () => ({ refetch: vi.fn() }) }))
+vi.mock('@/lib/api/query', () => ({ appGQL: '', initQuery: (options: any) => { fixture.handle = options.handle; return { refetch: vi.fn() } } }))
 vi.mock('@/lib/api/file', () => ({ tokenToKey: vi.fn() }))
 vi.mock('@/plugins/eventbus', () => ({ default: { on: vi.fn(), off: vi.fn() } }))
 vi.mock('@/hooks/sidebar', () => ({ useRightSidebarResize: () => ({ resizeWidth: 0 }) }))
@@ -22,7 +22,7 @@ vi.mock('@/lib/media/library-updates', () => ({ subscribeMediaLibraryUpdates: ()
 vi.mock('@/hooks/remote-prefs', () => ({ useRemotePrefs: () => fixture.remote }))
 import { useMainView } from '@/hooks/main-view'
 
-afterEach(() => { vi.useRealTimers(); vi.unstubAllGlobals() })
+afterEach(() => { vi.useRealTimers(); vi.unstubAllGlobals(); fixture.requiresDeveloperMode = false; fixture.replace.mockClear() })
 
 it.each([false, true])('saves the latest view and sort synchronously on pagehide with remote prefs %s', async remote => {
   vi.useFakeTimers()
@@ -50,19 +50,43 @@ it.each([false, true])('saves the latest view and sort synchronously on pagehide
 })
 
 it.each([
-  ...['DATE_DESC', 'DATE_ASC', 'TITLE_ASC', 1, null].map(value => [value, 'UPDATED_AT_DESC']),
-  ...['UPDATED_AT_ASC', 'UPDATED_AT_DESC', 'SIZE_ASC', 'SIZE_DESC', 'NAME_ASC', 'NAME_DESC', 'TAKEN_AT_DESC'].map(value => [value, value]),
-])('restores persisted image sort %s as %s before queries can use it', async (imageSortBy, expected) => {
-  const values = new Map([['main_state:test', JSON.stringify({ imageSortBy, imagesCardView: true })]])
+  ...['imageSortBy', 'videoSortBy', 'docSortBy'].flatMap(field => [
+    ...['DATE_DESC', 'DATE_ASC', 'TITLE_ASC', 1, null, ...(field === 'docSortBy' ? ['TAKEN_AT_DESC'] : [])].map(value => [field, value, 'UPDATED_AT_DESC']),
+    ...['UPDATED_AT_ASC', 'UPDATED_AT_DESC', 'SIZE_ASC', 'SIZE_DESC', 'NAME_ASC', 'NAME_DESC', ...(field === 'docSortBy' ? [] : ['TAKEN_AT_DESC'])].map(value => [field, value, value]),
+  ]),
+  ...['DATE_DESC', 'DATE_ASC', 'NAME_ASC', 'TAKEN_AT_DESC', 1, null].map(value => ['audioSortBy', value, 'UPDATED_AT_DESC']),
+  ...['UPDATED_AT_ASC', 'UPDATED_AT_DESC', 'SIZE_ASC', 'SIZE_DESC', 'TITLE_ASC', 'TITLE_DESC'].map(value => ['audioSortBy', value, value]),
+])('restores persisted %s value %s as %s before queries can use it', async (field, stored, expected) => {
+  const values = new Map([['main_state:test', JSON.stringify({ [field as string]: stored, imagesCardView: true })]])
   vi.stubGlobal('window', new EventTarget())
   vi.stubGlobal('localStorage', { getItem: (key: string) => values.get(key) ?? null, setItem: (key: string, value: string) => values.set(key, value) })
-  fixture.store = { $state: reactive({ imageSortBy: 'UPDATED_AT_DESC', imagesCardView: false }) }
+  fixture.store = { $state: reactive({ [field as string]: 'UPDATED_AT_DESC', imagesCardView: false }) }
   fixture.remote = ref(false)
   const renderer = createRenderer<any, any>({ insert: vi.fn(), remove: vi.fn(), createElement: () => ({}), createText: () => ({}), createComment: () => ({}), setText: vi.fn(), setElementText: vi.fn(), parentNode: () => null, nextSibling: () => null, patchProp: vi.fn() })
   const app = renderer.createApp({ setup() { useMainView(); return () => null } })
   app.mount({})
   try {
-    expect(fixture.store.$state.imageSortBy).toBe(expected)
+    expect(fixture.store.$state[field as string]).toBe(expected)
+    window.dispatchEvent(new Event('pagehide'))
+    expect(JSON.parse(values.get('main_state:test')!)[field as string]).toBe(expected)
     expect(fixture.store.$state.imagesCardView).toBe(true)
   } finally { app.unmount() }
 })
+
+it.each([[true, false, false], [false, true, false], [false, false, true]])(
+  'keeps a developer page for debug=%s developerMode=%s; redirect=%s',
+  (debug, developerMode, redirect) => {
+    vi.stubGlobal('window', new EventTarget())
+    vi.stubGlobal('localStorage', { getItem: () => null, setItem: vi.fn() })
+    fixture.store = { $state: reactive({}) }
+    fixture.remote = ref(false)
+    fixture.requiresDeveloperMode = true
+    const renderer = createRenderer<any, any>({ insert: vi.fn(), remove: vi.fn(), createElement: () => ({}), createText: () => ({}), createComment: () => ({}), setText: vi.fn(), setElementText: vi.fn(), parentNode: () => null, nextSibling: () => null, patchProp: vi.fn() })
+    const app = renderer.createApp({ setup() { useMainView(); return () => null } })
+    app.mount({})
+    try {
+      fixture.handle({ app: { debug, developerMode, urlToken: 'fixture-token' } }, '')
+      expect(fixture.replace.mock.calls).toEqual(redirect ? [['/settings/device-info']] : [])
+    } finally { app.unmount() }
+  },
+)
