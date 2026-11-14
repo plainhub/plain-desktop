@@ -90,7 +90,7 @@ export async function bootstrapScreenCapture(): Promise<void> {
     throw new Error('screen capture overlay window identity does not match its generation')
   }
   const messages = captureMessagesForLanguages(navigator.languages.length ? navigator.languages : [navigator.language])
-  const [{ invoke }, { listen }] = await Promise.all([import('@tauri-apps/api/core'), import('@tauri-apps/api/event')])
+  const [{ invoke }, { listen }] = await Promise.all([import('@/lib/api/native-invoke'), import('@tauri-apps/api/event')])
   const tauriCaptureInvoke: CaptureInvoke = (command, args, options) => invoke(command, args, options)
   const tauriCaptureListen: CaptureListen = <T = CaptureFrameAvailable>(event: string, handler: (event: { payload: T }) => void | Promise<void>) =>
     listenToCaptureWindow<T>(listen, overlayWindowLabel, event, handler).then((unlisten: UnlistenFn) => unlisten)

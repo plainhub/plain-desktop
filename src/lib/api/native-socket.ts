@@ -1,4 +1,4 @@
-import { invoke } from '@tauri-apps/api/core'
+import { invoke, onNativeReload } from '@/lib/api/native-invoke'
 import { isLocalMode } from '@/lib/device/local-mode'
 import { getRemoteClientId } from '@/lib/device/client-id'
 import { nativeViewScope, type NativeTarget } from './native-client'
@@ -37,11 +37,13 @@ export function openNativeSocket(kind: NativeSocketKind, callbacks: SocketCallba
     },
     close() {
       if (!active) return
+      stopReload()
       active = false
       ready = false
       if (handle !== undefined) void invoke('native_socket_close', { scope, handle }).catch(console.error)
     },
   }
+  const stopReload = onNativeReload(connection.close)
   function fail(error: unknown) {
     if (!active) return
     connection.close()

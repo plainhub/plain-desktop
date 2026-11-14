@@ -1,7 +1,7 @@
 import type { AccessFeature } from '@/lib/interfaces'
 import { isLocalMode } from '@/lib/device/local-mode'
 import { computed, ref } from 'vue'
-import { Channel, invoke } from '@tauri-apps/api/core'
+import { Channel, invoke } from '@/lib/api/native-invoke'
 import { storeToRefs } from 'pinia'
 import emitter from '@/plugins/eventbus'
 import type { INotification } from '@/lib/interfaces'

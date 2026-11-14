@@ -16,7 +16,7 @@ import { managedFileUrl } from '@/lib/api/managed-proxy'
 import { isLocalMode } from '@/lib/device/local-mode'
 import { getCurrentAuthToken } from '@/lib/device/current'
 import { getUrlToken } from '@/lib/api/api'
-import { invoke } from '@tauri-apps/api/core'
+import { invoke } from '@/lib/api/native-invoke'
 
 const isTauri = __IS_TAURI__
 

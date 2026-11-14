@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, expect, it, vi } from 'vitest'
 import { openNative, openSubscriptionConnection } from '@/lib/api/subscription-connection'
+import { installNativeReload } from '@/lib/api/native-invoke'
 import { SubscriptionClient } from '@/lib/api/subscription-client'
 
 const mock = vi.hoisted(() => ({ local: true, remote: 'remote', invoke: vi.fn(), scope: vi.fn(), socket: { close: vi.fn() }, openSocket: vi.fn() }))
@@ -30,6 +31,7 @@ beforeEach(() => {
   mock.openSocket.mockReturnValue(mock.socket)
 })
 afterEach(() => { vi.useRealTimers(); vi.unstubAllGlobals() })
+
 
 it.each([undefined, 'third-peer'])('preserves browser encrypted subscription routing for proxy target %s', (peerId) => {
   vi.stubGlobal('__IS_TAURI__', false)
@@ -165,4 +167,24 @@ it('keeps an explicitly local discovery client on this computer while a remote p
   read.resolve('{}')
   await Promise.resolve()
   expect(mock.invoke).toHaveBeenCalledWith('native_subscription_close', { handle: 7 })
+})
+
+it('closes the active reader before a full document reload without reporting a dropped connection', async () => {
+  const window = Object.assign(new EventTarget(), { location: { reload: vi.fn() } })
+  vi.stubGlobal('window', window)
+  installNativeReload()
+  let rejectRead!: (error: Error) => void
+  mock.invoke.mockImplementation(command => {
+    if (command === 'native_subscription_open') return Promise.resolve(7)
+    if (command === 'native_subscription_read') return new Promise((_, reject) => { rejectRead = reject })
+    if (command === 'native_subscription_close') rejectRead(new Error('Subscription session closed'))
+    return Promise.resolve()
+  })
+  const events = callbacks()
+  openSubscriptionConnection(events)
+  await vi.waitFor(() => expect(mock.invoke).toHaveBeenCalledWith('native_subscription_read', { handle: 7 }))
+  window.dispatchEvent(new Event('native-reload'))
+  expect(mock.invoke).toHaveBeenCalledWith('native_subscription_close', { handle: 7 })
+  await vi.waitFor(() => expect(window.location.reload).toHaveBeenCalledTimes(1))
+  expect(events.dropped).not.toHaveBeenCalled()
 })

@@ -38,6 +38,20 @@ pub fn run() {
     };
     let builder = crate::native_resource_protocol::with_native_resource_protocol(builder);
     let app = builder
+        .plugin(tauri::plugin::Builder::<_, ()>::new("native-views")
+            .on_navigation(|webview, url| {
+                if webview.url().is_ok_and(|current| current == *url)
+                    && webview.state::<crate::commands::native::views::NativeViews>().defer_reload(webview.label())
+                {
+                    if let Err(error) = webview.eval("window.dispatchEvent(new Event('native-reload'))") {
+                        log::error!("Native reload dispatch failed: {error}");
+                    }
+                    return false;
+                }
+                crate::commands::native::views::page_changed(webview.app_handle(), webview.label(), true);
+                true
+            })
+            .build())
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_notification::init())
         .plugin(tauri_plugin_dialog::init())
@@ -189,7 +203,6 @@ pub fn run() {
                     .flatten();
             let result = match payload.event() {
                 tauri::webview::PageLoadEvent::Started => {
-                    crate::commands::native::views::page_changed(&app, webview.label(), true);
                     if crate::commands::screen_capture::runtime::is_overlay_window_label(webview.label()) {
                         log::info!(
                             "screen capture overlay page load started generation={overlay_generation:?}"
@@ -316,6 +329,7 @@ pub fn run() {
             crate::commands::screen_capture::commands::screen_capture_cancel,
             crate::commands::screen_capture::commands::screen_capture_unavailable,
             crate::commands::native::graphql::native_view_scope,
+            crate::commands::native::views::native_reload_ready,
             crate::commands::native::graphql::native_graphql,
             crate::commands::native::graphql::native_subscription_open,
             crate::commands::native::graphql::native_subscription_send,

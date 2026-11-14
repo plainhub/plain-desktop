@@ -1,4 +1,4 @@
-import { invoke } from '@tauri-apps/api/core'
+import { invoke } from '@/lib/api/native-invoke'
 import { nativeGraphql } from '@/lib/api/native-client'
 
 export async function resolveLocalFilePath(reference: string): Promise<string> {

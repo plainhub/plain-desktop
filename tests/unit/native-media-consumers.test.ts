@@ -19,6 +19,7 @@ const source = (src: string, path = 'fid:owned-image'): ISource => ({
 
 beforeEach(() => {
   vi.resetAllMocks()
+  fixture.invoke.mockResolvedValue(undefined)
   fixture.remote.mockReturnValue('other-device')
   fixture.reference.mockReturnValue({ path: 'fid:owned-image', target: { kind: 'local' } })
   vi.stubGlobal('__IS_TAURI__', true)

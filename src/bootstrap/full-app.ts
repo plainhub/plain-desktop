@@ -67,7 +67,7 @@ export async function bootstrapFullApp(): Promise<void> {
   // inside it) out of the user's first click.
   if (__IS_TAURI__) {
     setTimeout(() => {
-      import('@tauri-apps/api/core').then(({ invoke }) => {
+      import('@/lib/api/native-invoke').then(({ invoke }) => {
         invoke('media_preview_init').catch((e) => {
           console.warn('media_preview_init failed', e)
         })

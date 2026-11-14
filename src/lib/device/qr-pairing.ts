@@ -1,5 +1,5 @@
 import { DeviceType } from '@/lib/status'
-import { invoke } from '@tauri-apps/api/core'
+import { invoke } from '@/lib/api/native-invoke'
 import { isLocalMode } from '@/lib/device/local-mode'
 import { qrCodeSvg } from '@/lib/qr'
 

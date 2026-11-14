@@ -1,4 +1,4 @@
-import { Channel, invoke } from '@tauri-apps/api/core'
+import { Channel, invoke } from '@/lib/api/native-invoke'
 
 export interface WebLoginRequest {
   requestId: string

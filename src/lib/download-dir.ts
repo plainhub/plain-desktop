@@ -1,6 +1,6 @@
 import { getProxyUrl } from '@/lib/api/api'
 import { nativeGraphql, nativeViewScope, type NativeTarget } from '@/lib/api/native-client'
-import { invoke } from '@tauri-apps/api/core'
+import { invoke } from '@/lib/api/native-invoke'
 import { isNativeResourceUrl, nativeResourceReference } from '@/hooks/native-resource-url'
 
 export function joinPath(dir: string, name: string): string {

@@ -1,5 +1,5 @@
 import { nativeGraphql } from '@/lib/api/native-client'
-import { invoke } from '@tauri-apps/api/core'
+import { invoke } from '@/lib/api/native-invoke'
 import { httpRequest } from '@/lib/api/http'
 
 export interface LocalServer {

@@ -1,6 +1,6 @@
 import { isLocalMode } from '@/lib/device/local-mode'
 import { ref, watch } from 'vue'
-import { Channel, invoke } from '@tauri-apps/api/core'
+import { Channel, invoke } from '@/lib/api/native-invoke'
 import type { IClipboardItem } from '@/lib/interfaces'
 import { DeviceType } from '@/lib/status'
 import { clipboardItemFragment } from '@/lib/api/fragments'

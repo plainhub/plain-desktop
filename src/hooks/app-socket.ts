@@ -76,7 +76,7 @@ export function useAppSocket() {
     }
     if (__IS_TAURI__) {
       void (async () => {
-        const { Channel, invoke } = await import('@tauri-apps/api/core')
+        const { Channel, invoke } = await import('@/lib/api/native-invoke')
         const apply = (ports: { httpPort: number; httpsPort: number }) => {
           setLocalServerPort(ports.httpPort)
           setLocalServerHttpsPort(ports.httpsPort)

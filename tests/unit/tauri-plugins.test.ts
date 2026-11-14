@@ -2,7 +2,7 @@ import { afterEach, expect, it, vi } from 'vitest'
 import { invoke } from '@tauri-apps/api/core'
 import { isPermissionGranted, open, openUrl, requestPermission, revealItemInDir, save } from '@/lib/tauri-plugins'
 
-vi.mock('@tauri-apps/api/core', () => ({ invoke: vi.fn() }))
+vi.mock('@tauri-apps/api/core', () => ({ invoke: vi.fn().mockResolvedValue(undefined) }))
 
 afterEach(() => {
   vi.resetAllMocks()

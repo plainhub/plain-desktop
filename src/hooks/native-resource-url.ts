@@ -1,5 +1,5 @@
 import { isLocalMode } from '@/lib/device/local-mode'
-import { invoke } from '@tauri-apps/api/core'
+import { invoke } from '@/lib/api/native-invoke'
 import { nativeViewScope, type NativeTarget } from '@/lib/api/native-client'
 import { getRemoteClientId } from '@/lib/device/client-id'
 import { getLoginPeerRevision } from '@/lib/device/login-peers'

@@ -1,5 +1,5 @@
 // IPC from Tauri plugins-workspace a2364a5f216324439feedeb25b2db74e7b1eba90 (tauri-plugins.LICENSE).
-import { invoke } from '@tauri-apps/api/core'
+import { invoke } from '@/lib/api/native-invoke'
 
 export function open(options: { multiple: true; filters: { name: string; extensions: string[] }[] }): Promise<string | string[] | null> {
   return invoke('plugin:dialog|open', { options: Object.freeze(options) })

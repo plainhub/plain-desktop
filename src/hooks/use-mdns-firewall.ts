@@ -1,5 +1,5 @@
 import { ref } from 'vue'
-import { invoke } from '@tauri-apps/api/core'
+import { invoke } from '@/lib/api/native-invoke'
 import { isWindowsPlatform } from '@/lib/platform'
 
 export type MdnsFirewallState = 'idle' | 'ok' | 'blocked' | 'fixing' | 'fixed' | 'failed'

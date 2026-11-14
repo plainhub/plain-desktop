@@ -30,3 +30,16 @@ fn a_queued_old_document_request_cannot_use_a_reloaded_or_other_view_scope() {
     views.replace("main", false);
     assert!(views.existing_scope("main", fresh.id()).is_err());
 }
+
+#[test]
+fn a_reload_waits_for_the_document_and_consumes_its_ready_signal_once() {
+    let views = NativeViews::default();
+    assert!(!views.defer_reload("main"));
+    views.scope("main");
+    assert!(views.defer_reload("main"));
+    views.reload_ready.lock().unwrap().insert("main".into());
+    assert!(!views.defer_reload("main"));
+    assert!(views.defer_reload("main"));
+    views.scope("preview");
+    assert!(views.defer_reload("preview"));
+}

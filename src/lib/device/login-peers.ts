@@ -1,4 +1,4 @@
-import { invoke } from '@tauri-apps/api/core'
+import { invoke } from '@/lib/api/native-invoke'
 import { listen } from '@tauri-apps/api/event'
 import { reactive, ref } from 'vue'
 import { nativeGraphql } from '@/lib/api/native-client'

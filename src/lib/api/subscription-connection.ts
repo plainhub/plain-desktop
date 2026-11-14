@@ -1,5 +1,5 @@
 import { isLocalMode } from '@/lib/device/local-mode'
-import { invoke } from '@tauri-apps/api/core'
+import { invoke, onNativeReload } from '@/lib/api/native-invoke'
 import { getWebSocketBaseUrl } from './api'
 import { getCurrentAuthToken } from '@/lib/device/current'
 import { getRemoteClientId, getDesktopClientId } from '@/lib/device/client-id'
@@ -98,11 +98,13 @@ export function openNative(callbacks: SubscriptionCallbacks, target: NativeTarge
       writes = writes.then(() => active ? invoke<void>('native_subscription_send', { handle: opened, message: JSON.stringify(message) }) : undefined).catch(fail)
     },
     close() {
+      stopReload()
       active = false
       if (handle !== undefined) void invoke('native_subscription_close', { handle }).catch(console.error)
       handle = undefined
     },
   }
+  const stopReload = onNativeReload(connection.close)
   function fail(error: unknown) { if (active) { connection.close(); callbacks.dropped(error) } }
   void (async () => {
     const scope = await nativeViewScope()

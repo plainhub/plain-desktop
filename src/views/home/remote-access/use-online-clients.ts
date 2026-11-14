@@ -1,5 +1,5 @@
 import { onUnmounted, ref } from 'vue'
-import { Channel, invoke } from '@tauri-apps/api/core'
+import { Channel, invoke } from '@/lib/api/native-invoke'
 
 export function useOnlineClients() {
   const count = ref<number | null>(null)

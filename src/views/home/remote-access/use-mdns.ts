@@ -1,5 +1,5 @@
 import { isLocalMode } from '@/lib/device/local-mode'
-import { invoke } from '@tauri-apps/api/core'
+import { invoke } from '@/lib/api/native-invoke'
 import { ref } from 'vue'
 import { gqlFetch } from '@/lib/api/gql-client'
 import toast from '@/components/toaster'

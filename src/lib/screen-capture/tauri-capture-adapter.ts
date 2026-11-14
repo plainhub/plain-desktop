@@ -42,7 +42,7 @@ export function isRegularCaptureWindowLabel(label: string): boolean {
 }
 
 async function invokeCaptureErrorReport(detail: string): Promise<void> {
-  const [{ invoke }, { getCurrentWindow }] = await Promise.all([import('@tauri-apps/api/core'), import('@tauri-apps/api/window')])
+  const [{ invoke }, { getCurrentWindow }] = await Promise.all([import('@/lib/api/native-invoke'), import('@tauri-apps/api/window')])
   if (!isRegularCaptureWindowLabel(getCurrentWindow().label)) return
   await invoke('screen_capture_report_client_error', { detail: detail.slice(0, 1024) })
 }
@@ -137,7 +137,7 @@ export function createChatCaptureTarget(client: CaptureClient, consume: ChatCapt
 
 /** Load and install the per-webview client without any eager Tauri imports. */
 export async function getTauriCaptureClient(onError: (error: CaptureClientError) => void): Promise<CaptureClient> {
-  const [{ invoke }, { listen }, { getCurrentWindow }] = await Promise.all([import('@tauri-apps/api/core'), import('@tauri-apps/api/event'), import('@tauri-apps/api/window')])
+  const [{ invoke }, { listen }, { getCurrentWindow }] = await Promise.all([import('@/lib/api/native-invoke'), import('@tauri-apps/api/event'), import('@tauri-apps/api/window')])
   const windowLabel = getCurrentWindow().label
   if (!isRegularCaptureWindowLabel(windowLabel)) {
     throw new CaptureClientError('target_unavailable', 'screen capture is unavailable in utility windows')

@@ -1,4 +1,4 @@
-import { invoke } from '@tauri-apps/api/core'
+import { invoke } from '@/lib/api/native-invoke'
 import type { ISource } from '@/components/lightbox/types'
 import { getRemoteClientId } from '@/lib/device/client-id'
 import { isNativeResourceUrl, nativeResourceReference } from '@/hooks/native-resource-url'

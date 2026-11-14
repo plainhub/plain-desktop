@@ -1,7 +1,7 @@
 use plain_rs::infrastructure::host::request_scope::NativeRequestScope;
 use plain_server::server::ContentServer;
 use std::{
-    collections::HashMap,
+    collections::{HashMap, HashSet},
     sync::{Arc, Mutex},
 };
 use tauri::Manager;
@@ -9,9 +9,14 @@ use tauri::Manager;
 #[derive(Default)]
 pub struct NativeViews {
     scopes: Mutex<HashMap<String, NativeRequestScope>>,
+    reload_ready: Mutex<HashSet<String>>,
 }
 
 impl NativeViews {
+    pub fn defer_reload(&self, label: &str) -> bool {
+        self.scopes.lock().unwrap().contains_key(label)
+            && !self.reload_ready.lock().unwrap().remove(label)
+    }
     pub fn scope(&self, label: &str) -> NativeRequestScope {
         self.scopes
             .lock()
@@ -33,6 +38,7 @@ impl NativeViews {
 
     fn replace(&self, label: &str, reset: bool) -> Option<NativeRequestScope> {
         let mut scopes = self.scopes.lock().unwrap();
+        self.reload_ready.lock().unwrap().remove(label);
         let previous = scopes.remove(label);
         if let Some(scope) = &previous {
             scope.close();
@@ -42,6 +48,11 @@ impl NativeViews {
         }
         previous
     }
+}
+
+#[tauri::command]
+pub fn native_reload_ready(window: tauri::WebviewWindow, views: tauri::State<'_, NativeViews>) {
+    views.reload_ready.lock().unwrap().insert(window.label().into());
 }
 
 pub fn page_changed<R: tauri::Runtime>(app: &tauri::AppHandle<R>, label: &str, reset: bool) {
