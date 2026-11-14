@@ -7,7 +7,7 @@ import { compileScript, compileTemplate, parse } from 'vue/compiler-sfc'
 const mock = vi.hoisted(() => ({ init: vi.fn(), startPairing: vi.fn(), requestInit: vi.fn(), push: vi.fn() }))
 vi.mock('@/plugins/router', () => ({ default: { push: mock.push, currentRoute: { value: { query: {} } } } }))
 vi.mock('@/lib/api/init', () => ({ requestInit: mock.requestInit }))
-vi.mock('@/lib/api/api', () => ({ getApiHost: () => 'device.example', setPendingLoginDevice: vi.fn() }))
+vi.mock('@/lib/api/api', () => ({ getApiHost: () => 'device.example', getApiBaseUrl: () => 'http://device.example', setPendingLoginDevice: vi.fn() }))
 vi.mock('@/components/AuthShell.vue', () => ({ default: { setup: (_: unknown, { slots }: any) => () => slots.default?.() } }))
 vi.mock('@/views/login/LoginForm.vue', () => ({
   default: { setup(_: unknown, { expose }: any) { expose({ init: mock.init, startPairing: mock.startPairing }); return () => null } },
