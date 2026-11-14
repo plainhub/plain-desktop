@@ -22,6 +22,7 @@ import PairingRequestModal from '@/views/chat/PairingRequestModal.vue'
 import { DataType } from '@/lib/data'
 import { subscribeMediaLibraryUpdates } from '@/lib/media/library-updates'
 import { useRemotePrefs } from '@/hooks/remote-prefs'
+import { getImageSortItems } from '@/lib/file'
 
 export function useMainView() {
   const store = useMainStore()
@@ -134,6 +135,9 @@ export function useMainView() {
   const localState = prefsGet<Record<string, unknown> | null>(getMainStateKey(), null)
   if (localState) {
     const { chatTexts, searchHistory, ...uiState } = localState
+    if (uiState.imageSortBy !== 'TAKEN_AT_DESC' && !getImageSortItems().some(item => item.value === uiState.imageSortBy)) {
+      delete uiState.imageSortBy
+    }
     store.$state = { ...store.$state, ...uiState }
   }
 

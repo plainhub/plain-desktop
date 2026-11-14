@@ -48,3 +48,21 @@ it.each([false, true])('saves the latest view and sort synchronously on pagehide
   window.dispatchEvent(new Event('pagehide'))
   expect(values.size).toBe(0)
 })
+
+it.each([
+  ...['DATE_DESC', 'DATE_ASC', 'TITLE_ASC', 1, null].map(value => [value, 'UPDATED_AT_DESC']),
+  ...['UPDATED_AT_ASC', 'UPDATED_AT_DESC', 'SIZE_ASC', 'SIZE_DESC', 'NAME_ASC', 'NAME_DESC', 'TAKEN_AT_DESC'].map(value => [value, value]),
+])('restores persisted image sort %s as %s before queries can use it', async (imageSortBy, expected) => {
+  const values = new Map([['main_state:test', JSON.stringify({ imageSortBy, imagesCardView: true })]])
+  vi.stubGlobal('window', new EventTarget())
+  vi.stubGlobal('localStorage', { getItem: (key: string) => values.get(key) ?? null, setItem: (key: string, value: string) => values.set(key, value) })
+  fixture.store = { $state: reactive({ imageSortBy: 'UPDATED_AT_DESC', imagesCardView: false }) }
+  fixture.remote = ref(false)
+  const renderer = createRenderer<any, any>({ insert: vi.fn(), remove: vi.fn(), createElement: () => ({}), createText: () => ({}), createComment: () => ({}), setText: vi.fn(), setElementText: vi.fn(), parentNode: () => null, nextSibling: () => null, patchProp: vi.fn() })
+  const app = renderer.createApp({ setup() { useMainView(); return () => null } })
+  app.mount({})
+  try {
+    expect(fixture.store.$state.imageSortBy).toBe(expected)
+    expect(fixture.store.$state.imagesCardView).toBe(true)
+  } finally { app.unmount() }
+})
