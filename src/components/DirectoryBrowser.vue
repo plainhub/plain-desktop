@@ -1,10 +1,10 @@
 <template>
   <div class="browser">
-    <aside v-if="!volume" class="browser-sidebar">
-      <div v-if="loadingMounts" class="volumes-loading">
+    <aside v-if="!volume || recentItems.length" class="browser-sidebar">
+      <div v-if="!volume && loadingMounts" class="volumes-loading">
         <v-circular-progress indeterminate class="sm" />
       </div>
-      <ul v-else class="browser-volumes" :aria-label="t('volumes')">
+      <ul v-else-if="!volume" class="browser-volumes" :aria-label="t('volumes')">
         <v-list-item
           v-for="v in sortedVolumes"
           :key="v.id"
@@ -12,20 +12,42 @@
           role="button"
           tabindex="0"
           clickable
-          :title="getStorageVolumeTitle(v, t)"
+          :title="volumeTitle(v)"
           :subtitle="mountCount(v)"
-          :active="String(v.mountPoint || '') === activeRoot"
-          :aria-pressed="String(v.mountPoint || '') === activeRoot"
+          :active="directoryPathKey(v.mountPoint) === directoryPathKey(activeRoot)"
+          :aria-pressed="directoryPathKey(v.mountPoint) === directoryPathKey(activeRoot)"
           @click="emit('selectRoot', v.mountPoint || '/')"
           @keydown.enter.prevent="emit('selectRoot', v.mountPoint || '/')"
           @keydown.space.prevent="emit('selectRoot', v.mountPoint || '/')"
         >
           <template #start><i-lucide:hard-drive width="20" height="20" /></template>
-          <template v-if="String(v.mountPoint || '') === activeRoot" #end>
+          <template v-if="directoryPathKey(v.mountPoint) === directoryPathKey(activeRoot)" #end>
             <i-material-symbols:check-rounded width="16" height="16" />
           </template>
         </v-list-item>
       </ul>
+      <section v-if="recentItems.length" class="browser-recents">
+        <div class="subtle recent-heading">{{ t('recent_folders') }}</div>
+        <ul class="browser-volumes" :aria-label="t('recent_folders')">
+          <v-list-item
+            v-for="item in recentItems"
+            :key="item.path"
+            class="recent-item"
+            role="button"
+            tabindex="0"
+            clickable
+            :title="item.name"
+            :subtitle="item.parent"
+            :active="directoryPathKey(item.path) === directoryPathKey(currentDir)"
+            :aria-disabled="loadingMounts || undefined"
+            @click="selectRecent(item.path)"
+            @keydown.enter.prevent="selectRecent(item.path)"
+            @keydown.space.prevent="selectRecent(item.path)"
+          >
+            <template #start><i-material-symbols:folder-outline-rounded width="20" height="20" /></template>
+          </v-list-item>
+        </ul>
+      </section>
     </aside>
 
     <section class="browser-main">
@@ -74,7 +96,9 @@ import type { IStorageMount } from '@/lib/interfaces'
 import { getDirectoryBreadcrumbs, type IFile } from '@/lib/file'
 import VBreadcrumb from '@/components/base/VBreadcrumb.vue'
 import { getStorageVolumeTitle } from '@/lib/volumes'
-import { sortMounts, storageCountText } from '@/lib/storage'
+import { sortMounts } from '@/lib/storage'
+import { formatFileSize } from '@/lib/format'
+import { directoryPathKey, directoryWithinRoot, normalizeDirectoryPath } from '@/lib/directory-picker-path'
 import type { DirectoryPickerVolume } from '@/hooks/directory-picker'
 
 const { t } = useI18n()
@@ -88,30 +112,57 @@ const props = defineProps<{
   listing: boolean
   listingError?: string
   dirItems: Pick<IFile, 'path' | 'isSystem'>[]
+  recentDirs: string[]
   dirName: (path: string) => string
 }>()
 
 const emit = defineEmits<{
   (e: 'selectRoot', mountPoint: string): void
+  (e: 'selectRecent', path: string): void
   (e: 'enterDir', absPath: string): void
   (e: 'reload'): void
 }>()
 
 const selectableDirs = computed(() => props.dirItems.filter((directory) => !directory.isSystem))
 const sortedVolumes = computed(() => sortMounts(props.volumes))
+const recentItems = computed(() => props.recentDirs.flatMap(path => {
+  const normalized = normalizeDirectoryPath(path)
+  if (props.volume && !directoryWithinRoot(normalized, props.volume.mountPoint)) return []
+  const lastSlash = normalized.lastIndexOf('/')
+  const drive = /^[a-z]:\//i.test(normalized)
+  const parent = normalized.slice(0, Math.max(drive ? 3 : 1, lastSlash))
+  return [{ path: normalized, name: normalized.slice(lastSlash + 1) || normalized, parent: drive ? parent.replaceAll('/', '\\') : parent }]
+}))
+
+function selectRecent(path: string) {
+  if (!props.loadingMounts) emit('selectRecent', path)
+}
+
+function volumeTitle(volume: IStorageMount) {
+  const title = getStorageVolumeTitle(volume, t)
+  const root = normalizeDirectoryPath(volume.mountPoint)
+  if (!/^[a-z]:\/$/i.test(root)) return title
+  const drive = root.slice(0, 2)
+  if (title.toUpperCase() === drive || directoryPathKey(title) === directoryPathKey(root)) return drive
+  return `${title} (${drive})`
+}
+
 const breadcrumbs = computed(() => {
   let title: string
   if (props.volume) title = props.volume.name
   else {
-    const volume = props.volumes.find((v) => String(v.mountPoint || '') === props.activeRoot)
+    const volume = props.volumes.find((v) => directoryPathKey(v.mountPoint) === directoryPathKey(props.activeRoot))
     if (!volume) return [{ path: props.currentDir, name: props.activeRoot ? props.currentDir : '—' }]
-    title = getStorageVolumeTitle(volume, t)
+    title = volumeTitle(volume)
   }
   return getDirectoryBreadcrumbs(props.currentDir, props.activeRoot, title)
 })
 
 function mountCount(m: IStorageMount): string {
-  return storageCountText(Number(m.freeBytes || 0), Number(m.totalBytes || 0), t)
+  const total = Number(m.totalBytes || 0)
+  if (total <= 0) return ''
+  const size = (bytes: number) => formatFileSize(bytes, true, bytes >= 100e9 && bytes < 1e12 ? 0 : 1)
+  return t('storage_free_compact', { free: size(Number(m.freeBytes || 0)), total: size(total) })
 }
 </script>
 
@@ -144,19 +195,33 @@ function mountCount(m: IStorageMount): string {
 }
 
 .volume-item,
+.recent-item,
 .directory-item {
   gap: 8px;
   border-radius: var(--pl-shape-m);
 }
 
+.volume-item {
+  padding-inline: 8px;
+}
+
 .volume-item :deep(.body) {
   gap: 4px;
 }
-.volume-item :deep(.title),
+.browser-recents {
+  margin-top: 16px;
+}
+
+.browser-recents:first-child {
+  margin-top: 0;
+}
+
+.recent-heading {
+  padding: 0 16px 8px;
+}
+
 .volume-item :deep(.subtitle) {
-  display: block;
-  white-space: normal;
-  overflow-wrap: anywhere;
+  font-variant-numeric: tabular-nums;
 }
 
 .browser-sidebar {
@@ -206,9 +271,9 @@ function mountCount(m: IStorageMount): string {
   }
 
   .browser-sidebar {
-    width: 200px;
+    width: 224px;
     flex-shrink: 0;
-    max-height: none;
+    max-height: min(480px, 58vh);
   }
 
   .browser-main {

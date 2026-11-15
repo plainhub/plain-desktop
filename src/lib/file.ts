@@ -1,5 +1,6 @@
 import { getFileId, getFileName, getFileExtension, getFileUrl } from './api/file'
 import type { IData, IBreadcrumbItem } from './interfaces'
+import { directoryWithinRoot, normalizeDirectoryPath } from './directory-picker-path'
 
 export function fileNameError(name: string): string {
   return name === '.' || name === '..' || /[/\\]/.test(name) ? 'invalid_file_path' : ''
@@ -206,13 +207,16 @@ export function getDirFromPath(path: string) {
 }
 
 export function getDirectoryBreadcrumbs(path: string, rootPath: string, rootName: string): IBreadcrumbItem[] {
-  const items: IBreadcrumbItem[] = []
-  let current = path
-  while (current && current !== rootPath) {
-    items.unshift({ path: current, name: getFileName(current) })
-    current = getDirFromPath(current)
+  const root = normalizeDirectoryPath(rootPath)
+  const items = [{ path: root, name: rootName }]
+  if (!directoryWithinRoot(path, root)) return items
+
+  const segments = normalizeDirectoryPath(path).slice(root.length).split('/').filter(Boolean)
+  let current = root
+  for (const name of segments) {
+    current += (current.endsWith('/') ? '' : '/') + name
+    items.push({ path: current, name })
   }
-  items.unshift({ path: rootPath, name: rootName })
   return items
 }
 

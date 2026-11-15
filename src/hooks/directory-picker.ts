@@ -6,6 +6,7 @@ import type { IStorageMount } from '@/lib/interfaces'
 import type { IFile } from '@/lib/file'
 import { getFileName } from '@/lib/api/file'
 import { compareLocale } from '@/lib/array'
+import { directoryWithinRoot, normalizeDirectoryPath } from '@/lib/directory-picker-path'
 
 export type DirectoryPickerVolume = Pick<IStorageMount, 'mountPoint' | 'name'>
 
@@ -14,47 +15,38 @@ export function useDirectoryPicker(initialPath: string, volume?: DirectoryPicker
 
   const volumes = ref<IStorageMount[]>([])
   const loadingMounts = ref(!volume)
-  const rootPath = ref(volume?.mountPoint || '')
-  const relativePath = ref('')
+  const rootPath = ref(normalizeDirectoryPath(volume?.mountPoint ?? ''))
+  const selectedPath = ref('')
   const dirItems = ref<Pick<IFile, 'path' | 'isDir' | 'isSystem'>[]>([])
   const listingError = ref('')
 
-  const normalizedInitialPath = computed(() => {
-    const p = String(initialPath || '').trim()
-    return p ? p.replace(/\/+$/g, '') || '/' : ''
-  })
+  const firstPath = normalizeDirectoryPath(initialPath)
+  const currentDir = computed(() => selectedPath.value || rootPath.value || '/')
 
-  const currentDir = computed(() => {
-    const root = rootPath.value || '/'
-    const rel = (relativePath.value || '').replace(/^\/+/, '')
-    if (!rel) return root
-    if (root === '/') return `/${rel}`.replace(/\/+/g, '/').replace(/\/+$/g, '')
-    return `${root}/${rel}`.replace(/\/+/g, '/').replace(/\/+$/g, '')
-  })
-
-  function selectRoot(mountPoint: string) { rootPath.value = mountPoint || '/'; relativePath.value = '' }
+  function selectRoot(mountPoint: string) {
+    rootPath.value = normalizeDirectoryPath(mountPoint) || '/'
+    selectedPath.value = ''
+  }
 
   function selectDirectory(absPath: string) {
-    const dir = absPath.trim().replace(/\/+$/g, '') || '/'
+    const dir = normalizeDirectoryPath(absPath)
     let best = ''
     for (const candidate of volume ? [volume] : volumes.value) {
-      const mount = String(candidate.mountPoint || '').trim()
-      if (mount && (dir === mount || dir.startsWith(mount === '/' ? '/' : mount + '/')) && mount.length > best.length) best = mount
+      const mount = normalizeDirectoryPath(candidate.mountPoint || '')
+      if (mount.length > best.length && directoryWithinRoot(dir, mount)) best = mount
     }
     if (!best) { toast(t('invalid_file_path'), 'error'); return }
     rootPath.value = best
-    relativePath.value = normalizeRelativeFromAbs(dir)
+    selectedPath.value = dir
   }
 
-  function normalizeRelativeFromAbs(absPath: string) {
-    const root = rootPath.value || ''
-    if (!root) return ''
-    if (root === '/') return absPath.replace(/^\/+/, '')
-    if (!absPath.startsWith(root)) return ''
-    return absPath.slice(root.length).replace(/^\/+/, '')
+  function enterDir(absPath: string) {
+    if (!directoryWithinRoot(absPath, rootPath.value)) {
+      toast(t('invalid_file_path'), 'error')
+      return
+    }
+    selectedPath.value = normalizeDirectoryPath(absPath)
   }
-
-  function enterDir(absPath: string) { relativePath.value = normalizeRelativeFromAbs(absPath) }
 
   function dirName(path: string) { return getFileName(path) || path }
 
@@ -65,14 +57,16 @@ export function useDirectoryPicker(initialPath: string, volume?: DirectoryPicker
       loadingMounts.value = false
       listingError.value = error
       if (error) return
-      volumes.value = [...(data?.mounts ?? [])].sort((a, b) => {
+      volumes.value = (data?.mounts ?? []).map((item) => ({
+        ...item, mountPoint: normalizeDirectoryPath(item.mountPoint || ''),
+      })).sort((a, b) => {
         const am = String(a?.mountPoint ?? ''), bm = String(b?.mountPoint ?? '')
         if (am === '/') return -1; if (bm === '/') return 1
         return compareLocale(am, bm, { numeric: true })
       })
       if (!rootPath.value) {
         selectRoot(volumes.value[0]?.mountPoint || '/')
-        if (normalizedInitialPath.value) selectDirectory(normalizedInitialPath.value)
+        if (firstPath) selectDirectory(firstPath)
       }
     },
   })
@@ -83,7 +77,7 @@ export function useDirectoryPicker(initialPath: string, volume?: DirectoryPicker
     handle: (data, error) => {
       listingError.value = error
       if (error) { dirItems.value = []; return }
-      dirItems.value = (data?.files ?? []).filter((f) => f.isDir)
+      dirItems.value = (data?.files ?? []).filter((f) => f.isDir).map((f) => ({ ...f, path: normalizeDirectoryPath(f.path) }))
     },
   })
 
@@ -95,8 +89,8 @@ export function useDirectoryPicker(initialPath: string, volume?: DirectoryPicker
     return fetchMounts()
   }
 
-  if (volume && normalizedInitialPath.value) selectDirectory(normalizedInitialPath.value)
-  watch([rootPath, relativePath], () => { if (rootPath.value) void reload() }, { immediate: true })
+  if (volume && firstPath) selectDirectory(firstPath)
+  watch([rootPath, currentDir], () => { if (rootPath.value) void reload() }, { immediate: true })
 
   return { volumes, loadingMounts, rootPath, currentDir, listing, listingError, dirItems, selectRoot, selectDirectory, enterDir, dirName, reload }
 }

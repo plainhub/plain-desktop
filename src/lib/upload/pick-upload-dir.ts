@@ -1,21 +1,5 @@
 import { promptModal } from '@/components/modal'
 import DirectoryPickerModal from '@/components/DirectoryPickerModal.vue'
-import { readKeyValue, setKeyValue } from '@/lib/key-values'
-
-const RECENT_UPLOAD_DIRS_KEY = 'recent_save_dirs'
-const MAX_RECENT_UPLOAD_DIRS = 8
-
-export async function getRecentUploadDirs(): Promise<string[]> {
-  return (await readKeyValue<string[]>(RECENT_UPLOAD_DIRS_KEY, [])).filter(Boolean)
-}
-
-export async function addRecentUploadDir(dir: string): Promise<void> {
-  const v = dir.trim()
-  if (!v) return
-  const list = (await getRecentUploadDirs()).filter((d) => d !== v)
-  list.unshift(v)
-  await setKeyValue(RECENT_UPLOAD_DIRS_KEY, list.slice(0, MAX_RECENT_UPLOAD_DIRS))
-}
 
 export async function pickUploadDir(options: {
   title?: string
@@ -30,14 +14,12 @@ export async function pickUploadDir(options: {
     title: options.title,
     initialPath: saved || options.initialPath,
     modalId: options.modalId || 'directory-picker',
-    recentDirs: await getRecentUploadDirs(),
   })
 
   if (typeof selected !== 'string') return
   const v = selected.trim()
   if (!v) return
 
-  await addRecentUploadDir(v)
   options.setValue?.(v)
 
   return v

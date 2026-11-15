@@ -25,18 +25,19 @@ export function useMediaPageUpload(options: MediaPageUploadOptions) {
   const { uploads } = storeToRefs(tempStore)
   const { t } = useI18n()
 
-  const { input: fileInput, upload: uploadFiles, uploadChanged } = useFileUpload(uploads)
-  const { input: dirFileInput, upload: doUploadDir, uploadChanged: dirUploadChanged } = useFileUpload(uploads)
   const { dropping, fileDragEnter, fileDragLeave, dropFiles } = useDragDropUpload(uploads)
 
   const picker = {
-    title: t('change_save_location'),
+    title: t('save_location'),
     initialPath: '',
     modalId: options.uploadModalId,
     getValue: () => mainStore.uploadDirs[options.uploadStorageKey] ?? '',
     setValue: (v: string) => { mainStore.uploadDirs = { ...mainStore.uploadDirs, [options.uploadStorageKey]: v } },
   }
   const uploadTarget = createBucketUploadTarget({ filter: options.filter, buckets: options.buckets, picker })
+
+  const { input: fileInput, upload: uploadFiles, uploadChanged } = useFileUpload(uploads, uploadTarget.resolveTargetDir)
+  const { input: dirFileInput, upload: doUploadDir, uploadChanged: dirUploadChanged } = useFileUpload(uploads, uploadTarget.resolveTargetDir)
 
   const { mounts } = useMounts()
   const uploadDir = computed(() => {
@@ -50,8 +51,8 @@ export function useMediaPageUpload(options: MediaPageUploadOptions) {
   async function editUploadDir() {
     await pickUploadDir({ ...picker, initialPath: uploadDir.value })
   }
-  async function uploadFilesClick() { const dir = uploadDir.value; if (dir) uploadFiles(dir) }
-  async function uploadDirClick() { const dir = uploadDir.value; if (dir) doUploadDir(dir) }
+  function uploadFilesClick() { uploadFiles(uploadDir.value) }
+  function uploadDirClick() { doUploadDir(uploadDir.value) }
   function dropFiles2(e: DragEvent) { dropFiles(e, () => Promise.resolve(uploadDir.value || undefined), (file) => options.fileFilter(file.name)) }
 
   return {

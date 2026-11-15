@@ -11,14 +11,18 @@ import { popModal } from '@/components/modal'
 import type { DirectoryPickerVolume } from '@/hooks/directory-picker'
 import tooltip from '@/plugins/tooltip'
 
-const mock = vi.hoisted(() => ({ picker: null as any }))
+const mock = vi.hoisted(() => ({ picker: null as any, recents: [] as string[], remember: vi.fn() }))
 vi.mock('@/lib/api/time-sync', () => ({ wrapWithReplayProtection: (value: string) => value }))
 vi.mock('@/hooks/directory-picker', () => ({ useDirectoryPicker: () => mock.picker }))
+vi.mock('@/hooks/recent-selected-dirs', () => ({
+  useRecentSelectedDirs: () => ({ recentDirs: ref(mock.recents), remember: mock.remember }),
+}))
 vi.mock('vue-i18n', () => ({ useI18n: () => ({ t: (key: string) => key }) }))
 vi.mock('@/components/modal', () => ({ Modal: { EVENT_PROMPT: 'prompt' }, popModal: vi.fn() }))
 
 beforeEach(() => {
   vi.clearAllMocks()
+  mock.recents = []
   mock.picker = {
     volumes: ref([
       { id: 'root', name: 'System disk', mountPoint: '/', totalBytes: 0 },
@@ -36,10 +40,11 @@ async function view(recentDirs: string[] = [], volume?: DirectoryPickerVolume) {
   let bindings!: { chooseCurrent(): void; cancel(): void; selectDirectory(path: string): void }
   const selected = vi.fn()
   const component = DirectoryPickerModal as any
+  mock.recents = recentDirs
   const app = createSSRApp({ ...component, setup(props: unknown, context: unknown) {
     bindings = component.setup(props, context)
     return bindings
-  } }, { recentDirs, volume, onPrompt: selected })
+  } }, { volume, onPrompt: selected })
   app.config.globalProperties.$t = (key: string) => key
   app.use(tooltip)
   app.component('VModal', VModal)
@@ -90,11 +95,13 @@ it('opens recent directories for review before confirmation and preserves cancel
   bindings.selectDirectory('/media/archive/Backups')
   expect(mock.picker.selectDirectory).toHaveBeenCalledExactlyOnceWith('/media/archive/Backups')
   expect(selected).not.toHaveBeenCalled()
+  expect(mock.remember).not.toHaveBeenCalled()
   mock.picker.currentDir.value = '/media/archive/Backups'
   bindings.chooseCurrent()
   expect(selected).toHaveBeenCalledExactlyOnceWith('/media/archive/Backups')
   bindings.cancel()
   expect(popModal).toHaveBeenCalledOnce()
+  expect(mock.remember).toHaveBeenCalledExactlyOnceWith('/media/archive/Backups')
 })
 
 it.each(['mounts', 'directory', 'failure'])('disables confirmation during %s and hides stale folder rows', async state => {
@@ -137,4 +144,21 @@ it('explains that a folder without children can still be selected', async () => 
   const { html } = await view()
   expect(html).toContain('folder_picker_empty')
   expect(html.match(/<button[^>]*value="ok"[^>]*>/)?.[0]).not.toContain('disabled')
+})
+
+
+it('shows drive letters and parent paths for identical Windows folder names', async () => {
+  mock.picker.volumes.value = [
+    { id: 'D', name: 'Data', mountPoint: 'D:\\', totalBytes: 501e9, freeBytes: 413e9 },
+    { id: 'E', name: 'Backup', mountPoint: 'E:\\', totalBytes: 931e9, freeBytes: 233e9 },
+  ]
+  mock.picker.rootPath.value = 'D:/'
+  mock.picker.currentDir.value = 'D:/Projects/Photos'
+  const { html } = await view(['D:/Projects/Photos', 'E:/Backup/Photos'])
+  expect(html).toContain('Data (D:)')
+  expect(html).toContain('Backup (E:)')
+  expect(html).toContain('D:\\Projects')
+  expect(html).toContain('E:\\Backup')
+  expect(html).toContain('storage_free_compact')
+  expect(html.indexOf('recent_folders')).toBeLessThan(html.indexOf('folder_picker_current'))
 })

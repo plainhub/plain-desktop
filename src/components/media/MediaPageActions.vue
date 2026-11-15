@@ -6,18 +6,20 @@
           <i-material-symbols:upload-rounded />
         </v-icon-button>
       </template>
-      <div class="dropdown-item" @click.stop="handleUploadFiles">
-        {{ $t('upload_files') }}
-      </div>
-      <div class="dropdown-item" @click.stop="handleUploadDir">
-        {{ $t('upload_folder') }}
-      </div>
-      <div v-if="upload.onEditDir || upload.dir" class="upload-dest-row">
-        <span class="upload-dest-label">{{ $t('save_to') }}</span>
-        <span class="upload-dest-path" :title="upload.dir || ''">{{ upload.dir || '—' }}</span>
-        <v-icon-button v-if="upload.editable && upload.onEditDir" v-tooltip="$t('edit')" class="upload-dest-edit" @click.stop="handleEditUploadDir">
-          <i-material-symbols:edit-outline-rounded />
-        </v-icon-button>
+      <div class="upload-menu-content">
+        <div class="dropdown-item" @click.stop="handleUploadFiles">
+          {{ $t('upload_files') }}
+        </div>
+        <div class="dropdown-item" @click.stop="handleUploadDir">
+          {{ $t('upload_folder') }}
+        </div>
+        <div v-if="upload.onEditDir || upload.dir" class="upload-dest-row">
+          <span class="upload-dest-label">{{ $t('save_to') }}</span>
+          <span class="upload-dest-path" :title="upload.dir || ''">{{ upload.dir || '—' }}</span>
+          <v-icon-button v-if="upload.editable && upload.onEditDir" v-tooltip="$t('edit')" class="upload-dest-edit" @click.stop="handleEditUploadDir">
+            <i-material-symbols:edit-outline-rounded />
+          </v-icon-button>
+        </div>
       </div>
     </v-dropdown>
 
@@ -167,11 +169,15 @@ function handleSort(value: string) {
 </script>
 
 <style scoped>
+.upload-menu-content {
+  max-width: min(320px, calc(100vw - 40px));
+}
+
 .upload-dest-row {
   display: flex;
   align-items: center;
-  gap: 6px;
-  padding: 0 16px;
+  gap: 8px;
+  padding: 8px 16px;
   border-top: 1px solid var(--md-sys-color-outline-variant);
   min-height: 56px;
 }
@@ -188,9 +194,8 @@ function handleSort(value: string) {
   color: var(--md-sys-color-on-surface);
   flex: 1;
   min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  white-space: normal;
+  overflow-wrap: anywhere;
   font-weight: 600;
 }
 </style>

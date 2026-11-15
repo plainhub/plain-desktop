@@ -27,7 +27,7 @@ function normalizeJoin(base: string, rel: string) {
   return (b ? `${b}/${r}` : `/${r}`).replace(/\/+/g, '/').replace(/\/+$/g, '')
 }
 
-export const useFileUpload = (uploads: Ref<IUploadItem[]>) => {
+export const useFileUpload = (uploads: Ref<IUploadItem[]>, resolveDir?: () => Promise<string | undefined>) => {
   let _dir = ''
   const input = ref<HTMLInputElement>()
   return {
@@ -37,23 +37,28 @@ export const useFileUpload = (uploads: Ref<IUploadItem[]>) => {
       input.value!.value = ''
       input.value!.click()
     },
-    uploadChanged(e: Event) {
-      const files = (e.target as HTMLInputElement).files
-      if (!files) {
-        return
+    async uploadChanged(e: Event) {
+      const files = Array.from((e.target as HTMLInputElement).files ?? [])
+      if (!files.length) return
+
+      let dir = _dir
+      if (!dir && resolveDir) {
+        const selected = await resolveDir()
+        if (!selected) return
+        dir = selected
       }
+
       const batchId = generateRecordId()
       const items = []
-      for (let i = 0; i < files.length; i++) {
-        const file = files[i]
-        const rel = (file as any).webkitRelativePath ? String((file as any).webkitRelativePath) : ''
+      for (const file of files) {
+        const rel = file.webkitRelativePath
         if (rel && rel.includes('/')) {
           const parts = rel.split('/').filter(Boolean)
           const relDir = parts.slice(0, -1).join('/')
-          const targetDir = relDir ? normalizeJoin(_dir, relDir) : _dir
-          items.push(createUploadItem(file, targetDir, batchId, _dir, rel))
+          const targetDir = relDir ? normalizeJoin(dir, relDir) : dir
+          items.push(createUploadItem(file, targetDir, batchId, dir, rel))
         } else {
-          items.push(createUploadItem(file, _dir, batchId, _dir, rel || undefined))
+          items.push(createUploadItem(file, dir, batchId, dir, rel || undefined))
         }
       }
       uploads.value = [...uploads.value, ...items]

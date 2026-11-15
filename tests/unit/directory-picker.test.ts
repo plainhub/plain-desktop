@@ -129,3 +129,33 @@ it('retries mount loading before requesting directories after a mount failure', 
   expect(query.refetch).toHaveBeenCalledOnce()
   expect(query.fetch).not.toHaveBeenCalled()
 })
+
+it('opens the correct Windows volume in drive-letter paths from native mounts and listings', async () => {
+  const picker = create('d:\\Projects\\Photos')
+  query.mounts.handle({ mounts: [
+    { id: 'system', mountPoint: 'C:\\', name: 'System' },
+    { id: 'data', mountPoint: 'D:\\', name: 'Data' },
+    { id: 'archive', mountPoint: 'E:\\', name: 'Archive' },
+    { id: 'nested', mountPoint: 'D:\\Projects\\', name: 'Projects' },
+  ] }, '')
+  await nextTick()
+  expect(picker.rootPath.value).toBe('D:/Projects')
+  expect(query.files.variables().root).toBe('D:/Projects/Photos')
+  query.files.handle({ files: [{ path: 'd:\\Projects\\Photos\\Album', isDir: true }] }, '')
+  expect(picker.dirItems.value.map(item => item.path)).toEqual(['D:/Projects/Photos/Album'])
+  picker.enterDir('D:\\Projects\\Photos\\Album')
+  expect(picker.currentDir.value).toBe('D:/Projects/Photos/Album')
+  picker.selectDirectory('E:/')
+  expect(picker.rootPath.value).toBe('E:/')
+  expect(query.files.variables().root).toBe('E:/')
+  picker.selectDirectory('Z:/Missing')
+  expect(picker.currentDir.value).toBe('E:/')
+})
+
+it('keeps the current folder when a constrained Windows picker receives another drive or sibling mount', () => {
+  const picker = create('D:/Projects/Photos', { mountPoint: 'D:\\Projects\\', name: 'Projects' })
+  expect(picker.currentDir.value).toBe('D:/Projects/Photos')
+  picker.selectDirectory('D:/Projects-old/Photos')
+  picker.enterDir('E:\\Projects\\Photos')
+  expect(picker.currentDir.value).toBe('D:/Projects/Photos')
+})

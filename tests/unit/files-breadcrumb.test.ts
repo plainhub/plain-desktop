@@ -44,3 +44,15 @@ it('preserves archive boundaries and complete internal paths in shared breadcrum
     { path: '/archive/Backups/photos.zip!zip!/Trips/2026/', name: '2026' },
   ])
 })
+
+it('keeps the Windows drive root and avoids an extra drive-letter breadcrumb', () => {
+  expect(getDirectoryBreadcrumbs('d:\\Projects\\Photos', 'D:\\', 'Data (D:)')).toEqual([
+    { path: 'D:/', name: 'Data (D:)' },
+    { path: 'D:/Projects', name: 'Projects' },
+    { path: 'D:/Projects/Photos', name: 'Photos' },
+  ])
+  expect(getDirectoryBreadcrumbs('d:/Projects/Photos', 'D:\\PROJECTS\\', 'Projects')).toEqual([
+    { path: 'D:/PROJECTS', name: 'Projects' },
+    { path: 'D:/PROJECTS/Photos', name: 'Photos' },
+  ])
+})

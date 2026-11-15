@@ -17,17 +17,12 @@
           :listing-error="listingError"
           :dir-items="dirItems"
           :dir-name="dirName"
+          :recent-dirs="recentDirs"
           @select-root="selectRoot"
           @enter-dir="enterDir"
+          @select-recent="selectDirectory"
           @reload="reload"
         />
-        <div v-if="recentDirs.length" class="recents">
-          <div class="subtle">{{ $t('recent_folders') }}</div>
-          <v-text-button v-for="d in recentDirs" :key="d" class="recent-item" :disabled="loadingMounts" @click="selectDirectory(d)">
-            <template #icon><i-material-symbols:folder-outline-rounded /></template>
-            <span class="recent-path">{{ d }}</span>
-          </v-text-button>
-        </div>
       </div>
     </template>
 
@@ -44,18 +39,17 @@
 import { Modal, popModal } from '@/components/modal'
 import DirectoryBrowser from '@/components/DirectoryBrowser.vue'
 import { useDirectoryPicker, type DirectoryPickerVolume } from '@/hooks/directory-picker'
+import { useRecentSelectedDirs } from '@/hooks/recent-selected-dirs'
 
 const props = withDefaults(defineProps<{
   title?: string
   description?: string
   initialPath?: string
-  recentDirs?: string[]
   volume?: DirectoryPickerVolume
 }>(), {
   title: '',
   description: '',
   initialPath: '',
-  recentDirs: () => [],
   volume: undefined,
 })
 
@@ -65,7 +59,13 @@ const emit = defineEmits<{
 
 const { volumes, loadingMounts, rootPath, currentDir, listing, listingError, dirItems, selectRoot, selectDirectory, enterDir, dirName, reload } = useDirectoryPicker(props.initialPath, props.volume)
 
-function chooseCurrent() { emit(Modal.EVENT_PROMPT, currentDir.value) }
+const { recentDirs, remember } = useRecentSelectedDirs()
+
+function chooseCurrent() {
+  const path = currentDir.value
+  void remember(path)
+  emit(Modal.EVENT_PROMPT, path)
+}
 function cancel() { popModal() }
 </script>
 
@@ -74,23 +74,5 @@ function cancel() { popModal() }
   display: flex;
   flex-direction: column;
   gap: 16px;
-}
-
-.recents {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-}
-
-.recent-item {
-  justify-content: flex-start;
-  gap: 8px;
-  height: auto;
-  min-height: 32px;
-  text-align: start;
-}
-
-.recent-path {
-  overflow-wrap: anywhere;
 }
 </style>
