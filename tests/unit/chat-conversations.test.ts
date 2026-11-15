@@ -10,7 +10,7 @@ vi.mock('@/lib/api/query', () => ({
     return { fetch: api.fetch, loading: false }
   },
 }))
-vi.mock('@/lib/device/client-id', () => ({ getDesktopClientId: () => 'self' }))
+vi.mock('@/lib/device/client-id', () => ({ getDesktopClientId: () => '706c6169-1ac2-825a-8c79-0951ec181d4a' }))
 vi.mock('@/lib/chat/peer-cacher', () => ({ peerCacher: { peersMap: ref({}) } }))
 vi.mock('@/lib/chat/channel-cacher', () => ({ channelCacher: { channelsMap: ref({}) } }))
 

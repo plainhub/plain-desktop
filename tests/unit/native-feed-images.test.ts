@@ -2,7 +2,7 @@ import { afterEach, beforeEach, expect, it, vi } from 'vitest'
 import { createRenderer, nextTick, ref, ssrContextKey, type Ref } from 'vue'
 import type { IFeedEntry } from '@/lib/interfaces'
 
-const fixture = vi.hoisted(() => ({ items: undefined as unknown as Ref<IFeedEntry[]>, invoke: vi.fn(), local: true, peer: 'peer' }))
+const fixture = vi.hoisted(() => ({ items: undefined as unknown as Ref<IFeedEntry[]>, invoke: vi.fn(), local: true, peer: '706c6169-89f1-81c6-8bc7-6b67c2ffa178' }))
 vi.mock('@/lib/format', () => ({ formatTimeAgo: vi.fn(), formatDateTime: vi.fn() }))
 vi.mock('@/lib/api/file', () => ({ resolveFileUrlByPath: (owner: any, _key: unknown, path: string, size: number, query: string) => owner.url(path, size, query) }))
 vi.mock('@tauri-apps/api/core', () => ({ invoke: fixture.invoke }))
@@ -115,7 +115,7 @@ it('reacquires the current target when a refreshed list reuses the same referenc
   fixture.local = false
   setImages('same'); await flush()
   const opens = fixture.invoke.mock.calls.filter(([command]) => command === 'native_resource_open')
-  expect(opens.map(([, args]) => args.target)).toEqual([{ kind: 'local' }, { kind: 'peer', peerId: 'peer' }])
+  expect(opens.map(([, args]) => args.target)).toEqual([{ kind: 'local' }, { kind: 'peer', peerId: '706c6169-89f1-81c6-8bc7-6b67c2ffa178' }])
   expect(live.size).toBe(1)
   expect(fixture.invoke.mock.calls.filter(([command]) => command === 'native_resource_close')).toHaveLength(1)
 })

@@ -25,7 +25,7 @@ it('round trips strings and structured UI state and removes individual keys', ()
 })
 
 it('clears sessions and UI state while retaining only the requested appearance keys', () => {
-  for (const [key, value] of Object.entries({ locale: 'fr', dark_theme: 'OFF', auth_token: 'session', client_id: 'browser', main_state: '{}' })) browser.set(key, value)
+  for (const [key, value] of Object.entries({ locale: 'fr', dark_theme: 'OFF', auth_token: 'session', client_id: '706c6169-fe7e-818e-a0f0-a71b7c0f3f75', main_state: '{}' })) browser.set(key, value)
   browser.clear(['locale', 'dark_theme'])
   expect([...storage]).toEqual([['locale', 'fr'], ['dark_theme', 'OFF']])
   browser.clear()

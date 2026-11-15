@@ -82,7 +82,7 @@ fn online_clients_replay_the_latest_snapshot_and_stop_delivery_to_closed_views()
     callbacks
         .deliver(
             "onlineClientsChanged",
-            &plain_libs::serde_json::json!({"clientIds":["client-a"]}),
+            &plain_libs::serde_json::json!({"clientIds":["706c6169-1295-84f7-9959-21fe29798997"]}),
         )
         .unwrap();
     let values = Arc::new(Mutex::new(Vec::<Value>::new()));
@@ -104,7 +104,7 @@ fn online_clients_replay_the_latest_snapshot_and_stop_delivery_to_closed_views()
         .unwrap();
     assert_eq!(
         values.lock().unwrap().as_slice(),
-        &[plain_libs::serde_json::json!({"clientIds":["client-a"]})]
+        &[plain_libs::serde_json::json!({"clientIds":["706c6169-1295-84f7-9959-21fe29798997"]})]
     );
     callbacks
         .deliver("onlineClientsChanged", &plain_libs::serde_json::json!({"clientIds":[]}))
@@ -117,7 +117,7 @@ fn online_clients_replay_the_latest_snapshot_and_stop_delivery_to_closed_views()
     callbacks
         .deliver(
             "onlineClientsChanged",
-            &plain_libs::serde_json::json!({"clientIds":["client-b"]}),
+            &plain_libs::serde_json::json!({"clientIds":["706c6169-91e1-8871-93a5-0b60cb96e6b8"]}),
         )
         .unwrap();
     assert_eq!(values.lock().unwrap().len(), 2);
@@ -128,7 +128,7 @@ fn online_clients_replay_the_latest_snapshot_and_stop_delivery_to_closed_views()
         .snapshot
         .clone()
         .unwrap();
-    assert_eq!(cached.client_ids, vec!["client-b"]);
+    assert_eq!(cached.client_ids, vec!["706c6169-91e1-8871-93a5-0b60cb96e6b8"]);
     assert!(
         callbacks
             .deliver(
@@ -146,6 +146,6 @@ fn online_clients_replay_the_latest_snapshot_and_stop_delivery_to_closed_views()
             .as_ref()
             .unwrap()
             .client_ids,
-        vec!["client-b"]
+        vec!["706c6169-91e1-8871-93a5-0b60cb96e6b8"]
     );
 }

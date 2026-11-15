@@ -19,13 +19,13 @@ vi.mock('@/lib/api/gql-client', () => ({
 vi.mock('@/lib/api/subscription-client', () => ({ graphqlSubscriptions: {} }))
 vi.mock('@/lib/api/api', () => ({
   getApiBaseUrl: () => 'https://current.example.test',
-  getApiHeaders: () => ({ 'c-id': 'search-client' }),
+  getApiHeaders: () => ({ 'c-id': '706c6169-80ec-82ce-9052-221375ddf943' }),
   getLocalServerPort: () => 8080,
   getProxyUrl: (path: string) => path,
   proxyUrlFor: (base: string, path: string) => base + path,
   deviceBaseUrl: (host: string) => `https://${host}`,
 }))
-vi.mock('@/lib/device/client-id', () => ({ getDesktopClientId: () => 'local', getRemoteClientId: () => transport.remoteId }))
+vi.mock('@/lib/device/client-id', () => ({ getDesktopClientId: () => '706c6169-185c-8ca2-84a2-2e1dbaf20a51', getRemoteClientId: () => transport.remoteId }))
 vi.mock('@/lib/device/local-mode', () => ({ isLocalMode: () => false }))
 vi.mock('@/lib/device/current', () => ({ getCurrentAuthToken: () => transport.authToken }))
 vi.mock('@/lib/device/login-peers', async original => ({
@@ -37,9 +37,9 @@ vi.mock('@/lib/download-dir', () => ({ downloadToDir: vi.fn(), downloadAs: vi.fn
 vi.mock('@/hooks/native-resource-url', () => ({ nativeResourceUrl: vi.fn() }))
 
 const peer = {
-  id: 'peer', name: 'Archive', ip: 'archive.example.test', port: 443, token: 'peer-login', online: false,
+  id: '706c6169-0001-8000-8000-000000000002', name: 'Archive', ip: 'archive.example.test', port: 443, token: 'peer-login', online: false,
 } as LoginPeer
-const current = { clientId: 'current', deviceName: 'Current' } as IApp
+const current = { clientId: '706c6169-779f-8757-8e85-f54f67c3c988', deviceName: 'Current' } as IApp
 const key = new Uint8Array(32).fill(9)
 const app = { deviceName: 'Archive', access: ['DOCS'], urlToken: btoa(String.fromCharCode(...key)) }
 const doc = { id: 'doc', title: 'Search result.txt', path: '/docs/result.txt' }
@@ -80,7 +80,7 @@ it('queries the authorized peer and seals preview URLs with that device’s sess
   expect(url.origin).toBe('https://archive.example.test')
   expect(url.searchParams.get('action')).toBe('preview')
   const envelope = url.searchParams.get('id')!
-  expect(envelope).toMatch(/^c\.search-client\./)
+  expect(envelope).toMatch(/^c\.706c6169-80ec-82ce-9052-221375ddf943\./)
   expect(filePathFromResourceId(key, envelope)).toBe(doc.path)
   expect(() => filePathFromResourceId(new Uint8Array(32).fill(7), envelope)).toThrow()
 })
@@ -94,7 +94,7 @@ it('seals foreground thumbnail intent only for an explicitly submitted local vid
   transport.local.mockResolvedValue({ data: { app } })
   transport.remote.mockResolvedValue({ data: { app } })
   const passive = await loadSearchClient(local)
-  expect(new URL(passive.url(hit)).searchParams.get('id')).toMatch(/^c\.search-client\./)
+  expect(new URL(passive.url(hit)).searchParams.get('id')).toMatch(/^c\.706c6169-80ec-82ce-9052-221375ddf943\./)
   const explicit = await loadSearchClient(local, true)
   const remote = await loadSearchClient({ id: peer.id, name: peer.name, target: 'peer', peer }, true)
   const readType = (url: string) => {
@@ -271,7 +271,7 @@ it('uses native queries for this computer while the existing remote session rema
   const url = new URL(group.client!.url(hit))
   expect(url.origin).toBe('http://localhost:8080')
   const id = url.searchParams.get('id')!
-  expect(id).toMatch(/^c\.search-client\./)
+  expect(id).toMatch(/^c\.706c6169-80ec-82ce-9052-221375ddf943\./)
   expect(filePathFromResourceId(key, id)).toBe(doc.path)
 })
 

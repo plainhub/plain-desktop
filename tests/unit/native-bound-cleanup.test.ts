@@ -1,14 +1,14 @@
 import { afterEach, beforeEach, expect, it, vi } from 'vitest'
 import type { IUploadItem } from '@/stores/temp'
 
-const state = vi.hoisted(() => ({ peer: 'peer-a', revisions: new Map<string, number>() }))
+const state = vi.hoisted(() => ({ peer: '706c6169-0e71-8687-905d-87d4a5229f24', revisions: new Map<string, number>() }))
 const io = vi.hoisted(() => ({ invoke: vi.fn() }))
 vi.mock('@tauri-apps/api/core', () => ({ invoke: io.invoke }))
 vi.mock('@/lib/device/local-mode', () => ({ isLocalMode: () => false }))
 vi.mock('@/lib/device/client-id', () => ({ getActiveClientId: () => state.peer, getRemoteClientId: () => state.peer }))
 vi.mock('@/lib/device/login-peers', () => ({ getLoginPeerRevision: (id: string) => state.revisions.get(id) ?? 0 }))
 vi.mock('@/lib/device/current', () => ({ getCurrentAuthToken: () => { throw new Error('Desktop must not read token') } }))
-vi.mock('@/lib/api/api', () => ({ getApiHeaders: () => ({ 'c-id': 'self' }) }))
+vi.mock('@/lib/api/api', () => ({ getApiHeaders: () => ({ 'c-id': '706c6169-1ac2-825a-8c79-0951ec181d4a' }) }))
 vi.mock('@/lib/api/crypto', () => ({}))
 vi.mock('@/lib/api/file', () => ({}))
 vi.mock('@/lib/api/time-sync', () => ({}))
@@ -23,8 +23,8 @@ function deferred<T>() {
 }
 beforeEach(() => {
   vi.resetModules(); vi.resetAllMocks()
-  state.peer = 'peer-a'
-  state.revisions.clear(); state.revisions.set('peer-a', 1)
+  state.peer = '706c6169-0e71-8687-905d-87d4a5229f24'
+  state.revisions.clear(); state.revisions.set('706c6169-0e71-8687-905d-87d4a5229f24', 1)
   vi.stubGlobal('__IS_TAURI__', true)
   vi.stubGlobal('window', { __PLAIN_LOG__: false })
 })
@@ -44,8 +44,8 @@ it.each(['auth-change', 'selection-change'])('rechecks the original peer after t
   const cleanup = discardUploadChunks(item, () => false)
   const outcome = cleanup.then(() => undefined, error => error)
   await started.promise
-  if (change === 'auth-change') state.revisions.set('peer-a', 2)
-  else state.peer = 'peer-b'
+  if (change === 'auth-change') state.revisions.set('706c6169-0e71-8687-905d-87d4a5229f24', 2)
+  else state.peer = '706c6169-9915-869c-9c24-bcf133686007'
   scope.resolve('original-document')
   const error = await outcome
   if (change === 'auth-change') {
@@ -55,7 +55,7 @@ it.each(['auth-change', 'selection-change'])('rechecks the original peer after t
     expect(error).toBeUndefined()
     expect(io.invoke.mock.calls).toEqual([
       ['native_view_scope'],
-      ['native_graphql', { target: { kind: 'peer', peerId: 'peer-a' }, body: { query: 'delete', variables: { fileId: 'file-id' }, extensions: { nativeScope: 'original-document', nativeDeadlineMs: expect.any(Number) } } }],
+      ['native_graphql', { target: { kind: 'peer', peerId: '706c6169-0e71-8687-905d-87d4a5229f24' }, body: { query: 'delete', variables: { fileId: 'file-id' }, extensions: { nativeScope: 'original-document', nativeDeadlineMs: expect.any(Number) } } }],
     ])
   }
 })

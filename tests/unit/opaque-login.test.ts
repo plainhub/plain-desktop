@@ -21,14 +21,14 @@ const ke2 = new Uint8Array(320).fill(2)
 const ke3 = new Uint8Array(64).fill(3)
 const b64 = (bytes: Uint8Array) => Buffer.from(bytes).toString('base64')
 const utf8 = new TextEncoder()
-const context = Buffer.concat([utf8.encode('LOGIN_PASSWORD'), utf8.encode('browser'), signingKey].flatMap(field => {
+const context = Buffer.concat([utf8.encode('LOGIN_PASSWORD'), utf8.encode('706c6169-fe7e-818e-a0f0-a71b7c0f3f75'), signingKey].flatMap(field => {
   const length = Buffer.alloc(4); length.writeUInt32BE(field.length)
   return [length, field]
 }))
 const hash = sha256(context)
 const key = hkdf(sha256, sessionKey, hash, utf8.encode('api'), 32)
 const aad = (response: boolean) => new Uint8Array([...utf8.encode(response ? 'AUTH_RESPONSE' : 'AUTH_REQUEST'), ...hash])
-const params = () => ({ passwordRequired: true, password: 'synthetic password', clientId: 'browser', initSignaturePublicKey: b64(signingKey), initOpaquePublicKey: b64(opaqueKey), expectedDeviceId: 'device' })
+const params = () => ({ passwordRequired: true, password: 'synthetic password', clientId: '706c6169-fe7e-818e-a0f0-a71b7c0f3f75', initSignaturePublicKey: b64(signingKey), initOpaquePublicKey: b64(opaqueKey), expectedDeviceId: '706c6169-070b-8226-915b-f78c137ec2f0' })
 
 class Socket {
   onopen?: () => void
@@ -74,16 +74,16 @@ it('exchanges only binary OPAQUE frames and encrypted metadata, without password
   const { promise } = await begin()
   expect(mock.start).toHaveBeenCalledWith(params().password, undefined)
   expect(mock.ecdh).not.toHaveBeenCalled()
-  expect(new URL(mock.socket.mock.calls[0][0]).search).toBe('?cid=browser')
+  expect(new URL(mock.socket.mock.calls[0][0]).search).toBe('?cid=706c6169-fe7e-818e-a0f0-a71b7c0f3f75')
   expect(socket.send.mock.calls[0][0]).toEqual(ke1)
   await socket.message(ke2)
-  expect(state.finish).toHaveBeenCalledWith(ke2, 'browser', signingKey)
+  expect(state.finish).toHaveBeenCalledWith(ke2, '706c6169-fe7e-818e-a0f0-a71b7c0f3f75', signingKey)
   const request = socket.send.mock.calls[1][0] as Uint8Array
   expect(request.slice(0, 64)).toEqual(ke3)
   const body = JSON.parse(new TextDecoder().decode(xchacha20poly1305(key, request.slice(64, 88), aad(false)).decrypt(request.slice(88))))
   expect(body).toEqual({ appName: 'Fixture', appVersion: '1', osName: 'Fixture', osVersion: '2' })
-  await socket.message(reply({ status: 'COMPLETED', deviceId: 'device', chatPaired: false }))
-  await expect(promise).resolves.toEqual({ deviceId: 'device', token: b64(key), signaturePublicKey: b64(signingKey), opaquePublicKey: b64(opaqueKey), chatPaired: false })
+  await socket.message(reply({ status: 'COMPLETED', deviceId: '706c6169-070b-8226-915b-f78c137ec2f0', chatPaired: false }))
+  await expect(promise).resolves.toEqual({ deviceId: '706c6169-070b-8226-915b-f78c137ec2f0', token: b64(key), signaturePublicKey: b64(signingKey), opaquePublicKey: b64(opaqueKey), chatPaired: false })
   expect(result.apiKey.every(value => value === 0)).toBe(true)
   expect(state.free).not.toHaveBeenCalled()
   expect(vi.getTimerCount()).toBe(0)
@@ -152,6 +152,6 @@ it('requires the result to be encrypted and bound to this login', async () => {
   const { promise } = await begin()
   const rejected = expect(promise).rejects.toBe('invalid_auth_response')
   await socket.message(ke2)
-  await socket.message(utf8.encode(JSON.stringify({ status: 'COMPLETED', deviceId: 'device' })))
+  await socket.message(utf8.encode(JSON.stringify({ status: 'COMPLETED', deviceId: '706c6169-070b-8226-915b-f78c137ec2f0' })))
   await rejected
 })

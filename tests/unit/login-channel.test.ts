@@ -21,9 +21,9 @@ beforeEach(() => {
 afterEach(() => vi.restoreAllMocks())
 
 it('matches the Rust verification code and keeps the full fingerprint in authenticated encryption', () => {
-  const channel = start().accept(vector.response, vector.serverIdentity, 'fixture-device')
+  const channel = start().accept(vector.response, vector.serverIdentity, '706c6169-510c-8348-9a2c-7c92f6ee2e7f')
   expect(channel.token).toBe(vector.key)
-  expect(channel.verificationCode).toBe('83954721')
+  expect(channel.verificationCode).toBe('98700115')
   const request = channel.encryptRequest(new TextEncoder().encode('request'))
   expect(new TextDecoder().decode(xchacha20poly1305(bytes(vector.key), request.slice(0, 24), aad(false)).decrypt(request.slice(24)))).toBe('request')
   const nonce = new Uint8Array(24).fill(9)

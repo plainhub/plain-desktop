@@ -4,7 +4,7 @@ import { useEvents } from '../../src/views/settings/events/useEvents'
 import { readEvents, type EventRecord } from '../../src/views/settings/events/api'
 vi.mock('../../src/lib/api/gql-client', () => ({ gqlFetch: vi.fn() }))
 import { gqlFetch } from '../../src/lib/api/gql-client'
-const entry = (id: string): EventRecord => ({ id, type: 'LOGIN', data: { __typename: 'LoginEventData', sessionType: 'LOGIN' }, clientId: 'client', clientName: 'Fixture client', clientIp: '192.0.2.24', osName: 'Windows', osVersion: '11', appName: 'Chrome', appVersion: '142', createdAt: '2026-01-01T00:00:00Z' })
+const entry = (id: string): EventRecord => ({ id, type: 'LOGIN', data: { __typename: 'LoginEventData', sessionType: 'LOGIN' }, clientId: '706c6169-26be-890e-b404-adf1389070db', clientName: 'Fixture client', clientIp: '192.0.2.24', osName: 'Windows', osVersion: '11', appName: 'Chrome', appVersion: '142', createdAt: '2026-01-01T00:00:00Z' })
 
 describe('settings events', () => {
   it('reads the canonical operation and preserves quoted searches', async () => {

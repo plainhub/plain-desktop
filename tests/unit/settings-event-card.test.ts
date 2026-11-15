@@ -9,7 +9,7 @@ vi.mock('@/lib/format', () => ({ formatDateTimeFull: (value: string) => `Full ${
 vi.mock('vue-i18n', () => ({ useI18n: () => ({ t: (key: string) => messages[key as keyof typeof messages] ?? key }) }))
 
 const entry: EventRecord = {
-  id: 'fixture-event', type: 'LOGIN', data: { __typename: 'LoginEventData', sessionType: 'LOGIN' }, clientId: 'fixture-client',
+  id: 'fixture-event', type: 'LOGIN', data: { __typename: 'LoginEventData', sessionType: 'LOGIN' }, clientId: '706c6169-b9ef-8b64-b37d-1162ef232835',
   clientName: 'Study computer', clientIp: '192.0.2.24', osName: 'Windows', osVersion: '11',
   appName: 'Chrome', appVersion: '142', createdAt: '2026-11-14T15:24:00Z',
 }
@@ -24,7 +24,7 @@ async function render(record: EventRecord) {
 it('shows saved event facts without visible raw or details controls', async () => {
   const html = await render(entry)
   for (const text of ['Signed in', 'Study computer', 'Chrome 142', 'Windows 11', '192.0.2.24', '23:24']) expect(html).toContain(text)
-  for (const text of ['fixture-event', 'fixture-client', 'View raw', 'View details', '<details', '<button', 'event-icon']) expect(html).not.toContain(text)
+  for (const text of ['fixture-event', '706c6169-b9ef-8b64-b37d-1162ef232835', 'View raw', 'View details', '<details', '<button', 'event-icon']) expect(html).not.toContain(text)
   expect(html).toContain('aria-haspopup="dialog"')
   expect(html).toContain('aria-expanded="false"')
 })
@@ -67,7 +67,7 @@ it('shows available versions when client software names are missing', async () =
 
  it('shows the revoked session separately from the actor snapshot', async () => {
   const html = await render({ ...entry, type: 'REVOKE_SESSION', data: {
-    __typename: 'SessionEventData', session: { clientId: 'target-client', clientName: 'Fixture target', type: 'API_TOKEN' },
+    __typename: 'SessionEventData', session: { clientId: '706c6169-b0c0-890c-9e60-9b0ce9b00aab', clientName: 'Fixture target', type: 'API_TOKEN' },
   } })
   expect(html).toContain('Study computer')
   expect(html).toContain('Fixture target')
@@ -79,8 +79,8 @@ const disk = { id: 'disk-fixture', name: 'Fixture disk', path: '/dev/fixture', s
 it.each([
   ['LOGIN', { __typename: 'LoginEventData', sessionType: 'LOGIN' }, ['Signed in']],
   ['LOGIN_FAILED', { __typename: 'LoginFailedEventData', reason: 'REJECTED' }, ['Sign-in failed', 'Sign-in request rejected']],
-  ['LOGOUT', { __typename: 'SessionEventData', session: { clientId: 'self', clientName: 'Exited client', type: 'LOGIN' } }, ['Signed out', 'Exited client']],
-  ['REVOKE_SESSION', { __typename: 'SessionEventData', session: { clientId: 'target', clientName: 'Target token', type: 'API_TOKEN' } }, ['Session revoked', 'Target token']],
+  ['LOGOUT', { __typename: 'SessionEventData', session: { clientId: '706c6169-1ac2-825a-8c79-0951ec181d4a', clientName: 'Exited client', type: 'LOGIN' } }, ['Signed out', 'Exited client']],
+  ['REVOKE_SESSION', { __typename: 'SessionEventData', session: { clientId: '706c6169-15b2-8ac4-83ea-4e6b0c3a4b3c', clientName: 'Target token', type: 'API_TOKEN' } }, ['Session revoked', 'Target token']],
   ['UPDATE_DEVICE_NAME', { __typename: 'DeviceNameEventData', oldName: 'Old device', newName: 'New device' }, ['Device name changed', 'Old device → New device']],
   ['MOUNT', { __typename: 'VolumeEventData', volume }, ['Disk mounted', 'Fixture volume', '/mnt/fixture']],
   ['MOUNT_FAILED', { __typename: 'VolumeFailedEventData', volume, failure: { reason: 'MOUNT_FAILED', detail: 'Could not mount filesystem' } }, ['Disk mount failed', 'Could not mount filesystem']],

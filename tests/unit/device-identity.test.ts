@@ -9,7 +9,7 @@ vi.mock('@/lib/api/gql-client', () => ({ gqlFetch: mock.query }))
 beforeEach(() => {
   vi.resetAllMocks()
   vi.stubGlobal('__IS_TAURI__', true)
-  mock.query.mockResolvedValue({ data: { app: { clientId: 'target', deviceName: 'Device' } } })
+  mock.query.mockResolvedValue({ data: { app: { clientId: '706c6169-15b2-8ac4-83ea-4e6b0c3a4b3c', deviceName: 'Device' } } })
 })
 afterEach(() => vi.unstubAllGlobals())
 

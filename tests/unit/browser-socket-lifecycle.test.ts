@@ -3,7 +3,7 @@ import { beforeEach, afterEach, expect, it, vi } from 'vitest'
 const mock = vi.hoisted(() => ({ sockets: [] as any[] }))
 vi.mock('@/lib/api/api', () => ({ getWebSocketBaseUrl: () => 'wss://example.test', getUrlToken: () => '' }))
 vi.mock('@/lib/device/current', () => ({ getCurrentAuthToken: () => 'token' }))
-vi.mock('@/lib/device/client-id', () => ({ getRemoteClientId: () => 'peer', getDesktopClientId: () => 'browser' }))
+vi.mock('@/lib/device/client-id', () => ({ getRemoteClientId: () => '706c6169-89f1-81c6-8bc7-6b67c2ffa178', getDesktopClientId: () => '706c6169-fe7e-818e-a0f0-a71b7c0f3f75' }))
 vi.mock('@/lib/device/local-mode', () => ({ isLocalMode: () => false }))
 vi.mock('@/lib/api/file', () => ({ tokenToKey: () => new Uint8Array(32).fill(7) }))
 vi.mock('@/lib/api/http', () => ({ openSocket: vi.fn(() => {
@@ -38,7 +38,7 @@ for (const path of ['/screen', '/image_editor'] as const) {
     const event = path === '/screen' ? 'SCREEN_MIRROR_VIDEO' : 'IMAGE_EDITOR_UPDATE'
     function open() {
       socket.onopen()
-      const peer = server(new Uint8Array(32).fill(7), socket.send.mock.calls[0][0], path, 'browser')
+      const peer = server(new Uint8Array(32).fill(7), socket.send.mock.calls[0][0], path, '706c6169-fe7e-818e-a0f0-a71b7c0f3f75')
       socket.onmessage({ data: peer.ack.buffer })
       return peer
     }
@@ -68,7 +68,7 @@ for (const path of ['/screen', '/image_editor'] as const) {
   it(`${path} times out once and ignores all frames while closing`, () => {
     const { client, socket, ready, update } = fixture()
     socket.onopen()
-    const peer = server(new Uint8Array(32).fill(7), socket.send.mock.calls[0][0], path, 'browser')
+    const peer = server(new Uint8Array(32).fill(7), socket.send.mock.calls[0][0], path, '706c6169-fe7e-818e-a0f0-a71b7c0f3f75')
     vi.advanceTimersByTime(9999)
     expect(socket.close).not.toHaveBeenCalled()
     vi.advanceTimersByTime(1)
@@ -94,7 +94,7 @@ for (const path of ['/screen', '/image_editor'] as const) {
       socket.onmessage({ data: failure === 'frame' ? 'not binary' : peer.frame(1n, text('WRONG_EVENT\0')).buffer })
     } else {
       socket.onopen()
-      const peer = server(new Uint8Array(32).fill(7), socket.send.mock.calls[0][0], path, 'browser')
+      const peer = server(new Uint8Array(32).fill(7), socket.send.mock.calls[0][0], path, '706c6169-fe7e-818e-a0f0-a71b7c0f3f75')
       if (failure === 'confirmation') socket.send.mockImplementationOnce(() => { throw new Error('send failed') })
       socket.onmessage({ data: failure === 'ack' ? new ArrayBuffer(0) : peer.ack.buffer })
       expect(ready).not.toHaveBeenCalled()
@@ -126,7 +126,7 @@ for (const path of ['/screen', '/image_editor'] as const) {
     socket.onclose()
     const next = mock.sockets[1]
     next.onopen()
-    const peer = server(new Uint8Array(32).fill(7), next.send.mock.calls[0][0], path, 'browser')
+    const peer = server(new Uint8Array(32).fill(7), next.send.mock.calls[0][0], path, '706c6169-fe7e-818e-a0f0-a71b7c0f3f75')
     next.onmessage({ data: peer.ack.buffer })
     if (path === '/image_editor') next.onmessage({ data: peer.frame(1n, text('IMAGE_EDITOR_READY\0')).buffer })
     expect(ready).toHaveBeenCalledOnce()

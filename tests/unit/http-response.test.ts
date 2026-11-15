@@ -9,14 +9,14 @@ import { httpRequest } from '../../src/lib/api/http'
 
 vi.mock('@/lib/api/api', () => ({
   getApiBaseUrl: () => 'https://fixture.test',
-  getApiHeaders: () => ({ 'c-id': 'fixture' }),
+  getApiHeaders: () => ({ 'c-id': '706c6169-1dfd-8b72-82bb-3ad00a9928ca' }),
   getUrlToken: () => '',
   getProxyUrl: (path: string) => path,
 }))
 vi.mock('@/lib/api/http', () => ({ httpRequest: vi.fn() }))
 vi.mock('@/lib/api/file', () => ({ tokenToKey: (token: string) => Buffer.from(token, 'base64') }))
 vi.mock('@/lib/device/current', () => ({ getCurrentAuthToken: () => '', clearCurrentSession: vi.fn().mockResolvedValue(undefined) }))
-vi.mock('@/lib/device/client-id', () => ({ getActiveClientId: () => 'fixture' }))
+vi.mock('@/lib/device/client-id', () => ({ getActiveClientId: () => '706c6169-1dfd-8b72-82bb-3ad00a9928ca' }))
 vi.mock('@/lib/device/local-mode', () => ({ isLocalMode: () => false }))
 vi.mock('@/lib/api/native-client', () => ({ nativeGraphql: vi.fn() }))
 
@@ -94,7 +94,7 @@ it.each(['/graphql', '/guest_graphql'])('the actual %s client rejects captured a
     if (mode === 'fresh') captured = bytes
     return { status: 200, ok: true, arrayBuffer: async () => body.slice().buffer } as Response
   })
-  const call = () => (endpoint === '/graphql' ? encryptedGqlPost('https://fixture.test/graphql', key.toString('base64'), 'query { __typename }', variables) : guestFetch('fixture', key, 'query { __typename }', variables))
+  const call = () => (endpoint === '/graphql' ? encryptedGqlPost('https://fixture.test/graphql', key.toString('base64'), 'query { __typename }', variables) : guestFetch('706c6169-1dfd-8b72-82bb-3ad00a9928ca', key, 'query { __typename }', variables))
   expect((await call()).data.__typename).toBe('Query')
   mode = 'replay'
   await expect(call()).rejects.toThrow()

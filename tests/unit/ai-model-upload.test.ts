@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, expect, it, vi } from 'vitest'
 import type { IUploadItem } from '@/stores/temp'
 
-const target = vi.hoisted(() => ({ key: 'a' }))
+const target = vi.hoisted(() => ({ key: '706c6169-fdbb-865c-ab5a-2260e9b9f142' }))
 const io = vi.hoisted(() => ({ invoke: vi.fn(), scope: vi.fn(), gql: vi.fn(), merge: vi.fn(), toast: vi.fn() }))
 vi.mock('vue-i18n', () => ({ useI18n: () => ({ t: (key: string, args?: unknown) => `${key}:${JSON.stringify(args)}` }) }))
 vi.mock('@/components/toaster', () => ({ default: io.toast }))
@@ -47,7 +47,7 @@ function nativeSuccess(command: string, args: any) {
 }
 beforeEach(async () => {
   vi.resetModules(); vi.resetAllMocks()
-  target.key = 'a'; handles = new Map()
+  target.key = '706c6169-fdbb-865c-ab5a-2260e9b9f142'; handles = new Map()
   vi.stubGlobal('__IS_TAURI__', true)
   vi.stubGlobal('window', new EventTarget())
   vi.stubGlobal('XMLHttpRequest', vi.fn(function () { throw new Error('Desktop model uploads must use native IPC') }))
@@ -77,7 +77,7 @@ it('uses the real shared queue and native upload for sequential assets, then the
   expect(io.merge.mock.calls.map(([, args]) => [args.path, args.replace])).toEqual([
     ['/models/image.bin', true], ['/models/text.bin', true], ['/models/manifest.json', true],
   ])
-  expect(io.invoke.mock.calls.filter(([command]) => command === 'native_upload_chunk_open').map(([, args]) => args.target)).toEqual(Array(3).fill({ kind: 'peer', peerId: 'a' }))
+  expect(io.invoke.mock.calls.filter(([command]) => command === 'native_upload_chunk_open').map(([, args]) => args.target)).toEqual(Array(3).fill({ kind: 'peer', peerId: '706c6169-fdbb-865c-ab5a-2260e9b9f142' }))
   expect(hook.uploadDone.value).toBe(true)
   expect(hook.uploadProgress.value).toBe(100)
   expect(hook.uploading.value).toBe(false)
@@ -102,7 +102,7 @@ it('cancels an in-flight model file, cleans its handle and never writes the mani
   expect(hook.uploadDone.value).toBe(false)
   expect(hook.uploading.value).toBe(false)
   expect(io.toast).not.toHaveBeenCalled()
-  expect(io.gql.mock.calls.every(([key]) => key === 'a')).toBe(true)
+  expect(io.gql.mock.calls.every(([key]) => key === '706c6169-fdbb-865c-ab5a-2260e9b9f142')).toBe(true)
 })
 
 it('keeps all assets bound to the starting target when the device changes between files', async () => {
@@ -115,7 +115,7 @@ it('keeps all assets bound to the starting target when the device changes betwee
   expect(io.merge).toHaveBeenCalledOnce()
   expect(hook.uploadDone.value).toBe(false)
   expect(io.toast).toHaveBeenCalledWith(expect.stringContaining('request_context_changed'), 'error')
-  expect(io.gql.mock.calls.every(([key]) => key === 'a')).toBe(true)
+  expect(io.gql.mock.calls.every(([key]) => key === '706c6169-fdbb-865c-ab5a-2260e9b9f142')).toBe(true)
 })
 
 it('captures the target before asynchronous manifest validation', async () => {

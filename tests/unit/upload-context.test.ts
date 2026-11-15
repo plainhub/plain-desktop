@@ -24,7 +24,7 @@ vi.mock('@/lib/upload/batch-progress', () => ({
   resetUploadProgress: vi.fn(),
 }))
 vi.mock('@/lib/device/current', () => ({ getCurrentAuthToken: () => target.key }))
-vi.mock('@/lib/device/client-id', () => ({ getDesktopClientId: () => `client-${target.key}`, getRemoteClientId: () => target.key }))
+vi.mock('@/lib/device/client-id', () => ({ getDesktopClientId: () => target.key === 'a' ? '706c6169-0001-8000-8000-000000000001' : '706c6169-0001-8000-8000-000000000002', getRemoteClientId: () => target.key === 'a' ? '706c6169-0001-8000-8000-000000000003' : '706c6169-0001-8000-8000-000000000004' }))
 vi.mock('@/plugins/eventbus', () => ({ default: { emit: io.emit } }))
 import { upload, discardUploadChunks } from '@/lib/upload/upload'
 import { getUploadContext } from '@/lib/upload/context'
@@ -89,7 +89,7 @@ it.each(['scope', 'open', 'write', 'finish'])('rejects a changed target after pe
   expect(io.gql).toHaveBeenCalledOnce()
   expect(io.scope).toHaveBeenCalledOnce()
   const calls = io.invoke.mock.calls
-  for (const [, args] of calls.filter(([command]) => command === 'native_upload_chunk_open')) expect(args.target).toEqual({ kind: 'peer', peerId: 'a' })
+  for (const [, args] of calls.filter(([command]) => command === 'native_upload_chunk_open')) expect(args.target).toEqual({ kind: 'peer', peerId: '706c6169-0001-8000-8000-000000000003' })
   expect(calls.filter(([command]) => command === 'native_upload_chunk_finish')).toHaveLength(phase === 'finish' ? 1 : 0)
   expect(calls.filter(([command]) => command === 'native_upload_chunk_abort')).toEqual(phase === 'open' || phase === 'write' ? [['native_upload_chunk_abort', { scope: 'original-document', handle: 'original-handle' }]] : [])
   if (phase === 'scope') expect(io.invoke).not.toHaveBeenCalled()
@@ -178,7 +178,7 @@ it('preserves the original upload URL and client header and rejects stale direct
   const current = item('small', 17)
   const running = upload(current, false)
   expect(opened).toEqual([['POST', 'http://a.test/upload', true]])
-  expect(headers).toEqual([['c-id', 'client-a']])
+  expect(headers).toEqual([['c-id', '706c6169-0001-8000-8000-000000000001']])
   target.key = 'b'
   xhr.readyState = 4
   xhr.onreadystatechange()

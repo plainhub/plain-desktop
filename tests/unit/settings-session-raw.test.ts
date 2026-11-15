@@ -18,7 +18,7 @@ clientTemplate(VIconButton, 'src/components/base/VIconButton.vue')
 clientTemplate(VTextButton, 'src/components/base/VTextButton.vue')
 
 it('opens the raw session data from the leading icon', async () => {
-  const entry: SessionRecord = { clientId: 'fixture-client', clientName: 'Fixture browser', type: 'LOGIN', osName: 'Fixture OS', osVersion: '1', appName: 'Fixture', appVersion: '1', clientIp: '192.0.2.24', createdAt: '2026-01-01T00:00:00Z' }
+  const entry: SessionRecord = { clientId: '706c6169-b9ef-8b64-b37d-1162ef232835', clientName: 'Fixture browser', type: 'LOGIN', osName: 'Fixture OS', osVersion: '1', appName: 'Fixture', appVersion: '1', clientIp: '192.0.2.24', createdAt: '2026-01-01T00:00:00Z' }
   const view = renderView(SessionCard, { entry, busy: false }, { VIconButton, VTextButton, InlineDeleteConfirm, VCircularProgress, VCopyButton: { render: () => null } })
   try {
     expect(nodes(view.root).some(node => node.tag === 'pre')).toBe(false)

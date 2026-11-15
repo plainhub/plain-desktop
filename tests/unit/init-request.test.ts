@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, expect, it, vi } from 'vitest'
 const state = vi.hoisted(() => ({ token: '', base: '', request: vi.fn() }))
 vi.mock('@/lib/device/current', () => ({ getCurrentAuthToken: () => state.token }))
-vi.mock('@/lib/api/api', () => ({ getApiBaseUrl: () => state.base, getApiHeaders: () => ({ 'c-id': 'browser' }) }))
+vi.mock('@/lib/api/api', () => ({ getApiBaseUrl: () => state.base, getApiHeaders: () => ({ 'c-id': '706c6169-fe7e-818e-a0f0-a71b7c0f3f75' }) }))
 vi.mock('@/lib/api/http', () => ({ httpRequest: state.request }))
 vi.mock('@/lib/api/time-sync', () => ({ wrapWithReplayProtection: (value: string) => `1700000000000|synthetic-nonce|${value}` }))
 import { requestInit } from '../../src/lib/api/init'

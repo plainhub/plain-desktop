@@ -55,7 +55,7 @@ function mount() {
     parentNode: child => child.parent ?? null, nextSibling: child => child.parent?.children[child.parent.children.indexOf(child) + 1] ?? null,
     patchProp: (element, key, _previous, value) => { element.props[key] = value }, querySelector: () => body,
   })
-  const entry: EventRecord = { id: 'event-fixture', type: 'LOGIN', data: { __typename: 'LoginEventData', sessionType: 'LOGIN' }, clientId: 'client-fixture', clientName: '', clientIp: '192.0.2.24', appName: 'Chrome', appVersion: '142', osName: 'Windows', osVersion: '11', createdAt: '2026-11-15T06:24:00Z' }
+  const entry: EventRecord = { id: 'event-fixture', type: 'LOGIN', data: { __typename: 'LoginEventData', sessionType: 'LOGIN' }, clientId: '706c6169-25a5-85e6-9135-e2e4263d8d01', clientName: '', clientIp: '192.0.2.24', appName: 'Chrome', appVersion: '142', osName: 'Windows', osVersion: '11', createdAt: '2026-11-15T06:24:00Z' }
   const root = node('root')
   const app = renderer.createApp(EventCard, { entry })
   app.provide(ssrContextKey, { modules: new Set() })

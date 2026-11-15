@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, expect, it, vi } from 'vitest'
 import { computed } from 'vue'
 
-const selection = vi.hoisted(() => ({ peer: 'peer' }))
+const selection = vi.hoisted(() => ({ peer: '706c6169-89f1-81c6-8bc7-6b67c2ffa178' }))
 const io = vi.hoisted(() => ({ native: vi.fn(), token: vi.fn(), clear: vi.fn(), http: vi.fn(), invoke: vi.fn(), scope: vi.fn(), merge: vi.fn() }))
 vi.mock('@/lib/api/native-client', () => ({ nativeGraphql: io.native, nativeViewScope: io.scope }))
 vi.mock('@tauri-apps/api/core', () => ({ invoke: io.invoke }))
@@ -9,19 +9,19 @@ vi.mock('@/lib/api/query', () => ({ uploadedChunksGQL: 'chunks' }))
 vi.mock('@/lib/api/mutation', () => ({ deleteChunksGQL: 'delete' }))
 vi.mock('@/lib/upload/merge-async', () => ({ requestMerge: io.merge }))
 vi.mock('@/lib/api/http', () => ({ httpRequest: io.http }))
-vi.mock('@/lib/api/api', () => ({ getApiBaseUrl: () => 'https://unused.test', proxyUrlFor: (base: string, path: string) => base + path, getApiHeaders: () => ({ 'c-id': 'self' }) }))
+vi.mock('@/lib/api/api', () => ({ getApiBaseUrl: () => 'https://unused.test', proxyUrlFor: (base: string, path: string) => base + path, getApiHeaders: () => ({ 'c-id': '706c6169-1ac2-825a-8c79-0951ec181d4a' }) }))
 vi.mock('@/lib/api/crypto', () => ({}))
 vi.mock('@/lib/api/file', () => ({}))
 vi.mock('@/lib/api/time-sync', () => ({}))
 vi.mock('@/lib/device/local-mode', () => ({ isLocalMode: () => false }))
-vi.mock('@/lib/device/client-id', () => ({ getDesktopClientId: () => 'self', getActiveClientId: () => selection.peer, getRemoteClientId: () => selection.peer }))
+vi.mock('@/lib/device/client-id', () => ({ getDesktopClientId: () => '706c6169-1ac2-825a-8c79-0951ec181d4a', getActiveClientId: () => selection.peer, getRemoteClientId: () => selection.peer }))
 vi.mock('@/lib/device/current', () => ({ getCurrentAuthToken: io.token, clearCurrentSession: io.clear }))
 
 import { getGraphqlContextKey, gqlFetch } from '@/lib/api/gql-client'
 import { getLoginPeerRevision, loginPeers, preloadLoginPeers, type LoginPeer } from '@/lib/device/login-peers'
 
 let snapshot: LoginPeer[]
-const original = { id: 'peer', name: 'Device', token: 'original-secret', publicKey: 'original-key', createdAt: '', updatedAt: '', online: false } as LoginPeer
+const original = { id: '706c6169-89f1-81c6-8bc7-6b67c2ffa178', name: 'Device', token: 'original-secret', publicKey: 'original-key', createdAt: '', updatedAt: '', online: false } as LoginPeer
 function deferred<T>() {
   let resolve!: (value: T) => void
   let reject!: (reason: unknown) => void
@@ -30,7 +30,7 @@ function deferred<T>() {
 }
 beforeEach(() => {
   vi.resetAllMocks()
-  selection.peer = 'peer'
+  selection.peer = '706c6169-89f1-81c6-8bc7-6b67c2ffa178'
   vi.stubGlobal('__IS_TAURI__', true)
   vi.stubGlobal('window', Object.assign(new EventTarget(), { __PLAIN_LOG__: false, location: { reload: vi.fn() } }))
   io.scope.mockResolvedValue('document')
@@ -45,18 +45,18 @@ it.each(['token', 'publicKey', 'remove-readd'])('invalidates and separates same-
   await preloadLoginPeers()
   const key = computed(() => getGraphqlContextKey())
   const beforeKey = key.value
-  const beforeRevision = getLoginPeerRevision('peer')
+  const beforeRevision = getLoginPeerRevision('706c6169-89f1-81c6-8bc7-6b67c2ffa178')
   const pending = deferred<any>()
   io.native.mockImplementationOnce(() => pending.promise)
   const stale = expect(gqlFetch('query { result }')).rejects.toMatchObject({ message: 'request_context_changed', canceled: true })
   if (change === 'remove-readd') {
     snapshot = []
     await preloadLoginPeers()
-    expect(getLoginPeerRevision('peer')).toBe(beforeRevision + 1)
+    expect(getLoginPeerRevision('706c6169-89f1-81c6-8bc7-6b67c2ffa178')).toBe(beforeRevision + 1)
     snapshot = [{ ...original }]
   } else snapshot = [{ ...original, [change]: 'replacement-value' }]
   await preloadLoginPeers()
-  expect(getLoginPeerRevision('peer')).toBe(beforeRevision + (change === 'remove-readd' ? 2 : 1))
+  expect(getLoginPeerRevision('706c6169-89f1-81c6-8bc7-6b67c2ffa178')).toBe(beforeRevision + (change === 'remove-readd' ? 2 : 1))
   expect(key.value).not.toBe(beforeKey)
   expect(await gqlFetch('query { result }')).toEqual({ data: { result: 'current' } })
   pending.resolve({ data: { result: 'stale' } })
@@ -71,7 +71,7 @@ it.each(['token', 'publicKey', 'remove-readd'])('invalidates and separates same-
 
 it('keeps identical and metadata-only refreshes on the same revision and pending request', async () => {
   await preloadLoginPeers()
-  const before = getLoginPeerRevision('peer')
+  const before = getLoginPeerRevision('706c6169-89f1-81c6-8bc7-6b67c2ffa178')
   const pending = deferred<any>()
   io.native.mockImplementationOnce(() => pending.promise)
   const first = gqlFetch('query { result }')
@@ -79,7 +79,7 @@ it('keeps identical and metadata-only refreshes on the same revision and pending
   snapshot = [{ ...original, name: 'Renamed', online: true, updatedAt: 'later' }]
   await preloadLoginPeers()
   const second = gqlFetch('query { result }')
-  expect(getLoginPeerRevision('peer')).toBe(before)
+  expect(getLoginPeerRevision('706c6169-89f1-81c6-8bc7-6b67c2ffa178')).toBe(before)
   expect(io.native.mock.calls.filter(([body]) => body.query === 'query { result }')).toHaveLength(1)
   pending.resolve({ data: { result: 'kept' } })
   expect(await first).toEqual(await second)
@@ -88,11 +88,11 @@ it('keeps identical and metadata-only refreshes on the same revision and pending
 
 it('does not invalidate one peer when another peer authenticates', async () => {
   await preloadLoginPeers()
-  const before = getLoginPeerRevision('peer')
+  const before = getLoginPeerRevision('706c6169-89f1-81c6-8bc7-6b67c2ffa178')
   const key = getGraphqlContextKey()
   snapshot = [original, { ...original, id: 'other', token: 'other-secret' }]
   await preloadLoginPeers()
-  expect(getLoginPeerRevision('peer')).toBe(before)
+  expect(getLoginPeerRevision('706c6169-89f1-81c6-8bc7-6b67c2ffa178')).toBe(before)
   expect(getLoginPeerRevision('other')).toBeGreaterThan(0)
   expect(getGraphqlContextKey()).toBe(key)
 })
@@ -189,10 +189,10 @@ it('skips old-session cleanup even without another queue owner and retains clean
   expect(io.native.mock.calls.filter(([body]) => body.query === 'delete')).toHaveLength(0)
   const originalTarget = makeItem('original-target')
   getUploadContext(originalTarget)
-  selection.peer = 'different-peer'
+  selection.peer = '706c6169-a347-82da-8a6e-c4f31097abcc'
   await discardUploadChunks(originalTarget, () => false)
   expect(io.native.mock.calls.filter(([body]) => body.query === 'delete')).toEqual([
-    [{ query: 'delete', variables: { fileId: 'original-target' } }, 30000, { kind: 'peer', peerId: 'peer' }, expect.any(Function)],
+    [{ query: 'delete', variables: { fileId: 'original-target' } }, 30000, { kind: 'peer', peerId: '706c6169-89f1-81c6-8bc7-6b67c2ffa178' }, expect.any(Function)],
   ])
 })
 

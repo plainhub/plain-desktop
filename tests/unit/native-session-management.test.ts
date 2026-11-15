@@ -17,12 +17,12 @@ it('delivers online snapshots and unregisters the exact callback', async () => {
   let channel!: { onmessage: (value: { clientIds: string[] }) => void }
   vi.mocked(invoke).mockImplementationOnce(async (_, args: any) => {
     channel = args.channel
-    channel.onmessage({ clientIds: ['fixture'] })
+    channel.onmessage({ clientIds: ['706c6169-1dfd-8b72-82bb-3ad00a9928ca'] })
     return 24 as any
   })
   const receive = vi.fn()
   const close = await subscribeOnlineClients(receive)
-  expect(receive).toHaveBeenLastCalledWith(['fixture'])
+  expect(receive).toHaveBeenLastCalledWith(['706c6169-1dfd-8b72-82bb-3ad00a9928ca'])
   channel.onmessage({ clientIds: [] })
   expect(receive).toHaveBeenLastCalledWith([])
   await close()

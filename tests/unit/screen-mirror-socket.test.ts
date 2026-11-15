@@ -3,7 +3,7 @@ import { beforeEach, afterEach, expect, it, vi } from 'vitest'
 const mock = vi.hoisted(() => ({ sockets: [] as any[], token: 'fixture' }))
 vi.mock('@/lib/api/api', () => ({ getWebSocketBaseUrl: () => 'wss://example.test', getUrlToken: () => '' }))
 vi.mock('@/lib/device/current', () => ({ getCurrentAuthToken: () => mock.token }))
-vi.mock('@/lib/device/client-id', () => ({ getRemoteClientId: () => 'peer', getDesktopClientId: () => 'browser' }))
+vi.mock('@/lib/device/client-id', () => ({ getRemoteClientId: () => '706c6169-89f1-81c6-8bc7-6b67c2ffa178', getDesktopClientId: () => '706c6169-fe7e-818e-a0f0-a71b7c0f3f75' }))
 vi.mock('@/lib/device/local-mode', () => ({ isLocalMode: () => false }))
 vi.mock('@/lib/api/file', () => ({ tokenToKey: () => new Uint8Array(32).fill(7) }))
 vi.mock('@/lib/api/http', () => ({
@@ -28,7 +28,7 @@ function fixture() {
   const open = () => {
     socket.readyState = 1
     socket.onopen()
-    peer = server(key, socket.send.mock.calls[0][0], '/screen', 'browser')
+    peer = server(key, socket.send.mock.calls[0][0], '/screen', '706c6169-fe7e-818e-a0f0-a71b7c0f3f75')
     socket.onmessage({ data: peer.ack.buffer })
     return peer
   }
@@ -47,11 +47,11 @@ afterEach(() => { vi.clearAllTimers(); vi.useRealTimers(); vi.restoreAllMocks();
 it('opens once and waits for the authenticated acknowledgement before exposing controls', () => {
   const { client, socket, callbacks } = fixture()
   client.connect()
-  expect(openSocket).toHaveBeenCalledExactlyOnceWith('wss://example.test/screen?cid=browser', 'peer')
+  expect(openSocket).toHaveBeenCalledExactlyOnceWith('wss://example.test/screen?cid=706c6169-fe7e-818e-a0f0-a71b7c0f3f75', '706c6169-89f1-81c6-8bc7-6b67c2ffa178')
   expect(socket.binaryType).toBe('arraybuffer')
   socket.onopen()
   expect(callbacks.onConnected).not.toHaveBeenCalled()
-  const peer = server(key, socket.send.mock.calls[0][0], '/screen', 'browser')
+  const peer = server(key, socket.send.mock.calls[0][0], '/screen', '706c6169-fe7e-818e-a0f0-a71b7c0f3f75')
   expect(peer.init).toEqual({ clientNonce: expect.stringMatching(/^[a-f0-9]{64}$/) })
   socket.onmessage({ data: peer.ack.buffer })
   expect(peer.decode(socket.send.mock.calls[1][0])).toEqual(new Uint8Array())
@@ -95,7 +95,7 @@ it('rejects wrong event kinds and data authenticated for a different connection'
   for (const wrongConnection of [false, true]) {
     const { client, socket, callbacks, open } = fixture()
     const peer = open()
-    const other = wrongConnection ? server(key, socket.send.mock.calls[0][0], '/screen', 'browser', 5) : peer
+    const other = wrongConnection ? server(key, socket.send.mock.calls[0][0], '/screen', '706c6169-fe7e-818e-a0f0-a71b7c0f3f75', 5) : peer
     socket.onmessage({ data: other.frame(1n, text(wrongConnection ? 'SCREEN_MIRROR_VIDEO\0data' : 'CONTENT_CHANGED\0data')).buffer })
     expect(socket.close).toHaveBeenCalledExactlyOnceWith(1008, 'invalid_event')
     expect(callbacks.onVideo).not.toHaveBeenCalled()
@@ -136,7 +136,7 @@ it('binds controls to the acknowledged connection after reconnecting', () => {
   const next = mock.sockets.at(-1)!
   next.readyState = 1
   next.onopen()
-  const peer = server(key, next.send.mock.calls[0][0], '/screen', 'browser')
+  const peer = server(key, next.send.mock.calls[0][0], '/screen', '706c6169-fe7e-818e-a0f0-a71b7c0f3f75')
   next.onmessage({ data: peer.ack.buffer })
   client.sendBytes(new Uint8Array([1]))
   const control = next.send.mock.calls[2][0] as Uint8Array

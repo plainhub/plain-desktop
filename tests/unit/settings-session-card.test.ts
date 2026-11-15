@@ -11,7 +11,7 @@ import { CopyButton } from '../helpers/vue-node-renderer'
 vi.mock('@/lib/format', () => ({ formatDateTime: (value: string) => value }))
 
 const entry: SessionRecord = {
-  clientId: 'fixture-client', clientName: 'Fixture browser', type: 'LOGIN',
+  clientId: '706c6169-b9ef-8b64-b37d-1162ef232835', clientName: 'Fixture browser', type: 'LOGIN',
   clientIp: '192.0.2.24', osName: 'Fixture OS', osVersion: '1', appName: 'Fixture app', appVersion: '2',
   createdAt: '2026-01-01T00:00:00Z', lastSeenAt: '2026-01-02T00:00:00Z',
 }

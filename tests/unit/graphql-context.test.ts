@@ -7,7 +7,7 @@ import { initMutation } from '@/lib/api/mutation'
 import { initLazyQuery } from '@/lib/api/query'
 import emitter from '@/plugins/eventbus'
 
-const target = vi.hoisted(() => ({ native: true, client: 'device-a', url: 'https://device-a.test', token: 'session-a', header: 'client-a', revision: 1 }))
+const target = vi.hoisted(() => ({ native: true, client: '706c6169-7efd-857c-91a3-7471150200cd', url: 'https://device-a.test', token: 'session-a', header: '706c6169-1295-84f7-9959-21fe29798997', revision: 1 }))
 vi.mock('@/lib/api/api', () => ({
   getApiBaseUrl: () => target.url,
   getApiHeaders: () => ({ 'c-id': target.header }),
@@ -42,7 +42,7 @@ function response(data: unknown, status = 200) {
 }
 
 beforeEach(() => {
-  Object.assign(target, { native: true, client: 'device-a', url: 'https://device-a.test', token: 'session-a', header: 'client-a', revision: 1 })
+  Object.assign(target, { native: true, client: '706c6169-7efd-857c-91a3-7471150200cd', url: 'https://device-a.test', token: 'session-a', header: '706c6169-1295-84f7-9959-21fe29798997', revision: 1 })
   vi.clearAllMocks()
   vi.stubGlobal('__IS_TAURI__', true)
   vi.stubGlobal('window', { __PLAIN_LOG__: false, location: { reload: vi.fn() } })
@@ -65,7 +65,7 @@ describe('GraphQL request ownership', () => {
     vi.mocked(nativeGraphql).mockReturnValueOnce(reply.promise)
     const first = gqlFetch('query { app { id } }')
     const stale = expect(first).rejects.toThrow('request_context_changed')
-    target.client = 'device-b'
+    target.client = '706c6169-02de-8bc5-8fe4-50bb3e139c1b'
     vi.mocked(nativeGraphql).mockResolvedValueOnce({ data: { app: { id: 'b' } } })
     expect((await gqlFetch('query { app { id } }')).data).toEqual({ app: { id: 'b' } })
     reply.resolve({ data: { app: { id: 'a' } } })
@@ -81,11 +81,11 @@ describe('GraphQL request ownership', () => {
     const first = gqlFetch('query { app { id } }')
     const stale = expect(first).rejects.toThrow('request_context_changed')
     target.token = 'session-b'
-    target.header = 'client-b'
+    target.header = '706c6169-91e1-8871-93a5-0b60cb96e6b8'
     vi.mocked(httpRequest).mockResolvedValueOnce(response({ app: { id: 'b' } }))
     expect((await gqlFetch('query { app { id } }')).data).toEqual({ app: { id: 'b' } })
-    expect(vi.mocked(httpRequest).mock.calls[0]?.[1]?.headers).toEqual({ 'c-id': 'client-a' })
-    expect(vi.mocked(httpRequest).mock.calls[1]?.[1]?.headers).toEqual({ 'c-id': 'client-b' })
+    expect(vi.mocked(httpRequest).mock.calls[0]?.[1]?.headers).toEqual({ 'c-id': '706c6169-1295-84f7-9959-21fe29798997' })
+    expect(vi.mocked(httpRequest).mock.calls[1]?.[1]?.headers).toEqual({ 'c-id': '706c6169-91e1-8871-93a5-0b60cb96e6b8' })
     reply.resolve(response({ app: { id: 'a' } }))
     await stale
   })
@@ -120,7 +120,7 @@ it('marks a discarded response as cancellation rather than a displayed request f
   const reply = deferred<any>()
   vi.mocked(nativeGraphql).mockReturnValueOnce(reply.promise)
   const request = gqlFetch('query { app { id } }', undefined, { dedupe: false }).catch((error: unknown) => error)
-  target.client = 'device-b'
+  target.client = '706c6169-02de-8bc5-8fe4-50bb3e139c1b'
   reply.resolve({ data: { app: { id: 'a' } } })
   const error = await request
   expect(error).toBeInstanceOf(GqlError)
@@ -136,7 +136,7 @@ it('does not run mutation callbacks or show a toast for a discarded response', a
   mutation.onDone(applied)
   mutation.onError(failed)
   const request = mutation.mutate()
-  target.client = 'device-b'
+  target.client = '706c6169-02de-8bc5-8fe4-50bb3e139c1b'
   reply.resolve({ data: { clearAudioQueue: true } })
   expect(await request).toBeUndefined()
   expect(applied).not.toHaveBeenCalled()
@@ -151,7 +151,7 @@ it('does not deliver stale data or errors to query projections', async () => {
   const handle = vi.fn()
   const query = initLazyQuery({ document: 'query { app { id } }', handle })
   const request = query.fetch()
-  target.client = 'device-b'
+  target.client = '706c6169-02de-8bc5-8fe4-50bb3e139c1b'
   reply.resolve({ data: { app: { id: 'a' } } })
   await request
   expect(handle).not.toHaveBeenCalled()
@@ -165,28 +165,28 @@ it('keeps browser remote requests on encrypted HTTPS', async () => {
   vi.mocked(httpRequest).mockResolvedValueOnce(response({ prefs: { locale: 'fr' } }))
   expect((await gqlFetch('query { prefs }')).data).toEqual({ prefs: { locale: 'fr' } })
   expect(httpRequest).toHaveBeenCalledExactlyOnceWith('https://device-a.test/graphql',
-    expect.objectContaining({ method: 'POST', headers: { 'c-id': 'client-a' } }))
+    expect.objectContaining({ method: 'POST', headers: { 'c-id': '706c6169-1295-84f7-9959-21fe29798997' } }))
   expect(nativeGraphql).not.toHaveBeenCalled()
 })
 
 it('routes the selected Desktop peer over IPC without HTTP or credentials', async () => {
   target.native = false
-  target.client = 'device-b'
-  vi.mocked(nativeGraphql).mockResolvedValueOnce({ data: { app: { clientId: 'device-b' } } })
+  target.client = '706c6169-02de-8bc5-8fe4-50bb3e139c1b'
+  vi.mocked(nativeGraphql).mockResolvedValueOnce({ data: { app: { clientId: '706c6169-02de-8bc5-8fe4-50bb3e139c1b' } } })
   await gqlFetch('query { app { clientId } }')
-  expect(nativeGraphql).toHaveBeenCalledExactlyOnceWith({ query: 'query { app { clientId } }', variables: undefined }, 30000, { kind: 'peer', peerId: 'device-b' }, undefined)
+  expect(nativeGraphql).toHaveBeenCalledExactlyOnceWith({ query: 'query { app { clientId } }', variables: undefined }, 30000, { kind: 'peer', peerId: '706c6169-02de-8bc5-8fe4-50bb3e139c1b' }, undefined)
   expect(httpRequest).not.toHaveBeenCalled()
   expect(getCurrentAuthToken).not.toHaveBeenCalled()
 })
 
 it('keeps bound Desktop cleanup on its original peer after changing the selected target', async () => {
   target.native = false
-  target.client = 'device-a'
+  target.client = '706c6169-7efd-857c-91a3-7471150200cd'
   const bound = bindGraphqlClient()
-  target.client = 'device-b'
+  target.client = '706c6169-02de-8bc5-8fe4-50bb3e139c1b'
   vi.mocked(nativeGraphql).mockResolvedValueOnce({ data: { stopDiscovery: true } })
   expect((await bound('mutation { stopDiscovery }')).data).toEqual({ stopDiscovery: true })
-  expect(nativeGraphql).toHaveBeenCalledExactlyOnceWith({ query: 'mutation { stopDiscovery }', variables: undefined }, 30000, { kind: 'peer', peerId: 'device-a' }, expect.any(Function))
+  expect(nativeGraphql).toHaveBeenCalledExactlyOnceWith({ query: 'mutation { stopDiscovery }', variables: undefined }, 30000, { kind: 'peer', peerId: '706c6169-7efd-857c-91a3-7471150200cd' }, expect.any(Function))
   expect(httpRequest).not.toHaveBeenCalled()
 })
 
@@ -195,13 +195,13 @@ it('does not deduplicate or deliver responses across Desktop peer changes', asyn
   const reply = deferred<any>()
   vi.mocked(nativeGraphql).mockReturnValueOnce(reply.promise)
   const stale = expect(gqlFetch('query { app { id } }')).rejects.toMatchObject({ message: 'request_context_changed', canceled: true })
-  target.client = 'device-b'
+  target.client = '706c6169-02de-8bc5-8fe4-50bb3e139c1b'
   vi.mocked(nativeGraphql).mockResolvedValueOnce({ data: { app: { id: 'b' } } })
   expect((await gqlFetch('query { app { id } }')).data).toEqual({ app: { id: 'b' } })
   reply.resolve({ data: { app: { id: 'a' } } })
   await stale
   expect(vi.mocked(nativeGraphql).mock.calls.map(([, , destination]) => destination)).toEqual([
-    { kind: 'peer', peerId: 'device-a' }, { kind: 'peer', peerId: 'device-b' },
+    { kind: 'peer', peerId: '706c6169-7efd-857c-91a3-7471150200cd' }, { kind: 'peer', peerId: '706c6169-02de-8bc5-8fe4-50bb3e139c1b' },
   ])
   expect(httpRequest).not.toHaveBeenCalled()
 })
@@ -248,11 +248,11 @@ it('routes Core preference writes to the selected local or remote target', async
   expect(nativeGraphql).toHaveBeenCalledTimes(1)
   expect(httpRequest).not.toHaveBeenCalled()
   target.native = false
-  target.client = 'remote'
+  target.client = '706c6169-8ed4-8fb1-b534-79c532096b42'
   vi.mocked(nativeGraphql).mockResolvedValueOnce({ data: { result: true } })
   await core.set('locale', 'ja')
   expect(nativeGraphql).toHaveBeenCalledTimes(2)
-  expect(vi.mocked(nativeGraphql).mock.calls.map(([, , destination]) => destination)).toEqual([{ kind: 'local' }, { kind: 'peer', peerId: 'remote' }])
+  expect(vi.mocked(nativeGraphql).mock.calls.map(([, , destination]) => destination)).toEqual([{ kind: 'local' }, { kind: 'peer', peerId: '706c6169-8ed4-8fb1-b534-79c532096b42' }])
   expect(httpRequest).not.toHaveBeenCalled()
   expect(core.get('locale', '')).toBe('ja')
 })

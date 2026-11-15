@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, expect, it, vi } from 'vitest'
 import type { IUploadItem } from '@/stores/temp'
 
-const selection = vi.hoisted(() => ({ local: true, peerId: 'peer-a' }))
+const selection = vi.hoisted(() => ({ local: true, peerId: '706c6169-0e71-8687-905d-87d4a5229f24' }))
 const io = vi.hoisted(() => ({ scope: vi.fn(), invoke: vi.fn(), gql: vi.fn(), merge: vi.fn(), emit: vi.fn(), progress: vi.fn(), token: vi.fn(), urlToken: vi.fn(), baseUrl: vi.fn(), key: vi.fn(), encrypt: vi.fn() }))
 vi.mock('@/lib/api/native-client', () => ({ nativeViewScope: io.scope }))
 vi.mock('@tauri-apps/api/core', () => ({ invoke: io.invoke }))
@@ -19,7 +19,7 @@ vi.mock('@/lib/upload/batch-progress', () => ({
   setUploadUploadedSize: (item: IUploadItem, size: number) => { item.uploadedSize = size; io.progress(size) },
 }))
 vi.mock('@/lib/device/current', () => ({ getCurrentAuthToken: io.token }))
-vi.mock('@/lib/device/client-id', () => ({ getDesktopClientId: () => 'test-client', getRemoteClientId: () => selection.peerId }))
+vi.mock('@/lib/device/client-id', () => ({ getDesktopClientId: () => '706c6169-e2eb-85ac-b78e-a2754bf184e8', getRemoteClientId: () => selection.peerId }))
 vi.mock('@/plugins/eventbus', () => ({ default: { emit: io.emit } }))
 import { upload } from '@/lib/upload/upload'
 
@@ -72,7 +72,7 @@ function nativeSuccess(command: string) {
 beforeEach(() => {
   vi.resetAllMocks()
   vi.stubGlobal('__IS_TAURI__', true)
-  selection.local = true; selection.peerId = 'peer-a'
+  selection.local = true; selection.peerId = '706c6169-0e71-8687-905d-87d4a5229f24'
   io.scope.mockResolvedValue('document')
   io.baseUrl.mockReturnValue('http://web.test')
   io.token.mockReturnValue('test-token')
@@ -292,7 +292,7 @@ it.each([true, false])('routes all Desktop sizes through native chunks (local=%s
     expect(f.item.status).toBe('done')
     const opens = calls('native_upload_chunk_open')
     expect(opens.map(([, args]) => args)).toEqual(Array.from({ length: Math.max(1, Math.ceil(size / CHUNK)) }, (_, index) => ({
-      scope: 'document', target: local ? { kind: 'local' } : { kind: 'peer', peerId: 'peer-a' }, fileId: f.item.fileId, index, size: Math.min(CHUNK, size - index * CHUNK),
+      scope: 'document', target: local ? { kind: 'local' } : { kind: 'peer', peerId: '706c6169-0e71-8687-905d-87d4a5229f24' }, fileId: f.item.fileId, index, size: Math.min(CHUNK, size - index * CHUNK),
     })))
     expect(calls('native_upload_chunk_finish')).toHaveLength(opens.length)
     expect(io.merge).toHaveBeenCalledWith(f.item, { fileId: f.item.fileId, totalChunks: opens.length, path: '/owned/sample.bin', replace: true, totalSize: size })
@@ -310,7 +310,7 @@ it('retries an incorrect finish receipt with its captured peer target and scope'
   const f = fixture(CHUNK + 17)
   io.invoke.mockImplementation(async command => {
     if (command === 'native_upload_chunk_finish' && calls(command).length === 1) {
-      selection.peerId = 'peer-b'
+      selection.peerId = '706c6169-9915-869c-9c24-bcf133686007'
       return 0
     }
     return nativeSuccess(command)
@@ -319,7 +319,7 @@ it('retries an incorrect finish receipt with its captured peer target and scope'
   await vi.runAllTimersAsync()
   await running
   expect(calls('native_upload_chunk_open').map(([, args]) => [args.target, args.scope])).toEqual([
-    [{ kind: 'peer', peerId: 'peer-a' }, 'document'], [{ kind: 'peer', peerId: 'peer-a' }, 'document'],
+    [{ kind: 'peer', peerId: '706c6169-0e71-8687-905d-87d4a5229f24' }, 'document'], [{ kind: 'peer', peerId: '706c6169-0e71-8687-905d-87d4a5229f24' }, 'document'],
   ])
   expect(calls('native_upload_chunk_abort')).toHaveLength(1)
   expect(io.scope).toHaveBeenCalledOnce()
@@ -362,7 +362,7 @@ it.each([0, 17, CHUNK + 17])('preserves Web XHR and multipart for %s bytes', asy
   expect(io.encrypt.mock.calls.map(([, , aad]) => new TextDecoder().decode(aad))).toEqual(
     opened.map(() => `HTTP_REQUEST\0POST\0/${size > CHUNK ? 'upload_chunk' : 'upload'}`)
   )
-  expect(headers).toEqual(opened.map(() => ['c-id', 'test-client']))
+  expect(headers).toEqual(opened.map(() => ['c-id', '706c6169-e2eb-85ac-b78e-a2754bf184e8']))
   expect(io.token).toHaveBeenCalledOnce()
   expect(io.invoke).not.toHaveBeenCalled()
 })

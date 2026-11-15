@@ -3,16 +3,16 @@ import { gqlFetch, bindGraphqlClient } from '@/lib/api/gql-client'
 import { gqlFetchPeer } from '@/lib/api/peer-client'
 import type { LoginPeer } from '@/lib/device/login-peers'
 
-const fixture = vi.hoisted(() => ({ invoke: vi.fn(), http: vi.fn(), key: vi.fn(), local: false, selected: 'selected-peer' }))
+const fixture = vi.hoisted(() => ({ invoke: vi.fn(), http: vi.fn(), key: vi.fn(), local: false, selected: '706c6169-4132-8ab2-8ec9-5a9f1a04658b' }))
 vi.mock('@tauri-apps/api/core', () => ({ invoke: fixture.invoke }))
 vi.mock('@/lib/api/api', () => ({
   getApiBaseUrl: () => 'https://selected.example.test',
-  getApiHeaders: () => ({ 'c-id': 'self' }),
+  getApiHeaders: () => ({ 'c-id': '706c6169-1ac2-825a-8c79-0951ec181d4a' }),
   deviceBaseUrl: (host: string) => `https://${host}`,
 }))
 vi.mock('@/lib/api/http', () => ({ httpRequest: fixture.http }))
 vi.mock('@/lib/device/local-mode', () => ({ isLocalMode: () => fixture.local }))
-vi.mock('@/lib/device/client-id', () => ({ getActiveClientId: () => fixture.selected || 'self', getRemoteClientId: () => fixture.selected }))
+vi.mock('@/lib/device/client-id', () => ({ getActiveClientId: () => fixture.selected || '706c6169-1ac2-825a-8c79-0951ec181d4a', getRemoteClientId: () => fixture.selected }))
 vi.mock('@/lib/device/current', () => ({ getCurrentAuthToken: () => 'selected-session', clearCurrentSession: vi.fn() }))
 vi.mock('@/lib/device/login-peers', async original => ({ ...(await original<typeof import('@/lib/device/login-peers')>()), getLoginPeerRevision: () => 1 }))
 vi.mock('@/lib/api/file', () => ({ tokenToKey: fixture.key }))
@@ -26,7 +26,7 @@ vi.mock('@/lib/api/crypto', async original => ({
   bitArrayToUint8Array: (value: unknown) => value,
 }))
 
-const peer = { id: 'direct-peer', token: 'direct-session', ip: 'direct.example.test', port: 443 } as LoginPeer
+const peer = { id: '706c6169-d74d-885c-bc72-0b0704412cf1', token: 'direct-session', ip: 'direct.example.test', port: 443 } as LoginPeer
 const query = 'query Read($id: ID!) { node(id: $id) { id } }'
 const variables = { id: 'item' }
 const result = { data: { node: { id: 'item' } } }
@@ -38,7 +38,7 @@ beforeEach(() => {
   vi.stubGlobal('__IS_TAURI__', true)
   vi.stubGlobal('window', { __PLAIN_LOG__: false })
   fixture.local = false
-  fixture.selected = 'selected-peer'
+  fixture.selected = '706c6169-4132-8ab2-8ec9-5a9f1a04658b'
   fixture.key.mockImplementation((token: string) => token)
   fixture.invoke.mockImplementation(async (command: string) => command === 'native_view_scope' ? 'document' : result)
   fixture.http.mockResolvedValue({ status: 200, ok: true, arrayBuffer: async () => new TextEncoder().encode(JSON.stringify(result)).buffer })
@@ -53,8 +53,8 @@ it('sends selected, direct and fixed local GraphQL through the same scoped IPC c
   expect(await gqlFetch(query, variables)).toEqual(result)
   const body = { query, variables, extensions: { nativeScope: 'document', nativeDeadlineMs: 31000 } }
   expect(fixture.invoke.mock.calls.filter(([command]) => command === 'native_graphql')).toEqual([
-    ['native_graphql', { body, target: { kind: 'peer', peerId: 'selected-peer' } }],
-    ['native_graphql', { body, target: { kind: 'peer', peerId: 'direct-peer' } }],
+    ['native_graphql', { body, target: { kind: 'peer', peerId: '706c6169-4132-8ab2-8ec9-5a9f1a04658b' } }],
+    ['native_graphql', { body, target: { kind: 'peer', peerId: '706c6169-d74d-885c-bc72-0b0704412cf1' } }],
     ['native_graphql', { body, target: { kind: 'local' } }],
   ])
   expect(fixture.http).not.toHaveBeenCalled()
@@ -63,12 +63,12 @@ it('sends selected, direct and fixed local GraphQL through the same scoped IPC c
 
 it('pins a bound IPC target while later direct and current calls use their own peers', async () => {
   const bound = bindGraphqlClient()
-  fixture.selected = 'replacement'
+  fixture.selected = '706c6169-a60b-8d45-b5e2-8d95a2b44a95'
   await bound(query, variables)
   await gqlFetchPeer(peer, query, variables)
   await gqlFetch(query, variables)
   expect(fixture.invoke.mock.calls.filter(([command]) => command === 'native_graphql').map(([, args]) => args.target)).toEqual([
-    { kind: 'peer', peerId: 'selected-peer' }, { kind: 'peer', peerId: 'direct-peer' }, { kind: 'peer', peerId: 'replacement' },
+    { kind: 'peer', peerId: '706c6169-4132-8ab2-8ec9-5a9f1a04658b' }, { kind: 'peer', peerId: '706c6169-d74d-885c-bc72-0b0704412cf1' }, { kind: 'peer', peerId: '706c6169-a60b-8d45-b5e2-8d95a2b44a95' },
   ])
   expect(fixture.http).not.toHaveBeenCalled()
 })
@@ -94,7 +94,7 @@ it('preserves browser direct-peer HTTPS and its request body', async () => {
   vi.stubGlobal('__IS_TAURI__', false)
   expect(await gqlFetchPeer(peer, query, variables)).toEqual(result)
   expect(fixture.http).toHaveBeenCalledExactlyOnceWith('https://direct.example.test/graphql', expect.objectContaining({
-    method: 'POST', headers: { 'c-id': 'self' }, body: expect.any(Uint8Array),
+    method: 'POST', headers: { 'c-id': '706c6169-1ac2-825a-8c79-0951ec181d4a' }, body: expect.any(Uint8Array),
   }))
   expect(fixture.invoke).not.toHaveBeenCalled()
   const payload = JSON.parse(new TextDecoder().decode(fixture.http.mock.calls[0][1].body))

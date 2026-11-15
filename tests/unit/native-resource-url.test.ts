@@ -1,6 +1,6 @@
 import { beforeEach, expect, it, vi } from 'vitest'
 
-const fixture = vi.hoisted(() => ({ invoke: vi.fn(), local: true, peer: 'remote', revision: 0, scope: vi.fn() }))
+const fixture = vi.hoisted(() => ({ invoke: vi.fn(), local: true, peer: '706c6169-8ed4-8fb1-b534-79c532096b42', revision: 0, scope: vi.fn() }))
 vi.mock('@tauri-apps/api/core', () => ({ invoke: fixture.invoke }))
 vi.mock('../../src/lib/device/local-mode', () => ({ isLocalMode: () => fixture.local }))
 vi.mock('../../src/lib/api/native-client', () => ({ nativeViewScope: fixture.scope }))
@@ -13,7 +13,7 @@ beforeEach(() => {
   vi.resetModules()
   vi.resetAllMocks()
   fixture.local = true
-  fixture.peer = 'remote'
+  fixture.peer = '706c6169-8ed4-8fb1-b534-79c532096b42'
   fixture.revision = 0
   vi.stubGlobal('__IS_TAURI__', true)
   fixture.scope.mockResolvedValue('document')
@@ -194,8 +194,8 @@ it('opens eligible peer images through typed IPC without returning peer URLs or 
   const { createNativeResourceOwner, nativeResourceReference } = await import('../../src/hooks/native-resource-url')
   const { url: nativeResourceUrl } = createNativeResourceOwner()
   expect(await nativeResourceUrl('/peer/image.png')).toBe(resource.url)
-  expect(fixture.invoke).toHaveBeenCalledExactlyOnceWith('native_resource_open', { path: '/peer/image.png', scope: 'document', thumbnail: undefined, target: { kind: 'peer', peerId: 'remote' } })
-  expect(nativeResourceReference(resource.url)).toEqual({ path: '/peer/image.png', target: { kind: 'peer', peerId: 'remote' } })
+  expect(fixture.invoke).toHaveBeenCalledExactlyOnceWith('native_resource_open', { path: '/peer/image.png', scope: 'document', thumbnail: undefined, target: { kind: 'peer', peerId: '706c6169-8ed4-8fb1-b534-79c532096b42' } })
+  expect(nativeResourceReference(resource.url)).toEqual({ path: '/peer/image.png', target: { kind: 'peer', peerId: '706c6169-8ed4-8fb1-b534-79c532096b42' } })
 })
 
 it('does not reuse a peer handle after its authorization revision changes', async () => {

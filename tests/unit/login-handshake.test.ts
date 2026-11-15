@@ -88,14 +88,14 @@ function frame(key: Uint8Array, data: object) {
 }
 
 function completed() {
-  return { deviceId: 'fixture-device', status: 'COMPLETED', chatPaired: false }
+  return { deviceId: '706c6169-510c-8348-9a2c-7c92f6ee2e7f', status: 'COMPLETED', chatPaired: false }
 }
 
 const params = () => ({
   passwordRequired: false,
   clientId: vector.clientId,
   initSignaturePublicKey: vector.serverIdentity,
-  expectedDeviceId: 'fixture-device',
+  expectedDeviceId: '706c6169-510c-8348-9a2c-7c92f6ee2e7f',
 })
 
 it.each(['http:', 'https:'])(
@@ -131,11 +131,11 @@ it.each(['http:', 'https:'])(
     })
     expect(decoded).not.toHaveProperty('password')
     await socket.message(frame(bytes(vector.key), { status: 'PENDING' }))
-    expect(pending).toHaveBeenCalledExactlyOnceWith('83954721')
+    expect(pending).toHaveBeenCalledExactlyOnceWith('98700115')
     expect(socket.close).not.toHaveBeenCalled()
     await socket.message(frame(bytes(vector.key), completed()))
     await expect(promise).resolves.toMatchObject({
-      deviceId: 'fixture-device',
+      deviceId: '706c6169-510c-8348-9a2c-7c92f6ee2e7f',
       token: vector.key,
       signaturePublicKey: vector.serverIdentity,
     })
@@ -219,7 +219,7 @@ it('does not send credentials when canceled during client metadata lookup', asyn
 })
 
 it('authenticates to A before delivering B login frames on the existing proxy URL', async () => {
-  const path = '/proxy/device-b/auth?cid=fixture-browser'
+  const path = '/proxy/device-b/auth?cid=706c6169-76ca-875b-a559-d6fd7695ee9b'
   const url = `wss://example.invalid${path}`
   const opening = openLoginSocket(url)
   await socket.open()
@@ -231,9 +231,9 @@ it('authenticates to A before delivering B login frames on the existing proxy UR
     return [length, value]
   }))
   const key = new Uint8Array(32).fill(5)
-  const initAad = fields(['WS_INIT', path, 'fixture-browser'].map(value => utf8.encode(value)))
+  const initAad = fields(['WS_INIT', path, '706c6169-76ca-875b-a559-d6fd7695ee9b'].map(value => utf8.encode(value)))
   expect(JSON.parse(new TextDecoder().decode(xchacha20poly1305(key, init.subarray(0, 24), initAad).decrypt(init.subarray(24))))).toEqual({ clientNonce: expect.stringMatching(/^[a-f0-9]{64}$/) })
-  const ackAad = fields([...['WS_ACK', path, 'fixture-browser'].map(value => utf8.encode(value)), sha256(init)])
+  const ackAad = fields([...['WS_ACK', path, '706c6169-76ca-875b-a559-d6fd7695ee9b'].map(value => utf8.encode(value)), sha256(init)])
   const nonce = new Uint8Array(24).fill(9)
   const ack = xchacha20poly1305(key, nonce, ackAad).encrypt(utf8.encode(JSON.stringify({ serverNonce: 'a'.repeat(64) })))
   await socket.message(new Blob([new Uint8Array([...nonce, ...ack])]))
@@ -243,7 +243,7 @@ it('authenticates to A before delivering B login frames on the existing proxy UR
   expect(new DataView(confirm.buffer, confirm.byteOffset).getBigUint64(0)).toBe(1n)
   const binding = sha256(fields([init, new Uint8Array([...nonce, ...ack])]))
   const confirmAad = fields([
-    ...['WS_FRAME', path, 'fixture-browser'].map(value => utf8.encode(value)),
+    ...['WS_FRAME', path, '706c6169-76ca-875b-a559-d6fd7695ee9b'].map(value => utf8.encode(value)),
     binding, utf8.encode('client'), confirm.subarray(0, 8),
   ])
   expect(xchacha20poly1305(key, confirm.subarray(8, 32), confirmAad).decrypt(confirm.subarray(32))).toEqual(new Uint8Array())
@@ -255,7 +255,7 @@ it('authenticates to A before delivering B login frames on the existing proxy UR
 })
 
 it('keeps the A session handshake on the current API origin', async () => {
-  await expect(openLoginSocket('wss://other.invalid/proxy/device-b/auth?cid=fixture-browser'))
+  await expect(openLoginSocket('wss://other.invalid/proxy/device-b/auth?cid=706c6169-76ca-875b-a559-d6fd7695ee9b'))
     .rejects.toBe('proxy_auth_failed')
   expect(mock.socket).not.toHaveBeenCalled()
 })

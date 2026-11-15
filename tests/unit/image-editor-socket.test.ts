@@ -3,7 +3,7 @@ import { beforeEach, afterEach, expect, it, vi } from 'vitest'
 const mock = vi.hoisted(() => ({ sockets: [] as any[] }))
 vi.mock('@/lib/api/api', () => ({ getWebSocketBaseUrl: () => 'wss://example.test', getUrlToken: () => '' }))
 vi.mock('@/lib/device/current', () => ({ getCurrentAuthToken: () => 'token' }))
-vi.mock('@/lib/device/client-id', () => ({ getRemoteClientId: () => 'peer', getDesktopClientId: () => 'browser' }))
+vi.mock('@/lib/device/client-id', () => ({ getRemoteClientId: () => '706c6169-89f1-81c6-8bc7-6b67c2ffa178', getDesktopClientId: () => '706c6169-fe7e-818e-a0f0-a71b7c0f3f75' }))
 vi.mock('@/lib/device/local-mode', () => ({ isLocalMode: () => false }))
 vi.mock('@/lib/api/file', () => ({ tokenToKey: () => new Uint8Array(32).fill(7) }))
 vi.mock('@/lib/api/http', () => ({ openSocket: vi.fn(() => {
@@ -27,12 +27,12 @@ it('waits for authenticated readiness, receives updates, rejects replay and reco
   const client = new ImageEditorSocket(ready, update)
   client.connect()
   const socket = mock.sockets[0]
-  expect(openSocket).toHaveBeenCalledWith('wss://example.test/image_editor?cid=browser', 'peer')
+  expect(openSocket).toHaveBeenCalledWith('wss://example.test/image_editor?cid=706c6169-fe7e-818e-a0f0-a71b7c0f3f75', '706c6169-89f1-81c6-8bc7-6b67c2ffa178')
   socket.onopen()
   expect(ready).not.toHaveBeenCalled()
   const registration = socket.send.mock.calls[0][0]
   const key = new Uint8Array(32).fill(7)
-  const peer = server(key, registration, '/image_editor', 'browser')
+  const peer = server(key, registration, '/image_editor', '706c6169-fe7e-818e-a0f0-a71b7c0f3f75')
   expect(peer.init).toEqual({ clientNonce: expect.stringMatching(/^[a-f0-9]{64}$/) })
   socket.onmessage({ data: peer.ack.buffer })
   expect(peer.decode(socket.send.mock.calls[1][0])).toEqual(new Uint8Array())

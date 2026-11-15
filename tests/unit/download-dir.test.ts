@@ -10,7 +10,7 @@ const fixture = vi.hoisted(() => ({
   reference: vi.fn(),
   scope: vi.fn(),
   local: true,
-  peer: 'remote',
+  peer: '706c6169-8ed4-8fb1-b534-79c532096b42',
 }))
 
 vi.mock('@/lib/api/native-client', () => ({ nativeGraphql: fixture.native, nativeViewScope: fixture.scope }))
@@ -30,7 +30,7 @@ import { downloadToDir, downloadAs } from '../../src/lib/download-dir'
 beforeEach(() => {
   vi.resetAllMocks()
   fixture.local = true
-  fixture.peer = 'remote'
+  fixture.peer = '706c6169-8ed4-8fb1-b534-79c532096b42'
   fixture.scope.mockResolvedValue('document')
   fixture.reference.mockReturnValue({ path: 'fid:owned-image', target: { kind: 'local' } })
   fixture.directory.mockResolvedValue('/downloads')
@@ -60,7 +60,7 @@ it('uses the local shared Rust copy and returns its actual collision-safe path w
 })
 
 it('captures the selected device resource before waiting for the OS Downloads directory', async () => {
-  let selected = 'initial'
+  let selected = '706c6169-ad60-8a39-b7a6-1b4606a323c1'
   fixture.proxy.mockImplementation((path: string) => `http://localhost:3210/${selected}${path}`)
   let resolve!: (directory: string) => void
   let requested!: () => void
@@ -69,10 +69,10 @@ it('captures the selected device resource before waiting for the OS Downloads di
   fixture.native.mockResolvedValue({ data: { copyFileToDirectory: '/downloads/file.txt' } })
   const download = downloadToDir('https://device.invalid/fs?id=source', 'file.txt')
   await ready
-  selected = 'replacement'
+  selected = '706c6169-a60b-8d45-b5e2-8d95a2b44a95'
   resolve('/downloads')
   await download
-  expect(fixture.native.mock.calls[0][0].variables.source).toBe('http://localhost:3210/initial/fs?id=source')
+  expect(fixture.native.mock.calls[0][0].variables.source).toBe('http://localhost:3210/706c6169-ad60-8a39-b7a6-1b4606a323c1/fs?id=source')
 })
 
 it('does not report a saved path when Rust refuses or produces no file', async () => {
@@ -115,11 +115,11 @@ it('rejects an expired native handle instead of guessing its source from an opaq
 })
 
 it('uses the native save dialog with the captured original target', async () => {
-  fixture.reference.mockReturnValue({ path: '/peer/image.png', target: { kind: 'peer', peerId: 'image-device' } })
+  fixture.reference.mockReturnValue({ path: '/peer/image.png', target: { kind: 'peer', peerId: '706c6169-e3ca-893f-84cc-51e42fb93a9c' } })
   fixture.invoke.mockResolvedValue('/saved/image.png')
   expect(await downloadAs('http://plain-resource.file/opaque', 'image.png')).toBe('/saved/image.png')
   expect(fixture.invoke).toHaveBeenCalledExactlyOnceWith('native_resource_save_as', {
-    path: '/peer/image.png', target: { kind: 'peer', peerId: 'image-device' }, scope: 'document', name: 'image.png',
+    path: '/peer/image.png', target: { kind: 'peer', peerId: '706c6169-e3ca-893f-84cc-51e42fb93a9c' }, scope: 'document', name: 'image.png',
   })
   expect(fixture.proxy).not.toHaveBeenCalled()
   expect(fixture.native).not.toHaveBeenCalled()
@@ -128,9 +128,9 @@ it('uses the native save dialog with the captured original target', async () => 
 it('downloads large original references through Rust even when their preview is still HTTP', async () => {
   fixture.local = false
   fixture.invoke.mockResolvedValue('/downloads/large.mp4')
-  expect(await downloadToDir('https://device.invalid/fs?id=large', 'large.mp4', { path: '/peer/large.mp4', target: { kind: 'peer', peerId: 'remote' } })).toBe('/downloads/large.mp4')
+  expect(await downloadToDir('https://device.invalid/fs?id=large', 'large.mp4', { path: '/peer/large.mp4', target: { kind: 'peer', peerId: '706c6169-8ed4-8fb1-b534-79c532096b42' } })).toBe('/downloads/large.mp4')
   expect(fixture.invoke).toHaveBeenCalledExactlyOnceWith('native_resource_download', {
-    path: '/peer/large.mp4', target: { kind: 'peer', peerId: 'remote' }, scope: 'document', directory: '/downloads', name: 'large.mp4',
+    path: '/peer/large.mp4', target: { kind: 'peer', peerId: '706c6169-8ed4-8fb1-b534-79c532096b42' }, scope: 'document', directory: '/downloads', name: 'large.mp4',
   })
   expect(fixture.proxy).not.toHaveBeenCalled()
   expect(fixture.write).not.toHaveBeenCalled()

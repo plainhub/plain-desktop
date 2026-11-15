@@ -5,7 +5,7 @@ import { DeviceType } from '@/lib/status'
 const target = vi.hoisted(() => ({ local: true, host: '', base: '' }))
 vi.mock('@/lib/device/local-mode', () => ({ isLocalMode: () => target.local }))
 vi.mock('@/lib/device/current', () => ({ getCurrentDeviceHost: () => target.host, getCurrentDeviceBaseUrl: () => target.base }))
-vi.mock('@/lib/device/client-id', () => ({ getDesktopClientId: () => 'self' }))
+vi.mock('@/lib/device/client-id', () => ({ getDesktopClientId: () => '706c6169-1ac2-825a-8c79-0951ec181d4a' }))
 
 beforeEach(() => {
   Object.assign(target, { local: true, host: '', base: '' })
@@ -67,7 +67,7 @@ it('keeps production browser requests on the current origin despite development 
 it('uses the existing Core listener for native HTTP', () => {
   const init = new URL(proxyHttpUrl('https://device.example:8443/init?value=a%2Bb'))
   expect(init.origin).toBe('http://127.0.0.1:8180')
-  expect(init.pathname).toMatch(/^\/proxy\/c\.self\.[\w-]+\/init$/)
+  expect(init.pathname).toMatch(/^\/proxy\/c\.706c6169-1ac2-825a-8c79-0951ec181d4a\.[\w-]+\/init$/)
   expect(init.search).toBe('?value=a%2Bb')
   expect(proxyWsUrlFor('ws://localhost:8180/graphql')).toBe('ws://localhost:8180/graphql')
 })

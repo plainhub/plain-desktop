@@ -13,7 +13,7 @@ vi.mock('@/lib/api/file', async importOriginal => ({
 }))
 vi.mock('@/lib/api/api', () => ({
   getProxyUrl: (path: string) => `http://127.0.0.1:8910${path}`,
-  getApiHeaders: () => ({ 'c-id': 'fixture' }), getUrlToken: vi.fn(),
+  getApiHeaders: () => ({ 'c-id': '706c6169-1dfd-8b72-82bb-3ad00a9928ca' }), getUrlToken: vi.fn(),
 }))
 vi.mock('@/components/toaster', () => ({ default: vi.fn(), toastWithAction: vi.fn() }))
 vi.mock('@/lib/download-dir', () => ({ downloadToDir: vi.fn(), downloadAs: vi.fn(), revealInFolder: vi.fn() }))

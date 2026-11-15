@@ -25,15 +25,15 @@ afterEach(() => vi.unstubAllGlobals())
 
 it('loads native identity separately from preferences and keeps it when binding a remote target', async () => {
   const identity = await import('@/lib/device/client-id')
-  storage.set('client_id', 'browser')
-  mock.native.mockResolvedValue({ clientId: 'native', signaturePublicKey: 'key' })
+  storage.set('client_id', '706c6169-fe7e-818e-a0f0-a71b7c0f3f75')
+  mock.native.mockResolvedValue({ clientId: '706c6169-9ef9-80cf-a901-5eec1ab07b61', signaturePublicKey: 'key' })
   expect(identity.getDesktopClientId()).toBe('')
   await identity.preloadClientIdentity()
-  identity.setRemoteClientId('remote')
-  expect(identity.getDesktopClientId()).toBe('native')
-  expect(identity.getActiveClientId()).toBe('remote')
+  identity.setRemoteClientId('706c6169-8ed4-8fb1-b534-79c532096b42')
+  expect(identity.getDesktopClientId()).toBe('706c6169-9ef9-80cf-a901-5eec1ab07b61')
+  expect(identity.getActiveClientId()).toBe('706c6169-8ed4-8fb1-b534-79c532096b42')
   identity.clearRemoteClientId()
-  expect(identity.getActiveClientId()).toBe('native')
+  expect(identity.getActiveClientId()).toBe('706c6169-9ef9-80cf-a901-5eec1ab07b61')
 })
 
 it('creates browser identity once and reuses it without native access', async () => {
@@ -65,7 +65,7 @@ it.each([
     storage.set('login_identity', 'old-identity')
     storage.set('locale', 'fr')
     const identity = await import('@/lib/device/client-id')
-    identity.setRemoteClientId('old-device')
+    identity.setRemoteClientId('706c6169-f06a-88a1-8304-c9424749458d')
 
     expect(identity.ensureBrowserClientId()).toBe(false)
     expect([...storage.entries()]).toEqual([['client_id', replacement]])

@@ -7,10 +7,10 @@ const fixture = vi.hoisted(() => ({
 vi.mock('@tauri-apps/api/core', () => ({ invoke: fixture.invoke }))
 vi.mock('@tauri-apps/api/path', () => ({ downloadDir: async () => '/downloads' }))
 vi.mock('@/lib/device/local-mode', () => ({ isLocalMode: () => fixture.local }))
-vi.mock('@/lib/device/client-id', () => ({ getRemoteClientId: () => fixture.local ? '' : 'peer' }))
+vi.mock('@/lib/device/client-id', () => ({ getRemoteClientId: () => fixture.local ? '' : '706c6169-89f1-81c6-8bc7-6b67c2ffa178' }))
 vi.mock('@/lib/device/login-peers', () => ({ getLoginPeerRevision: () => 0 }))
 vi.mock('@/lib/api/native-client', () => ({ nativeViewScope: async () => 'document', nativeGraphql: fixture.graphql }))
-vi.mock('@/lib/api/api', () => ({ getProxyUrl: fixture.proxy, getApiHeaders: () => ({ 'c-id': 'browser' }), getUrlToken: vi.fn() }))
+vi.mock('@/lib/api/api', () => ({ getProxyUrl: fixture.proxy, getApiHeaders: () => ({ 'c-id': '706c6169-fe7e-818e-a0f0-a71b7c0f3f75' }), getUrlToken: vi.fn() }))
 vi.mock('@/components/toaster', () => ({ default: vi.fn(), toastWithAction: vi.fn() }))
 import { createNativeResourceOwner, nativeResourceReference } from '@/hooks/native-resource-url'
 import { resolveFileUrlByPath } from '@/lib/api/file'
@@ -27,7 +27,7 @@ beforeEach(() => {
   vi.stubGlobal('window', { fileIdMap: new Map() })
   fixture.proxy.mockImplementation((path: string) => {
     fixture.events.push('http')
-    return `http://127.0.0.1:8910${fixture.local ? '' : '/proxy/peer'}${path}`
+    return `http://127.0.0.1:8910${fixture.local ? '' : '/proxy/706c6169-89f1-81c6-8bc7-6b67c2ffa178'}${path}`
   })
   fixture.invoke.mockImplementation(async (command: string) => {
     if (command === 'native_resource_open') {
@@ -47,7 +47,7 @@ it.each([true, false].flatMap(local => ['video/mp4', 'Audio/MPEG; codecs=mp3', '
     const url = await resolveFileUrlByPath(owner, key, '/fixture/untyped.bin', 4)
     const parsed = new URL(url)
     expect(parsed.protocol).toBe('http:')
-    expect(parsed.pathname).toBe(local ? '/fs' : '/proxy/peer/fs')
+    expect(parsed.pathname).toBe(local ? '/fs' : '/proxy/706c6169-89f1-81c6-8bc7-6b67c2ffa178/fs')
     expect(parsed.searchParams.get('action')).toBe('preview')
     expect(parsed.searchParams.get('id')).toBeTruthy()
     expect(url).not.toContain('/fixture/untyped.bin')
@@ -63,7 +63,7 @@ it.each([true, false])('keeps passive image thumbnails native even for an audio/
   expect(url).toBe('plain-resource://file/media')
   expect(fixture.proxy).not.toHaveBeenCalled()
   expect(fixture.invoke).toHaveBeenCalledExactlyOnceWith('native_resource_open', {
-    path: '/fixture/clip.mp4', scope: 'document', thumbnail: 'sm', target: local ? { kind: 'local' } : { kind: 'peer', peerId: 'peer' },
+    path: '/fixture/clip.mp4', scope: 'document', thumbnail: 'sm', target: local ? { kind: 'local' } : { kind: 'peer', peerId: '706c6169-89f1-81c6-8bc7-6b67c2ffa178' },
   })
 })
 
@@ -84,14 +84,14 @@ it.each([true, false])('passes the selected HTTP media URL and original target i
   const src = await resolveFileUrlByPath(owner, key, '/fixture/clip.mp4', 4)
   const source = { src, path: '/fixture/clip.mp4', name: 'clip.mp4', size: 4, durationMs: 1000 }
   await openMediaInWindow(source)
-  expect(fixture.invoke).toHaveBeenLastCalledWith('media_preview_activate', { source: { ...source, __cid: local ? '' : 'peer' } })
+  expect(fixture.invoke).toHaveBeenLastCalledWith('media_preview_activate', { source: { ...source, __cid: local ? '' : '706c6169-89f1-81c6-8bc7-6b67c2ffa178' } })
   expect(src).toMatch(/^http:/)
 })
 
 it.each([true, false])('keeps explicit-target file export native while media preview uses HTTP, local=%s', async local => {
   fixture.local = local
   const src = await resolveFileUrlByPath(owner, key, '/fixture/clip.mp4', 4)
-  const target = local ? { kind: 'local' as const } : { kind: 'peer' as const, peerId: 'peer' }
+  const target = local ? { kind: 'local' as const } : { kind: 'peer' as const, peerId: '706c6169-89f1-81c6-8bc7-6b67c2ffa178' }
   expect(await downloadToDir(src, 'clip.mp4', { path: '/fixture/clip.mp4', target })).toBe('/downloads/clip.mp4')
   expect(fixture.invoke).toHaveBeenLastCalledWith('native_resource_download', { path: '/fixture/clip.mp4', target, scope: 'document', directory: '/downloads', name: 'clip.mp4' })
   expect(fixture.graphql).not.toHaveBeenCalled()

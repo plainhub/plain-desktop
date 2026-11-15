@@ -3,13 +3,13 @@ import { openNative, openSubscriptionConnection } from '@/lib/api/subscription-c
 import { installNativeReload } from '@/lib/api/native-invoke'
 import { SubscriptionClient } from '@/lib/api/subscription-client'
 
-const mock = vi.hoisted(() => ({ local: true, remote: 'remote', invoke: vi.fn(), scope: vi.fn(), socket: { close: vi.fn() }, openSocket: vi.fn() }))
+const mock = vi.hoisted(() => ({ local: true, remote: '706c6169-8ed4-8fb1-b534-79c532096b42', invoke: vi.fn(), scope: vi.fn(), socket: { close: vi.fn() }, openSocket: vi.fn() }))
 vi.mock('@/lib/device/local-mode', () => ({ isLocalMode: () => mock.local }))
 vi.mock('@tauri-apps/api/core', () => ({ invoke: mock.invoke }))
 vi.mock('@/lib/api/native-client', () => ({ nativeViewScope: mock.scope }))
 vi.mock('@/lib/api/api', () => ({ getWebSocketBaseUrl: () => 'wss://remote.example:8443' }))
 vi.mock('@/lib/device/current', () => ({ getCurrentAuthToken: () => 'session' }))
-vi.mock('@/lib/device/client-id', () => ({ getDesktopClientId: () => 'self', getRemoteClientId: () => mock.remote }))
+vi.mock('@/lib/device/client-id', () => ({ getDesktopClientId: () => '706c6169-1ac2-825a-8c79-0951ec181d4a', getRemoteClientId: () => mock.remote }))
 vi.mock('@/lib/api/file', () => ({ tokenToKey: vi.fn() }))
 vi.mock('@/lib/api/time-sync', () => ({ getSyncedTimestamp: () => 0 }))
 vi.mock('@/lib/api/http', () => ({ openSocket: mock.openSocket }))
@@ -26,7 +26,7 @@ beforeEach(() => {
   vi.useFakeTimers()
   vi.stubGlobal('__IS_TAURI__', true)
   mock.local = true
-  mock.remote = 'remote'
+  mock.remote = '706c6169-8ed4-8fb1-b534-79c532096b42'
   mock.scope.mockResolvedValue('document')
   mock.openSocket.mockReturnValue(mock.socket)
 })
@@ -38,7 +38,7 @@ it.each([undefined, 'third-peer'])('preserves browser encrypted subscription rou
   mock.local = false
   const connection = openSubscriptionConnection(callbacks(), peerId)
   const path = peerId ? '/proxy/third-peer/graphql' : '/graphql'
-  expect(mock.openSocket).toHaveBeenCalledExactlyOnceWith(`wss://remote.example:8443${path}?cid=self`, 'remote')
+  expect(mock.openSocket).toHaveBeenCalledExactlyOnceWith(`wss://remote.example:8443${path}?cid=706c6169-1ac2-825a-8c79-0951ec181d4a`, '706c6169-8ed4-8fb1-b534-79c532096b42')
   expect(mock.invoke).not.toHaveBeenCalled()
   expect(mock.scope).not.toHaveBeenCalled()
   connection.close()
@@ -56,7 +56,7 @@ it.each([true, false])('opens Desktop local=%s subscriptions with the window sco
   const connection = openSubscriptionConnection(events)
   await vi.waitFor(() => expect(events.opened).toHaveBeenCalledTimes(1))
   expect(mock.scope).toHaveBeenCalledTimes(1)
-  expect(mock.invoke).toHaveBeenCalledWith('native_subscription_open', { scope: 'document', target: local ? { kind: 'local' } : { kind: 'peer', peerId: 'remote' } })
+  expect(mock.invoke).toHaveBeenCalledWith('native_subscription_open', { scope: 'document', target: local ? { kind: 'local' } : { kind: 'peer', peerId: '706c6169-8ed4-8fb1-b534-79c532096b42' } })
   expect(mock.openSocket).not.toHaveBeenCalled()
   connection.send({ type: 'ping' })
   await vi.waitFor(() => expect(mock.invoke).toHaveBeenCalledWith('native_subscription_send', { handle: 7, message: '{"type":"ping"}' }))
@@ -110,15 +110,15 @@ it('closes only a late old handle after a replacement opens on another peer', as
   const old = openSubscriptionConnection(oldEvents)
   await vi.waitFor(() => expect(opens).toBe(1))
   old.close()
-  mock.remote = 'replacement'
+  mock.remote = '706c6169-a60b-8d45-b5e2-8d95a2b44a95'
   const newEvents = callbacks()
   const current = openSubscriptionConnection(newEvents)
   await vi.waitFor(() => expect(newEvents.opened).toHaveBeenCalledTimes(1))
   oldOpen.resolve(7)
   await vi.waitFor(() => expect(mock.invoke).toHaveBeenCalledWith('native_subscription_close', { handle: 7 }))
   expect(mock.invoke.mock.calls.filter(([command]) => command === 'native_subscription_open')).toEqual([
-    ['native_subscription_open', { scope: 'document', target: { kind: 'peer', peerId: 'remote' } }],
-    ['native_subscription_open', { scope: 'document', target: { kind: 'peer', peerId: 'replacement' } }],
+    ['native_subscription_open', { scope: 'document', target: { kind: 'peer', peerId: '706c6169-8ed4-8fb1-b534-79c532096b42' } }],
+    ['native_subscription_open', { scope: 'document', target: { kind: 'peer', peerId: '706c6169-a60b-8d45-b5e2-8d95a2b44a95' } }],
   ])
   expect(mock.invoke).not.toHaveBeenCalledWith('native_subscription_close', { handle: 8 })
   expect(oldEvents.opened).not.toHaveBeenCalled()

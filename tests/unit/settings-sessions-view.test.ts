@@ -25,7 +25,7 @@ beforeEach(() => {
   fixture.rows = []
   fixture.open.mockResolvedValue({ closed: ref(false), close: vi.fn().mockResolvedValue(undefined) })
   fixture.request.mockImplementation(async (document: string) => {
-    if (document.includes('mutation createApiToken')) return { data: { createApiToken: { clientId: 'fixture-api', token: 'synthetic-secret' } } }
+    if (document.includes('mutation createApiToken')) return { data: { createApiToken: { clientId: '706c6169-80ee-8956-befd-ab1239c9b7ad', token: 'synthetic-secret' } } }
     return { data: { sessions: fixture.rows } }
   })
 })
@@ -72,10 +72,10 @@ it.each([
   ['', 'Fixture OS', '1', 'Fixture OS 1'],
   ['', '', '1', '1'],
 ])('prefills the shared rename modal like plain-app (%s, %s, %s)', async (name, osName, osVersion, expected) => {
-  fixture.rows = [{ clientId: 'fixture-session', clientName: name, type: 'LOGIN', osName, osVersion }]
+  fixture.rows = [{ clientId: '706c6169-9343-8bf8-a78c-e58723368c57', clientName: name, type: 'LOGIN', osName, osVersion }]
   const root = mount()
   await flush()
-  click(nodes(root).find(node => node.tag === 'button' && content(node) === 'fixture-session')!)
+  click(nodes(root).find(node => node.tag === 'button' && content(node) === '706c6169-9343-8bf8-a78c-e58723368c57')!)
   await flush()
   expect(fixture.open).toHaveBeenCalledWith(EditValueModal, expect.objectContaining({ value: expected, allowEmpty: true, borderless: true }))
 })

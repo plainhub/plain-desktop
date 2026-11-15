@@ -20,7 +20,7 @@ const source = (src: string, path = 'fid:owned-image'): ISource => ({
 beforeEach(() => {
   vi.resetAllMocks()
   fixture.invoke.mockResolvedValue(undefined)
-  fixture.remote.mockReturnValue('other-device')
+  fixture.remote.mockReturnValue('706c6169-0001-8000-8000-000000000003')
   fixture.reference.mockReturnValue({ path: 'fid:owned-image', target: { kind: 'local' } })
   vi.stubGlobal('__IS_TAURI__', true)
 })
@@ -60,13 +60,13 @@ it('refuses an expired native cross-window handoff rather than guessing its targ
 })
 
 it('preserves the original peer target when a native resource opens another window', async () => {
-  fixture.reference.mockReturnValue({ path: '/peer/image.png', target: { kind: 'peer', peerId: 'original-peer' } })
+  fixture.reference.mockReturnValue({ path: '/peer/image.png', target: { kind: 'peer', peerId: '706c6169-f45a-86eb-9c88-7d09ffcfff20' } })
   await openMediaInWindow(source('plain-resource://file/handle'))
-  expect(fixture.invoke.mock.calls[0][1].source).toMatchObject({ path: '/peer/image.png', src: '', __cid: 'original-peer' })
+  expect(fixture.invoke.mock.calls[0][1].source).toMatchObject({ path: '/peer/image.png', src: '', __cid: '706c6169-f45a-86eb-9c88-7d09ffcfff20' })
   await openImageEditor(source('plain-resource://file/handle'))
   const route = new URL(fixture.invoke.mock.calls[1][1].path, 'https://fixture.invalid')
   expect(route.searchParams.get('reference')).toBe('/peer/image.png')
-  expect(route.searchParams.get('__cid')).toBe('original-peer')
+  expect(route.searchParams.get('__cid')).toBe('706c6169-f45a-86eb-9c88-7d09ffcfff20')
 })
 
 it('preserves external and remote source URLs instead of treating their paths as local references', async () => {
@@ -74,12 +74,12 @@ it('preserves external and remote source URLs instead of treating their paths as
   vi.stubGlobal('window', { open: popup })
   const remote = source('https://device.invalid/fs?id=encrypted&size=lg', '/remote/image.png')
   await openMediaInWindow(remote)
-  expect(fixture.invoke).toHaveBeenCalledExactlyOnceWith('media_preview_activate', { source: { ...remote, __cid: 'other-device' } })
+  expect(fixture.invoke).toHaveBeenCalledExactlyOnceWith('media_preview_activate', { source: { ...remote, __cid: '706c6169-0001-8000-8000-000000000003' } })
   await openImageEditor(remote)
   const route = new URL(popup.mock.calls[0][0], 'https://fixture.invalid')
   expect(route.searchParams.get('src')).toBe(remote.src)
   expect(route.searchParams.has('reference')).toBe(false)
-  expect(route.searchParams.get('__cid')).toBe('other-device')
+  expect(route.searchParams.get('__cid')).toBe('706c6169-0001-8000-8000-000000000003')
 })
 
 it('does not fetch native media bytes as JSON when HEVC is unavailable', async () => {
@@ -110,6 +110,6 @@ it('keeps the selected peer in HTTP video preview windows before native media mi
   const video = { ...source('https://device.invalid/fs?id=video', '/peer/movie.mp4'), name: 'movie.mp4' }
   await openMediaInWindow(video)
   expect(fixture.invoke).toHaveBeenCalledExactlyOnceWith('media_preview_activate', {
-    source: { ...video, __cid: 'other-device' },
+    source: { ...video, __cid: '706c6169-0001-8000-8000-000000000003' },
   })
 })

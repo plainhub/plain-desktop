@@ -17,7 +17,7 @@ import { useDocsActions } from '@/views/docs/hooks/useDocsActions'
 const downloadFile = vi.hoisted(() => vi.fn())
 vi.mock('@/hooks/files', () => ({ useDownload: () => ({ downloadFile }) }))
 vi.mock('@/lib/api/tauri-window', () => ({ openWindow: vi.fn() }))
-vi.mock('@/lib/device/client-id', () => ({ getDesktopClientId: () => 'fixture-desktop' }))
+vi.mock('@/lib/device/client-id', () => ({ getDesktopClientId: () => '706c6169-b138-8cf9-afce-751b9d5c8a1b' }))
 vi.mock('@/lib/device/local-mode', () => ({ isLocalMode: () => true }))
 vi.mock('@/lib/tauri-plugins', () => ({ openUrl: vi.fn() }))
 vi.mock('@/lib/format', () => ({
@@ -141,7 +141,7 @@ it.each([
       expect(openWindow).not.toHaveBeenCalled()
       expect(openExternalUrl).not.toHaveBeenCalled()
     } else if (action === 'text') {
-      expect(openWindow).toHaveBeenCalledExactlyOnceWith(`/text-file?id=${encodeURIComponent(`c.fixture-desktop.${path}`)}`)
+      expect(openWindow).toHaveBeenCalledExactlyOnceWith(`/text-file?id=${encodeURIComponent(`c.706c6169-b138-8cf9-afce-751b9d5c8a1b.${path}`)}`)
       expect(openExternalUrl).not.toHaveBeenCalled()
       expect(downloadFile).not.toHaveBeenCalled()
     } else {
