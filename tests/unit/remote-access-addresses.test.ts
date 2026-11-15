@@ -1,7 +1,8 @@
 import { beforeEach, expect, it, vi } from 'vitest'
-import { createSSRApp, h, type FunctionalComponent } from 'vue'
+import { createSSRApp, h, nextTick, type FunctionalComponent } from 'vue'
 import { renderToString } from 'vue/server-renderer'
 import RemoteAccessAddresses from '@/views/home/remote-access/RemoteAccessAddresses.vue'
+import { click, clientTemplate, content, nodes, renderView } from '../helpers/vue-node-renderer'
 
 const mock = vi.hoisted(() => ({ modal: vi.fn() }))
 vi.mock('@/components/modal', () => ({ pushModal: mock.modal }))
@@ -9,6 +10,15 @@ beforeEach(() => vi.clearAllMocks())
 
 const ButtonStub: FunctionalComponent<{ text?: string }> = (props, { slots }) => h('button', props.text ?? slots.default?.())
 ButtonStub.props = { text: String }
+
+const addressProps = {
+  httpPort: 8280,
+  httpsPort: 8643,
+  httpAddresses: ['http://192.0.2.1:8280', 'http://192.0.2.2:8280', 'http://192.0.2.3:8280'],
+  httpsAddresses: ['https://192.0.2.1:8643', 'https://192.0.2.2:8643', 'https://192.0.2.3:8643'],
+  loadingIps: false,
+  addressError: false,
+}
 
 async function addresses(enabled = true) {
   let state: any
@@ -21,15 +31,7 @@ async function addresses(enabled = true) {
         return state
       },
     },
-    {
-      httpPort: 8280,
-      httpsPort: 8643,
-      httpAddresses: ['http://192.0.2.1:8280', 'http://192.0.2.2:8280'],
-      httpsAddresses: ['https://192.0.2.1:8643', 'https://192.0.2.2:8643'],
-      enabled,
-      loadingIps: false,
-      addressError: false,
-    }
+    { ...addressProps, enabled }
   )
   app.config.globalProperties.$t = (key: string) => key
   app.directive('tooltip', {})
@@ -52,6 +54,35 @@ it('switches protocol and keeps the selected host for displayed URLs and QR cont
   expect(currentAddress()).toBe('https://192.0.2.2:8643')
   state.protocol.value = 'http'
   expect(currentAddress()).toBe('http://192.0.2.2:8280')
+})
+
+it.each(['http', 'https'] as const)('opens a QR for each alternate %s address without selecting it', async (protocol) => {
+  const component = clientTemplate({ ...RemoteAccessAddresses }, 'src/views/home/remote-access/RemoteAccessAddresses.vue')
+  const view = renderView(component, { ...addressProps, enabled: true }, {
+    VTextButton: ButtonStub,
+    VIconButton: ButtonStub,
+    VCopyButton: ButtonStub,
+  })
+  try {
+    click(nodes(view.root).find((node) => node.props.id === `remote-${protocol}-tab`)!)
+    await nextTick()
+    click(nodes(view.root).find((node) => node.props.class === 'other-addresses')!)
+    await nextTick()
+    const rows = () => nodes(view.root).filter((node) => node.props.class === 'address-row')
+    const urls = protocol === 'http' ? addressProps.httpAddresses : addressProps.httpsAddresses
+    for (const [index, url] of urls.slice(1).entries()) {
+      const qr = nodes(rows()[index + 1]).find((node) => node.props['aria-label'] === 'remote_access_qr')
+      expect(qr, url).toBeDefined()
+      click(qr!)
+      const modal = mock.modal.mock.calls[index][1]
+      expect(modal.address()).toBe(url)
+    }
+    await nextTick()
+    expect(rows()).toHaveLength(3)
+    expect(content(rows()[0])).toContain(urls[0])
+  } finally {
+    view.unmount()
+  }
 })
 
 it('explains disabled remote access while preserving port editing and both protocol tabs', async () => {

@@ -29,7 +29,7 @@
         <div class="address-row">
           <code>{{ address }}</code>
           <v-copy-button v-tooltip="$t('copy')" class="address-action" :text="address" />
-          <v-icon-button v-tooltip="$t('remote_access_qr')" :aria-label="$t('remote_access_qr')" @click="showQr"><i-material-symbols:qr-code-2-rounded /></v-icon-button>
+          <v-icon-button v-tooltip="$t('remote_access_qr')" :aria-label="$t('remote_access_qr')" @click="showQr()"><i-material-symbols:qr-code-2-rounded /></v-icon-button>
         </div>
         <button v-if="alternatives.length" type="button" class="other-addresses" :aria-expanded="expanded" aria-controls="remote-other-addresses" @click="expanded = !expanded">
           {{ $t('remote_access_other_addresses') }}<i-material-symbols:expand-less-rounded v-if="expanded" /><i-material-symbols:expand-more-rounded v-else />
@@ -40,6 +40,7 @@
               <code>{{ alternative }}</code>
             </button>
             <v-copy-button class="address-action" :text="alternative" />
+            <v-icon-button v-tooltip="$t('remote_access_qr')" :aria-label="$t('remote_access_qr')" @click="showQr(() => alternative)"><i-material-symbols:qr-code-2-rounded /></v-icon-button>
           </div>
         </div>
       </template>
@@ -79,8 +80,8 @@ function selectAddress(value: string) {
   selectedHost.value = new URL(value).hostname
   expanded.value = false
 }
-function showQr() {
-  void pushModal(AddressQrDialog, { address: () => address.value })
+function showQr(target: () => string = () => address.value) {
+  void pushModal(AddressQrDialog, { address: target })
 }
 </script>
 
