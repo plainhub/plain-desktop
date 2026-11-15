@@ -23,21 +23,23 @@ export function useFileIndexStatus(enabled: Ref<boolean>) {
       if (current === generation) error.value = cause instanceof Error ? cause.message : String(cause)
     } finally {
       if (pending === current) pending = 0
-      if (current === generation && enabled.value && progress.value?.state === 'RUNNING') schedule(5000)
     }
   }
   function schedule(delay: number) {
     if (!enabled.value || timer) return
     timer = setTimeout(() => { timer = undefined; void refresh() }, delay)
   }
-  watch([enabled, getGraphqlContextKey], () => {
+  watch([enabled, getGraphqlContextKey], (_value, _previous, onCleanup) => {
     generation++
     clearTimeout(timer); timer = undefined
     progress.value = null; error.value = ''
-    if (enabled.value) void refresh()
+    if (enabled.value) {
+      const stop = graphqlSubscriptions.subscribe('fileIndexScanProgressUpdated', () => { generation++; schedule(1000) })
+      const stopAttached = graphqlSubscriptions.onAttached(() => { generation++; void refresh() })
+      onCleanup(() => { stop(); stopAttached() })
+      void refresh()
+    }
   }, { immediate: true })
-  const stop = graphqlSubscriptions.subscribe('fileIndexScanProgressUpdated', () => schedule(1000))
-  const stopAttached = graphqlSubscriptions.onAttached(() => { void refresh() })
-  onUnmounted(() => { generation++; clearTimeout(timer); stop(); stopAttached() })
+  onUnmounted(() => { generation++; clearTimeout(timer) })
   return { progress, error }
 }

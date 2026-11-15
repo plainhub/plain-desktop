@@ -9,6 +9,7 @@ export interface SubscriptionOperation {
   capability?: Capability
 }
 export const subscriptionOperations: readonly SubscriptionOperation[] = [
+  { field: 'httpServerChanged', document: 'subscription { httpServerChanged { state { revision restarting httpPort httpsPort error } addresses onlineClients remoteAccess mdnsHostname } }', access: [], capability: Capability.HTTP_SERVER },
   {field: 'pairingRequested', document: 'subscription { pairingRequested { fromId fromName fromIp deviceType verificationCode identityChanged } }', access: []},
   {field: 'pairingStarted', document: 'subscription { pairingStarted { deviceId deviceName error verificationCode } }', access: []},
   {field: 'pairingFailed', document: 'subscription { pairingFailed { deviceId deviceName error } }', access: []},

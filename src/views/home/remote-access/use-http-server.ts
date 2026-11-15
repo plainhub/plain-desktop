@@ -1,10 +1,11 @@
 import { isLocalMode } from '@/lib/device/local-mode'
-import { ref, computed, onUnmounted } from 'vue'
+import { ref, computed, onActivated, onDeactivated, onUnmounted } from 'vue'
 import { readLocalAddresses, restartLocalServer } from '@/lib/api/local-server'
 import { useTempStore } from '@/stores/temp'
 import { storeToRefs } from 'pinia'
 import toast from '@/components/toaster'
-import { readHttpServer, restartHttpServer } from '@/lib/api/http-server'
+import { graphqlSubscriptions } from '@/lib/api/subscription-client'
+import { readHttpServer, restartHttpServer, type HttpServerSnapshot } from '@/lib/api/http-server'
 import { applyValues } from '@/lib/prefs/core'
 import { useOnlineClients } from './use-online-clients'
 import { useI18n } from 'vue-i18n'
@@ -33,51 +34,54 @@ export function useHttpServer() {
   const ips = ref<string[]>([])
   const loadingIps = ref(true)
   const addressError = ref(false)
-  let disposed = false
-  let timer: ReturnType<typeof setTimeout> | undefined
+  let active = false
+  let generation = 0
+  let activation = 0
+  let stopSubscription: (() => void) | undefined
+  let stopAttached: (() => void) | undefined
   let registration: number | undefined
 
   async function loadIps(showLoading = true) {
-    if (disposed) return
+    if (!active) return
+    const current = ++generation
     if (showLoading) loadingIps.value = true
     try {
       if (localMode) {
-        ips.value = await readLocalAddresses()
+        const addresses = await readLocalAddresses()
+        if (!active || current !== generation) return
+        ips.value = addresses
       } else {
         const snapshot = await readHttpServer()
-        if (disposed) return
-        ips.value = snapshot.addresses
-        app.value.httpPort = snapshot.state.httpPort
-        app.value.httpsPort = snapshot.state.httpsPort
-        clients.count.value = snapshot.onlineClients.length
-        clients.failed.value = false
-        applyValues({ remote_access: snapshot.remoteAccess, mdns_hostname: snapshot.mdnsHostname })
+        if (!active || current !== generation) return
+        applySnapshot(snapshot)
       }
       addressError.value = false
     } catch (e) {
+      if (!active || current !== generation) return
       addressError.value = true
       if (!localMode) clients.failed.value = true
       console.error('network addresses failed', e)
     } finally {
-      loadingIps.value = false
+      if (active && current === generation) loadingIps.value = false
     }
   }
 
   async function refreshAddresses() {
-    if (disposed) return
+    if (!active) return
     if (!localMode) {
       await loadIps()
       return
     }
+    const current = activation
     loadingIps.value = true
     try {
       if (registration === undefined) {
         const channel = new Channel<Record<string, never>>()
         channel.onmessage = () => {
-          void loadIps()
+          if (active && current === activation) void loadIps()
         }
         const id = await invoke<number>('native_register_network_changes', { channel })
-        if (disposed) {
+        if (!active || current !== activation) {
           await invoke('native_unregister_network_changes', { id })
           return
         }
@@ -85,23 +89,54 @@ export function useHttpServer() {
       }
       await loadIps()
     } catch (error) {
+      if (!active || current !== activation) return
       addressError.value = true
       console.error('Network changes registration failed', error)
     } finally {
-      loadingIps.value = false
+      if (active && current === activation) loadingIps.value = false
     }
   }
-  async function pollServer() {
-    await loadIps(loadingIps.value)
-    if (!disposed) timer = setTimeout(pollServer, 2000)
+  function applySnapshot(snapshot: HttpServerSnapshot) {
+    ips.value = snapshot.addresses
+    app.value.httpPort = snapshot.state.httpPort
+    app.value.httpsPort = snapshot.state.httpsPort
+    clients.count.value = snapshot.onlineClients.length
+    clients.failed.value = false
+    addressError.value = false
+    loadingIps.value = false
+    applyValues({ remote_access: snapshot.remoteAccess, mdns_hostname: snapshot.mdnsHostname })
   }
-  if (localMode) void refreshAddresses()
-  else void pollServer()
-  onUnmounted(() => {
-    disposed = true
-    if (timer) clearTimeout(timer)
-    if (registration !== undefined) void invoke('native_unregister_network_changes', { id: registration }).catch(console.error)
-  })
+
+  function activate() {
+    if (active) return
+    active = true
+    activation++
+    if (localMode) void refreshAddresses()
+    else {
+      stopSubscription = graphqlSubscriptions.subscribe('httpServerChanged', snapshot => {
+        generation++
+        applySnapshot(snapshot)
+      })
+      stopAttached = graphqlSubscriptions.onAttached(() => { void loadIps(false) })
+      void loadIps()
+    }
+  }
+  function deactivate() {
+    active = false
+    activation++
+    generation++
+    stopSubscription?.()
+    stopAttached?.()
+    if (registration !== undefined) {
+      const id = registration
+      registration = undefined
+      void invoke('native_unregister_network_changes', { id }).catch(console.error)
+    }
+  }
+  activate()
+  onActivated(activate)
+  onDeactivated(deactivate)
+  onUnmounted(deactivate)
 
   async function savePort(kind: 'http' | 'https', port: number): Promise<boolean> {
     try {

@@ -2,11 +2,15 @@ import { afterEach, beforeEach, expect, it, vi } from 'vitest'
 
 const mock = vi.hoisted(() => ({
   invoke: vi.fn(),
+  activate: undefined as (() => void) | undefined,
+  deactivate: undefined as (() => void) | undefined,
   cleanup: undefined as (() => void) | undefined,
   channels: [] as Array<{ onmessage: (snapshot: { clientIds: string[] }) => void }>,
 }))
 vi.mock('vue', async (original) => ({
   ...(await original<typeof import('vue')>()),
+  onActivated: (callback: () => void) => { mock.activate = callback },
+  onDeactivated: (callback: () => void) => { mock.deactivate = callback },
   onUnmounted: (cleanup: () => void) => {
     mock.cleanup = cleanup
   },
@@ -79,4 +83,20 @@ it('reports unavailable status rather than inventing a zero count on registratio
   await Promise.resolve()
   expect(state.count.value).toBe(null)
   expect(state.failed.value).toBe(true)
+})
+
+it('releases callbacks on deactivation and registers again on return', async () => {
+  mock.invoke.mockResolvedValue(undefined).mockResolvedValueOnce(7).mockResolvedValueOnce(undefined).mockResolvedValueOnce(8)
+  const { useOnlineClients } = await import('@/views/home/remote-access/use-online-clients')
+  const state = useOnlineClients()
+  await Promise.resolve()
+  mock.deactivate?.()
+  expect(mock.invoke).toHaveBeenLastCalledWith('native_unregister_online_clients', { id: 7 })
+  mock.activate?.(); await Promise.resolve()
+  mock.channels[0].onmessage({ clientIds: ['late'] })
+  expect(state.count.value).toBe(null)
+  mock.channels[1].onmessage({ clientIds: ['current'] })
+  expect(state.count.value).toBe(1)
+  mock.cleanup?.()
+  expect(mock.invoke).toHaveBeenLastCalledWith('native_unregister_online_clients', { id: 8 })
 })

@@ -9,6 +9,7 @@ type ChatSubscriptionItem = Pick<IChatItem, 'id' | 'fromId' | 'toId' | 'channelI
 }
 
 export interface SubscriptionResults {
+  httpServerChanged: import('./http-server').HttpServerSnapshot
   pairingRequested: import('@/lib/pairing-types').PairingRequest
   pairingStarted: { deviceId: string; deviceName: string; error: string | null; verificationCode: string | null }
   pairingFailed: { deviceId: string; deviceName: string; error: string | null }

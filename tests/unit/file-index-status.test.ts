@@ -28,11 +28,11 @@ function mount(enabled: ReturnType<typeof ref<boolean>>) {
 const response = (state: 'RUNNING' | 'IDLE') => ({ data: { fileIndexScanProgress: { state, indexed: 5, pending: null, total: null, error: null } } })
 afterEach(() => { unmount?.(); vi.useRealTimers(); vi.mocked(gqlFetch).mockReset(); state.context.value = 'first' })
 
-it('polls only an active indexed view and coalesces progress events', async () => {
+it('queries only an active indexed view and coalesces pushed changes', async () => {
   vi.useFakeTimers()
   vi.mocked(gqlFetch).mockResolvedValue(response('RUNNING') as any)
   const enabled = ref(false); mount(enabled)
-  state.event(); await vi.advanceTimersByTimeAsync(5000)
+  state.event?.(); await vi.advanceTimersByTimeAsync(5000)
   expect(gqlFetch).not.toHaveBeenCalled()
   enabled.value = true; await nextTick(); await Promise.resolve()
   expect(gqlFetch).toHaveBeenCalledTimes(1)
@@ -63,4 +63,28 @@ it.each(['IDLE', 'PAUSED', 'STOPPED', 'FAILED'] as const)('preserves %s state an
   expect(result.progress.value?.error).toBe(scanState === 'FAILED' ? 'Scan failed' : null)
   await vi.advanceTimersByTimeAsync(15000)
   expect(gqlFetch).toHaveBeenCalledTimes(1)
+})
+
+it('does not query while an active scan is idle between pushed changes', async () => {
+  vi.useFakeTimers()
+  vi.mocked(gqlFetch).mockResolvedValue(response('RUNNING') as any)
+  mount(ref(true))
+  await vi.advanceTimersByTimeAsync(30_000)
+  expect(gqlFetch).toHaveBeenCalledTimes(1)
+})
+
+it('does not lose a pushed change while an older progress read is pending', async () => {
+  vi.useFakeTimers()
+  let finish!: (value: any) => void
+  vi.mocked(gqlFetch).mockImplementationOnce(() => new Promise(resolve => { finish = resolve }) as any)
+  vi.mocked(gqlFetch).mockResolvedValue(response('IDLE') as any)
+  const result = mount(ref(true))
+  state.event()
+  await vi.advanceTimersByTimeAsync(1000)
+  expect(gqlFetch).toHaveBeenCalledTimes(2)
+  expect(result.progress.value?.state).toBe('IDLE')
+  finish(response('RUNNING')); await Promise.resolve(); await Promise.resolve()
+  expect(result.progress.value?.state).toBe('IDLE')
+  await vi.advanceTimersByTimeAsync(30_000)
+  expect(gqlFetch).toHaveBeenCalledTimes(2)
 })

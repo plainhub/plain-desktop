@@ -2,12 +2,10 @@ import { graphqlSubscriptions } from '@/lib/api/subscription-client'
 
 export const SMS_NOTIFICATION_REFRESH_DELAY_MS = 500
 const MAX_REFRESH_DELAY_MS = 2000
-const SAFETY_REFRESH_INTERVAL_MS = 60_000
 
 export function createSmsNotificationRefresh(refresh: () => void | Promise<unknown>, reconnect?: () => void) {
   let timeout: ReturnType<typeof setTimeout> | undefined
   let maximumTimeout: ReturnType<typeof setTimeout> | undefined
-  let safetyTimer: ReturnType<typeof setInterval> | undefined
   let subscribed = false
   let refreshing = false
   let refreshQueued = false
@@ -83,9 +81,6 @@ export function createSmsNotificationRefresh(refresh: () => void | Promise<unkno
     document.addEventListener('visibilitychange', handleResume)
     window.addEventListener('focus', handleResume)
     window.addEventListener('online', handleResume)
-    safetyTimer = setInterval(() => {
-      if (document.visibilityState === 'visible' && navigator.onLine) refreshOnce()
-    }, SAFETY_REFRESH_INTERVAL_MS)
   }
 
   function unsubscribe() {
@@ -98,8 +93,6 @@ export function createSmsNotificationRefresh(refresh: () => void | Promise<unkno
     document.removeEventListener('visibilitychange', handleResume)
     window.removeEventListener('focus', handleResume)
     window.removeEventListener('online', handleResume)
-    if (safetyTimer) clearInterval(safetyTimer)
-    safetyTimer = undefined
     clearScheduledRefresh()
   }
 

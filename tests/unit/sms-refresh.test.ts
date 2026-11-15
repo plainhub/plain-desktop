@@ -93,3 +93,12 @@ it('refreshes for successful SMS and MMS results and ignores failed sends', asyn
   }
   expect(refresh).toHaveBeenCalledTimes(2)
 })
+
+it('does not refresh without a pushed change while the view remains open', async () => {
+  const refresh = vi.fn()
+  const subscription = createSmsNotificationRefresh(refresh)
+  stop = subscription.unsubscribe
+  subscription.subscribe()
+  await vi.advanceTimersByTimeAsync(180_000)
+  expect(refresh).not.toHaveBeenCalled()
+})
