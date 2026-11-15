@@ -1,24 +1,25 @@
+import { AppFeatureType } from '@/lib/app-feature.generated'
 export const DEFAULT_HOME_FEATURES = [
-  'audios',
-  'images',
-  'videos',
-  'docs',
-  'files',
-  'apps',
-  'notes',
-  'feeds',
-  'messages',
-  'calls',
-  'contacts',
-  'screen_mirror',
-  'image_editor',
-  'call_phone',
+  AppFeatureType.AUDIO,
+  AppFeatureType.IMAGES,
+  AppFeatureType.VIDEOS,
+  AppFeatureType.DOCS,
+  AppFeatureType.FILES,
+  AppFeatureType.APPS,
+  AppFeatureType.NOTES,
+  AppFeatureType.FEEDS,
+  AppFeatureType.SMS,
+  AppFeatureType.CALLS,
+  AppFeatureType.CONTACTS,
+  AppFeatureType.SCREEN_MIRROR,
+  AppFeatureType.IMAGE_EDITOR,
+  AppFeatureType.CALL_PHONE,
 ]
 
-export function normalizeHomeFeatures(ids: string[], availableIds: string[]): string[] {
+export function normalizeHomeFeatures(ids: AppFeatureType[], availableIds: AppFeatureType[]): AppFeatureType[] {
   const availableSet = new Set(availableIds)
-  const result: string[] = []
-  const seen = new Set<string>()
+  const result: AppFeatureType[] = []
+  const seen = new Set<AppFeatureType>()
 
   for (const id of ids) {
     if (!availableSet.has(id) || seen.has(id)) continue

@@ -1,0 +1,22 @@
+// Enum values generated from plain-core AppFeatureType; do not edit.
+export enum AppFeatureType {
+  DOCS = 'DOCS',
+  NOTES = 'NOTES',
+  FEEDS = 'FEEDS',
+  APPS = 'APPS',
+  FILES = 'FILES',
+  IMAGES = 'IMAGES',
+  AUDIO = 'AUDIO',
+  VIDEOS = 'VIDEOS',
+  SOUND_METER = 'SOUND_METER',
+  POMODORO_TIMER = 'POMODORO_TIMER',
+  NOTIFICATIONS = 'NOTIFICATIONS',
+  CHECK_UPDATES = 'CHECK_UPDATES',
+  IMAGE_EDITOR = 'IMAGE_EDITOR',
+  CHAT = 'CHAT',
+  SMS = 'SMS',
+  CALLS = 'CALLS',
+  CONTACTS = 'CONTACTS',
+  SCREEN_MIRROR = 'SCREEN_MIRROR',
+  CALL_PHONE = 'CALL_PHONE',
+}

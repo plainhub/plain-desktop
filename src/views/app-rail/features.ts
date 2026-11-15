@@ -1,3 +1,4 @@
+import { AppFeatureType } from '@/lib/app-feature.generated'
 import type { Component } from 'vue'
 import { Capability } from '@/lib/data'
 import { hasFeature } from '@/lib/feature'
@@ -17,7 +18,7 @@ import IMaterialSymbolsScreenRecordRounded from '~icons/material-symbols/screen-
 import ILucidePalette from '~icons/lucide/palette'
 
 export interface Feature {
-  id: string
+  id: AppFeatureType
   group: string
   defaultPath: string
   icon: Component
@@ -27,26 +28,26 @@ export interface Feature {
 }
 
 export const ALL_FEATURES: Feature[] = [
-  { id: 'files', group: 'files', defaultPath: '/files/recent', icon: ILucideFolder, titleKey: 'page_title.files' },
-  { id: 'audios', group: 'audios', defaultPath: '/audios', icon: ILucideMusic, titleKey: 'page_title.audios' },
-  { id: 'images', group: 'images', defaultPath: '/images', icon: ILucideImage, titleKey: 'page_title.images' },
-  { id: 'videos', group: 'videos', defaultPath: '/videos', icon: ILucideVideo, titleKey: 'page_title.videos' },
-  { id: 'chat', group: 'chat', defaultPath: '/chat', icon: ILucideMessageCircle, titleKey: 'page_title.chat' },
-  { id: 'docs', group: 'docs', defaultPath: '/docs', icon: ILucideFileText, titleKey: 'page_title.docs' },
-  { id: 'apps', group: 'apps', defaultPath: '/apps', icon: ILucideLayoutGrid, titleKey: 'page_title.apps', capability: Capability.PACKAGES },
-  { id: 'notes', group: 'notes', defaultPath: '/notes', icon: ILucideNotebookPen, titleKey: 'page_title.notes' },
-  { id: 'feeds', group: 'feeds', defaultPath: '/feeds', icon: ILucideRss, titleKey: 'page_title.feeds' },
-  { id: 'messages', group: 'messages', defaultPath: '/messages', icon: ILucideMessageSquareText, titleKey: 'page_title.messages', capability: Capability.TELEPHONY },
-  { id: 'calls', group: 'calls', defaultPath: '/calls', icon: IMaterialSymbolsCallLogOutlineRounded, titleKey: 'page_title.calls', capability: Capability.TELEPHONY },
-  { id: 'contacts', group: 'contacts', defaultPath: '/contacts', icon: ILucideContactRound, titleKey: 'page_title.contacts', capability: Capability.TELEPHONY },
-  { id: 'screen_mirror', group: 'screen_mirror', defaultPath: '/screen-mirror', icon: IMaterialSymbolsScreenRecordRounded, titleKey: 'page_title.screen_mirror', capability: Capability.SCREEN_MIRROR },
-  { id: 'image_editor', group: 'image_editor', defaultPath: '/image-editor', icon: ILucidePalette, titleKey: 'page_title.image_editor' },
+  { id: AppFeatureType.FILES, group: 'files', defaultPath: '/files/recent', icon: ILucideFolder, titleKey: 'page_title.files' },
+  { id: AppFeatureType.AUDIO, group: 'audios', defaultPath: '/audios', icon: ILucideMusic, titleKey: 'page_title.audios' },
+  { id: AppFeatureType.IMAGES, group: 'images', defaultPath: '/images', icon: ILucideImage, titleKey: 'page_title.images' },
+  { id: AppFeatureType.VIDEOS, group: 'videos', defaultPath: '/videos', icon: ILucideVideo, titleKey: 'page_title.videos' },
+  { id: AppFeatureType.CHAT, group: 'chat', defaultPath: '/chat', icon: ILucideMessageCircle, titleKey: 'page_title.chat' },
+  { id: AppFeatureType.DOCS, group: 'docs', defaultPath: '/docs', icon: ILucideFileText, titleKey: 'page_title.docs' },
+  { id: AppFeatureType.APPS, group: 'apps', defaultPath: '/apps', icon: ILucideLayoutGrid, titleKey: 'page_title.apps', capability: Capability.PACKAGES },
+  { id: AppFeatureType.NOTES, group: 'notes', defaultPath: '/notes', icon: ILucideNotebookPen, titleKey: 'page_title.notes' },
+  { id: AppFeatureType.FEEDS, group: 'feeds', defaultPath: '/feeds', icon: ILucideRss, titleKey: 'page_title.feeds' },
+  { id: AppFeatureType.SMS, group: 'messages', defaultPath: '/messages', icon: ILucideMessageSquareText, titleKey: 'page_title.messages', capability: Capability.TELEPHONY },
+  { id: AppFeatureType.CALLS, group: 'calls', defaultPath: '/calls', icon: IMaterialSymbolsCallLogOutlineRounded, titleKey: 'page_title.calls', capability: Capability.TELEPHONY },
+  { id: AppFeatureType.CONTACTS, group: 'contacts', defaultPath: '/contacts', icon: ILucideContactRound, titleKey: 'page_title.contacts', capability: Capability.TELEPHONY },
+  { id: AppFeatureType.SCREEN_MIRROR, group: 'screen_mirror', defaultPath: '/screen-mirror', icon: IMaterialSymbolsScreenRecordRounded, titleKey: 'page_title.screen_mirror', capability: Capability.SCREEN_MIRROR },
+  { id: AppFeatureType.IMAGE_EDITOR, group: 'image_editor', defaultPath: '/image-editor', icon: ILucidePalette, titleKey: 'page_title.image_editor' },
 ]
 
-export const DEFAULT_RAIL_FEATURES = ['files', 'audios', 'images', 'videos', 'chat']
+export const DEFAULT_RAIL_FEATURES = [AppFeatureType.FILES, AppFeatureType.AUDIO, AppFeatureType.IMAGES, AppFeatureType.VIDEOS, AppFeatureType.CHAT]
 
 export function getAvailableFeatures(features?: string[], debug = false): Feature[] {
   return ALL_FEATURES
-    .filter((f) => f.id !== 'image_editor' || debug)
+    .filter((f) => f.id !== AppFeatureType.IMAGE_EDITOR || debug)
     .filter((f) => !f.capability || hasFeature(f.capability, features))
 }

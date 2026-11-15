@@ -20,6 +20,7 @@
 </template>
 
 <script setup lang="ts">
+import type { AppFeatureType } from '@/lib/app-feature.generated'
 import { computed, ref } from 'vue'
 import { storeToRefs } from 'pinia'
 import { useMainStore } from '@/stores/main'
@@ -45,7 +46,7 @@ const activeEnabledIds = computed({
   get: () => activeTab.value === 'sidebar'
     ? store.railFeatures.filter((id) => sidebarFeatures.value.some((feature) => feature.id === id))
     : normalizeHomeFeatures(store.homeFeatures, homeFeatures.value.map((feature) => feature.id)),
-  set: (ids: string[]) => {
+  set: (ids: AppFeatureType[]) => {
     if (activeTab.value === 'sidebar') {
       store.railFeatures = [...ids]
     } else {

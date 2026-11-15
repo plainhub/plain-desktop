@@ -1,8 +1,10 @@
 import { defineStore } from 'pinia'
 import { DEFAULT_HOME_FEATURES } from '@/views/home/features'
 import { generateRecordId } from '@/lib/record-id.generated'
+import { DEFAULT_RAIL_FEATURES } from '@/views/app-rail/features'
+import type { AppFeatureType } from '@/lib/app-feature.generated'
 
-export const DEFAULT_RAIL_FEATURES = ['files', 'audios', 'images', 'videos', 'chat']
+export { DEFAULT_RAIL_FEATURES }
 
 export interface AppTab {
   id: string
@@ -17,8 +19,8 @@ const HOME_TAB: AppTab = { id: 'home', title: 'Home', path: '/', group: 'home', 
 
 // data will be stored to local storage
 export type MainState = {
-  railFeatures: string[]
-  homeFeatures: string[]
+  railFeatures: AppFeatureType[]
+  homeFeatures: AppFeatureType[]
   uploadDirs: Record<string, string>
   fileShowHidden: boolean
   systemFilesExpanded: boolean

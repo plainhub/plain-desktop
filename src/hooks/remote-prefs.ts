@@ -1,3 +1,4 @@
+import type { AppFeatureType } from '@/lib/app-feature.generated'
 import { ref, watch, onUnmounted } from 'vue'
 import { gqlFetch } from '@/lib/api/gql-client'
 import { setPrefGQL } from '@/lib/api/mutation'
@@ -45,7 +46,7 @@ export function useRemotePrefs(store: ReturnType<typeof useMainStore>) {
       for (const { field, key, defaults } of featurePrefs) {
         const value = result.data.prefs[key]
         store[field] = Array.isArray(value) && value.every((item) => typeof item === 'string')
-          ? value : [...defaults]
+          ? value as AppFeatureType[] : [...defaults]
       }
       const uploadDirs = result.data.prefs.desktop_upload_dirs
       store.uploadDirs = uploadDirs && typeof uploadDirs === 'object' && !Array.isArray(uploadDirs)

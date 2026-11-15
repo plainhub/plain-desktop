@@ -21,27 +21,28 @@
 </template>
 
 <script setup lang="ts">
+import type { AppFeatureType } from '@/lib/app-feature.generated'
 import { computed, ref, type Component } from 'vue'
 import { useDragSort } from '@/hooks/use-drag-sort'
 
 interface CustomizableFeature {
-  id: string
+  id: AppFeatureType
   icon: Component
   titleKey: string
 }
 
 const props = defineProps<{
   features: CustomizableFeature[]
-  modelValue: string[]
+  modelValue: AppFeatureType[]
 }>()
 
 const emit = defineEmits<{
-  'update:modelValue': [ids: string[]]
+  'update:modelValue': [ids: AppFeatureType[]]
 }>()
 
 const enabledIds = computed({
   get: () => props.modelValue.filter((id) => props.features.some((f) => f.id === id)),
-  set: (ids: string[]) => emit('update:modelValue', ids),
+  set: (ids: AppFeatureType[]) => emit('update:modelValue', ids),
 })
 
 const displayList = computed(() => {
@@ -71,7 +72,7 @@ const { fromIndex, itemStyle, start } = useDragSort({
   },
 })
 
-function toggle(id: string) {
+function toggle(id: AppFeatureType) {
   enabledIds.value = enabledIds.value.includes(id)
     ? enabledIds.value.filter((value) => value !== id)
     : [...enabledIds.value, id]

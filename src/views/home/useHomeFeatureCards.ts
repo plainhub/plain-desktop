@@ -1,3 +1,4 @@
+import { AppFeatureType } from '@/lib/app-feature.generated'
 import { computed, type Component, type ComputedRef } from 'vue'
 import { storeToRefs } from 'pinia'
 import { useMainStore } from '@/stores/main'
@@ -10,7 +11,7 @@ import {
 } from './features'
 
 export interface HomeFeatureCard {
-  id: string
+  id: AppFeatureType
   icon: Component
   titleKey: string
   sectionType: 'feature' | 'call_phone'
@@ -39,9 +40,9 @@ export function useHomeFeatureCards(filesPath: ComputedRef<string>) {
       feature.sectionType === 'feature'
         ? {
             ...feature,
-            to: feature.id === 'files' ? filesPath.value : feature.defaultPath,
+            to: feature.id === AppFeatureType.FILES ? filesPath.value : feature.defaultPath,
             count: feature.countKey ? counter.value[feature.countKey] : undefined,
-            showStorageInfo: feature.id === 'files',
+            showStorageInfo: feature.id === AppFeatureType.FILES,
           }
         : {
             ...feature,

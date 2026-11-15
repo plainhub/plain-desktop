@@ -26,9 +26,9 @@ describe('declared capability support', () => {
 
   it('shows the developing image editor only when debug is enabled', () => {
     for (const capabilities of [[], Object.values(Capability)]) {
-      expect(getAvailableFeatures(capabilities).some(feature => feature.id === 'image_editor')).toBe(false)
-      expect(getAvailableFeatures(capabilities, false).some(feature => feature.id === 'image_editor')).toBe(false)
-      expect(getAvailableFeatures(capabilities, true).some(feature => feature.id === 'image_editor')).toBe(true)
+      expect(getAvailableFeatures(capabilities).some(feature => feature.id === 'IMAGE_EDITOR')).toBe(false)
+      expect(getAvailableFeatures(capabilities, false).some(feature => feature.id === 'IMAGE_EDITOR')).toBe(false)
+      expect(getAvailableFeatures(capabilities, true).some(feature => feature.id === 'IMAGE_EDITOR')).toBe(true)
     }
   })
 })

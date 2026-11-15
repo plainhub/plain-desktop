@@ -1,3 +1,4 @@
+import { AppFeatureType } from '@/lib/app-feature.generated'
 import type { Component } from 'vue'
 import ILucidePhoneCall from '~icons/lucide/phone-call'
 import { getAvailableFeatures, type Feature } from '@/views/app-rail/features'
@@ -24,7 +25,7 @@ export interface HomeFeature extends Feature {
 }
 
 export interface HomePanelFeature {
-  id: string
+  id: AppFeatureType
   icon: Component
   titleKey: string
   sectionType: 'call_phone'
@@ -32,23 +33,23 @@ export interface HomePanelFeature {
 
 export type HomeSectionFeature = HomeFeature | HomePanelFeature
 
-const HOME_FEATURE_IDS = new Set(DEFAULT_HOME_FEATURES.filter((id) => id !== 'call_phone'))
+const HOME_FEATURE_IDS = new Set<AppFeatureType>(DEFAULT_HOME_FEATURES.filter((id) => id !== AppFeatureType.CALL_PHONE))
 
-const HOME_FEATURE_COUNT_KEYS: Partial<Record<string, HomeFeatureCountKey>> = {
-  audios: 'audios',
-  images: 'images',
-  videos: 'videos',
-  docs: 'docs',
-  apps: 'packages',
-  notes: 'notes',
-  feeds: 'feedEntries',
-  messages: 'messages',
-  calls: 'calls',
-  contacts: 'contacts',
+const HOME_FEATURE_COUNT_KEYS: Partial<Record<AppFeatureType, HomeFeatureCountKey>> = {
+  [AppFeatureType.AUDIO]: 'audios',
+  [AppFeatureType.IMAGES]: 'images',
+  [AppFeatureType.VIDEOS]: 'videos',
+  [AppFeatureType.DOCS]: 'docs',
+  [AppFeatureType.APPS]: 'packages',
+  [AppFeatureType.NOTES]: 'notes',
+  [AppFeatureType.FEEDS]: 'feedEntries',
+  [AppFeatureType.SMS]: 'messages',
+  [AppFeatureType.CALLS]: 'calls',
+  [AppFeatureType.CONTACTS]: 'contacts',
 }
 
 const HOME_PANEL_FEATURES: HomePanelFeature[] = [
-  { id: 'call_phone', icon: ILucidePhoneCall, titleKey: 'call_phone', sectionType: 'call_phone' },
+  { id: AppFeatureType.CALL_PHONE, icon: ILucidePhoneCall, titleKey: 'call_phone', sectionType: 'call_phone' },
 ]
 
 export function getAvailableHomeFeatures(features?: string[]): HomeSectionFeature[] {
@@ -61,7 +62,7 @@ export function getAvailableHomeFeatures(features?: string[]): HomeSectionFeatur
     }))
 
   const hasCallPhone = !!features?.includes(Capability.TELEPHONY)
-  const featureMap = new Map<string, HomeSectionFeature>([
+  const featureMap = new Map<AppFeatureType, HomeSectionFeature>([
     ...routeFeatures.map((feature) => [feature.id, feature] as const),
     ...(hasCallPhone ? HOME_PANEL_FEATURES.map((feature) => [feature.id, feature] as const) : []),
   ])
