@@ -54,5 +54,10 @@ export function set(key: string, value: unknown): Promise<void> {
 export function applySnapshot(snapshot: Record<string, unknown>): void {
   const values = currentCache()
   values.clear()
+  applyValues(snapshot)
+}
+
+export function applyValues(snapshot: Record<string, unknown>): void {
+  const values = currentCache()
   for (const [key, value] of Object.entries(snapshot)) values.set(key, value)
 }

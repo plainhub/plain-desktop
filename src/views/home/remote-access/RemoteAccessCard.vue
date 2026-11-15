@@ -5,7 +5,7 @@
         <h2>{{ $t('remote_access') }}</h2>
         <p>{{ $t('remote_access_description') }}</p>
       </div>
-      <v-switch :label="$t('remote_access')" :checked="enabled" :disabled="saving" @change="save" />
+      <v-switch :label="$t('remote_access')" :checked="enabled" :disabled="saving || !localMode" @change="save" />
     </header>
     <RemoteAccessAddresses
       :http-port="httpPort"
@@ -41,16 +41,16 @@
 import { openModal } from '@/components/modal'
 import { useRemoteAccess } from './use-remote-access'
 import { useHttpServer } from './use-http-server'
-import { useOnlineClients } from './use-online-clients'
+import { isLocalMode } from '@/lib/device/local-mode'
 import { useMdns } from './use-mdns'
 import RemoteAccessAddresses from './RemoteAccessAddresses.vue'
 import MdnsDebugModal from './MdnsDebugModal.vue'
 import MdnsHostnameDialog from './MdnsHostnameDialog.vue'
 import PortEditDialog from './PortEditDialog.vue'
 
+const localMode = isLocalMode()
 const { enabled, hostname, saving, save } = useRemoteAccess()
-const { httpPort, httpsPort, httpAddresses, httpsAddresses, httpPortOptions, httpsPortOptions, savePort, loadingIps, addressError, loadIps } = useHttpServer()
-const { count, failed: clientsFailed } = useOnlineClients()
+const { httpPort, httpsPort, httpAddresses, httpsAddresses, httpPortOptions, httpsPortOptions, savePort, loadingIps, addressError, loadIps, count, clientsFailed } = useHttpServer()
 const { saveHostname } = useMdns()
 
 function editPort(kind: 'http' | 'https') {

@@ -1,3 +1,4 @@
+import { isLocalMode } from '@/lib/device/local-mode'
 import { computed, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import * as prefs from '@/lib/prefs/core'
@@ -7,6 +8,7 @@ export function useRemoteAccess() {
   const { t } = useI18n()
   const saving = ref(false)
   async function save(value: boolean) {
+    if (!isLocalMode()) return
     saving.value = true
     try {
       await prefs.set('remote_access', value)

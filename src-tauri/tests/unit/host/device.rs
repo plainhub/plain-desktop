@@ -1,5 +1,4 @@
 use super::*;
-use plain_server::graphql::resolvers::app::types::Capability;
 
 #[test]
 fn every_declared_capability_is_unique_and_understood_by_the_main_schema() {
@@ -9,7 +8,7 @@ fn every_declared_capability_is_unique_and_understood_by_the_main_schema() {
         .collect::<std::collections::HashSet<_>>();
     assert_eq!(capabilities.len(), distinct.len());
     for name in capabilities {
-        assert!(Capability::parse(name).is_some(), "{name}");
+        assert!(Capability::parse(name.as_str()) == Some(name), "{name}");
     }
 }
 
@@ -23,22 +22,22 @@ fn desktop_does_not_advertise_base_file_or_media_capabilities() {
         "VIDEO_LIBRARY",
         "DOCUMENT_LIBRARY",
     ] {
-        assert!(!capabilities.contains(&name));
+        assert!(!capabilities.iter().any(|capability| capability.as_str() == name));
     }
-    assert!(!capabilities.contains(&"LAUNCHER_SHORTCUTS"));
+    assert!(!capabilities.iter().any(|capability| capability.as_str() == "LAUNCHER_SHORTCUTS"));
 }
 
 #[test]
 fn text_clipboard_is_available_through_the_native_platform_adapter() {
-    assert!(desktop_capabilities().contains(&"CLIPBOARD"));
+    assert!(desktop_capabilities().contains(&Capability::Clipboard));
 }
 
 #[test]
 fn native_media_catalog_scanning_is_available_to_the_main_schema() {
-    assert!(desktop_capabilities().contains(&"MEDIA_SCAN"));
+    assert!(desktop_capabilities().contains(&Capability::MediaScan));
 }
 
 #[test]
 fn local_system_notification_management_is_not_advertised() {
-    assert!(!desktop_capabilities().contains(&"NOTIFICATIONS"));
+    assert!(!desktop_capabilities().contains(&Capability::Notifications));
 }

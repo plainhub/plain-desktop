@@ -1,3 +1,4 @@
+import { Capability } from '../capability.generated.js'
 import type { AccessFeature } from '@/lib/interfaces'
 import type { SubscriptionField } from './subscription-results'
 
@@ -5,7 +6,7 @@ export interface SubscriptionOperation {
   field: SubscriptionField
   document: string
   access: readonly AccessFeature[]
-  capability?: string
+  capability?: Capability
 }
 export const subscriptionOperations: readonly SubscriptionOperation[] = [
   {field: 'pairingRequested', document: 'subscription { pairingRequested { fromId fromName fromIp deviceType verificationCode identityChanged } }', access: []},
@@ -23,13 +24,13 @@ export const subscriptionOperations: readonly SubscriptionOperation[] = [
   {"field": "deviceNameUpdated", "document": "subscription { deviceNameUpdated }", "access": []},
   {"field": "accessUpdated", "document": "subscription { accessUpdated }", "access": []},
   {"field": "contentChanged", "document": "subscription { contentChanged }", "access": []},
-  {"field": "screenMirrorState", "document": "subscription { screenMirrorState { running } }", "access": [], "capability": "SCREEN_MIRROR"},
-  {"field": "screenMirrorVideoCodec", "document": "subscription { screenMirrorVideoCodec { annexB } }", "access": [], "capability": "SCREEN_MIRROR"},
-  {"field": "screenMirrorAudioGranted", "document": "subscription { screenMirrorAudioGranted }", "access": [], "capability": "SCREEN_MIRROR"},
-  {"field": "notificationCreated", "document": "subscription { notificationCreated { id onlyOnce isClearable appId appName postedAt silent title body actions replyActions } }", "access": ["NOTIFICATIONS"], "capability": "NOTIFICATIONS"},
-  {"field": "notificationUpdated", "document": "subscription { notificationUpdated { id onlyOnce isClearable appId appName postedAt silent title body actions replyActions } }", "access": ["NOTIFICATIONS"], "capability": "NOTIFICATIONS"},
-  {"field": "notificationDeleted", "document": "subscription { notificationDeleted { id onlyOnce isClearable appId appName postedAt silent title body actions replyActions } }", "access": ["NOTIFICATIONS"], "capability": "NOTIFICATIONS"},
-  {"field": "notificationRefreshed", "document": "subscription { notificationRefreshed }", "access": ["NOTIFICATIONS"], "capability": "NOTIFICATIONS"},
+  {"field": "screenMirrorState", "document": "subscription { screenMirrorState { running } }", "access": [], "capability": Capability.SCREEN_MIRROR},
+  {"field": "screenMirrorVideoCodec", "document": "subscription { screenMirrorVideoCodec { annexB } }", "access": [], "capability": Capability.SCREEN_MIRROR},
+  {"field": "screenMirrorAudioGranted", "document": "subscription { screenMirrorAudioGranted }", "access": [], "capability": Capability.SCREEN_MIRROR},
+  {"field": "notificationCreated", "document": "subscription { notificationCreated { id onlyOnce isClearable appId appName postedAt silent title body actions replyActions } }", "access": ["NOTIFICATIONS"], "capability": Capability.NOTIFICATIONS},
+  {"field": "notificationUpdated", "document": "subscription { notificationUpdated { id onlyOnce isClearable appId appName postedAt silent title body actions replyActions } }", "access": ["NOTIFICATIONS"], "capability": Capability.NOTIFICATIONS},
+  {"field": "notificationDeleted", "document": "subscription { notificationDeleted { id onlyOnce isClearable appId appName postedAt silent title body actions replyActions } }", "access": ["NOTIFICATIONS"], "capability": Capability.NOTIFICATIONS},
+  {"field": "notificationRefreshed", "document": "subscription { notificationRefreshed }", "access": ["NOTIFICATIONS"], "capability": Capability.NOTIFICATIONS},
   {"field": "messagesCreated", "document": "subscription { messagesCreated { id fromId toId channelId content { ... on ChatTextContent { __typename text linkPreviews { url title description imageUrl imageLocalPath imageWidth imageHeight siteName domain createdAt } } ... on ChatImagesContent { __typename items { id uri size durationMs width height summary fileName } } ... on ChatFilesContent { __typename items { id uri size durationMs width height summary fileName } } ... on ChatShareContent { __typename shareId urlToken peerInfo { id ip port } name itemCount totalSize expiresAt } } createdAt updatedAt status deliveryResults { peerId peerName error } } }", "access": []},
   {"field": "messagesUpdated", "document": "subscription { messagesUpdated { id fromId toId channelId content { ... on ChatTextContent { __typename text linkPreviews { url title description imageUrl imageLocalPath imageWidth imageHeight siteName domain createdAt } } ... on ChatImagesContent { __typename items { id uri size durationMs width height summary fileName } } ... on ChatFilesContent { __typename items { id uri size durationMs width height summary fileName } } ... on ChatShareContent { __typename shareId urlToken peerInfo { id ip port } name itemCount totalSize expiresAt } } createdAt updatedAt status deliveryResults { peerId peerName error } } }", "access": []},
   {"field": "messagesDeleted", "document": "subscription { messagesDeleted }", "access": []},
@@ -38,7 +39,7 @@ export const subscriptionOperations: readonly SubscriptionOperation[] = [
   {"field": "bookmarksUpdated", "document": "subscription { bookmarksUpdated { id url title faviconPath groupId pinned clickCount lastClickedAt sortOrder createdAt updatedAt } }", "access": []},
   {"field": "feedsFetched", "document": "subscription { feedsFetched { feedId error canceled } }", "access": []},
   {"field": "uploadMergeResult", "document": "subscription { uploadMergeResult { fileId ok value mergedSize error } }", "access": ["FILES"]},
-  {"field": "smsChanged", "document": "subscription { smsChanged { uris } }", "access": ["SMS"], "capability": "TELEPHONY"},
-  {"field": "smsSendResult", "document": "subscription { smsSendResult { requestId success resultCode } }", "access": ["SMS"], "capability": "TELEPHONY"},
-  {"field": "clipboardChanged", "document": "subscription { clipboardChanged { text sensitive time } }", "access": ["CLIPBOARD"], "capability": "CLIPBOARD"},
+  {"field": "smsChanged", "document": "subscription { smsChanged { uris } }", "access": ["SMS"], "capability": Capability.TELEPHONY},
+  {"field": "smsSendResult", "document": "subscription { smsSendResult { requestId success resultCode } }", "access": ["SMS"], "capability": Capability.TELEPHONY},
+  {"field": "clipboardChanged", "document": "subscription { clipboardChanged { text sensitive time } }", "access": ["CLIPBOARD"], "capability": Capability.CLIPBOARD},
 ]

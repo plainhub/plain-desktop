@@ -1,5 +1,13 @@
-pub fn desktop_capabilities() -> Vec<&'static str> {
-    let mut capabilities = vec!["MEDIA_SCAN", "CLIPBOARD", "APP_UPDATES"];
+use plain_rs::features::capability::Capability;
+
+const DESKTOP: &[Capability] = &[
+    Capability::MediaScan,
+    Capability::Clipboard,
+    Capability::AppUpdates,
+];
+
+pub fn desktop_capabilities() -> Vec<Capability> {
+    let mut capabilities = DESKTOP.to_vec();
     capabilities.extend(plain_rs::features::services::files::media_action_io::capabilities());
     capabilities
 }

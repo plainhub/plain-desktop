@@ -14,7 +14,7 @@ import { useContactPicker } from '@/hooks/contact-picker'
 
 // Stat keys whose domain needs a declared capability; the rest are media
 // counts every server serves.
-const STAT_CAPABILITY: Partial<Record<HomeStatKey, string>> = {
+const STAT_CAPABILITY: Partial<Record<HomeStatKey, Capability>> = {
   packages: Capability.PACKAGES,
   messages: Capability.TELEPHONY,
   calls: Capability.TELEPHONY,

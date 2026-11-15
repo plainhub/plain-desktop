@@ -66,7 +66,7 @@ export interface Fragment_AppFragment {
   appDir: string
   deviceName: string
   deviceType: 'COMPUTER' | 'PHONE' | 'TABLET' | 'TV' | 'NAS' | 'OTHER'
-  capabilities: Array<'ADB' | 'BLE' | 'WIFI_AWARE' | 'APP_RELAUNCH' | 'MEDIA_TRASH' | 'MEDIA_DELETE' | 'MEDIA_MOVE' | 'MEDIA_FAVORITE' | 'VIDEO_REMUX' | 'VIDEO_TRANSCODE' | 'APP_UPDATES' | 'MIRROR_AUDIO' | 'MEDIA_SCAN' | 'TELEPHONY' | 'PACKAGES' | 'SCREEN_MIRROR' | 'NOTIFICATIONS' | 'CLIPBOARD' | 'DISK_MANAGER'>
+  capabilities: Array<'ADB' | 'BLE' | 'WIFI_AWARE' | 'APP_RELAUNCH' | 'MEDIA_TRASH' | 'MEDIA_DELETE' | 'MEDIA_MOVE' | 'MEDIA_FAVORITE' | 'VIDEO_REMUX' | 'VIDEO_TRANSCODE' | 'APP_UPDATES' | 'MIRROR_AUDIO' | 'MEDIA_SCAN' | 'TELEPHONY' | 'PACKAGES' | 'SCREEN_MIRROR' | 'NOTIFICATIONS' | 'CLIPBOARD' | 'DISK_MANAGER' | 'HTTP_SERVER'>
   access: Array<'IMAGES' | 'VIDEOS' | 'AUDIO' | 'DOCS' | 'FILES' | 'CONTACTS' | 'SMS' | 'CALLS' | 'CALL_PHONE' | 'PHONE_NUMBER' | 'APPS' | 'NOTIFICATIONS' | 'CLIPBOARD' | 'ADB'>
   downloadsDir: string
   developerMode: boolean
@@ -528,6 +528,14 @@ export interface GqlOperations {
       accessUpdated: boolean
     }
     variables: undefined
+  }
+  acquireMdnsDebugSessionMutation: {
+    result: {
+      acquireMdnsDebugSession: boolean
+    }
+    variables: {
+      token: string
+    }
   }
   addAudioToQueueGQL: {
     result: {
@@ -1742,6 +1750,24 @@ export interface GqlOperations {
       mediaQuery: string
     }
   }
+  httpServerQuery: {
+    result: {
+      httpServer: {
+        state: {
+          revision: number
+          restarting: boolean
+          httpPort: number
+          httpsPort: number
+          error: string
+        }
+        addresses: Array<string>
+        onlineClients: Array<string>
+        remoteAccess: boolean
+        mdnsHostname: string
+      }
+    }
+    variables: undefined
+  }
   imageCountGQL: {
     result: {
       total: number
@@ -1883,6 +1909,29 @@ export interface GqlOperations {
   logoutGQL: {
     result: {
       logout: boolean
+    }
+    variables: undefined
+  }
+  mdnsStateQuery: {
+    result: {
+      mdnsState: {
+        services: Array<{
+          serviceType: string
+          instanceName: string
+          instanceFqdn: string
+          hostname: string
+          port: number
+          txtRecords: Array<string>
+          ips: Array<string>
+          ip6s: Array<string>
+          complete: boolean
+        }>
+        activity: Array<{
+          time: string
+          event: string
+          detail: string
+        }>
+      }
     }
     variables: undefined
   }
@@ -2529,6 +2578,14 @@ export interface GqlOperations {
     }
     variables: undefined
   }
+  releaseMdnsDebugSessionMutation: {
+    result: {
+      releaseMdnsDebugSession: boolean
+    }
+    variables: {
+      token: string
+    }
+  }
   removeAudioFromQueueGQL: {
     result: {
       removeAudioFromQueue: boolean
@@ -2647,6 +2704,21 @@ export interface GqlOperations {
     variables: {
       peerId: string
       accepted: boolean
+    }
+  }
+  restartHttpServerMutation: {
+    result: {
+      restartHttpServer: {
+        revision: number
+        restarting: boolean
+        httpPort: number
+        httpsPort: number
+        error: string
+      }
+    }
+    variables: {
+      httpPort?: number | null
+      httpsPort?: number | null
     }
   }
   restoreMediaItemsGQL: {
@@ -2870,6 +2942,15 @@ export interface GqlOperations {
     }
     variables: {
       input: Input_FileIndexVolumeInput
+    }
+  }
+  setMdnsHostnameMutation: {
+    result: {
+      setPref: boolean
+    }
+    variables: {
+      key: string
+      value: unknown
     }
   }
   setMountAliasGQL: {

@@ -2,8 +2,16 @@ import { isLocalMode } from '@/lib/device/local-mode'
 import { invoke } from '@/lib/api/native-invoke'
 import { ref } from 'vue'
 import { gqlFetch } from '@/lib/api/gql-client'
-import toast from '@/components/toaster'
-import { useI18n } from 'vue-i18n'
+
+const mdnsStateQuery = `query {
+  mdnsState {
+    services { serviceType instanceName instanceFqdn hostname port txtRecords ips ip6s complete }
+    activity { time event detail }
+  }
+}`
+const acquireMdnsDebugSessionMutation = `mutation($token: String!) { acquireMdnsDebugSession(token: $token) }`
+const releaseMdnsDebugSessionMutation = `mutation($token: String!) { releaseMdnsDebugSession(token: $token) }`
+const setMdnsHostnameMutation = `mutation($key: String!, $value: JSON!) { setPref(key: $key, value: $value) }`
 
 // Wire shape of the Rust `MdnsServiceSnapshot` — mirrors plain-app's
 // `MdnsServiceSnapshot` shown on the mDNS debug page.
@@ -29,7 +37,6 @@ export interface MdnsActivity {
 // periodic mDNS discovery running and refreshes the browser snapshot every
 // two seconds; discovery is stopped on exit only when this page started it.
 export function useMdns() {
-  const { t } = useI18n()
   const snapshots = ref<MdnsServiceSnapshot[]>([])
   const activity = ref<MdnsActivity[]>([])
   const paused = ref(false)
@@ -42,9 +49,9 @@ export function useMdns() {
     const h = value.trim()
     if (h.length === 0 || !h.endsWith('.local')) return false
     try {
-      const result = await gqlFetch('mutation($key: String!, $value: JSON!) { setPref(key: $key, value: $value) }', { key: 'mdns_hostname', value: h })
+      const result = await gqlFetch(setMdnsHostnameMutation, { key: 'mdns_hostname', value: h })
       if (result.errors?.length) throw new Error(result.errors[0].message)
-      toast(t('saved'))
+
       return true
     } catch (e) {
       console.error('set mdns hostname failed', e)
@@ -55,7 +62,7 @@ export function useMdns() {
   async function refreshSnapshot() {
     try {
       const result = await gqlFetch<{ mdnsState: { services: MdnsServiceSnapshot[]; activity: MdnsActivity[] } }>(
-        'query { mdnsState { services { serviceType instanceName instanceFqdn hostname port txtRecords ips ip6s complete } activity { time event detail } } }',
+        mdnsStateQuery,
         undefined,
         { fresh: true }
       )
@@ -68,16 +75,24 @@ export function useMdns() {
   }
 
   async function release(token: string) {
-    await invoke('native_release_mdns_debug_session', { token })
+    if (isLocalMode()) await invoke('native_release_mdns_debug_session', { token })
+    else {
+      const result = await gqlFetch(releaseMdnsDebugSessionMutation, { token })
+      if (result.errors?.length) throw new Error(result.errors[0].message)
+    }
   }
 
   async function startBrowsing() {
-    if (!isLocalMode() || browsing) return
+    if (browsing) return
     browsing = true
     const current = ++generation
     const token = crypto.randomUUID()
     try {
-      await invoke('native_acquire_mdns_debug_session', { token })
+      if (isLocalMode()) await invoke('native_acquire_mdns_debug_session', { token })
+      else {
+        const result = await gqlFetch(acquireMdnsDebugSessionMutation, { token })
+        if (result.errors?.length) throw new Error(result.errors[0].message)
+      }
       if (!browsing || generation !== current) {
         await release(token)
         return

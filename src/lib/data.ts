@@ -11,26 +11,4 @@ export enum DataType {
   DOC = 'DOC',
 }
 
-// String values match the server's Capability GraphQL enum items.
-export enum Capability {
-  ADB = 'ADB',
-  BLE = 'BLE',
-  WIFI_AWARE = 'WIFI_AWARE',
-
-  APP_RELAUNCH = 'APP_RELAUNCH',
-  MEDIA_TRASH = 'MEDIA_TRASH',
-  MEDIA_DELETE = 'MEDIA_DELETE',
-  MEDIA_MOVE = 'MEDIA_MOVE',
-  MEDIA_FAVORITE = 'MEDIA_FAVORITE',
-  VIDEO_REMUX = 'VIDEO_REMUX',
-  VIDEO_TRANSCODE = 'VIDEO_TRANSCODE',
-  APP_UPDATES = 'APP_UPDATES',
-  MIRROR_AUDIO = 'MIRROR_AUDIO',
-  MEDIA_SCAN = 'MEDIA_SCAN',
-  TELEPHONY = 'TELEPHONY',
-  PACKAGES = 'PACKAGES',
-  SCREEN_MIRROR = 'SCREEN_MIRROR',
-  NOTIFICATIONS = 'NOTIFICATIONS',
-  CLIPBOARD = 'CLIPBOARD',
-  DISK_MANAGER = 'DISK_MANAGER',
-}
+export { Capability } from './capability.generated.js'

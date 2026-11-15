@@ -1,3 +1,4 @@
+use plain_rs::features::capability::Capability;
 use std::sync::Arc;
 
 use plain_server::server::ContentServer;
@@ -7,12 +8,12 @@ use tauri::{Emitter, Manager};
 pub struct Runtime {
     core: Arc<ContentServer>,
     app: tauri::AppHandle,
-    capabilities: Vec<String>,
+    capabilities: Vec<Capability>,
     multicast: std::sync::Mutex<plain_rs::infrastructure::host::multicast::MulticastLeases>,
 }
 
 impl Runtime {
-    pub fn new(core: Arc<ContentServer>, app: tauri::AppHandle, capabilities: Vec<String>) -> Self {
+    pub fn new(core: Arc<ContentServer>, app: tauri::AppHandle, capabilities: Vec<Capability>) -> Self {
         Self {
             core,
             app,
@@ -141,7 +142,7 @@ impl Runtime {
             || {
                 let app = self.app.clone();
                 let prefs = self.core.shared_preferences();
-                let supported = self.capabilities.iter().any(|name| name == "CLIPBOARD");
+                let supported = self.capabilities.contains(&Capability::Clipboard);
                 async move {
                     let permissions: Vec<String> = prefs?.get_or(
                         plain_rs::features::prefs::pref_keys::API_PERMISSIONS,

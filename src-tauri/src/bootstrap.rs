@@ -161,10 +161,7 @@ pub fn run() {
                 crate::commands::screen_capture::selftest::schedule_trigger(app.handle().clone());
             }
 
-            let capabilities = crate::host::device::desktop_capabilities()
-                .iter()
-                .map(|value| (*value).to_owned())
-                .collect();
+            let capabilities = crate::host::device::desktop_capabilities();
             let host_bridge = std::sync::Arc::new(crate::host::runtime::Runtime::new(
                 core.clone(),
                 app.handle().clone(),

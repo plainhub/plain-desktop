@@ -13,7 +13,7 @@
       <CallPhoneCard v-else />
     </template>
     <FileIndexCard v-if="hasFeature(Capability.MEDIA_SCAN, app.capabilities)" :mounts="mounts" />
-    <RemoteAccessCard v-if="localMode" />
+    <RemoteAccessCard v-if="showHttpServer" />
   </div>
 </template>
 
@@ -35,8 +35,8 @@ import { isLocalMode } from '@/lib/device/local-mode'
 import { Capability } from '@/lib/data'
 import { hasFeature } from '@/lib/feature'
 
-const localMode = isLocalMode()
 const { app, counter } = storeToRefs(useTempStore())
+const showHttpServer = computed(() => isLocalMode() || hasFeature(Capability.HTTP_SERVER, app.value.capabilities))
 
 const { mounts } = useHomeData()
 

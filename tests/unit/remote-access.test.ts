@@ -4,7 +4,8 @@ import { renderToString } from 'vue/server-renderer'
 import { useRemoteAccess } from '@/views/home/remote-access/use-remote-access'
 import * as prefs from '@/lib/prefs/core'
 
-const mock = vi.hoisted(() => ({ write: vi.fn(), toast: vi.fn() }))
+const mock = vi.hoisted(() => ({ write: vi.fn(), toast: vi.fn(), local: true }))
+vi.mock('@/lib/device/local-mode', () => ({ isLocalMode: () => mock.local }))
 vi.mock('vue-i18n', () => ({ useI18n: () => ({ t: (key: string) => key }) }))
 vi.mock('@/lib/api/gql-client', () => ({
   getGraphqlContextKey: () => 'local',
@@ -15,6 +16,7 @@ vi.mock('@/components/toaster', () => ({ default: mock.toast }))
 
 beforeEach(() => {
   vi.resetAllMocks()
+  mock.local = true
   prefs.applySnapshot({})
 })
 afterEach(() => vi.restoreAllMocks())
@@ -75,4 +77,12 @@ it('preserves saved state and exposes write failures', async () => {
   expect(state.enabled.value).toBe(true)
   expect(state.saving.value).toBe(false)
   expect(mock.toast).toHaveBeenCalledWith('denied', 'error')
+})
+
+it('does not allow the Web card to close remote access', async () => {
+  mock.local = false
+  const state = await access(true)
+  await state.save(false)
+  expect(mock.write).not.toHaveBeenCalled()
+  expect(state.enabled.value).toBe(true)
 })
