@@ -1768,24 +1768,6 @@ export interface GqlOperations {
     }
     variables: undefined
   }
-  httpServerQuery: {
-    result: {
-      httpServer: {
-        state: {
-          revision: number
-          restarting: boolean
-          httpPort: number
-          httpsPort: number
-          error: string
-        }
-        addresses: Array<string>
-        onlineClients: Array<string>
-        remoteAccess: boolean
-        mdnsHostname: string
-      }
-    }
-    variables: undefined
-  }
   imageCountGQL: {
     result: {
       total: number

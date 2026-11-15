@@ -1,5 +1,6 @@
 import { afterEach, expect, it, vi } from 'vitest'
-import { createRenderer, nextTick, ref } from 'vue'
+import { createRenderer, nextTick, ref, h, KeepAlive } from 'vue'
+import { renderView, flush } from '../helpers/vue-node-renderer'
 
 const state = vi.hoisted(() => ({ context: undefined as any, event: undefined as any }))
 vi.mock('@/lib/api/query', () => ({ fileIndexScanProgressGQL: 'fileIndexScanProgress' }))
@@ -9,7 +10,7 @@ vi.mock('@/lib/api/gql-client', async () => {
   return { gqlFetch: vi.fn(), getGraphqlContextKey: () => state.context.value }
 })
 vi.mock('@/lib/api/subscription-client', () => ({ graphqlSubscriptions: {
-  subscribe: (_: string, callback: () => void) => { state.event = callback; return vi.fn() },
+  subscribe: (_: string, callback: () => void) => { state.event = callback; return () => { if (state.event === callback) state.event = undefined } },
   onAttached: () => vi.fn(),
 } }))
 import { gqlFetch } from '@/lib/api/gql-client'
@@ -87,4 +88,25 @@ it('does not lose a pushed change while an older progress read is pending', asyn
   expect(result.progress.value?.state).toBe('IDLE')
   await vi.advanceTimersByTimeAsync(30_000)
   expect(gqlFetch).toHaveBeenCalledTimes(2)
+})
+
+it('owns the page lifecycle and refreshes on return without watching cached contexts', async () => {
+  vi.mocked(gqlFetch).mockResolvedValue(response('RUNNING') as any)
+  const visible = ref(true)
+  let result!: ReturnType<typeof useFileIndexStatus>
+  const Page = { setup() { result = useFileIndexStatus(ref(true)); return () => h('div') } }
+  const view = renderView({ setup: () => () => h(KeepAlive, null, { default: () => visible.value ? h(Page) : h('div') }) })
+  unmount = view.unmount
+  await flush()
+  expect(gqlFetch).toHaveBeenCalledTimes(1)
+  expect(state.event).toBeTypeOf('function')
+  visible.value = false; await flush()
+  expect(state.event).toBeUndefined()
+  state.context.value = 'second'; await flush()
+  expect(gqlFetch).toHaveBeenCalledTimes(1)
+  vi.mocked(gqlFetch).mockResolvedValue(response('IDLE') as any)
+  visible.value = true; await flush()
+  expect(gqlFetch).toHaveBeenCalledTimes(2)
+  expect(result.progress.value?.state).toBe('IDLE')
+  expect(state.event).toBeTypeOf('function')
 })

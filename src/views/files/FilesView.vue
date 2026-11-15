@@ -138,7 +138,7 @@ const onExtensionImageError = (id: string) => { extensionImageErrorIds.value.pus
 
 // --- Breadcrumb ---
 const { breadcrumbPaths, getPageStats } = useFilesBreadcrumb(filter, rootDir, mounts, t)
-const { progress: indexProgress, error: indexError } = useFileIndexStatus(computed(() => indexed.value && isActive.value))
+const { progress: indexProgress, error: indexError } = useFileIndexStatus(indexed)
 const searchState = computed(() => {
   if (!indexed.value) return searchStatus.value === 'idle' ? '' : t(`directory_search_${searchStatus.value}`)
   if (indexError.value) return t('index_state_failed')

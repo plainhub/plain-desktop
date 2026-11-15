@@ -21,17 +21,19 @@ vi.mock('@/lib/api/subscription-client', () => ({ graphqlSubscriptions: {
   subscribe(field: string, callback: (data: any) => void) {
     const listeners = mock.listeners.get(field) ?? new Set()
     mock.listeners.set(field, listeners); listeners.add(callback)
+    queueMicrotask(() => { if (listeners.has(callback)) callback(snapshot) })
     return () => listeners.delete(callback)
   },
-  onAttached(callback: () => void) {
-    const listeners = mock.listeners.get('attached') ?? new Set()
-    mock.listeners.set('attached', listeners); listeners.add(callback)
+  onConnectionChange(callback: (connected: boolean | null) => void) {
+    const listeners = mock.listeners.get('connection') ?? new Set()
+    mock.listeners.set('connection', listeners); listeners.add(callback)
     return () => listeners.delete(callback)
   },
+
 } }))
 
 import { useHttpServer } from '@/views/home/remote-access/use-http-server'
-import { httpServerQuery, restartHttpServerMutation } from '@/lib/api/http-server'
+import { restartHttpServerMutation } from '@/lib/api/http-server'
 
 const state = { revision: 1, restarting: false, httpPort: 8180, httpsPort: 8543, error: '' }
 const snapshot = { state, addresses: ['192.0.2.8'], onlineClients: ['a', 'b'], remoteAccess: true, mdnsHostname: 'fixture.local' }
@@ -42,7 +44,7 @@ beforeEach(() => {
   vi.useFakeTimers()
   vi.stubGlobal('__IS_TAURI__', false)
   vi.stubGlobal('window', { location: { href: 'http://fixture.local:8080/#/home', assign: mock.assign } })
-  mock.query.mockImplementation(async (query: string) => ({ data: query === httpServerQuery ? { httpServer: snapshot } : { restartHttpServer: state } }))
+  mock.query.mockImplementation(async (query: string) => ({ data: query.startsWith('query') ? { httpServer: snapshot } : { restartHttpServer: state } }))
 })
 afterEach(() => { vi.useRealTimers(); vi.unstubAllGlobals(); vi.restoreAllMocks() })
 
@@ -60,6 +62,7 @@ it('reads addresses, actual ports and online clients together without native com
   expect(value.count.value).toBe(2)
   expect(mock.values).toHaveBeenCalledWith({ remote_access: true, mdns_hostname: 'fixture.local' })
   expect(mock.invoke).not.toHaveBeenCalled()
+  expect(mock.query).not.toHaveBeenCalled()
 })
 
 it('changes ports through the main schema and navigates to the actual completed listener', async () => {
@@ -95,14 +98,6 @@ it('does not report an accepted but unfinished restart as saved', async () => {
   expect(mock.assign).not.toHaveBeenCalled()
 })
 
-it('keeps visible addresses during background status refresh', async () => {
-  const value = await server()
-  mock.query.mockReturnValueOnce(new Promise(() => {}))
-  await vi.advanceTimersByTimeAsync(2000)
-  expect(value.loadingIps.value).toBe(false)
-  expect(value.httpAddresses.value).toEqual(['http://192.0.2.8:8180'])
-})
-
 it('refreshes the card without navigating when the serving port stays the same', async () => {
   vi.stubGlobal('window', { location: { href: 'http://fixture.local:8180/#/home', assign: mock.assign } })
   const value = await server()
@@ -114,14 +109,14 @@ it('refreshes the card without navigating when the serving port stays the same',
 it('does not query on a timer and applies pushed server snapshots', async () => {
   const value = await server()
   await vi.advanceTimersByTimeAsync(10_000)
-  expect(mock.query).toHaveBeenCalledTimes(1)
+  expect(mock.query).not.toHaveBeenCalled()
   for (const callback of mock.listeners.get('httpServerChanged') ?? []) callback({ ...snapshot, onlineClients: [], state: { ...state, httpPort: 8280 } })
   expect(value.count.value).toBe(0)
   expect(value.httpAddresses.value).toEqual(['http://192.0.2.8:8280'])
-  expect(mock.query).toHaveBeenCalledTimes(1)
+  expect(mock.query).not.toHaveBeenCalled()
 })
 
-it('detaches while Home is cached, refreshes on return and ignores late reads', async () => {
+it('detaches while Home is cached, gets a fresh initial snapshot on return and ignores old callbacks', async () => {
   const visible = ref(true)
   let value!: ReturnType<typeof useHttpServer>
   const Home = { setup() { value = useHttpServer(); return () => h('div') } }
@@ -129,20 +124,20 @@ it('detaches while Home is cached, refreshes on return and ignores late reads', 
   try {
     await flush()
     expect(mock.listeners.get('httpServerChanged')?.size).toBe(1)
-    let finish!: (value: any) => void
-    mock.query.mockImplementationOnce(() => new Promise(resolve => { finish = resolve }))
-    for (const callback of mock.listeners.get('attached') ?? []) callback()
+    const oldCallback = [...mock.listeners.get('httpServerChanged')!][0]
     visible.value = false; await flush()
     expect(mock.listeners.get('httpServerChanged')?.size).toBe(0)
-    expect(mock.listeners.get('attached')?.size).toBe(0)
-    const calls = mock.query.mock.calls.length
+    expect(mock.listeners.get('connection')?.size).toBe(0)
+    value.loadIps()
+    expect(mock.listeners.get('httpServerChanged')?.size).toBe(0)
+    oldCallback({ ...snapshot, state: { ...state, httpPort: 9999 } })
     await vi.advanceTimersByTimeAsync(10_000)
-    expect(mock.query).toHaveBeenCalledTimes(calls)
-    visible.value = true; await flush()
-    expect(mock.query).toHaveBeenCalledTimes(calls + 1)
-    expect(mock.listeners.get('httpServerChanged')?.size).toBe(1)
-    finish({ data: { httpServer: { ...snapshot, state: { ...state, httpPort: 9999 } } } }); await flush()
     expect(value.httpPort.value).toBe(8180)
+    visible.value = true; await flush()
+    expect(mock.listeners.get('httpServerChanged')?.size).toBe(1)
+    oldCallback({ ...snapshot, state: { ...state, httpPort: 9999 } })
+    expect(value.httpPort.value).toBe(8180)
+    expect(mock.query).not.toHaveBeenCalled()
   } finally { view.unmount() }
   expect(mock.listeners.get('httpServerChanged')?.size).toBe(0)
 })
@@ -171,28 +166,34 @@ it('releases local network and client callbacks while Home is cached', async () 
   } finally { view.unmount(); mock.local = false }
 })
 
-it('refreshes once after reconnect and keeps a newer pushed snapshot over a pending read', async () => {
+it('uses the reattached snapshot without querying or duplicating consumers', async () => {
   const value = await server()
-  let finish!: (value: any) => void
-  mock.query.mockImplementationOnce(() => new Promise(resolve => { finish = resolve }))
-  for (const callback of mock.listeners.get('attached') ?? []) callback()
-  expect(mock.query).toHaveBeenCalledTimes(2)
+  for (const callback of mock.listeners.get('connection') ?? []) callback(true)
   for (const callback of mock.listeners.get('httpServerChanged') ?? []) callback({ ...snapshot, state: { ...state, httpPort: 8280 } })
-  finish({ data: { httpServer: snapshot } }); await flush()
   expect(value.httpPort.value).toBe(8280)
   expect(mock.listeners.get('httpServerChanged')?.size).toBe(1)
+  expect(mock.query).not.toHaveBeenCalled()
 })
 
-it('recovers an initial read failure from the next pushed snapshot without a timer retry', async () => {
-  vi.spyOn(console, 'error').mockImplementation(() => {})
-  mock.query.mockRejectedValueOnce(new Error('fixture disconnected'))
+it('shows disconnection and recovers from the next snapshot without a timer retry', async () => {
   const value = await server()
+  for (const callback of mock.listeners.get('connection') ?? []) callback(false)
   expect(value.addressError.value).toBe(true)
   expect(value.clientsFailed.value).toBe(true)
   await vi.advanceTimersByTimeAsync(10_000)
-  expect(mock.query).toHaveBeenCalledTimes(1)
+  expect(mock.query).not.toHaveBeenCalled()
   for (const callback of mock.listeners.get('httpServerChanged') ?? []) callback(snapshot)
   expect(value.addressError.value).toBe(false)
   expect(value.clientsFailed.value).toBe(false)
   expect(value.count.value).toBe(2)
+})
+
+it('retries by reattaching for a fresh snapshot without an additional query', async () => {
+  const value = await server()
+  const original = [...mock.listeners.get('httpServerChanged')!][0]
+  value.loadIps(); await flush()
+  expect(mock.listeners.get('httpServerChanged')?.size).toBe(1)
+  expect([...mock.listeners.get('httpServerChanged')!][0]).not.toBe(original)
+  expect(value.httpPort.value).toBe(8180)
+  expect(mock.query).not.toHaveBeenCalled()
 })

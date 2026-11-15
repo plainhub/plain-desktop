@@ -1,12 +1,13 @@
 import { isLocalMode } from '@/lib/device/local-mode'
-import { ref, computed, onActivated, onDeactivated, onUnmounted } from 'vue'
+import { ref, computed } from 'vue'
 import { readLocalAddresses, restartLocalServer } from '@/lib/api/local-server'
 import { useTempStore } from '@/stores/temp'
 import { storeToRefs } from 'pinia'
 import toast from '@/components/toaster'
 import { graphqlSubscriptions } from '@/lib/api/subscription-client'
-import { readHttpServer, restartHttpServer, type HttpServerSnapshot } from '@/lib/api/http-server'
+import { restartHttpServer, type HttpServerSnapshot } from '@/lib/api/http-server'
 import { applyValues } from '@/lib/prefs/core'
+import { usePageScope, type PageScope } from '@/hooks/page-scope'
 import { useOnlineClients } from './use-online-clients'
 import { useI18n } from 'vue-i18n'
 import emitter from '@/plugins/eventbus'
@@ -34,68 +35,6 @@ export function useHttpServer() {
   const ips = ref<string[]>([])
   const loadingIps = ref(true)
   const addressError = ref(false)
-  let active = false
-  let generation = 0
-  let activation = 0
-  let stopSubscription: (() => void) | undefined
-  let stopAttached: (() => void) | undefined
-  let registration: number | undefined
-
-  async function loadIps(showLoading = true) {
-    if (!active) return
-    const current = ++generation
-    if (showLoading) loadingIps.value = true
-    try {
-      if (localMode) {
-        const addresses = await readLocalAddresses()
-        if (!active || current !== generation) return
-        ips.value = addresses
-      } else {
-        const snapshot = await readHttpServer()
-        if (!active || current !== generation) return
-        applySnapshot(snapshot)
-      }
-      addressError.value = false
-    } catch (e) {
-      if (!active || current !== generation) return
-      addressError.value = true
-      if (!localMode) clients.failed.value = true
-      console.error('network addresses failed', e)
-    } finally {
-      if (active && current === generation) loadingIps.value = false
-    }
-  }
-
-  async function refreshAddresses() {
-    if (!active) return
-    if (!localMode) {
-      await loadIps()
-      return
-    }
-    const current = activation
-    loadingIps.value = true
-    try {
-      if (registration === undefined) {
-        const channel = new Channel<Record<string, never>>()
-        channel.onmessage = () => {
-          if (active && current === activation) void loadIps()
-        }
-        const id = await invoke<number>('native_register_network_changes', { channel })
-        if (!active || current !== activation) {
-          await invoke('native_unregister_network_changes', { id })
-          return
-        }
-        registration = id
-      }
-      await loadIps()
-    } catch (error) {
-      if (!active || current !== activation) return
-      addressError.value = true
-      console.error('Network changes registration failed', error)
-    } finally {
-      if (active && current === activation) loadingIps.value = false
-    }
-  }
   function applySnapshot(snapshot: HttpServerSnapshot) {
     ips.value = snapshot.addresses
     app.value.httpPort = snapshot.state.httpPort
@@ -107,36 +46,49 @@ export function useHttpServer() {
     applyValues({ remote_access: snapshot.remoteAccess, mdns_hostname: snapshot.mdnsHostname })
   }
 
-  function activate() {
-    if (active) return
-    active = true
-    activation++
-    if (localMode) void refreshAddresses()
+  async function loadLocalAddresses(scope: PageScope) {
+    if (!scope.active) return
+    loadingIps.value = true
+    try {
+      const addresses = await readLocalAddresses()
+      if (scope.active) { ips.value = addresses; addressError.value = false }
+    } catch (error) {
+      if (scope.active) addressError.value = true
+      console.error('Network addresses failed', error)
+    } finally {
+      if (scope.active) loadingIps.value = false
+    }
+  }
+
+  async function watchLocalNetwork(scope: PageScope) {
+    const channel = new Channel<Record<string, never>>()
+    channel.onmessage = () => { void loadLocalAddresses(scope) }
+    try {
+      const id = await invoke<number>('native_register_network_changes', { channel })
+      scope.onDispose(() => { void invoke('native_unregister_network_changes', { id }).catch(console.error) })
+      await loadLocalAddresses(scope)
+    } catch (error) {
+      if (scope.active) { addressError.value = true; loadingIps.value = false }
+      console.error('Network changes registration failed', error)
+    }
+  }
+
+  const loadIps = usePageScope(scope => {
+    loadingIps.value = true
+    if (localMode) void watchLocalNetwork(scope)
     else {
-      stopSubscription = graphqlSubscriptions.subscribe('httpServerChanged', snapshot => {
-        generation++
-        applySnapshot(snapshot)
-      })
-      stopAttached = graphqlSubscriptions.onAttached(() => { void loadIps(false) })
-      void loadIps()
+      scope.onDispose(graphqlSubscriptions.subscribe('httpServerChanged', snapshot => {
+        if (scope.active) applySnapshot(snapshot)
+      }))
+      scope.onDispose(graphqlSubscriptions.onConnectionChange(connected => {
+        if (scope.active && connected === false) {
+          addressError.value = true
+          clients.failed.value = true
+          loadingIps.value = false
+        }
+      }))
     }
-  }
-  function deactivate() {
-    active = false
-    activation++
-    generation++
-    stopSubscription?.()
-    stopAttached?.()
-    if (registration !== undefined) {
-      const id = registration
-      registration = undefined
-      void invoke('native_unregister_network_changes', { id }).catch(console.error)
-    }
-  }
-  activate()
-  onActivated(activate)
-  onDeactivated(deactivate)
-  onUnmounted(deactivate)
+  })
 
   async function savePort(kind: 'http' | 'https', port: number): Promise<boolean> {
     try {
@@ -185,7 +137,7 @@ export function useHttpServer() {
     addressError,
     httpPortOptions,
     httpsPortOptions,
-    loadIps: refreshAddresses,
+    loadIps,
     savePort,
   }
 }
