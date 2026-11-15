@@ -81,13 +81,17 @@ export const useBookmarksStore = defineStore('bookmarks', {
     },
 
     addBookmarks(bookmarks: Bookmark[]) {
-      this.bookmarks.push(...bookmarks.map((b) => ({ ...b })))
+      for (const bookmark of bookmarks) {
+        if (!this.bookmarks.some((item) => item.id === bookmark.id)) this.bookmarks.push({ ...bookmark })
+      }
     },
 
-    updateBookmark(updated: Partial<Bookmark> & { id: string }) {
+    updateBookmark(updated: Bookmark) {
       const idx = this.bookmarks.findIndex((b) => b.id === updated.id)
       if (idx !== -1) {
-        this.bookmarks[idx] = { ...this.bookmarks[idx], ...updated }
+        this.bookmarks[idx] = { ...updated }
+      } else {
+        this.bookmarks.push({ ...updated })
       }
     },
 
