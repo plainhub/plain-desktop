@@ -20,13 +20,19 @@ export interface FileIndexVolume {
 export interface FileIndexDefaults {
   excludedDirs: string[]
   excludedNames: string[]
-  excludedPackages: string[]
-  excludedUserLibraries: boolean
+  excludedProfileDirs: FileIndexProfileDir[]
+  mediaExcludedDirSuffixes: string[]
+}
+
+export interface FileIndexProfileDir {
+  profilesDir: string
+  excludedDir: string
+  exceptDirs: string[]
 }
 
 export const fileIndexVolumesGQL = `query {
   fileIndexVolumes { id path isAvailable indexMode includedDirs excludedDirs lastScanAt lastScanStatus lastScanCount lastScanTotal }
-  fileIndexDefaults { excludedDirs excludedNames excludedPackages excludedUserLibraries }
+  fileIndexDefaults { excludedDirs excludedNames excludedProfileDirs { profilesDir excludedDir exceptDirs } mediaExcludedDirSuffixes }
 }`
 
 const setFileIndexVolumeGQL = `mutation($input: FileIndexVolumeInput!) {

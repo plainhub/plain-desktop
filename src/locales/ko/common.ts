@@ -18,7 +18,7 @@ export default {
     files_hint: '범위 내 접근 가능한 일반 파일은 알 수 없는 확장자도 색인합니다. 인식된 미디어와 문서는 메타데이터도 추출합니다.',
     skip_hint: '숨김 파일 및 폴더와 Git 프로젝트는 건너뛰며 심볼릭 링크를 따라가지 않습니다.',
     access_hint: '오프라인 볼륨과 접근할 수 없는 폴더는 검색하지 않습니다. 범위 설정은 접근 권한을 부여하지 않습니다.',
-    library_hint: '사용자 Library 폴더는 제외하지만 iCloud Drive 문서는 예외입니다.',
+    profile_hint: '{path}은(는) 제외하지만 {exceptions}은(는) 유지합니다.',
     excluded_paths: '제외되는 폴더 및 하위 폴더',
     excluded_names: '모든 깊이에서 제외되는 폴더 이름',
     media_only: '파일 색인만',

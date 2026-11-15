@@ -18,7 +18,7 @@ export default {
     files_hint: '扫描所选范围内的普通文件，不限文件类型。',
     skip_hint: '跳过隐藏文件、Git 项目和符号链接。',
     access_hint: '离线或没有访问权限的目录不会扫描。',
-    library_hint: '跳过用户 Library 目录，但保留 iCloud Drive。',
+    profile_hint: '跳过 {path}，但保留 {exceptions}。',
     excluded_paths: '跳过这些目录及其子目录',
     excluded_names: '跳过这些名称的目录',
     media_only: '只建立文件索引',

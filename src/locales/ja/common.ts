@@ -18,7 +18,7 @@ export default {
     files_hint: '範囲内のアクセス可能な通常ファイルは未知の拡張子も索引します。認識されたメディアと文書にはメタデータも追加します。',
     skip_hint: '隠しファイルとフォルダー、Gitプロジェクトを除外し、走査中にシンボリックリンクをたどりません。',
     access_hint: 'オフラインのボリュームやアクセスできないフォルダーは走査しません。索引範囲の設定でアクセス権は付与されません。',
-    library_hint: 'ユーザーのLibraryは除外しますが、iCloud Driveの文書は例外です。',
+    profile_hint: '{path} を除外しますが、{exceptions} は保持します。',
     excluded_paths: '除外するフォルダーと配下',
     excluded_names: '階層を問わず除外するフォルダー名',
     media_only: 'ファイル索引のみ',

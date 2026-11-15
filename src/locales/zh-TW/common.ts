@@ -18,7 +18,7 @@ export default {
     files_hint: '掃描所選範圍內的一般檔案，不限檔案類型。',
     skip_hint: '略過隱藏檔案、Git 專案和符號連結。',
     access_hint: '離線或沒有存取權限的目錄不會掃描。',
-    library_hint: '略過使用者 Library 目錄，但保留 iCloud Drive。',
+    profile_hint: '略過 {path}，但保留 {exceptions}。',
     excluded_paths: '略過這些目錄及子目錄',
     excluded_names: '略過這些名稱的目錄',
     media_only: '只建立檔案索引',

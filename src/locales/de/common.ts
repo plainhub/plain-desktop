@@ -18,7 +18,7 @@ export default {
     files_hint: 'Alle zugänglichen regulären Dateien im Bereich werden indiziert, auch unbekannte Dateitypen. Erkannte Medien und Dokumente erhalten zusätzliche Metadaten.',
     skip_hint: 'Versteckte Dateien und Ordner sowie Git-Projekte werden übersprungen. Symbolischen Links wird nicht gefolgt.',
     access_hint: 'Offline-Volumes und unzugängliche Ordner werden nicht gescannt. Der Indexbereich erteilt keine Zugriffsrechte.',
-    library_hint: 'Benutzer-Library-Ordner sind ausgeschlossen, außer iCloud-Drive-Dokumenten.',
+    profile_hint: '{path} überspringen, außer {exceptions}.',
     excluded_paths: 'Ausgeschlossene Ordnerbäume',
     excluded_names: 'Ausgeschlossene Ordnernamen auf jeder Ebene',
     media_only: 'Nur Dateiindex',

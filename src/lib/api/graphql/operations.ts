@@ -1618,8 +1618,12 @@ export interface GqlOperations {
       fileIndexDefaults: {
         excludedDirs: Array<string>
         excludedNames: Array<string>
-        excludedPackages: Array<string>
-        excludedUserLibraries: boolean
+        excludedProfileDirs: Array<{
+          profilesDir: string
+          excludedDir: string
+          exceptDirs: Array<string>
+        }>
+        mediaExcludedDirSuffixes: Array<string>
       }
     }
     variables: undefined

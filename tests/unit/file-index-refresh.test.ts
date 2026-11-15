@@ -51,7 +51,7 @@ afterEach(() => {
 it('queries configuration on mount changes, reconnect and returning Home without media-driven refresh', async () => {
   vi.useFakeTimers()
   state.fetch.mockResolvedValue({ data: {
-    fileIndexVolumes: [], fileIndexDefaults: { excludedDirs: [], excludedNames: [], excludedPackages: [], excludedUserLibraries: false },
+    fileIndexVolumes: [], fileIndexDefaults: { excludedDirs: [], excludedNames: [], excludedProfileDirs: [], mediaExcludedDirSuffixes: [] },
   } })
   const visible = ref(true)
   const mounts = ref<any[]>([])

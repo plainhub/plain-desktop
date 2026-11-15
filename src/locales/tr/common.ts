@@ -18,7 +18,7 @@ export default {
     files_hint: 'Erişilebilir tüm normal dosyalar, bilinmeyen uzantılar dahil dizine eklenir. Tanınan medya ve belgeler için ek meta veriler çıkarılır.',
     skip_hint: 'Gizli dosya ve klasörler ile Git projeleri atlanır. Sembolik bağlantılar izlenmez.',
     access_hint: 'Çevrimdışı birimler ve erişilemeyen klasörler taranmaz. Kapsam ayarı erişim izni vermez.',
-    library_hint: 'Kullanıcı Library klasörleri hariç tutulur; iCloud Drive belgeleri istisnadır.',
+    profile_hint: '{path} hariç tutulur; {exceptions} korunur.',
     excluded_paths: 'Hariç tutulan klasör ağaçları',
     excluded_names: 'Her düzeyde hariç tutulan klasör adları',
     media_only: 'Yalnızca dosya dizini',

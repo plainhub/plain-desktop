@@ -5,7 +5,12 @@
       <p>{{ $t('file_index.files_hint') }}</p>
       <p>{{ $t('file_index.skip_hint') }}</p>
       <p>{{ $t('file_index.access_hint') }}</p>
-      <p v-if="rules.excludedUserLibraries">{{ $t('file_index.library_hint') }}</p>
+      <p v-for="rule in rules.excludedProfileDirs" :key="`${rule.profilesDir}${rule.excludedDir}`">
+        {{ $t('file_index.profile_hint', {
+          path: `${rule.profilesDir}*/${rule.excludedDir}`,
+          exceptions: rule.exceptDirs.map((dir) => `${rule.profilesDir}*/${dir}`).join(', '),
+        }) }}
+      </p>
       <div>
         <h3>{{ $t('file_index.excluded_paths') }}</h3>
         <ul>
@@ -19,7 +24,7 @@
       <div>
         <h3>{{ $t('file_index.media_only') }}</h3>
         <p>{{ $t('file_index.media_hint') }}</p>
-        <p v-if="rules.excludedPackages.length" class="names">{{ rules.excludedPackages.join(', ') }}</p>
+        <p v-if="rules.mediaExcludedDirSuffixes.length" class="names">{{ rules.mediaExcludedDirSuffixes.join(', ') }}</p>
       </div>
       <p>{{ $t('file_index.rules_priority') }}</p>
     </div>

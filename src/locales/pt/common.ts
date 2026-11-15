@@ -18,7 +18,7 @@ export default {
     files_hint: 'Todos os arquivos comuns acessíveis são indexados, inclusive extensões desconhecidas. Mídias e documentos reconhecidos também recebem metadados.',
     skip_hint: 'Arquivos e pastas ocultos e projetos Git são ignorados. Links simbólicos não são seguidos.',
     access_hint: 'Volumes desconectados e pastas inacessíveis não são verificados. O escopo não concede permissões de acesso.',
-    library_hint: 'Pastas Library do usuário são excluídas, exceto documentos do iCloud Drive.',
+    profile_hint: 'Ignorar {path}, exceto {exceptions}.',
     excluded_paths: 'Árvores de pastas excluídas',
     excluded_names: 'Nomes de pastas excluídos em qualquer nível',
     media_only: 'Apenas índice de arquivos',

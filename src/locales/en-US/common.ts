@@ -18,7 +18,7 @@ export default {
     files_hint: 'Scan regular files in the selected folders, regardless of file type.',
     skip_hint: 'Skip hidden files, Git projects and symbolic links.',
     access_hint: 'Skip offline folders and folders without read access.',
-    library_hint: 'Skip user Library folders, except iCloud Drive.',
+    profile_hint: 'Skip {path}, except {exceptions}.',
     excluded_paths: 'Skip these folders and their subfolders',
     excluded_names: 'Skip folders with these names',
     media_only: 'File index only',

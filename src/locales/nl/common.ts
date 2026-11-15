@@ -18,7 +18,7 @@ export default {
     files_hint: 'Alle toegankelijke gewone bestanden worden geïndexeerd, ook onbekende extensies. Herkende media en documenten krijgen extra metadata.',
     skip_hint: 'Verborgen bestanden en mappen en Git-projecten worden overgeslagen. Symbolische links worden niet gevolgd.',
     access_hint: 'Offline volumes en ontoegankelijke mappen worden niet gescand. Het bereik verleent geen toegangsrechten.',
-    library_hint: 'Library-mappen van gebruikers zijn uitgesloten, behalve iCloud Drive-documenten.',
+    profile_hint: 'Sla {path} over, behalve {exceptions}.',
     excluded_paths: 'Uitgesloten mapstructuren',
     excluded_names: 'Uitgesloten mapnamen op elk niveau',
     media_only: 'Alleen bestandsindex',

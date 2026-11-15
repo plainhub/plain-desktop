@@ -18,7 +18,7 @@ export default {
     files_hint: 'Tutti i file regolari accessibili vengono indicizzati, incluse le estensioni sconosciute. I media e i documenti riconosciuti ricevono anche metadati.',
     skip_hint: 'File e cartelle nascosti e progetti Git vengono ignorati. I collegamenti simbolici non vengono seguiti.',
     access_hint: 'Volumi offline e cartelle inaccessibili non vengono analizzati. Il perimetro non concede permessi di accesso.',
-    library_hint: 'Le cartelle Library utente sono escluse, tranne i documenti di iCloud Drive.',
+    profile_hint: 'Ignora {path}, tranne {exceptions}.',
     excluded_paths: 'Alberi di cartelle esclusi',
     excluded_names: 'Nomi di cartelle esclusi a ogni livello',
     media_only: 'Solo indice dei file',

@@ -18,7 +18,7 @@ export default {
     files_hint: 'Lập chỉ mục mọi tệp thường có thể truy cập, kể cả phần mở rộng chưa biết. Trích xuất thêm siêu dữ liệu cho nội dung đa phương tiện và tài liệu được nhận dạng.',
     skip_hint: 'Bỏ qua tệp và thư mục ẩn, dự án Git; không đi theo liên kết tượng trưng.',
     access_hint: 'Không quét ổ đĩa ngoại tuyến và thư mục không thể truy cập. Phạm vi chỉ mục không cấp quyền truy cập.',
-    library_hint: 'Loại trừ thư mục Library người dùng, ngoại trừ tài liệu iCloud Drive.',
+    profile_hint: 'Bỏ qua {path}, ngoại trừ {exceptions}.',
     excluded_paths: 'Cây thư mục bị loại trừ',
     excluded_names: 'Tên thư mục bị loại trừ ở mọi cấp',
     media_only: 'Chỉ mục tệp',
