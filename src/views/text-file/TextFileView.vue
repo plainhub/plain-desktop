@@ -1,7 +1,8 @@
 <!-- eslint-disable vue/no-v-html -->
 <template>
-  <div class="page" :class="{ fullscreen: isFullscreen }">
+  <div class="page">
     <header
+      v-if="isEditing || !isFullscreen"
       class="topbar"
       :class="{ 'topbar--tauri': isTauri }"
       :data-tauri-drag-region="isTauri ? 'deep' : null"
@@ -92,7 +93,7 @@
 
     <template v-else>
       <JsonPathBar
-        v-if="kind === 'json' && pathOpen && !loading && !error"
+        v-if="!isFullscreen && kind === 'json' && pathOpen && !loading && !error"
         :expression="expression"
         :match-count="matchCount"
         :suggestions="suggestions"
@@ -186,7 +187,7 @@
       </main>
 
       <StatusBar
-        v-if="!loading && !error"
+        v-if="!isFullscreen && !loading && !error"
         :kind="kind"
         :json-invalid="jsonInvalid"
         :error-pos="errorPos"
@@ -273,12 +274,6 @@ const sizeText = computed(() => formatFileSize(sizeBytes.value))
   padding: 8px 16px;
   background: var(--md-sys-color-surface);
   flex-shrink: 0;
-}
-
-.page.fullscreen .file-chip,
-.page.fullscreen .status,
-.page.fullscreen .actions {
-  display: none;
 }
 
 .topbar--tauri {
