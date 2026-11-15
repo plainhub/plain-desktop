@@ -20,3 +20,16 @@ export function directoryWithinRoot(path: string, root: string): boolean {
   if (/(^|\/)\.{1,2}(\/|$)/.test(candidate)) return false
   return candidate === base || candidate.startsWith(base.endsWith('/') ? base : base + '/')
 }
+
+export function findDirectoryVolume<T extends { mountPoint: string }>(path: string, volumes: readonly T[]): T | undefined {
+  let best: T | undefined
+  let longest = 0
+  for (const volume of volumes) {
+    const root = normalizeDirectoryPath(volume.mountPoint)
+    if (root.length > longest && directoryWithinRoot(path, root)) {
+      best = volume
+      longest = root.length
+    }
+  }
+  return best
+}

@@ -147,7 +147,7 @@ it('explains that a folder without children can still be selected', async () => 
 })
 
 
-it('shows drive letters and parent paths for identical Windows folder names', async () => {
+it('shows drive letters and complete paths for identical Windows folder names', async () => {
   mock.picker.volumes.value = [
     { id: 'D', name: 'Data', mountPoint: 'D:\\', totalBytes: 501e9, freeBytes: 413e9 },
     { id: 'E', name: 'Backup', mountPoint: 'E:\\', totalBytes: 931e9, freeBytes: 233e9 },
@@ -157,8 +157,40 @@ it('shows drive letters and parent paths for identical Windows folder names', as
   const { html } = await view(['D:/Projects/Photos', 'E:/Backup/Photos'])
   expect(html).toContain('Data (D:)')
   expect(html).toContain('Backup (E:)')
-  expect(html).toContain('D:\\Projects')
-  expect(html).toContain('E:\\Backup')
+  expect(html).toContain('Data (D:)/Projects/Photos')
+  expect(html).toContain('Backup (E:)/Backup/Photos')
   expect(html).toContain('storage_free_compact')
   expect(html.indexOf('recent_folders')).toBeLessThan(html.indexOf('folder_picker_current'))
+})
+
+it.each([
+  ['/media/archive/Documents', 'Documents', 'Archive/Documents'],
+  ['/media/archive/Images/', 'Images', 'Archive/Images'],
+  ['/DATA', 'DATA', 'System disk/DATA'],
+  ['/', '/', 'System disk'],
+  ['/media/archive', 'archive', 'Archive'],
+  ['D:/', 'D:/', 'D:\\'],
+])('shows the complete recent directory %s in its subtitle', async (path, name, subtitle) => {
+  const { html } = await view([path])
+  const row = html.match(/<li[^>]*class="[^"]*recent-item[^"]*"[^>]*>[\s\S]*?<\/li>/)?.[0]
+  expect(row).toBeDefined()
+  expect(row).toContain(`title="${name}"`)
+  const renderedSubtitle = row?.match(/<span class="subtitle" title="([^"]*)"[^>]*>([\s\S]*?)<\/span>/)
+  expect(renderedSubtitle?.[1]).toBe(subtitle)
+  expect(renderedSubtitle?.[2].replace(/<!--.*?-->/g, '')).toBe(subtitle)
+})
+
+it('uses the longest containing volume and its alias without matching sibling prefixes', async () => {
+  mock.picker.volumes.value.push({ id: 'nested', alias: 'Camera', mountPoint: '/media/archive/photos', totalBytes: 0 })
+  const { html } = await view(['/media/archive/photos/Trips', '/media/archive/photos-old/Trips'])
+  expect(html).toContain('Camera/Trips')
+  expect(html).toContain('Archive/photos-old/Trips')
+  expect(html).not.toContain('Archive/photos/Trips')
+})
+
+it('uses the supplied fixed-volume display name and filters outside recent directories', async () => {
+  mock.picker.volumes.value = []
+  const { html } = await view(['/media/archive/Reports', '/media/other/Outside'], { mountPoint: '/media/archive', name: 'My archive' })
+  expect(html).toContain('My archive/Reports')
+  expect(html).not.toContain('Outside')
 })

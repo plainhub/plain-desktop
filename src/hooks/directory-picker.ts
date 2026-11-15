@@ -6,7 +6,7 @@ import type { IStorageMount } from '@/lib/interfaces'
 import type { IFile } from '@/lib/file'
 import { getFileName } from '@/lib/api/file'
 import { compareLocale } from '@/lib/array'
-import { directoryWithinRoot, normalizeDirectoryPath } from '@/lib/directory-picker-path'
+import { directoryWithinRoot, findDirectoryVolume, normalizeDirectoryPath } from '@/lib/directory-picker-path'
 
 export type DirectoryPickerVolume = Pick<IStorageMount, 'mountPoint' | 'name'>
 
@@ -30,13 +30,9 @@ export function useDirectoryPicker(initialPath: string, volume?: DirectoryPicker
 
   function selectDirectory(absPath: string) {
     const dir = normalizeDirectoryPath(absPath)
-    let best = ''
-    for (const candidate of volume ? [volume] : volumes.value) {
-      const mount = normalizeDirectoryPath(candidate.mountPoint || '')
-      if (mount.length > best.length && directoryWithinRoot(dir, mount)) best = mount
-    }
-    if (!best) { toast(t('invalid_file_path'), 'error'); return }
-    rootPath.value = best
+    const volumeMatch = findDirectoryVolume(dir, volume ? [volume] : volumes.value)
+    if (!volumeMatch) { toast(t('invalid_file_path'), 'error'); return }
+    rootPath.value = normalizeDirectoryPath(volumeMatch.mountPoint)
     selectedPath.value = dir
   }
 

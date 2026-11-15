@@ -37,7 +37,7 @@
             tabindex="0"
             clickable
             :title="item.name"
-            :subtitle="item.parent"
+            :subtitle="item.subtitle"
             :active="directoryPathKey(item.path) === directoryPathKey(currentDir)"
             :aria-disabled="loadingMounts || undefined"
             @click="selectRecent(item.path)"
@@ -98,7 +98,7 @@ import VBreadcrumb from '@/components/base/VBreadcrumb.vue'
 import { getStorageVolumeTitle } from '@/lib/volumes'
 import { sortMounts } from '@/lib/storage'
 import { formatFileSize } from '@/lib/format'
-import { directoryPathKey, directoryWithinRoot, normalizeDirectoryPath } from '@/lib/directory-picker-path'
+import { directoryPathKey, directoryWithinRoot, findDirectoryVolume, normalizeDirectoryPath } from '@/lib/directory-picker-path'
 import type { DirectoryPickerVolume } from '@/hooks/directory-picker'
 
 const { t } = useI18n()
@@ -130,8 +130,13 @@ const recentItems = computed(() => props.recentDirs.flatMap(path => {
   if (props.volume && !directoryWithinRoot(normalized, props.volume.mountPoint)) return []
   const lastSlash = normalized.lastIndexOf('/')
   const drive = /^[a-z]:\//i.test(normalized)
-  const parent = normalized.slice(0, Math.max(drive ? 3 : 1, lastSlash))
-  return [{ path: normalized, name: normalized.slice(lastSlash + 1) || normalized, parent: drive ? parent.replaceAll('/', '\\') : parent }]
+  const mount = findDirectoryVolume(normalized, props.volumes)
+  const volume = props.volume ?? mount
+  const title = props.volume ? props.volume.name : mount ? volumeTitle(mount) : ''
+  const subtitle = volume
+    ? getDirectoryBreadcrumbs(normalized, volume.mountPoint, title).map(item => item.name).join('/')
+    : drive ? normalized.replaceAll('/', '\\') : normalized
+  return [{ path: normalized, name: normalized.slice(lastSlash + 1) || normalized, subtitle }]
 }))
 
 function selectRecent(path: string) {
