@@ -1,6 +1,5 @@
 <template>
   <div class="scroll-content">
-    <h2>{{ $t('media_exclusions.title') }}</h2>
     <p class="subtle">{{ $t('media_exclusions.hint') }}</p>
     <p v-if="!ready && !error" class="subtle">{{ $t('loading') }}</p>
     <div v-if="ready" class="directories">
@@ -67,7 +66,7 @@ async function add() {
   overflow-y: auto;
   padding: 16px;
 }
-h2, p {
+p {
   margin: 0 0 16px;
 }
 .directories {
