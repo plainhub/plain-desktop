@@ -29,7 +29,7 @@
           </template>
         </SidebarListItem>
         <SidebarListItem :title="$t('media_exclusions.title')" :active="activeSection === 'excluded-dirs'" @click="navigate('/settings/excluded-dirs')">
-          <template #start><i-lucide:folder-minus /></template>
+          <template #start><i-lucide:folder /></template>
         </SidebarListItem>
         <SidebarListItem :title="$t('customize_ui')" :active="activeSection === 'customize-ui'" @click="navigate('/settings/customize-ui')">
           <template #start>

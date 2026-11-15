@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, expect, it, vi } from 'vitest'
 
 const mock = vi.hoisted(() => ({ context: 'local', fetch: vi.fn(), write: vi.fn() }))
+vi.mock('@/lib/device/local-mode', () => ({ isLocalMode: () => mock.context === 'local' }))
 vi.mock('@/lib/api/gql-client', () => ({
   getGraphqlContextKey: () => mock.context,
   gqlFetch: mock.fetch,
@@ -84,4 +85,18 @@ it('keeps failed writes visible and processes subsequent writes', async () => {
   expect(core.get('locale', '')).toBe('ja')
   await core.set('locale', 'en')
   expect(core.get('locale', '')).toBe('en')
+})
+
+it('loads remote preferences without requesting local-only keys', async () => {
+  mock.context = 'remote'
+  const core = await import('@/lib/prefs/core')
+  mock.fetch.mockImplementation(async (_document, { keys }: { keys: string[] }) => {
+    if (keys.some(key => ['remote_access', 'mdns_hostname'].includes(key))) {
+      return { errors: [{ message: 'Preference is not accessible' }] }
+    }
+    return { data: { prefs: { media_excluded_dirs: ['/hidden'] } } }
+  })
+  await expect(core.preload()).resolves.toBeUndefined()
+  expect(mock.fetch).toHaveBeenCalledWith(core.preferencesQuery, { keys: core.preferenceKeys }, { fresh: true })
+  expect(core.get('media_excluded_dirs', [])).toEqual(['/hidden'])
 })
