@@ -85,6 +85,7 @@ import { hasMediaTrash, hasMediaDelete, hasMediaMove } from '@/lib/feature'
 import { storeToRefs } from 'pinia'
 import { useMainStore } from '@/stores/main'
 import { useMediaPage } from '@/hooks/media-page'
+import { mediaListPage } from '@/lib/media/list-page'
 import { useMediaPageActions } from '@/hooks/media-page-actions'
 import { useMoveToFolder } from '@/hooks/media'
 import emitter from '@/plugins/eventbus'
@@ -129,7 +130,7 @@ const mp = useMediaPage({
   dataType: DataType.DOC, routePath: 'docs',
   items, sortByRef: docSortBy, fileFilter: isDoc,
   downloadName: 'docs', uploadModalId: 'upload-directory-picker-docs', uploadStorageKey: 'docs',
-  doFetch: (options) => fetch(undefined, options), getScrollMode: () => scrollMode.value,
+  doFetch: (options) => fetch(options?.force ? queryVariables(true) : undefined, options), getScrollMode: () => scrollMode.value,
   setupScroll: () => setTimeout(setupSentinelObserver, 100),
   teardownScroll: () => { observer?.disconnect(); observer = null },
   onSort: () => { noMore.value = false },
@@ -156,23 +157,29 @@ function deleteDocItemInTrash(dt: DataType, item: IDoc) {
   doDeleteDocItem({ type: dt, query: `ids:${item.id}` })
 }
 
+const queryVariables = (refresh = false) => ({
+  ...mediaListPage(page.value, limit.value, refresh && scrollMode.value),
+  query: q.value,
+  sortBy: docSortBy.value,
+})
+
 const { loading, fetch } = initLazyQuery({
-  handle: (data: { items: IDoc[]; total: number }, error: string) => {
+  handle: (data: { items: IDoc[]; total: number }, error: string, context) => {
     mp.sorting.value = false
     if (error) {
       toast(error, 'error')
     } else if (data) {
       const raw = data.items
-      if (scrollMode.value && page.value > 1) { items.value = items.value.concat(raw) } else { items.value = raw }
+      if (scrollMode.value && Number(context?.variables?.offset ?? 0) > 0) { items.value = items.value.concat(raw) } else { items.value = raw }
       total.value = data.total
-      if (scrollMode.value) { noMore.value = data.items.length < limit.value }
+      if (scrollMode.value) { noMore.value = data.items.length < Number(context?.variables?.limit ?? limit.value) }
     }
   },
   document: docsGQL,
-  variables: () => ({ offset: (page.value - 1) * limit.value, limit: limit.value, query: q.value, sortBy: docSortBy.value }),
+  variables: queryVariables,
 })
 
-const { openFile, deleteItem: deleteDocItem, renameItem, duplicateItem } = useDocsActions(items, selectedIds, clearSelection, fetch, urlTokenKey)
+const { openFile, deleteItem: deleteDocItem, renameItem, duplicateItem } = useDocsActions(items, urlTokenKey, mp.refreshItems)
 
 const { moveLoading, onMoveClick } = useMoveToFolder('move-docs-picker')
 

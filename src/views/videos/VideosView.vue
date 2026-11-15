@@ -124,6 +124,7 @@ import { storeToRefs } from 'pinia'
 import { useMainStore } from '@/stores/main'
 import { useGroupedScroll, type MediaGroup } from '@/hooks/grouped-scroll'
 import { useMediaPage } from '@/hooks/media-page'
+import { mediaListPage } from '@/lib/media/list-page'
 import { useMediaPageActions } from '@/hooks/media-page-actions'
 import { useMoveToFolder } from '@/hooks/media'
 import MediaPageActions from '@/components/media/MediaPageActions.vue'
@@ -143,7 +144,7 @@ const mp = useMediaPage({
   dataType: DataType.VIDEO, routePath: 'videos',
   items, sortByRef: videoSortBy, fileFilter: isVideo,
   downloadName: 'videos', uploadModalId: 'upload-directory-picker-videos', uploadStorageKey: 'videos',
-  doFetch: (options) => fetch(undefined, options), getScrollMode: () => scrollMode.value,
+  doFetch: (options) => fetch(options?.force ? queryVariables(true) : undefined, options), getScrollMode: () => scrollMode.value,
   setupScroll: () => setTimeout(setupSentinelObserver, 100), teardownScroll: () => teardownObserver(),
   onSort: () => { noMore.value = false },
 })
@@ -180,23 +181,29 @@ const onImageError = (id: string) => { imageErrorIds.value.push(id) }
 
 const effectiveQ = computed(() => q.value)
 
+const queryVariables = (refresh = false) => ({
+  ...mediaListPage(page.value, limit.value, refresh && scrollMode.value),
+  query: effectiveQ.value,
+  sortBy: effectiveIsGroupMode.value ? 'TAKEN_AT_DESC' : videoSortBy.value,
+})
+
 const { loading, fetch } = initLazyQuery({
-  handle: async (data: { videos: IVideo[]; videoCount: number }, error: string) => {
+  handle: async (data: { videos: IVideo[]; videoCount: number }, error: string, context) => {
     mp.sorting.value = false
     if (error) { 
       toast(error, 'error') 
     } else if (data) {
       const raw = data.videos.map((it) => ({ ...it, fileId: getFileId(urlTokenKey.value, it.path, it.id) }))
-      if (scrollMode.value && page.value > 1) {
+      if (scrollMode.value && Number(context?.variables?.offset ?? 0) > 0) {
         const existingIds = new Set(items.value.map((i) => i.id))
         items.value = items.value.concat(raw.filter((i) => !existingIds.has(i.id)))
       } else { items.value = raw }
       total.value = data.videoCount
-      if (scrollMode.value) { noMore.value = raw.length < limit.value; prefetchNext() }
+      if (scrollMode.value) { noMore.value = raw.length < Number(context?.variables?.limit ?? limit.value); prefetchNext() }
     }
   },
   document: videosGQL,
-  variables: () => ({ offset: (page.value - 1) * limit.value, limit: limit.value, query: effectiveQ.value, sortBy: effectiveIsGroupMode.value ? 'TAKEN_AT_DESC' : videoSortBy.value }),
+  variables: queryVariables,
 })
 
 const sources = computed<ISource[]>(() => items.value.map((it: IVideoItem) => ({

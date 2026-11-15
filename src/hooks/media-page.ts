@@ -177,12 +177,13 @@ export function useMediaPage(options: MediaPageOptions) {
     options.onBeforeFetch?.()
     doFetch()
   }
+  const refreshItems = () => doFetch({ force: true, latest: true })
   let stopLibraryUpdates: (() => void) | undefined
   const libraryUpdated = () => {
     sel.clearSelection()
     options.onBeforeFetch?.()
     fetchBucketsTags(undefined, { force: true, latest: true })
-    doFetch({ force: true, latest: true })
+    refreshItems()
   }
   const refetchTagsHandler = (type: string) => { if (type === dataType) fetchBucketsTags() }
   const accessUpdatedHandler = () => doFetch()
@@ -250,6 +251,6 @@ export function useMediaPage(options: MediaPageOptions) {
     tags, buckets, bucketsMap, deleteItems, deleteItem, confirmingDelete, deleteCount, deleteLoading, doDeleteItems, cancelDeleteItems, viewBucket,
     ...sel, downloadItems, downloadItemsEach, downloadFile,
     trashLoading, trash, restoreLoading, restore,
-    gotoPage, onChangePageSize, getQuery, sort, handleMouseOverMode,
+    gotoPage, onChangePageSize, getQuery, sort, handleMouseOverMode, refreshItems,
   }
 }

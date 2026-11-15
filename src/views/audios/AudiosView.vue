@@ -73,6 +73,7 @@ import { useMainStore } from '@/stores/main'
 import { useTempStore } from '@/stores/temp'
 import { useAddToPlaylist, useAudioPlayer } from './hooks/useAudiosHooks'
 import { useMediaPage } from '@/hooks/media-page'
+import { mediaListPage } from '@/lib/media/list-page'
 import { audioPlayback } from '@/hooks/audio-playlist-store'
 import { useMediaPageActions } from '@/hooks/media-page-actions'
 import { useMoveToFolder } from '@/hooks/media'
@@ -121,12 +122,7 @@ const mp = useMediaPage({
   dataType: DataType.AUDIO, routePath: 'audios',
   items, sortByRef: audioSortBy, fileFilter: isAudio,
   downloadName: 'audios', uploadModalId: 'upload-directory-picker-audios', uploadStorageKey: 'audios',
-  doFetch: (options) => {
-    const variables = scrollMode.value && options?.force
-      ? { offset: 0, limit: mp.page.value * mp.limit.value, query: effectiveQ.value, sortBy: audioSortBy.value }
-      : undefined
-    void fetch(variables, options)
-  }, getScrollMode: () => scrollMode.value,
+  doFetch: (options) => fetch(options?.force ? queryVariables(true) : undefined, options), getScrollMode: () => scrollMode.value,
   setupScroll: () => setTimeout(setupSentinelObserver, 100),
   teardownScroll: () => { observer?.disconnect(); observer = null },
   onSort: () => { 
@@ -162,6 +158,12 @@ function handleAddToPlaylist(e: MouseEvent, item: IAudioWithFileId) {
   setTimeout(() => { addToPlaylist(e, item); setTimeout(() => { animatingIds.value = animatingIds.value.filter((id) => id !== item.id) }, 200) }, 150)
 }
 
+const queryVariables = (refresh = false) => ({
+  ...mediaListPage(page.value, limit.value, refresh && scrollMode.value),
+  query: effectiveQ.value,
+  sortBy: audioSortBy.value,
+})
+
 const { loading, fetch } = initLazyQuery({
   handle: (data: { items: IAudio[]; total: number }, error: string, context) => {
     loaded.value = true
@@ -175,7 +177,7 @@ const { loading, fetch } = initLazyQuery({
     }
   },
   document: audiosGQL,
-  variables: () => ({ offset: (page.value - 1) * limit.value, limit: limit.value, query: effectiveQ.value, sortBy: audioSortBy.value }),
+  variables: queryVariables,
 })
 
 const actionsProps = useMediaPageActions({

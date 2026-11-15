@@ -12,10 +12,15 @@ import OnlinePreviewIcon from '@/components/OnlinePreviewIcon.vue'
 import previewIconSource from '@/components/OnlinePreviewIcon.vue?raw'
 import DocListItem from '@/views/docs/DocListItem.vue'
 import docListItemSource from '@/views/docs/DocListItem.vue?raw'
+import { openModal } from '@/components/modal'
 import { useDocsActions } from '@/views/docs/hooks/useDocsActions'
 
 const downloadFile = vi.hoisted(() => vi.fn())
-vi.mock('@/hooks/files', () => ({ useDownload: () => ({ downloadFile }) }))
+const rename = vi.hoisted(() => ({ done: vi.fn(), mutation: vi.fn(), variables: vi.fn() }))
+vi.mock('@/hooks/files', () => ({ useDownload: () => ({ downloadFile }), useRename: (refresh: () => void) => {
+  rename.done.mockImplementation((result: string) => { if (result === 'conflict.pdf') return false; refresh(); return true })
+  return { renameItem: ref(), renameDone: rename.done, renameMutation: rename.mutation, renameVariables: rename.variables }
+} }))
 vi.mock('@/lib/api/tauri-window', () => ({ openWindow: vi.fn() }))
 vi.mock('@/lib/device/client-id', () => ({ getDesktopClientId: () => '706c6169-b138-8cf9-afce-751b9d5c8a1b' }))
 vi.mock('@/lib/device/local-mode', () => ({ isLocalMode: () => true }))
@@ -112,7 +117,7 @@ it.each([
   })
   const app = renderer.createApp({
     setup() {
-      const { openFile } = useDocsActions(ref([item]), ref([]), vi.fn(), vi.fn(), ref(null))
+      const { openFile } = useDocsActions(ref([item]), ref(null), vi.fn())
       return () => h(DocListItem, {
         item, index: 0, selectedIds: [], shiftEffectingIds: [], shouldSelect: false,
         filter: { tagIds: [] }, app: {} as IApp, dataType: DataType.DOC, tags: [],
@@ -152,4 +157,18 @@ it.each([
   } finally {
     app.unmount()
   }
+})
+
+it('uses the shared rename flow and refreshes only after a successful Docs rename', () => {
+  vi.clearAllMocks()
+  const fetch = vi.fn()
+  const item = { id: 'fixture', title: 'manual.pdf', path: '/fixtures/manual.pdf' } as IDoc
+  useDocsActions(ref([item]), ref(null), fetch).renameItem(item)
+  const props = vi.mocked(openModal).mock.calls[0]?.[1] as Record<string, any>
+  expect(props.mutation).toBe(rename.mutation)
+  expect(props.getVariables).toBe(rename.variables)
+  expect(props.done('conflict.pdf')).toBe(false)
+  expect(fetch).not.toHaveBeenCalled()
+  expect(props.done('renamed.pdf')).toBe(true)
+  expect(fetch).toHaveBeenCalledOnce()
 })

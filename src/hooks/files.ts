@@ -2,7 +2,7 @@ import { FileAction } from '@/lib/api/file-action'
 import { getRemoteClientId } from '@/lib/device/client-id'
 import { isLocalMode } from '@/lib/device/local-mode'
 import type { NativeTarget } from '@/lib/api/native-client'
-import { onUnmounted, ref, type Ref } from 'vue'
+import { onUnmounted, ref, shallowRef, type Ref } from 'vue'
 import { createFileTaskGQL, createDirGQL, initMutation, renameFileGQL } from '@/lib/api/mutation'
 import type { GqlResultType, GqlVariablesType } from '@/lib/api/graphql/operations'
 import { enrichFile, isAudio, isImage, isVideo, type IFile } from '@/lib/file'
@@ -40,9 +40,9 @@ export const useCreateDir = (urlTokenKey: Ref<Uint8Array | null>, items: Ref<IFi
   }
 }
 
-export const useRename = (fetch: () => void) => {
+export const useRename = <T extends Pick<IFile, 'path'> = IFile>(fetch: () => void) => {
   const { t } = useI18n()
-  const renameItem = ref<IFile>()
+  const renameItem = shallowRef<T>()
   const renamedPath = ref<string | null>(null)
   return {
     renameItem,
