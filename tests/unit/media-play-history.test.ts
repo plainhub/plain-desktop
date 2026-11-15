@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, expect, it, vi } from 'vitest'
-const io = vi.hoisted(() => ({ context: 'owner-a', fetch: vi.fn(), emit: vi.fn() }))
+const io = vi.hoisted(() => ({ context: 'owner-a', localMode: true, fetch: vi.fn(), emit: vi.fn() }))
 vi.mock('@/lib/api/gql-client', () => ({ gqlFetch: io.fetch, getGraphqlContextKey: () => io.context, GqlError: class extends Error {} }))
+vi.mock('@/lib/device/local-mode', () => ({ isLocalMode: () => io.localMode }))
 vi.mock('@/lib/api/query', () => ({ mediaPlayHistoryGQL: 'history' }))
 vi.mock('@/plugins/eventbus', () => ({ default: { emit: io.emit } }))
 import { useMediaPlayHistory } from '@/hooks/media-play-history'
@@ -17,6 +18,7 @@ const writes = () => io.fetch.mock.calls.filter(([document]) => document !== 'hi
 beforeEach(() => {
   vi.useFakeTimers()
   io.context = 'owner-a'
+  io.localMode = true
   io.emit.mockReset()
   io.fetch.mockReset().mockImplementation(async (document: string) => ({ data: document === 'history' ? { mediaPlayHistory: [{ positionMs: 18000 }] } : document.includes('mutation recordMediaPlay') ? { recordMediaPlay: true } : { saveMediaPlayProgress: true } }))
 })
@@ -38,6 +40,12 @@ it.each(['AUDIO', 'VIDEO'] as const)('records actual %s play once, samples posit
   await vi.advanceTimersByTimeAsync(0)
   expect(writes().filter(([document]) => document.includes('mutation recordMediaPlay'))).toHaveLength(1)
   expect(writes().at(-1)![1]).toEqual({ mediaId: 'owned', type, positionMs: 2750 })
+  media.currentTime = 8
+  Object.assign(media, { ended: true })
+  media.dispatchEvent(new Event('ended'))
+  await vi.advanceTimersByTimeAsync(0)
+  expect(writes().filter(([document]) => document.includes('mutation saveMediaPlayProgress'))).toHaveLength(4)
+  expect(writes().at(-1)![1]).toEqual({ mediaId: 'owned', type, positionMs: 8000 })
   release()
   const count = writes().length
   await vi.advanceTimersByTimeAsync(3000)
@@ -138,4 +146,24 @@ it('releases the binding when the browser refuses playback', async () => {
   await vi.advanceTimersByTimeAsync(2000)
   expect(writes()).toHaveLength(0)
   expect(vi.getTimerCount()).toBe(0)
+})
+
+it.each(['AUDIO', 'VIDEO'] as const)('does not save remote %s progress on sampling, pause, resume or end', async type => {
+  io.localMode = false
+  const media = element()
+  const onEnded = vi.fn()
+  const release = useMediaPlayHistory().bind(media, { mediaId: 'owned', type }, () => true, onEnded)
+  await media.play()
+  await vi.advanceTimersByTimeAsync(1000)
+  media.currentTime = 5
+  media.dispatchEvent(new Event('pause'))
+  await media.play()
+  await vi.advanceTimersByTimeAsync(1000)
+  Object.assign(media, { ended: true })
+  media.dispatchEvent(new Event('ended'))
+  await vi.advanceTimersByTimeAsync(0)
+  expect(writes().filter(([document]) => document.includes('mutation saveMediaPlayProgress'))).toHaveLength(0)
+  expect(writes().filter(([document]) => document.includes('mutation recordMediaPlay'))).toHaveLength(1)
+  expect(onEnded).toHaveBeenCalledOnce()
+  release()
 })

@@ -2,6 +2,7 @@ import { initMutation, recordMediaPlayGQL, saveMediaPlayProgressGQL } from '@/li
 import { mediaPlayHistoryGQL } from '@/lib/api/query'
 import { getGraphqlContextKey, gqlFetch } from '@/lib/api/gql-client'
 import emitter from '@/plugins/eventbus'
+import { isLocalMode } from '@/lib/device/local-mode'
 
 type PlaybackMedia = { mediaId: string | null; type: 'AUDIO' | 'VIDEO' }
 
@@ -17,7 +18,7 @@ export function useMediaPlayHistory() {
     let released = false
     const active = () => !released && current() && context === getGraphqlContextKey() && (!element.currentSrc || element.currentSrc === element.src)
     const save = (record = false) => {
-      if (!active() || !mediaId) return
+      if (!active() || !mediaId || (!record && !isLocalMode())) return
       const variables = { mediaId, type, positionMs: Number.isFinite(element.currentTime) ? Math.max(0, Math.trunc(element.currentTime * 1000)) : 0 }
       pending = pending.then(async () => {
         if (context === getGraphqlContextKey()) await (record ? recordPlay : saveProgress)(variables)

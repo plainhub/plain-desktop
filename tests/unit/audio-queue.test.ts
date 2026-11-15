@@ -2,6 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { gqlFetch } from '@/lib/api/gql-client'
 import { audioPlayMode, audioPlayback, resetAudioPlaylistForTests, useAudioPlaylistStore } from '@/hooks/audio-playlist-store'
 
+vi.mock('@/lib/device/local-mode', () => ({ isLocalMode: () => true }))
 vi.mock('@/lib/api/gql-client', () => ({ gqlFetch: vi.fn(), getGraphqlContextKey: () => connectionContext }))
 vi.mock('@/lib/api/query', () => ({ audioQueueGQL: 'audio queue', mediaPlayHistoryGQL: 'media history' }))
 
