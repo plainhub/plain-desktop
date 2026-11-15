@@ -1,4 +1,5 @@
 import { parseQuery } from '@/lib/search'
+import { formatFileSizeFilter } from '@/lib/token-search-format'
 import type { IBucket, IFeed, ITag } from '@/lib/interfaces'
 
 // The stored search tokens keep Android's numeric type codes; map them to the
@@ -94,7 +95,7 @@ export function formatHistoryLabel(opts: {
     }
 
     if (f.name === 'file_size') {
-      parts.push(`${opts.t('file_size')}: ${f.op}${f.value}`)
+      parts.push(`${opts.t('file_size')}: ${formatFileSizeFilter(f.op + f.value)}`)
       continue
     }
 

@@ -35,6 +35,18 @@ function withOp(raw: string, format: (value: string) => string) {
   return op ? `${op} ${formatted}` : formatted
 }
 
+export function formatFileSizeFilter(raw: string) {
+  return withOp(raw.trim(), value => {
+    if (!/^\d+$/.test(value)) return value
+    const bytes = Number(value)
+    if (!Number.isSafeInteger(bytes) || bytes === 0) return value
+    for (const [unit, size] of [['GB', 1024 ** 3], ['MB', 1024 ** 2], ['KB', 1024]] as const) {
+      if (bytes % size === 0) return `${bytes / size}${unit}`
+    }
+    return value
+  })
+}
+
 function humanizeSeconds(raw: string) {
   const n = raw.trim().match(/^\d+$/) ? Number(raw.trim()) : NaN
   if (!Number.isFinite(n) || n < 0) return raw
@@ -88,7 +100,7 @@ export function displayValue(t: ComposerTranslation, valueOptions: Record<string
   if (key === 'file_size') {
     const optionLabel = resolveOptionLabel(valueOptions, key, s)
     if (optionLabel) return optionLabel
-    return withOp(s, (v) => v)
+    return formatFileSizeFilter(s)
   }
 
   if (key === 'trash') {
