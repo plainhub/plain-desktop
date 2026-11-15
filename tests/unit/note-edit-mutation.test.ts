@@ -1,25 +1,47 @@
 import { afterEach, beforeEach, expect, it, vi } from 'vitest'
 import { createRenderer, nextTick, ref } from 'vue'
-const io = vi.hoisted(() => ({ route: { params: { id: 'create' } }, fetch: vi.fn() }))
+const io = vi.hoisted(() => ({ route: { params: { id: 'create' } }, fetch: vi.fn(), upload: vi.fn(), toast: vi.fn() }))
 vi.mock('vue-router', () => ({ useRoute: () => io.route }))
 vi.mock('vue-i18n', () => ({ useI18n: () => ({ t: (key: string) => key }) }))
 vi.mock('pinia', () => ({ storeToRefs: (value: unknown) => value }))
 vi.mock('@/stores/main', () => ({ useMainStore: () => ({}) }))
 vi.mock('@/stores/temp', () => ({ useTempStore: () => ({ app: ref({}), urlTokenKey: ref(null) }) }))
-vi.mock('@/components/toaster', () => ({ default: vi.fn() }))
+vi.mock('@/components/toaster', () => ({ default: io.toast }))
 vi.mock('@/lib/api/query', () => ({ noteGQL: 'note-query', tagsGQL: 'tags-query', initLazyQuery: () => ({ fetch: vi.fn() }), initQuery: () => ({ refetch: vi.fn() }) }))
 vi.mock('@/hooks/markdown', () => ({ useMarkdown: () => ({ render: async (value: string) => value }) }))
 vi.mock('@/plugins/router', () => ({ default: { currentRoute: ref({ query: {} }) }, replacePath: vi.fn(), replacePathNoReload: vi.fn() }))
 vi.mock('@/plugins/eventbus', () => ({ default: { on: vi.fn(), off: vi.fn(), emit: vi.fn() } }))
-vi.mock('@/lib/upload/upload', () => ({ upload: vi.fn() }))
+vi.mock('@/lib/upload/upload', () => ({ upload: io.upload }))
 vi.mock('@/lib/api/gql-client', () => ({ gqlFetch: io.fetch, GqlError: class extends Error {} }))
 import { useNoteEdit } from '@/hooks/note-edit'
 beforeEach(() => {
   vi.useFakeTimers()
+  io.upload.mockReset()
+  io.toast.mockClear()
   io.fetch.mockReset().mockImplementation(async (document: string, variables: { id?: string; input: { title: string; content: string } }) => {
     const creating = document.includes('mutation createNote')
     return { data: { [creating ? 'createNote' : 'updateNote']: { id: creating ? 'created-note' : variables.id, ...variables.input, tags: [], updatedAt: '2000-01-01T00:00:00Z' } } }
   })
+})
+
+it.each([false, true])('continues after a clipboard upload fails (throws: %s)', async (throws) => {
+  const suffix = `${'a'.repeat(64)}.png`
+  io.upload.mockImplementationOnce(async (item) => {
+    expect(item).toMatchObject({ dir: '', isAppFile: true })
+    if (throws) throw new Error('Attachment storage is unavailable')
+    item.status = 'error'
+    item.error = 'Attachment storage is unavailable'
+  }).mockImplementationOnce(async (item) => {
+    item.fileHash = suffix
+    item.status = 'done'
+  })
+  const { edit, app } = mountEdit('existing-note')
+  try {
+    const files = ['first.png', 'second.png'].map(name => new File(['fixture'], name, { type: 'image/png' }))
+    await expect(edit.handlePasteImages(files)).resolves.toEqual([`![image](fid:${suffix})`])
+    expect(io.toast).toHaveBeenCalledExactlyOnceWith('Attachment storage is unavailable', 'error')
+    expect(edit.uploadingImage.value).toBe(false)
+  } finally { app.unmount() }
 })
 afterEach(() => vi.useRealTimers())
 function mountEdit(initial: string) {

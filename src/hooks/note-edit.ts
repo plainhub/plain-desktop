@@ -128,9 +128,15 @@ export function useNoteEdit() {
           error: '',
           isAppFile: true,
         }
-        const result = (await uploadFile(item, false)) as { fileName?: string; error?: string } | undefined
-        if (item.fileHash && !result?.error) {
-          insertedPaths.push(`![image](fid:${item.fileHash})`)
+        try {
+          const result = (await uploadFile(item, false)) as { error?: string } | undefined
+          if (item.status === 'done' && item.fileHash) {
+            insertedPaths.push(`![image](fid:${item.fileHash})`)
+          } else {
+            toast(item.error || result?.error || t('upload_failed'), 'error')
+          }
+        } catch (error) {
+          toast((error instanceof Error ? error.message : typeof error === 'string' ? error : '') || t('upload_failed'), 'error')
         }
       }
     } finally {

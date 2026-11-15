@@ -87,6 +87,21 @@ beforeEach(() => {
 })
 afterEach(() => { vi.restoreAllMocks(); vi.useRealTimers(); vi.unstubAllGlobals() })
 
+it('uploads a pasted Notes image through native chunks without a filesystem destination', async () => {
+  const file = new File([fixtureBytes(17)], 'image.png', { type: 'image/png' })
+  const item: IUploadItem = { id: 'note-image', dir: '', fileName: file.name, file, status: 'pending', uploadedSize: 0, error: '', isAppFile: true }
+  const suffix = `${'a'.repeat(64)}.png`
+  io.gql.mockResolvedValue({ data: { uploadedChunks: [] } })
+  io.merge.mockResolvedValue({ value: suffix, size: file.size })
+
+  await upload(item, false)
+
+  expect(calls('native_upload_chunk_open')[0]?.[1]).toMatchObject({ target: { kind: 'local' }, fileId: item.fileId, index: 0, size: file.size })
+  expect(calls('native_upload_chunk_write')[0]?.[1]).toEqual(fixtureBytes(file.size))
+  expect(io.merge).toHaveBeenCalledExactlyOnceWith(item, { fileId: item.fileId, totalChunks: 1, fileName: 'image.png', totalSize: file.size })
+  expect(item).toMatchObject({ status: 'done', fileHash: suffix })
+})
+
 it.each([0, 16, 18])('reuploads a chunk whose reported byte size is %s instead of 17', async sizeBytes => {
   const f = fixture(17)
   io.gql.mockResolvedValue({ data: { uploadedChunks: [{ index: 0, sizeBytes }] } })
