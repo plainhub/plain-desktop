@@ -1,8 +1,8 @@
 <template>
-  <v-dropdown v-model="isOpen" strategy="below">
+  <v-dropdown v-model="isOpen" strategy="below" :full-width="fullWidth">
     <template #trigger>
       <button
-        :class="['v-select-trigger', `v-select-trigger--${size}`]"
+        :class="['v-select-trigger', `v-select-trigger--${size}`, { 'v-select-trigger--full-width': fullWidth }]"
         :disabled="disabled"
         type="button"
       >
@@ -50,6 +50,7 @@ interface Props {
   disabled?: boolean
   options?: VSelectOption[]
   size?: 'sm' | 'lg'
+  fullWidth?: boolean
 }
 
 const props = withDefaults(defineProps<Props>(), {
@@ -92,6 +93,14 @@ function selectOption(option: VSelectOption) {
   cursor: pointer;
   min-width: 64px;
   transition: background-color 150ms cubic-bezier(0.4, 0, 0.2, 1);
+
+  &--full-width {
+    width: 100%;
+
+    .v-select-trigger__chevron {
+      margin-inline-start: auto;
+    }
+  }
 
   &--sm {
     height: 40px;

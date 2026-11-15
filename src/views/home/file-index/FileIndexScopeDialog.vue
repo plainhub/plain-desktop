@@ -5,7 +5,7 @@
       <div class="scope-content">
         <v-select
           v-model="draft.indexMode"
-          class="index-mode"
+          full-width
           :aria-label="$t('file_index.mode')"
           :disabled="saving"
           :options="modes.map(mode => ({ value: mode.value, label: $t(mode.label) }))"
@@ -93,14 +93,6 @@ async function save() {
   display: flex;
   flex-direction: column;
   gap: 8px;
-}
-.index-mode :deep(.v-select-trigger) {
-  width: 100%;
-  border: 0;
-  border-radius: 8px;
-  padding: 0 16px;
-  gap: 8px;
-  background: var(--md-sys-color-surface-container-high);
 }
 .directory-row {
   display: flex;
