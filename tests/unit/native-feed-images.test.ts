@@ -119,3 +119,15 @@ it('reacquires the current target when a refreshed list reuses the same referenc
   expect(live.size).toBe(1)
   expect(fixture.invoke.mock.calls.filter(([command]) => command === 'native_resource_close')).toHaveLength(1)
 })
+
+
+it('keeps stored fid artwork references intact when opening thumbnails', async () => {
+  const reference = `fid:${'a'.repeat(64)}.png`
+  setImages(reference, reference); mount(); await flush()
+  const opens = fixture.invoke.mock.calls.filter(([command]) => command === 'native_resource_open')
+  expect(opens).toHaveLength(1)
+  expect(opens[0][1]).toMatchObject({ path: reference, target: { kind: 'local' } })
+  expect(live.size).toBe(1)
+  unmount?.(); unmount = undefined; await flush()
+  expect(live.size).toBe(0)
+})
