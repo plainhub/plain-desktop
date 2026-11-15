@@ -3,9 +3,13 @@
     <template #headline>{{ $t('file_index.scope') }} · {{ volumeName }}</template>
     <template #content>
       <div class="scope-content">
-        <div class="modes" role="group" :aria-label="$t('file_index.mode')">
-          <button v-for="mode in modes" :key="mode.value" :aria-pressed="draft.indexMode === mode.value" :disabled="saving" @click="draft.indexMode = mode.value">{{ $t(mode.label) }}</button>
-        </div>
+        <v-select
+          v-model="draft.indexMode"
+          class="index-mode"
+          :aria-label="$t('file_index.mode')"
+          :disabled="saving"
+          :options="modes.map(mode => ({ value: mode.value, label: $t(mode.label) }))"
+        />
         <p class="subtle">{{ $t(`file_index.${draft.indexMode === 'ALLOWLIST' ? 'allow_hint' : draft.indexMode === 'BLOCKLIST' ? 'block_hint' : 'disabled_hint'}`) }}</p>
         <template v-if="draft.indexMode !== 'DISABLED'">
           <div v-for="path in activeDirs" :key="path" class="directory-row">
@@ -20,7 +24,7 @@
     </template>
     <template #actions>
       <v-text-button :disabled="saving" @click="cancel">{{ $t('cancel') }}</v-text-button>
-      <v-filled-button :loading="saving" @click="save">{{ $t(volume.indexMode === 'UNCONFIGURED' && canScanVolume(draft) ? 'file_index.create' : 'save') }}</v-filled-button>
+      <v-filled-button :loading="saving" @click="save">{{ $t('save') }}</v-filled-button>
     </template>
   </v-modal>
 </template>
@@ -29,10 +33,11 @@
 import { computed, ref } from 'vue'
 import { closeById, modalQueue, promptModal } from '@/components/modal'
 import FileIndexDefaults from './FileIndexDefaults.vue'
+import VSelect from '@/components/base/VSelect.vue'
 import type { FileIndexDefaults as DefaultRules } from '@/lib/api/file-index'
 import DirectoryPickerModal from '@/components/DirectoryPickerModal.vue'
 import { bindGraphqlClient } from '@/lib/api/gql-client'
-import { canScanVolume, saveFileIndexVolume, type FileIndexVolume, type FileIndexMode } from '@/lib/api/file-index'
+import { saveFileIndexVolume, type FileIndexVolume, type FileIndexMode } from '@/lib/api/file-index'
 
 const props = defineProps<{ modalId: string; volume: FileIndexVolume; defaults: DefaultRules; volumeName: string; onSaved: () => unknown }>()
 const modalId = Number(props.modalId.replace(/\D/g, ''))
@@ -89,24 +94,13 @@ async function save() {
   flex-direction: column;
   gap: 8px;
 }
-.modes {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-  margin-top: 8px;
-}
-.modes button {
-  padding: 8px 16px;
+.index-mode :deep(.v-select-trigger) {
+  width: 100%;
   border: 0;
-  border-radius: 999px;
-  background: transparent;
-  color: var(--md-sys-color-on-surface);
-  font: inherit;
-  cursor: pointer;
-}
-.modes button[aria-pressed='true'] {
-  background: var(--md-sys-color-secondary-container);
-  color: var(--md-sys-color-on-secondary-container);
+  border-radius: 8px;
+  padding: 0 16px;
+  gap: 8px;
+  background: var(--md-sys-color-surface-container-high);
 }
 .directory-row {
   display: flex;

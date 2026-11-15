@@ -25,7 +25,7 @@
       {{ scanProgress?.state === 'FAILED' ? scanProgress.error || $t('failed') : $t(progressLabel) }}<template v-if="scanProgress && scanProgress.state !== 'FAILED'"> · {{ scanProgress.indexed.toLocaleString() }}<template v-if="scanProgress.total !== null"> / {{ scanProgress.total.toLocaleString() }}</template></template>
     </p>
     <footer>
-      <v-text-button v-if="volume.indexMode === 'UNCONFIGURED'" :disabled="scanDisabled || !volume.isAvailable" @click="$emit('settings')">
+      <v-text-button v-if="volume.indexMode === 'UNCONFIGURED'" :disabled="scanDisabled || !volume.isAvailable" @click="$emit('create')">
         {{ $t('file_index.create') }}
       </v-text-button>
       <template v-else>
@@ -52,7 +52,7 @@ import { canScanVolume, type FileIndexVolume, type FileIndexScanStatus } from '@
 import type { IFileIndexScanProgress, IStorageMount } from '@/lib/interfaces'
 
 const props = defineProps<{ volume: FileIndexVolume; title: string; mount?: IStorageMount; scanDisabled: boolean; scanProgress?: IFileIndexScanProgress }>()
-defineEmits<{ settings: []; scan: []; pause: []; resume: []; stop: [] }>()
+defineEmits<{ settings: []; create: []; scan: []; pause: []; resume: []; stop: [] }>()
 const progressLabel = computed(() => {
   const progress = props.scanProgress
   if (!progress) return ''
