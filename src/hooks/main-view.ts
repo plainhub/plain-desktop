@@ -63,6 +63,7 @@ export function useMainView() {
 
   const showHeaderSearch = computed(() => {
     const route = router.currentRoute.value
+    if (route.path === '/settings/events') return true
     return !hiddenHeaderSearchRoutes.has(route.path) && !hiddenHeaderSearchPatterns.some((p) => p.test(route.path))
   })
 
@@ -132,9 +133,10 @@ export function useMainView() {
   })
 
   // Restore persisted state from prefs
-  const localState = prefsGet<Record<string, unknown> | null>(getMainStateKey(), null)
+  const mainStateKey = getMainStateKey()
+  const localState = mainStateKey ? prefsGet<Record<string, unknown> | null>(mainStateKey, null) : null
   if (localState) {
-    const { chatTexts, searchHistory, ...uiState } = localState
+    const { railFeatures, homeFeatures, uploadDirs, chatTexts, searchHistory, ...uiState } = localState
     if (uiState.imageSortBy !== 'TAKEN_AT_DESC' && !getImageSortItems().some(item => item.value === uiState.imageSortBy)) {
       delete uiState.imageSortBy
     }
@@ -155,14 +157,9 @@ export function useMainView() {
   // High-frequency mutations (e.g. chatTexts keystrokes) must not serialize
   // the whole store and hit the prefs backend on every change — coalesce them.
   const saveState = (state: typeof store.$state) => {
-    if (loggingOut) return
-    if (remotePrefsEnabled.value) {
-      const { homeFeatures, chatTexts, searchHistory, ...localFields } = state
-      prefsSet(getMainStateKey(), localFields)
-    } else {
-      const { chatTexts, searchHistory, ...localFields } = state
-      prefsSet(getMainStateKey(), localFields)
-    }
+    if (loggingOut || !mainStateKey) return
+    const { railFeatures, homeFeatures, uploadDirs, chatTexts, searchHistory, ...localFields } = state
+    prefsSet(mainStateKey, localFields)
   }
   const persistState = debounce(saveState, 500)
   const saveBeforeExit = () => saveState(store.$state)

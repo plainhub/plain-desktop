@@ -23,7 +23,7 @@ vi.mock('@/views/home/file-index/FileIndexScopeDialog.vue', () => ({ default: {}
 vi.mock('@/views/home/home', () => ({ useScanAction: () => ({
   fileIndexScanProgress: ref({ indexed: 0, total: 0 }), scanActive: ref(false), percent: ref(0), stateLabel: ref(''),
   showPause: ref(false), showResume: ref(false), showStop: ref(false), showRebuild: ref(true),
-  rebuildIndexLoading: ref(false), rebuildVolumeLoading: ref(false),
+  loading: ref(false), pause: vi.fn(), resume: vi.fn(), stop: vi.fn(), rebuild: vi.fn(),
   pauseScan: vi.fn(), resumeScan: vi.fn(), stopScan: vi.fn(), rebuildIndex: vi.fn(), rebuildVolume: vi.fn(),
 }) }))
 import FileIndexCard from '@/views/home/file-index/FileIndexCard.vue'
@@ -65,7 +65,7 @@ async function render(mounts: IStorageMount[]) {
 }
 
 it.each([
-  ['unlabelled USB', {}, 'Example Drive (4.0 TB)'],
+  ['unlabelled USB', {}, 'Example Drive'],
   ['volume label', { label: 'Photos' }, 'Photos'],
   ['user alias', { label: 'Photos', alias: 'Archive' }, 'Archive'],
   ['named system volume', { mountPoint: '/', name: 'System Drive', driveType: 'INTERNAL_STORAGE' }, 'System Drive'],
@@ -77,7 +77,7 @@ it.each([
   ['app storage', { name: '', diskModel: '', driveType: 'APP' }, 'app_data'],
 ] as const)('renders the same %s title from Home and FilesSidebar query data', async (_name, overrides, expected) => {
   const mount = { ...base, ...overrides } as IStorageMount
-  state.volumes = [{ id: mount.id, path: mount.mountPoint, isAvailable: true, indexMode: 'UNCONFIGURED', includedDirs: [], excludedDirs: [] }]
+  state.volumes = [{ id: mount.id, path: mount.mountPoint, isAvailable: true, indexMode: 'UNCONFIGURED', includedDirs: [], excludedDirs: [], lastScanAt: null, lastScanStatus: null, lastScanCount: null, lastScanTotal: null }]
   const homeMount = selectMount(homeStatsGQL(), mount)
   const sidebarMount = selectMount(mountsQuery, mount)
   expect(getStorageVolumeTitle(sidebarMount, t)).toBe(expected)
@@ -87,7 +87,7 @@ it.each([
 })
 
 it('does not render a historical index volume absent from the file sidebar mounts', async () => {
-  state.volumes = [{ id: 'missing', path: '/media/offline', isAvailable: false, indexMode: 'BLOCKLIST', includedDirs: [], excludedDirs: [] }]
+  state.volumes = [{ id: 'missing', path: '/media/offline', isAvailable: false, indexMode: 'BLOCKLIST', includedDirs: [], excludedDirs: [], lastScanAt: null, lastScanStatus: null, lastScanCount: null, lastScanTotal: null }]
   const html = await render([])
   expect(html).not.toContain('/media/offline')
   expect(html).toContain('no_data')
@@ -95,4 +95,12 @@ it('does not render a historical index volume absent from the file sidebar mount
 
 it('requests the same complete mount data for both surfaces', () => {
   expect(selectMount(homeStatsGQL(), base)).toEqual(selectMount(mountsQuery, base))
+})
+
+it('keeps index actions inside each volume and omits top-level bulk controls', async () => {
+  const mounts = [base, { ...base, id: 'second', mountPoint: '/media/second' }]
+  state.volumes = mounts.map(mount => ({ id: mount.id, path: mount.mountPoint, isAvailable: true, indexMode: 'BLOCKLIST', includedDirs: [], excludedDirs: [], lastScanAt: null, lastScanStatus: null, lastScanCount: null, lastScanTotal: null }))
+  const html = await render(mounts)
+  expect(html.split('</header>')[0]).not.toContain('<button')
+  expect(html.match(/rebuild_index/g)).toHaveLength(2)
 })

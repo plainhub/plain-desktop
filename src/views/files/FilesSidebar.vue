@@ -26,7 +26,16 @@
           v-for="item in volumeLinks" :key="item.fullPath" :title="item.title" :count="item.count || ''" :data="item"
           :used-percent="item.usedPercent || 0" :percent-class="percentClass(item.usedPercent)" :active="item.isChecked"
           :show-progress="item.showProgress" @click="openLink(item)"
-        />
+        >
+          <template #actions>
+            <v-icon-button
+              :id="'volume-' + item.fullPath" v-tooltip="$t('actions')" :aria-label="`${$t('actions')}: ${item.title}`" class="sm"
+              @click.prevent.stop="showVolumeMenu(item)" @keydown.enter.stop @keydown.space.stop
+            >
+              <i-material-symbols:more-vert />
+            </v-icon-button>
+          </template>
+        </VolumeCard>
       </div>
 
       <template v-if="favoriteLinks.length">
@@ -50,6 +59,10 @@
           </SidebarListItem>
         </ul>
       </template>
+
+      <v-dropdown-menu v-model="volumeMenuVisible" :anchor="'volume-' + selectedVolume?.fullPath">
+        <div class="dropdown-item" @click="openSetVolumeAlias(); volumeMenuVisible = false">{{ $t('rename') }}</div>
+      </v-dropdown-menu>
 
       <v-dropdown-menu v-model="favoriteMenuVisible" :anchor="'favorite-' + selectedFavorite?.fullPath">
         <div class="dropdown-item" @click="openSetFavoriteAlias(); favoriteMenuVisible = false">{{ $t('rename') }}</div>
@@ -83,7 +96,7 @@ function openDiskManager() {
 
 const {
   quickLinks, volumeLinks, favoriteLinks,
-  favoriteMenuVisible, selectedFavorite,
-  openLink, showFavoriteMenu, removeFavoriteFolder, openSetFavoriteAlias, percentClass,
+  favoriteMenuVisible, selectedFavorite, volumeMenuVisible, selectedVolume,
+  openLink, showFavoriteMenu, removeFavoriteFolder, openSetFavoriteAlias, showVolumeMenu, openSetVolumeAlias, percentClass,
 } = useFilesSidebar()
 </script>

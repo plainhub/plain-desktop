@@ -1,7 +1,5 @@
 <template>
   <div class="grids">
-    <RemoteAccessCard v-if="localMode" />
-    <FileIndexCard v-if="hasFeature(Capability.MEDIA_SCAN, app.capabilities)" :mounts="mounts" />
     <template v-for="item in homeFeatureCards" :key="item.id">
       <FeatureCard v-if="item.sectionType === 'feature'" :to="item.to" :title="$t(item.titleKey)" :count="item.count">
         <template #icon>
@@ -14,6 +12,8 @@
 
       <CallPhoneCard v-else />
     </template>
+    <FileIndexCard v-if="hasFeature(Capability.MEDIA_SCAN, app.capabilities)" :mounts="mounts" />
+    <RemoteAccessCard v-if="localMode" />
   </div>
 </template>
 

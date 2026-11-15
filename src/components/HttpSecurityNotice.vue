@@ -19,12 +19,12 @@ import { httpsPageUrl, isHttpBrowser } from '@/lib/http-security'
 const route = useRoute()
 const visible = isHttpBrowser(window.location.protocol, __IS_TAURI__)
 const httpsPort = ref<number>()
-const httpsUrl = computed(() => httpsPageUrl(`${window.location.origin}${route.fullPath}`, httpsPort.value))
+const apiOrigin = new URL(getApiBaseUrl()).origin
+const httpsUrl = computed(() => httpsPageUrl(`${apiOrigin}${route.fullPath}`, httpsPort.value))
 
 onMounted(async () => {
   if (!visible) return
   try {
-    if (new URL(getApiBaseUrl()).origin !== window.location.origin) return
     const result = await requestInit()
     if (result.status === 200) httpsPort.value = result.data?.httpsPort
   } catch {

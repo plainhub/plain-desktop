@@ -1,6 +1,5 @@
 import { ref, watch } from 'vue'
-import { sha256 } from '@noble/hashes/sha2.js'
-import { base64ToArrayBuffer, bytesToHex } from '@/lib/strutil'
+import { base64ToArrayBuffer } from '@/lib/strutil'
 import type { BrowserIdentity } from '@/lib/device/login-peers'
 import { useI18n } from 'vue-i18n'
 import router from '@/plugins/router'
@@ -44,7 +43,6 @@ export function useLogin(options: UseLoginOptions = {}) {
   const passwordError = ref('')
   const isSubmitting = ref(false)
   const redirectOnSuccess = options.redirectOnSuccess !== false
-  const identityChanges = ref<{ key: string; previous: string; next: string }[]>([])
   let changedIdentity: { previous: BrowserIdentity; publicKey: string; opaquePublicKey?: string } | undefined
   let trustedIdentity: typeof changedIdentity
   let lastInitSignaturePublicKey = ''
@@ -109,7 +107,6 @@ export function useLogin(options: UseLoginOptions = {}) {
     }
     webAccessDisabled.value = false
     const initData = result.data
-    identityChanges.value = []
     changedIdentity = undefined
     lastInitOpaquePublicKey = initData?.opaquePublicKey
     if (initData?.signaturePublicKey) {
@@ -126,13 +123,11 @@ export function useLogin(options: UseLoginOptions = {}) {
         trusted.opaquePublicKey && initData.passwordRequired && trusted.opaquePublicKey !== initData.opaquePublicKey)) {
         trustedIdentity = undefined
         if (saved) {
-          const fingerprint = (key: string) => bytesToHex(sha256(base64ToArrayBuffer(key)))
           const changes = [
-            { key: 'Ed25519', previous: saved.publicKey, next: initData.signaturePublicKey },
-            ...(initData.passwordRequired && saved.opaquePublicKey ? [{ key: 'OPAQUE', previous: saved.opaquePublicKey, next: initData.opaquePublicKey || '' }] : []),
+            { previous: saved.publicKey, next: initData.signaturePublicKey },
+            ...(initData.passwordRequired && saved.opaquePublicKey ? [{ previous: saved.opaquePublicKey, next: initData.opaquePublicKey || '' }] : []),
           ].filter(change => change.previous !== change.next)
           if (changes.every(change => base64ToArrayBuffer(change.next).length === 32)) {
-            identityChanges.value = changes.map(change => ({ key: change.key, previous: fingerprint(change.previous), next: fingerprint(change.next) }))
             changedIdentity = { previous: saved, publicKey: initData.signaturePublicKey, opaquePublicKey: initData.opaquePublicKey }
           }
         }
@@ -221,27 +216,23 @@ export function useLogin(options: UseLoginOptions = {}) {
     showConfirm.value = false; showError.value = false; isSubmitting.value = false
   }
 
-  function trustIdentity() {
-    if (!changedIdentity) return
+  async function confirmIdentityChange() {
     cancel()
+    if (!changedIdentity) {
+      forgetBrowserIdentity()
+      await clearCurrentSession()
+      window.location.reload()
+      return
+    }
     trustedIdentity = changedIdentity
     changedIdentity = undefined
-    identityChanges.value = []
-    showError.value = false
     webAccessDisabled.value = false
     password.value = ''
   }
 
-  async function forgetIdentity() {
-    cancel()
-    forgetBrowserIdentity()
-    await clearCurrentSession()
-    window.location.reload()
-  }
-
   return {
     showError, webAccessDisabled, showConfirm, verificationCode, error, showPasswordInput,
-    password, passwordError, isSubmitting, onSubmit, cancel, forgetIdentity, trustIdentity, identityChanges, t, applyInitResult, startPairing,
+    password, passwordError, isSubmitting, onSubmit, cancel, confirmIdentityChange, t, applyInitResult, startPairing,
     dispose: () => { nativeActive = false; pairing?.dispose(); pendingLoginController?.abort() },
   }
 }

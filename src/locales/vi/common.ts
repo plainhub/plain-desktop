@@ -1,9 +1,19 @@
 export default {
+  media_exclusions: {
+    title: 'Thư mục phương tiện bị loại trừ',
+    hint: 'Ẩn tệp trong các thư mục này và thư mục con khỏi danh sách và kết quả tìm kiếm phương tiện. Không ảnh hưởng đến lập chỉ mục và tìm kiếm tệp thông thường.',
+    empty: 'Chưa loại trừ thư mục phương tiện nào.',
+  },
+
   http_security_warning: 'Tải tệp lên và xuống qua HTTP không được mã hóa.',
   http_security_switch: 'Hãy dùng HTTPS.',
   http_security_certificate: 'Chứng chỉ tự ký có thể khiến trình duyệt hiện cảnh báo. Hãy xác minh chứng chỉ trước khi kết nối.',
 
   file_index: {
+    media_pages_hint: 'Chỉ các tệp đã lập chỉ mục mới xuất hiện trên các trang Hình ảnh, Video, Âm thanh và Tài liệu.',
+    last_scan: 'Lần quét gần nhất',
+    not_scanned: 'Chưa có lịch sử quét',
+    scan_count: 'Tệp đã xử lý: {count} / {total}',
     defaults_title: 'Quy tắc quét mặc định',
     files_hint: 'Lập chỉ mục mọi tệp thường có thể truy cập, kể cả phần mở rộng chưa biết. Trích xuất thêm siêu dữ liệu cho nội dung đa phương tiện và tài liệu được nhận dạng.',
     skip_hint: 'Bỏ qua tệp và thư mục ẩn, dự án Git; không đi theo liên kết tượng trưng.',

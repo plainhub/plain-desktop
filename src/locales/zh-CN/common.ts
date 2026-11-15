@@ -1,9 +1,19 @@
 export default {
+  media_exclusions: {
+    title: '媒体排除目录',
+    hint: '仅从媒体列表和媒体搜索结果中隐藏这些目录及其子目录中的文件，不影响目录索引和普通文件搜索。',
+    empty: '尚未排除任何媒体目录。',
+  },
+
   http_security_warning: 'HTTP 下文件上传和下载未加密。',
   http_security_switch: '建议使用 HTTPS。',
   http_security_certificate: '自签名证书可能触发浏览器警告，请先核验证书再连接。',
 
   file_index: {
+    media_pages_hint: '只有已索引的文件才会出现在图片、视频、音频和文档页面。',
+    last_scan: '上次扫描',
+    not_scanned: '尚无扫描记录',
+    scan_count: '已处理文件：{count} / {total}',
     defaults_title: '默认扫描规则',
     files_hint: '扫描所选范围内的普通文件，不限文件类型。',
     skip_hint: '跳过隐藏文件、Git 项目和符号链接。',

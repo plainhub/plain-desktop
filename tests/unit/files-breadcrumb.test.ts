@@ -27,7 +27,7 @@ it('uses current mount metadata when the route still contains an outdated drive 
     { mountPoint: '/mnt/usb2', driveType: 'USB_STORAGE', diskModel: 'Example Drive', totalBytes: 314e9 },
   ] as IStorageMount[])
   const { breadcrumbPaths } = useFilesBreadcrumb(filter, ref('/mnt/usb2'), mounts, (key) => key)
-  expect(breadcrumbPaths.value).toEqual([{ path: '/mnt/usb2', name: 'Example Drive (314.0 GB)' }])
+  expect(breadcrumbPaths.value).toEqual([{ path: '/mnt/usb2', name: 'Example Drive' }])
   mounts.value[2].alias = 'Archive'
   expect(breadcrumbPaths.value[0].name).toBe('Archive')
 })

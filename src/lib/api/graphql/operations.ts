@@ -46,6 +46,8 @@ export type Input_ContactWebsiteInput = { value: string; type: 'CUSTOM' | 'HOMEP
 
 export type Input_DownloadInput = { resources: Input_ResourceDownloadInput; chat?: never } | { resources?: never; chat: Input_ChatDownloadInput }
 
+export type Input_FileIndexVolumeInput = { volumeId: string; indexMode: 'UNCONFIGURED' | 'DISABLED' | 'ALLOWLIST' | 'BLOCKLIST'; includedDirs: Array<string>; excludedDirs: Array<string> }
+
 export type Input_FileTaskOpInput = { src: string; dst: string; overwrite: boolean }
 
 export type Input_ImageEditorProjectInput = { stateB64: string; thumbnail?: string | null; canvasWidth: number; canvasHeight: number; layerCount: number }
@@ -909,6 +911,17 @@ export interface GqlOperations {
       name: string
     }
   }
+  createApiTokenGQL: {
+    result: {
+      createApiToken: {
+        clientId: string
+        token: string
+      }
+    }
+    variables: {
+      name: string
+    }
+  }
   createBookmarkGroupGQL: {
     result: {
       createBookmarkGroup: Fragment_BookmarkGroupFragment
@@ -1391,6 +1404,12 @@ export interface GqlOperations {
         type: 'LOGIN' | 'LOGIN_FAILED' | 'LOGOUT' | 'REVOKE_SESSION' | 'UPDATE_DEVICE_NAME' | 'MOUNT' | 'MOUNT_FAILED' | 'UNMOUNT' | 'FORMAT_DISK' | 'FORMAT_DISK_FAILED'
         message: string
         clientId?: string
+        clientName: string
+        clientIp: string
+        osName: string
+        osVersion: string
+        appName: string
+        appVersion: string
         createdAt: string
       }>
     }
@@ -1496,22 +1515,26 @@ export interface GqlOperations {
   fileIndexScanProgressGQL: {
     result: {
       fileIndexScanProgress: {
+        volumeId?: string
         indexed: number
         pending?: number
         total?: number
-        state: 'IDLE' | 'RUNNING' | 'PAUSED' | 'STOPPED' | 'FAILED'
+        state: 'IDLE' | 'QUEUED' | 'RUNNING' | 'PAUSED' | 'STOPPED' | 'FAILED'
         error?: string
       }
     }
-    variables: undefined
+    variables: {
+      volumeId?: string | null
+    }
   }
   fileIndexScanProgressUpdatedSubscription: {
     result: {
       fileIndexScanProgressUpdated: {
+        volumeId?: string
         indexed: number
         pending?: number
         total?: number
-        state: 'IDLE' | 'RUNNING' | 'PAUSED' | 'STOPPED' | 'FAILED'
+        state: 'IDLE' | 'QUEUED' | 'RUNNING' | 'PAUSED' | 'STOPPED' | 'FAILED'
         error?: string
       }
     }
@@ -1526,6 +1549,10 @@ export interface GqlOperations {
         indexMode: 'UNCONFIGURED' | 'DISABLED' | 'ALLOWLIST' | 'BLOCKLIST'
         includedDirs: Array<string>
         excludedDirs: Array<string>
+        lastScanAt?: string
+        lastScanStatus?: 'COMPLETED' | 'CANCELED' | 'FAILED'
+        lastScanCount?: number
+        lastScanTotal?: number
       }>
       fileIndexDefaults: {
         excludedDirs: Array<string>
@@ -2271,11 +2298,13 @@ export interface GqlOperations {
       id: string
     }
   }
-  pauseFileIndexScanGQL: {
+  pauseFileIndexGQL: {
     result: {
-      pauseFileIndexScan: boolean
+      pauseFileIndex: boolean
     }
-    variables: undefined
+    variables: {
+      volumeId?: string | null
+    }
   }
   pausePomodoroGQL: {
     result: {
@@ -2499,6 +2528,15 @@ export interface GqlOperations {
       name: string
     }
   }
+  renameSessionGQL: {
+    result: {
+      renameSession: boolean
+    }
+    variables: {
+      clientId: string
+      name: string
+    }
+  }
   reorderAudioQueueGQL: {
     result: {
       reorderAudioQueue: boolean
@@ -2585,11 +2623,13 @@ export interface GqlOperations {
       id: string
     }
   }
-  resumeFileIndexScanGQL: {
+  resumeFileIndexGQL: {
     result: {
-      resumeFileIndexScan: boolean
+      resumeFileIndex: boolean
     }
-    variables: undefined
+    variables: {
+      volumeId?: string | null
+    }
   }
   retryChatItemGQL: {
     result: {
@@ -2605,6 +2645,14 @@ export interface GqlOperations {
     }
     variables: {
       id: string
+    }
+  }
+  revokeSessionGQL: {
+    result: {
+      revokeSession: boolean
+    }
+    variables: {
+      clientId: string
     }
   }
   SAVE_MUTATION: {
@@ -2713,6 +2761,23 @@ export interface GqlOperations {
       requestId: string
     }
   }
+  sessionsGQL: {
+    result: {
+      sessions: Array<{
+        clientId: string
+        clientName: string
+        type: 'LOGIN' | 'API_TOKEN'
+        clientIp: string
+        osName: string
+        osVersion: string
+        appName: string
+        appVersion: string
+        createdAt: string
+        lastSeenAt?: string
+      }>
+    }
+    variables: undefined
+  }
   setClipboardGQL: {
     result: {
       setClipboard: boolean
@@ -2739,10 +2804,16 @@ export interface GqlOperations {
       setFileIndexVolume: boolean
     }
     variables: {
+      input: Input_FileIndexVolumeInput
+    }
+  }
+  setMountAliasGQL: {
+    result: {
+      setMountAlias: boolean
+    }
+    variables: {
       id: string
-      indexMode: 'UNCONFIGURED' | 'DISABLED' | 'ALLOWLIST' | 'BLOCKLIST'
-      includedDirs: Array<string>
-      excludedDirs: Array<string>
+      alias: string
     }
   }
   setPrefGQL: {
@@ -2884,11 +2955,13 @@ export interface GqlOperations {
     }
     variables: undefined
   }
-  stopFileIndexScanGQL: {
+  stopFileIndexGQL: {
     result: {
-      stopFileIndexScan: boolean
+      stopFileIndex: boolean
     }
-    variables: undefined
+    variables: {
+      volumeId?: string | null
+    }
   }
   stopPomodoroGQL: {
     result: {

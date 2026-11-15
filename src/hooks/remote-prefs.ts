@@ -6,20 +6,34 @@ import { graphqlSubscriptions } from '@/lib/api/subscription-client'
 import { applySnapshot, preferenceKeys, preferencesQuery } from '@/lib/prefs/core'
 import { isLocalMode } from '@/lib/device/local-mode'
 import { apply as applyAppearance } from '@/lib/prefs/appearance'
-import type { useMainStore } from '@/stores/main'
+import { DEFAULT_RAIL_FEATURES, type useMainStore } from '@/stores/main'
+import { DEFAULT_HOME_FEATURES } from '@/views/home/features'
+
+const featurePrefs = [
+  { field: 'homeFeatures', key: 'desktop_home_features', defaults: DEFAULT_HOME_FEATURES },
+  { field: 'railFeatures', key: 'desktop_rail_features', defaults: DEFAULT_RAIL_FEATURES },
+] as const
 
 export function useRemotePrefs(store: ReturnType<typeof useMainStore>) {
   const enabled = ref(false)
   let applying = false
   let writes = Promise.resolve()
-  const save = debounce((value: string[]) => {
+  const savePreference = (key: string) => debounce((value: unknown) => {
     writes = writes.then(async () => {
-      const result = await gqlFetch(setPrefGQL, { key: 'desktop_home_features', value }, { dedupe: false })
+      const result = await gqlFetch(setPrefGQL, { key, value }, { dedupe: false })
       if (result.errors?.length) throw new Error(result.errors[0].message)
-    }).catch((error) => { console.warn('Failed to save desktop home features', error) })
+    }).catch((error) => { console.warn(`Failed to save ${key}`, error) })
   }, 500)
-  watch(() => store.homeFeatures, (value) => {
-    if (enabled.value && !applying) save([...value])
+  for (const { field, key } of featurePrefs) {
+    const save = savePreference(key)
+    watch(() => store[field], (value) => {
+      if (enabled.value && !applying) save([...value])
+    }, { deep: true, flush: 'sync' })
+  }
+
+  const saveUploadDirs = savePreference('desktop_upload_dirs')
+  watch(() => store.uploadDirs, (value) => {
+    if (enabled.value && !applying) saveUploadDirs({ ...value })
   }, { deep: true, flush: 'sync' })
 
   async function refresh() {
@@ -27,12 +41,17 @@ export function useRemotePrefs(store: ReturnType<typeof useMainStore>) {
       const result = await gqlFetch<{ prefs: Record<string, unknown> }>(preferencesQuery, { keys: isLocalMode() ? [...preferenceKeys, 'remote_access', 'mdns_hostname'] : preferenceKeys }, { fresh: true })
       if (result.errors?.length) throw new Error(result.errors[0].message)
       applySnapshot(result.data.prefs)
-      const value = result.data.prefs.desktop_home_features
-      if (Array.isArray(value) && value.every((item) => typeof item === 'string')) {
-        applying = true
-        store.homeFeatures = value
-        applying = false
+      applying = true
+      for (const { field, key, defaults } of featurePrefs) {
+        const value = result.data.prefs[key]
+        store[field] = Array.isArray(value) && value.every((item) => typeof item === 'string')
+          ? value : [...defaults]
       }
+      const uploadDirs = result.data.prefs.desktop_upload_dirs
+      store.uploadDirs = uploadDirs && typeof uploadDirs === 'object' && !Array.isArray(uploadDirs)
+        && Object.values(uploadDirs).every((value) => typeof value === 'string')
+        ? { ...uploadDirs as Record<string, string> } : {}
+      applying = false
       enabled.value = true
       if (__IS_TAURI__) await applyAppearance()
     } catch (error) {

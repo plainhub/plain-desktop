@@ -4,9 +4,9 @@ export default {
   logging_in: 'Entrando',
   connect: 'Conectar',
   login: {
-    saved_identity: 'Impressão digital salva',
-    new_identity: 'Nova impressão digital',
-    trust_identity: 'Confiar na nova identidade',
+    peer_identity_changed: 'A assinatura do dispositivo ao qual você está se conectando mudou',
+    identity_changed_hint: 'A assinatura é diferente da salva na última conexão. Confirme para entrar novamente.',
+    confirm_identity_change: 'Confirmar alteração e entrar novamente',
     internal_error: 'O dispositivo não conseguiu concluir o login. Tente novamente.',
     secure_login_unavailable: 'Este navegador não permite um login seguro. Atualize o navegador.',
     chat_pairing_unavailable: 'Atualize o PlainApp no seu telefone para parear o chat e o controle total de uma só vez.',

@@ -224,6 +224,14 @@ const router = createRouter({
           meta: { group: 'settings', requiresDeveloperMode: true },
         },
         {
+          path: 'settings/sessions',
+          components: {
+            default: () => import('@/views/settings/SettingsSessionsView.vue'),
+            LeftSidebar: () => import('@/views/settings/SettingsSidebar.vue'),
+          },
+          meta: { group: 'settings' },
+        },
+        {
           path: 'settings/events',
           components: {
             default: () => import('@/views/settings/SettingsEventsView.vue'),
@@ -243,6 +251,14 @@ const router = createRouter({
           path: 'settings/device-info',
           components: {
             default: () => import('@/views/device-info/DeviceInfoView.vue'),
+            LeftSidebar: () => import('@/views/settings/SettingsSidebar.vue'),
+          },
+          meta: { group: 'settings' },
+        },
+        {
+          path: 'settings/excluded-dirs',
+          components: {
+            default: () => import('@/views/settings/SettingsExcludedDirsView.vue'),
             LeftSidebar: () => import('@/views/settings/SettingsSidebar.vue'),
           },
           meta: { group: 'settings' },

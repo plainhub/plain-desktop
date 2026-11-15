@@ -14,7 +14,7 @@ function currentCache(): Map<string, unknown> {
   return cache
 }
 
-export const preferenceKeys = ['locale', 'dark_theme', 'clipboard_directions', 'desktop_home_features']
+export const preferenceKeys = ['locale', 'dark_theme', 'clipboard_directions', 'desktop_home_features', 'desktop_rail_features', 'desktop_upload_dirs', 'media_excluded_dirs']
 
 export const preferencesQuery = 'query($keys: [String!]!) { prefs(keys: $keys) }'
 

@@ -5,6 +5,9 @@
         <SidebarListItem :title="$t('events')" :active="activeSection === 'events'" @click="navigate('/settings/events')">
           <template #start><i-lucide:history /></template>
         </SidebarListItem>
+        <SidebarListItem :title="$t('session_management.title')" :active="activeSection === 'sessions'" @click="navigate('/settings/sessions')">
+          <template #start><i-lucide:monitor-smartphone /></template>
+        </SidebarListItem>
         <SidebarListItem :title="$t('device_info')" :active="activeSection === 'device-info'" @click="navigate('/settings/device-info')">
           <template #start>
             <i-lucide:smartphone />
@@ -24,6 +27,9 @@
           <template #start>
             <i-lucide:scroll-text />
           </template>
+        </SidebarListItem>
+        <SidebarListItem :title="$t('media_exclusions.title')" :active="activeSection === 'excluded-dirs'" @click="navigate('/settings/excluded-dirs')">
+          <template #start><i-lucide:folder-minus /></template>
         </SidebarListItem>
         <SidebarListItem :title="$t('customize_ui')" :active="activeSection === 'customize-ui'" @click="navigate('/settings/customize-ui')">
           <template #start>
@@ -47,10 +53,12 @@ const tempStore = useTempStore()
 const activeSection = computed(() => {
   const path = router.currentRoute.value.path
   if (path.startsWith('/settings/events')) return 'events'
+  if (path.startsWith('/settings/sessions')) return 'sessions'
   if (path.startsWith('/settings/device-info')) return 'device-info'
   if (path.startsWith('/settings/prefs')) return 'prefs'
   if (path.startsWith('/settings/database')) return 'database'
   if (path.startsWith('/settings/logs')) return 'logs'
+  if (path.startsWith('/settings/excluded-dirs')) return 'excluded-dirs'
   if (path.startsWith('/settings/customize-ui')) return 'customize-ui'
   return ''
 })

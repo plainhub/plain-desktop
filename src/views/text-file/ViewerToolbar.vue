@@ -16,7 +16,6 @@
     </div>
 
     <template v-if="structured && mode !== 'tree'">
-      <div class="divider" />
       <button class="tb-btn" :disabled="!canTransform" @click="$emit('format')">
         <i-lucide-code />
         <span>{{ $t('format') }}</span>
@@ -31,13 +30,7 @@
       </div>
     </template>
 
-    <button v-if="kind !== 'doc' && mode !== 'tree'" class="tb-btn" :class="{ active: wrap }" @click="$emit('update:wrap', !wrap)">
-      <i-lucide-wrap-text />
-      <span>{{ $t('wrap') }}</span>
-    </button>
-
     <template v-if="structured && mode !== 'source'">
-      <div class="divider" />
       <span class="tb-label">{{ $t('depth') }}</span>
       <div class="seg">
         <button v-for="d in [1, 2, 3, 4]" :key="d" :class="{ active: depth === d }" @click="$emit('update:depth', d)">
@@ -50,7 +43,6 @@
     </template>
 
     <template v-if="kind === 'json'">
-      <div class="divider" />
       <button class="tb-btn" :class="{ active: pathOpen }" @click="$emit('update:pathOpen', !pathOpen)">
         <i-lucide-filter />
         <span>JSONPath</span>
@@ -62,15 +54,6 @@
       <i-lucide-zap />
       {{ $t('large_file_virtual') }}
     </span>
-    <button
-      class="tb-btn"
-      :title="fullscreen ? $t('exit_fullscreen') : $t('fullscreen')"
-      :aria-label="fullscreen ? $t('exit_fullscreen') : $t('fullscreen')"
-      @click="$emit('toggle-fullscreen')"
-    >
-      <i-lucide-minimize v-if="fullscreen" />
-      <i-lucide-maximize v-else />
-    </button>
   </nav>
 </template>
 
@@ -83,21 +66,17 @@ defineProps<{
   mode: ViewerMode
   depth: number
   pathOpen: boolean
-  wrap: boolean
   indentSize: number
   big: boolean
   canTransform: boolean
   structured: boolean
-  fullscreen: boolean
 }>()
 
 defineEmits<{
   'update:mode': [mode: ViewerMode]
   'update:depth': [depth: number]
   'update:pathOpen': [open: boolean]
-  'update:wrap': [wrap: boolean]
   'update:indentSize': [size: number]
-  'toggle-fullscreen': []
   format: []
   minify: []
 }>()
@@ -108,10 +87,9 @@ defineEmits<{
   display: flex;
   align-items: center;
   gap: 8px;
-  min-height: 44px;
-  padding: 4px 12px;
-  border-bottom: 1px solid var(--md-sys-color-outline-variant);
-  background: var(--md-sys-color-surface);
+  flex: 1;
+  min-width: 0;
+  min-height: 32px;
   overflow-x: auto;
   scrollbar-width: none;
 
@@ -124,14 +102,6 @@ defineEmits<{
   flex: 1;
 }
 
-.divider {
-  width: 1px;
-  height: 20px;
-  background: var(--md-sys-color-outline-variant);
-  margin: 0 4px;
-  flex-shrink: 0;
-}
-
 .tb-label {
   font-size: 0.75rem;
   color: var(--md-sys-color-on-surface-variant);
@@ -140,7 +110,7 @@ defineEmits<{
 
 .seg {
   display: flex;
-  border: 1px solid var(--md-sys-color-outline-variant);
+  background: var(--md-sys-color-surface-container-low);
   border-radius: 8px;
   overflow: hidden;
   flex-shrink: 0;
@@ -149,19 +119,14 @@ defineEmits<{
     display: inline-flex;
     align-items: center;
     gap: 4px;
-    padding: 4px 10px;
+    padding: 4px 8px;
     font-size: 0.75rem;
     font-weight: 500;
     border: none;
-    border-left: 1px solid var(--md-sys-color-outline-variant);
     background: var(--md-sys-color-surface-container-lowest);
     color: var(--md-sys-color-on-surface-variant);
     cursor: pointer;
     white-space: nowrap;
-
-    &:first-child {
-      border-left: none;
-    }
 
     &:hover {
       background: var(--md-sys-color-surface-container-low);
@@ -177,9 +142,9 @@ defineEmits<{
 .tb-btn {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
-  height: 30px;
-  padding: 0 10px;
+  gap: 4px;
+  height: 32px;
+  padding: 0 8px;
   border: none;
   border-radius: 8px;
   background: transparent;
@@ -214,7 +179,7 @@ defineEmits<{
   font-weight: 600;
   color: var(--jv-ts-fg, #b45309);
   background: var(--jv-ts-bg, #fef3c7);
-  padding: 2px 8px;
+  padding: 4px 8px;
   border-radius: 999px;
   flex-shrink: 0;
 

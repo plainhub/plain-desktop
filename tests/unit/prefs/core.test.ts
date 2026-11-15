@@ -21,6 +21,8 @@ it('loads and replaces snapshots without retaining deleted settings', async () =
   const core = await import('@/lib/prefs/core')
   mock.fetch.mockResolvedValue({ data: { prefs: { locale: 'fr', dark_theme: 'ON' } } })
   await core.preload()
+  expect(core.preferenceKeys).toContain('desktop_upload_dirs')
+  expect(core.preferenceKeys).toContain('media_excluded_dirs')
   expect(mock.fetch).toHaveBeenCalledWith(core.preferencesQuery, { keys: [...core.preferenceKeys, 'remote_access', 'mdns_hostname'] }, { fresh: true })
   expect(core.get('locale', '')).toBe('fr')
   core.applySnapshot({ dark_theme: 'OFF' })

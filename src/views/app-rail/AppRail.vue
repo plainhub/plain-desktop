@@ -9,7 +9,6 @@
         :aria-label="$t('page_title.home')"
       >
         <i-lucide:home />
-        <div class="rail-label">{{ $t('page_title.home') }}</div>
       </router-link>
       <router-link
         v-for="feat in railFeatures"
@@ -21,7 +20,6 @@
         :aria-label="$t(feat.titleKey)"
       >
         <component :is="feat.icon" />
-        <div class="rail-label">{{ $t(feat.titleKey) }}</div>
       </router-link>
     </div>
 
@@ -39,7 +37,6 @@ import { useTempStore } from '@/stores/temp'
 import { storeToRefs } from 'pinia'
 import { ALL_FEATURES, getAvailableFeatures, type Feature } from './features'
 import RailSettingsPopup from './RailSettingsPopup.vue'
-const isTauri = __IS_TAURI__
 
 const store = useMainStore()
 const router = useRouter()
@@ -120,30 +117,21 @@ onBeforeUnmount(() => {
 
 .rail-item {
   width: 48px;
-  height: 64px;
+  height: 48px;
   display: flex;
-  flex-direction: column;
   align-items: center;
   justify-content: center;
   border-radius: 12px;
   color: var(--md-sys-color-on-surface-variant);
   margin: 6px 0;
-  gap: 4px;
   text-decoration: none;
   flex-shrink: 0;
   padding-inline: 4px;
-  word-break: break-all;
 
   svg {
     width: 22px;
     height: 22px;
   }
-}
-
-.rail-label {
-  font-size: 12px;
-  line-height: 1;
-  text-align: center;
 }
 
 .rail-item:hover,
@@ -178,7 +166,6 @@ onBeforeUnmount(() => {
   .rail-item {
     flex: 1 1 0;
     min-width: 56px;
-    height: 56px;
     margin: 0;
   }
 }

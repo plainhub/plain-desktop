@@ -1,0 +1,20 @@
+export default {
+  session_management: {
+    title: '会话',
+    api_tokens: 'API Tokens',
+    create_token: '创建 API Token',
+    revoke_token: '撤销 API Token',
+    revoke_session: '撤销会话',
+    confirm_revoke: '撤销“{name}”的访问权限？',
+    token_created: 'API Token 已创建',
+    copy_new_token: '请立即复制并妥善保存 Token，关闭此窗口后将不再显示。',
+    view_raw: '查看原始数据',
+    token: 'Token',
+    online: '在线',
+    offline: '离线',
+    last_active: '最近活跃',
+    app: '应用',
+    online_failed: '无法读取在线状态',
+    operation_failed: '未能更改会话，请刷新后重试。',
+  },
+}

@@ -44,7 +44,7 @@ export function useGlobalSearch(app: Ref<IApp>, localName: () => string) {
     const current: SearchDevice = { id: app.value.clientId, name: app.value.deviceName, target: 'current' }
     const sources: SearchDevice[] = [current]
     const remoteId = getRemoteClientId()
-    if (remoteId) {
+    if (__IS_TAURI__ && remoteId) {
       const localId = getDesktopClientId()
       if (localId && localId !== current.id) sources.push({ id: localId, name: localName(), target: 'local' })
     }

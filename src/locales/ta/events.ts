@@ -1,7 +1,10 @@
 export default {
+  "event_reason.peer_identity_changed": "கிளையன்ட் அடையாளம் மாறியுள்ளது",
+  "event_reason.password_setup_required": "உள்நுழைவு கடவுச்சொல் அமைக்கப்படவில்லை",
+  "event_reason.internal_error": "சேவையக உள் பிழை",
+
   "events": "Events",
   "event_client": "Client",
-  "events_load_more": "Load more",
   "event_type.LOGIN": "Signed in",
   "event_type.LOGIN_FAILED": "Sign-in failed",
   "event_type.LOGOUT": "Signed out",

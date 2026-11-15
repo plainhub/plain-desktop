@@ -4,9 +4,9 @@ export default {
   logging_in: '로그인 중',
   connect: '연결',
   login: {
-    saved_identity: '저장된 지문',
-    new_identity: '새 지문',
-    trust_identity: '새 신원 신뢰',
+    peer_identity_changed: '연결하려는 기기의 서명이 변경되었습니다',
+    identity_changed_hint: '마지막 연결 때 저장된 서명과 다릅니다. 변경을 확인한 후 다시 로그인하세요.',
+    confirm_identity_change: '변경 확인 후 다시 로그인',
     internal_error: '기기에서 로그인을 완료하지 못했습니다. 다시 시도하세요.',
     secure_login_unavailable: '이 브라우저에서는 안전하게 로그인할 수 없습니다. 브라우저를 업데이트하세요.',
     chat_pairing_unavailable: '채팅과 전체 제어를 함께 페어링하려면 휴대폰의 PlainApp을 업데이트하세요.',

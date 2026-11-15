@@ -8,6 +8,7 @@
         v-if="modelValue"
         ref="menuRef"
         class="v-dropdown-portal dropdown-menu is-open"
+        :class="{ borderless }"
         :style="style"
       >
         <slot />
@@ -22,6 +23,7 @@ import type { CSSProperties } from 'vue'
 
 const props = defineProps({
   modelValue: { type: Boolean, default: false },
+  borderless: { type: Boolean, default: false },
   maxHeight: { type: Number, default: 400 },
   // Kept for backward compatibility — positioning is now fully automatic.
   align: { type: String, default: '' },
@@ -205,6 +207,8 @@ onUnmounted(() => {
   border: 1px solid rgba(0, 0, 0, 0.08);
   z-index: 1050;
   white-space: nowrap;
+
+  &.borderless { border: 0; }
 
   & > * {
     white-space: nowrap;

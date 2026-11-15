@@ -1,9 +1,19 @@
 export default {
+  media_exclusions: {
+    title: 'Hariç tutulan medya klasörleri',
+    hint: 'Bu klasörlerdeki ve alt klasörlerdeki dosyaları medya listelerinden ve medya arama sonuçlarından gizler. Klasör dizinleme ve normal dosya araması değişmez.',
+    empty: 'Hariç tutulan medya klasörü yok.',
+  },
+
   http_security_warning: 'HTTP üzerinden dosya yükleme ve indirme şifrelenmez.',
   http_security_switch: 'HTTPS kullanın.',
   http_security_certificate: 'Kendinden imzalı bir sertifika tarayıcı uyarısına neden olabilir. Bağlanmadan önce sertifikayı doğrulayın.',
 
   file_index: {
+    media_pages_hint: 'Yalnızca dizine eklenen dosyalar Görseller, Videolar, Ses ve Belgeler sayfalarında görünür.',
+    last_scan: 'Son tarama',
+    not_scanned: 'Henüz tarama kaydı yok',
+    scan_count: 'İşlenen dosyalar: {count} / {total}',
     defaults_title: 'Varsayılan tarama kuralları',
     files_hint: 'Erişilebilir tüm normal dosyalar, bilinmeyen uzantılar dahil dizine eklenir. Tanınan medya ve belgeler için ek meta veriler çıkarılır.',
     skip_hint: 'Gizli dosya ve klasörler ile Git projeleri atlanır. Sembolik bağlantılar izlenmez.',

@@ -7,7 +7,7 @@ vi.mock('@/plugins/router', () => ({ default: { currentRoute: ref({ path: '/file
 vi.mock('@/stores/main', () => ({ useMainStore: () => ({}) }))
 vi.mock('vue-i18n', () => ({ useI18n: () => ({ t: (key: string) => key }) }))
 vi.mock('@/hooks/files', () => ({ useMounts: () => ({ mounts: state.mounts }), useFavoriteFolders: () => ({ favoriteFolders: state.favorites }), useSearch: () => ({ parseQ: vi.fn() }) }))
-vi.mock('@/lib/api/mutation', () => ({ initMutation: () => ({ mutate: vi.fn(), onDone: vi.fn() }), removeFavoriteFolderGQL: '', setFavoriteFolderAliasGQL: '' }))
+vi.mock('@/lib/api/mutation', () => ({ initMutation: () => ({ mutate: vi.fn(), onDone: vi.fn() }), removeFavoriteFolderGQL: '', setFavoriteFolderAliasGQL: '', setMountAliasGQL: '' }))
 vi.mock('@/components/toaster', () => ({ default: vi.fn() }))
 vi.mock('@/plugins/eventbus', () => ({ default: { emit: vi.fn() } }))
 vi.mock('@/components/modal', () => ({ openModal: vi.fn() }))
@@ -20,8 +20,8 @@ it('uses live volume names in sidebar links and favorite paths instead of USB nu
   const scope = effectScope()
   const sidebar = scope.run(() => useFilesSidebar())!
   try {
-    expect(sidebar.volumeLinks.value[0].title).toBe('Example Drive (314.0 GB)')
-    expect(sidebar.favoriteLinks.value[0].title).toBe('Example Drive (314.0 GB)/Trips')
+    expect(sidebar.volumeLinks.value[0].title).toBe('Example Drive')
+    expect(sidebar.favoriteLinks.value[0].title).toBe('Example Drive/Trips')
     state.mounts.value[0].label = 'Photos'
     expect(sidebar.volumeLinks.value[0].title).toBe('Photos')
     state.mounts.value[0].alias = 'Archive'

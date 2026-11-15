@@ -2,6 +2,8 @@ import { bindGraphqlClient } from './gql-client'
 
 export type FileIndexMode = 'UNCONFIGURED' | 'DISABLED' | 'ALLOWLIST' | 'BLOCKLIST'
 
+export type FileIndexScanStatus = 'COMPLETED' | 'CANCELED' | 'FAILED'
+
 export interface FileIndexVolume {
   id: string
   path: string
@@ -9,6 +11,10 @@ export interface FileIndexVolume {
   indexMode: FileIndexMode
   includedDirs: string[]
   excludedDirs: string[]
+  lastScanAt: string | null
+  lastScanStatus: FileIndexScanStatus | null
+  lastScanCount: number | null
+  lastScanTotal: number | null
 }
 
 export interface FileIndexDefaults {
@@ -19,17 +25,17 @@ export interface FileIndexDefaults {
 }
 
 export const fileIndexVolumesGQL = `query {
-  fileIndexVolumes { id path isAvailable indexMode includedDirs excludedDirs }
+  fileIndexVolumes { id path isAvailable indexMode includedDirs excludedDirs lastScanAt lastScanStatus lastScanCount lastScanTotal }
   fileIndexDefaults { excludedDirs excludedNames excludedPackages excludedUserLibraries }
 }`
 
-const setFileIndexVolumeGQL = `mutation($id: ID!, $indexMode: FileIndexMode!, $includedDirs: [String!]!, $excludedDirs: [String!]!) {
-  setFileIndexVolume(id: $id, indexMode: $indexMode, includedDirs: $includedDirs, excludedDirs: $excludedDirs)
+const setFileIndexVolumeGQL = `mutation($input: FileIndexVolumeInput!) {
+  setFileIndexVolume(input: $input)
 }`
 
 export async function saveFileIndexVolume(volume: FileIndexVolume, request = bindGraphqlClient()): Promise<void> {
   const { id, indexMode, includedDirs, excludedDirs } = volume
-  const result = await request<{ setFileIndexVolume: boolean }>(setFileIndexVolumeGQL, { id, indexMode, includedDirs, excludedDirs })
+  const result = await request<{ setFileIndexVolume: boolean }>(setFileIndexVolumeGQL, { input: { volumeId: id, indexMode, includedDirs, excludedDirs } })
   if (result.errors?.length) throw new Error(result.errors[0].message)
   if (!result.data.setFileIndexVolume) throw new Error('Index configuration write refused')
 }

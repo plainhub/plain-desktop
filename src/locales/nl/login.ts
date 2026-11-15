@@ -4,9 +4,9 @@ export default {
   logging_in: 'Inloggen...',
   connect: 'Verbinden',
   login: {
-    saved_identity: 'Opgeslagen vingerafdruk',
-    new_identity: 'Nieuwe vingerafdruk',
-    trust_identity: 'Nieuwe identiteit vertrouwen',
+    peer_identity_changed: 'De handtekening van het apparaat waarmee je verbinding maakt is gewijzigd',
+    identity_changed_hint: 'De handtekening verschilt van die bij de vorige verbinding. Bevestig om opnieuw in te loggen.',
+    confirm_identity_change: 'Wijziging bevestigen en opnieuw inloggen',
     internal_error: 'Het apparaat kon de aanmelding niet voltooien. Probeer het opnieuw.',
     secure_login_unavailable: 'Deze browser kan niet veilig inloggen. Werk je browser bij.',
     chat_pairing_unavailable: 'Werk PlainApp op uw telefoon bij om chat en volledige toegang tegelijk te koppelen.',

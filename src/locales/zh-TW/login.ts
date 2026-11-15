@@ -4,9 +4,9 @@ export default {
   logging_in: '登入中',
   connect: '連接',
   login: {
-    saved_identity: '已儲存的指紋',
-    new_identity: '新的指紋',
-    trust_identity: '信任新身分',
+    peer_identity_changed: '要連線的裝置簽章已變更',
+    identity_changed_hint: '與上次連線時儲存的簽章不同。確認後，請重新登入。',
+    confirm_identity_change: '確認變更，重新登入',
     internal_error: '裝置無法完成登入，請重試。',
     secure_login_unavailable: '目前瀏覽器無法安全登入，請更新瀏覽器。',
     to_continue: '在手機上點擊接受按鈕以繼續。',

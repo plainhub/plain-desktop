@@ -1,7 +1,7 @@
 import { afterEach, expect, it, vi } from 'vitest'
 import { createRenderer, nextTick, reactive, ref } from 'vue'
 
-const fixture = vi.hoisted(() => ({ store: null as any, remote: null as any, handle: null as any, replace: vi.fn(), requiresDeveloperMode: false }))
+const fixture = vi.hoisted(() => ({ store: null as any, remote: null as any, handle: null as any, replace: vi.fn(), requiresDeveloperMode: false, stateKey: 'main_state:test' as string | undefined }))
 vi.mock('@/stores/main', () => ({ useMainStore: () => fixture.store }))
 vi.mock('@/stores/temp', () => ({ useTempStore: () => ({ app: ref(null), urlTokenKey: ref(null) }) }))
 vi.mock('pinia', () => ({ storeToRefs: (store: unknown) => store }))
@@ -13,7 +13,7 @@ vi.mock('@/lib/api/query', () => ({ appGQL: '', initQuery: (options: any) => { f
 vi.mock('@/lib/api/file', () => ({ tokenToKey: vi.fn() }))
 vi.mock('@/plugins/eventbus', () => ({ default: { on: vi.fn(), off: vi.fn() } }))
 vi.mock('@/hooks/sidebar', () => ({ useRightSidebarResize: () => ({ resizeWidth: 0 }) }))
-vi.mock('@/lib/device/current', () => ({ getMainStateKey: () => 'main_state:test' }))
+vi.mock('@/lib/device/current', () => ({ getMainStateKey: () => fixture.stateKey }))
 vi.mock('@/lib/upload/batch-progress', () => ({ hasActiveUploadBatches: () => false }))
 vi.mock('@/hooks/audio-playlist-store', () => ({ useAudioPlaylistStore: () => ({ refetch: vi.fn() }) }))
 vi.mock('@/components/modal', () => ({ openModal: vi.fn() }))
@@ -22,14 +22,14 @@ vi.mock('@/lib/media/library-updates', () => ({ subscribeMediaLibraryUpdates: ()
 vi.mock('@/hooks/remote-prefs', () => ({ useRemotePrefs: () => fixture.remote }))
 import { useMainView } from '@/hooks/main-view'
 
-afterEach(() => { vi.useRealTimers(); vi.unstubAllGlobals(); fixture.requiresDeveloperMode = false; fixture.replace.mockClear() })
+afterEach(() => { vi.useRealTimers(); vi.unstubAllGlobals(); fixture.requiresDeveloperMode = false; fixture.replace.mockClear(); fixture.stateKey = 'main_state:test' })
 
 it.each([false, true])('saves the latest view and sort synchronously on pagehide with remote prefs %s', async remote => {
   vi.useFakeTimers()
   const values = new Map<string, string>()
   vi.stubGlobal('window', new EventTarget())
   vi.stubGlobal('localStorage', { getItem: (key: string) => values.get(key) ?? null, setItem: (key: string, value: string) => values.set(key, value) })
-  fixture.store = { $state: reactive({ imagesCardView: false, fileSortBy: 'NAME_ASC', homeFeatures: ['FILES'], chatTexts: { local: 'draft' }, searchHistory: { files: ['query'] } }) }
+  fixture.store = { $state: reactive({ imagesCardView: false, fileSortBy: 'NAME_ASC', homeFeatures: ['FILES'], railFeatures: ['chat'], uploadDirs: { images: '/pictures' }, chatTexts: { local: 'draft' }, searchHistory: { files: ['query'] } }) }
   fixture.remote = ref(remote)
   const renderer = createRenderer<any, any>({ insert: vi.fn(), remove: vi.fn(), createElement: () => ({}), createText: () => ({}), createComment: () => ({}), setText: vi.fn(), setElementText: vi.fn(), parentNode: () => null, nextSibling: () => null, patchProp: vi.fn() })
   const app = renderer.createApp({ setup() { useMainView(); return () => null } })
@@ -42,7 +42,7 @@ it.each([false, true])('saves the latest view and sort synchronously on pagehide
     window.dispatchEvent(new Event('pagehide'))
     expect(values.has('main_state:test')).toBe(true)
     const saved = JSON.parse(values.get('main_state:test')!)
-    expect(saved).toEqual({ imagesCardView: true, fileSortBy: 'NAME_DESC', ...(remote ? {} : { homeFeatures: ['FILES'] }) })
+    expect(saved).toEqual({ imagesCardView: true, fileSortBy: 'NAME_DESC' })
   } finally { app.unmount() }
   values.clear()
   window.dispatchEvent(new Event('pagehide'))
@@ -90,3 +90,32 @@ it.each([[true, false, false], [false, true, false], [false, false, true]])(
     } finally { app.unmount() }
   },
 )
+
+it.each([undefined, 'main_state:server'])('keeps persistence bound to the identity at view creation: %s', key => {
+  vi.useFakeTimers()
+  fixture.stateKey = key
+  const values = new Map<string, string>()
+  vi.stubGlobal('window', new EventTarget())
+  vi.stubGlobal('localStorage', { getItem: (key: string) => values.get(key) ?? null, setItem: (key: string, value: string) => values.set(key, value) })
+  fixture.store = { $state: reactive({ imagesCardView: false }) }
+  fixture.remote = ref(false)
+  const renderer = createRenderer<any, any>({ insert: vi.fn(), remove: vi.fn(), createElement: () => ({}), createText: () => ({}), createComment: () => ({}), setText: vi.fn(), setElementText: vi.fn(), parentNode: () => null, nextSibling: () => null, patchProp: vi.fn() })
+  const app = renderer.createApp({ setup() { useMainView(); return () => null } })
+  app.mount({})
+  try {
+    fixture.stateKey = 'main_state:other-device'
+    window.dispatchEvent(new Event('pagehide'))
+    expect([...values.keys()]).toEqual(key ? [key] : [])
+  } finally { app.unmount() }
+})
+
+it('ignores upload directories in browser state', () => {
+  vi.stubGlobal('window', new EventTarget())
+  vi.stubGlobal('localStorage', { getItem: () => JSON.stringify({ uploadDirs: { images: '/old' } }), setItem: vi.fn() })
+  fixture.store = { $state: reactive({ uploadDirs: {} }) }
+  fixture.remote = ref(false)
+  const renderer = createRenderer<any, any>({ insert: vi.fn(), remove: vi.fn(), createElement: () => ({}), createText: () => ({}), createComment: () => ({}), setText: vi.fn(), setElementText: vi.fn(), parentNode: () => null, nextSibling: () => null, patchProp: vi.fn() })
+  const app = renderer.createApp({ setup() { useMainView(); return () => null } })
+  app.mount({})
+  try { expect(fixture.store.$state.uploadDirs).toEqual({}) } finally { app.unmount() }
+})

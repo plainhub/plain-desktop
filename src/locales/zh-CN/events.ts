@@ -1,7 +1,10 @@
 export default {
+  "event_reason.peer_identity_changed": "客户端身份已变化",
+  "event_reason.password_setup_required": "尚未配置登录密码",
+  "event_reason.internal_error": "服务器内部错误",
+
   "events": "事件",
   "event_client": "客户端",
-  "events_load_more": "加载更多",
   "event_type.LOGIN": "登录成功",
   "event_type.LOGIN_FAILED": "登录失败",
   "event_type.LOGOUT": "已退出登录",

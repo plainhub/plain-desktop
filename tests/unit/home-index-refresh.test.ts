@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, expect, it, vi } from 'vitest'
-import { createRenderer, reactive } from 'vue'
+import { createRenderer, reactive, ref, h, KeepAlive, nextTick } from 'vue'
+import { renderView } from '../helpers/vue-node-renderer'
 
 const state = vi.hoisted(() => ({
   query: undefined as any,
@@ -21,7 +22,7 @@ vi.mock('@/lib/api/subscription-client', () => ({ graphqlSubscriptions: {
 } }))
 vi.mock('@/lib/api/file-index', () => ({ rebuildFileIndexGQL: '' }))
 vi.mock('@/lib/api/mutation', () => ({
-  callGQL: '', initMutation: vi.fn(), pauseFileIndexScanGQL: '', resumeFileIndexScanGQL: '', stopFileIndexScanGQL: '',
+  callGQL: '', initMutation: vi.fn(), pauseFileIndexGQL: '', resumeFileIndexGQL: '', stopFileIndexGQL: '',
 }))
 vi.mock('pinia', async () => ({ storeToRefs: (await import('vue')).toRefs }))
 vi.mock('@/stores/temp', () => ({ useTempStore: () => state.store }))
@@ -29,7 +30,7 @@ vi.mock('@/stores/main', () => ({ useMainStore: () => ({}) }))
 vi.mock('@/hooks/contact-picker', () => ({ useContactPicker: vi.fn() }))
 vi.mock('vue-i18n', () => ({ useI18n: () => ({ t: (key: string) => key }) }))
 vi.mock('@/components/toaster', () => ({ default: vi.fn() }))
-import { useHomeData } from '@/views/home/home'
+import { useHomeData, useScanAction } from '@/views/home/home'
 
 let unmount: () => void
 let home: ReturnType<typeof useHomeData>
@@ -68,4 +69,40 @@ it('refreshes even when the completed scan indexed no files', async () => {
 it('unsubscribes when Home unmounts', () => {
   unmount()
   expect(state.stop).toHaveBeenCalledOnce()
+})
+
+it('stops completion refresh while cached and refreshes once when returning Home', async () => {
+  unmount()
+  const visible = ref(true)
+  const Home = { setup() { useHomeData(); return () => h('div') } }
+  const view = renderView({ render: () => h(KeepAlive, null, { default: () => visible.value ? h(Home) : null }) })
+  unmount = view.unmount
+  state.refetch.mockClear()
+  expect(state.refetch).not.toHaveBeenCalled()
+  visible.value = false
+  await nextTick()
+  await state.progress({ state: 'IDLE', indexed: 1, total: 1 })
+  expect(state.refetch).not.toHaveBeenCalled()
+  visible.value = true
+  await nextTick()
+  expect(state.refetch).toHaveBeenCalledExactlyOnceWith(undefined, true)
+  await state.progress({ state: 'IDLE', indexed: 2, total: 2 })
+  expect(state.refetch).toHaveBeenCalledTimes(2)
+})
+
+it('keeps active scan and failure feedback without a persistent stopped label', async () => {
+  const { initMutation } = await import('@/lib/api/mutation')
+  vi.mocked(initMutation).mockReturnValue({ mutate: vi.fn(), loading: ref(false) } as any)
+  let action: ReturnType<typeof useScanAction> | undefined
+  const view = renderView({ setup() { action = useScanAction('fixture-volume'); return () => null } })
+  try {
+    state.query.handle({ fileIndexScanProgress: { indexed: 2, total: 3, state: 'STOPPED' } }, '')
+    expect(action!.fileIndexScanProgress.value.state).toBe('STOPPED')
+    state.query.handle({ fileIndexScanProgress: { indexed: 0, total: null, state: 'RUNNING' } }, '')
+    expect(action!.fileIndexScanProgress.value).toMatchObject({ state: 'RUNNING', total: null })
+    state.query.handle({ fileIndexScanProgress: { indexed: 2, total: 3, state: 'PAUSED' } }, '')
+    expect(action!.fileIndexScanProgress.value.state).toBe('PAUSED')
+    state.query.handle({ fileIndexScanProgress: { indexed: 2, total: 3, state: 'FAILED', error: 'fixture failure' } }, '')
+    expect(action!.fileIndexScanProgress.value.error).toBe('fixture failure')
+  } finally { view.unmount() }
 })

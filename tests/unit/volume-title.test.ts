@@ -6,8 +6,8 @@ import type { IStorageMount } from '@/lib/interfaces'
 const t = (key: string) => key
 const volume = { mountPoint: '/mnt/usb2', name: 'usb2', driveType: 'USB_STORAGE', totalBytes: 314e9, diskModel: 'Example Drive' } as IStorageMount
 
-it('uses the disk model and volume capacity when there is no volume label', () => {
-  expect(getStorageVolumeTitle(volume, t)).toBe('Example Drive (314.0 GB)')
+it('uses the disk model when there is no volume label', () => {
+  expect(getStorageVolumeTitle(volume, t)).toBe('Example Drive')
 })
 it('prefers the volume label and then the user alias', () => {
   expect(getStorageVolumeTitle({ ...volume, label: ' Photos ' }, t)).toBe('Photos')

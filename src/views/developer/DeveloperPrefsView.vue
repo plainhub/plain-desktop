@@ -13,7 +13,7 @@
       :columns="['key', 'value']"
       :rows="entries"
       row-key="key"
-      :debug="app.debug"
+      :debug="app.debug || app.developerMode"
       :deleting-key="deletingKey"
       @delete="deleteEntry"
     />

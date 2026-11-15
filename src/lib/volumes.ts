@@ -1,4 +1,3 @@
-import { formatFileSize } from '@/lib/format'
 import { DriveType } from '@/lib/status'
 import type { IStorageMount } from '@/lib/interfaces'
 
@@ -20,7 +19,7 @@ export function getStorageVolumeTitle(v: IStorageMount, t: TranslateFn): string 
 
   if (typeof v?.partitionNum === 'number') return t('partition_x', { n: v.partitionNum })
   const model = String(v.diskModel ?? '').trim()
-  if (model) return size > 0 ? `${model} (${formatFileSize(size)})` : model
+  if (model) return model
   if (name) return name
   if (v.driveType === DriveType.APP) return t('app_data')
   if (v.driveType === DriveType.SDCARD) return t('sdcard')

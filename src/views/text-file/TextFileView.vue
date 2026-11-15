@@ -13,13 +13,30 @@
         <div class="title-wrap">
           <div class="title-line">
             <div class="title">{{ displayTitle }}</div>
-            <span class="type-badge" :class="{ plain: kind === 'txt' || kind === 'doc' }">{{ kindLabel }}</span>
           </div>
-          <div class="meta">
-            <span v-if="lastModified" v-tooltip="formatDateTime(lastModified)">{{ formatTimeAgo(lastModified) }}</span>
+          <div v-if="lastModified" class="meta">
+            <span v-tooltip="formatDateTime(lastModified)">{{ formatTimeAgo(lastModified) }}</span>
           </div>
         </div>
       </div>
+
+      <ViewerToolbar
+        v-if="!isEditing && !loading && !error"
+        :kind="kind"
+        :structured="structured"
+        :mode="mode"
+        :depth="depth"
+        :path-open="pathOpen"
+        :indent-size="indentSize"
+        :big="big"
+        :can-transform="canTransform"
+        @update:mode="mode = $event"
+        @update:depth="depth = $event"
+        @update:path-open="pathOpen = $event"
+        @update:indent-size="indentSize = $event as 2 | 4"
+        @format="format"
+        @minify="minify"
+      />
 
       <div v-if="statusText" class="status" :class="{ saving: saving }">
         <v-circular-progress v-if="saving" indeterminate :size="16" :width="2" />
@@ -74,28 +91,6 @@
     </main>
 
     <template v-else>
-      <ViewerToolbar
-        v-if="!loading && !error"
-        :kind="kind"
-        :structured="structured"
-        :mode="mode"
-        :depth="depth"
-        :path-open="pathOpen"
-        :wrap="wrap"
-        :indent-size="indentSize"
-        :big="big"
-        :can-transform="canTransform"
-        :fullscreen="isFullscreen"
-        @update:mode="mode = $event"
-        @update:depth="depth = $event"
-        @update:path-open="pathOpen = $event"
-        @update:wrap="wrap = $event"
-        @update:indent-size="indentSize = $event as 2 | 4"
-        @toggle-fullscreen="isFullscreen = !isFullscreen"
-        @format="format"
-        @minify="minify"
-      />
-
       <JsonPathBar
         v-if="kind === 'json' && pathOpen && !loading && !error"
         :expression="expression"
@@ -124,7 +119,12 @@
           @update:ratio="ratio = $event"
         >
           <template #source>
-            <ViewerPanel :title="$t('viewer_source')" :meta="sourceMeta">
+            <ViewerPanel
+              :title="$t('viewer_source')"
+              :meta="sourceMeta"
+              v-model:wrap="wrap"
+              v-model:fullscreen="isFullscreen"
+            >
               <template #actions>
                 <v-copy-button class="mini-btn" :text="viewText" />
               </template>
@@ -132,11 +132,11 @@
             </ViewerPanel>
           </template>
           <template #tree>
-            <ViewerPanel v-if="kind === 'md'" :title="$t('preview')" meta="Markdown">
+            <ViewerPanel v-if="kind === 'md'" :title="$t('preview')" meta="Markdown" v-model:fullscreen="isFullscreen">
               <template #icon><i-lucide-eye /></template>
               <div class="md-container" v-html="renderedMarkdown"></div>
             </ViewerPanel>
-            <ViewerPanel v-else :title="$t('viewer_tree')">
+            <ViewerPanel v-else :title="$t('viewer_tree')" v-model:fullscreen="isFullscreen">
               <template #icon><i-lucide-list-tree /></template>
               <template #actions>
                 <template v-if="!jsonInvalid">
@@ -164,7 +164,14 @@
           </template>
         </SplitPanels>
 
-        <ViewerPanel v-else-if="kind === 'txt'" :title="$t('viewer_source')" :meta="$t('plain_text')" class="solo-panel">
+        <ViewerPanel
+          v-else-if="kind === 'txt'"
+          :title="$t('viewer_source')"
+          :meta="$t('plain_text')"
+          v-model:wrap="wrap"
+          v-model:fullscreen="isFullscreen"
+          class="solo-panel"
+        >
           <template #icon><i-lucide-code /></template>
           <template #actions>
             <v-copy-button class="mini-btn" :text="viewText" />
@@ -172,7 +179,7 @@
           <CodeEditor :model-value="viewText" read-only :wrap-text="wrap" />
         </ViewerPanel>
 
-        <ViewerPanel v-else-if="kind === 'doc'" :title="$t('doc_preview_title')" class="solo-panel">
+        <ViewerPanel v-else-if="kind === 'doc'" :title="$t('doc_preview_title')" v-model:fullscreen="isFullscreen" class="solo-panel">
           <template #icon><i-lucide-file-text /></template>
           <div class="md-container" v-html="renderedMarkdown"></div>
         </ViewerPanel>
@@ -199,7 +206,6 @@ import CodeEditor from '@/components/CodeEditor.vue'
 import JsonViewer from '@/components/jsonviewer/json-viewer.vue'
 import { useTextFile } from './text-file'
 import { useViewer } from './useViewer'
-import { kindBadge } from './file-kind'
 import ViewerToolbar from './ViewerToolbar.vue'
 import JsonPathBar from './JsonPathBar.vue'
 import ViewerPanel from './ViewerPanel.vue'
@@ -228,8 +234,6 @@ const {
   cmLanguage,
   format, minify, fix,
 } = viewer
-
-const kindLabel = computed(() => kindBadge(kind.value))
 
 const effectiveFolded = computed(() => {
   if (mode.value === 'source') return 'tree'
@@ -264,15 +268,16 @@ const sizeText = computed(() => formatFileSize(sizeBytes.value))
 .topbar {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 8px;
   min-height: 56px;
   padding: 8px 16px;
-  border-bottom: 1px solid var(--md-sys-color-outline-variant);
   background: var(--md-sys-color-surface);
   flex-shrink: 0;
 }
 
-.page.fullscreen .topbar {
+.page.fullscreen .file-chip,
+.page.fullscreen .status,
+.page.fullscreen .actions {
   display: none;
 }
 
@@ -281,6 +286,7 @@ const sizeText = computed(() => formatFileSize(sizeBytes.value))
   -webkit-app-region: drag;
 }
 
+.topbar--tauri .viewer-toolbar,
 .topbar--tauri .actions {
   -webkit-app-region: no-drag;
 }
@@ -288,9 +294,13 @@ const sizeText = computed(() => formatFileSize(sizeBytes.value))
 .file-chip {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 8px;
   min-width: 0;
   flex: 1;
+}
+
+.topbar:has(.viewer-toolbar) .file-chip {
+  flex: 0 1 200px;
 }
 
 .file-icon {
@@ -326,26 +336,10 @@ const sizeText = computed(() => formatFileSize(sizeBytes.value))
   white-space: nowrap;
 }
 
-.type-badge {
-  font-size: 0.6875rem;
-  font-weight: 700;
-  letter-spacing: 0.4px;
-  padding: 1px 8px;
-  border-radius: 999px;
-  background: var(--md-sys-color-primary-container);
-  color: var(--md-sys-color-on-primary-container);
-  flex-shrink: 0;
-
-  &.plain {
-    background: var(--md-sys-color-surface-container-high);
-    color: var(--md-sys-color-on-surface-variant);
-  }
-}
-
 .meta {
   display: flex;
   gap: 8px;
-  margin-top: 2px;
+  margin-top: 4px;
   color: var(--md-sys-color-on-surface-variant);
   font-size: 0.75rem;
   min-height: 1em;
@@ -355,7 +349,7 @@ const sizeText = computed(() => formatFileSize(sizeBytes.value))
   display: flex;
   gap: 8px;
   align-items: center;
-  flex-wrap: wrap;
+  flex-shrink: 0;
   justify-content: flex-end;
 }
 
@@ -366,7 +360,7 @@ const sizeText = computed(() => formatFileSize(sizeBytes.value))
 .status {
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 8px;
   color: var(--md-sys-color-on-surface-variant);
   font-size: 0.85rem;
   white-space: nowrap;
@@ -493,9 +487,18 @@ const sizeText = computed(() => formatFileSize(sizeBytes.value))
 
 @media (max-width: 768px) {
   .topbar {
-    padding: 8px 12px;
+    padding: 8px;
   }
 
+  .topbar--tauri {
+    padding-left: 80px;
+  }
+
+  .topbar:has(.viewer-toolbar) .file-chip {
+    flex-basis: 96px;
+  }
+
+  .file-icon,
   .meta {
     display: none;
   }

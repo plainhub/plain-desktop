@@ -6,7 +6,7 @@ import type { IFileFilter, IFavoriteFolder, IStorageMount } from '@/lib/interfac
 import { useSearch } from '@/hooks/files'
 import { decodeBase64, encodeBase64 } from '@/lib/strutil'
 import { useI18n } from 'vue-i18n'
-import { initMutation, removeFavoriteFolderGQL, setFavoriteFolderAliasGQL } from '@/lib/api/mutation'
+import { initMutation, removeFavoriteFolderGQL, setFavoriteFolderAliasGQL, setMountAliasGQL } from '@/lib/api/mutation'
 import toast from '@/components/toaster'
 import emitter from '@/plugins/eventbus'
 import { useMounts, useFavoriteFolders } from '@/hooks/files'
@@ -30,7 +30,7 @@ export interface LinkItem {
 export function useFilesSidebar() {
   const mainStore = useMainStore()
   const { t } = useI18n()
-  const { mounts } = useMounts()
+  const { mounts, refetch: refetchMounts } = useMounts()
   const { favoriteFolders } = useFavoriteFolders()
   const { parseQ } = useSearch()
 
@@ -39,6 +39,8 @@ export function useFilesSidebar() {
   const recent = ref(false)
   const favoriteMenuVisible = ref(false)
   const selectedFavorite = ref<LinkItem | null>(null)
+  const volumeMenuVisible = ref(false)
+  const selectedVolume = ref<LinkItem | null>(null)
 
   // Mutations
   const { mutate: removeFavoriteFolderMutation, onDone: onRemoveDone } = initMutation({
@@ -79,6 +81,30 @@ export function useFilesSidebar() {
       value: currentAlias || '', mutation: mutationFactory,
       getVariables: (value: string) => ({ fullPath: item.fullPath, alias: (value || '').trim() }),
       done: () => toast(t('saved')),
+    })
+  }
+
+  function showVolumeMenu(item: LinkItem) {
+    selectedVolume.value = item
+    const anchorElement = document.getElementById('volume-' + item.fullPath)
+    document.dispatchEvent(new CustomEvent('dropdown-toggle', { detail: { exclude: anchorElement } }))
+    volumeMenuVisible.value = true
+  }
+
+  function openSetVolumeAlias() {
+    const item = selectedVolume.value
+    if (!item) return
+    const mount = mounts.value.find((entry) => entry.mountPoint === item.fullPath)
+    if (!mount) return
+    openModal(EditValueModal, {
+      title: t('name'), placeholder: item.title,
+      value: mount.alias || '', allowEmpty: true, borderless: true,
+      mutation: () => {
+        const mutation = initMutation({ document: setMountAliasGQL })
+        mutation.onDone(() => refetchMounts())
+        return mutation
+      },
+      getVariables: (value: string) => ({ id: mount.id, alias: value.trim() }),
     })
   }
 
@@ -168,7 +194,7 @@ export function useFilesSidebar() {
 
   return {
     quickLinks, volumeLinks, favoriteLinks,
-    favoriteMenuVisible, selectedFavorite,
-    openLink, showFavoriteMenu, removeFavoriteFolder, openSetFavoriteAlias, percentClass,
+    favoriteMenuVisible, selectedFavorite, volumeMenuVisible, selectedVolume,
+    openLink, showFavoriteMenu, removeFavoriteFolder, openSetFavoriteAlias, showVolumeMenu, openSetVolumeAlias, percentClass,
   }
 }

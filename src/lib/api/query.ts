@@ -410,8 +410,8 @@ export const imageSearchStatusGQL = `
 `
 
 export const fileIndexScanProgressGQL = `
-  query {
-    fileIndexScanProgress {
+  query($volumeId: ID) {
+    fileIndexScanProgress(volumeId: $volumeId) { volumeId
       indexed
       pending
       total

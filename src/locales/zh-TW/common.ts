@@ -1,9 +1,19 @@
 export default {
+  media_exclusions: {
+    title: '媒體排除目錄',
+    hint: '僅從媒體清單和媒體搜尋結果中隱藏這些目錄及其子目錄中的檔案，不影響目錄索引和一般檔案搜尋。',
+    empty: '尚未排除任何媒體目錄。',
+  },
+
   http_security_warning: 'HTTP 下檔案上傳和下載未加密。',
   http_security_switch: '建議使用 HTTPS。',
   http_security_certificate: '自簽憑證可能觸發瀏覽器警告，請先確認憑證再連線。',
 
   file_index: {
+    media_pages_hint: '只有已索引的檔案才會出現在圖片、影片、音訊和文件頁面。',
+    last_scan: '上次掃描',
+    not_scanned: '尚無掃描記錄',
+    scan_count: '已處理檔案：{count} / {total}',
     defaults_title: '預設掃描規則',
     files_hint: '掃描所選範圍內的一般檔案，不限檔案類型。',
     skip_hint: '略過隱藏檔案、Git 專案和符號連結。',

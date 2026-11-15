@@ -1,9 +1,9 @@
 import {
   getRemoteClientId,
-  getActiveClientId,
+  getDesktopClientId,
   clearRemoteClientId,
 } from '@/lib/device/client-id'
-import { findLoginPeer, clearLoginPeer, peerHost, getPeerBaseUrl } from '@/lib/device/login-peers'
+import { findLoginPeer, clearLoginPeer, peerHost, getPeerBaseUrl, getBrowserIdentity } from '@/lib/device/login-peers'
 
 /** Current remote-device host (`ip:port`). Web mode has no stored host —
  *  requests target `window.location.host` via `getApiHost`'s fallback. */
@@ -31,7 +31,9 @@ export function clearCurrentSession(): Promise<void> {
   return cleared
 }
 
-export function getMainStateKey(): string {
-  const id = getActiveClientId()
-  return id ? `main_state:${id}` : 'main_state'
+export function getMainStateKey(): string | undefined {
+  const id = __IS_TAURI__
+    ? getRemoteClientId() || getDesktopClientId()
+    : getBrowserIdentity()?.deviceId
+  return id ? `main_state:${id}` : undefined
 }

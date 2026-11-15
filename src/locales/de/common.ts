@@ -1,9 +1,19 @@
 export default {
+  media_exclusions: {
+    title: 'Ausgeschlossene Medienordner',
+    hint: 'Dateien in diesen Ordnern und Unterordnern in Medienlisten und Mediensuchergebnissen ausblenden. Ordnerindizierung und normale Dateisuche bleiben unverändert.',
+    empty: 'Keine Medienordner ausgeschlossen.',
+  },
+
   http_security_warning: 'Datei-Uploads und -Downloads über HTTP sind nicht verschlüsselt.',
   http_security_switch: 'Verwende HTTPS.',
   http_security_certificate: 'Ein selbstsigniertes Zertifikat kann eine Browserwarnung auslösen. Prüfe das Zertifikat vor dem Verbinden.',
 
   file_index: {
+    media_pages_hint: 'Nur indexierte Dateien erscheinen auf den Seiten Bilder, Videos, Audio und Dokumente.',
+    last_scan: 'Letzter Scan',
+    not_scanned: 'Noch kein Scanverlauf',
+    scan_count: 'Verarbeitete Dateien: {count} / {total}',
     defaults_title: 'Standardregeln',
     files_hint: 'Alle zugänglichen regulären Dateien im Bereich werden indiziert, auch unbekannte Dateitypen. Erkannte Medien und Dokumente erhalten zusätzliche Metadaten.',
     skip_hint: 'Versteckte Dateien und Ordner sowie Git-Projekte werden übersprungen. Symbolischen Links wird nicht gefolgt.',

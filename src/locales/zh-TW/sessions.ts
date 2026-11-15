@@ -1,0 +1,20 @@
+export default {
+  session_management: {
+    title: '工作階段',
+    api_tokens: 'API Tokens',
+    create_token: '建立 API Token',
+    revoke_token: '撤銷 API Token',
+    revoke_session: '撤銷工作階段',
+    confirm_revoke: '撤銷「{name}」的存取權限？',
+    token_created: 'API Token 已建立',
+    copy_new_token: '請立即複製並妥善儲存 Token，關閉此視窗後將不再顯示。',
+    view_raw: '檢視原始資料',
+    token: 'Token',
+    online: '上線',
+    offline: '離線',
+    last_active: '最近活躍',
+    app: '應用程式',
+    online_failed: '無法讀取上線狀態',
+    operation_failed: '無法變更工作階段，請重新整理後再試。',
+  },
+}

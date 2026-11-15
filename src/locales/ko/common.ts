@@ -1,9 +1,19 @@
 export default {
+  media_exclusions: {
+    title: '미디어 제외 폴더',
+    hint: '이 폴더와 하위 폴더의 파일을 미디어 목록과 미디어 검색 결과에서 숨깁니다. 폴더 색인과 일반 파일 검색에는 영향을 주지 않습니다.',
+    empty: '제외된 미디어 폴더가 없습니다.',
+  },
+
   http_security_warning: 'HTTP를 통한 파일 업로드와 다운로드는 암호화되지 않습니다.',
   http_security_switch: 'HTTPS를 사용하세요.',
   http_security_certificate: '자체 서명 인증서로 인해 브라우저 경고가 표시될 수 있습니다. 연결하기 전에 인증서를 확인하세요.',
 
   file_index: {
+    media_pages_hint: '색인된 파일만 이미지, 동영상, 오디오 및 문서 페이지에 표시됩니다.',
+    last_scan: '마지막 스캔',
+    not_scanned: '아직 스캔 기록이 없음',
+    scan_count: '처리된 파일: {count} / {total}',
     defaults_title: '기본 검색 규칙',
     files_hint: '범위 내 접근 가능한 일반 파일은 알 수 없는 확장자도 색인합니다. 인식된 미디어와 문서는 메타데이터도 추출합니다.',
     skip_hint: '숨김 파일 및 폴더와 Git 프로젝트는 건너뛰며 심볼릭 링크를 따라가지 않습니다.',

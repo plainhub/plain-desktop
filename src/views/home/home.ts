@@ -1,11 +1,11 @@
 import { rebuildFileIndexGQL } from '@/lib/api/file-index'
 import { graphqlSubscriptions } from '@/lib/api/subscription-client'
-import { ref, computed, watch, onUnmounted } from 'vue'
+import { ref, computed, watch, onActivated, onDeactivated, onUnmounted } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useTempStore } from '@/stores/temp'
 import { storeToRefs } from 'pinia'
 import { useMainStore } from '@/stores/main'
-import { callGQL, initMutation, pauseFileIndexScanGQL, resumeFileIndexScanGQL, stopFileIndexScanGQL } from '@/lib/api/mutation'
+import { callGQL, initMutation, pauseFileIndexGQL, resumeFileIndexGQL, stopFileIndexGQL } from '@/lib/api/mutation'
 import { homeStatsGQL, simsGQL, initQuery, fileIndexScanProgressGQL, type HomeStatKey } from '@/lib/api/query'
 import toast from '@/components/toaster'
 import { Capability } from '@/lib/data'
@@ -64,8 +64,15 @@ export function useHomeData() {
     variables: () => ({ mediaQuery: '' }),
   })
 
+  let active = true
+  onDeactivated(() => { active = false })
+  onActivated(() => {
+    if (active) return
+    active = true
+    void refetch(undefined, true)
+  })
   const stopScanProgress = graphqlSubscriptions.subscribe('fileIndexScanProgressUpdated', (progress) => {
-    if (progress.state === 'IDLE') return refetch(undefined, true)
+    if (active && progress.state === 'IDLE') return refetch(undefined, true)
   })
   onUnmounted(stopScanProgress)
 
@@ -117,64 +124,29 @@ export function usePhoneAction() {
   }
 }
 
-export function useScanAction() {
-  const { t } = useI18n()
-  const fileIndexScanProgress = ref<IFileIndexScanProgress>({ indexed: 0, pending: 0, total: 0, state: 'IDLE' })
-
+export function useScanAction(volumeId: string) {
+  const fileIndexScanProgress = ref<IFileIndexScanProgress>({ volumeId, indexed: 0, pending: 0, total: 0, state: 'IDLE' })
   initQuery({
-    handle: (data: { fileIndexScanProgress: IFileIndexScanProgress }, error: string) => {
-      if (!error && data) fileIndexScanProgress.value = { ...data.fileIndexScanProgress }
-    },
     document: fileIndexScanProgressGQL,
-    variables: null,
+    variables: { volumeId },
+    handle: (data: { fileIndexScanProgress: IFileIndexScanProgress }, error: string) => {
+      if (!error && data) fileIndexScanProgress.value = data.fileIndexScanProgress
+    },
   })
-
-  const onScanProgress = (p: IFileIndexScanProgress) => {
-    fileIndexScanProgress.value = { indexed: p.indexed, pending: p.pending, total: p.total, state: p.state, error: p.error }
-    if (p.state === 'FAILED') toast(p.error || t('error'), 'error')
-  }
-  const stopFileIndexScanProgress = graphqlSubscriptions.subscribe('fileIndexScanProgressUpdated', onScanProgress)
-
-  onUnmounted(stopFileIndexScanProgress)
-
-  const scanActive = computed(() => ['RUNNING', 'PAUSED'].includes(fileIndexScanProgress.value.state))
-
-  const percent = computed(() => {
-    const { indexed, total } = fileIndexScanProgress.value
-    if (!total) return 0
-    return Math.min(100, Math.max(0, Math.round((indexed / total) * 100)))
+  const unsubscribe = graphqlSubscriptions.subscribe('fileIndexScanProgressUpdated', (progress: IFileIndexScanProgress) => {
+    if (progress.volumeId === volumeId) fileIndexScanProgress.value = progress
   })
-
-  const stateLabel = computed(() => {
-    if (fileIndexScanProgress.value.state === 'RUNNING') {
-      return t(fileIndexScanProgress.value.total === null && fileIndexScanProgress.value.indexed === 0 ? 'counting_files' : 'building_file_index')
-    }
-    if (fileIndexScanProgress.value.state === 'PAUSED') return t('paused')
-    if (fileIndexScanProgress.value.state === 'STOPPED') return t('stopped')
-    if (fileIndexScanProgress.value.state === 'FAILED') return fileIndexScanProgress.value.error ?? ''
-    return ''
-  })
-
-  const showPause = computed(() => fileIndexScanProgress.value.state === 'RUNNING')
-  const showResume = computed(() => fileIndexScanProgress.value.state === 'PAUSED')
-  const showStop = computed(() => scanActive.value)
-  const showRebuild = computed(() => ['IDLE', 'STOPPED', 'FAILED'].includes(fileIndexScanProgress.value.state))
-
-  const { mutate: pauseScanMutation } = initMutation({ document: pauseFileIndexScanGQL })
-  const { mutate: resumeScanMutation } = initMutation({ document: resumeFileIndexScanGQL })
-  const { mutate: stopScanMutation } = initMutation({ document: stopFileIndexScanGQL })
-  const { mutate: rebuildIndexMutation, loading: rebuildIndexLoading } = initMutation({ document: rebuildFileIndexGQL })
-
-  async function rebuildVolume(volumeId: string) { await rebuildIndexMutation({ volumeId }) }
-
-  async function pauseScan() { await pauseScanMutation() }
-  async function resumeScan() { await resumeScanMutation() }
-  async function stopScan() { await stopScanMutation() }
-  async function rebuildIndex() { await rebuildIndexMutation({ volumeId: null }) }
-
+  onUnmounted(unsubscribe)
+  const pause = initMutation({ document: pauseFileIndexGQL })
+  const resume = initMutation({ document: resumeFileIndexGQL })
+  const stop = initMutation({ document: stopFileIndexGQL })
+  const rebuild = initMutation({ document: rebuildFileIndexGQL })
   return {
-    fileIndexScanProgress, scanActive, percent, stateLabel,
-    showPause, showResume, showStop, showRebuild, rebuildIndexLoading,
-    pauseScan, resumeScan, stopScan, rebuildIndex, rebuildVolume, rebuildVolumeLoading: rebuildIndexLoading,
+    fileIndexScanProgress,
+    loading: computed(() => pause.loading.value || resume.loading.value || stop.loading.value || rebuild.loading.value),
+    pause: () => pause.mutate({ volumeId }),
+    resume: () => resume.mutate({ volumeId }),
+    stop: () => stop.mutate({ volumeId }),
+    rebuild: () => rebuild.mutate({ volumeId }),
   }
 }

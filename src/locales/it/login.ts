@@ -4,9 +4,9 @@ export default {
   logging_in: 'Accesso in corso',
   connect: 'Connetti',
   login: {
-    saved_identity: 'Impronta salvata',
-    new_identity: 'Nuova impronta',
-    trust_identity: 'Considera attendibile la nuova identità',
+    peer_identity_changed: 'La firma del dispositivo a cui ti connetti è cambiata',
+    identity_changed_hint: 'La firma è diversa da quella salvata durante l’ultima connessione. Conferma per accedere di nuovo.',
+    confirm_identity_change: 'Conferma e accedi di nuovo',
     internal_error: 'Il dispositivo non ha completato l’accesso. Riprova.',
     secure_login_unavailable: 'Questo browser non consente un accesso sicuro. Aggiorna il browser.',
     chat_pairing_unavailable: 'Aggiorna PlainApp sul telefono per associare chat e controllo completo insieme.',

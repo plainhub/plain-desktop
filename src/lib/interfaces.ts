@@ -512,9 +512,10 @@ export interface IImageSearchStatus {
   indexedImages: number
 }
 
-export type FileIndexScanState = 'IDLE' | 'RUNNING' | 'PAUSED' | 'STOPPED' | 'FAILED'
+export type FileIndexScanState = 'QUEUED' | 'IDLE' | 'RUNNING' | 'PAUSED' | 'STOPPED' | 'FAILED'
 
 export interface IFileIndexScanProgress {
+  volumeId?: string | null
   indexed: number
   pending: number | null
   total: number | null

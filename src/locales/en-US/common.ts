@@ -1,9 +1,19 @@
 export default {
+  media_exclusions: {
+    title: 'Excluded media directories',
+    hint: 'Hide files in these directories and their subdirectories from media lists and media search results. Directory indexing and ordinary file search are unchanged.',
+    empty: 'No media directories excluded.',
+  },
+
   http_security_warning: 'File uploads and downloads over HTTP are not encrypted.',
   http_security_switch: 'Use HTTPS instead.',
   http_security_certificate: 'A self-signed certificate may trigger a browser warning. Verify the certificate before connecting.',
 
   file_index: {
+    media_pages_hint: 'Only indexed files appear on the Images, Videos, Audio and Docs pages.',
+    last_scan: 'Last scan',
+    not_scanned: 'No scan history yet',
+    scan_count: 'Files processed: {count} / {total}',
     defaults_title: 'Default scan rules',
     files_hint: 'Scan regular files in the selected folders, regardless of file type.',
     skip_hint: 'Skip hidden files, Git projects and symbolic links.',

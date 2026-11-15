@@ -1,7 +1,10 @@
 export default {
+  "event_reason.peer_identity_changed": "A identidade do cliente mudou",
+  "event_reason.password_setup_required": "A senha de acesso não está configurada",
+  "event_reason.internal_error": "Erro interno do servidor",
+
   "events": "Events",
   "event_client": "Client",
-  "events_load_more": "Load more",
   "event_type.LOGIN": "Signed in",
   "event_type.LOGIN_FAILED": "Sign-in failed",
   "event_type.LOGOUT": "Signed out",

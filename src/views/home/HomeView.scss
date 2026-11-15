@@ -79,14 +79,16 @@
   }
 }
 
-.remote-access-card {
+.remote-access-card,
+.file-index-card {
   grid-column: span 2;
   align-self: start;
   min-width: 0;
 }
 
 @media (max-width: 480px) {
-  .remote-access-card {
+  .remote-access-card,
+  .file-index-card {
     grid-column: 1 / -1;
   }
 }

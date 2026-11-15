@@ -20,11 +20,12 @@ it.each(['example.test', '127.0.0.1', '[::1]'])('preserves the route for host %s
     .toBe(`https://${host}:9443/files?path=%2Fphotos#details`)
 })
 
-it('supports standard and boundary ports and ignores HTTPS pages', () => {
+it('supports standard and boundary ports and HTTPS API origins', () => {
   expect(httpsPageUrl('http://example.test/', 443)).toBe('https://example.test/')
   expect(httpsPageUrl('http://example.test/', 1)).toBe('https://example.test:1/')
   expect(httpsPageUrl('http://example.test/', 65535)).toBe('https://example.test:65535/')
-  expect(httpsPageUrl('https://example.test/', 9443)).toBe('')
+  expect(httpsPageUrl('https://example.test/', 9443)).toBe('https://example.test:9443/')
+  expect(httpsPageUrl('file:///files', 9443)).toBe('')
 })
 
 it('preserves shared-link route state without copying URL login credentials', () => {

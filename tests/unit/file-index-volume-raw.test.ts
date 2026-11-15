@@ -1,0 +1,102 @@
+import { expect, it, vi } from 'vitest'
+import { h } from 'vue'
+import FileIndexVolumeCard from '@/views/home/file-index/FileIndexVolumeCard.vue'
+import VIconButton from '@/components/base/VIconButton.vue'
+import VTextButton from '@/components/base/VTextButton.vue'
+import VCircularProgress from '@/components/base/VCircularProgress.vue'
+import type { FileIndexVolume } from '@/lib/api/file-index'
+import { clientTemplate, renderView, nodes, content, fire, flush } from '../helpers/vue-node-renderer'
+
+vi.mock('@/lib/format', () => ({ formatFileSize: (value: number) => String(value), formatDateTime: (value: string) => value }))
+vi.mock('@/components/base/VDropdown.vue', () => ({ default: {
+  props: { modelValue: Boolean, borderless: Boolean }, emits: ['update:modelValue'],
+  setup(props: any, { emit, slots }: any) { return () => h('div', [h('div', { onClick: () => emit('update:modelValue', !props.modelValue) }, slots.trigger?.()), props.modelValue ? slots.default?.() : null]) },
+} }))
+clientTemplate(FileIndexVolumeCard, 'src/views/home/file-index/FileIndexVolumeCard.vue')
+clientTemplate(VIconButton, 'src/components/base/VIconButton.vue')
+clientTemplate(VTextButton, 'src/components/base/VTextButton.vue')
+
+it('opens the matching index volume from its icon and preserves settings and scan actions', async () => {
+  const volume: FileIndexVolume = { id: 'fixture-volume', path: '/fixture', isAvailable: true, indexMode: 'BLOCKLIST', includedDirs: [], excludedDirs: ['/fixture/excluded'], lastScanAt: null, lastScanStatus: null, lastScanCount: null, lastScanTotal: null }
+  const settings = vi.fn()
+  const scan = vi.fn()
+  const view = renderView(FileIndexVolumeCard, { volume, title: 'Fixture volume', scanDisabled: false, onSettings: settings, onScan: scan }, { VIconButton, VTextButton, VCircularProgress })
+  try {
+    expect(nodes(view.root).some(node => node.tag === 'pre')).toBe(false)
+    const icon = nodes(view.root).find(node => node.tag === 'i-lucide:hard-drive')!
+    let stopped = false
+    const event = { stopPropagation() { stopped = true }, preventDefault() {} }
+    for (let target: typeof icon | undefined = icon; target && !stopped; target = target.parent) fire(target, 'onClick', event)
+    await flush()
+    const raw = nodes(view.root).find(node => node.tag === 'pre')!
+    expect(JSON.parse(content(raw))).toEqual(volume)
+    expect(icon.parent!.tag).toBe('div')
+    expect(icon.parent!.props.title).toBeUndefined()
+    expect(settings).not.toHaveBeenCalled()
+    expect(scan).not.toHaveBeenCalled()
+    fire(icon.parent!, 'onClick', event)
+    await flush()
+    expect(nodes(view.root).some(node => node.tag === 'pre')).toBe(false)
+    fire(nodes(view.root).find(node => node.tag === 'button' && node.props['aria-label'] === 'file_index.scope: Fixture volume')!, 'onClick', event)
+    fire(nodes(view.root).find(node => node.tag === 'button' && content(node) === 'rebuild_index')!, 'onClick', event)
+    expect(settings).toHaveBeenCalledOnce()
+    expect(scan).toHaveBeenCalledOnce()
+  } finally { view.unmount() }
+})
+
+it.each([
+  [null, null, null, null, 'file_index.not_scanned'],
+  ['2026-11-15T02:30:00Z', 'COMPLETED', 0, 0, 'completed'],
+  ['2026-11-15T02:30:00Z', 'CANCELED', 2, null, 'stopped'],
+  ['2026-11-15T02:30:00Z', 'FAILED', 3, 5, 'failed'],
+] as const)('renders the stored scan result with unknown and zero counts', (lastScanAt, lastScanStatus, lastScanCount, lastScanTotal, label) => {
+  const volume: FileIndexVolume = { id: 'fixture-volume', path: '/fixture', isAvailable: true, indexMode: 'BLOCKLIST', includedDirs: [], excludedDirs: [], lastScanAt, lastScanStatus, lastScanCount, lastScanTotal }
+  const view = renderView(FileIndexVolumeCard, { volume, title: 'Fixture volume', scanDisabled: false }, { VIconButton, VTextButton, VCircularProgress })
+  try {
+    expect(content(view.root)).toContain(label)
+    if (lastScanAt) expect(content(view.root)).toContain(lastScanAt)
+    expect(nodes(view.root).some(node => node.tag === 'pre')).toBe(false)
+  } finally { view.unmount() }
+})
+
+it.each([
+  ['QUEUED', 'waiting', ['pause', 'stop']],
+  ['RUNNING', 'building_file_index', ['pause', 'stop']],
+  ['PAUSED', 'paused', ['resume', 'stop']],
+  ['FAILED', 'Generated read failure', []],
+  ['STOPPED', '', []],
+  ['IDLE', '', []],
+] as const)('renders %s progress and only the matching volume controls', async (state, label, actions) => {
+  const volume: FileIndexVolume = { id: 'fixture-volume', path: '/fixture', isAvailable: true, indexMode: 'BLOCKLIST', includedDirs: [], excludedDirs: [], lastScanAt: null, lastScanStatus: null, lastScanCount: null, lastScanTotal: null }
+  const pause = vi.fn(), resume = vi.fn(), stop = vi.fn()
+  const view = renderView(FileIndexVolumeCard, { volume, title: 'Fixture', scanDisabled: false,
+    scanProgress: { volumeId: volume.id, state, indexed: 1234, total: null, pending: null, error: 'Generated read failure' },
+    onPause: pause, onResume: resume, onStop: stop,
+  }, { VIconButton, VTextButton, VCircularProgress })
+  try {
+    const status = nodes(view.root).find(node => node.props['aria-live'] === 'polite')
+    if (label) expect(content(status!)).toContain(label)
+    else expect(status).toBeUndefined()
+    for (const [action, callback] of [['pause', pause], ['resume', resume], ['stop', stop]] as const) {
+      const button = nodes(view.root).find(node => node.tag === 'button' && node.props['aria-label'] === action)
+      expect(Boolean(button)).toBe(actions.includes(action as never))
+      if (button) { fire(button, 'onClick', {}); expect(callback).toHaveBeenCalledOnce() }
+    }
+    expect(content(view.root)).not.toContain('stopped')
+    expect(content(view.root).includes('rebuild_index')).toBe(actions.length === 0)
+  } finally { view.unmount() }
+})
+
+it.each([
+  [0, null, '0'], [1234, null, '1,234'], [1234, 2000, '1,234 / 2,000'], [0, 2, '0 / 2'], [0, 0, '0 / 0'],
+] as const)('renders committed progress %i with total %s without inventing totals', (indexed, total, expected) => {
+  const volume: FileIndexVolume = { id: 'fixture-volume', path: '/fixture', isAvailable: true, indexMode: 'BLOCKLIST', includedDirs: [], excludedDirs: [], lastScanAt: null, lastScanStatus: null, lastScanCount: null, lastScanTotal: null }
+  const view = renderView(FileIndexVolumeCard, { volume, title: 'Fixture', scanDisabled: false,
+    scanProgress: { volumeId: volume.id, state: 'RUNNING', indexed, total, pending: total === null ? null : total - indexed },
+  }, { VIconButton, VTextButton, VCircularProgress })
+  try {
+    const text = content(nodes(view.root).find(node => node.props['aria-live'] === 'polite')!)
+    expect(text).toContain(`· ${expected}`)
+    expect(text.includes(' / ')).toBe(total !== null)
+  } finally { view.unmount() }
+})

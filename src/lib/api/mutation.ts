@@ -424,6 +424,12 @@ export const removeFavoriteFolderGQL = `
   }
 `
 
+export const setMountAliasGQL = `
+  mutation setMountAlias($id: ID!, $alias: String!) {
+    setMountAlias(id: $id, alias: $alias)
+  }
+`
+
 export const setFavoriteFolderAliasGQL = `
   mutation setFavoriteFolderAlias($fullPath: String!, $alias: String!) {
     setFavoriteFolderAlias(fullPath: $fullPath, alias: $alias) {
@@ -949,16 +955,16 @@ export const removeDownloadGQL = `
   mutation removeDownload($id: ID!) { removeDownload(id: $id) }
 `
 
-export const pauseFileIndexScanGQL = `
-  mutation pauseFileIndexScan { pauseFileIndexScan }
+export const pauseFileIndexGQL = `
+  mutation pauseFileIndex($volumeId: ID) { pauseFileIndex(volumeId: $volumeId) }
 `
 
-export const resumeFileIndexScanGQL = `
-  mutation resumeFileIndexScan { resumeFileIndexScan }
+export const resumeFileIndexGQL = `
+  mutation resumeFileIndex($volumeId: ID) { resumeFileIndex(volumeId: $volumeId) }
 `
 
-export const stopFileIndexScanGQL = `
-  mutation stopFileIndexScan { stopFileIndexScan }
+export const stopFileIndexGQL = `
+  mutation stopFileIndex($volumeId: ID) { stopFileIndex(volumeId: $volumeId) }
 `
 
 export const formatDiskGQL = `

@@ -2,7 +2,7 @@ import { defineStore } from 'pinia'
 import { DEFAULT_HOME_FEATURES } from '@/views/home/features'
 import { generateRecordId } from '@/lib/record-id.generated'
 
-const DEFAULT_RAIL_FEATURES = ['files', 'audios', 'images', 'videos', 'chat']
+export const DEFAULT_RAIL_FEATURES = ['files', 'audios', 'images', 'videos', 'chat']
 
 export interface AppTab {
   id: string

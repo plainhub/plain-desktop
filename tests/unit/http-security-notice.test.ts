@@ -104,13 +104,14 @@ it.each([['https:', false], ['http:', true]])('hides the notice and skips init o
   app.unmount()
 })
 
-it.each(['http://peer.test:8080', 'http://example.test:8081', 'https://example.test:8080'])('keeps the warning without querying a different API origin %s', async apiBase => {
+it.each(['http://peer.test:8080', 'http://example.test:8081', 'https://example.test:8080'])('links to the API server HTTPS listener when its origin differs: %s', async apiBase => {
   state.apiBase = apiBase
   const { root, app } = mount()
   await flush()
   expect(root.children[0].tag).toBe('div')
-  expect(root.children[0].children[0].children.some(child => child.tag === 'a')).toBe(false)
-  expect(state.request).not.toHaveBeenCalled()
+  const link = root.children[0].children[0].children.find(child => child.tag === 'a')!
+  expect(link.props.href).toBe(`https://${new URL(apiBase).hostname}:9443/files?path=%2Fphotos#details`)
+  expect(state.request).toHaveBeenCalledOnce()
   app.unmount()
 })
 

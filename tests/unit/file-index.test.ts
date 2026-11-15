@@ -6,6 +6,7 @@ vi.mock('@/lib/api/gql-client', () => ({ bindGraphqlClient: () => request }))
 beforeEach(() => request.mockReset())
 
 const volume: FileIndexVolume = {
+  lastScanAt: null, lastScanStatus: null, lastScanCount: null, lastScanTotal: null,
   id: 'volume-a',
   path: '/disk',
   isAvailable: true,
@@ -19,10 +20,10 @@ it('saves both lists and the selected mode in one main-schema mutation', async (
   await saveFileIndexVolume(volume)
   expect(request).toHaveBeenCalledOnce()
   expect(request.mock.calls[0][1]).toEqual({
-    id: volume.id,
+    input: { volumeId: volume.id,
     indexMode: 'BLOCKLIST',
     includedDirs: ['/disk/Photos'],
-    excludedDirs: ['/disk/Cache'],
+    excludedDirs: ['/disk/Cache'] },
   })
 })
 

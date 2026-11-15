@@ -4,9 +4,9 @@ export default {
   logging_in: 'Giriş yapılıyor',
   connect: 'Bağlan',
   login: {
-    saved_identity: 'Kayıtlı parmak izi',
-    new_identity: 'Yeni parmak izi',
-    trust_identity: 'Yeni kimliğe güven',
+    peer_identity_changed: 'Bağlandığınız cihazın imzası değişti',
+    identity_changed_hint: 'İmza, son bağlantıda kaydedilenden farklı. Yeniden giriş yapmak için onaylayın.',
+    confirm_identity_change: 'Değişikliği onayla ve yeniden giriş yap',
     internal_error: 'Cihaz oturum açmayı tamamlayamadı. Lütfen tekrar deneyin.',
     secure_login_unavailable: 'Bu tarayıcı güvenli giriş yapamıyor. Lütfen tarayıcınızı güncelleyin.',
     chat_pairing_unavailable: 'Sohbeti ve tam kontrolü birlikte eşleştirmek için telefonunuzdaki PlainApp uygulamasını güncelleyin.',

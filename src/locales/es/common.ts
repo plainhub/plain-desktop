@@ -1,9 +1,19 @@
 export default {
+  media_exclusions: {
+    title: 'Directorios multimedia excluidos',
+    hint: 'Oculta los archivos de estos directorios y sus subdirectorios en las listas y búsquedas multimedia. No afecta a la indexación ni a la búsqueda normal de archivos.',
+    empty: 'No hay directorios multimedia excluidos.',
+  },
+
   http_security_warning: 'Las subidas y descargas de archivos por HTTP no están cifradas.',
   http_security_switch: 'Usa HTTPS.',
   http_security_certificate: 'Un certificado autofirmado puede generar una advertencia del navegador. Verifica el certificado antes de conectarte.',
 
   file_index: {
+    media_pages_hint: 'Solo los archivos indexados aparecen en las páginas Imágenes, Vídeos, Audio y Documentos.',
+    last_scan: 'Último escaneo',
+    not_scanned: 'Sin historial de escaneo',
+    scan_count: 'Archivos procesados: {count} / {total}',
     defaults_title: 'Reglas predeterminadas',
     files_hint: 'Se indexan todos los archivos normales accesibles, incluso con extensiones desconocidas. Los medios y documentos reconocidos reciben metadatos adicionales.',
     skip_hint: 'Se omiten archivos y carpetas ocultos y proyectos Git. No se siguen enlaces simbólicos.',

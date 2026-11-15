@@ -1,7 +1,10 @@
 export default {
+  "event_reason.peer_identity_changed": "用戶端身分已變更",
+  "event_reason.password_setup_required": "尚未設定登入密碼",
+  "event_reason.internal_error": "伺服器內部錯誤",
+
   "events": "事件",
   "event_client": "用戶端",
-  "events_load_more": "載入更多",
   "event_type.LOGIN": "登入成功",
   "event_type.LOGIN_FAILED": "登入失敗",
   "event_type.LOGOUT": "已退出登入",

@@ -1,9 +1,19 @@
 export default {
+  media_exclusions: {
+    title: 'Uitgesloten mediamappen',
+    hint: 'Verberg bestanden in deze mappen en submappen in medialijsten en mediazoekresultaten. Mapindexering en normaal zoeken naar bestanden blijven ongewijzigd.',
+    empty: 'Geen mediamappen uitgesloten.',
+  },
+
   http_security_warning: 'Bestanden uploaden en downloaden via HTTP is niet versleuteld.',
   http_security_switch: 'Gebruik HTTPS.',
   http_security_certificate: 'Een zelfondertekend certificaat kan een browserwaarschuwing veroorzaken. Controleer het certificaat voordat je verbinding maakt.',
 
   file_index: {
+    media_pages_hint: 'Alleen geïndexeerde bestanden verschijnen op de pagina’s Afbeeldingen, Video’s, Audio en Documenten.',
+    last_scan: 'Laatste scan',
+    not_scanned: 'Nog geen scangeschiedenis',
+    scan_count: 'Verwerkte bestanden: {count} / {total}',
     defaults_title: 'Standaardregels',
     files_hint: 'Alle toegankelijke gewone bestanden worden geïndexeerd, ook onbekende extensies. Herkende media en documenten krijgen extra metadata.',
     skip_hint: 'Verborgen bestanden en mappen en Git-projecten worden overgeslagen. Symbolische links worden niet gevolgd.',

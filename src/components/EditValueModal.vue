@@ -1,13 +1,14 @@
 <template>
-  <v-modal @close="cancel">
+  <v-modal :background-close="!loading" @close="cancel">
     <template #headline>
       {{ title }}
     </template>
     <template #content>
-      <v-text-field ref="inputRef" v-model="name" autocapitalize="off" autocorrect="off" :spellcheck="false" :placeholder="placeholder" :error="!!errors.name" :error-text="errors.name ? $t(errors.name) : ''" @keyup.enter="doAction" />
+      <v-text-field ref="inputRef" v-model="name" :variant="borderless ? 'filled' : 'outlined'" autocapitalize="off" autocorrect="off" :spellcheck="false" :placeholder="placeholder" :error="!!errors.name" :error-text="errors.name ? $t(errors.name) : ''" @keyup.enter="doAction" />
+      <p v-if="error" role="alert">{{ error }}</p>
     </template>
     <template #actions>
-      <v-outlined-button value="cancel" @click="cancel">{{ $t('cancel') }}</v-outlined-button>
+      <v-outlined-button value="cancel" :class="{ borderless }" :disabled="loading" @click="cancel">{{ $t('cancel') }}</v-outlined-button>
       <v-filled-button value="save" :loading="loading" @click="doAction">
         {{ $t('save') }}
       </v-filled-button>
@@ -28,6 +29,9 @@ const props = defineProps({
   title: { type: String, required: true },
   placeholder: { type: String, default: '' },
   value: { type: String, default: '' },
+  allowEmpty: { type: Boolean, default: false },
+  borderless: { type: Boolean, default: false },
+  error: { type: String, default: '' },
   mutation: { type: Function, required: true },
   validate: { type: Function as PropType<(value: string) => string> },
   done: {
@@ -42,6 +46,7 @@ const errors = reactive({ name: '' })
 const { mutate, loading, onDone } = props.mutation()
 
 function cancel() {
+  if (loading.value) return
   popModal()
 }
 
@@ -62,7 +67,8 @@ onMounted(async () => {
 })
 
 function doAction() {
-  if (!name.value?.trim()) { errors.name = 'valid.required'; return }
+  if (loading.value) return
+  if (!props.allowEmpty && !name.value?.trim()) { errors.name = 'valid.required'; return }
   errors.name = props.validate?.(name.value) ?? ''
   if (errors.name) return
   mutate(props.getVariables(name.value))
@@ -76,4 +82,5 @@ onDone(() => {
 :deep(.form-control) {
   width: 100%;
 }
+.v-outlined-button.borderless { border: 0; }
 </style>

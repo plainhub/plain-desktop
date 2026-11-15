@@ -38,7 +38,7 @@
               :columns="columns"
               :rows="rows"
               :row-key="idKey"
-              :debug="app.debug"
+              :debug="app.debug || app.developerMode"
               :deleting-key="deletingId"
               @delete="deleteRow"
             />

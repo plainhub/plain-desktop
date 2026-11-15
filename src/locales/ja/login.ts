@@ -4,9 +4,9 @@ export default {
   logging_in: 'ログイン中',
   connect: '接続',
   login: {
-    saved_identity: '保存済みのフィンガープリント',
-    new_identity: '新しいフィンガープリント',
-    trust_identity: '新しい ID を信頼する',
+    peer_identity_changed: '接続先デバイスの署名が変更されました',
+    identity_changed_hint: '前回の接続時に保存した署名と異なります。変更を確認して再ログインしてください。',
+    confirm_identity_change: '変更を確認して再ログイン',
     internal_error: 'デバイスがログインを完了できませんでした。再試行してください。',
     secure_login_unavailable: 'このブラウザーでは安全にログインできません。ブラウザーを更新してください。',
     chat_pairing_unavailable: 'チャットとフルアクセスを一度にペアリングするには、スマホの PlainApp を更新してください。',

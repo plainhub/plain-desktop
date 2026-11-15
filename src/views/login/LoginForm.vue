@@ -1,29 +1,15 @@
 <template>
-  <form v-show="!showConfirm" @submit.prevent="onSubmit">
+  <section v-if="identityChanged" class="identity-notice" role="alert">
+    <div class="identity-icon"><i-material-symbols:error-outline-rounded /></div>
+    <h2>{{ $t('login.peer_identity_changed') }}</h2>
+    <p>{{ $t('login.identity_changed_hint') }}</p>
+    <v-filled-button type="button" @click="confirmIdentityChange">{{ $t('login.confirm_identity_change') }}</v-filled-button>
+  </section>
+  <form v-else v-show="!showConfirm" @submit.prevent="onSubmit">
     <div v-show="showError" class="alert alert-danger show" role="alert">
       <i-material-symbols:error-outline-rounded />
       <div class="body">
         {{ error ? $t(error) : '' }}
-        <template v-if="!nativeApp && error === 'login.peer_identity_changed'">
-          <template v-if="identityChanges.length">
-            <div v-for="change in identityChanges" :key="change.key" class="identity-change">
-              <strong>{{ change.key }} · SHA-256</strong>
-              <span>{{ $t('login.saved_identity') }}</span>
-              <code>{{ change.previous.match(/.{8}/g)?.join(' ') }}</code>
-              <span>{{ $t('login.new_identity') }}</span>
-              <code>{{ change.next.match(/.{8}/g)?.join(' ') }}</code>
-            </div>
-            <v-filled-button type="button" @click="trustIdentity">{{ $t('login.trust_identity') }}</v-filled-button>
-          </template>
-          <template v-else>
-            <v-text-button v-if="!confirmForget" @click="confirmForget = true">{{ $t('login.forget_identity') }}</v-text-button>
-            <template v-else>
-              <p>{{ $t('login.confirm_forget_identity') }}</p>
-              <v-outlined-button @click="confirmForget = false">{{ $t('cancel') }}</v-outlined-button>
-              <v-filled-button @click="forgetIdentity">{{ $t('confirm') }}</v-filled-button>
-            </template>
-          </template>
-        </template>
       </div>
     </div>
     <v-text-field
@@ -59,7 +45,7 @@
 import VOutlinedButton from '@/components/base/VOutlinedButton.vue'
 import VFilledButton from '@/components/base/VFilledButton.vue'
 import RequestVerificationCode from '@/components/RequestVerificationCode.vue'
-import { onBeforeUnmount, ref } from 'vue'
+import { computed, onBeforeUnmount } from 'vue'
 import type { InitResult } from '@/lib/api/init'
 import type { SubscriptionClient } from '@/lib/api/subscription-client'
 import { useLogin } from './login'
@@ -69,7 +55,6 @@ type InitOptions = {
 }
 
 const nativeApp = __IS_TAURI__
-const confirmForget = ref(false)
 
 const props = withDefaults(defineProps<{
   redirectOnSuccess?: boolean
@@ -89,13 +74,15 @@ const emit = defineEmits<{
 
 const {
   showError, webAccessDisabled, showConfirm, verificationCode, error, showPasswordInput,
-  password, passwordError, isSubmitting, onSubmit, cancel, forgetIdentity, trustIdentity, identityChanges, t, applyInitResult, startPairing, dispose,
+  password, passwordError, isSubmitting, onSubmit, cancel, confirmIdentityChange, t, applyInitResult, startPairing, dispose,
 } = useLogin({
   redirectOnSuccess: props.redirectOnSuccess,
   onSuccess: async () => emit('success'),
   subscriptions: props.subscriptions,
   managedDeviceId: props.managedDeviceId,
 })
+
+const identityChanged = computed(() => !nativeApp && !props.managedDeviceId && showError.value && error.value === 'login.peer_identity_changed')
 
 async function init(result: InitResult, options: InitOptions = {}) {
   const authenticated = applyInitResult(result)
@@ -140,11 +127,40 @@ defineExpose({ init, startPairing })
   margin-block-end: 16px;
 }
 
-.identity-change {
-  display: grid;
-  gap: 8px;
-  margin: 16px 0;
+.identity-notice {
+  text-align: center;
+}
 
-  code { overflow-wrap: anywhere; }
+.identity-icon {
+  display: grid;
+  place-items: center;
+  width: 48px;
+  height: 48px;
+  margin: 0 auto 24px;
+  border-radius: 16px;
+  background: var(--md-sys-color-surface-container);
+  color: var(--md-sys-color-warning);
+
+  svg {
+    width: 24px;
+    height: 24px;
+  }
+}
+
+.identity-notice h2 {
+  margin: 0 0 16px;
+  font-size: 1.25rem;
+}
+
+.identity-notice p {
+  margin: 0;
+  color: var(--md-sys-color-on-surface-variant);
+}
+
+.identity-notice .v-filled-button {
+  margin-top: 32px;
+  height: auto;
+  min-height: 48px;
+  padding: 8px 16px;
 }
 </style>

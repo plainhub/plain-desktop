@@ -5,7 +5,27 @@
       <span>{{ title }}</span>
       <span v-if="meta" class="meta">{{ meta }}</span>
       <span class="spacer" />
+      <button
+        v-if="wrap !== undefined"
+        class="panel-button"
+        :class="{ active: wrap }"
+        :title="$t('wrap')"
+        :aria-label="$t('wrap')"
+        :aria-pressed="wrap"
+        @click="$emit('update:wrap', !wrap)"
+      >
+        <i-lucide-wrap-text />
+      </button>
       <slot name="actions" />
+      <button
+        class="panel-button"
+        :title="fullscreen ? $t('exit_fullscreen') : $t('fullscreen')"
+        :aria-label="fullscreen ? $t('exit_fullscreen') : $t('fullscreen')"
+        @click="$emit('update:fullscreen', !fullscreen)"
+      >
+        <i-lucide-minimize v-if="fullscreen" />
+        <i-lucide-maximize v-else />
+      </button>
     </div>
     <div class="panel-body">
       <slot />
@@ -14,9 +34,16 @@
 </template>
 
 <script setup lang="ts">
-defineProps<{
+withDefaults(defineProps<{
   title: string
   meta?: string
+  wrap?: boolean
+  fullscreen: boolean
+}>(), { wrap: undefined })
+
+defineEmits<{
+  'update:wrap': [wrap: boolean]
+  'update:fullscreen': [fullscreen: boolean]
 }>()
 </script>
 
@@ -49,6 +76,31 @@ defineProps<{
     width: 14px;
     height: 14px;
     flex-shrink: 0;
+  }
+}
+
+.panel-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  border: none;
+  border-radius: 4px;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+  flex-shrink: 0;
+
+  &:hover {
+    background: var(--md-sys-color-surface-container-high);
+    color: var(--md-sys-color-on-surface);
+  }
+
+  &.active {
+    background: var(--md-sys-color-primary-container);
+    color: var(--md-sys-color-on-primary-container);
   }
 }
 

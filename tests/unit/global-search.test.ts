@@ -227,7 +227,33 @@ it('searches both devices and uses the sole remaining device when the other is r
   })
 })
 
+it.each(['', peer.id])('excludes the browser identity from search devices with remote binding %j', async (remoteId) => {
+  transport.remoteId = remoteId
+  transport.authToken = 'browser-session'
+  transport.current.mockImplementation((query: string) => Promise.resolve({
+    data: query === '{ peers { id name online managed } }'
+      ? { peers: [{ id: 'managed', name: 'Archive', managed: true, online: true }] }
+      : query === appGQL ? { app } : { items: [doc], total: 1 },
+  }))
+  transport.remote.mockImplementation((_url: string, _token: string, query: string) => Promise.resolve({
+    data: query === docsGQL ? { items: [doc], total: 1 } : { app },
+  }))
+  const connected = { ...current, clientId: peer.id, urlToken: app.urlToken }
+  const search = scope.run(() => useGlobalSearch(ref(connected), () => 'Local'))!
+  await vi.waitFor(() => expect(search.devices.value).toEqual([
+    { id: peer.id, name: current.deviceName, target: 'current' },
+    { id: 'managed', name: 'Archive', online: true, target: 'managed' },
+  ]))
+  search.domain.value = 'docs'
+  search.submit('result')
+  await vi.waitFor(() => expect(search.total.value).toBe(2))
+  expect(search.targets.value.map(({ target }) => target)).toEqual(['current', 'managed'])
+  expect(search.groups.value.map(({ device }) => device.target)).toEqual(['current', 'managed'])
+  expect(transport.local).not.toHaveBeenCalled()
+})
+
 it('uses native queries for this computer while the existing remote session remains active', async () => {
+  vi.stubGlobal('__IS_TAURI__', true)
   transport.remoteId = peer.id
   loginPeers.value = [peer]
   const result = { data: { items: [doc], total: 1 } }
