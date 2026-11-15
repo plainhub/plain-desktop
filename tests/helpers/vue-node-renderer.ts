@@ -18,14 +18,14 @@ export function clientTemplate(component: any, filename: string) {
 }
 
 export type Node = { tag: string; children: Node[]; parent?: Node; text?: string; props: Record<string, any> }
-const node = (tag: string): Node => ({ tag, children: [], props: {} })
+const node = (tag: string): Node => Object.assign({ tag, children: [], props: {} }, { addEventListener() {} })
 export const nodes = (element: Node): Node[] => [element, ...element.children.flatMap(nodes)]
 export const content = (element: Node): string => [element.text ?? '', ...element.children.map(content)].join('')
 export function fire(element: Node, eventName: string, event: unknown) {
   const callbacks = element.props[eventName]
   for (const callback of Array.isArray(callbacks) ? callbacks : [callbacks]) callback?.(event)
 }
-export function click(element: Node) { fire(element, 'onClick', { stopPropagation() {} }) }
+export function click(element: Node) { fire(element, 'onClick', { stopPropagation() {}, preventDefault() {} }) }
 export async function flush() { for (let i = 0; i < 6; i++) { await Vue.nextTick(); await Promise.resolve() } }
 
 export function renderView(component: any, props: Record<string, unknown> = {}, components: Record<string, any> = {}) {

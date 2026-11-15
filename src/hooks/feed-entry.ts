@@ -49,7 +49,7 @@ export function useFeedEntry() {
   const { mutate: saveToNotes, onDone: onSaveToNotesDone } = initMutation({ document: saveFeedEntriesToNotesGQL })
   onSaveToNotesDone(() => toast(t('saved')))
 
-  initQuery({
+  const { refetch: refetchTags } = initQuery({
     handle: (data: { tags: ITag[] }, error: string) => {
       if (error) toast(t(error), 'error')
       else if (data) tags.value = data.tags
@@ -69,13 +69,18 @@ export function useFeedEntry() {
 
   const itemTagsHandler = (event: IItemTagsUpdatedEvent | IItemsTagsUpdatedEvent) => { if (event.type === dataType) fetch() }
 
+  const refetchTagsHandler = (type: string) => { if (type === dataType) refetchTags() }
+
   onActivated(() => {
+    emitter.on('refetch_tags', refetchTagsHandler)
+    refetchTags()
     emitter.on('item_tags_updated', itemTagsHandler)
     emitter.on('items_tags_updated', itemTagsHandler)
     fetch()
   })
 
   onDeactivated(() => {
+    emitter.off('refetch_tags', refetchTagsHandler)
     emitter.off('item_tags_updated', itemTagsHandler)
     emitter.off('items_tags_updated', itemTagsHandler)
   })

@@ -107,7 +107,7 @@ function renameTag(item: ITag) {
       return { id: item.id, name: value }
     },
     done: () => {
-      refetch()
+      emitter.emit('refetch_tags', props.type)
     },
   })
 }
@@ -134,7 +134,7 @@ function add() {
     placeholder: t('name'),
     mutation: () => {
       const m = initMutation({ document: createTagGQL })
-      m.onDone(() => refetch())
+      m.onDone(() => emitter.emit('refetch_tags', props.type))
       return m
     },
     getVariables: (value: string) => {

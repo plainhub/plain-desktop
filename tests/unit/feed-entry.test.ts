@@ -15,7 +15,7 @@ vi.mock('@/hooks/feeds', () => ({ useFeeds: () => ({ viewFeed: vi.fn() }) }))
 vi.mock('@/plugins/router', () => ({ replacePath: vi.fn() }))
 vi.mock('@/components/toaster', () => ({ default: vi.fn() }))
 vi.mock('@/lib/api/query', () => ({
-  feedEntryGQL: 'entry', tagsGQL: 'tags', initQuery: vi.fn(),
+  feedEntryGQL: 'entry', tagsGQL: 'tags', initQuery: () => ({ refetch: vi.fn() }),
   initLazyQuery: ({ handle }: { handle: unknown }) => {
     callbacks.query = handle
     return { loading: ref(false), fetch: vi.fn() }
