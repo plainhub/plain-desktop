@@ -9,8 +9,12 @@ for (const ext of ['json']) KIND_BY_EXT[ext] = 'json'
 for (const ext of ['xml']) KIND_BY_EXT[ext] = 'xml'
 for (const ext of ['md', 'markdown']) KIND_BY_EXT[ext] = 'md'
 
+export function isCsvFile(fileName: string): boolean {
+  return /\.csv$/i.test(fileName)
+}
+
 export function fileKindOf(fileName: string, mimeType = ''): FileKind {
-  if (isOfficeFile(fileName)) return 'doc'
+  if (isCsvFile(fileName) || isOfficeFile(fileName)) return 'doc'
   const name = (fileName || '').toLowerCase()
   const idx = name.lastIndexOf('.')
   const ext = idx <= 0 ? '' : name.substring(idx + 1)

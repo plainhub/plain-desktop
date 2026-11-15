@@ -6,7 +6,8 @@ import { revealLocalFile, saveLocalFileAs, saveTextFileAs } from '@/lib/native-f
 import { useTempStore } from '@/stores/temp'
 import { storeToRefs } from 'pinia'
 import { useMarkdown, useSafeMarkdown } from '@/hooks/markdown'
-import { fileKindOf } from './file-kind'
+import { fileKindOf, isCsvFile } from './file-kind'
+import { createNativeResourceOwner } from '@/hooks/native-resource-url'
 import { initMutation, runMutation, writeTextFileGQL } from '@/lib/api/mutation'
 import { gqlFetch } from '@/lib/api/gql-client'
 import { appGQL } from '@/lib/api/query'
@@ -54,6 +55,7 @@ export function useTextFile() {
 
   const { render } = useMarkdown(app, urlTokenKey)
   const { render: renderDocument } = useSafeMarkdown(app, urlTokenKey)
+  const csv = computed(() => isCsvFile(fileName.value))
   const isDocumentFile = computed(() => fileKindOf(fileName.value, mimeType.value) === 'doc')
 
   // Computed
@@ -96,7 +98,7 @@ export function useTextFile() {
     if (showSavedPulse.value) return t('saved')
     return ''
   })
-  const canEdit = computed(() => isLoggedIn.value && !!decryptedPath.value && !isDocumentFile.value)
+  const canEdit = computed(() => isLoggedIn.value && !!decryptedPath.value && (!isDocumentFile.value || csv.value))
   const showInFinder = computed(() =>
     isLocalMode() && !!decryptedPath.value && !decryptedPath.value.startsWith('fsid:')
   )
@@ -135,7 +137,7 @@ export function useTextFile() {
     renderedMarkdown.value = ''
     void resetViewMode
 
-    if (isDocumentFile.value) {
+    if (isDocumentFile.value && !isEditing.value) {
       renderedMarkdown.value = await renderDocument(textContent)
     } else if (isMarkdownFile.value) {
       if (isLocalMode() && !route.query.sid) await ensureUrlTokenKey()
@@ -144,6 +146,7 @@ export function useTextFile() {
   }
 
   const fetchTextContent = async () => {
+    let resources: ReturnType<typeof createNativeResourceOwner> | undefined
     try {
       loading.value = true
       error.value = ''
@@ -154,11 +157,20 @@ export function useTextFile() {
       if (managed && !key) { error.value = t('access_denied'); return }
       const id = fileId.value
       const native = isLocalMode() && !route.query.sid && /^(c|g)\./.test(id)
+      const editCsv = isEditing.value && csv.value && canEdit.value
+      const action = editCsv ? FileAction.Download : FileAction.Preview
+      // Editing loads the original CSV, not its generated Markdown.
+      let rawUrl = ''
+      if (native && editCsv) {
+        resources = createNativeResourceOwner()
+        rawUrl = await resources.url(decryptedPath.value)
+        if (!rawUrl) { error.value = t('failed_to_load_file'); return }
+      }
+      const response = native && !editCsv
         ? await invoke<NativePreview>('native_file_preview', { id })
-        : undefined
-      const response = native ?? await fetch(managed && key
-        ? managedFileUrl(managed.peer, key, { type: 'MEDIA', id: managed.media })
-        : getFileUrl(id))
+        : await fetch(rawUrl || (managed && key
+          ? managedFileUrl(managed.peer, key, { type: 'MEDIA', id: managed.media })
+          : getFileUrl(id, '', action)))
       const { status } = response
       if (status < 200 || status >= 300) {
         error.value = status === 404 ? t('file_not_found')
@@ -180,7 +192,10 @@ export function useTextFile() {
       if (lm) lastModified.value = lm
 
       await applyTextContent('content' in response ? response.content : await response.text(), true)
-    } catch { error.value = t('network_error') } finally { loading.value = false }
+    } catch { error.value = t('network_error') } finally {
+      await resources?.dispose()
+      loading.value = false
+    }
   }
 
   const retry = () => fetchTextContent()
@@ -224,7 +239,7 @@ export function useTextFile() {
   }
 
   async function save() {
-    if (!canEdit.value || !isEditing.value || !decryptedPath.value || saving.value || !dirty.value) return
+    if (!canEdit.value || !isEditing.value || loading.value || error.value || saving.value || !dirty.value) return
     const ok = await runMutation(writeTextFile, { path: decryptedPath.value, content: draft.value, overwrite: true })
     if (!ok) return
     await applyTextContent(draft.value, false)
@@ -240,7 +255,8 @@ export function useTextFile() {
   }
 
   // Lifecycle
-  watch([fileId, managedMedia], async ([id, managed]) => {
+  watch([fileId, managedMedia, isEditing], async ([id, managed], previous) => {
+    if (previous && id === previous[0] && managed === previous[1] && !csv.value) return
     decryptedPath.value = ''
     fileName.value = ''
     mimeType.value = ''

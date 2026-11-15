@@ -19,12 +19,14 @@ vi.mock('@/lib/api/gql-client', () => ({ gqlFetch: io.fetch }))
 vi.mock('@/lib/api/file', () => ({ download: vi.fn(), getFileUrl: (id: string, _query = '', action = 'preview') => '/fs?id=' + encodeURIComponent(id) + '&action=' + action, tokenToKey: (value: string) => Uint8Array.from(atob(value), char => char.charCodeAt(0)) }))
 vi.mock('@/lib/device/local-mode', () => ({ isLocalMode: () => io.local }))
 vi.mock('@tauri-apps/api/core', () => ({ invoke: io.native }))
+vi.mock('@/hooks/native-resource-url', () => ({ createNativeResourceOwner: vi.fn() }))
+
 vi.mock('@/lib/device/current', () => ({ getCurrentAuthToken: () => io.token }))
 import { useTextFile } from '@/views/text-file/text-file'
 
 afterEach(() => { io.local = false; vi.unstubAllGlobals() })
 
-it.each(['note.txt', 'note.md', 'note.doc'])('previews %s through the local native transport', async (name) => {
+it.each(['note.txt', 'note.md', 'note.doc', 'note.CSV'])('previews %s through the local native transport', async (name) => {
   io.local = true
   const id = resourceId(new Uint8Array(32).fill(4), { mode: 'c', id: 'desktop' }, { type: 'FILE', id: `/fixtures/${name}` })
   io.route = reactive({ name: 'text-file', query: { id } })
@@ -43,7 +45,7 @@ it.each(['note.txt', 'note.md', 'note.doc'])('previews %s through the local nati
     expect(io.native).toHaveBeenCalledExactlyOnceWith('native_file_preview', { id })
     expect(fetch).not.toHaveBeenCalled()
     expect(io.fetch).toHaveBeenCalledTimes(name.endsWith('.md') ? 1 : 0)
-    if (name.endsWith('.doc')) {
+    if (/\.(doc|csv)$/i.test(name)) {
       const { saveLocalFileAs } = await import('@/lib/native-file-actions')
       expect(text.renderedMarkdown.value).toBe('<safe># Fixture')
       text.downloadFile()
@@ -104,5 +106,47 @@ it.each([false, true])('renders document Markdown and downloads original bytes (
     vi.mocked(download).mockClear()
     text.downloadFile()
     expect(download).toHaveBeenCalledWith(guest ? '/fs?id=scoped-file&action=download' : '/fs?id=' + encodeURIComponent(id) + '&action=download', 'report.docx')
+  } finally { scope.stop() }
+})
+
+it.each([false, true])('loads original CSV when editing and returns to table preview (native=%s)', async (native) => {
+  io.cached = false
+  io.local = native
+  io.token = 'owner-session'
+  const key = new Uint8Array(32).fill(4)
+  const id = resourceId(key, { mode: 'c', id: 'owner-session' }, { type: 'FILE', id: '/owned/report.csv' })
+  io.route = reactive({ name: 'text-file', query: { id } })
+  io.fetch.mockReset().mockResolvedValue({ data: { app: { urlToken: btoa(String.fromCharCode(...key)) } } })
+  const csv = 'Name,Count\nDesk,2\n'
+  const table = '| Name | Count |\n| --- | --- |\n| Desk | 2 |'
+  const headers = { 'content-disposition': 'inline; filename="report.csv"' }
+  const previewHeaders = { ...headers, 'content-type': 'text/markdown; charset=utf-8' }
+  io.native.mockReset().mockResolvedValue({ status: 200, content: table, headers: previewHeaders })
+  const { createNativeResourceOwner } = await import('@/hooks/native-resource-url')
+  const url = vi.fn().mockResolvedValue('plain-resource://file/sample')
+  const dispose = vi.fn().mockResolvedValue(undefined)
+  vi.mocked(createNativeResourceOwner).mockReturnValue({ url, dispose, retain: vi.fn() })
+  const fetch = vi.fn(async (url: string) => url.endsWith('&action=preview')
+    ? new Response(table, { headers: previewHeaders })
+    : new Response(csv, { headers: { ...headers, 'content-type': 'text/csv' } }))
+  vi.stubGlobal('fetch', fetch)
+  vi.stubGlobal('document', { title: '' })
+  const scope = effectScope()
+  try {
+    const text = scope.run(() => useTextFile())!
+    await vi.waitFor(() => expect(text.renderedMarkdown.value).toBe('<safe>' + table))
+    expect(text.canEdit.value).toBe(true)
+    io.route.name = 'text-edit'
+    await vi.waitFor(() => expect(text.draft.value).toBe(csv))
+    expect(text.renderedMarkdown.value).toBe('')
+    if (native) {
+      expect(fetch).toHaveBeenCalledExactlyOnceWith('plain-resource://file/sample')
+      expect(url).toHaveBeenCalledExactlyOnceWith('/owned/report.csv')
+      expect(dispose).toHaveBeenCalledOnce()
+    } else {
+      expect(fetch).toHaveBeenLastCalledWith('/fs?id=' + encodeURIComponent(id) + '&action=download')
+    }
+    io.route.name = 'text-file'
+    await vi.waitFor(() => expect(text.renderedMarkdown.value).toBe('<safe>' + table))
   } finally { scope.stop() }
 })
