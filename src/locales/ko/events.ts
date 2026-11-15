@@ -1,4 +1,6 @@
 export default {
+  "event_reason.mount_failed": "Mount failed",
+  "event_reason.format_disk_failed": "Format failed",
   "event_reason.peer_identity_changed": "클라이언트 식별 정보가 변경되었습니다",
   "event_reason.password_setup_required": "로그인 비밀번호가 설정되지 않았습니다",
   "event_reason.internal_error": "서버 내부 오류",

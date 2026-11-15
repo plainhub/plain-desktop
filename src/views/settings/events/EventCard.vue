@@ -3,7 +3,7 @@
     <time class="subtle nowrap" :datetime="entry.createdAt"><span v-tooltip="formatDateTimeFull(entry.createdAt)">{{ formatTime(entry.createdAt) }}</span></time>
     <span class="event-dot subtle" :class="{ 'event-error': failed }" aria-hidden="true" />
     <div class="event-content">
-      <v-dropdown v-model="rawOpen" strategy="below">
+      <v-dropdown v-model="rawOpen" strategy="below" @opened="focusRaw">
         <template #trigger>
           <h2><span ref="titleElement" role="button" tabindex="0" :aria-expanded="rawOpen" aria-haspopup="dialog" @keydown.enter.prevent="titleElement?.click()" @keydown.space.prevent="titleElement?.click()">{{ $t(`event_type.${entry.type}`) }}</span></h2>
         </template>
@@ -15,30 +15,29 @@
         <span v-if="entry.osName || entry.osVersion">{{ [entry.osName, entry.osVersion].filter(Boolean).join(' ') }}</span>
         <span v-if="entry.clientIp">{{ entry.clientIp }}</span>
       </div>
-      <p v-if="entry.message" class="event-message" :class="{ 'event-error': failed }">{{ failed && te(`event_reason.${entry.message}`) ? $t(`event_reason.${entry.message}`) : entry.message }}</p>
+      <p v-if="details" class="event-message" :class="{ 'event-error': failed }">{{ details }}</p>
     </div>
   </article>
 </template>
 
 <script setup lang="ts">
-import { computed, nextTick, ref, watch, onDeactivated } from 'vue'
+import { computed, ref, onDeactivated } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { formatDateTimeFull, formatTime } from '@/lib/format'
 import VDropdown from '@/components/base/VDropdown.vue'
 import type { EventRecord } from './api'
+import { eventDetails } from './display'
 
 const props = defineProps<{ entry: EventRecord }>()
-const { te } = useI18n()
+const { t } = useI18n()
+const details = computed(() => eventDetails(props.entry, t))
 const failed = computed(() => props.entry.type.endsWith('_FAILED'))
 const rawOpen = ref(false)
 const titleElement = ref<HTMLElement | null>(null)
 const rawPopup = ref<HTMLElement | null>(null)
-watch(rawOpen, async (open) => {
-  if (open) {
-    await nextTick()
-    rawPopup.value?.focus()
-  }
-})
+function focusRaw() {
+  rawPopup.value?.focus()
+}
 function closeRaw() {
   rawOpen.value = false
   titleElement.value?.focus()

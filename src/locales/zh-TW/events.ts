@@ -1,4 +1,6 @@
 export default {
+  "event_reason.mount_failed": "掛載失敗",
+  "event_reason.format_disk_failed": "格式化失敗",
   "event_reason.peer_identity_changed": "用戶端身分已變更",
   "event_reason.password_setup_required": "尚未設定登入密碼",
   "event_reason.internal_error": "伺服器內部錯誤",

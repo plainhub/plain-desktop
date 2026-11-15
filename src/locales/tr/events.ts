@@ -1,4 +1,6 @@
 export default {
+  "event_reason.mount_failed": "Mount failed",
+  "event_reason.format_disk_failed": "Format failed",
   "event_reason.peer_identity_changed": "İstemci kimliği değişti",
   "event_reason.password_setup_required": "Oturum açma parolası yapılandırılmadı",
   "event_reason.internal_error": "Dahili sunucu hatası",

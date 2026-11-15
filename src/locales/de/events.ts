@@ -1,4 +1,6 @@
 export default {
+  "event_reason.mount_failed": "Mount failed",
+  "event_reason.format_disk_failed": "Format failed",
   "event_reason.peer_identity_changed": "Client-Identität geändert",
   "event_reason.password_setup_required": "Anmeldepasswort ist nicht eingerichtet",
   "event_reason.internal_error": "Interner Serverfehler",

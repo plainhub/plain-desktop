@@ -1,4 +1,6 @@
 export default {
+  "event_reason.mount_failed": "Mount failed",
+  "event_reason.format_disk_failed": "Format failed",
   "event_reason.peer_identity_changed": "Danh tính máy khách đã thay đổi",
   "event_reason.password_setup_required": "Chưa thiết lập mật khẩu đăng nhập",
   "event_reason.internal_error": "Lỗi máy chủ nội bộ",

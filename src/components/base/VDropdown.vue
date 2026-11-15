@@ -33,7 +33,7 @@ const props = defineProps({
   fullWidth: { type: Boolean, default: false },
 })
 
-const emit = defineEmits(['update:modelValue'])
+const emit = defineEmits(['update:modelValue', 'opened'])
 
 const EDGE_MARGIN = 16 // minimum clearance from viewport edges
 const TRIGGER_GAP = 8  // gap between trigger element and menu
@@ -142,6 +142,8 @@ watch(
       }
       await nextTick() // wait for v-if to mount the element
       computePosition() // Phase 2 — measure & apply final position.
+      await nextTick()
+      emit('opened')
     }
   },
 )

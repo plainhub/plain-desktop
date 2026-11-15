@@ -11,7 +11,7 @@ import messages from '@/locales/en-US/events'
 import { content } from '../helpers/vue-node-renderer'
 
 vi.mock('@/lib/format', () => ({ formatTime: () => '23:24', formatDateTimeFull: (value: string) => `Full ${value}` }))
-vi.mock('vue-i18n', () => ({ useI18n: () => ({ te: (key: string) => key in messages }) }))
+vi.mock('vue-i18n', () => ({ useI18n: () => ({ t: (key: string) => messages[key as keyof typeof messages] ?? key }) }))
 for (const [component, path] of [[EventCard, 'views/settings/events/EventCard.vue'], [VDropdown, 'components/base/VDropdown.vue']] as const) {
   const { descriptor } = parse(readFileSync(new URL(`../../src/${path}`, import.meta.url), 'utf8'))
   const template = compileTemplate({ source: descriptor.template!.content, filename: path, id: path,
@@ -25,6 +25,15 @@ function node(tag: string): Element {
   const result: Element = { tag, props: {}, children: [], focus: vi.fn(),
     getBoundingClientRect: () => ({ top: 100, bottom: 132, left: 100, right: 240, width: 140, height: 32 }),
     contains: target => target === result || result.children.some(child => child.contains(target)) }
+  result.focus.mockImplementation(() => {
+    let ancestor: Element | undefined = result
+    result.props.focusedWhileVisible = true
+    while (ancestor) {
+      if ((ancestor.props.style as { visibility?: string } | undefined)?.visibility === 'hidden') result.props.focusedWhileVisible = false
+      ancestor = ancestor.parent
+    }
+    result.props.onFocused?.()
+  })
   return result
 }
 const cleanups: Array<() => void> = []
@@ -46,7 +55,7 @@ function mount() {
     parentNode: child => child.parent ?? null, nextSibling: child => child.parent?.children[child.parent.children.indexOf(child) + 1] ?? null,
     patchProp: (element, key, _previous, value) => { element.props[key] = value }, querySelector: () => body,
   })
-  const entry: EventRecord = { id: 'event-fixture', type: 'LOGIN', message: '', clientId: 'client-fixture', clientName: '', clientIp: '192.0.2.24', appName: 'Chrome', appVersion: '142', osName: 'Windows', osVersion: '11', createdAt: '2026-11-15T06:24:00Z' }
+  const entry: EventRecord = { id: 'event-fixture', type: 'LOGIN', data: { __typename: 'LoginEventData', sessionType: 'LOGIN' }, clientId: 'client-fixture', clientName: '', clientIp: '192.0.2.24', appName: 'Chrome', appVersion: '142', osName: 'Windows', osVersion: '11', createdAt: '2026-11-15T06:24:00Z' }
   const root = node('root')
   const app = renderer.createApp(EventCard, { entry })
   app.provide(ssrContextKey, { modules: new Set() })
@@ -64,6 +73,7 @@ async function clickTitle(title: Element) {
   let element: Element | undefined = title
   while (element && !element.props.onClick) element = element.parent
   element!.props.onClick({ preventDefault() {}, stopPropagation() {} })
+  await nextTick()
   await nextTick()
 }
 
@@ -88,7 +98,12 @@ it('opens the complete raw event only from its title and dismisses by Escape or 
   let raw = find(body, element => element.tag === 'pre')!
   expect(JSON.parse(raw.text!)).toEqual(entry)
   expect(title.props['aria-expanded']).toBe(true)
+  await new Promise<void>(resolve => {
+    if (raw.focus.mock.calls.length) resolve()
+    else raw.props.onFocused = resolve
+  })
   expect(raw.focus).toHaveBeenCalledTimes(1)
+  expect(raw.props.focusedWhileVisible).toBe(true)
   raw.props.onKeydown({ key: 'Escape', stopPropagation() {} })
   await nextTick()
   expect(find(body, element => element.tag === 'pre')).toBeUndefined()

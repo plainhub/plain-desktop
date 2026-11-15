@@ -120,7 +120,12 @@ function variableType(ref: TypeRef, ctx: Ctx): string {
 
 function buildShape(selections: Selection[], parentName: string, ctx: Ctx, depth = 0): Shape {
   const shape: Shape = { props: [], spreads: [], unionBranches: [] }
-  const isUnionParent = ctx.schema.types.get(parentName)?.kind === 'union'
+  const parent = ctx.schema.types.get(parentName)
+  if (parent?.kind === 'union') {
+    shape.unionBranches = parent.unionMembers.map(member =>
+      shapeToType(buildShape(concreteSelections(selections, member, ctx), member, ctx, depth), depth))
+    return shape
+  }
 
   for (const sel of selections) {
     if (sel.kind === 'field') {
@@ -153,15 +158,24 @@ function buildShape(selections: Selection[], parentName: string, ctx: Ctx, depth
     } else {
       const cond = sel.typeCondition ?? parentName
       const child = buildShape(sel.selections, cond, ctx, depth)
-      if (isUnionParent && sel.typeCondition) {
-        shape.unionBranches.push(shapeToType(child, depth))
-      } else {
-        shape.props.push(...child.props)
-        shape.spreads.push(...child.spreads)
-      }
+      shape.props.push(...child.props)
+      shape.spreads.push(...child.spreads)
     }
   }
   return shape
+}
+
+function concreteSelections(selections: Selection[], member: string, ctx: Ctx): Selection[] {
+  return selections.flatMap(selection => {
+    if (selection.kind === 'field') return [selection]
+    const fragment = selection.kind === 'spread' ? ctx.docFragments.get(selection.name) : selection
+    if (!fragment) return []
+    const condition = fragment.typeCondition
+    const applies = !condition || condition === member
+      || ctx.schema.types.get(condition)?.unionMembers.includes(member)
+      || ctx.schema.types.get(member)?.interfaces.includes(condition)
+    return applies ? concreteSelections(fragment.selections, member, ctx) : []
+  })
 }
 
 function shapeToType(shape: Shape, depth = 0): string {

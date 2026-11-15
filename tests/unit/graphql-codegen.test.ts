@@ -31,3 +31,20 @@ it('keeps concrete chat content discriminants in union selections', () => {
   expect(source).toContain('retry?: number')
   expect(source).not.toContain('content: unknown')
 })
+
+it('merges shared discriminants and matching fragments into every concrete union member', () => {
+  const schema = parseSchema(`
+    type ActorData { clientId: String! }
+    type FailureData { reason: String! }
+    type EmptyData { id: ID! }
+    union EventData = ActorData | FailureData | EmptyData
+    type Query { event: EventData! }
+  `)
+  const ir = parseDocument(`query { event { __typename ... on ActorData { clientId } ...FailureFields } }
+    fragment FailureFields on FailureData { reason }`)
+  const source = generateOperationsSource([{ key: 'eventGQL', ir }], schema)
+  expect(source).not.toContain('__typename: "EventData"')
+  expect(source).toMatch(/__typename: "ActorData"\s+clientId: string/)
+  expect(source).toMatch(/__typename: "FailureData"\s+reason: string/)
+  expect(source).toContain('__typename: "EmptyData"')
+})

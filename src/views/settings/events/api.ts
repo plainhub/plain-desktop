@@ -3,7 +3,30 @@ import type { GqlResultType } from '@/lib/api/graphql/operations'
 
 export const eventsGQL = `query events($query: String!, $offset: Int!, $limit: Int!) {
   events(query: $query, offset: $offset, limit: $limit) {
-    id type message clientId clientName clientIp osName osVersion appName appVersion createdAt
+    id type clientId clientName clientIp osName osVersion appName appVersion createdAt
+    data {
+      __typename
+      ... on LoginEventData { sessionType }
+      ... on LoginFailedEventData { reason }
+      ... on SessionEventData { session { clientId clientName type } }
+      ... on DeviceNameEventData { oldName newName }
+      ... on VolumeEventData {
+        volume { id name devicePath mountPath fileSystem }
+      }
+      ... on VolumeFailedEventData {
+        volume { id name devicePath mountPath fileSystem }
+        failure { reason detail }
+      }
+      ... on DiskFormatEventData {
+        disk { id name path sizeBytes }
+        fileSystem
+      }
+      ... on DiskFormatFailedEventData {
+        disk { id name path sizeBytes }
+        fileSystem
+        failure { reason detail }
+      }
+    }
   }
 }`
 

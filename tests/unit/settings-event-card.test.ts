@@ -6,10 +6,10 @@ import type { EventRecord } from '@/views/settings/events/api'
 import messages from '@/locales/en-US/events'
 
 vi.mock('@/lib/format', () => ({ formatDateTimeFull: (value: string) => `Full ${value}`, formatTime: () => '23:24' }))
-vi.mock('vue-i18n', () => ({ useI18n: () => ({ te: (key: string) => key in messages }) }))
+vi.mock('vue-i18n', () => ({ useI18n: () => ({ t: (key: string) => messages[key as keyof typeof messages] ?? key }) }))
 
 const entry: EventRecord = {
-  id: 'fixture-event', type: 'LOGIN', message: '', clientId: 'fixture-client',
+  id: 'fixture-event', type: 'LOGIN', data: { __typename: 'LoginEventData', sessionType: 'LOGIN' }, clientId: 'fixture-client',
   clientName: 'Study computer', clientIp: '192.0.2.24', osName: 'Windows', osVersion: '11',
   appName: 'Chrome', appVersion: '142', createdAt: '2026-11-14T15:24:00Z',
 }
@@ -37,7 +37,7 @@ it('omits missing browser names instead of inventing a client label', async () =
 })
 
 it('shows a translated failure reason and the actual available connection information', async () => {
-  const html = await render({ ...entry, type: 'LOGIN_FAILED', clientName: '', message: 'invalid_password', osName: '', osVersion: '', appName: '', appVersion: '' })
+  const html = await render({ ...entry, type: 'LOGIN_FAILED', clientName: '', data: { __typename: 'LoginFailedEventData', reason: 'INVALID_PASSWORD' }, osName: '', osVersion: '', appName: '', appVersion: '' })
   expect(html).toContain('Sign-in failed')
   expect(html).not.toContain('Unrecognized client')
   expect(html).not.toContain('event-client')
@@ -49,7 +49,7 @@ it('shows a translated failure reason and the actual available connection inform
 
 it('keeps system events useful without inventing client details', async () => {
   const { clientId: _, ...system } = entry
-  const html = await render({ ...system, type: 'MOUNT', message: '/media/fixture', clientName: '', clientIp: '', osName: '', osVersion: '', appName: '', appVersion: '' })
+  const html = await render({ ...system, type: 'MOUNT', data: { __typename: 'VolumeEventData', volume: { mountPath: '/media/fixture' } }, clientName: '', clientIp: '', osName: '', osVersion: '', appName: '', appVersion: '' })
   expect(html).toContain('Disk mounted')
   expect(html).toContain('/media/fixture')
   expect(html).not.toContain('Unrecognized client')
@@ -63,4 +63,42 @@ it('shows available versions when client software names are missing', async () =
   expect(html).toContain('11')
   expect(html).not.toContain('Chrome')
   expect(html).not.toContain('Windows')
+})
+
+ it('shows the revoked session separately from the actor snapshot', async () => {
+  const html = await render({ ...entry, type: 'REVOKE_SESSION', data: {
+    __typename: 'SessionEventData', session: { clientId: 'target-client', clientName: 'Fixture target', type: 'API_TOKEN' },
+  } })
+  expect(html).toContain('Study computer')
+  expect(html).toContain('Fixture target')
+})
+
+const volume = { id: 'fsuuid:fixture', name: 'Fixture volume', devicePath: '/dev/fixture1', mountPath: '/mnt/fixture', fileSystem: 'ext4' }
+const disk = { id: 'disk-fixture', name: 'Fixture disk', path: '/dev/fixture', sizeBytes: 64000000000 }
+
+it.each([
+  ['LOGIN', { __typename: 'LoginEventData', sessionType: 'LOGIN' }, ['Signed in']],
+  ['LOGIN_FAILED', { __typename: 'LoginFailedEventData', reason: 'REJECTED' }, ['Sign-in failed', 'Sign-in request rejected']],
+  ['LOGOUT', { __typename: 'SessionEventData', session: { clientId: 'self', clientName: 'Exited client', type: 'LOGIN' } }, ['Signed out', 'Exited client']],
+  ['REVOKE_SESSION', { __typename: 'SessionEventData', session: { clientId: 'target', clientName: 'Target token', type: 'API_TOKEN' } }, ['Session revoked', 'Target token']],
+  ['UPDATE_DEVICE_NAME', { __typename: 'DeviceNameEventData', oldName: 'Old device', newName: 'New device' }, ['Device name changed', 'Old device → New device']],
+  ['MOUNT', { __typename: 'VolumeEventData', volume }, ['Disk mounted', 'Fixture volume', '/mnt/fixture']],
+  ['MOUNT_FAILED', { __typename: 'VolumeFailedEventData', volume, failure: { reason: 'MOUNT_FAILED', detail: 'Could not mount filesystem' } }, ['Disk mount failed', 'Could not mount filesystem']],
+  ['UNMOUNT', { __typename: 'VolumeEventData', volume }, ['Disk unmounted', 'Fixture volume', '/mnt/fixture']],
+  ['FORMAT_DISK', { __typename: 'DiskFormatEventData', disk, fileSystem: 'ext4' }, ['Disk formatted', 'Fixture disk', '/dev/fixture', 'ext4']],
+  ['FORMAT_DISK_FAILED', { __typename: 'DiskFormatFailedEventData', disk, fileSystem: 'ext4', failure: { reason: 'FORMAT_DISK_FAILED' } }, ['Disk format failed', 'Fixture disk', '/dev/fixture', 'Format failed']],
+] satisfies [EventRecord['type'], EventRecord['data'], string[]][])('renders %s from the saved snapshot', async (type, data, expected) => {
+  const html = await render({ ...entry, type, data })
+  for (const text of [...expected, 'Study computer']) expect(html).toContain(text)
+  expect(html.includes('event-error')).toBe(type.endsWith('_FAILED'))
+})
+
+it('escapes object names and failure details as text', async () => {
+  const html = await render({ ...entry, type: 'MOUNT_FAILED', data: {
+    __typename: 'VolumeFailedEventData', volume: { ...volume, name: '<script>unsafe</script>' },
+    failure: { reason: 'MOUNT_FAILED', detail: '<img src=x onerror=unsafe>' },
+  } })
+  expect(html).toContain('&lt;script&gt;')
+  expect(html).not.toContain('<script>')
+  expect(html).not.toContain('<img src=x')
 })

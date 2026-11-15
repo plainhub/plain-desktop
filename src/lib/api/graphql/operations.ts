@@ -1402,15 +1402,76 @@ export interface GqlOperations {
       events: Array<{
         id: string
         type: 'LOGIN' | 'LOGIN_FAILED' | 'LOGOUT' | 'REVOKE_SESSION' | 'UPDATE_DEVICE_NAME' | 'MOUNT' | 'MOUNT_FAILED' | 'UNMOUNT' | 'FORMAT_DISK' | 'FORMAT_DISK_FAILED'
-        message: string
         clientId?: string
-        clientName: string
-        clientIp: string
-        osName: string
-        osVersion: string
-        appName: string
-        appVersion: string
+        clientName?: string
+        clientIp?: string
+        osName?: string
+        osVersion?: string
+        appName?: string
+        appVersion?: string
         createdAt: string
+        data: {
+          __typename: "LoginEventData"
+          sessionType: 'LOGIN' | 'API_TOKEN'
+        } | {
+          __typename: "LoginFailedEventData"
+          reason: 'INVALID_LOGIN_REQUEST' | 'INVALID_PASSWORD' | 'PEER_IDENTITY_CHANGED' | 'REMOTE_ACCESS_DISABLED' | 'LOGIN_EXPIRED' | 'TOO_MANY_LOGIN_ATTEMPTS' | 'PASSWORD_SETUP_REQUIRED' | 'INTERNAL_ERROR' | 'REJECTED' | 'CANCELED' | 'MOUNT_FAILED' | 'FORMAT_DISK_FAILED'
+        } | {
+          __typename: "SessionEventData"
+          session: {
+            clientId: string
+            clientName: string
+            type: 'LOGIN' | 'API_TOKEN'
+          }
+        } | {
+          __typename: "DeviceNameEventData"
+          oldName: string
+          newName: string
+        } | {
+          __typename: "VolumeEventData"
+          volume: {
+            id?: string
+            name?: string
+            devicePath?: string
+            mountPath: string
+            fileSystem?: string
+          }
+        } | {
+          __typename: "VolumeFailedEventData"
+          volume: {
+            id?: string
+            name?: string
+            devicePath?: string
+            mountPath: string
+            fileSystem?: string
+          }
+          failure: {
+            reason: 'INVALID_LOGIN_REQUEST' | 'INVALID_PASSWORD' | 'PEER_IDENTITY_CHANGED' | 'REMOTE_ACCESS_DISABLED' | 'LOGIN_EXPIRED' | 'TOO_MANY_LOGIN_ATTEMPTS' | 'PASSWORD_SETUP_REQUIRED' | 'INTERNAL_ERROR' | 'REJECTED' | 'CANCELED' | 'MOUNT_FAILED' | 'FORMAT_DISK_FAILED'
+            detail?: string
+          }
+        } | {
+          __typename: "DiskFormatEventData"
+          disk: {
+            id?: string
+            name?: string
+            path: string
+            sizeBytes?: number
+          }
+          fileSystem: string
+        } | {
+          __typename: "DiskFormatFailedEventData"
+          disk: {
+            id?: string
+            name?: string
+            path: string
+            sizeBytes?: number
+          }
+          fileSystem: string
+          failure: {
+            reason: 'INVALID_LOGIN_REQUEST' | 'INVALID_PASSWORD' | 'PEER_IDENTITY_CHANGED' | 'REMOTE_ACCESS_DISABLED' | 'LOGIN_EXPIRED' | 'TOO_MANY_LOGIN_ATTEMPTS' | 'PASSWORD_SETUP_REQUIRED' | 'INTERNAL_ERROR' | 'REJECTED' | 'CANCELED' | 'MOUNT_FAILED' | 'FORMAT_DISK_FAILED'
+            detail?: string
+          }
+        }
       }>
     }
     variables: {
@@ -1578,14 +1639,14 @@ export interface GqlOperations {
           }
         } | {
           durationMs: number
-          width: number
-          height: number
           location?: {
             latitude: number
             longitude: number
           }
         } | {
           durationMs: number
+          width: number
+          height: number
           location?: {
             latitude: number
             longitude: number
