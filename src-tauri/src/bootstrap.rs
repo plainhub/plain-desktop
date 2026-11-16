@@ -1,5 +1,13 @@
-use plain_rs::infrastructure::platform::system::log as app_log;
-use std::sync::Arc;
+use plain_rs::features::{
+    access::AccessFeature,
+    prefs::{Prefs, pref_keys::API_PERMISSIONS},
+};
+use plain_rs::infrastructure::{
+    data_paths::{DataPaths, directory::DataDirectory},
+    platform::system::log as app_log,
+};
+use plain_server::server::ContentServer;
+use std::{path::Path, sync::Arc};
 use tauri::Manager;
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
@@ -81,7 +89,7 @@ pub fn run() {
             };
             let core = Arc::new(
                 tauri::async_runtime::block_on(async {
-                    plain_server::server::ContentServer::open_with_cache(&data_dir, &cache_dir)
+                    open_desktop_core(&data_dir, &cache_dir)
                 })
                 .expect("open the shared core"),
             );
@@ -377,3 +385,19 @@ pub fn run() {
         .expect("error while building tauri application");
     app.run(crate::handle_run_event);
 }
+
+fn open_desktop_core(data: &Path, cache: &Path) -> Result<ContentServer, String> {
+    let _directory = DataDirectory::open(data, cache)?;
+    let paths = DataPaths::new(data);
+    let exists = |path: std::path::PathBuf| path.try_exists().map_err(|error| error.to_string());
+    if !exists(paths.prefs())? && !exists(paths.database())? && !exists(paths.tls_identity())? {
+        Prefs::load(&paths.prefs())
+            .and_then(|prefs| prefs.set(API_PERMISSIONS, AccessFeature::FILE_FEATURES))
+            .map_err(|error| error.to_string())?;
+    }
+    ContentServer::open_with_cache(data, cache)
+}
+
+#[cfg(test)]
+#[path = "../tests/unit/remote_access_defaults.rs"]
+mod remote_access_defaults_tests;
