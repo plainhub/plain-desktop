@@ -6,9 +6,9 @@ import { encryptResourcePayload, type Resource } from './resource-link'
 import { getCurrentAuthToken } from '@/lib/device/current'
 import { peerProxyPath } from '../url'
 
-export function managedGraphql<T>(peerId: string, query: string, variables?: Record<string, unknown>) {
+export function managedGraphql<T>(peerId: string, query: string, variables?: Record<string, unknown>, timeout?: number) {
   if (__IS_TAURI__) throw new Error('Native peer-proxy GraphQL is unsupported')
-  return encryptedGqlPost<T>(getApiBaseUrl() + peerProxyPath(peerId, 'graphql'), getCurrentAuthToken(), query, variables)
+  return encryptedGqlPost<T>(getApiBaseUrl() + peerProxyPath(peerId, 'graphql'), getCurrentAuthToken(), query, variables, timeout)
 }
 
 export function managedFileUrl(peerId: string, key: Uint8Array, resource: Resource, action = FileAction.Preview, query = ''): string {

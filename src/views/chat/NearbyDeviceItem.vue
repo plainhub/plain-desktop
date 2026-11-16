@@ -1,5 +1,5 @@
 <template>
-  <VListItem :subtitle="ip">
+  <VListItem :subtitle="ip" :force-actions="switchOnly">
     <template #start>
       <v-dropdown v-model="infoOpen">
         <template #trigger><PeerIcon :device-type="identity.deviceType" :online="peer?.online" :full-control="fullControl" /></template>
@@ -15,16 +15,21 @@
       <v-outlined-button v-if="pairing" @click="emit('cancel')">{{ $t('cancel') }}</v-outlined-button>
       <v-outlined-button
         v-else-if="!current"
-        :disabled="disabled || (action === 'control' && (!peer?.online || device?.remoteAccess !== true)) || (action === 'switch' && (!peer?.online || device?.remoteAccess === false))"
+        :disabled="disabled || (action === 'control' && (!peer?.online || device?.remoteAccess !== true)) || (action === 'switch' && !switchOnly && (!peer?.online || device?.remoteAccess === false))"
+        :loading="switching"
+        :aria-busy="switching"
         @click="emit('connect', action)"
-        >{{ $t(actionLabel) }}</v-outlined-button
+        >{{ $t(switching ? 'switching_device' : actionLabel) }}</v-outlined-button
       >
     </template>
-    <template v-if="peer && !switchOnly" #actions>
-      <v-icon-button :id="menuId" :aria-label="$t('actions')" @click.stop="menuOpen = true"><i-material-symbols:more-vert /></v-icon-button>
-      <v-dropdown-menu v-model="menuOpen" :anchor="menuId">
-        <div class="dropdown-item" @click="remove">{{ $t('unpair') }}</div>
-      </v-dropdown-menu>
+    <template v-if="peer" #actions>
+      <v-text-button v-if="switchOnly" :disabled="disabled" @click.stop="emit('remove')">{{ $t('unpair') }}</v-text-button>
+      <template v-else>
+        <v-icon-button :id="menuId" :aria-label="$t('actions')" @click.stop="menuOpen = true"><i-material-symbols:more-vert /></v-icon-button>
+        <v-dropdown-menu v-model="menuOpen" :anchor="menuId">
+          <div class="dropdown-item" @click="remove">{{ $t('unpair') }}</div>
+        </v-dropdown-menu>
+      </template>
     </template>
   </VListItem>
 </template>
@@ -42,6 +47,7 @@ const props = defineProps<
     pairing?: boolean
     disabled?: boolean
     switchOnly?: boolean
+    switching?: boolean
   }
 >()
 const emit = defineEmits<{ connect: [action: ReturnType<typeof nearbyPairAction>]; cancel: []; remove: [] }>()

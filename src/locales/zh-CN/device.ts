@@ -88,5 +88,6 @@ export default {
   managed_peer_pairing_hint: '与这台设备的配对可能已失效，请重新配对。',
   managed_peer_switch_origin: '切回 {name}',
   managed_peer_switch_local: '切回本机',
+  switching_device: '正在切换…',
   managed_peer_pair_again: '重新配对',
 }

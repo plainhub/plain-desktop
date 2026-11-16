@@ -1,7 +1,7 @@
 <template>
   <v-modal width="560px" @close="handleClose">
     <template #headline>
-      <template v-if="removeTarget">{{ $t('device_discovery.unpair_confirm', { name: removeTarget.name }) }}</template>
+      <template v-if="removeTarget && !switchOnly">{{ $t('device_discovery.unpair_confirm', { name: removeTarget.name }) }}</template>
       <template v-else-if="step === 'discover'">{{ $t(switchOnly ? 'device_discovery.change_device' : 'nearby_devices') }}</template>
       <template v-else>
         <v-icon-button :aria-label="$t('back')" @click="backToDevices"><i-material-symbols:arrow-back-rounded /></v-icon-button>
@@ -9,7 +9,7 @@
       </template>
     </template>
     <template #content>
-      <template v-if="removeTarget">
+      <template v-if="removeTarget && !switchOnly">
         <div>{{ $t('device_discovery.unpair_hint') }}</div>
         <div v-if="removeTarget.id === currentClientId">{{ $t('device_discovery.unpair_current_hint') }}</div>
         <div v-if="error" class="nearby-error" role="alert">{{ $t(error) }}</div>
@@ -30,20 +30,32 @@
                 ><v-outlined-button @click="switchToLocal">{{ $t('switch') }}</v-outlined-button></template
               >
             </VListItem>
-            <NearbyDeviceItem
-              v-for="peer in groups.mine"
-              :key="peer.id"
-              :peer="peer"
-              :device="deviceById.get(peer.id)"
-              :current="peer.id === currentClientId"
-              :full-control="canSwitchTo(peer)"
-              :switch-only="switchOnly"
-              :pairing="activePairId === peer.id || deviceById.get(peer.id)?.status === 'PAIRING'"
-              :disabled="!!activePairId"
-              @connect="connectPeer(peer, $event)"
-              @cancel="cancelPair(peer.id)"
-              @remove="confirmRemoval(peer)"
-            />
+            <template v-for="peer in groups.mine" :key="peer.id">
+              <NearbyDeviceItem
+                :peer="peer"
+                :device="deviceById.get(peer.id)"
+                :current="peer.id === currentClientId"
+                :full-control="canSwitchTo(peer)"
+                :switch-only="switchOnly"
+                :pairing="activePairId === peer.id || deviceById.get(peer.id)?.status === 'PAIRING'"
+                :disabled="!!(activePairId || switchingPeer || (switchOnly && removeTarget))"
+                :switching="switchingPeer === peer.id"
+                @connect="connectPeer(peer, $event)"
+                @cancel="cancelPair(peer.id)"
+                @remove="confirmRemoval(peer)"
+              />
+              <li v-if="switchOnly && removeTarget?.id === peer.id" class="unpair-confirmation">
+                <InlineDeleteConfirm
+                  :name="peer.name" :loading="removing" message-key="device_discovery.unpair_confirm"
+                  @cancel="handleClose" @confirm="removeDevice(peer)"
+                >
+                  <template #details>
+                    <div>{{ $t('device_discovery.unpair_hint') }}</div>
+                    <div v-if="peer.id === currentClientId">{{ $t('device_discovery.unpair_current_hint') }}</div>
+                  </template>
+                </InlineDeleteConfirm>
+              </li>
+            </template>
           </ul>
         </section>
         <section v-if="!switchOnly" class="discovery-section">
@@ -73,19 +85,19 @@
         </div>
       </div>
     </template>
-    <template v-if="removeTarget || step === 'discover'" #actions>
-      <template v-if="removeTarget">
+    <template v-if="(removeTarget && !switchOnly) || step === 'discover'" #actions>
+      <template v-if="removeTarget && !switchOnly">
         <v-text-button :disabled="removing" @click="handleClose">{{ $t('cancel') }}</v-text-button>
         <v-filled-button class="danger" :loading="removing" @click="removeDevice(removeTarget)">{{ $t('unpair') }}</v-filled-button>
       </template>
-      <v-outlined-button v-else @click="handleClose">{{ $t('close') }}</v-outlined-button>
+      <v-outlined-button v-else :disabled="removing" @click="handleClose">{{ $t('close') }}</v-outlined-button>
     </template>
   </v-modal>
 </template>
 
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
-import { popModal } from '@/components/modal'
+import { popModal, pushModal } from '@/components/modal'
 import DeviceDiscoveryStatus from '@/components/DeviceDiscoveryStatus.vue'
 import MdnsFirewallFix from '@/components/MdnsFirewallFix.vue'
 import RequestVerificationCode from '@/components/RequestVerificationCode.vue'
@@ -93,7 +105,8 @@ import NearbyPairOptions from './NearbyPairOptions.vue'
 import NearbyDeviceItem from './NearbyDeviceItem.vue'
 import DiscoveredDeviceLogin from '@/views/login/DiscoveredDeviceLogin.vue'
 import { useDeviceDiscovery, type DiscoveredDevice } from '@/hooks/use-device-discovery'
-import { bindGraphqlClient, nativeGqlFetch } from '@/lib/api/gql-client'
+import { bindGraphqlClient, gqlFetch, GqlError, nativeGqlFetch } from '@/lib/api/gql-client'
+import { managedGraphql } from '@/lib/api/managed-proxy'
 import { SubscriptionClient, graphqlSubscriptions } from '@/lib/api/subscription-client'
 import { openNative, openSubscriptionConnection } from '@/lib/api/subscription-connection'
 import { subscriptionOperations } from '@/lib/api/subscription-operations'
@@ -125,6 +138,7 @@ const selectedDevice = ref<DiscoveredDevice | null>(null)
 const loginDevice = ref<(PendingLoginDevice & { id: string }) | null>(null)
 const step = ref<'discover' | 'mode' | 'login'>('discover')
 const activePairId = ref('')
+const switchingPeer = ref('')
 const removeTarget = ref<IPeer | null>(null)
 const removing = ref(false)
 const error = ref('')
@@ -229,28 +243,70 @@ async function onLoginSuccess() {
   else window.location.href = '/'
 }
 async function switchTo(peer: IPeer) {
-  if (__IS_TAURI__) await preloadLoginPeers()
-  if (canSwitchTo(peer)) switchDevice(peer.id)
+  if (__IS_TAURI__) {
+    await preloadLoginPeers()
+    if (canSwitchTo(peer)) switchDevice(peer.id)
+    return
+  }
+  if (!canSwitchTo(peer) || switchingPeer.value || removeTarget.value) return
+  switchingPeer.value = peer.id
+  error.value = ''
+  const document = 'query { app { clientId } }'
+  try {
+    try {
+      const result = await managedGraphql<{ app?: { clientId: string } }>(peer.id, document, undefined, 8000)
+      if (!active) return
+      if (!result.errors?.length && result.data?.app?.clientId === peer.id) {
+        switchDevice(peer.id)
+        return
+      }
+    } catch (reason) {
+      if (!active) return
+      if (!(reason instanceof GqlError) || (reason.status !== undefined && reason.status !== 401 && reason.status !== 502)) {
+        reportFailure(reason)
+        return
+      }
+      if (reason.status !== 502) {
+        try {
+          const origin = await gqlFetch<{ app?: { clientId: string } }>(document, undefined, { origin: true, timeout: 8000 })
+          if (!origin.data?.app || origin.errors?.length) throw reason
+        } catch (originError) {
+          if (active) reportFailure(originError)
+          return
+        }
+      }
+    }
+    await showSwitchFailure(peer)
+  } finally {
+    switchingPeer.value = ''
+  }
+}
+async function showSwitchFailure(peer: IPeer) {
+  const { default: dialog } = await import('@/components/ManagedPeerUnavailable.vue')
+  if (active) await pushModal(dialog, { peerName: peer.name, originName: selfDevice.value?.name })
 }
 function switchToLocal() {
   switchDevice('')
 }
 function confirmRemoval(peer: IPeer) {
+  if (removing.value || switchingPeer.value) return
   error.value = ''
   removeTarget.value = peer
 }
 async function removeDevice(peer: IPeer) {
+  if (removing.value || removeTarget.value?.id !== peer.id) return
   removing.value = true
   error.value = ''
   try {
-    const result = await request<{ unpairPeer: boolean }>(unpairPeerGQL, { id: peer.id })
+    const result = await request<{ unpairPeer: boolean }>(unpairPeerGQL, { peerId: peer.id })
     if (result.errors?.length) throw new Error(result.errors[0].message)
     if (!result.data.unpairPeer) throw new Error('Device removal failed')
     prefsRemove(`main_state:${peer.id}`)
     if (peer.id === getRemoteClientId()) switchToLocal()
     else {
-      await loadPeers()
       removeTarget.value = null
+      peers.value = peers.value.filter(item => item.id !== peer.id)
+      await loadPeers()
     }
   } catch (reason) {
     reportFailure(reason)
@@ -321,6 +377,9 @@ onBeforeUnmount(() => {
   display: flex;
   flex-direction: column;
   gap: 8px;
+}
+.unpair-confirmation {
+  list-style: none;
 }
 .nearby-error {
   display: flex;

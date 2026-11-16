@@ -7,6 +7,7 @@
       <template v-else>
         {{ count !== undefined ? $t('confirm_to_delete', { count }) : $t('confirm_to_delete_name', { name }) }}
       </template>
+      <slot name="details" />
     </div>
     <div class="inline-delete-confirm-actions">
       <v-outlined-button @click.stop="$emit('cancel')">{{ $t('cancel') }}</v-outlined-button>

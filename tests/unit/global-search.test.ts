@@ -116,7 +116,7 @@ it('routes managed search through the current origin and reuses session-scoped t
   transport.authToken = 'browser-session'
   transport.remote.mockResolvedValue({ data: { app: { deviceName: 'Managed', access: ['DOCS'] } } })
   const client = await loadSearchClient({ id: 'managed', name: 'Managed', target: 'managed', online: true }, app.urlToken)
-  expect(transport.remote).toHaveBeenCalledWith('https://current.example.test/proxy/managed/graphql', 'browser-session', '{ app { deviceName access } }', undefined)
+  expect(transport.remote).toHaveBeenCalledWith('https://current.example.test/proxy/managed/graphql', 'browser-session', '{ app { deviceName access } }', undefined, undefined)
   const hit = { domain: 'docs' as const, item: { ...doc, updatedAt: '2026-01-01' } as GqlResultType<'docsGQL'>['items'][number] }
   const thumbnail = client.thumbnailUrl(hit)
   expect(client.thumbnailUrl(hit)).toBe(thumbnail)

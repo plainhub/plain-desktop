@@ -9,6 +9,8 @@ import nearbyViewSource from '@/views/chat/NearbyView.vue?raw'
 import NearbyDeviceItem from '@/views/chat/NearbyDeviceItem.vue'
 import nearbyDeviceItemSource from '@/views/chat/NearbyDeviceItem.vue?raw'
 import VListItem from '@/components/base/VListItem.vue'
+import InlineDeleteConfirm from '@/components/base/InlineDeleteConfirm.vue'
+import inlineSource from '@/components/base/InlineDeleteConfirm.vue?raw'
 import listItemSource from '@/components/base/VListItem.vue?raw'
 import { unpairPeerGQL } from '@/lib/api/mutation'
 import { peersGQL } from '@/lib/api/query'
@@ -18,8 +20,10 @@ import type { SelfDevice } from '@/lib/device/self-device'
 import common from '@/locales/en-US/common'
 import messages from '@/locales/en-US'
 
-const io = vi.hoisted(() => ({ request: vi.fn(), removePref: vi.fn(), clearRemote: vi.fn(), setRemote: vi.fn(), start: vi.fn(), current: '', devices: [] as DiscoveredDevice[], self: null as SelfDevice | null }))
-vi.mock('@/lib/api/gql-client', () => ({ nativeGqlFetch: io.request, bindGraphqlClient: () => io.request }))
+const io = vi.hoisted(() => ({ request: vi.fn(), probe: vi.fn(), pushModal: vi.fn(), removePref: vi.fn(), clearRemote: vi.fn(), setRemote: vi.fn(), start: vi.fn(), current: '', devices: [] as DiscoveredDevice[], self: null as SelfDevice | null }))
+vi.mock('@/components/modal', () => ({ popModal: vi.fn(), pushModal: io.pushModal }))
+vi.mock('@/lib/api/managed-proxy', () => ({ managedGraphql: io.probe }))
+vi.mock('@/lib/api/gql-client', () => ({ nativeGqlFetch: io.request, bindGraphqlClient: () => io.request, gqlFetch: io.request, GqlError: Error }))
 vi.mock('@/lib/api/subscription-client', () => ({
   graphqlSubscriptions: { subscribe: () => () => {}, onAttached: () => () => {} },
   SubscriptionClient: class {
@@ -85,6 +89,7 @@ function clientRender(source: string) {
 NearbyView.render = clientRender(nearbyViewSource)
 NearbyDeviceItem.render = clientRender(nearbyDeviceItemSource)
 VListItem.render = clientRender(listItemSource)
+InlineDeleteConfirm.render = clientRender(inlineSource)
 
 type Node = { text: string; children: Node[]; parent: Node | null; props: Record<string, unknown> }
 
@@ -124,7 +129,7 @@ afterEach(async () => {
   vi.resetAllMocks()
 })
 
-async function mount(current = '', fail = false, fixtures: { paired?: boolean; devices?: DiscoveredDevice[]; self?: SelfDevice; switchOnly?: boolean } = {}) {
+async function mount(current = '', fail = false, fixtures: { paired?: boolean; devices?: DiscoveredDevice[]; self?: SelfDevice; switchOnly?: boolean; online?: boolean } = {}) {
   io.current = current
   io.devices = fixtures.devices ?? []
   io.self = fixtures.self ?? null
@@ -133,16 +138,18 @@ async function mount(current = '', fail = false, fixtures: { paired?: boolean; d
   vi.stubGlobal('__IS_TAURI__', !fixtures.switchOnly)
   let paired = fixtures.paired ?? true
   io.request.mockImplementation(async (document: string) => {
-    if (document === peersGQL) return { data: { peers: [{ ...peer, online: fixtures.switchOnly ? true : peer.online, managed: fixtures.switchOnly, status: paired ? PeerStatus.PAIRED : PeerStatus.UNPAIRED }] } }
+    if (document === peersGQL) return { data: { peers: [{ ...peer, online: fixtures.online ?? (fixtures.switchOnly ? true : peer.online), managed: fixtures.switchOnly && paired, status: paired ? PeerStatus.PAIRED : PeerStatus.UNPAIRED }] } }
     if (document !== unpairPeerGQL) throw new Error('Unexpected GraphQL request')
     if (fail) return { errors: [{ message: 'Device unavailable' }] }
     paired = false
     return { data: { unpairPeer: true } }
   })
+  io.probe.mockResolvedValue({ data: { app: { clientId: peer.id } } })
   const app = renderer.createApp(NearbyView, { switchOnly: fixtures.switchOnly })
   app.provide(ssrContextKey, { modules: new Set() })
   app.use(createI18n({ legacy: false, locale: 'en-US', messages: { 'en-US': messages } }))
   app.component('VListItem', VListItem)
+  app.component('InlineDeleteConfirm', InlineDeleteConfirm)
   app.component('VModal', (_, { slots }) => h('section', [slots.headline?.(), slots.content?.(), slots.actions?.()]))
   app.component('VDropdownMenu', (props, { slots }) => props.modelValue ? slots.default?.() : null)
   app.component('VDropdown', (_, { slots }) => h('div', slots.trigger?.()))
@@ -157,6 +164,7 @@ async function mount(current = '', fail = false, fixtures: { paired?: boolean; d
   const click = async (match: (node: Node) => boolean) => {
     const button = nodes(root).find((node) => typeof node.props.onClick === 'function' && match(node))
     expect(button).toBeDefined()
+    expect(button?.props.disabled).not.toBe(true)
     const onClick = button!.props.onClick as (event: unknown) => void
     onClick({ stopPropagation() {} })
     await nextTick()
@@ -206,7 +214,7 @@ it.each(['', peer.id])('removes the device only after confirmation (current devi
   expect(view.text().includes('switch back to this computer')).toBe(Boolean(current))
   await view.clickText('Unpair')
   await new Promise<void>((resolve) => setImmediate(resolve))
-  expect(io.request.mock.calls.filter(([document]) => document === unpairPeerGQL)).toEqual([[unpairPeerGQL, { id: peer.id }]])
+  expect(io.request.mock.calls.filter(([document]) => document === unpairPeerGQL)).toEqual([[unpairPeerGQL, { peerId: peer.id }]])
   expect(io.removePref).toHaveBeenCalledWith('main_state:remote')
   expect(io.clearRemote).toHaveBeenCalledTimes(current ? 1 : 0)
   expect(view.location.href).toBe(current ? '/' : '/nearby?q=keep#hash')
@@ -238,4 +246,43 @@ it.each(['', 'remote'])('switches the managed Web picker without changing the vi
   if (current) expect(io.clearRemote).toHaveBeenCalledOnce()
   else expect(io.setRemote).toHaveBeenCalledExactlyOnceWith(peer.id)
   expect(io.request.mock.calls.every(([document]) => document === peersGQL)).toBe(true)
+})
+
+it('checks a stale offline Web row on explicit Switch and does not change target on failed preflight', async () => {
+  const view = await mount('', false, { switchOnly: true, online: false, self })
+  let reject!: (reason: Error) => void
+  io.probe.mockReturnValue(new Promise((_, fail) => { reject = fail }))
+  await view.clickText('Switch')
+  expect(io.probe).toHaveBeenCalledOnce()
+  expect(view.text()).toContain('Switching…')
+  expect(io.setRemote).not.toHaveBeenCalled()
+  expect(view.location.reload).not.toHaveBeenCalled()
+  reject(Object.assign(new Error('network_error'), { status: 502 }))
+  await vi.waitFor(() => expect(io.pushModal).toHaveBeenCalledOnce())
+  expect(io.pushModal.mock.calls[0]?.[1]).toEqual({ peerName: peer.name, originName: self.name })
+  expect(view.text()).not.toContain('Switching…')
+  expect(io.setRemote).not.toHaveBeenCalled()
+  expect(view.location.reload).not.toHaveBeenCalled()
+})
+
+it('exposes Unpair for a stale managed row in the Web picker without requiring a connection', async () => {
+  const view = await mount('', false, { switchOnly: true, online: false, self })
+  await view.clickText('Unpair')
+  expect(view.text()).toContain('Unpair “Test device”?')
+  expect(io.request.mock.calls.every(([document]) => document === peersGQL)).toBe(true)
+  expect(io.probe).not.toHaveBeenCalled()
+})
+
+it('confirms and removes a stale saved Web peer through the gateway using the declared peerId variable', async () => {
+  const view = await mount('', false, { switchOnly: true, online: false, self })
+  await view.clickText('Unpair')
+  expect(view.text()).toContain('Your chat history is kept.')
+  await view.clickText('Cancel')
+  expect(io.request.mock.calls.every(([document]) => document === peersGQL)).toBe(true)
+  await view.clickText('Unpair')
+  await view.clickText('Confirm')
+  await new Promise<void>(done => setImmediate(done))
+  expect(io.request.mock.calls.filter(([document]) => document === unpairPeerGQL)).toEqual([[unpairPeerGQL, { peerId: peer.id }]])
+  expect(view.text()).not.toContain(peer.name)
+  expect(io.probe).not.toHaveBeenCalled()
 })
