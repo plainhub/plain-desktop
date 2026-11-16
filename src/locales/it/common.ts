@@ -10,6 +10,11 @@ export default {
   http_security_certificate: 'Un certificato autofirmato può generare un avviso del browser. Verifica il certificato prima di connetterti.',
 
   file_index: {
+    scanning: 'Scansione dei file…',
+    scanned_files: 'File scansionati: {count}',
+    scope_all_folders: 'Tutte le cartelle',
+    scope_selected_folders: 'Solo cartelle selezionate: {count}',
+    scope_excluded_folders: 'Cartelle escluse: {count}',
     media_pages_hint: 'Solo i file indicizzati appaiono nelle pagine Immagini, Video, Audio e Documenti.',
     last_scan: 'Ultima scansione',
     not_scanned: 'Nessuna cronologia di scansione',

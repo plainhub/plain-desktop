@@ -46,7 +46,7 @@ it('opens the matching index volume from its icon and preserves settings and sca
 
 it.each([
   [null, null, null, null, 'file_index.not_scanned'],
-  ['2026-11-15T02:30:00Z', 'COMPLETED', 0, 0, 'completed'],
+  ['2026-11-15T02:30:00Z', 'COMPLETED', 0, 0, 'file_index.scanned_files'],
   ['2026-11-15T02:30:00Z', 'CANCELED', 2, null, 'stopped'],
   ['2026-11-15T02:30:00Z', 'FAILED', 3, 5, 'failed'],
 ] as const)('renders the stored scan result with unknown and zero counts', (lastScanAt, lastScanStatus, lastScanCount, lastScanTotal, label) => {
@@ -54,18 +54,18 @@ it.each([
   const view = renderView(FileIndexVolumeCard, { volume, title: 'Fixture volume', scanDisabled: false }, { VIconButton, VTextButton, VCircularProgress })
   try {
     expect(content(view.root)).toContain(label)
-    if (lastScanAt) expect(content(view.root)).toContain(lastScanAt)
+    if (lastScanAt) expect(content(view.root)).not.toContain(lastScanAt)
     expect(nodes(view.root).some(node => node.tag === 'pre')).toBe(false)
   } finally { view.unmount() }
 })
 
 it.each([
   ['QUEUED', 'waiting', ['pause', 'stop']],
-  ['RUNNING', 'building_file_index', ['pause', 'stop']],
+  ['RUNNING', 'file_index.scanned_files', ['pause', 'stop']],
   ['PAUSED', 'paused', ['resume', 'stop']],
   ['FAILED', 'Generated read failure', []],
-  ['STOPPED', '', []],
-  ['IDLE', '', []],
+  ['STOPPED', 'stopped', []],
+  ['IDLE', 'file_index.not_scanned', []],
 ] as const)('renders %s progress and only the matching volume controls', async (state, label, actions) => {
   const volume: FileIndexVolume = { id: 'fixture-volume', path: '/fixture', isAvailable: true, indexMode: 'BLOCKLIST', includedDirs: [], excludedDirs: [], lastScanAt: null, lastScanStatus: null, lastScanCount: null, lastScanTotal: null }
   const pause = vi.fn(), resume = vi.fn(), stop = vi.fn()
@@ -82,20 +82,36 @@ it.each([
       expect(Boolean(button)).toBe(actions.includes(action as never))
       if (button) { fire(button, 'onClick', {}); expect(callback).toHaveBeenCalledOnce() }
     }
-    expect(content(view.root)).not.toContain('stopped')
+    expect(content(view.root).includes('stopped')).toBe(state === 'STOPPED')
     expect(content(view.root).includes('rebuild_index')).toBe(actions.length === 0)
   } finally { view.unmount() }
 })
 
 it.each([
-  [0, null, ''], [1234, null, '1,234'], [1234, 2000, '1,234 / 2,000'], [0, 2, ''], [0, 0, ''],
-] as const)('renders committed progress %i with total %s without inventing totals', (indexed, total, expected) => {
+  [0, null], [1234, null], [1234, 2000], [0, 2], [0, 0],
+] as const)('renders committed progress %i with total %s without inventing totals', (indexed, total) => {
   const volume: FileIndexVolume = { id: 'fixture-volume', path: '/fixture', isAvailable: true, indexMode: 'BLOCKLIST', includedDirs: [], excludedDirs: [], lastScanAt: null, lastScanStatus: null, lastScanCount: null, lastScanTotal: null }
   const view = renderView(FileIndexVolumeCard, { volume, title: 'Fixture', scanDisabled: false,
     scanProgress: { volumeId: volume.id, state: 'RUNNING', indexed, total, pending: total === null ? null : total - indexed },
   }, { VIconButton, VTextButton, VCircularProgress })
   try {
     const text = content(nodes(view.root).find(node => node.props['aria-live'] === 'polite')!)
-    expect(text.trim()).toBe(expected ? `building_file_index · ${expected}` : 'building_file_index')
+    expect(text.trim()).toBe(indexed > 0 ? 'file_index.scanned_files' : 'file_index.scanning')
   } finally { view.unmount() }
+})
+
+it('shows only current progress while scanning and file count with scope when complete', () => {
+  const volume: FileIndexVolume = { id: 'fixture-volume', path: '/fixture', isAvailable: true, indexMode: 'BLOCKLIST', includedDirs: [], excludedDirs: [], lastScanAt: '2026-11-15T02:30:00Z', lastScanStatus: 'COMPLETED', lastScanCount: 584, lastScanTotal: 584 }
+  const base = { volume, title: 'Fixture', scanDisabled: false }
+  const components = { VIconButton, VTextButton, VCircularProgress }
+  const running = renderView(FileIndexVolumeCard, { ...base, scanProgress: { volumeId: volume.id, state: 'RUNNING', indexed: 0, total: null, pending: null } }, components)
+  const completed = renderView(FileIndexVolumeCard, base, components)
+  try {
+    const progress = content(running.root)
+    expect(progress).toContain('file_index.scanning')
+    expect(progress).not.toMatch(/file_index\.(scan_count|scanned_files|not_scanned|scope_all_folders)|2026-11-15/)
+    expect(content(completed.root)).toContain('file_index.scanned_files')
+    expect(content(completed.root)).toContain('file_index.scope_all_folders')
+    expect(content(completed.root)).not.toContain('file_index.scope_excluded_folders')
+  } finally { running.unmount(); completed.unmount() }
 })

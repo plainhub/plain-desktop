@@ -10,6 +10,11 @@ export default {
   http_security_certificate: '自己署名証明書によりブラウザーに警告が表示される場合があります。接続前に証明書を確認してください。',
 
   file_index: {
+    scanning: 'ファイルをスキャン中…',
+    scanned_files: '{count} 件のファイルをスキャン済み',
+    scope_all_folders: 'すべてのフォルダー',
+    scope_selected_folders: '選択した {count} 個のフォルダーのみ',
+    scope_excluded_folders: '{count} 個のフォルダーを除外',
     media_pages_hint: 'インデックスに登録されたファイルのみ、画像・動画・音声・ドキュメントの各ページに表示されます。',
     last_scan: '前回のスキャン',
     not_scanned: 'スキャン記録はまだありません',

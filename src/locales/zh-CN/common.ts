@@ -10,6 +10,11 @@ export default {
   http_security_certificate: '自签名证书可能触发浏览器警告，请先核验证书再连接。',
 
   file_index: {
+    scanning: '正在扫描文件…',
+    scanned_files: '已扫描 {count} 个文件',
+    scope_all_folders: '全部文件夹',
+    scope_selected_folders: '只扫 {count} 个文件夹',
+    scope_excluded_folders: '排除 {count} 个文件夹',
     media_pages_hint: '只有已索引的文件才会出现在图片、视频、音频和文档页面。',
     last_scan: '上次扫描',
     not_scanned: '尚无扫描记录',

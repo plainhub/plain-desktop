@@ -10,6 +10,11 @@ export default {
   http_security_certificate: 'Um certificado autoassinado pode gerar um aviso no navegador. Verifique o certificado antes de se conectar.',
 
   file_index: {
+    scanning: 'A analisar ficheiros…',
+    scanned_files: 'Ficheiros analisados: {count}',
+    scope_all_folders: 'Todas as pastas',
+    scope_selected_folders: 'Apenas pastas selecionadas: {count}',
+    scope_excluded_folders: 'Pastas excluídas: {count}',
     media_pages_hint: 'Apenas os ficheiros indexados aparecem nas páginas Imagens, Vídeos, Áudio e Documentos.',
     last_scan: 'Última análise',
     not_scanned: 'Ainda sem histórico de análise',

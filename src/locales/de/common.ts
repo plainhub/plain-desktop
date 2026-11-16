@@ -10,6 +10,11 @@ export default {
   http_security_certificate: 'Ein selbstsigniertes Zertifikat kann eine Browserwarnung auslösen. Prüfe das Zertifikat vor dem Verbinden.',
 
   file_index: {
+    scanning: 'Dateien werden gescannt…',
+    scanned_files: 'Gescannte Dateien: {count}',
+    scope_all_folders: 'Alle Ordner',
+    scope_selected_folders: 'Nur ausgewählte Ordner: {count}',
+    scope_excluded_folders: 'Ausgeschlossene Ordner: {count}',
     media_pages_hint: 'Nur indexierte Dateien erscheinen auf den Seiten Bilder, Videos, Audio und Dokumente.',
     last_scan: 'Letzter Scan',
     not_scanned: 'Noch kein Scanverlauf',

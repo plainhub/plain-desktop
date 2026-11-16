@@ -10,6 +10,11 @@ export default {
   http_security_certificate: 'Chứng chỉ tự ký có thể khiến trình duyệt hiện cảnh báo. Hãy xác minh chứng chỉ trước khi kết nối.',
 
   file_index: {
+    scanning: 'Đang quét tệp…',
+    scanned_files: 'Đã quét {count} tệp',
+    scope_all_folders: 'Tất cả thư mục',
+    scope_selected_folders: 'Chỉ {count} thư mục đã chọn',
+    scope_excluded_folders: 'Loại trừ {count} thư mục',
     media_pages_hint: 'Chỉ các tệp đã lập chỉ mục mới xuất hiện trên các trang Hình ảnh, Video, Âm thanh và Tài liệu.',
     last_scan: 'Lần quét gần nhất',
     not_scanned: 'Chưa có lịch sử quét',

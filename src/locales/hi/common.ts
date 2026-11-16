@@ -10,6 +10,11 @@ export default {
   http_security_certificate: 'स्व-हस्ताक्षरित प्रमाणपत्र पर ब्राउज़र चेतावनी दिखा सकता है। कनेक्ट करने से पहले प्रमाणपत्र की जाँच करें।',
 
   file_index: {
+    scanning: 'फ़ाइलें स्कैन हो रही हैं…',
+    scanned_files: 'स्कैन की गई फ़ाइलें: {count}',
+    scope_all_folders: 'सभी फ़ोल्डर',
+    scope_selected_folders: 'केवल चुने गए फ़ोल्डर: {count}',
+    scope_excluded_folders: 'छोड़े गए फ़ोल्डर: {count}',
     media_pages_hint: 'केवल अनुक्रमित फ़ाइलें ही चित्र, वीडियो, ऑडियो और दस्तावेज़ पृष्ठों पर दिखाई देती हैं।',
     last_scan: 'पिछला स्कैन',
     not_scanned: 'अभी कोई स्कैन रिकॉर्ड नहीं है',

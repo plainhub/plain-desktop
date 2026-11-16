@@ -10,6 +10,11 @@ export default {
   http_security_certificate: 'Kendinden imzalı bir sertifika tarayıcı uyarısına neden olabilir. Bağlanmadan önce sertifikayı doğrulayın.',
 
   file_index: {
+    scanning: 'Dosyalar taranıyor…',
+    scanned_files: 'Taranan dosya: {count}',
+    scope_all_folders: 'Tüm klasörler',
+    scope_selected_folders: 'Yalnızca seçili klasörler: {count}',
+    scope_excluded_folders: 'Hariç tutulan klasörler: {count}',
     media_pages_hint: 'Yalnızca dizine eklenen dosyalar Görseller, Videolar, Ses ve Belgeler sayfalarında görünür.',
     last_scan: 'Son tarama',
     not_scanned: 'Henüz tarama kaydı yok',

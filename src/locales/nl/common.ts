@@ -10,6 +10,11 @@ export default {
   http_security_certificate: 'Een zelfondertekend certificaat kan een browserwaarschuwing veroorzaken. Controleer het certificaat voordat je verbinding maakt.',
 
   file_index: {
+    scanning: 'Bestanden scannen…',
+    scanned_files: 'Gescande bestanden: {count}',
+    scope_all_folders: 'Alle mappen',
+    scope_selected_folders: 'Alleen geselecteerde mappen: {count}',
+    scope_excluded_folders: 'Uitgesloten mappen: {count}',
     media_pages_hint: 'Alleen geïndexeerde bestanden verschijnen op de pagina’s Afbeeldingen, Video’s, Audio en Documenten.',
     last_scan: 'Laatste scan',
     not_scanned: 'Nog geen scangeschiedenis',

@@ -10,6 +10,11 @@ export default {
   http_security_certificate: 'Самоподписанный сертификат может вызвать предупреждение браузера. Проверьте сертификат перед подключением.',
 
   file_index: {
+    scanning: 'Сканирование файлов…',
+    scanned_files: 'Проверено файлов: {count}',
+    scope_all_folders: 'Все папки',
+    scope_selected_folders: 'Только выбранные папки: {count}',
+    scope_excluded_folders: 'Исключено папок: {count}',
     media_pages_hint: 'Только индексированные файлы отображаются на страницах изображений, видео, аудио и документов.',
     last_scan: 'Последнее сканирование',
     not_scanned: 'Истории сканирования пока нет',

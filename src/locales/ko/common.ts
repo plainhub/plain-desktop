@@ -10,6 +10,11 @@ export default {
   http_security_certificate: '자체 서명 인증서로 인해 브라우저 경고가 표시될 수 있습니다. 연결하기 전에 인증서를 확인하세요.',
 
   file_index: {
+    scanning: '파일 검사 중…',
+    scanned_files: '파일 {count}개 검사됨',
+    scope_all_folders: '모든 폴더',
+    scope_selected_folders: '선택한 폴더 {count}개만',
+    scope_excluded_folders: '제외된 폴더 {count}개',
     media_pages_hint: '색인된 파일만 이미지, 동영상, 오디오 및 문서 페이지에 표시됩니다.',
     last_scan: '마지막 스캔',
     not_scanned: '아직 스캔 기록이 없음',

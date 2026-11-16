@@ -10,6 +10,11 @@ export default {
   http_security_certificate: 'A self-signed certificate may trigger a browser warning. Verify the certificate before connecting.',
 
   file_index: {
+    scanning: 'Scanning files…',
+    scanned_files: 'Scanned {count} files',
+    scope_all_folders: 'All folders',
+    scope_selected_folders: 'Only {count} selected folders',
+    scope_excluded_folders: '{count} excluded folders',
     media_pages_hint: 'Only indexed files appear on the Images, Videos, Audio and Docs pages.',
     last_scan: 'Last scan',
     not_scanned: 'No scan history yet',

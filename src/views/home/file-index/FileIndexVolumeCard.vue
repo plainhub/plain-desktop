@@ -13,36 +13,47 @@
     <p v-if="mount && mount.totalBytes > 0" class="capacity">
       {{ $t('storage_free_total', { free: formatFileSize(mount.freeBytes), total: formatFileSize(mount.totalBytes) }) }}
     </p>
-    <p class="scan-info">
-      <template v-if="volume.lastScanAt">{{ $t('file_index.last_scan') }}: {{ formatDateTime(volume.lastScanAt) }}</template>
-      <template v-else>{{ $t('file_index.not_scanned') }}</template>
-    </p>
-    <p v-if="volume.lastScanAt" class="scan-info">
-      {{ $t('file_index.scan_count', { count: volume.lastScanCount?.toLocaleString() ?? '—', total: volume.lastScanTotal?.toLocaleString() ?? '—' }) }}
-      <template v-if="volume.lastScanStatus"> · {{ $t(scanStatusKeys[volume.lastScanStatus]) }}</template>
-    </p>
-    <p v-if="progressLabel" class="scan-info" aria-live="polite">
-      {{ scanProgress?.state === 'FAILED' ? scanProgress.error || $t('failed') : $t(progressLabel) }}<template v-if="scanProgress && scanProgress.state !== 'FAILED' && scanProgress.indexed > 0"> · {{ scanProgress.indexed.toLocaleString() }}<template v-if="scanProgress.total !== null"> / {{ scanProgress.total.toLocaleString() }}</template></template>
-    </p>
     <footer>
-      <v-text-button v-if="volume.indexMode === 'UNCONFIGURED'" :disabled="scanDisabled || !volume.isAvailable" @click="$emit('create')">
-        {{ $t('file_index.create') }}
-      </v-text-button>
-      <template v-else>
-        <p class="mode">
-          {{ $t(modeKey) }}<template v-if="volume.indexMode === 'ALLOWLIST'"> · {{ volume.includedDirs.length }}</template>
-          <template v-else-if="volume.indexMode === 'BLOCKLIST'"> · {{ volume.excludedDirs.length }}</template>
+      <div class="scan-summary" aria-live="polite">
+        <p class="scan-info">
+          <template v-if="scanProgress?.state === 'FAILED'">{{ scanProgress.error || $t('failed') }}</template>
+          <template v-else-if="scanProgress?.state === 'RUNNING'">
+            {{ scanProgress.indexed > 0 ? $t('file_index.scanned_files', { count: scanProgress.indexed.toLocaleString() }) : $t('file_index.scanning') }}
+          </template>
+          <template v-else-if="scanProgress?.state === 'QUEUED'">{{ $t('waiting') }}</template>
+          <template v-else-if="scanProgress?.state === 'PAUSED'">{{ $t('paused') }}</template>
+          <template v-else-if="volume.indexMode === 'DISABLED'">{{ $t('file_index.disabled') }}</template>
+          <template v-else-if="scanProgress?.state === 'STOPPED'">{{ $t('stopped') }}</template>
+          <template v-else-if="volume.lastScanStatus === 'COMPLETED'">
+            {{ volume.lastScanCount === null ? $t('completed') : $t('file_index.scanned_files', { count: volume.lastScanCount.toLocaleString() }) }}
+          </template>
+          <template v-else-if="volume.lastScanStatus === 'FAILED'">{{ $t('failed') }}</template>
+          <template v-else-if="volume.lastScanStatus === 'CANCELED'">{{ $t('stopped') }}</template>
+          <template v-else>{{ $t('file_index.not_scanned') }}</template>
         </p>
-        <template v-if="scanProgress && ['QUEUED', 'RUNNING', 'PAUSED'].includes(scanProgress.state)">
-          <v-icon-button v-if="scanProgress.state === 'RUNNING' || scanProgress.state === 'QUEUED'" v-tooltip="$t('pause')" :aria-label="$t('pause')" :disabled="scanDisabled" @click="$emit('pause')"><i-material-symbols:pause-rounded /></v-icon-button>
-          <v-icon-button v-if="scanProgress.state === 'PAUSED'" v-tooltip="$t('resume')" :aria-label="$t('resume')" :disabled="scanDisabled" @click="$emit('resume')"><i-material-symbols:play-arrow-rounded /></v-icon-button>
-          <v-icon-button v-tooltip="$t('stop')" :aria-label="$t('stop')" :disabled="scanDisabled" @click="$emit('stop')"><i-material-symbols:stop-rounded /></v-icon-button>
-        </template>
+        <p v-if="!scanActive && (volume.indexMode === 'ALLOWLIST' || volume.indexMode === 'BLOCKLIST')" class="scan-info">
+          <template v-if="volume.indexMode === 'ALLOWLIST'">{{ $t('file_index.scope_selected_folders', { count: volume.includedDirs.length }) }}</template>
+          <template v-else>
+            {{ $t('file_index.scope_all_folders') }}<template v-if="volume.excludedDirs.length"> · {{ $t('file_index.scope_excluded_folders', { count: volume.excludedDirs.length }) }}</template>
+          </template>
+        </p>
+      </div>
+      <div class="scan-actions">
+        <v-text-button v-if="volume.indexMode === 'UNCONFIGURED'" :disabled="scanDisabled || !volume.isAvailable" @click="$emit('create')">
+          {{ $t('file_index.create') }}
+        </v-text-button>
         <template v-else>
-          <v-text-button :disabled="scanDisabled || !canScanVolume(volume)" @click="$emit('scan')">{{ $t('rebuild_index') }}</v-text-button>
-          <v-text-button v-if="volume.indexMode !== 'DISABLED'" :disabled="scanDisabled || !volume.isAvailable" @click="$emit('disable')">{{ $t('file_index.disable') }}</v-text-button>
+          <template v-if="scanActive && scanProgress">
+            <v-icon-button v-if="scanProgress.state === 'RUNNING' || scanProgress.state === 'QUEUED'" v-tooltip="$t('pause')" :aria-label="$t('pause')" :disabled="scanDisabled" @click="$emit('pause')"><i-material-symbols:pause-rounded /></v-icon-button>
+            <v-icon-button v-if="scanProgress.state === 'PAUSED'" v-tooltip="$t('resume')" :aria-label="$t('resume')" :disabled="scanDisabled" @click="$emit('resume')"><i-material-symbols:play-arrow-rounded /></v-icon-button>
+            <v-icon-button v-tooltip="$t('stop')" :aria-label="$t('stop')" :disabled="scanDisabled" @click="$emit('stop')"><i-material-symbols:stop-rounded /></v-icon-button>
+          </template>
+          <template v-else>
+            <v-text-button :disabled="scanDisabled || !canScanVolume(volume)" @click="$emit('scan')">{{ $t('rebuild_index') }}</v-text-button>
+            <v-text-button v-if="volume.indexMode !== 'DISABLED'" :disabled="scanDisabled || !volume.isAvailable" @click="$emit('disable')">{{ $t('file_index.disable') }}</v-text-button>
+          </template>
         </template>
-      </template>
+      </div>
     </footer>
   </article>
 </template>
@@ -50,28 +61,18 @@
 <script setup lang="ts">
 import { computed, onDeactivated, ref } from 'vue'
 import VDropdown from '@/components/base/VDropdown.vue'
-import { formatDateTime, formatFileSize } from '@/lib/format'
-import { canScanVolume, type FileIndexVolume, type FileIndexScanStatus } from '@/lib/api/file-index'
+import { formatFileSize } from '@/lib/format'
+import { canScanVolume, type FileIndexVolume } from '@/lib/api/file-index'
 import type { IFileIndexScanProgress, IStorageMount } from '@/lib/interfaces'
 
 const props = defineProps<{ volume: FileIndexVolume; title: string; mount?: IStorageMount; scanDisabled: boolean; scanProgress?: IFileIndexScanProgress }>()
 defineEmits<{ settings: []; create: []; disable: []; scan: []; pause: []; resume: []; stop: [] }>()
-const progressLabel = computed(() => {
-  const progress = props.scanProgress
-  if (!progress) return ''
-  if (progress.state === 'QUEUED') return 'waiting'
-  if (progress.state === 'RUNNING') return 'building_file_index'
-  if (progress.state === 'PAUSED') return 'paused'
-  if (progress.state === 'FAILED') return 'failed'
-  return ''
+const scanActive = computed(() => {
+  const state = props.scanProgress?.state
+  return state === 'QUEUED' || state === 'RUNNING' || state === 'PAUSED'
 })
-const scanStatusKeys: Record<FileIndexScanStatus, string> = { COMPLETED: 'completed', CANCELED: 'stopped', FAILED: 'failed' }
 const rawOpen = ref(false)
 onDeactivated(() => { rawOpen.value = false })
-const modeKey = computed(
-  () =>
-    `file_index.${props.volume.indexMode === 'ALLOWLIST' ? 'allowlist' : props.volume.indexMode === 'BLOCKLIST' ? 'blocklist' : 'disabled'}`
-)
 </script>
 
 <style scoped>
@@ -108,22 +109,23 @@ footer {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  justify-content: flex-end;
+  justify-content: space-between;
   gap: 8px;
 }
-footer p {
-  margin: 0;
-  margin-inline-end: auto;
+.scan-summary {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.scan-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px;
+  margin-inline-start: auto;
 }
 .scan-info,
 .capacity,
 .unavailable {
   color: var(--md-sys-color-on-surface-variant);
-}
-.mode {
-  color: var(--md-sys-color-primary);
-}
-.unavailable .mode {
-  color: inherit;
 }
 </style>

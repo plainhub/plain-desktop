@@ -10,6 +10,11 @@ export default {
   http_security_certificate: '自簽憑證可能觸發瀏覽器警告，請先確認憑證再連線。',
 
   file_index: {
+    scanning: '正在掃描檔案…',
+    scanned_files: '已掃描 {count} 個檔案',
+    scope_all_folders: '全部資料夾',
+    scope_selected_folders: '只掃 {count} 個資料夾',
+    scope_excluded_folders: '排除 {count} 個資料夾',
     media_pages_hint: '只有已索引的檔案才會出現在圖片、影片、音訊和文件頁面。',
     last_scan: '上次掃描',
     not_scanned: '尚無掃描記錄',

@@ -10,6 +10,11 @@ export default {
   http_security_certificate: 'স্ব-স্বাক্ষরিত সনদের কারণে ব্রাউজার সতর্কতা দেখাতে পারে। সংযোগের আগে সনদটি যাচাই করুন।',
 
   file_index: {
+    scanning: 'ফাইল স্ক্যান করা হচ্ছে…',
+    scanned_files: 'স্ক্যান করা ফাইল: {count}',
+    scope_all_folders: 'সব ফোল্ডার',
+    scope_selected_folders: 'শুধু নির্বাচিত ফোল্ডার: {count}',
+    scope_excluded_folders: 'বাদ দেওয়া ফোল্ডার: {count}',
     media_pages_hint: 'শুধু সূচিভুক্ত ফাইল ছবি, ভিডিও, অডিও ও নথির পাতায় দেখা যায়।',
     last_scan: 'সর্বশেষ স্ক্যান',
     not_scanned: 'এখনও কোনো স্ক্যানের রেকর্ড নেই',
