@@ -110,10 +110,7 @@ export function useTextFile() {
 
   // Helpers
   async function ensureUrlTokenKey() {
-    // No login gate here: in Tauri local mode `getCurrentAuthToken()` is empty
-    // (no bound remote device), yet the local server still serves app.urlToken —
-    // without it the file id can never be decrypted back to a path.
-    if (urlTokenKey.value) return
+    if (urlTokenKey.value || (!isLocalMode() && !getCurrentAuthToken())) return
     try {
       const r = await gqlFetch(appGQL)
       const newToken = r?.data?.app?.urlToken

@@ -307,3 +307,15 @@ it('replaces a pending media snapshot after a library change without restoring t
   expect(handle).toHaveBeenCalledExactlyOnceWith({ audios: [{ id: 'preserved' }] }, '', expect.any(Object))
   expect(query.result.value).toEqual({ audios: [{ id: 'preserved' }] })
 })
+
+it('rejects anonymous GraphQL without sending a request or reloading the page', async () => {
+  vi.stubGlobal('__IS_TAURI__', false)
+  target.native = false
+  target.token = ''
+  vi.mocked(httpRequest).mockResolvedValueOnce(response(null, 401))
+
+  await expect(gqlFetch('query { app { id } }')).rejects.toMatchObject({ message: 'unauthorized', status: 401 })
+  expect(httpRequest).not.toHaveBeenCalled()
+  expect(clearCurrentSession).not.toHaveBeenCalled()
+  expect(window.location.reload).not.toHaveBeenCalled()
+})

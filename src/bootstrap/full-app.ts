@@ -18,10 +18,7 @@ import { readLocalServer } from '@/lib/api/local-server'
 
 export async function bootstrapFullApp(): Promise<void> {
   if (!__IS_TAURI__) {
-    if (!ensureBrowserClientId()) {
-      window.location.replace('/login')
-      return
-    }
+    ensureBrowserClientId()
     applyUrlClientId()
   }
   if (__IS_TAURI__) {

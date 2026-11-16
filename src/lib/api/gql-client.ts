@@ -106,6 +106,7 @@ export async function encryptedGqlPost<T = any>(
   timeout: number = TIMEOUT,
   headers: Record<string, string> = getApiHeaders(),
 ): Promise<GqlResult<T>> {
+  if (!token) throw new GqlError('unauthorized', 401)
   const key = tokenToKey(token)
   const json = graphqlRequestPayload(query, variables)
   const op = operationName(query)
@@ -195,7 +196,8 @@ async function doGqlFetch<T = any>(context: ReturnType<typeof graphqlContext>, q
     if (context.native) return await nativeGqlFetch<T>(query, variables, timeout, context.target)
     return await encryptedGqlPost<T>(context.url, context.token, query, variables, timeout, context.headers)
   } catch (e) {
-    if (e instanceof GqlError && e.status === 401 && context.target?.kind !== 'local' && JSON.stringify(context) === getGraphqlContextKey()) {
+    if (e instanceof GqlError && e.status === 401 && (context.native || context.token) &&
+      context.target?.kind !== 'local' && JSON.stringify(context) === getGraphqlContextKey()) {
       await clearCurrentSession()
       window.location.reload()
     }

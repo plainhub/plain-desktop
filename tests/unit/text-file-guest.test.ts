@@ -150,3 +150,25 @@ it.each([false, true])('loads original CSV when editing and returns to table pre
     await vi.waitFor(() => expect(text.renderedMarkdown.value).toBe('<safe>' + table))
   } finally { scope.stop() }
 })
+
+it('previews a direct file link without requesting authenticated metadata', async () => {
+  io.cached = false
+  io.token = ''
+  const id = resourceId(new Uint8Array(32), { mode: 'c', id: 'owner-session' }, { type: 'FILE', id: '/owned/note.txt' })
+  io.route = reactive({ name: 'text-file', query: { id } })
+  io.fetch.mockReset().mockRejectedValue(new Error('unauthorized'))
+  const fetch = vi.fn().mockResolvedValue(new Response('Direct preview', {
+    headers: { 'content-disposition': 'inline; filename="note.txt"' },
+  }))
+  vi.stubGlobal('fetch', fetch)
+  vi.stubGlobal('document', { title: '' })
+  const scope = effectScope()
+  try {
+    const text = scope.run(() => useTextFile())!
+    await vi.waitFor(() => expect(text.loading.value).toBe(false))
+    expect(io.fetch).not.toHaveBeenCalled()
+    expect(fetch).toHaveBeenCalledExactlyOnceWith('/fs?id=' + encodeURIComponent(id) + '&action=preview')
+    expect(text.content.value).toBe('Direct preview')
+    expect(text.canEdit.value).toBe(false)
+  } finally { scope.stop() }
+})
