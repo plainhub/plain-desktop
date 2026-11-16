@@ -19,9 +19,8 @@ import common from '@/locales/en-US/common'
 import messages from '@/locales/en-US'
 
 const io = vi.hoisted(() => ({ request: vi.fn(), removePref: vi.fn(), clearRemote: vi.fn(), current: '', devices: [] as DiscoveredDevice[], self: null as SelfDevice | null }))
-vi.mock('@/lib/api/gql-client', () => ({ nativeGqlFetch: io.request, bindGraphqlClient: () => io.request }))
+vi.mock('@/lib/api/gql-client', () => ({ nativeGqlFetch: io.request }))
 vi.mock('@/lib/api/subscription-client', () => ({
-  graphqlSubscriptions: { subscribe: () => () => {}, onAttached: () => () => {} },
   SubscriptionClient: class {
     subscribe = () => () => {}
     onAttached = () => () => {}
@@ -50,9 +49,8 @@ vi.mock('@/lib/device/pairing', async () => {
 vi.mock('@/hooks/use-device-discovery', async () => {
   const { ref } = await import('vue')
   return {
-    DiscoveryStatus: { OK: 2 },
     useDeviceDiscovery: () => ({
-      devices: ref(io.devices), status: ref(2), pairingViews: new Map(), start: async () => {}, stop: async () => {},
+      devices: ref(io.devices), pairingViews: new Map(), start: async () => {}, stop: async () => {},
     }),
   }
 })
@@ -124,13 +122,13 @@ afterEach(async () => {
   vi.resetAllMocks()
 })
 
-async function mount(current = '', fail = false, fixtures: { paired?: boolean; devices?: DiscoveredDevice[]; self?: SelfDevice; switchOnly?: boolean } = {}) {
+async function mount(current = '', fail = false, fixtures: { paired?: boolean; devices?: DiscoveredDevice[]; self?: SelfDevice } = {}) {
   io.current = current
   io.devices = fixtures.devices ?? []
   io.self = fixtures.self ?? null
-  const location = { href: '/nearby', origin: 'https://192.0.2.1:8443' }
+  const location = { href: '/nearby' }
   vi.stubGlobal('window', { location })
-  vi.stubGlobal('__IS_TAURI__', !fixtures.switchOnly)
+  vi.stubGlobal('__IS_TAURI__', true)
   let paired = fixtures.paired ?? true
   io.request.mockImplementation(async (document: string) => {
     if (document === peersGQL) return { data: { peers: [{ ...peer, status: paired ? PeerStatus.PAIRED : PeerStatus.UNPAIRED }] } }
@@ -139,7 +137,7 @@ async function mount(current = '', fail = false, fixtures: { paired?: boolean; d
     paired = false
     return { data: { unpairPeer: true } }
   })
-  const app = renderer.createApp(NearbyView, { switchOnly: fixtures.switchOnly })
+  const app = renderer.createApp(NearbyView)
   app.provide(ssrContextKey, { modules: new Set() })
   app.use(createI18n({ legacy: false, locale: 'en-US', messages: { 'en-US': messages } }))
   app.component('VListItem', VListItem)
@@ -167,7 +165,7 @@ async function mount(current = '', fail = false, fixtures: { paired?: boolean; d
     expect(nodes(root).filter((node) => node.props.class === 'dropdown-item').map((node) => node.text)).toEqual(['Unpair'])
     await clickText('Unpair')
   }
-  return { location, openRemoval, clickText, links: () => nodes(root).filter((node) => node.props.href).map(node => node.props), deviceLists: () => nodes(root).filter((node) => node.props.class === 'card list-items').length, text: () => nodes(root).map((node) => node.text).join(' ') }
+  return { location, openRemoval, clickText, deviceLists: () => nodes(root).filter((node) => node.props.class === 'card list-items').length, text: () => nodes(root).map((node) => node.text).join(' ') }
 }
 
 it.each([undefined, self])('does not show the paired heading with no paired peer (self: %j)', async (local) => {
@@ -225,28 +223,4 @@ it('shows a removal error and leaves the current session available for retry', a
   expect(view.text()).toContain(common.network_error)
   expect(io.removePref).not.toHaveBeenCalled()
   expect(io.clearRemote).not.toHaveBeenCalled()
-})
-
-
-it('switches from Web to a reachable device HTTPS origin without pairing or passing source state', async () => {
-  const devices = [
-    { ...discovered, bestIp: '192.0.2.4', port: 9448 },
-    { ...discovered, id: 'closed', bestIp: '192.0.2.6', remoteAccess: false },
-    { ...discovered, id: 'invalid', ips: ['bad@192.0.2.7', '192.0.2.8/path?secret=x'] },
-    { ...discovered, id: 'same-origin', bestIp: '192.0.2.1' },
-    { ...discovered, id: 'current', bestIp: '192.0.2.15' },
-    { ...discovered, id: 'ipv6', bestIp: '2001:db8::15' },
-  ]
-  const view = await mount('current', false, { switchOnly: true, devices })
-  expect(view.text()).toContain('Switch Device')
-  expect(view.links().map(link => [link.href, link.referrerpolicy])).toEqual([
-    ['https://192.0.2.4:9448/', 'no-referrer'],
-    ['https://[2001:db8::15]:8443/', 'no-referrer'],
-  ])
-  // The existing list item prevents default on bubbled clicks; leave the anchor navigation intact.
-  const stopPropagation = vi.fn()
-  const activate = view.links()[0].onClick as (event: unknown) => void
-  activate({ stopPropagation })
-  expect(stopPropagation).toHaveBeenCalledOnce()
-  expect(io.request).not.toHaveBeenCalled()
 })

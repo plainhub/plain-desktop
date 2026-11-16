@@ -2,28 +2,14 @@
   <v-modal width="560px" @close="handleClose">
     <template #headline>
       <template v-if="removeTarget">{{ $t('device_discovery.unpair_confirm', { name: removeTarget.name }) }}</template>
-      <template v-else-if="step === 'discover'">{{ $t(switchOnly ? 'device_discovery.change_device' : 'nearby_devices') }}</template>
+      <template v-else-if="step === 'discover'">{{ $t('nearby_devices') }}</template>
       <template v-else>
         <v-icon-button :aria-label="$t('back')" @click="backToDevices"><i-material-symbols:arrow-back-rounded /></v-icon-button>
         <span>{{ $t('pairing_with', { name: selectedDevice?.name }) }}</span>
       </template>
     </template>
     <template #content>
-      <section v-if="switchOnly" class="discovery-section">
-        <DeviceDiscoveryStatus :status="status" @retry="refresh" />
-        <ul v-if="switchTargets.length" class="card list-items">
-          <VListItem v-for="{ device, href } in switchTargets" :key="device.id" :title="device.name" :subtitle="device.bestIp || device.ips.join(', ')">
-            <template #start><PeerIcon :device-type="device.deviceType" /></template>
-            <template #end><a class="web-switch-link" :href="href" referrerpolicy="no-referrer" @click.stop>{{ $t('switch') }}</a></template>
-          </VListItem>
-        </ul>
-        <span v-else-if="status === DiscoveryStatus.OK">{{ $t('no_devices_found') }}</span>
-        <div v-if="error" class="nearby-error" role="alert">
-          <span>{{ $t(error) }}</span>
-          <v-outlined-button @click="refresh">{{ $t('retry') }}</v-outlined-button>
-        </div>
-      </section>
-      <template v-else-if="removeTarget">
+      <template v-if="removeTarget">
         <div>{{ $t('device_discovery.unpair_hint') }}</div>
         <div v-if="removeTarget.id === currentClientId">{{ $t('device_discovery.unpair_current_hint') }}</div>
         <div v-if="error" class="nearby-error" role="alert">{{ $t(error) }}</div>
@@ -105,7 +91,7 @@ import RequestVerificationCode from '@/components/RequestVerificationCode.vue'
 import NearbyPairOptions from './NearbyPairOptions.vue'
 import NearbyDeviceItem from './NearbyDeviceItem.vue'
 import DiscoveredDeviceLogin from '@/views/login/DiscoveredDeviceLogin.vue'
-import { DiscoveryStatus, useDeviceDiscovery, type DiscoveredDevice } from '@/hooks/use-device-discovery'
+import { useDeviceDiscovery, type DiscoveredDevice } from '@/hooks/use-device-discovery'
 import { bindGraphqlClient, nativeGqlFetch } from '@/lib/api/gql-client'
 import { SubscriptionClient, graphqlSubscriptions } from '@/lib/api/subscription-client'
 import { openNative } from '@/lib/api/subscription-connection'
@@ -114,7 +100,7 @@ import { peersGQL } from '@/lib/api/query'
 import { unpairPeerGQL } from '@/lib/api/mutation'
 import type { PendingLoginDevice } from '@/lib/api/api'
 import type { IPeer } from '@/lib/interfaces'
-import { nearbyGroups, webSwitchDeviceUrl } from '@/lib/device/nearby'
+import { nearbyGroups } from '@/lib/device/nearby'
 import { createPairing } from '@/lib/device/pairing'
 import { preloadLoginPeers, findLoginPeer, loginPeers } from '@/lib/device/login-peers'
 import { loadSelfDevice, type SelfDevice } from '@/lib/device/self-device'
@@ -122,7 +108,6 @@ import { clearRemoteClientId, getRemoteClientId, setRemoteClientId } from '@/lib
 import { isLocalMode } from '@/lib/device/local-mode'
 import { remove as prefsRemove } from '@/lib/prefs/browser'
 
-const { switchOnly = false } = defineProps<{ switchOnly?: boolean }>()
 const request = __IS_TAURI__ ? nativeGqlFetch : bindGraphqlClient()
 const subscriptions = __IS_TAURI__ ? new SubscriptionClient(openNative) : graphqlSubscriptions
 const { devices, pairingViews, status, retry, start, stop, openLanPermissionSettings } = useDeviceDiscovery(() => request, subscriptions)
@@ -137,11 +122,6 @@ const removeTarget = ref<IPeer | null>(null)
 const removing = ref(false)
 const error = ref('')
 const currentClientId = computed(() => getRemoteClientId())
-const switchTargets = computed(() => devices.value.flatMap(device => {
-  if (device.id === currentClientId.value) return []
-  const href = webSwitchDeviceUrl(device)
-  return href && new URL(href).origin !== window.location.origin ? [{ device, href }] : []
-}))
 const localMode = computed(() => isLocalMode())
 const deviceById = computed(() => new Map(devices.value.map((device) => [device.id, device])))
 const groups = computed(() => nearbyGroups(peers.value, devices.value, selfDevice.value?.id, new Set(loginPeers.value.map((peer) => peer.id))))
@@ -149,7 +129,6 @@ const verificationStates = computed(() => Array.from(pairingViews.values()).filt
 let active = true
 
 async function loadPeers() {
-  if (switchOnly) return
   const [result] = await Promise.all([request<{ peers: IPeer[] }>(peersGQL), preloadLoginPeers()])
   if (result.errors?.length) throw new Error(result.errors[0].message)
   if (active) peers.value = result.data.peers
@@ -321,17 +300,6 @@ onBeforeUnmount(() => {
 </script>
 
 <style scoped lang="scss">
-.web-switch-link {
-  color: var(--md-sys-color-primary);
-  padding: 8px 12px;
-  border: 1px solid var(--md-sys-color-outline);
-  border-radius: 999px;
-  text-decoration: none;
-}
-.web-switch-link:hover {
-  background: var(--md-sys-color-surface-container-high);
-}
-
 .nearby-sections {
   display: flex;
   flex-direction: column;
