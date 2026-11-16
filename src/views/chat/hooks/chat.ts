@@ -28,16 +28,15 @@ export const useTasks = () => {
       const task: IChatTask = { item, uploads, toId, onSent }
       activeTasks.set(item.id, task)
       try {
-        // The returned promise is the capture delivery boundary: do not let the
-        // native PNG be acknowledged until every upload and sendChatItems finish.
+        // Local previews are not valid wire references; wait for every file hash.
         await Promise.all(uploads.map((upload) => addUploadTaskAndWait(upload, false)))
 
         const c = item.content
-        if (c.__typename !== 'ChatImagesContent' && c.__typename !== 'ChatFilesContent') throw new Error('Attachment content required')
-        const items = c.items.map((metadata: any, index: number) => {
+        if (c.__typename !== 'ChatMessageContent') throw new Error('Attachment content required')
+        const items = c.items.map(({ type, attachment: metadata }, index) => {
           const upload = uploads[index]
           if (!upload?.fileHash) throw new Error(`Upload completed without a file hash: ${upload?.file.name ?? index}`)
-          return {
+          return { type, attachment: {
             id: upload.id,
             uri: 'fid:' + upload.fileHash,
             size: metadata.size,
@@ -46,17 +45,16 @@ export const useTasks = () => {
             height: metadata.height,
             summary: metadata.summary,
             fileName: upload.file.name,
-          }
+          } }
         })
 
-        const res = await gqlFetch(sendChatItemsGQL, { targets: [toId], content: c.__typename === 'ChatImagesContent' ? { images: { items } } : { files: { items } } })
+        const res = await gqlFetch(sendChatItemsGQL, { targets: [toId], content: { message: { text: c.text, format: c.format, items } } })
         const sent = res?.data?.sendChatItems?.[0]
         if (!sent) throw new Error('sendChatItems returned no message')
         try {
           onSent?.(sent)
         } catch (error) {
-          // The server transaction already succeeded. A local rendering error
-          // must not release and redeliver the same native capture.
+          // The server transaction already succeeded; a rendering error is not a send failure.
           console.error('Failed to display the sent upload message', error)
         }
       } catch (error) {

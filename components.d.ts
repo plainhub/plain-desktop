@@ -50,6 +50,7 @@ declare module 'vue' {
     ChannelMemberListItem: typeof import('./src/views/chat/components/ChannelMemberListItem.vue')['default']
     ChatAudioPlayer: typeof import('./src/views/chat/ChatAudioPlayer.vue')['default']
     ChatDownloadOverlay: typeof import('./src/views/chat/ChatDownloadOverlay.vue')['default']
+    ChatDraftAttachment: typeof import('./src/views/chat/components/ChatDraftAttachment.vue')['default']
     ChatFiles: typeof import('./src/views/chat/ChatFiles.vue')['default']
     ChatImages: typeof import('./src/views/chat/ChatImages.vue')['default']
     ChatInput: typeof import('./src/views/chat/ChatInput.vue')['default']

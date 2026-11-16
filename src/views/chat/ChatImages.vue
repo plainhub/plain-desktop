@@ -9,6 +9,7 @@
 </template>
 
 <script setup lang="ts">
+import { chatAttachments } from '@/lib/chat/chat-content'
 import { chatAttachmentThumbnail } from '@/lib/api/file-action'
 import { getFileName, getFileUrl, getChatAttachmentUrl, getChatFileId } from '@/lib/api/file'
 import { isVideo } from '@/lib/file'
@@ -48,7 +49,7 @@ function getPreview(source: ISource) {
 
 const sources = computed(() => {
   const data = props.data
-  const files = data?.content?.items ?? []
+  const files = chatAttachments(data?.content, 'IMAGE')
   const peer = props.peer
   const items: ISource[] = []
   files.forEach((file: any) => {

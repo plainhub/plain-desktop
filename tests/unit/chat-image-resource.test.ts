@@ -17,7 +17,7 @@ afterEach(() => vi.unstubAllGlobals())
 it('encodes the stored chat image as an app-file resource rather than a legacy JSON filename', async () => {
   vi.stubGlobal('window', { fileIdMap: new Map() })
   const hash = 'a'.repeat(64)
-  const html = await renderToString(createSSRApp(ChatImages, { data: { content: { __typename: 'ChatImagesContent', items: [{ uri: 'fid:' + hash, fileName: 'image.png', size: 10 }] } } }))
+  const html = await renderToString(createSSRApp(ChatImages, { data: { content: { __typename: 'ChatMessageContent', items: [{ type: 'IMAGE', attachment: { uri: 'fid:' + hash, fileName: 'image.png', size: 10 } }] } } }))
   expect(html).toContain('class="image-thumb"')
   const id = new URL(html.match(/src="([^"]+)"/)![1]!).searchParams.get('id')!
   const payload = Buffer.from(id.slice(id.lastIndexOf('.') + 1), 'base64url')
@@ -28,8 +28,8 @@ it('encodes the stored chat image as an app-file resource rather than a legacy J
 it('loads a remote thumbnail using only the encrypted peer file reference', async () => {
   const html = await renderToString(createSSRApp(ChatImages, {
     peer: { id: 'peer-1' },
-    data: { content: { __typename: 'ChatImagesContent', items: [
-      { uri: 'fsid:peer-resource-id', fileName: 'image.png', size: 10 },
+    data: { content: { __typename: 'ChatMessageContent', items: [
+      { type: 'IMAGE', attachment: { uri: 'fsid:peer-resource-id', fileName: 'image.png', size: 10 } },
     ] } },
   }))
   const url = new URL(html.match(/src="([^"]+)"/)![1]!.replaceAll('&amp;', '&'))
@@ -50,9 +50,10 @@ it('keeps completed images visible while remaining message attachments need retr
   const html = await renderToString(createSSRApp(ChatImages, {
     peer: { id: 'peer-1' },
     downloadInfo: { downloaded: 10, total: 20, speed: 0, status: 'PARTIAL' },
-    data: { content: { __typename: 'ChatImagesContent', items: [
-      { uri: 'fid:' + 'a'.repeat(64), fileName: 'complete.png', size: 10 },
-      { uri: 'fsid:remote-resource', fileName: 'remaining.png', size: 10 },
+    data: { content: { __typename: 'ChatMessageContent', items: [
+      { type: 'IMAGE', attachment: { uri: 'fid:' + 'a'.repeat(64), fileName: 'complete.png', size: 10 } },
+      { type: 'FILE', attachment: { uri: 'fid:' + 'b'.repeat(64), fileName: 'document.pdf', size: 14 } },
+      { type: 'IMAGE', attachment: { uri: 'fsid:remote-resource', fileName: 'remaining.png', size: 10 } },
     ] } },
   }))
   expect(html.match(/class="image-thumb"/g)).toHaveLength(2)

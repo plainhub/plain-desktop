@@ -46,11 +46,16 @@
       </div>
     </v-dropdown-menu>
     <div class="chat-content">
-      <div v-if="data.content.__typename === 'ChatTextContent'">
-        <pre v-html="addLinksToURLs(data.content.text)"></pre>
-        <ChatLinkPreviews v-if="data.content.linkPreviews?.length" :data="data" />
-      </div>
-      <component :is="getComponent(data.content.__typename)" v-else :data="data" :download-info="downloadInfo" :peer="peer" @download-action="(a: 'pause' | 'resume' | 'retry') => emit('download-action', data.id, a)" />
+      <template v-if="data.content.__typename === 'ChatMessageContent'">
+        <div v-if="data.content.text">
+          <div v-if="data.content.format === 'MARKDOWN'" class="chat-markdown" v-html="renderChatMarkdown(data.content.text)"></div>
+          <pre v-else v-html="addLinksToURLs(data.content.text)"></pre>
+          <ChatLinkPreviews v-if="data.content.format === 'PLAIN' && data.content.linkPreviews.length" :data="data" />
+        </div>
+        <ChatImages v-if="hasImages" :data="data" :download-info="downloadInfo" :peer="peer" @download-action="forwardDownloadAction" />
+        <ChatFiles v-if="hasFiles" :data="data" :download-info="downloadInfo" :peer="peer" @download-action="forwardDownloadAction" />
+      </template>
+      <ChatShare v-else-if="data.content.__typename === 'ChatShareContent'" :data="data" :download-info="downloadInfo" />
     </div>
   </div>
 </template>
@@ -59,6 +64,7 @@
 import { ref, computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { formatTime, formatDateTimeFull, formatDate } from '@/lib/format'
+import { renderChatMarkdown } from '@/lib/chat/chat-markdown'
 import { addLinksToURLs } from '@/lib/strutil'
 import { selectedTextWithin } from '@/lib/dom'
 import { copyTextToClipboard } from '@/lib/clipboard'
@@ -107,11 +113,16 @@ const showSending = computed(() => {
   return props.data.id.startsWith('new_') && props.data.status !== ChatStatus.FAILED
 })
 
-const isText = computed(() => props.data.content.__typename === 'ChatTextContent')
+const message = computed(() => props.data.content.__typename === 'ChatMessageContent' ? props.data.content : undefined)
+const isText = computed(() => !!message.value?.text)
+const hasImages = computed(() => message.value?.items.some(item => item.type === 'IMAGE'))
+const hasFiles = computed(() => message.value?.items.some(item => item.type === 'FILE'))
+function forwardDownloadAction(action: 'pause' | 'resume' | 'retry') {
+  emit('download-action', props.data.id, action)
+}
 
 function copyText() {
-  const content = props.data.content
-  const text = copySelection || (content.__typename === 'ChatTextContent' ? content.text : '')
+  const text = copySelection || message.value?.text
   if (text) copyTextToClipboard(text)
 }
 
@@ -175,6 +186,4 @@ function doRetry() {
   emit('retry', props.data.id, props.data.deliveryResults)
 }
 
-const componentMap: Record<string, any> = { 'ChatImagesContent': ChatImages, 'ChatFilesContent': ChatFiles, 'ChatShareContent': ChatShare, linkPreviews: ChatLinkPreviews }
-function getComponent(type: string) { return componentMap[type] }
 </script>

@@ -3,6 +3,9 @@
   <div class="chat-input">
     <div class="textarea-wrapper" @dragenter="fileDragEnter" @dragover="fileDragOver" @dragleave="fileDragLeave" @drop="dropFiles">
       <div v-show="displayDragMask" class="drag-mask">{{ $t('release_to_send_files') }}</div>
+      <div v-if="attachments?.length" class="staged-attachments">
+        <ChatDraftAttachment v-for="(attachment, index) of attachments" :key="index" :attachment="attachment" :disabled="createLoading" @remove="$emit('remove-attachment', index)" />
+      </div>
       <EmojiTextField
         :model-value="modelValue"
         type="textarea"
@@ -75,6 +78,7 @@
                 </v-dropdown>
               </div>
             </div>
+            <button type="button" class="format-toggle" :aria-pressed="format === 'MARKDOWN'" :disabled="createLoading" @click="$emit('toggle-format')">Markdown</button>
             <v-icon-button class="toolbar-send" :disabled="createLoading" @click="handleSend">
               <i-material-symbols:send-outline-rounded />
             </v-icon-button>
@@ -91,22 +95,27 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
+import type { ChatTextFormat, DraftAttachment } from '@/lib/chat/message-draft'
 import { isImage, isVideo } from '@/lib/file'
 import type { CaptureShortcutStatus } from '@/lib/screen-capture/capture-shortcut'
 import { formatAccelerator } from '@/lib/screen-capture/shortcut-recorder'
 import { isMacPlatform } from '@/lib/platform'
+import ChatDraftAttachment from './components/ChatDraftAttachment.vue'
 import CaptureShortcutModal from './components/CaptureShortcutModal.vue'
 
 interface Props {
   modelValue: string
   createLoading: boolean
+  attachments?: readonly DraftAttachment[]
+  format?: ChatTextFormat
 }
 
 interface Emits {
   (e: 'update:modelValue', value: string): void
   (e: 'send-message', message: string): void
-  (e: 'send-files', files: File[]): void
-  (e: 'send-images', files: File[]): void
+  (e: 'stage-attachments', items: DraftAttachment[]): void
+  (e: 'remove-attachment', index: number): void
+  (e: 'toggle-format'): void
   (e: 'request-capture'): void
 }
 
@@ -161,7 +170,7 @@ function onShortcutSaved(status: CaptureShortcutStatus) {
 }
 
 function handleSend() {
-  emit('send-message', '')
+  if (!props.createLoading && (props.modelValue.trim() || props.attachments?.length)) emit('send-message', props.modelValue)
 }
 
 function onCompositionStart() {
@@ -189,7 +198,7 @@ function uploadFilesChanged(e: Event) {
   for (const item of files) {
     items.push(item)
   }
-  emit('send-files', items)
+  emit('stage-attachments', items.map(file => ({ type: 'FILE', file })))
 }
 
 function uploadImagesChanged(e: Event) {
@@ -198,7 +207,7 @@ function uploadImagesChanged(e: Event) {
   for (const item of files) {
     items.push(item)
   }
-  emit('send-images', items)
+  emit('stage-attachments', items.map(file => ({ type: 'IMAGE', file })))
 }
 
 function sendImages() {
@@ -261,7 +270,7 @@ async function pickImagesViaTauri() {
     files.push(new File([bytes], name, { type: mimeFromName(name) }))
   }
   if (files.length) {
-    emit('send-images', files)
+    emit('stage-attachments', files.map(file => ({ type: 'IMAGE', file })))
   }
 }
 
@@ -303,23 +312,12 @@ function fileDragLeave(e: DragEvent) {
 // Images and videos become image messages (tappable previews), everything
 // else a file message — same split the paste handler has always used.
 function sendFilesByKind(files: File[]) {
-  const images: File[] = []
-  const others: File[] = []
-  for (const file of files) {
-    const isMedia = file.type.startsWith('image') || file.type.startsWith('video') || isImage(file.name) || isVideo(file.name)
-    if (isMedia) {
-      images.push(file)
-    } else {
-      others.push(file)
-    }
-  }
-  if (images.length) {
-    emit('send-images', images)
-  }
-  if (others.length) {
-    emit('send-files', others)
-  }
-  return images.length + others.length > 0
+  if (!files.length) return false
+  emit('stage-attachments', files.map(file => ({
+    type: file.type.startsWith('image/') || file.type.startsWith('video/') || isImage(file.name) || isVideo(file.name) ? 'IMAGE' : 'FILE',
+    file,
+  })))
+  return true
 }
 
 function dropFiles(e: DragEvent) {
@@ -341,9 +339,8 @@ function pasteFiles(e: ClipboardEvent) {
   }
   const files: File[] = []
   for (const item of items) {
-    if (item.kind === 'file') {
-      files.push(item.getAsFile()!)
-    }
+    const file = item.kind === 'file' ? item.getAsFile() : null
+    if (file) files.push(file)
   }
   if (sendFilesByKind(files)) {
     e.preventDefault()
@@ -352,6 +349,10 @@ function pasteFiles(e: ClipboardEvent) {
 </script>
 
 <style lang="scss" scoped>
+.staged-attachments { display: flex; flex-wrap: wrap; gap: 6px; padding: 8px 0; }
+.format-toggle { margin-left: auto; border: 0; border-radius: 8px; padding: 4px 8px; color: var(--md-sys-color-on-surface-variant); background: transparent; }
+.format-toggle[aria-pressed="true"] { background: var(--md-sys-color-secondary-container); color: var(--md-sys-color-on-secondary-container); }
+
 .capture-split {
   display: inline-flex;
   align-items: center;

@@ -12,21 +12,17 @@ export type Input_BookmarkInput = { url: string; title: string; faviconUrl?: str
 
 export type Input_ChatAttachmentInput = { id: string; uri: string; size: number; durationMs?: number; width?: number; height?: number; summary?: string; fileName?: string }
 
-export type Input_ChatContentInput = { text: Input_ChatTextInput; images?: never; files?: never; share?: never } | { text?: never; images: Input_ChatImagesInput; files?: never; share?: never } | { text?: never; images?: never; files: Input_ChatFilesInput; share?: never } | { text?: never; images?: never; files?: never; share: Input_ChatShareInput }
+export type Input_ChatContentInput = { message: Input_ChatMessageInput; share?: never } | { message?: never; share: Input_ChatShareInput }
 
 export type Input_ChatDownloadInput = { messageId: string; peerId: string; fileIds: Array<string> }
 
-export type Input_ChatFilesInput = { items: Array<Input_ChatAttachmentInput> }
+export type Input_ChatMessageAttachmentInput = { type: 'IMAGE' | 'FILE'; attachment: Input_ChatAttachmentInput }
 
-export type Input_ChatImagesInput = { items: Array<Input_ChatAttachmentInput> }
-
-export type Input_ChatLinkPreviewInput = { url: string; title?: string | null; description?: string | null; imageUrl?: string | null; imageLocalPath?: string | null; imageWidth?: number; imageHeight?: number; siteName?: string | null; domain?: string | null; createdAt: string }
+export type Input_ChatMessageInput = { text?: string | null; format?: 'PLAIN' | 'MARKDOWN'; items?: Array<Input_ChatMessageAttachmentInput> }
 
 export type Input_ChatShareInput = { shareId: string; urlToken: string; peerInfo: Input_ChatSharePeerInput; name: string; itemCount?: number; totalSize?: number; expiresAt?: string | null }
 
 export type Input_ChatSharePeerInput = { id: string; ip: string; port: number }
-
-export type Input_ChatTextInput = { text: string; linkPreviews?: Array<Input_ChatLinkPreviewInput> }
 
 export type Input_ContactAddressInput = { value: string; type: 'CUSTOM' | 'HOME' | 'WORK' | 'OTHER'; label: string }
 
@@ -167,8 +163,9 @@ export interface Fragment_ChatItemFragment {
   channelId?: string
   createdAt: string
   content: {
-    __typename: "ChatTextContent"
-    text: string
+    __typename: "ChatMessageContent"
+    text?: string
+    format: 'PLAIN' | 'MARKDOWN'
     linkPreviews: Array<{
       url: string
       title?: string
@@ -181,29 +178,18 @@ export interface Fragment_ChatItemFragment {
       domain?: string
       createdAt: string
     }>
-  } | {
-    __typename: "ChatImagesContent"
     items: Array<{
-      id: string
-      uri: string
-      size: number
-      durationMs: number
-      width: number
-      height: number
-      summary: string
-      fileName: string
-    }>
-  } | {
-    __typename: "ChatFilesContent"
-    items: Array<{
-      id: string
-      uri: string
-      size: number
-      durationMs: number
-      width: number
-      height: number
-      summary: string
-      fileName: string
+      type: 'IMAGE' | 'FILE'
+      attachment: {
+        id: string
+        uri: string
+        size: number
+        durationMs: number
+        width: number
+        height: number
+        summary: string
+        fileName: string
+      }
     }>
   } | {
     __typename: "ChatShareContent"
@@ -2022,8 +2008,9 @@ export interface GqlOperations {
         toId: string
         channelId?: string
         content: {
-          __typename: "ChatTextContent"
-          text: string
+          __typename: "ChatMessageContent"
+          text?: string
+          format: 'PLAIN' | 'MARKDOWN'
           linkPreviews: Array<{
             url: string
             title?: string
@@ -2036,29 +2023,18 @@ export interface GqlOperations {
             domain?: string
             createdAt: string
           }>
-        } | {
-          __typename: "ChatImagesContent"
           items: Array<{
-            id: string
-            uri: string
-            size: number
-            durationMs: number
-            width: number
-            height: number
-            summary: string
-            fileName: string
-          }>
-        } | {
-          __typename: "ChatFilesContent"
-          items: Array<{
-            id: string
-            uri: string
-            size: number
-            durationMs: number
-            width: number
-            height: number
-            summary: string
-            fileName: string
+            type: 'IMAGE' | 'FILE'
+            attachment: {
+              id: string
+              uri: string
+              size: number
+              durationMs: number
+              width: number
+              height: number
+              summary: string
+              fileName: string
+            }
           }>
         } | {
           __typename: "ChatShareContent"
@@ -2100,8 +2076,9 @@ export interface GqlOperations {
         toId: string
         channelId?: string
         content: {
-          __typename: "ChatTextContent"
-          text: string
+          __typename: "ChatMessageContent"
+          text?: string
+          format: 'PLAIN' | 'MARKDOWN'
           linkPreviews: Array<{
             url: string
             title?: string
@@ -2114,29 +2091,18 @@ export interface GqlOperations {
             domain?: string
             createdAt: string
           }>
-        } | {
-          __typename: "ChatImagesContent"
           items: Array<{
-            id: string
-            uri: string
-            size: number
-            durationMs: number
-            width: number
-            height: number
-            summary: string
-            fileName: string
-          }>
-        } | {
-          __typename: "ChatFilesContent"
-          items: Array<{
-            id: string
-            uri: string
-            size: number
-            durationMs: number
-            width: number
-            height: number
-            summary: string
-            fileName: string
+            type: 'IMAGE' | 'FILE'
+            attachment: {
+              id: string
+              uri: string
+              size: number
+              durationMs: number
+              width: number
+              height: number
+              summary: string
+              fileName: string
+            }
           }>
         } | {
           __typename: "ChatShareContent"

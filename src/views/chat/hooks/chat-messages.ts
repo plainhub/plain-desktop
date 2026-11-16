@@ -1,10 +1,11 @@
 import { chatContentInput } from '@/lib/chat/chat-content'
-import { ref, shallowRef, watch, onUnmounted, type ComputedRef, type Ref } from 'vue'
+import { ref, shallowRef, watch, onUnmounted, type ComputedRef } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { initQuery, chatItemsGQL } from '@/lib/api/query'
 import { sendChatItemsGQL, deleteChatItemGQL, retryChatItemGQL, initMutation } from '@/lib/api/mutation'
 import toast from '@/components/toaster'
 import type { IChatItem } from '@/lib/interfaces'
+import type { ChatTextFormat } from '@/lib/chat/message-draft'
 import { ChatStatus } from '@/lib/status'
 import { generateRecordId } from '@/lib/record-id.generated'
 import { useTasks } from './chat'
@@ -42,20 +43,7 @@ export function useChatMessages(chatId: ComputedRef<string>, channelId: Computed
     variables: () => ({ target: chatId.value }),
   })
 
-  const { mutate: sendMutate, loading: sendLoading, onDone: sendDone } = initMutation({
-    document: sendChatItemsGQL,
-  }, false)
-  sendDone((r) => {
-    const rawItems = r?.data?.sendChatItems
-    if (rawItems) {
-      const existingIds = new Set(chatItems.value.map((i) => i.id))
-      const newItems = rawItems.map(normalizeChatItem).filter((i: IChatItem) => !existingIds.has(i.id))
-      if (newItems.length) {
-        chatItems.value = [...chatItems.value, ...newItems]
-      }
-    }
-    scrollBottom()
-  })
+  const { mutate: sendMutate, loading: sendLoading } = initMutation({ document: sendChatItemsGQL }, false)
 
   const { mutate: deleteItem, loading: deleteLoading, onDone: deleteDone } = initMutation({
     document: deleteChatItemGQL,
@@ -68,50 +56,50 @@ export function useChatMessages(chatId: ComputedRef<string>, channelId: Computed
 
   async function doSend(tempId: string, toId: string, content: IChatItem['content']) {
     const r = await sendMutate({ targets: [toId], content: chatContentInput(content) })
-    if (r != null) {
-      chatItems.value = chatItems.value.filter((i) => i.id !== tempId)
-      return
+    if (r?.data?.sendChatItems?.length) {
+      if (toId === chatId.value) {
+        const existing = chatItems.value.filter(item => item.id !== tempId)
+        const ids = new Set(existing.map(item => item.id))
+        const sent = r.data.sendChatItems.map(normalizeChatItem).filter((item: IChatItem) => !ids.has(item.id))
+        chatItems.value = [...existing, ...sent]
+        scrollBottom()
+      }
+      return true
     }
     const item = chatItems.value.find((i) => i.id === tempId)
     if (item) {
-      chatItems.value = chatItems.value.map((i) => i.id === tempId ? { ...i, status: ChatStatus.FAILED } : i)
+      chatItems.value = chatItems.value.filter((i) => i.id !== tempId)
       toast(t('send_failed'), 'error')
     }
+    return false
   }
 
-  function send(chatText: Ref<string>) {
-    if (!chatText.value) return
+  async function send(text: string, format: ChatTextFormat) {
+    if (!text.trim()) return false
     const tempId = 'new_' + generateRecordId()
     const tempItem: IChatItem = {
       id: tempId, fromId: 'me', toId: chatId.value, channelId: channelId.value,
       createdAt: new Date().toISOString(),
-      content: { __typename: 'ChatTextContent', text: chatText.value, linkPreviews: [] },
+      content: { __typename: 'ChatMessageContent', text, format, items: [], linkPreviews: [] },
       deliveryResults: [],
       __typename: 'ChatItem',
       status: ChatStatus.PENDING,
     }
     chatItems.value = [...chatItems.value, tempItem]
-    chatText.value = ''
     scrollBottom()
-    doSend(tempId, tempItem.toId, tempItem.content)
+    return doSend(tempId, tempItem.toId, tempItem.content)
   }
 
   async function retryMessage(id: string) {
     const item = chatItems.value.find((i) => i.id === id)
-    if (!item) return
+    if (!item || id.startsWith('new_')) return
     chatItems.value = chatItems.value.map((i) => i.id === id ? { ...i, status: ChatStatus.PENDING } : i)
-    if (id.startsWith('new_')) {
-      // No confirmed server message ID is available.
-      await doSend(id, chatId.value, item.content)
+    const r = await retryMutate({ id })
+    if (r?.data?.retryChatItem) {
+      const updated = normalizeChatItem(r.data.retryChatItem)
+      chatItems.value = chatItems.value.map((i) => i.id === id ? { ...i, ...updated } : i)
     } else {
-      // Delivery failure: item exists on server → retry delivery in-place
-      const r = await retryMutate({ id })
-      if (r?.data?.retryChatItem) {
-        const updated = normalizeChatItem(r.data.retryChatItem)
-        chatItems.value = chatItems.value.map((i) => i.id === id ? { ...i, ...updated } : i)
-      } else {
-        chatItems.value = chatItems.value.map((i) => i.id === id ? { ...i, status: ChatStatus.FAILED } : i)
-      }
+      chatItems.value = chatItems.value.map((i) => i.id === id ? { ...i, status: ChatStatus.FAILED } : i)
     }
   }
 

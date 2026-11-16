@@ -44,3 +44,50 @@ it('keeps edits over delayed draft reads and writes to the destination captured 
     ]))
   } finally { finish?.({ data: { keyValue: '' } }); scope.stop() }
 })
+
+it('clears the sent chat after switching destinations without disturbing the visible draft', async () => {
+  const saved = new Map([['chat_input_text:peer:second', 'Keep second']])
+  io.fetch.mockReset().mockImplementation(async (document: string, { key, value }) => {
+    if (document.startsWith('query')) return { data: { keyValue: saved.get(key) ?? '' } }
+    saved.set(key, value)
+    return { data: { setKeyValue: true } }
+  })
+  const scope = effectScope()
+  try {
+    const id = ref('peer:first')
+    const draft = scope.run(() => useChatDraft(id))!
+    draft.value = 'First submitted'
+    const submitted = draft.snapshot()
+    id.value = 'peer:second'
+    await vi.waitFor(() => expect(draft.value).toBe('Keep second'))
+    draft.clearSent(submitted)
+    await vi.waitFor(() => expect(saved.get('chat_input_text:peer:first')).toBe(''))
+    expect(draft.value).toBe('Keep second')
+    id.value = 'peer:first'
+    await nextTick()
+    expect(draft.value).toBe('')
+  } finally { scope.stop() }
+})
+
+it('does not clear a newer edit in the sent chat even after navigating away', async () => {
+  const saved = new Map<string, string>()
+  io.fetch.mockReset().mockImplementation(async (document: string, { key, value }) => {
+    if (document.startsWith('query')) return { data: { keyValue: saved.get(key) ?? '' } }
+    saved.set(key, value)
+    return { data: { setKeyValue: true } }
+  })
+  const scope = effectScope()
+  try {
+    const id = ref('peer:first')
+    const draft = scope.run(() => useChatDraft(id))!
+    draft.value = 'Same text'
+    const sent = draft.snapshot()
+    draft.value = 'New version'
+    draft.value = 'Same text'
+    id.value = 'peer:second'
+    await nextTick()
+    draft.clearSent(sent)
+    await vi.waitFor(() => expect(io.fetch.mock.calls.filter(([document]) => document.startsWith('mutation'))).toHaveLength(3))
+    expect(saved.get('chat_input_text:peer:first')).toBe('Same text')
+  } finally { scope.stop() }
+})

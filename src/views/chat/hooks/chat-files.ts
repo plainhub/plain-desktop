@@ -1,3 +1,4 @@
+import { chatAttachments } from '@/lib/chat/chat-content'
 import { chatAttachmentThumbnail } from '@/lib/api/file-action'
 import { isLocalMode } from '@/lib/device/local-mode'
 import { computed, ref } from 'vue'
@@ -24,7 +25,7 @@ export function useChatFiles(props: { data: any; downloadInfo: any; peer: { id: 
 
   const items = computed<ISource[]>(() => {
     const data = props.data
-    const files = data?.content?.items ?? []
+    const files = chatAttachments(data?.content, 'FILE')
     const peer = props.peer
     return files.map((f: any) => {
       const uri = f.uri

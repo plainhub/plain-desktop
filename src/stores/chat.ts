@@ -59,28 +59,18 @@ export const useChatStore = defineStore('chat', () => {
     if (!item) return ''
     const content = item.content
     const t = i18n.global.t
-    if (content?.__typename === 'ChatTextContent') {
-      const text = content?.text
-      if (text) return text.slice(0, 50)
-      return t('message')
-    }
-    if (content?.__typename === 'ChatImagesContent') {
-      const items = content?.items ?? []
-      const videoCount = items.filter((it: any) => chatFileDurationMs(it) > 0).length
-      const imageCount = items.length - videoCount
-      if (imageCount > 0 && videoCount > 0) {
-        const imgPart = imageCount > 1 ? `${imageCount} ${t('images')}` : t('image')
-        const vidPart = videoCount > 1 ? `${videoCount} ${t('videos')}` : t('video')
-        return `${imgPart}, ${vidPart}`
-      }
-      if (videoCount > 0) {
-        return videoCount > 1 ? `${videoCount} ${t('videos')}` : t('video')
-      }
-      return imageCount > 1 ? `${imageCount} ${t('images')}` : t('image')
-    }
-    if (content?.__typename === 'ChatFilesContent') {
-      const count = content?.items?.length ?? 0
-      return count > 1 ? `${count} ${t('files')}` : t('file')
+    if (content?.__typename === 'ChatMessageContent') {
+      if (content.text) return content.text.slice(0, 50)
+      const media = content.items.filter(item => item.type === 'IMAGE')
+      const files = content.items.length - media.length
+      const videos = media.filter(({ attachment }) => chatFileDurationMs(attachment) > 0).length
+      const images = media.length - videos
+      const count = (n: number, one: string, many: string) => n > 1 ? `${n} ${t(many)}` : t(one)
+      return [
+        images ? count(images, 'image', 'images') : '',
+        videos ? count(videos, 'video', 'videos') : '',
+        files ? count(files, 'file', 'files') : '',
+      ].filter(Boolean).join(', ') || t('message')
     }
     if (content?.__typename === 'ChatShareContent') {
       return t('shared_folder')

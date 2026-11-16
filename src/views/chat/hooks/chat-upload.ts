@@ -6,7 +6,7 @@ import { useChatFilesUpload } from '@/hooks/upload'
 import { useTasks } from './chat'
 import { normalizeChatItem } from './chat-subscriptions'
 import { generateRecordId } from '@/lib/record-id.generated'
-import { MessageType } from '@/lib/status'
+import type { ChatTextFormat, DraftAttachment } from '@/lib/chat/message-draft'
 import { formatFileSize } from '@/lib/format'
 import { getVideoData, getImageData, isVideo } from '@/lib/file'
 import { gqlFetch } from '@/lib/api/gql-client'
@@ -16,9 +16,7 @@ import emitter from '@/plugins/eventbus'
 import { projectChatDownloadProgress, type ChatDownloadProgress, type ChatDownloadProgressItem } from '../chat-download-progress'
 
 export function messageNeedsDownload(item: IChatItem): boolean {
-  const items = 'items' in item.content ? item.content.items : []
-  if (!Array.isArray(items)) return false
-  return items.some((f: any) => typeof f.uri === 'string' && f.uri.startsWith('fsid:'))
+  return item.content.__typename === 'ChatMessageContent' && item.content.items.some(({ attachment }) => attachment.uri.startsWith('fsid:'))
 }
 
 export interface ChatUploadDestination {
@@ -35,7 +33,7 @@ export function snapshotChatUploadDestination(destination: ChatUploadDestination
   })
 }
 
-export function useChatUpload(chatId: ComputedRef<string>, channelId: ComputedRef<string>, appDir: string, scrollBottom: () => void, chatText: Ref<string>, chatItems: Ref<IChatItem[]>) {
+export function useChatUpload(chatId: ComputedRef<string>, channelId: ComputedRef<string>, appDir: string, scrollBottom: () => void, chatItems: Ref<IChatItem[]>) {
   const { t } = useI18n()
   const { getUploads } = useChatFilesUpload()
   const { enqueue: enqueueTask, cancel: cancelTask } = useTasks()
@@ -76,9 +74,9 @@ export function useChatUpload(chatId: ComputedRef<string>, channelId: ComputedRe
     activeMessageIds.delete(messageId)
   }
 
-  async function handleContentUpload(files: File[], contentType: MessageType, destination: ChatUploadDestination, options: { summary?: string } = {}) {
+  async function uploadMessage(attachments: readonly DraftAttachment[], text: string, format: ChatTextFormat, destination = currentDestination()) {
     const frozenDestination = snapshotChatUploadDestination(destination)
-    const uploads = getUploads(frozenDestination.appDir, files)
+    const uploads = getUploads(frozenDestination.appDir, attachments.map(({ file }) => file))
     uploads.forEach((u) => {
       u.status = 'pending'
       u.isAppFile = true
@@ -95,7 +93,7 @@ export function useChatUpload(chatId: ComputedRef<string>, channelId: ComputedRe
         durationMs: 0,
         width: 0,
         height: 0,
-        summary: options.summary ?? '',
+        summary: '',
       }
       if (upload.file.type.startsWith('video') || isVideo(upload.file.name)) {
         const v = await getVideoData(upload.file)
@@ -131,7 +129,9 @@ export function useChatUpload(chatId: ComputedRef<string>, channelId: ComputedRe
     valueItems.forEach((item: any, index: number) => {
       if (!item.thumbnail) item.thumbnail = objectUrls[index]
     })
-    const content: IChatItem['content'] = { __typename: contentType === MessageType.IMAGES ? 'ChatImagesContent' : 'ChatFilesContent', items: valueItems }
+    const content: IChatItem['content'] = { __typename: 'ChatMessageContent', text: text || undefined, format, linkPreviews: [],
+      items: valueItems.map((attachment, index) => ({ type: attachments[index]!.type, attachment })),
+    }
     const item: IChatItem = {
       id: 'new_' + generateRecordId(),
       fromId: 'me',
@@ -153,10 +153,13 @@ export function useChatUpload(chatId: ComputedRef<string>, channelId: ComputedRe
     }
     uploading.value = [...uploading.value, ...uploads]
     const tempId = item.id
-    chatItems.value = [...chatItems.value, item]
-    scrollBottom()
+    if (chatId.value === frozenDestination.chatId) {
+      chatItems.value = [...chatItems.value, item]
+      scrollBottom()
+    }
     try {
       await enqueueTask(item, uploads, frozenDestination.chatId, (sentItem) => {
+        if (chatId.value !== frozenDestination.chatId) return
         chatItems.value = chatItems.value.filter((i) => i.id !== tempId)
         const normalized = normalizeChatItem(sentItem)
         if (!chatItems.value.some((i) => i.id === normalized.id)) {
@@ -172,22 +175,6 @@ export function useChatUpload(chatId: ComputedRef<string>, channelId: ComputedRe
     }
   }
 
-  async function doUploadFiles(files: File[]) {
-    if (files.length) await handleContentUpload(files, MessageType.FILES, currentDestination())
-  }
-
-  async function doUploadImages(files: File[], destination: ChatUploadDestination = currentDestination()) {
-    if (files.length) await handleContentUpload(files, MessageType.IMAGES, destination)
-  }
-
-  async function sendLongMessageAsFile(message: string) {
-    const file = new File([message], `message-${Date.now()}.txt`, { type: 'text/plain' })
-    const summaryText = message.substring(0, 250).replace(/[\uD800-\uDBFF]$/, '').trim()
-    const summary = summaryText.lastIndexOf(' ') > 230 ? summaryText.substring(0, summaryText.lastIndexOf(' ')) + '...' : summaryText + '...'
-    await handleContentUpload([file], MessageType.FILES, currentDestination(), { summary })
-    chatText.value = ''
-  }
-
   const submittedDownloads = new Set<string>()
 
   function getPeerIdForItem(item: IChatItem): string {
@@ -201,9 +188,9 @@ export function useChatUpload(chatId: ComputedRef<string>, channelId: ComputedRe
     submittedDownloads.add(messageId)
     try {
       const message = chatItems.value.find((item) => item.id === messageId)
-      const fileIds = (message && 'items' in message.content ? message.content.items : [])
-        ?.filter((file: any) => typeof file.uri === 'string' && file.uri.startsWith('fsid:'))
-        .map((file: any) => file.id)
+      const fileIds = message?.content.__typename === 'ChatMessageContent'
+        ? message.content.items.filter(({ attachment }) => attachment.uri.startsWith('fsid:')).map(({ attachment }) => attachment.id)
+        : []
       if (!fileIds?.length) return
       await Promise.all(fileIds.map(async (fileId: string) => {
         const result = await gqlFetch(createDownloadGQL, { input: { chat: { messageId, peerId, fileIds: [fileId] } } })
@@ -312,5 +299,5 @@ export function useChatUpload(chatId: ComputedRef<string>, channelId: ComputedRe
     }
   })
 
-  return { doUploadFiles, doUploadImages, sendLongMessageAsFile, sendingAgg, sendingText, downloadProgress, handleDownloadAction }
+  return { uploadMessage, sendingAgg, sendingText, downloadProgress, handleDownloadAction }
 }

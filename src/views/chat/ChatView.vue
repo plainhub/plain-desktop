@@ -33,7 +33,7 @@
     </template>
   </div>
   <div v-if="notAllowChat" class="chat-notice">{{ noticeText }}</div>
-  <ChatInput v-else v-model="chatText" :create-loading="sendLoading" @send-message="handleSend" @send-files="doUploadFiles" @send-images="doUploadImages" @request-capture="handleCaptureRequest" />
+  <ChatInput v-else :key="chatId" v-model="chatText" :create-loading="sending || sendLoading" :attachments="activeDraft.items" :format="activeDraft.format" @send-message="handleSend" @stage-attachments="stageAttachments" @remove-attachment="removeAttachment" @toggle-format="toggleFormat" @request-capture="handleCaptureRequest" />
 </template>
 
 <script setup lang="ts">
@@ -49,6 +49,7 @@ import { useChatRouteId } from './hooks/chat-route'
 import { useChatData } from './hooks/chat-data'
 import { useChatMessages } from './hooks/chat-messages'
 import { useChatUpload } from './hooks/chat-upload'
+import type { ChatTextFormat, DraftAttachment } from '@/lib/chat/message-draft'
 import type { IChatItem } from '@/lib/interfaces'
 import { ChannelStatus, PeerStatus } from '@/lib/status'
 import toast from '@/components/toaster'
@@ -79,7 +80,25 @@ const chatText = useChatDraft(chatId)
 
 const { chatItems, loading, sendLoading, deleteLoading, scrollContainer, scrollBottom, send, retryMessage, deleteMessage, refetch } = useChatMessages(chatId, channelId)
 
-const { doUploadFiles, doUploadImages, sendLongMessageAsFile, sendingText, downloadProgress, handleDownloadAction } = useChatUpload(chatId, channelId, appDir, scrollBottom, chatText, chatItems)
+const { uploadMessage, sendingText, downloadProgress, handleDownloadAction } = useChatUpload(chatId, channelId, appDir, scrollBottom, chatItems)
+type Draft = { items: DraftAttachment[]; format: ChatTextFormat }
+const plainDraft: Draft = { items: [], format: 'PLAIN' }
+const drafts = ref(new Map<string, Draft>())
+const activeDraft = computed(() => drafts.value.get(chatId.value) ?? plainDraft)
+const sending = ref(false)
+function stageAttachments(items: DraftAttachment[], target = chatId.value) {
+  if (!items.length) return
+  const draft = drafts.value.get(target) ?? plainDraft
+  drafts.value.set(target, { ...draft, items: [...draft.items, ...items] })
+}
+function removeAttachment(index: number) {
+  const draft = activeDraft.value
+  drafts.value.set(chatId.value, { ...draft, items: draft.items.filter((_, i) => i !== index) })
+}
+function toggleFormat() {
+  const draft = activeDraft.value
+  drafts.value.set(chatId.value, { ...draft, format: draft.format === 'PLAIN' ? 'MARKDOWN' : 'PLAIN' })
+}
 
 const isActive = ref(false)
 let captureTarget: ChatCaptureTarget | null = null
@@ -110,7 +129,7 @@ async function loadCaptureTarget(): Promise<ChatCaptureTarget> {
     captureTargetPromise = import('@/lib/screen-capture/tauri-capture-adapter')
       .then(async (adapter) => {
         const client = await adapter.getTauriCaptureClient((error) => showCaptureError(error))
-        const target = adapter.createChatCaptureTarget(client, (file, destination) => doUploadImages([file], destination))
+        const target = adapter.createChatCaptureTarget(client, async (file, destination) => stageAttachments([{ type: 'IMAGE', file }], destination.chatId))
         captureTarget = target
         if (captureDisposed) target.dispose()
         return target
@@ -172,12 +191,30 @@ function dateVisible(item: IChatItem, index: number): boolean {
   return prev != null && formatDate(prev.createdAt) !== formatDate(item.createdAt)
 }
 
-function handleSend() {
-  if (!chatText.value) return
-  if (chatText.value.length > 2048) {
-    sendLongMessageAsFile(chatText.value)
-  } else {
-    send(chatText)
+async function handleSend() {
+  const textDraft = chatText.snapshot()
+  const text = textDraft.text
+  const draft = activeDraft.value
+  if (sending.value || sendLoading.value || (!text.trim() && !draft.items.length)) return
+  const destination = currentCaptureDestination()
+  const uploaded = draft.items.length > 0
+  sending.value = true
+  try {
+    const success = uploaded
+      ? (await uploadMessage(draft.items, text, draft.format, destination), true)
+      : await send(text, draft.format)
+    if (!success) return
+    const remaining = drafts.value.get(destination.chatId)
+    if (remaining === draft) drafts.value.delete(destination.chatId)
+    else if (remaining && uploaded) {
+      drafts.value.set(destination.chatId, { ...remaining, items: remaining.items.filter(item => !draft.items.includes(item)) })
+    }
+    chatText.clearSent(textDraft)
+  } catch (error) {
+    console.error('Chat message failed', error)
+    toast(t('send_failed'), 'error')
+  } finally {
+    sending.value = false
   }
 }
 

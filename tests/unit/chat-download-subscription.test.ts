@@ -28,7 +28,7 @@ it('coalesces progress notifications and applies the latest queue snapshot', asy
   }).mockResolvedValue({ data: { downloads: [
     { id: 'task', source: { __typename: 'ChatDownloadSource', messageId: 'message' }, downloadedBytes: 4, totalBytes: 10, bytesPerSecond: 1, status: 'DOWNLOADING' },
   ] } })
-  const result = useChatUpload(computed(() => 'peer:one'), computed(() => ''), '/owned', () => {}, ref(''), ref([]))
+  const result = useChatUpload(computed(() => 'peer:one'), computed(() => ''), '/owned', () => {}, ref([]))
   fixture.mounted.forEach(fn => fn())
   const changed = fixture.callbacks.get('changed')!
   changed()
@@ -41,19 +41,17 @@ it('coalesces progress notifications and applies the latest queue snapshot', asy
   expect(fixture.callbacks.size).toBe(0)
 })
 
-it('keeps a Unicode attachment summary valid at the UTF-16 truncation boundary', async () => {
-  const text = 'owned-'.padEnd(47, 'x') + '中文🦀\n'.repeat(750)
-  const draft = ref(text)
-  fixture.uploads.mockImplementation((_dir, files: File[]) => files.map((file, index) => ({ id: 'long-' + index, file, uploadedSize: 0, uploadSpeed: 0 })))
+it('keeps a long Unicode caption and ordered mixed attachments together during upload', async () => {
+  const text = '原始文字🦀\n'.repeat(750)
+  const files = [new File(['document'], 'one.pdf'), new File(['image'], 'two.bin'), new File(['notes'], 'three.txt')]
+  const attachments = files.map((file, index) => ({ type: index === 1 ? 'IMAGE' : 'FILE', file } as const))
+  fixture.uploads.mockImplementation((_dir, source: File[]) => source.map((file, index) => ({ id: 'mixed-' + index, file, uploadedSize: 0, uploadSpeed: 0 })))
   fixture.enqueue.mockImplementation(async (item, uploads) => {
-    const summary = item.content.items[0].summary as string
-    expect(summary).toBe(new TextDecoder().decode(new TextEncoder().encode(summary)))
-    expect(summary.length).toBeLessThanOrEqual(253)
-    expect(text.startsWith(summary.slice(0, -3))).toBe(true)
-    expect(await uploads[0].file.text()).toBe(text)
+    expect(item.content).toMatchObject({ __typename: 'ChatMessageContent', text, format: 'MARKDOWN' })
+    expect(item.content.items.map((i: any) => [i.type, i.attachment.fileName])).toEqual([['FILE', 'one.pdf'], ['IMAGE', 'two.bin'], ['FILE', 'three.txt']])
+    expect(uploads.map((upload: any) => upload.file)).toEqual(files)
   })
-  const upload = useChatUpload(computed(() => 'local'), computed(() => ''), '/owned', () => {}, draft, ref([]))
-  await upload.sendLongMessageAsFile(text)
+  const upload = useChatUpload(computed(() => 'local'), computed(() => ''), '/owned', () => {}, ref([]))
+  await upload.uploadMessage(attachments, text, 'MARKDOWN')
   expect(fixture.enqueue).toHaveBeenCalledTimes(1)
-  expect(draft.value).toBe('')
 })
