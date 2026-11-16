@@ -22,7 +22,7 @@
       <template v-if="volume.lastScanStatus"> · {{ $t(scanStatusKeys[volume.lastScanStatus]) }}</template>
     </p>
     <p v-if="progressLabel" class="scan-info" aria-live="polite">
-      {{ scanProgress?.state === 'FAILED' ? scanProgress.error || $t('failed') : $t(progressLabel) }}<template v-if="scanProgress && scanProgress.state !== 'FAILED'"> · {{ scanProgress.indexed.toLocaleString() }}<template v-if="scanProgress.total !== null"> / {{ scanProgress.total.toLocaleString() }}</template></template>
+      {{ scanProgress?.state === 'FAILED' ? scanProgress.error || $t('failed') : $t(progressLabel) }}<template v-if="scanProgress && scanProgress.state !== 'FAILED' && scanProgress.indexed > 0"> · {{ scanProgress.indexed.toLocaleString() }}<template v-if="scanProgress.total !== null"> / {{ scanProgress.total.toLocaleString() }}</template></template>
     </p>
     <footer>
       <v-text-button v-if="volume.indexMode === 'UNCONFIGURED'" :disabled="scanDisabled || !volume.isAvailable" @click="$emit('create')">

@@ -88,7 +88,7 @@ it.each([
 })
 
 it.each([
-  [0, null, '0'], [1234, null, '1,234'], [1234, 2000, '1,234 / 2,000'], [0, 2, '0 / 2'], [0, 0, '0 / 0'],
+  [0, null, ''], [1234, null, '1,234'], [1234, 2000, '1,234 / 2,000'], [0, 2, ''], [0, 0, ''],
 ] as const)('renders committed progress %i with total %s without inventing totals', (indexed, total, expected) => {
   const volume: FileIndexVolume = { id: 'fixture-volume', path: '/fixture', isAvailable: true, indexMode: 'BLOCKLIST', includedDirs: [], excludedDirs: [], lastScanAt: null, lastScanStatus: null, lastScanCount: null, lastScanTotal: null }
   const view = renderView(FileIndexVolumeCard, { volume, title: 'Fixture', scanDisabled: false,
@@ -96,7 +96,6 @@ it.each([
   }, { VIconButton, VTextButton, VCircularProgress })
   try {
     const text = content(nodes(view.root).find(node => node.props['aria-live'] === 'polite')!)
-    expect(text).toContain(`· ${expected}`)
-    expect(text.includes(' / ')).toBe(total !== null)
+    expect(text.trim()).toBe(expected ? `building_file_index · ${expected}` : 'building_file_index')
   } finally { view.unmount() }
 })
