@@ -436,3 +436,28 @@ it('does not show the pairing dialog when the selected peer changes during the o
   expect(clearCurrentSession).not.toHaveBeenCalled()
   expect(window.location.reload).not.toHaveBeenCalled()
 })
+
+it('offers recovery for a rejected selected-peer route without rechecking the gateway login', async () => {
+  vi.stubGlobal('__IS_TAURI__', false)
+  Object.assign(target, { native: false, client: '70f5a619-05de-8bc5-8fe4-50bb3e139c1b' })
+  const { managedPeerFailure } = await import('@/lib/api/gql-client')
+  vi.mocked(httpRequest).mockResolvedValue(response(null, 502))
+  await expect(gqlFetch('{ app { deviceName } }')).rejects.toMatchObject({ status: 502 })
+  expect(managedPeerFailure.value).toEqual({ peerId: target.client })
+  expect(httpRequest).toHaveBeenCalledOnce()
+  expect(clearCurrentSession).not.toHaveBeenCalled()
+  expect(window.location.reload).not.toHaveBeenCalled()
+})
+
+it('leaves selected-peer 500s and origin 502s to ordinary handling', async () => {
+  vi.stubGlobal('__IS_TAURI__', false)
+  Object.assign(target, { native: false, client: '70f5a619-06de-8bc5-8fe4-50bb3e139c1b' })
+  const { managedPeerFailure } = await import('@/lib/api/gql-client')
+  const previousFailure = managedPeerFailure.value
+  vi.mocked(httpRequest).mockResolvedValueOnce(response(null, 500)).mockResolvedValueOnce(response(null, 502))
+  await expect(gqlFetch('{ app { deviceName } }')).rejects.toMatchObject({ status: 500 })
+  await expect(gqlFetch('{ app { deviceName } }', undefined, { origin: true })).rejects.toMatchObject({ status: 502 })
+  expect(managedPeerFailure.value).toBe(previousFailure)
+  expect(httpRequest).toHaveBeenCalledTimes(2)
+  expect(clearCurrentSession).not.toHaveBeenCalled()
+})

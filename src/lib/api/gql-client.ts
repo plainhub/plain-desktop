@@ -203,10 +203,14 @@ export async function nativeGqlFetch<T = any>(query: string, variables?: Record<
 export const managedPeerFailure = shallowRef<{ peerId: string; peerName?: string; originName?: string }>()
 let checkedManagedContext = ''
 
-async function checkManagedPeer(context: ReturnType<typeof graphqlContext>) {
+async function checkManagedPeer(context: ReturnType<typeof graphqlContext>, status: 401 | 502) {
   const key = JSON.stringify(context)
   if (!context.token || checkedManagedContext === key || key !== getGraphqlContextKey()) return
   checkedManagedContext = key
+  if (status === 502) {
+    managedPeerFailure.value = { peerId: context.peer }
+    return
+  }
   let shown = false
   try {
     const { data } = await gqlFetch<{ app?: { deviceName?: string }; peers?: { id: string; name: string }[] }>(
@@ -252,10 +256,12 @@ export function bindGraphqlClient(origin = false) {
 
 let originResourceToken: { scope: string; promise: Promise<string> } | undefined
 
-async function webGqlFetch<T>(context: ReturnType<typeof graphqlContext>, query: string, variables: Record<string, unknown> | undefined, timeout: number, checkUnauthorized = false): Promise<GqlResult<T>> {
+async function webGqlFetch<T>(context: ReturnType<typeof graphqlContext>, query: string, variables: Record<string, unknown> | undefined, timeout: number, checkManagedFailure = false): Promise<GqlResult<T>> {
   const document = context.peer ? managedGraphqlDocument(query) : query
   const result = await encryptedGqlPost<T>(context.url, context.token, document, variables, timeout, context.headers).catch((error: unknown) => {
-    if (checkUnauthorized && context.peer && error instanceof GqlError && error.status === 401) void checkManagedPeer(context)
+    if (checkManagedFailure && context.peer && error instanceof GqlError && (error.status === 401 || error.status === 502)) {
+      void checkManagedPeer(context, error.status)
+    }
     throw error
   })
   if (!context.peer || document === query || result.errors?.length) return result
