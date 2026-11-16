@@ -7,13 +7,27 @@
     </v-icon-button>
   </div>
   <ul v-show="!isCollapsed" class="nav">
-    <li
-      v-for="item in sortedBuckets" :key="item.id" :class="{ active: selected && item.id === selected }"
-      @click.prevent="view(mainStore, item.id)">
-      <BucketThumb v-if="showThumb" :items="item.topItemPaths" />
-      <span class="title">{{ item.name }}</span><span class="count">{{ item.itemCount.toLocaleString() }}</span>
-    </li>
+    <SidebarListItem
+      v-for="item in sortedBuckets" :key="item.id" :title="item.name" :active="item.id === selected" :class="{ 'has-thumb': showThumb }"
+      @click="view(mainStore, item.id)">
+      <template v-if="showThumb" #start>
+        <BucketThumb :items="item.topItemPaths" />
+      </template>
+      <template #end>
+        <span class="count">{{ item.itemCount.toLocaleString() }}</span>
+      </template>
+      <template #actions>
+        <v-icon-button
+          :id="'bucket-' + item.id" v-tooltip="$t('actions')" :aria-label="`${$t('actions')}: ${item.name}`" class="sm"
+          @click.prevent.stop="showMenu(item)" @keydown.enter.stop @keydown.space.stop>
+          <i-material-symbols:more-vert />
+        </v-icon-button>
+      </template>
+    </SidebarListItem>
   </ul>
+  <v-dropdown-menu v-model="menuVisible" :anchor="'bucket-' + selectedItem?.id">
+    <div class="dropdown-item" @click="renameFolder(selectedItem!); menuVisible = false">{{ $t('rename') }}</div>
+  </v-dropdown-menu>
 </template>
 
 <script setup lang="ts">
@@ -28,6 +42,10 @@ import { useBuckets } from '@/hooks/media'
 import { DataType } from '@/lib/data'
 import { sortByName } from '@/lib/array'
 import BucketThumb from '@/components/BucketThumb.vue'
+import { useRename } from '@/hooks/files'
+import { fileNameError } from '@/lib/file'
+import { openModal } from '@/components/modal'
+import EditValueModal from '@/components/EditValueModal.vue'
 
 const props = defineProps({
   type: { type: String as PropType<DataType>, required: true },
@@ -38,6 +56,8 @@ const { t } = useI18n()
 
 const mainStore = useMainStore()
 const mediaBuckets = ref<IBucket[]>([])
+const menuVisible = ref(false)
+const selectedItem = ref<IBucket>()
 
 const isCollapsed = computed(() => !!mainStore.bucketFilterCollapsed?.[props.type])
 
@@ -68,6 +88,29 @@ const { refetch } = initQuery({
   },
 })
 
+const { renameItem, renamedPath, renameMutation, renameVariables, renameDone } = useRename<{ path: string }>(() => {
+  refetch()
+  if (props.selected === renameItem.value?.path) {
+    view(mainStore, renamedPath.value!)
+  }
+})
+
+function showMenu(item: IBucket) {
+  selectedItem.value = item
+  const anchorElement = document.getElementById('bucket-' + item.id)
+  document.dispatchEvent(new CustomEvent('dropdown-toggle', { detail: { exclude: anchorElement } }))
+  menuVisible.value = true
+}
+
+function renameFolder(item: IBucket) {
+  renameItem.value = { path: item.id }
+  openModal(EditValueModal, {
+    title: t('rename'), placeholder: t('name'), value: item.name, borderless: true,
+    validate: fileNameError,
+    mutation: renameMutation, getVariables: renameVariables, done: renameDone,
+  })
+}
+
 const mediaItemsActionedHandler = (event: IMediaItemsActionedEvent) => {
   if (event.type === props.type) {
     refetch()
@@ -82,3 +125,10 @@ onUnmounted(() => {
   emitter.off('media_items_actioned', mediaItemsActionedHandler)
 })
 </script>
+
+<style scoped>
+.has-thumb :deep(.start) {
+  width: 40px;
+  height: 40px;
+}
+</style>
