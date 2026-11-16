@@ -17,7 +17,7 @@
     </label>
     <div class="pair-actions">
       <v-outlined-button @click="emit('cancel')">{{ $t('cancel') }}</v-outlined-button>
-      <v-outlined-button @click="emit('confirm', mode)">{{ $t('pairing_start') }}</v-outlined-button>
+      <v-filled-button @click="emit('confirm', mode)">{{ $t('pairing_start') }}</v-filled-button>
     </div>
   </div>
 </template>
