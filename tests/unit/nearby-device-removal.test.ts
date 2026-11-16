@@ -13,10 +13,12 @@ import listItemSource from '@/components/base/VListItem.vue?raw'
 import { unpairPeerGQL } from '@/lib/api/mutation'
 import { peersGQL } from '@/lib/api/query'
 import { DeviceType, PeerStatus } from '@/lib/status'
+import type { DiscoveredDevice } from '@/hooks/use-device-discovery'
+import type { SelfDevice } from '@/lib/device/self-device'
 import common from '@/locales/en-US/common'
 import messages from '@/locales/en-US'
 
-const io = vi.hoisted(() => ({ request: vi.fn(), removePref: vi.fn(), clearRemote: vi.fn(), current: '' }))
+const io = vi.hoisted(() => ({ request: vi.fn(), removePref: vi.fn(), clearRemote: vi.fn(), current: '', devices: [] as DiscoveredDevice[], self: null as SelfDevice | null }))
 vi.mock('@/lib/api/gql-client', () => ({ nativeGqlFetch: io.request }))
 vi.mock('@/lib/api/subscription-client', () => ({
   SubscriptionClient: class {
@@ -38,7 +40,7 @@ vi.mock('@/lib/device/login-peers', async () => ({
   preloadLoginPeers: async () => {},
 }))
 vi.mock('@/lib/device/local-mode', () => ({ isLocalMode: () => !io.current }))
-vi.mock('@/lib/device/self-device', () => ({ loadSelfDevice: async () => null }))
+vi.mock('@/lib/device/self-device', () => ({ loadSelfDevice: async () => io.self }))
 vi.mock('@/lib/prefs/browser', () => ({ remove: io.removePref }))
 vi.mock('@/lib/device/pairing', async () => {
   const { ref } = await import('vue')
@@ -48,15 +50,18 @@ vi.mock('@/hooks/use-device-discovery', async () => {
   const { ref } = await import('vue')
   return {
     useDeviceDiscovery: () => ({
-      devices: ref([]), pairingViews: new Map(), start: async () => {}, stop: async () => {},
+      devices: ref(io.devices), pairingViews: new Map(), start: async () => {}, stop: async () => {},
     }),
   }
 })
-vi.mock('@/components/DeviceDiscoveryStatus.vue', () => ({ default: () => null }))
+vi.mock('@/components/DeviceDiscoveryStatus.vue', () => ({ default: () => h('p', 'Looking for nearby devices') }))
 vi.mock('@/components/MdnsFirewallFix.vue', () => ({ default: () => null }))
 vi.mock('@/views/login/DiscoveredDeviceLogin.vue', () => ({ default: () => null }))
 
-const peer = { id: 'remote', name: 'Test device', deviceType: DeviceType.PHONE, status: PeerStatus.PAIRED }
+const peer = { id: 'remote', name: 'Test device', deviceType: DeviceType.PHONE, status: PeerStatus.PAIRED, online: false }
+const discovered: DiscoveredDevice = { id: 'unpaired', name: 'Discovered test device', deviceType: DeviceType.PHONE,
+  status: PeerStatus.UNPAIRED, ips: [], remoteAccess: true, port: 8443, version: '', platform: '', lastSeen: '', discoveryMethods: ['LAN'] }
+const self: SelfDevice = { id: 'self', name: 'Local test device', deviceType: DeviceType.COMPUTER, ips: [], host: '', port: 8443, publicKey: '' }
 
 // Vitest compiles Vue templates for SSR. The click tests need the client render functions.
 function clientRender(source: string) {
@@ -117,12 +122,14 @@ afterEach(async () => {
   vi.resetAllMocks()
 })
 
-async function mount(current = '', fail = false) {
+async function mount(current = '', fail = false, fixtures: { paired?: boolean; devices?: DiscoveredDevice[]; self?: SelfDevice } = {}) {
   io.current = current
+  io.devices = fixtures.devices ?? []
+  io.self = fixtures.self ?? null
   const location = { href: '/nearby' }
   vi.stubGlobal('window', { location })
   vi.stubGlobal('__IS_TAURI__', true)
-  let paired = true
+  let paired = fixtures.paired ?? true
   io.request.mockImplementation(async (document: string) => {
     if (document === peersGQL) return { data: { peers: [{ ...peer, status: paired ? PeerStatus.PAIRED : PeerStatus.UNPAIRED }] } }
     if (document !== unpairPeerGQL) throw new Error('Unexpected GraphQL request')
@@ -158,8 +165,25 @@ async function mount(current = '', fail = false) {
     expect(nodes(root).filter((node) => node.props.class === 'dropdown-item').map((node) => node.text)).toEqual(['Unpair'])
     await clickText('Unpair')
   }
-  return { location, openRemoval, clickText, text: () => nodes(root).map((node) => node.text).join(' ') }
+  return { location, openRemoval, clickText, deviceLists: () => nodes(root).filter((node) => node.props.class === 'card list-items').length, text: () => nodes(root).map((node) => node.text).join(' ') }
 }
+
+it.each([undefined, self])('does not show the paired heading with no paired peer (self: %j)', async (local) => {
+  const view = await mount('', false, { paired: false, devices: [discovered], self: local })
+  expect(view.text()).not.toContain('Paired devices')
+  expect(view.text()).toContain('Looking for nearby devices')
+  expect(view.text()).toContain(discovered.name)
+  expect(view.text().includes(self.name)).toBe(Boolean(local))
+  expect(view.deviceLists()).toBe(local ? 2 : 1)
+})
+
+it('shows the paired heading and keeps the offline paired peer visible', async () => {
+  const view = await mount('', false, { devices: [discovered] })
+  expect(view.text()).toContain('Paired devices')
+  expect(view.text()).toContain(peer.name)
+  expect(view.text()).toContain(discovered.name)
+  expect(view.deviceLists()).toBe(2)
+})
 
 it('shows one removal action and lets the user cancel before any mutation', async () => {
   const view = await mount(peer.id)
@@ -184,7 +208,10 @@ it.each(['', peer.id])('removes the device only after confirmation (current devi
   expect(io.removePref).toHaveBeenCalledWith('main_state:remote')
   expect(io.clearRemote).toHaveBeenCalledTimes(current ? 1 : 0)
   expect(view.location.href).toBe(current ? '/' : '/nearby')
-  if (!current) expect(view.text()).not.toContain('Test device')
+  if (!current) {
+    expect(view.text()).not.toContain('Test device')
+    expect(view.text()).not.toContain('Paired devices')
+  }
 })
 
 it('shows a removal error and leaves the current session available for retry', async () => {

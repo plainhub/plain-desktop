@@ -17,8 +17,8 @@
       <NearbyPairOptions v-else-if="step === 'mode'" @cancel="backToDevices" @confirm="confirmPair" />
       <DiscoveredDeviceLogin v-else-if="step === 'login' && loginDevice" :device="loginDevice" :subscriptions="subscriptions" @success="onLoginSuccess" @cancel="backToDevices" />
       <div v-else class="nearby-sections">
-        <section>
-          <h3 class="section-title">{{ $t('paired_devices') }}</h3>
+        <section v-if="selfDevice || groups.mine.length">
+          <h3 v-if="groups.mine.length" class="section-title">{{ $t('paired_devices') }}</h3>
           <ul class="card list-items">
             <VListItem v-if="selfDevice" :title="selfDevice.name" :subtitle="selfDevice.ips.join(', ')">
               <template #start><PeerIcon :device-type="selfDevice.deviceType" /></template>
