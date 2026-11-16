@@ -216,6 +216,7 @@ export default {
   duration: 'সময়কাল',
   started_at: 'শুরু হয়েছে',
   preview: 'প্রিভিউ',
+  markdown_source: 'Markdown সোর্স',
   editor_view: 'এডিটর',
   split_view: 'স্প্লিট ভিউ',
   write_markdown: 'Markdown লিখুন...',

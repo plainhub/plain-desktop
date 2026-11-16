@@ -212,6 +212,7 @@ export default {
   duration: 'Duur',
   started_at: 'Gestart op',
   preview: 'Voorbeeld',
+  markdown_source: 'Markdown-broncode',
   editor_view: 'Editorweergave',
   split_view: 'Gesplitste weergave',
   write_markdown: 'Markdown schrijven...',

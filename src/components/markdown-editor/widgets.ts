@@ -1,5 +1,4 @@
-import type { EditorView } from '@codemirror/view'
-import { WidgetType } from '@codemirror/view'
+import { EditorView, WidgetType } from '@codemirror/view'
 import 'katex/dist/katex.min.css'
 import katex from 'katex'
 import { i18n } from '@/plugins/i18n'
@@ -60,7 +59,11 @@ export class ImageWidget extends WidgetType {
     fig.appendChild(img)
     fig.addEventListener('mousedown', (e) => {
       e.preventDefault()
-      this.cmView.dispatch({ selection: { anchor: this.pos } })
+      const yMargin = Math.max(0, fig.getBoundingClientRect().top - this.cmView.scrollDOM.getBoundingClientRect().top)
+      this.cmView.dispatch({
+        selection: { anchor: this.pos },
+        effects: EditorView.scrollIntoView(this.pos, { y: 'start', yMargin }),
+      })
       this.cmView.focus()
     })
     return fig

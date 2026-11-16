@@ -212,6 +212,7 @@ export default {
   duration: 'Thời lượng',
   started_at: 'Bắt đầu lúc',
   preview: 'Xem trước',
+  markdown_source: 'Mã nguồn Markdown',
   editor_view: 'Trình soạn thảo',
   split_view: 'Chế độ chia đôi',
   write_markdown: 'Viết Markdown...',

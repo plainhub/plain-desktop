@@ -212,6 +212,7 @@ export default {
   duration: 'Süre',
   started_at: 'Başlama zamanı',
   preview: 'Önizleme',
+  markdown_source: 'Markdown kaynak kodu',
   editor_view: 'Düzenleyici',
   split_view: 'Bölünmüş görünüm',
   write_markdown: 'Markdown yaz...',

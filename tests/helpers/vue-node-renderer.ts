@@ -17,8 +17,8 @@ export function clientTemplate(component: any, filename: string) {
   return component
 }
 
-export type Node = { tag: string; children: Node[]; parent?: Node; text?: string; props: Record<string, any> }
-const node = (tag: string): Node => Object.assign({ tag, children: [], props: {} }, { addEventListener() {} })
+export type Node = { tag: string; style: { display: string }; children: Node[]; parent?: Node; text?: string; props: Record<string, any> }
+const node = (tag: string): Node => Object.assign({ tag, style: { display: '' }, children: [], props: {} }, { addEventListener() {} })
 export const nodes = (element: Node): Node[] => [element, ...element.children.flatMap(nodes)]
 export const content = (element: Node): string => [element.text ?? '', ...element.children.map(content)].join('')
 export function fire(element: Node, eventName: string, event: unknown) {

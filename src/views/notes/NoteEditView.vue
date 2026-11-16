@@ -27,13 +27,14 @@
           ref="editorRef"
           v-model="content"
           :placeholder="$t('write_markdown')"
+          :source="viewMode === 'source'"
           @paste-images="onPasteImages"
         />
         <div v-if="uploadingImage" class="upload-indicator">
           <v-circular-progress indeterminate class="sm" /> {{ $t('uploading') }}
         </div>
       </div>
-      <div v-show="viewMode !== 'editor'" class="preview-pane md-container" v-html="markdown" />
+      <div v-show="viewMode === 'preview'" class="preview-pane md-container" v-html="markdown" />
     </div>
   </div>
 </template>

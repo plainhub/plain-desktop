@@ -217,6 +217,7 @@ export default {
   duration: 'Durée',
   started_at: 'Commencé le',
   preview: 'Aperçu',
+  markdown_source: 'Source Markdown',
   editor_view: 'Éditeur',
   split_view: 'Vue partagée',
   write_markdown: 'Écrire en Markdown...',

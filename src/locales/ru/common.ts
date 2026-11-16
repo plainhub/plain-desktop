@@ -213,6 +213,7 @@ export default {
   duration: 'Длительность',
   started_at: 'Начало',
   preview: 'Просмотр',
+  markdown_source: 'Исходный Markdown',
   editor_view: 'Редактор',
   split_view: 'Разделённый вид',
   write_markdown: 'Введите Markdown...',

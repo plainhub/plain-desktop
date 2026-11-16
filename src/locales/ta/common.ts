@@ -214,6 +214,7 @@ export default {
   duration: 'கீழ்',
   started_at: 'ஆரம்பம்',
   preview: 'முன்னோட்டம்',
+  markdown_source: 'Markdown மூலம்',
   editor_view: 'திருத்தி',
   split_view: 'பிரிப்பு காட்சி',
   write_markdown: 'Markdown எழுதுங்கள்...',

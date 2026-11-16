@@ -213,6 +213,7 @@ export default {
   duration: '時間',
   started_at: '開始時刻',
   preview: 'プレビュー',
+  markdown_source: 'Markdown ソース',
   editor_view: 'エディター',
   split_view: '分割表示',
   write_markdown: 'Markdown を入力...',

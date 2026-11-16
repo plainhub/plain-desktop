@@ -213,6 +213,7 @@ export default {
   duration: '기간',
   started_at: '시작일',
   preview: '미리보기',
+  markdown_source: 'Markdown 소스',
   editor_view: '편집기',
   split_view: '분할 보기',
   write_markdown: 'Markdown 입력...',

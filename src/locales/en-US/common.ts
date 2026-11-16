@@ -277,6 +277,7 @@ export default {
   apply: 'Apply',
   started_at: 'Started at',
   preview: 'Preview',
+  markdown_source: 'Markdown source',
   editor_view: 'Editor',
   split_view: 'Split view',
   write_markdown: 'Write markdown...',

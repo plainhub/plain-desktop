@@ -20,7 +20,7 @@ import type { IUploadItem } from '@/stores/temp'
 
 const dataType = 'NOTE'
 
-export type ViewMode = 'editor' | 'preview'
+export type ViewMode = 'editor' | 'source' | 'preview'
 
 export function useNoteEdit() {
   const mainStore = useMainStore()

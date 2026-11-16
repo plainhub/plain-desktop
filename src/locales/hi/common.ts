@@ -213,6 +213,7 @@ export default {
   duration: 'डूरेशन',
   started_at: 'स्टार्टेड ऍट',
   preview: 'प्रीविव',
+  markdown_source: 'Markdown स्रोत',
   editor_view: 'एडिटर',
   split_view: 'स्प्लिट व्यू',
   write_markdown: 'Markdown लिखें...',

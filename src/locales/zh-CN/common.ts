@@ -267,6 +267,7 @@ export default {
   apply: '应用',
   started_at: '开始时间',
   preview: '预览',
+  markdown_source: 'Markdown 源码',
   editor_view: '编辑器',
   split_view: '分屏',
   write_markdown: '输入 Markdown...',

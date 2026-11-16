@@ -27,7 +27,7 @@
       <button class="st-btn" :aria-label="$t('md_task')" @click="runCmd(togglePrefix, '- [ ] ')">☑</button>
       <button class="st-btn" :aria-label="$t('md_quote')" @click="runCmd(togglePrefix, '> ')">❝</button>
     </div>
-    <div class="fmt-bar">
+    <div v-if="!source" class="fmt-bar">
       <button class="fb" :aria-label="$t('md_h1')" @mousedown.prevent @click="runCmd(cycleHeading)">H</button>
       <button class="fb" :aria-label="$t('md_bold')" @mousedown.prevent @click="runCmd(toggleWrap, '**')"><b>B</b></button>
       <button class="fb" :aria-label="$t('md_italic')" @mousedown.prevent @click="runCmd(toggleWrap, '*')"><i>I</i></button>
@@ -44,13 +44,13 @@
 
 <script setup lang="ts">
 import { ref, shallowRef, onMounted, onUnmounted, watch } from 'vue'
-import { EditorView, keymap, placeholder as cmPlaceholder } from '@codemirror/view'
-import { EditorState, type Extension } from '@codemirror/state'
+import { EditorView, keymap, scrollPastEnd, placeholder as cmPlaceholder } from '@codemirror/view'
+import { Compartment, EditorState, type Extension } from '@codemirror/state'
 import type { SyntaxNode } from '@lezer/common'
 import { markdown, markdownLanguage } from '@codemirror/lang-markdown'
 import { languages } from '@codemirror/language-data'
 import { defaultKeymap, indentWithTab, history, historyKeymap } from '@codemirror/commands'
-import { syntaxTree } from '@codemirror/language'
+import { defaultHighlightStyle, syntaxHighlighting, syntaxTree } from '@codemirror/language'
 import { closeBrackets, closeBracketsKeymap } from '@codemirror/autocomplete'
 import { searchKeymap, highlightSelectionMatches } from '@codemirror/search'
 import emitter from '@/plugins/eventbus'
@@ -73,6 +73,7 @@ import { useSelectionBar } from './markdown-editor/selection'
 const props = defineProps<{
   modelValue: string
   placeholder?: string
+  source?: boolean
 }>()
 
 const emit = defineEmits<{
@@ -82,10 +83,30 @@ const emit = defineEmits<{
 
 const editorContainer = ref<HTMLElement>()
 const view = shallowRef<EditorView>()
+const modeCompartment = new Compartment()
+const themeCompartment = new Compartment()
 
 const { selBarOpen, selBarStyle, syncSelBar, hideSelBar } = useSelectionBar({ view, editorContainer })
 const menu = useEditorMenu({ view, editorContainer, onOpen: hideSelBar })
-const { slashOpen, slashActive, slashStyle, menuItems, styleStart, applyMenuItem, closeMenu, syncMenu, onContextMenu, onScroll, menuKeys } = menu
+const { slashOpen, slashActive, slashStyle, menuItems, styleStart, applyMenuItem, closeMenu, syncMenu, onContextMenu: openContextMenu, menuKeys } = menu
+
+function onContextMenu(event: MouseEvent) {
+  if (!props.source) openContextMenu(event)
+}
+
+watch(() => props.source, () => {
+  const v = view.value
+  if (!v) return
+  closeMenu()
+  hideSelBar()
+  const cursor = v.state.selection.main.head
+  const caret = v.coordsAtPos(cursor)
+  const viewport = v.scrollDOM.getBoundingClientRect()
+  const scroll = caret && caret.top >= viewport.top && caret.bottom <= viewport.bottom
+    ? EditorView.scrollIntoView(cursor, { y: 'start', yMargin: caret.top - viewport.top })
+    : v.scrollSnapshot()
+  v.dispatch({ effects: [modeCompartment.reconfigure(modeExtensions()), scroll] })
+})
 
 function runCmd(fn: (v: EditorView, ...args: never[]) => void, ...args: unknown[]) {
   const v = view.value
@@ -104,29 +125,37 @@ function insertTable() {
 
 let isDark = document.documentElement.classList.contains('dark')
 
+function modeExtensions(): Extension[] {
+  return props.source
+    ? [syntaxHighlighting(defaultHighlightStyle), EditorView.theme({
+      '.cm-scroller': { fontFamily: "'SF Mono', 'Fira Code', 'Fira Mono', Menlo, Consolas, monospace" },
+    })]
+    : [livePreviewPlugin, mdHighlightExtensions, keymap.of(menuKeys)]
+}
+
 function getExtensions(): Extension[] {
   const exts: Extension[] = [
     history(),
+    scrollPastEnd(),
     closeBrackets(),
     highlightSelectionMatches(),
     markdown({ base: markdownLanguage, codeLanguages: languages }),
-    livePreviewPlugin,
-    mdHighlightExtensions,
+    modeCompartment.of(modeExtensions()),
     mdCodeHighlight,
-    keymap.of([...menuKeys, ...defaultKeymap, ...historyKeymap, ...closeBracketsKeymap, ...searchKeymap, indentWithTab]),
+    keymap.of([...defaultKeymap, ...historyKeymap, ...closeBracketsKeymap, ...searchKeymap, indentWithTab]),
     EditorView.lineWrapping,
     EditorView.updateListener.of((update) => {
       if (update.docChanged) {
         emit('update:modelValue', update.state.doc.toString())
       }
-      if (update.docChanged || update.selectionSet || update.focusChanged) {
+      if (!props.source && (update.docChanged || update.selectionSet || update.focusChanged)) {
         syncMenu(update.view)
         syncSelBar(update.view)
       }
     }),
   ]
   if (props.placeholder) exts.push(cmPlaceholder(props.placeholder))
-  exts.push(baseTheme, lightTheme, isDark ? darkThemeOverride : lightTheme)
+  exts.push(baseTheme, themeCompartment.of(isDark ? darkThemeOverride : lightTheme))
   return exts
 }
 
@@ -172,23 +201,11 @@ function insertText(text: string) {
   v.focus()
 }
 
-function replaceTheme() {
-  const v = view.value
-  if (!v) return
-  const doc = v.state.doc.toString()
-  closeMenu()
-  v.destroy()
-  view.value = new EditorView({
-    state: EditorState.create({ doc, extensions: getExtensions() }),
-    parent: editorContainer.value!,
-  })
-}
-
 function colorModeChangedHandler() {
   const dark = document.documentElement.classList.contains('dark')
   if (dark === isDark) return
   isDark = dark
-  replaceTheme()
+  view.value?.dispatch({ effects: themeCompartment.reconfigure(isDark ? darkThemeOverride : lightTheme) })
 }
 
 // Theme can change through paths other than the event bus (system theme,
@@ -213,7 +230,7 @@ function slugOfHeadingLine(view: EditorView, lineNumber: number): string | null 
 function onEditorClick(e: MouseEvent) {
   const el = (e.target as HTMLElement)?.closest('.cm-md-link') as HTMLElement | null
   const v = view.value
-  if (!el || !v) return
+  if (!el || !v || props.source) return
   const pos = v.posAtDOM(el)
   let link: SyntaxNode | null = syntaxTree(v.state).resolveInner(pos, -1)
   while (link && link.name !== 'Link') link = link.parent

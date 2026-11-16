@@ -214,6 +214,7 @@ export default {
   duration: '時長',
   started_at: '開始時間',
   preview: '預覽',
+  markdown_source: 'Markdown 原始碼',
   editor_view: '編輯器',
   split_view: '分屏',
   write_markdown: '輸入 Markdown...',

@@ -216,6 +216,7 @@ export default {
   duration: 'Dauer',
   started_at: 'Gestartet am',
   preview: 'Vorschau',
+  markdown_source: 'Markdown-Quelltext',
   editor_view: 'Editoransicht',
   split_view: 'Geteilte Ansicht',
   write_markdown: 'Markdown schreiben...',
