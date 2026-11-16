@@ -18,7 +18,6 @@
           <i-lucide:pencil />
         </button>
         <button
-          v-if="isTauri"
           v-tooltip="$t('device_discovery.change_device')"
           class="switch-device-btn"
           :aria-label="$t('device_discovery.change_device')"
@@ -235,7 +234,8 @@ const popupFeatures = computed<Feature[]>(() => {
 
 function openNearbyDevices() {
   open.value = false
-  pushModal(NearbyView)
+  if (isTauri) pushModal(NearbyView)
+  else pushModal(NearbyView, { switchOnly: true })
 }
 
 function openAbout() {

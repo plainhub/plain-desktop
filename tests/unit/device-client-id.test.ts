@@ -93,3 +93,11 @@ it.each(['706c6169-0000-8000-8000-000000000001', '706C6169-0000-8000-8000-000000
     expect(mock.native).not.toHaveBeenCalled()
   },
 )
+
+it('stores and clears the remote device using the per-tab key', async () => {
+  const identity = await import('@/lib/device/client-id')
+  identity.setRemoteClientId('remote-device')
+  expect(sessionStorage.getItem('__remote_device_id__')).toBe('remote-device')
+  identity.clearRemoteClientId()
+  expect(sessionStorage.getItem('__remote_device_id__')).toBeNull()
+})

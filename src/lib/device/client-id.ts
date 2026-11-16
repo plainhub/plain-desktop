@@ -2,7 +2,7 @@ import { clear as browserClear, get as browserGet, set as browserSet } from '@/l
 import { readNativeDeviceIdentity } from './native-settings'
 import { generateClientId } from './client-identity.generated'
 
-const REMOTE_KEY = '__bound_client_id__'
+const REMOTE_KEY = '__remote_device_id__'
 const WINDOW_ID_KEY = '__window_id__'
 
 let desktopClientId = ''
