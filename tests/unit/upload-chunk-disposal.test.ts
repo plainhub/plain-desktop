@@ -12,7 +12,7 @@ vi.mock('@/lib/api/gql-client', () => ({ gqlFetch: io.gql, bindGraphqlClient: ()
 vi.mock('@/lib/upload/merge-async', () => ({ requestMerge: vi.fn() }))
 vi.mock('@/lib/upload/batch-progress', () => ({ setUploadStatus: (item: IUploadItem, status: string) => { item.status = status }, setUploadUploadedSize: (item: IUploadItem, size: number) => { item.uploadedSize = size } }))
 vi.mock('@/lib/device/current', () => ({ getCurrentAuthToken: () => 'test-token' }))
-vi.mock('@/lib/device/client-id', () => ({ getDesktopClientId: () => '706c6169-e2eb-85ac-b78e-a2754bf184e8' }))
+vi.mock('@/lib/device/client-id', () => ({ getRemoteClientId: () => '', getDesktopClientId: () => '706c6169-e2eb-85ac-b78e-a2754bf184e8' }))
 vi.mock('@/plugins/eventbus', () => ({ default: { emit: io.emit } }))
 import { upload, discardUploadChunks } from '@/lib/upload/upload'
 import { GqlError } from '@/lib/api/gql-client'

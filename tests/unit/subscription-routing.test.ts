@@ -33,11 +33,12 @@ beforeEach(() => {
 afterEach(() => { vi.useRealTimers(); vi.unstubAllGlobals() })
 
 
-it.each([undefined, 'third-peer'])('preserves browser encrypted subscription routing for proxy target %s', (peerId) => {
+it.each([undefined, '', 'third-peer'])('preserves browser encrypted subscription routing for proxy target %s', (peerId) => {
   vi.stubGlobal('__IS_TAURI__', false)
   mock.local = false
   const connection = openSubscriptionConnection(callbacks(), peerId)
-  const path = peerId ? '/proxy/third-peer/graphql' : '/graphql'
+  const chosen = peerId ?? mock.remote
+  const path = chosen ? `/proxy/${chosen}/graphql` : '/graphql'
   expect(mock.openSocket).toHaveBeenCalledExactlyOnceWith(`wss://remote.example:8443${path}?cid=706c6169-1ac2-825a-8c79-0951ec181d4a`, '706c6169-8ed4-8fb1-b534-79c532096b42')
   expect(mock.invoke).not.toHaveBeenCalled()
   expect(mock.scope).not.toHaveBeenCalled()

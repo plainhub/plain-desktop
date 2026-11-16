@@ -1,5 +1,6 @@
 import type { IUploadItem } from '@/stores/temp'
 import { getApiBaseUrl, proxyUrlFor } from '@/lib/api/api'
+import { getDeviceRequestPath } from '@/lib/api/device-path'
 import { bindGraphqlClient, getGraphqlContextKey, GqlError } from '@/lib/api/gql-client'
 import { nativeViewScope, type NativeTarget } from '@/lib/api/native-client'
 import { getDesktopClientId, getRemoteClientId } from '@/lib/device/client-id'
@@ -39,8 +40,8 @@ export function getUploadContext(upload: IUploadItem): UploadContext {
         native: false,
         token: getCurrentAuthToken(),
         clientId: getDesktopClientId(),
-        uploadUrl: proxyUrlFor(baseUrl, '/upload'),
-        chunkUrl: proxyUrlFor(baseUrl, '/upload_chunk'),
+        uploadUrl: proxyUrlFor(baseUrl, getDeviceRequestPath('/upload')),
+        chunkUrl: proxyUrlFor(baseUrl, getDeviceRequestPath('/upload_chunk')),
       }
     }
     contexts.set(upload, context)

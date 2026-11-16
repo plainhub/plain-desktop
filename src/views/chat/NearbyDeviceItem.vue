@@ -20,7 +20,7 @@
         >{{ $t(actionLabel) }}</v-outlined-button
       >
     </template>
-    <template v-if="peer" #actions>
+    <template v-if="peer && !switchOnly" #actions>
       <v-icon-button :id="menuId" :aria-label="$t('actions')" @click.stop="menuOpen = true"><i-material-symbols:more-vert /></v-icon-button>
       <v-dropdown-menu v-model="menuOpen" :anchor="menuId">
         <div class="dropdown-item" @click="remove">{{ $t('unpair') }}</div>
@@ -41,6 +41,7 @@ const props = defineProps<
     current?: boolean
     pairing?: boolean
     disabled?: boolean
+    switchOnly?: boolean
   }
 >()
 const emit = defineEmits<{ connect: [action: ReturnType<typeof nearbyPairAction>]; cancel: []; remove: [] }>()

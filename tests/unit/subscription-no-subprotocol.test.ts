@@ -44,7 +44,7 @@ it('keeps the encrypted handshake and messages when no subprotocol is negotiated
   mock.openSocket.mockReturnValue(mock.socket)
   const callbacks = { opened: vi.fn(), message: vi.fn(), dropped: vi.fn() }
   const connection = openSubscriptionConnection(callbacks)
-  expect(mock.openSocket).toHaveBeenCalledWith('wss://device.example:8443/graphql?cid=706c6169-b9ef-8b64-b37d-1162ef232835', '706c6169-510c-8348-9a2c-7c92f6ee2e7f')
+  expect(mock.openSocket).toHaveBeenCalledWith('wss://device.example:8443/proxy/706c6169-510c-8348-9a2c-7c92f6ee2e7f/graphql?cid=706c6169-b9ef-8b64-b37d-1162ef232835', '706c6169-510c-8348-9a2c-7c92f6ee2e7f')
   expect(mock.socket.binaryType).toBe('arraybuffer')
   mock.socket.onopen!()
   expect(callbacks.dropped).not.toHaveBeenCalled()

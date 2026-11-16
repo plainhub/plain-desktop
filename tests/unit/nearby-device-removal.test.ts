@@ -18,9 +18,10 @@ import type { SelfDevice } from '@/lib/device/self-device'
 import common from '@/locales/en-US/common'
 import messages from '@/locales/en-US'
 
-const io = vi.hoisted(() => ({ request: vi.fn(), removePref: vi.fn(), clearRemote: vi.fn(), current: '', devices: [] as DiscoveredDevice[], self: null as SelfDevice | null }))
-vi.mock('@/lib/api/gql-client', () => ({ nativeGqlFetch: io.request }))
+const io = vi.hoisted(() => ({ request: vi.fn(), removePref: vi.fn(), clearRemote: vi.fn(), setRemote: vi.fn(), start: vi.fn(), current: '', devices: [] as DiscoveredDevice[], self: null as SelfDevice | null }))
+vi.mock('@/lib/api/gql-client', () => ({ nativeGqlFetch: io.request, bindGraphqlClient: () => io.request }))
 vi.mock('@/lib/api/subscription-client', () => ({
+  graphqlSubscriptions: { subscribe: () => () => {}, onAttached: () => () => {} },
   SubscriptionClient: class {
     subscribe = () => () => {}
     onAttached = () => () => {}
@@ -33,6 +34,7 @@ vi.mock('@/lib/api/subscription-connection', () => ({ openNative: vi.fn() }))
 vi.mock('@/lib/device/client-id', () => ({
   getRemoteClientId: () => io.current,
   clearRemoteClientId: io.clearRemote,
+  setRemoteClientId: io.setRemote,
 }))
 vi.mock('@/lib/device/login-peers', async () => ({
   loginPeers: (await import('vue')).ref([]),
@@ -50,7 +52,7 @@ vi.mock('@/hooks/use-device-discovery', async () => {
   const { ref } = await import('vue')
   return {
     useDeviceDiscovery: () => ({
-      devices: ref(io.devices), pairingViews: new Map(), start: async () => {}, stop: async () => {},
+      devices: ref(io.devices), pairingViews: new Map(), start: io.start, stop: async () => {},
     }),
   }
 })
@@ -122,22 +124,22 @@ afterEach(async () => {
   vi.resetAllMocks()
 })
 
-async function mount(current = '', fail = false, fixtures: { paired?: boolean; devices?: DiscoveredDevice[]; self?: SelfDevice } = {}) {
+async function mount(current = '', fail = false, fixtures: { paired?: boolean; devices?: DiscoveredDevice[]; self?: SelfDevice; switchOnly?: boolean } = {}) {
   io.current = current
   io.devices = fixtures.devices ?? []
   io.self = fixtures.self ?? null
-  const location = { href: '/nearby' }
+  const location = { href: '/nearby?q=keep#hash', protocol: 'https:', reload: vi.fn() }
   vi.stubGlobal('window', { location })
-  vi.stubGlobal('__IS_TAURI__', true)
+  vi.stubGlobal('__IS_TAURI__', !fixtures.switchOnly)
   let paired = fixtures.paired ?? true
   io.request.mockImplementation(async (document: string) => {
-    if (document === peersGQL) return { data: { peers: [{ ...peer, status: paired ? PeerStatus.PAIRED : PeerStatus.UNPAIRED }] } }
+    if (document === peersGQL) return { data: { peers: [{ ...peer, online: fixtures.switchOnly ? true : peer.online, managed: fixtures.switchOnly, status: paired ? PeerStatus.PAIRED : PeerStatus.UNPAIRED }] } }
     if (document !== unpairPeerGQL) throw new Error('Unexpected GraphQL request')
     if (fail) return { errors: [{ message: 'Device unavailable' }] }
     paired = false
     return { data: { unpairPeer: true } }
   })
-  const app = renderer.createApp(NearbyView)
+  const app = renderer.createApp(NearbyView, { switchOnly: fixtures.switchOnly })
   app.provide(ssrContextKey, { modules: new Set() })
   app.use(createI18n({ legacy: false, locale: 'en-US', messages: { 'en-US': messages } }))
   app.component('VListItem', VListItem)
@@ -207,7 +209,7 @@ it.each(['', peer.id])('removes the device only after confirmation (current devi
   expect(io.request.mock.calls.filter(([document]) => document === unpairPeerGQL)).toEqual([[unpairPeerGQL, { id: peer.id }]])
   expect(io.removePref).toHaveBeenCalledWith('main_state:remote')
   expect(io.clearRemote).toHaveBeenCalledTimes(current ? 1 : 0)
-  expect(view.location.href).toBe(current ? '/' : '/nearby')
+  expect(view.location.href).toBe(current ? '/' : '/nearby?q=keep#hash')
   if (!current) {
     expect(view.text()).not.toContain('Test device')
     expect(view.text()).not.toContain('Paired devices')
@@ -223,4 +225,17 @@ it('shows a removal error and leaves the current session available for retry', a
   expect(view.text()).toContain(common.network_error)
   expect(io.removePref).not.toHaveBeenCalled()
   expect(io.clearRemote).not.toHaveBeenCalled()
+})
+
+
+it.each(['', 'remote'])('switches the managed Web picker without changing the visible URL (%s)', async (current) => {
+  const view = await mount(current, false, { switchOnly: true, self })
+  expect(view.text()).toContain('Switch Device')
+  expect(io.start).not.toHaveBeenCalled()
+  await view.clickText('Switch')
+  expect(view.location.href).toBe('/nearby?q=keep#hash')
+  expect(view.location.reload).toHaveBeenCalledOnce()
+  if (current) expect(io.clearRemote).toHaveBeenCalledOnce()
+  else expect(io.setRemote).toHaveBeenCalledExactlyOnceWith(peer.id)
+  expect(io.request.mock.calls.every(([document]) => document === peersGQL)).toBe(true)
 })

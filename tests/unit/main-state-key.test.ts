@@ -41,9 +41,11 @@ it('does not choose a key before the browser has a server identity', () => {
   expect(getMainStateKey()).toBeUndefined()
 })
 
-it('uses the confirmed browser identity after the server changes', () => {
+it('keeps selected state separate from the browser origin and restores the origin on return', () => {
   fixture.remote = '706c6169-3c85-88c9-84cf-24ac1ca78141'
   fixture.identity = { deviceId: '706c6169-2e24-8576-93db-19cc069edcda', publicKey: 'replacement-public-key' }
+  expect(getMainStateKey()).toBe('main_state:706c6169-3c85-88c9-84cf-24ac1ca78141')
+  fixture.remote = ''
   expect(getMainStateKey()).toBe('main_state:706c6169-2e24-8576-93db-19cc069edcda')
 })
 

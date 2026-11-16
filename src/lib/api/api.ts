@@ -1,6 +1,7 @@
 import { ResourcePurpose } from './aad-purpose.generated'
 import { isLocalMode } from '@/lib/device/local-mode'
 import { getCurrentDeviceHost, getCurrentDeviceBaseUrl } from '../device/current'
+import { getDeviceRequestPath } from './device-path'
 import { getDesktopClientId } from '@/lib/device/client-id'
 import { isMacPlatform } from '../platform'
 import { DeviceType } from '../status'
@@ -88,8 +89,8 @@ export function proxyWsUrlFor(url: string, clientId = ''): string {
   return clientId ? localProxyUrl(clientId, u.pathname + u.search, true) : url
 }
 
-export function getProxyUrl(path: string): string {
-  return proxyUrlFor(getApiBaseUrl(), path)
+export function getProxyUrl(path: string, peerId?: string): string {
+  return proxyUrlFor(getApiBaseUrl(), getDeviceRequestPath(path, peerId))
 }
 
 export function getApiHost() {

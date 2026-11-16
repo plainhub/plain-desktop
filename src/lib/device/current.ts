@@ -34,6 +34,6 @@ export function clearCurrentSession(): Promise<void> {
 export function getMainStateKey(): string | undefined {
   const id = __IS_TAURI__
     ? getRemoteClientId() || getDesktopClientId()
-    : getBrowserIdentity()?.deviceId
+    : getRemoteClientId() || getBrowserIdentity()?.deviceId
   return id ? `main_state:${id}` : undefined
 }

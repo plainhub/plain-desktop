@@ -32,7 +32,7 @@ export function useGlobalSearch(app: Ref<IApp>, localName: () => string) {
     onCleanup(() => { active = false })
     try {
       const result = await gqlFetch<{ peers: { id: string; name: string; online: boolean; managed: boolean }[] }>(
-        '{ peers { id name online managed } }',
+        '{ peers { id name online managed } }', undefined, { origin: true },
       )
       if (active && result.data?.peers) managedDevices.value = result.data.peers
         .filter((peer) => peer.managed && peer.id !== id)

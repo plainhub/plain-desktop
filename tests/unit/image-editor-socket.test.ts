@@ -27,7 +27,7 @@ it('waits for authenticated readiness, receives updates, rejects replay and reco
   const client = new ImageEditorSocket(ready, update)
   client.connect()
   const socket = mock.sockets[0]
-  expect(openSocket).toHaveBeenCalledWith('wss://example.test/image_editor?cid=706c6169-fe7e-818e-a0f0-a71b7c0f3f75', '706c6169-89f1-81c6-8bc7-6b67c2ffa178')
+  expect(openSocket).toHaveBeenCalledWith('wss://example.test/proxy/706c6169-89f1-81c6-8bc7-6b67c2ffa178/image_editor?cid=706c6169-fe7e-818e-a0f0-a71b7c0f3f75', '706c6169-89f1-81c6-8bc7-6b67c2ffa178')
   socket.onopen()
   expect(ready).not.toHaveBeenCalled()
   const registration = socket.send.mock.calls[0][0]

@@ -1,12 +1,13 @@
 import { isLocalMode } from '@/lib/device/local-mode'
 import { invoke, onNativeReload } from '@/lib/api/native-invoke'
 import { getWebSocketBaseUrl } from './api'
+import { getDeviceRequestPath } from './device-path'
 import { getCurrentAuthToken } from '@/lib/device/current'
 import { getRemoteClientId, getDesktopClientId } from '@/lib/device/client-id'
 import { tokenToKey } from './file'
 import { openSocket } from './http'
 import { WebSocketCrypto } from './websocket-crypto'
-import { peerProxyPath } from '../url'
+import { managedGraphqlDocument } from './managed-document'
 import { nativeViewScope, type NativeTarget } from './native-client'
 
 export interface SubscriptionConnection { send(message: unknown): void; close(): void }
@@ -17,7 +18,8 @@ export function openSubscriptionConnection(callbacks: SubscriptionCallbacks, pee
   return openNative(callbacks, isLocalMode() ? { kind: 'local' } : { kind: 'peer', peerId: getRemoteClientId() })
 }
 function openNetwork(callbacks: SubscriptionCallbacks, peerId?: string): SubscriptionConnection {
-  const url = new URL(peerId ? peerProxyPath(peerId, 'graphql') : '/graphql', getWebSocketBaseUrl())
+  const path = getDeviceRequestPath('/graphql', peerId)
+  const url = new URL(path, getWebSocketBaseUrl())
   const client = getDesktopClientId()
   const token = getCurrentAuthToken()
   if (!token) throw new Error('Subscription session missing')
@@ -34,6 +36,9 @@ function openNetwork(callbacks: SubscriptionCallbacks, peerId?: string): Subscri
     send(message) {
       try {
         if (!active || !acknowledged || !crypto) throw new Error('Subscription connection unavailable')
+        if (path !== '/graphql' && isSubscriptionRequest(message)) {
+          message = { ...message, payload: { ...message.payload, query: managedGraphqlDocument(message.payload.query) } }
+        }
         socket.send(crypto.encode(new TextEncoder().encode(JSON.stringify(message))))
       } catch (error) { fail(error) }
     },
@@ -85,6 +90,11 @@ function openNetwork(callbacks: SubscriptionCallbacks, peerId?: string): Subscri
   socket.onerror = () => fail(new Error('Subscription connection error'))
   socket.onclose = () => fail(new Error('Subscription connection closed'))
   return connection
+}
+function isSubscriptionRequest(message: unknown): message is { type: 'subscribe'; payload: { query: string } } {
+  if (!message || typeof message !== 'object' || !('type' in message) || message.type !== 'subscribe' || !('payload' in message)) return false
+  const payload = message.payload
+  return !!payload && typeof payload === 'object' && 'query' in payload && typeof payload.query === 'string'
 }
 export function openNative(callbacks: SubscriptionCallbacks, target: NativeTarget = { kind: 'local' }): SubscriptionConnection {
   if (target.kind === 'peer' && !target.peerId) throw new Error('native_peer_id_missing')

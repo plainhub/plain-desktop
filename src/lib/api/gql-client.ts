@@ -7,6 +7,8 @@ import { getCurrentAuthToken, clearCurrentSession } from '../device/current'
 import { getLoginPeerRevision } from '../device/login-peers'
 import { getActiveClientId, getRemoteClientId } from '../device/client-id'
 import { httpRequest } from './http'
+import { getDeviceRequestPath, getWebManagedPeerId } from './device-path'
+import { managedGraphqlDocument } from './managed-document'
 import { nativeGraphql, type NativeTarget } from './native-client'
 import type { GqlOperationName, GqlResultType, GqlVariablesType } from './graphql/operations'
 
@@ -35,18 +37,24 @@ export interface GqlFetchOptions {
   dedupe?: boolean
   fresh?: boolean
   timeout?: number
+  origin?: boolean
 }
 
-function graphqlContext() {
+function graphqlContext(origin = false) {
   const native = __IS_TAURI__
   const local = isLocalMode()
+  const peer = origin ? '' : getWebManagedPeerId()
+  const base = native ? '' : getApiBaseUrl()
   const clientId = getActiveClientId()
   const target: NativeTarget | undefined = native ? local ? { kind: 'local' } : { kind: 'peer', peerId: getRemoteClientId() } : undefined
   return {
     native,
     clientId,
     target,
-    url: native ? '' : `${getApiBaseUrl()}/graphql`,
+    url: native ? '' : base + getDeviceRequestPath('/graphql', peer),
+    originUrl: native ? '' : base + '/graphql',
+    peer,
+    origin,
     token: native ? '' : getCurrentAuthToken(),
     authRevision: target?.kind === 'peer' ? getLoginPeerRevision(target.peerId) : 0,
     headers: { ...getApiHeaders() },
@@ -62,7 +70,7 @@ export async function gqlFetch<T = any>(
   variables?: Record<string, any>,
   options: GqlFetchOptions = {},
 ): Promise<GqlResult<T>> {
-  const context = graphqlContext()
+  const context = graphqlContext(options.origin)
   const contextKey = JSON.stringify(context)
   const dedupeKey = JSON.stringify({ context, query, variables })
   if (options.dedupe !== false && !options.fresh) {
@@ -71,7 +79,7 @@ export async function gqlFetch<T = any>(
   }
 
   const promise = doGqlFetch<T>(context, query, variables, options.timeout).then((result) => {
-    if (contextKey !== getGraphqlContextKey()) throw new GqlError('request_context_changed', undefined, true)
+    if (contextKey !== JSON.stringify(graphqlContext(options.origin))) throw new GqlError('request_context_changed', undefined, true)
     return result
   })
   if (options.dedupe !== false) pendingRequests.set(dedupeKey, promise)
@@ -194,10 +202,10 @@ export async function nativeGqlFetch<T = any>(query: string, variables?: Record<
 async function doGqlFetch<T = any>(context: ReturnType<typeof graphqlContext>, query: string, variables?: Record<string, any>, timeout: number = TIMEOUT): Promise<GqlResult<T>> {
   try {
     if (context.native) return await nativeGqlFetch<T>(query, variables, timeout, context.target)
-    return await encryptedGqlPost<T>(context.url, context.token, query, variables, timeout, context.headers)
+    return await webGqlFetch<T>(context, query, variables, timeout)
   } catch (e) {
-    if (e instanceof GqlError && e.status === 401 && (context.native || context.token) &&
-      context.target?.kind !== 'local' && JSON.stringify(context) === getGraphqlContextKey()) {
+    if (e instanceof GqlError && e.status === 401 && !context.peer && (context.native || context.token) &&
+      context.target?.kind !== 'local' && JSON.stringify(context) === JSON.stringify(graphqlContext(context.origin))) {
       await clearCurrentSession()
       window.location.reload()
     }
@@ -205,14 +213,42 @@ async function doGqlFetch<T = any>(context: ReturnType<typeof graphqlContext>, q
   }
 }
 
-export function bindGraphqlClient() {
-  const context = graphqlContext()
+export function bindGraphqlClient(origin = false) {
+  const context = graphqlContext(origin)
   const target = context.target
   const beforeDispatch = target?.kind === 'peer' ? () => {
     if (context.authRevision !== getLoginPeerRevision(target.peerId)) throw new GqlError('request_context_changed', undefined, true)
   } : undefined
   return <T = any>(query: string, variables?: Record<string, any>, timeout = TIMEOUT): Promise<GqlResult<T>> =>
-    context.native ? nativeGqlFetch<T>(query, variables, timeout, context.target, beforeDispatch) : encryptedGqlPost<T>(context.url, context.token, query, variables, timeout, context.headers)
+    context.native ? nativeGqlFetch<T>(query, variables, timeout, context.target, beforeDispatch) : webGqlFetch<T>(context, query, variables, timeout)
+}
+
+let originResourceToken: { scope: string; promise: Promise<string> } | undefined
+
+async function webGqlFetch<T>(context: ReturnType<typeof graphqlContext>, query: string, variables: Record<string, unknown> | undefined, timeout: number): Promise<GqlResult<T>> {
+  const document = context.peer ? managedGraphqlDocument(query) : query
+  const result = await encryptedGqlPost<T>(context.url, context.token, document, variables, timeout, context.headers)
+  if (!context.peer || document === query || result.errors?.length) return result
+  const app = (result.data as { app?: { urlToken?: string } } | undefined)?.app
+  if (app && query.includes('...AppFragment')) {
+    // Existing resource IDs are sealed for this origin; only the gateway sees the peer's key.
+    const scope = JSON.stringify([context.originUrl, context.token, context.headers['c-id']])
+    if (originResourceToken?.scope !== scope) {
+      const promise = encryptedGqlPost<{ app: { urlToken: string } }>(
+        context.originUrl, context.token, '{ app { urlToken } }', undefined, timeout, context.headers,
+      ).then(response => {
+        const key = response.data?.app?.urlToken
+        if (!key) throw new GqlError(response.errors?.[0]?.message || 'unauthorized')
+        return key
+      }).catch(error => {
+        if (originResourceToken?.promise === promise) originResourceToken = undefined
+        throw error
+      })
+      originResourceToken = { scope, promise }
+    }
+    app.urlToken = await originResourceToken.promise
+  }
+  return result
 }
 
 export class GqlError extends Error {

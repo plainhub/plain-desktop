@@ -233,6 +233,7 @@ export const peersGQL = `
       ip
       status
       online
+      managed
       port
       deviceType
       createdAt

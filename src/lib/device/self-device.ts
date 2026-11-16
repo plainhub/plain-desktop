@@ -22,7 +22,7 @@ export async function loadSelfDevice(request?: ReturnType<typeof bindGraphqlClie
     )
     if (result.errors?.length) throw new Error(result.errors[0].message)
     const app = result.data.app
-    const ips = await readLocalAddresses()
+    const ips = __IS_TAURI__ ? await readLocalAddresses() : []
     const port = app.httpsPort
     const ip = ips[0] || ''
     return {
@@ -32,7 +32,7 @@ export async function loadSelfDevice(request?: ReturnType<typeof bindGraphqlClie
       deviceType: app.deviceType,
       ips,
       port,
-      publicKey: (await readNativeDeviceIdentity()).signaturePublicKey,
+      publicKey: __IS_TAURI__ ? (await readNativeDeviceIdentity()).signaturePublicKey : '',
     }
   } catch (e) {
     console.error('load self device failed', e)

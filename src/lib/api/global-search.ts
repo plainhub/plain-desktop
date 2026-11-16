@@ -1,5 +1,6 @@
 import { getPeerBaseUrl } from '../device/login-peers'
 import { getApiBaseUrl, getApiHeaders, getLocalServerPort, proxyUrlFor } from './api'
+import { getDeviceRequestPath } from './device-path'
 import { FileAction, fileQuery } from './file-action'
 import { getFileId, tokenToKey } from './file'
 import { gqlFetch, nativeGqlFetch, type GqlResult } from './gql-client'
@@ -54,7 +55,10 @@ export async function loadSearchClient(device: SearchDevice, foreground = false,
   const key = tokenToKey(managed ? sessionUrlToken : app.urlToken)
   const fileId = (hit: FileSearchHit, foregroundThumbnail = false) =>
     getFileId(key, hit.item.path, hit.domain === 'docs' ? '' : hit.item.id, scope, foregroundThumbnail)
-  const fileUrl = (id: string, query = '') => proxyUrlFor(base, `/fs?id=${encodeURIComponent(id)}${fileQuery(FileAction.Preview, query)}`)
+  const fileUrl = (id: string, query = '') => {
+    const path = `/fs?id=${encodeURIComponent(id)}${fileQuery(FileAction.Preview, query)}`
+    return proxyUrlFor(base, device.target === 'current' ? getDeviceRequestPath(path) : path)
+  }
   const url = (hit: FileSearchHit, action = FileAction.Preview, query = '') => managed
     ? managedFileUrl(device.id, key, { type: 'MEDIA', id: hit.item.id }, action, query)
     : fileUrl(fileId(hit), query)

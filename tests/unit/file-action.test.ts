@@ -12,6 +12,7 @@ it.each([
   ['/fs', false],
   ['/proxy/c.self.ticket/fs', false],
   ['/proxy/peer/fs', true],
+  ['/proxy/peer/fs', false],
 ])('downloads original bytes through %s and removes thumbnail sizing', (path, chat) => {
   const url = new URL(withFileAction(`${path}?id=encrypted%2Bvalue&action=preview&size=sm`, FileAction.Download, chat), 'http://localhost')
   expect(url.searchParams.get('id')).toBe('encrypted+value')
@@ -29,5 +30,5 @@ it('replaces the preview operation when probing and transcoding', () => {
 
 it('keeps the action bound to an encrypted managed file URL', () => {
   const url = 'https://device.invalid/proxy/peer/fs?id=opaque&action=preview'
-  expect(withFileAction(url, FileAction.Download)).toBe(url)
+  expect(withFileAction(url, FileAction.Download)).toBe('https://device.invalid/proxy/peer/fs?id=opaque&action=download')
 })

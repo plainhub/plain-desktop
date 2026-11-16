@@ -314,6 +314,7 @@ export interface IPeer {
   ip: string
   status: PeerStatus
   online?: boolean
+  managed?: boolean
   port: number | null
   deviceType: DeviceType
   createdAt: string

@@ -1,6 +1,7 @@
 import { WebSocketCrypto } from './websocket-crypto'
 import { parseWebSocketData } from './sjcl-arraybuffer'
 import { getWebSocketBaseUrl } from './api'
+import { getDeviceRequestPath } from './device-path'
 import { openSocket } from './http'
 import { tokenToKey } from './file'
 import { getRemoteClientId, getDesktopClientId } from '@/lib/device/client-id'
@@ -24,7 +25,7 @@ export class BrowserSocket {
   constructor(path: '/screen' | '/image_editor', token: string, callbacks: BrowserSocketCallbacks) {
     const key = tokenToKey(token)
     const clientId = getDesktopClientId()
-    const url = new URL(path, getWebSocketBaseUrl())
+    const url = new URL(getDeviceRequestPath(path), getWebSocketBaseUrl())
     url.searchParams.set('cid', clientId)
     const socket = this.socket = openSocket(url.toString(), getRemoteClientId())
     socket.binaryType = 'arraybuffer'

@@ -177,7 +177,7 @@ it('preserves the original upload URL and client header and rejects stale direct
   vi.stubGlobal('XMLHttpRequest', FakeXHR)
   const current = item('small', 17)
   const running = upload(current, false)
-  expect(opened).toEqual([['POST', 'http://a.test/upload', true]])
+  expect(opened).toEqual([['POST', 'http://a.test/proxy/706c6169-0001-8000-8000-000000000003/upload', true]])
   expect(headers).toEqual([['c-id', '706c6169-0001-8000-8000-000000000001']])
   target.key = 'b'
   xhr.readyState = 4

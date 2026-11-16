@@ -2,7 +2,7 @@
   <v-modal width="560px" @close="handleClose">
     <template #headline>
       <template v-if="removeTarget">{{ $t('device_discovery.unpair_confirm', { name: removeTarget.name }) }}</template>
-      <template v-else-if="step === 'discover'">{{ $t('nearby_devices') }}</template>
+      <template v-else-if="step === 'discover'">{{ $t(switchOnly ? 'device_discovery.change_device' : 'nearby_devices') }}</template>
       <template v-else>
         <v-icon-button :aria-label="$t('back')" @click="backToDevices"><i-material-symbols:arrow-back-rounded /></v-icon-button>
         <span>{{ $t('pairing_with', { name: selectedDevice?.name }) }}</span>
@@ -36,7 +36,8 @@
               :peer="peer"
               :device="deviceById.get(peer.id)"
               :current="peer.id === currentClientId"
-              :full-control="!!findLoginPeer(peer.id)"
+              :full-control="canSwitchTo(peer)"
+              :switch-only="switchOnly"
               :pairing="activePairId === peer.id || deviceById.get(peer.id)?.status === 'PAIRING'"
               :disabled="!!activePairId"
               @connect="connectPeer(peer, $event)"
@@ -45,7 +46,7 @@
             />
           </ul>
         </section>
-        <section class="discovery-section">
+        <section v-if="!switchOnly" class="discovery-section">
           <DeviceDiscoveryStatus :status="status" @retry="refresh" @open-settings="openLanPermissionSettings" />
           <MdnsFirewallFix :device-count="groups.nearby.length" @fixed="refresh" />
           <ul v-if="groups.nearby.length" class="card list-items">
@@ -94,7 +95,7 @@ import DiscoveredDeviceLogin from '@/views/login/DiscoveredDeviceLogin.vue'
 import { useDeviceDiscovery, type DiscoveredDevice } from '@/hooks/use-device-discovery'
 import { bindGraphqlClient, nativeGqlFetch } from '@/lib/api/gql-client'
 import { SubscriptionClient, graphqlSubscriptions } from '@/lib/api/subscription-client'
-import { openNative } from '@/lib/api/subscription-connection'
+import { openNative, openSubscriptionConnection } from '@/lib/api/subscription-connection'
 import { subscriptionOperations } from '@/lib/api/subscription-operations'
 import { peersGQL } from '@/lib/api/query'
 import { unpairPeerGQL } from '@/lib/api/mutation'
@@ -108,8 +109,12 @@ import { clearRemoteClientId, getRemoteClientId, setRemoteClientId } from '@/lib
 import { isLocalMode } from '@/lib/device/local-mode'
 import { remove as prefsRemove } from '@/lib/prefs/browser'
 
-const request = __IS_TAURI__ ? nativeGqlFetch : bindGraphqlClient()
-const subscriptions = __IS_TAURI__ ? new SubscriptionClient(openNative) : graphqlSubscriptions
+const { switchOnly = false } = defineProps<{ switchOnly?: boolean }>()
+const request = __IS_TAURI__ ? nativeGqlFetch : bindGraphqlClient(switchOnly)
+const ownSubscriptions = __IS_TAURI__ || (switchOnly && !!getRemoteClientId())
+const subscriptions = ownSubscriptions
+  ? new SubscriptionClient(__IS_TAURI__ ? openNative : callbacks => openSubscriptionConnection(callbacks, ''))
+  : graphqlSubscriptions
 const { devices, pairingViews, status, retry, start, stop, openLanPermissionSettings } = useDeviceDiscovery(() => request, subscriptions)
 const pairing = createPairing(subscriptions, request)
 const peers = ref<IPeer[]>([])
@@ -122,9 +127,11 @@ const removeTarget = ref<IPeer | null>(null)
 const removing = ref(false)
 const error = ref('')
 const currentClientId = computed(() => getRemoteClientId())
-const localMode = computed(() => isLocalMode())
+const localMode = computed(() => __IS_TAURI__ ? isLocalMode() : !currentClientId.value)
 const deviceById = computed(() => new Map(devices.value.map((device) => [device.id, device])))
-const groups = computed(() => nearbyGroups(peers.value, devices.value, selfDevice.value?.id, new Set(loginPeers.value.map((peer) => peer.id))))
+const groups = computed(() => nearbyGroups(switchOnly ? peers.value.filter(peer => peer.managed) : peers.value, devices.value, selfDevice.value?.id,
+  new Set(__IS_TAURI__ ? loginPeers.value.map(peer => peer.id) : peers.value.filter(peer => peer.managed).map(peer => peer.id)),
+))
 const verificationStates = computed(() => Array.from(pairingViews.values()).filter((state) => state.verificationCode && !['SUCCEEDED', 'FAILED', 'CANCELED'].includes(state.phase)))
 let active = true
 
@@ -161,6 +168,9 @@ function selectDevice(device: DiscoveredDevice) {
   selectedDevice.value = device
   if (device.remoteAccess === true) step.value = 'mode'
   else void startChat(device)
+}
+function canSwitchTo(peer: IPeer) {
+  return __IS_TAURI__ ? !!findLoginPeer(peer.id) : switchOnly && peer.managed === true
 }
 function connectPeer(peer: IPeer, action: string) {
   if (action === 'switch') {
@@ -215,13 +225,17 @@ async function onLoginSuccess() {
   window.location.href = '/'
 }
 async function switchTo(peer: IPeer) {
-  await preloadLoginPeers()
-  setRemoteClientId(peer.id)
-  window.location.href = '/'
+  if (__IS_TAURI__) await preloadLoginPeers()
+  if (canSwitchTo(peer)) switchDevice(peer.id)
 }
 function switchToLocal() {
-  clearRemoteClientId()
-  window.location.href = '/'
+  switchDevice('')
+}
+function switchDevice(id: string) {
+  if (id) setRemoteClientId(id)
+  else clearRemoteClientId()
+  if (__IS_TAURI__) window.location.href = '/'
+  else window.location.reload()
 }
 function confirmRemoval(peer: IPeer) {
   error.value = ''
@@ -270,15 +284,15 @@ async function handleClose() {
   await popModal()
 }
 onMounted(async () => {
-  if (__IS_TAURI__) {
+  if (ownSubscriptions) {
     subscriptions.setOperations(subscriptionOperations)
     subscriptions.start()
   }
   try {
     await Promise.all([
-      start(),
+      switchOnly ? Promise.resolve() : start(),
       loadPeers(),
-      __IS_TAURI__
+      (__IS_TAURI__ || switchOnly)
         ? loadSelfDevice(request).then((value) => {
             if (active) selfDevice.value = value
           })
@@ -294,7 +308,7 @@ onBeforeUnmount(() => {
   stopAttached()
   pairing.dispose()
   void stop().finally(() => {
-    if (__IS_TAURI__) subscriptions.stop()
+    if (ownSubscriptions) subscriptions.stop()
   })
 })
 </script>

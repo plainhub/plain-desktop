@@ -372,7 +372,7 @@ it.each([0, 17, CHUNK + 17])('preserves Web XHR and multipart for %s bytes', asy
   const f = fixture(size)
   await upload(f.item, false)
   expect(f.item.status).toBe('done')
-  expect(opened).toEqual(Array(size > CHUNK ? 2 : 1).fill(`http://web.test/${size > CHUNK ? 'upload_chunk' : 'upload'}`))
+  expect(opened).toEqual(Array(size > CHUNK ? 2 : 1).fill(`http://web.test/proxy/706c6169-0e71-8687-905d-87d4a5229f24/${size > CHUNK ? 'upload_chunk' : 'upload'}`))
   expect(bodies.every(body => body instanceof FormData)).toBe(true)
   expect(io.encrypt.mock.calls.map(([, , aad]) => new TextDecoder().decode(aad))).toEqual(
     opened.map(() => `HTTP_REQUEST\0POST\0/${size > CHUNK ? 'upload_chunk' : 'upload'}`)

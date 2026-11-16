@@ -8,7 +8,7 @@ import type { InitResult } from '@/lib/api/init'
 import { getCurrentAuthToken, clearCurrentSession } from '@/lib/device/current'
 import { findLoginPeer, saveBrowserSession, saveBrowserIdentity, getBrowserIdentity, replaceBrowserIdentity, forgetBrowserIdentity, preloadLoginPeers } from '@/lib/device/login-peers'
 import { DeviceType } from '@/lib/status'
-import { getRemoteClientId, setRemoteClientId, getDesktopClientId } from '@/lib/device/client-id'
+import { clearRemoteClientId, getRemoteClientId, setRemoteClientId, getDesktopClientId } from '@/lib/device/client-id'
 import { loginErrorMessage } from '@/lib/api/login-error'
 import { performLoginHandshake } from '@/lib/api/login-handshake'
 import { bindGraphqlClient } from '@/lib/api/gql-client'
@@ -201,7 +201,7 @@ export function useLogin(options: UseLoginOptions = {}) {
         saveBrowserIdentity(deviceId, signaturePublicKey, opaquePublicKey)
       }
       saveBrowserSession(token)
-      setRemoteClientId(deviceId)
+      clearRemoteClientId()
       clearPendingLoginDevice()
       void finishLoginSuccess()
     } catch (e) {

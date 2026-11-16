@@ -112,7 +112,7 @@ describe('GraphQL request ownership', () => {
     target.token = 'session-b'
     vi.mocked(httpRequest).mockResolvedValueOnce(response({ stopDiscovery: true }))
     expect((await bound('mutation { stopDiscovery }')).data).toEqual({ stopDiscovery: true })
-    expect(vi.mocked(httpRequest).mock.calls[0]?.[0]).toBe('https://device-a.test/graphql')
+    expect(vi.mocked(httpRequest).mock.calls[0]?.[0]).toBe('https://device-a.test/proxy/706c6169-7efd-857c-91a3-7471150200cd/graphql')
   })
 })
 
@@ -164,7 +164,7 @@ it('keeps browser remote requests on encrypted HTTPS', async () => {
   target.native = false
   vi.mocked(httpRequest).mockResolvedValueOnce(response({ prefs: { locale: 'fr' } }))
   expect((await gqlFetch('query { prefs }')).data).toEqual({ prefs: { locale: 'fr' } })
-  expect(httpRequest).toHaveBeenCalledExactlyOnceWith('https://device-a.test/graphql',
+  expect(httpRequest).toHaveBeenCalledExactlyOnceWith('https://device-a.test/proxy/706c6169-7efd-857c-91a3-7471150200cd/graphql',
     expect.objectContaining({ method: 'POST', headers: { 'c-id': '706c6169-1295-84f7-9959-21fe29798997' } }))
   expect(nativeGraphql).not.toHaveBeenCalled()
 })
@@ -360,4 +360,30 @@ it.each([false, true].flatMap(returned => [false, true].map(failed => ({ returne
     await first
     view.unmount()
   }
+})
+
+it('uses the origin key for managed resources without requesting the target credentials', async () => {
+  vi.stubGlobal('__IS_TAURI__', false)
+  target.native = false
+  const { appGQL } = await import('@/lib/api/query')
+  vi.mocked(httpRequest).mockReset()
+    .mockResolvedValueOnce(response({ app: { clientId: 'managed-device', deviceName: 'PlainApp Desktop' } }))
+    .mockResolvedValueOnce(response({ app: { urlToken: 'origin-only-resource-key' } }))
+  const result = await gqlFetch(appGQL)
+  expect(result.data.app).toEqual({ clientId: 'managed-device', deviceName: 'PlainApp Desktop', urlToken: 'origin-only-resource-key' })
+  const [[peerUrl, peerOptions], [originUrl, originOptions]] = vi.mocked(httpRequest).mock.calls
+  expect(peerUrl).toBe(`https://device-a.test/proxy/${target.client}/graphql`)
+  expect(JSON.parse(new TextDecoder().decode(peerOptions?.body!)).query).not.toContain('urlToken')
+  expect(originUrl).toBe('https://device-a.test/graphql')
+  expect(JSON.parse(new TextDecoder().decode(originOptions?.body!)).query).toBe('{ app { urlToken } }')
+  expect(peerOptions?.headers?.['c-id']).toBe(originOptions?.headers?.['c-id'])
+})
+
+it('does not sign out the browser origin when its managed target rejects the data request', async () => {
+  vi.stubGlobal('__IS_TAURI__', false)
+  target.native = false
+  vi.mocked(httpRequest).mockReset().mockResolvedValueOnce(response({}, 401))
+  await expect(gqlFetch('{ app { deviceName } }')).rejects.toMatchObject({ status: 401 })
+  expect(clearCurrentSession).not.toHaveBeenCalled()
+  expect(window.location.reload).not.toHaveBeenCalled()
 })

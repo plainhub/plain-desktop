@@ -151,12 +151,12 @@ export function getSharedFileUrl(
   query: string = '',
   action: FileAction = FileAction.Preview,
 ): string {
-  return getProxyUrl(`/fs?${sharedFileQuery(urlToken, sharedId, relativePath)}${fileQuery(action, query)}`)
+  return getProxyUrl(`/fs?${sharedFileQuery(urlToken, sharedId, relativePath)}${fileQuery(action, query)}`, '')
 }
 
 /**
  * Build a `/zip/dir` URL that downloads a shared directory as a zip.
  */
 export function getSharedDirUrl(urlToken: string, sharedId: string, relativePath: string): string {
-  return getProxyUrl(`/zip/dir?${sharedFileQuery(urlToken, sharedId, relativePath)}`)
+  return getProxyUrl(`/zip/dir?${sharedFileQuery(urlToken, sharedId, relativePath)}`, '')
 }

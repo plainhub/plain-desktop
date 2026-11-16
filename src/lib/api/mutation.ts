@@ -19,6 +19,7 @@ import emitter from '@/plugins/eventbus'
 
 export interface InitMutationParams {
   document: string
+  origin?: boolean
 }
 
 export function initMutation(params: InitMutationParams, handleError = true) {
@@ -29,7 +30,7 @@ export function initMutation(params: InitMutationParams, handleError = true) {
   async function mutate(variables?: any): Promise<any> {
     loading.value = true
     try {
-      const r = await gqlFetch(params.document, variables, { dedupe: false })
+      const r = await gqlFetch(params.document, variables, { dedupe: false, ...(params.origin ? { origin: true } : {}) })
       if (r.errors?.length) {
         const message = r.errors[0].message
         if (handleError) emitter.emit('toast', message)

@@ -14,7 +14,7 @@ import type { ISource } from '@/components/lightbox/types'
 import { encodeBase64 } from '@/lib/strutil'
 import { buildQuery, parseQuery, type IFilterField } from '@/lib/search'
 import { arrayRemove } from '@/lib/array'
-import { getApiBaseUrl } from '@/lib/api/api'
+import { getProxyUrl } from '@/lib/api/api'
 import type { IApp, IFileFilter, IFavoriteFolder, IStorageMount } from '@/lib/interfaces'
 import emitter from '@/plugins/eventbus'
 
@@ -128,7 +128,7 @@ export const useDownload = (urlTokenKey: Ref<Uint8Array | null>) => {
     async downloadDir(path: string, fileName?: string) {
       const name = fileName || `${getFileName(path.replace(/\/+$/, ''))}.zip`
       const id = getFileId(urlTokenKey.value, path)
-      const url = `${getApiBaseUrl()}/zip/dir?id=${encodeURIComponent(id)}`
+      const url = getProxyUrl(`/zip/dir?id=${encodeURIComponent(id)}`)
       download(url, name)
     },
     downloadFiles(key: string) {
@@ -141,7 +141,7 @@ export const useDownload = (urlTokenKey: Ref<Uint8Array | null>) => {
         })
       )
 
-      download(`${getApiBaseUrl()}/zip/files?id=${encodeURIComponent(id)}`, 'download.zip')
+      download(getProxyUrl(`/zip/files?id=${encodeURIComponent(id)}`), 'download.zip')
     },
   }
 }
@@ -245,7 +245,7 @@ export const useDownloadItems = (
           name: finalFileName,
         })
       )
-      download(`${getApiBaseUrl()}/zip/files?id=${encodeURIComponent(id)}`, finalFileName)
+      download(getProxyUrl(`/zip/files?id=${encodeURIComponent(id)}`), finalFileName)
       clearSelection()
     },
   }

@@ -2460,6 +2460,7 @@ export interface GqlOperations {
         ip: string
         status: 'PAIRED' | 'UNPAIRED' | 'CHANNEL'
         online: boolean
+        managed: boolean
         port?: number
         deviceType: 'COMPUTER' | 'PHONE' | 'TABLET' | 'TV' | 'NAS' | 'OTHER'
         createdAt: string

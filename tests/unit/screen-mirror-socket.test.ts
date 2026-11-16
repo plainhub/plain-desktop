@@ -47,7 +47,7 @@ afterEach(() => { vi.clearAllTimers(); vi.useRealTimers(); vi.restoreAllMocks();
 it('opens once and waits for the authenticated acknowledgement before exposing controls', () => {
   const { client, socket, callbacks } = fixture()
   client.connect()
-  expect(openSocket).toHaveBeenCalledExactlyOnceWith('wss://example.test/screen?cid=706c6169-fe7e-818e-a0f0-a71b7c0f3f75', '706c6169-89f1-81c6-8bc7-6b67c2ffa178')
+  expect(openSocket).toHaveBeenCalledExactlyOnceWith('wss://example.test/proxy/706c6169-89f1-81c6-8bc7-6b67c2ffa178/screen?cid=706c6169-fe7e-818e-a0f0-a71b7c0f3f75', '706c6169-89f1-81c6-8bc7-6b67c2ffa178')
   expect(socket.binaryType).toBe('arraybuffer')
   socket.onopen()
   expect(callbacks.onConnected).not.toHaveBeenCalled()

@@ -209,6 +209,6 @@ it('shares Web chunk ownership across sessions while keeping each original encry
   const nextContext = getUploadContext(second)
   expect(uploadChunkOwner(first)).toBe(uploadChunkOwner(second))
   expect(originalContext.key).not.toBe(nextContext.key)
-  expect(originalContext).toMatchObject({ native: false, token: 'web-old-token', chunkUrl: 'https://unused.test/upload_chunk' })
+  expect(originalContext).toMatchObject({ native: false, token: 'web-old-token', chunkUrl: 'https://unused.test/proxy/706c6169-89f1-81c6-8bc7-6b67c2ffa178/upload_chunk' })
   expect(nextContext).toMatchObject({ native: false, token: 'web-new-token' })
 })
