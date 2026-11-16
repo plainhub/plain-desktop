@@ -86,8 +86,9 @@ it('waits for an explicit local trust decision, then displays remote approval an
   try {
     await view.emit('pairingRequested', { fromId: 'target', verificationCode: '01234567', identityChanged: true })
     expect(view.phone()).toBe(false)
-    expect(view.text()).toContain('pairing_identity_changed')
-    expect(view.text()).toContain('01234567')
+    expect(view.text()).toContain('pairing_manage_identity_changed')
+    expect(view.text()).not.toContain('01234567')
+    expect(view.text()).not.toContain('pairing_compare_code')
     expect(io.request).toHaveBeenCalledTimes(1)
     click(view.button('pairing_trust')!)
     await flush()
@@ -96,9 +97,24 @@ it('waits for an explicit local trust decision, then displays remote approval an
     expect(view.text()).not.toContain('01234567')
     await view.emit('pairingStarted', { deviceId: 'target', verificationCode: '12345678' })
     expect(view.phone()).toBe(true)
-    expect(view.text()).toContain('12345678')
+    expect(view.text().match(/12345678/g)).toHaveLength(1)
     await view.emit('pairingCompleted', { deviceId: 'target' })
     expect(view.onSuccess).toHaveBeenCalledOnce()
     expect(view.phone()).toBe(false)
+  } finally { view.unmount() }
+})
+
+it('offers explicit local trust without a comparison code for a new managed device', async () => {
+  const view = await mountPairing()
+  try {
+    await view.emit('pairingRequested', { fromId: 'target', verificationCode: '01234567', identityChanged: false })
+    expect(view.text()).toContain('pairing_manage_trust_hint')
+    expect(view.text()).not.toContain('01234567')
+    expect(view.phone()).toBe(false)
+    expect(view.button('pairing_trust')).toBeDefined()
+    expect(io.request).toHaveBeenCalledTimes(1)
+    click(view.button('cancel')!)
+    await flush()
+    expect(io.request.mock.lastCall?.[1]).toEqual({ peerId: 'target' })
   } finally { view.unmount() }
 })

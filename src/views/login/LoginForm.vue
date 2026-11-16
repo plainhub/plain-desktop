@@ -1,10 +1,10 @@
 <template>
   <section v-if="pairingTrust">
-    <p v-if="pairingTrust.identityChanged" role="alert">{{ $t('pairing_identity_changed') }}</p>
-    <RequestVerificationCode v-if="pairingTrust.verificationCode" :code="pairingTrust.verificationCode" :hint="$t('pairing_compare_code')" />
+    <p v-if="pairingTrust.identityChanged" role="alert">{{ $t('pairing_manage_identity_changed') }}</p>
+    <p v-else>{{ $t('pairing_manage_trust_hint') }}</p>
     <p v-if="showError" class="alert alert-danger show" role="alert">{{ $t(error) }}</p>
     <v-filled-button type="button" :loading="isSubmitting" @click="confirmPairingTrust">
-      {{ $t(pairingTrust.identityChanged ? 'pairing_trust' : 'confirm') }}
+      {{ $t('pairing_trust') }}
     </v-filled-button>
     <v-outlined-button type="button" @click="onCancel">{{ $t('cancel') }}</v-outlined-button>
   </section>

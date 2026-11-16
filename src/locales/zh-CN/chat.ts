@@ -1,6 +1,8 @@
 export default {
   pairing_identity_changed: "对方公钥已改变，可能重装了应用。请核对完整指纹后再信任。",
   pairing_trust: "信任",
+  pairing_manage_trust_hint: '仅在你认识并信任此设备时继续。',
+  pairing_manage_identity_changed: '此设备的公钥已更改。仅在你认识此设备且确认此更改符合预期时信任它。',
   pairing_compare_code: '允许配对前，请核对两台设备显示的匹配码一致。',
   show_in_finder: '在 Finder 中显示',
   save_as: '另存为…',

@@ -224,7 +224,7 @@ defineExpose({
     right: 0;
     bottom: 0;
     border: 1px solid var(--md-sys-color-outline, #79747e);
-    border-radius: 4px;
+    border-radius: 8px;
     pointer-events: none;
     transition: border-color 0.2s ease;
   }
