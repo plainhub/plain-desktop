@@ -31,6 +31,9 @@ it('renders stored feature order with existing routes, counts and file navigatio
   ])
 })
 
-it('keeps generated Desktop and App enums equal to the Rust definition', () => {
-  execFileSync(process.execPath, [fileURLToPath(new URL('../../../plain-core/scripts/gen-app-features.mjs', import.meta.url))])
+it('keeps the generated TypeScript enum equal to the Rust definition', () => {
+  execFileSync(process.execPath, [
+    fileURLToPath(new URL('../../../plain-core/scripts/gen-app-features.mjs', import.meta.url)),
+    '--target=desktop',
+  ])
 })
