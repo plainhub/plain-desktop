@@ -31,9 +31,18 @@ import { useTempStore } from '@/stores/temp'
 import { storeToRefs } from 'pinia'
 import WebLoginRequests from '@/components/WebLoginRequests.vue'
 import { useFileIndexSetupPrompt } from '@/hooks/file-index-setup'
+import { managedPeerFailure } from '@/lib/api/gql-client'
+import { pushModal } from '@/components/modal'
 
 const nativeApp = __IS_TAURI__
 if (nativeApp) useFileIndexSetupPrompt()
+else watch(managedPeerFailure, async (failure) => {
+  if (!failure) return
+  const { default: dialog } = await import('@/components/ManagedPeerUnavailable.vue')
+  if (failure === managedPeerFailure.value && getRemoteClientId() === failure.peerId) {
+    await pushModal(dialog, { peerName: failure.peerName, originName: failure.originName })
+  }
+})
 
 const { wsStatus, tapPhoneMessage, closeTapPhone } = useAppSocket()
 useAppSubscriptions()

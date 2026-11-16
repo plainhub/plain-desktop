@@ -83,4 +83,10 @@ export default {
   dlna_receiver: 'Cast Receiver',
   dlna_receiver_desc: 'Play videos, music, and photos from another device.',
   error: 'Error',
+  managed_peer_unavailable: 'Cannot access the other device',
+  managed_peer_unavailable_title: 'Cannot access “{name}”',
+  managed_peer_pairing_hint: 'Pairing with this device may no longer be valid. Please pair again.',
+  managed_peer_switch_origin: 'Switch back to {name}',
+  managed_peer_switch_local: 'Switch back to this device',
+  managed_peer_pair_again: 'Pair again',
 }

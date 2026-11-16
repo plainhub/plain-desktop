@@ -70,6 +70,7 @@ const props = withDefaults(defineProps<{
   pairing?: boolean
   subscriptions?: SubscriptionClient
   managedDeviceId?: string
+  managedOrigin?: boolean
 }>(), {
   redirectOnSuccess: true,
   pairing: false,
@@ -90,6 +91,7 @@ const {
   onSuccess: async () => emit('success'),
   subscriptions: props.subscriptions,
   managedDeviceId: props.managedDeviceId,
+  managedOrigin: props.managedOrigin,
 })
 
 const identityChanged = computed(() => !nativeApp && !props.managedDeviceId && showError.value && error.value === 'login.peer_identity_changed')

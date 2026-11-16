@@ -83,4 +83,10 @@ export default {
   dlna_receiver: '投屏接收器',
   dlna_receiver_desc: '播放来自其他设备的视频、音乐和照片。',
   error: '错误',
+  managed_peer_unavailable: '无法访问另一台设备',
+  managed_peer_unavailable_title: '无法访问「{name}」',
+  managed_peer_pairing_hint: '与这台设备的配对可能已失效，请重新配对。',
+  managed_peer_switch_origin: '切回 {name}',
+  managed_peer_switch_local: '切回本机',
+  managed_peer_pair_again: '重新配对',
 }

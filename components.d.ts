@@ -385,6 +385,7 @@ declare module 'vue' {
     LoginForm: typeof import('./src/views/login/LoginForm.vue')['default']
     LoginView: typeof import('./src/views/login/LoginView.vue')['default']
     MainView: typeof import('./src/views/MainView.vue')['default']
+    ManagedPeerUnavailable: typeof import('./src/components/ManagedPeerUnavailable.vue')['default']
     ManualConnectSection: typeof import('./src/views/login/ManualConnectSection.vue')['default']
     MarkdownEditor: typeof import('./src/components/MarkdownEditor.vue')['default']
     MarkdownPreviewView: typeof import('./src/views/markdown-preview/MarkdownPreviewView.vue')['default']

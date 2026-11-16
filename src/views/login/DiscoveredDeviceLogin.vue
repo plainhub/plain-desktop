@@ -8,6 +8,7 @@
       pairing
       :subscriptions="subscriptions"
       :managed-device-id="managedDeviceId"
+      :managed-origin="managedOrigin"
       @success="onSuccess"
       @cancel="emit('cancel')"
     />
@@ -21,7 +22,7 @@ import LoginForm from './LoginForm.vue'
 import { clearPendingLoginDevice, setPendingLoginDevice, type PendingLoginDevice } from '@/lib/api/api'
 import { clearRemoteClientId, getRemoteClientId, setRemoteClientId } from '@/lib/device/client-id'
 
-const props = defineProps<{ device: PendingLoginDevice & { id: string }; subscriptions?: SubscriptionClient }>()
+const props = defineProps<{ device: PendingLoginDevice & { id: string }; subscriptions?: SubscriptionClient; managedOrigin?: boolean }>()
 const emit = defineEmits<{ success: []; cancel: [] }>()
 
 const loginFormRef = ref<InstanceType<typeof LoginForm> | null>(null)

@@ -20,6 +20,7 @@ type UseLoginOptions = {
   onSuccess?: () => void | Promise<void>
   subscriptions?: SubscriptionClient
   managedDeviceId?: string
+  managedOrigin?: boolean
 }
 
 export function getSafeRedirect(redirect: unknown): string {
@@ -50,7 +51,7 @@ export function useLogin(options: UseLoginOptions = {}) {
   let pendingLoginController: AbortController | null = null
   const managedDeviceId = options.managedDeviceId
   const pairing = __IS_TAURI__ || managedDeviceId
-    ? createPairing(options.subscriptions, managedDeviceId ? bindGraphqlClient() : undefined)
+    ? createPairing(options.subscriptions, managedDeviceId ? bindGraphqlClient(options.managedOrigin) : undefined)
     : null
   const pairingTrust = computed(() => {
     const state = pairing?.state.value

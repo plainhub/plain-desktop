@@ -15,7 +15,7 @@
         <div v-if="error" class="nearby-error" role="alert">{{ $t(error) }}</div>
       </template>
       <NearbyPairOptions v-else-if="step === 'mode'" @cancel="backToDevices" @confirm="confirmPair" />
-      <DiscoveredDeviceLogin v-else-if="step === 'login' && loginDevice" :device="loginDevice" :subscriptions="subscriptions" @success="onLoginSuccess" @cancel="backToDevices" />
+      <DiscoveredDeviceLogin v-else-if="step === 'login' && loginDevice" :device="loginDevice" :subscriptions="subscriptions" :managed-origin="useOrigin" @success="onLoginSuccess" @cancel="backToDevices" />
       <div v-else class="nearby-sections">
         <section v-if="selfDevice || groups.mine.length">
           <h3 v-if="groups.mine.length" class="section-title">{{ $t('paired_devices') }}</h3>
@@ -105,13 +105,15 @@ import { nearbyGroups } from '@/lib/device/nearby'
 import { createPairing } from '@/lib/device/pairing'
 import { preloadLoginPeers, findLoginPeer, loginPeers } from '@/lib/device/login-peers'
 import { loadSelfDevice, type SelfDevice } from '@/lib/device/self-device'
-import { clearRemoteClientId, getRemoteClientId, setRemoteClientId } from '@/lib/device/client-id'
+import { getRemoteClientId } from '@/lib/device/client-id'
+import { switchDevice } from '@/lib/device/switch-device'
 import { isLocalMode } from '@/lib/device/local-mode'
 import { remove as prefsRemove } from '@/lib/prefs/browser'
 
-const { switchOnly = false } = defineProps<{ switchOnly?: boolean }>()
-const request = __IS_TAURI__ ? nativeGqlFetch : bindGraphqlClient(switchOnly)
-const ownSubscriptions = __IS_TAURI__ || (switchOnly && !!getRemoteClientId())
+const { switchOnly = false, origin = false } = defineProps<{ switchOnly?: boolean; origin?: boolean }>()
+const useOrigin = switchOnly || origin
+const request = __IS_TAURI__ ? nativeGqlFetch : bindGraphqlClient(useOrigin)
+const ownSubscriptions = __IS_TAURI__ || (useOrigin && !!getRemoteClientId())
 const subscriptions = ownSubscriptions
   ? new SubscriptionClient(__IS_TAURI__ ? openNative : callbacks => openSubscriptionConnection(callbacks, ''))
   : graphqlSubscriptions
@@ -220,9 +222,11 @@ function backToDevices() {
   loginDevice.value = null
 }
 async function onLoginSuccess() {
+  const device = loginDevice.value
   await stop()
   await popModal()
-  window.location.href = '/'
+  if (!__IS_TAURI__ && origin && device) switchDevice(device.id)
+  else window.location.href = '/'
 }
 async function switchTo(peer: IPeer) {
   if (__IS_TAURI__) await preloadLoginPeers()
@@ -230,12 +234,6 @@ async function switchTo(peer: IPeer) {
 }
 function switchToLocal() {
   switchDevice('')
-}
-function switchDevice(id: string) {
-  if (id) setRemoteClientId(id)
-  else clearRemoteClientId()
-  if (__IS_TAURI__) window.location.href = '/'
-  else window.location.reload()
 }
 function confirmRemoval(peer: IPeer) {
   error.value = ''
@@ -292,7 +290,7 @@ onMounted(async () => {
     await Promise.all([
       switchOnly ? Promise.resolve() : start(),
       loadPeers(),
-      (__IS_TAURI__ || switchOnly)
+      (__IS_TAURI__ || useOrigin)
         ? loadSelfDevice(request).then((value) => {
             if (active) selfDevice.value = value
           })

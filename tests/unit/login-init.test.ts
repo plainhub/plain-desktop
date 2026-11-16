@@ -14,6 +14,7 @@ vi.mock('@/lib/api/http', () => ({ httpRequest: vi.fn() }))
 vi.mock('@/lib/api/login-handshake', () => ({ performLoginHandshake: vi.fn() }))
 vi.mock('@/lib/device/pairing', () => ({ createPairing: vi.fn() }))
 vi.mock('@/lib/api/gql-client', () => ({ bindGraphqlClient: vi.fn() }))
+import { bindGraphqlClient } from '@/lib/api/gql-client'
 import { createPairing, type PairingView } from '@/lib/device/pairing'
 import { setRemoteClientId } from '@/lib/device/client-id'
 import { saveBrowserIdentity, saveBrowserSession, replaceBrowserIdentity, forgetBrowserIdentity } from '@/lib/device/login-peers'
@@ -119,7 +120,7 @@ it('rejects changed identities before auto-login', () => {
   expect(success).not.toHaveBeenCalled()
 })
 
-it('starts B management through Core and keeps the Web session on A', async () => {
+it('repairs B management through A even while selected on B, without replacing the Web session', async () => {
   const state = ref<PairingView | null>(null)
   const start = vi.fn(async () => {
     state.value = { deviceId: '706c6169-02de-8bc5-8fe4-50bb3e139c1b', generation: 'fixture', mode: 'MANAGE', phase: 'SUCCEEDED', error: null }
@@ -128,7 +129,8 @@ it('starts B management through Core and keeps the Web session on A', async () =
     state, start, submit: vi.fn(), cancel: vi.fn(), dispose: vi.fn(),
   })
   const success = vi.fn()
-  const login = useLogin({ redirectOnSuccess: false, onSuccess: success, managedDeviceId: '706c6169-02de-8bc5-8fe4-50bb3e139c1b' })
+  const login = useLogin({ redirectOnSuccess: false, onSuccess: success, managedDeviceId: '706c6169-02de-8bc5-8fe4-50bb3e139c1b', managedOrigin: true })
+  expect(bindGraphqlClient).toHaveBeenCalledWith(true)
   await login.startPairing()
   await nextTick()
   expect(start).toHaveBeenCalledWith({ peerId: '706c6169-02de-8bc5-8fe4-50bb3e139c1b', mode: 'MANAGE', password: undefined })

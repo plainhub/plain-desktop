@@ -387,3 +387,52 @@ it('does not sign out the browser origin when its managed target rejects the dat
   expect(clearCurrentSession).not.toHaveBeenCalled()
   expect(window.location.reload).not.toHaveBeenCalled()
 })
+
+it('checks the gateway once for concurrent unauthorized selected-peer requests and keeps its session', async () => {
+  vi.stubGlobal('__IS_TAURI__', false)
+  target.native = false
+  const { managedPeerFailure } = await import('@/lib/api/gql-client')
+  const probe = deferred<Awaited<ReturnType<typeof httpRequest>>>()
+  vi.mocked(httpRequest).mockImplementation(url => String(url).includes('/proxy/')
+    ? Promise.resolve(response(null, 401)) : probe.promise)
+  const attempts = Promise.allSettled([gqlFetch('{ app { deviceName } }'), gqlFetch('{ peers { id } }')])
+  await vi.waitFor(() => expect(httpRequest).toHaveBeenCalledTimes(3))
+  expect(vi.mocked(httpRequest).mock.calls[2]?.[0]).toBe('https://device-a.test/graphql')
+  expect(managedPeerFailure.value).toBeUndefined()
+  probe.resolve(response({ app: { deviceName: 'Smartbox' }, peers: [{ id: target.client, name: 'Desktop' }] }))
+  await attempts
+  await vi.waitFor(() => expect(managedPeerFailure.value).toMatchObject({ originName: 'Smartbox', peerName: 'Desktop' }))
+  expect(clearCurrentSession).not.toHaveBeenCalled()
+  expect(window.location.reload).not.toHaveBeenCalled()
+})
+
+it('uses normal origin sign-in recovery when the origin also responds unauthorized', async () => {
+  vi.stubGlobal('__IS_TAURI__', false)
+  Object.assign(target, { native: false, client: '70f5a619-02de-8bc5-8fe4-50bb3e139c1b' })
+  const { managedPeerFailure } = await import('@/lib/api/gql-client')
+  const previousFailure = managedPeerFailure.value
+  vi.mocked(httpRequest).mockResolvedValue(response(null, 401))
+  await expect(gqlFetch('{ app { deviceName } }')).rejects.toThrow('unauthorized')
+  await vi.waitFor(() => expect(window.location.reload).toHaveBeenCalledOnce())
+  expect(clearCurrentSession).toHaveBeenCalledOnce()
+  expect(httpRequest).toHaveBeenCalledTimes(2)
+  expect(managedPeerFailure.value).toBe(previousFailure)
+})
+
+it('does not show the pairing dialog when the selected peer changes during the origin check', async () => {
+  vi.stubGlobal('__IS_TAURI__', false)
+  Object.assign(target, { native: false, client: '70f5a619-03de-8bc5-8fe4-50bb3e139c1b' })
+  const { managedPeerFailure } = await import('@/lib/api/gql-client')
+  const previousFailure = managedPeerFailure.value
+  const probe = deferred<Awaited<ReturnType<typeof httpRequest>>>()
+  vi.mocked(httpRequest).mockImplementation(url => String(url).includes('/proxy/')
+    ? Promise.resolve(response(null, 401)) : probe.promise)
+  await expect(gqlFetch('{ app { deviceName } }')).rejects.toThrow('unauthorized')
+  await vi.waitFor(() => expect(httpRequest).toHaveBeenCalledTimes(2))
+  target.client = '70f5a619-04de-8bc5-8fe4-50bb3e139c1b'
+  probe.resolve(response({ app: { deviceName: 'Smartbox' }, peers: [] }))
+  await new Promise(resolve => setTimeout(resolve, 0))
+  expect(managedPeerFailure.value).toBe(previousFailure)
+  expect(clearCurrentSession).not.toHaveBeenCalled()
+  expect(window.location.reload).not.toHaveBeenCalled()
+})
