@@ -5,7 +5,7 @@
     </button>
     <template v-for="(index, i) in pagination" :key="i">
       <span v-if="index === null" class="page-link">···</span>
-      <button v-else class="btn-icon" :class="{ active: index === props.page }" @click.prevent="go(index)">
+      <button v-else class="btn-icon page-number" :class="{ active: index === props.page }" @click.prevent="go(index)">
         {{ index }}
       </button>
     </template>

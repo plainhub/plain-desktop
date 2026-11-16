@@ -8,6 +8,14 @@
   .btn-icon {
     font-size: 1.125rem;
   }
+  .btn-icon.page-number {
+    flex: 0 0 auto;
+    inline-size: max-content;
+    min-inline-size: 32px;
+    padding-inline: 8px;
+    border-radius: 999px;
+    white-space: nowrap;
+  }
   .btn-icon.active {
     background-color: var(--md-sys-color-primary);
     color: var(--md-sys-color-on-primary);
