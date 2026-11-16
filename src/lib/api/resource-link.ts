@@ -1,7 +1,7 @@
 import { ResourcePurpose } from './aad-purpose.generated'
 import { chachaDecrypt, chachaEncryptBytes } from './crypto'
 
-export type Resource = { type: 'MEDIA' | 'FOREGROUND_MEDIA_THUMBNAIL' | 'APP_FILE' | 'FILE' | 'PACKAGE_ICON' | 'SHARED_FILE'; id: string }
+export type Resource = { type: 'MEDIA' | 'APP_FILE' | 'FILE' | 'PACKAGE_ICON' | 'SHARED_FILE'; id: string }
 export type ResourceScope = { mode: 'c' | 's'; id: string }
 
 function resourceAad(scope: ResourceScope, purpose: ResourcePurpose): Uint8Array {

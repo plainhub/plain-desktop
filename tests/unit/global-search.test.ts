@@ -85,9 +85,9 @@ it('queries the authorized peer and seals preview URLs with that device’s sess
   expect(() => filePathFromResourceId(new Uint8Array(32).fill(7), envelope)).toThrow()
 })
 
-it('seals foreground thumbnail intent only for an explicitly submitted local video search', async () => {
+it.each(['images', 'videos'] as const)('uses ordinary media references for local and remote %s thumbnails', async (domain) => {
   vi.stubGlobal('__IS_TAURI__', true)
-  const hit = { domain: 'videos' as const, item: {
+  const hit = { domain, item: {
     ...doc, durationMs: 1000, size: 500, bucketId: 'bucket', createdAt: '', updatedAt: '', tags: [],
   } }
   const local = { id: 'local', name: 'Local', target: 'local' as const }
@@ -95,8 +95,8 @@ it('seals foreground thumbnail intent only for an explicitly submitted local vid
   transport.remote.mockResolvedValue({ data: { app } })
   const passive = await loadSearchClient(local)
   expect(new URL(passive.url(hit)).searchParams.get('id')).toMatch(/^c\.706c6169-80ec-82ce-9052-221375ddf943\./)
-  const explicit = await loadSearchClient(local, true)
-  const remote = await loadSearchClient({ id: peer.id, name: peer.name, target: 'peer', peer }, true)
+  const explicit = await loadSearchClient(local)
+  const remote = await loadSearchClient({ id: peer.id, name: peer.name, target: 'peer', peer })
   const readType = (url: string) => {
     const id = new URL(url).searchParams.get('id')!
     const [mode, ...parts] = id.split('.')
@@ -105,7 +105,7 @@ it('seals foreground thumbnail intent only for an explicitly submitted local vid
     return JSON.parse(chachaDecrypt(key, bytes, aad)).type
   }
   expect(readType(passive.thumbnailUrl(hit))).toBe('MEDIA')
-  expect(readType(explicit.thumbnailUrl(hit))).toBe('FOREGROUND_MEDIA_THUMBNAIL')
+  expect(readType(explicit.thumbnailUrl(hit))).toBe('MEDIA')
   expect(readType(explicit.url(hit))).toBe('MEDIA')
   expect(readType(remote.thumbnailUrl(hit))).toBe('MEDIA')
   vi.stubGlobal('__IS_TAURI__', false)
@@ -115,7 +115,7 @@ it('seals foreground thumbnail intent only for an explicitly submitted local vid
 it('routes managed search through the current origin and reuses session-scoped thumbnail URLs', async () => {
   transport.authToken = 'browser-session'
   transport.remote.mockResolvedValue({ data: { app: { deviceName: 'Managed', access: ['DOCS'] } } })
-  const client = await loadSearchClient({ id: 'managed', name: 'Managed', target: 'managed', online: true }, false, app.urlToken)
+  const client = await loadSearchClient({ id: 'managed', name: 'Managed', target: 'managed', online: true }, app.urlToken)
   expect(transport.remote).toHaveBeenCalledWith('https://current.example.test/proxy/managed/graphql', 'browser-session', '{ app { deviceName access } }', undefined)
   const hit = { domain: 'docs' as const, item: { ...doc, updatedAt: '2026-01-01' } as GqlResultType<'docsGQL'>['items'][number] }
   const thumbnail = client.thumbnailUrl(hit)
@@ -131,7 +131,7 @@ it('routes managed search through the current origin and reuses session-scoped t
 
 it('rejects Desktop managed search without using a browser proxy or a different peer target', async () => {
   vi.stubGlobal('__IS_TAURI__', true)
-  await expect(loadSearchClient({ id: 'managed', name: 'Managed', target: 'managed', online: true }, false, app.urlToken)).rejects.toThrow('Native peer-proxy GraphQL is unsupported')
+  await expect(loadSearchClient({ id: 'managed', name: 'Managed', target: 'managed', online: true }, app.urlToken)).rejects.toThrow('Native peer-proxy GraphQL is unsupported')
   expect(transport.current).not.toHaveBeenCalled()
   expect(transport.local).not.toHaveBeenCalled()
   expect(transport.remote).not.toHaveBeenCalled()

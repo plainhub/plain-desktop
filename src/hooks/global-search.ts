@@ -21,7 +21,7 @@ export function searchGroupTotal(group: SearchGroup) {
 
 export function useGlobalSearch(app: Ref<IApp>, localName: () => string) {
   const domain = ref<SearchDomain | 'all'>('all')
-  const request = shallowRef<{ text: string; foreground: boolean }>()
+  const request = shallowRef<{ text: string }>()
   const selected = ref<string[] | null>(null)
   const groups = ref<SearchGroup[]>([])
   const managedDevices = shallowRef<SearchDevice[]>([])
@@ -63,9 +63,9 @@ export function useGlobalSearch(app: Ref<IApp>, localName: () => string) {
     selected.value = checked ? [...ids, id] : ids.filter((value) => value !== id)
   }
 
-  function submit(text: string, foreground = false) {
+  function submit(text: string) {
     const query = text.trim()
-    request.value = query ? { text: query, foreground } : undefined
+    request.value = query ? { text: query } : undefined
   }
 
   async function loadPage(group: SearchGroup, page: Page, text: string) {
@@ -86,7 +86,7 @@ export function useGlobalSearch(app: Ref<IApp>, localName: () => string) {
   async function loadDevice(group: SearchGroup, query: NonNullable<typeof request.value>, domains: readonly SearchDomain[]) {
     group.status = 'loading'
     try {
-      group.client = await loadSearchClient(group.device, query.foreground, app.value.urlToken)
+      group.client = await loadSearchClient(group.device, app.value.urlToken)
       if (!groups.value.includes(group)) return
       group.pages = domains.filter(group.client.canSearch).map((domain) => ({ domain, hits: [], total: 0, loading: false, failed: false }))
       if (!group.pages.length) {

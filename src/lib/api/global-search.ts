@@ -9,7 +9,6 @@ import { managedFileUrl, managedGraphql } from './managed-proxy'
 import { appGQL, docsGQL, feedEntriesGQL, imagesGQL, notesGQL, videosGQL } from './query'
 import type { GqlResultType, GqlVariablesType } from './graphql/operations'
 import { buildTextFilter } from '@/lib/search'
-import { isLocalMode } from '@/lib/device/local-mode'
 import type { LoginPeer } from '@/lib/device/login-peers'
 import type { AccessFeature } from '@/lib/interfaces'
 
@@ -36,8 +35,7 @@ export type SearchDevice = { id: string; name: string } & (
 const access: Record<FileSearchHit['domain'], AccessFeature> = { images: 'IMAGES', videos: 'VIDEOS', docs: 'DOCS' }
 export const searchPageSize = 24
 
-export async function loadSearchClient(device: SearchDevice, foreground = false, sessionUrlToken = '') {
-  const local = device.target === 'local' || (device.target === 'current' && isLocalMode())
+export async function loadSearchClient(device: SearchDevice, sessionUrlToken = '') {
   const scope = { mode: 'c' as const, id: getApiHeaders()['c-id'] }
   const base = device.target === 'peer' ? getPeerBaseUrl(device.peer)
     : device.target === 'local' ? `http://localhost:${getLocalServerPort()}` : getApiBaseUrl()
@@ -53,8 +51,8 @@ export async function loadSearchClient(device: SearchDevice, foreground = false,
   const managed = device.target === 'managed'
   const { app } = await execute<GqlResultType<'appGQL'>>(managed ? '{ app { deviceName access } }' : appGQL)
   const key = tokenToKey(managed ? sessionUrlToken : app.urlToken)
-  const fileId = (hit: FileSearchHit, foregroundThumbnail = false) =>
-    getFileId(key, hit.item.path, hit.domain === 'docs' ? '' : hit.item.id, scope, foregroundThumbnail)
+  const fileId = (hit: FileSearchHit) =>
+    getFileId(key, hit.item.path, hit.domain === 'docs' ? '' : hit.item.id, scope)
   const fileUrl = (id: string, query = '') => {
     const path = `/fs?id=${encodeURIComponent(id)}${fileQuery(FileAction.Preview, query)}`
     return proxyUrlFor(base, device.target === 'current' ? getDeviceRequestPath(path) : path)
@@ -98,7 +96,7 @@ export async function loadSearchClient(device: SearchDevice, foreground = false,
       if (cached) return cached
       const query = '&size=sm&v=' + encodeURIComponent(hit.item.updatedAt)
       const thumbnail = managed ? url(hit, FileAction.Preview, query)
-        : fileUrl(fileId(hit, __IS_TAURI__ && local && foreground && hit.domain === 'videos'), query)
+        : fileUrl(fileId(hit), query)
       if (managed) thumbnails.set(hit.item, thumbnail)
       return thumbnail
     },

@@ -197,7 +197,7 @@ function currentResourceScope(): ResourceScope {
   return { mode: 'c', id: getApiHeaders()['c-id'] }
 }
 
-export function getFileId(key: Uint8Array | null, path: string, mediaId: string = '', scope?: ResourceScope, foregroundThumbnail = false) {
+export function getFileId(key: Uint8Array | null, path: string, mediaId: string = '', scope?: ResourceScope) {
   if (!path || !key) {
     return ''
   }
@@ -209,7 +209,7 @@ export function getFileId(key: Uint8Array | null, path: string, mediaId: string 
 
   const resourceScope = scope ?? currentResourceScope()
   const resource: Resource = mediaId
-    ? { type: foregroundThumbnail ? 'FOREGROUND_MEDIA_THUMBNAIL' : 'MEDIA', id: mediaId }
+    ? { type: 'MEDIA', id: mediaId }
     : path.startsWith('fid:')
       ? { type: 'APP_FILE', id: path.slice(4) }
       : path.startsWith('pkgicon://')

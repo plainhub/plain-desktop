@@ -142,7 +142,7 @@ function submitGlobalSearch(text: string) {
     : { keyword, type: pageSearchDomain.value } }
   const pending = { path: router.resolve(location).fullPath }
   if (pending.path === route.fullPath) {
-    search.submit(keyword, true)
+    search.submit(keyword)
     return
   }
   pendingSearch = pending
@@ -160,7 +160,7 @@ watch([globalSearch, globalKeyword, () => route.query.type], ([active, keyword, 
   if (!active) return
   search.domain.value = searchDomains.find((domain) => domain === type) ?? 'all'
   const foreground = pendingSearch?.path === route.fullPath
-  if (foreground || search.request.value?.text !== keyword) search.submit(keyword, foreground)
+  if (foreground || search.request.value?.text !== keyword) search.submit(keyword)
 }, { immediate: true })
 
 const quickActions = computed(() =>
