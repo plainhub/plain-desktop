@@ -170,8 +170,7 @@ export interface Fragment_ChatItemFragment {
       url: string
       title?: string
       description?: string
-      imageUrl?: string
-      imageLocalPath?: string
+      image?: string
       imageWidth: number
       imageHeight: number
       siteName?: string
@@ -2015,8 +2014,7 @@ export interface GqlOperations {
             url: string
             title?: string
             description?: string
-            imageUrl?: string
-            imageLocalPath?: string
+            image?: string
             imageWidth: number
             imageHeight: number
             siteName?: string
@@ -2083,8 +2081,7 @@ export interface GqlOperations {
             url: string
             title?: string
             description?: string
-            imageUrl?: string
-            imageLocalPath?: string
+            image?: string
             imageWidth: number
             imageHeight: number
             siteName?: string

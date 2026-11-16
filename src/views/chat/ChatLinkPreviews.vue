@@ -1,10 +1,10 @@
 <template>
   <div class="link-previews">
     <div v-for="preview in linkPreviews" :key="preview.url" class="link-preview-item" @click="openLink(preview.url)">
-      <div v-if="shouldShowLargeImage(preview)" class="preview-image">
+      <div v-if="preview.src && preview.large" class="preview-image">
         <img 
-          :src="getImageUrl(preview)" 
-          :alt="preview.title"
+          :src="preview.src"
+          :alt="preview.title ?? ''"
           @error="onImageError(preview)"
         />
       </div>
@@ -19,9 +19,10 @@
         
         <div class="preview-footer">
           <img 
-            v-if="shouldShowSmallIcon(preview)"
-            :src="getImageUrl(preview)"
+            v-if="preview.src && !preview.large"
+            :src="preview.src"
             class="preview-small-icon"
+            alt=""
             @error="onImageError(preview)"
           />
           <span class="preview-site">{{ preview.siteName || preview.url }}</span>
@@ -32,50 +33,34 @@
 </template>
 
 <script setup lang="ts">
-import { computed } from 'vue'
-import { getFileId, getFileUrl } from '@/lib/api/file'
+import { computed, reactive } from 'vue'
+import { getChatFileId, getFileUrl } from '@/lib/api/file'
 import { openUrl } from '@/lib/browser'
+import type { IChatItem } from '@/lib/interfaces'
 import { useTempStore } from '@/stores/temp'
 
-const props = defineProps({
-  data: { type: Object, required: true },
-})
-
+const props = defineProps<{ data: IChatItem }>()
 const tempStore = useTempStore()
+const failed = reactive(new Set<string>())
 
 const linkPreviews = computed(() => {
-  const data = props.data
-  const previews = data?.content?.linkPreviews ?? []
-  return previews.map((preview: any) => {
-    // Link-preview image ids are client-derived: encrypt the bare
-    // imageLocalPath with the urlToken (no JSON wrapping — /fs parity).
-    const fileId = preview.imageLocalPath ? getFileId(tempStore.urlTokenKey, preview.imageLocalPath) : ''
+  if (props.data.content.__typename !== 'ChatMessageContent') return []
+  return props.data.content.linkPreviews.map(preview => {
+    const imageKey = JSON.stringify([preview.url, preview.image])
+    const fileId = preview.image?.startsWith('fid:') && preview.image.length > 4 && !failed.has(imageKey)
+      ? getChatFileId(tempStore.urlTokenKey, preview.image)
+      : ''
     return {
       ...preview,
-      _fileId: fileId
+      imageKey,
+      src: fileId ? getFileUrl(fileId) : '',
+      large: preview.imageWidth >= 200 && preview.imageHeight >= 200,
     }
   })
 })
 
-function getImageUrl(preview: any) {
-  if (preview._fileId && preview._fileId.trim() !== '') {
-    return getFileUrl(preview._fileId)
-  }
-  return preview.imageUrl
-}
-
-function shouldShowLargeImage(preview: any) {
-  if (!preview.imageUrl || preview.hasError) return false
-  return preview.imageWidth >= 200 && preview.imageHeight >= 200
-}
-
-function shouldShowSmallIcon(preview: any) {
-  if (!preview.imageUrl || preview.hasError) return false
-  return preview.imageWidth < 200 || preview.imageHeight < 200
-}
-
-function onImageError(preview: any) {
-  preview.hasError = true
+function onImageError({ imageKey }: { imageKey: string }) {
+  failed.add(imageKey)
 }
 
 function openLink(url: string) {
