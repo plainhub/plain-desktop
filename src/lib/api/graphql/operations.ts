@@ -62,7 +62,7 @@ export interface Fragment_AppFragment {
   appDir: string
   deviceName: string
   deviceType: 'COMPUTER' | 'PHONE' | 'TABLET' | 'TV' | 'NAS' | 'OTHER'
-  capabilities: Array<'ADB' | 'BLE' | 'WIFI_AWARE' | 'APP_RELAUNCH' | 'MEDIA_TRASH' | 'MEDIA_DELETE' | 'MEDIA_MOVE' | 'MEDIA_FAVORITE' | 'VIDEO_REMUX' | 'VIDEO_TRANSCODE' | 'APP_UPDATES' | 'MIRROR_AUDIO' | 'MEDIA_SCAN' | 'TELEPHONY' | 'PACKAGES' | 'SCREEN_MIRROR' | 'NOTIFICATIONS' | 'CLIPBOARD' | 'DISK_MANAGER' | 'HTTP_SERVER'>
+  capabilities: Array<'ADB' | 'BLE' | 'WIFI_AWARE' | 'APP_RELAUNCH' | 'MEDIA_TRASH' | 'MEDIA_DELETE' | 'MEDIA_MOVE' | 'MEDIA_FAVORITE' | 'APP_UPDATES' | 'MIRROR_AUDIO' | 'MEDIA_SCAN' | 'TELEPHONY' | 'PACKAGES' | 'SCREEN_MIRROR' | 'NOTIFICATIONS' | 'CLIPBOARD' | 'DISK_MANAGER' | 'HTTP_SERVER'>
   access: Array<'IMAGES' | 'VIDEOS' | 'AUDIO' | 'DOCS' | 'FILES' | 'CONTACTS' | 'SMS' | 'CALLS' | 'CALL_PHONE' | 'PHONE_NUMBER' | 'APPS' | 'NOTIFICATIONS' | 'CLIPBOARD' | 'ADB'>
   downloadsDir: string
   developerMode: boolean
