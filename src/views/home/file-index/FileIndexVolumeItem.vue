@@ -4,9 +4,10 @@
     :title="title"
     :mount="mount"
     :scan-progress="fileIndexScanProgress"
-    :scan-disabled="loading || creating"
+    :scan-disabled="loading || saving"
     @settings="$emit('settings')"
-    @create="create"
+    @create="setMode('BLOCKLIST')"
+    @disable="setMode('DISABLED')"
     @scan="rebuild()"
     @pause="pause()"
     @resume="resume()"
@@ -28,16 +29,17 @@ const { fileIndexScanProgress, rebuild, loading, pause, resume, stop } = useScan
 watch(fileIndexScanProgress, ({ state }) => {
   if (['IDLE', 'STOPPED', 'FAILED'].includes(state)) emit('settled')
 })
-const creating = ref(false)
-async function create() {
-  creating.value = true
+const saving = ref(false)
+async function setMode(indexMode: 'BLOCKLIST' | 'DISABLED') {
+  if (saving.value) return
+  saving.value = true
   try {
-    await saveFileIndexVolume({ ...props.volume, indexMode: 'BLOCKLIST' })
+    await saveFileIndexVolume({ ...props.volume, indexMode })
     emit('settled')
   } catch (error) {
     toast(error instanceof Error ? error.message : String(error), 'error')
   } finally {
-    creating.value = false
+    saving.value = false
   }
 }
 </script>

@@ -6,7 +6,7 @@
         <pre class="view-raw">{{ volume }}</pre>
       </v-dropdown>
       <h3>{{ title }}</h3>
-      <v-icon-button v-tooltip="$t('file_index.scope')" :aria-label="`${$t('file_index.scope')}: ${title}`" @click="$emit('settings')">
+      <v-icon-button v-tooltip="$t('file_index.scope')" :disabled="scanDisabled" :aria-label="`${$t('file_index.scope')}: ${title}`" @click="$emit('settings')">
         <i-material-symbols:settings-outline-rounded />
       </v-icon-button>
     </header>
@@ -38,7 +38,10 @@
           <v-icon-button v-if="scanProgress.state === 'PAUSED'" v-tooltip="$t('resume')" :aria-label="$t('resume')" :disabled="scanDisabled" @click="$emit('resume')"><i-material-symbols:play-arrow-rounded /></v-icon-button>
           <v-icon-button v-tooltip="$t('stop')" :aria-label="$t('stop')" :disabled="scanDisabled" @click="$emit('stop')"><i-material-symbols:stop-rounded /></v-icon-button>
         </template>
-        <v-text-button v-else :disabled="scanDisabled || !canScanVolume(volume)" @click="$emit('scan')">{{ $t('rebuild_index') }}</v-text-button>
+        <template v-else>
+          <v-text-button :disabled="scanDisabled || !canScanVolume(volume)" @click="$emit('scan')">{{ $t('rebuild_index') }}</v-text-button>
+          <v-text-button v-if="volume.indexMode !== 'DISABLED'" :disabled="scanDisabled || !volume.isAvailable" @click="$emit('disable')">{{ $t('file_index.disable') }}</v-text-button>
+        </template>
       </template>
     </footer>
   </article>
@@ -52,7 +55,7 @@ import { canScanVolume, type FileIndexVolume, type FileIndexScanStatus } from '@
 import type { IFileIndexScanProgress, IStorageMount } from '@/lib/interfaces'
 
 const props = defineProps<{ volume: FileIndexVolume; title: string; mount?: IStorageMount; scanDisabled: boolean; scanProgress?: IFileIndexScanProgress }>()
-defineEmits<{ settings: []; create: []; scan: []; pause: []; resume: []; stop: [] }>()
+defineEmits<{ settings: []; create: []; disable: []; scan: []; pause: []; resume: []; stop: [] }>()
 const progressLabel = computed(() => {
   const progress = props.scanProgress
   if (!progress) return ''
@@ -103,6 +106,7 @@ p {
 }
 footer {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   justify-content: flex-end;
   gap: 8px;
