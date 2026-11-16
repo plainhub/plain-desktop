@@ -24,11 +24,10 @@ describe('declared capability support', () => {
     }
   })
 
-  it('shows the developing image editor only when debug is enabled', () => {
-    for (const capabilities of [[], Object.values(Capability)]) {
-      expect(getAvailableFeatures(capabilities).some(feature => feature.id === 'IMAGE_EDITOR')).toBe(false)
-      expect(getAvailableFeatures(capabilities, false).some(feature => feature.id === 'IMAGE_EDITOR')).toBe(false)
-      expect(getAvailableFeatures(capabilities, true).some(feature => feature.id === 'IMAGE_EDITOR')).toBe(true)
-    }
+  it('makes Image Editor available without special capabilities and preserves other capability gates', () => {
+    const featureIds = (capabilities: Capability[]) => getAvailableFeatures(capabilities).map(feature => feature.id)
+    expect(featureIds([])).toContain('IMAGE_EDITOR')
+    expect(featureIds([])).not.toContain('SMS')
+    expect(featureIds([Capability.TELEPHONY])).toContain('SMS')
   })
 })

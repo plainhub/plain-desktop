@@ -46,8 +46,6 @@ export const ALL_FEATURES: Feature[] = [
 
 export const DEFAULT_RAIL_FEATURES = [AppFeatureType.FILES, AppFeatureType.AUDIO, AppFeatureType.IMAGES, AppFeatureType.VIDEOS, AppFeatureType.CHAT]
 
-export function getAvailableFeatures(features?: string[], debug = false): Feature[] {
-  return ALL_FEATURES
-    .filter((f) => f.id !== AppFeatureType.IMAGE_EDITOR || debug)
-    .filter((f) => !f.capability || hasFeature(f.capability, features))
+export function getAvailableFeatures(features?: string[]): Feature[] {
+  return ALL_FEATURES.filter((f) => !f.capability || hasFeature(f.capability, features))
 }
