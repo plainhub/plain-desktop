@@ -2,7 +2,7 @@
   <SidebarListItem :title="peer.name" :subtitle="subtitle" :active="active" :force-actions="menuVisible" @click="emit('click')">
     <template #start>
       <v-dropdown v-model="infoOpen">
-        <template #trigger><PeerIcon :device-type="peer.deviceType" :online="online" :full-control="isLoginPeer" /></template>
+        <template #trigger><PeerIcon :device-type="peer.deviceType" :online="online" :full-control="isManagedPeer" /></template>
         <pre class="view-raw">{{ peer }}</pre>
       </v-dropdown>
     </template>
@@ -55,7 +55,7 @@ import { formatDateTime, formatTimeAgo } from '@/lib/format'
 import { decryptChatId } from '../hooks/chat-route'
 
 const props = defineProps<{
-  peer: Pick<IPeer, 'id' | 'name' | 'deviceType'>
+  peer: Pick<IPeer, 'id' | 'name' | 'deviceType' | 'managed'>
   subtitle?: string
   active?: boolean
   online?: boolean
@@ -81,7 +81,7 @@ const currentChatId = computed(() => {
 
 const anchorId = computed(() => `peer-list-${props.peer.id}`)
 
-const isLoginPeer = computed(() => !!findLoginPeer(props.peer.id))
+const isManagedPeer = computed(() => props.peer.managed === true || !!findLoginPeer(props.peer.id))
 
 const infoOpen = ref(false)
 const menuVisible = ref(false)
