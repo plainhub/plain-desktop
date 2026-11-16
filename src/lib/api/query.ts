@@ -146,17 +146,24 @@ export function initLazyQuery<TResult = any>(params: InitQueryParams<TResult>) {
   let snapshotVersion = 0
   let active = true
   let previous: { variables?: Record<string, any>; options: QueryFetchOptions } | undefined
+  function invalidateSnapshot() {
+    snapshotVersion++
+    activeRegularRequests = 0
+    activeLatestRequest = undefined
+    loading.value = false
+  }
   const instance = getCurrentInstance()
   if (instance) {
     onActivated(() => { active = true })
-    onDeactivated(() => { active = false })
+    onDeactivated(() => { active = false; invalidateSnapshot() })
     const resnapshot = () => { if (active && previous) void doFetch(previous.variables, { ...previous.options, latest: true, force: true }) }
     const stopSubscription = graphqlSubscriptions.onAttached(resnapshot)
-    onUnmounted(stopSubscription)
+    onUnmounted(() => { invalidateSnapshot(); stopSubscription() })
   }
 
   async function doFetch(vars?: Record<string, any>, options: QueryFetchOptions = {}) {
-    const version = options.force ? ++snapshotVersion : snapshotVersion
+    if (options.force) invalidateSnapshot()
+    const version = snapshotVersion
     previous = { variables: vars, options }
     const requestId = ++requestSequence
     const latestRequestId = options.latest ? ++latestSequence : undefined
@@ -184,12 +191,14 @@ export function initLazyQuery<TResult = any>(params: InitQueryParams<TResult>) {
         params.handle(undefined as any, getErrorMessage(e), context)
       }
     } finally {
-      if (options.latest) {
-        if (activeLatestRequest === requestId) activeLatestRequest = undefined
-      } else {
-        activeRegularRequests--
+      if (version === snapshotVersion) {
+        if (options.latest) {
+          if (activeLatestRequest === requestId) activeLatestRequest = undefined
+        } else {
+          activeRegularRequests--
+        }
+        loading.value = activeRegularRequests > 0 || activeLatestRequest !== undefined
       }
-      loading.value = activeRegularRequests > 0 || activeLatestRequest !== undefined
     }
   }
 

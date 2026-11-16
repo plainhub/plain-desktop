@@ -1,3 +1,4 @@
+import { encodeBase64 } from '@/lib/strutil'
 import { ref } from 'vue'
 import type { INote } from '@/lib/interfaces'
 import { useDelete } from '@/hooks/list'
@@ -76,7 +77,7 @@ export function useNotesActions(opts: UseNotesActionsOptions) {
   }
 
   function viewUrl(item: INote) {
-    const qVal = router.currentRoute.value.query.q
+    const qVal = q.value ? encodeBase64(q.value) : ''
     return qVal ? `/notes/${item.id}?q=${qVal}` : `/notes/${item.id}`
   }
 

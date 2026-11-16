@@ -78,6 +78,7 @@ export function useFeedEntriesData(onDelete: () => void) {
   const refetchTagsHandler = (type: string) => { if (type === dataType) fetchFeedsTags() }
 
   function applyRouteQuery() {
+    if (route.path !== '/feeds' && !route.path.startsWith('/feeds/')) return
     const nextPage = parseInt(route.query.page?.toString() ?? '1')
     page.value = Number.isFinite(nextPage) && nextPage > 0 ? nextPage : 1
     q.value = decodeBase64(route.query.q?.toString() ?? '')

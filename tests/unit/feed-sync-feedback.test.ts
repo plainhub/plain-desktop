@@ -9,7 +9,7 @@ const state = vi.hoisted(() => ({
 vi.mock('@/lib/api/subscription-client', () => ({ graphqlSubscriptions: { subscribe: state.subscribe } }))
 vi.mock('@/components/toaster', () => ({ default: state.toast }))
 vi.mock('@/lib/api/query', () => ({ feedsTagsGQL: 'tags', initLazyQuery: () => ({ fetch: state.fetchTags }) }))
-vi.mock('vue-router', () => ({ useRoute: () => ({ query: {} }) }))
+vi.mock('vue-router', () => ({ useRoute: () => ({ path: '/feeds', query: {} }) }))
 vi.mock('@/plugins/router', () => ({ replacePath: vi.fn() }))
 vi.mock('@/stores/main', () => ({ useMainStore: () => ({}) }))
 vi.mock('@/stores/temp', () => ({ useTempStore: () => ({ feedsSyncing: ref(true) }) }))

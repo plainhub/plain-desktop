@@ -97,6 +97,7 @@ export function useContactsData() {
   const accessUpdatedHandler = () => fetch()
 
   function applyRouteQuery() {
+    if (route.path !== '/contacts' && !route.path.startsWith('/contacts/')) return
     const nextPage = parseInt(route.query.page?.toString() ?? '1')
     page.value = Number.isFinite(nextPage) && nextPage > 0 ? nextPage : 1
     q.value = decodeBase64(route.query.q?.toString() ?? '')

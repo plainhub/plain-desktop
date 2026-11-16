@@ -94,6 +94,7 @@ export function useMessagesSidebar() {
   }
 
   function applyRouteQuery(force = false) {
+    if (route.path !== '/messages' && !route.path.startsWith('/messages/')) return
     let conversationsRequest: Promise<void>
     if (isArchived.value) {
       conversationsRequest = smsStore.fetchArchived(force)

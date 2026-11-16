@@ -75,6 +75,7 @@ export function useAppsData() {
   }
 
   function applyRouteQuery() {
+    if (route.path !== '/apps' && !route.path.startsWith('/apps/')) return
     if (!isActive.value) return
     page.value = parseInt(route.query.page?.toString() ?? '1')
     q.value = decodeBase64(route.query.q?.toString() ?? '')

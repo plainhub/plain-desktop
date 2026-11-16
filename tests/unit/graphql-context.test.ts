@@ -273,8 +273,9 @@ it('keeps 300 in-flight queries running when their page unmounts', async () => {
     insert: vi.fn(), remove: vi.fn(), createElement: () => ({}), createText: () => ({}), createComment: () => ({}),
     setText: vi.fn(), setElementText: vi.fn(), parentNode: () => null, nextSibling: () => null, patchProp: vi.fn(),
   })
+  const handle = vi.fn()
   let query!: ReturnType<typeof initLazyQuery>
-  const app = renderer.createApp({ setup() { query = initLazyQuery({ document: 'query Page($offset: Int!) { noteCount }', handle: vi.fn() }); return () => null } })
+  const app = renderer.createApp({ setup() { query = initLazyQuery({ document: 'query Page($offset: Int!) { noteCount }', handle }); return () => null } })
   app.mount({})
   const requests = Array.from({ length: 300 }, (_, offset) => query.fetch({ offset }))
   try {
@@ -284,6 +285,8 @@ it('keeps 300 in-flight queries running when their page unmounts', async () => {
     replies.forEach(reply => reply.resolve(response({ noteCount: 7 })))
     await Promise.all(requests)
     expect(query.loading.value).toBe(false)
+    expect(handle).not.toHaveBeenCalled()
+    expect(query.result.value).toBeUndefined()
   } finally {
     app.unmount()
     replies.forEach(reply => reply.resolve(response({ noteCount: 7 })))
@@ -318,4 +321,43 @@ it('rejects anonymous GraphQL without sending a request or reloading the page', 
   expect(httpRequest).not.toHaveBeenCalled()
   expect(clearCurrentSession).not.toHaveBeenCalled()
   expect(window.location.reload).not.toHaveBeenCalled()
+})
+
+
+it.each([false, true].flatMap(returned => [false, true].map(failed => ({ returned, failed }))))('ignores a previous activation reply (return=$returned, failed=$failed)', async ({ returned, failed }) => {
+  const { h, KeepAlive, nextTick, ref } = await import('vue')
+  const { renderView } = await import('../helpers/vue-node-renderer')
+  const old = deferred<any>()
+  const current = deferred<any>()
+  vi.mocked(nativeGraphql).mockReturnValueOnce(old.promise)
+  if (returned) vi.mocked(nativeGraphql).mockReturnValueOnce(current.promise)
+  const handle = vi.fn()
+  let query!: ReturnType<typeof initLazyQuery>
+  const Page = { setup() {
+    query = initLazyQuery({ document: 'query Notes { noteCount }', handle })
+    return () => h('section')
+  } }
+  const visible = ref(true)
+  const view = renderView({ setup: () => () => h(KeepAlive, null, { default: () => visible.value ? h(Page) : h('aside') }) })
+  const first = query.fetch({ query: 'text:Original' })
+  try {
+    visible.value = false
+    await nextTick()
+    if (returned) {
+      visible.value = true
+      await nextTick()
+      const second = query.fetch({ query: 'text:Returned' })
+      current.resolve({ data: { noteCount: 2 } })
+      await second
+      expect(query.loading.value).toBe(false)
+    }
+    old.resolve(failed ? { data: null, errors: [{ message: 'Synthetic old search failure' }] } : { data: { noteCount: 1 } })
+    await first
+    expect(handle.mock.calls.map(([data]) => data)).toEqual(returned ? [{ noteCount: 2 }] : [])
+    expect(query.result.value).toEqual(returned ? { noteCount: 2 } : undefined)
+  } finally {
+    old.resolve({ data: { noteCount: 1 } })
+    await first
+    view.unmount()
+  }
 })

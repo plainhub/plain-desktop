@@ -1,3 +1,4 @@
+import { encodeBase64 } from '@/lib/strutil'
 import { ref } from 'vue'
 import type { IFeedEntry, ITag } from '@/lib/interfaces'
 import type { Ref, ComputedRef } from 'vue'
@@ -90,7 +91,7 @@ export function useFeedEntriesActions(opts: UseFeedEntriesActionsOptions) {
 
 
   function viewUrl(item: IFeedEntry) {
-    const qVal = router.currentRoute.value.query.q
+    const qVal = q.value ? encodeBase64(q.value) : ''
     return qVal ? `/feeds/${item.feedId}/entries/${item.id}?q=${qVal}` : `/feeds/${item.feedId}/entries/${item.id}`
   }
 

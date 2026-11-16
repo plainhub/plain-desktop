@@ -69,6 +69,7 @@ export function useNotesData(onDelete: () => void) {
   })
 
   function applyRouteQuery() {
+    if (route.path !== '/notes' && !route.path.startsWith('/notes/')) return
     const nextPage = parseInt(route.query.page?.toString() ?? '1')
     page.value = Number.isFinite(nextPage) && nextPage > 0 ? nextPage : 1
     q.value = decodeBase64(route.query.q?.toString() ?? '')

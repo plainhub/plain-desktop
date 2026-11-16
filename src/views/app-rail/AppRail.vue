@@ -30,7 +30,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onBeforeUnmount } from 'vue'
+import { computed, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { useMainStore } from '@/stores/main'
 import { useTempStore } from '@/stores/temp'
@@ -78,16 +78,12 @@ function lastRoute(defaultPath: string, group: string) {
   }
 }
 
-const removeAfterEach = router.afterEach((to) => {
+watch(() => router.currentRoute.value, (to) => {
   const group = (to.meta?.group || '') as string
   if (group) {
     store.lastRoutes[group] = to.fullPath
   }
-})
-
-onBeforeUnmount(() => {
-  removeAfterEach()
-})
+}, { immediate: true })
 </script>
 
 <style lang="scss" scoped>

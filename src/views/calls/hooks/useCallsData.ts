@@ -85,6 +85,7 @@ export function useCallsData() {
   const accessUpdatedHandler = () => fetch()
 
   function applyRouteQuery() {
+    if (route.path !== '/calls' && !route.path.startsWith('/calls/')) return
     const nextPage = parseInt(route.query.page?.toString() ?? '1')
     page.value = Number.isFinite(nextPage) && nextPage > 0 ? nextPage : 1
     q.value = decodeBase64(route.query.q?.toString() ?? '')
