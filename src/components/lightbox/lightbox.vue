@@ -69,7 +69,7 @@
         
         <!-- Desktop info panel -->
         <LightboxInfo
-          v-if="lightboxInfoVisible && !isPhone && !isTablet"
+          v-if="current && lightboxInfoVisible && !isPhone && !isTablet"
           :current="current"
           :file-info="fileInfo"
           :url-token-key="urlTokenKey ? urlTokenKey.toString() : ''"
@@ -86,9 +86,9 @@
       </div>
       
       <!-- Mobile info bottom sheet -->
-      <BottomSheet v-if="isPhone || isTablet" v-model="lightboxInfoVisible" :title="$t('info')" show-footer>
+      <BottomSheet v-if="current && (isPhone || isTablet)" v-model="lightboxInfoVisible" :title="$t('info')" show-footer>
         <LightboxQualityDropdown
-          v-if="current && isImage(current.name)"
+          v-if="isImage(current.name)"
           :model-value="imageViewQuality"
           class="sheet-quality"
           @update:model-value="imageViewQuality = $event"
