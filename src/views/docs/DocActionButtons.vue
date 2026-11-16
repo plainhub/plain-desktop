@@ -1,18 +1,16 @@
 <template>
   <div class="actions">
-    <template v-if="filter.trash">
-      <template v-if="!confirming">
-        <v-icon-button v-if="hasMediaDelete(app)" v-tooltip="$t('delete')" class="sm" @click.stop="confirming = true">
-          <i-material-symbols:delete-forever-outline-rounded />
-        </v-icon-button>
-        <v-icon-button v-if="hasMediaTrash(app)" v-tooltip="$t('restore')" class="sm" :loading="restoreLoading(`ids:${item.id}`)" @click.stop="restore(dataType, `ids:${item.id}`)">
-          <i-material-symbols:restore-from-trash-outline-rounded />
-        </v-icon-button>
-        <v-icon-button v-tooltip="$t('download')" class="sm" @click.stop="$emit('download-file', item.path)">
-          <i-material-symbols:download-rounded />
-        </v-icon-button>
-      </template>
-      <inline-delete-confirm v-else :name="item.title" @confirm="onConfirmDelete" @cancel="confirming = false" />
+    <inline-delete-confirm v-if="confirming" :name="item.title" :loading="deleting" @confirm="onConfirmDelete" @cancel="confirming = false" />
+    <template v-else-if="filter.trash">
+      <v-icon-button v-if="hasMediaDelete(app)" v-tooltip="$t('delete')" class="sm" :aria-label="$t('delete')" @click.stop="confirming = true">
+        <i-material-symbols:delete-forever-outline-rounded />
+      </v-icon-button>
+      <v-icon-button v-if="hasMediaTrash(app)" v-tooltip="$t('restore')" class="sm" :loading="restoreLoading(`ids:${item.id}`)" @click.stop="restore(dataType, `ids:${item.id}`)">
+        <i-material-symbols:restore-from-trash-outline-rounded />
+      </v-icon-button>
+      <v-icon-button v-tooltip="$t('download')" class="sm" @click.stop="$emit('download-file', item.path)">
+        <i-material-symbols:download-rounded />
+      </v-icon-button>
     </template>
     <template v-else>
       <v-icon-button
@@ -24,7 +22,7 @@
       >
         <i-material-symbols:delete-outline-rounded />
       </v-icon-button>
-      <v-icon-button v-else-if="hasMediaDelete(app)" v-tooltip="$t('delete')" class="sm" @click.stop="$emit('delete-item', item)">
+      <v-icon-button v-else-if="hasMediaDelete(app)" v-tooltip="$t('delete')" class="sm" :aria-label="$t('delete')" @click.stop="confirming = true">
         <i-material-symbols:delete-forever-outline-rounded />
       </v-icon-button>
       <v-icon-button v-tooltip="$t('download')" class="sm" @click.stop="$emit('download-file', item.path)">
@@ -91,12 +89,11 @@ const props = defineProps<{
   restoreLoading: (query: string) => boolean
   trash: (dataType: DataType, query: string) => void
   restore: (dataType: DataType, query: string) => void
-  deleteItem: (dataType: DataType, item: any) => void
+  deleteItem: (item: IDoc) => Promise<boolean>
 }>()
 
 defineEmits<{
   'download-file': [path: string]
-  'delete-item': [item: IDoc]
   'open-file': [item: IDoc]
   'rename-item': [item: IDoc]
   'duplicate-item': [item: IDoc]
@@ -105,9 +102,15 @@ defineEmits<{
 const infoVisible = ref(false)
 const moreVisible = ref(false)
 const confirming = ref(false)
+const deleting = ref(false)
 
-function onConfirmDelete() {
-  props.deleteItem(props.dataType, props.item)
-  confirming.value = false
+async function onConfirmDelete() {
+  if (deleting.value) return
+  deleting.value = true
+  try {
+    if (await props.deleteItem(props.item)) confirming.value = false
+  } finally {
+    deleting.value = false
+  }
 }
 </script>

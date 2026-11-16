@@ -78,9 +78,9 @@
           :item-tags="itemTags"
           :read-only="readOnly"
           :image-quality="imageViewQuality"
+          :delete-file="deleteFile"
           @update:image-quality="imageViewQuality = $event"
           @rename-file="renameFile"
-          @delete-file="deleteFile"
           @refetch-info="refetchInfo"
         />
       </div>
@@ -119,8 +119,8 @@
           <LightboxFileActionButtons
             :current="current"
             :read-only="readOnly"
+            :delete-file="deleteFile"
             @rename-file="renameFile"
-            @delete-file="deleteFile"
             @action-success="handleActionSuccess"
           />
         </template>

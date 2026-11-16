@@ -16,6 +16,7 @@ import { openModal } from '@/components/modal'
 import { useDocsActions } from '@/views/docs/hooks/useDocsActions'
 
 const downloadFile = vi.hoisted(() => vi.fn())
+const deleteFiles = vi.hoisted(() => vi.fn())
 const rename = vi.hoisted(() => ({ done: vi.fn(), mutation: vi.fn(), variables: vi.fn() }))
 vi.mock('@/hooks/files', () => ({ useDownload: () => ({ downloadFile }), useRename: (refresh: () => void) => {
   rename.done.mockImplementation((result: string) => { if (result === 'conflict.pdf') return false; refresh(); return true })
@@ -40,15 +41,15 @@ vi.mock('@/lib/api/file', () => ({
   getFileUrlByPath: (_: unknown, path: string) => 'http://127.0.0.1:8080/fs?id=' + encodeURIComponent(path),
 }))
 vi.mock('@/lib/api/mutation', () => ({
-  copyFileToDirectoryGQL: '',
-  renameFileGQL: '',
-  initMutation: () => ({ mutate: vi.fn(), onDone: vi.fn() }),
+  copyFileToDirectoryGQL: 'copy',
+  renameFileGQL: 'rename',
+  deleteFilesGQL: 'delete',
+  initMutation: ({ document }: { document: string }) => ({ mutate: document === 'delete' ? deleteFiles : vi.fn(), onDone: vi.fn(), onError: vi.fn() }),
 }))
 vi.mock('@/stores/main', () => ({ useMainStore: () => ({}) }))
 vi.mock('vue-i18n', () => ({ useI18n: () => ({ t: (key: string) => key }) }))
 vi.mock('@/components/modal', () => ({ openModal: vi.fn() }))
 vi.mock('@/components/EditValueModal.vue', () => ({ default: {} }))
-vi.mock('@/components/DeleteFileConfirm.vue', () => ({ default: {} }))
 vi.mock('@/views/docs/DocActionButtons.vue', () => ({ default: { render: () => null } }))
 
 for (const [component, source, filename] of [
@@ -171,4 +172,19 @@ it('uses the shared rename flow and refreshes only after a successful Docs renam
   expect(fetch).not.toHaveBeenCalled()
   expect(props.done('renamed.pdf')).toBe(true)
   expect(fetch).toHaveBeenCalledOnce()
+})
+
+it('deletes only the selected path after the Docs row confirms and keeps the row on failure', async () => {
+  vi.clearAllMocks()
+  const item = { id: 'target', title: 'delete.pdf', path: '/fixtures/delete.pdf' } as IDoc
+  const other = { ...item, id: 'keep', path: '/fixtures/keep.pdf' }
+  const items = ref([item, other])
+  const { deleteItem } = useDocsActions(items, ref(null), vi.fn())
+  deleteFiles.mockResolvedValueOnce(undefined).mockResolvedValueOnce({ data: { deleteFiles: { affectedCount: 1 } } })
+  expect(await deleteItem(item)).toBe(false)
+  expect(items.value).toEqual([item, other])
+  expect(await deleteItem(item)).toBe(true)
+  expect(items.value).toEqual([other])
+  expect(deleteFiles.mock.calls).toEqual([[{ paths: [item.path] }], [{ paths: [item.path] }]])
+  expect(openModal).not.toHaveBeenCalled()
 })

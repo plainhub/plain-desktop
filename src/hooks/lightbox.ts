@@ -20,7 +20,7 @@ import { download, getFileName } from '@/lib/api/file'
 import { useDeleteItems } from '@/hooks/media'
 import { DataType } from '@/lib/data'
 import { arrayRemove } from '@/lib/array'
-import DeleteFileConfirm from '@/components/DeleteFileConfirm.vue'
+import { deleteFilesGQL, initMutation } from '@/lib/api/mutation'
 import EditValueModal from '@/components/EditValueModal.vue'
 
 export function useLightboxState(isPhone: boolean) {
@@ -492,21 +492,19 @@ export function useLightboxFileActions(
     download(source.src, (source.name || getFileName(source.path)).replace(' ', '-'), source.isFromChat, source.path)
   }
 
-  function deleteFile() {
-    const mediaTypes = [DataType.VIDEO, DataType.AUDIO, DataType.IMAGE]
-    const type = current.value?.type
-    const item = current.value?.data
-    if (type && mediaTypes.includes(type)) {
-      deleteItem(type, item)
-    } else {
-      openModal(DeleteFileConfirm, {
-        files: [item],
-        onError: refetchInfo,
-        onDone: () => {
-          emitter.emit('file_deleted', { item })
-        },
-      })
+  const { mutate: deleteFiles, onError: onDeleteError } = initMutation({ document: deleteFilesGQL })
+  onDeleteError(refetchInfo)
+
+  async function deleteFile(): Promise<boolean> {
+    const source = current.value
+    if (!source?.data) return false
+    const { type, data: item, path } = source
+    if (type === DataType.VIDEO || type === DataType.AUDIO || type === DataType.IMAGE) {
+      return !!await deleteItem(type, item)
     }
+    if (!await deleteFiles({ paths: [path] })) return false
+    emitter.emit('file_deleted', { item })
+    return true
   }
 
   function renameFile() {

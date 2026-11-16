@@ -51,7 +51,7 @@
         :restore-loading="restoreLoading"
         :trash="trash"
         :restore="restore"
-        :delete-item="deleteDocItemInTrash"
+        :delete-item="deleteDocItem"
         :buckets-map="bucketsMap"
         :view-bucket="viewBucket"
         :tags="tags"
@@ -59,7 +59,6 @@
         :handle-mouse-over="handleMouseOverMode"
         :toggle-select="toggleSelect"
         @download-file="downloadFile"
-        @delete-item="deleteDocItem"
         @open-file="openFile"
         @rename-item="renameItem"
         @duplicate-item="duplicateItem"
@@ -148,15 +147,6 @@ const {
   uploadDir, uploadDirEditable, editUploadDir,
 } = mp
 
-const { mutate: doDeleteDocItem, onDone: onDeleteDocItemDone } = initMutation({ document: deleteMediaItemsGQL })
-let pendingDocDeleteEmit: (() => void) | null = null
-onDeleteDocItemDone(() => { pendingDocDeleteEmit?.(); pendingDocDeleteEmit = null })
-
-function deleteDocItemInTrash(dt: DataType, item: IDoc) {
-  pendingDocDeleteEmit = () => emitter.emit('media_items_actioned', { type: dt, action: 'delete', id: item.id, query: `ids:${item.id}` })
-  doDeleteDocItem({ type: dt, query: `ids:${item.id}` })
-}
-
 const queryVariables = (refresh = false) => ({
   ...mediaListPage(page.value, limit.value, refresh && scrollMode.value),
   query: q.value,
@@ -179,7 +169,16 @@ const { loading, fetch } = initLazyQuery({
   variables: queryVariables,
 })
 
-const { openFile, deleteItem: deleteDocItem, renameItem, duplicateItem } = useDocsActions(items, urlTokenKey, mp.refreshItems)
+const { openFile, deleteItem: deleteDocFile, renameItem, duplicateItem } = useDocsActions(items, urlTokenKey, mp.refreshItems)
+const { mutate: deleteTrashedDoc } = initMutation({ document: deleteMediaItemsGQL })
+
+async function deleteDocItem(item: IDoc): Promise<boolean> {
+  if (!filter.trash) return deleteDocFile(item)
+  const query = `ids:${item.id}`
+  if (!await deleteTrashedDoc({ type: dataType, query })) return false
+  emitter.emit('media_items_actioned', { type: dataType, action: 'delete', id: item.id, query })
+  return true
+}
 
 const { moveLoading, onMoveClick } = useMoveToFolder('move-docs-picker')
 

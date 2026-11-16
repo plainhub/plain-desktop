@@ -4,7 +4,7 @@
       <template v-if="!readOnly && !current?.isFromChat && !inZip">
         <template v-if="canTrash">
           <template v-if="isTrashed">
-            <v-outlined-button v-if="canDelete" @click.stop="confirming = true">
+            <v-outlined-button v-if="canDelete" :disabled="deleting" @click.stop="requestDelete">
               <i-material-symbols:delete-forever-outline-rounded />
               {{ $t('delete') }}
             </v-outlined-button>
@@ -25,7 +25,7 @@
           </template>
         </template>
         <template v-else>
-          <v-outlined-button v-if="canDelete" @click.stop="confirming = true">
+          <v-outlined-button v-if="canDelete" :disabled="deleting" @click.stop="requestDelete">
             <i-material-symbols:delete-forever-outline-rounded />
             {{ $t('delete') }}
           </v-outlined-button>
@@ -36,12 +36,12 @@
         </template>
       </template>
     </template>
-    <inline-delete-confirm v-else :name="current?.name ?? current?.data?.title ?? ''" @confirm="onConfirmDelete" @cancel="confirming = false" />
+    <inline-delete-confirm v-else :name="current?.name || current?.data?.title || current?.path" :loading="deleting" @confirm="onConfirmDelete" @cancel="confirming = false" />
   </div>
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, onUnmounted, ref } from 'vue'
+import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
 import { isZipPath } from '@/lib/file'
 import { DataType } from '@/lib/data'
 import { useMediaRestore, useMediaTrash, useFileTrashState } from '@/hooks/media-trash'
@@ -50,25 +50,33 @@ import emitter from '@/plugins/eventbus'
 import type { IMediaItemsActionedEvent } from '@/lib/interfaces'
 import type { ISource } from './types'
 
-const props = defineProps({
-  current: {
-    type: Object as () => ISource | undefined,
-    required: true,
-  },
-  readOnly: {
-    type: Boolean,
-    default: false,
-  },
-})
+const props = defineProps<{
+  current: ISource | undefined
+  deleteFile: () => Promise<boolean>
+  readOnly?: boolean
+}>()
 
-const emit = defineEmits(['rename-file', 'delete-file', 'action-success'])
+const emit = defineEmits(['rename-file', 'action-success'])
 
 const confirming = ref(false)
+const deleting = ref(false)
+watch(() => props.current?.path, () => { confirming.value = false }, { flush: 'sync' })
 const inZip = computed(() => isZipPath(props.current?.path ?? ''))
 
-function onConfirmDelete() {
-  emit('delete-file')
-  confirming.value = false
+function requestDelete() {
+  if (props.readOnly || !props.current || props.current.isFromChat || inZip.value || deleting.value) return
+  confirming.value = true
+}
+defineExpose({ requestDelete })
+
+async function onConfirmDelete() {
+  if (deleting.value) return
+  deleting.value = true
+  try {
+    if (await props.deleteFile()) confirming.value = false
+  } finally {
+    deleting.value = false
+  }
 }
 
 const { isTrashed, canTrash, canDelete, canMove } = useFileTrashState(() => props.current)

@@ -1,12 +1,10 @@
 import { type Ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import type { IDoc } from '@/lib/interfaces'
-import type { IFile } from '@/lib/file'
 import { useFileOpen } from '@/hooks/file-open'
 import { openModal } from '@/components/modal'
 import EditValueModal from '@/components/EditValueModal.vue'
-import DeleteFileConfirm from '@/components/DeleteFileConfirm.vue'
-import { initMutation, copyFileToDirectoryGQL } from '@/lib/api/mutation'
+import { initMutation, copyFileToDirectoryGQL, deleteFilesGQL } from '@/lib/api/mutation'
 import { useDownload, useRename } from '@/hooks/files'
 import { getFileUrlByPath, getFileName } from '@/lib/api/file'
 import { getTextFileId } from '@/lib/api/text-file'
@@ -37,12 +35,13 @@ export function useDocsActions(
     download: (item) => downloadFile(item.path, item.title),
   })
 
-  function deleteItem(item: IDoc) {
-    openModal(DeleteFileConfirm, {
-      files: [{ path: item.path, name: item.title }] as unknown as IFile[],
-      onDone: () => { arrayRemove(items.value, (it: IDoc) => it.id === item.id) },
-      onError: refreshItems,
-    })
+  const { mutate: deleteFiles, onError: onDeleteError } = initMutation({ document: deleteFilesGQL })
+  onDeleteError(refreshItems)
+
+  async function deleteItem(item: IDoc): Promise<boolean> {
+    if (!await deleteFiles({ paths: [item.path] })) return false
+    arrayRemove(items.value, (it) => it.id === item.id)
+    return true
   }
 
   function renameItem(item: IDoc) {

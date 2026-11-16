@@ -39,7 +39,6 @@
       :restore="restore"
       :delete-item="deleteItem"
       @download-file="$emit('download-file', $event)"
-      @delete-item="$emit('delete-item', $event)"
       @open-file="$emit('open-file', $event)"
       @rename-item="$emit('rename-item', $event)"
       @duplicate-item="$emit('duplicate-item', $event)"
@@ -72,7 +71,7 @@ defineProps<{
   restoreLoading: (query: string) => boolean
   trash: (dataType: DataType, query: string) => void
   restore: (dataType: DataType, query: string) => void
-  deleteItem: (dataType: DataType, item: any) => void
+  deleteItem: (item: IDoc) => Promise<boolean>
   bucketsMap: Record<string, IBucket>
   viewBucket: (store: any, bucketId: string) => void
   handleItemClick: (event: MouseEvent, item: IDoc, index: number, callback: () => void) => void
@@ -82,7 +81,6 @@ defineProps<{
 
 defineEmits<{
   'download-file': [path: string]
-  'delete-item': [item: IDoc]
   'open-file': [item: IDoc]
   'rename-item': [item: IDoc]
   'duplicate-item': [item: IDoc]

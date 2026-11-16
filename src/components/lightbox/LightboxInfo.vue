@@ -11,10 +11,11 @@
       </div>
       <div class="info-actions">
         <LightboxFileActionButtons
+          ref="fileActions"
           :current="current"
+          :delete-file="deleteFile"
           :read-only="readOnly"
           @rename-file="$emit('rename-file')"
-          @delete-file="$emit('delete-file')"
         />
       </div>
     </div>
@@ -41,7 +42,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, onUnmounted } from 'vue'
+import { computed, onMounted, onUnmounted, useTemplateRef, type PropType } from 'vue'
 import { isImage, isZipPath } from '@/lib/file'
 import { DataType } from '@/lib/data'
 import { useMediaTrash, useFileTrashState } from '@/hooks/media-trash'
@@ -49,6 +50,7 @@ import { useOrganizeUndo } from '@/hooks/organize-undo'
 import type { ITag } from '@/lib/interfaces'
 import type { ISource } from './types'
 import LightboxMoveToFolders from './LightboxMoveToFolders.vue'
+import LightboxFileActionButtons from './LightboxFileActionButtons.vue'
 
 const props = defineProps({
   current: {
@@ -75,6 +77,10 @@ const props = defineProps({
     type: Array as () => { tagId: string; key: string }[],
     default: () => [],
   },
+  deleteFile: {
+    type: Function as PropType<() => Promise<boolean>>,
+    required: true,
+  },
   readOnly: {
     type: Boolean,
     default: false,
@@ -85,7 +91,8 @@ const props = defineProps({
   },
 })
 
-const emit = defineEmits(['rename-file', 'delete-file', 'refetch-info', 'update:image-quality'])
+const emit = defineEmits(['rename-file', 'refetch-info', 'update:image-quality'])
+const fileActions = useTemplateRef<InstanceType<typeof LightboxFileActionButtons>>('fileActions')
 
 const { isTrashed, canTrash, canDelete, canMove } = useFileTrashState(() => props.current)
 const { trash } = useMediaTrash()
@@ -107,7 +114,7 @@ function handleKeyDown(event: KeyboardEvent) {
     if (canTrash.value) {
       if (isTrashed.value) {
         // Already in trash, permanently delete
-        if (canDelete.value) emit('delete-file')
+        if (canDelete.value) fileActions.value?.requestDelete()
       } else {
         // Not in trash, move to trash
         if (props.current?.data?.id && props.current.type) {
@@ -117,7 +124,7 @@ function handleKeyDown(event: KeyboardEvent) {
       }
     } else {
       // Can't trash, directly delete
-      if (canDelete.value) emit('delete-file')
+      if (canDelete.value) fileActions.value?.requestDelete()
     }
   }
 }

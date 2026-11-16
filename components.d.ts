@@ -74,7 +74,6 @@ declare module 'vue' {
     CreateChannelModal: typeof import('./src/views/chat/CreateChannelModal.vue')['default']
     CreatedTokenDialog: typeof import('./src/views/settings/sessions/CreatedTokenDialog.vue')['default']
     DangerAction: typeof import('./src/components/base/DangerAction.vue')['default']
-    DeleteFileConfirm: typeof import('./src/components/DeleteFileConfirm.vue')['default']
     DevDataTable: typeof import('./src/views/developer/DevDataTable.vue')['default']
     DeveloperDatabaseSidebar: typeof import('./src/views/developer/DeveloperDatabaseSidebar.vue')['default']
     DeveloperDatabaseView: typeof import('./src/views/developer/DeveloperDatabaseView.vue')['default']

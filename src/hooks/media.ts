@@ -64,7 +64,7 @@ export const useDeleteItems = () => {
       pendingDeleteCallback = () => {
         emitter.emit('media_items_actioned', { type, action: 'delete', id: item.id, query: `ids:${item.id}` })
       }
-      doDeleteItem({ type, query: `ids:${item.id}` })
+      return doDeleteItem({ type, query: `ids:${item.id}` })
     },
   }
 }
