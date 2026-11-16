@@ -6,8 +6,7 @@
     :scan-progress="fileIndexScanProgress"
     :scan-disabled="loading || saving"
     @settings="$emit('settings')"
-    @create="setMode('BLOCKLIST')"
-    @disable="setMode('DISABLED')"
+    @create="create"
     @scan="rebuild()"
     @pause="pause()"
     @resume="resume()"
@@ -30,11 +29,11 @@ watch(fileIndexScanProgress, ({ state }) => {
   if (['IDLE', 'STOPPED', 'FAILED'].includes(state)) emit('settled')
 })
 const saving = ref(false)
-async function setMode(indexMode: 'BLOCKLIST' | 'DISABLED') {
+async function create() {
   if (saving.value) return
   saving.value = true
   try {
-    await saveFileIndexVolume({ ...props.volume, indexMode })
+    await saveFileIndexVolume({ ...props.volume, indexMode: 'BLOCKLIST' })
     emit('settled')
   } catch (error) {
     toast(error instanceof Error ? error.message : String(error), 'error')

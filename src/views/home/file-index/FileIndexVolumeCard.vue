@@ -50,7 +50,6 @@
           </template>
           <template v-else>
             <v-text-button :disabled="scanDisabled || !canScanVolume(volume)" @click="$emit('scan')">{{ $t('rebuild_index') }}</v-text-button>
-            <v-text-button v-if="volume.indexMode !== 'DISABLED'" :disabled="scanDisabled || !volume.isAvailable" @click="$emit('disable')">{{ $t('file_index.disable') }}</v-text-button>
           </template>
         </template>
       </div>
@@ -66,7 +65,7 @@ import { canScanVolume, type FileIndexVolume } from '@/lib/api/file-index'
 import type { IFileIndexScanProgress, IStorageMount } from '@/lib/interfaces'
 
 const props = defineProps<{ volume: FileIndexVolume; title: string; mount?: IStorageMount; scanDisabled: boolean; scanProgress?: IFileIndexScanProgress }>()
-defineEmits<{ settings: []; create: []; disable: []; scan: []; pause: []; resume: []; stop: [] }>()
+defineEmits<{ settings: []; create: []; scan: []; pause: []; resume: []; stop: [] }>()
 const scanActive = computed(() => {
   const state = props.scanProgress?.state
   return state === 'QUEUED' || state === 'RUNNING' || state === 'PAUSED'

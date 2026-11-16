@@ -12,7 +12,7 @@
                 :name="radioName"
                 :value="choice.mode"
                 :checked="mode === choice.mode"
-                :disabled="saving"
+                :disabled="!!saving"
                 @change="mode = choice.mode"
               />
               {{ $t(choice.label) }}
@@ -21,12 +21,12 @@
               <div v-for="path in draft[choice.field]" :key="path" class="directory-row">
                 <span>{{ path }}</span>
                 <v-icon-button
-                  :disabled="saving"
+                  :disabled="!!saving"
                   :aria-label="`${$t('remove')}: ${path}`"
                   @click="draft[choice.field] = draft[choice.field].filter((item) => item !== path)"
                 ><i-material-symbols:close-rounded /></v-icon-button>
               </div>
-              <v-text-button :disabled="saving || !draft.isAvailable" @click="add(choice.field)">
+              <v-text-button :disabled="!!saving || !draft.isAvailable" @click="add(choice.field)">
                 <i-material-symbols:add-rounded aria-hidden="true" />{{ $t(choice.action) }}
               </v-text-button>
               <small v-if="draft[choice.field].length">{{ $t('file_index.includes_subfolders') }}</small>
@@ -34,12 +34,17 @@
           </div>
         </div>
         <FileIndexDefaults :rules="defaults" />
+        <div v-if="canDisable">
+          <v-text-button :loading="saving === 'disable'" :disabled="!!saving || !volume.isAvailable" @click="disable">
+            {{ $t('file_index.disable') }}
+          </v-text-button>
+        </div>
         <p v-if="error" role="alert" class="error">{{ error }}</p>
       </div>
     </template>
     <template #actions>
-      <v-text-button :disabled="saving" @click="cancel">{{ $t('cancel') }}</v-text-button>
-      <v-filled-button :loading="saving" :disabled="!canSave" @click="save">{{ $t('save') }}</v-filled-button>
+      <v-text-button :disabled="!!saving" @click="cancel">{{ $t('cancel') }}</v-text-button>
+      <v-filled-button :loading="saving === 'scope'" :disabled="!!saving || !canSave" @click="save">{{ $t('save') }}</v-filled-button>
     </template>
   </v-modal>
 </template>
@@ -61,12 +66,13 @@ const draft = ref({ ...props.volume, includedDirs: [...props.volume.includedDirs
 const mode = ref<'ALLOWLIST' | 'BLOCKLIST' | null>(
   draft.value.indexMode === 'DISABLED' ? null : draft.value.indexMode === 'ALLOWLIST' ? 'ALLOWLIST' : 'BLOCKLIST',
 )
-const saving = ref(false)
+const saving = ref<'scope' | 'disable' | null>(null)
 const error = ref('')
 const choices = [
   { mode: 'BLOCKLIST', label: 'file_index.blocklist', field: 'excludedDirs', action: 'file_index.exclude_folder' },
   { mode: 'ALLOWLIST', label: 'file_index.allowlist', field: 'includedDirs', action: 'file_index.select_folder' },
 ] as const
+const canDisable = computed(() => props.volume.indexMode === 'ALLOWLIST' || props.volume.indexMode === 'BLOCKLIST')
 const canSave = computed(() => mode.value === 'BLOCKLIST' || (mode.value === 'ALLOWLIST' && draft.value.includedDirs.length > 0))
 
 async function add(field: 'includedDirs' | 'excludedDirs') {
@@ -82,17 +88,27 @@ function cancel() {
 }
 
 async function save() {
-  if (saving.value || !mode.value || !canSave.value) return
-  saving.value = true
+  if (!mode.value || !canSave.value) return
+  await apply({ ...draft.value, indexMode: mode.value }, 'scope')
+}
+
+async function disable() {
+  if (!canDisable.value || !props.volume.isAvailable) return
+  await apply({ ...props.volume, indexMode: 'DISABLED' }, 'disable')
+}
+
+async function apply(volume: FileIndexVolume, action: 'scope' | 'disable') {
+  if (saving.value) return
+  saving.value = action
   error.value = ''
   try {
-    await saveFileIndexVolume({ ...draft.value, indexMode: mode.value }, request)
+    await saveFileIndexVolume(volume, request)
     await props.onSaved()
     if (modalQueue.value.some((modal) => modal.id === modalId)) await closeById(modalId)
   } catch (cause) {
     error.value = cause instanceof Error ? cause.message : String(cause)
   } finally {
-    saving.value = false
+    saving.value = null
   }
 }
 </script>

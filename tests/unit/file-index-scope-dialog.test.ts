@@ -112,16 +112,32 @@ it('does not enable a disabled volume or save an empty selection; retains the dr
   } finally { view.unmount() }
 })
 
-it('turns indexing off from the volume card without stopping a job or clearing either folder list', async () => {
-  const onSettled = vi.fn()
-  const view = renderView(VolumeItem, { volume: { ...volume('ALLOWLIST'), includedDirs: ['/fixture/photos'] }, title: 'Fixture volume', onSettled }, components)
+it('keeps Rebuild on the card and moves Turn off to the gear dialog', async () => {
+  const view = renderView(VolumeItem, { volume: volume('ALLOWLIST'), title: 'Fixture volume' }, components)
   try {
+    expect(button(view.root, 'rebuild_index')).toBeDefined()
+    expect(button(view.root, 'file_index.disable')).toBeUndefined()
+  } finally { view.unmount() }
+  const settings = scope('ALLOWLIST')
+  try {
+    expect(radios(settings.root)).toHaveLength(2)
+    expect(button(settings.root, 'file_index.disable')).toBeDefined()
+  } finally { settings.unmount() }
+})
+
+it('turns off only the selected volume from settings without saving draft folder changes', async () => {
+  const view = scope('BLOCKLIST')
+  try {
+    mocks.pick.mockResolvedValue('/fixture/unsaved')
+    click(button(view.root, 'file_index.exclude_folder'))
+    await flush()
     click(button(view.root, 'file_index.disable'))
     await flush()
-    expect(mocks.request).toHaveBeenCalledWith(expect.any(String), {
-      input: { volumeId: 'fixture', indexMode: 'DISABLED', includedDirs: ['/fixture/photos'], excludedDirs: ['/fixture/ignored'] },
+    expect(mocks.request).toHaveBeenCalledExactlyOnceWith(expect.any(String), {
+      input: { volumeId: 'fixture', indexMode: 'DISABLED', includedDirs: [], excludedDirs: ['/fixture/ignored'] },
     })
     expect(mocks.stop).not.toHaveBeenCalled()
-    expect(onSettled).toHaveBeenCalledOnce()
+    expect(view.onSaved).toHaveBeenCalledOnce()
+    expect(mocks.close).toHaveBeenCalledWith(7)
   } finally { view.unmount() }
 })
