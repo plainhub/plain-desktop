@@ -87,6 +87,25 @@ it('loads bounded IPC image bytes through a Blob URL and revokes the URL after d
   expect(fixture.loadFile).not.toHaveBeenCalled()
 })
 
+it('reports a failed source fetch without trying a second loading path', async () => {
+  fixture.query = { src: '/fs?id=synthetic', name: 'image.png' }
+  vi.mocked(fetch).mockRejectedValue(new Error('Fetch failed'))
+  mount(ImageEditorView)
+  await flush()
+  expect(fixture.load).not.toHaveBeenCalled()
+  expect(fixture.loadFile).not.toHaveBeenCalled()
+  expect(fixture.toast).toHaveBeenCalledExactlyOnceWith('failed_to_load_file', 'error')
+})
+
+it('releases the selected-file Blob URL after opening the image', async () => {
+  fixture.query = { src: 'blob:editor-image', name: 'image.png' }
+  vi.mocked(fetch).mockResolvedValue({ ok: true, blob: async () => new Blob(['synthetic'], { type: 'image/png' }) } as Response)
+  mount(ImageEditorView)
+  await flush()
+  expect(fixture.loadFile).toHaveBeenCalledOnce()
+  expect(fixture.revokeUrl).toHaveBeenCalledExactlyOnceWith('blob:editor-image')
+})
+
 it.each(['unavailable', 'decode failed'])('does not fall back to HTTP when IPC image loading is %s', async (reason) => {
   fixture.query = { reference: 'app://image.png' }
   if (reason === 'unavailable') fixture.image.mockRejectedValue(new Error(reason))

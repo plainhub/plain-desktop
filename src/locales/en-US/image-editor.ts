@@ -29,6 +29,7 @@ export default {
     tool_sticker: 'Sticky Note',
     add_note: 'Add Note',
     start_blank: 'Or start with a blank canvas',
+    start_editing: 'Start editing',
     recent_projects: 'Recent Projects',
     add_text: 'Add Text',
     add_image: 'Add Image',

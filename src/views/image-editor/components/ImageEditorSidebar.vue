@@ -61,12 +61,12 @@
           v-for="(layer, idx) in reversedLayers"
           :key="layer.id"
           class="layer-item-wrap"
-          :class="{ dragging: fromIndex === realIndex(idx) }"
-          :style="itemStyle(realIndex(idx))"
-          @pointerdown="start($event, realIndex(idx))"
+          :class="{ dragging: fromIndex === idx }"
+          :style="itemStyle(idx)"
+          @pointerdown="start($event, idx)"
         >
           <div
-            v-if="toIndex === realIndex(idx) && fromIndex !== realIndex(idx)"
+            v-if="toIndex === idx && fromIndex !== idx"
             class="drop-indicator"
           />
           <div
@@ -83,11 +83,12 @@
                 @click.stop="$emit('openTextEditor', layer.id)"
               />
               <input
-                v-model="layer.text"
+                :value="layer.text"
                 type="text"
                 :placeholder="$t('image_editor.text_placeholder')"
                 maxlength="200"
                 class="layer-text-input"
+                @input="$emit('updateLayerText', layer.id, ($event.target as HTMLInputElement).value)"
                 @click.stop
               />
               <button
@@ -174,6 +175,7 @@ const emit = defineEmits<{
   clearAll: []
   replaceImageFile: [layerId: string, file: File]
   openTextEditor: [id: string]
+  updateLayerText: [id: string, text: string]
 }>()
 
 const LAYER_ICONS: Record<EditorLayerType, any> = {
@@ -214,7 +216,7 @@ const { fromIndex, toIndex, itemStyle, start } = useDragSort({
   containerRef: listEl,
   itemSelector: '.layer-item-wrap',
   onEnd(from, to) {
-    emit('reorderLayer', from, to)
+    emit('reorderLayer', realIndex(from), realIndex(to))
   },
 })
 </script>

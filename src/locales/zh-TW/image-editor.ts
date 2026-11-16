@@ -29,6 +29,7 @@ export default {
     tool_sticker: '便箋',
     add_note: '新增便箋',
     start_blank: '或從空白畫布開始',
+    start_editing: '開始編輯',
     recent_projects: '最近專案',
     add_text: '新增文字',
     add_image: '新增圖片',

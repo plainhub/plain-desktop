@@ -2,7 +2,7 @@ import type {
   EditorLayer, MosaicLayer, CanvasSize, EditorRasterSource,
 } from '@/views/image-editor/utils/types'
 import { getEditorLayerBounds, getEditorRasterSize } from '@/views/image-editor/utils/types'
-import { drawSelectionBorder, drawHoverBorder } from '@/views/image-editor/utils/selection-border'
+import { drawSelectionBorder, drawHoverBorder, SELECTION } from '@/views/image-editor/utils/selection-border'
 import { drawLayer } from '@/views/image-editor/utils/editor-draw-layers'
 
 export function applyMosaic(ctx: CanvasRenderingContext2D, l: MosaicLayer) {
@@ -137,8 +137,6 @@ function parseGradient(
   return grad
 }
 
-const SEL_PAD = 10
-
 export interface SelectionLayout {
   bounds: { x: number; y: number; w: number; h: number }
   pad: number
@@ -147,7 +145,7 @@ export interface SelectionLayout {
   rotation: number
 }
 
-export function getSelectionLayout(layer: EditorLayer): SelectionLayout {
+export function getSelectionLayout(layer: EditorLayer, displayScale: number): SelectionLayout {
   const bounds = getEditorLayerBounds(layer)
   const rot = ('rotation' in layer) ? (layer as any).rotation ?? 0 : 0
   let cx: number, cy: number
@@ -160,34 +158,41 @@ export function getSelectionLayout(layer: EditorLayer): SelectionLayout {
   } else {
     cx = bounds.x + bounds.w / 2; cy = bounds.y + bounds.h / 2
   }
-  return { bounds, pad: SEL_PAD, cx, cy, rotation: rot }
+  return { bounds, pad: SELECTION.padding / displayScale, cx, cy, rotation: rot }
 }
 
 export function drawSelectionRect(
   ctx: CanvasRenderingContext2D,
   layer: EditorLayer,
-  _scale: number,
+  displayScale: number,
 ) {
-  const { bounds, pad, cx, cy, rotation } = getSelectionLayout(layer)
+  const { bounds, pad, cx, cy, rotation } = getSelectionLayout(layer, displayScale)
   const hasHandles = layer.type === 'text' || layer.type === 'image' || layer.type === 'arrow' || layer.type === 'sticker'
+  ctx.save()
+  ctx.scale(1 / displayScale, 1 / displayScale)
   drawSelectionBorder(ctx, {
-    x: bounds.x, y: bounds.y, w: bounds.w, h: bounds.h,
-    cx, cy, rotation,
+    x: bounds.x * displayScale, y: bounds.y * displayScale, w: bounds.w * displayScale, h: bounds.h * displayScale,
+    cx: cx * displayScale, cy: cy * displayScale, rotation,
   }, {
     color: '#3b82f6',
-    pad,
+    pad: pad * displayScale,
     showEdgeHandles: layer.type === 'text' || layer.type === 'image',
     showRotationHandle: hasHandles,
   })
+  ctx.restore()
 }
 
 export function drawHoverRect(
   ctx: CanvasRenderingContext2D,
   layer: EditorLayer,
+  displayScale: number,
 ) {
-  const { bounds, pad, cx, cy, rotation } = getSelectionLayout(layer)
+  const { bounds, pad, cx, cy, rotation } = getSelectionLayout(layer, displayScale)
+  ctx.save()
+  ctx.scale(1 / displayScale, 1 / displayScale)
   drawHoverBorder(ctx, {
-    x: bounds.x, y: bounds.y, w: bounds.w, h: bounds.h,
-    cx, cy, rotation,
-  }, pad)
+    x: bounds.x * displayScale, y: bounds.y * displayScale, w: bounds.w * displayScale, h: bounds.h * displayScale,
+    cx: cx * displayScale, cy: cy * displayScale, rotation,
+  }, pad * displayScale)
+  ctx.restore()
 }

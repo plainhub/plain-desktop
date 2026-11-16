@@ -1,4 +1,6 @@
 import { onMounted, onUnmounted, watch } from 'vue'
+import { useI18n } from 'vue-i18n'
+import toast from '@/components/toaster'
 import { renderEditorCanvas } from '@/views/image-editor/utils/renderer'
 import { PlainAppProjectStore } from '../store/plain-app-store'
 import { EventSyncTransport } from '../sync/event-sync-transport'
@@ -10,16 +12,15 @@ import { useImageEditorPersistence } from './useImageEditorPersistence'
  * Project persistence, URL mutation, and network synchronization stay here.
  */
 export function useImageEditorCore() {
+  const { t } = useI18n()
   let session!: AnnotationSession
   let scheduleSaveAdapter: () => void = () => {}
-  let clearProjectAdapter: () => void = () => {}
 
   session = useAnnotationSession({
     allowSourceMove: true,
     allowDestructiveCrop: true,
     textCommitMode: 'immediate',
     persistSourceImage: (value) => session.doc.setSourceImage(value),
-    onReset: () => clearProjectAdapter(),
   })
 
   const { canvasRef, overlayRef, wrapRef, doc, binding, state, tools } = session
@@ -65,9 +66,8 @@ export function useImageEditorCore() {
   }
 
   const persistence = useImageEditorPersistence(doc, store, editorActive, makeThumbnail, onRestored)
-  const { projectId, scheduleSave, flushSave, tryRestore, ensureProjectId, clearProject, deleteProject, listRecentProjects, loadProjectById } = persistence
+  const { projectId, scheduleSave, flushSave, tryRestore, ensureProjectId, deleteProject } = persistence
   scheduleSaveAdapter = scheduleSave
-  clearProjectAdapter = clearProject
 
   const transport = new EventSyncTransport(() => projectId.value, () => doc.getStateUpdate())
   const stopProjectSync = watch(projectId, () => transport.resynchronize())
@@ -110,8 +110,14 @@ export function useImageEditorCore() {
     window.addEventListener('keydown', onKeyDown)
     window.addEventListener('beforeunload', onBeforeUnload)
     document.body.style.overflow = 'hidden'
-    const restored = await tryRestore()
-    if (!restored) ensureProjectId()
+    try {
+      const restored = await tryRestore()
+      if (!restored) ensureProjectId()
+    } catch (error) {
+      console.warn('[ImageEditor] Failed to restore project', error)
+      toast(t('failed_to_load_file'), 'error')
+      return
+    }
     await transport.connect()
     session.render.draw()
   })
@@ -163,6 +169,6 @@ export function useImageEditorCore() {
       copyToClipboard: session.exportOps.copyToClipboard,
       getPreviewBlobUrl: session.exportOps.getPreviewBlobUrl,
     },
-    persistence: { scheduleSave, listRecentProjects, loadProjectById, deleteProject },
+    persistence: { deleteProject },
   }
 }

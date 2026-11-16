@@ -47,7 +47,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, computed, watch, onUnmounted } from 'vue'
+import { useEditorPopup } from '../composables/useEditorPopup'
 import type { StickerLayer } from '@/views/image-editor/utils/types'
 import { measureStickerSize } from '@/views/image-editor/utils/editor-draw-layers'
 import type { ImageEditorDoc } from '@/views/image-editor/composables/useImageEditorDoc'
@@ -62,7 +62,7 @@ const props = defineProps<{
 
 const emit = defineEmits<{ close: [] }>()
 
-const panelRef = ref<HTMLElement | null>(null)
+const { panelRef, posX, posY, onDragStart } = useEditorPopup(() => !!props.layer, () => props.rect, 256, () => emit('close'))
 
 function resizeFor(layer: StickerLayer) {
   const { w, h } = measureStickerSize(layer)
@@ -98,49 +98,6 @@ function toggleItalic() {
   props.doc.setLayerProp(props.layer.id, 'fontStyle', next)
 }
 
-function onClickOutside(e: MouseEvent) {
-  if (!props.layer || !panelRef.value) return
-  if (panelRef.value.contains(e.target as Node)) return
-  emit('close')
-}
-
-watch(() => props.layer, (layer) => {
-  if (layer) {
-    dragOffset.x = 0
-    dragOffset.y = 0
-    setTimeout(() => document.addEventListener('pointerdown', onClickOutside), 0)
-  } else {
-    document.removeEventListener('pointerdown', onClickOutside)
-  }
-})
-
-onUnmounted(() => document.removeEventListener('pointerdown', onClickOutside))
-
-const dragOffset = reactive({ x: 0, y: 0 })
-let _dragStartMx = 0
-let _dragStartMy = 0
-let _dragStartOx = 0
-let _dragStartOy = 0
-
-const posX = computed(() => props.rect.left + dragOffset.x)
-const posY = computed(() => props.rect.top + dragOffset.y)
-
-function onDragStart(e: PointerEvent) {
-  _dragStartMx = e.clientX
-  _dragStartMy = e.clientY
-  _dragStartOx = dragOffset.x
-  _dragStartOy = dragOffset.y
-  document.addEventListener('pointermove', onDragMove)
-  document.addEventListener('pointerup', onDragEnd)
-}
-function onDragMove(e: PointerEvent) {
-  dragOffset.x = _dragStartOx + e.clientX - _dragStartMx
-  dragOffset.y = _dragStartOy + e.clientY - _dragStartMy
-}
-function onDragEnd() {
-  document.removeEventListener('pointermove', onDragMove)
-  document.removeEventListener('pointerup', onDragEnd)
-}
 </script>
 
 <style lang="scss" scoped>
@@ -148,7 +105,10 @@ function onDragEnd() {
   position: fixed;
   z-index: 102;
   width: 256px;
-  max-width: 100%;
+  box-sizing: border-box;
+  max-width: calc(100% - 16px);
+  max-height: calc(100vh - 16px);
+  overflow-y: auto;
   background: var(--md-sys-color-surface-container-high);
   border: 1px solid var(--md-sys-color-outline-variant);
   border-radius: 12px;

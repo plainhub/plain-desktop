@@ -29,6 +29,7 @@ export default {
     tool_sticker: '便签',
     add_note: '添加便签',
     start_blank: '或从空白画布开始',
+    start_editing: '开始编辑',
     recent_projects: '最近项目',
     add_text: '添加文本',
     add_image: '添加图片',

@@ -96,7 +96,7 @@ defineEmits<{
 
 const bgOffsetChanged = computed(() => {
   if (!props.bgOffset) return false
-  return Math.abs(props.bgOffset.x - 0.5) > 0.001 || Math.abs(props.bgOffset.y - 0.5) > 0.001
+  return props.bgOffset.x !== 0 || props.bgOffset.y !== 0
 })
 </script>
 

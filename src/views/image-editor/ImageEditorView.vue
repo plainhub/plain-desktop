@@ -90,13 +90,10 @@ onMounted(async () => {
       loadingText.value = 'Opening editor…'
       await editorRef.value?.loadImage(file)
     } catch (e) {
-      console.warn('[ImageEditorView] Fetch failed, trying direct URL load', e)
-      try {
-        await editorRef.value?.loadImageFromUrl(src)
-      } catch (e2) {
-        console.warn('[ImageEditorView] Failed to load image from URL', e2)
-      }
+      console.warn('[ImageEditorView] Failed to load image', e)
+      toast(t('failed_to_load_file'), 'error')
     } finally {
+      if (src.startsWith('blob:')) URL.revokeObjectURL(src)
       loading.value = false
     }
   }

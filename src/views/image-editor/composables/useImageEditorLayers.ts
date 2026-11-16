@@ -4,6 +4,7 @@ import type {
 } from '@/views/image-editor/utils/types'
 import type { ImageEditorDoc } from './useImageEditorDoc'
 import { generateRecordId } from '@/lib/record-id.generated'
+import { serializeEditorImage } from '../utils/image-resource'
 
 let _layerCounter = 0
 export function resetLayerCounter() { _layerCounter = 0 }
@@ -50,7 +51,10 @@ export function useImageEditorLayers(
       reader.onload = () => {
         const src = reader.result as string
         const img = new Image()
-        img.onload = () => resolve({ src, img })
+        img.onload = () => {
+          try { resolve({ src: serializeEditorImage(img), img }) }
+          catch (error) { reject(error) }
+        }
         img.onerror = reject
         img.src = src
       }

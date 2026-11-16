@@ -25,13 +25,10 @@ export interface AnnotationSource {
 }
 
 export interface AnnotationSessionOptions {
-  /** Full-editor compatibility hook. Omit it for an ephemeral session. */
   persistSourceImage?: (value: string | null) => void
-  /** Full-editor compatibility hook. Omit it for an ephemeral session. */
   onReset?: () => void
   allowSourceMove?: boolean
   allowDestructiveCrop?: boolean
-  /** Capture sessions draft text; the full editor opts into legacy immediate insertion. */
   textCommitMode?: 'draft' | 'immediate'
 }
 
@@ -96,7 +93,8 @@ export function useAnnotationSession(options: AnnotationSessionOptions = {}) {
     if (!disposed) scheduler.requestOverlay()
   }
 
-  const transform = useEditorTransform(layers, selectedLayerId, doc, beginGesture)
+  const displayScale = () => wrapRef.value!.getBoundingClientRect().width / canvasSize.value.width
+  const transform = useEditorTransform(layers, selectedLayerId, doc, beginGesture, displayScale)
   const { overlayCursor } = transform
   const crop = useEditorCrop(
     canvasSize,
@@ -158,12 +156,12 @@ export function useAnnotationSession(options: AnnotationSessionOptions = {}) {
     const hovered = hoveredLayerId.value
     if (hovered && hovered !== selectedLayerId.value) {
       const layer = layers.find((candidate) => candidate.id === hovered)
-      if (layer?.visible) drawHoverRect(ctx, layer)
+      if (layer?.visible) drawHoverRect(ctx, layer, displayScale())
     }
 
     const selected = selectedLayer.value
     if (selected?.visible) {
-      drawSelectionRect(ctx, selected, scale)
+      drawSelectionRect(ctx, selected, displayScale())
       if (isDraggingLayer.value) {
         drawCenterCrosshair(ctx, canvasSize.value.width, canvasSize.value.height)
         drawDistanceGuides(ctx, getEditorLayerBounds(selected), canvasSize.value.width, canvasSize.value.height)

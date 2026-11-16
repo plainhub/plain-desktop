@@ -3,6 +3,7 @@ import type {
   EditorLayer, EditorTextLayer, EditorImageLayer,
   ArrowLayer, EllipseLayer,
 } from '@/views/image-editor/utils/types'
+import { SELECTION } from '@/views/image-editor/utils/selection-border'
 import { getSelectionLayout } from '@/views/image-editor/utils/renderer'
 import type { ImageEditorDoc } from './useImageEditorDoc'
 
@@ -18,6 +19,7 @@ export function useEditorTransform(
   selectedLayerId: Ref<string | null>,
   doc: ImageEditorDoc,
   beginGesture: () => void,
+  displayScale: () => number,
 ) {
   const isRotating = ref(false)
   const isScaling = ref(false)
@@ -38,13 +40,13 @@ export function useEditorTransform(
     if (!selectedLayerId.value) return null
     const sel = layers.find(l => l.id === selectedLayerId.value)
     if (!sel) return null
-    const { bounds, pad, cx, cy, rotation } = getSelectionLayout(sel)
+    const { bounds, pad, cx, cy, rotation } = getSelectionLayout(sel, displayScale())
     const p = unrotatePoint(cx2, cy2, cx, cy, rotation)
     const hasRotation = sel.type === 'text' || sel.type === 'image' || sel.type === 'arrow' || sel.type === 'sticker'
     if (hasRotation) {
       const handleX = bounds.x + bounds.w / 2
-      const handleY = bounds.y - pad - 36
-      if (Math.hypot(p.x - handleX, p.y - handleY) < 25) return 'rotate'
+      const handleY = bounds.y - pad - SELECTION.rotationOffset / displayScale()
+      if (Math.hypot(p.x - handleX, p.y - handleY) < SELECTION.rotationHitRadius / displayScale()) return 'rotate'
     }
     const cornerDefs: [number, number, string][] = [
       [bounds.x - pad, bounds.y - pad, 'scale-nw'],
@@ -53,12 +55,12 @@ export function useEditorTransform(
       [bounds.x + bounds.w + pad, bounds.y + bounds.h + pad, 'scale-se'],
     ]
     for (const [hx, hy, tag] of cornerDefs) {
-      if (Math.hypot(p.x - hx, p.y - hy) < 18) return tag
+      if (Math.hypot(p.x - hx, p.y - hy) < SELECTION.cornerHitRadius / displayScale()) return tag
     }
     if (sel.type === 'text' || sel.type === 'image') {
       const edgeMidY = bounds.y + bounds.h / 2
-      if (Math.hypot(p.x - (bounds.x - pad), p.y - edgeMidY) < 20) return 'edge-left'
-      if (Math.hypot(p.x - (bounds.x + bounds.w + pad), p.y - edgeMidY) < 20) return 'edge-right'
+      if (Math.hypot(p.x - (bounds.x - pad), p.y - edgeMidY) < SELECTION.edgeHitRadius / displayScale()) return 'edge-left'
+      if (Math.hypot(p.x - (bounds.x + bounds.w + pad), p.y - edgeMidY) < SELECTION.edgeHitRadius / displayScale()) return 'edge-right'
     }
     return null
   }
@@ -67,7 +69,7 @@ export function useEditorTransform(
     const handle = hitTestHandle(pos.x, pos.y)
     if (!handle || !selectedLayerId.value) return false
     const sel = layers.find(l => l.id === selectedLayerId.value)!
-    const { cx, cy } = getSelectionLayout(sel)
+    const { cx, cy } = getSelectionLayout(sel, displayScale())
 
     if (handle === 'rotate') {
       beginGesture()
@@ -107,7 +109,7 @@ export function useEditorTransform(
     if (isRotating.value) {
       const sel = layers.find(l => l.id === id)
       if (sel && 'rotation' in sel) {
-        const { cx, cy } = getSelectionLayout(sel)
+        const { cx, cy } = getSelectionLayout(sel, displayScale())
         let deg = ((Math.atan2(pos.y - cy, pos.x - cx) - rotateStartAngle) * 180) / Math.PI
         for (const snap of [0, 90, 180, 270, -90, -180, -270, 360]) {
           if (Math.abs(deg - snap) < 3) { deg = snap; break }

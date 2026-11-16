@@ -9,9 +9,10 @@ import type { TextStroke, TextShadow } from '../utils/text-styles'
 export const Y_META_KEY = 'meta'
 export const Y_LAYERS_KEY = 'layers'
 export const Y_IMAGES_KEY = 'images'
+export const DOCUMENT_FORMAT_VERSION = 1
 
 export const META_KEYS = [
-  'canvasWidth', 'canvasHeight', 'bgColor',
+  'formatVersion', 'canvasWidth', 'canvasHeight', 'bgColor',
   'imgOffsetX', 'imgOffsetY', 'sourceImage', 'imgAlpha',
 ] as const
 
@@ -122,16 +123,14 @@ function createYTextShadow(s: TextShadow): Y.Map<unknown> {
   return m
 }
 
-function readYTextStroke(m: Y.Map<unknown> | undefined): TextStroke {
-  if (!m) return { width: 0, color: '#000000' }
+function readYTextStroke(m: Y.Map<unknown>): TextStroke {
   return {
     width: m.get('width') as number,
     color: m.get('color') as string,
   }
 }
 
-function readYTextShadow(m: Y.Map<unknown> | undefined): TextShadow {
-  if (!m) return { offsetX: 0, offsetY: 0, blur: 0, color: 'rgba(0,0,0,0.7)' }
+function readYTextShadow(m: Y.Map<unknown>): TextShadow {
   return {
     offsetX: m.get('offsetX') as number,
     offsetY: m.get('offsetY') as number,
@@ -199,8 +198,8 @@ export function readYLayer(yMap: Y.Map<unknown>): EditorLayer {
         textAlign: yMap.get('textAlign') as 'left' | 'center' | 'right',
         letterSpacing: yMap.get('letterSpacing') as number,
         textDecoration: yMap.get('textDecoration') as string,
-        textStroke: readYTextStroke(yMap.get('textStroke') as Y.Map<unknown> | undefined),
-        textShadow: readYTextShadow(yMap.get('textShadow') as Y.Map<unknown> | undefined),
+        textStroke: readYTextStroke(yMap.get('textStroke') as Y.Map<unknown>),
+        textShadow: readYTextShadow(yMap.get('textShadow') as Y.Map<unknown>),
         glow: yMap.get('glow') as boolean,
         rotation: yMap.get('rotation') as number,
         maxWidth: yMap.get('maxWidth') as number,
@@ -214,8 +213,8 @@ export function readYLayer(yMap: Y.Map<unknown>): EditorLayer {
         rotation: yMap.get('rotation') as number,
       }
     case 'freehand': {
-      const yPoints = yMap.get('points') as Y.Array<PointTuple> | undefined
-      const tuples = yPoints?.toArray() ?? []
+      const yPoints = yMap.get('points') as Y.Array<PointTuple>
+      const tuples = yPoints.toArray()
       return {
         id, type, visible, name,
         points: tuples.map(t => ({ x: t[0], y: t[1] })),
@@ -235,6 +234,8 @@ export function readYLayer(yMap: Y.Map<unknown>): EditorLayer {
         fontStyle: yMap.get('fontStyle') as string,
         rotation: yMap.get('rotation') as number,
       }
+    default:
+      throw new Error('Unsupported image editor layer type')
   }
 }
 

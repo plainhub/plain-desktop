@@ -20,7 +20,7 @@ export interface DrawSelectionOptions {
   showRotationHandle?: boolean
 }
 
-const ROT_HANDLE_OFFSET = 36
+export const SELECTION = { padding: 8, cornerRadius: 6, rotationRadius: 12, rotationOffset: 36, cornerHitRadius: 12, rotationHitRadius: 16, edgeHitRadius: 16 } as const
 
 export function drawSelectionBorder(
   ctx: CanvasRenderingContext2D,
@@ -28,7 +28,7 @@ export function drawSelectionBorder(
   opts: DrawSelectionOptions = {},
 ) {
   const color = opts.color ?? '#3b82f6'
-  const pad = opts.pad ?? 10
+  const pad = opts.pad ?? SELECTION.padding
   const showEdge = opts.showEdgeHandles ?? true
   const showRotation = opts.showRotationHandle ?? true
 
@@ -57,7 +57,7 @@ export function drawSelectionBorder(
     ctx.strokeStyle = color
     ctx.lineWidth = 2
     ctx.beginPath()
-    ctx.arc(hx!, hy!, 7, 0, Math.PI * 2)
+    ctx.arc(hx!, hy!, SELECTION.cornerRadius - ctx.lineWidth / 2, 0, Math.PI * 2)
     ctx.fill()
     ctx.stroke()
   }
@@ -82,18 +82,18 @@ export function drawSelectionBorder(
 
   if (showRotation) {
     const handleX = bounds.x + bounds.w / 2
-    const handleY = bounds.y - pad - ROT_HANDLE_OFFSET
+    const handleY = bounds.y - pad - SELECTION.rotationOffset
     ctx.strokeStyle = color
     ctx.lineWidth = 1.5
     ctx.beginPath()
     ctx.moveTo(handleX, bounds.y - pad)
-    ctx.lineTo(handleX, handleY + 14)
+    ctx.lineTo(handleX, handleY + SELECTION.rotationRadius)
     ctx.stroke()
     ctx.fillStyle = '#ffffff'
     ctx.strokeStyle = color
     ctx.lineWidth = 2.5
     ctx.beginPath()
-    ctx.arc(handleX, handleY, 14, 0, Math.PI * 2)
+    ctx.arc(handleX, handleY, SELECTION.rotationRadius - ctx.lineWidth / 2, 0, Math.PI * 2)
     ctx.fill()
     ctx.stroke()
     const hR = 7
@@ -132,7 +132,7 @@ export function drawSelectionBorder(
 export function drawHoverBorder(
   ctx: CanvasRenderingContext2D,
   bounds: SelectionBounds,
-  pad = 10,
+  pad: number = SELECTION.padding,
 ) {
   ctx.save()
   if (bounds.rotation) {

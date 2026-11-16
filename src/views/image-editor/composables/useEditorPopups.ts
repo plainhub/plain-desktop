@@ -9,7 +9,6 @@ export function useEditorPopups(
   layers: EditorLayer[],
   selectedLayerId: Ref<string | null>,
   wrapRef: Ref<HTMLElement | null>,
-  draw: () => void,
 ) {
   const popupLayerId = ref<string | null>(null)
   const popupRect = ref({ top: 0, left: 0 })
@@ -28,7 +27,7 @@ export function useEditorPopups(
       const wrap = wrapRef.value
       if (wrap) {
         const r = wrap.getBoundingClientRect()
-        popupRect.value = { top: Math.max(8, r.top), left: Math.min(r.right + 12, window.innerWidth - 330) }
+        popupRect.value = { top: Math.max(8, r.top), left: Math.min(r.right + 8, window.innerWidth - 328) }
       }
     })
   }
@@ -51,12 +50,13 @@ export function useEditorPopups(
       const wrap = wrapRef.value
       if (wrap) {
         const r = wrap.getBoundingClientRect()
-        stickerPopupRect.value = { top: Math.max(8, r.top), left: Math.min(r.right + 12, window.innerWidth - 290) }
+        stickerPopupRect.value = { top: Math.max(8, r.top), left: Math.min(r.right + 8, window.innerWidth - 264) }
       }
     })
   }
 
-  watch(selectedLayerId, (id) => {
+  function selectLayer(id: string | null) {
+    selectedLayerId.value = id
     if (!id) { popupLayerId.value = null; stickerPopupId.value = null; return }
     const layer = layers.find(l => l.id === id)
     if (!layer) { popupLayerId.value = null; stickerPopupId.value = null; return }
@@ -70,13 +70,13 @@ export function useEditorPopups(
       popupLayerId.value = null
       stickerPopupId.value = null
     }
-  })
+  }
 
-  watch(stickerPopupLayer, () => draw(), { deep: true })
+  watch(selectedLayerId, selectLayer)
 
   return {
     popupLayerId, popupRect, popupLayer,
     stickerPopupId, stickerPopupRect, stickerPopupLayer,
-    openTextEditor, openStickerEditor,
+    openTextEditor, openStickerEditor, selectLayer,
   }
 }

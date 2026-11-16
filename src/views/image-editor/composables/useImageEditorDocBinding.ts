@@ -1,4 +1,4 @@
-import { ref, reactive, shallowRef, type Ref, type Reactive } from 'vue'
+import { ref, reactive, shallowRef, computed, type Ref, type Reactive } from 'vue'
 import * as Y from 'yjs'
 import type { EditorLayer, CanvasSize, EditorRasterSource } from '../utils/types'
 import type { ImageEditorDoc } from './useImageEditorDoc'
@@ -18,14 +18,20 @@ export interface ImageEditorDocBinding {
 
 export function useImageEditorDocBinding(doc: ImageEditorDoc): ImageEditorDocBinding {
   const canvasSize = ref<CanvasSize>(doc.getCanvasSize())
-  const bgColor = ref(doc.getBgColor())
+  const syncVersion = ref(0)
+  const bgColor = computed({
+    get: () => { void syncVersion.value; return doc.getBgColor() },
+    set: (value: string) => doc.setBgColor(value),
+  })
   const imgOffset = reactive(doc.getImgOffset())
-  const imgAlpha = ref(doc.getImgAlpha())
+  const imgAlpha = computed({
+    get: () => { void syncVersion.value; return doc.getImgAlpha() },
+    set: (value: number) => doc.setImgAlpha(value),
+  })
   const sourceImg = shallowRef<EditorRasterSource | null>(null)
   const layers = reactive<EditorLayer[]>([]) as Reactive<EditorLayer[]>
   const layerImages = new Map<string, HTMLImageElement>()
   const layerImageVersions = new Map<string, number>()
-  const syncVersion = ref(0)
 
   let disposed = false
 
@@ -99,11 +105,9 @@ export function useImageEditorDocBinding(doc: ImageEditorDoc): ImageEditorDocBin
 
   function syncAll(): void {
     canvasSize.value = doc.getCanvasSize()
-    bgColor.value = doc.getBgColor()
     const offset = doc.getImgOffset()
     imgOffset.x = offset.x
     imgOffset.y = offset.y
-    imgAlpha.value = doc.getImgAlpha()
     rebuildLayers()
     rebuildSourceImage()
     rebuildAllLayerImages()
@@ -118,9 +122,6 @@ export function useImageEditorDocBinding(doc: ImageEditorDoc): ImageEditorDocBin
         case 'canvasHeight':
           canvasSize.value = doc.getCanvasSize()
           break
-        case 'bgColor':
-          bgColor.value = doc.getBgColor()
-          break
         case 'imgOffsetX':
         case 'imgOffsetY': {
           const offset = doc.getImgOffset()
@@ -128,9 +129,6 @@ export function useImageEditorDocBinding(doc: ImageEditorDoc): ImageEditorDocBin
           imgOffset.y = offset.y
           break
         }
-        case 'imgAlpha':
-          imgAlpha.value = doc.getImgAlpha()
-          break
         case 'sourceImage':
           rebuildSourceImage()
           break
@@ -160,14 +158,14 @@ export function useImageEditorDocBinding(doc: ImageEditorDoc): ImageEditorDocBin
     syncVersion.value++
   }
 
-  const layerObserverMap = new Map<Y.Map<unknown>, (event: Y.YMapEvent<unknown>) => void>()
+  const layerObserverMap = new Map<Y.Map<unknown>, () => void>()
 
   function attachLayerObservers(): void {
     for (let i = 0; i < doc.yLayers.length; i++) {
       const yMap = doc.yLayers.get(i)
       if (!yMap || layerObserverMap.has(yMap)) continue
       const handler = () => onLayerMapUpdate()
-      yMap.observe(handler)
+      yMap.observeDeep(handler)
       layerObserverMap.set(yMap, handler)
     }
     for (const [yMap, handler] of layerObserverMap) {
@@ -176,7 +174,7 @@ export function useImageEditorDocBinding(doc: ImageEditorDoc): ImageEditorDocBin
         if (doc.yLayers.get(i) === yMap) { stillExists = true; break }
       }
       if (!stillExists) {
-        yMap.unobserve(handler)
+        yMap.unobserveDeep(handler)
         layerObserverMap.delete(yMap)
       }
     }
@@ -210,7 +208,7 @@ export function useImageEditorDocBinding(doc: ImageEditorDoc): ImageEditorDocBin
     doc.yImages.unobserve(imagesHandler)
     doc.ydoc.off('update', docHandler)
     for (const [yMap, handler] of layerObserverMap) {
-      yMap.unobserve(handler)
+      yMap.unobserveDeep(handler)
     }
     layerObserverMap.clear()
     layerImages.clear()

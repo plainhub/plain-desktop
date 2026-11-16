@@ -51,10 +51,11 @@ it('rejects a native canvas failure before changing the editor or persisting the
   expect(value.sourceImg.value).toBeNull()
 })
 
-it('preserves the existing external URL behavior on a tainted remote canvas', async () => {
+it('rejects an unserializable remote image instead of saving a device-specific URL', async () => {
   serialize.mockImplementation(() => { throw new Error('Remote canvas') })
   const { value, editor } = context()
-  await editor.loadImageFromUrl('https://images.invalid/remote.png')
-  expect(images[0].crossOrigin).toBe('')
-  expect(value.persistSourceImage).toHaveBeenCalledExactlyOnceWith('https://images.invalid/remote.png')
+  await expect(editor.loadImageFromUrl('https://images.invalid/remote.png')).rejects.toThrow('Remote canvas')
+  expect(images[0].crossOrigin).toBe('anonymous')
+  expect(value.persistSourceImage).not.toHaveBeenCalled()
+  expect(value.sourceImg.value).toBeNull()
 })

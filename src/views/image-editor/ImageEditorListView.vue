@@ -12,6 +12,10 @@
         @select="onFileSelect($event[0]!)"
       />
 
+      <div v-if="selectedFile" class="start-blank-wrap">
+        <v-filled-button @click="startEditing">{{ $t('image_editor.start_editing') }}</v-filled-button>
+      </div>
+
       <div class="start-blank-wrap">
         <button class="start-blank" @click="startBlank">{{ $t('image_editor.start_blank') }}</button>
       </div>
@@ -74,6 +78,7 @@ const loading = ref(true)
 const projects = ref<ProjectSummary[]>([])
 const deleteMenuVisible = reactive<Record<string, boolean>>({})
 const deletingId = ref<string | null>(null)
+const selectedFile = ref<File | null>(null)
 
 async function loadProjects() {
   loading.value = true
@@ -85,6 +90,11 @@ async function loadProjects() {
 }
 
 function onFileSelect(file: File) {
+  selectedFile.value = file
+}
+
+function startEditing() {
+  const file = selectedFile.value!
   const url = URL.createObjectURL(file)
   window.open(`/image-editor/new?src=${encodeURIComponent(url)}&name=${encodeURIComponent(file.name)}`, '_blank')
 }
@@ -155,7 +165,7 @@ onDeactivated(() => {
 .start-blank-wrap {
   display: flex;
   justify-content: center;
-  margin-top: 12px;
+  margin-top: 16px;
 }
 
 .start-blank {

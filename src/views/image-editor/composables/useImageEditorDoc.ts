@@ -1,7 +1,7 @@
 import * as Y from 'yjs'
-import type { EditorLayer, CanvasSize } from '../utils/types'
+import type { EditorLayer, CanvasSize, EditorTextLayer } from '../utils/types'
 import {
-  Y_META_KEY, Y_LAYERS_KEY, Y_IMAGES_KEY, type MetaKey,
+  Y_META_KEY, Y_LAYERS_KEY, Y_IMAGES_KEY, DOCUMENT_FORMAT_VERSION, type MetaKey,
   createYLayer, readYLayer, moveYLayer, appendFreehandPoint,
 } from '../doc/schema'
 
@@ -12,6 +12,7 @@ export interface ImageEditorDocOptions {
 export function useImageEditorDoc(options: ImageEditorDocOptions = {}) {
   const ydoc = new Y.Doc({ gc: options.gc ?? true })
   const meta = ydoc.getMap<unknown>(Y_META_KEY)
+  meta.set('formatVersion', DOCUMENT_FORMAT_VERSION)
   const yLayers = ydoc.getArray<Y.Map<unknown>>(Y_LAYERS_KEY)
   const yImages = ydoc.getMap<string>(Y_IMAGES_KEY)
 
@@ -119,13 +120,12 @@ export function useImageEditorDoc(options: ImageEditorDocOptions = {}) {
 
   function removeLayer(index: number): EditorLayer | undefined {
     if (index < 0 || index >= yLayers.length) return undefined
-    const removed = yLayers.get(index)
-    yLayers.delete(index, 1)
-    if (removed) {
-      const id = removed.get('id') as string
-      if (yImages.has(id)) yImages.delete(id)
-    }
-    return removed ? readYLayer(removed) : undefined
+    const removed = readYLayer(yLayers.get(index))
+    ydoc.transact(() => {
+      yLayers.delete(index, 1)
+      yImages.delete(removed.id)
+    })
+    return removed
   }
 
   function removeLayerById(id: string): EditorLayer | undefined {
@@ -140,9 +140,10 @@ export function useImageEditorDoc(options: ImageEditorDocOptions = {}) {
     const target = to < 0 ? 0 : to >= yLayers.length ? yLayers.length - 1 : to
     const item = yLayers.get(from)
     if (!item) return
+    const moved = item.clone()
     ydoc.transact(() => {
       yLayers.delete(from, 1)
-      yLayers.insert(target, [item])
+      yLayers.insert(target, [moved])
     })
   }
 
@@ -166,6 +167,13 @@ export function useImageEditorDoc(options: ImageEditorDocOptions = {}) {
     ydoc.transact(() => {
       for (const [k, v] of Object.entries(props)) yMap.set(k, v)
     })
+  }
+
+  function setLayerMapProp<F extends 'textStroke' | 'textShadow', K extends keyof EditorTextLayer[F]>(id: string, field: F, key: K, value: EditorTextLayer[F][K]): void {
+    const layer = getLayerYMap(id)
+    if (!layer) return
+    const map = layer.get(field) as Y.Map<unknown>
+    map.set(key as string, value)
   }
 
   function moveLayerBy(id: string, dx: number, dy: number): void {
@@ -203,11 +211,15 @@ export function useImageEditorDoc(options: ImageEditorDocOptions = {}) {
     return Array.from(yImages.entries())
   }
 
-  function loadFromState(update: Uint8Array): void {
-    Y.applyUpdate(ydoc, update)
-  }
-
-  function loadFromStateV2(update: Uint8Array): void {
+  function loadState(update: Uint8Array): void {
+    const incoming = new Y.Doc()
+    try {
+      Y.applyUpdate(incoming, update)
+      if (incoming.getMap(Y_META_KEY).get('formatVersion') !== DOCUMENT_FORMAT_VERSION) {
+        throw new Error('Unsupported image editor document format')
+      }
+      for (const layer of incoming.getArray<Y.Map<unknown>>(Y_LAYERS_KEY).toArray()) readYLayer(layer)
+    } finally { incoming.destroy() }
     Y.applyUpdate(ydoc, update, 'load')
   }
 
@@ -259,6 +271,7 @@ export function useImageEditorDoc(options: ImageEditorDocOptions = {}) {
     moveLayer,
     setLayerProp,
     setLayerProps,
+    setLayerMapProp,
     moveLayerBy,
     appendPoint,
     clearLayers,
@@ -266,8 +279,7 @@ export function useImageEditorDoc(options: ImageEditorDocOptions = {}) {
     setImageSrc,
     removeImageSrc,
     getImageEntries,
-    loadFromState,
-    loadFromStateV2,
+    loadState,
     getStateUpdate,
     getStateVector,
     getDiffUpdate,

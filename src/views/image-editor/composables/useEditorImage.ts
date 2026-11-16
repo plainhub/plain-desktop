@@ -2,7 +2,7 @@ import type { Ref } from 'vue'
 import type { EditorLayer, EditorRasterSource, EditorTool } from '../utils/types'
 import type { ImageEditorDoc } from './useImageEditorDoc'
 import { resetLayerCounter } from './useImageEditorLayers'
-import { isNativeResourceUrl } from '@/hooks/native-resource-url'
+import { serializeEditorImage } from '../utils/image-resource'
 
 export interface EditorImageContext {
   doc: ImageEditorDoc
@@ -24,58 +24,27 @@ export function useEditorImage(ctx: EditorImageContext) {
     pushUndo, requestRender, clearHistory, persistSourceImage, onReset,
   } = ctx
 
-  function loadImage(file: File) {
-    return new Promise<void>((resolve, reject) => {
-      const blobUrl = URL.createObjectURL(file)
-      const img = new Image()
-      img.onload = () => {
-        pushUndo()
-        sourceImg.value = img
-        doc.ydoc.transact(() => {
-          doc.setCanvasSize(img.naturalWidth, img.naturalHeight)
-          doc.setImgOffset(0, 0)
-          doc.clearLayers()
-        })
-        selectedLayerId.value = null; resetLayerCounter()
-        editorActive.value = true
-        requestRender()
-        resolve()
-        if (persistSourceImage) {
-          const reader = new FileReader()
-          reader.onload = () => {
-            persistSourceImage(reader.result as string)
-          }
-          reader.readAsDataURL(file)
-        }
-      }
-      img.onerror = () => {
-        URL.revokeObjectURL(blobUrl)
-        reject(new Error('Failed to load image'))
-      }
-      img.src = blobUrl
+  function loadImage(file: File): Promise<void> {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader()
+      reader.onload = () => loadImageFromUrl(reader.result as string).then(resolve, reject)
+      reader.onerror = () => reject(reader.error)
+      reader.readAsDataURL(file)
     })
   }
 
   function loadImageFromUrl(url: string): Promise<void> {
     return new Promise<void>((resolve, reject) => {
       const img = new Image()
-      const native = isNativeResourceUrl(url)
-      if (native) img.crossOrigin = 'anonymous'
+      img.crossOrigin = 'anonymous'
       img.onload = () => {
         let serializedSource: string | undefined
         if (persistSourceImage) {
-          serializedSource = url
           try {
-            const tmp = document.createElement('canvas')
-            tmp.width = img.naturalWidth
-            tmp.height = img.naturalHeight
-            tmp.getContext('2d')!.drawImage(img, 0, 0)
-            serializedSource = tmp.toDataURL('image/png')
+            serializedSource = serializeEditorImage(img)
           } catch (error) {
-            if (native) {
-              reject(error)
-              return
-            }
+            reject(error)
+            return
           }
         }
         pushUndo()

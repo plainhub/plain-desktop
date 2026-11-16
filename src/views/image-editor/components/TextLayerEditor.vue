@@ -1,4 +1,3 @@
-<!-- eslint-disable vue/no-mutating-props -->
 <template>
   <Teleport to="body">
     <Transition name="popup">
@@ -15,13 +14,13 @@
           </button>
         </div>
 
-        <select v-model="layer.fontFamily" class="font-select">
+        <select :value="layer.fontFamily" class="font-select" @change="setProperty('fontFamily', ($event.target as HTMLSelectElement).value)">
           <option v-for="f in FONT_FAMILIES" :key="f.value" :value="f.value">{{ f.label }}</option>
         </select>
 
         <div class="row">
-          <input v-model="layer.color" type="color" class="color-input" />
-          <input v-model.number="layer.fontSize" type="range" min="14" max="200" class="slider" />
+          <input :value="layer.color" type="color" class="color-input" @input="setProperty('color', ($event.target as HTMLInputElement).value)" />
+          <input :value="layer.fontSize" type="range" min="14" max="200" class="slider" @input="setProperty('fontSize', ($event.target as HTMLInputElement).valueAsNumber)" />
           <span class="value">{{ layer.fontSize }}</span>
         </div>
 
@@ -31,7 +30,7 @@
             :key="a"
             class="toggle-btn"
             :class="{ active: layer.textAlign === a }"
-            @click="layer.textAlign = a"
+            @click="setProperty('textAlign', a)"
           >
             <component :is="ALIGN_ICONS[a]" />
           </button>
@@ -39,17 +38,17 @@
           <button
             class="toggle-btn bold"
             :class="{ active: layer.fontWeight === 'bold' }"
-            @click="layer.fontWeight = layer.fontWeight === 'bold' ? 'normal' : 'bold'"
+            @click="setProperty('fontWeight', layer.fontWeight === 'bold' ? 'normal' : 'bold')"
           >B</button>
           <button
             class="toggle-btn italic"
             :class="{ active: layer.fontStyle === 'italic' }"
-            @click="layer.fontStyle = layer.fontStyle === 'italic' ? 'normal' : 'italic'"
+            @click="setProperty('fontStyle', layer.fontStyle === 'italic' ? 'normal' : 'italic')"
           >I</button>
           <button
             class="toggle-btn underline"
             :class="{ active: layer.textDecoration === 'underline' }"
-            @click="layer.textDecoration = layer.textDecoration === 'underline' ? 'none' : 'underline'"
+            @click="setProperty('textDecoration', layer.textDecoration === 'underline' ? 'none' : 'underline')"
           >U</button>
         </div>
 
@@ -62,8 +61,8 @@
           </button>
           <div v-if="showStroke" class="collapse-body">
             <div class="row">
-              <input v-model="layer.textStroke.color" type="color" class="color-input" />
-              <input v-model.number="layer.textStroke.width" type="range" min="0" max="16" class="slider" />
+              <input :value="layer.textStroke.color" type="color" class="color-input" @input="setStroke('color', ($event.target as HTMLInputElement).value)" />
+              <input :value="layer.textStroke.width" type="range" min="0" max="16" class="slider" @input="setStroke('width', ($event.target as HTMLInputElement).valueAsNumber)" />
               <span class="value">{{ layer.textStroke.width }}</span>
             </div>
           </div>
@@ -87,19 +86,19 @@
               >{{ preset.label }}</button>
             </div>
             <div class="row">
-              <input v-model="layer.textShadow.color" type="color" class="color-input" />
+              <input :value="layer.textShadow.color" type="color" class="color-input" @input="setShadow('color', ($event.target as HTMLInputElement).value)" />
               <label class="slider-label">{{ $t('image_editor.shadow_blur') }}</label>
-              <input v-model.number="layer.textShadow.blur" type="range" min="0" max="40" class="slider" />
+              <input :value="layer.textShadow.blur" type="range" min="0" max="40" class="slider" @input="setShadow('blur', ($event.target as HTMLInputElement).valueAsNumber)" />
               <span class="value">{{ layer.textShadow.blur }}</span>
             </div>
             <div class="row">
               <label class="slider-label">X</label>
-              <input v-model.number="layer.textShadow.offsetX" type="range" min="-20" max="20" class="slider" />
+              <input :value="layer.textShadow.offsetX" type="range" min="-20" max="20" class="slider" @input="setShadow('offsetX', ($event.target as HTMLInputElement).valueAsNumber)" />
               <span class="value">{{ layer.textShadow.offsetX }}</span>
             </div>
             <div class="row">
               <label class="slider-label">Y</label>
-              <input v-model.number="layer.textShadow.offsetY" type="range" min="-20" max="20" class="slider" />
+              <input :value="layer.textShadow.offsetY" type="range" min="-20" max="20" class="slider" @input="setShadow('offsetY', ($event.target as HTMLInputElement).valueAsNumber)" />
               <span class="value">{{ layer.textShadow.offsetY }}</span>
             </div>
           </div>
@@ -109,7 +108,7 @@
           <button
             class="glow-btn"
             :class="{ active: layer.glow }"
-            @click="layer.glow = !layer.glow"
+            @click="setProperty('glow', !layer.glow)"
           >
             <i-lucide-sun />
             {{ $t('image_editor.glow') }}
@@ -125,15 +124,15 @@
           <div v-if="showMore" class="collapse-body">
             <div class="row">
               <label class="slider-label wide">{{ $t('image_editor.rotation') }}</label>
-              <input v-model.number="layer.rotation" type="range" min="-180" max="180" class="slider" />
+              <input :value="layer.rotation" type="range" min="-180" max="180" class="slider" @input="setProperty('rotation', ($event.target as HTMLInputElement).valueAsNumber)" />
               <span class="value">{{ layer.rotation }}°</span>
-              <button v-if="layer.rotation !== 0" class="reset-btn" @click="layer.rotation = 0">
+              <button v-if="layer.rotation !== 0" class="reset-btn" @click="setProperty('rotation', 0)">
                 {{ $t('image_editor.reset') }}
               </button>
             </div>
             <div class="row">
               <label class="slider-label wide">{{ $t('image_editor.letter_spacing') }}</label>
-              <input v-model.number="layer.letterSpacing" type="range" min="-5" max="30" class="slider" />
+              <input :value="layer.letterSpacing" type="range" min="-5" max="30" class="slider" @input="setProperty('letterSpacing', ($event.target as HTMLInputElement).valueAsNumber)" />
               <span class="value">{{ layer.letterSpacing }}</span>
             </div>
           </div>
@@ -165,7 +164,7 @@ const emit = defineEmits<{ close: [] }>()
 const {
   panelRef, posX, posY, onDragStart,
   showStroke, showShadow, showMore, hasShadow,
-  shadowPresets, applyShadowPreset, isShadowPresetActive,
+  shadowPresets, applyShadowPreset, isShadowPresetActive, setProperty, setStroke, setShadow,
 } = useTextLayerEditor(
   () => props.layer,
   () => props.rect,
@@ -179,7 +178,8 @@ const {
   position: fixed;
   z-index: 102;
   width: 320px;
-  max-width: 100%;
+  box-sizing: border-box;
+  max-width: calc(100% - 16px);
   max-height: 80vh;
   overflow-y: auto;
   background: var(--md-sys-color-surface-container-high);

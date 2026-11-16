@@ -95,13 +95,14 @@
               :layers="layers"
               :selected-layer-id="selectedLayerId"
               @resize="resizeCanvas"
-              @select-layer="selectedLayerId = $event"
+              @select-layer="selectLayer"
               @remove-layer="removeLayer"
               @reorder-layer="reorderLayer"
               @toggle-visibility="toggleLayerVisibility"
               @clear-all="clearLayers"
               @replace-image-file="replaceImageLayerFile"
               @open-text-editor="openTextEditor"
+              @update-layer-text="(id: string, text: string) => doc.setLayerProp(id, 'text', text)"
             />
           </div>
 
@@ -112,10 +113,10 @@
             v-model:bg-color="bgColor"
             v-model:bg-image-alpha="bgImageAlpha"
             :photo-src="bgPhotoSrc"
-            :bg-offset="bgOffset"
+            :bg-offset="imgOffset"
             @photo-select="onBgPhotoSelect"
-            @remove-photo="removeBgPhoto"
-            @reset-bg-offset="bgOffset = { x: 0.5, y: 0.5 }"
+            @remove-photo="doc.setSourceImage(null)"
+            @reset-bg-offset="doc.setImgOffset(0, 0)"
           />
 
           <hr class="divider" />
@@ -190,7 +191,7 @@ const {
 } = useImageEditorCore()
 
 const {
-  sourceImg, canvasSize, bgColor, imgAlpha, editorActive,
+  sourceImg, canvasSize, bgColor, imgAlpha, imgOffset, editorActive,
   isFullscreen, inlineEditLayerId, renderScale,
   layers, selectedLayerId,
 } = state
@@ -249,7 +250,6 @@ async function handleDeleteProject() {
 const bgMode = ref<'color' | 'image'>(sourceImg.value ? 'image' : 'color')
 const bgImageAlpha = imgAlpha
 const bgPhotoSrc = computed(() => sourceImg.value instanceof HTMLImageElement ? sourceImg.value.src : null)
-const bgOffset = ref<{ x: number; y: number }>({ x: 0.5, y: 0.5 })
 
 watch(sourceImg, (img) => {
   bgMode.value = img ? 'image' : 'color'
@@ -260,11 +260,6 @@ async function onBgPhotoSelect(e: Event) {
   if (!file) return
   ;(e.target as HTMLInputElement).value = ''
   await loadImage(file)
-}
-
-function removeBgPhoto() {
-  sourceImg.value = null
-  bgMode.value = 'color'
 }
 
 watch(activeColor, (c) => {
@@ -323,8 +318,8 @@ useImageEditorKeyboard(layers, selectedLayerId, inlineEditLayerId, doc, {
 const {
   popupLayerId, popupRect, popupLayer,
   stickerPopupId, stickerPopupRect, stickerPopupLayer,
-  openTextEditor,
-} = useEditorPopups(layers, selectedLayerId, wrapRef, draw)
+  openTextEditor, selectLayer,
+} = useEditorPopups(layers, selectedLayerId, wrapRef)
 
 const {
   zoom: canvasZoom, panX: canvasPanX, panY: canvasPanY,
