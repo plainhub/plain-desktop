@@ -1,4 +1,4 @@
-import { ref, watch } from 'vue'
+import { computed, ref, watch } from 'vue'
 import { base64ToArrayBuffer } from '@/lib/strutil'
 import type { BrowserIdentity } from '@/lib/device/login-peers'
 import { useI18n } from 'vue-i18n'
@@ -52,13 +52,17 @@ export function useLogin(options: UseLoginOptions = {}) {
   const pairing = __IS_TAURI__ || managedDeviceId
     ? createPairing(options.subscriptions, managedDeviceId ? bindGraphqlClient() : undefined)
     : null
+  const pairingTrust = computed(() => {
+    const state = pairing?.state.value
+    return state?.phase === 'TRUST_REQUIRED' ? state : null
+  })
   let nativeActive = true
   watch(() => pairing?.state.value, async (state) => {
     if (!state || !nativeActive) return
-    showConfirm.value = state.phase === 'PAIRING' && !!state.verificationCode
+    showConfirm.value = state.phase === 'PAIRING'
     verificationCode.value = state.verificationCode || ''
     showPasswordInput.value = state.phase === 'PASSWORD_REQUIRED' || state.phase === 'FAILED' && state.error === 'invalid_password'
-    isSubmitting.value = !['PASSWORD_REQUIRED', 'SUCCEEDED', 'FAILED', 'CANCELED'].includes(state.phase)
+    isSubmitting.value = !['PASSWORD_REQUIRED', 'TRUST_REQUIRED', 'SUCCEEDED', 'FAILED', 'CANCELED'].includes(state.phase)
     if (state.phase === 'FAILED') { showError.value = true; error.value = loginErrorMessage(state.error) }
     if (state.phase === 'SUCCEEDED' && state.deviceId) {
       if (!managedDeviceId) {
@@ -147,7 +151,7 @@ export function useLogin(options: UseLoginOptions = {}) {
   }
 
   async function onSubmit() {
-    if (isSubmitting.value || webAccessDisabled.value) return
+    if (isSubmitting.value || webAccessDisabled.value || pairingTrust.value) return
     if (pairing) {
       if (showPasswordInput.value && !password.value) { passwordError.value = 'valid.required'; return }
       passwordError.value = ''
@@ -216,6 +220,20 @@ export function useLogin(options: UseLoginOptions = {}) {
     showConfirm.value = false; showError.value = false; isSubmitting.value = false
   }
 
+  async function confirmPairingTrust() {
+    const state = pairingTrust.value
+    if (!pairing || !state || isSubmitting.value) return
+    isSubmitting.value = true
+    showError.value = false
+    try {
+      await pairing.confirm(state.deviceId)
+    } catch (reason) {
+      isSubmitting.value = false
+      showError.value = true
+      error.value = loginErrorMessage(reason)
+    }
+  }
+
   async function confirmIdentityChange() {
     cancel()
     if (!changedIdentity) {
@@ -231,8 +249,8 @@ export function useLogin(options: UseLoginOptions = {}) {
   }
 
   return {
-    showError, webAccessDisabled, showConfirm, verificationCode, error, showPasswordInput,
-    password, passwordError, isSubmitting, onSubmit, cancel, confirmIdentityChange, t, applyInitResult, startPairing,
+    showError, webAccessDisabled, showConfirm, pairingTrust, verificationCode, error, showPasswordInput,
+    password, passwordError, isSubmitting, onSubmit, cancel, confirmPairingTrust, confirmIdentityChange, t, applyInitResult, startPairing,
     dispose: () => { nativeActive = false; pairing?.dispose(); pendingLoginController?.abort() },
   }
 }

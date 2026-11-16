@@ -43,7 +43,7 @@ it('confirms using only the peer and decision', async () => {
   expect(pairing.state.value?.phase).toBe('TRUST_REQUIRED')
   await pairing.confirm('peer')
   expect(mock.native.mock.lastCall?.[0].variables).toEqual({ peerId: 'peer', accepted: true })
-  expect(pairing.state.value?.phase).toBe('PAIRING')
+  expect(pairing.state.value).toMatchObject({ phase: 'CONNECTING', verificationCode: null })
   await pairing.cancel()
   expect(mock.native.mock.lastCall?.[0].variables).toEqual({ peerId: 'peer' })
   pairing.dispose()
@@ -64,4 +64,29 @@ it('cancels by peer when a view closes during initiation', async () => {
   resolve({ data: { pairPeer: true } })
   await start
   expect(mock.native.mock.lastCall?.[0].variables).toEqual({ peerId: 'peer' })
+})
+
+it('does not claim remote approval before the backend signals a pending request', async () => {
+  const pairing = createPairing()
+  await pairing.start({ peerId: 'peer', mode: 'MANAGE' })
+  expect(pairing.state.value?.phase).toBe('CONNECTING')
+  mock.listeners.get('pairingStarted')!({ deviceId: 'peer', verificationCode: null })
+  expect(pairing.state.value).toMatchObject({ phase: 'PAIRING', verificationCode: null })
+  mock.listeners.get('pairingCompleted')!({ deviceId: 'peer' })
+  pairing.dispose()
+})
+
+it('does not overwrite a remote code or terminal state while a local confirmation response is pending', async () => {
+  const pairing = createPairing()
+  await pairing.start({ peerId: 'peer', mode: 'MANAGE' })
+  mock.listeners.get('pairingRequested')!({ fromId: 'peer', verificationCode: '01234567', identityChanged: true })
+  let finish!: (value: unknown) => void
+  mock.native.mockImplementationOnce(() => new Promise(resolve => { finish = resolve }))
+  const confirmation = pairing.confirm('peer')
+  mock.listeners.get('pairingStarted')!({ deviceId: 'peer', verificationCode: '12345678' })
+  mock.listeners.get('pairingCompleted')!({ deviceId: 'peer' })
+  finish({ data: { respondToPairing: true } })
+  await confirmation
+  expect(pairing.state.value).toMatchObject({ phase: 'SUCCEEDED', verificationCode: '12345678' })
+  pairing.dispose()
 })

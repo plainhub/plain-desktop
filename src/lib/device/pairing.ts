@@ -5,7 +5,7 @@ import { graphqlSubscriptions } from '@/lib/api/subscription-client'
 
 export interface PairingView {
   deviceId: string
-  phase: 'PAIRING' | 'PASSWORD_REQUIRED' | 'TRUST_REQUIRED' | 'SUCCEEDED' | 'FAILED' | 'CANCELED'
+  phase: 'CONNECTING' | 'PAIRING' | 'PASSWORD_REQUIRED' | 'TRUST_REQUIRED' | 'SUCCEEDED' | 'FAILED' | 'CANCELED'
   error: string | null
   verificationCode?: string | null
   identityChanged?: boolean
@@ -39,7 +39,9 @@ export function createPairing(subscriptions = graphqlSubscriptions, request?: Re
     if (current) pairingViews.set(id, { ...current, ...patch })
   }
   const stops = [
-    subscriptions.subscribe('pairingStarted', result => update(result.deviceId, { phase: 'PAIRING', verificationCode: result.verificationCode })),
+    subscriptions.subscribe('pairingStarted', result => update(result.deviceId, {
+      phase: 'PAIRING', verificationCode: result.verificationCode, identityChanged: false,
+    })),
     subscriptions.subscribe('pairingRequested', notice => {
       if (notice.fromId === peerId.value) update(notice.fromId, { phase: 'TRUST_REQUIRED', verificationCode: notice.verificationCode, identityChanged: notice.identityChanged })
     }),
@@ -57,7 +59,9 @@ export function createPairing(subscriptions = graphqlSubscriptions, request?: Re
   async function start(value: PairingInput) {
     input = value
     peerId.value = value.peerId
-    pairingViews.set(value.peerId, { deviceId: value.peerId, phase: 'PAIRING', error: null })
+    pairingViews.set(value.peerId, {
+      deviceId: value.peerId, phase: value.mode === 'MANAGE' ? 'CONNECTING' : 'PAIRING', error: null,
+    })
     try {
       await execute('mutation($input: PairPeerInput!) { pairPeer(input: $input) }', { input: value })
       if (disposed) await cancel(value.peerId)
@@ -69,8 +73,13 @@ export function createPairing(subscriptions = graphqlSubscriptions, request?: Re
   return {
     state, start, cancel,
     async confirm(id: string) {
+      const requested = pairingViews.get(id)
       await execute('mutation($peerId: ID!, $accepted: Boolean!) { respondToPairing(peerId: $peerId, accepted: $accepted) }', { peerId: id, accepted: true })
-      update(id, { phase: 'PAIRING' })
+      if (requested === pairingViews.get(id)) {
+        update(id, {
+          phase: input?.mode === 'MANAGE' ? 'CONNECTING' : 'PAIRING', verificationCode: null, identityChanged: false,
+        })
+      }
     },
     async submit(password: string) { if (input) await start({ ...input, password }) },
     dispose() {

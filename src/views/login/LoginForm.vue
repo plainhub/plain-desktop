@@ -1,5 +1,14 @@
 <template>
-  <section v-if="identityChanged" class="identity-notice" role="alert">
+  <section v-if="pairingTrust">
+    <p v-if="pairingTrust.identityChanged" role="alert">{{ $t('pairing_identity_changed') }}</p>
+    <RequestVerificationCode v-if="pairingTrust.verificationCode" :code="pairingTrust.verificationCode" :hint="$t('pairing_compare_code')" />
+    <p v-if="showError" class="alert alert-danger show" role="alert">{{ $t(error) }}</p>
+    <v-filled-button type="button" :loading="isSubmitting" @click="confirmPairingTrust">
+      {{ $t(pairingTrust.identityChanged ? 'pairing_trust' : 'confirm') }}
+    </v-filled-button>
+    <v-outlined-button type="button" @click="onCancel">{{ $t('cancel') }}</v-outlined-button>
+  </section>
+  <section v-else-if="identityChanged" class="identity-notice" role="alert">
     <div class="identity-icon"><i-material-symbols:error-outline-rounded /></div>
     <h2>{{ $t('login.peer_identity_changed') }}</h2>
     <p>{{ $t('login.identity_changed_hint') }}</p>
@@ -27,11 +36,11 @@
       {{ $t(pairing ? 'pair' : isSubmitting ? 'logging_in' : 'log_in') }}
     </component>
   </form>
-  <div v-show="showConfirm">
+  <div v-if="showConfirm">
     <div class="tap-phone">
-      <TouchPhone />
+      <TouchPhone aria-hidden="true" />
     </div>
-    <div class="tap-phone-text">
+    <div class="tap-phone-text" role="status">
       {{ $t('login.to_continue') }}
     </div>
     <RequestVerificationCode v-if="verificationCode" :code="verificationCode" :hint="$t('login.compare_code')" />
@@ -65,6 +74,7 @@ const props = withDefaults(defineProps<{
   redirectOnSuccess: true,
   pairing: false,
   subscriptions: undefined,
+  managedDeviceId: undefined,
 })
 
 const emit = defineEmits<{
@@ -73,8 +83,8 @@ const emit = defineEmits<{
 }>()
 
 const {
-  showError, webAccessDisabled, showConfirm, verificationCode, error, showPasswordInput,
-  password, passwordError, isSubmitting, onSubmit, cancel, confirmIdentityChange, t, applyInitResult, startPairing, dispose,
+  showError, webAccessDisabled, showConfirm, pairingTrust, verificationCode, error, showPasswordInput,
+  password, passwordError, isSubmitting, onSubmit, cancel, confirmPairingTrust, confirmIdentityChange, t, applyInitResult, startPairing, dispose,
 } = useLogin({
   redirectOnSuccess: props.redirectOnSuccess,
   onSuccess: async () => emit('success'),
