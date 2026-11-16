@@ -12,7 +12,6 @@ export default {
   update_subscription: 'Обновить подписку',
   sync_feeds: 'Синхронизировать ленты',
   sync_content: 'Синхронизировать контент',
-  feeds_synced: 'Ленты синхронизированы',
   syncing: 'Синхронизация...',
   meta_no_title: '[Без заголовка]',
   no_content: '[Нет контента]',

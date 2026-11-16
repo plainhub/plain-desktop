@@ -12,7 +12,6 @@ export default {
   update_subscription: 'Update subscription',
   sync_feeds: 'Sync feeds',
   sync_content: 'Sync content',
-  feeds_synced: 'Feeds synced',
   syncing: 'Syncing...',
   meta_no_title: '[No title]',
   no_content: '[No content]',

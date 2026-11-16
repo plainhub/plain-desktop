@@ -12,7 +12,6 @@ export default {
   update_subscription: '구독 업데이트',
   sync_feeds: '피드 동기화',
   sync_content: '콘텐츠 동기화',
-  feeds_synced: '피드 동기화됨',
   syncing: '동기화 중...',
   meta_no_title: '[제목 없음]',
   no_content: '[콘텐츠 없음]',

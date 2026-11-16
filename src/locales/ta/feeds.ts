@@ -12,7 +12,6 @@ export default {
   update_subscription: 'சந்ததியை புதுப்பி',
   sync_feeds: 'ஃபீட்களை ஒத்திசை',
   sync_content: 'உள்ளடக்கத்தை ஒத்திசை',
-  feeds_synced: 'ஃபீட்கள் ஒத்திசைக்கப்பட்டன',
   syncing: 'ஒத்திசைக்கின்றது...',
   meta_no_title: 'தலைப்பு இல்லை',
   no_content: '[உள்ளடக்கம் இல்லை]',

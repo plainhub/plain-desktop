@@ -12,7 +12,6 @@ export default {
   update_subscription: '更新訂閱',
   sync_feeds: '同步訂閱',
   sync_content: '同步內容',
-  feeds_synced: '訂閱已同步',
   syncing: '同步中...',
   meta_no_title: '[無標題]',
   no_content: '[無內容]',

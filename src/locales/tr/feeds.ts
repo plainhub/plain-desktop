@@ -12,7 +12,6 @@ export default {
   update_subscription: 'Aboneliği güncelle',
   sync_feeds: 'Beslemeleri senkronize et',
   sync_content: 'İçeriği senkronize et',
-  feeds_synced: 'Beslemeler senkronize edildi',
   syncing: 'Senkronize ediliyor...',
   meta_no_title: '[Başlık yok]',
   no_content: '[İçerik yok]',

@@ -12,7 +12,6 @@ export default {
   update_subscription: 'Aggiorna abbonamento',
   sync_feeds: 'Sincronizza feed',
   sync_content: 'Sincronizza contenuto',
-  feeds_synced: 'Feed sincronizzati',
   syncing: 'Sincronizzazione in corso...',
   meta_no_title: '[Nessun titolo]',
   no_content: '[Nessun contenuto]',

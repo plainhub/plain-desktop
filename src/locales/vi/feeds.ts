@@ -12,7 +12,6 @@ export default {
   update_subscription: 'Cập nhật đăng ký',
   sync_feeds: 'Đồng bộ cấp dữ liệu',
   sync_content: 'Đồng bộ nội dung',
-  feeds_synced: 'Feeds được đồng bộ',
   syncing: 'Đang đồng bộ...',
   meta_no_title: '[Không có tiêu đề]',
   no_content: '[Không có nội dung]',

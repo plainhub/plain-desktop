@@ -12,7 +12,6 @@ export default {
   update_subscription: '購読を更新',
   sync_feeds: 'フィードを同期',
   sync_content: 'コンテンツを同期',
-  feeds_synced: 'フィードが同期されました',
   syncing: '同期中...',
   meta_no_title: '[タイトルなし]',
   no_content: '[コンテンツなし]',

@@ -93,8 +93,6 @@ export function useFeedEntriesData(onDelete: () => void) {
     fetchFeedsTags()
     if (data.error) {
       toast(data.error, 'error')
-    } else {
-      toast(t('feeds_synced'))
     }
   }
   let stopFeedsFetched: (() => void) | undefined

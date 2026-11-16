@@ -12,7 +12,6 @@ export default {
   update_subscription: 'সাবস্ক্রিপশন আপডেট করুন',
   sync_feeds: 'ফিডগুলি সিঙ্ক করুন',
   sync_content: 'সামগ্রী সিঙ্ক করুন',
-  feeds_synced: 'ফিডগুলি সিঙ্ক হয়েছে',
   syncing: 'সিঙ্ক হচ্ছে...',
   meta_no_title: '[কোন শিরোনাম নেই]',
   no_content: '[কোন সামগ্রী নেই]',
