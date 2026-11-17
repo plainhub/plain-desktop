@@ -204,6 +204,7 @@ export default {
   clipboard_direction_both: 'இருவழி ஒத்திசைவு',
   screen_capture_permission_denied: 'திரை பதிவு அனுமதி தேவை. கணினி அமைப்புகள் > தனியுரிமை மற்றும் பாதுகாப்பு > திரை பதிவு ஆகியவற்றில் PlainApp ஐ அனுமதித்து மீண்டும் முயற்சிக்கவும்.',
   check_phone: 'உங்கள் தொலைபேசியை சரிபார்க்கவும்.',
+  login_confirmation_hint: 'இந்த அமைப்பை இயக்கினால், புதிய உள்நுழைவுகளை PlainApp இல் அங்கீகரிக்க வேண்டும்.',
   open_access_settings: 'அணுகல் அமைப்புகளை திற',
   no_data: 'தரவு இல்லை.',
   show_more: 'மேலும் காட்டு',

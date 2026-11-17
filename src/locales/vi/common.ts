@@ -202,6 +202,7 @@ export default {
   clipboard_direction_both: 'Đồng bộ hai chiều',
   screen_capture_permission_denied: 'Cần quyền ghi màn hình. Hãy cho phép PlainApp trong Cài đặt hệ thống > Quyền riêng tư và Bảo mật > Ghi màn hình rồi thử lại.',
   check_phone: 'Vui lòng kiểm tra điện thoại của bạn.',
+  login_confirmation_hint: 'Khi bật tùy chọn này, bạn cần xác nhận các lượt đăng nhập mới trong PlainApp.',
   open_access_settings: 'Mở Cài đặt truy cập',
   no_data: 'Không có dữ liệu.',
   show_more: 'Xem thêm',

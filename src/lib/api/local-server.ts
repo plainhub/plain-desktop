@@ -33,18 +33,21 @@ async function localData<T>(query: string, variables?: Record<string, unknown>, 
   return response.data
 }
 
-export async function readLocalAccessSettings(): Promise<{ passwordType: 'NONE' | 'FIXED'; requireApproval: boolean }> {
+export async function readLocalAccessSettings(): Promise<{ passwordType: 'NONE' | 'FIXED'; requireApproval: boolean; passwordConfigured: boolean }> {
   if (!isLocalMode()) throw new Error('Local access settings required')
-  const { prefs } = await localData<{ prefs: Record<string, unknown> }>(
-    'query($keys: [String!]!) { prefs(keys: $keys) }',
-    { keys: ['password_type', 'login_require_approval'] },
-  )
+  const [{ prefs }, passwordConfigured] = await Promise.all([
+    localData<{ prefs: Record<string, unknown> }>(
+      'query($keys: [String!]!) { prefs(keys: $keys) }',
+      { keys: ['password_type', 'login_require_approval'] },
+    ),
+    invoke<boolean>('native_password_configured'),
+  ])
   const { password_type: passwordType, login_require_approval: requireApproval } = prefs
-  if ((passwordType !== 'NONE' && passwordType !== 'FIXED') || typeof requireApproval !== 'boolean') throw new Error('Invalid access settings')
-  return { passwordType, requireApproval }
+  if ((passwordType !== 'NONE' && passwordType !== 'FIXED') || typeof requireApproval !== 'boolean' || typeof passwordConfigured !== 'boolean') throw new Error('Invalid access settings')
+  return { passwordType, requireApproval, passwordConfigured }
 }
 
-export async function writeLocalAccessSetting(...[key, value]: ['password', string] | ['password_type', 'FIXED'] | ['login_require_approval', boolean]): Promise<void> {
+export async function writeLocalAccessSetting(...[key, value]: ['password', string] | ['password_type', 'FIXED' | 'NONE'] | ['login_require_approval', boolean]): Promise<void> {
   if (!isLocalMode()) throw new Error('Local access settings required')
   const { setPref } = await localData<{ setPref: boolean }>(setPrefGQL, { key, value })
   if (!setPref) throw new Error('Access setting write refused')

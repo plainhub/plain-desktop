@@ -202,6 +202,7 @@ export default {
   clipboard_direction_both: 'Tweerichtingssynchronisatie',
   screen_capture_permission_denied: 'Toestemming voor schermopname is vereist. Sta PlainApp toe in Systeeminstellingen > Privacy en beveiliging > Schermopname en probeer het opnieuw.',
   check_phone: 'Controleer uw telefoon.',
+  login_confirmation_hint: 'Als deze optie aanstaat, moet je nieuwe aanmeldingen in PlainApp bevestigen.',
   open_access_settings: 'Toegangsinstellingen openen',
   no_data: 'Geen gegevens.',
   show_more: 'Meer weergeven',

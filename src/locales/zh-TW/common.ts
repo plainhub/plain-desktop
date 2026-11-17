@@ -204,6 +204,7 @@ export default {
   clipboard_direction_both: '雙向同步',
   screen_capture_permission_denied: '需要螢幕錄製權限。請在「系統設定 > 隱私權與安全性 > 螢幕錄製」中允許 PlainApp 後再試一次。',
   check_phone: '請在手機上查看操作。',
+  login_confirmation_hint: '開啟後，有人嘗試登入時，需要你在 PlainApp 裡確認。',
   open_access_settings: '開啟 存取設定',
   no_data: '無資料。',
   show_more: '顯示更多',

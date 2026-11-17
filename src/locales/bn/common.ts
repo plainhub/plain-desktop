@@ -206,6 +206,7 @@ export default {
   clipboard_direction_both: 'দ্বিমুখী সিঙ্ক',
   screen_capture_permission_denied: 'স্ক্রিন রেকর্ডিং অনুমতি প্রয়োজন। সিস্টেম সেটিংস > গোপনীয়তা ও নিরাপত্তা > স্ক্রিন রেকর্ডিং-এ PlainApp কে অনুমতি দিয়ে আবার চেষ্টা করুন।',
   check_phone: 'আপনার ফোনে চেক করুন।',
+  login_confirmation_hint: 'এই বিকল্পটি চালু থাকলে, আপনাকে PlainApp-এ নতুন লগইন অনুমোদন করতে হবে।',
   open_access_settings: 'অ্যাক্সেস সেটিংস খুলুন',
   no_data: 'কোন ডেটা নেই।',
   show_more: 'আরও দেখুন',
