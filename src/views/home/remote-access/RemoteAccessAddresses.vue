@@ -31,10 +31,17 @@
           <v-copy-button v-tooltip="$t('copy')" class="address-action" :text="address" />
           <v-icon-button v-tooltip="$t('remote_access_qr')" :aria-label="$t('remote_access_qr')" @click="showQr()"><i-material-symbols:qr-code-2-rounded /></v-icon-button>
         </div>
-        <button v-if="alternatives.length" type="button" class="other-addresses" :aria-expanded="expanded" aria-controls="remote-other-addresses" @click="expanded = !expanded">
+        <button v-if="alternatives.length || hostnameAddress" type="button" class="other-addresses" :aria-expanded="expanded" aria-controls="remote-other-addresses" @click="expanded = !expanded">
           {{ $t('remote_access_other_addresses') }}<i-material-symbols:expand-less-rounded v-if="expanded" /><i-material-symbols:expand-more-rounded v-else />
         </button>
         <div v-if="expanded" id="remote-other-addresses">
+          <div v-if="hostnameAddress" class="address-row">
+            <code>{{ hostname }}:{{ port }}</code>
+            <v-icon-button v-tooltip="$t('mdns_debug')" :aria-label="$t('mdns_debug')" @click="$emit('diagnostics')"><i-material-symbols:bug-report-rounded /></v-icon-button>
+            <v-icon-button v-tooltip="$t('edit')" :aria-label="$t('edit') + ': ' + $t('mdns_hostname')" @click="$emit('editHostname')"><i-material-symbols:edit-rounded /></v-icon-button>
+            <v-copy-button v-tooltip="$t('copy')" class="address-action" :text="hostnameAddress" />
+            <v-icon-button v-tooltip="$t('remote_access_qr')" :aria-label="$t('remote_access_qr')" @click="showQr(() => hostnameAddress)"><i-material-symbols:qr-code-2-rounded /></v-icon-button>
+          </div>
           <div v-for="alternative in alternatives" :key="alternative" class="address-row">
             <button type="button" class="address-choice" @click="selectAddress(alternative)">
               <code>{{ alternative }}</code>
@@ -55,6 +62,7 @@ import { pushModal } from '@/components/modal'
 import AddressQrDialog from './AddressQrDialog.vue'
 
 const props = defineProps<{
+  hostname: string
   httpPort: number
   httpsPort: number
   httpAddresses: string[]
@@ -63,12 +71,13 @@ const props = defineProps<{
   loadingIps: boolean
   addressError: boolean
 }>()
-defineEmits<{ editPort: [kind: 'http' | 'https']; retry: [] }>()
+defineEmits<{ editPort: [kind: 'http' | 'https']; retry: []; editHostname: []; diagnostics: [] }>()
 const protocols = ['http', 'https'] as const
 const protocol = ref<'http' | 'https'>('http')
 const selectedHost = ref('')
 const expanded = ref(false)
 const port = computed(() => (protocol.value === 'http' ? props.httpPort : props.httpsPort))
+const hostnameAddress = computed(() => (props.hostname && port.value ? `${protocol.value}://${props.hostname}:${port.value}` : ''))
 const addresses = computed(() => (port.value ? (protocol.value === 'http' ? props.httpAddresses : props.httpsAddresses) : []))
 const address = computed(() => addresses.value.find((value) => new URL(value).hostname === selectedHost.value) ?? addresses.value[0] ?? '')
 const alternatives = computed(() => addresses.value.filter((value) => value !== address.value))
