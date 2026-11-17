@@ -24,7 +24,7 @@ function resource(url: URL) {
   const id = url.searchParams.get('id')!
   const payload = Buffer.from(id.slice(id.lastIndexOf('.') + 1), 'base64url')
   return JSON.parse(new TextDecoder().decode(xchacha20poly1305(key, payload.subarray(0, 24),
-    new TextEncoder().encode(['FS', 'c', owner].join('\0'))).decrypt(payload.subarray(24))))
+    new TextEncoder().encode(['FS', 'c', owner].join('.'))).decrypt(payload.subarray(24))))
 }
 
 it.each([

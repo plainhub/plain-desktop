@@ -101,7 +101,7 @@ it.each(['images', 'videos'] as const)('uses ordinary media references for local
     const id = new URL(url).searchParams.get('id')!
     const [mode, ...parts] = id.split('.')
     const bytes = Uint8Array.from(atob(parts.pop()!.replace(/-/g, '+').replace(/_/g, '/')), c => c.charCodeAt(0))
-    const aad = new TextEncoder().encode(`FS\0${mode}\0${parts.join('.')}`)
+    const aad = new TextEncoder().encode(`FS.${mode}.${parts.join('.')}`)
     return JSON.parse(chachaDecrypt(key, bytes, aad)).type
   }
   expect(readType(passive.thumbnailUrl(hit))).toBe('MEDIA')
@@ -125,7 +125,7 @@ it('routes managed search through the current origin and reuses session-scoped t
   expect(download.searchParams.get('action')).toBe('download')
   const [mode, owner, encoded] = download.searchParams.get('id')!.split('.')
   const bytes = Uint8Array.from(atob(encoded.replace(/-/g, '+').replace(/_/g, '/')), (char) => char.charCodeAt(0))
-  const aad = new TextEncoder().encode(`FS\0${mode}\0${owner}`)
+  const aad = new TextEncoder().encode(`FS.${mode}.${owner}`)
   expect(JSON.parse(chachaDecrypt(key, bytes, aad))).toEqual({ type: 'MEDIA', id: doc.id })
 })
 

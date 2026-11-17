@@ -5,7 +5,7 @@ export type Resource = { type: 'MEDIA' | 'APP_FILE' | 'FILE' | 'PACKAGE_ICON' | 
 export type ResourceScope = { mode: 'c' | 's'; id: string }
 
 function resourceAad(scope: ResourceScope, purpose: ResourcePurpose): Uint8Array {
-  return new TextEncoder().encode(`${purpose}\0${scope.mode}\0${scope.id}`)
+  return new TextEncoder().encode(`${purpose}.${scope.mode}.${scope.id}`)
 }
 
 export function encryptResourcePayload(key: Uint8Array, scope: ResourceScope, purpose: ResourcePurpose, plain: string): string {

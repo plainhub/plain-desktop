@@ -35,7 +35,7 @@ export function chachaDecryptBytes(key: Uint8Array, data: Uint8Array, aad?: Uint
 }
 
 export function httpRequestAad(endpoint: string): Uint8Array {
-  return new TextEncoder().encode(`${AadPurpose.HttpRequest}\0POST\0${endpoint}`)
+  return new TextEncoder().encode(`${AadPurpose.HttpRequest}.POST.${endpoint}`)
 }
 
 export function decryptGraphqlResponse(key: Uint8Array, request: Uint8Array, response: Uint8Array): string {

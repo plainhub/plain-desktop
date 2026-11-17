@@ -15,10 +15,10 @@ it('uses a single base64url payload and binds the complete variable client ident
   expect(payload).toMatch(/^[\w-]+$/)
   const binary = Buffer.from(payload, 'base64url')
   expect(binary.length).toBe(24 + new TextEncoder().encode(JSON.stringify(resource)).length + 16)
-  const aad = new TextEncoder().encode(`FS\0c\0${clientId}`)
+  const aad = new TextEncoder().encode(`FS.c.${clientId}`)
   expect(new TextDecoder().decode(xchacha20poly1305(key, binary.subarray(0, 24), aad).decrypt(binary.subarray(24)))).toBe(JSON.stringify(resource))
-  expect(() => xchacha20poly1305(key, binary.subarray(0, 24), new TextEncoder().encode(['FS', 'c', '706c6169-0001-8000-8000-000000000002'].join('\0'))).decrypt(binary.subarray(24))).toThrow()
-  expect(envelope).toBe('c.706c6169-0001-8000-8000-000000000011.AAECAwQFBgcICQoLDA0ODxAREhMUFRYX0zXf_Ip5eZ8HgcgLo8CDjjayGi022EcZnGnY8rWtuv1zWa0R5M-ual3_yRNrjCRAhr_VoA')
+  expect(() => xchacha20poly1305(key, binary.subarray(0, 24), new TextEncoder().encode(['FS', 'c', '706c6169-0001-8000-8000-000000000002'].join('.'))).decrypt(binary.subarray(24))).toThrow()
+  expect(envelope).toBe('c.706c6169-0001-8000-8000-000000000011.AAECAwQFBgcICQoLDA0ODxAREhMUFRYX0zXf_Ip5eZ8HgcgLo8CDjjayGi022EcZnGnY8rWtuv1zWa0REgyi3nzjF94DAoSdG_pJmg')
 })
 
 it('keeps session, share and endpoint contexts separate', () => {

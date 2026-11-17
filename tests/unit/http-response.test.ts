@@ -111,7 +111,7 @@ it.each(['/graphql', '/guest_graphql'])('the actual %s client rejects captured a
 })
 
 it.each(['/graphql', '/guest_graphql', '/peer_graphql', '/init', '/upload', '/upload_chunk'])('binds %s to the agreed POST request domain', endpoint => {
-  expect(new TextDecoder().decode(httpRequestAad(endpoint))).toBe('HTTP_REQUEST\0POST\0' + endpoint)
+  expect(new TextDecoder().decode(httpRequestAad(endpoint))).toBe('HTTP_REQUEST.POST.' + endpoint)
 })
 
 
