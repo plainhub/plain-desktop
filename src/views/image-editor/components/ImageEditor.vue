@@ -259,7 +259,7 @@ async function onBgPhotoSelect(e: Event) {
   const file = (e.target as HTMLInputElement).files?.[0]
   if (!file) return
   ;(e.target as HTMLInputElement).value = ''
-  await loadImage(file)
+  await loadImage(file, 'background')
 }
 
 watch(activeColor, (c) => {

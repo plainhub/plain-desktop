@@ -59,3 +59,12 @@ it('rejects an unserializable remote image instead of saving a device-specific U
   expect(value.persistSourceImage).not.toHaveBeenCalled()
   expect(value.sourceImg.value).toBeNull()
 })
+
+it('preserves canvas dimensions and all layers when replacing the background image', async () => {
+  serialize.mockReturnValue('data:image/png;base64,replacement')
+  const { value, editor } = context()
+  await editor.loadImageFromUrl('data:image/png;base64,new', 'background')
+  expect(value.doc.clearLayers).not.toHaveBeenCalled()
+  expect(value.doc.setCanvasSize).not.toHaveBeenCalled()
+  expect(value.persistSourceImage).toHaveBeenCalledExactlyOnceWith('data:image/png;base64,replacement')
+})

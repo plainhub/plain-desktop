@@ -24,16 +24,16 @@ export function useEditorImage(ctx: EditorImageContext) {
     pushUndo, requestRender, clearHistory, persistSourceImage, onReset,
   } = ctx
 
-  function loadImage(file: File): Promise<void> {
+  function loadImage(file: File, mode: 'document' | 'background' = 'document'): Promise<void> {
     return new Promise((resolve, reject) => {
       const reader = new FileReader()
-      reader.onload = () => loadImageFromUrl(reader.result as string).then(resolve, reject)
+      reader.onload = () => loadImageFromUrl(reader.result as string, mode).then(resolve, reject)
       reader.onerror = () => reject(reader.error)
       reader.readAsDataURL(file)
     })
   }
 
-  function loadImageFromUrl(url: string): Promise<void> {
+  function loadImageFromUrl(url: string, mode: 'document' | 'background' = 'document'): Promise<void> {
     return new Promise<void>((resolve, reject) => {
       const img = new Image()
       img.crossOrigin = 'anonymous'
@@ -51,9 +51,11 @@ export function useEditorImage(ctx: EditorImageContext) {
         sourceImg.value = img
         doc.ydoc.transact(() => {
           if (serializedSource) persistSourceImage?.(serializedSource)
-          doc.setCanvasSize(img.naturalWidth, img.naturalHeight)
+          if (mode === 'document') {
+            doc.setCanvasSize(img.naturalWidth, img.naturalHeight)
+            doc.clearLayers()
+          }
           doc.setImgOffset(0, 0)
-          doc.clearLayers()
         })
         selectedLayerId.value = null; resetLayerCounter()
         editorActive.value = true
